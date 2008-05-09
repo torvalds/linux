@@ -208,12 +208,10 @@ static struct f75375s_platform_data n2100_f75375s = {
 
 static struct i2c_board_info __initdata n2100_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
-		.type = "rs5c372b",
+		I2C_BOARD_INFO("rs5c372b", 0x32),
 	},
 	{
 		I2C_BOARD_INFO("f75375", 0x2e),
-		.type = "f75375",
 		.platform_data = &n2100_f75375s,
 	},
 };

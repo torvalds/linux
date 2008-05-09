@@ -363,7 +363,7 @@ static void rt2400pci_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR2, &reg);
-	rt2x00_set_field32(&reg, ARCSR2_SIGNAL, 0x00 | preamble_mask);
+	rt2x00_set_field32(&reg, ARCSR2_SIGNAL, 0x00);
 	rt2x00_set_field32(&reg, ARCSR2_SERVICE, 0x04);
 	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 10));
 	rt2x00pci_register_write(rt2x00dev, ARCSR2, reg);
@@ -1308,7 +1308,7 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	if (value == LED_MODE_TXRX_ACTIVITY) {
 		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_radio.type = LED_TYPE_ACTIVITY;
+		rt2x00dev->led_qual.type = LED_TYPE_ACTIVITY;
 		rt2x00dev->led_qual.led_dev.brightness_set =
 		    rt2400pci_brightness_set;
 		rt2x00dev->led_qual.led_dev.blink_set =

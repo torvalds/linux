@@ -382,7 +382,7 @@ fail:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 	if (status)
 		pr_debug("%s: gpio-%d status %d\n",
-			__FUNCTION__, gpio, status);
+			__func__, gpio, status);
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpio_direction_input);
@@ -420,7 +420,7 @@ fail:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 	if (status)
 		pr_debug("%s: gpio-%d status %d\n",
-			__FUNCTION__, gpio, status);
+			__func__, gpio, status);
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpio_direction_output);

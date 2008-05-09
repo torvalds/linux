@@ -296,9 +296,8 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct nf_queue_entry *e)
 		if (v->data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
-			nskb = skb_copy_expand(e->skb, 0,
-					       diff - skb_tailroom(e->skb),
-					       GFP_ATOMIC);
+			nskb = skb_copy_expand(e->skb, skb_headroom(e->skb),
+					       diff, GFP_ATOMIC);
 			if (!nskb) {
 				printk(KERN_WARNING "ip_queue: error "
 				      "in mangle, dropping packet\n");

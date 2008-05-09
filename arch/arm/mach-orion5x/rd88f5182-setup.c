@@ -172,11 +172,14 @@ void __init rd88f5182_pci_preinit(void)
 
 static int __init rd88f5182_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
+	int irq;
+
 	/*
-	 * PCI-E isn't used on the RD2
+	 * Check for devices with hard-wired IRQs.
 	 */
-	if (dev->bus->number == orion5x_pcie_local_bus_nr())
-		return IRQ_ORION5X_PCIE0_INT;
+	irq = orion5x_pci_map_irq(dev, slot, pin);
+	if (irq != -1)
+		return irq;
 
 	/*
 	 * PCI IRQs are connected via GPIOs
@@ -224,9 +227,7 @@ static struct mv643xx_eth_platform_data rd88f5182_eth_data = {
  * RTC DS1338 on I2C bus
  ****************************************************************************/
 static struct i2c_board_info __initdata rd88f5182_i2c_rtc = {
-	.driver_name	= "rtc-ds1307",
-	.type		= "ds1338",
-	.addr		= 0x68,
+	I2C_BOARD_INFO("ds1338", 0x68),
 };
 
 /*****************************************************************************
@@ -259,7 +260,7 @@ static void __init rd88f5182_init(void)
 	orion5x_setup_dev1_win(RD88F5182_NOR_BASE, RD88F5182_NOR_SIZE);
 
 	/*
-	 * Open a special address decode windows for the PCIE WA.
+	 * Open a special address decode windows for the PCIe WA.
 	 */
 	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
 				ORION5X_PCIE_WA_SIZE);

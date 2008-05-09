@@ -4,11 +4,10 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/skbuff.h>
+#include <linux/math64.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_connbytes.h>
 #include <net/netfilter/nf_conntrack.h>
-
-#include <asm/div64.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
@@ -82,7 +81,7 @@ connbytes_mt(const struct sk_buff *skb, const struct net_device *in,
 			break;
 		}
 		if (pkts != 0)
-			what = div64_64(bytes, pkts);
+			what = div64_u64(bytes, pkts);
 		break;
 	}
 

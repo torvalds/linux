@@ -873,10 +873,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 	q->max_hw_sectors = t->limits.max_hw_sectors;
 	q->seg_boundary_mask = t->limits.seg_boundary_mask;
 	q->bounce_pfn = t->limits.bounce_pfn;
+
 	if (t->limits.no_cluster)
-		q->queue_flags &= ~(1 << QUEUE_FLAG_CLUSTER);
+		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
 	else
-		q->queue_flags |= (1 << QUEUE_FLAG_CLUSTER);
+		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
 
 }
 

@@ -128,7 +128,7 @@
 127 -> Beholder BeholdTV 507 FM/RDS / BeholdTV 509 FM [0000:5071,0000:507B,5ace:5070,5ace:5090]
 128 -> Beholder BeholdTV Columbus TVFM          [0000:5201]
 129 -> Beholder BeholdTV 607 / BeholdTV 609     [5ace:6070,5ace:6071,5ace:6072,5ace:6073,5ace:6090,5ace:6091,5ace:6092,5ace:6093]
-130 -> Beholder BeholdTV M6 / BeholdTV M6 Extra [5ace:6190,5ace:6193]
+130 -> Beholder BeholdTV M6 / BeholdTV M6 Extra [5ace:6190,5ace:6193,5ace:6191]
 131 -> Twinhan Hybrid DTV-DVB 3056 PCI          [1822:0022]
 132 -> Genius TVGO AM11MCE
 133 -> NXP Snake DVB-S reference design
@@ -140,3 +140,4 @@
 139 -> Compro VideoMate T750                    [185b:c900]
 140 -> Avermedia DVB-S Pro A700                 [1461:a7a1]
 141 -> Avermedia DVB-S Hybrid+FM A700           [1461:a7a2]
+142 -> Beholder BeholdTV H6                     [5ace:6290]

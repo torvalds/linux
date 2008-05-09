@@ -28,6 +28,7 @@
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
+#include <linux/hugetlb.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/s390_ext.h>
@@ -367,6 +368,8 @@ good_area:
 	}
 
 survive:
+	if (is_vm_hugetlb_page(vma))
+		address &= HPAGE_MASK;
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo

@@ -822,6 +822,7 @@ static int ide_drivers_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ide_drivers_operations = {
+	.owner		= THIS_MODULE,
 	.open		= ide_drivers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -830,16 +831,12 @@ static const struct file_operations ide_drivers_operations = {
 
 void proc_ide_create(void)
 {
-	struct proc_dir_entry *entry;
-
 	proc_ide_root = proc_mkdir("ide", NULL);
 
 	if (!proc_ide_root)
 		return;
 
-	entry = create_proc_entry("drivers", 0, proc_ide_root);
-	if (entry)
-		entry->proc_fops = &ide_drivers_operations;
+	proc_create("drivers", 0, proc_ide_root, &ide_drivers_operations);
 }
 
 void proc_ide_destroy(void)

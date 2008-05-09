@@ -96,12 +96,14 @@ static void cleanup_kgdboc(void)
 
 static int kgdboc_get_char(void)
 {
-	return kgdb_tty_driver->poll_get_char(kgdb_tty_driver, kgdb_tty_line);
+	return kgdb_tty_driver->ops->poll_get_char(kgdb_tty_driver,
+						kgdb_tty_line);
 }
 
 static void kgdboc_put_char(u8 chr)
 {
-	kgdb_tty_driver->poll_put_char(kgdb_tty_driver, kgdb_tty_line, chr);
+	kgdb_tty_driver->ops->poll_put_char(kgdb_tty_driver,
+					kgdb_tty_line, chr);
 }
 
 static int param_set_kgdboc_var(const char *kmessage, struct kernel_param *kp)

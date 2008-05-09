@@ -23,10 +23,30 @@ dma_free_noncoherent(struct device *dev, size_t size, void *cpu_addr,
 {
 	dma_free_coherent(dev, size, cpu_addr, dma_handle);
 }
-#define dma_map_single		platform_dma_map_single
-#define dma_map_sg		platform_dma_map_sg
-#define dma_unmap_single	platform_dma_unmap_single
-#define dma_unmap_sg		platform_dma_unmap_sg
+#define dma_map_single_attrs	platform_dma_map_single_attrs
+static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
+					size_t size, int dir)
+{
+	return dma_map_single_attrs(dev, cpu_addr, size, dir, NULL);
+}
+#define dma_map_sg_attrs	platform_dma_map_sg_attrs
+static inline int dma_map_sg(struct device *dev, struct scatterlist *sgl,
+			     int nents, int dir)
+{
+	return dma_map_sg_attrs(dev, sgl, nents, dir, NULL);
+}
+#define dma_unmap_single_attrs	platform_dma_unmap_single_attrs
+static inline void dma_unmap_single(struct device *dev, dma_addr_t cpu_addr,
+				    size_t size, int dir)
+{
+	return dma_unmap_single_attrs(dev, cpu_addr, size, dir, NULL);
+}
+#define dma_unmap_sg_attrs	platform_dma_unmap_sg_attrs
+static inline void dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
+				int nents, int dir)
+{
+	return dma_unmap_sg_attrs(dev, sgl, nents, dir, NULL);
+}
 #define dma_sync_single_for_cpu	platform_dma_sync_single_for_cpu
 #define dma_sync_sg_for_cpu	platform_dma_sync_sg_for_cpu
 #define dma_sync_single_for_device platform_dma_sync_single_for_device

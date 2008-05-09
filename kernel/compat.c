@@ -898,7 +898,7 @@ asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset, compat
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
+	set_restore_sigmask();
 	return -ERESTARTNOHAND;
 }
 #endif /* __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND */
@@ -955,7 +955,8 @@ asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 			__put_user(txc.jitcnt, &utp->jitcnt) ||
 			__put_user(txc.calcnt, &utp->calcnt) ||
 			__put_user(txc.errcnt, &utp->errcnt) ||
-			__put_user(txc.stbcnt, &utp->stbcnt))
+			__put_user(txc.stbcnt, &utp->stbcnt) ||
+			__put_user(txc.tai, &utp->tai))
 		ret = -EFAULT;
 
 	return ret;
@@ -1080,4 +1081,3 @@ compat_sys_sysinfo(struct compat_sysinfo __user *info)
 
 	return 0;
 }
-

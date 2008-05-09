@@ -171,26 +171,33 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_pd;
 	}
 
-	size = ipoib_sendq_size + ipoib_recvq_size + 1;
+	size = ipoib_recvq_size + 1;
 	ret = ipoib_cm_dev_init(dev);
 	if (!ret) {
+		size += ipoib_sendq_size;
 		if (ipoib_cm_has_srq(dev))
 			size += ipoib_recvq_size + 1; /* 1 extra for rx_drain_qp */
 		else
 			size += ipoib_recvq_size * ipoib_max_conn_qp;
 	}
 
-	priv->cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size, 0);
-	if (IS_ERR(priv->cq)) {
-		printk(KERN_WARNING "%s: failed to create CQ\n", ca->name);
+	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size, 0);
+	if (IS_ERR(priv->recv_cq)) {
+		printk(KERN_WARNING "%s: failed to create receive CQ\n", ca->name);
 		goto out_free_mr;
 	}
 
-	if (ib_req_notify_cq(priv->cq, IB_CQ_NEXT_COMP))
-		goto out_free_cq;
+	priv->send_cq = ib_create_cq(priv->ca, NULL, NULL, dev, ipoib_sendq_size, 0);
+	if (IS_ERR(priv->send_cq)) {
+		printk(KERN_WARNING "%s: failed to create send CQ\n", ca->name);
+		goto out_free_recv_cq;
+	}
 
-	init_attr.send_cq = priv->cq;
-	init_attr.recv_cq = priv->cq;
+	if (ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP))
+		goto out_free_send_cq;
+
+	init_attr.send_cq = priv->send_cq;
+	init_attr.recv_cq = priv->recv_cq;
 
 	if (priv->hca_caps & IB_DEVICE_UD_TSO)
 		init_attr.create_flags = IB_QP_CREATE_IPOIB_UD_LSO;
@@ -201,7 +208,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
 		printk(KERN_WARNING "%s: failed to create QP\n", ca->name);
-		goto out_free_cq;
+		goto out_free_send_cq;
 	}
 
 	priv->dev->dev_addr[1] = (priv->qp->qp_num >> 16) & 0xff;
@@ -230,8 +237,11 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 
 	return 0;
 
-out_free_cq:
-	ib_destroy_cq(priv->cq);
+out_free_send_cq:
+	ib_destroy_cq(priv->send_cq);
+
+out_free_recv_cq:
+	ib_destroy_cq(priv->recv_cq);
 
 out_free_mr:
 	ib_dereg_mr(priv->mr);
@@ -254,8 +264,11 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	}
 
-	if (ib_destroy_cq(priv->cq))
-		ipoib_warn(priv, "ib_cq_destroy failed\n");
+	if (ib_destroy_cq(priv->send_cq))
+		ipoib_warn(priv, "ib_cq_destroy (send) failed\n");
+
+	if (ib_destroy_cq(priv->recv_cq))
+		ipoib_warn(priv, "ib_cq_destroy (recv) failed\n");
 
 	ipoib_cm_dev_cleanup(dev);
 

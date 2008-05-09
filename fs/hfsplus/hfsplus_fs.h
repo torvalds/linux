@@ -311,6 +311,10 @@ int hfsplus_delete_cat(u32, struct inode *, struct qstr *);
 int hfsplus_rename_cat(u32, struct inode *, struct qstr *,
 		       struct inode *, struct qstr *);
 
+/* dir.c */
+extern const struct inode_operations hfsplus_dir_inode_operations;
+extern const struct file_operations hfsplus_dir_operations;
+
 /* extents.c */
 int hfsplus_ext_cmp_key(const hfsplus_btree_key *, const hfsplus_btree_key *);
 void hfsplus_ext_write_extent(struct inode *);

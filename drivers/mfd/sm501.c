@@ -349,11 +349,11 @@ int sm501_unit_power(struct device *dev, unsigned int unit, unsigned int to)
 	mode &= 3;		/* get current power mode */
 
 	if (unit >= ARRAY_SIZE(sm->unit_power)) {
-		dev_err(dev, "%s: bad unit %d\n", __FUNCTION__, unit);
+		dev_err(dev, "%s: bad unit %d\n", __func__, unit);
 		goto already;
 	}
 
-	dev_dbg(sm->dev, "%s: unit %d, cur %d, to %d\n", __FUNCTION__, unit,
+	dev_dbg(sm->dev, "%s: unit %d, cur %d, to %d\n", __func__, unit,
 		sm->unit_power[unit], to);
 
 	if (to == 0 && sm->unit_power[unit] == 0) {

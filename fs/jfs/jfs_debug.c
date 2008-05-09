@@ -89,7 +89,7 @@ void jfs_proc_init(void)
 {
 	int i;
 
-	if (!(base = proc_mkdir("jfs", proc_root_fs)))
+	if (!(base = proc_mkdir("fs/jfs", NULL)))
 		return;
 	base->owner = THIS_MODULE;
 
@@ -109,7 +109,7 @@ void jfs_proc_clean(void)
 	if (base) {
 		for (i = 0; i < NPROCENT; i++)
 			remove_proc_entry(Entries[i].name, base);
-		remove_proc_entry("jfs", proc_root_fs);
+		remove_proc_entry("fs/jfs", NULL);
 	}
 }
 

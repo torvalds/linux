@@ -123,7 +123,8 @@ config USB_STORAGE_ALAUDA
 
 config USB_STORAGE_ONETOUCH
 	bool "Support OneTouch Button on Maxtor Hard Drives"
-	depends on USB_STORAGE && INPUT_EVDEV
+	depends on USB_STORAGE
+	depends on INPUT=y || INPUT=USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Maxtor OneTouch
 	  USB hard drive's onetouch button.

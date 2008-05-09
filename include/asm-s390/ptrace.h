@@ -463,8 +463,6 @@ struct user_regs_struct
 };
 
 #ifdef __KERNEL__
-#define __ARCH_SYS_PTRACE	1
-
 /*
  * These are defined as per linux/ptrace.h, which see.
  */

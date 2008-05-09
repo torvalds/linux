@@ -183,7 +183,7 @@ void __init mca_do_proc_init(void)
 	struct proc_dir_entry* node = NULL;
 	struct mca_device *mca_dev;
 
-	proc_mca = proc_mkdir("mca", &proc_root);
+	proc_mca = proc_mkdir("mca", NULL);
 	create_proc_read_entry("pos",0,proc_mca,get_mca_info,NULL);
 	create_proc_read_entry("machine",0,proc_mca,get_mca_machine_info,NULL);
 

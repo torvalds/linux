@@ -1302,13 +1302,10 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 	if (ibmveth_proc_dir) {
 		char u_addr[10];
 		sprintf(u_addr, "%x", adapter->vdev->unit_address);
-		entry = create_proc_entry(u_addr, S_IFREG, ibmveth_proc_dir);
-		if (!entry) {
+		entry = proc_create_data(u_addr, S_IFREG, ibmveth_proc_dir,
+					 &ibmveth_proc_fops, adapter);
+		if (!entry)
 			ibmveth_error_printk("Cannot create adapter proc entry");
-		} else {
-			entry->data = (void *) adapter;
-			entry->proc_fops = &ibmveth_proc_fops;
-		}
 	}
 	return;
 }

@@ -670,7 +670,7 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id)
 				  	memcpy(adapter->current_dma.target, adapter->dma_buffer, adapter->current_dma.length);
 					}
 					skb->protocol = eth_type_trans(skb,dev);
-					adapter->stats.rx_bytes += skb->len;
+					dev->stats.rx_bytes += skb->len;
 					netif_rx(skb);
 					dev->last_rx = jiffies;
 				}
@@ -773,12 +773,12 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id)
 					 * received board statistics
 					 */
 				case CMD_NETWORK_STATISTICS_RESPONSE:
-					adapter->stats.rx_packets += adapter->irx_pcb.data.netstat.tot_recv;
-					adapter->stats.tx_packets += adapter->irx_pcb.data.netstat.tot_xmit;
-					adapter->stats.rx_crc_errors += adapter->irx_pcb.data.netstat.err_CRC;
-					adapter->stats.rx_frame_errors += adapter->irx_pcb.data.netstat.err_align;
-					adapter->stats.rx_fifo_errors += adapter->irx_pcb.data.netstat.err_ovrrun;
-					adapter->stats.rx_over_errors += adapter->irx_pcb.data.netstat.err_res;
+					dev->stats.rx_packets += adapter->irx_pcb.data.netstat.tot_recv;
+					dev->stats.tx_packets += adapter->irx_pcb.data.netstat.tot_xmit;
+					dev->stats.rx_crc_errors += adapter->irx_pcb.data.netstat.err_CRC;
+					dev->stats.rx_frame_errors += adapter->irx_pcb.data.netstat.err_align;
+					dev->stats.rx_fifo_errors += adapter->irx_pcb.data.netstat.err_ovrrun;
+					dev->stats.rx_over_errors += adapter->irx_pcb.data.netstat.err_res;
 					adapter->got[CMD_NETWORK_STATISTICS] = 1;
 					if (elp_debug >= 3)
 						printk(KERN_DEBUG "%s: interrupt - statistics response received\n", dev->name);
@@ -794,11 +794,11 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id)
 						break;
 					switch (adapter->irx_pcb.data.xmit_resp.c_stat) {
 					case 0xffff:
-						adapter->stats.tx_aborted_errors++;
+						dev->stats.tx_aborted_errors++;
 						printk(KERN_INFO "%s: transmit timed out, network cable problem?\n", dev->name);
 						break;
 					case 0xfffe:
-						adapter->stats.tx_fifo_errors++;
+						dev->stats.tx_fifo_errors++;
 						printk(KERN_INFO "%s: transmit timed out, FIFO underrun\n", dev->name);
 						break;
 					}
@@ -986,7 +986,7 @@ static bool send_packet(struct net_device *dev, struct sk_buff *skb)
 		return false;
 	}
 
-	adapter->stats.tx_bytes += nlen;
+	dev->stats.tx_bytes += nlen;
 
 	/*
 	 * send the adapter a transmit packet command. Ignore segment and offset
@@ -1041,7 +1041,6 @@ static bool send_packet(struct net_device *dev, struct sk_buff *skb)
 
 static void elp_timeout(struct net_device *dev)
 {
-	elp_device *adapter = dev->priv;
 	int stat;
 
 	stat = inb_status(dev->base_addr);
@@ -1049,7 +1048,7 @@ static void elp_timeout(struct net_device *dev)
 	if (elp_debug >= 1)
 		printk(KERN_DEBUG "%s: status %#02x\n", dev->name, stat);
 	dev->trans_start = jiffies;
-	adapter->stats.tx_dropped++;
+	dev->stats.tx_dropped++;
 	netif_wake_queue(dev);
 }
 
@@ -1113,7 +1112,7 @@ static struct net_device_stats *elp_get_stats(struct net_device *dev)
 	/* If the device is closed, just return the latest stats we have,
 	   - we cannot ask from the adapter without interrupts */
 	if (!netif_running(dev))
-		return &adapter->stats;
+		return &dev->stats;
 
 	/* send a get statistics command to the board */
 	adapter->tx_pcb.command = CMD_NETWORK_STATISTICS;
@@ -1126,12 +1125,12 @@ static struct net_device_stats *elp_get_stats(struct net_device *dev)
 		while (adapter->got[CMD_NETWORK_STATISTICS] == 0 && time_before(jiffies, timeout));
 		if (time_after_eq(jiffies, timeout)) {
 			TIMEOUT_MSG(__LINE__);
-			return &adapter->stats;
+			return &dev->stats;
 		}
 	}
 
 	/* statistics are now up to date */
-	return &adapter->stats;
+	return &dev->stats;
 }
 
 
@@ -1571,7 +1570,6 @@ static int __init elplus_setup(struct net_device *dev)
 	dev->set_multicast_list = elp_set_mc_list;	/* local */
 	dev->ethtool_ops = &netdev_ethtool_ops;		/* local */
 
-	memset(&(adapter->stats), 0, sizeof(struct net_device_stats));
 	dev->mem_start = dev->mem_end = 0;
 
 	err = register_netdev(dev);

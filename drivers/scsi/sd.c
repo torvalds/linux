@@ -860,7 +860,6 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 
 static void sd_prepare_flush(struct request_queue *q, struct request *rq)
 {
-	memset(rq->cmd, 0, sizeof(rq->cmd));
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->timeout = SD_TIMEOUT;
 	rq->cmd[0] = SYNCHRONIZE_CACHE;

@@ -1803,7 +1803,7 @@ static void __exit netif_exit(void)
 	if (is_initial_xendomain())
 		return;
 
-	return xenbus_unregister_driver(&netfront);
+	xenbus_unregister_driver(&netfront);
 }
 module_exit(netif_exit);
 

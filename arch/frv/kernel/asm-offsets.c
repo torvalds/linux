@@ -7,14 +7,12 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
+#include <linux/kbuild.h>
 #include <asm/registers.h>
 #include <asm/ucontext.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/gdb-stub.h>
-
-#define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
 #define DEF_PTREG(sym, reg) \
         asm volatile("\n->" #sym " %0 offsetof(struct pt_regs, " #reg ")" \
@@ -31,11 +29,6 @@
 #define DEF_0REG(sym, reg) \
         asm volatile("\n->" #sym " %0 offsetof(struct frv_frame0, " #reg ")" \
 		     : : "i" (offsetof(struct frv_frame0, reg)))
-
-#define BLANK() asm volatile("\n->" : : )
-
-#define OFFSET(sym, str, mem) \
-	DEFINE(sym, offsetof(struct str, mem));
 
 void foo(void)
 {

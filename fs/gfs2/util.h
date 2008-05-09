@@ -41,7 +41,7 @@ int gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
 
 #define gfs2_assert_withdraw(sdp, assertion) \
 ((likely(assertion)) ? 0 : gfs2_assert_withdraw_i((sdp), #assertion, \
-					__FUNCTION__, __FILE__, __LINE__))
+					__func__, __FILE__, __LINE__))
 
 
 int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
@@ -49,28 +49,28 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 
 #define gfs2_assert_warn(sdp, assertion) \
 ((likely(assertion)) ? 0 : gfs2_assert_warn_i((sdp), #assertion, \
-					__FUNCTION__, __FILE__, __LINE__))
+					__func__, __FILE__, __LINE__))
 
 
 int gfs2_consist_i(struct gfs2_sbd *sdp, int cluster_wide,
 		   const char *function, char *file, unsigned int line);
 
 #define gfs2_consist(sdp) \
-gfs2_consist_i((sdp), 0, __FUNCTION__, __FILE__, __LINE__)
+gfs2_consist_i((sdp), 0, __func__, __FILE__, __LINE__)
 
 
 int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
 			 const char *function, char *file, unsigned int line);
 
 #define gfs2_consist_inode(ip) \
-gfs2_consist_inode_i((ip), 0, __FUNCTION__, __FILE__, __LINE__)
+gfs2_consist_inode_i((ip), 0, __func__, __FILE__, __LINE__)
 
 
 int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
 			 const char *function, char *file, unsigned int line);
 
 #define gfs2_consist_rgrpd(rgd) \
-gfs2_consist_rgrpd_i((rgd), 0, __FUNCTION__, __FILE__, __LINE__)
+gfs2_consist_rgrpd_i((rgd), 0, __func__, __FILE__, __LINE__)
 
 
 int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
@@ -91,7 +91,7 @@ static inline int gfs2_meta_check_i(struct gfs2_sbd *sdp,
 }
 
 #define gfs2_meta_check(sdp, bh) \
-gfs2_meta_check_i((sdp), (bh), __FUNCTION__, __FILE__, __LINE__)
+gfs2_meta_check_i((sdp), (bh), __func__, __FILE__, __LINE__)
 
 
 int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
@@ -118,7 +118,7 @@ static inline int gfs2_metatype_check_i(struct gfs2_sbd *sdp,
 }
 
 #define gfs2_metatype_check(sdp, bh, type) \
-gfs2_metatype_check_i((sdp), (bh), (type), __FUNCTION__, __FILE__, __LINE__)
+gfs2_metatype_check_i((sdp), (bh), (type), __func__, __FILE__, __LINE__)
 
 static inline void gfs2_metatype_set(struct buffer_head *bh, u16 type,
 				     u16 format)
@@ -134,14 +134,14 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function,
 		    char *file, unsigned int line);
 
 #define gfs2_io_error(sdp) \
-gfs2_io_error_i((sdp), __FUNCTION__, __FILE__, __LINE__);
+gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__);
 
 
 int gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		       const char *function, char *file, unsigned int line);
 
 #define gfs2_io_error_bh(sdp, bh) \
-gfs2_io_error_bh_i((sdp), (bh), __FUNCTION__, __FILE__, __LINE__);
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__);
 
 
 extern struct kmem_cache *gfs2_glock_cachep;

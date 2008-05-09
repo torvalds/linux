@@ -20,8 +20,8 @@
 /*
  * Find the next set bit in a memory region.
  */
-unsigned long __find_next_bit(const unsigned long *addr,
-		unsigned long size, unsigned long offset)
+unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
+			    unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG-1);
@@ -58,14 +58,14 @@ found_first:
 found_middle:
 	return result + __ffs(tmp);
 }
-EXPORT_SYMBOL(__find_next_bit);
+EXPORT_SYMBOL(find_next_bit);
 
 /*
  * This implementation of find_{first,next}_zero_bit was stolen from
  * Linus' asm-alpha/bitops.h.
  */
-unsigned long __find_next_zero_bit(const unsigned long *addr,
-		unsigned long size, unsigned long offset)
+unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
+				 unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG-1);
@@ -102,15 +102,14 @@ found_first:
 found_middle:
 	return result + ffz(tmp);
 }
-EXPORT_SYMBOL(__find_next_zero_bit);
+EXPORT_SYMBOL(find_next_zero_bit);
 #endif /* CONFIG_GENERIC_FIND_NEXT_BIT */
 
 #ifdef CONFIG_GENERIC_FIND_FIRST_BIT
 /*
  * Find the first set bit in a memory region.
  */
-unsigned long __find_first_bit(const unsigned long *addr,
-		unsigned long size)
+unsigned long find_first_bit(const unsigned long *addr, unsigned long size)
 {
 	const unsigned long *p = addr;
 	unsigned long result = 0;
@@ -131,13 +130,12 @@ unsigned long __find_first_bit(const unsigned long *addr,
 found:
 	return result + __ffs(tmp);
 }
-EXPORT_SYMBOL(__find_first_bit);
+EXPORT_SYMBOL(find_first_bit);
 
 /*
  * Find the first cleared bit in a memory region.
  */
-unsigned long __find_first_zero_bit(const unsigned long *addr,
-		unsigned long size)
+unsigned long find_first_zero_bit(const unsigned long *addr, unsigned long size)
 {
 	const unsigned long *p = addr;
 	unsigned long result = 0;
@@ -158,7 +156,7 @@ unsigned long __find_first_zero_bit(const unsigned long *addr,
 found:
 	return result + ffz(tmp);
 }
-EXPORT_SYMBOL(__find_first_zero_bit);
+EXPORT_SYMBOL(find_first_zero_bit);
 #endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
 
 #ifdef __BIG_ENDIAN

@@ -147,6 +147,8 @@ extern unsigned int reset_devices;
 void setup_arch(char **);
 void prepare_namespace(void);
 
+extern void (*late_time_init)(void);
+
 #endif
   
 #ifndef MODULE

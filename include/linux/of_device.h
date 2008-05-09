@@ -1,6 +1,5 @@
 #ifndef _LINUX_OF_DEVICE_H
 #define _LINUX_OF_DEVICE_H
-#ifdef __KERNEL__
 
 #include <linux/device.h>
 #include <linux/of.h>
@@ -25,5 +24,4 @@ static inline void of_device_free(struct of_device *dev)
 	of_release_dev(&dev->dev);
 }
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_OF_DEVICE_H */

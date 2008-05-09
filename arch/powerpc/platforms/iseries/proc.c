@@ -110,15 +110,11 @@ static const struct file_operations proc_titantod_operations = {
 
 static int __init iseries_proc_init(void)
 {
-	struct proc_dir_entry *e;
-
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))
 		return 0;
 
-	e = create_proc_entry("iSeries/titanTod", S_IFREG|S_IRUGO, NULL);
-	if (e)
-		e->proc_fops = &proc_titantod_operations;
-
+	proc_create("iSeries/titanTod", S_IFREG|S_IRUGO, NULL,
+		    &proc_titantod_operations);
 	return 0;
 }
 __initcall(iseries_proc_init);

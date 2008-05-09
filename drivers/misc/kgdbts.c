@@ -132,7 +132,7 @@ static int send_ack;
 static int final_ack;
 static int hw_break_val;
 static int hw_break_val2;
-#if defined(CONFIG_ARM) || defined(CONFIG_MIPS)
+#if defined(CONFIG_ARM) || defined(CONFIG_MIPS) || defined(CONFIG_SPARC)
 static int arch_needs_sstep_emulation = 1;
 #else
 static int arch_needs_sstep_emulation;

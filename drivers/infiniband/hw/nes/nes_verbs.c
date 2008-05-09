@@ -1266,7 +1266,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			sq_size = init_attr->cap.max_send_wr;
 			rq_size = init_attr->cap.max_recv_wr;
 
-			// check if the encoded sizes are OK or not...
+			/* check if the encoded sizes are OK or not... */
 			sq_encoded_size = nes_get_encoded_size(&sq_size);
 			rq_encoded_size = nes_get_encoded_size(&rq_size);
 
@@ -2377,7 +2377,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	u8 single_page = 1;
 	u8 stag_key;
 
-	region = ib_umem_get(pd->uobject->context, start, length, acc);
+	region = ib_umem_get(pd->uobject->context, start, length, acc, 0);
 	if (IS_ERR(region)) {
 		return (struct ib_mr *)region;
 	}

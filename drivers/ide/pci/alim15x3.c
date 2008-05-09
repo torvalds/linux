@@ -412,14 +412,14 @@ static u8 __devinit ali_cable_detect(ide_hwif_t *hwif)
 	return cbl;
 }
 
-#ifndef CONFIG_SPARC64
+#if !defined(CONFIG_SPARC64) && !defined(CONFIG_PPC)
 /**
  *	init_hwif_ali15x3	-	Initialize the ALI IDE x86 stuff
  *	@hwif: interface to configure
  *
  *	Obtain the IRQ tables for an ALi based IDE solution on the PC
  *	class platforms. This part of the code isn't applicable to the
- *	Sparc systems
+ *	Sparc and PowerPC systems.
  */
 
 static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
@@ -463,7 +463,9 @@ static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 			hwif->irq = irq;
 	}
 }
-#endif
+#else
+#define init_hwif_ali15x3 NULL
+#endif /* !defined(CONFIG_SPARC64) && !defined(CONFIG_PPC) */
 
 /**
  *	init_dma_ali15x3	-	set up DMA on ALi15x3
@@ -517,9 +519,7 @@ static const struct ide_dma_ops ali_dma_ops = {
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
 	.name		= "ALI15X3",
 	.init_chipset	= init_chipset_ali15x3,
-#ifndef CONFIG_SPARC64
 	.init_hwif	= init_hwif_ali15x3,
-#endif
 	.init_dma	= init_dma_ali15x3,
 	.port_ops	= &ali_port_ops,
 	.pio_mask	= ATA_PIO5,

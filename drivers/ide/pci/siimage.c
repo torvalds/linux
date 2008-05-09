@@ -737,8 +737,15 @@ static const struct ide_port_ops sil_sata_port_ops = {
 	.cable_detect		= sil_cable_detect,
 };
 
-static struct ide_dma_ops sil_dma_ops = {
+static const struct ide_dma_ops sil_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= __ide_dma_end,
 	.dma_test_irq		= siimage_dma_test_irq,
+	.dma_timeout		= ide_dma_timeout,
+	.dma_lost_irq		= ide_dma_lost_irq,
 };
 
 #define DECLARE_SII_DEV(name_str, p_ops)		\

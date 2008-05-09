@@ -965,7 +965,7 @@ tty3270_write_room(struct tty_struct *tty)
  * Insert character into the screen at the current position with the
  * current color and highlight. This function does NOT do cursor movement.
  */
-static void
+static int
 tty3270_put_character(struct tty3270 *tp, char ch)
 {
 	struct tty3270_line *line;
@@ -986,6 +986,7 @@ tty3270_put_character(struct tty3270 *tp, char ch)
 	cell->character = tp->view.ascebc[(unsigned int) ch];
 	cell->highlight = tp->highlight;
 	cell->f_color = tp->f_color;
+	return 1;
 }
 
 /*

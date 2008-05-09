@@ -498,6 +498,11 @@ static void _aac_probe_container2(void * context, struct fib * fibptr)
 		    (le32_to_cpu(dresp->mnt[0].vol) != CT_NONE) &&
 		    (le32_to_cpu(dresp->mnt[0].state) != FSCS_HIDDEN)) {
 			fsa_dev_ptr->valid = 1;
+			/* sense_key holds the current state of the spin-up */
+			if (dresp->mnt[0].state & cpu_to_le32(FSCS_NOT_READY))
+				fsa_dev_ptr->sense_data.sense_key = NOT_READY;
+			else if (fsa_dev_ptr->sense_data.sense_key == NOT_READY)
+				fsa_dev_ptr->sense_data.sense_key = NO_SENSE;
 			fsa_dev_ptr->type = le32_to_cpu(dresp->mnt[0].vol);
 			fsa_dev_ptr->size
 			  = ((u64)le32_to_cpu(dresp->mnt[0].capacity)) +
@@ -1509,20 +1514,35 @@ static void io_callback(void *context, struct fib * fibptr)
 	scsi_dma_unmap(scsicmd);
 
 	readreply = (struct aac_read_reply *)fib_data(fibptr);
-	if (le32_to_cpu(readreply->status) == ST_OK)
-		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
-	else {
+	switch (le32_to_cpu(readreply->status)) {
+	case ST_OK:
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+			SAM_STAT_GOOD;
+		dev->fsa_dev[cid].sense_data.sense_key = NO_SENSE;
+		break;
+	case ST_NOT_READY:
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+			SAM_STAT_CHECK_CONDITION;
+		set_sense(&dev->fsa_dev[cid].sense_data, NOT_READY,
+		  SENCODE_BECOMING_READY, ASENCODE_BECOMING_READY, 0, 0);
+		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
+		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
+			     SCSI_SENSE_BUFFERSIZE));
+		break;
+	default:
 #ifdef AAC_DETAILED_STATUS_INFO
 		printk(KERN_WARNING "io_callback: io failed, status = %d\n",
 		  le32_to_cpu(readreply->status));
 #endif
-		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+			SAM_STAT_CHECK_CONDITION;
 		set_sense(&dev->fsa_dev[cid].sense_data,
 		  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
 		  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
+		break;
 	}
 	aac_fib_complete(fibptr);
 	aac_fib_free(fibptr);
@@ -1863,6 +1883,84 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
+static void aac_start_stop_callback(void *context, struct fib *fibptr)
+{
+	struct scsi_cmnd *scsicmd = context;
+
+	if (!aac_valid_context(scsicmd, fibptr))
+		return;
+
+	BUG_ON(fibptr == NULL);
+
+	scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
+
+	aac_fib_complete(fibptr);
+	aac_fib_free(fibptr);
+	scsicmd->scsi_done(scsicmd);
+}
+
+static int aac_start_stop(struct scsi_cmnd *scsicmd)
+{
+	int status;
+	struct fib *cmd_fibcontext;
+	struct aac_power_management *pmcmd;
+	struct scsi_device *sdev = scsicmd->device;
+	struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
+
+	if (!(aac->supplement_adapter_info.SupportedOptions2 &
+	      AAC_OPTION_POWER_MANAGEMENT)) {
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+				  SAM_STAT_GOOD;
+		scsicmd->scsi_done(scsicmd);
+		return 0;
+	}
+
+	if (aac->in_reset)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
+	/*
+	 *	Allocate and initialize a Fib
+	 */
+	cmd_fibcontext = aac_fib_alloc(aac);
+	if (!cmd_fibcontext)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
+	aac_fib_init(cmd_fibcontext);
+
+	pmcmd = fib_data(cmd_fibcontext);
+	pmcmd->command = cpu_to_le32(VM_ContainerConfig);
+	pmcmd->type = cpu_to_le32(CT_POWER_MANAGEMENT);
+	/* Eject bit ignored, not relevant */
+	pmcmd->sub = (scsicmd->cmnd[4] & 1) ?
+		cpu_to_le32(CT_PM_START_UNIT) : cpu_to_le32(CT_PM_STOP_UNIT);
+	pmcmd->cid = cpu_to_le32(sdev_id(sdev));
+	pmcmd->parm = (scsicmd->cmnd[1] & 1) ?
+		cpu_to_le32(CT_PM_UNIT_IMMEDIATE) : 0;
+
+	/*
+	 *	Now send the Fib to the adapter
+	 */
+	status = aac_fib_send(ContainerCommand,
+		  cmd_fibcontext,
+		  sizeof(struct aac_power_management),
+		  FsaNormal,
+		  0, 1,
+		  (fib_callback)aac_start_stop_callback,
+		  (void *)scsicmd);
+
+	/*
+	 *	Check that the command queued to the controller
+	 */
+	if (status == -EINPROGRESS) {
+		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
+		return 0;
+	}
+
+	aac_fib_complete(cmd_fibcontext);
+	aac_fib_free(cmd_fibcontext);
+	return SCSI_MLQUEUE_HOST_BUSY;
+}
+
 /**
  *	aac_scsi_cmd()		-	Process SCSI command
  *	@scsicmd:		SCSI command block
@@ -1899,7 +1997,9 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			 *	If the target container doesn't exist, it may have
 			 *	been newly created
 			 */
-			if ((fsa_dev_ptr[cid].valid & 1) == 0) {
+			if (((fsa_dev_ptr[cid].valid & 1) == 0) ||
+			  (fsa_dev_ptr[cid].sense_data.sense_key ==
+			   NOT_READY)) {
 				switch (scsicmd->cmnd[0]) {
 				case SERVICE_ACTION_IN:
 					if (!(dev->raw_io_interface) ||
@@ -2091,8 +2191,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		scsi_sg_copy_from_buffer(scsicmd, cp, sizeof(cp));
 		/* Do not cache partition table for arrays */
 		scsicmd->device->removable = 1;
-
-		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+		  SAM_STAT_GOOD;
 		scsicmd->scsi_done(scsicmd);
 
 		return 0;
@@ -2187,15 +2287,32 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	 *	These commands are all No-Ops
 	 */
 	case TEST_UNIT_READY:
+		if (fsa_dev_ptr[cid].sense_data.sense_key == NOT_READY) {
+			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+				SAM_STAT_CHECK_CONDITION;
+			set_sense(&dev->fsa_dev[cid].sense_data,
+				  NOT_READY, SENCODE_BECOMING_READY,
+				  ASENCODE_BECOMING_READY, 0, 0);
+			memcpy(scsicmd->sense_buffer,
+			       &dev->fsa_dev[cid].sense_data,
+			       min_t(size_t,
+				     sizeof(dev->fsa_dev[cid].sense_data),
+				     SCSI_SENSE_BUFFERSIZE));
+			scsicmd->scsi_done(scsicmd);
+			return 0;
+		}
+		/* FALLTHRU */
 	case RESERVE:
 	case RELEASE:
 	case REZERO_UNIT:
 	case REASSIGN_BLOCKS:
 	case SEEK_10:
-	case START_STOP:
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 		scsicmd->scsi_done(scsicmd);
 		return 0;
+
+	case START_STOP:
+		return aac_start_stop(scsicmd);
 	}
 
 	switch (scsicmd->cmnd[0])

@@ -33,7 +33,8 @@ Known Issues
 ------------
 
 On some systems (Asus), the BIOS is known to interfere with the driver
-and cause read errors. The driver will retry a given number of times
+and cause read errors. Or maybe the W83L785TS-S chip is simply unreliable,
+we don't really know. The driver will retry a given number of times
 (5 by default) and then give up, returning the old value (or 0 if
 there is no old value). It seems to work well enough so that you should
 not notice anything. Thanks to James Bolt for helping test this feature.

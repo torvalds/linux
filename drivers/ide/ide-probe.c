@@ -1347,18 +1347,13 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
 		hwif->irq = port ? 15 : 14;
 
-	hwif->host_flags = d->host_flags;
+	/* ->host_flags may be set by ->init_iops (or even earlier...) */
+	hwif->host_flags |= d->host_flags;
 	hwif->pio_mask = d->pio_mask;
 
 	/* ->set_pio_mode for DTC2278 is currently limited to port 0 */
 	if (hwif->chipset != ide_dtc2278 || hwif->channel == 0)
 		hwif->port_ops = d->port_ops;
-
-	if ((d->host_flags & IDE_HFLAG_SERIALIZE) ||
-	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base)) {
-		if (hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
-	}
 
 	hwif->swdma_mask = d->swdma_mask;
 	hwif->mwdma_mask = d->mwdma_mask;
@@ -1379,6 +1374,12 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 			hwif->ultra_mask = 0;
 		} else if (d->dma_ops)
 			hwif->dma_ops = d->dma_ops;
+	}
+
+	if ((d->host_flags & IDE_HFLAG_SERIALIZE) ||
+	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base)) {
+		if (hwif->mate)
+			hwif->mate->serialized = hwif->serialized = 1;
 	}
 
 	if (d->host_flags & IDE_HFLAG_RQSIZE_256)

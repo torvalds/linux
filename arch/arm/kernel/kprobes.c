@@ -66,7 +66,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 			return -ENOMEM;
 		for (is = 0; is < MAX_INSN_SIZE; ++is)
 			p->ainsn.insn[is] = tmp_insn[is];
-		flush_insns(&p->ainsn.insn, MAX_INSN_SIZE);
+		flush_insns(p->ainsn.insn, MAX_INSN_SIZE);
 		break;
 
 	case INSN_GOOD_NO_SLOT:	/* instruction doesn't need insn slot */

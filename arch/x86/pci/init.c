@@ -6,16 +6,17 @@
    in the right sequence from here. */
 static __init int pci_access_init(void)
 {
-	int type __maybe_unused = 0;
-
 #ifdef CONFIG_PCI_DIRECT
+	int type = 0;
+
 	type = pci_direct_probe();
 #endif
-#ifdef CONFIG_PCI_MMCONFIG
-	pci_mmcfg_init(type);
+
+	pci_mmcfg_early_init();
+
+#ifdef CONFIG_PCI_OLPC
+	pci_olpc_init();
 #endif
-	if (raw_pci_ops)
-		return 0;
 #ifdef CONFIG_PCI_BIOS
 	pci_pcbios_init();
 #endif
@@ -28,7 +29,7 @@ static __init int pci_access_init(void)
 #ifdef CONFIG_PCI_DIRECT
 	pci_direct_init(type);
 #endif
-	if (!raw_pci_ops)
+	if (!raw_pci_ops && !raw_pci_ext_ops)
 		printk(KERN_ERR
 		"PCI: Fatal: No config space access function found\n");
 

@@ -30,6 +30,7 @@
 #include <linux/time.h>
 #include <linux/hardirq.h>
 #endif
+#include <linux/kbuild.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -50,11 +51,6 @@
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iseries/alpaca.h>
 #endif
-
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 int main(void)
 {

@@ -12,8 +12,6 @@
 #ifndef __ASM_RTC_H__
 #define __ASM_RTC_H__
 
-#ifdef __KERNEL__
-
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
@@ -213,5 +211,4 @@ static inline int set_rtc_pll(struct rtc_pll_info *pll)
 	return -EINVAL;
 }
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_RTC_H__ */

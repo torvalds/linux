@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,12 +70,22 @@ acpi_tb_find_table(char *signature,
 {
 	acpi_native_uint i;
 	acpi_status status;
+	struct acpi_table_header header;
 
 	ACPI_FUNCTION_TRACE(tb_find_table);
 
+	/* Normalize the input strings */
+
+	ACPI_MEMSET(&header, 0, sizeof(struct acpi_table_header));
+	ACPI_STRNCPY(header.signature, signature, ACPI_NAME_SIZE);
+	ACPI_STRNCPY(header.oem_id, oem_id, ACPI_OEM_ID_SIZE);
+	ACPI_STRNCPY(header.oem_table_id, oem_table_id, ACPI_OEM_TABLE_ID_SIZE);
+
+	/* Search for the table */
+
 	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
 		if (ACPI_MEMCMP(&(acpi_gbl_root_table_list.tables[i].signature),
-				signature, ACPI_NAME_SIZE)) {
+				header.signature, ACPI_NAME_SIZE)) {
 
 			/* Not the requested table */
 
@@ -104,20 +114,24 @@ acpi_tb_find_table(char *signature,
 
 		if (!ACPI_MEMCMP
 		    (acpi_gbl_root_table_list.tables[i].pointer->signature,
-		     signature, ACPI_NAME_SIZE) && (!oem_id[0]
-						    ||
-						    !ACPI_MEMCMP
-						    (acpi_gbl_root_table_list.
-						     tables[i].pointer->oem_id,
-						     oem_id, ACPI_OEM_ID_SIZE))
+		     header.signature, ACPI_NAME_SIZE) && (!oem_id[0]
+							   ||
+							   !ACPI_MEMCMP
+							   (acpi_gbl_root_table_list.
+							    tables[i].pointer->
+							    oem_id,
+							    header.oem_id,
+							    ACPI_OEM_ID_SIZE))
 		    && (!oem_table_id[0]
 			|| !ACPI_MEMCMP(acpi_gbl_root_table_list.tables[i].
-					pointer->oem_table_id, oem_table_id,
+					pointer->oem_table_id,
+					header.oem_table_id,
 					ACPI_OEM_TABLE_ID_SIZE))) {
 			*table_index = i;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
-					  "Found table [%4.4s]\n", signature));
+					  "Found table [%4.4s]\n",
+					  header.signature));
 			return_ACPI_STATUS(AE_OK);
 		}
 	}

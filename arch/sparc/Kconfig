@@ -68,6 +68,7 @@ config SPARC
 	default y
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_ARCH_KGDB if !SMP
 
 # Identify this as a Sparc32 build
 config SPARC32

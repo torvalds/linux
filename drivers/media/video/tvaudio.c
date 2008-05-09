@@ -1461,7 +1461,7 @@ static struct CHIPDESC chiplist[] = {
 /* ---------------------------------------------------------------------- */
 /* i2c registration                                                       */
 
-static int chip_probe(struct i2c_client *client)
+static int chip_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct CHIPSTATE *chip;
 	struct CHIPDESC  *desc;

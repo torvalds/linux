@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,8 @@ union acpi_parse_object *acpi_ps_get_parent(union acpi_parse_object *op);
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode);
 
 char *acpi_ps_get_opcode_name(u16 opcode);
+
+u8 acpi_ps_get_argument_count(u32 op_type);
 
 /*
  * psparse - top level parsing routines

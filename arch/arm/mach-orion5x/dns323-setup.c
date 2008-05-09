@@ -43,11 +43,16 @@
 
 static int __init dns323_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	/* PCI-E */
-	if (dev->bus->number == orion5x_pcie_local_bus_nr())
-		return IRQ_ORION5X_PCIE0_INT;
+	int irq;
 
-	pr_err("%s: requested mapping for unknown bus\n", __func__);
+	/*
+	 * Check for devices with hard-wired IRQs.
+	 */
+	irq = orion5x_pci_map_irq(dev, slot, pin);
+	if (irq != -1)
+		return irq;
+
+	pr_err("%s: requested mapping for unknown device\n", __func__);
 
 	return -1;
 }
@@ -220,19 +225,16 @@ static struct platform_device *dns323_plat_devices[] __initdata = {
 static struct i2c_board_info __initdata dns323_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("g760a", 0x3e),
-		.type = "g760a",
 	},
 #if 0
 	/* this entry requires the new-style driver model lm75 driver,
 	 * for the meantime "insmod lm75.ko force_lm75=0,0x48" is needed */
 	{
-		I2C_BOARD_INFO("lm75", 0x48),
-		.type = "g751",
+		I2C_BOARD_INFO("g751", 0x48),
 	},
 #endif
 	{
-		I2C_BOARD_INFO("rtc-m41t80", 0x68),
-		.type = "m41t80",
+		I2C_BOARD_INFO("m41t80", 0x68),
 	}
 };
 
@@ -253,9 +255,9 @@ static void __init dns323_init(void)
 	 */
 	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
 
-	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIE
+	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIe
 	 *
-	 * Open a special address decode windows for the PCIE WA.
+	 * Open a special address decode windows for the PCIe WA.
 	 */
 	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
 				ORION5X_PCIE_WA_SIZE);

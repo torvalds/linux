@@ -62,30 +62,14 @@ static struct device *cu3088_root_dev;
 static ssize_t
 group_write(struct device_driver *drv, const char *buf, size_t count)
 {
-	const char *start, *end;
-	char bus_ids[2][BUS_ID_SIZE], *argv[2];
-	int i;
 	int ret;
 	struct ccwgroup_driver *cdrv;
 
 	cdrv = to_ccwgroupdrv(drv);
 	if (!cdrv)
 		return -EINVAL;
-	start = buf;
-	for (i=0; i<2; i++) {
-		static const char delim[] = {',', '\n'};
-		int len;
-
-		if (!(end = strchr(start, delim[i])))
-			return -EINVAL;
-		len = min_t(ptrdiff_t, BUS_ID_SIZE, end - start + 1);
-		strlcpy (bus_ids[i], start, len);
-		argv[i] = bus_ids[i];
-		start = end + 1;
-	}
-
-	ret = ccwgroup_create(cu3088_root_dev, cdrv->driver_id,
-			      &cu3088_driver, 2, argv);
+	ret = ccwgroup_create_from_string(cu3088_root_dev, cdrv->driver_id,
+					  &cu3088_driver, 2, buf);
 
 	return (ret == 0) ? count : ret;
 }

@@ -308,7 +308,7 @@ static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
 					PAGE_SIZE, vma->vm_page_prot)) {
 		printk(KERN_ERR "%s: io_remap_pfn_range failed\n",
-			__FUNCTION__);
+			__func__);
 		return -EAGAIN;
 	}
 
@@ -748,7 +748,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	 */
 	if (hpet_is_known(hdp)) {
 		printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
-			__FUNCTION__);
+			__func__);
 		return 0;
 	}
 
@@ -869,7 +869,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 
 		if (hpet_is_known(hdp)) {
 			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
-				__FUNCTION__, hdp->hd_phys_address);
+				__func__, hdp->hd_phys_address);
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
@@ -886,7 +886,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 
 		if (hpet_is_known(hdp)) {
 			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
-				__FUNCTION__, hdp->hd_phys_address);
+				__func__, hdp->hd_phys_address);
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
@@ -925,7 +925,7 @@ static int hpet_acpi_add(struct acpi_device *device)
 		return -ENODEV;
 
 	if (!data.hd_address || !data.hd_nirqs) {
-		printk("%s: no address or irqs in _CRS\n", __FUNCTION__);
+		printk("%s: no address or irqs in _CRS\n", __func__);
 		return -ENODEV;
 	}
 

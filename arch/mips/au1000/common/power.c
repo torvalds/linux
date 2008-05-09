@@ -251,7 +251,6 @@ int au_sleep(void)
 static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
 		       void __user *buffer, size_t * len, loff_t *ppos)
 {
-	int retval = 0;
 #ifdef SLEEP_TEST_TIMEOUT
 #define TMPBUFLEN2 16
 	char buf[TMPBUFLEN2], *p;
@@ -271,35 +270,11 @@ static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
 		p = buf;
 		sleep_ticks = simple_strtoul(p, &p, 0);
 #endif
-		retval = pm_send_all(PM_SUSPEND, (void *) 2);
-
-		if (retval)
-			return retval;
 
 		au_sleep();
-		retval = pm_send_all(PM_RESUME, (void *) 0);
 	}
-	return retval;
+	return 0;
 }
-
-static int pm_do_suspend(ctl_table * ctl, int write, struct file *file,
-			 void __user *buffer, size_t * len, loff_t *ppos)
-{
-	int retval = 0;
-
-	if (!write) {
-		*len = 0;
-	} else {
-		retval = pm_send_all(PM_SUSPEND, (void *) 2);
-		if (retval)
-			return retval;
-		suspend_mode = 1;
-
-		retval = pm_send_all(PM_RESUME, (void *) 0);
-	}
-	return retval;
-}
-
 
 static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 		      void __user *buffer, size_t * len, loff_t *ppos)
@@ -413,14 +388,6 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 
 
 static struct ctl_table pm_table[] = {
-	{
-		.ctl_name 	= CTL_UNNUMBERED,
-		.procname	= "suspend",
-		.data		= NULL,
-		.maxlen		= 0,
-		.mode		= 0600,
-		.proc_handler	= &pm_do_suspend
-	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "sleep",

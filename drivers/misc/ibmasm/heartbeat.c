@@ -75,9 +75,9 @@ void ibmasm_heartbeat_exit(struct service_processor *sp)
 {
 	char tsbuf[32];
 
-	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	dbg("%s:%d at %s\n", __func__, __LINE__, get_timestamp(tsbuf));
 	ibmasm_wait_for_response(sp->heartbeat, IBMASM_CMD_TIMEOUT_NORMAL);
-	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	dbg("%s:%d at %s\n", __func__, __LINE__, get_timestamp(tsbuf));
 	suspend_heartbeats = 1;
 	command_put(sp->heartbeat);
 }
@@ -88,7 +88,7 @@ void ibmasm_receive_heartbeat(struct service_processor *sp,  void *message, size
 	struct dot_command_header *header = (struct dot_command_header *)cmd->buffer;
 	char tsbuf[32];
 
-	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	dbg("%s:%d at %s\n", __func__, __LINE__, get_timestamp(tsbuf));
 	if (suspend_heartbeats)
 		return;
 

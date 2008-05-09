@@ -48,7 +48,8 @@
 #define IVTV_CARD_ASUS_FALCON2	     21 /* ASUS Falcon2 */
 #define IVTV_CARD_AVER_PVR150PLUS    22 /* AVerMedia PVR-150 Plus */
 #define IVTV_CARD_AVER_EZMAKER       23 /* AVerMedia EZMaker PCI Deluxe */
-#define IVTV_CARD_LAST 		     23
+#define IVTV_CARD_AVER_M104          24 /* AverMedia M104 miniPCI card */
+#define IVTV_CARD_LAST 		     24
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
@@ -244,6 +245,7 @@ struct ivtv_card_tuner_i2c {
 struct ivtv_card {
 	int type;
 	char *name;
+	char *comment;
 	u32 v4l2_capabilities;
 	u32 hw_video;		/* hardware used to process video */
 	u32 hw_audio;		/* hardware used to process audio */
@@ -256,6 +258,7 @@ struct ivtv_card {
 	int nof_outputs;
 	const struct ivtv_card_output *video_outputs;
 	u8 gr_config; 		/* config byte for the ghost reduction device */
+	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
 
 	/* GPIO card-specific settings */
 	struct ivtv_gpio_init 		gpio_init;

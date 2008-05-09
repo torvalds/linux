@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,6 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *buffer_desc;
 	acpi_size length;
 	void *buffer;
-	u8 locked;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_read_data_from_field, obj_desc);
 
@@ -111,9 +110,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 
 		/* Lock entire transaction if requested */
 
-		locked =
-		    acpi_ex_acquire_global_lock(obj_desc->common_field.
-						field_flags);
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 		/*
 		 * Perform the read.
@@ -125,7 +122,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 							     buffer.pointer),
 					       ACPI_READ | (obj_desc->field.
 							    attribute << 16));
-		acpi_ex_release_global_lock(locked);
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 		goto exit;
 	}
 
@@ -175,13 +172,12 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 
 	/* Lock entire transaction if requested */
 
-	locked =
-	    acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+	acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 	/* Read from the field */
 
 	status = acpi_ex_extract_from_field(obj_desc, buffer, (u32) length);
-	acpi_ex_release_global_lock(locked);
+	acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
       exit:
 	if (ACPI_FAILURE(status)) {
@@ -214,10 +210,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 {
 	acpi_status status;
 	u32 length;
-	u32 required_length;
 	void *buffer;
-	void *new_buffer;
-	u8 locked;
 	union acpi_operand_object *buffer_desc;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_write_data_to_field, obj_desc);
@@ -278,9 +271,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 		/* Lock entire transaction if requested */
 
-		locked =
-		    acpi_ex_acquire_global_lock(obj_desc->common_field.
-						field_flags);
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 		/*
 		 * Perform the write (returns status and perhaps data in the
@@ -291,7 +282,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 					       (acpi_integer *) buffer,
 					       ACPI_WRITE | (obj_desc->field.
 							     attribute << 16));
-		acpi_ex_release_global_lock(locked);
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 		*result_desc = buffer_desc;
 		return_ACPI_STATUS(status);
@@ -319,35 +310,6 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 
-	/*
-	 * We must have a buffer that is at least as long as the field
-	 * we are writing to.  This is because individual fields are
-	 * indivisible and partial writes are not supported -- as per
-	 * the ACPI specification.
-	 */
-	new_buffer = NULL;
-	required_length =
-	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length);
-
-	if (length < required_length) {
-
-		/* We need to create a new buffer */
-
-		new_buffer = ACPI_ALLOCATE_ZEROED(required_length);
-		if (!new_buffer) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
-		}
-
-		/*
-		 * Copy the original data to the new buffer, starting
-		 * at Byte zero.  All unused (upper) bytes of the
-		 * buffer will be 0.
-		 */
-		ACPI_MEMCPY((char *)new_buffer, (char *)buffer, length);
-		buffer = new_buffer;
-		length = required_length;
-	}
-
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 			  "FieldWrite [FROM]: Obj %p (%s:%X), Buf %p, ByteLen %X\n",
 			  source_desc,
@@ -366,19 +328,12 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 	/* Lock entire transaction if requested */
 
-	locked =
-	    acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+	acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 	/* Write to the field */
 
 	status = acpi_ex_insert_into_field(obj_desc, buffer, length);
-	acpi_ex_release_global_lock(locked);
-
-	/* Free temporary buffer if we used one */
-
-	if (new_buffer) {
-		ACPI_FREE(new_buffer);
-	}
+	acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 	return_ACPI_STATUS(status);
 }

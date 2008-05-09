@@ -342,12 +342,10 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 #endif
 	
 	/* Flush any pending characters in the driver and discipline. */
-	
 	if (tty->ldisc.flush_buffer)
-		tty->ldisc.flush_buffer (tty);
+		tty->ldisc.flush_buffer(tty);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer (tty);
+	tty_driver_flush_buffer(tty);
 		
 	if (debuglevel >= DEBUG_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_open() success\n",__FILE__,__LINE__);
@@ -399,7 +397,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 			
 		/* Send the next block of data to device */
 		tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
-		actual = tty->driver->write(tty, tbuf->buf, tbuf->count);
+		actual = tty->ops->write(tty, tbuf->buf, tbuf->count);
 
 		/* rollback was possible and has been done */
 		if (actual == -ERESTARTSYS) {
@@ -578,26 +576,36 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 		return -EFAULT;
 	}
 
+	lock_kernel();
+
 	for (;;) {
-		if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
+		if (test_bit(TTY_OTHER_CLOSED, &tty->flags)) {
+			unlock_kernel();
 			return -EIO;
+		}
 
 		n_hdlc = tty2n_hdlc (tty);
 		if (!n_hdlc || n_hdlc->magic != HDLC_MAGIC ||
-			 tty != n_hdlc->tty)
+			 tty != n_hdlc->tty) {
+			unlock_kernel();
 			return 0;
+		}
 
 		rbuf = n_hdlc_buf_get(&n_hdlc->rx_buf_list);
 		if (rbuf)
 			break;
 			
 		/* no data */
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_NONBLOCK) {
+			unlock_kernel();
 			return -EAGAIN;
+		}
 			
 		interruptible_sleep_on (&tty->read_wait);
-		if (signal_pending(current))
+		if (signal_pending(current)) {
+			unlock_kernel();
 			return -EINTR;
+		}
 	}
 		
 	if (rbuf->count > nr)
@@ -618,7 +626,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 		kfree(rbuf);
 	else	
 		n_hdlc_buf_put(&n_hdlc->rx_free_buf_list,rbuf);
-	
+	unlock_kernel();
 	return ret;
 	
 }	/* end of n_hdlc_tty_read() */
@@ -661,6 +669,8 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		count = maxframe;
 	}
 	
+	lock_kernel();
+
 	add_wait_queue(&tty->write_wait, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 	
@@ -695,7 +705,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		n_hdlc_buf_put(&n_hdlc->tx_buf_list,tbuf);
 		n_hdlc_send_frames(n_hdlc,tty);
 	}
-
+	unlock_kernel();
 	return error;
 	
 }	/* end of n_hdlc_tty_write() */
@@ -740,8 +750,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 
 	case TIOCOUTQ:
 		/* get the pending tx byte count in the driver */
-		count = tty->driver->chars_in_buffer ?
-				tty->driver->chars_in_buffer(tty) : 0;
+		count = tty_chars_in_buffer(tty);
 		/* add size of next output frame in queue */
 		spin_lock_irqsave(&n_hdlc->tx_buf_list.spinlock,flags);
 		if (n_hdlc->tx_buf_list.head)

@@ -153,7 +153,6 @@ static const struct pvr2_device_desc pvr2_device_gotview_2d = {
 
 
 
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
 /*------------------------------------------------------------------------*/
 /* OnAir Creator */
 
@@ -212,11 +211,9 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 		.dvb_props = &pvr2_onair_creator_fe_props,
 #endif
 };
-#endif
 
 
 
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
 /*------------------------------------------------------------------------*/
 /* OnAir USB 2.0 */
 
@@ -274,7 +271,6 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 		.dvb_props = &pvr2_onair_usb2_fe_props,
 #endif
 };
-#endif
 
 
 
@@ -497,14 +493,10 @@ struct usb_device_id pvr2_device_table[] = {
 	  .driver_info = (kernel_ulong_t)&pvr2_device_gotview_2},
 	{ USB_DEVICE(0x1164, 0x0602),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_gotview_2d},
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
 	{ USB_DEVICE(0x11ba, 0x1003),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_onair_creator},
-#endif
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
 	{ USB_DEVICE(0x11ba, 0x1001),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_onair_usb2},
-#endif
 	{ USB_DEVICE(0x2040, 0x7300),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_73xxx},
 	{ USB_DEVICE(0x2040, 0x7500),

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,6 +118,11 @@ acpi_get_table(acpi_string signature,
 acpi_status
 acpi_get_table_by_index(acpi_native_uint table_index,
 			struct acpi_table_header **out_table);
+
+acpi_status
+acpi_install_table_handler(acpi_tbl_handler handler, void *context);
+
+acpi_status acpi_remove_table_handler(acpi_tbl_handler handler);
 
 /*
  * Namespace and name interfaces

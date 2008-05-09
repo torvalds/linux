@@ -21,6 +21,7 @@
 #include <linux/poll.h>
 #include <linux/personality.h> /* for STICKY_TIMEOUTS */
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/rcupdate.h>
 
@@ -298,7 +299,7 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 #define MAX_SELECT_SECONDS \
 	((unsigned long) (MAX_SCHEDULE_TIMEOUT / HZ)-1)
 
-static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			   fd_set __user *exp, s64 *timeout)
 {
 	fd_set_bits fds;
@@ -425,7 +426,7 @@ sticky:
 	return ret;
 }
 
-#ifdef TIF_RESTORE_SIGMASK
+#ifdef HAVE_SET_RESTORE_SIGMASK
 asmlinkage long sys_pselect7(int n, fd_set __user *inp, fd_set __user *outp,
 		fd_set __user *exp, struct timespec __user *tsp,
 		const sigset_t __user *sigmask, size_t sigsetsize)
@@ -498,7 +499,7 @@ sticky:
 		if (sigmask) {
 			memcpy(&current->saved_sigmask, &sigsaved,
 					sizeof(sigsaved));
-			set_thread_flag(TIF_RESTORE_SIGMASK);
+			set_restore_sigmask();
 		}
 	} else if (sigmask)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
@@ -528,7 +529,7 @@ asmlinkage long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
 
 	return sys_pselect7(n, inp, outp, exp, tsp, up, sigsetsize);
 }
-#endif /* TIF_RESTORE_SIGMASK */
+#endif /* HAVE_SET_RESTORE_SIGMASK */
 
 struct poll_list {
 	struct poll_list *next;
@@ -759,7 +760,7 @@ asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 	return ret;
 }
 
-#ifdef TIF_RESTORE_SIGMASK
+#ifdef HAVE_SET_RESTORE_SIGMASK
 asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
 	struct timespec __user *tsp, const sigset_t __user *sigmask,
 	size_t sigsetsize)
@@ -805,7 +806,7 @@ asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
 		if (sigmask) {
 			memcpy(&current->saved_sigmask, &sigsaved,
 					sizeof(sigsaved));
-			set_thread_flag(TIF_RESTORE_SIGMASK);
+			set_restore_sigmask();
 		}
 		ret = -ERESTARTNOHAND;
 	} else if (sigmask)
@@ -839,4 +840,4 @@ asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
 
 	return ret;
 }
-#endif /* TIF_RESTORE_SIGMASK */
+#endif /* HAVE_SET_RESTORE_SIGMASK */

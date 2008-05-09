@@ -982,15 +982,16 @@ tty3215_write(struct tty_struct * tty,
 /*
  * Put character routine for 3215 ttys
  */
-static void
+static int
 tty3215_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct raw3215_info *raw;
 
 	if (!tty)
-		return;
+		return 0;
 	raw = (struct raw3215_info *) tty->driver_data;
 	raw3215_putchar(raw, ch);
+	return 1;
 }
 
 static void

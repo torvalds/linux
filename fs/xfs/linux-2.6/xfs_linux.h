@@ -75,6 +75,7 @@
 #include <linux/delay.h>
 #include <linux/log2.h>
 #include <linux/spinlock.h>
+#include <linux/random.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -99,7 +100,6 @@
 /*
  * Feature macros (disable/enable)
  */
-#define HAVE_SPLICE	/* a splice(2) exists in 2.6, but not in 2.4 */
 #ifdef CONFIG_SMP
 #define HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
 #else

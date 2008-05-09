@@ -628,13 +628,13 @@ static int viotty_write(struct tty_struct *tty, const unsigned char *buf,
 /*
  * TTY put_char method
  */
-static void viotty_put_char(struct tty_struct *tty, unsigned char ch)
+static int viotty_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct port_info *pi;
 
 	pi = get_port_data(tty);
 	if (pi == NULL)
-		return;
+		return 0;
 
 	/* This will append '\r' as well if the char is '\n' */
 	if (viochar_is_console(pi))
@@ -642,6 +642,7 @@ static void viotty_put_char(struct tty_struct *tty, unsigned char ch)
 
 	if (viopath_isactive(pi->lp))
 		internal_write(pi, &ch, 1);
+	return 1;
 }
 
 /*
@@ -704,8 +705,11 @@ static int viotty_ioctl(struct tty_struct *tty, struct file *file,
 	case KDSKBLED:
 		return 0;
 	}
-
-	return n_tty_ioctl(tty, file, cmd, arg);
+	/* FIXME: WTF is this being called for ??? */
+	lock_kernel();
+	ret =  n_tty_ioctl(tty, file, cmd, arg);
+	unlock_kernel();
+	return ret;
 }
 
 /*

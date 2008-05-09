@@ -20,7 +20,7 @@
 DECLARE_RWSEM(afs_proc_cells_sem);
 LIST_HEAD(afs_proc_cells);
 
-static struct list_head afs_cells = LIST_HEAD_INIT(afs_cells);
+static LIST_HEAD(afs_cells);
 static DEFINE_RWLOCK(afs_cells_lock);
 static DECLARE_RWSEM(afs_cells_sem); /* add/remove serialisation */
 static DECLARE_WAIT_QUEUE_HEAD(afs_cells_freeable_wq);

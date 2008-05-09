@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -244,6 +244,10 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 		info->field_count++;
 		break;
 
+	case ACPI_TYPE_LOCAL_BANK_FIELD:
+		info->field_count++;
+		break;
+
 	case ACPI_TYPE_BUFFER:
 		info->buffer_count++;
 		break;
@@ -285,6 +289,12 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 
 		info->field_init++;
 		status = acpi_ds_get_buffer_field_arguments(obj_desc);
+		break;
+
+	case ACPI_TYPE_LOCAL_BANK_FIELD:
+
+		info->field_init++;
+		status = acpi_ds_get_bank_field_arguments(obj_desc);
 		break;
 
 	case ACPI_TYPE_BUFFER:

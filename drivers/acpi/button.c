@@ -102,6 +102,7 @@ struct acpi_button {
 };
 
 static const struct file_operations acpi_button_info_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_button_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -109,6 +110,7 @@ static const struct file_operations acpi_button_info_fops = {
 };
 
 static const struct file_operations acpi_button_state_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_button_state_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -207,27 +209,21 @@ static int acpi_button_add_fs(struct acpi_device *device)
 	acpi_device_dir(device)->owner = THIS_MODULE;
 
 	/* 'info' [R] */
-	entry = create_proc_entry(ACPI_BUTTON_FILE_INFO,
-				  S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data(ACPI_BUTTON_FILE_INFO,
+				 S_IRUGO, acpi_device_dir(device),
+				 &acpi_button_info_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_button_info_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* show lid state [R] */
 	if (button->type == ACPI_BUTTON_TYPE_LID) {
-		entry = create_proc_entry(ACPI_BUTTON_FILE_STATE,
-					  S_IRUGO, acpi_device_dir(device));
+		entry = proc_create_data(ACPI_BUTTON_FILE_STATE,
+					 S_IRUGO, acpi_device_dir(device),
+					 &acpi_button_state_fops,
+					 acpi_driver_data(device));
 		if (!entry)
 			return -ENODEV;
-		else {
-			entry->proc_fops = &acpi_button_state_fops;
-			entry->data = acpi_driver_data(device);
-			entry->owner = THIS_MODULE;
-		}
 	}
 
 	return 0;

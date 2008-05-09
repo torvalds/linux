@@ -773,7 +773,6 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	r1bio_t *r1_bio;
 	struct bio *read_bio;
 	int i, targets = 0, disks;
-	mdk_rdev_t *rdev;
 	struct bitmap *bitmap = mddev->bitmap;
 	unsigned long flags;
 	struct bio_list bl;
@@ -781,6 +780,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	const int rw = bio_data_dir(bio);
 	const int do_sync = bio_sync(bio);
 	int do_barriers;
+	mdk_rdev_t *blocked_rdev;
 
 	/*
 	 * Register the new request and wait if the reconstruction
@@ -862,10 +862,17 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	first = 0;
 	}
 #endif
+ retry_write:
+	blocked_rdev = NULL;
 	rcu_read_lock();
 	for (i = 0;  i < disks; i++) {
-		if ((rdev=rcu_dereference(conf->mirrors[i].rdev)) != NULL &&
-		    !test_bit(Faulty, &rdev->flags)) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
+		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+			atomic_inc(&rdev->nr_pending);
+			blocked_rdev = rdev;
+			break;
+		}
+		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			atomic_inc(&rdev->nr_pending);
 			if (test_bit(Faulty, &rdev->flags)) {
 				rdev_dec_pending(rdev, mddev);
@@ -877,6 +884,20 @@ static int make_request(struct request_queue *q, struct bio * bio)
 			r1_bio->bios[i] = NULL;
 	}
 	rcu_read_unlock();
+
+	if (unlikely(blocked_rdev)) {
+		/* Wait for this device to become unblocked */
+		int j;
+
+		for (j = 0; j < i; j++)
+			if (r1_bio->bios[j])
+				rdev_dec_pending(conf->mirrors[j].rdev, mddev);
+
+		allow_barrier(conf);
+		md_wait_for_blocked_rdev(blocked_rdev, mddev);
+		wait_barrier(conf);
+		goto retry_write;
+	}
 
 	BUG_ON(targets == 0); /* we never fail the last device */
 

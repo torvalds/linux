@@ -40,10 +40,12 @@ struct mtd_partition uclinux_romfs[] = {
 /****************************************************************************/
 
 int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
-	size_t *retlen, u_char **mtdbuf)
+	size_t *retlen, void **virt, resource_size_t *phys)
 {
 	struct map_info *map = mtd->priv;
-	*mtdbuf = (u_char *) (map->virt + ((int) from));
+	*virt = map->virt + from;
+	if (phys)
+		*phys = map->phys + from;
 	*retlen = len;
 	return(0);
 }

@@ -133,11 +133,6 @@ extern void *early_ioremap(unsigned long offset, unsigned long size);
 extern void early_iounmap(void *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
-/* Use early IO mappings for DMI because it's initialized early */
-#define dmi_ioremap early_ioremap
-#define dmi_iounmap early_iounmap
-#define dmi_alloc alloc_bootmem
-
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
  */

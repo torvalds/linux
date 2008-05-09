@@ -36,7 +36,7 @@
  * is protected by the 'device_ctls_mutex' lock
  */
 static DEFINE_MUTEX(device_ctls_mutex);
-static struct list_head edac_device_list = LIST_HEAD_INIT(edac_device_list);
+static LIST_HEAD(edac_device_list);
 
 #ifdef CONFIG_EDAC_DEBUG
 static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
@@ -374,37 +374,6 @@ static void del_edac_device_from_global_list(struct edac_device_ctl_info
 	call_rcu(&edac_device->rcu, complete_edac_device_list_del);
 	wait_for_completion(&edac_device->removal_complete);
 }
-
-/**
- * edac_device_find
- *	Search for a edac_device_ctl_info structure whose index is 'idx'.
- *
- * If found, return a pointer to the structure.
- * Else return NULL.
- *
- * Caller must hold device_ctls_mutex.
- */
-struct edac_device_ctl_info *edac_device_find(int idx)
-{
-	struct list_head *item;
-	struct edac_device_ctl_info *edac_dev;
-
-	/* Iterate over list, looking for exact match of ID */
-	list_for_each(item, &edac_device_list) {
-		edac_dev = list_entry(item, struct edac_device_ctl_info, link);
-
-		if (edac_dev->dev_idx >= idx) {
-			if (edac_dev->dev_idx == idx)
-				return edac_dev;
-
-			/* not on list, so terminate early */
-			break;
-		}
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(edac_device_find);
 
 /*
  * edac_device_workq_function

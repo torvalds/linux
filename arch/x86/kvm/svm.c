@@ -1863,6 +1863,15 @@ static bool svm_cpu_has_accelerated_tpr(void)
 	return false;
 }
 
+static int get_npt_level(void)
+{
+#ifdef CONFIG_X86_64
+	return PT64_ROOT_LEVEL;
+#else
+	return PT32E_ROOT_LEVEL;
+#endif
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -1920,6 +1929,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.inject_pending_vectors = do_interrupt_requests,
 
 	.set_tss_addr = svm_set_tss_addr,
+	.get_tdp_level = get_npt_level,
 };
 
 static int __init svm_init(void)

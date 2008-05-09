@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -323,27 +323,11 @@ struct uint32_struct {
 #define acpi_semaphore                  void *
 
 /*
- * Acpi integer width. In ACPI version 1, integers are
- * 32 bits.  In ACPI version 2, integers are 64 bits.
- * Note that this pertains to the ACPI integer type only, not
- * other integers used in the implementation of the ACPI CA
+ * Acpi integer width. In ACPI version 1, integers are 32 bits.  In ACPI
+ * version 2, integers are 64 bits. Note that this pertains to the ACPI integer
+ * type only, not other integers used in the implementation of the ACPI CA
  * subsystem.
  */
-#ifdef ACPI_NO_INTEGER64_SUPPORT
-
-/* 32-bit integers only, no 64-bit support */
-
-typedef u32 acpi_integer;
-#define ACPI_INTEGER_MAX                ACPI_UINT32_MAX
-#define ACPI_INTEGER_BIT_SIZE           32
-#define ACPI_MAX_DECIMAL_DIGITS         10	/* 2^32 = 4,294,967,296 */
-
-#define ACPI_USE_NATIVE_DIVIDE	/* Use compiler native 32-bit divide */
-
-#else
-
-/* 64-bit integers */
-
 typedef unsigned long long acpi_integer;
 #define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 #define ACPI_INTEGER_BIT_SIZE           64
@@ -351,7 +335,6 @@ typedef unsigned long long acpi_integer;
 
 #if ACPI_MACHINE_WIDTH == 64
 #define ACPI_USE_NATIVE_DIVIDE	/* Use compiler native 64-bit divide */
-#endif
 #endif
 
 #define ACPI_MAX64_DECIMAL_DIGITS       20
@@ -419,14 +402,20 @@ typedef unsigned long long acpi_integer;
 /*
  * Standard notify values
  */
-#define ACPI_NOTIFY_BUS_CHECK           (u8) 0
-#define ACPI_NOTIFY_DEVICE_CHECK        (u8) 1
-#define ACPI_NOTIFY_DEVICE_WAKE         (u8) 2
-#define ACPI_NOTIFY_EJECT_REQUEST       (u8) 3
-#define ACPI_NOTIFY_DEVICE_CHECK_LIGHT  (u8) 4
-#define ACPI_NOTIFY_FREQUENCY_MISMATCH  (u8) 5
-#define ACPI_NOTIFY_BUS_MODE_MISMATCH   (u8) 6
-#define ACPI_NOTIFY_POWER_FAULT         (u8) 7
+#define ACPI_NOTIFY_BUS_CHECK           (u8) 0x00
+#define ACPI_NOTIFY_DEVICE_CHECK        (u8) 0x01
+#define ACPI_NOTIFY_DEVICE_WAKE         (u8) 0x02
+#define ACPI_NOTIFY_EJECT_REQUEST       (u8) 0x03
+#define ACPI_NOTIFY_DEVICE_CHECK_LIGHT  (u8) 0x04
+#define ACPI_NOTIFY_FREQUENCY_MISMATCH  (u8) 0x05
+#define ACPI_NOTIFY_BUS_MODE_MISMATCH   (u8) 0x06
+#define ACPI_NOTIFY_POWER_FAULT         (u8) 0x07
+#define ACPI_NOTIFY_CAPABILITIES_CHECK  (u8) 0x08
+#define ACPI_NOTIFY_DEVICE_PLD_CHECK    (u8) 0x09
+#define ACPI_NOTIFY_RESERVED            (u8) 0x0A
+#define ACPI_NOTIFY_LOCALITY_UPDATE     (u8) 0x0B
+
+#define ACPI_NOTIFY_MAX                 0x0B
 
 /*
  * Types associated with ACPI names and objects.  The first group of
@@ -493,6 +482,8 @@ typedef u32 acpi_object_type;
 
 #define ACPI_TYPE_INVALID               0x1E
 #define ACPI_TYPE_NOT_FOUND             0xFF
+
+#define ACPI_NUM_NS_TYPES               (ACPI_TYPE_INVALID + 1)
 
 /*
  * All I/O
@@ -599,7 +590,7 @@ typedef u32 acpi_event_status;
 
 #define ACPI_SYSTEM_NOTIFY              0x1
 #define ACPI_DEVICE_NOTIFY              0x2
-#define ACPI_ALL_NOTIFY                 0x3
+#define ACPI_ALL_NOTIFY                 (ACPI_SYSTEM_NOTIFY | ACPI_DEVICE_NOTIFY)
 #define ACPI_MAX_NOTIFY_HANDLER_TYPE    0x3
 
 #define ACPI_MAX_SYS_NOTIFY             0x7f
@@ -654,46 +645,51 @@ typedef u8 acpi_adr_space_type;
 /*
  * External ACPI object definition
  */
+
+/*
+ * Note: Type == ACPI_TYPE_ANY (0) is used to indicate a NULL package element
+ * or an unresolved named reference.
+ */
 union acpi_object {
 	acpi_object_type type;	/* See definition of acpi_ns_type for values */
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_INTEGER */
 		acpi_integer value;	/* The actual number */
 	} integer;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_STRING */
 		u32 length;	/* # of bytes in string, excluding trailing null */
 		char *pointer;	/* points to the string value */
 	} string;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_BUFFER */
 		u32 length;	/* # of bytes in buffer */
 		u8 *pointer;	/* points to the buffer */
 	} buffer;
 
 	struct {
-		acpi_object_type type;
-		u32 fill1;
-		acpi_handle handle;	/* object reference */
-	} reference;
-
-	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_PACKAGE */
 		u32 count;	/* # of elements in package */
 		union acpi_object *elements;	/* Pointer to an array of ACPI_OBJECTs */
 	} package;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_LOCAL_REFERENCE */
+		acpi_object_type actual_type;	/* Type associated with the Handle */
+		acpi_handle handle;	/* object reference */
+	} reference;
+
+	struct {
+		acpi_object_type type;	/* ACPI_TYPE_PROCESSOR */
 		u32 proc_id;
 		acpi_io_address pblk_address;
 		u32 pblk_length;
 	} processor;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_POWER */
 		u32 system_level;
 		u32 resource_order;
 	} power_resource;
@@ -747,6 +743,12 @@ struct acpi_system_info {
 	u32 debug_layer;
 };
 
+/* Table Event Types */
+
+#define ACPI_TABLE_EVENT_LOAD           0x0
+#define ACPI_TABLE_EVENT_UNLOAD         0x1
+#define ACPI_NUM_TABLE_EVENTS           2
+
 /*
  * Types specific to the OS service interfaces
  */
@@ -775,6 +777,11 @@ acpi_status(*acpi_exception_handler) (acpi_status aml_status,
 				      acpi_name name,
 				      u16 opcode,
 				      u32 aml_offset, void *context);
+
+/* Table Event handler (Load, load_table etc) and types */
+
+typedef
+acpi_status(*acpi_tbl_handler) (u32 event, void *table, void *context);
 
 /* Address Spaces (For Operation Regions) */
 
@@ -990,6 +997,7 @@ struct acpi_vendor_uuid {
  *  Structures used to describe device resources
  */
 struct acpi_resource_irq {
+	u8 descriptor_length;
 	u8 triggering;
 	u8 polarity;
 	u8 sharable;
@@ -1006,6 +1014,7 @@ struct acpi_resource_dma {
 };
 
 struct acpi_resource_start_dependent {
+	u8 descriptor_length;
 	u8 compatibility_priority;
 	u8 performance_robustness;
 };

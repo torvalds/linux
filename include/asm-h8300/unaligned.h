@@ -1,15 +1,11 @@
-#ifndef __H8300_UNALIGNED_H
-#define __H8300_UNALIGNED_H
+#ifndef _ASM_H8300_UNALIGNED_H
+#define _ASM_H8300_UNALIGNED_H
 
+#include <linux/unaligned/be_memmove.h>
+#include <linux/unaligned/le_byteshift.h>
+#include <linux/unaligned/generic.h>
 
-/* Use memmove here, so gcc does not insert a __builtin_memcpy. */
+#define get_unaligned	__get_unaligned_be
+#define put_unaligned	__put_unaligned_be
 
-#define get_unaligned(ptr) \
-  ({ __typeof__(*(ptr)) __tmp; memmove(&__tmp, (ptr), sizeof(*(ptr))); __tmp; })
-
-#define put_unaligned(val, ptr)				\
-  ({ __typeof__(*(ptr)) __tmp = (val);			\
-     memmove((ptr), &__tmp, sizeof(*(ptr)));		\
-     (void)0; })
-
-#endif
+#endif /* _ASM_H8300_UNALIGNED_H */

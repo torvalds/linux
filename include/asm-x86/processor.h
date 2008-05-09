@@ -3,9 +3,6 @@
 
 #include <asm/processor-flags.h>
 
-/* migration helper, for KVM - will be removed in 2.6.25: */
-#define Xgt_desc_struct	desc_ptr
-
 /* Forward declaration, a strange C thing */
 struct task_struct;
 struct mm_struct;

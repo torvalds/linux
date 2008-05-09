@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -602,6 +602,48 @@ char *acpi_ut_get_mutex_name(u32 mutex_id)
 
 	return (acpi_gbl_mutex_names[mutex_id]);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_notify_name
+ *
+ * PARAMETERS:  notify_value    - Value from the Notify() request
+ *
+ * RETURN:      String corresponding to the Notify Value.
+ *
+ * DESCRIPTION: Translate a Notify Value to a notify namestring.
+ *
+ ******************************************************************************/
+
+/* Names for Notify() values, used for debug output */
+
+static const char *acpi_gbl_notify_value_names[] = {
+	"Bus Check",
+	"Device Check",
+	"Device Wake",
+	"Eject Request",
+	"Device Check Light",
+	"Frequency Mismatch",
+	"Bus Mode Mismatch",
+	"Power Fault",
+	"Capabilities Check",
+	"Device PLD Check",
+	"Reserved",
+	"System Locality Update"
+};
+
+const char *acpi_ut_get_notify_name(u32 notify_value)
+{
+
+	if (notify_value <= ACPI_NOTIFY_MAX) {
+		return (acpi_gbl_notify_value_names[notify_value]);
+	} else if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
+		return ("Reserved");
+	} else {		/* Greater or equal to 0x80 */
+
+		return ("**Device Specific**");
+	}
+}
 #endif
 
 /*******************************************************************************
@@ -675,12 +717,13 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
 
-	/* Global notify handlers */
+	/* Global handlers */
 
 	acpi_gbl_system_notify.handler = NULL;
 	acpi_gbl_device_notify.handler = NULL;
 	acpi_gbl_exception_handler = NULL;
 	acpi_gbl_init_handler = NULL;
+	acpi_gbl_table_handler = NULL;
 
 	/* Global Lock support */
 
@@ -722,7 +765,7 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_root_node_struct.flags = ANOBJ_END_OF_PEER_LIST;
 
 #ifdef ACPI_DEBUG_OUTPUT
-	acpi_gbl_lowest_stack_pointer = ACPI_SIZE_MAX;
+	acpi_gbl_lowest_stack_pointer = ACPI_CAST_PTR(acpi_size, ACPI_SIZE_MAX);
 #endif
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS

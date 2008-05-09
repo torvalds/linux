@@ -20,28 +20,23 @@
 
 #include <linux/rwsem.h>
 
-enum { MR_NONE, MR_ACCESS, MR_UPDATE };
-
 typedef struct {
 	struct rw_semaphore	mr_lock;
+#ifdef DEBUG
 	int			mr_writer;
+#endif
 } mrlock_t;
 
+#ifdef DEBUG
 #define mrinit(mrp, name)	\
 	do { (mrp)->mr_writer = 0; init_rwsem(&(mrp)->mr_lock); } while (0)
+#else
+#define mrinit(mrp, name)	\
+	do { init_rwsem(&(mrp)->mr_lock); } while (0)
+#endif
+
 #define mrlock_init(mrp, t,n,s)	mrinit(mrp, n)
 #define mrfree(mrp)		do { } while (0)
-
-static inline void mraccess(mrlock_t *mrp)
-{
-	down_read(&mrp->mr_lock);
-}
-
-static inline void mrupdate(mrlock_t *mrp)
-{
-	down_write(&mrp->mr_lock);
-	mrp->mr_writer = 1;
-}
 
 static inline void mraccess_nested(mrlock_t *mrp, int subclass)
 {
@@ -51,9 +46,10 @@ static inline void mraccess_nested(mrlock_t *mrp, int subclass)
 static inline void mrupdate_nested(mrlock_t *mrp, int subclass)
 {
 	down_write_nested(&mrp->mr_lock, subclass);
+#ifdef DEBUG
 	mrp->mr_writer = 1;
+#endif
 }
-
 
 static inline int mrtryaccess(mrlock_t *mrp)
 {
@@ -64,39 +60,31 @@ static inline int mrtryupdate(mrlock_t *mrp)
 {
 	if (!down_write_trylock(&mrp->mr_lock))
 		return 0;
+#ifdef DEBUG
 	mrp->mr_writer = 1;
+#endif
 	return 1;
 }
 
-static inline void mrunlock(mrlock_t *mrp)
+static inline void mrunlock_excl(mrlock_t *mrp)
 {
-	if (mrp->mr_writer) {
-		mrp->mr_writer = 0;
-		up_write(&mrp->mr_lock);
-	} else {
-		up_read(&mrp->mr_lock);
-	}
+#ifdef DEBUG
+	mrp->mr_writer = 0;
+#endif
+	up_write(&mrp->mr_lock);
+}
+
+static inline void mrunlock_shared(mrlock_t *mrp)
+{
+	up_read(&mrp->mr_lock);
 }
 
 static inline void mrdemote(mrlock_t *mrp)
 {
+#ifdef DEBUG
 	mrp->mr_writer = 0;
+#endif
 	downgrade_write(&mrp->mr_lock);
 }
-
-#ifdef DEBUG
-/*
- * Debug-only routine, without some platform-specific asm code, we can
- * now only answer requests regarding whether we hold the lock for write
- * (reader state is outside our visibility, we only track writer state).
- * Note: means !ismrlocked would give false positives, so don't do that.
- */
-static inline int ismrlocked(mrlock_t *mrp, int type)
-{
-	if (mrp && type == MR_UPDATE)
-		return mrp->mr_writer;
-	return 1;
-}
-#endif
 
 #endif /* __XFS_SUPPORT_MRLOCK_H__ */

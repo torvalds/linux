@@ -11,14 +11,14 @@
  * these are normally enabled.
  */
 #ifdef SMBFS_PARANOIA
-# define PARANOIA(f, a...) printk(KERN_NOTICE "%s: " f, __FUNCTION__ , ## a)
+# define PARANOIA(f, a...) printk(KERN_NOTICE "%s: " f, __func__ , ## a)
 #else
 # define PARANOIA(f, a...) do { ; } while(0)
 #endif
 
 /* lots of debug messages */
 #ifdef SMBFS_DEBUG_VERBOSE
-# define VERBOSE(f, a...) printk(KERN_DEBUG "%s: " f, __FUNCTION__ , ## a)
+# define VERBOSE(f, a...) printk(KERN_DEBUG "%s: " f, __func__ , ## a)
 #else
 # define VERBOSE(f, a...) do { ; } while(0)
 #endif
@@ -28,7 +28,7 @@
  * too common name.
  */
 #ifdef SMBFS_DEBUG
-#define DEBUG1(f, a...) printk(KERN_DEBUG "%s: " f, __FUNCTION__ , ## a)
+#define DEBUG1(f, a...) printk(KERN_DEBUG "%s: " f, __func__ , ## a)
 #else
 #define DEBUG1(f, a...) do { ; } while(0)
 #endif

@@ -1046,14 +1046,14 @@ static int vt_check(struct file *file)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct vc_data *vc;
 	
-	if (file->f_op->ioctl != tty_ioctl)
+	if (file->f_op->unlocked_ioctl != tty_ioctl)
 		return -EINVAL;
 	                
 	tty = (struct tty_struct *)file->private_data;
 	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
 		return -EINVAL;
 	                                                
-	if (tty->driver->ioctl != vt_ioctl)
+	if (tty->ops->ioctl != vt_ioctl)
 		return -EINVAL;
 
 	vc = (struct vc_data *)tty->driver_data;

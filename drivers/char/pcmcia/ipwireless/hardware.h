@@ -58,7 +58,5 @@ void ipwireless_init_hardware_v1(struct ipw_hardware *hw,
 				 void *reboot_cb_data);
 void ipwireless_init_hardware_v2_v3(struct ipw_hardware *hw);
 void ipwireless_sleep(unsigned int tenths);
-int ipwireless_dump_hardware_state(char *p, size_t limit,
-				   struct ipw_hardware *hw);
 
 #endif

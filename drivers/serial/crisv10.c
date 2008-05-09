@@ -1788,7 +1788,7 @@ static unsigned int handle_descr_data(struct e100_serial *info,
 
 	if (info->recv_cnt + recvl > 65536) {
 		printk(KERN_CRIT
-		       "%s: Too much pending incoming serial data! Dropping %u bytes.\n", __FUNCTION__, recvl);
+		       "%s: Too much pending incoming serial data! Dropping %u bytes.\n", __func__, recvl);
 		return 0;
 	}
 
@@ -1801,7 +1801,7 @@ static unsigned int handle_descr_data(struct e100_serial *info,
 	append_recv_buffer(info, buffer);
 
 	if (!(buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE)))
-		panic("%s: Failed to allocate memory for receive buffer!\n", __FUNCTION__);
+		panic("%s: Failed to allocate memory for receive buffer!\n", __func__);
 
 	descr->buf = virt_to_phys(buffer->buffer);
 
@@ -1925,7 +1925,7 @@ static int start_recv_dma(struct e100_serial *info)
 	/* Set up the receiving descriptors */
 	for (i = 0; i < SERIAL_RECV_DESCRIPTORS; i++) {
 		if (!(buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE)))
-			panic("%s: Failed to allocate memory for receive buffer!\n", __FUNCTION__);
+			panic("%s: Failed to allocate memory for receive buffer!\n", __func__);
 
 		descr[i].ctrl = d_int;
 		descr[i].buf = virt_to_phys(buffer->buffer);
@@ -3581,8 +3581,9 @@ rs_tiocmset(struct tty_struct *tty, struct file *file,
 		unsigned int set, unsigned int clear)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
+	unsigned long flags;
 
-	lock_kernel();
+	local_irq_save(flags);
 
 	if (clear & TIOCM_RTS)
 		e100_rts(info, 0);
@@ -3604,7 +3605,7 @@ rs_tiocmset(struct tty_struct *tty, struct file *file,
 	if (set & TIOCM_CD)
 		e100_cd_out(info, 1);
 
-	unlock_kernel();
+	local_irq_restore(flags);
 	return 0;
 }
 
@@ -3613,8 +3614,10 @@ rs_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 	unsigned int result;
+	unsigned long flags;
 
-	lock_kernel();
+	local_irq_save(flags);
+
 	result =
 		(!E100_RTS_GET(info) ? TIOCM_RTS : 0)
 		| (!E100_DTR_GET(info) ? TIOCM_DTR : 0)
@@ -3623,7 +3626,7 @@ rs_tiocmget(struct tty_struct *tty, struct file *file)
 		| (!E100_CD_GET(info) ? TIOCM_CAR : 0)
 		| (!E100_CTS_GET(info) ? TIOCM_CTS : 0);
 
-	unlock_kernel();
+	local_irq_restore(flags);
 
 #ifdef SERIAL_DEBUG_IO
 	printk(KERN_DEBUG "ser%i: modem state: %i 0x%08X\n",
@@ -3701,10 +3704,6 @@ static void
 rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
-
-	if (tty->termios->c_cflag == old_termios->c_cflag &&
-	    tty->termios->c_iflag == old_termios->c_iflag)
-		return;
 
 	change_speed(info);
 
@@ -3808,10 +3807,8 @@ rs_close(struct tty_struct *tty, struct file * filp)
 #endif
 
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
-	if (tty->ldisc.flush_buffer)
-		tty->ldisc.flush_buffer(tty);
+	rs_flush_buffer(tty);
+	tty_ldisc_flush_buffer(tty);
 	tty->closing = 0;
 	info->event = 0;
 	info->tty = 0;
@@ -3885,6 +3882,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Check R_DMA_CHx_STATUS bit 0-6=number of available bytes in FIFO
 	 * R_DMA_CHx_HWSW bit 31-16=nbr of bytes left in DMA buffer (0=64k)
 	 */
+	lock_kernel();
 	orig_jiffies = jiffies;
 	while (info->xmit.head != info->xmit.tail || /* More in send queue */
 	       (*info->ostatusadr & 0x007f) ||  /* more in FIFO */
@@ -3901,6 +3899,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 			curr_time_usec - info->last_tx_active_usec;
 	}
 	set_current_state(TASK_RUNNING);
+	unlock_kernel();
 }
 
 /*
@@ -4520,7 +4519,7 @@ rs_init(void)
 
 	if (request_irq(SERIAL_IRQ_NBR, ser_interrupt,
 			IRQF_SHARED | IRQF_DISABLED, "serial ", driver))
-		panic("%s: Failed to request irq8", __FUNCTION__);
+		panic("%s: Failed to request irq8", __func__);
 
 #endif
 #endif /* CONFIG_SVINTO_SIM */

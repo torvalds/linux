@@ -1780,6 +1780,7 @@ int __init netlbl_unlabel_defconf(void)
 	 * messages so don't worry to much about these values. */
 	security_task_getsecid(current, &audit_info.secid);
 	audit_info.loginuid = 0;
+	audit_info.sessionid = 0;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)

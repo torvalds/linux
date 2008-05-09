@@ -494,7 +494,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 				/* If it's an in-core inode, then we have to adjust any
 				   full_dirent or full_dnode structure to point to the
 				   new version instead of the old */
-				f = jffs2_gc_fetch_inode(c, ic->ino, ic->nlink);
+				f = jffs2_gc_fetch_inode(c, ic->ino, !ic->pino_nlink);
 				if (IS_ERR(f)) {
 					/* Should never happen; it _must_ be present */
 					JFFS2_ERROR("Failed to iget() ino #%u, err %ld\n",

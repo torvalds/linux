@@ -26,6 +26,9 @@
 
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/ramfs.h>
+
+#include "internal.h"
 
 const struct address_space_operations ramfs_aops = {
 	.readpage	= simple_readpage,

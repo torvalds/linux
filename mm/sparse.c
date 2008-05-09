@@ -250,29 +250,18 @@ static unsigned long *__kmalloc_section_usemap(void)
 
 static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
 {
-	unsigned long *usemap, section_nr;
+	unsigned long *usemap;
 	struct mem_section *ms = __nr_to_section(pnum);
 	int nid = sparse_early_nid(ms);
-	struct pglist_data *pgdat = NODE_DATA(nid);
 
-	/*
-	 * Usemap's page can't be freed until freeing other sections
-	 * which use it. And, Pgdat has same feature.
-	 * If section A has pgdat and section B has usemap for other
-	 * sections (includes section A), both sections can't be removed,
-	 * because there is the dependency each other.
-	 * To solve above issue, this collects all usemap on the same section
-	 * which has pgdat.
-	 */
-	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
-	usemap = alloc_bootmem_section(usemap_size(), section_nr);
+	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
 	if (usemap)
 		return usemap;
 
 	/* Stupid: suppress gcc warning for SPARSEMEM && !NUMA */
 	nid = 0;
 
-	printk(KERN_WARNING "%s: allocation failed\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: allocation failed\n", __func__);
 	return NULL;
 }
 
@@ -302,7 +291,7 @@ struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 		return map;
 
 	printk(KERN_ERR "%s: sparsemem memory map backing failed "
-			"some memory will not be available.\n", __FUNCTION__);
+			"some memory will not be available.\n", __func__);
 	ms->section_mem_map = 0;
 	return NULL;
 }

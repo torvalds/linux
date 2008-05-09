@@ -22,6 +22,7 @@ struct msi_desc {
 		__u8	masked	: 1;
 		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit  */
 		__u8	pos;	 	/* Location of the msi capability */
+		__u32	maskbits_mask;  /* mask bits mask */
 		__u16	entry_nr;    	/* specific enabled entry 	  */
 		unsigned default_irq;	/* default pre-assigned irq	  */
 	}msi_attrib;

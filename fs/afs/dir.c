@@ -140,7 +140,7 @@ static inline void afs_dir_check_page(struct inode *dir, struct page *page)
 
 	if (page->index == 0 && qty != ntohs(dbuf->blocks[0].pagehdr.npages)) {
 		printk("kAFS: %s(%lu): wrong number of dir blocks %d!=%hu\n",
-		       __FUNCTION__, dir->i_ino, qty,
+		       __func__, dir->i_ino, qty,
 		       ntohs(dbuf->blocks[0].pagehdr.npages));
 		goto error;
 	}
@@ -159,7 +159,7 @@ static inline void afs_dir_check_page(struct inode *dir, struct page *page)
 	for (tmp = 0; tmp < qty; tmp++) {
 		if (dbuf->blocks[tmp].pagehdr.magic != AFS_DIR_MAGIC) {
 			printk("kAFS: %s(%lu): bad magic %d/%d is %04hx\n",
-			       __FUNCTION__, dir->i_ino, tmp, qty,
+			       __func__, dir->i_ino, tmp, qty,
 			       ntohs(dbuf->blocks[tmp].pagehdr.magic));
 			goto error;
 		}

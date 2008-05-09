@@ -83,7 +83,7 @@ unsigned int read_apic_id(void)
 {
 	unsigned int id;
 
-	WARN_ON(preemptible());
+	WARN_ON(preemptible() && num_online_cpus() > 1);
 	id = apic_read(APIC_ID);
 	if (uv_system_type >= UV_X2APIC)
 		id  |= __get_cpu_var(x2apic_extra_bits);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -205,6 +205,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			    || (op->common.parent->common.aml_opcode ==
 				AML_PACKAGE_OP)
 			    || (op->common.parent->common.aml_opcode ==
+				AML_BANK_FIELD_OP)
+			    || (op->common.parent->common.aml_opcode ==
 				AML_VAR_PACKAGE_OP)) {
 				replacement_op =
 				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);
@@ -349,19 +351,13 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 
 		parser_state->aml = walk_state->aml_last_while;
 		walk_state->control_state->common.value = FALSE;
-		status = acpi_ds_result_stack_pop(walk_state);
-		if (ACPI_SUCCESS(status)) {
-			status = AE_CTRL_BREAK;
-		}
+		status = AE_CTRL_BREAK;
 		break;
 
 	case AE_CTRL_CONTINUE:
 
 		parser_state->aml = walk_state->aml_last_while;
-		status = acpi_ds_result_stack_pop(walk_state);
-		if (ACPI_SUCCESS(status)) {
-			status = AE_CTRL_CONTINUE;
-		}
+		status = AE_CTRL_CONTINUE;
 		break;
 
 	case AE_CTRL_PENDING:
@@ -383,10 +379,7 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 		 * Just close out this package
 		 */
 		parser_state->aml = acpi_ps_get_next_package_end(parser_state);
-		status = acpi_ds_result_stack_pop(walk_state);
-		if (ACPI_SUCCESS(status)) {
-			status = AE_CTRL_PENDING;
-		}
+		status = AE_CTRL_PENDING;
 		break;
 
 	case AE_CTRL_FALSE:
@@ -541,7 +534,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			if ((status == AE_ALREADY_EXISTS) &&
 			    (!walk_state->method_desc->method.mutex)) {
 				ACPI_INFO((AE_INFO,
-					   "Marking method %4.4s as Serialized",
+					   "Marking method %4.4s as Serialized because of AE_ALREADY_EXISTS error",
 					   walk_state->method_node->name.
 					   ascii));
 
@@ -601,6 +594,30 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				 * The object is deleted
 				 */
 				if (!previous_walk_state->return_desc) {
+					/*
+					 * In slack mode execution, if there is no return value
+					 * we should implicitly return zero (0) as a default value.
+					 */
+					if (acpi_gbl_enable_interpreter_slack &&
+					    !previous_walk_state->
+					    implicit_return_obj) {
+						previous_walk_state->
+						    implicit_return_obj =
+						    acpi_ut_create_internal_object
+						    (ACPI_TYPE_INTEGER);
+						if (!previous_walk_state->
+						    implicit_return_obj) {
+							return_ACPI_STATUS
+							    (AE_NO_MEMORY);
+						}
+
+						previous_walk_state->
+						    implicit_return_obj->
+						    integer.value = 0;
+					}
+
+					/* Restart the calling control method */
+
 					status =
 					    acpi_ds_restart_control_method
 					    (walk_state,

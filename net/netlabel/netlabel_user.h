@@ -51,6 +51,7 @@ static inline void netlbl_netlink_auditinfo(struct sk_buff *skb,
 {
 	audit_info->secid = NETLINK_CB(skb).sid;
 	audit_info->loginuid = NETLINK_CB(skb).loginuid;
+	audit_info->sessionid = NETLINK_CB(skb).sessionid;
 }
 
 /* NetLabel NETLINK I/O functions */

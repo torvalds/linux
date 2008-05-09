@@ -135,7 +135,8 @@ static int cs53l32a_command(struct i2c_client *client, unsigned cmd, void *arg)
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static int cs53l32a_probe(struct i2c_client *client)
+static int cs53l32a_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	int i;
 

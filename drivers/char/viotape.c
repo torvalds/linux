@@ -249,6 +249,7 @@ static int proc_viotape_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proc_viotape_operations = {
+	.owner		= THIS_MODULE,
 	.open		= proc_viotape_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -915,7 +916,6 @@ static struct vio_driver viotape_driver = {
 int __init viotap_init(void)
 {
 	int ret;
-	struct proc_dir_entry *e;
 
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))
 		return -ENODEV;
@@ -968,11 +968,8 @@ int __init viotap_init(void)
 	if (ret)
 		goto unreg_class;
 
-	e = create_proc_entry("iSeries/viotape", S_IFREG|S_IRUGO, NULL);
-	if (e) {
-		e->owner = THIS_MODULE;
-		e->proc_fops = &proc_viotape_operations;
-	}
+	proc_create("iSeries/viotape", S_IFREG|S_IRUGO, NULL,
+		    &proc_viotape_operations);
 
 	return 0;
 

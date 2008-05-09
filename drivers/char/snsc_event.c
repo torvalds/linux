@@ -63,16 +63,13 @@ static int
 scdrv_parse_event(char *event, int *src, int *code, int *esp_code, char *desc)
 {
 	char *desc_end;
-	__be32 from_buf;
 
 	/* record event source address */
-	from_buf = get_unaligned((__be32 *)event);
-	*src = be32_to_cpup(&from_buf);
+	*src = get_unaligned_be32(event);
 	event += 4; 			/* move on to event code */
 
 	/* record the system controller's event code */
-	from_buf = get_unaligned((__be32 *)event);
-	*code = be32_to_cpup(&from_buf);
+	*code = get_unaligned_be32(event);
 	event += 4;			/* move on to event arguments */
 
 	/* how many arguments are in the packet? */
@@ -86,8 +83,7 @@ scdrv_parse_event(char *event, int *src, int *code, int *esp_code, char *desc)
 		/* not an integer argument, so give up */
 		return -1;
 	}
-	from_buf = get_unaligned((__be32 *)event);
-	*esp_code = be32_to_cpup(&from_buf);
+	*esp_code = get_unaligned_be32(event);
 	event += 4;
 
 	/* parse out the event description */
@@ -275,7 +271,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 	event_sd = kzalloc(sizeof (struct subch_data_s), GFP_KERNEL);
 	if (event_sd == NULL) {
 		printk(KERN_WARNING "%s: couldn't allocate subchannel info"
-		       " for event monitoring\n", __FUNCTION__);
+		       " for event monitoring\n", __func__);
 		return;
 	}
 
@@ -289,7 +285,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 	if (event_sd->sd_subch < 0) {
 		kfree(event_sd);
 		printk(KERN_WARNING "%s: couldn't open event subchannel\n",
-		       __FUNCTION__);
+		       __func__);
 		return;
 	}
 
@@ -299,7 +295,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 			 "system controller events", event_sd);
 	if (rv) {
 		printk(KERN_WARNING "%s: irq request failed (%d)\n",
-		       __FUNCTION__, rv);
+		       __func__, rv);
 		ia64_sn_irtr_close(event_sd->sd_nasid, event_sd->sd_subch);
 		kfree(event_sd);
 		return;

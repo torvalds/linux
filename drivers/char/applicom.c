@@ -199,7 +199,7 @@ static int __init applicom_init(void)
 		if (pci_enable_device(dev))
 			return -EIO;
 
-		RamIO = ioremap(pci_resource_start(dev, 0), LEN_RAM_IO);
+		RamIO = ioremap_nocache(pci_resource_start(dev, 0), LEN_RAM_IO);
 
 		if (!RamIO) {
 			printk(KERN_INFO "ac.o: Failed to ioremap PCI memory "
@@ -254,7 +254,7 @@ static int __init applicom_init(void)
 	/* Now try the specified ISA cards */
 
 	for (i = 0; i < MAX_ISA_BOARD; i++) {
-		RamIO = ioremap(mem + (LEN_RAM_IO * i), LEN_RAM_IO);
+		RamIO = ioremap_nocache(mem + (LEN_RAM_IO * i), LEN_RAM_IO);
 
 		if (!RamIO) {
 			printk(KERN_INFO "ac.o: Failed to ioremap the ISA card's memory space (slot #%d)\n", i + 1);

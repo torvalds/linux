@@ -55,11 +55,6 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
         dp = PDE(inode);
  	data = (unsigned int *)dp->data;
 
-	if (!data) {
-		printk(KERN_ERR "scanlog: read failed no data\n");
-		return -EIO;
-	}
-
 	if (count > RTAS_DATA_BUF_SIZE)
 		count = RTAS_DATA_BUF_SIZE;
 
@@ -146,11 +141,6 @@ static int scanlog_open(struct inode * inode, struct file * file)
 	struct proc_dir_entry *dp = PDE(inode);
 	unsigned int *data = (unsigned int *)dp->data;
 
-	if (!data) {
-		printk(KERN_ERR "scanlog: open failed no data\n");
-		return -EIO;
-	}
-
 	if (data[0] != 0) {
 		/* This imperfect test stops a second copy of the
 		 * data (or a reset while data is being copied)
@@ -168,10 +158,6 @@ static int scanlog_release(struct inode * inode, struct file * file)
 	struct proc_dir_entry *dp = PDE(inode);
 	unsigned int *data = (unsigned int *)dp->data;
 
-	if (!data) {
-		printk(KERN_ERR "scanlog: release failed no data\n");
-		return -EIO;
-	}
 	data[0] = 0;
 
 	return 0;
@@ -200,12 +186,11 @@ static int __init scanlog_init(void)
 	if (!data)
 		goto err;
 
-	ent = proc_create("ppc64/rtas/scan-log-dump", S_IRUSR, NULL,
-			  &scanlog_fops);
+	ent = proc_create_data("ppc64/rtas/scan-log-dump", S_IRUSR, NULL,
+			       &scanlog_fops, data);
 	if (!ent)
 		goto err;
 
-	ent->data = data;
 	proc_ppc64_scan_log_dump = ent;
 
 	return 0;

@@ -1828,7 +1828,7 @@ void scsi_scan_host(struct Scsi_Host *shost)
 	}
 
 	p = kthread_run(do_scan_async, data, "scsi_scan_%d", shost->host_no);
-	if (unlikely(IS_ERR(p)))
+	if (IS_ERR(p))
 		do_scan_async(data);
 }
 EXPORT_SYMBOL(scsi_scan_host);

@@ -653,7 +653,14 @@ finish_tlb_load:
 	rlwimi	r10, r11, 0, 26, 26		/* UX = HWEXEC & USER */
 
 	rlwimi	r12, r10, 0, 26, 31		/* Insert static perms */
-	rlwinm	r12, r12, 0, 20, 15		/* Clear U0-U3 */
+
+	/*
+	 * Clear U0-U3 and WL1 IL1I IL1D IL2I IL2D bits which are added
+	 * on newer 440 cores like the 440x6 used on AMCC 460EX/460GT (see
+	 * include/asm-powerpc/pgtable-ppc32.h for details).
+	 */
+	rlwinm	r12, r12, 0, 20, 10
+
 	tlbwe	r12, r13, PPC44x_TLB_ATTRIB	/* Write ATTRIB */
 
 	/* Done...restore registers and get out of here.

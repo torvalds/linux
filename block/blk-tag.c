@@ -70,7 +70,7 @@ void __blk_queue_free_tags(struct request_queue *q)
 	__blk_free_tags(bqt);
 
 	q->queue_tags = NULL;
-	q->queue_flags &= ~(1 << QUEUE_FLAG_QUEUED);
+	queue_flag_clear(QUEUE_FLAG_QUEUED, q);
 }
 
 /**
@@ -98,7 +98,7 @@ EXPORT_SYMBOL(blk_free_tags);
  **/
 void blk_queue_free_tags(struct request_queue *q)
 {
-	clear_bit(QUEUE_FLAG_QUEUED, &q->queue_flags);
+	queue_flag_clear(QUEUE_FLAG_QUEUED, q);
 }
 EXPORT_SYMBOL(blk_queue_free_tags);
 
@@ -112,7 +112,7 @@ init_tag_map(struct request_queue *q, struct blk_queue_tag *tags, int depth)
 	if (q && depth > q->nr_requests * 2) {
 		depth = q->nr_requests * 2;
 		printk(KERN_ERR "%s: adjusted depth to %d\n",
-				__FUNCTION__, depth);
+		       __func__, depth);
 	}
 
 	tag_index = kzalloc(depth * sizeof(struct request *), GFP_ATOMIC);
@@ -188,7 +188,7 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 		rc = blk_queue_resize_tags(q, depth);
 		if (rc)
 			return rc;
-		set_bit(QUEUE_FLAG_QUEUED, &q->queue_flags);
+		queue_flag_set(QUEUE_FLAG_QUEUED, q);
 		return 0;
 	} else
 		atomic_inc(&tags->refcnt);
@@ -197,7 +197,7 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 	 * assign it, all done
 	 */
 	q->queue_tags = tags;
-	q->queue_flags |= (1 << QUEUE_FLAG_QUEUED);
+	queue_flag_set(QUEUE_FLAG_QUEUED, q);
 	INIT_LIST_HEAD(&q->tag_busy_list);
 	return 0;
 fail:
@@ -296,13 +296,13 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 
 	if (unlikely(bqt->tag_index[tag] == NULL))
 		printk(KERN_ERR "%s: tag %d is missing\n",
-		       __FUNCTION__, tag);
+		       __func__, tag);
 
 	bqt->tag_index[tag] = NULL;
 
 	if (unlikely(!test_bit(tag, bqt->tag_map))) {
 		printk(KERN_ERR "%s: attempt to clear non-busy tag (%d)\n",
-		       __FUNCTION__, tag);
+		       __func__, tag);
 		return;
 	}
 	/*
@@ -340,7 +340,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	if (unlikely((rq->cmd_flags & REQ_QUEUED))) {
 		printk(KERN_ERR
 		       "%s: request %p for device [%s] already tagged %d",
-		       __FUNCTION__, rq,
+		       __func__, rq,
 		       rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->tag);
 		BUG();
 	}

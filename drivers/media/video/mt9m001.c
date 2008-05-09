@@ -372,7 +372,7 @@ static int mt9m001_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-const struct v4l2_queryctrl mt9m001_controls[] = {
+static const struct v4l2_queryctrl mt9m001_controls[] = {
 	{
 		.id		= V4L2_CID_VFLIP,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,
@@ -620,7 +620,8 @@ static void mt9m001_video_remove(struct soc_camera_device *icd)
 	soc_camera_video_stop(&mt9m001->icd);
 }
 
-static int mt9m001_probe(struct i2c_client *client)
+static int mt9m001_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct mt9m001 *mt9m001;
 	struct soc_camera_device *icd;
@@ -696,12 +697,19 @@ static int mt9m001_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id mt9m001_id[] = {
+	{ "mt9m001", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, mt9m001_id);
+
 static struct i2c_driver mt9m001_i2c_driver = {
 	.driver = {
 		.name = "mt9m001",
 	},
 	.probe		= mt9m001_probe,
 	.remove		= mt9m001_remove,
+	.id_table	= mt9m001_id,
 };
 
 static int __init mt9m001_mod_init(void)

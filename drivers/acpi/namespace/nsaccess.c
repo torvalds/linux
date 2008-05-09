@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -208,8 +208,7 @@ acpi_status acpi_ns_root_initialize(void)
 				/* Special case for ACPI Global Lock */
 
 				if (ACPI_STRCMP(init_val->name, "_GL_") == 0) {
-					acpi_gbl_global_lock_mutex =
-					    obj_desc->mutex.os_mutex;
+					acpi_gbl_global_lock_mutex = obj_desc;
 
 					/* Create additional counting semaphore for global lock */
 
@@ -582,44 +581,68 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			return_ACPI_STATUS(status);
 		}
 
-		/*
-		 * Sanity typecheck of the target object:
-		 *
-		 * If 1) This is the last segment (num_segments == 0)
-		 *    2) And we are looking for a specific type
-		 *       (Not checking for TYPE_ANY)
-		 *    3) Which is not an alias
-		 *    4) Which is not a local type (TYPE_SCOPE)
-		 *    5) And the type of target object is known (not TYPE_ANY)
-		 *    6) And target object does not match what we are looking for
-		 *
-		 * Then we have a type mismatch.  Just warn and ignore it.
-		 */
-		if ((num_segments == 0) &&
-		    (type_to_check_for != ACPI_TYPE_ANY) &&
-		    (type_to_check_for != ACPI_TYPE_LOCAL_ALIAS) &&
-		    (type_to_check_for != ACPI_TYPE_LOCAL_METHOD_ALIAS) &&
-		    (type_to_check_for != ACPI_TYPE_LOCAL_SCOPE) &&
-		    (this_node->type != ACPI_TYPE_ANY) &&
-		    (this_node->type != type_to_check_for)) {
+		/* More segments to follow? */
 
-			/* Complain about a type mismatch */
-
-			ACPI_WARNING((AE_INFO,
-				      "NsLookup: Type mismatch on %4.4s (%s), searching for (%s)",
-				      ACPI_CAST_PTR(char, &simple_name),
-				      acpi_ut_get_type_name(this_node->type),
-				      acpi_ut_get_type_name
-				      (type_to_check_for)));
+		if (num_segments > 0) {
+			/*
+			 * If we have an alias to an object that opens a scope (such as a
+			 * device or processor), we need to dereference the alias here so that
+			 * we can access any children of the original node (via the remaining
+			 * segments).
+			 */
+			if (this_node->type == ACPI_TYPE_LOCAL_ALIAS) {
+				if (acpi_ns_opens_scope
+				    (((struct acpi_namespace_node *)this_node->
+				      object)->type)) {
+					this_node =
+					    (struct acpi_namespace_node *)
+					    this_node->object;
+				}
+			}
 		}
 
-		/*
-		 * If this is the last name segment and we are not looking for a
-		 * specific type, but the type of found object is known, use that type
-		 * to see if it opens a scope.
-		 */
-		if ((num_segments == 0) && (type == ACPI_TYPE_ANY)) {
-			type = this_node->type;
+		/* Special handling for the last segment (num_segments == 0) */
+
+		else {
+			/*
+			 * Sanity typecheck of the target object:
+			 *
+			 * If 1) This is the last segment (num_segments == 0)
+			 *    2) And we are looking for a specific type
+			 *       (Not checking for TYPE_ANY)
+			 *    3) Which is not an alias
+			 *    4) Which is not a local type (TYPE_SCOPE)
+			 *    5) And the type of target object is known (not TYPE_ANY)
+			 *    6) And target object does not match what we are looking for
+			 *
+			 * Then we have a type mismatch. Just warn and ignore it.
+			 */
+			if ((type_to_check_for != ACPI_TYPE_ANY) &&
+			    (type_to_check_for != ACPI_TYPE_LOCAL_ALIAS) &&
+			    (type_to_check_for != ACPI_TYPE_LOCAL_METHOD_ALIAS)
+			    && (type_to_check_for != ACPI_TYPE_LOCAL_SCOPE)
+			    && (this_node->type != ACPI_TYPE_ANY)
+			    && (this_node->type != type_to_check_for)) {
+
+				/* Complain about a type mismatch */
+
+				ACPI_WARNING((AE_INFO,
+					      "NsLookup: Type mismatch on %4.4s (%s), searching for (%s)",
+					      ACPI_CAST_PTR(char, &simple_name),
+					      acpi_ut_get_type_name(this_node->
+								    type),
+					      acpi_ut_get_type_name
+					      (type_to_check_for)));
+			}
+
+			/*
+			 * If this is the last name segment and we are not looking for a
+			 * specific type, but the type of found object is known, use that type
+			 * to (later) see if it opens a scope.
+			 */
+			if (type == ACPI_TYPE_ANY) {
+				type = this_node->type;
+			}
 		}
 
 		/* Point to next name segment and make this node current */

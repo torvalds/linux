@@ -1101,7 +1101,7 @@ grow_buffers(struct block_device *bdev, sector_t block, int size)
 
 		printk(KERN_ERR "%s: requested out-of-range block %llu for "
 			"device %s\n",
-			__FUNCTION__, (unsigned long long)block,
+			__func__, (unsigned long long)block,
 			bdevname(bdev, b));
 		return -EIO;
 	}
@@ -2211,8 +2211,8 @@ out:
 	return err;
 }
 
-int cont_expand_zero(struct file *file, struct address_space *mapping,
-			loff_t pos, loff_t *bytes)
+static int cont_expand_zero(struct file *file, struct address_space *mapping,
+			    loff_t pos, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
 	unsigned blocksize = 1 << inode->i_blkbits;
@@ -2325,23 +2325,6 @@ int block_commit_write(struct page *page, unsigned from, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
 	__block_commit_write(inode,page,from,to);
-	return 0;
-}
-
-int generic_commit_write(struct file *file, struct page *page,
-		unsigned from, unsigned to)
-{
-	struct inode *inode = page->mapping->host;
-	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
-	__block_commit_write(inode,page,from,to);
-	/*
-	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold i_mutex.
-	 */
-	if (pos > inode->i_size) {
-		i_size_write(inode, pos);
-		mark_inode_dirty(inode);
-	}
 	return 0;
 }
 
@@ -3315,7 +3298,6 @@ EXPORT_SYMBOL(end_buffer_write_sync);
 EXPORT_SYMBOL(file_fsync);
 EXPORT_SYMBOL(fsync_bdev);
 EXPORT_SYMBOL(generic_block_bmap);
-EXPORT_SYMBOL(generic_commit_write);
 EXPORT_SYMBOL(generic_cont_expand_simple);
 EXPORT_SYMBOL(init_buffer);
 EXPORT_SYMBOL(invalidate_bdev);

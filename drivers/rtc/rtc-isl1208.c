@@ -490,7 +490,7 @@ isl1208_sysfs_unregister(struct device *dev)
 }
 
 static int
-isl1208_probe(struct i2c_client *client)
+isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
 	struct rtc_device *rtc;
@@ -545,12 +545,19 @@ isl1208_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id isl1208_id[] = {
+	{ "isl1208", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, isl1208_id);
+
 static struct i2c_driver isl1208_driver = {
 	.driver = {
 		   .name = "rtc-isl1208",
 		   },
 	.probe = isl1208_probe,
 	.remove = isl1208_remove,
+	.id_table = isl1208_id,
 };
 
 static int __init

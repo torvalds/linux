@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -149,8 +150,16 @@ static struct fdtable * alloc_fdtable(unsigned int nr)
 	nr /= (1024 / sizeof(struct file *));
 	nr = roundup_pow_of_two(nr + 1);
 	nr *= (1024 / sizeof(struct file *));
-	if (nr > sysctl_nr_open)
-		nr = sysctl_nr_open;
+	/*
+	 * Note that this can drive nr *below* what we had passed if sysctl_nr_open
+	 * had been set lower between the check in expand_files() and here.  Deal
+	 * with that in caller, it's cheaper that way.
+	 *
+	 * We make sure that nr remains a multiple of BITS_PER_LONG - otherwise
+	 * bitmaps handling below becomes unpleasant, to put it mildly...
+	 */
+	if (unlikely(nr > sysctl_nr_open))
+		nr = ((sysctl_nr_open - 1) | (BITS_PER_LONG - 1)) + 1;
 
 	fdt = kmalloc(sizeof(struct fdtable), GFP_KERNEL);
 	if (!fdt)
@@ -198,6 +207,16 @@ static int expand_fdtable(struct files_struct *files, int nr)
 	spin_lock(&files->file_lock);
 	if (!new_fdt)
 		return -ENOMEM;
+	/*
+	 * extremely unlikely race - sysctl_nr_open decreased between the check in
+	 * caller and alloc_fdtable().  Cheaper to catch it here...
+	 */
+	if (unlikely(new_fdt->max_fds <= nr)) {
+		free_fdarr(new_fdt);
+		free_fdset(new_fdt);
+		kfree(new_fdt);
+		return -EMFILE;
+	}
 	/*
 	 * Check again since another task may have expanded the fd table while
 	 * we dropped the lock

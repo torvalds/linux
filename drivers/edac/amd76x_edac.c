@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define AMD76X_REVISION	" Ver: 2.0.2 "  __DATE__
@@ -344,6 +345,9 @@ static struct pci_driver amd76x_driver = {
 
 static int __init amd76x_init(void)
 {
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	return pci_register_driver(&amd76x_driver);
 }
 
@@ -358,3 +362,6 @@ module_exit(amd76x_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Linux Networx (http://lnxi.com) Thayne Harbaugh");
 MODULE_DESCRIPTION("MC support for AMD 76x memory controllers");
+
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

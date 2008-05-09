@@ -82,12 +82,6 @@
  *
  */
 
-
-#if defined(__KERNEL__)
-/*
- * inside the kernel, we can use nicknames;
- * outside of it, we must avoid POSIX namespace pollution...
- */
 #define cpu_to_le64 __cpu_to_le64
 #define le64_to_cpu __le64_to_cpu
 #define cpu_to_le32 __cpu_to_le32
@@ -175,7 +169,5 @@ static inline void be64_add_cpu(__be64 *var, u64 val)
 {
 	*var = cpu_to_be64(be64_to_cpu(*var) + val);
 }
-
-#endif /* KERNEL */
 
 #endif /* _LINUX_BYTEORDER_GENERIC_H */

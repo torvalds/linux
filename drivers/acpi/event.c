@@ -102,6 +102,7 @@ static unsigned int acpi_system_poll_event(struct file *file, poll_table * wait)
 }
 
 static const struct file_operations acpi_system_event_ops = {
+	.owner = THIS_MODULE,
 	.open = acpi_system_open_event,
 	.read = acpi_system_read_event,
 	.release = acpi_system_close_event,
@@ -294,10 +295,9 @@ static int __init acpi_event_init(void)
 
 #ifdef CONFIG_ACPI_PROC_EVENT
 	/* 'event' [R] */
-	entry = create_proc_entry("event", S_IRUSR, acpi_root_dir);
-	if (entry)
-		entry->proc_fops = &acpi_system_event_ops;
-	else
+	entry = proc_create("event", S_IRUSR, acpi_root_dir,
+			    &acpi_system_event_ops);
+	if (!entry)
 		return -ENODEV;
 #endif
 

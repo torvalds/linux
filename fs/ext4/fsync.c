@@ -27,8 +27,8 @@
 #include <linux/sched.h>
 #include <linux/writeback.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
+#include "ext4.h"
+#include "ext4_jbd2.h"
 
 /*
  * akpm: A new design for ext4_sync_file().
@@ -71,6 +71,9 @@ int ext4_sync_file(struct file * file, struct dentry *dentry, int datasync)
 		ret = ext4_force_commit(inode->i_sb);
 		goto out;
 	}
+
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+		goto out;
 
 	/*
 	 * The VFS has written the file data.  If the inode is unaltered

@@ -763,9 +763,9 @@ static int hptiop_queuecommand(struct scsi_cmnd *scp,
 			scp,
 			host->host_no, scp->device->channel,
 			scp->device->id, scp->device->lun,
-			*((u32 *)&scp->cmnd),
-			*((u32 *)&scp->cmnd + 1),
-			*((u32 *)&scp->cmnd + 2),
+			((u32 *)scp->cmnd)[0],
+			((u32 *)scp->cmnd)[1],
+			((u32 *)scp->cmnd)[2],
 			_req->index, _req->req_virt);
 
 	scp->result = 0;

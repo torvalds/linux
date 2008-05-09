@@ -33,8 +33,6 @@
 #ifndef __LINUX_RCUCLASSIC_H
 #define __LINUX_RCUCLASSIC_H
 
-#ifdef __KERNEL__
-
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
@@ -163,5 +161,4 @@ extern long rcu_batches_completed_bh(void);
 #define rcu_enter_nohz()	do { } while (0)
 #define rcu_exit_nohz()		do { } while (0)
 
-#endif /* __KERNEL__ */
 #endif /* __LINUX_RCUCLASSIC_H */

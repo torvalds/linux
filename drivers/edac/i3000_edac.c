@@ -326,15 +326,6 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENODEV;
 	}
 
-	switch (edac_op_state) {
-	case EDAC_OPSTATE_POLL:
-	case EDAC_OPSTATE_NMI:
-		break;
-	default:
-		edac_op_state = EDAC_OPSTATE_POLL;
-		break;
-	}
-
 	c0dra[0] = readb(window + I3000_C0DRA + 0);	/* ranks 0,1 */
 	c0dra[1] = readb(window + I3000_C0DRA + 1);	/* ranks 2,3 */
 	c1dra[0] = readb(window + I3000_C1DRA + 0);	/* ranks 0,1 */
@@ -503,6 +494,10 @@ static int __init i3000_init(void)
 	int pci_rc;
 
 	debugf3("MC: %s()\n", __func__);
+
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	pci_rc = pci_register_driver(&i3000_driver);
 	if (pci_rc < 0)
 		goto fail0;

@@ -1350,7 +1350,7 @@ static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
 		} else
 			c->vc_origin += delta;
 		scr_memsetw((u16 *) (c->vc_origin + c->vc_screenbuf_size -
-				     delta), c->vc_video_erase_char,
+				     delta), c->vc_scrl_erase_char,
 			    delta);
 	} else {
 		if (oldo - delta < vga_vram_base) {
@@ -1363,7 +1363,7 @@ static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,
 		} else
 			c->vc_origin -= delta;
 		c->vc_scr_end = c->vc_origin + c->vc_screenbuf_size;
-		scr_memsetw((u16 *) (c->vc_origin), c->vc_video_erase_char,
+		scr_memsetw((u16 *) (c->vc_origin), c->vc_scrl_erase_char,
 			    delta);
 	}
 	c->vc_scr_end = c->vc_origin + c->vc_screenbuf_size;

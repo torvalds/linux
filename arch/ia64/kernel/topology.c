@@ -27,9 +27,20 @@
 
 static struct ia64_cpu *sysfs_cpus;
 
-int arch_register_cpu(int num)
+void arch_fix_phys_package_id(int num, u32 slot)
 {
-#if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
+#ifdef CONFIG_SMP
+	if (cpu_data(num)->socket_id == -1)
+		cpu_data(num)->socket_id = slot;
+#endif
+}
+EXPORT_SYMBOL_GPL(arch_fix_phys_package_id);
+
+
+#ifdef CONFIG_HOTPLUG_CPU
+int __ref arch_register_cpu(int num)
+{
+#ifdef CONFIG_ACPI
 	/*
 	 * If CPEI can be re-targetted or if this is not
 	 * CPEI target, then it is hotpluggable
@@ -38,19 +49,21 @@ int arch_register_cpu(int num)
 		sysfs_cpus[num].cpu.hotpluggable = 1;
 	map_cpu_to_node(num, node_cpuid[num].nid);
 #endif
-
 	return register_cpu(&sysfs_cpus[num].cpu, num);
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
+EXPORT_SYMBOL(arch_register_cpu);
 
 void arch_unregister_cpu(int num)
 {
 	unregister_cpu(&sysfs_cpus[num].cpu);
 	unmap_cpu_from_node(num, cpu_to_node(num));
 }
-EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);
+#else
+static int __init arch_register_cpu(int num)
+{
+	return register_cpu(&sysfs_cpus[num].cpu, num);
+}
 #endif /*CONFIG_HOTPLUG_CPU*/
 
 

@@ -268,6 +268,9 @@ void do_sigreturn32(struct pt_regs *regs)
 	regs->tstate &= ~(TSTATE_ICC|TSTATE_XCC);
 	regs->tstate |= psr_to_tstate_icc(psr);
 
+	/* Prevent syscall restart.  */
+	pt_regs_clear_trap_type(regs);
+
 	err |= __get_user(fpu_save, &sf->fpu_save);
 	if (fpu_save)
 		err |= restore_fpu_state32(regs, &sf->fpu_state);
@@ -350,6 +353,9 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	/* User can only change condition codes in %tstate. */
 	regs->tstate &= ~(TSTATE_ICC|TSTATE_XCC);
 	regs->tstate |= psr_to_tstate_icc(psr);
+
+	/* Prevent syscall restart.  */
+	pt_regs_clear_trap_type(regs);
 
 	err |= __get_user(fpu_save, &sf->fpu_save);
 	if (fpu_save)

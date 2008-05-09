@@ -2469,12 +2469,12 @@ static int __init pppol2tp_init(void)
 		goto out_unregister_pppol2tp_proto;
 
 #ifdef CONFIG_PROC_FS
-	pppol2tp_proc = create_proc_entry("pppol2tp", 0, init_net.proc_net);
+	pppol2tp_proc = proc_net_fops_create(&init_net, "pppol2tp", 0,
+					     &pppol2tp_proc_fops);
 	if (!pppol2tp_proc) {
 		err = -ENOMEM;
 		goto out_unregister_pppox_proto;
 	}
-	pppol2tp_proc->proc_fops = &pppol2tp_proc_fops;
 #endif /* CONFIG_PROC_FS */
 	printk(KERN_INFO "PPPoL2TP kernel driver, %s\n",
 	       PPPOL2TP_DRV_VERSION);

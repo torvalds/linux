@@ -149,12 +149,7 @@ static const struct file_operations proc_dma_operations = {
 
 static int __init proc_dma_init(void)
 {
-	struct proc_dir_entry *e;
-
-	e = create_proc_entry("dma", 0, NULL);
-	if (e)
-		e->proc_fops = &proc_dma_operations;
-
+	proc_create("dma", 0, NULL, &proc_dma_operations);
 	return 0;
 }
 

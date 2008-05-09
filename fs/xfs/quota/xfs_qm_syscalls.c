@@ -1366,12 +1366,6 @@ xfs_qm_internalqcheck_adjust(
 		return (error);
 	}
 
-	if (ip->i_d.di_mode == 0) {
-		xfs_iput_new(ip, lock_flags);
-		*res = BULKSTAT_RV_NOTHING;
-		return XFS_ERROR(ENOENT);
-	}
-
 	/*
 	 * This inode can have blocks after eof which can get released
 	 * when we send it to inactive. Since we don't check the dquot

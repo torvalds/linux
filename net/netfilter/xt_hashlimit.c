@@ -237,15 +237,15 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
 	hinfo->family = family;
 	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
-	hinfo->pde = proc_create(minfo->name, 0,
+	hinfo->pde =
+		proc_create_data(minfo->name, 0,
 				 family == AF_INET ? hashlimit_procdir4 :
 						     hashlimit_procdir6,
-				 &dl_file_ops);
+				 &dl_file_ops, hinfo);
 	if (!hinfo->pde) {
 		vfree(hinfo);
 		return -1;
 	}
-	hinfo->pde->data = hinfo;
 
 	setup_timer(&hinfo->timer, htable_gc, (unsigned long )hinfo);
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
@@ -301,15 +301,15 @@ static int htable_create(struct xt_hashlimit_mtinfo1 *minfo,
 	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
 
-	hinfo->pde = proc_create(minfo->name, 0,
+	hinfo->pde =
+		proc_create_data(minfo->name, 0,
 				 family == AF_INET ? hashlimit_procdir4 :
 						     hashlimit_procdir6,
-				 &dl_file_ops);
+				 &dl_file_ops, hinfo);
 	if (hinfo->pde == NULL) {
 		vfree(hinfo);
 		return -1;
 	}
-	hinfo->pde->data = hinfo;
 
 	setup_timer(&hinfo->timer, htable_gc, (unsigned long)hinfo);
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);

@@ -12,7 +12,6 @@
 #include <asm/head.h>
 #include <asm/asi.h>
 #include <asm/smp.h>
-#include <asm/kgdb.h>
 #include <asm/contregs.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
@@ -45,91 +44,20 @@
 	_SV; _SV; _SV; _SV; _SV; _SV; _SV; \
 	_RS; _RS; _RS; _RS; _RS; _RS; _RS;
 
-/* First, KGDB low level things.  This is a rewrite
- * of the routines found in the sparc-stub.c asm() statement
- * from the gdb distribution.  This is also dual-purpose
- * as a software trap for userlevel programs.
- */
-	.data
-	.align	4
-
-in_trap_handler:
-	.word	0
-
 	.text
+
+#ifdef CONFIG_KGDB
 	.align	4
-
-#if 0 /* kgdb is dropped from 2.5.33 */
-! This function is called when any SPARC trap (except window overflow or
-! underflow) occurs.  It makes sure that the invalid register window is still
-! available before jumping into C code.  It will also restore the world if you
-! return from handle_exception.
-
-	.globl	trap_low
-trap_low:
-	rd	%wim, %l3
-	SAVE_ALL
-
-	sethi	%hi(in_trap_handler), %l4
-	ld	[%lo(in_trap_handler) + %l4], %l5
-	inc	%l5
-	st	%l5, [%lo(in_trap_handler) + %l4]
-
-	/* Make sure kgdb sees the same state we just saved. */
-	LOAD_PT_GLOBALS(sp)
-	LOAD_PT_INS(sp)
-	ld	[%sp + STACKFRAME_SZ + PT_Y], %l4
-	ld	[%sp + STACKFRAME_SZ + PT_WIM], %l3
-	ld	[%sp + STACKFRAME_SZ + PT_PSR], %l0
-	ld	[%sp + STACKFRAME_SZ + PT_PC], %l1
-	ld	[%sp + STACKFRAME_SZ + PT_NPC], %l2
-	rd	%tbr, %l5	/* Never changes... */
-
-	/* Make kgdb exception frame. */	
-	sub	%sp,(16+1+6+1+72)*4,%sp	! Make room for input & locals
- 					! + hidden arg + arg spill
-					! + doubleword alignment
-					! + registers[72] local var
-	SAVE_KGDB_GLOBALS(sp)
-	SAVE_KGDB_INS(sp)
-	SAVE_KGDB_SREGS(sp, l4, l0, l3, l5, l1, l2)
-
-	/* We are increasing PIL, so two writes. */
-	or	%l0, PSR_PIL, %l0
-	wr	%l0, 0, %psr
-	WRITE_PAUSE
-	wr	%l0, PSR_ET, %psr
-	WRITE_PAUSE
-
-	call	handle_exception
-	 add	%sp, STACKFRAME_SZ, %o0	! Pass address of registers
-
-	/* Load new kgdb register set. */
-	LOAD_KGDB_GLOBALS(sp)
-	LOAD_KGDB_INS(sp)
-	LOAD_KGDB_SREGS(sp, l4, l0, l3, l5, l1, l2)
-	wr      %l4, 0x0, %y
-
-	sethi	%hi(in_trap_handler), %l4
-	ld	[%lo(in_trap_handler) + %l4], %l5
-	dec	%l5
-	st	%l5, [%lo(in_trap_handler) + %l4]
-
-	add	%sp,(16+1+6+1+72)*4,%sp	! Undo the kgdb trap frame.
-
-	/* Now take what kgdb did and place it into the pt_regs
-	 * frame which SparcLinux RESTORE_ALL understands.,
-	 */
-	STORE_PT_INS(sp)
-	STORE_PT_GLOBALS(sp)
-	STORE_PT_YREG(sp, g2)
-	STORE_PT_PRIV(sp, l0, l1, l2)
-
-	RESTORE_ALL
+	.globl		arch_kgdb_breakpoint
+	.type		arch_kgdb_breakpoint,#function
+arch_kgdb_breakpoint:
+	ta		0x7d
+	retl
+	 nop
+	.size		arch_kgdb_breakpoint,.-arch_kgdb_breakpoint
 #endif
 
 #if defined(CONFIG_BLK_DEV_FD) || defined(CONFIG_BLK_DEV_FD_MODULE)
-	.text
 	.align	4
 	.globl	floppy_hardint
 floppy_hardint:
@@ -1596,6 +1524,23 @@ breakpoint_trap:
 
 	RESTORE_ALL
 
+#ifdef CONFIG_KGDB
+	.align	4
+	.globl	kgdb_trap_low
+	.type	kgdb_trap_low,#function
+kgdb_trap_low:
+	rd	%wim,%l3
+	SAVE_ALL
+	wr 	%l0, PSR_ET, %psr
+	WRITE_PAUSE
+
+	call	kgdb_trap
+	 add	%sp, STACKFRAME_SZ, %o0
+
+	RESTORE_ALL
+	.size	kgdb_trap_low,.-kgdb_trap_low
+#endif
+
 	.align	4
 	.globl	__handle_exception, flush_patch_exception
 __handle_exception:
@@ -1697,5 +1642,23 @@ pcic_nmi_trap_patch:
 	.word	0
 
 #endif /* CONFIG_PCI */
+
+	.globl	flushw_all
+flushw_all:
+	save	%sp, -0x40, %sp
+	save	%sp, -0x40, %sp
+	save	%sp, -0x40, %sp
+	save	%sp, -0x40, %sp
+	save	%sp, -0x40, %sp
+	save	%sp, -0x40, %sp
+	save	%sp, -0x40, %sp
+	restore
+	restore
+	restore
+	restore
+	restore
+	restore
+	ret
+	 restore
 
 /* End of entry.S */

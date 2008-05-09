@@ -673,15 +673,13 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
 	}
 */
 
-	if (port->tty->driver->flush_buffer)
-		port->tty->driver->flush_buffer(port->tty);
+	tty_driver_flush_buffer(port->tty);
 	tty_ldisc_flush(port->tty);
 
 	firm_report_tx_done(port);
 
 	firm_close(port);
 
-printk(KERN_ERR"Before processing rx_urbs_submitted.\n");
 	/* shutdown our bulk reads and writes */
 	mutex_lock(&info->deathwarrant);
 	spin_lock_irq(&info->lock);

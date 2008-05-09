@@ -1052,11 +1052,9 @@ static int __init pppoe_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("pppoe", S_IRUGO, init_net.proc_net);
+	p = proc_net_fops_create(&init_net, "pppoe", S_IRUGO, &pppoe_seq_fops);
 	if (!p)
 		return -ENOMEM;
-
-	p->proc_fops = &pppoe_seq_fops;
 	return 0;
 }
 #else /* CONFIG_PROC_FS */

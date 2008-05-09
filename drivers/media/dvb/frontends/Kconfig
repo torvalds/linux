@@ -15,13 +15,6 @@ config DVB_FE_CUSTOMISE
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 
-config DVB_STV0299
-	tristate "ST STV0299 based"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A DVB-S tuner module. Say Y when you want to support this frontend.
-
 config DVB_CX24110
 	tristate "Conexant CX24110 based"
 	depends on DVB_CORE && I2C
@@ -36,22 +29,8 @@ config DVB_CX24123
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
-config DVB_TDA8083
-	tristate "Philips TDA8083 based"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A DVB-S tuner module. Say Y when you want to support this frontend.
-
 config DVB_MT312
 	tristate "Zarlink VP310/MT312 based"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A DVB-S tuner module. Say Y when you want to support this frontend.
-
-config DVB_VES1X93
-	tristate "VLSI VES1893 or VES1993 based"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
@@ -64,12 +43,54 @@ config DVB_S5H1420
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_STV0299
+	tristate "ST STV0299 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_TDA8083
+	tristate "Philips TDA8083 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 config DVB_TDA10086
 	tristate "Philips TDA10086 based"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_VES1X93
+	tristate "VLSI VES1893 or VES1993 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_TUNER_ITD1000
+	tristate "Integrant ITD1000 Zero IF tuner for DVB-S/DSS"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_TDA826X
+	tristate "Philips TDA826X silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
+
+config DVB_TUA6100
+	tristate "Infineon TUA6100 PLL"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S PLL chip.
 
 comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
@@ -315,7 +336,7 @@ config DVB_S5H1411
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
-comment "Tuners/PLL support"
+comment "Digital terrestrial only tuners/PLL"
 	depends on DVB_CORE
 
 config DVB_PLL
@@ -326,55 +347,6 @@ config DVB_PLL
 	  This module drives a number of tuners based on PLL chips with a
 	  common I2C interface. Say Y when you want to support these tuners.
 
-config DVB_TDA826X
-	tristate "Philips TDA826X silicon tuner"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
-
-config DVB_TDA827X
-	tristate "Philips TDA827X silicon tuner"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A DVB-T silicon tuner module. Say Y when you want to support this tuner.
-
-config DVB_TDA18271
-	tristate "NXP TDA18271 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A silicon tuner module. Say Y when you want to support this tuner.
-
-config DVB_TUNER_QT1010
-	tristate "Quantek QT1010 silicon tuner"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon tuner QT1010 from Quantek.
-
-config DVB_TUNER_MT2060
-	tristate "Microtune MT2060 silicon IF tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon IF tuner MT2060 from Microtune.
-
-config DVB_TUNER_MT2266
-	tristate "Microtune MT2266 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon baseband tuner MT2266 from Microtune.
-
-config DVB_TUNER_MT2131
-	tristate "Microtune MT2131 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon baseband tuner MT2131 from Microtune.
-
 config DVB_TUNER_DIB0070
 	tristate "DiBcom DiB0070 silicon base-band tuner"
 	depends on I2C
@@ -384,21 +356,7 @@ config DVB_TUNER_DIB0070
 	  This device is only used inside a SiP called togther with a
 	  demodulator for now.
 
-config DVB_TUNER_XC5000
-	tristate "Xceive XC5000 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon tuner XC5000 from Xceive.
-	  This device is only used inside a SiP called togther with a
-	  demodulator for now.
-
-config DVB_TUNER_ITD1000
-	tristate "Integrant ITD1000 Zero IF tuner for DVB-S/DSS"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-
-comment "Miscellaneous devices"
+comment "SEC control devices for DVB-S"
 	depends on DVB_CORE
 
 config DVB_LNBP21
@@ -421,12 +379,5 @@ config DVB_ISL6421
 	default m if DVB_FE_CUSTOMISE
 	help
 	  An SEC control chip.
-
-config DVB_TUA6100
-	tristate "TUA6100 PLL"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A DVBS PLL chip.
 
 endmenu

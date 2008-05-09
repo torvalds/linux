@@ -153,7 +153,7 @@ omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 
 static int omap_cf_ss_suspend(struct pcmcia_socket *s)
 {
-	pr_debug("%s: %s\n", driver_name, __FUNCTION__);
+	pr_debug("%s: %s\n", driver_name, __func__);
 	return omap_cf_set_socket(s, &dead_socket);
 }
 

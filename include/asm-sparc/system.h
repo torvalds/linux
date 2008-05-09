@@ -94,6 +94,8 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 	} while(0)
 #endif
 
+extern void flushw_all(void);
+
 /*
  * Flush windows so that the VM switch which follows
  * would not pull the stack from under us.

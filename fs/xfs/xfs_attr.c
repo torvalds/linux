@@ -101,14 +101,28 @@ STATIC int xfs_attr_rmtval_remove(xfs_da_args_t *args);
 ktrace_t *xfs_attr_trace_buf;
 #endif
 
+STATIC int
+xfs_attr_name_to_xname(
+	struct xfs_name	*xname,
+	const char	*aname)
+{
+	if (!aname)
+		return EINVAL;
+	xname->name = aname;
+	xname->len = strlen(aname);
+	if (xname->len >= MAXNAMELEN)
+		return EFAULT;		/* match IRIX behaviour */
+
+	return 0;
+}
 
 /*========================================================================
  * Overall external interface routines.
  *========================================================================*/
 
 int
-xfs_attr_fetch(xfs_inode_t *ip, const char *name, int namelen,
-	       char *value, int *valuelenp, int flags, struct cred *cred)
+xfs_attr_fetch(xfs_inode_t *ip, struct xfs_name *name,
+		char *value, int *valuelenp, int flags)
 {
 	xfs_da_args_t   args;
 	int             error;
@@ -122,8 +136,8 @@ xfs_attr_fetch(xfs_inode_t *ip, const char *name, int namelen,
 	 * Fill in the arg structure for this request.
 	 */
 	memset((char *)&args, 0, sizeof(args));
-	args.name = name;
-	args.namelen = namelen;
+	args.name = name->name;
+	args.namelen = name->len;
 	args.value = value;
 	args.valuelen = *valuelenp;
 	args.flags = flags;
@@ -162,31 +176,29 @@ xfs_attr_get(
 	const char	*name,
 	char		*value,
 	int		*valuelenp,
-	int		flags,
-	cred_t		*cred)
+	int		flags)
 {
-	int		error, namelen;
+	int		error;
+	struct xfs_name	xname;
 
 	XFS_STATS_INC(xs_attr_get);
-
-	if (!name)
-		return(EINVAL);
-	namelen = strlen(name);
-	if (namelen >= MAXNAMELEN)
-		return(EFAULT);		/* match IRIX behaviour */
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return(EIO);
 
+	error = xfs_attr_name_to_xname(&xname, name);
+	if (error)
+		return error;
+
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	error = xfs_attr_fetch(ip, name, namelen, value, valuelenp, flags, cred);
+	error = xfs_attr_fetch(ip, &xname, value, valuelenp, flags);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return(error);
 }
 
-int
-xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
-		 char *value, int valuelen, int flags)
+STATIC int
+xfs_attr_set_int(xfs_inode_t *dp, struct xfs_name *name,
+		char *value, int valuelen, int flags)
 {
 	xfs_da_args_t	args;
 	xfs_fsblock_t	firstblock;
@@ -209,7 +221,7 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 	 */
 	if (XFS_IFORK_Q(dp) == 0) {
 		int sf_size = sizeof(xfs_attr_sf_hdr_t) +
-			      XFS_ATTR_SF_ENTSIZE_BYNAME(namelen, valuelen);
+			      XFS_ATTR_SF_ENTSIZE_BYNAME(name->len, valuelen);
 
 		if ((error = xfs_bmap_add_attrfork(dp, sf_size, rsvd)))
 			return(error);
@@ -219,8 +231,8 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 	 * Fill in the arg structure for this request.
 	 */
 	memset((char *)&args, 0, sizeof(args));
-	args.name = name;
-	args.namelen = namelen;
+	args.name = name->name;
+	args.namelen = name->len;
 	args.value = value;
 	args.valuelen = valuelen;
 	args.flags = flags;
@@ -236,7 +248,7 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 	 * Determine space new attribute will use, and if it would be
 	 * "local" or "remote" (note: local != inline).
 	 */
-	size = xfs_attr_leaf_newentsize(namelen, valuelen,
+	size = xfs_attr_leaf_newentsize(name->len, valuelen,
 					mp->m_sb.sb_blocksize, &local);
 
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
@@ -429,26 +441,27 @@ xfs_attr_set(
 	int		valuelen,
 	int		flags)
 {
-	int             namelen;
-
-	namelen = strlen(name);
-	if (namelen >= MAXNAMELEN)
-		return EFAULT;		/* match IRIX behaviour */
+	int             error;
+	struct xfs_name	xname;
 
 	XFS_STATS_INC(xs_attr_set);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return (EIO);
 
-	return xfs_attr_set_int(dp, name, namelen, value, valuelen, flags);
+	error = xfs_attr_name_to_xname(&xname, name);
+	if (error)
+		return error;
+
+	return xfs_attr_set_int(dp, &xname, value, valuelen, flags);
 }
 
 /*
  * Generic handler routine to remove a name from an attribute list.
  * Transitions attribute list from Btree to shortform as necessary.
  */
-int
-xfs_attr_remove_int(xfs_inode_t *dp, const char *name, int namelen, int flags)
+STATIC int
+xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 {
 	xfs_da_args_t	args;
 	xfs_fsblock_t	firstblock;
@@ -460,8 +473,8 @@ xfs_attr_remove_int(xfs_inode_t *dp, const char *name, int namelen, int flags)
 	 * Fill in the arg structure for this request.
 	 */
 	memset((char *)&args, 0, sizeof(args));
-	args.name = name;
-	args.namelen = namelen;
+	args.name = name->name;
+	args.namelen = name->len;
 	args.flags = flags;
 	args.hashval = xfs_da_hashname(args.name, args.namelen);
 	args.dp = dp;
@@ -575,16 +588,17 @@ xfs_attr_remove(
 	const char	*name,
 	int		flags)
 {
-	int		namelen;
-
-	namelen = strlen(name);
-	if (namelen >= MAXNAMELEN)
-		return EFAULT;		/* match IRIX behaviour */
+	int		error;
+	struct xfs_name	xname;
 
 	XFS_STATS_INC(xs_attr_remove);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return (EIO);
+
+	error = xfs_attr_name_to_xname(&xname, name);
+	if (error)
+		return error;
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
 	if (XFS_IFORK_Q(dp) == 0 ||
@@ -595,10 +609,10 @@ xfs_attr_remove(
 	}
 	xfs_iunlock(dp, XFS_ILOCK_SHARED);
 
-	return xfs_attr_remove_int(dp, name, namelen, flags);
+	return xfs_attr_remove_int(dp, &xname, flags);
 }
 
-int								/* error */
+STATIC int
 xfs_attr_list_int(xfs_attr_list_context_t *context)
 {
 	int error;
@@ -2522,8 +2536,7 @@ attr_generic_get(
 {
 	int	error, asize = size;
 
-	error = xfs_attr_get(xfs_vtoi(vp), name, data,
-				    &asize, xflags, NULL);
+	error = xfs_attr_get(xfs_vtoi(vp), name, data, &asize, xflags);
 	if (!error)
 		return asize;
 	return -error;

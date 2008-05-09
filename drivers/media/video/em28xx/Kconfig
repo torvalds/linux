@@ -1,7 +1,7 @@
 config VIDEO_EM28XX
 	tristate "Empia EM28xx USB video capture support"
 	depends on VIDEO_DEV && I2C && INPUT
-	select VIDEO_TUNER
+	select MEDIA_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
 	select VIDEOBUF_VMALLOC

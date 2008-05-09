@@ -90,7 +90,7 @@ tcpoptstrip_tg6(struct sk_buff *skb, const struct net_device *in,
 		const struct xt_target *target, const void *targinfo)
 {
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-	unsigned int tcphoff;
+	int tcphoff;
 	u_int8_t nexthdr;
 
 	nexthdr = ipv6h->nexthdr;

@@ -57,6 +57,9 @@ MODULE_PARM_DESC(latency,"pci latency timer");
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
 
+/* If radio_type !=UNSET, radio_addr should be specified
+ */
+
 static const struct cx88_board cx88_boards[] = {
 	[CX88_BOARD_UNKNOWN] = {
 		.name		= "UNKNOWN/GENERIC",
@@ -2446,25 +2449,31 @@ EXPORT_SYMBOL_GPL(cx88_setup_xc3028);
 static void cx88_card_setup(struct cx88_core *core)
 {
 	static u8 eeprom[256];
+	struct tuner_setup tun_setup;
+	unsigned int mode_mask = T_RADIO     |
+				 T_ANALOG_TV |
+				 T_DIGITAL_TV;
+
+	memset(&tun_setup, 0, sizeof(tun_setup));
 
 	if (0 == core->i2c_rc) {
 		core->i2c_client.addr = 0xa0 >> 1;
-		tveeprom_read(&core->i2c_client,eeprom,sizeof(eeprom));
+		tveeprom_read(&core->i2c_client, eeprom, sizeof(eeprom));
 	}
 
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_ROSLYN:
 		if (0 == core->i2c_rc)
-			hauppauge_eeprom(core,eeprom+8);
+			hauppauge_eeprom(core, eeprom+8);
 		break;
 	case CX88_BOARD_GDI:
 		if (0 == core->i2c_rc)
-			gdi_eeprom(core,eeprom);
+			gdi_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_WINFAST2000XP_EXPERT:
 		if (0 == core->i2c_rc)
-			leadtek_eeprom(core,eeprom);
+			leadtek_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
@@ -2474,7 +2483,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		if (0 == core->i2c_rc)
-			hauppauge_eeprom(core,eeprom);
+			hauppauge_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_KWORLD_DVBS_100:
 		cx_write(MO_GP0_IO, 0x000007f8);
@@ -2555,6 +2564,35 @@ static void cx88_card_setup(struct cx88_core *core)
 
 		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tea5767_cfg);
 	}
+	} /*end switch() */
+
+
+	/* Setup tuners */
+	if ((core->board.radio_type != UNSET)) {
+		tun_setup.mode_mask      = T_RADIO;
+		tun_setup.type           = core->board.radio_type;
+		tun_setup.addr           = core->board.radio_addr;
+		tun_setup.tuner_callback = cx88_tuner_callback;
+		cx88_call_i2c_clients(core, TUNER_SET_TYPE_ADDR, &tun_setup);
+		mode_mask &= ~T_RADIO;
+	}
+
+	if (core->board.tuner_type != TUNER_ABSENT) {
+		tun_setup.mode_mask      = mode_mask;
+		tun_setup.type           = core->board.tuner_type;
+		tun_setup.addr           = core->board.tuner_addr;
+		tun_setup.tuner_callback = cx88_tuner_callback;
+
+		cx88_call_i2c_clients(core, TUNER_SET_TYPE_ADDR, &tun_setup);
+	}
+
+	if (core->board.tda9887_conf) {
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv  = &core->board.tda9887_conf;
+
+		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tda9887_cfg);
 	}
 
 	if (core->board.tuner_type == TUNER_XC2028) {
@@ -2572,6 +2610,7 @@ static void cx88_card_setup(struct cx88_core *core)
 			    ctl.fname);
 		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &xc2028_cfg);
 	}
+	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2710,7 +2749,6 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	if (TUNER_ABSENT != core->board.tuner_type)
 		request_module("tuner");
 
-	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 	cx88_card_setup(core);
 	cx88_ir_init(core, pci);
 

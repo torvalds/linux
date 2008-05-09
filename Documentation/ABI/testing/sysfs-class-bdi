@@ -1,0 +1,46 @@
+What:		/sys/class/bdi/<bdi>/
+Date:		January 2008
+Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
+Description:
+
+Provide a place in sysfs for the backing_dev_info object.  This allows
+setting and retrieving various BDI specific variables.
+
+The <bdi> identifier can be either of the following:
+
+MAJOR:MINOR
+
+	Device number for block devices, or value of st_dev on
+	non-block filesystems which provide their own BDI, such as NFS
+	and FUSE.
+
+default
+
+	The default backing dev, used for non-block device backed
+	filesystems which do not provide their own BDI.
+
+Files under /sys/class/bdi/<bdi>/
+---------------------------------
+
+read_ahead_kb (read-write)
+
+	Size of the read-ahead window in kilobytes
+
+min_ratio (read-write)
+
+	Under normal circumstances each device is given a part of the
+	total write-back cache that relates to its current average
+	writeout speed in relation to the other devices.
+
+	The 'min_ratio' parameter allows assigning a minimum
+	percentage of the write-back cache to a particular device.
+	For example, this is useful for providing a minimum QoS.
+
+max_ratio (read-write)
+
+	Allows limiting a particular device to use not more than the
+	given percentage of the write-back cache.  This is useful in
+	situations where we want to avoid one device taking all or
+	most of the write-back cache.  For example in case of an NFS
+	mount that is prone to get stuck, or a FUSE mount which cannot
+	be trusted to play fair.

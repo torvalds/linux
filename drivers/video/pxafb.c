@@ -39,6 +39,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/completion.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -57,19 +60,31 @@
 #include "pxafb.h"
 
 /* Bits which should not be set in machine configuration structures */
-#define LCCR0_INVALID_CONFIG_MASK (LCCR0_OUM|LCCR0_BM|LCCR0_QDM|LCCR0_DIS|LCCR0_EFM|LCCR0_IUM|LCCR0_SFM|LCCR0_LDM|LCCR0_ENB)
-#define LCCR3_INVALID_CONFIG_MASK (LCCR3_HSP|LCCR3_VSP|LCCR3_PCD|LCCR3_BPP)
+#define LCCR0_INVALID_CONFIG_MASK	(LCCR0_OUM | LCCR0_BM | LCCR0_QDM |\
+					 LCCR0_DIS | LCCR0_EFM | LCCR0_IUM |\
+					 LCCR0_SFM | LCCR0_LDM | LCCR0_ENB)
+
+#define LCCR3_INVALID_CONFIG_MASK	(LCCR3_HSP | LCCR3_VSP |\
+					 LCCR3_PCD | LCCR3_BPP)
 
 static void (*pxafb_backlight_power)(int);
 static void (*pxafb_lcd_power)(int, struct fb_var_screeninfo *);
 
-static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *);
+static int pxafb_activate_var(struct fb_var_screeninfo *var,
+				struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
 
-#ifdef CONFIG_FB_PXA_PARAMETERS
-#define PXAFB_OPTIONS_SIZE 256
-static char g_options[PXAFB_OPTIONS_SIZE] __devinitdata = "";
-#endif
+static inline unsigned long
+lcd_readl(struct pxafb_info *fbi, unsigned int off)
+{
+	return __raw_readl(fbi->mmio_base + off);
+}
+
+static inline void
+lcd_writel(struct pxafb_info *fbi, unsigned int off, unsigned long val)
+{
+	__raw_writel(val, fbi->mmio_base + off);
+}
 
 static inline void pxafb_schedule_work(struct pxafb_info *fbi, u_int state)
 {
@@ -79,10 +94,12 @@ static inline void pxafb_schedule_work(struct pxafb_info *fbi, u_int state)
 	/*
 	 * We need to handle two requests being made at the same time.
 	 * There are two important cases:
-	 *  1. When we are changing VT (C_REENABLE) while unblanking (C_ENABLE)
-	 *     We must perform the unblanking, which will do our REENABLE for us.
-	 *  2. When we are blanking, but immediately unblank before we have
-	 *     blanked.  We do the "REENABLE" thing here as well, just to be sure.
+	 *  1. When we are changing VT (C_REENABLE) while unblanking
+	 *     (C_ENABLE) We must perform the unblanking, which will
+	 *     do our REENABLE for us.
+	 *  2. When we are blanking, but immediately unblank before
+	 *     we have blanked.  We do the "REENABLE" thing here as
+	 *     well, just to be sure.
 	 */
 	if (fbi->task_state == C_ENABLE && state == C_REENABLE)
 		state = (u_int) -1;
@@ -129,13 +146,13 @@ pxafb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
 		val  = ((red   << 8) & 0x00f80000);
 		val |= ((green >> 0) & 0x0000fc00);
 		val |= ((blue  >> 8) & 0x000000f8);
-		((u32*)(fbi->palette_cpu))[regno] = val;
+		((u32 *)(fbi->palette_cpu))[regno] = val;
 		break;
 	case LCCR4_PAL_FOR_2:
 		val  = ((red   << 8) & 0x00fc0000);
 		val |= ((green >> 0) & 0x0000fc00);
 		val |= ((blue  >> 8) & 0x000000fc);
-		((u32*)(fbi->palette_cpu))[regno] = val;
+		((u32 *)(fbi->palette_cpu))[regno] = val;
 		break;
 	}
 
@@ -203,15 +220,15 @@ pxafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
  */
 static int pxafb_bpp_to_lccr3(struct fb_var_screeninfo *var)
 {
-        int ret = 0;
-        switch (var->bits_per_pixel) {
-        case 1:  ret = LCCR3_1BPP; break;
-        case 2:  ret = LCCR3_2BPP; break;
-        case 4:  ret = LCCR3_4BPP; break;
-        case 8:  ret = LCCR3_8BPP; break;
-        case 16: ret = LCCR3_16BPP; break;
-        }
-        return ret;
+	int ret = 0;
+	switch (var->bits_per_pixel) {
+	case 1:  ret = LCCR3_1BPP; break;
+	case 2:  ret = LCCR3_2BPP; break;
+	case 4:  ret = LCCR3_4BPP; break;
+	case 8:  ret = LCCR3_8BPP; break;
+	case 16: ret = LCCR3_16BPP; break;
+	}
+	return ret;
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -223,31 +240,32 @@ static int pxafb_bpp_to_lccr3(struct fb_var_screeninfo *var)
  */
 static unsigned int pxafb_display_dma_period(struct fb_var_screeninfo *var)
 {
-       /*
-        * Period = pixclock * bits_per_byte * bytes_per_transfer
-        *              / memory_bits_per_pixel;
-        */
-       return var->pixclock * 8 * 16 / var->bits_per_pixel;
+	/*
+	 * Period = pixclock * bits_per_byte * bytes_per_transfer
+	 *              / memory_bits_per_pixel;
+	 */
+	return var->pixclock * 8 * 16 / var->bits_per_pixel;
 }
-
-extern unsigned int get_clk_frequency_khz(int info);
 #endif
 
 /*
  * Select the smallest mode that allows the desired resolution to be
  * displayed. If desired parameters can be rounded up.
  */
-static struct pxafb_mode_info *pxafb_getmode(struct pxafb_mach_info *mach, struct fb_var_screeninfo *var)
+static struct pxafb_mode_info *pxafb_getmode(struct pxafb_mach_info *mach,
+					     struct fb_var_screeninfo *var)
 {
 	struct pxafb_mode_info *mode = NULL;
 	struct pxafb_mode_info *modelist = mach->modes;
 	unsigned int best_x = 0xffffffff, best_y = 0xffffffff;
 	unsigned int i;
 
-	for (i = 0 ; i < mach->num_modes ; i++) {
-		if (modelist[i].xres >= var->xres && modelist[i].yres >= var->yres &&
-				modelist[i].xres < best_x && modelist[i].yres < best_y &&
-				modelist[i].bpp >= var->bits_per_pixel ) {
+	for (i = 0; i < mach->num_modes; i++) {
+		if (modelist[i].xres >= var->xres &&
+		    modelist[i].yres >= var->yres &&
+		    modelist[i].xres < best_x &&
+		    modelist[i].yres < best_y &&
+		    modelist[i].bpp >= var->bits_per_pixel) {
 			best_x = modelist[i].xres;
 			best_y = modelist[i].yres;
 			mode = &modelist[i];
@@ -257,7 +275,8 @@ static struct pxafb_mode_info *pxafb_getmode(struct pxafb_mach_info *mach, struc
 	return mode;
 }
 
-static void pxafb_setmode(struct fb_var_screeninfo *var, struct pxafb_mode_info *mode)
+static void pxafb_setmode(struct fb_var_screeninfo *var,
+			  struct pxafb_mode_info *mode)
 {
 	var->xres		= mode->xres;
 	var->yres		= mode->yres;
@@ -315,19 +334,20 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->yres_virtual =
 		max(var->yres_virtual, var->yres);
 
-        /*
+	/*
 	 * Setup the RGB parameters for this display.
 	 *
 	 * The pixel packing format is described on page 7-11 of the
 	 * PXA2XX Developer's Manual.
-         */
+	 */
 	if (var->bits_per_pixel == 16) {
 		var->red.offset   = 11; var->red.length   = 5;
 		var->green.offset = 5;  var->green.length = 6;
 		var->blue.offset  = 0;  var->blue.length  = 5;
 		var->transp.offset = var->transp.length = 0;
 	} else {
-		var->red.offset = var->green.offset = var->blue.offset = var->transp.offset = 0;
+		var->red.offset = var->green.offset = 0;
+		var->blue.offset = var->transp.offset = 0;
 		var->red.length   = 8;
 		var->green.length = 8;
 		var->blue.length  = 8;
@@ -345,8 +365,7 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static inline void pxafb_set_truecolor(u_int is_true_color)
 {
-	pr_debug("pxafb: true_color = %d\n", is_true_color);
-	// do your machine-specific setup if needed
+	/* do your machine-specific setup if needed */
 }
 
 /*
@@ -357,9 +376,6 @@ static int pxafb_set_par(struct fb_info *info)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
 	struct fb_var_screeninfo *var = &info->var;
-	unsigned long palette_mem_size;
-
-	pr_debug("pxafb: set_par\n");
 
 	if (var->bits_per_pixel == 16)
 		fbi->fb.fix.visual = FB_VISUAL_TRUECOLOR;
@@ -379,17 +395,10 @@ static int pxafb_set_par(struct fb_info *info)
 	if (var->bits_per_pixel == 16)
 		fbi->palette_size = 0;
 	else
-		fbi->palette_size = var->bits_per_pixel == 1 ? 4 : 1 << var->bits_per_pixel;
+		fbi->palette_size = var->bits_per_pixel == 1 ?
+					4 : 1 << var->bits_per_pixel;
 
-	if ((fbi->lccr4 & LCCR4_PAL_FOR_MASK) == LCCR4_PAL_FOR_0)
-		palette_mem_size = fbi->palette_size * sizeof(u16);
-	else
-		palette_mem_size = fbi->palette_size * sizeof(u32);
-
-	pr_debug("pxafb: palette_mem_size = 0x%08lx\n", palette_mem_size);
-
-	fbi->palette_cpu = (u16 *)(fbi->map_cpu + PAGE_SIZE - palette_mem_size);
-	fbi->palette_dma = fbi->map_dma + PAGE_SIZE - palette_mem_size;
+	fbi->palette_cpu = (u16 *)&fbi->dma_buff->palette[0];
 
 	/*
 	 * Set (any) board control register to handle new color depth
@@ -407,36 +416,6 @@ static int pxafb_set_par(struct fb_info *info)
 }
 
 /*
- * Formal definition of the VESA spec:
- *  On
- *  	This refers to the state of the display when it is in full operation
- *  Stand-By
- *  	This defines an optional operating state of minimal power reduction with
- *  	the shortest recovery time
- *  Suspend
- *  	This refers to a level of power management in which substantial power
- *  	reduction is achieved by the display.  The display can have a longer
- *  	recovery time from this state than from the Stand-by state
- *  Off
- *  	This indicates that the display is consuming the lowest level of power
- *  	and is non-operational. Recovery from this state may optionally require
- *  	the user to manually power on the monitor
- *
- *  Now, the fbdev driver adds an additional state, (blank), where they
- *  turn off the video (maybe by colormap tricks), but don't mess with the
- *  video itself: think of it semantically between on and Stand-By.
- *
- *  So here's what we should do in our fbdev blank routine:
- *
- *  	VESA_NO_BLANKING (mode 0)	Video on,  front/back light on
- *  	VESA_VSYNC_SUSPEND (mode 1)  	Video on,  front/back light off
- *  	VESA_HSYNC_SUSPEND (mode 2)  	Video on,  front/back light off
- *  	VESA_POWERDOWN (mode 3)		Video off, front/back light off
- *
- *  This will match the matrox implementation.
- */
-
-/*
  * pxafb_blank():
  *	Blank the display by setting all palette values to zero.  Note, the
  * 	16 bpp mode does not really use the palette, so this will not
@@ -446,8 +425,6 @@ static int pxafb_blank(int blank, struct fb_info *info)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
 	int i;
-
-	pr_debug("pxafb: blank=%d\n", blank);
 
 	switch (blank) {
 	case FB_BLANK_POWERDOWN:
@@ -460,11 +437,11 @@ static int pxafb_blank(int blank, struct fb_info *info)
 				pxafb_setpalettereg(i, 0, 0, 0, 0, info);
 
 		pxafb_schedule_work(fbi, C_DISABLE);
-		//TODO if (pxafb_blank_helper) pxafb_blank_helper(blank);
+		/* TODO if (pxafb_blank_helper) pxafb_blank_helper(blank); */
 		break;
 
 	case FB_BLANK_UNBLANK:
-		//TODO if (pxafb_blank_helper) pxafb_blank_helper(blank);
+		/* TODO if (pxafb_blank_helper) pxafb_blank_helper(blank); */
 		if (fbi->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR ||
 		    fbi->fb.fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR)
 			fb_set_cmap(&fbi->fb.cmap, info);
@@ -480,7 +457,7 @@ static int pxafb_mmap(struct fb_info *info,
 	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
 
 	if (off < info->fix.smem_len) {
-		vma->vm_pgoff += 1;
+		vma->vm_pgoff += fbi->video_offset / PAGE_SIZE;
 		return dma_mmap_writecombine(fbi->dev, vma, fbi->map_cpu,
 					     fbi->map_dma, fbi->map_size);
 	}
@@ -529,7 +506,8 @@ static struct fb_ops pxafb_ops = {
  *
  * Factoring the 10^4 and 10^-12 out gives 10^-8 == 1 / 100000000 as used below.
  */
-static inline unsigned int get_pcd(struct pxafb_info *fbi, unsigned int pixclock)
+static inline unsigned int get_pcd(struct pxafb_info *fbi,
+				   unsigned int pixclock)
 {
 	unsigned long long pcd;
 
@@ -555,7 +533,7 @@ static inline void set_hsync_time(struct pxafb_info *fbi, unsigned int pcd)
 	unsigned long htime;
 
 	if ((pcd == 0) || (fbi->fb.var.hsync_len == 0)) {
-		fbi->hsync_time=0;
+		fbi->hsync_time = 0;
 		return;
 	}
 
@@ -576,71 +554,231 @@ unsigned long pxafb_get_hsync_time(struct device *dev)
 }
 EXPORT_SYMBOL(pxafb_get_hsync_time);
 
-/*
- * pxafb_activate_var():
- *	Configures LCD Controller based on entries in var parameter.  Settings are
- *	only written to the controller if changes were made.
- */
-static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *fbi)
+static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
+		unsigned int offset, size_t size)
 {
-	struct pxafb_lcd_reg new_regs;
-	u_long flags;
-	u_int lines_per_panel, pcd = get_pcd(fbi, var->pixclock);
+	struct pxafb_dma_descriptor *dma_desc, *pal_desc;
+	unsigned int dma_desc_off, pal_desc_off;
 
-	pr_debug("pxafb: Configuring PXA LCD\n");
+	if (dma < 0 || dma >= DMA_MAX)
+		return -EINVAL;
 
-	pr_debug("var: xres=%d hslen=%d lm=%d rm=%d\n",
-		 var->xres, var->hsync_len,
-		 var->left_margin, var->right_margin);
-	pr_debug("var: yres=%d vslen=%d um=%d bm=%d\n",
-		 var->yres, var->vsync_len,
-		 var->upper_margin, var->lower_margin);
-	pr_debug("var: pixclock=%d pcd=%d\n", var->pixclock, pcd);
+	dma_desc = &fbi->dma_buff->dma_desc[dma];
+	dma_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[dma]);
 
-#if DEBUG_VAR
-	if (var->xres < 16        || var->xres > 1024)
-		printk(KERN_ERR "%s: invalid xres %d\n",
-			fbi->fb.fix.id, var->xres);
-	switch(var->bits_per_pixel) {
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-	case 16:
-		break;
-	default:
-		printk(KERN_ERR "%s: invalid bit depth %d\n",
-		       fbi->fb.fix.id, var->bits_per_pixel);
-		break;
+	dma_desc->fsadr = fbi->screen_dma + offset;
+	dma_desc->fidr  = 0;
+	dma_desc->ldcmd = size;
+
+	if (pal < 0 || pal >= PAL_MAX) {
+		dma_desc->fdadr = fbi->dma_buff_phys + dma_desc_off;
+		fbi->fdadr[dma] = fbi->dma_buff_phys + dma_desc_off;
+	} else {
+		pal_desc = &fbi->dma_buff->pal_desc[dma];
+		pal_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[pal]);
+
+		pal_desc->fsadr = fbi->dma_buff_phys + pal * PALETTE_SIZE;
+		pal_desc->fidr  = 0;
+
+		if ((fbi->lccr4 & LCCR4_PAL_FOR_MASK) == LCCR4_PAL_FOR_0)
+			pal_desc->ldcmd = fbi->palette_size * sizeof(u16);
+		else
+			pal_desc->ldcmd = fbi->palette_size * sizeof(u32);
+
+		pal_desc->ldcmd |= LDCMD_PAL;
+
+		/* flip back and forth between palette and frame buffer */
+		pal_desc->fdadr = fbi->dma_buff_phys + dma_desc_off;
+		dma_desc->fdadr = fbi->dma_buff_phys + pal_desc_off;
+		fbi->fdadr[dma] = fbi->dma_buff_phys + dma_desc_off;
 	}
-	if (var->hsync_len < 1    || var->hsync_len > 64)
-		printk(KERN_ERR "%s: invalid hsync_len %d\n",
-			fbi->fb.fix.id, var->hsync_len);
-	if (var->left_margin < 1  || var->left_margin > 255)
-		printk(KERN_ERR "%s: invalid left_margin %d\n",
-			fbi->fb.fix.id, var->left_margin);
-	if (var->right_margin < 1 || var->right_margin > 255)
-		printk(KERN_ERR "%s: invalid right_margin %d\n",
-			fbi->fb.fix.id, var->right_margin);
-	if (var->yres < 1         || var->yres > 1024)
-		printk(KERN_ERR "%s: invalid yres %d\n",
-			fbi->fb.fix.id, var->yres);
-	if (var->vsync_len < 1    || var->vsync_len > 64)
-		printk(KERN_ERR "%s: invalid vsync_len %d\n",
-			fbi->fb.fix.id, var->vsync_len);
-	if (var->upper_margin < 0 || var->upper_margin > 255)
-		printk(KERN_ERR "%s: invalid upper_margin %d\n",
-			fbi->fb.fix.id, var->upper_margin);
-	if (var->lower_margin < 0 || var->lower_margin > 255)
-		printk(KERN_ERR "%s: invalid lower_margin %d\n",
-			fbi->fb.fix.id, var->lower_margin);
-#endif
 
-	new_regs.lccr0 = fbi->lccr0 |
-		(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM |
-                 LCCR0_QDM | LCCR0_BM  | LCCR0_OUM);
+	return 0;
+}
 
-	new_regs.lccr1 =
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+static int setup_smart_dma(struct pxafb_info *fbi)
+{
+	struct pxafb_dma_descriptor *dma_desc;
+	unsigned long dma_desc_off, cmd_buff_off;
+
+	dma_desc = &fbi->dma_buff->dma_desc[DMA_CMD];
+	dma_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[DMA_CMD]);
+	cmd_buff_off = offsetof(struct pxafb_dma_buff, cmd_buff);
+
+	dma_desc->fdadr = fbi->dma_buff_phys + dma_desc_off;
+	dma_desc->fsadr = fbi->dma_buff_phys + cmd_buff_off;
+	dma_desc->fidr  = 0;
+	dma_desc->ldcmd = fbi->n_smart_cmds * sizeof(uint16_t);
+
+	fbi->fdadr[DMA_CMD] = dma_desc->fdadr;
+	return 0;
+}
+
+int pxafb_smart_flush(struct fb_info *info)
+{
+	struct pxafb_info *fbi = container_of(info, struct pxafb_info, fb);
+	uint32_t prsr;
+	int ret = 0;
+
+	/* disable controller until all registers are set up */
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 & ~LCCR0_ENB);
+
+	/* 1. make it an even number of commands to align on 32-bit boundary
+	 * 2. add the interrupt command to the end of the chain so we can
+	 *    keep track of the end of the transfer
+	 */
+
+	while (fbi->n_smart_cmds & 1)
+		fbi->smart_cmds[fbi->n_smart_cmds++] = SMART_CMD_NOOP;
+
+	fbi->smart_cmds[fbi->n_smart_cmds++] = SMART_CMD_INTERRUPT;
+	fbi->smart_cmds[fbi->n_smart_cmds++] = SMART_CMD_WAIT_FOR_VSYNC;
+	setup_smart_dma(fbi);
+
+	/* continue to execute next command */
+	prsr = lcd_readl(fbi, PRSR) | PRSR_ST_OK | PRSR_CON_NT;
+	lcd_writel(fbi, PRSR, prsr);
+
+	/* stop the processor in case it executed "wait for sync" cmd */
+	lcd_writel(fbi, CMDCR, 0x0001);
+
+	/* don't send interrupts for fifo underruns on channel 6 */
+	lcd_writel(fbi, LCCR5, LCCR5_IUM(6));
+
+	lcd_writel(fbi, LCCR1, fbi->reg_lccr1);
+	lcd_writel(fbi, LCCR2, fbi->reg_lccr2);
+	lcd_writel(fbi, LCCR3, fbi->reg_lccr3);
+	lcd_writel(fbi, FDADR0, fbi->fdadr[0]);
+	lcd_writel(fbi, FDADR6, fbi->fdadr[6]);
+
+	/* begin sending */
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 | LCCR0_ENB);
+
+	if (wait_for_completion_timeout(&fbi->command_done, HZ/2) == 0) {
+		pr_warning("%s: timeout waiting for command done\n",
+				__func__);
+		ret = -ETIMEDOUT;
+	}
+
+	/* quick disable */
+	prsr = lcd_readl(fbi, PRSR) & ~(PRSR_ST_OK | PRSR_CON_NT);
+	lcd_writel(fbi, PRSR, prsr);
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 & ~LCCR0_ENB);
+	lcd_writel(fbi, FDADR6, 0);
+	fbi->n_smart_cmds = 0;
+	return ret;
+}
+
+int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int n_cmds)
+{
+	int i;
+	struct pxafb_info *fbi = container_of(info, struct pxafb_info, fb);
+
+	/* leave 2 commands for INTERRUPT and WAIT_FOR_SYNC */
+	for (i = 0; i < n_cmds; i++) {
+		if (fbi->n_smart_cmds == CMD_BUFF_SIZE - 8)
+			pxafb_smart_flush(info);
+
+		fbi->smart_cmds[fbi->n_smart_cmds++] = *cmds++;
+	}
+
+	return 0;
+}
+
+static unsigned int __smart_timing(unsigned time_ns, unsigned long lcd_clk)
+{
+	unsigned int t = (time_ns * (lcd_clk / 1000000) / 1000);
+	return (t == 0) ? 1 : t;
+}
+
+static void setup_smart_timing(struct pxafb_info *fbi,
+				struct fb_var_screeninfo *var)
+{
+	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+	struct pxafb_mode_info *mode = &inf->modes[0];
+	unsigned long lclk = clk_get_rate(fbi->clk);
+	unsigned t1, t2, t3, t4;
+
+	t1 = max(mode->a0csrd_set_hld, mode->a0cswr_set_hld);
+	t2 = max(mode->rd_pulse_width, mode->wr_pulse_width);
+	t3 = mode->op_hold_time;
+	t4 = mode->cmd_inh_time;
+
+	fbi->reg_lccr1 =
+		LCCR1_DisWdth(var->xres) |
+		LCCR1_BegLnDel(__smart_timing(t1, lclk)) |
+		LCCR1_EndLnDel(__smart_timing(t2, lclk)) |
+		LCCR1_HorSnchWdth(__smart_timing(t3, lclk));
+
+	fbi->reg_lccr2 = LCCR2_DisHght(var->yres);
+	fbi->reg_lccr3 = LCCR3_PixClkDiv(__smart_timing(t4, lclk));
+
+	/* FIXME: make this configurable */
+	fbi->reg_cmdcr = 1;
+}
+
+static int pxafb_smart_thread(void *arg)
+{
+	struct pxafb_info *fbi = arg;
+	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+
+	if (!fbi || !inf->smart_update) {
+		pr_err("%s: not properly initialized, thread terminated\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	pr_debug("%s(): task starting\n", __func__);
+
+	set_freezable();
+	while (!kthread_should_stop()) {
+
+		if (try_to_freeze())
+			continue;
+
+		if (fbi->state == C_ENABLE) {
+			inf->smart_update(&fbi->fb);
+			complete(&fbi->refresh_done);
+		}
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(30 * HZ / 1000);
+	}
+
+	pr_debug("%s(): task ending\n", __func__);
+	return 0;
+}
+
+static int pxafb_smart_init(struct pxafb_info *fbi)
+{
+	fbi->smart_thread = kthread_run(pxafb_smart_thread, fbi,
+					"lcd_refresh");
+	if (IS_ERR(fbi->smart_thread)) {
+		printk(KERN_ERR "%s: unable to create kernel thread\n",
+				__func__);
+		return PTR_ERR(fbi->smart_thread);
+	}
+	return 0;
+}
+#else
+int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int n_cmds)
+{
+	return 0;
+}
+
+int pxafb_smart_flush(struct fb_info *info)
+{
+	return 0;
+}
+#endif /* CONFIG_FB_SMART_PANEL */
+
+static void setup_parallel_timing(struct pxafb_info *fbi,
+				  struct fb_var_screeninfo *var)
+{
+	unsigned int lines_per_panel, pcd = get_pcd(fbi, var->pixclock);
+
+	fbi->reg_lccr1 =
 		LCCR1_DisWdth(var->xres) +
 		LCCR1_HorSnchWdth(var->hsync_len) +
 		LCCR1_BegLnDel(var->left_margin) +
@@ -654,110 +792,118 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 	if ((fbi->lccr0 & LCCR0_SDS) == LCCR0_Dual)
 		lines_per_panel /= 2;
 
-	new_regs.lccr2 =
+	fbi->reg_lccr2 =
 		LCCR2_DisHght(lines_per_panel) +
 		LCCR2_VrtSnchWdth(var->vsync_len) +
 		LCCR2_BegFrmDel(var->upper_margin) +
 		LCCR2_EndFrmDel(var->lower_margin);
 
-	new_regs.lccr3 = fbi->lccr3 |
-		pxafb_bpp_to_lccr3(var) |
-		(var->sync & FB_SYNC_HOR_HIGH_ACT ? LCCR3_HorSnchH : LCCR3_HorSnchL) |
-		(var->sync & FB_SYNC_VERT_HIGH_ACT ? LCCR3_VrtSnchH : LCCR3_VrtSnchL);
+	fbi->reg_lccr3 = fbi->lccr3 |
+		(var->sync & FB_SYNC_HOR_HIGH_ACT ?
+		 LCCR3_HorSnchH : LCCR3_HorSnchL) |
+		(var->sync & FB_SYNC_VERT_HIGH_ACT ?
+		 LCCR3_VrtSnchH : LCCR3_VrtSnchL);
 
-	if (pcd)
-		new_regs.lccr3 |= LCCR3_PixClkDiv(pcd);
+	if (pcd) {
+		fbi->reg_lccr3 |= LCCR3_PixClkDiv(pcd);
+		set_hsync_time(fbi, pcd);
+	}
+}
 
-	pr_debug("nlccr0 = 0x%08x\n", new_regs.lccr0);
-	pr_debug("nlccr1 = 0x%08x\n", new_regs.lccr1);
-	pr_debug("nlccr2 = 0x%08x\n", new_regs.lccr2);
-	pr_debug("nlccr3 = 0x%08x\n", new_regs.lccr3);
+/*
+ * pxafb_activate_var():
+ *	Configures LCD Controller based on entries in var parameter.
+ *	Settings are only written to the controller if changes were made.
+ */
+static int pxafb_activate_var(struct fb_var_screeninfo *var,
+			      struct pxafb_info *fbi)
+{
+	u_long flags;
+	size_t nbytes;
 
+#if DEBUG_VAR
+	if (!(fbi->lccr0 & LCCR0_LCDT)) {
+		if (var->xres < 16 || var->xres > 1024)
+			printk(KERN_ERR "%s: invalid xres %d\n",
+				fbi->fb.fix.id, var->xres);
+		switch (var->bits_per_pixel) {
+		case 1:
+		case 2:
+		case 4:
+		case 8:
+		case 16:
+			break;
+		default:
+			printk(KERN_ERR "%s: invalid bit depth %d\n",
+			       fbi->fb.fix.id, var->bits_per_pixel);
+			break;
+		}
+
+		if (var->hsync_len < 1 || var->hsync_len > 64)
+			printk(KERN_ERR "%s: invalid hsync_len %d\n",
+				fbi->fb.fix.id, var->hsync_len);
+		if (var->left_margin < 1 || var->left_margin > 255)
+			printk(KERN_ERR "%s: invalid left_margin %d\n",
+				fbi->fb.fix.id, var->left_margin);
+		if (var->right_margin < 1 || var->right_margin > 255)
+			printk(KERN_ERR "%s: invalid right_margin %d\n",
+				fbi->fb.fix.id, var->right_margin);
+		if (var->yres < 1 || var->yres > 1024)
+			printk(KERN_ERR "%s: invalid yres %d\n",
+				fbi->fb.fix.id, var->yres);
+		if (var->vsync_len < 1 || var->vsync_len > 64)
+			printk(KERN_ERR "%s: invalid vsync_len %d\n",
+				fbi->fb.fix.id, var->vsync_len);
+		if (var->upper_margin < 0 || var->upper_margin > 255)
+			printk(KERN_ERR "%s: invalid upper_margin %d\n",
+				fbi->fb.fix.id, var->upper_margin);
+		if (var->lower_margin < 0 || var->lower_margin > 255)
+			printk(KERN_ERR "%s: invalid lower_margin %d\n",
+				fbi->fb.fix.id, var->lower_margin);
+	}
+#endif
 	/* Update shadow copy atomically */
 	local_irq_save(flags);
 
-	/* setup dma descriptors */
-	fbi->dmadesc_fblow_cpu = (struct pxafb_dma_descriptor *)((unsigned int)fbi->palette_cpu - 3*16);
-	fbi->dmadesc_fbhigh_cpu = (struct pxafb_dma_descriptor *)((unsigned int)fbi->palette_cpu - 2*16);
-	fbi->dmadesc_palette_cpu = (struct pxafb_dma_descriptor *)((unsigned int)fbi->palette_cpu - 1*16);
-
-	fbi->dmadesc_fblow_dma = fbi->palette_dma - 3*16;
-	fbi->dmadesc_fbhigh_dma = fbi->palette_dma - 2*16;
-	fbi->dmadesc_palette_dma = fbi->palette_dma - 1*16;
-
-#define BYTES_PER_PANEL (lines_per_panel * fbi->fb.fix.line_length)
-
-	/* populate descriptors */
-	fbi->dmadesc_fblow_cpu->fdadr = fbi->dmadesc_fblow_dma;
-	fbi->dmadesc_fblow_cpu->fsadr = fbi->screen_dma + BYTES_PER_PANEL;
-	fbi->dmadesc_fblow_cpu->fidr  = 0;
-	fbi->dmadesc_fblow_cpu->ldcmd = BYTES_PER_PANEL;
-
-	fbi->fdadr1 = fbi->dmadesc_fblow_dma; /* only used in dual-panel mode */
-
-	fbi->dmadesc_fbhigh_cpu->fsadr = fbi->screen_dma;
-	fbi->dmadesc_fbhigh_cpu->fidr = 0;
-	fbi->dmadesc_fbhigh_cpu->ldcmd = BYTES_PER_PANEL;
-
-	fbi->dmadesc_palette_cpu->fsadr = fbi->palette_dma;
-	fbi->dmadesc_palette_cpu->fidr  = 0;
-	if ((fbi->lccr4 & LCCR4_PAL_FOR_MASK) == LCCR4_PAL_FOR_0)
-		fbi->dmadesc_palette_cpu->ldcmd = fbi->palette_size *
-							sizeof(u16);
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	if (fbi->lccr0 & LCCR0_LCDT)
+		setup_smart_timing(fbi, var);
 	else
-		fbi->dmadesc_palette_cpu->ldcmd = fbi->palette_size *
-							sizeof(u32);
-	fbi->dmadesc_palette_cpu->ldcmd |= LDCMD_PAL;
+#endif
+		setup_parallel_timing(fbi, var);
 
-	if (var->bits_per_pixel == 16) {
-		/* palette shouldn't be loaded in true-color mode */
-		fbi->dmadesc_fbhigh_cpu->fdadr = fbi->dmadesc_fbhigh_dma;
-		fbi->fdadr0 = fbi->dmadesc_fbhigh_dma; /* no pal just fbhigh */
-		/* init it to something, even though we won't be using it */
-		fbi->dmadesc_palette_cpu->fdadr = fbi->dmadesc_palette_dma;
-	} else {
-		fbi->dmadesc_palette_cpu->fdadr = fbi->dmadesc_fbhigh_dma;
-		fbi->dmadesc_fbhigh_cpu->fdadr = fbi->dmadesc_palette_dma;
-		fbi->fdadr0 = fbi->dmadesc_palette_dma; /* flips back and forth between pal and fbhigh */
+	fbi->reg_lccr0 = fbi->lccr0 |
+		(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM |
+		 LCCR0_QDM | LCCR0_BM  | LCCR0_OUM);
+
+	fbi->reg_lccr3 |= pxafb_bpp_to_lccr3(var);
+
+	nbytes = var->yres * fbi->fb.fix.line_length;
+
+	if ((fbi->lccr0 & LCCR0_SDS) == LCCR0_Dual) {
+		nbytes = nbytes / 2;
+		setup_frame_dma(fbi, DMA_LOWER, PAL_NONE, nbytes, nbytes);
 	}
 
-#if 0
-	pr_debug("fbi->dmadesc_fblow_cpu = 0x%p\n", fbi->dmadesc_fblow_cpu);
-	pr_debug("fbi->dmadesc_fbhigh_cpu = 0x%p\n", fbi->dmadesc_fbhigh_cpu);
-	pr_debug("fbi->dmadesc_palette_cpu = 0x%p\n", fbi->dmadesc_palette_cpu);
-	pr_debug("fbi->dmadesc_fblow_dma = 0x%x\n", fbi->dmadesc_fblow_dma);
-	pr_debug("fbi->dmadesc_fbhigh_dma = 0x%x\n", fbi->dmadesc_fbhigh_dma);
-	pr_debug("fbi->dmadesc_palette_dma = 0x%x\n", fbi->dmadesc_palette_dma);
+	if ((var->bits_per_pixel >= 16) || (fbi->lccr0 & LCCR0_LCDT))
+		setup_frame_dma(fbi, DMA_BASE, PAL_NONE, 0, nbytes);
+	else
+		setup_frame_dma(fbi, DMA_BASE, PAL_BASE, 0, nbytes);
 
-	pr_debug("fbi->dmadesc_fblow_cpu->fdadr = 0x%x\n", fbi->dmadesc_fblow_cpu->fdadr);
-	pr_debug("fbi->dmadesc_fbhigh_cpu->fdadr = 0x%x\n", fbi->dmadesc_fbhigh_cpu->fdadr);
-	pr_debug("fbi->dmadesc_palette_cpu->fdadr = 0x%x\n", fbi->dmadesc_palette_cpu->fdadr);
-
-	pr_debug("fbi->dmadesc_fblow_cpu->fsadr = 0x%x\n", fbi->dmadesc_fblow_cpu->fsadr);
-	pr_debug("fbi->dmadesc_fbhigh_cpu->fsadr = 0x%x\n", fbi->dmadesc_fbhigh_cpu->fsadr);
-	pr_debug("fbi->dmadesc_palette_cpu->fsadr = 0x%x\n", fbi->dmadesc_palette_cpu->fsadr);
-
-	pr_debug("fbi->dmadesc_fblow_cpu->ldcmd = 0x%x\n", fbi->dmadesc_fblow_cpu->ldcmd);
-	pr_debug("fbi->dmadesc_fbhigh_cpu->ldcmd = 0x%x\n", fbi->dmadesc_fbhigh_cpu->ldcmd);
-	pr_debug("fbi->dmadesc_palette_cpu->ldcmd = 0x%x\n", fbi->dmadesc_palette_cpu->ldcmd);
-#endif
-
-	fbi->reg_lccr0 = new_regs.lccr0;
-	fbi->reg_lccr1 = new_regs.lccr1;
-	fbi->reg_lccr2 = new_regs.lccr2;
-	fbi->reg_lccr3 = new_regs.lccr3;
-	fbi->reg_lccr4 = LCCR4 & (~LCCR4_PAL_FOR_MASK);
+	fbi->reg_lccr4 = lcd_readl(fbi, LCCR4) & ~LCCR4_PAL_FOR_MASK;
 	fbi->reg_lccr4 |= (fbi->lccr4 & LCCR4_PAL_FOR_MASK);
-	set_hsync_time(fbi, pcd);
 	local_irq_restore(flags);
 
 	/*
 	 * Only update the registers if the controller is enabled
 	 * and something has changed.
 	 */
-	if ((LCCR0  != fbi->reg_lccr0) || (LCCR1  != fbi->reg_lccr1) ||
-	    (LCCR2  != fbi->reg_lccr2) || (LCCR3  != fbi->reg_lccr3) ||
-	    (FDADR0 != fbi->fdadr0)    || (FDADR1 != fbi->fdadr1))
+	if ((lcd_readl(fbi, LCCR0) != fbi->reg_lccr0) ||
+	    (lcd_readl(fbi, LCCR1) != fbi->reg_lccr1) ||
+	    (lcd_readl(fbi, LCCR2) != fbi->reg_lccr2) ||
+	    (lcd_readl(fbi, LCCR3) != fbi->reg_lccr3) ||
+	    (lcd_readl(fbi, FDADR0) != fbi->fdadr[0]) ||
+	    (lcd_readl(fbi, FDADR1) != fbi->fdadr[1]))
 		pxafb_schedule_work(fbi, C_REENABLE);
 
 	return 0;
@@ -773,8 +919,8 @@ static inline void __pxafb_backlight_power(struct pxafb_info *fbi, int on)
 {
 	pr_debug("pxafb: backlight o%s\n", on ? "n" : "ff");
 
- 	if (pxafb_backlight_power)
- 		pxafb_backlight_power(on);
+	if (pxafb_backlight_power)
+		pxafb_backlight_power(on);
 }
 
 static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
@@ -788,11 +934,11 @@ static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 static void pxafb_setup_gpio(struct pxafb_info *fbi)
 {
 	int gpio, ldd_bits;
-        unsigned int lccr0 = fbi->lccr0;
+	unsigned int lccr0 = fbi->lccr0;
 
 	/*
 	 * setup is based on type of panel supported
-        */
+	 */
 
 	/* 4 bit interface */
 	if ((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
@@ -801,21 +947,25 @@ static void pxafb_setup_gpio(struct pxafb_info *fbi)
 		ldd_bits = 4;
 
 	/* 8 bit interface */
-        else if (((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
-		  ((lccr0 & LCCR0_SDS) == LCCR0_Dual || (lccr0 & LCCR0_DPD) == LCCR0_8PixMono)) ||
-                 ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
-		  (lccr0 & LCCR0_PAS) == LCCR0_Pas && (lccr0 & LCCR0_SDS) == LCCR0_Sngl))
+	else if (((lccr0 & LCCR0_CMS) == LCCR0_Mono &&
+		  ((lccr0 & LCCR0_SDS) == LCCR0_Dual ||
+		   (lccr0 & LCCR0_DPD) == LCCR0_8PixMono)) ||
+		 ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
+		  (lccr0 & LCCR0_PAS) == LCCR0_Pas &&
+		  (lccr0 & LCCR0_SDS) == LCCR0_Sngl))
 		ldd_bits = 8;
 
 	/* 16 bit interface */
 	else if ((lccr0 & LCCR0_CMS) == LCCR0_Color &&
-		 ((lccr0 & LCCR0_SDS) == LCCR0_Dual || (lccr0 & LCCR0_PAS) == LCCR0_Act))
+		 ((lccr0 & LCCR0_SDS) == LCCR0_Dual ||
+		  (lccr0 & LCCR0_PAS) == LCCR0_Act))
 		ldd_bits = 16;
 
 	else {
-	        printk(KERN_ERR "pxafb_setup_gpio: unable to determine bits per pixel\n");
+		printk(KERN_ERR "pxafb_setup_gpio: unable to determine "
+			       "bits per pixel\n");
 		return;
-        }
+	}
 
 	for (gpio = 58; ldd_bits; gpio++, ldd_bits--)
 		pxa_gpio_mode(gpio | GPIO_ALT_FN_2_OUT);
@@ -828,8 +978,8 @@ static void pxafb_setup_gpio(struct pxafb_info *fbi)
 static void pxafb_enable_controller(struct pxafb_info *fbi)
 {
 	pr_debug("pxafb: Enabling LCD controller\n");
-	pr_debug("fdadr0 0x%08x\n", (unsigned int) fbi->fdadr0);
-	pr_debug("fdadr1 0x%08x\n", (unsigned int) fbi->fdadr1);
+	pr_debug("fdadr0 0x%08x\n", (unsigned int) fbi->fdadr[0]);
+	pr_debug("fdadr1 0x%08x\n", (unsigned int) fbi->fdadr[1]);
 	pr_debug("reg_lccr0 0x%08x\n", (unsigned int) fbi->reg_lccr0);
 	pr_debug("reg_lccr1 0x%08x\n", (unsigned int) fbi->reg_lccr1);
 	pr_debug("reg_lccr2 0x%08x\n", (unsigned int) fbi->reg_lccr2);
@@ -838,40 +988,40 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	/* enable LCD controller clock */
 	clk_enable(fbi->clk);
 
+	if (fbi->lccr0 & LCCR0_LCDT)
+		return;
+
 	/* Sequence from 11.7.10 */
-	LCCR3 = fbi->reg_lccr3;
-	LCCR2 = fbi->reg_lccr2;
-	LCCR1 = fbi->reg_lccr1;
-	LCCR0 = fbi->reg_lccr0 & ~LCCR0_ENB;
+	lcd_writel(fbi, LCCR3, fbi->reg_lccr3);
+	lcd_writel(fbi, LCCR2, fbi->reg_lccr2);
+	lcd_writel(fbi, LCCR1, fbi->reg_lccr1);
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 & ~LCCR0_ENB);
 
-	FDADR0 = fbi->fdadr0;
-	FDADR1 = fbi->fdadr1;
-	LCCR0 |= LCCR0_ENB;
-
-	pr_debug("FDADR0 0x%08x\n", (unsigned int) FDADR0);
-	pr_debug("FDADR1 0x%08x\n", (unsigned int) FDADR1);
-	pr_debug("LCCR0 0x%08x\n", (unsigned int) LCCR0);
-	pr_debug("LCCR1 0x%08x\n", (unsigned int) LCCR1);
-	pr_debug("LCCR2 0x%08x\n", (unsigned int) LCCR2);
-	pr_debug("LCCR3 0x%08x\n", (unsigned int) LCCR3);
-	pr_debug("LCCR4 0x%08x\n", (unsigned int) LCCR4);
+	lcd_writel(fbi, FDADR0, fbi->fdadr[0]);
+	lcd_writel(fbi, FDADR1, fbi->fdadr[1]);
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 | LCCR0_ENB);
 }
 
 static void pxafb_disable_controller(struct pxafb_info *fbi)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	uint32_t lccr0;
 
-	pr_debug("pxafb: disabling LCD controller\n");
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	if (fbi->lccr0 & LCCR0_LCDT) {
+		wait_for_completion_timeout(&fbi->refresh_done,
+				200 * HZ / 1000);
+		return;
+	}
+#endif
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue(&fbi->ctrlr_wait, &wait);
+	/* Clear LCD Status Register */
+	lcd_writel(fbi, LCSR, 0xffffffff);
 
-	LCSR = 0xffffffff;	/* Clear LCD Status Register */
-	LCCR0 &= ~LCCR0_LDM;	/* Enable LCD Disable Done Interrupt */
-	LCCR0 |= LCCR0_DIS;	/* Disable LCD Controller */
+	lccr0 = lcd_readl(fbi, LCCR0) & ~LCCR0_LDM;
+	lcd_writel(fbi, LCCR0, lccr0);
+	lcd_writel(fbi, LCCR0, lccr0 | LCCR0_DIS);
 
-	schedule_timeout(200 * HZ / 1000);
-	remove_wait_queue(&fbi->ctrlr_wait, &wait);
+	wait_for_completion_timeout(&fbi->disable_done, 200 * HZ / 1000);
 
 	/* disable LCD controller clock */
 	clk_disable(fbi->clk);
@@ -883,14 +1033,20 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 {
 	struct pxafb_info *fbi = dev_id;
-	unsigned int lcsr = LCSR;
+	unsigned int lccr0, lcsr = lcd_readl(fbi, LCSR);
 
 	if (lcsr & LCSR_LDD) {
-		LCCR0 |= LCCR0_LDM;
-		wake_up(&fbi->ctrlr_wait);
+		lccr0 = lcd_readl(fbi, LCCR0);
+		lcd_writel(fbi, LCCR0, lccr0 | LCCR0_LDM);
+		complete(&fbi->disable_done);
 	}
 
-	LCSR = lcsr;
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	if (lcsr & LCSR_CMD_INT)
+		complete(&fbi->command_done);
+#endif
+
+	lcd_writel(fbi, LCSR, lcsr);
 	return IRQ_HANDLED;
 }
 
@@ -921,7 +1077,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		 */
 		if (old_state != C_DISABLE && old_state != C_DISABLE_PM) {
 			fbi->state = state;
-			//TODO __pxafb_lcd_power(fbi, 0);
+			/* TODO __pxafb_lcd_power(fbi, 0); */
 			pxafb_disable_controller(fbi);
 		}
 		break;
@@ -948,7 +1104,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		if (old_state == C_DISABLE_CLKCHANGE) {
 			fbi->state = C_ENABLE;
 			pxafb_enable_controller(fbi);
-			//TODO __pxafb_lcd_power(fbi, 1);
+			/* TODO __pxafb_lcd_power(fbi, 1); */
 		}
 		break;
 
@@ -1019,7 +1175,7 @@ static int
 pxafb_freq_transition(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct pxafb_info *fbi = TO_INF(nb, freq_transition);
-	//TODO struct cpufreq_freqs *f = data;
+	/* TODO struct cpufreq_freqs *f = data; */
 	u_int pcd;
 
 	switch (val) {
@@ -1030,7 +1186,8 @@ pxafb_freq_transition(struct notifier_block *nb, unsigned long val, void *data)
 	case CPUFREQ_POSTCHANGE:
 		pcd = get_pcd(fbi, fbi->fb.var.pixclock);
 		set_hsync_time(fbi, pcd);
-		fbi->reg_lccr3 = (fbi->reg_lccr3 & ~0xff) | LCCR3_PixClkDiv(pcd);
+		fbi->reg_lccr3 = (fbi->reg_lccr3 & ~0xff) |
+				  LCCR3_PixClkDiv(pcd);
 		set_ctrlr_state(fbi, C_ENABLE_CLKCHANGE);
 		break;
 	}
@@ -1050,18 +1207,8 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
 		pr_debug("min dma period: %d ps, "
 			"new clock %d kHz\n", pxafb_display_dma_period(var),
 			policy->max);
-		// TODO: fill in min/max values
+		/* TODO: fill in min/max values */
 		break;
-#if 0
-	case CPUFREQ_NOTIFY:
-		printk(KERN_ERR "%s: got CPUFREQ_NOTIFY\n", __FUNCTION__);
-		do {} while(0);
-		/* todo: panic if min/max values aren't fulfilled
-		 * [can't really happen unless there's a bug in the
-		 * CPU policy verification process *
-		 */
-		break;
-#endif
 	}
 	return 0;
 }
@@ -1102,21 +1249,21 @@ static int pxafb_resume(struct platform_device *dev)
  */
 static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 {
-	u_long palette_mem_size;
-
 	/*
 	 * We reserve one page for the palette, plus the size
 	 * of the framebuffer.
 	 */
-	fbi->map_size = PAGE_ALIGN(fbi->fb.fix.smem_len + PAGE_SIZE);
+	fbi->video_offset = PAGE_ALIGN(sizeof(struct pxafb_dma_buff));
+	fbi->map_size = PAGE_ALIGN(fbi->fb.fix.smem_len + fbi->video_offset);
 	fbi->map_cpu = dma_alloc_writecombine(fbi->dev, fbi->map_size,
 					      &fbi->map_dma, GFP_KERNEL);
 
 	if (fbi->map_cpu) {
 		/* prevent initial garbage on screen */
 		memset(fbi->map_cpu, 0, fbi->map_size);
-		fbi->fb.screen_base = fbi->map_cpu + PAGE_SIZE;
-		fbi->screen_dma = fbi->map_dma + PAGE_SIZE;
+		fbi->fb.screen_base = fbi->map_cpu + fbi->video_offset;
+		fbi->screen_dma = fbi->map_dma + fbi->video_offset;
+
 		/*
 		 * FIXME: this is actually the wrong thing to place in
 		 * smem_start.  But fbdev suffers from the problem that
@@ -1126,18 +1273,78 @@ static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->fb.fix.smem_start = fbi->screen_dma;
 		fbi->palette_size = fbi->fb.var.bits_per_pixel == 8 ? 256 : 16;
 
-		if ((fbi->lccr4 & LCCR4_PAL_FOR_MASK) == LCCR4_PAL_FOR_0)
-			palette_mem_size = fbi->palette_size * sizeof(u16);
-		else
-			palette_mem_size = fbi->palette_size * sizeof(u32);
+		fbi->dma_buff = (void *) fbi->map_cpu;
+		fbi->dma_buff_phys = fbi->map_dma;
+		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
 
-		pr_debug("pxafb: palette_mem_size = 0x%08lx\n", palette_mem_size);
-
-		fbi->palette_cpu = (u16 *)(fbi->map_cpu + PAGE_SIZE - palette_mem_size);
-		fbi->palette_dma = fbi->map_dma + PAGE_SIZE - palette_mem_size;
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
+		fbi->n_smart_cmds = 0;
+#endif
 	}
 
 	return fbi->map_cpu ? 0 : -ENOMEM;
+}
+
+static void pxafb_decode_mode_info(struct pxafb_info *fbi,
+				   struct pxafb_mode_info *modes,
+				   unsigned int num_modes)
+{
+	unsigned int i, smemlen;
+
+	pxafb_setmode(&fbi->fb.var, &modes[0]);
+
+	for (i = 0; i < num_modes; i++) {
+		smemlen = modes[i].xres * modes[i].yres * modes[i].bpp / 8;
+		if (smemlen > fbi->fb.fix.smem_len)
+			fbi->fb.fix.smem_len = smemlen;
+	}
+}
+
+static int pxafb_decode_mach_info(struct pxafb_info *fbi,
+				  struct pxafb_mach_info *inf)
+{
+	unsigned int lcd_conn = inf->lcd_conn;
+
+	fbi->cmap_inverse	= inf->cmap_inverse;
+	fbi->cmap_static	= inf->cmap_static;
+
+	switch (lcd_conn & 0xf) {
+	case LCD_TYPE_MONO_STN:
+		fbi->lccr0 = LCCR0_CMS;
+		break;
+	case LCD_TYPE_MONO_DSTN:
+		fbi->lccr0 = LCCR0_CMS | LCCR0_SDS;
+		break;
+	case LCD_TYPE_COLOR_STN:
+		fbi->lccr0 = 0;
+		break;
+	case LCD_TYPE_COLOR_DSTN:
+		fbi->lccr0 = LCCR0_SDS;
+		break;
+	case LCD_TYPE_COLOR_TFT:
+		fbi->lccr0 = LCCR0_PAS;
+		break;
+	case LCD_TYPE_SMART_PANEL:
+		fbi->lccr0 = LCCR0_LCDT | LCCR0_PAS;
+		break;
+	default:
+		/* fall back to backward compatibility way */
+		fbi->lccr0 = inf->lccr0;
+		fbi->lccr3 = inf->lccr3;
+		fbi->lccr4 = inf->lccr4;
+		return -EINVAL;
+	}
+
+	if (lcd_conn == LCD_MONO_STN_8BPP)
+		fbi->lccr0 |= LCCR0_DPD;
+
+	fbi->lccr3 = LCCR3_Acb((inf->lcd_conn >> 10) & 0xff);
+	fbi->lccr3 |= (lcd_conn & LCD_BIAS_ACTIVE_LOW) ? LCCR3_OEP : 0;
+	fbi->lccr3 |= (lcd_conn & LCD_PCLK_EDGE_FALL)  ? LCCR3_PCP : 0;
+
+	pxafb_decode_mode_info(fbi, inf->modes, inf->num_modes);
+	return 0;
 }
 
 static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
@@ -1146,7 +1353,6 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	void *addr;
 	struct pxafb_mach_info *inf = dev->platform_data;
 	struct pxafb_mode_info *mode = inf->modes;
-	int i, smemlen;
 
 	/* Alloc the pxafb_info and pseudo_palette in one step */
 	fbi = kmalloc(sizeof(struct pxafb_info) + sizeof(u32) * 16, GFP_KERNEL);
@@ -1186,187 +1392,233 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	addr = addr + sizeof(struct pxafb_info);
 	fbi->fb.pseudo_palette	= addr;
 
-	pxafb_setmode(&fbi->fb.var, mode);
+	fbi->state		= C_STARTUP;
+	fbi->task_state		= (u_char)-1;
 
-	fbi->cmap_inverse		= inf->cmap_inverse;
-	fbi->cmap_static		= inf->cmap_static;
-
-	fbi->lccr0			= inf->lccr0;
-	fbi->lccr3			= inf->lccr3;
-	fbi->lccr4			= inf->lccr4;
-	fbi->state			= C_STARTUP;
-	fbi->task_state			= (u_char)-1;
-
-	for (i = 0; i < inf->num_modes; i++) {
-		smemlen = mode[i].xres * mode[i].yres * mode[i].bpp / 8;
-		if (smemlen > fbi->fb.fix.smem_len)
-			fbi->fb.fix.smem_len = smemlen;
-	}
+	pxafb_decode_mach_info(fbi, inf);
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
 	INIT_WORK(&fbi->task, pxafb_task);
 	init_MUTEX(&fbi->ctrlr_sem);
+	init_completion(&fbi->disable_done);
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	init_completion(&fbi->command_done);
+	init_completion(&fbi->refresh_done);
+#endif
 
 	return fbi;
 }
 
 #ifdef CONFIG_FB_PXA_PARAMETERS
-static int __init pxafb_parse_options(struct device *dev, char *options)
+static int __init parse_opt_mode(struct device *dev, const char *this_opt)
 {
 	struct pxafb_mach_info *inf = dev->platform_data;
-	char *this_opt;
 
-        if (!options || !*options)
-                return 0;
+	const char *name = this_opt+5;
+	unsigned int namelen = strlen(name);
+	int res_specified = 0, bpp_specified = 0;
+	unsigned int xres = 0, yres = 0, bpp = 0;
+	int yres_specified = 0;
+	int i;
+	for (i = namelen-1; i >= 0; i--) {
+		switch (name[i]) {
+		case '-':
+			namelen = i;
+			if (!bpp_specified && !yres_specified) {
+				bpp = simple_strtoul(&name[i+1], NULL, 0);
+				bpp_specified = 1;
+			} else
+				goto done;
+			break;
+		case 'x':
+			if (!yres_specified) {
+				yres = simple_strtoul(&name[i+1], NULL, 0);
+				yres_specified = 1;
+			} else
+				goto done;
+			break;
+		case '0' ... '9':
+			break;
+		default:
+			goto done;
+		}
+	}
+	if (i < 0 && yres_specified) {
+		xres = simple_strtoul(name, NULL, 0);
+		res_specified = 1;
+	}
+done:
+	if (res_specified) {
+		dev_info(dev, "overriding resolution: %dx%d\n", xres, yres);
+		inf->modes[0].xres = xres; inf->modes[0].yres = yres;
+	}
+	if (bpp_specified)
+		switch (bpp) {
+		case 1:
+		case 2:
+		case 4:
+		case 8:
+		case 16:
+			inf->modes[0].bpp = bpp;
+			dev_info(dev, "overriding bit depth: %d\n", bpp);
+			break;
+		default:
+			dev_err(dev, "Depth %d is not valid\n", bpp);
+			return -EINVAL;
+		}
+	return 0;
+}
+
+static int __init parse_opt(struct device *dev, char *this_opt)
+{
+	struct pxafb_mach_info *inf = dev->platform_data;
+	struct pxafb_mode_info *mode = &inf->modes[0];
+	char s[64];
+
+	s[0] = '\0';
+
+	if (!strncmp(this_opt, "mode:", 5)) {
+		return parse_opt_mode(dev, this_opt);
+	} else if (!strncmp(this_opt, "pixclock:", 9)) {
+		mode->pixclock = simple_strtoul(this_opt+9, NULL, 0);
+		sprintf(s, "pixclock: %ld\n", mode->pixclock);
+	} else if (!strncmp(this_opt, "left:", 5)) {
+		mode->left_margin = simple_strtoul(this_opt+5, NULL, 0);
+		sprintf(s, "left: %u\n", mode->left_margin);
+	} else if (!strncmp(this_opt, "right:", 6)) {
+		mode->right_margin = simple_strtoul(this_opt+6, NULL, 0);
+		sprintf(s, "right: %u\n", mode->right_margin);
+	} else if (!strncmp(this_opt, "upper:", 6)) {
+		mode->upper_margin = simple_strtoul(this_opt+6, NULL, 0);
+		sprintf(s, "upper: %u\n", mode->upper_margin);
+	} else if (!strncmp(this_opt, "lower:", 6)) {
+		mode->lower_margin = simple_strtoul(this_opt+6, NULL, 0);
+		sprintf(s, "lower: %u\n", mode->lower_margin);
+	} else if (!strncmp(this_opt, "hsynclen:", 9)) {
+		mode->hsync_len = simple_strtoul(this_opt+9, NULL, 0);
+		sprintf(s, "hsynclen: %u\n", mode->hsync_len);
+	} else if (!strncmp(this_opt, "vsynclen:", 9)) {
+		mode->vsync_len = simple_strtoul(this_opt+9, NULL, 0);
+		sprintf(s, "vsynclen: %u\n", mode->vsync_len);
+	} else if (!strncmp(this_opt, "hsync:", 6)) {
+		if (simple_strtoul(this_opt+6, NULL, 0) == 0) {
+			sprintf(s, "hsync: Active Low\n");
+			mode->sync &= ~FB_SYNC_HOR_HIGH_ACT;
+		} else {
+			sprintf(s, "hsync: Active High\n");
+			mode->sync |= FB_SYNC_HOR_HIGH_ACT;
+		}
+	} else if (!strncmp(this_opt, "vsync:", 6)) {
+		if (simple_strtoul(this_opt+6, NULL, 0) == 0) {
+			sprintf(s, "vsync: Active Low\n");
+			mode->sync &= ~FB_SYNC_VERT_HIGH_ACT;
+		} else {
+			sprintf(s, "vsync: Active High\n");
+			mode->sync |= FB_SYNC_VERT_HIGH_ACT;
+		}
+	} else if (!strncmp(this_opt, "dpc:", 4)) {
+		if (simple_strtoul(this_opt+4, NULL, 0) == 0) {
+			sprintf(s, "double pixel clock: false\n");
+			inf->lccr3 &= ~LCCR3_DPC;
+		} else {
+			sprintf(s, "double pixel clock: true\n");
+			inf->lccr3 |= LCCR3_DPC;
+		}
+	} else if (!strncmp(this_opt, "outputen:", 9)) {
+		if (simple_strtoul(this_opt+9, NULL, 0) == 0) {
+			sprintf(s, "output enable: active low\n");
+			inf->lccr3 = (inf->lccr3 & ~LCCR3_OEP) | LCCR3_OutEnL;
+		} else {
+			sprintf(s, "output enable: active high\n");
+			inf->lccr3 = (inf->lccr3 & ~LCCR3_OEP) | LCCR3_OutEnH;
+		}
+	} else if (!strncmp(this_opt, "pixclockpol:", 12)) {
+		if (simple_strtoul(this_opt+12, NULL, 0) == 0) {
+			sprintf(s, "pixel clock polarity: falling edge\n");
+			inf->lccr3 = (inf->lccr3 & ~LCCR3_PCP) | LCCR3_PixFlEdg;
+		} else {
+			sprintf(s, "pixel clock polarity: rising edge\n");
+			inf->lccr3 = (inf->lccr3 & ~LCCR3_PCP) | LCCR3_PixRsEdg;
+		}
+	} else if (!strncmp(this_opt, "color", 5)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_CMS) | LCCR0_Color;
+	} else if (!strncmp(this_opt, "mono", 4)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_CMS) | LCCR0_Mono;
+	} else if (!strncmp(this_opt, "active", 6)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_PAS) | LCCR0_Act;
+	} else if (!strncmp(this_opt, "passive", 7)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_PAS) | LCCR0_Pas;
+	} else if (!strncmp(this_opt, "single", 6)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_SDS) | LCCR0_Sngl;
+	} else if (!strncmp(this_opt, "dual", 4)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_SDS) | LCCR0_Dual;
+	} else if (!strncmp(this_opt, "4pix", 4)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_DPD) | LCCR0_4PixMono;
+	} else if (!strncmp(this_opt, "8pix", 4)) {
+		inf->lccr0 = (inf->lccr0 & ~LCCR0_DPD) | LCCR0_8PixMono;
+	} else {
+		dev_err(dev, "unknown option: %s\n", this_opt);
+		return -EINVAL;
+	}
+
+	if (s[0] != '\0')
+		dev_info(dev, "override %s", s);
+
+	return 0;
+}
+
+static int __init pxafb_parse_options(struct device *dev, char *options)
+{
+	char *this_opt;
+	int ret;
+
+	if (!options || !*options)
+		return 0;
 
 	dev_dbg(dev, "options are \"%s\"\n", options ? options : "null");
 
 	/* could be made table driven or similar?... */
-        while ((this_opt = strsep(&options, ",")) != NULL) {
-                if (!strncmp(this_opt, "mode:", 5)) {
-			const char *name = this_opt+5;
-			unsigned int namelen = strlen(name);
-			int res_specified = 0, bpp_specified = 0;
-			unsigned int xres = 0, yres = 0, bpp = 0;
-			int yres_specified = 0;
-			int i;
-			for (i = namelen-1; i >= 0; i--) {
-				switch (name[i]) {
-				case '-':
-					namelen = i;
-					if (!bpp_specified && !yres_specified) {
-						bpp = simple_strtoul(&name[i+1], NULL, 0);
-						bpp_specified = 1;
-					} else
-						goto done;
-					break;
-				case 'x':
-					if (!yres_specified) {
-						yres = simple_strtoul(&name[i+1], NULL, 0);
-						yres_specified = 1;
-					} else
-						goto done;
-					break;
-				case '0' ... '9':
-					break;
-				default:
-					goto done;
-				}
-			}
-			if (i < 0 && yres_specified) {
-				xres = simple_strtoul(name, NULL, 0);
-				res_specified = 1;
-			}
-		done:
-			if (res_specified) {
-				dev_info(dev, "overriding resolution: %dx%d\n", xres, yres);
-				inf->modes[0].xres = xres; inf->modes[0].yres = yres;
-			}
-			if (bpp_specified)
-				switch (bpp) {
-				case 1:
-				case 2:
-				case 4:
-				case 8:
-				case 16:
-					inf->modes[0].bpp = bpp;
-					dev_info(dev, "overriding bit depth: %d\n", bpp);
-					break;
-				default:
-					dev_err(dev, "Depth %d is not valid\n", bpp);
-				}
-                } else if (!strncmp(this_opt, "pixclock:", 9)) {
-                        inf->modes[0].pixclock = simple_strtoul(this_opt+9, NULL, 0);
-			dev_info(dev, "override pixclock: %ld\n", inf->modes[0].pixclock);
-                } else if (!strncmp(this_opt, "left:", 5)) {
-                        inf->modes[0].left_margin = simple_strtoul(this_opt+5, NULL, 0);
-			dev_info(dev, "override left: %u\n", inf->modes[0].left_margin);
-                } else if (!strncmp(this_opt, "right:", 6)) {
-                        inf->modes[0].right_margin = simple_strtoul(this_opt+6, NULL, 0);
-			dev_info(dev, "override right: %u\n", inf->modes[0].right_margin);
-                } else if (!strncmp(this_opt, "upper:", 6)) {
-                        inf->modes[0].upper_margin = simple_strtoul(this_opt+6, NULL, 0);
-			dev_info(dev, "override upper: %u\n", inf->modes[0].upper_margin);
-                } else if (!strncmp(this_opt, "lower:", 6)) {
-                        inf->modes[0].lower_margin = simple_strtoul(this_opt+6, NULL, 0);
-			dev_info(dev, "override lower: %u\n", inf->modes[0].lower_margin);
-                } else if (!strncmp(this_opt, "hsynclen:", 9)) {
-                        inf->modes[0].hsync_len = simple_strtoul(this_opt+9, NULL, 0);
-			dev_info(dev, "override hsynclen: %u\n", inf->modes[0].hsync_len);
-                } else if (!strncmp(this_opt, "vsynclen:", 9)) {
-                        inf->modes[0].vsync_len = simple_strtoul(this_opt+9, NULL, 0);
-			dev_info(dev, "override vsynclen: %u\n", inf->modes[0].vsync_len);
-                } else if (!strncmp(this_opt, "hsync:", 6)) {
-                        if (simple_strtoul(this_opt+6, NULL, 0) == 0) {
-				dev_info(dev, "override hsync: Active Low\n");
-				inf->modes[0].sync &= ~FB_SYNC_HOR_HIGH_ACT;
-			} else {
-				dev_info(dev, "override hsync: Active High\n");
-				inf->modes[0].sync |= FB_SYNC_HOR_HIGH_ACT;
-			}
-                } else if (!strncmp(this_opt, "vsync:", 6)) {
-                        if (simple_strtoul(this_opt+6, NULL, 0) == 0) {
-				dev_info(dev, "override vsync: Active Low\n");
-				inf->modes[0].sync &= ~FB_SYNC_VERT_HIGH_ACT;
-			} else {
-				dev_info(dev, "override vsync: Active High\n");
-				inf->modes[0].sync |= FB_SYNC_VERT_HIGH_ACT;
-			}
-                } else if (!strncmp(this_opt, "dpc:", 4)) {
-                        if (simple_strtoul(this_opt+4, NULL, 0) == 0) {
-				dev_info(dev, "override double pixel clock: false\n");
-				inf->lccr3 &= ~LCCR3_DPC;
-			} else {
-				dev_info(dev, "override double pixel clock: true\n");
-				inf->lccr3 |= LCCR3_DPC;
-			}
-                } else if (!strncmp(this_opt, "outputen:", 9)) {
-                        if (simple_strtoul(this_opt+9, NULL, 0) == 0) {
-				dev_info(dev, "override output enable: active low\n");
-				inf->lccr3 = (inf->lccr3 & ~LCCR3_OEP) | LCCR3_OutEnL;
-			} else {
-				dev_info(dev, "override output enable: active high\n");
-				inf->lccr3 = (inf->lccr3 & ~LCCR3_OEP) | LCCR3_OutEnH;
-			}
-                } else if (!strncmp(this_opt, "pixclockpol:", 12)) {
-                        if (simple_strtoul(this_opt+12, NULL, 0) == 0) {
-				dev_info(dev, "override pixel clock polarity: falling edge\n");
-				inf->lccr3 = (inf->lccr3 & ~LCCR3_PCP) | LCCR3_PixFlEdg;
-			} else {
-				dev_info(dev, "override pixel clock polarity: rising edge\n");
-				inf->lccr3 = (inf->lccr3 & ~LCCR3_PCP) | LCCR3_PixRsEdg;
-			}
-                } else if (!strncmp(this_opt, "color", 5)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_CMS) | LCCR0_Color;
-                } else if (!strncmp(this_opt, "mono", 4)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_CMS) | LCCR0_Mono;
-                } else if (!strncmp(this_opt, "active", 6)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_PAS) | LCCR0_Act;
-                } else if (!strncmp(this_opt, "passive", 7)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_PAS) | LCCR0_Pas;
-                } else if (!strncmp(this_opt, "single", 6)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_SDS) | LCCR0_Sngl;
-                } else if (!strncmp(this_opt, "dual", 4)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_SDS) | LCCR0_Dual;
-                } else if (!strncmp(this_opt, "4pix", 4)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_DPD) | LCCR0_4PixMono;
-                } else if (!strncmp(this_opt, "8pix", 4)) {
-			inf->lccr0 = (inf->lccr0 & ~LCCR0_DPD) | LCCR0_8PixMono;
-		} else {
-			dev_err(dev, "unknown option: %s\n", this_opt);
-			return -EINVAL;
-		}
-        }
-        return 0;
-
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		ret = parse_opt(dev, this_opt);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
+
+static char g_options[256] __devinitdata = "";
+
+#ifndef CONFIG_MODULES
+static int __devinit pxafb_setup_options(void)
+{
+	char *options = NULL;
+
+	if (fb_get_options("pxafb", &options))
+		return -ENODEV;
+
+	if (options)
+		strlcpy(g_options, options, sizeof(g_options));
+
+	return 0;
+}
+#else
+#define pxafb_setup_options()		(0)
+
+module_param_string(options, g_options, sizeof(g_options), 0);
+MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
+#endif
+
+#else
+#define pxafb_parse_options(...)	(0)
+#define pxafb_setup_options()		(0)
 #endif
 
 static int __init pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
 	struct pxafb_mach_info *inf;
-	int ret;
+	struct resource *r;
+	int irq, ret;
 
 	dev_dbg(&dev->dev, "pxafb_probe\n");
 
@@ -1376,38 +1628,45 @@ static int __init pxafb_probe(struct platform_device *dev)
 	if (!inf)
 		goto failed;
 
-#ifdef CONFIG_FB_PXA_PARAMETERS
 	ret = pxafb_parse_options(&dev->dev, g_options);
 	if (ret < 0)
 		goto failed;
-#endif
 
 #ifdef DEBUG_VAR
-        /* Check for various illegal bit-combinations. Currently only
+	/* Check for various illegal bit-combinations. Currently only
 	 * a warning is given. */
 
-        if (inf->lccr0 & LCCR0_INVALID_CONFIG_MASK)
-                dev_warn(&dev->dev, "machine LCCR0 setting contains illegal bits: %08x\n",
-                        inf->lccr0 & LCCR0_INVALID_CONFIG_MASK);
-        if (inf->lccr3 & LCCR3_INVALID_CONFIG_MASK)
-                dev_warn(&dev->dev, "machine LCCR3 setting contains illegal bits: %08x\n",
-                        inf->lccr3 & LCCR3_INVALID_CONFIG_MASK);
-        if (inf->lccr0 & LCCR0_DPD &&
+	if (inf->lccr0 & LCCR0_INVALID_CONFIG_MASK)
+		dev_warn(&dev->dev, "machine LCCR0 setting contains "
+				"illegal bits: %08x\n",
+			inf->lccr0 & LCCR0_INVALID_CONFIG_MASK);
+	if (inf->lccr3 & LCCR3_INVALID_CONFIG_MASK)
+		dev_warn(&dev->dev, "machine LCCR3 setting contains "
+				"illegal bits: %08x\n",
+			inf->lccr3 & LCCR3_INVALID_CONFIG_MASK);
+	if (inf->lccr0 & LCCR0_DPD &&
 	    ((inf->lccr0 & LCCR0_PAS) != LCCR0_Pas ||
 	     (inf->lccr0 & LCCR0_SDS) != LCCR0_Sngl ||
 	     (inf->lccr0 & LCCR0_CMS) != LCCR0_Mono))
-                dev_warn(&dev->dev, "Double Pixel Data (DPD) mode is only valid in passive mono"
-			 " single panel mode\n");
-        if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Act &&
+		dev_warn(&dev->dev, "Double Pixel Data (DPD) mode is "
+				"only valid in passive mono"
+				" single panel mode\n");
+	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Act &&
 	    (inf->lccr0 & LCCR0_SDS) == LCCR0_Dual)
-                dev_warn(&dev->dev, "Dual panel only valid in passive mode\n");
-        if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
-             (inf->modes->upper_margin || inf->modes->lower_margin))
-                dev_warn(&dev->dev, "Upper and lower margins must be 0 in passive mode\n");
+		dev_warn(&dev->dev, "Dual panel only valid in passive mode\n");
+	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
+	     (inf->modes->upper_margin || inf->modes->lower_margin))
+		dev_warn(&dev->dev, "Upper and lower margins must be 0 in "
+				"passive mode\n");
 #endif
 
-	dev_dbg(&dev->dev, "got a %dx%dx%d LCD\n",inf->modes->xres, inf->modes->yres, inf->modes->bpp);
-	if (inf->modes->xres == 0 || inf->modes->yres == 0 || inf->modes->bpp == 0) {
+	dev_dbg(&dev->dev, "got a %dx%dx%d LCD\n",
+			inf->modes->xres,
+			inf->modes->yres,
+			inf->modes->bpp);
+	if (inf->modes->xres == 0 ||
+	    inf->modes->yres == 0 ||
+	    inf->modes->bpp == 0) {
 		dev_err(&dev->dev, "Invalid resolution or bit depth\n");
 		ret = -EINVAL;
 		goto failed;
@@ -1416,9 +1675,31 @@ static int __init pxafb_probe(struct platform_device *dev)
 	pxafb_lcd_power = inf->pxafb_lcd_power;
 	fbi = pxafb_init_fbinfo(&dev->dev);
 	if (!fbi) {
+		/* only reason for pxafb_init_fbinfo to fail is kmalloc */
 		dev_err(&dev->dev, "Failed to initialize framebuffer device\n");
-		ret = -ENOMEM; // only reason for pxafb_init_fbinfo to fail is kmalloc
+		ret = -ENOMEM;
 		goto failed;
+	}
+
+	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (r == NULL) {
+		dev_err(&dev->dev, "no I/O memory resource defined\n");
+		ret = -ENODEV;
+		goto failed;
+	}
+
+	r = request_mem_region(r->start, r->end - r->start + 1, dev->name);
+	if (r == NULL) {
+		dev_err(&dev->dev, "failed to request I/O memory\n");
+		ret = -EBUSY;
+		goto failed;
+	}
+
+	fbi->mmio_base = ioremap(r->start, r->end - r->start + 1);
+	if (fbi->mmio_base == NULL) {
+		dev_err(&dev->dev, "failed to map I/O memory\n");
+		ret = -EBUSY;
+		goto failed_free_res;
 	}
 
 	/* Initialize video memory */
@@ -1426,16 +1707,30 @@ static int __init pxafb_probe(struct platform_device *dev)
 	if (ret) {
 		dev_err(&dev->dev, "Failed to allocate video RAM: %d\n", ret);
 		ret = -ENOMEM;
-		goto failed;
+		goto failed_free_io;
 	}
 
-	ret = request_irq(IRQ_LCD, pxafb_handle_irq, IRQF_DISABLED, "LCD", fbi);
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
+		dev_err(&dev->dev, "no IRQ defined\n");
+		ret = -ENODEV;
+		goto failed_free_mem;
+	}
+
+	ret = request_irq(irq, pxafb_handle_irq, IRQF_DISABLED, "LCD", fbi);
 	if (ret) {
 		dev_err(&dev->dev, "request_irq failed: %d\n", ret);
 		ret = -EBUSY;
-		goto failed;
+		goto failed_free_mem;
 	}
 
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	ret = pxafb_smart_init(fbi);
+	if (ret) {
+		dev_err(&dev->dev, "failed to initialize smartpanel\n");
+		goto failed_free_irq;
+	}
+#endif
 	/*
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.
@@ -1447,19 +1742,18 @@ static int __init pxafb_probe(struct platform_device *dev)
 
 	ret = register_framebuffer(&fbi->fb);
 	if (ret < 0) {
-		dev_err(&dev->dev, "Failed to register framebuffer device: %d\n", ret);
-		goto failed;
+		dev_err(&dev->dev,
+			"Failed to register framebuffer device: %d\n", ret);
+		goto failed_free_irq;
 	}
-
-#ifdef CONFIG_PM
-	// TODO
-#endif
 
 #ifdef CONFIG_CPU_FREQ
 	fbi->freq_transition.notifier_call = pxafb_freq_transition;
 	fbi->freq_policy.notifier_call = pxafb_freq_policy;
-	cpufreq_register_notifier(&fbi->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
-	cpufreq_register_notifier(&fbi->freq_policy, CPUFREQ_POLICY_NOTIFIER);
+	cpufreq_register_notifier(&fbi->freq_transition,
+				CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_register_notifier(&fbi->freq_policy,
+				CPUFREQ_POLICY_NOTIFIER);
 #endif
 
 	/*
@@ -1469,6 +1763,15 @@ static int __init pxafb_probe(struct platform_device *dev)
 
 	return 0;
 
+failed_free_irq:
+	free_irq(irq, fbi);
+failed_free_res:
+	release_mem_region(r->start, r->end - r->start + 1);
+failed_free_io:
+	iounmap(fbi->mmio_base);
+failed_free_mem:
+	dma_free_writecombine(&dev->dev, fbi->map_size,
+			fbi->map_cpu, fbi->map_dma);
 failed:
 	platform_set_drvdata(dev, NULL);
 	kfree(fbi);
@@ -1477,40 +1780,18 @@ failed:
 
 static struct platform_driver pxafb_driver = {
 	.probe		= pxafb_probe,
-#ifdef CONFIG_PM
 	.suspend	= pxafb_suspend,
 	.resume		= pxafb_resume,
-#endif
 	.driver		= {
 		.name	= "pxa2xx-fb",
 	},
 };
 
-#ifndef MODULE
-static int __devinit pxafb_setup(char *options)
-{
-# ifdef CONFIG_FB_PXA_PARAMETERS
-	if (options)
-		strlcpy(g_options, options, sizeof(g_options));
-# endif
-	return 0;
-}
-#else
-# ifdef CONFIG_FB_PXA_PARAMETERS
-module_param_string(options, g_options, sizeof(g_options), 0);
-MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
-# endif
-#endif
-
 static int __devinit pxafb_init(void)
 {
-#ifndef MODULE
-	char *option = NULL;
+	if (pxafb_setup_options())
+		return -EINVAL;
 
-	if (fb_get_options("pxafb", &option))
-		return -ENODEV;
-	pxafb_setup(option);
-#endif
 	return platform_driver_register(&pxafb_driver);
 }
 

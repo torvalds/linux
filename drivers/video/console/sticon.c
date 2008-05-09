@@ -170,12 +170,12 @@ static int sticon_scroll(struct vc_data *conp, int t, int b, int dir, int count)
     switch (dir) {
     case SM_UP:
 	sti_bmove(sti, t + count, 0, t, 0, b - t - count, conp->vc_cols);
-	sti_clear(sti, b - count, 0, count, conp->vc_cols, conp->vc_video_erase_char);
+	sti_clear(sti, b - count, 0, count, conp->vc_cols, conp->vc_scrl_erase_char);
 	break;
 
     case SM_DOWN:
 	sti_bmove(sti, t, 0, t + count, 0, b - t - count, conp->vc_cols);
-	sti_clear(sti, t, 0, count, conp->vc_cols, conp->vc_video_erase_char);
+	sti_clear(sti, t, 0, count, conp->vc_cols, conp->vc_scrl_erase_char);
 	break;
     }
 

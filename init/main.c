@@ -52,12 +52,14 @@
 #include <linux/unwind.h>
 #include <linux/buffer_head.h>
 #include <linux/debug_locks.h>
+#include <linux/debugobjects.h>
 #include <linux/lockdep.h>
 #include <linux/pid_namespace.h>
 #include <linux/device.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
+#include <linux/idr.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -458,7 +460,7 @@ static void noinline __init_refok rest_init(void)
 	kernel_thread(kernel_init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
 	pid = kernel_thread(kthreadd, NULL, CLONE_FS | CLONE_FILES);
-	kthreadd_task = find_task_by_pid(pid);
+	kthreadd_task = find_task_by_pid_ns(pid, &init_pid_ns);
 	unlock_kernel();
 
 	/*
@@ -542,6 +544,7 @@ asmlinkage void __init start_kernel(void)
 	 */
 	unwind_init();
 	lockdep_init();
+	debug_objects_early_init();
 	cgroup_init_early();
 
 	local_irq_disable();
@@ -559,6 +562,7 @@ asmlinkage void __init start_kernel(void)
 	printk(KERN_NOTICE);
 	printk(linux_banner);
 	setup_arch(&command_line);
+	mm_init_owner(&init_mm, &init_task);
 	setup_command_line(command_line);
 	unwind_setup();
 	setup_per_cpu_areas();
@@ -636,6 +640,8 @@ asmlinkage void __init start_kernel(void)
 	enable_debug_pagealloc();
 	cpu_hotplug_init();
 	kmem_cache_init();
+	debug_objects_mem_init();
+	idr_init_cache();
 	setup_per_cpu_pageset();
 	numa_policy_init();
 	if (late_time_init)
@@ -700,10 +706,8 @@ static void __init do_initcalls(void)
 		int result;
 
 		if (initcall_debug) {
-			printk("Calling initcall 0x%p", *call);
-			print_fn_descriptor_symbol(": %s()",
+			print_fn_descriptor_symbol("calling  %s()\n",
 					(unsigned long) *call);
-			printk("\n");
 			t0 = ktime_get();
 		}
 
@@ -713,15 +717,10 @@ static void __init do_initcalls(void)
 			t1 = ktime_get();
 			delta = ktime_sub(t1, t0);
 
-			printk("initcall 0x%p", *call);
-			print_fn_descriptor_symbol(": %s()",
+			print_fn_descriptor_symbol("initcall %s()",
 					(unsigned long) *call);
-			printk(" returned %d.\n", result);
-
-			printk("initcall 0x%p ran for %Ld msecs: ",
-				*call, (unsigned long long)delta.tv64 >> 20);
-			print_fn_descriptor_symbol("%s()\n",
-				(unsigned long) *call);
+			printk(" returned %d after %Ld msecs\n", result,
+				(unsigned long long) delta.tv64 >> 20);
 		}
 
 		if (result && result != -ENODEV && initcall_debug) {
@@ -737,10 +736,9 @@ static void __init do_initcalls(void)
 			local_irq_enable();
 		}
 		if (msg) {
-			printk(KERN_WARNING "initcall at 0x%p", *call);
-			print_fn_descriptor_symbol(": %s()",
+			print_fn_descriptor_symbol(KERN_WARNING "initcall %s()",
 					(unsigned long) *call);
-			printk(": returned with %s\n", msg);
+			printk(" returned with %s\n", msg);
 		}
 	}
 
@@ -806,6 +804,8 @@ static int noinline init_post(void)
 
 	(void) sys_dup(0);
 	(void) sys_dup(0);
+
+	current->signal->flags |= SIGNAL_UNKILLABLE;
 
 	if (ramdisk_execute_command) {
 		run_init_process(ramdisk_execute_command);

@@ -310,8 +310,7 @@ int posix_timer_event(struct k_itimer *timr,int si_private)
 
 	if (timr->it_sigev_notify & SIGEV_THREAD_ID) {
 		struct task_struct *leader;
-		int ret = send_sigqueue(timr->it_sigev_signo, timr->sigq,
-					timr->it_process);
+		int ret = send_sigqueue(timr->sigq, timr->it_process, 0);
 
 		if (likely(ret >= 0))
 			return ret;
@@ -322,8 +321,7 @@ int posix_timer_event(struct k_itimer *timr,int si_private)
 		timr->it_process = leader;
 	}
 
-	return send_group_sigqueue(timr->it_sigev_signo, timr->sigq,
-				   timr->it_process);
+	return send_sigqueue(timr->sigq, timr->it_process, 1);
 }
 EXPORT_SYMBOL_GPL(posix_timer_event);
 

@@ -28,6 +28,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>
+#include <linux/kallsyms.h>
 
 #include <asm/setup.h>
 #include <asm/fpu.h>
@@ -102,56 +103,47 @@ asmlinkage void buserr_c(struct frame *fp)
 	force_sig(SIGSEGV, current);
 }
 
-
 int kstack_depth_to_print = 48;
 
-void show_stack(struct task_struct *task, unsigned long *stack)
+static void __show_stack(struct task_struct *task, unsigned long *stack)
 {
 	unsigned long *endstack, addr;
-	extern char _start, _etext;
+	unsigned long *last_stack;
 	int i;
 
-	if (!stack) {
-		if (task)
-			stack = (unsigned long *)task->thread.ksp;
-		else
-			stack = (unsigned long *)&stack;
-	}
+	if (!stack)
+		stack = (unsigned long *)task->thread.ksp;
 
 	addr = (unsigned long) stack;
 	endstack = (unsigned long *) PAGE_ALIGN(addr);
 
 	printk(KERN_EMERG "Stack from %08lx:", (unsigned long)stack);
 	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (stack + 1 > endstack)
+		if (stack + 1 + i > endstack)
 			break;
 		if (i % 8 == 0)
 			printk("\n" KERN_EMERG "       ");
-		printk(" %08lx", *stack++);
+		printk(" %08lx", *(stack + i));
 	}
 	printk("\n");
 
-	printk(KERN_EMERG "Call Trace:");
-	i = 0;
-	while (stack + 1 <= endstack) {
-		addr = *stack++;
-		/*
-		 * If the address is either in the text segment of the
-		 * kernel, or in the region which contains vmalloc'ed
-		 * memory, it *may* be the address of a calling
-		 * routine; if so, print it so that someone tracing
-		 * down the cause of the crash will be able to figure
-		 * out the call path that was taken.
-		 */
-		if (((addr >= (unsigned long) &_start) &&
-		     (addr <= (unsigned long) &_etext))) {
-			if (i % 4 == 0)
-				printk("\n" KERN_EMERG "       ");
-			printk(" [<%08lx>]", addr);
-			i++;
-		}
+#ifdef CONFIG_FRAME_POINTER
+	printk(KERN_EMERG "Call Trace:\n");
+
+	last_stack = stack - 1;
+	while (stack <= endstack && stack > last_stack) {
+
+		addr = *(stack + 1);
+		printk(KERN_EMERG " [%08lx] ", addr);
+		print_symbol(KERN_CONT "%s\n", addr);
+
+		last_stack = stack;
+		stack = (unsigned long *)*stack;
 	}
 	printk("\n");
+#else
+	printk(KERN_EMERG "CONFIG_FRAME_POINTER disabled, no symbolic call trace\n");
+#endif
 }
 
 void bad_super_trap(struct frame *fp)
@@ -298,18 +290,46 @@ asmlinkage void set_esp0(unsigned long ssp)
 	current->thread.esp0 = ssp;
 }
 
-
 /*
  * The architecture-independent backtrace generator
  */
 void dump_stack(void)
 {
-	unsigned long stack;
+	/*
+	 * We need frame pointers for this little trick, which works as follows:
+	 *
+	 * +------------+ 0x00
+	 * | Next SP	|	-> 0x0c
+	 * +------------+ 0x04
+	 * | Caller	|
+	 * +------------+ 0x08
+	 * | Local vars	|	-> our stack var
+	 * +------------+ 0x0c
+	 * | Next SP	|	-> 0x18, that is what we pass to show_stack()
+	 * +------------+ 0x10
+	 * | Caller	|
+	 * +------------+ 0x14
+	 * | Local vars	|
+	 * +------------+ 0x18
+	 * | ...	|
+	 * +------------+
+	 */
 
-	show_stack(current, &stack);
+	unsigned long *stack;
+
+	stack = (unsigned long *)&stack;
+	stack++;
+	__show_stack(current, stack);
 }
-
 EXPORT_SYMBOL(dump_stack);
+
+void show_stack(struct task_struct *task, unsigned long *stack)
+{
+	if (!stack && !task)
+		dump_stack();
+	else
+		__show_stack(task, stack);
+}
 
 #ifdef CONFIG_M68KFPU_EMU
 asmlinkage void fpemu_signal(int signal, int code, void *addr)

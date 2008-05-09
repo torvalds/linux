@@ -496,6 +496,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			switching to the matching ttyS device later.  The
 			options are the same as for ttyS, above.
 
+                If the device connected to the port is not a TTY but a braille
+                device, prepend "brl," before the device type, for instance
+			console=brl,ttyS0
+		For now, only VisioBraille is supported.
+
 	earlycon=	[KNL] Output early console device and options.
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
@@ -555,6 +560,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			We default to 0 (no extra messages), setting it to
 			1 will print _a lot_ more information - normally
 			only useful to kernel developers.
+
+	debug_objects	[KNL] Enable object debugging
 
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
@@ -627,8 +634,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	eata=		[HW,SCSI]
 
 	edd=		[EDD]
-			Format: {"of[f]" | "sk[ipmbr]"}
-			See comment in arch/i386/boot/edd.S
+			Format: {"off" | "on" | "skip[mbr]"}
 
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
@@ -1388,6 +1394,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/sysctl/vm.txt for details.
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
+
+	olpc_ec_timeout= [OLPC] ms delay when issuing EC commands
+			Rather than timing out after 20 ms if an EC
+			command is not properly ACKed, override the length
+			of the timeout.  We have interrupts disabled while
+			waiting for the ACK, so if this is set too high
+			interrupts *may* be lost!
 
 	opl3=		[HW,OSS]
 			Format: <io>

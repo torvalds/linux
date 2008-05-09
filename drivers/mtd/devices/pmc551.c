@@ -134,7 +134,8 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 	eoff_lo = end & (priv->asize - 1);
 	soff_lo = instr->addr & (priv->asize - 1);
 
-	pmc551_point(mtd, instr->addr, instr->len, &retlen, &ptr);
+	pmc551_point(mtd, instr->addr, instr->len, &retlen,
+		     (void **)&ptr, NULL);
 
 	if (soff_hi == eoff_hi || mtd->size == priv->asize) {
 		/* The whole thing fits within one access, so just one shot
@@ -154,7 +155,8 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 			}
 			soff_hi += priv->asize;
 			pmc551_point(mtd, (priv->base_map0 | soff_hi),
-				     priv->asize, &retlen, &ptr);
+				     priv->asize, &retlen,
+				     (void **)&ptr, NULL);
 		}
 		memset(ptr, 0xff, eoff_lo);
 	}
@@ -170,7 +172,7 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 }
 
 static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
-			size_t * retlen, u_char ** mtdbuf)
+			size_t *retlen, void **virt, resource_size_t *phys)
 {
 	struct mypriv *priv = mtd->priv;
 	u32 soff_hi;
@@ -188,6 +190,10 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 		return -EINVAL;
 	}
 
+	/* can we return a physical address with this driver? */
+	if (phys)
+		return -EINVAL;
+
 	soff_hi = from & ~(priv->asize - 1);
 	soff_lo = from & (priv->asize - 1);
 
@@ -198,13 +204,12 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 		priv->curr_map0 = soff_hi;
 	}
 
-	*mtdbuf = priv->start + soff_lo;
+	*virt = priv->start + soff_lo;
 	*retlen = len;
 	return 0;
 }
 
-static void pmc551_unpoint(struct mtd_info *mtd, u_char * addr, loff_t from,
-			   size_t len)
+static void pmc551_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 #ifdef CONFIG_MTD_PMC551_DEBUG
 	printk(KERN_DEBUG "pmc551_unpoint()\n");
@@ -242,7 +247,7 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 	soff_lo = from & (priv->asize - 1);
 	eoff_lo = end & (priv->asize - 1);
 
-	pmc551_point(mtd, from, len, retlen, &ptr);
+	pmc551_point(mtd, from, len, retlen, (void **)&ptr, NULL);
 
 	if (soff_hi == eoff_hi) {
 		/* The whole thing fits within one access, so just one shot
@@ -263,7 +268,8 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 				goto out;
 			}
 			soff_hi += priv->asize;
-			pmc551_point(mtd, soff_hi, priv->asize, retlen, &ptr);
+			pmc551_point(mtd, soff_hi, priv->asize, retlen,
+				     (void **)&ptr, NULL);
 		}
 		memcpy(copyto, ptr, eoff_lo);
 		copyto += eoff_lo;
@@ -308,7 +314,7 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 	soff_lo = to & (priv->asize - 1);
 	eoff_lo = end & (priv->asize - 1);
 
-	pmc551_point(mtd, to, len, retlen, &ptr);
+	pmc551_point(mtd, to, len, retlen, (void **)&ptr, NULL);
 
 	if (soff_hi == eoff_hi) {
 		/* The whole thing fits within one access, so just one shot
@@ -329,7 +335,8 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 				goto out;
 			}
 			soff_hi += priv->asize;
-			pmc551_point(mtd, soff_hi, priv->asize, retlen, &ptr);
+			pmc551_point(mtd, soff_hi, priv->asize, retlen,
+				     (void **)&ptr, NULL);
 		}
 		memcpy(ptr, copyfrom, eoff_lo);
 		copyfrom += eoff_lo;

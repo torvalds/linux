@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -215,8 +215,6 @@ acpi_ex_create_region(u8 * aml_start,
 		      u32 aml_length,
 		      u8 region_space, struct acpi_walk_state *walk_state);
 
-acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state);
-
 acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state);
 
 acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state);
@@ -248,8 +246,15 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 		      struct acpi_walk_state *walk_state);
 
 acpi_status
+acpi_ex_acquire_mutex_object(u16 timeout,
+			     union acpi_operand_object *obj_desc,
+			     acpi_thread_id thread_id);
+
+acpi_status
 acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 		      struct acpi_walk_state *walk_state);
+
+acpi_status acpi_ex_release_mutex_object(union acpi_operand_object *obj_desc);
 
 void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread);
 
@@ -455,9 +460,9 @@ void acpi_ex_relinquish_interpreter(void);
 
 void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
 
-u8 acpi_ex_acquire_global_lock(u32 rule);
+void acpi_ex_acquire_global_lock(u32 rule);
 
-void acpi_ex_release_global_lock(u8 locked);
+void acpi_ex_release_global_lock(u32 rule);
 
 void acpi_ex_eisa_id_to_string(u32 numeric_id, char *out_string);
 

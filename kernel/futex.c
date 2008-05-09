@@ -1266,11 +1266,13 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 		if (!abs_time)
 			schedule();
 		else {
-			hrtimer_init(&t.timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+			hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC,
+						HRTIMER_MODE_ABS);
 			hrtimer_init_sleeper(&t, current);
 			t.timer.expires = *abs_time;
 
-			hrtimer_start(&t.timer, t.timer.expires, HRTIMER_MODE_ABS);
+			hrtimer_start(&t.timer, t.timer.expires,
+						HRTIMER_MODE_ABS);
 			if (!hrtimer_active(&t.timer))
 				t.task = NULL;
 
@@ -1286,6 +1288,8 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 			/* Flag if a timeout occured */
 			rem = (t.task == NULL);
+
+			destroy_hrtimer_on_stack(&t.timer);
 		}
 	}
 	__set_current_state(TASK_RUNNING);
@@ -1367,7 +1371,8 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 	if (time) {
 		to = &timeout;
-		hrtimer_init(&to->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+		hrtimer_init_on_stack(&to->timer, CLOCK_REALTIME,
+				      HRTIMER_MODE_ABS);
 		hrtimer_init_sleeper(to, current);
 		to->timer.expires = *time;
 	}
@@ -1581,6 +1586,8 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 	unqueue_me_pi(&q);
 	futex_unlock_mm(fshared);
 
+	if (to)
+		destroy_hrtimer_on_stack(&to->timer);
 	return ret != -EINTR ? ret : -ERESTARTNOINTR;
 
  out_unlock_release_sem:
@@ -1588,6 +1595,8 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 
  out_release_sem:
 	futex_unlock_mm(fshared);
+	if (to)
+		destroy_hrtimer_on_stack(&to->timer);
 	return ret;
 
  uaddr_faulted:
@@ -1615,6 +1624,8 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 	if (!ret && (uval != -EFAULT))
 		goto retry;
 
+	if (to)
+		destroy_hrtimer_on_stack(&to->timer);
 	return ret;
 }
 

@@ -184,6 +184,8 @@ void qmgr_release_queue(unsigned int queue)
 	case 3: mask[0] = 0xFF; break;
 	}
 
+	mask[1] = mask[2] = mask[3] = 0;
+
 	while (addr--)
 		shift_mask(mask);
 

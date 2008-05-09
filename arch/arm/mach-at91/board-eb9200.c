@@ -93,8 +93,7 @@ static struct at91_mmc_data __initdata eb9200_mmc_data = {
 
 static struct i2c_board_info __initdata eb9200_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("at24c", 0x50),
-		.type	= "24c512",
+		I2C_BOARD_INFO("24c512", 0x50),
 	},
 };
 

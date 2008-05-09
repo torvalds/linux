@@ -300,6 +300,14 @@ comment "Kernel preemption"
 
 source "kernel/Kconfig.preempt"
 
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	select SPARSEMEM_VMEMMAP_ENABLE
+	select SPARSEMEM_VMEMMAP
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+
 source "mm/Kconfig"
 
 comment "I/O subsystem configuration"

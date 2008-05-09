@@ -12,6 +12,7 @@
  *  or alternatively, you might use OpenHaptics provided by Sensable.
  */
 
+#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -91,11 +92,8 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 	unsigned long flags;
 	unsigned int i;
 
-	if (_IOC_TYPE(cmd) != PH_IOC_MAGIC ||
-			_IOC_NR(cmd) > PH_IOC_MAXNR)
-		return -ENOTTY;
-
 	switch (cmd) {
+	case PHN_SETREG:
 	case PHN_SET_REG:
 		if (copy_from_user(&r, argp, sizeof(r)))
 			return -EFAULT;
@@ -126,6 +124,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 			phantom_status(dev, dev->status & ~PHB_RUNNING);
 		spin_unlock_irqrestore(&dev->regs_lock, flags);
 		break;
+	case PHN_SETREGS:
 	case PHN_SET_REGS:
 		if (copy_from_user(&rs, argp, sizeof(rs)))
 			return -EFAULT;
@@ -143,6 +142,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 		}
 		spin_unlock_irqrestore(&dev->regs_lock, flags);
 		break;
+	case PHN_GETREG:
 	case PHN_GET_REG:
 		if (copy_from_user(&r, argp, sizeof(r)))
 			return -EFAULT;
@@ -155,6 +155,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 		if (copy_to_user(argp, &r, sizeof(r)))
 			return -EFAULT;
 		break;
+	case PHN_GETREGS:
 	case PHN_GET_REGS: {
 		u32 m;
 
@@ -168,6 +169,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 		for (i = 0; i < m; i++)
 			if (rs.mask & BIT(i))
 				rs.values[i] = ioread32(dev->iaddr + i);
+		atomic_set(&dev->counter, 0);
 		spin_unlock_irqrestore(&dev->regs_lock, flags);
 
 		if (copy_to_user(argp, &rs, sizeof(rs)))
@@ -190,6 +192,20 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 
 	return 0;
 }
+
+#ifdef CONFIG_COMPAT
+static long phantom_compat_ioctl(struct file *filp, unsigned int cmd,
+		unsigned long arg)
+{
+	if (_IOC_NR(cmd) <= 3 && _IOC_SIZE(cmd) == sizeof(compat_uptr_t)) {
+		cmd &= ~(_IOC_SIZEMASK << _IOC_SIZESHIFT);
+		cmd |= sizeof(void *) << _IOC_SIZESHIFT;
+	}
+	return phantom_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+}
+#else
+#define phantom_compat_ioctl NULL
+#endif
 
 static int phantom_open(struct inode *inode, struct file *file)
 {
@@ -239,11 +255,12 @@ static unsigned int phantom_poll(struct file *file, poll_table *wait)
 
 	pr_debug("phantom_poll: %d\n", atomic_read(&dev->counter));
 	poll_wait(file, &dev->wait, wait);
-	if (atomic_read(&dev->counter)) {
+
+	if (!(dev->status & PHB_RUNNING))
+		mask = POLLERR;
+	else if (atomic_read(&dev->counter))
 		mask = POLLIN | POLLRDNORM;
-		atomic_dec(&dev->counter);
-	} else if ((dev->status & PHB_RUNNING) == 0)
-		mask = POLLIN | POLLRDNORM | POLLERR;
+
 	pr_debug("phantom_poll end: %x/%d\n", mask, atomic_read(&dev->counter));
 
 	return mask;
@@ -253,6 +270,7 @@ static struct file_operations phantom_file_ops = {
 	.open = phantom_open,
 	.release = phantom_release,
 	.unlocked_ioctl = phantom_ioctl,
+	.compat_ioctl = phantom_compat_ioctl,
 	.poll = phantom_poll,
 };
 

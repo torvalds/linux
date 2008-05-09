@@ -69,6 +69,7 @@ void __init m68k_setup_node(int node)
  */
 
 void *empty_zero_page;
+EXPORT_SYMBOL(empty_zero_page);
 
 void show_mem(void)
 {

@@ -509,6 +509,7 @@ static ssize_t acpi_processor_write_limit(struct file * file,
 }
 
 struct file_operations acpi_processor_limit_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_processor_limit_open_fs,
 	.read = seq_read,
 	.write = acpi_processor_write_limit,

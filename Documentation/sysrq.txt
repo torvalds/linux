@@ -85,6 +85,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 'k'     - Secure Access Key (SAK) Kills all programs on the current virtual
           console. NOTE: See important comments below in SAK section.
 
+'l'     - Shows a stack backtrace for all active CPUs.
+
 'm'     - Will dump current memory info to your console.
 
 'n'	- Used to make RT tasks nice-able

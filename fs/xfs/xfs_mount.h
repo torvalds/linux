@@ -206,17 +206,18 @@ typedef struct xfs_icsb_cnts {
 
 #define XFS_ICSB_FLAG_LOCK	(1 << 0)	/* counter lock bit */
 
-#define XFS_ICSB_SB_LOCKED	(1 << 0)	/* sb already locked */
 #define XFS_ICSB_LAZY_COUNT	(1 << 1)	/* accuracy not needed */
 
 extern int	xfs_icsb_init_counters(struct xfs_mount *);
 extern void	xfs_icsb_reinit_counters(struct xfs_mount *);
-extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
+extern void	xfs_icsb_sync_counters(struct xfs_mount *, int);
+extern void	xfs_icsb_sync_counters_locked(struct xfs_mount *, int);
 
 #else
 #define xfs_icsb_init_counters(mp)	(0)
 #define xfs_icsb_reinit_counters(mp)	do { } while (0)
-#define xfs_icsb_sync_counters_flags(mp, flags)	do { } while (0)
+#define xfs_icsb_sync_counters(mp, flags)	do { } while (0)
+#define xfs_icsb_sync_counters_locked(mp, flags) do { } while (0)
 #endif
 
 typedef struct xfs_ail {

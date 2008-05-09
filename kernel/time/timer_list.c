@@ -278,12 +278,9 @@ static int __init init_timer_list_procfs(void)
 {
 	struct proc_dir_entry *pe;
 
-	pe = create_proc_entry("timer_list", 0644, NULL);
+	pe = proc_create("timer_list", 0644, NULL, &timer_list_fops);
 	if (!pe)
 		return -ENOMEM;
-
-	pe->proc_fops = &timer_list_fops;
-
 	return 0;
 }
 __initcall(init_timer_list_procfs);

@@ -1,11 +1,14 @@
 #ifndef _M68KNOMMU_PARAM_H
 #define _M68KNOMMU_PARAM_H
 
-#define HZ CONFIG_HZ
-
 #ifdef __KERNEL__
+#define HZ CONFIG_HZ
 #define	USER_HZ		HZ
 #define	CLOCKS_PER_SEC	(USER_HZ)
+#endif
+
+#ifndef HZ
+#define HZ	100
 #endif
 
 #define EXEC_PAGESIZE	4096

@@ -440,6 +440,7 @@ acpi_system_wakeup_device_open_fs(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations acpi_system_wakeup_device_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_system_wakeup_device_open_fs,
 	.read = seq_read,
 	.write = acpi_system_write_wakeup_device,
@@ -449,6 +450,7 @@ static const struct file_operations acpi_system_wakeup_device_fops = {
 
 #ifdef	CONFIG_ACPI_PROCFS
 static const struct file_operations acpi_system_sleep_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_system_sleep_open_fs,
 	.read = seq_read,
 	.write = acpi_system_write_sleep,
@@ -459,6 +461,7 @@ static const struct file_operations acpi_system_sleep_fops = {
 
 #ifdef	HAVE_ACPI_LEGACY_ALARM
 static const struct file_operations acpi_system_alarm_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_system_alarm_open_fs,
 	.read = seq_read,
 	.write = acpi_system_write_alarm,
@@ -477,37 +480,26 @@ static u32 rtc_handler(void *context)
 
 static int __init acpi_sleep_proc_init(void)
 {
-	struct proc_dir_entry *entry = NULL;
-
 	if (acpi_disabled)
 		return 0;
 
 #ifdef	CONFIG_ACPI_PROCFS
 	/* 'sleep' [R/W] */
-	entry =
-	    create_proc_entry("sleep", S_IFREG | S_IRUGO | S_IWUSR,
-			      acpi_root_dir);
-	if (entry)
-		entry->proc_fops = &acpi_system_sleep_fops;
+	proc_create("sleep", S_IFREG | S_IRUGO | S_IWUSR,
+		    acpi_root_dir, &acpi_system_sleep_fops);
 #endif				/* CONFIG_ACPI_PROCFS */
 
 #ifdef	HAVE_ACPI_LEGACY_ALARM
 	/* 'alarm' [R/W] */
-	entry =
-	    create_proc_entry("alarm", S_IFREG | S_IRUGO | S_IWUSR,
-			      acpi_root_dir);
-	if (entry)
-		entry->proc_fops = &acpi_system_alarm_fops;
+	proc_create("alarm", S_IFREG | S_IRUGO | S_IWUSR,
+		    acpi_root_dir, &acpi_system_alarm_fops);
 
 	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
 #endif				/* HAVE_ACPI_LEGACY_ALARM */
 
 	/* 'wakeup device' [R/W] */
-	entry =
-	    create_proc_entry("wakeup", S_IFREG | S_IRUGO | S_IWUSR,
-			      acpi_root_dir);
-	if (entry)
-		entry->proc_fops = &acpi_system_wakeup_device_fops;
+	proc_create("wakeup", S_IFREG | S_IRUGO | S_IWUSR,
+		    acpi_root_dir, &acpi_system_wakeup_device_fops);
 
 	return 0;
 }

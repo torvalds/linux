@@ -114,6 +114,7 @@ static int seq_contrstats_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proc_controller_ops = {
+	.owner		= THIS_MODULE,
 	.open		= seq_controller_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -121,6 +122,7 @@ static const struct file_operations proc_controller_ops = {
 };
 
 static const struct file_operations proc_contrstats_ops = {
+	.owner		= THIS_MODULE,
 	.open		= seq_contrstats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -219,6 +221,7 @@ seq_applstats_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proc_applications_ops = {
+	.owner		= THIS_MODULE,
 	.open		= seq_applications_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -226,20 +229,12 @@ static const struct file_operations proc_applications_ops = {
 };
 
 static const struct file_operations proc_applstats_ops = {
+	.owner		= THIS_MODULE,
 	.open		= seq_applstats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
-
-static void
-create_seq_entry(char *name, mode_t mode, const struct file_operations *f)
-{
-	struct proc_dir_entry *entry;
-	entry = create_proc_entry(name, mode, NULL);
-	if (entry)
-		entry->proc_fops = f;
-}
 
 // ---------------------------------------------------------------------------
 
@@ -283,6 +278,7 @@ seq_capi_driver_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proc_driver_ops = {
+	.owner		= THIS_MODULE,
 	.open		= seq_capi_driver_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -296,11 +292,11 @@ kcapi_proc_init(void)
 {
 	proc_mkdir("capi",             NULL);
 	proc_mkdir("capi/controllers", NULL);
-	create_seq_entry("capi/controller",   0, &proc_controller_ops);
-	create_seq_entry("capi/contrstats",   0, &proc_contrstats_ops);
-	create_seq_entry("capi/applications", 0, &proc_applications_ops);
-	create_seq_entry("capi/applstats",    0, &proc_applstats_ops);
-	create_seq_entry("capi/driver",       0, &proc_driver_ops);
+	proc_create("capi/controller",   0, NULL, &proc_controller_ops);
+	proc_create("capi/contrstats",   0, NULL, &proc_contrstats_ops);
+	proc_create("capi/applications", 0, NULL, &proc_applications_ops);
+	proc_create("capi/applstats",    0, NULL, &proc_applstats_ops);
+	proc_create("capi/driver",       0, NULL, &proc_driver_ops);
 }
 
 void __exit

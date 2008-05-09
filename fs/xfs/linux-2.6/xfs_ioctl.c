@@ -238,7 +238,7 @@ xfs_vget_fsop_handlereq(
 		return error;
 	if (ip == NULL)
 		return XFS_ERROR(EIO);
-	if (ip->i_d.di_mode == 0 || ip->i_d.di_gen != igen) {
+	if (ip->i_d.di_gen != igen) {
 		xfs_iput_new(ip, XFS_ILOCK_SHARED);
 		return XFS_ERROR(ENOENT);
 	}
@@ -505,14 +505,14 @@ xfs_attrmulti_attr_get(
 {
 	char			*kbuf;
 	int			error = EFAULT;
-	
+
 	if (*len > XATTR_SIZE_MAX)
 		return EINVAL;
 	kbuf = kmalloc(*len, GFP_KERNEL);
 	if (!kbuf)
 		return ENOMEM;
 
-	error = xfs_attr_get(XFS_I(inode), name, kbuf, (int *)len, flags, NULL);
+	error = xfs_attr_get(XFS_I(inode), name, kbuf, (int *)len, flags);
 	if (error)
 		goto out_kfree;
 
@@ -546,7 +546,7 @@ xfs_attrmulti_attr_set(
 
 	if (copy_from_user(kbuf, ubuf, len))
 		goto out_kfree;
-			
+
 	error = xfs_attr_set(XFS_I(inode), name, kbuf, len, flags);
 
  out_kfree:

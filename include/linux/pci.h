@@ -20,8 +20,6 @@
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
-struct pci_vpd;
-
 /*
  * The PCI interface treats multi-function devices as independent
  * devices.  The slot/function address of each device is encoded
@@ -131,6 +129,8 @@ struct pci_cap_saved_state {
 };
 
 struct pcie_link_state;
+struct pci_vpd;
+
 /*
  * The pci_dev structure is used to describe PCI devices.
  */
@@ -254,7 +254,7 @@ static inline void pci_add_saved_cap(struct pci_dev *pci_dev,
 #define PCI_NUM_RESOURCES	11
 
 #ifndef PCI_BUS_NUM_RESOURCES
-#define PCI_BUS_NUM_RESOURCES	8
+#define PCI_BUS_NUM_RESOURCES	16
 #endif
 
 #define PCI_REGION_FLAG_MASK	0x0fU	/* These bits of resource flags tell us the PCI region flags */
@@ -666,6 +666,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 
 void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 		  void *userdata);
+int pci_cfg_space_size_ext(struct pci_dev *dev, unsigned check_exp_pcix);
 int pci_cfg_space_size(struct pci_dev *dev);
 unsigned char pci_bus_max_busnr(struct pci_bus *bus);
 
@@ -701,6 +702,8 @@ static inline int pci_enable_msi(struct pci_dev *dev)
 	return -1;
 }
 
+static inline void pci_msi_shutdown(struct pci_dev *dev)
+{ }
 static inline void pci_disable_msi(struct pci_dev *dev)
 { }
 
@@ -710,6 +713,8 @@ static inline int pci_enable_msix(struct pci_dev *dev,
 	return -1;
 }
 
+static inline void pci_msix_shutdown(struct pci_dev *dev)
+{ }
 static inline void pci_disable_msix(struct pci_dev *dev)
 { }
 
@@ -720,9 +725,11 @@ static inline void pci_restore_msi_state(struct pci_dev *dev)
 { }
 #else
 extern int pci_enable_msi(struct pci_dev *dev);
+extern void pci_msi_shutdown(struct pci_dev *dev);
 extern void pci_disable_msi(struct pci_dev *dev);
 extern int pci_enable_msix(struct pci_dev *dev,
 	struct msix_entry *entries, int nvec);
+extern void pci_msix_shutdown(struct pci_dev *dev);
 extern void pci_disable_msix(struct pci_dev *dev);
 extern void msi_remove_pci_irq_vectors(struct pci_dev *dev);
 extern void pci_restore_msi_state(struct pci_dev *dev);
@@ -1052,6 +1059,14 @@ extern unsigned long pci_cardbus_io_size;
 extern unsigned long pci_cardbus_mem_size;
 
 extern int pcibios_add_platform_entries(struct pci_dev *dev);
+
+#ifdef CONFIG_PCI_MMCONFIG
+extern void __init pci_mmcfg_early_init(void);
+extern void __init pci_mmcfg_late_init(void);
+#else
+static inline void pci_mmcfg_early_init(void) { }
+static inline void pci_mmcfg_late_init(void) { }
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

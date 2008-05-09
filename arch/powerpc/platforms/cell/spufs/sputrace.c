@@ -201,10 +201,9 @@ static int __init sputrace_init(void)
 	if (!sputrace_log)
 		goto out;
 
-	entry = create_proc_entry("sputrace", S_IRUSR, NULL);
+	entry = proc_create("sputrace", S_IRUSR, NULL, &sputrace_fops);
 	if (!entry)
 		goto out_free_log;
-	entry->proc_fops = &sputrace_fops;
 
 	for (i = 0; i < ARRAY_SIZE(spu_probes); i++) {
 		struct spu_probe *p = &spu_probes[i];

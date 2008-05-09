@@ -84,17 +84,7 @@ obj-$(CONFIG_VIDEO_HEXIUM_GEMINI) += hexium_gemini.o
 obj-$(CONFIG_VIDEO_DPC) += dpc7146.o
 obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
-obj-$(CONFIG_VIDEO_TUNER) += tuner.o
-
-obj-$(CONFIG_TUNER_XC2028) += tuner-xc2028.o
-obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
-# tuner-types will be merged into tuner-simple, in the future
-obj-$(CONFIG_TUNER_SIMPLE) += tuner-types.o
-obj-$(CONFIG_TUNER_MT20XX) += mt20xx.o
-obj-$(CONFIG_TUNER_TDA8290) += tda8290.o
-obj-$(CONFIG_TUNER_TEA5767) += tea5767.o
-obj-$(CONFIG_TUNER_TEA5761) += tea5761.o
-obj-$(CONFIG_TUNER_TDA9887) += tda9887.o
+obj-$(CONFIG_MEDIA_TUNER) += tuner.o
 
 obj-$(CONFIG_VIDEOBUF_GEN) += videobuf-core.o
 obj-$(CONFIG_VIDEOBUF_DMA_SG) += videobuf-dma-sg.o
@@ -134,6 +124,7 @@ obj-$(CONFIG_USB_VICAM)         += usbvideo/
 obj-$(CONFIG_USB_QUICKCAM_MESSENGER)	+= usbvideo/
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
+obj-$(CONFIG_VIDEO_CX18) += cx18/
 
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 obj-$(CONFIG_VIDEO_CX23885) += cx23885/
@@ -147,3 +138,4 @@ obj-$(CONFIG_VIDEO_AU0828) += au0828/
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
+EXTRA_CFLAGS += -Idrivers/media/common/tuners

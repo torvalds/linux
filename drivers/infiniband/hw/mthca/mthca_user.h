@@ -61,6 +61,16 @@ struct mthca_alloc_pd_resp {
 	__u32 reserved;
 };
 
+struct mthca_reg_mr {
+/*
+ * Mark the memory region with a DMA attribute that causes
+ * in-flight DMA to be flushed when the region is written to:
+ */
+#define MTHCA_MR_DMASYNC	0x1
+	__u32 mr_attrs;
+	__u32 reserved;
+};
+
 struct mthca_create_cq {
 	__u32 lkey;
 	__u32 pdn;

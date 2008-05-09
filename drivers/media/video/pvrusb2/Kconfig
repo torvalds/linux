@@ -1,46 +1,21 @@
 config VIDEO_PVRUSB2
 	tristate "Hauppauge WinTV-PVR USB2 support"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	select FW_LOADER
-	select VIDEO_TUNER
+	select MEDIA_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X
 	select VIDEO_SAA711X
 	select VIDEO_CX25840
 	select VIDEO_MSP3400
 	select VIDEO_WM8775
+	select VIDEO_CS53L32A
 	---help---
 	  This is a video4linux driver for Conexant 23416 based
 	  usb2 personal video recorder devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pvrusb2
-
-config VIDEO_PVRUSB2_ONAIR_CREATOR
-	bool "pvrusb2 driver support for OnAir Creator model"
-	depends on VIDEO_PVRUSB2 && EXPERIMENTAL
-	select VIDEO_SAA711X
-	select VIDEO_CS53L32A
-	---help---
-
-	  This option enables support for the OnAir Creator USB tuner
-	  device.  This is a hybrid device, however currently only
-	  analog mode is supported.
-
-	  If you are in doubt, say Y.
-
-config VIDEO_PVRUSB2_ONAIR_USB2
-	bool "pvrusb2 driver support for OnAir USB2 model"
-	depends on VIDEO_PVRUSB2 && EXPERIMENTAL
-	select VIDEO_SAA711X
-	select VIDEO_CS53L32A
-	---help---
-
-	  This option enables support for the OnAir USB2 tuner device
-	  (also known as the Sasem tuner).  This is a hybrid device,
-	  however currently only analog mode is supported.
-
-	  If you are in doubt, say Y.
 
 config VIDEO_PVRUSB2_SYSFS
 	bool "pvrusb2 sysfs support (EXPERIMENTAL)"
@@ -59,29 +34,23 @@ config VIDEO_PVRUSB2_SYSFS
 	  Note: This feature is experimental and subject to change.
 
 config VIDEO_PVRUSB2_DVB
-	bool "pvrusb2 DVB support (EXPERIMENTAL)"
-	default n
+	bool "pvrusb2 ATSC/DVB support (EXPERIMENTAL)"
+	default y
 	depends on VIDEO_PVRUSB2 && DVB_CORE && EXPERIMENTAL
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
 	select DVB_S5H1409 if !DVB_FE_CUSTOMISE
 	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
 	select DVB_TDA10048 if !DVB_FE_CUSTOMIZE
-	select DVB_TDA18271 if !DVB_FE_CUSTOMIZE
-	select TUNER_SIMPLE if !DVB_FE_CUSTOMISE
-	select TUNER_TDA8290 if !DVB_FE_CUSTOMIZE
+	select MEDIA_TUNER_TDA18271 if !DVB_FE_CUSTOMIZE
+	select MEDIA_TUNER_SIMPLE if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_TDA8290 if !DVB_FE_CUSTOMIZE
 	---help---
 
-	  This option enables compilation of a DVB interface for the
-	  pvrusb2 driver.  Currently this is very very experimental.
-	  It is also limiting - the DVB interface can only access the
-	  digital side of hybrid devices, and there are going to be
-	  issues if you attempt to mess with the V4L side at the same
-	  time.  Don't turn this on unless you know what you are
-	  doing.
+	  This option enables a DVB interface for the pvrusb2 driver.
+	  If your device does not support digital television, this
+	  feature will have no affect on the driver's operation.
 
-	  If you are in doubt, say N.
-
-	  Note: This feature is very experimental and might break
+	  If you are in doubt, say Y.
 
 config VIDEO_PVRUSB2_DEBUGIFC
 	bool "pvrusb2 debug interface"

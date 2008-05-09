@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/bootmem.h>
 #include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -65,6 +66,8 @@ static int machine_has_topology_irq;
 static struct timer_list topology_timer;
 static void set_topology_timer(void);
 static DECLARE_WORK(topology_work, topology_work_fn);
+
+cpumask_t cpu_core_map[NR_CPUS];
 
 cpumask_t cpu_coregroup_map(unsigned int cpu)
 {
@@ -199,6 +202,14 @@ int topology_set_cpu_management(int fc)
 	return rc;
 }
 
+static void update_cpu_core_map(void)
+{
+	int cpu;
+
+	for_each_present_cpu(cpu)
+		cpu_core_map[cpu] = cpu_coregroup_map(cpu);
+}
+
 void arch_update_cpu_topology(void)
 {
 	struct tl_info *info = tl_info;
@@ -206,20 +217,33 @@ void arch_update_cpu_topology(void)
 	int cpu;
 
 	if (!machine_has_topology) {
+		update_cpu_core_map();
 		topology_update_polarization_simple();
 		return;
 	}
 	stsi(info, 15, 1, 2);
 	tl_to_cores(info);
+	update_cpu_core_map();
 	for_each_online_cpu(cpu) {
 		sysdev = get_cpu_sysdev(cpu);
 		kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
 	}
 }
 
-static void topology_work_fn(struct work_struct *work)
+static int topology_kthread(void *data)
 {
 	arch_reinit_sched_domains();
+	return 0;
+}
+
+static void topology_work_fn(struct work_struct *work)
+{
+	/* We can't call arch_reinit_sched_domains() from a multi-threaded
+	 * workqueue context since it may deadlock in case of cpu hotplug.
+	 * So we have to create a kernel thread in order to call
+	 * arch_reinit_sched_domains().
+	 */
+	kthread_run(topology_kthread, NULL, "topology_update");
 }
 
 void topology_schedule_update(void)
@@ -251,20 +275,23 @@ static int __init init_topology_update(void)
 {
 	int rc;
 
+	rc = 0;
 	if (!machine_has_topology) {
 		topology_update_polarization_simple();
-		return 0;
+		goto out;
 	}
 	init_timer_deferrable(&topology_timer);
 	if (machine_has_topology_irq) {
 		rc = register_external_interrupt(0x2005, topology_interrupt);
 		if (rc)
-			return rc;
+			goto out;
 		ctl_set_bit(0, 8);
 	}
 	else
 		set_topology_timer();
-	return 0;
+out:
+	update_cpu_core_map();
+	return rc;
 }
 __initcall(init_topology_update);
 

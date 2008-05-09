@@ -66,6 +66,7 @@ struct iwch_rnic_attributes {
 	 * size (4k)^i.  Phys block list mode unsupported.
 	 */
 	u32 mem_pgsizes_bitmask;
+	u64 max_mr_size;
 	u8 can_resize_wq;
 
 	/*

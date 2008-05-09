@@ -1881,7 +1881,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							(b - count)),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 			break;
@@ -1953,7 +1953,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							(b - count)),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 		}
@@ -1972,7 +1972,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							t),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 			break;
@@ -2042,7 +2042,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							t),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 		}

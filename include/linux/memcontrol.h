@@ -27,9 +27,6 @@ struct mm_struct;
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 
-extern void mm_init_cgroup(struct mm_struct *mm, struct task_struct *p);
-extern void mm_free_cgroup(struct mm_struct *mm);
-
 #define page_reset_bad_cgroup(page)	((page)->page_cgroup = 0)
 
 extern struct page_cgroup *page_get_page_cgroup(struct page *page);
@@ -48,8 +45,10 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
+extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+
 #define mm_match_cgroup(mm, cgroup)	\
-	((cgroup) == rcu_dereference((mm)->mem_cgroup))
+	((cgroup) == mem_cgroup_from_task((mm)->owner))
 
 extern int mem_cgroup_prepare_migration(struct page *page);
 extern void mem_cgroup_end_migration(struct page *page);
@@ -73,15 +72,6 @@ extern long mem_cgroup_calc_reclaim_inactive(struct mem_cgroup *mem,
 				struct zone *zone, int priority);
 
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
-static inline void mm_init_cgroup(struct mm_struct *mm,
-					struct task_struct *p)
-{
-}
-
-static inline void mm_free_cgroup(struct mm_struct *mm)
-{
-}
-
 static inline void page_reset_bad_cgroup(struct page *page)
 {
 }

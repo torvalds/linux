@@ -494,8 +494,7 @@ int ide_raw_taskfile(ide_drive_t *drive, ide_task_t *task, u8 *buf, u16 nsect)
 {
 	struct request rq;
 
-	memset(&rq, 0, sizeof(rq));
-	rq.ref_count = 1;
+	blk_rq_init(NULL, &rq);
 	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq.buffer = buf;
 
