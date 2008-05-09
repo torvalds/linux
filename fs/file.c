@@ -273,31 +273,6 @@ static int count_open_files(struct fdtable *fdt)
 	return i;
 }
 
-static struct files_struct *alloc_files(void)
-{
-	struct files_struct *newf;
-	struct fdtable *fdt;
-
-	newf = kmem_cache_alloc(files_cachep, GFP_KERNEL);
-	if (!newf)
-		goto out;
-
-	atomic_set(&newf->count, 1);
-
-	spin_lock_init(&newf->file_lock);
-	newf->next_fd = 0;
-	fdt = &newf->fdtab;
-	fdt->max_fds = NR_OPEN_DEFAULT;
-	fdt->close_on_exec = (fd_set *)&newf->close_on_exec_init;
-	fdt->open_fds = (fd_set *)&newf->open_fds_init;
-	fdt->fd = &newf->fd_array[0];
-	INIT_RCU_HEAD(&fdt->rcu);
-	fdt->next = NULL;
-	rcu_assign_pointer(newf->fdt, fdt);
-out:
-	return newf;
-}
-
 /*
  * Allocate a new files structure and copy contents from the
  * passed in files structure.
@@ -311,13 +286,24 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	struct fdtable *old_fdt, *new_fdt;
 
 	*errorp = -ENOMEM;
-	newf = alloc_files();
+	newf = kmem_cache_alloc(files_cachep, GFP_KERNEL);
 	if (!newf)
 		goto out;
 
+	atomic_set(&newf->count, 1);
+
+	spin_lock_init(&newf->file_lock);
+	newf->next_fd = 0;
+	new_fdt = &newf->fdtab;
+	new_fdt->max_fds = NR_OPEN_DEFAULT;
+	new_fdt->close_on_exec = (fd_set *)&newf->close_on_exec_init;
+	new_fdt->open_fds = (fd_set *)&newf->open_fds_init;
+	new_fdt->fd = &newf->fd_array[0];
+	INIT_RCU_HEAD(&new_fdt->rcu);
+	new_fdt->next = NULL;
+
 	spin_lock(&oldf->file_lock);
 	old_fdt = files_fdtable(oldf);
-	new_fdt = files_fdtable(newf);
 	open_files = count_open_files(old_fdt);
 
 	/*
@@ -341,7 +327,6 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 			*errorp = -EMFILE;
 			goto out_release;
 		}
-		rcu_assign_pointer(files->fdt, new_fdt);
 
 		/*
 		 * Reacquire the oldf lock and a pointer to its fd table
@@ -390,6 +375,8 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 		memset(&new_fdt->open_fds->fds_bits[start], 0, left);
 		memset(&new_fdt->close_on_exec->fds_bits[start], 0, left);
 	}
+
+	rcu_assign_pointer(newf->fdt, new_fdt);
 
 	return newf;
 
