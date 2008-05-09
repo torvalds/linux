@@ -308,10 +308,15 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 	/*
 	 * Check whether we need to allocate a larger fd array and fd set.
-	 * Note: we're not a clone task, so the open count won't change.
 	 */
-	if (open_files > new_fdt->max_fds) {
+	while (unlikely(open_files > new_fdt->max_fds)) {
 		spin_unlock(&oldf->file_lock);
+
+		if (new_fdt != &newf->fdtab) {
+			free_fdarr(new_fdt);
+			free_fdset(new_fdt);
+			kfree(new_fdt);
+		}
 
 		new_fdt = alloc_fdtable(open_files - 1);
 		if (!new_fdt) {
@@ -335,6 +340,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 		 */
 		spin_lock(&oldf->file_lock);
 		old_fdt = files_fdtable(oldf);
+		open_files = count_open_files(old_fdt);
 	}
 
 	old_fds = old_fdt->fd;
