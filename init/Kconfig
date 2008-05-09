@@ -845,9 +845,9 @@ config MODULE_FORCE_LOAD
 	depends on MODULES
 	default n
 	help
-	  This option allows loading of modules even if that would set the
-          'F' (forced) taint, due to lack of version info.  Which is
-	  usually a really bad idea.
+	  Allow loading of modules without version information (ie. modprobe
+	  --force).  Forced module loading sets the 'F' (forced) taint flag and
+	  is usually a really bad idea.
 
 config MODULE_UNLOAD
 	bool "Module unloading"

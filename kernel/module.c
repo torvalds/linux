@@ -957,11 +957,14 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	return check_version(sechdrs, versindex, "struct_module", mod, crc);
 }
 
-/* First part is kernel version, which we ignore. */
-static inline int same_magic(const char *amagic, const char *bmagic)
+/* First part is kernel version, which we ignore if module has crcs. */
+static inline int same_magic(const char *amagic, const char *bmagic,
+			     bool has_crcs)
 {
-	amagic += strcspn(amagic, " ");
-	bmagic += strcspn(bmagic, " ");
+	if (has_crcs) {
+		amagic += strcspn(amagic, " ");
+		bmagic += strcspn(bmagic, " ");
+	}
 	return strcmp(amagic, bmagic) == 0;
 }
 #else
@@ -981,7 +984,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	return 1;
 }
 
-static inline int same_magic(const char *amagic, const char *bmagic)
+static inline int same_magic(const char *amagic, const char *bmagic,
+			     bool has_crcs)
 {
 	return strcmp(amagic, bmagic) == 0;
 }
@@ -1874,7 +1878,7 @@ static struct module *load_module(void __user *umod,
 		err = try_to_force_load(mod, "magic");
 		if (err)
 			goto free_hdr;
-	} else if (!same_magic(modmagic, vermagic)) {
+	} else if (!same_magic(modmagic, vermagic, versindex)) {
 		printk(KERN_ERR "%s: version magic '%s' should be '%s'\n",
 		       mod->name, modmagic, vermagic);
 		err = -ENOEXEC;
