@@ -785,38 +785,35 @@ static __init void xen_set_pte_init(pte_t *ptep, pte_t pte)
 static __init void xen_pagetable_setup_start(pgd_t *base)
 {
 	pgd_t *xen_pgd = (pgd_t *)xen_start_info->pt_base;
+	int i;
 
 	/* special set_pte for pagetable initialization */
 	pv_mmu_ops.set_pte = xen_set_pte_init;
 
 	init_mm.pgd = base;
 	/*
-	 * copy top-level of Xen-supplied pagetable into place.	 For
-	 * !PAE we can use this as-is, but for PAE it is a stand-in
-	 * while we copy the pmd pages.
+	 * copy top-level of Xen-supplied pagetable into place.  This
+	 * is a stand-in while we copy the pmd pages.
 	 */
 	memcpy(base, xen_pgd, PTRS_PER_PGD * sizeof(pgd_t));
 
-	if (PTRS_PER_PMD > 1) {
-		int i;
-		/*
-		 * For PAE, need to allocate new pmds, rather than
-		 * share Xen's, since Xen doesn't like pmd's being
-		 * shared between address spaces.
-		 */
-		for (i = 0; i < PTRS_PER_PGD; i++) {
-			if (pgd_val_ma(xen_pgd[i]) & _PAGE_PRESENT) {
-				pmd_t *pmd = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+	/*
+	 * For PAE, need to allocate new pmds, rather than
+	 * share Xen's, since Xen doesn't like pmd's being
+	 * shared between address spaces.
+	 */
+	for (i = 0; i < PTRS_PER_PGD; i++) {
+		if (pgd_val_ma(xen_pgd[i]) & _PAGE_PRESENT) {
+			pmd_t *pmd = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 
-				memcpy(pmd, (void *)pgd_page_vaddr(xen_pgd[i]),
-				       PAGE_SIZE);
+			memcpy(pmd, (void *)pgd_page_vaddr(xen_pgd[i]),
+			       PAGE_SIZE);
 
-				make_lowmem_page_readonly(pmd);
+			make_lowmem_page_readonly(pmd);
 
-				set_pgd(&base[i], __pgd(1 + __pa(pmd)));
-			} else
-				pgd_clear(&base[i]);
-		}
+			set_pgd(&base[i], __pgd(1 + __pa(pmd)));
+		} else
+			pgd_clear(&base[i]);
 	}
 
 	/* make sure zero_page is mapped RO so we can use it in pagetables */
@@ -873,17 +870,7 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 
 	/* Actually pin the pagetable down, but we can't set PG_pinned
 	   yet because the page structures don't exist yet. */
-	{
-		unsigned level;
-
-#ifdef CONFIG_X86_PAE
-		level = MMUEXT_PIN_L3_TABLE;
-#else
-		level = MMUEXT_PIN_L2_TABLE;
-#endif
-
-		pin_pagetable_pfn(level, PFN_DOWN(__pa(base)));
-	}
+	pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(base)));
 }
 
 /* This is called once we have the cpu_possible_map */
@@ -1093,7 +1080,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.make_pte = xen_make_pte,
 	.make_pgd = xen_make_pgd,
 
-#ifdef CONFIG_X86_PAE
 	.set_pte_atomic = xen_set_pte_atomic,
 	.set_pte_present = xen_set_pte_at,
 	.set_pud = xen_set_pud,
@@ -1102,7 +1088,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 	.make_pmd = xen_make_pmd,
 	.pmd_val = xen_pmd_val,
-#endif	/* PAE */
 
 	.activate_mm = xen_activate_mm,
 	.dup_mmap = xen_dup_mmap,

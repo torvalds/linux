@@ -30,11 +30,7 @@ ENTRY(hypercall_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .long  startup_xen)
 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .long  hypercall_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz "!writable_page_tables|pae_pgdir_above_4gb")
-#ifdef CONFIG_X86_PAE
 	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "yes")
-#else
-	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "no")
-#endif
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
 
 #endif /*CONFIG_XEN */

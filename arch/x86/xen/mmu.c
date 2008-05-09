@@ -228,7 +228,7 @@ pmdval_t xen_pmd_val(pmd_t pmd)
 {
 	return pte_mfn_to_pfn(pmd.pmd);
 }
-#ifdef CONFIG_X86_PAE
+
 void xen_set_pud(pud_t *ptr, pud_t val)
 {
 	struct multicall_space mcs;
@@ -276,12 +276,6 @@ pmd_t xen_make_pmd(pmdval_t pmd)
 	pmd = pte_pfn_to_mfn(pmd);
 	return native_make_pmd(pmd);
 }
-#else  /* !PAE */
-void xen_set_pte(pte_t *ptep, pte_t pte)
-{
-	*ptep = pte;
-}
-#endif	/* CONFIG_X86_PAE */
 
 /*
   (Yet another) pagetable walker.  This one is intended for pinning a
@@ -434,8 +428,6 @@ static int pin_page(struct page *page, enum pt_level level)
    read-only, and can be pinned. */
 void xen_pgd_pin(pgd_t *pgd)
 {
-	unsigned level;
-
 	xen_mc_batch();
 
 	if (pgd_walk(pgd, pin_page, TASK_SIZE)) {
@@ -445,14 +437,7 @@ void xen_pgd_pin(pgd_t *pgd)
 		xen_mc_batch();
 	}
 
-#ifdef CONFIG_X86_PAE
-	level = MMUEXT_PIN_L3_TABLE;
-#else
-	level = MMUEXT_PIN_L2_TABLE;
-#endif
-
-	xen_do_pin(level, PFN_DOWN(__pa(pgd)));
-
+	xen_do_pin(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(pgd)));
 	xen_mc_issue(0);
 }
 
