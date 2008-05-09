@@ -70,6 +70,7 @@ void qmgr_disable_irq(unsigned int queue)
 	spin_lock_irqsave(&qmgr_lock, flags);
 	__raw_writel(__raw_readl(&qmgr_regs->irqen[0]) & ~(1 << queue),
 		     &qmgr_regs->irqen[0]);
+	__raw_writel(1 << queue, &qmgr_regs->irqstat[0]); /* clear */
 	spin_unlock_irqrestore(&qmgr_lock, flags);
 }
 
