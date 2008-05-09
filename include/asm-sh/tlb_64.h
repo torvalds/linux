@@ -56,6 +56,7 @@ static inline void __flush_tlb_slot(unsigned long long slot)
 	__asm__ __volatile__ ("putcfg %0, 0, r63\n" : : "r" (slot));
 }
 
+#ifdef CONFIG_MMU
 /* arch/sh64/mm/tlb.c */
 int sh64_tlb_init(void);
 unsigned long long sh64_next_free_dtlb_entry(void);
@@ -64,6 +65,13 @@ int sh64_put_wired_dtlb_entry(unsigned long long entry);
 void sh64_setup_tlb_slot(unsigned long long config_addr, unsigned long eaddr,
 			 unsigned long asid, unsigned long paddr);
 void sh64_teardown_tlb_slot(unsigned long long config_addr);
-
+#else
+#define sh64_tlb_init()					do { } while (0)
+#define sh64_next_free_dtlb_entry()			(0)
+#define sh64_get_wired_dtlb_entry()			(0)
+#define sh64_put_wired_dtlb_entry(entry)		do { } while (0)
+#define sh64_setup_tlb_slot(conf, virt, asid, phys)	do { } while (0)
+#define sh64_teardown_tlb_slot(addr)			do { } while (0)
+#endif /* CONFIG_MMU */
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_SH_TLB_64_H */
