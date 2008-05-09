@@ -1318,42 +1318,43 @@ cifs_parse_mount_options(char *options, const char *devname,
 
 static struct cifsSesInfo *
 cifs_find_tcp_session(struct in_addr *target_ip_addr,
-		struct in6_addr *target_ip6_addr,
-		 char *userName, struct TCP_Server_Info **psrvTcp)
+		      struct in6_addr *target_ip6_addr,
+		      char *userName, struct TCP_Server_Info **psrvTcp)
 {
 	struct list_head *tmp;
 	struct cifsSesInfo *ses;
-	*psrvTcp = NULL;
-	read_lock(&GlobalSMBSeslock);
 
+	*psrvTcp = NULL;
+
+	read_lock(&GlobalSMBSeslock);
 	list_for_each(tmp, &GlobalSMBSessionList) {
 		ses = list_entry(tmp, struct cifsSesInfo, cifsSessionList);
-		if (ses->server) {
-			if ((target_ip_addr &&
-				(ses->server->addr.sockAddr.sin_addr.s_addr
-				  == target_ip_addr->s_addr)) || (target_ip6_addr
-				&& memcmp(&ses->server->addr.sockAddr6.sin6_addr,
-					target_ip6_addr, sizeof(*target_ip6_addr)))) {
-				/* BB lock server and tcp session and increment
-				      use count here?? */
+		if (!ses->server)
+			continue;
 
-				/* found a match on the TCP session */
-				*psrvTcp = ses->server;
+		if (target_ip_addr &&
+		    ses->server->addr.sockAddr.sin_addr.s_addr != target_ip_addr->s_addr)
+				continue;
+		else if (target_ip6_addr &&
+			 memcmp(&ses->server->addr.sockAddr6.sin6_addr,
+				target_ip6_addr, sizeof(*target_ip6_addr)))
+				continue;
+		/* BB lock server and tcp session and increment use count here?? */
 
-				/* BB check if reconnection needed */
-				if (strncmp
-				    (ses->userName, userName,
-				     MAX_USERNAME_SIZE) == 0){
-					read_unlock(&GlobalSMBSeslock);
-					/* Found exact match on both TCP and
-					   SMB sessions */
-					return ses;
-				}
-			}
+		/* found a match on the TCP session */
+		*psrvTcp = ses->server;
+
+		/* BB check if reconnection needed */
+		if (strncmp(ses->userName, userName, MAX_USERNAME_SIZE) == 0) {
+			read_unlock(&GlobalSMBSeslock);
+			/* Found exact match on both TCP and
+			   SMB sessions */
+			return ses;
 		}
 		/* else tcp and smb sessions need reconnection */
 	}
 	read_unlock(&GlobalSMBSeslock);
+
 	return NULL;
 }
 
