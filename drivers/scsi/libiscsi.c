@@ -730,7 +730,9 @@ static int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				if (iscsi_recv_pdu(conn->cls_conn, hdr, data,
 						   datalen))
 					rc = ISCSI_ERR_CONN_FAILED;
-			}
+			} else
+				mod_timer(&conn->transport_timer,
+					  jiffies + conn->recv_timeout);
 			iscsi_free_mgmt_task(conn, mtask);
 			break;
 		default:
@@ -1478,11 +1480,9 @@ static void iscsi_check_transport_timeouts(unsigned long data)
 	}
 
 	if (time_before_eq(last_recv + recv_timeout, jiffies)) {
-		if (time_before_eq(conn->last_ping, last_recv)) {
-			/* send a ping to try to provoke some traffic */
-			debug_scsi("Sending nopout as ping on conn %p\n", conn);
-			iscsi_send_nopout(conn, NULL);
-		}
+		/* send a ping to try to provoke some traffic */
+		debug_scsi("Sending nopout as ping on conn %p\n", conn);
+		iscsi_send_nopout(conn, NULL);
 		next_timeout = conn->last_ping + (conn->ping_timeout * HZ);
 	} else
 		next_timeout = last_recv + recv_timeout;
