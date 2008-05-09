@@ -648,6 +648,8 @@
 #define IFE_E_PHY_ID         0x02A80330
 #define IFE_PLUS_E_PHY_ID    0x02A80320
 #define IFE_C_E_PHY_ID       0x02A80310
+#define BME1000_E_PHY_ID     0x01410CB0
+#define BME1000_E_PHY_ID_R2  0x01410CB1
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -700,6 +702,14 @@
 /* M88EC018 Rev 2 specific DownShift settings */
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_MASK  0x0E00
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_5X    0x0800
+
+/* BME1000 PHY Specific Control Register */
+#define BME1000_PSCR_ENABLE_DOWNSHIFT   0x0800 /* 1 = enable downshift */
+
+
+#define PHY_PAGE_SHIFT 5
+#define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \
+                           ((reg) & MAX_PHY_REG_ADDRESS))
 
 /*
  * Bits...

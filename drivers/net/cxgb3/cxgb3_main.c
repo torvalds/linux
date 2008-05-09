@@ -1894,11 +1894,11 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		u8 *fw_data;
 		struct ch_mem_range t;
 
-		if (!capable(CAP_NET_ADMIN))
+		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 		if (copy_from_user(&t, useraddr, sizeof(t)))
 			return -EFAULT;
-
+		/* Check t.len sanity ? */
 		fw_data = kmalloc(t.len, GFP_KERNEL);
 		if (!fw_data)
 			return -ENOMEM;

@@ -91,6 +91,11 @@
  */
 #define PHY_ADDR_REG				0x0000
 #define SMI_REG					0x0004
+#define WINDOW_BASE(i)				(0x0200 + ((i) << 3))
+#define WINDOW_SIZE(i)				(0x0204 + ((i) << 3))
+#define WINDOW_REMAP_HIGH(i)			(0x0280 + ((i) << 2))
+#define WINDOW_BAR_ENABLE			0x0290
+#define WINDOW_PROTECT(i)			(0x0294 + ((i) << 4))
 
 /*
  * Per-port registers.
@@ -507,8 +512,22 @@ struct mv643xx_mib_counters {
 	u32 late_collision;
 };
 
+struct mv643xx_shared_private {
+	void __iomem *eth_base;
+
+	/* used to protect SMI_REG, which is shared across ports */
+	spinlock_t phy_lock;
+
+	u32 win_protect;
+
+	unsigned int t_clk;
+};
+
 struct mv643xx_private {
+	struct mv643xx_shared_private *shared;
 	int port_num;			/* User Ethernet port number	*/
+
+	struct mv643xx_shared_private *shared_smi;
 
 	u32 rx_sram_addr;		/* Base address of rx sram area */
 	u32 rx_sram_size;		/* Size of rx sram area		*/
@@ -614,19 +633,14 @@ static const struct ethtool_ops mv643xx_ethtool_ops;
 static char mv643xx_driver_name[] = "mv643xx_eth";
 static char mv643xx_driver_version[] = "1.0";
 
-static void __iomem *mv643xx_eth_base;
-
-/* used to protect SMI_REG, which is shared across ports */
-static DEFINE_SPINLOCK(mv643xx_eth_phy_lock);
-
 static inline u32 rdl(struct mv643xx_private *mp, int offset)
 {
-	return readl(mv643xx_eth_base + offset);
+	return readl(mp->shared->eth_base + offset);
 }
 
 static inline void wrl(struct mv643xx_private *mp, int offset, u32 data)
 {
-	writel(data, mv643xx_eth_base + offset);
+	writel(data, mp->shared->eth_base + offset);
 }
 
 /*
@@ -1119,7 +1133,6 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
  *
  * INPUT:
  *	struct mv643xx_private *mp	Ethernet port
- *	unsigned int t_clk		t_clk of the MV-643xx chip in HZ units
  *	unsigned int delay		Delay in usec
  *
  * OUTPUT:
@@ -1130,10 +1143,10 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
  *
  */
 static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
-					unsigned int t_clk, unsigned int delay)
+					unsigned int delay)
 {
 	unsigned int port_num = mp->port_num;
-	unsigned int coal = ((t_clk / 1000000) * delay) / 64;
+	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
 
 	/* Set RX Coalescing mechanism */
 	wrl(mp, SDMA_CONFIG_REG(port_num),
@@ -1158,7 +1171,6 @@ static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
  *
  * INPUT:
  *	struct mv643xx_private *mp	Ethernet port
- *	unsigned int t_clk		t_clk of the MV-643xx chip in HZ units
  *	unsigned int delay		Delay in uSeconds
  *
  * OUTPUT:
@@ -1169,9 +1181,9 @@ static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
  *
  */
 static unsigned int eth_port_set_tx_coal(struct mv643xx_private *mp,
-					unsigned int t_clk, unsigned int delay)
+					unsigned int delay)
 {
-	unsigned int coal = ((t_clk / 1000000) * delay) / 64;
+	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
 
 	/* Set TX Coalescing mechanism */
 	wrl(mp, TX_FIFO_URGENT_THRESHOLD_REG(mp->port_num), coal << 4);
@@ -1413,11 +1425,11 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 #ifdef MV643XX_COAL
 	mp->rx_int_coal =
-		eth_port_set_rx_coal(mp, 133000000, MV643XX_RX_COAL);
+		eth_port_set_rx_coal(mp, MV643XX_RX_COAL);
 #endif
 
 	mp->tx_int_coal =
-		eth_port_set_tx_coal(mp, 133000000, MV643XX_TX_COAL);
+		eth_port_set_tx_coal(mp, MV643XX_TX_COAL);
 
 	/* Unmask phy and link status changes interrupts */
 	wrl(mp, INTERRUPT_EXTEND_MASK_REG(port_num), ETH_INT_UNMASK_ALL_EXT);
@@ -1827,6 +1839,11 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (pd->shared == NULL) {
+		printk(KERN_ERR "No mv643xx_eth_platform_data->shared\n");
+		return -ENODEV;
+	}
+
 	dev = alloc_etherdev(sizeof(struct mv643xx_private));
 	if (!dev)
 		return -ENOMEM;
@@ -1877,7 +1894,15 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mp->lock);
 
+	mp->shared = platform_get_drvdata(pd->shared);
 	port_num = mp->port_num = pd->port_number;
+
+	if (mp->shared->win_protect)
+		wrl(mp, WINDOW_PROTECT(port_num), mp->shared->win_protect);
+
+	mp->shared_smi = mp->shared;
+	if (pd->shared_smi != NULL)
+		mp->shared_smi = platform_get_drvdata(pd->shared_smi);
 
 	/* set default config values */
 	eth_port_uc_addr_get(mp, dev->dev_addr);
@@ -1983,30 +2008,91 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void mv643xx_eth_conf_mbus_windows(struct mv643xx_shared_private *msp,
+					  struct mbus_dram_target_info *dram)
+{
+	void __iomem *base = msp->eth_base;
+	u32 win_enable;
+	u32 win_protect;
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		writel(0, base + WINDOW_BASE(i));
+		writel(0, base + WINDOW_SIZE(i));
+		if (i < 4)
+			writel(0, base + WINDOW_REMAP_HIGH(i));
+	}
+
+	win_enable = 0x3f;
+	win_protect = 0;
+
+	for (i = 0; i < dram->num_cs; i++) {
+		struct mbus_dram_window *cs = dram->cs + i;
+
+		writel((cs->base & 0xffff0000) |
+			(cs->mbus_attr << 8) |
+			dram->mbus_dram_target_id, base + WINDOW_BASE(i));
+		writel((cs->size - 1) & 0xffff0000, base + WINDOW_SIZE(i));
+
+		win_enable &= ~(1 << i);
+		win_protect |= 3 << (2 * i);
+	}
+
+	writel(win_enable, base + WINDOW_BAR_ENABLE);
+	msp->win_protect = win_protect;
+}
+
 static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 {
 	static int mv643xx_version_printed = 0;
+	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
+	struct mv643xx_shared_private *msp;
 	struct resource *res;
+	int ret;
 
 	if (!mv643xx_version_printed++)
 		printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
 
+	ret = -EINVAL;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL)
-		return -ENODEV;
+		goto out;
 
-	mv643xx_eth_base = ioremap(res->start, res->end - res->start + 1);
-	if (mv643xx_eth_base == NULL)
-		return -ENOMEM;
+	ret = -ENOMEM;
+	msp = kmalloc(sizeof(*msp), GFP_KERNEL);
+	if (msp == NULL)
+		goto out;
+	memset(msp, 0, sizeof(*msp));
+
+	msp->eth_base = ioremap(res->start, res->end - res->start + 1);
+	if (msp->eth_base == NULL)
+		goto out_free;
+
+	spin_lock_init(&msp->phy_lock);
+	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
+
+	platform_set_drvdata(pdev, msp);
+
+	/*
+	 * (Re-)program MBUS remapping windows if we are asked to.
+	 */
+	if (pd != NULL && pd->dram != NULL)
+		mv643xx_eth_conf_mbus_windows(msp, pd->dram);
 
 	return 0;
 
+out_free:
+	kfree(msp);
+out:
+	return ret;
 }
 
 static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
-	iounmap(mv643xx_eth_base);
-	mv643xx_eth_base = NULL;
+	struct mv643xx_shared_private *msp = platform_get_drvdata(pdev);
+
+	iounmap(msp->eth_base);
+	kfree(msp);
 
 	return 0;
 }
@@ -2906,15 +2992,16 @@ static void eth_port_reset(struct mv643xx_private *mp)
 static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 				unsigned int phy_reg, unsigned int *value)
 {
+	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
 	int phy_addr = ethernet_phy_get(mp);
 	unsigned long flags;
 	int i;
 
 	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mv643xx_eth_phy_lock, flags);
+	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
 
 	/* wait for the SMI register to become available */
-	for (i = 0; rdl(mp, SMI_REG) & ETH_SMI_BUSY; i++) {
+	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
 			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
@@ -2922,11 +3009,11 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 		udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	wrl(mp, SMI_REG,
-		(phy_addr << 16) | (phy_reg << 21) | ETH_SMI_OPCODE_READ);
+	writel((phy_addr << 16) | (phy_reg << 21) | ETH_SMI_OPCODE_READ,
+		smi_reg);
 
 	/* now wait for the data to be valid */
-	for (i = 0; !(rdl(mp, SMI_REG) & ETH_SMI_READ_VALID); i++) {
+	for (i = 0; !(readl(smi_reg) & ETH_SMI_READ_VALID); i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
 			printk("%s: PHY read timeout\n", mp->dev->name);
 			goto out;
@@ -2934,9 +3021,9 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 		udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	*value = rdl(mp, SMI_REG) & 0xffff;
+	*value = readl(smi_reg) & 0xffff;
 out:
-	spin_unlock_irqrestore(&mv643xx_eth_phy_lock, flags);
+	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
 }
 
 /*
@@ -2962,17 +3049,16 @@ out:
 static void eth_port_write_smi_reg(struct mv643xx_private *mp,
 				   unsigned int phy_reg, unsigned int value)
 {
-	int phy_addr;
-	int i;
+	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
+	int phy_addr = ethernet_phy_get(mp);
 	unsigned long flags;
-
-	phy_addr = ethernet_phy_get(mp);
+	int i;
 
 	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mv643xx_eth_phy_lock, flags);
+	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
 
 	/* wait for the SMI register to become available */
-	for (i = 0; rdl(mp, SMI_REG) & ETH_SMI_BUSY; i++) {
+	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
 			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
@@ -2980,10 +3066,10 @@ static void eth_port_write_smi_reg(struct mv643xx_private *mp,
 		udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	wrl(mp, SMI_REG, (phy_addr << 16) | (phy_reg << 21) |
-				ETH_SMI_OPCODE_WRITE | (value & 0xffff));
+	writel((phy_addr << 16) | (phy_reg << 21) |
+		ETH_SMI_OPCODE_WRITE | (value & 0xffff), smi_reg);
 out:
-	spin_unlock_irqrestore(&mv643xx_eth_phy_lock, flags);
+	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
 }
 
 /*

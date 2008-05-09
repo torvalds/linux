@@ -1273,20 +1273,6 @@ config PCNET32
 	  To compile this driver as a module, choose M here. The module
 	  will be called pcnet32.
 
-config PCNET32_NAPI
-	bool "Use RX polling (NAPI)"
-	depends on PCNET32
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
-
 config AMD8111_ETH
 	tristate "AMD 8111 (new PCI lance) support"
 	depends on NET_PCI && PCI
