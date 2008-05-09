@@ -1156,6 +1156,9 @@ skip_rbs_switch:
 	 *	r31 = current->thread_info->flags
 	 * On exit:
 	 *	p6 = TRUE if work-pending-check needs to be redone
+	 *
+	 * Interrupts are disabled on entry, reenabled depend on work, and
+	 * disabled on exit.
 	 */
 .work_pending_syscall:
 	add r2=-8,r2
@@ -1170,8 +1173,8 @@ skip_rbs_switch:
 (pKStk) dep r21=-1,r0,PREEMPT_ACTIVE_BIT,1
 	;;
 (pKStk) st4 [r20]=r21
-	ssm psr.i		// enable interrupts
 #endif
+	ssm psr.i		// enable interrupts
 	br.call.spnt.many rp=schedule
 .ret9:	cmp.eq p6,p0=r0,r0				// p6 <- 1
 	rsm psr.i		// disable interrupts
@@ -1234,9 +1237,12 @@ GLOBAL_ENTRY(ia64_invoke_schedule_tail)
 END(ia64_invoke_schedule_tail)
 
 	/*
-	 * Setup stack and call do_notify_resume_user().  Note that pSys and pNonSys need to
-	 * be set up by the caller.  We declare 8 input registers so the system call
-	 * args get preserved, in case we need to restart a system call.
+	 * Setup stack and call do_notify_resume_user(), keeping interrupts
+	 * disabled.
+	 *
+	 * Note that pSys and pNonSys need to be set up by the caller.
+	 * We declare 8 input registers so the system call args get preserved,
+	 * in case we need to restart a system call.
 	 */
 ENTRY(notify_resume_user)
 	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)
