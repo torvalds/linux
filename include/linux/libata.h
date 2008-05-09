@@ -1384,17 +1384,14 @@ static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
 
 static inline int ata_check_ready(u8 status)
 {
-	/* Some controllers report 0x77 or 0x7f during intermediate
-	 * not-ready stages.
-	 */
-	if (status == 0x77 || status == 0x7f)
-		return 0;
+	if (!(status & ATA_BUSY))
+		return 1;
 
 	/* 0xff indicates either no device or device not ready */
 	if (status == 0xff)
 		return -ENODEV;
 
-	return !(status & ATA_BUSY);
+	return 0;
 }
 
 
