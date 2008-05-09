@@ -589,7 +589,7 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 		unlock_file = true;
 		fid = open_file->netfid;
 	} else if (pfid == NULL) {
-		bool oplock = false;
+		int oplock = 0;
 		/* open file */
 		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
 				READ_CONTROL, 0, &fid, &oplock, NULL,
