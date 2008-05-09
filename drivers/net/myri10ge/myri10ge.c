@@ -228,58 +228,58 @@ static char *myri10ge_fw_aligned = "myri10ge_eth_z8e.dat";
 
 static char *myri10ge_fw_name = NULL;
 module_param(myri10ge_fw_name, charp, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image name\n");
+MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image name");
 
 static int myri10ge_ecrc_enable = 1;
 module_param(myri10ge_ecrc_enable, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_ecrc_enable, "Enable Extended CRC on PCI-E\n");
+MODULE_PARM_DESC(myri10ge_ecrc_enable, "Enable Extended CRC on PCI-E");
 
 static int myri10ge_max_intr_slots = 1024;
 module_param(myri10ge_max_intr_slots, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_max_intr_slots, "Interrupt queue slots\n");
+MODULE_PARM_DESC(myri10ge_max_intr_slots, "Interrupt queue slots");
 
 static int myri10ge_small_bytes = -1;	/* -1 == auto */
 module_param(myri10ge_small_bytes, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(myri10ge_small_bytes, "Threshold of small packets\n");
+MODULE_PARM_DESC(myri10ge_small_bytes, "Threshold of small packets");
 
 static int myri10ge_msi = 1;	/* enable msi by default */
 module_param(myri10ge_msi, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(myri10ge_msi, "Enable Message Signalled Interrupts\n");
+MODULE_PARM_DESC(myri10ge_msi, "Enable Message Signalled Interrupts");
 
 static int myri10ge_intr_coal_delay = 75;
 module_param(myri10ge_intr_coal_delay, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_intr_coal_delay, "Interrupt coalescing delay\n");
+MODULE_PARM_DESC(myri10ge_intr_coal_delay, "Interrupt coalescing delay");
 
 static int myri10ge_flow_control = 1;
 module_param(myri10ge_flow_control, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_flow_control, "Pause parameter\n");
+MODULE_PARM_DESC(myri10ge_flow_control, "Pause parameter");
 
 static int myri10ge_deassert_wait = 1;
 module_param(myri10ge_deassert_wait, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_deassert_wait,
-		 "Wait when deasserting legacy interrupts\n");
+		 "Wait when deasserting legacy interrupts");
 
 static int myri10ge_force_firmware = 0;
 module_param(myri10ge_force_firmware, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_force_firmware,
-		 "Force firmware to assume aligned completions\n");
+		 "Force firmware to assume aligned completions");
 
 static int myri10ge_initial_mtu = MYRI10GE_MAX_ETHER_MTU - ETH_HLEN;
 module_param(myri10ge_initial_mtu, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_initial_mtu, "Initial MTU\n");
+MODULE_PARM_DESC(myri10ge_initial_mtu, "Initial MTU");
 
 static int myri10ge_napi_weight = 64;
 module_param(myri10ge_napi_weight, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_napi_weight, "Set NAPI weight\n");
+MODULE_PARM_DESC(myri10ge_napi_weight, "Set NAPI weight");
 
 static int myri10ge_watchdog_timeout = 1;
 module_param(myri10ge_watchdog_timeout, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_watchdog_timeout, "Set watchdog timeout\n");
+MODULE_PARM_DESC(myri10ge_watchdog_timeout, "Set watchdog timeout");
 
 static int myri10ge_max_irq_loops = 1048576;
 module_param(myri10ge_max_irq_loops, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_max_irq_loops,
-		 "Set stuck legacy IRQ detection threshold\n");
+		 "Set stuck legacy IRQ detection threshold");
 
 #define MYRI10GE_MSG_DEFAULT NETIF_MSG_LINK
 
@@ -289,21 +289,22 @@ MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 
 static int myri10ge_lro = 1;
 module_param(myri10ge_lro, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_lro, "Enable large receive offload\n");
+MODULE_PARM_DESC(myri10ge_lro, "Enable large receive offload");
 
 static int myri10ge_lro_max_pkts = MYRI10GE_LRO_MAX_PKTS;
 module_param(myri10ge_lro_max_pkts, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_lro, "Number of LRO packets to be aggregated\n");
+MODULE_PARM_DESC(myri10ge_lro_max_pkts,
+		 "Number of LRO packets to be aggregated");
 
 static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed\n");
+MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed");
 
 static int myri10ge_reset_recover = 1;
 
 static int myri10ge_wcfifo = 0;
 module_param(myri10ge_wcfifo, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled\n");
+MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled");
 
 #define MYRI10GE_FW_OFFSET 1024*1024
 #define MYRI10GE_HIGHPART_TO_U32(X) \
