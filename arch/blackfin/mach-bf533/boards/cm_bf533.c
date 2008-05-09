@@ -33,7 +33,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb/isp1362.h>
+#endif
 #include <linux/ata_platform.h>
 #include <linux/irq.h>
 #include <asm/dma.h>
