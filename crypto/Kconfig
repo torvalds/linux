@@ -264,6 +264,31 @@ config CRYPTO_RMD160
     to be used as a secure replacement for the 128-bit hash functions
     MD4, MD5 and it's predecessor RIPEMD (not to be confused with RIPEMD-128).
 
+    It's speed is comparable to SHA1 and there are no known attacks against
+    RIPEMD-160.
+
+    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD256
+  tristate "RIPEMD-256 digest algorithm"
+  select CRYPTO_ALGAPI
+  help
+    RIPEMD-256 is an optional extension of RIPEMD-128 with a 256 bit hash.
+    It is intended for applications that require longer hash-results, without
+    needing a larger security level (than RIPEMD-128).
+
+    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD320
+  tristate "RIPEMD-320 digest algorithm"
+  select CRYPTO_ALGAPI
+  help
+    RIPEMD-320 is an optional extension of RIPEMD-160 with a 320 bit hash.
+    It is intended for applications that require longer hash-results, without
+    needing a larger security level (than RIPEMD-160).
+
     Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
     See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
 
