@@ -2657,13 +2657,14 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 	ext_type = (val & PCI_EXP_FLAGS_TYPE) >> 4;
 	if (ext_type != PCI_EXP_TYPE_ROOT_PORT) {
 		if (myri10ge_ecrc_enable > 1) {
-			struct pci_dev *old_bridge = bridge;
+			struct pci_dev *prev_bridge, *old_bridge = bridge;
 
 			/* Walk the hierarchy up to the root port
 			 * where ECRC has to be enabled */
 			do {
+				prev_bridge = bridge;
 				bridge = bridge->bus->self;
-				if (!bridge) {
+				if (!bridge || prev_bridge == bridge) {
 					dev_err(dev,
 						"Failed to find root port"
 						" to force ECRC\n");
