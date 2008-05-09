@@ -2493,7 +2493,7 @@ static int find_root_for_ref(struct btrfs_root *root,
 					btrfs_file_extent_disk_bytenr(leaf,
 							       file_extent);
 		       }
-		} else if (ret == 0) {
+		} else if (!file_key) {
 			if (path->nodes[level])
 				found_bytenr = path->nodes[level]->start;
 		}
@@ -2797,14 +2797,25 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 shrink_start)
 	root = root->fs_info->extent_root;
 	path->reada = 2;
 
+	printk("btrfs relocating block group %llu flags %llu\n",
+	       (unsigned long long)shrink_start,
+	       (unsigned long long)shrink_block_group->flags);
+
 again:
 	if (btrfs_block_group_used(&shrink_block_group->item) > 0) {
+		u64 calc;
+
 		trans = btrfs_start_transaction(root, 1);
 		new_alloc_flags = update_block_group_flags(root,
 						   shrink_block_group->flags);
+		if (new_alloc_flags != shrink_block_group->flags) {
+			calc =
+			     btrfs_block_group_used(&shrink_block_group->item);
+		} else {
+			calc = shrink_block_group->key.offset;
+		}
 		do_chunk_alloc(trans, root->fs_info->extent_root,
-			btrfs_block_group_used(&shrink_block_group->item) +
-			2 * 1024 * 1024, new_alloc_flags);
+			       calc + 2 * 1024 * 1024, new_alloc_flags);
 		btrfs_end_transaction(trans, root);
 	}
 	shrink_block_group->ro = 1;
@@ -2888,6 +2899,9 @@ next:
 	btrfs_release_path(root, path);
 
 	if (total_found > 0) {
+		printk("btrfs relocate found %llu last extent was %llu\n",
+		       (unsigned long long)total_found,
+		       (unsigned long long)found_key.objectid);
 		trans = btrfs_start_transaction(tree_root, 1);
 		btrfs_commit_transaction(trans, tree_root);
 

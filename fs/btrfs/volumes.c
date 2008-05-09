@@ -1011,6 +1011,8 @@ int btrfs_relocate_chunk(struct btrfs_root *root,
 	int ret;
 	int i;
 
+	printk("btrfs relocating chunk %llu\n",
+	       (unsigned long long)chunk_offset);
 	root = root->fs_info->chunk_root;
 	extent_root = root->fs_info->extent_root;
 	em_tree = &root->fs_info->mapping_tree.map_tree;
