@@ -1328,7 +1328,7 @@ myri10ge_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	ptr = mgp->product_code_string;
 	if (ptr == NULL) {
 		printk(KERN_ERR "myri10ge: %s: Missing product code\n",
-			netdev->name);
+		       netdev->name);
 		return 0;
 	}
 	for (i = 0; i < 3; i++, ptr++) {
@@ -1362,6 +1362,7 @@ static int
 myri10ge_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coal)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
+
 	coal->rx_coalesce_usecs = mgp->intr_coal_delay;
 	return 0;
 }
@@ -1421,6 +1422,7 @@ myri10ge_get_ringparam(struct net_device *netdev,
 static u32 myri10ge_get_rx_csum(struct net_device *netdev)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
+
 	if (mgp->csum_flag)
 		return 1;
 	else
@@ -1430,6 +1432,7 @@ static u32 myri10ge_get_rx_csum(struct net_device *netdev)
 static int myri10ge_set_rx_csum(struct net_device *netdev, u32 csum_enabled)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
+
 	if (csum_enabled)
 		mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
 	else
