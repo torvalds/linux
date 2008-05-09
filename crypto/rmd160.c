@@ -29,16 +29,16 @@ struct rmd160_ctx {
 	u32 buffer[16];
 };
 
-#define K1  0x00000000UL
-#define K2  0x5a827999UL
-#define K3  0x6ed9eba1UL
-#define K4  0x8f1bbcdcUL
-#define K5  0xa953fd4eUL
-#define KK1 0x50a28be6UL
-#define KK2 0x5c4dd124UL
-#define KK3 0x6d703ef3UL
-#define KK4 0x7a6d76e9UL
-#define KK5 0x00000000UL
+#define K1  RMD_K1
+#define K2  RMD_K2
+#define K3  RMD_K3
+#define K4  RMD_K4
+#define K5  RMD_K5
+#define KK1 RMD_K6
+#define KK2 RMD_K7
+#define KK3 RMD_K8
+#define KK4 RMD_K9
+#define KK5 RMD_K1
 
 #define F1(x, y, z) (x ^ y ^ z)		/* XOR */
 #define F2(x, y, z) (z ^ (x & (y ^ z)))	/* x ? y : z */
