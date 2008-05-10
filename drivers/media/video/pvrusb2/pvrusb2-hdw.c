@@ -3421,7 +3421,7 @@ static void pvr2_hdw_cmd_modeswitch(struct pvr2_hdw *hdw,int digitalFl)
 }
 
 
-void pvr2_led_ctrl_hauppauge(struct pvr2_hdw *hdw, int onoff)
+static void pvr2_led_ctrl_hauppauge(struct pvr2_hdw *hdw, int onoff)
 {
 	/* change some GPIO data
 	 *
