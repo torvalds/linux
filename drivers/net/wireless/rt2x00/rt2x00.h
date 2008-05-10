@@ -540,8 +540,7 @@ struct rt2x00lib_ops {
 	 */
 	void (*write_tx_desc) (struct rt2x00_dev *rt2x00dev,
 			       struct sk_buff *skb,
-			       struct txentry_desc *txdesc,
-			       struct ieee80211_tx_control *control);
+			       struct txentry_desc *txdesc);
 	int (*write_tx_data) (struct rt2x00_dev *rt2x00dev,
 			      struct data_queue *queue, struct sk_buff *skb,
 			      struct ieee80211_tx_control *control);

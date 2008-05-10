@@ -664,7 +664,12 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			tx_rate = control->rts_cts_rate->hw_value;
 	}
 
-	rate = rt2x00_get_rate(tx_rate);
+	/*
+	 * Determine retry information.
+	 */
+	txdesc.retry_limit = control->retry_limit;
+	if (control->flags & IEEE80211_TXCTL_LONG_RETRY_LIMIT)
+		__set_bit(ENTRY_TXD_RETRY_MODE, &txdesc.flags);
 
 	/*
 	 * Check if more fragments are pending
@@ -686,16 +691,20 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 * Set ifs to IFS_SIFS when the this is not the first fragment,
 	 * or this fragment came after RTS/CTS.
 	 */
-	if ((seq_ctrl & IEEE80211_SCTL_FRAG) > 0 ||
-	    test_bit(ENTRY_TXD_RTS_FRAME, &txdesc.flags))
+	if (test_bit(ENTRY_TXD_RTS_FRAME, &txdesc.flags)) {
 		txdesc.ifs = IFS_SIFS;
-	else
+	} else if (control->flags & IEEE80211_TXCTL_FIRST_FRAGMENT) {
+		__set_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc.flags);
 		txdesc.ifs = IFS_BACKOFF;
+	} else {
+		txdesc.ifs = IFS_SIFS;
+	}
 
 	/*
 	 * PLCP setup
 	 * Length calculation depends on OFDM/CCK rate.
 	 */
+	rate = rt2x00_get_rate(tx_rate);
 	txdesc.signal = rate->plcp;
 	txdesc.service = 0x04;
 
@@ -733,7 +742,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			txdesc.signal |= 0x08;
 	}
 
-	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, skb, &txdesc, control);
+	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, skb, &txdesc);
 
 	/*
 	 * Update queue entry.

@@ -204,18 +204,22 @@ struct txdone_entry_desc {
  *
  * @ENTRY_TXD_RTS_FRAME: This frame is a RTS frame.
  * @ENTRY_TXD_OFDM_RATE: This frame is send out with an OFDM rate.
+ * @ENTRY_TXD_FIRST_FRAGMENT: This is the first frame.
  * @ENTRY_TXD_MORE_FRAG: This frame is followed by another fragment.
  * @ENTRY_TXD_REQ_TIMESTAMP: Require timestamp to be inserted.
  * @ENTRY_TXD_BURST: This frame belongs to the same burst event.
  * @ENTRY_TXD_ACK: An ACK is required for this frame.
+ * @ENTRY_TXD_RETRY_MODE: When set, the long retry count is used.
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
 	ENTRY_TXD_OFDM_RATE,
+	ENTRY_TXD_FIRST_FRAGMENT,
 	ENTRY_TXD_MORE_FRAG,
 	ENTRY_TXD_REQ_TIMESTAMP,
 	ENTRY_TXD_BURST,
 	ENTRY_TXD_ACK,
+	ENTRY_TXD_RETRY_MODE,
 };
 
 /**
@@ -229,6 +233,7 @@ enum txentry_desc_flags {
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
  * @service: PLCP service.
+ * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
  * @cw_min: cwmin value.
@@ -244,10 +249,11 @@ struct txentry_desc {
 	u16 signal;
 	u16 service;
 
-	int aifs;
-	int ifs;
-	int cw_min;
-	int cw_max;
+	short retry_limit;
+	short aifs;
+	short ifs;
+	short cw_min;
+	short cw_max;
 };
 
 /**
