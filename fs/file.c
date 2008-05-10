@@ -26,6 +26,8 @@ struct fdtable_defer {
 };
 
 int sysctl_nr_open __read_mostly = 1024*1024;
+int sysctl_nr_open_min = BITS_PER_LONG;
+int sysctl_nr_open_max = 1024 * 1024; /* raised later */
 
 /*
  * We use this list to defer free fdtables that have vmalloced
@@ -405,6 +407,8 @@ void __init files_defer_init(void)
 	int i;
 	for_each_possible_cpu(i)
 		fdtable_defer_list_init(i);
+	sysctl_nr_open_max = min((size_t)INT_MAX, ~(size_t)0/sizeof(void *)) &
+			     -BITS_PER_LONG;
 }
 
 struct files_struct init_files = {
