@@ -365,12 +365,6 @@ static void __init qnap_ts209_init(void)
 	orion5x_init();
 
 	/*
-	 * Open a special address decode windows for the PCIe WA.
-	 */
-	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
-				ORION5X_PCIE_WA_SIZE);
-
-	/*
 	 * Setup Multiplexing Pins --
 	 * MPP[0] Reserved
 	 * MPP[1] USB copy button (0 active)

@@ -152,6 +152,8 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
 		printk(KERN_NOTICE "Applying Orion-1/Orion-NAS PCIe config "
 				   "read transaction workaround\n");
+		orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
+					  ORION5X_PCIE_WA_SIZE);
 		pcie_ops.read = pcie_rd_conf_wa;
 	}
 

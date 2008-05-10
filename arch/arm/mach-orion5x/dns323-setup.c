@@ -247,13 +247,6 @@ static void __init dns323_init(void)
 	/* Setup basic Orion functions. Need to be called early. */
 	orion5x_init();
 
-	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIe
-	 *
-	 * Open a special address decode windows for the PCIe WA.
-	 */
-	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
-				ORION5X_PCIE_WA_SIZE);
-
 	/* set MPP to 0 as D-Link's 2.6.12.6 kernel did */
 	orion5x_write(MPP_0_7_CTRL, 0);
 	orion5x_write(MPP_8_15_CTRL, 0);
