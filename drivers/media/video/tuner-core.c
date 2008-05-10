@@ -448,10 +448,10 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 		xc5000_cfg.i2c_address	  = t->i2c->addr;
 		xc5000_cfg.if_khz	  = 5380;
-		xc5000_cfg.priv           = c->adapter->algo_data;
 		xc5000_cfg.tuner_callback = t->tuner_callback;
 		if (!dvb_attach(xc5000_attach,
-				&t->fe, t->i2c->adapter, &xc5000_cfg))
+				&t->fe, t->i2c->adapter, &xc5000_cfg,
+				c->adapter->algo_data))
 			goto attach_failed;
 
 		xc_tuner_ops = &t->fe.ops.tuner_ops;

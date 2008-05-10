@@ -384,12 +384,10 @@ static int dvb_register(struct cx23885_tsport *port)
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_hvr1500q_config,
 						&dev->i2c_bus[0].i2c_adap);
-		if (port->dvb.frontend != NULL) {
-			hauppauge_hvr1500q_tunerconfig.priv = i2c_bus;
+		if (port->dvb.frontend != NULL)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
-				&hauppauge_hvr1500q_tunerconfig);
-		}
+				&hauppauge_hvr1500q_tunerconfig, i2c_bus);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 		i2c_bus = &dev->i2c_bus[1];
