@@ -1492,11 +1492,20 @@ static int rt2400pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct queue_entry_priv_pci_tx *priv_tx;
 	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
 	u32 reg;
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 	priv_tx = intf->beacon->priv_data;
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	intf->beacon->skb = skb;
+	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc, control);
 
 	/*
 	 * Fill in skb descriptor
@@ -1525,8 +1534,8 @@ static int rt2400pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 	memcpy(priv_tx->data, skb->data, skb->len);
+	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	return 0;

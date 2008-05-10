@@ -41,6 +41,7 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct queue_entry_priv_pci_tx *priv_tx = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
 	u32 word;
 
 	if (rt2x00queue_full(queue))
@@ -58,6 +59,14 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	entry->skb = skb;
+	rt2x00queue_create_tx_descriptor(entry, &txdesc, control);
+
+	/*
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(skb);
@@ -69,8 +78,8 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 
 	memcpy(&priv_tx->control, control, sizeof(priv_tx->control));
 	memcpy(priv_tx->data, skb->data, skb->len);
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
+	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 	rt2x00queue_index_inc(queue, Q_INDEX);
 
 	return 0;

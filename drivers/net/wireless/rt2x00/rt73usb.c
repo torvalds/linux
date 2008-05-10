@@ -1956,11 +1956,20 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
 	unsigned int beacon_base;
 	u32 reg;
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	intf->beacon->skb = skb;
+	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc, control);
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1994,7 +2003,7 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
+	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
 	rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
 				 USB_VENDOR_REQUEST_OUT, beacon_base, 0,

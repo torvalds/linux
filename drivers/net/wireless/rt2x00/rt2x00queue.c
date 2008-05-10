@@ -29,6 +29,163 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
+void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
+				      struct txentry_desc *txdesc,
+				      struct ieee80211_tx_control *control)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
+	struct ieee80211_rate *rate = control->tx_rate;
+	const struct rt2x00_rate *hwrate;
+	unsigned int data_length;
+	unsigned int duration;
+	unsigned int residual;
+	u16 frame_control;
+
+	memset(txdesc, 0, sizeof(*txdesc));
+
+	/*
+	 * Initialize information from queue
+	 */
+	txdesc->queue = entry->queue->qid;
+	txdesc->cw_min = entry->queue->cw_min;
+	txdesc->cw_max = entry->queue->cw_max;
+	txdesc->aifs = entry->queue->aifs;
+
+	/* Data length should be extended with 4 bytes for CRC */
+	data_length = entry->skb->len + 4;
+
+	/*
+	 * Read required fields from ieee80211 header.
+	 */
+	frame_control = le16_to_cpu(hdr->frame_control);
+
+	/*
+	 * Check whether this frame is to be acked.
+	 */
+	if (!(control->flags & IEEE80211_TXCTL_NO_ACK))
+		__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
+
+	/*
+	 * Check if this is a RTS/CTS frame
+	 */
+	if (is_rts_frame(frame_control) || is_cts_frame(frame_control)) {
+		__set_bit(ENTRY_TXD_BURST, &txdesc->flags);
+		if (is_rts_frame(frame_control)) {
+			__set_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags);
+			__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
+		} else {
+			__set_bit(ENTRY_TXD_CTS_FRAME, &txdesc->flags);
+			__clear_bit(ENTRY_TXD_ACK, &txdesc->flags);
+		}
+		if (control->rts_cts_rate)
+			rate = control->rts_cts_rate;
+	}
+
+	/*
+	 * Determine retry information.
+	 */
+	txdesc->retry_limit = control->retry_limit;
+	if (control->flags & IEEE80211_TXCTL_LONG_RETRY_LIMIT)
+		__set_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags);
+
+	/*
+	 * Check if more fragments are pending
+	 */
+	if (ieee80211_get_morefrag(hdr)) {
+		__set_bit(ENTRY_TXD_BURST, &txdesc->flags);
+		__set_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags);
+	}
+
+	/*
+	 * Beacons and probe responses require the tsf timestamp
+	 * to be inserted into the frame.
+	 */
+	if (txdesc->queue == QID_BEACON || is_probe_resp(frame_control))
+		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags);
+
+	/*
+	 * Determine with what IFS priority this frame should be send.
+	 * Set ifs to IFS_SIFS when the this is not the first fragment,
+	 * or this fragment came after RTS/CTS.
+	 */
+	if (test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags)) {
+		txdesc->ifs = IFS_SIFS;
+	} else if (control->flags & IEEE80211_TXCTL_FIRST_FRAGMENT) {
+		__set_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags);
+		txdesc->ifs = IFS_BACKOFF;
+	} else {
+		txdesc->ifs = IFS_SIFS;
+	}
+
+	/*
+	 * PLCP setup
+	 * Length calculation depends on OFDM/CCK rate.
+	 */
+	hwrate = rt2x00_get_rate(rate->hw_value);
+	txdesc->signal = hwrate->plcp;
+	txdesc->service = 0x04;
+
+	if (hwrate->flags & DEV_RATE_OFDM) {
+		__set_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags);
+
+		txdesc->length_high = (data_length >> 6) & 0x3f;
+		txdesc->length_low = data_length & 0x3f;
+	} else {
+		/*
+		 * Convert length to microseconds.
+		 */
+		residual = get_duration_res(data_length, hwrate->bitrate);
+		duration = get_duration(data_length, hwrate->bitrate);
+
+		if (residual != 0) {
+			duration++;
+
+			/*
+			 * Check if we need to set the Length Extension
+			 */
+			if (hwrate->bitrate == 110 && residual <= 30)
+				txdesc->service |= 0x80;
+		}
+
+		txdesc->length_high = (duration >> 8) & 0xff;
+		txdesc->length_low = duration & 0xff;
+
+		/*
+		 * When preamble is enabled we should set the
+		 * preamble bit for the signal.
+		 */
+		if (rt2x00_get_rate_preamble(rate->hw_value))
+			txdesc->signal |= 0x08;
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_create_tx_descriptor);
+
+void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
+				     struct txentry_desc *txdesc)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+
+	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, entry->skb, txdesc);
+
+	/*
+	 * All processing on the frame has been completed, this means
+	 * it is now ready to be dumped to userspace through debugfs.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, entry->skb);
+
+	/*
+	 * We are done writing the frame to the queue entry,
+	 * if this entry is a RTS of CTS-to-self frame we are done,
+	 * otherwise we need to kick the queue.
+	 */
+	if (rt2x00dev->ops->lib->kick_tx_queue &&
+	    !(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))
+		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev,
+						   entry->queue->qid);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_write_tx_descriptor);
+
 struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 					 const enum data_queue_qid queue)
 {

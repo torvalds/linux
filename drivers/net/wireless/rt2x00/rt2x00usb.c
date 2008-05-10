@@ -186,6 +186,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct queue_entry_priv_usb_tx *priv_tx = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
 	u32 length;
 
 	if (rt2x00queue_full(queue))
@@ -198,6 +199,14 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 		      entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	entry->skb = skb;
+	rt2x00queue_create_tx_descriptor(entry, &txdesc, control);
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -216,7 +225,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	skbdesc->entry = entry;
 
 	memcpy(&priv_tx->control, control, sizeof(priv_tx->control));
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
+	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the

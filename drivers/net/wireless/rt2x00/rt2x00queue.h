@@ -203,6 +203,7 @@ struct txdone_entry_desc {
  * enum txentry_desc_flags: Status flags for TX entry descriptor
  *
  * @ENTRY_TXD_RTS_FRAME: This frame is a RTS frame.
+ * @ENTRY_TXD_CTS_FRAME: This frame is a CTS-to-self frame.
  * @ENTRY_TXD_OFDM_RATE: This frame is send out with an OFDM rate.
  * @ENTRY_TXD_FIRST_FRAGMENT: This is the first frame.
  * @ENTRY_TXD_MORE_FRAG: This frame is followed by another fragment.
@@ -213,6 +214,7 @@ struct txdone_entry_desc {
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
+	ENTRY_TXD_CTS_FRAME,
 	ENTRY_TXD_OFDM_RATE,
 	ENTRY_TXD_FIRST_FRAGMENT,
 	ENTRY_TXD_MORE_FRAG,

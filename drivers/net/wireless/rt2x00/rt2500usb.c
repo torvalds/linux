@@ -1676,6 +1676,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct queue_entry_priv_usb_bcn *priv_bcn;
 	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
 	int pipe = usb_sndbulkpipe(usb_dev, 1);
 	int length;
 	u16 reg;
@@ -1684,6 +1685,14 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 		return -ENOBUFS;
 
 	priv_bcn = intf->beacon->priv_data;
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	intf->beacon->skb = skb;
+	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc, control);
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1713,7 +1722,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
+	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
