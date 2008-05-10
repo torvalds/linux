@@ -1251,6 +1251,12 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 
 EXPORT_SYMBOL(search_binary_handler);
 
+void free_bprm(struct linux_binprm *bprm)
+{
+	free_arg_pages(bprm);
+	kfree(bprm);
+}
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1320,17 +1326,15 @@ int do_execve(char * filename,
 	retval = search_binary_handler(bprm,regs);
 	if (retval >= 0) {
 		/* execve success */
-		free_arg_pages(bprm);
 		security_bprm_free(bprm);
 		acct_update_integrals(current);
-		kfree(bprm);
+		free_bprm(bprm);
 		if (displaced)
 			put_files_struct(displaced);
 		return retval;
 	}
 
 out:
-	free_arg_pages(bprm);
 	if (bprm->security)
 		security_bprm_free(bprm);
 
@@ -1344,7 +1348,7 @@ out_file:
 		fput(bprm->file);
 	}
 out_kfree:
-	kfree(bprm);
+	free_bprm(bprm);
 
 out_files:
 	if (displaced)
