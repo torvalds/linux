@@ -246,22 +246,35 @@ static struct sk_buff* rt2x00usb_alloc_rxskb(struct data_queue *queue)
 {
 	struct sk_buff *skb;
 	unsigned int frame_size;
+	unsigned int reserved_size;
 
 	/*
-	 * As alignment we use 2 and not NET_IP_ALIGN because we need
-	 * to be sure we have 2 bytes room in the head. (NET_IP_ALIGN
-	 * can be 0 on some hardware). We use these 2 bytes for frame
-	 * alignment later, we assume that the chance that
-	 * header_size % 4 == 2 is bigger then header_size % 2 == 0
-	 * and thus optimize alignment by reserving the 2 bytes in
-	 * advance.
+	 * The frame size includes descriptor size, because the
+	 * hardware directly receive the frame into the skbuffer.
 	 */
 	frame_size = queue->data_size + queue->desc_size;
-	skb = dev_alloc_skb(queue->desc_size + frame_size + 2);
+
+	/*
+	 * For the allocation we should keep a few things in mind:
+	 * 1) 4byte alignment of 802.11 payload
+	 *
+	 * For (1) we need at most 4 bytes to guarentee the correct
+	 * alignment. We are going to optimize the fact that the chance
+	 * that the 802.11 header_size % 4 == 2 is much bigger then
+	 * anything else. However since we need to move the frame up
+	 * to 3 bytes to the front, which means we need to preallocate
+	 * 6 bytes.
+	 */
+	reserved_size = 6;
+
+	/*
+	 * Allocate skbuffer.
+	 */
+	skb = dev_alloc_skb(frame_size + reserved_size);
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, queue->desc_size + 2);
+	skb_reserve(skb, reserved_size);
 	skb_put(skb, frame_size);
 
 	return skb;
@@ -274,7 +287,8 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	struct rxdone_entry_desc rxdesc;
-	int header_size;
+	unsigned int header_size;
+	unsigned int align;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
@@ -298,18 +312,28 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	memset(&rxdesc, 0, sizeof(rxdesc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
+	header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
+
 	/*
 	 * The data behind the ieee80211 header must be
-	 * aligned on a 4 byte boundary.
+	 * aligned on a 4 byte boundary. We already reserved
+	 * 2 bytes for header_size % 4 == 2 optimization.
+	 * To determine the number of bytes which the data
+	 * should be moved to the left, we must add these
+	 * 2 bytes to the header_size.
 	 */
-	header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
-	if (header_size % 4 == 0) {
-		skb_push(entry->skb, 2);
-		memmove(entry->skb->data, entry->skb->data + 2,
-			entry->skb->len - 2);
-		skbdesc->data = entry->skb->data;
-		skb_trim(entry->skb,entry->skb->len - 2);
+	align = (header_size + 2) % 4;
+
+	if (align) {
+		skb_push(entry->skb, align);
+		/* Move entire frame in 1 command */
+		memmove(entry->skb->data, entry->skb->data + align,
+			rxdesc.size);
 	}
+
+	/* Update data pointers, trim buffer to correct size */
+	skbdesc->data = entry->skb->data;
+	skb_trim(entry->skb, rxdesc.size);
 
 	/*
 	 * Allocate a new sk buffer to replace the current one.
