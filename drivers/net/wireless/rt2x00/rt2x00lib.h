@@ -26,6 +26,8 @@
 #ifndef RT2X00LIB_H
 #define RT2X00LIB_H
 
+#include "rt2x00dump.h"
+
 /*
  * Interval defines
  * Both the link tuner as the rfkill will be called once per second.
@@ -128,7 +130,8 @@ static inline void rt2x00lib_free_firmware(struct rt2x00_dev *rt2x00dev)
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 void rt2x00debug_register(struct rt2x00_dev *rt2x00dev);
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev);
-void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+			    enum rt2x00_dump_type type, struct sk_buff *skb);
 #else
 static inline void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 {
@@ -139,6 +142,7 @@ static inline void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
 }
 
 static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+					  enum rt2x00_dump_type type,
 					  struct sk_buff *skb)
 {
 }

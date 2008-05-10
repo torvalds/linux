@@ -28,7 +28,6 @@
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
-#include "rt2x00dump.h"
 
 /*
  * Link tuning handlers
@@ -540,11 +539,9 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * If send to mac80211, mac80211 will clean up the skb structure,
 	 * otherwise we have to do it ourself.
 	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
+
 	skbdesc = get_skb_frame_desc(entry->skb);
-	skbdesc->frame_type = DUMP_FRAME_TXDONE;
-
-	rt2x00debug_dump_frame(rt2x00dev, entry->skb);
-
 	if (!(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))
 		ieee80211_tx_status_irqsafe(rt2x00dev->hw,
 					    entry->skb, &tx_status);
@@ -610,8 +607,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	 * Send frame to mac80211 & debugfs.
 	 * mac80211 will clean up the skb structure.
 	 */
-	get_skb_frame_desc(entry->skb)->frame_type = DUMP_FRAME_RXDONE;
-	rt2x00debug_dump_frame(rt2x00dev, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
 	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb, rx_status);
 	entry->skb = NULL;
 }
@@ -752,8 +748,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 * frame to the device, but we are going to push the
 	 * frame to debugfs here.
 	 */
-	skbdesc->frame_type = DUMP_FRAME_TX;
-	rt2x00debug_dump_frame(rt2x00dev, skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, skb);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_write_tx_desc);
 

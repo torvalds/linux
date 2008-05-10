@@ -109,7 +109,6 @@ enum skb_frame_desc_flags {
  * this structure should not exceed the size of that array (48 bytes).
  *
  * @flags: Frame flags, see &enum skb_frame_desc_flags.
- * @frame_type: Frame type, see &enum rt2x00_dump_type.
  * @data: Pointer to data part of frame (Start of ieee80211 header).
  * @desc: Pointer to descriptor part of the frame.
  *	Note that this pointer could point to something outside
@@ -121,13 +120,11 @@ enum skb_frame_desc_flags {
 struct skb_frame_desc {
 	unsigned int flags;
 
-	unsigned int frame_type;
+	unsigned short data_len;
+	unsigned short desc_len;
 
 	void *data;
 	void *desc;
-
-	unsigned int data_len;
-	unsigned int desc_len;
 
 	struct queue_entry *entry;
 };

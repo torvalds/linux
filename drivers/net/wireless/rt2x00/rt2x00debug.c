@@ -115,7 +115,7 @@ struct rt2x00debug_intf {
 };
 
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
-			    struct sk_buff *skb)
+			    enum rt2x00_dump_type type, struct sk_buff *skb)
 {
 	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
 	struct skb_frame_desc *desc = get_skb_frame_desc(skb);
@@ -148,7 +148,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->chip_rt = cpu_to_le16(rt2x00dev->chip.rt);
 	dump_hdr->chip_rf = cpu_to_le16(rt2x00dev->chip.rf);
 	dump_hdr->chip_rev = cpu_to_le32(rt2x00dev->chip.rev);
-	dump_hdr->type = cpu_to_le16(desc->frame_type);
+	dump_hdr->type = cpu_to_le16(type);
 	dump_hdr->queue_index = desc->entry->queue->qid;
 	dump_hdr->entry_index = desc->entry->entry_idx;
 	dump_hdr->timestamp_sec = cpu_to_le32(timestamp.tv_sec);
