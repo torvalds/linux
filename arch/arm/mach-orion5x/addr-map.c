@@ -70,6 +70,7 @@
 
 
 struct mbus_dram_target_info orion5x_mbus_dram_info;
+static int __initdata win_alloc_count;
 
 static int __init orion5x_cpu_win_can_remap(int win)
 {
@@ -87,6 +88,12 @@ static int __init orion5x_cpu_win_can_remap(int win)
 static void __init setup_cpu_win(int win, u32 base, u32 size,
 				 u8 target, u8 attr, int remap)
 {
+	if (win >= 8) {
+		printk(KERN_ERR "setup_cpu_win: trying to allocate "
+				"window %d\n", win);
+		return;
+	}
+
 	orion5x_write(CPU_WIN_BASE(win), base & 0xffff0000);
 	orion5x_write(CPU_WIN_CTRL(win),
 		((size - 1) & 0xffff0000) | (attr << 8) | (target << 4) | 1);
@@ -128,6 +135,7 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 		TARGET_PCIE, ATTR_PCIE_MEM, -1);
 	setup_cpu_win(3, ORION5X_PCI_MEM_PHYS_BASE, ORION5X_PCI_MEM_SIZE,
 		TARGET_PCI, ATTR_PCI_MEM, -1);
+	win_alloc_count = 4;
 
 	/*
 	 * Setup MBUS dram target info.
@@ -156,25 +164,30 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 
 void __init orion5x_setup_dev_boot_win(u32 base, u32 size)
 {
-	setup_cpu_win(4, base, size, TARGET_DEV_BUS, ATTR_DEV_BOOT, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_BOOT, -1);
 }
 
 void __init orion5x_setup_dev0_win(u32 base, u32 size)
 {
-	setup_cpu_win(5, base, size, TARGET_DEV_BUS, ATTR_DEV_CS0, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_CS0, -1);
 }
 
 void __init orion5x_setup_dev1_win(u32 base, u32 size)
 {
-	setup_cpu_win(6, base, size, TARGET_DEV_BUS, ATTR_DEV_CS1, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_CS1, -1);
 }
 
 void __init orion5x_setup_dev2_win(u32 base, u32 size)
 {
-	setup_cpu_win(7, base, size, TARGET_DEV_BUS, ATTR_DEV_CS2, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_DEV_BUS, ATTR_DEV_CS2, -1);
 }
 
 void __init orion5x_setup_pcie_wa_win(u32 base, u32 size)
 {
-	setup_cpu_win(7, base, size, TARGET_PCIE, ATTR_PCIE_WA, -1);
+	setup_cpu_win(win_alloc_count++, base, size,
+		      TARGET_PCIE, ATTR_PCIE_WA, -1);
 }
