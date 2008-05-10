@@ -39,7 +39,7 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 			    struct ieee80211_tx_control *control)
 {
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	struct queue_entry_priv_pci_tx *priv_tx = entry->priv_data;
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
 	struct txentry_desc txdesc;
 	u32 word;
@@ -47,7 +47,7 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00queue_full(queue))
 		return -EINVAL;
 
-	rt2x00_desc_read(priv_tx->desc, 0, &word);
+	rt2x00_desc_read(entry_priv->desc, 0, &word);
 
 	if (rt2x00_get_field32(word, TXD_ENTRY_OWNER_NIC) ||
 	    rt2x00_get_field32(word, TXD_ENTRY_VALID)) {
@@ -72,12 +72,12 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	skbdesc = get_skb_frame_desc(skb);
 	skbdesc->data = skb->data;
 	skbdesc->data_len = skb->len;
-	skbdesc->desc = priv_tx->desc;
+	skbdesc->desc = entry_priv->desc;
 	skbdesc->desc_len = queue->desc_size;
 	skbdesc->entry = entry;
 
-	memcpy(&priv_tx->control, control, sizeof(priv_tx->control));
-	memcpy(priv_tx->data, skb->data, skb->len);
+	memcpy(&entry_priv->control, control, sizeof(entry_priv->control));
+	memcpy(entry_priv->data, skb->data, skb->len);
 
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 	rt2x00queue_index_inc(queue, Q_INDEX);
@@ -93,7 +93,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue = rt2x00dev->rx;
 	struct queue_entry *entry;
-	struct queue_entry_priv_pci_rx *priv_rx;
+	struct queue_entry_priv_pci *entry_priv;
 	struct ieee80211_hdr *hdr;
 	struct skb_frame_desc *skbdesc;
 	struct rxdone_entry_desc rxdesc;
@@ -103,8 +103,8 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 
 	while (1) {
 		entry = rt2x00queue_get_entry(queue, Q_INDEX);
-		priv_rx = entry->priv_data;
-		rt2x00_desc_read(priv_rx->desc, 0, &word);
+		entry_priv = entry->priv_data;
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
 
 		if (rt2x00_get_field32(word, RXD_ENTRY_OWNER_NIC))
 			break;
@@ -112,7 +112,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		memset(&rxdesc, 0, sizeof(rxdesc));
 		rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
-		hdr = (struct ieee80211_hdr *)priv_rx->data;
+		hdr = (struct ieee80211_hdr *)entry_priv->data;
 		header_size =
 		    ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
 
@@ -132,7 +132,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 
 		skb_reserve(entry->skb, align);
 		memcpy(skb_put(entry->skb, rxdesc.size),
-		       priv_rx->data, rxdesc.size);
+		       entry_priv->data, rxdesc.size);
 
 		/*
 		 * Fill in skb descriptor
@@ -141,7 +141,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		memset(skbdesc, 0, sizeof(*skbdesc));
 		skbdesc->data = entry->skb->data;
 		skbdesc->data_len = entry->skb->len;
-		skbdesc->desc = priv_rx->desc;
+		skbdesc->desc = entry_priv->desc;
 		skbdesc->desc_len = queue->desc_size;
 		skbdesc->entry = entry;
 
@@ -152,7 +152,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 
 		if (test_bit(DEVICE_ENABLED_RADIO, &queue->rt2x00dev->flags)) {
 			rt2x00_set_field32(&word, RXD_ENTRY_OWNER_NIC, 1);
-			rt2x00_desc_write(priv_rx->desc, 0, word);
+			rt2x00_desc_write(entry_priv->desc, 0, word);
 		}
 
 		rt2x00queue_index_inc(queue, Q_INDEX);
@@ -163,10 +163,10 @@ EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);
 void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
-	struct queue_entry_priv_pci_tx *priv_tx = entry->priv_data;
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	u32 word;
 
-	txdesc->control = &priv_tx->control;
+	txdesc->control = &entry_priv->control;
 	rt2x00lib_txdone(entry, txdesc);
 
 	/*
@@ -174,10 +174,10 @@ void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
 	 */
 	entry->flags = 0;
 
-	rt2x00_desc_read(priv_tx->desc, 0, &word);
+	rt2x00_desc_read(entry_priv->desc, 0, &word);
 	rt2x00_set_field32(&word, TXD_ENTRY_OWNER_NIC, 0);
 	rt2x00_set_field32(&word, TXD_ENTRY_VALID, 0);
-	rt2x00_desc_write(priv_tx->desc, 0, word);
+	rt2x00_desc_write(entry_priv->desc, 0, word);
 
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
 
@@ -187,7 +187,7 @@ void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
 	 * is reenabled when the txdone handler has finished.
 	 */
 	if (!rt2x00queue_full(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, priv_tx->control.queue);
+		ieee80211_wake_queue(rt2x00dev->hw, entry_priv->control.queue);
 
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
@@ -226,14 +226,9 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 				     struct data_queue *queue)
 {
 	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
-	struct queue_entry_priv_pci_rx *priv_rx;
-	struct queue_entry_priv_pci_tx *priv_tx;
+	struct queue_entry_priv_pci *entry_priv;
 	void *addr;
 	dma_addr_t dma;
-	void *desc_addr;
-	dma_addr_t desc_dma;
-	void *data_addr;
-	dma_addr_t data_dma;
 	unsigned int i;
 
 	/*
@@ -249,24 +244,11 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	 * Initialize all queue entries to contain valid addresses.
 	 */
 	for (i = 0; i < queue->limit; i++) {
-		desc_addr = desc_offset(queue, addr, i);
-		desc_dma = desc_offset(queue, dma, i);
-		data_addr = data_offset(queue, addr, i);
-		data_dma = data_offset(queue, dma, i);
-
-		if (queue->qid == QID_RX) {
-			priv_rx = queue->entries[i].priv_data;
-			priv_rx->desc = desc_addr;
-			priv_rx->desc_dma = desc_dma;
-			priv_rx->data = data_addr;
-			priv_rx->data_dma = data_dma;
-		} else {
-			priv_tx = queue->entries[i].priv_data;
-			priv_tx->desc = desc_addr;
-			priv_tx->desc_dma = desc_dma;
-			priv_tx->data = data_addr;
-			priv_tx->data_dma = data_dma;
-		}
+		entry_priv = queue->entries[i].priv_data;
+		entry_priv->desc = desc_offset(queue, addr, i);
+		entry_priv->desc_dma = desc_offset(queue, dma, i);
+		entry_priv->data = data_offset(queue, addr, i);
+		entry_priv->data_dma = data_offset(queue, dma, i);
 	}
 
 	return 0;
@@ -276,28 +258,13 @@ static void rt2x00pci_free_queue_dma(struct rt2x00_dev *rt2x00dev,
 				     struct data_queue *queue)
 {
 	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
-	struct queue_entry_priv_pci_rx *priv_rx;
-	struct queue_entry_priv_pci_tx *priv_tx;
-	void *data_addr;
-	dma_addr_t data_dma;
+	struct queue_entry_priv_pci *entry_priv =
+	    queue->entries[0].priv_data;
 
-	if (queue->qid == QID_RX) {
-		priv_rx = queue->entries[0].priv_data;
-		data_addr = priv_rx->data;
-		data_dma = priv_rx->data_dma;
-
-		priv_rx->data = NULL;
-	} else {
-		priv_tx = queue->entries[0].priv_data;
-		data_addr = priv_tx->data;
-		data_dma = priv_tx->data_dma;
-
-		priv_tx->data = NULL;
-	}
-
-	if (data_addr)
+	if (entry_priv->data)
 		pci_free_consistent(pci_dev, dma_size(queue),
-				    data_addr, data_dma);
+				    entry_priv->data, entry_priv->data_dma);
+	entry_priv->data = NULL;
 }
 
 int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)

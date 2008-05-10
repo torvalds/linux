@@ -220,30 +220,21 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 			    struct ieee80211_tx_control *control);
 
 /**
- * struct queue_entry_priv_usb_rx: Per RX entry USB specific information
- *
- * @urb: Urb structure used for device communication.
- */
-struct queue_entry_priv_usb_rx {
-	struct urb *urb;
-};
-
-/**
- * struct queue_entry_priv_usb_tx: Per TX entry USB specific information
+ * struct queue_entry_priv_usb: Per entry USB specific information
  *
  * @urb: Urb structure used for device communication.
  * @control: mac80211 control structure used to transmit data.
  */
-struct queue_entry_priv_usb_tx {
+struct queue_entry_priv_usb {
 	struct urb *urb;
 
 	struct ieee80211_tx_control control;
 };
 
 /**
- * struct queue_entry_priv_usb_tx: Per TX entry USB specific information
+ * struct queue_entry_priv_usb_bcn: Per TX entry USB specific information
  *
- * The first section should match &struct queue_entry_priv_usb_tx exactly.
+ * The first section should match &struct queue_entry_priv_usb exactly.
  * rt2500usb can use this structure to send a guardian byte when working
  * with beacons.
  *
