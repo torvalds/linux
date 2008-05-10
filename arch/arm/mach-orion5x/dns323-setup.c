@@ -119,7 +119,7 @@ static struct mtd_partition dns323_partitions[] = {
 		.name	= "u-boot",
 		.size	= 0x00030000,
 		.offset	= 0x007d0000,
-	}
+	},
 };
 
 static struct physmap_flash_data dns323_nor_flash_data = {
@@ -137,7 +137,9 @@ static struct resource dns323_nor_flash_resource = {
 static struct platform_device dns323_nor_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
-	.dev		= { .platform_data = &dns323_nor_flash_data, },
+	.dev		= {
+		.platform_data	= &dns323_nor_flash_data,
+	},
 	.resource	= &dns323_nor_flash_resource,
 	.num_resources	= 1,
 };
@@ -170,7 +172,9 @@ static struct gpio_led_platform_data dns323_led_data = {
 static struct platform_device dns323_gpio_leds = {
 	.name		= "leds-gpio",
 	.id		= -1,
-	.dev		= { .platform_data = &dns323_led_data, },
+	.dev		= {
+		.platform_data	= &dns323_led_data,
+	},
 };
 
 /****************************************************************************
@@ -183,25 +187,26 @@ static struct gpio_keys_button dns323_buttons[] = {
 		.gpio		= DNS323_GPIO_KEY_RESET,
 		.desc		= "Reset Button",
 		.active_low	= 1,
-	},
-	{
+	}, {
 		.code		= KEY_POWER,
 		.gpio		= DNS323_GPIO_KEY_POWER,
 		.desc		= "Power Button",
 		.active_low	= 1,
-	}
+	},
 };
 
 static struct gpio_keys_platform_data dns323_button_data = {
 	.buttons	= dns323_buttons,
-	.nbuttons       = ARRAY_SIZE(dns323_buttons),
+	.nbuttons	= ARRAY_SIZE(dns323_buttons),
 };
 
 static struct platform_device dns323_button_device = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.num_resources	= 0,
-	.dev		= { .platform_data  = &dns323_button_data, },
+	.dev		= {
+		.platform_data	= &dns323_button_data,
+	},
 };
 
 /****************************************************************************
@@ -225,17 +230,15 @@ static struct platform_device *dns323_plat_devices[] __initdata = {
 static struct i2c_board_info __initdata dns323_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("g760a", 0x3e),
-	},
 #if 0
 	/* this entry requires the new-style driver model lm75 driver,
 	 * for the meantime "insmod lm75.ko force_lm75=0,0x48" is needed */
-	{
+	}, {
 		I2C_BOARD_INFO("g751", 0x48),
-	},
 #endif
-	{
+	}, {
 		I2C_BOARD_INFO("m41t80", 0x68),
-	}
+	},
 };
 
 /* DNS-323 specific power off method */
@@ -292,8 +295,8 @@ static void __init dns323_init(void)
 	orion5x_gpio_set_valid_pins(0x07f6);
 
 	/* register dns323 specific power-off method */
-	if ((gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0)
-	    || (gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0))
+	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||
+	    gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0)
 		pr_err("DNS323: failed to setup power-off GPIO\n");
 
 	pm_power_off = dns323_power_off;

@@ -125,6 +125,7 @@ static int __init rd88f5182_dbgled_init(void)
 
 		leds_event = rd88f5182_dbgled_event;
 	}
+
 	return 0;
 }
 
@@ -234,7 +235,7 @@ static struct i2c_board_info __initdata rd88f5182_i2c_rtc = {
  * Sata
  ****************************************************************************/
 static struct mv_sata_platform_data rd88f5182_sata_data = {
-	.n_ports        = 2,
+	.n_ports	= 2,
 };
 
 /*****************************************************************************

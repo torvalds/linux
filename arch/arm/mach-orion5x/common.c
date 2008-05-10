@@ -39,25 +39,22 @@ static struct map_desc orion5x_io_desc[] __initdata = {
 		.virtual	= ORION5X_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_REGS_PHYS_BASE),
 		.length		= ORION5X_REGS_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= ORION5X_PCIE_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCIE_IO_PHYS_BASE),
 		.length		= ORION5X_PCIE_IO_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= ORION5X_PCI_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCI_IO_PHYS_BASE),
 		.length		= ORION5X_PCI_IO_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= ORION5X_PCIE_WA_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCIE_WA_PHYS_BASE),
 		.length		= ORION5X_PCIE_WA_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	},
 };
 
@@ -75,18 +72,15 @@ static struct resource orion5x_uart_resources[] = {
 		.start		= UART0_PHYS_BASE,
 		.end		= UART0_PHYS_BASE + 0xff,
 		.flags		= IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start		= IRQ_ORION5X_UART0,
 		.end		= IRQ_ORION5X_UART0,
 		.flags		= IORESOURCE_IRQ,
-	},
-	{
+	}, {
 		.start		= UART1_PHYS_BASE,
 		.end		= UART1_PHYS_BASE + 0xff,
 		.flags		= IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start		= IRQ_ORION5X_UART1,
 		.end		= IRQ_ORION5X_UART1,
 		.flags		= IORESOURCE_IRQ,
@@ -102,8 +96,7 @@ static struct plat_serial8250_port orion5x_uart_data[] = {
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= ORION5X_TCLK,
-	},
-	{
+	}, {
 		.mapbase	= UART1_PHYS_BASE,
 		.membase	= (char *)UART1_VIRT_BASE,
 		.irq		= IRQ_ORION5X_UART1,
@@ -111,8 +104,8 @@ static struct plat_serial8250_port orion5x_uart_data[] = {
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= ORION5X_TCLK,
+	}, {
 	},
-	{ },
 };
 
 static struct platform_device orion5x_uart = {
@@ -134,8 +127,7 @@ static struct resource orion5x_ehci0_resources[] = {
 		.start	= ORION5X_USB0_PHYS_BASE,
 		.end	= ORION5X_USB0_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start	= IRQ_ORION5X_USB0_CTRL,
 		.end	= IRQ_ORION5X_USB0_CTRL,
 		.flags	= IORESOURCE_IRQ,
@@ -147,8 +139,7 @@ static struct resource orion5x_ehci1_resources[] = {
 		.start	= ORION5X_USB1_PHYS_BASE,
 		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start	= IRQ_ORION5X_USB1_CTRL,
 		.end	= IRQ_ORION5X_USB1_CTRL,
 		.flags	= IORESOURCE_IRQ,
@@ -219,7 +210,7 @@ static struct resource orion5x_eth_resources[] = {
 		.start	= IRQ_ORION5X_ETH_SUM,
 		.end	= IRQ_ORION5X_ETH_SUM,
 		.flags	= IORESOURCE_IRQ,
-	}
+	},
 };
 
 static struct platform_device orion5x_eth = {
@@ -251,16 +242,15 @@ static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
 
 static struct resource orion5x_i2c_resources[] = {
 	{
-		.name   = "i2c base",
-		.start  = I2C_PHYS_BASE,
-		.end    = I2C_PHYS_BASE + 0x20 -1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "i2c irq",
-		.start  = IRQ_ORION5X_I2C,
-		.end    = IRQ_ORION5X_I2C,
-		.flags  = IORESOURCE_IRQ,
+		.name	= "i2c base",
+		.start	= I2C_PHYS_BASE,
+		.end	= I2C_PHYS_BASE + 0x20 -1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "i2c irq",
+		.start	= IRQ_ORION5X_I2C,
+		.end	= IRQ_ORION5X_I2C,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -270,7 +260,7 @@ static struct platform_device orion5x_i2c = {
 	.num_resources	= ARRAY_SIZE(orion5x_i2c_resources),
 	.resource	= orion5x_i2c_resources,
 	.dev		= {
-		.platform_data = &orion5x_i2c_pdata,
+		.platform_data	= &orion5x_i2c_pdata,
 	},
 };
 
@@ -278,28 +268,27 @@ static struct platform_device orion5x_i2c = {
  * Sata port
  ****************************************************************************/
 static struct resource orion5x_sata_resources[] = {
-        {
-                .name   = "sata base",
-                .start  = ORION5X_SATA_PHYS_BASE,
-                .end    = ORION5X_SATA_PHYS_BASE + 0x5000 - 1,
-                .flags  = IORESOURCE_MEM,
-        },
 	{
-                .name   = "sata irq",
-                .start  = IRQ_ORION5X_SATA,
-                .end    = IRQ_ORION5X_SATA,
-                .flags  = IORESOURCE_IRQ,
-        },
+		.name	= "sata base",
+		.start	= ORION5X_SATA_PHYS_BASE,
+		.end	= ORION5X_SATA_PHYS_BASE + 0x5000 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "sata irq",
+		.start	= IRQ_ORION5X_SATA,
+		.end	= IRQ_ORION5X_SATA,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device orion5x_sata = {
-	.name           = "sata_mv",
-	.id             = 0,
+	.name		= "sata_mv",
+	.id		= 0,
 	.dev		= {
 		.coherent_dma_mask	= 0xffffffff,
 	},
-	.num_resources  = ARRAY_SIZE(orion5x_sata_resources),
-	.resource       = orion5x_sata_resources,
+	.num_resources	= ARRAY_SIZE(orion5x_sata_resources),
+	.resource	= orion5x_sata_resources,
 };
 
 void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
@@ -319,7 +308,7 @@ static void orion5x_timer_init(void)
 }
 
 struct sys_timer orion5x_timer = {
-        .init = orion5x_timer_init,
+	.init = orion5x_timer_init,
 };
 
 /*****************************************************************************

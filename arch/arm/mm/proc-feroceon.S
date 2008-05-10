@@ -423,13 +423,13 @@ cpu_feroceon_name:
 __feroceon_old_id_proc_info:
 	.long	0x41069260
 	.long	0xfffffff0
-	.long   PMD_TYPE_SECT | \
+	.long	PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
-	.long   PMD_TYPE_SECT | \
+	.long	PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
@@ -449,13 +449,13 @@ __feroceon_old_id_proc_info:
 __feroceon_proc_info:
 	.long	0x56055310
 	.long	0xfffffff0
-	.long   PMD_TYPE_SECT | \
+	.long	PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
-	.long   PMD_TYPE_SECT | \
+	.long	PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ

@@ -53,13 +53,11 @@ static struct mtd_partition kurobox_pro_nand_parts[] = {
 		.name	= "uImage",
 		.offset	= 0,
 		.size	= SZ_4M,
-	},
-	{
+	}, {
 		.name	= "rootfs",
 		.offset	= SZ_4M,
 		.size	= SZ_64M,
-	},
-	{
+	}, {
 		.name	= "extra",
 		.offset	= SZ_4M + SZ_64M,
 		.size	= SZ_256M - (SZ_4M + SZ_64M),
@@ -175,7 +173,7 @@ static struct i2c_board_info __initdata kurobox_pro_i2c_rtc = {
  * SATA
  ****************************************************************************/
 static struct mv_sata_platform_data kurobox_pro_sata_data = {
-	.n_ports        = 2,
+	.n_ports	= 2,
 };
 
 /*****************************************************************************

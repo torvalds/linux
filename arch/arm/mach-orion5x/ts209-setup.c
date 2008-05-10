@@ -47,52 +47,54 @@
  ***************************************************************************/
 static struct mtd_partition qnap_ts209_partitions[] = {
 	{
-		.name       = "U-Boot",
-		.size       = 0x00080000,
-		.offset     = 0x00780000,
-		.mask_flags = MTD_WRITEABLE,
+		.name		= "U-Boot",
+		.size		= 0x00080000,
+		.offset		= 0x00780000,
+		.mask_flags	= MTD_WRITEABLE,
 	}, {
-		.name   = "Kernel",
-		.size   = 0x00200000,
-		.offset = 0,
+		.name		= "Kernel",
+		.size		= 0x00200000,
+		.offset		= 0,
 	}, {
-		.name   = "RootFS1",
-		.size   = 0x00400000,
-		.offset = 0x00200000,
+		.name		= "RootFS1",
+		.size		= 0x00400000,
+		.offset		= 0x00200000,
 	}, {
-		.name   = "RootFS2",
-		.size   = 0x00100000,
-		.offset = 0x00600000,
+		.name		= "RootFS2",
+		.size		= 0x00100000,
+		.offset		= 0x00600000,
 	}, {
-		.name   = "U-Boot Config",
-		.size   = 0x00020000,
-		.offset = 0x00760000,
+		.name		= "U-Boot Config",
+		.size		= 0x00020000,
+		.offset		= 0x00760000,
 	}, {
-		.name       = "NAS Config",
-		.size       = 0x00060000,
-		.offset     = 0x00700000,
-		.mask_flags = MTD_WRITEABLE,
-	}
+		.name		= "NAS Config",
+		.size		= 0x00060000,
+		.offset		= 0x00700000,
+		.mask_flags	= MTD_WRITEABLE,
+	},
 };
 
 static struct physmap_flash_data qnap_ts209_nor_flash_data = {
-	.width    = 1,
-	.parts    = qnap_ts209_partitions,
-	.nr_parts = ARRAY_SIZE(qnap_ts209_partitions)
+	.width		= 1,
+	.parts		= qnap_ts209_partitions,
+	.nr_parts	= ARRAY_SIZE(qnap_ts209_partitions)
 };
 
 static struct resource qnap_ts209_nor_flash_resource = {
-	.flags = IORESOURCE_MEM,
-	.start = QNAP_TS209_NOR_BOOT_BASE,
-	.end   = QNAP_TS209_NOR_BOOT_BASE + QNAP_TS209_NOR_BOOT_SIZE - 1,
+	.flags	= IORESOURCE_MEM,
+	.start	= QNAP_TS209_NOR_BOOT_BASE,
+	.end	= QNAP_TS209_NOR_BOOT_BASE + QNAP_TS209_NOR_BOOT_SIZE - 1,
 };
 
 static struct platform_device qnap_ts209_nor_flash = {
-	.name          = "physmap-flash",
-	.id            = 0,
-	.dev           = { .platform_data = &qnap_ts209_nor_flash_data, },
-	.resource      = &qnap_ts209_nor_flash_resource,
-	.num_resources = 1,
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &qnap_ts209_nor_flash_data,
+	},
+	.resource	= &qnap_ts209_nor_flash_resource,
+	.num_resources	= 1,
 };
 
 /*****************************************************************************
@@ -164,12 +166,12 @@ static int __init qnap_ts209_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci qnap_ts209_pci __initdata = {
-	.nr_controllers = 2,
-	.preinit        = qnap_ts209_pci_preinit,
-	.swizzle        = pci_std_swizzle,
-	.setup          = orion5x_pci_sys_setup,
-	.scan           = orion5x_pci_sys_scan_bus,
-	.map_irq        = qnap_ts209_pci_map_irq,
+	.nr_controllers	= 2,
+	.preinit	= qnap_ts209_pci_preinit,
+	.swizzle	= pci_std_swizzle,
+	.setup		= orion5x_pci_sys_setup,
+	.scan		= orion5x_pci_sys_scan_bus,
+	.map_irq	= qnap_ts209_pci_map_irq,
 };
 
 static int __init qnap_ts209_pci_init(void)
@@ -187,8 +189,8 @@ subsys_initcall(qnap_ts209_pci_init);
  ****************************************************************************/
 
 static struct mv643xx_eth_platform_data qnap_ts209_eth_data = {
-	.phy_addr       = 8,
-	.force_phy_addr = 1,
+	.phy_addr	= 8,
+	.force_phy_addr	= 1,
 };
 
 static int __init parse_hex_nibble(char n)
@@ -280,7 +282,7 @@ static void __init ts209_find_mac_addr(void)
 
 static struct i2c_board_info __initdata qnap_ts209_i2c_rtc = {
 	I2C_BOARD_INFO("s35390a", 0x30),
-       .irq         = 0,
+	.irq	= 0,
 };
 
 /****************************************************************************
@@ -297,32 +299,33 @@ static struct gpio_keys_button qnap_ts209_buttons[] = {
 		.gpio		= QNAP_TS209_GPIO_KEY_MEDIA,
 		.desc		= "USB Copy Button",
 		.active_low	= 1,
-	},
-	{
+	}, {
 		.code		= KEY_POWER,
 		.gpio		= QNAP_TS209_GPIO_KEY_RESET,
 		.desc		= "Reset Button",
 		.active_low	= 1,
-	}
+	},
 };
 
 static struct gpio_keys_platform_data qnap_ts209_button_data = {
 	.buttons	= qnap_ts209_buttons,
-	.nbuttons       = ARRAY_SIZE(qnap_ts209_buttons),
+	.nbuttons	= ARRAY_SIZE(qnap_ts209_buttons),
 };
 
 static struct platform_device qnap_ts209_button_device = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.num_resources	= 0,
-	.dev		= { .platform_data  = &qnap_ts209_button_data, },
+	.dev		= {
+		.platform_data	= &qnap_ts209_button_data,
+	},
 };
 
 /*****************************************************************************
  * SATA
  ****************************************************************************/
 static struct mv_sata_platform_data qnap_ts209_sata_data = {
-	.n_ports        = 2,
+	.n_ports	= 2,
 };
 
 /*****************************************************************************
@@ -339,7 +342,7 @@ static struct platform_device *qnap_ts209_devices[] __initdata = {
  * QNAP TS-[12]09 specific power off method via UART1-attached PIC
  */
 
-#define UART1_REG(x)  (UART1_VIRT_BASE + ((UART_##x) << 2))
+#define UART1_REG(x)	(UART1_VIRT_BASE + ((UART_##x) << 2))
 
 static void qnap_ts209_power_off(void)
 {
@@ -372,7 +375,7 @@ static void __init qnap_ts209_init(void)
 	 * Setup flash mapping
 	 */
 	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
-			    QNAP_TS209_NOR_BOOT_SIZE);
+				   QNAP_TS209_NOR_BOOT_SIZE);
 
 	/*
 	 * Open a special address decode windows for the PCIe WA.
@@ -432,7 +435,7 @@ static void __init qnap_ts209_init(void)
 }
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
-	/* Maintainer:  Byron Bradley <byron.bbradley@gmail.com> */
+	/* Maintainer: Byron Bradley <byron.bbradley@gmail.com> */
 	.phys_io	= ORION5X_REGS_PHYS_BASE,
 	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,

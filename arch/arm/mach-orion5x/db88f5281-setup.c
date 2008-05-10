@@ -86,7 +86,7 @@ static struct platform_device db88f5281_boot_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data = &db88f5281_boot_flash_data,
+		.platform_data	= &db88f5281_boot_flash_data,
 	},
 	.num_resources	= 1,
 	.resource	= &db88f5281_boot_flash_resource,
@@ -110,7 +110,7 @@ static struct platform_device db88f5281_nor_flash = {
 	.name		= "physmap-flash",
 	.id		= 1,
 	.dev		= {
-		.platform_data = &db88f5281_nor_flash_data,
+		.platform_data	= &db88f5281_nor_flash_data,
 	},
 	.num_resources	= 1,
 	.resource	= &db88f5281_nor_flash_resource,
@@ -125,18 +125,15 @@ static struct mtd_partition db88f5281_nand_parts[] = {
 		.name = "kernel",
 		.offset = 0,
 		.size = SZ_2M,
-	},
-	{
+	}, {
 		.name = "root",
 		.offset = SZ_2M,
 		.size = (SZ_16M - SZ_2M),
-	},
-	{
+	}, {
 		.name = "user",
 		.offset = SZ_16M,
 		.size = SZ_8M,
-	},
-	{
+	}, {
 		.name = "recovery",
 		.offset = (SZ_16M + SZ_8M),
 		.size = SZ_8M,
