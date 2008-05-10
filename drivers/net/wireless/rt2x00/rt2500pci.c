@@ -1292,7 +1292,18 @@ static void rt2500pci_txdone(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * Obtain the status about this packet.
 		 */
-		txdesc.status = rt2x00_get_field32(word, TXD_W0_RESULT);
+		txdesc.flags = 0;
+		switch (rt2x00_get_field32(word, TXD_W0_RESULT)) {
+		case 0: /* Success */
+		case 1: /* Success with retry */
+			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
+			break;
+		case 2: /* Failure, excessive retries */
+			__set_bit(TXDONE_EXCESSIVE_RETRY, &txdesc.flags);
+			/* Don't break, this is a failed frame! */
+		default: /* Failure */
+			__set_bit(TXDONE_FAILURE, &txdesc.flags);
+		}
 		txdesc.retry = rt2x00_get_field32(word, TXD_W0_RETRY_COUNT);
 
 		rt2x00pci_txdone(rt2x00dev, entry, &txdesc);

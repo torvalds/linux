@@ -147,8 +147,17 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 
 	/*
 	 * Obtain the status about this packet.
+	 * Note that when the status is 0 it does not mean the
+	 * frame was send out correctly. It only means the frame
+	 * was succesfully pushed to the hardware, we have no
+	 * way to determine the transmission status right now.
+	 * (Only indirectly by looking at the failed TX counters
+	 * in the register).
 	 */
-	txdesc.status = !urb->status ? TX_SUCCESS : TX_FAIL_RETRY;
+	if (!urb->status)
+		__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
+	else
+		__set_bit(TXDONE_FAILURE, &txdesc.flags);
 	txdesc.retry = 0;
 	txdesc.control = &priv_tx->control;
 

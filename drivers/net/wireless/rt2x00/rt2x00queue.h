@@ -168,18 +168,34 @@ struct rxdone_entry_desc {
 };
 
 /**
+ * enum txdone_entry_desc_flags: Flags for &struct txdone_entry_desc
+ *
+ * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
+ * @TXDONE_SUCCESS: Frame was successfully send
+ * @TXDONE_FAILURE: Frame was not successfully send
+ * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
+ *	frame transmission failed due to excessive retries.
+ */
+enum txdone_entry_desc_flags {
+	TXDONE_UNKNOWN = 1 << 0,
+	TXDONE_SUCCESS = 1 << 1,
+	TXDONE_FAILURE = 1 << 2,
+	TXDONE_EXCESSIVE_RETRY = 1 << 3,
+};
+
+/**
  * struct txdone_entry_desc: TX done entry descriptor
  *
  * Summary of information that has been read from the TX frame descriptor
  * after the device is done with transmission.
  *
  * @control: Control structure which was used to transmit the frame.
- * @status: TX status (See &enum tx_status).
+ * @flags: TX done flags (See &enum txdone_entry_desc_flags).
  * @retry: Retry count.
  */
 struct txdone_entry_desc {
 	struct ieee80211_tx_control *control;
-	int status;
+	unsigned long flags;
 	int retry;
 };
 

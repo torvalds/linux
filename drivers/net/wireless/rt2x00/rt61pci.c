@@ -1764,7 +1764,8 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 				"TX status report missed for entry %d\n",
 				entry_done->entry_idx);
 
-			txdesc.status = TX_FAIL_OTHER;
+			txdesc.flags = 0;
+			__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
 			txdesc.retry = 0;
 
 			rt2x00pci_txdone(rt2x00dev, entry_done, &txdesc);
@@ -1774,7 +1775,17 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 		/*
 		 * Obtain the status about this packet.
 		 */
-		txdesc.status = rt2x00_get_field32(reg, STA_CSR4_TX_RESULT);
+		txdesc.flags = 0;
+		switch (rt2x00_get_field32(reg, STA_CSR4_TX_RESULT)) {
+		case 0: /* Success, maybe with retry */
+			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
+			break;
+		case 6: /* Failure, excessive retries */
+			__set_bit(TXDONE_EXCESSIVE_RETRY, &txdesc.flags);
+			/* Don't break, this is a failed frame! */
+		default: /* Failure */
+			__set_bit(TXDONE_FAILURE, &txdesc.flags);
+		}
 		txdesc.retry = rt2x00_get_field32(reg, STA_CSR4_RETRY_COUNT);
 
 		rt2x00pci_txdone(rt2x00dev, entry, &txdesc);

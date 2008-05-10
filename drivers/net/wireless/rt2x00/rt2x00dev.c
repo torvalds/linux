@@ -496,38 +496,36 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct skb_frame_desc *skbdesc;
 	struct ieee80211_tx_status tx_status;
-	int success = !!(txdesc->status == TX_SUCCESS ||
-			 txdesc->status == TX_SUCCESS_RETRY);
-	int fail = !!(txdesc->status == TX_FAIL_RETRY ||
-		      txdesc->status == TX_FAIL_INVALID ||
-		      txdesc->status == TX_FAIL_OTHER);
 
 	/*
 	 * Update TX statistics.
 	 */
-	rt2x00dev->link.qual.tx_success += success;
-	rt2x00dev->link.qual.tx_failed += txdesc->retry + fail;
+	rt2x00dev->link.qual.tx_success +=
+	    test_bit(TXDONE_SUCCESS, &txdesc->flags);
+	rt2x00dev->link.qual.tx_failed +=
+	    txdesc->retry + !!test_bit(TXDONE_FAILURE, &txdesc->flags);
 
 	/*
 	 * Initialize TX status
 	 */
 	tx_status.flags = 0;
 	tx_status.ack_signal = 0;
-	tx_status.excessive_retries = (txdesc->status == TX_FAIL_RETRY);
+	tx_status.excessive_retries =
+	    test_bit(TXDONE_EXCESSIVE_RETRY, &txdesc->flags);
 	tx_status.retry_count = txdesc->retry;
 	memcpy(&tx_status.control, txdesc->control, sizeof(*txdesc->control));
 
 	if (!(tx_status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
-		if (success)
+		if (test_bit(TXDONE_SUCCESS, &txdesc->flags))
 			tx_status.flags |= IEEE80211_TX_STATUS_ACK;
-		else
+		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
 	}
 
 	if (tx_status.control.flags & IEEE80211_TXCTL_USE_RTS_CTS) {
-		if (success)
+		if (test_bit(TXDONE_SUCCESS, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
-		else
+		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11RTSFailureCount++;
 	}
 
@@ -546,7 +544,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		ieee80211_tx_status_irqsafe(rt2x00dev->hw,
 					    entry->skb, &tx_status);
 	else
-		dev_kfree_skb(entry->skb);
+		dev_kfree_skb_irq(entry->skb);
 	entry->skb = NULL;
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
