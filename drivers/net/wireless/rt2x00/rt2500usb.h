@@ -63,6 +63,11 @@
 #define RF_SIZE				0x0014
 
 /*
+ * Number of TX queues.
+ */
+#define NUM_TX_QUEUES			2
+
+/*
  * Control/Status Registers(CSR).
  * Some values are set in TU, whereas 1 TU == 1024 us.
  */

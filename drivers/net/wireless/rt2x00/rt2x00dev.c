@@ -975,6 +975,11 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		return status;
 
 	/*
+	 * Initialize HW fields.
+	 */
+	rt2x00dev->hw->queues = rt2x00dev->ops->tx_queues;
+
+	/*
 	 * Register HW.
 	 */
 	status = ieee80211_register_hw(rt2x00dev->hw);

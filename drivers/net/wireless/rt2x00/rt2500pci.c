@@ -1692,7 +1692,6 @@ static void rt2500pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 			       IEEE80211_HW_SIGNAL_DBM;
 
 	rt2x00dev->hw->extra_tx_headroom = 0;
-	rt2x00dev->hw->queues = 2;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, &rt2x00dev_pci(rt2x00dev)->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -1933,6 +1932,7 @@ static const struct rt2x00_ops rt2500pci_ops = {
 	.max_ap_intf	= 1,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
+	.tx_queues	= NUM_TX_QUEUES,
 	.rx		= &rt2500pci_queue_rx,
 	.tx		= &rt2500pci_queue_tx,
 	.bcn		= &rt2500pci_queue_bcn,

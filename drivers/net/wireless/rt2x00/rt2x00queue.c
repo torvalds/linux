@@ -34,7 +34,7 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 {
 	int atim = test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 
-	if (queue < rt2x00dev->hw->queues && rt2x00dev->tx)
+	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
 		return &rt2x00dev->tx[queue];
 
 	if (!rt2x00dev->bcn)
@@ -255,11 +255,11 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * We need the following queues:
 	 * RX: 1
-	 * TX: hw->queues
+	 * TX: ops->tx_queues
 	 * Beacon: 1
 	 * Atim: 1 (if required)
 	 */
-	rt2x00dev->data_queues = 2 + rt2x00dev->hw->queues + req_atim;
+	rt2x00dev->data_queues = 2 + rt2x00dev->ops->tx_queues + req_atim;
 
 	queue = kzalloc(rt2x00dev->data_queues * sizeof(*queue), GFP_KERNEL);
 	if (!queue) {
@@ -272,7 +272,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->rx = queue;
 	rt2x00dev->tx = &queue[1];
-	rt2x00dev->bcn = &queue[1 + rt2x00dev->hw->queues];
+	rt2x00dev->bcn = &queue[1 + rt2x00dev->ops->tx_queues];
 
 	/*
 	 * Initialize queue parameters.

@@ -397,7 +397,7 @@ struct data_queue_desc {
  * the end of the TX queue array.
  */
 #define tx_queue_end(__dev) \
-	&(__dev)->tx[(__dev)->hw->queues]
+	&(__dev)->tx[(__dev)->ops->tx_queues]
 
 /**
  * queue_loop - Loop through the queues within a specific range (HELPER MACRO).
