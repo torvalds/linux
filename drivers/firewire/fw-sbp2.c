@@ -1545,6 +1545,9 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 
 	sdev->use_10_for_rw = 1;
 
+	if (sbp2_param_exclusive_login)
+		sdev->manage_start_stop = 1;
+
 	if (sdev->type == TYPE_ROM)
 		sdev->use_10_for_ms = 1;
 
