@@ -24,9 +24,12 @@ static DEFINE_SPINLOCK(gpio_lock);
 static unsigned long gpio_valid[BITS_TO_LONGS(GPIO_MAX)];
 static const char *gpio_label[GPIO_MAX];  /* non null for allocated GPIOs */
 
-void __init orion5x_gpio_set_valid_pins(u32 pins)
+void __init orion5x_gpio_set_valid(unsigned pin, int valid)
 {
-	gpio_valid[0] = pins;
+	if (valid)
+		__set_bit(pin, gpio_valid);
+	else
+		__clear_bit(pin, gpio_valid);
 }
 
 /*

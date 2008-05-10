@@ -28,6 +28,7 @@
 #include <asm/mach/pci.h>
 #include <asm/arch/orion5x.h>
 #include "common.h"
+#include "mpp.h"
 
 #define QNAP_TS209_NOR_BOOT_BASE 0xf4000000
 #define QNAP_TS209_NOR_BOOT_SIZE SZ_8M
@@ -332,6 +333,30 @@ static struct mv_sata_platform_data qnap_ts209_sata_data = {
 
  * General Setup
  ****************************************************************************/
+static struct orion5x_mpp_mode ts209_mpp_modes[] __initdata = {
+	{  0, MPP_UNUSED },
+	{  1, MPP_GPIO },		/* USB copy button */
+	{  2, MPP_GPIO },		/* Load defaults button */
+	{  3, MPP_GPIO },		/* GPIO RTC */
+	{  4, MPP_UNUSED },
+	{  5, MPP_UNUSED },
+	{  6, MPP_GPIO },		/* PCI Int A */
+	{  7, MPP_GPIO },		/* PCI Int B */
+	{  8, MPP_UNUSED },
+	{  9, MPP_UNUSED },
+	{ 10, MPP_UNUSED },
+	{ 11, MPP_UNUSED },
+	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
+	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
+	{ 14, MPP_SATA_LED },		/* SATA 0 active */
+	{ 15, MPP_SATA_LED },		/* SATA 1 active */
+	{ 16, MPP_UART },		/* UART1 RXD */
+	{ 17, MPP_UART },		/* UART1 TXD */
+	{ 18, MPP_GPIO },		/* SW_RST */
+	{ 19, MPP_UNUSED },
+	{ -1 },
+};
+
 /*
  * QNAP TS-[12]09 specific power off method via UART1-attached PIC
  */
@@ -364,33 +389,14 @@ static void __init qnap_ts209_init(void)
 	 */
 	orion5x_init();
 
+	orion5x_mpp_conf(ts209_mpp_modes);
+
 	/*
-	 * Setup Multiplexing Pins --
-	 * MPP[0] Reserved
-	 * MPP[1] USB copy button (0 active)
-	 * MPP[2] Load defaults button (0 active)
-	 * MPP[3] GPIO RTC
-	 * MPP[4-5] Reserved
-	 * MPP[6] PCI Int A
-	 * MPP[7] PCI Int B
-	 * MPP[8-11] Reserved
-	 * MPP[12] SATA 0 presence
-	 * MPP[13] SATA 1 presence
-	 * MPP[14] SATA 0 active
-	 * MPP[15] SATA 1 active
-	 * MPP[16] UART1 RXD
-	 * MPP[17] UART1 TXD
-	 * MPP[18] SW_RST (0 active)
-	 * MPP[19] Reserved
 	 * MPP[20] PCI clock 0
 	 * MPP[21] PCI clock 1
 	 * MPP[22] USB 0 over current
 	 * MPP[23-25] Reserved
 	 */
-	orion5x_write(MPP_0_7_CTRL, 0x3);
-	orion5x_write(MPP_8_15_CTRL, 0x55550000);
-	orion5x_write(MPP_16_19_CTRL, 0x5500);
-	orion5x_gpio_set_valid_pins(0x3cc0fff);
 
 	/*
 	 * Configure peripherals.

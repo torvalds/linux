@@ -26,6 +26,7 @@
 #include <asm/mach/pci.h>
 #include <asm/arch/orion5x.h>
 #include "common.h"
+#include "mpp.h"
 
 /*****************************************************************************
  * RD-88F5182 Info
@@ -241,6 +242,30 @@ static struct mv_sata_platform_data rd88f5182_sata_data = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
+static struct orion5x_mpp_mode rd88f5182_mpp_modes[] __initdata = {
+	{  0, MPP_GPIO },		/* Debug Led */
+	{  1, MPP_GPIO },		/* Reset Switch */
+	{  2, MPP_UNUSED },
+	{  3, MPP_GPIO },		/* RTC Int */
+	{  4, MPP_GPIO },
+	{  5, MPP_GPIO },
+	{  6, MPP_GPIO },		/* PCI_intA */
+	{  7, MPP_GPIO },		/* PCI_intB */
+	{  8, MPP_UNUSED },
+	{  9, MPP_UNUSED },
+	{ 10, MPP_UNUSED },
+	{ 11, MPP_UNUSED },
+	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
+	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
+	{ 14, MPP_SATA_LED },		/* SATA 0 active */
+	{ 15, MPP_SATA_LED },		/* SATA 1 active */
+	{ 16, MPP_UNUSED },
+	{ 17, MPP_UNUSED },
+	{ 18, MPP_UNUSED },
+	{ 19, MPP_UNUSED },
+	{ -1 },
+};
+
 static void __init rd88f5182_init(void)
 {
 	/*
@@ -248,22 +273,9 @@ static void __init rd88f5182_init(void)
 	 */
 	orion5x_init();
 
+	orion5x_mpp_conf(rd88f5182_mpp_modes);
+
 	/*
-	 * Setup Multiplexing Pins --
-	 * MPP[0] Debug Led (GPIO - Out)
-	 * MPP[1] Debug Led (GPIO - Out)
-	 * MPP[2] N/A
-	 * MPP[3] RTC_Int (GPIO - In)
-	 * MPP[4] GPIO
-	 * MPP[5] GPIO
-	 * MPP[6] PCI_intA (GPIO - In)
-	 * MPP[7] PCI_intB (GPIO - In)
-	 * MPP[8-11] N/A
-	 * MPP[12] SATA 0 presence Indication
-	 * MPP[13] SATA 1 presence Indication
-	 * MPP[14] SATA 0 active Indication
-	 * MPP[15] SATA 1 active indication
-	 * MPP[16-19] Not used
 	 * MPP[20] PCI Clock to MV88F5182
 	 * MPP[21] PCI Clock to mini PCI CON11
 	 * MPP[22] USB 0 over current indication
@@ -271,12 +283,6 @@ static void __init rd88f5182_init(void)
 	 * MPP[24] USB 1 over current enable
 	 * MPP[25] USB 0 over current enable
 	 */
-
-	orion5x_write(MPP_0_7_CTRL, 0x00000003);
-	orion5x_write(MPP_8_15_CTRL, 0x55550000);
-	orion5x_write(MPP_16_19_CTRL, 0x5555);
-
-	orion5x_gpio_set_valid_pins(0x000000fb);
 
 	/*
 	 * Configure peripherals.

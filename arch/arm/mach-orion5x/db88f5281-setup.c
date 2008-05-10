@@ -27,6 +27,7 @@
 #include <asm/arch/orion5x.h>
 #include <asm/plat-orion/orion_nand.h>
 #include "common.h"
+#include "mpp.h"
 
 /*****************************************************************************
  * DB-88F5281 on board devices
@@ -298,6 +299,30 @@ static struct i2c_board_info __initdata db88f5281_i2c_rtc = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
+static struct orion5x_mpp_mode db88f5281_mpp_modes[] __initdata = {
+	{  0, MPP_GPIO },		/* USB Over Current */
+	{  1, MPP_GPIO },		/* USB Vbat input */
+	{  2, MPP_PCI_ARB },		/* PCI_REQn[2] */
+	{  3, MPP_PCI_ARB },		/* PCI_GNTn[2] */
+	{  4, MPP_PCI_ARB },		/* PCI_REQn[3] */
+	{  5, MPP_PCI_ARB },		/* PCI_GNTn[3] */
+	{  6, MPP_GPIO },		/* JP0, CON17.2 */
+	{  7, MPP_GPIO },		/* JP1, CON17.1 */
+	{  8, MPP_GPIO },		/* JP2, CON11.2 */
+	{  9, MPP_GPIO },		/* JP3, CON11.3 */
+	{ 10, MPP_GPIO },		/* RTC int */
+	{ 11, MPP_GPIO },		/* Baud Rate Generator */
+	{ 12, MPP_GPIO },		/* PCI int 1 */
+	{ 13, MPP_GPIO },		/* PCI int 2 */
+	{ 14, MPP_NAND },		/* NAND_REn[2] */
+	{ 15, MPP_NAND },		/* NAND_WEn[2] */
+	{ 16, MPP_UART },		/* UART1_RX */
+	{ 17, MPP_UART },		/* UART1_TX */
+	{ 18, MPP_UART },		/* UART1_CTSn */
+	{ 19, MPP_UART },		/* UART1_RTSn */
+	{ -1 },
+};
+
 static void __init db88f5281_init(void)
 {
 	/*
@@ -305,26 +330,8 @@ static void __init db88f5281_init(void)
 	 */
 	orion5x_init();
 
-	/*
-	 * Setup Multiplexing Pins:
-	 * MPP0: GPIO (USB Over Current)	MPP1: GPIO (USB Vbat input)
-	 * MPP2: PCI_REQn[2]			MPP3: PCI_GNTn[2]
-	 * MPP4: PCI_REQn[3]			MPP5: PCI_GNTn[3]
-	 * MPP6: GPIO (JP0, CON17.2)		MPP7: GPIO (JP1, CON17.1)
-	 * MPP8: GPIO (JP2, CON11.2)		MPP9: GPIO (JP3, CON11.3)
-	 * MPP10: GPIO (RTC int)		MPP11: GPIO (Baud Rate Generator)
-	 * MPP12: GPIO (PCI int 1)		MPP13: GPIO (PCI int 2)
-	 * MPP14: NAND_REn[2]			MPP15: NAND_WEn[2]
-	 * MPP16: UART1_RX			MPP17: UART1_TX
-	 * MPP18: UART1_CTS			MPP19: UART1_RTS
-	 * MPP-DEV: DEV_D[16:31]
-	 */
-	orion5x_write(MPP_0_7_CTRL, 0x00222203);
-	orion5x_write(MPP_8_15_CTRL, 0x44000000);
-	orion5x_write(MPP_16_19_CTRL, 0);
-	orion5x_write(MPP_DEV_CTRL, 0);
-
-	orion5x_gpio_set_valid_pins(0x00003fc3);
+	orion5x_mpp_conf(db88f5281_mpp_modes);
+	orion5x_write(MPP_DEV_CTRL, 0);		/* DEV_D[31:16] */
 
 	/*
 	 * Configure peripherals.

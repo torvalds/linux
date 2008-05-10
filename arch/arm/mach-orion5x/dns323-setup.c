@@ -27,6 +27,7 @@
 #include <asm/mach/pci.h>
 #include <asm/arch/orion5x.h>
 #include "common.h"
+#include "mpp.h"
 
 #define DNS323_GPIO_LED_RIGHT_AMBER	1
 #define DNS323_GPIO_LED_LEFT_AMBER	2
@@ -212,6 +213,29 @@ static struct platform_device dns323_button_device = {
 /****************************************************************************
  * General Setup
  */
+static struct orion5x_mpp_mode dns323_mpp_modes[] __initdata = {
+	{  0, MPP_PCIE_RST_OUTn },
+	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
+	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
+	{  3, MPP_UNUSED },
+	{  4, MPP_GPIO },		/* power button LED */
+	{  5, MPP_GPIO },		/* power button LED */
+	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
+	{  7, MPP_GPIO },		/* M41T80 nIRQ/OUT/SQW */
+	{  8, MPP_GPIO },		/* triggers power off */
+	{  9, MPP_GPIO },		/* power button switch */
+	{ 10, MPP_GPIO },		/* reset button switch */
+	{ 11, MPP_UNUSED },
+	{ 12, MPP_UNUSED },
+	{ 13, MPP_UNUSED },
+	{ 14, MPP_UNUSED },
+	{ 15, MPP_UNUSED },
+	{ 16, MPP_UNUSED },
+	{ 17, MPP_UNUSED },
+	{ 18, MPP_UNUSED },
+	{ 19, MPP_UNUSED },
+	{ -1 },
+};
 
 /*
  * On the DNS-323 the following devices are attached via I2C:
@@ -247,34 +271,8 @@ static void __init dns323_init(void)
 	/* Setup basic Orion functions. Need to be called early. */
 	orion5x_init();
 
-	/* set MPP to 0 as D-Link's 2.6.12.6 kernel did */
-	orion5x_write(MPP_0_7_CTRL, 0);
-	orion5x_write(MPP_8_15_CTRL, 0);
-	orion5x_write(MPP_16_19_CTRL, 0);
-	orion5x_write(MPP_DEV_CTRL, 0);
-
-	/* Define used GPIO pins
-
-	  GPIO Map:
-
-	  |  0 |     | PEX_RST_OUT (not controlled by GPIO)
-	  |  1 | Out | right amber LED (= sata ch0 LED)  (low-active)
-	  |  2 | Out | left  amber LED (= sata ch1 LED)  (low-active)
-	  |  3 | Out | //unknown//
-	  |  4 | Out | power button LED (low-active, together with pin #5)
-	  |  5 | Out | power button LED (low-active, together with pin #4)
-	  |  6 | In  | GMT G751-2f overtemp. shutdown signal (low-active)
-	  |  7 | In  | M41T80 nIRQ/OUT/SQW signal
-	  |  8 | Out | triggers power off (high-active)
-	  |  9 | In  | power button switch (low-active)
-	  | 10 | In  | reset button switch (low-active)
-	  | 11 | Out | //unknown//
-	  | 12 | Out | //unknown//
-	  | 13 | Out | //unknown//
-	  | 14 | Out | //unknown//
-	  | 15 | Out | //unknown//
-	*/
-	orion5x_gpio_set_valid_pins(0x07f6);
+	orion5x_mpp_conf(dns323_mpp_modes);
+	orion5x_write(MPP_DEV_CTRL, 0);		/* DEV_D[31:16] */
 
 	/*
 	 * Configure peripherals.

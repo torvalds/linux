@@ -25,6 +25,7 @@
 #include <asm/arch/orion5x.h>
 #include <asm/plat-orion/orion_nand.h>
 #include "common.h"
+#include "mpp.h"
 
 /*****************************************************************************
  * KUROBOX-PRO Info
@@ -179,6 +180,29 @@ static struct mv_sata_platform_data kurobox_pro_sata_data = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
+static struct orion5x_mpp_mode kurobox_pro_mpp_modes[] __initdata = {
+	{  0, MPP_UNUSED },
+	{  1, MPP_UNUSED },
+	{  2, MPP_GPIO },		/* GPIO Micon */
+	{  3, MPP_GPIO },		/* GPIO Rtc */
+	{  4, MPP_UNUSED },
+	{  5, MPP_UNUSED },
+	{  6, MPP_NAND },		/* NAND Flash REn */
+	{  7, MPP_NAND },		/* NAND Flash WEn */
+	{  8, MPP_UNUSED },
+	{  9, MPP_UNUSED },
+	{ 10, MPP_UNUSED },
+	{ 11, MPP_UNUSED },
+	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
+	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
+	{ 14, MPP_SATA_LED },		/* SATA 0 active */
+	{ 15, MPP_SATA_LED },		/* SATA 1 active */
+	{ 16, MPP_UNUSED },
+	{ 17, MPP_UNUSED },
+	{ 18, MPP_UNUSED },
+	{ 19, MPP_UNUSED },
+	{ -1 },
+};
 
 static void __init kurobox_pro_init(void)
 {
@@ -187,26 +211,7 @@ static void __init kurobox_pro_init(void)
 	 */
 	orion5x_init();
 
-	/*
-	 * Setup Multiplexing Pins --
-	 * MPP[0-1] Not used
-	 * MPP[2] GPIO Micon
-	 * MPP[3] GPIO RTC
-	 * MPP[4-5] Not used
-	 * MPP[6] Nand Flash REn
-	 * MPP[7] Nand Flash WEn
-	 * MPP[8-11] Not used
-	 * MPP[12] SATA 0 presence Indication
-	 * MPP[13] SATA 1 presence Indication
-	 * MPP[14] SATA 0 active Indication
-	 * MPP[15] SATA 1 active indication
-	 * MPP[16-19] Not used
-	 */
-	orion5x_write(MPP_0_7_CTRL, 0x44220003);
-	orion5x_write(MPP_8_15_CTRL, 0x55550000);
-	orion5x_write(MPP_16_19_CTRL, 0x0);
-
-	orion5x_gpio_set_valid_pins(0x0000000c);
+	orion5x_mpp_conf(kurobox_pro_mpp_modes);
 
 	/*
 	 * Configure peripherals.
