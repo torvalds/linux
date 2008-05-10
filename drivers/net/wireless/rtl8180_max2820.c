@@ -88,7 +88,7 @@ static void max2820_rf_set_channel(struct ieee80211_hw *dev,
 	 * sa2400, for MAXIM we do this directly from BB */
 	rtl8180_write_phy(dev, 3, txpw);
 
-	max2820_write_phy_antenna(dev, chan);
+	max2820_write_phy_antenna(dev, channel);
 	write_max2820(dev, 3, chan);
 }
 
