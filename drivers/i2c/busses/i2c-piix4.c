@@ -104,6 +104,7 @@ MODULE_PARM_DESC(force_addr,
 static int piix4_transaction(void);
 
 static unsigned short piix4_smba;
+static int srvrworks_csb5_delay;
 static struct pci_driver piix4_driver;
 static struct i2c_adapter piix4_adapter;
 
@@ -121,6 +122,10 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 	unsigned char temp;
 
 	dev_info(&PIIX4_dev->dev, "Found %s device\n", pci_name(PIIX4_dev));
+
+	if ((PIIX4_dev->vendor == PCI_VENDOR_ID_SERVERWORKS) &&
+	    (PIIX4_dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5))
+		srvrworks_csb5_delay = 1;
 
 	/* Don't access SMBus on IBM systems which get corrupted eeproms */
 	if (dmi_check_system(piix4_dmi_table) &&
@@ -230,10 +235,14 @@ static int piix4_transaction(void)
 	outb_p(inb(SMBHSTCNT) | 0x040, SMBHSTCNT);
 
 	/* We will always wait for a fraction of a second! (See PIIX4 docs errata) */
-	do {
+	if (srvrworks_csb5_delay) /* Extra delay for SERVERWORKS_CSB5 */
+		msleep(2);
+	else
 		msleep(1);
-		temp = inb_p(SMBHSTSTS);
-	} while ((temp & 0x01) && (timeout++ < MAX_TIMEOUT));
+
+	while ((timeout++ < MAX_TIMEOUT) &&
+	       ((temp = inb_p(SMBHSTSTS)) & 0x01))
+		msleep(1);
 
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
