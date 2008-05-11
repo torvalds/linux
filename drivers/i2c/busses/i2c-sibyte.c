@@ -132,7 +132,7 @@ static const struct i2c_algorithm i2c_sibyte_algo = {
 /*
  * registering functions to load algorithms at runtime
  */
-int __init i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
+static int __init i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 {
 	struct i2c_algo_sibyte_data *adap = i2c_adap->algo_data;
 
