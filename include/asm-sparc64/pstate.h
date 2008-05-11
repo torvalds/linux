@@ -62,6 +62,7 @@
 #define TSTATE_PRIV	_AC(0x0000000000000400,UL) /* Privilege.	*/
 #define TSTATE_IE	_AC(0x0000000000000200,UL) /* Interrupt Enable.	*/
 #define TSTATE_AG	_AC(0x0000000000000100,UL) /* Alternate Globals.*/
+#define TSTATE_SYSCALL	_AC(0x0000000000000020,UL) /* in syscall trap   */
 #define TSTATE_CWP	_AC(0x000000000000001f,UL) /* Curr Win-Pointer.	*/
 
 /* Floating-Point Registers State Register.

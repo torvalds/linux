@@ -39,6 +39,16 @@ struct pt_regs {
 #define UREG_FP        UREG_I6
 #define UREG_RETPC     UREG_I7
 
+static inline bool pt_regs_is_syscall(struct pt_regs *regs)
+{
+	return (regs->psr & PSR_SYSCALL);
+}
+
+static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
+{
+	return (regs->psr &= ~PSR_SYSCALL);
+}
+
 /* A register window */
 struct reg_window {
 	unsigned long locals[8];

@@ -170,8 +170,8 @@ static int genregs32_set(struct task_struct *target,
 		switch (pos) {
 		case 32: /* PSR */
 			psr = regs->psr;
-			psr &= ~PSR_ICC;
-			psr |= (reg & PSR_ICC);
+			psr &= ~(PSR_ICC | PSR_SYSCALL);
+			psr |= (reg & (PSR_ICC | PSR_SYSCALL));
 			regs->psr = psr;
 			break;
 		case 33: /* PC */
