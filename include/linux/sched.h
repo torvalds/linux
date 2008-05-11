@@ -2037,13 +2037,13 @@ static inline int need_resched(void)
  * cond_resched_lock() will drop the spinlock before scheduling,
  * cond_resched_softirq() will enable bhs before scheduling.
  */
+extern int _cond_resched(void);
 #ifdef CONFIG_PREEMPT
 static inline int cond_resched(void)
 {
 	return 0;
 }
 #else
-extern int _cond_resched(void);
 static inline int cond_resched(void)
 {
 	return _cond_resched();
@@ -2051,6 +2051,10 @@ static inline int cond_resched(void)
 #endif
 extern int cond_resched_lock(spinlock_t * lock);
 extern int cond_resched_softirq(void);
+static inline int cond_resched_bkl(void)
+{
+	return _cond_resched();
+}
 
 /*
  * Does a critical section need to be broken due to another

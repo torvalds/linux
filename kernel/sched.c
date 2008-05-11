@@ -5525,7 +5525,6 @@ static void __cond_resched(void)
 	} while (need_resched());
 }
 
-#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PREEMPT_VOLUNTARY)
 int __sched _cond_resched(void)
 {
 	if (need_resched() && !(preempt_count() & PREEMPT_ACTIVE) &&
@@ -5536,7 +5535,6 @@ int __sched _cond_resched(void)
 	return 0;
 }
 EXPORT_SYMBOL(_cond_resched);
-#endif
 
 /*
  * cond_resched_lock() - if a reschedule is pending, drop the given lock,

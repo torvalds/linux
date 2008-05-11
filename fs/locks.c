@@ -773,7 +773,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	 * give it the opportunity to lock the file.
 	 */
 	if (found)
-		cond_resched();
+		cond_resched_bkl();
 
 find_conflict:
 	for_each_lock(inode, before) {
