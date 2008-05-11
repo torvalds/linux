@@ -262,7 +262,7 @@ i2c_new_probed_device(struct i2c_adapter *adap,
  * client handles for the extra addresses.
  */
 extern struct i2c_client *
-i2c_new_dummy(struct i2c_adapter *adap, u16 address, const char *type);
+i2c_new_dummy(struct i2c_adapter *adap, u16 address);
 
 extern void i2c_unregister_device(struct i2c_client *);
 
