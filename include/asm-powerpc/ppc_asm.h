@@ -356,6 +356,12 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define toreal(rd)
 #define fromreal(rd)
 
+/*
+ * We use addis to ensure compatibility with the "classic" ppc versions of
+ * these macros, which use rs = 0 to get the tophys offset in rd, rather than
+ * converting the address in r0, and so this version has to do that too
+ * (i.e. set register rd to 0 when rs == 0).
+ */
 #define tophys(rd,rs)				\
 	addis	rd,rs,0
 

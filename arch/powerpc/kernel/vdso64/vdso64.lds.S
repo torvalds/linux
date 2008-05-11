@@ -43,15 +43,15 @@ SECTIONS
 	.rodata		: { *(.rodata .rodata.* .gnu.linkonce.r.*) }
 	.rodata1	: { *(.rodata1) }
 
+	.dynamic	: { *(.dynamic) }		:text	:dynamic
+
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
 	.gcc_except_table : { *(.gcc_except_table) }
+	.rela.dyn ALIGN(8) : { *(.rela.dyn) }
 
 	.opd ALIGN(8)	: { KEEP (*(.opd)) }
 	.got ALIGN(8)	: { *(.got .toc) }
-	.rela.dyn ALIGN(8) : { *(.rela.dyn) }
-
-	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
 	_end = .;
 	PROVIDE(end = .);
