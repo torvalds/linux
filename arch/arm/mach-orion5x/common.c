@@ -190,6 +190,11 @@ static struct platform_device orion5x_ehci1 = {
  * (The Orion and Discovery (MV643xx) families use the same Ethernet driver)
  ****************************************************************************/
 
+struct mv643xx_eth_shared_platform_data orion5x_eth_shared_data = {
+	.dram		= &orion5x_mbus_dram_info,
+	.t_clk		= ORION5X_TCLK,
+};
+
 static struct resource orion5x_eth_shared_resources[] = {
 	{
 		.start	= ORION5X_ETH_PHYS_BASE + 0x2000,
@@ -201,6 +206,9 @@ static struct resource orion5x_eth_shared_resources[] = {
 static struct platform_device orion5x_eth_shared = {
 	.name		= MV643XX_ETH_SHARED_NAME,
 	.id		= 0,
+	.dev		= {
+		.platform_data	= &orion5x_eth_shared_data,
+	},
 	.num_resources	= 1,
 	.resource	= orion5x_eth_shared_resources,
 };
@@ -362,7 +370,6 @@ void __init orion5x_init(void)
 	 * Setup Orion address map
 	 */
 	orion5x_setup_cpu_mbus_bridge();
-	orion5x_setup_eth_wins();
 
 	/*
 	 * Register devices.
