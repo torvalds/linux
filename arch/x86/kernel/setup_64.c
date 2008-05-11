@@ -70,6 +70,7 @@
 #include <asm/ds.h>
 #include <asm/topology.h>
 #include <asm/trampoline.h>
+#include <asm/pat.h>
 
 #include <mach_apic.h>
 #ifdef CONFIG_PARAVIRT
@@ -128,7 +129,9 @@ static struct resource standard_io_resources[] = {
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO },
 	{ .name = "timer1", .start = 0x50, .end = 0x53,
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO },
-	{ .name = "keyboard", .start = 0x60, .end = 0x6f,
+	{ .name = "keyboard", .start = 0x60, .end = 0x60,
+		.flags = IORESOURCE_BUSY | IORESOURCE_IO },
+	{ .name = "keyboard", .start = 0x64, .end = 0x64,
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO },
 	{ .name = "dma page reg", .start = 0x80, .end = 0x8f,
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO },
@@ -1063,25 +1066,19 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	if (c->extended_cpuid_level >= 0x80000007)
 		c->x86_power = cpuid_edx(0x80000007);
 
-
-	clear_cpu_cap(c, X86_FEATURE_PAT);
-
 	switch (c->x86_vendor) {
 	case X86_VENDOR_AMD:
 		early_init_amd(c);
-		if (c->x86 >= 0xf && c->x86 <= 0x11)
-			set_cpu_cap(c, X86_FEATURE_PAT);
 		break;
 	case X86_VENDOR_INTEL:
 		early_init_intel(c);
-		if (c->x86 == 0xF || (c->x86 == 6 && c->x86_model >= 15))
-			set_cpu_cap(c, X86_FEATURE_PAT);
 		break;
 	case X86_VENDOR_CENTAUR:
 		early_init_centaur(c);
 		break;
 	}
 
+	validate_pat_support(c);
 }
 
 /*

@@ -504,14 +504,6 @@ static int __init early_fill_mp_bus_info(void)
 		}
 	}
 
-#ifdef CONFIG_NUMA
-	for (i = 0; i < BUS_NR; i++) {
-		node = mp_bus_to_node[i];
-		if (node >= 0)
-			printk(KERN_DEBUG "bus: %02x to node: %02x\n", i, node);
-	}
-#endif
-
 	for (i = 0; i < pci_root_num; i++) {
 		int res_num;
 		int busnum;

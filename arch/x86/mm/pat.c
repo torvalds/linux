@@ -25,31 +25,24 @@
 #include <asm/mtrr.h>
 #include <asm/io.h>
 
-int pat_wc_enabled = 1;
+#ifdef CONFIG_X86_PAT
+int __read_mostly pat_wc_enabled = 1;
 
-static u64 __read_mostly boot_pat_state;
+void __init pat_disable(char *reason)
+{
+	pat_wc_enabled = 0;
+	printk(KERN_INFO "%s\n", reason);
+}
 
 static int nopat(char *str)
 {
-	pat_wc_enabled = 0;
-	printk(KERN_INFO "x86: PAT support disabled.\n");
-
+	pat_disable("PAT support disabled.");
 	return 0;
 }
 early_param("nopat", nopat);
+#endif
 
-static int pat_known_cpu(void)
-{
-	if (!pat_wc_enabled)
-		return 0;
-
-	if (cpu_has_pat)
-		return 1;
-
-	pat_wc_enabled = 0;
-	printk(KERN_INFO "CPU and/or kernel does not support PAT.\n");
-	return 0;
-}
+static u64 __read_mostly boot_pat_state;
 
 enum {
 	PAT_UC = 0,		/* uncached */
@@ -66,17 +59,19 @@ void pat_init(void)
 {
 	u64 pat;
 
-#ifndef CONFIG_X86_PAT
-	nopat(NULL);
-#endif
-
-	/* Boot CPU enables PAT based on CPU feature */
-	if (!smp_processor_id() && !pat_known_cpu())
+	if (!pat_wc_enabled)
 		return;
 
-	/* APs enable PAT iff boot CPU has enabled it before */
-	if (smp_processor_id() && !pat_wc_enabled)
-		return;
+	/* Paranoia check. */
+	if (!cpu_has_pat) {
+		printk(KERN_ERR "PAT enabled, but CPU feature cleared\n");
+		/*
+		 * Panic if this happens on the secondary CPU, and we
+		 * switched to PAT on the boot CPU. We have no way to
+		 * undo PAT.
+		*/
+		BUG_ON(boot_pat_state);
+	}
 
 	/* Set PWT to Write-Combining. All other bits stay the same */
 	/*
@@ -95,9 +90,8 @@ void pat_init(void)
 	      PAT(4,WB) | PAT(5,WC) | PAT(6,UC_MINUS) | PAT(7,UC);
 
 	/* Boot CPU check */
-	if (!smp_processor_id()) {
+	if (!boot_pat_state)
 		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 	printk(KERN_INFO "x86 PAT enabled: cpu %d, old 0x%Lx, new 0x%Lx\n",
