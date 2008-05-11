@@ -2318,7 +2318,8 @@ S:	Maintained
 KERNEL BUILD (kbuild: Makefile, scripts/Makefile.*)
 P:	Sam Ravnborg
 M:	sam@ravnborg.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/sam/kbuild.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/sam/kbuild-next.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/sam/kbuild-fixes.git
 L:	linux-kbuild@vger.kernel.org
 S:	Maintained
 
