@@ -548,7 +548,7 @@ asmlinkage long sys_chroot(const char __user * filename)
 	struct nameidata nd;
 	int error;
 
-	error = __user_walk(filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY | LOOKUP_NOALT, &nd);
+	error = __user_walk(filename, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &nd);
 	if (error)
 		goto out;
 
@@ -561,7 +561,6 @@ asmlinkage long sys_chroot(const char __user * filename)
 		goto dput_and_out;
 
 	set_fs_root(current->fs, &nd.path);
-	set_fs_altroot();
 	error = 0;
 dput_and_out:
 	path_put(&nd.path);

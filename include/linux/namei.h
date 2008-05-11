@@ -47,7 +47,6 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_DIRECTORY	 2
 #define LOOKUP_CONTINUE		 4
 #define LOOKUP_PARENT		16
-#define LOOKUP_NOALT		32
 #define LOOKUP_REVAL		64
 /*
  * Intent data

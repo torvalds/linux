@@ -31,7 +31,6 @@
 #include <linux/file.h>
 #include <linux/fcntl.h>
 #include <linux/device_cgroup.h>
-#include <asm/namei.h>
 #include <asm/uaccess.h>
 
 #define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
@@ -562,27 +561,16 @@ out_unlock:
 	return result;
 }
 
-static int __emul_lookup_dentry(const char *, struct nameidata *);
-
 /* SMP-safe */
-static __always_inline int
+static __always_inline void
 walk_init_root(const char *name, struct nameidata *nd)
 {
 	struct fs_struct *fs = current->fs;
 
 	read_lock(&fs->lock);
-	if (fs->altroot.dentry && !(nd->flags & LOOKUP_NOALT)) {
-		nd->path = fs->altroot;
-		path_get(&fs->altroot);
-		read_unlock(&fs->lock);
-		if (__emul_lookup_dentry(name,nd))
-			return 0;
-		read_lock(&fs->lock);
-	}
 	nd->path = fs->root;
 	path_get(&fs->root);
 	read_unlock(&fs->lock);
-	return 1;
 }
 
 /*
@@ -623,12 +611,9 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 
 	if (*link == '/') {
 		path_put(&nd->path);
-		if (!walk_init_root(link, nd))
-			/* weird __emul_prefix() stuff did it */
-			goto out;
+		walk_init_root(link, nd);
 	}
 	res = link_path_walk(link, nd);
-out:
 	if (nd->depth || res || nd->last_type!=LAST_NORM)
 		return res;
 	/*
@@ -1077,67 +1062,6 @@ static int path_walk(const char *name, struct nameidata *nd)
 	return link_path_walk(name, nd);
 }
 
-/* 
- * SMP-safe: Returns 1 and nd will have valid dentry and mnt, if
- * everything is done. Returns 0 and drops input nd, if lookup failed;
- */
-static int __emul_lookup_dentry(const char *name, struct nameidata *nd)
-{
-	if (path_walk(name, nd))
-		return 0;		/* something went wrong... */
-
-	if (!nd->path.dentry->d_inode ||
-	    S_ISDIR(nd->path.dentry->d_inode->i_mode)) {
-		struct path old_path = nd->path;
-		struct qstr last = nd->last;
-		int last_type = nd->last_type;
-		struct fs_struct *fs = current->fs;
-
-		/*
-		 * NAME was not found in alternate root or it's a directory.
-		 * Try to find it in the normal root:
-		 */
-		nd->last_type = LAST_ROOT;
-		read_lock(&fs->lock);
-		nd->path = fs->root;
-		path_get(&fs->root);
-		read_unlock(&fs->lock);
-		if (path_walk(name, nd) == 0) {
-			if (nd->path.dentry->d_inode) {
-				path_put(&old_path);
-				return 1;
-			}
-			path_put(&nd->path);
-		}
-		nd->path = old_path;
-		nd->last = last;
-		nd->last_type = last_type;
-	}
-	return 1;
-}
-
-void set_fs_altroot(void)
-{
-	char *emul = __emul_prefix();
-	struct nameidata nd;
-	struct path path = {}, old_path;
-	int err;
-	struct fs_struct *fs = current->fs;
-
-	if (!emul)
-		goto set_it;
-	err = path_lookup(emul, LOOKUP_FOLLOW|LOOKUP_DIRECTORY|LOOKUP_NOALT, &nd);
-	if (!err)
-		path = nd.path;
-set_it:
-	write_lock(&fs->lock);
-	old_path = fs->altroot;
-	fs->altroot = path;
-	write_unlock(&fs->lock);
-	if (old_path.dentry)
-		path_put(&old_path);
-}
-
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
 static int do_path_lookup(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
@@ -1153,14 +1077,6 @@ static int do_path_lookup(int dfd, const char *name,
 
 	if (*name=='/') {
 		read_lock(&fs->lock);
-		if (fs->altroot.dentry && !(nd->flags & LOOKUP_NOALT)) {
-			nd->path = fs->altroot;
-			path_get(&fs->altroot);
-			read_unlock(&fs->lock);
-			if (__emul_lookup_dentry(name,nd))
-				goto out; /* found in altroot */
-			read_lock(&fs->lock);
-		}
 		nd->path = fs->root;
 		path_get(&fs->root);
 		read_unlock(&fs->lock);
@@ -1194,7 +1110,6 @@ static int do_path_lookup(int dfd, const char *name,
 	}
 
 	retval = path_walk(name, nd);
-out:
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
 		audit_inode(name, nd->path.dentry);
