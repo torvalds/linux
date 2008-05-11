@@ -875,7 +875,7 @@ void __init setup_arch(char **cmdline_p)
 		get_smp_config();
 #endif
 
-	e820_register_memory();
+	e820_setup_gap();
 	e820_mark_nosave_regions();
 
 #ifdef CONFIG_VT

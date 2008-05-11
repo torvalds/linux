@@ -20,6 +20,20 @@ struct e820map {
 	__u32 nr_map;
 	struct e820entry map[E820MAX];
 };
+
+extern struct e820map e820;
+
+extern int e820_any_mapped(u64 start, u64 end, unsigned type);
+extern int e820_all_mapped(u64 start, u64 end, unsigned type);
+extern void add_memory_region(u64 start, u64 size, int type);
+extern void e820_print_map(char *who);
+extern int sanitize_e820_map(struct e820entry *biosmap, char *pnr_map);
+extern int copy_e820_map(struct e820entry *biosmap, int nr_map);
+extern u64 update_memory_range(u64 start, u64 size, unsigned old_type,
+			       unsigned new_type);
+extern void update_e820(void);
+extern void e820_setup_gap(void);
+
 #endif /* __ASSEMBLY__ */
 
 #define ISA_START_ADDRESS	0xa0000
