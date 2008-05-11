@@ -59,7 +59,6 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
-#include <asm/nmi.h>
 #include <asm/vmi.h>
 #include <asm/genapic.h>
 #include <linux/mc146818rtc.h>
