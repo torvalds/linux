@@ -20,18 +20,8 @@
  */
 
 #ifdef CONFIG_X86_32
-typedef char _slock_t;
-# define LOCK_INS_DEC "decb"
-# define LOCK_INS_XCH "xchgb"
-# define LOCK_INS_MOV "movb"
-# define LOCK_INS_CMP "cmpb"
 # define LOCK_PTR_REG "a"
 #else
-typedef int _slock_t;
-# define LOCK_INS_DEC "decl"
-# define LOCK_INS_XCH "xchgl"
-# define LOCK_INS_MOV "movl"
-# define LOCK_INS_CMP "cmpl"
 # define LOCK_PTR_REG "D"
 #endif
 
@@ -66,14 +56,14 @@ typedef int _slock_t;
 #if (NR_CPUS < 256)
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
-	int tmp = *(volatile signed int *)(&(lock)->slock);
+	int tmp = ACCESS_ONCE(lock->slock);
 
 	return (((tmp >> 8) & 0xff) != (tmp & 0xff));
 }
 
 static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 {
-	int tmp = *(volatile signed int *)(&(lock)->slock);
+	int tmp = ACCESS_ONCE(lock->slock);
 
 	return (((tmp >> 8) & 0xff) - (tmp & 0xff)) > 1;
 }
@@ -130,14 +120,14 @@ static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 #else
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
-	int tmp = *(volatile signed int *)(&(lock)->slock);
+	int tmp = ACCESS_ONCE(lock->slock);
 
 	return (((tmp >> 16) & 0xffff) != (tmp & 0xffff));
 }
 
 static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 {
-	int tmp = *(volatile signed int *)(&(lock)->slock);
+	int tmp = ACCESS_ONCE(lock->slock);
 
 	return (((tmp >> 16) & 0xffff) - (tmp & 0xffff)) > 1;
 }
