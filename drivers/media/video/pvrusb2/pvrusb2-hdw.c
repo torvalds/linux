@@ -67,6 +67,16 @@ MODULE_PARM_DESC(video_std,"specify initial video standard");
 module_param_array(tolerance,    int, NULL, 0444);
 MODULE_PARM_DESC(tolerance,"specify stream error tolerance");
 
+/* US Broadcast channel 7 (175.25 MHz) */
+static int default_tv_freq    = 175250000L;
+/* 104.3 MHz, a usable FM station for my area */
+static int default_radio_freq = 104300000L;
+
+module_param_named(tv_freq, default_tv_freq, int, 0444);
+MODULE_PARM_DESC(tv_freq, "specify initial television frequency");
+module_param_named(radio_freq, default_radio_freq, int, 0444);
+MODULE_PARM_DESC(radio_freq, "specify initial radio frequency");
+
 #define PVR2_CTL_WRITE_ENDPOINT  0x01
 #define PVR2_CTL_READ_ENDPOINT   0x81
 
@@ -1701,10 +1711,8 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	   are, but I set them to something usable in the Chicago area just
 	   to make driver testing a little easier. */
 
-	/* US Broadcast channel 7 (175.25 MHz) */
-	hdw->freqValTelevision = 175250000L;
-	/* 104.3 MHz, a usable FM station for my area */
-	hdw->freqValRadio = 104300000L;
+	hdw->freqValTelevision = default_tv_freq;
+	hdw->freqValRadio = default_radio_freq;
 
 	// Do not use pvr2_reset_ctl_endpoints() here.  It is not
 	// thread-safe against the normal pvr2_send_request() mechanism.
