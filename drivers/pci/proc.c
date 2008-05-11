@@ -482,5 +482,5 @@ static int __init pci_proc_init(void)
 	return 0;
 }
 
-__initcall(pci_proc_init);
+device_initcall(pci_proc_init);
 
