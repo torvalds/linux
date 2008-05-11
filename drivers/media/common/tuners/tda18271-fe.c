@@ -1017,9 +1017,17 @@ static int tda18271_sleep(struct dvb_frontend *fe)
 
 	mutex_lock(&priv->lock);
 
-	/* standby mode w/ slave tuner output
-	 * & loop thru & xtal oscillator on */
-	ret = tda18271_set_standby_mode(fe, 1, 0, 0);
+	switch (priv->standby_mode) {
+	case TDA18271_STANDBY_POWER_OFF:
+		ret = tda18271_set_standby_mode(fe, 1, 1, 1);
+		break;
+	case TDA18271_STANDBY_XT_ON:
+		ret = tda18271_set_standby_mode(fe, 1, 1, 0);
+		break;
+	case TDA18271_STANDBY_LT_XT_ON:
+	default:
+		ret = tda18271_set_standby_mode(fe, 1, 0, 0);
+	}
 
 	mutex_unlock(&priv->lock);
 
@@ -1199,6 +1207,8 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
 		priv->config = (cfg) ? cfg->config : 0;
+		priv->standby_mode = (cfg) ?
+			cfg->standby_mode : TDA18271_STANDBY_LT_XT_ON;
 
 		/* tda18271_cal_on_startup == -1 when cal
 		 * module option is unset */
