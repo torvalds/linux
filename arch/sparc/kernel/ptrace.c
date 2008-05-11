@@ -441,6 +441,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	default:
+		if (request == PTRACE_SPARC_DETACH)
+			request = PTRACE_DETACH;
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}

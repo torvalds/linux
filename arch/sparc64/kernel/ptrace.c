@@ -944,6 +944,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		break;
 
 	default:
+		if (request == PTRACE_SPARC_DETACH)
+			request = PTRACE_DETACH;
 		ret = compat_ptrace_request(child, request, addr, data);
 		break;
 	}
@@ -1036,6 +1038,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	default:
+		if (request == PTRACE_SPARC_DETACH)
+			request = PTRACE_DETACH;
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}

@@ -149,6 +149,7 @@ extern void show_regs(struct pt_regs *);
 #define SF_XXARG  0x5c
 
 /* Stuff for the ptrace system call */
+#define PTRACE_SPARC_DETACH       11
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
 #define PTRACE_GETFPREGS          14
