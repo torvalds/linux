@@ -333,7 +333,7 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	regs->tnpc = tnpc;
 
 	/* Prevent syscall restart.  */
-	pt_regs_clear_trap_type(regs);
+	pt_regs_clear_syscall(regs);
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
 	spin_lock_irq(&current->sighand->siglock);
@@ -499,7 +499,7 @@ static inline void handle_signal(unsigned long signr, struct k_sigaction *ka,
 }
 
 static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
-				     struct sigaction *sa)
+				   struct sigaction *sa)
 {
 	switch (regs->u_regs[UREG_I0]) {
 	case ERESTART_RESTARTBLOCK:
@@ -525,19 +525,17 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
  */
 static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 {
-	struct signal_deliver_cookie cookie;
 	struct k_sigaction ka;
+	int restart_syscall;
 	sigset_t *oldset;
 	siginfo_t info;
 	int signr;
 	
 	if (pt_regs_is_syscall(regs) &&
 	    (regs->tstate & (TSTATE_XCARRY | TSTATE_ICARRY))) {
-		pt_regs_clear_trap_type(regs);
-		cookie.restart_syscall = 1;
+		restart_syscall = 1;
 	} else
-		cookie.restart_syscall = 0;
-	cookie.orig_i0 = orig_i0;
+		restart_syscall = 0;
 
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
 		oldset = &current->saved_sigmask;
@@ -547,16 +545,25 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 #ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
 		extern void do_signal32(sigset_t *, struct pt_regs *,
-					struct signal_deliver_cookie *);
-		do_signal32(oldset, regs, &cookie);
+					int restart_syscall,
+					unsigned long orig_i0);
+		do_signal32(oldset, regs, restart_syscall, orig_i0);
 		return;
 	}
 #endif	
 
-	signr = get_signal_to_deliver(&info, &ka, regs, &cookie);
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+
+	/* If the debugger messes with the program counter, it clears
+	 * the software "in syscall" bit, directing us to not perform
+	 * a syscall restart.
+	 */
+	if (restart_syscall && !pt_regs_is_syscall(regs))
+		restart_syscall = 0;
+
 	if (signr > 0) {
-		if (cookie.restart_syscall)
-			syscall_restart(cookie.orig_i0, regs, &ka.sa);
+		if (restart_syscall)
+			syscall_restart(orig_i0, regs, &ka.sa);
 		handle_signal(signr, &ka, &info, oldset, regs);
 
 		/* a signal was successfully delivered; the saved
@@ -568,16 +575,16 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 			clear_thread_flag(TIF_RESTORE_SIGMASK);
 		return;
 	}
-	if (cookie.restart_syscall &&
+	if (restart_syscall &&
 	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
 	     regs->u_regs[UREG_I0] == ERESTARTSYS ||
 	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) {
 		/* replay the system call when we are done */
-		regs->u_regs[UREG_I0] = cookie.orig_i0;
+		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
-	if (cookie.restart_syscall &&
+	if (restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->tpc -= 4;
@@ -597,27 +604,4 @@ void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long
 {
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
 		do_signal(regs, orig_i0);
-}
-
-void ptrace_signal_deliver(struct pt_regs *regs, void *cookie)
-{
-	struct signal_deliver_cookie *cp = cookie;
-
-	if (cp->restart_syscall &&
-	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
-	     regs->u_regs[UREG_I0] == ERESTARTSYS ||
-	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) {
-		/* replay the system call when we are done */
-		regs->u_regs[UREG_I0] = cp->orig_i0;
-		regs->tpc -= 4;
-		regs->tnpc -= 4;
-		cp->restart_syscall = 0;
-	}
-	if (cp->restart_syscall &&
-	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
-		regs->u_regs[UREG_G1] = __NR_restart_syscall;
-		regs->tpc -= 4;
-		regs->tnpc -= 4;
-		cp->restart_syscall = 0;
-	}
 }

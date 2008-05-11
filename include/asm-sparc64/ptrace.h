@@ -42,16 +42,14 @@ static inline int pt_regs_trap_type(struct pt_regs *regs)
 	return regs->magic & 0x1ff;
 }
 
-static inline int pt_regs_clear_trap_type(struct pt_regs *regs)
-{
-	return regs->magic &= ~0x1ff;
-}
-
 static inline bool pt_regs_is_syscall(struct pt_regs *regs)
 {
-	int tt = pt_regs_trap_type(regs);
+	return (regs->tstate & TSTATE_SYSCALL);
+}
 
-	return (tt == 0x110 || tt == 0x111 || tt == 0x16d);
+static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
+{
+	return (regs->tstate &= ~TSTATE_SYSCALL);
 }
 
 struct pt_regs32 {
@@ -298,6 +296,7 @@ extern void __show_regs(struct pt_regs *);
 #define SF_XXARG  0x5c
 
 /* Stuff for the ptrace system call */
+#define PTRACE_SPARC_DETACH       11
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
 #define PTRACE_GETFPREGS          14

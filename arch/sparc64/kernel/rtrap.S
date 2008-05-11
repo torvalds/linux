@@ -257,6 +257,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		wr			%o3, %g0, %y
 		wrpr			%l4, 0x0, %pil
 		wrpr			%g0, 0x1, %tl
+		andn			%l1, TSTATE_SYSCALL, %l1
 		wrpr			%l1, %g0, %tstate
 		wrpr			%l2, %g0, %tpc
 		wrpr			%o2, %g0, %tnpc

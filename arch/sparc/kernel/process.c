@@ -638,11 +638,6 @@ asmlinkage int sparc_execve(struct pt_regs *regs)
 			  (char __user * __user *)regs->u_regs[base + UREG_I2],
 			  regs);
 	putname(filename);
-	if (error == 0) {
-		task_lock(current);
-		current->ptrace &= ~PT_DTRACE;
-		task_unlock(current);
-	}
 out:
 	return error;
 }

@@ -50,8 +50,9 @@ rtrap_7win_patch5:	and	%g1, 0x7f, %g1
 ret_trap_entry:
 ret_trap_lockless_ipi:
 	andcc	%t_psr, PSR_PS, %g0
+	sethi	%hi(PSR_SYSCALL), %g1
 	be	1f
-	 nop
+	 andn	%t_psr, %g1, %t_psr
 
 	wr	%t_psr, 0x0, %psr
 	b	ret_trap_kernel
@@ -73,7 +74,6 @@ signal_p:
 	 ld	[%sp + STACKFRAME_SZ + PT_PSR], %t_psr
 
 	mov	%l5, %o1
-	mov	%l6, %o2
 	call	do_signal
 	 add	%sp, STACKFRAME_SZ, %o0	! pt_regs ptr
 
@@ -81,6 +81,8 @@ signal_p:
 	ld	[%sp + STACKFRAME_SZ + PT_PSR], %t_psr
 	clr	%l6
 ret_trap_continue:
+	sethi	%hi(PSR_SYSCALL), %g1
+	andn	%t_psr, %g1, %t_psr
 	wr	%t_psr, 0x0, %psr
 	WRITE_PAUSE
 
@@ -137,8 +139,9 @@ ret_trap_userwins_ok:
 	LOAD_PT_PRIV(sp, t_psr, t_pc, t_npc)
 	or	%t_pc, %t_npc, %g2
 	andcc	%g2, 0x3, %g0
+	sethi	%hi(PSR_SYCALL), %g2
 	be	1f
-	 nop
+	 andn	%t_psr, %g2, %t_psr
 
 	b	ret_trap_unaligned_pc
 	 add	%sp, STACKFRAME_SZ, %o0
@@ -201,6 +204,8 @@ rtrap_patch5:	and	%g1, 0xff, %g1
 1:
 	LOAD_PT_ALL(sp, t_psr, t_pc, t_npc, g1)
 2:
+	sethi	%hi(PSR_SYSCALL), %twin_tmp1
+	andn	%t_psr, %twin_tmp1, %t_psr
 	wr	%t_psr, 0x0, %psr
 	WRITE_PAUSE
 
