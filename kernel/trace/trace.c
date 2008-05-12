@@ -153,6 +153,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_SYM_OFFSET		= 0x02,
 	TRACE_ITER_SYM_ADDR		= 0x04,
 	TRACE_ITER_VERBOSE		= 0x08,
+	TRACE_ITER_RAW			= 0x10,
 };
 
 #define TRACE_ITER_SYM_MASK \
@@ -164,6 +165,7 @@ static const char *trace_options[] = {
 	"sym-offset",
 	"sym-addr",
 	"verbose",
+	"raw",
 	NULL
 };
 
@@ -1099,7 +1101,7 @@ lat_print_timestamp(struct trace_seq *s, unsigned long long abs_usecs,
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
 
-static notrace void
+static notrace int
 print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1154,10 +1156,10 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	default:
 		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
+	return 1;
 }
 
-static notrace int
-print_trace_fmt(struct trace_iterator *iter)
+static notrace int print_trace_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
@@ -1222,6 +1224,43 @@ print_trace_fmt(struct trace_iterator *iter)
 	return 1;
 }
 
+static notrace int print_raw_fmt(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry;
+	int ret;
+	int S;
+
+	entry = iter->ent;
+
+	ret = trace_seq_printf(s, "%d %d %llu ",
+		entry->pid, iter->cpu, entry->t);
+	if (!ret)
+		return 0;
+
+	switch (entry->type) {
+	case TRACE_FN:
+		ret = trace_seq_printf(s, "%x %x\n",
+					entry->fn.ip, entry->fn.parent_ip);
+		if (!ret)
+			return 0;
+		break;
+	case TRACE_CTX:
+		S = entry->ctx.prev_state < sizeof(state_to_char) ?
+			state_to_char[entry->ctx.prev_state] : 'X';
+		ret = trace_seq_printf(s, "%d %d %c %d %d\n",
+				       entry->ctx.prev_pid,
+				       entry->ctx.prev_prio,
+				       S,
+				       entry->ctx.next_pid,
+				       entry->ctx.next_prio);
+		if (!ret)
+			return 0;
+		break;
+	}
+	return 1;
+}
+
 static int trace_empty(struct trace_iterator *iter)
 {
 	struct trace_array_cpu *data;
@@ -1236,6 +1275,17 @@ static int trace_empty(struct trace_iterator *iter)
 			return 0;
 	}
 	return 1;
+}
+
+static int print_trace_line(struct trace_iterator *iter)
+{
+	if (trace_flags & TRACE_ITER_RAW)
+		return print_raw_fmt(iter);
+
+	if (iter->iter_flags & TRACE_FILE_LAT_FMT)
+		return print_lat_fmt(iter, iter->idx, iter->cpu);
+
+	return print_trace_fmt(iter);
 }
 
 static int s_show(struct seq_file *m, void *v)
@@ -1259,10 +1309,7 @@ static int s_show(struct seq_file *m, void *v)
 				print_func_help_header(m);
 		}
 	} else {
-		if (iter->iter_flags & TRACE_FILE_LAT_FMT)
-			print_lat_fmt(iter, iter->idx, iter->cpu);
-		else
-			print_trace_fmt(iter);
+		print_trace_line(iter);
 		trace_print_seq(m, &iter->seq);
 	}
 
@@ -1870,7 +1917,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	}
 
 	while ((entry = find_next_entry_inc(iter)) != NULL) {
-		ret = print_trace_fmt(iter);
+		ret = print_trace_line(iter);
 		if (!ret)
 			break;
 
