@@ -244,6 +244,8 @@ extern int unregister_tracer_switch(struct tracer_switch_ops *ops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
+#define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
+extern int DYN_FTRACE_TEST_NAME(void);
 #endif
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST

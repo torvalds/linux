@@ -107,14 +107,8 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-#define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 #define __STR(x) #x
 #define STR(x) __STR(x)
-static int DYN_FTRACE_TEST_NAME(void)
-{
-	/* used to call mcount */
-	return 0;
-}
 
 /* Test dynamic code modification and ftrace filters */
 int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
