@@ -808,29 +808,6 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 		trace_function(tr, data, ip, parent_ip, flags);
 }
 
-void
-__trace_special(void *__tr, void *__data,
-		unsigned long arg1, unsigned long arg2, unsigned long arg3)
-{
-	struct trace_array_cpu *data = __data;
-	struct trace_array *tr = __tr;
-	struct trace_entry *entry;
-	unsigned long irq_flags;
-
-	raw_local_irq_save(irq_flags);
-	__raw_spin_lock(&data->lock);
-	entry			= tracing_get_trace_entry(tr, data);
-	tracing_generic_entry_update(entry, 0);
-	entry->type		= TRACE_SPECIAL;
-	entry->special.arg1	= arg1;
-	entry->special.arg2	= arg2;
-	entry->special.arg3	= arg3;
-	__raw_spin_unlock(&data->lock);
-	raw_local_irq_restore(irq_flags);
-
-	trace_wake_up();
-}
-
 void __trace_stack(struct trace_array *tr,
 		   struct trace_array_cpu *data,
 		   unsigned long flags,
@@ -854,6 +831,30 @@ void __trace_stack(struct trace_array *tr,
 	trace.entries		= entry->stack.caller;
 
 	save_stack_trace(&trace);
+}
+
+void
+__trace_special(void *__tr, void *__data,
+		unsigned long arg1, unsigned long arg2, unsigned long arg3)
+{
+	struct trace_array_cpu *data = __data;
+	struct trace_array *tr = __tr;
+	struct trace_entry *entry;
+	unsigned long irq_flags;
+
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
+	entry			= tracing_get_trace_entry(tr, data);
+	tracing_generic_entry_update(entry, 0);
+	entry->type		= TRACE_SPECIAL;
+	entry->special.arg1	= arg1;
+	entry->special.arg2	= arg2;
+	entry->special.arg3	= arg3;
+	__trace_stack(tr, data, irq_flags, 4);
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
+
+	trace_wake_up();
 }
 
 void
