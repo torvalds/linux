@@ -1729,12 +1729,15 @@ static int tulip_suspend (struct pci_dev *pdev, pm_message_t state)
 	if (!dev)
 		return -EINVAL;
 
-	if (netif_running(dev))
-		tulip_down(dev);
+	if (!netif_running(dev))
+		goto save_state;
+
+	tulip_down(dev);
 
 	netif_device_detach(dev);
 	free_irq(dev->irq, dev);
 
+save_state:
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
@@ -1753,6 +1756,9 @@ static int tulip_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+
+	if (!netif_running(dev))
+		return 0;
 
 	if ((retval = pci_enable_device(pdev))) {
 		printk (KERN_ERR "tulip: pci_enable_device failed in resume\n");
