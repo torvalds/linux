@@ -15,9 +15,15 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
+#include <asm/arch/pxa3xx-regs.h>
 #include <asm/arch/mfp-pxa300.h>
+
+#include "generic.h"
+#include "devices.h"
+#include "clock.h"
 
 static struct pxa3xx_mfp_addr_map pxa300_mfp_addr_map[] __initdata = {
 
@@ -79,6 +85,10 @@ static struct pxa3xx_mfp_addr_map pxa310_mfp_addr_map[] __initdata = {
 	MFP_ADDR_END,
 };
 
+static struct clk pxa310_clks[] = {
+	PXA3xx_CKEN("MMCCLK", MMC3, 19500000, 0, &pxa3xx_device_mci3.dev),
+};
+
 static int __init pxa300_init(void)
 {
 	if (cpu_is_pxa300() || cpu_is_pxa310()) {
@@ -86,8 +96,10 @@ static int __init pxa300_init(void)
 		pxa3xx_mfp_init_addr(pxa300_mfp_addr_map);
 	}
 
-	if (cpu_is_pxa310())
+	if (cpu_is_pxa310()) {
 		pxa3xx_mfp_init_addr(pxa310_mfp_addr_map);
+		clks_register(ARRAY_AND_SIZE(pxa310_clks));
+	}
 
 	return 0;
 }
