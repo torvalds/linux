@@ -659,8 +659,6 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	entry->fn.ip		= ip;
 	entry->fn.parent_ip	= parent_ip;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
-
-	trace_wake_up();
 }
 
 void
