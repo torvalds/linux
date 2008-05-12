@@ -146,6 +146,15 @@ static inline void play_dead(void)
 void cpu_idle(void)
 {
 	current_thread_info()->status |= TS_POLLING;
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+	/*
+	 * If we're the non-boot CPU, nothing set the PDA stack
+	 * canary up for us. This is as good a place as any for
+	 * doing that.
+	 */
+	write_pda(stack_canary, current->stack_canary);
+#endif
 	/* endless idle loop with no priority at all */
 	while (1) {
 		tick_nohz_stop_sched_tick();
