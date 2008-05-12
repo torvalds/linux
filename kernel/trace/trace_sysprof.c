@@ -23,6 +23,7 @@ static int __read_mostly	tracer_enabled;
  * 10 msecs for now:
  */
 static const unsigned long sample_period = 1000000;
+static const unsigned int sample_max_depth = 512;
 
 /*
  * Per CPU hrtimers that do the profiling:
@@ -44,8 +45,6 @@ static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
 
 	return 1;
 }
-
-#define SYSPROF_MAX_ADDRESSES	512
 
 static void timer_notify(struct pt_regs *regs, int cpu)
 {
@@ -80,7 +79,7 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 
 	frame_pointer = (void __user *)regs->bp;
 
-	for (i = 0; i < SYSPROF_MAX_ADDRESSES; i++) {
+	for (i = 0; i < sample_max_depth; i++) {
 		if (!copy_stack_frame(frame_pointer, &frame))
 			break;
 		if ((unsigned long)frame_pointer < regs->sp)
@@ -93,7 +92,7 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 
 	trace_special(tr, data, 2, current->pid, i);
 
-	if (i == SYSPROF_MAX_ADDRESSES)
+	if (i == sample_max_depth)
 		trace_special(tr, data, -1, -1, -1);
 }
 
@@ -126,7 +125,6 @@ static void start_stack_timers(void)
 	for_each_online_cpu(cpu) {
 		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 		start_stack_timer(cpu);
-		printk(KERN_INFO "started sysprof timer on cpu%d\n", cpu);
 	}
 	set_cpus_allowed_ptr(current, &saved_mask);
 }
@@ -136,7 +134,6 @@ static void stop_stack_timer(int cpu)
 	struct hrtimer *hrtimer = &per_cpu(stack_trace_hrtimer, cpu);
 
 	hrtimer_cancel(hrtimer);
-	printk(KERN_INFO "cancelled sysprof timer on cpu%d\n", cpu);
 }
 
 static void stop_stack_timers(void)
