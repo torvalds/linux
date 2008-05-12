@@ -1155,12 +1155,12 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
-	if (hardirq && softirq)
+	if (hardirq && softirq) {
 		trace_seq_putc(s, 'H');
-	else {
-		if (hardirq)
+	} else {
+		if (hardirq) {
 			trace_seq_putc(s, 'h');
-		else {
+		} else {
 			if (softirq)
 				trace_seq_putc(s, 's');
 			else
@@ -2177,8 +2177,7 @@ tracing_poll_pipe(struct file *filp, poll_table *poll_table)
 		 * Always select as readable when in blocking mode
 		 */
 		return POLLIN | POLLRDNORM;
-	}
-	else {
+	} else {
 		if (!trace_empty(iter))
 			return POLLIN | POLLRDNORM;
 		poll_wait(filp, &trace_wait, poll_table);
