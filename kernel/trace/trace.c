@@ -400,6 +400,26 @@ static void
 trace_seq_reset(struct trace_seq *s)
 {
 	s->len = 0;
+	s->readpos = 0;
+}
+
+ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
+{
+	int len;
+	int ret;
+
+	if (s->len <= s->readpos)
+		return -EBUSY;
+
+	len = s->len - s->readpos;
+	if (cnt > len)
+		cnt = len;
+	ret = copy_to_user(ubuf, s->buffer + s->readpos, cnt);
+	if (ret)
+		return -EFAULT;
+
+	s->readpos += len;
+	return cnt;
 }
 
 static void
@@ -2361,46 +2381,32 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	struct trace_iterator *iter = filp->private_data;
 	struct trace_array_cpu *data;
 	static cpumask_t mask;
-	static int start;
 	unsigned long flags;
 #ifdef CONFIG_FTRACE
 	int ftrace_save;
 #endif
-	int read = 0;
 	int cpu;
-	int len;
-	int ret;
+	ssize_t sret;
 
 	/* return any leftover data */
-	if (iter->seq.len > start) {
-		len = iter->seq.len - start;
-		if (cnt > len)
-			cnt = len;
-		ret = copy_to_user(ubuf, iter->seq.buffer + start, cnt);
-		if (ret)
-			cnt = -EFAULT;
+	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
+	if (sret != -EBUSY)
+		return sret;
+	sret = 0;
 
-		start += len;
-
-		return cnt;
-	}
+	trace_seq_reset(&iter->seq);
 
 	mutex_lock(&trace_types_lock);
 	if (iter->trace->read) {
-		ret = iter->trace->read(iter, filp, ubuf, cnt, ppos);
-		if (ret) {
-			read = ret;
+		sret = iter->trace->read(iter, filp, ubuf, cnt, ppos);
+		if (sret)
 			goto out;
-		}
 	}
-
-	trace_seq_reset(&iter->seq);
-	start = 0;
 
 	while (trace_empty(iter)) {
 
 		if ((filp->f_flags & O_NONBLOCK)) {
-			read = -EAGAIN;
+			sret = -EAGAIN;
 			goto out;
 		}
 
@@ -2426,7 +2432,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		iter->tr->waiter = NULL;
 
 		if (signal_pending(current)) {
-			read = -EINTR;
+			sret = -EINTR;
 			goto out;
 		}
 
@@ -2496,6 +2502,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	}
 
 	while (find_next_entry_inc(iter) != NULL) {
+		int ret;
 		int len = iter->seq.len;
 
 		ret = print_trace_line(iter);
@@ -2526,24 +2533,16 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	local_irq_restore(flags);
 
 	/* Now copy what we have to the user */
-	read = iter->seq.len;
-	if (read > cnt)
-		read = cnt;
-
-	ret = copy_to_user(ubuf, iter->seq.buffer, read);
-
-	if (read < iter->seq.len)
-		start = read;
-	else
+	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
+	if (iter->seq.readpos >= iter->seq.len)
 		trace_seq_reset(&iter->seq);
-
-	if (ret)
-		read = -EFAULT;
+	if (sret == -EBUSY)
+		sret = 0;
 
 out:
 	mutex_unlock(&trace_types_lock);
 
-	return read;
+	return sret;
 }
 
 static ssize_t
