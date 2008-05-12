@@ -70,23 +70,6 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT;
 
-/*
- * Only trace on a CPU if the bitmask is set:
- */
-static cpumask_t tracing_cpumask __read_mostly = CPU_MASK_ALL;
-
-/*
- * The tracer itself will not take this lock, but still we want
- * to provide a consistent cpumask to user-space:
- */
-static DEFINE_MUTEX(tracing_cpumask_update_lock);
-
-/*
- * Temporary storage for the character representation of the
- * CPU bitmask:
- */
-static char mask_str[NR_CPUS];
-
 void trace_wake_up(void)
 {
 	/*
@@ -1776,19 +1759,46 @@ static struct file_operations show_traces_fops = {
 	.release	= seq_release,
 };
 
+/*
+ * Only trace on a CPU if the bitmask is set:
+ */
+static cpumask_t tracing_cpumask = CPU_MASK_ALL;
+
+/*
+ * When tracing/tracing_cpu_mask is modified then this holds
+ * the new bitmask we are about to install:
+ */
+static cpumask_t tracing_cpumask_new;
+
+/*
+ * The tracer itself will not take this lock, but still we want
+ * to provide a consistent cpumask to user-space:
+ */
+static DEFINE_MUTEX(tracing_cpumask_update_lock);
+
+/*
+ * Temporary storage for the character representation of the
+ * CPU bitmask (and one more byte for the newline):
+ */
+static char mask_str[NR_CPUS + 1];
+
 static ssize_t
 tracing_cpumask_read(struct file *filp, char __user *ubuf,
 		     size_t count, loff_t *ppos)
 {
-	int err;
-
-	count = min(count, (size_t)NR_CPUS);
+	int len;
 
 	mutex_lock(&tracing_cpumask_update_lock);
-	cpumask_scnprintf(mask_str, NR_CPUS, tracing_cpumask);
-	err = copy_to_user(ubuf, mask_str, count);
-	if (err)
-		count = -EFAULT;
+
+	len = cpumask_scnprintf(mask_str, count, tracing_cpumask);
+	if (count - len < 2) {
+		count = -EINVAL;
+		goto out_err;
+	}
+	len += sprintf(mask_str + len, "\n");
+	count = simple_read_from_buffer(ubuf, count, ppos, mask_str, NR_CPUS+1);
+
+out_err:
 	mutex_unlock(&tracing_cpumask_update_lock);
 
 	return count;
@@ -1798,16 +1808,40 @@ static ssize_t
 tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 		      size_t count, loff_t *ppos)
 {
-	int err;
+	int err, cpu;
 
 	mutex_lock(&tracing_cpumask_update_lock);
-	err = cpumask_parse_user(ubuf, count, tracing_cpumask);
+	err = cpumask_parse_user(ubuf, count, tracing_cpumask_new);
+	if (err)
+		goto err_unlock;
+
+	spin_lock_irq(&ftrace_max_lock);
+	for_each_possible_cpu(cpu) {
+		/*
+		 * Increase/decrease the disabled counter if we are
+		 * about to flip a bit in the cpumask:
+		 */
+		if (cpu_isset(cpu, tracing_cpumask) &&
+				!cpu_isset(cpu, tracing_cpumask_new)) {
+			atomic_inc(&global_trace.data[cpu]->disabled);
+		}
+		if (!cpu_isset(cpu, tracing_cpumask) &&
+				cpu_isset(cpu, tracing_cpumask_new)) {
+			atomic_dec(&global_trace.data[cpu]->disabled);
+		}
+	}
+	spin_unlock_irq(&ftrace_max_lock);
+
+	tracing_cpumask = tracing_cpumask_new;
+
 	mutex_unlock(&tracing_cpumask_update_lock);
 
-	if (err)
-		return err;
-
 	return count;
+
+err_unlock:
+	mutex_unlock(&tracing_cpumask_update_lock);
+
+	return err;
 }
 
 static struct file_operations tracing_cpumask_fops = {
@@ -1846,8 +1880,7 @@ tracing_iter_ctrl_read(struct file *filp, char __user *ubuf,
 	r += sprintf(buf + r, "\n");
 	WARN_ON(r >= len + 2);
 
-	r = simple_read_from_buffer(ubuf, cnt, ppos,
-				    buf, r);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 
 	kfree(buf);
 
