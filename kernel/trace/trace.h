@@ -26,6 +26,15 @@ struct ctx_switch_entry {
 };
 
 /*
+ * Special (free-form) trace entry:
+ */
+struct special_entry {
+	unsigned long		arg1;
+	unsigned long		arg2;
+	unsigned long		arg3;
+};
+
+/*
  * The trace entry - the most basic unit of tracing. This is what
  * is printed in the end as a single line in the trace output, such as:
  *
@@ -41,6 +50,7 @@ struct trace_entry {
 	union {
 		struct ftrace_entry		fn;
 		struct ctx_switch_entry		ctx;
+		struct special_entry		special;
 	};
 };
 
@@ -154,6 +164,11 @@ void tracing_sched_switch_trace(struct trace_array *tr,
 				struct task_struct *next,
 				unsigned long flags);
 void tracing_record_cmdline(struct task_struct *tsk);
+void trace_special(struct trace_array *tr,
+		   struct trace_array_cpu *data,
+		   unsigned long arg1,
+		   unsigned long arg2,
+		   unsigned long arg3);
 
 void tracing_start_function_trace(void);
 void tracing_stop_function_trace(void);

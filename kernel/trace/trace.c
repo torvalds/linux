@@ -137,6 +137,7 @@ enum trace_type {
 
 	TRACE_FN,
 	TRACE_CTX,
+	TRACE_SPECIAL,
 
 	__TRACE_LAST_TYPE
 };
@@ -701,6 +702,22 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 }
 
 notrace void
+trace_special(struct trace_array *tr, struct trace_array_cpu *data,
+	      unsigned long arg1, unsigned long arg2, unsigned long arg3)
+{
+	struct trace_entry *entry;
+
+	spin_lock(&data->lock);
+	entry			= tracing_get_trace_entry(tr, data);
+	tracing_generic_entry_update(entry, 0);
+	entry->type		= TRACE_SPECIAL;
+	entry->special.arg1	= arg1;
+	entry->special.arg2	= arg2;
+	entry->special.arg3	= arg3;
+	spin_unlock(&data->lock);
+}
+
+notrace void
 tracing_sched_switch_trace(struct trace_array *tr,
 			   struct trace_array_cpu *data,
 			   struct task_struct *prev, struct task_struct *next,
@@ -1167,6 +1184,12 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 				 entry->ctx.next_prio,
 				 comm);
 		break;
+	case TRACE_SPECIAL:
+		trace_seq_printf(s, " %lx %lx %lx\n",
+				 entry->special.arg1,
+				 entry->special.arg2,
+				 entry->special.arg3);
+		break;
 	default:
 		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
@@ -1234,6 +1257,14 @@ static notrace int print_trace_fmt(struct trace_iterator *iter)
 		if (!ret)
 			return 0;
 		break;
+	case TRACE_SPECIAL:
+		ret = trace_seq_printf(s, " %lx %lx %lx\n",
+				 entry->special.arg1,
+				 entry->special.arg2,
+				 entry->special.arg3);
+		if (!ret)
+			return 0;
+		break;
 	}
 	return 1;
 }
@@ -1271,6 +1302,14 @@ static notrace int print_raw_fmt(struct trace_iterator *iter)
 		if (!ret)
 			return 0;
 		break;
+	case TRACE_SPECIAL:
+		ret = trace_seq_printf(s, " %lx %lx %lx\n",
+				 entry->special.arg1,
+				 entry->special.arg2,
+				 entry->special.arg3);
+		if (!ret)
+			return 0;
+		break;
 	}
 	return 1;
 }
@@ -1303,6 +1342,11 @@ static notrace int print_bin_fmt(struct trace_iterator *iter)
 		SEQ_PUT_FIELD_RET(s, entry->ctx.prev_state);
 		SEQ_PUT_FIELD_RET(s, entry->ctx.next_pid);
 		SEQ_PUT_FIELD_RET(s, entry->ctx.next_prio);
+		break;
+	case TRACE_SPECIAL:
+		SEQ_PUT_FIELD_RET(s, entry->special.arg1);
+		SEQ_PUT_FIELD_RET(s, entry->special.arg2);
+		SEQ_PUT_FIELD_RET(s, entry->special.arg3);
 		break;
 	}
 	return 1;
