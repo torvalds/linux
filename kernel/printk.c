@@ -1041,7 +1041,9 @@ void release_console_sem(void)
 		_log_end = log_end;
 		con_start = log_end;		/* Flush */
 		spin_unlock(&logbuf_lock);
+		stop_critical_timings();	/* don't trace print latency */
 		call_console_drivers(_con_start, _log_end);
+		start_critical_timings();
 		local_irq_restore(flags);
 	}
 	console_locked = 0;

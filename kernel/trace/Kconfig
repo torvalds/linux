@@ -26,6 +26,24 @@ config FTRACE
 	  (the bootup default), then the overhead of the instructions is very
 	  small and not measurable even in micro-benchmarks.
 
+config IRQSOFF_TRACER
+	bool "Interrupts-off Latency Tracer"
+	default n
+	depends on TRACE_IRQFLAGS_SUPPORT
+	depends on GENERIC_TIME
+	select TRACE_IRQFLAGS
+	select TRACING
+	select TRACER_MAX_TRACE
+	help
+	  This option measures the time spent in irqs-off critical
+	  sections, with microsecond accuracy.
+
+	  The default measurement method is a maximum search, which is
+	  disabled by default and can be runtime (re-)started
+	  via:
+
+	      echo 0 > /debugfs/tracing/tracing_max_latency
+
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
 	depends on DEBUG_KERNEL

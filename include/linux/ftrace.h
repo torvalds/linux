@@ -50,4 +50,12 @@ extern void mcount(void);
 # define CALLER_ADDR5 0UL
 #endif
 
+#ifdef CONFIG_IRQSOFF_TRACER
+  extern void notrace time_hardirqs_on(unsigned long a0, unsigned long a1);
+  extern void notrace time_hardirqs_off(unsigned long a0, unsigned long a1);
+#else
+# define time_hardirqs_on(a0, a1)		do { } while (0)
+# define time_hardirqs_off(a0, a1)		do { } while (0)
+#endif
+
 #endif /* _LINUX_FTRACE_H */

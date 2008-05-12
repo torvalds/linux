@@ -39,6 +39,7 @@
 #include <linux/irqflags.h>
 #include <linux/utsname.h>
 #include <linux/hash.h>
+#include <linux/ftrace.h>
 
 #include <asm/sections.h>
 
@@ -982,7 +983,7 @@ check_noncircular(struct lock_class *source, unsigned int depth)
 	return 1;
 }
 
-#ifdef CONFIG_TRACE_IRQFLAGS
+#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING)
 /*
  * Forwards and backwards subgraph searching, for the purposes of
  * proving that two subgraphs can be connected by a new dependency
@@ -1680,7 +1681,7 @@ valid_state(struct task_struct *curr, struct held_lock *this,
 static int mark_lock(struct task_struct *curr, struct held_lock *this,
 		     enum lock_usage_bit new_bit);
 
-#ifdef CONFIG_TRACE_IRQFLAGS
+#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING)
 
 /*
  * print irq inversion bug:
@@ -2013,10 +2014,12 @@ void early_boot_irqs_on(void)
 /*
  * Hardirqs will be enabled:
  */
-void trace_hardirqs_on(void)
+void notrace trace_hardirqs_on_caller(unsigned long a0)
 {
 	struct task_struct *curr = current;
 	unsigned long ip;
+
+	time_hardirqs_on(CALLER_ADDR0, a0);
 
 	if (unlikely(!debug_locks || current->lockdep_recursion))
 		return;
@@ -2055,15 +2058,22 @@ void trace_hardirqs_on(void)
 	curr->hardirq_enable_event = ++curr->irq_events;
 	debug_atomic_inc(&hardirqs_on_events);
 }
+EXPORT_SYMBOL(trace_hardirqs_on_caller);
 
+void notrace trace_hardirqs_on(void)
+{
+	trace_hardirqs_on_caller(CALLER_ADDR0);
+}
 EXPORT_SYMBOL(trace_hardirqs_on);
 
 /*
  * Hardirqs were disabled:
  */
-void trace_hardirqs_off(void)
+void notrace trace_hardirqs_off_caller(unsigned long a0)
 {
 	struct task_struct *curr = current;
+
+	time_hardirqs_off(CALLER_ADDR0, a0);
 
 	if (unlikely(!debug_locks || current->lockdep_recursion))
 		return;
@@ -2082,7 +2092,12 @@ void trace_hardirqs_off(void)
 	} else
 		debug_atomic_inc(&redundant_hardirqs_off);
 }
+EXPORT_SYMBOL(trace_hardirqs_off_caller);
 
+void notrace trace_hardirqs_off(void)
+{
+	trace_hardirqs_off_caller(CALLER_ADDR0);
+}
 EXPORT_SYMBOL(trace_hardirqs_off);
 
 /*

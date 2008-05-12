@@ -179,8 +179,6 @@ static inline void trace_hardirqs_fixup(void)
  * have a reliable stack. x86_64 only.
  */
 #define SWAPGS_UNSAFE_STACK	swapgs
-#define ARCH_TRACE_IRQS_ON		call trace_hardirqs_on_thunk
-#define ARCH_TRACE_IRQS_OFF		call trace_hardirqs_off_thunk
 #define ARCH_LOCKDEP_SYS_EXIT		call lockdep_sys_exit_thunk
 #define ARCH_LOCKDEP_SYS_EXIT_IRQ	\
 	TRACE_IRQS_ON; \
@@ -192,24 +190,6 @@ static inline void trace_hardirqs_fixup(void)
 	TRACE_IRQS_OFF;
 
 #else
-#define ARCH_TRACE_IRQS_ON			\
-	pushl %eax;				\
-	pushl %ecx;				\
-	pushl %edx;				\
-	call trace_hardirqs_on;			\
-	popl %edx;				\
-	popl %ecx;				\
-	popl %eax;
-
-#define ARCH_TRACE_IRQS_OFF			\
-	pushl %eax;				\
-	pushl %ecx;				\
-	pushl %edx;				\
-	call trace_hardirqs_off;		\
-	popl %edx;				\
-	popl %ecx;				\
-	popl %eax;
-
 #define ARCH_LOCKDEP_SYS_EXIT			\
 	pushl %eax;				\
 	pushl %ecx;				\
@@ -223,8 +203,8 @@ static inline void trace_hardirqs_fixup(void)
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-#  define TRACE_IRQS_ON		ARCH_TRACE_IRQS_ON
-#  define TRACE_IRQS_OFF	ARCH_TRACE_IRQS_OFF
+#  define TRACE_IRQS_ON		call trace_hardirqs_on_thunk;
+#  define TRACE_IRQS_OFF	call trace_hardirqs_off_thunk;
 #else
 #  define TRACE_IRQS_ON
 #  define TRACE_IRQS_OFF
