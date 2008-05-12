@@ -2414,6 +2414,23 @@ static int sched_balance_self(int cpu, int flag)
 
 #ifdef CONFIG_CONTEXT_SWITCH_TRACER
 
+void ftrace_task(struct task_struct *p, void *__tr, void *__data)
+{
+#if 0
+	/*  
+	 * trace timeline tree
+	 */
+	__trace_special(__tr, __data,
+			p->pid, p->se.vruntime, p->se.sum_exec_runtime);
+#else
+	/*
+	 * trace balance metrics
+	 */
+	__trace_special(__tr, __data,
+			p->pid, p->se.avg_overlap, 0);
+#endif
+}
+
 void ftrace_all_fair_tasks(void *__rq, void *__tr, void *__data)
 {
 	struct task_struct *p;
@@ -2421,32 +2438,22 @@ void ftrace_all_fair_tasks(void *__rq, void *__tr, void *__data)
 	struct rb_node *curr;
 	struct rq *rq = __rq;
 
-	curr = first_fair(&rq->cfs);
-	if (!curr)
-		return;
-
 	if (rq->cfs.curr) {
 		p = task_of(rq->cfs.curr);
-		__trace_special(__tr, __data,
-		      p->pid, p->se.vruntime, p->se.sum_exec_runtime);
+		ftrace_task(p, __tr, __data);
 	}
 	if (rq->cfs.next) {
 		p = task_of(rq->cfs.next);
-		__trace_special(__tr, __data,
-		      p->pid, p->se.vruntime, p->se.sum_exec_runtime);
+		ftrace_task(p, __tr, __data);
 	}
 
-	while (curr) {
+	for (curr = first_fair(&rq->cfs); curr; curr = rb_next(curr)) {
 		se = rb_entry(curr, struct sched_entity, run_node);
 		if (!entity_is_task(se))
 			continue;
 
 		p = task_of(se);
-
-		__trace_special(__tr, __data,
-			      p->pid, p->se.vruntime, p->se.sum_exec_runtime);
-
-		curr = rb_next(curr);
+		ftrace_task(p, __tr, __data);
 	}
 }
 
