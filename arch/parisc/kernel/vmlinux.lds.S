@@ -66,7 +66,6 @@ SECTIONS
 	_etext = .;
 
 	RODATA
-	BUG_TABLE
 
 	/* writeable */
 	/* Make sure this is page aligned so

@@ -65,7 +65,6 @@ SECTIONS
 
 	_etext = .;			/* End of text section */
 
-	BUG_TABLE
 	NOTES 
 	RO_DATA(PAGE_SIZE)
 

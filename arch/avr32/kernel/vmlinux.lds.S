@@ -93,8 +93,6 @@ SECTIONS
 		__stop___ex_table = .;
 	}
 
-	BUG_TABLE
-
 	RODATA
 
 	. = ALIGN(THREAD_SIZE);
