@@ -153,6 +153,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		memcpy(max_tr.data[i], data, sizeof(*data));
 		data->trace = save_trace;
 		data->trace_pages = save_pages;
+		tracing_reset(data);
 	}
 
 	__update_max_tr(tr, tsk, cpu);
@@ -183,6 +184,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	memcpy(max_tr.data[cpu], data, sizeof(*data));
 	data->trace = save_trace;
 	data->trace_pages = save_pages;
+	tracing_reset(data);
 
 	__update_max_tr(tr, tsk, cpu);
 	spin_unlock(&ftrace_max_lock);
@@ -877,6 +879,8 @@ print_lat_fmt(struct seq_file *m, struct trace_iterator *iter,
 			   entry->ctx.next_prio,
 			   comm);
 		break;
+	default:
+		seq_printf(m, "Unknown type %d\n", entry->type);
 	}
 }
 
@@ -1625,7 +1629,6 @@ __init static int tracer_alloc_buffers(void)
 	 * round up a bit.
 	 */
 	global_trace.entries = ENTRIES_PER_PAGE;
-	max_tr.entries = global_trace.entries;
 	pages++;
 
 	while (global_trace.entries < trace_nr_entries) {
@@ -1633,6 +1636,7 @@ __init static int tracer_alloc_buffers(void)
 			break;
 		pages++;
 	}
+	max_tr.entries = global_trace.entries;
 
 	pr_info("tracer: %d pages allocated for %ld",
 		pages, trace_nr_entries);

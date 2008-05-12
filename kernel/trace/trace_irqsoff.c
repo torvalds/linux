@@ -23,6 +23,8 @@ static int				tracer_enabled __read_mostly;
 
 static DEFINE_PER_CPU(int, tracing_cpu);
 
+static DEFINE_SPINLOCK(max_trace_lock);
+
 enum {
 	TRACER_IRQS_OFF		= (1 << 1),
 	TRACER_PREEMPT_OFF	= (1 << 2),
@@ -126,7 +128,7 @@ check_critical_timing(struct trace_array *tr,
 		      int cpu)
 {
 	unsigned long latency, t0, t1;
-	cycle_t T0, T1, T2, delta;
+	cycle_t T0, T1, delta;
 	unsigned long flags;
 
 	/*
@@ -142,20 +144,18 @@ check_critical_timing(struct trace_array *tr,
 	if (!report_latency(delta))
 		goto out;
 
-	ftrace(tr, data, CALLER_ADDR0, parent_ip, flags);
-	/*
-	 * Update the timestamp, because the trace entry above
-	 * might change it (it can only get larger so the latency
-	 * is fair to be reported):
-	 */
-	T2 = now(cpu);
+	spin_lock(&max_trace_lock);
 
-	delta = T2-T0;
+	/* check if we are still the max latency */
+	if (!report_latency(delta))
+		goto out_unlock;
+
+	ftrace(tr, data, CALLER_ADDR0, parent_ip, flags);
 
 	latency = nsecs_to_usecs(delta);
 
 	if (data->critical_sequence != max_sequence)
-		goto out;
+		goto out_unlock;
 
 	tracing_max_latency = delta;
 	t0 = nsecs_to_usecs(T0);
@@ -188,6 +188,9 @@ check_critical_timing(struct trace_array *tr,
 	printk(KERN_CONT " =>   dump-end timestamp %lu\n\n", t1);
 
 	max_sequence++;
+
+out_unlock:
+	spin_unlock(&max_trace_lock);
 
 out:
 	data->critical_sequence = max_sequence;
@@ -366,14 +369,14 @@ void notrace trace_preempt_off(unsigned long a0, unsigned long a1)
 
 static void start_irqsoff_tracer(struct trace_array *tr)
 {
-	tracer_enabled = 1;
 	register_ftrace_function(&trace_ops);
+	tracer_enabled = 1;
 }
 
 static void stop_irqsoff_tracer(struct trace_array *tr)
 {
-	unregister_ftrace_function(&trace_ops);
 	tracer_enabled = 0;
+	unregister_ftrace_function(&trace_ops);
 }
 
 static void __irqsoff_tracer_init(struct trace_array *tr)
