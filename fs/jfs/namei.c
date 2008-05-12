@@ -1455,7 +1455,7 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 		free_UCSname(&key);
 		if (rc == -ENOENT) {
 			d_add(dentry, NULL);
-			return ERR_PTR(0);
+			return NULL;
 		} else if (rc) {
 			jfs_err("jfs_lookup: dtSearch returned %d", rc);
 			return ERR_PTR(rc);
