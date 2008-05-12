@@ -36,7 +36,8 @@ ctx_switch_func(void *__rq, struct task_struct *prev, struct task_struct *next)
 
 	if (likely(disabled == 1)) {
 		tracing_sched_switch_trace(tr, data, prev, next, flags);
-		ftrace_all_fair_tasks(__rq, tr, data);
+		if (trace_flags & TRACE_ITER_SCHED_TREE)
+			ftrace_all_fair_tasks(__rq, tr, data);
 	}
 
 	atomic_dec(&data->disabled);
@@ -62,7 +63,8 @@ wakeup_func(void *__rq, struct task_struct *wakee, struct task_struct *curr)
 
 	if (likely(disabled == 1)) {
 		tracing_sched_wakeup_trace(tr, data, wakee, curr, flags);
-		ftrace_all_fair_tasks(__rq, tr, data);
+		if (trace_flags & TRACE_ITER_SCHED_TREE)
+			ftrace_all_fair_tasks(__rq, tr, data);
 	}
 
 	atomic_dec(&data->disabled);
