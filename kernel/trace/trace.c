@@ -70,12 +70,13 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT;
 
-/*
- * FIXME: where should this be called?
- */
 void trace_wake_up(void)
 {
-	if (!(trace_flags & TRACE_ITER_BLOCK))
+	/*
+	 * The runqueue_is_locked() can fail, but this is the best we
+	 * have for now:
+	 */
+	if (!(trace_flags & TRACE_ITER_BLOCK) && !runqueue_is_locked())
 		wake_up(&trace_wait);
 }
 
@@ -657,6 +658,8 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	entry->fn.ip		= ip;
 	entry->fn.parent_ip	= parent_ip;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	trace_wake_up();
 }
 
 void
@@ -686,6 +689,8 @@ __trace_special(void *__tr, void *__data,
 	entry->special.arg2	= arg2;
 	entry->special.arg3	= arg3;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	trace_wake_up();
 }
 
 #endif
@@ -759,6 +764,8 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->ctx.next_prio	= wakee->prio;
 	__trace_stack(tr, data, flags, 5);
 	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	trace_wake_up();
 }
 
 #ifdef CONFIG_FTRACE
