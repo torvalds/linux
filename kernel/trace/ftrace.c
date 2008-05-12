@@ -630,9 +630,9 @@ static int ftraced(void *ignore)
 {
 	unsigned long usecs;
 
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	while (!kthread_should_stop()) {
+
+		set_current_state(TASK_INTERRUPTIBLE);
 
 		/* check once a second */
 		schedule_timeout(HZ);
@@ -667,8 +667,6 @@ static int ftraced(void *ignore)
 		wake_up_interruptible(&ftraced_waiters);
 
 		ftrace_shutdown_replenish();
-
-		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	__set_current_state(TASK_RUNNING);
 	return 0;
