@@ -169,6 +169,11 @@ void trace_special(struct trace_array *tr,
 		   unsigned long arg1,
 		   unsigned long arg2,
 		   unsigned long arg3);
+void trace_function(struct trace_array *tr,
+		    struct trace_array_cpu *data,
+		    unsigned long ip,
+		    unsigned long parent_ip,
+		    unsigned long flags);
 
 void tracing_start_function_trace(void);
 void tracing_stop_function_trace(void);

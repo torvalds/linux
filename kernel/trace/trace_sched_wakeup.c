@@ -85,7 +85,7 @@ wakeup_sched_switch(struct task_struct *prev, struct task_struct *next)
 	if (unlikely(!tracer_enabled || next != wakeup_task))
 		goto out_unlock;
 
-	ftrace(tr, data, CALLER_ADDR1, CALLER_ADDR2, flags);
+	trace_function(tr, data, CALLER_ADDR1, CALLER_ADDR2, flags);
 
 	/*
 	 * usecs conversion is slow so we try to delay the conversion
@@ -192,7 +192,8 @@ wakeup_check_start(struct trace_array *tr, struct task_struct *p,
 	local_save_flags(flags);
 
 	tr->data[wakeup_cpu]->preempt_timestamp = ftrace_now(cpu);
-	ftrace(tr, tr->data[wakeup_cpu], CALLER_ADDR1, CALLER_ADDR2, flags);
+	trace_function(tr, tr->data[wakeup_cpu],
+		       CALLER_ADDR1, CALLER_ADDR2, flags);
 
 out_locked:
 	spin_unlock(&wakeup_lock);

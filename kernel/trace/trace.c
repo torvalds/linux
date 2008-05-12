@@ -641,8 +641,8 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags)
 }
 
 notrace void
-__ftrace(struct trace_array *tr, struct trace_array_cpu *data,
-	 unsigned long ip, unsigned long parent_ip, unsigned long flags)
+trace_function(struct trace_array *tr, struct trace_array_cpu *data,
+	       unsigned long ip, unsigned long parent_ip, unsigned long flags)
 {
 	struct trace_entry *entry;
 	unsigned long irq_flags;
@@ -664,7 +664,7 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
        unsigned long ip, unsigned long parent_ip, unsigned long flags)
 {
 	if (likely(!atomic_read(&data->disabled)))
-		__ftrace(tr, data, ip, parent_ip, flags);
+		trace_function(tr, data, ip, parent_ip, flags);
 }
 
 notrace void
@@ -730,7 +730,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	disabled = atomic_inc_return(&data->disabled);
 
 	if (likely(disabled == 1))
-		__ftrace(tr, data, ip, parent_ip, flags);
+		trace_function(tr, data, ip, parent_ip, flags);
 
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
