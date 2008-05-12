@@ -25,7 +25,8 @@ Mmiotrace feature is compiled in by the CONFIG_MMIOTRACE option. Tracing is
 disabled by default, so it is safe to have this set to yes. SMP systems are
 supported, but tracing is unreliable and may miss events if more than one CPU
 is on-line, therefore mmiotrace takes all but one CPU off-line during run-time
-activation [not implemented].
+activation. You can re-enable CPUs by hand, but you have been warned, there
+is no way to automatically detect if you are losing events due to CPUs racing.
 
 
 Usage Quick Reference
@@ -37,7 +38,7 @@ $ cat /debug/tracing/trace_pipe > mydump.txt &
 Start X or whatever.
 $ echo "X is up" > /debug/tracing/marker
 $ echo none > /debug/tracing/current_tracer
-Check kernel log.
+Check for lost events.
 
 
 Usage
@@ -67,12 +68,22 @@ do.
 
 Shut down mmiotrace (requires root privileges):
 $ echo none > /debug/tracing/current_tracer
-The 'cat' process exits. If it does not, kill it by 'fg' and pressing ctrl+c.
+The 'cat' process exits. If it does not, kill it by issuing 'fg' command and
+pressing ctrl+c.
 
-[This feature is not implemented yet!]
-Check your kernel log. If there are messages about mmiotrace losing events,
-this is due to buffer overrun, and the trace is incomplete. You should enlarge
-the buffers and try again. [How?]
+Check that mmiotrace did not lose events due to a buffer filling up. Either
+$ grep -i lost mydump.txt
+which tells you exactly how many events were lost, or use
+$ dmesg
+to view your kernel log and look for "mmiotrace has lost events" warning. If
+events were lost, the trace is incomplete. You should enlarge the buffers and
+try again. Buffers are enlarged by first seeing how large the current buffers
+are:
+$ cat /debug/tracing/trace_entries
+gives you a number. Approximately double this number and write it back, for
+instance:
+$ echo 128000 > /debug/tracing/trace_entries
+Then start again from the top.
 
 If you are doing a trace for a driver project, e.g. Nouveau, you should also
 do the following before sending your results:
