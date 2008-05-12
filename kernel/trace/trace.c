@@ -36,8 +36,7 @@ unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
 unsigned long __read_mostly	tracing_thresh;
 
 /* dummy trace to disable tracing */
-static struct tracer no_tracer __read_mostly =
-{
+static struct tracer no_tracer __read_mostly = {
 	.name		= "none",
 };
 
@@ -1906,8 +1905,8 @@ tracing_iter_ctrl_write(struct file *filp, const char __user *ubuf,
 	int neg = 0;
 	int i;
 
-	if (cnt > 63)
-		cnt = 63;
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
@@ -1999,8 +1998,8 @@ tracing_ctrl_write(struct file *filp, const char __user *ubuf,
 	long val;
 	char buf[64];
 
-	if (cnt > 63)
-		cnt = 63;
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
@@ -2099,10 +2098,10 @@ tracing_max_lat_read(struct file *filp, char __user *ubuf,
 	char buf[64];
 	int r;
 
-	r = snprintf(buf, 64, "%ld\n",
+	r = snprintf(buf, sizeof(buf), "%ld\n",
 		     *ptr == (unsigned long)-1 ? -1 : nsecs_to_usecs(*ptr));
-	if (r > 64)
-		r = 64;
+	if (r > sizeof(buf))
+		r = sizeof(buf);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
@@ -2114,8 +2113,8 @@ tracing_max_lat_write(struct file *filp, const char __user *ubuf,
 	long val;
 	char buf[64];
 
-	if (cnt > 63)
-		cnt = 63;
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
@@ -2378,8 +2377,8 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	unsigned long val;
 	char buf[64];
 
-	if (cnt > 63)
-		cnt = 63;
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
