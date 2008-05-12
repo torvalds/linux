@@ -2417,8 +2417,8 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 		mutex_unlock(&trace_types_lock);
 
-		/* sleep for one second, and try again. */
-		schedule_timeout(HZ);
+		/* sleep for 100 msecs, and try again. */
+		schedule_timeout(HZ/10);
 
 		mutex_lock(&trace_types_lock);
 
