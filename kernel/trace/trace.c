@@ -70,6 +70,23 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT;
 
+/*
+ * Only trace on a CPU if the bitmask is set:
+ */
+static cpumask_t tracing_cpumask __read_mostly = CPU_MASK_ALL;
+
+/*
+ * The tracer itself will not take this lock, but still we want
+ * to provide a consistent cpumask to user-space:
+ */
+static DEFINE_MUTEX(tracing_cpumask_update_lock);
+
+/*
+ * Temporary storage for the character representation of the
+ * CPU bitmask:
+ */
+static char mask_str[NR_CPUS];
+
 void trace_wake_up(void)
 {
 	/*
@@ -1754,9 +1771,49 @@ static struct file_operations tracing_lt_fops = {
 };
 
 static struct file_operations show_traces_fops = {
-	.open = show_traces_open,
-	.read = seq_read,
-	.release = seq_release,
+	.open		= show_traces_open,
+	.read		= seq_read,
+	.release	= seq_release,
+};
+
+static ssize_t
+tracing_cpumask_read(struct file *filp, char __user *ubuf,
+		     size_t count, loff_t *ppos)
+{
+	int err;
+
+	count = min(count, (size_t)NR_CPUS);
+
+	mutex_lock(&tracing_cpumask_update_lock);
+	cpumask_scnprintf(mask_str, NR_CPUS, tracing_cpumask);
+	err = copy_to_user(ubuf, mask_str, count);
+	if (err)
+		count = -EFAULT;
+	mutex_unlock(&tracing_cpumask_update_lock);
+
+	return count;
+}
+
+static ssize_t
+tracing_cpumask_write(struct file *filp, const char __user *ubuf,
+		      size_t count, loff_t *ppos)
+{
+	int err;
+
+	mutex_lock(&tracing_cpumask_update_lock);
+	err = cpumask_parse_user(ubuf, count, tracing_cpumask);
+	mutex_unlock(&tracing_cpumask_update_lock);
+
+	if (err)
+		return err;
+
+	return count;
+}
+
+static struct file_operations tracing_cpumask_fops = {
+	.open		= tracing_open_generic,
+	.read		= tracing_cpumask_read,
+	.write		= tracing_cpumask_write,
 };
 
 static ssize_t
@@ -1837,9 +1894,9 @@ tracing_iter_ctrl_write(struct file *filp, const char __user *ubuf,
 }
 
 static struct file_operations tracing_iter_fops = {
-	.open = tracing_open_generic,
-	.read = tracing_iter_ctrl_read,
-	.write = tracing_iter_ctrl_write,
+	.open		= tracing_open_generic,
+	.read		= tracing_iter_ctrl_read,
+	.write		= tracing_iter_ctrl_write,
 };
 
 static const char readme_msg[] =
@@ -1870,8 +1927,8 @@ tracing_readme_read(struct file *filp, char __user *ubuf,
 }
 
 static struct file_operations tracing_readme_fops = {
-	.open = tracing_open_generic,
-	.read = tracing_readme_read,
+	.open		= tracing_open_generic,
+	.read		= tracing_readme_read,
 };
 
 static ssize_t
@@ -2333,6 +2390,11 @@ static __init void tracer_init_debugfs(void)
 				    NULL, &tracing_iter_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs 'iter_ctrl' entry\n");
+
+	entry = debugfs_create_file("tracing_cpumask", 0644, d_tracer,
+				    NULL, &tracing_cpumask_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs 'tracing_cpumask' entry\n");
 
 	entry = debugfs_create_file("latency_trace", 0444, d_tracer,
 				    &global_trace, &tracing_lt_fops);
