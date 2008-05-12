@@ -27,6 +27,21 @@ static DEFINE_PER_CPU(struct task_struct *, watchdog_task);
 static int __read_mostly did_panic;
 unsigned long __read_mostly softlockup_thresh = 60;
 
+/*
+ * Should we panic (and reboot, if panic_timeout= is set) when a
+ * soft-lockup occurs:
+ */
+unsigned int __read_mostly softlockup_panic =
+				CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE;
+
+static int __init softlockup_panic_setup(char *str)
+{
+	softlockup_panic = simple_strtoul(str, NULL, 0);
+
+	return 1;
+}
+__setup("softlockup_panic=", softlockup_panic_setup);
+
 static int
 softlock_panic(struct notifier_block *this, unsigned long event, void *ptr)
 {
@@ -120,6 +135,9 @@ void softlockup_tick(void)
 	else
 		dump_stack();
 	spin_unlock(&print_lock);
+
+	if (softlockup_panic)
+		panic("softlockup: hung tasks");
 }
 
 /*
@@ -172,6 +190,9 @@ static void check_hung_task(struct task_struct *t, unsigned long now)
 
 	t->last_switch_timestamp = now;
 	touch_nmi_watchdog();
+
+	if (softlockup_panic)
+		panic("softlockup: blocked tasks");
 }
 
 /*

@@ -729,6 +729,17 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 	{
 		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "softlockup_panic",
+		.data		= &softlockup_panic,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "softlockup_thresh",
 		.data		= &softlockup_thresh,
 		.maxlen		= sizeof(unsigned long),
