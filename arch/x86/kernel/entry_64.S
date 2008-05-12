@@ -1120,10 +1120,6 @@ ENTRY(coprocessor_segment_overrun)
 	zeroentry do_coprocessor_segment_overrun
 END(coprocessor_segment_overrun)
 
-ENTRY(reserved)
-	zeroentry do_reserved
-END(reserved)
-
 	/* runs on exception stack */
 ENTRY(double_fault)
 	XCPT_FRAME
