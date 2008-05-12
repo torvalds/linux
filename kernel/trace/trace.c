@@ -42,9 +42,61 @@ ns2usecs(cycle_t nsec)
 	return nsec;
 }
 
+static const int time_sync_freq_max = 128;
+static const cycle_t time_sync_thresh = 100000;
+
+static DEFINE_PER_CPU(cycle_t, time_offset);
+static DEFINE_PER_CPU(cycle_t, prev_cpu_time);
+static DEFINE_PER_CPU(int, time_sync_count);
+static DEFINE_PER_CPU(int, time_sync_freq);
+
+/*
+ * Global lock which we take every now and then to synchronize
+ * the CPUs time. This method is not warp-safe, but it's good
+ * enough to synchronize slowly diverging time sources and thus
+ * it's good enough for tracing:
+ */
+static DEFINE_SPINLOCK(time_sync_lock);
+static cycle_t prev_global_time;
+
+static notrace cycle_t __ftrace_now_sync(cycles_t time, int cpu)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&time_sync_lock, flags);
+
+	/*
+	 * Update the synchronization frequency:
+	 */
+	if (per_cpu(time_sync_freq, cpu) < time_sync_freq_max)
+		per_cpu(time_sync_freq, cpu) *= 2;
+	per_cpu(time_sync_count, cpu) = per_cpu(time_sync_freq, cpu);
+
+	if (time < prev_global_time) {
+		per_cpu(time_offset, cpu) += prev_global_time - time;
+		time = prev_global_time;
+	} else {
+		prev_global_time = time;
+	}
+
+	spin_unlock_irqrestore(&time_sync_lock, flags);
+
+	return time;
+}
+
 notrace cycle_t ftrace_now(int cpu)
 {
-	return cpu_clock(cpu);
+	cycle_t prev_cpu_time, time, delta_time;
+
+	prev_cpu_time = per_cpu(prev_cpu_time, cpu);
+	time = sched_clock() + per_cpu(time_offset, cpu);
+	delta_time = time-prev_cpu_time;
+
+	if (unlikely(delta_time > time_sync_thresh ||
+				--per_cpu(time_sync_count, cpu) <= 0))
+		time = __ftrace_now_sync(time, cpu);
+
+	return time;
 }
 
 static atomic_t			tracer_counter;
