@@ -168,20 +168,18 @@ config IOMMU_LEAK
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
 
-config PAGE_FAULT_HANDLERS
-	bool "Custom page fault handlers"
-	depends on DEBUG_KERNEL
-	help
-	  Allow the use of custom page fault handlers. A kernel module may
-	  register a function that is called on every page fault. Custom
-	  handlers are used by some debugging and reverse engineering tools.
+config MMIOTRACE_HOOKS
+	bool
+	default n
 
 config MMIOTRACE
 	tristate "Memory mapped IO tracing"
-	depends on DEBUG_KERNEL && PAGE_FAULT_HANDLERS && RELAY && DEBUG_FS
+	depends on DEBUG_KERNEL && RELAY && DEBUG_FS
+	select MMIOTRACE_HOOKS
 	default n
 	help
 	  This will build a kernel module called mmiotrace.
+	  Making this a built-in is heavily discouraged.
 
 	  Mmiotrace traces Memory Mapped I/O access and is meant for debugging
 	  and reverse engineering. The kernel module offers wrapped

@@ -51,10 +51,6 @@ static LIST_HEAD(kmmio_probes);
 
 static struct kmmio_context kmmio_ctx[NR_CPUS];
 
-static struct pf_handler kmmio_pf_hook = {
-	.handler = kmmio_page_fault
-};
-
 static struct notifier_block nb_die = {
 	.notifier_call = kmmio_die_notifier
 };
@@ -77,7 +73,8 @@ void cleanup_kmmio(void)
 	 * kmmio_page_table, kmmio_probes
 	 */
 	if (handler_registered) {
-		unregister_page_fault_handler(&kmmio_pf_hook);
+		if (mmiotrace_unregister_pf(&kmmio_page_fault))
+			BUG();
 		synchronize_rcu();
 	}
 	unregister_die_notifier(&nb_die);
@@ -343,8 +340,11 @@ int register_kmmio_probe(struct kmmio_probe *p)
 	}
 
 	if (!handler_registered) {
-		register_page_fault_handler(&kmmio_pf_hook);
-		handler_registered++;
+		if (mmiotrace_register_pf(&kmmio_page_fault))
+			printk(KERN_ERR "mmiotrace: Cannot register page "
+					"fault handler.\n");
+		else
+			handler_registered++;
 	}
 
 out:
