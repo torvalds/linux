@@ -228,7 +228,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 
 	ctx->fpage = faultpage;
 	ctx->probe = get_kmmio_probe(addr);
-	ctx->saved_flags = (regs->flags & (TF_MASK|IF_MASK));
+	ctx->saved_flags = (regs->flags & (X86_EFLAGS_TF | X86_EFLAGS_IF));
 	ctx->addr = addr;
 
 	if (ctx->probe && ctx->probe->pre_handler)
@@ -238,8 +238,8 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	 * Enable single-stepping and disable interrupts for the faulting
 	 * context. Local interrupts must not get enabled during stepping.
 	 */
-	regs->flags |= TF_MASK;
-	regs->flags &= ~IF_MASK;
+	regs->flags |= X86_EFLAGS_TF;
+	regs->flags &= ~X86_EFLAGS_IF;
 
 	/* Now we set present bit in PTE and single step. */
 	disarm_kmmio_fault_page(ctx->fpage->page, NULL);
@@ -283,7 +283,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 
 	arm_kmmio_fault_page(ctx->fpage->page, NULL);
 
-	regs->flags &= ~TF_MASK;
+	regs->flags &= ~X86_EFLAGS_TF;
 	regs->flags |= ctx->saved_flags;
 
 	/* These were acquired in kmmio_handler(). */
@@ -297,7 +297,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	 * will have TF set, in which case, continue the remaining processing
 	 * of do_debug, as if this is not a probe hit.
 	 */
-	if (!(regs->flags & TF_MASK))
+	if (!(regs->flags & X86_EFLAGS_TF))
 		ret = 1;
 out:
 	put_cpu_var(kmmio_ctx);
