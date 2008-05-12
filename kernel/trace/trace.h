@@ -274,4 +274,18 @@ extern int trace_selftest_startup_sched_switch(struct tracer *trace,
 
 extern void *head_page(struct trace_array_cpu *data);
 
+extern unsigned long trace_flags;
+
+enum trace_iterator_flags {
+	TRACE_ITER_PRINT_PARENT		= 0x01,
+	TRACE_ITER_SYM_OFFSET		= 0x02,
+	TRACE_ITER_SYM_ADDR		= 0x04,
+	TRACE_ITER_VERBOSE		= 0x08,
+	TRACE_ITER_RAW			= 0x10,
+	TRACE_ITER_HEX			= 0x20,
+	TRACE_ITER_BIN			= 0x40,
+	TRACE_ITER_BLOCK		= 0x80,
+	TRACE_ITER_STACKTRACE		= 0x100,
+};
+
 #endif /* _LINUX_KERNEL_TRACE_H */

@@ -18,7 +18,7 @@ static struct trace_array	*ctx_trace;
 static int __read_mostly	tracer_enabled;
 
 static void
-ctx_switch_func(struct task_struct *prev, struct task_struct *next)
+ctx_switch_func(void *__rq, struct task_struct *prev, struct task_struct *next)
 {
 	struct trace_array *tr = ctx_trace;
 	struct trace_array_cpu *data;
@@ -34,14 +34,17 @@ ctx_switch_func(struct task_struct *prev, struct task_struct *next)
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
 
-	if (likely(disabled == 1))
+	if (likely(disabled == 1)) {
 		tracing_sched_switch_trace(tr, data, prev, next, flags);
+		ftrace_all_fair_tasks(__rq, tr, data);
+	}
 
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 }
 
-static void wakeup_func(struct task_struct *wakee, struct task_struct *curr)
+static void
+wakeup_func(void *__rq, struct task_struct *wakee, struct task_struct *curr)
 {
 	struct trace_array *tr = ctx_trace;
 	struct trace_array_cpu *data;
@@ -57,14 +60,18 @@ static void wakeup_func(struct task_struct *wakee, struct task_struct *curr)
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
 
-	if (likely(disabled == 1))
+	if (likely(disabled == 1)) {
 		tracing_sched_wakeup_trace(tr, data, wakee, curr, flags);
+		ftrace_all_fair_tasks(__rq, tr, data);
+	}
 
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 }
 
-void ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
+void
+ftrace_ctx_switch(void *__rq, struct task_struct *prev,
+		  struct task_struct *next)
 {
 	tracing_record_cmdline(prev);
 
@@ -72,7 +79,7 @@ void ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
 	 * If tracer_switch_func only points to the local
 	 * switch func, it still needs the ptr passed to it.
 	 */
-	ctx_switch_func(prev, next);
+	ctx_switch_func(__rq, prev, next);
 
 	/*
 	 * Chain to the wakeup tracer (this is a NOP if disabled):
@@ -81,11 +88,12 @@ void ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
 }
 
 void
-ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr)
+ftrace_wake_up_task(void *__rq, struct task_struct *wakee,
+		    struct task_struct *curr)
 {
 	tracing_record_cmdline(curr);
 
-	wakeup_func(wakee, curr);
+	wakeup_func(__rq, wakee, curr);
 
 	/*
 	 * Chain to the wakeup tracer (this is a NOP if disabled):

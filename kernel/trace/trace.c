@@ -66,7 +66,18 @@ static struct tracer		*current_trace __read_mostly;
 static int			max_tracer_type_len;
 
 static DEFINE_MUTEX(trace_types_lock);
-static DECLARE_WAIT_QUEUE_HEAD (trace_wait);
+static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
+
+unsigned long trace_flags = TRACE_ITER_PRINT_PARENT;
+
+/*
+ * FIXME: where should this be called?
+ */
+void trace_wake_up(void)
+{
+	if (!(trace_flags & TRACE_ITER_BLOCK))
+		wake_up(&trace_wait);
+}
 
 #define ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct trace_entry))
 
@@ -103,18 +114,6 @@ enum trace_flag_type {
 	TRACE_FLAG_SOFTIRQ		= 0x08,
 };
 
-enum trace_iterator_flags {
-	TRACE_ITER_PRINT_PARENT		= 0x01,
-	TRACE_ITER_SYM_OFFSET		= 0x02,
-	TRACE_ITER_SYM_ADDR		= 0x04,
-	TRACE_ITER_VERBOSE		= 0x08,
-	TRACE_ITER_RAW			= 0x10,
-	TRACE_ITER_HEX			= 0x20,
-	TRACE_ITER_BIN			= 0x40,
-	TRACE_ITER_BLOCK		= 0x80,
-	TRACE_ITER_STACKTRACE		= 0x100,
-};
-
 #define TRACE_ITER_SYM_MASK \
 	(TRACE_ITER_PRINT_PARENT|TRACE_ITER_SYM_OFFSET|TRACE_ITER_SYM_ADDR)
 
@@ -131,8 +130,6 @@ static const char *trace_options[] = {
 	"stacktrace",
 	NULL
 };
-
-static unsigned trace_flags = TRACE_ITER_PRINT_PARENT;
 
 static DEFINE_SPINLOCK(ftrace_max_lock);
 
@@ -660,9 +657,6 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	entry->fn.ip		= ip;
 	entry->fn.parent_ip	= parent_ip;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
-
-	if (!(trace_flags & TRACE_ITER_BLOCK))
-		wake_up(&trace_wait);
 }
 
 void
@@ -673,10 +667,14 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 		trace_function(tr, data, ip, parent_ip, flags);
 }
 
+#ifdef CONFIG_CONTEXT_SWITCH_TRACER
+
 void
-trace_special(struct trace_array *tr, struct trace_array_cpu *data,
-	      unsigned long arg1, unsigned long arg2, unsigned long arg3)
+__trace_special(void *__tr, void *__data,
+		unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
+	struct trace_array_cpu *data = __data;
+	struct trace_array *tr = __tr;
 	struct trace_entry *entry;
 	unsigned long irq_flags;
 
@@ -688,10 +686,9 @@ trace_special(struct trace_array *tr, struct trace_array_cpu *data,
 	entry->special.arg2	= arg2;
 	entry->special.arg3	= arg3;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
-
-	if (!(trace_flags & TRACE_ITER_BLOCK))
-		wake_up(&trace_wait);
 }
+
+#endif
 
 void __trace_stack(struct trace_array *tr,
 		   struct trace_array_cpu *data,
@@ -739,9 +736,6 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->ctx.next_prio	= next->prio;
 	__trace_stack(tr, data, flags, 4);
 	spin_unlock_irqrestore(&data->lock, irq_flags);
-
-	if (!(trace_flags & TRACE_ITER_BLOCK))
-		wake_up(&trace_wait);
 }
 
 void
@@ -765,9 +759,6 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->ctx.next_prio	= wakee->prio;
 	__trace_stack(tr, data, flags, 5);
 	spin_unlock_irqrestore(&data->lock, irq_flags);
-
-	if (!(trace_flags & TRACE_ITER_BLOCK))
-		wake_up(&trace_wait);
 }
 
 #ifdef CONFIG_FTRACE
@@ -1258,7 +1249,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 				 comm);
 		break;
 	case TRACE_SPECIAL:
-		trace_seq_printf(s, " %lx %lx %lx\n",
+		trace_seq_printf(s, " %ld %ld %ld\n",
 				 entry->special.arg1,
 				 entry->special.arg2,
 				 entry->special.arg3);
@@ -1344,7 +1335,7 @@ static int print_trace_fmt(struct trace_iterator *iter)
 			return 0;
 		break;
 	case TRACE_SPECIAL:
-		ret = trace_seq_printf(s, " %lx %lx %lx\n",
+		ret = trace_seq_printf(s, " %ld %ld %ld\n",
 				 entry->special.arg1,
 				 entry->special.arg2,
 				 entry->special.arg3);
@@ -1409,7 +1400,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 		break;
 	case TRACE_SPECIAL:
 	case TRACE_STACK:
-		ret = trace_seq_printf(s, " %lx %lx %lx\n",
+		ret = trace_seq_printf(s, " %ld %ld %ld\n",
 				 entry->special.arg1,
 				 entry->special.arg2,
 				 entry->special.arg3);

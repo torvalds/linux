@@ -2119,20 +2119,34 @@ static inline void arch_pick_mmap_layout(struct mm_struct *mm)
 
 #ifdef CONFIG_CONTEXT_SWITCH_TRACER
 extern void
-ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next);
+ftrace_ctx_switch(void *rq, struct task_struct *prev, struct task_struct *next);
+extern void
+ftrace_wake_up_task(void *rq, struct task_struct *wakee,
+		    struct task_struct *curr);
+extern void ftrace_all_fair_tasks(void *__rq, void *__tr, void *__data);
+extern void
+__trace_special(void *__tr, void *__data,
+		unsigned long arg1, unsigned long arg2, unsigned long arg3);
 #else
 static inline void
-ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
+ftrace_ctx_switch(void *rq, struct task_struct *prev, struct task_struct *next)
 {
 }
-#endif
-
-#ifdef CONFIG_SCHED_TRACER
-extern void
-ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr);
-#else
 static inline void
-ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr)
+sched_trace_special(unsigned long p1, unsigned long p2, unsigned long p3)
+{
+}
+static inline void
+ftrace_wake_up_task(void *rq, struct task_struct *wakee,
+		    struct task_struct *curr)
+{
+}
+static inline void ftrace_all_fair_tasks(void *__rq, void *__tr, void *__data)
+{
+}
+static inline void
+__trace_special(void *__tr, void *__data,
+		unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
 }
 #endif
