@@ -204,14 +204,14 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	if (likely(!tracer_enabled))
 		return;
 
-	if (__get_cpu_var(tracing_cpu))
+	cpu = raw_smp_processor_id();
+
+	if (per_cpu(tracing_cpu, cpu))
 		return;
 
-	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
-	if (unlikely(!data) || unlikely(!head_page(data)) ||
-	    atomic_read(&data->disabled))
+	if (unlikely(!data) || atomic_read(&data->disabled))
 		return;
 
 	atomic_inc(&data->disabled);
@@ -225,7 +225,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 
 	trace_function(tr, data, ip, parent_ip, flags);
 
-	__get_cpu_var(tracing_cpu) = 1;
+	per_cpu(tracing_cpu, cpu) = 1;
 
 	atomic_dec(&data->disabled);
 }
@@ -238,16 +238,16 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	struct trace_array_cpu *data;
 	unsigned long flags;
 
+	cpu = raw_smp_processor_id();
 	/* Always clear the tracing cpu on stopping the trace */
-	if (unlikely(__get_cpu_var(tracing_cpu)))
-		__get_cpu_var(tracing_cpu) = 0;
+	if (unlikely(per_cpu(tracing_cpu, cpu)))
+		per_cpu(tracing_cpu, cpu) = 0;
 	else
 		return;
 
 	if (!tracer_enabled)
 		return;
 
-	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
 	if (unlikely(!data) || unlikely(!head_page(data)) ||
@@ -255,6 +255,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 		return;
 
 	atomic_inc(&data->disabled);
+
 	local_save_flags(flags);
 	trace_function(tr, data, ip, parent_ip, flags);
 	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
@@ -376,7 +377,7 @@ static void stop_irqsoff_tracer(struct trace_array *tr)
 static void __irqsoff_tracer_init(struct trace_array *tr)
 {
 	irqsoff_trace = tr;
-	/* make sure that the tracer is visibel */
+	/* make sure that the tracer is visible */
 	smp_wmb();
 
 	if (tr->ctrl)
