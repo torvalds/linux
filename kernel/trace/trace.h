@@ -38,7 +38,6 @@ struct trace_entry {
 	char			preempt_count;
 	int			pid;
 	cycle_t			t;
-	unsigned long		idx;
 	union {
 		struct ftrace_entry		fn;
 		struct ctx_switch_entry		ctx;
@@ -57,7 +56,6 @@ struct trace_array_cpu {
 	atomic_t		disabled;
 	spinlock_t		lock;
 	struct lock_class_key	lock_key;
-	cycle_t			time_offset;
 
 	/* these fields get copied into max-trace: */
 	unsigned		trace_head_idx;

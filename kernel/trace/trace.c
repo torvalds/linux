@@ -99,7 +99,6 @@ notrace cycle_t ftrace_now(int cpu)
 	return time;
 }
 
-static atomic_t			tracer_counter;
 static struct trace_array	global_trace;
 
 static DEFINE_PER_CPU(struct trace_array_cpu, global_trace_cpu);
@@ -661,7 +660,6 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags)
 
 	pc = preempt_count();
 
-	entry->idx		= atomic_inc_return(&tracer_counter);
 	entry->preempt_count	= pc & 0xff;
 	entry->pid		= tsk->pid;
 	entry->t		= ftrace_now(raw_smp_processor_id());
@@ -757,8 +755,10 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 		if (!head_page(tr->data[cpu]))
 			continue;
 		ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
-		if (ent &&
-		    (!next || (long)(next->idx - ent->idx) > 0)) {
+		/*
+		 * Pick the entry with the smallest timestamp:
+		 */
+		if (ent && (!next || ent->t < next->t)) {
 			next = ent;
 			next_cpu = cpu;
 		}
@@ -800,8 +800,6 @@ trace_consume(struct trace_iterator *iter)
 	if (data->trace_head == data->trace_tail &&
 	    data->trace_head_idx == data->trace_tail_idx)
 		data->trace_idx = 0;
-
-	trace_iterator_increment(iter);
 }
 
 static notrace void *
@@ -1160,33 +1158,6 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	}
 }
 
-static notrace void sync_time_offset(struct trace_iterator *iter)
-{
-	struct trace_array_cpu *prev_array, *array;
-	struct trace_entry *prev_entry, *entry;
-	cycle_t prev_t, t;
-
-	entry = iter->ent;
-	prev_entry = iter->prev_ent;
-	if (!prev_entry)
-		return;
-
-	prev_array = iter->tr->data[iter->prev_cpu];
-	array = iter->tr->data[iter->cpu];
-
-	prev_t = prev_entry->t + prev_array->time_offset;
-	t = entry->t + array->time_offset;
-
-	/*
-	 * If time goes backwards we increase the offset of
-	 * the current array, to not have observable time warps.
-	 * This will quickly synchronize the time offsets of
-	 * multiple CPUs:
-	 */
-	if (t < prev_t)
-		array->time_offset += prev_t - t;
-}
-
 static notrace int
 print_trace_fmt(struct trace_iterator *iter)
 {
@@ -1200,12 +1171,11 @@ print_trace_fmt(struct trace_iterator *iter)
 	int S;
 	int ret;
 
-	sync_time_offset(iter);
 	entry = iter->ent;
 
 	comm = trace_find_cmdline(iter->ent->pid);
 
-	t = ns2usecs(entry->t + iter->tr->data[iter->cpu]->time_offset);
+	t = ns2usecs(entry->t);
 	usec_rem = do_div(t, 1000000ULL);
 	secs = (unsigned long)t;
 
