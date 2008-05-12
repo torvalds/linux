@@ -603,7 +603,7 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 	error = kernel_thread((int (*)(void *)) func, rqstp, 0);
 
 	if (have_oldmask)
-		set_cpus_allowed(current, oldmask);
+		set_cpus_allowed_ptr(current, &oldmask);
 
 	if (error < 0)
 		goto out_thread;
