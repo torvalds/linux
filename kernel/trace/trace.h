@@ -234,25 +234,10 @@ void update_max_tr_single(struct trace_array *tr,
 
 extern cycle_t ftrace_now(int cpu);
 
-#ifdef CONFIG_SCHED_TRACER
-extern void
-wakeup_sched_switch(struct task_struct *prev, struct task_struct *next);
-extern void
-wakeup_sched_wakeup(struct task_struct *wakee, struct task_struct *curr);
-#else
-static inline void
-wakeup_sched_switch(struct task_struct *prev, struct task_struct *next)
-{
-}
-static inline void
-wakeup_sched_wakeup(struct task_struct *wakee, struct task_struct *curr)
-{
-}
-#endif
-
 #ifdef CONFIG_CONTEXT_SWITCH_TRACER
 typedef void
 (*tracer_switch_func_t)(void *private,
+			void *__rq,
 			struct task_struct *prev,
 			struct task_struct *next);
 
@@ -261,9 +246,6 @@ struct tracer_switch_ops {
 	void				*private;
 	struct tracer_switch_ops	*next;
 };
-
-extern int register_tracer_switch(struct tracer_switch_ops *ops);
-extern int unregister_tracer_switch(struct tracer_switch_ops *ops);
 
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 

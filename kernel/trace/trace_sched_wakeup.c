@@ -15,6 +15,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
+#include <linux/marker.h>
 
 #include "trace.h"
 
@@ -44,11 +45,13 @@ static int report_latency(cycle_t delta)
 	return 1;
 }
 
-void
-wakeup_sched_switch(struct task_struct *prev, struct task_struct *next)
+static void notrace
+wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
+	struct task_struct *next)
 {
 	unsigned long latency = 0, t0 = 0, t1 = 0;
-	struct trace_array *tr = wakeup_trace;
+	struct trace_array **ptr = private;
+	struct trace_array *tr = *ptr;
 	struct trace_array_cpu *data;
 	cycle_t T0, T1, delta;
 	unsigned long flags;
@@ -111,6 +114,31 @@ out_unlock:
 	spin_unlock_irqrestore(&wakeup_lock, flags);
 out:
 	atomic_dec(&tr->data[cpu]->disabled);
+}
+
+static notrace void
+sched_switch_callback(void *probe_data, void *call_data,
+		      const char *format, va_list *args)
+{
+	struct task_struct *prev;
+	struct task_struct *next;
+	struct rq *__rq;
+
+	/* skip prev_pid %d next_pid %d prev_state %ld */
+	(void)va_arg(*args, int);
+	(void)va_arg(*args, int);
+	(void)va_arg(*args, long);
+	__rq = va_arg(*args, typeof(__rq));
+	prev = va_arg(*args, typeof(prev));
+	next = va_arg(*args, typeof(next));
+
+	tracing_record_cmdline(prev);
+
+	/*
+	 * If tracer_switch_func only points to the local
+	 * switch func, it still needs the ptr passed to it.
+	 */
+	wakeup_sched_switch(probe_data, __rq, prev, next);
 }
 
 static void __wakeup_reset(struct trace_array *tr)
@@ -188,19 +216,68 @@ out:
 	atomic_dec(&tr->data[cpu]->disabled);
 }
 
-void wakeup_sched_wakeup(struct task_struct *wakee, struct task_struct *curr)
+static notrace void
+wake_up_callback(void *probe_data, void *call_data,
+		 const char *format, va_list *args)
 {
+	struct trace_array **ptr = probe_data;
+	struct trace_array *tr = *ptr;
+	struct task_struct *curr;
+	struct task_struct *task;
+	struct rq *__rq;
+
 	if (likely(!tracer_enabled))
 		return;
 
-	tracing_record_cmdline(curr);
-	tracing_record_cmdline(wakee);
+	/* Skip pid %d state %ld */
+	(void)va_arg(*args, int);
+	(void)va_arg(*args, long);
+	/* now get the meat: "rq %p task %p rq->curr %p" */
+	__rq = va_arg(*args, typeof(__rq));
+	task = va_arg(*args, typeof(task));
+	curr = va_arg(*args, typeof(curr));
 
-	wakeup_check_start(wakeup_trace, wakee, curr);
+	tracing_record_cmdline(task);
+	tracing_record_cmdline(curr);
+
+	wakeup_check_start(tr, task, curr);
 }
 
 static void start_wakeup_tracer(struct trace_array *tr)
 {
+	int ret;
+
+	ret = marker_probe_register("kernel_sched_wakeup",
+			"pid %d state %ld ## rq %p task %p rq->curr %p",
+			wake_up_callback,
+			&wakeup_trace);
+	if (ret) {
+		pr_info("wakeup trace: Couldn't add marker"
+			" probe to kernel_sched_wakeup\n");
+		return;
+	}
+
+	ret = marker_probe_register("kernel_sched_wakeup_new",
+			"pid %d state %ld ## rq %p task %p rq->curr %p",
+			wake_up_callback,
+			&wakeup_trace);
+	if (ret) {
+		pr_info("wakeup trace: Couldn't add marker"
+			" probe to kernel_sched_wakeup_new\n");
+		goto fail_deprobe;
+	}
+
+	ret = marker_probe_register("kernel_sched_schedule",
+		"prev_pid %d next_pid %d prev_state %ld "
+		"## rq %p prev %p next %p",
+		sched_switch_callback,
+		&wakeup_trace);
+	if (ret) {
+		pr_info("sched trace: Couldn't add marker"
+			" probe to kernel_sched_schedule\n");
+		goto fail_deprobe_wake_new;
+	}
+
 	wakeup_reset(tr);
 
 	/*
@@ -215,11 +292,28 @@ static void start_wakeup_tracer(struct trace_array *tr)
 	tracer_enabled = 1;
 
 	return;
+fail_deprobe_wake_new:
+	marker_probe_unregister("kernel_sched_wakeup_new",
+				wake_up_callback,
+				&wakeup_trace);
+fail_deprobe:
+	marker_probe_unregister("kernel_sched_wakeup",
+				wake_up_callback,
+				&wakeup_trace);
 }
 
 static void stop_wakeup_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
+	marker_probe_unregister("kernel_sched_schedule",
+				sched_switch_callback,
+				&wakeup_trace);
+	marker_probe_unregister("kernel_sched_wakeup_new",
+				wake_up_callback,
+				&wakeup_trace);
+	marker_probe_unregister("kernel_sched_wakeup",
+				wake_up_callback,
+				&wakeup_trace);
 }
 
 static void wakeup_tracer_init(struct trace_array *tr)

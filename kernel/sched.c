@@ -2500,7 +2500,9 @@ out_activate:
 	success = 1;
 
 out_running:
-	ftrace_wake_up_task(rq, p, rq->curr);
+	trace_mark(kernel_sched_wakeup,
+		"pid %d state %ld ## rq %p task %p rq->curr %p",
+		p->pid, p->state, rq, p, rq->curr);
 	check_preempt_curr(rq, p);
 
 	p->state = TASK_RUNNING;
@@ -2631,7 +2633,9 @@ void wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 		p->sched_class->task_new(rq, p);
 		inc_nr_running(rq);
 	}
-	ftrace_wake_up_task(rq, p, rq->curr);
+	trace_mark(kernel_sched_wakeup_new,
+		"pid %d state %ld ## rq %p task %p rq->curr %p",
+		p->pid, p->state, rq, p, rq->curr);
 	check_preempt_curr(rq, p);
 #ifdef CONFIG_SMP
 	if (p->sched_class->task_wake_up)
@@ -2804,7 +2808,11 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	struct mm_struct *mm, *oldmm;
 
 	prepare_task_switch(rq, prev, next);
-	ftrace_ctx_switch(rq, prev, next);
+	trace_mark(kernel_sched_schedule,
+		"prev_pid %d next_pid %d prev_state %ld "
+		"## rq %p prev %p next %p",
+		prev->pid, next->pid, prev->state,
+		rq, prev, next);
 	mm = next->mm;
 	oldmm = prev->active_mm;
 	/*
