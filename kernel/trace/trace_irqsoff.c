@@ -74,12 +74,21 @@ irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
 	long disabled;
 	int cpu;
 
-	if (likely(!__get_cpu_var(tracing_cpu)))
+	/*
+	 * Does not matter if we preempt. We test the flags
+	 * afterward, to see if irqs are disabled or not.
+	 * If we preempt and get a false positive, the flags
+	 * test will fail.
+	 */
+	cpu = raw_smp_processor_id();
+	if (likely(!per_cpu(tracing_cpu, cpu)))
 		return;
 
 	local_save_flags(flags);
+	/* slight chance to get a false positive on tracing_cpu */
+	if (!irqs_disabled_flags(flags))
+		return;
 
-	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
 
