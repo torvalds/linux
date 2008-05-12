@@ -2398,14 +2398,25 @@ static int sched_balance_self(int cpu, int flag)
 
 void ftrace_all_fair_tasks(void *__rq, void *__tr, void *__data)
 {
-	struct sched_entity *se;
 	struct task_struct *p;
+	struct sched_entity *se;
 	struct rb_node *curr;
 	struct rq *rq = __rq;
 
 	curr = first_fair(&rq->cfs);
 	if (!curr)
 		return;
+
+	if (rq->cfs.curr) {
+		p = task_of(rq->cfs.curr);
+		__trace_special(__tr, __data,
+		      p->pid, p->se.vruntime, p->se.sum_exec_runtime);
+	}
+	if (rq->cfs.next) {
+		p = task_of(rq->cfs.next);
+		__trace_special(__tr, __data,
+		      p->pid, p->se.vruntime, p->se.sum_exec_runtime);
+	}
 
 	while (curr) {
 		se = rb_entry(curr, struct sched_entity, run_node);
