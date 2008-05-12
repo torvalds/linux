@@ -12,6 +12,10 @@
 
 #include "trace.h"
 
+struct header_iter {
+	struct pci_dev *dev;
+};
+
 static struct trace_array *mmio_trace_array;
 
 static void mmio_reset_data(struct trace_array *tr)
@@ -89,17 +93,57 @@ static int mmio_print_pcidev(struct trace_seq *s, const struct pci_dev *dev)
 	return ret;
 }
 
-/* XXX: This is not called for trace_pipe file! */
-static void mmio_print_header(struct trace_iterator *iter)
+static void destroy_header_iter(struct header_iter *hiter)
 {
+	if (!hiter)
+		return;
+	pci_dev_put(hiter->dev);
+	kfree(hiter);
+}
+
+static void mmio_pipe_open(struct trace_iterator *iter)
+{
+	struct header_iter *hiter;
 	struct trace_seq *s = &iter->seq;
-	struct pci_dev *dev = NULL;
 
 	trace_seq_printf(s, "VERSION 20070824\n");
 
-	for_each_pci_dev(dev)
-		mmio_print_pcidev(s, dev);
-	/* XXX: return value? What if header is very long? */
+	hiter = kzalloc(sizeof(*hiter), GFP_KERNEL);
+	if (!hiter)
+		return;
+
+	hiter->dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+	iter->private = hiter;
+}
+
+/* XXX: This is not called when the pipe is closed! */
+static void mmio_close(struct trace_iterator *iter)
+{
+	struct header_iter *hiter = iter->private;
+	destroy_header_iter(hiter);
+	iter->private = NULL;
+}
+
+static ssize_t mmio_read(struct trace_iterator *iter, struct file *filp,
+				char __user *ubuf, size_t cnt, loff_t *ppos)
+{
+	ssize_t ret;
+	struct header_iter *hiter = iter->private;
+	struct trace_seq *s = &iter->seq;
+
+	if (!hiter)
+		return 0;
+
+	mmio_print_pcidev(s, hiter->dev);
+	hiter->dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, hiter->dev);
+
+	if (!hiter->dev) {
+		destroy_header_iter(hiter);
+		iter->private = NULL;
+	}
+
+	ret = trace_seq_to_user(s, ubuf, cnt);
+	return (ret == -EBUSY) ? 0 : ret;
 }
 
 static int mmio_print_rw(struct trace_iterator *iter)
@@ -190,7 +234,9 @@ static struct tracer mmio_tracer __read_mostly =
 	.name		= "mmiotrace",
 	.init		= mmio_trace_init,
 	.reset		= mmio_trace_reset,
-	.open		= mmio_print_header,
+	.pipe_open	= mmio_pipe_open,
+	.close		= mmio_close,
+	.read		= mmio_read,
 	.ctrl_update	= mmio_trace_ctrl_update,
 	.print_line	= mmio_print_line,
 };
