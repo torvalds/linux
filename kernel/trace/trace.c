@@ -770,12 +770,12 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 	return next;
 }
 
-static notrace void
-trace_iterator_increment(struct trace_iterator *iter)
+static notrace void trace_iterator_increment(struct trace_iterator *iter)
 {
 	iter->idx++;
 	iter->next_idx[iter->cpu]++;
 	iter->next_page_idx[iter->cpu]++;
+
 	if (iter->next_page_idx[iter->cpu] >= ENTRIES_PER_PAGE) {
 		struct trace_array_cpu *data = iter->tr->data[iter->cpu];
 
@@ -785,8 +785,7 @@ trace_iterator_increment(struct trace_iterator *iter)
 	}
 }
 
-static notrace void
-trace_consume(struct trace_iterator *iter)
+static notrace void trace_consume(struct trace_iterator *iter)
 {
 	struct trace_array_cpu *data = iter->tr->data[iter->cpu];
 
@@ -802,8 +801,7 @@ trace_consume(struct trace_iterator *iter)
 		data->trace_idx = 0;
 }
 
-static notrace void *
-find_next_entry_inc(struct trace_iterator *iter)
+static notrace void *find_next_entry_inc(struct trace_iterator *iter)
 {
 	struct trace_entry *next;
 	int next_cpu = -1;
@@ -1871,14 +1869,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		cpu_set(cpu, mask);
 	}
 
-	while ((entry = find_next_entry(iter, &cpu))) {
-
-		if (!entry)
-			break;
-
-		iter->ent = entry;
-		iter->cpu = cpu;
-
+	while ((entry = find_next_entry_inc(iter)) != NULL) {
 		ret = print_trace_fmt(iter);
 		if (!ret)
 			break;
@@ -1887,7 +1878,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 		if (iter->seq.len >= cnt)
 			break;
-
 	}
 
 	for_each_cpu_mask(cpu, mask) {
