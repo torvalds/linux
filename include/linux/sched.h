@@ -2027,7 +2027,7 @@ static inline int fatal_signal_pending(struct task_struct *p)
 
 static inline int need_resched(void)
 {
-	return unlikely(test_tsk_need_resched(current));
+	return unlikely(test_thread_flag(TIF_NEED_RESCHED));
 }
 
 /*
