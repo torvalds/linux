@@ -331,8 +331,6 @@ acpi_parse_lapic_nmi(struct acpi_subtable_header * header, const unsigned long e
 
 #ifdef CONFIG_X86_IO_APIC
 
-struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
-
 static int __init
 acpi_parse_ioapic(struct acpi_subtable_header * header, const unsigned long end)
 {

@@ -1,5 +1,5 @@
 /*
- *	Intel Multiprocessor Specification 1.1 and 1.4
+2 *	Intel Multiprocessor Specification 1.1 and 1.4
  *	compliant MP-table parsing routines.
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@redhat.com>
@@ -805,7 +805,7 @@ int es7000_plat;
 
 #define MP_ISA_BUS		0
 
-extern struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
+static struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
 
 static int mp_find_ioapic(int gsi)
 {
