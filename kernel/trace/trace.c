@@ -169,6 +169,66 @@ void *head_page(struct trace_array_cpu *data)
 	return page_address(page);
 }
 
+static notrace int
+trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
+{
+	int len = (PAGE_SIZE - 1) - s->len;
+	va_list ap;
+
+	if (!len)
+		return 0;
+
+	va_start(ap, fmt);
+	len = vsnprintf(s->buffer + s->len, len, fmt, ap);
+	va_end(ap);
+
+	s->len += len;
+
+	return len;
+}
+
+static notrace int
+trace_seq_puts(struct trace_seq *s, const char *str)
+{
+	int len = strlen(str);
+
+	if (len > ((PAGE_SIZE - 1) - s->len))
+		len = (PAGE_SIZE - 1) - s->len;
+
+	memcpy(s->buffer + s->len, str, len);
+	s->len += len;
+
+	return len;
+}
+
+static notrace int
+trace_seq_putc(struct trace_seq *s, unsigned char c)
+{
+	if (s->len >= (PAGE_SIZE - 1))
+		return 0;
+
+	s->buffer[s->len++] = c;
+
+	return 1;
+}
+
+static notrace void
+trace_seq_reset(struct trace_seq *s)
+{
+	s->len = 0;
+}
+
+static notrace void
+trace_print_seq(struct seq_file *m, struct trace_seq *s)
+{
+	int len = s->len >= PAGE_SIZE ? PAGE_SIZE - 1 : s->len;
+
+	s->buffer[len] = 0;
+	seq_puts(m, s->buffer);
+
+	trace_seq_reset(s);
+}
+
 notrace static void
 flip_trace(struct trace_array_cpu *tr1, struct trace_array_cpu *tr2)
 {
@@ -756,25 +816,26 @@ static void s_stop(struct seq_file *m, void *p)
 }
 
 static void
-seq_print_sym_short(struct seq_file *m, const char *fmt, unsigned long address)
+seq_print_sym_short(struct trace_seq *s, const char *fmt, unsigned long address)
 {
 #ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
 
 	kallsyms_lookup(address, NULL, NULL, NULL, str);
 
-	seq_printf(m, fmt, str);
+	trace_seq_printf(s, fmt, str);
 #endif
 }
 
 static void
-seq_print_sym_offset(struct seq_file *m, const char *fmt, unsigned long address)
+seq_print_sym_offset(struct trace_seq *s, const char *fmt,
+		     unsigned long address)
 {
 #ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
 
 	sprint_symbol(str, address);
-	seq_printf(m, fmt, str);
+	trace_seq_printf(s, fmt, str);
 #endif
 }
 
@@ -785,20 +846,20 @@ seq_print_sym_offset(struct seq_file *m, const char *fmt, unsigned long address)
 #endif
 
 static notrace void
-seq_print_ip_sym(struct seq_file *m, unsigned long ip, unsigned long sym_flags)
+seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 {
 	if (!ip) {
-		seq_printf(m, "0");
+		trace_seq_printf(s, "0");
 		return;
 	}
 
 	if (sym_flags & TRACE_ITER_SYM_OFFSET)
-		seq_print_sym_offset(m, "%s", ip);
+		seq_print_sym_offset(s, "%s", ip);
 	else
-		seq_print_sym_short(m, "%s", ip);
+		seq_print_sym_short(s, "%s", ip);
 
 	if (sym_flags & TRACE_ITER_SYM_ADDR)
-		seq_printf(m, " <" IP_FMT ">", ip);
+		trace_seq_printf(s, " <" IP_FMT ">", ip);
 }
 
 static notrace void print_lat_help_header(struct seq_file *m)
@@ -881,9 +942,11 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 
 	if (data->critical_start) {
 		seq_puts(m, " => started at: ");
-		seq_print_ip_sym(m, data->critical_start, sym_flags);
+		seq_print_ip_sym(&iter->seq, data->critical_start, sym_flags);
+		trace_print_seq(m, &iter->seq);
 		seq_puts(m, "\n => ended at:   ");
-		seq_print_ip_sym(m, data->critical_end, sym_flags);
+		seq_print_ip_sym(&iter->seq, data->critical_end, sym_flags);
+		trace_print_seq(m, &iter->seq);
 		seq_puts(m, "\n");
 	}
 
@@ -891,61 +954,61 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 }
 
 static notrace void
-lat_print_generic(struct seq_file *m, struct trace_entry *entry, int cpu)
+lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 {
 	int hardirq, softirq;
 	char *comm;
 
 	comm = trace_find_cmdline(entry->pid);
 
-	seq_printf(m, "%8.8s-%-5d ", comm, entry->pid);
-	seq_printf(m, "%d", cpu);
-	seq_printf(m, "%c%c",
-		   (entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' : '.',
-		   ((entry->flags & TRACE_FLAG_NEED_RESCHED) ? 'N' : '.'));
+	trace_seq_printf(s, "%8.8s-%-5d ", comm, entry->pid);
+	trace_seq_printf(s, "%d", cpu);
+	trace_seq_printf(s, "%c%c",
+			(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' : '.',
+			((entry->flags & TRACE_FLAG_NEED_RESCHED) ? 'N' : '.'));
 
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
 	if (hardirq && softirq)
-		seq_putc(m, 'H');
+		trace_seq_putc(s, 'H');
 	else {
 		if (hardirq)
-			seq_putc(m, 'h');
+			trace_seq_putc(s, 'h');
 		else {
 			if (softirq)
-				seq_putc(m, 's');
+				trace_seq_putc(s, 's');
 			else
-				seq_putc(m, '.');
+				trace_seq_putc(s, '.');
 		}
 	}
 
 	if (entry->preempt_count)
-		seq_printf(m, "%x", entry->preempt_count);
+		trace_seq_printf(s, "%x", entry->preempt_count);
 	else
-		seq_puts(m, ".");
+		trace_seq_puts(s, ".");
 }
 
 unsigned long preempt_mark_thresh = 100;
 
 static notrace void
-lat_print_timestamp(struct seq_file *m, unsigned long long abs_usecs,
+lat_print_timestamp(struct trace_seq *s, unsigned long long abs_usecs,
 		    unsigned long rel_usecs)
 {
-	seq_printf(m, " %4lldus", abs_usecs);
+	trace_seq_printf(s, " %4lldus", abs_usecs);
 	if (rel_usecs > preempt_mark_thresh)
-		seq_puts(m, "!: ");
+		trace_seq_puts(s, "!: ");
 	else if (rel_usecs > 1)
-		seq_puts(m, "+: ");
+		trace_seq_puts(s, "+: ");
 	else
-		seq_puts(m, " : ");
+		trace_seq_puts(s, " : ");
 }
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
 
 static notrace void
-print_lat_fmt(struct seq_file *m, struct trace_iterator *iter,
-	      unsigned int trace_idx, int cpu)
+print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 {
+	struct trace_seq *s = &iter->seq;
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
 	struct trace_entry *next_entry = find_next_entry(iter, NULL);
 	unsigned long verbose = (trace_flags & TRACE_ITER_VERBOSE);
@@ -962,39 +1025,40 @@ print_lat_fmt(struct seq_file *m, struct trace_iterator *iter,
 
 	if (verbose) {
 		comm = trace_find_cmdline(entry->pid);
-		seq_printf(m, "%16s %5d %d %d %08x %08x [%08lx]"
-			   " %ld.%03ldms (+%ld.%03ldms): ",
-			   comm,
-			   entry->pid, cpu, entry->flags,
-			   entry->preempt_count, trace_idx,
-			   ns2usecs(entry->t),
-			   abs_usecs/1000,
-			   abs_usecs % 1000, rel_usecs/1000, rel_usecs % 1000);
+		trace_seq_printf(s, "%16s %5d %d %d %08x %08x [%08lx]"
+				 " %ld.%03ldms (+%ld.%03ldms): ",
+				 comm,
+				 entry->pid, cpu, entry->flags,
+				 entry->preempt_count, trace_idx,
+				 ns2usecs(entry->t),
+				 abs_usecs/1000,
+				 abs_usecs % 1000, rel_usecs/1000,
+				 rel_usecs % 1000);
 	} else {
-		lat_print_generic(m, entry, cpu);
-		lat_print_timestamp(m, abs_usecs, rel_usecs);
+		lat_print_generic(s, entry, cpu);
+		lat_print_timestamp(s, abs_usecs, rel_usecs);
 	}
 	switch (entry->type) {
 	case TRACE_FN:
-		seq_print_ip_sym(m, entry->fn.ip, sym_flags);
-		seq_puts(m, " (");
-		seq_print_ip_sym(m, entry->fn.parent_ip, sym_flags);
-		seq_puts(m, ")\n");
+		seq_print_ip_sym(s, entry->fn.ip, sym_flags);
+		trace_seq_puts(s, " (");
+		seq_print_ip_sym(s, entry->fn.parent_ip, sym_flags);
+		trace_seq_puts(s, ")\n");
 		break;
 	case TRACE_CTX:
 		S = entry->ctx.prev_state < sizeof(state_to_char) ?
 			state_to_char[entry->ctx.prev_state] : 'X';
 		comm = trace_find_cmdline(entry->ctx.next_pid);
-		seq_printf(m, " %d:%d:%c --> %d:%d %s\n",
-			   entry->ctx.prev_pid,
-			   entry->ctx.prev_prio,
-			   S,
-			   entry->ctx.next_pid,
-			   entry->ctx.next_prio,
-			   comm);
+		trace_seq_printf(s, " %d:%d:%c --> %d:%d %s\n",
+				 entry->ctx.prev_pid,
+				 entry->ctx.prev_prio,
+				 S,
+				 entry->ctx.next_pid,
+				 entry->ctx.next_prio,
+				 comm);
 		break;
 	default:
-		seq_printf(m, "Unknown type %d\n", entry->type);
+		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
 }
 
@@ -1026,8 +1090,9 @@ static notrace void sync_time_offset(struct trace_iterator *iter)
 }
 
 static notrace void
-print_trace_fmt(struct seq_file *m, struct trace_iterator *iter)
+print_trace_fmt(struct trace_iterator *iter)
 {
+	struct trace_seq *s = &iter->seq;
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
 	struct trace_entry *entry;
 	unsigned long usec_rem;
@@ -1045,29 +1110,29 @@ print_trace_fmt(struct seq_file *m, struct trace_iterator *iter)
 	usec_rem = do_div(t, 1000000ULL);
 	secs = (unsigned long)t;
 
-	seq_printf(m, "%16s-%-5d ", comm, entry->pid);
-	seq_printf(m, "[%02d] ", iter->cpu);
-	seq_printf(m, "%5lu.%06lu: ", secs, usec_rem);
+	trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
+	trace_seq_printf(s, "[%02d] ", iter->cpu);
+	trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem);
 
 	switch (entry->type) {
 	case TRACE_FN:
-		seq_print_ip_sym(m, entry->fn.ip, sym_flags);
+		seq_print_ip_sym(s, entry->fn.ip, sym_flags);
 		if ((sym_flags & TRACE_ITER_PRINT_PARENT) &&
 						entry->fn.parent_ip) {
-			seq_printf(m, " <-");
-			seq_print_ip_sym(m, entry->fn.parent_ip, sym_flags);
+			trace_seq_printf(s, " <-");
+			seq_print_ip_sym(s, entry->fn.parent_ip, sym_flags);
 		}
-		seq_printf(m, "\n");
+		trace_seq_printf(s, "\n");
 		break;
 	case TRACE_CTX:
 		S = entry->ctx.prev_state < sizeof(state_to_char) ?
 			state_to_char[entry->ctx.prev_state] : 'X';
-		seq_printf(m, " %d:%d:%c ==> %d:%d\n",
-			   entry->ctx.prev_pid,
-			   entry->ctx.prev_prio,
-			   S,
-			   entry->ctx.next_pid,
-			   entry->ctx.next_prio);
+		trace_seq_printf(s, " %d:%d:%c ==> %d:%d\n",
+				 entry->ctx.prev_pid,
+				 entry->ctx.prev_prio,
+				 S,
+				 entry->ctx.next_pid,
+				 entry->ctx.next_prio);
 		break;
 	}
 }
@@ -1108,9 +1173,10 @@ static int s_show(struct seq_file *m, void *v)
 		}
 	} else {
 		if (iter->iter_flags & TRACE_FILE_LAT_FMT)
-			print_lat_fmt(m, iter, iter->idx, iter->cpu);
+			print_lat_fmt(iter, iter->idx, iter->cpu);
 		else
-			print_trace_fmt(m, iter);
+			print_trace_fmt(iter);
+		trace_print_seq(m, &iter->seq);
 	}
 
 	return 0;

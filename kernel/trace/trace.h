@@ -111,11 +111,17 @@ struct tracer {
 	int			print_max;
 };
 
+struct trace_seq {
+	unsigned char		buffer[PAGE_SIZE];
+	unsigned int		len;
+};
+
 /*
  * Trace iterator - used by printout routines who present trace
  * results to users and which routines might sleep, etc:
  */
 struct trace_iterator {
+	struct trace_seq	seq;
 	struct trace_array	*tr;
 	struct tracer		*trace;
 
