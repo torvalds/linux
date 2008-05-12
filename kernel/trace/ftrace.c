@@ -156,6 +156,21 @@ static DEFINE_PER_CPU(int, ftrace_shutdown_disable_cpu);
 static DEFINE_SPINLOCK(ftrace_shutdown_lock);
 static DEFINE_MUTEX(ftraced_lock);
 
+struct ftrace_page {
+	struct ftrace_page	*next;
+	int			index;
+	struct dyn_ftrace	records[];
+} __attribute__((packed));
+
+#define ENTRIES_PER_PAGE \
+  ((PAGE_SIZE - sizeof(struct ftrace_page)) / sizeof(struct dyn_ftrace))
+
+/* estimate from running different kernels */
+#define NR_TO_INIT		10000
+
+static struct ftrace_page	*ftrace_pages_start;
+static struct ftrace_page	*ftrace_pages;
+
 static int ftraced_trigger;
 static int ftraced_suspend;
 
@@ -182,6 +197,21 @@ static inline void notrace
 ftrace_add_hash(struct dyn_ftrace *node, unsigned long key)
 {
 	hlist_add_head(&node->node, &ftrace_hash[key]);
+}
+
+static notrace struct dyn_ftrace *ftrace_alloc_shutdown_node(unsigned long ip)
+{
+	/* If this was already converted, skip it */
+	if (ftrace_ip_converted(ip))
+		return NULL;
+
+	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
+		if (!ftrace_pages->next)
+			return NULL;
+		ftrace_pages = ftrace_pages->next;
+	}
+
+	return &ftrace_pages->records[ftrace_pages->index++];
 }
 
 static void notrace
@@ -252,6 +282,62 @@ static struct ftrace_ops ftrace_shutdown_ops __read_mostly =
 	.func = ftrace_record_ip,
 };
 
+#define MCOUNT_ADDR ((long)(&mcount))
+
+static void notrace ftrace_replace_code(int saved)
+{
+	unsigned char *new = NULL, *old = NULL;
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+	unsigned long ip;
+	int failed;
+	int i;
+
+	if (saved)
+		old = ftrace_nop_replace();
+	else
+		new = ftrace_nop_replace();
+
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		for (i = 0; i < pg->index; i++) {
+			rec = &pg->records[i];
+
+			/* don't modify code that has already faulted */
+			if (rec->flags & FTRACE_FL_FAILED)
+				continue;
+
+			ip = rec->ip;
+
+			if (saved)
+				new = ftrace_call_replace(ip, MCOUNT_ADDR);
+			else
+				old = ftrace_call_replace(ip, MCOUNT_ADDR);
+
+			failed = ftrace_modify_code(ip, old, new);
+			if (failed)
+				rec->flags |= FTRACE_FL_FAILED;
+		}
+	}
+}
+
+static notrace void ftrace_startup_code(void)
+{
+	ftrace_replace_code(1);
+}
+
+static notrace void ftrace_shutdown_code(void)
+{
+	ftrace_replace_code(0);
+}
+
+static notrace void ftrace_shutdown_replenish(void)
+{
+	if (ftrace_pages->next)
+		return;
+
+	/* allocate another page */
+	ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
+}
 
 static int notrace __ftrace_modify_code(void *data)
 {
@@ -259,6 +345,23 @@ static int notrace __ftrace_modify_code(void *data)
 
 	func();
 	return 0;
+}
+
+static notrace void
+ftrace_code_disable(struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned long ip;
+	unsigned char *nop, *call;
+	int failed;
+
+	ip = rec->ip;
+
+	nop = ftrace_nop_replace();
+	call = ftrace_call_replace(ip, addr);
+
+	failed = ftrace_modify_code(ip, call, nop);
+	if (failed)
+		rec->flags |= FTRACE_FL_FAILED;
 }
 
 static void notrace ftrace_run_startup_code(void)
@@ -346,7 +449,7 @@ static int notrace __ftrace_update_code(void *ignore)
 
 		/* all CPUS are stopped, we are safe to modify code */
 		hlist_for_each_entry(p, t, &head, node) {
-			ftrace_code_disable(p);
+			ftrace_code_disable(p, MCOUNT_ADDR);
 			ftrace_update_cnt++;
 		}
 
@@ -407,12 +510,59 @@ static int notrace ftraced(void *ignore)
 	return 0;
 }
 
+static int __init ftrace_dyn_table_alloc(void)
+{
+	struct ftrace_page *pg;
+	int cnt;
+	int i;
+	int ret;
+
+	ret = ftrace_dyn_arch_init();
+	if (ret)
+		return ret;
+
+	/* allocate a few pages */
+	ftrace_pages_start = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!ftrace_pages_start)
+		return -1;
+
+	/*
+	 * Allocate a few more pages.
+	 *
+	 * TODO: have some parser search vmlinux before
+	 *   final linking to find all calls to ftrace.
+	 *   Then we can:
+	 *    a) know how many pages to allocate.
+	 *     and/or
+	 *    b) set up the table then.
+	 *
+	 *  The dynamic code is still necessary for
+	 *  modules.
+	 */
+
+	pg = ftrace_pages = ftrace_pages_start;
+
+	cnt = NR_TO_INIT / ENTRIES_PER_PAGE;
+
+	for (i = 0; i < cnt; i++) {
+		pg->next = (void *)get_zeroed_page(GFP_KERNEL);
+
+		/* If we fail, we'll try later anyway */
+		if (!pg->next)
+			break;
+
+		pg = pg->next;
+	}
+
+	return 0;
+}
+
 static int __init notrace ftrace_shutdown_init(void)
 {
 	struct task_struct *p;
 	int ret;
 
-	ret = ftrace_shutdown_arch_init();
+	ret = ftrace_dyn_table_alloc();
 	if (ret)
 		return ret;
 

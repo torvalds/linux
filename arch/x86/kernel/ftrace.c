@@ -23,25 +23,6 @@
 /* Long is fine, even if it is only 4 bytes ;-) */
 static long *ftrace_nop;
 
-struct ftrace_record {
-	struct dyn_ftrace	rec;
-	int			failed;
-} __attribute__((packed));
-
-struct ftrace_page {
-	struct ftrace_page	*next;
-	int			index;
-	struct ftrace_record	records[];
-} __attribute__((packed));
-
-#define ENTRIES_PER_PAGE \
-  ((PAGE_SIZE - sizeof(struct ftrace_page)) / sizeof(struct ftrace_record))
-
-/* estimate from running different kernels */
-#define NR_TO_INIT		10000
-
-#define MCOUNT_ADDR ((long)(&mcount))
-
 union ftrace_code_union {
 	char code[5];
 	struct {
@@ -50,33 +31,41 @@ union ftrace_code_union {
 	} __attribute__((packed));
 };
 
-static struct ftrace_page	*ftrace_pages_start;
-static struct ftrace_page	*ftrace_pages;
-
-notrace struct dyn_ftrace *ftrace_alloc_shutdown_node(unsigned long ip)
+notrace int ftrace_ip_converted(unsigned long ip)
 {
-	struct ftrace_record *rec;
 	unsigned long save;
 
 	ip -= CALL_BACK;
 	save = *(long *)ip;
 
-	/* If this was already converted, skip it */
-	if (save == *ftrace_nop)
-		return NULL;
-
-	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
-		if (!ftrace_pages->next)
-			return NULL;
-		ftrace_pages = ftrace_pages->next;
-	}
-
-	rec = &ftrace_pages->records[ftrace_pages->index++];
-
-	return &rec->rec;
+	return save == *ftrace_nop;
 }
 
-static int notrace
+static int notrace ftrace_calc_offset(long ip, long addr)
+{
+	return (int)(addr - ip);
+}
+
+notrace unsigned char *ftrace_nop_replace(void)
+{
+	return (char *)ftrace_nop;
+}
+
+notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
+{
+	static union ftrace_code_union calc;
+
+	calc.e8		= 0xe8;
+	calc.offset	= ftrace_calc_offset(ip, addr);
+
+	/*
+	 * No locking needed, this must be called via kstop_machine
+	 * which in essence is like running on a uniprocessor machine.
+	 */
+	return calc.code;
+}
+
+notrace int
 ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
@@ -85,6 +74,9 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	unsigned new = *(unsigned *)new_code; /* 4 bytes */
 	unsigned char newch = new_code[4];
 	int faulted = 0;
+
+	/* move the IP back to the start of the call */
+	ip -= CALL_BACK;
 
 	/*
 	 * Note: Due to modules and __init, code can
@@ -117,129 +109,12 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	return faulted;
 }
 
-static int notrace ftrace_calc_offset(long ip)
-{
-	return (int)(MCOUNT_ADDR - ip);
-}
-
-notrace void ftrace_code_disable(struct dyn_ftrace *rec)
-{
-	unsigned long ip;
-	union ftrace_code_union save;
-	struct ftrace_record *r =
-		container_of(rec, struct ftrace_record, rec);
-
-	ip = rec->ip;
-
-	save.e8		= 0xe8;
-	save.offset 	= ftrace_calc_offset(ip);
-
-	/* move the IP back to the start of the call */
-	ip -= CALL_BACK;
-
-	r->failed = ftrace_modify_code(ip, save.code, (char *)ftrace_nop);
-}
-
-static void notrace ftrace_replace_code(int saved)
-{
-	unsigned char *new = NULL, *old = NULL;
-	struct ftrace_record *rec;
-	struct ftrace_page *pg;
-	unsigned long ip;
-	int i;
-
-	if (saved)
-		old = (char *)ftrace_nop;
-	else
-		new = (char *)ftrace_nop;
-
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		for (i = 0; i < pg->index; i++) {
-			union ftrace_code_union calc;
-			rec = &pg->records[i];
-
-			/* don't modify code that has already faulted */
-			if (rec->failed)
-				continue;
-
-			ip = rec->rec.ip;
-
-			calc.e8		= 0xe8;
-			calc.offset	= ftrace_calc_offset(ip);
-
-			if (saved)
-				new = calc.code;
-			else
-				old = calc.code;
-
-			ip -= CALL_BACK;
-
-			rec->failed = ftrace_modify_code(ip, old, new);
-		}
-	}
-
-}
-
-notrace void ftrace_startup_code(void)
-{
-	ftrace_replace_code(1);
-}
-
-notrace void ftrace_shutdown_code(void)
-{
-	ftrace_replace_code(0);
-}
-
-notrace void ftrace_shutdown_replenish(void)
-{
-	if (ftrace_pages->next)
-		return;
-
-	/* allocate another page */
-	ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
-}
-
-notrace int __init ftrace_shutdown_arch_init(void)
+int __init ftrace_dyn_arch_init(void)
 {
 	const unsigned char *const *noptable = find_nop_table();
-	struct ftrace_page *pg;
-	int cnt;
-	int i;
 
 	ftrace_nop = (unsigned long *)noptable[CALL_BACK];
 
-	/* allocate a few pages */
-	ftrace_pages_start = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!ftrace_pages_start)
-		return -1;
-
-	/*
-	 * Allocate a few more pages.
-	 *
-	 * TODO: have some parser search vmlinux before
-	 *   final linking to find all calls to ftrace.
-	 *   Then we can:
-	 *    a) know how many pages to allocate.
-	 *     and/or
-	 *    b) set up the table then.
-	 *
-	 *  The dynamic code is still necessary for
-	 *  modules.
-	 */
-
-	pg = ftrace_pages = ftrace_pages_start;
-
-	cnt = NR_TO_INIT / ENTRIES_PER_PAGE;
-
-	for (i = 0; i < cnt; i++) {
-		pg->next = (void *)get_zeroed_page(GFP_KERNEL);
-
-		/* If we fail, we'll try later anyway */
-		if (!pg->next)
-			break;
-
-		pg = pg->next;
-	}
-
 	return 0;
 }
+

@@ -42,19 +42,23 @@ extern void mcount(void);
 # define FTRACE_HASHBITS	10
 # define FTRACE_HASHSIZE	(1<<FTRACE_HASHBITS)
 
+enum {
+	FTRACE_FL_FAILED	= (1<<0),
+};
+
 struct dyn_ftrace {
 	struct hlist_node node;
 	unsigned long	  ip;
+	unsigned long	  flags;
 };
 
 /* defined in arch */
-extern struct dyn_ftrace *
-ftrace_alloc_shutdown_node(unsigned long ip);
-extern int ftrace_shutdown_arch_init(void);
-extern void ftrace_code_disable(struct dyn_ftrace *rec);
-extern void ftrace_startup_code(void);
-extern void ftrace_shutdown_code(void);
-extern void ftrace_shutdown_replenish(void);
+extern int ftrace_ip_converted(unsigned long ip);
+extern unsigned char *ftrace_nop_replace(void);
+extern unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr);
+extern int ftrace_dyn_arch_init(void);
+extern int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
+			      unsigned char *new_code);
 #endif
 
 #ifdef CONFIG_FRAME_POINTER
