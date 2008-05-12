@@ -670,8 +670,6 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 		trace_function(tr, data, ip, parent_ip, flags);
 }
 
-#ifdef CONFIG_CONTEXT_SWITCH_TRACER
-
 void
 __trace_special(void *__tr, void *__data,
 		unsigned long arg1, unsigned long arg2, unsigned long arg3)
@@ -692,8 +690,6 @@ __trace_special(void *__tr, void *__data,
 
 	trace_wake_up();
 }
-
-#endif
 
 void __trace_stack(struct trace_array *tr,
 		   struct trace_array_cpu *data,
