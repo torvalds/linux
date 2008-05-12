@@ -25,7 +25,7 @@ static DEFINE_PER_CPU(unsigned long, print_timestamp);
 static DEFINE_PER_CPU(struct task_struct *, watchdog_task);
 
 static int __read_mostly did_panic;
-unsigned long __read_mostly softlockup_thresh = 60;
+int __read_mostly softlockup_thresh = 60;
 
 /*
  * Should we panic (and reboot, if panic_timeout= is set) when a
@@ -94,6 +94,14 @@ void softlockup_tick(void)
 	struct pt_regs *regs = get_irq_regs();
 	unsigned long now;
 
+	/* Is detection switched off? */
+	if (!per_cpu(watchdog_task, this_cpu) || softlockup_thresh <= 0) {
+		/* Be sure we don't false trigger if switched back on */
+		if (touch_timestamp)
+			per_cpu(touch_timestamp, this_cpu) = 0;
+		return;
+	}
+
 	if (touch_timestamp == 0) {
 		touch_softlockup_watchdog();
 		return;
@@ -104,7 +112,7 @@ void softlockup_tick(void)
 	/* report at most once a second */
 	if ((print_timestamp >= touch_timestamp &&
 			print_timestamp < (touch_timestamp + 1)) ||
-			did_panic || !per_cpu(watchdog_task, this_cpu)) {
+			did_panic) {
 		return;
 	}
 
