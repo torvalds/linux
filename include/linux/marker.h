@@ -44,8 +44,8 @@ struct marker {
 				 */
 	char state;		/* Marker state. */
 	char ptype;		/* probe type : 0 : single, 1 : multi */
-	void (*call)(const struct marker *mdata,	/* Probe wrapper */
-		void *call_private, const char *fmt, ...);
+				/* Probe wrapper */
+	void (*call)(const struct marker *mdata, void *call_private, ...);
 	struct marker_probe_closure single;
 	struct marker_probe_closure *multi;
 } __attribute__((aligned(8)));
@@ -72,8 +72,7 @@ struct marker {
 		__mark_check_format(format, ## args);			\
 		if (unlikely(__mark_##name.state)) {			\
 			(*__mark_##name.call)				\
-				(&__mark_##name, call_private,		\
-				format, ## args);			\
+				(&__mark_##name, call_private, ## args);\
 		}							\
 	} while (0)
 
@@ -117,9 +116,9 @@ static inline void __printf(1, 2) ___mark_check_format(const char *fmt, ...)
 extern marker_probe_func __mark_empty_function;
 
 extern void marker_probe_cb(const struct marker *mdata,
-	void *call_private, const char *fmt, ...);
+	void *call_private, ...);
 extern void marker_probe_cb_noarg(const struct marker *mdata,
-	void *call_private, const char *fmt, ...);
+	void *call_private, ...);
 
 /*
  * Connect a probe to a marker.
