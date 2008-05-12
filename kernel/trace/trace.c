@@ -770,11 +770,6 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 
 	array = page_address(page);
 
-	/* Still possible to catch up to the tail */
-	if (iter->next_idx[cpu] && array == data->trace_tail &&
-	    iter->next_page_idx[cpu] == data->trace_tail_idx)
-		return NULL;
-
 	WARN_ON(iter->next_page_idx[cpu] >= ENTRIES_PER_PAGE);
 	return &array[iter->next_page_idx[cpu]];
 }
@@ -1921,7 +1916,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	struct trace_iterator *iter = filp->private_data;
 	struct trace_array_cpu *data;
 	static cpumask_t mask;
-	struct trace_entry *entry;
 	static int start;
 	unsigned long flags;
 	int read = 0;
@@ -2013,10 +2007,15 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		cpu_set(cpu, mask);
 	}
 
-	while ((entry = find_next_entry_inc(iter)) != NULL) {
+	while (find_next_entry_inc(iter) != NULL) {
+		int len = iter->seq.len;
+
 		ret = print_trace_line(iter);
-		if (!ret)
+		if (!ret) {
+			/* don't print partial lines */
+			iter->seq.len = len;
 			break;
+		}
 
 		trace_consume(iter);
 
