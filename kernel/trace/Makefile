@@ -1,3 +1,11 @@
+
+# Do not instrument the tracer itself:
+
+ifdef CONFIG_FTRACE
+ORIG_CFLAGS := $(KBUILD_CFLAGS)
+KBUILD_CFLAGS = $(subst -pg,,$(ORIG_CFLAGS))
+endif
+
 obj-$(CONFIG_FTRACE) += libftrace.o
 
 obj-$(CONFIG_TRACING) += trace.o
