@@ -2231,8 +2231,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	start = 0;
 
 	while (trace_empty(iter)) {
-		if (!(trace_flags & TRACE_ITER_BLOCK))
-			return -EWOULDBLOCK;
 		/*
 		 * This is a make-shift waitqueue. The reason we don't use
 		 * an actual wait queue is because:
