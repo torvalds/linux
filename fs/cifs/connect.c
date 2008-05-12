@@ -75,6 +75,7 @@ struct smb_vol {
 	bool setuids:1;
 	bool override_uid:1;
 	bool override_gid:1;
+	bool dynperm:1;
 	bool noperm:1;
 	bool no_psx_acl:1; /* set if posix acl support should be disabled */
 	bool cifs_acl:1;
@@ -1246,6 +1247,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->setuids = 1;
 		} else if (strnicmp(data, "nosetuids", 9) == 0) {
 			vol->setuids = 0;
+		} else if (strnicmp(data, "dynperm", 7) == 0) {
+			vol->dynperm = true;
+		} else if (strnicmp(data, "nodynperm", 9) == 0) {
+			vol->dynperm = false;
 		} else if (strnicmp(data, "nohard", 6) == 0) {
 			vol->retry = 0;
 		} else if (strnicmp(data, "nosoft", 6) == 0) {
@@ -2125,6 +2130,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
 		if (volume_info.override_gid)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_GID;
+		if (volume_info.dynperm)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
 		if (volume_info.direct_io) {
 			cFYI(1, ("mounting share using direct i/o"));
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
