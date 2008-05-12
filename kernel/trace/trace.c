@@ -27,6 +27,7 @@
 #include <linux/poll.h>
 #include <linux/gfp.h>
 #include <linux/fs.h>
+#include <linux/writeback.h>
 
 #include <linux/stacktrace.h>
 
@@ -50,6 +51,8 @@ static int trace_alloc_page(void);
 static int trace_free_page(void);
 
 static int tracing_disabled = 1;
+
+static unsigned long tracing_pages_allocated;
 
 long
 ns2usecs(cycle_t nsec)
@@ -2591,12 +2594,41 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	}
 
 	if (val > global_trace.entries) {
+		long pages_requested;
+		unsigned long freeable_pages;
+
+		/* make sure we have enough memory before mapping */
+		pages_requested =
+			(val + (ENTRIES_PER_PAGE-1)) / ENTRIES_PER_PAGE;
+
+		/* account for each buffer (and max_tr) */
+		pages_requested *= tracing_nr_buffers * 2;
+
+		/* Check for overflow */
+		if (pages_requested < 0) {
+			cnt = -ENOMEM;
+			goto out;
+		}
+
+		freeable_pages = determine_dirtyable_memory();
+
+		/* we only allow to request 1/4 of useable memory */
+		if (pages_requested >
+		    ((freeable_pages + tracing_pages_allocated) / 4)) {
+			cnt = -ENOMEM;
+			goto out;
+		}
+
 		while (global_trace.entries < val) {
 			if (trace_alloc_page()) {
 				cnt = -ENOMEM;
 				goto out;
 			}
+			/* double check that we don't go over the known pages */
+			if (tracing_pages_allocated > pages_requested)
+				break;
 		}
+
 	} else {
 		/* include the number of entries in val (inc of page entries) */
 		while (global_trace.entries > val + (ENTRIES_PER_PAGE - 1))
@@ -2776,6 +2808,7 @@ static int trace_alloc_page(void)
 	struct page *page, *tmp;
 	LIST_HEAD(pages);
 	void *array;
+	unsigned pages_allocated = 0;
 	int i;
 
 	/* first allocate a page for each CPU */
@@ -2787,6 +2820,7 @@ static int trace_alloc_page(void)
 			goto free_pages;
 		}
 
+		pages_allocated++;
 		page = virt_to_page(array);
 		list_add(&page->lru, &pages);
 
@@ -2798,6 +2832,7 @@ static int trace_alloc_page(void)
 			       "for trace buffer!\n");
 			goto free_pages;
 		}
+		pages_allocated++;
 		page = virt_to_page(array);
 		list_add(&page->lru, &pages);
 #endif
@@ -2819,6 +2854,7 @@ static int trace_alloc_page(void)
 		SetPageLRU(page);
 #endif
 	}
+	tracing_pages_allocated += pages_allocated;
 	global_trace.entries += ENTRIES_PER_PAGE;
 
 	return 0;
@@ -2853,6 +2889,8 @@ static int trace_free_page(void)
 		page = list_entry(p, struct page, lru);
 		ClearPageLRU(page);
 		list_del(&page->lru);
+		tracing_pages_allocated--;
+		tracing_pages_allocated--;
 		__free_page(page);
 
 		tracing_reset(data);
