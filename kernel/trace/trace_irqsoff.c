@@ -432,6 +432,9 @@ static struct tracer irqsoff_tracer __read_mostly =
 	.close		= irqsoff_tracer_close,
 	.ctrl_update	= irqsoff_tracer_ctrl_update,
 	.print_max	= 1,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest    = trace_selftest_startup_irqsoff,
+#endif
 };
 # define register_irqsoff(trace) register_tracer(&trace)
 #else
@@ -455,6 +458,9 @@ static struct tracer preemptoff_tracer __read_mostly =
 	.close		= irqsoff_tracer_close,
 	.ctrl_update	= irqsoff_tracer_ctrl_update,
 	.print_max	= 1,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest    = trace_selftest_startup_preemptoff,
+#endif
 };
 # define register_preemptoff(trace) register_tracer(&trace)
 #else
@@ -480,6 +486,9 @@ static struct tracer preemptirqsoff_tracer __read_mostly =
 	.close		= irqsoff_tracer_close,
 	.ctrl_update	= irqsoff_tracer_ctrl_update,
 	.print_max	= 1,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest    = trace_selftest_startup_preemptirqsoff,
+#endif
 };
 
 # define register_preemptirqsoff(trace) register_tracer(&trace)

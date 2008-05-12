@@ -63,6 +63,9 @@ static struct tracer function_trace __read_mostly =
 	.init	     = function_trace_init,
 	.reset	     = function_trace_reset,
 	.ctrl_update = function_trace_ctrl_update,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest    = trace_selftest_startup_function,
+#endif
 };
 
 static __init int init_function_trace(void)

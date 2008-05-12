@@ -99,6 +99,10 @@ struct tracer {
 	void			(*start)(struct trace_iterator *iter);
 	void			(*stop)(struct trace_iterator *iter);
 	void			(*ctrl_update)(struct trace_array *tr);
+#ifdef CONFIG_FTRACE_STARTUP_TEST
+	int			(*selftest)(struct tracer *trace,
+					    struct trace_array *tr);
+#endif
 	struct tracer		*next;
 	int			print_max;
 };
@@ -184,5 +188,32 @@ extern int unregister_tracer_switch(struct tracer_switch_ops *ops);
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
 #endif
+
+#ifdef CONFIG_FTRACE_STARTUP_TEST
+#ifdef CONFIG_FTRACE
+extern int trace_selftest_startup_function(struct tracer *trace,
+					   struct trace_array *tr);
+#endif
+#ifdef CONFIG_IRQSOFF_TRACER
+extern int trace_selftest_startup_irqsoff(struct tracer *trace,
+					  struct trace_array *tr);
+#endif
+#ifdef CONFIG_PREEMPT_TRACER
+extern int trace_selftest_startup_preemptoff(struct tracer *trace,
+					     struct trace_array *tr);
+#endif
+#if defined(CONFIG_IRQSOFF_TRACER) && defined(CONFIG_PREEMPT_TRACER)
+extern int trace_selftest_startup_preemptirqsoff(struct tracer *trace,
+						 struct trace_array *tr);
+#endif
+#ifdef CONFIG_SCHED_TRACER
+extern int trace_selftest_startup_wakeup(struct tracer *trace,
+					 struct trace_array *tr);
+#endif
+#ifdef CONFIG_CONTEXT_SWITCH_TRACER
+extern int trace_selftest_startup_sched_switch(struct tracer *trace,
+					       struct trace_array *tr);
+#endif
+#endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 #endif /* _LINUX_KERNEL_TRACE_H */

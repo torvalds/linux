@@ -295,6 +295,9 @@ static struct tracer wakeup_tracer __read_mostly =
 	.close		= wakeup_tracer_close,
 	.ctrl_update	= wakeup_tracer_ctrl_update,
 	.print_max	= 1,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest    = trace_selftest_startup_wakeup,
+#endif
 };
 
 __init static int init_wakeup_tracer(void)

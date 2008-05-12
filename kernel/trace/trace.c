@@ -32,6 +32,8 @@
 unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
 unsigned long __read_mostly	tracing_thresh;
 
+static int tracing_disabled = 1;
+
 static long notrace
 ns2usecs(cycle_t nsec)
 {
@@ -217,11 +219,48 @@ int register_tracer(struct tracer *type)
 		}
 	}
 
+#ifdef CONFIG_FTRACE_STARTUP_TEST
+	if (type->selftest) {
+		struct tracer *saved_tracer = current_trace;
+		struct trace_array_cpu *data;
+		struct trace_array *tr = &global_trace;
+		int saved_ctrl = tr->ctrl;
+		int i;
+		/*
+		 * Run a selftest on this tracer.
+		 * Here we reset the trace buffer, and set the current
+		 * tracer to be this tracer. The tracer can then run some
+		 * internal tracing to verify that everything is in order.
+		 * If we fail, we do not register this tracer.
+		 */
+		for_each_possible_cpu(i) {
+			if (!data->trace)
+				continue;
+			data = tr->data[i];
+			tracing_reset(data);
+		}
+		current_trace = type;
+		tr->ctrl = 0;
+		/* the test is responsible for initializing and enabling */
+		pr_info("Testing tracer %s: ", type->name);
+		ret = type->selftest(type, tr);
+		/* the test is responsible for resetting too */
+		current_trace = saved_tracer;
+		tr->ctrl = saved_ctrl;
+		if (ret) {
+			printk(KERN_CONT "FAILED!\n");
+			goto out;
+		}
+		printk(KERN_CONT "PASSED\n");
+	}
+#endif
+
 	type->next = trace_types;
 	trace_types = type;
 	len = strlen(type->name);
 	if (len > max_tracer_type_len)
 		max_tracer_type_len = len;
+
  out:
 	mutex_unlock(&trace_types_lock);
 
@@ -985,6 +1024,11 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 {
 	struct trace_iterator *iter;
 
+	if (tracing_disabled) {
+		*ret = -ENODEV;
+		return NULL;
+	}
+
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter) {
 		*ret = -ENOMEM;
@@ -1023,6 +1067,9 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 
 int tracing_open_generic(struct inode *inode, struct file *filp)
 {
+	if (tracing_disabled)
+		return -ENODEV;
+
 	filp->private_data = inode->i_private;
 	return 0;
 }
@@ -1127,6 +1174,9 @@ static struct seq_operations show_traces_seq_ops = {
 static int show_traces_open(struct inode *inode, struct file *file)
 {
 	int ret;
+
+	if (tracing_disabled)
+		return -ENODEV;
 
 	ret = seq_open(file, &show_traces_seq_ops);
 	if (!ret) {
@@ -1452,6 +1502,11 @@ struct dentry *tracing_init_dentry(void)
 	return d_tracer;
 }
 
+#ifdef CONFIG_FTRACE_SELFTEST
+/* Let selftest have access to static functions in this file */
+#include "trace_selftest.c"
+#endif
+
 static __init void tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
@@ -1585,6 +1640,7 @@ __init static int tracer_alloc_buffers(void)
 	void *array;
 	struct page *page;
 	int pages = 0;
+	int ret = -ENOMEM;
 	int i;
 
 	/* Allocate the first page for all buffers */
@@ -1650,6 +1706,9 @@ __init static int tracer_alloc_buffers(void)
 	register_tracer(&no_tracer);
 	current_trace = &no_tracer;
 
+	/* All seems OK, enable tracing */
+	tracing_disabled = 0;
+
 	return 0;
 
  free_buffers:
@@ -1678,7 +1737,7 @@ __init static int tracer_alloc_buffers(void)
 		}
 #endif
 	}
-	return -ENOMEM;
+	return ret;
 }
 
-device_initcall(tracer_alloc_buffers);
+fs_initcall(tracer_alloc_buffers);

@@ -107,6 +107,9 @@ static struct tracer sched_switch_trace __read_mostly =
 	.init		= sched_switch_trace_init,
 	.reset		= sched_switch_trace_reset,
 	.ctrl_update	= sched_switch_trace_ctrl_update,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest    = trace_selftest_startup_sched_switch,
+#endif
 };
 
 __init static int init_sched_switch_trace(void)
