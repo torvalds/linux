@@ -27,7 +27,7 @@
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-static long no_idt[3];
+static const struct desc_ptr no_idt = {};
 static int reboot_mode;
 enum reboot_type reboot_type = BOOT_KBD;
 int reboot_force;
@@ -201,15 +201,15 @@ core_initcall(reboot_init);
    controller to pulse the CPU reset line, which is more thorough, but
    doesn't work with at least one type of 486 motherboard.  It is easy
    to stop this code working; hence the copious comments. */
-static unsigned long long
+static const unsigned long long
 real_mode_gdt_entries [3] =
 {
 	0x0000000000000000ULL,	/* Null descriptor */
-	0x00009a000000ffffULL,	/* 16-bit real-mode 64k code at 0x00000000 */
-	0x000092000100ffffULL	/* 16-bit real-mode 64k data at 0x00000100 */
+	0x00009b000000ffffULL,	/* 16-bit real-mode 64k code at 0x00000000 */
+	0x000093000100ffffULL	/* 16-bit real-mode 64k data at 0x00000100 */
 };
 
-static struct desc_ptr
+static const struct desc_ptr
 real_mode_gdt = { sizeof (real_mode_gdt_entries) - 1, (long)real_mode_gdt_entries },
 real_mode_idt = { 0x3ff, 0 };
 
@@ -231,7 +231,7 @@ real_mode_idt = { 0x3ff, 0 };
 
    More could be done here to set up the registers as if a CPU reset had
    occurred; hopefully real BIOSs don't assume much. */
-static unsigned char real_mode_switch [] =
+static const unsigned char real_mode_switch [] =
 {
 	0x66, 0x0f, 0x20, 0xc0,			/*    movl  %cr0,%eax        */
 	0x66, 0x83, 0xe0, 0x11,			/*    andl  $0x00000011,%eax */
@@ -245,7 +245,7 @@ static unsigned char real_mode_switch [] =
 	0x24, 0x10,				/* f: andb  $0x10,al         */
 	0x66, 0x0f, 0x22, 0xc0			/*    movl  %eax,%cr0        */
 };
-static unsigned char jump_to_bios [] =
+static const unsigned char jump_to_bios [] =
 {
 	0xea, 0x00, 0x00, 0xff, 0xff		/*    ljmp  $0xffff,$0x0000  */
 };
@@ -255,7 +255,7 @@ static unsigned char jump_to_bios [] =
  * specified by the code and length parameters.
  * We assume that length will aways be less that 100!
  */
-void machine_real_restart(unsigned char *code, int length)
+void machine_real_restart(const unsigned char *code, int length)
 {
 	local_irq_disable();
 
@@ -368,7 +368,7 @@ static void native_machine_emergency_restart(void)
 			}
 
 		case BOOT_TRIPLE:
-			load_idt((const struct desc_ptr *)&no_idt);
+			load_idt(&no_idt);
 			__asm__ __volatile__("int3");
 
 			reboot_type = BOOT_KBD;
