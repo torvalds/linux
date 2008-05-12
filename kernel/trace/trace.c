@@ -691,14 +691,15 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
        unsigned long ip, unsigned long parent_ip, unsigned long flags)
 {
 	struct trace_entry *entry;
+	unsigned long irq_flags;
 
-	spin_lock(&data->lock);
+	spin_lock_irqsave(&data->lock, irq_flags);
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, flags);
 	entry->type		= TRACE_FN;
 	entry->fn.ip		= ip;
 	entry->fn.parent_ip	= parent_ip;
-	spin_unlock(&data->lock);
+	spin_unlock_irqrestore(&data->lock, irq_flags);
 }
 
 notrace void
@@ -706,15 +707,16 @@ trace_special(struct trace_array *tr, struct trace_array_cpu *data,
 	      unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
 	struct trace_entry *entry;
+	unsigned long irq_flags;
 
-	spin_lock(&data->lock);
+	spin_lock_irqsave(&data->lock, irq_flags);
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, 0);
 	entry->type		= TRACE_SPECIAL;
 	entry->special.arg1	= arg1;
 	entry->special.arg2	= arg2;
 	entry->special.arg3	= arg3;
-	spin_unlock(&data->lock);
+	spin_unlock_irqrestore(&data->lock, irq_flags);
 }
 
 notrace void
@@ -724,8 +726,9 @@ tracing_sched_switch_trace(struct trace_array *tr,
 			   unsigned long flags)
 {
 	struct trace_entry *entry;
+	unsigned long irq_flags;
 
-	spin_lock(&data->lock);
+	spin_lock_irqsave(&data->lock, irq_flags);
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, flags);
 	entry->type		= TRACE_CTX;
@@ -734,7 +737,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->ctx.prev_state	= prev->state;
 	entry->ctx.next_pid	= next->pid;
 	entry->ctx.next_prio	= next->prio;
-	spin_unlock(&data->lock);
+	spin_unlock_irqrestore(&data->lock, irq_flags);
 }
 
 enum trace_file_type {
