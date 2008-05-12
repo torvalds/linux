@@ -289,6 +289,13 @@ int register_tracer(struct tracer *type)
 			printk(KERN_CONT "FAILED!\n");
 			goto out;
 		}
+		/* Only reset on passing, to avoid touching corrupted buffers */
+		for_each_possible_cpu(i) {
+			data = tr->data[i];
+			if (!head_page(data))
+				continue;
+			tracing_reset(data);
+		}
 		printk(KERN_CONT "PASSED\n");
 	}
 #endif
