@@ -242,7 +242,7 @@ void __init tsc_calibrate(void)
 	if (hpet) {
 		printk(KERN_INFO "TSC calibrated against HPET\n");
 		if (hpet2 < hpet1)
-			hpet2 += 0x100000000;
+			hpet2 += 0x100000000UL;
 		hpet2 -= hpet1;
 		tsc1 = (hpet2 * hpet_readl(HPET_PERIOD)) / 1000000;
 	} else {
