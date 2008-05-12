@@ -327,6 +327,11 @@ void i2c_unregister_device(struct i2c_client *client)
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
 
 
+static const struct i2c_device_id dummy_id[] = {
+	{ "dummy", 0 },
+	{ },
+};
+
 static int dummy_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
@@ -342,13 +347,13 @@ static struct i2c_driver dummy_driver = {
 	.driver.name	= "dummy",
 	.probe		= dummy_probe,
 	.remove		= dummy_remove,
+	.id_table	= dummy_id,
 };
 
 /**
  * i2c_new_dummy - return a new i2c device bound to a dummy driver
  * @adapter: the adapter managing the device
  * @address: seven bit address to be used
- * @type: optional label used for i2c_client.name
  * Context: can sleep
  *
  * This returns an I2C client bound to the "dummy" driver, intended for use
@@ -364,15 +369,12 @@ static struct i2c_driver dummy_driver = {
  * i2c_unregister_device(); or NULL to indicate an error.
  */
 struct i2c_client *
-i2c_new_dummy(struct i2c_adapter *adapter, u16 address, const char *type)
+i2c_new_dummy(struct i2c_adapter *adapter, u16 address)
 {
 	struct i2c_board_info info = {
-		.driver_name	= "dummy",
-		.addr		= address,
+		I2C_BOARD_INFO("dummy", address),
 	};
 
-	if (type)
-		strlcpy(info.type, type, sizeof info.type);
 	return i2c_new_device(adapter, &info);
 }
 EXPORT_SYMBOL_GPL(i2c_new_dummy);

@@ -1505,7 +1505,8 @@ static int chip_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* fill required data structures */
-	strcpy(client->name, desc->name);
+	if (!id)
+		strlcpy(client->name, desc->name, I2C_NAME_SIZE);
 	chip->type = desc-chiplist;
 	chip->shadow.count = desc->registers+1;
 	chip->prevmode = -1;
@@ -1830,6 +1831,15 @@ static int chip_legacy_probe(struct i2c_adapter *adap)
 	return 0;
 }
 
+/* This driver supports many devices and the idea is to let the driver
+   detect which device is present. So rather than listing all supported
+   devices here, we pretend to support a single, fake device type. */
+static const struct i2c_device_id chip_id[] = {
+	{ "tvaudio", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, chip_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tvaudio",
 	.driverid = I2C_DRIVERID_TVAUDIO,
@@ -1837,6 +1847,7 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.probe = chip_probe,
 	.remove = chip_remove,
 	.legacy_probe = chip_legacy_probe,
+	.id_table = chip_id,
 };
 
 /*

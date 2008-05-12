@@ -99,7 +99,7 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 	u32 x;
 	int result = 0;
 
-	if (i2c->irq == 0)
+	if (i2c->irq == NO_IRQ)
 	{
 		while (!(readb(i2c->base + MPC_I2C_SR) & CSR_MIF)) {
 			schedule();
@@ -329,10 +329,9 @@ static int fsl_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	i2c->irq = platform_get_irq(pdev, 0);
-	if (i2c->irq < 0) {
-		result = -ENXIO;
-		goto fail_get_irq;
-	}
+	if (i2c->irq < 0)
+		i2c->irq = NO_IRQ; /* Use polling */
+
 	i2c->flags = pdata->device_flags;
 	init_waitqueue_head(&i2c->queue);
 
@@ -344,7 +343,7 @@ static int fsl_i2c_probe(struct platform_device *pdev)
 		goto fail_map;
 	}
 
-	if (i2c->irq != 0)
+	if (i2c->irq != NO_IRQ)
 		if ((result = request_irq(i2c->irq, mpc_i2c_isr,
 					  IRQF_SHARED, "i2c-mpc", i2c)) < 0) {
 			printk(KERN_ERR
@@ -367,12 +366,11 @@ static int fsl_i2c_probe(struct platform_device *pdev)
 	return result;
 
       fail_add:
-	if (i2c->irq != 0)
+	if (i2c->irq != NO_IRQ)
 		free_irq(i2c->irq, i2c);
       fail_irq:
 	iounmap(i2c->base);
       fail_map:
-      fail_get_irq:
 	kfree(i2c);
 	return result;
 };
@@ -384,7 +382,7 @@ static int fsl_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&i2c->adap);
 	platform_set_drvdata(pdev, NULL);
 
-	if (i2c->irq != 0)
+	if (i2c->irq != NO_IRQ)
 		free_irq(i2c->irq, i2c);
 
 	iounmap(i2c->base);
