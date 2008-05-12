@@ -150,8 +150,9 @@ static void print_pte(unsigned long address)
 							"0x%08lx\n", address);
 		BUG();
 	}
-	pr_info(NAME "pte for 0x%lx: 0x%lx 0x%lx\n", address, pte_val(*pte),
-						pte_val(*pte) & _PAGE_PRESENT);
+	pr_info(NAME "pte for 0x%lx: 0x%llx 0x%llx\n", address,
+		(unsigned long long)pte_val(*pte),
+		(unsigned long long)pte_val(*pte) & _PAGE_PRESENT);
 }
 
 /*
