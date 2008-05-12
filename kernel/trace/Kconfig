@@ -3,3 +3,8 @@
 #
 config HAVE_FTRACE
 	bool
+
+config TRACING
+	bool
+	select DEBUG_FS
+
