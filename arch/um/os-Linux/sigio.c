@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
+ * Copyright (C) 2002 - 2008 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -15,6 +15,7 @@
 #include "kern_util.h"
 #include "init.h"
 #include "os.h"
+#include "process.h"
 #include "sigio.h"
 #include "um_malloc.h"
 #include "user.h"
@@ -338,19 +339,9 @@ out_close1:
 	close(l_write_sigio_fds[1]);
 }
 
-/* Changed during early boot */
-static int pty_output_sigio = 0;
-static int pty_close_sigio = 0;
-
-void maybe_sigio_broken(int fd, int read)
+void sigio_broken(int fd, int read)
 {
 	int err;
-
-	if (!isatty(fd))
-		return;
-
-	if ((read || pty_output_sigio) && (!read || pty_close_sigio))
-		return;
 
 	write_sigio_workaround();
 
@@ -370,6 +361,21 @@ out:
 	sigio_unlock();
 }
 
+/* Changed during early boot */
+static int pty_output_sigio;
+static int pty_close_sigio;
+
+void maybe_sigio_broken(int fd, int read)
+{
+	if (!isatty(fd))
+		return;
+
+	if ((read || pty_output_sigio) && (!read || pty_close_sigio))
+		return;
+
+	sigio_broken(fd, read);
+}
+
 static void sigio_cleanup(void)
 {
 	if (write_sigio_pid == -1)
@@ -383,7 +389,7 @@ static void sigio_cleanup(void)
 __uml_exitcall(sigio_cleanup);
 
 /* Used as a flag during SIGIO testing early in boot */
-static volatile int got_sigio = 0;
+static int got_sigio;
 
 static void __init handler(int sig)
 {
@@ -498,7 +504,8 @@ static void tty_output(int master, int slave)
 	if (errno != EAGAIN)
 		printk(UM_KERN_ERR "tty_output : write failed, errno = %d\n",
 		       errno);
-	while (((n = read(slave, buf, sizeof(buf))) > 0) && !got_sigio)
+	while (((n = read(slave, buf, sizeof(buf))) > 0) &&
+	       !({ barrier(); got_sigio; }))
 		;
 
 	if (got_sigio) {

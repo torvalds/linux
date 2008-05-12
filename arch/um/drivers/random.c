@@ -8,16 +8,18 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>
+#include "irq_kern.h"
 #include "os.h"
 
 /*
  * core module and version information
  */
 #define RNG_VERSION "1.0.0"
-#define RNG_MODULE_NAME "random"
+#define RNG_MODULE_NAME "hw_random"
 
 #define RNG_MISCDEV_MINOR		183 /* official */
 
@@ -26,6 +28,7 @@
  * protects against a module being loaded twice at the same time.
  */
 static int random_fd = -1;
+static DECLARE_WAIT_QUEUE_HEAD(host_read_wait);
 
 static int rng_dev_open (struct inode *inode, struct file *filp)
 {
@@ -37,6 +40,8 @@ static int rng_dev_open (struct inode *inode, struct file *filp)
 
 	return 0;
 }
+
+static atomic_t host_sleep_count = ATOMIC_INIT(0);
 
 static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
                              loff_t * offp)
@@ -60,11 +65,26 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
                         }
                 }
                 else if(n == -EAGAIN){
+			DECLARE_WAITQUEUE(wait, current);
+
                         if (filp->f_flags & O_NONBLOCK)
                                 return ret ? : -EAGAIN;
 
-                        if(need_resched())
-                                schedule_timeout_interruptible(1);
+			atomic_inc(&host_sleep_count);
+			reactivate_fd(random_fd, RANDOM_IRQ);
+			add_sigio_fd(random_fd);
+
+			add_wait_queue(&host_read_wait, &wait);
+			set_task_state(current, TASK_INTERRUPTIBLE);
+
+			schedule();
+			set_task_state(current, TASK_RUNNING);
+			remove_wait_queue(&host_read_wait, &wait);
+
+			if (atomic_dec_and_test(&host_sleep_count)) {
+				ignore_sigio_fd(random_fd);
+				deactivate_fd(random_fd, RANDOM_IRQ);
+			}
                 }
                 else return n;
 		if (signal_pending (current))
@@ -86,6 +106,13 @@ static struct miscdevice rng_miscdev = {
 	&rng_chrdev_ops,
 };
 
+static irqreturn_t random_interrupt(int irq, void *data)
+{
+	wake_up(&host_read_wait);
+
+	return IRQ_HANDLED;
+}
+
 /*
  * rng_init - initialize RNG module
  */
@@ -99,9 +126,13 @@ static int __init rng_init (void)
 
         random_fd = err;
 
-        err = os_set_fd_block(random_fd, 0);
+	err = um_request_irq(RANDOM_IRQ, random_fd, IRQ_READ, random_interrupt,
+			     IRQF_DISABLED | IRQF_SAMPLE_RANDOM, "random",
+			     NULL);
         if(err)
 		goto err_out_cleanup_hw;
+
+	sigio_broken(random_fd, 1);
 
 	err = misc_register (&rng_miscdev);
 	if (err) {
@@ -113,6 +144,7 @@ static int __init rng_init (void)
         return err;
 
  err_out_cleanup_hw:
+	os_close_file(random_fd);
         random_fd = -1;
         goto out;
 }
@@ -122,6 +154,7 @@ static int __init rng_init (void)
  */
 static void __exit rng_cleanup (void)
 {
+	os_close_file(random_fd);
 	misc_deregister (&rng_miscdev);
 }
 
