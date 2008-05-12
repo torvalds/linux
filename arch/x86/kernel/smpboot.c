@@ -68,22 +68,6 @@
 #include <mach_wakecpu.h>
 #include <smpboot_hooks.h>
 
-/*
- * FIXME: For x86_64, those are defined in other files. But moving them here,
- * would make the setup areas dependent on smp, which is a loss. When we
- * integrate apic between arches, we can probably do a better job, but
- * right now, they'll stay here -- glommer
- */
-
-/* which logical CPU number maps to which CPU (physical APIC ID) */
-u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
-			{ [0 ... NR_CPUS-1] = BAD_APICID };
-void *x86_cpu_to_apicid_early_ptr;
-
-u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
-				= { [0 ... NR_CPUS-1] = BAD_APICID };
-void *x86_bios_cpu_apicid_early_ptr;
-
 #ifdef CONFIG_X86_32
 u8 apicid_2_node[MAX_APICID];
 static int low_mappings;
@@ -992,7 +976,7 @@ do_rest:
 		/* Try to put things back the way they were before ... */
 		unmap_cpu_to_logical_apicid(cpu);
 #ifdef CONFIG_X86_64
-		clear_node_cpumask(cpu); /* was set by numa_add_cpu */
+		numa_remove_cpu(cpu); /* was set by numa_add_cpu */
 #endif
 		cpu_clear(cpu, cpu_callout_map); /* was set by do_boot_cpu() */
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
@@ -1373,7 +1357,7 @@ static void __ref remove_cpu_from_maps(int cpu)
 	cpu_clear(cpu, cpu_callin_map);
 	/* was set by cpu_init() */
 	clear_bit(cpu, (unsigned long *)&cpu_initialized);
-	clear_node_cpumask(cpu);
+	numa_remove_cpu(cpu);
 #endif
 }
 

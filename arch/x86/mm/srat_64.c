@@ -376,7 +376,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		if (node == NUMA_NO_NODE)
 			continue;
 		if (!node_isset(node, node_possible_map))
-			numa_set_node(i, NUMA_NO_NODE);
+			numa_clear_node(i);
 	}
 	numa_init_array();
 	return 0;
