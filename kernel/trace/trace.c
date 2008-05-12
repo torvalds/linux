@@ -132,7 +132,7 @@ static const char *trace_options[] = {
 	NULL
 };
 
-static unsigned trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_STACKTRACE;
+static unsigned trace_flags = TRACE_ITER_PRINT_PARENT;
 
 static DEFINE_SPINLOCK(ftrace_max_lock);
 
