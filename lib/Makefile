@@ -8,6 +8,14 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 sha1.o irq_regs.o reciprocal_div.o argv_split.o \
 	 proportions.o prio_heap.o ratelimit.o
 
+ifdef CONFIG_FTRACE
+# Do not profile string.o, since it may be used in early boot or vdso
+ORIG_CFLAGS := $(KBUILD_CFLAGS)
+KBUILD_CFLAGS = $(if $(subst string,,$(basename $(notdir $@))), \
+	$(ORIG_CFLAGS), \
+	$(subst -pg,,$(ORIG_CFLAGS)))
+endif
+
 lib-$(CONFIG_MMU) += ioremap.o
 lib-$(CONFIG_SMP) += cpumask.o
 
