@@ -133,7 +133,8 @@ static const char *trace_options[] = {
 	NULL
 };
 
-static DEFINE_SPINLOCK(ftrace_max_lock);
+static raw_spinlock_t ftrace_max_lock =
+	(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 
 /*
  * Copy the new maximum trace into the separate maximum-trace
@@ -335,7 +336,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	int i;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	spin_lock(&ftrace_max_lock);
+	__raw_spin_lock(&ftrace_max_lock);
 	/* clear out all the previous traces */
 	for_each_possible_cpu(i) {
 		data = tr->data[i];
@@ -344,7 +345,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	}
 
 	__update_max_tr(tr, tsk, cpu);
-	spin_unlock(&ftrace_max_lock);
+	__raw_spin_unlock(&ftrace_max_lock);
 }
 
 /**
@@ -360,7 +361,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	int i;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	spin_lock(&ftrace_max_lock);
+	__raw_spin_lock(&ftrace_max_lock);
 	for_each_possible_cpu(i)
 		tracing_reset(max_tr.data[i]);
 
@@ -368,7 +369,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tracing_reset(data);
 
 	__update_max_tr(tr, tsk, cpu);
-	spin_unlock(&ftrace_max_lock);
+	__raw_spin_unlock(&ftrace_max_lock);
 }
 
 int register_tracer(struct tracer *type)
@@ -652,13 +653,15 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	struct trace_entry *entry;
 	unsigned long irq_flags;
 
-	spin_lock_irqsave(&data->lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, flags);
 	entry->type		= TRACE_FN;
 	entry->fn.ip		= ip;
 	entry->fn.parent_ip	= parent_ip;
-	spin_unlock_irqrestore(&data->lock, irq_flags);
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
 }
 
 void
@@ -678,14 +681,16 @@ __trace_special(void *__tr, void *__data,
 	struct trace_entry *entry;
 	unsigned long irq_flags;
 
-	spin_lock_irqsave(&data->lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, 0);
 	entry->type		= TRACE_SPECIAL;
 	entry->special.arg1	= arg1;
 	entry->special.arg2	= arg2;
 	entry->special.arg3	= arg3;
-	spin_unlock_irqrestore(&data->lock, irq_flags);
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
 
 	trace_wake_up();
 }
@@ -725,7 +730,8 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	struct trace_entry *entry;
 	unsigned long irq_flags;
 
-	spin_lock_irqsave(&data->lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, flags);
 	entry->type		= TRACE_CTX;
@@ -736,7 +742,8 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->ctx.next_prio	= next->prio;
 	entry->ctx.next_state	= next->state;
 	__trace_stack(tr, data, flags, 4);
-	spin_unlock_irqrestore(&data->lock, irq_flags);
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
 }
 
 void
@@ -749,7 +756,8 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	struct trace_entry *entry;
 	unsigned long irq_flags;
 
-	spin_lock_irqsave(&data->lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, flags);
 	entry->type		= TRACE_WAKE;
@@ -760,7 +768,8 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->ctx.next_prio	= wakee->prio;
 	entry->ctx.next_state	= wakee->state;
 	__trace_stack(tr, data, flags, 5);
-	spin_unlock_irqrestore(&data->lock, irq_flags);
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
 
 	trace_wake_up();
 }
@@ -1824,7 +1833,8 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 	if (err)
 		goto err_unlock;
 
-	spin_lock_irq(&ftrace_max_lock);
+	raw_local_irq_disable();
+	__raw_spin_lock(&ftrace_max_lock);
 	for_each_possible_cpu(cpu) {
 		/*
 		 * Increase/decrease the disabled counter if we are
@@ -1839,7 +1849,8 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 			atomic_dec(&global_trace.data[cpu]->disabled);
 		}
 	}
-	spin_unlock_irq(&ftrace_max_lock);
+	__raw_spin_unlock(&ftrace_max_lock);
+	raw_local_irq_enable();
 
 	tracing_cpumask = tracing_cpumask_new;
 
@@ -2299,7 +2310,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	for_each_cpu_mask(cpu, mask) {
 		data = iter->tr->data[cpu];
-		spin_lock(&data->lock);
+		__raw_spin_lock(&data->lock);
 	}
 
 	while (find_next_entry_inc(iter) != NULL) {
@@ -2320,7 +2331,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	for_each_cpu_mask(cpu, mask) {
 		data = iter->tr->data[cpu];
-		spin_unlock(&data->lock);
+		__raw_spin_unlock(&data->lock);
 	}
 
 	for_each_cpu_mask(cpu, mask) {
@@ -2538,8 +2549,7 @@ static int trace_alloc_page(void)
 	/* Now that we successfully allocate a page per CPU, add them */
 	for_each_possible_cpu(i) {
 		data = global_trace.data[i];
-		spin_lock_init(&data->lock);
-		lockdep_set_class(&data->lock, &data->lock_key);
+		data->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 		page = list_entry(pages.next, struct page, lru);
 		list_del_init(&page->lru);
 		list_add_tail(&page->lru, &data->trace_pages);
@@ -2547,8 +2557,7 @@ static int trace_alloc_page(void)
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 		data = max_tr.data[i];
-		spin_lock_init(&data->lock);
-		lockdep_set_class(&data->lock, &data->lock_key);
+		data->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 		page = list_entry(pages.next, struct page, lru);
 		list_del_init(&page->lru);
 		list_add_tail(&page->lru, &data->trace_pages);
