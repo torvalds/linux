@@ -88,3 +88,20 @@ config CONTEXT_SWITCH_TRACER
 	  This tracer gets called from the context switch and records
 	  all switching of tasks.
 
+config DYNAMIC_FTRACE
+	bool "enable/disable ftrace tracepoints dynamically"
+	depends on FTRACE
+	default y
+	help
+         This option will modify all the calls to ftrace dynamically
+	 (will patch them out of the binary image and replaces them
+	 with a No-Op instruction) as they are called. A table is
+	 created to dynamically enable them again.
+
+	 This way a CONFIG_FTRACE kernel is slightly larger, but otherwise
+	 has native performance as long as no tracing is active.
+
+	 The changes to the code are done by a kernel thread that
+	 wakes up once a second and checks to see if any ftrace calls
+	 were made. If so, it runs stop_machine (stops all CPUS)
+	 and modifies the code to jump over the call to ftrace.

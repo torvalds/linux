@@ -32,6 +32,24 @@ extern void mcount(void);
 # define clear_ftrace_function(ops) do { } while (0)
 #endif /* CONFIG_FTRACE */
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+# define FTRACE_HASHBITS	10
+# define FTRACE_HASHSIZE	(1<<FTRACE_HASHBITS)
+
+struct dyn_ftrace {
+	struct hlist_node node;
+	unsigned long	  ip;
+};
+
+/* defined in arch */
+extern struct dyn_ftrace *
+ftrace_alloc_shutdown_node(unsigned long ip);
+extern int ftrace_shutdown_arch_init(void);
+extern void ftrace_code_disable(struct dyn_ftrace *rec);
+extern void ftrace_startup_code(void);
+extern void ftrace_shutdown_code(void);
+extern void ftrace_shutdown_replenish(void);
+#endif
 
 #ifdef CONFIG_FRAME_POINTER
 /* TODO: need to fix this for ARM */
