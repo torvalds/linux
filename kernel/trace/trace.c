@@ -1920,6 +1920,11 @@ tracing_iter_ctrl_write(struct file *filp, const char __user *ubuf,
 			break;
 		}
 	}
+	/*
+	 * If no option could be set, return an error:
+	 */
+	if (!trace_options[i])
+		return -EINVAL;
 
 	filp->f_pos += cnt;
 
