@@ -58,6 +58,9 @@ struct dyn_ftrace {
 int ftrace_force_update(void);
 void ftrace_set_filter(unsigned char *buf, int len, int reset);
 
+/* totally disable ftrace - can not re-enable after this */
+void ftrace_kill(void);
+
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);
 extern unsigned char *ftrace_nop_replace(void);

@@ -248,6 +248,10 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	ftrace_enabled = save_ftrace_enabled;
 	tracer_enabled = save_tracer_enabled;
 
+	/* kill ftrace totally if we failed */
+	if (ret)
+		ftrace_kill();
+
 	return ret;
 }
 #endif /* CONFIG_FTRACE */
