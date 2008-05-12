@@ -51,8 +51,15 @@
 
 #ifndef __ASSEMBLY__
 
+typedef struct { pgdval_t pgd; } pgd_t;
+typedef struct { pgprotval_t pgprot; } pgprot_t;
+
 extern int page_is_ram(unsigned long pagenr);
 extern int devmem_is_allowed(unsigned long pagenr);
+extern void map_devmem(unsigned long pfn, unsigned long size,
+		       pgprot_t vma_prot);
+extern void unmap_devmem(unsigned long pfn, unsigned long size,
+			 pgprot_t vma_prot);
 
 extern unsigned long max_pfn_mapped;
 
@@ -73,9 +80,6 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 #define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
 	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
 #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
-
-typedef struct { pgdval_t pgd; } pgd_t;
-typedef struct { pgprotval_t pgprot; } pgprot_t;
 
 static inline pgd_t native_make_pgd(pgdval_t val)
 {
