@@ -137,7 +137,7 @@ static ssize_t write_marker(struct file *file, const char __user *buffer,
 
 static void print_pte(unsigned long address)
 {
-	int level;
+	unsigned int level;
 	pte_t *pte = lookup_address(address, &level);
 
 	if (!pte) {

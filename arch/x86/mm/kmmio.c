@@ -104,11 +104,12 @@ static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
 	return NULL;
 }
 
-static void set_page_present(unsigned long addr, bool present, int *pglevel)
+static void set_page_present(unsigned long addr, bool present,
+							unsigned int *pglevel)
 {
 	pteval_t pteval;
 	pmdval_t pmdval;
-	int level;
+	unsigned int level;
 	pmd_t *pmd;
 	pte_t *pte = lookup_address(addr, &level);
 
@@ -145,15 +146,15 @@ static void set_page_present(unsigned long addr, bool present, int *pglevel)
 }
 
 /** Mark the given page as not present. Access to it will trigger a fault. */
-static void arm_kmmio_fault_page(unsigned long page, int *page_level)
+static void arm_kmmio_fault_page(unsigned long page, unsigned int *pglevel)
 {
-	set_page_present(page & PAGE_MASK, false, page_level);
+	set_page_present(page & PAGE_MASK, false, pglevel);
 }
 
 /** Mark the given page as present. */
-static void disarm_kmmio_fault_page(unsigned long page, int *page_level)
+static void disarm_kmmio_fault_page(unsigned long page, unsigned int *pglevel)
 {
-	set_page_present(page & PAGE_MASK, true, page_level);
+	set_page_present(page & PAGE_MASK, true, pglevel);
 }
 
 /*
