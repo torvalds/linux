@@ -431,10 +431,8 @@ static void vmcs_write32(unsigned long field, u32 value)
 
 static void vmcs_write64(unsigned long field, u64 value)
 {
-#ifdef CONFIG_X86_64
 	vmcs_writel(field, value);
-#else
-	vmcs_writel(field, value);
+#ifndef CONFIG_X86_64
 	asm volatile ("");
 	vmcs_writel(field+1, value >> 32);
 #endif
