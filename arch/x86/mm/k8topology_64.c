@@ -22,6 +22,7 @@
 #include <asm/numa.h>
 #include <asm/mpspec.h>
 #include <asm/apic.h>
+#include <asm/k8.h>
 
 static __init int find_northbridge(void)
 {
