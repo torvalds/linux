@@ -54,9 +54,11 @@ struct trace_entry {
  */
 struct trace_array_cpu {
 	void			*trace;
+	void			*trace_current;
+	unsigned		trace_current_idx;
+	struct list_head	trace_pages;
 	unsigned long		trace_idx;
 	atomic_t		disabled;
-	atomic_t		underrun;
 	unsigned long		saved_latency;
 	unsigned long		critical_start;
 	unsigned long		critical_end;
@@ -112,8 +114,10 @@ struct trace_iterator {
 	unsigned long		iter_flags;
 	loff_t			pos;
 	unsigned long		next_idx[NR_CPUS];
+	struct list_head	*next_page[NR_CPUS];
+	unsigned		next_page_idx[NR_CPUS];
+	long			idx;
 	int			cpu;
-	int			idx;
 };
 
 void notrace tracing_reset(struct trace_array_cpu *data);

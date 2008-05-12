@@ -15,6 +15,7 @@
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/pagemap.h>
 #include <linux/hardirq.h>
 #include <linux/linkage.h>
 #include <linux/uaccess.h>
@@ -49,13 +50,15 @@ static struct trace_array	max_tr;
 static DEFINE_PER_CPU(struct trace_array_cpu, max_data);
 
 static int			tracer_enabled;
-static unsigned long		trace_nr_entries = 4096UL;
+static unsigned long		trace_nr_entries = 16384UL;
 
 static struct tracer		*trace_types __read_mostly;
 static struct tracer		*current_trace __read_mostly;
 static int			max_tracer_type_len;
 
 static DEFINE_MUTEX(trace_types_lock);
+
+#define ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct trace_entry))
 
 static int __init set_nr_entries(char *str)
 {
@@ -103,6 +106,7 @@ static const char *trace_options[] = {
 
 static unsigned trace_flags;
 
+static DEFINE_SPINLOCK(ftrace_max_lock);
 
 /*
  * Copy the new maximum trace into the separate maximum-trace
@@ -136,17 +140,23 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data;
 	void *save_trace;
+	struct list_head save_pages;
 	int i;
 
+	WARN_ON_ONCE(!irqs_disabled());
+	spin_lock(&ftrace_max_lock);
 	/* clear out all the previous traces */
 	for_each_possible_cpu(i) {
 		data = tr->data[i];
 		save_trace = max_tr.data[i]->trace;
+		save_pages = max_tr.data[i]->trace_pages;
 		memcpy(max_tr.data[i], data, sizeof(*data));
 		data->trace = save_trace;
+		data->trace_pages = save_pages;
 	}
 
 	__update_max_tr(tr, tsk, cpu);
+	spin_unlock(&ftrace_max_lock);
 }
 
 /**
@@ -160,16 +170,22 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data = tr->data[cpu];
 	void *save_trace;
+	struct list_head save_pages;
 	int i;
 
+	WARN_ON_ONCE(!irqs_disabled());
+	spin_lock(&ftrace_max_lock);
 	for_each_possible_cpu(i)
 		tracing_reset(max_tr.data[i]);
 
 	save_trace = max_tr.data[cpu]->trace;
+	save_pages = max_tr.data[cpu]->trace_pages;
 	memcpy(max_tr.data[cpu], data, sizeof(*data));
 	data->trace = save_trace;
+	data->trace_pages = save_pages;
 
 	__update_max_tr(tr, tsk, cpu);
+	spin_unlock(&ftrace_max_lock);
 }
 
 int register_tracer(struct tracer *type)
@@ -236,7 +252,8 @@ void unregister_tracer(struct tracer *type)
 void notrace tracing_reset(struct trace_array_cpu *data)
 {
 	data->trace_idx = 0;
-	atomic_set(&data->underrun, 0);
+	data->trace_current = data->trace;
+	data->trace_current_idx = 0;
 }
 
 #ifdef CONFIG_FTRACE
@@ -367,21 +384,27 @@ tracing_get_trace_entry(struct trace_array *tr,
 {
 	unsigned long idx, idx_next;
 	struct trace_entry *entry;
+	struct page *page;
+	struct list_head *next;
 
-	idx = data->trace_idx;
+	data->trace_idx++;
+	idx = data->trace_current_idx;
 	idx_next = idx + 1;
 
-	if (unlikely(idx_next >= tr->entries)) {
-		atomic_inc(&data->underrun);
+	entry = data->trace_current + idx * TRACE_ENTRY_SIZE;
+
+	if (unlikely(idx_next >= ENTRIES_PER_PAGE)) {
+		page = virt_to_page(data->trace_current);
+		if (unlikely(&page->lru == data->trace_pages.prev))
+			next = data->trace_pages.next;
+		else
+			next = page->lru.next;
+		page = list_entry(next, struct page, lru);
+		data->trace_current = page_address(page);
 		idx_next = 0;
 	}
 
-	data->trace_idx = idx_next;
-
-	if (unlikely(idx_next != 0 && atomic_read(&data->underrun)))
-		atomic_inc(&data->underrun);
-
-	entry = data->trace + idx * TRACE_ENTRY_SIZE;
+	data->trace_current_idx = idx_next;
 
 	return entry;
 }
@@ -442,21 +465,38 @@ enum trace_file_type {
 };
 
 static struct trace_entry *
-trace_entry_idx(struct trace_array *tr, unsigned long idx, int cpu)
+trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
+		struct trace_iterator *iter, int cpu)
 {
-	struct trace_entry *array = tr->data[cpu]->trace;
-	unsigned long underrun;
+	struct page *page;
+	struct trace_entry *array;
 
-	if (idx >= tr->entries)
+	if (iter->next_idx[cpu] >= tr->entries ||
+	    iter->next_idx[cpu] >= data->trace_idx)
 		return NULL;
 
-	underrun = atomic_read(&tr->data[cpu]->underrun);
-	if (underrun)
-		idx = ((underrun - 1) + idx) % tr->entries;
-	else if (idx >= tr->data[cpu]->trace_idx)
-		return NULL;
+	if (!iter->next_page[cpu]) {
+		/*
+		 * Initialize. If the count of elements in
+		 * this buffer is greater than the max entries
+		 * we had an underrun. Which means we looped around.
+		 * We can simply use the current pointer as our
+		 * starting point.
+		 */
+		if (data->trace_idx >= tr->entries) {
+			page = virt_to_page(data->trace_current);
+			iter->next_page[cpu] = &page->lru;
+			iter->next_page_idx[cpu] = data->trace_current_idx;
+		} else {
+			iter->next_page[cpu] = data->trace_pages.next;
+			iter->next_page_idx[cpu] = 0;
+		}
+	}
 
-	return &array[idx];
+	page = list_entry(iter->next_page[cpu], struct page, lru);
+	array = page_address(page);
+
+	return &array[iter->next_page_idx[cpu]];
 }
 
 static struct notrace trace_entry *
@@ -470,7 +510,7 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 	for_each_possible_cpu(cpu) {
 		if (!tr->data[cpu]->trace)
 			continue;
-		ent = trace_entry_idx(tr, iter->next_idx[cpu], cpu);
+		ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
 		if (ent &&
 		    (!next || (long)(next->idx - ent->idx) > 0)) {
 			next = ent;
@@ -492,8 +532,19 @@ static void *find_next_entry_inc(struct trace_iterator *iter)
 	next = find_next_entry(iter, &next_cpu);
 
 	if (next) {
-		iter->next_idx[next_cpu]++;
 		iter->idx++;
+		iter->next_idx[next_cpu]++;
+		iter->next_page_idx[next_cpu]++;
+		if (iter->next_page_idx[next_cpu] >= ENTRIES_PER_PAGE) {
+			struct trace_array_cpu *data = iter->tr->data[next_cpu];
+
+			iter->next_page_idx[next_cpu] = 0;
+			iter->next_page[next_cpu] =
+				iter->next_page[next_cpu]->next;
+			if (iter->next_page[next_cpu] == &data->trace_pages)
+				iter->next_page[next_cpu] =
+					data->trace_pages.next;
+		}
 	}
 	iter->ent = next;
 	iter->cpu = next_cpu;
@@ -554,14 +605,16 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 		iter->cpu = 0;
 		iter->idx = -1;
 
-		for (i = 0; i < NR_CPUS; i++)
+		for_each_possible_cpu(i) {
 			iter->next_idx[i] = 0;
+			iter->next_page[i] = NULL;
+		}
 
 		for (p = iter; p && l < *pos; p = s_next(m, p, &l))
 			;
 
 	} else {
-		l = *pos;
+		l = *pos - 1;
 		p = s_next(m, p, &l);
 	}
 
@@ -654,9 +707,8 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	struct trace_array *tr = iter->tr;
 	struct trace_array_cpu *data = tr->data[tr->cpu];
 	struct tracer *type = current_trace;
-	unsigned long underruns = 0;
-	unsigned long underrun;
-	unsigned long entries   = 0;
+	unsigned long total   = 0;
+	unsigned long entries = 0;
 	int cpu;
 	const char *name = "preemption";
 
@@ -665,11 +717,10 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 
 	for_each_possible_cpu(cpu) {
 		if (tr->data[cpu]->trace) {
-			underrun = atomic_read(&tr->data[cpu]->underrun);
-			if (underrun) {
-				underruns += underrun;
+			total += tr->data[cpu]->trace_idx;
+			if (tr->data[cpu]->trace_idx > tr->entries)
 				entries += tr->entries;
-			} else
+			else
 				entries += tr->data[cpu]->trace_idx;
 		}
 	}
@@ -682,7 +733,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 		   " (M:%s VP:%d, KP:%d, SP:%d HP:%d",
 		   data->saved_latency,
 		   entries,
-		   (entries + underruns),
+		   total,
 		   tr->cpu,
 #if defined(CONFIG_PREEMPT_NONE)
 		   "server",
@@ -882,8 +933,7 @@ static int trace_empty(struct trace_iterator *iter)
 		data = iter->tr->data[cpu];
 
 		if (data->trace &&
-		    (data->trace_idx ||
-		     atomic_read(&data->underrun)))
+		    data->trace_idx)
 			return 0;
 	}
 	return 1;
@@ -1464,42 +1514,109 @@ static struct tracer no_tracer __read_mostly =
 	.name = "none",
 };
 
-static inline notrace int page_order(const unsigned long size)
+static int trace_alloc_page(void)
 {
-	const unsigned long nr_pages = DIV_ROUND_UP(size, PAGE_SIZE);
-	return ilog2(roundup_pow_of_two(nr_pages));
+	struct trace_array_cpu *data;
+	void *array;
+	struct page *page, *tmp;
+	LIST_HEAD(pages);
+	int i;
+
+	/* first allocate a page for each CPU */
+	for_each_possible_cpu(i) {
+		array = (void *)__get_free_page(GFP_KERNEL);
+		if (array == NULL) {
+			printk(KERN_ERR "tracer: failed to allocate page"
+			       "for trace buffer!\n");
+			goto free_pages;
+		}
+
+		page = virt_to_page(array);
+		list_add(&page->lru, &pages);
+
+/* Only allocate if we are actually using the max trace */
+#ifdef CONFIG_TRACER_MAX_TRACE
+		array = (void *)__get_free_page(GFP_KERNEL);
+		if (array == NULL) {
+			printk(KERN_ERR "tracer: failed to allocate page"
+			       "for trace buffer!\n");
+			goto free_pages;
+		}
+		page = virt_to_page(array);
+		list_add(&page->lru, &pages);
+#endif
+	}
+
+	/* Now that we successfully allocate a page per CPU, add them */
+	for_each_possible_cpu(i) {
+		data = global_trace.data[i];
+		page = list_entry(pages.next, struct page, lru);
+		list_del(&page->lru);
+		list_add_tail(&page->lru, &data->trace_pages);
+		ClearPageLRU(page);
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+		data = max_tr.data[i];
+		page = list_entry(pages.next, struct page, lru);
+		list_del(&page->lru);
+		list_add_tail(&page->lru, &data->trace_pages);
+		SetPageLRU(page);
+#endif
+	}
+	global_trace.entries += ENTRIES_PER_PAGE;
+
+	return 0;
+
+ free_pages:
+	list_for_each_entry_safe(page, tmp, &pages, lru) {
+		list_del(&page->lru);
+		__free_page(page);
+	}
+	return -ENOMEM;
 }
 
 __init static int tracer_alloc_buffers(void)
 {
-	const int order = page_order(trace_nr_entries * TRACE_ENTRY_SIZE);
-	const unsigned long size = (1UL << order) << PAGE_SHIFT;
-	struct trace_entry *array;
+	struct trace_array_cpu *data;
+	void *array;
+	struct page *page;
+	int pages = 0;
 	int i;
 
+	/* Allocate the first page for all buffers */
 	for_each_possible_cpu(i) {
-		global_trace.data[i] = &per_cpu(global_trace_cpu, i);
+		data = global_trace.data[i] = &per_cpu(global_trace_cpu, i);
 		max_tr.data[i] = &per_cpu(max_data, i);
 
-		array = (struct trace_entry *)
-			  __get_free_pages(GFP_KERNEL, order);
+		array = (void *)__get_free_page(GFP_KERNEL);
 		if (array == NULL) {
-			printk(KERN_ERR "tracer: failed to allocate"
-			       " %ld bytes for trace buffer!\n", size);
+			printk(KERN_ERR "tracer: failed to allocate page"
+			       "for trace buffer!\n");
 			goto free_buffers;
 		}
-		global_trace.data[i]->trace = array;
+		data->trace = array;
+
+		/* set the array to the list */
+		INIT_LIST_HEAD(&data->trace_pages);
+		page = virt_to_page(array);
+		list_add(&page->lru, &data->trace_pages);
+		/* use the LRU flag to differentiate the two buffers */
+		ClearPageLRU(page);
 
 /* Only allocate if we are actually using the max trace */
 #ifdef CONFIG_TRACER_MAX_TRACE
-		array = (struct trace_entry *)
-			  __get_free_pages(GFP_KERNEL, order);
+		array = (void *)__get_free_page(GFP_KERNEL);
 		if (array == NULL) {
-			printk(KERN_ERR "wakeup tracer: failed to allocate"
-			       " %ld bytes for trace buffer!\n", size);
+			printk(KERN_ERR "tracer: failed to allocate page"
+			       "for trace buffer!\n");
 			goto free_buffers;
 		}
 		max_tr.data[i]->trace = array;
+
+		INIT_LIST_HEAD(&max_tr.data[i]->trace_pages);
+		page = virt_to_page(array);
+		list_add(&page->lru, &max_tr.data[i]->trace_pages);
+		SetPageLRU(page);
 #endif
 	}
 
@@ -1507,11 +1624,18 @@ __init static int tracer_alloc_buffers(void)
 	 * Since we allocate by orders of pages, we may be able to
 	 * round up a bit.
 	 */
-	global_trace.entries = size / TRACE_ENTRY_SIZE;
+	global_trace.entries = ENTRIES_PER_PAGE;
 	max_tr.entries = global_trace.entries;
+	pages++;
 
-	pr_info("tracer: %ld bytes allocated for %ld",
-		size, trace_nr_entries);
+	while (global_trace.entries < trace_nr_entries) {
+		if (trace_alloc_page())
+			break;
+		pages++;
+	}
+
+	pr_info("tracer: %d pages allocated for %ld",
+		pages, trace_nr_entries);
 	pr_info(" entries of %ld bytes\n", (long)TRACE_ENTRY_SIZE);
 	pr_info("   actual entries %ld\n", global_trace.entries);
 
@@ -1526,17 +1650,26 @@ __init static int tracer_alloc_buffers(void)
 
  free_buffers:
 	for (i-- ; i >= 0; i--) {
+		struct page *page, *tmp;
 		struct trace_array_cpu *data = global_trace.data[i];
 
 		if (data && data->trace) {
-			free_pages((unsigned long)data->trace, order);
+			list_for_each_entry_safe(page, tmp,
+						 &data->trace_pages, lru) {
+				list_del(&page->lru);
+				__free_page(page);
+			}
 			data->trace = NULL;
 		}
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 		data = max_tr.data[i];
 		if (data && data->trace) {
-			free_pages((unsigned long)data->trace, order);
+			list_for_each_entry_safe(page, tmp,
+						 &data->trace_pages, lru) {
+				list_del(&page->lru);
+				__free_page(page);
+			}
 			data->trace = NULL;
 		}
 #endif
