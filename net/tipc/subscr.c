@@ -474,6 +474,7 @@ static void subscr_named_msg_event(void *usr_handle,
 		kfree(subscriber);
 		return;
 	}
+	spin_unlock_bh(subscriber->lock);
 
 	/* Establish a connection to subscriber */
 

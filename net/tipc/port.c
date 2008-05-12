@@ -211,15 +211,18 @@ exit:
 }
 
 /**
- * tipc_createport_raw - create a native TIPC port
+ * tipc_createport_raw - create a generic TIPC port
  *
- * Returns local port reference
+ * Returns port reference, or 0 if unable to create it
+ *
+ * Note: The newly created port is returned in the locked state.
  */
 
 u32 tipc_createport_raw(void *usr_handle,
 			u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
 			void (*wakeup)(struct tipc_port *),
-			const u32 importance)
+			const u32 importance,
+			struct tipc_port **tp_ptr)
 {
 	struct port *p_ptr;
 	struct tipc_msg *msg;
@@ -237,7 +240,6 @@ u32 tipc_createport_raw(void *usr_handle,
 		return 0;
 	}
 
-	tipc_port_lock(ref);
 	p_ptr->publ.usr_handle = usr_handle;
 	p_ptr->publ.max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->publ.ref = ref;
@@ -262,7 +264,7 @@ u32 tipc_createport_raw(void *usr_handle,
 	INIT_LIST_HEAD(&p_ptr->port_list);
 	list_add_tail(&p_ptr->port_list, &ports);
 	spin_unlock_bh(&tipc_port_list_lock);
-	tipc_port_unlock(p_ptr);
+	*tp_ptr = &p_ptr->publ;
 	return ref;
 }
 
@@ -1053,6 +1055,7 @@ int tipc_createport(u32 user_ref,
 {
 	struct user_port *up_ptr;
 	struct port *p_ptr;
+	struct tipc_port *tp_ptr;
 	u32 ref;
 
 	up_ptr = kmalloc(sizeof(*up_ptr), GFP_ATOMIC);
@@ -1060,12 +1063,13 @@ int tipc_createport(u32 user_ref,
 		warn("Port creation failed, no memory\n");
 		return -ENOMEM;
 	}
-	ref = tipc_createport_raw(NULL, port_dispatcher, port_wakeup, importance);
-	p_ptr = tipc_port_lock(ref);
-	if (!p_ptr) {
+	ref = tipc_createport_raw(NULL, port_dispatcher, port_wakeup,
+				  importance, &tp_ptr);
+	if (ref == 0) {
 		kfree(up_ptr);
 		return -ENOMEM;
 	}
+	p_ptr = (struct port *)tp_ptr;
 
 	p_ptr->user_port = up_ptr;
 	up_ptr->user_ref = user_ref;

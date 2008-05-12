@@ -84,7 +84,8 @@ struct tipc_port {
 u32 tipc_createport_raw(void *usr_handle,
 			u32 (*dispatcher)(struct tipc_port *, struct sk_buff *),
 			void (*wakeup)(struct tipc_port *),
-			const u32 importance);
+			const u32 importance,
+			struct tipc_port **tp_ptr);
 
 int tipc_reject_msg(struct sk_buff *buf, u32 err);
 

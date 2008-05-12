@@ -188,6 +188,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 	const struct proto_ops *ops;
 	socket_state state;
 	struct sock *sk;
+	struct tipc_port *tp_ptr;
 	u32 portref;
 
 	/* Validate arguments */
@@ -225,7 +226,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 	/* Allocate TIPC port for socket to use */
 
 	portref = tipc_createport_raw(sk, &dispatch, &wakeupdispatch,
-				      TIPC_LOW_IMPORTANCE);
+				      TIPC_LOW_IMPORTANCE, &tp_ptr);
 	if (unlikely(portref == 0)) {
 		sk_free(sk);
 		return -ENOMEM;
@@ -240,6 +241,8 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 	sk->sk_rcvtimeo = msecs_to_jiffies(CONN_TIMEOUT_DEFAULT);
 	sk->sk_backlog_rcv = backlog_rcv;
 	tipc_sk(sk)->p = tipc_get_port(portref);
+
+	spin_unlock_bh(tp_ptr->lock);
 
 	if (sock->state == SS_READY) {
 		tipc_set_portunreturnable(portref, 1);
