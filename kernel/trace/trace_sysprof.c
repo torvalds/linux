@@ -14,6 +14,8 @@
 #include <linux/irq.h>
 #include <linux/fs.h>
 
+#include <asm/stacktrace.h>
+
 #include "trace.h"
 
 static struct trace_array	*sysprof_trace;
@@ -52,6 +54,77 @@ static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
 	return ret;
 }
 
+struct backtrace_info {
+	struct trace_array_cpu	*data;
+	struct trace_array	*tr;
+	int			pos;
+};
+
+static void
+backtrace_warning_symbol(void *data, char *msg, unsigned long symbol)
+{
+	/* Ignore warnings */
+}
+
+static void backtrace_warning(void *data, char *msg)
+{
+	/* Ignore warnings */
+}
+
+static int backtrace_stack(void *data, char *name)
+{
+	/* Don't bother with IRQ stacks for now */
+	return -1;
+}
+
+static void backtrace_address(void *data, unsigned long addr, int reliable)
+{
+	struct backtrace_info *info = data;
+
+	if (info->pos < sample_max_depth && reliable) {
+		__trace_special(info->tr, info->data, 1, addr, 0);
+
+		info->pos++;
+	}
+}
+
+const static struct stacktrace_ops backtrace_ops = {
+	.warning		= backtrace_warning,
+	.warning_symbol		= backtrace_warning_symbol,
+	.stack			= backtrace_stack,
+	.address		= backtrace_address,
+};
+
+static struct pt_regs *
+trace_kernel(struct pt_regs *regs, struct trace_array *tr,
+	     struct trace_array_cpu *data)
+{
+	struct backtrace_info info;
+	unsigned long bp;
+	char *user_stack;
+	char *stack;
+
+	info.tr = tr;
+	info.data = data;
+	info.pos = 1;
+
+	__trace_special(info.tr, info.data, 1, regs->ip, 0);
+
+	stack = ((char *)regs + sizeof(struct pt_regs));
+#ifdef CONFIG_FRAME_POINTER
+	bp = regs->bp;
+#else
+	bp = 0;
+#endif
+
+	dump_trace(NULL, regs, (void *)stack, bp, &backtrace_ops, &info);
+
+	/* Now trace the user stack */
+	user_stack = ((char *)current->thread.sp0 - sizeof(struct pt_regs));
+
+	return (struct pt_regs *)user_stack;
+}
+
 static void timer_notify(struct pt_regs *regs, int cpu)
 {
 	struct trace_array_cpu *data;
@@ -74,16 +147,14 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 	if (is_user && current->state != TASK_RUNNING)
 		return;
 
-	if (!is_user) {
-		/* kernel */
-		ftrace(tr, data, current->pid, 1, 0);
-		return;
+	__trace_special(tr, data, 0, 0, current->pid);
 
-	}
-
-	__trace_special(tr, data, 0, current->pid, regs->ip);
+	if (!is_user)
+		regs = trace_kernel(regs, tr, data);
 
 	fp = (void __user *)regs->bp;
+
+	__trace_special(tr, data, 2, regs->ip, 0);
 
 	for (i = 0; i < sample_max_depth; i++) {
 		frame.next_fp = 0;
@@ -93,12 +164,12 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 		if ((unsigned long)fp < regs->sp)
 			break;
 
-		__trace_special(tr, data, 1, frame.return_address,
+		__trace_special(tr, data, 2, frame.return_address,
 			      (unsigned long)fp);
 		fp = frame.next_fp;
 	}
 
-	__trace_special(tr, data, 2, current->pid, i);
+	__trace_special(tr, data, 3, current->pid, i);
 
 	/*
 	 * Special trace entry if we overflow the max depth:
