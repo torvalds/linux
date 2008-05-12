@@ -87,11 +87,12 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 static const struct cx18_card cx18_card_hvr1600_samsung = {
 	.type = CX18_CARD_HVR_1600_SAMSUNG,
 	.name = "Hauppauge HVR-1600 (Preproduction)",
-	.comment = "DVB & VBI are not yet supported\n",
+	.comment = "VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_muxer = CX18_HW_CS5345,
-	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER | CX18_HW_CS5345,
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER |
+		  CX18_HW_CS5345 | CX18_HW_DVB,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE7 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1, CX23418_SVIDEO1    },

@@ -210,12 +210,12 @@ static void cx18_process_eeprom(struct cx18 *cx)
 
 	/* Many thanks to Steven Toth from Hauppauge for providing the
 	   model numbers */
+	/* Note: the Samsung memory models cannot be reliably determined
+	   from the model number. Use the cardtype module option if you
+	   have one of these preproduction models. */
 	switch (tv.model) {
-	case 74000 ... 74099:
+	case 74000 ... 74999:
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
-		break;
-	case 74700 ... 74799:
-		cx->card = cx18_get_card(CX18_CARD_HVR_1600_SAMSUNG);
 		break;
 	case 0:
 		CX18_ERR("Invalid EEPROM\n");
