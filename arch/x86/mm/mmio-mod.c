@@ -81,17 +81,14 @@ static LIST_HEAD(trace_list);		/* struct remap_trace */
 /* module parameters */
 static unsigned long	filter_offset;
 static int		nommiotrace;
-static int		ISA_trace;
 static int		trace_pc;
 
 module_param(filter_offset, ulong, 0);
 module_param(nommiotrace, bool, 0);
-module_param(ISA_trace, bool, 0);
 module_param(trace_pc, bool, 0);
 
 MODULE_PARM_DESC(filter_offset, "Start address of traced mappings.");
 MODULE_PARM_DESC(nommiotrace, "Disable actual MMIO tracing.");
-MODULE_PARM_DESC(ISA_trace, "Do not exclude the low ISA range.");
 MODULE_PARM_DESC(trace_pc, "Record address of faulting instructions.");
 
 static bool is_enabled(void)
@@ -424,8 +421,6 @@ void enable_mmiotrace(void)
 
 	if (nommiotrace)
 		pr_info(NAME "MMIO tracing disabled.\n");
-	if (ISA_trace)
-		pr_warning(NAME "Warning! low ISA range will be traced.\n");
 	spin_lock_irq(&trace_lock);
 	atomic_inc(&mmiotrace_enabled);
 	spin_unlock_irq(&trace_lock);
