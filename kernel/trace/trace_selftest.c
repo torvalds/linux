@@ -410,11 +410,11 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 #ifdef CONFIG_SCHED_TRACER
 static int trace_wakeup_test_thread(void *data)
 {
+	/* Make this a RT thread, doesn't need to be too high */
+	struct sched_param param = { .sched_priority = 5 };
 	struct completion *x = data;
 
-	/* Make this a RT thread, doesn't need to be too high */
-
-	rt_mutex_setprio(current, MAX_RT_PRIO - 5);
+	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	/* Make it know we have a new prio */
 	complete(x);
