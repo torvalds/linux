@@ -99,6 +99,100 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 }
 
 #ifdef CONFIG_FTRACE
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+#define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
+#define __STR(x) #x
+#define STR(x) __STR(x)
+static int DYN_FTRACE_TEST_NAME(void)
+{
+	/* used to call mcount */
+	return 0;
+}
+
+/* Test dynamic code modification and ftrace filters */
+int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
+					   struct trace_array *tr,
+					   int (*func)(void))
+{
+	unsigned long count;
+	int ret;
+	int save_ftrace_enabled = ftrace_enabled;
+	int save_tracer_enabled = tracer_enabled;
+
+	/* The ftrace test PASSED */
+	printk(KERN_CONT "PASSED\n");
+	pr_info("Testing dynamic ftrace: ");
+
+	/* enable tracing, and record the filter function */
+	ftrace_enabled = 1;
+	tracer_enabled = 1;
+
+	/* passed in by parameter to fool gcc from optimizing */
+	func();
+
+	/* update the records */
+	ret = ftrace_force_update();
+	if (ret) {
+		printk(KERN_CONT ".. ftraced failed .. ");
+		return ret;
+	}
+
+	/* filter only on our function */
+	ftrace_set_filter(STR(DYN_FTRACE_TEST_NAME),
+			  sizeof(STR(DYN_FTRACE_TEST_NAME)), 1);
+
+	/* enable tracing */
+	tr->ctrl = 1;
+	trace->init(tr);
+	/* Sleep for a 1/10 of a second */
+	msleep(100);
+
+	/* we should have nothing in the buffer */
+	ret = trace_test_buffer(tr, &count);
+	if (ret)
+		goto out;
+
+	if (count) {
+		ret = -1;
+		printk(KERN_CONT ".. filter did not filter .. ");
+		goto out;
+	}
+
+	/* call our function again */
+	func();
+
+	/* sleep again */
+	msleep(100);
+
+	/* stop the tracing. */
+	tr->ctrl = 0;
+	trace->ctrl_update(tr);
+	ftrace_enabled = 0;
+
+	/* check the trace buffer */
+	ret = trace_test_buffer(tr, &count);
+	trace->reset(tr);
+
+	/* we should only have one item */
+	if (!ret && count != 1) {
+		printk(KERN_CONT ".. filter failed ..");
+		ret = -1;
+		goto out;
+	}
+ out:
+	ftrace_enabled = save_ftrace_enabled;
+	tracer_enabled = save_tracer_enabled;
+
+	/* Enable tracing on all functions again */
+	ftrace_set_filter(NULL, 0, 1);
+
+	return ret;
+}
+#else
+# define trace_selftest_startup_dynamic_tracing(trace, tr, func) ({ 0; })
+#endif /* CONFIG_DYNAMIC_FTRACE */
 /*
  * Simple verification test of ftrace function tracer.
  * Enable ftrace, sleep 1/10 second, and then read the trace
@@ -109,8 +203,13 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 {
 	unsigned long count;
 	int ret;
+	int save_ftrace_enabled = ftrace_enabled;
+	int save_tracer_enabled = tracer_enabled;
 
-	/* make sure functions have been recorded */
+	/* make sure msleep has been recorded */
+	msleep(1);
+
+	/* force the recorded functions to be traced */
 	ret = ftrace_force_update();
 	if (ret) {
 		printk(KERN_CONT ".. ftraced failed .. ");
@@ -119,6 +218,7 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 	/* start the tracing */
 	ftrace_enabled = 1;
+	tracer_enabled = 1;
 
 	tr->ctrl = 1;
 	trace->init(tr);
@@ -136,7 +236,15 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
 		ret = -1;
+		goto out;
 	}
+
+	ret = trace_selftest_startup_dynamic_tracing(trace, tr,
+						     DYN_FTRACE_TEST_NAME);
+
+ out:
+	ftrace_enabled = save_ftrace_enabled;
+	tracer_enabled = save_tracer_enabled;
 
 	return ret;
 }
@@ -415,6 +523,3 @@ trace_selftest_startup_sched_switch(struct tracer *trace, struct trace_array *tr
 	return ret;
 }
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
-
-#ifdef CONFIG_DYNAMIC_FTRACE
-#endif /* CONFIG_DYNAMIC_FTRACE */

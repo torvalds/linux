@@ -55,6 +55,7 @@ struct dyn_ftrace {
 };
 
 int ftrace_force_update(void);
+void ftrace_set_filter(unsigned char *buf, int len, int reset);
 
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);
@@ -70,6 +71,7 @@ extern void ftrace_call(void);
 extern void mcount_call(void);
 #else
 # define ftrace_force_update() ({ 0; })
+# define ftrace_set_filter(buf, len, reset) do { } while (0)
 #endif
 
 static inline void tracer_disable(void)

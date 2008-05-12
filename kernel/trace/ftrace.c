@@ -1010,6 +1010,25 @@ ftrace_filter_write(struct file *file, const char __user *ubuf,
 	return ret;
 }
 
+/**
+ * ftrace_set_filter - set a function to filter on in ftrace
+ * @buf - the string that holds the function filter text.
+ * @len - the length of the string.
+ * @reset - non zero to reset all filters before applying this filter.
+ *
+ * Filters denote which functions should be enabled when tracing is enabled.
+ * If @buf is NULL and reset is set, all functions will be enabled for tracing.
+ */
+notrace void ftrace_set_filter(unsigned char *buf, int len, int reset)
+{
+	mutex_lock(&ftrace_filter_lock);
+	if (reset)
+		ftrace_filter_reset();
+	if (buf)
+		ftrace_match(buf, len);
+	mutex_unlock(&ftrace_filter_lock);
+}
+
 static int notrace
 ftrace_filter_release(struct inode *inode, struct file *file)
 {
