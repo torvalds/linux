@@ -37,7 +37,7 @@ notrace unsigned int debug_smp_processor_id(void)
 	/*
 	 * Avoid recursion:
 	 */
-	preempt_disable();
+	preempt_disable_notrace();
 
 	if (!printk_ratelimit())
 		goto out_enable;
@@ -49,7 +49,7 @@ notrace unsigned int debug_smp_processor_id(void)
 	dump_stack();
 
 out_enable:
-	preempt_enable_no_resched();
+	preempt_enable_no_resched_notrace();
 out:
 	return this_cpu;
 }
