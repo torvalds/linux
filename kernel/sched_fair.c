@@ -1275,23 +1275,18 @@ __load_balance_iterator(struct cfs_rq *cfs_rq, struct list_head *next)
 	struct task_struct *p = NULL;
 	struct sched_entity *se;
 
-	if (next == &cfs_rq->tasks)
-		return NULL;
-
-	/* Skip over entities that are not tasks */
-	do {
+	while (next != &cfs_rq->tasks) {
 		se = list_entry(next, struct sched_entity, group_node);
 		next = next->next;
-	} while (next != &cfs_rq->tasks && !entity_is_task(se));
 
-	if (next == &cfs_rq->tasks)
-		return NULL;
+		/* Skip over entities that are not tasks */
+		if (entity_is_task(se)) {
+			p = task_of(se);
+			break;
+		}
+	}
 
 	cfs_rq->balance_iterator = next;
-
-	if (entity_is_task(se))
-		p = task_of(se);
-
 	return p;
 }
 
