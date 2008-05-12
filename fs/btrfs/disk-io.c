@@ -205,6 +205,33 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	return 0;
 }
 
+static int verify_parent_transid(struct extent_io_tree *io_tree,
+				 struct extent_buffer *eb, u64 parent_transid)
+{
+	int ret;
+
+	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
+		return 0;
+
+	lock_extent(io_tree, eb->start, eb->start + eb->len - 1, GFP_NOFS);
+	if (extent_buffer_uptodate(io_tree, eb) &&
+	    btrfs_header_generation(eb) == parent_transid) {
+		ret = 0;
+		goto out;
+	}
+	printk("parent transid verify failed on %llu wanted %llu found %llu\n",
+	       (unsigned long long)eb->start,
+	       (unsigned long long)parent_transid,
+	       (unsigned long long)btrfs_header_generation(eb));
+	ret = 1;
+out:
+	clear_extent_buffer_uptodate(io_tree, eb);
+	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
+		      GFP_NOFS);
+	return ret;
+
+}
+
 static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 					  struct extent_buffer *eb,
 					  u64 start, u64 parent_transid)
@@ -218,7 +245,8 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 	while (1) {
 		ret = read_extent_buffer_pages(io_tree, eb, start, 1,
 					       btree_get_extent, mirror_num);
-		if (!ret)
+		if (!ret &&
+		    !verify_parent_transid(io_tree, eb, parent_transid))
 			return ret;
 
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
@@ -327,6 +355,13 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		printk("bad first page %lu %lu\n", eb->first_page->index,
 		       page->index);
 		WARN_ON(1);
+		ret = -EIO;
+		goto err;
+	}
+	if (memcmp_extent_buffer(eb, root->fs_info->fsid,
+				 (unsigned long)btrfs_header_fsid(eb),
+				 BTRFS_FSID_SIZE)) {
+		printk("bad fsid on block %Lu\n", eb->start);
 		ret = -EIO;
 		goto err;
 	}
@@ -1363,7 +1398,9 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 					"I/O error on %s\n",
 				       bdevname(bh->b_bdev, b));
 		}
-		set_buffer_write_io_error(bh);
+		/* note, we dont' set_buffer_write_io_error because we have
+		 * our own ways of dealing with the IO errors
+		 */
 		clear_buffer_uptodate(bh);
 	}
 	unlock_buffer(bh);
@@ -1459,7 +1496,8 @@ int write_all_supers(struct btrfs_root *root)
 				ret = submit_bh(WRITE, bh);
 				BUG_ON(ret);
 				wait_on_buffer(bh);
-				BUG_ON(!buffer_uptodate(bh));
+				if (!buffer_uptodate(bh))
+					total_errors++;
 			} else {
 				total_errors++;
 			}
@@ -1607,10 +1645,18 @@ int close_ctree(struct btrfs_root *root)
 	return 0;
 }
 
-int btrfs_buffer_uptodate(struct extent_buffer *buf)
+int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 {
+	int ret;
 	struct inode *btree_inode = buf->first_page->mapping->host;
-	return extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf);
+
+	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf);
+	if (!ret)
+		return ret;
+
+	ret = verify_parent_transid(&BTRFS_I(btree_inode)->io_tree, buf,
+				    parent_transid);
+	return !ret;
 }
 
 int btrfs_set_buffer_uptodate(struct extent_buffer *buf)

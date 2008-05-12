@@ -36,9 +36,12 @@ struct extent_io_ops {
 	int (*readpage_io_failed_hook)(struct bio *bio, struct page *page,
 				       u64 start, u64 end,
 				       struct extent_state *state);
+	int (*writepage_io_failed_hook)(struct bio *bio, struct page *page,
+					u64 start, u64 end,
+				       struct extent_state *state);
 	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
 				    struct extent_state *state);
-	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
+	int (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state);
 	int (*set_bit_hook)(struct inode *inode, u64 start, u64 end,
 			    unsigned long old, unsigned long bits);
@@ -212,6 +215,8 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 			     struct extent_buffer *eb);
 int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 			       struct extent_buffer *eb);
+int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
+				struct extent_buffer *eb);
 int extent_buffer_uptodate(struct extent_io_tree *tree,
 			   struct extent_buffer *eb);
 int map_extent_buffer(struct extent_buffer *eb, unsigned long offset,

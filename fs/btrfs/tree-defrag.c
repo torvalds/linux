@@ -51,6 +51,7 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 	struct extent_buffer *next;
 	struct extent_buffer *cur;
 	u64 bytenr;
+	u64 ptr_gen;
 	int ret = 0;
 	int is_extent = 0;
 
@@ -93,11 +94,12 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 			break;
 		}
 		bytenr = btrfs_node_blockptr(cur, path->slots[*level]);
+		ptr_gen = btrfs_node_ptr_generation(cur, path->slots[*level]);
 
 		if (cache_only) {
 			next = btrfs_find_tree_block(root, bytenr,
 					   btrfs_level_size(root, *level - 1));
-			if (!next || !btrfs_buffer_uptodate(next) ||
+			if (!next || !btrfs_buffer_uptodate(next, ptr_gen) ||
 			    !btrfs_buffer_defrag(next)) {
 				free_extent_buffer(next);
 				path->slots[*level]++;
@@ -106,8 +108,7 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 		} else {
 			next = read_tree_block(root, bytenr,
 				       btrfs_level_size(root, *level - 1),
-				       btrfs_node_ptr_generation(cur,
-							 path->slots[*level]));
+				       ptr_gen);
 		}
 		ret = btrfs_cow_block(trans, root, next, path->nodes[*level],
 				      path->slots[*level], &next);

@@ -1366,7 +1366,7 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 	if (!pending) {
 		buf = btrfs_find_tree_block(root, bytenr, num_bytes);
 		if (buf) {
-			if (btrfs_buffer_uptodate(buf)) {
+			if (btrfs_buffer_uptodate(buf, 0)) {
 				u64 transid =
 				    root->fs_info->running_transaction->transid;
 				u64 header_transid =
@@ -2151,7 +2151,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 			continue;
 		}
 		next = btrfs_find_tree_block(root, bytenr, blocksize);
-		if (!next || !btrfs_buffer_uptodate(next)) {
+		if (!next || !btrfs_buffer_uptodate(next, ptr_gen)) {
 			free_extent_buffer(next);
 			reada_walk_down(root, cur, path->slots[*level]);
 

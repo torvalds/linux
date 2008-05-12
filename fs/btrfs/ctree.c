@@ -379,7 +379,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 		cur = btrfs_find_tree_block(root, blocknr, blocksize);
 		if (cur)
-			uptodate = btrfs_buffer_uptodate(cur);
+			uptodate = btrfs_buffer_uptodate(cur, gen);
 		else
 			uptodate = 0;
 		if (!cur || !uptodate) {

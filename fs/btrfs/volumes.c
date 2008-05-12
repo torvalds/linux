@@ -1807,14 +1807,19 @@ static int end_bio_multi_stripe(struct bio *bio,
 	if (atomic_dec_and_test(&multi->stripes_pending)) {
 		bio->bi_private = multi->private;
 		bio->bi_end_io = multi->end_io;
-
 		/* only send an error to the higher layers if it is
 		 * beyond the tolerance of the multi-bio
 		 */
-		if (atomic_read(&multi->error) > multi->max_errors)
+		if (atomic_read(&multi->error) > multi->max_errors) {
 			err = -EIO;
-		else
+		} else if (err) {
+			/*
+			 * this bio is actually up to date, we didn't
+			 * go over the max number of errors
+			 */
+			set_bit(BIO_UPTODATE, &bio->bi_flags);
 			err = 0;
+		}
 		kfree(multi);
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)

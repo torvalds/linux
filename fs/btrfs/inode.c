@@ -430,9 +430,9 @@ struct io_failure_record {
 	int last_mirror;
 };
 
-int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
-				  struct page *page, u64 start, u64 end,
-				  struct extent_state *state)
+int btrfs_io_failed_hook(struct bio *failed_bio,
+			 struct page *page, u64 start, u64 end,
+			 struct extent_state *state)
 {
 	struct io_failure_record *failrec = NULL;
 	u64 private;
@@ -443,6 +443,7 @@ int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
 	struct bio *bio;
 	int num_copies;
 	int ret;
+	int rw;
 	u64 logical;
 
 	ret = get_state_private(failure_tree, start, &private);
@@ -505,7 +506,41 @@ int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
 	bio->bi_bdev = failed_bio->bi_bdev;
 	bio->bi_size = 0;
 	bio_add_page(bio, page, failrec->len, start - page_offset(page));
-	btrfs_submit_bio_hook(inode, READ, bio, failrec->last_mirror);
+	if (failed_bio->bi_rw & (1 << BIO_RW))
+		rw = WRITE;
+	else
+		rw = READ;
+
+	BTRFS_I(inode)->io_tree.ops->submit_bio_hook(inode, rw, bio,
+						      failrec->last_mirror);
+	return 0;
+}
+
+int btrfs_clean_io_failures(struct inode *inode, u64 start)
+{
+	u64 private;
+	u64 private_failure;
+	struct io_failure_record *failure;
+	int ret;
+
+	private = 0;
+	if (count_range_bits(&BTRFS_I(inode)->io_failure_tree, &private,
+			     (u64)-1, 1, EXTENT_DIRTY)) {
+		ret = get_state_private(&BTRFS_I(inode)->io_failure_tree,
+					start, &private_failure);
+		if (ret == 0) {
+			failure = (struct io_failure_record *)(unsigned long)
+				   private_failure;
+			set_state_private(&BTRFS_I(inode)->io_failure_tree,
+					  failure->start, 0);
+			clear_extent_bits(&BTRFS_I(inode)->io_failure_tree,
+					  failure->start,
+					  failure->start + failure->len - 1,
+					  EXTENT_DIRTY | EXTENT_LOCKED,
+					  GFP_NOFS);
+			kfree(failure);
+		}
+	}
 	return 0;
 }
 
@@ -547,26 +582,7 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	/* if the io failure tree for this inode is non-empty,
 	 * check to see if we've recovered from a failed IO
 	 */
-	private = 0;
-	if (count_range_bits(&BTRFS_I(inode)->io_failure_tree, &private,
-			     (u64)-1, 1, EXTENT_DIRTY)) {
-		u64 private_failure;
-		struct io_failure_record *failure;
-		ret = get_state_private(&BTRFS_I(inode)->io_failure_tree,
-					start, &private_failure);
-		if (ret == 0) {
-			failure = (struct io_failure_record *)(unsigned long)
-				   private_failure;
-			set_state_private(&BTRFS_I(inode)->io_failure_tree,
-					  failure->start, 0);
-			clear_extent_bits(&BTRFS_I(inode)->io_failure_tree,
-					  failure->start,
-					  failure->start + failure->len - 1,
-					  EXTENT_DIRTY | EXTENT_LOCKED,
-					  GFP_NOFS);
-			kfree(failure);
-		}
-	}
+	btrfs_clean_io_failures(inode, start);
 	return 0;
 
 zeroit:
@@ -3657,7 +3673,7 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_io_hook = btrfs_readpage_io_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
-	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
+	.readpage_io_failed_hook = btrfs_io_failed_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
 	.clear_bit_hook = btrfs_clear_bit_hook,
 };

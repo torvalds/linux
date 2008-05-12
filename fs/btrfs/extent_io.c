@@ -1366,7 +1366,7 @@ static int end_bio_extent_writepage(struct bio *bio,
 				   unsigned int bytes_done, int err)
 #endif
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
+	int uptodate = err == 0;
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
 	struct extent_state *state = bio->bi_private;
 	struct extent_io_tree *tree = state->tree;
@@ -1375,6 +1375,7 @@ static int end_bio_extent_writepage(struct bio *bio,
 	u64 end;
 	u64 cur;
 	int whole_page;
+	int ret;
 	unsigned long flags;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
@@ -1395,15 +1396,28 @@ static int end_bio_extent_writepage(struct bio *bio,
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
 
+		if (tree->ops && tree->ops->writepage_end_io_hook) {
+			ret = tree->ops->writepage_end_io_hook(page, start,
+						       end, state);
+			if (ret)
+				uptodate = 0;
+		}
+
+		if (!uptodate && tree->ops &&
+		    tree->ops->writepage_io_failed_hook) {
+			ret = tree->ops->writepage_io_failed_hook(bio, page,
+							 start, end, state);
+			if (ret == 0) {
+				state = NULL;
+				uptodate = (err == 0);
+				continue;
+			}
+		}
+
 		if (!uptodate) {
 			clear_extent_uptodate(tree, start, end, GFP_ATOMIC);
 			ClearPageUptodate(page);
 			SetPageError(page);
-		}
-
-		if (tree->ops && tree->ops->writepage_end_io_hook) {
-			tree->ops->writepage_end_io_hook(page, start, end,
-							 state);
 		}
 
 		/*
@@ -2073,9 +2087,9 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		} else {
 			ret = 0;
 		}
-		if (ret)
+		if (ret) {
 			SetPageError(page);
-		else {
+		} else {
 			unsigned long max_nr = end_index + 1;
 			set_range_writeback(tree, cur, cur + iosize - 1);
 			if (!PageWriteback(page)) {
@@ -2947,6 +2961,25 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 				eb->start + eb->len - 1, GFP_NOFS);
 }
 EXPORT_SYMBOL(set_extent_buffer_dirty);
+
+int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
+				struct extent_buffer *eb)
+{
+	unsigned long i;
+	struct page *page;
+	unsigned long num_pages;
+
+	num_pages = num_extent_pages(eb->start, eb->len);
+	eb->flags &= ~EXTENT_UPTODATE;
+
+	clear_extent_uptodate(tree, eb->start, eb->start + eb->len - 1,
+			      GFP_NOFS);
+	for (i = 0; i < num_pages; i++) {
+		page = extent_buffer_page(eb, i);
+		ClearPageUptodate(page);
+	}
+	return 0;
+}
 
 int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 				struct extent_buffer *eb)
