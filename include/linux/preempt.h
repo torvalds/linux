@@ -52,12 +52,44 @@ do { \
 	preempt_check_resched(); \
 } while (0)
 
+/* For debugging and tracer internals only! */
+#define add_preempt_count_notrace(val)			\
+	do { preempt_count() += (val); } while (0)
+#define sub_preempt_count_notrace(val)			\
+	do { preempt_count() -= (val); } while (0)
+#define inc_preempt_count_notrace() add_preempt_count_notrace(1)
+#define dec_preempt_count_notrace() sub_preempt_count_notrace(1)
+
+#define preempt_disable_notrace() \
+do { \
+	inc_preempt_count_notrace(); \
+	barrier(); \
+} while (0)
+
+#define preempt_enable_no_resched_notrace() \
+do { \
+	barrier(); \
+	dec_preempt_count_notrace(); \
+} while (0)
+
+/* preempt_check_resched is OK to trace */
+#define preempt_enable_notrace() \
+do { \
+	preempt_enable_no_resched_notrace(); \
+	barrier(); \
+	preempt_check_resched(); \
+} while (0)
+
 #else
 
 #define preempt_disable()		do { } while (0)
 #define preempt_enable_no_resched()	do { } while (0)
 #define preempt_enable()		do { } while (0)
 #define preempt_check_resched()		do { } while (0)
+
+#define preempt_disable_notrace()		do { } while (0)
+#define preempt_enable_no_resched_notrace()	do { } while (0)
+#define preempt_enable_notrace()		do { } while (0)
 
 #endif
 
