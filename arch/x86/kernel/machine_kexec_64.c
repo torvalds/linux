@@ -11,6 +11,8 @@
 #include <linux/string.h>
 #include <linux/reboot.h>
 #include <linux/numa.h>
+#include <linux/ftrace.h>
+
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
@@ -183,6 +185,8 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list[PAGES_NR];
 	void *control_page;
+
+	tracer_disable();
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();

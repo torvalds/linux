@@ -68,6 +68,13 @@ extern void ftrace_call(void);
 extern void mcount_call(void);
 #endif
 
+static inline void tracer_disable(void)
+{
+#ifdef CONFIG_FTRACE
+	ftrace_enabled = 0;
+#endif
+}
+
 #ifdef CONFIG_FRAME_POINTER
 /* TODO: need to fix this for ARM */
 # define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
