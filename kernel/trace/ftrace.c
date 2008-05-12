@@ -197,8 +197,8 @@ static int ftrace_record_suspend;
 
 static struct dyn_ftrace *ftrace_free_records;
 
-static inline int
-notrace ftrace_ip_in_hash(unsigned long ip, unsigned long key)
+static inline int notrace
+ftrace_ip_in_hash(unsigned long ip, unsigned long key)
 {
 	struct dyn_ftrace *p;
 	struct hlist_node *t;
@@ -1249,6 +1249,7 @@ static int __init notrace ftrace_dynamic_init(void)
 	int ret;
 
 	addr = (unsigned long)ftrace_record_ip;
+
 	stop_machine_run(ftrace_dyn_arch_init, &addr, NR_CPUS);
 
 	/* ftrace_dyn_arch_init places the return code in addr */

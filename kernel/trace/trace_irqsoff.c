@@ -309,7 +309,7 @@ void trace_softirqs_off(unsigned long ip)
 {
 }
 
-inline void print_irqtrace_events(struct task_struct *curr)
+inline notrace void print_irqtrace_events(struct task_struct *curr)
 {
 }
 

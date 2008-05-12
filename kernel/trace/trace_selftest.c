@@ -3,7 +3,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
-static inline int trace_valid_entry(struct trace_entry *entry)
+static notrace inline int trace_valid_entry(struct trace_entry *entry)
 {
 	switch (entry->type) {
 	case TRACE_FN:
