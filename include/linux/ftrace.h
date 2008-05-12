@@ -5,10 +5,6 @@
 
 #include <linux/linkage.h>
 
-#define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
-#define CALLER_ADDR1 ((unsigned long)__builtin_return_address(1))
-#define CALLER_ADDR2 ((unsigned long)__builtin_return_address(2))
-
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
 
 struct ftrace_ops {
@@ -35,4 +31,23 @@ extern void mcount(void);
 # define unregister_ftrace_function(ops) do { } while (0)
 # define clear_ftrace_function(ops) do { } while (0)
 #endif /* CONFIG_FTRACE */
+
+
+#ifdef CONFIG_FRAME_POINTER
+/* TODO: need to fix this for ARM */
+# define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
+# define CALLER_ADDR1 ((unsigned long)__builtin_return_address(1))
+# define CALLER_ADDR2 ((unsigned long)__builtin_return_address(2))
+# define CALLER_ADDR3 ((unsigned long)__builtin_return_address(3))
+# define CALLER_ADDR4 ((unsigned long)__builtin_return_address(4))
+# define CALLER_ADDR5 ((unsigned long)__builtin_return_address(5))
+#else
+# define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
+# define CALLER_ADDR1 0UL
+# define CALLER_ADDR2 0UL
+# define CALLER_ADDR3 0UL
+# define CALLER_ADDR4 0UL
+# define CALLER_ADDR5 0UL
+#endif
+
 #endif /* _LINUX_FTRACE_H */
