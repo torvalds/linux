@@ -326,8 +326,8 @@ ftrace_record_ip(unsigned long ip)
 		preempt_enable_notrace();
 }
 
-#define FTRACE_ADDR ((long)(&ftrace_caller))
-#define MCOUNT_ADDR ((long)(&mcount))
+#define FTRACE_ADDR ((long)(ftrace_caller))
+#define MCOUNT_ADDR ((long)(mcount))
 
 static void notrace
 __ftrace_replace_code(struct dyn_ftrace *rec,
