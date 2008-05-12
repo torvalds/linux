@@ -135,9 +135,13 @@ struct tracer {
 	void			(*init)(struct trace_array *tr);
 	void			(*reset)(struct trace_array *tr);
 	void			(*open)(struct trace_iterator *iter);
+	void			(*pipe_open)(struct trace_iterator *iter);
 	void			(*close)(struct trace_iterator *iter);
 	void			(*start)(struct trace_iterator *iter);
 	void			(*stop)(struct trace_iterator *iter);
+	ssize_t			(*read)(struct trace_iterator *iter,
+					struct file *filp, char __user *ubuf,
+					size_t cnt, loff_t *ppos);
 	void			(*ctrl_update)(struct trace_array *tr);
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 	int			(*selftest)(struct tracer *trace,
@@ -160,6 +164,7 @@ struct trace_seq {
 struct trace_iterator {
 	struct trace_array	*tr;
 	struct tracer		*trace;
+	void			*private;
 	long			last_overrun[NR_CPUS];
 	long			overrun[NR_CPUS];
 

@@ -2307,10 +2307,14 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 	if (!iter)
 		return -ENOMEM;
 
+	mutex_lock(&trace_types_lock);
 	iter->tr = &global_trace;
 	iter->trace = current_trace;
-
 	filp->private_data = iter;
+
+	if (iter->trace->pipe_open)
+		iter->trace->pipe_open(iter);
+	mutex_unlock(&trace_types_lock);
 
 	return 0;
 }
@@ -2380,13 +2384,24 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		return cnt;
 	}
 
+	mutex_lock(&trace_types_lock);
+	if (iter->trace->read) {
+		ret = iter->trace->read(iter, filp, ubuf, cnt, ppos);
+		if (ret) {
+			read = ret;
+			goto out;
+		}
+	}
+
 	trace_seq_reset(&iter->seq);
 	start = 0;
 
 	while (trace_empty(iter)) {
 
-		if ((filp->f_flags & O_NONBLOCK))
-			return -EAGAIN;
+		if ((filp->f_flags & O_NONBLOCK)) {
+			read = -EAGAIN;
+			goto out;
+		}
 
 		/*
 		 * This is a make-shift waitqueue. The reason we don't use
@@ -2400,16 +2415,22 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		set_current_state(TASK_INTERRUPTIBLE);
 		iter->tr->waiter = current;
 
+		mutex_unlock(&trace_types_lock);
+
 		/* sleep for one second, and try again. */
 		schedule_timeout(HZ);
 
+		mutex_lock(&trace_types_lock);
+
 		iter->tr->waiter = NULL;
 
-		if (signal_pending(current))
-			return -EINTR;
+		if (signal_pending(current)) {
+			read = -EINTR;
+			goto out;
+		}
 
 		if (iter->trace != current_trace)
-			return 0;
+			goto out;
 
 		/*
 		 * We block until we read something and tracing is disabled.
@@ -2428,7 +2449,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	/* stop when tracing is finished */
 	if (trace_empty(iter))
-		return 0;
+		goto out;
 
 	if (cnt >= PAGE_SIZE)
 		cnt = PAGE_SIZE - 1;
@@ -2517,6 +2538,9 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	if (ret)
 		read = -EFAULT;
+
+out:
+	mutex_unlock(&trace_types_lock);
 
 	return read;
 }
