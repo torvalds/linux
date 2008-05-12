@@ -2253,6 +2253,9 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		if (signal_pending(current))
 			return -EINTR;
 
+		if (iter->trace != current_trace)
+			return 0;
+
 		/*
 		 * We block until we read something and tracing is disabled.
 		 * We still block if tracing is disabled, but we have never
