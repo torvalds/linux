@@ -35,7 +35,7 @@ unsigned long __read_mostly	tracing_thresh;
 
 static int tracing_disabled = 1;
 
-static long notrace
+static long
 ns2usecs(cycle_t nsec)
 {
 	nsec += 500;
@@ -43,7 +43,7 @@ ns2usecs(cycle_t nsec)
 	return nsec;
 }
 
-notrace cycle_t ftrace_now(int cpu)
+cycle_t ftrace_now(int cpu)
 {
 	return cpu_clock(cpu);
 }
@@ -135,7 +135,7 @@ static DEFINE_SPINLOCK(ftrace_max_lock);
  * structure. (this way the maximum trace is permanently saved,
  * for later retrieval via /debugfs/tracing/latency_trace)
  */
-static notrace void
+static void
 __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data = tr->data[cpu];
@@ -184,7 +184,7 @@ void *head_page(struct trace_array_cpu *data)
 	return page_address(page);
 }
 
-static notrace int
+static int
 trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
 	int len = (PAGE_SIZE - 1) - s->len;
@@ -207,7 +207,7 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	return len;
 }
 
-static notrace int
+static int
 trace_seq_puts(struct trace_seq *s, const char *str)
 {
 	int len = strlen(str);
@@ -221,7 +221,7 @@ trace_seq_puts(struct trace_seq *s, const char *str)
 	return len;
 }
 
-static notrace int
+static int
 trace_seq_putc(struct trace_seq *s, unsigned char c)
 {
 	if (s->len >= (PAGE_SIZE - 1))
@@ -232,7 +232,7 @@ trace_seq_putc(struct trace_seq *s, unsigned char c)
 	return 1;
 }
 
-static notrace int
+static int
 trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
 {
 	if (len > ((PAGE_SIZE - 1) - s->len))
@@ -246,7 +246,7 @@ trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
 
 #define HEX_CHARS 17
 
-static notrace int
+static int
 trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 {
 	unsigned char hex[HEX_CHARS];
@@ -285,13 +285,13 @@ trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 	return trace_seq_putmem(s, hex, j);
 }
 
-static notrace void
+static void
 trace_seq_reset(struct trace_seq *s)
 {
 	s->len = 0;
 }
 
-static notrace void
+static void
 trace_print_seq(struct seq_file *m, struct trace_seq *s)
 {
 	int len = s->len >= PAGE_SIZE ? PAGE_SIZE - 1 : s->len;
@@ -302,7 +302,7 @@ trace_print_seq(struct seq_file *m, struct trace_seq *s)
 	trace_seq_reset(s);
 }
 
-notrace static void
+static void
 flip_trace(struct trace_array_cpu *tr1, struct trace_array_cpu *tr2)
 {
 	struct list_head flip_pages;
@@ -323,7 +323,7 @@ flip_trace(struct trace_array_cpu *tr1, struct trace_array_cpu *tr2)
 	check_pages(tr2);
 }
 
-notrace void
+void
 update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data;
@@ -348,7 +348,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
  * @tsk - task with the latency
  * @cpu - the cpu of the buffer to copy.
  */
-notrace void
+void
 update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data = tr->data[cpu];
@@ -471,7 +471,7 @@ void unregister_tracer(struct tracer *type)
 	mutex_unlock(&trace_types_lock);
 }
 
-notrace void tracing_reset(struct trace_array_cpu *data)
+void tracing_reset(struct trace_array_cpu *data)
 {
 	data->trace_idx = 0;
 	data->trace_head = data->trace_tail = head_page(data);
@@ -494,9 +494,9 @@ static void trace_init_cmdlines(void)
 	cmdline_idx = 0;
 }
 
-notrace void trace_stop_cmdline_recording(void);
+void trace_stop_cmdline_recording(void);
 
-static notrace void trace_save_cmdline(struct task_struct *tsk)
+static void trace_save_cmdline(struct task_struct *tsk)
 {
 	unsigned map;
 	unsigned idx;
@@ -531,7 +531,7 @@ static notrace void trace_save_cmdline(struct task_struct *tsk)
 	spin_unlock(&trace_cmdline_lock);
 }
 
-static notrace char *trace_find_cmdline(int pid)
+static char *trace_find_cmdline(int pid)
 {
 	char *cmdline = "<...>";
 	unsigned map;
@@ -552,7 +552,7 @@ static notrace char *trace_find_cmdline(int pid)
 	return cmdline;
 }
 
-notrace void tracing_record_cmdline(struct task_struct *tsk)
+void tracing_record_cmdline(struct task_struct *tsk)
 {
 	if (atomic_read(&trace_record_cmdline_disabled))
 		return;
@@ -560,7 +560,7 @@ notrace void tracing_record_cmdline(struct task_struct *tsk)
 	trace_save_cmdline(tsk);
 }
 
-static inline notrace struct list_head *
+static inline struct list_head *
 trace_next_list(struct trace_array_cpu *data, struct list_head *next)
 {
 	/*
@@ -574,7 +574,7 @@ trace_next_list(struct trace_array_cpu *data, struct list_head *next)
 	return next;
 }
 
-static inline notrace void *
+static inline void *
 trace_next_page(struct trace_array_cpu *data, void *addr)
 {
 	struct list_head *next;
@@ -588,7 +588,7 @@ trace_next_page(struct trace_array_cpu *data, void *addr)
 	return page_address(page);
 }
 
-static inline notrace struct trace_entry *
+static inline struct trace_entry *
 tracing_get_trace_entry(struct trace_array *tr, struct trace_array_cpu *data)
 {
 	unsigned long idx, idx_next;
@@ -623,7 +623,7 @@ tracing_get_trace_entry(struct trace_array *tr, struct trace_array_cpu *data)
 	return entry;
 }
 
-static inline notrace void
+static inline void
 tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags)
 {
 	struct task_struct *tsk = current;
@@ -640,7 +640,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags)
 		(need_resched() ? TRACE_FLAG_NEED_RESCHED : 0);
 }
 
-notrace void
+void
 trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	       unsigned long ip, unsigned long parent_ip, unsigned long flags)
 {
@@ -659,7 +659,7 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 		wake_up (&trace_wait);
 }
 
-notrace void
+void
 ftrace(struct trace_array *tr, struct trace_array_cpu *data,
        unsigned long ip, unsigned long parent_ip, unsigned long flags)
 {
@@ -667,7 +667,7 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 		trace_function(tr, data, ip, parent_ip, flags);
 }
 
-notrace void
+void
 trace_special(struct trace_array *tr, struct trace_array_cpu *data,
 	      unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
@@ -687,7 +687,7 @@ trace_special(struct trace_array *tr, struct trace_array_cpu *data,
 		wake_up (&trace_wait);
 }
 
-notrace void
+void
 tracing_sched_switch_trace(struct trace_array *tr,
 			   struct trace_array_cpu *data,
 			   struct task_struct *prev, struct task_struct *next,
@@ -712,7 +712,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 }
 
 #ifdef CONFIG_FTRACE
-static notrace void
+static void
 function_trace_call(unsigned long ip, unsigned long parent_ip)
 {
 	struct trace_array *tr = &global_trace;
@@ -741,12 +741,12 @@ static struct ftrace_ops trace_ops __read_mostly =
 	.func = function_trace_call,
 };
 
-notrace void tracing_start_function_trace(void)
+void tracing_start_function_trace(void)
 {
 	register_ftrace_function(&trace_ops);
 }
 
-notrace void tracing_stop_function_trace(void)
+void tracing_stop_function_trace(void)
 {
 	unregister_ftrace_function(&trace_ops);
 }
@@ -786,7 +786,7 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 	return &array[iter->next_page_idx[cpu]];
 }
 
-static struct trace_entry * notrace
+static struct trace_entry *
 find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 {
 	struct trace_array *tr = iter->tr;
@@ -813,7 +813,7 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 	return next;
 }
 
-static notrace void trace_iterator_increment(struct trace_iterator *iter)
+static void trace_iterator_increment(struct trace_iterator *iter)
 {
 	iter->idx++;
 	iter->next_idx[iter->cpu]++;
@@ -828,7 +828,7 @@ static notrace void trace_iterator_increment(struct trace_iterator *iter)
 	}
 }
 
-static notrace void trace_consume(struct trace_iterator *iter)
+static void trace_consume(struct trace_iterator *iter)
 {
 	struct trace_array_cpu *data = iter->tr->data[iter->cpu];
 
@@ -844,7 +844,7 @@ static notrace void trace_consume(struct trace_iterator *iter)
 		data->trace_idx = 0;
 }
 
-static notrace void *find_next_entry_inc(struct trace_iterator *iter)
+static void *find_next_entry_inc(struct trace_iterator *iter)
 {
 	struct trace_entry *next;
 	int next_cpu = -1;
@@ -863,7 +863,7 @@ static notrace void *find_next_entry_inc(struct trace_iterator *iter)
 	return next ? iter : NULL;
 }
 
-static notrace void *s_next(struct seq_file *m, void *v, loff_t *pos)
+static void *s_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct trace_iterator *iter = m->private;
 	void *last_ent = iter->ent;
@@ -978,7 +978,7 @@ seq_print_sym_offset(struct trace_seq *s, const char *fmt,
 # define IP_FMT "%016lx"
 #endif
 
-static notrace int
+static int
 seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 {
 	int ret;
@@ -999,7 +999,7 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	return ret;
 }
 
-static notrace void print_lat_help_header(struct seq_file *m)
+static void print_lat_help_header(struct seq_file *m)
 {
 	seq_puts(m, "#                _------=> CPU#            \n");
 	seq_puts(m, "#               / _-----=> irqs-off        \n");
@@ -1012,14 +1012,14 @@ static notrace void print_lat_help_header(struct seq_file *m)
 	seq_puts(m, "#     \\   /    |||||   \\   |   /           \n");
 }
 
-static notrace void print_func_help_header(struct seq_file *m)
+static void print_func_help_header(struct seq_file *m)
 {
 	seq_puts(m, "#           TASK-PID   CPU#    TIMESTAMP  FUNCTION\n");
 	seq_puts(m, "#              | |      |          |         |\n");
 }
 
 
-static notrace void
+static void
 print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 {
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
@@ -1090,7 +1090,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	seq_puts(m, "\n");
 }
 
-static notrace void
+static void
 lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 {
 	int hardirq, softirq;
@@ -1127,7 +1127,7 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 
 unsigned long preempt_mark_thresh = 100;
 
-static notrace void
+static void
 lat_print_timestamp(struct trace_seq *s, unsigned long long abs_usecs,
 		    unsigned long rel_usecs)
 {
@@ -1142,7 +1142,7 @@ lat_print_timestamp(struct trace_seq *s, unsigned long long abs_usecs,
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
 
-static notrace int
+static int
 print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1206,7 +1206,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	return 1;
 }
 
-static notrace int print_trace_fmt(struct trace_iterator *iter)
+static int print_trace_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
@@ -1279,7 +1279,7 @@ static notrace int print_trace_fmt(struct trace_iterator *iter)
 	return 1;
 }
 
-static notrace int print_raw_fmt(struct trace_iterator *iter)
+static int print_raw_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry;
@@ -1336,7 +1336,7 @@ do {							\
 		return 0;				\
 } while (0)
 
-static notrace int print_hex_fmt(struct trace_iterator *iter)
+static int print_hex_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	unsigned char newline = '\n';
@@ -1375,7 +1375,7 @@ static notrace int print_hex_fmt(struct trace_iterator *iter)
 	return 1;
 }
 
-static notrace int print_bin_fmt(struct trace_iterator *iter)
+static int print_bin_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry;
@@ -1475,7 +1475,7 @@ static struct seq_operations tracer_seq_ops = {
 	.show		= s_show,
 };
 
-static struct trace_iterator notrace *
+static struct trace_iterator *
 __tracing_open(struct inode *inode, struct file *file, int *ret)
 {
 	struct trace_iterator *iter;
@@ -1572,7 +1572,7 @@ static int tracing_lt_open(struct inode *inode, struct file *file)
 }
 
 
-static notrace void *
+static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct tracer *t = m->private;

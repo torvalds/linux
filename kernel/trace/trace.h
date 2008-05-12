@@ -150,7 +150,7 @@ struct trace_iterator {
 	long			idx;
 };
 
-void notrace tracing_reset(struct trace_array_cpu *data);
+void tracing_reset(struct trace_array_cpu *data);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 struct dentry *tracing_init_dentry(void);
 void ftrace(struct trace_array *tr,
@@ -189,10 +189,10 @@ void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);
 void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
 
-extern notrace cycle_t ftrace_now(int cpu);
+extern cycle_t ftrace_now(int cpu);
 
 #ifdef CONFIG_SCHED_TRACER
-extern void notrace
+extern void
 wakeup_sched_switch(struct task_struct *prev, struct task_struct *next);
 #else
 static inline void

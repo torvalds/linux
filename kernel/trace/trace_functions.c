@@ -16,7 +16,7 @@
 
 #include "trace.h"
 
-static notrace void function_reset(struct trace_array *tr)
+static void function_reset(struct trace_array *tr)
 {
 	int cpu;
 
@@ -26,30 +26,30 @@ static notrace void function_reset(struct trace_array *tr)
 		tracing_reset(tr->data[cpu]);
 }
 
-static notrace void start_function_trace(struct trace_array *tr)
+static void start_function_trace(struct trace_array *tr)
 {
 	function_reset(tr);
 	tracing_start_function_trace();
 }
 
-static notrace void stop_function_trace(struct trace_array *tr)
+static void stop_function_trace(struct trace_array *tr)
 {
 	tracing_stop_function_trace();
 }
 
-static notrace void function_trace_init(struct trace_array *tr)
+static void function_trace_init(struct trace_array *tr)
 {
 	if (tr->ctrl)
 		start_function_trace(tr);
 }
 
-static notrace void function_trace_reset(struct trace_array *tr)
+static void function_trace_reset(struct trace_array *tr)
 {
 	if (tr->ctrl)
 		stop_function_trace(tr);
 }
 
-static notrace void function_trace_ctrl_update(struct trace_array *tr)
+static void function_trace_ctrl_update(struct trace_array *tr)
 {
 	if (tr->ctrl)
 		start_function_trace(tr);

@@ -27,12 +27,12 @@ static unsigned			wakeup_prio = -1;
 
 static DEFINE_SPINLOCK(wakeup_lock);
 
-static void notrace __wakeup_reset(struct trace_array *tr);
+static void __wakeup_reset(struct trace_array *tr);
 
 /*
  * Should this new latency be reported/recorded?
  */
-static int notrace report_latency(cycle_t delta)
+static int report_latency(cycle_t delta)
 {
 	if (tracing_thresh) {
 		if (delta < tracing_thresh)
@@ -44,7 +44,7 @@ static int notrace report_latency(cycle_t delta)
 	return 1;
 }
 
-void notrace
+void
 wakeup_sched_switch(struct task_struct *prev, struct task_struct *next)
 {
 	unsigned long latency = 0, t0 = 0, t1 = 0;
@@ -126,7 +126,7 @@ out:
 	atomic_dec(&tr->data[cpu]->disabled);
 }
 
-static void notrace __wakeup_reset(struct trace_array *tr)
+static void __wakeup_reset(struct trace_array *tr)
 {
 	struct trace_array_cpu *data;
 	int cpu;
@@ -147,7 +147,7 @@ static void notrace __wakeup_reset(struct trace_array *tr)
 	wakeup_task = NULL;
 }
 
-static void notrace wakeup_reset(struct trace_array *tr)
+static void wakeup_reset(struct trace_array *tr)
 {
 	unsigned long flags;
 
@@ -156,7 +156,7 @@ static void notrace wakeup_reset(struct trace_array *tr)
 	spin_unlock_irqrestore(&wakeup_lock, flags);
 }
 
-static notrace void
+static void
 wakeup_check_start(struct trace_array *tr, struct task_struct *p,
 		   struct task_struct *curr)
 {
@@ -201,7 +201,7 @@ out:
 	atomic_dec(&tr->data[cpu]->disabled);
 }
 
-notrace void
+void
 ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr)
 {
 	if (likely(!tracer_enabled))
@@ -210,7 +210,7 @@ ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr)
 	wakeup_check_start(wakeup_trace, wakee, curr);
 }
 
-notrace void
+void
 ftrace_wake_up_new_task(struct task_struct *wakee, struct task_struct *curr)
 {
 	if (likely(!tracer_enabled))
@@ -219,7 +219,7 @@ ftrace_wake_up_new_task(struct task_struct *wakee, struct task_struct *curr)
 	wakeup_check_start(wakeup_trace, wakee, curr);
 }
 
-static notrace void start_wakeup_tracer(struct trace_array *tr)
+static void start_wakeup_tracer(struct trace_array *tr)
 {
 	wakeup_reset(tr);
 
@@ -237,12 +237,12 @@ static notrace void start_wakeup_tracer(struct trace_array *tr)
 	return;
 }
 
-static notrace void stop_wakeup_tracer(struct trace_array *tr)
+static void stop_wakeup_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
 }
 
-static notrace void wakeup_tracer_init(struct trace_array *tr)
+static void wakeup_tracer_init(struct trace_array *tr)
 {
 	wakeup_trace = tr;
 
@@ -250,7 +250,7 @@ static notrace void wakeup_tracer_init(struct trace_array *tr)
 		start_wakeup_tracer(tr);
 }
 
-static notrace void wakeup_tracer_reset(struct trace_array *tr)
+static void wakeup_tracer_reset(struct trace_array *tr)
 {
 	if (tr->ctrl) {
 		stop_wakeup_tracer(tr);
@@ -267,14 +267,14 @@ static void wakeup_tracer_ctrl_update(struct trace_array *tr)
 		stop_wakeup_tracer(tr);
 }
 
-static void notrace wakeup_tracer_open(struct trace_iterator *iter)
+static void wakeup_tracer_open(struct trace_iterator *iter)
 {
 	/* stop the trace while dumping */
 	if (iter->tr->ctrl)
 		stop_wakeup_tracer(iter->tr);
 }
 
-static void notrace wakeup_tracer_close(struct trace_iterator *iter)
+static void wakeup_tracer_close(struct trace_iterator *iter)
 {
 	/* forget about any processes we were recording */
 	if (iter->tr->ctrl)

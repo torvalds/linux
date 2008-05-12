@@ -33,7 +33,7 @@ enum {
 static int trace_type __read_mostly;
 
 #ifdef CONFIG_PREEMPT_TRACER
-static inline int notrace
+static inline int
 preempt_trace(void)
 {
 	return ((trace_type & TRACER_PREEMPT_OFF) && preempt_count());
@@ -43,7 +43,7 @@ preempt_trace(void)
 #endif
 
 #ifdef CONFIG_IRQSOFF_TRACER
-static inline int notrace
+static inline int
 irq_trace(void)
 {
 	return ((trace_type & TRACER_IRQS_OFF) &&
@@ -67,7 +67,7 @@ static __cacheline_aligned_in_smp	unsigned long max_sequence;
 /*
  * irqsoff uses its own tracer function to keep the overhead down:
  */
-static void notrace
+static void
 irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
 {
 	struct trace_array *tr = irqsoff_trace;
@@ -109,7 +109,7 @@ static struct ftrace_ops trace_ops __read_mostly =
 /*
  * Should this new latency be reported/recorded?
  */
-static int notrace report_latency(cycle_t delta)
+static int report_latency(cycle_t delta)
 {
 	if (tracing_thresh) {
 		if (delta < tracing_thresh)
@@ -121,7 +121,7 @@ static int notrace report_latency(cycle_t delta)
 	return 1;
 }
 
-static void notrace
+static void
 check_critical_timing(struct trace_array *tr,
 		      struct trace_array_cpu *data,
 		      unsigned long parent_ip,
@@ -191,7 +191,7 @@ out:
 	trace_function(tr, data, CALLER_ADDR0, parent_ip, flags);
 }
 
-static inline void notrace
+static inline void
 start_critical_timing(unsigned long ip, unsigned long parent_ip)
 {
 	int cpu;
@@ -228,7 +228,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	atomic_dec(&data->disabled);
 }
 
-static inline void notrace
+static inline void
 stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 {
 	int cpu;
@@ -261,13 +261,13 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 }
 
 /* start and stop critical timings used to for stoppage (in idle) */
-void notrace start_critical_timings(void)
+void start_critical_timings(void)
 {
 	if (preempt_trace() || irq_trace())
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 
-void notrace stop_critical_timings(void)
+void stop_critical_timings(void)
 {
 	if (preempt_trace() || irq_trace())
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
@@ -275,13 +275,13 @@ void notrace stop_critical_timings(void)
 
 #ifdef CONFIG_IRQSOFF_TRACER
 #ifdef CONFIG_PROVE_LOCKING
-void notrace time_hardirqs_on(unsigned long a0, unsigned long a1)
+void time_hardirqs_on(unsigned long a0, unsigned long a1)
 {
 	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(a0, a1);
 }
 
-void notrace time_hardirqs_off(unsigned long a0, unsigned long a1)
+void time_hardirqs_off(unsigned long a0, unsigned long a1)
 {
 	if (!preempt_trace() && irq_trace())
 		start_critical_timing(a0, a1);
@@ -309,35 +309,35 @@ void trace_softirqs_off(unsigned long ip)
 {
 }
 
-inline notrace void print_irqtrace_events(struct task_struct *curr)
+inline void print_irqtrace_events(struct task_struct *curr)
 {
 }
 
 /*
  * We are only interested in hardirq on/off events:
  */
-void notrace trace_hardirqs_on(void)
+void trace_hardirqs_on(void)
 {
 	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 EXPORT_SYMBOL(trace_hardirqs_on);
 
-void notrace trace_hardirqs_off(void)
+void trace_hardirqs_off(void)
 {
 	if (!preempt_trace() && irq_trace())
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 EXPORT_SYMBOL(trace_hardirqs_off);
 
-void notrace trace_hardirqs_on_caller(unsigned long caller_addr)
+void trace_hardirqs_on_caller(unsigned long caller_addr)
 {
 	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(CALLER_ADDR0, caller_addr);
 }
 EXPORT_SYMBOL(trace_hardirqs_on_caller);
 
-void notrace trace_hardirqs_off_caller(unsigned long caller_addr)
+void trace_hardirqs_off_caller(unsigned long caller_addr)
 {
 	if (!preempt_trace() && irq_trace())
 		start_critical_timing(CALLER_ADDR0, caller_addr);
@@ -348,12 +348,12 @@ EXPORT_SYMBOL(trace_hardirqs_off_caller);
 #endif /*  CONFIG_IRQSOFF_TRACER */
 
 #ifdef CONFIG_PREEMPT_TRACER
-void notrace trace_preempt_on(unsigned long a0, unsigned long a1)
+void trace_preempt_on(unsigned long a0, unsigned long a1)
 {
 	stop_critical_timing(a0, a1);
 }
 
-void notrace trace_preempt_off(unsigned long a0, unsigned long a1)
+void trace_preempt_off(unsigned long a0, unsigned long a1)
 {
 	start_critical_timing(a0, a1);
 }
@@ -395,14 +395,14 @@ static void irqsoff_tracer_ctrl_update(struct trace_array *tr)
 		stop_irqsoff_tracer(tr);
 }
 
-static void notrace irqsoff_tracer_open(struct trace_iterator *iter)
+static void irqsoff_tracer_open(struct trace_iterator *iter)
 {
 	/* stop the trace while dumping */
 	if (iter->tr->ctrl)
 		stop_irqsoff_tracer(iter->tr);
 }
 
-static void notrace irqsoff_tracer_close(struct trace_iterator *iter)
+static void irqsoff_tracer_close(struct trace_iterator *iter)
 {
 	if (iter->tr->ctrl)
 		start_irqsoff_tracer(iter->tr);

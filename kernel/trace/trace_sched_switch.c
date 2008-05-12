@@ -17,7 +17,7 @@
 static struct trace_array	*ctx_trace;
 static int __read_mostly	tracer_enabled;
 
-static void notrace
+static void
 ctx_switch_func(struct task_struct *prev, struct task_struct *next)
 {
 	struct trace_array *tr = ctx_trace;
@@ -57,7 +57,7 @@ void ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
 	wakeup_sched_switch(prev, next);
 }
 
-static notrace void sched_switch_reset(struct trace_array *tr)
+static void sched_switch_reset(struct trace_array *tr)
 {
 	int cpu;
 
@@ -67,18 +67,18 @@ static notrace void sched_switch_reset(struct trace_array *tr)
 		tracing_reset(tr->data[cpu]);
 }
 
-static notrace void start_sched_trace(struct trace_array *tr)
+static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
 	tracer_enabled = 1;
 }
 
-static notrace void stop_sched_trace(struct trace_array *tr)
+static void stop_sched_trace(struct trace_array *tr)
 {
 	tracer_enabled = 0;
 }
 
-static notrace void sched_switch_trace_init(struct trace_array *tr)
+static void sched_switch_trace_init(struct trace_array *tr)
 {
 	ctx_trace = tr;
 
@@ -86,7 +86,7 @@ static notrace void sched_switch_trace_init(struct trace_array *tr)
 		start_sched_trace(tr);
 }
 
-static notrace void sched_switch_trace_reset(struct trace_array *tr)
+static void sched_switch_trace_reset(struct trace_array *tr)
 {
 	if (tr->ctrl)
 		stop_sched_trace(tr);
