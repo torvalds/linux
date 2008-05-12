@@ -271,14 +271,14 @@ static struct list_head chainhash_table[CHAINHASH_SIZE];
 	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS)) ^ \
 	(key2))
 
-void lockdep_off(void)
+notrace void lockdep_off(void)
 {
 	current->lockdep_recursion++;
 }
 
 EXPORT_SYMBOL(lockdep_off);
 
-void lockdep_on(void)
+notrace void lockdep_on(void)
 {
 	current->lockdep_recursion--;
 }
@@ -1041,7 +1041,7 @@ find_usage_forwards(struct lock_class *source, unsigned int depth)
  * Return 1 otherwise and keep <backwards_match> unchanged.
  * Return 0 on error.
  */
-static noinline int
+static noinline notrace int
 find_usage_backwards(struct lock_class *source, unsigned int depth)
 {
 	struct lock_list *entry;
@@ -1591,7 +1591,7 @@ static inline int validate_chain(struct task_struct *curr,
  * We are building curr_chain_key incrementally, so double-check
  * it from scratch, to make sure that it's done correctly:
  */
-static void check_chain_key(struct task_struct *curr)
+static notrace void check_chain_key(struct task_struct *curr)
 {
 #ifdef CONFIG_DEBUG_LOCKDEP
 	struct held_lock *hlock, *prev_hlock = NULL;
@@ -1967,7 +1967,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 /*
  * Mark all held locks with a usage bit:
  */
-static int
+static notrace int
 mark_held_locks(struct task_struct *curr, int hardirq)
 {
 	enum lock_usage_bit usage_bit;
@@ -2260,8 +2260,8 @@ static inline int separate_irq_context(struct task_struct *curr,
 /*
  * Mark a lock with a usage bit, and validate the state transition:
  */
-static int mark_lock(struct task_struct *curr, struct held_lock *this,
-		     enum lock_usage_bit new_bit)
+static notrace int mark_lock(struct task_struct *curr, struct held_lock *this,
+			     enum lock_usage_bit new_bit)
 {
 	unsigned int new_mask = 1 << new_bit, ret = 1;
 
@@ -2663,7 +2663,7 @@ __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 /*
  * Check whether we follow the irq-flags state precisely:
  */
-static void check_flags(unsigned long flags)
+static notrace void check_flags(unsigned long flags)
 {
 #if defined(CONFIG_DEBUG_LOCKDEP) && defined(CONFIG_TRACE_IRQFLAGS)
 	if (!debug_locks)
@@ -2700,8 +2700,8 @@ static void check_flags(unsigned long flags)
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
  */
-void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
-		  int trylock, int read, int check, unsigned long ip)
+notrace void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
+			  int trylock, int read, int check, unsigned long ip)
 {
 	unsigned long flags;
 
@@ -2723,7 +2723,8 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 
 EXPORT_SYMBOL_GPL(lock_acquire);
 
-void lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
+notrace void lock_release(struct lockdep_map *lock, int nested,
+			  unsigned long ip)
 {
 	unsigned long flags;
 
