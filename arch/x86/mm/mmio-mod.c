@@ -48,7 +48,7 @@ struct trap_reason {
 struct remap_trace {
 	struct list_head list;
 	struct kmmio_probe probe;
-	unsigned long phys;
+	resource_size_t phys;
 	unsigned long id;
 };
 
@@ -275,7 +275,7 @@ static void post(struct kmmio_probe *p, unsigned long condition,
 	put_cpu_var(pf_reason);
 }
 
-static void ioremap_trace_core(unsigned long offset, unsigned long size,
+static void ioremap_trace_core(resource_size_t offset, unsigned long size,
 							void __iomem *addr)
 {
 	static atomic_t next_id;
@@ -319,13 +319,14 @@ not_enabled:
 	spin_unlock_irq(&trace_lock);
 }
 
-void
-mmiotrace_ioremap(unsigned long offset, unsigned long size, void __iomem *addr)
+void mmiotrace_ioremap(resource_size_t offset, unsigned long size,
+						void __iomem *addr)
 {
 	if (!is_enabled()) /* recheck and proper locking in *_core() */
 		return;
 
-	pr_debug(NAME "ioremap_*(0x%lx, 0x%lx) = %p\n", offset, size, addr);
+	pr_debug(NAME "ioremap_*(0x%llx, 0x%lx) = %p\n",
+				(unsigned long long)offset, size, addr);
 	if ((filter_offset) && (offset != filter_offset))
 		return;
 	ioremap_trace_core(offset, size, addr);

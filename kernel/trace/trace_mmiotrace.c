@@ -184,20 +184,23 @@ static int mmio_print_rw(struct trace_iterator *iter)
 	switch (entry->mmiorw.opcode) {
 	case MMIO_READ:
 		ret = trace_seq_printf(s,
-			"R %d %lu.%06lu %d 0x%lx 0x%lx 0x%lx %d\n",
-			rw->width, secs, usec_rem, rw->map_id, rw->phys,
+			"R %d %lu.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
+			rw->width, secs, usec_rem, rw->map_id,
+			(unsigned long long)rw->phys,
 			rw->value, rw->pc, 0);
 		break;
 	case MMIO_WRITE:
 		ret = trace_seq_printf(s,
-			"W %d %lu.%06lu %d 0x%lx 0x%lx 0x%lx %d\n",
-			rw->width, secs, usec_rem, rw->map_id, rw->phys,
+			"W %d %lu.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
+			rw->width, secs, usec_rem, rw->map_id,
+			(unsigned long long)rw->phys,
 			rw->value, rw->pc, 0);
 		break;
 	case MMIO_UNKNOWN_OP:
 		ret = trace_seq_printf(s,
-			"UNKNOWN %lu.%06lu %d 0x%lx %02x,%02x,%02x 0x%lx %d\n",
-			secs, usec_rem, rw->map_id, rw->phys,
+			"UNKNOWN %lu.%06lu %d 0x%llx %02x,%02x,%02x 0x%lx %d\n",
+			secs, usec_rem, rw->map_id,
+			(unsigned long long)rw->phys,
 			(rw->value >> 16) & 0xff, (rw->value >> 8) & 0xff,
 			(rw->value >> 0) & 0xff, rw->pc, 0);
 		break;
@@ -223,8 +226,9 @@ static int mmio_print_map(struct trace_iterator *iter)
 	switch (entry->mmiorw.opcode) {
 	case MMIO_PROBE:
 		ret = trace_seq_printf(s,
-			"MAP %lu.%06lu %d 0x%lx 0x%lx 0x%lx 0x%lx %d\n",
-			secs, usec_rem, m->map_id, m->phys, m->virt, m->len,
+			"MAP %lu.%06lu %d 0x%llx 0x%lx 0x%lx 0x%lx %d\n",
+			secs, usec_rem, m->map_id,
+			(unsigned long long)m->phys, m->virt, m->len,
 			0UL, 0);
 		break;
 	case MMIO_UNPROBE:

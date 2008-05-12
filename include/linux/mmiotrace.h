@@ -2,7 +2,6 @@
 #define MMIOTRACE_H
 
 #include <linux/types.h>
-
 #include <linux/list.h>
 
 struct kmmio_probe;
@@ -37,14 +36,15 @@ extern int kmmio_handler(struct pt_regs *regs, unsigned long addr);
 
 /* Called from ioremap.c */
 #ifdef CONFIG_MMIOTRACE
-extern void
-mmiotrace_ioremap(unsigned long offset, unsigned long size, void __iomem *addr);
+extern void mmiotrace_ioremap(resource_size_t offset, unsigned long size,
+							void __iomem *addr);
 extern void mmiotrace_iounmap(volatile void __iomem *addr);
 #else
-static inline void
-mmiotrace_ioremap(unsigned long offset, unsigned long size, void __iomem *addr)
+static inline void mmiotrace_ioremap(resource_size_t offset,
+					unsigned long size, void __iomem *addr)
 {
 }
+
 static inline void mmiotrace_iounmap(volatile void __iomem *addr)
 {
 }
@@ -60,7 +60,7 @@ enum mm_io_opcode {
 };
 
 struct mmiotrace_rw {
-	unsigned long phys;	/* PCI address of register */
+	resource_size_t phys;	/* PCI address of register */
 	unsigned long value;
 	unsigned long pc;	/* optional program counter */
 	int map_id;
@@ -69,7 +69,7 @@ struct mmiotrace_rw {
 };
 
 struct mmiotrace_map {
-	unsigned long phys;	/* base address in PCI space */
+	resource_size_t phys;	/* base address in PCI space */
 	unsigned long virt;	/* base virtual address */
 	unsigned long len;	/* mapping size */
 	int map_id;
