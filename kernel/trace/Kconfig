@@ -8,3 +8,16 @@ config TRACING
 	bool
 	select DEBUG_FS
 
+config FTRACE
+	bool "Kernel Function Tracer"
+	depends on DEBUG_KERNEL && HAVE_FTRACE
+	select FRAME_POINTER
+	select TRACING
+	help
+	  Enable the kernel to trace every kernel function. This is done
+	  by using a compiler feature to insert a small, 5-byte No-Operation
+	  instruction to the beginning of every kernel function, which NOP
+	  sequence is then dynamically patched into a tracer call when
+	  tracing is enabled by the administrator. If it's runtime disabled
+	  (the bootup default), then the overhead of the instructions is very
+	  small and not measurable even in micro-benchmarks.
