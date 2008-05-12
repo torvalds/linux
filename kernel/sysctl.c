@@ -84,7 +84,7 @@ extern int latencytop_enabled;
 extern int sysctl_nr_open_min, sysctl_nr_open_max;
 
 /* Constants used for minimum and  maximum */
-#ifdef CONFIG_HIGHMEM
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_DETECT_SOFTLOCKUP)
 static int one = 1;
 #endif
 
