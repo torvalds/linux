@@ -357,7 +357,7 @@ int dma_supported(struct device *dev, u64 mask)
 EXPORT_SYMBOL(dma_supported);
 
 /* Allocate DMA memory on node near device */
-noinline struct page *
+static noinline struct page *
 dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 {
 	int node;
