@@ -13,6 +13,9 @@ void print_stack_trace(struct stack_trace *trace, int spaces)
 {
 	int i, j;
 
+	if (WARN_ON(!trace->entries))
+		return;
+
 	for (i = 0; i < trace->nr_entries; i++) {
 		unsigned long ip = trace->entries[i];
 
