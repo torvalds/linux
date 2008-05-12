@@ -37,11 +37,6 @@
 
 #define NAME "mmiotrace: "
 
-/* This app's relay channel files will appear in /debug/mmio-trace */
-static const char APP_DIR[] = "mmio-trace";
-/* the marker injection file in /debug/APP_DIR */
-static const char MARKER_FILE[] = "mmio-marker";
-
 struct trap_reason {
 	unsigned long addr;
 	unsigned long ip;
@@ -56,18 +51,15 @@ struct remap_trace {
 	unsigned long id;
 };
 
-static const size_t subbuf_size = 256*1024;
-
 /* Accessed per-cpu. */
 static DEFINE_PER_CPU(struct trap_reason, pf_reason);
-static DEFINE_PER_CPU(struct mm_io_header_rw, cpu_trace);
+static DEFINE_PER_CPU(struct mmiotrace_rw, cpu_trace);
 
 #if 0 /* XXX: no way gather this info anymore */
 /* Access to this is not per-cpu. */
 static DEFINE_PER_CPU(atomic_t, dropped);
 #endif
 
-static struct dentry *dir;
 static struct dentry *marker_file;
 
 static DEFINE_MUTEX(mmiotrace_mutex);
@@ -82,24 +74,21 @@ static LIST_HEAD(trace_list);		/* struct remap_trace */
  *   and trace_lock.
  * - Routines depending on is_enabled() must take trace_lock.
  * - trace_list users must hold trace_lock.
- * - is_enabled() guarantees that chan is valid.
+ * - is_enabled() guarantees that mmio_trace_record is allowed.
  * - pre/post callbacks assume the effect of is_enabled() being true.
  */
 
 /* module parameters */
-static unsigned int	n_subbufs = 32*4;
 static unsigned long	filter_offset;
 static int		nommiotrace;
 static int		ISA_trace;
 static int		trace_pc;
 
-module_param(n_subbufs, uint, 0);
 module_param(filter_offset, ulong, 0);
 module_param(nommiotrace, bool, 0);
 module_param(ISA_trace, bool, 0);
 module_param(trace_pc, bool, 0);
 
-MODULE_PARM_DESC(n_subbufs, "Number of 256kB buffers, default 128.");
 MODULE_PARM_DESC(filter_offset, "Start address of traced mappings.");
 MODULE_PARM_DESC(nommiotrace, "Disable actual MMIO tracing.");
 MODULE_PARM_DESC(ISA_trace, "Do not exclude the low ISA range.");
@@ -110,6 +99,7 @@ static bool is_enabled(void)
 	return atomic_read(&mmiotrace_enabled);
 }
 
+#if 0 /* XXX: needs rewrite */
 /*
  * Write callback for the debugfs entry:
  * Read a marker and write it to the mmio trace log
@@ -145,6 +135,7 @@ static ssize_t write_marker(struct file *file, const char __user *buffer,
 	kfree(event);
 	return len;
 }
+#endif
 
 static void print_pte(unsigned long address)
 {
@@ -198,9 +189,10 @@ static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 						unsigned long addr)
 {
 	struct trap_reason *my_reason = &get_cpu_var(pf_reason);
-	struct mm_io_header_rw *my_trace = &get_cpu_var(cpu_trace);
+	struct mmiotrace_rw *my_trace = &get_cpu_var(cpu_trace);
 	const unsigned long instptr = instruction_pointer(regs);
 	const enum reason_type type = get_ins_type(instptr);
+	struct remap_trace *trace = p->user_data;
 
 	/* it doesn't make sense to have more than one active trace per cpu */
 	if (my_reason->active_traces)
@@ -212,23 +204,17 @@ static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 	my_reason->addr = addr;
 	my_reason->ip = instptr;
 
-	my_trace->header.type = MMIO_MAGIC;
-	my_trace->header.pid = 0;
-	my_trace->header.data_len = sizeof(struct mm_io_rw);
-	my_trace->rw.address = addr;
-	/*
-	 * struct remap_trace *trace = p->user_data;
-	 * phys = addr - trace->probe.addr + trace->phys;
-	 */
+	my_trace->phys = addr - trace->probe.addr + trace->phys;
+	my_trace->map_id = trace->id;
 
 	/*
 	 * Only record the program counter when requested.
 	 * It may taint clean-room reverse engineering.
 	 */
 	if (trace_pc)
-		my_trace->rw.pc = instptr;
+		my_trace->pc = instptr;
 	else
-		my_trace->rw.pc = 0;
+		my_trace->pc = 0;
 
 	/*
 	 * XXX: the timestamp recorded will be *after* the tracing has been
@@ -238,28 +224,25 @@ static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 
 	switch (type) {
 	case REG_READ:
-		my_trace->header.type |=
-			(MMIO_READ << MMIO_OPCODE_SHIFT) |
-			(get_ins_mem_width(instptr) << MMIO_WIDTH_SHIFT);
+		my_trace->opcode = MMIO_READ;
+		my_trace->width = get_ins_mem_width(instptr);
 		break;
 	case REG_WRITE:
-		my_trace->header.type |=
-			(MMIO_WRITE << MMIO_OPCODE_SHIFT) |
-			(get_ins_mem_width(instptr) << MMIO_WIDTH_SHIFT);
-		my_trace->rw.value = get_ins_reg_val(instptr, regs);
+		my_trace->opcode = MMIO_WRITE;
+		my_trace->width = get_ins_mem_width(instptr);
+		my_trace->value = get_ins_reg_val(instptr, regs);
 		break;
 	case IMM_WRITE:
-		my_trace->header.type |=
-			(MMIO_WRITE << MMIO_OPCODE_SHIFT) |
-			(get_ins_mem_width(instptr) << MMIO_WIDTH_SHIFT);
-		my_trace->rw.value = get_ins_imm_val(instptr);
+		my_trace->opcode = MMIO_WRITE;
+		my_trace->width = get_ins_mem_width(instptr);
+		my_trace->value = get_ins_imm_val(instptr);
 		break;
 	default:
 		{
 			unsigned char *ip = (unsigned char *)instptr;
-			my_trace->header.type |=
-					(MMIO_UNKNOWN_OP << MMIO_OPCODE_SHIFT);
-			my_trace->rw.value = (*ip) << 16 | *(ip + 1) << 8 |
+			my_trace->opcode = MMIO_UNKNOWN_OP;
+			my_trace->width = 0;
+			my_trace->value = (*ip) << 16 | *(ip + 1) << 8 |
 								*(ip + 2);
 		}
 	}
@@ -271,7 +254,7 @@ static void post(struct kmmio_probe *p, unsigned long condition,
 							struct pt_regs *regs)
 {
 	struct trap_reason *my_reason = &get_cpu_var(pf_reason);
-	struct mm_io_header_rw *my_trace = &get_cpu_var(cpu_trace);
+	struct mmiotrace_rw *my_trace = &get_cpu_var(cpu_trace);
 
 	/* this should always return the active_trace count to 0 */
 	my_reason->active_traces--;
@@ -282,20 +265,13 @@ static void post(struct kmmio_probe *p, unsigned long condition,
 
 	switch (my_reason->type) {
 	case REG_READ:
-		my_trace->rw.value = get_ins_reg_val(my_reason->ip, regs);
+		my_trace->value = get_ins_reg_val(my_reason->ip, regs);
 		break;
 	default:
 		break;
 	}
 
-	/*
-	 * XXX: Several required values are ignored:
-	 * - mapping id
-	 * - program counter
-	 * Also the address should be physical, not virtual.
-	 */
-	mmio_trace_record(my_trace->header.type, my_trace->rw.address,
-							my_trace->rw.value);
+	mmio_trace_rw(my_trace);
 	put_cpu_var(cpu_trace);
 	put_cpu_var(pf_reason);
 }
@@ -305,21 +281,11 @@ static void ioremap_trace_core(unsigned long offset, unsigned long size,
 {
 	static atomic_t next_id;
 	struct remap_trace *trace = kmalloc(sizeof(*trace), GFP_KERNEL);
-	struct mm_io_header_map event = {
-		.header = {
-			.type = MMIO_MAGIC |
-					(MMIO_PROBE << MMIO_OPCODE_SHIFT),
-			.sec = 0,
-			.nsec = 0,
-			.pid = 0,
-			.data_len = sizeof(struct mm_io_map)
-		},
-		.map = {
-			.phys = offset,
-			.addr = (unsigned long)addr,
-			.len  = size,
-			.pc   = 0
-		}
+	struct mmiotrace_map map = {
+		.phys = offset,
+		.virt = (unsigned long)addr,
+		.len = size,
+		.opcode = MMIO_PROBE
 	};
 
 	if (!trace) {
@@ -338,15 +304,13 @@ static void ioremap_trace_core(unsigned long offset, unsigned long size,
 		.phys = offset,
 		.id = atomic_inc_return(&next_id)
 	};
+	map.map_id = trace->id;
 
 	spin_lock_irq(&trace_lock);
 	if (!is_enabled())
 		goto not_enabled;
 
-	/*
-	 * XXX: Insufficient data recorded!
-	 */
-	mmio_trace_record(event.header.type, event.map.addr, event.map.len);
+	mmio_trace_mapping(&map);
 	list_add_tail(&trace->list, &trace_list);
 	if (!nommiotrace)
 		register_kmmio_probe(&trace->probe);
@@ -369,21 +333,11 @@ mmiotrace_ioremap(unsigned long offset, unsigned long size, void __iomem *addr)
 
 static void iounmap_trace_core(volatile void __iomem *addr)
 {
-	struct mm_io_header_map event = {
-		.header = {
-			.type = MMIO_MAGIC |
-				(MMIO_UNPROBE << MMIO_OPCODE_SHIFT),
-			.sec = 0,
-			.nsec = 0,
-			.pid = 0,
-			.data_len = sizeof(struct mm_io_map)
-		},
-		.map = {
-			.phys = 0,
-			.addr = (unsigned long)addr,
-			.len  = 0,
-			.pc   = 0
-		}
+	struct mmiotrace_map map = {
+		.phys = 0,
+		.virt = (unsigned long)addr,
+		.len = 0,
+		.opcode = MMIO_UNPROBE
 	};
 	struct remap_trace *trace;
 	struct remap_trace *tmp;
@@ -404,8 +358,8 @@ static void iounmap_trace_core(volatile void __iomem *addr)
 			break;
 		}
 	}
-	mmio_trace_record(event.header.type, event.map.addr,
-					found_trace ? found_trace->id : -1);
+	map.map_id = (found_trace) ? found_trace->id : -1;
+	mmio_trace_mapping(&map);
 
 not_enabled:
 	spin_unlock_irq(&trace_lock);
@@ -448,10 +402,12 @@ static void clear_trace_list(void)
 	}
 }
 
+#if 0 /* XXX: out of order */
 static struct file_operations fops_marker = {
 	.owner =	THIS_MODULE,
 	.write =	write_marker
 };
+#endif
 
 void enable_mmiotrace(void)
 {
@@ -464,9 +420,9 @@ void enable_mmiotrace(void)
 #if 0 /* XXX: tracing does not support text entries */
 	marker_file = debugfs_create_file("marker", 0660, dir, NULL,
 								&fops_marker);
-#endif
 	if (!marker_file)
 		pr_err(NAME "marker file creation failed.\n");
+#endif
 
 	if (nommiotrace)
 		pr_info(NAME "MMIO tracing disabled.\n");
@@ -501,18 +457,4 @@ void disable_mmiotrace(void)
 	pr_info(NAME "disabled.\n");
 out:
 	mutex_unlock(&mmiotrace_mutex);
-}
-
-int __init init_mmiotrace(void)
-{
-	pr_debug(NAME "load...\n");
-	if (n_subbufs < 2)
-		return -EINVAL;
-
-	dir = debugfs_create_dir(APP_DIR, NULL);
-	if (!dir) {
-		pr_err(NAME "Couldn't create relay app directory.\n");
-		return -ENOMEM;
-	}
-	return 0;
 }

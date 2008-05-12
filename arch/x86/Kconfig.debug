@@ -173,7 +173,7 @@ config MMIOTRACE_HOOKS
 
 config MMIOTRACE
 	bool "Memory mapped IO tracing"
-	depends on DEBUG_KERNEL && RELAY
+	depends on DEBUG_KERNEL
 	select TRACING
 	select MMIOTRACE_HOOKS
 	default y

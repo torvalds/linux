@@ -5,6 +5,7 @@
 #include <asm/atomic.h>
 #include <linux/sched.h>
 #include <linux/clocksource.h>
+#include <linux/mmiotrace.h>
 
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
@@ -14,6 +15,8 @@ enum trace_type {
 	TRACE_WAKE,
 	TRACE_STACK,
 	TRACE_SPECIAL,
+	TRACE_MMIO_RW,
+	TRACE_MMIO_MAP,
 
 	__TRACE_LAST_TYPE
 };
@@ -75,6 +78,8 @@ struct trace_entry {
 		struct ctx_switch_entry		ctx;
 		struct special_entry		special;
 		struct stack_entry		stack;
+		struct mmiotrace_rw		mmiorw;
+		struct mmiotrace_map		mmiomap;
 	};
 };
 
@@ -253,6 +258,15 @@ struct tracer_switch_ops {
 extern unsigned long ftrace_update_tot_cnt;
 #define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 extern int DYN_FTRACE_TEST_NAME(void);
+#endif
+
+#ifdef CONFIG_MMIOTRACE
+extern void __trace_mmiotrace_rw(struct trace_array *tr,
+				struct trace_array_cpu *data,
+				struct mmiotrace_rw *rw);
+extern void __trace_mmiotrace_map(struct trace_array *tr,
+				struct trace_array_cpu *data,
+				struct mmiotrace_map *map);
 #endif
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
