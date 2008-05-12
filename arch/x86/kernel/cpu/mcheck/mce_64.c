@@ -31,7 +31,7 @@
 #include <asm/idle.h>
 
 #define MISC_MCELOG_MINOR 227
-#define NR_BANKS 6
+#define NR_SYSFS_BANKS 6
 
 atomic_t mce_entry;
 
@@ -46,7 +46,7 @@ static int mce_dont_init;
  */
 static int tolerant = 1;
 static int banks;
-static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
+static unsigned long bank[NR_SYSFS_BANKS] = { [0 ... NR_SYSFS_BANKS-1] = ~0UL };
 static unsigned long notify_user;
 static int rip_msr;
 static int mce_bootlog = -1;
@@ -209,7 +209,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	barrier();
 
 	for (i = 0; i < banks; i++) {
-		if (!bank[i])
+		if (i < NR_SYSFS_BANKS && !bank[i])
 			continue;
 
 		m.misc = 0;
@@ -444,9 +444,10 @@ static void mce_init(void *dummy)
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	banks = cap & 0xff;
-	if (banks > NR_BANKS) {
-		printk(KERN_INFO "MCE: warning: using only %d banks\n", banks);
-		banks = NR_BANKS;
+	if (banks > MCE_EXTENDED_BANK) {
+		printk(KERN_INFO "MCE: warning: using only %d banks\n",
+		       MCE_EXTENDED_BANK);
+		banks = MCE_EXTENDED_BANK;
 	}
 	/* Use accurate RIP reporting if available. */
 	if ((cap & (1<<9)) && ((cap >> 16) & 0xff) >= 9)
@@ -462,7 +463,7 @@ static void mce_init(void *dummy)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 
 	for (i = 0; i < banks; i++) {
-		wrmsrl(MSR_IA32_MC0_CTL+4*i, bank[i]);
+		wrmsrl(MSR_IA32_MC0_CTL+4*i, ~0UL);
 		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	}
 }
@@ -766,7 +767,10 @@ DEFINE_PER_CPU(struct sys_device, device_mce);
 	}								\
 	static SYSDEV_ATTR(name, 0644, show_ ## name, set_ ## name);
 
-/* TBD should generate these dynamically based on number of available banks */
+/*
+ * TBD should generate these dynamically based on number of available banks.
+ * Have only 6 contol banks in /sysfs until then.
+ */
 ACCESSOR(bank0ctl,bank[0],mce_restart())
 ACCESSOR(bank1ctl,bank[1],mce_restart())
 ACCESSOR(bank2ctl,bank[2],mce_restart())
