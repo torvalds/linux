@@ -135,14 +135,15 @@ static const struct cx18_card_pci_info cx18_pci_h900[] = {
 static const struct cx18_card cx18_card_h900 = {
 	.type = CX18_CARD_COMPRO_H900,
 	.name = "Compro VideoMate H900",
-	.comment = "Not yet supported!\n",
-	.v4l2_capabilities = 0,
+	.comment = "DVB & VBI are not yet supported\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_all = CX18_HW_TUNER,
 	.video_inputs = {
-		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE7 },
-		{ CX18_CARD_INPUT_SVIDEO1,    1, CX23418_SVIDEO1    },
-		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX23418_COMPOSITE3 },
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE2 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1,
+			CX23418_SVIDEO_LUMA3 | CX23418_SVIDEO_CHROMA4 },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX23418_COMPOSITE1 },
 	},
 	.audio_inputs = {
 		{ CX18_CARD_INPUT_AUD_TUNER,
@@ -164,6 +165,7 @@ static const struct cx18_card cx18_card_h900 = {
 		.tune_lane = 0,
 		.initial_emrs = 0,
 	},
+	.xceive_pin = 15,
 	.pci_list = cx18_pci_h900,
 	.i2c = &cx18_i2c_std,
 };
