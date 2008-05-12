@@ -29,6 +29,7 @@
 #include <asm/pgtable.h>
 #include <linux/mmiotrace.h>
 #include <asm/e820.h> /* for ISA_START_ADDRESS */
+#include <asm/atomic.h>
 
 #include "kmmio.h"
 #include "pf_in.h"
@@ -47,8 +48,12 @@ struct trap_reason {
 	int active_traces;
 };
 
+/* Accessed per-cpu. */
 static struct trap_reason pf_reason[NR_CPUS];
 static struct mm_io_header_rw cpu_trace[NR_CPUS];
+
+/* Access to this is not per-cpu. */
+static atomic_t dropped[NR_CPUS];
 
 static struct file_operations mmio_fops = {
 	.owner = THIS_MODULE,
@@ -57,7 +62,6 @@ static struct file_operations mmio_fops = {
 static const size_t subbuf_size = 256*1024;
 static struct rchan *chan;
 static struct dentry *dir;
-static int suspended;      /* XXX should this be per cpu? */
 static struct proc_dir_entry *proc_marker_file;
 
 /* module parameters */
@@ -269,19 +273,21 @@ static void post(struct kmmio_probe *p, unsigned long condition,
 static int subbuf_start_handler(struct rchan_buf *buf, void *subbuf,
 					void *prev_subbuf, size_t prev_padding)
 {
+	unsigned int cpu = buf->cpu;
+	atomic_t *drop = &dropped[cpu];
+	int count;
 	if (relay_buf_full(buf)) {
-		if (!suspended) {
-			suspended = 1;
-			printk(KERN_ERR MODULE_NAME
-						": cpu %d buffer full!!!\n",
-						smp_processor_id());
+		if (atomic_inc_return(drop) == 1) {
+			printk(KERN_ERR MODULE_NAME ": cpu %d buffer full!\n",
+									cpu);
 		}
 		return 0;
-	} else if (suspended) {
-		suspended = 0;
+	} else if ((count = atomic_read(drop))) {
 		printk(KERN_ERR MODULE_NAME
-					": cpu %d buffer no longer full.\n",
-					smp_processor_id());
+					": cpu %d buffer no longer full, "
+					"missed %d events.\n",
+					cpu, count);
+		atomic_sub(count, drop);
 	}
 
 	return 1;
