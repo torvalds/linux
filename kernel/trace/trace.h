@@ -23,6 +23,7 @@ struct ctx_switch_entry {
 	unsigned char		prev_state;
 	unsigned int		next_pid;
 	unsigned char		next_prio;
+	unsigned char		next_state;
 };
 
 /*
