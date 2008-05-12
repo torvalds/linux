@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mmiotrace.h>
+#include <linux/pci.h>
 
 #include "trace.h"
 
@@ -53,12 +54,52 @@ static void mmio_trace_ctrl_update(struct trace_array *tr)
 	}
 }
 
+static int mmio_print_pcidev(struct trace_seq *s, const struct pci_dev *dev)
+{
+	int ret = 0;
+	int i;
+	resource_size_t start, end;
+	const struct pci_driver *drv = pci_dev_driver(dev);
+
+	/* XXX: incomplete checks for trace_seq_printf() return value */
+	ret += trace_seq_printf(s, "PCIDEV %02x%02x %04x%04x %x",
+				dev->bus->number, dev->devfn,
+				dev->vendor, dev->device, dev->irq);
+	/*
+	 * XXX: is pci_resource_to_user() appropriate, since we are
+	 * supposed to interpret the __ioremap() phys_addr argument based on
+	 * these printed values?
+	 */
+	for (i = 0; i < 7; i++) {
+		pci_resource_to_user(dev, i, &dev->resource[i], &start, &end);
+		ret += trace_seq_printf(s, " %llx",
+			(unsigned long long)(start |
+			(dev->resource[i].flags & PCI_REGION_FLAG_MASK)));
+	}
+	for (i = 0; i < 7; i++) {
+		pci_resource_to_user(dev, i, &dev->resource[i], &start, &end);
+		ret += trace_seq_printf(s, " %llx",
+			dev->resource[i].start < dev->resource[i].end ?
+			(unsigned long long)(end - start) + 1 : 0);
+	}
+	if (drv)
+		ret += trace_seq_printf(s, " %s\n", drv->name);
+	else
+		ret += trace_seq_printf(s, " \n");
+	return ret;
+}
+
 /* XXX: This is not called for trace_pipe file! */
-void mmio_print_header(struct trace_iterator *iter)
+static void mmio_print_header(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
-	trace_seq_printf(s, "VERSION broken 20070824\n");
-	/* TODO: print /proc/bus/pci/devices contents as PCIDEV lines */
+	struct pci_dev *dev = NULL;
+
+	trace_seq_printf(s, "VERSION 20070824\n");
+
+	for_each_pci_dev(dev)
+		mmio_print_pcidev(s, dev);
+	/* XXX: return value? What if header is very long? */
 }
 
 static int mmio_print_rw(struct trace_iterator *iter)

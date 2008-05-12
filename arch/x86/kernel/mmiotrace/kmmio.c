@@ -5,15 +5,12 @@
  *     2008 Pekka Paalanen <pq@iki.fi>
  */
 
-#include <linux/version.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
@@ -22,10 +19,9 @@
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
-#include <asm/errno.h>
 #include <asm/tlbflush.h>
-#include <asm/pgtable.h>
-
+#include <asm/errno.h>
+#include <asm/debugreg.h>
 #include <linux/mmiotrace.h>
 
 #define KMMIO_PAGE_HASH_BITS 4
@@ -57,14 +53,9 @@ struct kmmio_context {
 	int active;
 };
 
-static int kmmio_die_notifier(struct notifier_block *nb, unsigned long val,
-								void *args);
-
-static DEFINE_MUTEX(kmmio_init_mutex);
 static DEFINE_SPINLOCK(kmmio_lock);
 
-/* These are protected by kmmio_lock */
-static int kmmio_initialized;
+/* Protected by kmmio_lock */
 unsigned int kmmio_count;
 
 /* Read-protected by RCU, write-protected by kmmio_lock. */
@@ -78,60 +69,6 @@ static struct list_head *kmmio_page_list(unsigned long page)
 
 /* Accessed per-cpu */
 static DEFINE_PER_CPU(struct kmmio_context, kmmio_ctx);
-
-/* protected by kmmio_init_mutex */
-static struct notifier_block nb_die = {
-	.notifier_call = kmmio_die_notifier
-};
-
-/**
- * Makes sure kmmio is initialized and usable.
- * This must be called before any other kmmio function defined here.
- * May sleep.
- */
-void reference_kmmio(void)
-{
-	mutex_lock(&kmmio_init_mutex);
-	spin_lock_irq(&kmmio_lock);
-	if (!kmmio_initialized) {
-		int i;
-		for (i = 0; i < KMMIO_PAGE_TABLE_SIZE; i++)
-			INIT_LIST_HEAD(&kmmio_page_table[i]);
-		if (register_die_notifier(&nb_die))
-			BUG();
-	}
-	kmmio_initialized++;
-	spin_unlock_irq(&kmmio_lock);
-	mutex_unlock(&kmmio_init_mutex);
-}
-EXPORT_SYMBOL_GPL(reference_kmmio);
-
-/**
- * Clean up kmmio after use. This must be called for every call to
- * reference_kmmio(). All probes registered after the corresponding
- * reference_kmmio() must have been unregistered when calling this.
- * May sleep.
- */
-void unreference_kmmio(void)
-{
-	bool unreg = false;
-
-	mutex_lock(&kmmio_init_mutex);
-	spin_lock_irq(&kmmio_lock);
-
-	if (kmmio_initialized == 1) {
-		BUG_ON(is_kmmio_active());
-		unreg = true;
-	}
-	kmmio_initialized--;
-	BUG_ON(kmmio_initialized < 0);
-	spin_unlock_irq(&kmmio_lock);
-
-	if (unreg)
-		unregister_die_notifier(&nb_die); /* calls sync_rcu() */
-	mutex_unlock(&kmmio_init_mutex);
-}
-EXPORT_SYMBOL(unreference_kmmio);
 
 /*
  * this is basically a dynamic stabbing problem:
@@ -167,58 +104,56 @@ static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
 	return NULL;
 }
 
-/** Mark the given page as not present. Access to it will trigger a fault. */
-static void arm_kmmio_fault_page(unsigned long page, int *page_level)
+static void set_page_present(unsigned long addr, bool present, int *pglevel)
 {
-	unsigned long address = page & PAGE_MASK;
+	pteval_t pteval;
+	pmdval_t pmdval;
 	int level;
-	pte_t *pte = lookup_address(address, &level);
+	pmd_t *pmd;
+	pte_t *pte = lookup_address(addr, &level);
 
 	if (!pte) {
-		pr_err("kmmio: Error in %s: no pte for page 0x%08lx\n",
-							__func__, page);
+		pr_err("kmmio: no pte for page 0x%08lx\n", addr);
 		return;
 	}
 
-	if (level == PG_LEVEL_2M) {
-		pmd_t *pmd = (pmd_t *)pte;
-		set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_PRESENT));
-	} else {
-		/* PG_LEVEL_4K */
-		set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_PRESENT));
+	if (pglevel)
+		*pglevel = level;
+
+	switch (level) {
+	case PG_LEVEL_2M:
+		pmd = (pmd_t *)pte;
+		pmdval = pmd_val(*pmd) & ~_PAGE_PRESENT;
+		if (present)
+			pmdval |= _PAGE_PRESENT;
+		set_pmd(pmd, __pmd(pmdval));
+		break;
+
+	case PG_LEVEL_4K:
+		pteval = pte_val(*pte) & ~_PAGE_PRESENT;
+		if (present)
+			pteval |= _PAGE_PRESENT;
+		set_pte_atomic(pte, __pte(pteval));
+		break;
+
+	default:
+		pr_err("kmmio: unexpected page level 0x%x.\n", level);
+		return;
 	}
 
-	if (page_level)
-		*page_level = level;
+	__flush_tlb_one(addr);
+}
 
-	__flush_tlb_one(page);
+/** Mark the given page as not present. Access to it will trigger a fault. */
+static void arm_kmmio_fault_page(unsigned long page, int *page_level)
+{
+	set_page_present(page & PAGE_MASK, false, page_level);
 }
 
 /** Mark the given page as present. */
 static void disarm_kmmio_fault_page(unsigned long page, int *page_level)
 {
-	unsigned long address = page & PAGE_MASK;
-	int level;
-	pte_t *pte = lookup_address(address, &level);
-
-	if (!pte) {
-		pr_err("kmmio: Error in %s: no pte for page 0x%08lx\n",
-							__func__, page);
-		return;
-	}
-
-	if (level == PG_LEVEL_2M) {
-		pmd_t *pmd = (pmd_t *)pte;
-		set_pmd(pmd, __pmd(pmd_val(*pmd) | _PAGE_PRESENT));
-	} else {
-		/* PG_LEVEL_4K */
-		set_pte(pte, __pte(pte_val(*pte) | _PAGE_PRESENT));
-	}
-
-	if (page_level)
-		*page_level = level;
-
-	__flush_tlb_one(page);
+	set_page_present(page & PAGE_MASK, true, page_level);
 }
 
 /*
@@ -240,6 +175,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 {
 	struct kmmio_context *ctx;
 	struct kmmio_fault_page *faultpage;
+	int ret = 0; /* default to fault not handled */
 
 	/*
 	 * Preemption is now disabled to prevent process switch during
@@ -257,21 +193,35 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 		/*
 		 * Either this page fault is not caused by kmmio, or
 		 * another CPU just pulled the kmmio probe from under
-		 * our feet. In the latter case all hell breaks loose.
+		 * our feet. The latter case should not be possible.
 		 */
 		goto no_kmmio;
 	}
 
 	ctx = &get_cpu_var(kmmio_ctx);
 	if (ctx->active) {
+		disarm_kmmio_fault_page(faultpage->page, NULL);
+		if (addr == ctx->addr) {
+			/*
+			 * On SMP we sometimes get recursive probe hits on the
+			 * same address. Context is already saved, fall out.
+			 */
+			pr_debug("kmmio: duplicate probe hit on CPU %d, for "
+						"address 0x%08lx.\n",
+						smp_processor_id(), addr);
+			ret = 1;
+			goto no_kmmio_ctx;
+		}
 		/*
 		 * Prevent overwriting already in-flight context.
-		 * If this page fault really was due to kmmio trap,
-		 * all hell breaks loose.
+		 * This should not happen, let's hope disarming at least
+		 * prevents a panic.
 		 */
 		pr_emerg("kmmio: recursive probe hit on CPU %d, "
 					"for address 0x%08lx. Ignoring.\n",
 					smp_processor_id(), addr);
+		pr_emerg("kmmio: previous hit was at 0x%08lx.\n",
+					ctx->addr);
 		goto no_kmmio_ctx;
 	}
 	ctx->active++;
@@ -302,14 +252,14 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	 */
 
 	put_cpu_var(kmmio_ctx);
-	return 1;
+	return 1; /* fault handled */
 
 no_kmmio_ctx:
 	put_cpu_var(kmmio_ctx);
 no_kmmio:
 	rcu_read_unlock();
 	preempt_enable_no_resched();
-	return 0; /* page fault not handled by kmmio */
+	return ret;
 }
 
 /*
@@ -322,8 +272,11 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	int ret = 0;
 	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
 
-	if (!ctx->active)
+	if (!ctx->active) {
+		pr_debug("kmmio: spurious debug trap on CPU %d.\n",
+							smp_processor_id());
 		goto out;
+	}
 
 	if (ctx->probe && ctx->probe->post_handler)
 		ctx->probe->post_handler(ctx->probe, condition, regs);
@@ -525,9 +478,22 @@ static int kmmio_die_notifier(struct notifier_block *nb, unsigned long val,
 {
 	struct die_args *arg = args;
 
-	if (val == DIE_DEBUG)
+	if (val == DIE_DEBUG && (arg->err & DR_STEP))
 		if (post_kmmio_handler(arg->err, arg->regs) == 1)
 			return NOTIFY_STOP;
 
 	return NOTIFY_DONE;
 }
+
+static struct notifier_block nb_die = {
+	.notifier_call = kmmio_die_notifier
+};
+
+static int __init init_kmmio(void)
+{
+	int i;
+	for (i = 0; i < KMMIO_PAGE_TABLE_SIZE; i++)
+		INIT_LIST_HEAD(&kmmio_page_table[i]);
+	return register_die_notifier(&nb_die);
+}
+fs_initcall(init_kmmio); /* should be before device_initcall() */

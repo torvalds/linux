@@ -31,8 +31,6 @@ static inline int is_kmmio_active(void)
 	return kmmio_count;
 }
 
-extern void reference_kmmio(void);
-extern void unreference_kmmio(void);
 extern int register_kmmio_probe(struct kmmio_probe *p);
 extern void unregister_kmmio_probe(struct kmmio_probe *p);
 

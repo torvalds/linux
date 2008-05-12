@@ -415,8 +415,6 @@ void enable_mmiotrace(void)
 	if (is_enabled())
 		goto out;
 
-	reference_kmmio();
-
 #if 0 /* XXX: tracing does not support text entries */
 	marker_file = debugfs_create_file("marker", 0660, dir, NULL,
 								&fops_marker);
@@ -448,7 +446,6 @@ void disable_mmiotrace(void)
 	spin_unlock_irq(&trace_lock);
 
 	clear_trace_list(); /* guarantees: no more kmmio callbacks */
-	unreference_kmmio();
 	if (marker_file) {
 		debugfs_remove(marker_file);
 		marker_file = NULL;
