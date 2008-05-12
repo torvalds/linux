@@ -41,7 +41,8 @@
 # define INIT_TRACE_IRQFLAGS
 #endif
 
-#ifdef CONFIG_IRQSOFF_TRACER
+#if defined(CONFIG_IRQSOFF_TRACER) || \
+	defined(CONFIG_PREEMPT_TRACER)
  extern void stop_critical_timings(void);
  extern void start_critical_timings(void);
 #else

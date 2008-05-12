@@ -44,6 +44,31 @@ config IRQSOFF_TRACER
 
 	      echo 0 > /debugfs/tracing/tracing_max_latency
 
+	  (Note that kernel size and overhead increases with this option
+	  enabled. This option and the preempt-off timing option can be
+	  used together or separately.)
+
+config PREEMPT_TRACER
+	bool "Preemption-off Latency Tracer"
+	default n
+	depends on GENERIC_TIME
+	depends on PREEMPT
+	select TRACING
+	select TRACER_MAX_TRACE
+	help
+	  This option measures the time spent in preemption off critical
+	  sections, with microsecond accuracy.
+
+	  The default measurement method is a maximum search, which is
+	  disabled by default and can be runtime (re-)started
+	  via:
+
+	      echo 0 > /debugfs/tracing/tracing_max_latency
+
+	  (Note that kernel size and overhead increases with this option
+	  enabled. This option and the irqs-off timing option can be
+	  used together or separately.)
+
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
 	depends on DEBUG_KERNEL

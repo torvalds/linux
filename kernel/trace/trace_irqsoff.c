@@ -21,6 +21,36 @@
 static struct trace_array		*irqsoff_trace __read_mostly;
 static int				tracer_enabled __read_mostly;
 
+static DEFINE_PER_CPU(int, tracing_cpu);
+
+enum {
+	TRACER_IRQS_OFF		= (1 << 1),
+	TRACER_PREEMPT_OFF	= (1 << 2),
+};
+
+static int trace_type __read_mostly;
+
+#ifdef CONFIG_PREEMPT_TRACER
+static inline int notrace
+preempt_trace(void)
+{
+	return ((trace_type & TRACER_PREEMPT_OFF) && preempt_count());
+}
+#else
+# define preempt_trace() (0)
+#endif
+
+#ifdef CONFIG_IRQSOFF_TRACER
+static inline int notrace
+irq_trace(void)
+{
+	return ((trace_type & TRACER_IRQS_OFF) &&
+		irqs_disabled());
+}
+#else
+# define irq_trace() (0)
+#endif
+
 /*
  * Sequence count - we record it when starting a measurement and
  * skip the latency if the sequence has changed - some other section
@@ -44,13 +74,10 @@ irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
 	long disabled;
 	int cpu;
 
-	if (likely(!tracer_enabled))
+	if (likely(!__get_cpu_var(tracing_cpu)))
 		return;
 
 	local_save_flags(flags);
-
-	if (!irqs_disabled_flags(flags))
-		return;
 
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
@@ -171,22 +198,28 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	if (likely(!tracer_enabled))
 		return;
 
+	if (__get_cpu_var(tracing_cpu))
+		return;
+
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
 	if (unlikely(!data) || unlikely(!data->trace) ||
-	    data->critical_start || atomic_read(&data->disabled))
+	    atomic_read(&data->disabled))
 		return;
 
 	atomic_inc(&data->disabled);
 
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = now(cpu);
-	data->critical_start = parent_ip;
+	data->critical_start = parent_ip ? : ip;
 	tracing_reset(data);
 
 	local_save_flags(flags);
+
 	ftrace(tr, data, ip, parent_ip, flags);
+
+	__get_cpu_var(tracing_cpu) = 1;
 
 	atomic_dec(&data->disabled);
 }
@@ -199,7 +232,13 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	struct trace_array_cpu *data;
 	unsigned long flags;
 
-	if (likely(!tracer_enabled))
+	/* Always clear the tracing cpu on stopping the trace */
+	if (unlikely(__get_cpu_var(tracing_cpu)))
+		__get_cpu_var(tracing_cpu) = 0;
+	else
+		return;
+
+	if (!tracer_enabled)
 		return;
 
 	cpu = raw_smp_processor_id();
@@ -212,49 +251,35 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	atomic_inc(&data->disabled);
 	local_save_flags(flags);
 	ftrace(tr, data, ip, parent_ip, flags);
-	check_critical_timing(tr, data, parent_ip, cpu);
+	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
 	data->critical_start = 0;
 	atomic_dec(&data->disabled);
 }
 
+/* start and stop critical timings used to for stoppage (in idle) */
 void notrace start_critical_timings(void)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (preempt_trace() || irq_trace())
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 
 void notrace stop_critical_timings(void)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (preempt_trace() || irq_trace())
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 
+#ifdef CONFIG_IRQSOFF_TRACER
 #ifdef CONFIG_PROVE_LOCKING
 void notrace time_hardirqs_on(unsigned long a0, unsigned long a1)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(a0, a1);
 }
 
 void notrace time_hardirqs_off(unsigned long a0, unsigned long a1)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (!preempt_trace() && irq_trace())
 		start_critical_timing(a0, a1);
 }
 
@@ -289,49 +314,46 @@ inline void print_irqtrace_events(struct task_struct *curr)
  */
 void notrace trace_hardirqs_on(void)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 EXPORT_SYMBOL(trace_hardirqs_on);
 
 void notrace trace_hardirqs_off(void)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (!preempt_trace() && irq_trace())
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 EXPORT_SYMBOL(trace_hardirqs_off);
 
 void notrace trace_hardirqs_on_caller(unsigned long caller_addr)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (!preempt_trace() && irq_trace())
 		stop_critical_timing(CALLER_ADDR0, caller_addr);
 }
 EXPORT_SYMBOL(trace_hardirqs_on_caller);
 
 void notrace trace_hardirqs_off_caller(unsigned long caller_addr)
 {
-	unsigned long flags;
-
-	local_save_flags(flags);
-
-	if (irqs_disabled_flags(flags))
+	if (!preempt_trace() && irq_trace())
 		start_critical_timing(CALLER_ADDR0, caller_addr);
 }
 EXPORT_SYMBOL(trace_hardirqs_off_caller);
 
 #endif /* CONFIG_PROVE_LOCKING */
+#endif /*  CONFIG_IRQSOFF_TRACER */
+
+#ifdef CONFIG_PREEMPT_TRACER
+void notrace trace_preempt_on(unsigned long a0, unsigned long a1)
+{
+	stop_critical_timing(a0, a1);
+}
+
+void notrace trace_preempt_off(unsigned long a0, unsigned long a1)
+{
+	start_critical_timing(a0, a1);
+}
+#endif /* CONFIG_PREEMPT_TRACER */
 
 static void start_irqsoff_tracer(struct trace_array *tr)
 {
@@ -345,7 +367,7 @@ static void stop_irqsoff_tracer(struct trace_array *tr)
 	tracer_enabled = 0;
 }
 
-static void irqsoff_tracer_init(struct trace_array *tr)
+static void __irqsoff_tracer_init(struct trace_array *tr)
 {
 	irqsoff_trace = tr;
 	/* make sure that the tracer is visibel */
@@ -382,6 +404,13 @@ static void notrace irqsoff_tracer_close(struct trace_iterator *iter)
 		start_irqsoff_tracer(iter->tr);
 }
 
+#ifdef CONFIG_IRQSOFF_TRACER
+static void irqsoff_tracer_init(struct trace_array *tr)
+{
+	trace_type = TRACER_IRQS_OFF;
+
+	__irqsoff_tracer_init(tr);
+}
 static struct tracer irqsoff_tracer __read_mostly =
 {
 	.name		= "irqsoff",
@@ -392,10 +421,65 @@ static struct tracer irqsoff_tracer __read_mostly =
 	.ctrl_update	= irqsoff_tracer_ctrl_update,
 	.print_max	= 1,
 };
+# define register_irqsoff(trace) register_tracer(&trace)
+#else
+# define register_irqsoff(trace) do { } while (0)
+#endif
+
+#ifdef CONFIG_PREEMPT_TRACER
+static void preemptoff_tracer_init(struct trace_array *tr)
+{
+	trace_type = TRACER_PREEMPT_OFF;
+
+	__irqsoff_tracer_init(tr);
+}
+
+static struct tracer preemptoff_tracer __read_mostly =
+{
+	.name		= "preemptoff",
+	.init		= preemptoff_tracer_init,
+	.reset		= irqsoff_tracer_reset,
+	.open		= irqsoff_tracer_open,
+	.close		= irqsoff_tracer_close,
+	.ctrl_update	= irqsoff_tracer_ctrl_update,
+	.print_max	= 1,
+};
+# define register_preemptoff(trace) register_tracer(&trace)
+#else
+# define register_preemptoff(trace) do { } while (0)
+#endif
+
+#if defined(CONFIG_IRQSOFF_TRACER) && \
+	defined(CONFIG_PREEMPT_TRACER)
+
+static void preemptirqsoff_tracer_init(struct trace_array *tr)
+{
+	trace_type = TRACER_IRQS_OFF | TRACER_PREEMPT_OFF;
+
+	__irqsoff_tracer_init(tr);
+}
+
+static struct tracer preemptirqsoff_tracer __read_mostly =
+{
+	.name		= "preemptirqsoff",
+	.init		= preemptirqsoff_tracer_init,
+	.reset		= irqsoff_tracer_reset,
+	.open		= irqsoff_tracer_open,
+	.close		= irqsoff_tracer_close,
+	.ctrl_update	= irqsoff_tracer_ctrl_update,
+	.print_max	= 1,
+};
+
+# define register_preemptirqsoff(trace) register_tracer(&trace)
+#else
+# define register_preemptirqsoff(trace) do { } while (0)
+#endif
 
 __init static int init_irqsoff_tracer(void)
 {
-	register_tracer(&irqsoff_tracer);
+	register_irqsoff(irqsoff_tracer);
+	register_preemptoff(preemptoff_tracer);
+	register_preemptirqsoff(preemptirqsoff_tracer);
 
 	return 0;
 }

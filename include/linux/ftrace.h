@@ -58,4 +58,12 @@ extern void mcount(void);
 # define time_hardirqs_off(a0, a1)		do { } while (0)
 #endif
 
+#ifdef CONFIG_PREEMPT_TRACER
+  extern void notrace trace_preempt_on(unsigned long a0, unsigned long a1);
+  extern void notrace trace_preempt_off(unsigned long a0, unsigned long a1);
+#else
+# define trace_preempt_on(a0, a1)		do { } while (0)
+# define trace_preempt_off(a0, a1)		do { } while (0)
+#endif
+
 #endif /* _LINUX_FTRACE_H */
