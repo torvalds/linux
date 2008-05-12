@@ -10,8 +10,9 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 
 ifdef CONFIG_FTRACE
 # Do not profile string.o, since it may be used in early boot or vdso
+# Also do not profile any debug utilities
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
-KBUILD_CFLAGS = $(if $(subst string,,$(basename $(notdir $@))), \
+KBUILD_CFLAGS = $(if $(filter-out %debug debug% string%,$(basename $(notdir $@))), \
 	$(ORIG_CFLAGS), \
 	$(subst -pg,,$(ORIG_CFLAGS)))
 endif
