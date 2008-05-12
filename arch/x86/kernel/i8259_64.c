@@ -134,7 +134,7 @@ DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[IRQ15_VECTOR + 1 ... NR_VECTORS - 1] = -1
 };
 
-void __init init_ISA_irqs (void)
+static void __init init_ISA_irqs (void)
 {
 	int i;
 
