@@ -4,10 +4,6 @@
 #include <linux/module.h>
 #include <asm/io.h>
 
-extern void __iomem *ioremap_nocache_trace(unsigned long offset,
-						unsigned long size);
-extern void iounmap_trace(volatile void __iomem *addr);
-
 #define MODULE_NAME "testmmiotrace"
 
 static unsigned long mmio_address;
@@ -28,25 +24,24 @@ static void do_write_test(void __iomem *p)
 static void do_read_test(void __iomem *p)
 {
 	unsigned int i;
-	volatile unsigned int v;
 	for (i = 0; i < 256; i++)
-		v = ioread8(p + i);
+		ioread8(p + i);
 	for (i = 1024; i < (5 * 1024); i += 2)
-		v = ioread16(p + i);
+		ioread16(p + i);
 	for (i = (5 * 1024); i < (16 * 1024); i += 4)
-		v = ioread32(p + i);
+		ioread32(p + i);
 }
 
 static void do_test(void)
 {
-	void __iomem *p = ioremap_nocache_trace(mmio_address, 0x4000);
+	void __iomem *p = ioremap_nocache(mmio_address, 0x4000);
 	if (!p) {
 		pr_err(MODULE_NAME ": could not ioremap, aborting.\n");
 		return;
 	}
 	do_write_test(p);
 	do_read_test(p);
-	iounmap_trace(p);
+	iounmap(p);
 }
 
 static int __init init(void)

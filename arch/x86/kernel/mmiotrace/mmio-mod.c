@@ -19,6 +19,8 @@
  *
  * Derived from the read-mod example from relay-examples by Tom Zanussi.
  */
+#define DEBUG 1
+
 #include <linux/module.h>
 #include <linux/relay.h>
 #include <linux/debugfs.h>
@@ -34,12 +36,12 @@
 
 #include "pf_in.h"
 
-/* This app's relay channel files will appear in /debug/mmio-trace */
-#define APP_DIR		"mmio-trace"
-/* the marker injection file in /proc */
-#define MARKER_FILE     "mmio-marker"
+#define NAME "mmiotrace: "
 
-#define MODULE_NAME     "mmiotrace"
+/* This app's relay channel files will appear in /debug/mmio-trace */
+static const char APP_DIR[] = "mmio-trace";
+/* the marker injection file in /debug/APP_DIR */
+static const char MARKER_FILE[] = "mmio-marker";
 
 struct trap_reason {
 	unsigned long addr;
@@ -48,6 +50,15 @@ struct trap_reason {
 	int active_traces;
 };
 
+struct remap_trace {
+	struct list_head list;
+	struct kmmio_probe probe;
+	unsigned long phys;
+	unsigned long id;
+};
+
+static const size_t subbuf_size = 256*1024;
+
 /* Accessed per-cpu. */
 static DEFINE_PER_CPU(struct trap_reason, pf_reason);
 static DEFINE_PER_CPU(struct mm_io_header_rw, cpu_trace);
@@ -55,33 +66,53 @@ static DEFINE_PER_CPU(struct mm_io_header_rw, cpu_trace);
 /* Access to this is not per-cpu. */
 static DEFINE_PER_CPU(atomic_t, dropped);
 
-static struct file_operations mmio_fops = {
-	.owner = THIS_MODULE,
-};
-
-static const size_t subbuf_size = 256*1024;
-static struct rchan *chan;
 static struct dentry *dir;
-static struct proc_dir_entry *proc_marker_file;
+static struct dentry *enabled_file;
+static struct dentry *marker_file;
+
+static DEFINE_MUTEX(mmiotrace_mutex);
+static DEFINE_SPINLOCK(trace_lock);
+static atomic_t mmiotrace_enabled;
+static LIST_HEAD(trace_list);		/* struct remap_trace */
+static struct rchan *chan;
+
+/*
+ * Locking in this file:
+ * - mmiotrace_mutex enforces enable/disable_mmiotrace() critical sections.
+ * - mmiotrace_enabled may be modified only when holding mmiotrace_mutex
+ *   and trace_lock.
+ * - Routines depending on is_enabled() must take trace_lock.
+ * - trace_list users must hold trace_lock.
+ * - is_enabled() guarantees that chan is valid.
+ * - pre/post callbacks assume the effect of is_enabled() being true.
+ */
 
 /* module parameters */
-static unsigned int      n_subbufs = 32*4;
-static unsigned long filter_offset;
-static int                 nommiotrace;
-static int               ISA_trace;
-static int                trace_pc;
+static unsigned int	n_subbufs = 32*4;
+static unsigned long	filter_offset;
+static int		nommiotrace;
+static int		ISA_trace;
+static int		trace_pc;
+static int		enable_now;
 
 module_param(n_subbufs, uint, 0);
 module_param(filter_offset, ulong, 0);
 module_param(nommiotrace, bool, 0);
 module_param(ISA_trace, bool, 0);
 module_param(trace_pc, bool, 0);
+module_param(enable_now, bool, 0);
 
 MODULE_PARM_DESC(n_subbufs, "Number of 256kB buffers, default 128.");
 MODULE_PARM_DESC(filter_offset, "Start address of traced mappings.");
 MODULE_PARM_DESC(nommiotrace, "Disable actual MMIO tracing.");
 MODULE_PARM_DESC(ISA_trace, "Do not exclude the low ISA range.");
 MODULE_PARM_DESC(trace_pc, "Record address of faulting instructions.");
+MODULE_PARM_DESC(enable_now, "Start mmiotracing immediately on module load.");
+
+static bool is_enabled(void)
+{
+	return atomic_read(&mmiotrace_enabled);
+}
 
 static void record_timestamp(struct mm_io_header *header)
 {
@@ -93,15 +124,15 @@ static void record_timestamp(struct mm_io_header *header)
 }
 
 /*
- * Write callback for the /proc entry:
+ * Write callback for the debugfs entry:
  * Read a marker and write it to the mmio trace log
  */
-static int write_marker(struct file *file, const char __user *buffer,
-					unsigned long count, void *data)
+static ssize_t write_marker(struct file *file, const char __user *buffer,
+						size_t count, loff_t *ppos)
 {
 	char *event = NULL;
 	struct mm_io_header *headp;
-	int len = (count > 65535) ? 65535 : count;
+	ssize_t len = (count > 65535) ? 65535 : count;
 
 	event = kzalloc(sizeof(*headp) + len, GFP_KERNEL);
 	if (!event)
@@ -117,7 +148,12 @@ static int write_marker(struct file *file, const char __user *buffer,
 		return -EFAULT;
 	}
 
-	relay_write(chan, event, sizeof(*headp) + len);
+	spin_lock_irq(&trace_lock);
+	if (is_enabled())
+		relay_write(chan, event, sizeof(*headp) + len);
+	else
+		len = -EINVAL;
+	spin_unlock_irq(&trace_lock);
 	kfree(event);
 	return len;
 }
@@ -128,19 +164,18 @@ static void print_pte(unsigned long address)
 	pte_t *pte = lookup_address(address, &level);
 
 	if (!pte) {
-		pr_err(MODULE_NAME ": Error in %s: no pte for page 0x%08lx\n",
+		pr_err(NAME "Error in %s: no pte for page 0x%08lx\n",
 							__func__, address);
 		return;
 	}
 
 	if (level == PG_LEVEL_2M) {
-		pr_emerg(MODULE_NAME ": 4MB pages are not currently "
-						"supported: %lx\n", address);
+		pr_emerg(NAME "4MB pages are not currently supported: "
+							"0x%08lx\n", address);
 		BUG();
 	}
-	pr_info(MODULE_NAME ": pte for 0x%lx: 0x%lx 0x%lx\n",
-					address, pte_val(*pte),
-					pte_val(*pte) & _PAGE_PRESENT);
+	pr_info(NAME "pte for 0x%lx: 0x%lx 0x%lx\n", address, pte_val(*pte),
+						pte_val(*pte) & _PAGE_PRESENT);
 }
 
 /*
@@ -150,22 +185,18 @@ static void print_pte(unsigned long address)
 static void die_kmmio_nesting_error(struct pt_regs *regs, unsigned long addr)
 {
 	const struct trap_reason *my_reason = &get_cpu_var(pf_reason);
-	pr_emerg(MODULE_NAME ": unexpected fault for address: %lx, "
-					"last fault for address: %lx\n",
+	pr_emerg(NAME "unexpected fault for address: 0x%08lx, "
+					"last fault for address: 0x%08lx\n",
 					addr, my_reason->addr);
 	print_pte(addr);
+	print_symbol(KERN_EMERG "faulting IP is at %s\n", regs->ip);
+	print_symbol(KERN_EMERG "last faulting IP was at %s\n", my_reason->ip);
 #ifdef __i386__
-	print_symbol(KERN_EMERG "faulting EIP is at %s\n", regs->ip);
-	print_symbol(KERN_EMERG "last faulting EIP was at %s\n",
-							my_reason->ip);
 	pr_emerg("eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
 			regs->ax, regs->bx, regs->cx, regs->dx);
 	pr_emerg("esi: %08lx   edi: %08lx   ebp: %08lx   esp: %08lx\n",
 			regs->si, regs->di, regs->bp, regs->sp);
 #else
-	print_symbol(KERN_EMERG "faulting RIP is at %s\n", regs->ip);
-	print_symbol(KERN_EMERG "last faulting RIP was at %s\n",
-							my_reason->ip);
 	pr_emerg("rax: %016lx   rcx: %016lx   rdx: %016lx\n",
 					regs->ax, regs->cx, regs->dx);
 	pr_emerg("rsi: %016lx   rdi: %016lx   rbp: %016lx   rsp: %016lx\n",
@@ -197,6 +228,10 @@ static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 	my_trace->header.pid = 0;
 	my_trace->header.data_len = sizeof(struct mm_io_rw);
 	my_trace->rw.address = addr;
+	/*
+	 * struct remap_trace *trace = p->user_data;
+	 * phys = addr - trace->probe.addr + trace->phys;
+	 */
 
 	/*
 	 * Only record the program counter when requested.
@@ -246,15 +281,10 @@ static void post(struct kmmio_probe *p, unsigned long condition,
 	struct trap_reason *my_reason = &get_cpu_var(pf_reason);
 	struct mm_io_header_rw *my_trace = &get_cpu_var(cpu_trace);
 
-	/*
-	 * XXX: This might not get called, if the probe is removed while
-	 * trace hit is on flight.
-	 */
-
 	/* this should always return the active_trace count to 0 */
 	my_reason->active_traces--;
 	if (my_reason->active_traces) {
-		pr_emerg(MODULE_NAME ": unexpected post handler");
+		pr_emerg(NAME "unexpected post handler");
 		BUG();
 	}
 
@@ -284,19 +314,22 @@ static int subbuf_start_handler(struct rchan_buf *buf, void *subbuf,
 	int count;
 	if (relay_buf_full(buf)) {
 		if (atomic_inc_return(drop) == 1)
-			pr_err(MODULE_NAME ": cpu %d buffer full!\n", cpu);
+			pr_err(NAME "cpu %d buffer full!\n", cpu);
 		return 0;
 	}
 	count = atomic_read(drop);
 	if (count) {
-		pr_err(MODULE_NAME ": cpu %d buffer no longer full, "
-						"missed %d events.\n",
-						cpu, count);
+		pr_err(NAME "cpu %d buffer no longer full, missed %d events.\n",
+								cpu, count);
 		atomic_sub(count, drop);
 	}
 
 	return 1;
 }
+
+static struct file_operations mmio_fops = {
+	.owner = THIS_MODULE,
+};
 
 /* file_create() callback.  Creates relay file in debugfs. */
 static struct dentry *create_buf_file_handler(const char *filename,
@@ -333,34 +366,10 @@ static struct rchan_callbacks relay_callbacks = {
 	.remove_buf_file = remove_buf_file_handler,
 };
 
-/*
- * create_channel - creates channel /debug/APP_DIR/cpuXXX
- * Returns channel on success, NULL otherwise
- */
-static struct rchan *create_channel(unsigned size, unsigned n)
-{
-	return relay_open("cpu", dir, size, n, &relay_callbacks, NULL);
-}
-
-/* destroy_channel - destroys channel /debug/APP_DIR/cpuXXX */
-static void destroy_channel(void)
-{
-	if (chan) {
-		relay_close(chan);
-		chan = NULL;
-	}
-}
-
-struct remap_trace {
-	struct list_head list;
-	struct kmmio_probe probe;
-};
-static LIST_HEAD(trace_list);
-static DEFINE_SPINLOCK(trace_list_lock);
-
-static void do_ioremap_trace_core(unsigned long offset, unsigned long size,
+static void ioremap_trace_core(unsigned long offset, unsigned long size,
 							void __iomem *addr)
 {
+	static atomic_t next_id;
 	struct remap_trace *trace = kmalloc(sizeof(*trace), GFP_KERNEL);
 	struct mm_io_header_map event = {
 		.header = {
@@ -380,61 +389,49 @@ static void do_ioremap_trace_core(unsigned long offset, unsigned long size,
 	};
 	record_timestamp(&event.header);
 
+	if (!trace) {
+		pr_err(NAME "kmalloc failed in ioremap\n");
+		return;
+	}
+
 	*trace = (struct remap_trace) {
 		.probe = {
 			.addr = (unsigned long)addr,
 			.len = size,
 			.pre_handler = pre,
 			.post_handler = post,
-		}
+			.user_data = trace
+		},
+		.phys = offset,
+		.id = atomic_inc_return(&next_id)
 	};
 
+	spin_lock_irq(&trace_lock);
+	if (!is_enabled())
+		goto not_enabled;
+
 	relay_write(chan, &event, sizeof(event));
-	spin_lock(&trace_list_lock);
 	list_add_tail(&trace->list, &trace_list);
-	spin_unlock(&trace_list_lock);
 	if (!nommiotrace)
 		register_kmmio_probe(&trace->probe);
+
+not_enabled:
+	spin_unlock_irq(&trace_lock);
 }
 
-static void ioremap_trace_core(unsigned long offset, unsigned long size,
-							void __iomem *addr)
+void
+mmiotrace_ioremap(unsigned long offset, unsigned long size, void __iomem *addr)
 {
+	if (!is_enabled()) /* recheck and proper locking in *_core() */
+		return;
+
+	pr_debug(NAME "ioremap_*(0x%lx, 0x%lx) = %p\n", offset, size, addr);
 	if ((filter_offset) && (offset != filter_offset))
 		return;
-
-	/* Don't trace the low PCI/ISA area, it's always mapped.. */
-	if (!ISA_trace && (offset < ISA_END_ADDRESS) &&
-					(offset + size > ISA_START_ADDRESS)) {
-		pr_notice(MODULE_NAME ": Ignoring map of low PCI/ISA area "
-						"(0x%lx-0x%lx)\n",
-						offset, offset + size);
-		return;
-	}
-	do_ioremap_trace_core(offset, size, addr);
+	ioremap_trace_core(offset, size, addr);
 }
 
-void __iomem *ioremap_cache_trace(unsigned long offset, unsigned long size)
-{
-	void __iomem *p = ioremap_cache(offset, size);
-	pr_debug(MODULE_NAME ": ioremap_cache(0x%lx, 0x%lx) = %p\n",
-							offset, size, p);
-	ioremap_trace_core(offset, size, p);
-	return p;
-}
-EXPORT_SYMBOL(ioremap_cache_trace);
-
-void __iomem *ioremap_nocache_trace(unsigned long offset, unsigned long size)
-{
-	void __iomem *p = ioremap_nocache(offset, size);
-	pr_debug(MODULE_NAME ": ioremap_nocache(0x%lx, 0x%lx) = %p\n",
-							offset, size, p);
-	ioremap_trace_core(offset, size, p);
-	return p;
-}
-EXPORT_SYMBOL(ioremap_nocache_trace);
-
-void iounmap_trace(volatile void __iomem *addr)
+static void iounmap_trace_core(volatile void __iomem *addr)
 {
 	struct mm_io_header_map event = {
 		.header = {
@@ -454,84 +451,212 @@ void iounmap_trace(volatile void __iomem *addr)
 	};
 	struct remap_trace *trace;
 	struct remap_trace *tmp;
-	pr_debug(MODULE_NAME ": Unmapping %p.\n", addr);
+	struct remap_trace *found_trace = NULL;
+
+	pr_debug(NAME "Unmapping %p.\n", addr);
 	record_timestamp(&event.header);
 
-	spin_lock(&trace_list_lock);
+	spin_lock_irq(&trace_lock);
+	if (!is_enabled())
+		goto not_enabled;
+
 	list_for_each_entry_safe(trace, tmp, &trace_list, list) {
 		if ((unsigned long)addr == trace->probe.addr) {
 			if (!nommiotrace)
 				unregister_kmmio_probe(&trace->probe);
 			list_del(&trace->list);
-			kfree(trace);
+			found_trace = trace;
 			break;
 		}
 	}
-	spin_unlock(&trace_list_lock);
 	relay_write(chan, &event, sizeof(event));
-	iounmap(addr);
+
+not_enabled:
+	spin_unlock_irq(&trace_lock);
+	if (found_trace) {
+		synchronize_rcu(); /* unregister_kmmio_probe() requirement */
+		kfree(found_trace);
+	}
 }
-EXPORT_SYMBOL(iounmap_trace);
+
+void mmiotrace_iounmap(volatile void __iomem *addr)
+{
+	might_sleep();
+	if (is_enabled()) /* recheck and proper locking in *_core() */
+		iounmap_trace_core(addr);
+}
 
 static void clear_trace_list(void)
 {
 	struct remap_trace *trace;
 	struct remap_trace *tmp;
 
-	spin_lock(&trace_list_lock);
-	list_for_each_entry_safe(trace, tmp, &trace_list, list) {
-		pr_warning(MODULE_NAME ": purging non-iounmapped "
+	/*
+	 * No locking required, because the caller ensures we are in a
+	 * critical section via mutex, and is_enabled() is false,
+	 * i.e. nothing can traverse or modify this list.
+	 * Caller also ensures is_enabled() cannot change.
+	 */
+	list_for_each_entry(trace, &trace_list, list) {
+		pr_notice(NAME "purging non-iounmapped "
 					"trace @0x%08lx, size 0x%lx.\n",
 					trace->probe.addr, trace->probe.len);
 		if (!nommiotrace)
 			unregister_kmmio_probe(&trace->probe);
+	}
+	synchronize_rcu(); /* unregister_kmmio_probe() requirement */
+
+	list_for_each_entry_safe(trace, tmp, &trace_list, list) {
 		list_del(&trace->list);
 		kfree(trace);
+	}
+}
+
+static ssize_t read_enabled_file_bool(struct file *file,
+		char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char buf[3];
+
+	if (is_enabled())
+		buf[0] = '1';
+	else
+		buf[0] = '0';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static void enable_mmiotrace(void);
+static void disable_mmiotrace(void);
+
+static ssize_t write_enabled_file_bool(struct file *file,
+		const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char buf[32];
+	int buf_size = min(count, (sizeof(buf)-1));
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	switch (buf[0]) {
+	case 'y':
+	case 'Y':
+	case '1':
+		enable_mmiotrace();
+		break;
+	case 'n':
+	case 'N':
+	case '0':
+		disable_mmiotrace();
 		break;
 	}
-	spin_unlock(&trace_list_lock);
+
+	return count;
+}
+
+/* this ripped from kernel/kprobes.c */
+static struct file_operations fops_enabled = {
+	.owner =	THIS_MODULE,
+	.read =		read_enabled_file_bool,
+	.write =	write_enabled_file_bool
+};
+
+static struct file_operations fops_marker = {
+	.owner =	THIS_MODULE,
+	.write =	write_marker
+};
+
+static void enable_mmiotrace(void)
+{
+	mutex_lock(&mmiotrace_mutex);
+	if (is_enabled())
+		goto out;
+
+	chan = relay_open("cpu", dir, subbuf_size, n_subbufs,
+						&relay_callbacks, NULL);
+	if (!chan) {
+		pr_err(NAME "relay app channel creation failed.\n");
+		goto out;
+	}
+
+	reference_kmmio();
+
+	marker_file = debugfs_create_file("marker", 0660, dir, NULL,
+								&fops_marker);
+	if (!marker_file)
+		pr_err(NAME "marker file creation failed.\n");
+
+	if (nommiotrace)
+		pr_info(NAME "MMIO tracing disabled.\n");
+	if (ISA_trace)
+		pr_warning(NAME "Warning! low ISA range will be traced.\n");
+	spin_lock_irq(&trace_lock);
+	atomic_inc(&mmiotrace_enabled);
+	spin_unlock_irq(&trace_lock);
+	pr_info(NAME "enabled.\n");
+out:
+	mutex_unlock(&mmiotrace_mutex);
+}
+
+static void disable_mmiotrace(void)
+{
+	mutex_lock(&mmiotrace_mutex);
+	if (!is_enabled())
+		goto out;
+
+	spin_lock_irq(&trace_lock);
+	atomic_dec(&mmiotrace_enabled);
+	BUG_ON(is_enabled());
+	spin_unlock_irq(&trace_lock);
+
+	clear_trace_list(); /* guarantees: no more kmmio callbacks */
+	unreference_kmmio();
+	if (marker_file) {
+		debugfs_remove(marker_file);
+		marker_file = NULL;
+	}
+	if (chan) {
+		relay_close(chan);
+		chan = NULL;
+	}
+
+	pr_info(NAME "disabled.\n");
+out:
+	mutex_unlock(&mmiotrace_mutex);
 }
 
 static int __init init(void)
 {
+	pr_debug(NAME "load...\n");
 	if (n_subbufs < 2)
 		return -EINVAL;
 
 	dir = debugfs_create_dir(APP_DIR, NULL);
 	if (!dir) {
-		pr_err(MODULE_NAME ": Couldn't create relay app directory.\n");
+		pr_err(NAME "Couldn't create relay app directory.\n");
 		return -ENOMEM;
 	}
 
-	chan = create_channel(subbuf_size, n_subbufs);
-	if (!chan) {
+	enabled_file = debugfs_create_file("enabled", 0600, dir, NULL,
+								&fops_enabled);
+	if (!enabled_file) {
+		pr_err(NAME "Couldn't create enabled file.\n");
 		debugfs_remove(dir);
-		pr_err(MODULE_NAME ": relay app channel creation failed\n");
 		return -ENOMEM;
 	}
 
-	reference_kmmio();
+	if (enable_now)
+		enable_mmiotrace();
 
-	proc_marker_file = create_proc_entry(MARKER_FILE, 0, NULL);
-	if (proc_marker_file)
-		proc_marker_file->write_proc = write_marker;
-
-	pr_debug(MODULE_NAME ": loaded.\n");
-	if (nommiotrace)
-		pr_info(MODULE_NAME ": MMIO tracing disabled.\n");
-	if (ISA_trace)
-		pr_warning(MODULE_NAME ": Warning! low ISA range will be "
-								"traced.\n");
 	return 0;
 }
 
 static void __exit cleanup(void)
 {
-	pr_debug(MODULE_NAME ": unload...\n");
-	clear_trace_list();
-	unreference_kmmio();
-	remove_proc_entry(MARKER_FILE, NULL);
-	destroy_channel();
+	pr_debug(NAME "unload...\n");
+	if (enabled_file)
+		debugfs_remove(enabled_file);
+	disable_mmiotrace();
 	if (dir)
 		debugfs_remove(dir);
 }

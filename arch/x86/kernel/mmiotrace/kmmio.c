@@ -19,6 +19,7 @@
 #include <linux/preempt.h>
 #include <linux/percpu.h>
 #include <linux/kdebug.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
@@ -59,7 +60,7 @@ struct kmmio_context {
 static int kmmio_die_notifier(struct notifier_block *nb, unsigned long val,
 								void *args);
 
-static DECLARE_MUTEX(kmmio_init_mutex);
+static DEFINE_MUTEX(kmmio_init_mutex);
 static DEFINE_SPINLOCK(kmmio_lock);
 
 /* These are protected by kmmio_lock */
@@ -90,7 +91,7 @@ static struct notifier_block nb_die = {
  */
 void reference_kmmio(void)
 {
-	down(&kmmio_init_mutex);
+	mutex_lock(&kmmio_init_mutex);
 	spin_lock_irq(&kmmio_lock);
 	if (!kmmio_initialized) {
 		int i;
@@ -101,7 +102,7 @@ void reference_kmmio(void)
 	}
 	kmmio_initialized++;
 	spin_unlock_irq(&kmmio_lock);
-	up(&kmmio_init_mutex);
+	mutex_unlock(&kmmio_init_mutex);
 }
 EXPORT_SYMBOL_GPL(reference_kmmio);
 
@@ -115,7 +116,7 @@ void unreference_kmmio(void)
 {
 	bool unreg = false;
 
-	down(&kmmio_init_mutex);
+	mutex_lock(&kmmio_init_mutex);
 	spin_lock_irq(&kmmio_lock);
 
 	if (kmmio_initialized == 1) {
@@ -128,7 +129,7 @@ void unreference_kmmio(void)
 
 	if (unreg)
 		unregister_die_notifier(&nb_die); /* calls sync_rcu() */
-	up(&kmmio_init_mutex);
+	mutex_unlock(&kmmio_init_mutex);
 }
 EXPORT_SYMBOL(unreference_kmmio);
 
@@ -244,17 +245,13 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	 * Preemption is now disabled to prevent process switch during
 	 * single stepping. We can only handle one active kmmio trace
 	 * per cpu, so ensure that we finish it before something else
-	 * gets to run.
-	 *
-	 * XXX what if an interrupt occurs between returning from
-	 * do_page_fault() and entering the single-step exception handler?
-	 * And that interrupt triggers a kmmio trap?
-	 * XXX If we tracing an interrupt service routine or whatever, is
-	 * this enough to keep it on the current cpu?
+	 * gets to run. We also hold the RCU read lock over single
+	 * stepping to avoid looking up the probe and kmmio_fault_page
+	 * again.
 	 */
 	preempt_disable();
-
 	rcu_read_lock();
+
 	faultpage = get_kmmio_fault_page(addr);
 	if (!faultpage) {
 		/*
@@ -287,14 +284,24 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	if (ctx->probe && ctx->probe->pre_handler)
 		ctx->probe->pre_handler(ctx->probe, regs, addr);
 
+	/*
+	 * Enable single-stepping and disable interrupts for the faulting
+	 * context. Local interrupts must not get enabled during stepping.
+	 */
 	regs->flags |= TF_MASK;
 	regs->flags &= ~IF_MASK;
 
 	/* Now we set present bit in PTE and single step. */
 	disarm_kmmio_fault_page(ctx->fpage->page, NULL);
 
+	/*
+	 * If another cpu accesses the same page while we are stepping,
+	 * the access will not be caught. It will simply succeed and the
+	 * only downside is we lose the event. If this becomes a problem,
+	 * the user should drop to single cpu before tracing.
+	 */
+
 	put_cpu_var(kmmio_ctx);
-	rcu_read_unlock();
 	return 1;
 
 no_kmmio_ctx:
@@ -313,32 +320,15 @@ no_kmmio:
 static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 {
 	int ret = 0;
-	struct kmmio_probe *probe;
-	struct kmmio_fault_page *faultpage;
 	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
 
 	if (!ctx->active)
 		goto out;
 
-	rcu_read_lock();
-
-	faultpage = get_kmmio_fault_page(ctx->addr);
-	probe = get_kmmio_probe(ctx->addr);
-	if (faultpage != ctx->fpage || probe != ctx->probe) {
-		/*
-		 * The trace setup changed after kmmio_handler() and before
-		 * running this respective post handler. User does not want
-		 * the result anymore.
-		 */
-		ctx->probe = NULL;
-		ctx->fpage = NULL;
-	}
-
 	if (ctx->probe && ctx->probe->post_handler)
 		ctx->probe->post_handler(ctx->probe, condition, regs);
 
-	if (ctx->fpage)
-		arm_kmmio_fault_page(ctx->fpage->page, NULL);
+	arm_kmmio_fault_page(ctx->fpage->page, NULL);
 
 	regs->flags &= ~TF_MASK;
 	regs->flags |= ctx->saved_flags;
@@ -346,6 +336,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	/* These were acquired in kmmio_handler(). */
 	ctx->active--;
 	BUG_ON(ctx->active);
+	rcu_read_unlock();
 	preempt_enable_no_resched();
 
 	/*
@@ -355,8 +346,6 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	 */
 	if (!(regs->flags & TF_MASK))
 		ret = 1;
-
-	rcu_read_unlock();
 out:
 	put_cpu_var(kmmio_ctx);
 	return ret;
@@ -411,15 +400,16 @@ static void release_kmmio_fault_page(unsigned long page,
 
 int register_kmmio_probe(struct kmmio_probe *p)
 {
+	unsigned long flags;
 	int ret = 0;
 	unsigned long size = 0;
 
-	spin_lock_irq(&kmmio_lock);
-	kmmio_count++;
+	spin_lock_irqsave(&kmmio_lock, flags);
 	if (get_kmmio_probe(p->addr)) {
 		ret = -EEXIST;
 		goto out;
 	}
+	kmmio_count++;
 	list_add_rcu(&p->list, &kmmio_probes);
 	while (size < p->len) {
 		if (add_kmmio_fault_page(p->addr + size))
@@ -427,7 +417,7 @@ int register_kmmio_probe(struct kmmio_probe *p)
 		size += PAGE_SIZE;
 	}
 out:
-	spin_unlock_irq(&kmmio_lock);
+	spin_unlock_irqrestore(&kmmio_lock, flags);
 	/*
 	 * XXX: What should I do here?
 	 * Here was a call to global_flush_tlb(), but it does not exist
@@ -478,7 +468,8 @@ static void remove_kmmio_fault_pages(struct rcu_head *head)
 
 /*
  * Remove a kmmio probe. You have to synchronize_rcu() before you can be
- * sure that the callbacks will not be called anymore.
+ * sure that the callbacks will not be called anymore. Only after that
+ * you may actually release your struct kmmio_probe.
  *
  * Unregistering a kmmio fault page has three steps:
  * 1. release_kmmio_fault_page()
@@ -490,18 +481,19 @@ static void remove_kmmio_fault_pages(struct rcu_head *head)
  */
 void unregister_kmmio_probe(struct kmmio_probe *p)
 {
+	unsigned long flags;
 	unsigned long size = 0;
 	struct kmmio_fault_page *release_list = NULL;
 	struct kmmio_delayed_release *drelease;
 
-	spin_lock_irq(&kmmio_lock);
+	spin_lock_irqsave(&kmmio_lock, flags);
 	while (size < p->len) {
 		release_kmmio_fault_page(p->addr + size, &release_list);
 		size += PAGE_SIZE;
 	}
 	list_del_rcu(&p->list);
 	kmmio_count--;
-	spin_unlock_irq(&kmmio_lock);
+	spin_unlock_irqrestore(&kmmio_lock, flags);
 
 	drelease = kmalloc(sizeof(*drelease), GFP_ATOMIC);
 	if (!drelease) {

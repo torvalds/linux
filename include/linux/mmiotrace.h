@@ -16,11 +16,12 @@ typedef void (*kmmio_post_handler_t)(struct kmmio_probe *,
 				unsigned long condition, struct pt_regs *);
 
 struct kmmio_probe {
-	struct list_head list;
+	struct list_head list; /* kmmio internal list */
 	unsigned long addr; /* start location of the probe point */
 	unsigned long len; /* length of the probe region */
 	kmmio_pre_handler_t pre_handler; /* Called before addr is executed. */
 	kmmio_post_handler_t post_handler; /* Called after addr is executed */
+	void *user_data;
 };
 
 /* kmmio is active by some kmmio_probes? */
@@ -37,6 +38,21 @@ extern void unregister_kmmio_probe(struct kmmio_probe *p);
 
 /* Called from page fault handler. */
 extern int kmmio_handler(struct pt_regs *regs, unsigned long addr);
+
+/* Called from ioremap.c */
+#ifdef CONFIG_MMIOTRACE
+extern void
+mmiotrace_ioremap(unsigned long offset, unsigned long size, void __iomem *addr);
+extern void mmiotrace_iounmap(volatile void __iomem *addr);
+#else
+static inline void
+mmiotrace_ioremap(unsigned long offset, unsigned long size, void __iomem *addr)
+{
+}
+static inline void mmiotrace_iounmap(volatile void __iomem *addr)
+{
+}
+#endif /* CONFIG_MMIOTRACE_HOOKS */
 
 #endif /* __KERNEL__ */
 
