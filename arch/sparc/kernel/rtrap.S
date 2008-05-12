@@ -139,7 +139,7 @@ ret_trap_userwins_ok:
 	LOAD_PT_PRIV(sp, t_psr, t_pc, t_npc)
 	or	%t_pc, %t_npc, %g2
 	andcc	%g2, 0x3, %g0
-	sethi	%hi(PSR_SYCALL), %g2
+	sethi	%hi(PSR_SYSCALL), %g2
 	be	1f
 	 andn	%t_psr, %g2, %t_psr
 
