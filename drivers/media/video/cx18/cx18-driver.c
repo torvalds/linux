@@ -904,8 +904,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	free_irq(cx->dev->irq, (void *)cx);
 
-	if (cx->dev)
-		cx18_iounmap(cx);
+	cx18_iounmap(cx);
 
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 
