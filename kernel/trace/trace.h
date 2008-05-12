@@ -171,10 +171,7 @@ void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);
 void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
 
-static inline notrace cycle_t now(int cpu)
-{
-	return cpu_clock(cpu);
-}
+extern notrace cycle_t ftrace_now(int cpu);
 
 #ifdef CONFIG_SCHED_TRACER
 extern void notrace

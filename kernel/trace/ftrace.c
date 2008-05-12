@@ -531,7 +531,7 @@ static int notrace __ftrace_update_code(void *ignore)
 	save_ftrace_enabled = ftrace_enabled;
 	ftrace_enabled = 0;
 
-	start = now(raw_smp_processor_id());
+	start = ftrace_now(raw_smp_processor_id());
 	ftrace_update_cnt = 0;
 
 	/* No locks needed, the machine is stopped! */
@@ -550,7 +550,7 @@ static int notrace __ftrace_update_code(void *ignore)
 
 	}
 
-	stop = now(raw_smp_processor_id());
+	stop = ftrace_now(raw_smp_processor_id());
 	ftrace_update_time = stop - start;
 	ftrace_update_tot_cnt += ftrace_update_cnt;
 

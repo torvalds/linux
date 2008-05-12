@@ -92,7 +92,7 @@ wakeup_sched_switch(struct task_struct *prev, struct task_struct *next)
 	 * as long as possible:
 	 */
 	T0 = data->preempt_timestamp;
-	T1 = now(cpu);
+	T1 = ftrace_now(cpu);
 	delta = T1-T0;
 
 	if (!report_latency(delta))
@@ -191,7 +191,7 @@ wakeup_check_start(struct trace_array *tr, struct task_struct *p,
 
 	local_save_flags(flags);
 
-	tr->data[wakeup_cpu]->preempt_timestamp = now(cpu);
+	tr->data[wakeup_cpu]->preempt_timestamp = ftrace_now(cpu);
 	ftrace(tr, tr->data[wakeup_cpu], CALLER_ADDR1, CALLER_ADDR2, flags);
 
 out_locked:

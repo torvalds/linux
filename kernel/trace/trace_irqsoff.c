@@ -136,7 +136,7 @@ check_critical_timing(struct trace_array *tr,
 	 * as long as possible:
 	 */
 	T0 = data->preempt_timestamp;
-	T1 = now(cpu);
+	T1 = ftrace_now(cpu);
 	delta = T1-T0;
 
 	local_save_flags(flags);
@@ -186,7 +186,7 @@ out_unlock:
 
 out:
 	data->critical_sequence = max_sequence;
-	data->preempt_timestamp = now(cpu);
+	data->preempt_timestamp = ftrace_now(cpu);
 	tracing_reset(data);
 	ftrace(tr, data, CALLER_ADDR0, parent_ip, flags);
 }
@@ -215,7 +215,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	atomic_inc(&data->disabled);
 
 	data->critical_sequence = max_sequence;
-	data->preempt_timestamp = now(cpu);
+	data->preempt_timestamp = ftrace_now(cpu);
 	data->critical_start = parent_ip ? : ip;
 	tracing_reset(data);
 

@@ -42,6 +42,11 @@ ns2usecs(cycle_t nsec)
 	return nsec;
 }
 
+notrace cycle_t ftrace_now(int cpu)
+{
+	return cpu_clock(cpu);
+}
+
 static atomic_t			tracer_counter;
 static struct trace_array	global_trace;
 
@@ -607,7 +612,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags)
 	entry->idx		= atomic_inc_return(&tracer_counter);
 	entry->preempt_count	= pc & 0xff;
 	entry->pid		= tsk->pid;
-	entry->t		= now(raw_smp_processor_id());
+	entry->t		= ftrace_now(raw_smp_processor_id());
 	entry->flags = (irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |

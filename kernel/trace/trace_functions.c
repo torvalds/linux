@@ -20,7 +20,7 @@ static notrace void function_reset(struct trace_array *tr)
 {
 	int cpu;
 
-	tr->time_start = now(tr->cpu);
+	tr->time_start = ftrace_now(tr->cpu);
 
 	for_each_online_cpu(cpu)
 		tracing_reset(tr->data[cpu]);
