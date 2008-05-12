@@ -27,7 +27,7 @@
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
-bootmem_data_t plat_node_bdata[MAX_NUMNODES];
+static bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
@@ -36,8 +36,8 @@ s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 };
 
 int numa_off __initdata;
-unsigned long __initdata nodemap_addr;
-unsigned long __initdata nodemap_size;
+static unsigned long __initdata nodemap_addr;
+static unsigned long __initdata nodemap_size;
 
 /*
  * Given a shift value, try to populate memnodemap[]
@@ -296,7 +296,7 @@ void __init numa_init_array(void)
 
 #ifdef CONFIG_NUMA_EMU
 /* Numa emulation */
-char *cmdline __initdata;
+static char *cmdline __initdata;
 
 /*
  * Setups up nid to range from addr to addr + size.  If the end
