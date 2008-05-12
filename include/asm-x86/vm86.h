@@ -14,12 +14,6 @@
 
 #include <asm/processor-flags.h>
 
-#ifdef CONFIG_VM86
-#define X86_VM_MASK	X86_EFLAGS_VM
-#else
-#define X86_VM_MASK	0 /* No VM86 support */
-#endif
-
 #define BIOSSEG		0x0f000
 
 #define CPU_086		0
@@ -133,6 +127,13 @@ struct vm86plus_struct {
 };
 
 #ifdef __KERNEL__
+
+#ifdef CONFIG_VM86
+#define X86_VM_MASK	X86_EFLAGS_VM
+#else
+#define X86_VM_MASK	0 /* No VM86 support */
+#endif
+
 /*
  * This is the (kernel) stack-layout when we have done a "SAVE_ALL" from vm86
  * mode - the main change is that the old segment descriptors aren't
