@@ -95,13 +95,12 @@ const static struct stacktrace_ops backtrace_ops = {
 	.address		= backtrace_address,
 };
 
-static struct pt_regs *
+static int
 trace_kernel(struct pt_regs *regs, struct trace_array *tr,
 	     struct trace_array_cpu *data)
 {
 	struct backtrace_info info;
 	unsigned long bp;
-	char *user_stack;
 	char *stack;
 
 	info.tr = tr;
@@ -119,10 +118,7 @@ trace_kernel(struct pt_regs *regs, struct trace_array *tr,
 
 	dump_trace(NULL, regs, (void *)stack, bp, &backtrace_ops, &info);
 
-	/* Now trace the user stack */
-	user_stack = ((char *)current->thread.sp0 - sizeof(struct pt_regs));
-
-	return (struct pt_regs *)user_stack;
+	return info.pos;
 }
 
 static void timer_notify(struct pt_regs *regs, int cpu)
@@ -150,32 +146,44 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 	__trace_special(tr, data, 0, 0, current->pid);
 
 	if (!is_user)
-		regs = trace_kernel(regs, tr, data);
+		i = trace_kernel(regs, tr, data);
+	else
+		i = 0;
 
-	fp = (void __user *)regs->bp;
+	/*
+	 * Trace user stack if we are not a kernel thread
+	 */
+	if (current->mm && i < sample_max_depth) {
+		regs = (struct pt_regs *)current->thread.sp0 - 1;
 
-	__trace_special(tr, data, 2, regs->ip, 0);
+		fp = (void __user *)regs->bp;
 
-	for (i = 0; i < sample_max_depth; i++) {
-		frame.next_fp = 0;
-		frame.return_address = 0;
-		if (!copy_stack_frame(fp, &frame))
-			break;
-		if ((unsigned long)fp < regs->sp)
-			break;
+		__trace_special(tr, data, 2, regs->ip, 0);
 
-		__trace_special(tr, data, 2, frame.return_address,
-			      (unsigned long)fp);
-		fp = frame.next_fp;
+		while (i < sample_max_depth) {
+			frame.next_fp = 0;
+			frame.return_address = 0;
+			if (!copy_stack_frame(fp, &frame))
+				break;
+			if ((unsigned long)fp < regs->sp)
+				break;
+
+			__trace_special(tr, data, 2, frame.return_address,
+					(unsigned long)fp);
+			fp = frame.next_fp;
+
+			i++;
+		}
+
 	}
-
-	__trace_special(tr, data, 3, current->pid, i);
 
 	/*
 	 * Special trace entry if we overflow the max depth:
 	 */
 	if (i == sample_max_depth)
 		__trace_special(tr, data, -1, -1, -1);
+
+	__trace_special(tr, data, 3, current->pid, i);
 }
 
 static enum hrtimer_restart stack_trace_timer_fn(struct hrtimer *hrtimer)
