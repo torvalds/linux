@@ -82,10 +82,12 @@ trace_test_buffer_cpu(struct trace_array *tr, struct trace_array_cpu *data)
  */
 static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 {
-	unsigned long cnt = 0;
-	int cpu;
-	int ret = 0;
+	unsigned long flags, cnt = 0;
+	int cpu, ret = 0;
 
+	/* Don't allow flipping of max traces now */
+	raw_local_irq_save(flags);
+	__raw_spin_lock(&ftrace_max_lock);
 	for_each_possible_cpu(cpu) {
 		if (!head_page(tr->data[cpu]))
 			continue;
@@ -96,6 +98,8 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 		if (ret)
 			break;
 	}
+	__raw_spin_unlock(&ftrace_max_lock);
+	raw_local_irq_restore(flags);
 
 	if (count)
 		*count = cnt;
