@@ -29,7 +29,7 @@ ctx_switch_func(struct task_struct *prev, struct task_struct *next)
 	if (!tracer_enabled)
 		return;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
@@ -38,7 +38,7 @@ ctx_switch_func(struct task_struct *prev, struct task_struct *next)
 		tracing_sched_switch_trace(tr, data, prev, next, flags);
 
 	atomic_dec(&data->disabled);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 void ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)

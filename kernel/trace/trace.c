@@ -269,7 +269,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	if (unlikely(!tracer_enabled))
 		return;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
@@ -278,7 +278,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 		ftrace(tr, data, ip, parent_ip, flags);
 
 	atomic_dec(&data->disabled);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 static struct ftrace_ops trace_ops __read_mostly =
