@@ -154,6 +154,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_SYM_ADDR		= 0x04,
 	TRACE_ITER_VERBOSE		= 0x08,
 	TRACE_ITER_RAW			= 0x10,
+	TRACE_ITER_BIN			= 0x20,
 };
 
 #define TRACE_ITER_SYM_MASK \
@@ -166,6 +167,7 @@ static const char *trace_options[] = {
 	"sym-addr",
 	"verbose",
 	"raw",
+	"bin",
 	NULL
 };
 
@@ -273,6 +275,18 @@ trace_seq_putc(struct trace_seq *s, unsigned char c)
 	s->buffer[s->len++] = c;
 
 	return 1;
+}
+
+static notrace int
+trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
+{
+	if (len > ((PAGE_SIZE - 1) - s->len))
+		return 0;
+
+	memcpy(s->buffer + s->len, mem, len);
+	s->len += len;
+
+	return len;
 }
 
 static notrace void
@@ -1261,6 +1275,39 @@ static notrace int print_raw_fmt(struct trace_iterator *iter)
 	return 1;
 }
 
+#define SEQ_PUT_FIELD_RET(s, x)				\
+do {							\
+	if (!trace_seq_putmem(s, &(x), sizeof(x)))	\
+		return 0;				\
+} while (0)
+
+static notrace int print_bin_fmt(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry;
+
+	entry = iter->ent;
+
+	SEQ_PUT_FIELD_RET(s, entry->pid);
+	SEQ_PUT_FIELD_RET(s, entry->cpu);
+	SEQ_PUT_FIELD_RET(s, entry->t);
+
+	switch (entry->type) {
+	case TRACE_FN:
+		SEQ_PUT_FIELD_RET(s, entry->fn.ip);
+		SEQ_PUT_FIELD_RET(s, entry->fn.parent_ip);
+		break;
+	case TRACE_CTX:
+		SEQ_PUT_FIELD_RET(s, entry->ctx.prev_pid);
+		SEQ_PUT_FIELD_RET(s, entry->ctx.prev_prio);
+		SEQ_PUT_FIELD_RET(s, entry->ctx.prev_state);
+		SEQ_PUT_FIELD_RET(s, entry->ctx.next_pid);
+		SEQ_PUT_FIELD_RET(s, entry->ctx.next_prio);
+		break;
+	}
+	return 1;
+}
+
 static int trace_empty(struct trace_iterator *iter)
 {
 	struct trace_array_cpu *data;
@@ -1279,6 +1326,9 @@ static int trace_empty(struct trace_iterator *iter)
 
 static int print_trace_line(struct trace_iterator *iter)
 {
+	if (trace_flags & TRACE_ITER_BIN)
+		return print_bin_fmt(iter);
+
 	if (trace_flags & TRACE_ITER_RAW)
 		return print_raw_fmt(iter);
 
