@@ -10,6 +10,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
+#include <linux/mmiotrace.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -49,60 +50,14 @@
 #define PF_RSVD		(1<<3)
 #define PF_INSTR	(1<<4)
 
-#ifdef CONFIG_MMIOTRACE_HOOKS
-static pf_handler_func mmiotrace_pf_handler; /* protected by RCU */
-static DEFINE_SPINLOCK(mmiotrace_handler_lock);
-
-int mmiotrace_register_pf(pf_handler_func new_pfh)
-{
-	int ret = 0;
-	unsigned long flags;
-	spin_lock_irqsave(&mmiotrace_handler_lock, flags);
-	if (mmiotrace_pf_handler)
-		ret = -EBUSY;
-	else
-		mmiotrace_pf_handler = new_pfh;
-	spin_unlock_irqrestore(&mmiotrace_handler_lock, flags);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(mmiotrace_register_pf);
-
-/**
- * mmiotrace_unregister_pf:
- * The caller must ensure @old_pfh is not in use anymore before freeing it.
- * This function does not guarantee it. The handler function pointer is
- * protected by RCU, so you can do this by e.g. calling synchronize_rcu().
- */
-int mmiotrace_unregister_pf(pf_handler_func old_pfh)
-{
-	int ret = 0;
-	unsigned long flags;
-	spin_lock_irqsave(&mmiotrace_handler_lock, flags);
-	if (mmiotrace_pf_handler != old_pfh)
-		ret = -EPERM;
-	else
-		mmiotrace_pf_handler = NULL;
-	spin_unlock_irqrestore(&mmiotrace_handler_lock, flags);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(mmiotrace_unregister_pf);
-#endif /* CONFIG_MMIOTRACE_HOOKS */
-
-/* returns non-zero if do_page_fault() should return */
-static inline int call_mmiotrace(struct pt_regs *regs,
-					unsigned long error_code,
-					unsigned long address)
+static inline int kmmio_fault(struct pt_regs *regs, unsigned long addr)
 {
 #ifdef CONFIG_MMIOTRACE_HOOKS
-	int ret = 0;
-	rcu_read_lock();
-	if (mmiotrace_pf_handler)
-		ret = mmiotrace_pf_handler(regs, error_code, address);
-	rcu_read_unlock();
-	return ret;
-#else
-	return 0;
+	if (unlikely(is_kmmio_active()))
+		if (kmmio_handler(regs, addr) == 1)
+			return -1;
 #endif
+	return 0;
 }
 
 static inline int notify_page_fault(struct pt_regs *regs)
@@ -657,7 +612,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 	if (notify_page_fault(regs))
 		return;
-	if (call_mmiotrace(regs, error_code, address))
+	if (unlikely(kmmio_fault(regs, address)))
 		return;
 
 	/*

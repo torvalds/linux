@@ -32,7 +32,6 @@
 #include <asm/atomic.h>
 #include <linux/percpu.h>
 
-#include "kmmio.h"
 #include "pf_in.h"
 
 /* This app's relay channel files will appear in /debug/mmio-trace */
@@ -129,18 +128,17 @@ static void print_pte(unsigned long address)
 	pte_t *pte = lookup_address(address, &level);
 
 	if (!pte) {
-		printk(KERN_ERR "Error in %s: no pte for page 0x%08lx\n",
-						__FUNCTION__, address);
+		pr_err(MODULE_NAME ": Error in %s: no pte for page 0x%08lx\n",
+							__func__, address);
 		return;
 	}
 
 	if (level == PG_LEVEL_2M) {
-		printk(KERN_EMERG MODULE_NAME ": 4MB pages are not "
-						"currently supported: %lx\n",
-						address);
+		pr_emerg(MODULE_NAME ": 4MB pages are not currently "
+						"supported: %lx\n", address);
 		BUG();
 	}
-	printk(KERN_DEBUG MODULE_NAME ": pte for 0x%lx: 0x%lx 0x%lx\n",
+	pr_info(MODULE_NAME ": pte for 0x%lx: 0x%lx 0x%lx\n",
 					address, pte_val(*pte),
 					pte_val(*pte) & _PAGE_PRESENT);
 }
@@ -152,7 +150,7 @@ static void print_pte(unsigned long address)
 static void die_kmmio_nesting_error(struct pt_regs *regs, unsigned long addr)
 {
 	const struct trap_reason *my_reason = &get_cpu_var(pf_reason);
-	printk(KERN_EMERG MODULE_NAME ": unexpected fault for address: %lx, "
+	pr_emerg(MODULE_NAME ": unexpected fault for address: %lx, "
 					"last fault for address: %lx\n",
 					addr, my_reason->addr);
 	print_pte(addr);
@@ -160,20 +158,17 @@ static void die_kmmio_nesting_error(struct pt_regs *regs, unsigned long addr)
 	print_symbol(KERN_EMERG "faulting EIP is at %s\n", regs->ip);
 	print_symbol(KERN_EMERG "last faulting EIP was at %s\n",
 							my_reason->ip);
-	printk(KERN_EMERG
-			"eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
+	pr_emerg("eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
 			regs->ax, regs->bx, regs->cx, regs->dx);
-	printk(KERN_EMERG
-			"esi: %08lx   edi: %08lx   ebp: %08lx   esp: %08lx\n",
+	pr_emerg("esi: %08lx   edi: %08lx   ebp: %08lx   esp: %08lx\n",
 			regs->si, regs->di, regs->bp, regs->sp);
 #else
 	print_symbol(KERN_EMERG "faulting RIP is at %s\n", regs->ip);
 	print_symbol(KERN_EMERG "last faulting RIP was at %s\n",
 							my_reason->ip);
-	printk(KERN_EMERG "rax: %016lx   rcx: %016lx   rdx: %016lx\n",
+	pr_emerg("rax: %016lx   rcx: %016lx   rdx: %016lx\n",
 					regs->ax, regs->cx, regs->dx);
-	printk(KERN_EMERG "rsi: %016lx   rdi: %016lx   "
-				"rbp: %016lx   rsp: %016lx\n",
+	pr_emerg("rsi: %016lx   rdi: %016lx   rbp: %016lx   rsp: %016lx\n",
 				regs->si, regs->di, regs->bp, regs->sp);
 #endif
 	put_cpu_var(pf_reason);
@@ -251,10 +246,15 @@ static void post(struct kmmio_probe *p, unsigned long condition,
 	struct trap_reason *my_reason = &get_cpu_var(pf_reason);
 	struct mm_io_header_rw *my_trace = &get_cpu_var(cpu_trace);
 
+	/*
+	 * XXX: This might not get called, if the probe is removed while
+	 * trace hit is on flight.
+	 */
+
 	/* this should always return the active_trace count to 0 */
 	my_reason->active_traces--;
 	if (my_reason->active_traces) {
-		printk(KERN_EMERG MODULE_NAME ": unexpected post handler");
+		pr_emerg(MODULE_NAME ": unexpected post handler");
 		BUG();
 	}
 
@@ -283,16 +283,15 @@ static int subbuf_start_handler(struct rchan_buf *buf, void *subbuf,
 	atomic_t *drop = &per_cpu(dropped, cpu);
 	int count;
 	if (relay_buf_full(buf)) {
-		if (atomic_inc_return(drop) == 1) {
-			printk(KERN_ERR MODULE_NAME ": cpu %d buffer full!\n",
-									cpu);
-		}
+		if (atomic_inc_return(drop) == 1)
+			pr_err(MODULE_NAME ": cpu %d buffer full!\n", cpu);
 		return 0;
-	} else if ((count = atomic_read(drop))) {
-		printk(KERN_ERR MODULE_NAME
-					": cpu %d buffer no longer full, "
-					"missed %d events.\n",
-					cpu, count);
+	}
+	count = atomic_read(drop);
+	if (count) {
+		pr_err(MODULE_NAME ": cpu %d buffer no longer full, "
+						"missed %d events.\n",
+						cpu, count);
 		atomic_sub(count, drop);
 	}
 
@@ -407,8 +406,8 @@ static void ioremap_trace_core(unsigned long offset, unsigned long size,
 	/* Don't trace the low PCI/ISA area, it's always mapped.. */
 	if (!ISA_trace && (offset < ISA_END_ADDRESS) &&
 					(offset + size > ISA_START_ADDRESS)) {
-		printk(KERN_NOTICE MODULE_NAME ": Ignoring map of low "
-						"PCI/ISA area (0x%lx-0x%lx)\n",
+		pr_notice(MODULE_NAME ": Ignoring map of low PCI/ISA area "
+						"(0x%lx-0x%lx)\n",
 						offset, offset + size);
 		return;
 	}
@@ -418,7 +417,7 @@ static void ioremap_trace_core(unsigned long offset, unsigned long size,
 void __iomem *ioremap_cache_trace(unsigned long offset, unsigned long size)
 {
 	void __iomem *p = ioremap_cache(offset, size);
-	printk(KERN_DEBUG MODULE_NAME ": ioremap_cache(0x%lx, 0x%lx) = %p\n",
+	pr_debug(MODULE_NAME ": ioremap_cache(0x%lx, 0x%lx) = %p\n",
 							offset, size, p);
 	ioremap_trace_core(offset, size, p);
 	return p;
@@ -428,7 +427,7 @@ EXPORT_SYMBOL(ioremap_cache_trace);
 void __iomem *ioremap_nocache_trace(unsigned long offset, unsigned long size)
 {
 	void __iomem *p = ioremap_nocache(offset, size);
-	printk(KERN_DEBUG MODULE_NAME ": ioremap_nocache(0x%lx, 0x%lx) = %p\n",
+	pr_debug(MODULE_NAME ": ioremap_nocache(0x%lx, 0x%lx) = %p\n",
 							offset, size, p);
 	ioremap_trace_core(offset, size, p);
 	return p;
@@ -455,7 +454,7 @@ void iounmap_trace(volatile void __iomem *addr)
 	};
 	struct remap_trace *trace;
 	struct remap_trace *tmp;
-	printk(KERN_DEBUG MODULE_NAME ": Unmapping %p.\n", addr);
+	pr_debug(MODULE_NAME ": Unmapping %p.\n", addr);
 	record_timestamp(&event.header);
 
 	spin_lock(&trace_list_lock);
@@ -481,7 +480,7 @@ static void clear_trace_list(void)
 
 	spin_lock(&trace_list_lock);
 	list_for_each_entry_safe(trace, tmp, &trace_list, list) {
-		printk(KERN_WARNING MODULE_NAME ": purging non-iounmapped "
+		pr_warning(MODULE_NAME ": purging non-iounmapped "
 					"trace @0x%08lx, size 0x%lx.\n",
 					trace->probe.addr, trace->probe.len);
 		if (!nommiotrace)
@@ -500,39 +499,37 @@ static int __init init(void)
 
 	dir = debugfs_create_dir(APP_DIR, NULL);
 	if (!dir) {
-		printk(KERN_ERR MODULE_NAME
-				": Couldn't create relay app directory.\n");
+		pr_err(MODULE_NAME ": Couldn't create relay app directory.\n");
 		return -ENOMEM;
 	}
 
 	chan = create_channel(subbuf_size, n_subbufs);
 	if (!chan) {
 		debugfs_remove(dir);
-		printk(KERN_ERR MODULE_NAME
-				": relay app channel creation failed\n");
+		pr_err(MODULE_NAME ": relay app channel creation failed\n");
 		return -ENOMEM;
 	}
 
-	init_kmmio();
+	reference_kmmio();
 
 	proc_marker_file = create_proc_entry(MARKER_FILE, 0, NULL);
 	if (proc_marker_file)
 		proc_marker_file->write_proc = write_marker;
 
-	printk(KERN_DEBUG MODULE_NAME ": loaded.\n");
+	pr_debug(MODULE_NAME ": loaded.\n");
 	if (nommiotrace)
-		printk(KERN_DEBUG MODULE_NAME ": MMIO tracing disabled.\n");
+		pr_info(MODULE_NAME ": MMIO tracing disabled.\n");
 	if (ISA_trace)
-		printk(KERN_WARNING MODULE_NAME
-				": Warning! low ISA range will be traced.\n");
+		pr_warning(MODULE_NAME ": Warning! low ISA range will be "
+								"traced.\n");
 	return 0;
 }
 
 static void __exit cleanup(void)
 {
-	printk(KERN_DEBUG MODULE_NAME ": unload...\n");
+	pr_debug(MODULE_NAME ": unload...\n");
 	clear_trace_list();
-	cleanup_kmmio();
+	unreference_kmmio();
 	remove_proc_entry(MARKER_FILE, NULL);
 	destroy_channel();
 	if (dir)

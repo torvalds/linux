@@ -3,6 +3,44 @@
 
 #include <asm/types.h>
 
+#ifdef __KERNEL__
+
+#include <linux/list.h>
+
+struct kmmio_probe;
+struct pt_regs;
+
+typedef void (*kmmio_pre_handler_t)(struct kmmio_probe *,
+				struct pt_regs *, unsigned long addr);
+typedef void (*kmmio_post_handler_t)(struct kmmio_probe *,
+				unsigned long condition, struct pt_regs *);
+
+struct kmmio_probe {
+	struct list_head list;
+	unsigned long addr; /* start location of the probe point */
+	unsigned long len; /* length of the probe region */
+	kmmio_pre_handler_t pre_handler; /* Called before addr is executed. */
+	kmmio_post_handler_t post_handler; /* Called after addr is executed */
+};
+
+/* kmmio is active by some kmmio_probes? */
+static inline int is_kmmio_active(void)
+{
+	extern unsigned int kmmio_count;
+	return kmmio_count;
+}
+
+extern void reference_kmmio(void);
+extern void unreference_kmmio(void);
+extern int register_kmmio_probe(struct kmmio_probe *p);
+extern void unregister_kmmio_probe(struct kmmio_probe *p);
+
+/* Called from page fault handler. */
+extern int kmmio_handler(struct pt_regs *regs, unsigned long addr);
+
+#endif /* __KERNEL__ */
+
+
 /*
  * If you change anything here, you must bump MMIO_VERSION.
  * This is the relay data format for user space.

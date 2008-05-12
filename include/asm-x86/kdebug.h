@@ -35,11 +35,4 @@ extern void show_regs(struct pt_regs *regs);
 extern unsigned long oops_begin(void);
 extern void oops_end(unsigned long, struct pt_regs *, int signr);
 
-typedef int (*pf_handler_func)(struct pt_regs *regs,
-				unsigned long error_code,
-				unsigned long address);
-
-extern int mmiotrace_register_pf(pf_handler_func new_pfh);
-extern int mmiotrace_unregister_pf(pf_handler_func old_pfh);
-
 #endif

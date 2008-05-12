@@ -19,7 +19,7 @@
  *
  */
 
-/*  $Id: pf_in.c,v 1.1.1.1 2002/11/12 05:56:32 brlock Exp $
+/*  Id: pf_in.c,v 1.1.1.1 2002/11/12 05:56:32 brlock Exp
  *  Copyright by Intel Crop., 2002
  *  Louis Zhuang (louis.zhuang@intel.com)
  *

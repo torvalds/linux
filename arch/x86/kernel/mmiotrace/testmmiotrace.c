@@ -41,8 +41,7 @@ static void do_test(void)
 {
 	void __iomem *p = ioremap_nocache_trace(mmio_address, 0x4000);
 	if (!p) {
-		printk(KERN_ERR MODULE_NAME ": could not ioremap IO memory, "
-							"aborting.\n");
+		pr_err(MODULE_NAME ": could not ioremap, aborting.\n");
 		return;
 	}
 	do_write_test(p);
@@ -53,14 +52,14 @@ static void do_test(void)
 static int __init init(void)
 {
 	if (mmio_address == 0) {
-		printk(KERN_ERR MODULE_NAME ": you have to use the module "
-						"argument mmio_address.\n");
-		printk(KERN_ERR MODULE_NAME ": DO NOT LOAD THIS MODULE UNLESS"
+		pr_err(MODULE_NAME ": you have to use the module argument "
+							"mmio_address.\n");
+		pr_err(MODULE_NAME ": DO NOT LOAD THIS MODULE UNLESS"
 				" YOU REALLY KNOW WHAT YOU ARE DOING!\n");
 		return -ENXIO;
 	}
 
-	printk(KERN_WARNING MODULE_NAME ": WARNING: mapping 16 kB @ 0x%08lx "
+	pr_warning(MODULE_NAME ": WARNING: mapping 16 kB @ 0x%08lx "
 					"in PCI address space, and writing "
 					"rubbish in there.\n", mmio_address);
 	do_test();
@@ -69,7 +68,7 @@ static int __init init(void)
 
 static void __exit cleanup(void)
 {
-	printk(KERN_DEBUG MODULE_NAME ": unloaded.\n");
+	pr_debug(MODULE_NAME ": unloaded.\n");
 }
 
 module_init(init);
