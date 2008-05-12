@@ -905,7 +905,6 @@ static int tridentfb_set_par(struct fb_info *info)
 	vblankstart = var->yres;
 	vblankend = vtotal + 2;
 
-	enable_mmio();
 	crtc_unlock();
 	write3CE(CyberControl, 8);
 
