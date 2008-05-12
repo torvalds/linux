@@ -280,6 +280,7 @@ static void ioremap_trace_core(unsigned long offset, unsigned long size,
 {
 	static atomic_t next_id;
 	struct remap_trace *trace = kmalloc(sizeof(*trace), GFP_KERNEL);
+	/* These are page-unaligned. */
 	struct mmiotrace_map map = {
 		.phys = offset,
 		.virt = (unsigned long)addr,

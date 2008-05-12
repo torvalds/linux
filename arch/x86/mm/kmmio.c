@@ -351,11 +351,19 @@ static void release_kmmio_fault_page(unsigned long page,
 	}
 }
 
+/*
+ * With page-unaligned ioremaps, one or two armed pages may contain
+ * addresses from outside the intended mapping. Events for these addresses
+ * are currently silently dropped. The events may result only from programming
+ * mistakes by accessing addresses before the beginning or past the end of a
+ * mapping.
+ */
 int register_kmmio_probe(struct kmmio_probe *p)
 {
 	unsigned long flags;
 	int ret = 0;
 	unsigned long size = 0;
+	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
 
 	spin_lock_irqsave(&kmmio_lock, flags);
 	if (get_kmmio_probe(p->addr)) {
@@ -364,7 +372,7 @@ int register_kmmio_probe(struct kmmio_probe *p)
 	}
 	kmmio_count++;
 	list_add_rcu(&p->list, &kmmio_probes);
-	while (size < p->len) {
+	while (size < size_lim) {
 		if (add_kmmio_fault_page(p->addr + size))
 			pr_err("kmmio: Unable to set page fault.\n");
 		size += PAGE_SIZE;
@@ -436,11 +444,12 @@ void unregister_kmmio_probe(struct kmmio_probe *p)
 {
 	unsigned long flags;
 	unsigned long size = 0;
+	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
 	struct kmmio_fault_page *release_list = NULL;
 	struct kmmio_delayed_release *drelease;
 
 	spin_lock_irqsave(&kmmio_lock, flags);
-	while (size < p->len) {
+	while (size < size_lim) {
 		release_kmmio_fault_page(p->addr + size, &release_list);
 		size += PAGE_SIZE;
 	}

@@ -123,6 +123,8 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 {
 	unsigned long pfn, offset, vaddr;
 	resource_size_t last_addr;
+	const resource_size_t unaligned_phys_addr = phys_addr;
+	const unsigned long unaligned_size = size;
 	struct vm_struct *area;
 	unsigned long new_prot_val;
 	pgprot_t prot;
@@ -236,7 +238,7 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	}
 
 	ret_addr = (void __iomem *) (vaddr + offset);
-	mmiotrace_ioremap(phys_addr, size, ret_addr);
+	mmiotrace_ioremap(unaligned_phys_addr, unaligned_size, ret_addr);
 
 	return ret_addr;
 }
