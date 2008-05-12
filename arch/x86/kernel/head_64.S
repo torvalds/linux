@@ -18,6 +18,7 @@
 #include <asm/page.h>
 #include <asm/msr.h>
 #include <asm/cache.h>
+#include <asm/processor-flags.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
@@ -184,14 +185,10 @@ ENTRY(secondary_startup_64)
 1:	wrmsr				/* Make changes effective */
 
 	/* Setup cr0 */
-#define CR0_PM				1		/* protected mode */
-#define CR0_MP				(1<<1)
-#define CR0_ET				(1<<4)
-#define CR0_NE				(1<<5)
-#define CR0_WP				(1<<16)
-#define CR0_AM				(1<<18)
-#define CR0_PAGING 			(1<<31)
-	movl $CR0_PM|CR0_MP|CR0_ET|CR0_NE|CR0_WP|CR0_AM|CR0_PAGING,%eax
+#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
+			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
+			 X86_CR0_PG)
+	movl	$CR0_STATE, %eax
 	/* Make changes effective */
 	movq	%rax, %cr0
 
