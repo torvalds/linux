@@ -31,6 +31,7 @@
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
+#include <linux/ftrace.h>
 
 static noinline void __down(struct semaphore *sem);
 static noinline int __down_interruptible(struct semaphore *sem);
@@ -53,6 +54,7 @@ void down(struct semaphore *sem)
 {
 	unsigned long flags;
 
+	ftrace_special(sem->count, 0, __LINE__);
 	spin_lock_irqsave(&sem->lock, flags);
 	if (likely(sem->count > 0))
 		sem->count--;

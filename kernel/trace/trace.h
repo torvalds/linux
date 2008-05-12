@@ -51,7 +51,7 @@ struct special_entry {
  * Stack-trace entry:
  */
 
-#define FTRACE_STACK_ENTRIES	5
+#define FTRACE_STACK_ENTRIES	8
 
 struct stack_entry {
 	unsigned long		caller[FTRACE_STACK_ENTRIES];

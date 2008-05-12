@@ -901,7 +901,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->ctx.next_pid	= next->pid;
 	entry->ctx.next_prio	= next->prio;
 	entry->ctx.next_state	= next->state;
-	__trace_stack(tr, data, flags, 4);
+	__trace_stack(tr, data, flags, 5);
 	__raw_spin_unlock(&data->lock);
 	raw_local_irq_restore(irq_flags);
 }
@@ -927,7 +927,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->ctx.next_pid	= wakee->pid;
 	entry->ctx.next_prio	= wakee->prio;
 	entry->ctx.next_state	= wakee->state;
-	__trace_stack(tr, data, flags, 5);
+	__trace_stack(tr, data, flags, 6);
 	__raw_spin_unlock(&data->lock);
 	raw_local_irq_restore(irq_flags);
 
