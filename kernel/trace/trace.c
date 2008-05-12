@@ -35,6 +35,12 @@
 unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
 unsigned long __read_mostly	tracing_thresh;
 
+static unsigned long __read_mostly	tracing_nr_buffers;
+static cpumask_t __read_mostly		tracing_buffer_mask;
+
+#define for_each_tracing_cpu(cpu)	\
+	for_each_cpu_mask(cpu, tracing_buffer_mask)
+
 /* dummy trace to disable tracing */
 static struct tracer no_tracer __read_mostly = {
 	.name		= "none",
@@ -328,7 +334,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	WARN_ON_ONCE(!irqs_disabled());
 	__raw_spin_lock(&ftrace_max_lock);
 	/* clear out all the previous traces */
-	for_each_possible_cpu(i) {
+	for_each_tracing_cpu(i) {
 		data = tr->data[i];
 		flip_trace(max_tr.data[i], data);
 		tracing_reset(data);
@@ -352,7 +358,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	WARN_ON_ONCE(!irqs_disabled());
 	__raw_spin_lock(&ftrace_max_lock);
-	for_each_possible_cpu(i)
+	for_each_tracing_cpu(i)
 		tracing_reset(max_tr.data[i]);
 
 	flip_trace(max_tr.data[cpu], data);
@@ -398,7 +404,7 @@ int register_tracer(struct tracer *type)
 		 * internal tracing to verify that everything is in order.
 		 * If we fail, we do not register this tracer.
 		 */
-		for_each_possible_cpu(i) {
+		for_each_tracing_cpu(i) {
 			data = tr->data[i];
 			if (!head_page(data))
 				continue;
@@ -417,7 +423,7 @@ int register_tracer(struct tracer *type)
 			goto out;
 		}
 		/* Only reset on passing, to avoid touching corrupted buffers */
-		for_each_possible_cpu(i) {
+		for_each_tracing_cpu(i) {
 			data = tr->data[i];
 			if (!head_page(data))
 				continue;
@@ -847,7 +853,7 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 	int next_cpu = -1;
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
+	for_each_tracing_cpu(cpu) {
 		if (!head_page(tr->data[cpu]))
 			continue;
 		ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
@@ -972,7 +978,7 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 		iter->prev_ent = NULL;
 		iter->prev_cpu = -1;
 
-		for_each_possible_cpu(i) {
+		for_each_tracing_cpu(i) {
 			iter->next_idx[i] = 0;
 			iter->next_page[i] = NULL;
 		}
@@ -1089,7 +1095,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	if (type)
 		name = type->name;
 
-	for_each_possible_cpu(cpu) {
+	for_each_tracing_cpu(cpu) {
 		if (head_page(tr->data[cpu])) {
 			total += tr->data[cpu]->trace_idx;
 			if (tr->data[cpu]->trace_idx > tr->entries)
@@ -1519,7 +1525,7 @@ static int trace_empty(struct trace_iterator *iter)
 	struct trace_array_cpu *data;
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
+	for_each_tracing_cpu(cpu) {
 		data = iter->tr->data[cpu];
 
 		if (head_page(data) && data->trace_idx &&
@@ -1831,7 +1837,7 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 
 	raw_local_irq_disable();
 	__raw_spin_lock(&ftrace_max_lock);
-	for_each_possible_cpu(cpu) {
+	for_each_tracing_cpu(cpu) {
 		/*
 		 * Increase/decrease the disabled counter if we are
 		 * about to flip a bit in the cpumask:
@@ -2308,7 +2314,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	ftrace_enabled = 0;
 #endif
 	smp_wmb();
-	for_each_possible_cpu(cpu) {
+	for_each_tracing_cpu(cpu) {
 		data = iter->tr->data[cpu];
 
 		if (!head_page(data) || !data->trace_idx)
@@ -2605,7 +2611,7 @@ static int trace_alloc_page(void)
 	int i;
 
 	/* first allocate a page for each CPU */
-	for_each_possible_cpu(i) {
+	for_each_tracing_cpu(i) {
 		array = (void *)__get_free_page(GFP_KERNEL);
 		if (array == NULL) {
 			printk(KERN_ERR "tracer: failed to allocate page"
@@ -2630,7 +2636,7 @@ static int trace_alloc_page(void)
 	}
 
 	/* Now that we successfully allocate a page per CPU, add them */
-	for_each_possible_cpu(i) {
+	for_each_tracing_cpu(i) {
 		data = global_trace.data[i];
 		page = list_entry(pages.next, struct page, lru);
 		list_del_init(&page->lru);
@@ -2666,7 +2672,7 @@ static int trace_free_page(void)
 	int ret = 0;
 
 	/* free one page from each buffer */
-	for_each_possible_cpu(i) {
+	for_each_tracing_cpu(i) {
 		data = global_trace.data[i];
 		p = data->trace_pages.next;
 		if (p == &data->trace_pages) {
@@ -2717,8 +2723,12 @@ __init static int tracer_alloc_buffers(void)
 
 	global_trace.ctrl = tracer_enabled;
 
+	/* TODO: make the number of buffers hot pluggable with CPUS */
+	tracing_nr_buffers = num_possible_cpus();
+	tracing_buffer_mask = cpu_possible_map;
+
 	/* Allocate the first page for all buffers */
-	for_each_possible_cpu(i) {
+	for_each_tracing_cpu(i) {
 		data = global_trace.data[i] = &per_cpu(global_trace_cpu, i);
 		max_tr.data[i] = &per_cpu(max_data, i);
 
