@@ -1,9 +1,9 @@
 /*
  * trace stack traces
  *
+ * Copyright (C) 2004-2008, Soeren Sandmann
  * Copyright (C) 2007 Steven Rostedt <srostedt@redhat.com>
  * Copyright (C) 2008 Ingo Molnar <mingo@redhat.com>
- * Copyright (C) 2004, 2005, Soeren Sandmann
  */
 #include <linux/kallsyms.h>
 #include <linux/debugfs.h>
