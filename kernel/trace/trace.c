@@ -964,8 +964,10 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 
 	mutex_lock(&trace_types_lock);
 
-	if (!current_trace || current_trace != iter->trace)
+	if (!current_trace || current_trace != iter->trace) {
+		mutex_unlock(&trace_types_lock);
 		return NULL;
+	}
 
 	atomic_inc(&trace_record_cmdline_disabled);
 
