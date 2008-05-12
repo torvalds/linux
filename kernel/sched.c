@@ -2533,7 +2533,6 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 
 out_activate:
 #endif /* CONFIG_SMP */
-	ftrace_wake_up_task(rq, p, rq->curr);
 	schedstat_inc(p, se.nr_wakeups);
 	if (sync)
 		schedstat_inc(p, se.nr_wakeups_sync);
@@ -2548,6 +2547,7 @@ out_activate:
 	success = 1;
 
 out_running:
+	ftrace_wake_up_task(rq, p, rq->curr);
 	check_preempt_curr(rq, p);
 
 	p->state = TASK_RUNNING;
