@@ -294,6 +294,13 @@ extern long ns2usecs(cycle_t nsec);
 
 extern unsigned long trace_flags;
 
+/*
+ * trace_iterator_flags is an enumeration that defines bit
+ * positions into trace_flags that controls the output.
+ *
+ * NOTE: These bits must match the trace_options array in
+ *       trace.c.
+ */
 enum trace_iterator_flags {
 	TRACE_ITER_PRINT_PARENT		= 0x01,
 	TRACE_ITER_SYM_OFFSET		= 0x02,
