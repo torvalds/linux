@@ -35,7 +35,7 @@ EXPORT_SYMBOL_GPL(percpu_depopulate);
 void __percpu_depopulate_mask(void *__pdata, cpumask_t *mask)
 {
 	int cpu;
-	for_each_cpu_mask(cpu, *mask)
+	for_each_cpu_mask_nr(cpu, *mask)
 		percpu_depopulate(__pdata, cpu);
 }
 EXPORT_SYMBOL_GPL(__percpu_depopulate_mask);
@@ -86,7 +86,7 @@ int __percpu_populate_mask(void *__pdata, size_t size, gfp_t gfp,
 	int cpu;
 
 	cpus_clear(populated);
-	for_each_cpu_mask(cpu, *mask)
+	for_each_cpu_mask_nr(cpu, *mask)
 		if (unlikely(!percpu_populate(__pdata, size, gfp, cpu))) {
 			__percpu_depopulate_mask(__pdata, &populated);
 			return -ENOMEM;
