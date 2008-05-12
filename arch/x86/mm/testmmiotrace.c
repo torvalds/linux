@@ -2,7 +2,7 @@
  * Written by Pekka Paalanen, 2008 <pq@iki.fi>
  */
 #include <linux/module.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define MODULE_NAME "testmmiotrace"
 

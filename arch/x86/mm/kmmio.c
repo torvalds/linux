@@ -17,10 +17,10 @@
 #include <linux/percpu.h>
 #include <linux/kdebug.h>
 #include <linux/mutex.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/debugreg.h>
 #include <linux/mmiotrace.h>
 

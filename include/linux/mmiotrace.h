@@ -1,9 +1,7 @@
 #ifndef MMIOTRACE_H
 #define MMIOTRACE_H
 
-#include <asm/types.h>
-
-#ifdef __KERNEL__
+#include <linux/types.h>
 
 #include <linux/list.h>
 
@@ -83,7 +81,5 @@ extern void enable_mmiotrace(void);
 extern void disable_mmiotrace(void);
 extern void mmio_trace_rw(struct mmiotrace_rw *rw);
 extern void mmio_trace_mapping(struct mmiotrace_map *map);
-
-#endif /* __KERNEL__ */
 
 #endif /* MMIOTRACE_H */

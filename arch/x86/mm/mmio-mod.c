@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/version.h>
 #include <linux/kallsyms.h>
 #include <asm/pgtable.h>
@@ -418,11 +418,10 @@ static void enter_uniprocessor(void)
 
 	for_each_cpu_mask(cpu, downed_cpus) {
 		err = cpu_down(cpu);
-		if (!err) {
+		if (!err)
 			pr_info(NAME "CPU%d is down.\n", cpu);
-		} else {
+		else
 			pr_err(NAME "Error taking CPU%d down: %d\n", cpu, err);
-		}
 	}
 	if (num_online_cpus() > 1)
 		pr_warning(NAME "multiple CPUs still online, "
