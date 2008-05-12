@@ -286,8 +286,7 @@ static u64 __init lmb_alloc_nid_unreserved(u64 start, u64 end,
 		j = lmb_overlaps_region(&lmb.reserved, base, size);
 		if (j < 0) {
 			/* this area isn't reserved, take it */
-			if (lmb_add_region(&lmb.reserved, base,
-					   lmb_align_up(size, align)) < 0)
+			if (lmb_add_region(&lmb.reserved, base, size) < 0)
 				base = ~(u64)0;
 			return base;
 		}
@@ -333,6 +332,10 @@ u64 __init lmb_alloc_nid(u64 size, u64 align, int nid,
 	struct lmb_region *mem = &lmb.memory;
 	int i;
 
+	BUG_ON(0 == size);
+
+	size = lmb_align_up(size, align);
+
 	for (i = 0; i < mem->cnt; i++) {
 		u64 ret = lmb_alloc_nid_region(&mem->region[i],
 					       nid_range,
@@ -370,6 +373,8 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 
 	BUG_ON(0 == size);
 
+	size = lmb_align_up(size, align);
+
 	/* On some platforms, make sure we allocate lowmem */
 	/* Note that LMB_REAL_LIMIT may be LMB_ALLOC_ANYWHERE */
 	if (max_addr == LMB_ALLOC_ANYWHERE)
@@ -393,8 +398,7 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 			j = lmb_overlaps_region(&lmb.reserved, base, size);
 			if (j < 0) {
 				/* this area isn't reserved, take it */
-				if (lmb_add_region(&lmb.reserved, base,
-						   lmb_align_up(size, align)) < 0)
+				if (lmb_add_region(&lmb.reserved, base, size) < 0)
 					return 0;
 				return base;
 			}
