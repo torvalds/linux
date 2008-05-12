@@ -32,6 +32,7 @@
 #include <asm/e820.h> /* for ISA_START_ADDRESS */
 #include <asm/atomic.h>
 #include <linux/percpu.h>
+#include <linux/cpu.h>
 
 #include "pf_in.h"
 
@@ -400,6 +401,64 @@ static void clear_trace_list(void)
 	}
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static cpumask_t downed_cpus;
+
+static void enter_uniprocessor(void)
+{
+	int cpu;
+	int err;
+
+	get_online_cpus();
+	downed_cpus = cpu_online_map;
+	cpu_clear(first_cpu(cpu_online_map), downed_cpus);
+	if (num_online_cpus() > 1)
+		pr_notice(NAME "Disabling non-boot CPUs...\n");
+	put_online_cpus();
+
+	for_each_cpu_mask(cpu, downed_cpus) {
+		err = cpu_down(cpu);
+		if (!err) {
+			pr_info(NAME "CPU%d is down.\n", cpu);
+		} else {
+			pr_err(NAME "Error taking CPU%d down: %d\n", cpu, err);
+		}
+	}
+	if (num_online_cpus() > 1)
+		pr_warning(NAME "multiple CPUs still online, "
+						"may miss events.\n");
+}
+
+static void leave_uniprocessor(void)
+{
+	int cpu;
+	int err;
+
+	if (cpus_weight(downed_cpus) == 0)
+		return;
+	pr_notice(NAME "Re-enabling CPUs...\n");
+	for_each_cpu_mask(cpu, downed_cpus) {
+		err = cpu_up(cpu);
+		if (!err)
+			pr_info(NAME "enabled CPU%d.\n", cpu);
+		else
+			pr_err(NAME "cannot re-enable CPU%d: %d\n", cpu, err);
+	}
+}
+
+#else /* !CONFIG_HOTPLUG_CPU */
+static void enter_uniprocessor(void)
+{
+	if (num_online_cpus() > 1)
+		pr_warning(NAME "multiple CPUs are online, may miss events. "
+			"Suggest booting with maxcpus=1 kernel argument.\n");
+}
+
+static void leave_uniprocessor(void)
+{
+}
+#endif
+
 #if 0 /* XXX: out of order */
 static struct file_operations fops_marker = {
 	.owner =	THIS_MODULE,
@@ -422,6 +481,7 @@ void enable_mmiotrace(void)
 
 	if (nommiotrace)
 		pr_info(NAME "MMIO tracing disabled.\n");
+	enter_uniprocessor();
 	spin_lock_irq(&trace_lock);
 	atomic_inc(&mmiotrace_enabled);
 	spin_unlock_irq(&trace_lock);
@@ -442,6 +502,7 @@ void disable_mmiotrace(void)
 	spin_unlock_irq(&trace_lock);
 
 	clear_trace_list(); /* guarantees: no more kmmio callbacks */
+	leave_uniprocessor();
 	if (marker_file) {
 		debugfs_remove(marker_file);
 		marker_file = NULL;
