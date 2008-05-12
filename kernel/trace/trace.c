@@ -432,47 +432,6 @@ notrace void tracing_reset(struct trace_array_cpu *data)
 	data->trace_tail_idx = 0;
 }
 
-#ifdef CONFIG_FTRACE
-static notrace void
-function_trace_call(unsigned long ip, unsigned long parent_ip)
-{
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	long disabled;
-	int cpu;
-
-	if (unlikely(!tracer_enabled))
-		return;
-
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-
-	if (likely(disabled == 1))
-		ftrace(tr, data, ip, parent_ip, flags);
-
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
-}
-
-static struct ftrace_ops trace_ops __read_mostly =
-{
-	.func = function_trace_call,
-};
-#endif
-
-notrace void tracing_start_function_trace(void)
-{
-	register_ftrace_function(&trace_ops);
-}
-
-notrace void tracing_stop_function_trace(void)
-{
-	unregister_ftrace_function(&trace_ops);
-}
-
 #define SAVED_CMDLINES 128
 static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
 static unsigned map_cmdline_to_pid[SAVED_CMDLINES];
@@ -635,8 +594,8 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags)
 }
 
 notrace void
-ftrace(struct trace_array *tr, struct trace_array_cpu *data,
-       unsigned long ip, unsigned long parent_ip, unsigned long flags)
+__ftrace(struct trace_array *tr, struct trace_array_cpu *data,
+	 unsigned long ip, unsigned long parent_ip, unsigned long flags)
 {
 	struct trace_entry *entry;
 	unsigned long irq_flags;
@@ -648,6 +607,14 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 	entry->fn.ip		= ip;
 	entry->fn.parent_ip	= parent_ip;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
+}
+
+notrace void
+ftrace(struct trace_array *tr, struct trace_array_cpu *data,
+       unsigned long ip, unsigned long parent_ip, unsigned long flags)
+{
+	if (likely(!atomic_read(&data->disabled)))
+		__ftrace(tr, data, ip, parent_ip, flags);
 }
 
 notrace void
@@ -688,6 +655,47 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	spin_unlock_irqrestore(&data->lock, irq_flags);
 }
 
+#ifdef CONFIG_FTRACE
+static notrace void
+function_trace_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct trace_array *tr = &global_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int cpu;
+
+	if (unlikely(!tracer_enabled))
+		return;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+
+	if (likely(disabled == 1))
+		__ftrace(tr, data, ip, parent_ip, flags);
+
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+}
+
+static struct ftrace_ops trace_ops __read_mostly =
+{
+	.func = function_trace_call,
+};
+
+notrace void tracing_start_function_trace(void)
+{
+	register_ftrace_function(&trace_ops);
+}
+
+notrace void tracing_stop_function_trace(void)
+{
+	unregister_ftrace_function(&trace_ops);
+}
+#endif
+
 enum trace_file_type {
 	TRACE_FILE_LAT_FMT	= 1,
 };
@@ -722,7 +730,7 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 	return &array[iter->next_page_idx[cpu]];
 }
 
-static struct notrace trace_entry *
+static struct trace_entry * notrace
 find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 {
 	struct trace_array *tr = iter->tr;
@@ -1866,6 +1874,7 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	static cpumask_t mask;
 	static int start;
 	unsigned long flags;
+	int ftrace_save;
 	int read = 0;
 	int cpu;
 	int len;
@@ -1944,6 +1953,9 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	cpus_clear(mask);
 	local_irq_save(flags);
+	ftrace_save = ftrace_enabled;
+	ftrace_enabled = 0;
+	smp_wmb();
 	for_each_possible_cpu(cpu) {
 		data = iter->tr->data[cpu];
 
@@ -1951,8 +1963,12 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 			continue;
 
 		atomic_inc(&data->disabled);
-		spin_lock(&data->lock);
 		cpu_set(cpu, mask);
+	}
+
+	for_each_cpu_mask(cpu, mask) {
+		data = iter->tr->data[cpu];
+		spin_lock(&data->lock);
 	}
 
 	while (find_next_entry_inc(iter) != NULL) {
@@ -1974,8 +1990,13 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	for_each_cpu_mask(cpu, mask) {
 		data = iter->tr->data[cpu];
 		spin_unlock(&data->lock);
+	}
+
+	for_each_cpu_mask(cpu, mask) {
+		data = iter->tr->data[cpu];
 		atomic_dec(&data->disabled);
 	}
+	ftrace_enabled = ftrace_save;
 	local_irq_restore(flags);
 
 	/* Now copy what we have to the user */
