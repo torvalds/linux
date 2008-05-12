@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
+#include <linux/percpu.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
@@ -49,7 +50,8 @@ static unsigned int handler_registered;
 static struct list_head kmmio_page_table[KMMIO_PAGE_TABLE_SIZE];
 static LIST_HEAD(kmmio_probes);
 
-static struct kmmio_context kmmio_ctx[NR_CPUS];
+/* Accessed per-cpu */
+static DEFINE_PER_CPU(struct kmmio_context, kmmio_ctx);
 
 static struct notifier_block nb_die = {
 	.notifier_call = kmmio_die_notifier
@@ -173,8 +175,7 @@ static void disarm_kmmio_fault_page(unsigned long page, int *page_level)
  */
 static int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 {
-	struct kmmio_context *ctx;
-	int cpu;
+	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
 
 	/*
 	 * Preemption is now disabled to prevent process switch during
@@ -187,8 +188,6 @@ static int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	 * And that interrupt triggers a kmmio trap?
 	 */
 	preempt_disable();
-	cpu = smp_processor_id();
-	ctx = &kmmio_ctx[cpu];
 
 	/* interrupts disabled and CPU-local data => atomicity guaranteed. */
 	if (ctx->active) {
@@ -199,7 +198,7 @@ static int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 		 */
 		printk(KERN_EMERG "mmiotrace: recursive probe hit on CPU %d, "
 					"for address %lu. Ignoring.\n",
-					cpu, addr);
+					smp_processor_id(), addr);
 		goto no_kmmio;
 	}
 	ctx->active++;
@@ -231,6 +230,7 @@ static int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 	/* We hold lock, now we set present bit in PTE and single step. */
 	disarm_kmmio_fault_page(ctx->fpage->page, NULL);
 
+	put_cpu_var(kmmio_ctx);
 	return 1;
 
 no_kmmio_locked:
@@ -238,6 +238,7 @@ no_kmmio_locked:
 	ctx->active--;
 no_kmmio:
 	preempt_enable_no_resched();
+	put_cpu_var(kmmio_ctx);
 	/* page fault not handled by kmmio */
 	return 0;
 }
@@ -249,11 +250,11 @@ no_kmmio:
  */
 static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 {
-	int cpu = smp_processor_id();
-	struct kmmio_context *ctx = &kmmio_ctx[cpu];
+	int ret = 0;
+	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
 
 	if (!ctx->active)
-		return 0;
+		goto out;
 
 	if (ctx->probe && ctx->probe->post_handler)
 		ctx->probe->post_handler(ctx->probe, condition, regs);
@@ -273,10 +274,12 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	 * will have TF set, in which case, continue the remaining processing
 	 * of do_debug, as if this is not a probe hit.
 	 */
-	if (regs->flags & TF_MASK)
-		return 0;
+	if (!(regs->flags & TF_MASK))
+		ret = 1;
 
-	return 1;
+out:
+	put_cpu_var(kmmio_ctx);
+	return ret;
 }
 
 static int add_kmmio_fault_page(unsigned long page)

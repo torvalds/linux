@@ -30,6 +30,7 @@
 #include <linux/mmiotrace.h>
 #include <asm/e820.h> /* for ISA_START_ADDRESS */
 #include <asm/atomic.h>
+#include <linux/percpu.h>
 
 #include "kmmio.h"
 #include "pf_in.h"
@@ -49,11 +50,11 @@ struct trap_reason {
 };
 
 /* Accessed per-cpu. */
-static struct trap_reason pf_reason[NR_CPUS];
-static struct mm_io_header_rw cpu_trace[NR_CPUS];
+static DEFINE_PER_CPU(struct trap_reason, pf_reason);
+static DEFINE_PER_CPU(struct mm_io_header_rw, cpu_trace);
 
 /* Access to this is not per-cpu. */
-static atomic_t dropped[NR_CPUS];
+static DEFINE_PER_CPU(atomic_t, dropped);
 
 static struct file_operations mmio_fops = {
 	.owner = THIS_MODULE,
@@ -150,15 +151,15 @@ static void print_pte(unsigned long address)
  */
 static void die_kmmio_nesting_error(struct pt_regs *regs, unsigned long addr)
 {
-	const unsigned long cpu = smp_processor_id();
+	const struct trap_reason *my_reason = &get_cpu_var(pf_reason);
 	printk(KERN_EMERG MODULE_NAME ": unexpected fault for address: %lx, "
 					"last fault for address: %lx\n",
-					addr, pf_reason[cpu].addr);
+					addr, my_reason->addr);
 	print_pte(addr);
 #ifdef __i386__
 	print_symbol(KERN_EMERG "faulting EIP is at %s\n", regs->ip);
 	print_symbol(KERN_EMERG "last faulting EIP was at %s\n",
-							pf_reason[cpu].ip);
+							my_reason->ip);
 	printk(KERN_EMERG
 			"eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
 			regs->ax, regs->bx, regs->cx, regs->dx);
@@ -168,100 +169,105 @@ static void die_kmmio_nesting_error(struct pt_regs *regs, unsigned long addr)
 #else
 	print_symbol(KERN_EMERG "faulting RIP is at %s\n", regs->ip);
 	print_symbol(KERN_EMERG "last faulting RIP was at %s\n",
-							pf_reason[cpu].ip);
+							my_reason->ip);
 	printk(KERN_EMERG "rax: %016lx   rcx: %016lx   rdx: %016lx\n",
 					regs->ax, regs->cx, regs->dx);
 	printk(KERN_EMERG "rsi: %016lx   rdi: %016lx   "
 				"rbp: %016lx   rsp: %016lx\n",
 				regs->si, regs->di, regs->bp, regs->sp);
 #endif
+	put_cpu_var(pf_reason);
 	BUG();
 }
 
 static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 						unsigned long addr)
 {
-	const unsigned long cpu = smp_processor_id();
+	struct trap_reason *my_reason = &get_cpu_var(pf_reason);
+	struct mm_io_header_rw *my_trace = &get_cpu_var(cpu_trace);
 	const unsigned long instptr = instruction_pointer(regs);
 	const enum reason_type type = get_ins_type(instptr);
 
 	/* it doesn't make sense to have more than one active trace per cpu */
-	if (pf_reason[cpu].active_traces)
+	if (my_reason->active_traces)
 		die_kmmio_nesting_error(regs, addr);
 	else
-		pf_reason[cpu].active_traces++;
+		my_reason->active_traces++;
 
-	pf_reason[cpu].type = type;
-	pf_reason[cpu].addr = addr;
-	pf_reason[cpu].ip = instptr;
+	my_reason->type = type;
+	my_reason->addr = addr;
+	my_reason->ip = instptr;
 
-	cpu_trace[cpu].header.type = MMIO_MAGIC;
-	cpu_trace[cpu].header.pid = 0;
-	cpu_trace[cpu].header.data_len = sizeof(struct mm_io_rw);
-	cpu_trace[cpu].rw.address = addr;
+	my_trace->header.type = MMIO_MAGIC;
+	my_trace->header.pid = 0;
+	my_trace->header.data_len = sizeof(struct mm_io_rw);
+	my_trace->rw.address = addr;
 
 	/*
 	 * Only record the program counter when requested.
 	 * It may taint clean-room reverse engineering.
 	 */
 	if (trace_pc)
-		cpu_trace[cpu].rw.pc = instptr;
+		my_trace->rw.pc = instptr;
 	else
-		cpu_trace[cpu].rw.pc = 0;
+		my_trace->rw.pc = 0;
 
-	record_timestamp(&cpu_trace[cpu].header);
+	record_timestamp(&my_trace->header);
 
 	switch (type) {
 	case REG_READ:
-		cpu_trace[cpu].header.type |=
+		my_trace->header.type |=
 			(MMIO_READ << MMIO_OPCODE_SHIFT) |
 			(get_ins_mem_width(instptr) << MMIO_WIDTH_SHIFT);
 		break;
 	case REG_WRITE:
-		cpu_trace[cpu].header.type |=
+		my_trace->header.type |=
 			(MMIO_WRITE << MMIO_OPCODE_SHIFT) |
 			(get_ins_mem_width(instptr) << MMIO_WIDTH_SHIFT);
-		cpu_trace[cpu].rw.value = get_ins_reg_val(instptr, regs);
+		my_trace->rw.value = get_ins_reg_val(instptr, regs);
 		break;
 	case IMM_WRITE:
-		cpu_trace[cpu].header.type |=
+		my_trace->header.type |=
 			(MMIO_WRITE << MMIO_OPCODE_SHIFT) |
 			(get_ins_mem_width(instptr) << MMIO_WIDTH_SHIFT);
-		cpu_trace[cpu].rw.value = get_ins_imm_val(instptr);
+		my_trace->rw.value = get_ins_imm_val(instptr);
 		break;
 	default:
 		{
 			unsigned char *ip = (unsigned char *)instptr;
-			cpu_trace[cpu].header.type |=
+			my_trace->header.type |=
 					(MMIO_UNKNOWN_OP << MMIO_OPCODE_SHIFT);
-			cpu_trace[cpu].rw.value = (*ip) << 16 |
-							*(ip + 1) << 8 |
-							*(ip + 2);
+			my_trace->rw.value = (*ip) << 16 | *(ip + 1) << 8 |
+								*(ip + 2);
 		}
 	}
+	put_cpu_var(cpu_trace);
+	put_cpu_var(pf_reason);
 }
 
 static void post(struct kmmio_probe *p, unsigned long condition,
 							struct pt_regs *regs)
 {
-	const unsigned long cpu = smp_processor_id();
+	struct trap_reason *my_reason = &get_cpu_var(pf_reason);
+	struct mm_io_header_rw *my_trace = &get_cpu_var(cpu_trace);
 
 	/* this should always return the active_trace count to 0 */
-	pf_reason[cpu].active_traces--;
-	if (pf_reason[cpu].active_traces) {
+	my_reason->active_traces--;
+	if (my_reason->active_traces) {
 		printk(KERN_EMERG MODULE_NAME ": unexpected post handler");
 		BUG();
 	}
 
-	switch (pf_reason[cpu].type) {
+	switch (my_reason->type) {
 	case REG_READ:
-		cpu_trace[cpu].rw.value = get_ins_reg_val(pf_reason[cpu].ip,
-									regs);
+		my_trace->rw.value = get_ins_reg_val(my_reason->ip, regs);
 		break;
 	default:
 		break;
 	}
-	relay_write(chan, &cpu_trace[cpu], sizeof(struct mm_io_header_rw));
+	relay_write(chan, my_trace, sizeof(*my_trace));
+	put_cpu_var(cpu_trace);
+	put_cpu_var(pf_reason);
 }
 
 /*
@@ -274,7 +280,7 @@ static int subbuf_start_handler(struct rchan_buf *buf, void *subbuf,
 					void *prev_subbuf, size_t prev_padding)
 {
 	unsigned int cpu = buf->cpu;
-	atomic_t *drop = &dropped[cpu];
+	atomic_t *drop = &per_cpu(dropped, cpu);
 	int count;
 	if (relay_buf_full(buf)) {
 		if (atomic_inc_return(drop) == 1) {
