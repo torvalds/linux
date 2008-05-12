@@ -3,6 +3,10 @@
 
 #include <asm/types.h>
 
+/*
+ * If you change anything here, you must bump MMIO_VERSION.
+ * This is the relay data format for user space.
+ */
 #define MMIO_VERSION 0x04
 
 /* mm_io_header.type */
@@ -23,7 +27,7 @@ enum mm_io_opcode {          /* payload type: */
 };
 
 struct mm_io_header {
-	__u32 type;
+	__u32 type;     /* see MMIO_* macros above */
 	__u32 sec;      /* timestamp */
 	__u32 nsec;
 	__u32 pid;      /* PID of the process, or 0 for kernel core */
