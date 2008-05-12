@@ -497,6 +497,11 @@ static int vmalloc_fault(unsigned long address)
 	unsigned long pgd_paddr;
 	pmd_t *pmd_k;
 	pte_t *pte_k;
+
+	/* Make sure we are in vmalloc area */
+	if (!(address >= VMALLOC_START && address < VMALLOC_END))
+		return -1;
+
 	/*
 	 * Synchronize this task's top level page-table
 	 * with the 'reference' page table.
