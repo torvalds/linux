@@ -1965,7 +1965,9 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	static cpumask_t mask;
 	static int start;
 	unsigned long flags;
+#ifdef CONFIG_FTRACE
 	int ftrace_save;
+#endif
 	int read = 0;
 	int cpu;
 	int len;
@@ -2044,8 +2046,10 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	cpus_clear(mask);
 	local_irq_save(flags);
+#ifdef CONFIG_FTRACE
 	ftrace_save = ftrace_enabled;
 	ftrace_enabled = 0;
+#endif
 	smp_wmb();
 	for_each_possible_cpu(cpu) {
 		data = iter->tr->data[cpu];
@@ -2087,7 +2091,9 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		data = iter->tr->data[cpu];
 		atomic_dec(&data->disabled);
 	}
+#ifdef CONFIG_FTRACE
 	ftrace_enabled = ftrace_save;
+#endif
 	local_irq_restore(flags);
 
 	/* Now copy what we have to the user */
