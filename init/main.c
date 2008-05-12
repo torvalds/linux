@@ -702,7 +702,6 @@ static void __init do_initcalls(void)
 
 	for (call = __initcall_start; call < __initcall_end; call++) {
 		ktime_t t0, t1, delta;
-		char *msg = NULL;
 		char msgbuf[40];
 		int result;
 
@@ -724,22 +723,23 @@ static void __init do_initcalls(void)
 				(unsigned long long) delta.tv64 >> 20);
 		}
 
-		if (result && result != -ENODEV && initcall_debug) {
-			sprintf(msgbuf, "error code %d", result);
-			msg = msgbuf;
-		}
+		msgbuf[0] = 0;
+
+		if (result && result != -ENODEV && initcall_debug)
+			sprintf(msgbuf, "error code %d ", result);
+
 		if (preempt_count() != count) {
-			msg = "preemption imbalance";
+			strncat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
 			preempt_count() = count;
 		}
 		if (irqs_disabled()) {
-			msg = "disabled interrupts";
+			strncat(msgbuf, "disabled interrupts ", sizeof(msgbuf));
 			local_irq_enable();
 		}
-		if (msg) {
+		if (msgbuf[0]) {
 			print_fn_descriptor_symbol(KERN_WARNING "initcall %s()",
 					(unsigned long) *call);
-			printk(" returned with %s\n", msg);
+			printk(" returned with %s\n", msgbuf);
 		}
 	}
 
