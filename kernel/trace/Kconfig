@@ -1,0 +1,5 @@
+#
+# Architectures that offer an FTRACE implementation should select HAVE_FTRACE:
+#
+config HAVE_FTRACE
+	bool
