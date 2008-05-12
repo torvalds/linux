@@ -9,6 +9,8 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_FN:
 	case TRACE_CTX:
 	case TRACE_WAKE:
+	case TRACE_STACK:
+	case TRACE_SPECIAL:
 		return 1;
 	}
 	return 0;
@@ -180,7 +182,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 
 	/* we should only have one item */
 	if (!ret && count != 1) {
-		printk(KERN_CONT ".. filter failed ..");
+		printk(KERN_CONT ".. filter failed count=%ld ..", count);
 		ret = -1;
 		goto out;
 	}
