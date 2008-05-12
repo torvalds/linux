@@ -36,11 +36,8 @@ ctx_switch_func(void *__rq, struct task_struct *prev, struct task_struct *next)
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
 
-	if (likely(disabled == 1)) {
+	if (likely(disabled == 1))
 		tracing_sched_switch_trace(tr, data, prev, next, flags);
-		if (trace_flags & TRACE_ITER_SCHED_TREE)
-			ftrace_all_fair_tasks(__rq, tr, data);
-	}
 
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
@@ -65,11 +62,8 @@ wakeup_func(void *__rq, struct task_struct *wakee, struct task_struct *curr)
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
 
-	if (likely(disabled == 1)) {
+	if (likely(disabled == 1))
 		tracing_sched_wakeup_trace(tr, data, wakee, curr, flags);
-		if (trace_flags & TRACE_ITER_SCHED_TREE)
-			ftrace_all_fair_tasks(__rq, tr, data);
-	}
 
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);

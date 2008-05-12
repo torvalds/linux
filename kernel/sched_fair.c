@@ -1061,8 +1061,6 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	if (!(this_sd->flags & SD_WAKE_AFFINE))
 		return 0;
 
-	ftrace_special(__LINE__, curr->se.avg_overlap, sync);
-	ftrace_special(__LINE__, p->se.avg_overlap, -1);
 	/*
 	 * If the currently running task will sleep within
 	 * a reasonable amount of time then attract this newly
@@ -1240,7 +1238,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 	if (unlikely(se == pse))
 		return;
 
-	ftrace_special(__LINE__, p->pid, se->last_wakeup);
 	cfs_rq_of(pse)->next = pse;
 
 	/*
