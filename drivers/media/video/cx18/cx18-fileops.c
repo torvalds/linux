@@ -662,6 +662,8 @@ int cx18_v4l2_open(struct inode *inode, struct file *filp)
 	for (x = 0; cx == NULL && x < cx18_cards_active; x++) {
 		/* find out which stream this open was on */
 		for (y = 0; y < CX18_MAX_STREAMS; y++) {
+			if (cx18_cards[x] == NULL)
+				continue;
 			s = &cx18_cards[x]->streams[y];
 			if (s->v4l2dev && s->v4l2dev->minor == minor) {
 				cx = cx18_cards[x];
