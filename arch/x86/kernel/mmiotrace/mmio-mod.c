@@ -120,19 +120,24 @@ static int write_marker(struct file *file, const char __user *buffer,
 
 static void print_pte(unsigned long address)
 {
-	pgd_t *pgd = pgd_offset_k(address);
-	pud_t *pud = pud_offset(pgd, address);
-	pmd_t *pmd = pmd_offset(pud, address);
-	if (pmd_large(*pmd)) {
+	int level;
+	pte_t *pte = lookup_address(address, &level);
+
+	if (!pte) {
+		printk(KERN_ERR "Error in %s: no pte for page 0x%08lx\n",
+						__FUNCTION__, address);
+		return;
+	}
+
+	if (level == PG_LEVEL_2M) {
 		printk(KERN_EMERG MODULE_NAME ": 4MB pages are not "
 						"currently supported: %lx\n",
 						address);
 		BUG();
 	}
 	printk(KERN_DEBUG MODULE_NAME ": pte for 0x%lx: 0x%lx 0x%lx\n",
-		address,
-		pte_val(*pte_offset_kernel(pmd, address)),
-		pte_val(*pte_offset_kernel(pmd, address)) & _PAGE_PRESENT);
+					address, pte_val(*pte),
+					pte_val(*pte) & _PAGE_PRESENT);
 }
 
 /*

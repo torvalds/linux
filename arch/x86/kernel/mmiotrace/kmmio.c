@@ -20,6 +20,7 @@
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
 #include <asm/tlbflush.h>
+#include <asm/pgtable.h>
 
 #include "kmmio.h"
 
@@ -117,39 +118,54 @@ static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
 	return NULL;
 }
 
-static void arm_kmmio_fault_page(unsigned long page, int *large)
+static void arm_kmmio_fault_page(unsigned long page, int *page_level)
 {
 	unsigned long address = page & PAGE_MASK;
-	pgd_t *pgd = pgd_offset_k(address);
-	pud_t *pud = pud_offset(pgd, address);
-	pmd_t *pmd = pmd_offset(pud, address);
-	pte_t *pte = pte_offset_kernel(pmd, address);
+	int level;
+	pte_t *pte = lookup_address(address, &level);
 
-	if (pmd_large(*pmd)) {
+	if (!pte) {
+		printk(KERN_ERR "Error in %s: no pte for page 0x%08lx\n",
+						__FUNCTION__, page);
+		return;
+	}
+
+	if (level == PG_LEVEL_2M) {
+		pmd_t *pmd = (pmd_t *)pte;
 		set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_PRESENT));
-		if (large)
-			*large = 1;
 	} else {
+		/* PG_LEVEL_4K */
 		set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_PRESENT));
 	}
+
+	if (page_level)
+		*page_level = level;
 
 	__flush_tlb_one(page);
 }
 
-static void disarm_kmmio_fault_page(unsigned long page, int *large)
+static void disarm_kmmio_fault_page(unsigned long page, int *page_level)
 {
 	unsigned long address = page & PAGE_MASK;
-	pgd_t *pgd = pgd_offset_k(address);
-	pud_t *pud = pud_offset(pgd, address);
-	pmd_t *pmd = pmd_offset(pud, address);
-	pte_t *pte = pte_offset_kernel(pmd, address);
+	int level;
+	pte_t *pte = lookup_address(address, &level);
 
-	if (large && *large) {
+	if (!pte) {
+		printk(KERN_ERR "Error in %s: no pte for page 0x%08lx\n",
+						__FUNCTION__, page);
+		return;
+	}
+
+	if (level == PG_LEVEL_2M) {
+		pmd_t *pmd = (pmd_t *)pte;
 		set_pmd(pmd, __pmd(pmd_val(*pmd) | _PAGE_PRESENT));
-		*large = 0;
 	} else {
+		/* PG_LEVEL_4K */
 		set_pte(pte, __pte(pte_val(*pte) | _PAGE_PRESENT));
 	}
+
+	if (page_level)
+		*page_level = level;
 
 	__flush_tlb_one(page);
 }
