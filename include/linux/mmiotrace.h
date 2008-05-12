@@ -54,6 +54,12 @@ static inline void mmiotrace_iounmap(volatile void __iomem *addr)
 }
 #endif /* CONFIG_MMIOTRACE_HOOKS */
 
+/* in kernel/trace/trace_mmiotrace.c */
+extern int __init init_mmiotrace(void);
+extern void enable_mmiotrace(void);
+extern void disable_mmiotrace(void);
+extern void mmio_trace_record(u32 type, unsigned long addr, unsigned long arg);
+
 #endif /* __KERNEL__ */
 
 
