@@ -188,6 +188,8 @@ struct trace_iterator {
 void tracing_reset(struct trace_array_cpu *data);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 struct dentry *tracing_init_dentry(void);
+void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
+
 void ftrace(struct trace_array *tr,
 			    struct trace_array_cpu *data,
 			    unsigned long ip,

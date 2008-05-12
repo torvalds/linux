@@ -20,11 +20,12 @@ static struct trace_array	*sysprof_trace;
 static int __read_mostly	tracer_enabled;
 
 /*
- * 10 msecs for now:
+ * 1 msec sample interval by default:
  */
-static const unsigned long sample_period = 1000000;
+static unsigned long sample_period = 1000000;
 static const unsigned int sample_max_depth = 512;
 
+static DEFINE_MUTEX(sample_timer_lock);
 /*
  * Per CPU hrtimers that do the profiling:
  */
@@ -166,15 +167,19 @@ static notrace void stack_reset(struct trace_array *tr)
 
 static notrace void start_stack_trace(struct trace_array *tr)
 {
+	mutex_lock(&sample_timer_lock);
 	stack_reset(tr);
 	start_stack_timers();
 	tracer_enabled = 1;
+	mutex_unlock(&sample_timer_lock);
 }
 
 static notrace void stop_stack_trace(struct trace_array *tr)
 {
+	mutex_lock(&sample_timer_lock);
 	stop_stack_timers();
 	tracer_enabled = 0;
+	mutex_unlock(&sample_timer_lock);
 }
 
 static notrace void stack_trace_init(struct trace_array *tr)
@@ -216,3 +221,64 @@ __init static int init_stack_trace(void)
 	return register_tracer(&stack_trace);
 }
 device_initcall(init_stack_trace);
+
+#define MAX_LONG_DIGITS 22
+
+static ssize_t
+sysprof_sample_read(struct file *filp, char __user *ubuf,
+		    size_t cnt, loff_t *ppos)
+{
+	char buf[MAX_LONG_DIGITS];
+	int r;
+
+	r = sprintf(buf, "%ld\n", nsecs_to_usecs(sample_period));
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+}
+
+static ssize_t
+sysprof_sample_write(struct file *filp, const char __user *ubuf,
+		     size_t cnt, loff_t *ppos)
+{
+	char buf[MAX_LONG_DIGITS];
+	unsigned long val;
+
+	if (cnt > MAX_LONG_DIGITS-1)
+		cnt = MAX_LONG_DIGITS-1;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	val = simple_strtoul(buf, NULL, 10);
+	/*
+	 * Enforce a minimum sample period of 100 usecs:
+	 */
+	if (val < 100)
+		val = 100;
+
+	mutex_lock(&sample_timer_lock);
+	stop_stack_timers();
+	sample_period = val * 1000;
+	start_stack_timers();
+	mutex_unlock(&sample_timer_lock);
+
+	return cnt;
+}
+
+static struct file_operations sysprof_sample_fops = {
+	.read		= sysprof_sample_read,
+	.write		= sysprof_sample_write,
+};
+
+void init_tracer_sysprof_debugfs(struct dentry *d_tracer)
+{
+	struct dentry *entry;
+
+	entry = debugfs_create_file("sysprof_sample_period", 0644,
+			d_tracer, NULL, &sysprof_sample_fops);
+	if (entry)
+		return;
+	pr_warning("Could not create debugfs 'dyn_ftrace_total_info' entry\n");
+}
