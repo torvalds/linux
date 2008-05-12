@@ -29,8 +29,6 @@ ctx_switch_func(void *__rq, struct task_struct *prev, struct task_struct *next)
 	if (!tracer_enabled)
 		return;
 
-	tracing_record_cmdline(prev);
-
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
@@ -73,6 +71,9 @@ void
 ftrace_ctx_switch(void *__rq, struct task_struct *prev,
 		  struct task_struct *next)
 {
+	if (unlikely(atomic_read(&trace_record_cmdline_enabled)))
+		tracing_record_cmdline(prev);
+
 	/*
 	 * If tracer_switch_func only points to the local
 	 * switch func, it still needs the ptr passed to it.
@@ -134,11 +135,13 @@ static void sched_switch_reset(struct trace_array *tr)
 static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
+	atomic_inc(&trace_record_cmdline_enabled);
 	tracer_enabled = 1;
 }
 
 static void stop_sched_trace(struct trace_array *tr)
 {
+	atomic_dec(&trace_record_cmdline_enabled);
 	tracer_enabled = 0;
 }
 

@@ -620,7 +620,12 @@ static unsigned map_cmdline_to_pid[SAVED_CMDLINES];
 static char saved_cmdlines[SAVED_CMDLINES][TASK_COMM_LEN];
 static int cmdline_idx;
 static DEFINE_SPINLOCK(trace_cmdline_lock);
-atomic_t trace_record_cmdline_disabled;
+
+/* trace in all context switches */
+atomic_t trace_record_cmdline_enabled __read_mostly;
+
+/* temporary disable recording */
+atomic_t trace_record_cmdline_disabled __read_mostly;
 
 static void trace_init_cmdlines(void)
 {
