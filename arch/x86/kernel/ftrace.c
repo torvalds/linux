@@ -93,8 +93,8 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		"   movb %b4, 4(%2)\n"
 		"2:\n"
 		".section .fixup, \"ax\"\n"
-		"	movl $1, %0\n"
-		"3:	jmp 2b\n"
+		"3:	movl $1, %0\n"
+		"	jmp 2b\n"
 		".previous\n"
 		_ASM_EXTABLE(1b, 3b)
 		: "=r"(faulted), "=a"(replaced)
