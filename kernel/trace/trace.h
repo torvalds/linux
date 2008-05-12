@@ -55,6 +55,7 @@ struct trace_entry {
 struct trace_array_cpu {
 	struct list_head	trace_pages;
 	atomic_t		disabled;
+	spinlock_t		lock;
 	cycle_t			time_offset;
 
 	/* these fields get copied into max-trace: */
@@ -88,6 +89,7 @@ struct trace_array {
 	long			ctrl;
 	int			cpu;
 	cycle_t			time_start;
+	struct task_struct	*waiter;
 	struct trace_array_cpu	*data[NR_CPUS];
 };
 
