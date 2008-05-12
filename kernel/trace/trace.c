@@ -176,10 +176,9 @@ flip_trace(struct trace_array_cpu *tr1, struct trace_array_cpu *tr2)
 
 	INIT_LIST_HEAD(&flip_pages);
 
-	tr1->trace_current = NULL;
-	memcpy(&tr1->trace_current_idx, &tr2->trace_current_idx,
+	memcpy(&tr1->trace_head_idx, &tr2->trace_head_idx,
 		sizeof(struct trace_array_cpu) -
-		offsetof(struct trace_array_cpu, trace_current_idx));
+		offsetof(struct trace_array_cpu, trace_head_idx));
 
 	check_pages(tr1);
 	check_pages(tr2);
@@ -228,7 +227,6 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		tracing_reset(max_tr.data[i]);
 
 	flip_trace(max_tr.data[cpu], data);
-
 	tracing_reset(data);
 
 	__update_max_tr(tr, tsk, cpu);
@@ -343,9 +341,9 @@ void unregister_tracer(struct tracer *type)
 notrace void tracing_reset(struct trace_array_cpu *data)
 {
 	data->trace_idx = 0;
-	data->trace_current = head_page(data);
-	data->trace_current_idx = 0;
-	data->time_offset = 0;
+	data->trace_head = data->trace_tail = head_page(data);
+	data->trace_head_idx = 0;
+	data->trace_tail_idx = 0;
 }
 
 #ifdef CONFIG_FTRACE
@@ -470,38 +468,65 @@ notrace void tracing_record_cmdline(struct task_struct *tsk)
 	trace_save_cmdline(tsk);
 }
 
+static inline notrace struct list_head *
+trace_next_list(struct trace_array_cpu *data, struct list_head *next)
+{
+	/*
+	 * Roundrobin - but skip the head (which is not a real page):
+	 */
+	next = next->next;
+	if (unlikely(next == &data->trace_pages))
+		next = next->next;
+	BUG_ON(next == &data->trace_pages);
+
+	return next;
+}
+
+static inline notrace void *
+trace_next_page(struct trace_array_cpu *data, void *addr)
+{
+	struct list_head *next;
+	struct page *page;
+
+	page = virt_to_page(addr);
+
+	next = trace_next_list(data, &page->lru);
+	page = list_entry(next, struct page, lru);
+
+	return page_address(page);
+}
+
 static inline notrace struct trace_entry *
 tracing_get_trace_entry(struct trace_array *tr, struct trace_array_cpu *data)
 {
 	unsigned long idx, idx_next;
 	struct trace_entry *entry;
-	struct list_head *next;
-	struct page *page;
 
 	data->trace_idx++;
-	idx = data->trace_current_idx;
+	idx = data->trace_head_idx;
 	idx_next = idx + 1;
 
 	BUG_ON(idx * TRACE_ENTRY_SIZE >= PAGE_SIZE);
 
-	entry = data->trace_current + idx * TRACE_ENTRY_SIZE;
+	entry = data->trace_head + idx * TRACE_ENTRY_SIZE;
 
 	if (unlikely(idx_next >= ENTRIES_PER_PAGE)) {
-		page = virt_to_page(data->trace_current);
-		/*
-		 * Roundrobin - but skip the head (which is not a real page):
-		 */
-		next = page->lru.next;
-		if (unlikely(next == &data->trace_pages))
-			next = next->next;
-		BUG_ON(next == &data->trace_pages);
-
-		page = list_entry(next, struct page, lru);
-		data->trace_current = page_address(page);
+		data->trace_head = trace_next_page(data, data->trace_head);
 		idx_next = 0;
 	}
 
-	data->trace_current_idx = idx_next;
+	if (data->trace_head == data->trace_tail &&
+	    idx_next == data->trace_tail_idx) {
+		/* overrun */
+		data->trace_tail_idx++;
+		if (data->trace_tail_idx >= ENTRIES_PER_PAGE) {
+			data->trace_tail =
+				trace_next_page(data, data->trace_tail);
+			data->trace_tail_idx = 0;
+		}
+	}
+
+	data->trace_head_idx = idx_next;
 
 	return entry;
 }
@@ -571,21 +596,11 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 		return NULL;
 
 	if (!iter->next_page[cpu]) {
-		/*
-		 * Initialize. If the count of elements in
-		 * this buffer is greater than the max entries
-		 * we had an underrun. Which means we looped around.
-		 * We can simply use the current pointer as our
-		 * starting point.
-		 */
-		if (data->trace_idx >= tr->entries) {
-			page = virt_to_page(data->trace_current);
-			iter->next_page[cpu] = &page->lru;
-			iter->next_page_idx[cpu] = data->trace_current_idx;
-		} else {
-			iter->next_page[cpu] = data->trace_pages.next;
-			iter->next_page_idx[cpu] = 0;
-		}
+		/* Initialize the iterator for this cpu trace buffer */
+		WARN_ON(!data->trace_tail);
+		page = virt_to_page(data->trace_tail);
+		iter->next_page[cpu] = &page->lru;
+		iter->next_page_idx[cpu] = data->trace_tail_idx;
 	}
 
 	page = list_entry(iter->next_page[cpu], struct page, lru);
@@ -593,6 +608,12 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 
 	array = page_address(page);
 
+	/* Still possible to catch up to the tail */
+	if (iter->next_idx[cpu] && array == data->trace_tail &&
+	    iter->next_page_idx[cpu] == data->trace_tail_idx)
+		return NULL;
+
+	WARN_ON(iter->next_page_idx[cpu] >= ENTRIES_PER_PAGE);
 	return &array[iter->next_page_idx[cpu]];
 }
 
@@ -638,10 +659,8 @@ static void *find_next_entry_inc(struct trace_iterator *iter)
 
 			iter->next_page_idx[next_cpu] = 0;
 			iter->next_page[next_cpu] =
-				iter->next_page[next_cpu]->next;
-			if (iter->next_page[next_cpu] == &data->trace_pages)
-				iter->next_page[next_cpu] =
-					data->trace_pages.next;
+			     trace_next_list(data, iter->next_page[next_cpu]);
+
 		}
 	}
 	iter->prev_ent = iter->ent;

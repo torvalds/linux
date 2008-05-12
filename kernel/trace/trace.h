@@ -53,13 +53,15 @@ struct trace_entry {
  * the trace, etc.)
  */
 struct trace_array_cpu {
-	void			*trace_current;
 	struct list_head	trace_pages;
 	atomic_t		disabled;
 	cycle_t			time_offset;
 
 	/* these fields get copied into max-trace: */
-	unsigned		trace_current_idx;
+	unsigned		trace_head_idx;
+	unsigned		trace_tail_idx;
+	void			*trace_head; /* producer */
+	void			*trace_tail; /* consumer */
 	unsigned long		trace_idx;
 	unsigned long		saved_latency;
 	unsigned long		critical_start;
