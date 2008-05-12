@@ -5,6 +5,7 @@
  */
 
 #include <errno.h>
+#include <asm/user.h>
 #include "kern_constants.h"
 #include "longjmp.h"
 #include "user.h"
@@ -74,10 +75,10 @@ int put_fp_registers(int pid, unsigned long *regs)
 
 void arch_init_registers(int pid)
 {
-	unsigned long fpx_regs[HOST_XFP_SIZE];
+	struct user_fxsr_struct fpx_regs;
 	int err;
 
-	err = ptrace(PTRACE_GETFPXREGS, pid, 0, fpx_regs);
+	err = ptrace(PTRACE_GETFPXREGS, pid, 0, &fpx_regs);
 	if (!err)
 		return;
 
