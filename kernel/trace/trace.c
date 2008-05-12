@@ -1208,6 +1208,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	char *comm;
 	int S, T;
 	int i;
+	unsigned state;
 
 	if (!next_entry)
 		next_entry = entry;
@@ -1238,11 +1239,11 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		break;
 	case TRACE_CTX:
 	case TRACE_WAKE:
-		S = entry->ctx.prev_state < sizeof(state_to_char) ?
-			state_to_char[entry->ctx.prev_state] : 'X';
 		T = entry->ctx.next_state < sizeof(state_to_char) ?
 			state_to_char[entry->ctx.next_state] : 'X';
 
+		state = entry->ctx.prev_state ? __ffs(entry->ctx.prev_state) + 1 : 0;
+		S = state < sizeof(state_to_char) - 1 ? state_to_char[state] : 'X';
 		comm = trace_find_cmdline(entry->ctx.next_pid);
 		trace_seq_printf(s, " %5d:%3d:%c %s %5d:%3d:%c %s\n",
 				 entry->ctx.prev_pid,
