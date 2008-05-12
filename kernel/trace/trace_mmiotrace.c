@@ -17,11 +17,13 @@ struct header_iter {
 };
 
 static struct trace_array *mmio_trace_array;
+static bool overrun_detected;
 
 static void mmio_reset_data(struct trace_array *tr)
 {
 	int cpu;
 
+	overrun_detected = false;
 	tr->time_start = ftrace_now(tr->cpu);
 
 	for_each_online_cpu(cpu)
@@ -124,12 +126,34 @@ static void mmio_close(struct trace_iterator *iter)
 	iter->private = NULL;
 }
 
+static unsigned long count_overruns(struct trace_iterator *iter)
+{
+	int cpu;
+	unsigned long cnt = 0;
+	for_each_online_cpu(cpu) {
+		cnt += iter->overrun[cpu];
+		iter->overrun[cpu] = 0;
+	}
+	return cnt;
+}
+
 static ssize_t mmio_read(struct trace_iterator *iter, struct file *filp,
 				char __user *ubuf, size_t cnt, loff_t *ppos)
 {
 	ssize_t ret;
 	struct header_iter *hiter = iter->private;
 	struct trace_seq *s = &iter->seq;
+	unsigned long n;
+
+	n = count_overruns(iter);
+	if (n) {
+		/* XXX: This is later than where events were lost. */
+		trace_seq_printf(s, "MARK 0.000000 Lost %lu events.\n", n);
+		if (!overrun_detected)
+			pr_warning("mmiotrace has lost events.\n");
+		overrun_detected = true;
+		goto print_out;
+	}
 
 	if (!hiter)
 		return 0;
@@ -142,6 +166,7 @@ static ssize_t mmio_read(struct trace_iterator *iter, struct file *filp,
 		iter->private = NULL;
 	}
 
+print_out:
 	ret = trace_seq_to_user(s, ubuf, cnt);
 	return (ret == -EBUSY) ? 0 : ret;
 }
