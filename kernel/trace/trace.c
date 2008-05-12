@@ -24,6 +24,7 @@
 #include <linux/percpu.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/poll.h>
 #include <linux/gfp.h>
 #include <linux/fs.h>
 
@@ -63,6 +64,7 @@ static struct tracer		*current_trace __read_mostly;
 static int			max_tracer_type_len;
 
 static DEFINE_MUTEX(trace_types_lock);
+static DECLARE_WAIT_QUEUE_HEAD (trace_wait);
 
 #define ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct trace_entry))
 
@@ -105,6 +107,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_RAW			= 0x10,
 	TRACE_ITER_HEX			= 0x20,
 	TRACE_ITER_BIN			= 0x40,
+	TRACE_ITER_BLOCK		= 0x80,
 };
 
 #define TRACE_ITER_SYM_MASK \
@@ -119,6 +122,7 @@ static const char *trace_options[] = {
 	"raw",
 	"hex",
 	"bin",
+	"block",
 	NULL
 };
 
@@ -650,6 +654,9 @@ __ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 	entry->fn.ip		= ip;
 	entry->fn.parent_ip	= parent_ip;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	if (!(trace_flags & TRACE_ITER_BLOCK))
+		wake_up (&trace_wait);
 }
 
 notrace void
@@ -675,6 +682,9 @@ trace_special(struct trace_array *tr, struct trace_array_cpu *data,
 	entry->special.arg2	= arg2;
 	entry->special.arg3	= arg3;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	if (!(trace_flags & TRACE_ITER_BLOCK))
+		wake_up (&trace_wait);
 }
 
 notrace void
@@ -696,6 +706,9 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->ctx.next_pid	= next->pid;
 	entry->ctx.next_prio	= next->prio;
 	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	if (!(trace_flags & TRACE_ITER_BLOCK))
+		wake_up (&trace_wait);
 }
 
 #ifdef CONFIG_FTRACE
@@ -1765,7 +1778,6 @@ static struct file_operations tracing_readme_fops = {
 	.read = tracing_readme_read,
 };
 
-
 static ssize_t
 tracing_ctrl_read(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
@@ -1953,6 +1965,28 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static unsigned int
+tracing_poll_pipe(struct file *filp, poll_table *poll_table)
+{
+	struct trace_iterator *iter = filp->private_data;
+
+	if (trace_flags & TRACE_ITER_BLOCK) {
+		/*
+		 * Always select as readable when in blocking mode
+		 */
+		return POLLIN | POLLRDNORM;
+	}
+	else {
+		if (!trace_empty(iter))
+			return POLLIN | POLLRDNORM;
+		poll_wait(filp, &trace_wait, poll_table);
+		if (!trace_empty(iter))
+			return POLLIN | POLLRDNORM;
+
+		return 0;
+	}
+}
+
 /*
  * Consumer reader.
  */
@@ -1991,6 +2025,8 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	start = 0;
 
 	while (trace_empty(iter)) {
+		if (!(trace_flags & TRACE_ITER_BLOCK))
+			return -EWOULDBLOCK;
 		/*
 		 * This is a make-shift waitqueue. The reason we don't use
 		 * an actual wait queue is because:
@@ -2134,6 +2170,7 @@ static struct file_operations set_tracer_fops = {
 
 static struct file_operations tracing_pipe_fops = {
 	.open		= tracing_open_pipe,
+	.poll		= tracing_poll_pipe,
 	.read		= tracing_read_pipe,
 	.release	= tracing_release_pipe,
 };
