@@ -995,6 +995,7 @@ print_trace_fmt(struct seq_file *m, struct trace_iterator *iter)
 			seq_printf(m, " <-");
 			seq_print_ip_sym(m, entry->fn.parent_ip, sym_flags);
 		}
+		seq_printf(m, "\n");
 		break;
 	case TRACE_CTX:
 		S = entry->ctx.prev_state < sizeof(state_to_char) ?
@@ -1007,7 +1008,6 @@ print_trace_fmt(struct seq_file *m, struct trace_iterator *iter)
 			   entry->ctx.next_prio);
 		break;
 	}
-	seq_printf(m, "\n");
 }
 
 static int trace_empty(struct trace_iterator *iter)
@@ -1332,6 +1332,39 @@ static struct file_operations tracing_iter_fops = {
 	.write = tracing_iter_ctrl_write,
 };
 
+static const char readme_msg[] =
+	"tracing mini-HOWTO:\n\n"
+	"# mkdir /debug\n"
+	"# mount -t debugfs nodev /debug\n\n"
+	"# cat /debug/tracing/available_tracers\n"
+	"wakeup preemptirqsoff preemptoff irqsoff ftrace sched_switch none\n\n"
+	"# cat /debug/tracing/current_tracer\n"
+	"none\n"
+	"# echo sched_switch > /debug/tracing/current_tracer\n"
+	"# cat /debug/tracing/current_tracer\n"
+	"sched_switch\n"
+	"# cat /debug/tracing/iter_ctrl\n"
+	"noprint-parent nosym-offset nosym-addr noverbose\n"
+	"# echo print-parent > /debug/tracing/iter_ctrl\n"
+	"# echo 1 > /debug/tracing/tracing_enabled\n"
+	"# cat /debug/tracing/trace > /tmp/trace.txt\n"
+	"echo 0 > /debug/tracing/tracing_enabled\n"
+;
+
+static ssize_t
+tracing_readme_read(struct file *filp, char __user *ubuf,
+		       size_t cnt, loff_t *ppos)
+{
+	return simple_read_from_buffer(ubuf, cnt, ppos,
+					readme_msg, strlen(readme_msg));
+}
+
+static struct file_operations tracing_readme_fops = {
+	.open = tracing_open_generic,
+	.read = tracing_readme_read,
+};
+
+
 static ssize_t
 tracing_ctrl_read(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
@@ -1598,6 +1631,11 @@ static __init void tracer_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'tracing_threash' entry\n");
+	entry = debugfs_create_file("README", 0644, d_tracer,
+				    NULL, &tracing_readme_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs 'README' entry\n");
+
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	entry = debugfs_create_file("dyn_ftrace_total_info", 0444, d_tracer,
