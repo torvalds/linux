@@ -60,13 +60,6 @@ SECTIONS
 
   BUG_TABLE :text
 
-  . = ALIGN(4);
-  .tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {
-  	__tracedata_start = .;
-	*(.tracedata)
-  	__tracedata_end = .;
-  }
-
   RODATA
 
   /* writeable */
