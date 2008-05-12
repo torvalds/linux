@@ -69,6 +69,11 @@ static int __init set_nr_entries(char *str)
 }
 __setup("trace_entries=", set_nr_entries);
 
+unsigned long nsecs_to_usecs(unsigned long nsecs)
+{
+	return nsecs / 1000;
+}
+
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
 
@@ -733,7 +738,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 		 "---------------------------------\n");
 	seq_printf(m, " latency: %lu us, #%lu/%lu, CPU#%d |"
 		   " (M:%s VP:%d, KP:%d, SP:%d HP:%d",
-		   data->saved_latency,
+		   nsecs_to_usecs(data->saved_latency),
 		   entries,
 		   total,
 		   tr->cpu,
@@ -769,11 +774,6 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	}
 
 	seq_puts(m, "\n");
-}
-
-unsigned long nsecs_to_usecs(unsigned long nsecs)
-{
-	return nsecs / 1000;
 }
 
 static void notrace
