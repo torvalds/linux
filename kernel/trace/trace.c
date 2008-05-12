@@ -1245,10 +1245,10 @@ static int s_show(struct seq_file *m, void *v)
 }
 
 static struct seq_operations tracer_seq_ops = {
-	.start = s_start,
-	.next = s_next,
-	.stop = s_stop,
-	.show = s_show,
+	.start		= s_start,
+	.next		= s_next,
+	.stop		= s_stop,
+	.show		= s_show,
 };
 
 static struct trace_iterator notrace *
@@ -1397,10 +1397,10 @@ static int t_show(struct seq_file *m, void *v)
 }
 
 static struct seq_operations show_traces_seq_ops = {
-	.start = t_start,
-	.next = t_next,
-	.stop = t_stop,
-	.show = t_show,
+	.start		= t_start,
+	.next		= t_next,
+	.stop		= t_stop,
+	.show		= t_show,
 };
 
 static int show_traces_open(struct inode *inode, struct file *file)
@@ -1420,17 +1420,17 @@ static int show_traces_open(struct inode *inode, struct file *file)
 }
 
 static struct file_operations tracing_fops = {
-	.open = tracing_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = tracing_release,
+	.open		= tracing_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= tracing_release,
 };
 
 static struct file_operations tracing_lt_fops = {
-	.open = tracing_lt_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = tracing_release,
+	.open		= tracing_lt_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= tracing_release,
 };
 
 static struct file_operations show_traces_fops = {
@@ -1620,8 +1620,7 @@ tracing_set_trace_read(struct file *filp, char __user *ubuf,
 		r = sprintf(buf, "\n");
 	mutex_unlock(&trace_types_lock);
 
-	return simple_read_from_buffer(ubuf, cnt, ppos,
-				       buf, r);
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static ssize_t
@@ -1680,8 +1679,7 @@ tracing_max_lat_read(struct file *filp, char __user *ubuf,
 		     *ptr == (unsigned long)-1 ? -1 : nsecs_to_usecs(*ptr));
 	if (r > 64)
 		r = 64;
-	return simple_read_from_buffer(ubuf, cnt, ppos,
-				       buf, r);
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static ssize_t
@@ -1891,27 +1889,27 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 }
 
 static struct file_operations tracing_max_lat_fops = {
-	.open = tracing_open_generic,
-	.read = tracing_max_lat_read,
-	.write = tracing_max_lat_write,
+	.open		= tracing_open_generic,
+	.read		= tracing_max_lat_read,
+	.write		= tracing_max_lat_write,
 };
 
 static struct file_operations tracing_ctrl_fops = {
-	.open = tracing_open_generic,
-	.read = tracing_ctrl_read,
-	.write = tracing_ctrl_write,
+	.open		= tracing_open_generic,
+	.read		= tracing_ctrl_read,
+	.write		= tracing_ctrl_write,
 };
 
 static struct file_operations set_tracer_fops = {
-	.open = tracing_open_generic,
-	.read = tracing_set_trace_read,
-	.write = tracing_set_trace_write,
+	.open		= tracing_open_generic,
+	.read		= tracing_set_trace_read,
+	.write		= tracing_set_trace_write,
 };
 
 static struct file_operations tracing_pipe_fops = {
-	.open = tracing_open_pipe,
-	.read = tracing_read_pipe,
-	.release = tracing_release_pipe,
+	.open		= tracing_open_pipe,
+	.read		= tracing_read_pipe,
+	.release	= tracing_release_pipe,
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -1925,13 +1923,13 @@ tracing_read_long(struct file *filp, char __user *ubuf,
 	int r;
 
 	r = sprintf(buf, "%ld\n", *p);
-	return simple_read_from_buffer(ubuf, cnt, ppos,
-				       buf, r);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static struct file_operations tracing_read_long_fops = {
-	.open = tracing_open_generic,
-	.read = tracing_read_long,
+	.open		= tracing_open_generic,
+	.read		= tracing_read_long,
 };
 #endif
 
@@ -2033,7 +2031,7 @@ static __init void tracer_init_debugfs(void)
 /* dummy trace to disable tracing */
 static struct tracer no_tracer __read_mostly =
 {
-	.name = "none",
+	.name		= "none",
 };
 
 static int trace_alloc_page(void)

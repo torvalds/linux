@@ -756,9 +756,11 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 	ret = seq_open(file, &show_ftrace_seq_ops);
 	if (!ret) {
 		struct seq_file *m = file->private_data;
+
 		m->private = iter;
-	} else
+	} else {
 		kfree(iter);
+	}
 
 	return ret;
 }
@@ -770,6 +772,7 @@ int ftrace_avail_release(struct inode *inode, struct file *file)
 
 	seq_release(inode, file);
 	kfree(iter);
+
 	return 0;
 }
 
