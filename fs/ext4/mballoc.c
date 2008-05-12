@@ -2639,8 +2639,7 @@ static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 	struct proc_dir_entry *proc;
 	char devname[64];
 
-	snprintf(devname, sizeof(devname) - 1, "%s",
-		bdevname(sb->s_bdev, devname));
+	bdevname(sb->s_bdev, devname);
 	sbi->s_mb_proc = proc_mkdir(devname, proc_root_ext4);
 
 	MB_PROC_HANDLER(EXT4_MB_STATS_NAME, stats);
@@ -2674,8 +2673,7 @@ static int ext4_mb_destroy_per_dev_proc(struct super_block *sb)
 	if (sbi->s_mb_proc == NULL)
 		return -EINVAL;
 
-	snprintf(devname, sizeof(devname) - 1, "%s",
-		bdevname(sb->s_bdev, devname));
+	bdevname(sb->s_bdev, devname);
 	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_mb_proc);
 	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_mb_proc);
 	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_mb_proc);
