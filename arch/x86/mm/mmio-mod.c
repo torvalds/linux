@@ -191,7 +191,7 @@ static void pre(struct kmmio_probe *p, struct pt_regs *regs,
 	struct mmiotrace_rw *my_trace = &get_cpu_var(cpu_trace);
 	const unsigned long instptr = instruction_pointer(regs);
 	const enum reason_type type = get_ins_type(instptr);
-	struct remap_trace *trace = p->user_data;
+	struct remap_trace *trace = p->private;
 
 	/* it doesn't make sense to have more than one active trace per cpu */
 	if (my_reason->active_traces)
@@ -299,7 +299,7 @@ static void ioremap_trace_core(resource_size_t offset, unsigned long size,
 			.len = size,
 			.pre_handler = pre,
 			.post_handler = post,
-			.user_data = trace
+			.private = trace
 		},
 		.phys = offset,
 		.id = atomic_inc_return(&next_id)

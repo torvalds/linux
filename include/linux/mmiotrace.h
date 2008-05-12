@@ -18,7 +18,7 @@ struct kmmio_probe {
 	unsigned long len; /* length of the probe region */
 	kmmio_pre_handler_t pre_handler; /* Called before addr is executed. */
 	kmmio_post_handler_t post_handler; /* Called after addr is executed */
-	void *user_data;
+	void *private;
 };
 
 /* kmmio is active by some kmmio_probes? */
