@@ -120,7 +120,7 @@ static DEFINE_SPINLOCK(ftrace_max_lock);
  * structure. (this way the maximum trace is permanently saved,
  * for later retrieval via /debugfs/tracing/latency_trace)
  */
-static void notrace
+static notrace void
 __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data = tr->data[cpu];
@@ -333,15 +333,16 @@ void unregister_tracer(struct tracer *type)
 	mutex_unlock(&trace_types_lock);
 }
 
-void notrace tracing_reset(struct trace_array_cpu *data)
+notrace void tracing_reset(struct trace_array_cpu *data)
 {
 	data->trace_idx = 0;
 	data->trace_current = head_page(data);
 	data->trace_current_idx = 0;
+	data->time_offset = 0;
 }
 
 #ifdef CONFIG_FTRACE
-static void notrace
+static notrace void
 function_trace_call(unsigned long ip, unsigned long parent_ip)
 {
 	struct trace_array *tr = &global_trace;
@@ -398,7 +399,7 @@ static void trace_init_cmdlines(void)
 
 notrace void trace_stop_cmdline_recording(void);
 
-static void notrace trace_save_cmdline(struct task_struct *tsk)
+static notrace void trace_save_cmdline(struct task_struct *tsk)
 {
 	unsigned map;
 	unsigned idx;
@@ -624,6 +625,7 @@ static void *find_next_entry_inc(struct trace_iterator *iter)
 		iter->idx++;
 		iter->next_idx[next_cpu]++;
 		iter->next_page_idx[next_cpu]++;
+
 		if (iter->next_page_idx[next_cpu] >= ENTRIES_PER_PAGE) {
 			struct trace_array_cpu *data = iter->tr->data[next_cpu];
 
@@ -635,19 +637,21 @@ static void *find_next_entry_inc(struct trace_iterator *iter)
 					data->trace_pages.next;
 		}
 	}
+	iter->prev_ent = iter->ent;
+	iter->prev_cpu = iter->cpu;
+
 	iter->ent = next;
 	iter->cpu = next_cpu;
 
 	return next ? iter : NULL;
 }
 
-static void notrace *
-s_next(struct seq_file *m, void *v, loff_t *pos)
+static notrace void *s_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct trace_iterator *iter = m->private;
-	void *ent;
 	void *last_ent = iter->ent;
 	int i = (int)*pos;
+	void *ent;
 
 	(*pos)++;
 
@@ -693,6 +697,8 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 		iter->ent = NULL;
 		iter->cpu = 0;
 		iter->idx = -1;
+		iter->prev_ent = NULL;
+		iter->prev_cpu = -1;
 
 		for_each_possible_cpu(i) {
 			iter->next_idx[i] = 0;
@@ -752,7 +758,7 @@ seq_print_sym_offset(struct seq_file *m, const char *fmt, unsigned long address)
 # define IP_FMT "%016lx"
 #endif
 
-static void notrace
+static notrace void
 seq_print_ip_sym(struct seq_file *m, unsigned long ip, unsigned long sym_flags)
 {
 	if (!ip) {
@@ -769,7 +775,7 @@ seq_print_ip_sym(struct seq_file *m, unsigned long ip, unsigned long sym_flags)
 		seq_printf(m, " <" IP_FMT ">", ip);
 }
 
-static void notrace print_lat_help_header(struct seq_file *m)
+static notrace void print_lat_help_header(struct seq_file *m)
 {
 	seq_puts(m, "#                _------=> CPU#            \n");
 	seq_puts(m, "#               / _-----=> irqs-off        \n");
@@ -782,14 +788,14 @@ static void notrace print_lat_help_header(struct seq_file *m)
 	seq_puts(m, "#     \\   /    |||||   \\   |   /           \n");
 }
 
-static void notrace print_func_help_header(struct seq_file *m)
+static notrace void print_func_help_header(struct seq_file *m)
 {
 	seq_puts(m, "#           TASK-PID   CPU#    TIMESTAMP  FUNCTION\n");
 	seq_puts(m, "#              | |      |          |         |\n");
 }
 
 
-static void notrace
+static notrace void
 print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 {
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
@@ -858,7 +864,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	seq_puts(m, "\n");
 }
 
-static void notrace
+static notrace void
 lat_print_generic(struct seq_file *m, struct trace_entry *entry, int cpu)
 {
 	int hardirq, softirq;
@@ -895,7 +901,7 @@ lat_print_generic(struct seq_file *m, struct trace_entry *entry, int cpu)
 
 unsigned long preempt_mark_thresh = 100;
 
-static void notrace
+static notrace void
 lat_print_timestamp(struct seq_file *m, unsigned long long abs_usecs,
 		    unsigned long rel_usecs)
 {
@@ -910,7 +916,7 @@ lat_print_timestamp(struct seq_file *m, unsigned long long abs_usecs,
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
 
-static void notrace
+static notrace void
 print_lat_fmt(struct seq_file *m, struct trace_iterator *iter,
 	      unsigned int trace_idx, int cpu)
 {
@@ -966,20 +972,50 @@ print_lat_fmt(struct seq_file *m, struct trace_iterator *iter,
 	}
 }
 
-static void notrace
+static notrace void sync_time_offset(struct trace_iterator *iter)
+{
+	struct trace_array_cpu *prev_array, *array;
+	struct trace_entry *prev_entry, *entry;
+	cycle_t prev_t, t;
+
+	entry = iter->ent;
+	prev_entry = iter->prev_ent;
+	if (!prev_entry)
+		return;
+
+	prev_array = iter->tr->data[iter->prev_cpu];
+	array = iter->tr->data[iter->cpu];
+
+	prev_t = prev_entry->t + prev_array->time_offset;
+	t = entry->t + array->time_offset;
+
+	/*
+	 * If time goes backwards we increase the offset of
+	 * the current array, to not have observable time warps.
+	 * This will quickly synchronize the time offsets of
+	 * multiple CPUs:
+	 */
+	if (t < prev_t)
+		array->time_offset += prev_t - t;
+}
+
+static notrace void
 print_trace_fmt(struct seq_file *m, struct trace_iterator *iter)
 {
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
-	struct trace_entry *entry = iter->ent;
+	struct trace_entry *entry;
 	unsigned long usec_rem;
 	unsigned long long t;
 	unsigned long secs;
 	char *comm;
 	int S;
 
+	sync_time_offset(iter);
+	entry = iter->ent;
+
 	comm = trace_find_cmdline(iter->ent->pid);
 
-	t = ns2usecs(entry->t);
+	t = ns2usecs(entry->t + iter->tr->data[iter->cpu]->time_offset);
 	usec_rem = do_div(t, 1000000ULL);
 	secs = (unsigned long)t;
 
@@ -1158,7 +1194,7 @@ static int tracing_lt_open(struct inode *inode, struct file *file)
 }
 
 
-static void notrace *
+static notrace void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct tracer *t = m->private;
@@ -1374,8 +1410,7 @@ tracing_ctrl_read(struct file *filp, char __user *ubuf,
 	int r;
 
 	r = sprintf(buf, "%ld\n", tr->ctrl);
-	return simple_read_from_buffer(ubuf, cnt, ppos,
-				       buf, r);
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static ssize_t

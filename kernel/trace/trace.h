@@ -56,6 +56,8 @@ struct trace_array_cpu {
 	void			*trace_current;
 	struct list_head	trace_pages;
 	atomic_t		disabled;
+	cycle_t			time_offset;
+
 	/* these fields get copied into max-trace: */
 	unsigned		trace_current_idx;
 	unsigned long		trace_idx;
@@ -114,14 +116,19 @@ struct tracer {
 struct trace_iterator {
 	struct trace_array	*tr;
 	struct tracer		*trace;
+
 	struct trace_entry	*ent;
+	int			cpu;
+
+	struct trace_entry	*prev_ent;
+	int			prev_cpu;
+
 	unsigned long		iter_flags;
 	loff_t			pos;
 	unsigned long		next_idx[NR_CPUS];
 	struct list_head	*next_page[NR_CPUS];
 	unsigned		next_page_idx[NR_CPUS];
 	long			idx;
-	int			cpu;
 };
 
 void notrace tracing_reset(struct trace_array_cpu *data);
