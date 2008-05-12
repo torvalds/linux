@@ -232,8 +232,14 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status	status;
 	u32		ctrlset;
-	struct acpi_osc_data *osc_data = acpi_get_osc_data(handle);
+	acpi_handle tmp;
+	struct acpi_osc_data *osc_data;
 
+	status = acpi_get_handle(handle, "_OSC", &tmp);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
 		return AE_ERROR;
