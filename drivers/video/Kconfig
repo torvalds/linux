@@ -171,7 +171,6 @@ config FB_SYS_FOPS
 config FB_DEFERRED_IO
 	bool
 	depends on FB
-	default y
 
 config FB_METRONOME
 	tristate
