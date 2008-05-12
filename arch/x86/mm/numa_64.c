@@ -179,7 +179,7 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 void __init setup_node_bootmem(int nodeid, unsigned long start,
 			       unsigned long end)
 {
-	unsigned long start_pfn, end_pfn, bootmap_pages, bootmap_size;
+	unsigned long start_pfn, last_pfn, bootmap_pages, bootmap_size;
 	unsigned long bootmap_start, nodedata_phys;
 	void *bootmap;
 	const int pgdat_size = round_up(sizeof(pg_data_t), PAGE_SIZE);
@@ -191,7 +191,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	       start, end);
 
 	start_pfn = start >> PAGE_SHIFT;
-	end_pfn = end >> PAGE_SHIFT;
+	last_pfn = end >> PAGE_SHIFT;
 
 	node_data[nodeid] = early_node_mem(nodeid, start, end, pgdat_size,
 					   SMP_CACHE_BYTES);
@@ -204,7 +204,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	memset(NODE_DATA(nodeid), 0, sizeof(pg_data_t));
 	NODE_DATA(nodeid)->bdata = &plat_node_bdata[nodeid];
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
-	NODE_DATA(nodeid)->node_spanned_pages = end_pfn - start_pfn;
+	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
 
 	/*
 	 * Find a place for the bootmem map
@@ -213,7 +213,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	 * early_node_mem will get that with find_e820_area instead
 	 * of alloc_bootmem, that could clash with reserved range
 	 */
-	bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
+	bootmap_pages = bootmem_bootmap_pages(last_pfn - start_pfn);
 	nid = phys_to_nid(nodedata_phys);
 	if (nid == nodeid)
 		bootmap_start = round_up(nodedata_phys + pgdat_size, PAGE_SIZE);
@@ -235,7 +235,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 
 	bootmap_size = init_bootmem_node(NODE_DATA(nodeid),
 					 bootmap_start >> PAGE_SHIFT,
-					 start_pfn, end_pfn);
+					 start_pfn, last_pfn);
 
 	printk(KERN_INFO "  bootmap [%016lx -  %016lx] pages %lx\n",
 		 bootmap_start, bootmap_start + bootmap_size - 1,
@@ -400,15 +400,15 @@ static int __init split_nodes_by_size(struct bootnode *nodes, u64 *addr,
 }
 
 /*
- * Sets up the system RAM area from start_pfn to end_pfn according to the
+ * Sets up the system RAM area from start_pfn to last_pfn according to the
  * numa=fake command-line option.
  */
 static struct bootnode nodes[MAX_NUMNODES] __initdata;
 
-static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
+static int __init numa_emulation(unsigned long start_pfn, unsigned long last_pfn)
 {
 	u64 size, addr = start_pfn << PAGE_SHIFT;
-	u64 max_addr = end_pfn << PAGE_SHIFT;
+	u64 max_addr = last_pfn << PAGE_SHIFT;
 	int num_nodes = 0, num = 0, coeff_flag, coeff = -1, i;
 
 	memset(&nodes, 0, sizeof(nodes));
@@ -514,7 +514,7 @@ out:
 }
 #endif /* CONFIG_NUMA_EMU */
 
-void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
+void __init numa_initmem_init(unsigned long start_pfn, unsigned long last_pfn)
 {
 	int i;
 
@@ -522,7 +522,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	nodes_clear(node_online_map);
 
 #ifdef CONFIG_NUMA_EMU
-	if (cmdline && !numa_emulation(start_pfn, end_pfn))
+	if (cmdline && !numa_emulation(start_pfn, last_pfn))
 		return;
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
@@ -530,7 +530,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 
 #ifdef CONFIG_ACPI_NUMA
 	if (!numa_off && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
-					  end_pfn << PAGE_SHIFT))
+					  last_pfn << PAGE_SHIFT))
 		return;
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
@@ -538,7 +538,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 
 #ifdef CONFIG_K8_NUMA
 	if (!numa_off && !k8_scan_nodes(start_pfn<<PAGE_SHIFT,
-					end_pfn<<PAGE_SHIFT))
+					last_pfn<<PAGE_SHIFT))
 		return;
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
@@ -548,7 +548,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 
 	printk(KERN_INFO "Faking a node at %016lx-%016lx\n",
 	       start_pfn << PAGE_SHIFT,
-	       end_pfn << PAGE_SHIFT);
+	       last_pfn << PAGE_SHIFT);
 	/* setup dummy node covering all memory */
 	memnode_shift = 63;
 	memnodemap = memnode.embedded_map;
@@ -557,8 +557,8 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	node_set(0, node_possible_map);
 	for (i = 0; i < NR_CPUS; i++)
 		numa_set_node(i, 0);
-	e820_register_active_regions(0, start_pfn, end_pfn);
-	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
+	e820_register_active_regions(0, start_pfn, last_pfn);
+	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
 }
 
 unsigned long __init numa_free_all_bootmem(void)
