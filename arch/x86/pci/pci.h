@@ -27,6 +27,7 @@
 #define PCI_CAN_SKIP_ISA_ALIGN	0x8000
 #define PCI_USE__CRS		0x10000
 #define PCI_CHECK_ENABLE_AMD_MMCONF	0x20000
+#define PCI_NOASSIGN_ROMS	0x40000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;

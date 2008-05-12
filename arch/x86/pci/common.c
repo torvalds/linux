@@ -121,6 +121,21 @@ void __init dmi_check_skip_isa_align(void)
 	dmi_check_system(can_skip_pciprobe_dmi_table);
 }
 
+static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+{
+	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
+
+	if (pci_probe & PCI_NOASSIGN_ROMS) {
+		if (rom_r->parent)
+			return;
+		if (rom_r->start) {
+			/* we deal with BIOS assigned ROM later */
+			return;
+		}
+		rom_r->start = rom_r->end = rom_r->flags = 0;
+	}
+}
+
 /*
  *  Called after each bus is probed, but before its children
  *  are examined.
@@ -128,7 +143,11 @@ void __init dmi_check_skip_isa_align(void)
 
 void __devinit  pcibios_fixup_bus(struct pci_bus *b)
 {
+	struct pci_dev *dev;
+
 	pci_read_bridge_bases(b);
+	list_for_each_entry(dev, &b->devices, bus_list)
+		pcibios_fixup_device_resources(dev);
 }
 
 /*
@@ -482,6 +501,9 @@ char * __devinit  pcibios_setup(char *str)
 #endif
 	else if (!strcmp(str, "rom")) {
 		pci_probe |= PCI_ASSIGN_ROMS;
+		return NULL;
+	} else if (!strcmp(str, "norom")) {
+		pci_probe |= PCI_NOASSIGN_ROMS;
 		return NULL;
 	} else if (!strcmp(str, "assign-busses")) {
 		pci_probe |= PCI_ASSIGN_ALL_BUSSES;

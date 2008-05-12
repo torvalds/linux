@@ -1496,6 +1496,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				Use with caution as certain devices share
 				address decoders between ROMs and other
 				resources.
+		norom		[X86-32,X86_64] Do not assign address space to
+				expansion ROMs that do not already have
+				BIOS assigned address ranges.
 		irqmask=0xMMMM	[X86-32] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
