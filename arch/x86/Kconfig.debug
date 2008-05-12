@@ -180,12 +180,10 @@ config MMIOTRACE
 	help
 	  Mmiotrace traces Memory Mapped I/O access and is meant for
 	  debugging and reverse engineering. It is called from the ioremap
-	  implementation and works via page faults. A user space program is
-	  required to collect the MMIO data from debugfs files.
-	  Tracing is disabled by default and can be enabled from a debugfs
-	  file.
+	  implementation and works via page faults. Tracing is disabled by
+	  default and can be enabled run-time.
 
-	  See http://nouveau.freedesktop.org/wiki/MmioTrace
+	  See Documentation/tracers/mmiotrace.txt.
 	  If you are not helping to develop drivers, say N.
 
 config MMIOTRACE_TEST
