@@ -126,7 +126,7 @@ static void start_stack_timers(void)
 	for_each_online_cpu(cpu) {
 		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 		start_stack_timer(cpu);
-		printk("started timer on cpu%d\n", cpu);
+		printk(KERN_INFO "started sysprof timer on cpu%d\n", cpu);
 	}
 	set_cpus_allowed_ptr(current, &saved_mask);
 }
@@ -136,7 +136,7 @@ static void stop_stack_timer(int cpu)
 	struct hrtimer *hrtimer = &per_cpu(stack_trace_hrtimer, cpu);
 
 	hrtimer_cancel(hrtimer);
-	printk("cancelled timer on cpu%d\n", cpu);
+	printk(KERN_INFO "cancelled sysprof timer on cpu%d\n", cpu);
 }
 
 static void stop_stack_timers(void)
@@ -200,7 +200,7 @@ static struct tracer stack_trace __read_mostly =
 	.reset		= stack_trace_reset,
 	.ctrl_update	= stack_trace_ctrl_update,
 #ifdef CONFIG_FTRACE_SELFTEST
-	.selftest    = trace_selftest_startup_stack,
+	.selftest    = trace_selftest_startup_sysprof,
 #endif
 };
 

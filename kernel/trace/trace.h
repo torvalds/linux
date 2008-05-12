@@ -280,6 +280,10 @@ extern int trace_selftest_startup_wakeup(struct tracer *trace,
 extern int trace_selftest_startup_sched_switch(struct tracer *trace,
 					       struct trace_array *tr);
 #endif
+#ifdef CONFIG_SYSPROF_TRACER
+extern int trace_selftest_startup_sysprof(struct tracer *trace,
+					       struct trace_array *tr);
+#endif
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
