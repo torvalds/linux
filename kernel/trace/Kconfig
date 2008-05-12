@@ -32,6 +32,7 @@ config IRQSOFF_TRACER
 	default n
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on GENERIC_TIME
+	depends on HAVE_FTRACE
 	select TRACE_IRQFLAGS
 	select TRACING
 	select TRACER_MAX_TRACE
@@ -54,6 +55,7 @@ config PREEMPT_TRACER
 	default n
 	depends on GENERIC_TIME
 	depends on PREEMPT
+	depends on HAVE_FTRACE
 	select TRACING
 	select TRACER_MAX_TRACE
 	help
@@ -72,6 +74,7 @@ config PREEMPT_TRACER
 
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
+	depends on HAVE_FTRACE
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
@@ -81,6 +84,7 @@ config SCHED_TRACER
 
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
+	depends on HAVE_FTRACE
 	select TRACING
 	select MARKERS
 	help
