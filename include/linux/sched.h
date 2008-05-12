@@ -2130,15 +2130,9 @@ ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
 #ifdef CONFIG_SCHED_TRACER
 extern void
 ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr);
-extern void
-ftrace_wake_up_new_task(struct task_struct *wakee, struct task_struct *curr);
 #else
 static inline void
 ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr)
-{
-}
-static inline void
-ftrace_wake_up_new_task(struct task_struct *wakee, struct task_struct *curr)
 {
 }
 #endif

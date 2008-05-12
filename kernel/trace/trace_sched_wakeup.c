@@ -201,20 +201,13 @@ out:
 	atomic_dec(&tr->data[cpu]->disabled);
 }
 
-void
-wakeup_sched_wakeup(struct task_struct *wakee, struct task_struct *curr)
+void wakeup_sched_wakeup(struct task_struct *wakee, struct task_struct *curr)
 {
 	if (likely(!tracer_enabled))
 		return;
 
-	wakeup_check_start(wakeup_trace, wakee, curr);
-}
-
-void
-ftrace_wake_up_new_task(struct task_struct *wakee, struct task_struct *curr)
-{
-	if (likely(!tracer_enabled))
-		return;
+	tracing_record_cmdline(curr);
+	tracing_record_cmdline(wakee);
 
 	wakeup_check_start(wakeup_trace, wakee, curr);
 }
