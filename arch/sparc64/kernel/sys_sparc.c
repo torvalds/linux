@@ -542,8 +542,7 @@ asmlinkage long sparc64_personality(unsigned long personality)
 	return ret;
 }
 
-int sparc64_mmap_check(unsigned long addr, unsigned long len,
-		unsigned long flags)
+int sparc64_mmap_check(unsigned long addr, unsigned long len)
 {
 	if (test_thread_flag(TIF_32BIT)) {
 		if (len >= STACK_TOP32)
@@ -609,46 +608,19 @@ asmlinkage unsigned long sys64_mremap(unsigned long addr,
 	unsigned long old_len, unsigned long new_len,
 	unsigned long flags, unsigned long new_addr)
 {
-	struct vm_area_struct *vma;
 	unsigned long ret = -EINVAL;
 
 	if (test_thread_flag(TIF_32BIT))
 		goto out;
 	if (unlikely(new_len >= VA_EXCLUDE_START))
 		goto out;
-	if (unlikely(invalid_64bit_range(addr, old_len)))
+	if (unlikely(sparc64_mmap_check(addr, old_len)))
+		goto out;
+	if (unlikely(sparc64_mmap_check(new_addr, new_len)))
 		goto out;
 
 	down_write(&current->mm->mmap_sem);
-	if (flags & MREMAP_FIXED) {
-		if (invalid_64bit_range(new_addr, new_len))
-			goto out_sem;
-	} else if (invalid_64bit_range(addr, new_len)) {
-		unsigned long map_flags = 0;
-		struct file *file = NULL;
-
-		ret = -ENOMEM;
-		if (!(flags & MREMAP_MAYMOVE))
-			goto out_sem;
-
-		vma = find_vma(current->mm, addr);
-		if (vma) {
-			if (vma->vm_flags & VM_SHARED)
-				map_flags |= MAP_SHARED;
-			file = vma->vm_file;
-		}
-
-		/* MREMAP_FIXED checked above. */
-		new_addr = get_unmapped_area(file, addr, new_len,
-				    vma ? vma->vm_pgoff : 0,
-				    map_flags);
-		ret = new_addr;
-		if (new_addr & ~PAGE_MASK)
-			goto out_sem;
-		flags |= MREMAP_FIXED;
-	}
 	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-out_sem:
 	up_write(&current->mm->mmap_sem);
 out:
 	return ret;       
