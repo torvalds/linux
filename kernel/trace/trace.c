@@ -609,6 +609,7 @@ void unregister_tracer(struct tracer *type)
 void tracing_reset(struct trace_array_cpu *data)
 {
 	data->trace_idx = 0;
+	data->overrun = 0;
 	data->trace_head = data->trace_tail = head_page(data);
 	data->trace_head_idx = 0;
 	data->trace_tail_idx = 0;
@@ -750,6 +751,7 @@ tracing_get_trace_entry(struct trace_array *tr, struct trace_array_cpu *data)
 	if (data->trace_head == data->trace_tail &&
 	    idx_next == data->trace_tail_idx) {
 		/* overrun */
+		data->overrun++;
 		data->trace_tail_idx++;
 		if (data->trace_tail_idx >= ENTRIES_PER_PAGE) {
 			data->trace_tail =
@@ -2353,8 +2355,6 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 {
 	struct trace_iterator *iter = filp->private_data;
 	struct trace_array_cpu *data;
-	struct trace_array *tr = iter->tr;
-	struct tracer *tracer = iter->trace;
 	static cpumask_t mask;
 	static int start;
 	unsigned long flags;
@@ -2433,10 +2433,11 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	if (cnt >= PAGE_SIZE)
 		cnt = PAGE_SIZE - 1;
 
-	memset(iter, 0, sizeof(*iter));
-	iter->tr = tr;
-	iter->trace = tracer;
+	/* reset all but tr, trace, and overruns */
 	iter->pos = -1;
+	memset(&iter->seq, 0,
+	       sizeof(struct trace_iterator) -
+	       offsetof(struct trace_iterator, seq));
 
 	/*
 	 * We need to stop all tracing on all CPUS to read the
@@ -2465,6 +2466,11 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	for_each_cpu_mask(cpu, mask) {
 		data = iter->tr->data[cpu];
 		__raw_spin_lock(&data->lock);
+
+		if (data->overrun > iter->last_overrun[cpu])
+			iter->overrun[cpu] +=
+				data->overrun - iter->last_overrun[cpu];
+		iter->last_overrun[cpu] = data->overrun;
 	}
 
 	while (find_next_entry_inc(iter) != NULL) {
