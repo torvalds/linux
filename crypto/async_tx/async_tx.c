@@ -23,6 +23,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+#include <linux/rculist.h>
 #include <linux/kernel.h>
 #include <linux/async_tx.h>
 
