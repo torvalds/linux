@@ -864,7 +864,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	struct saa7134_dev *dev;
 	struct saa7134_mpeg_ops *mops;
 	int err;
-	int mask;
 
 	if (saa7134_devcount == SAA7134_MAXBOARDS)
 		return -ENOMEM;
