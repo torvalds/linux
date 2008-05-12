@@ -103,7 +103,8 @@ enum trace_iterator_flags {
 	TRACE_ITER_SYM_ADDR		= 0x04,
 	TRACE_ITER_VERBOSE		= 0x08,
 	TRACE_ITER_RAW			= 0x10,
-	TRACE_ITER_BIN			= 0x20,
+	TRACE_ITER_HEX			= 0x20,
+	TRACE_ITER_BIN			= 0x40,
 };
 
 #define TRACE_ITER_SYM_MASK \
@@ -116,6 +117,7 @@ static const char *trace_options[] = {
 	"sym-addr",
 	"verbose",
 	"raw",
+	"hex",
 	"bin",
 	NULL
 };
@@ -236,6 +238,47 @@ trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
 	s->len += len;
 
 	return len;
+}
+
+#define HEX_CHARS 17
+
+static notrace int
+trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
+{
+	unsigned char hex[HEX_CHARS];
+	unsigned char *data;
+	unsigned char byte;
+	int i, j;
+
+	BUG_ON(len >= HEX_CHARS);
+
+	data = mem;
+
+#ifdef __BIG_ENDIAN
+	for (i = 0, j = 0; i < len; i++) {
+#else
+	for (i = len-1, j = 0; i >= 0; i--) {
+#endif
+		byte = data[i];
+
+		hex[j]   = byte & 0x0f;
+		if (hex[j] >= 10)
+			hex[j] += 'a' - 10;
+		else
+			hex[j] += '0';
+		j++;
+
+		hex[j] = byte >> 4;
+		if (hex[j] >= 10)
+			hex[j] += 'a' - 10;
+		else
+			hex[j] += '0';
+		j++;
+	}
+	hex[j] = ' ';
+	j++;
+
+	return trace_seq_putmem(s, hex, j);
 }
 
 static notrace void
@@ -1274,6 +1317,51 @@ do {							\
 		return 0;				\
 } while (0)
 
+#define SEQ_PUT_HEX_FIELD_RET(s, x)			\
+do {							\
+	if (!trace_seq_putmem_hex(s, &(x), sizeof(x)))	\
+		return 0;				\
+} while (0)
+
+static notrace int print_hex_fmt(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	unsigned char newline = '\n';
+	struct trace_entry *entry;
+	int S;
+
+	entry = iter->ent;
+
+	SEQ_PUT_HEX_FIELD_RET(s, entry->pid);
+	SEQ_PUT_HEX_FIELD_RET(s, iter->cpu);
+	SEQ_PUT_HEX_FIELD_RET(s, entry->t);
+
+	switch (entry->type) {
+	case TRACE_FN:
+		SEQ_PUT_HEX_FIELD_RET(s, entry->fn.ip);
+		SEQ_PUT_HEX_FIELD_RET(s, entry->fn.parent_ip);
+		break;
+	case TRACE_CTX:
+		S = entry->ctx.prev_state < sizeof(state_to_char) ?
+			state_to_char[entry->ctx.prev_state] : 'X';
+		SEQ_PUT_HEX_FIELD_RET(s, entry->ctx.prev_pid);
+		SEQ_PUT_HEX_FIELD_RET(s, entry->ctx.prev_prio);
+		SEQ_PUT_HEX_FIELD_RET(s, S);
+		SEQ_PUT_HEX_FIELD_RET(s, entry->ctx.next_pid);
+		SEQ_PUT_HEX_FIELD_RET(s, entry->ctx.next_prio);
+		SEQ_PUT_HEX_FIELD_RET(s, entry->fn.parent_ip);
+		break;
+	case TRACE_SPECIAL:
+		SEQ_PUT_HEX_FIELD_RET(s, entry->special.arg1);
+		SEQ_PUT_HEX_FIELD_RET(s, entry->special.arg2);
+		SEQ_PUT_HEX_FIELD_RET(s, entry->special.arg3);
+		break;
+	}
+	SEQ_PUT_FIELD_RET(s, newline);
+
+	return 1;
+}
+
 static notrace int print_bin_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1326,6 +1414,9 @@ static int print_trace_line(struct trace_iterator *iter)
 {
 	if (trace_flags & TRACE_ITER_BIN)
 		return print_bin_fmt(iter);
+
+	if (trace_flags & TRACE_ITER_HEX)
+		return print_hex_fmt(iter);
 
 	if (trace_flags & TRACE_ITER_RAW)
 		return print_raw_fmt(iter);
