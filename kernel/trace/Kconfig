@@ -14,7 +14,7 @@ config TRACING
 
 config FTRACE
 	bool "Kernel Function Tracer"
-	depends on DEBUG_KERNEL && HAVE_FTRACE
+	depends on HAVE_FTRACE
 	select FRAME_POINTER
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
@@ -72,7 +72,6 @@ config PREEMPT_TRACER
 
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
-	depends on DEBUG_KERNEL
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
@@ -82,7 +81,6 @@ config SCHED_TRACER
 
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
-	depends on DEBUG_KERNEL
 	select TRACING
 	select MARKERS
 	help
