@@ -29,17 +29,13 @@
 static struct x8664_pda _boot_cpu_pda __read_mostly;
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
 /*
- * We install an empty cpu_pda pointer table to trap references before
- * the actual cpu_pda pointer table is created in setup_cpu_pda_map().
+ * We install an empty cpu_pda pointer table to indicate to early users
+ * (numa_set_node) that the cpu_pda pointer table for cpus other than
+ * the boot cpu is not yet setup.
  */
 static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
 #else
-static struct x8664_pda *__cpu_pda[1] __read_mostly;
-#endif
-
-#else /* !CONFIG_SMP (NR_CPUS will be 1) */
 static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
 #endif
 
