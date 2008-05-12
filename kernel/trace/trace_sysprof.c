@@ -37,21 +37,26 @@ struct stack_frame {
 
 static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
 {
+	int ret;
+
 	if (!access_ok(VERIFY_READ, fp, sizeof(*frame)))
 		return 0;
 
-	if (__copy_from_user_inatomic(frame, frame_pointer, sizeof(*frame)))
-		return 0;
+	ret = 1;
+	pagefault_disable();
+	if (__copy_from_user_inatomic(frame, fp, sizeof(*frame)))
+		ret = 0;
+	pagefault_enable();
 
-	return 1;
+	return ret;
 }
 
 static void timer_notify(struct pt_regs *regs, int cpu)
 {
-	const void __user *frame_pointer;
 	struct trace_array_cpu *data;
 	struct stack_frame frame;
 	struct trace_array *tr;
+	const void __user *fp;
 	int is_user;
 	int i;
 
@@ -77,21 +82,26 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 
 	trace_special(tr, data, 0, current->pid, regs->ip);
 
-	frame_pointer = (void __user *)regs->bp;
+	fp = (void __user *)regs->bp;
 
 	for (i = 0; i < sample_max_depth; i++) {
-		if (!copy_stack_frame(frame_pointer, &frame))
+		frame.next_fp = 0;
+		frame.return_address = 0;
+		if (!copy_stack_frame(fp, &frame))
 			break;
-		if ((unsigned long)frame_pointer < regs->sp)
+		if ((unsigned long)fp < regs->sp)
 			break;
 
 		trace_special(tr, data, 1, frame.return_address,
-			      (unsigned long)frame_pointer);
-		frame_pointer = frame.next_fp;
+			      (unsigned long)fp);
+		fp = frame.next_fp;
 	}
 
 	trace_special(tr, data, 2, current->pid, i);
 
+	/*
+	 * Special trace entry if we overflow the max depth:
+	 */
 	if (i == sample_max_depth)
 		trace_special(tr, data, -1, -1, -1);
 }
