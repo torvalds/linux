@@ -715,6 +715,9 @@ struct net_device
 	struct net		*nd_net;
 #endif
 
+	/* mid-layer private */
+	void			*ml_priv;
+
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
 	/* macvlan */
