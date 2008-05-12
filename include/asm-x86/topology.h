@@ -57,10 +57,16 @@ static inline int cpu_to_node(int cpu)
 }
 #define early_cpu_to_node(cpu)	cpu_to_node(cpu)
 
+/* Returns a bitmask of CPUs on Node 'node'. */
+static inline cpumask_t node_to_cpumask(int node)
+{
+	return node_to_cpumask_map[node];
+}
+
 #else /* CONFIG_X86_64 */
 
 /* Mappings between node number and cpus on that node. */
-extern cpumask_t node_to_cpumask_map[];
+extern cpumask_t *node_to_cpumask_map;
 
 /* Mappings between logical cpu number and node number */
 DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
@@ -104,7 +110,6 @@ static inline cpumask_t node_to_cpumask(int node)
 }
 
 #endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
-#endif /* CONFIG_X86_64 */
 
 /* Replace default node_to_cpumask_ptr with optimized version */
 #define node_to_cpumask_ptr(v, node)		\
@@ -113,12 +118,7 @@ static inline cpumask_t node_to_cpumask(int node)
 #define node_to_cpumask_ptr_next(v, node)	\
 			   v = _node_to_cpumask_ptr(node)
 
-/* Returns the number of the first CPU on Node 'node'. */
-static inline int node_to_first_cpu(int node)
-{
-	node_to_cpumask_ptr(mask, node);
-	return first_cpu(*mask);
-}
+#endif /* CONFIG_X86_64 */
 
 /*
  * Returns the number of the node containing Node 'node'. This
@@ -203,6 +203,15 @@ static inline int node_to_first_cpu(int node)
 #endif
 
 #include <asm-generic/topology.h>
+
+#ifdef CONFIG_NUMA
+/* Returns the number of the first CPU on Node 'node'. */
+static inline int node_to_first_cpu(int node)
+{
+	node_to_cpumask_ptr(mask, node);
+	return first_cpu(*mask);
+}
+#endif
 
 extern cpumask_t cpu_coregroup_map(int cpu);
 

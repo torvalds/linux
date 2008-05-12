@@ -35,9 +35,6 @@ s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
-cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_to_cpumask_map);
-
 int numa_off __initdata;
 unsigned long __initdata nodemap_addr;
 unsigned long __initdata nodemap_size;
@@ -560,9 +557,6 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	node_set(0, node_possible_map);
 	for (i = 0; i < NR_CPUS; i++)
 		numa_set_node(i, 0);
-	/* cpumask_of_cpu() may not be available during early startup */
-	memset(&node_to_cpumask_map[0], 0, sizeof(node_to_cpumask_map[0]));
-	cpu_set(0, node_to_cpumask_map[0]);
 	e820_register_active_regions(0, start_pfn, end_pfn);
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
 }
