@@ -557,11 +557,6 @@ trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
 
-	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
-		ret = -1;
-	}
-
 	return ret;
 }
 #endif /* CONFIG_SYSPROF_TRACER */
