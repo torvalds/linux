@@ -267,6 +267,7 @@ ftrace_record_ip(unsigned long ip)
 	unsigned long key;
 	int resched;
 	int atomic;
+	int cpu;
 
 	if (!ftrace_enabled || ftrace_disabled)
 		return;
@@ -274,9 +275,15 @@ ftrace_record_ip(unsigned long ip)
 	resched = need_resched();
 	preempt_disable_notrace();
 
-	/* We simply need to protect against recursion */
-	__get_cpu_var(ftrace_shutdown_disable_cpu)++;
-	if (__get_cpu_var(ftrace_shutdown_disable_cpu) != 1)
+	/*
+	 * We simply need to protect against recursion.
+	 * Use the the raw version of smp_processor_id and not
+	 * __get_cpu_var which can call debug hooks that can
+	 * cause a recursive crash here.
+	 */
+	cpu = raw_smp_processor_id();
+	per_cpu(ftrace_shutdown_disable_cpu, cpu)++;
+	if (per_cpu(ftrace_shutdown_disable_cpu, cpu) != 1)
 		goto out;
 
 	if (unlikely(ftrace_record_suspend))
@@ -317,7 +324,7 @@ ftrace_record_ip(unsigned long ip)
  out_unlock:
 	spin_unlock_irqrestore(&ftrace_shutdown_lock, flags);
  out:
-	__get_cpu_var(ftrace_shutdown_disable_cpu)--;
+	per_cpu(ftrace_shutdown_disable_cpu, cpu)--;
 
 	/* prevent recursion with scheduler */
 	if (resched)
