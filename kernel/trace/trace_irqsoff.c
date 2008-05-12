@@ -165,18 +165,20 @@ check_critical_timing(struct trace_array *tr,
 
 	update_max_tr_single(tr, current, cpu);
 
-	if (tracing_thresh) {
-		printk(KERN_INFO "(%16s-%-5d|#%d):"
-			" %lu us critical section violates %lu us threshold.\n",
-				current->comm, current->pid,
-				raw_smp_processor_id(),
-				latency, nsecs_to_usecs(tracing_thresh));
-	} else {
-		printk(KERN_INFO "(%16s-%-5d|#%d):"
-		       " new %lu us maximum-latency critical section.\n",
-				current->comm, current->pid,
-				raw_smp_processor_id(),
-				latency);
+	if (!runqueue_is_locked()) {
+		if (tracing_thresh) {
+			printk(KERN_INFO "(%16s-%-5d|#%d): %lu us critical"
+			       " section violates %lu us threshold.\n",
+			       current->comm, current->pid,
+			       raw_smp_processor_id(),
+			       latency, nsecs_to_usecs(tracing_thresh));
+		} else {
+			printk(KERN_INFO "(%16s-%-5d|#%d): new %lu us"
+			       " maximum-latency critical section.\n",
+			       current->comm, current->pid,
+			       raw_smp_processor_id(),
+			       latency);
+		}
 	}
 
 	max_sequence++;

@@ -106,19 +106,6 @@ wakeup_sched_switch(struct task_struct *prev, struct task_struct *next)
 
 	update_max_tr(tr, wakeup_task, wakeup_cpu);
 
-	if (tracing_thresh) {
-		printk(KERN_INFO "(%16s-%-5d|#%d):"
-			" %lu us wakeup latency violates %lu us threshold.\n",
-				wakeup_task->comm, wakeup_task->pid,
-				raw_smp_processor_id(),
-				latency, nsecs_to_usecs(tracing_thresh));
-	} else {
-		printk(KERN_INFO "(%16s-%-5d|#%d):"
-			" new %lu us maximum wakeup latency.\n",
-				wakeup_task->comm, wakeup_task->pid,
-				cpu, latency);
-	}
-
 out_unlock:
 	__wakeup_reset(tr);
 	spin_unlock_irqrestore(&wakeup_lock, flags);
