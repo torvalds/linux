@@ -101,6 +101,50 @@ static inline void setup_cpumask_of_cpu(void) { }
  */
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
+static inline void setup_cpu_pda_map(void) { }
+
+#elif !defined(CONFIG_SMP)
+static inline void setup_cpu_pda_map(void) { }
+
+#else /* CONFIG_SMP && CONFIG_X86_64 */
+
+/*
+ * Allocate cpu_pda pointer table and array via alloc_bootmem.
+ */
+static void __init setup_cpu_pda_map(void)
+{
+	char *pda;
+	struct x8664_pda **new_cpu_pda;
+	unsigned long size;
+	int cpu;
+
+	size = roundup(sizeof(struct x8664_pda), cache_line_size());
+
+	/* allocate cpu_pda array and pointer table */
+	{
+		unsigned long tsize = nr_cpu_ids * sizeof(void *);
+		unsigned long asize = size * (nr_cpu_ids - 1);
+
+		tsize = roundup(tsize, cache_line_size());
+		new_cpu_pda = alloc_bootmem(tsize + asize);
+		pda = (char *)new_cpu_pda + tsize;
+	}
+
+	/* initialize pointer table to static pda's */
+	for_each_possible_cpu(cpu) {
+		if (cpu == 0) {
+			/* leave boot cpu pda in place */
+			new_cpu_pda[0] = cpu_pda(0);
+			continue;
+		}
+		new_cpu_pda[cpu] = (struct x8664_pda *)pda;
+		new_cpu_pda[cpu]->in_bootmem = 1;
+		pda += size;
+	}
+
+	/* point to new pointer table */
+	_cpu_pda = new_cpu_pda;
+}
 #endif
 
 /*
@@ -110,46 +154,43 @@ EXPORT_SYMBOL(__per_cpu_offset);
  */
 void __init setup_per_cpu_areas(void)
 {
-	int i, highest_cpu = 0;
-	unsigned long size;
+	ssize_t size = PERCPU_ENOUGH_ROOM;
+	char *ptr;
+	int cpu;
 
 #ifdef CONFIG_HOTPLUG_CPU
 	prefill_possible_map();
+#else
+	nr_cpu_ids = num_processors;
 #endif
+
+	/* Setup cpu_pda map */
+	setup_cpu_pda_map();
 
 	/* Copy section for each CPU (we discard the original) */
 	size = PERCPU_ENOUGH_ROOM;
 	printk(KERN_INFO "PERCPU: Allocating %lu bytes of per cpu data\n",
 			  size);
 
-	for_each_possible_cpu(i) {
-		char *ptr;
+	for_each_possible_cpu(cpu) {
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 		ptr = alloc_bootmem_pages(size);
 #else
-		int node = early_cpu_to_node(i);
+		int node = early_cpu_to_node(cpu);
 		if (!node_online(node) || !NODE_DATA(node)) {
 			ptr = alloc_bootmem_pages(size);
 			printk(KERN_INFO
 			       "cpu %d has no node %d or node-local memory\n",
-				i, node);
+				cpu, node);
 		}
 		else
 			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
 #endif
-		if (!ptr)
-			panic("Cannot allocate cpu data for CPU %d\n", i);
-#ifdef CONFIG_X86_64
-		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
-#else
-		__per_cpu_offset[i] = ptr - __per_cpu_start;
-#endif
+		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 
-		highest_cpu = i;
 	}
 
-	nr_cpu_ids = highest_cpu + 1;
 	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d, nr_node_ids %d\n",
 		NR_CPUS, nr_cpu_ids, nr_node_ids);
 
@@ -199,7 +240,7 @@ void __cpuinit numa_set_node(int cpu, int node)
 {
 	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
 
-	if (node != NUMA_NO_NODE)
+	if (cpu_pda(cpu) && node != NUMA_NO_NODE)
 		cpu_pda(cpu)->nodenumber = node;
 
 	if (cpu_to_node_map)

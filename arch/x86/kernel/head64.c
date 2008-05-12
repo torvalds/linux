@@ -25,6 +25,24 @@
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
 
+/* boot cpu pda */
+static struct x8664_pda _boot_cpu_pda __read_mostly;
+
+#ifdef CONFIG_SMP
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+/*
+ * We install an empty cpu_pda pointer table to trap references before
+ * the actual cpu_pda pointer table is created in setup_cpu_pda_map().
+ */
+static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
+#else
+static struct x8664_pda *__cpu_pda[1] __read_mostly;
+#endif
+
+#else /* !CONFIG_SMP (NR_CPUS will be 1) */
+static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
+#endif
+
 static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
@@ -156,10 +174,12 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	early_printk("Kernel alive\n");
 
- 	for (i = 0; i < NR_CPUS; i++)
- 		cpu_pda(i) = &boot_cpu_pda[i];
-
+	_cpu_pda = __cpu_pda;
+	cpu_pda(0) = &_boot_cpu_pda;
 	pda_init(0);
+
+	early_printk("Kernel really alive\n");
+
 	copy_bootdata(__va(real_mode_data));
 
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
