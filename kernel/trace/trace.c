@@ -1251,7 +1251,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 				 comm);
 		break;
 	case TRACE_SPECIAL:
-		trace_seq_printf(s, " %ld %ld %ld\n",
+		trace_seq_printf(s, "# %ld %ld %ld\n",
 				 entry->special.arg1,
 				 entry->special.arg2,
 				 entry->special.arg3);
@@ -1335,7 +1335,7 @@ static int print_trace_fmt(struct trace_iterator *iter)
 			return 0;
 		break;
 	case TRACE_SPECIAL:
-		ret = trace_seq_printf(s, " %ld %ld %ld\n",
+		ret = trace_seq_printf(s, "# %ld %ld %ld\n",
 				 entry->special.arg1,
 				 entry->special.arg2,
 				 entry->special.arg3);
@@ -1400,7 +1400,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 		break;
 	case TRACE_SPECIAL:
 	case TRACE_STACK:
-		ret = trace_seq_printf(s, " %ld %ld %ld\n",
+		ret = trace_seq_printf(s, "# %ld %ld %ld\n",
 				 entry->special.arg1,
 				 entry->special.arg2,
 				 entry->special.arg3);

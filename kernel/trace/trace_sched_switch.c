@@ -103,6 +103,30 @@ ftrace_wake_up_task(void *__rq, struct task_struct *wakee,
 	wakeup_sched_wakeup(wakee, curr);
 }
 
+void
+ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
+{
+	struct trace_array *tr = ctx_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int cpu;
+
+	if (!tracer_enabled)
+		return;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+
+	if (likely(disabled == 1))
+		__trace_special(tr, data, arg1, arg2, arg3);
+
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+}
+
 static void sched_switch_reset(struct trace_array *tr)
 {
 	int cpu;
