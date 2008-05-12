@@ -188,6 +188,8 @@ static int ftraced_suspend;
 
 static int ftrace_record_suspend;
 
+static struct dyn_ftrace *ftrace_free_records;
+
 static inline int
 notrace ftrace_ip_in_hash(unsigned long ip, unsigned long key)
 {
@@ -211,8 +213,35 @@ ftrace_add_hash(struct dyn_ftrace *node, unsigned long key)
 	hlist_add_head(&node->node, &ftrace_hash[key]);
 }
 
+static notrace void ftrace_free_rec(struct dyn_ftrace *rec)
+{
+	/* no locking, only called from kstop_machine */
+
+	rec->ip = (unsigned long)ftrace_free_records;
+	ftrace_free_records = rec;
+	rec->flags |= FTRACE_FL_FREE;
+}
+
 static notrace struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 {
+	struct dyn_ftrace *rec;
+
+	/* First check for freed records */
+	if (ftrace_free_records) {
+		rec = ftrace_free_records;
+
+		/* todo, disable tracing altogether on this warning */
+		if (unlikely(!(rec->flags & FTRACE_FL_FREE))) {
+			WARN_ON_ONCE(1);
+			ftrace_free_records = NULL;
+			return NULL;
+		}
+
+		ftrace_free_records = (void *)rec->ip;
+		memset(rec, 0, sizeof(*rec));
+		return rec;
+	}
+
 	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
 		if (!ftrace_pages->next)
 			return NULL;
@@ -356,8 +385,16 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 	}
 
 	failed = ftrace_modify_code(ip, old, new);
-	if (failed)
-		rec->flags |= FTRACE_FL_FAILED;
+	if (failed) {
+		unsigned long key;
+		/* It is possible that the function hasn't been converted yet */
+		key = hash_long(ip, FTRACE_HASHBITS);
+		if (!ftrace_ip_in_hash(ip, key)) {
+			rec->flags |= FTRACE_FL_FAILED;
+			ftrace_free_rec(rec);
+		}
+
+	}
 }
 
 static void notrace ftrace_replace_code(int enable)
@@ -407,8 +444,10 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 	call = ftrace_call_replace(ip, MCOUNT_ADDR);
 
 	failed = ftrace_modify_code(ip, call, nop);
-	if (failed)
+	if (failed) {
 		rec->flags |= FTRACE_FL_FAILED;
+		ftrace_free_rec(rec);
+	}
 }
 
 static int notrace __ftrace_modify_code(void *data)
