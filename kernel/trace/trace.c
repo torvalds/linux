@@ -1227,10 +1227,8 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 				 abs_usecs % 1000, rel_usecs/1000,
 				 rel_usecs % 1000);
 	} else {
-		if (entry->type != TRACE_STACK) {
-			lat_print_generic(s, entry, cpu);
-			lat_print_timestamp(s, abs_usecs, rel_usecs);
-		}
+		lat_print_generic(s, entry, cpu);
+		lat_print_timestamp(s, abs_usecs, rel_usecs);
 	}
 	switch (entry->type) {
 	case TRACE_FN:
@@ -1293,17 +1291,15 @@ static int print_trace_fmt(struct trace_iterator *iter)
 	usec_rem = do_div(t, 1000000ULL);
 	secs = (unsigned long)t;
 
-	if (entry->type != TRACE_STACK) {
-		ret = trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
-		if (!ret)
-			return 0;
-		ret = trace_seq_printf(s, "[%02d] ", iter->cpu);
-		if (!ret)
-			return 0;
-		ret = trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem);
-		if (!ret)
-			return 0;
-	}
+	ret = trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
+	if (!ret)
+		return 0;
+	ret = trace_seq_printf(s, "[%02d] ", iter->cpu);
+	if (!ret)
+		return 0;
+	ret = trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem);
+	if (!ret)
+		return 0;
 
 	switch (entry->type) {
 	case TRACE_FN:
