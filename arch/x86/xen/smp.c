@@ -345,7 +345,7 @@ static void xen_send_IPI_mask(cpumask_t mask, enum ipi_vector vector)
 
 	cpus_and(mask, mask, cpu_online_map);
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu_mask_nr(cpu, mask)
 		xen_send_IPI_one(cpu, vector);
 }
 
@@ -413,7 +413,7 @@ int xen_smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 
 	/* Make sure other vcpus get a chance to run if they need to. */
 	yield = false;
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu_mask_nr(cpu, mask)
 		if (xen_vcpu_stolen(cpu))
 			yield = true;
 

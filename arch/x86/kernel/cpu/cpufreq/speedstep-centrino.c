@@ -476,7 +476,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 	saved_mask = current->cpus_allowed;
 	first_cpu = 1;
 	cpus_clear(covered_cpus);
-	for_each_cpu_mask(j, online_policy_cpus) {
+	for_each_cpu_mask_nr(j, online_policy_cpus) {
 		/*
 		 * Support for SMP systems.
 		 * Make sure we are running on CPU that wants to change freq
@@ -517,7 +517,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 			dprintk("target=%dkHz old=%d new=%d msr=%04x\n",
 				target_freq, freqs.old, freqs.new, msr);
 
-			for_each_cpu_mask(k, online_policy_cpus) {
+			for_each_cpu_mask_nr(k, online_policy_cpus) {
 				freqs.cpu = k;
 				cpufreq_notify_transition(&freqs,
 					CPUFREQ_PRECHANGE);
@@ -540,7 +540,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 		preempt_enable();
 	}
 
-	for_each_cpu_mask(k, online_policy_cpus) {
+	for_each_cpu_mask_nr(k, online_policy_cpus) {
 		freqs.cpu = k;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}
@@ -554,7 +554,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 		 */
 
 		if (!cpus_empty(covered_cpus)) {
-			for_each_cpu_mask(j, covered_cpus) {
+			for_each_cpu_mask_nr(j, covered_cpus) {
 				set_cpus_allowed_ptr(current,
 						     &cpumask_of_cpu(j));
 				wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
@@ -564,7 +564,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 		tmp = freqs.new;
 		freqs.new = freqs.old;
 		freqs.old = tmp;
-		for_each_cpu_mask(j, online_policy_cpus) {
+		for_each_cpu_mask_nr(j, online_policy_cpus) {
 			freqs.cpu = j;
 			cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 			cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
