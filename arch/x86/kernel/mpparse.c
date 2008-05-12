@@ -113,7 +113,7 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 #ifdef CONFIG_X86_NUMAQ
 	mpc_oem_bus_info(m, str, translation_table[mpc_record]);
 #else
-	Dprintk("Bus #%d is %s\n", m->mpc_busid, str);
+	printk(KERN_INFO "Bus #%d is %s\n", m->mpc_busid, str);
 #endif
 
 #if MAX_MP_BUSSES < 256
@@ -183,7 +183,7 @@ static void __init MP_ioapic_info(struct mpc_config_ioapic *m)
 static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
 {
 	mp_irqs[mp_irq_entries] = *m;
-	Dprintk("Int: type %d, pol %d, trig %d, bus %d,"
+	printk(KERN_INFO "Int: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
 		m->mpc_irqtype, m->mpc_irqflag & 3,
 		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
@@ -196,7 +196,7 @@ static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
 
 static void __init MP_lintsrc_info(struct mpc_config_lintsrc *m)
 {
-	Dprintk("Lint: type %d, pol %d, trig %d, bus %d,"
+	printk(KERN_INFO "Lint: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC LINT %02x\n",
 		m->mpc_irqtype, m->mpc_irqflag & 3,
 		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbusid,
@@ -309,16 +309,15 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 	}
 	memcpy(oem, mpc->mpc_oem, 8);
 	oem[8] = 0;
-	printk(KERN_INFO "MPTABLE: OEM ID: %s ", oem);
+	printk(KERN_INFO "MPTABLE: OEM ID: %s\n", oem);
 
 	memcpy(str, mpc->mpc_productid, 12);
 	str[12] = 0;
-	printk("Product ID: %s ", str);
 
 #ifdef CONFIG_X86_32
 	mps_oem_check(mpc, oem, str);
 #endif
-	printk(KERN_INFO "MPTABLE: Product ID: %s ", str);
+	printk(KERN_INFO "MPTABLE: Product ID: %s\n", str);
 
 	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->mpc_lapic);
 
@@ -689,7 +688,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	unsigned int *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
-	Dprintk("Scan SMP from %p for %ld bytes.\n", bp, length);
+	printk(KERN_DEBUG "Scan SMP from %p for %ld bytes.\n", bp, length);
 	BUILD_BUG_ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {
