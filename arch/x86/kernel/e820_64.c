@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/pfn.h>
+#include <linux/pci.h>
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
