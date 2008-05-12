@@ -1865,11 +1865,8 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 
 	}
 
-	for_each_possible_cpu(cpu) {
+	for_each_cpu_mask(cpu, mask) {
 		data = iter->tr->data[cpu];
-
-		if (!cpu_isset(cpu, mask))
-			continue;
 		spin_unlock(&data->lock);
 		atomic_dec(&data->disabled);
 	}
@@ -2076,6 +2073,7 @@ static int trace_alloc_page(void)
 	for_each_possible_cpu(i) {
 		data = global_trace.data[i];
 		spin_lock_init(&data->lock);
+		lockdep_set_class(&data->lock, &data->lock_key);
 		page = list_entry(pages.next, struct page, lru);
 		list_del_init(&page->lru);
 		list_add_tail(&page->lru, &data->trace_pages);
@@ -2084,6 +2082,7 @@ static int trace_alloc_page(void)
 #ifdef CONFIG_TRACER_MAX_TRACE
 		data = max_tr.data[i];
 		spin_lock_init(&data->lock);
+		lockdep_set_class(&data->lock, &data->lock_key);
 		page = list_entry(pages.next, struct page, lru);
 		list_del_init(&page->lru);
 		list_add_tail(&page->lru, &data->trace_pages);
@@ -2203,5 +2202,4 @@ __init static int tracer_alloc_buffers(void)
 	}
 	return ret;
 }
-
 fs_initcall(tracer_alloc_buffers);
