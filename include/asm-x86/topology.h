@@ -66,7 +66,7 @@ extern cpumask_t node_to_cpumask_map[];
 DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
 
 /* Returns the number of the current Node. */
-#define numa_node_id()	(per_cpu(x86_cpu_to_node_map, raw_smp_processor_id()))
+#define numa_node_id()		read_pda(nodenumber)
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 extern int cpu_to_node(int cpu);

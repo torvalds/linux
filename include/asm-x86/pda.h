@@ -22,6 +22,7 @@ struct x8664_pda {
 					   offset 40!!! */
 #endif
 	char *irqstackptr;
+	int nodenumber;			/* number of current node */
 	unsigned int __softirq_pending;
 	unsigned int __nmi_count;	/* number of NMI on this CPUs */
 	short mmu_state;
