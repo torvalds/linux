@@ -41,6 +41,29 @@ ctx_switch_func(struct task_struct *prev, struct task_struct *next)
 	local_irq_restore(flags);
 }
 
+static void wakeup_func(struct task_struct *wakee, struct task_struct *curr)
+{
+	struct trace_array *tr = ctx_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int cpu;
+
+	if (!tracer_enabled)
+		return;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+
+	if (likely(disabled == 1))
+		tracing_sched_wakeup_trace(tr, data, wakee, curr, flags);
+
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+}
+
 void ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
 {
 	tracing_record_cmdline(prev);
@@ -55,6 +78,19 @@ void ftrace_ctx_switch(struct task_struct *prev, struct task_struct *next)
 	 * Chain to the wakeup tracer (this is a NOP if disabled):
 	 */
 	wakeup_sched_switch(prev, next);
+}
+
+void
+ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr)
+{
+	tracing_record_cmdline(curr);
+
+	wakeup_func(wakee, curr);
+
+	/*
+	 * Chain to the wakeup tracer (this is a NOP if disabled):
+	 */
+	wakeup_sched_wakeup(wakee, curr);
 }
 
 static void sched_switch_reset(struct trace_array *tr)

@@ -57,7 +57,7 @@ static struct trace_array	max_tr;
 static DEFINE_PER_CPU(struct trace_array_cpu, max_data);
 
 static int			tracer_enabled = 1;
-static unsigned long		trace_nr_entries = 16384UL;
+static unsigned long		trace_nr_entries = 65536UL;
 
 static struct tracer		*trace_types __read_mostly;
 static struct tracer		*current_trace __read_mostly;
@@ -87,6 +87,7 @@ enum trace_type {
 
 	TRACE_FN,
 	TRACE_CTX,
+	TRACE_WAKE,
 	TRACE_SPECIAL,
 
 	__TRACE_LAST_TYPE
@@ -711,6 +712,30 @@ tracing_sched_switch_trace(struct trace_array *tr,
 		wake_up (&trace_wait);
 }
 
+void
+tracing_sched_wakeup_trace(struct trace_array *tr,
+			   struct trace_array_cpu *data,
+			   struct task_struct *wakee, struct task_struct *curr,
+			   unsigned long flags)
+{
+	struct trace_entry *entry;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&data->lock, irq_flags);
+	entry			= tracing_get_trace_entry(tr, data);
+	tracing_generic_entry_update(entry, flags);
+	entry->type		= TRACE_WAKE;
+	entry->ctx.prev_pid	= curr->pid;
+	entry->ctx.prev_prio	= curr->prio;
+	entry->ctx.prev_state	= curr->state;
+	entry->ctx.next_pid	= wakee->pid;
+	entry->ctx.next_prio	= wakee->prio;
+	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	if (!(trace_flags & TRACE_ITER_BLOCK))
+		wake_up(&trace_wait);
+}
+
 #ifdef CONFIG_FTRACE
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip)
@@ -1183,13 +1208,14 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		trace_seq_puts(s, ")\n");
 		break;
 	case TRACE_CTX:
+	case TRACE_WAKE:
 		S = entry->ctx.prev_state < sizeof(state_to_char) ?
 			state_to_char[entry->ctx.prev_state] : 'X';
 		comm = trace_find_cmdline(entry->ctx.next_pid);
-		trace_seq_printf(s, " %d:%d:%c --> %d:%d %s\n",
+		trace_seq_printf(s, " %5d:%3d:%c %s %5d:%3d %s\n",
 				 entry->ctx.prev_pid,
 				 entry->ctx.prev_prio,
-				 S,
+				 S, entry->type == TRACE_CTX ? "==>" : "  +",
 				 entry->ctx.next_pid,
 				 entry->ctx.next_prio,
 				 comm);
@@ -1256,12 +1282,14 @@ static int print_trace_fmt(struct trace_iterator *iter)
 			return 0;
 		break;
 	case TRACE_CTX:
+	case TRACE_WAKE:
 		S = entry->ctx.prev_state < sizeof(state_to_char) ?
 			state_to_char[entry->ctx.prev_state] : 'X';
-		ret = trace_seq_printf(s, " %d:%d:%c ==> %d:%d\n",
+		ret = trace_seq_printf(s, " %5d:%3d:%c %s %5d:%3d\n",
 				       entry->ctx.prev_pid,
 				       entry->ctx.prev_prio,
 				       S,
+				       entry->type == TRACE_CTX ? "==>" : "  +",
 				       entry->ctx.next_pid,
 				       entry->ctx.next_prio);
 		if (!ret)
@@ -1301,8 +1329,11 @@ static int print_raw_fmt(struct trace_iterator *iter)
 			return 0;
 		break;
 	case TRACE_CTX:
+	case TRACE_WAKE:
 		S = entry->ctx.prev_state < sizeof(state_to_char) ?
 			state_to_char[entry->ctx.prev_state] : 'X';
+		if (entry->type == TRACE_WAKE)
+			S = '+';
 		ret = trace_seq_printf(s, "%d %d %c %d %d\n",
 				       entry->ctx.prev_pid,
 				       entry->ctx.prev_prio,
@@ -1355,8 +1386,11 @@ static int print_hex_fmt(struct trace_iterator *iter)
 		SEQ_PUT_HEX_FIELD_RET(s, entry->fn.parent_ip);
 		break;
 	case TRACE_CTX:
+	case TRACE_WAKE:
 		S = entry->ctx.prev_state < sizeof(state_to_char) ?
 			state_to_char[entry->ctx.prev_state] : 'X';
+		if (entry->type == TRACE_WAKE)
+			S = '+';
 		SEQ_PUT_HEX_FIELD_RET(s, entry->ctx.prev_pid);
 		SEQ_PUT_HEX_FIELD_RET(s, entry->ctx.prev_prio);
 		SEQ_PUT_HEX_FIELD_RET(s, S);

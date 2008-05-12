@@ -202,7 +202,7 @@ out:
 }
 
 void
-ftrace_wake_up_task(struct task_struct *wakee, struct task_struct *curr)
+wakeup_sched_wakeup(struct task_struct *wakee, struct task_struct *curr)
 {
 	if (likely(!tracer_enabled))
 		return;

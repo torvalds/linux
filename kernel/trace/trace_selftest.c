@@ -8,6 +8,7 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	switch (entry->type) {
 	case TRACE_FN:
 	case TRACE_CTX:
+	case TRACE_WAKE:
 		return 1;
 	}
 	return 0;
