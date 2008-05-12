@@ -107,7 +107,7 @@ static struct trace_array	max_tr;
 
 static DEFINE_PER_CPU(struct trace_array_cpu, max_data);
 
-static int			tracer_enabled;
+static int			tracer_enabled = 1;
 static unsigned long		trace_nr_entries = 16384UL;
 
 static struct tracer		*trace_types __read_mostly;
@@ -2267,6 +2267,8 @@ __init static int tracer_alloc_buffers(void)
 	int pages = 0;
 	int ret = -ENOMEM;
 	int i;
+
+	global_trace.ctrl = tracer_enabled;
 
 	/* Allocate the first page for all buffers */
 	for_each_possible_cpu(i) {
