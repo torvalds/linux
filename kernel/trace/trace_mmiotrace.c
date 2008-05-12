@@ -117,20 +117,20 @@ static int mmio_print_rw(struct trace_iterator *iter)
 		ret = trace_seq_printf(s,
 			"R %d %lu.%06lu %d 0x%lx 0x%lx 0x%lx %d\n",
 			rw->width, secs, usec_rem, rw->map_id, rw->phys,
-			rw->value, rw->pc, entry->pid);
+			rw->value, rw->pc, 0);
 		break;
 	case MMIO_WRITE:
 		ret = trace_seq_printf(s,
 			"W %d %lu.%06lu %d 0x%lx 0x%lx 0x%lx %d\n",
 			rw->width, secs, usec_rem, rw->map_id, rw->phys,
-			rw->value, rw->pc, entry->pid);
+			rw->value, rw->pc, 0);
 		break;
 	case MMIO_UNKNOWN_OP:
 		ret = trace_seq_printf(s,
 			"UNKNOWN %lu.%06lu %d 0x%lx %02x,%02x,%02x 0x%lx %d\n",
 			secs, usec_rem, rw->map_id, rw->phys,
 			(rw->value >> 16) & 0xff, (rw->value >> 8) & 0xff,
-			(rw->value >> 0) & 0xff, rw->pc, entry->pid);
+			(rw->value >> 0) & 0xff, rw->pc, 0);
 		break;
 	default:
 		ret = trace_seq_printf(s, "rw what?\n");
