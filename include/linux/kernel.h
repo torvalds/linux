@@ -207,7 +207,7 @@ static inline bool printk_timed_ratelimit(unsigned long *caller_jiffies, \
 		{ return false; }
 #endif
 
-extern void __attribute__((format(printf, 1, 2)))
+extern void asmlinkage __attribute__((format(printf, 1, 2)))
 	early_printk(const char *fmt, ...);
 
 unsigned long int_sqrt(unsigned long);
