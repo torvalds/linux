@@ -838,12 +838,16 @@ void __trace_mmiotrace_rw(struct trace_array *tr, struct trace_array_cpu *data,
 	struct trace_entry *entry;
 	unsigned long irq_flags;
 
-	spin_lock_irqsave(&data->lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
+
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, 0);
 	entry->type		= TRACE_MMIO_RW;
 	entry->mmiorw		= *rw;
-	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
 
 	trace_wake_up();
 }
@@ -854,12 +858,16 @@ void __trace_mmiotrace_map(struct trace_array *tr, struct trace_array_cpu *data,
 	struct trace_entry *entry;
 	unsigned long irq_flags;
 
-	spin_lock_irqsave(&data->lock, irq_flags);
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
+
 	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, 0);
 	entry->type		= TRACE_MMIO_MAP;
 	entry->mmiomap		= *map;
-	spin_unlock_irqrestore(&data->lock, irq_flags);
+
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
 
 	trace_wake_up();
 }
