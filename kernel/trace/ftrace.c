@@ -20,12 +20,24 @@
 #include <linux/hardirq.h>
 #include <linux/ftrace.h>
 #include <linux/module.h>
+#include <linux/sysctl.h>
 #include <linux/hash.h>
 #include <linux/list.h>
 
 #include "trace.h"
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+# define FTRACE_ENABLED_INIT 1
+#else
+# define FTRACE_ENABLED_INIT 0
+#endif
+
+int ftrace_enabled = FTRACE_ENABLED_INIT;
+static int last_ftrace_enabled = FTRACE_ENABLED_INIT;
+
 static DEFINE_SPINLOCK(ftrace_lock);
+static DEFINE_MUTEX(ftrace_sysctl_lock);
+
 static struct ftrace_ops ftrace_list_end __read_mostly =
 {
 	.func = ftrace_stub,
@@ -78,14 +90,16 @@ static int notrace __register_ftrace_function(struct ftrace_ops *ops)
 	smp_wmb();
 	ftrace_list = ops;
 
-	/*
-	 * For one func, simply call it directly.
-	 * For more than one func, call the chain.
-	 */
-	if (ops->next == &ftrace_list_end)
-		ftrace_trace_function = ops->func;
-	else
-		ftrace_trace_function = ftrace_list_func;
+	if (ftrace_enabled) {
+		/*
+		 * For one func, simply call it directly.
+		 * For more than one func, call the chain.
+		 */
+		if (ops->next == &ftrace_list_end)
+			ftrace_trace_function = ops->func;
+		else
+			ftrace_trace_function = ftrace_list_func;
+	}
 
 	spin_unlock(&ftrace_lock);
 
@@ -120,10 +134,12 @@ static int notrace __unregister_ftrace_function(struct ftrace_ops *ops)
 
 	*p = (*p)->next;
 
-	/* If we only have one func left, then call that directly */
-	if (ftrace_list == &ftrace_list_end ||
-	    ftrace_list->next == &ftrace_list_end)
-		ftrace_trace_function = ftrace_list->func;
+	if (ftrace_enabled) {
+		/* If we only have one func left, then call that directly */
+		if (ftrace_list == &ftrace_list_end ||
+		    ftrace_list->next == &ftrace_list_end)
+			ftrace_trace_function = ftrace_list->func;
+	}
 
  out:
 	spin_unlock(&ftrace_lock);
@@ -263,7 +279,8 @@ static void notrace ftrace_startup(void)
 		goto out;
 	__unregister_ftrace_function(&ftrace_shutdown_ops);
 
-	ftrace_run_startup_code();
+	if (ftrace_enabled)
+		ftrace_run_startup_code();
  out:
 	mutex_unlock(&ftraced_lock);
 }
@@ -275,10 +292,29 @@ static void notrace ftrace_shutdown(void)
 	if (ftraced_suspend)
 		goto out;
 
-	ftrace_run_shutdown_code();
+	if (ftrace_enabled)
+		ftrace_run_shutdown_code();
 
 	__register_ftrace_function(&ftrace_shutdown_ops);
  out:
+	mutex_unlock(&ftraced_lock);
+}
+
+static void notrace ftrace_startup_sysctl(void)
+{
+	mutex_lock(&ftraced_lock);
+	/* ftraced_suspend is true if we want ftrace running */
+	if (ftraced_suspend)
+		ftrace_run_startup_code();
+	mutex_unlock(&ftraced_lock);
+}
+
+static void notrace ftrace_shutdown_sysctl(void)
+{
+	mutex_lock(&ftraced_lock);
+	/* ftraced_suspend is true if ftrace is running */
+	if (ftraced_suspend)
+		ftrace_run_shutdown_code();
 	mutex_unlock(&ftraced_lock);
 }
 
@@ -341,8 +377,9 @@ static int notrace ftraced(void *ignore)
 		/* check once a second */
 		schedule_timeout(HZ);
 
+		mutex_lock(&ftrace_sysctl_lock);
 		mutex_lock(&ftraced_lock);
-		if (ftraced_trigger && !ftraced_suspend) {
+		if (ftrace_enabled && ftraced_trigger && !ftraced_suspend) {
 			ftrace_record_suspend++;
 			ftrace_update_code();
 			usecs = nsecs_to_usecs(ftrace_update_time);
@@ -360,6 +397,7 @@ static int notrace ftraced(void *ignore)
 			ftrace_record_suspend--;
 		}
 		mutex_unlock(&ftraced_lock);
+		mutex_unlock(&ftrace_sysctl_lock);
 
 		ftrace_shutdown_replenish();
 
@@ -389,8 +427,10 @@ static int __init notrace ftrace_shutdown_init(void)
 
 core_initcall(ftrace_shutdown_init);
 #else
-# define ftrace_startup()	do { } while (0)
-# define ftrace_shutdown()	do { } while (0)
+# define ftrace_startup()	  do { } while (0)
+# define ftrace_shutdown()	  do { } while (0)
+# define ftrace_startup_sysctl()  do { } while (0)
+# define ftrace_shutdown_sysctl() do { } while (0)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /**
@@ -406,9 +446,15 @@ core_initcall(ftrace_shutdown_init);
  */
 int register_ftrace_function(struct ftrace_ops *ops)
 {
+	int ret;
+
+	mutex_lock(&ftrace_sysctl_lock);
 	ftrace_startup();
 
-	return __register_ftrace_function(ops);
+	ret = __register_ftrace_function(ops);
+	mutex_unlock(&ftrace_sysctl_lock);
+
+	return ret;
 }
 
 /**
@@ -421,10 +467,53 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 {
 	int ret;
 
+	mutex_lock(&ftrace_sysctl_lock);
 	ret = __unregister_ftrace_function(ops);
 
 	if (ftrace_list == &ftrace_list_end)
 		ftrace_shutdown();
 
+	mutex_unlock(&ftrace_sysctl_lock);
+
+	return ret;
+}
+
+notrace int
+ftrace_enable_sysctl(struct ctl_table *table, int write,
+		     struct file *filp, void __user *buffer, size_t *lenp,
+		     loff_t *ppos)
+{
+	int ret;
+
+	mutex_lock(&ftrace_sysctl_lock);
+
+	ret  = proc_dointvec(table, write, filp, buffer, lenp, ppos);
+
+	if (ret || !write || (last_ftrace_enabled == ftrace_enabled))
+		goto out;
+
+	last_ftrace_enabled = ftrace_enabled;
+
+	if (ftrace_enabled) {
+
+		ftrace_startup_sysctl();
+
+		/* we are starting ftrace again */
+		if (ftrace_list != &ftrace_list_end) {
+			if (ftrace_list->next == &ftrace_list_end)
+				ftrace_trace_function = ftrace_list->func;
+			else
+				ftrace_trace_function = ftrace_list_func;
+		}
+
+	} else {
+		/* stopping ftrace calls (just send to ftrace_stub) */
+		ftrace_trace_function = ftrace_stub;
+
+		ftrace_shutdown_sysctl();
+	}
+
+ out:
+	mutex_unlock(&ftrace_sysctl_lock);
 	return ret;
 }

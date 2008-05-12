@@ -5,6 +5,12 @@
 
 #include <linux/linkage.h>
 
+extern int ftrace_enabled;
+extern int
+ftrace_enable_sysctl(struct ctl_table *table, int write,
+		     struct file *filp, void __user *buffer, size_t *lenp,
+		     loff_t *ppos);
+
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
 
 struct ftrace_ops {
