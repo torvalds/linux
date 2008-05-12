@@ -92,7 +92,7 @@ static void force_quiescent_state(struct rcu_data *rdp,
 		 */
 		cpumask = rcp->cpumask;
 		cpu_clear(rdp->cpu, cpumask);
-		for_each_cpu_mask(cpu, cpumask)
+		for_each_cpu_mask_nr(cpu, cpumask)
 			smp_send_reschedule(cpu);
 	}
 }
