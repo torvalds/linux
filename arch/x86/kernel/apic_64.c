@@ -875,7 +875,7 @@ static int __init detect_init_APIC(void)
 
 void __init early_init_lapic_mapping(void)
 {
-	unsigned long apic_phys;
+	unsigned long phys_addr;
 
 	/*
 	 * If no local APIC can be found then go out
@@ -884,11 +884,11 @@ void __init early_init_lapic_mapping(void)
 	if (!smp_found_config)
 		return;
 
-	apic_phys = mp_lapic_addr;
+	phys_addr = mp_lapic_addr;
 
-	set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
+	set_fixmap_nocache(FIX_APIC_BASE, phys_addr);
 	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
-				 APIC_BASE, apic_phys);
+		    APIC_BASE, phys_addr);
 
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
