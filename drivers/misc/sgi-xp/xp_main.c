@@ -51,12 +51,12 @@ xpc_notloaded(void)
 struct xpc_interface xpc_interface = {
 	(void (*)(int))xpc_notloaded,
 	(void (*)(int))xpc_notloaded,
-	(enum xp_retval(*)(partid_t, int, u32, void **))xpc_notloaded,
-	(enum xp_retval(*)(partid_t, int, void *))xpc_notloaded,
-	(enum xp_retval(*)(partid_t, int, void *, xpc_notify_func, void *))
+	(enum xp_retval(*)(short, int, u32, void **))xpc_notloaded,
+	(enum xp_retval(*)(short, int, void *))xpc_notloaded,
+	(enum xp_retval(*)(short, int, void *, xpc_notify_func, void *))
 	    xpc_notloaded,
-	(void (*)(partid_t, int, void *))xpc_notloaded,
-	(enum xp_retval(*)(partid_t, void *))xpc_notloaded
+	(void (*)(short, int, void *))xpc_notloaded,
+	(enum xp_retval(*)(short, void *))xpc_notloaded
 };
 EXPORT_SYMBOL_GPL(xpc_interface);
 
@@ -66,12 +66,12 @@ EXPORT_SYMBOL_GPL(xpc_interface);
 void
 xpc_set_interface(void (*connect) (int),
 		  void (*disconnect) (int),
-		  enum xp_retval (*allocate) (partid_t, int, u32, void **),
-		  enum xp_retval (*send) (partid_t, int, void *),
-		  enum xp_retval (*send_notify) (partid_t, int, void *,
+		  enum xp_retval (*allocate) (short, int, u32, void **),
+		  enum xp_retval (*send) (short, int, void *),
+		  enum xp_retval (*send_notify) (short, int, void *,
 						  xpc_notify_func, void *),
-		  void (*received) (partid_t, int, void *),
-		  enum xp_retval (*partid_to_nasids) (partid_t, void *))
+		  void (*received) (short, int, void *),
+		  enum xp_retval (*partid_to_nasids) (short, void *))
 {
 	xpc_interface.connect = connect;
 	xpc_interface.disconnect = disconnect;
@@ -91,16 +91,16 @@ xpc_clear_interface(void)
 {
 	xpc_interface.connect = (void (*)(int))xpc_notloaded;
 	xpc_interface.disconnect = (void (*)(int))xpc_notloaded;
-	xpc_interface.allocate = (enum xp_retval(*)(partid_t, int, u32,
+	xpc_interface.allocate = (enum xp_retval(*)(short, int, u32,
 						     void **))xpc_notloaded;
-	xpc_interface.send = (enum xp_retval(*)(partid_t, int, void *))
+	xpc_interface.send = (enum xp_retval(*)(short, int, void *))
 	    xpc_notloaded;
-	xpc_interface.send_notify = (enum xp_retval(*)(partid_t, int, void *,
+	xpc_interface.send_notify = (enum xp_retval(*)(short, int, void *,
 							xpc_notify_func,
 							void *))xpc_notloaded;
-	xpc_interface.received = (void (*)(partid_t, int, void *))
+	xpc_interface.received = (void (*)(short, int, void *))
 	    xpc_notloaded;
-	xpc_interface.partid_to_nasids = (enum xp_retval(*)(partid_t, void *))
+	xpc_interface.partid_to_nasids = (enum xp_retval(*)(short, void *))
 	    xpc_notloaded;
 }
 EXPORT_SYMBOL_GPL(xpc_clear_interface);

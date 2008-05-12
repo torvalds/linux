@@ -403,7 +403,7 @@ xpc_check_remote_hb(void)
 {
 	struct xpc_vars *remote_vars;
 	struct xpc_partition *part;
-	partid_t partid;
+	short partid;
 	bte_result_t bres;
 
 	remote_vars = (struct xpc_vars *)xpc_remote_copy_buffer;
@@ -604,7 +604,7 @@ xpc_identify_act_IRQ_req(int nasid)
 	int reactivate = 0;
 	int stamp_diff;
 	struct timespec remote_rp_stamp = { 0, 0 };
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
 	enum xp_retval ret;
 
@@ -825,7 +825,7 @@ xpc_identify_act_IRQ_sender(void)
 int
 xpc_partition_disengaged(struct xpc_partition *part)
 {
-	partid_t partid = XPC_PARTID(part);
+	short partid = XPC_PARTID(part);
 	int disengaged;
 
 	disengaged = (xpc_partition_engaged(1UL << partid) == 0);
@@ -982,7 +982,7 @@ xpc_discovery(void)
 	int max_regions;
 	int nasid;
 	struct xpc_rsvd_page *rp;
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
 	u64 *discovered_nasids;
 	enum xp_retval ret;
@@ -1152,7 +1152,7 @@ xpc_discovery(void)
  * remote partition's reserved page.
  */
 enum xp_retval
-xpc_initiate_partid_to_nasids(partid_t partid, void *nasid_mask)
+xpc_initiate_partid_to_nasids(short partid, void *nasid_mask)
 {
 	struct xpc_partition *part;
 	u64 part_nasid_pa;

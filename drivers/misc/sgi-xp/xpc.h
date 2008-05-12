@@ -172,13 +172,13 @@ struct xpc_vars {
 			(_version >= _XPC_VERSION(3, 1))
 
 static inline int
-xpc_hb_allowed(partid_t partid, struct xpc_vars *vars)
+xpc_hb_allowed(short partid, struct xpc_vars *vars)
 {
 	return ((vars->heartbeating_to_mask & (1UL << partid)) != 0);
 }
 
 static inline void
-xpc_allow_hb(partid_t partid, struct xpc_vars *vars)
+xpc_allow_hb(short partid, struct xpc_vars *vars)
 {
 	u64 old_mask, new_mask;
 
@@ -190,7 +190,7 @@ xpc_allow_hb(partid_t partid, struct xpc_vars *vars)
 }
 
 static inline void
-xpc_disallow_hb(partid_t partid, struct xpc_vars *vars)
+xpc_disallow_hb(short partid, struct xpc_vars *vars)
 {
 	u64 old_mask, new_mask;
 
@@ -408,7 +408,7 @@ struct xpc_notify {
  *	messages.
  */
 struct xpc_channel {
-	partid_t partid;	/* ID of remote partition connected */
+	short partid;		/* ID of remote partition connected */
 	spinlock_t lock;	/* lock for updating this structure */
 	u32 flags;		/* general flags */
 
@@ -615,7 +615,7 @@ struct xpc_partition {
 /* interval in seconds to print 'waiting disengagement' messages */
 #define XPC_DISENGAGE_PRINTMSG_INTERVAL		10
 
-#define XPC_PARTID(_p)	((partid_t) ((_p) - &xpc_partitions[0]))
+#define XPC_PARTID(_p)	((short)((_p) - &xpc_partitions[0]))
 
 /* found in xp_main.c */
 extern struct xpc_registration xpc_registrations[];
@@ -652,16 +652,16 @@ extern void xpc_discovery(void);
 extern void xpc_check_remote_hb(void);
 extern void xpc_deactivate_partition(const int, struct xpc_partition *,
 				     enum xp_retval);
-extern enum xp_retval xpc_initiate_partid_to_nasids(partid_t, void *);
+extern enum xp_retval xpc_initiate_partid_to_nasids(short, void *);
 
 /* found in xpc_channel.c */
 extern void xpc_initiate_connect(int);
 extern void xpc_initiate_disconnect(int);
-extern enum xp_retval xpc_initiate_allocate(partid_t, int, u32, void **);
-extern enum xp_retval xpc_initiate_send(partid_t, int, void *);
-extern enum xp_retval xpc_initiate_send_notify(partid_t, int, void *,
+extern enum xp_retval xpc_initiate_allocate(short, int, u32, void **);
+extern enum xp_retval xpc_initiate_send(short, int, void *);
+extern enum xp_retval xpc_initiate_send_notify(short, int, void *,
 					       xpc_notify_func, void *);
-extern void xpc_initiate_received(partid_t, int, void *);
+extern void xpc_initiate_received(short, int, void *);
 extern enum xp_retval xpc_setup_infrastructure(struct xpc_partition *);
 extern enum xp_retval xpc_pull_remote_vars_part(struct xpc_partition *);
 extern void xpc_process_channel_activity(struct xpc_partition *);

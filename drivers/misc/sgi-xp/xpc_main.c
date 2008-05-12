@@ -429,7 +429,7 @@ xpc_partition_up(struct xpc_partition *part)
 static int
 xpc_activating(void *__partid)
 {
-	partid_t partid = (u64)__partid;
+	short partid = (u64)__partid;
 	struct xpc_partition *part = &xpc_partitions[partid];
 	unsigned long irq_flags;
 
@@ -499,7 +499,7 @@ xpc_activating(void *__partid)
 void
 xpc_activate_partition(struct xpc_partition *part)
 {
-	partid_t partid = XPC_PARTID(part);
+	short partid = XPC_PARTID(part);
 	unsigned long irq_flags;
 	struct task_struct *kthread;
 
@@ -541,7 +541,7 @@ xpc_activate_partition(struct xpc_partition *part)
 irqreturn_t
 xpc_notify_IRQ_handler(int irq, void *dev_id)
 {
-	partid_t partid = (partid_t) (u64)dev_id;
+	short partid = (short)(u64)dev_id;
 	struct xpc_partition *part = &xpc_partitions[partid];
 
 	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
@@ -643,7 +643,7 @@ xpc_kthread_waitmsgs(struct xpc_partition *part, struct xpc_channel *ch)
 static int
 xpc_kthread_start(void *args)
 {
-	partid_t partid = XPC_UNPACK_ARG1(args);
+	short partid = XPC_UNPACK_ARG1(args);
 	u16 ch_number = XPC_UNPACK_ARG2(args);
 	struct xpc_partition *part = &xpc_partitions[partid];
 	struct xpc_channel *ch;
@@ -809,7 +809,7 @@ void
 xpc_disconnect_wait(int ch_number)
 {
 	unsigned long irq_flags;
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
 	int wakeup_channel_mgr;
@@ -859,7 +859,7 @@ xpc_disconnect_wait(int ch_number)
 static void
 xpc_do_exit(enum xp_retval reason)
 {
-	partid_t partid;
+	short partid;
 	int active_part_count, printed_waiting_msg = 0;
 	struct xpc_partition *part;
 	unsigned long printmsg_time, disengage_request_timeout = 0;
@@ -1008,7 +1008,7 @@ static void
 xpc_die_disengage(void)
 {
 	struct xpc_partition *part;
-	partid_t partid;
+	short partid;
 	unsigned long engaged;
 	long time, printmsg_time, disengage_request_timeout;
 
@@ -1124,7 +1124,7 @@ int __init
 xpc_init(void)
 {
 	int ret;
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
 	struct task_struct *kthread;
 	size_t buf_size;

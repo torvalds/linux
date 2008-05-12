@@ -53,7 +53,7 @@ xpc_kzalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
  * Set up the initial values for the XPartition Communication channels.
  */
 static void
-xpc_initialize_channels(struct xpc_partition *part, partid_t partid)
+xpc_initialize_channels(struct xpc_partition *part, short partid)
 {
 	int ch_number;
 	struct xpc_channel *ch;
@@ -95,7 +95,7 @@ xpc_setup_infrastructure(struct xpc_partition *part)
 {
 	int ret, cpuid;
 	struct timer_list *timer;
-	partid_t partid = XPC_PARTID(part);
+	short partid = XPC_PARTID(part);
 
 	/*
 	 * Zero out MOST of the entry for this partition. Only the fields
@@ -290,7 +290,7 @@ xpc_pull_remote_vars_part(struct xpc_partition *part)
 	    (struct xpc_vars_part *)L1_CACHE_ALIGN((u64)buffer);
 	struct xpc_vars_part *pulled_entry;
 	u64 remote_entry_cacheline_pa, remote_entry_pa;
-	partid_t partid = XPC_PARTID(part);
+	short partid = XPC_PARTID(part);
 	enum xp_retval ret;
 
 	/* pull the cacheline that contains the variables we're interested in */
@@ -1375,7 +1375,7 @@ xpc_partition_going_down(struct xpc_partition *part, enum xp_retval reason)
 void
 xpc_teardown_infrastructure(struct xpc_partition *part)
 {
-	partid_t partid = XPC_PARTID(part);
+	short partid = XPC_PARTID(part);
 
 	/*
 	 * We start off by making this partition inaccessible to local
@@ -1428,7 +1428,7 @@ xpc_teardown_infrastructure(struct xpc_partition *part)
 void
 xpc_initiate_connect(int ch_number)
 {
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
 
@@ -1484,7 +1484,7 @@ void
 xpc_initiate_disconnect(int ch_number)
 {
 	unsigned long irq_flags;
-	partid_t partid;
+	short partid;
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
 
@@ -1728,7 +1728,7 @@ xpc_allocate_msg(struct xpc_channel *ch, u32 flags,
  * 	          return) in which the user-defined message is constructed.
  */
 enum xp_retval
-xpc_initiate_allocate(partid_t partid, int ch_number, u32 flags, void **payload)
+xpc_initiate_allocate(short partid, int ch_number, u32 flags, void **payload)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
 	enum xp_retval ret = xpUnknownReason;
@@ -1909,7 +1909,7 @@ xpc_send_msg(struct xpc_channel *ch, struct xpc_msg *msg, u8 notify_type,
  *			xpc_initiate_allocate().
  */
 enum xp_retval
-xpc_initiate_send(partid_t partid, int ch_number, void *payload)
+xpc_initiate_send(short partid, int ch_number, void *payload)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
 	struct xpc_msg *msg = XPC_MSG_ADDRESS(payload);
@@ -1958,7 +1958,7 @@ xpc_initiate_send(partid_t partid, int ch_number, void *payload)
  *	key - user-defined key to be passed to the function when it's called.
  */
 enum xp_retval
-xpc_initiate_send_notify(partid_t partid, int ch_number, void *payload,
+xpc_initiate_send_notify(short partid, int ch_number, void *payload,
 			 xpc_notify_func func, void *key)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
@@ -2203,7 +2203,7 @@ xpc_acknowledge_msgs(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
  *			xpc_initiate_allocate().
  */
 void
-xpc_initiate_received(partid_t partid, int ch_number, void *payload)
+xpc_initiate_received(short partid, int ch_number, void *payload)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
 	struct xpc_channel *ch;

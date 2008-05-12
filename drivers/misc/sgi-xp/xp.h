@@ -264,7 +264,7 @@ enum xp_retval {
  * When a failure reason code is received, one can assume that the channel
  * is not connected.
  */
-typedef void (*xpc_channel_func) (enum xp_retval reason, partid_t partid,
+typedef void (*xpc_channel_func) (enum xp_retval reason, short partid,
 				  int ch_number, void *data, void *key);
 
 /*
@@ -286,7 +286,7 @@ typedef void (*xpc_channel_func) (enum xp_retval reason, partid_t partid,
  *
  * All other reason codes indicate failure.
  */
-typedef void (*xpc_notify_func) (enum xp_retval reason, partid_t partid,
+typedef void (*xpc_notify_func) (enum xp_retval reason, short partid,
 				 int ch_number, void *key);
 
 /*
@@ -322,24 +322,24 @@ struct xpc_registration {
 struct xpc_interface {
 	void (*connect) (int);
 	void (*disconnect) (int);
-	enum xp_retval (*allocate) (partid_t, int, u32, void **);
-	enum xp_retval (*send) (partid_t, int, void *);
-	enum xp_retval (*send_notify) (partid_t, int, void *,
+	enum xp_retval (*allocate) (short, int, u32, void **);
+	enum xp_retval (*send) (short, int, void *);
+	enum xp_retval (*send_notify) (short, int, void *,
 					xpc_notify_func, void *);
-	void (*received) (partid_t, int, void *);
-	enum xp_retval (*partid_to_nasids) (partid_t, void *);
+	void (*received) (short, int, void *);
+	enum xp_retval (*partid_to_nasids) (short, void *);
 };
 
 extern struct xpc_interface xpc_interface;
 
 extern void xpc_set_interface(void (*)(int),
 			      void (*)(int),
-			      enum xp_retval (*)(partid_t, int, u32, void **),
-			      enum xp_retval (*)(partid_t, int, void *),
-			      enum xp_retval (*)(partid_t, int, void *,
+			      enum xp_retval (*)(short, int, u32, void **),
+			      enum xp_retval (*)(short, int, void *),
+			      enum xp_retval (*)(short, int, void *,
 						  xpc_notify_func, void *),
-			      void (*)(partid_t, int, void *),
-			      enum xp_retval (*)(partid_t, void *));
+			      void (*)(short, int, void *),
+			      enum xp_retval (*)(short, void *));
 extern void xpc_clear_interface(void);
 
 extern enum xp_retval xpc_connect(int, xpc_channel_func, void *, u16,
@@ -347,32 +347,32 @@ extern enum xp_retval xpc_connect(int, xpc_channel_func, void *, u16,
 extern void xpc_disconnect(int);
 
 static inline enum xp_retval
-xpc_allocate(partid_t partid, int ch_number, u32 flags, void **payload)
+xpc_allocate(short partid, int ch_number, u32 flags, void **payload)
 {
 	return xpc_interface.allocate(partid, ch_number, flags, payload);
 }
 
 static inline enum xp_retval
-xpc_send(partid_t partid, int ch_number, void *payload)
+xpc_send(short partid, int ch_number, void *payload)
 {
 	return xpc_interface.send(partid, ch_number, payload);
 }
 
 static inline enum xp_retval
-xpc_send_notify(partid_t partid, int ch_number, void *payload,
+xpc_send_notify(short partid, int ch_number, void *payload,
 		xpc_notify_func func, void *key)
 {
 	return xpc_interface.send_notify(partid, ch_number, payload, func, key);
 }
 
 static inline void
-xpc_received(partid_t partid, int ch_number, void *payload)
+xpc_received(short partid, int ch_number, void *payload)
 {
 	return xpc_interface.received(partid, ch_number, payload);
 }
 
 static inline enum xp_retval
-xpc_partid_to_nasids(partid_t partid, void *nasids)
+xpc_partid_to_nasids(short partid, void *nasids)
 {
 	return xpc_interface.partid_to_nasids(partid, nasids);
 }

@@ -166,7 +166,7 @@ struct device *xpnet = &xpnet_dbg_subname;
  * Packet was recevied by XPC and forwarded to us.
  */
 static void
-xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
+xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 {
 	struct sk_buff *skb;
 	bte_result_t bret;
@@ -282,7 +282,7 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
  * state or message reception on a connection.
  */
 static void
-xpnet_connection_activity(enum xp_retval reason, partid_t partid, int channel,
+xpnet_connection_activity(enum xp_retval reason, short partid, int channel,
 			  void *data, void *key)
 {
 	long bp;
@@ -407,7 +407,7 @@ xpnet_dev_get_stats(struct net_device *dev)
  * release the skb and then release our pending message structure.
  */
 static void
-xpnet_send_completed(enum xp_retval reason, partid_t partid, int channel,
+xpnet_send_completed(enum xp_retval reason, short partid, int channel,
 		     void *__qm)
 {
 	struct xpnet_pending_msg *queued_msg = (struct xpnet_pending_msg *)__qm;
@@ -444,7 +444,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u64 start_addr, end_addr;
 	long dp;
 	u8 second_mac_octet;
-	partid_t dest_partid;
+	short dest_partid;
 	struct xpnet_dev_private *priv;
 	u16 embedded_bytes;
 
