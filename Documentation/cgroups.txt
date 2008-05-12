@@ -310,8 +310,8 @@ and then start a subshell 'sh' in that cgroup:
   cd /dev/cgroup
   mkdir Charlie
   cd Charlie
-  /bin/echo 2-3 > cpus
-  /bin/echo 1 > mems
+  /bin/echo 2-3 > cpuset.cpus
+  /bin/echo 1 > cpuset.mems
   /bin/echo $$ > tasks
   sh
   # The subshell 'sh' is now running in cgroup Charlie
