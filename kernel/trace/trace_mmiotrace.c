@@ -225,12 +225,12 @@ static int mmio_print_map(struct trace_iterator *iter)
 		ret = trace_seq_printf(s,
 			"MAP %lu.%06lu %d 0x%lx 0x%lx 0x%lx 0x%lx %d\n",
 			secs, usec_rem, m->map_id, m->phys, m->virt, m->len,
-			0UL, entry->pid);
+			0UL, 0);
 		break;
 	case MMIO_UNPROBE:
 		ret = trace_seq_printf(s,
 			"UNMAP %lu.%06lu %d 0x%lx %d\n",
-			secs, usec_rem, m->map_id, 0UL, entry->pid);
+			secs, usec_rem, m->map_id, 0UL, 0);
 		break;
 	default:
 		ret = trace_seq_printf(s, "map what?\n");
