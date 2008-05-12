@@ -186,7 +186,8 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 	for (i = 0; i < nr; i++) {
 		struct extent_buffer *next = read_tree_block(root,
 					btrfs_node_blockptr(c, i),
-					btrfs_level_size(root, level - 1));
+					btrfs_level_size(root, level - 1),
+					btrfs_node_ptr_generation(c, i));
 		if (btrfs_is_leaf(next) &&
 		    btrfs_header_level(c) != 1)
 			BUG();

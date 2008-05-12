@@ -25,8 +25,9 @@ struct btrfs_device;
 struct btrfs_fs_devices;
 
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
-				      u32 blocksize);
-int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize);
+				      u32 blocksize, u64 parent_transid);
+int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize,
+			 u64 parent_transid);
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						   u64 bytenr, u32 blocksize);
 int clean_tree_block(struct btrfs_trans_handle *trans,
@@ -65,7 +66,7 @@ int btrfs_buffer_defrag(struct extent_buffer *buf);
 int btrfs_buffer_defrag_done(struct extent_buffer *buf);
 int btrfs_clear_buffer_defrag(struct extent_buffer *buf);
 int btrfs_clear_buffer_defrag_done(struct extent_buffer *buf);
-int btrfs_read_buffer(struct extent_buffer *buf);
+int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
 u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len);
 void btrfs_csum_final(u32 crc, char *result);
 void btrfs_throttle(struct btrfs_root *root);

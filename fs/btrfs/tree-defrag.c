@@ -28,6 +28,7 @@ static void reada_defrag(struct btrfs_root *root,
 	int i;
 	u32 nritems;
 	u64 bytenr;
+	u64 gen;
 	u32 blocksize;
 	int ret;
 
@@ -35,7 +36,8 @@ static void reada_defrag(struct btrfs_root *root,
 	nritems = btrfs_header_nritems(node);
 	for (i = 0; i < nritems; i++) {
 		bytenr = btrfs_node_blockptr(node, i);
-		ret = readahead_tree_block(root, bytenr, blocksize);
+		gen = btrfs_node_ptr_generation(node, i);
+		ret = readahead_tree_block(root, bytenr, blocksize, gen);
 		if (ret)
 			break;
 	}
@@ -101,10 +103,11 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 				path->slots[*level]++;
 				continue;
 			}
-			btrfs_verify_block_csum(root, next);
 		} else {
 			next = read_tree_block(root, bytenr,
-				       btrfs_level_size(root, *level - 1));
+				       btrfs_level_size(root, *level - 1),
+				       btrfs_node_ptr_generation(cur,
+							 path->slots[*level]));
 		}
 		ret = btrfs_cow_block(trans, root, next, path->nodes[*level],
 				      path->slots[*level], &next);
