@@ -74,17 +74,12 @@ static __init void early_get_boot_cpu_id(void)
 
 int __init k8_scan_nodes(unsigned long start, unsigned long end)
 {
+	unsigned numnodes, cores, bits, apicid_base;
 	unsigned long prevbase;
 	struct bootnode nodes[8];
-	int i, nb;
 	unsigned char nodeids[8];
-	int found = 0;
+	int i, j, nb, found = 0;
 	u32 nodeid, reg;
-	unsigned numnodes;
-	unsigned cores;
-	unsigned bits;
-	int j;
-	unsigned apicid_base;
 
 	if (!early_pci_allowed())
 		return -1;
