@@ -231,6 +231,12 @@ static inline int addrconf_qdisc_ok(struct net_device *dev)
 	return (dev->qdisc != &noop_qdisc);
 }
 
+/* Check if a route is valid prefix route */
+static inline int addrconf_is_prefix_route(const struct rt6_info *rt)
+{
+	return ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0);
+}
+
 static void addrconf_del_timer(struct inet6_ifaddr *ifp)
 {
 	if (del_timer(&ifp->timer))
@@ -777,7 +783,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 		ipv6_addr_prefix(&prefix, &ifp->addr, ifp->prefix_len);
 		rt = rt6_lookup(net, &prefix, NULL, ifp->idev->dev->ifindex, 1);
 
-		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
+		if (rt && addrconf_is_prefix_route(rt)) {
 			if (onlink == 0) {
 				ip6_del_rt(rt);
 				rt = NULL;
@@ -1788,7 +1794,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 		rt = rt6_lookup(dev_net(dev), &pinfo->prefix, NULL,
 				dev->ifindex, 1);
 
-		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
+		if (rt && addrconf_is_prefix_route(rt)) {
 			/* Autoconf prefix route */
 			if (valid_lft == 0) {
 				ip6_del_rt(rt);
