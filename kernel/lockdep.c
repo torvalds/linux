@@ -82,6 +82,8 @@ static int graph_lock(void)
 		__raw_spin_unlock(&lockdep_lock);
 		return 0;
 	}
+	/* prevent any recursions within lockdep from causing deadlocks */
+	current->lockdep_recursion++;
 	return 1;
 }
 
@@ -90,6 +92,7 @@ static inline int graph_unlock(void)
 	if (debug_locks && !__raw_spin_is_locked(&lockdep_lock))
 		return DEBUG_LOCKS_WARN_ON(1);
 
+	current->lockdep_recursion--;
 	__raw_spin_unlock(&lockdep_lock);
 	return 0;
 }
