@@ -11,9 +11,8 @@ ffffc10000000000 - ffffc1ffffffffff (=40 bits) hole
 ffffc20000000000 - ffffe1ffffffffff (=45 bits) vmalloc/ioremap space
 ffffe20000000000 - ffffe2ffffffffff (=40 bits) virtual memory map (1TB)
 ... unused hole ...
-ffffffff80000000 - ffffffff82800000 (=40 MB)   kernel text mapping, from phys 0
-... unused hole ...
-ffffffff88000000 - fffffffffff00000 (=1919 MB) module mapping space
+ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
+ffffffffa0000000 - fffffffffff00000 (=1536 MB) module mapping space
 
 The direct mapping covers all memory in the system up to the highest
 memory address (this means in some cases it can also include PCI memory
