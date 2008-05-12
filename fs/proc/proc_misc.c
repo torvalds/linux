@@ -472,6 +472,13 @@ static const struct file_operations proc_vmalloc_operations = {
 };
 #endif
 
+#ifndef arch_irq_stat_cpu
+#define arch_irq_stat_cpu(cpu) 0
+#endif
+#ifndef arch_irq_stat
+#define arch_irq_stat() 0
+#endif
+
 static int show_stat(struct seq_file *p, void *v)
 {
 	int i;
@@ -509,7 +516,9 @@ static int show_stat(struct seq_file *p, void *v)
 			sum += temp;
 			per_irq_sum[j] += temp;
 		}
+		sum += arch_irq_stat_cpu(i);
 	}
+	sum += arch_irq_stat();
 
 	seq_printf(p, "cpu  %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
 		(unsigned long long)cputime64_to_clock_t(user),
