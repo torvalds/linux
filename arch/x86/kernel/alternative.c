@@ -143,7 +143,7 @@ static const unsigned char *const p6_nops[ASM_NOP_MAX+1] = {
 #ifdef CONFIG_X86_64
 
 extern char __vsyscall_0;
-static inline const unsigned char*const * find_nop_table(void)
+const unsigned char *const *find_nop_table(void)
 {
 	return boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
 	       boot_cpu_data.x86 < 6 ? k8_nops : p6_nops;
@@ -162,7 +162,7 @@ static const struct nop {
 	{ -1, NULL }
 };
 
-static const unsigned char*const * find_nop_table(void)
+const unsigned char *const *find_nop_table(void)
 {
 	const unsigned char *const *noptable = intel_nops;
 	int i;

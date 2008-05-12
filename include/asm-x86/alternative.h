@@ -72,6 +72,8 @@ static inline void alternatives_smp_module_del(struct module *mod) {}
 static inline void alternatives_smp_switch(int smp) {}
 #endif	/* CONFIG_SMP */
 
+const unsigned char *const *find_nop_table(void);
+
 /*
  * Alternative instructions for different CPU types or capabilities.
  *

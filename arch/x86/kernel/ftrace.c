@@ -16,11 +16,12 @@
 #include <linux/init.h>
 #include <linux/list.h>
 
+#include <asm/alternative.h>
+
 #define CALL_BACK		5
 
-#define JMPFWD			0x03eb
-
-static unsigned short ftrace_jmp = JMPFWD;
+/* Long is fine, even if it is only 4 bytes ;-) */
+static long *ftrace_nop;
 
 struct ftrace_record {
 	struct dyn_ftrace	rec;
@@ -55,13 +56,13 @@ static struct ftrace_page	*ftrace_pages;
 notrace struct dyn_ftrace *ftrace_alloc_shutdown_node(unsigned long ip)
 {
 	struct ftrace_record *rec;
-	unsigned short save;
+	unsigned long save;
 
 	ip -= CALL_BACK;
-	save = *(short *)ip;
+	save = *(long *)ip;
 
 	/* If this was already converted, skip it */
-	if (save == JMPFWD)
+	if (save == *ftrace_nop)
 		return NULL;
 
 	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
@@ -79,9 +80,10 @@ static int notrace
 ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
-	unsigned short old = *(unsigned short *)old_code;
-	unsigned short new = *(unsigned short *)new_code;
-	unsigned short replaced;
+	unsigned replaced;
+	unsigned old = *(unsigned *)old_code; /* 4 bytes */
+	unsigned new = *(unsigned *)new_code; /* 4 bytes */
+	unsigned char newch = new_code[4];
 	int faulted = 0;
 
 	/*
@@ -94,7 +96,9 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 */
 	asm volatile (
 		"1: lock\n"
-		"   cmpxchg %w3, (%2)\n"
+		"   cmpxchg %3, (%2)\n"
+		"   jnz 2f\n"
+		"   movb %b4, 4(%2)\n"
 		"2:\n"
 		".section .fixup, \"ax\"\n"
 		"	movl $1, %0\n"
@@ -102,11 +106,12 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		".previous\n"
 		_ASM_EXTABLE(1b, 3b)
 		: "=r"(faulted), "=a"(replaced)
-		: "r"(ip), "r"(new), "0"(faulted), "a"(old)
+		: "r"(ip), "r"(new), "r"(newch),
+		  "0"(faulted), "a"(old)
 		: "memory");
 	sync_core();
 
-	if (replaced != old)
+	if (replaced != old && replaced != new)
 		faulted = 2;
 
 	return faulted;
@@ -132,7 +137,7 @@ notrace void ftrace_code_disable(struct dyn_ftrace *rec)
 	/* move the IP back to the start of the call */
 	ip -= CALL_BACK;
 
-	r->failed = ftrace_modify_code(ip, save.code, (char *)&ftrace_jmp);
+	r->failed = ftrace_modify_code(ip, save.code, (char *)ftrace_nop);
 }
 
 static void notrace ftrace_replace_code(int saved)
@@ -144,9 +149,9 @@ static void notrace ftrace_replace_code(int saved)
 	int i;
 
 	if (saved)
-		old = (char *)&ftrace_jmp;
+		old = (char *)ftrace_nop;
 	else
-		new = (char *)&ftrace_jmp;
+		new = (char *)ftrace_nop;
 
 	for (pg = ftrace_pages_start; pg; pg = pg->next) {
 		for (i = 0; i < pg->index; i++) {
@@ -194,11 +199,14 @@ notrace void ftrace_shutdown_replenish(void)
 	ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
 }
 
-notrace int ftrace_shutdown_arch_init(void)
+notrace int __init ftrace_shutdown_arch_init(void)
 {
+	const unsigned char *const *noptable = find_nop_table();
 	struct ftrace_page *pg;
 	int cnt;
 	int i;
+
+	ftrace_nop = (unsigned long *)noptable[CALL_BACK];
 
 	/* allocate a few pages */
 	ftrace_pages_start = (void *)get_zeroed_page(GFP_KERNEL);
