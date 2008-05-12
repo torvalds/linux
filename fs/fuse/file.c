@@ -804,6 +804,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		if (offset == PAGE_CACHE_SIZE)
 			offset = 0;
 
+		if (!fc->big_writes)
+			break;
 	} while (iov_iter_count(ii) && count < fc->max_write &&
 		 req->num_pages < FUSE_MAX_PAGES_PER_REQ && offset == 0);
 
