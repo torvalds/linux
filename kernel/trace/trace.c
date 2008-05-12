@@ -2455,10 +2455,10 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 		cnt = PAGE_SIZE - 1;
 
 	/* reset all but tr, trace, and overruns */
-	iter->pos = -1;
 	memset(&iter->seq, 0,
 	       sizeof(struct trace_iterator) -
 	       offsetof(struct trace_iterator, seq));
+	iter->pos = -1;
 
 	/*
 	 * We need to stop all tracing on all CPUS to read the
