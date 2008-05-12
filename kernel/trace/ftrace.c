@@ -1152,10 +1152,10 @@ static int __init notrace ftrace_dynamic_init(void)
 
 core_initcall(ftrace_dynamic_init);
 #else
-# define ftrace_startup()	  do { } while (0)
-# define ftrace_shutdown()	  do { } while (0)
-# define ftrace_startup_sysctl()  do { } while (0)
-# define ftrace_shutdown_sysctl() do { } while (0)
+# define ftrace_startup()		do { } while (0)
+# define ftrace_shutdown()		do { } while (0)
+# define ftrace_startup_sysctl()	do { } while (0)
+# define ftrace_shutdown_sysctl()	do { } while (0)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /**

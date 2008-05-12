@@ -53,12 +53,12 @@ struct trace_entry {
  * the trace, etc.)
  */
 struct trace_array_cpu {
-	void			*trace;
 	void			*trace_current;
-	unsigned		trace_current_idx;
 	struct list_head	trace_pages;
-	unsigned long		trace_idx;
 	atomic_t		disabled;
+	/* these fields get copied into max-trace: */
+	unsigned		trace_current_idx;
+	unsigned long		trace_idx;
 	unsigned long		saved_latency;
 	unsigned long		critical_start;
 	unsigned long		critical_end;
@@ -215,5 +215,7 @@ extern int trace_selftest_startup_sched_switch(struct tracer *trace,
 					       struct trace_array *tr);
 #endif
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
+
+extern void *head_page(struct trace_array_cpu *data);
 
 #endif /* _LINUX_KERNEL_TRACE_H */

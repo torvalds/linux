@@ -144,7 +144,7 @@ check_critical_timing(struct trace_array *tr,
 	if (!report_latency(delta))
 		goto out;
 
-	spin_lock(&max_trace_lock);
+	spin_lock_irqsave(&max_trace_lock, flags);
 
 	/* check if we are still the max latency */
 	if (!report_latency(delta))
@@ -165,32 +165,24 @@ check_critical_timing(struct trace_array *tr,
 
 	update_max_tr_single(tr, current, cpu);
 
-	if (tracing_thresh)
-		printk(KERN_INFO "(%16s-%-5d|#%d): %lu us critical section "
-		       "violates %lu us threshold.\n"
-		       " => started at timestamp %lu: ",
-				current->comm, current->pid,
-				raw_smp_processor_id(),
-				latency, nsecs_to_usecs(tracing_thresh), t0);
-	else
+	if (tracing_thresh) {
 		printk(KERN_INFO "(%16s-%-5d|#%d):"
-		       " new %lu us maximum-latency "
-		       "critical section.\n => started at timestamp %lu: ",
+			" %lu us critical section violates %lu us threshold.\n",
 				current->comm, current->pid,
 				raw_smp_processor_id(),
-				latency, t0);
-
-	print_symbol(KERN_CONT "<%s>\n", data->critical_start);
-	printk(KERN_CONT " =>   ended at timestamp %lu: ", t1);
-	print_symbol(KERN_CONT "<%s>\n", data->critical_end);
-	dump_stack();
-	t1 = nsecs_to_usecs(now(cpu));
-	printk(KERN_CONT " =>   dump-end timestamp %lu\n\n", t1);
+				latency, nsecs_to_usecs(tracing_thresh));
+	} else {
+		printk(KERN_INFO "(%16s-%-5d|#%d):"
+		       " new %lu us maximum-latency critical section.\n",
+				current->comm, current->pid,
+				raw_smp_processor_id(),
+				latency);
+	}
 
 	max_sequence++;
 
 out_unlock:
-	spin_unlock(&max_trace_lock);
+	spin_unlock_irqrestore(&max_trace_lock, flags);
 
 out:
 	data->critical_sequence = max_sequence;
@@ -216,7 +208,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
-	if (unlikely(!data) || unlikely(!data->trace) ||
+	if (unlikely(!data) || unlikely(!head_page(data)) ||
 	    atomic_read(&data->disabled))
 		return;
 
@@ -256,7 +248,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
-	if (unlikely(!data) || unlikely(!data->trace) ||
+	if (unlikely(!data) || unlikely(!head_page(data)) ||
 	    !data->critical_start || atomic_read(&data->disabled))
 		return;
 

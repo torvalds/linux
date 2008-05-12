@@ -142,12 +142,59 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tracing_record_cmdline(current);
 }
 
+void check_pages(struct trace_array_cpu *data)
+{
+	struct page *page, *tmp;
+
+	BUG_ON(data->trace_pages.next->prev != &data->trace_pages);
+	BUG_ON(data->trace_pages.prev->next != &data->trace_pages);
+
+	list_for_each_entry_safe(page, tmp, &data->trace_pages, lru) {
+		BUG_ON(page->lru.next->prev != &page->lru);
+		BUG_ON(page->lru.prev->next != &page->lru);
+	}
+}
+
+void *head_page(struct trace_array_cpu *data)
+{
+	struct page *page;
+
+	check_pages(data);
+	if (list_empty(&data->trace_pages))
+		return NULL;
+
+	page = list_entry(data->trace_pages.next, struct page, lru);
+	BUG_ON(&page->lru == &data->trace_pages);
+
+	return page_address(page);
+}
+
+notrace static void
+flip_trace(struct trace_array_cpu *tr1, struct trace_array_cpu *tr2)
+{
+	struct list_head flip_pages;
+
+	INIT_LIST_HEAD(&flip_pages);
+
+	tr1->trace_current = NULL;
+	memcpy(&tr1->trace_current_idx, &tr2->trace_current_idx,
+		sizeof(struct trace_array_cpu) -
+		offsetof(struct trace_array_cpu, trace_current_idx));
+
+	check_pages(tr1);
+	check_pages(tr2);
+	list_splice_init(&tr1->trace_pages, &flip_pages);
+	list_splice_init(&tr2->trace_pages, &tr1->trace_pages);
+	list_splice_init(&flip_pages, &tr2->trace_pages);
+	BUG_ON(!list_empty(&flip_pages));
+	check_pages(tr1);
+	check_pages(tr2);
+}
+
 notrace void
 update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data;
-	void *save_trace;
-	struct list_head save_pages;
 	int i;
 
 	WARN_ON_ONCE(!irqs_disabled());
@@ -155,11 +202,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	/* clear out all the previous traces */
 	for_each_possible_cpu(i) {
 		data = tr->data[i];
-		save_trace = max_tr.data[i]->trace;
-		save_pages = max_tr.data[i]->trace_pages;
-		memcpy(max_tr.data[i], data, sizeof(*data));
-		data->trace = save_trace;
-		data->trace_pages = save_pages;
+		flip_trace(max_tr.data[i], data);
 		tracing_reset(data);
 	}
 
@@ -177,8 +220,6 @@ notrace void
 update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
 	struct trace_array_cpu *data = tr->data[cpu];
-	void *save_trace;
-	struct list_head save_pages;
 	int i;
 
 	WARN_ON_ONCE(!irqs_disabled());
@@ -186,11 +227,8 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	for_each_possible_cpu(i)
 		tracing_reset(max_tr.data[i]);
 
-	save_trace = max_tr.data[cpu]->trace;
-	save_pages = max_tr.data[cpu]->trace_pages;
-	memcpy(max_tr.data[cpu], data, sizeof(*data));
-	data->trace = save_trace;
-	data->trace_pages = save_pages;
+	flip_trace(max_tr.data[cpu], data);
+
 	tracing_reset(data);
 
 	__update_max_tr(tr, tsk, cpu);
@@ -234,9 +272,9 @@ int register_tracer(struct tracer *type)
 		 * If we fail, we do not register this tracer.
 		 */
 		for_each_possible_cpu(i) {
-			if (!data->trace)
-				continue;
 			data = tr->data[i];
+			if (!head_page(data))
+				continue;
 			tracing_reset(data);
 		}
 		current_trace = type;
@@ -298,7 +336,7 @@ void unregister_tracer(struct tracer *type)
 void notrace tracing_reset(struct trace_array_cpu *data)
 {
 	data->trace_idx = 0;
-	data->trace_current = data->trace;
+	data->trace_current = head_page(data);
 	data->trace_current_idx = 0;
 }
 
@@ -425,26 +463,31 @@ notrace void tracing_record_cmdline(struct task_struct *tsk)
 }
 
 static inline notrace struct trace_entry *
-tracing_get_trace_entry(struct trace_array *tr,
-			struct trace_array_cpu *data)
+tracing_get_trace_entry(struct trace_array *tr, struct trace_array_cpu *data)
 {
 	unsigned long idx, idx_next;
 	struct trace_entry *entry;
-	struct page *page;
 	struct list_head *next;
+	struct page *page;
 
 	data->trace_idx++;
 	idx = data->trace_current_idx;
 	idx_next = idx + 1;
 
+	BUG_ON(idx * TRACE_ENTRY_SIZE >= PAGE_SIZE);
+
 	entry = data->trace_current + idx * TRACE_ENTRY_SIZE;
 
 	if (unlikely(idx_next >= ENTRIES_PER_PAGE)) {
 		page = virt_to_page(data->trace_current);
-		if (unlikely(&page->lru == data->trace_pages.prev))
-			next = data->trace_pages.next;
-		else
-			next = page->lru.next;
+		/*
+		 * Roundrobin - but skip the head (which is not a real page):
+		 */
+		next = page->lru.next;
+		if (unlikely(next == &data->trace_pages))
+			next = next->next;
+		BUG_ON(next == &data->trace_pages);
+
 		page = list_entry(next, struct page, lru);
 		data->trace_current = page_address(page);
 		idx_next = 0;
@@ -456,18 +499,17 @@ tracing_get_trace_entry(struct trace_array *tr,
 }
 
 static inline notrace void
-tracing_generic_entry_update(struct trace_entry *entry,
-			     unsigned long flags)
+tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags)
 {
 	struct task_struct *tsk = current;
 	unsigned long pc;
 
 	pc = preempt_count();
 
-	entry->idx	= atomic_inc_return(&tracer_counter);
-	entry->preempt_count = pc & 0xff;
-	entry->pid	 = tsk->pid;
-	entry->t	 = now(raw_smp_processor_id());
+	entry->idx		= atomic_inc_return(&tracer_counter);
+	entry->preempt_count	= pc & 0xff;
+	entry->pid		= tsk->pid;
+	entry->t		= now(raw_smp_processor_id());
 	entry->flags = (irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
@@ -476,16 +518,15 @@ tracing_generic_entry_update(struct trace_entry *entry,
 
 notrace void
 ftrace(struct trace_array *tr, struct trace_array_cpu *data,
-		       unsigned long ip, unsigned long parent_ip,
-		       unsigned long flags)
+       unsigned long ip, unsigned long parent_ip, unsigned long flags)
 {
 	struct trace_entry *entry;
 
-	entry = tracing_get_trace_entry(tr, data);
+	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, flags);
-	entry->type	    = TRACE_FN;
-	entry->fn.ip	    = ip;
-	entry->fn.parent_ip = parent_ip;
+	entry->type		= TRACE_FN;
+	entry->fn.ip		= ip;
+	entry->fn.parent_ip	= parent_ip;
 }
 
 notrace void
@@ -496,7 +537,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 {
 	struct trace_entry *entry;
 
-	entry = tracing_get_trace_entry(tr, data);
+	entry			= tracing_get_trace_entry(tr, data);
 	tracing_generic_entry_update(entry, flags);
 	entry->type		= TRACE_CTX;
 	entry->ctx.prev_pid	= prev->pid;
@@ -540,6 +581,8 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 	}
 
 	page = list_entry(iter->next_page[cpu], struct page, lru);
+	BUG_ON(&data->trace_pages == &page->lru);
+
 	array = page_address(page);
 
 	return &array[iter->next_page_idx[cpu]];
@@ -554,7 +597,7 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		if (!tr->data[cpu]->trace)
+		if (!head_page(tr->data[cpu]))
 			continue;
 		ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
 		if (ent &&
@@ -762,7 +805,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 		name = type->name;
 
 	for_each_possible_cpu(cpu) {
-		if (tr->data[cpu]->trace) {
+		if (head_page(tr->data[cpu])) {
 			total += tr->data[cpu]->trace_idx;
 			if (tr->data[cpu]->trace_idx > tr->entries)
 				entries += tr->entries;
@@ -975,8 +1018,7 @@ static int trace_empty(struct trace_iterator *iter)
 	for_each_possible_cpu(cpu) {
 		data = iter->tr->data[cpu];
 
-		if (data->trace &&
-		    data->trace_idx)
+		if (head_page(data) && data->trace_idx)
 			return 0;
 	}
 	return 1;
@@ -1576,9 +1618,9 @@ static struct tracer no_tracer __read_mostly =
 static int trace_alloc_page(void)
 {
 	struct trace_array_cpu *data;
-	void *array;
 	struct page *page, *tmp;
 	LIST_HEAD(pages);
+	void *array;
 	int i;
 
 	/* first allocate a page for each CPU */
@@ -1610,14 +1652,14 @@ static int trace_alloc_page(void)
 	for_each_possible_cpu(i) {
 		data = global_trace.data[i];
 		page = list_entry(pages.next, struct page, lru);
-		list_del(&page->lru);
+		list_del_init(&page->lru);
 		list_add_tail(&page->lru, &data->trace_pages);
 		ClearPageLRU(page);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 		data = max_tr.data[i];
 		page = list_entry(pages.next, struct page, lru);
-		list_del(&page->lru);
+		list_del_init(&page->lru);
 		list_add_tail(&page->lru, &data->trace_pages);
 		SetPageLRU(page);
 #endif
@@ -1628,7 +1670,7 @@ static int trace_alloc_page(void)
 
  free_pages:
 	list_for_each_entry_safe(page, tmp, &pages, lru) {
-		list_del(&page->lru);
+		list_del_init(&page->lru);
 		__free_page(page);
 	}
 	return -ENOMEM;
@@ -1654,7 +1696,6 @@ __init static int tracer_alloc_buffers(void)
 			       "for trace buffer!\n");
 			goto free_buffers;
 		}
-		data->trace = array;
 
 		/* set the array to the list */
 		INIT_LIST_HEAD(&data->trace_pages);
@@ -1671,7 +1712,6 @@ __init static int tracer_alloc_buffers(void)
 			       "for trace buffer!\n");
 			goto free_buffers;
 		}
-		max_tr.data[i]->trace = array;
 
 		INIT_LIST_HEAD(&max_tr.data[i]->trace_pages);
 		page = virt_to_page(array);
@@ -1716,24 +1756,22 @@ __init static int tracer_alloc_buffers(void)
 		struct page *page, *tmp;
 		struct trace_array_cpu *data = global_trace.data[i];
 
-		if (data && data->trace) {
+		if (data) {
 			list_for_each_entry_safe(page, tmp,
 						 &data->trace_pages, lru) {
-				list_del(&page->lru);
+				list_del_init(&page->lru);
 				__free_page(page);
 			}
-			data->trace = NULL;
 		}
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 		data = max_tr.data[i];
-		if (data && data->trace) {
+		if (data) {
 			list_for_each_entry_safe(page, tmp,
 						 &data->trace_pages, lru) {
-				list_del(&page->lru);
+				list_del_init(&page->lru);
 				__free_page(page);
 			}
-			data->trace = NULL;
 		}
 #endif
 	}

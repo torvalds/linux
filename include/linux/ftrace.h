@@ -69,7 +69,7 @@ extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
 #else
-# define ftrace_force_update() do { } while (0)
+# define ftrace_force_update() ({ 0; })
 #endif
 
 static inline void tracer_disable(void)

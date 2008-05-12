@@ -107,23 +107,17 @@ wakeup_sched_switch(struct task_struct *prev, struct task_struct *next)
 	update_max_tr(tr, wakeup_task, wakeup_cpu);
 
 	if (tracing_thresh) {
-		printk(KERN_INFO "(%16s-%-5d|#%d): %lu us wakeup latency "
-		       "violates %lu us threshold.\n"
-		       " => started at timestamp %lu: ",
+		printk(KERN_INFO "(%16s-%-5d|#%d):"
+			" %lu us wakeup latency violates %lu us threshold.\n",
 				wakeup_task->comm, wakeup_task->pid,
 				raw_smp_processor_id(),
-				latency, nsecs_to_usecs(tracing_thresh), t0);
+				latency, nsecs_to_usecs(tracing_thresh));
 	} else {
-		printk(KERN_INFO "(%16s-%-5d|#%d): new %lu us maximum "
-		       "wakeup latency.\n => started at timestamp %lu: ",
+		printk(KERN_INFO "(%16s-%-5d|#%d):"
+			" new %lu us maximum wakeup latency.\n",
 				wakeup_task->comm, wakeup_task->pid,
-				cpu, latency, t0);
+				cpu, latency);
 	}
-
-	printk(KERN_CONT "   ended at timestamp %lu: ", t1);
-	dump_stack();
-	t1 = nsecs_to_usecs(now(cpu));
-	printk(KERN_CONT "   dump-end timestamp %lu\n\n", t1);
 
 out_unlock:
 	__wakeup_reset(tr);

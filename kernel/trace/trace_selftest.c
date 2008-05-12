@@ -1,6 +1,7 @@
 /* Include in trace.c */
 
 #include <linux/kthread.h>
+#include <linux/delay.h>
 
 static inline int trace_valid_entry(struct trace_entry *entry)
 {
@@ -15,28 +16,29 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 static int
 trace_test_buffer_cpu(struct trace_array *tr, struct trace_array_cpu *data)
 {
-	struct page *page;
 	struct trace_entry *entries;
+	struct page *page;
 	int idx = 0;
 	int i;
 
+	BUG_ON(list_empty(&data->trace_pages));
 	page = list_entry(data->trace_pages.next, struct page, lru);
 	entries = page_address(page);
 
-	if (data->trace != entries)
+	if (head_page(data) != entries)
 		goto failed;
 
 	/*
 	 * The starting trace buffer always has valid elements,
-	 * if any element exits.
+	 * if any element exists.
 	 */
-	entries = data->trace;
+	entries = head_page(data);
 
 	for (i = 0; i < tr->entries; i++) {
 
-		if (i < data->trace_idx &&
-		    !trace_valid_entry(&entries[idx])) {
-			printk(KERN_CONT ".. invalid entry %d ", entries[idx].type);
+		if (i < data->trace_idx && !trace_valid_entry(&entries[idx])) {
+			printk(KERN_CONT ".. invalid entry %d ",
+				entries[idx].type);
 			goto failed;
 		}
 
@@ -80,11 +82,10 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	int ret = 0;
 
 	for_each_possible_cpu(cpu) {
-		if (!tr->data[cpu]->trace)
+		if (!head_page(tr->data[cpu]))
 			continue;
 
 		cnt += tr->data[cpu]->trace_idx;
-		printk("%d: count = %ld\n", cpu, cnt);
 
 		ret = trace_test_buffer_cpu(tr, tr->data[cpu]);
 		if (ret)
@@ -117,6 +118,8 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	}
 
 	/* start the tracing */
+	ftrace_enabled = 1;
+
 	tr->ctrl = 1;
 	trace->init(tr);
 	/* Sleep for a 1/10 of a second */
@@ -124,6 +127,8 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	/* stop the tracing. */
 	tr->ctrl = 0;
 	trace->ctrl_update(tr);
+	ftrace_enabled = 0;
+
 	/* check the trace buffer */
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
@@ -328,7 +333,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 
 	/* create a high prio thread */
 	p = kthread_run(trace_wakeup_test_thread, &isrt, "ftrace-test");
-	if (!IS_ERR(p)) {
+	if (IS_ERR(p)) {
 		printk(KERN_CONT "Failed to create ftrace wakeup test thread ");
 		return -1;
 	}
