@@ -29,6 +29,8 @@ ctx_switch_func(void *__rq, struct task_struct *prev, struct task_struct *next)
 	if (!tracer_enabled)
 		return;
 
+	tracing_record_cmdline(prev);
+
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
@@ -56,6 +58,8 @@ wakeup_func(void *__rq, struct task_struct *wakee, struct task_struct *curr)
 	if (!tracer_enabled)
 		return;
 
+	tracing_record_cmdline(curr);
+
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
@@ -75,8 +79,6 @@ void
 ftrace_ctx_switch(void *__rq, struct task_struct *prev,
 		  struct task_struct *next)
 {
-	tracing_record_cmdline(prev);
-
 	/*
 	 * If tracer_switch_func only points to the local
 	 * switch func, it still needs the ptr passed to it.
@@ -93,8 +95,6 @@ void
 ftrace_wake_up_task(void *__rq, struct task_struct *wakee,
 		    struct task_struct *curr)
 {
-	tracing_record_cmdline(curr);
-
 	wakeup_func(__rq, wakee, curr);
 
 	/*
