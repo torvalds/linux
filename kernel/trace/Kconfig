@@ -10,6 +10,7 @@ config TRACER_MAX_TRACE
 config TRACING
 	bool
 	select DEBUG_FS
+	select STACKTRACE
 
 config FTRACE
 	bool "Kernel Function Tracer"

@@ -28,6 +28,8 @@
 #include <linux/gfp.h>
 #include <linux/fs.h>
 
+#include <linux/stacktrace.h>
+
 #include "trace.h"
 
 unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
@@ -88,6 +90,7 @@ enum trace_type {
 	TRACE_FN,
 	TRACE_CTX,
 	TRACE_WAKE,
+	TRACE_STACK,
 	TRACE_SPECIAL,
 
 	__TRACE_LAST_TYPE
@@ -109,6 +112,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_HEX			= 0x20,
 	TRACE_ITER_BIN			= 0x40,
 	TRACE_ITER_BLOCK		= 0x80,
+	TRACE_ITER_STACKTRACE		= 0x100,
 };
 
 #define TRACE_ITER_SYM_MASK \
@@ -124,10 +128,11 @@ static const char *trace_options[] = {
 	"hex",
 	"bin",
 	"block",
+	"stacktrace",
 	NULL
 };
 
-static unsigned trace_flags;
+static unsigned trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_STACKTRACE;
 
 static DEFINE_SPINLOCK(ftrace_max_lock);
 
@@ -657,7 +662,7 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 	spin_unlock_irqrestore(&data->lock, irq_flags);
 
 	if (!(trace_flags & TRACE_ITER_BLOCK))
-		wake_up (&trace_wait);
+		wake_up(&trace_wait);
 }
 
 void
@@ -685,13 +690,39 @@ trace_special(struct trace_array *tr, struct trace_array_cpu *data,
 	spin_unlock_irqrestore(&data->lock, irq_flags);
 
 	if (!(trace_flags & TRACE_ITER_BLOCK))
-		wake_up (&trace_wait);
+		wake_up(&trace_wait);
+}
+
+void __trace_stack(struct trace_array *tr,
+		   struct trace_array_cpu *data,
+		   unsigned long flags,
+		   int skip)
+{
+	struct trace_entry *entry;
+	struct stack_trace trace;
+
+	if (!(trace_flags & TRACE_ITER_STACKTRACE))
+		return;
+
+	entry			= tracing_get_trace_entry(tr, data);
+	tracing_generic_entry_update(entry, flags);
+	entry->type		= TRACE_STACK;
+
+	memset(&entry->stack, 0, sizeof(entry->stack));
+
+	trace.nr_entries	= 0;
+	trace.max_entries	= FTRACE_STACK_ENTRIES;
+	trace.skip		= skip;
+	trace.entries		= entry->stack.caller;
+
+	save_stack_trace(&trace);
 }
 
 void
 tracing_sched_switch_trace(struct trace_array *tr,
 			   struct trace_array_cpu *data,
-			   struct task_struct *prev, struct task_struct *next,
+			   struct task_struct *prev,
+			   struct task_struct *next,
 			   unsigned long flags)
 {
 	struct trace_entry *entry;
@@ -706,16 +737,18 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->ctx.prev_state	= prev->state;
 	entry->ctx.next_pid	= next->pid;
 	entry->ctx.next_prio	= next->prio;
+	__trace_stack(tr, data, flags, 4);
 	spin_unlock_irqrestore(&data->lock, irq_flags);
 
 	if (!(trace_flags & TRACE_ITER_BLOCK))
-		wake_up (&trace_wait);
+		wake_up(&trace_wait);
 }
 
 void
 tracing_sched_wakeup_trace(struct trace_array *tr,
 			   struct trace_array_cpu *data,
-			   struct task_struct *wakee, struct task_struct *curr,
+			   struct task_struct *wakee,
+			   struct task_struct *curr,
 			   unsigned long flags)
 {
 	struct trace_entry *entry;
@@ -730,6 +763,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->ctx.prev_state	= curr->state;
 	entry->ctx.next_pid	= wakee->pid;
 	entry->ctx.next_prio	= wakee->prio;
+	__trace_stack(tr, data, flags, 5);
 	spin_unlock_irqrestore(&data->lock, irq_flags);
 
 	if (!(trace_flags & TRACE_ITER_BLOCK))
@@ -1179,6 +1213,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	unsigned long rel_usecs;
 	char *comm;
 	int S;
+	int i;
 
 	if (!next_entry)
 		next_entry = entry;
@@ -1197,8 +1232,10 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 				 abs_usecs % 1000, rel_usecs/1000,
 				 rel_usecs % 1000);
 	} else {
-		lat_print_generic(s, entry, cpu);
-		lat_print_timestamp(s, abs_usecs, rel_usecs);
+		if (entry->type != TRACE_STACK) {
+			lat_print_generic(s, entry, cpu);
+			lat_print_timestamp(s, abs_usecs, rel_usecs);
+		}
 	}
 	switch (entry->type) {
 	case TRACE_FN:
@@ -1226,6 +1263,14 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 				 entry->special.arg2,
 				 entry->special.arg3);
 		break;
+	case TRACE_STACK:
+		for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
+			if (i)
+				trace_seq_puts(s, " <= ");
+			seq_print_ip_sym(s, entry->stack.caller[i], sym_flags);
+		}
+		trace_seq_puts(s, "\n");
+		break;
 	default:
 		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
@@ -1241,8 +1286,9 @@ static int print_trace_fmt(struct trace_iterator *iter)
 	unsigned long long t;
 	unsigned long secs;
 	char *comm;
-	int S;
 	int ret;
+	int S;
+	int i;
 
 	entry = iter->ent;
 
@@ -1252,15 +1298,17 @@ static int print_trace_fmt(struct trace_iterator *iter)
 	usec_rem = do_div(t, 1000000ULL);
 	secs = (unsigned long)t;
 
-	ret = trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
-	if (!ret)
-		return 0;
-	ret = trace_seq_printf(s, "[%02d] ", iter->cpu);
-	if (!ret)
-		return 0;
-	ret = trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem);
-	if (!ret)
-		return 0;
+	if (entry->type != TRACE_STACK) {
+		ret = trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
+		if (!ret)
+			return 0;
+		ret = trace_seq_printf(s, "[%02d] ", iter->cpu);
+		if (!ret)
+			return 0;
+		ret = trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem);
+		if (!ret)
+			return 0;
+	}
 
 	switch (entry->type) {
 	case TRACE_FN:
@@ -1300,6 +1348,22 @@ static int print_trace_fmt(struct trace_iterator *iter)
 				 entry->special.arg1,
 				 entry->special.arg2,
 				 entry->special.arg3);
+		if (!ret)
+			return 0;
+		break;
+	case TRACE_STACK:
+		for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
+			if (i) {
+				ret = trace_seq_puts(s, " <= ");
+				if (!ret)
+					return 0;
+			}
+			ret = seq_print_ip_sym(s, entry->stack.caller[i],
+					       sym_flags);
+			if (!ret)
+				return 0;
+		}
+		ret = trace_seq_puts(s, "\n");
 		if (!ret)
 			return 0;
 		break;
@@ -1344,6 +1408,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 			return 0;
 		break;
 	case TRACE_SPECIAL:
+	case TRACE_STACK:
 		ret = trace_seq_printf(s, " %lx %lx %lx\n",
 				 entry->special.arg1,
 				 entry->special.arg2,
@@ -1399,6 +1464,7 @@ static int print_hex_fmt(struct trace_iterator *iter)
 		SEQ_PUT_HEX_FIELD_RET(s, entry->fn.parent_ip);
 		break;
 	case TRACE_SPECIAL:
+	case TRACE_STACK:
 		SEQ_PUT_HEX_FIELD_RET(s, entry->special.arg1);
 		SEQ_PUT_HEX_FIELD_RET(s, entry->special.arg2);
 		SEQ_PUT_HEX_FIELD_RET(s, entry->special.arg3);
@@ -1433,6 +1499,7 @@ static int print_bin_fmt(struct trace_iterator *iter)
 		SEQ_PUT_FIELD_RET(s, entry->ctx.next_prio);
 		break;
 	case TRACE_SPECIAL:
+	case TRACE_STACK:
 		SEQ_PUT_FIELD_RET(s, entry->special.arg1);
 		SEQ_PUT_FIELD_RET(s, entry->special.arg2);
 		SEQ_PUT_FIELD_RET(s, entry->special.arg3);

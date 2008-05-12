@@ -35,6 +35,16 @@ struct special_entry {
 };
 
 /*
+ * Stack-trace entry:
+ */
+
+#define FTRACE_STACK_ENTRIES	5
+
+struct stack_entry {
+	unsigned long		caller[FTRACE_STACK_ENTRIES];
+};
+
+/*
  * The trace entry - the most basic unit of tracing. This is what
  * is printed in the end as a single line in the trace output, such as:
  *
@@ -51,6 +61,7 @@ struct trace_entry {
 		struct ftrace_entry		fn;
 		struct ctx_switch_entry		ctx;
 		struct special_entry		special;
+		struct stack_entry		stack;
 	};
 };
 

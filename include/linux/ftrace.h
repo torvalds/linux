@@ -93,6 +93,7 @@ static inline void tracer_disable(void)
 # define CALLER_ADDR3 ((unsigned long)__builtin_return_address(3))
 # define CALLER_ADDR4 ((unsigned long)__builtin_return_address(4))
 # define CALLER_ADDR5 ((unsigned long)__builtin_return_address(5))
+# define CALLER_ADDR6 ((unsigned long)__builtin_return_address(6))
 #else
 # define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
 # define CALLER_ADDR1 0UL
@@ -100,6 +101,7 @@ static inline void tracer_disable(void)
 # define CALLER_ADDR3 0UL
 # define CALLER_ADDR4 0UL
 # define CALLER_ADDR5 0UL
+# define CALLER_ADDR6 0UL
 #endif
 
 #ifdef CONFIG_IRQSOFF_TRACER
