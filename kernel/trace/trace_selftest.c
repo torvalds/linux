@@ -67,6 +67,8 @@ trace_test_buffer_cpu(struct trace_array *tr, struct trace_array_cpu *data)
 	return 0;
 
  failed:
+	/* disable tracing */
+	tracing_disabled = 1;
 	printk(KERN_CONT ".. corrupted trace buffer .. ");
 	return -1;
 }
