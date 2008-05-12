@@ -36,12 +36,13 @@
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
 static struct file_operations cx18_v4l2_enc_fops = {
-      .owner = THIS_MODULE,
-      .read = cx18_v4l2_read,
-      .open = cx18_v4l2_open,
-      .ioctl = cx18_v4l2_ioctl,
-      .release = cx18_v4l2_close,
-      .poll = cx18_v4l2_enc_poll,
+	.owner = THIS_MODULE,
+	.read = cx18_v4l2_read,
+	.open = cx18_v4l2_open,
+	.ioctl = cx18_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = cx18_v4l2_close,
+	.poll = cx18_v4l2_enc_poll,
 };
 
 /* offset from 0 to register ts v4l2 minors on */
