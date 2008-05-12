@@ -47,12 +47,12 @@ static struct cx18_card_tuner_i2c cx18_i2c_std = {
 static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.type = CX18_CARD_HVR_1600_ESMT,
 	.name = "Hauppauge HVR-1600",
-	.comment = "DVB & VBI are not yet supported\n",
+	.comment = "VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_muxer = CX18_HW_CS5345,
-	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER | CX18_HW_CS5345
-		| CX18_HW_DVB,
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER |
+		  CX18_HW_CS5345 | CX18_HW_DVB,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX23418_COMPOSITE7 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1, CX23418_SVIDEO1    },
@@ -203,8 +203,6 @@ static const struct cx18_card cx18_card_mpc718 = {
 		/* XC3028 tuner */
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
-	/* tuner reset */
-	.gpio_init = { .direction = 0x1000, .initial_value = 0x1000 },
 	.ddr = {
 		/* Probably Samsung K4D263238G-VC33 memory */
 		.chip_config = 0x003,
@@ -214,6 +212,7 @@ static const struct cx18_card cx18_card_mpc718 = {
 		.tune_lane = 0,
 		.initial_emrs = 2,
 	},
+	.xceive_pin = 15,
 	.pci_list = cx18_pci_mpc718,
 	.i2c = &cx18_i2c_std,
 };
