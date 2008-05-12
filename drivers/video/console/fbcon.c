@@ -2507,6 +2507,9 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
 			c = vc->vc_video_erase_char;
 			vc->vc_video_erase_char =
 			    ((c & 0xfe00) >> 1) | (c & 0xff);
+			c = vc->vc_def_color;
+			vc->vc_scrl_erase_char =
+			    ((c & 0xFE00) >> 1) | (c & 0xFF);
 			vc->vc_attr >>= 1;
 		}
 	} else if (!vc->vc_hi_font_mask && cnt == 512) {
@@ -2537,9 +2540,14 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
 			if (vc->vc_can_do_color) {
 				vc->vc_video_erase_char =
 				    ((c & 0xff00) << 1) | (c & 0xff);
+				c = vc->vc_def_color;
+				vc->vc_scrl_erase_char =
+				    ((c & 0xFF00) << 1) | (c & 0xFF);
 				vc->vc_attr <<= 1;
-			} else
+			} else {
 				vc->vc_video_erase_char = c & ~0x100;
+				vc->vc_scrl_erase_char = c & ~0x100;
+			}
 		}
 
 	}
