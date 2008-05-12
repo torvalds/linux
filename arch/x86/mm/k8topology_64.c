@@ -76,10 +76,10 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 {
 	unsigned long prevbase;
 	struct bootnode nodes[8];
-	int nodeid, i, nb;
+	int i, nb;
 	unsigned char nodeids[8];
 	int found = 0;
-	u32 reg;
+	u32 nodeid, reg;
 	unsigned numnodes;
 	unsigned cores;
 	unsigned bits;
@@ -106,7 +106,6 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	prevbase = 0;
 	for (i = 0; i < 8; i++) {
 		unsigned long base, limit;
-		u32 nodeid;
 
 		base = read_pci_config(0, nb, 1, 0x40 + i*8);
 		limit = read_pci_config(0, nb, 1, 0x44 + i*8);
