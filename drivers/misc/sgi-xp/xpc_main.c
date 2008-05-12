@@ -315,13 +315,13 @@ xpc_initiate_discovery(void *ignore)
  * the XPC per partition variables from the remote partition and waiting for
  * the remote partition to pull ours.
  */
-static enum xpc_retval
+static enum xp_retval
 xpc_make_first_contact(struct xpc_partition *part)
 {
-	enum xpc_retval ret;
+	enum xp_retval ret;
 
-	while ((ret = xpc_pull_remote_vars_part(part)) != xpcSuccess) {
-		if (ret != xpcRetry) {
+	while ((ret = xpc_pull_remote_vars_part(part)) != xpSuccess) {
+		if (ret != xpRetry) {
 			XPC_DEACTIVATE_PARTITION(part, ret);
 			return ret;
 		}
@@ -406,7 +406,7 @@ xpc_partition_up(struct xpc_partition *part)
 
 	dev_dbg(xpc_chan, "activating partition %d\n", XPC_PARTID(part));
 
-	if (xpc_setup_infrastructure(part) != xpcSuccess)
+	if (xpc_setup_infrastructure(part) != xpSuccess)
 		return;
 
 	/*
@@ -418,7 +418,7 @@ xpc_partition_up(struct xpc_partition *part)
 
 	(void)xpc_part_ref(part);	/* this will always succeed */
 
-	if (xpc_make_first_contact(part) == xpcSuccess)
+	if (xpc_make_first_contact(part) == xpSuccess)
 		xpc_channel_mgr(part);
 
 	xpc_part_deref(part);
@@ -470,7 +470,7 @@ xpc_activating(void *__partid)
 
 		spin_lock_irqsave(&part->act_lock, irq_flags);
 		part->act_state = XPC_P_INACTIVE;
-		XPC_SET_REASON(part, xpcPhysAddrRegFailed, __LINE__);
+		XPC_SET_REASON(part, xpPhysAddrRegFailed, __LINE__);
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
 		part->remote_rp_pa = 0;
 		return 0;
@@ -488,7 +488,7 @@ xpc_activating(void *__partid)
 	xpc_disallow_hb(partid, xpc_vars);
 	xpc_mark_partition_inactive(part);
 
-	if (part->reason == xpcReactivating) {
+	if (part->reason == xpReactivating) {
 		/* interrupting ourselves results in activating partition */
 		xpc_IPI_send_reactivate(part);
 	}
@@ -508,7 +508,7 @@ xpc_activate_partition(struct xpc_partition *part)
 	DBUG_ON(part->act_state != XPC_P_INACTIVE);
 
 	part->act_state = XPC_P_ACTIVATION_REQ;
-	XPC_SET_REASON(part, xpcCloneKThread, __LINE__);
+	XPC_SET_REASON(part, xpCloneKThread, __LINE__);
 
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
 
@@ -517,7 +517,7 @@ xpc_activate_partition(struct xpc_partition *part)
 	if (IS_ERR(kthread)) {
 		spin_lock_irqsave(&part->act_lock, irq_flags);
 		part->act_state = XPC_P_INACTIVE;
-		XPC_SET_REASON(part, xpcCloneKThreadFailed, __LINE__);
+		XPC_SET_REASON(part, xpCloneKThreadFailed, __LINE__);
 		spin_unlock_irqrestore(&part->act_lock, irq_flags);
 	}
 }
@@ -696,7 +696,7 @@ xpc_kthread_start(void *args)
 		ch->flags |= XPC_C_DISCONNECTINGCALLOUT;
 		spin_unlock_irqrestore(&ch->lock, irq_flags);
 
-		xpc_disconnect_callout(ch, xpcDisconnecting);
+		xpc_disconnect_callout(ch, xpDisconnecting);
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
 		ch->flags |= XPC_C_DISCONNECTINGCALLOUT_MADE;
@@ -776,7 +776,7 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 			 * then we'll deadlock if all other kthreads assigned
 			 * to this channel are blocked in the channel's
 			 * registerer, because the only thing that will unblock
-			 * them is the xpcDisconnecting callout that this
+			 * them is the xpDisconnecting callout that this
 			 * failed kthread_run() would have made.
 			 */
 
@@ -796,7 +796,7 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 				 * to function.
 				 */
 				spin_lock_irqsave(&ch->lock, irq_flags);
-				XPC_DISCONNECT_CHANNEL(ch, xpcLackOfResources,
+				XPC_DISCONNECT_CHANNEL(ch, xpLackOfResources,
 						       &irq_flags);
 				spin_unlock_irqrestore(&ch->lock, irq_flags);
 			}
@@ -857,7 +857,7 @@ xpc_disconnect_wait(int ch_number)
 }
 
 static void
-xpc_do_exit(enum xpc_retval reason)
+xpc_do_exit(enum xp_retval reason)
 {
 	partid_t partid;
 	int active_part_count, printed_waiting_msg = 0;
@@ -955,7 +955,7 @@ xpc_do_exit(enum xpc_retval reason)
 	del_timer_sync(&xpc_hb_timer);
 	DBUG_ON(xpc_vars->heartbeating_to_mask != 0);
 
-	if (reason == xpcUnloading) {
+	if (reason == xpUnloading) {
 		/* take ourselves off of the reboot_notifier_list */
 		(void)unregister_reboot_notifier(&xpc_reboot_notifier);
 
@@ -981,20 +981,20 @@ xpc_do_exit(enum xpc_retval reason)
 static int
 xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
 {
-	enum xpc_retval reason;
+	enum xp_retval reason;
 
 	switch (event) {
 	case SYS_RESTART:
-		reason = xpcSystemReboot;
+		reason = xpSystemReboot;
 		break;
 	case SYS_HALT:
-		reason = xpcSystemHalt;
+		reason = xpSystemHalt;
 		break;
 	case SYS_POWER_OFF:
-		reason = xpcSystemPoweroff;
+		reason = xpSystemPoweroff;
 		break;
 	default:
-		reason = xpcSystemGoingDown;
+		reason = xpSystemGoingDown;
 	}
 
 	xpc_do_exit(reason);
@@ -1279,7 +1279,7 @@ xpc_init(void)
 		/* mark this new thread as a non-starter */
 		complete(&xpc_discovery_exited);
 
-		xpc_do_exit(xpcUnloading);
+		xpc_do_exit(xpUnloading);
 		return -EBUSY;
 	}
 
@@ -1297,7 +1297,7 @@ module_init(xpc_init);
 void __exit
 xpc_exit(void)
 {
-	xpc_do_exit(xpcUnloading);
+	xpc_do_exit(xpUnloading);
 }
 
 module_exit(xpc_exit);

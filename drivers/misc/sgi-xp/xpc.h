@@ -412,7 +412,7 @@ struct xpc_channel {
 	spinlock_t lock;	/* lock for updating this structure */
 	u32 flags;		/* general flags */
 
-	enum xpc_retval reason;	/* reason why channel is disconnect'g */
+	enum xp_retval reason;	/* reason why channel is disconnect'g */
 	int reason_line;	/* line# disconnect initiated from */
 
 	u16 number;		/* channel # */
@@ -522,7 +522,7 @@ struct xpc_partition {
 	spinlock_t act_lock;	/* protect updating of act_state */
 	u8 act_state;		/* from XPC HB viewpoint */
 	u8 remote_vars_version;	/* version# of partition's vars */
-	enum xpc_retval reason;	/* reason partition is deactivating */
+	enum xp_retval reason;	/* reason partition is deactivating */
 	int reason_line;	/* line# deactivation initiated from */
 	int reactivate_nasid;	/* nasid in partition to reactivate */
 
@@ -646,31 +646,31 @@ extern void xpc_allow_IPI_ops(void);
 extern void xpc_restrict_IPI_ops(void);
 extern int xpc_identify_act_IRQ_sender(void);
 extern int xpc_partition_disengaged(struct xpc_partition *);
-extern enum xpc_retval xpc_mark_partition_active(struct xpc_partition *);
+extern enum xp_retval xpc_mark_partition_active(struct xpc_partition *);
 extern void xpc_mark_partition_inactive(struct xpc_partition *);
 extern void xpc_discovery(void);
 extern void xpc_check_remote_hb(void);
 extern void xpc_deactivate_partition(const int, struct xpc_partition *,
-				     enum xpc_retval);
-extern enum xpc_retval xpc_initiate_partid_to_nasids(partid_t, void *);
+				     enum xp_retval);
+extern enum xp_retval xpc_initiate_partid_to_nasids(partid_t, void *);
 
 /* found in xpc_channel.c */
 extern void xpc_initiate_connect(int);
 extern void xpc_initiate_disconnect(int);
-extern enum xpc_retval xpc_initiate_allocate(partid_t, int, u32, void **);
-extern enum xpc_retval xpc_initiate_send(partid_t, int, void *);
-extern enum xpc_retval xpc_initiate_send_notify(partid_t, int, void *,
-						xpc_notify_func, void *);
+extern enum xp_retval xpc_initiate_allocate(partid_t, int, u32, void **);
+extern enum xp_retval xpc_initiate_send(partid_t, int, void *);
+extern enum xp_retval xpc_initiate_send_notify(partid_t, int, void *,
+					       xpc_notify_func, void *);
 extern void xpc_initiate_received(partid_t, int, void *);
-extern enum xpc_retval xpc_setup_infrastructure(struct xpc_partition *);
-extern enum xpc_retval xpc_pull_remote_vars_part(struct xpc_partition *);
+extern enum xp_retval xpc_setup_infrastructure(struct xpc_partition *);
+extern enum xp_retval xpc_pull_remote_vars_part(struct xpc_partition *);
 extern void xpc_process_channel_activity(struct xpc_partition *);
 extern void xpc_connected_callout(struct xpc_channel *);
 extern void xpc_deliver_msg(struct xpc_channel *);
 extern void xpc_disconnect_channel(const int, struct xpc_channel *,
-				   enum xpc_retval, unsigned long *);
-extern void xpc_disconnect_callout(struct xpc_channel *, enum xpc_retval);
-extern void xpc_partition_going_down(struct xpc_partition *, enum xpc_retval);
+				   enum xp_retval, unsigned long *);
+extern void xpc_disconnect_callout(struct xpc_channel *, enum xp_retval);
+extern void xpc_partition_going_down(struct xpc_partition *, enum xp_retval);
 extern void xpc_teardown_infrastructure(struct xpc_partition *);
 
 static inline void
@@ -901,7 +901,7 @@ xpc_IPI_receive(AMO_t *amo)
 	return FETCHOP_LOAD_OP(TO_AMO((u64)&amo->variable), FETCHOP_CLEAR);
 }
 
-static inline enum xpc_retval
+static inline enum xp_retval
 xpc_IPI_send(AMO_t *amo, u64 flag, int nasid, int phys_cpuid, int vector)
 {
 	int ret = 0;
@@ -923,7 +923,7 @@ xpc_IPI_send(AMO_t *amo, u64 flag, int nasid, int phys_cpuid, int vector)
 
 	local_irq_restore(irq_flags);
 
-	return ((ret == 0) ? xpcSuccess : xpcPioReadError);
+	return ((ret == 0) ? xpSuccess : xpPioReadError);
 }
 
 /*
@@ -992,7 +992,7 @@ xpc_notify_IRQ_send(struct xpc_channel *ch, u8 ipi_flag, char *ipi_flag_string,
 		    unsigned long *irq_flags)
 {
 	struct xpc_partition *part = &xpc_partitions[ch->partid];
-	enum xpc_retval ret;
+	enum xp_retval ret;
 
 	if (likely(part->act_state != XPC_P_DEACTIVATING)) {
 		ret = xpc_IPI_send(part->remote_IPI_amo_va,
@@ -1001,7 +1001,7 @@ xpc_notify_IRQ_send(struct xpc_channel *ch, u8 ipi_flag, char *ipi_flag_string,
 				   part->remote_IPI_phys_cpuid, SGI_XPC_NOTIFY);
 		dev_dbg(xpc_chan, "%s sent to partid=%d, channel=%d, ret=%d\n",
 			ipi_flag_string, ch->partid, ch->number, ret);
-		if (unlikely(ret != xpcSuccess)) {
+		if (unlikely(ret != xpSuccess)) {
 			if (irq_flags != NULL)
 				spin_unlock_irqrestore(&ch->lock, *irq_flags);
 			XPC_DEACTIVATE_PARTITION(part, ret);
@@ -1123,41 +1123,10 @@ xpc_IPI_init(int index)
 	return amo;
 }
 
-static inline enum xpc_retval
+static inline enum xp_retval
 xpc_map_bte_errors(bte_result_t error)
 {
-	if (error == BTE_SUCCESS)
-		return xpcSuccess;
-
-	if (is_shub2()) {
-		if (BTE_VALID_SH2_ERROR(error))
-			return xpcBteSh2Start + error;
-		return xpcBteUnmappedError;
-	}
-	switch (error) {
-	case BTE_SUCCESS:
-		return xpcSuccess;
-	case BTEFAIL_DIR:
-		return xpcBteDirectoryError;
-	case BTEFAIL_POISON:
-		return xpcBtePoisonError;
-	case BTEFAIL_WERR:
-		return xpcBteWriteError;
-	case BTEFAIL_ACCESS:
-		return xpcBteAccessError;
-	case BTEFAIL_PWERR:
-		return xpcBtePWriteError;
-	case BTEFAIL_PRERR:
-		return xpcBtePReadError;
-	case BTEFAIL_TOUT:
-		return xpcBteTimeOutError;
-	case BTEFAIL_XTERR:
-		return xpcBteXtalkError;
-	case BTEFAIL_NOTAVAIL:
-		return xpcBteNotAvailable;
-	default:
-		return xpcBteUnmappedError;
-	}
+	return ((error == BTE_SUCCESS) ? xpSuccess : xpBteCopyError);
 }
 
 /*
