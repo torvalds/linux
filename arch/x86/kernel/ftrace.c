@@ -109,9 +109,48 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	return faulted;
 }
 
-int __init ftrace_dyn_arch_init(void)
+notrace int ftrace_update_ftrace_func(ftrace_func_t func)
+{
+	unsigned long ip = (unsigned long)(&ftrace_call);
+	unsigned char old[5], *new;
+	int ret;
+
+	ip += CALL_BACK;
+
+	memcpy(old, &ftrace_call, 5);
+	new = ftrace_call_replace(ip, (unsigned long)func);
+	ret = ftrace_modify_code(ip, old, new);
+
+	return ret;
+}
+
+notrace int ftrace_mcount_set(unsigned long *data)
+{
+	unsigned long ip = (long)(&mcount_call);
+	unsigned long *addr = data;
+	unsigned char old[5], *new;
+
+	/* ip is at the location, but modify code will subtact this */
+	ip += CALL_BACK;
+
+	/*
+	 * Replace the mcount stub with a pointer to the
+	 * ip recorder function.
+	 */
+	memcpy(old, &mcount_call, 5);
+	new = ftrace_call_replace(ip, *addr);
+	*addr = ftrace_modify_code(ip, old, new);
+
+	return 0;
+}
+
+int __init ftrace_dyn_arch_init(void *data)
 {
 	const unsigned char *const *noptable = find_nop_table();
+
+	/* This is running in kstop_machine */
+
+	ftrace_mcount_set(data);
 
 	ftrace_nop = (unsigned long *)noptable[CALL_BACK];
 

@@ -1110,10 +1110,50 @@ ENDPROC(xen_failsafe_callback)
 #endif	/* CONFIG_XEN */
 
 #ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+ENTRY(mcount)
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+
+.globl mcount_call
+mcount_call:
+	call ftrace_stub
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+	ret
+END(mcount)
+
+ENTRY(ftrace_caller)
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	movl 0xc(%esp), %eax
+	movl 0x4(%ebp), %edx
+
+.globl ftrace_call
+ftrace_call:
+	call ftrace_stub
+
+	popl %edx
+	popl %ecx
+	popl %eax
+
+.globl ftrace_stub
+ftrace_stub:
+	ret
+END(ftrace_caller)
+
+#else /* ! CONFIG_DYNAMIC_FTRACE */
+
 ENTRY(mcount)
 	cmpl $ftrace_stub, ftrace_trace_function
 	jnz trace
-
 .globl ftrace_stub
 ftrace_stub:
 	ret
@@ -1126,7 +1166,7 @@ trace:
 	movl 0xc(%esp), %eax
 	movl 0x4(%ebp), %edx
 
-	call   *ftrace_trace_function
+	call *ftrace_trace_function
 
 	popl %edx
 	popl %ecx
@@ -1134,7 +1174,8 @@ trace:
 
 	jmp ftrace_stub
 END(mcount)
-#endif
+#endif /* CONFIG_DYNAMIC_FTRACE */
+#endif /* CONFIG_FTRACE */
 
 .section .rodata,"a"
 #include "syscall_table_32.S"

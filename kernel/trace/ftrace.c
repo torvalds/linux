@@ -26,14 +26,8 @@
 
 #include "trace.h"
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-# define FTRACE_ENABLED_INIT 1
-#else
-# define FTRACE_ENABLED_INIT 0
-#endif
-
-int ftrace_enabled = FTRACE_ENABLED_INIT;
-static int last_ftrace_enabled = FTRACE_ENABLED_INIT;
+int ftrace_enabled;
+static int last_ftrace_enabled;
 
 static DEFINE_SPINLOCK(ftrace_lock);
 static DEFINE_MUTEX(ftrace_sysctl_lock);
@@ -149,6 +143,14 @@ static int notrace __unregister_ftrace_function(struct ftrace_ops *ops)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
+enum {
+	FTRACE_ENABLE_CALLS		= (1 << 0),
+	FTRACE_DISABLE_CALLS		= (1 << 1),
+	FTRACE_UPDATE_TRACE_FUNC	= (1 << 2),
+	FTRACE_ENABLE_MCOUNT		= (1 << 3),
+	FTRACE_DISABLE_MCOUNT		= (1 << 4),
+};
+
 static struct hlist_head ftrace_hash[FTRACE_HASHSIZE];
 
 static DEFINE_PER_CPU(int, ftrace_shutdown_disable_cpu);
@@ -199,12 +201,8 @@ ftrace_add_hash(struct dyn_ftrace *node, unsigned long key)
 	hlist_add_head(&node->node, &ftrace_hash[key]);
 }
 
-static notrace struct dyn_ftrace *ftrace_alloc_shutdown_node(unsigned long ip)
+static notrace struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 {
-	/* If this was already converted, skip it */
-	if (ftrace_ip_converted(ip))
-		return NULL;
-
 	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
 		if (!ftrace_pages->next)
 			return NULL;
@@ -215,13 +213,16 @@ static notrace struct dyn_ftrace *ftrace_alloc_shutdown_node(unsigned long ip)
 }
 
 static void notrace
-ftrace_record_ip(unsigned long ip, unsigned long parent_ip)
+ftrace_record_ip(unsigned long ip)
 {
 	struct dyn_ftrace *node;
 	unsigned long flags;
 	unsigned long key;
 	int resched;
 	int atomic;
+
+	if (!ftrace_enabled)
+		return;
 
 	resched = need_resched();
 	preempt_disable_notrace();
@@ -251,11 +252,12 @@ ftrace_record_ip(unsigned long ip, unsigned long parent_ip)
 
 	/*
 	 * There's a slight race that the ftraced will update the
-	 * hash and reset here. The arch alloc is responsible
-	 * for seeing if the IP has already changed, and if
-	 * it has, the alloc will fail.
+	 * hash and reset here. If it is already converted, skip it.
 	 */
-	node = ftrace_alloc_shutdown_node(ip);
+	if (ftrace_ip_converted(ip))
+		goto out_unlock;
+
+	node = ftrace_alloc_dyn_node(ip);
 	if (!node)
 		goto out_unlock;
 
@@ -277,11 +279,7 @@ ftrace_record_ip(unsigned long ip, unsigned long parent_ip)
 		preempt_enable_notrace();
 }
 
-static struct ftrace_ops ftrace_shutdown_ops __read_mostly =
-{
-	.func = ftrace_record_ip,
-};
-
+#define FTRACE_ADDR ((long)(&ftrace_caller))
 #define MCOUNT_ADDR ((long)(&mcount))
 
 static void notrace ftrace_replace_code(int saved)
@@ -309,25 +307,15 @@ static void notrace ftrace_replace_code(int saved)
 			ip = rec->ip;
 
 			if (saved)
-				new = ftrace_call_replace(ip, MCOUNT_ADDR);
+				new = ftrace_call_replace(ip, FTRACE_ADDR);
 			else
-				old = ftrace_call_replace(ip, MCOUNT_ADDR);
+				old = ftrace_call_replace(ip, FTRACE_ADDR);
 
 			failed = ftrace_modify_code(ip, old, new);
 			if (failed)
 				rec->flags |= FTRACE_FL_FAILED;
 		}
 	}
-}
-
-static notrace void ftrace_startup_code(void)
-{
-	ftrace_replace_code(1);
-}
-
-static notrace void ftrace_shutdown_code(void)
-{
-	ftrace_replace_code(0);
 }
 
 static notrace void ftrace_shutdown_replenish(void)
@@ -339,16 +327,8 @@ static notrace void ftrace_shutdown_replenish(void)
 	ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
 }
 
-static int notrace __ftrace_modify_code(void *data)
-{
-	void (*func)(void) = data;
-
-	func();
-	return 0;
-}
-
 static notrace void
-ftrace_code_disable(struct dyn_ftrace *rec, unsigned long addr)
+ftrace_code_disable(struct dyn_ftrace *rec)
 {
 	unsigned long ip;
 	unsigned char *nop, *call;
@@ -357,67 +337,113 @@ ftrace_code_disable(struct dyn_ftrace *rec, unsigned long addr)
 	ip = rec->ip;
 
 	nop = ftrace_nop_replace();
-	call = ftrace_call_replace(ip, addr);
+	call = ftrace_call_replace(ip, MCOUNT_ADDR);
 
 	failed = ftrace_modify_code(ip, call, nop);
 	if (failed)
 		rec->flags |= FTRACE_FL_FAILED;
 }
 
-static void notrace ftrace_run_startup_code(void)
+static int notrace __ftrace_modify_code(void *data)
 {
-	stop_machine_run(__ftrace_modify_code, ftrace_startup_code, NR_CPUS);
+	unsigned long addr;
+	int *command = data;
+
+	if (*command & FTRACE_ENABLE_CALLS)
+		ftrace_replace_code(1);
+	else if (*command & FTRACE_DISABLE_CALLS)
+		ftrace_replace_code(0);
+
+	if (*command & FTRACE_UPDATE_TRACE_FUNC)
+		ftrace_update_ftrace_func(ftrace_trace_function);
+
+	if (*command & FTRACE_ENABLE_MCOUNT) {
+		addr = (unsigned long)ftrace_record_ip;
+		ftrace_mcount_set(&addr);
+	} else if (*command & FTRACE_DISABLE_MCOUNT) {
+		addr = (unsigned long)ftrace_stub;
+		ftrace_mcount_set(&addr);
+	}
+
+	return 0;
 }
 
-static void notrace ftrace_run_shutdown_code(void)
+static void notrace ftrace_run_update_code(int command)
 {
-	stop_machine_run(__ftrace_modify_code, ftrace_shutdown_code, NR_CPUS);
+	stop_machine_run(__ftrace_modify_code, &command, NR_CPUS);
 }
+
+static ftrace_func_t saved_ftrace_func;
 
 static void notrace ftrace_startup(void)
 {
+	int command = 0;
+
 	mutex_lock(&ftraced_lock);
 	ftraced_suspend++;
-	if (ftraced_suspend != 1)
-		goto out;
-	__unregister_ftrace_function(&ftrace_shutdown_ops);
+	if (ftraced_suspend == 1)
+		command |= FTRACE_ENABLE_CALLS;
 
-	if (ftrace_enabled)
-		ftrace_run_startup_code();
+	if (saved_ftrace_func != ftrace_trace_function) {
+		saved_ftrace_func = ftrace_trace_function;
+		command |= FTRACE_UPDATE_TRACE_FUNC;
+	}
+
+	if (!command || !ftrace_enabled)
+		goto out;
+
+	ftrace_run_update_code(command);
  out:
 	mutex_unlock(&ftraced_lock);
 }
 
 static void notrace ftrace_shutdown(void)
 {
+	int command = 0;
+
 	mutex_lock(&ftraced_lock);
 	ftraced_suspend--;
-	if (ftraced_suspend)
+	if (!ftraced_suspend)
+		command |= FTRACE_DISABLE_CALLS;
+
+	if (saved_ftrace_func != ftrace_trace_function) {
+		saved_ftrace_func = ftrace_trace_function;
+		command |= FTRACE_UPDATE_TRACE_FUNC;
+	}
+
+	if (!command || !ftrace_enabled)
 		goto out;
 
-	if (ftrace_enabled)
-		ftrace_run_shutdown_code();
-
-	__register_ftrace_function(&ftrace_shutdown_ops);
+	ftrace_run_update_code(command);
  out:
 	mutex_unlock(&ftraced_lock);
 }
 
 static void notrace ftrace_startup_sysctl(void)
 {
+	int command = FTRACE_ENABLE_MCOUNT;
+
 	mutex_lock(&ftraced_lock);
+	/* Force update next time */
+	saved_ftrace_func = NULL;
 	/* ftraced_suspend is true if we want ftrace running */
 	if (ftraced_suspend)
-		ftrace_run_startup_code();
+		command |= FTRACE_ENABLE_CALLS;
+
+	ftrace_run_update_code(command);
 	mutex_unlock(&ftraced_lock);
 }
 
 static void notrace ftrace_shutdown_sysctl(void)
 {
+	int command = FTRACE_DISABLE_MCOUNT;
+
 	mutex_lock(&ftraced_lock);
 	/* ftraced_suspend is true if ftrace is running */
 	if (ftraced_suspend)
-		ftrace_run_shutdown_code();
+		command |= FTRACE_DISABLE_CALLS;
+
+	ftrace_run_update_code(command);
 	mutex_unlock(&ftraced_lock);
 }
 
@@ -430,11 +456,13 @@ static int notrace __ftrace_update_code(void *ignore)
 	struct dyn_ftrace *p;
 	struct hlist_head head;
 	struct hlist_node *t;
+	int save_ftrace_enabled;
 	cycle_t start, stop;
 	int i;
 
-	/* Don't be calling ftrace ops now */
-	__unregister_ftrace_function(&ftrace_shutdown_ops);
+	/* Don't be recording funcs now */
+	save_ftrace_enabled = ftrace_enabled;
+	ftrace_enabled = 0;
 
 	start = now(raw_smp_processor_id());
 	ftrace_update_cnt = 0;
@@ -449,7 +477,7 @@ static int notrace __ftrace_update_code(void *ignore)
 
 		/* all CPUS are stopped, we are safe to modify code */
 		hlist_for_each_entry(p, t, &head, node) {
-			ftrace_code_disable(p, MCOUNT_ADDR);
+			ftrace_code_disable(p);
 			ftrace_update_cnt++;
 		}
 
@@ -459,7 +487,7 @@ static int notrace __ftrace_update_code(void *ignore)
 	ftrace_update_time = stop - start;
 	ftrace_update_tot_cnt += ftrace_update_cnt;
 
-	__register_ftrace_function(&ftrace_shutdown_ops);
+	ftrace_enabled = save_ftrace_enabled;
 
 	return 0;
 }
@@ -515,11 +543,6 @@ static int __init ftrace_dyn_table_alloc(void)
 	struct ftrace_page *pg;
 	int cnt;
 	int i;
-	int ret;
-
-	ret = ftrace_dyn_arch_init();
-	if (ret)
-		return ret;
 
 	/* allocate a few pages */
 	ftrace_pages_start = (void *)get_zeroed_page(GFP_KERNEL);
@@ -557,10 +580,18 @@ static int __init ftrace_dyn_table_alloc(void)
 	return 0;
 }
 
-static int __init notrace ftrace_shutdown_init(void)
+static int __init notrace ftrace_dynamic_init(void)
 {
 	struct task_struct *p;
+	unsigned long addr;
 	int ret;
+
+	addr = (unsigned long)ftrace_record_ip;
+	stop_machine_run(ftrace_dyn_arch_init, &addr, NR_CPUS);
+
+	/* ftrace_dyn_arch_init places the return code in addr */
+	if (addr)
+		return addr;
 
 	ret = ftrace_dyn_table_alloc();
 	if (ret)
@@ -570,12 +601,12 @@ static int __init notrace ftrace_shutdown_init(void)
 	if (IS_ERR(p))
 		return -1;
 
-	__register_ftrace_function(&ftrace_shutdown_ops);
+	last_ftrace_enabled = ftrace_enabled = 1;
 
 	return 0;
 }
 
-core_initcall(ftrace_shutdown_init);
+core_initcall(ftrace_dynamic_init);
 #else
 # define ftrace_startup()	  do { } while (0)
 # define ftrace_shutdown()	  do { } while (0)
@@ -599,9 +630,8 @@ int register_ftrace_function(struct ftrace_ops *ops)
 	int ret;
 
 	mutex_lock(&ftrace_sysctl_lock);
-	ftrace_startup();
-
 	ret = __register_ftrace_function(ops);
+	ftrace_startup();
 	mutex_unlock(&ftrace_sysctl_lock);
 
 	return ret;
@@ -619,10 +649,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 
 	mutex_lock(&ftrace_sysctl_lock);
 	ret = __unregister_ftrace_function(ops);
-
-	if (ftrace_list == &ftrace_list_end)
-		ftrace_shutdown();
-
+	ftrace_shutdown();
 	mutex_unlock(&ftrace_sysctl_lock);
 
 	return ret;
