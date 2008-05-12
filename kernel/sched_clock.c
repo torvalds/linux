@@ -29,6 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
+#include <linux/hardirq.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -150,6 +151,13 @@ u64 sched_clock_cpu(int cpu)
 {
 	struct sched_clock_data *scd = cpu_sdc(cpu);
 	u64 now, clock, this_clock, remote_clock;
+
+	/*
+	 * Normally this is not called in NMI context - but if it is,
+	 * trying to do any locking here is totally lethal.
+	 */
+	if (unlikely(in_nmi()))
+		return scd->clock;
 
 	if (unlikely(!sched_clock_running))
 		return 0ull;
