@@ -1639,12 +1639,12 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	ha = dev_id;
 	reg = &ha->iobase->isp24;
 
-	spin_lock(&ha->hardware_lock);
+	spin_lock_irq(&ha->hardware_lock);
 
 	qla24xx_process_response_queue(ha);
 	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 
-	spin_unlock(&ha->hardware_lock);
+	spin_unlock_irq(&ha->hardware_lock);
 
 	return IRQ_HANDLED;
 }
@@ -1663,7 +1663,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 	reg = &ha->iobase->isp24;
 	status = 0;
 
-	spin_lock(&ha->hardware_lock);
+	spin_lock_irq(&ha->hardware_lock);
 	do {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
@@ -1716,7 +1716,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 		}
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 	} while (0);
-	spin_unlock(&ha->hardware_lock);
+	spin_unlock_irq(&ha->hardware_lock);
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
