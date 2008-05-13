@@ -27,6 +27,8 @@
 
 #include <asm/desc.h>
 
+#define __ex(x) __kvm_handle_fault_on_reboot(x)
+
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
@@ -129,17 +131,17 @@ static inline void push_irq(struct kvm_vcpu *vcpu, u8 irq)
 
 static inline void clgi(void)
 {
-	asm volatile (SVM_CLGI);
+	asm volatile (__ex(SVM_CLGI));
 }
 
 static inline void stgi(void)
 {
-	asm volatile (SVM_STGI);
+	asm volatile (__ex(SVM_STGI));
 }
 
 static inline void invlpga(unsigned long addr, u32 asid)
 {
-	asm volatile (SVM_INVLPGA :: "a"(addr), "c"(asid));
+	asm volatile (__ex(SVM_INVLPGA) :: "a"(addr), "c"(asid));
 }
 
 static inline unsigned long kvm_read_cr2(void)
@@ -1758,17 +1760,17 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		/* Enter guest mode */
 		"push %%rax \n\t"
 		"mov %c[vmcb](%[svm]), %%rax \n\t"
-		SVM_VMLOAD "\n\t"
-		SVM_VMRUN "\n\t"
-		SVM_VMSAVE "\n\t"
+		__ex(SVM_VMLOAD) "\n\t"
+		__ex(SVM_VMRUN) "\n\t"
+		__ex(SVM_VMSAVE) "\n\t"
 		"pop %%rax \n\t"
 #else
 		/* Enter guest mode */
 		"push %%eax \n\t"
 		"mov %c[vmcb](%[svm]), %%eax \n\t"
-		SVM_VMLOAD "\n\t"
-		SVM_VMRUN "\n\t"
-		SVM_VMSAVE "\n\t"
+		__ex(SVM_VMLOAD) "\n\t"
+		__ex(SVM_VMRUN) "\n\t"
+		__ex(SVM_VMSAVE) "\n\t"
 		"pop %%eax \n\t"
 #endif
 

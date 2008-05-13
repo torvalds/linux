@@ -30,6 +30,8 @@
 #include <asm/io.h>
 #include <asm/desc.h>
 
+#define __ex(x) __kvm_handle_fault_on_reboot(x)
+
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
@@ -278,7 +280,7 @@ static inline void __invvpid(int ext, u16 vpid, gva_t gva)
 	u64 gva;
     } operand = { vpid, 0, gva };
 
-    asm volatile (ASM_VMX_INVVPID
+    asm volatile (__ex(ASM_VMX_INVVPID)
 		  /* CF==1 or ZF==1 --> rc = -1 */
 		  "; ja 1f ; ud2 ; 1:"
 		  : : "a"(&operand), "c"(ext) : "cc", "memory");
@@ -290,7 +292,7 @@ static inline void __invept(int ext, u64 eptp, gpa_t gpa)
 		u64 eptp, gpa;
 	} operand = {eptp, gpa};
 
-	asm volatile (ASM_VMX_INVEPT
+	asm volatile (__ex(ASM_VMX_INVEPT)
 			/* CF==1 or ZF==1 --> rc = -1 */
 			"; ja 1f ; ud2 ; 1:\n"
 			: : "a" (&operand), "c" (ext) : "cc", "memory");
@@ -311,7 +313,7 @@ static void vmcs_clear(struct vmcs *vmcs)
 	u64 phys_addr = __pa(vmcs);
 	u8 error;
 
-	asm volatile (ASM_VMX_VMCLEAR_RAX "; setna %0"
+	asm volatile (__ex(ASM_VMX_VMCLEAR_RAX) "; setna %0"
 		      : "=g"(error) : "a"(&phys_addr), "m"(phys_addr)
 		      : "cc", "memory");
 	if (error)
@@ -378,7 +380,7 @@ static unsigned long vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
-	asm volatile (ASM_VMX_VMREAD_RDX_RAX
+	asm volatile (__ex(ASM_VMX_VMREAD_RDX_RAX)
 		      : "=a"(value) : "d"(field) : "cc");
 	return value;
 }
@@ -413,7 +415,7 @@ static void vmcs_writel(unsigned long field, unsigned long value)
 {
 	u8 error;
 
-	asm volatile (ASM_VMX_VMWRITE_RAX_RDX "; setna %0"
+	asm volatile (__ex(ASM_VMX_VMWRITE_RAX_RDX) "; setna %0"
 		       : "=q"(error) : "a"(value), "d"(field) : "cc");
 	if (unlikely(error))
 		vmwrite_error(field, value);
@@ -621,7 +623,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		u8 error;
 
 		per_cpu(current_vmcs, cpu) = vmx->vmcs;
-		asm volatile (ASM_VMX_VMPTRLD_RAX "; setna %0"
+		asm volatile (__ex(ASM_VMX_VMPTRLD_RAX) "; setna %0"
 			      : "=g"(error) : "a"(&phys_addr), "m"(phys_addr)
 			      : "cc");
 		if (error)
@@ -1030,13 +1032,14 @@ static void hardware_enable(void *garbage)
 		       MSR_IA32_FEATURE_CONTROL_LOCKED |
 		       MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED);
 	write_cr4(read_cr4() | X86_CR4_VMXE); /* FIXME: not cpu hotplug safe */
-	asm volatile (ASM_VMX_VMXON_RAX : : "a"(&phys_addr), "m"(phys_addr)
+	asm volatile (ASM_VMX_VMXON_RAX
+		      : : "a"(&phys_addr), "m"(phys_addr)
 		      : "memory", "cc");
 }
 
 static void hardware_disable(void *garbage)
 {
-	asm volatile (ASM_VMX_VMXOFF : : : "cc");
+	asm volatile (__ex(ASM_VMX_VMXOFF) : : : "cc");
 	write_cr4(read_cr4() & ~X86_CR4_VMXE);
 }
 
@@ -2834,7 +2837,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"push %%edx; push %%ebp;"
 		"push %%ecx \n\t"
 #endif
-		ASM_VMX_VMWRITE_RSP_RDX "\n\t"
+		__ex(ASM_VMX_VMWRITE_RSP_RDX) "\n\t"
 		/* Check if vmlaunch of vmresume is needed */
 		"cmpl $0, %c[launched](%0) \n\t"
 		/* Load guest registers.  Don't clobber flags. */
@@ -2869,9 +2872,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #endif
 		/* Enter guest mode */
 		"jne .Llaunched \n\t"
-		ASM_VMX_VMLAUNCH "\n\t"
+		__ex(ASM_VMX_VMLAUNCH) "\n\t"
 		"jmp .Lkvm_vmx_return \n\t"
-		".Llaunched: " ASM_VMX_VMRESUME "\n\t"
+		".Llaunched: " __ex(ASM_VMX_VMRESUME) "\n\t"
 		".Lkvm_vmx_return: "
 		/* Save guest registers, load host registers, keep flags */
 #ifdef CONFIG_X86_64
