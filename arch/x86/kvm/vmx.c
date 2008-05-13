@@ -692,11 +692,6 @@ static void vmx_fpu_deactivate(struct kvm_vcpu *vcpu)
 	update_exception_bitmap(vcpu);
 }
 
-static void vmx_vcpu_decache(struct kvm_vcpu *vcpu)
-{
-	vcpu_clear(to_vmx(vcpu));
-}
-
 static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 {
 	return vmcs_readl(GUEST_RFLAGS);
@@ -3114,7 +3109,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.prepare_guest_switch = vmx_save_host_state,
 	.vcpu_load = vmx_vcpu_load,
 	.vcpu_put = vmx_vcpu_put,
-	.vcpu_decache = vmx_vcpu_decache,
 
 	.set_guest_debug = set_guest_debug,
 	.guest_debug_pre = kvm_guest_debug_pre,

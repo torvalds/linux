@@ -1273,7 +1273,6 @@ static void hardware_disable(void *junk)
 	if (!cpu_isset(cpu, cpus_hardware_enabled))
 		return;
 	cpu_clear(cpu, cpus_hardware_enabled);
-	decache_vcpus_on_cpu(cpu);
 	kvm_arch_hardware_disable(NULL);
 }
 

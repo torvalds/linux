@@ -817,14 +817,6 @@ out:
 	return r;
 }
 
-/*
- * Make sure that a cpu that is being hot-unplugged does not have any vcpus
- * cached on it.
- */
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 int kvm_dev_ioctl_check_extension(long ext)
 {
 	int r;

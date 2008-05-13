@@ -240,10 +240,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 }
 
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
                                     struct kvm_debug_guest *dbg)
 {

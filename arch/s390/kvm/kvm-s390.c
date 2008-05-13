@@ -79,10 +79,6 @@ void kvm_arch_hardware_disable(void *garbage)
 {
 }
 
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 int kvm_arch_hardware_setup(void)
 {
 	return 0;

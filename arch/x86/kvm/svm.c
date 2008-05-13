@@ -709,10 +709,6 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	rdtscll(vcpu->arch.host_tsc);
 }
 
-static void svm_vcpu_decache(struct kvm_vcpu *vcpu)
-{
-}
-
 static void svm_cache_regs(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1933,7 +1929,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.prepare_guest_switch = svm_prepare_guest_switch,
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
-	.vcpu_decache = svm_vcpu_decache,
 
 	.set_guest_debug = svm_guest_debug,
 	.get_msr = svm_get_msr,

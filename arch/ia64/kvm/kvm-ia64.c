@@ -1035,14 +1035,6 @@ static void kvm_free_vmm_area(void)
 	}
 }
 
-/*
- * Make sure that a cpu that is being hot-unplugged does not have any vcpus
- * cached on it. Leave it as blank for IA64.
- */
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 static void vti_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 }
