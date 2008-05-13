@@ -93,7 +93,7 @@ extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
 
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
-			FILE_ALL_INFO * pfile_info,
+			FILE_ALL_INFO *pfile_info,
 			struct super_block *sb, int xid, const __u16 *pfid);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
@@ -130,7 +130,7 @@ extern int CIFSFindClose(const int, struct cifsTconInfo *tcon,
 
 extern int CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
-			FILE_ALL_INFO * findData,
+			FILE_ALL_INFO *findData,
 			int legacy /* whether to use old info level */,
 			const struct nls_table *nls_codepage, int remap);
 extern int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
@@ -141,7 +141,7 @@ extern int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBUnixQPathInfo(const int xid,
 			struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
-			FILE_UNIX_BASIC_INFO * pFindData,
+			FILE_UNIX_BASIC_INFO *pFindData,
 			const struct nls_table *nls_codepage, int remap);
 
 extern int CIFSGetDFSRefer(const int xid, struct cifsSesInfo *ses,

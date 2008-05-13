@@ -1820,7 +1820,7 @@ convert_delimiter(char *path, char delim)
 	if (path == NULL)
 		return;
 
-	if (delim == '/') 
+	if (delim == '/')
 		old_delim = '\\';
 	else
 		old_delim = '/';
@@ -2321,9 +2321,10 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	user = ses->userName;
 	domain = ses->domainName;
 	smb_buffer = cifs_buf_get();
-	if (smb_buffer == NULL) {
+
+	if (smb_buffer == NULL)
 		return -ENOMEM;
-	}
+
 	smb_buffer_response = smb_buffer;
 	pSMBr = pSMB = (SESSION_SETUP_ANDX *) smb_buffer;
 
