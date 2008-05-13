@@ -155,9 +155,7 @@ ENTRY(secondary_startup_64)
 	 */
 
 	/* Enable PAE mode and PGE */
-	xorq	%rax, %rax
-	btsq	$5, %rax
-	btsq	$7, %rax
+	movl	$(X86_CR4_PAE | X86_CR4_PGE), %eax
 	movq	%rax, %cr4
 
 	/* Setup early boot stage 4 level pagetables. */
