@@ -348,7 +348,7 @@ SND_SOC_DAPM_INPUT("MIC1"),
 SND_SOC_DAPM_INPUT("MIC2"),
 };
 
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* virtual mixer - mixes left & right channels for spk and mono */
 	{"AC97 Mixer", NULL, "Left DAC"},
 	{"AC97 Mixer", NULL, "Right DAC"},
@@ -443,21 +443,14 @@ static const char *audio_map[][3] = {
 	{"Speaker PGA", NULL, "Speaker Mux"},
 	{"LOUT2", NULL, "Speaker PGA"},
 	{"ROUT2", NULL, "Speaker PGA"},
-
-	{NULL, NULL, NULL},
 };
 
 static int wm9712_add_widgets(struct snd_soc_codec *codec)
 {
-	int i;
+	snd_soc_dapm_new_controls(codec, wm9712_dapm_widgets,
+				  ARRAY_SIZE(wm9712_dapm_widgets));
 
-	for (i = 0; i < ARRAY_SIZE(wm9712_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm9712_dapm_widgets[i]);
-
-	/* set up audio path connects */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-					   audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_new_widgets(codec);
 	return 0;

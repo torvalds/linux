@@ -453,7 +453,7 @@ SND_SOC_DAPM_INPUT("MIC2B"),
 SND_SOC_DAPM_VMID("VMID"),
 };
 
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* left HP mixer */
 	{"Left HP Mixer", "PC Beep Playback Switch", "PCBEEP"},
 	{"Left HP Mixer", "Voice Playback Switch",   "Voice DAC"},
@@ -604,21 +604,14 @@ static const char *audio_map[][3] = {
 	{"Capture Mono Mux", "Stereo", "Capture Mixer"},
 	{"Capture Mono Mux", "Left", "Left Capture Source"},
 	{"Capture Mono Mux", "Right", "Right Capture Source"},
-
-	{NULL, NULL, NULL},
 };
 
 static int wm9713_add_widgets(struct snd_soc_codec *codec)
 {
-	int i;
+	snd_soc_dapm_new_controls(codec, wm9713_dapm_widgets,
+				  ARRAY_SIZE(wm9713_dapm_widgets));
 
-	for (i = 0; i < ARRAY_SIZE(wm9713_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm9713_dapm_widgets[i]);
-
-	/* set up audio path audio_mapnects */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_new_widgets(codec);
 	return 0;
