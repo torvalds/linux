@@ -359,6 +359,18 @@ static void xonar_dx_cleanup(struct oxygen *chip)
 	oxygen_clear_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
 }
 
+static void xonar_d2_resume(struct oxygen *chip)
+{
+	pcm1796_init(chip);
+	xonar_enable_output(chip);
+}
+
+static void xonar_dx_resume(struct oxygen *chip)
+{
+	cs43xx_init(chip);
+	xonar_enable_output(chip);
+}
+
 static void set_pcm1796_params(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params)
 {
@@ -551,6 +563,8 @@ static const struct oxygen_model xonar_models[] = {
 		.control_filter = xonar_d2_control_filter,
 		.mixer_init = xonar_mixer_init,
 		.cleanup = xonar_cleanup,
+		.suspend = xonar_cleanup,
+		.resume = xonar_d2_resume,
 		.set_dac_params = set_pcm1796_params,
 		.set_adc_params = set_cs53x1_params,
 		.update_dac_volume = update_pcm1796_volume,
@@ -579,6 +593,8 @@ static const struct oxygen_model xonar_models[] = {
 		.control_filter = xonar_d2_control_filter,
 		.mixer_init = xonar_mixer_init,
 		.cleanup = xonar_cleanup,
+		.suspend = xonar_cleanup,
+		.resume = xonar_d2_resume,
 		.set_dac_params = set_pcm1796_params,
 		.set_adc_params = set_cs53x1_params,
 		.update_dac_volume = update_pcm1796_volume,
@@ -608,6 +624,8 @@ static const struct oxygen_model xonar_models[] = {
 		.control_filter = xonar_dx_control_filter,
 		.mixer_init = xonar_dx_mixer_init,
 		.cleanup = xonar_dx_cleanup,
+		.suspend = xonar_dx_cleanup,
+		.resume = xonar_dx_resume,
 		.set_dac_params = set_cs43xx_params,
 		.set_adc_params = set_cs53x1_params,
 		.update_dac_volume = update_cs43xx_volume,
@@ -652,6 +670,10 @@ static struct pci_driver xonar_driver = {
 	.id_table = xonar_ids,
 	.probe = xonar_probe,
 	.remove = __devexit_p(oxygen_pci_remove),
+#ifdef CONFIG_PM
+	.suspend = oxygen_pci_suspend,
+	.resume = oxygen_pci_resume,
+#endif
 };
 
 static int __init alsa_card_xonar_init(void)

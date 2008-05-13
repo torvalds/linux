@@ -146,6 +146,7 @@ static const struct oxygen_model model_hifier = {
 	.init = hifier_init,
 	.control_filter = hifier_control_filter,
 	.cleanup = hifier_cleanup,
+	.resume = hifier_registers_init,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_cs5340_params,
 	.update_dac_volume = update_ak4396_volume,
@@ -186,6 +187,10 @@ static struct pci_driver hifier_driver = {
 	.id_table = hifier_ids,
 	.probe = hifier_probe,
 	.remove = __devexit_p(oxygen_pci_remove),
+#ifdef CONFIG_PM
+	.suspend = oxygen_pci_suspend,
+	.resume = oxygen_pci_resume,
+#endif
 };
 
 static int __init alsa_card_hifier_init(void)

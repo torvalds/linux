@@ -314,6 +314,10 @@ static void oxygen_init(struct oxygen *chip)
 				    OXYGEN_SPDIF_LOCK_MASK |
 				    OXYGEN_SPDIF_RATE_MASK);
 	oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
+	oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
+		       OXYGEN_2WIRE_LENGTH_8 |
+		       OXYGEN_2WIRE_INTERRUPT_MASK |
+		       OXYGEN_2WIRE_SPEED_STANDARD);
 	oxygen_clear_bits8(chip, OXYGEN_MPU401_CONTROL, OXYGEN_MPU401_LOOPBACK);
 	oxygen_write8(chip, OXYGEN_GPI_INTERRUPT_MASK, 0);
 	oxygen_write16(chip, OXYGEN_GPIO_INTERRUPT_MASK, 0);
@@ -534,3 +538,99 @@ void oxygen_pci_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 EXPORT_SYMBOL(oxygen_pci_remove);
+
+#ifdef CONFIG_PM
+int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct oxygen *chip = card->private_data;
+	unsigned int i, saved_interrupt_mask;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
+	for (i = 0; i < PCM_COUNT; ++i)
+		if (chip->streams[i])
+			snd_pcm_suspend(chip->streams[i]);
+
+	if (chip->model->suspend)
+		chip->model->suspend(chip);
+
+	spin_lock_irq(&chip->reg_lock);
+	saved_interrupt_mask = chip->interrupt_mask;
+	chip->interrupt_mask = 0;
+	oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
+	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
+	spin_unlock_irq(&chip->reg_lock);
+
+	synchronize_irq(chip->irq);
+	flush_scheduled_work();
+	chip->interrupt_mask = saved_interrupt_mask;
+
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
+	return 0;
+}
+EXPORT_SYMBOL(oxygen_pci_suspend);
+
+static const u32 registers_to_restore[OXYGEN_IO_SIZE / 32] = {
+	0xffffffff, 0x00ff077f, 0x00011d08, 0x007f00ff,
+	0x00300000, 0x00000fe4, 0x0ff7001f, 0x00000000
+};
+static const u32 ac97_registers_to_restore[2][0x40 / 32] = {
+	{ 0x18284fa2, 0x03060000 },
+	{ 0x00007fa6, 0x00200000 }
+};
+
+static inline int is_bit_set(const u32 *bitmap, unsigned int bit)
+{
+	return bitmap[bit / 32] & (1 << (bit & 31));
+}
+
+static void oxygen_restore_ac97(struct oxygen *chip, unsigned int codec)
+{
+	unsigned int i;
+
+	oxygen_write_ac97(chip, codec, AC97_RESET, 0);
+	msleep(1);
+	for (i = 1; i < 0x40; ++i)
+		if (is_bit_set(ac97_registers_to_restore[codec], i))
+			oxygen_write_ac97(chip, codec, i * 2,
+					  chip->saved_ac97_registers[codec][i]);
+}
+
+int oxygen_pci_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct oxygen *chip = card->private_data;
+	unsigned int i;
+
+	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	if (pci_enable_device(pci) < 0) {
+		snd_printk(KERN_ERR "cannot reenable device");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+	pci_set_master(pci);
+
+	oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
+	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
+	for (i = 0; i < OXYGEN_IO_SIZE; ++i)
+		if (is_bit_set(registers_to_restore, i))
+			oxygen_write8(chip, i, chip->saved_registers._8[i]);
+	if (chip->has_ac97_0)
+		oxygen_restore_ac97(chip, 0);
+	if (chip->has_ac97_1)
+		oxygen_restore_ac97(chip, 1);
+
+	if (chip->model->resume)
+		chip->model->resume(chip);
+
+	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, chip->interrupt_mask);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+EXPORT_SYMBOL(oxygen_pci_resume);
+#endif /* CONFIG_PM */

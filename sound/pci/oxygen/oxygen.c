@@ -192,6 +192,12 @@ static void generic_cleanup(struct oxygen *chip)
 {
 }
 
+static void generic_resume(struct oxygen *chip)
+{
+	ak4396_registers_init(chip);
+	wm8785_registers_init(chip);
+}
+
 static void set_ak4396_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
@@ -278,6 +284,7 @@ static const struct oxygen_model model_generic = {
 	.owner = THIS_MODULE,
 	.init = generic_init,
 	.cleanup = generic_cleanup,
+	.resume = generic_resume,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,
@@ -305,6 +312,7 @@ static const struct oxygen_model model_meridian = {
 	.owner = THIS_MODULE,
 	.init = meridian_init,
 	.cleanup = generic_cleanup,
+	.resume = ak4396_registers_init,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_ak5385_params,
 	.update_dac_volume = update_ak4396_volume,
@@ -353,6 +361,10 @@ static struct pci_driver oxygen_driver = {
 	.id_table = oxygen_ids,
 	.probe = generic_oxygen_probe,
 	.remove = __devexit_p(oxygen_pci_remove),
+#ifdef CONFIG_PM
+	.suspend = oxygen_pci_suspend,
+	.resume = oxygen_pci_resume,
+#endif
 };
 
 static int __init alsa_card_oxygen_init(void)

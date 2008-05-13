@@ -97,6 +97,8 @@ struct oxygen_model {
 	int (*control_filter)(struct snd_kcontrol_new *template);
 	int (*mixer_init)(struct oxygen *chip);
 	void (*cleanup)(struct oxygen *chip);
+	void (*suspend)(struct oxygen *chip);
+	void (*resume)(struct oxygen *chip);
 	void (*pcm_hardware_filter)(unsigned int channel,
 				    struct snd_pcm_hardware *hardware);
 	void (*set_dac_params)(struct oxygen *chip,
@@ -125,6 +127,10 @@ struct oxygen_model {
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		     const struct oxygen_model *model);
 void oxygen_pci_remove(struct pci_dev *pci);
+#ifdef CONFIG_PM
+int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state);
+int oxygen_pci_resume(struct pci_dev *pci);
+#endif
 
 /* oxygen_mixer.c */
 
