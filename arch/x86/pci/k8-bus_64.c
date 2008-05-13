@@ -384,7 +384,7 @@ static int __init early_fill_mp_bus_info(void)
 	/* need to take out [0, TOM) for RAM*/
 	address = MSR_K8_TOP_MEM1;
 	rdmsrl(address, val);
-	end = (val & 0xffffff8000000ULL);
+	end = (val & 0xffffff800000ULL);
 	printk(KERN_INFO "TOM: %016lx aka %ldM\n", end, end>>20);
 	if (end < (1ULL<<32))
 		update_range(range, 0, end - 1);
@@ -478,7 +478,7 @@ static int __init early_fill_mp_bus_info(void)
 		/* TOP_MEM2 */
 		address = MSR_K8_TOP_MEM2;
 		rdmsrl(address, val);
-		end = (val & 0xffffff8000000ULL);
+		end = (val & 0xffffff800000ULL);
 		printk(KERN_INFO "TOM2: %016lx aka %ldM\n", end, end>>20);
 		update_range(range, 1ULL<<32, end - 1);
 	}
