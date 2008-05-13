@@ -2508,7 +2508,7 @@ qla2x00_enable_fce_trace(scsi_qla_host_t *ha, dma_addr_t fce_dma,
 		if (mb)
 			memcpy(mb, mcp->mb, 8 * sizeof(*mb));
 		if (dwords)
-			*dwords = mcp->mb[6];
+			*dwords = buffers;
 	}
 
 	return rval;
