@@ -24,6 +24,16 @@
 #include <sound/pcm_params.h>
 #include "oxygen.h"
 
+/* most DMA channels have a 16-bit counter for 32-bit words */
+#define BUFFER_BYTES_MAX		((1 << 16) * 4)
+/* the multichannel DMA channel has a 24-bit counter */
+#define BUFFER_BYTES_MAX_MULTICH	((1 << 24) * 4)
+
+#define PERIOD_BYTES_MIN		64
+
+#define DEFAULT_BUFFER_BYTES		(BUFFER_BYTES_MAX / 2)
+#define DEFAULT_BUFFER_BYTES_MULTICH	(1024 * 1024)
+
 static const struct snd_pcm_hardware oxygen_stereo_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
@@ -44,11 +54,11 @@ static const struct snd_pcm_hardware oxygen_stereo_hardware = {
 	.rate_max = 192000,
 	.channels_min = 2,
 	.channels_max = 2,
-	.buffer_bytes_max = 256 * 1024,
-	.period_bytes_min = 128,
-	.period_bytes_max = 128 * 1024,
+	.buffer_bytes_max = BUFFER_BYTES_MAX,
+	.period_bytes_min = PERIOD_BYTES_MIN,
+	.period_bytes_max = BUFFER_BYTES_MAX / 2,
 	.periods_min = 2,
-	.periods_max = 2048,
+	.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN,
 };
 static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP |
@@ -70,11 +80,11 @@ static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
 	.rate_max = 192000,
 	.channels_min = 2,
 	.channels_max = 8,
-	.buffer_bytes_max = 2048 * 1024,
-	.period_bytes_min = 128,
-	.period_bytes_max = 256 * 1024,
+	.buffer_bytes_max = BUFFER_BYTES_MAX_MULTICH,
+	.period_bytes_min = PERIOD_BYTES_MIN,
+	.period_bytes_max = BUFFER_BYTES_MAX_MULTICH / 2,
 	.periods_min = 2,
-	.periods_max = 16384,
+	.periods_max = BUFFER_BYTES_MAX_MULTICH / PERIOD_BYTES_MIN,
 };
 static const struct snd_pcm_hardware oxygen_ac97_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP |
@@ -88,11 +98,11 @@ static const struct snd_pcm_hardware oxygen_ac97_hardware = {
 	.rate_max = 48000,
 	.channels_min = 2,
 	.channels_max = 2,
-	.buffer_bytes_max = 256 * 1024,
-	.period_bytes_min = 128,
-	.period_bytes_max = 128 * 1024,
+	.buffer_bytes_max = BUFFER_BYTES_MAX,
+	.period_bytes_min = PERIOD_BYTES_MIN,
+	.period_bytes_max = BUFFER_BYTES_MAX / 2,
 	.periods_min = 2,
-	.periods_max = 2048,
+	.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN,
 };
 
 static const struct snd_pcm_hardware *const oxygen_hardware[PCM_COUNT] = {
@@ -664,12 +674,14 @@ int oxygen_pcm_init(struct oxygen *chip)
 			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
 						      SNDRV_DMA_TYPE_DEV,
 						      snd_dma_pci_data(chip->pci),
-						      512 * 1024, 2048 * 1024);
+						      DEFAULT_BUFFER_BYTES_MULTICH,
+						      BUFFER_BYTES_MAX_MULTICH);
 		if (ins)
 			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
 						      SNDRV_DMA_TYPE_DEV,
 						      snd_dma_pci_data(chip->pci),
-						      128 * 1024, 256 * 1024);
+						      DEFAULT_BUFFER_BYTES,
+						      BUFFER_BYTES_MAX);
 	}
 
 	outs = !!(chip->model->pcm_dev_cfg & PLAYBACK_1_TO_SPDIF);
@@ -689,7 +701,8 @@ int oxygen_pcm_init(struct oxygen *chip)
 		strcpy(pcm->name, "Digital");
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 						      snd_dma_pci_data(chip->pci),
-						      128 * 1024, 256 * 1024);
+						      DEFAULT_BUFFER_BYTES,
+						      BUFFER_BYTES_MAX);
 	}
 
 	if (chip->has_ac97_1) {
@@ -719,7 +732,8 @@ int oxygen_pcm_init(struct oxygen *chip)
 		strcpy(pcm->name, outs ? "Front Panel" : "Analog 2");
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 						      snd_dma_pci_data(chip->pci),
-						      128 * 1024, 256 * 1024);
+						      DEFAULT_BUFFER_BYTES,
+						      BUFFER_BYTES_MAX);
 	}
 	return 0;
 }
