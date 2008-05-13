@@ -857,6 +857,49 @@ int pci_cfg_space_size_ext(struct pci_dev *dev)
 	return PCI_CFG_SPACE_SIZE;
 }
 
+/**
+ * pci_disable_pme - Disable the PME function of PCI device
+ * @dev: PCI device affected
+ * -EINVAL is returned if PCI device doesn't support PME.
+ * Zero is returned if the PME is supported and can be disabled.
+ */
+static int pci_disable_pme(struct pci_dev *dev)
+{
+	int pm;
+	u16 value;
+
+	/* find PCI PM capability in list */
+	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
+
+	/* If device doesn't support PM Capabilities, it means that PME is
+	 * not supported.
+	 */
+	if (!pm)
+		return -EINVAL;
+	/* Check device's ability to generate PME# */
+	pci_read_config_word(dev, pm + PCI_PM_PMC, &value);
+
+	value &= PCI_PM_CAP_PME_MASK;
+	/* Check if it can generate PME# */
+	if (!value) {
+		/*
+		 * If it is zero, it means that PME is still unsupported
+		 * although there exists the PM capability.
+		 */
+		return -EINVAL;
+	}
+
+	pci_read_config_word(dev, pm + PCI_PM_CTRL, &value);
+
+	/* Clear PME_Status by writing 1 to it */
+	value |= PCI_PM_CTRL_PME_STATUS ;
+	/* Disable PME enable bit */
+	value &= ~PCI_PM_CTRL_PME_ENABLE;
+	pci_write_config_word(dev, pm + PCI_PM_CTRL, value);
+
+	return 0;
+}
+
 int pci_cfg_space_size(struct pci_dev *dev)
 {
 	int pos;
@@ -964,6 +1007,7 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 	}
 
 	pci_vpd_pci22_init(dev);
+	pci_disable_pme(dev);
 
 	return dev;
 }
