@@ -182,6 +182,28 @@ static void xonar_common_init(struct oxygen *chip)
 	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
 }
 
+static void update_pcm1796_volume(struct oxygen *chip)
+{
+	unsigned int i;
+
+	for (i = 0; i < 4; ++i) {
+		pcm1796_write(chip, i, 16, chip->dac_volume[i * 2]);
+		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]);
+	}
+}
+
+static void update_pcm1796_mute(struct oxygen *chip)
+{
+	unsigned int i;
+	u8 value;
+
+	value = PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
+	if (chip->dac_mute)
+		value |= PCM1796_MUTE;
+	for (i = 0; i < 4; ++i)
+		pcm1796_write(chip, i, 18, value);
+}
+
 static void xonar_d2_init(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
@@ -192,14 +214,12 @@ static void xonar_d2_init(struct oxygen *chip)
 	data->pcm1796_oversampling = PCM1796_OS_64;
 
 	for (i = 0; i < 4; ++i) {
-		pcm1796_write(chip, i, 18, PCM1796_MUTE | PCM1796_DMF_DISABLED |
-			      PCM1796_FMT_24_LJUST | PCM1796_ATLD);
 		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
 		pcm1796_write(chip, i, 20, data->pcm1796_oversampling);
 		pcm1796_write(chip, i, 21, 0);
-		pcm1796_write(chip, i, 16, 0x0f); /* set ATL/ATR after ATLD */
-		pcm1796_write(chip, i, 17, 0x0f);
 	}
+	update_pcm1796_mute(chip); /* set ATLD before ATL/ATR */
+	update_pcm1796_volume(chip);
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_D2_ALT);
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_D2_ALT);
@@ -219,6 +239,37 @@ static void xonar_d2x_init(struct oxygen *chip)
 	data->ext_power_bit = GPIO_D2X_EXT_POWER;
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_D2X_EXT_POWER);
 	xonar_d2_init(chip);
+}
+
+static void update_cs4362a_volumes(struct oxygen *chip)
+{
+	u8 mute;
+
+	mute = chip->dac_mute ? CS4362A_MUTE : 0;
+	cs4362a_write(chip, 7, (127 - chip->dac_volume[2]) | mute);
+	cs4362a_write(chip, 8, (127 - chip->dac_volume[3]) | mute);
+	cs4362a_write(chip, 10, (127 - chip->dac_volume[4]) | mute);
+	cs4362a_write(chip, 11, (127 - chip->dac_volume[5]) | mute);
+	cs4362a_write(chip, 13, (127 - chip->dac_volume[6]) | mute);
+	cs4362a_write(chip, 14, (127 - chip->dac_volume[7]) | mute);
+}
+
+static void update_cs43xx_volume(struct oxygen *chip)
+{
+	cs4398_write(chip, 5, (127 - chip->dac_volume[0]) * 2);
+	cs4398_write(chip, 6, (127 - chip->dac_volume[1]) * 2);
+	update_cs4362a_volumes(chip);
+}
+
+static void update_cs43xx_mute(struct oxygen *chip)
+{
+	u8 reg;
+
+	reg = CS4398_MUTEP_LOW | CS4398_PAMUTE;
+	if (chip->dac_mute)
+		reg |= CS4398_MUTE_B | CS4398_MUTE_A;
+	cs4398_write(chip, 4, reg);
+	update_cs4362a_volumes(chip);
 }
 
 static void xonar_dx_init(struct oxygen *chip)
@@ -245,9 +296,6 @@ static void xonar_dx_init(struct oxygen *chip)
 	/* configure */
 	cs4398_write(chip, 2, data->cs4398_fm);
 	cs4398_write(chip, 3, CS4398_ATAPI_B_R | CS4398_ATAPI_A_L);
-	cs4398_write(chip, 4, CS4398_MUTEP_LOW | CS4398_PAMUTE);
-	cs4398_write(chip, 5, 0xfe);
-	cs4398_write(chip, 6, 0xfe);
 	cs4398_write(chip, 7, CS4398_RMP_DN | CS4398_RMP_UP |
 		     CS4398_ZERO_CROSS | CS4398_SOFT_RAMP);
 	cs4362a_write(chip, 0x02, CS4362A_DIF_LJUST);
@@ -256,14 +304,10 @@ static void xonar_dx_init(struct oxygen *chip)
 	cs4362a_write(chip, 0x04, CS4362A_RMP_DN | CS4362A_DEM_NONE);
 	cs4362a_write(chip, 0x05, 0);
 	cs4362a_write(chip, 0x06, data->cs4362a_fm);
-	cs4362a_write(chip, 0x07, 0x7f | CS4362A_MUTE);
-	cs4362a_write(chip, 0x08, 0x7f | CS4362A_MUTE);
 	cs4362a_write(chip, 0x09, data->cs4362a_fm);
-	cs4362a_write(chip, 0x0a, 0x7f | CS4362A_MUTE);
-	cs4362a_write(chip, 0x0b, 0x7f | CS4362A_MUTE);
 	cs4362a_write(chip, 0x0c, data->cs4362a_fm);
-	cs4362a_write(chip, 0x0d, 0x7f | CS4362A_MUTE);
-	cs4362a_write(chip, 0x0e, 0x7f | CS4362A_MUTE);
+	update_cs43xx_volume(chip);
+	update_cs43xx_mute(chip);
 	/* clear power down */
 	cs4398_write(chip, 8, CS4398_CPEN);
 	cs4362a_write(chip, 0x01, CS4362A_CPEN);
@@ -306,28 +350,6 @@ static void set_pcm1796_params(struct oxygen *chip,
 		pcm1796_write(chip, i, 20, data->pcm1796_oversampling);
 }
 
-static void update_pcm1796_volume(struct oxygen *chip)
-{
-	unsigned int i;
-
-	for (i = 0; i < 4; ++i) {
-		pcm1796_write(chip, i, 16, chip->dac_volume[i * 2]);
-		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]);
-	}
-}
-
-static void update_pcm1796_mute(struct oxygen *chip)
-{
-	unsigned int i;
-	u8 value;
-
-	value = PCM1796_FMT_24_LJUST | PCM1796_ATLD;
-	if (chip->dac_mute)
-		value |= PCM1796_MUTE;
-	for (i = 0; i < 4; ++i)
-		pcm1796_write(chip, i, 18, value);
-}
-
 static void set_cs53x1_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
@@ -364,37 +386,6 @@ static void set_cs43xx_params(struct oxygen *chip,
 	cs4362a_write(chip, 0x06, data->cs4362a_fm);
 	cs4362a_write(chip, 0x09, data->cs4362a_fm);
 	cs4362a_write(chip, 0x0c, data->cs4362a_fm);
-}
-
-static void update_cs4362a_volumes(struct oxygen *chip)
-{
-	u8 mute;
-
-	mute = chip->dac_mute ? CS4362A_MUTE : 0;
-	cs4362a_write(chip, 7, (127 - chip->dac_volume[2]) | mute);
-	cs4362a_write(chip, 8, (127 - chip->dac_volume[3]) | mute);
-	cs4362a_write(chip, 10, (127 - chip->dac_volume[4]) | mute);
-	cs4362a_write(chip, 11, (127 - chip->dac_volume[5]) | mute);
-	cs4362a_write(chip, 13, (127 - chip->dac_volume[6]) | mute);
-	cs4362a_write(chip, 14, (127 - chip->dac_volume[7]) | mute);
-}
-
-static void update_cs43xx_volume(struct oxygen *chip)
-{
-	cs4398_write(chip, 5, (127 - chip->dac_volume[0]) * 2);
-	cs4398_write(chip, 6, (127 - chip->dac_volume[1]) * 2);
-	update_cs4362a_volumes(chip);
-}
-
-static void update_cs43xx_mute(struct oxygen *chip)
-{
-	u8 reg;
-
-	reg = CS4398_MUTEP_LOW | CS4398_PAMUTE;
-	if (chip->dac_mute)
-		reg |= CS4398_MUTE_B | CS4398_MUTE_A;
-	cs4398_write(chip, 4, reg);
-	update_cs4362a_volumes(chip);
 }
 
 static void xonar_gpio_changed(struct oxygen *chip)

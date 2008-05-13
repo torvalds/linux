@@ -112,6 +112,18 @@ static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
 		data->saved_wm8785_registers[reg] = value;
 }
 
+static void update_ak4396_volume(struct oxygen *chip)
+{
+	unsigned int i;
+
+	for (i = 0; i < 4; ++i) {
+		ak4396_write(chip, i,
+			     AK4396_LCH_ATT, chip->dac_volume[i * 2]);
+		ak4396_write(chip, i,
+			     AK4396_RCH_ATT, chip->dac_volume[i * 2 + 1]);
+	}
+}
+
 static void ak4396_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
@@ -125,9 +137,8 @@ static void ak4396_init(struct oxygen *chip)
 			     AK4396_CONTROL_2, data->ak4396_ctl2);
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_3, AK4396_PCM);
-		ak4396_write(chip, i, AK4396_LCH_ATT, 0);
-		ak4396_write(chip, i, AK4396_RCH_ATT, 0);
 	}
+	update_ak4396_volume(chip);
 	snd_component_add(chip->card, "AK4396");
 }
 
@@ -191,18 +202,6 @@ static void set_ak4396_params(struct oxygen *chip,
 			     AK4396_CONTROL_2, value);
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
-	}
-}
-
-static void update_ak4396_volume(struct oxygen *chip)
-{
-	unsigned int i;
-
-	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i,
-			     AK4396_LCH_ATT, chip->dac_volume[i * 2]);
-		ak4396_write(chip, i,
-			     AK4396_RCH_ATT, chip->dac_volume[i * 2 + 1]);
 	}
 }
 
