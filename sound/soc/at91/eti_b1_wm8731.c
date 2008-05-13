@@ -191,7 +191,7 @@ static const struct snd_soc_dapm_widget eti_b1_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 };
 
-static const char *intercon[][3] = {
+static const struct snd_soc_dapm_route intercon[] = {
 
 	/* speaker connected to LHPOUT */
 	{"Ext Spk", NULL, "LHPOUT"},
@@ -199,9 +199,6 @@ static const char *intercon[][3] = {
 	/* mic is connected to Mic Jack, with WM8731 Mic Bias */
 	{"MICIN", NULL, "Mic Bias"},
 	{"Mic Bias", NULL, "Int Mic"},
-
-	/* terminator */
-	{NULL, NULL, NULL},
 };
 
 /*
@@ -209,20 +206,14 @@ static const char *intercon[][3] = {
  */
 static int eti_b1_wm8731_init(struct snd_soc_codec *codec)
 {
-	int i;
-
 	DBG("eti_b1_wm8731_init() called\n");
 
 	/* Add specific widgets */
-	for(i = 0; i < ARRAY_SIZE(eti_b1_dapm_widgets); i++) {
-		snd_soc_dapm_new_control(codec, &eti_b1_dapm_widgets[i]);
-	}
+	snd_soc_dapm_new_controls(codec, eti_b1_dapm_widgets,
+				  ARRAY_SIZE(eti_b1_dapm_widgets));
 
 	/* Set up specific audio path interconnects */
-	for(i = 0; intercon[i][0] != NULL; i++) {
-		snd_soc_dapm_connect_input(codec, intercon[i][0],
-			intercon[i][1], intercon[i][2]);
-	}
+	snd_soc_dapm_add_route(codec, intercon, ARRAY_SIZE(intercon));
 
 	/* not connected */
 	snd_soc_dapm_set_endpoint(codec, "RLINEIN", 0);
