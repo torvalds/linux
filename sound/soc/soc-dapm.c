@@ -1234,6 +1234,33 @@ int snd_soc_dapm_new_control(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_dapm_new_control);
 
 /**
+ * snd_soc_dapm_new_controls - create new dapm controls
+ * @codec: audio codec
+ * @widget: widget array
+ * @num: number of widgets
+ *
+ * Creates new DAPM controls based upon the templates.
+ *
+ * Returns 0 for success else error.
+ */
+int snd_soc_dapm_new_controls(struct snd_soc_codec *codec,
+	const struct snd_soc_dapm_widget *widget,
+	int num)
+{
+	int i, ret;
+
+	for (i = 0; i < num; i++) {
+		ret = snd_soc_dapm_new_control(codec, widget);
+		if (ret < 0)
+			return ret;
+		widget++;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_new_controls);
+
+
+/**
  * snd_soc_dapm_stream_event - send a stream event to the dapm core
  * @codec: audio codec
  * @stream: stream name
