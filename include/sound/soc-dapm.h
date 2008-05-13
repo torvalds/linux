@@ -193,6 +193,7 @@ struct snd_soc_dapm_widget;
 enum snd_soc_dapm_type;
 struct snd_soc_dapm_path;
 struct snd_soc_dapm_pin;
+struct snd_soc_dapm_route;
 
 /* dapm controls */
 int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
@@ -210,10 +211,12 @@ int snd_soc_dapm_new_controls(struct snd_soc_codec *codec,
 	int num);
 
 /* dapm path setup */
-int snd_soc_dapm_connect_input(struct snd_soc_codec *codec,
+int  __deprecated snd_soc_dapm_connect_input(struct snd_soc_codec *codec,
 	const char *sink_name, const char *control_name, const char *src_name);
 int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec);
 void snd_soc_dapm_free(struct snd_soc_device *socdev);
+int snd_soc_dapm_add_routes(struct snd_soc_codec *codec,
+			    const struct snd_soc_dapm_route *route, int num);
 
 /* dapm events */
 int snd_soc_dapm_stream_event(struct snd_soc_codec *codec, char *stream,
@@ -248,6 +251,18 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_vmid,			/* codec bias/vmid - to minimise pops */
 	snd_soc_dapm_pre,			/* machine specific pre widget - exec first */
 	snd_soc_dapm_post,			/* machine specific post widget - exec last */
+};
+
+/*
+ * DAPM audio route definition.
+ *
+ * Defines an audio route originating at source via control and finishing
+ * at sink.
+ */
+struct snd_soc_dapm_route {
+	const char *sink;
+	const char *control;
+	const char *source;
 };
 
 /* dapm audio path between two widgets */

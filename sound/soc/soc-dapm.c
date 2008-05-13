@@ -841,21 +841,8 @@ int snd_soc_dapm_sync_endpoints(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_sync_endpoints);
 
-/**
- * snd_soc_dapm_connect_input - connect dapm widgets
- * @codec: audio codec
- * @sink: name of target widget
- * @control: mixer control name
- * @source: name of source name
- *
- * Connects 2 dapm widgets together via a named audio path. The sink is
- * the widget receiving the audio signal, whilst the source is the sender
- * of the audio signal.
- *
- * Returns 0 for success else error.
- */
-int snd_soc_dapm_connect_input(struct snd_soc_codec *codec, const char *sink,
-	const char * control, const char *source)
+static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
+	const char *sink, const char *control, const char *source)
 {
 	struct snd_soc_dapm_path *path;
 	struct snd_soc_dapm_widget *wsource = NULL, *wsink = NULL, *w;
@@ -957,7 +944,62 @@ err:
 	kfree(path);
 	return ret;
 }
+
+/**
+ * snd_soc_dapm_connect_input - connect dapm widgets
+ * @codec: audio codec
+ * @sink: name of target widget
+ * @control: mixer control name
+ * @source: name of source name
+ *
+ * Connects 2 dapm widgets together via a named audio path. The sink is
+ * the widget receiving the audio signal, whilst the source is the sender
+ * of the audio signal.
+ *
+ * This function has been deprecated in favour of snd_soc_dapm_add_routes().
+ *
+ * Returns 0 for success else error.
+ */
+int snd_soc_dapm_connect_input(struct snd_soc_codec *codec, const char *sink,
+	const char *control, const char *source)
+{
+	return snd_soc_dapm_add_route(codec, sink, control, source);
+}
 EXPORT_SYMBOL_GPL(snd_soc_dapm_connect_input);
+
+/**
+ * snd_soc_dapm_add_routes - Add routes between DAPM widgets
+ * @codec: codec
+ * @route: audio routes
+ * @num: number of routes
+ *
+ * Connects 2 dapm widgets together via a named audio path. The sink is
+ * the widget receiving the audio signal, whilst the source is the sender
+ * of the audio signal.
+ *
+ * Returns 0 for success else error. On error all resources can be freed
+ * with a call to snd_soc_card_free().
+ */
+int snd_soc_dapm_add_routes(struct snd_soc_codec *codec,
+			    const struct snd_soc_dapm_route *route, int num)
+{
+	int i, ret;
+
+	for (i = 0; i < num; i++) {
+		ret = snd_soc_dapm_add_route(codec, route->sink,
+					     route->control, route->source);
+		if (ret < 0) {
+			printk(KERN_ERR "Failed to add route %s->%s\n",
+			       route->source,
+			       route->sink);
+			return ret;
+		}
+		route++;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_add_routes);
 
 /**
  * snd_soc_dapm_new_widgets - add new dapm widgets
