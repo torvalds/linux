@@ -1176,10 +1176,10 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	qla24xx_disable_vp(vha);
 	qla24xx_deallocate_vp_id(vha);
 
-	down(&ha->vport_sem);
+	mutex_lock(&ha->vport_lock);
 	ha->cur_vport_count--;
 	clear_bit(vha->vp_idx, ha->vp_idx_map);
-	up(&ha->vport_sem);
+	mutex_unlock(&ha->vport_lock);
 
 	kfree(vha->node_name);
 	kfree(vha->port_name);
