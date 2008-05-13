@@ -1255,6 +1255,9 @@ set_qf_format:
 		case Opt_quota:
 		case Opt_usrquota:
 		case Opt_grpquota:
+			printk(KERN_ERR
+				"EXT4-fs: quota options not supported.\n");
+			break;
 		case Opt_usrjquota:
 		case Opt_grpjquota:
 		case Opt_offusrjquota:
@@ -1262,7 +1265,7 @@ set_qf_format:
 		case Opt_jqfmt_vfsold:
 		case Opt_jqfmt_vfsv0:
 			printk(KERN_ERR
-				"EXT4-fs: journalled quota options not "
+				"EXT4-fs: journaled quota options not "
 				"supported.\n");
 			break;
 		case Opt_noquota:
