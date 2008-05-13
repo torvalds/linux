@@ -319,10 +319,12 @@ audioIC[] =
 	{AUDIO_CHIP_INTERNAL, "CX25843"},
 	{AUDIO_CHIP_INTERNAL, "CX23418"},
 	{AUDIO_CHIP_INTERNAL, "CX23885"},
-	/* 40-42 */
+	/* 40-44 */
 	{AUDIO_CHIP_INTERNAL, "CX23888"},
 	{AUDIO_CHIP_INTERNAL, "SAA7131"},
 	{AUDIO_CHIP_INTERNAL, "CX23887"},
+	{AUDIO_CHIP_INTERNAL, "SAA7164"},
+	{AUDIO_CHIP_INTERNAL, "AU8522"},
 };
 
 /* This list is supplied by Hauppauge. Thanks! */
@@ -341,8 +343,10 @@ static const char *decoderIC[] = {
 	"CX882", "TVP5150A", "CX25840", "CX25841", "CX25842",
 	/* 30-34 */
 	"CX25843", "CX23418", "NEC61153", "CX23885", "CX23888",
-	/* 35-37 */
-	"SAA7131", "CX25837", "CX23887"
+	/* 35-39 */
+	"SAA7131", "CX25837", "CX23887", "CX23885A", "CX23887A",
+	/* 40-42 */
+	"SAA7164", "CX23885B", "AU8522"
 };
 
 static int hasRadioTuner(int tunerType)
