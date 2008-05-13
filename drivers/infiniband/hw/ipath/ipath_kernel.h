@@ -159,8 +159,8 @@ struct ipath_portdata {
 	/* saved total number of polled urgent packets for poll edge trigger */
 	u32 port_urgent_poll;
 	/* pid of process using this port */
-	pid_t port_pid;
-	pid_t port_subpid[INFINIPATH_MAX_SUBPORT];
+	struct pid *port_pid;
+	struct pid *port_subpid[INFINIPATH_MAX_SUBPORT];
 	/* same size as task_struct .comm[] */
 	char port_comm[16];
 	/* pkeys set by this use of this port */
