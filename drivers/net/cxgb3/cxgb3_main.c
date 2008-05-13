@@ -421,6 +421,13 @@ static void init_napi(struct adapter *adap)
 			netif_napi_add(qs->netdev, &qs->napi, qs->napi.poll,
 				       64);
 	}
+
+	/*
+	 * netif_napi_add() can be called only once per napi_struct because it
+	 * adds each new napi_struct to a list.  Be careful not to call it a
+	 * second time, e.g., during EEH recovery, by making a note of it.
+	 */
+	adap->flags |= NAPI_INIT;
 }
 
 /*
@@ -896,7 +903,8 @@ static int cxgb_up(struct adapter *adap)
 			goto out;
 
 		setup_rss(adap);
-		init_napi(adap);
+		if (!(adap->flags & NAPI_INIT))
+			init_napi(adap);
 		adap->flags |= FULL_INIT_DONE;
 	}
 
@@ -999,7 +1007,7 @@ static int offload_open(struct net_device *dev)
 		return 0;
 
 	if (!adap_up && (err = cxgb_up(adapter)) < 0)
-		return err;
+		goto out;
 
 	t3_tp_set_offload_mode(adapter, 1);
 	tdev->lldev = adapter->port[0];
@@ -1061,10 +1069,8 @@ static int cxgb_open(struct net_device *dev)
 	int other_ports = adapter->open_device_map & PORT_MASK;
 	int err;
 
-	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0) {
-		quiesce_rx(adapter);
+	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0)
 		return err;
-	}
 
 	set_bit(pi->port_id, &adapter->open_device_map);
 	if (is_offload(adapter) && !ofld_disable) {
@@ -2424,14 +2430,11 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
 		offload_close(&adapter->tdev);
 
-	/* Free sge resources */
-	t3_free_sge_resources(adapter);
-
 	adapter->flags &= ~FULL_INIT_DONE;
 
 	pci_disable_device(pdev);
 
-	/* Request a slot slot reset. */
+	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
@@ -2448,13 +2451,20 @@ static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset.\n");
-		return PCI_ERS_RESULT_DISCONNECT;
+		goto err;
 	}
 	pci_set_master(pdev);
+	pci_restore_state(pdev);
 
-	t3_prep_adapter(adapter, adapter->params.info, 1);
+	/* Free sge resources */
+	t3_free_sge_resources(adapter);
+
+	if (t3_replay_prep_adapter(adapter))
+		goto err;
 
 	return PCI_ERS_RESULT_RECOVERED;
+err:
+	return PCI_ERS_RESULT_DISCONNECT;
 }
 
 /**
@@ -2482,13 +2492,6 @@ static void t3_io_resume(struct pci_dev *pdev)
 			}
 			netif_device_attach(netdev);
 		}
-	}
-
-	if (is_offload(adapter)) {
-		__set_bit(OFFLOAD_DEVMAP_BIT, &adapter->registered_device_map);
-		if (offload_open(adapter->port[0]))
-			printk(KERN_WARNING
-			       "Could not bring back offload capabilities\n");
 	}
 }
 
@@ -2608,6 +2611,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
+	pci_save_state(pdev);
 
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);

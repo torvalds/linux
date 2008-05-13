@@ -636,6 +636,14 @@
 #define XX_HIDRVA_WIDTH 1
 #define XX_LODRVA_LBN 8
 #define XX_LODRVA_WIDTH 1
+#define XX_LPBKD_LBN 3
+#define XX_LPBKD_WIDTH 1
+#define XX_LPBKC_LBN 2
+#define XX_LPBKC_WIDTH 1
+#define XX_LPBKB_LBN 1
+#define XX_LPBKB_WIDTH 1
+#define XX_LPBKA_LBN 0
+#define XX_LPBKA_WIDTH 1
 
 #define XX_TXDRV_CTL_REG_MAC 0x12
 #define XX_DEQD_LBN 28
@@ -656,8 +664,14 @@
 #define XX_DTXA_WIDTH 4
 
 /* XAUI XGXS core status register */
-#define XX_FORCE_SIG_DECODE_FORCED 0xff
 #define XX_CORE_STAT_REG_MAC 0x16
+#define XX_FORCE_SIG_LBN 24
+#define XX_FORCE_SIG_WIDTH 8
+#define XX_FORCE_SIG_DECODE_FORCED 0xff
+#define XX_XGXS_LB_EN_LBN 23
+#define XX_XGXS_LB_EN_WIDTH 1
+#define XX_XGMII_LB_EN_LBN 22
+#define XX_XGMII_LB_EN_WIDTH 1
 #define XX_ALIGN_DONE_LBN 20
 #define XX_ALIGN_DONE_WIDTH 1
 #define XX_SYNC_STAT_LBN 16
