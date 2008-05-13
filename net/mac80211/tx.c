@@ -1337,6 +1337,8 @@ int ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	pkt_data->ifindex = dev->ifindex;
 
 	pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
+	/* Interfaces should always request a status report */
+	pkt_data->flags |= IEEE80211_TXPD_REQ_TX_STATUS;
 
 	/*
 	 * fix up the pointers accounting for the radiotap
@@ -1617,6 +1619,9 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	pkt_data->ifindex = dev->ifindex;
 	if (ethertype == ETH_P_PAE)
 		pkt_data->flags |= IEEE80211_TXPD_EAPOL_FRAME;
+
+	/* Interfaces should always request a status report */
+	pkt_data->flags |= IEEE80211_TXPD_REQ_TX_STATUS;
 
 	skb->dev = local->mdev;
 	dev->stats.tx_packets++;
