@@ -3369,7 +3369,7 @@ static void sky2_led(struct sky2_port *sky2, enum led_mode mode)
 
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
 	} else
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER, 
+		gm_phy_write(hw, port, PHY_MARV_LED_OVER,
 				     PHY_M_LED_MO_DUP(mode) |
 				     PHY_M_LED_MO_10(mode) |
 				     PHY_M_LED_MO_100(mode) |

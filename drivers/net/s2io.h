@@ -747,7 +747,7 @@ struct ring_info {
 
 	/* interface MTU value */
         unsigned mtu;
-    
+
 	/* Buffer Address store. */
 	struct buffAdd **ba;
 

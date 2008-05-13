@@ -2547,7 +2547,7 @@ static int fill_rx_buffers(struct ring_info *ring)
 		if (block_no)
 			rxd_index += (block_no * ring->rxd_count);
 
-		if ((block_no == block_no1) && 
+		if ((block_no == block_no1) &&
 			(off == ring->rx_curr_get_info.offset) &&
 			(rxdp->Host_Control)) {
 			DBG_PRINT(INTR_DBG, "%s: Get and Put",
@@ -2593,7 +2593,7 @@ static int fill_rx_buffers(struct ring_info *ring)
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
 			}
 			stats->mem_alloc_fail_cnt++;
-				
+
 			return -ENOMEM ;
 		}
 		stats->mem_allocated += skb->truesize;
