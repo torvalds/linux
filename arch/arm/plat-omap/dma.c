@@ -501,8 +501,6 @@ static inline void omap_enable_channel_irq(int lch)
 
 	/* Enable some nice interrupts. */
 	OMAP_DMA_CICR_REG(lch) = dma_chan[lch].enabled_irqs;
-
-	dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
 }
 
 static void omap_disable_channel_irq(int lch)
