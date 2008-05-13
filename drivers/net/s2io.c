@@ -1113,9 +1113,10 @@ static int s2io_on_nec_bridge(struct pci_dev *s2io_pdev)
 	struct pci_dev *tdev = NULL;
 	while ((tdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, tdev)) != NULL) {
 		if (tdev->vendor == NEC_VENID && tdev->device == NEC_DEVID) {
-			if (tdev->bus == s2io_pdev->bus->parent)
+			if (tdev->bus == s2io_pdev->bus->parent) {
 				pci_dev_put(tdev);
 				return 1;
+			}
 		}
 	}
 	return 0;
