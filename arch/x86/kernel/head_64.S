@@ -322,11 +322,11 @@ early_idt_ripmsg:
 ENTRY(name)
 
 /* Automate the creation of 1 to 1 mapping pmd entries */
-#define PMDS(START, PERM, COUNT)		\
-	i = 0 ;					\
-	.rept (COUNT) ;				\
-	.quad	(START) + (i << 21) + (PERM) ;	\
-	i = i + 1 ;				\
+#define PMDS(START, PERM, COUNT)			\
+	i = 0 ;						\
+	.rept (COUNT) ;					\
+	.quad	(START) + (i << PMD_SHIFT) + (PERM) ;	\
+	i = i + 1 ;					\
 	.endr
 
 	/*
