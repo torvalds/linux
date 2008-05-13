@@ -374,13 +374,14 @@ static void ipath_reset_qp(struct ipath_qp *qp, enum ib_qp_type type)
 }
 
 /**
- * ipath_error_qp - put a QP into an error state
- * @qp: the QP to put into an error state
+ * ipath_error_qp - put a QP into the error state
+ * @qp: the QP to put into the error state
  * @err: the receive completion error to signal if a RWQE is active
  *
  * Flushes both send and receive work queues.
  * Returns true if last WQE event should be generated.
  * The QP s_lock should be held and interrupts disabled.
+ * If we are already in error state, just return.
  */
 
 int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
@@ -389,8 +390,10 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 	struct ib_wc wc;
 	int ret = 0;
 
-	ipath_dbg("QP%d/%d in error state (%d)\n",
-		  qp->ibqp.qp_num, qp->remote_qpn, err);
+	if (qp->state == IB_QPS_ERR)
+		goto bail;
+
+	qp->state = IB_QPS_ERR;
 
 	spin_lock(&dev->pending_lock);
 	if (!list_empty(&qp->timerwait))
@@ -460,6 +463,7 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 	} else if (qp->ibqp.event_handler)
 		ret = 1;
 
+bail:
 	return ret;
 }
 
@@ -1023,48 +1027,6 @@ int ipath_init_qp_table(struct ipath_ibdev *idev, int size)
 
 bail:
 	return ret;
-}
-
-/**
- * ipath_sqerror_qp - put a QP's send queue into an error state
- * @qp: QP who's send queue will be put into an error state
- * @wc: the WC responsible for putting the QP in this state
- *
- * Flushes the send work queue.
- * The QP s_lock should be held and interrupts disabled.
- */
-
-void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
-{
-	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
-	struct ipath_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
-
-	ipath_dbg("Send queue error on QP%d/%d: err: %d\n",
-		  qp->ibqp.qp_num, qp->remote_qpn, wc->status);
-
-	spin_lock(&dev->pending_lock);
-	if (!list_empty(&qp->timerwait))
-		list_del_init(&qp->timerwait);
-	if (!list_empty(&qp->piowait))
-		list_del_init(&qp->piowait);
-	spin_unlock(&dev->pending_lock);
-
-	ipath_cq_enter(to_icq(qp->ibqp.send_cq), wc, 1);
-	if (++qp->s_last >= qp->s_size)
-		qp->s_last = 0;
-
-	wc->status = IB_WC_WR_FLUSH_ERR;
-
-	while (qp->s_last != qp->s_head) {
-		wqe = get_swqe_ptr(qp, qp->s_last);
-		wc->wr_id = wqe->wr.wr_id;
-		wc->opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
-		ipath_cq_enter(to_icq(qp->ibqp.send_cq), wc, 1);
-		if (++qp->s_last >= qp->s_size)
-			qp->s_last = 0;
-	}
-	qp->s_cur = qp->s_tail = qp->s_head;
-	qp->state = IB_QPS_SQE;
 }
 
 /**

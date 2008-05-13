@@ -710,8 +710,6 @@ void ipath_free_all_qps(struct ipath_qp_table *qpt);
 
 int ipath_init_qp_table(struct ipath_ibdev *idev, int size);
 
-void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc);
-
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth);
 
 unsigned ipath_ib_rate_to_mult(enum ib_rate rate);
@@ -729,7 +727,9 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		  int has_grh, void *data, u32 tlen, struct ipath_qp *qp);
 
-void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc);
+void ipath_restart_rc(struct ipath_qp *qp, u32 psn);
+
+void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err);
 
 int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr);
 

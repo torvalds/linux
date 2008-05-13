@@ -744,12 +744,10 @@ static void ipath_ib_timer(struct ipath_ibdev *dev)
 
 	/* XXX What if timer fires again while this is running? */
 	for (qp = resend; qp != NULL; qp = qp->timer_next) {
-		struct ib_wc wc;
-
 		spin_lock_irqsave(&qp->s_lock, flags);
 		if (qp->s_last != qp->s_tail && qp->state == IB_QPS_RTS) {
 			dev->n_timeouts++;
-			ipath_restart_rc(qp, qp->s_last_psn + 1, &wc);
+			ipath_restart_rc(qp, qp->s_last_psn + 1);
 		}
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 
