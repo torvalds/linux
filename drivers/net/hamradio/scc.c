@@ -1340,9 +1340,10 @@ static unsigned int scc_set_param(struct scc_channel *scc, unsigned int cmd, uns
 		case PARAM_RTS:	
 			if ( !(scc->wreg[R5] & RTS) )
 			{
-				if (arg != TX_OFF)
+				if (arg != TX_OFF) {
 					scc_key_trx(scc, TX_ON);
 					scc_start_tx_timer(scc, t_txdelay, scc->kiss.txdelay);
+				}
 			} else {
 				if (arg == TX_OFF)
 				{
