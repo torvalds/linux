@@ -70,6 +70,9 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
 	case 2:
 		qla2x00_alloc_fw_dump(ha);
 		break;
+	case 3:
+		qla2x00_system_error(ha);
+		break;
 	}
 	return (count);
 }

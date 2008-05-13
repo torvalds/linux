@@ -2303,8 +2303,6 @@ qla24xx_lun_reset(struct fc_port *fcport, unsigned int l)
 	return __qla24xx_issue_tmf("Lun", TCF_LUN_RESET, fcport, l);
 }
 
-#if 0
-
 int
 qla2x00_system_error(scsi_qla_host_t *ha)
 {
@@ -2312,7 +2310,7 @@ qla2x00_system_error(scsi_qla_host_t *ha)
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
-	if (!IS_FWI2_CAPABLE(ha))
+	if (!IS_QLA23XX(ha) && !IS_FWI2_CAPABLE(ha))
 		return QLA_FUNCTION_FAILED;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
@@ -2333,8 +2331,6 @@ qla2x00_system_error(scsi_qla_host_t *ha)
 
 	return rval;
 }
-
-#endif  /*  0  */
 
 /**
  * qla2x00_set_serdes_params() -
