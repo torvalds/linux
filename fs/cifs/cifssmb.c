@@ -3679,6 +3679,7 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 	if (rc) {
 		if (rc == -EBADF) {
 			psrch_inf->endOfSearch = true;
+			cifs_buf_release(pSMB);
 			rc = 0; /* search probably was closed at end of search*/
 		} else
 			cFYI(1, ("FindNext returned = %d", rc));
