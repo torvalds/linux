@@ -141,6 +141,8 @@
 #define M50FW080	0x002D
 #define M50FW016	0x002E
 #define M50LPW080       0x002F
+#define M50FLW080A	0x0080
+#define M50FLW080B	0x0081
 
 /* SST */
 #define SST29EE020	0x0010
@@ -1590,6 +1592,36 @@ static const struct amd_flash_info jedec_table[] = {
 		.nr_regions	= 1,
 		.regions	= {
 			ERASEINFO(0x10000,16),
+		},
+	}, {
+		.mfr_id		= MANUFACTURER_ST,
+		.dev_id		= M50FLW080A,
+		.name		= "ST M50FLW080A",
+		.devtypes	= CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_UNNECESSARY,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_INTEL_EXT,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x10000,13),
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x1000,16),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_ST,
+		.dev_id		= M50FLW080B,
+		.name		= "ST M50FLW080B",
+		.devtypes	= CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_UNNECESSARY,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_INTEL_EXT,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x10000,13),
+			ERASEINFO(0x1000,16),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_TOSHIBA,
