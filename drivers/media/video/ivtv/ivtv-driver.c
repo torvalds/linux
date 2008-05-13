@@ -1019,7 +1019,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	ivtv_cards[ivtv_cards_active] = itv;
 	itv->dev = dev;
 	itv->num = ivtv_cards_active++;
-	snprintf(itv->name, sizeof(itv->name) - 1, "ivtv%d", itv->num);
+	snprintf(itv->name, sizeof(itv->name), "ivtv%d", itv->num);
 	IVTV_INFO("Initializing card #%d\n", itv->num);
 
 	spin_unlock(&ivtv_cards_lock);

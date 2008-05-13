@@ -614,7 +614,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	cx18_cards[cx18_cards_active] = cx;
 	cx->dev = dev;
 	cx->num = cx18_cards_active++;
-	snprintf(cx->name, sizeof(cx->name) - 1, "cx18-%d", cx->num);
+	snprintf(cx->name, sizeof(cx->name), "cx18-%d", cx->num);
 	CX18_INFO("Initializing card #%d\n", cx->num);
 
 	spin_unlock(&cx18_cards_lock);
