@@ -60,9 +60,15 @@ acpi_query_osc (
 	union acpi_object 	*out_obj;
 	u32			osc_dw0;
 	acpi_status *ret_status = (acpi_status *)retval;
-	struct acpi_osc_data *osc_data = acpi_get_osc_data(handle);
+	struct acpi_osc_data *osc_data;
 	u32 flags = (unsigned long)context, temp;
+	acpi_handle tmp;
 
+	status = acpi_get_handle(handle, "_OSC", &tmp);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
 		return AE_ERROR;
