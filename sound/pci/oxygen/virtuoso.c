@@ -162,6 +162,14 @@ static void cs4362a_write(struct oxygen *chip, u8 reg, u8 value)
 	oxygen_write_i2c(chip, I2C_DEVICE_CS4362A, reg, value);
 }
 
+static void xonar_enable_output(struct oxygen *chip)
+{
+	struct xonar_data *data = chip->model_data;
+
+	msleep(data->anti_pop_delay);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
+}
+
 static void xonar_common_init(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
@@ -173,13 +181,12 @@ static void xonar_common_init(struct oxygen *chip)
 		data->has_power = !!(oxygen_read8(chip, data->ext_power_reg)
 				     & data->ext_power_bit);
 	}
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CS53x1_M_MASK);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_CS53x1_M_MASK | data->output_enable_bit);
 	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
 			      GPIO_CS53x1_M_SINGLE, GPIO_CS53x1_M_MASK);
 	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
-	msleep(data->anti_pop_delay);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, data->output_enable_bit);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
+	xonar_enable_output(chip);
 }
 
 static void update_pcm1796_volume(struct oxygen *chip)
