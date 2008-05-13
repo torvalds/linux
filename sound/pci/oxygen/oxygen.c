@@ -43,7 +43,7 @@
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8788}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;

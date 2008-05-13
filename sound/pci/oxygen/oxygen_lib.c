@@ -32,7 +32,7 @@
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 helper library");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 
 static irqreturn_t oxygen_interrupt(int dummy, void *dev_id)

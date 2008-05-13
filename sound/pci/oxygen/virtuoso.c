@@ -79,7 +79,7 @@
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("Asus AVx00 driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{Asus,AV100},{Asus,AV200}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;

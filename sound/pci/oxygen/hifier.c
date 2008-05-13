@@ -28,7 +28,7 @@
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("TempoTec HiFier driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
