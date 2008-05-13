@@ -215,8 +215,8 @@ SND_SOC_DAPM_HP("Headphone Jack", NULL),
 SND_SOC_DAPM_SPK("Ext Spk", poodle_amp_event),
 };
 
-/* Corgi machine audio_mapnections to the codec pins */
-static const char *audio_map[][3] = {
+/* Corgi machine connections to the codec pins */
+static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* headphone connected to LHPOUT1, RHPOUT1 */
 	{"Headphone Jack", NULL, "LHPOUT"},
@@ -225,8 +225,6 @@ static const char *audio_map[][3] = {
 	/* speaker connected to LOUT, ROUT */
 	{"Ext Spk", NULL, "ROUT"},
 	{"Ext Spk", NULL, "LOUT"},
-
-	{NULL, NULL, NULL},
 };
 
 static const char *jack_function[] = {"Off", "Headphone"};
@@ -263,13 +261,11 @@ static int poodle_wm8731_init(struct snd_soc_codec *codec)
 	}
 
 	/* Add poodle specific widgets */
-	for (i = 0; i < ARRAY_SIZE(wm8731_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm8731_dapm_widgets[i]);
+	snd_soc_dapm_new_controls(codec, wm8731_dapm_widgets,
+				  ARRAY_SIZE(wm8731_dapm_widgets));
 
 	/* Set up poodle specific audio path audio_map */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_sync_endpoints(codec);
 	return 0;

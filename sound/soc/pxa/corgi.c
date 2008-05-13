@@ -247,7 +247,7 @@ SND_SOC_DAPM_HP("Headset Jack", NULL),
 };
 
 /* Corgi machine audio map (connections to the codec pins) */
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* headset Jack  - in = micin, out = LHPOUT*/
 	{"Headset Jack", NULL, "LHPOUT"},
@@ -265,8 +265,6 @@ static const char *audio_map[][3] = {
 
 	/* Same as the above but no mic bias for line signals */
 	{"MICIN", NULL, "Line Jack"},
-
-	{NULL, NULL, NULL},
 };
 
 static const char *jack_function[] = {"Headphone", "Mic", "Line", "Headset",
@@ -303,13 +301,11 @@ static int corgi_wm8731_init(struct snd_soc_codec *codec)
 	}
 
 	/* Add corgi specific widgets */
-	for (i = 0; i < ARRAY_SIZE(wm8731_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm8731_dapm_widgets[i]);
+	snd_soc_dapm_new_controls(codec, wm8731_dapm_widgets,
+				  ARRAY_SIZE(wm8731_dapm_widgets));
 
 	/* Set up corgi specific audio path audio_map */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_sync_endpoints(codec);
 	return 0;

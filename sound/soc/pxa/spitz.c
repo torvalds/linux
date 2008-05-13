@@ -250,7 +250,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 };
 
 /* Spitz machine audio_map */
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* headphone connected to LOUT1, ROUT1 */
 	{"Headphone Jack", NULL, "LOUT1"},
@@ -269,8 +269,6 @@ static const char *audio_map[][3] = {
 
 	/* line is connected to input 1 - no bias */
 	{"LINPUT1", NULL, "Line Jack"},
-
-	{NULL, NULL, NULL},
 };
 
 static const char *jack_function[] = {"Headphone", "Mic", "Line", "Headset",
@@ -313,13 +311,11 @@ static int spitz_wm8750_init(struct snd_soc_codec *codec)
 	}
 
 	/* Add spitz specific widgets */
-	for (i = 0; i < ARRAY_SIZE(wm8750_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm8750_dapm_widgets[i]);
+	snd_soc_dapm_new_controls(codec, wm8750_dapm_widgets,
+				  ARRAY_SIZE(wm8750_dapm_widgets));
 
-	/* Set up spitz specific audio path audio_map */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	/* Set up spitz specific audio paths */
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_sync_endpoints(codec);
 	return 0;
