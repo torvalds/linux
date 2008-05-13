@@ -483,7 +483,7 @@ struct ipath_devdata {
 
 	/* SendDMA related entries */
 	spinlock_t            ipath_sdma_lock;
-	u64                   ipath_sdma_status;
+	unsigned long         ipath_sdma_status;
 	unsigned long         ipath_sdma_abort_jiffies;
 	unsigned long         ipath_sdma_abort_intr_timeout;
 	unsigned long         ipath_sdma_buf_jiffies;
@@ -822,8 +822,8 @@ struct ipath_devdata {
 #define IPATH_SDMA_DISARMED  1
 #define IPATH_SDMA_DISABLED  2
 #define IPATH_SDMA_LAYERBUF  3
-#define IPATH_SDMA_RUNNING  62
-#define IPATH_SDMA_SHUTDOWN 63
+#define IPATH_SDMA_RUNNING  30
+#define IPATH_SDMA_SHUTDOWN 31
 
 /* bit combinations that correspond to abort states */
 #define IPATH_SDMA_ABORT_NONE 0

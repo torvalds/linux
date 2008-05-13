@@ -1894,7 +1894,7 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 	 */
 	if (dd->ipath_flags & IPATH_HAS_SEND_DMA) {
 		int skip_cancel;
-		u64 *statp = &dd->ipath_sdma_status;
+		unsigned long *statp = &dd->ipath_sdma_status;
 
 		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
 		skip_cancel =
