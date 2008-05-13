@@ -93,14 +93,16 @@ struct wireless_dev;
  *	used.
  */
  
-#if !defined(CONFIG_AX25) && !defined(CONFIG_AX25_MODULE) && !defined(CONFIG_TR)
-#define LL_MAX_HEADER	32
+#if defined(CONFIG_WLAN_80211) || defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
+# if defined(CONFIG_MAC80211_MESH)
+#  define LL_MAX_HEADER 128
+# else
+#  define LL_MAX_HEADER 96
+# endif
+#elif defined(CONFIG_TR)
+# define LL_MAX_HEADER 48
 #else
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-#define LL_MAX_HEADER	96
-#else
-#define LL_MAX_HEADER	48
-#endif
+# define LL_MAX_HEADER 32
 #endif
 
 #if !defined(CONFIG_NET_IPIP) && !defined(CONFIG_NET_IPIP_MODULE) && \
