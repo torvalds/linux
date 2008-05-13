@@ -55,6 +55,7 @@ struct vmcs {
 
 struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
+	struct list_head      local_vcpus_link;
 	int                   launched;
 	u8                    fail;
 	u32                   idt_vectoring_info;
@@ -93,6 +94,7 @@ static int init_rmode(struct kvm *kvm);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
+static DEFINE_PER_CPU(struct list_head, vcpus_on_cpu);
 
 static struct page *vmx_io_bitmap_a;
 static struct page *vmx_io_bitmap_b;
@@ -331,6 +333,9 @@ static void __vcpu_clear(void *arg)
 	if (per_cpu(current_vmcs, cpu) == vmx->vmcs)
 		per_cpu(current_vmcs, cpu) = NULL;
 	rdtscll(vmx->vcpu.arch.host_tsc);
+	list_del(&vmx->local_vcpus_link);
+	vmx->vcpu.cpu = -1;
+	vmx->launched = 0;
 }
 
 static void vcpu_clear(struct vcpu_vmx *vmx)
@@ -338,7 +343,6 @@ static void vcpu_clear(struct vcpu_vmx *vmx)
 	if (vmx->vcpu.cpu == -1)
 		return;
 	smp_call_function_single(vmx->vcpu.cpu, __vcpu_clear, vmx, 1);
-	vmx->launched = 0;
 }
 
 static inline void vpid_sync_vcpu_all(struct vcpu_vmx *vmx)
@@ -617,6 +621,10 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		vcpu_clear(vmx);
 		kvm_migrate_timers(vcpu);
 		vpid_sync_vcpu_all(vmx);
+		local_irq_disable();
+		list_add(&vmx->local_vcpus_link,
+			 &per_cpu(vcpus_on_cpu, cpu));
+		local_irq_enable();
 	}
 
 	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
@@ -1022,6 +1030,7 @@ static void hardware_enable(void *garbage)
 	u64 phys_addr = __pa(per_cpu(vmxarea, cpu));
 	u64 old;
 
+	INIT_LIST_HEAD(&per_cpu(vcpus_on_cpu, cpu));
 	rdmsrl(MSR_IA32_FEATURE_CONTROL, old);
 	if ((old & (MSR_IA32_FEATURE_CONTROL_LOCKED |
 		    MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED))
@@ -1037,8 +1046,19 @@ static void hardware_enable(void *garbage)
 		      : "memory", "cc");
 }
 
+static void vmclear_local_vcpus(void)
+{
+	int cpu = raw_smp_processor_id();
+	struct vcpu_vmx *vmx, *n;
+
+	list_for_each_entry_safe(vmx, n, &per_cpu(vcpus_on_cpu, cpu),
+				 local_vcpus_link)
+		__vcpu_clear(vmx);
+}
+
 static void hardware_disable(void *garbage)
 {
+	vmclear_local_vcpus();
 	asm volatile (__ex(ASM_VMX_VMXOFF) : : : "cc");
 	write_cr4(read_cr4() & ~X86_CR4_VMXE);
 }
@@ -2967,7 +2987,7 @@ static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	if (vmx->vmcs) {
-		on_each_cpu(__vcpu_clear, vmx, 1);
+		vcpu_clear(vmx);
 		free_vmcs(vmx->vmcs);
 		vmx->vmcs = NULL;
 	}
