@@ -479,16 +479,6 @@ comment "Memory Setup"
 
 comment "Misc"
 
-config ENET_FLASH_PIN
-	int "PF port/pin used for flash and ethernet sharing"
-	depends on (BFIN533_STAMP)
-	default  0
-	help
-	  PF port/pin used for flash and ethernet sharing to allow other PF
-	  pins to be used on other platforms without having to touch common
-	  code.
-	  For example: PF0 --> 0,PF1 --> 1,PF2 --> 2, etc.
-
 choice
 	prompt "Blackfin Exception Scratch Register"
 	default BFIN_SCRATCH_REG_RETN
