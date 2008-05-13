@@ -1767,7 +1767,7 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 	cFYI(1, ("Posix Lock"));
 
 	if (pLockData == NULL)
-		return EINVAL;
+		return -EINVAL;
 
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
