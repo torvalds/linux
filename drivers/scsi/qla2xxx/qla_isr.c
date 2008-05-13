@@ -1132,25 +1132,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 				break;
 
 			qla2x00_handle_sense(sp, sense_data, sense_len);
-
-			/*
-			 * In case of a Underrun condition, set both the lscsi
-			 * status and the completion status to appropriate
-			 * values.
-			 */
-			if (resid &&
-			    ((unsigned)(scsi_bufflen(cp) - resid) <
-			     cp->underflow)) {
-				DEBUG2(qla_printk(KERN_INFO, ha,
-				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
-				    "detected (%x of %x bytes)...returning "
-				    "error status.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    scsi_bufflen(cp)));
-
-				cp->result = DID_ERROR << 16 | lscsi_status;
-			}
 		} else {
 			/*
 			 * If RISC reports underrun and target does not report
