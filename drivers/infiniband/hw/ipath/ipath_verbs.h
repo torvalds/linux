@@ -444,6 +444,7 @@ struct ipath_qp {
  * Bit definitions for r_flags.
  */
 #define IPATH_R_REUSE_SGE	0x01
+#define IPATH_R_RDMAR_SEQ	0x02
 
 /*
  * Bit definitions for s_flags.

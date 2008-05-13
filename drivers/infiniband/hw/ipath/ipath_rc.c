@@ -1189,6 +1189,7 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		wqe = get_swqe_ptr(qp, qp->s_last);
 		if (unlikely(wqe->wr.opcode != IB_WR_RDMA_READ))
 			goto ack_op_err;
+		qp->r_flags &= ~IPATH_R_RDMAR_SEQ;
 		/*
 		 * If this is a response to a resent RDMA read, we
 		 * have to be careful to copy the data to the right
@@ -1202,6 +1203,9 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		/* no AETH, no ACK */
 		if (unlikely(ipath_cmp24(psn, qp->s_last_psn + 1))) {
 			dev->n_rdma_seq++;
+			if (qp->r_flags & IPATH_R_RDMAR_SEQ)
+				goto ack_done;
+			qp->r_flags |= IPATH_R_RDMAR_SEQ;
 			ipath_restart_rc(qp, qp->s_last_psn + 1);
 			goto ack_done;
 		}
@@ -1263,6 +1267,9 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		/* ACKs READ req. */
 		if (unlikely(ipath_cmp24(psn, qp->s_last_psn + 1))) {
 			dev->n_rdma_seq++;
+			if (qp->r_flags & IPATH_R_RDMAR_SEQ)
+				goto ack_done;
+			qp->r_flags |= IPATH_R_RDMAR_SEQ;
 			ipath_restart_rc(qp, qp->s_last_psn + 1);
 			goto ack_done;
 		}
