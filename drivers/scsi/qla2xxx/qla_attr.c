@@ -886,9 +886,13 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 static void
 qla2x00_get_host_port_type(struct Scsi_Host *shost)
 {
-	scsi_qla_host_t *ha = to_qla_parent(shost_priv(shost));
+	scsi_qla_host_t *ha = shost_priv(shost);
 	uint32_t port_type = FC_PORTTYPE_UNKNOWN;
 
+	if (ha->parent) {
+		fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
+		return;
+	}
 	switch (ha->current_topology) {
 	case ISP_CFG_NL:
 		port_type = FC_PORTTYPE_LPORT;
