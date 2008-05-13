@@ -177,7 +177,7 @@ static const struct snd_soc_dapm_widget aic33_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", n810_jack_event),
 };
 
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	{"Headphone Jack", NULL, "HPLOUT"},
 	{"Headphone Jack", NULL, "HPROUT"},
 
@@ -217,13 +217,11 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 	}
 
 	/* Add N810 specific widgets */
-	for (i = 0; i < ARRAY_SIZE(aic33_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &aic33_dapm_widgets[i]);
+	snd_soc_dapm_new_controls(codec, aic33_dapm_widgets,
+				  ARRAY_SIZE(aic33_dapm_widgets));
 
 	/* Set up N810 specific audio path audio_map */
-	for (i = 0; i < ARRAY_SIZE(audio_map); i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_sync_endpoints(codec);
 
