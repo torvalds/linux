@@ -283,7 +283,6 @@ core_initcall(cpufreq_tsc);
 
 /* clock source code */
 
-static unsigned long current_tsc_khz;
 static struct clocksource clocksource_tsc;
 
 /*
@@ -434,9 +433,8 @@ void __init tsc_init(void)
 
 	unsynchronized_tsc();
 	check_geode_tsc_reliable();
-	current_tsc_khz = tsc_khz;
-	clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
-							clocksource_tsc.shift);
+	clocksource_tsc.mult = clocksource_khz2mult(tsc_khz,
+						    clocksource_tsc.shift);
 	/* lower the rating if we already know its unstable: */
 	if (check_tsc_unstable()) {
 		clocksource_tsc.rating = 0;
