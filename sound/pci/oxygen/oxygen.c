@@ -124,12 +124,11 @@ static void update_ak4396_volume(struct oxygen *chip)
 	}
 }
 
-static void ak4396_init(struct oxygen *chip)
+static void ak4396_registers_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
 	unsigned int i;
 
-	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	for (i = 0; i < 4; ++i) {
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
@@ -139,6 +138,14 @@ static void ak4396_init(struct oxygen *chip)
 			     AK4396_CONTROL_3, AK4396_PCM);
 	}
 	update_ak4396_volume(chip);
+}
+
+static void ak4396_init(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+
+	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	ak4396_registers_init(chip);
 	snd_component_add(chip->card, "AK4396");
 }
 
@@ -149,6 +156,15 @@ static void ak5385_init(struct oxygen *chip)
 	snd_component_add(chip->card, "AK5385");
 }
 
+static void wm8785_registers_init(struct oxygen *chip)
+{
+	struct generic_data *data = chip->model_data;
+
+	wm8785_write(chip, WM8785_R7, 0);
+	wm8785_write(chip, WM8785_R0, data->saved_wm8785_registers[0]);
+	wm8785_write(chip, WM8785_R1, data->saved_wm8785_registers[1]);
+}
+
 static void wm8785_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
@@ -156,11 +172,7 @@ static void wm8785_init(struct oxygen *chip)
 	data->saved_wm8785_registers[0] = WM8785_MCR_SLAVE |
 		WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST;
 	data->saved_wm8785_registers[1] = WM8785_WL_24;
-
-	wm8785_write(chip, WM8785_R7, 0);
-	wm8785_write(chip, WM8785_R0, data->saved_wm8785_registers[0]);
-	wm8785_write(chip, WM8785_R1, data->saved_wm8785_registers[1]);
-
+	wm8785_registers_init(chip);
 	snd_component_add(chip->card, "WM8785");
 }
 

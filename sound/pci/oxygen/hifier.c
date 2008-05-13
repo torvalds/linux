@@ -68,15 +68,22 @@ static void update_ak4396_volume(struct oxygen *chip)
 	ak4396_write(chip, AK4396_RCH_ATT, chip->dac_volume[1]);
 }
 
+static void hifier_registers_init(struct oxygen *chip)
+{
+	struct hifier_data *data = chip->model_data;
+
+	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
+	ak4396_write(chip, AK4396_CONTROL_2, data->ak4396_ctl2);
+	ak4396_write(chip, AK4396_CONTROL_3, AK4396_PCM);
+	update_ak4396_volume(chip);
+}
+
 static void hifier_init(struct oxygen *chip)
 {
 	struct hifier_data *data = chip->model_data;
 
 	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
-	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
-	ak4396_write(chip, AK4396_CONTROL_2, data->ak4396_ctl2);
-	ak4396_write(chip, AK4396_CONTROL_3, AK4396_PCM);
-	update_ak4396_volume(chip);
+	hifier_registers_init(chip);
 
 	snd_component_add(chip->card, "AK4396");
 	snd_component_add(chip->card, "CS5340");
