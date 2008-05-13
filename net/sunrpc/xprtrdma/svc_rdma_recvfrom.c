@@ -306,6 +306,8 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 	ch_sge_ary = (struct chunk_sge *)tmp_ch_ctxt->sge;
 
 	svc_rdma_rcl_chunk_counts(ch, &ch_count, &byte_count);
+	if (ch_count > RPCSVC_MAXPAGES)
+		return -EINVAL;
 	sge_count = rdma_rcl_to_sge(xprt, rqstp, hdr_ctxt, rmsgp,
 				    sge, ch_sge_ary,
 				    ch_count, byte_count);
