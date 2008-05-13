@@ -173,7 +173,7 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 	int i, j;
 
 	snd_iprintf(buffer, "CMI8788\n\n");
-	for (i = 0; i < 0x100; i += 0x10) {
+	for (i = 0; i < OXYGEN_IO_SIZE; i += 0x10) {
 		snd_iprintf(buffer, "%02x:", i);
 		for (j = 0; j < 0x10; ++j)
 			snd_iprintf(buffer, " %02x", oxygen_read8(chip, i + j));
@@ -455,7 +455,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	}
 
 	if (!(pci_resource_flags(pci, 0) & IORESOURCE_IO) ||
-	    pci_resource_len(pci, 0) < 0x100) {
+	    pci_resource_len(pci, 0) < OXYGEN_IO_SIZE) {
 		snd_printk(KERN_ERR "invalid PCI I/O range\n");
 		err = -ENXIO;
 		goto err_pci_regions;

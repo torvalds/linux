@@ -16,6 +16,8 @@
 #define PCM_AC97	5
 #define PCM_COUNT	6
 
+#define OXYGEN_IO_SIZE	0x100
+
 /* model-specific configuration of outputs/inputs */
 #define PLAYBACK_0_TO_I2S	0x001
 #define PLAYBACK_1_TO_SPDIF	0x004
