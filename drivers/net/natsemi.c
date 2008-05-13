@@ -664,7 +664,7 @@ static ssize_t natsemi_show_##_name(struct device *dev, \
 NATSEMI_ATTR(dspcfg_workaround);
 
 static ssize_t natsemi_show_dspcfg_workaround(struct device *dev,
-				  	      struct device_attribute *attr, 
+				  	      struct device_attribute *attr,
 					      char *buf)
 {
 	struct netdev_private *np = netdev_priv(to_net_dev(dev));
@@ -687,7 +687,7 @@ static ssize_t natsemi_set_dspcfg_workaround(struct device *dev,
                  || !strncmp("0", buf, count - 1))
 		new_setting = 0;
 	else
-                 return count; 
+                 return count;
 
 	spin_lock_irqsave(&np->lock, flags);
 

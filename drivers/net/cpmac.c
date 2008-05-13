@@ -708,7 +708,7 @@ static void cpmac_tx_timeout(struct net_device *dev)
 	spin_unlock(&priv->lock);
 	if (netif_msg_tx_err(priv) && net_ratelimit())
 		printk(KERN_WARNING "%s: transmit timeout\n", dev->name);
-	/* 
+	/*
 	 * FIXME: waking up random queue is not the best thing to
 	 * do... on the other hand why we got here at all?
 	 */

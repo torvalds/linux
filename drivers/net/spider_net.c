@@ -1704,7 +1704,7 @@ spider_net_poll_controller(struct net_device *netdev)
  *
  * spider_net_enable_interrupt enables several interrupts
  */
-static void 
+static void
 spider_net_enable_interrupts(struct spider_net_card *card)
 {
 	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK,
@@ -1721,7 +1721,7 @@ spider_net_enable_interrupts(struct spider_net_card *card)
  *
  * spider_net_disable_interrupts disables all the interrupts
  */
-static void 
+static void
 spider_net_disable_interrupts(struct spider_net_card *card)
 {
 	spider_net_write_reg(card, SPIDER_NET_GHIINT0MSK, 0);

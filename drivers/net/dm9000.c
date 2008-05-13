@@ -696,7 +696,7 @@ dm9000_probe(struct platform_device *pdev)
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		/* try reading from mac */
-		
+
 		mac_src = "chip";
 		for (i = 0; i < 6; i++)
 			ndev->dev_addr[i] = ior(db, i+DM9000_PAR);
@@ -746,7 +746,7 @@ dm9000_open(struct net_device *dev)
 		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
 		irqflags = DEFAULT_TRIGGER;
 	}
-	
+
 	irqflags |= IRQF_SHARED;
 
 	if (request_irq(dev->irq, &dm9000_interrupt, irqflags, dev->name, dev))
@@ -1089,7 +1089,7 @@ static int dm9000_wait_eeprom(board_info_t *db)
 	/* The DM9000 data sheets say we should be able to
 	 * poll the ERRE bit in EPCR to wait for the EEPROM
 	 * operation. From testing several chips, this bit
-	 * does not seem to work. 
+	 * does not seem to work.
 	 *
 	 * We attempt to use the bit, but fall back to the
 	 * timeout (which is why we do not return an error

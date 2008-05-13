@@ -1526,7 +1526,7 @@ static int tsi108_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct tsi108_prv_data *data = netdev_priv(dev);
 	unsigned long flags;
 	int rc;
-	
+
 	spin_lock_irqsave(&data->txlock, flags);
 	rc = mii_ethtool_gset(&data->mii_if, cmd);
 	spin_unlock_irqrestore(&data->txlock, flags);
@@ -1543,7 +1543,7 @@ static int tsi108_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_lock_irqsave(&data->txlock, flags);
 	rc = mii_ethtool_sset(&data->mii_if, cmd);
 	spin_unlock_irqrestore(&data->txlock, flags);
-	
+
 	return rc;
 }
 
