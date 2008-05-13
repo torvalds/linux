@@ -756,6 +756,7 @@ static int lbs_thread(void *data)
 				priv->nr_retries = 0;
 			} else {
 				priv->cur_cmd = NULL;
+				priv->dnld_sent = DNLD_RES_RECEIVED;
 				lbs_pr_info("requeueing command %x due to timeout (#%d)\n",
 					    le16_to_cpu(cmdnode->cmdbuf->command), priv->nr_retries);
 
