@@ -2864,7 +2864,8 @@ qla2x00_module_init(void)
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "QLogic Fibre Channel HBA Driver\n");
+	printk(KERN_INFO "QLogic Fibre Channel HBA Driver: %s\n",
+	    qla2x00_version_str);
 	ret = pci_register_driver(&qla2xxx_pci_driver);
 	if (ret) {
 		kmem_cache_destroy(srb_cachep);
