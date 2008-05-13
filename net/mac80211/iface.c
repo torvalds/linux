@@ -54,6 +54,15 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 	if (!ndev)
 		return -ENOMEM;
 
+	ndev->needed_headroom = local->tx_headroom +
+				4*6 /* four MAC addresses */
+				+ 2 + 2 + 2 + 2 /* ctl, dur, seq, qos */
+				+ 6 /* mesh */
+				+ 8 /* rfc1042/bridge tunnel */
+				- ETH_HLEN /* ethernet hard_header_len */
+				+ IEEE80211_ENCRYPT_HEADROOM;
+	ndev->needed_tailroom = IEEE80211_ENCRYPT_TAILROOM;
+
 	ret = dev_alloc_name(ndev, ndev->name);
 	if (ret < 0)
 		goto fail;
