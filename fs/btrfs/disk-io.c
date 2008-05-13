@@ -1266,10 +1266,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	btrfs_parse_options(options, tree_root, NULL);
 
-	if (btrfs_super_num_devices(disk_super) > fs_devices->num_devices) {
+	if (btrfs_super_num_devices(disk_super) > fs_devices->open_devices) {
 		printk("Btrfs: wanted %llu devices, but found %llu\n",
 		       (unsigned long long)btrfs_super_num_devices(disk_super),
-		       (unsigned long long)fs_devices->num_devices);
+		       (unsigned long long)fs_devices->open_devices);
 		if (btrfs_test_opt(tree_root, DEGRADED))
 			printk("continuing in degraded mode\n");
 		else {

@@ -71,16 +71,16 @@ struct btrfs_fs_devices {
 	/* the device with this id has the most recent coyp of the super */
 	u64 latest_devid;
 	u64 latest_trans;
-	u64 lowest_devid;
 	u64 num_devices;
+	u64 open_devices;
 	struct block_device *latest_bdev;
-	struct block_device *lowest_bdev;
 	/* all of the devices in the FS */
 	struct list_head devices;
 
 	/* devices not currently being allocated */
 	struct list_head alloc_list;
 	struct list_head list;
+	int mounted;
 };
 
 struct btrfs_bio_stripe {

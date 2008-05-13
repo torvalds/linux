@@ -71,6 +71,7 @@ int btrfs_cleanup_fs_uuids(void)
 					 dev_list);
 			if (dev->bdev) {
 				close_bdev_excl(dev->bdev);
+				fs_devices->open_devices--;
 			}
 			list_del(&dev->dev_list);
 			kfree(dev->name);
@@ -174,9 +175,10 @@ again:
 	list_for_each(cur, head) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
 		if (!device->in_fs_metadata) {
-printk("getting rid of extra dev %s\n", device->name);
-			if (device->bdev)
+			if (device->bdev) {
 				close_bdev_excl(device->bdev);
+				fs_devices->open_devices--;
+			}
 			list_del(&device->dev_list);
 			list_del(&device->dev_alloc_list);
 			fs_devices->num_devices--;
@@ -188,6 +190,7 @@ printk("getting rid of extra dev %s\n", device->name);
 	mutex_unlock(&uuid_mutex);
 	return 0;
 }
+
 int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 {
 	struct list_head *head = &fs_devices->devices;
@@ -199,10 +202,12 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		device = list_entry(cur, struct btrfs_device, dev_list);
 		if (device->bdev) {
 			close_bdev_excl(device->bdev);
+			fs_devices->open_devices--;
 		}
 		device->bdev = NULL;
 		device->in_fs_metadata = 0;
 	}
+	fs_devices->mounted = 0;
 	mutex_unlock(&uuid_mutex);
 	return 0;
 }
@@ -214,9 +219,19 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	struct list_head *head = &fs_devices->devices;
 	struct list_head *cur;
 	struct btrfs_device *device;
-	int ret;
+	struct block_device *latest_bdev = NULL;
+	struct buffer_head *bh;
+	struct btrfs_super_block *disk_super;
+	u64 latest_devid = 0;
+	u64 latest_transid = 0;
+	u64 transid;
+	u64 devid;
+	int ret = 0;
 
 	mutex_lock(&uuid_mutex);
+	if (fs_devices->mounted)
+		goto out;
+
 	list_for_each(cur, head) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
 		if (device->bdev)
@@ -229,21 +244,52 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 
 		if (IS_ERR(bdev)) {
 			printk("open %s failed\n", device->name);
-			ret = PTR_ERR(bdev);
-			goto fail;
+			goto error;
 		}
 		set_blocksize(bdev, 4096);
-		if (device->devid == fs_devices->latest_devid)
-			fs_devices->latest_bdev = bdev;
+
+		bh = __bread(bdev, BTRFS_SUPER_INFO_OFFSET / 4096, 4096);
+		if (!bh)
+			goto error_close;
+
+		disk_super = (struct btrfs_super_block *)bh->b_data;
+		if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
+		    sizeof(disk_super->magic)))
+			goto error_brelse;
+
+		devid = le64_to_cpu(disk_super->dev_item.devid);
+		if (devid != device->devid)
+			goto error_brelse;
+
+		transid = btrfs_super_generation(disk_super);
+		if (transid > latest_transid) {
+			latest_devid = devid;
+			latest_transid = transid;
+			latest_bdev = bdev;
+		}
+
 		device->bdev = bdev;
 		device->in_fs_metadata = 0;
+		fs_devices->open_devices++;
+		continue;
 
+error_brelse:
+		brelse(bh);
+error_close:
+		close_bdev_excl(bdev);
+error:
+		continue;
 	}
+	if (fs_devices->open_devices == 0) {
+		ret = -EIO;
+		goto out;
+	}
+	fs_devices->mounted = 1;
+	fs_devices->latest_bdev = latest_bdev;
+	fs_devices->latest_devid = latest_devid;
+	fs_devices->latest_trans = latest_transid;
+out:
 	mutex_unlock(&uuid_mutex);
-	return 0;
-fail:
-	mutex_unlock(&uuid_mutex);
-	btrfs_close_devices(fs_devices);
 	return ret;
 }
 
@@ -828,6 +874,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (device->bdev) {
 		/* one close for the device struct or super_block */
 		close_bdev_excl(device->bdev);
+		root->fs_info->fs_devices->open_devices--;
 	}
 	if (bdev) {
 		/* one close for us */
@@ -914,6 +961,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	list_add(&device->dev_alloc_list,
 		 &root->fs_info->fs_devices->alloc_list);
 	root->fs_info->fs_devices->num_devices++;
+	root->fs_info->fs_devices->open_devices++;
 out:
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
