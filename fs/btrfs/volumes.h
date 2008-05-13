@@ -27,8 +27,10 @@ struct btrfs_device {
 	struct list_head dev_alloc_list;
 	struct btrfs_root *dev_root;
 	struct buffer_head *pending_io;
+	u64 generation;
 
 	int barriers;
+	int in_fs_metadata;
 
 	spinlock_t io_lock;
 
@@ -122,6 +124,7 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 int btrfs_scan_one_device(const char *path, int flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret);
 int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
+int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices);
 int btrfs_add_device(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root,
 		     struct btrfs_device *device);

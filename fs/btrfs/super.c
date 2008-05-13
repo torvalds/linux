@@ -65,11 +65,13 @@ static void btrfs_put_super (struct super_block * sb)
 }
 
 enum {
-	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_max_extent,
-	Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd, Opt_err,
+	Opt_degraded, Opt_subvol, Opt_nodatasum, Opt_nodatacow,
+	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
+	Opt_ssd, Opt_err,
 };
 
 static match_table_t tokens = {
+	{Opt_degraded, "degraded"},
 	{Opt_subvol, "subvol=%s"},
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
@@ -106,9 +108,8 @@ u64 btrfs_parse_size(char *str)
 	return res;
 }
 
-static int parse_options (char * options,
-			  struct btrfs_root *root,
-			  char **subvol_name)
+int btrfs_parse_options(char *options, struct btrfs_root *root,
+			char **subvol_name)
 {
 	char * p;
 	struct btrfs_fs_info *info = NULL;
@@ -135,6 +136,12 @@ static int parse_options (char * options,
 
 		token = match_token(p, tokens, args);
 		switch (token) {
+		case Opt_degraded:
+			if (info) {
+				printk("btrfs: allowing degraded mounts\n");
+				btrfs_set_opt(info->mount_opt, DEGRADED);
+			}
+			break;
 		case Opt_subvol:
 			if (subvol_name) {
 				*subvol_name = match_strdup(&args[0]);
@@ -234,7 +241,7 @@ static int btrfs_fill_super(struct super_block * sb,
 	sb->s_xattr = btrfs_xattr_handlers;
 	sb->s_time_gran = 1;
 
-	tree_root = open_ctree(sb, fs_devices);
+	tree_root = open_ctree(sb, fs_devices, (char *)data);
 
 	if (IS_ERR(tree_root)) {
 		printk("btrfs: open_ctree failed\n");
@@ -266,8 +273,6 @@ static int btrfs_fill_super(struct super_block * sb,
 		err = -ENOMEM;
 		goto fail_close;
 	}
-
-	parse_options((char *)data, tree_root, NULL);
 
 	/* this does the super kobj at the same time */
 	err = btrfs_sysfs_add_super(tree_root->fs_info);
@@ -341,7 +346,7 @@ int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 	if (error)
 		return error;
 
-	bdev = fs_devices->lowest_bdev;
+	bdev = fs_devices->latest_bdev;
 	btrfs_lock_volumes();
 	s = sget(fs_type, btrfs_test_super, set_anon_super, fs_devices);
 	btrfs_unlock_volumes();
@@ -411,7 +416,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type,
 	int ret;
 	char *subvol_name = NULL;
 
-	parse_options((char *)data, NULL, &subvol_name);
+	btrfs_parse_options((char *)data, NULL, &subvol_name);
 	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data, mnt,
 			subvol_name ? subvol_name : "default");
 	if (subvol_name)

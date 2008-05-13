@@ -33,7 +33,8 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 int clean_tree_block(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root, struct extent_buffer *buf);
 struct btrfs_root *open_ctree(struct super_block *sb,
-			      struct btrfs_fs_devices *fs_devices);
+			      struct btrfs_fs_devices *fs_devices,
+			      char *options);
 int close_ctree(struct btrfs_root *root);
 int write_ctree_super(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root);

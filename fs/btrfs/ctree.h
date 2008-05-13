@@ -657,6 +657,7 @@ struct btrfs_root {
 #define BTRFS_MOUNT_NODATACOW		(1 << 1)
 #define BTRFS_MOUNT_NOBARRIER		(1 << 2)
 #define BTRFS_MOUNT_SSD			(1 << 3)
+#define BTRFS_MOUNT_DEGRADED		(1 << 4)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -1606,4 +1607,6 @@ int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct inode *inode);
 /* super.c */
 u64 btrfs_parse_size(char *str);
+int btrfs_parse_options(char *options, struct btrfs_root *root,
+			char **subvol_name);
 #endif

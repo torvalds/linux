@@ -614,21 +614,6 @@ int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize,
 	return ret;
 }
 
-static int close_all_devices(struct btrfs_fs_info *fs_info)
-{
-	struct list_head *list;
-	struct list_head *next;
-	struct btrfs_device *device;
-
-	list = &fs_info->fs_devices->devices;
-	list_for_each(next, list) {
-		device = list_entry(next, struct btrfs_device, dev_list);
-		close_bdev_excl(device->bdev);
-		device->bdev = NULL;
-	}
-	return 0;
-}
-
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 					    u64 bytenr, u32 blocksize)
 {
@@ -927,6 +912,8 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 
 	list_for_each(cur, &info->fs_devices->devices) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
+		if (!device->bdev)
+			continue;
 		bdi = blk_get_backing_dev_info(device->bdev);
 		if (bdi && bdi_congested(bdi, bdi_bits)) {
 			ret = 1;
@@ -1140,7 +1127,8 @@ static void btrfs_async_submit_work(struct work_struct *work)
 }
 
 struct btrfs_root *open_ctree(struct super_block *sb,
-			      struct btrfs_fs_devices *fs_devices)
+			      struct btrfs_fs_devices *fs_devices,
+			      char *options)
 {
 	u32 sectorsize;
 	u32 nodesize;
@@ -1276,12 +1264,19 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
 
-	if (btrfs_super_num_devices(disk_super) != fs_devices->num_devices) {
+	btrfs_parse_options(options, tree_root, NULL);
+
+	if (btrfs_super_num_devices(disk_super) > fs_devices->num_devices) {
 		printk("Btrfs: wanted %llu devices, but found %llu\n",
 		       (unsigned long long)btrfs_super_num_devices(disk_super),
 		       (unsigned long long)fs_devices->num_devices);
-		goto fail_sb_buffer;
+		if (btrfs_test_opt(tree_root, DEGRADED))
+			printk("continuing in degraded mode\n");
+		else {
+			goto fail_sb_buffer;
+		}
 	}
+
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 
 	nodesize = btrfs_super_nodesize(disk_super);
@@ -1329,6 +1324,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = btrfs_read_chunk_tree(chunk_root);
 	BUG_ON(ret);
 
+	btrfs_close_extra_devices(fs_devices);
+
 	blocksize = btrfs_level_size(tree_root,
 				     btrfs_super_root_level(disk_super));
 
@@ -1374,7 +1371,7 @@ fail_sb_buffer:
 fail_iput:
 	iput(fs_info->btree_inode);
 fail:
-	close_all_devices(fs_info);
+	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
 	kfree(extent_root);
@@ -1429,6 +1426,13 @@ int write_all_supers(struct btrfs_root *root)
 	dev_item = &sb->dev_item;
 	list_for_each(cur, head) {
 		dev = list_entry(cur, struct btrfs_device, dev_list);
+		if (!dev->bdev) {
+			total_errors++;
+			continue;
+		}
+		if (!dev->in_fs_metadata)
+			continue;
+
 		btrfs_set_stack_device_type(dev_item, dev->type);
 		btrfs_set_stack_device_id(dev_item, dev->devid);
 		btrfs_set_stack_device_total_bytes(dev_item, dev->total_bytes);
@@ -1482,6 +1486,11 @@ int write_all_supers(struct btrfs_root *root)
 
 	list_for_each(cur, head) {
 		dev = list_entry(cur, struct btrfs_device, dev_list);
+		if (!dev->bdev)
+			continue;
+		if (!dev->in_fs_metadata)
+			continue;
+
 		BUG_ON(!dev->pending_io);
 		bh = dev->pending_io;
 		wait_on_buffer(bh);
@@ -1631,7 +1640,7 @@ int close_ctree(struct btrfs_root *root)
 		kfree(hasher);
 	}
 #endif
-	close_all_devices(fs_info);
+	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
