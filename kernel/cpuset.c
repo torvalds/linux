@@ -1037,8 +1037,8 @@ int current_cpuset_is_being_rebound(void)
 
 static int update_relax_domain_level(struct cpuset *cs, s64 val)
 {
-	if ((int)val < 0)
-		val = -1;
+	if (val < -1 || val >= SD_LV_MAX)
+		return -EINVAL;
 
 	if (val != cs->relax_domain_level) {
 		cs->relax_domain_level = val;
