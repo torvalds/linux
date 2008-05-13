@@ -150,19 +150,19 @@ static void __NS8390_init(struct net_device *dev, int startp);
  *	card means that approach caused horrible problems like losing serial data
  *	at 38400 baud on some chips. Remember many 8390 nics on PCI were ISA
  *	chips with FPGA front ends.
- *	
+ *
  *	Ok the logic behind the 8390 is very simple:
- *	
+ *
  *	Things to know
  *		- IRQ delivery is asynchronous to the PCI bus
  *		- Blocking the local CPU IRQ via spin locks was too slow
  *		- The chip has register windows needing locking work
- *	
+ *
  *	So the path was once (I say once as people appear to have changed it
  *	in the mean time and it now looks rather bogus if the changes to use
  *	disable_irq_nosync_irqsave are disabling the local IRQ)
- *	
- *	
+ *
+ *
  *		Take the page lock
  *		Mask the IRQ on chip
  *		Disable the IRQ (but not mask locally- someone seems to have
@@ -170,22 +170,22 @@ static void __NS8390_init(struct net_device *dev, int startp);
  *			[This must be _nosync as the page lock may otherwise
  *				deadlock us]
  *		Drop the page lock and turn IRQs back on
- *		
+ *
  *		At this point an existing IRQ may still be running but we can't
  *		get a new one
- *	
+ *
  *		Take the lock (so we know the IRQ has terminated) but don't mask
  *	the IRQs on the processor
  *		Set irqlock [for debug]
- *	
+ *
  *		Transmit (slow as ****)
- *	
+ *
  *		re-enable the IRQ
- *	
- *	
+ *
+ *
  *	We have to use disable_irq because otherwise you will get delayed
  *	interrupts on the APIC bus deadlocking the transmit path.
- *	
+ *
  *	Quite hairy but the chip simply wasn't designed for SMP and you can't
  *	even ACK an interrupt without risking corrupting other parallel
  *	activities on the chip." [lkml, 25 Jul 2007]
@@ -553,7 +553,6 @@ static void __ei_poll(struct net_device *dev)
 static void ei_tx_err(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 	unsigned char txsr = ei_inb_p(e8390_base+EN0_TSR);
 	unsigned char tx_was_aborted = txsr & (ENTSR_ABT+ENTSR_FU);
 
@@ -816,7 +815,6 @@ static void ei_rx_overrun(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	unsigned char was_txing, must_resend = 0;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 
 	/*
 	 * Record whether a Tx was in progress and then issue the
