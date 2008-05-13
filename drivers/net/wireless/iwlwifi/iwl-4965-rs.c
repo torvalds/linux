@@ -163,8 +163,8 @@ struct iwl4965_lq_sta {
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
 #endif
 	struct iwl4965_rate dbg_fixed;
-	struct iwl_priv *drv;
 #endif
+	struct iwl_priv *drv;
 };
 
 static void rs_rate_scale_perform(struct iwl_priv *priv,

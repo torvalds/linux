@@ -1305,11 +1305,11 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		if (is_multicast_ether_addr(skb->data)) {
 			if (*mesh_ttl > 0) {
 				xmit_skb = skb_copy(skb, GFP_ATOMIC);
-				if (!xmit_skb && net_ratelimit())
+				if (xmit_skb)
+					xmit_skb->pkt_type = PACKET_OTHERHOST;
+				else if (net_ratelimit())
 					printk(KERN_DEBUG "%s: failed to clone "
 					       "multicast frame\n", dev->name);
-				else
-					xmit_skb->pkt_type = PACKET_OTHERHOST;
 			} else
 				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.sta,
 							     dropped_frames_ttl);
@@ -1395,7 +1395,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 		padding = ((4 - subframe_len) & 0x3);
 		/* the last MSDU has no padding */
 		if (subframe_len > remaining) {
-			printk(KERN_DEBUG "%s: wrong buffer size", dev->name);
+			printk(KERN_DEBUG "%s: wrong buffer size\n", dev->name);
 			return RX_DROP_UNUSABLE;
 		}
 
@@ -1418,7 +1418,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 			eth = (struct ethhdr *) skb_pull(skb, ntohs(len) +
 							padding);
 			if (!eth) {
-				printk(KERN_DEBUG "%s: wrong buffer size ",
+				printk(KERN_DEBUG "%s: wrong buffer size\n",
 				       dev->name);
 				dev_kfree_skb(frame);
 				return RX_DROP_UNUSABLE;
@@ -1952,7 +1952,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		if (!skb_new) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: failed to copy "
-				       "multicast frame for %s",
+				       "multicast frame for %s\n",
 				       wiphy_name(local->hw.wiphy),
 				       prev->dev->name);
 			continue;
