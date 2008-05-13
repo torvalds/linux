@@ -71,7 +71,7 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 };
 
 /* davinci-evm machine audio_mapnections to the codec pins */
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* Headphone connected to HPLOUT, HPROUT */
 	{"Headphone Jack", NULL, "HPLOUT"},
 	{"Headphone Jack", NULL, "HPROUT"},
@@ -90,23 +90,17 @@ static const char *audio_map[][3] = {
 	{"LINE2L", NULL, "Line In"},
 	{"LINE1R", NULL, "Line In"},
 	{"LINE2R", NULL, "Line In"},
-
-	{NULL, NULL, NULL},
 };
 
 /* Logic for a aic3x as connected on a davinci-evm */
 static int evm_aic3x_init(struct snd_soc_codec *codec)
 {
-	int i;
-
 	/* Add davinci-evm specific widgets */
-	for (i = 0; i < ARRAY_SIZE(aic3x_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &aic3x_dapm_widgets[i]);
+	snd_soc_dapm_new_controls(codec, aic3x_dapm_widgets,
+				  ARRAY_SIZE(aic3x_dapm_widgets));
 
 	/* Set up davinci-evm specific audio path audio_map */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-					   audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	/* not connected */
 	snd_soc_dapm_set_endpoint(codec, "MONO_LOUT", 0);
