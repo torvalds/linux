@@ -80,6 +80,12 @@ struct oxygen {
 	struct work_struct spdif_input_bits_work;
 	struct work_struct gpio_work;
 	wait_queue_head_t ac97_waitqueue;
+	union {
+		u8 _8[OXYGEN_IO_SIZE];
+		__le16 _16[OXYGEN_IO_SIZE / 2];
+		__le32 _32[OXYGEN_IO_SIZE / 4];
+	} saved_registers;
+	u16 saved_ac97_registers[2][0x40];
 };
 
 struct oxygen_model {

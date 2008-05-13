@@ -132,6 +132,9 @@ struct xonar_data {
 	u8 ext_power_int_reg;
 	u8 ext_power_bit;
 	u8 has_power;
+	u8 pcm1796_oversampling;
+	u8 cs4398_fm;
+	u8 cs4362a_fm;
 };
 
 static void pcm1796_write(struct oxygen *chip, unsigned int codec,
@@ -186,12 +189,13 @@ static void xonar_d2_init(struct oxygen *chip)
 
 	data->anti_pop_delay = 300;
 	data->output_enable_bit = GPIO_D2_OUTPUT_ENABLE;
+	data->pcm1796_oversampling = PCM1796_OS_64;
 
 	for (i = 0; i < 4; ++i) {
 		pcm1796_write(chip, i, 18, PCM1796_MUTE | PCM1796_DMF_DISABLED |
 			      PCM1796_FMT_24_LJUST | PCM1796_ATLD);
 		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
-		pcm1796_write(chip, i, 20, PCM1796_OS_64);
+		pcm1796_write(chip, i, 20, data->pcm1796_oversampling);
 		pcm1796_write(chip, i, 21, 0);
 		pcm1796_write(chip, i, 16, 0x0f); /* set ATL/ATR after ATLD */
 		pcm1796_write(chip, i, 17, 0x0f);
@@ -226,6 +230,9 @@ static void xonar_dx_init(struct oxygen *chip)
 	data->ext_power_reg = OXYGEN_GPI_DATA;
 	data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
 	data->ext_power_bit = GPI_DX_EXT_POWER;
+	data->cs4398_fm = CS4398_FM_SINGLE | CS4398_DEM_NONE | CS4398_DIF_LJUST;
+	data->cs4362a_fm = CS4362A_FM_SINGLE |
+		CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
 
 	oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
 		       OXYGEN_2WIRE_LENGTH_8 |
@@ -236,8 +243,7 @@ static void xonar_dx_init(struct oxygen *chip)
 	cs4398_write(chip, 8, CS4398_CPEN | CS4398_PDN);
 	cs4362a_write(chip, 0x01, CS4362A_PDN | CS4362A_CPEN);
 	/* configure */
-	cs4398_write(chip, 2, CS4398_FM_SINGLE |
-		     CS4398_DEM_NONE | CS4398_DIF_LJUST);
+	cs4398_write(chip, 2, data->cs4398_fm);
 	cs4398_write(chip, 3, CS4398_ATAPI_B_R | CS4398_ATAPI_A_L);
 	cs4398_write(chip, 4, CS4398_MUTEP_LOW | CS4398_PAMUTE);
 	cs4398_write(chip, 5, 0xfe);
@@ -249,16 +255,13 @@ static void xonar_dx_init(struct oxygen *chip)
 		      CS4362A_RMP_UP | CS4362A_ZERO_CROSS | CS4362A_SOFT_RAMP);
 	cs4362a_write(chip, 0x04, CS4362A_RMP_DN | CS4362A_DEM_NONE);
 	cs4362a_write(chip, 0x05, 0);
-	cs4362a_write(chip, 0x06, CS4362A_FM_SINGLE |
-		      CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L);
+	cs4362a_write(chip, 0x06, data->cs4362a_fm);
 	cs4362a_write(chip, 0x07, 0x7f | CS4362A_MUTE);
 	cs4362a_write(chip, 0x08, 0x7f | CS4362A_MUTE);
-	cs4362a_write(chip, 0x09, CS4362A_FM_SINGLE |
-		      CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L);
+	cs4362a_write(chip, 0x09, data->cs4362a_fm);
 	cs4362a_write(chip, 0x0a, 0x7f | CS4362A_MUTE);
 	cs4362a_write(chip, 0x0b, 0x7f | CS4362A_MUTE);
-	cs4362a_write(chip, 0x0c, CS4362A_FM_SINGLE |
-		      CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L);
+	cs4362a_write(chip, 0x0c, data->cs4362a_fm);
 	cs4362a_write(chip, 0x0d, 0x7f | CS4362A_MUTE);
 	cs4362a_write(chip, 0x0e, 0x7f | CS4362A_MUTE);
 	/* clear power down */
@@ -294,12 +297,13 @@ static void xonar_dx_cleanup(struct oxygen *chip)
 static void set_pcm1796_params(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params)
 {
+	struct xonar_data *data = chip->model_data;
 	unsigned int i;
-	u8 value;
 
-	value = params_rate(params) >= 96000 ? PCM1796_OS_32 : PCM1796_OS_64;
+	data->pcm1796_oversampling =
+		params_rate(params) >= 96000 ? PCM1796_OS_32 : PCM1796_OS_64;
 	for (i = 0; i < 4; ++i)
-		pcm1796_write(chip, i, 20, value);
+		pcm1796_write(chip, i, 20, data->pcm1796_oversampling);
 }
 
 static void update_pcm1796_volume(struct oxygen *chip)
@@ -342,24 +346,24 @@ static void set_cs53x1_params(struct oxygen *chip,
 static void set_cs43xx_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
-	u8 fm_cs4398, fm_cs4362a;
+	struct xonar_data *data = chip->model_data;
 
-	fm_cs4398 = CS4398_DEM_NONE | CS4398_DIF_LJUST;
-	fm_cs4362a = CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
+	data->cs4398_fm = CS4398_DEM_NONE | CS4398_DIF_LJUST;
+	data->cs4362a_fm = CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
 	if (params_rate(params) <= 50000) {
-		fm_cs4398 |= CS4398_FM_SINGLE;
-		fm_cs4362a |= CS4362A_FM_SINGLE;
+		data->cs4398_fm |= CS4398_FM_SINGLE;
+		data->cs4362a_fm |= CS4362A_FM_SINGLE;
 	} else if (params_rate(params) <= 100000) {
-		fm_cs4398 |= CS4398_FM_DOUBLE;
-		fm_cs4362a |= CS4362A_FM_DOUBLE;
+		data->cs4398_fm |= CS4398_FM_DOUBLE;
+		data->cs4362a_fm |= CS4362A_FM_DOUBLE;
 	} else {
-		fm_cs4398 |= CS4398_FM_QUAD;
-		fm_cs4362a |= CS4362A_FM_QUAD;
+		data->cs4398_fm |= CS4398_FM_QUAD;
+		data->cs4362a_fm |= CS4362A_FM_QUAD;
 	}
-	cs4398_write(chip, 2, fm_cs4398);
-	cs4362a_write(chip, 0x06, fm_cs4362a);
-	cs4362a_write(chip, 0x09, fm_cs4362a);
-	cs4362a_write(chip, 0x0c, fm_cs4362a);
+	cs4398_write(chip, 2, data->cs4398_fm);
+	cs4362a_write(chip, 0x06, data->cs4362a_fm);
+	cs4362a_write(chip, 0x09, data->cs4362a_fm);
+	cs4362a_write(chip, 0x0c, data->cs4362a_fm);
 }
 
 static void update_cs4362a_volumes(struct oxygen *chip)

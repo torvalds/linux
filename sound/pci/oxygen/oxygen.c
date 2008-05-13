@@ -80,6 +80,7 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 
 struct generic_data {
 	u8 ak4396_ctl2;
+	u16 saved_wm8785_registers[2];
 };
 
 static void ak4396_write(struct oxygen *chip, unsigned int codec,
@@ -99,12 +100,16 @@ static void ak4396_write(struct oxygen *chip, unsigned int codec,
 
 static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
 {
+	struct generic_data *data = chip->model_data;
+
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
 			 OXYGEN_SPI_CLOCK_160 |
 			 (3 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
+	if (reg < ARRAY_SIZE(data->saved_wm8785_registers))
+		data->saved_wm8785_registers[reg] = value;
 }
 
 static void ak4396_init(struct oxygen *chip)
@@ -135,10 +140,16 @@ static void ak5385_init(struct oxygen *chip)
 
 static void wm8785_init(struct oxygen *chip)
 {
+	struct generic_data *data = chip->model_data;
+
+	data->saved_wm8785_registers[0] = WM8785_MCR_SLAVE |
+		WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST;
+	data->saved_wm8785_registers[1] = WM8785_WL_24;
+
 	wm8785_write(chip, WM8785_R7, 0);
-	wm8785_write(chip, WM8785_R0, WM8785_MCR_SLAVE |
-		     WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST);
-	wm8785_write(chip, WM8785_R1, WM8785_WL_24);
+	wm8785_write(chip, WM8785_R0, data->saved_wm8785_registers[0]);
+	wm8785_write(chip, WM8785_R1, data->saved_wm8785_registers[1]);
+
 	snd_component_add(chip->card, "WM8785");
 }
 

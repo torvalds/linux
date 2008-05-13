@@ -44,18 +44,21 @@ EXPORT_SYMBOL(oxygen_read32);
 void oxygen_write8(struct oxygen *chip, unsigned int reg, u8 value)
 {
 	outb(value, chip->addr + reg);
+	chip->saved_registers._8[reg] = value;
 }
 EXPORT_SYMBOL(oxygen_write8);
 
 void oxygen_write16(struct oxygen *chip, unsigned int reg, u16 value)
 {
 	outw(value, chip->addr + reg);
+	chip->saved_registers._16[reg / 2] = cpu_to_le16(value);
 }
 EXPORT_SYMBOL(oxygen_write16);
 
 void oxygen_write32(struct oxygen *chip, unsigned int reg, u32 value)
 {
 	outl(value, chip->addr + reg);
+	chip->saved_registers._32[reg / 4] = cpu_to_le32(value);
 }
 EXPORT_SYMBOL(oxygen_write32);
 
@@ -63,7 +66,10 @@ void oxygen_write8_masked(struct oxygen *chip, unsigned int reg,
 			  u8 value, u8 mask)
 {
 	u8 tmp = inb(chip->addr + reg);
-	outb((tmp & ~mask) | (value & mask), chip->addr + reg);
+	tmp &= ~mask;
+	tmp |= value & mask;
+	outb(tmp, chip->addr + reg);
+	chip->saved_registers._8[reg] = tmp;
 }
 EXPORT_SYMBOL(oxygen_write8_masked);
 
@@ -71,7 +77,10 @@ void oxygen_write16_masked(struct oxygen *chip, unsigned int reg,
 			   u16 value, u16 mask)
 {
 	u16 tmp = inw(chip->addr + reg);
-	outw((tmp & ~mask) | (value & mask), chip->addr + reg);
+	tmp &= ~mask;
+	tmp |= value & mask;
+	outw(tmp, chip->addr + reg);
+	chip->saved_registers._16[reg / 2] = cpu_to_le16(tmp);
 }
 EXPORT_SYMBOL(oxygen_write16_masked);
 
@@ -79,7 +88,10 @@ void oxygen_write32_masked(struct oxygen *chip, unsigned int reg,
 			   u32 value, u32 mask)
 {
 	u32 tmp = inl(chip->addr + reg);
-	outl((tmp & ~mask) | (value & mask), chip->addr + reg);
+	tmp &= ~mask;
+	tmp |= value & mask;
+	outl(tmp, chip->addr + reg);
+	chip->saved_registers._32[reg / 4] = cpu_to_le32(tmp);
 }
 EXPORT_SYMBOL(oxygen_write32_masked);
 
@@ -128,8 +140,10 @@ void oxygen_write_ac97(struct oxygen *chip, unsigned int codec,
 		oxygen_write32(chip, OXYGEN_AC97_REGS, reg);
 		/* require two "completed" writes, just to be sure */
 		if (oxygen_ac97_wait(chip, OXYGEN_AC97_INT_WRITE_DONE) >= 0 &&
-		    ++succeeded >= 2)
+		    ++succeeded >= 2) {
+			chip->saved_ac97_registers[codec][index / 2] = data;
 			return;
+		}
 	}
 	snd_printk(KERN_ERR "AC'97 write timeout\n");
 }
