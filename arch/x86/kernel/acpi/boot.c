@@ -969,14 +969,14 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	if ((bus_irq == 0) && (trigger == 3))
 		trigger = 1;
 
-	mp_irqs[mp_irq_entries].mpc_type = MP_INTSRC;
-	mp_irqs[mp_irq_entries].mpc_irqtype = mp_INT;
-	mp_irqs[mp_irq_entries].mpc_irqflag = (trigger << 2) | polarity;
-	mp_irqs[mp_irq_entries].mpc_srcbus = MP_ISA_BUS;
-	mp_irqs[mp_irq_entries].mpc_srcbusirq = bus_irq;	/* IRQ */
-	mp_irqs[mp_irq_entries].mpc_dstapic =
+	mp_irqs[mp_irq_entries].mp_type = MP_INTSRC;
+	mp_irqs[mp_irq_entries].mp_irqtype = mp_INT;
+	mp_irqs[mp_irq_entries].mp_irqflag = (trigger << 2) | polarity;
+	mp_irqs[mp_irq_entries].mp_srcbus = MP_ISA_BUS;
+	mp_irqs[mp_irq_entries].mp_srcbusirq = bus_irq;	/* IRQ */
+	mp_irqs[mp_irq_entries].mp_dstapic =
 			mp_ioapics[ioapic].mp_apicid;	/* APIC ID */
-	mp_irqs[mp_irq_entries].mpc_dstirq = pin;	/* INTIN# */
+	mp_irqs[mp_irq_entries].mp_dstirq = pin;	/* INTIN# */
 
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!!\n");
@@ -1012,12 +1012,11 @@ void __init mp_config_acpi_legacy_irqs(void)
 	if (ioapic < 0)
 		return;
 
-	mp_irqs[mp_irq_entries].mpc_type = MP_INTSRC;
-	mp_irqs[mp_irq_entries].mpc_irqflag = 0;	/* Conforming */
-	mp_irqs[mp_irq_entries].mpc_srcbus = MP_ISA_BUS;
-#ifdef CONFIG_X86_IO_APIC
-	mp_irqs[mp_irq_entries].mpc_dstapic = mp_ioapics[ioapic].mp_apicid;
-#endif
+	mp_irqs[mp_irq_entries].mp_type = MP_INTSRC;
+	mp_irqs[mp_irq_entries].mp_irqflag = 0;	/* Conforming */
+	mp_irqs[mp_irq_entries].mp_srcbus = MP_ISA_BUS;
+	mp_irqs[mp_irq_entries].mp_dstapic = mp_ioapics[ioapic].mp_apicid;
+
 	/*
 	 * Use the default configuration for the IRQs 0-15.  Unless
 	 * overridden by (MADT) interrupt source override entries.
@@ -1026,17 +1025,17 @@ void __init mp_config_acpi_legacy_irqs(void)
 		int idx;
 
 		for (idx = 0; idx < mp_irq_entries; idx++) {
-			struct mpc_config_intsrc *irq = mp_irqs + idx;
+			struct mp_config_intsrc *irq = mp_irqs + idx;
 
 			/* Do we already have a mapping for this ISA IRQ? */
-			if (irq->mpc_srcbus == MP_ISA_BUS
-			    && irq->mpc_srcbusirq == i)
+			if (irq->mp_srcbus == MP_ISA_BUS
+			    && irq->mp_srcbusirq == i)
 				break;
 
 			/* Do we already have a mapping for this IOAPIC pin */
-			if ((irq->mpc_dstapic ==
-				mp_irqs[mp_irq_entries].mpc_dstapic) &&
-			    (irq->mpc_dstirq == i))
+			if ((irq->mp_dstapic ==
+				mp_irqs[mp_irq_entries].mp_dstapic) &&
+			    (irq->mp_dstirq == i))
 				break;
 		}
 
@@ -1045,9 +1044,9 @@ void __init mp_config_acpi_legacy_irqs(void)
 			continue;	/* IRQ already used */
 		}
 
-		mp_irqs[mp_irq_entries].mpc_irqtype = mp_INT;
-		mp_irqs[mp_irq_entries].mpc_srcbusirq = i;	/* Identity mapped */
-		mp_irqs[mp_irq_entries].mpc_dstirq = i;
+		mp_irqs[mp_irq_entries].mp_irqtype = mp_INT;
+		mp_irqs[mp_irq_entries].mp_srcbusirq = i;	/* Identity mapped */
+		mp_irqs[mp_irq_entries].mp_dstirq = i;
 
 		if (++mp_irq_entries == MAX_IRQ_SOURCES)
 			panic("Max # of irq sources exceeded!!\n");

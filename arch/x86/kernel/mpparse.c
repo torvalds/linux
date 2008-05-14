@@ -186,12 +186,18 @@ static void __init MP_ioapic_info(struct mpc_config_ioapic *m)
 
 static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
 {
-	mp_irqs[mp_irq_entries] = *m;
 	printk(KERN_INFO "Int: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
 		m->mpc_irqtype, m->mpc_irqflag & 3,
 		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
 		m->mpc_srcbusirq, m->mpc_dstapic, m->mpc_dstirq);
+	mp_irqs[mp_irq_entries].mp_dstapic = m->mpc_dstapic;
+	mp_irqs[mp_irq_entries].mp_type = m->mpc_type;
+	mp_irqs[mp_irq_entries].mp_irqtype = m->mpc_irqtype;
+	mp_irqs[mp_irq_entries].mp_irqflag = m->mpc_irqflag;
+	mp_irqs[mp_irq_entries].mp_srcbus = m->mpc_srcbus;
+	mp_irqs[mp_irq_entries].mp_srcbusirq = m->mpc_srcbusirq;
+	mp_irqs[mp_irq_entries].mp_dstirq = m->mpc_dstirq;
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!!\n");
 }
