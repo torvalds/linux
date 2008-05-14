@@ -437,13 +437,13 @@ int mls_setup_user_range(struct context *fromcon, struct user_datum *user,
 		struct mls_level *usercon_clr = &(usercon->range.level[1]);
 
 		/* Honor the user's default level if we can */
-		if (mls_level_between(user_def, fromcon_sen, fromcon_clr)) {
+		if (mls_level_between(user_def, fromcon_sen, fromcon_clr))
 			*usercon_sen = *user_def;
-		} else if (mls_level_between(fromcon_sen, user_def, user_clr)) {
+		else if (mls_level_between(fromcon_sen, user_def, user_clr))
 			*usercon_sen = *fromcon_sen;
-		} else if (mls_level_between(fromcon_clr, user_low, user_def)) {
+		else if (mls_level_between(fromcon_clr, user_low, user_def))
 			*usercon_sen = *user_low;
-		} else
+		else
 			return -EINVAL;
 
 		/* Lower the clearance of available contexts

@@ -2531,7 +2531,7 @@ int selinux_audit_rule_known(struct audit_krule *rule)
 }
 
 int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
-                             struct audit_context *actx)
+			     struct audit_context *actx)
 {
 	struct context *ctxt;
 	struct mls_level *level;
@@ -2645,7 +2645,7 @@ out:
 static int (*aurule_callback)(void) = audit_update_lsm_rules;
 
 static int aurule_avc_callback(u32 event, u32 ssid, u32 tsid,
-                               u16 class, u32 perms, u32 *retained)
+			       u16 class, u32 perms, u32 *retained)
 {
 	int err = 0;
 
