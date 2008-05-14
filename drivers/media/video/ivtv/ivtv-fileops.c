@@ -987,6 +987,8 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	/* Find which card this open was on */
 	spin_lock(&ivtv_cards_lock);
 	for (x = 0; itv == NULL && x < ivtv_cards_active; x++) {
+		if (ivtv_cards[x] == NULL)
+			continue;
 		/* find out which stream this open was on */
 		for (y = 0; y < IVTV_MAX_STREAMS; y++) {
 			s = &ivtv_cards[x]->streams[y];

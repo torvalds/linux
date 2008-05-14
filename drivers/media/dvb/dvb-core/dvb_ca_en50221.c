@@ -910,15 +910,21 @@ static void dvb_ca_en50221_thread_update_delay(struct dvb_ca_private *ca)
 	int curdelay = 100000000;
 	int slot;
 
+	/* Beware of too high polling frequency, because one polling
+	 * call might take several hundred milliseconds until timeout!
+	 */
 	for (slot = 0; slot < ca->slot_count; slot++) {
 		switch (ca->slot_info[slot].slot_state) {
 		default:
 		case DVB_CA_SLOTSTATE_NONE:
+			delay = HZ * 60;  /* 60s */
+			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
+				delay = HZ * 5;  /* 5s */
+			break;
 		case DVB_CA_SLOTSTATE_INVALID:
-			delay = HZ * 60;
-			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) {
-				delay = HZ / 10;
-			}
+			delay = HZ * 60;  /* 60s */
+			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
+				delay = HZ / 10;  /* 100ms */
 			break;
 
 		case DVB_CA_SLOTSTATE_UNINITIALISED:
@@ -926,19 +932,17 @@ static void dvb_ca_en50221_thread_update_delay(struct dvb_ca_private *ca)
 		case DVB_CA_SLOTSTATE_VALIDATE:
 		case DVB_CA_SLOTSTATE_WAITFR:
 		case DVB_CA_SLOTSTATE_LINKINIT:
-			delay = HZ / 10;
+			delay = HZ / 10;  /* 100ms */
 			break;
 
 		case DVB_CA_SLOTSTATE_RUNNING:
-			delay = HZ * 60;
-			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) {
-				delay = HZ / 10;
-			}
+			delay = HZ * 60;  /* 60s */
+			if (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
+				delay = HZ / 10;  /* 100ms */
 			if (ca->open) {
 				if ((!ca->slot_info[slot].da_irq_supported) ||
-				    (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_DA))) {
-					delay = HZ / 10;
-				}
+				    (!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_DA)))
+					delay = HZ / 10;  /* 100ms */
 			}
 			break;
 		}

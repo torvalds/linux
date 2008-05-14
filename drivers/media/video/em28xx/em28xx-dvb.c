@@ -251,7 +251,6 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 		printk(KERN_ERR "%s/2: xc3028 attach failed\n",
 		       dev->name);
 		dvb_frontend_detach(dev->dvb->frontend);
-		dvb_unregister_frontend(dev->dvb->frontend);
 		dev->dvb->frontend = NULL;
 		return -EINVAL;
 	}

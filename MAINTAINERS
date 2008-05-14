@@ -1230,6 +1230,15 @@ P:	Jaya Kumar
 M:	jayakumar.alsa@gmail.com
 S:	Maintained
 
+CX18 VIDEO4LINUX DRIVER
+P:	Hans Verkuil, Andy Walls
+M:	hverkuil@xs4all.nl, awalls@radix.net
+L:	ivtv-devel@ivtvdriver.org
+L:	ivtv-users@ivtvdriver.org
+L:	video4linux-list@redhat.com
+W:	http://linuxtv.org
+S:	Maintained
+
 CYBERPRO FB DRIVER
 P:	Russell King
 M:	rmk@arm.linux.org.uk

@@ -164,16 +164,6 @@ MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
 
-int cx18_waitq(wait_queue_head_t *waitq)
-{
-	DEFINE_WAIT(wait);
-
-	prepare_to_wait(waitq, &wait, TASK_INTERRUPTIBLE);
-	schedule();
-	finish_wait(waitq, &wait);
-	return signal_pending(current) ? -EINTR : 0;
-}
-
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
 {
@@ -220,12 +210,12 @@ static void cx18_process_eeprom(struct cx18 *cx)
 
 	/* Many thanks to Steven Toth from Hauppauge for providing the
 	   model numbers */
+	/* Note: the Samsung memory models cannot be reliably determined
+	   from the model number. Use the cardtype module option if you
+	   have one of these preproduction models. */
 	switch (tv.model) {
-	case 74000 ... 74099:
+	case 74000 ... 74999:
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
-		break;
-	case 74700 ... 74799:
-		cx->card = cx18_get_card(CX18_CARD_HVR_1600_SAMSUNG);
 		break;
 	case 0:
 		CX18_ERR("Invalid EEPROM\n");
@@ -548,6 +538,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
 	return 0;
 }
 
+#ifdef MODULE
 static u32 cx18_request_module(struct cx18 *cx, u32 hw,
 		const char *name, u32 id)
 {
@@ -560,18 +551,21 @@ static u32 cx18_request_module(struct cx18 *cx, u32 hw,
 	CX18_DEBUG_INFO("Loaded module %s\n", name);
 	return hw;
 }
+#endif
 
 static void cx18_load_and_init_modules(struct cx18 *cx)
 {
 	u32 hw = cx->card->hw_all;
 	int i;
 
+#ifdef MODULE
 	/* load modules */
 #ifndef CONFIG_MEDIA_TUNER
 	hw = cx18_request_module(cx, hw, "tuner", CX18_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CS5345
 	hw = cx18_request_module(cx, hw, "cs5345", CX18_HW_CS5345);
+#endif
 #endif
 
 	/* check which i2c devices are actually found */
@@ -801,7 +795,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	return 0;
 
 free_streams:
-	cx18_streams_cleanup(cx);
+	cx18_streams_cleanup(cx, 1);
 free_irq:
 	free_irq(cx->dev->irq, (void *)cx);
 free_i2c:
@@ -904,14 +898,13 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_halt_firmware(cx);
 
-	cx18_streams_cleanup(cx);
+	cx18_streams_cleanup(cx, 1);
 
 	exit_cx18_i2c(cx);
 
 	free_irq(cx->dev->irq, (void *)cx);
 
-	if (cx->dev)
-		cx18_iounmap(cx);
+	cx18_iounmap(cx);
 
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 
