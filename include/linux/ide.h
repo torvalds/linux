@@ -1057,8 +1057,8 @@ enum {
 	IDE_HFLAG_NO_SET_MODE		= (1 << 9),
 	/* trust BIOS for programming chipset/device for DMA */
 	IDE_HFLAG_TRUST_BIOS_FOR_DMA	= (1 << 10),
-	/* host uses VDMA (tied with IDE_HFLAG_CS5520 for now) */
-	IDE_HFLAG_VDMA			= (1 << 11),
+	/* host is CS5510/CS5520 */
+	IDE_HFLAG_CS5520		= (1 << 11),
 	/* ATAPI DMA is unsupported */
 	IDE_HFLAG_NO_ATAPI_DMA		= (1 << 12),
 	/* set if host is a "non-bootable" controller */
@@ -1069,8 +1069,6 @@ enum {
 	IDE_HFLAG_NO_AUTODMA		= (1 << 15),
 	/* host uses MMIO */
 	IDE_HFLAG_MMIO			= (1 << 16),
-	/* host is CS5510/CS5520 */
-	IDE_HFLAG_CS5520		= IDE_HFLAG_VDMA,
 	/* no LBA48 */
 	IDE_HFLAG_NO_LBA48		= (1 << 17),
 	/* no LBA48 DMA */
@@ -1100,6 +1098,8 @@ enum {
 	IDE_HFLAG_NO_IO_32BIT		= (1 << 30),
 	/* never unmask IRQs */
 	IDE_HFLAG_NO_UNMASK_IRQS	= (1 << 31),
+	/* host uses VDMA (disabled for now) */
+	IDE_HFLAG_VDMA			= 0,
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
