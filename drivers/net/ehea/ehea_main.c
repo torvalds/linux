@@ -3178,11 +3178,12 @@ out_err:
 
 static void ehea_shutdown_single_port(struct ehea_port *port)
 {
+	struct ehea_adapter *adapter = port->adapter;
 	unregister_netdev(port->netdev);
 	ehea_unregister_port(port);
 	kfree(port->mc_list);
 	free_netdev(port->netdev);
-	port->adapter->active_ports--;
+	adapter->active_ports--;
 }
 
 static int ehea_setup_ports(struct ehea_adapter *adapter)
