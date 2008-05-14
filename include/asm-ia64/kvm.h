@@ -28,7 +28,7 @@
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
 
-#define KVM_IOAPIC_NUM_PINS  24
+#define KVM_IOAPIC_NUM_PINS  48
 
 struct kvm_ioapic_state {
 	__u64 base_address;
