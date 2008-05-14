@@ -1166,7 +1166,7 @@ set_qf_name:
 			     sb_any_quota_suspended(sb)) &&
 			    !sbi->s_qf_names[qtype]) {
 				printk(KERN_ERR
-					"EXT4-fs: Cannot change journalled "
+					"EXT4-fs: Cannot change journaled "
 					"quota options when quota turned on.\n");
 				return 0;
 			}
@@ -1206,7 +1206,7 @@ clear_qf_name:
 			     sb_any_quota_suspended(sb)) &&
 			    sbi->s_qf_names[qtype]) {
 				printk(KERN_ERR "EXT4-fs: Cannot change "
-					"journalled quota options when "
+					"journaled quota options when "
 					"quota turned on.\n");
 				return 0;
 			}
@@ -1350,14 +1350,14 @@ set_qf_format:
 		}
 
 		if (!sbi->s_jquota_fmt) {
-			printk(KERN_ERR "EXT4-fs: journalled quota format "
+			printk(KERN_ERR "EXT4-fs: journaled quota format "
 					"not specified.\n");
 			return 0;
 		}
 	} else {
 		if (sbi->s_jquota_fmt) {
-			printk(KERN_ERR "EXT4-fs: journalled quota format "
-					"specified with no journalling "
+			printk(KERN_ERR "EXT4-fs: journaled quota format "
+					"specified with no journaling "
 					"enabled.\n");
 			return 0;
 		}
@@ -1598,7 +1598,7 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 			int ret = ext4_quota_on_mount(sb, i);
 			if (ret < 0)
 				printk(KERN_ERR
-					"EXT4-fs: Cannot turn on journalled "
+					"EXT4-fs: Cannot turn on journaled "
 					"quota: error %d\n", ret);
 		}
 	}
@@ -3123,7 +3123,7 @@ static int ext4_release_dquot(struct dquot *dquot)
 
 static int ext4_mark_dquot_dirty(struct dquot *dquot)
 {
-	/* Are we journalling quotas? */
+	/* Are we journaling quotas? */
 	if (EXT4_SB(dquot->dq_sb)->s_qf_names[USRQUOTA] ||
 	    EXT4_SB(dquot->dq_sb)->s_qf_names[GRPQUOTA]) {
 		dquot_mark_dquot_dirty(dquot);
