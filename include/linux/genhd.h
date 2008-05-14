@@ -525,7 +525,7 @@ struct unixware_disklabel {
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
 
-extern dev_t blk_lookup_devt(const char *name);
+extern dev_t blk_lookup_devt(const char *name, int part);
 extern char *disk_name (struct gendisk *hd, int part, char *buf);
 
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
@@ -553,7 +553,7 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 
 static inline void printk_all_partitions(void) { }
 
-static inline dev_t blk_lookup_devt(const char *name)
+static inline dev_t blk_lookup_devt(const char *name, int part)
 {
 	dev_t devt = MKDEV(0, 0);
 	return devt;
