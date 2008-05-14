@@ -6997,7 +6997,7 @@ static  int rxd_owner_bit_reset(struct s2io_nic *sp)
 						       &skb,(u64 *)&temp0_64,
 						       (u64 *)&temp1_64,
 						       (u64 *)&temp2_64,
-							size) == ENOMEM) {
+							size) == -ENOMEM) {
 					return 0;
 				}
 
