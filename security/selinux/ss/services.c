@@ -730,15 +730,16 @@ int security_sid_to_context_force(u32 sid, char **scontext, u32 *scontext_len)
 	return security_sid_to_context_core(sid, scontext, scontext_len, 1);
 }
 
+/*
+ * Caveat:  Mutates scontext.
+ */
 static int string_to_context_struct(struct policydb *pol,
 				    struct sidtab *sidtabp,
-				    const char *scontext,
+				    char *scontext,
 				    u32 scontext_len,
 				    struct context *ctx,
-				    u32 def_sid,
-				    gfp_t gfp_flags)
+				    u32 def_sid)
 {
-	char *scontext2 = NULL;
 	struct role_datum *role;
 	struct type_datum *typdatum;
 	struct user_datum *usrdatum;
@@ -747,19 +748,10 @@ static int string_to_context_struct(struct policydb *pol,
 
 	context_init(ctx);
 
-	/* Copy the string so that we can modify the copy as we parse it. */
-	scontext2 = kmalloc(scontext_len+1, gfp_flags);
-	if (!scontext2) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	memcpy(scontext2, scontext, scontext_len);
-	scontext2[scontext_len] = 0;
-
 	/* Parse the security context. */
 
 	rc = -EINVAL;
-	scontextp = (char *) scontext2;
+	scontextp = (char *) scontext;
 
 	/* Extract the user. */
 	p = scontextp;
@@ -809,7 +801,7 @@ static int string_to_context_struct(struct policydb *pol,
 	if (rc)
 		goto out;
 
-	if ((p - scontext2) < scontext_len) {
+	if ((p - scontext) < scontext_len) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -822,7 +814,6 @@ static int string_to_context_struct(struct policydb *pol,
 	}
 	rc = 0;
 out:
-	kfree(scontext2);
 	return rc;
 }
 
@@ -830,6 +821,7 @@ static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 					u32 *sid, u32 def_sid, gfp_t gfp_flags,
 					int force)
 {
+	char *scontext2, *str = NULL;
 	struct context context;
 	int rc = 0;
 
@@ -839,27 +831,38 @@ static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 		for (i = 1; i < SECINITSID_NUM; i++) {
 			if (!strcmp(initial_sid_to_string[i], scontext)) {
 				*sid = i;
-				goto out;
+				return 0;
 			}
 		}
 		*sid = SECINITSID_KERNEL;
-		goto out;
+		return 0;
 	}
 	*sid = SECSID_NULL;
 
+	/* Copy the string so that we can modify the copy as we parse it. */
+	scontext2 = kmalloc(scontext_len+1, gfp_flags);
+	if (!scontext2)
+		return -ENOMEM;
+	memcpy(scontext2, scontext, scontext_len);
+	scontext2[scontext_len] = 0;
+
+	if (force) {
+		/* Save another copy for storing in uninterpreted form */
+		str = kstrdup(scontext2, gfp_flags);
+		if (!str) {
+			kfree(scontext2);
+			return -ENOMEM;
+		}
+	}
+
 	POLICY_RDLOCK;
 	rc = string_to_context_struct(&policydb, &sidtab,
-				      scontext, scontext_len,
-				      &context, def_sid, gfp_flags);
+				      scontext2, scontext_len,
+				      &context, def_sid);
 	if (rc == -EINVAL && force) {
-		context.str = kmalloc(scontext_len+1, gfp_flags);
-		if (!context.str) {
-			rc = -ENOMEM;
-			goto out;
-		}
-		memcpy(context.str, scontext, scontext_len);
-		context.str[scontext_len] = 0;
+		context.str = str;
 		context.len = scontext_len;
+		str = NULL;
 	} else if (rc)
 		goto out;
 	rc = sidtab_context_to_sid(&sidtab, &context, sid);
@@ -867,6 +870,8 @@ static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 		context_destroy(&context);
 out:
 	POLICY_RDUNLOCK;
+	kfree(scontext2);
+	kfree(str);
 	return rc;
 }
 
@@ -1339,9 +1344,14 @@ static int convert_context(u32 key,
 
 	if (c->str) {
 		struct context ctx;
-		rc = string_to_context_struct(args->newp, NULL, c->str,
-					      c->len, &ctx, SECSID_NULL,
-					      GFP_KERNEL);
+		s = kstrdup(c->str, GFP_KERNEL);
+		if (!s) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		rc = string_to_context_struct(args->newp, NULL, s,
+					      c->len, &ctx, SECSID_NULL);
+		kfree(s);
 		if (!rc) {
 			printk(KERN_INFO
 		       "SELinux:  Context %s became valid (mapped).\n",
