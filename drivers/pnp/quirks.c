@@ -212,20 +212,16 @@ static struct pnp_fixup pnp_fixups[] = {
 
 void pnp_fixup_device(struct pnp_dev *dev)
 {
-	int i = 0;
-	void (*quirk)(struct pnp_dev *);
+	struct pnp_fixup *f;
 
-	while (*pnp_fixups[i].id) {
-		if (compare_pnp_id(dev->id, pnp_fixups[i].id)) {
-			quirk = pnp_fixups[i].quirk_function;
-
+	for (f = pnp_fixups; *f->id; f++) {
+		if (!compare_pnp_id(dev->id, f->id))
+			continue;
 #ifdef DEBUG
-			dev_dbg(&dev->dev, "calling ");
-			print_fn_descriptor_symbol("%s()\n",
-				(unsigned long) *quirk);
+		dev_dbg(&dev->dev, "%s: calling ", f->id);
+		print_fn_descriptor_symbol("%s\n",
+				(unsigned long) f->quirk_function);
 #endif
-			(*quirk)(dev);
-		}
-		i++;
+		f->quirk_function(dev);
 	}
 }
