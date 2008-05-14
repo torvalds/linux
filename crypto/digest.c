@@ -157,3 +157,84 @@ int crypto_init_digest_ops(struct crypto_tfm *tfm)
 void crypto_exit_digest_ops(struct crypto_tfm *tfm)
 {
 }
+
+static int digest_async_nosetkey(struct crypto_ahash *tfm_async, const u8 *key,
+			unsigned int keylen)
+{
+	crypto_ahash_clear_flags(tfm_async, CRYPTO_TFM_RES_MASK);
+	return -ENOSYS;
+}
+
+static int digest_async_setkey(struct crypto_ahash *tfm_async, const u8 *key,
+			unsigned int keylen)
+{
+	struct crypto_tfm    *tfm        = crypto_ahash_tfm(tfm_async);
+	struct digest_alg    *dalg       = &tfm->__crt_alg->cra_digest;
+
+	crypto_ahash_clear_flags(tfm_async, CRYPTO_TFM_RES_MASK);
+	return dalg->dia_setkey(tfm, key, keylen);
+}
+
+static int digest_async_init(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm  = req->base.tfm;
+	struct digest_alg *dalg = &tfm->__crt_alg->cra_digest;
+
+	dalg->dia_init(tfm);
+	return 0;
+}
+
+static int digest_async_update(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm = req->base.tfm;
+	struct hash_desc  desc = {
+		.tfm   = __crypto_hash_cast(tfm),
+		.flags = req->base.flags,
+	};
+
+	update(&desc, req->src, req->nbytes);
+	return 0;
+}
+
+static int digest_async_final(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm  = req->base.tfm;
+	struct hash_desc  desc = {
+		.tfm   = __crypto_hash_cast(tfm),
+		.flags = req->base.flags,
+	};
+
+	final(&desc, req->result);
+	return 0;
+}
+
+static int digest_async_digest(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm  = req->base.tfm;
+	struct hash_desc  desc = {
+		.tfm   = __crypto_hash_cast(tfm),
+		.flags = req->base.flags,
+	};
+
+	return digest(&desc, req->src, req->nbytes, req->result);
+}
+
+int crypto_init_digest_ops_async(struct crypto_tfm *tfm)
+{
+	struct ahash_tfm  *crt  = &tfm->crt_ahash;
+	struct digest_alg *dalg = &tfm->__crt_alg->cra_digest;
+
+	if (dalg->dia_digestsize > crypto_tfm_alg_blocksize(tfm))
+		return -EINVAL;
+
+	crt->init       = digest_async_init;
+	crt->update     = digest_async_update;
+	crt->final      = digest_async_final;
+	crt->digest     = digest_async_digest;
+	crt->setkey     = dalg->dia_setkey ? digest_async_setkey :
+						digest_async_nosetkey;
+	crt->digestsize = dalg->dia_digestsize;
+	crt->base       = __crypto_ahash_cast(tfm);
+
+	return 0;
+}

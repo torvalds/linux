@@ -98,6 +98,7 @@ extern const struct crypto_type crypto_ablkcipher_type;
 extern const struct crypto_type crypto_aead_type;
 extern const struct crypto_type crypto_blkcipher_type;
 extern const struct crypto_type crypto_hash_type;
+extern const struct crypto_type crypto_ahash_type;
 
 void crypto_mod_put(struct crypto_alg *alg);
 
@@ -313,6 +314,41 @@ static inline int crypto_requires_sync(u32 type, u32 mask)
 {
 	return (type ^ CRYPTO_ALG_ASYNC) & mask & CRYPTO_ALG_ASYNC;
 }
+
+static inline void *crypto_ahash_ctx(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline struct ahash_alg *crypto_ahash_alg(
+	struct crypto_ahash *tfm)
+{
+	return &crypto_ahash_tfm(tfm)->__crt_alg->cra_ahash;
+}
+
+static inline int ahash_enqueue_request(struct crypto_queue *queue,
+					     struct ahash_request *request)
+{
+	return crypto_enqueue_request(queue, &request->base);
+}
+
+static inline struct ahash_request *ahash_dequeue_request(
+	struct crypto_queue *queue)
+{
+	return ahash_request_cast(crypto_dequeue_request(queue));
+}
+
+static inline void *ahash_request_ctx(struct ahash_request *req)
+{
+	return req->__ctx;
+}
+
+static inline int ahash_tfm_in_queue(struct crypto_queue *queue,
+					  struct crypto_ahash *tfm)
+{
+	return crypto_tfm_in_queue(queue, crypto_ahash_tfm(tfm));
+}
+
 
 #endif	/* _CRYPTO_ALGAPI_H */
 

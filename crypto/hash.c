@@ -59,22 +59,106 @@ static int hash_setkey(struct crypto_hash *crt, const u8 *key,
 	return alg->setkey(crt, key, keylen);
 }
 
-static int crypto_init_hash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
+static int hash_async_setkey(struct crypto_ahash *tfm_async, const u8 *key,
+			unsigned int keylen)
+{
+	struct crypto_tfm  *tfm      = crypto_ahash_tfm(tfm_async);
+	struct crypto_hash *tfm_hash = __crypto_hash_cast(tfm);
+	struct hash_alg    *alg      = &tfm->__crt_alg->cra_hash;
+
+	return alg->setkey(tfm_hash, key, keylen);
+}
+
+static int hash_async_init(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm = req->base.tfm;
+	struct hash_alg   *alg = &tfm->__crt_alg->cra_hash;
+	struct hash_desc  desc = {
+		.tfm = __crypto_hash_cast(tfm),
+		.flags = req->base.flags,
+	};
+
+	return alg->init(&desc);
+}
+
+static int hash_async_update(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm = req->base.tfm;
+	struct hash_alg   *alg = &tfm->__crt_alg->cra_hash;
+	struct hash_desc  desc = {
+		.tfm = __crypto_hash_cast(tfm),
+		.flags = req->base.flags,
+	};
+
+	return alg->update(&desc, req->src, req->nbytes);
+}
+
+static int hash_async_final(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm = req->base.tfm;
+	struct hash_alg   *alg = &tfm->__crt_alg->cra_hash;
+	struct hash_desc  desc = {
+		.tfm = __crypto_hash_cast(tfm),
+		.flags = req->base.flags,
+	};
+
+	return alg->final(&desc, req->result);
+}
+
+static int hash_async_digest(struct ahash_request *req)
+{
+	struct crypto_tfm *tfm = req->base.tfm;
+	struct hash_alg   *alg = &tfm->__crt_alg->cra_hash;
+	struct hash_desc  desc = {
+		.tfm = __crypto_hash_cast(tfm),
+		.flags = req->base.flags,
+	};
+
+	return alg->digest(&desc, req->src, req->nbytes, req->result);
+}
+
+static int crypto_init_hash_ops_async(struct crypto_tfm *tfm)
+{
+	struct ahash_tfm *crt = &tfm->crt_ahash;
+	struct hash_alg  *alg = &tfm->__crt_alg->cra_hash;
+
+	crt->init       = hash_async_init;
+	crt->update     = hash_async_update;
+	crt->final      = hash_async_final;
+	crt->digest     = hash_async_digest;
+	crt->setkey     = hash_async_setkey;
+	crt->digestsize = alg->digestsize;
+	crt->base       = __crypto_ahash_cast(tfm);
+
+	return 0;
+}
+
+static int crypto_init_hash_ops_sync(struct crypto_tfm *tfm)
 {
 	struct hash_tfm *crt = &tfm->crt_hash;
+	struct hash_alg *alg = &tfm->__crt_alg->cra_hash;
+
+	crt->init       = alg->init;
+	crt->update     = alg->update;
+	crt->final      = alg->final;
+	crt->digest     = alg->digest;
+	crt->setkey     = hash_setkey;
+	crt->digestsize = alg->digestsize;
+
+	return 0;
+}
+
+static int crypto_init_hash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
+{
 	struct hash_alg *alg = &tfm->__crt_alg->cra_hash;
 
 	if (alg->digestsize > crypto_tfm_alg_blocksize(tfm))
 		return -EINVAL;
 
-	crt->init = alg->init;
-	crt->update = alg->update;
-	crt->final = alg->final;
-	crt->digest = alg->digest;
-	crt->setkey = hash_setkey;
-	crt->digestsize = alg->digestsize;
-
-	return 0;
+	if ((mask & CRYPTO_ALG_TYPE_HASH_MASK) != CRYPTO_ALG_TYPE_HASH_MASK)
+		return crypto_init_hash_ops_async(tfm);
+	else
+		return crypto_init_hash_ops_sync(tfm);
 }
 
 static void crypto_hash_show(struct seq_file *m, struct crypto_alg *alg)
