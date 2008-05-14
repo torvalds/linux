@@ -522,16 +522,8 @@ static const struct ide_port_info ali15x3_chipset __devinitdata = {
  
 static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	static struct pci_device_id ati_rs100[] = {
-		{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_RS100) },
-		{ },
-	};
-
 	struct ide_port_info d = ali15x3_chipset;
 	u8 rev = dev->revision, idx = id->driver_data;
-
-	if (pci_dev_present(ati_rs100))
-		printk(KERN_WARNING "alim15x3: ATI Radeon IGP Northbridge is not yet fully tested.\n");
 
 	/* don't use LBA48 DMA on ALi devices before rev 0xC5 */
 	if (rev <= 0xC4)
