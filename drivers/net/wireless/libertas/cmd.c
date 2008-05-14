@@ -1136,7 +1136,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	struct cmd_header *cmd;
 	uint16_t cmdsize;
 	uint16_t command;
-	int timeo = 5 * HZ;
+	int timeo = 3 * HZ;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_HOST);
@@ -1154,7 +1154,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	/* These commands take longer */
 	if (command == CMD_802_11_SCAN || command == CMD_802_11_ASSOCIATE ||
 	    command == CMD_802_11_AUTHENTICATE)
-		timeo = 10 * HZ;
+		timeo = 5 * HZ;
 
 	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
 		     command, le16_to_cpu(cmd->seqnum), cmdsize);
@@ -1166,7 +1166,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 		lbs_pr_info("DNLD_CMD: hw_host_to_card failed: %d\n", ret);
 		/* Let the timer kick in and retry, and potentially reset
 		   the whole thing if the condition persists */
-		timeo = HZ;
+		timeo = HZ/4;
 	}
 
 	/* Setup the timer after transmit command */

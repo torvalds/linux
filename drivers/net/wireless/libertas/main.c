@@ -782,9 +782,10 @@ static int lbs_thread(void *data)
 		if (priv->cmd_timed_out && priv->cur_cmd) {
 			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
 
-			if (++priv->nr_retries > 10) {
-				lbs_pr_info("Excessive timeouts submitting command %x\n",
-					    le16_to_cpu(cmdnode->cmdbuf->command));
+			if (++priv->nr_retries > 3) {
+				lbs_pr_info("Excessive timeouts submitting "
+					"command 0x%04x\n",
+					le16_to_cpu(cmdnode->cmdbuf->command));
 				lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
 				priv->nr_retries = 0;
 				if (priv->reset_card) {
@@ -794,8 +795,10 @@ static int lbs_thread(void *data)
 				}
 			} else {
 				priv->cur_cmd = NULL;
-				lbs_pr_info("requeueing command %x due to timeout (#%d)\n",
-					    le16_to_cpu(cmdnode->cmdbuf->command), priv->nr_retries);
+				lbs_pr_info("requeueing command 0x%04x due "
+					"to timeout (#%d)\n",
+					le16_to_cpu(cmdnode->cmdbuf->command),
+					priv->nr_retries);
 
 				/* Stick it back at the _top_ of the pending queue
 				   for immediate resubmission */
@@ -986,12 +989,11 @@ static void command_timer_fn(unsigned long data)
 	lbs_deb_enter(LBS_DEB_CMD);
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
-	if (!priv->cur_cmd) {
-		lbs_pr_info("Command timer expired; no pending command\n");
+	if (!priv->cur_cmd)
 		goto out;
-	}
 
-	lbs_pr_info("Command %x timed out\n", le16_to_cpu(priv->cur_cmd->cmdbuf->command));
+	lbs_pr_info("command 0x%04x timed out\n",
+		le16_to_cpu(priv->cur_cmd->cmdbuf->command));
 
 	priv->cmd_timed_out = 1;
 	wake_up_interruptible(&priv->waitq);
