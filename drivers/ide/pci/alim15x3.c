@@ -39,6 +39,16 @@
 #include <asm/io.h>
 
 /*
+ * Allow UDMA on M1543C-E chipset for WDC disks that ignore CRC checking
+ * (this is DANGEROUS and could result in data corruption).
+ */
+static int wdc_udma;
+
+module_param(wdc_udma, bool, 0);
+MODULE_PARM_DESC(wdc_udma,
+		 "allow UDMA on M1543C-E chipset for WDC disks (DANGEROUS)");
+
+/*
  *	ALi devices are not plug in. Otherwise these static values would
  *	need to go. They ought to go away anyway
  */
@@ -116,7 +126,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
  *	The actual rules for the ALi are:
  *		No UDMA on revisions <= 0x20
  *		Disk only for revisions < 0xC2
- *		Not WDC drives for revisions < 0xC2
+ *		Not WDC drives on M1543C-E (?)
  *
  *	FIXME: WDC ifdef needs to die
  */
@@ -127,7 +137,8 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 		if (drive->media != ide_disk)
 			return 0;
 #ifndef CONFIG_WDC_ALI15X3
-		if (chip_is_1543c_e && strstr(drive->id->model, "WDC "))
+		if (chip_is_1543c_e && strstr(drive->id->model, "WDC ") &&
+		    wdc_udma == 0)
 			return 0;
 #endif
 	}
