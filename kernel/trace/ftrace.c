@@ -177,9 +177,9 @@ static DEFINE_MUTEX(ftrace_filter_lock);
 
 struct ftrace_page {
 	struct ftrace_page	*next;
-	int			index;
+	unsigned long		index;
 	struct dyn_ftrace	records[];
-} __attribute__((packed));
+};
 
 #define ENTRIES_PER_PAGE \
   ((PAGE_SIZE - sizeof(struct ftrace_page)) / sizeof(struct dyn_ftrace))
