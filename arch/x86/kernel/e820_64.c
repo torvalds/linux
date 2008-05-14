@@ -407,15 +407,18 @@ static void early_panic(char *msg)
 char *__init machine_specific_memory_setup(void)
 {
 	char *who = "BIOS-e820";
+	int new_nr;
 	/*
 	 * Try to copy the BIOS-supplied E820-map.
 	 *
 	 * Otherwise fake a memory map; one section from 0k->640k,
 	 * the next section from 1mb->appropriate_mem_k
 	 */
+	new_nr = boot_params.e820_entries;
 	sanitize_e820_map(boot_params.e820_map,
 			ARRAY_SIZE(boot_params.e820_map),
-			&boot_params.e820_entries);
+			&new_nr);
+	boot_params.e820_entries = new_nr;
 	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries) < 0)
 		early_panic("Cannot find a valid memory map");
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
@@ -484,7 +487,7 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
-		char nr = e820.nr_map;
+		int nr = e820.nr_map;
 
 		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr) < 0)
 			early_panic("Invalid user supplied memory map");

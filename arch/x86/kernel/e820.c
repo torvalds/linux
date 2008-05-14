@@ -143,7 +143,7 @@ void __init e820_print_map(char *who)
  *
  */
 int __init sanitize_e820_map(struct e820entry *biosmap, int max_nr_map,
-				char *pnr_map)
+				int *pnr_map)
 {
 	struct change_member {
 		struct e820entry *pbios; /* pointer to original bios entry */
@@ -204,6 +204,7 @@ static struct e820entry new_bios[E820_X_MAX] __initdata;
 		return -1;
 
 	old_nr = *pnr_map;
+	BUG_ON(old_nr > max_nr_map);
 
 	/* bail out if we find any unreasonable addresses in bios map */
 	for (i = 0; i < old_nr; i++)
@@ -401,7 +402,7 @@ u64 __init update_memory_range(u64 start, u64 size, unsigned old_type,
 
 void __init update_e820(void)
 {
-	u8 nr_map;
+	int nr_map;
 
 	nr_map = e820.nr_map;
 	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr_map))
