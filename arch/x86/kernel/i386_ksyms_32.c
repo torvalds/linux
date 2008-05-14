@@ -1,7 +1,14 @@
+#include <linux/ftrace.h>
 #include <linux/module.h>
+
 #include <asm/checksum.h>
-#include <asm/desc.h>
 #include <asm/pgtable.h>
+#include <asm/desc.h>
+
+#ifdef CONFIG_FTRACE
+/* mcount is defined in assembly */
+EXPORT_SYMBOL(mcount);
+#endif
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy_generic);
