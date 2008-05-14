@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/netdevice.h>
 
 #include <asm/io.h>
@@ -1294,14 +1295,11 @@ int rndis_rm_hdr(struct sk_buff *skb)
 
 #ifdef	CONFIG_USB_GADGET_DEBUG_FILES
 
-static int rndis_proc_read (char *page, char **start, off_t off, int count, int *eof,
-		void *data)
+static int rndis_proc_show(struct seq_file *m, void *v)
 {
-	char *out = page;
-	int len;
-	rndis_params *param = (rndis_params *) data;
+	rndis_params *param = m->private;
 
-	out += snprintf (out, count,
+	seq_printf(m,
 			 "Config Nr. %d\n"
 			 "used      : %s\n"
 			 "state     : %s\n"
@@ -1324,25 +1322,13 @@ static int rndis_proc_read (char *page, char **start, off_t off, int count, int 
 			 (param->media_state) ? 0 : param->speed*100,
 			 (param->media_state) ? "disconnected" : "connected",
 			 param->vendorID, param->vendorDescr);
-
-	len = out - page;
-	len -= off;
-
-	if (len < count) {
-		*eof = 1;
-		if (len <= 0)
-			return 0;
-	} else
-		len = count;
-
-	*start = page + off;
-	return len;
+	return 0;
 }
 
-static int rndis_proc_write (struct file *file, const char __user *buffer,
-		unsigned long count, void *data)
+static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
+		size_t count, loff_t *ppos)
 {
-	rndis_params *p = data;
+	rndis_params *p = PDE(file->f_path.dentry->d_inode)->data;
 	u32 speed = 0;
 	int i, fl_speed = 0;
 
@@ -1384,6 +1370,20 @@ static int rndis_proc_write (struct file *file, const char __user *buffer,
 	return count;
 }
 
+static int rndis_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rndis_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations rndis_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rndis_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= rndis_proc_write,
+};
+
 #define	NAME_TEMPLATE	"driver/rndis-%03d"
 
 static struct proc_dir_entry *rndis_connect_state [RNDIS_MAX_CONFIGS];
@@ -1401,7 +1401,9 @@ int __init rndis_init (void)
 
 		sprintf (name, NAME_TEMPLATE, i);
 		if (!(rndis_connect_state [i]
-				= create_proc_entry (name, 0660, NULL)))
+				= proc_create_data(name, 0660, NULL,
+					&rndis_proc_fops,
+					(void *)(rndis_per_dev_params + i))))
 		{
 			DBG("%s :remove entries", __func__);
 			while (i) {
@@ -1411,11 +1413,6 @@ int __init rndis_init (void)
 			DBG("\n");
 			return -EIO;
 		}
-
-		rndis_connect_state [i]->write_proc = rndis_proc_write;
-		rndis_connect_state [i]->read_proc = rndis_proc_read;
-		rndis_connect_state [i]->data = (void *)
-				(rndis_per_dev_params + i);
 #endif
 		rndis_per_dev_params [i].confignr = i;
 		rndis_per_dev_params [i].used = 0;
