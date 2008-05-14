@@ -144,9 +144,11 @@ static inline struct thread_info *current_thread_info(void)
 /* Bits in local_flags */
 /* Don't move TLF_NAPPING without adjusting the code in entry_32.S */
 #define TLF_NAPPING		0	/* idle thread enabled NAP mode */
-#define TLF_RESTORE_SIGMASK	1	/* Restore signal mask in do_signal */
+#define TLF_SLEEPING		1	/* suspend code enabled SLEEP mode */
+#define TLF_RESTORE_SIGMASK	2	/* Restore signal mask in do_signal */
 
 #define _TLF_NAPPING		(1 << TLF_NAPPING)
+#define _TLF_SLEEPING		(1 << TLF_SLEEPING)
 #define _TLF_RESTORE_SIGMASK	(1 << TLF_RESTORE_SIGMASK)
 
 #ifndef __ASSEMBLY__
