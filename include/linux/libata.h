@@ -821,8 +821,6 @@ struct ata_timing {
 	unsigned short udma;		/* t2CYCTYP/2 */
 };
 
-#define FIT(v, vmin, vmax)	max_t(short, min_t(short, v, vmax), vmin)
-
 /*
  * Core layer - drivers/ata/libata-core.c
  */
