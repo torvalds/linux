@@ -167,13 +167,9 @@ static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	int zone_type;
 
 	zone_type = zone - pgdat->node_zones;
-	if (!zone->wait_table) {
-		int ret = 0;
-		ret = init_currently_empty_zone(zone, phys_start_pfn,
-						nr_pages, MEMMAP_HOTPLUG);
-		if (ret < 0)
-			return ret;
-	}
+	if (!zone->wait_table)
+		return init_currently_empty_zone(zone, phys_start_pfn,
+						 nr_pages, MEMMAP_HOTPLUG);
 	memmap_init_zone(nr_pages, nid, zone_type,
 			 phys_start_pfn, MEMMAP_HOTPLUG);
 	return 0;
