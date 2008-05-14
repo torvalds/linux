@@ -259,6 +259,12 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	if (priv->hw_params.tx_chains_num >= 3)
 		ht_info->supp_mcs_set[2] = 0xFF;
 }
+#else
+static inline void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
+			      struct ieee80211_ht_info *ht_info,
+			      enum ieee80211_band band)
+{
+}
 #endif /* CONFIG_IWL4965_HT */
 
 static void iwlcore_init_hw_rates(struct iwl_priv *priv,
