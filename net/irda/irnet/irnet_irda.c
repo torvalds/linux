@@ -10,6 +10,7 @@
 
 #include "irnet_irda.h"		/* Private header */
 #include <linux/seq_file.h>
+#include <asm/unaligned.h>
 
 /*
  * PPP disconnect work: we need to make sure we're in
