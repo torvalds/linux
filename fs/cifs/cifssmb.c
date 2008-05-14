@@ -1166,6 +1166,20 @@ static __u16 convert_disposition(int disposition)
 	return ofun;
 }
 
+static int
+access_flags_to_smbopen_mode(const int access_flags)
+{
+	int masked_flags = access_flags & (GENERIC_READ | GENERIC_WRITE);
+
+	if (masked_flags == GENERIC_READ)
+		return SMBOPEN_READ;
+	else if (masked_flags == GENERIC_WRITE)
+		return SMBOPEN_WRITE;
+
+	/* just go for read/write */
+	return SMBOPEN_READWRITE;
+}
+
 int
 SMBLegacyOpen(const int xid, struct cifsTconInfo *tcon,
 	    const char *fileName, const int openDisposition,
@@ -1207,13 +1221,7 @@ OldOpenRetry:
 		pSMB->OpenFlags = cpu_to_le16(REQ_BATCHOPLOCK);
 
 	pSMB->OpenFlags |= cpu_to_le16(REQ_MORE_INFO);
-	/* BB fixme add conversion for access_flags to bits 0 - 2 of mode */
-	/* 0 = read
-	   1 = write
-	   2 = rw
-	   3 = execute
-	 */
-	pSMB->Mode = cpu_to_le16(2);
+	pSMB->Mode = cpu_to_le16(access_flags_to_smbopen_mode(access_flags));
 	pSMB->Mode |= cpu_to_le16(0x40); /* deny none */
 	/* set file as system file if special file such
 	   as fifo and server expecting SFU style and

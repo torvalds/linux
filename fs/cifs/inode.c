@@ -1502,8 +1502,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 				int oplock = 0;
 
 				rc = SMBLegacyOpen(xid, pTcon, full_path,
-					FILE_OPEN,
-					SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
+					FILE_OPEN, GENERIC_WRITE,
 					CREATE_NOT_DIR, &netfid, &oplock,
 					NULL, cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
