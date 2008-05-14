@@ -627,6 +627,9 @@ void acpi_unregister_gsi(u32 gsi)
 	if (acpi_irq_model == ACPI_IRQ_MODEL_PLATFORM)
 		return;
 
+	if (has_8259 && gsi < 16)
+		return;
+
 	iosapic_unregister_intr(gsi);
 }
 
