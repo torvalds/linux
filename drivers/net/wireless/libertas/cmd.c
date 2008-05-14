@@ -697,38 +697,6 @@ static int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 }
 
 /**
- *  @brief Get the current data rate
- *
- *  @param priv    	A pointer to struct lbs_private structure
- *
- *  @return 	   	The data rate on success, error on failure
- */
-int lbs_get_data_rate(struct lbs_private *priv)
-{
-	struct cmd_ds_802_11_data_rate cmd;
-	int ret = -1;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_GET_TX_RATE);
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, &cmd);
-	if (ret)
-		goto out;
-
-	lbs_deb_hex(LBS_DEB_CMD, "DATA_RATE_RESP", (u8 *) &cmd, sizeof (cmd));
-
-	ret = (int) lbs_fw_index_to_data_rate(cmd.rates[0]);
-	lbs_deb_cmd("DATA_RATE: current rate 0x%02x\n", ret);
-
-out:
-	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
-	return ret;
-}
-
-/**
  *  @brief Set the data rate
  *
  *  @param priv    	A pointer to struct lbs_private structure
