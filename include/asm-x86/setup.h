@@ -56,7 +56,6 @@ char * __init machine_specific_memory_setup(void);
 char *memory_setup(void);
 
 int __init copy_e820_map(struct e820entry *biosmap, int nr_map);
-int __init sanitize_e820_map(struct e820entry *biosmap, char *pnr_map);
 void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
 

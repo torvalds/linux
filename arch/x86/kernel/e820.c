@@ -95,7 +95,7 @@ void __init add_memory_region(u64 start, u64 size, int type)
 {
 	int x = e820.nr_map;
 
-	if (x == E820MAX) {
+	if (x == ARRAY_SIZE(e820.map)) {
 		printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
 		return;
 	}
@@ -142,7 +142,8 @@ void __init e820_print_map(char *who)
  * replaces the original e820 map with a new one, removing overlaps.
  *
  */
-int __init sanitize_e820_map(struct e820entry *biosmap, char *pnr_map)
+int __init sanitize_e820_map(struct e820entry *biosmap, int max_nr_map,
+				char *pnr_map)
 {
 	struct change_member {
 		struct e820entry *pbios; /* pointer to original bios entry */
@@ -314,7 +315,7 @@ int __init sanitize_e820_map(struct e820entry *biosmap, char *pnr_map)
 					 * no more space left for new
 					 * bios entries ?
 					 */
-					if (++new_bios_entry >= E820MAX)
+					if (++new_bios_entry >= max_nr_map)
 						break;
 			}
 			if (current_type != 0)	{
@@ -403,7 +404,7 @@ void __init update_e820(void)
 	u8 nr_map;
 
 	nr_map = e820.nr_map;
-	if (sanitize_e820_map(e820.map, &nr_map))
+	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr_map))
 		return;
 	e820.nr_map = nr_map;
 	printk(KERN_INFO "modified physical RAM map:\n");

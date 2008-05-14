@@ -163,7 +163,9 @@ char * __init machine_specific_memory_setup(void)
 	 * Otherwise fake a memory map; one section from 0k->640k,
 	 * the next section from 1mb->appropriate_mem_k
 	 */
-	sanitize_e820_map(boot_params.e820_map, &boot_params.e820_entries);
+	sanitize_e820_map(boot_params.e820_map,
+			ARRAY_SIZE(boot_params.e820_map),
+			&boot_params.e820_entries);
 	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries)
 	    < 0) {
 		unsigned long mem_size;
