@@ -2728,6 +2728,7 @@ static int mv_hardreset(struct ata_link *link, unsigned int *class,
 
 		rc = sata_link_hardreset(link, timing, deadline + extra,
 					 &online, NULL);
+		rc = online ? -EAGAIN : rc;
 		if (rc)
 			return rc;
 		sata_scr_read(link, SCR_STATUS, &sstatus);
