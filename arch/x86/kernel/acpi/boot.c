@@ -852,7 +852,12 @@ static int __init acpi_parse_madt_lapic_entries(void)
 extern int es7000_plat;
 #endif
 
-static struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
+static struct {
+	int apic_id;
+	int gsi_base;
+	int gsi_end;
+	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
+} mp_ioapic_routing[MAX_IO_APICS];
 
 static int mp_find_ioapic(int gsi)
 {
