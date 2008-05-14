@@ -104,22 +104,30 @@ static void test_hash(char *algo, struct hash_testvec *template,
 	unsigned int i, j, k, temp;
 	struct scatterlist sg[8];
 	char result[64];
-	struct crypto_hash *tfm;
-	struct hash_desc desc;
+	struct crypto_ahash *tfm;
+	struct ahash_request *req;
+	struct tcrypt_result tresult;
 	int ret;
 	void *hash_buff;
 
 	printk("\ntesting %s\n", algo);
 
-	tfm = crypto_alloc_hash(algo, 0, CRYPTO_ALG_ASYNC);
+	init_completion(&tresult.completion);
+
+	tfm = crypto_alloc_ahash(algo, 0, 0);
 	if (IS_ERR(tfm)) {
 		printk("failed to load transform for %s: %ld\n", algo,
 		       PTR_ERR(tfm));
 		return;
 	}
 
-	desc.tfm = tfm;
-	desc.flags = 0;
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		printk(KERN_ERR "failed to allocate request for %s\n", algo);
+		goto out_noreq;
+	}
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				   tcrypt_complete, &tresult);
 
 	for (i = 0; i < tcount; i++) {
 		printk("test %u:\n", i + 1);
@@ -133,8 +141,9 @@ static void test_hash(char *algo, struct hash_testvec *template,
 		sg_init_one(&sg[0], hash_buff, template[i].psize);
 
 		if (template[i].ksize) {
-			ret = crypto_hash_setkey(tfm, template[i].key,
-						 template[i].ksize);
+			crypto_ahash_clear_flags(tfm, ~0);
+			ret = crypto_ahash_setkey(tfm, template[i].key,
+						  template[i].ksize);
 			if (ret) {
 				printk("setkey() failed ret=%d\n", ret);
 				kfree(hash_buff);
@@ -142,17 +151,30 @@ static void test_hash(char *algo, struct hash_testvec *template,
 			}
 		}
 
-		ret = crypto_hash_digest(&desc, sg, template[i].psize, result);
-		if (ret) {
+		ahash_request_set_crypt(req, sg, result, template[i].psize);
+		ret = crypto_ahash_digest(req);
+		switch (ret) {
+		case 0:
+			break;
+		case -EINPROGRESS:
+		case -EBUSY:
+			ret = wait_for_completion_interruptible(
+				&tresult.completion);
+			if (!ret && !(ret = tresult.err)) {
+				INIT_COMPLETION(tresult.completion);
+				break;
+			}
+			/* fall through */
+		default:
 			printk("digest () failed ret=%d\n", ret);
 			kfree(hash_buff);
 			goto out;
 		}
 
-		hexdump(result, crypto_hash_digestsize(tfm));
+		hexdump(result, crypto_ahash_digestsize(tfm));
 		printk("%s\n",
 		       memcmp(result, template[i].digest,
-			      crypto_hash_digestsize(tfm)) ?
+			      crypto_ahash_digestsize(tfm)) ?
 		       "fail" : "pass");
 		kfree(hash_buff);
 	}
@@ -181,8 +203,9 @@ static void test_hash(char *algo, struct hash_testvec *template,
 			}
 
 			if (template[i].ksize) {
-				ret = crypto_hash_setkey(tfm, template[i].key,
-							 template[i].ksize);
+				crypto_ahash_clear_flags(tfm, ~0);
+				ret = crypto_ahash_setkey(tfm, template[i].key,
+							  template[i].ksize);
 
 				if (ret) {
 					printk("setkey() failed ret=%d\n", ret);
@@ -190,23 +213,38 @@ static void test_hash(char *algo, struct hash_testvec *template,
 				}
 			}
 
-			ret = crypto_hash_digest(&desc, sg, template[i].psize,
-						 result);
-			if (ret) {
+			ahash_request_set_crypt(req, sg, result,
+						template[i].psize);
+			ret = crypto_ahash_digest(req);
+			switch (ret) {
+			case 0:
+				break;
+			case -EINPROGRESS:
+			case -EBUSY:
+				ret = wait_for_completion_interruptible(
+					&tresult.completion);
+				if (!ret && !(ret = tresult.err)) {
+					INIT_COMPLETION(tresult.completion);
+					break;
+				}
+				/* fall through */
+			default:
 				printk("digest () failed ret=%d\n", ret);
 				goto out;
 			}
 
-			hexdump(result, crypto_hash_digestsize(tfm));
+			hexdump(result, crypto_ahash_digestsize(tfm));
 			printk("%s\n",
 			       memcmp(result, template[i].digest,
-				      crypto_hash_digestsize(tfm)) ?
+				      crypto_ahash_digestsize(tfm)) ?
 			       "fail" : "pass");
 		}
 	}
 
 out:
-	crypto_free_hash(tfm);
+	ahash_request_free(req);
+out_noreq:
+	crypto_free_ahash(tfm);
 }
 
 static void test_aead(char *algo, int enc, struct aead_testvec *template,
