@@ -536,10 +536,10 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	 * we maintain the tradition of paranoia in this code.
 	 */
 	if (!pat_wc_enabled &&
-	    ! ( test_bit(X86_FEATURE_MTRR, boot_cpu_data.x86_capability) ||
-		test_bit(X86_FEATURE_K6_MTRR, boot_cpu_data.x86_capability) ||
-		test_bit(X86_FEATURE_CYRIX_ARR, boot_cpu_data.x86_capability) ||
-		test_bit(X86_FEATURE_CENTAUR_MCR, boot_cpu_data.x86_capability)) &&
+	    ! ( boot_cpu_has(X86_FEATURE_MTRR) ||
+		boot_cpu_has(X86_FEATURE_K6_MTRR) ||
+		boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
+		boot_cpu_has(X86_FEATURE_CENTAUR_MCR)) &&
 	   (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
 		flags = _PAGE_CACHE_UC;
 	}
