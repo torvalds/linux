@@ -40,6 +40,8 @@
 
 #include <net/irda/discovery.h>
 
+#include <asm/unaligned.h>
+
 /*
  * Function irlmp_add_discovery (cachelog, discovery)
  *
@@ -87,7 +89,7 @@ void irlmp_add_discovery(hashbin_t *cachelog, discovery_t *new)
 			 */
 			hashbin_remove_this(cachelog, (irda_queue_t *) node);
 			/* Check if hints bits are unchanged */
-			if(u16ho(node->data.hints) == u16ho(new->data.hints))
+			if (get_unaligned((__u16 *)node->data.hints) == get_unaligned((__u16 *)new->data.hints))
 				/* Set time of first discovery for this node */
 				new->firststamp = node->firststamp;
 			kfree(node);
@@ -281,9 +283,9 @@ struct irda_device_info *irlmp_copy_discoveries(hashbin_t *log, int *pn,
 		/* Mask out the ones we don't want :
 		 * We want to match the discovery mask, and to get only
 		 * the most recent one (unless we want old ones) */
-		if ((u16ho(discovery->data.hints) & mask) &&
+		if ((get_unaligned((__u16 *)discovery->data.hints) & mask) &&
 		    ((old_entries) ||
-		     ((jiffies - discovery->firststamp) < j_timeout)) ) {
+		     ((jiffies - discovery->firststamp) < j_timeout))) {
 			/* Create buffer as needed.
 			 * As this function get called a lot and most time
 			 * we don't have anything to put in the log (we are

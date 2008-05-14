@@ -1673,7 +1673,7 @@ irnet_discovery_indication(discinfo_t *		discovery,
   /* Notify the control channel */
   irnet_post_event(NULL, IRNET_DISCOVER,
 		   discovery->saddr, discovery->daddr, discovery->info,
-		   u16ho(discovery->hints));
+		   get_unaligned((__u16 *)discovery->hints));
 
   DEXIT(IRDA_OCB_TRACE, "\n");
 }
@@ -1704,7 +1704,7 @@ irnet_expiry_indication(discinfo_t *	expiry,
   /* Notify the control channel */
   irnet_post_event(NULL, IRNET_EXPIRE,
 		   expiry->saddr, expiry->daddr, expiry->info,
-		   u16ho(expiry->hints));
+		   get_unaligned((__u16 *)expiry->hints));
 
   DEXIT(IRDA_OCB_TRACE, "\n");
 }
