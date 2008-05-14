@@ -256,8 +256,8 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	case ALG_TKIP:
 		params.cipher = WLAN_CIPHER_SUITE_TKIP;
 
-		iv32 = key->u.tkip.iv32;
-		iv16 = key->u.tkip.iv16;
+		iv32 = key->u.tkip.tx.iv32;
+		iv16 = key->u.tkip.tx.iv16;
 
 		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
 		    sdata->local->ops->get_tkip_seq)

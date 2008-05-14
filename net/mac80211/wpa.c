@@ -176,8 +176,8 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 	skb_trim(skb, skb->len - MICHAEL_MIC_LEN);
 
 	/* update IV in key information to be able to detect replays */
-	rx->key->u.tkip.iv32_rx[rx->queue] = rx->tkip_iv32;
-	rx->key->u.tkip.iv16_rx[rx->queue] = rx->tkip_iv16;
+	rx->key->u.tkip.rx[rx->queue].iv32 = rx->tkip_iv32;
+	rx->key->u.tkip.rx[rx->queue].iv16 = rx->tkip_iv16;
 
 	return RX_CONTINUE;
 }
@@ -214,19 +214,19 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx,
 	pos += hdrlen;
 
 	/* Increase IV for the frame */
-	key->u.tkip.iv16++;
-	if (key->u.tkip.iv16 == 0)
-		key->u.tkip.iv32++;
+	key->u.tkip.tx.iv16++;
+	if (key->u.tkip.tx.iv16 == 0)
+		key->u.tkip.tx.iv32++;
 
 	if (tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 		hdr = (struct ieee80211_hdr *)skb->data;
 
 		/* hwaccel - with preallocated room for IV */
 		ieee80211_tkip_add_iv(pos, key,
-				      (u8) (key->u.tkip.iv16 >> 8),
-				      (u8) (((key->u.tkip.iv16 >> 8) | 0x20) &
+				      (u8) (key->u.tkip.tx.iv16 >> 8),
+				      (u8) (((key->u.tkip.tx.iv16 >> 8) | 0x20) &
 					    0x7f),
-				      (u8) key->u.tkip.iv16);
+				      (u8) key->u.tkip.tx.iv16);
 
 		tx->control->hw_key = &tx->key->conf;
 		return 0;
