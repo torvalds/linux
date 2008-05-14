@@ -250,6 +250,7 @@ static int linear_run (mddev_t *mddev)
 {
 	linear_conf_t *conf;
 
+	mddev->queue->queue_lock = &mddev->queue->__queue_lock;
 	conf = linear_conf(mddev, mddev->raid_disks);
 
 	if (!conf)
