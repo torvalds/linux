@@ -103,7 +103,7 @@ void __init efi_reserve_bootmem(void)
 				memmap.nr_map * memmap.desc_size);
 }
 
-void __iomem * __init efi_ioremap(unsigned long phys_addr, unsigned long size)
+void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size)
 {
 	static unsigned pages_mapped __initdata;
 	unsigned i, pages;

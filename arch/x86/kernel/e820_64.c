@@ -404,7 +404,7 @@ static void early_panic(char *msg)
 }
 
 /* We're not void only for x86 32-bit compat */
-char * __init machine_specific_memory_setup(void)
+char *__init machine_specific_memory_setup(void)
 {
 	char *who = "BIOS-e820";
 	/*
