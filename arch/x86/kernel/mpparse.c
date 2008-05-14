@@ -176,7 +176,11 @@ static void __init MP_ioapic_info(struct mpc_config_ioapic *m)
 	if (bad_ioapic(m->mpc_apicaddr))
 		return;
 
-	mp_ioapics[nr_ioapics] = *m;
+	mp_ioapics[nr_ioapics].mp_apicaddr = m->mpc_apicaddr;
+	mp_ioapics[nr_ioapics].mp_apicid = m->mpc_apicid;
+	mp_ioapics[nr_ioapics].mp_type = m->mpc_type;
+	mp_ioapics[nr_ioapics].mp_apicver = m->mpc_apicver;
+	mp_ioapics[nr_ioapics].mp_flags = m->mpc_flags;
 	nr_ioapics++;
 }
 
@@ -426,7 +430,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	intsrc.mpc_type = MP_INTSRC;
 	intsrc.mpc_irqflag = 0;	/* conforming */
 	intsrc.mpc_srcbus = 0;
-	intsrc.mpc_dstapic = mp_ioapics[0].mpc_apicid;
+	intsrc.mpc_dstapic = mp_ioapics[0].mp_apicid;
 
 	intsrc.mpc_irqtype = mp_INT;
 

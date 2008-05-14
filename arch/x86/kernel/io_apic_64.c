@@ -104,7 +104,7 @@ DEFINE_SPINLOCK(vector_lock);
 int nr_ioapic_registers[MAX_IO_APICS];
 
 /* I/O APIC entries */
-struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
+struct mp_config_ioapic mp_ioapics[MAX_IO_APICS];
 int nr_ioapics;
 
 /* MP IRQ source entries */
@@ -140,7 +140,7 @@ struct io_apic {
 static __attribute_const__ struct io_apic __iomem *io_apic_base(int idx)
 {
 	return (void __iomem *) __fix_to_virt(FIX_IO_APIC_BASE_0 + idx)
-		+ (mp_ioapics[idx].mpc_apicaddr & ~PAGE_MASK);
+		+ (mp_ioapics[idx].mp_apicaddr & ~PAGE_MASK);
 }
 
 static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
@@ -454,7 +454,7 @@ static int find_irq_entry(int apic, int pin, int type)
 
 	for (i = 0; i < mp_irq_entries; i++)
 		if (mp_irqs[i].mpc_irqtype == type &&
-		    (mp_irqs[i].mpc_dstapic == mp_ioapics[apic].mpc_apicid ||
+		    (mp_irqs[i].mpc_dstapic == mp_ioapics[apic].mp_apicid ||
 		     mp_irqs[i].mpc_dstapic == MP_APIC_ALL) &&
 		    mp_irqs[i].mpc_dstirq == pin)
 			return i;
@@ -496,7 +496,7 @@ static int __init find_isa_irq_apic(int irq, int type)
 	if (i < mp_irq_entries) {
 		int apic;
 		for(apic = 0; apic < nr_ioapics; apic++) {
-			if (mp_ioapics[apic].mpc_apicid == mp_irqs[i].mpc_dstapic)
+			if (mp_ioapics[apic].mp_apicid == mp_irqs[i].mpc_dstapic)
 				return apic;
 		}
 	}
@@ -524,7 +524,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 		int lbus = mp_irqs[i].mpc_srcbus;
 
 		for (apic = 0; apic < nr_ioapics; apic++)
-			if (mp_ioapics[apic].mpc_apicid == mp_irqs[i].mpc_dstapic ||
+			if (mp_ioapics[apic].mp_apicid == mp_irqs[i].mpc_dstapic ||
 			    mp_irqs[i].mpc_dstapic == MP_APIC_ALL)
 				break;
 
@@ -846,7 +846,7 @@ static void setup_IO_APIC_irq(int apic, int pin, unsigned int irq,
 	apic_printk(APIC_VERBOSE,KERN_DEBUG
 		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> "
 		    "IRQ %d Mode:%i Active:%i)\n",
-		    apic, mp_ioapics[apic].mpc_apicid, pin, cfg->vector,
+		    apic, mp_ioapics[apic].mp_apicid, pin, cfg->vector,
 		    irq, trigger, polarity);
 
 	/*
@@ -887,10 +887,10 @@ static void __init setup_IO_APIC_irqs(void)
 		idx = find_irq_entry(apic,pin,mp_INT);
 		if (idx == -1) {
 			if (first_notcon) {
-				apic_printk(APIC_VERBOSE, KERN_DEBUG " IO-APIC (apicid-pin) %d-%d", mp_ioapics[apic].mpc_apicid, pin);
+				apic_printk(APIC_VERBOSE, KERN_DEBUG " IO-APIC (apicid-pin) %d-%d", mp_ioapics[apic].mp_apicid, pin);
 				first_notcon = 0;
 			} else
-				apic_printk(APIC_VERBOSE, ", %d-%d", mp_ioapics[apic].mpc_apicid, pin);
+				apic_printk(APIC_VERBOSE, ", %d-%d", mp_ioapics[apic].mp_apicid, pin);
 			continue;
 		}
 		if (!first_notcon) {
@@ -965,7 +965,7 @@ void __apicdebuginit print_IO_APIC(void)
 	printk(KERN_DEBUG "number of MP IRQ sources: %d.\n", mp_irq_entries);
 	for (i = 0; i < nr_ioapics; i++)
 		printk(KERN_DEBUG "number of IO-APIC #%d registers: %d.\n",
-		       mp_ioapics[i].mpc_apicid, nr_ioapic_registers[i]);
+		       mp_ioapics[i].mp_apicid, nr_ioapic_registers[i]);
 
 	/*
 	 * We are a bit conservative about what we expect.  We have to
@@ -983,7 +983,7 @@ void __apicdebuginit print_IO_APIC(void)
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
 	printk("\n");
-	printk(KERN_DEBUG "IO APIC #%d......\n", mp_ioapics[apic].mpc_apicid);
+	printk(KERN_DEBUG "IO APIC #%d......\n", mp_ioapics[apic].mp_apicid);
 	printk(KERN_DEBUG ".... register #00: %08X\n", reg_00.raw);
 	printk(KERN_DEBUG ".......    : physical APIC id: %02X\n", reg_00.bits.ID);
 
@@ -1841,8 +1841,8 @@ static int ioapic_resume(struct sys_device *dev)
 
 	spin_lock_irqsave(&ioapic_lock, flags);
 	reg_00.raw = io_apic_read(dev->id, 0);
-	if (reg_00.bits.ID != mp_ioapics[dev->id].mpc_apicid) {
-		reg_00.bits.ID = mp_ioapics[dev->id].mpc_apicid;
+	if (reg_00.bits.ID != mp_ioapics[dev->id].mp_apicid) {
+		reg_00.bits.ID = mp_ioapics[dev->id].mp_apicid;
 		io_apic_write(dev->id, 0, reg_00.raw);
 	}
 	spin_unlock_irqrestore(&ioapic_lock, flags);
@@ -2336,7 +2336,7 @@ void __init ioapic_init_mappings(void)
 	ioapic_res = ioapic_setup_resources();
 	for (i = 0; i < nr_ioapics; i++) {
 		if (smp_found_config) {
-			ioapic_phys = mp_ioapics[i].mpc_apicaddr;
+			ioapic_phys = mp_ioapics[i].mp_apicaddr;
 		} else {
 			ioapic_phys = (unsigned long)
 				alloc_bootmem_pages(PAGE_SIZE);

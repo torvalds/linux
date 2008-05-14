@@ -1202,7 +1202,7 @@ void __init init_apic_mappings(void)
 
 		for (i = 0; i < nr_ioapics; i++) {
 			if (smp_found_config) {
-				ioapic_phys = mp_ioapics[i].mpc_apicaddr;
+				ioapic_phys = mp_ioapics[i].mp_apicaddr;
 				if (!ioapic_phys) {
 					printk(KERN_ERR
 					       "WARNING: bogus zero IO-APIC "

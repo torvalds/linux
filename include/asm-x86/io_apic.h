@@ -112,8 +112,16 @@ extern int nr_ioapic_registers[MAX_IO_APICS];
 
 #define MP_MAX_IOAPIC_PIN 127
 
+struct mp_config_ioapic {
+	unsigned long mp_apicaddr;
+	unsigned int mp_apicid;
+	unsigned char mp_type;
+	unsigned char mp_apicver;
+	unsigned char mp_flags;
+};
+
 /* I/O APIC entries */
-extern struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
+extern struct mp_config_ioapic mp_ioapics[MAX_IO_APICS];
 
 /* # of MP IRQ source entries */
 extern int mp_irq_entries;
