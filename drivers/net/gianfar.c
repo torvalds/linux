@@ -635,6 +635,8 @@ static void free_skb_resources(struct gfar_private *priv)
 			dev_kfree_skb_any(priv->tx_skbuff[i]);
 			priv->tx_skbuff[i] = NULL;
 		}
+
+		txbdp++;
 	}
 
 	kfree(priv->tx_skbuff);

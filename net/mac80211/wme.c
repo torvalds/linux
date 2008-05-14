@@ -394,7 +394,8 @@ static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 						 qd->handle);
 		if (!q->queues[i]) {
 			q->queues[i] = &noop_qdisc;
-			printk(KERN_ERR "%s child qdisc %i creation failed", dev->name, i);
+			printk(KERN_ERR "%s child qdisc %i creation failed\n",
+			       dev->name, i);
 		}
 	}
 

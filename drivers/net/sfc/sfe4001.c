@@ -130,6 +130,15 @@ void sfe4001_poweroff(struct efx_nic *efx)
 	(void) efx_i2c_read(i2c, MAX6647, RSL, &in, 1);
 }
 
+/* The P0_EN_3V3X line on SFE4001 boards (from A2 onward) is connected
+ * to the FLASH_CFG_1 input on the DSP.  We must keep it high at power-
+ * up to allow writing the flash (done through MDIO from userland).
+ */
+unsigned int sfe4001_phy_flash_cfg;
+module_param_named(phy_flash_cfg, sfe4001_phy_flash_cfg, uint, 0444);
+MODULE_PARM_DESC(phy_flash_cfg,
+		 "Force PHY to enter flash configuration mode");
+
 /* This board uses an I2C expander to provider power to the PHY, which needs to
  * be turned on before the PHY can be used.
  * Context: Process context, rtnl lock held
@@ -203,6 +212,8 @@ int sfe4001_poweron(struct efx_nic *efx)
 		out = 0xff & ~((1 << P0_EN_1V2_LBN) | (1 << P0_EN_2V5_LBN) |
 			       (1 << P0_EN_3V3X_LBN) | (1 << P0_EN_5V_LBN) |
 			       (1 << P0_X_TRST_LBN));
+		if (sfe4001_phy_flash_cfg)
+			out |= 1 << P0_EN_3V3X_LBN;
 
 		rc = efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
 		if (rc)
@@ -226,6 +237,9 @@ int sfe4001_poweron(struct efx_nic *efx)
 		if (in & (1 << P1_AFE_PWD_LBN))
 			goto done;
 
+		/* DSP doesn't look powered in flash config mode */
+		if (sfe4001_phy_flash_cfg)
+			goto done;
 	} while (++count < 20);
 
 	EFX_INFO(efx, "timed out waiting for power\n");
