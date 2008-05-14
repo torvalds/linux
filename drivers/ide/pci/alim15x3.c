@@ -127,8 +127,6 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
  *		No UDMA on revisions <= 0x20
  *		Disk only for revisions < 0xC2
  *		Not WDC drives on M1543C-E (?)
- *
- *	FIXME: WDC ifdef needs to die
  */
 
 static u8 ali_udma_filter(ide_drive_t *drive)
@@ -136,11 +134,9 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 	if (m5229_revision > 0x20 && m5229_revision < 0xC2) {
 		if (drive->media != ide_disk)
 			return 0;
-#ifndef CONFIG_WDC_ALI15X3
 		if (chip_is_1543c_e && strstr(drive->id->model, "WDC ") &&
 		    wdc_udma == 0)
 			return 0;
-#endif
 	}
 
 	return drive->hwif->ultra_mask;

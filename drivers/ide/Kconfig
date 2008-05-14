@@ -463,21 +463,6 @@ config BLK_DEV_ALI15X3
 
 	  If unsure, say N.
 
-config WDC_ALI15X3
-	bool "ALI M15x3 WDC support (DANGEROUS)"
-	depends on BLK_DEV_ALI15X3
-	---help---
-	  This allows for UltraDMA support for WDC drives that ignore CRC
-	  checking. You are a fool for enabling this option, but there have
-	  been requests. DO NOT COMPLAIN IF YOUR DRIVE HAS FS CORRUPTION, IF
-	  YOU ENABLE THIS! No one will listen, just laugh for ignoring this
-	  SERIOUS WARNING.
-
-	  Using this option can allow WDC drives to run at ATA-4/5 transfer
-	  rates with only an ATA-2 support structure.
-
-	  SAY N!
-
 config BLK_DEV_AMD74XX
 	tristate "AMD and nVidia IDE support"
 	depends on !ARM
