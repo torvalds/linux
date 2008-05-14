@@ -133,7 +133,7 @@ enum {
 
 	MV_GENIIE_FLAGS		= MV_COMMON_FLAGS | MV_6XXX_FLAGS |
 				  ATA_FLAG_PMP | ATA_FLAG_ACPI_SATA |
-				  ATA_FLAG_NCQ,
+				  ATA_FLAG_NCQ | ATA_FLAG_AN,
 
 	CRQB_FLAG_READ		= (1 << 0),
 	CRQB_TAG_SHIFT		= 1,
@@ -226,6 +226,7 @@ enum {
 	SATA_STATUS_OFS		= 0x300,  /* ctrl, err regs follow status */
 	SATA_ACTIVE_OFS		= 0x350,
 	SATA_FIS_IRQ_CAUSE_OFS	= 0x364,
+	SATA_FIS_IRQ_AN		= (1 << 9),	/* async notification */
 
 	LTMODE_OFS		= 0x30c,
 	LTMODE_BIT8		= (1 << 8),	/* unknown, but necessary */
@@ -1849,8 +1850,17 @@ static void mv_err_intr(struct ata_port *ap)
 	ata_ehi_push_desc(ehi, "edma_err_cause=%08x pp_flags=%08x",
 			  edma_err_cause, pp->pp_flags);
 
-	if (IS_GEN_IIE(hpriv) && (edma_err_cause & EDMA_ERR_TRANS_IRQ_7))
+	if (IS_GEN_IIE(hpriv) && (edma_err_cause & EDMA_ERR_TRANS_IRQ_7)) {
 		ata_ehi_push_desc(ehi, "fis_cause=%08x", fis_cause);
+		if (fis_cause & SATA_FIS_IRQ_AN) {
+			u32 ec = edma_err_cause &
+			       ~(EDMA_ERR_TRANS_IRQ_7 | EDMA_ERR_IRQ_TRANSIENT);
+			sata_async_notification(ap);
+			if (!ec)
+				return; /* Just an AN; no need for the nukes */
+			ata_ehi_push_desc(ehi, "SDB notify");
+		}
+	}
 	/*
 	 * All generations share these EDMA error cause bits:
 	 */
