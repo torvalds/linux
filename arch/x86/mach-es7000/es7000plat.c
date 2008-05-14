@@ -52,6 +52,8 @@ static struct mip_reg		*host_reg;
 static int 			mip_port;
 static unsigned long		mip_addr, host_addr;
 
+int es7000_plat;
+
 /*
  * GSI override for ES7000 platforms.
  */

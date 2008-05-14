@@ -793,14 +793,13 @@ void __init find_smp_config(void)
                             ACPI-based MP Configuration
    -------------------------------------------------------------------------- */
 
-/*
- * Keep this outside and initialized to 0, for !CONFIG_ACPI builds:
- */
-int es7000_plat;
-
 #ifdef CONFIG_ACPI
 
 #ifdef	CONFIG_X86_IO_APIC
+
+#if defined(CONFIG_X86_ES7000) || defined(CONFIG_X86_GENERICARCH)
+extern int es7000_plat;
+#endif
 
 #define MP_ISA_BUS		0
 
@@ -928,11 +927,13 @@ void __init mp_config_acpi_legacy_irqs(void)
 	set_bit(MP_ISA_BUS, mp_bus_not_pci);
 	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
 
+#if defined(CONFIG_X86_ES7000) || defined(CONFIG_X86_GENERICARCH)
 	/*
 	 * Older generations of ES7000 have no legacy identity mappings
 	 */
 	if (es7000_plat == 1)
 		return;
+#endif
 
 	/*
 	 * Locate the IOAPIC that manages the ISA IRQs (0-15).
