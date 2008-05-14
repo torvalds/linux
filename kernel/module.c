@@ -1780,7 +1780,7 @@ static struct module *load_module(void __user *umod,
 
 	/* Sanity checks against insmoding binaries or wrong arch,
            weird elf version */
-	if (memcmp(hdr->e_ident, ELFMAG, 4) != 0
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0
 	    || hdr->e_type != ET_REL
 	    || !elf_check_arch(hdr)
 	    || hdr->e_shentsize != sizeof(*sechdrs)) {
