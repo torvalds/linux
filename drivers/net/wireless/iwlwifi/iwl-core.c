@@ -317,24 +317,33 @@ void iwl_reset_qos(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwl_reset_qos);
 
 #ifdef CONFIG_IWL4965_HT
+#define MAX_BIT_RATE_40_MHZ 0x96; /* 150 Mbps */
+#define MAX_BIT_RATE_20_MHZ 0x48; /* 72 Mbps */
 static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band)
 {
+	u16 max_bit_rate = 0;
+	u8 rx_chains_num = priv->hw_params.rx_chains_num;
+	u8 tx_chains_num = priv->hw_params.tx_chains_num;
+
 	ht_info->cap = 0;
 	memset(ht_info->supp_mcs_set, 0, 16);
 
 	ht_info->ht_supported = 1;
 
-	if (priv->hw_params.fat_channel & BIT(band)) {
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
-		ht_info->supp_mcs_set[4] = 0x01;
-	}
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
 	ht_info->cap |= (u16)(IEEE80211_HT_CAP_MIMO_PS &
 			     (IWL_MIMO_PS_NONE << 2));
+
+	max_bit_rate = MAX_BIT_RATE_20_MHZ;
+	if (priv->hw_params.fat_channel & BIT(band)) {
+		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
+		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
+		ht_info->supp_mcs_set[4] = 0x01;
+		max_bit_rate = MAX_BIT_RATE_40_MHZ;
+	}
 
 	if (priv->cfg->mod_params->amsdu_size_8K)
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_MAX_AMSDU;
@@ -343,10 +352,22 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
 
 	ht_info->supp_mcs_set[0] = 0xFF;
-	if (priv->hw_params.tx_chains_num >= 2)
+	if (rx_chains_num >= 2)
 		ht_info->supp_mcs_set[1] = 0xFF;
-	if (priv->hw_params.tx_chains_num >= 3)
+	if (rx_chains_num >= 3)
 		ht_info->supp_mcs_set[2] = 0xFF;
+
+	/* Highest supported Rx data rate */
+	max_bit_rate *= rx_chains_num;
+	ht_info->supp_mcs_set[10] = (u8)(max_bit_rate & 0x00FF);
+	ht_info->supp_mcs_set[11] = (u8)((max_bit_rate & 0xFF00) >> 8);
+
+	/* Tx MCS capabilities */
+	ht_info->supp_mcs_set[12] = IEEE80211_HT_CAP_MCS_TX_DEFINED;
+	if (tx_chains_num != rx_chains_num) {
+		ht_info->supp_mcs_set[12] |= IEEE80211_HT_CAP_MCS_TX_RX_DIFF;
+		ht_info->supp_mcs_set[12] |= ((tx_chains_num - 1) << 2);
+	}
 }
 #else
 static inline void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
