@@ -150,9 +150,6 @@ extern int CIFSGetDFSRefer(const int xid, struct cifsSesInfo *ses,
 			unsigned int *number_of_UNC_in_array,
 			const struct nls_table *nls_codepage, int remap);
 
-extern int connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
-			const char *old_path,
-			const struct nls_table *nls_codepage, int remap);
 extern int get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			const char *old_path,
 			const struct nls_table *nls_codepage,

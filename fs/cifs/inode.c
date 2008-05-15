@@ -161,52 +161,18 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 	spin_unlock(&inode->i_lock);
 }
 
-static const unsigned char *cifs_get_search_path(struct cifs_sb_info *cifs_sb,
-						const char *search_path)
-{
-	int tree_len;
-	int path_len;
-	int i;
-	char *tmp_path;
-	struct cifsTconInfo *pTcon = cifs_sb->tcon;
-
-	if (!(pTcon->Flags & SMB_SHARE_IS_IN_DFS))
-		return search_path;
-
-	/* use full path name for working with DFS */
-	tree_len = strnlen(pTcon->treeName, MAX_TREE_SIZE + 1);
-	path_len = strnlen(search_path, MAX_PATHCONF);
-
-	tmp_path = kmalloc(tree_len+path_len+1, GFP_KERNEL);
-	if (tmp_path == NULL)
-		return search_path;
-
-	strncpy(tmp_path, pTcon->treeName, tree_len);
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
-		for (i = 0; i < tree_len; i++) {
-			if (tmp_path[i] == '\\')
-				tmp_path[i] = '/';
-		}
-	strncpy(tmp_path+tree_len, search_path, path_len);
-	tmp_path[tree_len+path_len] = 0;
-	return tmp_path;
-}
-
 int cifs_get_inode_info_unix(struct inode **pinode,
-	const unsigned char *search_path, struct super_block *sb, int xid)
+	const unsigned char *full_path, struct super_block *sb, int xid)
 {
 	int rc = 0;
 	FILE_UNIX_BASIC_INFO findData;
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	const unsigned char *full_path;
 	bool is_dfs_referral = false;
 
 	pTcon = cifs_sb->tcon;
-	cFYI(1, ("Getting info on %s", search_path));
-
-	full_path = cifs_get_search_path(cifs_sb, search_path);
+	cFYI(1, ("Getting info on %s", full_path));
 
 try_again_CIFSSMBUnixQPathInfo:
 	/* could have done a find first instead but this returns more info */
@@ -218,10 +184,6 @@ try_again_CIFSSMBUnixQPathInfo:
 	if (rc) {
 		if (rc == -EREMOTE && !is_dfs_referral) {
 			is_dfs_referral = true;
-			if (full_path != search_path) {
-				kfree(full_path);
-				full_path = search_path;
-			}
 			goto try_again_CIFSSMBUnixQPathInfo;
 		}
 		goto cgiiu_exit;
@@ -271,8 +233,6 @@ try_again_CIFSSMBUnixQPathInfo:
 		cifs_set_ops(inode, is_dfs_referral);
 	}
 cgiiu_exit:
-	if (full_path != search_path)
-		kfree(full_path);
 	return rc;
 }
 
@@ -380,20 +340,19 @@ static int get_sfu_mode(struct inode *inode,
 }
 
 int cifs_get_inode_info(struct inode **pinode,
-	const unsigned char *search_path, FILE_ALL_INFO *pfindData,
+	const unsigned char *full_path, FILE_ALL_INFO *pfindData,
 	struct super_block *sb, int xid, const __u16 *pfid)
 {
 	int rc = 0;
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	const unsigned char *full_path = NULL;
 	char *buf = NULL;
 	bool adjustTZ = false;
 	bool is_dfs_referral = false;
 
 	pTcon = cifs_sb->tcon;
-	cFYI(1, ("Getting info on %s", search_path));
+	cFYI(1, ("Getting info on %s", full_path));
 
 	if ((pfindData == NULL) && (*pinode != NULL)) {
 		if (CIFS_I(*pinode)->clientCanCacheRead) {
@@ -408,8 +367,6 @@ int cifs_get_inode_info(struct inode **pinode,
 		if (buf == NULL)
 			return -ENOMEM;
 		pfindData = (FILE_ALL_INFO *)buf;
-
-		full_path = cifs_get_search_path(cifs_sb, search_path);
 
 try_again_CIFSSMBQPathInfo:
 		/* could do find first instead but this returns more info */
@@ -432,10 +389,6 @@ try_again_CIFSSMBQPathInfo:
 	if (rc) {
 		if (rc == -EREMOTE && !is_dfs_referral) {
 			is_dfs_referral = true;
-			if (full_path != search_path) {
-				kfree(full_path);
-				full_path = search_path;
-			}
 			goto try_again_CIFSSMBQPathInfo;
 		}
 		goto cgii_exit;
@@ -470,7 +423,7 @@ try_again_CIFSSMBQPathInfo:
 				__u64 inode_num;
 
 				rc1 = CIFSGetSrvInodeNumber(xid, pTcon,
-					search_path, &inode_num,
+					full_path, &inode_num,
 					cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -539,7 +492,7 @@ try_again_CIFSSMBQPathInfo:
 			   (cifsInfo->cifsAttrs & ATTR_SYSTEM)) {
 			if (decode_sfu_inode(inode,
 					 le64_to_cpu(pfindData->EndOfFile),
-					 search_path,
+					 full_path,
 					 cifs_sb, xid))
 				cFYI(1, ("Unrecognized sfu inode type"));
 
@@ -582,12 +535,12 @@ try_again_CIFSSMBQPathInfo:
 		/* fill in 0777 bits from ACL */
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 			cFYI(1, ("Getting mode bits from ACL"));
-			acl_to_uid_mode(inode, search_path, pfid);
+			acl_to_uid_mode(inode, full_path, pfid);
 		}
 #endif
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 			/* fill in remaining high mode bits e.g. SUID, VTX */
-			get_sfu_mode(inode, search_path, cifs_sb, xid);
+			get_sfu_mode(inode, full_path, cifs_sb, xid);
 		} else if (atomic_read(&cifsInfo->inUse) == 0) {
 			inode->i_uid = cifs_sb->mnt_uid;
 			inode->i_gid = cifs_sb->mnt_gid;
@@ -599,8 +552,6 @@ try_again_CIFSSMBQPathInfo:
 		cifs_set_ops(inode, is_dfs_referral);
 	}
 cgii_exit:
-	if (full_path != search_path)
-		kfree(full_path);
 	kfree(buf);
 	return rc;
 }

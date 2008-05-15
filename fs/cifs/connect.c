@@ -1419,27 +1419,6 @@ find_unc(__be32 new_target_ip_addr, char *uncName, char *userName)
 }
 
 int
-connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
-		    const char *old_path, const struct nls_table *nls_codepage,
-		    int remap)
-{
-	struct dfs_info3_param *referrals = NULL;
-	unsigned int num_referrals;
-	int rc = 0;
-
-	rc = get_dfs_path(xid, pSesInfo, old_path, nls_codepage,
-			&num_referrals, &referrals, remap);
-
-	/* BB Add in code to: if valid refrl, if not ip address contact
-		the helper that resolves tcp names, mount to it, try to
-		tcon to it unmount it if fail */
-
-	kfree(referrals);
-
-	return rc;
-}
-
-int
 get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 	     const struct nls_table *nls_codepage, unsigned int *pnum_referrals,
 	     struct dfs_info3_param **preferrals, int remap)
@@ -2161,10 +2140,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				if ((strchr(volume_info.UNC + 3, '\\') == NULL)
 				    && (strchr(volume_info.UNC + 3, '/') ==
 					NULL)) {
-					rc = connect_to_dfs_path(xid, pSesInfo,
+/*					rc = connect_to_dfs_path(xid, pSesInfo,
 						"", cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &
-						  CIFS_MOUNT_MAP_SPECIAL_CHR);
+						  CIFS_MOUNT_MAP_SPECIAL_CHR);*/
+					cFYI(1, ("DFS root not supported"));
 					rc = -ENODEV;
 					goto out;
 				} else {
