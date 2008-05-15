@@ -870,3 +870,65 @@ _GLOBAL(enter_prom)
 	ld	r0,16(r1)
 	mtlr    r0
         blr
+
+#ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+_GLOBAL(mcount)
+_GLOBAL(_mcount)
+	/* Taken from output of objdump from lib64/glibc */
+	mflr	r3
+	stdu	r1, -112(r1)
+	std	r3, 128(r1)
+	.globl mcount_call
+mcount_call:
+	bl	ftrace_stub
+	nop
+	ld	r0, 128(r1)
+	mtlr	r0
+	addi	r1, r1, 112
+	blr
+
+_GLOBAL(ftrace_caller)
+	/* Taken from output of objdump from lib64/glibc */
+	mflr	r3
+	ld	r11, 0(r1)
+	stdu	r1, -112(r1)
+	std	r3, 128(r1)
+	ld	r4, 16(r11)
+.globl ftrace_call
+ftrace_call:
+	bl	ftrace_stub
+	nop
+	ld	r0, 128(r1)
+	mtlr	r0
+	addi	r1, r1, 112
+_GLOBAL(ftrace_stub)
+	blr
+#else
+_GLOBAL(mcount)
+	blr
+
+_GLOBAL(_mcount)
+	/* Taken from output of objdump from lib64/glibc */
+	mflr	r3
+	ld	r11, 0(r1)
+	stdu	r1, -112(r1)
+	std	r3, 128(r1)
+	ld	r4, 16(r11)
+
+
+	LOAD_REG_ADDR(r5,ftrace_trace_function)
+	ld	r5,0(r5)
+	ld	r5,0(r5)
+	mtctr	r5
+	bctrl
+
+	nop
+	ld	r0, 128(r1)
+	mtlr	r0
+	addi	r1, r1, 112
+_GLOBAL(ftrace_stub)
+	blr
+
+#endif
+#endif

@@ -85,6 +85,11 @@ struct ppc64_caches ppc64_caches = {
 };
 EXPORT_SYMBOL_GPL(ppc64_caches);
 
+#ifdef CONFIG_FTRACE
+extern void _mcount(void);
+EXPORT_SYMBOL(_mcount);
+#endif
+
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
  * for each elf executable being started.

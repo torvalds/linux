@@ -123,6 +123,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	int ret;
 	int save_ftrace_enabled = ftrace_enabled;
 	int save_tracer_enabled = tracer_enabled;
+	char *func_name;
 
 	/* The ftrace test PASSED */
 	printk(KERN_CONT "PASSED\n");
@@ -142,9 +143,15 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 		return ret;
 	}
 
+	/*
+	 * Some archs *cough*PowerPC*cough* add charachters to the
+	 * start of the function names. We simply put a '*' to
+	 * accomodate them.
+	 */
+	func_name = "*" STR(DYN_FTRACE_TEST_NAME);
+
 	/* filter only on our function */
-	ftrace_set_filter(STR(DYN_FTRACE_TEST_NAME),
-			  sizeof(STR(DYN_FTRACE_TEST_NAME)), 1);
+	ftrace_set_filter(func_name, strlen(func_name), 1);
 
 	/* enable tracing */
 	tr->ctrl = 1;

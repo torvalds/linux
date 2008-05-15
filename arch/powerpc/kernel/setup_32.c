@@ -47,6 +47,11 @@
 #include <asm/kgdb.h>
 #endif
 
+#ifdef CONFIG_FTRACE
+extern void _mcount(void);
+EXPORT_SYMBOL(_mcount);
+#endif
+
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
 int boot_cpuid;
@@ -81,7 +86,7 @@ int ucache_bsize;
  * from the address that it was linked at, so we must use RELOC/PTRRELOC
  * to access static data (including strings).  -- paulus
  */
-unsigned long __init early_init(unsigned long dt_ptr)
+notrace unsigned long __init early_init(unsigned long dt_ptr)
 {
 	unsigned long offset = reloc_offset();
 	struct cpu_spec *spec;
@@ -111,7 +116,7 @@ unsigned long __init early_init(unsigned long dt_ptr)
  * This is called very early on the boot process, after a minimal
  * MMU environment has been set up but before MMU_init is called.
  */
-void __init machine_init(unsigned long dt_ptr, unsigned long phys)
+notrace void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 {
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
@@ -133,7 +138,7 @@ void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 
 #ifdef CONFIG_BOOKE_WDT
 /* Checks wdt=x and wdt_period=xx command-line option */
-int __init early_parse_wdt(char *p)
+notrace int __init early_parse_wdt(char *p)
 {
 	if (p && strncmp(p, "0", 1) != 0)
 	       booke_wdt_enabled = 1;
