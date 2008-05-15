@@ -10,11 +10,11 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 
 ifdef CONFIG_FTRACE
 # Do not profile string.o, since it may be used in early boot or vdso
+CFLAGS_REMOVE_string.o = -pg
 # Also do not profile any debug utilities
-ORIG_CFLAGS := $(KBUILD_CFLAGS)
-KBUILD_CFLAGS = $(if $(filter-out %debug debug% string%,$(basename $(notdir $@))), \
-	$(ORIG_CFLAGS), \
-	$(subst -pg,,$(ORIG_CFLAGS)))
+CFLAGS_REMOVE_spinlock_debug.o = -pg
+CFLAGS_REMOVE_list_debug.o = -pg
+CFLAGS_REMOVE_debugobjects.o = -pg
 endif
 
 lib-$(CONFIG_MMU) += ioremap.o
