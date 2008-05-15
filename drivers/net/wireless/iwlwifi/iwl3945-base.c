@@ -5823,7 +5823,7 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 	if (iwl3945_is_rfkill(priv))
 		return;
 
-	ieee80211_start_queues(priv->hw);
+	ieee80211_wake_queues(priv->hw);
 
 	priv->active_rate = priv->rates_mask;
 	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;

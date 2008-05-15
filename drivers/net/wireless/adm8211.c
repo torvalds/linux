@@ -2015,7 +2015,7 @@ static int adm8211_resume(struct pci_dev *pdev)
 
 	if (priv->mode != IEEE80211_IF_TYPE_INVALID) {
 		adm8211_start(dev);
-		ieee80211_start_queues(dev);
+		ieee80211_wake_queues(dev);
 	}
 
 	return 0;

@@ -125,7 +125,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Start the TX queues.
 	 */
-	ieee80211_start_queues(rt2x00dev->hw);
+	ieee80211_wake_queues(rt2x00dev->hw);
 
 	return 0;
 }
@@ -1186,7 +1186,7 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	 * In that case we have disabled the TX queue and should
 	 * now enable it again
 	 */
-	ieee80211_start_queues(rt2x00dev->hw);
+	ieee80211_wake_queues(rt2x00dev->hw);
 
 	/*
 	 * During interface iteration we might have changed the

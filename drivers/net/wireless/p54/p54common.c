@@ -375,9 +375,6 @@ static void inline p54_wake_free_queues(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	int i;
 
-	/* ieee80211_start_queues is great if all queues are really empty.
-	 * But, what if some are full? */
-
 	for (i = 0; i < dev->queues; i++)
 		if (priv->tx_stats[i].len < priv->tx_stats[i].limit)
 			ieee80211_wake_queue(dev, i);

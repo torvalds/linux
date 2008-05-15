@@ -2794,7 +2794,6 @@ static int b43legacy_wireless_core_start(struct b43legacy_wldev *dev)
 	/* Start data flow (TX/RX) */
 	b43legacy_mac_enable(dev);
 	b43legacy_interrupt_enable(dev, dev->irq_savedstate);
-	ieee80211_start_queues(dev->wl->hw);
 
 	/* Start maintenance work */
 	b43legacy_periodic_tasks_setup(dev);

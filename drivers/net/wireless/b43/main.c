@@ -3497,7 +3497,6 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	/* Start data flow (TX/RX). */
 	b43_mac_enable(dev);
 	b43_interrupt_enable(dev, dev->irq_savedstate);
-	ieee80211_start_queues(dev->wl->hw);
 
 	/* Start maintainance work */
 	b43_periodic_tasks_setup(dev);
