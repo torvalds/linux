@@ -1368,18 +1368,18 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 	unsigned int rate;
 	u16 ctl;
 	int antenna;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(dev->wl->current_beacon);
 
 	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
 	len = min((size_t) dev->wl->current_beacon->len,
 		  0x200 - sizeof(struct b43_plcp_hdr6));
-	rate = ieee80211_get_tx_rate(dev->wl->hw, &dev->wl->beacon_txctl)->hw_value;
+	rate = ieee80211_get_tx_rate(dev->wl->hw, info)->hw_value;
 
 	b43_write_template_common(dev, (const u8 *)bcn,
 				  len, ram_offset, shm_size_offset, rate);
 
 	/* Write the PHY TX control parameters. */
-	antenna = b43_antenna_from_ieee80211(dev,
-			dev->wl->beacon_txctl.antenna_sel_tx);
+	antenna = b43_antenna_from_ieee80211(dev, info->antenna_sel_tx);
 	antenna = b43_antenna_to_phyctl(antenna);
 	ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
 	/* We can't send beacons with short preamble. Would get PHY errors. */
@@ -1613,8 +1613,7 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 
 /* Asynchronously update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
-static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon,
-				 const struct ieee80211_tx_control *txctl)
+static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
 {
 	/* This is the top half of the ansynchronous beacon update.
 	 * The bottom half is the beacon IRQ.
@@ -1625,7 +1624,6 @@ static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon,
 	if (wl->current_beacon)
 		dev_kfree_skb_any(wl->current_beacon);
 	wl->current_beacon = beacon;
-	memcpy(&wl->beacon_txctl, txctl, sizeof(wl->beacon_txctl));
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
 	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
@@ -2813,8 +2811,7 @@ static int b43_rng_init(struct b43_wl *wl)
 }
 
 static int b43_op_tx(struct ieee80211_hw *hw,
-		     struct sk_buff *skb,
-		     struct ieee80211_tx_control *ctl)
+		     struct sk_buff *skb)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
@@ -2836,9 +2833,9 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	err = -ENODEV;
 	if (likely(b43_status(dev) >= B43_STAT_STARTED)) {
 		if (b43_using_pio_transfers(dev))
-			err = b43_pio_tx(dev, skb, ctl);
+			err = b43_pio_tx(dev, skb);
 		else
-			err = b43_dma_tx(dev, skb, ctl);
+			err = b43_dma_tx(dev, skb);
 	}
 
 	read_unlock_irqrestore(&wl->tx_lock, flags);
@@ -3429,10 +3426,8 @@ static int b43_op_config_interface(struct ieee80211_hw *hw,
 		if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP)) {
 			B43_WARN_ON(conf->type != IEEE80211_IF_TYPE_AP);
 			b43_set_ssid(dev, conf->ssid, conf->ssid_len);
-			if (conf->beacon) {
-				b43_update_templates(wl, conf->beacon,
-						     conf->beacon_control);
-			}
+			if (conf->beacon)
+				b43_update_templates(wl, conf->beacon);
 		}
 		b43_write_mac_bssid_templates(dev);
 	}
@@ -4118,31 +4113,29 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct sk_buff *beacon;
 	unsigned long flags;
-	struct ieee80211_tx_control txctl;
 
 	/* We could modify the existing beacon and set the aid bit in
 	 * the TIM field, but that would probably require resizing and
 	 * moving of data within the beacon template.
 	 * Simply request a new beacon and let mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(hw, wl->vif, &txctl);
+	beacon = ieee80211_beacon_get(hw, wl->vif);
 	if (unlikely(!beacon))
 		return -ENOMEM;
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon, &txctl);
+	b43_update_templates(wl, beacon);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
 }
 
 static int b43_op_ibss_beacon_update(struct ieee80211_hw *hw,
-				     struct sk_buff *beacon,
-				     struct ieee80211_tx_control *ctl)
+				     struct sk_buff *beacon)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon, ctl);
+	b43_update_templates(wl, beacon);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;

@@ -152,7 +152,6 @@ struct pda_pa_curve_data {
 struct memrecord {
 	u32 start_addr;
 	u32 end_addr;
-	struct ieee80211_tx_control *control;
 };
 
 struct p54_eeprom_lm86 {

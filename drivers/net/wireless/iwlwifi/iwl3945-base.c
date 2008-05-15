@@ -2376,13 +2376,13 @@ static int iwl3945_set_mode(struct iwl3945_priv *priv, int mode)
 }
 
 static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
-				      struct ieee80211_tx_control *ctl,
+				      struct ieee80211_tx_info *info,
 				      struct iwl3945_cmd *cmd,
 				      struct sk_buff *skb_frag,
 				      int last_frag)
 {
 	struct iwl3945_hw_key *keyinfo =
-	    &priv->stations[ctl->hw_key->hw_key_idx].keyinfo;
+	    &priv->stations[info->control.hw_key->hw_key_idx].keyinfo;
 
 	switch (keyinfo->alg) {
 	case ALG_CCMP:
@@ -2405,7 +2405,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
 
 	case ALG_WEP:
 		cmd->cmd.tx.sec_ctl = TX_CMD_SEC_WEP |
-		    (ctl->hw_key->hw_key_idx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT;
+		    (info->control.hw_key->hw_key_idx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT;
 
 		if (keyinfo->keylen == 13)
 			cmd->cmd.tx.sec_ctl |= TX_CMD_SEC_KEY128;
@@ -2413,7 +2413,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
 		memcpy(&cmd->cmd.tx.key[3], keyinfo->key, keyinfo->keylen);
 
 		IWL_DEBUG_TX("Configuring packet for WEP encryption "
-			     "with key %d\n", ctl->hw_key->hw_key_idx);
+			     "with key %d\n", info->control.hw_key->hw_key_idx);
 		break;
 
 	default:
@@ -2427,7 +2427,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
  */
 static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 				  struct iwl3945_cmd *cmd,
-				  struct ieee80211_tx_control *ctrl,
+				  struct ieee80211_tx_info *info,
 				  struct ieee80211_hdr *hdr,
 				  int is_unicast, u8 std_id)
 {
@@ -2435,7 +2435,7 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 	__le32 tx_flags = cmd->cmd.tx.tx_flags;
 
 	cmd->cmd.tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
-	if (!(ctrl->flags & IEEE80211_TXCTL_NO_ACK)) {
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		tx_flags |= TX_CMD_FLG_ACK_MSK;
 		if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT)
 			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
@@ -2459,10 +2459,10 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	if (ctrl->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
+	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
 		tx_flags |= TX_CMD_FLG_RTS_MSK;
 		tx_flags &= ~TX_CMD_FLG_CTS_MSK;
-	} else if (ctrl->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
 		tx_flags &= ~TX_CMD_FLG_RTS_MSK;
 		tx_flags |= TX_CMD_FLG_CTS_MSK;
 	}
@@ -2546,13 +2546,13 @@ static int iwl3945_get_sta_id(struct iwl3945_priv *priv, struct ieee80211_hdr *h
 /*
  * start REPLY_TX command process
  */
-static int iwl3945_tx_skb(struct iwl3945_priv *priv,
-		      struct sk_buff *skb, struct ieee80211_tx_control *ctl)
+static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl3945_tfd_frame *tfd;
 	u32 *control_flags;
-	int txq_id = ctl->queue;
+	int txq_id = info->queue;
 	struct iwl3945_tx_queue *txq = NULL;
 	struct iwl3945_queue *q = NULL;
 	dma_addr_t phys_addr;
@@ -2581,7 +2581,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 		goto drop_unlock;
 	}
 
-	if ((ieee80211_get_tx_rate(priv->hw, ctl)->hw_value & 0xFF) == IWL_INVALID_RATE) {
+	if ((ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xFF) == IWL_INVALID_RATE) {
 		IWL_ERROR("ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
@@ -2650,8 +2650,6 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl3945_tx_info));
 	txq->txb[q->write_ptr].skb[0] = skb;
-	memcpy(&(txq->txb[q->write_ptr].status.control),
-	       ctl, sizeof(struct ieee80211_tx_control));
 
 	/* Init first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = &txq->cmd[idx];
@@ -2700,8 +2698,8 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 	 * first entry */
 	iwl3945_hw_txq_attach_buf_to_tfd(priv, tfd, txcmd_phys, len);
 
-	if (!(ctl->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT))
-		iwl3945_build_tx_cmd_hwcrypto(priv, ctl, out_cmd, skb, 0);
+	if (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT))
+		iwl3945_build_tx_cmd_hwcrypto(priv, info, out_cmd, skb, 0);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -2726,10 +2724,10 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 	out_cmd->cmd.tx.len = cpu_to_le16(len);
 
 	/* TODO need this for burst mode later on */
-	iwl3945_build_tx_cmd_basic(priv, out_cmd, ctl, hdr, unicast, sta_id);
+	iwl3945_build_tx_cmd_basic(priv, out_cmd, info, hdr, unicast, sta_id);
 
 	/* set is_hcca to 0; it probably will never be implemented */
-	iwl3945_hw_build_tx_cmd_rate(priv, out_cmd, ctl, hdr, sta_id, 0);
+	iwl3945_hw_build_tx_cmd_rate(priv, out_cmd, info, hdr, sta_id, 0);
 
 	out_cmd->cmd.tx.tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	out_cmd->cmd.tx.tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
@@ -2767,7 +2765,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 
-		ieee80211_stop_queue(priv->hw, ctl->queue);
+		ieee80211_stop_queue(priv->hw, info->queue);
 	}
 
 	return 0;
@@ -3230,7 +3228,7 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 	struct sk_buff *beacon;
 
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
-	beacon = ieee80211_beacon_get(priv->hw, priv->vif, NULL);
+	beacon = ieee80211_beacon_get(priv->hw, priv->vif);
 
 	if (!beacon) {
 		IWL_ERROR("update beacon failed\n");
@@ -6681,8 +6679,7 @@ static void iwl3945_mac_stop(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211("leave\n");
 }
 
-static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		      struct ieee80211_tx_control *ctl)
+static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct iwl3945_priv *priv = hw->priv;
 
@@ -6694,9 +6691,9 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ieee80211_get_tx_rate(hw, ctl)->bitrate);
+		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
-	if (iwl3945_tx_skb(priv, skb, ctl))
+	if (iwl3945_tx_skb(priv, skb))
 		dev_kfree_skb_any(skb);
 
 	IWL_DEBUG_MAC80211("leave\n");
@@ -7333,8 +7330,7 @@ static void iwl3945_mac_reset_tsf(struct ieee80211_hw *hw)
 
 }
 
-static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
-				 struct ieee80211_tx_control *control)
+static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct iwl3945_priv *priv = hw->priv;
 	unsigned long flags;

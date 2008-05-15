@@ -443,7 +443,6 @@ struct adm8211_rx_ring_info {
 struct adm8211_tx_ring_info {
 	struct sk_buff *skb;
 	dma_addr_t mapping;
-	struct ieee80211_tx_control tx_control;
 	size_t hdrlen;
 };
 

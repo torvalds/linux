@@ -105,8 +105,8 @@ enum skb_frame_desc_flags {
 /**
  * struct skb_frame_desc: Descriptor information for the skb buffer
  *
- * This structure is placed over the skb->cb array, this means that
- * this structure should not exceed the size of that array (48 bytes).
+ * This structure is placed over the driver_data array, this means that
+ * this structure should not exceed the size of that array (40 bytes).
  *
  * @flags: Frame flags, see &enum skb_frame_desc_flags.
  * @data: Pointer to data part of frame (Start of ieee80211 header).
@@ -129,10 +129,15 @@ struct skb_frame_desc {
 	struct queue_entry *entry;
 };
 
+/**
+ * get_skb_frame_desc - Obtain the rt2x00 frame descriptor from a sk_buff.
+ * @skb: &struct sk_buff from where we obtain the &struct skb_frame_desc
+ */
 static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct skb_frame_desc) > sizeof(skb->cb));
-	return (struct skb_frame_desc *)&skb->cb[0];
+	BUILD_BUG_ON(sizeof(struct skb_frame_desc) >
+		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
+	return (struct skb_frame_desc *)&IEEE80211_SKB_CB(skb)->driver_data;
 }
 
 /**
@@ -189,12 +194,10 @@ enum txdone_entry_desc_flags {
  * Summary of information that has been read from the TX frame descriptor
  * after the device is done with transmission.
  *
- * @control: Control structure which was used to transmit the frame.
  * @flags: TX done flags (See &enum txdone_entry_desc_flags).
  * @retry: Retry count.
  */
 struct txdone_entry_desc {
-	struct ieee80211_tx_control *control;
 	unsigned long flags;
 	int retry;
 };

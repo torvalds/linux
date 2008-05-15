@@ -34,8 +34,7 @@ struct rate_control_ops {
 	struct module *module;
 	const char *name;
 	void (*tx_status)(void *priv, struct net_device *dev,
-			  struct sk_buff *skb,
-			  struct ieee80211_tx_status *status);
+			  struct sk_buff *skb);
 	void (*get_rate)(void *priv, struct net_device *dev,
 			 struct ieee80211_supported_band *band,
 			 struct sk_buff *skb,
@@ -77,13 +76,12 @@ struct rate_control_ref *rate_control_get(struct rate_control_ref *ref);
 void rate_control_put(struct rate_control_ref *ref);
 
 static inline void rate_control_tx_status(struct net_device *dev,
-					  struct sk_buff *skb,
-					  struct ieee80211_tx_status *status)
+					  struct sk_buff *skb)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct rate_control_ref *ref = local->rate_ctrl;
 
-	ref->ops->tx_status(ref->priv, dev, skb, status);
+	ref->ops->tx_status(ref->priv, dev, skb);
 }
 
 

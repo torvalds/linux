@@ -2,6 +2,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
+ * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -147,7 +148,6 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 #define IEEE80211_TX_UNICAST		BIT(1)
 #define IEEE80211_TX_PS_BUFFERED	BIT(2)
 #define IEEE80211_TX_PROBE_LAST_FRAG	BIT(3)
-#define IEEE80211_TX_INJECTED		BIT(4)
 
 struct ieee80211_tx_data {
 	struct sk_buff *skb;
@@ -157,7 +157,6 @@ struct ieee80211_tx_data {
 	struct sta_info *sta;
 	struct ieee80211_key *key;
 
-	struct ieee80211_tx_control *control;
 	struct ieee80211_channel *channel;
 	s8 rate_idx;
 	/* use this rate (if set) for last fragment; rate can
@@ -207,22 +206,7 @@ struct ieee80211_rx_data {
 	u16 tkip_iv16;
 };
 
-/* flags used in struct ieee80211_tx_packet_data.flags */
-#define IEEE80211_TXPD_REQ_TX_STATUS	BIT(0)
-#define IEEE80211_TXPD_DO_NOT_ENCRYPT	BIT(1)
-#define IEEE80211_TXPD_REQUEUE		BIT(2)
-#define IEEE80211_TXPD_EAPOL_FRAME	BIT(3)
-#define IEEE80211_TXPD_AMPDU		BIT(4)
-/* Stored in sk_buff->cb */
-struct ieee80211_tx_packet_data {
-	int ifindex;
-	unsigned long jiffies;
-	unsigned int flags;
-	u8 queue;
-};
-
 struct ieee80211_tx_stored_packet {
-	struct ieee80211_tx_control control;
 	struct sk_buff *skb;
 	struct sk_buff **extra_frag;
 	s8 last_frag_rate_idx;

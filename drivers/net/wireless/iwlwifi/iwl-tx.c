@@ -502,7 +502,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
  */
 static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 				  struct iwl_tx_cmd *tx_cmd,
-				  struct ieee80211_tx_control *ctrl,
+				  struct ieee80211_tx_info *info,
 				  struct ieee80211_hdr *hdr,
 				  int is_unicast, u8 std_id)
 {
@@ -510,7 +510,7 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 	__le32 tx_flags = tx_cmd->tx_flags;
 
 	tx_cmd->stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
-	if (!(ctrl->flags & IEEE80211_TXCTL_NO_ACK)) {
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		tx_flags |= TX_CMD_FLG_ACK_MSK;
 		if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT)
 			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
@@ -538,10 +538,10 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	if (ctrl->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
+	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
 		tx_flags |= TX_CMD_FLG_RTS_MSK;
 		tx_flags &= ~TX_CMD_FLG_CTS_MSK;
-	} else if (ctrl->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
 		tx_flags &= ~TX_CMD_FLG_RTS_MSK;
 		tx_flags |= TX_CMD_FLG_CTS_MSK;
 	}
@@ -570,7 +570,7 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 
 static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 			      struct iwl_tx_cmd *tx_cmd,
-			      struct ieee80211_tx_control *ctrl,
+			      struct ieee80211_tx_info *info,
 			      u16 fc, int sta_id,
 			      int is_hcca)
 {
@@ -580,7 +580,7 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 	u16 rate_flags = 0;
 	int rate_idx;
 
-	rate_idx = min(ieee80211_get_tx_rate(priv->hw, ctrl)->hw_value & 0xffff,
+	rate_idx = min(ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xffff,
 			IWL_RATE_COUNT - 1);
 
 	rate_plcp = iwl_rates[rate_idx].plcp;
@@ -637,18 +637,18 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 }
 
 static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
-				      struct ieee80211_tx_control *ctl,
+				      struct ieee80211_tx_info *info,
 				      struct iwl_tx_cmd *tx_cmd,
 				      struct sk_buff *skb_frag,
 				      int sta_id)
 {
-	struct ieee80211_key_conf *keyconf = ctl->hw_key;
+	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
 	switch (keyconf->alg) {
 	case ALG_CCMP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
 		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
-		if (ctl->flags & IEEE80211_TXCTL_AMPDU)
+		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			tx_cmd->tx_flags |= TX_CMD_FLG_AGG_CCMP_MSK;
 		IWL_DEBUG_TX("tx_cmd with aes hwcrypto\n");
 		break;
@@ -690,13 +690,13 @@ static void iwl_update_tx_stats(struct iwl_priv *priv, u16 fc, u16 len)
 /*
  * start REPLY_TX command process
  */
-int iwl_tx_skb(struct iwl_priv *priv,
-		struct sk_buff *skb, struct ieee80211_tx_control *ctl)
+int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_tfd_frame *tfd;
 	u32 *control_flags;
-	int txq_id = ctl->queue;
+	int txq_id = info->queue;
 	struct iwl_tx_queue *txq = NULL;
 	struct iwl_queue *q = NULL;
 	dma_addr_t phys_addr;
@@ -726,7 +726,7 @@ int iwl_tx_skb(struct iwl_priv *priv,
 		goto drop_unlock;
 	}
 
-	if ((ieee80211_get_tx_rate(priv->hw, ctl)->hw_value & 0xFF) ==
+	if ((ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xFF) ==
 	     IWL_INVALID_RATE) {
 		IWL_ERROR("ERROR: No TX rate available.\n");
 		goto drop_unlock;
@@ -782,7 +782,7 @@ int iwl_tx_skb(struct iwl_priv *priv,
 		seq_number += 0x10;
 #ifdef CONFIG_IWL4965_HT
 		/* aggregation is on for this <sta,tid> */
-		if (ctl->flags & IEEE80211_TXCTL_AMPDU)
+		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
 		priv->stations[sta_id].tid[tid].tfds_in_queue++;
 #endif /* CONFIG_IWL4965_HT */
@@ -803,8 +803,6 @@ int iwl_tx_skb(struct iwl_priv *priv,
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
 	txq->txb[q->write_ptr].skb[0] = skb;
-	memcpy(&(txq->txb[q->write_ptr].status.control),
-	       ctl, sizeof(struct ieee80211_tx_control));
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = &txq->cmd[idx];
@@ -854,8 +852,8 @@ int iwl_tx_skb(struct iwl_priv *priv,
 	 * first entry */
 	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, txcmd_phys, len);
 
-	if (!(ctl->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT))
-		iwl_tx_cmd_build_hwcrypto(priv, ctl, tx_cmd, skb, sta_id);
+	if (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT))
+		iwl_tx_cmd_build_hwcrypto(priv, info, tx_cmd, skb, sta_id);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -874,10 +872,10 @@ int iwl_tx_skb(struct iwl_priv *priv,
 	len = (u16)skb->len;
 	tx_cmd->len = cpu_to_le16(len);
 	/* TODO need this for burst mode later on */
-	iwl_tx_cmd_build_basic(priv, tx_cmd, ctl, hdr, unicast, sta_id);
+	iwl_tx_cmd_build_basic(priv, tx_cmd, info, hdr, unicast, sta_id);
 
 	/* set is_hcca to 0; it probably will never be implemented */
-	iwl_tx_cmd_build_rate(priv, tx_cmd, ctl, fc, sta_id, 0);
+	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, sta_id, 0);
 
 	iwl_update_tx_stats(priv, fc, len);
 
@@ -919,7 +917,7 @@ int iwl_tx_skb(struct iwl_priv *priv,
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 
-		ieee80211_stop_queue(priv->hw, ctl->queue);
+		ieee80211_stop_queue(priv->hw, info->queue);
 	}
 
 	return 0;

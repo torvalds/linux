@@ -1606,17 +1606,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 static void iwl4965_txstatus_to_ieee(struct iwl_priv *priv,
 				     struct iwl_tx_info *tx_sta)
 {
-
-	tx_sta->status.ack_signal = 0;
-	tx_sta->status.excessive_retries = 0;
-
-	if (in_interrupt())
-		ieee80211_tx_status_irqsafe(priv->hw,
-					    tx_sta->skb[0], &(tx_sta->status));
-	else
-		ieee80211_tx_status(priv->hw,
-				    tx_sta->skb[0], &(tx_sta->status));
-
+	ieee80211_tx_status_irqsafe(priv->hw, tx_sta->skb[0]);
 	tx_sta->skb[0] = NULL;
 }
 
@@ -1710,7 +1700,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 {
 	u16 status;
 	struct agg_tx_status *frame_status = &tx_resp->status;
-	struct ieee80211_tx_status *tx_status = NULL;
+	struct ieee80211_tx_info *info = NULL;
 	struct ieee80211_hdr *hdr = NULL;
 	int i, sh;
 	int txq_id, idx;
@@ -1736,14 +1726,14 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		IWL_DEBUG_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
-		tx_status = &(priv->txq[txq_id].txb[idx].status);
-		tx_status->retry_count = tx_resp->failure_frame;
-		tx_status->control.flags &= ~IEEE80211_TXCTL_AMPDU;
-		tx_status->flags = iwl4965_is_tx_success(status)?
-			IEEE80211_TX_STATUS_ACK : 0;
+		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
+		info->status.retry_count = tx_resp->failure_frame;
+		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
+		info->flags |= iwl4965_is_tx_success(status)?
+			IEEE80211_TX_STAT_ACK : 0;
 		iwl4965_hwrate_to_tx_control(priv,
 					     le32_to_cpu(tx_resp->rate_n_flags),
-					     &tx_status->control);
+					     info);
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
@@ -1830,7 +1820,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct ieee80211_tx_status *tx_status;
+	struct ieee80211_tx_info *info;
 	struct iwl4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->status);
 #ifdef CONFIG_IWL4965_HT
@@ -1847,6 +1837,9 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			  txq->q.read_ptr);
 		return;
 	}
+
+	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb[0]);
+	memset(&info->status, 0, sizeof(info->status));
 
 #ifdef CONFIG_IWL4965_HT
 	hdr = iwl4965_tx_queue_get_hdr(priv, txq_id, index);
@@ -1902,13 +1895,12 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		}
 	} else {
 #endif /* CONFIG_IWL4965_HT */
-	tx_status = &(txq->txb[txq->q.read_ptr].status);
 
-	tx_status->retry_count = tx_resp->failure_frame;
-	tx_status->flags =
-	    iwl4965_is_tx_success(status) ? IEEE80211_TX_STATUS_ACK : 0;
+	info->status.retry_count = tx_resp->failure_frame;
+	info->flags |=
+	    iwl4965_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
 	iwl4965_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
-				     &tx_status->control);
+				     info);
 
 	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) rate_n_flags 0x%x "
 		     "retries %d\n", txq_id, iwl4965_get_tx_fail_reason(status),
@@ -2053,7 +2045,7 @@ static void iwl4965_bg_beacon_update(struct work_struct *work)
 	struct sk_buff *beacon;
 
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
-	beacon = ieee80211_beacon_get(priv->hw, priv->vif, NULL);
+	beacon = ieee80211_beacon_get(priv->hw, priv->vif);
 
 	if (!beacon) {
 		IWL_ERROR("update beacon failed\n");
@@ -4268,8 +4260,7 @@ static void iwl4965_mac_stop(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211("leave\n");
 }
 
-static int iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		      struct ieee80211_tx_control *ctl)
+static int iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -4281,9 +4272,9 @@ static int iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ieee80211_get_tx_rate(hw, ctl)->bitrate);
+		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
-	if (iwl_tx_skb(priv, skb, ctl))
+	if (iwl_tx_skb(priv, skb))
 		dev_kfree_skb_any(skb);
 
 	IWL_DEBUG_MAC80211("leave\n");
@@ -5065,8 +5056,7 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211("leave\n");
 }
 
-static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
-				 struct ieee80211_tx_control *control)
+static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct iwl_priv *priv = hw->priv;
 	unsigned long flags;

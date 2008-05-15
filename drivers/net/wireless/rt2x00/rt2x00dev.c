@@ -415,7 +415,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct sk_buff *skb;
-	struct ieee80211_tx_control control;
 	struct ieee80211_bss_conf conf;
 	int delayed_flags;
 
@@ -433,9 +432,9 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	spin_unlock(&intf->lock);
 
 	if (delayed_flags & DELAYED_UPDATE_BEACON) {
-		skb = ieee80211_beacon_get(rt2x00dev->hw, vif, &control);
-		if (skb && rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw,
-							     skb, &control))
+		skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
+		if (skb &&
+		    rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, skb))
 			dev_kfree_skb(skb);
 	}
 
@@ -494,8 +493,13 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc;
-	struct ieee80211_tx_status tx_status;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+
+	/*
+	 * Send frame to debugfs immediately, after this call is completed
+	 * we are going to overwrite the skb->cb array.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
 
 	/*
 	 * Update TX statistics.
@@ -508,21 +512,20 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * Initialize TX status
 	 */
-	tx_status.flags = 0;
-	tx_status.ack_signal = 0;
-	tx_status.excessive_retries =
+	memset(&tx_info->status, 0, sizeof(tx_info->status));
+	tx_info->status.ack_signal = 0;
+	tx_info->status.excessive_retries =
 	    test_bit(TXDONE_EXCESSIVE_RETRY, &txdesc->flags);
-	tx_status.retry_count = txdesc->retry;
-	memcpy(&tx_status.control, txdesc->control, sizeof(*txdesc->control));
+	tx_info->status.retry_count = txdesc->retry;
 
-	if (!(tx_status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
+	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		if (test_bit(TXDONE_SUCCESS, &txdesc->flags))
-			tx_status.flags |= IEEE80211_TX_STATUS_ACK;
+			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
 	}
 
-	if (tx_status.control.flags & IEEE80211_TXCTL_USE_RTS_CTS) {
+	if (tx_info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
 		if (test_bit(TXDONE_SUCCESS, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
 		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
@@ -530,19 +533,13 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	}
 
 	/*
-	 * Send the tx_status to debugfs. Only send the status report
-	 * to mac80211 when the frame originated from there. If this was
-	 * a extra frame coming through a mac80211 library call (RTS/CTS)
-	 * then we should not send the status report back.
-	 * If send to mac80211, mac80211 will clean up the skb structure,
-	 * otherwise we have to do it ourself.
+	 * Only send the status report to mac80211 when TX status was
+	 * requested by it. If this was a extra frame coming through
+	 * a mac80211 library call (RTS/CTS) then we should not send the
+	 * status report back.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
-
-	skbdesc = get_skb_frame_desc(entry->skb);
-	if (!(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))
-		ieee80211_tx_status_irqsafe(rt2x00dev->hw,
-					    entry->skb, &tx_status);
+	if (tx_info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)
+		ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
 	else
 		dev_kfree_skb_irq(entry->skb);
 	entry->skb = NULL;

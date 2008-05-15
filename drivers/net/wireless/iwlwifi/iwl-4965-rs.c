@@ -785,8 +785,7 @@ out:
  * mac80211 sends us Tx status
  */
 static void rs_tx_status(void *priv_rate, struct net_device *dev,
-			 struct sk_buff *skb,
-			 struct ieee80211_tx_status *tx_resp)
+			 struct sk_buff *skb)
 {
 	int status;
 	u8 retries;
@@ -798,6 +797,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hw *hw = local_to_hw(local);
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl4965_rate_scale_data *window = NULL;
 	struct iwl4965_rate_scale_data *search_win = NULL;
 	u32 tx_rate;
@@ -813,11 +813,11 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 		return;
 
 	/* This packet was aggregated but doesn't carry rate scale info */
-	if ((tx_resp->control.flags & IEEE80211_TXCTL_AMPDU) &&
-	    !(tx_resp->flags & IEEE80211_TX_STATUS_AMPDU))
+	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
+	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	retries = tx_resp->retry_count;
+	retries = info->status.retry_count;
 
 	if (retries > 15)
 		retries = 15;
@@ -862,20 +862,20 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	if (priv->band == IEEE80211_BAND_5GHZ)
 		rs_index -= IWL_FIRST_OFDM_RATE;
 
-	if ((tx_resp->control.tx_rate_idx < 0) ||
+	if ((info->tx_rate_idx < 0) ||
 	    (tbl_type.is_SGI ^
-		!!(tx_resp->control.flags & IEEE80211_TXCTL_SHORT_GI)) ||
+		!!(info->flags & IEEE80211_TX_CTL_SHORT_GI)) ||
 	    (tbl_type.is_fat ^
-		!!(tx_resp->control.flags & IEEE80211_TXCTL_40_MHZ_WIDTH)) ||
+		!!(info->flags & IEEE80211_TX_CTL_40_MHZ_WIDTH)) ||
 	    (tbl_type.is_dup ^
-		!!(tx_resp->control.flags & IEEE80211_TXCTL_DUP_DATA)) ||
-	    (tbl_type.ant_type ^ tx_resp->control.antenna_sel_tx) ||
+		!!(info->flags & IEEE80211_TX_CTL_DUP_DATA)) ||
+	    (tbl_type.ant_type ^ info->antenna_sel_tx) ||
 	    (!!(tx_rate & RATE_MCS_HT_MSK) ^
-		!!(tx_resp->control.flags & IEEE80211_TXCTL_OFDM_HT)) ||
+		!!(info->flags & IEEE80211_TX_CTL_OFDM_HT)) ||
 	    (!!(tx_rate & RATE_MCS_GF_MSK) ^
-		!!(tx_resp->control.flags & IEEE80211_TXCTL_GREEN_FIELD)) ||
+		!!(info->flags & IEEE80211_TX_CTL_GREEN_FIELD)) ||
 	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
-	     hw->wiphy->bands[tx_resp->control.band]->bitrates[tx_resp->control.tx_rate_idx].bitrate)) {
+	     hw->wiphy->bands[info->band]->bitrates[info->tx_rate_idx].bitrate)) {
 		IWL_DEBUG_RATE("initial rate does not match 0x%x\n", tx_rate);
 		goto out;
 	}
@@ -929,10 +929,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type, &rs_index);
 
 	/* Update frame history window with "success" if Tx got ACKed ... */
-	if (tx_resp->flags & IEEE80211_TX_STATUS_ACK)
-		status = 1;
-	else
-		status = 0;
+	status = !!(info->flags & IEEE80211_TX_STAT_ACK);
 
 	/* If type matches "search" table,
 	 * add final tx status to "search" history */
@@ -943,10 +940,10 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 			tpt = search_tbl->expected_tpt[rs_index];
 		else
 			tpt = 0;
-		if (tx_resp->control.flags & IEEE80211_TXCTL_AMPDU)
+		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			rs_collect_tx_data(search_win, rs_index, tpt,
-					   tx_resp->ampdu_ack_len,
-					   tx_resp->ampdu_ack_map);
+					   info->status.ampdu_ack_len,
+					   info->status.ampdu_ack_map);
 		else
 			rs_collect_tx_data(search_win, rs_index, tpt,
 					   1, status);
@@ -959,10 +956,10 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 			tpt = curr_tbl->expected_tpt[rs_index];
 		else
 			tpt = 0;
-		if (tx_resp->control.flags & IEEE80211_TXCTL_AMPDU)
+		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			rs_collect_tx_data(window, rs_index, tpt,
-					   tx_resp->ampdu_ack_len,
-					   tx_resp->ampdu_ack_map);
+					   info->status.ampdu_ack_len,
+					   info->status.ampdu_ack_map);
 		else
 			rs_collect_tx_data(window, rs_index, tpt,
 					   1, status);
@@ -971,10 +968,10 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	/* If not searching for new mode, increment success/failed counter
 	 * ... these help determine when to start searching again */
 	if (lq_sta->stay_in_tbl) {
-		if (tx_resp->control.flags & IEEE80211_TXCTL_AMPDU) {
-			lq_sta->total_success += tx_resp->ampdu_ack_map;
+		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+			lq_sta->total_success += info->status.ampdu_ack_map;
 			lq_sta->total_failed +=
-			     (tx_resp->ampdu_ack_len - tx_resp->ampdu_ack_map);
+			     (info->status.ampdu_ack_len - info->status.ampdu_ack_map);
 		} else {
 			if (status)
 				lq_sta->total_success++;

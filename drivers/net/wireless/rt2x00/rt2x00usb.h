@@ -216,19 +216,15 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
  * TX data handlers.
  */
 int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_queue *queue, struct sk_buff *skb,
-			    struct ieee80211_tx_control *control);
+			    struct data_queue *queue, struct sk_buff *skb);
 
 /**
  * struct queue_entry_priv_usb: Per entry USB specific information
  *
  * @urb: Urb structure used for device communication.
- * @control: mac80211 control structure used to transmit data.
  */
 struct queue_entry_priv_usb {
 	struct urb *urb;
-
-	struct ieee80211_tx_control control;
 };
 
 /**
@@ -239,14 +235,11 @@ struct queue_entry_priv_usb {
  * with beacons.
  *
  * @urb: Urb structure used for device communication.
- * @control: mac80211 control structure used to transmit data.
  * @guardian_data: Set to 0, used for sending the guardian data.
  * @guardian_urb: Urb structure used to send the guardian data.
  */
 struct queue_entry_priv_usb_bcn {
 	struct urb *urb;
-
-	struct ieee80211_tx_control control;
 
 	unsigned int guardian_data;
 	struct urb *guardian_urb;

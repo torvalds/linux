@@ -30,13 +30,13 @@
 #include "rt2x00lib.h"
 
 void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
-				      struct txentry_desc *txdesc,
-				      struct ieee80211_tx_control *control)
+				      struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
 	struct ieee80211_rate *rate =
-	    ieee80211_get_tx_rate(rt2x00dev->hw, control);
+	    ieee80211_get_tx_rate(rt2x00dev->hw, tx_info);
 	const struct rt2x00_rate *hwrate;
 	unsigned int data_length;
 	unsigned int duration;
@@ -64,7 +64,7 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Check whether this frame is to be acked.
 	 */
-	if (!(control->flags & IEEE80211_TXCTL_NO_ACK))
+	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK))
 		__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
 
 	/*
@@ -72,23 +72,20 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 */
 	if (is_rts_frame(frame_control) || is_cts_frame(frame_control)) {
 		__set_bit(ENTRY_TXD_BURST, &txdesc->flags);
-		if (is_rts_frame(frame_control)) {
+		if (is_rts_frame(frame_control))
 			__set_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags);
-			__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
-		} else {
+		else
 			__set_bit(ENTRY_TXD_CTS_FRAME, &txdesc->flags);
-			__clear_bit(ENTRY_TXD_ACK, &txdesc->flags);
-		}
-		if (control->rts_cts_rate_idx >= 0)
+		if (tx_info->control.rts_cts_rate_idx >= 0)
 			rate =
-			    ieee80211_get_rts_cts_rate(rt2x00dev->hw, control);
+			    ieee80211_get_rts_cts_rate(rt2x00dev->hw, tx_info);
 	}
 
 	/*
 	 * Determine retry information.
 	 */
-	txdesc->retry_limit = control->retry_limit;
-	if (control->flags & IEEE80211_TXCTL_LONG_RETRY_LIMIT)
+	txdesc->retry_limit = tx_info->control.retry_limit;
+	if (tx_info->flags & IEEE80211_TX_CTL_LONG_RETRY_LIMIT)
 		__set_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags);
 
 	/*
@@ -113,7 +110,7 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 */
 	if (test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags)) {
 		txdesc->ifs = IFS_SIFS;
-	} else if (control->flags & IEEE80211_TXCTL_FIRST_FRAGMENT) {
+	} else if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) {
 		__set_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags);
 		txdesc->ifs = IFS_BACKOFF;
 	} else {
@@ -179,8 +176,10 @@ void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 
 	/*
 	 * We are done writing the frame to the queue entry,
-	 * if this entry is a RTS of CTS-to-self frame we are done,
-	 * otherwise we need to kick the queue.
+	 * also kick the queue in case the correct flags are set,
+	 * note that this will automatically filter beacons and
+	 * RTS/CTS frames since those frames don't have this flag
+	 * set.
 	 */
 	if (rt2x00dev->ops->lib->kick_tx_queue &&
 	    !(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))

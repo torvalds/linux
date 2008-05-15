@@ -869,7 +869,7 @@ static void tx_urb_complete(struct urb *urb)
 {
 	int r;
 	struct sk_buff *skb;
-	struct zd_tx_skb_control_block *cb;
+	struct ieee80211_tx_info *info;
 	struct zd_usb *usb;
 
 	switch (urb->status) {
@@ -893,8 +893,8 @@ free_urb:
 	 * grab 'usb' pointer before handing off the skb (since
 	 * it might be freed by zd_mac_tx_to_dev or mac80211)
 	 */
-	cb = (struct zd_tx_skb_control_block *)skb->cb;
-	usb = &zd_hw_mac(cb->hw)->chip.usb;
+	info = IEEE80211_SKB_CB(skb);
+	usb = &zd_hw_mac(info->driver_data[0])->chip.usb;
 	zd_mac_tx_to_dev(skb, urb->status);
 	free_tx_urb(usb, urb);
 	tx_dec_submitted_urbs(usb);

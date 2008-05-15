@@ -2358,8 +2358,7 @@ static int b43legacy_rng_init(struct b43legacy_wl *wl)
 }
 
 static int b43legacy_op_tx(struct ieee80211_hw *hw,
-			   struct sk_buff *skb,
-			   struct ieee80211_tx_control *ctl)
+			   struct sk_buff *skb)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
@@ -2373,10 +2372,10 @@ static int b43legacy_op_tx(struct ieee80211_hw *hw,
 	/* DMA-TX is done without a global lock. */
 	if (b43legacy_using_pio(dev)) {
 		spin_lock_irqsave(&wl->irq_lock, flags);
-		err = b43legacy_pio_tx(dev, skb, ctl);
+		err = b43legacy_pio_tx(dev, skb);
 		spin_unlock_irqrestore(&wl->irq_lock, flags);
 	} else
-		err = b43legacy_dma_tx(dev, skb, ctl);
+		err = b43legacy_dma_tx(dev, skb);
 out:
 	if (unlikely(err))
 		return NETDEV_TX_BUSY;
@@ -3409,7 +3408,7 @@ static int b43legacy_op_beacon_set_tim(struct ieee80211_hw *hw,
 	 * field, but that would probably require resizing and moving of data
 	 * within the beacon template. Simply request a new beacon and let
 	 * mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(hw, wl->vif, NULL);
+	beacon = ieee80211_beacon_get(hw, wl->vif);
 	if (unlikely(!beacon))
 		return -ENOMEM;
 	spin_lock_irqsave(&wl->irq_lock, flags);
@@ -3420,8 +3419,7 @@ static int b43legacy_op_beacon_set_tim(struct ieee80211_hw *hw,
 }
 
 static int b43legacy_op_ibss_beacon_update(struct ieee80211_hw *hw,
-					   struct sk_buff *beacon,
-					   struct ieee80211_tx_control *ctl)
+					   struct sk_buff *beacon)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	unsigned long flags;

@@ -183,14 +183,24 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 }
 
 
-static int tkip_encrypt_skb(struct ieee80211_tx_data *tx,
-			    struct sk_buff *skb, int test)
+static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int hdrlen, len, tailneed;
 	u16 fc;
 	u8 *pos;
+
+	info->control.icv_len = TKIP_ICV_LEN;
+	info->control.iv_len = TKIP_IV_LEN;
+
+	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+		/* hwaccel - with no need for preallocated room for IV/ICV */
+		info->control.hw_key = &tx->key->conf;
+		return TX_CONTINUE;
+	}
 
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
@@ -228,7 +238,7 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx,
 					    0x7f),
 				      (u8) key->u.tkip.tx.iv16);
 
-		tx->control->hw_key = &tx->key->conf;
+		info->control.hw_key = &tx->key->conf;
 		return 0;
 	}
 
@@ -246,28 +256,16 @@ ieee80211_tx_result
 ieee80211_crypto_tkip_encrypt(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
-	int wpa_test = 0, test = 0;
 
-	tx->control->icv_len = TKIP_ICV_LEN;
-	tx->control->iv_len = TKIP_IV_LEN;
 	ieee80211_tx_set_protected(tx);
 
-	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
-	    !wpa_test) {
-		/* hwaccel - with no need for preallocated room for IV/ICV */
-		tx->control->hw_key = &tx->key->conf;
-		return TX_CONTINUE;
-	}
-
-	if (tkip_encrypt_skb(tx, skb, test) < 0)
+	if (tkip_encrypt_skb(tx, skb) < 0)
 		return TX_DROP;
 
 	if (tx->extra_frag) {
 		int i;
 		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (tkip_encrypt_skb(tx, tx->extra_frag[i], test)
-			    < 0)
+			if (tkip_encrypt_skb(tx, tx->extra_frag[i]) < 0)
 				return TX_DROP;
 		}
 	}
@@ -429,15 +427,26 @@ static inline int ccmp_hdr2pn(u8 *pn, u8 *hdr)
 }
 
 
-static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx,
-			    struct sk_buff *skb, int test)
+static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int hdrlen, len, tailneed;
 	u16 fc;
 	u8 *pos, *pn, *b_0, *aad, *scratch;
 	int i;
+
+	info->control.icv_len = CCMP_MIC_LEN;
+	info->control.iv_len = CCMP_HDR_LEN;
+
+	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+		/* hwaccel - with no need for preallocated room for CCMP "
+		 * header or MIC fields */
+		info->control.hw_key = &tx->key->conf;
+		return TX_CONTINUE;
+	}
 
 	scratch = key->u.ccmp.tx_crypto_buf;
 	b_0 = scratch + 3 * AES_BLOCK_LEN;
@@ -478,7 +487,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx,
 
 	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 		/* hwaccel - with preallocated room for CCMP header */
-		tx->control->hw_key = &tx->key->conf;
+		info->control.hw_key = &tx->key->conf;
 		return 0;
 	}
 
@@ -495,28 +504,16 @@ ieee80211_tx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
-	int test = 0;
 
-	tx->control->icv_len = CCMP_MIC_LEN;
-	tx->control->iv_len = CCMP_HDR_LEN;
 	ieee80211_tx_set_protected(tx);
 
-	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
-		/* hwaccel - with no need for preallocated room for CCMP "
-		 * header or MIC fields */
-		tx->control->hw_key = &tx->key->conf;
-		return TX_CONTINUE;
-	}
-
-	if (ccmp_encrypt_skb(tx, skb, test) < 0)
+	if (ccmp_encrypt_skb(tx, skb) < 0)
 		return TX_DROP;
 
 	if (tx->extra_frag) {
 		int i;
 		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (ccmp_encrypt_skb(tx, tx->extra_frag[i], test)
-			    < 0)
+			if (ccmp_encrypt_skb(tx, tx->extra_frag[i]) < 0)
 				return TX_DROP;
 		}
 	}

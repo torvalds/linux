@@ -124,7 +124,6 @@ int iwl3945_x2_queue_used(const struct iwl3945_queue *q, int i);
 
 /* One for each TFD */
 struct iwl3945_tx_info {
-	struct ieee80211_tx_status status;
 	struct sk_buff *skb[MAX_NUM_OF_TBS];
 };
 
@@ -645,7 +644,7 @@ extern unsigned int iwl3945_hw_get_beacon_cmd(struct iwl3945_priv *priv,
 extern int iwl3945_hw_get_rx_read(struct iwl3945_priv *priv);
 extern void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 				     struct iwl3945_cmd *cmd,
-				     struct ieee80211_tx_control *ctrl,
+				     struct ieee80211_tx_info *info,
 				     struct ieee80211_hdr *hdr,
 				     int sta_id, int tx_id);
 extern int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv);

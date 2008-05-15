@@ -578,7 +578,7 @@ void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 		      int encrypt)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_tx_packet_data *pkt_data;
+	struct ieee80211_tx_info *info;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	skb->dev = sdata->local->mdev;
@@ -586,11 +586,11 @@ void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, 0);
 
-	pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
-	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
-	pkt_data->ifindex = sdata->dev->ifindex;
+	info = IEEE80211_SKB_CB(skb);
+	memset(info, 0, sizeof(struct ieee80211_tx_info));
+	info->control.ifindex = sdata->dev->ifindex;
 	if (!encrypt)
-		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
+		info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
 
 	dev_queue_xmit(skb);
 }
@@ -2314,7 +2314,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	int res, rates, i, j;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_tx_control control;
+	struct ieee80211_tx_info *control;
 	struct rate_selection ratesel;
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
@@ -2404,21 +2404,22 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			memcpy(pos, &bss->supp_rates[8], rates);
 		}
 
-		memset(&control, 0, sizeof(control));
+		control = IEEE80211_SKB_CB(skb);
+
 		rate_control_get_rate(dev, sband, skb, &ratesel);
 		if (ratesel.rate_idx < 0) {
 			printk(KERN_DEBUG "%s: Failed to determine TX rate "
 			       "for IBSS beacon\n", dev->name);
 			break;
 		}
-		control.vif = &sdata->vif;
-		control.tx_rate_idx = ratesel.rate_idx;
+		control->control.vif = &sdata->vif;
+		control->tx_rate_idx = ratesel.rate_idx;
 		if (sdata->bss_conf.use_short_preamble &&
 		    sband->bitrates[ratesel.rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE)
-			control.flags |= IEEE80211_TXCTL_SHORT_PREAMBLE;
-		control.antenna_sel_tx = local->hw.conf.antenna_sel_tx;
-		control.flags |= IEEE80211_TXCTL_NO_ACK;
-		control.retry_limit = 1;
+			control->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
+		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
+		control->flags |= IEEE80211_TX_CTL_NO_ACK;
+		control->control.retry_limit = 1;
 
 		ifsta->probe_resp = skb_copy(skb, GFP_ATOMIC);
 		if (ifsta->probe_resp) {
@@ -2433,8 +2434,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 		}
 
 		if (local->ops->beacon_update &&
-		    local->ops->beacon_update(local_to_hw(local),
-					     skb, &control) == 0) {
+		    local->ops->beacon_update(local_to_hw(local), skb) == 0) {
 			printk(KERN_DEBUG "%s: Configured IBSS beacon "
 			       "template\n", dev->name);
 			skb = NULL;

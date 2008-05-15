@@ -258,7 +258,7 @@ EXPORT_SYMBOL(ieee80211_generic_frame_duration);
 
 __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif, size_t frame_len,
-			      const struct ieee80211_tx_control *frame_txctl)
+			      const struct ieee80211_tx_info *frame_txctl)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
@@ -272,7 +272,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = &sband->bitrates[frame_txctl->rts_cts_rate_idx];
+	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 
 	erp = 0;
 	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
@@ -295,7 +295,7 @@ EXPORT_SYMBOL(ieee80211_rts_duration);
 __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    size_t frame_len,
-				    const struct ieee80211_tx_control *frame_txctl)
+				    const struct ieee80211_tx_info *frame_txctl)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
@@ -309,7 +309,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = &sband->bitrates[frame_txctl->rts_cts_rate_idx];
+	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 	erp = 0;
 	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
 		erp = rate->flags & IEEE80211_RATE_ERP_G;
@@ -317,7 +317,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	/* Data frame duration */
 	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate,
 				       erp, short_preamble);
-	if (!(frame_txctl->flags & IEEE80211_TXCTL_NO_ACK)) {
+	if (!(frame_txctl->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		/* ACK duration */
 		dur += ieee80211_frame_duration(local, 10, rate->bitrate,
 						erp, short_preamble);

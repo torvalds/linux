@@ -119,7 +119,6 @@ struct iwl_queue {
 
 /* One for each TFD */
 struct iwl_tx_info {
-	struct ieee80211_tx_status status;
 	struct sk_buff *skb[MAX_NUM_OF_TBS];
 };
 
@@ -693,7 +692,7 @@ extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl_frame *frame, u8 rate);
 extern void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 				     struct iwl_cmd *cmd,
-				     struct ieee80211_tx_control *ctrl,
+				     struct ieee80211_tx_info *info,
 				     struct ieee80211_hdr *hdr,
 				     int sta_id, int tx_id);
 extern int iwl4965_hw_reg_send_txpower(struct iwl_priv *priv);
@@ -749,7 +748,7 @@ extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
 extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 					 u32 rate_n_flags,
-					 struct ieee80211_tx_control *control);
+					 struct ieee80211_tx_info *info);
 
 #ifdef CONFIG_IWL4965_HT
 extern void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,

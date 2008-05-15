@@ -542,8 +542,7 @@ struct rt2x00lib_ops {
 			       struct sk_buff *skb,
 			       struct txentry_desc *txdesc);
 	int (*write_tx_data) (struct rt2x00_dev *rt2x00dev,
-			      struct data_queue *queue, struct sk_buff *skb,
-			      struct ieee80211_tx_control *control);
+			      struct data_queue *queue, struct sk_buff *skb);
 	int (*get_tx_data_len) (struct rt2x00_dev *rt2x00dev,
 				struct sk_buff *skb);
 	void (*kick_tx_queue) (struct rt2x00_dev *rt2x00dev,
@@ -930,7 +929,6 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
  * rt2x00queue_create_tx_descriptor - Create TX descriptor from mac80211 input
  * @entry: The entry which will be used to transfer the TX frame.
  * @txdesc: rt2x00 TX descriptor which will be initialized by this function.
- * @control: mac80211 TX control structure from where we read the information.
  *
  * This function will initialize the &struct txentry_desc based on information
  * from mac80211. This descriptor can then be used by rt2x00lib and the drivers
@@ -943,8 +941,7 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
  * the &struct txentry_desc structure.
  */
 void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
-				      struct txentry_desc *txdesc,
-				      struct ieee80211_tx_control *control);
+				      struct txentry_desc *txdesc);
 
 /**
  * rt2x00queue_write_tx_descriptor - Write TX descriptor to hardware
@@ -1001,8 +998,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 /*
  * mac80211 handlers.
  */
-int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		 struct ieee80211_tx_control *control);
+int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
 void rt2x00mac_stop(struct ieee80211_hw *hw);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,

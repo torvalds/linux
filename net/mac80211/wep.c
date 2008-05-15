@@ -333,11 +333,16 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 
 static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	info->control.iv_len = WEP_IV_LEN;
+	info->control.icv_len = WEP_ICV_LEN;
+
 	if (!(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
+		info->control.hw_key = &tx->key->conf;
 		if (ieee80211_wep_encrypt(tx->local, skb, tx->key))
 			return -1;
 	} else {
-		tx->control->hw_key = &tx->key->conf;
 		if (tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) {
 			if (!ieee80211_wep_add_iv(tx->local, skb, tx->key))
 				return -1;
@@ -349,8 +354,6 @@ static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 ieee80211_tx_result
 ieee80211_crypto_wep_encrypt(struct ieee80211_tx_data *tx)
 {
-	tx->control->iv_len = WEP_IV_LEN;
-	tx->control->icv_len = WEP_ICV_LEN;
 	ieee80211_tx_set_protected(tx);
 
 	if (wep_encrypt_skb(tx, tx->skb) < 0) {

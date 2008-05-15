@@ -207,8 +207,7 @@ void iwl_rx_allocate(struct iwl_priv *priv);
 * TX
 ******************************************************/
 int iwl_txq_ctx_reset(struct iwl_priv *priv);
-int iwl_tx_skb(struct iwl_priv *priv,
-		struct sk_buff *skb, struct ieee80211_tx_control *ctl);
+int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 /* FIXME: remove when free Tx is fully merged into iwlcore */
 int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 void iwl_hw_txq_ctx_free(struct iwl_priv *priv);

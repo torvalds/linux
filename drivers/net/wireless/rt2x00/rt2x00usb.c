@@ -129,9 +129,9 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 {
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	struct txdone_entry_desc txdesc;
 	__le32 *txd = (__le32 *)entry->skb->data;
+	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	u32 word;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
@@ -159,7 +159,6 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	else
 		__set_bit(TXDONE_FAILURE, &txdesc.flags);
 	txdesc.retry = 0;
-	txdesc.control = &entry_priv->control;
 
 	rt2x00lib_txdone(entry, &txdesc);
 
@@ -175,12 +174,11 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * is reenabled when the txdone handler has finished.
 	 */
 	if (!rt2x00queue_full(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, entry_priv->control.queue);
+		ieee80211_wake_queue(rt2x00dev->hw, qid);
 }
 
 int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_queue *queue, struct sk_buff *skb,
-			    struct ieee80211_tx_control *control)
+			    struct data_queue *queue, struct sk_buff *skb)
 {
 	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
@@ -206,7 +204,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * for our information.
 	 */
 	entry->skb = skb;
-	rt2x00queue_create_tx_descriptor(entry, &txdesc, control);
+	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -218,13 +216,13 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->data = skb->data + queue->desc_size;
 	skbdesc->data_len = skb->len - queue->desc_size;
 	skbdesc->desc = skb->data;
 	skbdesc->desc_len = queue->desc_size;
 	skbdesc->entry = entry;
 
-	memcpy(&entry_priv->control, control, sizeof(entry_priv->control));
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 
 	/*

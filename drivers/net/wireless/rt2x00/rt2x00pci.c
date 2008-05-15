@@ -35,8 +35,7 @@
  * TX data handlers.
  */
 int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_queue *queue, struct sk_buff *skb,
-			    struct ieee80211_tx_control *control)
+			    struct data_queue *queue, struct sk_buff *skb)
 {
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
@@ -64,19 +63,19 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * for our information.
 	 */
 	entry->skb = skb;
-	rt2x00queue_create_tx_descriptor(entry, &txdesc, control);
+	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
 	/*
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->data = skb->data;
 	skbdesc->data_len = skb->len;
 	skbdesc->desc = entry_priv->desc;
 	skbdesc->desc_len = queue->desc_size;
 	skbdesc->entry = entry;
 
-	memcpy(&entry_priv->control, control, sizeof(entry_priv->control));
 	memcpy(entry_priv->data, skb->data, skb->len);
 
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
@@ -164,9 +163,9 @@ void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	u32 word;
 
-	txdesc->control = &entry_priv->control;
 	rt2x00lib_txdone(entry, txdesc);
 
 	/*
@@ -187,7 +186,7 @@ void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
 	 * is reenabled when the txdone handler has finished.
 	 */
 	if (!rt2x00queue_full(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, entry_priv->control.queue);
+		ieee80211_wake_queue(rt2x00dev->hw, qid);
 
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_txdone);

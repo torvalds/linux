@@ -357,22 +357,22 @@ int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags)
  * translate ucode response to mac80211 tx status control values
  */
 void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
-				  struct ieee80211_tx_control *control)
+				  struct ieee80211_tx_info *control)
 {
 	int rate_index;
 
 	control->antenna_sel_tx =
 		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
 	if (rate_n_flags & RATE_MCS_HT_MSK)
-		control->flags |= IEEE80211_TXCTL_OFDM_HT;
+		control->flags |= IEEE80211_TX_CTL_OFDM_HT;
 	if (rate_n_flags & RATE_MCS_GF_MSK)
-		control->flags |= IEEE80211_TXCTL_GREEN_FIELD;
+		control->flags |= IEEE80211_TX_CTL_GREEN_FIELD;
 	if (rate_n_flags & RATE_MCS_FAT_MSK)
-		control->flags |= IEEE80211_TXCTL_40_MHZ_WIDTH;
+		control->flags |= IEEE80211_TX_CTL_40_MHZ_WIDTH;
 	if (rate_n_flags & RATE_MCS_DUP_MSK)
-		control->flags |= IEEE80211_TXCTL_DUP_DATA;
+		control->flags |= IEEE80211_TX_CTL_DUP_DATA;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
-		control->flags |= IEEE80211_TXCTL_SHORT_GI;
+		control->flags |= IEEE80211_TX_CTL_SHORT_GI;
 	rate_index = iwl4965_hwrate_to_plcp_idx(rate_n_flags);
 	if (control->band == IEEE80211_BAND_5GHZ)
 		rate_index -= IWL_FIRST_OFDM_RATE;
@@ -3007,7 +3007,7 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
 	u64 bitmap;
 	int successes = 0;
-	struct ieee80211_tx_status *tx_status;
+	struct ieee80211_tx_info *info;
 
 	if (unlikely(!agg->wait_for_ba))  {
 		IWL_ERROR("Received BA when not expected\n");
@@ -3045,13 +3045,13 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 			agg->start_idx + i);
 	}
 
-	tx_status = &priv->txq[scd_flow].txb[agg->start_idx].status;
-	tx_status->flags = IEEE80211_TX_STATUS_ACK;
-	tx_status->flags |= IEEE80211_TX_STATUS_AMPDU;
-	tx_status->ampdu_ack_map = successes;
-	tx_status->ampdu_ack_len = agg->frame_count;
-	iwl4965_hwrate_to_tx_control(priv, agg->rate_n_flags,
-				     &tx_status->control);
+	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb[0]);
+	memset(&info->status, 0, sizeof(info->status));
+	info->flags = IEEE80211_TX_STAT_ACK;
+	info->flags |= IEEE80211_TX_STAT_AMPDU;
+	info->status.ampdu_ack_map = successes;
+	info->status.ampdu_ack_len = agg->frame_count;
+	iwl4965_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", (unsigned long long)bitmap);
 
