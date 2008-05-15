@@ -51,7 +51,8 @@ static struct acpi_osc_data *acpi_get_osc_data(acpi_handle handle)
 	return data;
 }
 
-static u8 OSC_UUID[16] = {0x5B, 0x4D, 0xDB, 0x33, 0xF7, 0x1F, 0x1C, 0x40, 0x96, 0x57, 0x74, 0x41, 0xC0, 0x3D, 0xD7, 0x66};
+static u8 OSC_UUID[16] = {0x5B, 0x4D, 0xDB, 0x33, 0xF7, 0x1F, 0x1C, 0x40,
+			  0x96, 0x57, 0x74, 0x41, 0xC0, 0x3D, 0xD7, 0x66};
 
 static acpi_status acpi_run_osc(acpi_handle handle,
 				struct acpi_osc_args *osc_args)
@@ -87,7 +88,7 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 		status = AE_TYPE;
 		goto out_kfree;
 	}
-	osc_dw0 = *((u32 *) out_obj->buffer.pointer);
+	osc_dw0 = *((u32 *)out_obj->buffer.pointer);
 	if (osc_dw0) {
 		if (osc_dw0 & OSC_REQUEST_ERROR)
 			printk(KERN_DEBUG "_OSC request fails\n"); 
