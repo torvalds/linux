@@ -262,6 +262,7 @@ __restore_all:
 
 	.align	2
 syscall_badsys:			! Bad syscall number
+	get_current_thread_info r8, r0
 	mov	#-ENOSYS, r0
 	bra	resume_userspace
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
