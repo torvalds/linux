@@ -610,8 +610,8 @@ struct iwl_hw_params {
 #endif
 };
 
-#define HT_SHORT_GI_20MHZ_ONLY	(1 << 0)
-#define HT_SHORT_GI_40MHZ_ONLY	(1 << 1)
+#define HT_SHORT_GI_20MHZ	(1 << 0)
+#define HT_SHORT_GI_40MHZ	(1 << 1)
 
 
 #define IWL_RX_HDR(x) ((struct iwl4965_rx_frame_hdr *)(\

@@ -700,9 +700,9 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 	priv->ps_mode = (u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
 
 	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
-		iwl_conf->sgf |= 0x1;
+		iwl_conf->sgf |= HT_SHORT_GI_20MHZ;
 	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_40)
-		iwl_conf->sgf |= 0x2;
+		iwl_conf->sgf |= HT_SHORT_GI_40MHZ;
 
 	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
 	iwl_conf->max_amsdu_size =

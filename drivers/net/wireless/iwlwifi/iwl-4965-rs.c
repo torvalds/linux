@@ -1439,6 +1439,15 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 			}
 			break;
 		case IWL_SISO_SWITCH_GI:
+			if (!tbl->is_fat &&
+				!(priv->current_ht_config.sgf &
+						HT_SHORT_GI_20MHZ))
+				break;
+			if (tbl->is_fat &&
+				!(priv->current_ht_config.sgf &
+						HT_SHORT_GI_40MHZ))
+				break;
+
 			IWL_DEBUG_RATE("LQ: SISO toggle SGI/NGI\n");
 
 			memcpy(search_tbl, tbl, sz);
@@ -1521,6 +1530,15 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
 			break;
 
 		case IWL_MIMO_SWITCH_GI:
+			if (!tbl->is_fat &&
+				!(priv->current_ht_config.sgf &
+						HT_SHORT_GI_20MHZ))
+				break;
+			if (tbl->is_fat &&
+				!(priv->current_ht_config.sgf &
+						HT_SHORT_GI_40MHZ))
+				break;
+
 			IWL_DEBUG_RATE("LQ: MIMO toggle SGI/NGI\n");
 
 			/* Set up new search table for MIMO */
