@@ -264,6 +264,11 @@ static inline int cpu_has_vmx_vpid(void)
 		SECONDARY_EXEC_ENABLE_VPID);
 }
 
+static inline int cpu_has_virtual_nmis(void)
+{
+	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_VIRTUAL_NMIS;
+}
+
 static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
@@ -1088,7 +1093,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	u32 _vmentry_control = 0;
 
 	min = PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING;
-	opt = 0;
+	opt = PIN_BASED_VIRTUAL_NMIS;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PINBASED_CTLS,
 				&_pin_based_exec_control) < 0)
 		return -EIO;
@@ -2130,6 +2135,13 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 			irq | INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
 }
 
+static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
+{
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
+			INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK | NMI_VECTOR);
+	vcpu->arch.nmi_pending = 0;
+}
+
 static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
 {
 	int word_index = __ffs(vcpu->arch.irq_summary);
@@ -2653,6 +2665,19 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	u32 cpu_based_vm_exec_control;
+
+	/* clear pending NMI */
+	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_NMI_PENDING;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+	++vcpu->stat.nmi_window_exits;
+
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -2663,6 +2688,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_EXCEPTION_NMI]           = handle_exception,
 	[EXIT_REASON_EXTERNAL_INTERRUPT]      = handle_external_interrupt,
 	[EXIT_REASON_TRIPLE_FAULT]            = handle_triple_fault,
+	[EXIT_REASON_NMI_WINDOW]	      = handle_nmi_window,
 	[EXIT_REASON_IO_INSTRUCTION]          = handle_io,
 	[EXIT_REASON_CR_ACCESS]               = handle_cr,
 	[EXIT_REASON_DR_ACCESS]               = handle_dr,
@@ -2750,17 +2776,52 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
 }
 
+static void enable_nmi_window(struct kvm_vcpu *vcpu)
+{
+	u32 cpu_based_vm_exec_control;
+
+	if (!cpu_has_virtual_nmis())
+		return;
+
+	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_NMI_PENDING;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+}
+
+static int vmx_nmi_enabled(struct kvm_vcpu *vcpu)
+{
+	u32 guest_intr = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
+	return !(guest_intr & (GUEST_INTR_STATE_NMI |
+			       GUEST_INTR_STATE_MOV_SS |
+			       GUEST_INTR_STATE_STI));
+}
+
+static int vmx_irq_enabled(struct kvm_vcpu *vcpu)
+{
+	u32 guest_intr = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
+	return (!(guest_intr & (GUEST_INTR_STATE_MOV_SS |
+			       GUEST_INTR_STATE_STI)) &&
+		(vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF));
+}
+
+static void enable_intr_window(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.nmi_pending)
+		enable_nmi_window(vcpu);
+	else if (kvm_cpu_has_interrupt(vcpu))
+		enable_irq_window(vcpu);
+}
+
 static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 idtv_info_field, intr_info_field;
-	int has_ext_irq, interrupt_window_open;
+	u32 idtv_info_field, intr_info_field, exit_intr_info_field;
 	int vector;
 
 	update_tpr_threshold(vcpu);
 
-	has_ext_irq = kvm_cpu_has_interrupt(vcpu);
 	intr_info_field = vmcs_read32(VM_ENTRY_INTR_INFO_FIELD);
+	exit_intr_info_field = vmcs_read32(VM_EXIT_INTR_INFO);
 	idtv_info_field = vmx->idt_vectoring_info;
 	if (intr_info_field & INTR_INFO_VALID_MASK) {
 		if (idtv_info_field & INTR_INFO_VALID_MASK) {
@@ -2768,8 +2829,7 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 			if (printk_ratelimit())
 				printk(KERN_ERR "Fault when IDT_Vectoring\n");
 		}
-		if (has_ext_irq)
-			enable_irq_window(vcpu);
+		enable_intr_window(vcpu);
 		return;
 	}
 	if (unlikely(idtv_info_field & INTR_INFO_VALID_MASK)) {
@@ -2779,30 +2839,56 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 			u8 vect = idtv_info_field & VECTORING_INFO_VECTOR_MASK;
 
 			vmx_inject_irq(vcpu, vect);
-			if (unlikely(has_ext_irq))
-				enable_irq_window(vcpu);
+			enable_intr_window(vcpu);
 			return;
 		}
 
 		KVMTRACE_1D(REDELIVER_EVT, vcpu, idtv_info_field, handler);
 
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, idtv_info_field);
+		/*
+		 * SDM 3: 25.7.1.2
+		 * Clear bit "block by NMI" before VM entry if a NMI delivery
+		 * faulted.
+		 */
+		if ((idtv_info_field & VECTORING_INFO_TYPE_MASK)
+		    == INTR_TYPE_NMI_INTR && cpu_has_virtual_nmis())
+			vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
+				vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
+				~GUEST_INTR_STATE_NMI);
+
+		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, idtv_info_field
+				& ~INTR_INFO_RESVD_BITS_MASK);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
 				vmcs_read32(VM_EXIT_INSTRUCTION_LEN));
 
 		if (unlikely(idtv_info_field & INTR_INFO_DELIVER_CODE_MASK))
 			vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE,
 				vmcs_read32(IDT_VECTORING_ERROR_CODE));
-		if (unlikely(has_ext_irq))
-			enable_irq_window(vcpu);
+		enable_intr_window(vcpu);
 		return;
 	}
-	if (!has_ext_irq)
+	if (cpu_has_virtual_nmis()) {
+		/*
+		 * SDM 3: 25.7.1.2
+		 * Re-set bit "block by NMI" before VM entry if vmexit caused by
+		 * a guest IRET fault.
+		 */
+		if ((exit_intr_info_field & INTR_INFO_UNBLOCK_NMI) &&
+		    (exit_intr_info_field & INTR_INFO_VECTOR_MASK) != 8)
+			vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
+				vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) |
+				GUEST_INTR_STATE_NMI);
+		else if (vcpu->arch.nmi_pending) {
+			if (vmx_nmi_enabled(vcpu))
+				vmx_inject_nmi(vcpu);
+			enable_intr_window(vcpu);
+			return;
+		}
+
+	}
+	if (!kvm_cpu_has_interrupt(vcpu))
 		return;
-	interrupt_window_open =
-		((vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) &&
-		 (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0);
-	if (interrupt_window_open) {
+	if (vmx_irq_enabled(vcpu)) {
 		vector = kvm_cpu_get_interrupt(vcpu);
 		vmx_inject_irq(vcpu, vector);
 		kvm_timer_intr_post(vcpu, vector);
@@ -2963,7 +3049,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		fixup_rmode_irq(vmx);
 
 	vcpu->arch.interrupt_window_open =
-		(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0;
+		(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
+		 (GUEST_INTR_STATE_STI | GUEST_INTR_STATE_MOV_SS)) == 0;
 
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->launched = 1;
@@ -2971,7 +3058,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 
 	/* We need to handle NMIs before interrupts are enabled */
-	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) { /* nmi */
+	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200 &&
+	    (intr_info & INTR_INFO_VALID_MASK)) {
 		KVMTRACE_0D(NMI, vcpu, handler);
 		asm("int $2");
 	}

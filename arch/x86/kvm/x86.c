@@ -72,6 +72,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "mmio_exits", VCPU_STAT(mmio_exits) },
 	{ "signal_exits", VCPU_STAT(signal_exits) },
 	{ "irq_window", VCPU_STAT(irq_window_exits) },
+	{ "nmi_window", VCPU_STAT(nmi_window_exits) },
 	{ "halt_exits", VCPU_STAT(halt_exits) },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "hypercalls", VCPU_STAT(hypercalls) },
