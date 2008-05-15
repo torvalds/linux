@@ -1958,7 +1958,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 		if ((rev >= 5) && (rev <= 10))
 			filename = "b0g0initvals5";
 		else if (rev >= 13)
-			filename = "lp0initvals13";
+			filename = "b0g0initvals13";
 		else
 			goto err_no_initvals;
 		break;
