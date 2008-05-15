@@ -232,6 +232,14 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 					   struct sk_buff *skb));
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+
+/*****************************************************
+*  Error Handling Debugging
+******************************************************/
+void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
+			 u32 num_events, u32 mode);
+void iwl_dump_nic_event_log(struct iwl_priv *priv);
+
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
 #define STATUS_HCMD_ACTIVE	0	/* host command in progress */
