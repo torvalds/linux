@@ -2016,7 +2016,7 @@ int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 }
 
 unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
-			  struct iwl4965_frame *frame, u8 rate)
+			  struct iwl_frame *frame, u8 rate)
 {
 	struct iwl4965_tx_beacon_cmd *tx_beacon_cmd;
 	unsigned int frame_size;

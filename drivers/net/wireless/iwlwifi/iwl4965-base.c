@@ -800,7 +800,7 @@ static int iwl4965_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_fla
 	return iwl_send_cmd(priv, &cmd);
 }
 
-static void iwl4965_clear_free_frames(struct iwl_priv *priv)
+static void iwl_clear_free_frames(struct iwl_priv *priv)
 {
 	struct list_head *element;
 
@@ -810,7 +810,7 @@ static void iwl4965_clear_free_frames(struct iwl_priv *priv)
 	while (!list_empty(&priv->free_frames)) {
 		element = priv->free_frames.next;
 		list_del(element);
-		kfree(list_entry(element, struct iwl4965_frame, list));
+		kfree(list_entry(element, struct iwl_frame, list));
 		priv->frames_count--;
 	}
 
@@ -821,9 +821,9 @@ static void iwl4965_clear_free_frames(struct iwl_priv *priv)
 	}
 }
 
-static struct iwl4965_frame *iwl4965_get_free_frame(struct iwl_priv *priv)
+static struct iwl_frame *iwl_get_free_frame(struct iwl_priv *priv)
 {
-	struct iwl4965_frame *frame;
+	struct iwl_frame *frame;
 	struct list_head *element;
 	if (list_empty(&priv->free_frames)) {
 		frame = kzalloc(sizeof(*frame), GFP_KERNEL);
@@ -838,10 +838,10 @@ static struct iwl4965_frame *iwl4965_get_free_frame(struct iwl_priv *priv)
 
 	element = priv->free_frames.next;
 	list_del(element);
-	return list_entry(element, struct iwl4965_frame, list);
+	return list_entry(element, struct iwl_frame, list);
 }
 
-static void iwl4965_free_frame(struct iwl_priv *priv, struct iwl4965_frame *frame)
+static void iwl_free_frame(struct iwl_priv *priv, struct iwl_frame *frame)
 {
 	memset(frame, 0, sizeof(*frame));
 	list_add(&frame->list, &priv->free_frames);
@@ -892,12 +892,12 @@ static u8 iwl4965_rate_get_lowest_plcp(struct iwl_priv *priv)
 
 static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
 {
-	struct iwl4965_frame *frame;
+	struct iwl_frame *frame;
 	unsigned int frame_size;
 	int rc;
 	u8 rate;
 
-	frame = iwl4965_get_free_frame(priv);
+	frame = iwl_get_free_frame(priv);
 
 	if (!frame) {
 		IWL_ERROR("Could not obtain free frame buffer for beacon "
@@ -912,7 +912,7 @@ static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
 	rc = iwl_send_cmd_pdu(priv, REPLY_TX_BEACON, frame_size,
 			      &frame->u.cmd[0]);
 
-	iwl4965_free_frame(priv, frame);
+	iwl_free_frame(priv, frame);
 
 	return rc;
 }
@@ -4355,7 +4355,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 	priv->ibss_beacon = NULL;
 
 	/* clear out any free frames */
-	iwl4965_clear_free_frames(priv);
+	iwl_clear_free_frames(priv);
 }
 
 static void iwl4965_down(struct iwl_priv *priv)

@@ -262,7 +262,7 @@ enum iwl_pwr_src {
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
 #define IEEE80211_FRAME_LEN             (IEEE80211_DATA_LEN + IEEE80211_HLEN)
 
-struct iwl4965_frame {
+struct iwl_frame {
 	union {
 		struct ieee80211_hdr frame;
 		struct iwl4965_tx_beacon_cmd beacon;
@@ -696,7 +696,7 @@ extern int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
 					dma_addr_t addr, u16 len);
 extern int iwl4965_hw_get_temperature(struct iwl_priv *priv);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
-				 struct iwl4965_frame *frame, u8 rate);
+				 struct iwl_frame *frame, u8 rate);
 extern void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 				     struct iwl_cmd *cmd,
 				     struct ieee80211_tx_control *ctrl,
