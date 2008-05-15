@@ -118,7 +118,7 @@ struct iwl_queue {
 #define MAX_NUM_OF_TBS          (20)
 
 /* One for each TFD */
-struct iwl4965_tx_info {
+struct iwl_tx_info {
 	struct ieee80211_tx_status status;
 	struct sk_buff *skb[MAX_NUM_OF_TBS];
 };
@@ -141,7 +141,7 @@ struct iwl_tx_queue {
 	struct iwl_tfd_frame *bd;
 	struct iwl_cmd *cmd;
 	dma_addr_t dma_addr_cmd;
-	struct iwl4965_tx_info *txb;
+	struct iwl_tx_info *txb;
 	int need_update;
 	int sched_retry;
 	int active;

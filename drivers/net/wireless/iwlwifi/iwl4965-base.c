@@ -1868,7 +1868,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	idx = get_cmd_index(q, q->write_ptr, 0);
 
 	/* Set up driver data for this TFD */
-	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl4965_tx_info));
+	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
 	txq->txb[q->write_ptr].skb[0] = skb;
 	memcpy(&(txq->txb[q->write_ptr].status.control),
 	       ctl, sizeof(struct ieee80211_tx_control));
@@ -2306,7 +2306,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 #endif
 
 static void iwl4965_txstatus_to_ieee(struct iwl_priv *priv,
-				 struct iwl4965_tx_info *tx_sta)
+				     struct iwl_tx_info *tx_sta)
 {
 
 	tx_sta->status.ack_signal = 0;
