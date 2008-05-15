@@ -19,6 +19,7 @@
 #include <linux/uio.h>
 #include <linux/idr.h>
 #include <linux/bsg.h>
+#include <linux/smp_lock.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
@@ -834,7 +835,11 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 
 static int bsg_open(struct inode *inode, struct file *file)
 {
-	struct bsg_device *bd = bsg_get_device(inode, file);
+	struct bsg_device *bd;
+
+	lock_kernel();
+	bd = bsg_get_device(inode, file);
+	unlock_kernel();
 
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
