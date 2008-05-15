@@ -890,7 +890,6 @@ call_encode(struct rpc_task *task)
 			task->tk_msg.rpc_argp);
 	if (task->tk_status == -ENOMEM) {
 		/* XXX: Is this sane? */
-		rpc_delay(task, 3*HZ);
 		task->tk_status = -EAGAIN;
 	}
 }
@@ -1048,8 +1047,14 @@ call_transmit(struct rpc_task *task)
 		BUG_ON(task->tk_rqstp->rq_bytes_sent != 0);
 		call_encode(task);
 		/* Did the encode result in an error condition? */
-		if (task->tk_status != 0)
+		if (task->tk_status != 0) {
+			/* Was the error nonfatal? */
+			if (task->tk_status == -EAGAIN)
+				rpc_delay(task, HZ >> 4);
+			else
+				rpc_exit(task, task->tk_status);
 			return;
+		}
 	}
 	xprt_transmit(task);
 	if (task->tk_status < 0)
