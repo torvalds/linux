@@ -266,27 +266,26 @@ enum mac80211_tx_control_flags {
  * ieee80211_ops->remove_interface() callback funtion.
  * The hw_key pointer is valid until it has been removed with the
  * ieee80211_ops->set_key() callback function.
- * The tx_rate and alt_retry_rate pointers are valid until the phy is
- * deregistered.
  */
 struct ieee80211_tx_control {
+	u32 flags;		/* tx control flags defined above */
+
+	s8 tx_rate_idx,		/* Transmit rate (indexes registered rates) */
+	   rts_cts_rate_idx,	/* Transmit rate for RTS/CTS frame */
+	   alt_retry_rate_idx;	/* retry rate for the last retries */
+
+	s8 retry_limit;		/* 1 = only first attempt, 2 = one retry, ..
+				 * This could be used when set_retry_limit
+				 * is not implemented by the driver */
+
 	struct ieee80211_vif *vif;
-	struct ieee80211_rate *tx_rate;
-
-	/* Transmit rate for RTS/CTS frame */
-	struct ieee80211_rate *rts_cts_rate;
-
-	/* retry rate for the last retries */
-	struct ieee80211_rate *alt_retry_rate;
 
 	/* Key used for hardware encryption
 	 * NULL if IEEE80211_TXCTL_DO_NOT_ENCRYPT is set */
 	struct ieee80211_key_conf *hw_key;
 
-	u32 flags;		/* tx control flags defined above */
-	u8 retry_limit;		/* 1 = only first attempt, 2 = one retry, ..
-				 * This could be used when set_retry_limit
-				 * is not implemented by the driver */
+	enum ieee80211_band band;
+
 	u8 antenna_sel_tx; 	/* 0 = default/diversity, otherwise bit
 				 * position represents antenna number used */
 	u8 icv_len;		/* length of the ICV/MIC field in octets */
@@ -296,6 +295,7 @@ struct ieee80211_tx_control {
 	u16 aid;		/* Station AID */
 	int type;	/* internal */
 };
+
 
 
 /**
@@ -821,6 +821,33 @@ static inline void SET_IEEE80211_DEV(struct ieee80211_hw *hw, struct device *dev
 static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
 {
 	memcpy(hw->wiphy->perm_addr, addr, ETH_ALEN);
+}
+
+static inline struct ieee80211_rate *
+ieee80211_get_tx_rate(const struct ieee80211_hw *hw,
+		      const struct ieee80211_tx_control *c)
+{
+	if (WARN_ON(c->tx_rate_idx < 0))
+		return NULL;
+	return &hw->wiphy->bands[c->band]->bitrates[c->tx_rate_idx];
+}
+
+static inline struct ieee80211_rate *
+ieee80211_get_rts_cts_rate(const struct ieee80211_hw *hw,
+			   const struct ieee80211_tx_control *c)
+{
+	if (c->rts_cts_rate_idx < 0)
+		return NULL;
+	return &hw->wiphy->bands[c->band]->bitrates[c->rts_cts_rate_idx];
+}
+
+static inline struct ieee80211_rate *
+ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
+			     const struct ieee80211_tx_control *c)
+{
+	if (c->alt_retry_rate_idx < 0)
+		return NULL;
+	return &hw->wiphy->bands[c->band]->bitrates[c->alt_retry_rate_idx];
 }
 
 /**

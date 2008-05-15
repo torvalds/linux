@@ -331,7 +331,9 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 			tx_resp->rate, tx_resp->failure_frame);
 
 	rate_idx = iwl3945_hwrate_to_plcp_idx(tx_resp->rate);
-	tx_status->control.tx_rate = &priv->ieee_rates[rate_idx];
+	if (tx_status->control.band == IEEE80211_BAND_5GHZ)
+		rate_idx -= IWL_FIRST_OFDM_RATE;
+	tx_status->control.tx_rate_idx = rate_idx;
 	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
 	iwl3945_tx_queue_reclaim(priv, txq_id, index);
 
@@ -962,7 +964,8 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 			      struct ieee80211_hdr *hdr, int sta_id, int tx_id)
 {
 	unsigned long flags;
-	u16 rate_index = min(ctrl->tx_rate->hw_value & 0xffff, IWL_RATE_COUNT - 1);
+	u16 hw_value = ieee80211_get_tx_rate(priv->hw, ctrl)->hw_value;
+	u16 rate_index = min(hw_value & 0xffff, IWL_RATE_COUNT - 1);
 	u16 rate_mask;
 	int rate;
 	u8 rts_retry_limit;

@@ -266,10 +266,13 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	bool short_preamble;
 	int erp;
 	u16 dur;
+	struct ieee80211_supported_band *sband;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = frame_txctl->rts_cts_rate;
+	rate = &sband->bitrates[frame_txctl->rts_cts_rate_idx];
 
 	erp = 0;
 	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
@@ -300,10 +303,13 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	bool short_preamble;
 	int erp;
 	u16 dur;
+	struct ieee80211_supported_band *sband;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = frame_txctl->rts_cts_rate;
+	rate = &sband->bitrates[frame_txctl->rts_cts_rate_idx];
 	erp = 0;
 	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
 		erp = rate->flags & IEEE80211_RATE_ERP_G;

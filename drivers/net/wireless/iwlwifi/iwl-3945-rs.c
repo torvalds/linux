@@ -464,7 +464,7 @@ static void rs_tx_status(void *priv_rate,
 
 
 	retries = tx_resp->retry_count;
-	first_index = tx_resp->control.tx_rate->hw_value;
+	first_index = sband->bitrates[tx_resp->control.tx_rate_idx].hw_value;
 	if ((first_index < 0) || (first_index >= IWL_RATE_COUNT)) {
 		IWL_DEBUG_RATE("leave: Rate out of bounds: %d\n", first_index);
 		return;
@@ -669,7 +669,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	    is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !sta->rate_ctrl_priv) {
 		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
-		sel->rate = rate_lowest(local, sband, sta);
+		sel->rate_idx = rate_lowest_index(local, sband, sta);
 		rcu_read_unlock();
 		return;
 	}
@@ -813,7 +813,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	IWL_DEBUG_RATE("leave: %d\n", index);
 
-	sel->rate = &sband->bitrates[sta->txrate_idx];
+	sel->rate_idx = sta->txrate_idx;
 }
 
 static struct rate_control_ops rs_ops = {

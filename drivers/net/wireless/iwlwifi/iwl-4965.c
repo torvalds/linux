@@ -373,14 +373,10 @@ void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 		control->flags |= IEEE80211_TXCTL_DUP_DATA;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
 		control->flags |= IEEE80211_TXCTL_SHORT_GI;
-	/* since iwl4965_hwrate_to_plcp_idx is band indifferent, we always use
-	 * IEEE80211_BAND_2GHZ band as it contains all the rates */
 	rate_index = iwl4965_hwrate_to_plcp_idx(rate_n_flags);
-	if (rate_index == -1)
-		control->tx_rate = NULL;
-	else
-		control->tx_rate =
-			&priv->bands[IEEE80211_BAND_2GHZ].bitrates[rate_index];
+	if (control->band == IEEE80211_BAND_5GHZ)
+		rate_index -= IWL_FIRST_OFDM_RATE;
+	control->tx_rate_idx = rate_index;
 }
 
 int iwl4965_hw_rxq_stop(struct iwl_priv *priv)

@@ -33,8 +33,10 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 				      struct txentry_desc *txdesc,
 				      struct ieee80211_tx_control *control)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
-	struct ieee80211_rate *rate = control->tx_rate;
+	struct ieee80211_rate *rate =
+	    ieee80211_get_tx_rate(rt2x00dev->hw, control);
 	const struct rt2x00_rate *hwrate;
 	unsigned int data_length;
 	unsigned int duration;
@@ -77,8 +79,9 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 			__set_bit(ENTRY_TXD_CTS_FRAME, &txdesc->flags);
 			__clear_bit(ENTRY_TXD_ACK, &txdesc->flags);
 		}
-		if (control->rts_cts_rate)
-			rate = control->rts_cts_rate;
+		if (control->rts_cts_rate_idx >= 0)
+			rate =
+			    ieee80211_get_rts_cts_rate(rt2x00dev->hw, control);
 	}
 
 	/*

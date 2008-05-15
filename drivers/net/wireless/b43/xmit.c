@@ -201,13 +201,14 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	u32 mac_ctl = 0;
 	u16 phy_ctl = 0;
 	u8 extra_ft = 0;
+	struct ieee80211_rate *txrate;
 
 	memset(txhdr, 0, sizeof(*txhdr));
 
-	WARN_ON(!txctl->tx_rate);
-	rate = txctl->tx_rate ? txctl->tx_rate->hw_value : B43_CCK_RATE_1MB;
+	txrate = ieee80211_get_tx_rate(dev->wl->hw, txctl);
+	rate = txrate ? txrate->hw_value : B43_CCK_RATE_1MB;
 	rate_ofdm = b43_is_ofdm_rate(rate);
-	fbrate = txctl->alt_retry_rate ? : txctl->tx_rate;
+	fbrate = ieee80211_get_alt_retry_rate(dev->wl->hw, txctl) ? : txrate;
 	rate_fb = fbrate->hw_value;
 	rate_fb_ofdm = b43_is_ofdm_rate(rate_fb);
 
@@ -336,9 +337,11 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		int rts_rate, rts_rate_fb;
 		int rts_rate_ofdm, rts_rate_fb_ofdm;
 		struct b43_plcp_hdr6 *plcp;
+		struct ieee80211_rate *rts_cts_rate;
 
-		WARN_ON(!txctl->rts_cts_rate);
-		rts_rate = txctl->rts_cts_rate ? txctl->rts_cts_rate->hw_value : B43_CCK_RATE_1MB;
+		rts_cts_rate = ieee80211_get_rts_cts_rate(dev->wl->hw, txctl);
+
+		rts_rate = rts_cts_rate ? rts_cts_rate->hw_value : B43_CCK_RATE_1MB;
 		rts_rate_ofdm = b43_is_ofdm_rate(rts_rate);
 		rts_rate_fb = b43_calc_fallback_rate(rts_rate);
 		rts_rate_fb_ofdm = b43_is_ofdm_rate(rts_rate_fb);

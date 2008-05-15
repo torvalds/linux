@@ -159,11 +159,11 @@ struct ieee80211_tx_data {
 
 	struct ieee80211_tx_control *control;
 	struct ieee80211_channel *channel;
-	struct ieee80211_rate *rate;
+	s8 rate_idx;
 	/* use this rate (if set) for last fragment; rate can
 	 * be set to lower rate for the first fragments, e.g.,
 	 * when using CTS protection with IEEE 802.11g. */
-	struct ieee80211_rate *last_frag_rate;
+	s8 last_frag_rate_idx;
 
 	/* Extra fragments (in addition to the first fragment
 	 * in skb) */
@@ -225,9 +225,9 @@ struct ieee80211_tx_stored_packet {
 	struct ieee80211_tx_control control;
 	struct sk_buff *skb;
 	struct sk_buff **extra_frag;
-	struct ieee80211_rate *last_frag_rate;
+	s8 last_frag_rate_idx;
 	int num_extra_frag;
-	unsigned int last_frag_rate_ctrl_probe;
+	bool last_frag_rate_ctrl_probe;
 };
 
 struct beacon_data {

@@ -1372,7 +1372,7 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
 	len = min((size_t) dev->wl->current_beacon->len,
 		  0x200 - sizeof(struct b43_plcp_hdr6));
-	rate = dev->wl->beacon_txctl.tx_rate->hw_value;
+	rate = ieee80211_get_tx_rate(dev->wl->hw, &dev->wl->beacon_txctl)->hw_value;
 
 	b43_write_template_common(dev, (const u8 *)bcn,
 				  len, ram_offset, shm_size_offset, rate);

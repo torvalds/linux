@@ -266,7 +266,7 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 
 	/* Ignore all frames that were sent with a different rate than the rate
 	 * we currently advise mac80211 to use. */
-	if (status->control.tx_rate != &sband->bitrates[sta->txrate_idx])
+	if (status->control.tx_rate_idx != sta->txrate_idx)
 		goto unlock;
 
 	spinfo = sta->rate_ctrl_priv;
@@ -330,7 +330,7 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 	fc = le16_to_cpu(hdr->frame_control);
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
 	    is_multicast_ether_addr(hdr->addr1) || !sta) {
-		sel->rate = rate_lowest(local, sband, sta);
+		sel->rate_idx = rate_lowest_index(local, sband, sta);
 		rcu_read_unlock();
 		return;
 	}
@@ -349,7 +349,7 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 
 	rcu_read_unlock();
 
-	sel->rate = &sband->bitrates[rateidx];
+	sel->rate_idx = rateidx;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	rate_control_pid_event_tx_rate(

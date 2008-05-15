@@ -1693,10 +1693,10 @@ static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	size_t payload_len, hdrlen;
 	int plcp, dur, len, plcp_signal, short_preamble;
 	struct ieee80211_hdr *hdr;
+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(dev, control);
 
-	short_preamble = !!(control->tx_rate->flags &
-					IEEE80211_TXCTL_SHORT_PREAMBLE);
-	plcp_signal = control->tx_rate->bitrate;
+	short_preamble = !!(txrate->flags & IEEE80211_TXCTL_SHORT_PREAMBLE);
+	plcp_signal = txrate->bitrate;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control) & ~IEEE80211_FCTL_PROTECTED;

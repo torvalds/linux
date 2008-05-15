@@ -2406,15 +2406,15 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 
 		memset(&control, 0, sizeof(control));
 		rate_control_get_rate(dev, sband, skb, &ratesel);
-		if (!ratesel.rate) {
+		if (ratesel.rate_idx < 0) {
 			printk(KERN_DEBUG "%s: Failed to determine TX rate "
 			       "for IBSS beacon\n", dev->name);
 			break;
 		}
 		control.vif = &sdata->vif;
-		control.tx_rate = ratesel.rate;
+		control.tx_rate_idx = ratesel.rate_idx;
 		if (sdata->bss_conf.use_short_preamble &&
-		    ratesel.rate->flags & IEEE80211_RATE_SHORT_PREAMBLE)
+		    sband->bitrates[ratesel.rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE)
 			control.flags |= IEEE80211_TXCTL_SHORT_PREAMBLE;
 		control.antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 		control.flags |= IEEE80211_TXCTL_NO_ACK;

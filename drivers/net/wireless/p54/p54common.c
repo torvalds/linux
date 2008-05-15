@@ -592,7 +592,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	txhdr->padding2 = 0;
 
 	/* TODO: add support for alternate retry TX rates */
-	rate = control->tx_rate->hw_value;
+	rate = ieee80211_get_tx_rate(dev, control)->hw_value;
 	if (control->flags & IEEE80211_TXCTL_SHORT_PREAMBLE)
 		rate |= 0x10;
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)

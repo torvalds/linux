@@ -578,7 +578,10 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 	u8 data_retry_limit = 0;
 	u8 rate_plcp;
 	u16 rate_flags = 0;
-	int rate_idx = min(ctrl->tx_rate->hw_value & 0xffff, IWL_RATE_COUNT - 1);
+	int rate_idx;
+
+	rate_idx = min(ieee80211_get_tx_rate(priv->hw, ctrl)->hw_value & 0xffff,
+			IWL_RATE_COUNT - 1);
 
 	rate_plcp = iwl_rates[rate_idx].plcp;
 
@@ -723,7 +726,8 @@ int iwl_tx_skb(struct iwl_priv *priv,
 		goto drop_unlock;
 	}
 
-	if ((ctl->tx_rate->hw_value & 0xFF) == IWL_INVALID_RATE) {
+	if ((ieee80211_get_tx_rate(priv->hw, ctl)->hw_value & 0xFF) ==
+	     IWL_INVALID_RATE) {
 		IWL_ERROR("ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}

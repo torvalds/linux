@@ -4281,7 +4281,7 @@ static int iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ctl->tx_rate->bitrate);
+		     ieee80211_get_tx_rate(hw, ctl)->bitrate);
 
 	if (iwl_tx_skb(priv, skb, ctl))
 		dev_kfree_skb_any(skb);

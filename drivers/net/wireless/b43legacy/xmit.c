@@ -201,15 +201,18 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	unsigned int plcp_fragment_len;
 	u32 mac_ctl = 0;
 	u16 phy_ctl = 0;
+	struct ieee80211_rate *tx_rate;
 
 	wlhdr = (const struct ieee80211_hdr *)fragment_data;
 	fctl = le16_to_cpu(wlhdr->frame_control);
 
 	memset(txhdr, 0, sizeof(*txhdr));
 
-	rate = txctl->tx_rate->hw_value;
+	tx_rate = ieee80211_get_tx_rate(dev->wl->hw, txctl);
+
+	rate = tx_rate->hw_value;
 	rate_ofdm = b43legacy_is_ofdm_rate(rate);
-	rate_fb = txctl->alt_retry_rate ? : txctl->tx_rate;
+	rate_fb = ieee80211_get_alt_retry_rate(dev->wl->hw, txctl) ? : tx_rate;
 	rate_fb_ofdm = b43legacy_is_ofdm_rate(rate_fb->hw_value);
 
 	txhdr->mac_frame_ctl = wlhdr->frame_control;
@@ -312,7 +315,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		int rts_rate_ofdm;
 		int rts_rate_fb_ofdm;
 
-		rts_rate = txctl->rts_cts_rate->hw_value;
+		rts_rate = ieee80211_get_rts_cts_rate(dev->wl->hw, txctl)->hw_value;
 		rts_rate_ofdm = b43legacy_is_ofdm_rate(rts_rate);
 		rts_rate_fb = b43legacy_calc_fallback_rate(rts_rate);
 		rts_rate_fb_ofdm = b43legacy_is_ofdm_rate(rts_rate_fb);

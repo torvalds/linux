@@ -257,24 +257,21 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	mapping = pci_map_single(priv->pdev, skb->data,
 				 skb->len, PCI_DMA_TODEVICE);
 
-	BUG_ON(!control->tx_rate);
-
 	tx_flags = RTL8180_TX_DESC_FLAG_OWN | RTL8180_TX_DESC_FLAG_FS |
 		   RTL8180_TX_DESC_FLAG_LS |
-		   (control->tx_rate->hw_value << 24) | skb->len;
+		   (ieee80211_get_tx_rate(dev, control)->hw_value << 24) |
+		   skb->len;
 
 	if (priv->r8185)
 		tx_flags |= RTL8180_TX_DESC_FLAG_DMA |
 			    RTL8180_TX_DESC_FLAG_NO_ENC;
 
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
-		BUG_ON(!control->rts_cts_rate);
 		tx_flags |= RTL8180_TX_DESC_FLAG_RTS;
-		tx_flags |= control->rts_cts_rate->hw_value << 19;
+		tx_flags |= ieee80211_get_rts_cts_rate(dev, control)->hw_value << 19;
 	} else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
-		BUG_ON(!control->rts_cts_rate);
 		tx_flags |= RTL8180_TX_DESC_FLAG_CTS;
-		tx_flags |= control->rts_cts_rate->hw_value << 19;
+		tx_flags |= ieee80211_get_rts_cts_rate(dev, control)->hw_value << 19;
 	}
 
 	*((struct ieee80211_tx_control **) skb->cb) =
@@ -288,9 +285,9 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 		unsigned int remainder;
 
 		plcp_len = DIV_ROUND_UP(16 * (skb->len + 4),
-					(control->tx_rate->bitrate * 2) / 10);
+				(ieee80211_get_tx_rate(dev, control)->bitrate * 2) / 10);
 		remainder = (16 * (skb->len + 4)) %
-			    ((control->tx_rate->bitrate * 2) / 10);
+			    ((ieee80211_get_tx_rate(dev, control)->bitrate * 2) / 10);
 		if (remainder > 0 && remainder <= 6)
 			plcp_len |= 1 << 15;
 	}
@@ -303,8 +300,8 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	entry->plcp_len = cpu_to_le16(plcp_len);
 	entry->tx_buf = cpu_to_le32(mapping);
 	entry->frame_len = cpu_to_le32(skb->len);
-	entry->flags2 = control->alt_retry_rate != NULL ?
-			control->alt_retry_rate->bitrate << 4 : 0;
+	entry->flags2 = control->alt_retry_rate_idx >= 0 ?
+		ieee80211_get_alt_retry_rate(dev, control)->bitrate << 4 : 0;
 	entry->retry_limit = control->retry_limit;
 	entry->flags = cpu_to_le32(tx_flags);
 	__skb_queue_tail(&ring->queue, skb);

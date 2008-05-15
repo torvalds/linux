@@ -2581,7 +2581,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 		goto drop_unlock;
 	}
 
-	if ((ctl->tx_rate->hw_value & 0xFF) == IWL_INVALID_RATE) {
+	if ((ieee80211_get_tx_rate(priv->hw, ctl)->hw_value & 0xFF) == IWL_INVALID_RATE) {
 		IWL_ERROR("ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
@@ -6694,7 +6694,7 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ctl->tx_rate->bitrate);
+		     ieee80211_get_tx_rate(hw, ctl)->bitrate);
 
 	if (iwl3945_tx_skb(priv, skb, ctl))
 		dev_kfree_skb_any(skb);

@@ -862,7 +862,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	if (priv->band == IEEE80211_BAND_5GHZ)
 		rs_index -= IWL_FIRST_OFDM_RATE;
 
-	if ((tx_resp->control.tx_rate == NULL) ||
+	if ((tx_resp->control.tx_rate_idx < 0) ||
 	    (tbl_type.is_SGI ^
 		!!(tx_resp->control.flags & IEEE80211_TXCTL_SHORT_GI)) ||
 	    (tbl_type.is_fat ^
@@ -875,7 +875,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	    (!!(tx_rate & RATE_MCS_GF_MSK) ^
 		!!(tx_resp->control.flags & IEEE80211_TXCTL_GREEN_FIELD)) ||
 	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
-		tx_resp->control.tx_rate->bitrate)) {
+	     hw->wiphy->bands[tx_resp->control.band]->bitrates[tx_resp->control.tx_rate_idx].bitrate)) {
 		IWL_DEBUG_RATE("initial rate does not match 0x%x\n", tx_rate);
 		goto out;
 	}
@@ -2154,7 +2154,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	fc = le16_to_cpu(hdr->frame_control);
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !sta->rate_ctrl_priv) {
-		sel->rate = rate_lowest(local, sband, sta);
+		sel->rate_idx = rate_lowest_index(local, sband, sta);
 		goto out;
 	}
 
@@ -2184,11 +2184,13 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 done:
 	if ((i < 0) || (i > IWL_RATE_COUNT)) {
-		sel->rate = rate_lowest(local, sband, sta);
+		sel->rate_idx = rate_lowest_index(local, sband, sta);
 		goto out;
 	}
 
-	sel->rate = &priv->ieee_rates[i];
+	if (sband->band == IEEE80211_BAND_5GHZ)
+		i -= IWL_FIRST_OFDM_RATE;
+	sel->rate_idx = i;
 out:
 	rcu_read_unlock();
 }
