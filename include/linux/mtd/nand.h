@@ -177,6 +177,7 @@ typedef enum {
 #define NAND_MUST_PAD(chip) (!(chip->options & NAND_NO_PADDING))
 #define NAND_HAS_CACHEPROG(chip) ((chip->options & NAND_CACHEPRG))
 #define NAND_HAS_COPYBACK(chip) ((chip->options & NAND_COPYBACK))
+#define NAND_SUBPAGE_READ(chip) ((chip->ecc.mode == NAND_ECC_SOFT))
 
 /* Mask to zero out the chip options, which come from the id table */
 #define NAND_CHIPOPTIONS_MSK	(0x0000ffff & ~NAND_NO_AUTOINCR)
@@ -273,6 +274,10 @@ struct nand_ecc_ctrl {
 						  const uint8_t *buf);
 	int			(*read_page)(struct mtd_info *mtd,
 					     struct nand_chip *chip,
+					     uint8_t *buf);
+	int			(*read_subpage)(struct mtd_info *mtd,
+					     struct nand_chip *chip,
+					     uint32_t offs, uint32_t len,
 					     uint8_t *buf);
 	void			(*write_page)(struct mtd_info *mtd,
 					      struct nand_chip *chip,
