@@ -353,10 +353,13 @@ int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	u32 *control_flags;
 	struct iwl_cmd *out_cmd;
 	u32 idx;
-	u16 fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
+	u16 fix_size;
 	dma_addr_t phys_addr;
 	int ret;
 	unsigned long flags;
+
+	cmd->len = priv->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
+	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 
 	/* If any of the command structures end up being larger than
 	 * the TFD_MAX_PAYLOAD_SIZE, and it sent as a 'small' command then
@@ -422,7 +425,7 @@ int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 static void iwl4965_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt)
 {
-	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
+	struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
 
 	if (hw_decrypt)
 		rxon->filter_flags &= ~RXON_FILTER_DIS_DECRYPT_MSK;
@@ -470,7 +473,7 @@ static int iwl4965_rxon_add_station(struct iwl_priv *priv,
  * be #ifdef'd out once the driver is stable and folks aren't actively
  * making changes
  */
-static int iwl4965_check_rxon_cmd(struct iwl4965_rxon_cmd *rxon)
+static int iwl4965_check_rxon_cmd(struct iwl_rxon_cmd *rxon)
 {
 	int error = 0;
 	int counter = 1;
@@ -595,7 +598,7 @@ static int iwl4965_full_rxon_required(struct iwl_priv *priv)
 static int iwl4965_commit_rxon(struct iwl_priv *priv)
 {
 	/* cast away the const for active_rxon in this function */
-	struct iwl4965_rxon_cmd *active_rxon = (void *)&priv->active_rxon;
+	struct iwl_rxon_cmd *active_rxon = (void *)&priv->active_rxon;
 	DECLARE_MAC_BUF(mac);
 	int rc = 0;
 
@@ -640,7 +643,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 		rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
-				      sizeof(struct iwl4965_rxon_cmd),
+				      sizeof(struct iwl_rxon_cmd),
 				      &priv->active_rxon);
 
 		/* If the mask clearing failed then we set
@@ -665,7 +668,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	iwl4965_set_rxon_hwcrypto(priv, !priv->hw_params.sw_crypto);
 	/* Apply the new configuration */
 	rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
-			      sizeof(struct iwl4965_rxon_cmd), &priv->staging_rxon);
+			      sizeof(struct iwl_rxon_cmd), &priv->staging_rxon);
 	if (rc) {
 		IWL_ERROR("Error setting new configuration (%d).\n", rc);
 		return rc;
@@ -2699,7 +2702,7 @@ static void iwl4965_rx_reply_error(struct iwl_priv *priv,
 static void iwl4965_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_rxon_cmd *rxon = (void *)&priv->active_rxon;
+	struct iwl_rxon_cmd *rxon = (void *)&priv->active_rxon;
 	struct iwl4965_csa_notification *csa = &(pkt->u.csa_notif);
 	IWL_DEBUG_11H("CSA notif: channel %d, status %d\n",
 		      le16_to_cpu(csa->channel), le32_to_cpu(csa->status));
@@ -3317,7 +3320,7 @@ static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
 #ifdef CONFIG_IWLWIFI_DEBUG
 static void iwl4965_print_rx_config_cmd(struct iwl_priv *priv)
 {
-	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
+	struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
 	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_RADIO("RX CONFIG:\n");
@@ -4213,8 +4216,8 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;
 
 	if (iwl_is_associated(priv)) {
-		struct iwl4965_rxon_cmd *active_rxon =
-				(struct iwl4965_rxon_cmd *)(&priv->active_rxon);
+		struct iwl_rxon_cmd *active_rxon =
+				(struct iwl_rxon_cmd *)&priv->active_rxon;
 
 		memcpy(&priv->staging_rxon, &priv->active_rxon,
 		       sizeof(priv->staging_rxon));
@@ -5021,7 +5024,7 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 	/* we should be verifying the device is ready to be opened */
 	mutex_lock(&priv->mutex);
 
-	memset(&priv->staging_rxon, 0, sizeof(struct iwl4965_rxon_cmd));
+	memset(&priv->staging_rxon, 0, sizeof(struct iwl_rxon_cmd));
 	/* fetch ucode file from disk, alloc and copy to bus-master buffers ...
 	 * ucode filename and max sizes are card-specific. */
 

@@ -1009,11 +1009,11 @@ struct iwl_priv {
 	 * changed via explicit cast within the
 	 * routines that actually update the physical
 	 * hardware */
-	const struct iwl4965_rxon_cmd active_rxon;
-	struct iwl4965_rxon_cmd staging_rxon;
+	const struct iwl_rxon_cmd active_rxon;
+	struct iwl_rxon_cmd staging_rxon;
 
 	int error_recovering;
-	struct iwl4965_rxon_cmd recovery_rxon;
+	struct iwl_rxon_cmd recovery_rxon;
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * 4965's initialize alive response contains some calibration data. */

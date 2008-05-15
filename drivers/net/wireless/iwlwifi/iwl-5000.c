@@ -459,10 +459,17 @@ static int iwl5000_disable_tx_fifo(struct iwl_priv *priv)
 	return 0;
 }
 
+/* Currently 5000 is the supperset of everything */
+static u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
+{
+	return len;
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
 static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
+	.get_hcmd_size = iwl5000_get_hcmd_size,
 	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
 #ifdef CONFIG_IWL5000_RUN_TIME_CALIB
 	.gain_computation = iwl5000_gain_computation,

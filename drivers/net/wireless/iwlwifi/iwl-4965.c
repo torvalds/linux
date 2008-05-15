@@ -1857,8 +1857,8 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl4965_rxon_assoc_cmd rxon_assoc;
-	const struct iwl4965_rxon_cmd *rxon1 = &priv->staging_rxon;
-	const struct iwl4965_rxon_cmd *rxon2 = &priv->active_rxon;
+	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
+	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
 
 	if ((rxon1->flags == rxon2->flags) &&
 	    (rxon1->filter_flags == rxon2->filter_flags) &&
@@ -3743,6 +3743,16 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 #endif /* CONFIG_IWL4965_HT */
 
 
+static u16 iwl4965_get_hcmd_size(u8 cmd_id, u16 len)
+{
+	switch (cmd_id) {
+	case REPLY_RXON:
+		return (u16) sizeof(struct iwl4965_rxon_cmd);
+	default:
+		return len;
+	}
+}
+
 static u16 iwl4965_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
 	struct iwl4965_addsta_cmd *addsta = (struct iwl4965_addsta_cmd *)data;
@@ -3802,6 +3812,7 @@ static struct iwl_hcmd_ops iwl4965_hcmd = {
 };
 
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
+	.get_hcmd_size = iwl4965_get_hcmd_size,
 	.enqueue_hcmd = iwl4965_enqueue_hcmd,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
