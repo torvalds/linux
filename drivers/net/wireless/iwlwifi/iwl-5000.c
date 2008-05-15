@@ -464,6 +464,10 @@ static u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
 	return len;
 }
 
+static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
+{
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -483,6 +487,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.shared_mem_rx_idx = iwl5000_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.disable_tx_fifo = iwl5000_disable_tx_fifo,
+	.rx_handler_setup = iwl5000_rx_handler_setup,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.config = iwl5000_nic_config,
