@@ -433,6 +433,7 @@ static struct i2c_driver_device i2c_devices[] __initdata = {
 	{"dallas,ds1340",  "ds1340"},
 	{"stm,m41t00",     "m41t00"},
 	{"dallas,ds1374",  "rtc-ds1374"},
+	{"cirrus,cs4270",  "cs4270"},
 };
 
 static int __init of_find_i2c_driver(struct device_node *node,
