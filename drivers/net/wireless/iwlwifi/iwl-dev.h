@@ -329,7 +329,7 @@ struct iwl_cmd {
 		struct iwl4965_rxon_time_cmd rxon_time;
 		struct iwl4965_powertable_cmd powertable;
 		struct iwl4965_qosparam_cmd qosparam;
-		struct iwl4965_tx_cmd tx;
+		struct iwl_tx_cmd tx;
 		struct iwl4965_tx_beacon_cmd tx_beacon;
 		struct iwl4965_rxon_assoc_cmd rxon_assoc;
 		u8 *indirect;
@@ -573,7 +573,6 @@ struct iwl_sensitivity_ranges {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
- * @tx_cmd_len: Size of Tx command (but not including frame itself)
  * @tx/rx_chains_num: Number of TX/RX chains
  * @valid_tx/rx_ant: usable antennas
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
@@ -590,7 +589,6 @@ struct iwl_sensitivity_ranges {
  */
 struct iwl_hw_params {
 	u16 max_txq_num;
-	u16 tx_cmd_len;
 	u8  tx_chains_num;
 	u8  rx_chains_num;
 	u8  valid_tx_ant;

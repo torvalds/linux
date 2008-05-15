@@ -1053,7 +1053,6 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
 	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
-	priv->hw_params.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	if (priv->cfg->mod_params->amsdu_size_8K)
@@ -1943,7 +1942,7 @@ void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 			      struct ieee80211_hdr *hdr, int sta_id,
 			      int is_hcca)
 {
-	struct iwl4965_tx_cmd *tx = &cmd->cmd.tx;
+	struct iwl_tx_cmd *tx = &cmd->cmd.tx;
 	u8 rts_retry_limit = 0;
 	u8 data_retry_limit = 0;
 	u16 fc = le16_to_cpu(hdr->frame_control);

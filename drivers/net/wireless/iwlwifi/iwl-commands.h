@@ -1196,7 +1196,7 @@ struct iwl4965_dram_scratch {
 /*
  * REPLY_TX = 0x1c (command)
  */
-struct iwl4965_tx_cmd {
+struct iwl_tx_cmd {
 	/*
 	 * MPDU byte count:
 	 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
@@ -2135,7 +2135,7 @@ struct iwl4965_scan_cmd {
 
 	/* For active scans (set to all-0s for passive scans).
 	 * Does not include payload.  Must specify Tx rate; no rate scaling. */
-	struct iwl4965_tx_cmd tx_cmd;
+	struct iwl_tx_cmd tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
 	struct iwl4965_ssid_ie direct_scan[PROBE_OPTION_MAX];
@@ -2232,7 +2232,7 @@ struct iwl4965_beacon_notif {
  * REPLY_TX_BEACON = 0x91 (command, has simple generic response)
  */
 struct iwl4965_tx_beacon_cmd {
-	struct iwl4965_tx_cmd tx;
+	struct iwl_tx_cmd tx;
 	__le16 tim_idx;
 	u8 tim_size;
 	u8 reserved1;

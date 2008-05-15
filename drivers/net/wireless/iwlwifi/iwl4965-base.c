@@ -1740,7 +1740,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	 * of the MAC header (device reads on dword boundaries).
 	 * We'll tell device about this padding later.
 	 */
-	len = priv->hw_params.tx_cmd_len +
+	len = sizeof(struct iwl_tx_cmd) +
 		sizeof(struct iwl_cmd_header) + hdr_len;
 
 	len_org = len;
@@ -1789,7 +1789,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	iwl_update_tx_stats(priv, fc, len);
 
 	scratch_phys = txcmd_phys + sizeof(struct iwl_cmd_header) +
-		offsetof(struct iwl4965_tx_cmd, scratch);
+		offsetof(struct iwl_tx_cmd, scratch);
 	out_cmd->cmd.tx.dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	out_cmd->cmd.tx.dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
 
