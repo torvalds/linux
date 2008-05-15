@@ -1988,9 +1988,12 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 nr_delalloc;
 	u64 delalloc_end;
 
+
 	WARN_ON(!PageLocked(page));
-	if (page->index > end_index) {
-		clear_extent_dirty(tree, start, page_end, GFP_NOFS);
+	page_offset = i_size & (PAGE_CACHE_SIZE - 1);
+	if (page->index > end_index ||
+	   (page->index == end_index && !page_offset)) {
+		page->mapping->a_ops->invalidatepage(page, 0);
 		unlock_page(page);
 		return 0;
 	}
@@ -1998,13 +2001,13 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	if (page->index == end_index) {
 		char *userpage;
 
-		size_t offset = i_size & (PAGE_CACHE_SIZE - 1);
-
 		userpage = kmap_atomic(page, KM_USER0);
-		memset(userpage + offset, 0, PAGE_CACHE_SIZE - offset);
-		flush_dcache_page(page);
+		memset(userpage + page_offset, 0,
+		       PAGE_CACHE_SIZE - page_offset);
 		kunmap_atomic(userpage, KM_USER0);
+		flush_dcache_page(page);
 	}
+	page_offset = 0;
 
 	set_page_extent_mapped(page);
 

@@ -1180,19 +1180,26 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 		goto out;
 
 	ret = -ENOMEM;
+again:
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		goto out;
 	if (!PageUptodate(page)) {
 		ret = btrfs_readpage(NULL, page);
 		lock_page(page);
+		if (page->mapping != mapping) {
+			unlock_page(page);
+			page_cache_release(page);
+			goto again;
+		}
 		if (!PageUptodate(page)) {
 			ret = -EIO;
 			goto out;
 		}
 	}
-	page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 
+	page_start = (u64)page->index << PAGE_CACHE_SHIFT;
+	wait_on_page_writeback(page);
 	ret = btrfs_cow_one_page(inode, page, offset);
 
 	unlock_page(page);

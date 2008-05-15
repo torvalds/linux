@@ -305,7 +305,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	    (inline_size & (root->sectorsize -1)) == 0 ||
 	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		u64 last_end;
-		u64 existing_delalloc = 0;
 
 		for (i = 0; i < num_pages; i++) {
 			struct page *p = pages[i];
@@ -315,13 +314,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		last_end = (u64)(pages[num_pages -1]->index) <<
 				PAGE_CACHE_SHIFT;
 		last_end += PAGE_CACHE_SIZE - 1;
-		if (start_pos < isize) {
-			u64 delalloc_start = start_pos;
-			existing_delalloc = count_range_bits(io_tree,
-					     &delalloc_start,
-					     end_of_last_block, (u64)-1,
-					     EXTENT_DELALLOC);
-		}
 		set_extent_delalloc(io_tree, start_pos, end_of_last_block,
 				 GFP_NOFS);
 		btrfs_add_ordered_inode(inode);
