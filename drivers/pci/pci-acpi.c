@@ -23,6 +23,7 @@ struct acpi_osc_data {
 	acpi_handle handle;
 	u32 support_set;
 	u32 control_set;
+	int is_queried;
 	u32 query_result;
 	struct list_head sibiling;
 };
@@ -147,6 +148,7 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 	if (ACPI_SUCCESS(status)) {
 		osc_data->support_set = support_set;
 		osc_data->query_result = osc_args.query_result;
+		osc_data->is_queried = 1;
 	}
 
 	return status;
@@ -203,7 +205,7 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	if (!ctrlset)
 		return AE_TYPE;
 
-	if (osc_data->support_set &&
+	if (osc_data->is_queried &&
 	    ((osc_data->query_result & ctrlset) != ctrlset))
 		return AE_SUPPORT;
 
