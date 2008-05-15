@@ -29,6 +29,9 @@
 #ifndef __iwl_sta_h__
 #define __iwl_sta_h__
 
+#define HW_KEY_DYNAMIC 0
+#define HW_KEY_DEFAULT 1
+
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty);
 int iwl_remove_default_wep_key(struct iwl_priv *priv,

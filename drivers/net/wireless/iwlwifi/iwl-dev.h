@@ -442,7 +442,6 @@ struct iwl_hw_key {
 	enum ieee80211_key_alg alg;
 	int keylen;
 	u8 keyidx;
-	struct ieee80211_key_conf *conf;
 	u8 key[32];
 };
 

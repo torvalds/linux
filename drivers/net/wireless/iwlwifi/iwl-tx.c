@@ -639,16 +639,12 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 				      struct sk_buff *skb_frag,
 				      int sta_id)
 {
-	struct iwl_hw_key *keyinfo = &priv->stations[sta_id].keyinfo;
-	struct iwl_wep_key *wepkey;
-	int keyidx = 0;
+	struct ieee80211_key_conf *keyconf = ctl->hw_key;
 
-	BUG_ON(ctl->hw_key->hw_key_idx > 3);
-
-	switch (keyinfo->alg) {
+	switch (keyconf->alg) {
 	case ALG_CCMP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
-		memcpy(tx_cmd->key, keyinfo->key, keyinfo->keylen);
+		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
 		if (ctl->flags & IEEE80211_TXCTL_AMPDU)
 			tx_cmd->tx_flags |= TX_CMD_FLG_AGG_CCMP_MSK;
 		IWL_DEBUG_TX("tx_cmd with aes hwcrypto\n");
@@ -656,39 +652,26 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 
 	case ALG_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
-		ieee80211_get_tkip_key(keyinfo->conf, skb_frag,
+		ieee80211_get_tkip_key(keyconf, skb_frag,
 			IEEE80211_TKIP_P2_KEY, tx_cmd->key);
 		IWL_DEBUG_TX("tx_cmd with tkip hwcrypto\n");
 		break;
 
 	case ALG_WEP:
-		wepkey = &priv->wep_keys[ctl->hw_key->hw_key_idx];
-		tx_cmd->sec_ctl = 0;
-		if (priv->default_wep_key) {
-			/* the WEP key was sent as static */
-			keyidx = ctl->hw_key->hw_key_idx;
-			memcpy(&tx_cmd->key[3], wepkey->key,
-							wepkey->key_size);
-			if (wepkey->key_size == WEP_KEY_LEN_128)
-				tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
-		} else {
-			/* the WEP key was sent as dynamic */
-			keyidx = keyinfo->keyidx;
-			memcpy(&tx_cmd->key[3], keyinfo->key,
-							keyinfo->keylen);
-			if (keyinfo->keylen == WEP_KEY_LEN_128)
-				tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
-		}
-
 		tx_cmd->sec_ctl |= (TX_CMD_SEC_WEP |
-			(keyidx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT);
+			(keyconf->keyidx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT);
+
+		if (keyconf->keylen == WEP_KEY_LEN_128)
+			tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
+
+		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
 
 		IWL_DEBUG_TX("Configuring packet for WEP encryption "
-			     "with key %d\n", keyidx);
+			     "with key %d\n", keyconf->keyidx);
 		break;
 
 	default:
-		printk(KERN_ERR "Unknown encode alg %d\n", keyinfo->alg);
+		printk(KERN_ERR "Unknown encode alg %d\n", keyconf->alg);
 		break;
 	}
 }

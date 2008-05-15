@@ -324,7 +324,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	unsigned long flags;
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
-	keyconf->hw_key_idx = keyconf->keyidx;
+	keyconf->hw_key_idx = HW_KEY_DEFAULT;
 	priv->stations[IWL_AP_ID].keyinfo.alg = ALG_WEP;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
@@ -354,7 +354,6 @@ static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	int ret;
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
-	keyconf->hw_key_idx = keyconf->keyidx;
 
 	key_flags |= (STA_KEY_FLG_WEP | STA_KEY_FLG_MAP_KEY_MSK);
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
@@ -411,7 +410,6 @@ static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-	keyconf->hw_key_idx = keyconf->keyidx;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
@@ -449,12 +447,10 @@ static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-	keyconf->hw_key_idx = keyconf->keyidx;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
 	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
-	priv->stations[sta_id].keyinfo.conf = keyconf;
 	priv->stations[sta_id].keyinfo.keylen = 16;
 
 	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
@@ -483,7 +479,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	u16 key_flags;
 	u8 keyidx;
 
-	priv->key_mapping_key = 0;
+	priv->key_mapping_key--;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
@@ -514,31 +510,32 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
 	IWL_DEBUG_INFO("hwcrypto: clear ucode station key info\n");
-	ret =  iwl_send_add_sta(priv, &priv->stations[sta_id].sta, 0);
+	ret =  iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(iwl_remove_dynamic_key);
 
 int iwl_set_dynamic_key(struct iwl_priv *priv,
-				struct ieee80211_key_conf *key, u8 sta_id)
+				struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	int ret;
 
-	priv->key_mapping_key = 1;
+	priv->key_mapping_key++;
+	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
 
-	switch (key->alg) {
+	switch (keyconf->alg) {
 	case ALG_CCMP:
-		ret = iwl_set_ccmp_dynamic_key_info(priv, key, sta_id);
+		ret = iwl_set_ccmp_dynamic_key_info(priv, keyconf, sta_id);
 		break;
 	case ALG_TKIP:
-		ret = iwl_set_tkip_dynamic_key_info(priv, key, sta_id);
+		ret = iwl_set_tkip_dynamic_key_info(priv, keyconf, sta_id);
 		break;
 	case ALG_WEP:
-		ret = iwl_set_wep_dynamic_key_info(priv, key, sta_id);
+		ret = iwl_set_wep_dynamic_key_info(priv, keyconf, sta_id);
 		break;
 	default:
-		IWL_ERROR("Unknown alg: %s alg = %d\n", __func__, key->alg);
+		IWL_ERROR("Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
 		ret = -EINVAL;
 	}
 

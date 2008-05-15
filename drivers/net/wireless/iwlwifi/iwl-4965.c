@@ -2389,6 +2389,7 @@ static int iwl4965_set_decrypted_flag(struct iwl_priv *priv,
 		    RX_RES_STATUS_BAD_KEY_TTAK)
 			break;
 
+	case RX_RES_STATUS_SEC_TYPE_WEP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_BAD_ICV_MIC) {
 			/* bad ICV, the packet is destroyed since the
@@ -2396,7 +2397,6 @@ static int iwl4965_set_decrypted_flag(struct iwl_priv *priv,
 			IWL_DEBUG_RX("Packet destroyed\n");
 			return -1;
 		}
-	case RX_RES_STATUS_SEC_TYPE_WEP:
 	case RX_RES_STATUS_SEC_TYPE_CCMP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_DECRYPT_OK) {
