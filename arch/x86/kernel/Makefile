@@ -6,6 +6,13 @@ extra-y                := head_$(BITS).o head$(BITS).o init_task.o vmlinux.lds
 
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 
+ifdef CONFIG_FTRACE
+# Do not profile debug utilities
+CFLAGS_REMOVE_tsc_64.o = -pg
+CFLAGS_REMOVE_tsc_32.o = -pg
+CFLAGS_REMOVE_rtc.o = -pg
+endif
+
 #
 # vsyscalls (which work on the user stack) should have
 # no stack-protector checks:
