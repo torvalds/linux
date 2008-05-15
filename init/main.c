@@ -697,7 +697,7 @@ static void __init do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
 	ktime_t t0, t1, delta;
-	char msgbuf[40];
+	char msgbuf[64];
 	int result;
 
 	if (initcall_debug) {
@@ -722,11 +722,11 @@ static void __init do_one_initcall(initcall_t fn)
 		sprintf(msgbuf, "error code %d ", result);
 
 	if (preempt_count() != count) {
-		strncat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
+		strlcat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
 		preempt_count() = count;
 	}
 	if (irqs_disabled()) {
-		strncat(msgbuf, "disabled interrupts ", sizeof(msgbuf));
+		strlcat(msgbuf, "disabled interrupts ", sizeof(msgbuf));
 		local_irq_enable();
 	}
 	if (msgbuf[0]) {
