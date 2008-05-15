@@ -297,12 +297,17 @@ static int uio_open(struct inode *inode, struct file *filep)
 	struct uio_listener *listener;
 	int ret = 0;
 
+	lock_kernel();
 	idev = idr_find(&uio_idr, iminor(inode));
-	if (!idev)
-		return -ENODEV;
+	if (!idev) {
+		ret = -ENODEV;
+		goto out;
+	}
 
-	if (!try_module_get(idev->owner))
-		return -ENODEV;
+	if (!try_module_get(idev->owner)) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	listener = kmalloc(sizeof(*listener), GFP_KERNEL);
 	if (!listener) {
@@ -319,7 +324,7 @@ static int uio_open(struct inode *inode, struct file *filep)
 		if (ret)
 			goto err_infoopen;
 	}
-
+	unlock_kernel();
 	return 0;
 
 err_infoopen:
@@ -329,6 +334,8 @@ err_alloc_listener:
 
 	module_put(idev->owner);
 
+out:
+	unlock_kernel();
 	return ret;
 }
 
