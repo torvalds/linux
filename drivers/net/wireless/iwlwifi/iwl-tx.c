@@ -105,7 +105,7 @@ EXPORT_SYMBOL(iwl_hw_txq_free_tfd);
  */
 static void iwl_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
-	struct iwl4965_queue *q = &txq->q;
+	struct iwl_queue *q = &txq->q;
 	struct pci_dev *dev = priv->pci_dev;
 	int len;
 
@@ -158,7 +158,7 @@ EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
 /**
  * iwl_queue_init - Initialize queue's high/low-water and read/write indexes
  */
-static int iwl_queue_init(struct iwl_priv *priv, struct iwl4965_queue *q,
+static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 			  int count, int slots_num, u32 id)
 {
 	q->n_bd = count;

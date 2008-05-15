@@ -3231,7 +3231,7 @@ static int iwl4965_tx_queue_agg_disable(struct iwl_priv *priv, u16 txq_id,
 int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 					 u8 tid, int txq_id)
 {
-	struct iwl4965_queue *q = &priv->txq[txq_id].q;
+	struct iwl_queue *q = &priv->txq[txq_id].q;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
 
@@ -3260,16 +3260,6 @@ int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 		break;
 	}
 	return 0;
-}
-
-/**
- * iwl4965_queue_dec_wrap - Decrement queue index, wrap back to end if needed
- * @index -- current index
- * @n_bd -- total number of entries in queue (s/b power of 2)
- */
-static inline int iwl4965_queue_dec_wrap(int index, int n_bd)
-{
-	return (index == 0) ? n_bd - 1 : index - 1;
 }
 
 /**
@@ -3304,7 +3294,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 	agg = &priv->stations[ba_resp->sta_id].tid[ba_resp->tid].agg;
 
 	/* Find index just before block-ack window */
-	index = iwl4965_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
+	index = iwl_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
 	/* TODO: Need to get this copy more safely - now good for debug */
 
@@ -3337,7 +3327,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 		int freed = iwl4965_tx_queue_reclaim(priv, scd_flow, index);
 		priv->stations[ba_resp->sta_id].
 			tid[ba_resp->tid].tfds_in_queue -= freed;
-		if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
+		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
 			priv->mac80211_registered &&
 			agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)
 			ieee80211_wake_queue(priv->hw, ampdu_q);

@@ -102,7 +102,7 @@ struct iwl_rx_mem_buffer {
  *
  * Contains common data for Rx and Tx queues
  */
-struct iwl4965_queue {
+struct iwl_queue {
 	int n_bd;              /* number of BDs in this queue */
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
@@ -137,7 +137,7 @@ struct iwl4965_tx_info {
  * descriptors) and required locking structures.
  */
 struct iwl_tx_queue {
-	struct iwl4965_queue q;
+	struct iwl_queue q;
 	struct iwl_tfd_frame *bd;
 	struct iwl_cmd *cmd;
 	dma_addr_t dma_addr_cmd;
@@ -721,7 +721,7 @@ extern u8 iwl_find_station(struct iwl_priv *priv, const u8 *bssid);
 
 extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 extern int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
-extern int iwl4965_queue_space(const struct iwl4965_queue *q);
+extern int iwl_queue_space(const struct iwl_queue *q);
 struct iwl_priv;
 
 extern void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);

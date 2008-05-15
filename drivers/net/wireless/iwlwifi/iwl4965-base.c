@@ -173,7 +173,7 @@ static const char *iwl4965_escape_essid(const char *essid, u8 essid_len)
  * See more detailed info in iwl-4965-hw.h.
  ***************************************************/
 
-int iwl4965_queue_space(const struct iwl4965_queue *q)
+int iwl_queue_space(const struct iwl_queue *q)
 {
 	int s = q->read_ptr - q->write_ptr;
 
@@ -190,14 +190,14 @@ int iwl4965_queue_space(const struct iwl4965_queue *q)
 }
 
 
-static inline int x2_queue_used(const struct iwl4965_queue *q, int i)
+static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
 	return q->write_ptr > q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :
 		!(i < q->read_ptr && i >= q->write_ptr);
 }
 
-static inline u8 get_cmd_index(struct iwl4965_queue *q, u32 index, int is_huge)
+static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 {
 	/* This is for scan command, the big buffer at end of command array */
 	if (is_huge)
@@ -348,7 +348,7 @@ u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
-	struct iwl4965_queue *q = &txq->q;
+	struct iwl_queue *q = &txq->q;
 	struct iwl_tfd_frame *tfd;
 	u32 *control_flags;
 	struct iwl_cmd *out_cmd;
@@ -369,7 +369,7 @@ int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	if (iwl4965_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
+	if (iwl_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
 		IWL_ERROR("No space for Tx\n");
 		return -ENOSPC;
 	}
@@ -1768,7 +1768,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	u32 *control_flags;
 	int txq_id = ctl->queue;
 	struct iwl_tx_queue *txq = NULL;
-	struct iwl4965_queue *q = NULL;
+	struct iwl_queue *q = NULL;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
@@ -1981,7 +1981,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	if (rc)
 		return rc;
 
-	if ((iwl4965_queue_space(q) < q->high_mark)
+	if ((iwl_queue_space(q) < q->high_mark)
 	    && priv->mac80211_registered) {
 		if (wait_write_ptr) {
 			spin_lock_irqsave(&priv->lock, flags);
@@ -2332,10 +2332,10 @@ static void iwl4965_txstatus_to_ieee(struct iwl_priv *priv,
 int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl4965_queue *q = &txq->q;
+	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
 
-	if ((index >= q->n_bd) || (x2_queue_used(q, index) == 0)) {
+	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  index, q->n_bd, q->write_ptr, q->read_ptr);
@@ -2541,7 +2541,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	__le16 *qc;
 #endif
 
-	if ((index >= txq->q.n_bd) || (x2_queue_used(&txq->q, index) == 0)) {
+	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
@@ -2587,7 +2587,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 
-			if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
+			if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
 			    txq_id >= 0 && priv->mac80211_registered &&
 			    agg->state != IWL_EMPTYING_HW_QUEUE_DELBA) {
 				/* calculate mac80211 ampdu sw queue to wake */
@@ -2621,7 +2621,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		int freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
 		if (tid != MAX_TID_COUNT)
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
-		if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
+		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
 			(txq_id >= 0) && priv->mac80211_registered)
 			ieee80211_wake_queue(priv->hw, txq_id);
 		if (tid != MAX_TID_COUNT)
@@ -5783,7 +5783,7 @@ static int iwl4965_mac_get_tx_stats(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	int i, avail;
 	struct iwl_tx_queue *txq;
-	struct iwl4965_queue *q;
+	struct iwl_queue *q;
 	unsigned long flags;
 
 	IWL_DEBUG_MAC80211("enter\n");
@@ -5798,7 +5798,7 @@ static int iwl4965_mac_get_tx_stats(struct ieee80211_hw *hw,
 	for (i = 0; i < AC_NUM; i++) {
 		txq = &priv->txq[i];
 		q = &txq->q;
-		avail = iwl4965_queue_space(q);
+		avail = iwl_queue_space(q);
 
 		stats[i].len = q->n_window - avail;
 		stats[i].limit = q->n_window - q->high_mark;
