@@ -876,6 +876,12 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
+enum ucode_type {
+	UCODE_NONE = 0,
+	UCODE_INIT,
+	UCODE_RT
+};
+
 #ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 /* Sensitivity calib data */
 struct iwl_sensitivity_data {
@@ -1010,6 +1016,8 @@ struct iwl_priv {
 	struct fw_desc ucode_init;	/* initialization inst */
 	struct fw_desc ucode_init_data;	/* initialization data */
 	struct fw_desc ucode_boot;	/* bootstrap inst */
+	enum ucode_type ucode_type;
+	u8 ucode_write_complete;	/* the image write is complete */
 
 
 	struct iwl4965_rxon_time_cmd rxon_timing;

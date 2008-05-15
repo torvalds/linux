@@ -2978,6 +2978,9 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 	if (inta & CSR_INT_BIT_FH_TX) {
 		IWL_DEBUG_ISR("Tx interrupt\n");
 		handled |= CSR_INT_BIT_FH_TX;
+		/* FH finished to write, send event */
+		priv->ucode_write_complete = 1;
+		wake_up_interruptible(&priv->wait_command_queue);
 	}
 
 	if (inta & ~handled)

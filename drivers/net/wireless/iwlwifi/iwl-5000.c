@@ -287,6 +287,139 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 	return &priv->eeprom[address];
 }
 
+/*
+ * ucode
+ */
+static int iwl5000_load_section(struct iwl_priv *priv,
+				struct fw_desc *image,
+				u32 dst_addr)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	dma_addr_t phy_addr = image->p_addr;
+	u32 byte_cnt = image->len;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (ret) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	iwl_write_direct32(priv,
+		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
+
+	iwl_write_direct32(priv,
+		FH_SRVC_CHNL_SRAM_ADDR_REG(FH_SRVC_CHNL), dst_addr);
+
+	iwl_write_direct32(priv,
+		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
+		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+
+	/* FIME: write the MSB of the phy_addr in CTRL1
+	 * iwl_write_direct32(priv,
+		IWL_FH_TFDIB_CTRL1_REG(IWL_FH_SRVC_CHNL),
+		((phy_addr & MSB_MSK)
+			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_count);
+	 */
+	iwl_write_direct32(priv,
+		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL), byte_cnt);
+	iwl_write_direct32(priv,
+		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
+		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
+		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
+		FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
+
+	iwl_write_direct32(priv,
+		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE_VAL |
+		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
+
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+	return 0;
+}
+
+static int iwl5000_load_given_ucode(struct iwl_priv *priv,
+		struct fw_desc *inst_image,
+		struct fw_desc *data_image)
+{
+	int ret = 0;
+
+	ret = iwl5000_load_section(
+		priv, inst_image, RTC_INST_LOWER_BOUND);
+	if (ret)
+		return ret;
+
+	IWL_DEBUG_INFO("INST uCode section being loaded...\n");
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+				priv->ucode_write_complete, 5 * HZ);
+	if (ret == -ERESTARTSYS) {
+		IWL_ERROR("Could not load the INST uCode section due "
+			"to interrupt\n");
+		return ret;
+	}
+	if (!ret) {
+		IWL_ERROR("Could not load the INST uCode section\n");
+		return -ETIMEDOUT;
+	}
+
+	priv->ucode_write_complete = 0;
+
+	ret = iwl5000_load_section(
+		priv, data_image, RTC_DATA_LOWER_BOUND);
+	if (ret)
+		return ret;
+
+	IWL_DEBUG_INFO("DATA uCode section being loaded...\n");
+
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+				priv->ucode_write_complete, 5 * HZ);
+	if (ret == -ERESTARTSYS) {
+		IWL_ERROR("Could not load the INST uCode section due "
+			"to interrupt\n");
+		return ret;
+	} else if (!ret) {
+		IWL_ERROR("Could not load the DATA uCode section\n");
+		return -ETIMEDOUT;
+	} else
+		ret = 0;
+
+	priv->ucode_write_complete = 0;
+
+	return ret;
+}
+
+static int iwl5000_load_ucode(struct iwl_priv *priv)
+{
+	int ret = 0;
+
+	/* check whether init ucode should be loaded, or rather runtime ucode */
+	if (priv->ucode_init.len && (priv->ucode_type == UCODE_NONE)) {
+		IWL_DEBUG_INFO("Init ucode found. Loading init ucode...\n");
+		ret = iwl5000_load_given_ucode(priv,
+			&priv->ucode_init, &priv->ucode_init_data);
+		if (!ret) {
+			IWL_DEBUG_INFO("Init ucode load complete.\n");
+			priv->ucode_type = UCODE_INIT;
+		}
+	} else {
+		IWL_DEBUG_INFO("Init ucode not found, or already loaded. "
+			"Loading runtime ucode...\n");
+		ret = iwl5000_load_given_ucode(priv,
+			&priv->ucode_code, &priv->ucode_data);
+		if (!ret) {
+			IWL_DEBUG_INFO("Runtime ucode load complete.\n");
+			priv->ucode_type = UCODE_RT;
+		}
+	}
+
+	return ret;
+}
+
 static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if ((priv->cfg->mod_params->num_of_queues > IWL50_NUM_QUEUES) ||
@@ -488,6 +621,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.disable_tx_fifo = iwl5000_disable_tx_fifo,
 	.rx_handler_setup = iwl5000_rx_handler_setup,
+	.load_ucode = iwl5000_load_ucode,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.config = iwl5000_nic_config,
