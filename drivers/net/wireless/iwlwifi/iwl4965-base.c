@@ -5878,10 +5878,10 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	}
 
 	/*******************
-	 * 6. Setup hw/priv
+	 * 6. Setup priv
 	 *******************/
 
-	err = iwl_setup(priv);
+	err = iwl_init_drv(priv);
 	if (err)
 		goto out_free_eeprom;
 	/* At this point both hw and priv are initialized. */
@@ -5896,9 +5896,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		IWL_DEBUG_INFO("Radio disabled.\n");
 	}
 
-	if (priv->cfg->mod_params->enable_qos)
-		priv->qos_data.qos_enable = 1;
-
 	/********************
 	 * 8. Setup services
 	 ********************/
@@ -5909,14 +5906,9 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	err = sysfs_create_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 	if (err) {
 		IWL_ERROR("failed to create sysfs device attributes\n");
-		goto out_free_eeprom;
+		goto out_uninit_drv;
 	}
 
-	err = iwl_dbgfs_register(priv, DRV_NAME);
-	if (err) {
-		IWL_ERROR("failed to create debugfs files\n");
-		goto out_remove_sysfs;
-	}
 
 	iwl4965_setup_deferred_work(priv);
 	iwl4965_setup_rx_handlers(priv);
@@ -5927,12 +5919,26 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 
+	/**********************************
+	 * 10. Setup and register mac80211
+	 **********************************/
+
+	err = iwl_setup_mac(priv);
+	if (err)
+		goto out_remove_sysfs;
+
+	err = iwl_dbgfs_register(priv, DRV_NAME);
+	if (err)
+		IWL_ERROR("failed to create debugfs files\n");
+
 	/* notify iwlcore to init */
 	iwlcore_low_level_notify(priv, IWLCORE_INIT_EVT);
 	return 0;
 
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
+ out_uninit_drv:
+	iwl_uninit_drv(priv);
  out_free_eeprom:
 	iwl_eeprom_free(priv);
  out_iounmap:
@@ -6014,8 +6020,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-	iwl_free_channel_map(priv);
-	iwlcore_free_geos(priv);
+	iwl_uninit_drv(priv);
 
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);

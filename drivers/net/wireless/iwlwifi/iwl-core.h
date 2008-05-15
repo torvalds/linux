@@ -175,13 +175,13 @@ void iwl_set_rxon_chain(struct iwl_priv *priv);
 int iwl_set_rxon_channel(struct iwl_priv *priv,
 				enum ieee80211_band band,
 				u16 channel);
-void iwlcore_free_geos(struct iwl_priv *priv);
-int iwl_setup(struct iwl_priv *priv);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
 u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_ht_info *sta_ht_inf);
 int iwl_hw_nic_init(struct iwl_priv *priv);
-
+int iwl_setup_mac(struct iwl_priv *priv);
+int iwl_init_drv(struct iwl_priv *priv);
+void iwl_uninit_drv(struct iwl_priv *priv);
 /* "keep warm" functions */
 int iwl_kw_init(struct iwl_priv *priv);
 int iwl_kw_alloc(struct iwl_priv *priv);
