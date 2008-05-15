@@ -355,7 +355,7 @@ void ieee80211_start_queues(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 	int i;
 
-	for (i = 0; i < local->hw.queues; i++)
+	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
 		clear_bit(IEEE80211_LINK_STATE_XOFF, &local->state[i]);
 	if (!ieee80211_qdisc_installed(local->mdev))
 		netif_start_queue(local->mdev);
@@ -366,7 +366,7 @@ void ieee80211_stop_queues(struct ieee80211_hw *hw)
 {
 	int i;
 
-	for (i = 0; i < hw->queues; i++)
+	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
 		ieee80211_stop_queue(hw, i);
 }
 EXPORT_SYMBOL(ieee80211_stop_queues);
@@ -375,7 +375,7 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw)
 {
 	int i;
 
-	for (i = 0; i < hw->queues; i++)
+	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
 		ieee80211_wake_queue(hw, i);
 }
 EXPORT_SYMBOL(ieee80211_wake_queues);
