@@ -288,6 +288,8 @@ struct kvm_vcpu_arch {
 	unsigned int hv_clock_tsc_khz;
 	unsigned int time_offset;
 	struct page *time_page;
+
+	bool nmi_pending;
 };
 
 struct kvm_mem_alias {
@@ -514,6 +516,8 @@ void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
 			   u32 error_code);
+
+void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 
 void fx_init(struct kvm_vcpu *vcpu);
 

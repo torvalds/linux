@@ -356,8 +356,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_SMI:
 		printk(KERN_DEBUG "Ignoring guest SMI\n");
 		break;
+
 	case APIC_DM_NMI:
-		printk(KERN_DEBUG "Ignoring guest NMI\n");
+		kvm_inject_nmi(vcpu);
 		break;
 
 	case APIC_DM_INIT:

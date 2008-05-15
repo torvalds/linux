@@ -521,4 +521,6 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int kvm_pal_emul(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 void kvm_sal_emul(struct kvm_vcpu *vcpu);
 
+static inline void kvm_inject_nmi(struct kvm_vcpu *vcpu) {}
+
 #endif

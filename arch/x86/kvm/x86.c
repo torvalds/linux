@@ -173,6 +173,12 @@ void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 	kvm_queue_exception_e(vcpu, PF_VECTOR, error_code);
 }
 
+void kvm_inject_nmi(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.nmi_pending = 1;
+}
+EXPORT_SYMBOL_GPL(kvm_inject_nmi);
+
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
 {
 	WARN_ON(vcpu->arch.exception.pending);
