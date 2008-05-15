@@ -235,6 +235,25 @@ static inline int ieee80211_is_reassoc_response(u16 fc)
 	       ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_REASSOC_RESP);
 }
 
+static inline int ieee80211_is_qos_data(u16 fc)
+{
+	return ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
+	       ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_QOS_DATA);
+}
+/**
+ * ieee80211_get_qos_ctrl - get pointer to the QoS control field
+ *
+ * This function returns the pointer to 802.11 header QoS field (2 bytes)
+ * This function doesn't check whether hdr is a QoS hdr, use with care
+ * @hdr: struct ieee80211_hdr *hdr
+ * @hdr_len: header length
+ */
+
+static inline u8 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr, int hdr_len)
+{
+	return  ((u8 *) hdr + hdr_len - QOS_CONTROL_LEN);
+}
+
 static inline int iwl_check_bits(unsigned long field, unsigned long mask)
 {
 	return ((field & mask) == mask) ? 1 : 0;

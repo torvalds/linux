@@ -650,7 +650,6 @@ extern int iwl4965_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,
 					const u8 *dest, int left);
-extern __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr);
 extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
 int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 

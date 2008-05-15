@@ -282,14 +282,20 @@ static void rs_tl_rm_old_stats(struct iwl4965_traffic_load *tl, u32 curr_time)
  *	increment traffic load value for tid and also remove
  *	any old values if passed the certain time period
  */
-static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data, u8 tid)
+static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
+			     struct ieee80211_hdr *hdr)
 {
 	u32 curr_time = jiffies_to_msecs(jiffies);
 	u32 time_diff;
 	s32 index;
 	struct iwl4965_traffic_load *tl = NULL;
+	u16 fc = le16_to_cpu(hdr->frame_control);
+	u8 tid;
 
-	if (tid >= TID_MAX_LOAD_COUNT)
+	if (ieee80211_is_qos_data(fc)) {
+		u8 *qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+		tid = qc[0] & 0xf;
+	} else
 		return;
 
 	tl = &lq_data->load[tid];
@@ -1670,7 +1676,6 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	u16 high_low;
 #ifdef CONFIG_IWL4965_HT
 	u8 tid = MAX_TID_COUNT;
-	__le16 *qc;
 #endif
 
 	IWL_DEBUG_RATE("rate scale calculate new rate for skb\n");
@@ -1693,11 +1698,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
 
 #ifdef CONFIG_IWL4965_HT
-	qc = ieee80211_get_qos_ctrl(hdr);
-	if (qc) {
-		tid = (u8)(le16_to_cpu(*qc) & 0xf);
-		rs_tl_add_packet(lq_sta, tid);
-	}
+	rs_tl_add_packet(lq_sta, hdr);
 #endif
 	/*
 	 * Select rate-scale / modulation-mode table to work with in

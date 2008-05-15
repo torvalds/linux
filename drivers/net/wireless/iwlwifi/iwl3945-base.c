@@ -102,16 +102,6 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-static __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr)
-{
-	u16 fc = le16_to_cpu(hdr->frame_control);
-	int hdr_len = ieee80211_get_hdrlen(fc);
-
-	if ((fc & 0x00cc) == (IEEE80211_STYPE_QOS_DATA | IEEE80211_FTYPE_DATA))
-		return (__le16 *) ((u8 *) hdr + hdr_len - QOS_CONTROL_LEN);
-	return NULL;
-}
-
 static const struct ieee80211_supported_band *iwl3945_get_band(
 		struct iwl3945_priv *priv, enum ieee80211_band band)
 {
@@ -2441,7 +2431,6 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 				  struct ieee80211_hdr *hdr,
 				  int is_unicast, u8 std_id)
 {
-	__le16 *qc;
 	u16 fc = le16_to_cpu(hdr->frame_control);
 	__le32 tx_flags = cmd->cmd.tx.tx_flags;
 
@@ -2462,12 +2451,13 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 	if (ieee80211_get_morefrag(hdr))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG_MSK;
 
-	qc = ieee80211_get_qos_ctrl(hdr);
-	if (qc) {
-		cmd->cmd.tx.tid_tspec = (u8) (le16_to_cpu(*qc) & 0xf);
+	if (ieee80211_is_qos_data(fc)) {
+		u8 *qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+		cmd->cmd.tx.tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
-	} else
+	} else {
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
+	}
 
 	if (ctrl->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
 		tx_flags |= TX_CMD_FLG_RTS_MSK;
@@ -2568,13 +2558,15 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	struct iwl3945_cmd *out_cmd = NULL;
-	u16 len, idx, len_org;
-	u8 id, hdr_len, unicast;
+	u16 len, idx, len_org, hdr_len;
+	u8 id;
+	u8 unicast;
 	u8 sta_id;
+	u8 tid = 0;
 	u16 seq_number = 0;
 	u16 fc;
-	__le16 *qc;
 	u8 wait_write_ptr = 0;
+	u8 *qc = NULL;
 	unsigned long flags;
 	int rc;
 
@@ -2632,9 +2624,9 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 
 	IWL_DEBUG_RATE("station Id %d\n", sta_id);
 
-	qc = ieee80211_get_qos_ctrl(hdr);
-	if (qc) {
-		u8 tid = (u8)(le16_to_cpu(*qc) & 0xf);
+	if (ieee80211_is_qos_data(fc)) {
+		qc = ieee80211_get_qos_ctrl(hdr, hdr_len);
+		tid = qc[0] & 0xf;
 		seq_number = priv->stations[sta_id].tid[tid].seq_number &
 				IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = cpu_to_le16(seq_number) |
@@ -2745,7 +2737,6 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 	if (!ieee80211_get_morefrag(hdr)) {
 		txq->need_update = 1;
 		if (qc) {
-			u8 tid = (u8)(le16_to_cpu(*qc) & 0xf);
 			priv->stations[sta_id].tid[tid].seq_number = seq_number;
 		}
 	} else {

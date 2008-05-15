@@ -89,16 +89,6 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-__le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr)
-{
-	u16 fc = le16_to_cpu(hdr->frame_control);
-	int hdr_len = ieee80211_get_hdrlen(fc);
-
-	if ((fc & 0x00cc) == (IEEE80211_STYPE_QOS_DATA | IEEE80211_FTYPE_DATA))
-		return (__le16 *) ((u8 *) hdr + hdr_len - QOS_CONTROL_LEN);
-	return NULL;
-}
-
 static const struct ieee80211_supported_band *iwl_get_hw_mode(
 		struct iwl_priv *priv, enum ieee80211_band band)
 {
@@ -1532,7 +1522,6 @@ static void iwl4965_build_tx_cmd_basic(struct iwl_priv *priv,
 				  struct ieee80211_hdr *hdr,
 				  int is_unicast, u8 std_id)
 {
-	__le16 *qc;
 	u16 fc = le16_to_cpu(hdr->frame_control);
 	__le32 tx_flags = cmd->cmd.tx.tx_flags;
 
@@ -1557,12 +1546,13 @@ static void iwl4965_build_tx_cmd_basic(struct iwl_priv *priv,
 	if (ieee80211_get_morefrag(hdr))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG_MSK;
 
-	qc = ieee80211_get_qos_ctrl(hdr);
-	if (qc) {
-		cmd->cmd.tx.tid_tspec = (u8) (le16_to_cpu(*qc) & 0xf);
+	if (ieee80211_is_qos_data(fc)) {
+		u8 *qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+		cmd->cmd.tx.tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
-	} else
+	} else {
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
+	}
 
 	if (ctrl->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
 		tx_flags |= TX_CMD_FLG_RTS_MSK;
@@ -1614,12 +1604,15 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	dma_addr_t scratch_phys;
 	struct iwl_cmd *out_cmd = NULL;
 	u16 len, idx, len_org;
-	u8 id, hdr_len, unicast;
+	u8 hdr_len;
+	u8 id;
+	u8 unicast;
 	u8 sta_id;
+	u8 tid = 0;
+	u8 wait_write_ptr = 0;
 	u16 seq_number = 0;
 	u16 fc;
-	__le16 *qc;
-	u8 wait_write_ptr = 0;
+	u8 *qc = NULL;
 	unsigned long flags;
 	int rc;
 
@@ -1678,9 +1671,9 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 
 	IWL_DEBUG_TX("station Id %d\n", sta_id);
 
-	qc = ieee80211_get_qos_ctrl(hdr);
-	if (qc) {
-		u8 tid = (u8)(le16_to_cpu(*qc) & 0xf);
+	if (ieee80211_is_qos_data(fc)) {
+		qc = ieee80211_get_qos_ctrl(hdr, hdr_len);
+		tid = qc[0] & 0xf;
 		seq_number = priv->stations[sta_id].tid[tid].seq_number &
 				IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = cpu_to_le16(seq_number) |
@@ -1795,10 +1788,8 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 
 	if (!ieee80211_get_morefrag(hdr)) {
 		txq->need_update = 1;
-		if (qc) {
-			u8 tid = (u8)(le16_to_cpu(*qc) & 0xf);
+		if (qc)
 			priv->stations[sta_id].tid[tid].seq_number = seq_number;
-		}
 	} else {
 		wait_write_ptr = 1;
 		txq->need_update = 0;
@@ -2377,8 +2368,9 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	u32  status = le32_to_cpu(tx_resp->status);
 #ifdef CONFIG_IWL4965_HT
 	int tid = MAX_TID_COUNT, sta_id = IWL_INVALID_STATION;
+	u16 fc;
 	struct ieee80211_hdr *hdr;
-	__le16 *qc;
+	u8 *qc = NULL;
 #endif
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
@@ -2391,10 +2383,11 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 #ifdef CONFIG_IWL4965_HT
 	hdr = iwl4965_tx_queue_get_hdr(priv, txq_id, index);
-	qc = ieee80211_get_qos_ctrl(hdr);
-
-	if (qc)
-		tid = le16_to_cpu(*qc) & 0xf;
+	fc = le16_to_cpu(hdr->frame_control);
+	if (ieee80211_is_qos_data(fc)) {
+		qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+		tid = qc[0] & 0xf;
+	}
 
 	sta_id = iwl4965_get_ra_sta_id(priv, hdr);
 	if (txq->sched_retry && unlikely(sta_id == IWL_INVALID_STATION)) {
