@@ -117,12 +117,20 @@ static int msr_open(struct inode *inode, struct file *file)
 {
 	unsigned int cpu = iminor(file->f_path.dentry->d_inode);
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	int ret = 0;
 
-	if (cpu >= NR_CPUS || !cpu_online(cpu))
-		return -ENXIO;	/* No such CPU */
+	lock_kernel();
+	cpu = iminor(file->f_path.dentry->d_inode);
+
+	if (cpu >= NR_CPUS || !cpu_online(cpu)) {
+		ret = -ENXIO;	/* No such CPU */
+		goto out;
+	}
+	c = &cpu_data(cpu);
 	if (!cpu_has(c, X86_FEATURE_MSR))
-		return -EIO;	/* MSR not supported */
-
+		ret = -EIO;	/* MSR not supported */
+out:
+	unlock_kernel();
 	return 0;
 }
 
