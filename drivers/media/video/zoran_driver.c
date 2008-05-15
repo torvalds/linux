@@ -1167,7 +1167,7 @@ zoran_close_end_session (struct file *file)
 
 	/* v4l capture */
 	if (fh->v4l_buffers.active != ZORAN_FREE) {
-		long flags;
+		unsigned long flags;
 
 		spin_lock_irqsave(&zr->spinlock, flags);
 		zr36057_set_memgrab(zr, 0);
@@ -3436,7 +3436,7 @@ zoran_do_ioctl (struct inode *inode,
 
 			/* unload capture */
 			if (zr->v4l_memgrab_active) {
-				long flags;
+				unsigned long flags;
 
 				spin_lock_irqsave(&zr->spinlock, flags);
 				zr36057_set_memgrab(zr, 0);
@@ -4375,7 +4375,7 @@ zoran_vm_close (struct vm_area_struct *vma)
 				mutex_lock(&zr->resource_lock);
 
 				if (fh->v4l_buffers.active != ZORAN_FREE) {
-					long flags;
+					unsigned long flags;
 
 					spin_lock_irqsave(&zr->spinlock, flags);
 					zr36057_set_memgrab(zr, 0);
