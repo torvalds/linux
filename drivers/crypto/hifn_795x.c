@@ -29,7 +29,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/highmem.h>
-#include <linux/interrupt.h>
 #include <linux/crypto.h>
 #include <linux/hw_random.h>
 #include <linux/ktime.h>
