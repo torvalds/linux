@@ -900,12 +900,6 @@ static void
 palinfo_smp_call(void *info)
 {
 	palinfo_smp_data_t *data = (palinfo_smp_data_t *)info;
-	if (data == NULL) {
-		printk(KERN_ERR "palinfo: data pointer is NULL\n");
-		data->ret = 0; /* no output */
-		return;
-	}
-	/* does this actual call */
 	data->ret = (*data->func)(data->page);
 }
 
