@@ -522,6 +522,7 @@ struct btrfs_fs_info {
 	struct work_struct async_submit_work;
 	spinlock_t end_io_work_lock;
 	spinlock_t async_submit_work_lock;
+	atomic_t nr_async_submits;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	struct work_struct trans_work;

@@ -453,6 +453,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 
 	spin_lock(&fs_info->async_submit_work_lock);
 	list_add_tail(&async->list, &fs_info->async_submit_work_list);
+	atomic_inc(&fs_info->nr_async_submits);
 	spin_unlock(&fs_info->async_submit_work_lock);
 
 	queue_work(async_submit_workqueue, &fs_info->async_submit_work);
@@ -906,9 +907,15 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 {
 	struct btrfs_fs_info *info = (struct btrfs_fs_info *)congested_data;
 	int ret = 0;
+	int limit = 256 * info->fs_devices->open_devices;
 	struct list_head *cur;
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
+
+	if ((bdi_bits & (1 << BDI_write_congested)) &&
+	    atomic_read(&info->nr_async_submits) > limit) {
+		return 1;
+	}
 
 	list_for_each(cur, &info->fs_devices->devices) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
@@ -1117,6 +1124,7 @@ static void btrfs_async_submit_work(struct work_struct *work)
 		}
 		next = fs_info->async_submit_work_list.next;
 		list_del(next);
+		atomic_dec(&fs_info->nr_async_submits);
 		spin_unlock(&fs_info->async_submit_work_lock);
 
 		async = list_entry(next, struct async_submit_bio, list);
@@ -1179,6 +1187,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
+	atomic_set(&fs_info->nr_async_submits, 0);
 	fs_info->sb = sb;
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
