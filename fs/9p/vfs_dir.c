@@ -60,7 +60,7 @@ static inline int dt_type(struct p9_stat *mistat)
 
 /**
  * v9fs_dir_readdir - read a directory
- * @filep: opened file structure
+ * @filp: opened file structure
  * @dirent: directory structure ???
  * @filldir: function to populate directory structure ???
  *
