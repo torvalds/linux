@@ -448,6 +448,10 @@ static int __init of_find_i2c_driver(struct device_node *node,
 			return -ENOMEM;
 		return 0;
 	}
+
+	pr_warning("fsl_soc.c: unrecognized i2c node %s\n",
+		(const char *) of_get_property(node, "compatible", NULL));
+
 	return -ENODEV;
 }
 
