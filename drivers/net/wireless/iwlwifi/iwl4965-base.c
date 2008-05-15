@@ -258,79 +258,6 @@ out:
 }
 #endif
 
-/**
- * iwl4965_add_station_flags - Add station to tables in driver and device
- */
-u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
-				int is_ap, u8 flags, void *ht_data)
-{
-	int i;
-	int index = IWL_INVALID_STATION;
-	struct iwl_station_entry *station;
-	unsigned long flags_spin;
-	DECLARE_MAC_BUF(mac);
-
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	if (is_ap)
-		index = IWL_AP_ID;
-	else if (is_broadcast_ether_addr(addr))
-		index = priv->hw_params.bcast_sta_id;
-	else
-		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++) {
-			if (!compare_ether_addr(priv->stations[i].sta.sta.addr,
-						addr)) {
-				index = i;
-				break;
-			}
-
-			if (!priv->stations[i].used &&
-			    index == IWL_INVALID_STATION)
-				index = i;
-		}
-
-
-	/* These two conditions have the same outcome, but keep them separate
-	  since they have different meanings */
-	if (unlikely(index == IWL_INVALID_STATION)) {
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
-		return index;
-	}
-
-	if (priv->stations[index].used &&
-	    !compare_ether_addr(priv->stations[index].sta.sta.addr, addr)) {
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
-		return index;
-	}
-
-
-	IWL_DEBUG_ASSOC("Add STA ID %d: %s\n", index, print_mac(mac, addr));
-	station = &priv->stations[index];
-	station->used = 1;
-	priv->num_stations++;
-
-	/* Set up the REPLY_ADD_STA command to send to device */
-	memset(&station->sta, 0, sizeof(struct iwl_addsta_cmd));
-	memcpy(station->sta.sta.addr, addr, ETH_ALEN);
-	station->sta.mode = 0;
-	station->sta.sta.sta_id = index;
-	station->sta.station_flags = 0;
-
-#ifdef CONFIG_IWL4965_HT
-	/* BCAST station and IBSS stations do not work in HT mode */
-	if (index != priv->hw_params.bcast_sta_id &&
-	    priv->iw_mode != IEEE80211_IF_TYPE_IBSS)
-		iwl4965_set_ht_add_station(priv, index,
-				 (struct ieee80211_ht_info *) ht_data);
-#endif /*CONFIG_IWL4965_HT*/
-
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
-
-	/* Add station to device's station table */
-	iwl_send_add_sta(priv, &station->sta, flags);
-	return index;
-
-}
-
 
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
@@ -431,38 +358,6 @@ static void iwl4965_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt)
 	else
 		rxon->filter_flags |= RXON_FILTER_DIS_DECRYPT_MSK;
 
-}
-
-/**
- * iwl4965_rxon_add_station - add station into station table.
- *
- * there is only one AP station with id= IWL_AP_ID
- * NOTE: mutex must be held before calling this fnction
- */
-static int iwl4965_rxon_add_station(struct iwl_priv *priv,
-				const u8 *addr, int is_ap)
-{
-	u8 sta_id;
-
-	/* Add station to device's station table */
-#ifdef CONFIG_IWL4965_HT
-	struct ieee80211_conf *conf = &priv->hw->conf;
-	struct ieee80211_ht_info *cur_ht_config = &conf->ht_conf;
-
-	if ((is_ap) &&
-	    (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
-	    (priv->iw_mode == IEEE80211_IF_TYPE_STA))
-		sta_id = iwl4965_add_station_flags(priv, addr, is_ap,
-						   0, cur_ht_config);
-	else
-#endif /* CONFIG_IWL4965_HT */
-		sta_id = iwl4965_add_station_flags(priv, addr, is_ap,
-						   0, NULL);
-
-	/* Set up default rate scaling table in device's station table */
-	iwl4965_add_station(priv, addr, is_ap);
-
-	return sta_id;
 }
 
 /**
@@ -691,7 +586,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (iwl4965_rxon_add_station(priv, iwl_bcast_addr, 0) ==
+	if (iwl_rxon_add_station(priv, iwl_bcast_addr, 0) ==
 	    IWL_INVALID_STATION) {
 		IWL_ERROR("Error adding BROADCAST address for transmit.\n");
 		return -EIO;
@@ -701,7 +596,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	 * add the IWL_AP_ID to the station rate table */
 	if (iwl_is_associated(priv) &&
 	    (priv->iw_mode == IEEE80211_IF_TYPE_STA)) {
-		if (iwl4965_rxon_add_station(priv, priv->active_rxon.bssid_addr, 1)
+		if (iwl_rxon_add_station(priv, priv->active_rxon.bssid_addr, 1)
 		    == IWL_INVALID_STATION) {
 			IWL_ERROR("Error adding AP address for transmit.\n");
 			return -EIO;
@@ -1702,63 +1597,6 @@ static void iwl_update_tx_stats(struct iwl_priv *priv, u16 fc, u16 len)
 	priv->tx_stats[idx].cnt++;
 	priv->tx_stats[idx].bytes += len;
 }
-/**
- * iwl4965_get_sta_id - Find station's index within station table
- *
- * If new IBSS station, create new entry in station table
- */
-static int iwl4965_get_sta_id(struct iwl_priv *priv,
-				struct ieee80211_hdr *hdr)
-{
-	int sta_id;
-	u16 fc = le16_to_cpu(hdr->frame_control);
-	DECLARE_MAC_BUF(mac);
-
-	/* If this frame is broadcast or management, use broadcast station id */
-	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA) ||
-	    is_multicast_ether_addr(hdr->addr1))
-		return priv->hw_params.bcast_sta_id;
-
-	switch (priv->iw_mode) {
-
-	/* If we are a client station in a BSS network, use the special
-	 * AP station entry (that's the only station we communicate with) */
-	case IEEE80211_IF_TYPE_STA:
-		return IWL_AP_ID;
-
-	/* If we are an AP, then find the station, or use BCAST */
-	case IEEE80211_IF_TYPE_AP:
-		sta_id = iwl_find_station(priv, hdr->addr1);
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-		return priv->hw_params.bcast_sta_id;
-
-	/* If this frame is going out to an IBSS network, find the station,
-	 * or create a new station table entry */
-	case IEEE80211_IF_TYPE_IBSS:
-		sta_id = iwl_find_station(priv, hdr->addr1);
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-
-		/* Create new station table entry */
-		sta_id = iwl4965_add_station_flags(priv, hdr->addr1,
-						   0, CMD_ASYNC, NULL);
-
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-
-		IWL_DEBUG_DROP("Station %s not in station map. "
-			       "Defaulting to broadcast...\n",
-			       print_mac(mac, hdr->addr1));
-		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
-		return priv->hw_params.bcast_sta_id;
-
-	default:
-		IWL_WARNING("Unknown mode of operation: %d", priv->iw_mode);
-		return priv->hw_params.bcast_sta_id;
-	}
-}
-
 /*
  * start REPLY_TX command process
  */
@@ -1829,7 +1667,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	hdr_len = ieee80211_get_hdrlen(fc);
 
 	/* Find (or create) index into station table for destination station */
-	sta_id = iwl4965_get_sta_id(priv, hdr);
+	sta_id = iwl_get_sta_id(priv, hdr);
 	if (sta_id == IWL_INVALID_STATION) {
 		DECLARE_MAC_BUF(mac);
 
@@ -3585,7 +3423,7 @@ static void iwl4965_error_recovery(struct iwl_priv *priv)
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwl4965_commit_rxon(priv);
 
-	iwl4965_rxon_add_station(priv, priv->bssid, 1);
+	iwl_rxon_add_station(priv, priv->bssid, 1);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = le16_to_cpu(priv->staging_rxon.assoc_id);
@@ -4911,8 +4749,8 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 		/* clear out the station table */
 		iwlcore_clear_stations_table(priv);
 
-		iwl4965_rxon_add_station(priv, iwl_bcast_addr, 0);
-		iwl4965_rxon_add_station(priv, priv->bssid, 0);
+		iwl_rxon_add_station(priv, iwl_bcast_addr, 0);
+		iwl_rxon_add_station(priv, priv->bssid, 0);
 		iwl4965_rate_scale_init(priv->hw, IWL_STA_ID);
 		iwl4965_send_beacon_cmd(priv);
 
@@ -5323,7 +5161,7 @@ static void iwl4965_config_ap(struct iwl_priv *priv)
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
 		iwl4965_activate_qos(priv, 1);
-		iwl4965_rxon_add_station(priv, iwl_bcast_addr, 0);
+		iwl_rxon_add_station(priv, iwl_bcast_addr, 0);
 	}
 	iwl4965_send_beacon_cmd(priv);
 
@@ -5412,7 +5250,7 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 		else {
 			rc = iwl4965_commit_rxon(priv);
 			if ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && rc)
-				iwl4965_rxon_add_station(
+				iwl_rxon_add_station(
 					priv, priv->active_rxon.bssid_addr, 1);
 		}
 

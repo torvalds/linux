@@ -635,8 +635,8 @@ struct iwl_hw_params {
 struct iwl_addsta_cmd;
 extern int iwl_send_add_sta(struct iwl_priv *priv,
 			    struct iwl_addsta_cmd *sta, u8 flags);
-extern u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
-			  int is_ap, u8 flags, void *ht_data);
+u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
+			 u8 flags, struct ieee80211_ht_info *ht_info);
 extern int iwl4965_is_network_packet(struct iwl_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl4965_power_init_handle(struct iwl_priv *priv);
@@ -731,8 +731,6 @@ extern void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);
 extern int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
 					  struct iwl_tx_queue *txq,
 					  u16 byte_cnt);
-extern void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr,
-				int is_ap);
 extern int iwl4965_alive_notify(struct iwl_priv *priv);
 extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
@@ -746,8 +744,6 @@ extern void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
 				enum ieee80211_band band);
 void iwl4965_set_rxon_ht(struct iwl_priv *priv,
 			 struct iwl_ht_info *ht_info);
-void iwl4965_set_ht_add_station(struct iwl_priv *priv, u8 index,
-				struct ieee80211_ht_info *sta_ht_inf);
 int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    enum ieee80211_ampdu_mlme_action action,
 				    const u8 *addr, u16 tid, u16 *ssn);
