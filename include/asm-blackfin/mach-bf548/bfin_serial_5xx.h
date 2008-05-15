@@ -54,6 +54,9 @@
 #define UART_PUT_GCTL(uart,v)   bfin_write16(((uart)->port.membase + OFFSET_GCTL),v)
 #define UART_PUT_MCR(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_MCR),v)
 
+#define UART_SET_DLAB(uart)     /* MMRs not muxed on BF54x */
+#define UART_CLEAR_DLAB(uart)   /* MMRs not muxed on BF54x */
+
 #if defined(CONFIG_BFIN_UART0_CTSRTS) || defined(CONFIG_BFIN_UART1_CTSRTS)
 # define CONFIG_SERIAL_BFIN_CTSRTS
 

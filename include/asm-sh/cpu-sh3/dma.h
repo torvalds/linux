@@ -3,19 +3,19 @@
 
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7709)
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define SH_DMAC_BASE	0xa4010020
+#else
+#define SH_DMAC_BASE	0xa4000020
+#endif
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7720) || defined(CONFIG_CPU_SUBTYPE_SH7709)
 #define DMTE0_IRQ	48
 #define DMTE1_IRQ	49
 #define DMTE2_IRQ	50
 #define DMTE3_IRQ	51
 #define DMTE4_IRQ	76
 #define DMTE5_IRQ	77
-
-#else
-#define SH_DMAC_BASE	0xa4000020
 #endif
 
 /* Definitions for the SuperH DMAC */

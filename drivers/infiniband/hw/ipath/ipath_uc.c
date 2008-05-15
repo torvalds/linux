@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -47,14 +47,30 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 {
 	struct ipath_other_headers *ohdr;
 	struct ipath_swqe *wqe;
+	unsigned long flags;
 	u32 hwords;
 	u32 bth0;
 	u32 len;
 	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
 	int ret = 0;
 
-	if (!(ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK))
+	spin_lock_irqsave(&qp->s_lock, flags);
+
+	if (!(ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK)) {
+		if (!(ib_ipath_state_ops[qp->state] & IPATH_FLUSH_SEND))
+			goto bail;
+		/* We are in the error state, flush the work request. */
+		if (qp->s_last == qp->s_head)
+			goto bail;
+		/* If DMAs are in progress, we can't flush immediately. */
+		if (atomic_read(&qp->s_dma_busy)) {
+			qp->s_flags |= IPATH_S_WAIT_DMA;
+			goto bail;
+		}
+		wqe = get_swqe_ptr(qp, qp->s_last);
+		ipath_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
 		goto done;
+	}
 
 	ohdr = &qp->s_hdr.u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
@@ -69,9 +85,12 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 	qp->s_wqe = NULL;
 	switch (qp->s_state) {
 	default:
+		if (!(ib_ipath_state_ops[qp->state] &
+		    IPATH_PROCESS_NEXT_SEND_OK))
+			goto bail;
 		/* Check if send work queue is empty. */
 		if (qp->s_cur == qp->s_head)
-			goto done;
+			goto bail;
 		/*
 		 * Start a new request.
 		 */
@@ -134,7 +153,7 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 			break;
 
 		default:
-			goto done;
+			goto bail;
 		}
 		break;
 
@@ -194,9 +213,14 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 	ipath_make_ruc_header(to_idev(qp->ibqp.device),
 			      qp, ohdr, bth0 | (qp->s_state << 24),
 			      qp->s_next_psn++ & IPATH_PSN_MASK);
-	ret = 1;
-
 done:
+	ret = 1;
+	goto unlock;
+
+bail:
+	qp->s_flags &= ~IPATH_S_BUSY;
+unlock:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return ret;
 }
 
@@ -258,8 +282,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	 */
 	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
 
-	wc.imm_data = 0;
-	wc.wc_flags = 0;
+	memset(&wc, 0, sizeof wc);
 
 	/* Compare the PSN verses the expected PSN. */
 	if (unlikely(ipath_cmp24(psn, qp->r_psn) != 0)) {
@@ -322,8 +345,8 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	case OP(SEND_ONLY):
 	case OP(SEND_ONLY_WITH_IMMEDIATE):
 	send_first:
-		if (qp->r_reuse_sge) {
-			qp->r_reuse_sge = 0;
+		if (qp->r_flags & IPATH_R_REUSE_SGE) {
+			qp->r_flags &= ~IPATH_R_REUSE_SGE;
 			qp->r_sge = qp->s_rdma_read_sge;
 		} else if (!ipath_get_rwqe(qp, 0)) {
 			dev->n_pkt_drops++;
@@ -340,13 +363,13 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	case OP(SEND_MIDDLE):
 		/* Check for invalid length PMTU or posted rwqe len. */
 		if (unlikely(tlen != (hdrsize + pmtu + 4))) {
-			qp->r_reuse_sge = 1;
+			qp->r_flags |= IPATH_R_REUSE_SGE;
 			dev->n_pkt_drops++;
 			goto done;
 		}
 		qp->r_rcv_len += pmtu;
 		if (unlikely(qp->r_rcv_len > qp->r_len)) {
-			qp->r_reuse_sge = 1;
+			qp->r_flags |= IPATH_R_REUSE_SGE;
 			dev->n_pkt_drops++;
 			goto done;
 		}
@@ -372,7 +395,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		/* Check for invalid length. */
 		/* XXX LAST len should be >= 1 */
 		if (unlikely(tlen < (hdrsize + pad + 4))) {
-			qp->r_reuse_sge = 1;
+			qp->r_flags |= IPATH_R_REUSE_SGE;
 			dev->n_pkt_drops++;
 			goto done;
 		}
@@ -380,7 +403,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		tlen -= (hdrsize + pad + 4);
 		wc.byte_len = tlen + qp->r_rcv_len;
 		if (unlikely(wc.byte_len > qp->r_len)) {
-			qp->r_reuse_sge = 1;
+			qp->r_flags |= IPATH_R_REUSE_SGE;
 			dev->n_pkt_drops++;
 			goto done;
 		}
@@ -390,14 +413,10 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
 		wc.opcode = IB_WC_RECV;
-		wc.vendor_err = 0;
 		wc.qp = &qp->ibqp;
 		wc.src_qp = qp->remote_qpn;
-		wc.pkey_index = 0;
 		wc.slid = qp->remote_ah_attr.dlid;
 		wc.sl = qp->remote_ah_attr.sl;
-		wc.dlid_path_bits = 0;
-		wc.port_num = 0;
 		/* Signal completion event if the solicited bit is set. */
 		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 			       (ohdr->bth[0] &
@@ -488,8 +507,8 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			dev->n_pkt_drops++;
 			goto done;
 		}
-		if (qp->r_reuse_sge)
-			qp->r_reuse_sge = 0;
+		if (qp->r_flags & IPATH_R_REUSE_SGE)
+			qp->r_flags &= ~IPATH_R_REUSE_SGE;
 		else if (!ipath_get_rwqe(qp, 1)) {
 			dev->n_pkt_drops++;
 			goto done;

@@ -891,6 +891,7 @@ static int __devinit lmc_init_one(struct pci_dev *pdev,
 
     /* Initialize the sppp layer */
     /* An ioctl can cause a subsequent detach for raw frame interface */
+    dev->ml_priv = sc;
     sc->if_type = LMC_PPP;
     sc->check = 0xBEAFCAFE;
     dev->base_addr = pci_resource_start(pdev, 0);

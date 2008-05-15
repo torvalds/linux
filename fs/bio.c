@@ -158,7 +158,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 
 		bio_init(bio);
 		if (likely(nr_iovecs)) {
-			unsigned long idx = 0; /* shut up gcc */
+			unsigned long uninitialized_var(idx);
 
 			bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
 			if (unlikely(!bvl)) {
@@ -963,6 +963,7 @@ static void bio_copy_kern_endio(struct bio *bio, int err)
  *	@data: pointer to buffer to copy
  *	@len: length in bytes
  *	@gfp_mask: allocation flags for bio and page allocation
+ *	@reading: data direction is READ
  *
  *	copy the kernel address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.

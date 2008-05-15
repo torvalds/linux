@@ -71,6 +71,7 @@ enum {				/* adapter flags */
 	USING_MSIX = (1 << 2),
 	QUEUES_BOUND = (1 << 3),
 	TP_PARITY_INIT = (1 << 4),
+	NAPI_INIT = (1 << 5),
 };
 
 struct fl_pg_chunk {

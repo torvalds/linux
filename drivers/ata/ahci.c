@@ -1267,9 +1267,7 @@ static int ahci_check_ready(struct ata_link *link)
 	void __iomem *port_mmio = ahci_port_base(link->ap);
 	u8 status = readl(port_mmio + PORT_TFDATA) & 0xFF;
 
-	if (!(status & ATA_BUSY))
-		return 1;
-	return 0;
+	return ata_check_ready(status);
 }
 
 static int ahci_softreset(struct ata_link *link, unsigned int *class,

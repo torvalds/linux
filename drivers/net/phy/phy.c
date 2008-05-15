@@ -547,7 +547,7 @@ static void phy_force_reduction(struct phy_device *phydev)
  * Must not be called from interrupt context, or while the
  * phydev->lock is held.
  */
-void phy_error(struct phy_device *phydev)
+static void phy_error(struct phy_device *phydev)
 {
 	mutex_lock(&phydev->lock);
 	phydev->state = PHY_HALTED;

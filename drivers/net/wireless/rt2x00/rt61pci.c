@@ -2362,6 +2362,7 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(control->vif);
+	struct queue_entry_priv_pci_tx *priv_tx;
 	struct skb_frame_desc *skbdesc;
 	unsigned int beacon_base;
 	u32 reg;
@@ -2369,21 +2370,8 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 
-	/*
-	 * We need to append the descriptor in front of the
-	 * beacon frame.
-	 */
-	if (skb_headroom(skb) < intf->beacon->queue->desc_size) {
-		if (pskb_expand_head(skb, intf->beacon->queue->desc_size,
-				     0, GFP_ATOMIC))
-			return -ENOMEM;
-	}
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(skb, intf->beacon->queue->desc_size);
-	memset(skb->data, 0, intf->beacon->queue->desc_size);
+	priv_tx = intf->beacon->priv_data;
+	memset(priv_tx->desc, 0, intf->beacon->queue->desc_size);
 
 	/*
 	 * Fill in skb descriptor
@@ -2391,9 +2379,9 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
-	skbdesc->data = skb->data + intf->beacon->queue->desc_size;
-	skbdesc->data_len = skb->len - intf->beacon->queue->desc_size;
-	skbdesc->desc = skb->data;
+	skbdesc->data = skb->data;
+	skbdesc->data_len = skb->len;
+	skbdesc->desc = priv_tx->desc;
 	skbdesc->desc_len = intf->beacon->queue->desc_size;
 	skbdesc->entry = intf->beacon;
 
@@ -2414,7 +2402,10 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
 	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base,
-				      skb->data, skb->len);
+				      skbdesc->desc, skbdesc->desc_len);
+	rt2x00pci_register_multiwrite(rt2x00dev,
+				      beacon_base + skbdesc->desc_len,
+				      skbdesc->data, skbdesc->data_len);
 	rt61pci_kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	return 0;
@@ -2479,7 +2470,7 @@ static const struct data_queue_desc rt61pci_queue_tx = {
 
 static const struct data_queue_desc rt61pci_queue_bcn = {
 	.entry_num		= 4 * BEACON_ENTRIES,
-	.data_size		= MGMT_FRAME_SIZE,
+	.data_size		= 0, /* No DMA required for beacons */
 	.desc_size		= TXINFO_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci_tx),
 };

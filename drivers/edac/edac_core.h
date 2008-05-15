@@ -97,7 +97,7 @@ extern int edac_debug_level;
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
 	PCI_DEVICE_ID_ ## vend ## _ ## dev
 
-#define dev_name(dev) (dev)->dev_name
+#define edac_dev_name(dev) (dev)->dev_name
 
 /* memory devices */
 enum dev_type {

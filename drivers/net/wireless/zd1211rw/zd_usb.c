@@ -889,9 +889,13 @@ static void tx_urb_complete(struct urb *urb)
 	}
 free_urb:
 	skb = (struct sk_buff *)urb->context;
-	zd_mac_tx_to_dev(skb, urb->status);
+	/*
+	 * grab 'usb' pointer before handing off the skb (since
+	 * it might be freed by zd_mac_tx_to_dev or mac80211)
+	 */
 	cb = (struct zd_tx_skb_control_block *)skb->cb;
 	usb = &zd_hw_mac(cb->hw)->chip.usb;
+	zd_mac_tx_to_dev(skb, urb->status);
 	free_tx_urb(usb, urb);
 	tx_dec_submitted_urbs(usb);
 	return;

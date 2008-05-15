@@ -1,10 +1,9 @@
 /*
  * BRIEF MODULE DESCRIPTION
- *	Au1000 Power Management routines.
+ *	Au1xx0 Power Management routines.
  *
- * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *		ppopov@mvista.com or source@mvista.com
+ * Copyright 2001, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  Some of the routines are right out of init/main.c, whose
  *  copyrights apply here.
@@ -43,10 +42,10 @@
 #ifdef CONFIG_PM
 
 #define DEBUG 1
-#ifdef DEBUG
-#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __func__, ## args)
+#ifdef	DEBUG
+#define DPRINTK(fmt, args...)	printk(KERN_DEBUG "%s: " fmt, __func__, ## args)
 #else
-#  define DPRINTK(fmt, args...)
+#define DPRINTK(fmt, args...)
 #endif
 
 static void au1000_calibrate_delay(void);
@@ -57,7 +56,8 @@ extern void local_enable_irq(unsigned int irq_nr);
 
 static DEFINE_SPINLOCK(pm_lock);
 
-/* We need to save/restore a bunch of core registers that are
+/*
+ * We need to save/restore a bunch of core registers that are
  * either volatile or reset to some state across a processor sleep.
  * If reading a register doesn't provide a proper result for a
  * later restore, we have to provide a function for loading that
@@ -78,24 +78,25 @@ static unsigned int	sleep_usbhost_enable;
 static unsigned int	sleep_usbdev_enable;
 static unsigned int	sleep_static_memctlr[4][3];
 
-/* Define this to cause the value you write to /proc/sys/pm/sleep to
+/*
+ * Define this to cause the value you write to /proc/sys/pm/sleep to
  * set the TOY timer for the amount of time you want to sleep.
  * This is done mainly for testing, but may be useful in other cases.
  * The value is number of 32KHz ticks to sleep.
  */
 #define SLEEP_TEST_TIMEOUT 1
-#ifdef SLEEP_TEST_TIMEOUT
-static	int	sleep_ticks;
+#ifdef	SLEEP_TEST_TIMEOUT
+static int sleep_ticks;
 void wakeup_counter0_set(int ticks);
 #endif
 
-static void
-save_core_regs(void)
+static void save_core_regs(void)
 {
 	extern void save_au1xxx_intctl(void);
 	extern void pm_eth0_shutdown(void);
 
-	/* Do the serial ports.....these really should be a pm_*
+	/*
+	 * Do the serial ports.....these really should be a pm_*
 	 * registered function by the driver......but of course the
 	 * standard serial driver doesn't understand our Au1xxx
 	 * unique registers.
@@ -106,27 +107,24 @@ save_core_regs(void)
 	sleep_uart0_clkdiv = au_readl(UART0_ADDR + UART_CLK);
 	sleep_uart0_enable = au_readl(UART0_ADDR + UART_MOD_CNTRL);
 
-	/* Shutdown USB host/device.
-	*/
+	/* Shutdown USB host/device. */
 	sleep_usbhost_enable = au_readl(USB_HOST_CONFIG);
 
-	/* There appears to be some undocumented reset register....
-	*/
+	/* There appears to be some undocumented reset register.... */
 	au_writel(0, 0xb0100004); au_sync();
 	au_writel(0, USB_HOST_CONFIG); au_sync();
 
 	sleep_usbdev_enable = au_readl(USBD_ENABLE);
 	au_writel(0, USBD_ENABLE); au_sync();
 
-	/* Save interrupt controller state.
-	*/
+	/* Save interrupt controller state. */
 	save_au1xxx_intctl();
 
-	/* Clocks and PLLs.
-	*/
+	/* Clocks and PLLs. */
 	sleep_aux_pll_cntrl = au_readl(SYS_AUXPLL);
 
-	/* We don't really need to do this one, but unless we
+	/*
+	 * We don't really need to do this one, but unless we
 	 * write it again it won't have a valid value if we
 	 * happen to read it.
 	 */
@@ -134,8 +132,7 @@ save_core_regs(void)
 
 	sleep_pin_function = au_readl(SYS_PINFUNC);
 
-	/* Save the static memory controller configuration.
-	*/
+	/* Save the static memory controller configuration. */
 	sleep_static_memctlr[0][0] = au_readl(MEM_STCFG0);
 	sleep_static_memctlr[0][1] = au_readl(MEM_STTIME0);
 	sleep_static_memctlr[0][2] = au_readl(MEM_STADDR0);
@@ -150,8 +147,7 @@ save_core_regs(void)
 	sleep_static_memctlr[3][2] = au_readl(MEM_STADDR3);
 }
 
-static void
-restore_core_regs(void)
+static void restore_core_regs(void)
 {
 	extern void restore_au1xxx_intctl(void);
 	extern void wakeup_counter0_adjust(void);
@@ -160,8 +156,7 @@ restore_core_regs(void)
 	au_writel(sleep_cpu_pll_cntrl, SYS_CPUPLL); au_sync();
 	au_writel(sleep_pin_function, SYS_PINFUNC); au_sync();
 
-	/* Restore the static memory controller configuration.
-	*/
+	/* Restore the static memory controller configuration. */
 	au_writel(sleep_static_memctlr[0][0], MEM_STCFG0);
 	au_writel(sleep_static_memctlr[0][1], MEM_STTIME0);
 	au_writel(sleep_static_memctlr[0][2], MEM_STADDR0);
@@ -175,7 +170,8 @@ restore_core_regs(void)
 	au_writel(sleep_static_memctlr[3][1], MEM_STTIME3);
 	au_writel(sleep_static_memctlr[3][2], MEM_STADDR3);
 
-	/* Enable the UART if it was enabled before sleep.
+	/*
+	 * Enable the UART if it was enabled before sleep.
 	 * I guess I should define module control bits........
 	 */
 	if (sleep_uart0_enable & 0x02) {
@@ -202,7 +198,7 @@ void wakeup_from_suspend(void)
 int au_sleep(void)
 {
 	unsigned long wakeup, flags;
-	extern	void	save_and_sleep(void);
+	extern void save_and_sleep(void);
 
 	spin_lock_irqsave(&pm_lock, flags);
 
@@ -210,23 +206,22 @@ int au_sleep(void)
 
 	flush_cache_all();
 
-	/** The code below is all system dependent and we should probably
+	/**
+	 ** The code below is all system dependent and we should probably
 	 ** have a function call out of here to set this up.  You need
 	 ** to configure the GPIO or timer interrupts that will bring
 	 ** you out of sleep.
 	 ** For testing, the TOY counter wakeup is useful.
 	 **/
-
 #if 0
 	au_writel(au_readl(SYS_PINSTATERD) & ~(1 << 11), SYS_PINSTATERD);
 
-	/* gpio 6 can cause a wake up event */
+	/* GPIO 6 can cause a wake up event */
 	wakeup = au_readl(SYS_WAKEMSK);
 	wakeup &= ~(1 << 8);	/* turn off match20 wakeup */
-	wakeup |= 1 << 6;	/* turn on gpio 6 wakeup   */
+	wakeup |= 1 << 6;	/* turn on  GPIO  6 wakeup */
 #else
-	/* For testing, allow match20 to wake us up.
-	*/
+	/* For testing, allow match20 to wake us up. */
 #ifdef SLEEP_TEST_TIMEOUT
 	wakeup_counter0_set(sleep_ticks);
 #endif
@@ -240,7 +235,8 @@ int au_sleep(void)
 
 	save_and_sleep();
 
-	/* after a wakeup, the cpu vectors back to 0x1fc00000 so
+	/*
+	 * After a wakeup, the cpu vectors back to 0x1fc00000, so
 	 * it's up to the boot code to get us back here.
 	 */
 	restore_core_regs();
@@ -248,24 +244,22 @@ int au_sleep(void)
 	return 0;
 }
 
-static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
-		       void __user *buffer, size_t * len, loff_t *ppos)
+static int pm_do_sleep(ctl_table *ctl, int write, struct file *file,
+		       void __user *buffer, size_t *len, loff_t *ppos)
 {
 #ifdef SLEEP_TEST_TIMEOUT
 #define TMPBUFLEN2 16
 	char buf[TMPBUFLEN2], *p;
 #endif
 
-	if (!write) {
+	if (!write)
 		*len = 0;
-	} else {
+	else {
 #ifdef SLEEP_TEST_TIMEOUT
-		if (*len > TMPBUFLEN2 - 1) {
+		if (*len > TMPBUFLEN2 - 1)
 			return -EFAULT;
-		}
-		if (copy_from_user(buf, buffer, *len)) {
+		if (copy_from_user(buf, buffer, *len))
 			return -EFAULT;
-		}
 		buf[*len] = 0;
 		p = buf;
 		sleep_ticks = simple_strtoul(p, &p, 0);
@@ -276,8 +270,8 @@ static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
 	return 0;
 }
 
-static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
-		      void __user *buffer, size_t * len, loff_t *ppos)
+static int pm_do_freq(ctl_table *ctl, int write, struct file *file,
+		      void __user *buffer, size_t *len, loff_t *ppos)
 {
 	int retval = 0, i;
 	unsigned long val, pll;
@@ -285,14 +279,14 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 #define MAX_CPU_FREQ 396
 	char buf[TMPBUFLEN], *p;
 	unsigned long flags, intc0_mask, intc1_mask;
-	unsigned long old_baud_base, old_cpu_freq, baud_rate, old_clk,
-	    old_refresh;
+	unsigned long old_baud_base, old_cpu_freq, old_clk, old_refresh;
 	unsigned long new_baud_base, new_cpu_freq, new_clk, new_refresh;
+	unsigned long baud_rate;
 
 	spin_lock_irqsave(&pm_lock, flags);
-	if (!write) {
+	if (!write)
 		*len = 0;
-	} else {
+	else {
 		/* Parse the new frequency */
 		if (*len > TMPBUFLEN - 1) {
 			spin_unlock_irqrestore(&pm_lock, flags);
@@ -312,7 +306,7 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 
 		pll = val / 12;
 		if ((pll > 33) || (pll < 7)) {	/* 396 MHz max, 84 MHz min */
-			/* revisit this for higher speed cpus */
+			/* Revisit this for higher speed CPUs */
 			spin_unlock_irqrestore(&pm_lock, flags);
 			return -EFAULT;
 		}
@@ -321,30 +315,28 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 		old_cpu_freq = get_au1x00_speed();
 
 		new_cpu_freq = pll * 12 * 1000000;
-	        new_baud_base =  (new_cpu_freq / (2 * ((int)(au_readl(SYS_POWERCTRL)&0x03) + 2) * 16));
+	        new_baud_base = (new_cpu_freq / (2 * ((int)(au_readl(SYS_POWERCTRL)
+							    & 0x03) + 2) * 16));
 		set_au1x00_speed(new_cpu_freq);
 		set_au1x00_uart_baud_base(new_baud_base);
 
 		old_refresh = au_readl(MEM_SDREFCFG) & 0x1ffffff;
-		new_refresh =
-		    ((old_refresh * new_cpu_freq) /
-		     old_cpu_freq) | (au_readl(MEM_SDREFCFG) & ~0x1ffffff);
+		new_refresh = ((old_refresh * new_cpu_freq) / old_cpu_freq) |
+			      (au_readl(MEM_SDREFCFG) & ~0x1ffffff);
 
 		au_writel(pll, SYS_CPUPLL);
 		au_sync_delay(1);
 		au_writel(new_refresh, MEM_SDREFCFG);
 		au_sync_delay(1);
 
-		for (i = 0; i < 4; i++) {
-			if (au_readl
-			    (UART_BASE + UART_MOD_CNTRL +
-			     i * 0x00100000) == 3) {
-				old_clk =
-				    au_readl(UART_BASE + UART_CLK +
-					  i * 0x00100000);
-				// baud_rate = baud_base/clk
+		for (i = 0; i < 4; i++)
+			if (au_readl(UART_BASE + UART_MOD_CNTRL +
+				     i * 0x00100000) == 3) {
+				old_clk = au_readl(UART_BASE + UART_CLK +
+						   i * 0x00100000);
 				baud_rate = old_baud_base / old_clk;
-				/* we won't get an exact baud rate and the error
+				/*
+				 * We won't get an exact baud rate and the error
 				 * could be significant enough that our new
 				 * calculation will result in a clock that will
 				 * give us a baud rate that's too far off from
@@ -359,17 +351,13 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 				else if (baud_rate > 17000)
 					baud_rate = 19200;
 				else
-					(baud_rate = 9600);
-				// new_clk = new_baud_base/baud_rate
+					baud_rate = 9600;
 				new_clk = new_baud_base / baud_rate;
-				au_writel(new_clk,
-				       UART_BASE + UART_CLK +
-				       i * 0x00100000);
+				au_writel(new_clk, UART_BASE + UART_CLK +
+					  i * 0x00100000);
 				au_sync_delay(10);
 			}
-		}
 	}
-
 
 	/*
 	 * We don't want _any_ interrupts other than match20. Otherwise our
@@ -428,14 +416,15 @@ static int __init pm_init(void)
 
 __initcall(pm_init);
 
-
 /*
  * This is right out of init/main.c
  */
 
-/* This is the number of bits of precision for the loops_per_jiffy.  Each
-   bit takes on average 1.5/HZ seconds.  This (like the original) is a little
-   better than 1% */
+/*
+ * This is the number of bits of precision for the loops_per_jiffy.
+ * Each bit takes on average 1.5/HZ seconds.  This (like the original)
+ * is a little better than 1%.
+ */
 #define LPS_PREC 8
 
 static void au1000_calibrate_delay(void)
@@ -443,14 +432,14 @@ static void au1000_calibrate_delay(void)
 	unsigned long ticks, loopbit;
 	int lps_precision = LPS_PREC;
 
-	loops_per_jiffy = (1 << 12);
+	loops_per_jiffy = 1 << 12;
 
 	while (loops_per_jiffy <<= 1) {
-		/* wait for "start of" clock tick */
+		/* Wait for "start of" clock tick */
 		ticks = jiffies;
 		while (ticks == jiffies)
 			/* nothing */ ;
-		/* Go .. */
+		/* Go ... */
 		ticks = jiffies;
 		__delay(loops_per_jiffy);
 		ticks = jiffies - ticks;
@@ -458,8 +447,10 @@ static void au1000_calibrate_delay(void)
 			break;
 	}
 
-/* Do a binary approximation to get loops_per_jiffy set to equal one clock
-   (up to lps_precision bits) */
+	/*
+	 * Do a binary approximation to get loops_per_jiffy set to be equal
+	 * one clock (up to lps_precision bits)
+	 */
 	loops_per_jiffy >>= 1;
 	loopbit = loops_per_jiffy;
 	while (lps_precision-- && (loopbit >>= 1)) {
@@ -472,4 +463,4 @@ static void au1000_calibrate_delay(void)
 			loops_per_jiffy &= ~loopbit;
 	}
 }
-#endif				/* CONFIG_PM */
+#endif	/* CONFIG_PM */

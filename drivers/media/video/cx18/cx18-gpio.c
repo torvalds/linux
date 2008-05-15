@@ -35,6 +35,9 @@
 #define CX18_REG_GPIO_OUT2   0xc78104
 #define CX18_REG_GPIO_DIR2   0xc7810c
 
+static u32 gpio_dir;
+static u32 gpio_val;
+
 /*
  * HVR-1600 GPIO pins, courtesy of Hauppauge:
  *
@@ -44,31 +47,53 @@
  * gpio13: cs5345 reset pin
 */
 
+static void gpio_write(struct cx18 *cx)
+{
+	write_reg((gpio_dir & 0xffff) << 16, CX18_REG_GPIO_DIR1);
+	write_reg(((gpio_dir & 0xffff) << 16) | (gpio_val & 0xffff),
+			CX18_REG_GPIO_OUT1);
+	write_reg(gpio_dir & 0xffff0000, CX18_REG_GPIO_DIR2);
+	write_reg((gpio_dir & 0xffff0000) | ((gpio_val & 0xffff0000) >> 16),
+			CX18_REG_GPIO_OUT2);
+}
+
 void cx18_gpio_init(struct cx18 *cx)
 {
-	if (cx->card->gpio_init.direction == 0)
+	gpio_dir = cx->card->gpio_init.direction;
+	gpio_val = cx->card->gpio_init.initial_value;
+
+	if (gpio_dir == 0)
 		return;
 
-	CX18_DEBUG_INFO("GPIO initial dir: %08x out: %08x\n",
-		   read_reg(CX18_REG_GPIO_DIR1), read_reg(CX18_REG_GPIO_OUT1));
+	gpio_dir |= 1 << cx->card->xceive_pin;
+	gpio_val |= 1 << cx->card->xceive_pin;
 
-	/* init output data then direction */
-	write_reg(cx->card->gpio_init.direction << 16, CX18_REG_GPIO_DIR1);
-	write_reg(0, CX18_REG_GPIO_DIR2);
-	write_reg((cx->card->gpio_init.direction << 16) |
-			cx->card->gpio_init.initial_value, CX18_REG_GPIO_OUT1);
-	write_reg(0, CX18_REG_GPIO_OUT2);
+	CX18_DEBUG_INFO("GPIO initial dir: %08x/%08x out: %08x/%08x\n",
+		   read_reg(CX18_REG_GPIO_DIR1), read_reg(CX18_REG_GPIO_DIR2),
+		   read_reg(CX18_REG_GPIO_OUT1), read_reg(CX18_REG_GPIO_OUT2));
+
+	gpio_write(cx);
 }
 
 /* Xceive tuner reset function */
 int cx18_reset_tuner_gpio(void *dev, int cmd, int value)
 {
 	struct i2c_algo_bit_data *algo = dev;
-	struct cx18 *cx = algo->data;
-/*	int curdir, curout;*/
+	struct cx18_i2c_algo_callback_data *cb_data = algo->data;
+	struct cx18 *cx = cb_data->cx;
 
 	if (cmd != XC2028_TUNER_RESET)
 		return 0;
 	CX18_DEBUG_INFO("Resetting tuner\n");
+
+	gpio_dir |= 1 << cx->card->xceive_pin;
+	gpio_val &= ~(1 << cx->card->xceive_pin);
+
+	gpio_write(cx);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
+
+	gpio_val |= 1 << cx->card->xceive_pin;
+	gpio_write(cx);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
 	return 0;
 }

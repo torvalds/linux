@@ -200,6 +200,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1200,
 	}, {
 		.subvendor = 0x0070,
+		.subdevice = 0x71d3,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1200,
+	}, {
+		.subvendor = 0x0070,
 		.subdevice = 0x8101,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1700,
 	}, {
@@ -245,6 +249,33 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	/* Make sure we support the board model */
 	switch (tv.model)
 	{
+	case 71009:
+		/* WinTV-HVR1200 (PCIe, Retail, full height)
+		 * DVB-T and basic analog */
+	case 71359:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71439:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71449:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
+	case 71939:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71949:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
+	case 71959:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
+	case 71979:
+		/* WinTV-HVR1200 (PCIe, OEM, half height)
+		 * DVB-T and basic analog */
+	case 71999:
+		/* WinTV-HVR1200 (PCIe, OEM, full height)
+		 * DVB-T and basic analog */
 	case 76601: /* WinTV-HVR1800lp (PCIe, Retail, No IR, Dual channel ATSC and MPEG2 HW Encoder */
 	case 77001: /* WinTV-HVR1500 (Express Card, OEM, No IR, ATSC and Basic analog */
 	case 77011: /* WinTV-HVR1500 (Express Card, Retail, No IR, ATSC and Basic analog */
@@ -263,8 +294,11 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 80019:
 		/* WinTV-HVR1400 (Express Card, Retail, IR,
 		 * DVB-T and Basic analog */
+	case 81509:
+		/* WinTV-HVR1700 (PCIe, OEM, No IR, half height)
+		 * DVB-T and MPEG2 HW Encoder */
 	case 81519:
-		/* WinTV-HVR1700 (PCIe, Retail, No IR, half height,
+		/* WinTV-HVR1700 (PCIe, OEM, No IR, full height)
 		 * DVB-T and MPEG2 HW Encoder */
 		break;
 	default:

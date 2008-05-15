@@ -346,9 +346,9 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 		/* skb==NULL means VCC is being destroyed */
 		br2684_close_vcc(brvcc);
 		if (list_empty(&brdev->brvccs)) {
-			read_lock(&devs_lock);
+			write_lock_irq(&devs_lock);
 			list_del(&brdev->br2684_devs);
-			read_unlock(&devs_lock);
+			write_unlock_irq(&devs_lock);
 			unregister_netdev(net_dev);
 			free_netdev(net_dev);
 		}

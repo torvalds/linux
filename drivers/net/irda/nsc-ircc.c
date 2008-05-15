@@ -100,7 +100,9 @@ static int nsc_ircc_probe_39x(nsc_chip_t *chip, chipio_t *info);
 static int nsc_ircc_init_108(nsc_chip_t *chip, chipio_t *info);
 static int nsc_ircc_init_338(nsc_chip_t *chip, chipio_t *info);
 static int nsc_ircc_init_39x(nsc_chip_t *chip, chipio_t *info);
+#ifdef CONFIG_PNP
 static int nsc_ircc_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *id);
+#endif
 
 /* These are the known NSC chips */
 static nsc_chip_t chips[] = {
@@ -156,9 +158,11 @@ static const struct pnp_device_id nsc_ircc_pnp_table[] = {
 MODULE_DEVICE_TABLE(pnp, nsc_ircc_pnp_table);
 
 static struct pnp_driver nsc_ircc_pnp_driver = {
+#ifdef CONFIG_PNP
 	.name = "nsc-ircc",
 	.id_table = nsc_ircc_pnp_table,
 	.probe = nsc_ircc_pnp_probe,
+#endif
 };
 
 /* Some prototypes */
@@ -916,6 +920,7 @@ static int nsc_ircc_probe_39x(nsc_chip_t *chip, chipio_t *info)
 	return 0;
 }
 
+#ifdef CONFIG_PNP
 /* PNP probing */
 static int nsc_ircc_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *id)
 {
@@ -952,6 +957,7 @@ static int nsc_ircc_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *i
 
 	return 0;
 }
+#endif
 
 /*
  * Function nsc_ircc_setup (info)

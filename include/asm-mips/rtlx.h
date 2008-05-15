@@ -29,13 +29,13 @@ extern unsigned int rtlx_read_poll(int index, int can_sleep);
 extern unsigned int rtlx_write_poll(int index);
 
 enum rtlx_state {
-	RTLX_STATE_UNUSED,
+	RTLX_STATE_UNUSED = 0,
 	RTLX_STATE_INITIALISED,
 	RTLX_STATE_REMOTE_READY,
 	RTLX_STATE_OPENED
 };
 
-#define RTLX_BUFFER_SIZE 1024
+#define RTLX_BUFFER_SIZE 2048
 
 /* each channel supports read and write.
    linux (vpe0) reads lx_buffer  and writes rt_buffer

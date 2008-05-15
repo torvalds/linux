@@ -903,7 +903,11 @@ int dev_change_name(struct net_device *dev, char *newname)
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
 rollback:
-	device_rename(&dev->dev, dev->name);
+	err = device_rename(&dev->dev, dev->name);
+	if (err) {
+		memcpy(dev->name, oldname, IFNAMSIZ);
+		return err;
+	}
 
 	write_lock_bh(&dev_base_lock);
 	hlist_del(&dev->name_hlist);
@@ -994,6 +998,8 @@ int dev_open(struct net_device *dev)
 {
 	int ret = 0;
 
+	ASSERT_RTNL();
+
 	/*
 	 *	Is it already up?
 	 */
@@ -1060,6 +1066,8 @@ int dev_open(struct net_device *dev)
  */
 int dev_close(struct net_device *dev)
 {
+	ASSERT_RTNL();
+
 	might_sleep();
 
 	if (!(dev->flags & IFF_UP))
@@ -4480,17 +4488,19 @@ static void __net_exit default_device_exit(struct net *net)
 	rtnl_lock();
 	for_each_netdev_safe(net, dev, next) {
 		int err;
+		char fb_name[IFNAMSIZ];
 
 		/* Ignore unmoveable devices (i.e. loopback) */
 		if (dev->features & NETIF_F_NETNS_LOCAL)
 			continue;
 
 		/* Push remaing network devices to init_net */
-		err = dev_change_net_namespace(dev, &init_net, "dev%d");
+		snprintf(fb_name, IFNAMSIZ, "dev%d", dev->ifindex);
+		err = dev_change_net_namespace(dev, &init_net, fb_name);
 		if (err) {
-			printk(KERN_WARNING "%s: failed to move %s to init_net: %d\n",
+			printk(KERN_EMERG "%s: failed to move %s to init_net: %d\n",
 				__func__, dev->name, err);
-			unregister_netdevice(dev);
+			BUG();
 		}
 	}
 	rtnl_unlock();

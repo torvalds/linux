@@ -24,14 +24,6 @@
 
 #define ROOT_I 2
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 extern struct file_system_type cifs_fs_type;
 extern const struct address_space_operations cifs_addr_ops;
 extern const struct address_space_operations cifs_addr_ops_smallbuf;
@@ -110,5 +102,5 @@ extern int cifs_ioctl(struct inode *inode, struct file *filep,
 extern const struct export_operations cifs_export_ops;
 #endif /* EXPERIMENTAL */
 
-#define CIFS_VERSION   "1.52"
+#define CIFS_VERSION   "1.53"
 #endif				/* _CIFSFS_H */

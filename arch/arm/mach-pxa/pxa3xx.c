@@ -256,12 +256,11 @@ static unsigned long wakeup_src;
 #define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
 #define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
 
-enum {	SLEEP_SAVE_START = 0,
-	SLEEP_SAVE_CKENA,
+enum {	SLEEP_SAVE_CKENA,
 	SLEEP_SAVE_CKENB,
 	SLEEP_SAVE_ACCR,
 
-	SLEEP_SAVE_SIZE,
+	SLEEP_SAVE_COUNT,
 };
 
 static void pxa3xx_cpu_pm_save(unsigned long *sleep_save)
@@ -376,7 +375,7 @@ static int pxa3xx_cpu_pm_valid(suspend_state_t state)
 }
 
 static struct pxa_cpu_pm_fns pxa3xx_cpu_pm_fns = {
-	.save_size	= SLEEP_SAVE_SIZE,
+	.save_count	= SLEEP_SAVE_COUNT,
 	.save		= pxa3xx_cpu_pm_save,
 	.restore	= pxa3xx_cpu_pm_restore,
 	.valid		= pxa3xx_cpu_pm_valid,

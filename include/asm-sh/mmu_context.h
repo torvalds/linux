@@ -27,6 +27,7 @@
 /* ASID is 8-bit value, so it can't be 0x100 */
 #define MMU_NO_ASID			0x100
 
+#ifdef CONFIG_MMU
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 #define cpu_context(cpu, mm)	((mm)->context.id[cpu])
 
@@ -38,7 +39,6 @@
  */
 #define MMU_VPN_MASK	0xfffff000
 
-#ifdef CONFIG_MMU
 #if defined(CONFIG_SUPERH32)
 #include "mmu_context_32.h"
 #else
@@ -129,6 +129,8 @@ static inline void switch_mm(struct mm_struct *prev,
 #define destroy_context(mm)		do { } while (0)
 #define set_asid(asid)			do { } while (0)
 #define get_asid()			(0)
+#define cpu_asid(cpu, mm)		({ (void)cpu; 0; })
+#define switch_and_save_asid(asid)	(0)
 #define set_TTB(pgd)			do { } while (0)
 #define get_TTB()			(0)
 #define activate_context(mm,cpu)	do { } while (0)

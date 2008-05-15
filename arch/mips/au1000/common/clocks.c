@@ -1,10 +1,9 @@
 /*
  * BRIEF MODULE DESCRIPTION
- *	Simple Au1000 clocks routines.
+ *	Simple Au1xx0 clocks routines.
  *
- * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *		ppopov@mvista.com or source@mvista.com
+ * Copyright 2001, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute	 it and/or modify it
  *  under  the terms of	 the GNU General  Public License as published by the
@@ -30,8 +29,8 @@
 #include <linux/module.h>
 #include <asm/mach-au1x00/au1000.h>
 
-static unsigned int au1x00_clock; // Hz
-static unsigned int lcd_clock;    // KHz
+static unsigned int au1x00_clock; /*  Hz */
+static unsigned int lcd_clock;    /* KHz */
 static unsigned long uart_baud_base;
 
 /*
@@ -46,8 +45,6 @@ unsigned int get_au1x00_speed(void)
 {
 	return au1x00_clock;
 }
-
-
 
 /*
  * The UART baud base is not known at compile time ... if
@@ -73,24 +70,23 @@ void set_au1x00_uart_baud_base(unsigned long new_baud_base)
 void set_au1x00_lcd_clock(void)
 {
 	unsigned int static_cfg0;
-	unsigned int sys_busclk =
-		(get_au1x00_speed()/1000) /
-		((int)(au_readl(SYS_POWERCTRL)&0x03) + 2);
+	unsigned int sys_busclk = (get_au1x00_speed() / 1000) /
+				  ((int)(au_readl(SYS_POWERCTRL) & 0x03) + 2);
 
 	static_cfg0 = au_readl(MEM_STCFG0);
 
-	if (static_cfg0 & (1<<11))
+	if (static_cfg0 & (1 << 11))
 		lcd_clock = sys_busclk / 5; /* note: BCLK switching fails with D5 */
 	else
 		lcd_clock = sys_busclk / 4;
 
 	if (lcd_clock > 50000) /* Epson MAX */
-		printk("warning: LCD clock too high (%d KHz)\n", lcd_clock);
+		printk(KERN_WARNING "warning: LCD clock too high (%u KHz)\n",
+				    lcd_clock);
 }
 
 unsigned int get_au1x00_lcd_clock(void)
 {
 	return lcd_clock;
 }
-
 EXPORT_SYMBOL(get_au1x00_lcd_clock);

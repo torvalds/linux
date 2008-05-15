@@ -450,7 +450,6 @@ static inline int restore_i387_fsave(struct _fpstate_ia32 __user *buf)
 {
 	struct task_struct *tsk = current;
 
-	clear_fpu(tsk);
 	return __copy_from_user(&tsk->thread.xstate->fsave, buf,
 				sizeof(struct i387_fsave_struct));
 }
@@ -461,7 +460,6 @@ static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf)
 	struct user_i387_ia32_struct env;
 	int err;
 
-	clear_fpu(tsk);
 	err = __copy_from_user(&tsk->thread.xstate->fxsave, &buf->_fxsr_env[0],
 			       sizeof(struct i387_fxsave_struct));
 	/* mxcsr reserved bits must be masked to zero for security reasons */
@@ -478,6 +476,16 @@ int restore_i387_ia32(struct _fpstate_ia32 __user *buf)
 	int err;
 
 	if (HAVE_HWFP) {
+		struct task_struct *tsk = current;
+
+		clear_fpu(tsk);
+
+		if (!used_math()) {
+			err = init_fpu(tsk);
+			if (err)
+				return err;
+		}
+
 		if (cpu_has_fxsr)
 			err = restore_i387_fxsave(buf);
 		else

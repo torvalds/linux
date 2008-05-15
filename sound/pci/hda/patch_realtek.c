@@ -11902,7 +11902,10 @@ static void alc861_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid,
 					      int pin_type, int dac_idx)
 {
-	alc_set_pin_output(codec, nid, pin_type);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    pin_type);
+	snd_hda_codec_write(codec, dac_idx, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_OUT_UNMUTE);
 }
 
 static void alc861_auto_init_multi_out(struct hda_codec *codec)

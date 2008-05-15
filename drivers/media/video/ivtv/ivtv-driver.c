@@ -853,6 +853,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 	return 0;
 }
 
+#ifdef MODULE
 static u32 ivtv_request_module(struct ivtv *itv, u32 hw,
 		const char *name, u32 id)
 {
@@ -865,12 +866,14 @@ static u32 ivtv_request_module(struct ivtv *itv, u32 hw,
 	IVTV_DEBUG_INFO("Loaded module %s\n", name);
 	return hw;
 }
+#endif
 
 static void ivtv_load_and_init_modules(struct ivtv *itv)
 {
 	u32 hw = itv->card->hw_all;
 	unsigned i;
 
+#ifdef MODULE
 	/* load modules */
 #ifndef CONFIG_MEDIA_TUNER
 	hw = ivtv_request_module(itv, hw, "tuner", IVTV_HW_TUNER);
@@ -910,6 +913,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 #endif
 #ifndef CONFIG_VIDEO_M52790
 	hw = ivtv_request_module(itv, hw, "m52790", IVTV_HW_M52790);
+#endif
 #endif
 
 	/* check which i2c devices are actually found */
@@ -1228,7 +1232,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	return 0;
 
 free_streams:
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 1);
 free_irq:
 	free_irq(itv->dev->irq, (void *)itv);
 free_i2c:
@@ -1373,7 +1377,7 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 	flush_workqueue(itv->irq_work_queues);
 	destroy_workqueue(itv->irq_work_queues);
 
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 1);
 	ivtv_udma_free(itv);
 
 	exit_ivtv_i2c(itv);

@@ -17,11 +17,9 @@
 #include <linux/init.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
-#include <asm/oplib.h>
-#include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -299,7 +297,7 @@ static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *
 	par->physbase = op->resource[0].start;
 	par->which_io = op->resource[0].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&info->var, dp->node, 1);
+	sbusfb_fill_var(&info->var, dp, 1);
 	linebytes = of_getintprop_default(dp, "linebytes",
 					  info->var.xres);
 
@@ -329,7 +327,7 @@ static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *
 	if (!info->screen_base)
 		goto out_unmap_regs;
 
-	bw2_blank(0, info);
+	bw2_blank(FB_BLANK_UNBLANK, info);
 
 	bw2_init_fix(info, linebytes);
 

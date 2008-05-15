@@ -970,7 +970,8 @@ static int sx_set_real_termios(void *ptr)
 		sx_write_channel_byte(port, hi_mask, 0x1f);
 		break;
 	default:
-		printk(KERN_INFO "sx: Invalid wordsize: %u\n", CFLAG & CSIZE);
+		printk(KERN_INFO "sx: Invalid wordsize: %u\n",
+			(unsigned int)CFLAG & CSIZE);
 		break;
 	}
 
@@ -997,7 +998,8 @@ static int sx_set_real_termios(void *ptr)
 		set_bit(TTY_HW_COOK_IN, &port->gs.tty->flags);
 	}
 	sx_dprintk(SX_DEBUG_TERMIOS, "iflags: %x(%d) ",
-			port->gs.tty->termios->c_iflag, I_OTHER(port->gs.tty));
+			(unsigned int)port->gs.tty->termios->c_iflag,
+			I_OTHER(port->gs.tty));
 
 /* Tell line discipline whether we will do output cooking.
  * If OPOST is set and no other output flags are set then we can do output
@@ -1010,7 +1012,8 @@ static int sx_set_real_termios(void *ptr)
 		clear_bit(TTY_HW_COOK_OUT, &port->gs.tty->flags);
 	}
 	sx_dprintk(SX_DEBUG_TERMIOS, "oflags: %x(%d)\n",
-			port->gs.tty->termios->c_oflag, O_OTHER(port->gs.tty));
+			(unsigned int)port->gs.tty->termios->c_oflag,
+			O_OTHER(port->gs.tty));
 	/* port->c_dcd = sx_get_CD (port); */
 	func_exit();
 	return 0;

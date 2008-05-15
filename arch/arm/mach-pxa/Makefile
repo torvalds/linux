@@ -5,6 +5,13 @@
 # Common support (must be linked before board specific support)
 obj-y				+= clock.o devices.o generic.o irq.o dma.o \
 				   time.o gpio.o
+obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
+obj-$(CONFIG_CPU_FREQ)		+= cpu-pxa.o
+
+# Generic drivers that other drivers may depend upon
+obj-$(CONFIG_PXA_SSP)		+= ssp.o
+
+# SoC-specific code
 obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o pxa25x.o
 obj-$(CONFIG_PXA27x)		+= mfp-pxa2xx.o pxa27x.o
 obj-$(CONFIG_PXA3xx)		+= mfp-pxa3xx.o pxa3xx.o smemc.o
@@ -47,11 +54,6 @@ led-$(CONFIG_ARCH_PXA_IDP)	+= leds-idp.o
 led-$(CONFIG_MACH_TRIZEPS4)	+= leds-trizeps4.o
 
 obj-$(CONFIG_LEDS)		+= $(led-y)
-
-# Misc features
-obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
-obj-$(CONFIG_CPU_FREQ)		+= cpu-pxa.o
-obj-$(CONFIG_PXA_SSP)		+= ssp.o
 
 ifeq ($(CONFIG_PCI),y)
 obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o

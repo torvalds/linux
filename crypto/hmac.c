@@ -57,14 +57,35 @@ static int hmac_setkey(struct crypto_hash *parent,
 	if (keylen > bs) {
 		struct hash_desc desc;
 		struct scatterlist tmp;
+		int tmplen;
 		int err;
 
 		desc.tfm = tfm;
 		desc.flags = crypto_hash_get_flags(parent);
 		desc.flags &= CRYPTO_TFM_REQ_MAY_SLEEP;
-		sg_init_one(&tmp, inkey, keylen);
 
-		err = crypto_hash_digest(&desc, &tmp, keylen, digest);
+		err = crypto_hash_init(&desc);
+		if (err)
+			return err;
+
+		tmplen = bs * 2 + ds;
+		sg_init_one(&tmp, ipad, tmplen);
+
+		for (; keylen > tmplen; inkey += tmplen, keylen -= tmplen) {
+			memcpy(ipad, inkey, tmplen);
+			err = crypto_hash_update(&desc, &tmp, tmplen);
+			if (err)
+				return err;
+		}
+
+		if (keylen) {
+			memcpy(ipad, inkey, keylen);
+			err = crypto_hash_update(&desc, &tmp, keylen);
+			if (err)
+				return err;
+		}
+
+		err = crypto_hash_final(&desc, digest);
 		if (err)
 			return err;
 

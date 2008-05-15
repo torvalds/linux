@@ -335,7 +335,7 @@ i2c_au1550_probe(struct platform_device *pdev)
 		goto out_mem;
 	}
 
-	priv->psc_base = r->start;
+	priv->psc_base = CKSEG1ADDR(r->start);
 	priv->xfer_timeout = 200;
 	priv->ack_timeout = 200;
 

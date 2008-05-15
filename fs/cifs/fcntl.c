@@ -68,7 +68,7 @@ int cifs_dir_notify(struct file *file, unsigned long arg)
 {
 	int xid;
 	int rc = -EINVAL;
-	int oplock = FALSE;
+	int oplock = 0;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;

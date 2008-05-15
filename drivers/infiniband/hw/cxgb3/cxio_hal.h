@@ -154,14 +154,14 @@ int cxio_create_qp(struct cxio_rdev *rdev, u32 kernel_domain, struct t3_wq *wq,
 int cxio_destroy_qp(struct cxio_rdev *rdev, struct t3_wq *wq,
 		    struct cxio_ucontext *uctx);
 int cxio_peek_cq(struct t3_wq *wr, struct t3_cq *cq, int opcode);
+int cxio_write_pbl(struct cxio_rdev *rdev_p, __be64 *pbl,
+		   u32 pbl_addr, u32 pbl_size);
 int cxio_register_phys_mem(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
 			   enum tpt_mem_perm perm, u32 zbva, u64 to, u32 len,
-			   u8 page_size, __be64 *pbl, u32 *pbl_size,
-			   u32 *pbl_addr);
+			   u8 page_size, u32 pbl_size, u32 pbl_addr);
 int cxio_reregister_phys_mem(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
 			   enum tpt_mem_perm perm, u32 zbva, u64 to, u32 len,
-			   u8 page_size, __be64 *pbl, u32 *pbl_size,
-			   u32 *pbl_addr);
+			   u8 page_size, u32 pbl_size, u32 pbl_addr);
 int cxio_dereg_mem(struct cxio_rdev *rdev, u32 stag, u32 pbl_size,
 		   u32 pbl_addr);
 int cxio_allocate_window(struct cxio_rdev *rdev, u32 * stag, u32 pdid);
@@ -173,8 +173,8 @@ u32 cxio_hal_get_pdid(struct cxio_hal_resource *rscp);
 void cxio_hal_put_pdid(struct cxio_hal_resource *rscp, u32 pdid);
 int __init cxio_hal_init(void);
 void __exit cxio_hal_exit(void);
-void cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count);
-void cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count);
+int cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count);
+int cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count);
 void cxio_count_rcqes(struct t3_cq *cq, struct t3_wq *wq, int *count);
 void cxio_count_scqes(struct t3_cq *cq, struct t3_wq *wq, int *count);
 void cxio_flush_hw_cq(struct t3_cq *cq);

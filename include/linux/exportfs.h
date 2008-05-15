@@ -33,6 +33,19 @@ enum fid_type {
 	 * 32 bit parent directory inode number.
 	 */
 	FILEID_INO32_GEN_PARENT = 2,
+
+	/*
+	 * 32 bit block number, 16 bit partition reference,
+	 * 16 bit unused, 32 bit generation number.
+	 */
+	FILEID_UDF_WITHOUT_PARENT = 0x51,
+
+	/*
+	 * 32 bit block number, 16 bit partition reference,
+	 * 16 bit unused, 32 bit generation number,
+	 * 32 bit parent block number, 32 bit parent generation number
+	 */
+	FILEID_UDF_WITH_PARENT = 0x52,
 };
 
 struct fid {
@@ -43,6 +56,14 @@ struct fid {
 			u32 parent_ino;
 			u32 parent_gen;
 		} i32;
+ 		struct {
+ 			u32 block;
+ 			u16 partref;
+ 			u16 parent_partref;
+ 			u32 generation;
+ 			u32 parent_block;
+ 			u32 parent_generation;
+ 		} udf;
 		__u32 raw[0];
 	};
 };

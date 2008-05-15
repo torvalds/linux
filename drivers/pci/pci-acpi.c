@@ -19,8 +19,31 @@
 #include <linux/pci-acpi.h>
 #include "pci.h"
 
-static u32 ctrlset_buf[3] = {0, 0, 0};
-static u32 global_ctrlsets = 0;
+struct acpi_osc_data {
+	acpi_handle handle;
+	u32 ctrlset_buf[3];
+	u32 global_ctrlsets;
+	struct list_head sibiling;
+};
+static LIST_HEAD(acpi_osc_data_list);
+
+static struct acpi_osc_data *acpi_get_osc_data(acpi_handle handle)
+{
+	struct acpi_osc_data *data;
+
+	list_for_each_entry(data, &acpi_osc_data_list, sibiling) {
+		if (data->handle == handle)
+			return data;
+	}
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return NULL;
+	INIT_LIST_HEAD(&data->sibiling);
+	data->handle = handle;
+	list_add_tail(&data->sibiling, &acpi_osc_data_list);
+	return data;
+}
+
 static u8 OSC_UUID[16] = {0x5B, 0x4D, 0xDB, 0x33, 0xF7, 0x1F, 0x1C, 0x40, 0x96, 0x57, 0x74, 0x41, 0xC0, 0x3D, 0xD7, 0x66};
 
 static acpi_status  
@@ -37,8 +60,27 @@ acpi_query_osc (
 	union acpi_object 	*out_obj;
 	u32			osc_dw0;
 	acpi_status *ret_status = (acpi_status *)retval;
+	struct acpi_osc_data *osc_data;
+	u32 flags = (unsigned long)context, temp;
+	acpi_handle tmp;
 
-	
+	status = acpi_get_handle(handle, "_OSC", &tmp);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	osc_data = acpi_get_osc_data(handle);
+	if (!osc_data) {
+		printk(KERN_ERR "acpi osc data array is full\n");
+		return AE_ERROR;
+	}
+
+	osc_data->ctrlset_buf[OSC_SUPPORT_TYPE] |= (flags & OSC_SUPPORT_MASKS);
+
+	/* do _OSC query for all possible controls */
+	temp = osc_data->ctrlset_buf[OSC_CONTROL_TYPE];
+	osc_data->ctrlset_buf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
+	osc_data->ctrlset_buf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
+
 	/* Setting up input parameters */
 	input.count = 4;
 	input.pointer = in_params;
@@ -51,13 +93,11 @@ acpi_query_osc (
 	in_params[2].integer.value	= 3;
 	in_params[3].type		= ACPI_TYPE_BUFFER;
 	in_params[3].buffer.length 	= 12;
-	in_params[3].buffer.pointer 	= (u8 *)context;
+	in_params[3].buffer.pointer 	= (u8 *)osc_data->ctrlset_buf;
 
 	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
-	if (ACPI_FAILURE (status)) {
-		*ret_status = status;
-		return status;
-	}
+	if (ACPI_FAILURE(status))
+		goto out_nofree;
 	out_obj = output.pointer;
 
 	if (out_obj->type != ACPI_TYPE_BUFFER) {
@@ -76,7 +116,8 @@ acpi_query_osc (
 			printk(KERN_DEBUG "_OSC invalid revision\n"); 
 		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
 			/* Update Global Control Set */
-			global_ctrlsets = *((u32 *)(out_obj->buffer.pointer+8));
+			osc_data->global_ctrlsets =
+				*((u32 *)(out_obj->buffer.pointer + 8));
 			status = AE_OK;
 			goto query_osc_out;
 		}
@@ -85,12 +126,21 @@ acpi_query_osc (
 	}
 
 	/* Update Global Control Set */
-	global_ctrlsets = *((u32 *)(out_obj->buffer.pointer + 8));
+	osc_data->global_ctrlsets = *((u32 *)(out_obj->buffer.pointer + 8));
 	status = AE_OK;
 
 query_osc_out:
 	kfree(output.pointer);
+out_nofree:
 	*ret_status = status;
+
+	osc_data->ctrlset_buf[OSC_QUERY_TYPE] = !OSC_QUERY_ENABLE;
+	osc_data->ctrlset_buf[OSC_CONTROL_TYPE] = temp;
+	if (ACPI_FAILURE(status)) {
+		/* no osc support at all */
+		osc_data->ctrlset_buf[OSC_SUPPORT_TYPE] = 0;
+	}
+
 	return status;
 }
 
@@ -165,28 +215,15 @@ run_osc_out:
  **/
 acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 {
-	u32 temp;
-	acpi_status retval;
+	acpi_status retval = AE_NOT_FOUND;
 
 	if (!(flags & OSC_SUPPORT_MASKS)) {
 		return AE_TYPE;
 	}
-	ctrlset_buf[OSC_SUPPORT_TYPE] |= (flags & OSC_SUPPORT_MASKS);
-
-	/* do _OSC query for all possible controls */
-	temp = ctrlset_buf[OSC_CONTROL_TYPE];
-	ctrlset_buf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	ctrlset_buf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
 	acpi_get_devices(hid,
 			acpi_query_osc,
-			ctrlset_buf,
+			(void *)(unsigned long)flags,
 			(void **) &retval );
-	ctrlset_buf[OSC_QUERY_TYPE] = !OSC_QUERY_ENABLE;
-	ctrlset_buf[OSC_CONTROL_TYPE] = temp;
-	if (ACPI_FAILURE(retval)) {
-		/* no osc support at all */
-		ctrlset_buf[OSC_SUPPORT_TYPE] = 0;
-	}
 	return AE_OK;
 }
 
@@ -201,19 +238,31 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status	status;
 	u32		ctrlset;
+	acpi_handle tmp;
+	struct acpi_osc_data *osc_data;
+
+	status = acpi_get_handle(handle, "_OSC", &tmp);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	osc_data = acpi_get_osc_data(handle);
+	if (!osc_data) {
+		printk(KERN_ERR "acpi osc data array is full\n");
+		return AE_ERROR;
+	}
 
 	ctrlset = (flags & OSC_CONTROL_MASKS);
 	if (!ctrlset) {
 		return AE_TYPE;
 	}
-	if (ctrlset_buf[OSC_SUPPORT_TYPE] && 
-	 	((global_ctrlsets & ctrlset) != ctrlset)) {
+	if (osc_data->ctrlset_buf[OSC_SUPPORT_TYPE] &&
+		((osc_data->global_ctrlsets & ctrlset) != ctrlset)) {
 		return AE_SUPPORT;
 	}
-	ctrlset_buf[OSC_CONTROL_TYPE] |= ctrlset;
-	status = acpi_run_osc(handle, ctrlset_buf);
+	osc_data->ctrlset_buf[OSC_CONTROL_TYPE] |= ctrlset;
+	status = acpi_run_osc(handle, osc_data->ctrlset_buf);
 	if (ACPI_FAILURE (status)) {
-		ctrlset_buf[OSC_CONTROL_TYPE] &= ~ctrlset;
+		osc_data->ctrlset_buf[OSC_CONTROL_TYPE] &= ~ctrlset;
 	}
 	
 	return status;

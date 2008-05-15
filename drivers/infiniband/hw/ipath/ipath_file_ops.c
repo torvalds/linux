@@ -173,45 +173,23 @@ static int ipath_get_base_info(struct file *fp,
 		(void *) dd->ipath_statusp -
 		(void *) dd->ipath_pioavailregs_dma;
 	if (!shared) {
-		kinfo->spi_piocnt = dd->ipath_pbufsport;
+		kinfo->spi_piocnt = pd->port_piocnt;
 		kinfo->spi_piobufbase = (u64) pd->port_piobufs;
 		kinfo->__spi_uregbase = (u64) dd->ipath_uregbase +
 			dd->ipath_ureg_align * pd->port_port;
 	} else if (master) {
-		kinfo->spi_piocnt = (dd->ipath_pbufsport / subport_cnt) +
-				    (dd->ipath_pbufsport % subport_cnt);
+		kinfo->spi_piocnt = (pd->port_piocnt / subport_cnt) +
+				    (pd->port_piocnt % subport_cnt);
 		/* Master's PIO buffers are after all the slave's */
 		kinfo->spi_piobufbase = (u64) pd->port_piobufs +
 			dd->ipath_palign *
-			(dd->ipath_pbufsport - kinfo->spi_piocnt);
+			(pd->port_piocnt - kinfo->spi_piocnt);
 	} else {
 		unsigned slave = subport_fp(fp) - 1;
 
-		kinfo->spi_piocnt = dd->ipath_pbufsport / subport_cnt;
+		kinfo->spi_piocnt = pd->port_piocnt / subport_cnt;
 		kinfo->spi_piobufbase = (u64) pd->port_piobufs +
 			dd->ipath_palign * kinfo->spi_piocnt * slave;
-	}
-
-	/*
-	 * Set the PIO avail update threshold to no larger
-	 * than the number of buffers per process. Note that
-	 * we decrease it here, but won't ever increase it.
-	 */
-	if (dd->ipath_pioupd_thresh &&
-	    kinfo->spi_piocnt < dd->ipath_pioupd_thresh) {
-		unsigned long flags;
-
-		dd->ipath_pioupd_thresh = kinfo->spi_piocnt;
-		ipath_dbg("Decreased pio update threshold to %u\n",
-			dd->ipath_pioupd_thresh);
-		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
-		dd->ipath_sendctrl &= ~(INFINIPATH_S_UPDTHRESH_MASK
-			<< INFINIPATH_S_UPDTHRESH_SHIFT);
-		dd->ipath_sendctrl |= dd->ipath_pioupd_thresh
-			<< INFINIPATH_S_UPDTHRESH_SHIFT;
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			dd->ipath_sendctrl);
-		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 	}
 
 	if (shared) {
@@ -577,7 +555,7 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 			p = dd->ipath_pageshadow[porttid + tid];
 			dd->ipath_pageshadow[porttid + tid] = NULL;
 			ipath_cdbg(VERBOSE, "PID %u freeing TID %u\n",
-				   pd->port_pid, tid);
+				   pid_nr(pd->port_pid), tid);
 			dd->ipath_f_put_tid(dd, &tidbase[tid],
 					    RCVHQ_RCV_TYPE_EXPECTED,
 					    dd->ipath_tidinvalid);
@@ -1309,19 +1287,19 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 	ureg = dd->ipath_uregbase + dd->ipath_ureg_align * pd->port_port;
 	if (!pd->port_subport_cnt) {
 		/* port is not shared */
-		piocnt = dd->ipath_pbufsport;
+		piocnt = pd->port_piocnt;
 		piobufs = pd->port_piobufs;
 	} else if (!subport_fp(fp)) {
 		/* caller is the master */
-		piocnt = (dd->ipath_pbufsport / pd->port_subport_cnt) +
-			 (dd->ipath_pbufsport % pd->port_subport_cnt);
+		piocnt = (pd->port_piocnt / pd->port_subport_cnt) +
+			 (pd->port_piocnt % pd->port_subport_cnt);
 		piobufs = pd->port_piobufs +
-			dd->ipath_palign * (dd->ipath_pbufsport - piocnt);
+			dd->ipath_palign * (pd->port_piocnt - piocnt);
 	} else {
 		unsigned slave = subport_fp(fp) - 1;
 
 		/* caller is a slave */
-		piocnt = dd->ipath_pbufsport / pd->port_subport_cnt;
+		piocnt = pd->port_piocnt / pd->port_subport_cnt;
 		piobufs = pd->port_piobufs + dd->ipath_palign * piocnt * slave;
 	}
 
@@ -1631,11 +1609,8 @@ static int try_alloc_port(struct ipath_devdata *dd, int port,
 			   port);
 		pd->port_cnt = 1;
 		port_fp(fp) = pd;
-		pd->port_pid = current->pid;
+		pd->port_pid = get_pid(task_pid(current));
 		strncpy(pd->port_comm, current->comm, sizeof(pd->port_comm));
-		ipath_chg_pioavailkernel(dd,
-			dd->ipath_pbufsport * (pd->port_port - 1),
-			dd->ipath_pbufsport, 0);
 		ipath_stats.sps_ports++;
 		ret = 0;
 	} else
@@ -1818,14 +1793,15 @@ static int find_shared_port(struct file *fp,
 			}
 			port_fp(fp) = pd;
 			subport_fp(fp) = pd->port_cnt++;
-			pd->port_subpid[subport_fp(fp)] = current->pid;
+			pd->port_subpid[subport_fp(fp)] =
+				get_pid(task_pid(current));
 			tidcursor_fp(fp) = 0;
 			pd->active_slaves |= 1 << subport_fp(fp);
 			ipath_cdbg(PROC,
 				   "%s[%u] %u sharing %s[%u] unit:port %u:%u\n",
 				   current->comm, current->pid,
 				   subport_fp(fp),
-				   pd->port_comm, pd->port_pid,
+				   pd->port_comm, pid_nr(pd->port_pid),
 				   dd->ipath_unit, pd->port_port);
 			ret = 1;
 			goto done;
@@ -1938,11 +1914,25 @@ static int ipath_do_user_init(struct file *fp,
 
 	/* for now we do nothing with rcvhdrcnt: uinfo->spu_rcvhdrcnt */
 
+	/* some ports may get extra buffers, calculate that here */
+	if (pd->port_port <= dd->ipath_ports_extrabuf)
+		pd->port_piocnt = dd->ipath_pbufsport + 1;
+	else
+		pd->port_piocnt = dd->ipath_pbufsport;
+
 	/* for right now, kernel piobufs are at end, so port 1 is at 0 */
+	if (pd->port_port <= dd->ipath_ports_extrabuf)
+		pd->port_pio_base = (dd->ipath_pbufsport + 1)
+			* (pd->port_port - 1);
+	else
+		pd->port_pio_base = dd->ipath_ports_extrabuf +
+			dd->ipath_pbufsport * (pd->port_port - 1);
 	pd->port_piobufs = dd->ipath_piobufbase +
-		dd->ipath_pbufsport * (pd->port_port - 1) * dd->ipath_palign;
-	ipath_cdbg(VERBOSE, "Set base of piobufs for port %u to 0x%x\n",
-		   pd->port_port, pd->port_piobufs);
+		pd->port_pio_base * dd->ipath_palign;
+	ipath_cdbg(VERBOSE, "piobuf base for port %u is 0x%x, piocnt %u,"
+		" first pio %u\n", pd->port_port, pd->port_piobufs,
+		pd->port_piocnt, pd->port_pio_base);
+	ipath_chg_pioavailkernel(dd, pd->port_pio_base, pd->port_piocnt, 0);
 
 	/*
 	 * Now allocate the rcvhdr Q and eager TIDs; skip the TID
@@ -2077,7 +2067,8 @@ static int ipath_close(struct inode *in, struct file *fp)
 		 * the slave(s) don't wait for receive data forever.
 		 */
 		pd->active_slaves &= ~(1 << fd->subport);
-		pd->port_subpid[fd->subport] = 0;
+		put_pid(pd->port_subpid[fd->subport]);
+		pd->port_subpid[fd->subport] = NULL;
 		mutex_unlock(&ipath_mutex);
 		goto bail;
 	}
@@ -2085,7 +2076,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 	if (pd->port_hdrqfull) {
 		ipath_cdbg(PROC, "%s[%u] had %u rcvhdrqfull errors "
-			   "during run\n", pd->port_comm, pd->port_pid,
+			   "during run\n", pd->port_comm, pid_nr(pd->port_pid),
 			   pd->port_hdrqfull);
 		pd->port_hdrqfull = 0;
 	}
@@ -2107,7 +2098,6 @@ static int ipath_close(struct inode *in, struct file *fp)
 	}
 
 	if (dd->ipath_kregbase) {
-		int i;
 		/* atomically clear receive enable port and intr avail. */
 		clear_bit(dd->ipath_r_portenable_shift + port,
 			  &dd->ipath_rcvctrl);
@@ -2136,9 +2126,9 @@ static int ipath_close(struct inode *in, struct file *fp)
 		ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdraddr,
 			pd->port_port, dd->ipath_dummy_hdrq_phys);
 
-		i = dd->ipath_pbufsport * (port - 1);
-		ipath_disarm_piobufs(dd, i, dd->ipath_pbufsport);
-		ipath_chg_pioavailkernel(dd, i, dd->ipath_pbufsport, 1);
+		ipath_disarm_piobufs(dd, pd->port_pio_base, pd->port_piocnt);
+		ipath_chg_pioavailkernel(dd, pd->port_pio_base,
+			pd->port_piocnt, 1);
 
 		dd->ipath_f_clear_tids(dd, pd->port_port);
 
@@ -2146,11 +2136,12 @@ static int ipath_close(struct inode *in, struct file *fp)
 			unlock_expected_tids(pd);
 		ipath_stats.sps_ports--;
 		ipath_cdbg(PROC, "%s[%u] closed port %u:%u\n",
-			   pd->port_comm, pd->port_pid,
+			   pd->port_comm, pid_nr(pd->port_pid),
 			   dd->ipath_unit, port);
 	}
 
-	pd->port_pid = 0;
+	put_pid(pd->port_pid);
+	pd->port_pid = NULL;
 	dd->ipath_pd[pd->port_port] = NULL; /* before releasing mutex */
 	mutex_unlock(&ipath_mutex);
 	ipath_free_pddata(dd, pd); /* after releasing the mutex */

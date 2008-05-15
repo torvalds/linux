@@ -186,13 +186,7 @@ struct k_sigaction {
 	void __user		*ka_restorer;
 };
 
-struct signal_deliver_cookie {
-	int restart_syscall;
-	unsigned long orig_i0;
-};
-
-struct pt_regs;
-extern void ptrace_signal_deliver(struct pt_regs *regs, void *cookie);
+#define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
 #endif /* !(__KERNEL__) */
 

@@ -68,6 +68,20 @@ static inline int task_nice_ioprio(struct task_struct *task)
 }
 
 /*
+ * This is for the case where the task hasn't asked for a specific IO class.
+ * Check for idle and rt task process, and return appropriate IO class.
+ */
+static inline int task_nice_ioclass(struct task_struct *task)
+{
+	if (task->policy == SCHED_IDLE)
+		return IOPRIO_CLASS_IDLE;
+	else if (task->policy == SCHED_FIFO || task->policy == SCHED_RR)
+		return IOPRIO_CLASS_RT;
+	else
+		return IOPRIO_CLASS_BE;
+}
+
+/*
  * For inheritance, return the highest of the two given priorities
  */
 extern int ioprio_best(unsigned short aprio, unsigned short bprio);

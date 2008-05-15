@@ -77,17 +77,48 @@ int pcibios_scanned;
  */
 DEFINE_SPINLOCK(pci_config_lock);
 
-static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
 {
-	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
+	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
+	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
+	return 0;
+}
 
-	if (rom_r->parent)
-		return;
-	if (rom_r->start)
-		/* we deal with BIOS assigned ROM later */
-		return;
-	if (!(pci_probe & PCI_ASSIGN_ROMS))
-		rom_r->start = rom_r->end = rom_r->flags = 0;
+static struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitdata = {
+/*
+ * Systems where PCI IO resource ISA alignment can be skipped
+ * when the ISA enable bit in the bridge control is not set
+ */
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3800",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
+		},
+	},
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3850",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3850"),
+		},
+	},
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3950",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3950"),
+		},
+	},
+	{}
+};
+
+void __init dmi_check_skip_isa_align(void)
+{
+	dmi_check_system(can_skip_pciprobe_dmi_table);
 }
 
 /*
@@ -97,11 +128,7 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 
 void __devinit  pcibios_fixup_bus(struct pci_bus *b)
 {
-	struct pci_dev *dev;
-
 	pci_read_bridge_bases(b);
-	list_for_each_entry(dev, &b->devices, bus_list)
-		pcibios_fixup_device_resources(dev);
 }
 
 /*
@@ -318,12 +345,15 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 	{}
 };
 
+void __init dmi_check_pciprobe(void)
+{
+	dmi_check_system(pciprobe_dmi_table);
+}
+
 struct pci_bus * __devinit pcibios_scan_root(int busnum)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
-
-	dmi_check_system(pciprobe_dmi_table);
 
 	while ((bus = pci_find_next_bus(bus)) != NULL) {
 		if (bus->number == busnum) {
@@ -462,6 +492,9 @@ char * __devinit  pcibios_setup(char *str)
 	} else if (!strcmp(str, "routeirq")) {
 		pci_routeirq = 1;
 		return NULL;
+	} else if (!strcmp(str, "skip_isa_align")) {
+		pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
+		return NULL;
 	}
 	return str;
 }
@@ -489,7 +522,7 @@ void pcibios_disable_device (struct pci_dev *dev)
 		pcibios_disable_irq(dev);
 }
 
-struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
+struct pci_bus * __devinit pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
@@ -512,7 +545,7 @@ struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
 	return bus;
 }
 
-struct pci_bus *pci_scan_bus_with_sysdata(int busno)
+struct pci_bus * __devinit pci_scan_bus_with_sysdata(int busno)
 {
 	return pci_scan_bus_on_node(busno, &pci_root_ops, -1);
 }

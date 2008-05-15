@@ -25,6 +25,7 @@
 #define PSR_PIL     0x00000f00         /* processor interrupt level  */
 #define PSR_EF      0x00001000         /* enable floating point      */
 #define PSR_EC      0x00002000         /* enable co-processor        */
+#define PSR_SYSCALL 0x00004000         /* inside of a syscall        */
 #define PSR_LE      0x00008000         /* SuperSparcII little-endian */
 #define PSR_ICC     0x00f00000         /* integer condition codes    */
 #define PSR_C       0x00100000         /* carry bit                  */

@@ -14,11 +14,7 @@
 
 #include <linux/i2c.h>
 
-#ifdef CONFIG_OF_I2C
-
 void of_register_i2c_devices(struct i2c_adapter *adap,
 			     struct device_node *adap_node);
-
-#endif /* CONFIG_OF_I2C */
 
 #endif /* __LINUX_OF_I2C_H */

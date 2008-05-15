@@ -40,11 +40,11 @@
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
 	if (__a) { \
 		__r = (int) __a(ARGS); \
+		symbol_put(FUNCTION); \
 	} else { \
 		printk(KERN_ERR "TUNER: Unable to find " \
 				"symbol "#FUNCTION"()\n"); \
 	} \
-	symbol_put(FUNCTION); \
 	__r; \
 })
 
@@ -340,16 +340,6 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
-static void attach_tda829x(struct tuner *t)
-{
-	struct tda829x_config cfg = {
-		.lna_cfg        = t->config,
-		.tuner_callback = t->tuner_callback,
-	};
-	dvb_attach(tda829x_attach,
-		   &t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
-}
-
 static struct xc5000_config xc5000_cfg;
 
 static void set_type(struct i2c_client *c, unsigned int type,
@@ -385,12 +375,19 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	switch (t->type) {
 	case TUNER_MT2032:
-		dvb_attach(microtune_attach,
-			   &t->fe, t->i2c->adapter, t->i2c->addr);
+		if (!dvb_attach(microtune_attach,
+			   &t->fe, t->i2c->adapter, t->i2c->addr))
+			goto attach_failed;
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
-		attach_tda829x(t);
+		struct tda829x_config cfg = {
+			.lna_cfg        = t->config,
+			.tuner_callback = t->tuner_callback,
+		};
+		if (!dvb_attach(tda829x_attach, &t->fe, t->i2c->adapter,
+				t->i2c->addr, &cfg))
+			goto attach_failed;
 		break;
 	}
 	case TUNER_TEA5767:
@@ -441,8 +438,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TDA9887:
-		dvb_attach(tda9887_attach,
-			   &t->fe, t->i2c->adapter, t->i2c->addr);
+		if (!dvb_attach(tda9887_attach,
+			   &t->fe, t->i2c->adapter, t->i2c->addr))
+			goto attach_failed;
 		break;
 	case TUNER_XC5000:
 	{
@@ -450,10 +448,10 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 		xc5000_cfg.i2c_address	  = t->i2c->addr;
 		xc5000_cfg.if_khz	  = 5380;
-		xc5000_cfg.priv           = c->adapter->algo_data;
 		xc5000_cfg.tuner_callback = t->tuner_callback;
 		if (!dvb_attach(xc5000_attach,
-				&t->fe, t->i2c->adapter, &xc5000_cfg))
+				&t->fe, t->i2c->adapter, &xc5000_cfg,
+				c->adapter->algo_data))
 			goto attach_failed;
 
 		xc_tuner_ops = &t->fe.ops.tuner_ops;
@@ -1167,7 +1165,7 @@ static int tuner_probe(struct i2c_client *client,
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
 			if (tuner_symbol_probe(tda829x_probe, t->i2c->adapter,
-					       t->i2c->addr) == 0) {
+					       t->i2c->addr) >= 0) {
 				tuner_dbg("tda829x detected\n");
 			} else {
 				/* Default is being tda9887 */
@@ -1181,7 +1179,7 @@ static int tuner_probe(struct i2c_client *client,
 		case 0x60:
 			if (tuner_symbol_probe(tea5767_autodetection,
 					       t->i2c->adapter, t->i2c->addr)
-					!= EINVAL) {
+					>= 0) {
 				t->type = TUNER_TEA5767;
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;

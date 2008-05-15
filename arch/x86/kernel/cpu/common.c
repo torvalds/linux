@@ -12,6 +12,7 @@
 #include <asm/mmu_context.h>
 #include <asm/mtrr.h>
 #include <asm/mce.h>
+#include <asm/pat.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
@@ -308,19 +309,6 @@ static void __cpuinit early_get_cap(struct cpuinfo_x86 *c)
 
 	}
 
-	clear_cpu_cap(c, X86_FEATURE_PAT);
-
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		if (c->x86 >= 0xf && c->x86 <= 0x11)
-			set_cpu_cap(c, X86_FEATURE_PAT);
-		break;
-	case X86_VENDOR_INTEL:
-		if (c->x86 == 0xF || (c->x86 == 6 && c->x86_model >= 15))
-			set_cpu_cap(c, X86_FEATURE_PAT);
-		break;
-	}
-
 }
 
 /*
@@ -409,18 +397,6 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		init_scattered_cpuid_features(c);
 	}
 
-	clear_cpu_cap(c, X86_FEATURE_PAT);
-
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		if (c->x86 >= 0xf && c->x86 <= 0x11)
-			set_cpu_cap(c, X86_FEATURE_PAT);
-		break;
-	case X86_VENDOR_INTEL:
-		if (c->x86 == 0xF || (c->x86 == 6 && c->x86_model >= 15))
-			set_cpu_cap(c, X86_FEATURE_PAT);
-		break;
-	}
 }
 
 static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
@@ -651,6 +627,7 @@ void __init early_cpu_init(void)
 		cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
 
 	early_cpu_detect();
+	validate_pat_support(&boot_cpu_data);
 }
 
 /* Make sure %fs is initialized properly in idle threads */

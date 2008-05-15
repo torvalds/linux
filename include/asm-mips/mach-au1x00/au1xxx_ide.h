@@ -31,167 +31,164 @@
  */
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-        #define DMA_WAIT_TIMEOUT        100
-        #define NUM_DESCRIPTORS         PRD_ENTRIES
+#define DMA_WAIT_TIMEOUT	100
+#define NUM_DESCRIPTORS 	PRD_ENTRIES
 #else /* CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA */
-        #define NUM_DESCRIPTORS         2
+#define NUM_DESCRIPTORS 	2
 #endif
 
 #ifndef AU1XXX_ATA_RQSIZE
-        #define AU1XXX_ATA_RQSIZE       128
+#define AU1XXX_ATA_RQSIZE	128
 #endif
 
 /* Disable Burstable-Support for DBDMA */
 #ifndef CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON
-        #define CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON  0
+#define CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON	0
 #endif
 
 #ifdef CONFIG_PM
 /*
-* This will enable the device to be powered up when write() or read()
-* is called. If this is not defined, the driver will return -EBUSY.
-*/
+ * This will enable the device to be powered up when write() or read()
+ * is called. If this is not defined, the driver will return -EBUSY.
+ */
 #define WAKE_ON_ACCESS 1
 
-typedef struct
-{
-        spinlock_t         lock;       /* Used to block on state transitions */
-        au1xxx_power_dev_t *dev;       /* Power Managers device structure */
-        unsigned	   stopped;    /* USed to signaling device is stopped */
+typedef struct {
+	spinlock_t		lock;	/* Used to block on state transitions */
+	au1xxx_power_dev_t	*dev;	/* Power Managers device structure */
+	unsigned		stopped; /* Used to signal device is stopped */
 } pm_state;
 #endif
 
-
-typedef struct
-{
-        u32                     tx_dev_id, rx_dev_id, target_dev_id;
-        u32                     tx_chan, rx_chan;
-        void                    *tx_desc_head, *rx_desc_head;
-        ide_hwif_t              *hwif;
+typedef struct {
+	u32			tx_dev_id, rx_dev_id, target_dev_id;
+	u32			tx_chan, rx_chan;
+	void			*tx_desc_head, *rx_desc_head;
+	ide_hwif_t		*hwif;
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-        ide_drive_t             *drive;
-        struct dbdma_cmd        *dma_table_cpu;
-        dma_addr_t              dma_table_dma;
+	ide_drive_t		*drive;
+	struct dbdma_cmd	*dma_table_cpu;
+	dma_addr_t		dma_table_dma;
 #endif
 	int			irq;
 	u32			regbase;
 #ifdef CONFIG_PM
-        pm_state                pm;
+	pm_state		pm;
 #endif
 } _auide_hwif;
 
-/*******************************************************************************
-* PIO Mode timing calculation :                                                *
-*                                                                              *
-* Static Bus Spec   ATA Spec                                                   *
-*      Tcsoe      =   t1                                                       *
-*      Toecs      =   t9                                                       *
-*      Twcs       =   t9                                                       *
-*      Tcsh       =   t2i | t2                                                 *
-*      Tcsoff     =   t2i | t2                                                 *
-*      Twp        =   t2                                                       *
-*      Tcsw       =   t1                                                       *
-*      Tpm        =   0                                                        *
-*      Ta         =   t1+t2                                                    *
-*******************************************************************************/
+/******************************************************************************/
+/* PIO Mode timing calculation :					      */
+/*									      */
+/* Static Bus Spec   ATA Spec						      */
+/*	Tcsoe	   =	t1						      */
+/*	Toecs	   =	t9						      */
+/*	Twcs	   =	t9						      */
+/*	Tcsh	   =	t2i | t2					      */
+/*	Tcsoff	   =	t2i | t2					      */
+/*	Twp	   =	t2						      */
+/*	Tcsw	   =	t1						      */
+/*	Tpm	   =	0						      */
+/*	Ta	   =	t1+t2						      */
+/******************************************************************************/
 
-#define TCSOE_MASK            (0x07<<29)
-#define TOECS_MASK            (0x07<<26)
-#define TWCS_MASK             (0x07<<28)
-#define TCSH_MASK             (0x0F<<24)
-#define TCSOFF_MASK           (0x07<<20)
-#define TWP_MASK              (0x3F<<14)
-#define TCSW_MASK             (0x0F<<10)
-#define TPM_MASK              (0x0F<<6)
-#define TA_MASK               (0x3F<<0)
-#define TS_MASK               (1<<8)
+#define TCSOE_MASK		(0x07 << 29)
+#define TOECS_MASK		(0x07 << 26)
+#define TWCS_MASK		(0x07 << 28)
+#define TCSH_MASK		(0x0F << 24)
+#define TCSOFF_MASK		(0x07 << 20)
+#define TWP_MASK		(0x3F << 14)
+#define TCSW_MASK		(0x0F << 10)
+#define TPM_MASK		(0x0F << 6)
+#define TA_MASK 		(0x3F << 0)
+#define TS_MASK 		(1 << 8)
 
 /* Timing parameters PIO mode 0 */
-#define SBC_IDE_PIO0_TCSOE    (0x04<<29)
-#define SBC_IDE_PIO0_TOECS    (0x01<<26)
-#define SBC_IDE_PIO0_TWCS     (0x02<<28)
-#define SBC_IDE_PIO0_TCSH     (0x08<<24)
-#define SBC_IDE_PIO0_TCSOFF   (0x07<<20)
-#define SBC_IDE_PIO0_TWP      (0x10<<14)
-#define SBC_IDE_PIO0_TCSW     (0x04<<10)
-#define SBC_IDE_PIO0_TPM      (0x0<<6)
-#define SBC_IDE_PIO0_TA       (0x15<<0)
+#define SBC_IDE_PIO0_TCSOE	(0x04 << 29)
+#define SBC_IDE_PIO0_TOECS	(0x01 << 26)
+#define SBC_IDE_PIO0_TWCS	(0x02 << 28)
+#define SBC_IDE_PIO0_TCSH	(0x08 << 24)
+#define SBC_IDE_PIO0_TCSOFF	(0x07 << 20)
+#define SBC_IDE_PIO0_TWP	(0x10 << 14)
+#define SBC_IDE_PIO0_TCSW	(0x04 << 10)
+#define SBC_IDE_PIO0_TPM	(0x00 << 6)
+#define SBC_IDE_PIO0_TA 	(0x15 << 0)
 /* Timing parameters PIO mode 1 */
-#define SBC_IDE_PIO1_TCSOE    (0x03<<29)
-#define SBC_IDE_PIO1_TOECS    (0x01<<26)
-#define SBC_IDE_PIO1_TWCS     (0x01<<28)
-#define SBC_IDE_PIO1_TCSH     (0x06<<24)
-#define SBC_IDE_PIO1_TCSOFF   (0x06<<20)
-#define SBC_IDE_PIO1_TWP      (0x08<<14)
-#define SBC_IDE_PIO1_TCSW     (0x03<<10)
-#define SBC_IDE_PIO1_TPM      (0x00<<6)
-#define SBC_IDE_PIO1_TA       (0x0B<<0)
+#define SBC_IDE_PIO1_TCSOE	(0x03 << 29)
+#define SBC_IDE_PIO1_TOECS	(0x01 << 26)
+#define SBC_IDE_PIO1_TWCS	(0x01 << 28)
+#define SBC_IDE_PIO1_TCSH	(0x06 << 24)
+#define SBC_IDE_PIO1_TCSOFF	(0x06 << 20)
+#define SBC_IDE_PIO1_TWP	(0x08 << 14)
+#define SBC_IDE_PIO1_TCSW	(0x03 << 10)
+#define SBC_IDE_PIO1_TPM	(0x00 << 6)
+#define SBC_IDE_PIO1_TA 	(0x0B << 0)
 /* Timing parameters PIO mode 2 */
-#define SBC_IDE_PIO2_TCSOE    (0x05<<29)
-#define SBC_IDE_PIO2_TOECS    (0x01<<26)
-#define SBC_IDE_PIO2_TWCS     (0x01<<28)
-#define SBC_IDE_PIO2_TCSH     (0x07<<24)
-#define SBC_IDE_PIO2_TCSOFF   (0x07<<20)
-#define SBC_IDE_PIO2_TWP      (0x1F<<14)
-#define SBC_IDE_PIO2_TCSW     (0x05<<10)
-#define SBC_IDE_PIO2_TPM      (0x00<<6)
-#define SBC_IDE_PIO2_TA       (0x22<<0)
+#define SBC_IDE_PIO2_TCSOE	(0x05 << 29)
+#define SBC_IDE_PIO2_TOECS	(0x01 << 26)
+#define SBC_IDE_PIO2_TWCS	(0x01 << 28)
+#define SBC_IDE_PIO2_TCSH	(0x07 << 24)
+#define SBC_IDE_PIO2_TCSOFF	(0x07 << 20)
+#define SBC_IDE_PIO2_TWP	(0x1F << 14)
+#define SBC_IDE_PIO2_TCSW	(0x05 << 10)
+#define SBC_IDE_PIO2_TPM	(0x00 << 6)
+#define SBC_IDE_PIO2_TA 	(0x22 << 0)
 /* Timing parameters PIO mode 3 */
-#define SBC_IDE_PIO3_TCSOE    (0x05<<29)
-#define SBC_IDE_PIO3_TOECS    (0x01<<26)
-#define SBC_IDE_PIO3_TWCS     (0x01<<28)
-#define SBC_IDE_PIO3_TCSH     (0x0D<<24)
-#define SBC_IDE_PIO3_TCSOFF   (0x0D<<20)
-#define SBC_IDE_PIO3_TWP      (0x15<<14)
-#define SBC_IDE_PIO3_TCSW     (0x05<<10)
-#define SBC_IDE_PIO3_TPM      (0x00<<6)
-#define SBC_IDE_PIO3_TA       (0x1A<<0)
+#define SBC_IDE_PIO3_TCSOE	(0x05 << 29)
+#define SBC_IDE_PIO3_TOECS	(0x01 << 26)
+#define SBC_IDE_PIO3_TWCS	(0x01 << 28)
+#define SBC_IDE_PIO3_TCSH	(0x0D << 24)
+#define SBC_IDE_PIO3_TCSOFF	(0x0D << 20)
+#define SBC_IDE_PIO3_TWP	(0x15 << 14)
+#define SBC_IDE_PIO3_TCSW	(0x05 << 10)
+#define SBC_IDE_PIO3_TPM	(0x00 << 6)
+#define SBC_IDE_PIO3_TA 	(0x1A << 0)
 /* Timing parameters PIO mode 4 */
-#define SBC_IDE_PIO4_TCSOE    (0x04<<29)
-#define SBC_IDE_PIO4_TOECS    (0x01<<26)
-#define SBC_IDE_PIO4_TWCS     (0x01<<28)
-#define SBC_IDE_PIO4_TCSH     (0x04<<24)
-#define SBC_IDE_PIO4_TCSOFF   (0x04<<20)
-#define SBC_IDE_PIO4_TWP      (0x0D<<14)
-#define SBC_IDE_PIO4_TCSW     (0x03<<10)
-#define SBC_IDE_PIO4_TPM      (0x00<<6)
-#define SBC_IDE_PIO4_TA       (0x12<<0)
+#define SBC_IDE_PIO4_TCSOE	(0x04 << 29)
+#define SBC_IDE_PIO4_TOECS	(0x01 << 26)
+#define SBC_IDE_PIO4_TWCS	(0x01 << 28)
+#define SBC_IDE_PIO4_TCSH	(0x04 << 24)
+#define SBC_IDE_PIO4_TCSOFF	(0x04 << 20)
+#define SBC_IDE_PIO4_TWP	(0x0D << 14)
+#define SBC_IDE_PIO4_TCSW	(0x03 << 10)
+#define SBC_IDE_PIO4_TPM	(0x00 << 6)
+#define SBC_IDE_PIO4_TA 	(0x12 << 0)
 /* Timing parameters MDMA mode 0 */
-#define SBC_IDE_MDMA0_TCSOE   (0x03<<29)
-#define SBC_IDE_MDMA0_TOECS   (0x01<<26)
-#define SBC_IDE_MDMA0_TWCS    (0x01<<28)
-#define SBC_IDE_MDMA0_TCSH    (0x07<<24)
-#define SBC_IDE_MDMA0_TCSOFF  (0x07<<20)
-#define SBC_IDE_MDMA0_TWP     (0x0C<<14)
-#define SBC_IDE_MDMA0_TCSW    (0x03<<10)
-#define SBC_IDE_MDMA0_TPM     (0x00<<6)
-#define SBC_IDE_MDMA0_TA      (0x0F<<0)
+#define SBC_IDE_MDMA0_TCSOE	(0x03 << 29)
+#define SBC_IDE_MDMA0_TOECS	(0x01 << 26)
+#define SBC_IDE_MDMA0_TWCS	(0x01 << 28)
+#define SBC_IDE_MDMA0_TCSH	(0x07 << 24)
+#define SBC_IDE_MDMA0_TCSOFF	(0x07 << 20)
+#define SBC_IDE_MDMA0_TWP	(0x0C << 14)
+#define SBC_IDE_MDMA0_TCSW	(0x03 << 10)
+#define SBC_IDE_MDMA0_TPM	(0x00 << 6)
+#define SBC_IDE_MDMA0_TA	(0x0F << 0)
 /* Timing parameters MDMA mode 1 */
-#define SBC_IDE_MDMA1_TCSOE   (0x05<<29)
-#define SBC_IDE_MDMA1_TOECS   (0x01<<26)
-#define SBC_IDE_MDMA1_TWCS    (0x01<<28)
-#define SBC_IDE_MDMA1_TCSH    (0x05<<24)
-#define SBC_IDE_MDMA1_TCSOFF  (0x05<<20)
-#define SBC_IDE_MDMA1_TWP     (0x0F<<14)
-#define SBC_IDE_MDMA1_TCSW    (0x05<<10)
-#define SBC_IDE_MDMA1_TPM     (0x00<<6)
-#define SBC_IDE_MDMA1_TA      (0x15<<0)
+#define SBC_IDE_MDMA1_TCSOE	(0x05 << 29)
+#define SBC_IDE_MDMA1_TOECS	(0x01 << 26)
+#define SBC_IDE_MDMA1_TWCS	(0x01 << 28)
+#define SBC_IDE_MDMA1_TCSH	(0x05 << 24)
+#define SBC_IDE_MDMA1_TCSOFF	(0x05 << 20)
+#define SBC_IDE_MDMA1_TWP	(0x0F << 14)
+#define SBC_IDE_MDMA1_TCSW	(0x05 << 10)
+#define SBC_IDE_MDMA1_TPM	(0x00 << 6)
+#define SBC_IDE_MDMA1_TA	(0x15 << 0)
 /* Timing parameters MDMA mode 2 */
-#define SBC_IDE_MDMA2_TCSOE   (0x04<<29)
-#define SBC_IDE_MDMA2_TOECS   (0x01<<26)
-#define SBC_IDE_MDMA2_TWCS    (0x01<<28)
-#define SBC_IDE_MDMA2_TCSH    (0x04<<24)
-#define SBC_IDE_MDMA2_TCSOFF  (0x04<<20)
-#define SBC_IDE_MDMA2_TWP     (0x0D<<14)
-#define SBC_IDE_MDMA2_TCSW    (0x04<<10)
-#define SBC_IDE_MDMA2_TPM     (0x00<<6)
-#define SBC_IDE_MDMA2_TA      (0x12<<0)
+#define SBC_IDE_MDMA2_TCSOE	(0x04 << 29)
+#define SBC_IDE_MDMA2_TOECS	(0x01 << 26)
+#define SBC_IDE_MDMA2_TWCS	(0x01 << 28)
+#define SBC_IDE_MDMA2_TCSH	(0x04 << 24)
+#define SBC_IDE_MDMA2_TCSOFF	(0x04 << 20)
+#define SBC_IDE_MDMA2_TWP	(0x0D << 14)
+#define SBC_IDE_MDMA2_TCSW	(0x04 << 10)
+#define SBC_IDE_MDMA2_TPM	(0x00 << 6)
+#define SBC_IDE_MDMA2_TA	(0x12 << 0)
 
 #define SBC_IDE_TIMING(mode) \
-         SBC_IDE_##mode##_TWCS | \
-         SBC_IDE_##mode##_TCSH | \
-         SBC_IDE_##mode##_TCSOFF | \
-         SBC_IDE_##mode##_TWP | \
-         SBC_IDE_##mode##_TCSW | \
-         SBC_IDE_##mode##_TPM | \
-         SBC_IDE_##mode##_TA
+	(SBC_IDE_##mode##_TWCS | \
+	 SBC_IDE_##mode##_TCSH | \
+	 SBC_IDE_##mode##_TCSOFF | \
+	 SBC_IDE_##mode##_TWP | \
+	 SBC_IDE_##mode##_TCSW | \
+	 SBC_IDE_##mode##_TPM | \
+	 SBC_IDE_##mode##_TA)

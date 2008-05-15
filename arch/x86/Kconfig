@@ -18,6 +18,7 @@ config X86_64
 ### Arch settings
 config X86
 	def_bool y
+	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
@@ -334,6 +335,7 @@ config X86_RDC321X
 	select GENERIC_GPIO
 	select LEDS_CLASS
 	select LEDS_GPIO
+	select NEW_LEDS
 	help
 	  This option is needed for RDC R-321x system-on-chip, also known
 	  as R-8610-(G).
@@ -1661,7 +1663,6 @@ config GEODE_MFGPT_TIMER
 
 config OLPC
 	bool "One Laptop Per Child support"
-	depends on MGEODE_LX
 	default n
 	help
 	  Add support for detecting the unique features of the OLPC

@@ -34,24 +34,23 @@
 
 /*
  * Interrupt source definitions
-             Event Source    Core Event Name
-Core        Emulation               **
- Events         (highest priority)  EMU         0
-            Reset                   RST         1
-            NMI                     NMI         2
-            Exception               EVX         3
-            Reserved                --          4
-            Hardware Error          IVHW        5
-            Core Timer              IVTMR       6 *
-
-.....
-
-            Software Interrupt 1    IVG14       31
-            Software Interrupt 2    --
-                 (lowest priority)  IVG15       32 *
+ *            Event Source    Core Event Name
+ * Core       Emulation               **
+ * Events         (highest priority)  EMU         0
+ *            Reset                   RST         1
+ *            NMI                     NMI         2
+ *            Exception               EVX         3
+ *            Reserved                --          4
+ *            Hardware Error          IVHW        5
+ *            Core Timer              IVTMR       6
+ *  .....
+ *
+ *            Softirq		      IVG14
+ *            System Call    --
+ *               (lowest priority)    IVG15
  */
 
-#define SYS_IRQS        41
+#define SYS_IRQS        39
 #define NR_PERI_INTS    32
 
 /* The ABSTRACT IRQ definitions */
@@ -95,10 +94,8 @@ Core        Emulation               **
 #define IRQ_PORTG_INTB      35	/* PF Port G (PF15:0) Interrupt B */
 #define IRQ_MEM_DMA0        36	/*(Memory DMA Stream 0) */
 #define IRQ_MEM_DMA1        37	/*(Memory DMA Stream 1) */
-#define IRQ_PROG_INTB	    38	/* PF Ports F (PF15:0) Interrupt B */
+#define IRQ_PROG_INTB	      38	/* PF Ports F (PF15:0) Interrupt B */
 #define IRQ_WATCH           38	/*Watch Dog Timer */
-#define IRQ_SW_INT1         40	/*Software Int 1 */
-#define IRQ_SW_INT2         41	/*Software Int 2 (reserved for SYSCALL) */
 
 #define IRQ_PPI_ERROR       42	/*PPI Error Interrupt */
 #define IRQ_CAN_ERROR       43	/*CAN Error Interrupt */

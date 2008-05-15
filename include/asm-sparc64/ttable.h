@@ -91,13 +91,14 @@
 	 nop;
 	
 #define SYSCALL_TRAP(routine, systbl)			\
+	rdpr	%pil, %g2;				\
+	mov	TSTATE_SYSCALL, %g3;			\
 	sethi	%hi(109f), %g7;				\
-	ba,pt	%xcc, etrap;				\
+	ba,pt	%xcc, etrap_syscall;			\
 109:	 or	%g7, %lo(109b), %g7;			\
 	sethi	%hi(systbl), %l7;			\
 	ba,pt	%xcc, routine;				\
-	 or	%l7, %lo(systbl), %l7;			\
-	nop; nop;
+	 or	%l7, %lo(systbl), %l7;
 	
 #define TRAP_UTRAP(handler,lvl)				\
 	mov	handler, %g3;				\

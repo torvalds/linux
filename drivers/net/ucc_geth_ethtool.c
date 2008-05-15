@@ -108,12 +108,6 @@ static char rx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 #define UEC_TX_FW_STATS_LEN ARRAY_SIZE(tx_fw_stat_gstrings)
 #define UEC_RX_FW_STATS_LEN ARRAY_SIZE(rx_fw_stat_gstrings)
 
-extern int init_flow_control_params(u32 automatic_flow_control_mode,
-		int rx_flow_control_enable,
-		int tx_flow_control_enable, u16 pause_period,
-		u16 extension_field, volatile u32 *upsmr_register,
-		volatile u32 *uempr_register, volatile u32 *maccfg1_register);
-
 static int
 uec_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {

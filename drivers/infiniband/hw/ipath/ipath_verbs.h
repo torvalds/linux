@@ -74,6 +74,11 @@
 #define IPATH_POST_RECV_OK		0x02
 #define IPATH_PROCESS_RECV_OK		0x04
 #define IPATH_PROCESS_SEND_OK		0x08
+#define IPATH_PROCESS_NEXT_SEND_OK	0x10
+#define IPATH_FLUSH_SEND		0x20
+#define IPATH_FLUSH_RECV		0x40
+#define IPATH_PROCESS_OR_FLUSH_SEND \
+	(IPATH_PROCESS_SEND_OK | IPATH_FLUSH_SEND)
 
 /* IB Performance Manager status values */
 #define IB_PMA_SAMPLE_STATUS_DONE	0x00
@@ -353,12 +358,14 @@ struct ipath_qp {
 	struct ib_qp ibqp;
 	struct ipath_qp *next;		/* link list for QPN hash table */
 	struct ipath_qp *timer_next;	/* link list for ipath_ib_timer() */
+	struct ipath_qp *pio_next;	/* link for ipath_ib_piobufavail() */
 	struct list_head piowait;	/* link for wait PIO buf */
 	struct list_head timerwait;	/* link for waiting for timeouts */
 	struct ib_ah_attr remote_ah_attr;
 	struct ipath_ib_header s_hdr;	/* next packet header to send */
 	atomic_t refcount;
 	wait_queue_head_t wait;
+	wait_queue_head_t wait_dma;
 	struct tasklet_struct s_task;
 	struct ipath_mmap_info *ip;
 	struct ipath_sge_state *s_cur_sge;
@@ -369,7 +376,7 @@ struct ipath_qp {
 	struct ipath_sge_state s_rdma_read_sge;
 	struct ipath_sge_state r_sge;	/* current receive data */
 	spinlock_t s_lock;
-	unsigned long s_busy;
+	atomic_t s_dma_busy;
 	u16 s_pkt_delay;
 	u16 s_hdrwords;		/* size of s_hdr in 32 bit words */
 	u32 s_cur_size;		/* size of send packet in bytes */
@@ -383,6 +390,7 @@ struct ipath_qp {
 	u32 s_rnr_timeout;	/* number of milliseconds for RNR timeout */
 	u32 r_ack_psn;		/* PSN for next ACK or atomic ACK */
 	u64 r_wr_id;		/* ID for current receive WQE */
+	unsigned long r_aflags;
 	u32 r_len;		/* total length of r_sge */
 	u32 r_rcv_len;		/* receive data len processed */
 	u32 r_psn;		/* expected rcv packet sequence number */
@@ -394,8 +402,7 @@ struct ipath_qp {
 	u8 r_state;		/* opcode of last packet received */
 	u8 r_nak_state;		/* non-zero if NAK is pending */
 	u8 r_min_rnr_timer;	/* retry timeout value for RNR NAKs */
-	u8 r_reuse_sge;		/* for UC receive errors */
-	u8 r_wrid_valid;	/* r_wrid set but CQ entry not yet made */
+	u8 r_flags;
 	u8 r_max_rd_atomic;	/* max number of RDMA read/atomic to receive */
 	u8 r_head_ack_queue;	/* index into s_ack_queue[] */
 	u8 qp_access_flags;
@@ -404,13 +411,13 @@ struct ipath_qp {
 	u8 s_rnr_retry_cnt;
 	u8 s_retry;		/* requester retry counter */
 	u8 s_rnr_retry;		/* requester RNR retry counter */
-	u8 s_wait_credit;	/* limit number of unacked packets sent */
 	u8 s_pkey_index;	/* PKEY index to use */
 	u8 s_max_rd_atomic;	/* max number of RDMA read/atomic to send */
 	u8 s_num_rd_atomic;	/* number of RDMA read/atomic pending */
 	u8 s_tail_ack_queue;	/* index into s_ack_queue[] */
 	u8 s_flags;
 	u8 s_dmult;
+	u8 s_draining;
 	u8 timeout;		/* Timeout for this QP */
 	enum ib_mtu path_mtu;
 	u32 remote_qpn;
@@ -428,16 +435,40 @@ struct ipath_qp {
 	struct ipath_sge r_sg_list[0];	/* verified SGEs */
 };
 
-/* Bit definition for s_busy. */
-#define IPATH_S_BUSY		0
+/*
+ * Atomic bit definitions for r_aflags.
+ */
+#define IPATH_R_WRID_VALID	0
+
+/*
+ * Bit definitions for r_flags.
+ */
+#define IPATH_R_REUSE_SGE	0x01
+#define IPATH_R_RDMAR_SEQ	0x02
 
 /*
  * Bit definitions for s_flags.
+ *
+ * IPATH_S_FENCE_PENDING - waiting for all prior RDMA read or atomic SWQEs
+ *			   before processing the next SWQE
+ * IPATH_S_RDMAR_PENDING - waiting for any RDMA read or atomic SWQEs
+ *			   before processing the next SWQE
+ * IPATH_S_WAITING - waiting for RNR timeout or send buffer available.
+ * IPATH_S_WAIT_SSN_CREDIT - waiting for RC credits to process next SWQE
+ * IPATH_S_WAIT_DMA - waiting for send DMA queue to drain before generating
+ *		      next send completion entry not via send DMA.
  */
 #define IPATH_S_SIGNAL_REQ_WR	0x01
 #define IPATH_S_FENCE_PENDING	0x02
 #define IPATH_S_RDMAR_PENDING	0x04
 #define IPATH_S_ACK_PENDING	0x08
+#define IPATH_S_BUSY		0x10
+#define IPATH_S_WAITING		0x20
+#define IPATH_S_WAIT_SSN_CREDIT	0x40
+#define IPATH_S_WAIT_DMA	0x80
+
+#define IPATH_S_ANY_WAIT (IPATH_S_FENCE_PENDING | IPATH_S_RDMAR_PENDING | \
+	IPATH_S_WAITING | IPATH_S_WAIT_SSN_CREDIT | IPATH_S_WAIT_DMA)
 
 #define IPATH_PSN_CREDIT	512
 
@@ -573,13 +604,11 @@ struct ipath_ibdev {
 	u32 n_rnr_naks;
 	u32 n_other_naks;
 	u32 n_timeouts;
-	u32 n_rc_stalls;
 	u32 n_pkt_drops;
 	u32 n_vl15_dropped;
 	u32 n_wqe_errs;
 	u32 n_rdma_dup_busy;
 	u32 n_piowait;
-	u32 n_no_piobuf;
 	u32 n_unaligned;
 	u32 port_cap_flags;
 	u32 pma_sample_start;
@@ -657,6 +686,17 @@ static inline struct ipath_ibdev *to_idev(struct ib_device *ibdev)
 	return container_of(ibdev, struct ipath_ibdev, ibdev);
 }
 
+/*
+ * This must be called with s_lock held.
+ */
+static inline void ipath_schedule_send(struct ipath_qp *qp)
+{
+	if (qp->s_flags & IPATH_S_ANY_WAIT)
+		qp->s_flags &= ~IPATH_S_ANY_WAIT;
+	if (!(qp->s_flags & IPATH_S_BUSY))
+		tasklet_hi_schedule(&qp->s_task);
+}
+
 int ipath_process_mad(struct ib_device *ibdev,
 		      int mad_flags,
 		      u8 port_num,
@@ -706,11 +746,9 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		   int attr_mask, struct ib_qp_init_attr *init_attr);
 
-void ipath_free_all_qps(struct ipath_qp_table *qpt);
+unsigned ipath_free_all_qps(struct ipath_qp_table *qpt);
 
 int ipath_init_qp_table(struct ipath_ibdev *idev, int size);
-
-void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc);
 
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth);
 
@@ -729,7 +767,9 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		  int has_grh, void *data, u32 tlen, struct ipath_qp *qp);
 
-void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc);
+void ipath_restart_rc(struct ipath_qp *qp, u32 psn);
+
+void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err);
 
 int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr);
 

@@ -460,8 +460,8 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 	unsigned char *sequence_end;
 	unsigned long *oid = NULL;
 	unsigned int cls, con, tag, oidlen, rc;
-	int use_ntlmssp = FALSE;
-	int use_kerberos = FALSE;
+	bool use_ntlmssp = false;
+	bool use_kerberos = false;
 
 	*secType = NTLM; /* BB eventually make Kerberos or NLTMSSP the default*/
 
@@ -561,15 +561,15 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 					if (compare_oid(oid, oidlen,
 							MSKRB5_OID,
 							MSKRB5_OID_LEN))
-						use_kerberos = TRUE;
+						use_kerberos = true;
 					else if (compare_oid(oid, oidlen,
 							     KRB5_OID,
 							     KRB5_OID_LEN))
-						use_kerberos = TRUE;
+						use_kerberos = true;
 					else if (compare_oid(oid, oidlen,
 							     NTLMSSP_OID,
 							     NTLMSSP_OID_LEN))
-						use_ntlmssp = TRUE;
+						use_ntlmssp = true;
 
 					kfree(oid);
 				}

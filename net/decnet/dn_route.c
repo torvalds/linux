@@ -235,14 +235,14 @@ static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
 	else
 		min_mtu -= 21;
 
-	if (dst->metrics[RTAX_MTU-1] > mtu && mtu >= min_mtu) {
+	if (dst_metric(dst, RTAX_MTU) > mtu && mtu >= min_mtu) {
 		if (!(dst_metric_locked(dst, RTAX_MTU))) {
 			dst->metrics[RTAX_MTU-1] = mtu;
 			dst_set_expires(dst, dn_rt_mtu_expires);
 		}
 		if (!(dst_metric_locked(dst, RTAX_ADVMSS))) {
 			u32 mss = mtu - DN_MAX_NSP_DATA_HEADER;
-			if (dst->metrics[RTAX_ADVMSS-1] > mss)
+			if (dst_metric(dst, RTAX_ADVMSS) > mss)
 				dst->metrics[RTAX_ADVMSS-1] = mss;
 		}
 	}
@@ -805,12 +805,12 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 		rt->u.dst.neighbour = n;
 	}
 
-	if (rt->u.dst.metrics[RTAX_MTU-1] == 0 ||
-	    rt->u.dst.metrics[RTAX_MTU-1] > rt->u.dst.dev->mtu)
+	if (dst_metric(&rt->u.dst, RTAX_MTU) == 0 ||
+	    dst_metric(&rt->u.dst, RTAX_MTU) > rt->u.dst.dev->mtu)
 		rt->u.dst.metrics[RTAX_MTU-1] = rt->u.dst.dev->mtu;
 	mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->u.dst));
-	if (rt->u.dst.metrics[RTAX_ADVMSS-1] == 0 ||
-	    rt->u.dst.metrics[RTAX_ADVMSS-1] > mss)
+	if (dst_metric(&rt->u.dst, RTAX_ADVMSS) == 0 ||
+	    dst_metric(&rt->u.dst, RTAX_ADVMSS) > mss)
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = mss;
 	return 0;
 }

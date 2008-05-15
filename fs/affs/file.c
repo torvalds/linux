@@ -48,8 +48,9 @@ affs_file_open(struct inode *inode, struct file *filp)
 {
 	if (atomic_read(&filp->f_count) != 1)
 		return 0;
-	pr_debug("AFFS: open(%d)\n", AFFS_I(inode)->i_opencnt);
-	AFFS_I(inode)->i_opencnt++;
+	pr_debug("AFFS: open(%lu,%d)\n",
+		 inode->i_ino, atomic_read(&AFFS_I(inode)->i_opencnt));
+	atomic_inc(&AFFS_I(inode)->i_opencnt);
 	return 0;
 }
 
@@ -58,10 +59,16 @@ affs_file_release(struct inode *inode, struct file *filp)
 {
 	if (atomic_read(&filp->f_count) != 0)
 		return 0;
-	pr_debug("AFFS: release(%d)\n", AFFS_I(inode)->i_opencnt);
-	AFFS_I(inode)->i_opencnt--;
-	if (!AFFS_I(inode)->i_opencnt)
+	pr_debug("AFFS: release(%lu, %d)\n",
+		 inode->i_ino, atomic_read(&AFFS_I(inode)->i_opencnt));
+
+	if (atomic_dec_and_test(&AFFS_I(inode)->i_opencnt)) {
+		mutex_lock(&inode->i_mutex);
+		if (inode->i_size != AFFS_I(inode)->mmu_private)
+			affs_truncate(inode);
 		affs_free_prealloc(inode);
+		mutex_unlock(&inode->i_mutex);
+	}
 
 	return 0;
 }
@@ -180,7 +187,7 @@ affs_get_extblock(struct inode *inode, u32 ext)
 	/* inline the simplest case: same extended block as last time */
 	struct buffer_head *bh = AFFS_I(inode)->i_ext_bh;
 	if (ext == AFFS_I(inode)->i_ext_last)
-		atomic_inc(&bh->b_count);
+		get_bh(bh);
 	else
 		/* we have to do more (not inlined) */
 		bh = affs_get_extblock_slow(inode, ext);
@@ -306,7 +313,7 @@ store_ext:
 	affs_brelse(AFFS_I(inode)->i_ext_bh);
 	AFFS_I(inode)->i_ext_last = ext;
 	AFFS_I(inode)->i_ext_bh = bh;
-	atomic_inc(&bh->b_count);
+	get_bh(bh);
 
 	return bh;
 
@@ -323,7 +330,6 @@ affs_get_block(struct inode *inode, sector_t block, struct buffer_head *bh_resul
 	u32			 ext;
 
 	pr_debug("AFFS: get_block(%u, %lu)\n", (u32)inode->i_ino, (unsigned long)block);
-
 
 	BUG_ON(block > (sector_t)0x7fffffffUL);
 
@@ -827,6 +833,8 @@ affs_truncate(struct inode *inode)
 		res = mapping->a_ops->write_begin(NULL, mapping, size, 0, 0, &page, &fsdata);
 		if (!res)
 			res = mapping->a_ops->write_end(NULL, mapping, size, 0, 0, page, fsdata);
+		else
+			inode->i_size = AFFS_I(inode)->mmu_private;
 		mark_inode_dirty(inode);
 		return;
 	} else if (inode->i_size == AFFS_I(inode)->mmu_private)
@@ -862,6 +870,7 @@ affs_truncate(struct inode *inode)
 		blk++;
 	} else
 		AFFS_HEAD(ext_bh)->first_data = 0;
+	AFFS_HEAD(ext_bh)->block_count = cpu_to_be32(i);
 	size = AFFS_SB(sb)->s_hashsize;
 	if (size > blkcnt - blk + i)
 		size = blkcnt - blk + i;

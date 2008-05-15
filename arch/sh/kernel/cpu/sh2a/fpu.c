@@ -300,7 +300,7 @@ static int denormal_addf(int hx, int hy)
 		iy = hy & 0x7fffffff;
 		if (iy < 0x00800000) {
 			ix = denormal_subf1(ix, iy);
-			if (ix < 0) {
+			if ((int) ix < 0) {
 				ix = -ix;
 				sign ^= 0x80000000;
 			}
@@ -385,7 +385,7 @@ static long long denormal_addd(long long hx, long long hy)
 		iy = hy & 0x7fffffffffffffffLL;
 		if (iy < 0x0010000000000000LL) {
 			ix = denormal_subd1(ix, iy);
-			if (ix < 0) {
+			if ((int) ix < 0) {
 				ix = -ix;
 				sign ^= 0x8000000000000000LL;
 			}

@@ -173,7 +173,6 @@ extern int disable_mpa_crc;
 extern unsigned int send_first;
 extern unsigned int nes_drv_opt;
 extern unsigned int nes_debug_level;
-extern unsigned int nes_lro_max_aggr;
 
 extern struct list_head nes_adapter_list;
 

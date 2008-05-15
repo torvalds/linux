@@ -988,7 +988,7 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			 * This did not trigger for a long time now.
 			 */
 			printk(KERN_ERR "Reloading ptd %p/%p... qh %p readed: "
-					"%d of %d done: %08x cur: %08x\n", qtd,
+					"%d of %zu done: %08x cur: %08x\n", qtd,
 					urb, qh, PTD_XFERRED_LENGTH(dw3),
 					qtd->length, done_map,
 					(1 << queue_entry));
@@ -1088,7 +1088,7 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		} else if (usb_pipebulk(urb->pipe) && (length < qtd->length)) {
 			/* short BULK received */
 
-			printk(KERN_ERR "short bulk, %d instead %d\n", length,
+			printk(KERN_ERR "short bulk, %d instead %zu\n", length,
 					qtd->length);
 			if (urb->transfer_flags & URB_SHORT_NOT_OK) {
 				urb->status = -EREMOTEIO;

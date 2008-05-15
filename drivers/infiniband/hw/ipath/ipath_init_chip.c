@@ -41,7 +41,7 @@
 /*
  * min buffers we want to have per port, after driver
  */
-#define IPATH_MIN_USER_PORT_BUFCNT 8
+#define IPATH_MIN_USER_PORT_BUFCNT 7
 
 /*
  * Number of ports we are configured to use (to allow for more pio
@@ -54,13 +54,9 @@ MODULE_PARM_DESC(cfgports, "Set max number of ports to use");
 
 /*
  * Number of buffers reserved for driver (verbs and layered drivers.)
- * Reserved at end of buffer list.   Initialized based on
- * number of PIO buffers if not set via module interface.
+ * Initialized based on number of PIO buffers if not set via module interface.
  * The problem with this is that it's global, but we'll use different
- * numbers for different chip types.  So the default value is not
- * very useful.  I've redefined it for the 1.3 release so that it's
- * zero unless set by the user to something else, in which case we
- * try to respect it.
+ * numbers for different chip types.
  */
 static ushort ipath_kpiobufs;
 
@@ -546,9 +542,12 @@ static void enable_chip(struct ipath_devdata *dd, int reinit)
 			pioavail = dd->ipath_pioavailregs_dma[i ^ 1];
 		else
 			pioavail = dd->ipath_pioavailregs_dma[i];
-		dd->ipath_pioavailshadow[i] = le64_to_cpu(pioavail) |
-			(~dd->ipath_pioavailkernel[i] <<
-			INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT);
+		/*
+		 * don't need to worry about ipath_pioavailkernel here
+		 * because we will call ipath_chg_pioavailkernel() later
+		 * in initialization, to busy out buffers as needed
+		 */
+		dd->ipath_pioavailshadow[i] = le64_to_cpu(pioavail);
 	}
 	/* can get counters, stats, etc. */
 	dd->ipath_flags |= IPATH_PRESENT;
@@ -708,12 +707,11 @@ static void verify_interrupt(unsigned long opaque)
 int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 {
 	int ret = 0;
-	u32 val32, kpiobufs;
+	u32 kpiobufs, defkbufs;
 	u32 piobufs, uports;
 	u64 val;
 	struct ipath_portdata *pd;
 	gfp_t gfp_flags = GFP_USER | __GFP_COMP;
-	unsigned long flags;
 
 	ret = init_housekeeping(dd, reinit);
 	if (ret)
@@ -753,68 +751,51 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	dd->ipath_pioavregs = ALIGN(piobufs, sizeof(u64) * BITS_PER_BYTE / 2)
 		/ (sizeof(u64) * BITS_PER_BYTE / 2);
 	uports = dd->ipath_cfgports ? dd->ipath_cfgports - 1 : 0;
-	if (ipath_kpiobufs == 0) {
-		/* not set by user (this is default) */
-		if (piobufs > 144)
-			kpiobufs = 32;
-		else
-			kpiobufs = 16;
-	}
+	if (piobufs > 144)
+		defkbufs = 32 + dd->ipath_pioreserved;
 	else
-		kpiobufs = ipath_kpiobufs;
+		defkbufs = 16 + dd->ipath_pioreserved;
 
-	if (kpiobufs + (uports * IPATH_MIN_USER_PORT_BUFCNT) > piobufs) {
+	if (ipath_kpiobufs && (ipath_kpiobufs +
+		(uports * IPATH_MIN_USER_PORT_BUFCNT)) > piobufs) {
 		int i = (int) piobufs -
 			(int) (uports * IPATH_MIN_USER_PORT_BUFCNT);
 		if (i < 1)
 			i = 1;
 		dev_info(&dd->pcidev->dev, "Allocating %d PIO bufs of "
 			 "%d for kernel leaves too few for %d user ports "
-			 "(%d each); using %u\n", kpiobufs,
+			 "(%d each); using %u\n", ipath_kpiobufs,
 			 piobufs, uports, IPATH_MIN_USER_PORT_BUFCNT, i);
 		/*
 		 * shouldn't change ipath_kpiobufs, because could be
 		 * different for different devices...
 		 */
 		kpiobufs = i;
-	}
+	} else if (ipath_kpiobufs)
+		kpiobufs = ipath_kpiobufs;
+	else
+		kpiobufs = defkbufs;
 	dd->ipath_lastport_piobuf = piobufs - kpiobufs;
 	dd->ipath_pbufsport =
 		uports ? dd->ipath_lastport_piobuf / uports : 0;
-	val32 = dd->ipath_lastport_piobuf - (dd->ipath_pbufsport * uports);
-	if (val32 > 0) {
-		ipath_dbg("allocating %u pbufs/port leaves %u unused, "
-			  "add to kernel\n", dd->ipath_pbufsport, val32);
-		dd->ipath_lastport_piobuf -= val32;
-		kpiobufs += val32;
-		ipath_dbg("%u pbufs/port leaves %u unused, add to kernel\n",
-			  dd->ipath_pbufsport, val32);
-	}
+	/* if not an even divisor, some user ports get extra buffers */
+	dd->ipath_ports_extrabuf = dd->ipath_lastport_piobuf -
+		(dd->ipath_pbufsport * uports);
+	if (dd->ipath_ports_extrabuf)
+		ipath_dbg("%u pbufs/port leaves some unused, add 1 buffer to "
+			"ports <= %u\n", dd->ipath_pbufsport,
+			dd->ipath_ports_extrabuf);
 	dd->ipath_lastpioindex = 0;
 	dd->ipath_lastpioindexl = dd->ipath_piobcnt2k;
-	ipath_chg_pioavailkernel(dd, 0, piobufs, 1);
+	/* ipath_pioavailshadow initialized earlier */
 	ipath_cdbg(VERBOSE, "%d PIO bufs for kernel out of %d total %u "
 		   "each for %u user ports\n", kpiobufs,
 		   piobufs, dd->ipath_pbufsport, uports);
-	if (dd->ipath_pioupd_thresh) {
-		if (dd->ipath_pbufsport < dd->ipath_pioupd_thresh)
-			dd->ipath_pioupd_thresh = dd->ipath_pbufsport;
-		if (kpiobufs < dd->ipath_pioupd_thresh)
-			dd->ipath_pioupd_thresh = kpiobufs;
-	}
-
 	ret = dd->ipath_f_early_init(dd);
 	if (ret) {
 		ipath_dev_err(dd, "Early initialization failure\n");
 		goto done;
 	}
-
-	/*
-	 * Cancel any possible active sends from early driver load.
-	 * Follows early_init because some chips have to initialize
-	 * PIO buffers in early_init to avoid false parity errors.
-	 */
-	ipath_cancel_sends(dd, 0);
 
 	/*
 	 * Early_init sets rcvhdrentsize and rcvhdrsize, so this must be
@@ -836,6 +817,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendpioavailaddr,
 			 dd->ipath_pioavailregs_phys);
+
 	/*
 	 * this is to detect s/w errors, which the h/w works around by
 	 * ignoring the low 6 bits of address, if it wasn't aligned.
@@ -861,12 +843,6 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrclear,
 			 ~0ULL&~INFINIPATH_HWE_MEMBISTFAILED);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, 0ULL);
-
-	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
-	dd->ipath_sendctrl = INFINIPATH_S_PIOENABLE;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	/*
 	 * before error clears, since we expect serdes pll errors during
@@ -939,6 +915,19 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	}
 	else
 		enable_chip(dd, reinit);
+
+	/* after enable_chip, so pioavailshadow setup */
+	ipath_chg_pioavailkernel(dd, 0, piobufs, 1);
+
+	/*
+	 * Cancel any possible active sends from early driver load.
+	 * Follows early_init because some chips have to initialize
+	 * PIO buffers in early_init to avoid false parity errors.
+	 * After enable and ipath_chg_pioavailkernel so we can safely
+	 * enable pioavail updates and PIOENABLE; packets are now
+	 * ready to go out.
+	 */
+	ipath_cancel_sends(dd, 1);
 
 	if (!reinit) {
 		/*
