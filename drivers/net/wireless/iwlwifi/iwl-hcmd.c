@@ -139,7 +139,7 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EBUSY;
 
-	ret = priv->cfg->ops->utils->enqueue_hcmd(priv, cmd);
+	ret = iwl_enqueue_hcmd(priv, cmd);
 	if (ret < 0) {
 		IWL_ERROR("Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
@@ -170,7 +170,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (cmd->meta.flags & CMD_WANT_SKB)
 		cmd->meta.source = &cmd->meta;
 
-	cmd_idx = priv->cfg->ops->utils->enqueue_hcmd(priv, cmd);
+	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
 		IWL_ERROR("Error sending %s: enqueue_hcmd failed: %d\n",

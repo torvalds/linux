@@ -689,8 +689,6 @@ extern int iwl4965_hw_set_hw_params(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_stop_master(struct iwl_priv *priv);
 extern void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_reset(struct iwl_priv *priv);
-extern int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
-					dma_addr_t addr, u16 len);
 extern int iwl4965_hw_get_temperature(struct iwl_priv *priv);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl_frame *frame, u8 rate);
@@ -719,6 +717,25 @@ extern u8 iwl_find_station(struct iwl_priv *priv, const u8 *bssid);
 extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 extern int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 extern int iwl_queue_space(const struct iwl_queue *q);
+static inline int iwl_queue_used(const struct iwl_queue *q, int i)
+{
+	return q->write_ptr > q->read_ptr ?
+		(i >= q->read_ptr && i < q->write_ptr) :
+		!(i < q->read_ptr && i >= q->write_ptr);
+}
+
+
+static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
+{
+	/* This is for scan command, the big buffer at end of command array */
+	if (is_huge)
+		return q->n_window;	/* must be power of 2 */
+
+	/* Otherwise, use normal size buffers */
+	return index & (q->n_window - 1);
+}
+
+
 struct iwl_priv;
 
 extern void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);

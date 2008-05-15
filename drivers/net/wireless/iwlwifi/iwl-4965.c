@@ -1933,76 +1933,6 @@ int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	return rc;
 }
 
-#define RTS_HCCA_RETRY_LIMIT		3
-#define RTS_DFAULT_RETRY_LIMIT		60
-
-void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
-			      struct iwl_cmd *cmd,
-			      struct ieee80211_tx_control *ctrl,
-			      struct ieee80211_hdr *hdr, int sta_id,
-			      int is_hcca)
-{
-	struct iwl_tx_cmd *tx = &cmd->cmd.tx;
-	u8 rts_retry_limit = 0;
-	u8 data_retry_limit = 0;
-	u16 fc = le16_to_cpu(hdr->frame_control);
-	u8 rate_plcp;
-	u16 rate_flags = 0;
-	int rate_idx = min(ctrl->tx_rate->hw_value & 0xffff, IWL_RATE_COUNT - 1);
-
-	rate_plcp = iwl_rates[rate_idx].plcp;
-
-	rts_retry_limit = (is_hcca) ?
-	    RTS_HCCA_RETRY_LIMIT : RTS_DFAULT_RETRY_LIMIT;
-
-	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
-		rate_flags |= RATE_MCS_CCK_MSK;
-
-
-	if (ieee80211_is_probe_response(fc)) {
-		data_retry_limit = 3;
-		if (data_retry_limit < rts_retry_limit)
-			rts_retry_limit = data_retry_limit;
-	} else
-		data_retry_limit = IWL_DEFAULT_TX_RETRY;
-
-	if (priv->data_retry_limit != -1)
-		data_retry_limit = priv->data_retry_limit;
-
-
-	if (ieee80211_is_data(fc)) {
-		tx->initial_rate_index = 0;
-		tx->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
-	} else {
-		switch (fc & IEEE80211_FCTL_STYPE) {
-		case IEEE80211_STYPE_AUTH:
-		case IEEE80211_STYPE_DEAUTH:
-		case IEEE80211_STYPE_ASSOC_REQ:
-		case IEEE80211_STYPE_REASSOC_REQ:
-			if (tx->tx_flags & TX_CMD_FLG_RTS_MSK) {
-				tx->tx_flags &= ~TX_CMD_FLG_RTS_MSK;
-				tx->tx_flags |= TX_CMD_FLG_CTS_MSK;
-			}
-			break;
-		default:
-			break;
-		}
-
-		/* Alternate between antenna A and B for successive frames */
-		if (priv->use_ant_b_for_management_frame) {
-			priv->use_ant_b_for_management_frame = 0;
-			rate_flags |= RATE_MCS_ANT_B_MSK;
-		} else {
-			priv->use_ant_b_for_management_frame = 1;
-			rate_flags |= RATE_MCS_ANT_A_MSK;
-		}
-	}
-
-	tx->rts_retry_limit = rts_retry_limit;
-	tx->data_retry_limit = data_retry_limit;
-	tx->rate_n_flags = iwl4965_hw_set_rate_n_flags(rate_plcp, rate_flags);
-}
-
 static int iwl4965_shared_mem_rx_idx(struct iwl_priv *priv)
 {
 	struct iwl4965_shared *s = priv->shared_virt;
@@ -2044,40 +1974,6 @@ unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 	tx_beacon_cmd->tx.tx_flags = (TX_CMD_FLG_SEQ_CTL_MSK |
 				TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK);
 	return (sizeof(*tx_beacon_cmd) + frame_size);
-}
-
-int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
-				 dma_addr_t addr, u16 len)
-{
-	int index, is_odd;
-	struct iwl_tfd_frame *tfd = ptr;
-	u32 num_tbs = IWL_GET_BITS(*tfd, num_tbs);
-
-	/* Each TFD can point to a maximum 20 Tx buffers */
-	if ((num_tbs >= MAX_NUM_OF_TBS) || (num_tbs < 0)) {
-		IWL_ERROR("Error can not send more than %d chunks\n",
-			  MAX_NUM_OF_TBS);
-		return -EINVAL;
-	}
-
-	index = num_tbs / 2;
-	is_odd = num_tbs & 0x1;
-
-	if (!is_odd) {
-		tfd->pa[index].tb1_addr = cpu_to_le32(addr);
-		IWL_SET_BITS(tfd->pa[index], tb1_addr_hi,
-			     iwl_get_dma_hi_address(addr));
-		IWL_SET_BITS(tfd->pa[index], tb1_len, len);
-	} else {
-		IWL_SET_BITS(tfd->pa[index], tb2_addr_lo16,
-			     (u32) (addr & 0xffff));
-		IWL_SET_BITS(tfd->pa[index], tb2_addr_hi20, addr >> 16);
-		IWL_SET_BITS(tfd->pa[index], tb2_len, len);
-	}
-
-	IWL_SET_BITS(*tfd, num_tbs, num_tbs + 1);
-
-	return 0;
 }
 
 static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
@@ -3711,7 +3607,6 @@ static struct iwl_hcmd_ops iwl4965_hcmd = {
 
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.get_hcmd_size = iwl4965_get_hcmd_size,
-	.enqueue_hcmd = iwl4965_enqueue_hcmd,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
 	.chain_noise_reset = iwl4965_chain_noise_reset,

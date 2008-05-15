@@ -87,7 +87,6 @@ struct iwl_hcmd_ops {
 };
 struct iwl_hcmd_utils_ops {
 	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
-	int (*enqueue_hcmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
 #ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	void (*gain_computation)(struct iwl_priv *priv,
@@ -208,10 +207,14 @@ void iwl_rx_allocate(struct iwl_priv *priv);
 * TX
 ******************************************************/
 int iwl_txq_ctx_reset(struct iwl_priv *priv);
+int iwl_tx_skb(struct iwl_priv *priv,
+		struct sk_buff *skb, struct ieee80211_tx_control *ctl);
 /* FIXME: remove when free Tx is fully merged into iwlcore */
 int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
-
+int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
+					dma_addr_t addr, u16 len);
+int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
@@ -227,6 +230,8 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 			   int (*callback)(struct iwl_priv *priv,
 					   struct iwl_cmd *cmd,
 					   struct sk_buff *skb));
+
+int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
 #define STATUS_HCMD_ACTIVE	0	/* host command in progress */
