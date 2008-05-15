@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -323,6 +324,7 @@ gpio_open(struct inode *inode, struct file *filp)
 	if (!priv)
 		return -ENOMEM;
 
+	lock_kernel();
 	priv->minor = p;
 
 	/* initialize the io/alarm struct */
@@ -357,6 +359,7 @@ gpio_open(struct inode *inode, struct file *filp)
 	alarmlist = priv;
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
+	unlock_kernel();
 	return 0;
 }
 
