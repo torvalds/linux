@@ -1021,6 +1021,7 @@ struct task_struct {
 #endif
 
 	int prio, static_prio, normal_prio;
+	unsigned int rt_priority;
 	const struct sched_class *sched_class;
 	struct sched_entity se;
 	struct sched_rt_entity rt;
@@ -1104,7 +1105,6 @@ struct task_struct {
 	int __user *set_child_tid;		/* CLONE_CHILD_SETTID */
 	int __user *clear_child_tid;		/* CLONE_CHILD_CLEARTID */
 
-	unsigned int rt_priority;
 	cputime_t utime, stime, utimescaled, stimescaled;
 	cputime_t gtime;
 	cputime_t prev_utime, prev_stime;
@@ -1123,12 +1123,12 @@ struct task_struct {
 	gid_t gid,egid,sgid,fsgid;
 	struct group_info *group_info;
 	kernel_cap_t   cap_effective, cap_inheritable, cap_permitted, cap_bset;
-	unsigned securebits;
 	struct user_struct *user;
+	unsigned securebits;
 #ifdef CONFIG_KEYS
+	unsigned char jit_keyring;	/* default keyring to attach requested keys to */
 	struct key *request_key_auth;	/* assumed request_key authority */
 	struct key *thread_keyring;	/* keyring private to this thread */
-	unsigned char jit_keyring;	/* default keyring to attach requested keys to */
 #endif
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
 				     - access with [gs]et_task_comm (which lock
@@ -1215,8 +1215,8 @@ struct task_struct {
 # define MAX_LOCK_DEPTH 48UL
 	u64 curr_chain_key;
 	int lockdep_depth;
-	struct held_lock held_locks[MAX_LOCK_DEPTH];
 	unsigned int lockdep_recursion;
+	struct held_lock held_locks[MAX_LOCK_DEPTH];
 #endif
 
 /* journalling filesystem info */
@@ -1244,10 +1244,6 @@ struct task_struct {
 	u64 acct_vm_mem1;	/* accumulated virtual memory usage */
 	cputime_t acct_stimexpd;/* stime since last update */
 #endif
-#ifdef CONFIG_NUMA
-  	struct mempolicy *mempolicy;
-	short il_next;
-#endif
 #ifdef CONFIG_CPUSETS
 	nodemask_t mems_allowed;
 	int cpuset_mems_generation;
@@ -1266,6 +1262,10 @@ struct task_struct {
 #endif
 	struct list_head pi_state_list;
 	struct futex_pi_state *pi_state_cache;
+#endif
+#ifdef CONFIG_NUMA
+	struct mempolicy *mempolicy;
+	short il_next;
 #endif
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;
