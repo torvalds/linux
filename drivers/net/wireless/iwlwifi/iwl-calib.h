@@ -81,7 +81,9 @@ void iwl_init_sensitivity(struct iwl_priv *priv);
 
 static inline void iwl_chain_noise_reset(struct iwl_priv *priv)
 {
-	if (priv->cfg->ops->utils->chain_noise_reset)
+
+	if (!priv->disable_chain_noise_cal &&
+	    priv->cfg->ops->utils->chain_noise_reset)
 		priv->cfg->ops->utils->chain_noise_reset(priv);
 }
 #else

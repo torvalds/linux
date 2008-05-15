@@ -55,6 +55,13 @@
 		goto err;                                               \
 } while (0)
 
+#define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
+	dbgfs->dbgfs_##parent##_files.file_##name =                     \
+	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
+	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name))          \
+		goto err;                                               \
+} while (0)
+
 #define DEBUGFS_REMOVE(name)  do {              \
 	debugfs_remove(name);                   \
 	name = NULL;                            \
@@ -344,12 +351,17 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	}
 
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
+	DEBUGFS_ADD_DIR(rf, dbgfs->dir_drv);
 	DEBUGFS_ADD_FILE(eeprom, data);
 	DEBUGFS_ADD_FILE(sram, data);
 	DEBUGFS_ADD_FILE(stations, data);
 	DEBUGFS_ADD_FILE(rx_statistics, data);
 	DEBUGFS_ADD_FILE(tx_statistics, data);
-
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
+	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
+			 &priv->disable_chain_noise_cal);
+#endif  /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
 	return 0;
 
 err:
@@ -374,10 +386,16 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_stations);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
+#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
+	DEBUGFS_REMOVE(priv->dbgfs->dir_rf);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_drv);
 	kfree(priv->dbgfs);
 	priv->dbgfs = NULL;
 }
 EXPORT_SYMBOL(iwl_dbgfs_unregister);
+
 
 

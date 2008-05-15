@@ -426,6 +426,9 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	struct iwl_sensitivity_data *data = NULL;
 	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
 
+	if (priv->disable_sens_cal)
+		return;
+
 	IWL_DEBUG_CALIB("Start iwl_init_sensitivity\n");
 
 	/* Clear driver's sensitivity algo data */
@@ -485,6 +488,9 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	struct statistics_rx *statistics = &(resp->rx);
 	unsigned long flags;
 	struct statistics_general_data statis;
+
+	if (priv->disable_sens_cal)
+		return;
 
 	data = &(priv->sensitivity_data);
 
@@ -607,6 +613,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	u8 num_tx_chains;
 	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info = &(stat_resp->rx.general);
+
+	if (priv->disable_chain_noise_cal)
+		return;
 
 	data = &(priv->chain_noise_data);
 

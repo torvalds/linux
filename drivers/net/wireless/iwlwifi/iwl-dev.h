@@ -1212,9 +1212,13 @@ struct iwl_priv {
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
 	struct work_struct txpower_work;
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	u32 disable_sens_cal;
+	u32 disable_chain_noise_cal;
+#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
 	struct work_struct sensitivity_work;
-#endif
+#endif /* CONFIG_IWL4965_RUN_TIME_CALIB */
 	struct timer_list statistics_periodic;
 }; /*iwl_priv */
 
