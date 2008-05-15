@@ -60,7 +60,7 @@ struct smb_vol {
 	char *domainname;
 	char *UNC;
 	char *UNCip;
-	char *in6_addr;  /* ipv6 address as human readable form of in6_addr */
+	char *in6_addr;   /* ipv6 address as human readable form of in6_addr */
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[16]; /* netbios name of client */
 	char target_rfc1001_name[16]; /* netbios name of server for Win9x/ME */
@@ -82,13 +82,14 @@ struct smb_vol {
 	bool no_xattr:1;   /* set if xattr (EA) support should be disabled*/
 	bool server_ino:1; /* use inode numbers from server ie UniqueId */
 	bool direct_io:1;
-	bool remap:1;     /* set to remap seven reserved chars in filenames */
-	bool posix_paths:1;   /* unset to not ask for posix pathnames. */
+	bool remap:1;      /* set to remap seven reserved chars in filenames */
+	bool posix_paths:1; /* unset to not ask for posix pathnames. */
 	bool no_linux_ext:1;
 	bool sfu_emul:1;
-	bool nullauth:1; /* attempt to authenticate with null user */
-	unsigned nocase;     /* request case insensitive filenames */
-	unsigned nobrl;      /* disable sending byte range locks to srv */
+	bool nullauth:1;   /* attempt to authenticate with null user */
+	bool nocase:1;     /* request case insensitive filenames */
+	bool nobrl:1;      /* disable sending byte range locks to srv */
+	bool seal:1;       /* request transport encryption on share */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -1273,8 +1274,12 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->no_psx_acl = 1;
 		} else if (strnicmp(data, "sign", 4) == 0) {
 			vol->secFlg |= CIFSSEC_MUST_SIGN;
-/*		} else if (strnicmp(data, "seal",4) == 0) {
-			vol->secFlg |= CIFSSEC_MUST_SEAL; */
+		} else if (strnicmp(data, "seal", 4) == 0) {
+			/* we do not do the following in secFlags because seal
+			   is a per tree connection (mount) not a per socket
+			   or per-smb connection option in the protocol */
+			/* vol->secFlg |= CIFSSEC_MUST_SEAL; */
+			vol->seal = 1;
 		} else if (strnicmp(data, "direct", 6) == 0) {
 			vol->direct_io = 1;
 		} else if (strnicmp(data, "forcedirectio", 13) == 0) {
@@ -2126,6 +2131,9 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			   for the retry flag is used */
 			tcon->retry = volume_info.retry;
 			tcon->nocase = volume_info.nocase;
+			if (tcon->seal != volume_info.seal)
+				cERROR(1, ("transport encryption setting "
+					   "conflicts with existing tid"));
 		} else {
 			tcon = tconInfoAlloc();
 			if (tcon == NULL)
@@ -2159,6 +2167,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					atomic_inc(&pSesInfo->inUse);
 					tcon->retry = volume_info.retry;
 					tcon->nocase = volume_info.nocase;
+					tcon->seal = volume_info.seal;
 				}
 			}
 		}
