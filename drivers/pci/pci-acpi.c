@@ -120,7 +120,6 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 				  u32 level, void *context, void **retval)
 {
 	acpi_status status;
-	acpi_status *ret_status = (acpi_status *)retval;
 	struct acpi_osc_data *osc_data;
 	u32 flags = (unsigned long)context, support_set;
 	acpi_handle tmp;
@@ -143,8 +142,6 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
 
 	status = acpi_run_osc(handle, &osc_args);
-	*ret_status = status;
-
 	if (ACPI_SUCCESS(status)) {
 		osc_data->support_set = support_set;
 		osc_data->query_result = osc_args.query_result;
@@ -164,15 +161,11 @@ static acpi_status acpi_query_osc(acpi_handle handle,
  **/
 acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 {
-	acpi_status retval = AE_NOT_FOUND;
-
-	if (!(flags & OSC_SUPPORT_MASKS)) {
+	if (!(flags & OSC_SUPPORT_MASKS))
 		return AE_TYPE;
-	}
-	acpi_get_devices(hid,
-			acpi_query_osc,
-			(void *)(unsigned long)flags,
-			(void **) &retval );
+
+	acpi_get_devices(hid, acpi_query_osc,
+			 (void *)(unsigned long)flags, NULL);
 	return AE_OK;
 }
 
