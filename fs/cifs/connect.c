@@ -1425,7 +1425,6 @@ get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 {
 	char *temp_unc;
 	int rc = 0;
-	unsigned char *targetUNCs;
 
 	*pnum_referrals = 0;
 	*preferrals = NULL;
@@ -1448,7 +1447,7 @@ get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 		kfree(temp_unc);
 	}
 	if (rc == 0)
-		rc = CIFSGetDFSRefer(xid, pSesInfo, old_path, &targetUNCs,
+		rc = CIFSGetDFSRefer(xid, pSesInfo, old_path, preferrals,
 				     pnum_referrals, nls_codepage, remap);
 	/* BB map targetUNCs to dfs_info3 structures, here or
 		in CIFSGetDFSRefer BB */

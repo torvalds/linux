@@ -234,7 +234,6 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
-	char *tmp_path = NULL;
 	char *tmpbuffer;
 	int len;
 	__u16 fid;

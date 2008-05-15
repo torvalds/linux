@@ -146,8 +146,8 @@ extern int CIFSSMBUnixQPathInfo(const int xid,
 
 extern int CIFSGetDFSRefer(const int xid, struct cifsSesInfo *ses,
 			const unsigned char *searchName,
-			unsigned char **targetUNCs,
-			unsigned int *number_of_UNC_in_array,
+			struct dfs_info3_param **target_nodes,
+			unsigned int *number_of_nodes_in_array,
 			const struct nls_table *nls_codepage, int remap);
 
 extern int get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
