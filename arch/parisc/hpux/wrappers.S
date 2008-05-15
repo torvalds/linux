@@ -28,9 +28,10 @@
 #include <asm/assembly.h>
 #include <asm/signal.h>
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 	.level	LEVEL
-	.text
+	__HEAD
 
 	/* These should probably go in a header file somewhere.
 	 * They are duplicated in kernel/wrappers.S

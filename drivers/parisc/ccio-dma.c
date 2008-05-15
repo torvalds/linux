@@ -359,7 +359,7 @@ ccio_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 	BUG_ON((pages_needed * IOVP_SIZE) > DMA_CHUNK_SIZE);
      
 	DBG_RES("%s() size: %d pages_needed %d\n", 
-		__FUNCTION__, size, pages_needed);
+		__func__, size, pages_needed);
 
 	/*
 	** "seek and ye shall find"...praying never hurts either...
@@ -395,16 +395,16 @@ ccio_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 #endif
 	} else {
 		panic("%s: %s() Too many pages to map. pages_needed: %u\n",
-		       __FILE__,  __FUNCTION__, pages_needed);
+		       __FILE__,  __func__, pages_needed);
 	}
 
 	panic("%s: %s() I/O MMU is out of mapping resources.\n", __FILE__,
-	      __FUNCTION__);
+	      __func__);
 	
 resource_found:
 	
 	DBG_RES("%s() res_idx %d res_hint: %d\n",
-		__FUNCTION__, res_idx, ioc->res_hint);
+		__func__, res_idx, ioc->res_hint);
 
 #ifdef CCIO_SEARCH_TIME
 	{
@@ -450,7 +450,7 @@ ccio_free_range(struct ioc *ioc, dma_addr_t iova, unsigned long pages_mapped)
 	BUG_ON(pages_mapped > BITS_PER_LONG);
 
 	DBG_RES("%s():  res_idx: %d pages_mapped %d\n", 
-		__FUNCTION__, res_idx, pages_mapped);
+		__func__, res_idx, pages_mapped);
 
 #ifdef CCIO_MAP_STATS
 	ioc->used_pages -= pages_mapped;
@@ -474,7 +474,7 @@ ccio_free_range(struct ioc *ioc, dma_addr_t iova, unsigned long pages_mapped)
 #endif
 	} else {
 		panic("%s:%s() Too many pages to unmap.\n", __FILE__,
-		      __FUNCTION__);
+		      __func__);
 	}
 }
 
@@ -775,7 +775,7 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 	pdir_start = &(ioc->pdir_base[idx]);
 
 	DBG_RUN("%s() 0x%p -> 0x%lx size: %0x%x\n",
-		__FUNCTION__, addr, (long)iovp | offset, size);
+		__func__, addr, (long)iovp | offset, size);
 
 	/* If not cacheline aligned, force SAFE_DMA on the whole mess */
 	if((size % L1_CACHE_BYTES) || ((unsigned long)addr % L1_CACHE_BYTES))
@@ -820,7 +820,7 @@ ccio_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
 	ioc = GET_IOC(dev);
 
 	DBG_RUN("%s() iovp 0x%lx/%x\n",
-		__FUNCTION__, (long)iova, size);
+		__func__, (long)iova, size);
 
 	iova ^= offset;        /* clear offset bits */
 	size += offset;
@@ -922,7 +922,7 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	BUG_ON(!dev);
 	ioc = GET_IOC(dev);
 	
-	DBG_RUN_SG("%s() START %d entries\n", __FUNCTION__, nents);
+	DBG_RUN_SG("%s() START %d entries\n", __func__, nents);
 
 	/* Fast path single entry scatterlists. */
 	if (nents == 1) {
@@ -966,7 +966,7 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 	BUG_ON(coalesced != filled);
 
-	DBG_RUN_SG("%s() DONE %d mappings\n", __FUNCTION__, filled);
+	DBG_RUN_SG("%s() DONE %d mappings\n", __func__, filled);
 
 	for (i = 0; i < filled; i++)
 		current_len += sg_dma_len(sglist + i);
@@ -995,7 +995,7 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	ioc = GET_IOC(dev);
 
 	DBG_RUN_SG("%s() START %d entries,  %08lx,%x\n",
-		__FUNCTION__, nents, sg_virt_addr(sglist), sglist->length);
+		__func__, nents, sg_virt_addr(sglist), sglist->length);
 
 #ifdef CCIO_MAP_STATS
 	ioc->usg_calls++;
@@ -1011,7 +1011,7 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 		++sglist;
 	}
 
-	DBG_RUN_SG("%s() DONE (nents %d)\n", __FUNCTION__, nents);
+	DBG_RUN_SG("%s() DONE (nents %d)\n", __func__, nents);
 }
 
 static struct hppa_dma_ops ccio_ops = {
@@ -1225,7 +1225,7 @@ static int
 ccio_get_iotlb_size(struct parisc_device *dev)
 {
 	if (dev->spa_shift == 0) {
-		panic("%s() : Can't determine I/O TLB size.\n", __FUNCTION__);
+		panic("%s() : Can't determine I/O TLB size.\n", __func__);
 	}
 	return (1 << dev->spa_shift);
 }
@@ -1315,7 +1315,7 @@ ccio_ioc_init(struct ioc *ioc)
 	BUG_ON((1 << get_order(ioc->pdir_size)) != (ioc->pdir_size >> PAGE_SHIFT));
 
 	DBG_INIT("%s() hpa 0x%p mem %luMB IOV %dMB (%d bits)\n",
-			__FUNCTION__, ioc->ioc_regs,
+			__func__, ioc->ioc_regs,
 			(unsigned long) num_physpages >> (20 - PAGE_SHIFT),
 			iova_space_size>>20,
 			iov_order + PAGE_SHIFT);
@@ -1323,7 +1323,7 @@ ccio_ioc_init(struct ioc *ioc)
 	ioc->pdir_base = (u64 *)__get_free_pages(GFP_KERNEL, 
 						 get_order(ioc->pdir_size));
 	if(NULL == ioc->pdir_base) {
-		panic("%s() could not allocate I/O Page Table\n", __FUNCTION__);
+		panic("%s() could not allocate I/O Page Table\n", __func__);
 	}
 	memset(ioc->pdir_base, 0, ioc->pdir_size);
 
@@ -1332,12 +1332,12 @@ ccio_ioc_init(struct ioc *ioc)
 
 	/* resource map size dictated by pdir_size */
  	ioc->res_size = (ioc->pdir_size / sizeof(u64)) >> 3;
-	DBG_INIT("%s() res_size 0x%x\n", __FUNCTION__, ioc->res_size);
+	DBG_INIT("%s() res_size 0x%x\n", __func__, ioc->res_size);
 	
 	ioc->res_map = (u8 *)__get_free_pages(GFP_KERNEL, 
 					      get_order(ioc->res_size));
 	if(NULL == ioc->res_map) {
-		panic("%s() could not allocate resource map\n", __FUNCTION__);
+		panic("%s() could not allocate resource map\n", __func__);
 	}
 	memset(ioc->res_map, 0, ioc->res_size);
 
@@ -1409,7 +1409,7 @@ ccio_init_resource(struct resource *res, char *name, void __iomem *ioaddr)
 	result = insert_resource(&iomem_resource, res);
 	if (result < 0) {
 		printk(KERN_ERR "%s() failed to claim CCIO bus address space (%08lx,%08lx)\n", 
-	 		__FUNCTION__, res->start, res->end);
+			__func__, res->start, res->end);
 	}
 }
 
