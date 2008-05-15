@@ -43,6 +43,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/compat.h>
+#include <linux/smp_lock.h>
 
 struct ipmi_file_private
 {
@@ -121,6 +122,7 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	if (!priv)
 		return -ENOMEM;
 
+	lock_kernel();
 	priv->file = file;
 
 	rv = ipmi_create_user(if_num,
@@ -129,7 +131,7 @@ static int ipmi_open(struct inode *inode, struct file *file)
 			      &(priv->user));
 	if (rv) {
 		kfree(priv);
-		return rv;
+		goto out;
 	}
 
 	file->private_data = priv;
@@ -144,7 +146,9 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	priv->default_retries = -1;
 	priv->default_retry_time_ms = 0;
 
-	return 0;
+out:
+	unlock_kernel();
+	return rv;
 }
 
 static int ipmi_release(struct inode *inode, struct file *file)
