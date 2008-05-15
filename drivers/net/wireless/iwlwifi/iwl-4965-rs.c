@@ -481,7 +481,7 @@ static u32 rate_n_flags_from_tbl(struct iwl4965_scale_tbl_info *tbl,
 	u32 rate_n_flags = 0;
 
 	if (is_legacy(tbl->lq_type)) {
-		rate_n_flags = iwl4965_rates[index].plcp;
+		rate_n_flags = iwl_rates[index].plcp;
 		if (index >= IWL_FIRST_CCK_RATE && index <= IWL_LAST_CCK_RATE)
 			rate_n_flags |= RATE_MCS_CCK_MSK;
 
@@ -493,11 +493,11 @@ static u32 rate_n_flags_from_tbl(struct iwl4965_scale_tbl_info *tbl,
 		rate_n_flags = RATE_MCS_HT_MSK;
 
 		if (is_siso(tbl->lq_type))
-			rate_n_flags |=	iwl4965_rates[index].plcp_siso;
+			rate_n_flags |=	iwl_rates[index].plcp_siso;
 		else if (is_mimo2(tbl->lq_type))
-			rate_n_flags |=	iwl4965_rates[index].plcp_mimo2;
+			rate_n_flags |=	iwl_rates[index].plcp_mimo2;
 		else
-			rate_n_flags |=	iwl4965_rates[index].plcp_mimo3;
+			rate_n_flags |=	iwl_rates[index].plcp_mimo3;
 	} else {
 		IWL_ERROR("Invalid tbl->lq_type %d\n", tbl->lq_type);
 	}
@@ -697,7 +697,7 @@ static u16 rs_get_adjacent_rate(struct iwl_priv *priv, u8 index, u16 rate_mask,
 
 	low = index;
 	while (low != IWL_RATE_INVALID) {
-		low = iwl4965_rates[low].prev_rs;
+		low = iwl_rates[low].prev_rs;
 		if (low == IWL_RATE_INVALID)
 			break;
 		if (rate_mask & (1 << low))
@@ -707,7 +707,7 @@ static u16 rs_get_adjacent_rate(struct iwl_priv *priv, u8 index, u16 rate_mask,
 
 	high = index;
 	while (high != IWL_RATE_INVALID) {
-		high = iwl4965_rates[high].next_rs;
+		high = iwl_rates[high].next_rs;
 		if (high == IWL_RATE_INVALID)
 			break;
 		if (rate_mask & (1 << high))
@@ -2088,7 +2088,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 		i = 0;
 
 	/* FIXME:RS: This is also wrong in 4965 */
-	rate = iwl4965_rates[i].plcp;
+	rate = iwl_rates[i].plcp;
 	rate |= RATE_MCS_ANT_B_MSK;
 	rate &= ~RATE_MCS_ANT_A_MSK;
 
@@ -2691,7 +2691,7 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 		int active = lq_sta->active_tbl;
 
 		cnt +=
-		    sprintf(&buf[cnt], " %2dMbs: ", iwl4965_rates[i].ieee / 2);
+		    sprintf(&buf[cnt], " %2dMbs: ", iwl_rates[i].ieee / 2);
 
 		mask = (1ULL << (IWL_RATE_MAX_WINDOW - 1));
 		for (j = 0; j < IWL_RATE_MAX_WINDOW; j++, mask >>= 1)
@@ -2702,7 +2702,7 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 		samples += lq_sta->lq_info[active].win[i].counter;
 		good += lq_sta->lq_info[active].win[i].success_counter;
 		success += lq_sta->lq_info[active].win[i].success_counter *
-			   iwl4965_rates[i].ieee;
+			   iwl_rates[i].ieee;
 
 		if (lq_sta->lq_info[active].win[i].stamp) {
 			int delta =
@@ -2722,10 +2722,11 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 		i = j;
 	}
 
-	/* Display the average rate of all samples taken.
-	 *
-	 * NOTE:  We multiply # of samples by 2 since the IEEE measurement
-	 * added from iwl4965_rates is actually 2X the rate */
+	/*
+	 * Display the average rate of all samples taken.
+	 * NOTE: We multiply # of samples by 2 since the IEEE measurement
+	 * added from iwl_rates is actually 2X the rate.
+	 */
 	if (samples)
 		cnt += sprintf(&buf[cnt],
 			 "\nAverage rate is %3d.%02dMbs over last %4dms\n"

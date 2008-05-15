@@ -67,7 +67,7 @@ MODULE_LICENSE("GPL");
  * maps to IWL_RATE_INVALID
  *
  */
-const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT] = {
+const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(1, INV, INV, 2, INV, 2, INV, 2),    /*  1mbps */
 	IWL_DECLARE_RATE_INFO(2, INV, 1, 5, 1, 5, 1, 5),          /*  2mbps */
 	IWL_DECLARE_RATE_INFO(5, INV, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
@@ -83,7 +83,7 @@ const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(60, 60, 48, INV, 48, INV, 48, INV),/* 60mbps */
 	/* FIXME:RS:          ^^    should be INV (legacy) */
 };
-EXPORT_SYMBOL(iwl4965_rates);
+EXPORT_SYMBOL(iwl_rates);
 
 /* This function both allocates and initializes hw and priv. */
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
@@ -383,7 +383,7 @@ static void iwlcore_init_hw_rates(struct iwl_priv *priv,
 	int i;
 
 	for (i = 0; i < IWL_RATE_COUNT; i++) {
-		rates[i].bitrate = iwl4965_rates[i].ieee * 5;
+		rates[i].bitrate = iwl_rates[i].ieee * 5;
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
@@ -392,7 +392,7 @@ static void iwlcore_init_hw_rates(struct iwl_priv *priv,
 			 * If CCK != 1M then set short preamble rate flag.
 			 */
 			rates[i].flags |=
-				(iwl4965_rates[i].plcp == IWL_RATE_1M_PLCP) ?
+				(iwl_rates[i].plcp == IWL_RATE_1M_PLCP) ?
 					0 : IEEE80211_RATE_SHORT_PREAMBLE;
 		}
 	}

@@ -878,9 +878,9 @@ static u8 iwl4965_rate_get_lowest_plcp(struct iwl_priv *priv)
 
 	/* Find lowest valid rate */
 	for (i = IWL_RATE_1M_INDEX; i != IWL_RATE_INVALID;
-					i = iwl4965_rates[i].next_ieee) {
+					i = iwl_rates[i].next_ieee) {
 		if (rate_mask & (1 << i))
-			return iwl4965_rates[i].plcp;
+			return iwl_rates[i].plcp;
 	}
 
 	/* No valid rate was found. Assign the lowest one */
@@ -939,7 +939,7 @@ static u16 iwl4965_supported_rate_to_ie(u8 *ie, u16 supported_rate,
 	for (bit = 1, i = 0; i < IWL_RATE_COUNT; i++, bit <<= 1) {
 		if (bit & supported_rate) {
 			ret_rates |= bit;
-			rates[*cnt] = iwl4965_rates[i].ieee |
+			rates[*cnt] = iwl_rates[i].ieee |
 				((bit & basic_rate) ? 0x80 : 0x00);
 			(*cnt)++;
 			(*left)--;
