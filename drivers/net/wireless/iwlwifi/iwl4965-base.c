@@ -3958,6 +3958,13 @@ static void iwl4965_dealloc_ucode_pci(struct iwl_priv *priv)
 	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_boot);
 }
 
+static void iwl4965_nic_start(struct iwl_priv *priv)
+{
+	/* Remove all resets to allow NIC to operate */
+	iwl_write32(priv, CSR_RESET, 0);
+}
+
+
 /**
  * iwl4965_read_ucode - Read uCode images from disk file.
  *
@@ -4447,8 +4454,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
 		}
 
 		/* start card; "initialize" will load runtime ucode */
-		/* Remove all resets to allow NIC to operate */
-		iwl_write32(priv, CSR_RESET, 0);
+		iwl4965_nic_start(priv);
 
 		IWL_DEBUG_INFO(DRV_NAME " is coming up\n");
 
@@ -6842,10 +6848,6 @@ static int __init iwl4965_init(void)
 
 	return ret;
 
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	pci_unregister_driver(&iwl_driver);
-#endif
 error_register:
 	iwl4965_rate_control_unregister();
 	return ret;

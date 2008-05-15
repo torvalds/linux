@@ -306,8 +306,18 @@ struct ieee80211_ht_addt_info {
 #define IEEE80211_HT_CAP_SGI_40			0x0040
 #define IEEE80211_HT_CAP_DELAY_BA		0x0400
 #define IEEE80211_HT_CAP_MAX_AMSDU		0x0800
+/* 802.11n HT capability AMPDU settings */
 #define IEEE80211_HT_CAP_AMPDU_FACTOR		0x03
 #define IEEE80211_HT_CAP_AMPDU_DENSITY		0x1C
+/* 802.11n HT capability MSC set */
+#define IEEE80211_SUPP_MCS_SET_UEQM		4
+#define IEEE80211_HT_CAP_MAX_STREAMS		4
+#define IEEE80211_SUPP_MCS_SET_LEN		10
+/* maximum streams the spec allows */
+#define IEEE80211_HT_CAP_MCS_TX_DEFINED		0x01
+#define IEEE80211_HT_CAP_MCS_TX_RX_DIFF		0x02
+#define IEEE80211_HT_CAP_MCS_TX_STREAMS		0x0C
+#define IEEE80211_HT_CAP_MCS_TX_UEQM		0x10
 /* 802.11n HT IE masks */
 #define IEEE80211_HT_IE_CHA_SEC_OFFSET		0x03
 #define IEEE80211_HT_IE_CHA_WIDTH		0x04
@@ -316,10 +326,10 @@ struct ieee80211_ht_addt_info {
 #define IEEE80211_HT_IE_NON_HT_STA_PRSNT	0x0010
 
 /* MIMO Power Save Modes */
-#define WLAN_HT_CAP_MIMO_PS_STATIC         0
-#define WLAN_HT_CAP_MIMO_PS_DYNAMIC        1
-#define WLAN_HT_CAP_MIMO_PS_INVALID        2
-#define WLAN_HT_CAP_MIMO_PS_DISABLED       3
+#define WLAN_HT_CAP_MIMO_PS_STATIC	0
+#define WLAN_HT_CAP_MIMO_PS_DYNAMIC	1
+#define WLAN_HT_CAP_MIMO_PS_INVALID	2
+#define WLAN_HT_CAP_MIMO_PS_DISABLED	3
 
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
