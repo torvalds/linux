@@ -46,11 +46,6 @@ MODULE_VERSION(IWLWIFI_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-u32 iwl_debug_level;
-EXPORT_SYMBOL(iwl_debug_level);
-#endif
-
 #define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,      \
 				    IWL_RATE_SISO_##s##M_PLCP, \
@@ -120,6 +115,100 @@ void iwl_hw_detect(struct iwl_priv *priv)
 	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &priv->rev_id);
 }
 EXPORT_SYMBOL(iwl_hw_detect);
+
+/* Tell nic where to find the "keep warm" buffer */
+int iwl_kw_init(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (ret)
+		goto out;
+
+	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG,
+			     priv->kw.dma_addr >> 4);
+	iwl_release_nic_access(priv);
+out:
+	spin_unlock_irqrestore(&priv->lock, flags);
+	return ret;
+}
+
+int iwl_kw_alloc(struct iwl_priv *priv)
+{
+	struct pci_dev *dev = priv->pci_dev;
+	struct iwl_kw *kw = &priv->kw;
+
+	kw->size = IWL_KW_SIZE;
+	kw->v_addr = pci_alloc_consistent(dev, kw->size, &kw->dma_addr);
+	if (!kw->v_addr)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/**
+ * iwl_kw_free - Free the "keep warm" buffer
+ */
+void iwl_kw_free(struct iwl_priv *priv)
+{
+	struct pci_dev *dev = priv->pci_dev;
+	struct iwl_kw *kw = &priv->kw;
+
+	if (kw->v_addr) {
+		pci_free_consistent(dev, kw->size, kw->v_addr, kw->dma_addr);
+		memset(kw, 0, sizeof(*kw));
+	}
+}
+
+int iwl_hw_nic_init(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	int ret;
+
+	/* nic_init */
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->cfg->ops->lib->apm_ops.init(priv);
+	iwl_write32(priv, CSR_INT_COALESCING, 512 / 32);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
+
+	priv->cfg->ops->lib->apm_ops.config(priv);
+
+	/* Allocate the RX queue, or reset if it is already allocated */
+	if (!rxq->bd) {
+		ret = iwl_rx_queue_alloc(priv);
+		if (ret) {
+			IWL_ERROR("Unable to initialize Rx queue\n");
+			return -ENOMEM;
+		}
+	} else
+		iwl_rx_queue_reset(priv, rxq);
+
+	iwl_rx_replenish(priv);
+
+	iwl_rx_init(priv, rxq);
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	rxq->need_update = 1;
+	iwl_rx_queue_update_write_ptr(priv, rxq);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Allocate and init all Tx and Command queues */
+	ret = iwl_txq_ctx_reset(priv);
+	if (ret)
+		return ret;
+
+	set_bit(STATUS_INIT, &priv->status);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_hw_nic_init);
 
 /**
  * iwlcore_clear_stations_table - Clear the driver's station table
@@ -258,6 +347,12 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 		ht_info->supp_mcs_set[1] = 0xFF;
 	if (priv->hw_params.tx_chains_num >= 3)
 		ht_info->supp_mcs_set[2] = 0xFF;
+}
+#else
+static inline void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
+			      struct ieee80211_ht_info *ht_info,
+			      enum ieee80211_band band)
+{
 }
 #endif /* CONFIG_IWL4965_HT */
 
@@ -428,6 +523,105 @@ static u8 is_single_rx_stream(struct iwl_priv *priv)
 		(priv->current_ht_config.supp_mcs_set[2] == 0)) ||
 	       priv->ps_mode == IWL_MIMO_PS_STATIC;
 }
+static u8 iwl_is_channel_extension(struct iwl_priv *priv,
+				   enum ieee80211_band band,
+				   u16 channel, u8 extension_chan_offset)
+{
+	const struct iwl_channel_info *ch_info;
+
+	ch_info = iwl_get_channel_info(priv, band, channel);
+	if (!is_channel_valid(ch_info))
+		return 0;
+
+	if (extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE)
+		return 0;
+
+	if ((ch_info->fat_extension_channel == extension_chan_offset) ||
+	    (ch_info->fat_extension_channel == HT_IE_EXT_CHANNEL_MAX))
+		return 1;
+
+	return 0;
+}
+
+u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
+			     struct ieee80211_ht_info *sta_ht_inf)
+{
+	struct iwl_ht_info *iwl_ht_conf = &priv->current_ht_config;
+
+	if ((!iwl_ht_conf->is_ht) ||
+	   (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ) ||
+	   (iwl_ht_conf->extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE))
+		return 0;
+
+	if (sta_ht_inf) {
+		if ((!sta_ht_inf->ht_supported) ||
+		   (!(sta_ht_inf->cap & IEEE80211_HT_CAP_SUP_WIDTH)))
+			return 0;
+	}
+
+	return iwl_is_channel_extension(priv, priv->band,
+					 iwl_ht_conf->control_channel,
+					 iwl_ht_conf->extension_chan_offset);
+}
+EXPORT_SYMBOL(iwl_is_fat_tx_allowed);
+
+void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
+{
+	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
+	u32 val;
+
+	if (!ht_info->is_ht)
+		return;
+
+	/* Set up channel bandwidth:  20 MHz only, or 20/40 mixed if fat ok */
+	if (iwl_is_fat_tx_allowed(priv, NULL))
+		rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED_MSK;
+	else
+		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED_MSK |
+				 RXON_FLG_CHANNEL_MODE_PURE_40_MSK);
+
+	if (le16_to_cpu(rxon->channel) != ht_info->control_channel) {
+		IWL_DEBUG_ASSOC("control diff than current %d %d\n",
+				le16_to_cpu(rxon->channel),
+				ht_info->control_channel);
+		rxon->channel = cpu_to_le16(ht_info->control_channel);
+		return;
+	}
+
+	/* Note: control channel is opposite of extension channel */
+	switch (ht_info->extension_chan_offset) {
+	case IWL_EXT_CHANNEL_OFFSET_ABOVE:
+		rxon->flags &= ~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
+		break;
+	case IWL_EXT_CHANNEL_OFFSET_BELOW:
+		rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+		break;
+	case IWL_EXT_CHANNEL_OFFSET_NONE:
+	default:
+		rxon->flags &= ~RXON_FLG_CHANNEL_MODE_MIXED_MSK;
+		break;
+	}
+
+	val = ht_info->ht_protection;
+
+	rxon->flags |= cpu_to_le32(val << RXON_FLG_HT_OPERATING_MODE_POS);
+
+	iwl_set_rxon_chain(priv);
+
+	IWL_DEBUG_ASSOC("supported HT rate 0x%X 0x%X 0x%X "
+			"rxon flags 0x%X operation mode :0x%X "
+			"extension channel offset 0x%x "
+			"control chan %d\n",
+			ht_info->supp_mcs_set[0],
+			ht_info->supp_mcs_set[1],
+			ht_info->supp_mcs_set[2],
+			le32_to_cpu(rxon->flags), ht_info->ht_protection,
+			ht_info->extension_chan_offset,
+			ht_info->control_channel);
+	return;
+}
+EXPORT_SYMBOL(iwl_set_rxon_ht);
+
 #else
 static inline u8 is_single_rx_stream(struct iwl_priv *priv)
 {
@@ -552,18 +746,10 @@ static void iwlcore_init_hw(struct iwl_priv *priv)
 	struct ieee80211_hw *hw = priv->hw;
 	hw->rate_control_algorithm = "iwl-4965-rs";
 
-	/* Tell mac80211 and its clients (e.g. Wireless Extensions)
-	 *	 the range of signal quality values that we'll provide.
-	 * Negative values for level/noise indicate that we'll provide dBm.
-	 * For WE, at least, non-0 values here *enable* display of values
-	 *	 in app (iwconfig). */
-	hw->max_rssi = -20; /* signal level, negative indicates dBm */
-	hw->max_noise = -20;	/* noise level, negative indicates dBm */
-	hw->max_signal = 100;	/* link quality indication (%) */
-
-	/* Tell mac80211 our Tx characteristics */
-	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE;
-
+	/* Tell mac80211 our characteristics */
+	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
+		    IEEE80211_HW_SIGNAL_DBM |
+		    IEEE80211_HW_NOISE_DBM;
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 #ifdef CONFIG_IWL4965_HT

@@ -355,7 +355,7 @@ static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct ieee80211_rx_status rx_status = {0};
 	u16 freq = le16_to_cpu(hdr->freq);
 
-	rx_status.ssi = hdr->rssi;
+	rx_status.signal = hdr->rssi;
 	/* XX correct? */
 	rx_status.rate_idx = hdr->rate & 0xf;
 	rx_status.freq = freq;
@@ -1000,9 +1000,10 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	skb_queue_head_init(&priv->tx_queue);
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
-		    IEEE80211_HW_RX_INCLUDES_FCS;
+		     IEEE80211_HW_RX_INCLUDES_FCS |
+		     IEEE80211_HW_SIGNAL_UNSPEC;
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
-	dev->max_rssi = 127;
+	dev->max_signal = 127;
 
 	priv->tx_stats[0].limit = 5;
 	dev->queues = 1;

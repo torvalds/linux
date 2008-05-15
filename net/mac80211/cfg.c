@@ -602,6 +602,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	 */
 
 	if (params->station_flags & STATION_FLAG_CHANGED) {
+		spin_lock_bh(&sta->lock);
 		sta->flags &= ~WLAN_STA_AUTHORIZED;
 		if (params->station_flags & STATION_FLAG_AUTHORIZED)
 			sta->flags |= WLAN_STA_AUTHORIZED;
@@ -613,6 +614,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 		sta->flags &= ~WLAN_STA_WME;
 		if (params->station_flags & STATION_FLAG_WME)
 			sta->flags |= WLAN_STA_WME;
+		spin_unlock_bh(&sta->lock);
 	}
 
 	/*

@@ -829,7 +829,7 @@ static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
 #define IWL49_NUM_QUEUES	16
 
 /**
- * struct iwl4965_tfd_frame_data
+ * struct iwl_tfd_frame_data
  *
  * Describes up to 2 buffers containing (contiguous) portions of a Tx frame.
  * Each buffer must be on dword boundary.
@@ -848,7 +848,7 @@ static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
  * 31-20: Tx buffer 2 length (bytes)
  * 19- 0: Tx buffer 2 address bits [35:16]
  */
-struct iwl4965_tfd_frame_data {
+struct iwl_tfd_frame_data {
 	__le32 tb1_addr;
 
 	__le32 val1;
@@ -878,7 +878,7 @@ struct iwl4965_tfd_frame_data {
 
 
 /**
- * struct iwl4965_tfd_frame
+ * struct iwl_tfd_frame
  *
  * Transmit Frame Descriptor (TFD)
  *
@@ -905,7 +905,7 @@ struct iwl4965_tfd_frame_data {
  *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
  */
-struct iwl4965_tfd_frame {
+struct iwl_tfd_frame {
 	__le32 val0;
 	/* __le32 rsvd1:24; */
 	/* __le32 num_tbs:5; */
@@ -914,7 +914,7 @@ struct iwl4965_tfd_frame {
 #define IWL_num_tbs_SYM val0
 	/* __le32 rsvd2:1; */
 	/* __le32 padding:2; */
-	struct iwl4965_tfd_frame_data pa[10];
+	struct iwl_tfd_frame_data pa[10];
 	__le32 reserved;
 } __attribute__ ((packed));
 

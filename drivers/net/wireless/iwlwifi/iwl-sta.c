@@ -70,6 +70,52 @@ u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 }
 EXPORT_SYMBOL(iwl_find_station);
 
+int iwl_send_add_sta(struct iwl_priv *priv,
+		     struct iwl_addsta_cmd *sta, u8 flags)
+{
+	struct iwl_rx_packet *res = NULL;
+	int ret = 0;
+	u8 data[sizeof(*sta)];
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_ADD_STA,
+		.meta.flags = flags,
+		.data = data,
+	};
+
+	if (!(flags & CMD_ASYNC))
+		cmd.meta.flags |= CMD_WANT_SKB;
+
+	cmd.len = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
+	ret = iwl_send_cmd(priv, &cmd);
+
+	if (ret || (flags & CMD_ASYNC))
+		return ret;
+
+	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERROR("Bad return from REPLY_ADD_STA (0x%08X)\n",
+			  res->hdr.flags);
+		ret = -EIO;
+	}
+
+	if (ret == 0) {
+		switch (res->u.add_sta.status) {
+		case ADD_STA_SUCCESS_MSK:
+			IWL_DEBUG_INFO("REPLY_ADD_STA PASSED\n");
+			break;
+		default:
+			ret = -EIO;
+			IWL_WARNING("REPLY_ADD_STA failed\n");
+			break;
+		}
+	}
+
+	priv->alloc_rxb_skb--;
+	dev_kfree_skb_any(cmd.meta.u.skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(iwl_send_add_sta);
 
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
@@ -124,6 +170,7 @@ int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 	else
 		return 0;
 }
+EXPORT_SYMBOL(iwl_send_static_wepkey_cmd);
 
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
 			       struct ieee80211_key_conf *keyconf)
@@ -144,6 +191,7 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 
 	return ret;
 }
+EXPORT_SYMBOL(iwl_remove_default_wep_key);
 
 int iwl_set_default_wep_key(struct iwl_priv *priv,
 			    struct ieee80211_key_conf *keyconf)
@@ -171,6 +219,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 
 	return ret;
 }
+EXPORT_SYMBOL(iwl_set_default_wep_key);
 
 static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 				struct ieee80211_key_conf *keyconf,
@@ -216,8 +265,7 @@ static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	ret = iwl4965_send_add_station(priv,
-		&priv->stations[sta_id].sta, CMD_ASYNC);
+	ret = iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
@@ -265,8 +313,7 @@ static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	IWL_DEBUG_INFO("hwcrypto: modify ucode station key info\n");
-	return iwl4965_send_add_station(priv,
-				&priv->stations[sta_id].sta, CMD_ASYNC);
+	return iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
 
 static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
@@ -333,7 +380,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 		IWL_ERROR("index %d not used in uCode key table.\n",
 			priv->stations[sta_id].sta.key.key_offset);
 	memset(&priv->stations[sta_id].keyinfo, 0,
-					sizeof(struct iwl4965_hw_key));
+					sizeof(struct iwl_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0,
 					sizeof(struct iwl4965_keyinfo));
 	priv->stations[sta_id].sta.key.key_flags =
@@ -343,10 +390,11 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
 	IWL_DEBUG_INFO("hwcrypto: clear ucode station key info\n");
-	ret =  iwl4965_send_add_station(priv, &priv->stations[sta_id].sta, 0);
+	ret =  iwl_send_add_sta(priv, &priv->stations[sta_id].sta, 0);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(iwl_remove_dynamic_key);
 
 int iwl_set_dynamic_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *key, u8 sta_id)
@@ -372,6 +420,7 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 
 	return ret;
 }
+EXPORT_SYMBOL(iwl_set_dynamic_key);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 static void iwl_dump_lq_cmd(struct iwl_priv *priv,

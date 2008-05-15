@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/types.h>
+#include <linux/bitrev.h>
 
 #include "b43.h"
 #include "phy.h"
@@ -83,24 +84,8 @@ const u8 b43_radio_channel_codes_bg[] = {
 	72, 84,
 };
 
+#define bitrev4(tmp) (bitrev8(tmp) >> 4)
 static void b43_phy_initg(struct b43_wldev *dev);
-
-/* Reverse the bits of a 4bit value.
- * Example:  1101 is flipped 1011
- */
-static u16 flip_4bit(u16 value)
-{
-	u16 flipped = 0x0000;
-
-	B43_WARN_ON(value & ~0x000F);
-
-	flipped |= (value & 0x0001) << 3;
-	flipped |= (value & 0x0002) << 1;
-	flipped |= (value & 0x0004) >> 1;
-	flipped |= (value & 0x0008) >> 3;
-
-	return flipped;
-}
 
 static void generate_rfatt_list(struct b43_wldev *dev,
 				struct b43_rfatt_list *list)
@@ -1415,7 +1400,7 @@ static void b43_phy_initg(struct b43_wldev *dev)
 		 * the value 0x7FFFFFFF here. I think that is some weird
 		 * compiler optimization in the original driver.
 		 * Essentially, what we do here is resetting all NRSSI LT
-		 * entries to -32 (see the limit_value() in nrssi_hw_update())
+		 * entries to -32 (see the clamp_val() in nrssi_hw_update())
 		 */
 		b43_nrssi_hw_update(dev, 0xFFFF);	//FIXME?
 		b43_calc_nrssi_threshold(dev);
@@ -1477,13 +1462,13 @@ static s8 b43_phy_estimate_power_out(struct b43_wldev *dev, s8 tssi)
 	switch (phy->type) {
 	case B43_PHYTYPE_A:
 		tmp += 0x80;
-		tmp = limit_value(tmp, 0x00, 0xFF);
+		tmp = clamp_val(tmp, 0x00, 0xFF);
 		dbm = phy->tssi2dbm[tmp];
 		//TODO: There's a FIXME on the specs
 		break;
 	case B43_PHYTYPE_B:
 	case B43_PHYTYPE_G:
-		tmp = limit_value(tmp, 0x00, 0x3F);
+		tmp = clamp_val(tmp, 0x00, 0x3F);
 		dbm = phy->tssi2dbm[tmp];
 		break;
 	default:
@@ -1542,8 +1527,8 @@ void b43_put_attenuation_into_ranges(struct b43_wldev *dev,
 		break;
 	}
 
-	*_rfatt = limit_value(rfatt, rf_min, rf_max);
-	*_bbatt = limit_value(bbatt, bb_min, bb_max);
+	*_rfatt = clamp_val(rfatt, rf_min, rf_max);
+	*_bbatt = clamp_val(bbatt, bb_min, bb_max);
 }
 
 /* http://bcm-specs.sipsolutions.net/RecalculateTransmissionPower */
@@ -1638,7 +1623,7 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 			/* Get desired power (in Q5.2) */
 			desired_pwr = INT_TO_Q52(phy->power_level);
 			/* And limit it. max_pwr already is Q5.2 */
-			desired_pwr = limit_value(desired_pwr, 0, max_pwr);
+			desired_pwr = clamp_val(desired_pwr, 0, max_pwr);
 			if (b43_debug(dev, B43_DBG_XMITPOWER)) {
 				b43dbg(dev->wl,
 				       "Current TX power output: " Q52_FMT
@@ -1748,7 +1733,7 @@ static inline
 		f = q;
 		i++;
 	} while (delta >= 2);
-	entry[index] = limit_value(b43_tssi2dbm_ad(m1 * f, 8192), -127, 128);
+	entry[index] = clamp_val(b43_tssi2dbm_ad(m1 * f, 8192), -127, 128);
 	return 0;
 }
 
@@ -2274,7 +2259,7 @@ void b43_nrssi_hw_update(struct b43_wldev *dev, u16 val)
 	for (i = 0; i < 64; i++) {
 		tmp = b43_nrssi_hw_read(dev, i);
 		tmp -= val;
-		tmp = limit_value(tmp, -32, 31);
+		tmp = clamp_val(tmp, -32, 31);
 		b43_nrssi_hw_write(dev, i, tmp);
 	}
 }
@@ -2291,7 +2276,7 @@ void b43_nrssi_mem_update(struct b43_wldev *dev)
 		tmp = (i - delta) * phy->nrssislope;
 		tmp /= 0x10000;
 		tmp += 0x3A;
-		tmp = limit_value(tmp, 0, 0x3F);
+		tmp = clamp_val(tmp, 0, 0x3F);
 		phy->nrssi_lt[i] = tmp;
 	}
 }
@@ -2728,7 +2713,7 @@ void b43_calc_nrssi_threshold(struct b43_wldev *dev)
 			} else
 				threshold = phy->nrssi[1] - 5;
 
-			threshold = limit_value(threshold, 0, 0x3E);
+			threshold = clamp_val(threshold, 0, 0x3E);
 			b43_phy_read(dev, 0x0020);	/* dummy read */
 			b43_phy_write(dev, 0x0020,
 				      (((u16) threshold) << 8) | 0x001C);
@@ -2779,7 +2764,7 @@ void b43_calc_nrssi_threshold(struct b43_wldev *dev)
 			else
 				a += 32;
 			a = a >> 6;
-			a = limit_value(a, -31, 31);
+			a = clamp_val(a, -31, 31);
 
 			b = b * (phy->nrssi[1] - phy->nrssi[0]);
 			b += (phy->nrssi[0] << 6);
@@ -2788,7 +2773,7 @@ void b43_calc_nrssi_threshold(struct b43_wldev *dev)
 			else
 				b += 32;
 			b = b >> 6;
-			b = limit_value(b, -31, 31);
+			b = clamp_val(b, -31, 31);
 
 			tmp_u16 = b43_phy_read(dev, 0x048A) & 0xF000;
 			tmp_u16 |= ((u32) b & 0x0000003F);
@@ -2891,13 +2876,13 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 		}
 		radio_stacksave(0x0078);
 		tmp = (b43_radio_read16(dev, 0x0078) & 0x001E);
-		flipped = flip_4bit(tmp);
+		B43_WARN_ON(tmp > 15);
+		flipped = bitrev4(tmp);
 		if (flipped < 10 && flipped >= 8)
 			flipped = 7;
 		else if (flipped >= 10)
 			flipped -= 3;
-		flipped = flip_4bit(flipped);
-		flipped = (flipped << 1) | 0x0020;
+		flipped = (bitrev4(flipped) << 1) | 0x0020;
 		b43_radio_write16(dev, 0x0078, flipped);
 
 		b43_calc_nrssi_threshold(dev);
@@ -3530,7 +3515,7 @@ u16 b43_radio_init2050(struct b43_wldev *dev)
 	tmp1 >>= 9;
 
 	for (i = 0; i < 16; i++) {
-		radio78 = ((flip_4bit(i) << 1) | 0x20);
+		radio78 = (bitrev4(i) << 1) | 0x0020;
 		b43_radio_write16(dev, 0x78, radio78);
 		udelay(10);
 		for (j = 0; j < 16; j++) {

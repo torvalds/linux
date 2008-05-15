@@ -256,7 +256,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	if (tx->flags & IEEE80211_TX_PS_BUFFERED)
 		return TX_CONTINUE;
 
-	sta_flags = tx->sta ? tx->sta->flags : 0;
+	sta_flags = tx->sta ? get_sta_flags(tx->sta) : 0;
 
 	if (likely(tx->flags & IEEE80211_TX_UNICAST)) {
 		if (unlikely(!(sta_flags & WLAN_STA_ASSOC) &&
@@ -391,6 +391,7 @@ static ieee80211_tx_result
 ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 {
 	struct sta_info *sta = tx->sta;
+	u32 staflags;
 	DECLARE_MAC_BUF(mac);
 
 	if (unlikely(!sta ||
@@ -398,8 +399,10 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		      (tx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP)))
 		return TX_CONTINUE;
 
-	if (unlikely((sta->flags & WLAN_STA_PS) &&
-		     !(sta->flags & WLAN_STA_PSPOLL))) {
+	staflags = get_sta_flags(sta);
+
+	if (unlikely((staflags & WLAN_STA_PS) &&
+		     !(staflags & WLAN_STA_PSPOLL))) {
 		struct ieee80211_tx_packet_data *pkt_data;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %s aid %d: PS buffer (entries "
@@ -430,13 +433,13 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		return TX_QUEUED;
 	}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	else if (unlikely(sta->flags & WLAN_STA_PS)) {
+	else if (unlikely(test_sta_flags(sta, WLAN_STA_PS))) {
 		printk(KERN_DEBUG "%s: STA %s in PS mode, but pspoll "
 		       "set -> send frame\n", tx->dev->name,
 		       print_mac(mac, sta->addr));
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-	sta->flags &= ~WLAN_STA_PSPOLL;
+	clear_sta_flags(sta, WLAN_STA_PSPOLL);
 
 	return TX_CONTINUE;
 }
@@ -697,7 +700,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
 	    (tx->rate->flags & IEEE80211_RATE_SHORT_PREAMBLE) &&
 	    tx->sdata->bss_conf.use_short_preamble &&
-	    (!tx->sta || (tx->sta->flags & WLAN_STA_SHORT_PREAMBLE))) {
+	    (!tx->sta || test_sta_flags(tx->sta, WLAN_STA_SHORT_PREAMBLE))) {
 		tx->control->flags |= IEEE80211_TXCTL_SHORT_PREAMBLE;
 	}
 
@@ -1025,10 +1028,8 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 
 	if (!tx->sta)
 		control->flags |= IEEE80211_TXCTL_CLEAR_PS_FILT;
-	else if (tx->sta->flags & WLAN_STA_CLEAR_PS_FILT) {
+	else if (test_and_clear_sta_flags(tx->sta, WLAN_STA_CLEAR_PS_FILT))
 		control->flags |= IEEE80211_TXCTL_CLEAR_PS_FILT;
-		tx->sta->flags &= ~WLAN_STA_CLEAR_PS_FILT;
-	}
 
 	hdrlen = ieee80211_get_hdrlen(tx->fc);
 	if (skb->len > hdrlen + sizeof(rfc1042_header) + 2) {
@@ -1336,6 +1337,8 @@ int ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	pkt_data->ifindex = dev->ifindex;
 
 	pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
+	/* Interfaces should always request a status report */
+	pkt_data->flags |= IEEE80211_TXPD_REQ_TX_STATUS;
 
 	/*
 	 * fix up the pointers accounting for the radiotap
@@ -1486,12 +1489,12 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		rcu_read_lock();
 		sta = sta_info_get(local, hdr.addr1);
 		if (sta)
-			sta_flags = sta->flags;
+			sta_flags = get_sta_flags(sta);
 		rcu_read_unlock();
 	}
 
-	/* receiver is QoS enabled, use a QoS type frame */
-	if (sta_flags & WLAN_STA_WME) {
+	/* receiver and we are QoS enabled, use a QoS type frame */
+	if (sta_flags & WLAN_STA_WME && local->hw.queues >= 4) {
 		fc |= IEEE80211_STYPE_QOS_DATA;
 		hdrlen += 2;
 	}
@@ -1616,6 +1619,9 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	pkt_data->ifindex = dev->ifindex;
 	if (ethertype == ETH_P_PAE)
 		pkt_data->flags |= IEEE80211_TXPD_EAPOL_FRAME;
+
+	/* Interfaces should always request a status report */
+	pkt_data->flags |= IEEE80211_TXPD_REQ_TX_STATUS;
 
 	skb->dev = local->mdev;
 	dev->stats.tx_packets++;

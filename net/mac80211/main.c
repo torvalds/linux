@@ -346,6 +346,7 @@ static int ieee80211_open(struct net_device *dev)
 			goto err_del_interface;
 		}
 
+		/* no locking required since STA is not live yet */
 		sta->flags |= WLAN_STA_AUTHORIZED;
 
 		res = sta_info_insert(sta);
@@ -588,7 +589,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		return -ENOENT;
 	}
 
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 
 	/* we have tried too many times, receiver does not want A-MPDU */
 	if (sta->ampdu_mlme.addba_req_num[tid] > HT_AGG_MAX_RETRIES) {
@@ -691,7 +692,7 @@ start_ba_err:
 	spin_unlock_bh(&local->mdev->queue_lock);
 	ret = -EBUSY;
 start_ba_exit:
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
 	return ret;
 }
@@ -719,7 +720,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 
 	/* check if the TID is in aggregation */
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 
 	if (*state != HT_AGG_STATE_OPERATIONAL) {
 		ret = -ENOENT;
@@ -749,7 +750,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 	}
 
 stop_BA_exit:
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
 	return ret;
 }
@@ -778,12 +779,12 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	}
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 
 	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
 		printk(KERN_DEBUG "addBA was not requested yet, state is %d\n",
 				*state);
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 		rcu_read_unlock();
 		return;
 	}
@@ -796,7 +797,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
 		ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 	}
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_cb);
@@ -830,10 +831,10 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	}
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 	if ((*state & HT_AGG_STATE_REQ_STOP_BA_MSK) == 0) {
 		printk(KERN_DEBUG "unexpected callback to A-MPDU stop\n");
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 		rcu_read_unlock();
 		return;
 	}
@@ -860,7 +861,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	sta->ampdu_mlme.addba_req_num[tid] = 0;
 	kfree(sta->ampdu_mlme.tid_tx[tid]);
 	sta->ampdu_mlme.tid_tx[tid] = NULL;
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_unlock_bh(&sta->lock);
 
 	rcu_read_unlock();
 }
@@ -1315,7 +1316,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 * packet. If the STA went to power save mode, this will happen
 	 * happen when it wakes up for the next time.
 	 */
-	sta->flags |= WLAN_STA_CLEAR_PS_FILT;
+	set_sta_flags(sta, WLAN_STA_CLEAR_PS_FILT);
 
 	/*
 	 * This code races in the following way:
@@ -1347,7 +1348,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *      can be unknown, for example with different interrupt status
 	 *	bits.
 	 */
-	if (sta->flags & WLAN_STA_PS &&
+	if (test_sta_flags(sta, WLAN_STA_PS) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
 		ieee80211_remove_tx_extra(local, sta->key, skb,
 					  &status->control);
@@ -1355,7 +1356,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		return;
 	}
 
-	if (!(sta->flags & WLAN_STA_PS) &&
+	if (!test_sta_flags(sta, WLAN_STA_PS) &&
 	    !(status->control.flags & IEEE80211_TXCTL_REQUEUE)) {
 		/* Software retry the packet once */
 		status->control.flags |= IEEE80211_TXCTL_REQUEUE;
@@ -1370,7 +1371,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		       "queue_len=%d PS=%d @%lu\n",
 		       wiphy_name(local->hw.wiphy),
 		       skb_queue_len(&sta->tx_filtered),
-		       !!(sta->flags & WLAN_STA_PS), jiffies);
+		       !!test_sta_flags(sta, WLAN_STA_PS), jiffies);
 	dev_kfree_skb(skb);
 }
 
@@ -1399,7 +1400,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		struct sta_info *sta;
 		sta = sta_info_get(local, hdr->addr1);
 		if (sta) {
-			if (sta->flags & WLAN_STA_PS) {
+			if (test_sta_flags(sta, WLAN_STA_PS)) {
 				/*
 				 * The STA is in power save mode, so assume
 				 * that this TX packet failed because of that.
@@ -1701,13 +1702,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->hw.conf.beacon_int = 1000;
 
-	local->wstats_flags |= local->hw.max_rssi ?
-			       IW_QUAL_LEVEL_UPDATED : IW_QUAL_LEVEL_INVALID;
-	local->wstats_flags |= local->hw.max_signal ?
+	local->wstats_flags |= local->hw.flags & (IEEE80211_HW_SIGNAL_UNSPEC |
+						  IEEE80211_HW_SIGNAL_DB |
+						  IEEE80211_HW_SIGNAL_DBM) ?
 			       IW_QUAL_QUAL_UPDATED : IW_QUAL_QUAL_INVALID;
-	local->wstats_flags |= local->hw.max_noise ?
+	local->wstats_flags |= local->hw.flags & IEEE80211_HW_NOISE_DBM ?
 			       IW_QUAL_NOISE_UPDATED : IW_QUAL_NOISE_INVALID;
-	if (local->hw.max_rssi < 0 || local->hw.max_noise < 0)
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		local->wstats_flags |= IW_QUAL_DBM;
 
 	result = sta_info_start(local);

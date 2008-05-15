@@ -360,9 +360,9 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	unsigned long state;
 	DECLARE_MAC_BUF(mac);
 
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 	state = sta->ampdu_mlme.tid_state_tx[tid];
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_unlock_bh(&sta->lock);
 
 	if (state == HT_AGG_STATE_IDLE &&
 	    rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
@@ -662,7 +662,8 @@ static u16 rs_get_supported_rates(struct iwl4965_lq_sta *lq_sta,
 	}
 }
 
-static u16 rs_get_adjacent_rate(u8 index, u16 rate_mask, int rate_type)
+static u16 rs_get_adjacent_rate(struct iwl_priv *priv, u8 index, u16 rate_mask,
+				int rate_type)
 {
 	u8 high = IWL_RATE_INVALID;
 	u8 low = IWL_RATE_INVALID;
@@ -763,7 +764,8 @@ static u32 rs_get_lower_rate(struct iwl4965_lq_sta *lq_sta,
 		goto out;
 	}
 
-	high_low = rs_get_adjacent_rate(scale_index, rate_mask, tbl->lq_type);
+	high_low = rs_get_adjacent_rate(lq_sta->drv, scale_index, rate_mask,
+					tbl->lq_type);
 	low = high_low & 0xff;
 
 	if (low == IWL_RATE_INVALID)
@@ -990,7 +992,7 @@ out:
  * These control how long we stay using same modulation mode before
  * searching for a new mode.
  */
-static void rs_set_stay_in_table(u8 is_legacy,
+static void rs_set_stay_in_table(struct iwl_priv *priv, u8 is_legacy,
 				 struct iwl4965_lq_sta *lq_sta)
 {
 	IWL_DEBUG_RATE("we are staying in the same table\n");
@@ -1079,7 +1081,8 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 	new_rate = high = low = start_hi = IWL_RATE_INVALID;
 
 	for (; ;) {
-		high_low = rs_get_adjacent_rate(rate, rate_mask, tbl->lq_type);
+		high_low = rs_get_adjacent_rate(priv, rate, rate_mask,
+						tbl->lq_type);
 
 		low = high_low & 0xff;
 		high = (high_low >> 8) & 0xff;
@@ -1565,7 +1568,9 @@ static void rs_stay_in_table(struct iwl4965_lq_sta *lq_sta)
 	int i;
 	int active_tbl;
 	int flush_interval_passed = 0;
+	struct iwl_priv *priv;
 
+	priv = lq_sta->drv;
 	active_tbl = lq_sta->active_tbl;
 
 	tbl = &(lq_sta->lq_info[active_tbl]);
@@ -1838,7 +1843,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	/* (Else) not in search of better modulation mode, try for better
 	 * starting rate, while staying in this mode. */
-	high_low = rs_get_adjacent_rate(index, rate_scale_index_msk,
+	high_low = rs_get_adjacent_rate(priv, index, rate_scale_index_msk,
 					tbl->lq_type);
 	low = high_low & 0xff;
 	high = (high_low >> 8) & 0xff;
@@ -1998,7 +2003,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		    (lq_sta->action_counter >= 1)) {
 			lq_sta->action_counter = 0;
 			IWL_DEBUG_RATE("LQ: STAY in legacy table\n");
-			rs_set_stay_in_table(1, lq_sta);
+			rs_set_stay_in_table(priv, 1, lq_sta);
 		}
 
 		/* If we're in an HT mode, and all 3 mode switch actions
@@ -2015,7 +2020,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			}
 #endif /*CONFIG_IWL4965_HT */
 			lq_sta->action_counter = 0;
-			rs_set_stay_in_table(0, lq_sta);
+			rs_set_stay_in_table(priv, 0, lq_sta);
 		}
 
 	/*
@@ -2169,11 +2174,13 @@ out:
 	rcu_read_unlock();
 }
 
-static void *rs_alloc_sta(void *priv, gfp_t gfp)
+static void *rs_alloc_sta(void *priv_rate, gfp_t gfp)
 {
 	struct iwl4965_lq_sta *lq_sta;
+	struct iwl_priv *priv;
 	int i, j;
 
+	priv = (struct iwl_priv *)priv_rate;
 	IWL_DEBUG_RATE("create station rate scale window\n");
 
 	lq_sta = kzalloc(sizeof(struct iwl4965_lq_sta), gfp);
@@ -2443,10 +2450,12 @@ static void rs_clear(void *priv_rate)
 	IWL_DEBUG_RATE("leave\n");
 }
 
-static void rs_free_sta(void *priv, void *priv_sta)
+static void rs_free_sta(void *priv_rate, void *priv_sta)
 {
 	struct iwl4965_lq_sta *lq_sta = priv_sta;
+	struct iwl_priv *priv;
 
+	priv = (struct iwl_priv *)priv_rate;
 	IWL_DEBUG_RATE("enter\n");
 	kfree(lq_sta);
 	IWL_DEBUG_RATE("leave\n");
@@ -2462,6 +2471,9 @@ static int open_file_generic(struct inode *inode, struct file *file)
 static void rs_dbgfs_set_mcs(struct iwl4965_lq_sta *lq_sta,
 				u32 *rate_n_flags, int index)
 {
+	struct iwl_priv *priv;
+
+	priv = lq_sta->drv;
 	if (lq_sta->dbg_fixed_rate) {
 		if (index < 12) {
 			*rate_n_flags = lq_sta->dbg_fixed_rate;
@@ -2481,10 +2493,12 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 			const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct iwl4965_lq_sta *lq_sta = file->private_data;
+	struct iwl_priv *priv;
 	char buf[64];
 	int buf_size;
 	u32 parsed_rate;
 
+	priv = lq_sta->drv;
 	memset(buf, 0, sizeof(buf));
 	buf_size = min(count, sizeof(buf) -  1);
 	if (copy_from_user(buf, user_buf, buf_size))

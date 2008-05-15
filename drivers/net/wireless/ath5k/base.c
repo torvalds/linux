@@ -458,13 +458,11 @@ ath5k_pci_probe(struct pci_dev *pdev,
 
 	/* Initialize driver private data */
 	SET_IEEE80211_DEV(hw, &pdev->dev);
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS;
+	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		    IEEE80211_HW_SIGNAL_DBM |
+		    IEEE80211_HW_NOISE_DBM;
 	hw->extra_tx_headroom = 2;
 	hw->channel_change_time = 5000;
-	/* these names are misleading */
-	hw->max_rssi = -110; /* signal in dBm */
-	hw->max_noise = -110; /* noise in dBm */
-	hw->max_signal = 100; /* we will provide a percentage based on rssi */
 	sc = hw->priv;
 	sc->hw = hw;
 	sc->pdev = pdev;
@@ -1787,6 +1785,8 @@ ath5k_tasklet_rx(unsigned long data)
 
 	spin_lock(&sc->rxbuflock);
 	do {
+		rxs.flag = 0;
+
 		if (unlikely(list_empty(&sc->rxbuf))) {
 			ATH5K_WARN(sc, "empty rx buf pool\n");
 			break;
@@ -1893,20 +1893,9 @@ accept:
 		rxs.freq = sc->curchan->center_freq;
 		rxs.band = sc->curband->band;
 
-		/*
-		 * signal quality:
-		 * the names here are misleading and the usage of these
-		 * values by iwconfig makes it even worse
-		 */
-		/* noise floor in dBm, from the last noise calibration */
 		rxs.noise = sc->ah->ah_noise_floor;
-		/* signal level in dBm */
-		rxs.ssi = rxs.noise + rs.rs_rssi;
-		/*
-		 * "signal" is actually displayed as Link Quality by iwconfig
-		 * we provide a percentage based on rssi (assuming max rssi 64)
-		 */
-		rxs.signal = rs.rs_rssi * 100 / 64;
+		rxs.signal = rxs.noise + rs.rs_rssi;
+		rxs.qual = rs.rs_rssi * 100 / 64;
 
 		rxs.antenna = rs.rs_antenna;
 		rxs.rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);

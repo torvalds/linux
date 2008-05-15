@@ -96,13 +96,13 @@ config IWLWIFI_DEBUG
 	  control which debug output is sent to the kernel log by setting the
 	  value in
 
-	          /sys/bus/pci/drivers/${DRIVER}/debug_level
+		/sys/class/net/wlan0/device/debug_level
 
 	  This entry will only exist if this option is enabled.
 
 	  To set a value, simply echo an 8-byte hex value to the same file:
 
-		  % echo 0x43fff > /sys/bus/pci/drivers/${DRIVER}/debug_level
+		  % echo 0x43fff > /sys/class/net/wlan0/device/debug_level
 
 	  You can find the list of debug mask values in:
 		  drivers/net/wireless/iwlwifi/iwl-4965-debug.h

@@ -520,7 +520,7 @@ static void iwl3945_add_radiotap(struct iwl3945_priv *priv,
 {
 	/* First cache any information we need before we overwrite
 	 * the information provided in the skb from the hardware */
-	s8 signal = stats->ssi;
+	s8 signal = stats->signal;
 	s8 noise = 0;
 	int rate = stats->rate_idx;
 	u64 tsf = stats->mactime;
@@ -693,7 +693,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	}
 
 	/* Convert 3945's rssi indicator to dBm */
-	rx_status.ssi = rx_stats->rssi - IWL_RSSI_OFFSET;
+	rx_status.signal = rx_stats->rssi - IWL_RSSI_OFFSET;
 
 	/* Set default noise value to -127 */
 	if (priv->last_rx_noise == 0)
@@ -712,21 +712,21 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	 * Calculate rx_status.signal (quality indicator in %) based on SNR. */
 	if (rx_stats_noise_diff) {
 		snr = rx_stats_sig_avg / rx_stats_noise_diff;
-		rx_status.noise = rx_status.ssi -
+		rx_status.noise = rx_status.signal -
 					iwl3945_calc_db_from_ratio(snr);
-		rx_status.signal = iwl3945_calc_sig_qual(rx_status.ssi,
+		rx_status.qual = iwl3945_calc_sig_qual(rx_status.signal,
 							 rx_status.noise);
 
 	/* If noise info not available, calculate signal quality indicator (%)
 	 *   using just the dBm signal level. */
 	} else {
 		rx_status.noise = priv->last_rx_noise;
-		rx_status.signal = iwl3945_calc_sig_qual(rx_status.ssi, 0);
+		rx_status.qual = iwl3945_calc_sig_qual(rx_status.signal, 0);
 	}
 
 
 	IWL_DEBUG_STATS("Rssi %d noise %d qual %d sig_avg %d noise_diff %d\n",
-			rx_status.ssi, rx_status.noise, rx_status.signal,
+			rx_status.signal, rx_status.noise, rx_status.qual,
 			rx_stats_sig_avg, rx_stats_noise_diff);
 
 	header = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
@@ -736,8 +736,8 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	IWL_DEBUG_STATS_LIMIT("[%c] %d RSSI:%d Signal:%u, Noise:%u, Rate:%u\n",
 			      network_packet ? '*' : ' ',
 			      le16_to_cpu(rx_hdr->channel),
-			      rx_status.ssi, rx_status.ssi,
-			      rx_status.ssi, rx_status.rate_idx);
+			      rx_status.signal, rx_status.signal,
+			      rx_status.noise, rx_status.rate_idx);
 
 #ifdef CONFIG_IWL3945_DEBUG
 	if (iwl3945_debug_level & (IWL_DL_RX))
@@ -748,7 +748,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	if (network_packet) {
 		priv->last_beacon_time = le32_to_cpu(rx_end->beacon_timestamp);
 		priv->last_tsf = le64_to_cpu(rx_end->timestamp);
-		priv->last_rx_rssi = rx_status.ssi;
+		priv->last_rx_rssi = rx_status.signal;
 		priv->last_rx_noise = rx_status.noise;
 	}
 

@@ -206,7 +206,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
-	struct iwl4965_station_entry *station;
+	struct iwl_station_entry *station;
 	int max_sta = priv->hw_params.max_stations;
 	char *buf;
 	int i, j, pos = 0;
@@ -277,8 +277,48 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
+				       char __user *user_buf,
+				       size_t count,
+				       loff_t *ppos)
+{
+	ssize_t ret;
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0, ofs = 0, buf_size = 0;
+	const u8 *ptr;
+	char *buf;
+	size_t eeprom_len = priv->cfg->eeprom_size;
+	buf_size = 4 * eeprom_len + 256;
+
+	if (eeprom_len % 16) {
+		IWL_ERROR("EEPROM size is not multiple of 16.\n");
+		return -ENODATA;
+	}
+
+	/* 4 characters for byte 0xYY */
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERROR("Can not allocate Buffer\n");
+		return -ENOMEM;
+	}
+
+	ptr = priv->eeprom;
+	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
+		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);
+		hex_dump_to_buffer(ptr + ofs, 16 , 16, 2, buf + pos,
+				   buf_size - pos, 0);
+		pos += strlen(buf);
+		if (buf_size - pos > 0)
+			buf[pos++] = '\n';
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
+DEBUGFS_READ_FILE_OPS(eeprom);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
@@ -304,6 +344,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	}
 
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
+	DEBUGFS_ADD_FILE(eeprom, data);
 	DEBUGFS_ADD_FILE(sram, data);
 	DEBUGFS_ADD_FILE(stations, data);
 	DEBUGFS_ADD_FILE(rx_statistics, data);
@@ -327,6 +368,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	if (!(priv->dbgfs))
 		return;
 
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_eeprom);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_rx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);

@@ -166,9 +166,10 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		ifsta->auth_algs = IEEE80211_AUTH_ALG_OPEN |
 			IEEE80211_AUTH_ALG_SHARED_KEY;
 		ifsta->flags |= IEEE80211_STA_CREATE_IBSS |
-			IEEE80211_STA_WMM_ENABLED |
 			IEEE80211_STA_AUTO_BSSID_SEL |
 			IEEE80211_STA_AUTO_CHANNEL_SEL;
+		if (sdata->local->hw.queues >= 4)
+			ifsta->flags |= IEEE80211_STA_WMM_ENABLED;
 
 		msdata = IEEE80211_DEV_TO_SUB_IF(sdata->local->mdev);
 		sdata->bss = &msdata->u.ap;

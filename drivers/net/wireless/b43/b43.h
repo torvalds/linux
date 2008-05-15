@@ -939,22 +939,6 @@ static inline bool __b43_warn_on_dummy(bool x) { return x; }
 # define B43_WARN_ON(x)	__b43_warn_on_dummy(unlikely(!!(x)))
 #endif
 
-/** Limit a value between two limits */
-#ifdef limit_value
-# undef limit_value
-#endif
-#define limit_value(value, min, max)  \
-	({						\
-		typeof(value) __value = (value);	\
-		typeof(value) __min = (min);		\
-		typeof(value) __max = (max);		\
-		if (__value < __min)			\
-			__value = __min;		\
-		else if (__value > __max)		\
-			__value = __max;		\
-		__value;				\
-	})
-
 /* Convert an integer to a Q5.2 value */
 #define INT_TO_Q52(i)	((i) << 2)
 /* Convert a Q5.2 value to an integer (precision loss!) */

@@ -552,16 +552,17 @@ enum ieee80211_back_parties {
  */
 static inline u8 *ieee80211_get_SA(struct ieee80211_hdr *hdr)
 {
-	u8 *raw = (u8 *) hdr;
-	u8 tofrom = (*(raw+1)) & 3; /* get the TODS and FROMDS bits */
+	__le16 fc = hdr->frame_control;
+	fc &= cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
 
-	switch (tofrom) {
-		case 2:
-			return hdr->addr3;
-		case 3:
-			return hdr->addr4;
+	switch (fc) {
+	case __constant_cpu_to_le16(IEEE80211_FCTL_FROMDS):
+		return hdr->addr3;
+	case __constant_cpu_to_le16(IEEE80211_FCTL_TODS|IEEE80211_FCTL_FROMDS):
+		return hdr->addr4;
+	default:
+		return hdr->addr2;
 	}
-	return hdr->addr2;
 }
 
 /**
@@ -577,12 +578,13 @@ static inline u8 *ieee80211_get_SA(struct ieee80211_hdr *hdr)
  */
 static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
 {
-	u8 *raw = (u8 *) hdr;
-	u8 to_ds = (*(raw+1)) & 1; /* get the TODS bit */
+	__le16 fc = hdr->frame_control;
+	fc &= cpu_to_le16(IEEE80211_FCTL_TODS);
 
-	if (to_ds)
+	if (fc)
 		return hdr->addr3;
-	return hdr->addr1;
+	else
+		return hdr->addr1;
 }
 
 /**
@@ -595,8 +597,8 @@ static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
  */
 static inline int ieee80211_get_morefrag(struct ieee80211_hdr *hdr)
 {
-	return (le16_to_cpu(hdr->frame_control) &
-		IEEE80211_FCTL_MOREFRAGS) != 0;
+	__le16 fc = hdr->frame_control;
+	return !!(fc & cpu_to_le16(IEEE80211_FCTL_MOREFRAGS));
 }
 
 #endif /* IEEE80211_H */

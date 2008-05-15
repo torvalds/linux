@@ -129,23 +129,19 @@ enum plink_state {
  *
  * @tid_state_rx: TID's state in Rx session state machine.
  * @tid_rx: aggregation info for Rx per TID
- * @ampdu_rx: for locking sections in aggregation Rx flow
  * @tid_state_tx: TID's state in Tx session state machine.
  * @tid_tx: aggregation info for Tx per TID
  * @addba_req_num: number of times addBA request has been sent.
- * @ampdu_tx: for locking sectionsi in aggregation Tx flow
  * @dialog_token_allocator: dialog token enumerator for each new session;
  */
 struct sta_ampdu_mlme {
 	/* rx */
 	u8 tid_state_rx[STA_TID_NUM];
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
-	spinlock_t ampdu_rx;
 	/* tx */
 	u8 tid_state_tx[STA_TID_NUM];
 	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
 	u8 addba_req_num[STA_TID_NUM];
-	spinlock_t ampdu_tx;
 	u8 dialog_token_allocator;
 };
 
@@ -177,6 +173,8 @@ struct sta_ampdu_mlme {
  * @rx_bytes: Number of bytes received from this STA
  * @supp_rates: Bitmap of supported rates (per band)
  * @ht_info: HT capabilities of this STA
+ * @lock: used for locking all fields that require locking, see comments
+ *	in the header file.
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -187,6 +185,7 @@ struct sta_info {
 	struct ieee80211_key *key;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
+	spinlock_t lock;
 	struct ieee80211_ht_info ht_info;
 	u64 supp_rates[IEEE80211_NUM_BANDS];
 	u8 addr[ETH_ALEN];
@@ -199,7 +198,7 @@ struct sta_info {
 	 */
 	u8 pin_status;
 
-	/* frequently updated information, needs locking? */
+	/* frequently updated information, locked with lock spinlock */
 	u32 flags;
 
 	/*
@@ -217,8 +216,8 @@ struct sta_info {
 				       * from this STA */
 	unsigned long rx_fragments; /* number of received MPDUs */
 	unsigned long rx_dropped; /* number of dropped MPDUs from this STA */
-	int last_rssi; /* RSSI of last received frame from this STA */
 	int last_signal; /* signal of last received frame from this STA */
+	int last_qual;  /* qual of last received frame from this STA */
 	int last_noise; /* noise of last received frame from this STA */
 	/* last received seq/frag number from this STA (per RX queue) */
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
@@ -251,7 +250,7 @@ struct sta_info {
 	int channel_use_raw;
 
 	/*
-	 * Aggregation information, comes with own locking.
+	 * Aggregation information, locked with lock.
 	 */
 	struct sta_ampdu_mlme ampdu_mlme;
 	u8 timer_to_tid[STA_TID_NUM];	/* identity mapping to ID timers */
@@ -270,9 +269,6 @@ struct sta_info {
 	enum plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
-	spinlock_t plink_lock;	/* For peer_state reads / updates and other
-				   updates in the structure. Ensures robust
-				   transitions for the peerlink FSM */
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -297,6 +293,64 @@ static inline enum plink_state sta_plink_state(struct sta_info *sta)
 	return sta->plink_state;
 #endif
 	return PLINK_LISTEN;
+}
+
+static inline void set_sta_flags(struct sta_info *sta, const u32 flags)
+{
+	spin_lock_bh(&sta->lock);
+	sta->flags |= flags;
+	spin_unlock_bh(&sta->lock);
+}
+
+static inline void clear_sta_flags(struct sta_info *sta, const u32 flags)
+{
+	spin_lock_bh(&sta->lock);
+	sta->flags &= ~flags;
+	spin_unlock_bh(&sta->lock);
+}
+
+static inline void set_and_clear_sta_flags(struct sta_info *sta,
+					   const u32 set, const u32 clear)
+{
+	spin_lock_bh(&sta->lock);
+	sta->flags |= set;
+	sta->flags &= ~clear;
+	spin_unlock_bh(&sta->lock);
+}
+
+static inline u32 test_sta_flags(struct sta_info *sta, const u32 flags)
+{
+	u32 ret;
+
+	spin_lock_bh(&sta->lock);
+	ret = sta->flags & flags;
+	spin_unlock_bh(&sta->lock);
+
+	return ret;
+}
+
+static inline u32 test_and_clear_sta_flags(struct sta_info *sta,
+					   const u32 flags)
+{
+	u32 ret;
+
+	spin_lock_bh(&sta->lock);
+	ret = sta->flags & flags;
+	sta->flags &= ~flags;
+	spin_unlock_bh(&sta->lock);
+
+	return ret;
+}
+
+static inline u32 get_sta_flags(struct sta_info *sta)
+{
+	u32 ret;
+
+	spin_lock_bh(&sta->lock);
+	ret = sta->flags;
+	spin_unlock_bh(&sta->lock);
+
+	return ret;
 }
 
 

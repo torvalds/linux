@@ -927,20 +927,10 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 	 */
 	memset(priv->current_addr, 0xff, ETH_ALEN);
 	ret = lbs_update_hw_spec(priv);
-	if (ret) {
-		ret = -1;
+	if (ret)
 		goto done;
-	}
 
 	lbs_set_mac_control(priv);
-
-	ret = lbs_get_data_rate(priv);
-	if (ret < 0) {
-		ret = -1;
-		goto done;
-	}
-
-	ret = 0;
 done:
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;

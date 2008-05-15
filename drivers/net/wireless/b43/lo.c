@@ -199,7 +199,7 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 		if (lb_gain > 10) {
 			radio_pctl_reg = 0;
 			pga = abs(10 - lb_gain) / 6;
-			pga = limit_value(pga, 0, 15);
+			pga = clamp_val(pga, 0, 15);
 		} else {
 			int cmp_val;
 			int tmp;
@@ -321,7 +321,7 @@ static void lo_measure_gain_values(struct b43_wldev *dev,
 			phy->lna_lod_gain = 1;
 			trsw_rx_gain -= 8;
 		}
-		trsw_rx_gain = limit_value(trsw_rx_gain, 0, 0x2D);
+		trsw_rx_gain = clamp_val(trsw_rx_gain, 0, 0x2D);
 		phy->pga_gain = trsw_rx_gain / 3;
 		if (phy->pga_gain >= 5) {
 			phy->pga_gain -= 5;

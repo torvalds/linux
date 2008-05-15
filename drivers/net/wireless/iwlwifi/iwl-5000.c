@@ -86,7 +86,7 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	return ret;
 }
 
-static void iwl5000_nic_init(struct iwl_priv *priv)
+static void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	u16 radio_cfg;
@@ -362,6 +362,8 @@ static int iwl5000_alloc_shared_mem(struct iwl_priv *priv)
 
 	memset(priv->shared_virt, 0, sizeof(struct iwl5000_shared));
 
+	priv->rb_closed_offset = offsetof(struct iwl5000_shared, rb_closed);
+
 	return 0;
 }
 
@@ -374,11 +376,17 @@ static void iwl5000_free_shared_mem(struct iwl_priv *priv)
 				    priv->shared_phys);
 }
 
+static int iwl5000_shared_mem_rx_idx(struct iwl_priv *priv)
+{
+	struct iwl5000_shared *s = priv->shared_virt;
+	return le32_to_cpu(s->rb_closed) & 0xFFF;
+}
+
 /**
  * iwl5000_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
 static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
-					    struct iwl4965_tx_queue *txq,
+					    struct iwl_tx_queue *txq,
 					    u16 byte_cnt)
 {
 	struct iwl5000_shared *shared_data = priv->shared_virt;
@@ -422,10 +430,40 @@ static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 	}
 }
 
+static u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
+{
+	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
+	memcpy(data, cmd, size);
+	return size;
+}
+
+
+static int iwl5000_disable_tx_fifo(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	ret = iwl_grab_nic_access(priv);
+	if (unlikely(ret)) {
+		IWL_ERROR("Tx fifo reset failed");
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	iwl_write_prph(priv, IWL50_SCD_TXFACT, 0);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
 static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
+	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
 #ifdef CONFIG_IWL5000_RUN_TIME_CALIB
 	.gain_computation = iwl5000_gain_computation,
 	.chain_noise_reset = iwl5000_chain_noise_reset,
@@ -436,10 +474,12 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.alloc_shared_mem = iwl5000_alloc_shared_mem,
 	.free_shared_mem = iwl5000_free_shared_mem,
+	.shared_mem_rx_idx = iwl5000_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
+	.disable_tx_fifo = iwl5000_disable_tx_fifo,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
-		.config = iwl5000_nic_init,
+		.config = iwl5000_nic_config,
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},
 	.eeprom_ops = {
@@ -470,6 +510,7 @@ static struct iwl_mod_params iwl50_mod_params = {
 	.num_of_queues = IWL50_NUM_QUEUES,
 	.enable_qos = 1,
 	.amsdu_size_8K = 1,
+	.restart_fw = 1,
 	/* the rest are 0 by default */
 };
 
@@ -515,5 +556,5 @@ module_param_named(qos_enable50, iwl50_mod_params.enable_qos, int, 0444);
 MODULE_PARM_DESC(qos_enable50, "enable all 50XX QoS functionality");
 module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K50, "enable 8K amsdu size in 50XX series");
-
-
+module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, 0444);
+MODULE_PARM_DESC(fw_restart50, "restart firmware in case of error");

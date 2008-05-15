@@ -769,6 +769,20 @@ struct iwl4965_keyinfo {
 	u8 key[16];		/* 16-byte unicast decryption key */
 } __attribute__ ((packed));
 
+/* 5000 */
+struct iwl_keyinfo {
+	__le16 key_flags;
+	u8 tkip_rx_tsc_byte2;	/* TSC[2] for key mix ph1 detection */
+	u8 reserved1;
+	__le16 tkip_rx_ttak[5];	/* 10-byte unicast TKIP TTAK */
+	u8 key_offset;
+	u8 reserved2;
+	u8 key[16];		/* 16-byte unicast decryption key */
+	__le64 tx_secur_seq_cnt;
+	__le64 hw_tkip_mic_rx_key;
+	__le64 hw_tkip_mic_tx_key;
+} __attribute__ ((packed));
+
 /**
  * struct sta_id_modify
  * @addr[ETH_ALEN]: station's MAC address
@@ -843,6 +857,38 @@ struct iwl4965_addsta_cmd {
 
 	__le32 reserved2;
 } __attribute__ ((packed));
+
+/* 5000 */
+struct iwl_addsta_cmd {
+	u8 mode;		/* 1: modify existing, 0: add new station */
+	u8 reserved[3];
+	struct sta_id_modify sta;
+	struct iwl_keyinfo key;
+	__le32 station_flags;		/* STA_FLG_* */
+	__le32 station_flags_msk;	/* STA_FLG_* */
+
+	/* bit field to disable (1) or enable (0) Tx for Traffic ID (TID)
+	 * corresponding to bit (e.g. bit 5 controls TID 5).
+	 * Set modify_mask bit STA_MODIFY_TID_DISABLE_TX to use this field. */
+	__le16 tid_disable_tx;
+
+	__le16	reserved1;
+
+	/* TID for which to add block-ack support.
+	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
+	u8 add_immediate_ba_tid;
+
+	/* TID for which to remove block-ack support.
+	 * Set modify_mask bit STA_MODIFY_DELBA_TID_MSK to use this field. */
+	u8 remove_immediate_ba_tid;
+
+	/* Starting Sequence Number for added block-ack support.
+	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
+	__le16 add_immediate_ba_ssn;
+
+	__le32 reserved2;
+} __attribute__ ((packed));
+
 
 #define ADD_STA_SUCCESS_MSK		0x1
 #define ADD_STA_NO_ROOM_IN_TABLE	0x2
@@ -2731,7 +2777,7 @@ struct iwl4965_led_cmd {
  *
  *****************************************************************************/
 
-struct iwl4965_rx_packet {
+struct iwl_rx_packet {
 	__le32 len;
 	struct iwl_cmd_header hdr;
 	union {

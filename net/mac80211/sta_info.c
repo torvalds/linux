@@ -202,14 +202,12 @@ void sta_info_destroy(struct sta_info *sta)
 		dev_kfree_skb_any(skb);
 
 	for (i = 0; i <  STA_TID_NUM; i++) {
-		spin_lock_bh(&sta->ampdu_mlme.ampdu_rx);
+		spin_lock_bh(&sta->lock);
 		if (sta->ampdu_mlme.tid_rx[i])
 		  del_timer_sync(&sta->ampdu_mlme.tid_rx[i]->session_timer);
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
-		spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
 		if (sta->ampdu_mlme.tid_tx[i])
 		  del_timer_sync(&sta->ampdu_mlme.tid_tx[i]->addba_resp_timer);
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 	}
 
 	__sta_info_free(local, sta);
@@ -236,6 +234,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return NULL;
 
+	spin_lock_init(&sta->lock);
+
 	memcpy(sta->addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->sdata = sdata;
@@ -249,8 +249,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
-	spin_lock_init(&sta->ampdu_mlme.ampdu_tx);
 	for (i = 0; i < STA_TID_NUM; i++) {
 		/* timer_to_tid must be initialized with identity mapping to
 		 * enable session_timer's data differentiation. refer to
@@ -276,7 +274,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 #ifdef CONFIG_MAC80211_MESH
 	sta->plink_state = PLINK_LISTEN;
-	spin_lock_init(&sta->plink_lock);
 	init_timer(&sta->plink_timer);
 #endif
 
@@ -437,8 +434,7 @@ void __sta_info_unlink(struct sta_info **sta)
 
 	list_del(&(*sta)->list);
 
-	if ((*sta)->flags & WLAN_STA_PS) {
-		(*sta)->flags &= ~WLAN_STA_PS;
+	if (test_and_clear_sta_flags(*sta, WLAN_STA_PS)) {
 		if (sdata->bss)
 			atomic_dec(&sdata->bss->num_sta_ps);
 		__sta_info_clear_tim_bit(sdata->bss, *sta);
