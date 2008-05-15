@@ -608,7 +608,7 @@ static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
 		 * case take precedence.  If a is not a negative dentry, this
 		 * should have no side effects
 		 */
-		memcpy(a->name, b->name, a->len);
+		memcpy((void *)a->name, b->name, a->len);
 		return 0;
 	}
 	return 1;
