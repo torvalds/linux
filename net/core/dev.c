@@ -903,7 +903,11 @@ int dev_change_name(struct net_device *dev, char *newname)
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
 rollback:
-	device_rename(&dev->dev, dev->name);
+	err = device_rename(&dev->dev, dev->name);
+	if (err) {
+		memcpy(dev->name, oldname, IFNAMSIZ);
+		return err;
+	}
 
 	write_lock_bh(&dev_base_lock);
 	hlist_del(&dev->name_hlist);
