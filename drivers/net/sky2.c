@@ -641,11 +641,47 @@ static void sky2_phy_power_up(struct sky2_hw *hw, unsigned port)
 static void sky2_phy_power_down(struct sky2_hw *hw, unsigned port)
 {
 	u32 reg1;
+	u16 ctrl;
+
+	/* release GPHY Control reset */
+	sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR);
+
+	/* release GMAC reset */
+	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_CLR);
+
+	if (hw->flags & SKY2_HW_NEWER_PHY) {
+		/* select page 2 to access MAC control register */
+		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 2);
+
+		ctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
+		/* allow GMII Power Down */
+		ctrl &= ~PHY_M_MAC_GMIF_PUP;
+		gm_phy_write(hw, port, PHY_MARV_PHY_CTRL, ctrl);
+
+		/* set page register back to 0 */
+		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 0);
+	}
+
+	/* setup General Purpose Control Register */
+	gma_write16(hw, port, GM_GP_CTRL,
+		    GM_GPCR_FL_PASS | GM_GPCR_SPEED_100 | GM_GPCR_AU_ALL_DIS);
+
+	if (hw->chip_id != CHIP_ID_YUKON_EC) {
+		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+			ctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
+
+			/* enable Power Down */
+			ctrl |= PHY_M_PC_POW_D_ENA;
+			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL, ctrl);
+		}
+
+		/* set IEEE compatible Power Down Mode (dev. #4.99) */
+		gm_phy_write(hw, port, PHY_MARV_CTRL, PHY_CT_PDOWN);
+	}
 
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
-	reg1 |= phy_power[port];
-
+	reg1 |= phy_power[port];		/* set PHY to PowerDown/COMA Mode */
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 }
