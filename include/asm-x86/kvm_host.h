@@ -243,6 +243,7 @@ struct kvm_vcpu_arch {
 	gfn_t last_pt_write_gfn;
 	int   last_pt_write_count;
 	u64  *last_pte_updated;
+	gfn_t last_pte_gfn;
 
 	struct {
 		gfn_t gfn;	/* presumed gfn during guest pte update */
