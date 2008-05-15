@@ -25,6 +25,7 @@
 #include <linux/kmod.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 
 
@@ -319,9 +320,11 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 		return -ENOSYS;
 
 	/* Besure this device hasn't already been opened */
+	lock_kernel();
 	spin_lock_bh(&logptr->priv_lock);
 	if (logptr->dev_in_use)	{
 		spin_unlock_bh(&logptr->priv_lock);
+		unlock_kernel();
 		return -EBUSY;
 	}
 	logptr->dev_in_use = 1;
@@ -365,7 +368,9 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 		   || (logptr->iucv_path_severed));
 	if (logptr->iucv_path_severed)
 		goto out_record;
- 	return nonseekable_open(inode, filp);
+ 	ret = nonseekable_open(inode, filp);
+	unlock_kernel();
+	return ret;
 
 out_record:
 	if (logptr->autorecording)
@@ -375,6 +380,7 @@ out_path:
 	logptr->path = NULL;
 out_dev:
 	logptr->dev_in_use = 0;
+	unlock_kernel();
 	return -EIO;
 }
 

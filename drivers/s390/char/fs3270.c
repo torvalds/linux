@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/smp_lock.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -421,6 +422,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 
 	if (imajor(filp->f_path.dentry->d_inode) != IBM_FS3270_MAJOR)
 		return -ENODEV;
+	lock_kernel();
 	minor = iminor(filp->f_path.dentry->d_inode);
 	/* Check for minor 0 multiplexer. */
 	if (minor == 0) {
@@ -429,7 +431,8 @@ fs3270_open(struct inode *inode, struct file *filp)
 		tty = get_current_tty();
 		if (!tty || tty->driver->major != IBM_TTY3270_MAJOR) {
 			mutex_unlock(&tty_mutex);
-			return -ENODEV;
+			rc = -ENODEV;
+			goto out;
 		}
 		minor = tty->index + RAW3270_FIRSTMINOR;
 		mutex_unlock(&tty_mutex);
@@ -438,19 +441,22 @@ fs3270_open(struct inode *inode, struct file *filp)
 	fp = (struct fs3270 *) raw3270_find_view(&fs3270_fn, minor);
 	if (!IS_ERR(fp)) {
 		raw3270_put_view(&fp->view);
-		return -EBUSY;
+		rc = -EBUSY;
+		goto out;
 	}
 	/* Allocate fullscreen view structure. */
 	fp = fs3270_alloc_view();
-	if (IS_ERR(fp))
-		return PTR_ERR(fp);
+	if (IS_ERR(fp)) {
+		rc = PTR_ERR(fp);
+		goto out;
+	}
 
 	init_waitqueue_head(&fp->wait);
 	fp->fs_pid = get_pid(task_pid(current));
 	rc = raw3270_add_view(&fp->view, &fs3270_fn, minor);
 	if (rc) {
 		fs3270_free_view(&fp->view);
-		return rc;
+		goto out;
 	}
 
 	/* Allocate idal-buffer. */
@@ -458,7 +464,8 @@ fs3270_open(struct inode *inode, struct file *filp)
 	if (IS_ERR(ib)) {
 		raw3270_put_view(&fp->view);
 		raw3270_del_view(&fp->view);
-		return PTR_ERR(fp);
+		rc = PTR_ERR(fp);
+		goto out;
 	}
 	fp->rdbuf = ib;
 
@@ -466,9 +473,11 @@ fs3270_open(struct inode *inode, struct file *filp)
 	if (rc) {
 		raw3270_put_view(&fp->view);
 		raw3270_del_view(&fp->view);
-		return rc;
+		goto out;
 	}
 	filp->private_data = fp;
+out:
+	unlock_kernel();
 	return 0;
 }
 
