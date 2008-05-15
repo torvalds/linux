@@ -659,7 +659,7 @@ int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 int iwl4965_init_geos(struct iwl_priv *priv);
 void iwl4965_free_geos(struct iwl_priv *priv);
 
-extern const u8 iwl4965_broadcast_addr[ETH_ALEN];
+extern const u8 iwl_bcast_addr[ETH_ALEN];
 int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
 /*

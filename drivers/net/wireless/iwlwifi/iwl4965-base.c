@@ -207,7 +207,6 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 	return index & (q->n_window - 1);
 }
 
-const u8 iwl4965_broadcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /*************** STATION TABLE MANAGEMENT ****
  * mac80211 should be examined to determine if sta_info is duplicating
@@ -692,7 +691,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (iwl4965_rxon_add_station(priv, iwl4965_broadcast_addr, 0) ==
+	if (iwl4965_rxon_add_station(priv, iwl_bcast_addr, 0) ==
 	    IWL_INVALID_STATION) {
 		IWL_ERROR("Error adding BROADCAST address for transmit.\n");
 		return -EIO;
@@ -1059,9 +1058,9 @@ static u16 iwl4965_fill_probe_req(struct iwl_priv *priv,
 	len += 24;
 
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	memcpy(frame->da, iwl4965_broadcast_addr, ETH_ALEN);
+	memcpy(frame->da, iwl_bcast_addr, ETH_ALEN);
 	memcpy(frame->sa, priv->mac_addr, ETH_ALEN);
-	memcpy(frame->bssid, iwl4965_broadcast_addr, ETH_ALEN);
+	memcpy(frame->bssid, iwl_bcast_addr, ETH_ALEN);
 	frame->seq_ctrl = 0;
 
 	/* fill in our indirect SSID IE */
@@ -4912,7 +4911,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 		/* clear out the station table */
 		iwlcore_clear_stations_table(priv);
 
-		iwl4965_rxon_add_station(priv, iwl4965_broadcast_addr, 0);
+		iwl4965_rxon_add_station(priv, iwl_bcast_addr, 0);
 		iwl4965_rxon_add_station(priv, priv->bssid, 0);
 		iwl4965_rate_scale_init(priv->hw, IWL_STA_ID);
 		iwl4965_send_beacon_cmd(priv);
@@ -5324,7 +5323,7 @@ static void iwl4965_config_ap(struct iwl_priv *priv)
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
 		iwl4965_activate_qos(priv, 1);
-		iwl4965_rxon_add_station(priv, iwl4965_broadcast_addr, 0);
+		iwl4965_rxon_add_station(priv, iwl_bcast_addr, 0);
 	}
 	iwl4965_send_beacon_cmd(priv);
 
