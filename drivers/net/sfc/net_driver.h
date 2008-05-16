@@ -705,7 +705,7 @@ struct efx_nic {
 
 	unsigned n_rx_nodesc_drop_cnt;
 
-	void *nic_data;
+	struct falcon_nic_data *nic_data;
 
 	struct mutex mac_lock;
 	int port_enabled;

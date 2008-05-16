@@ -2411,7 +2411,7 @@ int falcon_probe_nic(struct efx_nic *efx)
 
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
-	efx->nic_data = (void *) nic_data;
+	efx->nic_data = nic_data;
 
 	/* Determine number of ports etc. */
 	rc = falcon_probe_nic_variant(efx);
@@ -2481,12 +2481,9 @@ int falcon_probe_nic(struct efx_nic *efx)
  */
 int falcon_init_nic(struct efx_nic *efx)
 {
-	struct falcon_nic_data *data;
 	efx_oword_t temp;
 	unsigned thresh;
 	int rc;
-
-	data = (struct falcon_nic_data *)efx->nic_data;
 
 	/* Set up the address region register. This is only needed
 	 * for the B0 FPGA, but since we are just pushing in the
