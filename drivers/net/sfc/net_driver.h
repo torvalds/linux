@@ -52,28 +52,19 @@
 #define EFX_WARN_ON_PARANOID(x) do {} while (0)
 #endif
 
-#define NET_DEV_REGISTERED(efx)					\
-	((efx)->net_dev->reg_state == NETREG_REGISTERED)
-
-/* Include net device name in log messages if it has been registered.
- * Use efx->name not efx->net_dev->name so that races with (un)registration
- * are harmless.
- */
-#define NET_DEV_NAME(efx) (NET_DEV_REGISTERED(efx) ? (efx)->name : "")
-
 /* Un-rate-limited logging */
 #define EFX_ERR(efx, fmt, args...) \
-dev_err(&((efx)->pci_dev->dev), "ERR: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_err(&((efx)->pci_dev->dev), "ERR: %s " fmt, efx_dev_name(efx), ##args)
 
 #define EFX_INFO(efx, fmt, args...) \
-dev_info(&((efx)->pci_dev->dev), "INFO: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_info(&((efx)->pci_dev->dev), "INFO: %s " fmt, efx_dev_name(efx), ##args)
 
 #ifdef EFX_ENABLE_DEBUG
 #define EFX_LOG(efx, fmt, args...) \
-dev_info(&((efx)->pci_dev->dev), "DBG: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_info(&((efx)->pci_dev->dev), "DBG: %s " fmt, efx_dev_name(efx), ##args)
 #else
 #define EFX_LOG(efx, fmt, args...) \
-dev_dbg(&((efx)->pci_dev->dev), "DBG: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_dbg(&((efx)->pci_dev->dev), "DBG: %s " fmt, efx_dev_name(efx), ##args)
 #endif
 
 #define EFX_TRACE(efx, fmt, args...) do {} while (0)
@@ -759,6 +750,20 @@ struct efx_nic {
 
 	void *loopback_selftest;
 };
+
+static inline int efx_dev_registered(struct efx_nic *efx)
+{
+	return efx->net_dev->reg_state == NETREG_REGISTERED;
+}
+
+/* Net device name, for inclusion in log messages if it has been registered.
+ * Use efx->name not efx->net_dev->name so that races with (un)registration
+ * are harmless.
+ */
+static inline const char *efx_dev_name(struct efx_nic *efx)
+{
+	return efx_dev_registered(efx) ? efx->name : "";
+}
 
 /**
  * struct efx_nic_type - Efx device type definition

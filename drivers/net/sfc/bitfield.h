@@ -483,7 +483,7 @@ typedef union efx_oword {
 #endif
 
 #define EFX_SET_OWORD_FIELD_VER(efx, oword, field, value) do { \
-	if (FALCON_REV(efx) >= FALCON_REV_B0) {			   \
+	if (falcon_rev(efx) >= FALCON_REV_B0) {			   \
 		EFX_SET_OWORD_FIELD((oword), field##_B0, (value)); \
 	} else { \
 		EFX_SET_OWORD_FIELD((oword), field##_A1, (value)); \
@@ -491,7 +491,7 @@ typedef union efx_oword {
 } while (0)
 
 #define EFX_QWORD_FIELD_VER(efx, qword, field)	\
-	(FALCON_REV(efx) >= FALCON_REV_B0 ?	\
+	(falcon_rev(efx) >= FALCON_REV_B0 ?	\
 	 EFX_QWORD_FIELD((qword), field##_B0) :	\
 	 EFX_QWORD_FIELD((qword), field##_A1))
 

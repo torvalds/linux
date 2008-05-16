@@ -424,10 +424,10 @@ static int efx_tx_loopback(struct efx_tx_queue *tx_queue)
 		 * interrupt handler. */
 		smp_wmb();
 
-		if (NET_DEV_REGISTERED(efx))
+		if (efx_dev_registered(efx))
 			netif_tx_lock_bh(efx->net_dev);
 		rc = efx_xmit(efx, tx_queue, skb);
-		if (NET_DEV_REGISTERED(efx))
+		if (efx_dev_registered(efx))
 			netif_tx_unlock_bh(efx->net_dev);
 
 		if (rc != NETDEV_TX_OK) {
@@ -453,7 +453,7 @@ static int efx_rx_loopback(struct efx_tx_queue *tx_queue,
 	int tx_done = 0, rx_good, rx_bad;
 	int i, rc = 0;
 
-	if (NET_DEV_REGISTERED(efx))
+	if (efx_dev_registered(efx))
 		netif_tx_lock_bh(efx->net_dev);
 
 	/* Count the number of tx completions, and decrement the refcnt. Any
@@ -465,7 +465,7 @@ static int efx_rx_loopback(struct efx_tx_queue *tx_queue,
 		dev_kfree_skb_any(skb);
 	}
 
-	if (NET_DEV_REGISTERED(efx))
+	if (efx_dev_registered(efx))
 		netif_tx_unlock_bh(efx->net_dev);
 
 	/* Check TX completion and received packet counts */

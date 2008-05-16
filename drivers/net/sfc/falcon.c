@@ -145,7 +145,7 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 #define PCI_EXP_LNKSTA_LNK_WID_LBN	4
 
 #define FALCON_IS_DUAL_FUNC(efx)		\
-	(FALCON_REV(efx) < FALCON_REV_B0)
+	(falcon_rev(efx) < FALCON_REV_B0)
 
 /**************************************************************************
  *
@@ -465,7 +465,7 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 			      TX_DESCQ_TYPE, 0,
 			      TX_NON_IP_DROP_DIS_B0, 1);
 
-	if (FALCON_REV(efx) >= FALCON_REV_B0) {
+	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		int csum = !(efx->net_dev->features & NETIF_F_IP_CSUM);
 		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_IP_CHKSM_DIS_B0, csum);
 		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_TCP_CHKSM_DIS_B0, csum);
@@ -474,7 +474,7 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 	falcon_write_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
 			   tx_queue->queue);
 
-	if (FALCON_REV(efx) < FALCON_REV_B0) {
+	if (falcon_rev(efx) < FALCON_REV_B0) {
 		efx_oword_t reg;
 
 		BUG_ON(tx_queue->queue >= 128); /* HW limit */
@@ -635,7 +635,7 @@ int falcon_init_rx(struct efx_rx_queue *rx_queue)
 	efx_oword_t rx_desc_ptr;
 	struct efx_nic *efx = rx_queue->efx;
 	int rc;
-	int is_b0 = FALCON_REV(efx) >= FALCON_REV_B0;
+	int is_b0 = falcon_rev(efx) >= FALCON_REV_B0;
 	int iscsi_digest_en = is_b0;
 
 	EFX_LOG(efx, "RX queue %d ring in special buffers %d-%d\n",
@@ -822,10 +822,10 @@ static inline void falcon_handle_tx_event(struct efx_channel *channel,
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, TX_EV_Q_LABEL);
 		tx_queue = &efx->tx_queue[tx_ev_q_label];
 
-		if (NET_DEV_REGISTERED(efx))
+		if (efx_dev_registered(efx))
 			netif_tx_lock(efx->net_dev);
 		falcon_notify_tx_desc(tx_queue);
-		if (NET_DEV_REGISTERED(efx))
+		if (efx_dev_registered(efx))
 			netif_tx_unlock(efx->net_dev);
 	} else if (EFX_QWORD_FIELD(*event, TX_EV_PKT_ERR) &&
 		   EFX_WORKAROUND_10727(efx)) {
@@ -884,7 +884,7 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 						   RX_EV_TCP_UDP_CHKSUM_ERR);
 	rx_ev_eth_crc_err = EFX_QWORD_FIELD(*event, RX_EV_ETH_CRC_ERR);
 	rx_ev_frm_trunc = EFX_QWORD_FIELD(*event, RX_EV_FRM_TRUNC);
-	rx_ev_drib_nib = ((FALCON_REV(efx) >= FALCON_REV_B0) ?
+	rx_ev_drib_nib = ((falcon_rev(efx) >= FALCON_REV_B0) ?
 			  0 : EFX_QWORD_FIELD(*event, RX_EV_DRIB_NIB));
 	rx_ev_pause_frm = EFX_QWORD_FIELD(*event, RX_EV_PAUSE_FRM_ERR);
 
@@ -1065,7 +1065,7 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 	    EFX_QWORD_FIELD(*event, XG_PHY_INTR))
 		is_phy_event = 1;
 
-	if ((FALCON_REV(efx) >= FALCON_REV_B0) &&
+	if ((falcon_rev(efx) >= FALCON_REV_B0) &&
 	    EFX_OWORD_FIELD(*event, XG_MNT_INTR_B0))
 		is_phy_event = 1;
 
@@ -1572,7 +1572,7 @@ static void falcon_setup_rss_indir_table(struct efx_nic *efx)
 	unsigned long offset;
 	efx_dword_t dword;
 
-	if (FALCON_REV(efx) < FALCON_REV_B0)
+	if (falcon_rev(efx) < FALCON_REV_B0)
 		return;
 
 	for (offset = RX_RSS_INDIR_TBL_B0;
@@ -1595,7 +1595,7 @@ int falcon_init_interrupt(struct efx_nic *efx)
 
 	if (!EFX_INT_MODE_USE_MSI(efx)) {
 		irq_handler_t handler;
-		if (FALCON_REV(efx) >= FALCON_REV_B0)
+		if (falcon_rev(efx) >= FALCON_REV_B0)
 			handler = falcon_legacy_interrupt_b0;
 		else
 			handler = falcon_legacy_interrupt_a1;
@@ -1642,7 +1642,7 @@ void falcon_fini_interrupt(struct efx_nic *efx)
 	}
 
 	/* ACK legacy interrupt */
-	if (FALCON_REV(efx) >= FALCON_REV_B0)
+	if (falcon_rev(efx) >= FALCON_REV_B0)
 		falcon_read(efx, &reg, INT_ISR0_B0);
 	else
 		falcon_irq_ack_a1(efx);
@@ -1733,7 +1733,7 @@ void falcon_drain_tx_fifo(struct efx_nic *efx)
 	efx_oword_t temp;
 	int count;
 
-	if ((FALCON_REV(efx) < FALCON_REV_B0) ||
+	if ((falcon_rev(efx) < FALCON_REV_B0) ||
 	    (efx->loopback_mode != LOOPBACK_NONE))
 		return;
 
@@ -1786,7 +1786,7 @@ void falcon_deconfigure_mac_wrapper(struct efx_nic *efx)
 {
 	efx_oword_t temp;
 
-	if (FALCON_REV(efx) < FALCON_REV_B0)
+	if (falcon_rev(efx) < FALCON_REV_B0)
 		return;
 
 	/* Isolate the MAC -> RX */
@@ -1824,7 +1824,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 			     MAC_SPEED, link_speed);
 	/* On B0, MAC backpressure can be disabled and packets get
 	 * discarded. */
-	if (FALCON_REV(efx) >= FALCON_REV_B0) {
+	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		EFX_SET_OWORD_FIELD(reg, TXFIFO_DRAIN_EN_B0,
 				    !efx->link_up);
 	}
@@ -1842,7 +1842,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD_VER(efx, reg, RX_XOFF_MAC_EN, tx_fc);
 
 	/* Unisolate the MAC -> RX */
-	if (FALCON_REV(efx) >= FALCON_REV_B0)
+	if (falcon_rev(efx) >= FALCON_REV_B0)
 		EFX_SET_OWORD_FIELD(reg, RX_INGR_EN_B0, 1);
 	falcon_write(efx, &reg, RX_CFG_REG_KER);
 }
@@ -1857,7 +1857,7 @@ int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
 		return 0;
 
 	/* Statistics fetch will fail if the MAC is in TX drain */
-	if (FALCON_REV(efx) >= FALCON_REV_B0) {
+	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		efx_oword_t temp;
 		falcon_read(efx, &temp, MAC0_CTRL_REG_KER);
 		if (EFX_OWORD_FIELD(temp, TXFIFO_DRAIN_EN_B0))
@@ -2114,7 +2114,7 @@ int falcon_probe_port(struct efx_nic *efx)
 	falcon_init_mdio(&efx->mii);
 
 	/* Hardware flow ctrl. FalconA RX FIFO too small for pause generation */
-	if (FALCON_REV(efx) >= FALCON_REV_B0)
+	if (falcon_rev(efx) >= FALCON_REV_B0)
 		efx->flow_control = EFX_FC_RX | EFX_FC_TX;
 	else
 		efx->flow_control = EFX_FC_RX;
@@ -2374,7 +2374,7 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 		return -ENODEV;
 	}
 
-	switch (FALCON_REV(efx)) {
+	switch (falcon_rev(efx)) {
 	case FALCON_REV_A0:
 	case 0xff:
 		EFX_ERR(efx, "Falcon rev A0 not supported\n");
@@ -2400,7 +2400,7 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 		break;
 
 	default:
-		EFX_ERR(efx, "Unknown Falcon rev %d\n", FALCON_REV(efx));
+		EFX_ERR(efx, "Unknown Falcon rev %d\n", falcon_rev(efx));
 		return -ENODEV;
 	}
 
@@ -2563,7 +2563,7 @@ int falcon_init_nic(struct efx_nic *efx)
 
 	/* Set number of RSS queues for receive path. */
 	falcon_read(efx, &temp, RX_FILTER_CTL_REG);
-	if (FALCON_REV(efx) >= FALCON_REV_B0)
+	if (falcon_rev(efx) >= FALCON_REV_B0)
 		EFX_SET_OWORD_FIELD(temp, NUM_KER, 0);
 	else
 		EFX_SET_OWORD_FIELD(temp, NUM_KER, efx->rss_queues - 1);
@@ -2601,7 +2601,7 @@ int falcon_init_nic(struct efx_nic *efx)
 	/* Prefetch threshold 2 => fetch when descriptor cache half empty */
 	EFX_SET_OWORD_FIELD(temp, TX_PREF_THRESHOLD, 2);
 	/* Squash TX of packets of 16 bytes or less */
-	if (FALCON_REV(efx) >= FALCON_REV_B0 && EFX_WORKAROUND_9141(efx))
+	if (falcon_rev(efx) >= FALCON_REV_B0 && EFX_WORKAROUND_9141(efx))
 		EFX_SET_OWORD_FIELD(temp, TX_FLUSH_MIN_LEN_EN_B0, 1);
 	falcon_write(efx, &temp, TX_CFG2_REG_KER);
 
@@ -2618,7 +2618,7 @@ int falcon_init_nic(struct efx_nic *efx)
 	if (EFX_WORKAROUND_7575(efx))
 		EFX_SET_OWORD_FIELD_VER(efx, temp, RX_USR_BUF_SIZE,
 					(3 * 4096) / 32);
-	if (FALCON_REV(efx) >= FALCON_REV_B0)
+	if (falcon_rev(efx) >= FALCON_REV_B0)
 		EFX_SET_OWORD_FIELD(temp, RX_INGR_EN_B0, 1);
 
 	/* RX FIFO flow control thresholds */
@@ -2634,7 +2634,7 @@ int falcon_init_nic(struct efx_nic *efx)
 	falcon_write(efx, &temp, RX_CFG_REG_KER);
 
 	/* Set destination of both TX and RX Flush events */
-	if (FALCON_REV(efx) >= FALCON_REV_B0) {
+	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		EFX_POPULATE_OWORD_1(temp, FLS_EVQ_ID, 0);
 		falcon_write(efx, &temp, DP_CTRL_REG);
 	}

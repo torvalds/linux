@@ -691,7 +691,7 @@ static void efx_stop_port(struct efx_nic *efx)
 	mutex_unlock(&efx->mac_lock);
 
 	/* Serialise against efx_set_multicast_list() */
-	if (NET_DEV_REGISTERED(efx)) {
+	if (efx_dev_registered(efx)) {
 		netif_tx_lock_bh(efx->net_dev);
 		netif_tx_unlock_bh(efx->net_dev);
 	}
@@ -1030,7 +1030,7 @@ static void efx_start_all(struct efx_nic *efx)
 		return;
 	if ((efx->state != STATE_RUNNING) && (efx->state != STATE_INIT))
 		return;
-	if (NET_DEV_REGISTERED(efx) && !netif_running(efx->net_dev))
+	if (efx_dev_registered(efx) && !netif_running(efx->net_dev))
 		return;
 
 	/* Mark the port as enabled so port reconfigurations can start, then
@@ -1112,7 +1112,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
 	efx_stop_queue(efx);
-	if (NET_DEV_REGISTERED(efx)) {
+	if (efx_dev_registered(efx)) {
 		netif_tx_lock_bh(efx->net_dev);
 		netif_tx_unlock_bh(efx->net_dev);
 	}
@@ -1550,7 +1550,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 	efx_for_each_tx_queue(tx_queue, efx)
 		efx_release_tx_buffers(tx_queue);
 
-	if (NET_DEV_REGISTERED(efx)) {
+	if (efx_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
 		unregister_netdev(efx->net_dev);
 	}
