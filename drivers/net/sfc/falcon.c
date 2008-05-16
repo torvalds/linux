@@ -1636,9 +1636,10 @@ void falcon_fini_interrupt(struct efx_nic *efx)
 	efx_oword_t reg;
 
 	/* Disable MSI/MSI-X interrupts */
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel_with_interrupt(channel, efx) {
 		if (channel->irq)
 			free_irq(channel->irq, channel);
+	}
 
 	/* ACK legacy interrupt */
 	if (FALCON_REV(efx) >= FALCON_REV_B0)

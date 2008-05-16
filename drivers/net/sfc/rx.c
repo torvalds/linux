@@ -400,9 +400,10 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 		return 0;
 
 	/* Record minimum fill level */
-	if (unlikely(fill_level < rx_queue->min_fill))
+	if (unlikely(fill_level < rx_queue->min_fill)) {
 		if (fill_level)
 			rx_queue->min_fill = fill_level;
+	}
 
 	/* Acquire RX add lock.  If this lock is contended, then a fast
 	 * fill must already be in progress (e.g. in the refill

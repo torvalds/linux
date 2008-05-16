@@ -1060,9 +1060,8 @@ static void efx_flush_all(struct efx_nic *efx)
 	cancel_delayed_work_sync(&efx->monitor_work);
 
 	/* Ensure that all RX slow refills are complete. */
-	efx_for_each_rx_queue(rx_queue, efx) {
+	efx_for_each_rx_queue(rx_queue, efx)
 		cancel_delayed_work_sync(&rx_queue->work);
-	}
 
 	/* Stop scheduled port reconfigurations */
 	cancel_work_sync(&efx->reconfigure_work);
@@ -1088,9 +1087,10 @@ static void efx_stop_all(struct efx_nic *efx)
 	falcon_disable_interrupts(efx);
 	if (efx->legacy_irq)
 		synchronize_irq(efx->legacy_irq);
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel_with_interrupt(channel, efx) {
 		if (channel->irq)
 			synchronize_irq(channel->irq);
+	}
 
 	/* Stop all NAPI processing and synchronous rx refills */
 	efx_for_each_channel(channel, efx)
