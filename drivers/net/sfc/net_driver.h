@@ -81,11 +81,6 @@ do {if (net_ratelimit()) EFX_INFO(efx, fmt, ##args); } while (0)
 #define EFX_LOG_RL(efx, fmt, args...) \
 do {if (net_ratelimit()) EFX_LOG(efx, fmt, ##args); } while (0)
 
-/* Kernel headers may redefine inline anyway */
-#ifndef inline
-#define inline inline __attribute__ ((always_inline))
-#endif
-
 /**************************************************************************
  *
  * Efx data structures
