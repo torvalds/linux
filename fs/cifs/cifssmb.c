@@ -107,6 +107,7 @@ cifs_strncpy_to_host(char **dst, const char *src, const int maxlen,
 		strncpy(*dst, src, plen);
 	}
 	(*dst)[plen] = 0;
+	(*dst)[plen+1] = 0; /* harmless for ASCII case, needed for Unicode */
 	return 0;
 
 cifs_strncpy_to_host_ErrExit:
@@ -3907,7 +3908,7 @@ GetInodeNumOut:
  *	on failure - errno
  */
 static int
-parse_DFS_REFERRALS(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
+parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		unsigned int *num_of_nodes,
 		struct dfs_info3_param **target_nodes,
 		const struct nls_table *nls_codepage)
@@ -3924,7 +3925,7 @@ parse_DFS_REFERRALS(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		cERROR(1, ("num_referrals: must be at least > 0,"
 			"but we get num_referrals = %d\n", *num_of_nodes));
 		rc = -EINVAL;
-		goto parse_DFS_REFERRALS_exit;
+		goto parse_DFS_referrals_exit;
 	}
 
 	ref = (struct dfs_referral_level_3 *) &(pSMBr->referrals);
@@ -3932,7 +3933,7 @@ parse_DFS_REFERRALS(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		cERROR(1, ("Referrals of V%d version are not supported,"
 			"should be V3", ref->VersionNumber));
 		rc = -EINVAL;
-		goto parse_DFS_REFERRALS_exit;
+		goto parse_DFS_referrals_exit;
 	}
 
 	/* get the upper boundary of the resp buffer */
@@ -3948,7 +3949,7 @@ parse_DFS_REFERRALS(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	if (*target_nodes == NULL) {
 		cERROR(1, ("Failed to allocate buffer for target_nodes\n"));
 		rc = -ENOMEM;
-		goto parse_DFS_REFERRALS_exit;
+		goto parse_DFS_referrals_exit;
 	}
 
 	/* collect neccessary data from referrals */
@@ -3968,7 +3969,7 @@ parse_DFS_REFERRALS(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		rc = cifs_strncpy_to_host(&(node->path_name), temp,
 					max_len, is_unicode, nls_codepage);
 		if (rc)
-			goto parse_DFS_REFERRALS_exit;
+			goto parse_DFS_referrals_exit;
 
 		/* copy link target UNC */
 		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
@@ -3976,12 +3977,12 @@ parse_DFS_REFERRALS(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		rc = cifs_strncpy_to_host(&(node->node_name), temp,
 					max_len, is_unicode, nls_codepage);
 		if (rc)
-			goto parse_DFS_REFERRALS_exit;
+			goto parse_DFS_referrals_exit;
 
 		ref += ref->Size;
 	}
 
-parse_DFS_REFERRALS_exit:
+parse_DFS_referrals_exit:
 	if (rc) {
 		free_dfs_info_array(*target_nodes, *num_of_nodes);
 		*target_nodes = NULL;
@@ -4090,7 +4091,7 @@ getDFSRetry:
 				le16_to_cpu(pSMBr->t2.DataOffset)));
 
 	/* parse returned result into more usable form */
-	rc = parse_DFS_REFERRALS(pSMBr, num_of_nodes,
+	rc = parse_DFS_referrals(pSMBr, num_of_nodes,
 				 target_nodes, nls_codepage);
 
 GetDFSRefExit:

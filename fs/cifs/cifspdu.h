@@ -1904,6 +1904,15 @@ typedef struct smb_com_transaction2_get_dfs_refer_req {
 	char RequestFileName[1];
 } __attribute__((packed)) TRANSACTION2_GET_DFS_REFER_REQ;
 
+#define DFS_VERSION cpu_to_le16(0x0003)
+
+/* DFS server target type */
+#define DFS_TYPE_LINK 0x0000  /* also for sysvol targets */
+#define DFS_TYPE_ROOT 0x0001
+ 
+/* Referral Entry Flags */
+#define DFS_NAME_LIST_REF 0x0200
+
 typedef struct dfs_referral_level_3 {
 	__le16 VersionNumber;
 	__le16 Size;
