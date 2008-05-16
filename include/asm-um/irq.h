@@ -15,8 +15,9 @@
 #define SIGIO_WRITE_IRQ 	11
 #define TELNETD_IRQ 		12
 #define XTERM_IRQ 		13
+#define RANDOM_IRQ 		14
 
-#define LAST_IRQ XTERM_IRQ
+#define LAST_IRQ RANDOM_IRQ
 #define NR_IRQS (LAST_IRQ + 1)
 
 #endif

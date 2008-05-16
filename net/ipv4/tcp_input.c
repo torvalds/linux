@@ -1842,9 +1842,16 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 		}
 
-		/* Don't lost mark skbs that were fwd transmitted after RTO */
-		if (!(TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED) &&
-		    !after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark)) {
+		/* Marking forward transmissions that were made after RTO lost
+		 * can cause unnecessary retransmissions in some scenarios,
+		 * SACK blocks will mitigate that in some but not in all cases.
+		 * We used to not mark them but it was causing break-ups with
+		 * receivers that do only in-order receival.
+		 *
+		 * TODO: we could detect presence of such receiver and select
+		 * different behavior per flow.
+		 */
+		if (!(TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)) {
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 			tp->lost_out += tcp_skb_pcount(skb);
 		}
@@ -1860,7 +1867,7 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tp->reordering = min_t(unsigned int, tp->reordering,
 			       sysctl_tcp_reordering);
 	tcp_set_ca_state(sk, TCP_CA_Loss);
-	tp->high_seq = tp->frto_highmark;
+	tp->high_seq = tp->snd_nxt;
 	TCP_ECN_queue_cwr(tp);
 
 	tcp_clear_retrans_hints_partial(tp);
@@ -2482,7 +2489,7 @@ static void tcp_try_to_open(struct sock *sk, int flag)
 
 	tcp_verify_left_out(tp);
 
-	if (tp->retrans_out == 0)
+	if (!tp->frto_counter && tp->retrans_out == 0)
 		tp->retrans_stamp = 0;
 
 	if (flag & FLAG_ECE)

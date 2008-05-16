@@ -76,6 +76,7 @@ dev_t name_to_dev_t(char *name)
 	char s[32];
 	char *p;
 	dev_t res = 0;
+	int part;
 
 	if (strncmp(name, "/dev/", 5) != 0) {
 		unsigned maj, min;
@@ -106,7 +107,31 @@ dev_t name_to_dev_t(char *name)
 	for (p = s; *p; p++)
 		if (*p == '/')
 			*p = '!';
-	res = blk_lookup_devt(s);
+	res = blk_lookup_devt(s, 0);
+	if (res)
+		goto done;
+
+	/*
+	 * try non-existant, but valid partition, which may only exist
+	 * after revalidating the disk, like partitioned md devices
+	 */
+	while (p > s && isdigit(p[-1]))
+		p--;
+	if (p == s || !*p || *p == '0')
+		goto fail;
+
+	/* try disk name without <part number> */
+	part = simple_strtoul(p, NULL, 10);
+	*p = '\0';
+	res = blk_lookup_devt(s, part);
+	if (res)
+		goto done;
+
+	/* try disk name without p<part number> */
+	if (p < s + 2 || !isdigit(p[-2]) || p[-1] != 'p')
+		goto fail;
+	p[-1] = '\0';
+	res = blk_lookup_devt(s, part);
 	if (res)
 		goto done;
 

@@ -418,7 +418,7 @@ void __suspend_report_result(const char *function, void *fn, int ret)
 {
 	if (ret) {
 		printk(KERN_ERR "%s(): ", function);
-		print_fn_descriptor_symbol("%s() returns ", (unsigned long)fn);
+		print_fn_descriptor_symbol("%s returns ", fn);
 		printk("%d\n", ret);
 	}
 }

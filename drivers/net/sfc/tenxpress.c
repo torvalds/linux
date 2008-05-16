@@ -24,6 +24,11 @@
 				 MDIO_MMDREG_DEVS0_PCS    | \
 				 MDIO_MMDREG_DEVS0_PHYXS)
 
+#define TENXPRESS_LOOPBACKS ((1 << LOOPBACK_PHYXS) |	\
+			     (1 << LOOPBACK_PCS) |	\
+			     (1 << LOOPBACK_PMAPMD) |	\
+			     (1 << LOOPBACK_NETWORK))
+
 /* We complain if we fail to see the link partner as 10G capable this many
  * times in a row (must be > 1 as sampling the autoneg. registers is racy)
  */
@@ -72,6 +77,10 @@
 #define PMA_PMD_BIST_RXD_LBN	(1)
 #define PMA_PMD_BIST_AFE_LBN	(0)
 
+/* Special Software reset register */
+#define PMA_PMD_EXT_CTRL_REG 49152
+#define PMA_PMD_EXT_SSR_LBN 15
+
 #define BIST_MAX_DELAY	(1000)
 #define BIST_POLL_DELAY	(10)
 
@@ -85,6 +94,11 @@
 
 #define	PCS_TEST_SELECT_REG 0xd807	/* PRM 10.5.8 */
 #define	CLK312_EN_LBN 3
+
+/* PHYXS registers */
+#define PHYXS_TEST1         (49162)
+#define LOOPBACK_NEAR_LBN   (8)
+#define LOOPBACK_NEAR_WIDTH (1)
 
 /* Boot status register */
 #define PCS_BOOT_STATUS_REG	(0xd000)
@@ -106,7 +120,9 @@ MODULE_PARM_DESC(crc_error_reset_threshold,
 
 struct tenxpress_phy_data {
 	enum tenxpress_state state;
+	enum efx_loopback_mode loopback_mode;
 	atomic_t bad_crc_count;
+	int tx_disabled;
 	int bad_lp_tries;
 };
 
@@ -199,10 +215,12 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 
 	tenxpress_set_state(efx, TENXPRESS_STATUS_NORMAL);
 
-	rc = mdio_clause45_wait_reset_mmds(efx,
-					   TENXPRESS_REQUIRED_DEVS);
-	if (rc < 0)
-		goto fail;
+	if (!sfe4001_phy_flash_cfg) {
+		rc = mdio_clause45_wait_reset_mmds(efx,
+						   TENXPRESS_REQUIRED_DEVS);
+		if (rc < 0)
+			goto fail;
+	}
 
 	rc = mdio_clause45_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
 	if (rc < 0)
@@ -223,6 +241,35 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	kfree(efx->phy_data);
 	efx->phy_data = NULL;
 	return rc;
+}
+
+static int tenxpress_special_reset(struct efx_nic *efx)
+{
+	int rc, reg;
+
+	EFX_TRACE(efx, "%s\n", __func__);
+
+	/* Initiate reset */
+	reg = mdio_clause45_read(efx, efx->mii.phy_id,
+				 MDIO_MMD_PMAPMD, PMA_PMD_EXT_CTRL_REG);
+	reg |= (1 << PMA_PMD_EXT_SSR_LBN);
+	mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
+			    PMA_PMD_EXT_CTRL_REG, reg);
+
+	msleep(200);
+
+	/* Wait for the blocks to come out of reset */
+	rc = mdio_clause45_wait_reset_mmds(efx,
+					   TENXPRESS_REQUIRED_DEVS);
+	if (rc < 0)
+		return rc;
+
+	/* Try and reconfigure the device */
+	rc = tenxpress_init(efx);
+	if (rc < 0)
+		return rc;
+
+	return 0;
 }
 
 static void tenxpress_set_bad_lp(struct efx_nic *efx, int bad_lp)
@@ -299,11 +346,46 @@ static int tenxpress_link_ok(struct efx_nic *efx, int check_lp)
 	return ok;
 }
 
+static void tenxpress_phyxs_loopback(struct efx_nic *efx)
+{
+	int phy_id = efx->mii.phy_id;
+	int ctrl1, ctrl2;
+
+	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PHYXS,
+					   PHYXS_TEST1);
+	if (efx->loopback_mode == LOOPBACK_PHYXS)
+		ctrl2 |= (1 << LOOPBACK_NEAR_LBN);
+	else
+		ctrl2 &= ~(1 << LOOPBACK_NEAR_LBN);
+	if (ctrl1 != ctrl2)
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_PHYXS,
+				    PHYXS_TEST1, ctrl2);
+}
+
 static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
+	struct tenxpress_phy_data *phy_data = efx->phy_data;
+	int loop_change = LOOPBACK_OUT_OF(phy_data, efx,
+					  TENXPRESS_LOOPBACKS);
+
 	if (!tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL))
 		return;
 
+	/* When coming out of transmit disable, coming out of low power
+	 * mode, or moving out of any PHY internal loopback mode,
+	 * perform a special software reset */
+	if ((phy_data->tx_disabled && !efx->tx_disabled) ||
+	    loop_change) {
+		(void) tenxpress_special_reset(efx);
+		falcon_reset_xaui(efx);
+	}
+
+	mdio_clause45_transmit_disable(efx);
+	mdio_clause45_phy_reconfigure(efx);
+	tenxpress_phyxs_loopback(efx);
+
+	phy_data->tx_disabled = efx->tx_disabled;
+	phy_data->loopback_mode = efx->loopback_mode;
 	efx->link_up = tenxpress_link_ok(efx, 0);
 	efx->link_options = GM_LPA_10000FULL;
 }
@@ -431,4 +513,5 @@ struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.clear_interrupt  = tenxpress_phy_clear_interrupt,
 	.reset_xaui       = tenxpress_reset_xaui,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
+	.loopbacks        = TENXPRESS_LOOPBACKS,
 };

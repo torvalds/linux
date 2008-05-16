@@ -111,6 +111,113 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 		dev_info(&dev->dev, "SB audio device quirk - increased port range\n");
 }
 
+static struct pnp_option *quirk_isapnp_mpu_options(struct pnp_dev *dev)
+{
+	struct pnp_option *head = NULL;
+	struct pnp_option *prev = NULL;
+	struct pnp_option *res;
+
+	/*
+	 * Build a functional IRQ-less variant of each MPU option.
+	 */
+
+	for (res = dev->dependent; res; res = res->next) {
+		struct pnp_option *curr;
+		struct pnp_port *port;
+		struct pnp_port *copy;
+
+		port = res->port;
+		if (!port || !res->irq)
+			continue;
+
+		copy = pnp_alloc(sizeof *copy);
+		if (!copy)
+			break;
+
+		copy->min = port->min;
+		copy->max = port->max;
+		copy->align = port->align;
+		copy->size = port->size;
+		copy->flags = port->flags;
+
+		curr = pnp_build_option(PNP_RES_PRIORITY_FUNCTIONAL);
+		if (!curr) {
+			kfree(copy);
+			break;
+		}
+		curr->port = copy;
+
+		if (prev)
+			prev->next = curr;
+		else
+			head = curr;
+		prev = curr;
+	}
+	if (head)
+		dev_info(&dev->dev, "adding IRQ-less MPU options\n");
+
+	return head;
+}
+
+static void quirk_ad1815_mpu_resources(struct pnp_dev *dev)
+{
+	struct pnp_option *res;
+	struct pnp_irq *irq;
+
+	/*
+	 * Distribute the independent IRQ over the dependent options
+	 */
+
+	res = dev->independent;
+	if (!res)
+		return;
+
+	irq = res->irq;
+	if (!irq || irq->next)
+		return;
+
+	res = dev->dependent;
+	if (!res)
+		return;
+
+	while (1) {
+		struct pnp_irq *copy;
+
+		copy = pnp_alloc(sizeof *copy);
+		if (!copy)
+			break;
+
+		memcpy(copy->map, irq->map, sizeof copy->map);
+		copy->flags = irq->flags;
+
+		copy->next = res->irq; /* Yes, this is NULL */
+		res->irq = copy;
+
+		if (!res->next)
+			break;
+		res = res->next;
+	}
+	kfree(irq);
+
+	res->next = quirk_isapnp_mpu_options(dev);
+
+	res = dev->independent;
+	res->irq = NULL;
+}
+
+static void quirk_isapnp_mpu_resources(struct pnp_dev *dev)
+{
+	struct pnp_option *res;
+
+	res = dev->dependent;
+	if (!res)
+		return;
+
+	while (res->next)
+		res = res->next;
+
+	res->next = quirk_isapnp_mpu_options(dev);
+}
 
 #include <linux/pci.h>
 
@@ -205,6 +312,11 @@ static struct pnp_fixup pnp_fixups[] = {
 	{"CTL0043", quirk_sb16audio_resources},
 	{"CTL0044", quirk_sb16audio_resources},
 	{"CTL0045", quirk_sb16audio_resources},
+	/* Add IRQ-less MPU options */
+	{"ADS7151", quirk_ad1815_mpu_resources},
+	{"ADS7181", quirk_isapnp_mpu_resources},
+	{"AZT0002", quirk_isapnp_mpu_resources},
+	/* PnP resources that might overlap PCI BARs */
 	{"PNP0c01", quirk_system_pci_resources},
 	{"PNP0c02", quirk_system_pci_resources},
 	{""}
@@ -212,20 +324,15 @@ static struct pnp_fixup pnp_fixups[] = {
 
 void pnp_fixup_device(struct pnp_dev *dev)
 {
-	int i = 0;
-	void (*quirk)(struct pnp_dev *);
+	struct pnp_fixup *f;
 
-	while (*pnp_fixups[i].id) {
-		if (compare_pnp_id(dev->id, pnp_fixups[i].id)) {
-			quirk = pnp_fixups[i].quirk_function;
-
+	for (f = pnp_fixups; *f->id; f++) {
+		if (!compare_pnp_id(dev->id, f->id))
+			continue;
 #ifdef DEBUG
-			dev_dbg(&dev->dev, "calling ");
-			print_fn_descriptor_symbol("%s()\n",
-				(unsigned long) *quirk);
+		dev_dbg(&dev->dev, "%s: calling ", f->id);
+		print_fn_descriptor_symbol("%s\n", f->quirk_function);
 #endif
-			(*quirk)(dev);
-		}
-		i++;
+		f->quirk_function(dev);
 	}
 }

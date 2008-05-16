@@ -24,6 +24,10 @@
 			   MDIO_MMDREG_DEVS0_PMAPMD |	\
 			   MDIO_MMDREG_DEVS0_PHYXS)
 
+#define XFP_LOOPBACKS ((1 << LOOPBACK_PCS) |		\
+		       (1 << LOOPBACK_PMAPMD) |		\
+		       (1 << LOOPBACK_NETWORK))
+
 /****************************************************************************/
 /* Quake-specific MDIO registers */
 #define MDIO_QUAKE_LED0_REG	(0xD006)
@@ -34,6 +38,10 @@ void xfp_set_led(struct efx_nic *p, int led, int mode)
 	mdio_clause45_write(p, p->mii.phy_id, MDIO_MMD_PMAPMD, addr,
 			    mode);
 }
+
+struct xfp_phy_data {
+	int tx_disabled;
+};
 
 #define XFP_MAX_RESET_TIME 500
 #define XFP_RESET_WAIT 10
@@ -72,18 +80,31 @@ static int xfp_reset_phy(struct efx_nic *efx)
 
 static int xfp_phy_init(struct efx_nic *efx)
 {
+	struct xfp_phy_data *phy_data;
 	u32 devid = mdio_clause45_read_id(efx, MDIO_MMD_PHYXS);
 	int rc;
+
+	phy_data = kzalloc(sizeof(struct xfp_phy_data), GFP_KERNEL);
+	efx->phy_data = (void *) phy_data;
 
 	EFX_INFO(efx, "XFP: PHY ID reg %x (OUI %x model %x revision"
 		 " %x)\n", devid, MDIO_ID_OUI(devid), MDIO_ID_MODEL(devid),
 		 MDIO_ID_REV(devid));
 
+	phy_data->tx_disabled = efx->tx_disabled;
+
 	rc = xfp_reset_phy(efx);
 
 	EFX_INFO(efx, "XFP: PHY init %s.\n",
 		 rc ? "failed" : "successful");
+	if (rc < 0)
+		goto fail;
 
+	return 0;
+
+ fail:
+	kfree(efx->phy_data);
+	efx->phy_data = NULL;
 	return rc;
 }
 
@@ -110,6 +131,16 @@ static int xfp_phy_check_hw(struct efx_nic *efx)
 
 static void xfp_phy_reconfigure(struct efx_nic *efx)
 {
+	struct xfp_phy_data *phy_data = efx->phy_data;
+
+	/* Reset the PHY when moving from tx off to tx on */
+	if (phy_data->tx_disabled && !efx->tx_disabled)
+		xfp_reset_phy(efx);
+
+	mdio_clause45_transmit_disable(efx);
+	mdio_clause45_phy_reconfigure(efx);
+
+	phy_data->tx_disabled = efx->tx_disabled;
 	efx->link_up = xfp_link_ok(efx);
 	efx->link_options = GM_LPA_10000FULL;
 }
@@ -119,6 +150,10 @@ static void xfp_phy_fini(struct efx_nic *efx)
 {
 	/* Clobber the LED if it was blinking */
 	efx->board_info.blink(efx, 0);
+
+	/* Free the context block */
+	kfree(efx->phy_data);
+	efx->phy_data = NULL;
 }
 
 struct efx_phy_operations falcon_xfp_phy_ops = {
@@ -129,4 +164,5 @@ struct efx_phy_operations falcon_xfp_phy_ops = {
 	.clear_interrupt = xfp_phy_clear_interrupt,
 	.reset_xaui      = efx_port_dummy_op_void,
 	.mmds            = XFP_REQUIRED_DEVS,
+	.loopbacks       = XFP_LOOPBACKS,
 };

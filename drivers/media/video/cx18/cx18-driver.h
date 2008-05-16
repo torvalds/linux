@@ -444,9 +444,6 @@ extern spinlock_t cx18_cards_lock;
 /* Return non-zero if a signal is pending */
 int cx18_msleep_timeout(unsigned int msecs, int intr);
 
-/* Wait on queue, returns -EINTR if interrupted */
-int cx18_waitq(wait_queue_head_t *waitq);
-
 /* Read Hauppauge eeprom */
 struct tveeprom; /* forward reference */
 void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv);

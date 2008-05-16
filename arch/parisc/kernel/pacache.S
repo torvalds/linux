@@ -37,8 +37,9 @@
 #include <asm/pgtable.h>
 #include <asm/cache.h>
 #include <linux/linkage.h>
+#include <linux/init.h>
 
-	.text
+	__HEAD
 	.align	128
 
 ENTRY(flush_tlb_all_local)
@@ -85,7 +86,7 @@ ENTRY(flush_tlb_all_local)
 	LDREG		ITLB_OFF_COUNT(%r1), %arg2
 	LDREG		ITLB_LOOP(%r1), %arg3
 
-	ADDIB=		-1, %arg3, fitoneloop	/* Preadjust and test */
+	addib,COND(=)		-1, %arg3, fitoneloop	/* Preadjust and test */
 	movb,<,n	%arg3, %r31, fitdone	/* If loop < 0, skip */
 	copy		%arg0, %r28		/* Init base addr */
 
@@ -95,14 +96,14 @@ fitmanyloop:					/* Loop if LOOP >= 2 */
 	copy		%arg2, %r29		/* Init middle loop count */
 
 fitmanymiddle:					/* Loop if LOOP >= 2 */
-	ADDIB>		-1, %r31, fitmanymiddle	/* Adjusted inner loop decr */
+	addib,COND(>)		-1, %r31, fitmanymiddle	/* Adjusted inner loop decr */
 	pitlbe		0(%sr1, %r28)
 	pitlbe,m	%arg1(%sr1, %r28)	/* Last pitlbe and addr adjust */
-	ADDIB>		-1, %r29, fitmanymiddle	/* Middle loop decr */
+	addib,COND(>)		-1, %r29, fitmanymiddle	/* Middle loop decr */
 	copy		%arg3, %r31		/* Re-init inner loop count */
 
 	movb,tr		%arg0, %r28, fitmanyloop /* Re-init base addr */
-	ADDIB<=,n	-1, %r22, fitdone	/* Outer loop count decr */
+	addib,COND(<=),n	-1, %r22, fitdone	/* Outer loop count decr */
 
 fitoneloop:					/* Loop if LOOP = 1 */
 	mtsp		%r20, %sr1
@@ -110,10 +111,10 @@ fitoneloop:					/* Loop if LOOP = 1 */
 	copy		%arg2, %r29		/* init middle loop count */
 
 fitonemiddle:					/* Loop if LOOP = 1 */
-	ADDIB>		-1, %r29, fitonemiddle	/* Middle loop count decr */
+	addib,COND(>)		-1, %r29, fitonemiddle	/* Middle loop count decr */
 	pitlbe,m	%arg1(%sr1, %r28)	/* pitlbe for one loop */
 
-	ADDIB>		-1, %r22, fitoneloop	/* Outer loop count decr */
+	addib,COND(>)		-1, %r22, fitoneloop	/* Outer loop count decr */
 	add		%r21, %r20, %r20		/* increment space */
 
 fitdone:
@@ -128,7 +129,7 @@ fitdone:
 	LDREG		DTLB_OFF_COUNT(%r1), %arg2
 	LDREG		DTLB_LOOP(%r1), %arg3
 
-	ADDIB=		-1, %arg3, fdtoneloop	/* Preadjust and test */
+	addib,COND(=)		-1, %arg3, fdtoneloop	/* Preadjust and test */
 	movb,<,n	%arg3, %r31, fdtdone	/* If loop < 0, skip */
 	copy		%arg0, %r28		/* Init base addr */
 
@@ -138,14 +139,14 @@ fdtmanyloop:					/* Loop if LOOP >= 2 */
 	copy		%arg2, %r29		/* Init middle loop count */
 
 fdtmanymiddle:					/* Loop if LOOP >= 2 */
-	ADDIB>		-1, %r31, fdtmanymiddle	/* Adjusted inner loop decr */
+	addib,COND(>)		-1, %r31, fdtmanymiddle	/* Adjusted inner loop decr */
 	pdtlbe		0(%sr1, %r28)
 	pdtlbe,m	%arg1(%sr1, %r28)	/* Last pdtlbe and addr adjust */
-	ADDIB>		-1, %r29, fdtmanymiddle	/* Middle loop decr */
+	addib,COND(>)		-1, %r29, fdtmanymiddle	/* Middle loop decr */
 	copy		%arg3, %r31		/* Re-init inner loop count */
 
 	movb,tr		%arg0, %r28, fdtmanyloop /* Re-init base addr */
-	ADDIB<=,n	-1, %r22,fdtdone	/* Outer loop count decr */
+	addib,COND(<=),n	-1, %r22,fdtdone	/* Outer loop count decr */
 
 fdtoneloop:					/* Loop if LOOP = 1 */
 	mtsp		%r20, %sr1
@@ -153,10 +154,10 @@ fdtoneloop:					/* Loop if LOOP = 1 */
 	copy		%arg2, %r29		/* init middle loop count */
 
 fdtonemiddle:					/* Loop if LOOP = 1 */
-	ADDIB>		-1, %r29, fdtonemiddle	/* Middle loop count decr */
+	addib,COND(>)		-1, %r29, fdtonemiddle	/* Middle loop count decr */
 	pdtlbe,m	%arg1(%sr1, %r28)	/* pdtlbe for one loop */
 
-	ADDIB>		-1, %r22, fdtoneloop	/* Outer loop count decr */
+	addib,COND(>)		-1, %r22, fdtoneloop	/* Outer loop count decr */
 	add		%r21, %r20, %r20	/* increment space */
 
 
@@ -209,18 +210,18 @@ ENTRY(flush_instruction_cache_local)
 	LDREG		ICACHE_COUNT(%r1), %arg2
 	LDREG		ICACHE_LOOP(%r1), %arg3
 	rsm             PSW_SM_I, %r22		/* No mmgt ops during loop*/
-	ADDIB=		-1, %arg3, fioneloop	/* Preadjust and test */
+	addib,COND(=)		-1, %arg3, fioneloop	/* Preadjust and test */
 	movb,<,n	%arg3, %r31, fisync	/* If loop < 0, do sync */
 
 fimanyloop:					/* Loop if LOOP >= 2 */
-	ADDIB>		-1, %r31, fimanyloop	/* Adjusted inner loop decr */
+	addib,COND(>)		-1, %r31, fimanyloop	/* Adjusted inner loop decr */
 	fice            %r0(%sr1, %arg0)
 	fice,m		%arg1(%sr1, %arg0)	/* Last fice and addr adjust */
 	movb,tr		%arg3, %r31, fimanyloop	/* Re-init inner loop count */
-	ADDIB<=,n	-1, %arg2, fisync	/* Outer loop decr */
+	addib,COND(<=),n	-1, %arg2, fisync	/* Outer loop decr */
 
 fioneloop:					/* Loop if LOOP = 1 */
-	ADDIB>		-1, %arg2, fioneloop	/* Outer loop count decr */
+	addib,COND(>)		-1, %arg2, fioneloop	/* Outer loop count decr */
 	fice,m		%arg1(%sr1, %arg0)	/* Fice for one loop */
 
 fisync:
@@ -250,18 +251,18 @@ ENTRY(flush_data_cache_local)
 	LDREG		DCACHE_COUNT(%r1), %arg2
 	LDREG		DCACHE_LOOP(%r1), %arg3
 	rsm		PSW_SM_I, %r22
-	ADDIB=		-1, %arg3, fdoneloop	/* Preadjust and test */
+	addib,COND(=)		-1, %arg3, fdoneloop	/* Preadjust and test */
 	movb,<,n	%arg3, %r31, fdsync	/* If loop < 0, do sync */
 
 fdmanyloop:					/* Loop if LOOP >= 2 */
-	ADDIB>		-1, %r31, fdmanyloop	/* Adjusted inner loop decr */
+	addib,COND(>)		-1, %r31, fdmanyloop	/* Adjusted inner loop decr */
 	fdce		%r0(%sr1, %arg0)
 	fdce,m		%arg1(%sr1, %arg0)	/* Last fdce and addr adjust */
 	movb,tr		%arg3, %r31, fdmanyloop	/* Re-init inner loop count */
-	ADDIB<=,n	-1, %arg2, fdsync	/* Outer loop decr */
+	addib,COND(<=),n	-1, %arg2, fdsync	/* Outer loop decr */
 
 fdoneloop:					/* Loop if LOOP = 1 */
-	ADDIB>		-1, %arg2, fdoneloop	/* Outer loop count decr */
+	addib,COND(>)		-1, %arg2, fdoneloop	/* Outer loop count decr */
 	fdce,m		%arg1(%sr1, %arg0)	/* Fdce for one loop */
 
 fdsync:
@@ -342,7 +343,7 @@ ENTRY(copy_user_page_asm)
 	 * non-taken backward branch. Note that .+4 is a backwards branch.
 	 * The ldd should only get executed if the branch is taken.
 	 */
-	ADDIB>,n	-1, %r1, 1b		/* bundle 10 */
+	addib,COND(>),n	-1, %r1, 1b		/* bundle 10 */
 	ldd		0(%r25), %r19		/* start next loads */
 
 #else
@@ -391,7 +392,7 @@ ENTRY(copy_user_page_asm)
 	stw		%r21, 56(%r26)
 	stw		%r22, 60(%r26)
 	ldo		64(%r26), %r26
-	ADDIB>,n	-1, %r1, 1b
+	addib,COND(>),n	-1, %r1, 1b
 	ldw		0(%r25), %r19
 #endif
 	bv		%r0(%r2)
@@ -515,7 +516,7 @@ ENTRY(copy_user_page_asm)
 	stw		%r21, 56(%r28)
 	stw		%r22, 60(%r28)
 	ldo		64(%r28), %r28
-	ADDIB>		-1, %r1,1b
+	addib,COND(>)		-1, %r1,1b
 	ldo		64(%r29), %r29
 
 	bv		%r0(%r2)
@@ -574,7 +575,7 @@ ENTRY(__clear_user_page_asm)
 	std		%r0, 104(%r28)
 	std		%r0, 112(%r28)
 	std		%r0, 120(%r28)
-	ADDIB>		-1, %r1, 1b
+	addib,COND(>)		-1, %r1, 1b
 	ldo		128(%r28), %r28
 
 #else	/* ! CONFIG_64BIT */
@@ -597,7 +598,7 @@ ENTRY(__clear_user_page_asm)
 	stw		%r0, 52(%r28)
 	stw		%r0, 56(%r28)
 	stw		%r0, 60(%r28)
-	ADDIB>		-1, %r1, 1b
+	addib,COND(>)		-1, %r1, 1b
 	ldo		64(%r28), %r28
 #endif	/* CONFIG_64BIT */
 
@@ -640,7 +641,7 @@ ENTRY(flush_kernel_dcache_page_asm)
 	fdc,m		%r23(%r26)
 	fdc,m		%r23(%r26)
 	fdc,m		%r23(%r26)
-	CMPB<<		%r26, %r25,1b
+	cmpb,COND(<<)		%r26, %r25,1b
 	fdc,m		%r23(%r26)
 
 	sync
@@ -683,7 +684,7 @@ ENTRY(flush_user_dcache_page)
 	fdc,m		%r23(%sr3, %r26)
 	fdc,m		%r23(%sr3, %r26)
 	fdc,m		%r23(%sr3, %r26)
-	CMPB<<		%r26, %r25,1b
+	cmpb,COND(<<)		%r26, %r25,1b
 	fdc,m		%r23(%sr3, %r26)
 
 	sync
@@ -726,7 +727,7 @@ ENTRY(flush_user_icache_page)
 	fic,m		%r23(%sr3, %r26)
 	fic,m		%r23(%sr3, %r26)
 	fic,m		%r23(%sr3, %r26)
-	CMPB<<		%r26, %r25,1b
+	cmpb,COND(<<)		%r26, %r25,1b
 	fic,m		%r23(%sr3, %r26)
 
 	sync
@@ -769,7 +770,7 @@ ENTRY(purge_kernel_dcache_page)
 	pdc,m		%r23(%r26)
 	pdc,m		%r23(%r26)
 	pdc,m		%r23(%r26)
-	CMPB<<		%r26, %r25, 1b
+	cmpb,COND(<<)		%r26, %r25, 1b
 	pdc,m		%r23(%r26)
 
 	sync
@@ -833,7 +834,7 @@ ENTRY(flush_alias_page)
 	fdc,m		%r23(%r28)
 	fdc,m		%r23(%r28)
 	fdc,m		%r23(%r28)
-	CMPB<<		%r28, %r29, 1b
+	cmpb,COND(<<)		%r28, %r29, 1b
 	fdc,m		%r23(%r28)
 
 	sync
@@ -856,7 +857,7 @@ flush_user_dcache_range_asm:
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
 
-1:      CMPB<<,n	%r26, %r25, 1b
+1:      cmpb,COND(<<),n	%r26, %r25, 1b
 	fdc,m		%r23(%sr3, %r26)
 
 	sync
@@ -877,7 +878,7 @@ ENTRY(flush_kernel_dcache_range_asm)
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
 
-1:      CMPB<<,n	%r26, %r25,1b
+1:      cmpb,COND(<<),n	%r26, %r25,1b
 	fdc,m		%r23(%r26)
 
 	sync
@@ -899,7 +900,7 @@ ENTRY(flush_user_icache_range_asm)
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
 
-1:      CMPB<<,n	%r26, %r25,1b
+1:      cmpb,COND(<<),n	%r26, %r25,1b
 	fic,m		%r23(%sr3, %r26)
 
 	sync
@@ -942,7 +943,7 @@ ENTRY(flush_kernel_icache_page)
 	fic,m		%r23(%sr4, %r26)
 	fic,m		%r23(%sr4, %r26)
 	fic,m		%r23(%sr4, %r26)
-	CMPB<<		%r26, %r25, 1b
+	cmpb,COND(<<)		%r26, %r25, 1b
 	fic,m		%r23(%sr4, %r26)
 
 	sync
@@ -963,7 +964,7 @@ ENTRY(flush_kernel_icache_range_asm)
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
 
-1:      CMPB<<,n	%r26, %r25, 1b
+1:      cmpb,COND(<<),n	%r26, %r25, 1b
 	fic,m		%r23(%sr4, %r26)
 
 	sync

@@ -286,8 +286,14 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	t->max_hw_segments = min(t->max_hw_segments, b->max_hw_segments);
 	t->max_segment_size = min(t->max_segment_size, b->max_segment_size);
 	t->hardsect_size = max(t->hardsect_size, b->hardsect_size);
-	if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
+	if (!t->queue_lock)
+		WARN_ON_ONCE(1);
+	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
+		unsigned long flags;
+		spin_lock_irqsave(t->queue_lock, flags);
 		queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
+		spin_unlock_irqrestore(t->queue_lock, flags);
+	}
 }
 EXPORT_SYMBOL(blk_queue_stack_limits);
 

@@ -401,6 +401,14 @@ UNUSUAL_DEV(  0x04a5, 0x3010, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
+UNUSUAL_DEV(  0x04b4, 0x6830, 0x0000, 0x9999,
+		"Cypress",
+		"Cypress AT2LP",
+		US_SC_CYP_ATACB, US_PR_BULK, NULL,
+		0),
+#endif
+
 /* Reported by Simon Levitt <simon@whattf.com>
  * This entry needs Sub and Proto fields */
 UNUSUAL_DEV(  0x04b8, 0x0601, 0x0100, 0x0100,
@@ -539,17 +547,6 @@ UNUSUAL_DEV(  0x04e6, 0x0101, 0x0200, 0x0200,
 		"CD-RW Device",
 		US_SC_8020, US_PR_CB, NULL, 0),
 
-/* Entry and supporting patch by Theodore Kilgore <kilgota@auburn.edu>.
- * Device uses standards-violating 32-byte Bulk Command Block Wrappers and
- * reports itself as "Proprietary SCSI Bulk." Cf. device entry 0x084d:0x0011.
- */
-
-UNUSUAL_DEV(  0x04fc, 0x80c2, 0x0100, 0x0100,
-		"Kobian Mercury",
-		"Binocam DCB-132",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_BULK32),
-
 #ifdef CONFIG_USB_STORAGE_USBAT
 UNUSUAL_DEV(  0x04e6, 0x1010, 0x0000, 0x9999,
 		"Shuttle/SCM",
@@ -564,6 +561,16 @@ UNUSUAL_DEV(  0x04e8, 0x507c, 0x0220, 0x0220,
 		"YP-U3",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64),
+
+/* Entry and supporting patch by Theodore Kilgore <kilgota@auburn.edu>.
+ * Device uses standards-violating 32-byte Bulk Command Block Wrappers and
+ * reports itself as "Proprietary SCSI Bulk." Cf. device entry 0x084d:0x0011.
+ */
+UNUSUAL_DEV(  0x04fc, 0x80c2, 0x0100, 0x0100,
+		"Kobian Mercury",
+		"Binocam DCB-132",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_BULK32),
 
 /* Reported by Bob Sass <rls@vectordb.com> -- only rev 1.33 tested */
 UNUSUAL_DEV(  0x050d, 0x0115, 0x0133, 0x0133,
@@ -1304,6 +1311,16 @@ UNUSUAL_DEV( 0x0ace, 0x20ff, 0x0101, 0x0101,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_DEVICE ),
 
+/* Reported by F. Aben <f.aben@option.com>
+ * This device (wrongly) has a vendor-specific device descriptor.
+ * The entry is needed so usb-storage can bind to it's mass-storage
+ * interface as an interface driver */
+UNUSUAL_DEV( 0x0af0, 0x7401, 0x0000, 0x0000,
+		"Option",
+		"GI 0401 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
 #ifdef CONFIG_USB_STORAGE_ISD200
 UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,
 		"ATI",
@@ -1360,13 +1377,6 @@ UNUSUAL_DEV( 0x0d96, 0x410a, 0x0001, 0xffff,
 		"MD 7425",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY),
-
-/* Reported by Rohan Hart <rohan.hart17@gmail.com> */
-UNUSUAL_DEV(  0x2770, 0x915d, 0x0010, 0x0010,
-		"INTOVA",
-		"Pixtreme",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
 
 /*
  * Entry for Jenoptik JD 5200z3
@@ -1684,6 +1694,16 @@ UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Mauro Andreolini <andreoli@weblab.ing.unimo.it>
+ * This entry is needed to bypass the ZeroCD mechanism
+ * and to properly load as a modem device.
+ */
+UNUSUAL_DEV(  0x19d2, 0x2000, 0x0000, 0x0000,
+		"Onda ET502HS",
+		"USB MMC Storage",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_DEVICE),
+
 /* patch submitted by Davide Perini <perini.davide@dpsoftware.org>
  * and Renato Perini <rperini@email.it>
  */
@@ -1721,6 +1741,13 @@ UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_GO_SLOW ),
 
+/* Reported by Rohan Hart <rohan.hart17@gmail.com> */
+UNUSUAL_DEV(  0x2770, 0x915d, 0x0010, 0x0010,
+		"INTOVA",
+		"Pixtreme",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /*
  * David Härdeman <david@2gen.com>
  * The key makes the SCSI stack print confusing (but harmless) messages
@@ -1744,14 +1771,6 @@ UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
 		"USB4500 FW1.04",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_CAPACITY_HEURISTICS),
-
-#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
-UNUSUAL_DEV(  0x04b4, 0x6830, 0x0000, 0x9999,
-		"Cypress",
-		"Cypress AT2LP",
-		US_SC_CYP_ATACB, US_PR_BULK, NULL,
-		0),
-#endif
 
 /* Control/Bulk transport for all SubClass values */
 USUAL_DEV(US_SC_RBC, US_PR_CB, USB_US_TYPE_STOR),

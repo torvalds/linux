@@ -976,11 +976,15 @@ config SERIAL_68328_RTS_CTS
 	depends on SERIAL_68328
 
 config SERIAL_COLDFIRE
-	bool "ColdFire serial support"
+	bool "ColdFire serial support (DEPRECATED)"
 	depends on COLDFIRE
 	help
 	  This driver supports the built-in serial ports of the Motorola ColdFire
 	  family of CPUs.
+	  This driver is deprecated because it supports only the old interface
+	  for serial drivers and features like magic keys are not working.
+	  Please switch to the new style driver because this driver will be
+	  removed soon.
 
 config SERIAL_MCF
 	bool "Coldfire serial support (new style driver)"

@@ -3830,7 +3830,7 @@ static int __init aha152x_init(void)
 			iounmap(p);
 		}
 		if (!ok && setup_count == 0)
-			return 0;
+			return -ENODEV;
 
 		printk(KERN_INFO "aha152x: BIOS test: passed, ");
 #else
@@ -3909,14 +3909,14 @@ static int __init aha152x_init(void)
 #endif
 	}
 
-	return 1;
+	return 0;
 }
 
 static void __exit aha152x_exit(void)
 {
-	struct aha152x_hostdata *hd;
+	struct aha152x_hostdata *hd, *tmp;
 
-	list_for_each_entry(hd, &aha152x_host_list, host_list) {
+	list_for_each_entry_safe(hd, tmp, &aha152x_host_list, host_list) {
 		struct Scsi_Host *shost = container_of((void *)hd, struct Scsi_Host, hostdata);
 
 		aha152x_release(shost);

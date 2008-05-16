@@ -482,6 +482,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	kobject_init(&q->kobj, &blk_queue_ktype);
 
 	mutex_init(&q->sysfs_lock);
+	spin_lock_init(&q->__queue_lock);
 
 	return q;
 }
@@ -544,10 +545,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	 * if caller didn't supply a lock, they get per-queue locking with
 	 * our embedded lock
 	 */
-	if (!lock) {
-		spin_lock_init(&q->__queue_lock);
+	if (!lock)
 		lock = &q->__queue_lock;
-	}
 
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;

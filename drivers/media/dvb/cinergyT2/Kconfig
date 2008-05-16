@@ -1,6 +1,6 @@
 config DVB_CINERGYT2
 	tristate "Terratec CinergyT2/qanu USB2 DVB-T receiver"
-	depends on DVB_CORE && USB
+	depends on DVB_CORE && USB && INPUT
 	help
 	  Support for "TerraTec CinergyT2" USB2.0 Highspeed DVB Receivers
 
