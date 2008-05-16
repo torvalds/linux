@@ -199,11 +199,12 @@ static inline int efx_process_channel(struct efx_channel *channel, int rx_quota)
  */
 static inline void efx_channel_processed(struct efx_channel *channel)
 {
-	/* Write to EVQ_RPTR_REG.  If a new event arrived in a race
-	 * with finishing processing, a new interrupt will be raised.
-	 */
+	/* The interrupt handler for this channel may set work_pending
+	 * as soon as we acknowledge the events we've seen.  Make sure
+	 * it's cleared before then. */
 	channel->work_pending = 0;
-	smp_wmb(); /* Ensure channel updated before any new interrupt. */
+	smp_wmb();
+
 	falcon_eventq_read_ack(channel);
 }
 
@@ -427,9 +428,12 @@ static void efx_start_channel(struct efx_channel *channel)
 		netif_napi_add(channel->napi_dev, &channel->napi_str,
 			       efx_poll, napi_weight);
 
+	/* The interrupt handler for this channel may set work_pending
+	 * as soon as we enable it.  Make sure it's cleared before
+	 * then.  Similarly, make sure it sees the enabled flag set. */
 	channel->work_pending = 0;
 	channel->enabled = 1;
-	smp_wmb(); /* ensure channel updated before first interrupt */
+	smp_wmb();
 
 	napi_enable(&channel->napi_str);
 
@@ -1332,13 +1336,17 @@ static int efx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
-/* Context: process, dev_base_lock held, non-blocking. */
+/* Context: process, dev_base_lock or RTNL held, non-blocking. */
 static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 {
 	struct efx_nic *efx = net_dev->priv;
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	struct net_device_stats *stats = &net_dev->stats;
 
+	/* Update stats if possible, but do not wait if another thread
+	 * is updating them (or resetting the NIC); slightly stale
+	 * stats are acceptable.
+	 */
 	if (!spin_trylock(&efx->stats_lock))
 		return stats;
 	if (efx->state == STATE_RUNNING) {
