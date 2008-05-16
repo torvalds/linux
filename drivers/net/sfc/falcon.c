@@ -2647,7 +2647,7 @@ void falcon_remove_nic(struct efx_nic *efx)
 
 	falcon_free_buffer(efx, &efx->irq_status);
 
-	(void) falcon_reset_hw(efx, RESET_TYPE_ALL);
+	falcon_reset_hw(efx, RESET_TYPE_ALL);
 
 	/* Release the second function after the reset */
 	if (nic_data->pci_dev2) {

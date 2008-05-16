@@ -454,7 +454,7 @@ static int falcon_check_xaui_link_up(struct efx_nic *efx)
 
 		EFX_LOG(efx, "%s Clobbering XAUI (%d tries left).\n",
 			__func__, tries);
-		(void) falcon_reset_xaui(efx);
+		falcon_reset_xaui(efx);
 		udelay(200);
 		tries--;
 	}
@@ -572,7 +572,7 @@ int falcon_check_xmac(struct efx_nic *efx)
 	xaui_link_ok = falcon_xaui_link_ok(efx);
 
 	if (EFX_WORKAROUND_5147(efx) && !xaui_link_ok)
-		(void) falcon_reset_xaui(efx);
+		falcon_reset_xaui(efx);
 
 	/* Call the PHY check_hw routine */
 	rc = efx->phy_op->check_hw(efx);

@@ -376,7 +376,7 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	 * perform a special software reset */
 	if ((phy_data->tx_disabled && !efx->tx_disabled) ||
 	    loop_change) {
-		(void) tenxpress_special_reset(efx);
+		tenxpress_special_reset(efx);
 		falcon_reset_xaui(efx);
 	}
 

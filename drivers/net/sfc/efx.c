@@ -265,7 +265,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 	napi_disable(&channel->napi_str);
 
 	/* Poll the channel */
-	(void) efx_process_channel(channel, efx->type->evq_size);
+	efx_process_channel(channel, efx->type->evq_size);
 
 	/* Ack the eventq. This may cause an interrupt to be generated
 	 * when they are reenabled */
@@ -1688,7 +1688,7 @@ static int efx_reset(struct efx_nic *efx)
 	if (method == RESET_TYPE_DISABLE) {
 		/* Reinitialise the device anyway so the driver unload sequence
 		 * can talk to the external SRAM */
-		(void) falcon_init_nic(efx);
+		falcon_init_nic(efx);
 		rc = -EIO;
 		goto fail4;
 	}
