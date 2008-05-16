@@ -4,6 +4,7 @@
 #ifdef CONFIG_FTRACE
 
 #include <linux/linkage.h>
+#include <linux/fs.h>
 
 extern int ftrace_enabled;
 extern int
