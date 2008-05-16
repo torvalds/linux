@@ -181,7 +181,7 @@ static int hidraw_open(struct inode *inode, struct file *file)
 
 	dev = hidraw_table[minor];
 	if (!dev->open++)
-		dev->hid->hid_open(dev->hid);
+		dev->hid->ll_driver->open(dev->hid);
 
 out_unlock:
 	spin_unlock(&minors_lock);
@@ -207,7 +207,7 @@ static int hidraw_release(struct inode * inode, struct file * file)
 	dev = hidraw_table[minor];
 	if (!dev->open--) {
 		if (list->hidraw->exist)
-			dev->hid->hid_close(dev->hid);
+			dev->hid->ll_driver->close(dev->hid);
 		else
 			kfree(list->hidraw);
 	}
@@ -367,7 +367,7 @@ void hidraw_disconnect(struct hid_device *hid)
 	device_destroy(hidraw_class, MKDEV(hidraw_major, hidraw->minor));
 
 	if (hidraw->open) {
-		hid->hid_close(hid);
+		hid->ll_driver->close(hid);
 		wake_up_interruptible(&hidraw->wait);
 	} else {
 		kfree(hidraw);

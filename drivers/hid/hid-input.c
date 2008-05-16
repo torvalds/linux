@@ -390,6 +390,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	if (ret)
 		goto mapped;
 
+	if (device->driver->input_mapping) {
+		int ret = device->driver->input_mapping(device, hidinput, field,
+				usage, &bit, &max);
+		if (ret > 0)
+			goto mapped;
+		if (ret < 0)
+			goto ignore;
+	}
+
 	switch (usage->hid & HID_USAGE_PAGE) {
 
 		case HID_UP_UNDEFINED:
@@ -755,6 +764,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	}
 
 mapped:
+	if (device->driver->input_mapped && device->driver->input_mapped(device,
+				hidinput, field, usage, &bit, &max) < 0)
+		goto ignore;
+
 	if (device->quirks & HID_QUIRK_MIGHTYMOUSE) {
 		if (usage->hid == HID_GD_Z)
 			map_rel(REL_HWHEEL);
@@ -961,14 +974,14 @@ static int hidinput_open(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	return hid->hid_open(hid);
+	return hid->ll_driver->open(hid);
 }
 
 static void hidinput_close(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	hid->hid_close(hid);
+	hid->ll_driver->close(hid);
 }
 
 /*
@@ -1019,7 +1032,8 @@ int hidinput_connect(struct hid_device *hid)
 				}
 
 				input_set_drvdata(input_dev, hid);
-				input_dev->event = hid->hidinput_input_event;
+				input_dev->event =
+					hid->ll_driver->hidinput_input_event;
 				input_dev->open = hidinput_open;
 				input_dev->close = hidinput_close;
 				input_dev->setkeycode = hidinput_setkeycode;

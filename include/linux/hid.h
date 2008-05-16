@@ -419,6 +419,7 @@ struct hid_control_fifo {
 #define HID_CLAIMED_HIDRAW	4
 
 #define HID_STAT_ADDED		1
+#define HID_STAT_PARSED		2
 
 #define HID_CTRL_RUNNING	1
 #define HID_OUT_RUNNING		2
@@ -435,6 +436,7 @@ struct hid_input {
 };
 
 struct hid_driver;
+struct hid_ll_driver;
 
 struct hid_device {							/* device report descriptor */
 	__u8 *rdesc;
@@ -452,6 +454,7 @@ struct hid_device {							/* device report descriptor */
 
 	struct device dev;						/* device */
 	struct hid_driver *driver;
+	struct hid_ll_driver *ll_driver;
 
 	unsigned int status;						/* see STAT flags above */
 	unsigned claimed;						/* Claimed by hidinput, hiddev? */
@@ -470,11 +473,6 @@ struct hid_device {							/* device report descriptor */
 	void *driver_data;
 
 	__s32 delayed_value;						/* For A4 Tech mice hwheel quirk */
-
-	/* device-specific function pointers */
-	int (*hidinput_input_event) (struct input_dev *, unsigned int, unsigned int, int);
-	int (*hid_open) (struct hid_device *);
-	void (*hid_close) (struct hid_device *);
 
 	/* hiddev event handler */
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,
@@ -561,9 +559,22 @@ struct hid_usage_id {
  * @raw_event: if report in report_table, this hook is called (NULL means nop)
  * @usage_table: on which events to call event (NULL means all)
  * @event: if usage in usage_table, this hook is called (NULL means nop)
+ * @report_fixup: called before report descriptor parsing (NULL means nop)
+ * @input_mapping: invoked on input registering before mapping an usage
+ * @input_mapped: invoked on input registering after mapping an usage
  *
  * raw_event and event should return 0 on no action performed, 1 when no
  * further processing should be done and negative on error
+ *
+ * input_mapping shall return a negative value to completely ignore this usage
+ * (e.g. doubled or invalid usage), zero to continue with parsing of this
+ * usage by generic code (no special handling needed) or positive to skip
+ * generic parsing (needed special handling which was done in the hook already)
+ * input_mapped shall return negative to inform the layer that this usage
+ * should not be considered for further processing or zero to notify that
+ * no processing was performed and should be done in a generic manner
+ * Both these functions may be NULL which means the same behavior as returning
+ * zero from them.
  */
 struct hid_driver {
 	char *name;
@@ -578,8 +589,41 @@ struct hid_driver {
 	const struct hid_usage_id *usage_table;
 	int (*event)(struct hid_device *hdev, struct hid_field *field,
 			struct hid_usage *usage, __s32 value);
+
+	void (*report_fixup)(struct hid_device *hdev, __u8 *buf,
+			unsigned int size);
+
+	int (*input_mapping)(struct hid_device *hdev,
+			struct hid_input *hidinput, struct hid_field *field,
+			struct hid_usage *usage, unsigned long **bit, int *max);
+	int (*input_mapped)(struct hid_device *hdev,
+			struct hid_input *hidinput, struct hid_field *field,
+			struct hid_usage *usage, unsigned long **bit, int *max);
 /* private: */
 	struct device_driver driver;
+};
+
+/**
+ * hid_ll_driver - low level driver callbacks
+ * @start: called on probe to start the device
+ * @stop: called on remove
+ * @open: called by input layer on open
+ * @close: called by input layer on close
+ * @hidinput_input_event: event input event (e.g. ff or leds)
+ * @parse: this method is called only once to parse the device data,
+ *	   shouldn't allocate anything to not leak memory
+ */
+struct hid_ll_driver {
+	int (*start)(struct hid_device *hdev);
+	void (*stop)(struct hid_device *hdev);
+
+	int (*open)(struct hid_device *hdev);
+	void (*close)(struct hid_device *hdev);
+
+	int (*hidinput_input_event) (struct input_dev *idev, unsigned int type,
+			unsigned int code, int value);
+
+	int (*parse)(struct hid_device *hdev);
 };
 
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
@@ -617,6 +661,56 @@ int hidinput_apple_event(struct hid_device *, struct input_dev *, struct hid_usa
 void hid_output_report(struct hid_report *report, __u8 *data);
 struct hid_device *hid_allocate_device(void);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
+
+/**
+ * hid_parse - parse HW reports
+ *
+ * @hdev: hid device
+ *
+ * Call this from probe after you set up the device (if needed). Your
+ * report_fixup will be called (if non-NULL) after reading raw report from
+ * device before passing it to hid layer for real parsing.
+ */
+static inline int __must_check hid_parse(struct hid_device *hdev)
+{
+	int ret;
+
+	if (hdev->status & HID_STAT_PARSED)
+		return 0;
+
+	ret = hdev->ll_driver->parse(hdev);
+	if (!ret)
+		hdev->status |= HID_STAT_PARSED;
+
+	return ret;
+}
+
+/**
+ * hid_hw_start - start underlaying HW
+ *
+ * @hdev: hid device
+ *
+ * Call this in probe function *after* hid_parse. This will setup HW buffers
+ * and start the device (if not deffered to device open). hid_hw_stop must be
+ * called if this was successfull.
+ */
+static inline int __must_check hid_hw_start(struct hid_device *hdev)
+{
+	return hdev->ll_driver->start(hdev);
+}
+
+/**
+ * hid_hw_stop - stop underlaying HW
+ *
+ * @hdev: hid device
+ *
+ * This is usually called from remove function or from probe when something
+ * failed and hid_hw_start was called already.
+ */
+static inline void hid_hw_stop(struct hid_device *hdev)
+{
+	hdev->ll_driver->stop(hdev);
+}
 
 void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt);

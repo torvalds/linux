@@ -648,6 +648,9 @@ int hid_parse_report(struct hid_device *device, __u8 *start,
 		hid_parser_reserved
 	};
 
+	if (device->driver->report_fixup)
+		device->driver->report_fixup(device, start, size);
+
 	device->rdesc = kmalloc(size, GFP_KERNEL);
 	if (device->rdesc == NULL)
 		return -ENOMEM;
@@ -1152,15 +1155,20 @@ static int hid_device_probe(struct device *dev)
 	int ret = 0;
 
 	if (!hdev->driver) {
-		if (hdrv->probe) {
-			ret = -ENODEV;
+		id = hid_match_id(hdev, hdrv->id_table);
+		if (id == NULL)
+			return -ENODEV;
 
-			id = hid_match_id(hdev, hdrv->id_table);
-			if (id)
-				ret = hdrv->probe(hdev, id);
+		hdev->driver = hdrv;
+		if (hdrv->probe) {
+			ret = hdrv->probe(hdev, id);
+		} else { /* default probe */
+			ret = hid_parse(hdev);
+			if (!ret)
+				ret = hid_hw_start(hdev);
 		}
-		if (!ret)
-			hdev->driver = hdrv;
+		if (ret)
+			hdev->driver = NULL;
 	}
 	return ret;
 }
@@ -1173,6 +1181,8 @@ static int hid_device_remove(struct device *dev)
 	if (hdrv) {
 		if (hdrv->remove)
 			hdrv->remove(hdev);
+		else /* default remove */
+			hid_hw_stop(hdev);
 		hdev->driver = NULL;
 	}
 
