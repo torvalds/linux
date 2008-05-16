@@ -2665,7 +2665,7 @@ static void release_dev(struct file *filp)
  *		 ->siglock protects ->signal/->sighand
  */
 
-static int tty_open(struct inode *inode, struct file *filp)
+static int __tty_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
 	int noctty, retval;
@@ -2779,6 +2779,19 @@ got_driver:
 	return 0;
 }
 
+/* BKL pushdown: scary code avoidance wrapper */
+static int tty_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	lock_kernel();
+	ret = __tty_open(inode, filp);
+	unlock_kernel();
+	return ret;
+}
+
+
+
 #ifdef CONFIG_UNIX98_PTYS
 /**
  *	ptmx_open		-	open a unix 98 pty master
@@ -2792,7 +2805,7 @@ got_driver:
  *		allocated_ptys_lock handles the list of free pty numbers
  */
 
-static int ptmx_open(struct inode *inode, struct file *filp)
+static int __ptmx_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
 	int retval;
@@ -2830,6 +2843,16 @@ out1:
 out:
 	devpts_kill_index(index);
 	return retval;
+}
+
+static int ptmx_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	lock_kernel();
+	ret = __ptmx_open(inode, filp);
+	unlock_kernel();
+	return ret;
 }
 #endif
 
