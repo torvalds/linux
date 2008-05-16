@@ -793,7 +793,7 @@ static int efx_init_io(struct efx_nic *efx)
  fail4:
 	release_mem_region(efx->membase_phys, efx->type->mem_map_size);
  fail3:
-	efx->membase_phys = 0UL;
+	efx->membase_phys = 0;
  fail2:
 	pci_disable_device(efx->pci_dev);
  fail1:
@@ -811,7 +811,7 @@ static void efx_fini_io(struct efx_nic *efx)
 
 	if (efx->membase_phys) {
 		pci_release_region(efx->pci_dev, efx->type->mem_bar);
-		efx->membase_phys = 0UL;
+		efx->membase_phys = 0;
 	}
 
 	pci_disable_device(efx->pci_dev);
