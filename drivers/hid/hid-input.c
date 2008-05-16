@@ -58,19 +58,6 @@ static const unsigned char hid_keyboard[256] = {
 	150,158,159,128,136,177,178,176,142,152,173,140,unk,unk,unk,unk
 };
 
-/* extended mapping for certain Logitech hardware (Logitech cordless desktop LX500) */
-#define LOGITECH_EXPANDED_KEYMAP_SIZE 80
-static int logitech_expanded_keymap[LOGITECH_EXPANDED_KEYMAP_SIZE] = {
-	  0,216,  0,213,175,156,  0,  0,  0,  0,
-	144,  0,  0,  0,  0,  0,  0,  0,  0,212,
-	174,167,152,161,112,  0,  0,  0,154,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,183,184,185,186,187,
-	188,189,190,191,192,193,194,  0,  0,  0
-};
-
 static const struct {
 	__s32 x;
 	__s32 y;
@@ -437,21 +424,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 					}
 			}
 
-			/* Special handling for Logitech Cordless Desktop */
-			if (field->application != HID_GD_MOUSE) {
-				if (device->quirks & HID_QUIRK_LOGITECH_EXPANDED_KEYMAP) {
-					int hid = usage->hid & HID_USAGE;
-					if (hid < LOGITECH_EXPANDED_KEYMAP_SIZE && logitech_expanded_keymap[hid] != 0)
-						code = logitech_expanded_keymap[hid];
-				}
-			} else {
-				if (device->quirks & HID_QUIRK_LOGITECH_IGNORE_DOUBLED_WHEEL) {
-					int hid = usage->hid & HID_USAGE;
-					if (hid == 7 || hid == 8)
-						goto ignore;
-				}
-			}
-
 			map_key(code);
 			break;
 
@@ -788,17 +760,7 @@ mapped:
 		|| ((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007)))
 		goto ignore;
 
-	if ((device->quirks & HID_QUIRK_BAD_RELATIVE_KEYS) &&
-		usage->type == EV_KEY && (field->flags & HID_MAIN_ITEM_RELATIVE))
-		field->flags &= ~HID_MAIN_ITEM_RELATIVE;
-
 	set_bit(usage->type, input->evbit);
-
-	if (device->quirks & HID_QUIRK_DUPLICATE_USAGES &&
-			(usage->type == EV_KEY ||
-			 usage->type == EV_REL ||
-			 usage->type == EV_ABS))
-		clear_bit(usage->code, bit);
 
 	while (usage->code <= max && test_and_set_bit(usage->code, bit))
 		usage->code = find_next_zero_bit(bit, max + 1, usage->code);

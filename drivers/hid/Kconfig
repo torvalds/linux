@@ -67,4 +67,17 @@ config HIDRAW
 
 source "drivers/hid/usbhid/Kconfig"
 
+menu "Special HID drivers"
+	depends on HID
+
+config HID_LOGITECH
+	tristate "Logitech"
+	default m
+	depends on USB_HID
+	---help---
+	Support for some Logitech devices which breaks less or more
+	HID specification.
+
+endmenu
+
 endif # HID_SUPPORT
