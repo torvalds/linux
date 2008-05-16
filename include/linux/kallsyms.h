@@ -83,22 +83,26 @@ __attribute__((format(printf,1,2)));
 static inline void __check_printsym_format(const char *fmt, ...)
 {
 }
-/* ia64 and ppc64 use function descriptors, which contain the real address */
-#if defined(CONFIG_IA64) || defined(CONFIG_PPC64)
-#define print_fn_descriptor_symbol(fmt, addr)		\
-do {						\
-	unsigned long *__faddr = (unsigned long*) addr;		\
-	print_symbol(fmt, __faddr[0]);		\
-} while (0)
-#else
-#define print_fn_descriptor_symbol(fmt, addr) print_symbol(fmt, addr)
-#endif
 
 static inline void print_symbol(const char *fmt, unsigned long addr)
 {
 	__check_printsym_format(fmt, "");
 	__print_symbol(fmt, (unsigned long)
 		       __builtin_extract_return_addr((void *)addr));
+}
+
+/*
+ * Pretty-print a function pointer.
+ *
+ * ia64 and ppc64 function pointers are really function descriptors,
+ * which contain a pointer the real address.
+ */
+static inline void print_fn_descriptor_symbol(const char *fmt, void *addr)
+{
+#if defined(CONFIG_IA64) || defined(CONFIG_PPC64)
+	addr = *(void **)addr;
+#endif
+	print_symbol(fmt, (unsigned long)addr);
 }
 
 #ifndef CONFIG_64BIT

@@ -706,8 +706,7 @@ static void __init do_initcalls(void)
 		int result;
 
 		if (initcall_debug) {
-			print_fn_descriptor_symbol("calling  %s()\n",
-					(unsigned long) *call);
+			print_fn_descriptor_symbol("calling  %s\n", *call);
 			t0 = ktime_get();
 		}
 
@@ -717,8 +716,7 @@ static void __init do_initcalls(void)
 			t1 = ktime_get();
 			delta = ktime_sub(t1, t0);
 
-			print_fn_descriptor_symbol("initcall %s()",
-					(unsigned long) *call);
+			print_fn_descriptor_symbol("initcall %s", *call);
 			printk(" returned %d after %Ld msecs\n", result,
 				(unsigned long long) delta.tv64 >> 20);
 		}
@@ -737,8 +735,7 @@ static void __init do_initcalls(void)
 			local_irq_enable();
 		}
 		if (msgbuf[0]) {
-			print_fn_descriptor_symbol(KERN_WARNING "initcall %s()",
-					(unsigned long) *call);
+			print_fn_descriptor_symbol(KERN_WARNING "initcall %s", *call);
 			printk(" returned with %s\n", msgbuf);
 		}
 	}
