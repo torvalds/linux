@@ -366,6 +366,7 @@
 
 /* PM_WKEN_WKUP specific bits */
 #define OMAP3430_EN_IO					(1 << 8)
+#define OMAP3430_EN_GPIO1				(1 << 3)
 
 /* PM_MPUGRPSEL_WKUP specific bits */
 
@@ -452,6 +453,14 @@
 #define OMAP3430_CMDRA0_MASK				(0xff << 0)
 
 /* PRM_VC_CMD_VAL_0 specific bits */
+#define OMAP3430_VC_CMD_ON_SHIFT			24
+#define OMAP3430_VC_CMD_ON_MASK				(0xFF << 24)
+#define OMAP3430_VC_CMD_ONLP_SHIFT			16
+#define OMAP3430_VC_CMD_ONLP_MASK			(0xFF << 16)
+#define OMAP3430_VC_CMD_RET_SHIFT			8
+#define OMAP3430_VC_CMD_RET_MASK			(0xFF << 8)
+#define OMAP3430_VC_CMD_OFF_SHIFT			0
+#define OMAP3430_VC_CMD_OFF_MASK			(0xFF << 0)
 
 /* PRM_VC_CMD_VAL_1 specific bits */
 
