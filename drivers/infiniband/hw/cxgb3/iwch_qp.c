@@ -229,7 +229,7 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr)
 {
 	int err = 0;
-	u8 t3_wr_flit_cnt;
+	u8 uninitialized_var(t3_wr_flit_cnt);
 	enum t3_wr_opcode t3_wr_opcode = 0;
 	enum t3_wr_flags t3_wr_flags;
 	struct iwch_qp *qhp;
