@@ -81,6 +81,39 @@ static struct {
 #endif /* CONFIG_CIFS_WEAK_PW_HASH */
 #endif /* CIFS_POSIX */
 
+/* Allocates buffer into dst and copies smb string from src to it.
+ * caller is responsible for freeing dst if function returned 0.
+ * returns:
+ * 	on success - 0
+ *	on failure - errno
+ */
+static int
+cifs_strncpy_to_host(char **dst, const char *src, const int maxlen,
+		 const bool is_unicode, const struct nls_table *nls_codepage)
+{
+	int plen;
+
+	if (is_unicode) {
+		plen = UniStrnlen((wchar_t *)src, maxlen);
+		*dst = kmalloc(plen + 2, GFP_KERNEL);
+		if (!*dst)
+			goto cifs_strncpy_to_host_ErrExit;
+		cifs_strfromUCS_le(*dst, (__le16 *)src, plen, nls_codepage);
+	} else {
+		plen = strnlen(src, maxlen);
+		*dst = kmalloc(plen + 2, GFP_KERNEL);
+		if (!*dst)
+			goto cifs_strncpy_to_host_ErrExit;
+		strncpy(*dst, src, plen);
+	}
+	(*dst)[plen] = 0;
+	return 0;
+
+cifs_strncpy_to_host_ErrExit:
+	cERROR(1, ("Failed to allocate buffer for string\n"));
+	return -ENOMEM;
+}
+
 
 /* Mark as invalid, all open files on tree connections since they
    were closed when session to server was lost */
@@ -3867,6 +3900,96 @@ GetInodeNumOut:
 	return rc;
 }
 
+/* parses DFS refferal V3 structure
+ * caller is responsible for freeing target_nodes
+ * returns:
+ * 	on success - 0
+ *	on failure - errno
+ */
+static int
+parse_DFS_REFERRALS(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
+		unsigned int *num_of_nodes,
+		struct dfs_info3_param **target_nodes,
+		const struct nls_table *nls_codepage)
+{
+	int i, rc = 0;
+	char *data_end;
+	bool is_unicode;
+	struct dfs_referral_level_3 *ref;
+
+	is_unicode = pSMBr->hdr.Flags2 & SMBFLG2_UNICODE;
+	*num_of_nodes = le16_to_cpu(pSMBr->NumberOfReferrals);
+
+	if (*num_of_nodes < 1) {
+		cERROR(1, ("num_referrals: must be at least > 0,"
+			"but we get num_referrals = %d\n", *num_of_nodes));
+		rc = -EINVAL;
+		goto parse_DFS_REFERRALS_exit;
+	}
+
+	ref = (struct dfs_referral_level_3 *) &(pSMBr->referrals);
+	if (ref->VersionNumber != 3) {
+		cERROR(1, ("Referrals of V%d version are not supported,"
+			"should be V3", ref->VersionNumber));
+		rc = -EINVAL;
+		goto parse_DFS_REFERRALS_exit;
+	}
+
+	/* get the upper boundary of the resp buffer */
+	data_end = (char *)(&(pSMBr->PathConsumed)) +
+				le16_to_cpu(pSMBr->t2.DataCount);
+
+	cFYI(1, ("num_referrals: %d dfs flags: 0x%x ... \n",
+			*num_of_nodes,
+			le16_to_cpu(pSMBr->DFSFlags)));
+
+	*target_nodes = kzalloc(sizeof(struct dfs_info3_param) *
+			*num_of_nodes, GFP_KERNEL);
+	if (*target_nodes == NULL) {
+		cERROR(1, ("Failed to allocate buffer for target_nodes\n"));
+		rc = -ENOMEM;
+		goto parse_DFS_REFERRALS_exit;
+	}
+
+	/* collect neccessary data from referrals */
+	for (i = 0; i < *num_of_nodes; i++) {
+		char *temp;
+		int max_len;
+		struct dfs_info3_param *node = (*target_nodes)+i;
+
+		node->flags = le16_to_cpu(pSMBr->DFSFlags);
+		node->path_consumed = le16_to_cpu(pSMBr->PathConsumed);
+		node->server_type = le16_to_cpu(ref->ServerType);
+		node->ref_flag = le16_to_cpu(ref->ReferralEntryFlags);
+
+		/* copy DfsPath */
+		temp = (char *)ref + le16_to_cpu(ref->DfsPathOffset);
+		max_len = data_end - temp;
+		rc = cifs_strncpy_to_host(&(node->path_name), temp,
+					max_len, is_unicode, nls_codepage);
+		if (rc)
+			goto parse_DFS_REFERRALS_exit;
+
+		/* copy link target UNC */
+		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
+		max_len = data_end - temp;
+		rc = cifs_strncpy_to_host(&(node->node_name), temp,
+					max_len, is_unicode, nls_codepage);
+		if (rc)
+			goto parse_DFS_REFERRALS_exit;
+
+		ref += ref->Size;
+	}
+
+parse_DFS_REFERRALS_exit:
+	if (rc) {
+		free_dfs_info_array(*target_nodes, *num_of_nodes);
+		*target_nodes = NULL;
+		*num_of_nodes = 0;
+	}
+	return rc;
+}
+
 int
 CIFSGetDFSRefer(const int xid, struct cifsSesInfo *ses,
 		const unsigned char *searchName,
@@ -3877,12 +4000,9 @@ CIFSGetDFSRefer(const int xid, struct cifsSesInfo *ses,
 /* TRANS2_GET_DFS_REFERRAL */
 	TRANSACTION2_GET_DFS_REFER_REQ *pSMB = NULL;
 	TRANSACTION2_GET_DFS_REFER_RSP *pSMBr = NULL;
-	struct dfs_referral_level_3 *referrals = NULL;
 	int rc = 0;
 	int bytes_returned;
 	int name_len;
-	unsigned int i;
-	char *temp;
 	__u16 params, byte_count;
 	*num_of_nodes = 0;
 	*target_nodes = NULL;
@@ -3960,80 +4080,19 @@ getDFSRetry:
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 	/* BB Also check if enough total bytes returned? */
-	if (rc || (pSMBr->ByteCount < 17))
+	if (rc || (pSMBr->ByteCount < 17)) {
 		rc = -EIO;      /* bad smb */
-	else {
-		__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
-		__u16 data_count = le16_to_cpu(pSMBr->t2.DataCount);
-
-		cFYI(1, ("Decoding GetDFSRefer response BCC: %d  Offset %d",
-			 pSMBr->ByteCount, data_offset));
-		referrals =
-		    (struct dfs_referral_level_3 *)
-				(8 /* sizeof start of data block */ +
-				data_offset +
-				(char *) &pSMBr->hdr.Protocol);
-		cFYI(1, ("num_referrals: %d dfs flags: 0x%x ... \n"
-			"for referral one refer size: 0x%x srv "
-			"type: 0x%x refer flags: 0x%x ttl: 0x%x",
-			le16_to_cpu(pSMBr->NumberOfReferrals),
-			le16_to_cpu(pSMBr->DFSFlags),
-			le16_to_cpu(referrals->ReferralSize),
-			le16_to_cpu(referrals->ServerType),
-			le16_to_cpu(referrals->ReferralFlags),
-			le16_to_cpu(referrals->TimeToLive)));
-		/* BB This field is actually two bytes in from start of
-		   data block so we could do safety check that DataBlock
-		   begins at address of pSMBr->NumberOfReferrals */
-		*num_of_nodes = le16_to_cpu(pSMBr->NumberOfReferrals);
-
-		/* BB Fix below so can return more than one referral */
-		if (*num_of_nodes > 1)
-			*num_of_nodes = 1;
-
-		/* get the length of the strings describing refs */
-		name_len = 0;
-		for (i = 0; i < *num_of_nodes; i++) {
-			/* make sure that DfsPathOffset not past end */
-			__u16 offset = le16_to_cpu(referrals->DfsPathOffset);
-			if (offset > data_count) {
-				/* if invalid referral, stop here and do
-				not try to copy any more */
-				*num_of_nodes = i;
-				break;
-			}
-			temp = ((char *)referrals) + offset;
-
-			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) {
-				name_len += UniStrnlen((wchar_t *)temp,
-							data_count);
-			} else {
-				name_len += strnlen(temp, data_count);
-			}
-			referrals++;
-			/* BB add check that referral pointer does
-			   not fall off end PDU */
-		}
-		/* BB add check for name_len bigger than bcc */
-		*target_nodes =
-			kmalloc(name_len+1+(*num_of_nodes),
-				GFP_KERNEL);
-		if (*target_nodes == NULL) {
-			rc = -ENOMEM;
-			goto GetDFSRefExit;
-		}
-
-		referrals = (struct dfs_referral_level_3 *)
-				(8 /* sizeof data hdr */ + data_offset +
-				(char *) &pSMBr->hdr.Protocol);
-
-		for (i = 0; i < *num_of_nodes; i++) {
-			temp = ((char *)referrals) +
-				  le16_to_cpu(referrals->DfsPathOffset);
-			/*  BB update target_uncs pointers */
-			referrals++;
-		}
+		goto GetDFSRefExit;
 	}
+
+	cFYI(1, ("Decoding GetDFSRefer response BCC: %d  Offset %d",
+				pSMBr->ByteCount,
+				le16_to_cpu(pSMBr->t2.DataOffset)));
+
+	/* parse returned result into more usable form */
+	rc = parse_DFS_REFERRALS(pSMBr, num_of_nodes,
+				 target_nodes, nls_codepage);
+
 GetDFSRefExit:
 	if (pSMB)
 		cifs_buf_release(pSMB);

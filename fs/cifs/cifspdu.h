@@ -1906,17 +1906,15 @@ typedef struct smb_com_transaction2_get_dfs_refer_req {
 
 typedef struct dfs_referral_level_3 {
 	__le16 VersionNumber;
-	__le16 ReferralSize;
-	__le16 ServerType;	/* 0x0001 = CIFS server */
-	__le16 ReferralFlags;	/* or proximity - not clear which since it is
-				   always set to zero - SNIA spec says 0x01
-				   means strip off PathConsumed chars before
-				   submitting RequestFileName to remote node */
-	__le16 TimeToLive;
-	__le16 Proximity;
+	__le16 Size;
+	__le16 ServerType; /* 0x0001 = root targets; 0x0000 = link targets */
+	__le16 ReferralEntryFlags; /* 0x0200 bit set only for domain
+				      or DC referral responce */
+	__le32 TimeToLive;
 	__le16 DfsPathOffset;
 	__le16 DfsAlternatePathOffset;
-	__le16 NetworkAddressOffset;
+	__le16 NetworkAddressOffset; /* offset of the link target */
+	__le16 ServiceSiteGuid;
 } __attribute__((packed)) REFERRAL3;
 
 typedef struct smb_com_transaction_get_dfs_refer_rsp {
