@@ -17,7 +17,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/byteorder/generic.h>
+#include <asm/byteorder.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/unaligned.h>
 #include "snsc.h"
