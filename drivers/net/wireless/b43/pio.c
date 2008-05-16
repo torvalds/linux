@@ -509,7 +509,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 	} else {
 		/* Decide by priority where to put this frame. */
-		q = select_queue_by_priority(dev, info->queue);
+		q = select_queue_by_priority(dev, skb_get_queue_mapping(skb));
 	}
 
 	spin_lock_irqsave(&q->lock, flags);
@@ -532,7 +532,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	if (total_len > (q->buffer_size - q->buffer_used)) {
 		/* Not enough memory on the queue. */
 		err = -EBUSY;
-		ieee80211_stop_queue(dev->wl->hw, info->queue);
+		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
 		q->stopped = 1;
 		goto out_unlock;
 	}
@@ -540,7 +540,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	/* Assign the queue number to the ring (if not already done before)
 	 * so TX status handling can use it. The mac80211-queue to b43-queue
 	 * mapping is static, so we don't need to store it per frame. */
-	q->queue_prio = info->queue;
+	q->queue_prio = skb_get_queue_mapping(skb);
 
 	err = pio_tx_frame(q, skb);
 	if (unlikely(err == -ENOKEY)) {
@@ -560,7 +560,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	if (((q->buffer_size - q->buffer_used) < roundup(2 + 2 + 6, 4)) ||
 	    (q->free_packet_slots == 0)) {
 		/* The queue is full. */
-		ieee80211_stop_queue(dev->wl->hw, info->queue);
+		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
 		q->stopped = 1;
 	}
 

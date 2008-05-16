@@ -407,7 +407,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			last_addr = range->end_addr;
 			__skb_unlink(entry, &priv->tx_queue);
 			memset(&info->status, 0, sizeof(info->status));
-			priv->tx_stats[info->queue].len--;
+			priv->tx_stats[skb_get_queue_mapping(skb)].len--;
 			entry_hdr = (struct p54_control_hdr *) entry->data;
 			entry_data = (struct p54_tx_control_allocdata *) entry_hdr->data;
 			if ((entry_hdr->magic1 & cpu_to_le16(0x4000)) != 0)
@@ -551,13 +551,13 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	size_t padding, len;
 	u8 rate;
 
-	current_queue = &priv->tx_stats[info->queue];
+	current_queue = &priv->tx_stats[skb_get_queue_mapping(skb)];
 	if (unlikely(current_queue->len > current_queue->limit))
 		return NETDEV_TX_BUSY;
 	current_queue->len++;
 	current_queue->count++;
 	if (current_queue->len == current_queue->limit)
-		ieee80211_stop_queue(dev, info->queue);
+		ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
 
 	padding = (unsigned long)(skb->data - (sizeof(*hdr) + sizeof(*txhdr))) & 3;
 	len = skb->len;
@@ -589,7 +589,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	memset(txhdr->rateset, rate, 8);
 	txhdr->wep_key_present = 0;
 	txhdr->wep_key_len = 0;
-	txhdr->frame_type = cpu_to_le32(info->queue + 4);
+	txhdr->frame_type = cpu_to_le32(skb_get_queue_mapping(skb) + 4);
 	txhdr->magic4 = 0;
 	txhdr->antenna = (info->antenna_sel_tx == 0) ?
 		2 : info->antenna_sel_tx - 1;

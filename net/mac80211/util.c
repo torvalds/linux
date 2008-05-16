@@ -331,17 +331,15 @@ void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (test_and_clear_bit(IEEE80211_LINK_STATE_XOFF,
-			       &local->state[queue])) {
-		if (test_bit(IEEE80211_LINK_STATE_PENDING,
-			     &local->state[queue]))
-			tasklet_schedule(&local->tx_pending_tasklet);
-		else
-			if (!ieee80211_qdisc_installed(local->mdev)) {
-				if (queue == 0)
-					netif_wake_queue(local->mdev);
-			} else
-				__netif_schedule(local->mdev);
+	if (test_bit(queue, local->queues_pending)) {
+		tasklet_schedule(&local->tx_pending_tasklet);
+	} else {
+		if (ieee80211_is_multiqueue(local)) {
+			netif_wake_subqueue(local->mdev, queue);
+		} else {
+			WARN_ON(queue != 0);
+			netif_wake_queue(local->mdev);
+		}
 	}
 }
 EXPORT_SYMBOL(ieee80211_wake_queue);
@@ -350,9 +348,12 @@ void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (!ieee80211_qdisc_installed(local->mdev) && queue == 0)
+	if (ieee80211_is_multiqueue(local)) {
+		netif_stop_subqueue(local->mdev, queue);
+	} else {
+		WARN_ON(queue != 0);
 		netif_stop_queue(local->mdev);
-	set_bit(IEEE80211_LINK_STATE_XOFF, &local->state[queue]);
+	}
 }
 EXPORT_SYMBOL(ieee80211_stop_queue);
 
@@ -360,7 +361,7 @@ void ieee80211_stop_queues(struct ieee80211_hw *hw)
 {
 	int i;
 
-	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
+	for (i = 0; i < ieee80211_num_queues(hw); i++)
 		ieee80211_stop_queue(hw, i);
 }
 EXPORT_SYMBOL(ieee80211_stop_queues);

@@ -594,7 +594,7 @@ struct ieee80211_local {
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 
-	unsigned long state[IEEE80211_MAX_QUEUES + IEEE80211_MAX_AMPDU_QUEUES];
+	unsigned long queues_pending[BITS_TO_LONGS(IEEE80211_MAX_QUEUES)];
 	struct ieee80211_tx_stored_packet pending_packet[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
 
@@ -758,6 +758,15 @@ struct ieee80211_local {
 #endif
 };
 
+static inline int ieee80211_is_multiqueue(struct ieee80211_local *local)
+{
+#ifdef CONFIG_MAC80211_QOS
+	return netif_is_multiqueue(local->mdev);
+#else
+	return 0;
+#endif
+}
+
 /* this struct represents 802.11n's RA/TID combination */
 struct ieee80211_ra_tid {
 	u8 ra[ETH_ALEN];
@@ -826,11 +835,6 @@ static inline struct ieee80211_hw *local_to_hw(
 {
 	return &local->hw;
 }
-
-enum ieee80211_link_state_t {
-	IEEE80211_LINK_STATE_XOFF = 0,
-	IEEE80211_LINK_STATE_PENDING,
-};
 
 struct sta_attribute {
 	struct attribute attr;

@@ -158,7 +158,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 	u8 tid;
 
 	if (info->flags & IEEE80211_TX_CTL_REQUEUE) {
-		queue = info->queue;
+		queue = skb_get_queue_mapping(skb);
 		rcu_read_lock();
 		sta = sta_info_get(local, hdr->addr1);
 		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
@@ -219,7 +219,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 			err = NET_XMIT_DROP;
 	} else {
 		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
-		info->queue = (unsigned int) queue;
+		skb_set_queue_mapping(skb, queue);
 		qdisc = q->queues[queue];
 		err = qdisc->enqueue(skb, qdisc);
 		if (err == NET_XMIT_SUCCESS) {
@@ -240,12 +240,11 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 static int wme_qdiscop_requeue(struct sk_buff *skb, struct Qdisc* qd)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct Qdisc *qdisc;
 	int err;
 
 	/* we recorded which queue to use earlier! */
-	qdisc = q->queues[info->queue];
+	qdisc = q->queues[skb_get_queue_mapping(skb)];
 
 	if ((err = qdisc->ops->requeue(skb, qdisc)) == 0) {
 		qd->q.qlen++;
@@ -269,11 +268,8 @@ static struct sk_buff *wme_qdiscop_dequeue(struct Qdisc* qd)
 	/* check all the h/w queues in numeric/priority order */
 	for (queue = 0; queue < QD_NUM(hw); queue++) {
 		/* see if there is room in this hardware queue */
-		if ((test_bit(IEEE80211_LINK_STATE_XOFF,
-				&local->state[queue])) ||
-		    (test_bit(IEEE80211_LINK_STATE_PENDING,
-				&local->state[queue])) ||
-			 (!test_bit(queue, q->qdisc_pool)))
+		if (__netif_subqueue_stopped(local->mdev, queue) ||
+		    !test_bit(queue, q->qdisc_pool))
 			continue;
 
 		/* there is space - try and get a frame */

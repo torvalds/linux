@@ -168,7 +168,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		ifsta->flags |= IEEE80211_STA_CREATE_IBSS |
 			IEEE80211_STA_AUTO_BSSID_SEL |
 			IEEE80211_STA_AUTO_CHANNEL_SEL;
-		if (sdata->local->hw.queues >= 4)
+		if (ieee80211_num_regular_queues(&sdata->local->hw) >= 4)
 			ifsta->flags |= IEEE80211_STA_WMM_ENABLED;
 
 		msdata = IEEE80211_DEV_TO_SUB_IF(sdata->local->mdev);

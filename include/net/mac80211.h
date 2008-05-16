@@ -293,7 +293,7 @@ struct ieee80211_tx_info {
 	s8 tx_rate_idx;
 	u8 antenna_sel_tx;
 
-	u8 queue; /* use skb_queue_mapping soon */
+	/* 1 byte hole */
 
 	union {
 		struct {
@@ -800,6 +800,24 @@ static inline void SET_IEEE80211_DEV(struct ieee80211_hw *hw, struct device *dev
 static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
 {
 	memcpy(hw->wiphy->perm_addr, addr, ETH_ALEN);
+}
+
+static inline int ieee80211_num_regular_queues(struct ieee80211_hw *hw)
+{
+#ifdef CONFIG_MAC80211_QOS
+	return hw->queues;
+#else
+	return 1;
+#endif
+}
+
+static inline int ieee80211_num_queues(struct ieee80211_hw *hw)
+{
+#ifdef CONFIG_MAC80211_QOS
+	return hw->queues + hw->ampdu_queues;
+#else
+	return 1;
+#endif
 }
 
 static inline struct ieee80211_rate *

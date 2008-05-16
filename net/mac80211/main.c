@@ -1634,11 +1634,31 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (result < 0)
 		return result;
 
+	/*
+	 * We use the number of queues for feature tests (QoS, HT) internally
+	 * so restrict them appropriately.
+	 */
+#ifdef CONFIG_MAC80211_QOS
+	if (hw->queues > IEEE80211_MAX_QUEUES)
+		hw->queues = IEEE80211_MAX_QUEUES;
+	if (hw->ampdu_queues > IEEE80211_MAX_AMPDU_QUEUES)
+		hw->ampdu_queues = IEEE80211_MAX_AMPDU_QUEUES;
+	if (hw->queues < 4)
+		hw->ampdu_queues = 0;
+#else
+	hw->queues = 1;
+	hw->ampdu_queues = 0;
+#endif
+
 	/* for now, mdev needs sub_if_data :/ */
-	mdev = alloc_netdev(sizeof(struct ieee80211_sub_if_data),
-			    "wmaster%d", ether_setup);
+	mdev = alloc_netdev_mq(sizeof(struct ieee80211_sub_if_data),
+			       "wmaster%d", ether_setup,
+			       ieee80211_num_queues(hw));
 	if (!mdev)
 		goto fail_mdev_alloc;
+
+	if (ieee80211_num_queues(hw) > 1)
+		mdev->features |= NETIF_F_MULTI_QUEUE;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(mdev);
 	mdev->ieee80211_ptr = &sdata->wdev;
@@ -1727,11 +1747,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		       wiphy_name(local->hw.wiphy));
 		goto fail_wep;
 	}
-
-	if (hw->queues > IEEE80211_MAX_QUEUES)
-		hw->queues = IEEE80211_MAX_QUEUES;
-	if (hw->ampdu_queues > IEEE80211_MAX_AMPDU_QUEUES)
-		hw->ampdu_queues = IEEE80211_MAX_AMPDU_QUEUES;
 
 	ieee80211_install_qdisc(local->mdev);
 

@@ -102,7 +102,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
-	enum data_queue_qid qid = mac80211_queue_to_qid(tx_info->queue);
+	enum data_queue_qid qid = skb_get_queue_mapping(skb);
 	struct data_queue *queue;
 	u16 frame_control;
 
@@ -149,23 +149,23 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			       IEEE80211_TX_CTL_USE_CTS_PROTECT)) &&
 	    !rt2x00dev->ops->hw->set_rts_threshold) {
 		if (rt2x00queue_available(queue) <= 1) {
-			ieee80211_stop_queue(rt2x00dev->hw, tx_info->queue);
+			ieee80211_stop_queue(rt2x00dev->hw, qid);
 			return NETDEV_TX_BUSY;
 		}
 
 		if (rt2x00mac_tx_rts_cts(rt2x00dev, queue, skb)) {
-			ieee80211_stop_queue(rt2x00dev->hw, tx_info->queue);
+			ieee80211_stop_queue(rt2x00dev->hw, qid);
 			return NETDEV_TX_BUSY;
 		}
 	}
 
 	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb)) {
-		ieee80211_stop_queue(rt2x00dev->hw, tx_info->queue);
+		ieee80211_stop_queue(rt2x00dev->hw, qid);
 		return NETDEV_TX_BUSY;
 	}
 
 	if (rt2x00queue_full(queue))
-		ieee80211_stop_queue(rt2x00dev->hw, tx_info->queue);
+		ieee80211_stop_queue(rt2x00dev->hw, qid);
 
 	if (rt2x00dev->ops->lib->kick_tx_queue)
 		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, qid);

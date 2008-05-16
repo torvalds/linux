@@ -80,19 +80,6 @@ enum data_queue_qid {
 };
 
 /**
- * mac80211_queue_to_qid - Convert mac80211 queue to rt2x00 qid
- * @queue: mac80211 queue.
- */
-static inline enum data_queue_qid mac80211_queue_to_qid(unsigned int queue)
-{
-	/* Regular TX queues are mapped directly */
-	if (queue < 4)
-		return queue;
-	WARN_ON(1);
-	return QID_OTHER;
-}
-
-/**
  * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
  *
  * @FRAME_DESC_DRIVER_GENERATED: Frame was generated inside driver
