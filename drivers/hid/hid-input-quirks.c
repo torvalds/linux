@@ -16,16 +16,14 @@
 #include <linux/input.h>
 #include <linux/hid.h>
 
-#define map_abs(c)      do { usage->code = c; usage->type = EV_ABS; *bit = input->absbit; *max = ABS_MAX; } while (0)
-#define map_rel(c)      do { usage->code = c; usage->type = EV_REL; *bit = input->relbit; *max = REL_MAX; } while (0)
-#define map_key(c)      do { usage->code = c; usage->type = EV_KEY; *bit = input->keybit; *max = KEY_MAX; } while (0)
-#define map_led(c)      do { usage->code = c; usage->type = EV_LED; *bit = input->ledbit; *max = LED_MAX; } while (0)
+#define map_rel(c)	hid_map_usage(hidinput, usage, bit, max, EV_REL, (c))
+#define map_key(c)	hid_map_usage(hidinput, usage, bit, max, EV_KEY, (c))
 
-#define map_abs_clear(c)        do { map_abs(c); clear_bit(c, *bit); } while (0)
-#define map_key_clear(c)        do { map_key(c); clear_bit(c, *bit); } while (0)
+#define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, bit, \
+		max, EV_KEY, (c))
 
-static int quirk_belkin_wkbd(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_belkin_wkbd(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
 		return 0;
@@ -40,8 +38,8 @@ static int quirk_belkin_wkbd(struct hid_usage *usage, struct input_dev *input,
 	return 1;
 }
 
-static int quirk_cherry_cymotion(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_cherry_cymotion(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
 		return 0;
@@ -56,13 +54,13 @@ static int quirk_cherry_cymotion(struct hid_usage *usage, struct input_dev *inpu
 	return 1;
 }
 
-static int quirk_logitech_ultrax_remote(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_logitech_ultrax_remote(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR)
 		return 0;
 
-	set_bit(EV_REP, input->evbit);
+	set_bit(EV_REP, hidinput->input->evbit);
 	switch(usage->hid & HID_USAGE) {
 		/* Reported on Logitech Ultra X Media Remote */
 		case 0x004: map_key_clear(KEY_AGAIN);		break;
@@ -89,13 +87,13 @@ static int quirk_logitech_ultrax_remote(struct hid_usage *usage, struct input_de
 	return 1;
 }
 
-static int quirk_gyration_remote(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_gyration_remote(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR)
 		return 0;
 
-	set_bit(EV_REP, input->evbit);
+	set_bit(EV_REP, hidinput->input->evbit);
 	switch(usage->hid & HID_USAGE) {
 		/* Reported on Gyration MCE Remote */
 		case 0x00d: map_key_clear(KEY_HOME);		break;
@@ -112,13 +110,13 @@ static int quirk_gyration_remote(struct hid_usage *usage, struct input_dev *inpu
 	return 1;
 }
 
-static int quirk_chicony_tactical_pad(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_chicony_tactical_pad(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
 		return 0;
 
-	set_bit(EV_REP, input->evbit);
+	set_bit(EV_REP, hidinput->input->evbit);
 	switch (usage->hid & HID_USAGE) {
 		case 0xff01: map_key_clear(BTN_1);		break;
 		case 0xff02: map_key_clear(BTN_2);		break;
@@ -137,9 +135,11 @@ static int quirk_chicony_tactical_pad(struct hid_usage *usage, struct input_dev 
 	return 1;
 }
 
-static int quirk_microsoft_ergonomy_kb(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_microsoft_ergonomy_kb(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
+	struct input_dev *input = hidinput->input;
+
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
 		return 0;
 
@@ -160,13 +160,13 @@ static int quirk_microsoft_ergonomy_kb(struct hid_usage *usage, struct input_dev
 	return 1;
 }
 
-static int quirk_microsoft_presenter_8k(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_microsoft_presenter_8k(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
 		return 0;
 
-	set_bit(EV_REP, input->evbit);
+	set_bit(EV_REP, hidinput->input->evbit);
 	switch(usage->hid & HID_USAGE) {
 		case 0xfd08: map_key_clear(KEY_FORWARD);	break;
 		case 0xfd09: map_key_clear(KEY_BACK);		break;
@@ -179,8 +179,8 @@ static int quirk_microsoft_presenter_8k(struct hid_usage *usage, struct input_de
 	return 1;
 }
 
-static int quirk_petalynx_remote(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_petalynx_remote(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if (((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR) &&
 			((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER))
@@ -207,8 +207,8 @@ static int quirk_petalynx_remote(struct hid_usage *usage, struct input_dev *inpu
 	return 1;
 }
 
-static int quirk_logitech_wireless(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_logitech_wireless(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
 		return 0;
@@ -259,8 +259,8 @@ static int quirk_logitech_wireless(struct hid_usage *usage, struct input_dev *in
 	return 1;
 }
 
-static int quirk_cherry_genius_29e(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_cherry_genius_29e(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
 		return 0;
@@ -277,7 +277,7 @@ static int quirk_cherry_genius_29e(struct hid_usage *usage, struct input_dev *in
 	return 1;
 }
 
-static int quirk_btc_8193(struct hid_usage *usage, struct input_dev *input,
+static int quirk_btc_8193(struct hid_usage *usage, struct hid_input *hidinput,
 			      unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
@@ -299,8 +299,8 @@ static int quirk_btc_8193(struct hid_usage *usage, struct input_dev *input,
 	return 1;
 }
 
-static int quirk_sunplus_wdesktop(struct hid_usage *usage, struct input_dev *input,
-			      unsigned long **bit, int *max)
+static int quirk_sunplus_wdesktop(struct hid_usage *usage,
+		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
 	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
 		return 0;
@@ -353,7 +353,8 @@ static int quirk_sunplus_wdesktop(struct hid_usage *usage, struct input_dev *inp
 static const struct hid_input_blacklist {
 	__u16 idVendor;
 	__u16 idProduct;
-	int (*quirk)(struct hid_usage *, struct input_dev *, unsigned long **, int *);
+	int (*quirk)(struct hid_usage *, struct hid_input *, unsigned long **,
+			int *);
 } hid_input_blacklist[] = {
 	{ VENDOR_ID_BELKIN, DEVICE_ID_BELKIN_WIRELESS_KEYBOARD, quirk_belkin_wkbd },
 
@@ -385,16 +386,16 @@ static const struct hid_input_blacklist {
 };
 
 int hidinput_mapping_quirks(struct hid_usage *usage, 
-				   struct input_dev *input, 
-				   unsigned long **bit, int *max)
+		struct hid_input *hi, unsigned long **bit, int *max)
 {
-	struct hid_device *device = input_get_drvdata(input);
+	struct hid_device *device = input_get_drvdata(hi->input);
 	int i = 0;
 	
 	while (hid_input_blacklist[i].quirk) {
 		if (hid_input_blacklist[i].idVendor == device->vendor &&
 				hid_input_blacklist[i].idProduct == device->product)
-			return hid_input_blacklist[i].quirk(usage, input, bit, max);
+			return hid_input_blacklist[i].quirk(usage, hi, bit,
+					max);
 		i++;
 	}
 	return 0;

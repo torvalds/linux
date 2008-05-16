@@ -655,12 +655,66 @@ extern void hidinput_disconnect(struct hid_device *);
 int hid_set_field(struct hid_field *, unsigned, __s32);
 int hid_input_report(struct hid_device *, int type, u8 *, int, int);
 int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
-int hidinput_mapping_quirks(struct hid_usage *, struct input_dev *, unsigned long **, int *);
+int hidinput_mapping_quirks(struct hid_usage *, struct hid_input *,
+		unsigned long **, int *);
 int hidinput_event_quirks(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 int hidinput_apple_event(struct hid_device *, struct input_dev *, struct hid_usage *, __s32);
 void hid_output_report(struct hid_report *report, __u8 *data);
 struct hid_device *hid_allocate_device(void);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
+
+/**
+ * hid_map_usage - map usage input bits
+ *
+ * @hidinput: hidinput which we are interested in
+ * @usage: usage to fill in
+ * @bit: pointer to input->{}bit (out parameter)
+ * @max: maximal valid usage->code to consider later (out parameter)
+ * @type: input event type (EV_KEY, EV_REL, ...)
+ * @c: code which corresponds to this usage and type
+ */
+static inline void hid_map_usage(struct hid_input *hidinput,
+		struct hid_usage *usage, unsigned long **bit, int *max,
+		__u8 type, __u16 c)
+{
+	struct input_dev *input = hidinput->input;
+
+	usage->type = type;
+	usage->code = c;
+
+	switch (type) {
+	case EV_ABS:
+		*bit = input->absbit;
+		*max = ABS_MAX;
+		break;
+	case EV_REL:
+		*bit = input->relbit;
+		*max = REL_MAX;
+		break;
+	case EV_KEY:
+		*bit = input->keybit;
+		*max = KEY_MAX;
+		break;
+	case EV_LED:
+		*bit = input->ledbit;
+		*max = LED_MAX;
+		break;
+	}
+}
+
+/**
+ * hid_map_usage_clear - map usage input bits and clear the input bit
+ *
+ * The same as hid_map_usage, except the @c bit is also cleared in supported
+ * bits (@bit).
+ */
+static inline void hid_map_usage_clear(struct hid_input *hidinput,
+		struct hid_usage *usage, unsigned long **bit, int *max,
+		__u8 type, __u16 c)
+{
+	hid_map_usage(hidinput, usage, bit, max, type, c);
+	clear_bit(c, *bit);
+}
 
 /**
  * hid_parse - parse HW reports

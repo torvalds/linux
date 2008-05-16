@@ -76,13 +76,15 @@ static const struct {
 	__s32 y;
 }  hid_hat_to_axis[] = {{ 0, 0}, { 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
 
-#define map_abs(c)	do { usage->code = c; usage->type = EV_ABS; bit = input->absbit; max = ABS_MAX; } while (0)
-#define map_rel(c)	do { usage->code = c; usage->type = EV_REL; bit = input->relbit; max = REL_MAX; } while (0)
-#define map_key(c)	do { usage->code = c; usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX; } while (0)
-#define map_led(c)	do { usage->code = c; usage->type = EV_LED; bit = input->ledbit; max = LED_MAX; } while (0)
+#define map_abs(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_ABS, (c))
+#define map_rel(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_REL, (c))
+#define map_key(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_KEY, (c))
+#define map_led(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_LED, (c))
 
-#define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
-#define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
+#define map_abs_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
+		&max, EV_ABS, (c))
+#define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
+		&max, EV_KEY, (c))
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
@@ -386,7 +388,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	}
 
 	/* handle input mappings for quirky devices */
-	ret = hidinput_mapping_quirks(usage, input, &bit, &max);
+	ret = hidinput_mapping_quirks(usage, hidinput, &bit, &max);
 	if (ret)
 		goto mapped;
 
