@@ -5,7 +5,7 @@ menu "Generic devices"
 
 
 config SND_PCSP
-	tristate "PC-Speaker support"
+	tristate "PC-Speaker support (READ HELP!)"
 	depends on PCSPKR_PLATFORM && X86_PC && HIGH_RES_TIMERS
 	depends on INPUT
 	depends on SND
@@ -18,11 +18,21 @@ config SND_PCSP
 
 	  You can compile this as a module which will be called snd-pcsp.
 
+	  WARNING: if you already have a soundcard, enabling this
+	  driver may lead to a problem. Namely, it may get loaded
+	  before the other sound driver of yours, making the
+	  pc-speaker a default sound device. Which is likely not
+	  what you want. To make this driver play nicely with other
+	  sound driver, you can add this into your /etc/modprobe.conf:
+	  options snd-pcsp index=2
+
 	  You don't need this driver if you only want your pc-speaker to beep.
 	  You don't need this driver if you have a tablet piezo beeper
 	  in your PC instead of the real speaker.
 
-	  It should not hurt to say Y or M here in all other cases.
+	  Say N if you have a sound card.
+	  Say M if you don't.
+	  Say Y only if you really know what you do.
 
 config SND_MPU401_UART
         tristate
