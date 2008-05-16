@@ -45,6 +45,7 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/cdev.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -616,14 +617,17 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	struct ib_uverbs_file *file;
 	int ret;
 
+	lock_kernel();
 	spin_lock(&map_lock);
 	dev = dev_table[iminor(inode) - IB_UVERBS_BASE_MINOR];
 	if (dev)
 		kref_get(&dev->ref);
 	spin_unlock(&map_lock);
 
-	if (!dev)
+	if (!dev) {
+		unlock_kernel();
 		return -ENXIO;
+	}
 
 	if (!try_module_get(dev->ib_dev->owner)) {
 		ret = -ENODEV;
@@ -644,6 +648,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 
+	unlock_kernel();
 	return 0;
 
 err_module:
@@ -651,7 +656,7 @@ err_module:
 
 err:
 	kref_put(&dev->ref, ib_uverbs_release_dev);
-
+	unlock_kernel();
 	return ret;
 }
 

@@ -47,6 +47,7 @@
 #include <linux/kref.h>
 #include <linux/compat.h>
 #include <linux/semaphore.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -783,14 +784,17 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 	struct ib_umad_file *file;
 	int ret = 0;
 
+	lock_kernel();
 	spin_lock(&port_lock);
 	port = umad_port[iminor(inode) - IB_UMAD_MINOR_BASE];
 	if (port)
 		kref_get(&port->umad_dev->ref);
 	spin_unlock(&port_lock);
 
-	if (!port)
+	if (!port) {
+		unlock_kernel();
 		return -ENXIO;
+	}
 
 	mutex_lock(&port->file_mutex);
 
@@ -819,6 +823,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 
 out:
 	mutex_unlock(&port->file_mutex);
+	unlock_kernel();
 	return ret;
 }
 
