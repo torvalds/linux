@@ -1490,7 +1490,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 static int efx_netdev_event(struct notifier_block *this,
 			    unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = (struct net_device *)ptr;
+	struct net_device *net_dev = ptr;
 
 	if (net_dev->open == efx_net_open && event == NETDEV_CHANGENAME) {
 		struct efx_nic *efx = net_dev->priv;

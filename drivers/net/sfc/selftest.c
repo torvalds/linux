@@ -290,7 +290,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 
 	payload = &state->payload;
 	
-	received = (struct efx_loopback_payload *)(char *) buf_ptr;
+	received = (struct efx_loopback_payload *) buf_ptr;
 	received->ip.saddr = payload->ip.saddr;
 	received->ip.check = payload->ip.check;
 	
@@ -700,7 +700,7 @@ int efx_offline_test(struct efx_nic *efx,
 	 * "flushing" so all inflight packets are dropped */
 	BUG_ON(efx->loopback_selftest);
 	state->flush = 1;
-	efx->loopback_selftest = (void *)state;
+	efx->loopback_selftest = state;
 
 	rc = efx_test_loopbacks(efx, tests, loopback_modes);
 

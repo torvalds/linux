@@ -1396,7 +1396,7 @@ static inline void falcon_irq_ack_a1(struct efx_nic *efx)
 static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
-	efx_oword_t *int_ker = (efx_oword_t *) efx->irq_status.addr;
+	efx_oword_t *int_ker = efx->irq_status.addr;
 	efx_oword_t fatal_intr;
 	int error, mem_perr;
 	static int n_int_errors;
@@ -1442,8 +1442,8 @@ out:
  */
 static irqreturn_t falcon_legacy_interrupt_b0(int irq, void *dev_id)
 {
-	struct efx_nic *efx = (struct efx_nic *)dev_id;
-	efx_oword_t *int_ker = (efx_oword_t *) efx->irq_status.addr;
+	struct efx_nic *efx = dev_id;
+	efx_oword_t *int_ker = efx->irq_status.addr;
 	struct efx_channel *channel;
 	efx_dword_t reg;
 	u32 queues;
@@ -1480,8 +1480,8 @@ static irqreturn_t falcon_legacy_interrupt_b0(int irq, void *dev_id)
 
 static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 {
-	struct efx_nic *efx = (struct efx_nic *)dev_id;
-	efx_oword_t *int_ker = (efx_oword_t *) efx->irq_status.addr;
+	struct efx_nic *efx = dev_id;
+	efx_oword_t *int_ker = efx->irq_status.addr;
 	struct efx_channel *channel;
 	int syserr;
 	int queues;
@@ -1533,9 +1533,9 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
  */
 static irqreturn_t falcon_msi_interrupt(int irq, void *dev_id)
 {
-	struct efx_channel *channel = (struct efx_channel *)dev_id;
+	struct efx_channel *channel = dev_id;
 	struct efx_nic *efx = channel->efx;
-	efx_oword_t *int_ker = (efx_oword_t *) efx->irq_status.addr;
+	efx_oword_t *int_ker = efx->irq_status.addr;
 	int syserr;
 
 	efx->last_irq_cpu = raw_smp_processor_id();
@@ -1932,7 +1932,7 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
 			      int addr, int value)
 {
-	struct efx_nic *efx = (struct efx_nic *)net_dev->priv;
+	struct efx_nic *efx = net_dev->priv;
 	unsigned int phy_id2 = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
 
@@ -2000,7 +2000,7 @@ static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
  * could be read, -1 will be returned. */
 static int falcon_mdio_read(struct net_device *net_dev, int phy_id, int addr)
 {
-	struct efx_nic *efx = (struct efx_nic *)net_dev->priv;
+	struct efx_nic *efx = net_dev->priv;
 	unsigned int phy_addr = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
 	int value = -1;

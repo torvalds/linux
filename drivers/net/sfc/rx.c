@@ -109,7 +109,7 @@ static inline unsigned int efx_rx_buf_size(struct efx_nic *efx)
 static int efx_lro_get_skb_hdr(struct sk_buff *skb, void **ip_hdr,
 			       void **tcpudp_hdr, u64 *hdr_flags, void *priv)
 {
-	struct efx_channel *channel = (struct efx_channel *)priv;
+	struct efx_channel *channel = priv;
 	struct iphdr *iph;
 	struct tcphdr *th;
 
@@ -134,12 +134,12 @@ static int efx_get_frag_hdr(struct skb_frag_struct *frag, void **mac_hdr,
 			    void **ip_hdr, void **tcpudp_hdr, u64 *hdr_flags,
 			    void *priv)
 {
-	struct efx_channel *channel = (struct efx_channel *)priv;
+	struct efx_channel *channel = priv;
 	struct ethhdr *eh;
 	struct iphdr *iph;
 
 	/* We support EtherII and VLAN encapsulated IPv4 */
-	eh = (struct ethhdr *)(page_address(frag->page) + frag->page_offset);
+	eh = page_address(frag->page) + frag->page_offset;
 	*mac_hdr = eh;
 
 	if (eh->h_proto == htons(ETH_P_IP)) {
@@ -283,7 +283,7 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
 
 		rx_queue->buf_page = rx_buf->page;
 		rx_queue->buf_dma_addr = dma_addr;
-		rx_queue->buf_data = ((char *) page_address(rx_buf->page) +
+		rx_queue->buf_data = (page_address(rx_buf->page) +
 				      EFX_PAGE_IP_ALIGN);
 	}
 
