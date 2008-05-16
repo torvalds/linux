@@ -633,6 +633,7 @@ static int pp_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+/* No BKL needed here: only local resources used */
 static int pp_open (struct inode * inode, struct file * file)
 {
 	unsigned int minor = iminor(inode);

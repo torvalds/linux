@@ -2302,7 +2302,7 @@ static int cryptocop_job_setup(struct cryptocop_prio_job **pj, struct cryptocop_
 	return 0;
 }
 
-
+/* No BKL needed here - no global resources accessed */
 static int cryptocop_open(struct inode *inode, struct file *filp)
 {
 	int p = iminor(inode);

@@ -153,6 +153,8 @@ static ssize_t cs5535_gpio_read(struct file *file, char __user *buf,
 	return count;
 }
 
+/* No BKL needed here - "mask" is the only global resource used
+   here and it's a boot-time parameter */
 static int cs5535_gpio_open(struct inode *inode, struct file *file)
 {
 	u32 m = iminor(inode);

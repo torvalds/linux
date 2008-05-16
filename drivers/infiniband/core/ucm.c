@@ -1155,6 +1155,7 @@ static unsigned int ib_ucm_poll(struct file *filp,
 	return mask;
 }
 
+/* No BKL needed here: no global resources used */
 static int ib_ucm_open(struct inode *inode, struct file *filp)
 {
 	struct ib_ucm_file *file;

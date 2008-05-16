@@ -862,6 +862,8 @@ out:
 } /* End twa_chrdev_ioctl() */
 
 /* This function handles open for the character device */
+/* NOTE that this function will race with remove; adding BKL
+   will not help. */
 static int twa_chrdev_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor_number;

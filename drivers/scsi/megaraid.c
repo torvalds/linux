@@ -3272,8 +3272,9 @@ mega_init_scb(adapter_t *adapter)
  * @filep - unused
  *
  * Routines for the character/ioctl interface to the driver. Find out if this
- * is a valid open. If yes, increment the module use count so that it cannot
- * be unloaded.
+ * is a valid open. 
+ *
+ * No BKL needed here.
  */
 static int
 megadev_open (struct inode *inode, struct file *filep)

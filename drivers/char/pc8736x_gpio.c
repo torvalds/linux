@@ -212,6 +212,7 @@ static struct nsc_gpio_ops pc8736x_gpio_ops = {
 	.gpio_current	= pc8736x_gpio_current
 };
 
+/* No BKL needed here; no global resources accessed */
 static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned m = iminor(inode);

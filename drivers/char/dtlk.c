@@ -288,6 +288,8 @@ static int dtlk_ioctl(struct inode *inode,
 	}
 }
 
+/* No BKL needed here; "dtlk_busy" is the only global resource,
+   and it is not ever set by anybody (test is broken) */
 static int dtlk_open(struct inode *inode, struct file *file)
 {
 	TRACE_TEXT("(dtlk_open");

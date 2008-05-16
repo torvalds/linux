@@ -375,7 +375,7 @@ int __init eeprom_init(void)
 }
 
 /* Opens the device. */
-
+/* BKL not needed: no global resources accessed */
 static int eeprom_open(struct inode * inode, struct file * file)
 {
 

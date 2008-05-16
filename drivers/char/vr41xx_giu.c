@@ -543,6 +543,8 @@ static ssize_t gpio_write(struct file *file, const char __user *data,
 	return i;
 }
 
+/* No BKL needed here; only global (giu_nr_pins) is only set
+   at probe time */
 static int gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned int pin;

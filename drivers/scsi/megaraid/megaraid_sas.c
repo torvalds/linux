@@ -2860,6 +2860,7 @@ static void megasas_shutdown(struct pci_dev *pdev)
 
 /**
  * megasas_mgmt_open -	char node "open" entry point
+ * No BKL is needed here.
  */
 static int megasas_mgmt_open(struct inode *inode, struct file *filep)
 {

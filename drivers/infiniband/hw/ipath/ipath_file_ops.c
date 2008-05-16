@@ -1812,6 +1812,7 @@ done:
 	return ret;
 }
 
+/* No BKL needed here */
 static int ipath_open(struct inode *in, struct file *fp)
 {
 	/* The real work is performed later in ipath_assign_port() */

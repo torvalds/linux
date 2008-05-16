@@ -351,6 +351,7 @@ static const int npindex_to_ethertype[NUM_NP] = {
  * Open instances of /dev/ppp can be in one of three states:
  * unattached, attached to a ppp unit, or attached to a ppp channel.
  */
+/* No BKL needed here */
 static int ppp_open(struct inode *inode, struct file *file)
 {
 	/*

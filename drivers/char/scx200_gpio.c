@@ -46,6 +46,7 @@ struct nsc_gpio_ops scx200_gpio_ops = {
 };
 EXPORT_SYMBOL_GPL(scx200_gpio_ops);
 
+/* No BKL needed here: no global resources used */
 static int scx200_gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned m = iminor(inode);
