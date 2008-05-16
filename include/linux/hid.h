@@ -418,6 +418,8 @@ struct hid_control_fifo {
 #define HID_CLAIMED_HIDDEV	2
 #define HID_CLAIMED_HIDRAW	4
 
+#define HID_STAT_ADDED		1
+
 #define HID_CTRL_RUNNING	1
 #define HID_OUT_RUNNING		2
 #define HID_IN_RUNNING		3
@@ -432,22 +434,26 @@ struct hid_input {
 	struct input_dev *input;
 };
 
+struct hid_driver;
+
 struct hid_device {							/* device report descriptor */
-	 __u8 *rdesc;
+	__u8 *rdesc;
 	unsigned rsize;
 	struct hid_collection *collection;				/* List of HID collections */
 	unsigned collection_size;					/* Number of allocated hid_collections */
 	unsigned maxcollection;						/* Number of parsed collections */
 	unsigned maxapplication;					/* Number of applications */
-	unsigned short bus;                                             /* BUS ID */
-	unsigned short vendor;                                          /* Vendor ID */
-	unsigned short product;                                         /* Product ID */
-	unsigned version;						/* HID version */
+	__u16 bus;							/* BUS ID */
+	__u32 vendor;							/* Vendor ID */
+	__u32 product;							/* Product ID */
+	__u32 version;							/* HID version */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 
-	struct device *dev;						/* device */
+	struct device dev;						/* device */
+	struct hid_driver *driver;
 
+	unsigned int status;						/* see STAT flags above */
 	unsigned claimed;						/* Claimed by hidinput, hiddev? */
 	unsigned quirks;						/* Various quirks the device can pull on us */
 
@@ -483,6 +489,16 @@ struct hid_device {							/* device report descriptor */
 #endif
 };
 
+static inline void *hid_get_drvdata(struct hid_device *hdev)
+{
+	return dev_get_drvdata(&hdev->dev);
+}
+
+static inline void hid_set_drvdata(struct hid_device *hdev, void *data)
+{
+	dev_set_drvdata(&hdev->dev, data);
+}
+
 #define HID_GLOBAL_STACK_SIZE 4
 #define HID_COLLECTION_STACK_SIZE 4
 
@@ -511,6 +527,61 @@ struct hid_descriptor {
 	struct hid_class_descriptor desc[1];
 } __attribute__ ((packed));
 
+#define HID_DEVICE(b, ven, prod) \
+	.bus = (b), \
+	.vendor = (ven), .product = (prod)
+
+#define HID_USB_DEVICE(ven, prod)	HID_DEVICE(BUS_USB, ven, prod)
+#define HID_BLUETOOTH_DEVICE(ven, prod)	HID_DEVICE(BUS_BLUETOOTH, ven, prod)
+
+#define HID_REPORT_ID(rep) \
+	.report_type = (rep)
+#define HID_USAGE_ID(uhid, utype, ucode) \
+	.usage_hid = (uhid), .usage_type = (utype), .usage_code = (ucode)
+/* we don't want to catch types and codes equal to 0 */
+#define HID_TERMINATOR		(HID_ANY_ID - 1)
+
+struct hid_report_id {
+	__u32 report_type;
+};
+struct hid_usage_id {
+	__u32 usage_hid;
+	__u32 usage_type;
+	__u32 usage_code;
+};
+
+/**
+ * struct hid_driver
+ * @name: driver name (e.g. "Footech_bar-wheel")
+ * @id_table: which devices is this driver for (must be non-NULL for probe
+ * 	      to be called)
+ * @probe: new device inserted
+ * @remove: device removed (NULL if not a hot-plug capable driver)
+ * @report_table: on which reports to call raw_event (NULL means all)
+ * @raw_event: if report in report_table, this hook is called (NULL means nop)
+ * @usage_table: on which events to call event (NULL means all)
+ * @event: if usage in usage_table, this hook is called (NULL means nop)
+ *
+ * raw_event and event should return 0 on no action performed, 1 when no
+ * further processing should be done and negative on error
+ */
+struct hid_driver {
+	char *name;
+	const struct hid_device_id *id_table;
+
+	int (*probe)(struct hid_device *dev, const struct hid_device_id *id);
+	void (*remove)(struct hid_device *dev);
+
+	const struct hid_report_id *report_table;
+	int (*raw_event)(struct hid_device *hdev, struct hid_report *report,
+			u8 *data, int size);
+	const struct hid_usage_id *usage_table;
+	int (*event)(struct hid_device *hdev, struct hid_field *field,
+			struct hid_usage *usage, __s32 value);
+/* private: */
+	struct device_driver driver;
+};
+
 /* Applications from HID Usage Tables 4/8/99 Version 1.1 */
 /* We ignore a few input applications that are not widely used */
 #define IS_INPUT_APPLICATION(a) (((a >= 0x00010000) && (a <= 0x00010008)) || (a == 0x00010080) || (a == 0x000c0001) || (a == 0x000d0002))
@@ -520,6 +591,17 @@ struct hid_descriptor {
 #ifdef CONFIG_HID_DEBUG
 extern int hid_debug;
 #endif
+
+extern int hid_add_device(struct hid_device *);
+extern void hid_destroy_device(struct hid_device *);
+
+extern int __must_check __hid_register_driver(struct hid_driver *,
+		struct module *, const char *mod_name);
+static inline int __must_check hid_register_driver(struct hid_driver *driver)
+{
+	return __hid_register_driver(driver, THIS_MODULE, KBUILD_MODNAME);
+}
+extern void hid_unregister_driver(struct hid_driver *);
 
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
@@ -533,8 +615,14 @@ int hidinput_mapping_quirks(struct hid_usage *, struct input_dev *, unsigned lon
 int hidinput_event_quirks(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 int hidinput_apple_event(struct hid_device *, struct input_dev *, struct hid_usage *, __s32);
 void hid_output_report(struct hid_report *report, __u8 *data);
-void hid_free_device(struct hid_device *device);
-struct hid_device *hid_parse_report(__u8 *start, unsigned size);
+struct hid_device *hid_allocate_device(void);
+int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
+
+void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
+		int interrupt);
+
+extern int hid_generic_init(void);
+extern void hid_generic_exit(void);
 
 /* HID quirks API */
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);

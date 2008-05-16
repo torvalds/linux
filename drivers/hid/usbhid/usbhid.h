@@ -82,7 +82,7 @@ struct usbhid_device {
 };
 
 #define	hid_to_usb_dev(hid_dev) \
-	container_of(hid_dev->dev->parent, struct usb_device, dev)
+	container_of(hid_dev->dev.parent->parent, struct usb_device, dev)
 
 #endif
 

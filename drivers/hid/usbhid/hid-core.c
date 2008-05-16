@@ -770,8 +770,15 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		dbg_hid_line(" %02x", (unsigned char) rdesc[n]);
 	dbg_hid_line("\n");
 
-	if (!(hid = hid_parse_report(rdesc, n))) {
+	hid = hid_allocate_device();
+	if (IS_ERR(hid)) {
+		kfree(rdesc);
+		return NULL;
+	}
+
+	if (hid_parse_report(hid, rdesc, n)) {
 		dbg_hid("parsing report descriptor failed\n");
+		hid_destroy_device(hid);
 		kfree(rdesc);
 		return NULL;
 	}
@@ -798,10 +805,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	if (insize > HID_MAX_BUFFER_SIZE)
 		insize = HID_MAX_BUFFER_SIZE;
 
-	if (hid_alloc_buffers(dev, hid)) {
-		hid_free_buffers(dev, hid);
+	if (hid_alloc_buffers(dev, hid))
 		goto fail;
-	}
 
 	hid->name[0] = 0;
 
@@ -881,7 +886,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	hid->version = le16_to_cpu(hdesc->bcdHID);
 	hid->country = hdesc->bCountryCode;
-	hid->dev = &intf->dev;
+	hid->dev.parent = &intf->dev;
 	usbhid->intf = intf;
 	usbhid->ifnum = interface->desc.bInterfaceNumber;
 
@@ -925,7 +930,7 @@ fail:
 	hid_free_buffers(dev, hid);
 	kfree(usbhid);
 fail_no_usbhid:
-	hid_free_device(hid);
+	hid_destroy_device(hid);
 
 	return NULL;
 }
@@ -964,14 +969,14 @@ static void hid_disconnect(struct usb_interface *intf)
 
 	hid_free_buffers(hid_to_usb_dev(hid), hid);
 	kfree(usbhid);
-	hid_free_device(hid);
+	hid_destroy_device(hid);
 }
 
 static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct hid_device *hid;
 	char path[64];
-	int i;
+	int i, ret;
 	char *c;
 
 	dbg_hid("HID probe called for ifnum %d\n",
@@ -1037,7 +1042,12 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	printk(": USB HID v%x.%02x %s [%s] on %s\n",
 		hid->version >> 8, hid->version & 0xff, c, hid->name, path);
 
-	return 0;
+	ret = hid_add_device(hid);
+	if (ret) {
+		dev_err(&intf->dev, "can't add hid device: %d\n", ret);
+		hid_disconnect(intf);
+	}
+	return ret;
 }
 
 static int hid_suspend(struct usb_interface *intf, pm_message_t message)
@@ -1107,9 +1117,22 @@ static struct usb_driver hid_driver = {
 	.supports_autosuspend = 1,
 };
 
+static const struct hid_device_id hid_usb_table[] = {
+	{ HID_USB_DEVICE(HID_ANY_ID, HID_ANY_ID) },
+	{ }
+};
+
+static struct hid_driver hid_usb_driver = {
+	.name = "generic-usb",
+	.id_table = hid_usb_table,
+};
+
 static int __init hid_init(void)
 {
 	int retval;
+	retval = hid_register_driver(&hid_usb_driver);
+	if (retval)
+		goto hid_register_fail;
 	retval = usbhid_quirks_init(quirks_param);
 	if (retval)
 		goto usbhid_quirks_init_fail;
@@ -1127,6 +1150,8 @@ usb_register_fail:
 hiddev_init_fail:
 	usbhid_quirks_exit();
 usbhid_quirks_init_fail:
+	hid_unregister_driver(&hid_usb_driver);
+hid_register_fail:
 	return retval;
 }
 
@@ -1135,6 +1160,7 @@ static void __exit hid_exit(void)
 	usb_deregister(&hid_driver);
 	hiddev_exit();
 	usbhid_quirks_exit();
+	hid_unregister_driver(&hid_usb_driver);
 }
 
 module_init(hid_init);
