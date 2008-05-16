@@ -262,7 +262,7 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 			goto error_brelse;
 
 		transid = btrfs_super_generation(disk_super);
-		if (transid > latest_transid) {
+		if (!latest_transid || transid > latest_transid) {
 			latest_devid = devid;
 			latest_transid = transid;
 			latest_bdev = bdev;
