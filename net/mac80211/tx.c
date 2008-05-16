@@ -673,6 +673,16 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	if (!(tx->flags & IEEE80211_TX_FRAGMENTED))
 		return TX_CONTINUE;
 
+	/*
+	 * Warn when submitting a fragmented A-MPDU frame and drop it.
+	 * This is an error and needs to be fixed elsewhere, but when
+	 * done needs to take care of monitor interfaces (injection)
+	 * etc.
+	 */
+	if (WARN_ON(tx->flags & IEEE80211_TX_CTL_AMPDU ||
+		    IEEE80211_SKB_CB(tx->skb)->queue >= tx->local->hw.queues))
+		return TX_DROP;
+
 	first = tx->skb;
 
 	hdrlen = ieee80211_get_hdrlen(tx->fc);
@@ -1216,8 +1226,17 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 retry:
 	ret = __ieee80211_tx(local, skb, &tx);
 	if (ret) {
-		struct ieee80211_tx_stored_packet *store =
-			&local->pending_packet[info->queue];
+		struct ieee80211_tx_stored_packet *store;
+
+		/*
+		 * Since there are no fragmented frames on A-MPDU
+		 * queues, there's no reason for a driver to reject
+		 * a frame there, warn and drop it.
+		 */
+		if (WARN_ON(queue >= local->hw.queues))
+			goto drop;
+
+		store = &local->pending_packet[queue];
 
 		if (ret == IEEE80211_TX_FRAG_AGAIN)
 			skb = NULL;

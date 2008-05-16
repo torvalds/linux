@@ -986,8 +986,10 @@ enum ieee80211_ampdu_mlme_action {
  * @tx: Handler that 802.11 module calls for each transmitted frame.
  *	skb contains the buffer starting from the IEEE 802.11 header.
  *	The low-level driver should send the frame out based on
- *	configuration in the TX control data. Must be implemented and
- *	atomic.
+ *	configuration in the TX control data. This handler should,
+ *	preferably, never fail and stop queues appropriately, more
+ *	importantly, however, it must never fail for A-MPDU-queues.
+ *	Must be implemented and atomic.
  *
  * @start: Called before the first netdevice attached to the hardware
  *	is enabled. This should turn on the hardware and must turn on
