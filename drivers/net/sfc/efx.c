@@ -778,15 +778,16 @@ static int efx_init_io(struct efx_nic *efx)
 	efx->membase = ioremap_nocache(efx->membase_phys,
 				       efx->type->mem_map_size);
 	if (!efx->membase) {
-		EFX_ERR(efx, "could not map memory BAR %d at %lx+%x\n",
-			efx->type->mem_bar, efx->membase_phys,
+		EFX_ERR(efx, "could not map memory BAR %d at %llx+%x\n",
+			efx->type->mem_bar,
+			(unsigned long long)efx->membase_phys,
 			efx->type->mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
-	EFX_LOG(efx, "memory BAR %u at %lx+%x (virtual %p)\n",
-		efx->type->mem_bar, efx->membase_phys, efx->type->mem_map_size,
-		efx->membase);
+	EFX_LOG(efx, "memory BAR %u at %llx+%x (virtual %p)\n",
+		efx->type->mem_bar, (unsigned long long)efx->membase_phys,
+		efx->type->mem_map_size, efx->membase);
 
 	return 0;
 
