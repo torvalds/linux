@@ -120,7 +120,7 @@ static int device_list_add(const char *path,
 
 	fs_devices = find_fsid(disk_super->fsid);
 	if (!fs_devices) {
-		fs_devices = kmalloc(sizeof(*fs_devices), GFP_NOFS);
+		fs_devices = kzalloc(sizeof(*fs_devices), GFP_NOFS);
 		if (!fs_devices)
 			return -ENOMEM;
 		INIT_LIST_HEAD(&fs_devices->devices);
@@ -129,7 +129,6 @@ static int device_list_add(const char *path,
 		memcpy(fs_devices->fsid, disk_super->fsid, BTRFS_FSID_SIZE);
 		fs_devices->latest_devid = devid;
 		fs_devices->latest_trans = found_transid;
-		fs_devices->num_devices = 0;
 		device = NULL;
 	} else {
 		device = __find_device(&fs_devices->devices, devid,
