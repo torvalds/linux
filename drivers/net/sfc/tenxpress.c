@@ -211,6 +211,8 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	int rc = 0;
 
 	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
+	if (!phy_data)
+		return -ENOMEM;
 	efx->phy_data = phy_data;
 
 	tenxpress_set_state(efx, TENXPRESS_STATUS_NORMAL);

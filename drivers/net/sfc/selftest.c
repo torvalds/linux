@@ -517,6 +517,8 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 		state->packet_count = min(1 << (i << 2), state->packet_count);
 		state->skbs = kzalloc(sizeof(state->skbs[0]) *
 				      state->packet_count, GFP_KERNEL);
+		if (!state->skbs)
+			return -ENOMEM;
 		state->flush = 0;
 
 		EFX_LOG(efx, "TX queue %d testing %s loopback with %d "
