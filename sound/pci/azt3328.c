@@ -1,6 +1,6 @@
 /*
  *  azt3328.c - driver for Aztech AZF3328 based soundcards (e.g. PCI168).
- *  Copyright (C) 2002, 2005, 2006, 2007 by Andreas Mohr <andi AT lisas.de>
+ *  Copyright (C) 2002, 2005 - 2008 by Andreas Mohr <andi AT lisas.de>
  *
  *  Framework borrowed from Bart Hartgers's als4000.c.
  *  Driver developed on PCI168 AP(W) version (PCI rev. 10, subsystem ID 1801),
@@ -35,9 +35,20 @@
  *  (3 weeks' worth of evenings filled with driver work).
  *  (and no, I did NOT go the easy way: to pick up a SB PCI128 for 9 Euros)
  *
- *  The AZF3328 chip (note: AZF3328, *not* AZT3328, that's just the driver name
- *  for compatibility reasons) has the following features:
+ *  It is quite likely that the AZF3328 chip is the PCI cousin of the
+ *  AZF3318 ("azt1020 pnp", "MM Pro 16") ISA chip, given very similar specs.
  *
+ *  The AZF3328 chip (note: AZF3328, *not* AZT3328, that's just the driver name
+ *  for compatibility reasons) from Azfin (joint-venture of Aztech and Fincitec,
+ *  Fincitec acquired by National Semiconductor in 2002, together with the
+ *  Fincitec-related company ARSmikro) has the following features:
+ *
+ *  - compatibility & compliance:
+ *    - Microsoft PC 97 ("PC 97 Hardware Design Guide",
+ *                       http://www.microsoft.com/whdc/archive/pcguides.mspx)
+ *    - Microsoft PC 98 Baseline Audio
+ *    - MPU401 UART
+ *    - Sound Blaster Emulation (DOS Box)
  *  - builtin AC97 conformant codec (SNR over 80dB)
  *    Note that "conformant" != "compliant"!! this chip's mixer register layout
  *    *differs* from the standard AC97 layout:
@@ -48,21 +59,28 @@
  *    addresses illegally. So far unfortunately it looks like the very flexible
  *    ALSA AC97 support is still not enough to easily compensate for such a
  *    grave layout violation despite all tweaks and quirks mechanisms it offers.
- *  - builtin genuine OPL3
+ *  - builtin genuine OPL3 - verified to work fine, 20080506
  *  - full duplex 16bit playback/record at independent sampling rate
- *  - MPU401 (+ legacy address support) FIXME: how to enable legacy addr??
+ *  - MPU401 (+ legacy address support, claimed by one official spec sheet)
+ *    FIXME: how to enable legacy addr??
  *  - game port (legacy address support)
- *  - builtin 3D enhancement (said to be YAMAHA Ymersion)
  *  - builtin DirectInput support, helps reduce CPU overhead (interrupt-driven
- *    features supported)
+ *    features supported). - See common term "Digital Enhanced Game Port"...
+ *    (probably DirectInput 3.0 spec - confirm)
+ *  - builtin 3D enhancement (said to be YAMAHA Ymersion)
  *  - built-in General DirectX timer having a 20 bits counter
  *    with 1us resolution (see below!)
- *  - I2S serial port for external DAC
+ *  - I2S serial output port for external DAC
  *  - supports 33MHz PCI spec 2.1, PCI power management 1.0, compliant with ACPI
  *  - supports hardware volume control
  *  - single chip low cost solution (128 pin QFP)
  *  - supports programmable Sub-vendor and Sub-system ID
  *    required for Microsoft's logo compliance (FIXME: where?)
+ *    At least the Trident 4D Wave DX has one bit somewhere
+ *    to enable writes to PCI subsystem VID registers, that should be it.
+ *    This might easily be in extended PCI reg space, since PCI168 also has
+ *    some custom data starting at 0x80. What kind of config settings
+ *    are located in our extended PCI space anyway??
  *  - PCI168 AP(W) card: power amplifier with 4 Watts/channel at 4 Ohms
  *
  *  Note that this driver now is actually *better* than the Windows driver,
@@ -73,6 +91,24 @@
  *    seq_default_timer_subdevice=0 seq_default_timer_resolution=1000000
  *  - "timidity -iAv -B2,8 -Os -EFreverb=0"
  *  - "pmidi -p 128:0 jazz.mid"
+ *
+ *  OPL3 hardware playback testing, try something like:
+ *  cat /proc/asound/hwdep
+ *  and
+ *  aconnect -o
+ *  Then use
+ *  sbiload -Dhw:x,y --opl3 /usr/share/sounds/opl3/std.o3 ......./drums.o3
+ *  where x,y is the xx-yy number as given in hwdep.
+ *  Then try
+ *  pmidi -p a:b jazz.mid
+ *  where a:b is the client number plus 0 usually, as given by aconnect above.
+ *  Oh, and make sure to unmute the FM mixer control (doh!)
+ *  NOTE: power use during OPL3 playback is _VERY_ high (70W --> 90W!)
+ *  despite no CPU activity, possibly due to hindering ACPI idling somehow.
+ *  Shouldn't be a problem of the AZF3328 chip itself, I'd hope.
+ *  Higher PCM / FM mixer levels seem to conflict (causes crackling),
+ *  at least sometimes.   Maybe even use with hardware sequencer timer above :)
+ *  adplay/adplug-utils might soon offer hardware-based OPL3 playback, too.
  *
  *  Certain PCI versions of this card are susceptible to DMA traffic underruns
  *  in some systems (resulting in sound crackling/clicking/popping),
@@ -87,6 +123,8 @@
  *  better than a VIA, yet ironically I still get crackling, like many other
  *  people with the same chipset.
  *  Possible remedies:
+ *  - use speaker (amplifier) output instead of headphone output
+ *    (in case crackling is due to overloaded output clipping)
  *  - plug card into a different PCI slot, preferrably one that isn't shared
  *    too much (this helps a lot, but not completely!)
  *  - get rid of PCI VGA card, use AGP instead
@@ -94,18 +132,23 @@
  *  - fiddle with PCI latency settings (setpci -v -s BUSID latency_timer=XX)
  *    Not too helpful.
  *  - Disable ACPI/power management/"Auto Detect RAM/PCI Clk" in BIOS
- * 
+ *
  * BUGS
- *  - full-duplex might *still* be problematic, not fully tested recently
+ *  - full-duplex might *still* be problematic, however a recent test was fine
  *  - (non-bug) "Bass/Treble or 3D settings don't work" - they do get evaluated
  *    if you set PCM output switch to "pre 3D" instead of "post 3D".
  *    If this can't be set, then get a mixer application that Isn't Stupid (tm)
  *    (e.g. kmix, gamix) - unfortunately several are!!
- * 
+ *  - locking is not entirely clean, especially the audio stream activity
+ *    ints --> may be racy
+ *  - an _unconnected_ secondary joystick at the gameport will be reported
+ *    to be "active" (floating values, not precisely -1) due to the way we need
+ *    to read the Digital Enhanced Game Port. Not sure whether it is fixable.
+ *
  * TODO
  *  - test MPU401 MIDI playback etc.
- *  - add some power micro-management (disable various units of the card
- *    as long as they're unused). However this requires I/O ports which I
+ *  - add more power micro-management (disable various units of the card
+ *    as long as they're unused). However this requires more I/O ports which I
  *    haven't figured out yet and which thus might not even exist...
  *    The standard suspend/resume functionality could probably make use of
  *    some improvement, too...
@@ -113,6 +156,7 @@
  *  - figure out some cleverly evil scheme to possibly make ALSA AC97 code
  *    fully accept our quite incompatible ""AC97"" mixer and thus save some
  *    code (but I'm not too optimistic that doing this is possible at all)
+ *  - use MMIO (memory-mapped I/O)? Slightly faster access, e.g. for gameport.
  */
 
 #include <asm/io.h>
@@ -138,7 +182,7 @@ MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 
 #if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
-#define SUPPORT_JOYSTICK 1
+#define SUPPORT_GAMEPORT 1
 #endif
 
 #define DEBUG_MISC	0
@@ -147,13 +191,14 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 #define DEBUG_PLAY_REC	0
 #define DEBUG_IO	0
 #define DEBUG_TIMER	0
+#define DEBUG_GAME	0
 #define MIXER_TESTING	0
 
 #if DEBUG_MISC
 #define snd_azf3328_dbgmisc(format, args...) printk(KERN_ERR format, ##args)
 #else
 #define snd_azf3328_dbgmisc(format, args...)
-#endif		
+#endif
 
 #if DEBUG_CALLS
 #define snd_azf3328_dbgcalls(format, args...) printk(format, ##args)
@@ -163,25 +208,31 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 #define snd_azf3328_dbgcalls(format, args...)
 #define snd_azf3328_dbgcallenter()
 #define snd_azf3328_dbgcallleave()
-#endif		
+#endif
 
 #if DEBUG_MIXER
 #define snd_azf3328_dbgmixer(format, args...) printk(format, ##args)
 #else
 #define snd_azf3328_dbgmixer(format, args...)
-#endif		
+#endif
 
 #if DEBUG_PLAY_REC
 #define snd_azf3328_dbgplay(format, args...) printk(KERN_ERR format, ##args)
 #else
 #define snd_azf3328_dbgplay(format, args...)
-#endif		
+#endif
 
 #if DEBUG_MISC
 #define snd_azf3328_dbgtimer(format, args...) printk(KERN_ERR format, ##args)
 #else
 #define snd_azf3328_dbgtimer(format, args...)
-#endif		
+#endif
+
+#if DEBUG_GAME
+#define snd_azf3328_dbggame(format, args...) printk(KERN_ERR format, ##args)
+#else
+#define snd_azf3328_dbggame(format, args...)
+#endif
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 module_param_array(index, int, NULL, 0444);
@@ -195,39 +246,44 @@ static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card *
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable AZF3328 soundcard.");
 
-#ifdef SUPPORT_JOYSTICK
-static int joystick[SNDRV_CARDS];
-module_param_array(joystick, bool, NULL, 0444);
-MODULE_PARM_DESC(joystick, "Enable joystick for AZF3328 soundcard.");
-#endif
-
 static int seqtimer_scaling = 128;
 module_param(seqtimer_scaling, int, 0444);
 MODULE_PARM_DESC(seqtimer_scaling, "Set 1024000Hz sequencer timer scale factor (lockup danger!). Default 128.");
 
+struct snd_azf3328_audio_stream {
+	struct snd_pcm_substream *substream;
+	int enabled;
+	int running;
+	unsigned long portbase;
+};
+
+enum snd_azf3328_stream_index {
+  AZF_PLAYBACK = 0,
+  AZF_CAPTURE = 1,
+};
+
 struct snd_azf3328 {
 	/* often-used fields towards beginning, then grouped */
-	unsigned long codec_port;
-	unsigned long io2_port;
-	unsigned long mpu_port;
-	unsigned long synth_port;
-	unsigned long mixer_port;
+
+	unsigned long codec_io; /* usually 0xb000, size 128 */
+	unsigned long game_io;  /* usually 0xb400, size 8 */
+	unsigned long mpu_io;   /* usually 0xb800, size 4 */
+	unsigned long opl3_io; /* usually 0xbc00, size 8 */
+	unsigned long mixer_io; /* usually 0xc000, size 64 */
 
 	spinlock_t reg_lock;
 
 	struct snd_timer *timer;
-	
+
 	struct snd_pcm *pcm;
-	struct snd_pcm_substream *playback_substream;
-	struct snd_pcm_substream *capture_substream;
-	unsigned int is_playing;
-	unsigned int is_recording;
+	struct snd_azf3328_audio_stream audio_stream[2];
 
 	struct snd_card *card;
 	struct snd_rawmidi *rmidi;
 
-#ifdef SUPPORT_JOYSTICK
+#ifdef SUPPORT_GAMEPORT
 	struct gameport *gameport;
+	int axes[4];
 #endif
 
 	struct pci_dev *pci;
@@ -236,10 +292,10 @@ struct snd_azf3328 {
 #ifdef CONFIG_PM
 	/* register value containers for power management
 	 * Note: not always full I/O range preserved (just like Win driver!) */
-	u16 saved_regs_codec [AZF_IO_SIZE_CODEC_PM / 2];
-	u16 saved_regs_io2   [AZF_IO_SIZE_IO2_PM / 2];
-	u16 saved_regs_mpu   [AZF_IO_SIZE_MPU_PM / 2];
-	u16 saved_regs_synth[AZF_IO_SIZE_SYNTH_PM / 2];
+	u16 saved_regs_codec[AZF_IO_SIZE_CODEC_PM / 2];
+	u16 saved_regs_game [AZF_IO_SIZE_GAME_PM / 2];
+	u16 saved_regs_mpu  [AZF_IO_SIZE_MPU_PM / 2];
+	u16 saved_regs_opl3 [AZF_IO_SIZE_OPL3_PM / 2];
 	u16 saved_regs_mixer[AZF_IO_SIZE_MIXER_PM / 2];
 #endif
 };
@@ -252,126 +308,181 @@ static const struct pci_device_id snd_azf3328_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_azf3328_ids);
 
-static inline void
-snd_azf3328_codec_outb(const struct snd_azf3328 *chip, int reg, u8 value)
+
+static int
+snd_azf3328_io_reg_setb(unsigned reg, u8 mask, int do_set)
 {
-	outb(value, chip->codec_port + reg);
+	u8 prev = inb(reg), new;
+
+	new = (do_set) ? (prev|mask) : (prev & ~mask);
+	/* we need to always write the new value no matter whether it differs
+	 * or not, since some register bits don't indicate their setting */
+	outb(new, reg);
+	if (new != prev)
+		return 1;
+
+	return 0;
+}
+
+static int
+snd_azf3328_io_reg_setw(unsigned reg, u16 mask, int do_set)
+{
+	u16 prev = inw(reg), new;
+
+	new = (do_set) ? (prev|mask) : (prev & ~mask);
+	/* we need to always write the new value no matter whether it differs
+	 * or not, since some register bits don't indicate their setting */
+	outw(new, reg);
+	if (new != prev)
+		return 1;
+
+	return 0;
+}
+
+static inline void
+snd_azf3328_codec_outb(const struct snd_azf3328 *chip, unsigned reg, u8 value)
+{
+	outb(value, chip->codec_io + reg);
 }
 
 static inline u8
-snd_azf3328_codec_inb(const struct snd_azf3328 *chip, int reg)
+snd_azf3328_codec_inb(const struct snd_azf3328 *chip, unsigned reg)
 {
-	return inb(chip->codec_port + reg);
+	return inb(chip->codec_io + reg);
 }
 
 static inline void
-snd_azf3328_codec_outw(const struct snd_azf3328 *chip, int reg, u16 value)
+snd_azf3328_codec_outw(const struct snd_azf3328 *chip, unsigned reg, u16 value)
 {
-	outw(value, chip->codec_port + reg);
+	outw(value, chip->codec_io + reg);
 }
 
 static inline u16
-snd_azf3328_codec_inw(const struct snd_azf3328 *chip, int reg)
+snd_azf3328_codec_inw(const struct snd_azf3328 *chip, unsigned reg)
 {
-	return inw(chip->codec_port + reg);
+	return inw(chip->codec_io + reg);
 }
 
 static inline void
-snd_azf3328_codec_outl(const struct snd_azf3328 *chip, int reg, u32 value)
+snd_azf3328_codec_outl(const struct snd_azf3328 *chip, unsigned reg, u32 value)
 {
-	outl(value, chip->codec_port + reg);
+	outl(value, chip->codec_io + reg);
+}
+
+static inline u32
+snd_azf3328_codec_inl(const struct snd_azf3328 *chip, unsigned reg)
+{
+	return inl(chip->codec_io + reg);
 }
 
 static inline void
-snd_azf3328_io2_outb(const struct snd_azf3328 *chip, int reg, u8 value)
+snd_azf3328_game_outb(const struct snd_azf3328 *chip, unsigned reg, u8 value)
 {
-	outb(value, chip->io2_port + reg);
+	outb(value, chip->game_io + reg);
+}
+
+static inline void
+snd_azf3328_game_outw(const struct snd_azf3328 *chip, unsigned reg, u16 value)
+{
+	outw(value, chip->game_io + reg);
 }
 
 static inline u8
-snd_azf3328_io2_inb(const struct snd_azf3328 *chip, int reg)
+snd_azf3328_game_inb(const struct snd_azf3328 *chip, unsigned reg)
 {
-	return inb(chip->io2_port + reg);
-}
-
-static inline void
-snd_azf3328_mixer_outw(const struct snd_azf3328 *chip, int reg, u16 value)
-{
-	outw(value, chip->mixer_port + reg);
+	return inb(chip->game_io + reg);
 }
 
 static inline u16
-snd_azf3328_mixer_inw(const struct snd_azf3328 *chip, int reg)
+snd_azf3328_game_inw(const struct snd_azf3328 *chip, unsigned reg)
 {
-	return inw(chip->mixer_port + reg);
+	return inw(chip->game_io + reg);
 }
 
-static void
-snd_azf3328_mixer_set_mute(const struct snd_azf3328 *chip, int reg, int do_mute)
+static inline void
+snd_azf3328_mixer_outw(const struct snd_azf3328 *chip, unsigned reg, u16 value)
 {
-	unsigned long portbase = chip->mixer_port + reg + 1;
-	unsigned char oldval;
+	outw(value, chip->mixer_io + reg);
+}
+
+static inline u16
+snd_azf3328_mixer_inw(const struct snd_azf3328 *chip, unsigned reg)
+{
+	return inw(chip->mixer_io + reg);
+}
+
+#define AZF_MUTE_BIT 0x80
+
+static int
+snd_azf3328_mixer_set_mute(const struct snd_azf3328 *chip,
+			   unsigned reg, int do_mute
+)
+{
+	unsigned long portbase = chip->mixer_io + reg + 1;
+	int updated;
 
 	/* the mute bit is on the *second* (i.e. right) register of a
 	 * left/right channel setting */
-	oldval = inb(portbase);
-	if (do_mute)
-		oldval |= 0x80;
-	else
-		oldval &= ~0x80;
-	outb(oldval, portbase);
+	updated = snd_azf3328_io_reg_setb(portbase, AZF_MUTE_BIT, do_mute);
+
+	/* indicate whether it was muted before */
+	return (do_mute) ? !updated : updated;
 }
 
 static void
-snd_azf3328_mixer_write_volume_gradually(const struct snd_azf3328 *chip, int reg, unsigned char dst_vol_left, unsigned char dst_vol_right, int chan_sel, int delay)
+snd_azf3328_mixer_write_volume_gradually(const struct snd_azf3328 *chip,
+					 unsigned reg,
+					 unsigned char dst_vol_left,
+					 unsigned char dst_vol_right,
+					 int chan_sel, int delay
+)
 {
-	unsigned long portbase = chip->mixer_port + reg;
+	unsigned long portbase = chip->mixer_io + reg;
 	unsigned char curr_vol_left = 0, curr_vol_right = 0;
-	int left_done = 0, right_done = 0;
-	
+	int left_change = 0, right_change = 0;
+
 	snd_azf3328_dbgcallenter();
-	if (chan_sel & SET_CHAN_LEFT)
+
+	if (chan_sel & SET_CHAN_LEFT) {
 		curr_vol_left  = inb(portbase + 1);
-	else
-		left_done = 1;
-	if (chan_sel & SET_CHAN_RIGHT)
+
+		/* take care of muting flag contained in left channel */
+		if (curr_vol_left & AZF_MUTE_BIT)
+			dst_vol_left |= AZF_MUTE_BIT;
+		else
+			dst_vol_left &= ~AZF_MUTE_BIT;
+
+		left_change = (curr_vol_left > dst_vol_left) ? -1 : 1;
+	}
+
+	if (chan_sel & SET_CHAN_RIGHT) {
 		curr_vol_right = inb(portbase + 0);
-	else
-		right_done = 1;
-	
-	/* take care of muting flag (0x80) contained in left channel */
-	if (curr_vol_left & 0x80)
-		dst_vol_left |= 0x80;
-	else
-		dst_vol_left &= ~0x80;
+
+		right_change = (curr_vol_right > dst_vol_right) ? -1 : 1;
+	}
 
 	do {
-		if (!left_done) {
-			if (curr_vol_left > dst_vol_left)
-				curr_vol_left--;
-			else
-			if (curr_vol_left < dst_vol_left)
-				curr_vol_left++;
-			else
-			    left_done = 1;
-			outb(curr_vol_left, portbase + 1);
+		if (left_change) {
+			if (curr_vol_left != dst_vol_left) {
+				curr_vol_left += left_change;
+				outb(curr_vol_left, portbase + 1);
+			} else
+			    left_change = 0;
 		}
-		if (!right_done) {
-			if (curr_vol_right > dst_vol_right)
-				curr_vol_right--;
-			else
-			if (curr_vol_right < dst_vol_right)
-				curr_vol_right++;
-			else
-			    right_done = 1;
+		if (right_change) {
+			if (curr_vol_right != dst_vol_right) {
+				curr_vol_right += right_change;
+
 			/* during volume change, the right channel is crackling
 			 * somewhat more than the left channel, unfortunately.
 			 * This seems to be a hardware issue. */
-			outb(curr_vol_right, portbase + 0);
+				outb(curr_vol_right, portbase + 0);
+			} else
+			    right_change = 0;
 		}
 		if (delay)
 			mdelay(delay);
-	} while ((!left_done) || (!right_done));
+	} while ((left_change) || (right_change));
 	snd_azf3328_dbgcallleave();
 }
 
@@ -379,7 +490,7 @@ snd_azf3328_mixer_write_volume_gradually(const struct snd_azf3328 *chip, int reg
  * general mixer element
  */
 struct azf3328_mixer_reg {
-	unsigned int reg;
+	unsigned reg;
 	unsigned int lchan_shift, rchan_shift;
 	unsigned int mask;
 	unsigned int invert: 1;
@@ -544,13 +655,14 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
 		"Mix", "Mic"
 	};
 	static const char * const texts3[] = {
-                "Mic", "CD", "Video", "Aux",
+		"Mic", "CD", "Video", "Aux",
 		"Line", "Mix", "Mix Mono", "Phone"
         };
 	static const char * const texts4[] = {
 		"pre 3D", "post 3D"
         };
 	struct azf3328_mixer_reg reg;
+	const char *p = NULL;
 
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
         uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -561,18 +673,20 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
 	if (reg.reg == IDX_MIXER_ADVCTL2) {
 		switch(reg.lchan_shift) {
 		case 8: /* modem out sel */
-			strcpy(uinfo->value.enumerated.name, texts1[uinfo->value.enumerated.item]);
+			p = texts1[uinfo->value.enumerated.item];
 			break;
 		case 9: /* mono sel source */
-			strcpy(uinfo->value.enumerated.name, texts2[uinfo->value.enumerated.item]);
+			p = texts2[uinfo->value.enumerated.item];
 			break;
 		case 15: /* PCM Out Path */
-			strcpy(uinfo->value.enumerated.name, texts4[uinfo->value.enumerated.item]);
+			p = texts4[uinfo->value.enumerated.item];
 			break;
 		}
 	} else
-        	strcpy(uinfo->value.enumerated.name, texts3[uinfo->value.enumerated.item]
-);
+	if (reg.reg == IDX_MIXER_REC_SELECT)
+		p = texts3[uinfo->value.enumerated.item];
+
+	strcpy(uinfo->value.enumerated.name, p);
         return 0;
 }
 
@@ -583,7 +697,7 @@ snd_azf3328_get_mixer_enum(struct snd_kcontrol *kcontrol,
         struct snd_azf3328 *chip = snd_kcontrol_chip(kcontrol);
 	struct azf3328_mixer_reg reg;
         unsigned short val;
-        
+
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
 	val = snd_azf3328_mixer_inw(chip, reg.reg);
 	if (reg.reg == IDX_MIXER_REC_SELECT) {
@@ -605,7 +719,7 @@ snd_azf3328_put_mixer_enum(struct snd_kcontrol *kcontrol,
         struct snd_azf3328 *chip = snd_kcontrol_chip(kcontrol);
 	struct azf3328_mixer_reg reg;
 	unsigned int oreg, nreg, val;
-        
+
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
 	oreg = snd_azf3328_mixer_inw(chip, reg.reg);
 	val = oreg;
@@ -717,15 +831,16 @@ snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 	snd_azf3328_mixer_outw(chip, IDX_MIXER_RESET, 0x0000);
 
 	/* mute and zero volume channels */
-	for (idx = 0; idx < ARRAY_SIZE(snd_azf3328_init_values); idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(snd_azf3328_init_values); ++idx) {
 		snd_azf3328_mixer_outw(chip,
 			snd_azf3328_init_values[idx][0],
 			snd_azf3328_init_values[idx][1]);
 	}
-	
+
 	/* add mixer controls */
 	sw = snd_azf3328_mixer_controls;
-	for (idx = 0; idx < ARRAY_SIZE(snd_azf3328_mixer_controls); idx++, sw++) {
+	for (idx = 0; idx < ARRAY_SIZE(snd_azf3328_mixer_controls);
+			++idx, ++sw) {
 		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(sw, chip))) < 0)
 			return err;
 	}
@@ -757,8 +872,8 @@ snd_azf3328_hw_free(struct snd_pcm_substream *substream)
 }
 
 static void
-snd_azf3328_setfmt(struct snd_azf3328 *chip,
-			       unsigned int reg,
+snd_azf3328_codec_setfmt(struct snd_azf3328 *chip,
+			       unsigned reg,
 			       unsigned int bitrate,
 			       unsigned int format_width,
 			       unsigned int channels
@@ -769,24 +884,25 @@ snd_azf3328_setfmt(struct snd_azf3328 *chip,
 
 	snd_azf3328_dbgcallenter();
 	switch (bitrate) {
-	case  4000: val |= SOUNDFORMAT_FREQ_SUSPECTED_4000; break;
-	case  4800: val |= SOUNDFORMAT_FREQ_SUSPECTED_4800; break;
-	case  5512: val |= SOUNDFORMAT_FREQ_5510; break; /* the AZF3328 names it "5510" for some strange reason */
-	case  6620: val |= SOUNDFORMAT_FREQ_6620; break;
-	case  8000: val |= SOUNDFORMAT_FREQ_8000; break;
-	case  9600: val |= SOUNDFORMAT_FREQ_9600; break;
-	case 11025: val |= SOUNDFORMAT_FREQ_11025; break;
-	case 13240: val |= SOUNDFORMAT_FREQ_SUSPECTED_13240; break;
-	case 16000: val |= SOUNDFORMAT_FREQ_16000; break;
-	case 22050: val |= SOUNDFORMAT_FREQ_22050; break;
-	case 32000: val |= SOUNDFORMAT_FREQ_32000; break;
-	case 44100: val |= SOUNDFORMAT_FREQ_44100; break;
-	case 48000: val |= SOUNDFORMAT_FREQ_48000; break;
-	case 66200: val |= SOUNDFORMAT_FREQ_SUSPECTED_66200; break;
+	case AZF_FREQ_4000:  val |= SOUNDFORMAT_FREQ_SUSPECTED_4000; break;
+	case AZF_FREQ_4800:  val |= SOUNDFORMAT_FREQ_SUSPECTED_4800; break;
+	case AZF_FREQ_5512:
+		/* the AZF3328 names it "5510" for some strange reason */
+			     val |= SOUNDFORMAT_FREQ_5510; break;
+	case AZF_FREQ_6620:  val |= SOUNDFORMAT_FREQ_6620; break;
+	case AZF_FREQ_8000:  val |= SOUNDFORMAT_FREQ_8000; break;
+	case AZF_FREQ_9600:  val |= SOUNDFORMAT_FREQ_9600; break;
+	case AZF_FREQ_11025: val |= SOUNDFORMAT_FREQ_11025; break;
+	case AZF_FREQ_13240: val |= SOUNDFORMAT_FREQ_SUSPECTED_13240; break;
+	case AZF_FREQ_16000: val |= SOUNDFORMAT_FREQ_16000; break;
+	case AZF_FREQ_22050: val |= SOUNDFORMAT_FREQ_22050; break;
+	case AZF_FREQ_32000: val |= SOUNDFORMAT_FREQ_32000; break;
 	default:
 		snd_printk(KERN_WARNING "unknown bitrate %d, assuming 44.1kHz!\n", bitrate);
-		val |= SOUNDFORMAT_FREQ_44100;
-		break;
+		/* fall-through */
+	case AZF_FREQ_44100: val |= SOUNDFORMAT_FREQ_44100; break;
+	case AZF_FREQ_48000: val |= SOUNDFORMAT_FREQ_48000; break;
+	case AZF_FREQ_66200: val |= SOUNDFORMAT_FREQ_SUSPECTED_66200; break;
 	}
 	/* val = 0xff07; 3m27.993s (65301Hz; -> 64000Hz???) hmm, 66120, 65967, 66123 */
 	/* val = 0xff09; 17m15.098s (13123,478Hz; -> 12000Hz???) hmm, 13237.2Hz? */
@@ -805,10 +921,10 @@ snd_azf3328_setfmt(struct snd_azf3328 *chip,
 		val |= SOUNDFORMAT_FLAG_16BIT;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	
+
 	/* set bitrate/format */
 	snd_azf3328_codec_outw(chip, reg, val);
-	
+
 	/* changing the bitrate/format settings switches off the
 	 * audio output with an annoying click in case of 8/16bit format change
 	 * (maybe shutting down DAC/ADC?), thus immediately
@@ -830,31 +946,81 @@ snd_azf3328_setfmt(struct snd_azf3328 *chip,
 	snd_azf3328_dbgcallleave();
 }
 
+static inline void
+snd_azf3328_codec_setfmt_lowpower(struct snd_azf3328 *chip,
+			    unsigned reg
+)
+{
+	/* choose lowest frequency for low power consumption.
+	 * While this will cause louder noise due to rather coarse frequency,
+	 * it should never matter since output should always
+	 * get disabled properly when idle anyway. */
+	snd_azf3328_codec_setfmt(chip, reg, AZF_FREQ_4000, 8, 1);
+}
+
+static inline void
+snd_azf3328_codec_enable(struct snd_azf3328 *chip, int enable)
+{
+	/* no idea what exactly is being done here, but I strongly assume it's
+	 * PM related */
+	snd_azf3328_io_reg_setw(
+		chip->codec_io+IDX_IO_6AH,
+		IO_6A_PAUSE_PLAYBACK_BIT8,
+		!enable
+	);
+}
+
+static void
+snd_azf3328_codec_activity(struct snd_azf3328 *chip,
+				enum snd_azf3328_stream_index stream_type,
+				int enable
+)
+{
+	int need_change = (chip->audio_stream[stream_type].running != enable);
+
+	snd_azf3328_dbgplay(
+		"codec_activity: type %d, enable %d, need_change %d\n",
+				stream_type, enable, need_change
+	);
+	if (need_change) {
+		enum snd_azf3328_stream_index other =
+			(stream_type == AZF_PLAYBACK) ?
+				AZF_CAPTURE : AZF_PLAYBACK;
+		/* small check to prevent shutting down the other party
+		 * in case it's active */
+		if ((enable) || !(chip->audio_stream[other].running))
+			snd_azf3328_codec_enable(chip, enable);
+
+		/* ...and adjust clock, too
+		 * (reduce noise and power consumption) */
+		if (!enable)
+			snd_azf3328_codec_setfmt_lowpower(
+				chip,
+				chip->audio_stream[stream_type].portbase
+					+ IDX_IO_PLAY_SOUNDFORMAT
+			);
+	}
+	chip->audio_stream[stream_type].running = enable;
+}
+
 static void
 snd_azf3328_setdmaa(struct snd_azf3328 *chip,
 				long unsigned int addr,
                                 unsigned int count,
                                 unsigned int size,
-				int do_recording)
+				enum snd_azf3328_stream_index stream_type
+)
 {
-	unsigned long flags, portbase;
-	unsigned int is_running;
-
 	snd_azf3328_dbgcallenter();
-	if (do_recording) {
-		/* access capture registers, i.e. skip playback reg section */
-		portbase = chip->codec_port + 0x20;
-		is_running = chip->is_recording;
-	} else {
-		/* access the playback register section */
-		portbase = chip->codec_port + 0x00;
-		is_running = chip->is_playing;
-	}
+	if (!chip->audio_stream[stream_type].running) {
+		/* AZF3328 uses a two buffer pointer DMA playback approach */
 
-	/* AZF3328 uses a two buffer pointer DMA playback approach */
-	if (!is_running) {
-		unsigned long addr_area2;
-		unsigned long count_areas, count_tmp; /* width 32bit -- overflow!! */
+		unsigned long flags, portbase, addr_area2;
+
+		/* width 32bit (prevent overflow): */
+		unsigned long count_areas, count_tmp;
+
+		portbase = chip->audio_stream[stream_type].portbase;
 		count_areas = size/2;
 		addr_area2 = addr+count_areas;
 		count_areas--; /* max. index */
@@ -884,11 +1050,11 @@ snd_azf3328_playback_prepare(struct snd_pcm_substream *substream)
 
 	snd_azf3328_dbgcallenter();
 #if 0
-	snd_azf3328_setfmt(chip, IDX_IO_PLAY_SOUNDFORMAT,
+	snd_azf3328_codec_setfmt(chip, IDX_IO_PLAY_SOUNDFORMAT,
 		runtime->rate,
 		snd_pcm_format_width(runtime->format),
 		runtime->channels);
-	snd_azf3328_setdmaa(chip, runtime->dma_addr, count, size, 0);
+	snd_azf3328_setdmaa(chip, runtime->dma_addr, count, size, AZF_PLAYBACK);
 #endif
 	snd_azf3328_dbgcallleave();
 	return 0;
@@ -906,11 +1072,11 @@ snd_azf3328_capture_prepare(struct snd_pcm_substream *substream)
 
 	snd_azf3328_dbgcallenter();
 #if 0
-	snd_azf3328_setfmt(chip, IDX_IO_REC_SOUNDFORMAT,
+	snd_azf3328_codec_setfmt(chip, IDX_IO_REC_SOUNDFORMAT,
 		runtime->rate,
 		snd_pcm_format_width(runtime->format),
 		runtime->channels);
-	snd_azf3328_setdmaa(chip, runtime->dma_addr, count, size, 1);
+	snd_azf3328_setdmaa(chip, runtime->dma_addr, count, size, AZF_CAPTURE);
 #endif
 	snd_azf3328_dbgcallleave();
 	return 0;
@@ -923,6 +1089,7 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int result = 0;
 	unsigned int status1;
+	int previously_muted;
 
 	snd_azf3328_dbgcalls("snd_azf3328_playback_trigger cmd %d\n", cmd);
 
@@ -930,20 +1097,23 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		snd_azf3328_dbgplay("START PLAYBACK\n");
 
-		/* mute WaveOut */
-		snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 1);
+		/* mute WaveOut (avoid clicking during setup) */
+		previously_muted =
+			snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 1);
 
-		snd_azf3328_setfmt(chip, IDX_IO_PLAY_SOUNDFORMAT,
+		snd_azf3328_codec_setfmt(chip, IDX_IO_PLAY_SOUNDFORMAT,
 			runtime->rate,
 			snd_pcm_format_width(runtime->format),
 			runtime->channels);
 
 		spin_lock(&chip->reg_lock);
-		/* stop playback */
+		/* first, remember current value: */
 		status1 = snd_azf3328_codec_inw(chip, IDX_IO_PLAY_FLAGS);
+
+		/* stop playback */
 		status1 &= ~DMA_RESUME;
 		snd_azf3328_codec_outw(chip, IDX_IO_PLAY_FLAGS, status1);
-	    
+
 		/* FIXME: clear interrupts or what??? */
 		snd_azf3328_codec_outw(chip, IDX_IO_PLAY_IRQTYPE, 0xffff);
 		spin_unlock(&chip->reg_lock);
@@ -951,7 +1121,7 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_azf3328_setdmaa(chip, runtime->dma_addr,
 			snd_pcm_lib_period_bytes(substream),
 			snd_pcm_lib_buffer_bytes(substream),
-			0);
+			AZF_PLAYBACK);
 
 		spin_lock(&chip->reg_lock);
 #ifdef WIN9X
@@ -978,30 +1148,35 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 			DMA_SOMETHING_ELSE);
 #endif
 		spin_unlock(&chip->reg_lock);
+		snd_azf3328_codec_activity(chip, AZF_PLAYBACK, 1);
 
 		/* now unmute WaveOut */
-		snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 0);
+		if (!previously_muted)
+			snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 0);
 
-		chip->is_playing = 1;
 		snd_azf3328_dbgplay("STARTED PLAYBACK\n");
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 		snd_azf3328_dbgplay("RESUME PLAYBACK\n");
 		/* resume playback if we were active */
-		if (chip->is_playing)
+		spin_lock(&chip->reg_lock);
+		if (chip->audio_stream[AZF_PLAYBACK].running)
 			snd_azf3328_codec_outw(chip, IDX_IO_PLAY_FLAGS,
 				snd_azf3328_codec_inw(chip, IDX_IO_PLAY_FLAGS) | DMA_RESUME);
+		spin_unlock(&chip->reg_lock);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_azf3328_dbgplay("STOP PLAYBACK\n");
 
-		/* mute WaveOut */
-		snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 1);
+		/* mute WaveOut (avoid clicking during setup) */
+		previously_muted =
+			snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 1);
 
 		spin_lock(&chip->reg_lock);
-		/* stop playback */
+		/* first, remember current value: */
 		status1 = snd_azf3328_codec_inw(chip, IDX_IO_PLAY_FLAGS);
 
+		/* stop playback */
 		status1 &= ~DMA_RESUME;
 		snd_azf3328_codec_outw(chip, IDX_IO_PLAY_FLAGS, status1);
 
@@ -1013,10 +1188,12 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		status1 &= ~DMA_PLAY_SOMETHING1;
 		snd_azf3328_codec_outw(chip, IDX_IO_PLAY_FLAGS, status1);
 		spin_unlock(&chip->reg_lock);
-	    
+		snd_azf3328_codec_activity(chip, AZF_PLAYBACK, 0);
+
 		/* now unmute WaveOut */
-		snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 0);
-		chip->is_playing = 0;
+		if (!previously_muted)
+			snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 0);
+
 		snd_azf3328_dbgplay("STOPPED PLAYBACK\n");
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -1035,7 +1212,7 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		printk(KERN_ERR "FIXME: unknown trigger mode!\n");
                 return -EINVAL;
 	}
-	
+
 	snd_azf3328_dbgcallleave();
 	return result;
 }
@@ -1057,17 +1234,19 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 
 		snd_azf3328_dbgplay("START CAPTURE\n");
 
-		snd_azf3328_setfmt(chip, IDX_IO_REC_SOUNDFORMAT,
+		snd_azf3328_codec_setfmt(chip, IDX_IO_REC_SOUNDFORMAT,
 			runtime->rate,
 			snd_pcm_format_width(runtime->format),
 			runtime->channels);
 
 		spin_lock(&chip->reg_lock);
-		/* stop recording */
+		/* first, remember current value: */
 		status1 = snd_azf3328_codec_inw(chip, IDX_IO_REC_FLAGS);
+
+		/* stop recording */
 		status1 &= ~DMA_RESUME;
 		snd_azf3328_codec_outw(chip, IDX_IO_REC_FLAGS, status1);
-	    
+
 		/* FIXME: clear interrupts or what??? */
 		snd_azf3328_codec_outw(chip, IDX_IO_REC_IRQTYPE, 0xffff);
 		spin_unlock(&chip->reg_lock);
@@ -1075,7 +1254,7 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_azf3328_setdmaa(chip, runtime->dma_addr,
 			snd_pcm_lib_period_bytes(substream),
 			snd_pcm_lib_buffer_bytes(substream),
-			1);
+			AZF_CAPTURE);
 
 		spin_lock(&chip->reg_lock);
 #ifdef WIN9X
@@ -1102,24 +1281,27 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 			DMA_SOMETHING_ELSE);
 #endif
 		spin_unlock(&chip->reg_lock);
+		snd_azf3328_codec_activity(chip, AZF_CAPTURE, 1);
 
-		chip->is_recording = 1;
 		snd_azf3328_dbgplay("STARTED CAPTURE\n");
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 		snd_azf3328_dbgplay("RESUME CAPTURE\n");
 		/* resume recording if we were active */
-		if (chip->is_recording)
+		spin_lock(&chip->reg_lock);
+		if (chip->audio_stream[AZF_CAPTURE].running)
 			snd_azf3328_codec_outw(chip, IDX_IO_REC_FLAGS,
 				snd_azf3328_codec_inw(chip, IDX_IO_REC_FLAGS) | DMA_RESUME);
+		spin_unlock(&chip->reg_lock);
 		break;
         case SNDRV_PCM_TRIGGER_STOP:
 		snd_azf3328_dbgplay("STOP CAPTURE\n");
 
 		spin_lock(&chip->reg_lock);
-		/* stop recording */
+		/* first, remember current value: */
 		status1 = snd_azf3328_codec_inw(chip, IDX_IO_REC_FLAGS);
 
+		/* stop recording */
 		status1 &= ~DMA_RESUME;
 		snd_azf3328_codec_outw(chip, IDX_IO_REC_FLAGS, status1);
 
@@ -1129,8 +1311,8 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		status1 &= ~DMA_PLAY_SOMETHING1;
 		snd_azf3328_codec_outw(chip, IDX_IO_REC_FLAGS, status1);
 		spin_unlock(&chip->reg_lock);
-	    
-		chip->is_recording = 0;
+		snd_azf3328_codec_activity(chip, AZF_CAPTURE, 0);
+
 		snd_azf3328_dbgplay("STOPPED CAPTURE\n");
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -1149,7 +1331,7 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		printk(KERN_ERR "FIXME: unknown trigger mode!\n");
                 return -EINVAL;
 	}
-	
+
 	snd_azf3328_dbgcallleave();
 	return result;
 }
@@ -1162,11 +1344,11 @@ snd_azf3328_playback_pointer(struct snd_pcm_substream *substream)
 	snd_pcm_uframes_t frmres;
 
 #ifdef QUERY_HARDWARE
-	bufptr = inl(chip->codec_port+IDX_IO_PLAY_DMA_START_1);
+	bufptr = snd_azf3328_codec_inl(chip, IDX_IO_PLAY_DMA_START_1);
 #else
 	bufptr = substream->runtime->dma_addr;
 #endif
-	result = inl(chip->codec_port+IDX_IO_PLAY_DMA_CURRPOS);
+	result = snd_azf3328_codec_inl(chip, IDX_IO_PLAY_DMA_CURRPOS);
 
 	/* calculate offset */
 	result -= bufptr;
@@ -1183,11 +1365,11 @@ snd_azf3328_capture_pointer(struct snd_pcm_substream *substream)
 	snd_pcm_uframes_t frmres;
 
 #ifdef QUERY_HARDWARE
-	bufptr = inl(chip->codec_port+IDX_IO_REC_DMA_START_1);
+	bufptr = snd_azf3328_codec_inl(chip, IDX_IO_REC_DMA_START_1);
 #else
 	bufptr = substream->runtime->dma_addr;
 #endif
-	result = inl(chip->codec_port+IDX_IO_REC_DMA_CURRPOS);
+	result = snd_azf3328_codec_inl(chip, IDX_IO_REC_DMA_CURRPOS);
 
 	/* calculate offset */
 	result -= bufptr;
@@ -1196,27 +1378,233 @@ snd_azf3328_capture_pointer(struct snd_pcm_substream *substream)
 	return frmres;
 }
 
+/******************************************************************/
+
+#ifdef SUPPORT_GAMEPORT
+static inline void
+snd_azf3328_gameport_irq_enable(struct snd_azf3328 *chip, int enable)
+{
+	snd_azf3328_io_reg_setb(
+		chip->game_io+IDX_GAME_HWCONFIG,
+		GAME_HWCFG_IRQ_ENABLE,
+		enable
+	);
+}
+
+static inline void
+snd_azf3328_gameport_legacy_address_enable(struct snd_azf3328 *chip, int enable)
+{
+	snd_azf3328_io_reg_setb(
+		chip->game_io+IDX_GAME_HWCONFIG,
+		GAME_HWCFG_LEGACY_ADDRESS_ENABLE,
+		enable
+	);
+}
+
+static inline void
+snd_azf3328_gameport_axis_circuit_enable(struct snd_azf3328 *chip, int enable)
+{
+	snd_azf3328_io_reg_setw(
+		chip->codec_io+IDX_IO_6AH,
+		IO_6A_SOMETHING2_GAMEPORT,
+		!enable
+	);
+}
+
+static inline void
+snd_azf3328_gameport_interrupt(struct snd_azf3328 *chip)
+{
+	/*
+	 * skeleton handler only
+	 * (we do not want axis reading in interrupt handler - too much load!)
+	 */
+	snd_azf3328_dbggame("gameport irq\n");
+
+	 /* this should ACK the gameport IRQ properly, hopefully. */
+	snd_azf3328_game_inw(chip, IDX_GAME_AXIS_VALUE);
+}
+
+static int
+snd_azf3328_gameport_open(struct gameport *gameport, int mode)
+{
+	struct snd_azf3328 *chip = gameport_get_port_data(gameport);
+	int res;
+
+	snd_azf3328_dbggame("gameport_open, mode %d\n", mode);
+	switch (mode) {
+	case GAMEPORT_MODE_COOKED:
+	case GAMEPORT_MODE_RAW:
+		res = 0;
+		break;
+	default:
+		res = -1;
+		break;
+	}
+
+	snd_azf3328_gameport_axis_circuit_enable(chip, (res == 0));
+
+	return res;
+}
+
+static void
+snd_azf3328_gameport_close(struct gameport *gameport)
+{
+	struct snd_azf3328 *chip = gameport_get_port_data(gameport);
+
+	snd_azf3328_dbggame("gameport_close\n");
+	snd_azf3328_gameport_axis_circuit_enable(chip, 0);
+}
+
+static int
+snd_azf3328_gameport_cooked_read(struct gameport *gameport,
+				 int *axes,
+				 int *buttons
+)
+{
+	struct snd_azf3328 *chip = gameport_get_port_data(gameport);
+	int i;
+	u8 val;
+	unsigned long flags;
+
+	snd_assert(chip, return 0);
+
+	spin_lock_irqsave(&chip->reg_lock, flags);
+	val = snd_azf3328_game_inb(chip, IDX_GAME_LEGACY_COMPATIBLE);
+	*buttons = (~(val) >> 4) & 0xf;
+
+	/* ok, this one is a bit dirty: cooked_read is being polled by a timer,
+	 * thus we're atomic and cannot actively wait in here
+	 * (which would be useful for us since it probably would be better
+	 * to trigger a measurement in here, then wait a short amount of
+	 * time until it's finished, then read values of _this_ measurement).
+	 *
+	 * Thus we simply resort to reading values if they're available already
+	 * and trigger the next measurement.
+	 */
+
+	val = snd_azf3328_game_inb(chip, IDX_GAME_AXES_CONFIG);
+	if (val & GAME_AXES_SAMPLING_READY) {
+		for (i = 0; i < 4; ++i) {
+			/* configure the axis to read */
+			val = (i << 4) | 0x0f;
+			snd_azf3328_game_outb(chip, IDX_GAME_AXES_CONFIG, val);
+
+			chip->axes[i] = snd_azf3328_game_inw(
+						chip, IDX_GAME_AXIS_VALUE
+					);
+		}
+	}
+
+	/* trigger next axes sampling, to be evaluated the next time we
+	 * enter this function */
+
+	/* for some very, very strange reason we cannot enable
+	 * Measurement Ready monitoring for all axes here,
+	 * at least not when only one joystick connected */
+	val = 0x03; /* we're able to monitor axes 1 and 2 only */
+	snd_azf3328_game_outb(chip, IDX_GAME_AXES_CONFIG, val);
+
+	snd_azf3328_game_outw(chip, IDX_GAME_AXIS_VALUE, 0xffff);
+	spin_unlock_irqrestore(&chip->reg_lock, flags);
+
+	for (i = 0; i < 4; i++) {
+		axes[i] = chip->axes[i];
+		if (axes[i] == 0xffff)
+			axes[i] = -1;
+	}
+
+	snd_azf3328_dbggame("cooked_read: axes %d %d %d %d buttons %d\n",
+		axes[0], axes[1], axes[2], axes[3], *buttons
+	);
+
+	return 0;
+}
+
+static int __devinit
+snd_azf3328_gameport(struct snd_azf3328 *chip, int dev)
+{
+	struct gameport *gp;
+
+	int io_port = chip->game_io;
+
+	chip->gameport = gp = gameport_allocate_port();
+	if (!gp) {
+		printk(KERN_ERR "azt3328: cannot alloc memory for gameport\n");
+		return -ENOMEM;
+	}
+
+	gameport_set_name(gp, "AZF3328 Gameport");
+	gameport_set_phys(gp, "pci%s/gameport0", pci_name(chip->pci));
+	gameport_set_dev_parent(gp, &chip->pci->dev);
+	gp->io = io_port;
+	gameport_set_port_data(gp, chip);
+
+	gp->open = snd_azf3328_gameport_open;
+	gp->close = snd_azf3328_gameport_close;
+	gp->fuzz = 16; /* seems ok */
+	gp->cooked_read = snd_azf3328_gameport_cooked_read;
+
+	/* DISABLE legacy address: we don't need it! */
+	snd_azf3328_gameport_legacy_address_enable(chip, 0);
+
+	snd_azf3328_gameport_axis_circuit_enable(chip, 0);
+
+	gameport_register_port(chip->gameport);
+
+	return 0;
+}
+
+static void
+snd_azf3328_gameport_free(struct snd_azf3328 *chip)
+{
+	if (chip->gameport) {
+		gameport_unregister_port(chip->gameport);
+		chip->gameport = NULL;
+	}
+	snd_azf3328_gameport_irq_enable(chip, 0);
+}
+#else
+static inline int
+snd_azf3328_gameport(struct snd_azf3328 *chip, int dev) { return -ENOSYS; }
+static inline void
+snd_azf3328_gameport_free(struct snd_azf3328 *chip) { }
+static inline void
+snd_azf3328_gameport_interrupt(struct snd_azf3328 *chip)
+{
+	printk(KERN_WARNING "huh, game port IRQ occurred!?\n");
+}
+#endif /* SUPPORT_GAMEPORT */
+
+/******************************************************************/
+
 static irqreturn_t
 snd_azf3328_interrupt(int irq, void *dev_id)
 {
 	struct snd_azf3328 *chip = dev_id;
 	u8 status, which;
+#if DEBUG_PLAY_REC
 	static unsigned long irq_count;
+#endif
 
 	status = snd_azf3328_codec_inb(chip, IDX_IO_IRQSTATUS);
 
         /* fast path out, to ease interrupt sharing */
-	if (!(status & (IRQ_PLAYBACK|IRQ_RECORDING|IRQ_MPU401|IRQ_TIMER)))
+	if (!(status &
+		(IRQ_PLAYBACK|IRQ_RECORDING|IRQ_GAMEPORT|IRQ_MPU401|IRQ_TIMER)
+	))
 		return IRQ_NONE; /* must be interrupt for another device */
 
 	snd_azf3328_dbgplay("Interrupt %ld!\nIDX_IO_PLAY_FLAGS %04x, IDX_IO_PLAY_IRQTYPE %04x, IDX_IO_IRQSTATUS %04x\n",
-		irq_count,
+		irq_count++ /* debug-only */,
 		snd_azf3328_codec_inw(chip, IDX_IO_PLAY_FLAGS),
 		snd_azf3328_codec_inw(chip, IDX_IO_PLAY_IRQTYPE),
 		status);
-		
+
 	if (status & IRQ_TIMER) {
-		/* snd_azf3328_dbgplay("timer %ld\n", inl(chip->codec_port+IDX_IO_TIMER_VALUE) & TIMER_VALUE_MASK); */
+		/* snd_azf3328_dbgplay("timer %ld\n",
+			snd_azf3328_codec_inl(chip, IDX_IO_TIMER_VALUE)
+				& TIMER_VALUE_MASK
+		); */
 		if (chip->timer)
 			snd_timer_interrupt(chip->timer, chip->timer->sticks);
 		/* ACK timer */
@@ -1232,11 +1620,16 @@ snd_azf3328_interrupt(int irq, void *dev_id)
 		snd_azf3328_codec_outb(chip, IDX_IO_PLAY_IRQTYPE, which);
                	spin_unlock(&chip->reg_lock);
 
-		if (chip->pcm && chip->playback_substream) {
-			snd_pcm_period_elapsed(chip->playback_substream);
+		if (chip->pcm && chip->audio_stream[AZF_PLAYBACK].substream) {
+			snd_pcm_period_elapsed(
+				chip->audio_stream[AZF_PLAYBACK].substream
+			);
 			snd_azf3328_dbgplay("PLAY period done (#%x), @ %x\n",
 				which,
-				inl(chip->codec_port+IDX_IO_PLAY_DMA_CURRPOS));
+				snd_azf3328_codec_inl(
+					chip, IDX_IO_PLAY_DMA_CURRPOS
+				)
+			);
 		} else
 			snd_azf3328_dbgplay("azt3328: ouch, irq handler problem!\n");
 		if (which & IRQ_PLAY_SOMETHING)
@@ -1249,16 +1642,23 @@ snd_azf3328_interrupt(int irq, void *dev_id)
 		snd_azf3328_codec_outb(chip, IDX_IO_REC_IRQTYPE, which);
 		spin_unlock(&chip->reg_lock);
 
-		if (chip->pcm && chip->capture_substream) {
-			snd_pcm_period_elapsed(chip->capture_substream);
+		if (chip->pcm && chip->audio_stream[AZF_CAPTURE].substream) {
+			snd_pcm_period_elapsed(
+				chip->audio_stream[AZF_CAPTURE].substream
+			);
 			snd_azf3328_dbgplay("REC  period done (#%x), @ %x\n",
 				which,
-				inl(chip->codec_port+IDX_IO_REC_DMA_CURRPOS));
+				snd_azf3328_codec_inl(
+					chip, IDX_IO_REC_DMA_CURRPOS
+				)
+			);
 		} else
 			snd_azf3328_dbgplay("azt3328: ouch, irq handler problem!\n");
 		if (which & IRQ_REC_SOMETHING)
 			snd_azf3328_dbgplay("azt3328: unknown rec IRQ type occurred, please report!\n");
 	}
+	if (status & IRQ_GAMEPORT)
+		snd_azf3328_gameport_interrupt(chip);
 	/* MPU401 has less critical IRQ requirements
 	 * than timer and playback/recording, right? */
 	if (status & IRQ_MPU401) {
@@ -1268,7 +1668,6 @@ snd_azf3328_interrupt(int irq, void *dev_id)
 		 * If so, then I don't know how... */
 		snd_azf3328_dbgplay("azt3328: MPU401 IRQ\n");
 	}
-	irq_count++;
 	return IRQ_HANDLED;
 }
 
@@ -1287,8 +1686,8 @@ static const struct snd_pcm_hardware snd_azf3328_playback =
 	.rates =		SNDRV_PCM_RATE_5512 |
 				SNDRV_PCM_RATE_8000_48000 |
 				SNDRV_PCM_RATE_KNOT,
-	.rate_min =		4000,
-	.rate_max =		66200,
+	.rate_min =		AZF_FREQ_4000,
+	.rate_max =		AZF_FREQ_66200,
 	.channels_min =		1,
 	.channels_max =		2,
 	.buffer_bytes_max =	65536,
@@ -1315,8 +1714,8 @@ static const struct snd_pcm_hardware snd_azf3328_capture =
 	.rates =		SNDRV_PCM_RATE_5512 |
 				SNDRV_PCM_RATE_8000_48000 |
 				SNDRV_PCM_RATE_KNOT,
-	.rate_min =		4000,
-	.rate_max =		66200,
+	.rate_min =		AZF_FREQ_4000,
+	.rate_max =		AZF_FREQ_66200,
 	.channels_min =		1,
 	.channels_max =		2,
 	.buffer_bytes_max =	65536,
@@ -1329,10 +1728,24 @@ static const struct snd_pcm_hardware snd_azf3328_capture =
 
 
 static unsigned int snd_azf3328_fixed_rates[] = {
-	4000, 4800, 5512, 6620, 8000, 9600, 11025, 13240, 16000, 22050, 32000,
-	44100, 48000, 66200 };
+	AZF_FREQ_4000,
+	AZF_FREQ_4800,
+	AZF_FREQ_5512,
+	AZF_FREQ_6620,
+	AZF_FREQ_8000,
+	AZF_FREQ_9600,
+	AZF_FREQ_11025,
+	AZF_FREQ_13240,
+	AZF_FREQ_16000,
+	AZF_FREQ_22050,
+	AZF_FREQ_32000,
+	AZF_FREQ_44100,
+	AZF_FREQ_48000,
+	AZF_FREQ_66200
+};
+
 static struct snd_pcm_hw_constraint_list snd_azf3328_hw_constraints_rates = {
-	.count = ARRAY_SIZE(snd_azf3328_fixed_rates), 
+	.count = ARRAY_SIZE(snd_azf3328_fixed_rates),
 	.list = snd_azf3328_fixed_rates,
 	.mask = 0,
 };
@@ -1346,7 +1759,7 @@ snd_azf3328_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	snd_azf3328_dbgcallenter();
-	chip->playback_substream = substream;
+	chip->audio_stream[AZF_PLAYBACK].substream = substream;
 	runtime->hw = snd_azf3328_playback;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				   &snd_azf3328_hw_constraints_rates);
@@ -1361,7 +1774,7 @@ snd_azf3328_capture_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	snd_azf3328_dbgcallenter();
-	chip->capture_substream = substream;
+	chip->audio_stream[AZF_CAPTURE].substream = substream;
 	runtime->hw = snd_azf3328_capture;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				   &snd_azf3328_hw_constraints_rates);
@@ -1375,7 +1788,7 @@ snd_azf3328_playback_close(struct snd_pcm_substream *substream)
 	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 
 	snd_azf3328_dbgcallenter();
-	chip->playback_substream = NULL;
+	chip->audio_stream[AZF_PLAYBACK].substream = NULL;
 	snd_azf3328_dbgcallleave();
 	return 0;
 }
@@ -1386,7 +1799,7 @@ snd_azf3328_capture_close(struct snd_pcm_substream *substream)
 	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 
 	snd_azf3328_dbgcallenter();
-	chip->capture_substream = NULL;
+	chip->audio_stream[AZF_CAPTURE].substream = NULL;
 	snd_azf3328_dbgcallleave();
 	return 0;
 }
@@ -1441,102 +1854,8 @@ snd_azf3328_pcm(struct snd_azf3328 *chip, int device)
 
 /******************************************************************/
 
-#ifdef SUPPORT_JOYSTICK
-static int __devinit
-snd_azf3328_config_joystick(struct snd_azf3328 *chip, int dev)
-{
-	struct gameport *gp;
-	struct resource *r;
-
-	if (!joystick[dev])
-		return -ENODEV;
-
-	if (!(r = request_region(0x200, 8, "AZF3328 gameport"))) {
-		printk(KERN_WARNING "azt3328: cannot reserve joystick ports\n");
-		return -EBUSY;
-	}
-
-	chip->gameport = gp = gameport_allocate_port();
-	if (!gp) {
-		printk(KERN_ERR "azt3328: cannot allocate memory for gameport\n");
-		release_and_free_resource(r);
-		return -ENOMEM;
-	}
-
-	gameport_set_name(gp, "AZF3328 Gameport");
-	gameport_set_phys(gp, "pci%s/gameport0", pci_name(chip->pci));
-	gameport_set_dev_parent(gp, &chip->pci->dev);
-	gp->io = 0x200;
-	gameport_set_port_data(gp, r);
-
-	snd_azf3328_io2_outb(chip, IDX_IO2_LEGACY_ADDR,
-			      snd_azf3328_io2_inb(chip, IDX_IO2_LEGACY_ADDR) | LEGACY_JOY);
-
-	gameport_register_port(chip->gameport);
-
-	return 0;
-}
-
-static void
-snd_azf3328_free_joystick(struct snd_azf3328 *chip)
-{
-	if (chip->gameport) {
-		struct resource *r = gameport_get_port_data(chip->gameport);
-
-		gameport_unregister_port(chip->gameport);
-		chip->gameport = NULL;
-		/* disable gameport */
-		snd_azf3328_io2_outb(chip, IDX_IO2_LEGACY_ADDR,
-				      snd_azf3328_io2_inb(chip, IDX_IO2_LEGACY_ADDR) & ~LEGACY_JOY);
-		release_and_free_resource(r);
-	}
-}
-#else
-static inline int
-snd_azf3328_config_joystick(struct snd_azf3328 *chip, int dev) { return -ENOSYS; }
-static inline void
-snd_azf3328_free_joystick(struct snd_azf3328 *chip) { }
-#endif
-
-/******************************************************************/
-
-static int
-snd_azf3328_free(struct snd_azf3328 *chip)
-{
-        if (chip->irq < 0)
-                goto __end_hw;
-
-	/* reset (close) mixer */
-	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_PLAY_MASTER, 1); /* first mute master volume */
-	snd_azf3328_mixer_outw(chip, IDX_MIXER_RESET, 0x0000);
-
-        /* interrupt setup - mask everything (FIXME!) */
-	/* well, at least we know how to disable the timer IRQ */
-	snd_azf3328_codec_outb(chip, IDX_IO_TIMER_VALUE + 3, 0x00);
-
-	if (chip->irq >= 0)
-        	synchronize_irq(chip->irq);
-__end_hw:
-	snd_azf3328_free_joystick(chip);
-        if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
-	pci_release_regions(chip->pci);
-	pci_disable_device(chip->pci);
-
-        kfree(chip);
-        return 0;
-}
-
-static int
-snd_azf3328_dev_free(struct snd_device *device)
-{
-	struct snd_azf3328 *chip = device->device_data;
-	return snd_azf3328_free(chip);
-}
-
-/******************************************************************/
-
-/*** NOTE: the physical timer resolution actually is 1024000 ticks per second,
+/*** NOTE: the physical timer resolution actually is 1024000 ticks per second
+ *** (probably derived from main crystal via a divider of 24),
  *** but announcing those attributes to user-space would make programs
  *** configure the timer to a 1 tick value, resulting in an absolutely fatal
  *** timer IRQ storm.
@@ -1564,7 +1883,7 @@ snd_azf3328_timer_start(struct snd_timer *timer)
 		delay = 49; /* minimum time is 49 ticks */
 	}
 	snd_azf3328_dbgtimer("setting timer countdown value %d, add COUNTDOWN|IRQ\n", delay);
-	delay |= TIMER_ENABLE_COUNTDOWN | TIMER_ENABLE_IRQ;
+	delay |= TIMER_COUNTDOWN_ENABLE | TIMER_IRQ_ENABLE;
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	snd_azf3328_codec_outl(chip, IDX_IO_TIMER_VALUE, delay);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -1582,7 +1901,7 @@ snd_azf3328_timer_stop(struct snd_timer *timer)
 	chip = snd_timer_chip(timer);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	/* disable timer countdown and interrupt */
-	/* FIXME: should we write TIMER_ACK_IRQ here? */
+	/* FIXME: should we write TIMER_IRQ_ACK here? */
 	snd_azf3328_codec_outb(chip, IDX_IO_TIMER_VALUE + 3, 0);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	snd_azf3328_dbgcallleave();
@@ -1626,15 +1945,18 @@ snd_azf3328_timer(struct snd_azf3328 *chip, int device)
 
 	snd_azf3328_timer_hw.resolution *= seqtimer_scaling;
 	snd_azf3328_timer_hw.ticks /= seqtimer_scaling;
-	if ((err = snd_timer_new(chip->card, "AZF3328", &tid, &timer)) < 0) {
+
+	err = snd_timer_new(chip->card, "AZF3328", &tid, &timer);
+	if (err < 0)
 		goto out;
-	}
 
 	strcpy(timer->name, "AZF3328 timer");
 	timer->private_data = chip;
 	timer->hw = snd_azf3328_timer_hw;
 
 	chip->timer = timer;
+
+	snd_azf3328_timer_stop(timer);
 
 	err = 0;
 
@@ -1645,10 +1967,44 @@ out:
 
 /******************************************************************/
 
+static int
+snd_azf3328_free(struct snd_azf3328 *chip)
+{
+	if (chip->irq < 0)
+		goto __end_hw;
+
+	/* reset (close) mixer:
+	 * first mute master volume, then reset
+	 */
+	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_PLAY_MASTER, 1);
+	snd_azf3328_mixer_outw(chip, IDX_MIXER_RESET, 0x0000);
+
+	snd_azf3328_timer_stop(chip->timer);
+	snd_azf3328_gameport_free(chip);
+
+	if (chip->irq >= 0)
+		synchronize_irq(chip->irq);
+__end_hw:
+	if (chip->irq >= 0)
+		free_irq(chip->irq, chip);
+	pci_release_regions(chip->pci);
+	pci_disable_device(chip->pci);
+
+	kfree(chip);
+	return 0;
+}
+
+static int
+snd_azf3328_dev_free(struct snd_device *device)
+{
+	struct snd_azf3328 *chip = device->device_data;
+	return snd_azf3328_free(chip);
+}
+
 #if 0
 /* check whether a bit can be modified */
 static void
-snd_azf3328_test_bit(unsigned int reg, int bit)
+snd_azf3328_test_bit(unsigned unsigned reg, int bit)
 {
 	unsigned char val, valoff, valon;
 
@@ -1659,42 +2015,74 @@ snd_azf3328_test_bit(unsigned int reg, int bit)
 
 	outb(val|(1 << bit), reg);
 	valon = inb(reg);
-	
+
 	outb(val, reg);
 
-	printk(KERN_ERR "reg %04x bit %d: %02x %02x %02x\n", reg, bit, val, valoff, valon);
+	printk(KERN_ERR "reg %04x bit %d: %02x %02x %02x\n",
+				reg, bit, val, valoff, valon
+	);
 }
 #endif
 
-#if DEBUG_MISC
-static void
+static inline void
 snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip)
 {
+#if DEBUG_MISC
 	u16 tmp;
 
-	snd_azf3328_dbgmisc("codec_port 0x%lx, io2_port 0x%lx, mpu_port 0x%lx, synth_port 0x%lx, mixer_port 0x%lx, irq %d\n", chip->codec_port, chip->io2_port, chip->mpu_port, chip->synth_port, chip->mixer_port, chip->irq);
+	snd_azf3328_dbgmisc(
+		"codec_io 0x%lx, game_io 0x%lx, mpu_io 0x%lx, "
+		"opl3_io 0x%lx, mixer_io 0x%lx, irq %d\n",
+		chip->codec_io, chip->game_io, chip->mpu_io,
+		chip->opl3_io, chip->mixer_io, chip->irq
+	);
 
-	snd_azf3328_dbgmisc("io2 %02x %02x %02x %02x %02x %02x\n", snd_azf3328_io2_inb(chip, 0), snd_azf3328_io2_inb(chip, 1), snd_azf3328_io2_inb(chip, 2), snd_azf3328_io2_inb(chip, 3), snd_azf3328_io2_inb(chip, 4), snd_azf3328_io2_inb(chip, 5));
+	snd_azf3328_dbgmisc("game %02x %02x %02x %02x %02x %02x\n",
+		snd_azf3328_game_inb(chip, 0),
+		snd_azf3328_game_inb(chip, 1),
+		snd_azf3328_game_inb(chip, 2),
+		snd_azf3328_game_inb(chip, 3),
+		snd_azf3328_game_inb(chip, 4),
+		snd_azf3328_game_inb(chip, 5)
+	);
 
-	for (tmp=0; tmp <= 0x01; tmp += 1)
-		snd_azf3328_dbgmisc("0x%02x: opl 0x%04x, mpu300 0x%04x, mpu310 0x%04x, mpu320 0x%04x, mpu330 0x%04x\n", tmp, inb(0x388 + tmp), inb(0x300 + tmp), inb(0x310 + tmp), inb(0x320 + tmp), inb(0x330 + tmp));
+	for (tmp = 0; tmp < 0x07; tmp += 1)
+		snd_azf3328_dbgmisc("mpu_io 0x%04x\n", inb(chip->mpu_io + tmp));
+
+	for (tmp = 0; tmp <= 0x07; tmp += 1)
+		snd_azf3328_dbgmisc("0x%02x: game200 0x%04x, game208 0x%04x\n",
+			tmp, inb(0x200 + tmp), inb(0x208 + tmp));
+
+	for (tmp = 0; tmp <= 0x01; tmp += 1)
+		snd_azf3328_dbgmisc(
+			"0x%02x: mpu300 0x%04x, mpu310 0x%04x, mpu320 0x%04x, "
+			"mpu330 0x%04x opl388 0x%04x opl38c 0x%04x\n",
+				tmp,
+				inb(0x300 + tmp),
+				inb(0x310 + tmp),
+				inb(0x320 + tmp),
+				inb(0x330 + tmp),
+				inb(0x388 + tmp),
+				inb(0x38c + tmp)
+		);
 
 	for (tmp = 0; tmp < AZF_IO_SIZE_CODEC; tmp += 2)
-		snd_azf3328_dbgmisc("codec 0x%02x: 0x%04x\n", tmp, snd_azf3328_codec_inw(chip, tmp));
+		snd_azf3328_dbgmisc("codec 0x%02x: 0x%04x\n",
+			tmp, snd_azf3328_codec_inw(chip, tmp)
+		);
 
 	for (tmp = 0; tmp < AZF_IO_SIZE_MIXER; tmp += 2)
-		snd_azf3328_dbgmisc("mixer 0x%02x: 0x%04x\n", tmp, snd_azf3328_mixer_inw(chip, tmp));
+		snd_azf3328_dbgmisc("mixer 0x%02x: 0x%04x\n",
+			tmp, snd_azf3328_mixer_inw(chip, tmp)
+		);
+#endif /* DEBUG_MISC */
 }
-#else
-static inline void
-snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip) {}
-#endif
 
 static int __devinit
 snd_azf3328_create(struct snd_card *card,
-                                         struct pci_dev *pci,
-                                         unsigned long device_type,
-                                         struct snd_azf3328 ** rchip)
+		   struct pci_dev *pci,
+		   unsigned long device_type,
+		   struct snd_azf3328 **rchip)
 {
 	struct snd_azf3328 *chip;
 	int err;
@@ -1705,7 +2093,8 @@ snd_azf3328_create(struct snd_card *card,
 
 	*rchip = NULL;
 
-	if ((err = pci_enable_device(pci)) < 0)
+	err = pci_enable_device(pci);
+	if (err < 0)
 		return err;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -1721,20 +2110,25 @@ snd_azf3328_create(struct snd_card *card,
 	/* check if we can restrict PCI DMA transfers to 24 bits */
 	if (pci_set_dma_mask(pci, DMA_24BIT_MASK) < 0 ||
 	    pci_set_consistent_dma_mask(pci, DMA_24BIT_MASK) < 0) {
-		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support "
+					"24bit PCI busmaster DMA\n"
+		);
 		err = -ENXIO;
 		goto out_err;
 	}
 
-	if ((err = pci_request_regions(pci, "Aztech AZF3328")) < 0) {
+	err = pci_request_regions(pci, "Aztech AZF3328");
+	if (err < 0)
 		goto out_err;
-	}
 
-	chip->codec_port = pci_resource_start(pci, 0);
-	chip->io2_port   = pci_resource_start(pci, 1);
-	chip->mpu_port   = pci_resource_start(pci, 2);
-	chip->synth_port = pci_resource_start(pci, 3);
-	chip->mixer_port = pci_resource_start(pci, 4);
+	chip->codec_io = pci_resource_start(pci, 0);
+	chip->game_io  = pci_resource_start(pci, 1);
+	chip->mpu_io   = pci_resource_start(pci, 2);
+	chip->opl3_io = pci_resource_start(pci, 3);
+	chip->mixer_io = pci_resource_start(pci, 4);
+
+	chip->audio_stream[AZF_PLAYBACK].portbase = chip->codec_io + 0x00;
+	chip->audio_stream[AZF_CAPTURE].portbase   = chip->codec_io + 0x20;
 
 	if (request_irq(pci->irq, snd_azf3328_interrupt,
 			IRQF_SHARED, card->shortname, chip)) {
@@ -1747,29 +2141,29 @@ snd_azf3328_create(struct snd_card *card,
 	synchronize_irq(chip->irq);
 
 	snd_azf3328_debug_show_ports(chip);
-	
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0)
 		goto out_err;
-	}
 
 	/* create mixer interface & switches */
-	if ((err = snd_azf3328_mixer_new(chip)) < 0)
+	err = snd_azf3328_mixer_new(chip);
+	if (err < 0)
 		goto out_err;
 
-#if 0
-	/* set very low bitrate to reduce noise and power consumption? */
-	snd_azf3328_setfmt(chip, IDX_IO_PLAY_SOUNDFORMAT, 5512, 8, 1);
-#endif
+	/* shutdown codecs to save power */
+		/* have snd_azf3328_codec_activity() act properly */
+	chip->audio_stream[AZF_PLAYBACK].running = 1;
+	snd_azf3328_codec_activity(chip, AZF_PLAYBACK, 0);
 
 	/* standard chip init stuff */
-	/* default IRQ init value */
+		/* default IRQ init value */
 	tmp = DMA_PLAY_SOMETHING2|DMA_EPILOGUE_SOMETHING|DMA_SOMETHING_ELSE;
 
 	spin_lock_irq(&chip->reg_lock);
 	snd_azf3328_codec_outb(chip, IDX_IO_PLAY_FLAGS, tmp);
 	snd_azf3328_codec_outb(chip, IDX_IO_REC_FLAGS, tmp);
 	snd_azf3328_codec_outb(chip, IDX_IO_SOMETHING_FLAGS, tmp);
-	snd_azf3328_codec_outb(chip, IDX_IO_TIMER_VALUE + 3, 0x00); /* disable timer */
 	spin_unlock_irq(&chip->reg_lock);
 
 	snd_card_set_dev(card, &pci->dev);
@@ -1805,52 +2199,61 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0 );
+	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
 	strcpy(card->driver, "AZF3328");
 	strcpy(card->shortname, "Aztech AZF3328 (PCI168)");
 
-        if ((err = snd_azf3328_create(card, pci, pci_id->driver_data, &chip)) < 0) {
+	err = snd_azf3328_create(card, pci, pci_id->driver_data, &chip);
+	if (err < 0)
 		goto out_err;
-	}
 
 	card->private_data = chip;
 
-	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_MPU401,
-				        chip->mpu_port, MPU401_INFO_INTEGRATED,
-					pci->irq, 0, &chip->rmidi)) < 0) {
-		snd_printk(KERN_ERR "azf3328: no MPU-401 device at 0x%lx?\n", chip->mpu_port);
+	err = snd_mpu401_uart_new(
+		card, 0, MPU401_HW_MPU401, chip->mpu_io, MPU401_INFO_INTEGRATED,
+		pci->irq, 0, &chip->rmidi
+	);
+	if (err < 0) {
+		snd_printk(KERN_ERR "azf3328: no MPU-401 device at 0x%lx?\n",
+				chip->mpu_io
+		);
 		goto out_err;
 	}
 
-	if ((err = snd_azf3328_timer(chip, 0)) < 0) {
+	err = snd_azf3328_timer(chip, 0);
+	if (err < 0)
 		goto out_err;
-	}
 
-	if ((err = snd_azf3328_pcm(chip, 0)) < 0) {
+	err = snd_azf3328_pcm(chip, 0);
+	if (err < 0)
 		goto out_err;
-	}
 
-	if (snd_opl3_create(card, chip->synth_port, chip->synth_port+2,
+	if (snd_opl3_create(card, chip->opl3_io, chip->opl3_io+2,
 			    OPL3_HW_AUTO, 1, &opl3) < 0) {
 		snd_printk(KERN_ERR "azf3328: no OPL3 device at 0x%lx-0x%lx?\n",
-			   chip->synth_port, chip->synth_port+2 );
+			   chip->opl3_io, chip->opl3_io+2
+		);
 	} else {
-		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
+		/* need to use IDs 1, 2 since ID 0 is snd_azf3328_timer above */
+		err = snd_opl3_timer_new(opl3, 1, 2);
+		if (err < 0)
 			goto out_err;
-		}
+		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+		if (err < 0)
+			goto out_err;
 	}
 
 	opl3->private_data = chip;
 
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
-		card->shortname, chip->codec_port, chip->irq);
+		card->shortname, chip->codec_io, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err < 0)
 		goto out_err;
-	}
 
 #ifdef MODULE
 	printk(
@@ -1861,19 +2264,18 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	1024000 / seqtimer_scaling, seqtimer_scaling);
 #endif
 
-	if (snd_azf3328_config_joystick(chip, dev) < 0)
-		snd_azf3328_io2_outb(chip, IDX_IO2_LEGACY_ADDR,
-			      snd_azf3328_io2_inb(chip, IDX_IO2_LEGACY_ADDR) & ~LEGACY_JOY);
+	snd_azf3328_gameport(chip, dev);
 
 	pci_set_drvdata(pci, card);
 	dev++;
 
 	err = 0;
 	goto out;
-	
+
 out_err:
+	snd_printk(KERN_ERR "azf3328: something failed, exiting\n");
 	snd_card_free(card);
-	
+
 out:
 	snd_azf3328_dbgcallleave();
 	return err;
@@ -1894,27 +2296,27 @@ snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_azf3328 *chip = card->private_data;
-	int reg;
+	unsigned reg;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	
+
 	snd_pcm_suspend_all(chip->pcm);
 
-	for (reg = 0; reg < AZF_IO_SIZE_MIXER_PM / 2; reg++)
-		chip->saved_regs_mixer[reg] = inw(chip->mixer_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_MIXER_PM / 2; ++reg)
+		chip->saved_regs_mixer[reg] = inw(chip->mixer_io + reg * 2);
 
 	/* make sure to disable master volume etc. to prevent looping sound */
 	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_PLAY_MASTER, 1);
 	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 1);
-	
-	for (reg = 0; reg < AZF_IO_SIZE_CODEC_PM / 2; reg++)
-		chip->saved_regs_codec[reg] = inw(chip->codec_port + reg * 2);
-	for (reg = 0; reg < AZF_IO_SIZE_IO2_PM / 2; reg++)
-		chip->saved_regs_io2[reg] = inw(chip->io2_port + reg * 2);
-	for (reg = 0; reg < AZF_IO_SIZE_MPU_PM / 2; reg++)
-		chip->saved_regs_mpu[reg] = inw(chip->mpu_port + reg * 2);
-	for (reg = 0; reg < AZF_IO_SIZE_SYNTH_PM / 2; reg++)
-		chip->saved_regs_synth[reg] = inw(chip->synth_port + reg * 2);
+
+	for (reg = 0; reg < AZF_IO_SIZE_CODEC_PM / 2; ++reg)
+		chip->saved_regs_codec[reg] = inw(chip->codec_io + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_GAME_PM / 2; ++reg)
+		chip->saved_regs_game[reg] = inw(chip->game_io + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_MPU_PM / 2; ++reg)
+		chip->saved_regs_mpu[reg] = inw(chip->mpu_io + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_OPL3_PM / 2; ++reg)
+		chip->saved_regs_opl3[reg] = inw(chip->opl3_io + reg * 2);
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
@@ -1927,7 +2329,7 @@ snd_azf3328_resume(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_azf3328 *chip = card->private_data;
-	int reg;
+	unsigned reg;
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
@@ -1939,23 +2341,21 @@ snd_azf3328_resume(struct pci_dev *pci)
 	}
 	pci_set_master(pci);
 
-	for (reg = 0; reg < AZF_IO_SIZE_IO2_PM / 2; reg++)
-		outw(chip->saved_regs_io2[reg], chip->io2_port + reg * 2);
-	for (reg = 0; reg < AZF_IO_SIZE_MPU_PM / 2; reg++)
-		outw(chip->saved_regs_mpu[reg], chip->mpu_port + reg * 2);
-	for (reg = 0; reg < AZF_IO_SIZE_SYNTH_PM / 2; reg++)
-		outw(chip->saved_regs_synth[reg], chip->synth_port + reg * 2);
-	for (reg = 0; reg < AZF_IO_SIZE_MIXER_PM / 2; reg++)
-		outw(chip->saved_regs_mixer[reg], chip->mixer_port + reg * 2);
-	for (reg = 0; reg < AZF_IO_SIZE_CODEC_PM / 2; reg++)
-		outw(chip->saved_regs_codec[reg], chip->codec_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_GAME_PM / 2; ++reg)
+		outw(chip->saved_regs_game[reg], chip->game_io + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_MPU_PM / 2; ++reg)
+		outw(chip->saved_regs_mpu[reg], chip->mpu_io + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_OPL3_PM / 2; ++reg)
+		outw(chip->saved_regs_opl3[reg], chip->opl3_io + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_MIXER_PM / 2; ++reg)
+		outw(chip->saved_regs_mixer[reg], chip->mixer_io + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_CODEC_PM / 2; ++reg)
+		outw(chip->saved_regs_codec[reg], chip->codec_io + reg * 2);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif
-
-
+#endif /* CONFIG_PM */
 
 
 static struct pci_driver driver = {

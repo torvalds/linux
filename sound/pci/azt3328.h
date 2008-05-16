@@ -54,7 +54,10 @@
   #define SOUNDFORMAT_XTAL1		0x00
   #define SOUNDFORMAT_XTAL2		0x01
     /* all _SUSPECTED_ values are not used by Windows drivers, so we don't
-     * have any hard facts, only rough measurements */
+     * have any hard facts, only rough measurements.
+     * All we know is that the crystal used on the board has 24.576MHz,
+     * like many soundcards (which results in the frequencies below when
+     * using certain divider values selected by the values below) */
     #define SOUNDFORMAT_FREQ_SUSPECTED_4000	0x0c | SOUNDFORMAT_XTAL1
     #define SOUNDFORMAT_FREQ_SUSPECTED_4800	0x0a | SOUNDFORMAT_XTAL1
     #define SOUNDFORMAT_FREQ_5510		0x0c | SOUNDFORMAT_XTAL2
@@ -71,6 +74,26 @@
     #define SOUNDFORMAT_FREQ_SUSPECTED_66200	0x06 | SOUNDFORMAT_XTAL2 /* 66200 (13240 * 5); 64000 may have been nicer :-\ */
   #define SOUNDFORMAT_FLAG_16BIT	0x0010
   #define SOUNDFORMAT_FLAG_2CHANNELS	0x0020
+
+/* define frequency helpers, for maximum value safety */
+enum {
+#define AZF_FREQ(rate) AZF_FREQ_##rate = rate
+  AZF_FREQ(4000),
+  AZF_FREQ(4800),
+  AZF_FREQ(5512),
+  AZF_FREQ(6620),
+  AZF_FREQ(8000),
+  AZF_FREQ(9600),
+  AZF_FREQ(11025),
+  AZF_FREQ(13240),
+  AZF_FREQ(16000),
+  AZF_FREQ(22050),
+  AZF_FREQ(32000),
+  AZF_FREQ(44100),
+  AZF_FREQ(48000),
+  AZF_FREQ(66200),
+#undef AZF_FREQ
+} AZF_FREQUENCIES;
 
 /** recording area (see also: playback bit flag definitions) **/
 #define IDX_IO_REC_FLAGS	0x20 /* ??, PU:0x0000 */
@@ -97,40 +120,164 @@
 
 /** DirectX timer, main interrupt area (FIXME: and something else?) **/ 
 #define IDX_IO_TIMER_VALUE	0x60 /* found this timer area by pure luck :-) */
-  #define TIMER_VALUE_MASK		0x000fffffUL /* timer countdown value; triggers IRQ when timer is finished */
-  #define TIMER_ENABLE_COUNTDOWN	0x01000000UL /* activate the timer countdown */
-  #define TIMER_ENABLE_IRQ		0x02000000UL /* trigger timer IRQ on zero transition */
-  #define TIMER_ACK_IRQ			0x04000000UL /* being set in IRQ handler in case port 0x00 (hmm, not port 0x64!?!?) had 0x0020 set upon IRQ handler */
+  /* timer countdown value; triggers IRQ when timer is finished */
+  #define TIMER_VALUE_MASK		0x000fffffUL
+  /* activate timer countdown */
+  #define TIMER_COUNTDOWN_ENABLE	0x01000000UL
+  /* trigger timer IRQ on zero transition */
+  #define TIMER_IRQ_ENABLE		0x02000000UL
+  /* being set in IRQ handler in case port 0x00 (hmm, not port 0x64!?!?)
+   * had 0x0020 set upon IRQ handler */
+  #define TIMER_IRQ_ACK			0x04000000UL
 #define IDX_IO_IRQSTATUS        0x64
-  #define IRQ_PLAYBACK			0x0001
-  #define IRQ_RECORDING			0x0002
-  #define IRQ_MPU401			0x0010
-  #define IRQ_TIMER			0x0020 /* DirectX timer */
-  #define IRQ_UNKNOWN1			0x0040 /* probably unused, or possibly I2S port? or gameport IRQ? */
-  #define IRQ_UNKNOWN2			0x0080 /* probably unused, or possibly I2S port? or gameport IRQ? */
+  /* some IRQ bit in here might also be used to signal a power-management timer
+   * timeout, to request shutdown of the chip (e.g. AD1815JS has such a thing).
+   * Some OPL3 hardware (e.g. in LM4560) has some special timer hardware which
+   * can trigger an OPL3 timer IRQ, so maybe there's such a thing as well... */
+
+  #define IRQ_PLAYBACK	0x0001
+  #define IRQ_RECORDING	0x0002
+  #define IRQ_UNKNOWN1	0x0004 /* most probably I2S port */
+  #define IRQ_GAMEPORT	0x0008 /* Interrupt of Digital(ly) Enhanced Game Port */
+  #define IRQ_MPU401	0x0010
+  #define IRQ_TIMER	0x0020 /* DirectX timer */
+  #define IRQ_UNKNOWN2	0x0040 /* probably unused, or possibly I2S port? */
+  #define IRQ_UNKNOWN3	0x0080 /* probably unused, or possibly I2S port? */
 #define IDX_IO_66H		0x66    /* writing 0xffff returns 0x0000 */
-#define IDX_IO_SOME_VALUE	0x68	/* this is set to e.g. 0x3ff or 0x300, and writable; maybe some buffer limit, but I couldn't find out more, PU:0x00ff */
-#define IDX_IO_6AH		0x6A	/* this WORD can be set to have bits 0x0028 activated (FIXME: correct??); actually inhibits PCM playback!!! maybe power management?? */
-  #define IO_6A_PAUSE_PLAYBACK		0x0200 /* bit 9; sure, this pauses playback, but what the heck is this really about?? */
-#define IDX_IO_6CH		0x6C
-#define IDX_IO_6EH		0x6E	/* writing 0xffff returns 0x83fe */
-/* further I/O indices not saved/restored, so probably not used */
+  /* this is set to e.g. 0x3ff or 0x300, and writable;
+   * maybe some buffer limit, but I couldn't find out more, PU:0x00ff: */
+#define IDX_IO_SOME_VALUE	0x68
+  #define IO_68_RANDOM_TOGGLE1	0x0100	/* toggles randomly */
+  #define IO_68_RANDOM_TOGGLE2	0x0200	/* toggles randomly */
+  /* umm, nope, behaviour of these bits changes depending on what we wrote
+   * to 0x6b!! */
+
+/* this WORD can be set to have bits 0x0028 activated (FIXME: correct??);
+ * actually inhibits PCM playback!!! maybe power management??: */
+#define IDX_IO_6AH		0x6A
+  /* bit 5: enabling this will activate permanent counting of bytes 2/3
+   * at gameport I/O (0xb402/3) (equal values each) and cause
+   * gameport legacy I/O at 0x0200 to be _DISABLED_!
+   * Is this Digital Enhanced Game Port Enable??? Or maybe it's Testmode
+   * for Enhanced Digital Gameport (see 4D Wave DX card): */
+  #define IO_6A_SOMETHING1_GAMEPORT	0x0020
+  /* bit 8; sure, this _pauses_ playback (later resumes at same spot!),
+   * but what the heck is this really about??: */
+  #define IO_6A_PAUSE_PLAYBACK_BIT8	0x0100
+  /* bit 9; sure, this _pauses_ playback (later resumes at same spot!),
+   * but what the heck is this really about??: */
+  #define IO_6A_PAUSE_PLAYBACK_BIT9	0x0200
+	/* BIT8 and BIT9 are _NOT_ able to affect OPL3 MIDI playback,
+	 * thus it suggests influence on PCM only!!
+	 * However OTOH there seems to be no bit anywhere around here
+	 * which is able to disable OPL3... */
+  /* bit 10: enabling this actually changes values at legacy gameport
+   * I/O address (0x200); is this enabling of the Digital Enhanced Game Port???
+   * Or maybe this simply switches off the NE558 circuit, since enabling this
+   * still lets us evaluate button states, but not axis states */
+  #define IO_6A_SOMETHING2_GAMEPORT      0x0400
+	/* writing 0x0300: causes quite some crackling during
+	 * PC activity such as switching windows (PCI traffic??
+	 * --> FIFO/timing settings???) */
+	/* writing 0x0100 plus/or 0x0200 inhibits playback */
+	/* since the Windows .INF file has Flag_Enable_JoyStick and
+	 * Flag_Enable_SB_DOS_Emulation directly together, it stands to reason
+	 * that some other bit in this same register might be responsible
+	 * for SB DOS Emulation activation (note that the file did NOT define
+	 * a switch for OPL3!) */
+#define IDX_IO_6CH		0x6C	/* unknown; fully read-writable */
+#define IDX_IO_6EH		0x6E
+	/* writing 0xffff returns 0x83fe (or 0x03fe only).
+	 * writing 0x83 (and only 0x83!!) to 0x6f will cause 0x6c to switch
+	 * from 0000 to ffff. */
+
+/* further I/O indices not saved/restored and not readable after writing,
+ * so probably not used */
 
 
-/*** I/O 2 area port indices ***/
+/*** Gameport area port indices ***/
 /* (only 0x06 of 0x08 bytes saved/restored by Windows driver) */ 
-#define AZF_IO_SIZE_IO2		0x08
-#define AZF_IO_SIZE_IO2_PM	0x06
+#define AZF_IO_SIZE_GAME		0x08
+#define AZF_IO_SIZE_GAME_PM	0x06
 
-#define IDX_IO2_LEGACY_ADDR	0x04
-  #define LEGACY_SOMETHING		0x01 /* OPL3?? */
-  #define LEGACY_JOY			0x08
+enum {
+	AZF_GAME_LEGACY_IO_PORT = 0x200
+} AZF_GAME_CONFIGS;
 
+#define IDX_GAME_LEGACY_COMPATIBLE	0x00
+	/* in some operation mode, writing anything to this port
+	 * triggers an interrupt:
+	 * yup, that's in case IDX_GAME_01H has one of the
+	 * axis measurement bits enabled
+	 * (and of course one needs to have GAME_HWCFG_IRQ_ENABLE, too) */
+
+#define IDX_GAME_AXES_CONFIG            0x01
+	/* NOTE: layout of this register awfully similar (read: "identical??")
+	 * to AD1815JS.pdf (p.29) */
+
+  /* enables axis 1 (X axis) measurement: */
+  #define GAME_AXES_ENABLE_1		0x01
+  /* enables axis 2 (Y axis) measurement: */
+  #define GAME_AXES_ENABLE_2		0x02
+  /* enables axis 3 (X axis) measurement: */
+  #define GAME_AXES_ENABLE_3		0x04
+  /* enables axis 4 (Y axis) measurement: */
+  #define GAME_AXES_ENABLE_4		0x08
+  /* selects the current axis to read the measured value of
+   * (at IDX_GAME_AXIS_VALUE):
+   * 00 = axis 1, 01 = axis 2, 10 = axis 3, 11 = axis 4: */
+  #define GAME_AXES_READ_MASK		0x30
+  /* enable to have the latch continuously accept ADC values
+   * (and continuously cause interrupts in case interrupts are enabled);
+   * AD1815JS.pdf says it's ~16ms interval there: */
+  #define GAME_AXES_LATCH_ENABLE	0x40
+  /* joystick data (measured axes) ready for reading: */
+  #define GAME_AXES_SAMPLING_READY	0x80
+
+  /* NOTE: other card specs (SiS960 and others!) state that the
+   * game position latches should be frozen when reading and be freed
+   * (== reset?) after reading!!!
+   * Freezing most likely means disabling 0x40 (GAME_AXES_LATCH_ENABLE),
+   *  but how to free the value? */
+  /* An internet search for "gameport latch ADC" should provide some insight
+   * into how to program such a gameport system. */
+
+  /* writing 0xf0 to 01H once reset both counters to 0, in some special mode!?
+   * yup, in case 6AH 0x20 is not enabled
+   * (and 0x40 is sufficient, 0xf0 is not needed) */
+
+#define IDX_GAME_AXIS_VALUE	0x02
+	/* R: value of currently configured axis (word value!);
+	 * W: trigger axis measurement */
+
+#define IDX_GAME_HWCONFIG	0x04
+	/* note: bits 4 to 7 are never set (== 0) when reading!
+	 * --> reserved bits? */
+  /* enables IRQ notification upon axes measurement ready: */
+  #define GAME_HWCFG_IRQ_ENABLE			0x01
+  /* these bits choose a different frequency for the
+   *  internal ADC counter increment.
+   * hmm, seems to be a combo of bits:
+   * 00 --> standard frequency
+   * 10 --> 1/2
+   * 01 --> 1/20
+   * 11 --> 1/200: */
+  #define GAME_HWCFG_ADC_COUNTER_FREQ_MASK	0x06
+
+  /* enable gameport legacy I/O address (0x200)
+   * I was unable to locate any configurability for a different address: */
+  #define GAME_HWCFG_LEGACY_ADDRESS_ENABLE	0x08
+
+/*** MPU401 ***/
 #define AZF_IO_SIZE_MPU		0x04
 #define AZF_IO_SIZE_MPU_PM	0x04
 
-#define AZF_IO_SIZE_SYNTH	0x08
-#define AZF_IO_SIZE_SYNTH_PM	0x06
+/*** OPL3 synth ***/
+#define AZF_IO_SIZE_OPL3	0x08
+#define AZF_IO_SIZE_OPL3_PM	0x06
+/* hmm, given that a standard OPL3 has 4 registers only,
+ * there might be some enhanced functionality lurking at the end
+ * (especially since register 0x04 has a "non-empty" value 0xfe) */
 
 /*** mixer I/O area port indices ***/
 /* (only 0x22 of 0x40 bytes saved/restored by Windows driver)
