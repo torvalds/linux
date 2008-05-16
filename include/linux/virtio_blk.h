@@ -10,6 +10,7 @@
 #define VIRTIO_BLK_F_SIZE_MAX	1	/* Indicates maximum segment size */
 #define VIRTIO_BLK_F_SEG_MAX	2	/* Indicates maximum # of segments */
 #define VIRTIO_BLK_F_GEOMETRY	4	/* Legacy geometry available  */
+#define VIRTIO_BLK_F_RO		5	/* Disk is read-only */
 
 struct virtio_blk_config
 {
