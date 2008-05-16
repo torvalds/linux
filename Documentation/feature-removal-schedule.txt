@@ -287,6 +287,13 @@ Who:	Glauber Costa <gcosta@redhat.com>
 
 ---------------------------
 
+What:	remove HID compat support
+When:	2.6.29
+Why:	needed only as a temporary solution until distros fix themselves up
+Who:	Jiri Slaby <jirislaby@gmail.com>
+
+---------------------------
+
 What:	/sys/o2cb symlink
 When:	January 2010
 Why:	/sys/fs/o2cb is the proper location for this information - /sys/o2cb

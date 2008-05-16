@@ -477,3 +477,5 @@ static void apple_exit(void)
 module_init(apple_init);
 module_exit(apple_exit);
 MODULE_LICENSE("GPL");
+
+HID_COMPAT_LOAD_DRIVER(apple);

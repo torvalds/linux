@@ -8,6 +8,10 @@ obj-$(CONFIG_HID)		+= hid.o
 hid-$(CONFIG_HID_DEBUG)		+= hid-debug.o
 hid-$(CONFIG_HIDRAW)		+= hidraw.o
 
+ifdef CONFIG_HID_COMPAT
+obj-m				+= hid-dummy.o
+endif
+
 obj-$(CONFIG_HID_APPLE)		+= hid-apple.o
 obj-$(CONFIG_HID_LOGITECH)	+= hid-logitech.o
 

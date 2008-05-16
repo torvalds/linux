@@ -1532,6 +1532,14 @@ void hid_unregister_driver(struct hid_driver *hdrv)
 }
 EXPORT_SYMBOL_GPL(hid_unregister_driver);
 
+#ifdef CONFIG_HID_COMPAT
+static void hid_compat_load(struct work_struct *ws)
+{
+	request_module("hid-dummy");
+}
+static DECLARE_WORK(hid_compat_work, hid_compat_load);
+#endif
+
 static int __init hid_init(void)
 {
 	int ret;
@@ -1545,6 +1553,10 @@ static int __init hid_init(void)
 	ret = hidraw_init();
 	if (ret)
 		goto err_bus;
+
+#ifdef CONFIG_HID_COMPAT
+	schedule_work(&hid_compat_work);
+#endif
 
 	return 0;
 err_bus:

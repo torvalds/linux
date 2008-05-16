@@ -310,3 +310,5 @@ static void lg_exit(void)
 module_init(lg_init);
 module_exit(lg_exit);
 MODULE_LICENSE("GPL");
+
+HID_COMPAT_LOAD_DRIVER(logitech);

@@ -790,10 +790,23 @@ dbg_hid(const char *fmt, ...)
 	return 0;
 }
 #define dbg_hid_line dbg_hid
-#endif
+#endif /* HID_DEBUG */
 
 #define err_hid(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
 		__FILE__ , ## arg)
-#endif
+#endif /* HID_FF */
+
+#ifdef CONFIG_HID_COMPAT
+#define HID_COMPAT_LOAD_DRIVER(name)	\
+void hid_compat_##name(void) { }	\
+EXPORT_SYMBOL(hid_compat_##name)
+#else
+#define HID_COMPAT_LOAD_DRIVER(name)
+#endif /* HID_COMPAT */
+#define HID_COMPAT_CALL_DRIVER(name)	do {	\
+	extern void hid_compat_##name(void);	\
+	hid_compat_##name();			\
+} while (0)
+
 #endif
 
