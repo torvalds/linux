@@ -1457,7 +1457,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	unsigned ind;
 	int uninitialized_var(stamp);
 	int uninitialized_var(size);
-	unsigned seglen;
+	unsigned uninitialized_var(seglen);
 	int i;
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
