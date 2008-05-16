@@ -693,52 +693,57 @@ static int __init initcall_debug_setup(char *str)
 }
 __setup("initcall_debug", initcall_debug_setup);
 
+static void __init do_one_initcall(initcall_t fn)
+{
+	int count = preempt_count();
+	ktime_t t0, t1, delta;
+	char msgbuf[40];
+	int result;
+
+	if (initcall_debug) {
+		print_fn_descriptor_symbol("calling  %s\n", fn);
+		t0 = ktime_get();
+	}
+
+	result = fn();
+
+	if (initcall_debug) {
+		t1 = ktime_get();
+		delta = ktime_sub(t1, t0);
+
+		print_fn_descriptor_symbol("initcall %s", fn);
+		printk(" returned %d after %Ld msecs\n", result,
+			(unsigned long long) delta.tv64 >> 20);
+	}
+
+	msgbuf[0] = 0;
+
+	if (result && result != -ENODEV && initcall_debug)
+		sprintf(msgbuf, "error code %d ", result);
+
+	if (preempt_count() != count) {
+		strncat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
+		preempt_count() = count;
+	}
+	if (irqs_disabled()) {
+		strncat(msgbuf, "disabled interrupts ", sizeof(msgbuf));
+		local_irq_enable();
+	}
+	if (msgbuf[0]) {
+		print_fn_descriptor_symbol(KERN_WARNING "initcall %s", fn);
+		printk(" returned with %s\n", msgbuf);
+	}
+}
+
+
 extern initcall_t __initcall_start[], __initcall_end[];
 
 static void __init do_initcalls(void)
 {
 	initcall_t *call;
-	int count = preempt_count();
 
-	for (call = __initcall_start; call < __initcall_end; call++) {
-		ktime_t t0, t1, delta;
-		char msgbuf[40];
-		int result;
-
-		if (initcall_debug) {
-			print_fn_descriptor_symbol("calling  %s\n", *call);
-			t0 = ktime_get();
-		}
-
-		result = (*call)();
-
-		if (initcall_debug) {
-			t1 = ktime_get();
-			delta = ktime_sub(t1, t0);
-
-			print_fn_descriptor_symbol("initcall %s", *call);
-			printk(" returned %d after %Ld msecs\n", result,
-				(unsigned long long) delta.tv64 >> 20);
-		}
-
-		msgbuf[0] = 0;
-
-		if (result && result != -ENODEV && initcall_debug)
-			sprintf(msgbuf, "error code %d ", result);
-
-		if (preempt_count() != count) {
-			strncat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
-			preempt_count() = count;
-		}
-		if (irqs_disabled()) {
-			strncat(msgbuf, "disabled interrupts ", sizeof(msgbuf));
-			local_irq_enable();
-		}
-		if (msgbuf[0]) {
-			print_fn_descriptor_symbol(KERN_WARNING "initcall %s", *call);
-			printk(" returned with %s\n", msgbuf);
-		}
-	}
+	for (call = __initcall_start; call < __initcall_end; call++)
+		do_one_initcall(*call);
 
 	/* Make sure there is no pending stuff from the initcall sequence */
 	flush_scheduled_work();
