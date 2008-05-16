@@ -791,9 +791,6 @@ static int usbhid_parse(struct hid_device *hid)
 				quirks |= HID_QUIRK_NOGET;
 	}
 
-	if (quirks & HID_QUIRK_IGNORE)
-		return -ENODEV;
-
 	if ((quirks & HID_QUIRK_IGNORE_MOUSE) &&
 		(interface->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_MOUSE))
 			return -ENODEV;
@@ -1082,7 +1079,8 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	ret = hid_add_device(hid);
 	if (ret) {
-		dev_err(&intf->dev, "can't add hid device: %d\n", ret);
+		if (ret != -ENODEV)
+			dev_err(&intf->dev, "can't add hid device: %d\n", ret);
 		goto err;
 	}
 

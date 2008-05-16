@@ -864,7 +864,7 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	if (req->rd_size > 0) {
 		err = hidp_setup_hid(session, req);
-		if (err)
+		if (err && err != -ENODEV)
 			goto err_skb;
 	}
 
