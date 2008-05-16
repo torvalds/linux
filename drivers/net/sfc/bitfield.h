@@ -501,8 +501,5 @@ typedef union efx_oword {
 #define DMA_ADDR_T_WIDTH	(8 * sizeof(dma_addr_t))
 #define EFX_DMA_TYPE_WIDTH(width) \
 	(((width) < DMA_ADDR_T_WIDTH) ? (width) : DMA_ADDR_T_WIDTH)
-#define EFX_DMA_MAX_MASK ((DMA_ADDR_T_WIDTH == 64) ? \
-			  ~((u64) 0) : ~((u32) 0))
-#define EFX_DMA_MASK(mask) ((mask) & EFX_DMA_MAX_MASK)
 
 #endif /* EFX_BITFIELD_H */

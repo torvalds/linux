@@ -800,7 +800,7 @@ struct efx_nic_type {
 	unsigned int txd_ring_mask;
 	unsigned int rxd_ring_mask;
 	unsigned int evq_size;
-	dma_addr_t max_dma_mask;
+	u64 max_dma_mask;
 	unsigned int tx_dma_mask;
 	unsigned bug5391_mask;
 

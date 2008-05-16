@@ -116,17 +116,8 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
  **************************************************************************
  */
 
-/* DMA address mask (up to 46-bit, avoiding compiler warnings)
- *
- * Note that it is possible to have a platform with 64-bit longs and
- * 32-bit DMA addresses, or vice versa.  EFX_DMA_MASK takes care of the
- * platform DMA mask.
- */
-#if BITS_PER_LONG == 64
-#define FALCON_DMA_MASK EFX_DMA_MASK(0x00003fffffffffffUL)
-#else
-#define FALCON_DMA_MASK EFX_DMA_MASK(0x00003fffffffffffULL)
-#endif
+/* DMA address mask */
+#define FALCON_DMA_MASK DMA_BIT_MASK(46)
 
 /* TX DMA length mask (13-bit) */
 #define FALCON_TX_DMA_MASK (4096 - 1)
