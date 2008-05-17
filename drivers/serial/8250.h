@@ -78,3 +78,8 @@ struct serial8250_config {
 #else
 #define ALPHA_KLUDGE_MCR 0
 #endif
+
+#ifndef SERIAL_EXTRA_IRQ_FLAGS
+#define SERIAL_EXTRA_IRQ_FLAGS 0
+#endif
+
