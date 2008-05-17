@@ -2200,20 +2200,21 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	struct mv_host_priv *hpriv = host->private_data;
 	unsigned int handled = 0;
-	u32 main_irq_cause, main_irq_mask;
+	u32 main_irq_cause, main_irq_mask, pending_irqs;
 
 	spin_lock(&host->lock);
 	main_irq_cause = readl(hpriv->main_irq_cause_addr);
 	main_irq_mask  = readl(hpriv->main_irq_mask_addr);
+	pending_irqs   = main_irq_cause & main_irq_mask;
 	/*
 	 * Deal with cases where we either have nothing pending, or have read
 	 * a bogus register value which can indicate HW removal or PCI fault.
 	 */
-	if ((main_irq_cause & main_irq_mask) && (main_irq_cause != 0xffffffffU)) {
-		if (unlikely((main_irq_cause & PCI_ERR) && HAS_PCI(host)))
+	if (pending_irqs && main_irq_cause != 0xffffffffU) {
+		if (unlikely((pending_irqs & PCI_ERR) && HAS_PCI(host)))
 			handled = mv_pci_error(host, hpriv->base);
 		else
-			handled = mv_host_intr(host, main_irq_cause);
+			handled = mv_host_intr(host, pending_irqs);
 	}
 	spin_unlock(&host->lock);
 	return IRQ_RETVAL(handled);
