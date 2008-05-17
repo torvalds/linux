@@ -170,6 +170,16 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 
 #define MARVELL_MESH_IE_LENGTH		9
 
+/* Values used to populate the struct mrvl_mesh_ie.  The only time you need this
+ * is when enabling the mesh using CMD_MESH_CONFIG.
+ */
+#define MARVELL_MESH_IE_TYPE		4
+#define MARVELL_MESH_IE_SUBTYPE		0
+#define MARVELL_MESH_IE_VERSION		0
+#define MARVELL_MESH_PROTO_ID_HWMP	0
+#define MARVELL_MESH_METRIC_ID		0
+#define MARVELL_MESH_CAPABILITY		0
+
 /** INT status Bit Definition*/
 #define MRVDRV_TX_DNLD_RDY		0x0001
 #define MRVDRV_RX_UPLD_RDY		0x0002

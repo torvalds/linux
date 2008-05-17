@@ -39,6 +39,9 @@ int lbs_set_data_rate(struct lbs_private *priv, u8 rate);
 int lbs_get_channel(struct lbs_private *priv);
 int lbs_set_channel(struct lbs_private *priv, u8 channel);
 
+int lbs_mesh_config_send(struct lbs_private *priv,
+			 struct cmd_ds_mesh_config *cmd,
+			 uint16_t action, uint16_t type);
 int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan);
 
 int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria);

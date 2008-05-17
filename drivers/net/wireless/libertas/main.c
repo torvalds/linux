@@ -344,14 +344,15 @@ static ssize_t lbs_mesh_set(struct device *dev,
 {
 	struct lbs_private *priv = to_net_dev(dev)->priv;
 	int enable;
-	int ret;
+	int ret, action = CMD_ACT_MESH_CONFIG_STOP;
 
 	sscanf(buf, "%x", &enable);
 	enable = !!enable;
 	if (enable == !!priv->mesh_dev)
 		return count;
-
-	ret = lbs_mesh_config(priv, enable, priv->curbssparams.channel);
+	if (enable)
+		action = CMD_ACT_MESH_CONFIG_START;
+	ret = lbs_mesh_config(priv, action, priv->curbssparams.channel);
 	if (ret)
 		return ret;
 
@@ -1257,9 +1258,11 @@ int lbs_start_card(struct lbs_private *priv)
 		   useful */
 
 		priv->mesh_tlv = 0x100 + 291;
-		if (lbs_mesh_config(priv, 1, priv->curbssparams.channel)) {
+		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
+				    priv->curbssparams.channel)) {
 			priv->mesh_tlv = 0x100 + 37;
-			if (lbs_mesh_config(priv, 1, priv->curbssparams.channel))
+			if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
+					    priv->curbssparams.channel))
 				priv->mesh_tlv = 0;
 		}
 		if (priv->mesh_tlv) {

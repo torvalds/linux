@@ -4,6 +4,7 @@
   */
 
 #include <net/iw_handler.h>
+#include <net/ieee80211.h>
 #include <linux/kfifo.h>
 #include "host.h"
 #include "hostcmd.h"
@@ -998,24 +999,69 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan)
+int lbs_mesh_config_send(struct lbs_private *priv,
+			 struct cmd_ds_mesh_config *cmd,
+			 uint16_t action, uint16_t type)
+{
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	cmd->hdr.command = cpu_to_le16(CMD_MESH_CONFIG);
+	cmd->hdr.size = cpu_to_le16(sizeof(struct cmd_ds_mesh_config));
+	cmd->hdr.result = 0;
+
+	cmd->type = cpu_to_le16(type);
+	cmd->action = cpu_to_le16(action);
+
+	ret = lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
+}
+
+/* This function is the CMD_MESH_CONFIG legacy function.  It only handles the
+ * START and STOP actions.  The extended actions supported by CMD_MESH_CONFIG
+ * are all handled by preparing a struct cmd_ds_mesh_config and passing it to
+ * lbs_mesh_config_send.
+ */
+int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 {
 	struct cmd_ds_mesh_config cmd;
+	struct mrvl_meshie *ie;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.action = cpu_to_le16(enable);
 	cmd.channel = cpu_to_le16(chan);
-	cmd.type = cpu_to_le16(priv->mesh_tlv);
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	ie = (struct mrvl_meshie *)cmd.data;
 
-	if (enable) {
-		cmd.length = cpu_to_le16(priv->mesh_ssid_len);
-		memcpy(cmd.data, priv->mesh_ssid, priv->mesh_ssid_len);
+	switch (action) {
+	case CMD_ACT_MESH_CONFIG_START:
+		ie->hdr.id = MFIE_TYPE_GENERIC;
+		ie->val.oui[0] = 0x00;
+		ie->val.oui[1] = 0x50;
+		ie->val.oui[2] = 0x43;
+		ie->val.type = MARVELL_MESH_IE_TYPE;
+		ie->val.subtype = MARVELL_MESH_IE_SUBTYPE;
+		ie->val.version = MARVELL_MESH_IE_VERSION;
+		ie->val.active_protocol_id = MARVELL_MESH_PROTO_ID_HWMP;
+		ie->val.active_metric_id = MARVELL_MESH_METRIC_ID;
+		ie->val.mesh_capability = MARVELL_MESH_CAPABILITY;
+		ie->val.mesh_id_len = priv->mesh_ssid_len;
+		memcpy(ie->val.mesh_id, priv->mesh_ssid, priv->mesh_ssid_len);
+		ie->hdr.len = sizeof(struct mrvl_meshie_val) -
+			IW_ESSID_MAX_SIZE + priv->mesh_ssid_len;
+		cmd.length = cpu_to_le16(sizeof(struct mrvl_meshie_val));
+		break;
+	case CMD_ACT_MESH_CONFIG_STOP:
+		break;
+	default:
+		return -1;
 	}
-	lbs_deb_cmd("mesh config enable %d TLV %x channel %d SSID %s\n",
-		    enable, priv->mesh_tlv, chan,
+	lbs_deb_cmd("mesh config action %d type %x channel %d SSID %s\n",
+		    action, priv->mesh_tlv, chan,
 		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
-	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, &cmd);
+
+	return lbs_mesh_config_send(priv, &cmd, action, priv->mesh_tlv);
 }
 
 static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,

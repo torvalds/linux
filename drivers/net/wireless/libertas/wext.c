@@ -1002,7 +1002,7 @@ static int lbs_mesh_set_freq(struct net_device *dev,
 		else if (priv->mode == IW_MODE_ADHOC)
 			lbs_stop_adhoc_network(priv);
 	}
-	lbs_mesh_config(priv, 1, fwrq->m);
+	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START, fwrq->m);
 	lbs_update_channel(priv);
 	ret = 0;
 
@@ -2011,7 +2011,8 @@ static int lbs_mesh_set_essid(struct net_device *dev,
 		priv->mesh_ssid_len = dwrq->length;
 	}
 
-	lbs_mesh_config(priv, 1, priv->curbssparams.channel);
+	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
+			priv->curbssparams.channel);
  out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
