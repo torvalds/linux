@@ -1875,7 +1875,7 @@ bnx2_setup_phy(struct bnx2 *bp, u8 port)
 }
 
 static int
-bnx2_init_5709s_phy(struct bnx2 *bp)
+bnx2_init_5709s_phy(struct bnx2 *bp, int reset_phy)
 {
 	u32 val;
 
@@ -1890,7 +1890,8 @@ bnx2_init_5709s_phy(struct bnx2 *bp)
 	bnx2_write_phy(bp, MII_BNX2_AER_AER, MII_BNX2_AER_AER_AN_MMD);
 
 	bnx2_write_phy(bp, MII_BNX2_BLK_ADDR, MII_BNX2_BLK_ADDR_COMBO_IEEEB0);
-	bnx2_reset_phy(bp);
+	if (reset_phy)
+		bnx2_reset_phy(bp);
 
 	bnx2_write_phy(bp, MII_BNX2_BLK_ADDR, MII_BNX2_BLK_ADDR_SERDES_DIG);
 
@@ -1924,11 +1925,12 @@ bnx2_init_5709s_phy(struct bnx2 *bp)
 }
 
 static int
-bnx2_init_5708s_phy(struct bnx2 *bp)
+bnx2_init_5708s_phy(struct bnx2 *bp, int reset_phy)
 {
 	u32 val;
 
-	bnx2_reset_phy(bp);
+	if (reset_phy)
+		bnx2_reset_phy(bp);
 
 	bp->mii_up1 = BCM5708S_UP1;
 
@@ -1981,9 +1983,10 @@ bnx2_init_5708s_phy(struct bnx2 *bp)
 }
 
 static int
-bnx2_init_5706s_phy(struct bnx2 *bp)
+bnx2_init_5706s_phy(struct bnx2 *bp, int reset_phy)
 {
-	bnx2_reset_phy(bp);
+	if (reset_phy)
+		bnx2_reset_phy(bp);
 
 	bp->phy_flags &= ~BNX2_PHY_FLAG_PARALLEL_DETECT;
 
@@ -2018,11 +2021,12 @@ bnx2_init_5706s_phy(struct bnx2 *bp)
 }
 
 static int
-bnx2_init_copper_phy(struct bnx2 *bp)
+bnx2_init_copper_phy(struct bnx2 *bp, int reset_phy)
 {
 	u32 val;
 
-	bnx2_reset_phy(bp);
+	if (reset_phy)
+		bnx2_reset_phy(bp);
 
 	if (bp->phy_flags & BNX2_PHY_FLAG_CRC_FIX) {
 		bnx2_write_phy(bp, 0x18, 0x0c00);
@@ -2070,7 +2074,7 @@ bnx2_init_copper_phy(struct bnx2 *bp)
 
 
 static int
-bnx2_init_phy(struct bnx2 *bp)
+bnx2_init_phy(struct bnx2 *bp, int reset_phy)
 {
 	u32 val;
 	int rc = 0;
@@ -2096,14 +2100,14 @@ bnx2_init_phy(struct bnx2 *bp)
 
 	if (bp->phy_flags & BNX2_PHY_FLAG_SERDES) {
 		if (CHIP_NUM(bp) == CHIP_NUM_5706)
-			rc = bnx2_init_5706s_phy(bp);
+			rc = bnx2_init_5706s_phy(bp, reset_phy);
 		else if (CHIP_NUM(bp) == CHIP_NUM_5708)
-			rc = bnx2_init_5708s_phy(bp);
+			rc = bnx2_init_5708s_phy(bp, reset_phy);
 		else if (CHIP_NUM(bp) == CHIP_NUM_5709)
-			rc = bnx2_init_5709s_phy(bp);
+			rc = bnx2_init_5709s_phy(bp, reset_phy);
 	}
 	else {
-		rc = bnx2_init_copper_phy(bp);
+		rc = bnx2_init_copper_phy(bp, reset_phy);
 	}
 
 setup_phy:
@@ -4873,7 +4877,7 @@ bnx2_reset_nic(struct bnx2 *bp, u32 reset_code)
 }
 
 static int
-bnx2_init_nic(struct bnx2 *bp)
+bnx2_init_nic(struct bnx2 *bp, int reset_phy)
 {
 	int rc;
 
@@ -4881,7 +4885,7 @@ bnx2_init_nic(struct bnx2 *bp)
 		return rc;
 
 	spin_lock_bh(&bp->phy_lock);
-	bnx2_init_phy(bp);
+	bnx2_init_phy(bp, reset_phy);
 	bnx2_set_link(bp);
 	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP)
 		bnx2_remote_phy_event(bp);
@@ -5269,7 +5273,7 @@ bnx2_test_loopback(struct bnx2 *bp)
 
 	bnx2_reset_nic(bp, BNX2_DRV_MSG_CODE_RESET);
 	spin_lock_bh(&bp->phy_lock);
-	bnx2_init_phy(bp);
+	bnx2_init_phy(bp, 1);
 	spin_unlock_bh(&bp->phy_lock);
 	if (bnx2_run_loopback(bp, BNX2_MAC_LOOPBACK))
 		rc |= BNX2_MAC_LOOPBACK_FAILED;
@@ -5659,7 +5663,7 @@ bnx2_open(struct net_device *dev)
 		return rc;
 	}
 
-	rc = bnx2_init_nic(bp);
+	rc = bnx2_init_nic(bp, 1);
 
 	if (rc) {
 		bnx2_napi_disable(bp);
@@ -5691,7 +5695,7 @@ bnx2_open(struct net_device *dev)
 
 			bnx2_setup_int_mode(bp, 1);
 
-			rc = bnx2_init_nic(bp);
+			rc = bnx2_init_nic(bp, 0);
 
 			if (!rc)
 				rc = bnx2_request_irq(bp);
@@ -5727,7 +5731,7 @@ bnx2_reset_task(struct work_struct *work)
 	bp->in_reset_task = 1;
 	bnx2_netif_stop(bp);
 
-	bnx2_init_nic(bp);
+	bnx2_init_nic(bp, 1);
 
 	atomic_set(&bp->intr_sem, 1);
 	bnx2_netif_start(bp);
@@ -6421,7 +6425,7 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 
 	if (netif_running(bp->dev)) {
 		bnx2_netif_stop(bp);
-		bnx2_init_nic(bp);
+		bnx2_init_nic(bp, 0);
 		bnx2_netif_start(bp);
 	}
 
@@ -6464,7 +6468,7 @@ bnx2_change_ring_size(struct bnx2 *bp, u32 rx, u32 tx)
 		rc = bnx2_alloc_mem(bp);
 		if (rc)
 			return rc;
-		bnx2_init_nic(bp);
+		bnx2_init_nic(bp, 0);
 		bnx2_netif_start(bp);
 	}
 	return 0;
@@ -6732,7 +6736,7 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 			bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
 		}
 		else {
-			bnx2_init_nic(bp);
+			bnx2_init_nic(bp, 1);
 			bnx2_netif_start(bp);
 		}
 
@@ -7619,7 +7623,7 @@ bnx2_resume(struct pci_dev *pdev)
 
 	bnx2_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
-	bnx2_init_nic(bp);
+	bnx2_init_nic(bp, 1);
 	bnx2_netif_start(bp);
 	return 0;
 }
