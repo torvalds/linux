@@ -908,6 +908,7 @@ static void mv_start_dma(struct ata_port *ap, void __iomem *port_mmio,
 			writelfl(0, port_mmio + SATA_FIS_IRQ_CAUSE_OFS);
 
 		mv_set_edma_ptrs(port_mmio, hpriv, pp);
+		mv_enable_port_irqs(ap, DONE_IRQ|ERR_IRQ);
 
 		writelfl(EDMA_EN, port_mmio + EDMA_CMD_OFS);
 		pp->pp_flags |= MV_PP_FLAG_EDMA_EN;
@@ -1360,6 +1361,7 @@ out_port_free_dma_mem:
 static void mv_port_stop(struct ata_port *ap)
 {
 	mv_stop_edma(ap);
+	mv_enable_port_irqs(ap, 0);
 	mv_port_free_dma_mem(ap);
 }
 
@@ -1601,6 +1603,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		 * shadow block, etc registers.
 		 */
 		mv_stop_edma(ap);
+		mv_enable_port_irqs(ap, ERR_IRQ);
 		mv_pmp_select(ap, qc->dev->link->pmp);
 		return ata_sff_qc_issue(qc);
 	}
@@ -2800,7 +2803,7 @@ static void mv_eh_thaw(struct ata_port *ap)
 	hc_irq_cause &= ~((DEV_IRQ | DMA_IRQ) << hardport);
 	writelfl(hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
 
-	mv_enable_port_irqs(ap, DONE_IRQ | ERR_IRQ);
+	mv_enable_port_irqs(ap, ERR_IRQ);
 }
 
 /**
