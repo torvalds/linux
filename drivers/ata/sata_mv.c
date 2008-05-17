@@ -458,6 +458,7 @@ struct mv_port_signal {
 
 struct mv_host_priv {
 	u32			hp_flags;
+	u32			main_irq_mask;
 	struct mv_port_signal	signal[8];
 	const struct mv_hw_ops	*ops;
 	int			n_ports;
@@ -843,10 +844,12 @@ static void mv_set_main_irq_mask(struct ata_host *host,
 	struct mv_host_priv *hpriv = host->private_data;
 	u32 old_mask, new_mask;
 
-	old_mask = readl(hpriv->main_irq_mask_addr);
+	old_mask = hpriv->main_irq_mask;
 	new_mask = (old_mask & ~disable_bits) | enable_bits;
-	if (new_mask != old_mask)
+	if (new_mask != old_mask) {
+		hpriv->main_irq_mask = new_mask;
 		writelfl(new_mask, hpriv->main_irq_mask_addr);
+	}
 }
 
 static void mv_enable_port_irqs(struct ata_port *ap,
@@ -2200,12 +2203,11 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	struct mv_host_priv *hpriv = host->private_data;
 	unsigned int handled = 0;
-	u32 main_irq_cause, main_irq_mask, pending_irqs;
+	u32 main_irq_cause, pending_irqs;
 
 	spin_lock(&host->lock);
 	main_irq_cause = readl(hpriv->main_irq_cause_addr);
-	main_irq_mask  = readl(hpriv->main_irq_mask_addr);
-	pending_irqs   = main_irq_cause & main_irq_mask;
+	pending_irqs   = main_irq_cause & hpriv->main_irq_mask;
 	/*
 	 * Deal with cases where we either have nothing pending, or have read
 	 * a bogus register value which can indicate HW removal or PCI fault.
