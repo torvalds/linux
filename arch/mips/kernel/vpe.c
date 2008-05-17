@@ -269,7 +269,7 @@ static void *alloc_progmem(unsigned long len)
 	 * This means you must tell Linux to use less memory than you
 	 * physically have, for example by passing a mem= boot argument.
 	 */
-	addr = pfn_to_kaddr(max_pfn);
+	addr = pfn_to_kaddr(max_low_pfn);
 	memset(addr, 0, len);
 #else
 	/* simple grab some mem for now */
@@ -781,10 +781,15 @@ static int vpe_run(struct vpe * v)
 	/* take system out of configuration state */
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 
+	/*
+	 * SMTC/SMVP kernels manage VPE enable independently,
+	 * but uniprocessor kernels need to turn it on, even
+	 * if that wasn't the pre-dvpe() state.
+	 */
 #ifdef CONFIG_SMP
-	evpe(EVPE_ENABLE);
-#else
 	evpe(vpeflags);
+#else
+	evpe(EVPE_ENABLE);
 #endif
 	emt(dmt_flag);
 	local_irq_restore(flags);
@@ -840,7 +845,7 @@ static int vpe_elfload(struct vpe * v)
 
 	/* Sanity checks against insmoding binaries or wrong arch,
 	   weird elf version */
-	if (memcmp(hdr->e_ident, ELFMAG, 4) != 0
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0
 	    || (hdr->e_type != ET_REL && hdr->e_type != ET_EXEC)
 	    || !elf_check_arch(hdr)
 	    || hdr->e_shentsize != sizeof(*sechdrs)) {
@@ -947,12 +952,14 @@ static int vpe_elfload(struct vpe * v)
 		struct elf_phdr *phdr = (struct elf_phdr *) ((char *)hdr + hdr->e_phoff);
 
 		for (i = 0; i < hdr->e_phnum; i++) {
-			if (phdr->p_type != PT_LOAD)
-				continue;
-
-			memcpy((void *)phdr->p_paddr, (char *)hdr + phdr->p_offset, phdr->p_filesz);
-			memset((void *)phdr->p_paddr + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
-			phdr++;
+			if (phdr->p_type == PT_LOAD) {
+				memcpy((void *)phdr->p_paddr,
+				       (char *)hdr + phdr->p_offset,
+				       phdr->p_filesz);
+				memset((void *)phdr->p_paddr + phdr->p_filesz,
+				       0, phdr->p_memsz - phdr->p_filesz);
+		    }
+		    phdr++;
 		}
 
 		for (i = 0; i < hdr->e_shnum; i++) {
@@ -1107,7 +1114,7 @@ static int vpe_release(struct inode *inode, struct file *filp)
 		return -ENODEV;
 
 	hdr = (Elf_Ehdr *) v->pbuffer;
-	if (memcmp(hdr->e_ident, ELFMAG, 4) == 0) {
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) == 0) {
 		if (vpe_elfload(v) >= 0) {
 			vpe_run(v);
 		} else {

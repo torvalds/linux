@@ -951,7 +951,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
 {
 	if (c->x86 == 0x6 && c->x86_model >= 0xf)
-		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 }
 
 static void __cpuinit init_centaur(struct cpuinfo_x86 *c)

@@ -158,7 +158,7 @@ static void rt_set_mode(enum clock_event_mode mode,
 	}
 }
 
-unsigned int rt_timer_irq;
+int rt_timer_irq;
 
 static irqreturn_t hub_rt_counter_handler(int irq, void *dev_id)
 {
@@ -219,7 +219,7 @@ static void __cpuinit hub_rt_clock_event_init(void)
 
 static void __init hub_rt_clock_event_global_init(void)
 {
-	unsigned int irq;
+	int irq;
 
 	do {
 		smp_wmb();

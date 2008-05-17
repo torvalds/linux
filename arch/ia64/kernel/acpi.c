@@ -117,7 +117,10 @@ acpi_get_sysname(void)
 	if (!strcmp(hdr->oem_id, "HP")) {
 		return "hpzx1";
 	} else if (!strcmp(hdr->oem_id, "SGI")) {
-		return "sn2";
+		if (!strcmp(hdr->oem_table_id + 4, "UV"))
+			return "uv";
+		else
+			return "sn2";
 	}
 
 	return "dig";
@@ -130,6 +133,8 @@ acpi_get_sysname(void)
 	return "hpzx1_swiotlb";
 # elif defined (CONFIG_IA64_SGI_SN2)
 	return "sn2";
+# elif defined (CONFIG_IA64_SGI_UV)
+	return "uv";
 # elif defined (CONFIG_IA64_DIG)
 	return "dig";
 # else
@@ -620,6 +625,9 @@ int acpi_register_gsi(u32 gsi, int triggering, int polarity)
 void acpi_unregister_gsi(u32 gsi)
 {
 	if (acpi_irq_model == ACPI_IRQ_MODEL_PLATFORM)
+		return;
+
+	if (has_8259 && gsi < 16)
 		return;
 
 	iosapic_unregister_intr(gsi);

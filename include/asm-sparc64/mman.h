@@ -24,9 +24,8 @@
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
-#define arch_mmap_check	sparc64_mmap_check
-int sparc64_mmap_check(unsigned long addr, unsigned long len,
-		unsigned long flags);
+#define arch_mmap_check(addr,len,flags)	sparc64_mmap_check(addr,len)
+int sparc64_mmap_check(unsigned long addr, unsigned long len);
 #endif
 #endif
 

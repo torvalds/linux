@@ -1,5 +1,5 @@
 /*
- * MPC52xx SPC in SPI mode driver.
+ * MPC52xx PSC in SPI mode driver.
  *
  * Maintainer: Dragos Carp
  *

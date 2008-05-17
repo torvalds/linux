@@ -1567,7 +1567,7 @@ static int pxa2xx_spi_resume(struct platform_device *pdev)
 	int status = 0;
 
 	/* Enable the SSP clock */
-	clk_disable(ssp->clk);
+	clk_enable(ssp->clk);
 
 	/* Start the queue running */
 	status = start_queue(drv_data);

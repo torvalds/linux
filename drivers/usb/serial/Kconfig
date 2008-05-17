@@ -447,6 +447,15 @@ config USB_SERIAL_MOS7840
 	  To compile this driver as a module, choose M here: the
 	  module will be called mos7840.  If unsure, choose N.
 
+config USB_SERIAL_MOTOROLA
+	tristate "USB Motorola Phone modem driver"
+	---help---
+	  Say Y here if you want to use a Motorola phone with a USB
+	  connector as a modem link.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called moto_modem.  If unsure, choose N.
+
 config USB_SERIAL_NAVMAN
 	tristate "USB Navman GPS device"
 	help

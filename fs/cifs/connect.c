@@ -348,7 +348,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	int reconnect;
 
 	current->flags |= PF_MEMALLOC;
-	server->tsk = current;	/* save process info to wake at shutdown */
 	cFYI(1, ("Demultiplex PID: %d", task_pid_nr(current)));
 	write_lock(&GlobalSMBSeslock);
 	atomic_inc(&tcpSesAllocCount);
@@ -651,10 +650,20 @@ multi_t2_fnd:
 
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
-	server->tsk = NULL;
+	spin_unlock(&GlobalMid_Lock);
+
+	/* don't exit until kthread_stop is called */
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	while (!kthread_should_stop()) {
+		schedule();
+		set_current_state(TASK_UNINTERRUPTIBLE);
+	}
+	set_current_state(TASK_RUNNING);
+
 	/* check if we have blocked requests that need to free */
 	/* Note that cifs_max_pending is normally 50, but
 	can be set at module install time to as little as two */
+	spin_lock(&GlobalMid_Lock);
 	if (atomic_read(&server->inFlight) >= cifs_max_pending)
 		atomic_set(&server->inFlight, cifs_max_pending - 1);
 	/* We do not want to set the max_pending too low or we
@@ -1318,42 +1327,43 @@ cifs_parse_mount_options(char *options, const char *devname,
 
 static struct cifsSesInfo *
 cifs_find_tcp_session(struct in_addr *target_ip_addr,
-		struct in6_addr *target_ip6_addr,
-		 char *userName, struct TCP_Server_Info **psrvTcp)
+		      struct in6_addr *target_ip6_addr,
+		      char *userName, struct TCP_Server_Info **psrvTcp)
 {
 	struct list_head *tmp;
 	struct cifsSesInfo *ses;
-	*psrvTcp = NULL;
-	read_lock(&GlobalSMBSeslock);
 
+	*psrvTcp = NULL;
+
+	read_lock(&GlobalSMBSeslock);
 	list_for_each(tmp, &GlobalSMBSessionList) {
 		ses = list_entry(tmp, struct cifsSesInfo, cifsSessionList);
-		if (ses->server) {
-			if ((target_ip_addr &&
-				(ses->server->addr.sockAddr.sin_addr.s_addr
-				  == target_ip_addr->s_addr)) || (target_ip6_addr
-				&& memcmp(&ses->server->addr.sockAddr6.sin6_addr,
-					target_ip6_addr, sizeof(*target_ip6_addr)))) {
-				/* BB lock server and tcp session and increment
-				      use count here?? */
+		if (!ses->server)
+			continue;
 
-				/* found a match on the TCP session */
-				*psrvTcp = ses->server;
+		if (target_ip_addr &&
+		    ses->server->addr.sockAddr.sin_addr.s_addr != target_ip_addr->s_addr)
+				continue;
+		else if (target_ip6_addr &&
+			 memcmp(&ses->server->addr.sockAddr6.sin6_addr,
+				target_ip6_addr, sizeof(*target_ip6_addr)))
+				continue;
+		/* BB lock server and tcp session; increment use count here?? */
 
-				/* BB check if reconnection needed */
-				if (strncmp
-				    (ses->userName, userName,
-				     MAX_USERNAME_SIZE) == 0){
-					read_unlock(&GlobalSMBSeslock);
-					/* Found exact match on both TCP and
-					   SMB sessions */
-					return ses;
-				}
-			}
+		/* found a match on the TCP session */
+		*psrvTcp = ses->server;
+
+		/* BB check if reconnection needed */
+		if (strncmp(ses->userName, userName, MAX_USERNAME_SIZE) == 0) {
+			read_unlock(&GlobalSMBSeslock);
+			/* Found exact match on both TCP and
+			   SMB sessions */
+			return ses;
 		}
 		/* else tcp and smb sessions need reconnection */
 	}
 	read_unlock(&GlobalSMBSeslock);
+
 	return NULL;
 }
 
@@ -2186,15 +2196,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			srvTcp->tcpStatus = CifsExiting;
 			spin_unlock(&GlobalMid_Lock);
 			if (srvTcp->tsk) {
-				struct task_struct *tsk;
 				/* If we could verify that kthread_stop would
 				   always wake up processes blocked in
 				   tcp in recv_mesg then we could remove the
 				   send_sig call */
 				force_sig(SIGKILL, srvTcp->tsk);
-				tsk = srvTcp->tsk;
-				if (tsk)
-					kthread_stop(tsk);
+				kthread_stop(srvTcp->tsk);
 			}
 		}
 		 /* If find_unc succeeded then rc == 0 so we can not end */
@@ -2210,23 +2217,17 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					if ((temp_rc == -ESHUTDOWN) &&
 					    (pSesInfo->server) &&
 					    (pSesInfo->server->tsk)) {
-						struct task_struct *tsk;
 						force_sig(SIGKILL,
 							pSesInfo->server->tsk);
-						tsk = pSesInfo->server->tsk;
-						if (tsk)
-							kthread_stop(tsk);
+						kthread_stop(pSesInfo->server->tsk);
 					}
 				} else {
 					cFYI(1, ("No session or bad tcon"));
 					if ((pSesInfo->server) &&
 					    (pSesInfo->server->tsk)) {
-						struct task_struct *tsk;
 						force_sig(SIGKILL,
 							pSesInfo->server->tsk);
-						tsk = pSesInfo->server->tsk;
-						if (tsk)
-							kthread_stop(tsk);
+						kthread_stop(pSesInfo->server->tsk);
 					}
 				}
 				sesInfoFree(pSesInfo);

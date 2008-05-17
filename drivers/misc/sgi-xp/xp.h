@@ -157,215 +157,136 @@ struct xpc_msg {
 /*
  * Define the return values and values passed to user's callout functions.
  * (It is important to add new value codes at the end just preceding
- * xpcUnknownReason, which must have the highest numerical value.)
+ * xpUnknownReason, which must have the highest numerical value.)
  */
-enum xpc_retval {
-	xpcSuccess = 0,
+enum xp_retval {
+	xpSuccess = 0,
 
-	xpcNotConnected,	/*  1: channel is not connected */
-	xpcConnected,		/*  2: channel connected (opened) */
-	xpcRETIRED1,		/*  3: (formerly xpcDisconnected) */
+	xpNotConnected,		/*  1: channel is not connected */
+	xpConnected,		/*  2: channel connected (opened) */
+	xpRETIRED1,		/*  3: (formerly xpDisconnected) */
 
-	xpcMsgReceived,		/*  4: message received */
-	xpcMsgDelivered,	/*  5: message delivered and acknowledged */
+	xpMsgReceived,		/*  4: message received */
+	xpMsgDelivered,		/*  5: message delivered and acknowledged */
 
-	xpcRETIRED2,		/*  6: (formerly xpcTransferFailed) */
+	xpRETIRED2,		/*  6: (formerly xpTransferFailed) */
 
-	xpcNoWait,		/*  7: operation would require wait */
-	xpcRetry,		/*  8: retry operation */
-	xpcTimeout,		/*  9: timeout in xpc_allocate_msg_wait() */
-	xpcInterrupted,		/* 10: interrupted wait */
+	xpNoWait,		/*  7: operation would require wait */
+	xpRetry,		/*  8: retry operation */
+	xpTimeout,		/*  9: timeout in xpc_allocate_msg_wait() */
+	xpInterrupted,		/* 10: interrupted wait */
 
-	xpcUnequalMsgSizes,	/* 11: message size disparity between sides */
-	xpcInvalidAddress,	/* 12: invalid address */
+	xpUnequalMsgSizes,	/* 11: message size disparity between sides */
+	xpInvalidAddress,	/* 12: invalid address */
 
-	xpcNoMemory,		/* 13: no memory available for XPC structures */
-	xpcLackOfResources,	/* 14: insufficient resources for operation */
-	xpcUnregistered,	/* 15: channel is not registered */
-	xpcAlreadyRegistered,	/* 16: channel is already registered */
+	xpNoMemory,		/* 13: no memory available for XPC structures */
+	xpLackOfResources,	/* 14: insufficient resources for operation */
+	xpUnregistered,		/* 15: channel is not registered */
+	xpAlreadyRegistered,	/* 16: channel is already registered */
 
-	xpcPartitionDown,	/* 17: remote partition is down */
-	xpcNotLoaded,		/* 18: XPC module is not loaded */
-	xpcUnloading,		/* 19: this side is unloading XPC module */
+	xpPartitionDown,	/* 17: remote partition is down */
+	xpNotLoaded,		/* 18: XPC module is not loaded */
+	xpUnloading,		/* 19: this side is unloading XPC module */
 
-	xpcBadMagic,		/* 20: XPC MAGIC string not found */
+	xpBadMagic,		/* 20: XPC MAGIC string not found */
 
-	xpcReactivating,	/* 21: remote partition was reactivated */
+	xpReactivating,		/* 21: remote partition was reactivated */
 
-	xpcUnregistering,	/* 22: this side is unregistering channel */
-	xpcOtherUnregistering,	/* 23: other side is unregistering channel */
+	xpUnregistering,	/* 22: this side is unregistering channel */
+	xpOtherUnregistering,	/* 23: other side is unregistering channel */
 
-	xpcCloneKThread,	/* 24: cloning kernel thread */
-	xpcCloneKThreadFailed,	/* 25: cloning kernel thread failed */
+	xpCloneKThread,		/* 24: cloning kernel thread */
+	xpCloneKThreadFailed,	/* 25: cloning kernel thread failed */
 
-	xpcNoHeartbeat,		/* 26: remote partition has no heartbeat */
+	xpNoHeartbeat,		/* 26: remote partition has no heartbeat */
 
-	xpcPioReadError,	/* 27: PIO read error */
-	xpcPhysAddrRegFailed,	/* 28: registration of phys addr range failed */
+	xpPioReadError,		/* 27: PIO read error */
+	xpPhysAddrRegFailed,	/* 28: registration of phys addr range failed */
 
-	xpcBteDirectoryError,	/* 29: maps to BTEFAIL_DIR */
-	xpcBtePoisonError,	/* 30: maps to BTEFAIL_POISON */
-	xpcBteWriteError,	/* 31: maps to BTEFAIL_WERR */
-	xpcBteAccessError,	/* 32: maps to BTEFAIL_ACCESS */
-	xpcBtePWriteError,	/* 33: maps to BTEFAIL_PWERR */
-	xpcBtePReadError,	/* 34: maps to BTEFAIL_PRERR */
-	xpcBteTimeOutError,	/* 35: maps to BTEFAIL_TOUT */
-	xpcBteXtalkError,	/* 36: maps to BTEFAIL_XTERR */
-	xpcBteNotAvailable,	/* 37: maps to BTEFAIL_NOTAVAIL */
-	xpcBteUnmappedError,	/* 38: unmapped BTEFAIL_ error */
+	xpRETIRED3,		/* 29: (formerly xpBteDirectoryError) */
+	xpRETIRED4,		/* 30: (formerly xpBtePoisonError) */
+	xpRETIRED5,		/* 31: (formerly xpBteWriteError) */
+	xpRETIRED6,		/* 32: (formerly xpBteAccessError) */
+	xpRETIRED7,		/* 33: (formerly xpBtePWriteError) */
+	xpRETIRED8,		/* 34: (formerly xpBtePReadError) */
+	xpRETIRED9,		/* 35: (formerly xpBteTimeOutError) */
+	xpRETIRED10,		/* 36: (formerly xpBteXtalkError) */
+	xpRETIRED11,		/* 37: (formerly xpBteNotAvailable) */
+	xpRETIRED12,		/* 38: (formerly xpBteUnmappedError) */
 
-	xpcBadVersion,		/* 39: bad version number */
-	xpcVarsNotSet,		/* 40: the XPC variables are not set up */
-	xpcNoRsvdPageAddr,	/* 41: unable to get rsvd page's phys addr */
-	xpcInvalidPartid,	/* 42: invalid partition ID */
-	xpcLocalPartid,		/* 43: local partition ID */
+	xpBadVersion,		/* 39: bad version number */
+	xpVarsNotSet,		/* 40: the XPC variables are not set up */
+	xpNoRsvdPageAddr,	/* 41: unable to get rsvd page's phys addr */
+	xpInvalidPartid,	/* 42: invalid partition ID */
+	xpLocalPartid,		/* 43: local partition ID */
 
-	xpcOtherGoingDown,	/* 44: other side going down, reason unknown */
-	xpcSystemGoingDown,	/* 45: system is going down, reason unknown */
-	xpcSystemHalt,		/* 46: system is being halted */
-	xpcSystemReboot,	/* 47: system is being rebooted */
-	xpcSystemPoweroff,	/* 48: system is being powered off */
+	xpOtherGoingDown,	/* 44: other side going down, reason unknown */
+	xpSystemGoingDown,	/* 45: system is going down, reason unknown */
+	xpSystemHalt,		/* 46: system is being halted */
+	xpSystemReboot,		/* 47: system is being rebooted */
+	xpSystemPoweroff,	/* 48: system is being powered off */
 
-	xpcDisconnecting,	/* 49: channel disconnecting (closing) */
+	xpDisconnecting,	/* 49: channel disconnecting (closing) */
 
-	xpcOpenCloseError,	/* 50: channel open/close protocol error */
+	xpOpenCloseError,	/* 50: channel open/close protocol error */
 
-	xpcDisconnected,	/* 51: channel disconnected (closed) */
+	xpDisconnected,		/* 51: channel disconnected (closed) */
 
-	xpcBteSh2Start,		/* 52: BTE CRB timeout */
+	xpBteCopyError,		/* 52: bte_copy() returned error */
 
-				/* 53: 0x1 BTE Error Response Short */
-	xpcBteSh2RspShort = xpcBteSh2Start + BTEFAIL_SH2_RESP_SHORT,
-
-				/* 54: 0x2 BTE Error Response Long */
-	xpcBteSh2RspLong = xpcBteSh2Start + BTEFAIL_SH2_RESP_LONG,
-
-				/* 56: 0x4 BTE Error Response DSB */
-	xpcBteSh2RspDSB = xpcBteSh2Start + BTEFAIL_SH2_RESP_DSP,
-
-				/* 60: 0x8 BTE Error Response Access */
-	xpcBteSh2RspAccess = xpcBteSh2Start + BTEFAIL_SH2_RESP_ACCESS,
-
-				/* 68: 0x10 BTE Error CRB timeout */
-	xpcBteSh2CRBTO = xpcBteSh2Start + BTEFAIL_SH2_CRB_TO,
-
-				/* 84: 0x20 BTE Error NACK limit */
-	xpcBteSh2NACKLimit = xpcBteSh2Start + BTEFAIL_SH2_NACK_LIMIT,
-
-				/* 115: BTE end */
-	xpcBteSh2End = xpcBteSh2Start + BTEFAIL_SH2_ALL,
-
-	xpcUnknownReason	/* 116: unknown reason - must be last in enum */
+	xpUnknownReason		/* 53: unknown reason - must be last in enum */
 };
 
 /*
- * Define the callout function types used by XPC to update the user on
- * connection activity and state changes (via the user function registered by
- * xpc_connect()) and to notify them of messages received and delivered (via
- * the user function registered by xpc_send_notify()).
- *
- * The two function types are xpc_channel_func and xpc_notify_func and
- * both share the following arguments, with the exception of "data", which
- * only xpc_channel_func has.
+ * Define the callout function type used by XPC to update the user on
+ * connection activity and state changes via the user function registered
+ * by xpc_connect().
  *
  * Arguments:
  *
- *	reason - reason code. (See following table.)
+ *	reason - reason code.
  *	partid - partition ID associated with condition.
  *	ch_number - channel # associated with condition.
- *	data - pointer to optional data. (See following table.)
+ *	data - pointer to optional data.
  *	key - pointer to optional user-defined value provided as the "key"
- *	      argument to xpc_connect() or xpc_send_notify().
+ *	      argument to xpc_connect().
  *
- * In the following table the "Optional Data" column applies to callouts made
- * to functions registered by xpc_connect(). A "NA" in that column indicates
- * that this reason code can be passed to functions registered by
- * xpc_send_notify() (i.e. they don't have data arguments).
+ * A reason code of xpConnected indicates that a connection has been
+ * established to the specified partition on the specified channel. The data
+ * argument indicates the max number of entries allowed in the message queue.
  *
- * Also, the first three reason codes in the following table indicate
- * success, whereas the others indicate failure. When a failure reason code
- * is received, one can assume that the channel is not connected.
+ * A reason code of xpMsgReceived indicates that a XPC message arrived from
+ * the specified partition on the specified channel. The data argument
+ * specifies the address of the message's payload. The user must call
+ * xpc_received() when finished with the payload.
  *
- *
- * Reason Code          | Cause                          | Optional Data
- * =====================+================================+=====================
- * xpcConnected         | connection has been established| max #of entries
- *                      | to the specified partition on  | allowed in message
- *                      | the specified channel          | queue
- * ---------------------+--------------------------------+---------------------
- * xpcMsgReceived       | an XPC message arrived from    | address of payload
- *                      | the specified partition on the |
- *                      | specified channel              | [the user must call
- *                      |                                | xpc_received() when
- *                      |                                | finished with the
- *                      |                                | payload]
- * ---------------------+--------------------------------+---------------------
- * xpcMsgDelivered      | notification that the message  | NA
- *                      | was delivered to the intended  |
- *                      | recipient and that they have   |
- *                      | acknowledged its receipt by    |
- *                      | calling xpc_received()         |
- * =====================+================================+=====================
- * xpcUnequalMsgSizes   | can't connect to the specified | NULL
- *                      | partition on the specified     |
- *                      | channel because of mismatched  |
- *                      | message sizes                  |
- * ---------------------+--------------------------------+---------------------
- * xpcNoMemory          | insufficient memory avaiable   | NULL
- *                      | to allocate message queue      |
- * ---------------------+--------------------------------+---------------------
- * xpcLackOfResources   | lack of resources to create    | NULL
- *                      | the necessary kthreads to      |
- *                      | support the channel            |
- * ---------------------+--------------------------------+---------------------
- * xpcUnregistering     | this side's user has           | NULL or NA
- *                      | unregistered by calling        |
- *                      | xpc_disconnect()               |
- * ---------------------+--------------------------------+---------------------
- * xpcOtherUnregistering| the other side's user has      | NULL or NA
- *                      | unregistered by calling        |
- *                      | xpc_disconnect()               |
- * ---------------------+--------------------------------+---------------------
- * xpcNoHeartbeat       | the other side's XPC is no     | NULL or NA
- *                      | longer heartbeating            |
- *                      |                                |
- * ---------------------+--------------------------------+---------------------
- * xpcUnloading         | this side's XPC module is      | NULL or NA
- *                      | being unloaded                 |
- *                      |                                |
- * ---------------------+--------------------------------+---------------------
- * xpcOtherUnloading    | the other side's XPC module is | NULL or NA
- *                      | is being unloaded              |
- *                      |                                |
- * ---------------------+--------------------------------+---------------------
- * xpcPioReadError      | xp_nofault_PIOR() returned an  | NULL or NA
- *                      | error while sending an IPI     |
- *                      |                                |
- * ---------------------+--------------------------------+---------------------
- * xpcInvalidAddress    | the address either received or | NULL or NA
- *                      | sent by the specified partition|
- *                      | is invalid                     |
- * ---------------------+--------------------------------+---------------------
- * xpcBteNotAvailable   | attempt to pull data from the  | NULL or NA
- * xpcBtePoisonError    | specified partition over the   |
- * xpcBteWriteError     | specified channel via a        |
- * xpcBteAccessError    | bte_copy() failed              |
- * xpcBteTimeOutError   |                                |
- * xpcBteXtalkError     |                                |
- * xpcBteDirectoryError |                                |
- * xpcBteGenericError   |                                |
- * xpcBteUnmappedError  |                                |
- * ---------------------+--------------------------------+---------------------
- * xpcUnknownReason     | the specified channel to the   | NULL or NA
- *                      | specified partition was        |
- *                      | unavailable for unknown reasons|
- * =====================+================================+=====================
+ * All other reason codes indicate failure. The data argmument is NULL.
+ * When a failure reason code is received, one can assume that the channel
+ * is not connected.
  */
-
-typedef void (*xpc_channel_func) (enum xpc_retval reason, partid_t partid,
+typedef void (*xpc_channel_func) (enum xp_retval reason, short partid,
 				  int ch_number, void *data, void *key);
 
-typedef void (*xpc_notify_func) (enum xpc_retval reason, partid_t partid,
+/*
+ * Define the callout function type used by XPC to notify the user of
+ * messages received and delivered via the user function registered by
+ * xpc_send_notify().
+ *
+ * Arguments:
+ *
+ *	reason - reason code.
+ *	partid - partition ID associated with condition.
+ *	ch_number - channel # associated with condition.
+ *	key - pointer to optional user-defined value provided as the "key"
+ *	      argument to xpc_send_notify().
+ *
+ * A reason code of xpMsgDelivered indicates that the message was delivered
+ * to the intended recipient and that they have acknowledged its receipt by
+ * calling xpc_received().
+ *
+ * All other reason codes indicate failure.
+ */
+typedef void (*xpc_notify_func) (enum xp_retval reason, short partid,
 				 int ch_number, void *key);
 
 /*
@@ -401,57 +322,57 @@ struct xpc_registration {
 struct xpc_interface {
 	void (*connect) (int);
 	void (*disconnect) (int);
-	enum xpc_retval (*allocate) (partid_t, int, u32, void **);
-	enum xpc_retval (*send) (partid_t, int, void *);
-	enum xpc_retval (*send_notify) (partid_t, int, void *,
+	enum xp_retval (*allocate) (short, int, u32, void **);
+	enum xp_retval (*send) (short, int, void *);
+	enum xp_retval (*send_notify) (short, int, void *,
 					xpc_notify_func, void *);
-	void (*received) (partid_t, int, void *);
-	enum xpc_retval (*partid_to_nasids) (partid_t, void *);
+	void (*received) (short, int, void *);
+	enum xp_retval (*partid_to_nasids) (short, void *);
 };
 
 extern struct xpc_interface xpc_interface;
 
 extern void xpc_set_interface(void (*)(int),
 			      void (*)(int),
-			      enum xpc_retval (*)(partid_t, int, u32, void **),
-			      enum xpc_retval (*)(partid_t, int, void *),
-			      enum xpc_retval (*)(partid_t, int, void *,
+			      enum xp_retval (*)(short, int, u32, void **),
+			      enum xp_retval (*)(short, int, void *),
+			      enum xp_retval (*)(short, int, void *,
 						  xpc_notify_func, void *),
-			      void (*)(partid_t, int, void *),
-			      enum xpc_retval (*)(partid_t, void *));
+			      void (*)(short, int, void *),
+			      enum xp_retval (*)(short, void *));
 extern void xpc_clear_interface(void);
 
-extern enum xpc_retval xpc_connect(int, xpc_channel_func, void *, u16,
+extern enum xp_retval xpc_connect(int, xpc_channel_func, void *, u16,
 				   u16, u32, u32);
 extern void xpc_disconnect(int);
 
-static inline enum xpc_retval
-xpc_allocate(partid_t partid, int ch_number, u32 flags, void **payload)
+static inline enum xp_retval
+xpc_allocate(short partid, int ch_number, u32 flags, void **payload)
 {
 	return xpc_interface.allocate(partid, ch_number, flags, payload);
 }
 
-static inline enum xpc_retval
-xpc_send(partid_t partid, int ch_number, void *payload)
+static inline enum xp_retval
+xpc_send(short partid, int ch_number, void *payload)
 {
 	return xpc_interface.send(partid, ch_number, payload);
 }
 
-static inline enum xpc_retval
-xpc_send_notify(partid_t partid, int ch_number, void *payload,
+static inline enum xp_retval
+xpc_send_notify(short partid, int ch_number, void *payload,
 		xpc_notify_func func, void *key)
 {
 	return xpc_interface.send_notify(partid, ch_number, payload, func, key);
 }
 
 static inline void
-xpc_received(partid_t partid, int ch_number, void *payload)
+xpc_received(short partid, int ch_number, void *payload)
 {
 	return xpc_interface.received(partid, ch_number, payload);
 }
 
-static inline enum xpc_retval
-xpc_partid_to_nasids(partid_t partid, void *nasids)
+static inline enum xp_retval
+xpc_partid_to_nasids(short partid, void *nasids)
 {
 	return xpc_interface.partid_to_nasids(partid, nasids);
 }

@@ -1,6 +1,7 @@
 config VIDEO_CX25840
 	tristate "Conexant CX2584x audio/video decoders"
 	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on HOTPLUG # due to FW_LOADER
 	select FW_LOADER
 	---help---
 	  Support for the Conexant CX2584x audio/video decoders.

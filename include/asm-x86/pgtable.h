@@ -57,7 +57,8 @@
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
 			 _PAGE_DIRTY)
 
-#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_PCD | _PAGE_PWT |		\
+			 _PAGE_ACCESSED | _PAGE_DIRTY)
 
 #define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
 #define _PAGE_CACHE_WB		(0)
@@ -288,10 +289,19 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	 * Chop off the NX bit (if present), and add the NX portion of
 	 * the newprot (if present):
 	 */
-	val &= _PAGE_CHG_MASK & ~_PAGE_NX;
-	val |= pgprot_val(newprot) & __supported_pte_mask;
+	val &= _PAGE_CHG_MASK;
+	val |= pgprot_val(newprot) & (~_PAGE_CHG_MASK) & __supported_pte_mask;
 
 	return __pte(val);
+}
+
+/* mprotect needs to preserve PAT bits when updating vm_page_prot */
+#define pgprot_modify pgprot_modify
+static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
+{
+	pgprotval_t preservebits = pgprot_val(oldprot) & _PAGE_CHG_MASK;
+	pgprotval_t addbits = pgprot_val(newprot);
+	return __pgprot(preservebits | addbits);
 }
 
 #define pte_pgprot(x) __pgprot(pte_val(x) & (0xfff | _PAGE_NX))

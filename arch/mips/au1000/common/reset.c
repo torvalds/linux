@@ -1,11 +1,10 @@
 /*
  *
  * BRIEF MODULE DESCRIPTION
- *	Au1000 reset routines.
+ *	Au1xx0 reset routines.
  *
- * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2001, 2006, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -28,10 +27,11 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <asm/cacheflush.h>
+
 #include <asm/mach-au1x00/au1000.h>
 
 extern int au_sleep(void);
-extern void (*flush_cache_all)(void);
 
 void au1000_restart(char *command)
 {
@@ -40,8 +40,8 @@ void au1000_restart(char *command)
 	u32 prid = read_c0_prid();
 
 	printk(KERN_NOTICE "\n** Resetting Integrated Peripherals\n");
-	switch (prid & 0xFF000000)
-	{
+
+	switch (prid & 0xFF000000) {
 	case 0x00000000: /* Au1000 */
 		au_writel(0x02, 0xb0000010); /* ac97_enable */
 		au_writel(0x08, 0xb017fffc); /* usbh_enable - early errata */
@@ -138,9 +138,6 @@ void au1000_restart(char *command)
 		au_writel(0x00, 0xb1900064); /* sys_auxpll */
 		au_writel(0x00, 0xb1900100); /* sys_pininputen */
 		break;
-
-	default:
-		break;
 	}
 
 	set_c0_status(ST0_BEV | ST0_ERL);
@@ -158,25 +155,25 @@ void au1000_restart(char *command)
 void au1000_halt(void)
 {
 #if defined(CONFIG_MIPS_PB1550) || defined(CONFIG_MIPS_DB1550)
-	/* power off system */
-	printk("\n** Powering off...\n");
-	au_writew(au_readw(0xAF00001C) | (3<<14), 0xAF00001C);
+	/* Power off system */
+	printk(KERN_NOTICE "\n** Powering off...\n");
+	au_writew(au_readw(0xAF00001C) | (3 << 14), 0xAF00001C);
 	au_sync();
-	while(1); /* should not get here */
+	while (1); /* should not get here */
 #else
 	printk(KERN_NOTICE "\n** You can safely turn off the power\n");
 #ifdef CONFIG_MIPS_MIRAGE
 	au_writel((1 << 26) | (1 << 10), GPIO2_OUTPUT);
 #endif
 #ifdef CONFIG_MIPS_DB1200
-	au_writew(au_readw(0xB980001C) | (1<<14), 0xB980001C);
+	au_writew(au_readw(0xB980001C) | (1 << 14), 0xB980001C);
 #endif
 #ifdef CONFIG_PM
 	au_sleep();
 
-	/* should not get here */
-	printk(KERN_ERR "Unable to put cpu in sleep mode\n");
-	while(1);
+	/* Should not get here */
+	printk(KERN_ERR "Unable to put CPU in sleep mode\n");
+	while (1);
 #else
 	while (1)
 		__asm__(".set\tmips3\n\t"

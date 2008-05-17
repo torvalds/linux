@@ -1484,6 +1484,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 32,
 		.machine_check		= machine_check_e200,
 		.platform		= "ppc5554",
+	}
 #endif /* CONFIG_E200 */
 #ifdef CONFIG_E500
 	{	/* e500 */
@@ -1533,6 +1534,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 32,
 		.machine_check		= machine_check_e500,
 		.platform		= "powerpc",
+	}
 #endif /* CONFIG_E500 */
 #endif /* CONFIG_PPC32 */
 };

@@ -188,8 +188,8 @@ static const char *audio_map[][3] = {
 static const char *spk_function[] = {"Off", "On"};
 static const char *jack_function[] = {"Off", "Headphone"};
 static const struct soc_enum n810_enum[] = {
-	SOC_ENUM_SINGLE_EXT(2, spk_function),
-	SOC_ENUM_SINGLE_EXT(3, jack_function),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(spk_function), spk_function),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(jack_function), jack_function),
 };
 
 static const struct snd_kcontrol_new aic33_n810_controls[] = {
