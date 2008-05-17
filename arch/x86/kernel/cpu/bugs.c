@@ -59,8 +59,12 @@ static void __init check_fpu(void)
 		return;
 	}
 
-/* trap_init() enabled FXSR and company _before_ testing for FP problems here. */
-	/* Test for the divl bug.. */
+	/*
+	 * trap_init() enabled FXSR and company _before_ testing for FP
+	 * problems here.
+	 *
+	 * Test for the divl bug..
+	 */
 	__asm__("fninit\n\t"
 		"fldl %1\n\t"
 		"fdivl %2\n\t"
@@ -108,10 +112,15 @@ static void __init check_popad(void)
 	  "movl $12345678,%%eax; movl $0,%%edi; pusha; popa; movl (%%edx,%%edi),%%ecx "
 	  : "=&a" (res)
 	  : "d" (inp)
-	  : "ecx", "edi" );
-	/* If this fails, it means that any user program may lock the CPU hard. Too bad. */
-	if (res != 12345678) printk( "Buggy.\n" );
-		        else printk( "OK.\n" );
+	  : "ecx", "edi");
+	/*
+	 * If this fails, it means that any user program may lock the
+	 * CPU hard. Too bad.
+	 */
+	if (res != 12345678)
+		printk("Buggy.\n");
+	else
+		printk("OK.\n");
 #endif
 }
 
@@ -137,7 +146,8 @@ static void __init check_config(void)
  * i486+ only features! (WP works in supervisor mode and the
  * new "invlpg" and "bswap" instructions)
  */
-#if defined(CONFIG_X86_WP_WORKS_OK) || defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_BSWAP)
+#if defined(CONFIG_X86_WP_WORKS_OK) || defined(CONFIG_X86_INVLPG) || \
+	defined(CONFIG_X86_BSWAP)
 	if (boot_cpu_data.x86 == 3)
 		panic("Kernel requires i486+ for 'invlpg' and other features");
 #endif
@@ -170,6 +180,7 @@ void __init check_bugs(void)
 	check_fpu();
 	check_hlt();
 	check_popad();
-	init_utsname()->machine[1] = '0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
+	init_utsname()->machine[1] =
+		'0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
 	alternative_instructions();
 }
