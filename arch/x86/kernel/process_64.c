@@ -500,7 +500,6 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 {
 	struct thread_struct *prev, *next;
 	unsigned long debugctl;
-	unsigned long ds_prev = 0, ds_next = 0;
 
 	prev = &prev_p->thread,
 	next = &next_p->thread;
@@ -508,17 +507,23 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 	debugctl = prev->debugctlmsr;
 
 #ifdef CONFIG_X86_DS
-	if (prev->ds_ctx)
-		ds_prev = (unsigned long)prev->ds_ctx->ds;
-	if (next->ds_ctx)
-		ds_next = (unsigned long)next->ds_ctx->ds;
+	{
+		unsigned long ds_prev = 0, ds_next = 0;
 
-	if (ds_next != ds_prev) {
-		/* we clear debugctl to make sure DS
-		 * is not in use when we change it */
-		debugctl = 0;
-		update_debugctlmsr(0);
-		wrmsrl(MSR_IA32_DS_AREA, ds_next);
+		if (prev->ds_ctx)
+			ds_prev = (unsigned long)prev->ds_ctx->ds;
+		if (next->ds_ctx)
+			ds_next = (unsigned long)next->ds_ctx->ds;
+
+		if (ds_next != ds_prev) {
+			/*
+			 * We clear debugctl to make sure DS
+			 * is not in use when we change it:
+			 */
+			debugctl = 0;
+			update_debugctlmsr(0);
+			wrmsrl(MSR_IA32_DS_AREA, ds_next);
+		}
 	}
 #endif /* CONFIG_X86_DS */
 
