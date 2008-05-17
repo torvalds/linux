@@ -1664,7 +1664,64 @@ static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
 
 static void handle_irq_ucode_debug(struct b43_wldev *dev)
 {
-	//TODO
+	unsigned int i, cnt;
+	u16 reason;
+	__le16 *buf;
+
+	/* The proprietary firmware doesn't have this IRQ. */
+	if (!dev->fw.opensource)
+		return;
+
+	/* Microcode register 63 contains the debug-IRQ reason. */
+	reason = b43_shm_read16(dev, B43_SHM_SCRATCH, 63);
+	switch (reason) {
+	case B43_DEBUGIRQ_PANIC:
+		/* The reason for the panic is in register 3. */
+		reason = b43_shm_read16(dev, B43_SHM_SCRATCH, 3);
+		b43err(dev->wl, "Whoopsy, the microcode panic'ed! Reason: %u\n",
+		       reason);
+		b43_controller_restart(dev, "Microcode panic");
+		break;
+	case B43_DEBUGIRQ_DUMP_SHM:
+		if (!B43_DEBUG)
+			break; /* Only with driver debugging enabled. */
+		buf = kmalloc(4096, GFP_ATOMIC);
+		if (!buf) {
+			b43dbg(dev->wl, "SHM-dump: Failed to allocate memory\n");
+			goto out;
+		}
+		for (i = 0; i < 4096; i += 2) {
+			u16 tmp = b43_shm_read16(dev, B43_SHM_SHARED, i);
+			buf[i / 2] = cpu_to_le16(tmp);
+		}
+		b43info(dev->wl, "Shared memory dump:\n");
+		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET,
+			       16, 2, buf, 4096, 1);
+		kfree(buf);
+		break;
+	case B43_DEBUGIRQ_DUMP_REGS:
+		if (!B43_DEBUG)
+			break; /* Only with driver debugging enabled. */
+		b43info(dev->wl, "Microcode register dump:\n");
+		for (i = 0, cnt = 0; i < 64; i++) {
+			u16 tmp = b43_shm_read16(dev, B43_SHM_SCRATCH, i);
+			if (cnt == 0)
+				printk(KERN_INFO);
+			printk("r%02u: 0x%04X  ", i, tmp);
+			cnt++;
+			if (cnt == 6) {
+				printk("\n");
+				cnt = 0;
+			}
+		}
+		printk("\n");
+		break;
+	default:
+		b43dbg(dev->wl, "Debug-IRQ triggered for unknown reason: %u\n",
+		       reason);
+	}
+out:
+	b43_shm_write16(dev, B43_SHM_SCRATCH, 63, B43_DEBUGIRQ_ACK);
 }
 
 /* Interrupt handler bottom-half */
@@ -2122,14 +2179,22 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		err = -EOPNOTSUPP;
 		goto error;
 	}
-	b43info(dev->wl, "Loading firmware version %u.%u "
-		"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
-		fwrev, fwpatch,
-		(fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
-		(fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
-
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
+	dev->fw.opensource = (fwdate == 0xFFFF);
+
+	if (dev->fw.opensource) {
+		/* Patchlevel info is encoded in the "time" field. */
+		dev->fw.patch = fwtime;
+		b43info(dev->wl, "Loading OpenSource firmware version %u.%u\n",
+			dev->fw.rev, dev->fw.patch);
+	} else {
+		b43info(dev->wl, "Loading firmware version %u.%u "
+			"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
+			fwrev, fwpatch,
+			(fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
+			(fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
+	}
 
 	if (b43_is_old_txhdr_format(dev)) {
 		b43warn(dev->wl, "You are using an old firmware image. "
