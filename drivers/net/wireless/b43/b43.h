@@ -774,6 +774,10 @@ struct b43_firmware {
 
 	/* Set to true, if we are using an opensource firmware. */
 	bool opensource;
+	/* Set to true, if the core needs a PCM firmware, but
+	 * we failed to load one. This is always false for
+	 * core rev > 10, as these don't need PCM firmware. */
+	bool pcm_request_failed;
 };
 
 /* Device (802.11 core) initialization status. */
