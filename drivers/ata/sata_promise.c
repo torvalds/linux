@@ -139,7 +139,7 @@ struct pdc_port_priv {
 
 static int pdc_sata_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
 static int pdc_sata_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
-static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
+static int pdc_ata_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int pdc_common_port_start(struct ata_port *ap);
 static int pdc_sata_port_start(struct ata_port *ap);
 static void pdc_qc_prep(struct ata_queued_cmd *qc);
@@ -562,31 +562,25 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 		pdc_fill_sg(qc);
-		/* fall through */
-
+		/*FALLTHROUGH*/
 	case ATA_PROT_NODATA:
 		i = pdc_pkt_header(&qc->tf, qc->ap->prd_dma,
 				   qc->dev->devno, pp->pkt);
-
 		if (qc->tf.flags & ATA_TFLAG_LBA48)
 			i = pdc_prep_lba48(&qc->tf, pp->pkt, i);
 		else
 			i = pdc_prep_lba28(&qc->tf, pp->pkt, i);
-
 		pdc_pkt_footer(&qc->tf, pp->pkt, i);
 		break;
-
 	case ATAPI_PROT_PIO:
 		pdc_fill_sg(qc);
 		break;
-
 	case ATAPI_PROT_DMA:
 		pdc_fill_sg(qc);
 		/*FALLTHROUGH*/
 	case ATAPI_PROT_NODATA:
 		pdc_atapi_pkt(qc);
 		break;
-
 	default:
 		break;
 	}
@@ -616,7 +610,7 @@ static unsigned int pdc_sata_ata_port_to_ata_no(const struct ata_port *ap)
 	unsigned int nr_ports = pdc_sata_nr_ports(ap);
 	unsigned int i;
 
-	for(i = 0; i < nr_ports && host->ports[i] != ap; ++i)
+	for (i = 0; i < nr_ports && host->ports[i] != ap; ++i)
 		;
 	BUG_ON(i >= nr_ports);
 	return pdc_port_no_to_ata_no(i, pdc_is_sataii_tx4(ap->flags));
@@ -748,8 +742,8 @@ static void pdc_error_intr(struct ata_port *ap, struct ata_queued_cmd *qc,
 	ata_port_abort(ap);
 }
 
-static inline unsigned int pdc_host_intr(struct ata_port *ap,
-					 struct ata_queued_cmd *qc)
+static unsigned int pdc_host_intr(struct ata_port *ap,
+				  struct ata_queued_cmd *qc)
 {
 	unsigned int handled = 0;
 	void __iomem *ata_mmio = ap->ioaddr.cmd_addr;
@@ -775,7 +769,6 @@ static inline unsigned int pdc_host_intr(struct ata_port *ap,
 		ata_qc_complete(qc);
 		handled = 1;
 		break;
-
 	default:
 		ap->stats.idle_irq++;
 		break;
@@ -832,7 +825,7 @@ static irqreturn_t pdc_interrupt(int irq, void *dev_instance)
 		goto done_irq;
 	}
 
-	mask &= 0xffff;		/* only 16 tags possible */
+	mask &= 0xffff;		/* only 16 SEQIDs possible */
 	if (mask == 0 && hotplug_status == 0) {
 		VPRINTK("QUICK EXIT 3\n");
 		goto done_irq;
@@ -879,7 +872,7 @@ done_irq:
 	return IRQ_RETVAL(handled);
 }
 
-static inline void pdc_packet_start(struct ata_queued_cmd *qc)
+static void pdc_packet_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pdc_port_priv *pp = ap->private_data;
@@ -914,11 +907,9 @@ static unsigned int pdc_qc_issue(struct ata_queued_cmd *qc)
 	case ATA_PROT_DMA:
 		pdc_packet_start(qc);
 		return 0;
-
 	default:
 		break;
 	}
-
 	return ata_sff_qc_issue(qc);
 }
 
