@@ -139,7 +139,6 @@ static void __smp_call_function_map(void (*func) (void *info), void *info,
 	if (wait)
 		data.finished = CPU_MASK_NONE;
 
-	spin_lock(&call_lock);
 	call_data = &data;
 
 	for_each_cpu_mask(cpu, map)
@@ -151,7 +150,6 @@ static void __smp_call_function_map(void (*func) (void *info), void *info,
 	if (wait)
 		while (!cpus_equal(map, data.finished))
 			cpu_relax();
-	spin_unlock(&call_lock);
 out:
 	if (local) {
 		local_irq_disable();
@@ -177,11 +175,11 @@ int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 {
 	cpumask_t map;
 
-	preempt_disable();
+	spin_lock(&call_lock);
 	map = cpu_online_map;
 	cpu_clear(smp_processor_id(), map);
 	__smp_call_function_map(func, info, nonatomic, wait, map);
-	preempt_enable();
+	spin_unlock(&call_lock);
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
@@ -202,10 +200,10 @@ EXPORT_SYMBOL(smp_call_function);
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 			     int nonatomic, int wait)
 {
-	preempt_disable();
+	spin_lock(&call_lock);
 	__smp_call_function_map(func, info, nonatomic, wait,
 				cpumask_of_cpu(cpu));
-	preempt_enable();
+	spin_unlock(&call_lock);
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function_single);
@@ -228,10 +226,10 @@ EXPORT_SYMBOL(smp_call_function_single);
 int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
 			   int wait)
 {
-	preempt_disable();
+	spin_lock(&call_lock);
 	cpu_clear(smp_processor_id(), mask);
 	__smp_call_function_map(func, info, 0, wait, mask);
-	preempt_enable();
+	spin_unlock(&call_lock);
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function_mask);
@@ -592,7 +590,9 @@ int __cpuinit start_secondary(void *cpuvoid)
 	pfault_init();
 
 	/* Mark this cpu as online */
+	spin_lock(&call_lock);
 	cpu_set(smp_processor_id(), cpu_online_map);
+	spin_unlock(&call_lock);
 	/* Switch on interrupts */
 	local_irq_enable();
 	/* Print info about this processor */

@@ -19,6 +19,7 @@
 #include "rx.h"
 #include "efx.h"
 #include "falcon.h"
+#include "selftest.h"
 #include "workarounds.h"
 
 /* Number of RX descriptors pushed at once. */
@@ -683,6 +684,15 @@ void __efx_rx_packet(struct efx_channel *channel,
 	struct sk_buff *skb;
 	int lro = efx->net_dev->features & NETIF_F_LRO;
 
+	/* If we're in loopback test, then pass the packet directly to the
+	 * loopback layer, and free the rx_buf here
+	 */
+	if (unlikely(efx->loopback_selftest)) {
+		efx_loopback_rx_packet(efx, rx_buf->data, rx_buf->len);
+		efx_free_rx_buffer(efx, rx_buf);
+		goto done;
+	}
+
 	if (rx_buf->skb) {
 		prefetch(skb_shinfo(rx_buf->skb));
 
@@ -736,7 +746,6 @@ void __efx_rx_packet(struct efx_channel *channel,
 	/* Update allocation strategy method */
 	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
 
-	/* fall-thru */
 done:
 	efx->net_dev->last_rx = jiffies;
 }

@@ -555,7 +555,7 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 			p = dd->ipath_pageshadow[porttid + tid];
 			dd->ipath_pageshadow[porttid + tid] = NULL;
 			ipath_cdbg(VERBOSE, "PID %u freeing TID %u\n",
-				   pd->port_pid, tid);
+				   pid_nr(pd->port_pid), tid);
 			dd->ipath_f_put_tid(dd, &tidbase[tid],
 					    RCVHQ_RCV_TYPE_EXPECTED,
 					    dd->ipath_tidinvalid);
@@ -1609,7 +1609,7 @@ static int try_alloc_port(struct ipath_devdata *dd, int port,
 			   port);
 		pd->port_cnt = 1;
 		port_fp(fp) = pd;
-		pd->port_pid = current->pid;
+		pd->port_pid = get_pid(task_pid(current));
 		strncpy(pd->port_comm, current->comm, sizeof(pd->port_comm));
 		ipath_stats.sps_ports++;
 		ret = 0;
@@ -1793,14 +1793,15 @@ static int find_shared_port(struct file *fp,
 			}
 			port_fp(fp) = pd;
 			subport_fp(fp) = pd->port_cnt++;
-			pd->port_subpid[subport_fp(fp)] = current->pid;
+			pd->port_subpid[subport_fp(fp)] =
+				get_pid(task_pid(current));
 			tidcursor_fp(fp) = 0;
 			pd->active_slaves |= 1 << subport_fp(fp);
 			ipath_cdbg(PROC,
 				   "%s[%u] %u sharing %s[%u] unit:port %u:%u\n",
 				   current->comm, current->pid,
 				   subport_fp(fp),
-				   pd->port_comm, pd->port_pid,
+				   pd->port_comm, pid_nr(pd->port_pid),
 				   dd->ipath_unit, pd->port_port);
 			ret = 1;
 			goto done;
@@ -2066,7 +2067,8 @@ static int ipath_close(struct inode *in, struct file *fp)
 		 * the slave(s) don't wait for receive data forever.
 		 */
 		pd->active_slaves &= ~(1 << fd->subport);
-		pd->port_subpid[fd->subport] = 0;
+		put_pid(pd->port_subpid[fd->subport]);
+		pd->port_subpid[fd->subport] = NULL;
 		mutex_unlock(&ipath_mutex);
 		goto bail;
 	}
@@ -2074,7 +2076,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 	if (pd->port_hdrqfull) {
 		ipath_cdbg(PROC, "%s[%u] had %u rcvhdrqfull errors "
-			   "during run\n", pd->port_comm, pd->port_pid,
+			   "during run\n", pd->port_comm, pid_nr(pd->port_pid),
 			   pd->port_hdrqfull);
 		pd->port_hdrqfull = 0;
 	}
@@ -2134,11 +2136,12 @@ static int ipath_close(struct inode *in, struct file *fp)
 			unlock_expected_tids(pd);
 		ipath_stats.sps_ports--;
 		ipath_cdbg(PROC, "%s[%u] closed port %u:%u\n",
-			   pd->port_comm, pd->port_pid,
+			   pd->port_comm, pid_nr(pd->port_pid),
 			   dd->ipath_unit, port);
 	}
 
-	pd->port_pid = 0;
+	put_pid(pd->port_pid);
+	pd->port_pid = NULL;
 	dd->ipath_pd[pd->port_port] = NULL; /* before releasing mutex */
 	mutex_unlock(&ipath_mutex);
 	ipath_free_pddata(dd, pd); /* after releasing the mutex */

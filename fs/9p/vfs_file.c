@@ -90,10 +90,11 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 /**
  * v9fs_file_lock - lock a file (or directory)
- * @inode: inode to be opened
- * @file: file being opened
+ * @filp: file to be locked
+ * @cmd: lock command
+ * @fl: file lock structure
  *
- * XXX - this looks like a local only lock, we should extend into 9P
+ * Bugs: this looks like a local only lock, we should extend into 9P
  *       by using open exclusive
  */
 
@@ -118,7 +119,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 /**
  * v9fs_file_read - read from a file
- * @filep: file pointer to read
+ * @filp: file pointer to read
  * @data: data buffer to read data into
  * @count: size of buffer
  * @offset: offset at which to read data
@@ -142,7 +143,7 @@ v9fs_file_read(struct file *filp, char __user * data, size_t count,
 
 /**
  * v9fs_file_write - write to a file
- * @filep: file pointer to write
+ * @filp: file pointer to write
  * @data: data buffer to write data from
  * @count: size of buffer
  * @offset: offset at which to write data

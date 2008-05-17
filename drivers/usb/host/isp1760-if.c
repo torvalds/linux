@@ -256,7 +256,7 @@ static struct pci_driver isp1761_pci_driver = {
 
 static int __init isp1760_init(void)
 {
-	int ret;
+	int ret = -ENODEV;
 
 	init_kmem_once();
 

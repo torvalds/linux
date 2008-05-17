@@ -93,14 +93,16 @@ struct wireless_dev;
  *	used.
  */
  
-#if !defined(CONFIG_AX25) && !defined(CONFIG_AX25_MODULE) && !defined(CONFIG_TR)
-#define LL_MAX_HEADER	32
+#if defined(CONFIG_WLAN_80211) || defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
+# if defined(CONFIG_MAC80211_MESH)
+#  define LL_MAX_HEADER 128
+# else
+#  define LL_MAX_HEADER 96
+# endif
+#elif defined(CONFIG_TR)
+# define LL_MAX_HEADER 48
 #else
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-#define LL_MAX_HEADER	96
-#else
-#define LL_MAX_HEADER	48
-#endif
+# define LL_MAX_HEADER 32
 #endif
 
 #if !defined(CONFIG_NET_IPIP) && !defined(CONFIG_NET_IPIP_MODULE) && \
@@ -244,11 +246,16 @@ struct hh_cache
  *
  * We could use other alignment values, but we must maintain the
  * relationship HH alignment <= LL alignment.
+ *
+ * LL_ALLOCATED_SPACE also takes into account the tailroom the device
+ * may need.
  */
 #define LL_RESERVED_SPACE(dev) \
-	(((dev)->hard_header_len&~(HH_DATA_MOD - 1)) + HH_DATA_MOD)
+	((((dev)->hard_header_len+(dev)->needed_headroom)&~(HH_DATA_MOD - 1)) + HH_DATA_MOD)
 #define LL_RESERVED_SPACE_EXTRA(dev,extra) \
-	((((dev)->hard_header_len+extra)&~(HH_DATA_MOD - 1)) + HH_DATA_MOD)
+	((((dev)->hard_header_len+(dev)->needed_headroom+(extra))&~(HH_DATA_MOD - 1)) + HH_DATA_MOD)
+#define LL_ALLOCATED_SPACE(dev) \
+	((((dev)->hard_header_len+(dev)->needed_headroom+(dev)->needed_tailroom)&~(HH_DATA_MOD - 1)) + HH_DATA_MOD)
 
 struct header_ops {
 	int	(*create) (struct sk_buff *skb, struct net_device *dev,
@@ -567,6 +574,13 @@ struct net_device
 	unsigned short		type;	/* interface hardware type	*/
 	unsigned short		hard_header_len;	/* hardware hdr length	*/
 
+	/* extra head- and tailroom the hardware may need, but not in all cases
+	 * can this be guaranteed, especially tailroom. Some cases also use
+	 * LL_MAX_HEADER instead to allocate the skb.
+	 */
+	unsigned short		needed_headroom;
+	unsigned short		needed_tailroom;
+
 	struct net_device	*master; /* Pointer to master device of a group,
 					  * which this device is member of.
 					  */
@@ -714,6 +728,9 @@ struct net_device
 	/* Network namespace this network device is inside */
 	struct net		*nd_net;
 #endif
+
+	/* mid-layer private */
+	void			*ml_priv;
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;

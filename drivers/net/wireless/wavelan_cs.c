@@ -1074,11 +1074,9 @@ wv_psa_show(psa_t *	p)
 	 p->psa_call_code[6],
 	 p->psa_call_code[7]);
 #ifdef DEBUG_SHOW_UNUSED
-  printk(KERN_DEBUG "psa_reserved[]: %02X:%02X:%02X:%02X\n",
+  printk(KERN_DEBUG "psa_reserved[]: %02X:%02X\n",
 	 p->psa_reserved[0],
-	 p->psa_reserved[1],
-	 p->psa_reserved[2],
-	 p->psa_reserved[3]);
+	 p->psa_reserved[1]);
 #endif	/* DEBUG_SHOW_UNUSED */
   printk(KERN_DEBUG "psa_conf_status: %d, ", p->psa_conf_status);
   printk("psa_crc: 0x%02x%02x, ", p->psa_crc[0], p->psa_crc[1]);

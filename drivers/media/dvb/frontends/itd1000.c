@@ -195,7 +195,7 @@ static void itd1000_set_vco(struct itd1000_state *state, u32 freq_khz)
 	}
 }
 
-struct {
+static const struct {
 	u32 freq;
 	u8 values[10]; /* RFTR, RFST1 - RFST9 */
 } itd1000_fre_values[] = {

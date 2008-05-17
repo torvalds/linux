@@ -44,6 +44,10 @@ config VIDEO_TVEEPROM
 	tristate
 	depends on I2C
 
+config VIDEO_TUNER
+	tristate
+	depends on MEDIA_TUNER
+
 #
 # Multimedia Video device configuration
 #
@@ -690,7 +694,7 @@ config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
 	depends on PCI && VIDEO_V4L1 && I2C
 	select VIDEO_SAA7146_VV
-	select MEDIA_TUNER
+	select VIDEO_TUNER
 	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TDA9840 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TEA6415C if VIDEO_HELPER_CHIPS_AUTO
@@ -906,7 +910,7 @@ config SOC_CAMERA
 
 config SOC_CAMERA_MT9M001
 	tristate "mt9m001 support"
-	depends on SOC_CAMERA
+	depends on SOC_CAMERA && I2C
 	select GPIO_PCA953X if MT9M001_PCA9536_SWITCH
 	help
 	  This driver supports MT9M001 cameras from Micron, monochrome
@@ -921,7 +925,7 @@ config MT9M001_PCA9536_SWITCH
 
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 support"
-	depends on SOC_CAMERA
+	depends on SOC_CAMERA && I2C
 	select GPIO_PCA953X if MT9V022_PCA9536_SWITCH
 	help
 	  This driver supports MT9V022 cameras from Micron

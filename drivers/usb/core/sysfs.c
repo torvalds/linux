@@ -538,6 +538,46 @@ static struct attribute_group dev_attr_grp = {
 	.attrs = dev_attrs,
 };
 
+/* When modifying this list, be sure to modify dev_string_attrs_are_visible()
+ * accordingly.
+ */
+static struct attribute *dev_string_attrs[] = {
+	&dev_attr_manufacturer.attr,
+	&dev_attr_product.attr,
+	&dev_attr_serial.attr,
+	NULL
+};
+
+static mode_t dev_string_attrs_are_visible(struct kobject *kobj,
+		struct attribute *a, int n)
+{
+	struct usb_device *udev = to_usb_device(
+			container_of(kobj, struct device, kobj));
+
+	if (a == &dev_attr_manufacturer.attr) {
+		if (udev->manufacturer == NULL)
+			return 0;
+	} else if (a == &dev_attr_product.attr) {
+		if (udev->product == NULL)
+			return 0;
+	} else if (a == &dev_attr_serial.attr) {
+		if (udev->serial == NULL)
+			return 0;
+	}
+	return a->mode;
+}
+
+static struct attribute_group dev_string_attr_grp = {
+	.attrs =	dev_string_attrs,
+	.is_visible =	dev_string_attrs_are_visible,
+};
+
+struct attribute_group *usb_device_groups[] = {
+	&dev_attr_grp,
+	&dev_string_attr_grp,
+	NULL
+};
+
 /* Binary descriptors */
 
 static ssize_t
@@ -591,10 +631,9 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 	int retval;
 
-	retval = sysfs_create_group(&dev->kobj, &dev_attr_grp);
-	if (retval)
-		return retval;
-
+	/* Unforunately these attributes cannot be created before
+	 * the uevent is broadcast.
+	 */
 	retval = device_create_bin_file(dev, &dev_bin_attr_descriptors);
 	if (retval)
 		goto error;
@@ -607,21 +646,6 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	if (retval)
 		goto error;
 
-	if (udev->manufacturer) {
-		retval = device_create_file(dev, &dev_attr_manufacturer);
-		if (retval)
-			goto error;
-	}
-	if (udev->product) {
-		retval = device_create_file(dev, &dev_attr_product);
-		if (retval)
-			goto error;
-	}
-	if (udev->serial) {
-		retval = device_create_file(dev, &dev_attr_serial);
-		if (retval)
-			goto error;
-	}
 	retval = usb_create_ep_files(dev, &udev->ep0, udev);
 	if (retval)
 		goto error;
@@ -636,13 +660,9 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 
 	usb_remove_ep_files(&udev->ep0);
-	device_remove_file(dev, &dev_attr_manufacturer);
-	device_remove_file(dev, &dev_attr_product);
-	device_remove_file(dev, &dev_attr_serial);
 	remove_power_attributes(dev);
 	remove_persist_attributes(dev);
 	device_remove_bin_file(dev, &dev_bin_attr_descriptors);
-	sysfs_remove_group(&dev->kobj, &dev_attr_grp);
 }
 
 /* Interface Accociation Descriptor fields */
@@ -688,17 +708,15 @@ static ssize_t show_interface_string(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf;
-	struct usb_device *udev;
-	int len;
+	char *string;
 
 	intf = to_usb_interface(dev);
-	udev = interface_to_usbdev(intf);
-	len = snprintf(buf, 256, "%s", intf->cur_altsetting->string);
-	if (len < 0)
+	string = intf->cur_altsetting->string;
+	barrier();		/* The altsetting might change! */
+
+	if (!string)
 		return 0;
-	buf[len] = '\n';
-	buf[len+1] = 0;
-	return len+1;
+	return sprintf(buf, "%s\n", string);
 }
 static DEVICE_ATTR(interface, S_IRUGO, show_interface_string, NULL);
 
@@ -727,18 +745,6 @@ static ssize_t show_modalias(struct device *dev,
 }
 static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
 
-static struct attribute *intf_assoc_attrs[] = {
-	&dev_attr_iad_bFirstInterface.attr,
-	&dev_attr_iad_bInterfaceCount.attr,
-	&dev_attr_iad_bFunctionClass.attr,
-	&dev_attr_iad_bFunctionSubClass.attr,
-	&dev_attr_iad_bFunctionProtocol.attr,
-	NULL,
-};
-static struct attribute_group intf_assoc_attr_grp = {
-	.attrs = intf_assoc_attrs,
-};
-
 static struct attribute *intf_attrs[] = {
 	&dev_attr_bInterfaceNumber.attr,
 	&dev_attr_bAlternateSetting.attr,
@@ -751,6 +757,37 @@ static struct attribute *intf_attrs[] = {
 };
 static struct attribute_group intf_attr_grp = {
 	.attrs = intf_attrs,
+};
+
+static struct attribute *intf_assoc_attrs[] = {
+	&dev_attr_iad_bFirstInterface.attr,
+	&dev_attr_iad_bInterfaceCount.attr,
+	&dev_attr_iad_bFunctionClass.attr,
+	&dev_attr_iad_bFunctionSubClass.attr,
+	&dev_attr_iad_bFunctionProtocol.attr,
+	NULL,
+};
+
+static mode_t intf_assoc_attrs_are_visible(struct kobject *kobj,
+		struct attribute *a, int n)
+{
+	struct usb_interface *intf = to_usb_interface(
+			container_of(kobj, struct device, kobj));
+
+	if (intf->intf_assoc == NULL)
+		return 0;
+	return a->mode;
+}
+
+static struct attribute_group intf_assoc_attr_grp = {
+	.attrs =	intf_assoc_attrs,
+	.is_visible =	intf_assoc_attrs_are_visible,
+};
+
+struct attribute_group *usb_interface_groups[] = {
+	&intf_attr_grp,
+	&intf_assoc_attr_grp,
+	NULL
 };
 
 static inline void usb_create_intf_ep_files(struct usb_interface *intf,
@@ -777,23 +814,21 @@ static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
 
 int usb_create_sysfs_intf_files(struct usb_interface *intf)
 {
-	struct device *dev = &intf->dev;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int retval;
 
 	if (intf->sysfs_files_created)
 		return 0;
-	retval = sysfs_create_group(&dev->kobj, &intf_attr_grp);
-	if (retval)
-		return retval;
 
+	/* The interface string may be present in some altsettings
+	 * and missing in others.  Hence its attribute cannot be created
+	 * before the uevent is broadcast.
+	 */
 	if (alt->string == NULL)
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string)
-		retval = device_create_file(dev, &dev_attr_interface);
-	if (intf->intf_assoc)
-		retval = sysfs_create_group(&dev->kobj, &intf_assoc_attr_grp);
+		retval = device_create_file(&intf->dev, &dev_attr_interface);
 	usb_create_intf_ep_files(intf, udev);
 	intf->sysfs_files_created = 1;
 	return 0;
@@ -807,7 +842,5 @@ void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 		return;
 	usb_remove_intf_ep_files(intf);
 	device_remove_file(dev, &dev_attr_interface);
-	sysfs_remove_group(&dev->kobj, &intf_attr_grp);
-	sysfs_remove_group(&intf->dev.kobj, &intf_assoc_attr_grp);
 	intf->sysfs_files_created = 0;
 }

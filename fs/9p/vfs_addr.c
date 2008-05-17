@@ -43,7 +43,7 @@
 /**
  * v9fs_vfs_readpage - read an entire page in from 9P
  *
- * @file: file being read
+ * @filp: file being read
  * @page: structure to page
  *
  */

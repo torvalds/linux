@@ -550,7 +550,6 @@ static int __init gdth_search_isa(ulong32 bios_adr)
 #endif /* CONFIG_ISA */
 
 #ifdef CONFIG_PCI
-static bool gdth_pci_registered;
 
 static bool gdth_search_vortex(ushort device)
 {
@@ -3724,6 +3723,8 @@ static void gdth_log_event(gdth_evt_data *dvr, char *buffer)
 }
 
 #ifdef GDTH_STATISTICS
+static unchar	gdth_timer_running;
+
 static void gdth_timeout(ulong data)
 {
     ulong32 i;
@@ -3731,7 +3732,10 @@ static void gdth_timeout(ulong data)
     gdth_ha_str *ha;
     ulong flags;
 
-    BUG_ON(list_empty(&gdth_instances));
+    if(unlikely(list_empty(&gdth_instances))) {
+	    gdth_timer_running = 0;
+	    return;
+    }
 
     ha = list_first_entry(&gdth_instances, gdth_ha_str, list);
     spin_lock_irqsave(&ha->smp_lock, flags);
@@ -3750,6 +3754,22 @@ static void gdth_timeout(ulong data)
     gdth_timer.expires = jiffies + 30 * HZ;
     add_timer(&gdth_timer);
     spin_unlock_irqrestore(&ha->smp_lock, flags);
+}
+
+static void gdth_timer_init(void)
+{
+	if (gdth_timer_running)
+		return;
+	gdth_timer_running = 1;
+	TRACE2(("gdth_detect(): Initializing timer !\n"));
+	gdth_timer.expires = jiffies + HZ;
+	gdth_timer.data = 0L;
+	gdth_timer.function = gdth_timeout;
+	add_timer(&gdth_timer);
+}
+#else
+static inline void gdth_timer_init(void)
+{
 }
 #endif
 
@@ -4735,6 +4755,7 @@ static int __init gdth_isa_probe_one(ulong32 isa_bios)
 	if (error)
 		goto out_free_coal_stat;
 	list_add_tail(&ha->list, &gdth_instances);
+	gdth_timer_init();
 
 	scsi_scan_host(shp);
 
@@ -4865,6 +4886,7 @@ static int __init gdth_eisa_probe_one(ushort eisa_slot)
 	if (error)
 		goto out_free_coal_stat;
 	list_add_tail(&ha->list, &gdth_instances);
+	gdth_timer_init();
 
 	scsi_scan_host(shp);
 
@@ -5011,6 +5033,7 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr,
 	list_add_tail(&ha->list, &gdth_instances);
 
 	pci_set_drvdata(ha->pdev, ha);
+	gdth_timer_init();
 
 	scsi_scan_host(shp);
 
@@ -5110,6 +5133,7 @@ static int __init gdth_init(void)
 	/* initializations */
 	gdth_polling = TRUE;
 	gdth_clear_events();
+	init_timer(&gdth_timer);
 
 	/* As default we do not probe for EISA or ISA controllers */
 	if (probe_eisa_isa) {
@@ -5132,23 +5156,17 @@ static int __init gdth_init(void)
 
 #ifdef CONFIG_PCI
 	/* scanning for PCI controllers */
-	if (pci_register_driver(&gdth_pci_driver) == 0)
-		gdth_pci_registered = true;
+	if (pci_register_driver(&gdth_pci_driver)) {
+		gdth_ha_str *ha;
+
+		list_for_each_entry(ha, &gdth_instances, list)
+			gdth_remove_one(ha);
+		return -ENODEV;
+	}
 #endif /* CONFIG_PCI */
 
 	TRACE2(("gdth_detect() %d controller detected\n", gdth_ctr_count));
 
-	if (list_empty(&gdth_instances))
-		return -ENODEV;
-
-#ifdef GDTH_STATISTICS
-	TRACE2(("gdth_detect(): Initializing timer !\n"));
-	init_timer(&gdth_timer);
-	gdth_timer.expires = jiffies + HZ;
-	gdth_timer.data = 0L;
-	gdth_timer.function = gdth_timeout;
-	add_timer(&gdth_timer);
-#endif
 	major = register_chrdev(0,"gdth", &gdth_fops);
 	register_reboot_notifier(&gdth_notifier);
 	gdth_polling = FALSE;
@@ -5167,8 +5185,7 @@ static void __exit gdth_exit(void)
 #endif
 
 #ifdef CONFIG_PCI
-	if (gdth_pci_registered)
-		pci_unregister_driver(&gdth_pci_driver);
+	pci_unregister_driver(&gdth_pci_driver);
 #endif
 
 	list_for_each_entry(ha, &gdth_instances, list)

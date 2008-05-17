@@ -111,16 +111,24 @@ static unsigned int ib_ipath_disable_sma;
 module_param_named(disable_sma, ib_ipath_disable_sma, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(disable_sma, "Disable the SMA");
 
+/*
+ * Note that it is OK to post send work requests in the SQE and ERR
+ * states; ipath_do_send() will process them and generate error
+ * completions as per IB 1.2 C10-96.
+ */
 const int ib_ipath_state_ops[IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = 0,
 	[IB_QPS_INIT] = IPATH_POST_RECV_OK,
 	[IB_QPS_RTR] = IPATH_POST_RECV_OK | IPATH_PROCESS_RECV_OK,
 	[IB_QPS_RTS] = IPATH_POST_RECV_OK | IPATH_PROCESS_RECV_OK |
-	    IPATH_POST_SEND_OK | IPATH_PROCESS_SEND_OK,
+	    IPATH_POST_SEND_OK | IPATH_PROCESS_SEND_OK |
+	    IPATH_PROCESS_NEXT_SEND_OK,
 	[IB_QPS_SQD] = IPATH_POST_RECV_OK | IPATH_PROCESS_RECV_OK |
-	    IPATH_POST_SEND_OK,
-	[IB_QPS_SQE] = IPATH_POST_RECV_OK | IPATH_PROCESS_RECV_OK,
-	[IB_QPS_ERR] = 0,
+	    IPATH_POST_SEND_OK | IPATH_PROCESS_SEND_OK,
+	[IB_QPS_SQE] = IPATH_POST_RECV_OK | IPATH_PROCESS_RECV_OK |
+	    IPATH_POST_SEND_OK | IPATH_FLUSH_SEND,
+	[IB_QPS_ERR] = IPATH_POST_RECV_OK | IPATH_FLUSH_RECV |
+	    IPATH_POST_SEND_OK | IPATH_FLUSH_SEND,
 };
 
 struct ipath_ucontext {
@@ -230,18 +238,6 @@ void ipath_skip_sge(struct ipath_sge_state *ss, u32 length)
 	}
 }
 
-static void ipath_flush_wqe(struct ipath_qp *qp, struct ib_send_wr *wr)
-{
-	struct ib_wc wc;
-
-	memset(&wc, 0, sizeof(wc));
-	wc.wr_id = wr->wr_id;
-	wc.status = IB_WC_WR_FLUSH_ERR;
-	wc.opcode = ib_ipath_wc_opcode[wr->opcode];
-	wc.qp = &qp->ibqp;
-	ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
-}
-
 /*
  * Count the number of DMA descriptors needed to send length bytes of data.
  * Don't modify the ipath_sge_state to get the count.
@@ -347,14 +343,8 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	spin_lock_irqsave(&qp->s_lock, flags);
 
 	/* Check that state is OK to post send. */
-	if (unlikely(!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK))) {
-		if (qp->state != IB_QPS_SQE && qp->state != IB_QPS_ERR)
-			goto bail_inval;
-		/* C10-96 says generate a flushed completion entry. */
-		ipath_flush_wqe(qp, wr);
-		ret = 0;
-		goto bail;
-	}
+	if (unlikely(!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK)))
+		goto bail_inval;
 
 	/* IB spec says that num_sge == 0 is OK. */
 	if (wr->num_sge > qp->s_max_sge)
@@ -677,6 +667,7 @@ bail:;
 static void ipath_ib_timer(struct ipath_ibdev *dev)
 {
 	struct ipath_qp *resend = NULL;
+	struct ipath_qp *rnr = NULL;
 	struct list_head *last;
 	struct ipath_qp *qp;
 	unsigned long flags;
@@ -703,7 +694,9 @@ static void ipath_ib_timer(struct ipath_ibdev *dev)
 		if (--qp->s_rnr_timeout == 0) {
 			do {
 				list_del_init(&qp->timerwait);
-				tasklet_hi_schedule(&qp->s_task);
+				qp->timer_next = rnr;
+				rnr = qp;
+				atomic_inc(&qp->refcount);
 				if (list_empty(last))
 					break;
 				qp = list_entry(last->next, struct ipath_qp,
@@ -743,14 +736,29 @@ static void ipath_ib_timer(struct ipath_ibdev *dev)
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 	/* XXX What if timer fires again while this is running? */
-	for (qp = resend; qp != NULL; qp = qp->timer_next) {
-		struct ib_wc wc;
+	while (resend != NULL) {
+		qp = resend;
+		resend = qp->timer_next;
 
 		spin_lock_irqsave(&qp->s_lock, flags);
-		if (qp->s_last != qp->s_tail && qp->state == IB_QPS_RTS) {
+		if (qp->s_last != qp->s_tail &&
+		    ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK) {
 			dev->n_timeouts++;
-			ipath_restart_rc(qp, qp->s_last_psn + 1, &wc);
+			ipath_restart_rc(qp, qp->s_last_psn + 1);
 		}
+		spin_unlock_irqrestore(&qp->s_lock, flags);
+
+		/* Notify ipath_destroy_qp() if it is waiting. */
+		if (atomic_dec_and_test(&qp->refcount))
+			wake_up(&qp->wait);
+	}
+	while (rnr != NULL) {
+		qp = rnr;
+		rnr = qp->timer_next;
+
+		spin_lock_irqsave(&qp->s_lock, flags);
+		if (ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK)
+			ipath_schedule_send(qp);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 
 		/* Notify ipath_destroy_qp() if it is waiting. */
@@ -1012,13 +1020,24 @@ static void sdma_complete(void *cookie, int status)
 	struct ipath_verbs_txreq *tx = cookie;
 	struct ipath_qp *qp = tx->qp;
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
+	unsigned int flags;
+	enum ib_wc_status ibs = status == IPATH_SDMA_TXREQ_S_OK ?
+		IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR;
 
-	/* Generate a completion queue entry if needed */
-	if (qp->ibqp.qp_type != IB_QPT_RC && tx->wqe) {
-		enum ib_wc_status ibs = status == IPATH_SDMA_TXREQ_S_OK ?
-			IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR;
-
+	if (atomic_dec_and_test(&qp->s_dma_busy)) {
+		spin_lock_irqsave(&qp->s_lock, flags);
+		if (tx->wqe)
+			ipath_send_complete(qp, tx->wqe, ibs);
+		if ((ib_ipath_state_ops[qp->state] & IPATH_FLUSH_SEND &&
+		     qp->s_last != qp->s_head) ||
+		    (qp->s_flags & IPATH_S_WAIT_DMA))
+			ipath_schedule_send(qp);
+		spin_unlock_irqrestore(&qp->s_lock, flags);
+		wake_up(&qp->wait_dma);
+	} else if (tx->wqe) {
+		spin_lock_irqsave(&qp->s_lock, flags);
 		ipath_send_complete(qp, tx->wqe, ibs);
+		spin_unlock_irqrestore(&qp->s_lock, flags);
 	}
 
 	if (tx->txreq.flags & IPATH_SDMA_TXREQ_F_FREEBUF)
@@ -1027,6 +1046,21 @@ static void sdma_complete(void *cookie, int status)
 
 	if (atomic_dec_and_test(&qp->refcount))
 		wake_up(&qp->wait);
+}
+
+static void decrement_dma_busy(struct ipath_qp *qp)
+{
+	unsigned int flags;
+
+	if (atomic_dec_and_test(&qp->s_dma_busy)) {
+		spin_lock_irqsave(&qp->s_lock, flags);
+		if ((ib_ipath_state_ops[qp->state] & IPATH_FLUSH_SEND &&
+		     qp->s_last != qp->s_head) ||
+		    (qp->s_flags & IPATH_S_WAIT_DMA))
+			ipath_schedule_send(qp);
+		spin_unlock_irqrestore(&qp->s_lock, flags);
+		wake_up(&qp->wait_dma);
+	}
 }
 
 /*
@@ -1067,9 +1101,12 @@ static int ipath_verbs_send_dma(struct ipath_qp *qp,
 	if (tx) {
 		qp->s_tx = NULL;
 		/* resend previously constructed packet */
+		atomic_inc(&qp->s_dma_busy);
 		ret = ipath_sdma_verbs_send(dd, tx->ss, tx->len, tx);
-		if (ret)
+		if (ret) {
 			qp->s_tx = tx;
+			decrement_dma_busy(qp);
+		}
 		goto bail;
 	}
 
@@ -1120,12 +1157,14 @@ static int ipath_verbs_send_dma(struct ipath_qp *qp,
 		tx->txreq.sg_count = ndesc;
 		tx->map_len = (hdrwords + 2) << 2;
 		tx->txreq.map_addr = &tx->hdr;
+		atomic_inc(&qp->s_dma_busy);
 		ret = ipath_sdma_verbs_send(dd, ss, dwords, tx);
 		if (ret) {
 			/* save ss and length in dwords */
 			tx->ss = ss;
 			tx->len = dwords;
 			qp->s_tx = tx;
+			decrement_dma_busy(qp);
 		}
 		goto bail;
 	}
@@ -1146,6 +1185,7 @@ static int ipath_verbs_send_dma(struct ipath_qp *qp,
 	memcpy(piobuf, hdr, hdrwords << 2);
 	ipath_copy_from_sge(piobuf + hdrwords, ss, len);
 
+	atomic_inc(&qp->s_dma_busy);
 	ret = ipath_sdma_verbs_send(dd, NULL, 0, tx);
 	/*
 	 * If we couldn't queue the DMA request, save the info
@@ -1156,6 +1196,7 @@ static int ipath_verbs_send_dma(struct ipath_qp *qp,
 		tx->ss = NULL;
 		tx->len = 0;
 		qp->s_tx = tx;
+		decrement_dma_busy(qp);
 	}
 	dev->n_unaligned++;
 	goto bail;
@@ -1179,6 +1220,7 @@ static int ipath_verbs_send_pio(struct ipath_qp *qp,
 	unsigned flush_wc;
 	u32 control;
 	int ret;
+	unsigned int flags;
 
 	piobuf = ipath_getpiobuf(dd, plen, NULL);
 	if (unlikely(piobuf == NULL)) {
@@ -1249,8 +1291,11 @@ static int ipath_verbs_send_pio(struct ipath_qp *qp,
 	}
 	copy_io(piobuf, ss, len, flush_wc);
 done:
-	if (qp->s_wqe)
+	if (qp->s_wqe) {
+		spin_lock_irqsave(&qp->s_lock, flags);
 		ipath_send_complete(qp, qp->s_wqe, IB_WC_SUCCESS);
+		spin_unlock_irqrestore(&qp->s_lock, flags);
+	}
 	ret = 0;
 bail:
 	return ret;
@@ -1283,19 +1328,12 @@ int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
 	 * can defer SDMA restart until link goes ACTIVE without
 	 * worrying about just how we got there.
 	 */
-	if (qp->ibqp.qp_type == IB_QPT_SMI)
+	if (qp->ibqp.qp_type == IB_QPT_SMI ||
+	    !(dd->ipath_flags & IPATH_HAS_SEND_DMA))
 		ret = ipath_verbs_send_pio(qp, hdr, hdrwords, ss, len,
-					   plen, dwords);
-	/* All non-VL15 packets are dropped if link is not ACTIVE */
-	else if (!(dd->ipath_flags & IPATH_LINKACTIVE)) {
-		if (qp->s_wqe)
-			ipath_send_complete(qp, qp->s_wqe, IB_WC_SUCCESS);
-		ret = 0;
-	} else if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
-		ret = ipath_verbs_send_dma(qp, hdr, hdrwords, ss, len,
 					   plen, dwords);
 	else
-		ret = ipath_verbs_send_pio(qp, hdr, hdrwords, ss, len,
+		ret = ipath_verbs_send_dma(qp, hdr, hdrwords, ss, len,
 					   plen, dwords);
 
 	return ret;
@@ -1403,26 +1441,45 @@ bail:
  * This is called from ipath_intr() at interrupt level when a PIO buffer is
  * available after ipath_verbs_send() returned an error that no buffers were
  * available.  Return 1 if we consumed all the PIO buffers and we still have
- * QPs waiting for buffers (for now, just do a tasklet_hi_schedule and
+ * QPs waiting for buffers (for now, just restart the send tasklet and
  * return zero).
  */
 int ipath_ib_piobufavail(struct ipath_ibdev *dev)
 {
+	struct list_head *list;
+	struct ipath_qp *qplist;
 	struct ipath_qp *qp;
 	unsigned long flags;
 
 	if (dev == NULL)
 		goto bail;
 
+	list = &dev->piowait;
+	qplist = NULL;
+
 	spin_lock_irqsave(&dev->pending_lock, flags);
-	while (!list_empty(&dev->piowait)) {
-		qp = list_entry(dev->piowait.next, struct ipath_qp,
-				piowait);
+	while (!list_empty(list)) {
+		qp = list_entry(list->next, struct ipath_qp, piowait);
 		list_del_init(&qp->piowait);
-		clear_bit(IPATH_S_BUSY, &qp->s_busy);
-		tasklet_hi_schedule(&qp->s_task);
+		qp->pio_next = qplist;
+		qplist = qp;
+		atomic_inc(&qp->refcount);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
+
+	while (qplist != NULL) {
+		qp = qplist;
+		qplist = qp->pio_next;
+
+		spin_lock_irqsave(&qp->s_lock, flags);
+		if (ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK)
+			ipath_schedule_send(qp);
+		spin_unlock_irqrestore(&qp->s_lock, flags);
+
+		/* Notify ipath_destroy_qp() if it is waiting. */
+		if (atomic_dec_and_test(&qp->refcount))
+			wake_up(&qp->wait);
+	}
 
 bail:
 	return 0;
@@ -2145,10 +2202,11 @@ bail:
 void ipath_unregister_ib_device(struct ipath_ibdev *dev)
 {
 	struct ib_device *ibdev = &dev->ibdev;
-
-	disable_timer(dev->dd);
+	u32 qps_inuse;
 
 	ib_unregister_device(ibdev);
+
+	disable_timer(dev->dd);
 
 	if (!list_empty(&dev->pending[0]) ||
 	    !list_empty(&dev->pending[1]) ||
@@ -2164,7 +2222,10 @@ void ipath_unregister_ib_device(struct ipath_ibdev *dev)
 	 * Note that ipath_unregister_ib_device() can be called before all
 	 * the QPs are destroyed!
 	 */
-	ipath_free_all_qps(&dev->qp_table);
+	qps_inuse = ipath_free_all_qps(&dev->qp_table);
+	if (qps_inuse)
+		ipath_dev_err(dev->dd, "QP memory leak! %u still in use\n",
+			qps_inuse);
 	kfree(dev->qp_table.table);
 	kfree(dev->lk_table.table);
 	kfree(dev->txreq_bufs);
@@ -2215,17 +2276,14 @@ static ssize_t show_stats(struct device *device, struct device_attribute *attr,
 		      "RC OTH NAKs %d\n"
 		      "RC timeouts %d\n"
 		      "RC RDMA dup %d\n"
-		      "RC stalls   %d\n"
 		      "piobuf wait %d\n"
-		      "no piobuf   %d\n"
 		      "unaligned   %d\n"
 		      "PKT drops   %d\n"
 		      "WQE errs    %d\n",
 		      dev->n_rc_resends, dev->n_rc_qacks, dev->n_rc_acks,
 		      dev->n_seq_naks, dev->n_rdma_seq, dev->n_rnr_naks,
 		      dev->n_other_naks, dev->n_timeouts,
-		      dev->n_rdma_dup_busy, dev->n_rc_stalls, dev->n_piowait,
-		      dev->n_no_piobuf, dev->n_unaligned,
+		      dev->n_rdma_dup_busy, dev->n_piowait, dev->n_unaligned,
 		      dev->n_pkt_drops, dev->n_wqe_errs);
 	for (i = 0; i < ARRAY_SIZE(dev->opstats); i++) {
 		const struct ipath_opcode_stats *si = &dev->opstats[i];

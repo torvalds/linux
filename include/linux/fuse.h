@@ -109,6 +109,7 @@ struct fuse_file_lock {
 #define FUSE_POSIX_LOCKS	(1 << 1)
 #define FUSE_FILE_OPS		(1 << 2)
 #define FUSE_ATOMIC_O_TRUNC	(1 << 3)
+#define FUSE_BIG_WRITES		(1 << 5)
 
 /**
  * Release flags

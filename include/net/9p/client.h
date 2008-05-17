@@ -26,6 +26,23 @@
 #ifndef NET_9P_CLIENT_H
 #define NET_9P_CLIENT_H
 
+/**
+ * struct p9_client - per client instance state
+ * @lock: protect @fidlist
+ * @msize: maximum data size negotiated by protocol
+ * @dotu: extension flags negotiated by protocol
+ * @trans_mod: module API instantiated with this client
+ * @trans: tranport instance state and API
+ * @conn: connection state information used by trans_fd
+ * @fidpool: fid handle accounting for session
+ * @fidlist: List of active fid handles
+ *
+ * The client structure is used to keep track of various per-client
+ * state that has been instantiated.
+ *
+ * Bugs: duplicated data and potentially unnecessary elements.
+ */
+
 struct p9_client {
 	spinlock_t lock; /* protect client structure */
 	int msize;
@@ -37,6 +54,24 @@ struct p9_client {
 	struct p9_idpool *fidpool;
 	struct list_head fidlist;
 };
+
+/**
+ * struct p9_fid - file system entity handle
+ * @clnt: back pointer to instantiating &p9_client
+ * @fid: numeric identifier for this handle
+ * @mode: current mode of this fid (enum?)
+ * @qid: the &p9_qid server identifier this handle points to
+ * @iounit: the server reported maximum transaction size for this file
+ * @uid: the numeric uid of the local user who owns this handle
+ * @aux: transport specific information (unused?)
+ * @rdir_fpos: tracks offset of file position when reading directory contents
+ * @rdir_pos: (unused?)
+ * @rdir_fcall: holds response of last directory read request
+ * @flist: per-client-instance fid tracking
+ * @dlist: per-dentry fid tracking
+ *
+ * TODO: This needs lots of explanation.
+ */
 
 struct p9_fid {
 	struct p9_client *clnt;

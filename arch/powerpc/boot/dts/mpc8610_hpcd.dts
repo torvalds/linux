@@ -46,9 +46,63 @@
 		reg = <0x00000000 0x20000000>;	// 512M at 0x0
 	};
 
-	board-control@e8000000 {
-		compatible = "fsl,fpga-pixis";
-		reg = <0xe8000000 32>;		// pixis at 0xe8000000
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8610-elbc", "fsl,elbc", "simple-bus";
+		reg = <0xe0005000 0x1000>;
+		interrupts = <19 2>;
+		interrupt-parent = <&mpic>;
+		ranges = <0 0 0xf8000000 0x08000000
+			  1 0 0xf0000000 0x08000000
+			  2 0 0xe8400000 0x00008000
+			  4 0 0xe8440000 0x00008000
+			  5 0 0xe8480000 0x00008000
+			  6 0 0xe84c0000 0x00008000
+			  3 0 0xe8000000 0x00000020>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x8000000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		flash@1,0 {
+			compatible = "cfi-flash";
+			reg = <1 0 0x8000000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		flash@2,0 {
+			compatible = "fsl,mpc8610-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <2 0 0x8000>;
+		};
+
+		flash@4,0 {
+			compatible = "fsl,mpc8610-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <4 0 0x8000>;
+		};
+
+		flash@5,0 {
+			compatible = "fsl,mpc8610-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <5 0 0x8000>;
+		};
+
+		flash@6,0 {
+			compatible = "fsl,mpc8610-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <6 0 0x8000>;
+		};
+
+		board-control@3,0 {
+			compatible = "fsl,fpga-pixis";
+			reg = <3 0 0x20>;
+		};
 	};
 
 	soc@e0000000 {

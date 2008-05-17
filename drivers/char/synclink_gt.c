@@ -916,7 +916,7 @@ static int put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct slgt_info *info = tty->driver_data;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	if (sanity_check(info, tty->name, "put_char"))
 		return 0;

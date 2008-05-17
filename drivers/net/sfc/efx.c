@@ -1873,6 +1873,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 		tx_queue->queue = i;
 		tx_queue->buffer = NULL;
 		tx_queue->channel = &efx->channel[0]; /* for safety */
+		tx_queue->tso_headers_free = NULL;
 	}
 	for (i = 0; i < EFX_MAX_RX_QUEUES; i++) {
 		rx_queue = &efx->rx_queue[i];
@@ -2071,7 +2072,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	net_dev = alloc_etherdev(sizeof(*efx));
 	if (!net_dev)
 		return -ENOMEM;
-	net_dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_HIGHDMA;
+	net_dev->features |= (NETIF_F_IP_CSUM | NETIF_F_SG |
+			      NETIF_F_HIGHDMA | NETIF_F_TSO);
 	if (lro)
 		net_dev->features |= NETIF_F_LRO;
 	efx = net_dev->priv;

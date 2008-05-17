@@ -2639,8 +2639,7 @@ static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 	struct proc_dir_entry *proc;
 	char devname[64];
 
-	snprintf(devname, sizeof(devname) - 1, "%s",
-		bdevname(sb->s_bdev, devname));
+	bdevname(sb->s_bdev, devname);
 	sbi->s_mb_proc = proc_mkdir(devname, proc_root_ext4);
 
 	MB_PROC_HANDLER(EXT4_MB_STATS_NAME, stats);
@@ -2674,8 +2673,7 @@ static int ext4_mb_destroy_per_dev_proc(struct super_block *sb)
 	if (sbi->s_mb_proc == NULL)
 		return -EINVAL;
 
-	snprintf(devname, sizeof(devname) - 1, "%s",
-		bdevname(sb->s_bdev, devname));
+	bdevname(sb->s_bdev, devname);
 	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_mb_proc);
 	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_mb_proc);
 	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_mb_proc);
@@ -2738,7 +2736,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	ext4_fsblk_t block;
-	int err;
+	int err, len;
 
 	BUG_ON(ac->ac_status != AC_STATUS_FOUND);
 	BUG_ON(ac->ac_b_ex.fe_len <= 0);
@@ -2772,14 +2770,27 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 		+ ac->ac_b_ex.fe_start
 		+ le32_to_cpu(es->s_first_data_block);
 
-	if (block == ext4_block_bitmap(sb, gdp) ||
-			block == ext4_inode_bitmap(sb, gdp) ||
-			in_range(block, ext4_inode_table(sb, gdp),
-				EXT4_SB(sb)->s_itb_per_group)) {
-
+	len = ac->ac_b_ex.fe_len;
+	if (in_range(ext4_block_bitmap(sb, gdp), block, len) ||
+	    in_range(ext4_inode_bitmap(sb, gdp), block, len) ||
+	    in_range(block, ext4_inode_table(sb, gdp),
+		     EXT4_SB(sb)->s_itb_per_group) ||
+	    in_range(block + len - 1, ext4_inode_table(sb, gdp),
+		     EXT4_SB(sb)->s_itb_per_group)) {
 		ext4_error(sb, __func__,
 			   "Allocating block in system zone - block = %llu",
 			   block);
+		/* File system mounted not to panic on error
+		 * Fix the bitmap and repeat the block allocation
+		 * We leak some of the blocks here.
+		 */
+		mb_set_bits(sb_bgl_lock(sbi, ac->ac_b_ex.fe_group),
+				bitmap_bh->b_data, ac->ac_b_ex.fe_start,
+				ac->ac_b_ex.fe_len);
+		err = ext4_journal_dirty_metadata(handle, bitmap_bh);
+		if (!err)
+			err = -EAGAIN;
+		goto out_err;
 	}
 #ifdef AGGRESSIVE_CHECK
 	{
@@ -2882,12 +2893,11 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	if (size < i_size_read(ac->ac_inode))
 		size = i_size_read(ac->ac_inode);
 
-	/* max available blocks in a free group */
-	max = EXT4_BLOCKS_PER_GROUP(ac->ac_sb) - 1 - 1 -
-				EXT4_SB(ac->ac_sb)->s_itb_per_group;
+	/* max size of free chunks */
+	max = 2 << bsbits;
 
-#define NRL_CHECK_SIZE(req, size, max,bits)	\
-		(req <= (size) || max <= ((size) >> bits))
+#define NRL_CHECK_SIZE(req, size, max, chunk_size)	\
+		(req <= (size) || max <= (chunk_size))
 
 	/* first, try to predict filesize */
 	/* XXX: should this table be tunable? */
@@ -2906,16 +2916,16 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 		size = 512 * 1024;
 	} else if (size <= 1024 * 1024) {
 		size = 1024 * 1024;
-	} else if (NRL_CHECK_SIZE(size, 4 * 1024 * 1024, max, bsbits)) {
+	} else if (NRL_CHECK_SIZE(size, 4 * 1024 * 1024, max, 2 * 1024)) {
 		start_off = ((loff_t)ac->ac_o_ex.fe_logical >>
-						(20 - bsbits)) << 20;
-		size = 1024 * 1024;
-	} else if (NRL_CHECK_SIZE(size, 8 * 1024 * 1024, max, bsbits)) {
+						(21 - bsbits)) << 21;
+		size = 2 * 1024 * 1024;
+	} else if (NRL_CHECK_SIZE(size, 8 * 1024 * 1024, max, 4 * 1024)) {
 		start_off = ((loff_t)ac->ac_o_ex.fe_logical >>
 							(22 - bsbits)) << 22;
 		size = 4 * 1024 * 1024;
 	} else if (NRL_CHECK_SIZE(ac->ac_o_ex.fe_len,
-					(8<<20)>>bsbits, max, bsbits)) {
+					(8<<20)>>bsbits, max, 8 * 1024)) {
 		start_off = ((loff_t)ac->ac_o_ex.fe_logical >>
 							(23 - bsbits)) << 23;
 		size = 8 * 1024 * 1024;
@@ -4035,7 +4045,6 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 
 		ac->ac_op = EXT4_MB_HISTORY_ALLOC;
 		ext4_mb_normalize_request(ac, ar);
-
 repeat:
 		/* allocate space in core */
 		ext4_mb_regular_allocator(ac);
@@ -4049,10 +4058,21 @@ repeat:
 	}
 
 	if (likely(ac->ac_status == AC_STATUS_FOUND)) {
-		ext4_mb_mark_diskspace_used(ac, handle);
-		*errp = 0;
-		block = ext4_grp_offs_to_block(sb, &ac->ac_b_ex);
-		ar->len = ac->ac_b_ex.fe_len;
+		*errp = ext4_mb_mark_diskspace_used(ac, handle);
+		if (*errp ==  -EAGAIN) {
+			ac->ac_b_ex.fe_group = 0;
+			ac->ac_b_ex.fe_start = 0;
+			ac->ac_b_ex.fe_len = 0;
+			ac->ac_status = AC_STATUS_CONTINUE;
+			goto repeat;
+		} else if (*errp) {
+			ac->ac_b_ex.fe_len = 0;
+			ar->len = 0;
+			ext4_mb_show_ac(ac);
+		} else {
+			block = ext4_grp_offs_to_block(sb, &ac->ac_b_ex);
+			ar->len = ac->ac_b_ex.fe_len;
+		}
 	} else {
 		freed  = ext4_mb_discard_preallocations(sb, ac->ac_o_ex.fe_len);
 		if (freed)
@@ -4239,6 +4259,8 @@ do_more:
 		ext4_error(sb, __func__,
 			   "Freeing blocks in system zone - "
 			   "Block = %lu, count = %lu", block, count);
+		/* err = 0. ext4_std_error should be a no op */
+		goto error_return;
 	}
 
 	BUFFER_TRACE(bitmap_bh, "getting write access");

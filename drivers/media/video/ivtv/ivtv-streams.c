@@ -244,7 +244,7 @@ int ivtv_streams_setup(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 0);
 	return -ENOMEM;
 }
 
@@ -304,12 +304,12 @@ int ivtv_streams_register(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 1);
 	return -ENOMEM;
 }
 
 /* Unregister v4l2 devices */
-void ivtv_streams_cleanup(struct ivtv *itv)
+void ivtv_streams_cleanup(struct ivtv *itv, int unregister)
 {
 	int type;
 
@@ -322,8 +322,11 @@ void ivtv_streams_cleanup(struct ivtv *itv)
 			continue;
 
 		ivtv_stream_free(&itv->streams[type]);
-		/* Unregister device */
-		video_unregister_device(vdev);
+		/* Unregister or release device */
+		if (unregister)
+			video_unregister_device(vdev);
+		else
+			video_device_release(vdev);
 	}
 }
 

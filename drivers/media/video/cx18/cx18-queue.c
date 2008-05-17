@@ -26,17 +26,6 @@
 #include "cx18-queue.h"
 #include "cx18-scb.h"
 
-int cx18_buf_copy_from_user(struct cx18_stream *s, struct cx18_buffer *buf,
-		const char __user *src, int copybytes)
-{
-	if (s->buf_size - buf->bytesused < copybytes)
-		copybytes = s->buf_size - buf->bytesused;
-	if (copy_from_user(buf->buf + buf->bytesused, src, copybytes))
-		return -EFAULT;
-	buf->bytesused += copybytes;
-	return copybytes;
-}
-
 void cx18_buf_swap(struct cx18_buffer *buf)
 {
 	int i;
@@ -159,8 +148,9 @@ static void cx18_queue_move_buf(struct cx18_stream *s, struct cx18_queue *from,
    -ENOMEM is returned if the buffers could not be obtained, 0 if all
    buffers where obtained from the 'from' list and if non-zero then
    the number of stolen buffers is returned. */
-int cx18_queue_move(struct cx18_stream *s, struct cx18_queue *from,
-	struct cx18_queue *steal, struct cx18_queue *to, int needed_bytes)
+static int cx18_queue_move(struct cx18_stream *s, struct cx18_queue *from,
+			   struct cx18_queue *steal, struct cx18_queue *to,
+			   int needed_bytes)
 {
 	unsigned long flags;
 	int rc = 0;
@@ -239,12 +229,12 @@ int cx18_stream_alloc(struct cx18_stream *s)
 
 	/* allocate stream buffers. Initially all buffers are in q_free. */
 	for (i = 0; i < s->buffers; i++) {
-		struct cx18_buffer *buf =
-			kzalloc(sizeof(struct cx18_buffer), GFP_KERNEL);
+		struct cx18_buffer *buf = kzalloc(sizeof(struct cx18_buffer),
+						GFP_KERNEL|__GFP_NOWARN);
 
 		if (buf == NULL)
 			break;
-		buf->buf = kmalloc(s->buf_size, GFP_KERNEL);
+		buf->buf = kmalloc(s->buf_size, GFP_KERNEL|__GFP_NOWARN);
 		if (buf->buf == NULL) {
 			kfree(buf);
 			break;

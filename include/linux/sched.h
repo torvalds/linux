@@ -2027,7 +2027,7 @@ static inline int fatal_signal_pending(struct task_struct *p)
 
 static inline int need_resched(void)
 {
-	return unlikely(test_tsk_need_resched(current));
+	return unlikely(test_thread_flag(TIF_NEED_RESCHED));
 }
 
 /*
@@ -2038,7 +2038,7 @@ static inline int need_resched(void)
  * cond_resched_softirq() will enable bhs before scheduling.
  */
 extern int _cond_resched(void);
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_BKL
 static inline int cond_resched(void)
 {
 	return 0;
