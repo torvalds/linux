@@ -2624,7 +2624,7 @@ bnx2_reuse_rx_skb(struct bnx2 *bp, struct bnx2_napi *bnapi, struct sk_buff *skb,
 
 	pci_dma_sync_single_for_device(bp->pdev,
 		pci_unmap_addr(cons_rx_buf, mapping),
-		BNX2_RX_OFFSET + RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
+		BNX2_RX_OFFSET + BNX2_RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
 
 	bnapi->rx_prod_bseq += bp->rx_buf_use_size;
 
@@ -2777,7 +2777,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		dma_addr = pci_unmap_addr(rx_buf, mapping);
 
 		pci_dma_sync_single_for_cpu(bp->pdev, dma_addr,
-			BNX2_RX_OFFSET + RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
+			BNX2_RX_OFFSET + BNX2_RX_COPY_THRESH,
+			PCI_DMA_FROMDEVICE);
 
 		rx_hdr = (struct l2_fhdr *) skb->data;
 		len = rx_hdr->l2_fhdr_pkt_len;
@@ -4760,7 +4761,7 @@ bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
 	rx_space = SKB_DATA_ALIGN(rx_size + BNX2_RX_ALIGN) + NET_SKB_PAD +
 		sizeof(struct skb_shared_info);
 
-	bp->rx_copy_thresh = RX_COPY_THRESH;
+	bp->rx_copy_thresh = BNX2_RX_COPY_THRESH;
 	bp->rx_pg_ring_size = 0;
 	bp->rx_max_pg_ring = 0;
 	bp->rx_max_pg_ring_idx = 0;
@@ -4775,7 +4776,7 @@ bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
 		bp->rx_max_pg_ring = bnx2_find_max_ring(jumbo_size,
 							MAX_RX_PG_RINGS);
 		bp->rx_max_pg_ring_idx = (bp->rx_max_pg_ring * RX_DESC_CNT) - 1;
-		rx_size = RX_COPY_THRESH + BNX2_RX_OFFSET;
+		rx_size = BNX2_RX_COPY_THRESH + BNX2_RX_OFFSET;
 		bp->rx_copy_thresh = 0;
 	}
 
