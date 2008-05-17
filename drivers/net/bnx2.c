@@ -3219,7 +3219,7 @@ load_rv2p_fw(struct bnx2 *bp, __le32 *rv2p_code, u32 rv2p_code_len,
 }
 
 static int
-load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
+load_cpu_fw(struct bnx2 *bp, const struct cpu_reg *cpu_reg, struct fw_info *fw)
 {
 	u32 offset;
 	u32 val;
@@ -3303,7 +3303,6 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 static int
 bnx2_init_cpus(struct bnx2 *bp)
 {
-	struct cpu_reg cpu_reg;
 	struct fw_info *fw;
 	int rc, rv2p_len;
 	void *text, *rv2p;
@@ -3339,122 +3338,57 @@ bnx2_init_cpus(struct bnx2 *bp)
 	load_rv2p_fw(bp, text, rc /* == len */, RV2P_PROC2);
 
 	/* Initialize the RX Processor. */
-	cpu_reg.mode = BNX2_RXP_CPU_MODE;
-	cpu_reg.mode_value_halt = BNX2_RXP_CPU_MODE_SOFT_HALT;
-	cpu_reg.mode_value_sstep = BNX2_RXP_CPU_MODE_STEP_ENA;
-	cpu_reg.state = BNX2_RXP_CPU_STATE;
-	cpu_reg.state_value_clear = 0xffffff;
-	cpu_reg.gpr0 = BNX2_RXP_CPU_REG_FILE;
-	cpu_reg.evmask = BNX2_RXP_CPU_EVENT_MASK;
-	cpu_reg.pc = BNX2_RXP_CPU_PROGRAM_COUNTER;
-	cpu_reg.inst = BNX2_RXP_CPU_INSTRUCTION;
-	cpu_reg.bp = BNX2_RXP_CPU_HW_BREAKPOINT;
-	cpu_reg.spad_base = BNX2_RXP_SCRATCH;
-	cpu_reg.mips_view_base = 0x8000000;
-
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
 		fw = &bnx2_rxp_fw_09;
 	else
 		fw = &bnx2_rxp_fw_06;
 
 	fw->text = text;
-	rc = load_cpu_fw(bp, &cpu_reg, fw);
+	rc = load_cpu_fw(bp, &cpu_reg_rxp, fw);
 	if (rc)
 		goto init_cpu_err;
 
 	/* Initialize the TX Processor. */
-	cpu_reg.mode = BNX2_TXP_CPU_MODE;
-	cpu_reg.mode_value_halt = BNX2_TXP_CPU_MODE_SOFT_HALT;
-	cpu_reg.mode_value_sstep = BNX2_TXP_CPU_MODE_STEP_ENA;
-	cpu_reg.state = BNX2_TXP_CPU_STATE;
-	cpu_reg.state_value_clear = 0xffffff;
-	cpu_reg.gpr0 = BNX2_TXP_CPU_REG_FILE;
-	cpu_reg.evmask = BNX2_TXP_CPU_EVENT_MASK;
-	cpu_reg.pc = BNX2_TXP_CPU_PROGRAM_COUNTER;
-	cpu_reg.inst = BNX2_TXP_CPU_INSTRUCTION;
-	cpu_reg.bp = BNX2_TXP_CPU_HW_BREAKPOINT;
-	cpu_reg.spad_base = BNX2_TXP_SCRATCH;
-	cpu_reg.mips_view_base = 0x8000000;
-
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
 		fw = &bnx2_txp_fw_09;
 	else
 		fw = &bnx2_txp_fw_06;
 
 	fw->text = text;
-	rc = load_cpu_fw(bp, &cpu_reg, fw);
+	rc = load_cpu_fw(bp, &cpu_reg_txp, fw);
 	if (rc)
 		goto init_cpu_err;
 
 	/* Initialize the TX Patch-up Processor. */
-	cpu_reg.mode = BNX2_TPAT_CPU_MODE;
-	cpu_reg.mode_value_halt = BNX2_TPAT_CPU_MODE_SOFT_HALT;
-	cpu_reg.mode_value_sstep = BNX2_TPAT_CPU_MODE_STEP_ENA;
-	cpu_reg.state = BNX2_TPAT_CPU_STATE;
-	cpu_reg.state_value_clear = 0xffffff;
-	cpu_reg.gpr0 = BNX2_TPAT_CPU_REG_FILE;
-	cpu_reg.evmask = BNX2_TPAT_CPU_EVENT_MASK;
-	cpu_reg.pc = BNX2_TPAT_CPU_PROGRAM_COUNTER;
-	cpu_reg.inst = BNX2_TPAT_CPU_INSTRUCTION;
-	cpu_reg.bp = BNX2_TPAT_CPU_HW_BREAKPOINT;
-	cpu_reg.spad_base = BNX2_TPAT_SCRATCH;
-	cpu_reg.mips_view_base = 0x8000000;
-
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
 		fw = &bnx2_tpat_fw_09;
 	else
 		fw = &bnx2_tpat_fw_06;
 
 	fw->text = text;
-	rc = load_cpu_fw(bp, &cpu_reg, fw);
+	rc = load_cpu_fw(bp, &cpu_reg_tpat, fw);
 	if (rc)
 		goto init_cpu_err;
 
 	/* Initialize the Completion Processor. */
-	cpu_reg.mode = BNX2_COM_CPU_MODE;
-	cpu_reg.mode_value_halt = BNX2_COM_CPU_MODE_SOFT_HALT;
-	cpu_reg.mode_value_sstep = BNX2_COM_CPU_MODE_STEP_ENA;
-	cpu_reg.state = BNX2_COM_CPU_STATE;
-	cpu_reg.state_value_clear = 0xffffff;
-	cpu_reg.gpr0 = BNX2_COM_CPU_REG_FILE;
-	cpu_reg.evmask = BNX2_COM_CPU_EVENT_MASK;
-	cpu_reg.pc = BNX2_COM_CPU_PROGRAM_COUNTER;
-	cpu_reg.inst = BNX2_COM_CPU_INSTRUCTION;
-	cpu_reg.bp = BNX2_COM_CPU_HW_BREAKPOINT;
-	cpu_reg.spad_base = BNX2_COM_SCRATCH;
-	cpu_reg.mips_view_base = 0x8000000;
-
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
 		fw = &bnx2_com_fw_09;
 	else
 		fw = &bnx2_com_fw_06;
 
 	fw->text = text;
-	rc = load_cpu_fw(bp, &cpu_reg, fw);
+	rc = load_cpu_fw(bp, &cpu_reg_com, fw);
 	if (rc)
 		goto init_cpu_err;
 
 	/* Initialize the Command Processor. */
-	cpu_reg.mode = BNX2_CP_CPU_MODE;
-	cpu_reg.mode_value_halt = BNX2_CP_CPU_MODE_SOFT_HALT;
-	cpu_reg.mode_value_sstep = BNX2_CP_CPU_MODE_STEP_ENA;
-	cpu_reg.state = BNX2_CP_CPU_STATE;
-	cpu_reg.state_value_clear = 0xffffff;
-	cpu_reg.gpr0 = BNX2_CP_CPU_REG_FILE;
-	cpu_reg.evmask = BNX2_CP_CPU_EVENT_MASK;
-	cpu_reg.pc = BNX2_CP_CPU_PROGRAM_COUNTER;
-	cpu_reg.inst = BNX2_CP_CPU_INSTRUCTION;
-	cpu_reg.bp = BNX2_CP_CPU_HW_BREAKPOINT;
-	cpu_reg.spad_base = BNX2_CP_SCRATCH;
-	cpu_reg.mips_view_base = 0x8000000;
-
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
 		fw = &bnx2_cp_fw_09;
 	else
 		fw = &bnx2_cp_fw_06;
 
 	fw->text = text;
-	rc = load_cpu_fw(bp, &cpu_reg, fw);
+	rc = load_cpu_fw(bp, &cpu_reg_cp, fw);
 
 init_cpu_err:
 	vfree(text);
