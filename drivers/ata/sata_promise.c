@@ -663,7 +663,7 @@ static void pdc_thaw(struct ata_port *ap)
 	u32 tmp;
 
 	/* clear IRQ */
-	readl(mmio + PDC_INT_SEQMASK);
+	readl(mmio + PDC_COMMAND);
 
 	/* turn IRQ back on */
 	tmp = readl(mmio + PDC_CTLSTAT);
@@ -781,10 +781,9 @@ static inline unsigned int pdc_host_intr(struct ata_port *ap,
 
 static void pdc_irq_clear(struct ata_port *ap)
 {
-	struct ata_host *host = ap->host;
-	void __iomem *mmio = host->iomap[PDC_MMIO_BAR];
+	void __iomem *mmio = ap->ioaddr.cmd_addr;
 
-	readl(mmio + PDC_INT_SEQMASK);
+	readl(mmio + PDC_COMMAND);
 }
 
 static irqreturn_t pdc_interrupt(int irq, void *dev_instance)
