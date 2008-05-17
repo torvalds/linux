@@ -8,6 +8,7 @@ config SND_PCSP
 	tristate "PC-Speaker support (READ HELP!)"
 	depends on PCSPKR_PLATFORM && X86_PC && HIGH_RES_TIMERS
 	depends on INPUT
+	depends on EXPERIMENTAL
 	depends on SND
 	select SND_PCM
 	help
