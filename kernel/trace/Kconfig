@@ -4,6 +4,9 @@
 config HAVE_FTRACE
 	bool
 
+config HAVE_DYNAMIC_FTRACE
+	bool
+
 config TRACER_MAX_TRACE
 	bool
 
@@ -94,6 +97,7 @@ config CONTEXT_SWITCH_TRACER
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
 	depends on FTRACE
+	depends on HAVE_DYNAMIC_FTRACE
 	default y
 	help
          This option will modify all the calls to ftrace dynamically
