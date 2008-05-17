@@ -355,9 +355,8 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	pr_debug("pxafb: dma period = %d ps, clock = %d kHz\n",
-		 pxafb_display_dma_period(var),
-		 get_clk_frequency_khz(0));
+	pr_debug("pxafb: dma period = %d ps\n",
+		 pxafb_display_dma_period(var));
 #endif
 
 	return 0;
