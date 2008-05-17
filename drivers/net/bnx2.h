@@ -309,6 +309,7 @@ struct l2_fhdr {
 #endif
 };
 
+#define BNX2_RX_OFFSET		(sizeof(struct l2_fhdr) + 2)
 
 /*
  *  l2_context definition
@@ -6627,7 +6628,6 @@ struct bnx2 {
 	struct			vlan_group *vlgrp;
 #endif
 
-	u32			rx_offset;
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */
 	u32			rx_copy_thresh;
