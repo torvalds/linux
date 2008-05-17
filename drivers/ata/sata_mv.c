@@ -202,13 +202,6 @@ enum {
 	HC_MAIN_RSVD		= (0x7f << 25),	/* bits 31-25 */
 	HC_MAIN_RSVD_5		= (0x1fff << 19), /* bits 31-19 */
 	HC_MAIN_RSVD_SOC	= (0x3fffffb << 6),     /* bits 31-9, 7-6 */
-	HC_MAIN_MASKED_IRQS	= (TRAN_LO_DONE | TRAN_HI_DONE |
-				   PORTS_0_3_COAL_DONE | PORTS_4_7_COAL_DONE |
-				   PORTS_0_7_COAL_DONE | GPIO_INT | TWSI_INT |
-				   HC_MAIN_RSVD),
-	HC_MAIN_MASKED_IRQS_5	= (PORTS_0_3_COAL_DONE | PORTS_4_7_COAL_DONE |
-				   HC_MAIN_RSVD_5),
-	HC_MAIN_MASKED_IRQS_SOC = (PORTS_0_3_COAL_DONE | HC_MAIN_RSVD_SOC),
 
 	/* SATAHC registers */
 	HC_CFG_OFS		= 0,
@@ -3101,25 +3094,12 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 
 		/* and unmask interrupt generation for host regs */
 		writelfl(hpriv->unmask_all_irqs, mmio + hpriv->irq_mask_ofs);
-		if (IS_GEN_I(hpriv))
-			writelfl(~HC_MAIN_MASKED_IRQS_5,
-				 hpriv->main_irq_mask_addr);
-		else
-			writelfl(~HC_MAIN_MASKED_IRQS,
-				 hpriv->main_irq_mask_addr);
 
-		VPRINTK("HC MAIN IRQ cause/mask=0x%08x/0x%08x "
-			"PCI int cause/mask=0x%08x/0x%08x\n",
-			readl(hpriv->main_irq_cause_addr),
-			readl(hpriv->main_irq_mask_addr),
-			readl(mmio + hpriv->irq_cause_ofs),
-			readl(mmio + hpriv->irq_mask_ofs));
-	} else {
-		writelfl(~HC_MAIN_MASKED_IRQS_SOC,
-			 hpriv->main_irq_mask_addr);
-		VPRINTK("HC MAIN IRQ cause/mask=0x%08x/0x%08x\n",
-			readl(hpriv->main_irq_cause_addr),
-			readl(hpriv->main_irq_mask_addr));
+		/*
+		 * enable only global host interrupts for now.
+		 * The per-port interrupts get done later as ports are set up.
+		 */
+		writelfl(PCI_ERR, hpriv->main_irq_mask_addr);
 	}
 done:
 	return rc;
