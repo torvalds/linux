@@ -275,14 +275,14 @@ servo_probe(struct usb_interface *interface, const struct usb_device_id *id)
         } while (value);
 	dev->dev_no = bit;
 
-	dev->dev = device_create(phidget_class, &dev->udev->dev, 0,
-				 "servo%d", dev->dev_no);
+	dev->dev = device_create_drvdata(phidget_class, &dev->udev->dev,
+					 MKDEV(0, 0), dev,
+					 "servo%d", dev->dev_no);
 	if (IS_ERR(dev->dev)) {
 		rc = PTR_ERR(dev->dev);
 		dev->dev = NULL;
 		goto out;
 	}
-	dev_set_drvdata(dev->dev, dev);
 
 	servo_count = dev->type & SERVO_COUNT_QUAD ? 4 : 1;
 
