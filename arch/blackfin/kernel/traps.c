@@ -364,13 +364,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero, handled here */
 	case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
-#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		sig = SIGSEGV;
-		printk(KERN_NOTICE "NULL pointer access (probably)\n");
-#else
-		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x27(KERN_NOTICE));
+#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
+		if (saved_dcplb_fault_addr < (void *)FIXED_CODE_START)
+			printk(KERN_NOTICE "NULL pointer access\n");
+		else
 #endif
+			printk(KERN_NOTICE EXC_0x27(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x28 - Emulation Watchpoint, handled here */
@@ -419,13 +419,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
 	case VEC_CPLB_I_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
-#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		sig = SIGSEGV;
-		printk(KERN_NOTICE "Jump to address 0 - 0x0fff\n");
-#else
-		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x2D(KERN_NOTICE));
+#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
+		if (saved_icplb_fault_addr < (void *)FIXED_CODE_START)
+			printk(KERN_NOTICE "Jump to NULL address\n");
+		else
 #endif
+			printk(KERN_NOTICE EXC_0x2D(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x2E - Illegal use of Supervisor Resource, handled here */
