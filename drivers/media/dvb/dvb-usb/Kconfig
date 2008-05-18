@@ -241,3 +241,12 @@ config DVB_USB_AF9005_REMOTE
 	  Say Y here to support the default remote control decoding for the
 	  Afatech AF9005 based receiver.
 
+config DVB_USB_ANYSEE
+	tristate "Anysee DVB-T/C USB2.0 support"
+	depends on DVB_USB
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the Anysee E30, Anysee E30 Plus or
+	  Anysee E30 C Plus DVB USB2.0 receiver.
