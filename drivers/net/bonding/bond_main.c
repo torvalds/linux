@@ -2433,9 +2433,6 @@ static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 	if (ip == bond->master_ip)
 		return 1;
 
-	if (list_empty(&bond->vlan_list))
-		return 0;
-
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		if (ip == vlan->vlan_ip)
 			return 1;
@@ -3494,9 +3491,6 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 				return NOTIFY_DONE;
 			}
 		}
-
-		if (list_empty(&bond->vlan_list))
-			continue;
 
 		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
