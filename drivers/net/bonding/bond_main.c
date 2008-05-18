@@ -261,14 +261,14 @@ static int bond_add_vlan(struct bonding *bond, unsigned short vlan_id)
  */
 static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 {
-	struct vlan_entry *vlan, *next;
+	struct vlan_entry *vlan;
 	int res = -ENODEV;
 
 	dprintk("bond: %s, vlan id %d\n", bond->dev->name, vlan_id);
 
 	write_lock_bh(&bond->lock);
 
-	list_for_each_entry_safe(vlan, next, &bond->vlan_list, vlan_list) {
+	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		if (vlan->vlan_id == vlan_id) {
 			list_del(&vlan->vlan_list);
 
@@ -2428,7 +2428,7 @@ out:
 
 static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
-	struct vlan_entry *vlan, *vlan_next;
+	struct vlan_entry *vlan;
 
 	if (ip == bond->master_ip)
 		return 1;
@@ -2436,8 +2436,7 @@ static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 	if (list_empty(&bond->vlan_list))
 		return 0;
 
-	list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
-				 vlan_list) {
+	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		if (ip == vlan->vlan_ip)
 			return 1;
 	}
@@ -2479,7 +2478,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
 	int i, vlan_id, rv;
 	__be32 *targets = bond->params.arp_targets;
-	struct vlan_entry *vlan, *vlan_next;
+	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
 	struct flowi fl;
 	struct rtable *rt;
@@ -2526,8 +2525,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		}
 
 		vlan_id = 0;
-		list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
-					 vlan_list) {
+		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == rt->u.dst.dev) {
 				vlan_id = vlan->vlan_id;
@@ -3477,13 +3475,13 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 {
 	struct in_ifaddr *ifa = ptr;
 	struct net_device *vlan_dev, *event_dev = ifa->ifa_dev->dev;
-	struct bonding *bond, *bond_next;
-	struct vlan_entry *vlan, *vlan_next;
+	struct bonding *bond;
+	struct vlan_entry *vlan;
 
 	if (dev_net(ifa->ifa_dev->dev) != &init_net)
 		return NOTIFY_DONE;
 
-	list_for_each_entry_safe(bond, bond_next, &bond_dev_list, bond_list) {
+	list_for_each_entry(bond, &bond_dev_list, bond_list) {
 		if (bond->dev == event_dev) {
 			switch (event) {
 			case NETDEV_UP:
@@ -3500,8 +3498,7 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 		if (list_empty(&bond->vlan_list))
 			continue;
 
-		list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
-					 vlan_list) {
+		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == event_dev) {
 				switch (event) {
@@ -4851,7 +4848,7 @@ static struct lock_class_key bonding_netdev_xmit_lock_key;
 int bond_create(char *name, struct bond_params *params)
 {
 	struct net_device *bond_dev;
-	struct bonding *bond, *nxt;
+	struct bonding *bond;
 	int res;
 
 	rtnl_lock();
@@ -4859,7 +4856,7 @@ int bond_create(char *name, struct bond_params *params)
 
 	/* Check to see if the bond already exists. */
 	if (name) {
-		list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list)
+		list_for_each_entry(bond, &bond_dev_list, bond_list)
 			if (strnicmp(bond->dev->name, name, IFNAMSIZ) == 0) {
 				printk(KERN_ERR DRV_NAME
 			       ": cannot add bond %s; it already exists\n",
@@ -4931,7 +4928,7 @@ static int __init bonding_init(void)
 {
 	int i;
 	int res;
-	struct bonding *bond, *nxt;
+	struct bonding *bond;
 
 	printk(KERN_INFO "%s", version);
 
@@ -4961,7 +4958,7 @@ static int __init bonding_init(void)
 
 	goto out;
 err:
-	list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list) {
+	list_for_each_entry(bond, &bond_dev_list, bond_list) {
 		bond_work_cancel_all(bond);
 		destroy_workqueue(bond->wq);
 	}

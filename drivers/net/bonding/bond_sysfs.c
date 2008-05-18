@@ -111,7 +111,6 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 	char *ifname;
 	int rv, res = count;
 	struct bonding *bond;
-	struct bonding *nxt;
 
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
@@ -134,7 +133,7 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 		rtnl_lock();
 		down_write(&bonding_rwsem);
 
-		list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list)
+		list_for_each_entry(bond, &bond_dev_list, bond_list)
 			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
 				/* check the ref count on the bond's kobject.
 				 * If it's > expected, then there's a file open,
