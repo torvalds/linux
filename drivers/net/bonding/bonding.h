@@ -248,6 +248,10 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 	return (struct bonding *)slave->dev->master->priv;
 }
 
+#define BOND_FOM_NONE			0
+#define BOND_FOM_ACTIVE			1
+#define BOND_FOM_FOLLOW			2
+
 #define BOND_ARP_VALIDATE_NONE		0
 #define BOND_ARP_VALIDATE_ACTIVE	(1 << BOND_STATE_ACTIVE)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)

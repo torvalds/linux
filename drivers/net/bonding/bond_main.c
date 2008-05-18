@@ -100,7 +100,7 @@ static char *xmit_hash_policy = NULL;
 static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS] = { NULL, };
 static char *arp_validate = NULL;
-static int fail_over_mac = 0;
+static char *fail_over_mac = NULL;
 struct bond_params bonding_defaults;
 
 module_param(max_bonds, int, 0);
@@ -136,8 +136,8 @@ module_param_array(arp_ip_target, charp, NULL, 0);
 MODULE_PARM_DESC(arp_ip_target, "arp targets in n.n.n.n form");
 module_param(arp_validate, charp, 0);
 MODULE_PARM_DESC(arp_validate, "validate src/dst of ARP probes: none (default), active, backup or all");
-module_param(fail_over_mac, int, 0);
-MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to the same MAC.  0 of off (default), 1 for on.");
+module_param(fail_over_mac, charp, 0);
+MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to the same MAC.  none (default), active or follow");
 
 /*----------------------------- Global variables ----------------------------*/
 
@@ -187,6 +187,13 @@ struct bond_parm_tbl arp_validate_tbl[] = {
 {	"active",		BOND_ARP_VALIDATE_ACTIVE},
 {	"backup",		BOND_ARP_VALIDATE_BACKUP},
 {	"all",			BOND_ARP_VALIDATE_ALL},
+{	NULL,			-1},
+};
+
+struct bond_parm_tbl fail_over_mac_tbl[] = {
+{	"none",			BOND_FOM_NONE},
+{	"active",		BOND_FOM_ACTIVE},
+{	"follow",		BOND_FOM_FOLLOW},
 {	NULL,			-1},
 };
 
@@ -973,6 +980,82 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active, struct 
 	}
 }
 
+/*
+ * bond_do_fail_over_mac
+ *
+ * Perform special MAC address swapping for fail_over_mac settings
+ *
+ * Called with RTNL, bond->lock for read, curr_slave_lock for write_bh.
+ */
+static void bond_do_fail_over_mac(struct bonding *bond,
+				  struct slave *new_active,
+				  struct slave *old_active)
+{
+	u8 tmp_mac[ETH_ALEN];
+	struct sockaddr saddr;
+	int rv;
+
+	switch (bond->params.fail_over_mac) {
+	case BOND_FOM_ACTIVE:
+		if (new_active)
+			memcpy(bond->dev->dev_addr,  new_active->dev->dev_addr,
+			       new_active->dev->addr_len);
+		break;
+	case BOND_FOM_FOLLOW:
+		/*
+		 * if new_active && old_active, swap them
+		 * if just old_active, do nothing (going to no active slave)
+		 * if just new_active, set new_active to bond's MAC
+		 */
+		if (!new_active)
+			return;
+
+		write_unlock_bh(&bond->curr_slave_lock);
+		read_unlock(&bond->lock);
+
+		if (old_active) {
+			memcpy(tmp_mac, new_active->dev->dev_addr, ETH_ALEN);
+			memcpy(saddr.sa_data, old_active->dev->dev_addr,
+			       ETH_ALEN);
+			saddr.sa_family = new_active->dev->type;
+		} else {
+			memcpy(saddr.sa_data, bond->dev->dev_addr, ETH_ALEN);
+			saddr.sa_family = bond->dev->type;
+		}
+
+		rv = dev_set_mac_address(new_active->dev, &saddr);
+		if (rv) {
+			printk(KERN_ERR DRV_NAME
+			       ": %s: Error %d setting MAC of slave %s\n",
+			       bond->dev->name, -rv, new_active->dev->name);
+			goto out;
+		}
+
+		if (!old_active)
+			goto out;
+
+		memcpy(saddr.sa_data, tmp_mac, ETH_ALEN);
+		saddr.sa_family = old_active->dev->type;
+
+		rv = dev_set_mac_address(old_active->dev, &saddr);
+		if (rv)
+			printk(KERN_ERR DRV_NAME
+			       ": %s: Error %d setting MAC of slave %s\n",
+			       bond->dev->name, -rv, new_active->dev->name);
+out:
+		read_lock(&bond->lock);
+		write_lock_bh(&bond->curr_slave_lock);
+		break;
+	default:
+		printk(KERN_ERR DRV_NAME
+		       ": %s: bond_do_fail_over_mac impossible: bad policy %d\n",
+		       bond->dev->name, bond->params.fail_over_mac);
+		break;
+	}
+
+}
+
+
 /**
  * find_best_interface - select the best available slave to be the active one
  * @bond: our bonding struct
@@ -1040,7 +1123,8 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
  * because it is apparently the best available slave we have, even though its
  * updelay hasn't timed out yet.
  *
- * Warning: Caller must hold curr_slave_lock for writing.
+ * If new_active is not NULL, caller must hold bond->lock for read and
+ * curr_slave_lock for write_bh.
  */
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 {
@@ -1107,12 +1191,9 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			bond_set_slave_active_flags(new_active);
 		}
 
-		/* when bonding does not set the slave MAC address, the bond MAC
-		 * address is the one of the active slave.
-		 */
 		if (new_active && bond->params.fail_over_mac)
-			memcpy(bond->dev->dev_addr,  new_active->dev->dev_addr,
-				new_active->dev->addr_len);
+			bond_do_fail_over_mac(bond, new_active, old_active);
+
 		bond->send_grat_arp = bond->params.num_grat_arp;
 		if (bond->curr_active_slave &&
 			test_bit(__LINK_STATE_LINKWATCH_PENDING,
@@ -1137,7 +1218,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
  * - The primary_slave has got its link back.
  * - A slave has got its link back and there's no old curr_active_slave.
  *
- * Warning: Caller must hold curr_slave_lock for writing.
+ * Caller must hold bond->lock for read and curr_slave_lock for write_bh.
  */
 void bond_select_active_slave(struct bonding *bond)
 {
@@ -1384,14 +1465,14 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			printk(KERN_WARNING DRV_NAME
 			       ": %s: Warning: The first slave device "
 			       "specified does not support setting the MAC "
-			       "address. Enabling the fail_over_mac option.",
+			       "address. Setting fail_over_mac to active.",
 			       bond_dev->name);
-			bond->params.fail_over_mac = 1;
-		} else if (!bond->params.fail_over_mac) {
+			bond->params.fail_over_mac = BOND_FOM_ACTIVE;
+		} else if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 			printk(KERN_ERR DRV_NAME
 				": %s: Error: The slave device specified "
 				"does not support setting the MAC address, "
-				"but fail_over_mac is not enabled.\n"
+				"but fail_over_mac is not set to active.\n"
 				, bond_dev->name);
 			res = -EOPNOTSUPP;
 			goto err_undo_flags;
@@ -1498,6 +1579,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	bond_compute_features(bond);
 
+	write_unlock_bh(&bond->lock);
+
+	read_lock(&bond->lock);
+
 	new_slave->last_arp_rx = jiffies;
 
 	if (bond->params.miimon && !bond->params.use_carrier) {
@@ -1574,6 +1659,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 
+	write_lock_bh(&bond->curr_slave_lock);
+
 	switch (bond->params.mode) {
 	case BOND_MODE_ACTIVEBACKUP:
 		bond_set_slave_inactive_flags(new_slave);
@@ -1621,9 +1708,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		break;
 	} /* switch(bond_mode) */
 
+	write_unlock_bh(&bond->curr_slave_lock);
+
 	bond_set_carrier(bond);
 
-	write_unlock_bh(&bond->lock);
+	read_unlock(&bond->lock);
 
 	res = bond_create_slave_symlinks(bond_dev, slave_dev);
 	if (res)
@@ -1647,6 +1736,10 @@ err_unset_master:
 
 err_restore_mac:
 	if (!bond->params.fail_over_mac) {
+		/* XXX TODO - fom follow mode needs to change master's
+		 * MAC if this slave's MAC is in use by the bond, or at
+		 * least print a warning.
+		 */
 		memcpy(addr.sa_data, new_slave->perm_hwaddr, ETH_ALEN);
 		addr.sa_family = slave_dev->type;
 		dev_set_mac_address(slave_dev, &addr);
@@ -1701,20 +1794,18 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		return -EINVAL;
 	}
 
-	mac_addr_differ = memcmp(bond_dev->dev_addr,
-				 slave->perm_hwaddr,
-				 ETH_ALEN);
-	if (!mac_addr_differ && (bond->slave_cnt > 1)) {
-		printk(KERN_WARNING DRV_NAME
-		       ": %s: Warning: the permanent HWaddr of %s - "
-		       "%s - is still in use by %s. "
-		       "Set the HWaddr of %s to a different address "
-		       "to avoid conflicts.\n",
-		       bond_dev->name,
-		       slave_dev->name,
-		       print_mac(mac, slave->perm_hwaddr),
-		       bond_dev->name,
-		       slave_dev->name);
+	if (!bond->params.fail_over_mac) {
+		mac_addr_differ = memcmp(bond_dev->dev_addr, slave->perm_hwaddr,
+					 ETH_ALEN);
+		if (!mac_addr_differ && (bond->slave_cnt > 1))
+			printk(KERN_WARNING DRV_NAME
+			       ": %s: Warning: the permanent HWaddr of %s - "
+			       "%s - is still in use by %s. "
+			       "Set the HWaddr of %s to a different address "
+			       "to avoid conflicts.\n",
+			       bond_dev->name, slave_dev->name,
+			       print_mac(mac, slave->perm_hwaddr),
+			       bond_dev->name, slave_dev->name);
 	}
 
 	/* Inform AD package of unbinding of slave. */
@@ -1841,7 +1932,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
 
-	if (!bond->params.fail_over_mac) {
+	if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 		/* restore original ("permanent") mac address */
 		memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
 		addr.sa_family = slave_dev->type;
@@ -3164,7 +3255,8 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP &&
 	    bond->params.fail_over_mac)
-		seq_printf(seq, " (fail_over_mac)");
+		seq_printf(seq, " (fail_over_mac %s)",
+		   fail_over_mac_tbl[bond->params.fail_over_mac].modename);
 
 	seq_printf(seq, "\n");
 
@@ -4092,10 +4184,10 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	dprintk("bond=%p, name=%s\n", bond, (bond_dev ? bond_dev->name : "None"));
 
 	/*
-	 * If fail_over_mac is enabled, do nothing and return success.
-	 * Returning an error causes ifenslave to fail.
+	 * If fail_over_mac is set to active, do nothing and return
+	 * success.  Returning an error causes ifenslave to fail.
 	 */
-	if (bond->params.fail_over_mac)
+	if (bond->params.fail_over_mac == BOND_FOM_ACTIVE)
 		return 0;
 
 	if (!is_valid_ether_addr(sa->sa_data)) {
@@ -4600,7 +4692,7 @@ int bond_parse_parm(const char *buf, struct bond_parm_tbl *tbl)
 
 static int bond_check_params(struct bond_params *params)
 {
-	int arp_validate_value;
+	int arp_validate_value, fail_over_mac_value;
 
 	/*
 	 * Convert string parameters.
@@ -4875,10 +4967,23 @@ static int bond_check_params(struct bond_params *params)
 		primary = NULL;
 	}
 
-	if (fail_over_mac && (bond_mode != BOND_MODE_ACTIVEBACKUP))
-		printk(KERN_WARNING DRV_NAME
-		       ": Warning: fail_over_mac only affects "
-		       "active-backup mode.\n");
+	if (fail_over_mac) {
+		fail_over_mac_value = bond_parse_parm(fail_over_mac,
+						      fail_over_mac_tbl);
+		if (fail_over_mac_value == -1) {
+			printk(KERN_ERR DRV_NAME
+			       ": Error: invalid fail_over_mac \"%s\"\n",
+			       arp_validate == NULL ? "NULL" : arp_validate);
+			return -EINVAL;
+		}
+
+		if (bond_mode != BOND_MODE_ACTIVEBACKUP)
+			printk(KERN_WARNING DRV_NAME
+			       ": Warning: fail_over_mac only affects "
+			       "active-backup mode.\n");
+	} else {
+		fail_over_mac_value = BOND_FOM_NONE;
+	}
 
 	/* fill params struct with the proper values */
 	params->mode = bond_mode;
@@ -4892,7 +4997,7 @@ static int bond_check_params(struct bond_params *params)
 	params->use_carrier = use_carrier;
 	params->lacp_fast = lacp_fast;
 	params->primary[0] = 0;
-	params->fail_over_mac = fail_over_mac;
+	params->fail_over_mac = fail_over_mac_value;
 
 	if (primary) {
 		strncpy(params->primary, primary, IFNAMSIZ);

@@ -50,6 +50,7 @@ extern struct bond_parm_tbl bond_mode_tbl[];
 extern struct bond_parm_tbl bond_lacp_tbl[];
 extern struct bond_parm_tbl xmit_hashtype_tbl[];
 extern struct bond_parm_tbl arp_validate_tbl[];
+extern struct bond_parm_tbl fail_over_mac_tbl[];
 
 static int expected_refcount = -1;
 static struct class *netdev_class;
@@ -547,42 +548,37 @@ static ssize_t bonding_show_fail_over_mac(struct device *d, struct device_attrib
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.fail_over_mac) + 1;
+	return sprintf(buf, "%s %d\n",
+		       fail_over_mac_tbl[bond->params.fail_over_mac].modename,
+		       bond->params.fail_over_mac);
 }
 
 static ssize_t bonding_store_fail_over_mac(struct device *d, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int new_value;
-	int ret = count;
 	struct bonding *bond = to_bond(d);
 
 	if (bond->slave_cnt != 0) {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: Can't alter fail_over_mac with slaves in bond.\n",
 		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
+		return -EPERM;
 	}
 
-	if (sscanf(buf, "%d", &new_value) != 1) {
+	new_value = bond_parse_parm(buf, fail_over_mac_tbl);
+	if (new_value < 0) {
 		printk(KERN_ERR DRV_NAME
-		       ": %s: no fail_over_mac value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		       ": %s: Ignoring invalid fail_over_mac value %s.\n",
+		       bond->dev->name, buf);
+		return -EINVAL;
 	}
 
-	if ((new_value == 0) || (new_value == 1)) {
-		bond->params.fail_over_mac = new_value;
-		printk(KERN_INFO DRV_NAME ": %s: Setting fail_over_mac to %d.\n",
-		       bond->dev->name, new_value);
-	} else {
-		printk(KERN_INFO DRV_NAME
-		       ": %s: Ignoring invalid fail_over_mac value %d.\n",
-		       bond->dev->name, new_value);
-	}
-out:
-	return ret;
+	bond->params.fail_over_mac = new_value;
+	printk(KERN_INFO DRV_NAME ": %s: Setting fail_over_mac to %s (%d).\n",
+	       bond->dev->name, fail_over_mac_tbl[new_value].modename,
+	       new_value);
+
+	return count;
 }
 
 static DEVICE_ATTR(fail_over_mac, S_IRUGO | S_IWUSR, bonding_show_fail_over_mac, bonding_store_fail_over_mac);
