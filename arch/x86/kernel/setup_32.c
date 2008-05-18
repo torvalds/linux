@@ -359,56 +359,6 @@ unsigned long __init find_max_low_pfn(void)
 	return max_low_pfn;
 }
 
-#define BIOS_LOWMEM_KILOBYTES 0x413
-
-/*
- * The BIOS places the EBDA/XBDA at the top of conventional
- * memory, and usually decreases the reported amount of
- * conventional memory (int 0x12) too. This also contains a
- * workaround for Dell systems that neglect to reserve EBDA.
- * The same workaround also avoids a problem with the AMD768MPX
- * chipset: reserve a page before VGA to prevent PCI prefetch
- * into it (errata #56). Usually the page is reserved anyways,
- * unless you have no PS/2 mouse plugged in.
- */
-static void __init reserve_ebda_region(void)
-{
-	unsigned int lowmem, ebda_addr;
-
-	/* To determine the position of the EBDA and the */
-	/* end of conventional memory, we need to look at */
-	/* the BIOS data area. In a paravirtual environment */
-	/* that area is absent. We'll just have to assume */
-	/* that the paravirt case can handle memory setup */
-	/* correctly, without our help. */
-	if (paravirt_enabled())
-		return;
-
-	/* end of low (conventional) memory */
-	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
-	lowmem <<= 10;
-
-	/* start of EBDA area */
-	ebda_addr = get_bios_ebda();
-
-	/* Fixup: bios puts an EBDA in the top 64K segment */
-	/* of conventional memory, but does not adjust lowmem. */
-	if ((lowmem - ebda_addr) <= 0x10000)
-		lowmem = ebda_addr;
-
-	/* Fixup: bios does not report an EBDA at all. */
-	/* Some old Dells seem to need 4k anyhow (bugzilla 2990) */
-	if ((ebda_addr == 0) && (lowmem >= 0x9f000))
-		lowmem = 0x9f000;
-
-	/* Paranoia: should never happen, but... */
-	if ((lowmem == 0) || (lowmem >= 0x100000))
-		lowmem = 0x9f000;
-
-	/* reserve all memory between lowmem and the 1MB mark */
-	reserve_bootmem(lowmem, 0x100000 - lowmem, BOOTMEM_DEFAULT);
-}
-
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 static void __init setup_bootmem_allocator(void);
 static unsigned long __init setup_memory(void)
@@ -522,25 +472,32 @@ static void __init reserve_initrd(void)
 	unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
 	unsigned long ramdisk_here;
 
-	initrd_start = 0;
-
 	if (!boot_params.hdr.type_of_loader ||
 	    !ramdisk_image || !ramdisk_size)
 		return;		/* No initrd provided by bootloader */
 
+	initrd_start = 0;
+
 	if (ramdisk_end < ramdisk_image) {
+		free_bootmem(ramdisk_image, ramdisk_size);
 		printk(KERN_ERR "initrd wraps around end of memory, "
 		       "disabling initrd\n");
 		return;
 	}
 	if (ramdisk_size >= end_of_lowmem/2) {
+		free_bootmem(ramdisk_image, ramdisk_size);
 		printk(KERN_ERR "initrd too large to handle, "
 		       "disabling initrd\n");
 		return;
 	}
+
 	if (ramdisk_end <= end_of_lowmem) {
 		/* All in lowmem, easy case */
-		reserve_bootmem(ramdisk_image, ramdisk_size, BOOTMEM_DEFAULT);
+		/*
+		 * don't need to reserve again, already reserved early
+		 * in i386_start_kernel, and early_res_to_bootmem
+		 * convert that to reserved in bootmem
+		 */
 		initrd_start = ramdisk_image + PAGE_OFFSET;
 		initrd_end = initrd_start+ramdisk_size;
 		return;
@@ -582,6 +539,8 @@ static void __init relocate_initrd(void)
 		p = (char *)__va(ramdisk_image);
 		memcpy(q, p, clen);
 		q += clen;
+		/* need to free these low pages...*/
+		free_bootmem(ramdisk_image, clen);
 		ramdisk_image += clen;
 		ramdisk_size  -= clen;
 	}
@@ -600,47 +559,28 @@ static void __init relocate_initrd(void)
 		ramdisk_image += clen;
 		ramdisk_size  -= clen;
 	}
+	/* high pages is not converted by early_res_to_bootmem */
 }
 
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 void __init setup_bootmem_allocator(void)
 {
-	unsigned long bootmap_size;
+	unsigned long bootmap_size, bootmap;
 	/*
 	 * Initialize the boot-time allocator (with low memory only):
 	 */
-	bootmap_size = init_bootmem(min_low_pfn, max_low_pfn);
-
+	bootmap_size = bootmem_bootmap_pages(max_low_pfn)<<PAGE_SHIFT;
+	bootmap = find_e820_area(min_low_pfn<<PAGE_SHIFT,
+				 max_low_pfn<<PAGE_SHIFT, bootmap_size,
+				 PAGE_SIZE);
+	if (bootmap == -1L)
+		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
+	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
 	register_bootmem_low_pages(max_low_pfn);
+	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
+	reserve_bootmem(bootmap, bootmap_size, BOOTMEM_DEFAULT);
 
-	/*
-	 * Reserve the bootmem bitmap itself as well. We do this in two
-	 * steps (first step was init_bootmem()) because this catches
-	 * the (very unlikely) case of us accidentally initializing the
-	 * bootmem allocator with an invalid RAM area.
-	 */
-	reserve_bootmem(__pa_symbol(_text), (PFN_PHYS(min_low_pfn) +
-			 bootmap_size + PAGE_SIZE-1) - __pa_symbol(_text),
-			 BOOTMEM_DEFAULT);
-
-	/*
-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
-	 * enabling clean reboots, SMP operation, laptop functions.
-	 */
-	reserve_bootmem(0, PAGE_SIZE, BOOTMEM_DEFAULT);
-
-	/* reserve EBDA region */
-	reserve_ebda_region();
-
-#ifdef CONFIG_SMP
-	/*
-	 * But first pinch a few for the stack/trampoline stuff
-	 * FIXME: Don't need the extra page at 4K, but need to fix
-	 * trampoline before removing it. (see the GDT stuff)
-	 */
-	reserve_bootmem(PAGE_SIZE, PAGE_SIZE, BOOTMEM_DEFAULT);
-#endif
 #ifdef CONFIG_ACPI_SLEEP
 	/*
 	 * Reserve low memory region for sleep support.
@@ -803,9 +743,6 @@ void __init setup_arch(char **cmdline_p)
 	 * not to exceed the 8Mb limit.
 	 */
 
-#ifdef CONFIG_SMP
-	smp_alloc_memory(); /* AP processor realmode stacks in low memory*/
-#endif
 	paging_init();
 
 	/*

@@ -70,6 +70,12 @@ extern u64 update_memory_range(u64 start, u64 size, unsigned old_type,
 extern void update_e820(void);
 extern void e820_setup_gap(void);
 
+extern u64 find_e820_area(u64 start, u64 end, u64 size, u64 align);
+extern u64 find_e820_area_size(u64 start, u64 *sizep, u64 align);
+extern void reserve_early(u64 start, u64 end, char *name);
+extern void free_early(u64 start, u64 end);
+extern void early_res_to_bootmem(u64 start, u64 end);
+
 #endif /* __ASSEMBLY__ */
 
 #define ISA_START_ADDRESS	0xa0000

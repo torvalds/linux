@@ -201,7 +201,6 @@ extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
 #endif
 
-extern void smp_alloc_memory(void);
 extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 #endif /* __ASSEMBLY__ */

@@ -1137,15 +1137,6 @@ void flush_tlb_all(void)
 	on_each_cpu(do_flush_tlb_all, 0, 1, 1);
 }
 
-/* used to set up the trampoline for other CPUs when the memory manager
- * is sorted out */
-void __init smp_alloc_memory(void)
-{
-	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
-	if (__pa(trampoline_base) >= 0x93000)
-		BUG();
-}
-
 /* send a reschedule CPI to one CPU by physical CPU number*/
 static void voyager_smp_send_reschedule(int cpu)
 {

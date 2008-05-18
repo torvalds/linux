@@ -22,7 +22,9 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/e820.h>
+#include <asm/proto.h>
 #include <asm/setup.h>
+#include <asm/trampoline.h>
 
 struct e820map e820;
 
@@ -493,3 +495,215 @@ __init void e820_setup_gap(void)
 	       pci_mem_start, gapstart, gapsize);
 }
 
+
+/*
+ * Early reserved memory areas.
+ */
+#define MAX_EARLY_RES 20
+
+struct early_res {
+	u64 start, end;
+	char name[16];
+};
+static struct early_res early_res[MAX_EARLY_RES] __initdata = {
+	{ 0, PAGE_SIZE, "BIOS data page" },	/* BIOS data page */
+#if defined(CONFIG_X86_64) && defined(CONFIG_X86_TRAMPOLINE)
+	{ TRAMPOLINE_BASE, TRAMPOLINE_BASE + 2 * PAGE_SIZE, "TRAMPOLINE" },
+#endif
+#if defined(CONFIG_X86_32) && defined(CONFIG_SMP)
+	/*
+	 * But first pinch a few for the stack/trampoline stuff
+	 * FIXME: Don't need the extra page at 4K, but need to fix
+	 * trampoline before removing it. (see the GDT stuff)
+	 */
+	{ PAGE_SIZE, PAGE_SIZE + PAGE_SIZE, "EX TRAMPOLINE" },
+	/*
+	 * Has to be in very low memory so we can execute
+	 * real-mode AP code.
+	 */
+	{ TRAMPOLINE_BASE, TRAMPOLINE_BASE + PAGE_SIZE, "TRAMPOLINE" },
+#endif
+	{}
+};
+
+void __init reserve_early(u64 start, u64 end, char *name)
+{
+	int i;
+	struct early_res *r;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		r = &early_res[i];
+		if (end > r->start && start < r->end)
+			panic("Overlapping early reservations %llx-%llx %s to %llx-%llx %s\n",
+			      start, end - 1, name?name:"", r->start,
+			      r->end - 1, r->name);
+	}
+	if (i >= MAX_EARLY_RES)
+		panic("Too many early reservations");
+	r = &early_res[i];
+	r->start = start;
+	r->end = end;
+	if (name)
+		strncpy(r->name, name, sizeof(r->name) - 1);
+}
+
+void __init free_early(u64 start, u64 end)
+{
+	struct early_res *r;
+	int i, j;
+
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		r = &early_res[i];
+		if (start == r->start && end == r->end)
+			break;
+	}
+	if (i >= MAX_EARLY_RES || !early_res[i].end)
+		panic("free_early on not reserved area: %llx-%llx!",
+			 start, end);
+
+	for (j = i + 1; j < MAX_EARLY_RES && early_res[j].end; j++)
+		;
+
+	memmove(&early_res[i], &early_res[i + 1],
+	       (j - 1 - i) * sizeof(struct early_res));
+
+	early_res[j - 1].end = 0;
+}
+
+void __init early_res_to_bootmem(u64 start, u64 end)
+{
+	int i;
+	u64 final_start, final_end;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		final_start = max(start, r->start);
+		final_end = min(end, r->end);
+		if (final_start >= final_end)
+			continue;
+		printk(KERN_INFO "  early res: %d [%llx-%llx] %s\n", i,
+			final_start, final_end - 1, r->name);
+#ifdef CONFIG_X86_64
+		reserve_bootmem_generic(final_start, final_end - final_start);
+#else
+		reserve_bootmem(final_start, final_end - final_start,
+				BOOTMEM_DEFAULT);
+#endif
+	}
+}
+
+/* Check for already reserved areas */
+static inline int __init bad_addr(u64 *addrp, u64 size, u64 align)
+{
+	int i;
+	u64 addr = *addrp, last;
+	int changed = 0;
+again:
+	last = addr + size;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		if (last >= r->start && addr < r->end) {
+			*addrp = addr = round_up(r->end, align);
+			changed = 1;
+			goto again;
+		}
+	}
+	return changed;
+}
+
+/* Check for already reserved areas */
+static inline int __init bad_addr_size(u64 *addrp, u64 *sizep, u64 align)
+{
+	int i;
+	u64 addr = *addrp, last;
+	u64 size = *sizep;
+	int changed = 0;
+again:
+	last = addr + size;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		if (last > r->start && addr < r->start) {
+			size = r->start - addr;
+			changed = 1;
+			goto again;
+		}
+		if (last > r->end && addr < r->end) {
+			addr = round_up(r->end, align);
+			size = last - addr;
+			changed = 1;
+			goto again;
+		}
+		if (last <= r->end && addr >= r->start) {
+			(*sizep)++;
+			return 0;
+		}
+	}
+	if (changed) {
+		*addrp = addr;
+		*sizep = size;
+	}
+	return changed;
+}
+
+/*
+ * Find a free area with specified alignment in a specific range.
+ */
+u64 __init find_e820_area(u64 start, u64 end, u64 size, u64 align)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		u64 addr, last;
+		u64 ei_last;
+
+		if (ei->type != E820_RAM)
+			continue;
+		addr = round_up(ei->addr, align);
+		ei_last = ei->addr + ei->size;
+		if (addr < start)
+			addr = round_up(start, align);
+		if (addr >= ei_last)
+			continue;
+		while (bad_addr(&addr, size, align) && addr+size <= ei_last)
+			;
+		last = addr + size;
+		if (last > ei_last)
+			continue;
+		if (last > end)
+			continue;
+		return addr;
+	}
+	return -1ULL;
+}
+
+/*
+ * Find next free range after *start
+ */
+u64 __init find_e820_area_size(u64 start, u64 *sizep, u64 align)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		u64 addr, last;
+		u64 ei_last;
+
+		if (ei->type != E820_RAM)
+			continue;
+		addr = round_up(ei->addr, align);
+		ei_last = ei->addr + ei->size;
+		if (addr < start)
+			addr = round_up(start, align);
+		if (addr >= ei_last)
+			continue;
+		*sizep = ei_last - addr;
+		while (bad_addr_size(&addr, sizep, align) &&
+			addr + *sizep <= ei_last)
+			;
+		last = addr + *sizep;
+		if (last > ei_last)
+			continue;
+		return addr;
+	}
+	return -1UL;
+
+}
