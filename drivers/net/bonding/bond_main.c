@@ -4848,7 +4848,7 @@ static struct lock_class_key bonding_netdev_xmit_lock_key;
  * Caller must NOT hold rtnl_lock; we need to release it here before we
  * set up our sysfs entries.
  */
-int bond_create(char *name, struct bond_params *params, struct bonding **newbond)
+int bond_create(char *name, struct bond_params *params)
 {
 	struct net_device *bond_dev;
 	struct bonding *bond, *nxt;
@@ -4902,9 +4902,6 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 
 	lockdep_set_class(&bond_dev->_xmit_lock, &bonding_netdev_xmit_lock_key);
 
-	if (newbond)
-		*newbond = bond_dev->priv;
-
 	netif_carrier_off(bond_dev);
 
 	up_write(&bonding_rwsem);
@@ -4950,7 +4947,7 @@ static int __init bonding_init(void)
 	init_rwsem(&bonding_rwsem);
 
 	for (i = 0; i < max_bonds; i++) {
-		res = bond_create(NULL, &bonding_defaults, NULL);
+		res = bond_create(NULL, &bonding_defaults);
 		if (res)
 			goto err;
 	}
