@@ -2170,6 +2170,9 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/*
 	 * Perform reset
 	 */
+	if (ata_is_host_link(link))
+		ata_eh_freeze_port(ap);
+
 	deadline = jiffies + ata_eh_reset_timeouts[try++];
 
 	if (reset) {
@@ -2237,6 +2240,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/* record current link speed */
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0)
 		link->sata_spd = (sstatus >> 4) & 0xf;
+
+	/* thaw the port */
+	if (ata_is_host_link(link))
+		ata_eh_thaw_port(ap);
 
 	if (postreset)
 		postreset(link, classes);
@@ -2589,7 +2596,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_link *link;
 	struct ata_device *dev;
 	int nr_failed_devs, nr_disabled_devs;
-	int reset, rc;
+	int rc;
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
@@ -2632,7 +2639,6 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	rc = 0;
 	nr_failed_devs = 0;
 	nr_disabled_devs = 0;
-	reset = 0;
 
 	/* if UNLOADING, finish immediately */
 	if (ap->pflags & ATA_PFLAG_UNLOADING)
@@ -2646,40 +2652,24 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (ata_eh_skip_recovery(link))
 			ehc->i.action = 0;
 
-		/* do we need to reset? */
-		if (ehc->i.action & ATA_EH_RESET)
-			reset = 1;
-
 		ata_link_for_each_dev(dev, link)
 			ehc->classes[dev->devno] = ATA_DEV_UNKNOWN;
 	}
 
 	/* reset */
-	if (reset) {
-		/* if PMP is attached, this function only deals with
-		 * downstream links, port should stay thawed.
-		 */
-		if (!sata_pmp_attached(ap))
-			ata_eh_freeze_port(ap);
+	ata_port_for_each_link(link, ap) {
+		struct ata_eh_context *ehc = &link->eh_context;
 
-		ata_port_for_each_link(link, ap) {
-			struct ata_eh_context *ehc = &link->eh_context;
+		if (!(ehc->i.action & ATA_EH_RESET))
+			continue;
 
-			if (!(ehc->i.action & ATA_EH_RESET))
-				continue;
-
-			rc = ata_eh_reset(link, ata_link_nr_vacant(link),
-					  prereset, softreset, hardreset,
-					  postreset);
-			if (rc) {
-				ata_link_printk(link, KERN_ERR,
-						"reset failed, giving up\n");
-				goto out;
-			}
+		rc = ata_eh_reset(link, ata_link_nr_vacant(link),
+				  prereset, softreset, hardreset, postreset);
+		if (rc) {
+			ata_link_printk(link, KERN_ERR,
+					"reset failed, giving up\n");
+			goto out;
 		}
-
-		if (!sata_pmp_attached(ap))
-			ata_eh_thaw_port(ap);
 	}
 
 	/* the rest */

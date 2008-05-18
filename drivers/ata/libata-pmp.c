@@ -700,8 +700,6 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 	if (ehc->i.action & ATA_EH_RESET) {
 		struct ata_link *tlink;
 
-		ata_eh_freeze_port(ap);
-
 		/* reset */
 		rc = ata_eh_reset(link, 0, prereset, softreset, hardreset,
 				  postreset);
@@ -710,8 +708,6 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 					"failed to reset PMP, giving up\n");
 			goto fail;
 		}
-
-		ata_eh_thaw_port(ap);
 
 		/* PMP is reset, SErrors cannot be trusted, scan all */
 		ata_port_for_each_link(tlink, ap) {
