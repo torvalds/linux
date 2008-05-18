@@ -341,7 +341,7 @@ enum {
 	ATA_EH_PMP_TRIES	= 5,
 	ATA_EH_PMP_LINK_TRIES	= 3,
 
-	SATA_PMP_SCR_TIMEOUT	= 250,
+	SATA_PMP_RW_TIMEOUT	= 3000,		/* PMP read/write timeout */
 
 	/* Horkage types. May be set by libata or controller on drives
 	   (some horkage may be drive/controller pair dependant */

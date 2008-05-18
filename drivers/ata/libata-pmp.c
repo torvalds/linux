@@ -48,7 +48,7 @@ static unsigned int sata_pmp_read(struct ata_link *link, int reg, u32 *r_val)
 	tf.device = link->pmp;
 
 	err_mask = ata_exec_internal(pmp_dev, &tf, NULL, DMA_NONE, NULL, 0,
-				     SATA_PMP_SCR_TIMEOUT);
+				     SATA_PMP_RW_TIMEOUT);
 	if (err_mask)
 		return err_mask;
 
@@ -88,7 +88,7 @@ static unsigned int sata_pmp_write(struct ata_link *link, int reg, u32 val)
 	tf.lbah = (val >> 24) & 0xff;
 
 	return ata_exec_internal(pmp_dev, &tf, NULL, DMA_NONE, NULL, 0,
-				 SATA_PMP_SCR_TIMEOUT);
+				 SATA_PMP_RW_TIMEOUT);
 }
 
 /**
