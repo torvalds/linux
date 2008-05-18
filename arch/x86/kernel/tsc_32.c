@@ -413,6 +413,11 @@ void __init tsc_init(void)
 
 	if (!cpu_khz) {
 		mark_tsc_unstable("could not calculate TSC khz");
+		/*
+		 * We need to disable the TSC completely in this case
+		 * to prevent sched_clock() from using it.
+		 */
+		tsc_disabled = 1;
 		return;
 	}
 
