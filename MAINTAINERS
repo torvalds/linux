@@ -2349,24 +2349,24 @@ S:	Supported
 KERNEL VIRTUAL MACHINE (KVM)
 P:	Avi Kivity
 M:	avi@qumranet.com
-L:	kvm-devel@lists.sourceforge.net
-W:	kvm.sourceforge.net
+L:	kvm@vger.kernel.org
+W:	http://kvm.qumranet.com
 S:	Supported
 
 KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
 P:	Hollis Blanchard
 M:	hollisb@us.ibm.com
-L:	kvm-ppc-devel@lists.sourceforge.net
-W:	kvm.sourceforge.net
+L:	kvm-ppc@vger.kernel.org
+W:	http://kvm.qumranet.com
 S:	Supported
 
-KERNEL VIRTUAL MACHINE For Itanium(KVM/IA64)
+KERNEL VIRTUAL MACHINE For Itanium (KVM/IA64)
 P:	Anthony Xu
 M:	anthony.xu@intel.com
 P:	Xiantao Zhang
 M:	xiantao.zhang@intel.com
-L:	kvm-ia64-devel@lists.sourceforge.net
-W:	kvm.sourceforge.net
+L:	kvm-ia64@vger.kernel.org
+W:	http://kvm.qumranet.com
 S:	Supported
 
 KERNEL VIRTUAL MACHINE for s390 (KVM/s390)
