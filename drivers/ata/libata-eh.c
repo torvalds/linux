@@ -1308,12 +1308,7 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 	unsigned int err_mask = 0, action = 0;
 	u32 hotplug_mask;
 
-	if (serror & SERR_PERSISTENT) {
-		err_mask |= AC_ERR_ATA_BUS;
-		action |= ATA_EH_RESET;
-	}
-	if (serror &
-	    (SERR_DATA_RECOVERED | SERR_COMM_RECOVERED | SERR_DATA)) {
+	if (serror & (SERR_PERSISTENT | SERR_DATA)) {
 		err_mask |= AC_ERR_ATA_BUS;
 		action |= ATA_EH_RESET;
 	}
