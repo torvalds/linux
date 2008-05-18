@@ -22,6 +22,7 @@
 #define DVB_PLL_SAMSUNG_TBMV           11
 #define DVB_PLL_PHILIPS_SD1878_TDA8261 12
 #define DVB_PLL_OPERA1                 13
+#define DVB_PLL_SAMSUNG_DTOS403IH102A  14
 
 /**
  * Attach a dvb-pll to the supplied frontend structure.
