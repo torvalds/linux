@@ -1051,6 +1051,8 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	}
 
 	if (new_active) {
+		new_active->jiffies = jiffies;
+
 		if (new_active->link == BOND_LINK_BACK) {
 			if (USES_PRIMARY(bond->params.mode)) {
 				printk(KERN_INFO DRV_NAME
@@ -1062,7 +1064,6 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 			new_active->delay = 0;
 			new_active->link = BOND_LINK_UP;
-			new_active->jiffies = jiffies;
 
 			if (bond->params.mode == BOND_MODE_8023AD) {
 				bond_3ad_handle_link_change(new_active, BOND_LINK_UP);
@@ -2795,242 +2796,298 @@ out:
 }
 
 /*
- * When using arp monitoring in active-backup mode, this function is
- * called to determine if any backup slaves have went down or a new
- * current slave needs to be found.
- * The backup slaves never generate traffic, they are considered up by merely
- * receiving traffic. If the current slave goes down, each backup slave will
- * be given the opportunity to tx/rx an arp before being taken down - this
- * prevents all slaves from being taken down due to the current slave not
- * sending any traffic for the backups to receive. The arps are not necessarily
- * necessary, any tx and rx traffic will keep the current slave up. While any
- * rx traffic will keep the backup slaves up, the current slave is responsible
- * for generating traffic to keep them up regardless of any other traffic they
- * may have received.
- * see loadbalance_arp_monitor for arp monitoring in load balancing mode
+ * Called to inspect slaves for active-backup mode ARP monitor link state
+ * changes.  Sets new_link in slaves to specify what action should take
+ * place for the slave.  Returns 0 if no changes are found, >0 if changes
+ * to link states must be committed.
+ *
+ * Called with bond->lock held for read.
  */
-void bond_activebackup_arp_mon(struct work_struct *work)
+static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 {
-	struct bonding *bond = container_of(work, struct bonding,
-					    arp_work.work);
 	struct slave *slave;
-	int delta_in_ticks;
-	int i;
+	int i, commit = 0;
 
-	read_lock(&bond->lock);
-
-	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
-
-	if (bond->kill_timers) {
-		goto out;
-	}
-
-	if (bond->slave_cnt == 0) {
-		goto re_arm;
-	}
-
-	/* determine if any slave has come up or any backup slave has
-	 * gone down
-	 * TODO: what about up/down delay in arp mode? it wasn't here before
-	 *       so it can wait
-	 */
 	bond_for_each_slave(bond, slave, i) {
+		slave->new_link = BOND_LINK_NOCHANGE;
+
 		if (slave->link != BOND_LINK_UP) {
-			if (time_before_eq(jiffies,
-			    slave_last_rx(bond, slave) + delta_in_ticks)) {
-
-				slave->link = BOND_LINK_UP;
-
-				write_lock_bh(&bond->curr_slave_lock);
-
-				if ((!bond->curr_active_slave) &&
-				    time_before_eq(jiffies, slave->dev->trans_start + delta_in_ticks)) {
-					bond_change_active_slave(bond, slave);
-					bond->current_arp_slave = NULL;
-				} else if (bond->curr_active_slave != slave) {
-					/* this slave has just come up but we
-					 * already have a current slave; this
-					 * can also happen if bond_enslave adds
-					 * a new slave that is up while we are
-					 * searching for a new slave
-					 */
-					bond_set_slave_inactive_flags(slave);
-					bond->current_arp_slave = NULL;
-				}
-
-				bond_set_carrier(bond);
-
-				if (slave == bond->curr_active_slave) {
-					printk(KERN_INFO DRV_NAME
-					       ": %s: %s is up and now the "
-					       "active interface\n",
-					       bond->dev->name,
-					       slave->dev->name);
-					netif_carrier_on(bond->dev);
-				} else {
-					printk(KERN_INFO DRV_NAME
-					       ": %s: backup interface %s is "
-					       "now up\n",
-					       bond->dev->name,
-					       slave->dev->name);
-				}
-
-				write_unlock_bh(&bond->curr_slave_lock);
+			if (time_before_eq(jiffies, slave_last_rx(bond, slave) +
+					   delta_in_ticks)) {
+				slave->new_link = BOND_LINK_UP;
+				commit++;
 			}
-		} else {
-			read_lock(&bond->curr_slave_lock);
 
-			if ((slave != bond->curr_active_slave) &&
-			    (!bond->current_arp_slave) &&
-			    (time_after_eq(jiffies, slave_last_rx(bond, slave) + 3*delta_in_ticks))) {
-				/* a backup slave has gone down; three times
-				 * the delta allows the current slave to be
-				 * taken out before the backup slave.
-				 * note: a non-null current_arp_slave indicates
-				 * the curr_active_slave went down and we are
-				 * searching for a new one; under this
-				 * condition we only take the curr_active_slave
-				 * down - this gives each slave a chance to
-				 * tx/rx traffic before being taken out
-				 */
+			continue;
+		}
 
-				read_unlock(&bond->curr_slave_lock);
+		/*
+		 * Give slaves 2*delta after being enslaved or made
+		 * active.  This avoids bouncing, as the last receive
+		 * times need a full ARP monitor cycle to be updated.
+		 */
+		if (!time_after_eq(jiffies, slave->jiffies +
+				   2 * delta_in_ticks))
+			continue;
 
-				slave->link  = BOND_LINK_DOWN;
+		/*
+		 * Backup slave is down if:
+		 * - No current_arp_slave AND
+		 * - more than 3*delta since last receive AND
+		 * - the bond has an IP address
+		 *
+		 * Note: a non-null current_arp_slave indicates
+		 * the curr_active_slave went down and we are
+		 * searching for a new one; under this condition
+		 * we only take the curr_active_slave down - this
+		 * gives each slave a chance to tx/rx traffic
+		 * before being taken out
+		 */
+		if (slave->state == BOND_STATE_BACKUP &&
+		    !bond->current_arp_slave &&
+		    time_after(jiffies, slave_last_rx(bond, slave) +
+			       3 * delta_in_ticks)) {
+			slave->new_link = BOND_LINK_DOWN;
+			commit++;
+		}
 
-				if (slave->link_failure_count < UINT_MAX) {
-					slave->link_failure_count++;
-				}
-
-				bond_set_slave_inactive_flags(slave);
-
-				printk(KERN_INFO DRV_NAME
-				       ": %s: backup interface %s is now down\n",
-				       bond->dev->name,
-				       slave->dev->name);
-			} else {
-				read_unlock(&bond->curr_slave_lock);
-			}
+		/*
+		 * Active slave is down if:
+		 * - more than 2*delta since transmitting OR
+		 * - (more than 2*delta since receive AND
+		 *    the bond has an IP address)
+		 */
+		if ((slave->state == BOND_STATE_ACTIVE) &&
+		    (time_after_eq(jiffies, slave->dev->trans_start +
+				    2 * delta_in_ticks) ||
+		      (time_after_eq(jiffies, slave_last_rx(bond, slave)
+				     + 2 * delta_in_ticks)))) {
+			slave->new_link = BOND_LINK_DOWN;
+			commit++;
 		}
 	}
 
 	read_lock(&bond->curr_slave_lock);
-	slave = bond->curr_active_slave;
+
+	/*
+	 * Trigger a commit if the primary option setting has changed.
+	 */
+	if (bond->primary_slave &&
+	    (bond->primary_slave != bond->curr_active_slave) &&
+	    (bond->primary_slave->link == BOND_LINK_UP))
+		commit++;
+
 	read_unlock(&bond->curr_slave_lock);
 
-	if (slave) {
-		/* if we have sent traffic in the past 2*arp_intervals but
-		 * haven't xmit and rx traffic in that time interval, select
-		 * a different slave. slave->jiffies is only updated when
-		 * a slave first becomes the curr_active_slave - not necessarily
-		 * after every arp; this ensures the slave has a full 2*delta
-		 * before being taken out. if a primary is being used, check
-		 * if it is up and needs to take over as the curr_active_slave
-		 */
-		if ((time_after_eq(jiffies, slave->dev->trans_start + 2*delta_in_ticks) ||
-		     (time_after_eq(jiffies, slave_last_rx(bond, slave) + 2*delta_in_ticks))) &&
-			time_after_eq(jiffies, slave->jiffies + 2*delta_in_ticks)) {
+	return commit;
+}
 
-			slave->link  = BOND_LINK_DOWN;
+/*
+ * Called to commit link state changes noted by inspection step of
+ * active-backup mode ARP monitor.
+ *
+ * Called with RTNL and bond->lock for read.
+ */
+static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
+{
+	struct slave *slave;
+	int i;
 
-			if (slave->link_failure_count < UINT_MAX) {
+	bond_for_each_slave(bond, slave, i) {
+		switch (slave->new_link) {
+		case BOND_LINK_NOCHANGE:
+			continue;
+
+		case BOND_LINK_UP:
+			write_lock_bh(&bond->curr_slave_lock);
+
+			if (!bond->curr_active_slave &&
+			    time_before_eq(jiffies, slave->dev->trans_start +
+					   delta_in_ticks)) {
+				slave->link = BOND_LINK_UP;
+				bond_change_active_slave(bond, slave);
+				bond->current_arp_slave = NULL;
+
+				printk(KERN_INFO DRV_NAME
+				       ": %s: %s is up and now the "
+				       "active interface\n",
+				       bond->dev->name, slave->dev->name);
+
+			} else if (bond->curr_active_slave != slave) {
+				/* this slave has just come up but we
+				 * already have a current slave; this can
+				 * also happen if bond_enslave adds a new
+				 * slave that is up while we are searching
+				 * for a new slave
+				 */
+				slave->link = BOND_LINK_UP;
+				bond_set_slave_inactive_flags(slave);
+				bond->current_arp_slave = NULL;
+
+				printk(KERN_INFO DRV_NAME
+				       ": %s: backup interface %s is now up\n",
+				       bond->dev->name, slave->dev->name);
+			}
+
+			write_unlock_bh(&bond->curr_slave_lock);
+
+			break;
+
+		case BOND_LINK_DOWN:
+			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
-			}
 
-			printk(KERN_INFO DRV_NAME
-			       ": %s: link status down for active interface "
-			       "%s, disabling it\n",
-			       bond->dev->name,
+			slave->link = BOND_LINK_DOWN;
+
+			if (slave == bond->curr_active_slave) {
+				printk(KERN_INFO DRV_NAME
+				       ": %s: link status down for active "
+				       "interface %s, disabling it\n",
+				       bond->dev->name, slave->dev->name);
+
+				bond_set_slave_inactive_flags(slave);
+
+				write_lock_bh(&bond->curr_slave_lock);
+
+				bond_select_active_slave(bond);
+				if (bond->curr_active_slave)
+					bond->curr_active_slave->jiffies =
+						jiffies;
+
+				write_unlock_bh(&bond->curr_slave_lock);
+
+				bond->current_arp_slave = NULL;
+
+			} else if (slave->state == BOND_STATE_BACKUP) {
+				printk(KERN_INFO DRV_NAME
+				       ": %s: backup interface %s is now down\n",
+				       bond->dev->name, slave->dev->name);
+
+				bond_set_slave_inactive_flags(slave);
+			}
+			break;
+
+		default:
+			printk(KERN_ERR DRV_NAME
+			       ": %s: impossible: new_link %d on slave %s\n",
+			       bond->dev->name, slave->new_link,
 			       slave->dev->name);
-
-			write_lock_bh(&bond->curr_slave_lock);
-
-			bond_select_active_slave(bond);
-			slave = bond->curr_active_slave;
-
-			write_unlock_bh(&bond->curr_slave_lock);
-
-			bond->current_arp_slave = slave;
-
-			if (slave) {
-				slave->jiffies = jiffies;
-			}
-		} else if ((bond->primary_slave) &&
-			   (bond->primary_slave != slave) &&
-			   (bond->primary_slave->link == BOND_LINK_UP)) {
-			/* at this point, slave is the curr_active_slave */
-			printk(KERN_INFO DRV_NAME
-			       ": %s: changing from interface %s to primary "
-			       "interface %s\n",
-			       bond->dev->name,
-			       slave->dev->name,
-			       bond->primary_slave->dev->name);
-
-			/* primary is up so switch to it */
-			write_lock_bh(&bond->curr_slave_lock);
-			bond_change_active_slave(bond, bond->primary_slave);
-			write_unlock_bh(&bond->curr_slave_lock);
-
-			slave = bond->primary_slave;
-			slave->jiffies = jiffies;
-		} else {
-			bond->current_arp_slave = NULL;
 		}
-
-		/* the current slave must tx an arp to ensure backup slaves
-		 * rx traffic
-		 */
-		if (slave && IS_UP(slave->dev))
-			bond_arp_send_all(bond, slave);
 	}
+
+	/*
+	 * No race with changes to primary via sysfs, as we hold rtnl.
+	 */
+	if (bond->primary_slave &&
+	    (bond->primary_slave != bond->curr_active_slave) &&
+	    (bond->primary_slave->link == BOND_LINK_UP)) {
+		write_lock_bh(&bond->curr_slave_lock);
+		bond_change_active_slave(bond, bond->primary_slave);
+		write_unlock_bh(&bond->curr_slave_lock);
+	}
+
+	bond_set_carrier(bond);
+}
+
+/*
+ * Send ARP probes for active-backup mode ARP monitor.
+ *
+ * Called with bond->lock held for read.
+ */
+static void bond_ab_arp_probe(struct bonding *bond)
+{
+	struct slave *slave;
+	int i;
+
+	read_lock(&bond->curr_slave_lock);
+
+	if (bond->current_arp_slave && bond->curr_active_slave)
+		printk("PROBE: c_arp %s && cas %s BAD\n",
+		       bond->current_arp_slave->dev->name,
+		       bond->curr_active_slave->dev->name);
+
+	if (bond->curr_active_slave) {
+		bond_arp_send_all(bond, bond->curr_active_slave);
+		read_unlock(&bond->curr_slave_lock);
+		return;
+	}
+
+	read_unlock(&bond->curr_slave_lock);
 
 	/* if we don't have a curr_active_slave, search for the next available
 	 * backup slave from the current_arp_slave and make it the candidate
 	 * for becoming the curr_active_slave
 	 */
-	if (!slave) {
-		if (!bond->current_arp_slave) {
-			bond->current_arp_slave = bond->first_slave;
+
+	if (!bond->current_arp_slave) {
+		bond->current_arp_slave = bond->first_slave;
+		if (!bond->current_arp_slave)
+			return;
+	}
+
+	bond_set_slave_inactive_flags(bond->current_arp_slave);
+
+	/* search for next candidate */
+	bond_for_each_slave_from(bond, slave, i, bond->current_arp_slave->next) {
+		if (IS_UP(slave->dev)) {
+			slave->link = BOND_LINK_BACK;
+			bond_set_slave_active_flags(slave);
+			bond_arp_send_all(bond, slave);
+			slave->jiffies = jiffies;
+			bond->current_arp_slave = slave;
+			break;
 		}
 
-		if (bond->current_arp_slave) {
-			bond_set_slave_inactive_flags(bond->current_arp_slave);
+		/* if the link state is up at this point, we
+		 * mark it down - this can happen if we have
+		 * simultaneous link failures and
+		 * reselect_active_interface doesn't make this
+		 * one the current slave so it is still marked
+		 * up when it is actually down
+		 */
+		if (slave->link == BOND_LINK_UP) {
+			slave->link = BOND_LINK_DOWN;
+			if (slave->link_failure_count < UINT_MAX)
+				slave->link_failure_count++;
 
-			/* search for next candidate */
-			bond_for_each_slave_from(bond, slave, i, bond->current_arp_slave->next) {
-				if (IS_UP(slave->dev)) {
-					slave->link = BOND_LINK_BACK;
-					bond_set_slave_active_flags(slave);
-					bond_arp_send_all(bond, slave);
-					slave->jiffies = jiffies;
-					bond->current_arp_slave = slave;
-					break;
-				}
+			bond_set_slave_inactive_flags(slave);
 
-				/* if the link state is up at this point, we
-				 * mark it down - this can happen if we have
-				 * simultaneous link failures and
-				 * reselect_active_interface doesn't make this
-				 * one the current slave so it is still marked
-				 * up when it is actually down
-				 */
-				if (slave->link == BOND_LINK_UP) {
-					slave->link  = BOND_LINK_DOWN;
-					if (slave->link_failure_count < UINT_MAX) {
-						slave->link_failure_count++;
-					}
-
-					bond_set_slave_inactive_flags(slave);
-
-					printk(KERN_INFO DRV_NAME
-					       ": %s: backup interface %s is "
-					       "now down.\n",
-					       bond->dev->name,
-					       slave->dev->name);
-				}
-			}
+			printk(KERN_INFO DRV_NAME
+			       ": %s: backup interface %s is now down.\n",
+			       bond->dev->name, slave->dev->name);
 		}
 	}
+}
+
+void bond_activebackup_arp_mon(struct work_struct *work)
+{
+	struct bonding *bond = container_of(work, struct bonding,
+					    arp_work.work);
+	int delta_in_ticks;
+
+	read_lock(&bond->lock);
+
+	if (bond->kill_timers)
+		goto out;
+
+	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
+
+	if (bond->slave_cnt == 0)
+		goto re_arm;
+
+	if (bond_ab_arp_inspect(bond, delta_in_ticks)) {
+		read_unlock(&bond->lock);
+		rtnl_lock();
+		read_lock(&bond->lock);
+
+		bond_ab_arp_commit(bond, delta_in_ticks);
+
+		read_unlock(&bond->lock);
+		rtnl_unlock();
+		read_lock(&bond->lock);
+	}
+
+	bond_ab_arp_probe(bond);
 
 re_arm:
 	if (bond->params.arp_interval) {
