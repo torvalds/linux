@@ -1940,8 +1940,10 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 I2C SUBSYSTEM
-P:	Jean Delvare
+P:	Jean Delvare (PC drivers, core)
 M:	khali@linux-fr.org
+P:	Ben Dooks (embedded platforms)
+M:	ben-linux@fluff.org
 L:	i2c@lm-sensors.org
 T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
