@@ -1012,11 +1012,6 @@ void __init mp_config_acpi_legacy_irqs(void)
 	if (ioapic < 0)
 		return;
 
-	mp_irqs[mp_irq_entries].mp_type = MP_INTSRC;
-	mp_irqs[mp_irq_entries].mp_irqflag = 0;	/* Conforming */
-	mp_irqs[mp_irq_entries].mp_srcbus = MP_ISA_BUS;
-	mp_irqs[mp_irq_entries].mp_dstapic = mp_ioapics[ioapic].mp_apicid;
-
 	/*
 	 * Use the default configuration for the IRQs 0-15.  Unless
 	 * overridden by (MADT) interrupt source override entries.
@@ -1044,6 +1039,10 @@ void __init mp_config_acpi_legacy_irqs(void)
 			continue;	/* IRQ already used */
 		}
 
+		mp_irqs[mp_irq_entries].mp_type = MP_INTSRC;
+		mp_irqs[mp_irq_entries].mp_irqflag = 0;	/* Conforming */
+		mp_irqs[mp_irq_entries].mp_srcbus = MP_ISA_BUS;
+		mp_irqs[mp_irq_entries].mp_dstapic = mp_ioapics[ioapic].mp_apicid;
 		mp_irqs[mp_irq_entries].mp_irqtype = mp_INT;
 		mp_irqs[mp_irq_entries].mp_srcbusirq = i;	/* Identity mapped */
 		mp_irqs[mp_irq_entries].mp_dstirq = i;
