@@ -373,6 +373,8 @@ static int chrdev_open(struct inode *inode, struct file *filp)
 			return -ENXIO;
 		new = container_of(kobj, struct cdev, kobj);
 		spin_lock(&cdev_lock);
+		/* Check i_cdev again in case somebody beat us to it while
+		   we dropped the lock. */
 		p = inode->i_cdev;
 		if (!p) {
 			inode->i_cdev = p = new;
