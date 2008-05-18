@@ -5792,13 +5792,11 @@ static int nv_suspend(struct pci_dev *pdev, pm_message_t state)
 	u8 __iomem *base = get_hwbase(dev);
 	int i;
 
-	if (!netif_running(dev))
-		goto out;
-
+	if (netif_running(dev)) {
+		// Gross.
+		nv_close(dev);
+	}
 	netif_device_detach(dev);
-
-	// Gross.
-	nv_close(dev);
 
 	/* save non-pci configuration space */
 	for (i = 0;i <= np->register_size/sizeof(u32); i++)
@@ -5806,8 +5804,8 @@ static int nv_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), np->wolenabled);
+	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-out:
 	return 0;
 }
 
@@ -5818,22 +5816,20 @@ static int nv_resume(struct pci_dev *pdev)
 	u8 __iomem *base = get_hwbase(dev);
 	int i, rc = 0;
 
-	if (!netif_running(dev))
-		goto out;
-
-	netif_device_attach(dev);
-
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+	/* ack any pending wake events, disable PME */
 	pci_enable_wake(pdev, PCI_D0, 0);
 
 	/* restore non-pci configuration space */
 	for (i = 0;i <= np->register_size/sizeof(u32); i++)
 		writel(np->saved_config_space[i], base+i*sizeof(u32));
 
-	rc = nv_open(dev);
-	nv_set_multicast(dev);
-out:
+	netif_device_attach(dev);
+	if (netif_running(dev)) {
+		rc = nv_open(dev);
+		nv_set_multicast(dev);
+	}
 	return rc;
 }
 
