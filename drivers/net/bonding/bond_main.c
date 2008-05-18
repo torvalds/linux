@@ -2397,7 +2397,7 @@ void bond_mii_monitor(struct work_struct *work)
 		read_lock(&bond->lock);
 	}
 
-	delay = ((bond->params.miimon * HZ) / 1000) ? : 1;
+	delay = msecs_to_jiffies(bond->params.miimon);
 	read_unlock(&bond->lock);
 	queue_delayed_work(bond->wq, &bond->mii_work, delay);
 }
@@ -2707,7 +2707,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 
 	read_lock(&bond->lock);
 
-	delta_in_ticks = (bond->params.arp_interval * HZ) / 1000;
+	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
 	if (bond->kill_timers) {
 		goto out;
@@ -2837,7 +2837,7 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	read_lock(&bond->lock);
 
-	delta_in_ticks = (bond->params.arp_interval * HZ) / 1000;
+	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
 
 	if (bond->kill_timers) {
 		goto out;
