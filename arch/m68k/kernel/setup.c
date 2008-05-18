@@ -346,17 +346,17 @@ void __init setup_arch(char **cmdline_p)
 
 /* set ISA defs early as possible */
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
-#if defined(CONFIG_Q40)
 	if (MACH_IS_Q40) {
 		isa_type = ISA_TYPE_Q40;
 		isa_sex = 0;
 	}
-#elif defined(CONFIG_GG2)
+#ifdef CONFIG_GG2
 	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(GG2_ISA)) {
 		isa_type = ISA_TYPE_GG2;
 		isa_sex = 0;
 	}
-#elif defined(CONFIG_AMIGA_PCMCIA)
+#endif
+#ifdef CONFIG_AMIGA_PCMCIA
 	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(PCMCIA)) {
 		isa_type = ISA_TYPE_AG;
 		isa_sex = 1;
