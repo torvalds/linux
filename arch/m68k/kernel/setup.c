@@ -41,11 +41,12 @@
 #endif
 
 unsigned long m68k_machtype;
-unsigned long m68k_cputype;
 EXPORT_SYMBOL(m68k_machtype);
+unsigned long m68k_cputype;
 EXPORT_SYMBOL(m68k_cputype);
 unsigned long m68k_fputype;
 unsigned long m68k_mmutype;
+EXPORT_SYMBOL(m68k_mmutype);
 #ifdef CONFIG_VME
 unsigned long vme_brdtype;
 EXPORT_SYMBOL(vme_brdtype);
