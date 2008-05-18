@@ -46,6 +46,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/smp_lock.h>
 #include <scsi/scsicam.h>
 
 #include "scsi.h"
@@ -3273,12 +3274,11 @@ mega_init_scb(adapter_t *adapter)
  *
  * Routines for the character/ioctl interface to the driver. Find out if this
  * is a valid open. 
- *
- * No BKL needed here.
  */
 static int
 megadev_open (struct inode *inode, struct file *filep)
 {
+	cycle_kernel_lock();
 	/*
 	 * Only allow superuser to access private ioctl interface
 	 */

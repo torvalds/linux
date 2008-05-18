@@ -198,6 +198,7 @@
 
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
@@ -1027,12 +1028,12 @@ out:
 } /* End tw_chrdev_ioctl() */
 
 /* This function handles open for the character device */
-/* NOTE that this function races with remove - adding BKL
-   won't help */
+/* NOTE that this function races with remove. */
 static int tw_chrdev_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor_number;
 
+	cycle_kernel_lock();
 	dprintk(KERN_WARNING "3w-xxxx: tw_ioctl_open()\n");
 
 	minor_number = iminor(inode);

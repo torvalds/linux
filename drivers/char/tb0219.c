@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/reboot.h>
@@ -232,11 +233,11 @@ static ssize_t tanbac_tb0219_write(struct file *file, const char __user *data,
 	return i;
 }
 
-/* No BKL needed here; no global resources accessed */
 static int tanbac_tb0219_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor;
 
+	cycle_kernel_lock();
 	minor = iminor(inode);
 	switch (minor) {
 	case 0:
