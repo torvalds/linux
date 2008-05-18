@@ -119,9 +119,11 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 	chip->playback_ptr += PCSP_INDEX_INC() * fmt_size;
 	periods_elapsed = chip->playback_ptr - chip->period_ptr;
 	if (periods_elapsed < 0) {
-		printk(KERN_WARNING "PCSP: playback_ptr inconsistent "
+#if PCSP_DEBUG
+		printk(KERN_INFO "PCSP: buffer_bytes mod period_bytes != 0 ? "
 			"(%zi %zi %zi)\n",
 			chip->playback_ptr, period_bytes, buffer_bytes);
+#endif
 		periods_elapsed += buffer_bytes;
 	}
 	periods_elapsed /= period_bytes;
