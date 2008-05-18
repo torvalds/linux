@@ -1302,8 +1302,9 @@ void lbs_stop_card(struct lbs_private *priv)
 
 	lbs_debugfs_remove_one(priv);
 	device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
-	if (priv->mesh_tlv)
+	if (priv->mesh_tlv) {
 		device_remove_file(&dev->dev, &dev_attr_lbs_mesh);
+	}
 
 	/* Flush pending command nodes */
 	del_timer_sync(&priv->command_timer);
@@ -1372,6 +1373,8 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	if (ret)
 		goto err_unregister;
 
+	lbs_persist_config_init(mesh_dev);
+
 	/* Everything successful */
 	ret = 0;
 	goto done;
@@ -1398,8 +1401,9 @@ static void lbs_remove_mesh(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_MESH);
 	netif_stop_queue(mesh_dev);
-	netif_carrier_off(priv->mesh_dev);
+	netif_carrier_off(mesh_dev);
 	sysfs_remove_group(&(mesh_dev->dev.kobj), &lbs_mesh_attr_group);
+	lbs_persist_config_remove(mesh_dev);
 	unregister_netdev(mesh_dev);
 	priv->mesh_dev = NULL;
 	free_netdev(mesh_dev);
