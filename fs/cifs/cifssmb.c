@@ -1224,11 +1224,8 @@ OldOpenRetry:
 	else /* BB FIXME BB */
 		pSMB->FileAttributes = cpu_to_le16(0/*ATTR_NORMAL*/);
 
-	/* if ((omode & S_IWUGO) == 0)
-		pSMB->FileAttributes |= cpu_to_le32(ATTR_READONLY);*/
-	/*  Above line causes problems due to vfs splitting create into two
-	    pieces - need to set mode after file created not while it is
-	    being created */
+	if (create_options & CREATE_OPTION_READONLY)
+		pSMB->FileAttributes |= cpu_to_le16(ATTR_READONLY);
 
 	/* BB FIXME BB */
 /*	pSMB->CreateOptions = cpu_to_le32(create_options &
@@ -1331,17 +1328,16 @@ openRetry:
 		pSMB->FileAttributes = cpu_to_le32(ATTR_SYSTEM);
 	else
 		pSMB->FileAttributes = cpu_to_le32(ATTR_NORMAL);
+
 	/* XP does not handle ATTR_POSIX_SEMANTICS */
 	/* but it helps speed up case sensitive checks for other
 	servers such as Samba */
 	if (tcon->ses->capabilities & CAP_UNIX)
 		pSMB->FileAttributes |= cpu_to_le32(ATTR_POSIX_SEMANTICS);
 
-	/* if ((omode & S_IWUGO) == 0)
-		pSMB->FileAttributes |= cpu_to_le32(ATTR_READONLY);*/
-	/*  Above line causes problems due to vfs splitting create into two
-		pieces - need to set mode after file created not while it is
-		being created */
+	if (create_options & CREATE_OPTION_READONLY)
+		pSMB->FileAttributes |= cpu_to_le32(ATTR_READONLY);
+
 	pSMB->ShareAccess = cpu_to_le32(FILE_SHARE_ALL);
 	pSMB->CreateDisposition = cpu_to_le32(openDisposition);
 	pSMB->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK);

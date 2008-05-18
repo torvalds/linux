@@ -598,7 +598,7 @@ struct dasd_device *dasd_device_from_cdev_locked(struct ccw_device *);
 struct dasd_device *dasd_device_from_devindex(int);
 
 int dasd_parse(void);
-int dasd_busid_known(char *);
+int dasd_busid_known(const char *);
 
 /* externals in dasd_gendisk.c */
 int  dasd_gendisk_init(void);

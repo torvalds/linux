@@ -398,9 +398,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	cio_ignore=	[S390]
 			See Documentation/s390/CommonIO for details.
 
-	cio_msg=	[S390]
-			See Documentation/s390/CommonIO for details.
-
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
 			Forces specified clocksource (if available) to be used
@@ -688,6 +685,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	floppy=		[HW]
 			See Documentation/floppy.txt.
+
+	force_pal_cache_flush
+			[IA-64] Avoid check_sal_cache_flush which may hang on
+			buggy SAL_CACHE_FLUSH implementations. Using this
+			parameter will force ia64_sal_cache_flush to call
+			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad

@@ -341,8 +341,12 @@ snd_emux_control(void *p, int type, struct snd_midi_channel *chan)
 	case MIDI_CTL_SOFT_PEDAL:
 #ifdef SNDRV_EMUX_USE_RAW_EFFECT
 		/* FIXME: this is an emulation */
-		snd_emux_send_effect(port, chan, EMUX_FX_CUTOFF, -160,
+		if (chan->control[type] >= 64)
+			snd_emux_send_effect(port, chan, EMUX_FX_CUTOFF, -160,
 				     EMUX_FX_FLAG_ADD);
+		else
+			snd_emux_send_effect(port, chan, EMUX_FX_CUTOFF, 0,
+				     EMUX_FX_FLAG_OFF);
 #endif
 		break;
 

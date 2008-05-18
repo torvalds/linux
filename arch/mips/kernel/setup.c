@@ -331,6 +331,7 @@ static void __init bootmem_init(void)
 	/*
 	 * Determine low and high memory ranges
 	 */
+	max_pfn = max_low_pfn;
 	if (max_low_pfn > PFN_DOWN(HIGHMEM_START)) {
 #ifdef CONFIG_HIGHMEM
 		highstart_pfn = PFN_DOWN(HIGHMEM_START);

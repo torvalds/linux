@@ -24,7 +24,7 @@
 u32 cx18_find_handle(struct cx18 *cx);
 int cx18_streams_setup(struct cx18 *cx);
 int cx18_streams_register(struct cx18 *cx);
-void cx18_streams_cleanup(struct cx18 *cx);
+void cx18_streams_cleanup(struct cx18 *cx, int unregister);
 
 /* Capture related */
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s);

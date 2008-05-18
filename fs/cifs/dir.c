@@ -119,6 +119,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 {
 	int rc = -ENOENT;
 	int xid;
+	int create_options = CREATE_NOT_DIR;
 	int oplock = 0;
 	int desiredAccess = GENERIC_READ | GENERIC_WRITE;
 	__u16 fileHandle;
@@ -176,9 +177,19 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		FreeXid(xid);
 		return -ENOMEM;
 	}
+
+	mode &= ~current->fs->umask;
+
+	/*
+	 * if we're not using unix extensions, see if we need to set
+	 * ATTR_READONLY on the create call
+	 */
+	if (!pTcon->unix_ext && (mode & S_IWUGO) == 0)
+		create_options |= CREATE_OPTION_READONLY;
+
 	if (cifs_sb->tcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBOpen(xid, pTcon, full_path, disposition,
-			 desiredAccess, CREATE_NOT_DIR,
+			 desiredAccess, create_options,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else
@@ -187,7 +198,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	if (rc == -EIO) {
 		/* old server, retry the open legacy style */
 		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
-			desiredAccess, CREATE_NOT_DIR,
+			desiredAccess, create_options,
 			&fileHandle, &oplock, buf, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
@@ -197,7 +208,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		/* If Open reported that we actually created a file
 		then we now have to set the mode if possible */
 		if ((pTcon->unix_ext) && (oplock & CIFS_CREATE_ACTION)) {
-			mode &= ~current->fs->umask;
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
 					(__u64)current->fsuid,

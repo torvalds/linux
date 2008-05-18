@@ -1,30 +1,6 @@
 #ifndef __MYRI10GE_MCP_GEN_HEADER_H__
 #define __MYRI10GE_MCP_GEN_HEADER_H__
 
-/* this file define a standard header used as a first entry point to
- * exchange information between firmware/driver and driver.  The
- * header structure can be anywhere in the mcp. It will usually be in
- * the .data section, because some fields needs to be initialized at
- * compile time.
- * The 32bit word at offset MX_HEADER_PTR_OFFSET in the mcp must
- * contains the location of the header.
- *
- * Typically a MCP will start with the following:
- * .text
- * .space 52    ! to help catch MEMORY_INT errors
- * bt start     ! jump to real code
- * nop
- * .long _gen_mcp_header
- *
- * The source will have a definition like:
- *
- * mcp_gen_header_t gen_mcp_header = {
- * .header_length = sizeof(mcp_gen_header_t),
- * .mcp_type = MCP_TYPE_XXX,
- * .version = "something $Id: mcp_gen_header.h,v 1.2 2006/05/13 10:04:35 bgoglin Exp $",
- * .mcp_globals = (unsigned)&Globals
- * };
- */
 
 #define MCP_HEADER_PTR_OFFSET  0x3c
 
@@ -32,13 +8,14 @@
 #define MCP_TYPE_PCIE 0x70636965	/* "PCIE" pcie-only MCP */
 #define MCP_TYPE_ETH 0x45544820	/* "ETH " */
 #define MCP_TYPE_MCP0 0x4d435030	/* "MCP0" */
+#define MCP_TYPE_DFLT 0x20202020	/* "    " */
 
 struct mcp_gen_header {
 	/* the first 4 fields are filled at compile time */
 	unsigned header_length;
 	__be32 mcp_type;
 	char version[128];
-	unsigned mcp_globals;	/* pointer to mcp-type specific structure */
+	unsigned mcp_private;	/* pointer to mcp-type specific structure */
 
 	/* filled by the MCP at run-time */
 	unsigned sram_size;
@@ -53,6 +30,18 @@ struct mcp_gen_header {
 	 *
 	 * Never remove any field.  Keep everything naturally align.
 	 */
+
+	/* Specifies if the running mcp is mcp0, 1, or 2. */
+	unsigned char mcp_index;
+	unsigned char disable_rabbit;
+	unsigned char unaligned_tlp;
+	unsigned char pad1;
+	unsigned counters_addr;
+	unsigned copy_block_info;	/* for small mcps loaded with "lload -d" */
+	unsigned short handoff_id_major;	/* must be equal */
+	unsigned short handoff_id_caps;	/* bitfield: new mcp must have superset */
+	unsigned msix_table_addr;	/* start address of msix table in firmware */
+	/* 8 */
 };
 
 #endif				/* __MYRI10GE_MCP_GEN_HEADER_H__ */

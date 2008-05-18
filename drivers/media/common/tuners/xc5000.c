@@ -212,7 +212,7 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 	dprintk(1, "%s()\n", __func__);
 
 	if (priv->cfg->tuner_callback) {
-		ret = priv->cfg->tuner_callback(priv->cfg->priv,
+		ret = priv->cfg->tuner_callback(priv->devptr,
 						XC5000_TUNER_RESET, 0);
 		if (ret)
 			printk(KERN_ERR "xc5000: reset failed\n");
@@ -900,9 +900,9 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.get_status	   = xc5000_get_status
 };
 
-struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c,
-	struct xc5000_config *cfg)
+struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
+				   struct i2c_adapter *i2c,
+				   struct xc5000_config *cfg, void *devptr)
 {
 	struct xc5000_priv *priv = NULL;
 	u16 id = 0;
@@ -916,6 +916,7 @@ struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
 	priv->cfg = cfg;
 	priv->bandwidth = BANDWIDTH_6_MHZ;
 	priv->i2c = i2c;
+	priv->devptr = devptr;
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.

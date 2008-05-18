@@ -1546,7 +1546,6 @@ static __init void udc_init_data(struct pxa_udc *dev)
 	INIT_LIST_HEAD(&dev->gadget.ep0->ep_list);
 	dev->udc_usb_ep[0].pxa_ep = &dev->pxa_ep[0];
 	ep0_idle(dev);
-	strcpy(dev->dev->bus_id, "");
 
 	/* PXA endpoints init */
 	for (i = 0; i < NR_PXA_ENDPOINTS; i++) {
@@ -1746,13 +1745,10 @@ static void handle_ep0_ctrl_req(struct pxa_udc *udc,
 		ep_err(ep, "wrong to have extra bytes for setup : 0x%08x\n", i);
 	}
 
-	le16_to_cpus(&u.r.wValue);
-	le16_to_cpus(&u.r.wIndex);
-	le16_to_cpus(&u.r.wLength);
-
 	ep_dbg(ep, "SETUP %02x.%02x v%04x i%04x l%04x\n",
 		u.r.bRequestType, u.r.bRequest,
-		u.r.wValue, u.r.wIndex, u.r.wLength);
+		le16_to_cpu(u.r.wValue), le16_to_cpu(u.r.wIndex),
+		le16_to_cpu(u.r.wLength));
 	if (unlikely(have_extrabytes))
 		goto stall;
 
@@ -2296,7 +2292,8 @@ static void pxa_udc_shutdown(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 
-	udc_disable(udc);
+	if (udc_readl(udc, UDCCR) & UDCCR_UDE)
+		udc_disable(udc);
 }
 
 #ifdef CONFIG_PM
@@ -2361,9 +2358,8 @@ static int pxa_udc_resume(struct platform_device *_dev)
 	 * Upon exit from sleep mode and before clearing OTGPH,
 	 * Software must configure the USB OTG pad, UDC, and UHC
 	 * to the state they were in before entering sleep mode.
-	 *
-	 * Should be : PSSR |= PSSR_OTGPH;
 	 */
+	PSSR |= PSSR_OTGPH;
 
 	return 0;
 }
@@ -2387,6 +2383,9 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
+	if (!cpu_is_pxa27x())
+		return -ENODEV;
+
 	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
 	return platform_driver_probe(&udc_driver, pxa_udc_probe);
 }

@@ -610,8 +610,6 @@ static void __init remap_kernel(void)
 
 static void __init inherit_prom_mappings(void)
 {
-	read_obp_translations();
-
 	/* Now fixup OBP's idea about where we really are mapped. */
 	printk("Remapping the kernel... ");
 	remap_kernel();
@@ -1747,7 +1745,17 @@ void __init paging_init(void)
 
 	lmb_init();
 
-	/* Find available physical memory... */
+	/* Find available physical memory...
+	 *
+	 * Read it twice in order to work around a bug in openfirmware.
+	 * The call to grab this table itself can cause openfirmware to
+	 * allocate memory, which in turn can take away some space from
+	 * the list of available memory.  Reading it twice makes sure
+	 * we really do get the final value.
+	 */
+	read_obp_translations();
+	read_obp_memory("reg", &pall[0], &pall_ents);
+	read_obp_memory("available", &pavail[0], &pavail_ents);
 	read_obp_memory("available", &pavail[0], &pavail_ents);
 
 	phys_base = 0xffffffffffffffffUL;
@@ -1788,8 +1796,6 @@ void __init paging_init(void)
 	
 	inherit_prom_mappings();
 	
-	read_obp_memory("reg", &pall[0], &pall_ents);
-
 	init_kpte_bitmap();
 
 	/* Ok, we can use our TLB miss and window trap handlers safely.  */

@@ -86,6 +86,7 @@ void *x86_bios_cpu_apicid_early_ptr;
 
 #ifdef CONFIG_X86_32
 u8 apicid_2_node[MAX_APICID];
+static int low_mappings;
 #endif
 
 /* State of each CPU */
@@ -325,6 +326,12 @@ static void __cpuinit start_secondary(void *unused)
 		enable_NMI_through_LVT0();
 		enable_8259A_irq(0);
 	}
+
+#ifdef CONFIG_X86_32
+	while (low_mappings)
+		cpu_relax();
+	__flush_tlb_all();
+#endif
 
 	/* This must be done before setting cpu_online_map */
 	set_cpu_sibling_map(raw_smp_processor_id());
@@ -1040,14 +1047,20 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 #ifdef CONFIG_X86_32
 	/* init low mem mapping */
 	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + KERNEL_PGD_BOUNDARY,
-			min_t(unsigned long, KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
+		min_t(unsigned long, KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
 	flush_tlb_all();
-#endif
+	low_mappings = 1;
 
 	err = do_boot_cpu(apicid, cpu);
-	if (err < 0) {
+
+	zap_low_mappings();
+	low_mappings = 0;
+#else
+	err = do_boot_cpu(apicid, cpu);
+#endif
+	if (err) {
 		Dprintk("do_boot_cpu failed %d\n", err);
-		return err;
+		return -EIO;
 	}
 
 	/*
@@ -1259,9 +1272,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	setup_ioapic_dest();
 #endif
 	check_nmi_watchdog();
-#ifdef CONFIG_X86_32
-	zap_low_mappings();
-#endif
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

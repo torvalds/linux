@@ -23,6 +23,7 @@
 
 #include <asm/byteorder.h>
 #include <linux/io.h>
+#include <linux/jiffies.h>
 #include <linux/usb/c67x00.h>
 #include "c67x00.h"
 

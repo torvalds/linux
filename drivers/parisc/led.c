@@ -569,7 +569,7 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 
 	default:
 		printk(KERN_ERR "%s: Wrong LCD/LED model %d !\n",
-		       __FUNCTION__, lcd_info.model);
+		       __func__, lcd_info.model);
 		return 1;
 	}
 	

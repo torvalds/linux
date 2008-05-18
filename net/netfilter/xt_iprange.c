@@ -179,3 +179,5 @@ module_exit(iprange_mt_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Jan Engelhardt <jengelh@computergmbh.de>");
 MODULE_DESCRIPTION("Xtables: arbitrary IPv4 range matching");
+MODULE_ALIAS("ipt_iprange");
+MODULE_ALIAS("ip6t_iprange");

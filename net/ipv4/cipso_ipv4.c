@@ -338,7 +338,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 		return -ENOENT;
 
 	hash = cipso_v4_map_cache_hash(key, key_len);
-	bkt = hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
+	bkt = hash & (CIPSO_V4_CACHE_BUCKETS - 1);
 	spin_lock_bh(&cipso_v4_cache[bkt].lock);
 	list_for_each_entry(entry, &cipso_v4_cache[bkt].list, list) {
 		if (entry->hash == hash &&
@@ -417,7 +417,7 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 	atomic_inc(&secattr->cache->refcount);
 	entry->lsm_data = secattr->cache;
 
-	bkt = entry->hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
+	bkt = entry->hash & (CIPSO_V4_CACHE_BUCKETS - 1);
 	spin_lock_bh(&cipso_v4_cache[bkt].lock);
 	if (cipso_v4_cache[bkt].size < cipso_v4_cache_bucketsize) {
 		list_add(&entry->list, &cipso_v4_cache[bkt].list);

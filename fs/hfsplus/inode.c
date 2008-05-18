@@ -65,6 +65,8 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 		BUG();
 		return 0;
 	}
+	if (!tree)
+		return 0;
 	if (tree->node_size >= PAGE_CACHE_SIZE) {
 		nidx = page->index >> (tree->node_size_shift - PAGE_CACHE_SHIFT);
 		spin_lock(&tree->hash_lock);

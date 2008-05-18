@@ -332,13 +332,6 @@ static struct resource lcdc_resources[] = {
 		.end	= AT91SAM9RL_ID_LCDC,
 		.flags	= IORESOURCE_IRQ,
 	},
-#if defined(CONFIG_FB_INTSRAM)
-	[2] = {
-		.start	= AT91SAM9RL_SRAM_BASE,
-		.end	= AT91SAM9RL_SRAM_BASE + AT91SAM9RL_SRAM_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-#endif
 };
 
 static struct platform_device at91_lcdc_device = {
@@ -380,20 +373,6 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 	at91_set_B_periph(AT91_PIN_PC23, 0);	/* LCDD21 */
 	at91_set_B_periph(AT91_PIN_PC24, 0);	/* LCDD22 */
 	at91_set_B_periph(AT91_PIN_PC25, 0);	/* LCDD23 */
-
-#ifdef CONFIG_FB_INTSRAM
-	{
-		void __iomem *fb;
-		struct resource *fb_res = &lcdc_resources[2];
-		size_t fb_len = fb_res->end - fb_res->start + 1;
-
-		fb = ioremap_writecombine(fb_res->start, fb_len);
-		if (fb) {
-			memset(fb, 0, fb_len);
-			iounmap(fb, fb_len);
-		}
-	}
-#endif
 
 	lcdc_data = *data;
 	platform_device_register(&at91_lcdc_device);

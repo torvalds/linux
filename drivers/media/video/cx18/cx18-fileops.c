@@ -39,7 +39,7 @@
    associated VBI streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
-int cx18_claim_stream(struct cx18_open_id *id, int type)
+static int cx18_claim_stream(struct cx18_open_id *id, int type)
 {
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[type];
@@ -87,7 +87,7 @@ int cx18_claim_stream(struct cx18_open_id *id, int type)
 
 /* This function releases a previously claimed stream. It will take into
    account associated VBI streams. */
-void cx18_release_stream(struct cx18_stream *s)
+static void cx18_release_stream(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
 	struct cx18_stream *s_vbi;
@@ -662,6 +662,8 @@ int cx18_v4l2_open(struct inode *inode, struct file *filp)
 	for (x = 0; cx == NULL && x < cx18_cards_active; x++) {
 		/* find out which stream this open was on */
 		for (y = 0; y < CX18_MAX_STREAMS; y++) {
+			if (cx18_cards[x] == NULL)
+				continue;
 			s = &cx18_cards[x]->streams[y];
 			if (s->v4l2dev && s->v4l2dev->minor == minor) {
 				cx = cx18_cards[x];

@@ -788,13 +788,12 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 			syscall_restart32(orig_i0, regs, &ka.sa);
 		handle_signal32(signr, &ka, &info, oldset, regs);
 
-		/* a signal was successfully delivered; the saved
+		/* A signal was successfully delivered; the saved
 		 * sigmask will have been stored in the signal frame,
 		 * and will be restored by sigreturn, so we can simply
-		 * clear the TIF_RESTORE_SIGMASK flag.
+		 * clear the TS_RESTORE_SIGMASK flag.
 		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		return;
 	}
 	if (restart_syscall &&
@@ -813,11 +812,11 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 		regs->tnpc -= 4;
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
+	/* If there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }
