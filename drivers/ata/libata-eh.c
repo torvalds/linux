@@ -2047,19 +2047,11 @@ static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 			unsigned int *classes, unsigned long deadline)
 {
 	struct ata_device *dev;
-	int rc;
 
 	ata_link_for_each_dev(dev, link)
 		classes[dev->devno] = ATA_DEV_UNKNOWN;
 
-	rc = reset(link, classes, deadline);
-
-	/* convert all ATA_DEV_UNKNOWN to ATA_DEV_NONE */
-	ata_link_for_each_dev(dev, link)
-		if (classes[dev->devno] == ATA_DEV_UNKNOWN)
-			classes[dev->devno] = ATA_DEV_NONE;
-
-	return rc;
+	return reset(link, classes, deadline);
 }
 
 static int ata_eh_followup_srst_needed(struct ata_link *link,
@@ -2096,7 +2088,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ata_reset_fn_t reset;
 	unsigned long flags;
 	u32 sstatus;
-	int rc;
+	int nr_known, rc;
 
 	/*
 	 * Prepare to reset
@@ -2245,8 +2237,48 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (ata_is_host_link(link))
 		ata_eh_thaw_port(ap);
 
+	/* postreset() should clear hardware SError.  Although SError
+	 * is cleared during link resume, clearing SError here is
+	 * necessary as some PHYs raise hotplug events after SRST.
+	 * This introduces race condition where hotplug occurs between
+	 * reset and here.  This race is mediated by cross checking
+	 * link onlineness and classification result later.
+	 */
 	if (postreset)
 		postreset(link, classes);
+
+	/* clear cached SError */
+	spin_lock_irqsave(link->ap->lock, flags);
+	link->eh_info.serror = 0;
+	spin_unlock_irqrestore(link->ap->lock, flags);
+
+	/* Make sure onlineness and classification result correspond.
+	 * Hotplug could have happened during reset and some
+	 * controllers fail to wait while a drive is spinning up after
+	 * being hotplugged causing misdetection.  By cross checking
+	 * link onlineness and classification result, those conditions
+	 * can be reliably detected and retried.
+	 */
+	nr_known = 0;
+	ata_link_for_each_dev(dev, link) {
+		/* convert all ATA_DEV_UNKNOWN to ATA_DEV_NONE */
+		if (classes[dev->devno] == ATA_DEV_UNKNOWN)
+			classes[dev->devno] = ATA_DEV_NONE;
+		else
+			nr_known++;
+	}
+
+	if (classify && !nr_known && ata_link_online(link)) {
+		if (try < max_tries) {
+			ata_link_printk(link, KERN_WARNING, "link online but "
+				       "device misclassified, retrying\n");
+			rc = -EAGAIN;
+			goto fail;
+		}
+		ata_link_printk(link, KERN_WARNING,
+			       "link online but device misclassified, "
+			       "device detection might fail\n");
+	}
 
 	/* reset successful, schedule revalidation */
 	ata_eh_done(link, NULL, ATA_EH_RESET);

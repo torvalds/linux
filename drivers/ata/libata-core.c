@@ -3490,22 +3490,11 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 	if ((rc = sata_link_debounce(link, params, deadline)))
 		return rc;
 
-	/* Clear SError.  PMP and some host PHYs require this to
-	 * operate and clearing should be done before checking PHY
-	 * online status to avoid race condition (hotplugging between
-	 * link resume and status check).
-	 */
+	/* clear SError, some PHYs require this even for SRST to work */
 	if (!(rc = sata_scr_read(link, SCR_ERROR, &serror)))
 		rc = sata_scr_write(link, SCR_ERROR, serror);
-	if (rc == 0 || rc == -EINVAL) {
-		unsigned long flags;
 
-		spin_lock_irqsave(link->ap->lock, flags);
-		link->eh_info.serror = 0;
-		spin_unlock_irqrestore(link->ap->lock, flags);
-		rc = 0;
-	}
-	return rc;
+	return rc != -EINVAL ? rc : 0;
 }
 
 /**
@@ -3704,7 +3693,13 @@ int sata_std_hardreset(struct ata_link *link, unsigned int *class,
  */
 void ata_std_postreset(struct ata_link *link, unsigned int *classes)
 {
+	u32 serror;
+
 	DPRINTK("ENTER\n");
+
+	/* reset complete, clear SError */
+	if (!sata_scr_read(link, SCR_ERROR, &serror))
+		sata_scr_write(link, SCR_ERROR, serror);
 
 	/* print link status */
 	sata_print_link_status(link);
