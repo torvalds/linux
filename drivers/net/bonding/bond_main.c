@@ -2426,25 +2426,6 @@ out:
 	return addr;
 }
 
-static int bond_has_ip(struct bonding *bond)
-{
-	struct vlan_entry *vlan, *vlan_next;
-
-	if (bond->master_ip)
-		return 1;
-
-	if (list_empty(&bond->vlan_list))
-		return 0;
-
-	list_for_each_entry_safe(vlan, vlan_next, &bond->vlan_list,
-				 vlan_list) {
-		if (vlan->vlan_ip)
-			return 1;
-	}
-
-	return 0;
-}
-
 static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
 	struct vlan_entry *vlan, *vlan_next;
@@ -2764,8 +2745,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 			 * if we don't know our ip yet
 			 */
 			if (time_after_eq(jiffies, slave->dev->trans_start + 2*delta_in_ticks) ||
-			    (time_after_eq(jiffies, slave->dev->last_rx + 2*delta_in_ticks) &&
-			     bond_has_ip(bond))) {
+			    (time_after_eq(jiffies, slave->dev->last_rx + 2*delta_in_ticks))) {
 
 				slave->link  = BOND_LINK_DOWN;
 				slave->state = BOND_STATE_BACKUP;
@@ -2900,8 +2880,7 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 			if ((slave != bond->curr_active_slave) &&
 			    (!bond->current_arp_slave) &&
-			    (time_after_eq(jiffies, slave_last_rx(bond, slave) + 3*delta_in_ticks) &&
-			     bond_has_ip(bond))) {
+			    (time_after_eq(jiffies, slave_last_rx(bond, slave) + 3*delta_in_ticks))) {
 				/* a backup slave has gone down; three times
 				 * the delta allows the current slave to be
 				 * taken out before the backup slave.
@@ -2947,8 +2926,7 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 		 * if it is up and needs to take over as the curr_active_slave
 		 */
 		if ((time_after_eq(jiffies, slave->dev->trans_start + 2*delta_in_ticks) ||
-			(time_after_eq(jiffies, slave_last_rx(bond, slave) + 2*delta_in_ticks) &&
-			 bond_has_ip(bond))) &&
+		     (time_after_eq(jiffies, slave_last_rx(bond, slave) + 2*delta_in_ticks))) &&
 			time_after_eq(jiffies, slave->jiffies + 2*delta_in_ticks)) {
 
 			slave->link  = BOND_LINK_DOWN;
@@ -3000,9 +2978,8 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 		/* the current slave must tx an arp to ensure backup slaves
 		 * rx traffic
 		 */
-		if (slave && bond_has_ip(bond)) {
+		if (slave && IS_UP(slave->dev))
 			bond_arp_send_all(bond, slave);
-		}
 	}
 
 	/* if we don't have a curr_active_slave, search for the next available
