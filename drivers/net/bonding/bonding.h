@@ -125,6 +125,7 @@ struct bond_params {
 	int mode;
 	int xmit_policy;
 	int miimon;
+	int num_grat_arp;
 	int arp_interval;
 	int arp_validate;
 	int use_carrier;

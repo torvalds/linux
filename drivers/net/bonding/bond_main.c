@@ -88,6 +88,7 @@
 #define BOND_LINK_ARP_INTERV	0
 
 static int max_bonds	= BOND_DEFAULT_MAX_BONDS;
+static int num_grat_arp = 1;
 static int miimon	= BOND_LINK_MON_INTERV;
 static int updelay	= 0;
 static int downdelay	= 0;
@@ -104,6 +105,8 @@ struct bond_params bonding_defaults;
 
 module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
+module_param(num_grat_arp, int, 0644);
+MODULE_PARM_DESC(num_grat_arp, "Number of gratuitous ARP packets to send on failover event");
 module_param(miimon, int, 0);
 MODULE_PARM_DESC(miimon, "Link check interval in milliseconds");
 module_param(updelay, int, 0);
@@ -1109,14 +1112,18 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 		if (new_active && bond->params.fail_over_mac)
 			memcpy(bond->dev->dev_addr,  new_active->dev->dev_addr,
 				new_active->dev->addr_len);
+		bond->send_grat_arp = bond->params.num_grat_arp;
 		if (bond->curr_active_slave &&
 			test_bit(__LINK_STATE_LINKWATCH_PENDING,
 					&bond->curr_active_slave->dev->state)) {
 			dprintk("delaying gratuitous arp on %s\n",
 				bond->curr_active_slave->dev->name);
-			bond->send_grat_arp = 1;
-		} else
-			bond_send_gratuitous_arp(bond);
+		} else {
+			if (bond->send_grat_arp > 0) {
+				bond_send_gratuitous_arp(bond);
+				bond->send_grat_arp--;
+			}
+		}
 	}
 }
 
@@ -2144,7 +2151,7 @@ static int __bond_mii_monitor(struct bonding *bond, int have_locks)
 			dprintk("sending delayed gratuitous arp on on %s\n",
 				bond->curr_active_slave->dev->name);
 			bond_send_gratuitous_arp(bond);
-			bond->send_grat_arp = 0;
+			bond->send_grat_arp--;
 		}
 	}
 	read_lock(&bond->curr_slave_lock);
@@ -4626,6 +4633,13 @@ static int bond_check_params(struct bond_params *params)
 		use_carrier = 1;
 	}
 
+	if (num_grat_arp < 0 || num_grat_arp > 255) {
+		printk(KERN_WARNING DRV_NAME
+		       ": Warning: num_grat_arp (%d) not in range 0-255 so it "
+		       "was reset to 1 \n", num_grat_arp);
+		num_grat_arp = 1;
+	}
+
 	/* reset values for 802.3ad */
 	if (bond_mode == BOND_MODE_8023AD) {
 		if (!miimon) {
@@ -4813,6 +4827,7 @@ static int bond_check_params(struct bond_params *params)
 	params->mode = bond_mode;
 	params->xmit_policy = xmit_hashtype;
 	params->miimon = miimon;
+	params->num_grat_arp = num_grat_arp;
 	params->arp_interval = arp_interval;
 	params->arp_validate = arp_validate_value;
 	params->updelay = updelay;

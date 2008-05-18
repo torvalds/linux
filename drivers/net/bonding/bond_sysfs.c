@@ -951,6 +951,45 @@ out:
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR, bonding_show_lacp, bonding_store_lacp);
 
 /*
+ * Show and set the number of grat ARP to send after a failover event.
+ */
+static ssize_t bonding_show_n_grat_arp(struct device *d,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.num_grat_arp);
+}
+
+static ssize_t bonding_store_n_grat_arp(struct device *d,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: no num_grat_arp value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (new_value < 0 || new_value > 255) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: Invalid num_grat_arp value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	} else {
+		bond->params.num_grat_arp = new_value;
+	}
+out:
+	return ret;
+}
+static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR, bonding_show_n_grat_arp, bonding_store_n_grat_arp);
+/*
  * Show and set the MII monitor interval.  There are two tricky bits
  * here.  First, if MII monitoring is activated, then we must disable
  * ARP monitoring.  Second, if the timer isn't running, we must
@@ -1387,6 +1426,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_updelay.attr,
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_xmit_hash_policy.attr,
+	&dev_attr_num_grat_arp.attr,
 	&dev_attr_miimon.attr,
 	&dev_attr_primary.attr,
 	&dev_attr_use_carrier.attr,
