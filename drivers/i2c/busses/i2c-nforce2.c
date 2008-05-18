@@ -50,6 +50,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <asm/io.h>
 
 MODULE_LICENSE("GPL");
@@ -108,6 +109,18 @@ struct nforce2_smbus {
 
 /* Misc definitions */
 #define MAX_TIMEOUT	100
+
+/* We disable the second SMBus channel on these boards */
+static struct dmi_system_id __devinitdata nforce2_dmi_blacklist2[] = {
+	{
+		.ident = "DFI Lanparty NF4 Expert",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "DFI Corp,LTD"),
+			DMI_MATCH(DMI_BOARD_NAME, "LP UT NF4 Expert"),
+		},
+	},
+	{ }
+};
 
 static struct pci_driver nforce2_driver;
 
@@ -367,10 +380,17 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 		smbuses[0].base = 0;	/* to have a check value */
 	}
 	/* SMBus adapter 2 */
-	res2 = nforce2_probe_smb(dev, 5, NFORCE_PCI_SMB2, &smbuses[1], "SMB2");
-	if (res2 < 0) {
-		dev_err(&dev->dev, "Error probing SMB2.\n");
-		smbuses[1].base = 0;	/* to have a check value */
+	if (dmi_check_system(nforce2_dmi_blacklist2)) {
+		dev_err(&dev->dev, "Disabling SMB2 for safety reasons.\n");
+		res2 = -EPERM;
+		smbuses[1].base = 0;
+	} else {
+		res2 = nforce2_probe_smb(dev, 5, NFORCE_PCI_SMB2, &smbuses[1],
+					 "SMB2");
+		if (res2 < 0) {
+			dev_err(&dev->dev, "Error probing SMB2.\n");
+			smbuses[1].base = 0;	/* to have a check value */
+		}
 	}
 	if ((res1 < 0) && (res2 < 0)) {
 		/* we did not find even one of the SMBuses, so we give up */
