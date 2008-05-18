@@ -31,6 +31,7 @@
 #include <asm/irq.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/sharpsl.h>
 #include <asm/hardware/sharpsl_pm.h>
 

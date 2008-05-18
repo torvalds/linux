@@ -41,6 +41,7 @@
 #include <asm/mach/flash.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/trizeps4.h>
 #include <asm/arch/audio.h>
@@ -487,6 +488,7 @@ static void __init trizeps4_map_io(void)
 	ConXS_BCR = trizeps_conxs_bcr;
 #endif
 
+#warning FIXME - accessing PM registers directly is deprecated
 	PWER  = 0x00000002;
 	PFER  = 0x00000000;
 	PRER  = 0x00000002;

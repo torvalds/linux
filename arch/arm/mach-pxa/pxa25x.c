@@ -26,6 +26,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mfp-pxa25x.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>

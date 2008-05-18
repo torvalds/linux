@@ -14,6 +14,7 @@
 #include <asm/hardware.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 
 		.text
 

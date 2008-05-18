@@ -33,6 +33,7 @@
 #include <asm/arch/magician.h>
 #include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/i2c.h>
 #include <asm/arch/mmc.h>

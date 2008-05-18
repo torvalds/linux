@@ -26,6 +26,7 @@
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/corgi.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
 #include "sharpsl.h"
 
