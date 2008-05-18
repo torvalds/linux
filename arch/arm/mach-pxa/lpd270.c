@@ -23,6 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -233,21 +234,20 @@ static struct platform_device lpd270_flash_device[2] = {
 	},
 };
 
-static void lpd270_backlight_power(int on)
-{
-	if (on) {
-		pxa_gpio_mode(GPIO16_PWM0_MD);
-		pxa_set_cken(CKEN_PWM0, 1);
-		PWM_CTRL0 = 0;
-		PWM_PWDUTY0 = 0x3ff;
-		PWM_PERVAL0 = 0x3ff;
-	} else {
-		PWM_CTRL0 = 0;
-		PWM_PWDUTY0 = 0x0;
-		PWM_PERVAL0 = 0x3FF;
-		pxa_set_cken(CKEN_PWM0, 0);
-	}
-}
+static struct platform_pwm_backlight_data lpd270_backlight_data = {
+	.pwm_id		= 0,
+	.max_brightness	= 1,
+	.dft_brightness	= 1,
+	.pwm_period_ns	= 78770,
+};
+
+static struct platform_device lpd270_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent	= &pxa27x_device_pwm0.dev,
+		.platform_data = &lpd270_backlight_data,
+	},
+};
 
 /* 5.7" TFT QVGA (LoLo display number 1) */
 static struct pxafb_mode_info sharp_lq057q3dc02_mode = {
@@ -269,7 +269,6 @@ static struct pxafb_mach_info sharp_lq057q3dc02 = {
 	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 12.1" TFT SVGA (LoLo display number 2) */
@@ -292,7 +291,6 @@ static struct pxafb_mach_info sharp_lq121s1dg31 = {
 	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 3.6" TFT QVGA (LoLo display number 3) */
@@ -315,7 +313,6 @@ static struct pxafb_mach_info sharp_lq036q1da01 = {
 	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 6.4" TFT VGA (LoLo display number 5) */
@@ -338,7 +335,6 @@ static struct pxafb_mach_info sharp_lq64d343 = {
 	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 10.4" TFT VGA (LoLo display number 7) */
@@ -361,7 +357,6 @@ static struct pxafb_mach_info sharp_lq10d368 = {
 	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 /* 3.5" TFT QVGA (LoLo display number 8) */
@@ -384,7 +379,6 @@ static struct pxafb_mach_info sharp_lq035q7db02_20 = {
 	.num_modes		= 1,
 	.lccr0			= 0x07800080,
 	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
 };
 
 static struct pxafb_mach_info *lpd270_lcd_to_use;
@@ -414,6 +408,7 @@ __setup("lcd=", lpd270_set_lcd);
 
 static struct platform_device *platform_devices[] __initdata = {
 	&smc91x_device,
+	&lpd270_backlight_device,
 	&lpd270_audio_device,
 	&lpd270_flash_device[0],
 	&lpd270_flash_device[1],
@@ -454,6 +449,7 @@ static void __init lpd270_init(void)
 	 * On LogicPD PXA270, we route AC97_SYSCLK via GPIO45.
 	 */
 	pxa_gpio_mode(GPIO45_SYSCLK_AC97_MD);
+	pxa_gpio_mode(GPIO16_PWM0_MD);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
