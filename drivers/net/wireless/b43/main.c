@@ -1689,7 +1689,7 @@ static void b43_handle_firmware_panic(struct b43_wldev *dev)
 static void handle_irq_ucode_debug(struct b43_wldev *dev)
 {
 	unsigned int i, cnt;
-	u16 reason;
+	u16 reason, marker_id, marker_line;
 	__le16 *buf;
 
 	/* The proprietary firmware doesn't have this IRQ. */
@@ -1736,6 +1736,17 @@ static void handle_irq_ucode_debug(struct b43_wldev *dev)
 			}
 		}
 		printk("\n");
+		break;
+	case B43_DEBUGIRQ_MARKER:
+		if (!B43_DEBUG)
+			break; /* Only with driver debugging enabled. */
+		marker_id = b43_shm_read16(dev, B43_SHM_SCRATCH,
+					   B43_MARKER_ID_REG);
+		marker_line = b43_shm_read16(dev, B43_SHM_SCRATCH,
+					     B43_MARKER_LINE_REG);
+		b43info(dev->wl, "The firmware just executed the MARKER(%u) "
+			"at line number %u\n",
+			marker_id, marker_line);
 		break;
 	default:
 		b43dbg(dev->wl, "Debug-IRQ triggered for unknown reason: %u\n",

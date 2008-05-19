@@ -428,7 +428,12 @@ enum {
 #define B43_DEBUGIRQ_PANIC		0	/* The firmware panic'ed */
 #define B43_DEBUGIRQ_DUMP_SHM		1	/* Dump shared SHM */
 #define B43_DEBUGIRQ_DUMP_REGS		2	/* Dump the microcode registers */
+#define B43_DEBUGIRQ_MARKER		3	/* A "marker" was thrown by the firmware. */
 #define B43_DEBUGIRQ_ACK		0xFFFF	/* The host writes that to ACK the IRQ */
+
+/* The firmware register that contains the "marker" line. */
+#define B43_MARKER_ID_REG		2
+#define B43_MARKER_LINE_REG		3
 
 /* The firmware register to fetch the panic reason from. */
 #define B43_FWPANIC_REASON_REG		3
