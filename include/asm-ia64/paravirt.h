@@ -200,6 +200,35 @@ ia64_resend_irq(unsigned int vector)
 	pv_irq_ops.resend_irq(vector);
 }
 
+/******************************************************************************
+ * replacement of time operations.
+ */
+
+extern struct itc_jitter_data_t itc_jitter_data;
+extern volatile int time_keeper_id;
+
+struct pv_time_ops {
+	void (*init_missing_ticks_accounting)(int cpu);
+	int (*do_steal_accounting)(unsigned long *new_itm);
+
+	void (*clocksource_resume)(void);
+};
+
+extern struct pv_time_ops pv_time_ops;
+
+static inline void
+paravirt_init_missing_ticks_accounting(int cpu)
+{
+	if (pv_time_ops.init_missing_ticks_accounting)
+		pv_time_ops.init_missing_ticks_accounting(cpu);
+}
+
+static inline int
+paravirt_do_steal_accounting(unsigned long *new_itm)
+{
+	return pv_time_ops.do_steal_accounting(new_itm);
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #else
@@ -214,6 +243,9 @@ ia64_resend_irq(unsigned int vector)
 #define paravirt_arch_setup_console(cmdline_p)		do { } while (0)
 #define paravirt_arch_setup_nomca()			0
 #define paravirt_post_smp_prepare_boot_cpu()		do { } while (0)
+
+#define paravirt_init_missing_ticks_accounting(cpu)	do { } while (0)
+#define paravirt_do_steal_accounting(new_itm)		0
 
 #endif /* __ASSEMBLY__ */
 

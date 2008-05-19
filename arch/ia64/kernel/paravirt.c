@@ -352,3 +352,18 @@ struct pv_irq_ops pv_irq_ops = {
 
 	.resend_irq = ia64_native_resend_irq,
 };
+
+/***************************************************************************
+ * pv_time_ops
+ * time operations
+ */
+
+static int
+ia64_native_do_steal_accounting(unsigned long *new_itm)
+{
+	return 0;
+}
+
+struct pv_time_ops pv_time_ops = {
+	.do_steal_accounting = ia64_native_do_steal_accounting,
+};
