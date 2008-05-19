@@ -1544,6 +1544,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sessionid, u32 sid,
  * @data: payload data
  * @datasz: size of payload data
  * @loginuid: loginuid of sender
+ * @sessionid: sessionid for netlink audit message
  * @sid: SE Linux Security ID of sender
  */
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
