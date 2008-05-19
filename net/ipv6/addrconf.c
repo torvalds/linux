@@ -4242,7 +4242,7 @@ static void addrconf_sysctl_register(struct inet6_dev *idev)
 	neigh_sysctl_register(idev->dev, idev->nd_parms, NET_IPV6,
 			      NET_IPV6_NEIGH, "ipv6",
 			      &ndisc_ifinfo_sysctl_change,
-			      NULL);
+			      ndisc_ifinfo_sysctl_strategy);
 	__addrconf_sysctl_register(dev_net(idev->dev), idev->dev->name,
 			idev->dev->ifindex, idev, &idev->cnf);
 }
