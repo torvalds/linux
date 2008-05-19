@@ -17,6 +17,15 @@ config EBONY
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
 
+config SAM440EP
+        bool "Sam440ep"
+	depends on 44x
+        default n
+        select 440EP
+        select PCI
+        help
+          This option enables support for the ACube Sam440ep board.
+
 config SEQUOIA
 	bool "Sequoia"
 	depends on 44x
