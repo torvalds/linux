@@ -81,6 +81,12 @@ struct mp_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
 /* # of MP IRQ source entries */
 int mp_irq_entries;
 
+#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
+int mp_bus_id_to_type[MAX_MP_BUSSES];
+#endif
+
+DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
+
 static int disable_timer_pin_1 __initdata;
 
 /*

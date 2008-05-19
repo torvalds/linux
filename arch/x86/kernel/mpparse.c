@@ -33,16 +33,6 @@
 #endif
 
 /*
- * Various Linux-internal data structures created from the
- * MP-table.
- */
-#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
-int mp_bus_id_to_type[MAX_MP_BUSSES];
-#endif
-
-DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
-
-/*
  * Checksum an MP configuration block.
  */
 

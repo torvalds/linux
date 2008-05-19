@@ -113,6 +113,8 @@ struct mp_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
 /* # of MP IRQ source entries */
 int mp_irq_entries;
 
+DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
+
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.
