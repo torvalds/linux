@@ -624,6 +624,10 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 		.strategy	= &sysctl_jiffies
 	},
+	{ }
+};
+
+static struct ctl_table ip4_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV4_IPFRAG_SECRET_INTERVAL,
 		.procname	= "ipfrag_secret_interval",
@@ -658,8 +662,6 @@ static int ip4_frags_ns_ctl_register(struct net *net)
 		table[0].data = &net->ipv4.frags.high_thresh;
 		table[1].data = &net->ipv4.frags.low_thresh;
 		table[2].data = &net->ipv4.frags.timeout;
-		table[3].mode &= ~0222;
-		table[4].mode &= ~0222;
 	}
 
 	hdr = register_net_sysctl_table(net, net_ipv4_ctl_path, table);
@@ -684,6 +686,11 @@ static void ip4_frags_ns_ctl_unregister(struct net *net)
 	unregister_net_sysctl_table(net->ipv4.frags_hdr);
 	kfree(table);
 }
+
+static void ip4_frags_ctl_register(void)
+{
+	register_net_sysctl_rotable(net_ipv4_ctl_path, ip4_frags_ctl_table);
+}
 #else
 static inline int ip4_frags_ns_ctl_register(struct net *net)
 {
@@ -691,6 +698,10 @@ static inline int ip4_frags_ns_ctl_register(struct net *net)
 }
 
 static inline void ip4_frags_ns_ctl_unregister(struct net *net)
+{
+}
+
+static inline void ip4_frags_ctl_register(void)
 {
 }
 #endif
@@ -730,6 +741,7 @@ static struct pernet_operations ip4_frags_ops = {
 
 void __init ipfrag_init(void)
 {
+	ip4_frags_ctl_register();
 	register_pernet_subsys(&ip4_frags_ops);
 	ip4_frags.hashfn = ip4_hashfn;
 	ip4_frags.constructor = ip4_frag_init;

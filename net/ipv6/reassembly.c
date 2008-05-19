@@ -658,6 +658,10 @@ static struct ctl_table ip6_frags_ns_ctl_table[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 		.strategy	= &sysctl_jiffies,
 	},
+	{ }
+};
+
+static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_SECRET_INTERVAL,
 		.procname	= "ip6frag_secret_interval",
@@ -684,7 +688,6 @@ static int ip6_frags_ns_sysctl_register(struct net *net)
 		table[0].data = &net->ipv6.frags.high_thresh;
 		table[1].data = &net->ipv6.frags.low_thresh;
 		table[2].data = &net->ipv6.frags.timeout;
-		table[3].mode &= ~0222;
 	}
 
 	hdr = register_net_sysctl_table(net, net_ipv6_ctl_path, table);
@@ -709,6 +712,20 @@ static void ip6_frags_ns_sysctl_unregister(struct net *net)
 	unregister_net_sysctl_table(net->ipv6.sysctl.frags_hdr);
 	kfree(table);
 }
+
+static struct ctl_table_header *ip6_ctl_header;
+
+static int ip6_frags_sysctl_register(void)
+{
+	ip6_ctl_header = register_net_sysctl_rotable(net_ipv6_ctl_path,
+			ip6_frags_ctl_table);
+	return ip6_ctl_header == NULL ? -ENOMEM : 0;
+}
+
+static void ip6_frags_sysctl_unregister(void)
+{
+	unregister_net_sysctl_table(ip6_ctl_header);
+}
 #else
 static inline int ip6_frags_ns_sysctl_register(struct net *net)
 {
@@ -716,6 +733,15 @@ static inline int ip6_frags_ns_sysctl_register(struct net *net)
 }
 
 static inline void ip6_frags_ns_sysctl_unregister(struct net *net)
+{
+}
+
+static inline int ip6_frags_sysctl_register(void)
+{
+	return 0;
+}
+
+static inline void ip6_frags_sysctl_unregister(void)
 {
 }
 #endif
@@ -750,6 +776,10 @@ int __init ipv6_frag_init(void)
 	if (ret)
 		goto out;
 
+	ret = ip6_frags_sysctl_register();
+	if (ret)
+		goto err_sysctl;
+
 	ret = register_pernet_subsys(&ip6_frags_ops);
 	if (ret)
 		goto err_pernet;
@@ -767,6 +797,8 @@ out:
 	return ret;
 
 err_pernet:
+	ip6_frags_sysctl_unregister();
+err_sysctl:
 	inet6_del_protocol(&frag_protocol, IPPROTO_FRAGMENT);
 	goto out;
 }
@@ -774,6 +806,7 @@ err_pernet:
 void ipv6_frag_exit(void)
 {
 	inet_frags_fini(&ip6_frags);
+	ip6_frags_sysctl_unregister();
 	unregister_pernet_subsys(&ip6_frags_ops);
 	inet6_del_protocol(&frag_protocol, IPPROTO_FRAGMENT);
 }
