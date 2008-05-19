@@ -144,7 +144,8 @@ static int cs53l32a_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	snprintf(client->name, sizeof(client->name) - 1, "cs53l32a");
+	if (!id)
+		strlcpy(client->name, "cs53l32a", sizeof(client->name));
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -175,10 +176,17 @@ static int cs53l32a_probe(struct i2c_client *client,
 	return 0;
 }
 
+static const struct i2c_device_id cs53l32a_id[] = {
+	{ "cs53l32a", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, cs53l32a_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cs53l32a",
 	.driverid = I2C_DRIVERID_CS53L32A,
 	.command = cs53l32a_command,
 	.probe = cs53l32a_probe,
+	.id_table = cs53l32a_id,
 };
 

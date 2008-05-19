@@ -65,7 +65,7 @@ static int palmz71_keymap[] = {
 	KEY(1, 1, KEY_DOWN),
 	KEY(1, 2, KEY_UP),
 	KEY(1, 3, KEY_RIGHT),
-	KEY(1, 4, KEY_CENTER),
+	KEY(1, 4, KEY_ENTER),
 	KEY(2, 0, KEY_CAMERA),
 	0,
 };

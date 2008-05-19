@@ -313,11 +313,18 @@ static int wm8739_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id wm8739_id[] = {
+	{ "wm8739", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8739_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "wm8739",
 	.driverid = I2C_DRIVERID_WM8739,
 	.command = wm8739_command,
 	.probe = wm8739_probe,
 	.remove = wm8739_remove,
+	.id_table = wm8739_id,
 };
 

@@ -98,7 +98,7 @@ static struct resource dm9000_resources[] = {
 	[2] = {
 		.start	= COLIBRI_ETH_IRQ,
 		.end	= COLIBRI_ETH_IRQ,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_RISING,
 	},
 };
 
@@ -119,7 +119,6 @@ static void __init colibri_init(void)
 	/* DM9000 LAN */
 	pxa_gpio_mode(GPIO78_nCS_2_MD);
 	pxa_gpio_mode(GPIO_DM9000 | GPIO_IN);
-	set_irq_type(COLIBRI_ETH_IRQ, IRQT_FALLING);
 
 	platform_add_devices(colibri_devices, ARRAY_SIZE(colibri_devices));
 }
