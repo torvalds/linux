@@ -18,6 +18,15 @@
 # include <asm/gcc_intrin.h>
 #endif
 
+#define ia64_set_rr0_to_rr4(val0, val1, val2, val3, val4)	\
+do {								\
+	ia64_set_rr(0x0000000000000000UL, (val0));		\
+	ia64_set_rr(0x2000000000000000UL, (val1));		\
+	ia64_set_rr(0x4000000000000000UL, (val2));		\
+	ia64_set_rr(0x6000000000000000UL, (val3));		\
+	ia64_set_rr(0x8000000000000000UL, (val4));		\
+} while (0)
+
 /*
  * Force an unresolved reference if someone tries to use
  * ia64_fetch_and_add() with a bad value.
