@@ -27,10 +27,10 @@
 #include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
-#include <asm/io.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 
 #define SBC7240_PREFIX "sbc7240_wdt: "
 
@@ -159,7 +159,7 @@ static int fop_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options = WDIOF_KEEPALIVEPING|
 		   WDIOF_SETTIMEOUT|
 		   WDIOF_MAGICCLOSE,
@@ -168,14 +168,12 @@ static struct watchdog_info ident = {
 };
 
 
-static int fop_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg)
+static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		return copy_to_user
-			((void __user *)arg, &ident, sizeof(ident))
-			 ? -EFAULT : 0;
+		return copy_to_user((void __user *)arg, &ident, sizeof(ident))
+						 ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, (int __user *)arg);
@@ -225,7 +223,7 @@ static const struct file_operations wdt_fops = {
 	.write = fop_write,
 	.open = fop_open,
 	.release = fop_close,
-	.ioctl = fop_ioctl,
+	.unlocked_ioctl = fop_ioctl,
 };
 
 static struct miscdevice wdt_miscdev = {
