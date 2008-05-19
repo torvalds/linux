@@ -1,8 +1,8 @@
 /*
- * net/tipc/subscr.c: TIPC subscription service
+ * net/tipc/subscr.c: TIPC network topology service
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,10 @@
 
 #include "core.h"
 #include "dbg.h"
-#include "subscr.h"
 #include "name_table.h"
 #include "port.h"
 #include "ref.h"
+#include "subscr.h"
 
 /**
  * struct subscriber - TIPC network topology subscriber
@@ -149,8 +149,6 @@ void tipc_subscr_report_overlap(struct subscription *sub,
 				u32 node,
 				int must)
 {
-	dbg("Rep overlap %u:%u,%u<->%u,%u\n", sub->seq.type, sub->seq.lower,
-	    sub->seq.upper, found_lower, found_upper);
 	if (!tipc_subscr_overlap(sub, found_lower, found_upper))
 		return;
 	if (!must && !(sub->filter & TIPC_SUB_PORTS))
