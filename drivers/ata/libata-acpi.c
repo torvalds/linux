@@ -118,7 +118,7 @@ static void ata_acpi_associate_ide_port(struct ata_port *ap)
 		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
 }
 
-static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device 
+static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device
 				    *dev, u32 event)
 {
 	char event_string[12];
@@ -130,7 +130,7 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device
 	acpi_handle handle, tmphandle;
 	unsigned long sta;
 	acpi_status status;
-	
+
 	if (!ap)
 		ap = dev->link->ap;
 	ehi = &ap->link.eh_info;
@@ -167,10 +167,10 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device
 			else {
 				struct ata_link *tlink;
 				struct ata_device *tdev;
-				
+
 				ata_port_for_each_link(tlink, ap) {
 					ata_link_for_each_dev(tdev, tlink) {
-						tdev->flags |= 
+						tdev->flags |=
 							ATA_DFLAG_DETACH;
 					}
 				}
