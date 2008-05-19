@@ -56,6 +56,9 @@ EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
  */
 int apic_verbosity;
 
+/* Have we found an MP table */
+int smp_found_config;
+
 static struct resource lapic_resource = {
 	.name = "Local APIC",
 	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,

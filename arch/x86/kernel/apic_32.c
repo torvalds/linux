@@ -78,6 +78,9 @@ int apic_verbosity;
 
 int pic_mode;
 
+/* Have we found an MP table */
+int smp_found_config;
+
 static unsigned int calibration_result;
 
 static int lapic_next_event(unsigned long delta,

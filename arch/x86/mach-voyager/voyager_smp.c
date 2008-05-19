@@ -59,11 +59,6 @@ __u32 voyager_quad_processors = 0;
  * activity count.  Finally exported by i386_ksyms.c */
 static int voyager_extended_cpus = 1;
 
-/* Have we found an SMP box - used by time.c to do the profiling
-   interrupt for timeslicing; do not set to 1 until the per CPU timer
-   interrupt is active */
-int smp_found_config = 0;
-
 /* Used for the invalidate map that's also checked in the spinlock */
 static volatile unsigned long smp_invalidate_needed;
 

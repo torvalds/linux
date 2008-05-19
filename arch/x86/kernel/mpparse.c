@@ -32,9 +32,6 @@
 #include <mach_mpparse.h>
 #endif
 
-/* Have we found an MP table */
-int smp_found_config;
-
 /*
  * Various Linux-internal data structures created from the
  * MP-table.
@@ -639,7 +636,9 @@ static void __init __get_smp_config(unsigned early)
 		 * override the defaults.
 		 */
 		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr), early)) {
+#ifdef CONFIG_X86_LOCAL_APIC
 			smp_found_config = 0;
+#endif
 			printk(KERN_ERR
 			       "BIOS bug, MP table errors detected!...\n");
 			printk(KERN_ERR "... disabling SMP support. "
@@ -706,8 +705,9 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 		    !mpf_checksum((unsigned char *)bp, 16) &&
 		    ((mpf->mpf_specification == 1)
 		     || (mpf->mpf_specification == 4))) {
-
+#ifdef CONFIG_X86_LOCAL_APIC
 			smp_found_config = 1;
+#endif
 			mpf_found = mpf;
 #ifdef CONFIG_X86_32
 			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
