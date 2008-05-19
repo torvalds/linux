@@ -127,7 +127,7 @@ config 4KSTACKS
 
 config X86_FIND_SMP_CONFIG
 	def_bool y
-	depends on X86_LOCAL_APIC || X86_VOYAGER
+	depends on X86_MPPARSE || X86_VOYAGER || X86_VISWS
 	depends on X86_32
 
 config X86_MPPARSE

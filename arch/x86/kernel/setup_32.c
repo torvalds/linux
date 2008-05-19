@@ -814,7 +814,7 @@ void __init setup_arch(char **cmdline_p)
 			"CONFIG_X86_GENERICARCH or CONFIG_X86_BIGSMP.\n");
 #endif
 #endif
-#ifdef CONFIG_X86_LOCAL_APIC
+#if defined(CONFIG_X86_MPPARSE) || defined(CONFIG_X86_VISWS)
 	if (smp_found_config)
 		get_smp_config();
 #endif
