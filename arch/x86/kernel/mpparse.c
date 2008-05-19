@@ -41,13 +41,6 @@ int mp_bus_id_to_type[MAX_MP_BUSSES];
 #endif
 
 DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
-int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
-
-static int mp_current_pci_id;
-
-/*
- * Intel MP BIOS table parsing routines:
- */
 
 /*
  * Checksum an MP configuration block.
@@ -101,7 +94,6 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 static void __init MP_bus_info(struct mpc_config_bus *m)
 {
 	char str[7];
-
 	memcpy(str, m->mpc_bustype, 6);
 	str[6] = 0;
 
@@ -130,8 +122,6 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 		mpc_oem_pci_bus(m, translation_table[mpc_record]);
 #endif
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
-		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
-		mp_current_pci_id++;
 #if defined(CONFIG_EISA) || defined (CONFIG_MCA)
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {

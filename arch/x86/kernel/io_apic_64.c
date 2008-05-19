@@ -516,7 +516,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 
 	apic_printk(APIC_DEBUG, "querying PCI -> IRQ mapping bus:%d, slot:%d, pin:%d.\n",
 		bus, slot, pin);
-	if (mp_bus_id_to_pci_bus[bus] == -1) {
+	if (test_bit(bus, mp_bus_not_pci)) {
 		apic_printk(APIC_VERBOSE, "PCI BIOS passed nonexistent PCI bus %d!\n", bus);
 		return -1;
 	}

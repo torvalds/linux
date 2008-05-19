@@ -32,8 +32,6 @@ extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
-extern int mp_bus_id_to_pci_bus[MAX_MP_BUSSES];
-
 extern unsigned int boot_cpu_physical_apicid;
 extern int smp_found_config;
 extern int mpc_default_type;
