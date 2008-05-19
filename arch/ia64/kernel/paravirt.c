@@ -42,6 +42,13 @@ struct pv_info pv_info = {
 };
 
 /***************************************************************************
+ * pv_init_ops
+ * initialization hooks.
+ */
+
+struct pv_init_ops pv_init_ops;
+
+/***************************************************************************
  * pv_cpu_ops
  * intrinsics hooks.
  */
