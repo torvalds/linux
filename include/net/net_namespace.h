@@ -201,7 +201,10 @@ extern void unregister_pernet_gen_device(int id, struct pernet_operations *);
 struct ctl_path;
 struct ctl_table;
 struct ctl_table_header;
+
 extern struct ctl_table_header *register_net_sysctl_table(struct net *net,
+	const struct ctl_path *path, struct ctl_table *table);
+extern struct ctl_table_header *register_net_sysctl_rotable(
 	const struct ctl_path *path, struct ctl_table *table);
 extern void unregister_net_sysctl_table(struct ctl_table_header *header);
 

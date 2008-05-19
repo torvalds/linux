@@ -40,6 +40,27 @@ static struct ctl_table_root net_sysctl_root = {
 	.lookup = net_ctl_header_lookup,
 };
 
+static LIST_HEAD(net_sysctl_ro_tables);
+static struct list_head *net_ctl_ro_header_lookup(struct ctl_table_root *root,
+		struct nsproxy *namespaces)
+{
+	return &net_sysctl_ro_tables;
+}
+
+static int net_ctl_ro_header_perms(struct ctl_table_root *root,
+		struct nsproxy *namespaces, struct ctl_table *table)
+{
+	if (namespaces->net_ns == &init_net)
+		return table->mode;
+	else
+		return table->mode & ~0222;
+}
+
+static struct ctl_table_root net_sysctl_ro_root = {
+	.lookup = net_ctl_ro_header_lookup,
+	.permissions = net_ctl_ro_header_perms,
+};
+
 static int sysctl_net_init(struct net *net)
 {
 	INIT_LIST_HEAD(&net->sysctl_table_headers);
@@ -64,6 +85,7 @@ static __init int sysctl_init(void)
 	if (ret)
 		goto out;
 	register_sysctl_root(&net_sysctl_root);
+	register_sysctl_root(&net_sysctl_ro_root);
 out:
 	return ret;
 }
@@ -79,6 +101,14 @@ struct ctl_table_header *register_net_sysctl_table(struct net *net,
 					&namespaces, path, table);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_table);
+
+struct ctl_table_header *register_net_sysctl_rotable(const
+		struct ctl_path *path, struct ctl_table *table)
+{
+	return __register_sysctl_paths(&net_sysctl_ro_root,
+			&init_nsproxy, path, table);
+}
+EXPORT_SYMBOL_GPL(register_net_sysctl_rotable);
 
 void unregister_net_sysctl_table(struct ctl_table_header *header)
 {
