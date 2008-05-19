@@ -1,6 +1,4 @@
 /*
- *	$Id: proc.c,v 1.13 1998/05/12 07:36:07 mj Exp $
- *
  *	Procfs interface for the PCI bus.
  *
  *	Copyright (c) 1997--1999 Martin Mares <mj@ucw.cz>

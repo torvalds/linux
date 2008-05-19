@@ -1,6 +1,4 @@
 /*
- *	$Id: pci.c,v 1.91 1999/01/21 13:34:01 davem Exp $
- *
  *	PCI Bus Services, see include/linux/pci.h for further explanation.
  *
  *	Copyright 1993 -- 1997 Drew Eckhardt, Frederic Potter,
