@@ -119,7 +119,6 @@ struct svcxprt_rdma {
 	struct rdma_cm_id    *sc_cm_id;		/* RDMA connection id */
 	struct list_head     sc_accept_q;	/* Conn. waiting accept */
 	int		     sc_ord;		/* RDMA read limit */
-	wait_queue_head_t    sc_read_wait;
 	int                  sc_max_sge;
 
 	int                  sc_sq_depth;	/* Depth of SQ */
