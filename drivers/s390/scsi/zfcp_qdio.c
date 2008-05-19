@@ -432,9 +432,9 @@ zfcp_qdio_sbal_limit(struct zfcp_fsf_req *fsf_req, int max_sbals)
 {
 	int count = atomic_read(&fsf_req->adapter->request_queue.free_count);
 	count = min(count, max_sbals);
-	fsf_req->sbal_last  = fsf_req->sbal_first;
-	fsf_req->sbal_last += (count - 1);
-	fsf_req->sbal_last %= QDIO_MAX_BUFFERS_PER_Q;
+	fsf_req->sbal_limit  = fsf_req->sbal_first;
+	fsf_req->sbal_limit += (count - 1);
+	fsf_req->sbal_limit %= QDIO_MAX_BUFFERS_PER_Q;
 }
 
 /**
@@ -455,7 +455,7 @@ zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	/* don't exceed last allowed SBAL */
-	if (fsf_req->sbal_curr == fsf_req->sbal_last)
+	if (fsf_req->sbal_curr == fsf_req->sbal_limit)
 		return NULL;
 
 	/* set chaining flag in first SBALE of current SBAL */

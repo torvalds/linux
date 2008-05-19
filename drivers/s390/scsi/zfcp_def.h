@@ -851,7 +851,7 @@ struct zfcp_fsf_req {
 	struct zfcp_adapter    *adapter;       /* adapter request belongs to */
 	u8		       sbal_number;    /* nr of SBALs free for use */
 	u8		       sbal_first;     /* first SBAL for this request */
-	u8		       sbal_last;      /* last possible SBAL for
+	u8		       sbal_limit;      /* last possible SBAL for
 						  this reuest */
 	u8		       sbal_curr;      /* current SBAL during creation
 						  of request */
