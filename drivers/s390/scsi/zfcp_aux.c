@@ -1533,19 +1533,16 @@ zfcp_gid_pn_buffers_alloc(struct zfcp_gid_pn_data **gid_pn, mempool_t *pool)
 {
 	struct zfcp_gid_pn_data *data;
 
-	if (pool != NULL) {
+	if (pool)
 		data = mempool_alloc(pool, GFP_ATOMIC);
-		if (likely(data != NULL)) {
-			data->ct.pool = pool;
-		}
-	} else {
+	else
 		data = kmem_cache_alloc(zfcp_data.gid_pn_cache, GFP_ATOMIC);
-	}
 
         if (NULL == data)
                 return -ENOMEM;
 
 	memset(data, 0, sizeof(*data));
+	data->ct.pool = pool;
 	sg_init_table(&data->req , 1);
 	sg_init_table(&data->resp , 1);
         data->ct.req = &data->req;
