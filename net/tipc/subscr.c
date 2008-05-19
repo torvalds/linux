@@ -86,9 +86,7 @@ static struct top_srv topsrv = { 0 };
 
 static u32 htohl(u32 in, int swap)
 {
-	char *c = (char *)&in;
-
-	return swap ? ((c[3] << 3) + (c[2] << 2) + (c[1] << 1) + c[0]) : in;
+	return swap ? (u32)___constant_swab32(in) : in;
 }
 
 /**
