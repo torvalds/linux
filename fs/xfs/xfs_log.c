@@ -226,20 +226,24 @@ xlog_grant_sub_space(struct log *log, int bytes)
 static void
 xlog_grant_add_space_write(struct log *log, int bytes)
 {
-	log->l_grant_write_bytes += bytes;
-	if (log->l_grant_write_bytes > log->l_logsize) {
-		log->l_grant_write_bytes -= log->l_logsize;
+	int tmp = log->l_logsize - log->l_grant_write_bytes;
+	if (tmp > bytes)
+		log->l_grant_write_bytes += bytes;
+	else {
 		log->l_grant_write_cycle++;
+		log->l_grant_write_bytes = bytes - tmp;
 	}
 }
 
 static void
 xlog_grant_add_space_reserve(struct log *log, int bytes)
 {
-	log->l_grant_reserve_bytes += bytes;
-	if (log->l_grant_reserve_bytes > log->l_logsize) {
-		log->l_grant_reserve_bytes -= log->l_logsize;
+	int tmp = log->l_logsize - log->l_grant_reserve_bytes;
+	if (tmp > bytes)
+		log->l_grant_reserve_bytes += bytes;
+	else {
 		log->l_grant_reserve_cycle++;
+		log->l_grant_reserve_bytes = bytes - tmp;
 	}
 }
 
