@@ -2157,13 +2157,14 @@ static int
 qla2x00_post_work(struct scsi_qla_host *ha, struct qla_work_evt *e, int locked)
 {
 	unsigned long flags;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	if (!locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
+		spin_lock_irqsave(&pha->hardware_lock, flags);
 	list_add_tail(&e->list, &ha->work_list);
 	qla2xxx_wake_dpc(ha);
 	if (!locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		spin_unlock_irqrestore(&pha->hardware_lock, flags);
 	return QLA_SUCCESS;
 }
 
@@ -2203,12 +2204,13 @@ static void
 qla2x00_do_work(struct scsi_qla_host *ha)
 {
 	struct qla_work_evt *e;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
-	spin_lock_irq(&ha->hardware_lock);
+	spin_lock_irq(&pha->hardware_lock);
 	while (!list_empty(&ha->work_list)) {
 		e = list_entry(ha->work_list.next, struct qla_work_evt, list);
 		list_del_init(&e->list);
-		spin_unlock_irq(&ha->hardware_lock);
+		spin_unlock_irq(&pha->hardware_lock);
 
 		switch (e->type) {
 		case QLA_EVT_AEN:
@@ -2222,9 +2224,9 @@ qla2x00_do_work(struct scsi_qla_host *ha)
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);
-		spin_lock_irq(&ha->hardware_lock);
+		spin_lock_irq(&pha->hardware_lock);
 	}
-	spin_unlock_irq(&ha->hardware_lock);
+	spin_unlock_irq(&pha->hardware_lock);
 }
 
 /**************************************************************************
