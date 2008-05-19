@@ -212,8 +212,8 @@ static struct watchdog_info at32_wdt_info = {
 /*
  * Handle commands from user-space.
  */
-static int at32_wdt_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg)
+static long at32_wdt_ioctl(struct file *file,
+				unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
 	int time;
@@ -298,7 +298,7 @@ static ssize_t at32_wdt_write(struct file *file, const char __user *data,
 static const struct file_operations at32_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.ioctl		= at32_wdt_ioctl,
+	.unlocked_ioctl	= at32_wdt_ioctl,
 	.open		= at32_wdt_open,
 	.release	= at32_wdt_close,
 	.write		= at32_wdt_write,
@@ -391,7 +391,6 @@ static int __exit at32_wdt_remove(struct platform_device *pdev)
 		wdt = NULL;
 		platform_set_drvdata(pdev, NULL);
 	}
-
 	return 0;
 }
 
