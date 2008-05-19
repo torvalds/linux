@@ -1570,7 +1570,7 @@ xlog_dealloc_log(xlog_t *log)
 		}
 #endif
 		next_iclog = iclog->ic_next;
-		kmem_free(iclog, sizeof(xlog_in_core_t));
+		kmem_free(iclog);
 		iclog = next_iclog;
 	}
 	freesema(&log->l_flushsema);
@@ -1587,7 +1587,7 @@ xlog_dealloc_log(xlog_t *log)
 	}
 #endif
 	log->l_mp->m_log = NULL;
-	kmem_free(log, sizeof(xlog_t));
+	kmem_free(log);
 }	/* xlog_dealloc_log */
 
 /*

@@ -2062,7 +2062,7 @@ xfs_growfs_rt(
 	/*
 	 * Free the fake mp structure.
 	 */
-	kmem_free(nmp, sizeof(*nmp));
+	kmem_free(nmp);
 
 	return error;
 }

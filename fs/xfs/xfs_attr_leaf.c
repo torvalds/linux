@@ -555,7 +555,7 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 out:
 	if(bp)
 		xfs_da_buf_done(bp);
-	kmem_free(tmpbuffer, size);
+	kmem_free(tmpbuffer);
 	return(error);
 }
 
@@ -676,7 +676,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, sfe);
 			xfs_attr_trace_l_c("sf corrupted", context);
-			kmem_free(sbuf, sbsize);
+			kmem_free(sbuf);
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		if (!xfs_attr_namesp_match_overrides(context->flags, sfe->flags)) {
@@ -717,7 +717,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 		}
 	}
 	if (i == nsbuf) {
-		kmem_free(sbuf, sbsize);
+		kmem_free(sbuf);
 		xfs_attr_trace_l_c("blk end", context);
 		return(0);
 	}
@@ -747,7 +747,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 		cursor->offset++;
 	}
 
-	kmem_free(sbuf, sbsize);
+	kmem_free(sbuf);
 	xfs_attr_trace_l_c("sf E-O-F", context);
 	return(0);
 }
@@ -873,7 +873,7 @@ xfs_attr_leaf_to_shortform(xfs_dabuf_t *bp, xfs_da_args_t *args, int forkoff)
 	error = 0;
 
 out:
-	kmem_free(tmpbuffer, XFS_LBSIZE(dp->i_mount));
+	kmem_free(tmpbuffer);
 	return(error);
 }
 
@@ -1271,7 +1271,7 @@ xfs_attr_leaf_compact(xfs_trans_t *trans, xfs_dabuf_t *bp)
 				be16_to_cpu(hdr_s->count), mp);
 	xfs_da_log_buf(trans, bp, 0, XFS_LBSIZE(mp) - 1);
 
-	kmem_free(tmpbuffer, XFS_LBSIZE(mp));
+	kmem_free(tmpbuffer);
 }
 
 /*
@@ -1921,7 +1921,7 @@ xfs_attr_leaf_unbalance(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 				be16_to_cpu(drop_hdr->count), mp);
 		}
 		memcpy((char *)save_leaf, (char *)tmp_leaf, state->blocksize);
-		kmem_free(tmpbuffer, state->blocksize);
+		kmem_free(tmpbuffer);
 	}
 
 	xfs_da_log_buf(state->args->trans, save_blk->bp, 0,
@@ -2451,7 +2451,7 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 						(int)name_rmt->namelen,
 						valuelen,
 						(char*)args.value);
-				kmem_free(args.value, valuelen);
+				kmem_free(args.value);
 			}
 			else {
 				retval = context->put_listent(context,
@@ -2954,7 +2954,7 @@ xfs_attr_leaf_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp)
 			error = tmp;	/* save only the 1st errno */
 	}
 
-	kmem_free((xfs_caddr_t)list, size);
+	kmem_free((xfs_caddr_t)list);
 	return(error);
 }
 

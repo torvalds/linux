@@ -1110,7 +1110,7 @@ xfs_dir2_leaf_getdents(
 		*offset = XFS_DIR2_MAX_DATAPTR;
 	else
 		*offset = xfs_dir2_byte_to_dataptr(mp, curoff);
-	kmem_free(map, map_size * sizeof(*map));
+	kmem_free(map);
 	if (bp)
 		xfs_da_brelse(NULL, bp);
 	return error;

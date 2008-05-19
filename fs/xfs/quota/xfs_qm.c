@@ -192,8 +192,8 @@ xfs_qm_destroy(
 		xfs_qm_list_destroy(&(xqm->qm_usr_dqhtable[i]));
 		xfs_qm_list_destroy(&(xqm->qm_grp_dqhtable[i]));
 	}
-	kmem_free(xqm->qm_usr_dqhtable, hsize * sizeof(xfs_dqhash_t));
-	kmem_free(xqm->qm_grp_dqhtable, hsize * sizeof(xfs_dqhash_t));
+	kmem_free(xqm->qm_usr_dqhtable);
+	kmem_free(xqm->qm_grp_dqhtable);
 	xqm->qm_usr_dqhtable = NULL;
 	xqm->qm_grp_dqhtable = NULL;
 	xqm->qm_dqhashmask = 0;
@@ -201,7 +201,7 @@ xfs_qm_destroy(
 #ifdef DEBUG
 	mutex_destroy(&qcheck_lock);
 #endif
-	kmem_free(xqm, sizeof(xfs_qm_t));
+	kmem_free(xqm);
 }
 
 /*
@@ -1134,7 +1134,7 @@ xfs_qm_init_quotainfo(
 	 * and change the superblock accordingly.
 	 */
 	if ((error = xfs_qm_init_quotainos(mp))) {
-		kmem_free(qinf, sizeof(xfs_quotainfo_t));
+		kmem_free(qinf);
 		mp->m_quotainfo = NULL;
 		return error;
 	}
@@ -1248,7 +1248,7 @@ xfs_qm_destroy_quotainfo(
 		qi->qi_gquotaip = NULL;
 	}
 	mutex_destroy(&qi->qi_quotaofflock);
-	kmem_free(qi, sizeof(xfs_quotainfo_t));
+	kmem_free(qi);
 	mp->m_quotainfo = NULL;
 }
 
@@ -1623,7 +1623,7 @@ xfs_qm_dqiterate(
 			break;
 	} while (nmaps > 0);
 
-	kmem_free(map, XFS_DQITER_MAP_SIZE * sizeof(*map));
+	kmem_free(map);
 
 	return error;
 }

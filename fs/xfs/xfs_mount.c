@@ -161,11 +161,8 @@ xfs_mount_free(
 
 		for (agno = 0; agno < mp->m_maxagi; agno++)
 			if (mp->m_perag[agno].pagb_list)
-				kmem_free(mp->m_perag[agno].pagb_list,
-						sizeof(xfs_perag_busy_t) *
-							XFS_PAGB_NUM_SLOTS);
-		kmem_free(mp->m_perag,
-			  sizeof(xfs_perag_t) * mp->m_sb.sb_agcount);
+				kmem_free(mp->m_perag[agno].pagb_list);
+		kmem_free(mp->m_perag);
 	}
 
 	spinlock_destroy(&mp->m_ail_lock);
@@ -176,11 +173,11 @@ xfs_mount_free(
 		XFS_QM_DONE(mp);
 
 	if (mp->m_fsname != NULL)
-		kmem_free(mp->m_fsname, mp->m_fsname_len);
+		kmem_free(mp->m_fsname);
 	if (mp->m_rtname != NULL)
-		kmem_free(mp->m_rtname, strlen(mp->m_rtname) + 1);
+		kmem_free(mp->m_rtname);
 	if (mp->m_logname != NULL)
-		kmem_free(mp->m_logname, strlen(mp->m_logname) + 1);
+		kmem_free(mp->m_logname);
 
 	xfs_icsb_destroy_counters(mp);
 }
@@ -1265,9 +1262,8 @@ xfs_mountfs(
  error2:
 	for (agno = 0; agno < sbp->sb_agcount; agno++)
 		if (mp->m_perag[agno].pagb_list)
-			kmem_free(mp->m_perag[agno].pagb_list,
-			  sizeof(xfs_perag_busy_t) * XFS_PAGB_NUM_SLOTS);
-	kmem_free(mp->m_perag, sbp->sb_agcount * sizeof(xfs_perag_t));
+			kmem_free(mp->m_perag[agno].pagb_list);
+	kmem_free(mp->m_perag);
 	mp->m_perag = NULL;
 	/* FALLTHROUGH */
  error1:

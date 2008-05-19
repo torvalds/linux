@@ -639,7 +639,7 @@ out:
 		xfs_unmountfs(mp, credp);
 		xfs_qmops_put(mp);
 		xfs_dmops_put(mp);
-		kmem_free(mp, sizeof(xfs_mount_t));
+		kmem_free(mp);
 	}
 
 	return XFS_ERROR(error);
@@ -1055,7 +1055,7 @@ xfs_sync_inodes(
 
 		if (XFS_FORCED_SHUTDOWN(mp) && !(flags & SYNC_CLOSE)) {
 			XFS_MOUNT_IUNLOCK(mp);
-			kmem_free(ipointer, sizeof(xfs_iptr_t));
+			kmem_free(ipointer);
 			return 0;
 		}
 
@@ -1201,7 +1201,7 @@ xfs_sync_inodes(
 			}
 			XFS_MOUNT_IUNLOCK(mp);
 			ASSERT(ipointer_in == B_FALSE);
-			kmem_free(ipointer, sizeof(xfs_iptr_t));
+			kmem_free(ipointer);
 			return XFS_ERROR(error);
 		}
 
@@ -1231,7 +1231,7 @@ xfs_sync_inodes(
 
 	ASSERT(ipointer_in == B_FALSE);
 
-	kmem_free(ipointer, sizeof(xfs_iptr_t));
+	kmem_free(ipointer);
 	return XFS_ERROR(last_error);
 }
 

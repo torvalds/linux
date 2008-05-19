@@ -150,8 +150,7 @@ xfs_errortag_clearall(xfs_mount_t *mp, int loud)
 				xfs_etest[i]);
 			xfs_etest[i] = 0;
 			xfs_etest_fsid[i] = 0LL;
-			kmem_free(xfs_etest_fsname[i],
-				  strlen(xfs_etest_fsname[i]) + 1);
+			kmem_free(xfs_etest_fsname[i]);
 			xfs_etest_fsname[i] = NULL;
 		}
 	}
@@ -175,7 +174,7 @@ xfs_fs_vcmn_err(int level, xfs_mount_t *mp, char *fmt, va_list ap)
 		newfmt = kmem_alloc(len, KM_SLEEP);
 		sprintf(newfmt, "Filesystem \"%s\": %s", mp->m_fsname, fmt);
 		icmn_err(level, newfmt, ap);
-		kmem_free(newfmt, len);
+		kmem_free(newfmt);
 	} else {
 		icmn_err(level, fmt, ap);
 	}

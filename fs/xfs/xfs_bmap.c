@@ -5970,7 +5970,7 @@ unlock_and_return:
 	xfs_iunlock_map_shared(ip, lock);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
-	kmem_free(map, subnex * sizeof(*map));
+	kmem_free(map);
 
 	return error;
 }

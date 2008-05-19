@@ -1598,7 +1598,7 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 					args->firstblock, args->total,
 					&mapp[mapi], &nmap, args->flist,
 					NULL))) {
-				kmem_free(mapp, sizeof(*mapp) * count);
+				kmem_free(mapp);
 				return error;
 			}
 			if (nmap < 1)
@@ -1620,11 +1620,11 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 	    mapp[mapi - 1].br_startoff + mapp[mapi - 1].br_blockcount !=
 	    bno + count) {
 		if (mapp != &map)
-			kmem_free(mapp, sizeof(*mapp) * count);
+			kmem_free(mapp);
 		return XFS_ERROR(ENOSPC);
 	}
 	if (mapp != &map)
-		kmem_free(mapp, sizeof(*mapp) * count);
+		kmem_free(mapp);
 	*new_blkno = (xfs_dablk_t)bno;
 	return 0;
 }
@@ -2090,10 +2090,10 @@ xfs_da_do_buf(
 		}
 	}
 	if (bplist) {
-		kmem_free(bplist, sizeof(*bplist) * nmap);
+		kmem_free(bplist);
 	}
 	if (mapp != &map) {
-		kmem_free(mapp, sizeof(*mapp) * nfsb);
+		kmem_free(mapp);
 	}
 	if (bpp)
 		*bpp = rbp;
@@ -2102,11 +2102,11 @@ exit1:
 	if (bplist) {
 		for (i = 0; i < nbplist; i++)
 			xfs_trans_brelse(trans, bplist[i]);
-		kmem_free(bplist, sizeof(*bplist) * nmap);
+		kmem_free(bplist);
 	}
 exit0:
 	if (mapp != &map)
-		kmem_free(mapp, sizeof(*mapp) * nfsb);
+		kmem_free(mapp);
 	if (bpp)
 		*bpp = NULL;
 	return error;
@@ -2315,7 +2315,7 @@ xfs_da_buf_done(xfs_dabuf_t *dabuf)
 	if (dabuf->dirty)
 		xfs_da_buf_clean(dabuf);
 	if (dabuf->nbuf > 1)
-		kmem_free(dabuf->data, BBTOB(dabuf->bbcount));
+		kmem_free(dabuf->data);
 #ifdef XFS_DABUF_DEBUG
 	{
 		spin_lock(&xfs_dabuf_global_lock);
@@ -2332,7 +2332,7 @@ xfs_da_buf_done(xfs_dabuf_t *dabuf)
 	if (dabuf->nbuf == 1)
 		kmem_zone_free(xfs_dabuf_zone, dabuf);
 	else
-		kmem_free(dabuf, XFS_DA_BUF_SIZE(dabuf->nbuf));
+		kmem_free(dabuf);
 }
 
 /*
@@ -2403,7 +2403,7 @@ xfs_da_brelse(xfs_trans_t *tp, xfs_dabuf_t *dabuf)
 	for (i = 0; i < nbuf; i++)
 		xfs_trans_brelse(tp, bplist[i]);
 	if (bplist != &bp)
-		kmem_free(bplist, nbuf * sizeof(*bplist));
+		kmem_free(bplist);
 }
 
 /*
@@ -2429,7 +2429,7 @@ xfs_da_binval(xfs_trans_t *tp, xfs_dabuf_t *dabuf)
 	for (i = 0; i < nbuf; i++)
 		xfs_trans_binval(tp, bplist[i]);
 	if (bplist != &bp)
-		kmem_free(bplist, nbuf * sizeof(*bplist));
+		kmem_free(bplist);
 }
 
 /*

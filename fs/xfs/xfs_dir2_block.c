@@ -1071,7 +1071,7 @@ xfs_dir2_sf_to_block(
 	 */
 	error = xfs_dir2_grow_inode(args, XFS_DIR2_DATA_SPACE, &blkno);
 	if (error) {
-		kmem_free(buf, buf_len);
+		kmem_free(buf);
 		return error;
 	}
 	/*
@@ -1079,7 +1079,7 @@ xfs_dir2_sf_to_block(
 	 */
 	error = xfs_dir2_data_init(args, blkno, &bp);
 	if (error) {
-		kmem_free(buf, buf_len);
+		kmem_free(buf);
 		return error;
 	}
 	block = bp->data;
@@ -1198,7 +1198,7 @@ xfs_dir2_sf_to_block(
 			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 	}
 	/* Done with the temporary buffer */
-	kmem_free(buf, buf_len);
+	kmem_free(buf);
 	/*
 	 * Sort the leaf entries by hash value.
 	 */

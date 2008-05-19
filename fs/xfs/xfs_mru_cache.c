@@ -382,9 +382,9 @@ xfs_mru_cache_create(
 
 exit:
 	if (err && mru && mru->lists)
-		kmem_free(mru->lists, mru->grp_count * sizeof(*mru->lists));
+		kmem_free(mru->lists);
 	if (err && mru)
-		kmem_free(mru, sizeof(*mru));
+		kmem_free(mru);
 
 	return err;
 }
@@ -424,8 +424,8 @@ xfs_mru_cache_destroy(
 
 	xfs_mru_cache_flush(mru);
 
-	kmem_free(mru->lists, mru->grp_count * sizeof(*mru->lists));
-	kmem_free(mru, sizeof(*mru));
+	kmem_free(mru->lists);
+	kmem_free(mru);
 }
 
 /*

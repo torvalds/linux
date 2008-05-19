@@ -493,7 +493,7 @@ xfs_dir2_grow_inode(
 					args->firstblock, args->total,
 					&mapp[mapi], &nmap, args->flist,
 					NULL))) {
-				kmem_free(mapp, sizeof(*mapp) * count);
+				kmem_free(mapp);
 				return error;
 			}
 			if (nmap < 1)
@@ -525,14 +525,14 @@ xfs_dir2_grow_inode(
 	    mapp[mapi - 1].br_startoff + mapp[mapi - 1].br_blockcount !=
 	    bno + count) {
 		if (mapp != &map)
-			kmem_free(mapp, sizeof(*mapp) * count);
+			kmem_free(mapp);
 		return XFS_ERROR(ENOSPC);
 	}
 	/*
 	 * Done with the temporary mapping table.
 	 */
 	if (mapp != &map)
-		kmem_free(mapp, sizeof(*mapp) * count);
+		kmem_free(mapp);
 	*dbp = xfs_dir2_da_to_db(mp, (xfs_dablk_t)bno);
 	/*
 	 * Update file's size if this is the data space and it grew.

@@ -1074,7 +1074,7 @@ xfssyncd(
 			list_del(&work->w_list);
 			if (work == &mp->m_sync_work)
 				continue;
-			kmem_free(work, sizeof(struct bhv_vfs_sync_work));
+			kmem_free(work);
 		}
 	}
 
@@ -1222,7 +1222,7 @@ xfs_fs_remount(
 	error = xfs_parseargs(mp, options, args, 1);
 	if (!error)
 		error = xfs_mntupdate(mp, flags, args);
-	kmem_free(args, sizeof(*args));
+	kmem_free(args);
 	return -error;
 }
 
@@ -1369,7 +1369,7 @@ xfs_fs_fill_super(
 
 	xfs_itrace_exit(XFS_I(sb->s_root->d_inode));
 
-	kmem_free(args, sizeof(*args));
+	kmem_free(args);
 	return 0;
 
 fail_vnrele:
@@ -1384,7 +1384,7 @@ fail_unmount:
 	xfs_unmount(mp, 0, NULL);
 
 fail_vfsop:
-	kmem_free(args, sizeof(*args));
+	kmem_free(args);
 	return -error;
 }
 
