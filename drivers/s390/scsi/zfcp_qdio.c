@@ -415,7 +415,7 @@ zfcp_qdio_sbale_resp(struct zfcp_fsf_req *fsf_req, int sbal, int sbale)
 volatile struct qdio_buffer_element *
 zfcp_qdio_sbale_curr(struct zfcp_fsf_req *fsf_req)
 {
-	return zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr,
+	return zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_last,
 				   fsf_req->sbale_curr);
 }
 
@@ -443,7 +443,7 @@ zfcp_qdio_sbal_limit(struct zfcp_fsf_req *fsf_req, int max_sbals)
  * @fsf_req: zfcp_fsf_req to be processed
  * @sbtype: SBAL flags which have to be set in first SBALE of new SBAL
  *
- * This function changes sbal_curr, sbale_curr, sbal_number of fsf_req.
+ * This function changes sbal_last, sbale_curr, sbal_number of fsf_req.
  */
 static volatile struct qdio_buffer_element *
 zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
@@ -455,16 +455,16 @@ zfcp_qdio_sbal_chain(struct zfcp_fsf_req *fsf_req, unsigned long sbtype)
 	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	/* don't exceed last allowed SBAL */
-	if (fsf_req->sbal_curr == fsf_req->sbal_limit)
+	if (fsf_req->sbal_last == fsf_req->sbal_limit)
 		return NULL;
 
 	/* set chaining flag in first SBALE of current SBAL */
-	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
+	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_last, 0);
 	sbale->flags |= SBAL_FLAGS0_MORE_SBALS;
 
 	/* calculate index of next SBAL */
-	fsf_req->sbal_curr++;
-	fsf_req->sbal_curr %= QDIO_MAX_BUFFERS_PER_Q;
+	fsf_req->sbal_last++;
+	fsf_req->sbal_last %= QDIO_MAX_BUFFERS_PER_Q;
 
 	/* keep this requests number of SBALs up-to-date */
 	fsf_req->sbal_number++;
@@ -523,7 +523,7 @@ static inline int
 zfcp_qdio_sbals_wipe(struct zfcp_fsf_req *fsf_req)
 {
 	return zfcp_qdio_sbals_zero(&fsf_req->adapter->request_queue,
-				    fsf_req->sbal_first, fsf_req->sbal_curr);
+				    fsf_req->sbal_first, fsf_req->sbal_last);
 }
 
 
@@ -601,7 +601,7 @@ zfcp_qdio_sbals_from_sg(struct zfcp_fsf_req *fsf_req, unsigned long sbtype,
 	zfcp_qdio_sbal_limit(fsf_req, max_sbals);
 
 	/* set storage-block type for current SBAL */
-	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
+	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_last, 0);
 	sbale->flags |= sbtype;
 
 	/* process all segements of scatter-gather list */
