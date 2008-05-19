@@ -203,6 +203,42 @@ config BUILTIN_DTB
 	string "DTB to build into the kernel image"
 	depends on OF
 
+config BLK_DEV_SIMDISK
+	tristate "Host file-based simulated block device support"
+	default n
+	depends on XTENSA_PLATFORM_ISS
+	help
+	  Create block devices that map to files in the host file system.
+	  Device binding to host file may be changed at runtime via proc
+	  interface provided the device is not in use.
+
+config BLK_DEV_SIMDISK_COUNT
+	int "Number of host file-based simulated block devices"
+	range 1 10
+	depends on BLK_DEV_SIMDISK
+	default 2
+	help
+	  This is the default minimal number of created block devices.
+	  Kernel/module parameter 'simdisk_count' may be used to change this
+	  value at runtime. More file names (but no more than 10) may be
+	  specified as parameters, simdisk_count grows accordingly.
+
+config SIMDISK0_FILENAME
+	string "Host filename for the first simulated device"
+	depends on BLK_DEV_SIMDISK = y
+	default ""
+	help
+	  Attach a first simdisk to a host file. Conventionally, this file
+	  contains a root file system.
+
+config SIMDISK1_FILENAME
+	string "Host filename for the second simulated device"
+	depends on BLK_DEV_SIMDISK = y && BLK_DEV_SIMDISK_COUNT != 1
+	default ""
+	help
+	  Another simulated disk in a host file for a buildroot-independent
+	  storage.
+
 source "mm/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
