@@ -66,15 +66,14 @@ enum {
 	ATA_ECAT_DUBIOUS_TOUT_HSM	= 6,
 	ATA_ECAT_DUBIOUS_UNK_DEV	= 7,
 	ATA_ECAT_NR			= 8,
-};
 
-/* Waiting in ->prereset can never be reliable.  It's sometimes nice
- * to wait there but it can't be depended upon; otherwise, we wouldn't
- * be resetting.  Just give it enough time for most drives to spin up.
- */
-enum {
-	ATA_EH_PRERESET_TIMEOUT		= 10 * HZ,
-	ATA_EH_FASTDRAIN_INTERVAL	= 3 * HZ,
+	/* Waiting in ->prereset can never be reliable.  It's
+	 * sometimes nice to wait there but it can't be depended upon;
+	 * otherwise, we wouldn't be resetting.  Just give it enough
+	 * time for most drives to spin up.
+	 */
+	ATA_EH_PRERESET_TIMEOUT		= 10000,
+	ATA_EH_FASTDRAIN_INTERVAL	=  3000,
 };
 
 /* The following table determines how we sequence resets.  Each entry
@@ -84,10 +83,10 @@ enum {
  * are mostly for error handling, hotplug and retarded devices.
  */
 static const unsigned long ata_eh_reset_timeouts[] = {
-	10 * HZ,	/* most drives spin up by 10sec */
-	10 * HZ,	/* > 99% working drives spin up before 20sec */
-	35 * HZ,	/* give > 30 secs of idleness for retarded devices */
-	5 * HZ,		/* and sweet one last chance */
+	10000,	/* most drives spin up by 10sec */
+	10000,	/* > 99% working drives spin up before 20sec */
+	35000,	/* give > 30 secs of idleness for retarded devices */
+	 5000,	/* and sweet one last chance */
 	/* > 1 min has elapsed, give up */
 };
 
@@ -641,7 +640,7 @@ void ata_eh_fastdrain_timerfn(unsigned long arg)
 		/* some qcs have finished, give it another chance */
 		ap->fastdrain_cnt = cnt;
 		ap->fastdrain_timer.expires =
-			jiffies + ATA_EH_FASTDRAIN_INTERVAL;
+			ata_deadline(jiffies, ATA_EH_FASTDRAIN_INTERVAL);
 		add_timer(&ap->fastdrain_timer);
 	}
 
@@ -681,7 +680,8 @@ static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 
 	/* activate fast drain */
 	ap->fastdrain_cnt = cnt;
-	ap->fastdrain_timer.expires = jiffies + ATA_EH_FASTDRAIN_INTERVAL;
+	ap->fastdrain_timer.expires =
+		ata_deadline(jiffies, ATA_EH_FASTDRAIN_INTERVAL);
 	add_timer(&ap->fastdrain_timer);
 }
 
@@ -2125,7 +2125,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	}
 
 	if (prereset) {
-		rc = prereset(link, jiffies + ATA_EH_PRERESET_TIMEOUT);
+		rc = prereset(link,
+			      ata_deadline(jiffies, ATA_EH_PRERESET_TIMEOUT));
 		if (rc) {
 			if (rc == -ENOENT) {
 				ata_link_printk(link, KERN_DEBUG,
@@ -2160,7 +2161,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (ata_is_host_link(link))
 		ata_eh_freeze_port(ap);
 
-	deadline = jiffies + ata_eh_reset_timeouts[try++];
+	deadline = ata_deadline(jiffies, ata_eh_reset_timeouts[try++]);
 
 	if (reset) {
 		if (verbose)

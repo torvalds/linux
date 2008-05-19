@@ -27,6 +27,7 @@
 #define __LINUX_LIBATA_H__
 
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
@@ -115,7 +116,7 @@ enum {
 	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
 	ATA_MAX_QUEUE		= 32,
 	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE - 1,
-	ATA_SHORT_PAUSE		= (HZ >> 6) + 1,
+	ATA_SHORT_PAUSE		= 16,
 
 	ATAPI_MAX_DRAIN		= 16 << 10,
 
@@ -234,17 +235,17 @@ enum {
 	/* bits 24:31 of host->flags are reserved for LLD specific flags */
 
 	/* various lengths of time */
-	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
-	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
-	ATA_TMOUT_INTERNAL	= 30 * HZ,
-	ATA_TMOUT_INTERNAL_QUICK = 5 * HZ,
+	ATA_TMOUT_BOOT		= 30000,	/* heuristic */
+	ATA_TMOUT_BOOT_QUICK	=  7000,	/* heuristic */
+	ATA_TMOUT_INTERNAL	= 30000,
+	ATA_TMOUT_INTERNAL_QUICK = 5000,
 
 	/* FIXME: GoVault needs 2s but we can't afford that without
 	 * parallel probing.  800ms is enough for iVDR disk
 	 * HHD424020F7SV00.  Increase to 2secs when parallel probing
 	 * is in place.
 	 */
-	ATA_TMOUT_FF_WAIT	= 4 * HZ / 5,
+	ATA_TMOUT_FF_WAIT	=  800,
 
 	/* Spec mandates to wait for ">= 2ms" before checking status
 	 * after reset.  We wait 150ms, because that was the magic
@@ -256,14 +257,14 @@ enum {
 	 *
 	 * Old drivers/ide uses the 2mS rule and then waits for ready.
 	 */
-	ATA_WAIT_AFTER_RESET_MSECS = 150,
+	ATA_WAIT_AFTER_RESET	=  150,
 
 	/* If PMP is supported, we have to do follow-up SRST.  As some
 	 * PMPs don't send D2H Reg FIS after hardreset, LLDs are
 	 * advised to wait only for the following duration before
 	 * doing SRST.
 	 */
-	ATA_TMOUT_PMP_SRST_WAIT	= 1 * HZ,
+	ATA_TMOUT_PMP_SRST_WAIT	= 1000,
 
 	/* ATA bus states */
 	BUS_UNKNOWN		= 0,
@@ -895,8 +896,7 @@ extern void ata_host_resume(struct ata_host *host);
 #endif
 extern int ata_ratelimit(void);
 extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
-			     unsigned long interval_msec,
-			     unsigned long timeout_msec);
+			     unsigned long interval, unsigned long timeout);
 extern int atapi_cmd_type(u8 opcode);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
@@ -1387,6 +1387,12 @@ static inline int ata_check_ready(u8 status)
 		return -ENODEV;
 
 	return 0;
+}
+
+static inline unsigned long ata_deadline(unsigned long from_jiffies,
+					 unsigned long timeout_msecs)
+{
+	return from_jiffies + msecs_to_jiffies(timeout_msecs);
 }
 
 

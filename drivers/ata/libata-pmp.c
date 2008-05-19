@@ -785,7 +785,8 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 		 * SError.N working.
 		 */
 		sata_link_hardreset(link, sata_deb_timing_normal,
-				jiffies + ATA_TMOUT_INTERNAL_QUICK, NULL, NULL);
+				ata_deadline(jiffies, ATA_TMOUT_INTERNAL_QUICK),
+				NULL, NULL);
 
 		/* unconditionally clear SError.N */
 		rc = sata_scr_write(link, SCR_ERROR, SERR_PHYRDY_CHG);
