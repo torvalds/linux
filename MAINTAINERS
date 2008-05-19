@@ -4022,10 +4022,39 @@ M:	ballabio_dario@emc.com
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+UCLINUX (AND M68KNOMMU)
+P:	Greg Ungerer
+M:	gerg@uclinux.org
+W:	http://www.uclinux.org/
+L:	uclinux-dev@uclinux.org  (subscribers-only)
+S:	Maintained
+
+UCLINUX FOR NEC V850
+P:	Miles Bader
+
+UCLINUX FOR RENESAS H8/300
+P:	Yoshinori Sato
+M:	ysato@users.sourceforge.jp
+W:	http://uclinux-h8.sourceforge.jp/
+S:	Supported
+
 UDF FILESYSTEM
 P:	Jan Kara
 M:	jack@suse.cz
 W:	http://linux-udf.sourceforge.net
+S:	Maintained
+
+UFS FILESYSTEM
+P:	Evgeniy Dushistov
+M:	dushistov@mail.ru
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+UltraSPARC (sparc64):
+P:	David S. Miller
+M:	davem@davemloft.net
+L:	sparclinux@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 S:	Maintained
 
 UNIFORM CDROM DRIVER
@@ -4072,6 +4101,13 @@ P:	Peter Korsgaard
 M:	jacmet@sunsite.dk
 L:	netdev@vger.kernel.org
 W:	http://www.linux-usb.org/usbnet
+S:	Maintained
+
+USB DIAMOND RIO500 DRIVER
+P:	Cesar Miquel
+M:	miquel@df.uba.ar
+L:	rio500-users@lists.sourceforge.net
+W:	http://rio500.sourceforge.net
 S:	Maintained
 
 USB EHCI DRIVER
@@ -4326,42 +4362,6 @@ VIA VELOCITY NETWORK DRIVER
 P:	Francois Romieu
 M:	romieu@fr.zoreil.com
 L:	netdev@vger.kernel.org
-S:	Maintained
-
-UCLINUX (AND M68KNOMMU)
-P:	Greg Ungerer
-M:	gerg@uclinux.org
-W:	http://www.uclinux.org/
-L:	uclinux-dev@uclinux.org  (subscribers-only)
-S:	Maintained
-
-UCLINUX FOR NEC V850
-P:	Miles Bader
-
-UCLINUX FOR RENESAS H8/300
-P:	Yoshinori Sato
-M:	ysato@users.sourceforge.jp
-W:	http://uclinux-h8.sourceforge.jp/
-S:	Supported
-
-UFS FILESYSTEM
-P:	Evgeniy Dushistov
-M:	dushistov@mail.ru
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
-UltraSPARC (sparc64):
-P:	David S. Miller
-M:	davem@davemloft.net
-L:	sparclinux@vger.kernel.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
-S:	Maintained
-
-USB DIAMOND RIO500 DRIVER
-P:	Cesar Miquel
-M:	miquel@df.uba.ar
-L:	rio500-users@lists.sourceforge.net
-W:	http://rio500.sourceforge.net
 S:	Maintained
 
 VIDEO FOR LINUX
