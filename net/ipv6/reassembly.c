@@ -750,7 +750,9 @@ int __init ipv6_frag_init(void)
 	if (ret)
 		goto out;
 
-	register_pernet_subsys(&ip6_frags_ops);
+	ret = register_pernet_subsys(&ip6_frags_ops);
+	if (ret)
+		goto err_pernet;
 
 	ip6_frags.hashfn = ip6_hashfn;
 	ip6_frags.constructor = ip6_frag_init;
@@ -763,6 +765,10 @@ int __init ipv6_frag_init(void)
 	inet_frags_init(&ip6_frags);
 out:
 	return ret;
+
+err_pernet:
+	inet6_del_protocol(&frag_protocol, IPPROTO_FRAGMENT);
+	goto out;
 }
 
 void ipv6_frag_exit(void)
