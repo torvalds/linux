@@ -33,6 +33,11 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
+struct fdpic_func_descriptor {
+	unsigned long	text;
+	unsigned long	GOT;
+};
+
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
@@ -378,7 +383,15 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->regs[4] = signal; /* Arg for signal handler */
 	regs->regs[5] = 0;
 	regs->regs[6] = (unsigned long) &frame->sc;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
+
+	if (current->personality & FDPIC_FUNCPTRS) {
+		struct fdpic_func_descriptor __user *funcptr =
+			(struct fdpic_func_descriptor __user *)ka->sa.sa_handler;
+
+		__get_user(regs->pc, &funcptr->text);
+		__get_user(regs->regs[12], &funcptr->GOT);
+	} else
+		regs->pc = (unsigned long)ka->sa.sa_handler;
 
 	set_fs(USER_DS);
 
@@ -458,7 +471,15 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->regs[4] = signal; /* Arg for signal handler */
 	regs->regs[5] = (unsigned long) &frame->info;
 	regs->regs[6] = (unsigned long) &frame->uc;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
+
+	if (current->personality & FDPIC_FUNCPTRS) {
+		struct fdpic_func_descriptor __user *funcptr =
+			(struct fdpic_func_descriptor __user *)ka->sa.sa_handler;
+
+		__get_user(regs->pc, &funcptr->text);
+		__get_user(regs->regs[12], &funcptr->GOT);
+	} else
+		regs->pc = (unsigned long)ka->sa.sa_handler;
 
 	set_fs(USER_DS);
 
