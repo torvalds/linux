@@ -119,6 +119,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 {
 	int rc = -ENOENT;
 	int xid;
+	int create_options = CREATE_NOT_DIR;
 	int oplock = 0;
 	int desiredAccess = GENERIC_READ | GENERIC_WRITE;
 	__u16 fileHandle;
@@ -130,7 +131,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifsFileInfo *pCifsFile = NULL;
 	struct cifsInodeInfo *pCifsInode;
 	int disposition = FILE_OVERWRITE_IF;
-	int write_only = FALSE;
+	bool write_only = false;
 
 	xid = GetXid();
 
@@ -152,7 +153,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		if (oflags & FMODE_WRITE) {
 			desiredAccess |= GENERIC_WRITE;
 			if (!(oflags & FMODE_READ))
-				write_only = TRUE;
+				write_only = true;
 		}
 
 		if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
@@ -176,9 +177,19 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		FreeXid(xid);
 		return -ENOMEM;
 	}
+
+	mode &= ~current->fs->umask;
+
+	/*
+	 * if we're not using unix extensions, see if we need to set
+	 * ATTR_READONLY on the create call
+	 */
+	if (!pTcon->unix_ext && (mode & S_IWUGO) == 0)
+		create_options |= CREATE_OPTION_READONLY;
+
 	if (cifs_sb->tcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBOpen(xid, pTcon, full_path, disposition,
-			 desiredAccess, CREATE_NOT_DIR,
+			 desiredAccess, create_options,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else
@@ -187,7 +198,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	if (rc == -EIO) {
 		/* old server, retry the open legacy style */
 		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
-			desiredAccess, CREATE_NOT_DIR,
+			desiredAccess, create_options,
 			&fileHandle, &oplock, buf, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
@@ -197,7 +208,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		/* If Open reported that we actually created a file
 		then we now have to set the mode if possible */
 		if ((pTcon->unix_ext) && (oplock & CIFS_CREATE_ACTION)) {
-			mode &= ~current->fs->umask;
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
 					(__u64)current->fsuid,
@@ -254,7 +264,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			d_instantiate(direntry, newinode);
 		}
 		if ((nd == NULL /* nfsd case - nfs srv does not set nd */) ||
-			((nd->flags & LOOKUP_OPEN) == FALSE)) {
+			(!(nd->flags & LOOKUP_OPEN))) {
 			/* mknod case - do not leave file open */
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if (newinode) {
@@ -266,8 +276,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			pCifsFile->netfid = fileHandle;
 			pCifsFile->pid = current->tgid;
 			pCifsFile->pInode = newinode;
-			pCifsFile->invalidHandle = FALSE;
-			pCifsFile->closePend     = FALSE;
+			pCifsFile->invalidHandle = false;
+			pCifsFile->closePend     = false;
 			init_MUTEX(&pCifsFile->fh_sem);
 			mutex_init(&pCifsFile->lock_mutex);
 			INIT_LIST_HEAD(&pCifsFile->llist);
@@ -280,7 +290,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			pCifsInode = CIFS_I(newinode);
 			if (pCifsInode) {
 				/* if readable file instance put first in list*/
-				if (write_only == TRUE) {
+				if (write_only) {
 					list_add_tail(&pCifsFile->flist,
 						&pCifsInode->openFileList);
 				} else {
@@ -288,12 +298,12 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						&pCifsInode->openFileList);
 				}
 				if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-					pCifsInode->clientCanCacheAll = TRUE;
-					pCifsInode->clientCanCacheRead = TRUE;
+					pCifsInode->clientCanCacheAll = true;
+					pCifsInode->clientCanCacheRead = true;
 					cFYI(1, ("Exclusive Oplock inode %p",
 						newinode));
 				} else if ((oplock & 0xF) == OPLOCK_READ)
-					pCifsInode->clientCanCacheRead = TRUE;
+					pCifsInode->clientCanCacheRead = true;
 			}
 			write_unlock(&GlobalSMBSeslock);
 		}

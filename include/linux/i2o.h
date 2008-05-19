@@ -18,8 +18,6 @@
 #ifndef _I2O_H
 #define _I2O_H
 
-#ifdef __KERNEL__		/* This file to be included by kernel only */
-
 #include <linux/i2o-dev.h>
 
 /* How many different OSM's are we allowing */
@@ -1255,5 +1253,4 @@ extern void i2o_dump_message(struct i2o_message *);
 extern void i2o_dump_hrt(struct i2o_controller *c);
 extern void i2o_debug_state(struct i2o_controller *c);
 
-#endif				/* __KERNEL__ */
 #endif				/* _I2O_H */

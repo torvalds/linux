@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -285,11 +285,6 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	switch (opcode_class) {
 	case AML_CLASS_CONTROL:
 
-		status = acpi_ds_result_stack_push(walk_state);
-		if (ACPI_FAILURE(status)) {
-			goto error_exit;
-		}
-
 		status = acpi_ds_exec_begin_control_op(walk_state, op);
 		break;
 
@@ -305,20 +300,11 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 			status = acpi_ds_load2_begin_op(walk_state, NULL);
 		}
 
-		if (op->common.aml_opcode == AML_REGION_OP) {
-			status = acpi_ds_result_stack_push(walk_state);
-		}
 		break;
 
 	case AML_CLASS_EXECUTE:
 	case AML_CLASS_CREATE:
-		/*
-		 * Most operators with arguments (except create_xxx_field operators)
-		 * Start a new result/operand state
-		 */
-		if (walk_state->op_info->object_type != ACPI_TYPE_BUFFER_FIELD) {
-			status = acpi_ds_result_stack_push(walk_state);
-		}
+
 		break;
 
 	default:
@@ -374,6 +360,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	/* Init the walk state */
 
 	walk_state->num_operands = 0;
+	walk_state->operand_index = 0;
 	walk_state->return_desc = NULL;
 	walk_state->result_obj = NULL;
 
@@ -388,21 +375,21 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	/* Decode the Opcode Class */
 
 	switch (op_class) {
-	case AML_CLASS_ARGUMENT:	/* constants, literals, etc. - do nothing */
+	case AML_CLASS_ARGUMENT:	/* Constants, literals, etc. */
+
+		if (walk_state->opcode == AML_INT_NAMEPATH_OP) {
+			status = acpi_ds_evaluate_name_path(walk_state);
+			if (ACPI_FAILURE(status)) {
+				goto cleanup;
+			}
+		}
 		break;
 
-	case AML_CLASS_EXECUTE:	/* most operators with arguments */
+	case AML_CLASS_EXECUTE:	/* Most operators with arguments */
 
 		/* Build resolved operand stack */
 
 		status = acpi_ds_create_operands(walk_state, first_arg);
-		if (ACPI_FAILURE(status)) {
-			goto cleanup;
-		}
-
-		/* Done with this result state (Now that operand stack is built) */
-
-		status = acpi_ds_result_stack_pop(walk_state);
 		if (ACPI_FAILURE(status)) {
 			goto cleanup;
 		}
@@ -487,16 +474,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 			status = acpi_ds_exec_end_control_op(walk_state, op);
 
-			/* Make sure to properly pop the result stack */
-
-			if (ACPI_SUCCESS(status)) {
-				status = acpi_ds_result_stack_pop(walk_state);
-			} else if (status == AE_CTRL_PENDING) {
-				status = acpi_ds_result_stack_pop(walk_state);
-				if (ACPI_SUCCESS(status)) {
-					status = AE_CTRL_PENDING;
-				}
-			}
 			break;
 
 		case AML_TYPE_METHOD_CALL:
@@ -516,7 +493,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 				op->common.node =
 				    (struct acpi_namespace_node *)op->asl.value.
-				    arg->asl.node->object;
+				    arg->asl.node;
 				acpi_ut_add_reference(op->asl.value.arg->asl.
 						      node->object);
 				return_ACPI_STATUS(AE_OK);
@@ -632,13 +609,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				break;
 			}
 
-			/* Done with result state (Now that operand stack is built) */
-
-			status = acpi_ds_result_stack_pop(walk_state);
-			if (ACPI_FAILURE(status)) {
-				goto cleanup;
-			}
-
 			/*
 			 * If a result object was returned from above, push it on the
 			 * current result stack
@@ -671,8 +641,28 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					break;
 				}
+			} else if (op->common.aml_opcode == AML_DATA_REGION_OP) {
+				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+						  "Executing DataTableRegion Strings Op=%p\n",
+						  op));
 
-				status = acpi_ds_result_stack_pop(walk_state);
+				status =
+				    acpi_ds_eval_table_region_operands
+				    (walk_state, op);
+				if (ACPI_FAILURE(status)) {
+					break;
+				}
+			} else if (op->common.aml_opcode == AML_BANK_FIELD_OP) {
+				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+						  "Executing BankField Op=%p\n",
+						  op));
+
+				status =
+				    acpi_ds_eval_bank_field_operands(walk_state,
+								     op);
+				if (ACPI_FAILURE(status)) {
+					break;
+				}
 			}
 			break;
 

@@ -19,11 +19,4 @@
 #define PIL_SMP_CTX_NEW_VERSION	4
 #define PIL_DEVICE_IRQ		5
 
-#ifndef __ASSEMBLY__
-#define PIL_RESERVED(PIL)	((PIL) == PIL_SMP_CALL_FUNC || \
-				 (PIL) == PIL_SMP_RECEIVE_SIGNAL || \
-				 (PIL) == PIL_SMP_CAPTURE || \
-				 (PIL) == PIL_SMP_CTX_NEW_VERSION)
-#endif
-
 #endif /* !(_SPARC64_PIL_H) */

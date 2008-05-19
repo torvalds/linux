@@ -46,7 +46,7 @@ __handle_user_windows:
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 		ldx			[%g6 + TI_FLAGS], %l0
 
-1:		andcc			%l0, (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), %g0
+1:		andcc			%l0, _TIF_SIGPENDING, %g0
 		be,pt			%xcc, __handle_user_windows_continue
 		 nop
 		mov			%l5, %o1
@@ -86,7 +86,7 @@ __handle_perfctrs:
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 		ldx			[%g6 + TI_FLAGS], %l0
-1:		andcc			%l0, (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), %g0
+1:		andcc			%l0, _TIF_SIGPENDING, %g0
 
 		be,pt			%xcc, __handle_perfctrs_continue
 		 sethi			%hi(TSTATE_PEF), %o0
@@ -195,7 +195,7 @@ __handle_preemption_continue:
 		 andcc			%l1, %o0, %g0
 		andcc			%l0, _TIF_NEED_RESCHED, %g0
 		bne,pn			%xcc, __handle_preemption
-		 andcc			%l0, (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), %g0
+		 andcc			%l0, _TIF_SIGPENDING, %g0
 		bne,pn			%xcc, __handle_signal
 __handle_signal_continue:
 		 ldub			[%g6 + TI_WSAVED], %o2
@@ -257,6 +257,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		wr			%o3, %g0, %y
 		wrpr			%l4, 0x0, %pil
 		wrpr			%g0, 0x1, %tl
+		andn			%l1, TSTATE_SYSCALL, %l1
 		wrpr			%l1, %g0, %tstate
 		wrpr			%l2, %g0, %tpc
 		wrpr			%o2, %g0, %tnpc

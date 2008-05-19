@@ -79,36 +79,6 @@ static int dbg = 1;
 	}
 #endif
 
-#define PT64_PT_BITS 9
-#define PT64_ENT_PER_PAGE (1 << PT64_PT_BITS)
-#define PT32_PT_BITS 10
-#define PT32_ENT_PER_PAGE (1 << PT32_PT_BITS)
-
-#define PT_WRITABLE_SHIFT 1
-
-#define PT_PRESENT_MASK (1ULL << 0)
-#define PT_WRITABLE_MASK (1ULL << PT_WRITABLE_SHIFT)
-#define PT_USER_MASK (1ULL << 2)
-#define PT_PWT_MASK (1ULL << 3)
-#define PT_PCD_MASK (1ULL << 4)
-#define PT_ACCESSED_MASK (1ULL << 5)
-#define PT_DIRTY_MASK (1ULL << 6)
-#define PT_PAGE_SIZE_MASK (1ULL << 7)
-#define PT_PAT_MASK (1ULL << 7)
-#define PT_GLOBAL_MASK (1ULL << 8)
-#define PT64_NX_SHIFT 63
-#define PT64_NX_MASK (1ULL << PT64_NX_SHIFT)
-
-#define PT_PAT_SHIFT 7
-#define PT_DIR_PAT_SHIFT 12
-#define PT_DIR_PAT_MASK (1ULL << PT_DIR_PAT_SHIFT)
-
-#define PT32_DIR_PSE36_SIZE 4
-#define PT32_DIR_PSE36_SHIFT 13
-#define PT32_DIR_PSE36_MASK \
-	(((1ULL << PT32_DIR_PSE36_SIZE) - 1) << PT32_DIR_PSE36_SHIFT)
-
-
 #define PT_FIRST_AVAIL_BITS_SHIFT 9
 #define PT64_SECOND_AVAIL_BITS_SHIFT 52
 
@@ -154,10 +124,6 @@ static int dbg = 1;
 #define PFERR_USER_MASK (1U << 2)
 #define PFERR_FETCH_MASK (1U << 4)
 
-#define PT64_ROOT_LEVEL 4
-#define PT32_ROOT_LEVEL 2
-#define PT32E_ROOT_LEVEL 3
-
 #define PT_DIRECTORY_LEVEL 2
 #define PT_PAGE_TABLE_LEVEL 1
 
@@ -186,6 +152,12 @@ static struct kmem_cache *mmu_page_header_cache;
 
 static u64 __read_mostly shadow_trap_nonpresent_pte;
 static u64 __read_mostly shadow_notrap_nonpresent_pte;
+static u64 __read_mostly shadow_base_present_pte;
+static u64 __read_mostly shadow_nx_mask;
+static u64 __read_mostly shadow_x_mask;	/* mutual exclusive with nx_mask */
+static u64 __read_mostly shadow_user_mask;
+static u64 __read_mostly shadow_accessed_mask;
+static u64 __read_mostly shadow_dirty_mask;
 
 void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte)
 {
@@ -193,6 +165,23 @@ void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte)
 	shadow_notrap_nonpresent_pte = notrap_pte;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_nonpresent_ptes);
+
+void kvm_mmu_set_base_ptes(u64 base_pte)
+{
+	shadow_base_present_pte = base_pte;
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_set_base_ptes);
+
+void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
+		u64 dirty_mask, u64 nx_mask, u64 x_mask)
+{
+	shadow_user_mask = user_mask;
+	shadow_accessed_mask = accessed_mask;
+	shadow_dirty_mask = dirty_mask;
+	shadow_nx_mask = nx_mask;
+	shadow_x_mask = x_mask;
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
 static int is_write_protection(struct kvm_vcpu *vcpu)
 {
@@ -232,7 +221,7 @@ static int is_writeble_pte(unsigned long pte)
 
 static int is_dirty_pte(unsigned long pte)
 {
-	return pte & PT_DIRTY_MASK;
+	return pte & shadow_dirty_mask;
 }
 
 static int is_rmap_pte(u64 pte)
@@ -387,7 +376,6 @@ static void account_shadowed(struct kvm *kvm, gfn_t gfn)
 
 	write_count = slot_largepage_idx(gfn, gfn_to_memslot(kvm, gfn));
 	*write_count += 1;
-	WARN_ON(*write_count > KVM_PAGES_PER_HPAGE);
 }
 
 static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
@@ -547,7 +535,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 		return;
 	sp = page_header(__pa(spte));
 	pfn = spte_to_pfn(*spte);
-	if (*spte & PT_ACCESSED_MASK)
+	if (*spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
 	if (is_writeble_pte(*spte))
 		kvm_release_pfn_dirty(pfn);
@@ -1073,17 +1061,17 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	 * whether the guest actually used the pte (in order to detect
 	 * demand paging).
 	 */
-	spte = PT_PRESENT_MASK | PT_DIRTY_MASK;
+	spte = shadow_base_present_pte | shadow_dirty_mask;
 	if (!speculative)
 		pte_access |= PT_ACCESSED_MASK;
 	if (!dirty)
 		pte_access &= ~ACC_WRITE_MASK;
-	if (!(pte_access & ACC_EXEC_MASK))
-		spte |= PT64_NX_MASK;
-
-	spte |= PT_PRESENT_MASK;
+	if (pte_access & ACC_EXEC_MASK)
+		spte |= shadow_x_mask;
+	else
+		spte |= shadow_nx_mask;
 	if (pte_access & ACC_USER_MASK)
-		spte |= PT_USER_MASK;
+		spte |= shadow_user_mask;
 	if (largepage)
 		spte |= PT_PAGE_SIZE_MASK;
 
@@ -1188,8 +1176,9 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 				return -ENOMEM;
 			}
 
-			table[index] = __pa(new_table->spt) | PT_PRESENT_MASK
-				| PT_WRITABLE_MASK | PT_USER_MASK;
+			table[index] = __pa(new_table->spt)
+				| PT_PRESENT_MASK | PT_WRITABLE_MASK
+				| shadow_user_mask | shadow_x_mask;
 		}
 		table_addr = table[index] & PT64_BASE_ADDR_MASK;
 	}
@@ -1244,7 +1233,6 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return;
 	spin_lock(&vcpu->kvm->mmu_lock);
-#ifdef CONFIG_X86_64
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 
@@ -1256,7 +1244,6 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 		spin_unlock(&vcpu->kvm->mmu_lock);
 		return;
 	}
-#endif
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
@@ -1282,7 +1269,6 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 	root_gfn = vcpu->arch.cr3 >> PAGE_SHIFT;
 
-#ifdef CONFIG_X86_64
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 
@@ -1297,7 +1283,6 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		vcpu->arch.mmu.root_hpa = root;
 		return;
 	}
-#endif
 	metaphysical = !is_paging(vcpu);
 	if (tdp_enabled)
 		metaphysical = 1;
@@ -1377,7 +1362,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
 	r = __direct_map(vcpu, gpa, error_code & PFERR_WRITE_MASK,
-			 largepage, gfn, pfn, TDP_ROOT_LEVEL);
+			 largepage, gfn, pfn, kvm_x86_ops->get_tdp_level());
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	return r;
@@ -1484,7 +1469,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->page_fault = tdp_page_fault;
 	context->free = nonpaging_free;
 	context->prefetch_page = nonpaging_prefetch_page;
-	context->shadow_root_level = TDP_ROOT_LEVEL;
+	context->shadow_root_level = kvm_x86_ops->get_tdp_level();
 	context->root_hpa = INVALID_PAGE;
 
 	if (!is_paging(vcpu)) {
@@ -1633,7 +1618,7 @@ static bool last_updated_pte_accessed(struct kvm_vcpu *vcpu)
 {
 	u64 *spte = vcpu->arch.last_pte_updated;
 
-	return !!(spte && (*spte & PT_ACCESSED_MASK));
+	return !!(spte && (*spte & shadow_accessed_mask));
 }
 
 static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,

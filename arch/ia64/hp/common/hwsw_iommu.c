@@ -20,10 +20,10 @@
 extern int swiotlb_late_init_with_default_size (size_t size);
 extern ia64_mv_dma_alloc_coherent	swiotlb_alloc_coherent;
 extern ia64_mv_dma_free_coherent	swiotlb_free_coherent;
-extern ia64_mv_dma_map_single		swiotlb_map_single;
-extern ia64_mv_dma_unmap_single		swiotlb_unmap_single;
-extern ia64_mv_dma_map_sg		swiotlb_map_sg;
-extern ia64_mv_dma_unmap_sg		swiotlb_unmap_sg;
+extern ia64_mv_dma_map_single_attrs	swiotlb_map_single_attrs;
+extern ia64_mv_dma_unmap_single_attrs	swiotlb_unmap_single_attrs;
+extern ia64_mv_dma_map_sg_attrs		swiotlb_map_sg_attrs;
+extern ia64_mv_dma_unmap_sg_attrs	swiotlb_unmap_sg_attrs;
 extern ia64_mv_dma_supported		swiotlb_dma_supported;
 extern ia64_mv_dma_mapping_error	swiotlb_dma_mapping_error;
 
@@ -31,19 +31,19 @@ extern ia64_mv_dma_mapping_error	swiotlb_dma_mapping_error;
 
 extern ia64_mv_dma_alloc_coherent	sba_alloc_coherent;
 extern ia64_mv_dma_free_coherent	sba_free_coherent;
-extern ia64_mv_dma_map_single		sba_map_single;
-extern ia64_mv_dma_unmap_single		sba_unmap_single;
-extern ia64_mv_dma_map_sg		sba_map_sg;
-extern ia64_mv_dma_unmap_sg		sba_unmap_sg;
+extern ia64_mv_dma_map_single_attrs	sba_map_single_attrs;
+extern ia64_mv_dma_unmap_single_attrs	sba_unmap_single_attrs;
+extern ia64_mv_dma_map_sg_attrs		sba_map_sg_attrs;
+extern ia64_mv_dma_unmap_sg_attrs	sba_unmap_sg_attrs;
 extern ia64_mv_dma_supported		sba_dma_supported;
 extern ia64_mv_dma_mapping_error	sba_dma_mapping_error;
 
 #define hwiommu_alloc_coherent		sba_alloc_coherent
 #define hwiommu_free_coherent		sba_free_coherent
-#define hwiommu_map_single		sba_map_single
-#define hwiommu_unmap_single		sba_unmap_single
-#define hwiommu_map_sg			sba_map_sg
-#define hwiommu_unmap_sg		sba_unmap_sg
+#define hwiommu_map_single_attrs	sba_map_single_attrs
+#define hwiommu_unmap_single_attrs	sba_unmap_single_attrs
+#define hwiommu_map_sg_attrs		sba_map_sg_attrs
+#define hwiommu_unmap_sg_attrs		sba_unmap_sg_attrs
 #define hwiommu_dma_supported		sba_dma_supported
 #define hwiommu_dma_mapping_error	sba_dma_mapping_error
 #define hwiommu_sync_single_for_cpu	machvec_dma_sync_single
@@ -98,41 +98,48 @@ hwsw_free_coherent (struct device *dev, size_t size, void *vaddr, dma_addr_t dma
 }
 
 dma_addr_t
-hwsw_map_single (struct device *dev, void *addr, size_t size, int dir)
+hwsw_map_single_attrs(struct device *dev, void *addr, size_t size, int dir,
+		       struct dma_attrs *attrs)
 {
 	if (use_swiotlb(dev))
-		return swiotlb_map_single(dev, addr, size, dir);
+		return swiotlb_map_single_attrs(dev, addr, size, dir, attrs);
 	else
-		return hwiommu_map_single(dev, addr, size, dir);
+		return hwiommu_map_single_attrs(dev, addr, size, dir, attrs);
 }
+EXPORT_SYMBOL(hwsw_map_single_attrs);
 
 void
-hwsw_unmap_single (struct device *dev, dma_addr_t iova, size_t size, int dir)
+hwsw_unmap_single_attrs(struct device *dev, dma_addr_t iova, size_t size,
+			 int dir, struct dma_attrs *attrs)
 {
 	if (use_swiotlb(dev))
-		return swiotlb_unmap_single(dev, iova, size, dir);
+		return swiotlb_unmap_single_attrs(dev, iova, size, dir, attrs);
 	else
-		return hwiommu_unmap_single(dev, iova, size, dir);
+		return hwiommu_unmap_single_attrs(dev, iova, size, dir, attrs);
 }
-
+EXPORT_SYMBOL(hwsw_unmap_single_attrs);
 
 int
-hwsw_map_sg (struct device *dev, struct scatterlist *sglist, int nents, int dir)
+hwsw_map_sg_attrs(struct device *dev, struct scatterlist *sglist, int nents,
+		   int dir, struct dma_attrs *attrs)
 {
 	if (use_swiotlb(dev))
-		return swiotlb_map_sg(dev, sglist, nents, dir);
+		return swiotlb_map_sg_attrs(dev, sglist, nents, dir, attrs);
 	else
-		return hwiommu_map_sg(dev, sglist, nents, dir);
+		return hwiommu_map_sg_attrs(dev, sglist, nents, dir, attrs);
 }
+EXPORT_SYMBOL(hwsw_map_sg_attrs);
 
 void
-hwsw_unmap_sg (struct device *dev, struct scatterlist *sglist, int nents, int dir)
+hwsw_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist, int nents,
+		     int dir, struct dma_attrs *attrs)
 {
 	if (use_swiotlb(dev))
-		return swiotlb_unmap_sg(dev, sglist, nents, dir);
+		return swiotlb_unmap_sg_attrs(dev, sglist, nents, dir, attrs);
 	else
-		return hwiommu_unmap_sg(dev, sglist, nents, dir);
+		return hwiommu_unmap_sg_attrs(dev, sglist, nents, dir, attrs);
 }
+EXPORT_SYMBOL(hwsw_unmap_sg_attrs);
 
 void
 hwsw_sync_single_for_cpu (struct device *dev, dma_addr_t addr, size_t size, int dir)
@@ -185,10 +192,6 @@ hwsw_dma_mapping_error (dma_addr_t dma_addr)
 }
 
 EXPORT_SYMBOL(hwsw_dma_mapping_error);
-EXPORT_SYMBOL(hwsw_map_single);
-EXPORT_SYMBOL(hwsw_unmap_single);
-EXPORT_SYMBOL(hwsw_map_sg);
-EXPORT_SYMBOL(hwsw_unmap_sg);
 EXPORT_SYMBOL(hwsw_dma_supported);
 EXPORT_SYMBOL(hwsw_alloc_coherent);
 EXPORT_SYMBOL(hwsw_free_coherent);

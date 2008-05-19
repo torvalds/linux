@@ -1,5 +1,5 @@
-#ifndef __ASM_AVR32_UNALIGNED_H
-#define __ASM_AVR32_UNALIGNED_H
+#ifndef _ASM_AVR32_UNALIGNED_H
+#define _ASM_AVR32_UNALIGNED_H
 
 /*
  * AVR32 can handle some unaligned accesses, depending on the
@@ -11,6 +11,11 @@
  * optimize word loads in general.
  */
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned/be_struct.h>
+#include <linux/unaligned/le_byteshift.h>
+#include <linux/unaligned/generic.h>
 
-#endif /* __ASM_AVR32_UNALIGNED_H */
+#define get_unaligned	__get_unaligned_be
+#define put_unaligned	__put_unaligned_be
+
+#endif /* _ASM_AVR32_UNALIGNED_H */

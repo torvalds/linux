@@ -35,7 +35,8 @@
 /*
  * Set number of channels of DMA on ColdFire for different implementations.
  */
-#if defined(CONFIG_M5249) || defined(CONFIG_M5307) || defined(CONFIG_M5407)
+#if defined(CONFIG_M5249) || defined(CONFIG_M5307) || defined(CONFIG_M5407) || \
+	defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 #define MAX_M68K_DMA_CHANNELS 4
 #elif defined(CONFIG_M5272)
 #define MAX_M68K_DMA_CHANNELS 1

@@ -90,7 +90,7 @@ u8 mtrr_type_lookup(u64 start, u64 end)
 	 * Look of multiple ranges matching this address and pick type
 	 * as per MTRR precedence
 	 */
-	if (!mtrr_state.enabled & 2) {
+	if (!(mtrr_state.enabled & 2)) {
 		return mtrr_state.def_type;
 	}
 

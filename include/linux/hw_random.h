@@ -11,7 +11,6 @@
 
 #ifndef LINUX_HWRANDOM_H_
 #define LINUX_HWRANDOM_H_
-#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/list.h>
@@ -46,5 +45,4 @@ extern int hwrng_register(struct hwrng *rng);
 /** Unregister a Hardware Random Number Generator driver. */
 extern void hwrng_unregister(struct hwrng *rng);
 
-#endif /* __KERNEL__ */
 #endif /* LINUX_HWRANDOM_H_ */

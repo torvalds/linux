@@ -126,15 +126,14 @@ static int m52790_command(struct i2c_client *client, unsigned int cmd,
 
 /* i2c implementation */
 
-static int m52790_probe(struct i2c_client *client)
+static int m52790_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct m52790_state *state;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
-
-	snprintf(client->name, sizeof(client->name) - 1, "m52790");
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -158,11 +157,18 @@ static int m52790_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+static const struct i2c_device_id m52790_id[] = {
+	{ "m52790", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, m52790_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "m52790",
 	.driverid = I2C_DRIVERID_M52790,
 	.command = m52790_command,
 	.probe = m52790_probe,
 	.remove = m52790_remove,
+	.id_table = m52790_id,
 };
 

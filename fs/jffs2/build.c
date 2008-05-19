@@ -46,7 +46,7 @@ next_inode(int *i, struct jffs2_inode_cache *ic, struct jffs2_sb_info *c)
 
 
 static void jffs2_build_inode_pass1(struct jffs2_sb_info *c,
-					struct jffs2_inode_cache *ic)
+				    struct jffs2_inode_cache *ic)
 {
 	struct jffs2_full_dirent *fd;
 
@@ -68,11 +68,17 @@ static void jffs2_build_inode_pass1(struct jffs2_sb_info *c,
 			continue;
 		}
 
-		if (child_ic->nlink++ && fd->type == DT_DIR) {
-			JFFS2_ERROR("child dir \"%s\" (ino #%u) of dir ino #%u appears to be a hard link\n",
-				fd->name, fd->ino, ic->ino);
-			/* TODO: What do we do about it? */
-		}
+		if (fd->type == DT_DIR) {
+			if (child_ic->pino_nlink) {
+				JFFS2_ERROR("child dir \"%s\" (ino #%u) of dir ino #%u appears to be a hard link\n",
+					    fd->name, fd->ino, ic->ino);
+				/* TODO: What do we do about it? */
+			} else {
+				child_ic->pino_nlink = ic->ino;
+			}
+		} else
+			child_ic->pino_nlink++;
+
 		dbg_fsbuild("increased nlink for child \"%s\" (ino #%u)\n", fd->name, fd->ino);
 		/* Can't free scan_dents so far. We might need them in pass 2 */
 	}
@@ -125,7 +131,7 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 	dbg_fsbuild("pass 2 starting\n");
 
 	for_each_inode(i, c, ic) {
-		if (ic->nlink)
+		if (ic->pino_nlink)
 			continue;
 
 		jffs2_build_remove_unlinked_inode(c, ic, &dead_fds);
@@ -232,16 +238,19 @@ static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c,
 			/* Reduce nlink of the child. If it's now zero, stick it on the
 			   dead_fds list to be cleaned up later. Else just free the fd */
 
-			child_ic->nlink--;
+			if (fd->type == DT_DIR)
+				child_ic->pino_nlink = 0;
+			else
+				child_ic->pino_nlink--;
 
-			if (!child_ic->nlink) {
-				dbg_fsbuild("inode #%u (\"%s\") has now got zero nlink, adding to dead_fds list.\n",
+			if (!child_ic->pino_nlink) {
+				dbg_fsbuild("inode #%u (\"%s\") now has no links; adding to dead_fds list.\n",
 					  fd->ino, fd->name);
 				fd->next = *dead_fds;
 				*dead_fds = fd;
 			} else {
 				dbg_fsbuild("inode #%u (\"%s\") has now got nlink %d. Ignoring.\n",
-					  fd->ino, fd->name, child_ic->nlink);
+					  fd->ino, fd->name, child_ic->pino_nlink);
 				jffs2_free_full_dirent(fd);
 			}
 		}

@@ -21,18 +21,69 @@
  *
  */
 
-/*
-  * Session structure provides information for an opened session
-  *
-  */
+/**
+ * enum p9_session_flags - option flags for each 9P session
+ * @V9FS_EXTENDED: whether or not to use 9P2000.u extensions
+ * @V9FS_ACCESS_SINGLE: only the mounting user can access the hierarchy
+ * @V9FS_ACCESS_USER: a new attach will be issued for every user (default)
+ * @V9FS_ACCESS_ANY: use a single attach for all users
+ * @V9FS_ACCESS_MASK: bit mask of different ACCESS options
+ *
+ * Session flags reflect options selected by users at mount time
+ */
+enum p9_session_flags {
+	V9FS_EXTENDED		= 0x01,
+	V9FS_ACCESS_SINGLE	= 0x02,
+	V9FS_ACCESS_USER	= 0x04,
+	V9FS_ACCESS_ANY		= 0x06,
+	V9FS_ACCESS_MASK	= 0x06,
+};
+
+/* possible values of ->cache */
+/**
+ * enum p9_cache_modes - user specified cache preferences
+ * @CACHE_NONE: do not cache data, dentries, or directory contents (default)
+ * @CACHE_LOOSE: cache data, dentries, and directory contents w/no consistency
+ *
+ * eventually support loose, tight, time, session, default always none
+ */
+
+enum p9_cache_modes {
+	CACHE_NONE,
+	CACHE_LOOSE,
+};
+
+/**
+ * struct v9fs_session_info - per-instance session information
+ * @flags: session options of type &p9_session_flags
+ * @nodev: set to 1 to disable device mapping
+ * @debug: debug level
+ * @afid: authentication handle
+ * @cache: cache mode of type &p9_cache_modes
+ * @options: copy of options string given by user
+ * @uname: string user name to mount hierarchy as
+ * @aname: mount specifier for remote hierarchy
+ * @maxdata: maximum data to be sent/recvd per protocol message
+ * @dfltuid: default numeric userid to mount hierarchy as
+ * @dfltgid: default numeric groupid to mount hierarchy as
+ * @uid: if %V9FS_ACCESS_SINGLE, the numeric uid which mounted the hierarchy
+ * @clnt: reference to 9P network client instantiated for this session
+ * @debugfs_dir: reference to debugfs_dir which can be used for add'l debug
+ *
+ * This structure holds state for each session instance established during
+ * a sys_mount() .
+ *
+ * Bugs: there seems to be a lot of state which could be condensed and/or
+ * removed.
+ */
 
 struct v9fs_session_info {
 	/* options */
-	unsigned char flags;	/* session flags */
-	unsigned char nodev;	/* set to 1 if no disable device mapping */
-	unsigned short debug;	/* debug level */
-	unsigned int afid;	/* authentication fid */
-	unsigned int cache;	/* cache mode */
+	unsigned char flags;
+	unsigned char nodev;
+	unsigned short debug;
+	unsigned int afid;
+	unsigned int cache;
 
 	char *options;		/* copy of mount options */
 	char *uname;		/* user name to mount as */
@@ -43,22 +94,6 @@ struct v9fs_session_info {
 	u32 uid;		/* if ACCESS_SINGLE, the uid that has access */
 	struct p9_client *clnt;	/* 9p client */
 	struct dentry *debugfs_dir;
-};
-
-/* session flags */
-enum {
-	V9FS_EXTENDED		= 0x01,	/* 9P2000.u */
-	V9FS_ACCESS_MASK	= 0x06,	/* access mask */
-	V9FS_ACCESS_SINGLE	= 0x02,	/* only one user can access the files */
-	V9FS_ACCESS_USER	= 0x04,	/* attache per user */
-	V9FS_ACCESS_ANY		= 0x06,	/* use the same attach for all users */
-};
-
-/* possible values of ->cache */
-/* eventually support loose, tight, time, session, default always none */
-enum {
-	CACHE_NONE,		/* default */
-	CACHE_LOOSE,		/* no consistency */
 };
 
 extern struct dentry *v9fs_debugfs_root;

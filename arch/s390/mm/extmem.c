@@ -287,7 +287,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	if (rc < 0)
 		goto out_free;
 
-	rc = add_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+	rc = vmem_add_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
 
 	if (rc)
 		goto out_free;
@@ -351,7 +351,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	release_resource(seg->res);
 	kfree(seg->res);
  out_shared:
-	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
  out_free:
 	kfree(seg);
  out:
@@ -474,7 +474,7 @@ segment_modify_shared (char *name, int do_nonshared)
 	rc = 0;
 	goto out_unlock;
  out_del:
-	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
 	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
 	kfree(seg);
@@ -508,7 +508,7 @@ segment_unload(char *name)
 		goto out_unlock;
 	release_resource(seg->res);
 	kfree(seg->res);
-	remove_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
+	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
 	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
 	kfree(seg);

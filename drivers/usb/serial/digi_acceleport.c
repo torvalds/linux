@@ -1421,8 +1421,7 @@ static void digi_close(struct usb_serial_port *port, struct file *filp)
 		tty_wait_until_sent(tty, DIGI_CLOSE_TIMEOUT);
 
 	/* flush driver and line discipline buffers */
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
 	if (port->serial->dev) {

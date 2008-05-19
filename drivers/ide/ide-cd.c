@@ -782,7 +782,7 @@ static ide_startstop_t cdrom_start_seek_continuation(ide_drive_t *drive)
 
 	sector_div(frame, queue_hardsect_size(drive->queue) >> SECTOR_BITS);
 
-	memset(rq->cmd, 0, sizeof(rq->cmd));
+	memset(rq->cmd, 0, BLK_MAX_CDB);
 	rq->cmd[0] = GPCMD_SEEK;
 	put_unaligned(cpu_to_be32(frame), (unsigned int *) &rq->cmd[2]);
 
@@ -1694,7 +1694,7 @@ static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 	long block = (long)rq->hard_sector / (hard_sect >> 9);
 	unsigned long blocks = rq->hard_nr_sectors / (hard_sect >> 9);
 
-	memset(rq->cmd, 0, sizeof(rq->cmd));
+	memset(rq->cmd, 0, BLK_MAX_CDB);
 
 	if (rq_data_dir(rq) == READ)
 		rq->cmd[0] = GPCMD_READ_10;

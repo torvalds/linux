@@ -301,8 +301,7 @@ static struct pxafb_mode_info tpo_tdo24mtea1_modes[] = {
 static struct pxafb_mach_info littleton_lcd_info = {
 	.modes			= tpo_tdo24mtea1_modes,
 	.num_modes		= 2,
-	.lccr0			= LCCR0_Act,
-	.lccr3			= LCCR3_HSP | LCCR3_VSP,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP,
 	.pxafb_lcd_power	= littleton_lcd_power,
 };
 

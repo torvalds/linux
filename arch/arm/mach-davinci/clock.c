@@ -311,11 +311,7 @@ static const struct file_operations proc_davinci_ck_operations = {
 
 static int __init davinci_ck_proc_init(void)
 {
-	struct proc_dir_entry *entry;
-
-	entry = create_proc_entry("davinci_clocks", 0, NULL);
-	if (entry)
-		entry->proc_fops = &proc_davinci_ck_operations;
+	proc_create("davinci_clocks", 0, NULL, &proc_davinci_ck_operations);
 	return 0;
 
 }

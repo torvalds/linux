@@ -54,15 +54,16 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
 
 static void drive_stat_acct(struct request *rq, int new_io)
 {
+	struct hd_struct *part;
 	int rw = rq_data_dir(rq);
 
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	if (!new_io) {
-		__all_stat_inc(rq->rq_disk, merges[rw], rq->sector);
-	} else {
-		struct hd_struct *part = get_part(rq->rq_disk, rq->sector);
+	part = get_part(rq->rq_disk, rq->sector);
+	if (!new_io)
+		__all_stat_inc(rq->rq_disk, part, merges[rw], rq->sector);
+	else {
 		disk_round_stats(rq->rq_disk);
 		rq->rq_disk->in_flight++;
 		if (part) {
@@ -107,41 +108,21 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 }
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
-/*
- * We can't just memset() the structure, since the allocation path
- * already stored some information in the request.
- */
-void rq_init(struct request_queue *q, struct request *rq)
+void blk_rq_init(struct request_queue *q, struct request *rq)
 {
+	memset(rq, 0, sizeof(*rq));
+
 	INIT_LIST_HEAD(&rq->queuelist);
 	INIT_LIST_HEAD(&rq->donelist);
 	rq->q = q;
 	rq->sector = rq->hard_sector = (sector_t) -1;
-	rq->nr_sectors = rq->hard_nr_sectors = 0;
-	rq->current_nr_sectors = rq->hard_cur_sectors = 0;
-	rq->bio = rq->biotail = NULL;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
-	rq->rq_disk = NULL;
-	rq->nr_phys_segments = 0;
-	rq->nr_hw_segments = 0;
-	rq->ioprio = 0;
-	rq->special = NULL;
-	rq->buffer = NULL;
+	rq->cmd = rq->__cmd;
 	rq->tag = -1;
-	rq->errors = 0;
 	rq->ref_count = 1;
-	rq->cmd_len = 0;
-	memset(rq->cmd, 0, sizeof(rq->cmd));
-	rq->data_len = 0;
-	rq->extra_len = 0;
-	rq->sense_len = 0;
-	rq->data = NULL;
-	rq->sense = NULL;
-	rq->end_io = NULL;
-	rq->end_io_data = NULL;
-	rq->next_rq = NULL;
 }
+EXPORT_SYMBOL(blk_rq_init);
 
 static void req_bio_endio(struct request *rq, struct bio *bio,
 			  unsigned int nbytes, int error)
@@ -156,7 +137,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 
 		if (unlikely(nbytes > bio->bi_size)) {
 			printk(KERN_ERR "%s: want %u bytes done, %u left\n",
-			       __FUNCTION__, nbytes, bio->bi_size);
+			       __func__, nbytes, bio->bi_size);
 			nbytes = bio->bi_size;
 		}
 
@@ -194,7 +175,7 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 
 	if (blk_pc_request(rq)) {
 		printk(KERN_INFO "  cdb: ");
-		for (bit = 0; bit < sizeof(rq->cmd); bit++)
+		for (bit = 0; bit < BLK_MAX_CDB; bit++)
 			printk("%02x ", rq->cmd[bit]);
 		printk("\n");
 	}
@@ -220,7 +201,8 @@ void blk_plug_device(struct request_queue *q)
 	if (blk_queue_stopped(q))
 		return;
 
-	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
+	if (!test_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
+		__set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags);
 		mod_timer(&q->unplug_timer, jiffies + q->unplug_delay);
 		blk_add_trace_generic(q, NULL, 0, BLK_TA_PLUG);
 	}
@@ -235,9 +217,10 @@ int blk_remove_plug(struct request_queue *q)
 {
 	WARN_ON(!irqs_disabled());
 
-	if (!test_and_clear_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags))
+	if (!test_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags))
 		return 0;
 
+	queue_flag_clear(QUEUE_FLAG_PLUGGED, q);
 	del_timer(&q->unplug_timer);
 	return 1;
 }
@@ -271,9 +254,11 @@ EXPORT_SYMBOL(__generic_unplug_device);
  **/
 void generic_unplug_device(struct request_queue *q)
 {
-	spin_lock_irq(q->queue_lock);
-	__generic_unplug_device(q);
-	spin_unlock_irq(q->queue_lock);
+	if (blk_queue_plugged(q)) {
+		spin_lock_irq(q->queue_lock);
+		__generic_unplug_device(q);
+		spin_unlock_irq(q->queue_lock);
+	}
 }
 EXPORT_SYMBOL(generic_unplug_device);
 
@@ -333,15 +318,16 @@ void blk_start_queue(struct request_queue *q)
 {
 	WARN_ON(!irqs_disabled());
 
-	clear_bit(QUEUE_FLAG_STOPPED, &q->queue_flags);
+	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
 
 	/*
 	 * one level of recursion is ok and is much faster than kicking
 	 * the unplug handling
 	 */
-	if (!test_and_set_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+	if (!test_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+		queue_flag_set(QUEUE_FLAG_REENTER, q);
 		q->request_fn(q);
-		clear_bit(QUEUE_FLAG_REENTER, &q->queue_flags);
+		queue_flag_clear(QUEUE_FLAG_REENTER, q);
 	} else {
 		blk_plug_device(q);
 		kblockd_schedule_work(&q->unplug_work);
@@ -366,7 +352,7 @@ EXPORT_SYMBOL(blk_start_queue);
 void blk_stop_queue(struct request_queue *q)
 {
 	blk_remove_plug(q);
-	set_bit(QUEUE_FLAG_STOPPED, &q->queue_flags);
+	queue_flag_set(QUEUE_FLAG_STOPPED, q);
 }
 EXPORT_SYMBOL(blk_stop_queue);
 
@@ -395,11 +381,8 @@ EXPORT_SYMBOL(blk_sync_queue);
  * blk_run_queue - run a single device queue
  * @q:	The queue to run
  */
-void blk_run_queue(struct request_queue *q)
+void __blk_run_queue(struct request_queue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
 	blk_remove_plug(q);
 
 	/*
@@ -407,15 +390,28 @@ void blk_run_queue(struct request_queue *q)
 	 * handling reinvoke the handler shortly if we already got there.
 	 */
 	if (!elv_queue_empty(q)) {
-		if (!test_and_set_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+		if (!test_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+			queue_flag_set(QUEUE_FLAG_REENTER, q);
 			q->request_fn(q);
-			clear_bit(QUEUE_FLAG_REENTER, &q->queue_flags);
+			queue_flag_clear(QUEUE_FLAG_REENTER, q);
 		} else {
 			blk_plug_device(q);
 			kblockd_schedule_work(&q->unplug_work);
 		}
 	}
+}
+EXPORT_SYMBOL(__blk_run_queue);
 
+/**
+ * blk_run_queue - run a single device queue
+ * @q: The queue to run
+ */
+void blk_run_queue(struct request_queue *q)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_run_queue);
@@ -428,7 +424,7 @@ void blk_put_queue(struct request_queue *q)
 void blk_cleanup_queue(struct request_queue *q)
 {
 	mutex_lock(&q->sysfs_lock);
-	set_bit(QUEUE_FLAG_DEAD, &q->queue_flags);
+	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
 	mutex_unlock(&q->sysfs_lock);
 
 	if (q->elevator)
@@ -486,6 +482,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	kobject_init(&q->kobj, &blk_queue_ktype);
 
 	mutex_init(&q->sysfs_lock);
+	spin_lock_init(&q->__queue_lock);
 
 	return q;
 }
@@ -548,10 +545,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	 * if caller didn't supply a lock, they get per-queue locking with
 	 * our embedded lock
 	 */
-	if (!lock) {
-		spin_lock_init(&q->__queue_lock);
+	if (!lock)
 		lock = &q->__queue_lock;
-	}
 
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
@@ -606,6 +601,8 @@ blk_alloc_request(struct request_queue *q, int rw, int priv, gfp_t gfp_mask)
 
 	if (!rq)
 		return NULL;
+
+	blk_rq_init(q, rq);
 
 	/*
 	 * first three bits are identical in rq->cmd_flags and bio->bi_rw,
@@ -788,8 +785,6 @@ rq_starved:
 	 */
 	if (ioc_batching(q, ioc))
 		ioc->nr_batch_requests--;
-
-	rq_init(q, rq);
 
 	blk_add_trace_generic(q, bio, rw, BLK_TA_GETRQ);
 out:
@@ -1543,10 +1538,11 @@ static int __end_that_request_first(struct request *req, int error,
 	}
 
 	if (blk_fs_request(req) && req->rq_disk) {
+		struct hd_struct *part = get_part(req->rq_disk, req->sector);
 		const int rw = rq_data_dir(req);
 
-		all_stat_add(req->rq_disk, sectors[rw],
-			     nr_bytes >> 9, req->sector);
+		all_stat_add(req->rq_disk, part, sectors[rw],
+				nr_bytes >> 9, req->sector);
 	}
 
 	total_bytes = bio_nbytes = 0;
@@ -1573,8 +1569,7 @@ static int __end_that_request_first(struct request *req, int error,
 			if (unlikely(bio->bi_idx >= bio->bi_vcnt)) {
 				blk_dump_rq_flags(req, "__end_that");
 				printk(KERN_ERR "%s: bio idx %d >= vcnt %d\n",
-						__FUNCTION__, bio->bi_idx,
-						bio->bi_vcnt);
+				       __func__, bio->bi_idx, bio->bi_vcnt);
 				break;
 			}
 
@@ -1733,8 +1728,8 @@ static void end_that_request_last(struct request *req, int error)
 		const int rw = rq_data_dir(req);
 		struct hd_struct *part = get_part(disk, req->sector);
 
-		__all_stat_inc(disk, ios[rw], req->sector);
-		__all_stat_add(disk, ticks[rw], duration, req->sector);
+		__all_stat_inc(disk, part, ios[rw], req->sector);
+		__all_stat_add(disk, part, ticks[rw], duration, req->sector);
 		disk_round_stats(disk);
 		disk->in_flight--;
 		if (part) {

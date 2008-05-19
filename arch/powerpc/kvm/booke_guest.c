@@ -49,6 +49,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "inst_emu",   VCPU_STAT(emulated_inst_exits) },
 	{ "dec",        VCPU_STAT(dec_exits) },
 	{ "ext_intr",   VCPU_STAT(ext_intr_exits) },
+	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ NULL }
 };
 
@@ -336,6 +337,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		default:
 			BUG();
 		}
+		break;
+
+	case BOOKE_INTERRUPT_FP_UNAVAIL:
+		kvmppc_queue_exception(vcpu, exit_nr);
+		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_DATA_STORAGE:

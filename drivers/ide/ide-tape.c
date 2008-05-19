@@ -662,7 +662,7 @@ static void idetape_create_request_sense_cmd(struct ide_atapi_pc *pc)
 
 static void idetape_init_rq(struct request *rq, u8 cmd)
 {
-	memset(rq, 0, sizeof(*rq));
+	blk_rq_init(NULL, rq);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd[0] = cmd;
 }

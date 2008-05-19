@@ -794,6 +794,11 @@ void __init find_smp_config(void)
                             ACPI-based MP Configuration
    -------------------------------------------------------------------------- */
 
+/*
+ * Keep this outside and initialized to 0, for !CONFIG_ACPI builds:
+ */
+int es7000_plat;
+
 #ifdef CONFIG_ACPI
 
 #ifdef	CONFIG_X86_IO_APIC
@@ -908,8 +913,6 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 
 	MP_intsrc_info(&intsrc);
 }
-
-int es7000_plat;
 
 void __init mp_config_acpi_legacy_irqs(void)
 {

@@ -744,7 +744,8 @@ static int wait_on_busy(unsigned long iobase, unsigned int loop) {
 static int board_inquiry(unsigned int j) {
    struct mscp *cpp;
    dma_addr_t id_dma_addr;
-   unsigned int time, limit = 0;
+   unsigned int limit = 0;
+   unsigned long time;
 
    id_dma_addr = pci_map_single(HD(j)->pdev, HD(j)->board_id,
                     sizeof(HD(j)->board_id), PCI_DMA_BIDIRECTIONAL);
@@ -1392,7 +1393,8 @@ static int u14_34f_eh_abort(struct scsi_cmnd *SCarg) {
 }
 
 static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
-   unsigned int i, j, time, k, c, limit = 0;
+   unsigned int i, j, k, c, limit = 0;
+   unsigned long time;
    int arg_done = FALSE;
    struct scsi_cmnd *SCpnt;
 

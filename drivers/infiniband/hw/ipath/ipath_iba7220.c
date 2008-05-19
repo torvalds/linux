@@ -595,7 +595,7 @@ static void ipath_7220_txe_recover(struct ipath_devdata *dd)
 
 	dev_info(&dd->pcidev->dev,
 		"Recovering from TXE PIO parity error\n");
-	ipath_disarm_senderrbufs(dd, 1);
+	ipath_disarm_senderrbufs(dd);
 }
 
 
@@ -675,10 +675,8 @@ static void ipath_7220_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 	ctrl = ipath_read_kreg32(dd, dd->ipath_kregs->kr_control);
 	if ((ctrl & INFINIPATH_C_FREEZEMODE) && !ipath_diag_inuse) {
 		/*
-		 * Parity errors in send memory are recoverable,
-		 * just cancel the send (if indicated in * sendbuffererror),
-		 * count the occurrence, unfreeze (if no other handled
-		 * hardware error bits are set), and continue.
+		 * Parity errors in send memory are recoverable by h/w
+		 * just do housekeeping, exit freeze mode and continue.
 		 */
 		if (hwerrs & ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
 			       INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
@@ -687,13 +685,6 @@ static void ipath_7220_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			hwerrs &= ~((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
 				     INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
 				    << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT);
-			if (!hwerrs) {
-				/* else leave in freeze mode */
-				ipath_write_kreg(dd,
-						 dd->ipath_kregs->kr_control,
-						 dd->ipath_control);
-				goto bail;
-			}
 		}
 		if (hwerrs) {
 			/*
@@ -723,8 +714,8 @@ static void ipath_7220_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			*dd->ipath_statusp |= IPATH_STATUS_HWERROR;
 			dd->ipath_flags &= ~IPATH_INITTED;
 		} else {
-			ipath_dbg("Clearing freezemode on ignored hardware "
-				  "error\n");
+			ipath_dbg("Clearing freezemode on ignored or "
+				"recovered hardware error\n");
 			ipath_clear_freeze(dd);
 		}
 	}
@@ -870,8 +861,9 @@ static int ipath_7220_boardname(struct ipath_devdata *dd, char *name,
 			      "revision %u.%u!\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
 		ret = 1;
-	} else if (dd->ipath_minrev == 1) {
-		/* Rev1 chips are prototype. Complain, but allow use */
+	} else if (dd->ipath_minrev == 1 &&
+		!(dd->ipath_flags & IPATH_INITTED)) {
+		/* Rev1 chips are prototype. Complain at init, but allow use */
 		ipath_dev_err(dd, "Unsupported hardware "
 			      "revision %u.%u, Contact support@qlogic.com\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
@@ -1966,7 +1958,7 @@ static void ipath_7220_config_ports(struct ipath_devdata *dd, ushort cfgports)
 			 dd->ipath_rcvctrl);
 	dd->ipath_p0_rcvegrcnt = 2048; /* always */
 	if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
-		dd->ipath_pioreserved = 1; /* reserve a buffer */
+		dd->ipath_pioreserved = 3; /* kpiobufs used for PIO */
 }
 
 

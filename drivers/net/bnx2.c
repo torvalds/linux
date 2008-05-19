@@ -56,8 +56,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.7.4"
-#define DRV_MODULE_RELDATE	"February 18, 2008"
+#define DRV_MODULE_VERSION	"1.7.5"
+#define DRV_MODULE_RELDATE	"April 29, 2008"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1631,8 +1631,10 @@ bnx2_set_default_remote_link(struct bnx2 *bp)
 static void
 bnx2_set_default_link(struct bnx2 *bp)
 {
-	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP)
-		return bnx2_set_default_remote_link(bp);
+	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP) {
+		bnx2_set_default_remote_link(bp);
+		return;
+	}
 
 	bp->autoneg = AUTONEG_SPEED | AUTONEG_FLOW_CTRL;
 	bp->req_line_speed = 0;
@@ -1715,7 +1717,6 @@ bnx2_remote_phy_event(struct bnx2 *bp)
 				break;
 		}
 
-		spin_lock(&bp->phy_lock);
 		bp->flow_ctrl = 0;
 		if ((bp->autoneg & (AUTONEG_SPEED | AUTONEG_FLOW_CTRL)) !=
 		    (AUTONEG_SPEED | AUTONEG_FLOW_CTRL)) {
@@ -1737,7 +1738,6 @@ bnx2_remote_phy_event(struct bnx2 *bp)
 		if (old_port != bp->phy_port)
 			bnx2_set_default_link(bp);
 
-		spin_unlock(&bp->phy_lock);
 	}
 	if (bp->link_up != link_up)
 		bnx2_report_link(bp);
@@ -2222,6 +2222,11 @@ bnx2_init_5709_context(struct bnx2 *bp)
 	for (i = 0; i < bp->ctx_pages; i++) {
 		int j;
 
+		if (bp->ctx_blk[i])
+			memset(bp->ctx_blk[i], 0, BCM_PAGE_SIZE);
+		else
+			return -ENOMEM;
+
 		REG_WR(bp, BNX2_CTX_HOST_PAGE_TBL_DATA0,
 		       (bp->ctx_blk_mapping[i] & 0xffffffff) |
 		       BNX2_CTX_HOST_PAGE_TBL_DATA0_VALID);
@@ -2445,13 +2450,14 @@ bnx2_phy_event_is_set(struct bnx2 *bp, struct bnx2_napi *bnapi, u32 event)
 static void
 bnx2_phy_int(struct bnx2 *bp, struct bnx2_napi *bnapi)
 {
-	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_LINK_STATE)) {
-		spin_lock(&bp->phy_lock);
+	spin_lock(&bp->phy_lock);
+
+	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_LINK_STATE))
 		bnx2_set_link(bp);
-		spin_unlock(&bp->phy_lock);
-	}
 	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_TIMER_ABORT))
 		bnx2_set_remote_link(bp);
+
+	spin_unlock(&bp->phy_lock);
 
 }
 
@@ -3174,6 +3180,12 @@ load_rv2p_fw(struct bnx2 *bp, __le32 *rv2p_code, u32 rv2p_code_len,
 	int i;
 	u32 val;
 
+	if (rv2p_proc == RV2P_PROC2 && CHIP_NUM(bp) == CHIP_NUM_5709) {
+		val = le32_to_cpu(rv2p_code[XI_RV2P_PROC2_MAX_BD_PAGE_LOC]);
+		val &= ~XI_RV2P_PROC2_BD_PAGE_SIZE_MSK;
+		val |= XI_RV2P_PROC2_BD_PAGE_SIZE;
+		rv2p_code[XI_RV2P_PROC2_MAX_BD_PAGE_LOC] = cpu_to_le32(val);
+	}
 
 	for (i = 0; i < rv2p_code_len; i += 8) {
 		REG_WR(bp, BNX2_RV2P_INSTR_HIGH, le32_to_cpu(*rv2p_code));
@@ -4215,13 +4227,6 @@ bnx2_init_remote_phy(struct bnx2 *bp)
 		if (netif_running(bp->dev)) {
 			u32 sig;
 
-			if (val & BNX2_LINK_STATUS_LINK_UP) {
-				bp->link_up = 1;
-				netif_carrier_on(bp->dev);
-			} else {
-				bp->link_up = 0;
-				netif_carrier_off(bp->dev);
-			}
 			sig = BNX2_DRV_ACK_CAP_SIGNATURE |
 			      BNX2_FW_CAP_REMOTE_PHY_CAPABLE;
 			bnx2_shmem_wr(bp, BNX2_DRV_ACK_CAP_MB, sig);
@@ -4878,6 +4883,8 @@ bnx2_init_nic(struct bnx2 *bp)
 	spin_lock_bh(&bp->phy_lock);
 	bnx2_init_phy(bp);
 	bnx2_set_link(bp);
+	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP)
+		bnx2_remote_phy_event(bp);
 	spin_unlock_bh(&bp->phy_lock);
 	return 0;
 }
@@ -4920,7 +4927,7 @@ bnx2_test_registers(struct bnx2 *bp)
 		{ 0x0c08, BNX2_FL_NOT_5709,  0x0f0ff073, 0x00000000 },
 
 		{ 0x1000, 0, 0x00000000, 0x00000001 },
-		{ 0x1004, 0, 0x00000000, 0x000f0001 },
+		{ 0x1004, BNX2_FL_NOT_5709, 0x00000000, 0x000f0001 },
 
 		{ 0x1408, 0, 0x01c00800, 0x00000000 },
 		{ 0x149c, 0, 0x8000ffff, 0x00000000 },

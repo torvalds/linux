@@ -449,7 +449,6 @@ int netdev_register_kobject(struct net_device *net)
 	struct device *dev = &(net->dev);
 	struct attribute_group **groups = net->sysfs_groups;
 
-	device_initialize(dev);
 	dev->class = &net_class;
 	dev->platform_data = net;
 	dev->groups = groups;
@@ -468,6 +467,12 @@ int netdev_register_kobject(struct net_device *net)
 #endif /* CONFIG_SYSFS */
 
 	return device_add(dev);
+}
+
+void netdev_initialize_kobject(struct net_device *net)
+{
+	struct device *device = &(net->dev);
+	device_initialize(device);
 }
 
 int netdev_kobject_init(void)

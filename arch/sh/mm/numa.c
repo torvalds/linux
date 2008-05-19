@@ -59,7 +59,7 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 	free_pfn = start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
 
-	add_active_range(nid, start_pfn, end_pfn);
+	__add_active_range(nid, start_pfn, end_pfn);
 
 	/* Node-local pgdat */
 	NODE_DATA(nid) = pfn_to_kaddr(free_pfn);

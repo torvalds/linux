@@ -57,14 +57,6 @@
 
 #include "cifspdu.h"
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 #ifndef XATTR_DOS_ATTRIB
 #define XATTR_DOS_ATTRIB "user.DOSATTRIB"
 #endif
@@ -147,7 +139,7 @@ struct TCP_Server_Info {
 	enum protocolEnum protocolType;
 	char versionMajor;
 	char versionMinor;
-	unsigned svlocal:1;	/* local server or remote */
+	bool svlocal:1;			/* local server or remote */
 	atomic_t socketUseCount; /* number of open cifs sessions on socket */
 	atomic_t inFlight;  /* number of requests on the wire to server */
 #ifdef CONFIG_CIFS_STATS2
@@ -286,10 +278,10 @@ struct cifsTconInfo {
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo; /* ok if fs name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
-	unsigned ipc:1;		/* set if connection to IPC$ eg for RPC/PIPES */
-	unsigned retry:1;
-	unsigned nocase:1;
-	unsigned unix_ext:1; /* if off disable Linux extensions to CIFS protocol
+	bool ipc:1;		/* set if connection to IPC$ eg for RPC/PIPES */
+	bool retry:1;
+	bool nocase:1;
+	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
 	/* BB add field for back pointer to sb struct(s)? */
 };
@@ -317,10 +309,10 @@ struct cifs_search_info {
 	char *srch_entries_start;
 	char *presume_name;
 	unsigned int resume_name_len;
-	unsigned endOfSearch:1;
-	unsigned emptyDir:1;
-	unsigned unicode:1;
-	unsigned smallBuf:1; /* so we know which buf_release function to call */
+	bool endOfSearch:1;
+	bool emptyDir:1;
+	bool unicode:1;
+	bool smallBuf:1; /* so we know which buf_release function to call */
 };
 
 struct cifsFileInfo {
@@ -335,9 +327,9 @@ struct cifsFileInfo {
 	struct inode *pInode; /* needed for oplock break */
 	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
-	unsigned closePend:1;	/* file is marked to close */
-	unsigned invalidHandle:1;  /* file closed via session abend */
-	unsigned messageMode:1;    /* for pipes: message vs byte mode */
+	bool closePend:1;	/* file is marked to close */
+	bool invalidHandle:1;	/* file closed via session abend */
+	bool messageMode:1;	/* for pipes: message vs byte mode */
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char *search_resume_name; /* BB removeme BB */
@@ -356,9 +348,9 @@ struct cifsInodeInfo {
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
 	atomic_t inUse;	 /* num concurrent users (local openers cifs) of file*/
 	unsigned long time;	/* jiffies of last update/check of inode */
-	unsigned clientCanCacheRead:1; /* read oplock */
-	unsigned clientCanCacheAll:1;  /* read and writebehind oplock */
-	unsigned oplockPending:1;
+	bool clientCanCacheRead:1;	/* read oplock */
+	bool clientCanCacheAll:1;	/* read and writebehind oplock */
+	bool oplockPending:1;
 	struct inode vfs_inode;
 };
 
@@ -426,9 +418,9 @@ struct mid_q_entry {
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */
 	__u8 command;	/* smb command code */
-	unsigned largeBuf:1;    /* if valid response, is pointer to large buf */
-	unsigned multiRsp:1;   /* multiple trans2 responses for one request  */
-	unsigned multiEnd:1; /* both received */
+	bool largeBuf:1;	/* if valid response, is pointer to large buf */
+	bool multiRsp:1;	/* multiple trans2 responses for one request  */
+	bool multiEnd:1;	/* both received */
 };
 
 struct oplock_q_entry {

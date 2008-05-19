@@ -324,6 +324,7 @@ static void smk_cipso_doi(void)
 	struct netlbl_audit audit_info;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = smack_to_secid(current->security);
 
 	rc = netlbl_cfg_map_del(NULL, &audit_info);
@@ -356,6 +357,7 @@ static void smk_unlbl_ambient(char *oldambient)
 	struct netlbl_audit audit_info;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = smack_to_secid(current->security);
 
 	if (oldambient != NULL) {

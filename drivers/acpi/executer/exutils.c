@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,6 @@
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
-#include <acpi/acevents.h>
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exutils")
@@ -217,9 +216,10 @@ void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 
 	/*
 	 * Object must be a valid number and we must be executing
-	 * a control method
+	 * a control method. NS node could be there for AML_INT_NAMEPATH_OP.
 	 */
 	if ((!obj_desc) ||
+	    (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) ||
 	    (ACPI_GET_OBJECT_TYPE(obj_desc) != ACPI_TYPE_INTEGER)) {
 		return;
 	}
@@ -240,72 +240,73 @@ void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
  * PARAMETERS:  field_flags           - Flags with Lock rule:
  *                                      always_lock or never_lock
  *
- * RETURN:      TRUE/FALSE indicating whether the lock was actually acquired
+ * RETURN:      None
  *
- * DESCRIPTION: Obtain the global lock and keep track of this fact via two
- *              methods.  A global variable keeps the state of the lock, and
- *              the state is returned to the caller.
+ * DESCRIPTION: Obtain the ACPI hardware Global Lock, only if the field
+ *              flags specifiy that it is to be obtained before field access.
  *
  ******************************************************************************/
 
-u8 acpi_ex_acquire_global_lock(u32 field_flags)
+void acpi_ex_acquire_global_lock(u32 field_flags)
 {
-	u8 locked = FALSE;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ex_acquire_global_lock);
 
-	/* Only attempt lock if the always_lock bit is set */
+	/* Only use the lock if the always_lock bit is set */
 
-	if (field_flags & AML_FIELD_LOCK_RULE_MASK) {
-
-		/* We should attempt to get the lock, wait forever */
-
-		status = acpi_ev_acquire_global_lock(ACPI_WAIT_FOREVER);
-		if (ACPI_SUCCESS(status)) {
-			locked = TRUE;
-		} else {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not acquire Global Lock"));
-		}
+	if (!(field_flags & AML_FIELD_LOCK_RULE_MASK)) {
+		return_VOID;
 	}
 
-	return_UINT8(locked);
+	/* Attempt to get the global lock, wait forever */
+
+	status = acpi_ex_acquire_mutex_object(ACPI_WAIT_FOREVER,
+					      acpi_gbl_global_lock_mutex,
+					      acpi_os_get_thread_id());
+
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not acquire Global Lock"));
+	}
+
+	return_VOID;
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_release_global_lock
  *
- * PARAMETERS:  locked_by_me    - Return value from corresponding call to
- *                                acquire_global_lock.
+ * PARAMETERS:  field_flags           - Flags with Lock rule:
+ *                                      always_lock or never_lock
  *
  * RETURN:      None
  *
- * DESCRIPTION: Release the global lock if it is locked.
+ * DESCRIPTION: Release the ACPI hardware Global Lock
  *
  ******************************************************************************/
 
-void acpi_ex_release_global_lock(u8 locked_by_me)
+void acpi_ex_release_global_lock(u32 field_flags)
 {
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ex_release_global_lock);
 
-	/* Only attempt unlock if the caller locked it */
+	/* Only use the lock if the always_lock bit is set */
 
-	if (locked_by_me) {
+	if (!(field_flags & AML_FIELD_LOCK_RULE_MASK)) {
+		return_VOID;
+	}
 
-		/* OK, now release the lock */
+	/* Release the global lock */
 
-		status = acpi_ev_release_global_lock();
-		if (ACPI_FAILURE(status)) {
+	status = acpi_ex_release_mutex_object(acpi_gbl_global_lock_mutex);
+	if (ACPI_FAILURE(status)) {
 
-			/* Report the error, but there isn't much else we can do */
+		/* Report the error, but there isn't much else we can do */
 
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not release ACPI Global Lock"));
-		}
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not release Global Lock"));
 	}
 
 	return_VOID;

@@ -129,7 +129,6 @@ registers, use byte operations only.
 //------------------------------------------------
 //
 #include "ip2types.h"
-#include "i2os.h"    /* For any o.s., compiler, or host-related issues */
 
 //-------------------------------------------------------------------------
 // Manifests for the I/O map:
@@ -643,6 +642,11 @@ typedef union _loadHdrStr
 #define ABS_MAX_BOXES   4     // Absolute most boxes per board
 #define ABS_BIGGEST_BOX 16    // Absolute the most ports per box
 #define ABS_MOST_PORTS  (ABS_MAX_BOXES * ABS_BIGGEST_BOX)
+
+#define I2_OUTSW(port, addr, count)	outsw((port), (addr), (((count)+1)/2))
+#define I2_OUTSB(port, addr, count)	outsb((port), (addr), (((count)+1))&-2)
+#define I2_INSW(port, addr, count)	insw((port), (addr), (((count)+1)/2))
+#define I2_INSB(port, addr, count)	insb((port), (addr), (((count)+1))&-2)
 
 #endif   // I2HW_H
 

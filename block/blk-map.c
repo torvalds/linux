@@ -255,10 +255,18 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  * @kbuf:	the kernel buffer
  * @len:	length of user data
  * @gfp_mask:	memory allocation flags
+ *
+ * Description:
+ *    Data will be mapped directly if possible. Otherwise a bounce
+ *    buffer is used.
  */
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		    unsigned int len, gfp_t gfp_mask)
 {
+	unsigned long kaddr;
+	unsigned int alignment;
+	int reading = rq_data_dir(rq) == READ;
+	int do_copy = 0;
 	struct bio *bio;
 
 	if (len > (q->max_hw_sectors << 9))
@@ -266,12 +274,23 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (!len || !kbuf)
 		return -EINVAL;
 
-	bio = bio_map_kern(q, kbuf, len, gfp_mask);
+	kaddr = (unsigned long)kbuf;
+	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
+	do_copy = ((kaddr & alignment) || (len & alignment));
+
+	if (do_copy)
+		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);
+	else
+		bio = bio_map_kern(q, kbuf, len, gfp_mask);
+
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
 	if (rq_data_dir(rq) == WRITE)
 		bio->bi_rw |= (1 << BIO_RW);
+
+	if (do_copy)
+		rq->cmd_flags |= REQ_COPY_USER;
 
 	blk_rq_bio_prep(q, rq, bio);
 	blk_queue_bounce(q, &rq->bio);

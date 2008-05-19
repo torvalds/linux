@@ -14,6 +14,7 @@
 #include <linux/utsname.h>
 #include <linux/version.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 /*
  * Clone a new ns copying an original utsname, setting refcount to 1

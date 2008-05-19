@@ -24,7 +24,7 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 	if (psy->get_property(psy, POWER_SUPPLY_PROP_STATUS, &status))
 		return;
 
-	dev_dbg(psy->dev, "%s %d\n", __FUNCTION__, status.intval);
+	dev_dbg(psy->dev, "%s %d\n", __func__, status.intval);
 
 	switch (status.intval) {
 	case POWER_SUPPLY_STATUS_FULL:
@@ -101,7 +101,7 @@ static void power_supply_update_gen_leds(struct power_supply *psy)
 	if (psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &online))
 		return;
 
-	dev_dbg(psy->dev, "%s %d\n", __FUNCTION__, online.intval);
+	dev_dbg(psy->dev, "%s %d\n", __func__, online.intval);
 
 	if (online.intval)
 		led_trigger_event(psy->online_trig, LED_FULL);

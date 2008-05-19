@@ -19,41 +19,51 @@
 
 struct lmb lmb;
 
+static int lmb_debug;
+
+static int __init early_lmb(char *p)
+{
+	if (p && strstr(p, "debug"))
+		lmb_debug = 1;
+	return 0;
+}
+early_param("lmb", early_lmb);
+
 void lmb_dump_all(void)
 {
-#ifdef DEBUG
 	unsigned long i;
 
-	pr_debug("lmb_dump_all:\n");
-	pr_debug("    memory.cnt		  = 0x%lx\n", lmb.memory.cnt);
-	pr_debug("    memory.size		  = 0x%llx\n",
+	if (!lmb_debug)
+		return;
+
+	pr_info("lmb_dump_all:\n");
+	pr_info("    memory.cnt		  = 0x%lx\n", lmb.memory.cnt);
+	pr_info("    memory.size		  = 0x%llx\n",
 	    (unsigned long long)lmb.memory.size);
 	for (i=0; i < lmb.memory.cnt ;i++) {
-		pr_debug("    memory.region[0x%x].base       = 0x%llx\n",
+		pr_info("    memory.region[0x%lx].base       = 0x%llx\n",
 		    i, (unsigned long long)lmb.memory.region[i].base);
-		pr_debug("		      .size     = 0x%llx\n",
+		pr_info("		      .size     = 0x%llx\n",
 		    (unsigned long long)lmb.memory.region[i].size);
 	}
 
-	pr_debug("    reserved.cnt	  = 0x%lx\n", lmb.reserved.cnt);
-	pr_debug("    reserved.size	  = 0x%lx\n", lmb.reserved.size);
+	pr_info("    reserved.cnt	  = 0x%lx\n", lmb.reserved.cnt);
+	pr_info("    reserved.size	  = 0x%lx\n", lmb.reserved.size);
 	for (i=0; i < lmb.reserved.cnt ;i++) {
-		pr_debug("    reserved.region[0x%x].base       = 0x%llx\n",
+		pr_info("    reserved.region[0x%lx].base       = 0x%llx\n",
 		    i, (unsigned long long)lmb.reserved.region[i].base);
-		pr_debug("		      .size     = 0x%llx\n",
+		pr_info("		      .size     = 0x%llx\n",
 		    (unsigned long long)lmb.reserved.region[i].size);
 	}
-#endif /* DEBUG */
 }
 
-static unsigned long __init lmb_addrs_overlap(u64 base1, u64 size1,
-		u64 base2, u64 size2)
+static unsigned long lmb_addrs_overlap(u64 base1, u64 size1, u64 base2,
+					u64 size2)
 {
 	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
 }
 
-static long __init lmb_addrs_adjacent(u64 base1, u64 size1,
-		u64 base2, u64 size2)
+static long lmb_addrs_adjacent(u64 base1, u64 size1, u64 base2, u64 size2)
 {
 	if (base2 == base1 + size1)
 		return 1;
@@ -63,7 +73,7 @@ static long __init lmb_addrs_adjacent(u64 base1, u64 size1,
 	return 0;
 }
 
-static long __init lmb_regions_adjacent(struct lmb_region *rgn,
+static long lmb_regions_adjacent(struct lmb_region *rgn,
 		unsigned long r1, unsigned long r2)
 {
 	u64 base1 = rgn->region[r1].base;
@@ -74,7 +84,7 @@ static long __init lmb_regions_adjacent(struct lmb_region *rgn,
 	return lmb_addrs_adjacent(base1, size1, base2, size2);
 }
 
-static void __init lmb_remove_region(struct lmb_region *rgn, unsigned long r)
+static void lmb_remove_region(struct lmb_region *rgn, unsigned long r)
 {
 	unsigned long i;
 
@@ -86,7 +96,7 @@ static void __init lmb_remove_region(struct lmb_region *rgn, unsigned long r)
 }
 
 /* Assumption: base addr of region 1 < base addr of region 2 */
-static void __init lmb_coalesce_regions(struct lmb_region *rgn,
+static void lmb_coalesce_regions(struct lmb_region *rgn,
 		unsigned long r1, unsigned long r2)
 {
 	rgn->region[r1].size += rgn->region[r2].size;
@@ -118,7 +128,7 @@ void __init lmb_analyze(void)
 		lmb.memory.size += lmb.memory.region[i].size;
 }
 
-static long __init lmb_add_region(struct lmb_region *rgn, u64 base, u64 size)
+static long lmb_add_region(struct lmb_region *rgn, u64 base, u64 size)
 {
 	unsigned long coalesced = 0;
 	long adjacent, i;
@@ -182,7 +192,7 @@ static long __init lmb_add_region(struct lmb_region *rgn, u64 base, u64 size)
 	return 0;
 }
 
-long __init lmb_add(u64 base, u64 size)
+long lmb_add(u64 base, u64 size)
 {
 	struct lmb_region *_rgn = &lmb.memory;
 
@@ -192,6 +202,55 @@ long __init lmb_add(u64 base, u64 size)
 
 	return lmb_add_region(_rgn, base, size);
 
+}
+
+long lmb_remove(u64 base, u64 size)
+{
+	struct lmb_region *rgn = &(lmb.memory);
+	u64 rgnbegin, rgnend;
+	u64 end = base + size;
+	int i;
+
+	rgnbegin = rgnend = 0; /* supress gcc warnings */
+
+	/* Find the region where (base, size) belongs to */
+	for (i=0; i < rgn->cnt; i++) {
+		rgnbegin = rgn->region[i].base;
+		rgnend = rgnbegin + rgn->region[i].size;
+
+		if ((rgnbegin <= base) && (end <= rgnend))
+			break;
+	}
+
+	/* Didn't find the region */
+	if (i == rgn->cnt)
+		return -1;
+
+	/* Check to see if we are removing entire region */
+	if ((rgnbegin == base) && (rgnend == end)) {
+		lmb_remove_region(rgn, i);
+		return 0;
+	}
+
+	/* Check to see if region is matching at the front */
+	if (rgnbegin == base) {
+		rgn->region[i].base = end;
+		rgn->region[i].size -= size;
+		return 0;
+	}
+
+	/* Check to see if the region is matching at the end */
+	if (rgnend == end) {
+		rgn->region[i].size -= size;
+		return 0;
+	}
+
+	/*
+	 * We need to split the entry -  adjust the current one to the
+	 * beginging of the hole and add the region after hole.
+	 */
+	rgn->region[i].size = base - rgn->region[i].base;
+	return lmb_add_region(rgn, end, rgnend - end);
 }
 
 long __init lmb_reserve(u64 base, u64 size)
@@ -238,8 +297,7 @@ static u64 __init lmb_alloc_nid_unreserved(u64 start, u64 end,
 		j = lmb_overlaps_region(&lmb.reserved, base, size);
 		if (j < 0) {
 			/* this area isn't reserved, take it */
-			if (lmb_add_region(&lmb.reserved, base,
-					   lmb_align_up(size, align)) < 0)
+			if (lmb_add_region(&lmb.reserved, base, size) < 0)
 				base = ~(u64)0;
 			return base;
 		}
@@ -285,6 +343,10 @@ u64 __init lmb_alloc_nid(u64 size, u64 align, int nid,
 	struct lmb_region *mem = &lmb.memory;
 	int i;
 
+	BUG_ON(0 == size);
+
+	size = lmb_align_up(size, align);
+
 	for (i = 0; i < mem->cnt; i++) {
 		u64 ret = lmb_alloc_nid_region(&mem->region[i],
 					       nid_range,
@@ -322,6 +384,8 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 
 	BUG_ON(0 == size);
 
+	size = lmb_align_up(size, align);
+
 	/* On some platforms, make sure we allocate lowmem */
 	/* Note that LMB_REAL_LIMIT may be LMB_ALLOC_ANYWHERE */
 	if (max_addr == LMB_ALLOC_ANYWHERE)
@@ -345,8 +409,7 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 			j = lmb_overlaps_region(&lmb.reserved, base, size);
 			if (j < 0) {
 				/* this area isn't reserved, take it */
-				if (lmb_add_region(&lmb.reserved, base,
-						   lmb_align_up(size, align)) < 0)
+				if (lmb_add_region(&lmb.reserved, base, size) < 0)
 					return 0;
 				return base;
 			}
@@ -425,4 +488,37 @@ int __init lmb_is_reserved(u64 addr)
 			return 1;
 	}
 	return 0;
+}
+
+/*
+ * Given a <base, len>, find which memory regions belong to this range.
+ * Adjust the request and return a contiguous chunk.
+ */
+int lmb_find(struct lmb_property *res)
+{
+	int i;
+	u64 rstart, rend;
+
+	rstart = res->base;
+	rend = rstart + res->size - 1;
+
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		u64 start = lmb.memory.region[i].base;
+		u64 end = start + lmb.memory.region[i].size - 1;
+
+		if (start > rend)
+			return -1;
+
+		if ((end >= rstart) && (start < rend)) {
+			/* adjust the request */
+			if (rstart < start)
+				rstart = start;
+			if (rend > end)
+				rend = end;
+			res->base = rstart;
+			res->size = rend - rstart + 1;
+			return 0;
+		}
+	}
+	return -1;
 }

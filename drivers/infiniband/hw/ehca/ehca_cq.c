@@ -132,10 +132,19 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	if (cqe >= 0xFFFFFFFF - 64 - additional_cqe)
 		return ERR_PTR(-EINVAL);
 
+	if (!atomic_add_unless(&shca->num_cqs, 1, ehca_max_cq)) {
+		ehca_err(device, "Unable to create CQ, max number of %i "
+			"CQs reached.", ehca_max_cq);
+		ehca_err(device, "To increase the maximum number of CQs "
+			"use the number_of_cqs module parameter.\n");
+		return ERR_PTR(-ENOSPC);
+	}
+
 	my_cq = kmem_cache_zalloc(cq_cache, GFP_KERNEL);
 	if (!my_cq) {
 		ehca_err(device, "Out of memory for ehca_cq struct device=%p",
 			 device);
+		atomic_dec(&shca->num_cqs);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -305,6 +314,7 @@ create_cq_exit2:
 create_cq_exit1:
 	kmem_cache_free(cq_cache, my_cq);
 
+	atomic_dec(&shca->num_cqs);
 	return cq;
 }
 
@@ -359,6 +369,7 @@ int ehca_destroy_cq(struct ib_cq *cq)
 	ipz_queue_dtor(NULL, &my_cq->ipz_queue);
 	kmem_cache_free(cq_cache, my_cq);
 
+	atomic_dec(&shca->num_cqs);
 	return 0;
 }
 

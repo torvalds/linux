@@ -583,15 +583,13 @@ out:
 	i += sprintf(&buf[i], "\n");
 	return i;
 }
-/**
- * show_affected_cpus - show the CPUs affected by each transition
- */
-static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
+
+static ssize_t show_cpus(cpumask_t mask, char *buf)
 {
 	ssize_t i = 0;
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, policy->cpus) {
+	for_each_cpu_mask(cpu, mask) {
 		if (i)
 			i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), " ");
 		i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), "%u", cpu);
@@ -600,6 +598,25 @@ static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
 	}
 	i += sprintf(&buf[i], "\n");
 	return i;
+}
+
+/**
+ * show_related_cpus - show the CPUs affected by each transition even if
+ * hw coordination is in use
+ */
+static ssize_t show_related_cpus(struct cpufreq_policy *policy, char *buf)
+{
+	if (cpus_empty(policy->related_cpus))
+		return show_cpus(policy->cpus, buf);
+	return show_cpus(policy->related_cpus, buf);
+}
+
+/**
+ * show_affected_cpus - show the CPUs affected by each transition
+ */
+static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
+{
+	return show_cpus(policy->cpus, buf);
 }
 
 static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
@@ -646,6 +663,7 @@ define_one_ro(cpuinfo_max_freq);
 define_one_ro(scaling_available_governors);
 define_one_ro(scaling_driver);
 define_one_ro(scaling_cur_freq);
+define_one_ro(related_cpus);
 define_one_ro(affected_cpus);
 define_one_rw(scaling_min_freq);
 define_one_rw(scaling_max_freq);
@@ -658,6 +676,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_min_freq.attr,
 	&scaling_max_freq.attr,
 	&affected_cpus.attr,
+	&related_cpus.attr,
 	&scaling_governor.attr,
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,

@@ -107,9 +107,11 @@ int v4l2_chip_match_host(u32 id_type, u32 chip_id);
 struct i2c_driver;
 struct i2c_adapter;
 struct i2c_client;
+struct i2c_device_id;
 
 int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
-		const char *name, int (*probe)(struct i2c_client *));
+		const char *name,
+		int (*probe)(struct i2c_client *, const struct i2c_device_id *));
 
 /* ------------------------------------------------------------------------- */
 

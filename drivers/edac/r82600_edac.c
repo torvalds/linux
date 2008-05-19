@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define R82600_REVISION	" Ver: 2.0.2 " __DATE__
@@ -393,6 +394,9 @@ static struct pci_driver r82600_driver = {
 
 static int __init r82600_init(void)
 {
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	return pci_register_driver(&r82600_driver);
 }
 
@@ -412,3 +416,6 @@ MODULE_DESCRIPTION("MC support for Radisys 82600 memory controllers");
 module_param(disable_hardware_scrub, bool, 0644);
 MODULE_PARM_DESC(disable_hardware_scrub,
 		 "If set, disable the chipset's automatic scrub for CEs");
+
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

@@ -21,6 +21,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include "dvbdev.h"
+#include "pvrusb2-debug.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
@@ -35,7 +36,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 	struct pvr2_buffer *bp;
 	struct pvr2_stream *stream;
 
-	printk(KERN_DEBUG "dvb thread started\n");
+	pvr2_trace(PVR2_TRACE_DVB_FEED, "dvb feed thread started");
 	set_freezable();
 
 	stream = adap->channel.stream->stream;
@@ -82,7 +83,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 	/* If we get here and ret is < 0, then an error has occurred.
 	   Probably would be a good idea to communicate that to DVB core... */
 
-	printk(KERN_DEBUG "dvb thread stopped\n");
+	pvr2_trace(PVR2_TRACE_DVB_FEED, "dvb feed thread stopped");
 
 	return 0;
 }
@@ -210,7 +211,8 @@ static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	do {
 		if (onoff) {
 			if (!adap->feedcount) {
-				printk(KERN_DEBUG "start feeding\n");
+				pvr2_trace(PVR2_TRACE_DVB_FEED,
+					   "start feeding demux");
 				ret = pvr2_dvb_stream_start(adap);
 				if (ret < 0) break;
 			}
@@ -218,7 +220,8 @@ static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		} else if (adap->feedcount > 0) {
 			(adap->feedcount)--;
 			if (!adap->feedcount) {
-				printk(KERN_DEBUG "stop feeding\n");
+				pvr2_trace(PVR2_TRACE_DVB_FEED,
+					   "stop feeding demux");
 				pvr2_dvb_stream_end(adap);
 			}
 		}
@@ -230,15 +233,13 @@ static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 static int pvr2_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	printk(KERN_DEBUG "start pid: 0x%04x, feedtype: %d\n",
-	       dvbdmxfeed->pid, dvbdmxfeed->type);
+	pvr2_trace(PVR2_TRACE_DVB_FEED, "start pid: 0x%04x", dvbdmxfeed->pid);
 	return pvr2_dvb_ctrl_feed(dvbdmxfeed, 1);
 }
 
 static int pvr2_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	printk(KERN_DEBUG "stop pid: 0x%04x, feedtype: %d\n",
-	       dvbdmxfeed->pid, dvbdmxfeed->type);
+	pvr2_trace(PVR2_TRACE_DVB_FEED, "stop pid: 0x%04x", dvbdmxfeed->pid);
 	return pvr2_dvb_ctrl_feed(dvbdmxfeed, 0);
 }
 
@@ -259,7 +260,8 @@ static int pvr2_dvb_adapter_init(struct pvr2_dvb_adapter *adap)
 				   &adap->channel.hdw->usb_dev->dev,
 				   adapter_nr);
 	if (ret < 0) {
-		err("dvb_register_adapter failed: error %d", ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "dvb_register_adapter failed: error %d", ret);
 		goto err;
 	}
 	adap->dvb_adap.priv = adap;
@@ -276,7 +278,8 @@ static int pvr2_dvb_adapter_init(struct pvr2_dvb_adapter *adap)
 
 	ret = dvb_dmx_init(&adap->demux);
 	if (ret < 0) {
-		err("dvb_dmx_init failed: error %d", ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "dvb_dmx_init failed: error %d", ret);
 		goto err_dmx;
 	}
 
@@ -286,7 +289,8 @@ static int pvr2_dvb_adapter_init(struct pvr2_dvb_adapter *adap)
 
 	ret = dvb_dmxdev_init(&adap->dmxdev, &adap->dvb_adap);
 	if (ret < 0) {
-		err("dvb_dmxdev_init failed: error %d", ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "dvb_dmxdev_init failed: error %d", ret);
 		goto err_dmx_dev;
 	}
 
@@ -304,7 +308,7 @@ err:
 
 static int pvr2_dvb_adapter_exit(struct pvr2_dvb_adapter *adap)
 {
-	printk(KERN_DEBUG "unregistering DVB devices\n");
+	pvr2_trace(PVR2_TRACE_INFO, "unregistering DVB devices");
 	dvb_net_release(&adap->dvb_net);
 	adap->demux.dmx.close(&adap->demux.dmx);
 	dvb_dmxdev_release(&adap->dmxdev);
@@ -320,7 +324,7 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 	int ret = 0;
 
 	if (dvb_props == NULL) {
-		err("fe_props not defined!");
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS, "fe_props not defined!");
 		return -EINVAL;
 	}
 
@@ -328,13 +332,15 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 	    &adap->channel,
 	    (1 << PVR2_CVAL_INPUT_DTV));
 	if (ret) {
-		err("failed to grab control of dtv input (code=%d)",
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "failed to grab control of dtv input (code=%d)",
 		    ret);
 		return ret;
 	}
 
 	if (dvb_props->frontend_attach == NULL) {
-		err("frontend_attach not defined!");
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "frontend_attach not defined!");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -342,7 +348,8 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 	if ((dvb_props->frontend_attach(adap) == 0) && (adap->fe)) {
 
 		if (dvb_register_frontend(&adap->dvb_adap, adap->fe)) {
-			err("frontend registration failed!");
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "frontend registration failed!");
 			dvb_frontend_detach(adap->fe);
 			adap->fe = NULL;
 			ret = -ENODEV;
@@ -359,7 +366,8 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 		adap->fe->ops.ts_bus_ctrl = pvr2_dvb_bus_ctrl;
 
 	} else {
-		err("no frontend was attached!");
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "no frontend was attached!");
 		ret = -ENODEV;
 		return ret;
 	}

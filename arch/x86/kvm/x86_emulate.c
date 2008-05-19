@@ -1761,6 +1761,7 @@ twobyte_insn:
 		case 6: /* lmsw */
 			realmode_lmsw(ctxt->vcpu, (u16)c->src.val,
 				      &ctxt->eflags);
+			c->dst.type = OP_NONE;
 			break;
 		case 7: /* invlpg*/
 			emulate_invlpg(ctxt->vcpu, memop);

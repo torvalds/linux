@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/nsproxy.h>
+#include <linux/slab.h>
 #include <linux/user_namespace.h>
 
 /*
@@ -73,3 +74,4 @@ void free_user_ns(struct kref *kref)
 	release_uids(ns);
 	kfree(ns);
 }
+EXPORT_SYMBOL(free_user_ns);

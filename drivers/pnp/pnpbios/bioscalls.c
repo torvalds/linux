@@ -7,7 +7,6 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/kernel.h>
-#include <linux/pnpbios.h>
 #include <linux/device.h>
 #include <linux/pnp.h>
 #include <linux/mm.h>

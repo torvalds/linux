@@ -27,11 +27,12 @@
 
 		.text		
 		.align	64
-		.globl	etrap, etrap_irq, etraptl1
+		.globl	etrap_syscall, etrap, etrap_irq, etraptl1
 etrap:		rdpr	%pil, %g2
-etrap_irq:
-		TRAP_LOAD_THREAD_REG(%g6, %g1)
+etrap_irq:	clr	%g3
+etrap_syscall:	TRAP_LOAD_THREAD_REG(%g6, %g1)
 		rdpr	%tstate, %g1
+		or	%g1, %g3, %g1
 		sllx	%g2, 20, %g3
 		andcc	%g1, TSTATE_PRIV, %g0
 		or	%g1, %g3, %g1

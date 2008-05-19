@@ -36,7 +36,7 @@
 
 /* lock to memory controller's control array */
 static DEFINE_MUTEX(mem_ctls_mutex);
-static struct list_head mc_devices = LIST_HEAD_INIT(mc_devices);
+static LIST_HEAD(mc_devices);
 
 #ifdef CONFIG_EDAC_DEBUG
 
@@ -402,7 +402,7 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 fail0:
 	edac_printk(KERN_WARNING, EDAC_MC,
 		"%s (%s) %s %s already assigned %d\n", p->dev->bus_id,
-		dev_name(mci), p->mod_name, p->ctl_name, p->mc_idx);
+		edac_dev_name(mci), p->mod_name, p->ctl_name, p->mc_idx);
 	return 1;
 
 fail1:
@@ -517,7 +517,7 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 
 	/* Report action taken */
 	edac_mc_printk(mci, KERN_INFO, "Giving out device to '%s' '%s':"
-		" DEV %s\n", mci->mod_name, mci->ctl_name, dev_name(mci));
+		" DEV %s\n", mci->mod_name, mci->ctl_name, edac_dev_name(mci));
 
 	mutex_unlock(&mem_ctls_mutex);
 	return 0;
@@ -565,7 +565,7 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: DEV %s\n", mci->mc_idx,
-		mci->mod_name, mci->ctl_name, dev_name(mci));
+		mci->mod_name, mci->ctl_name, edac_dev_name(mci));
 
 	return mci;
 }
@@ -886,24 +886,3 @@ void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
 	mci->csrows[csrow].channels[channel].ce_count++;
 }
 EXPORT_SYMBOL(edac_mc_handle_fbd_ce);
-
-/*
- * Iterate over all MC instances and check for ECC, et al, errors
- */
-void edac_check_mc_devices(void)
-{
-	struct list_head *item;
-	struct mem_ctl_info *mci;
-
-	debugf3("%s()\n", __func__);
-	mutex_lock(&mem_ctls_mutex);
-
-	list_for_each(item, &mc_devices) {
-		mci = list_entry(item, struct mem_ctl_info, link);
-
-		if (mci->edac_check != NULL)
-			mci->edac_check(mci);
-	}
-
-	mutex_unlock(&mem_ctls_mutex);
-}

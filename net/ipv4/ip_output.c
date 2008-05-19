@@ -753,23 +753,15 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
 		sk->sk_sndmsg_off = 0;
-	}
 
-	err = skb_append_datato_frags(sk,skb, getfrag, from,
-			       (length - transhdrlen));
-	if (!err) {
-		/* specify the length of each IP datagram fragment*/
+		/* specify the length of each IP datagram fragment */
 		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 		__skb_queue_tail(&sk->sk_write_queue, skb);
-
-		return 0;
 	}
-	/* There is not enough support do UFO ,
-	 * so follow normal path
-	 */
-	kfree_skb(skb);
-	return err;
+
+	return skb_append_datato_frags(sk, skb, getfrag, from,
+				       (length - transhdrlen));
 }
 
 /*
@@ -863,9 +855,9 @@ int ip_append_data(struct sock *sk,
 		csummode = CHECKSUM_PARTIAL;
 
 	inet->cork.length += length;
-	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
-			(rt->u.dst.dev->features & NETIF_F_UFO)) {
-
+	if (((length> mtu) || !skb_queue_empty(&sk->sk_write_queue)) &&
+	    (sk->sk_protocol == IPPROTO_UDP) &&
+	    (rt->u.dst.dev->features & NETIF_F_UFO)) {
 		err = ip_ufo_append_data(sk, getfrag, from, length, hh_len,
 					 fragheaderlen, transhdrlen, mtu,
 					 flags);

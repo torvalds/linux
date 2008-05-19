@@ -355,7 +355,6 @@ static int omap_mbox_init(struct omap_mbox *mbox)
 			"failed to register mailbox interrupt:%d\n", ret);
 		goto fail_request_irq;
 	}
-	enable_mbox_irq(mbox, IRQ_RX);
 
 	mq = mbox_queue_alloc(mbox, mbox_txq_fn, mbox_tx_work);
 	if (!mq) {

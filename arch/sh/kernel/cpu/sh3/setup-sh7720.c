@@ -19,10 +19,6 @@
 #include <linux/serial_sci.h>
 #include <asm/rtc.h>
 
-#define INTC_ICR1	0xA4140010UL
-#define INTC_ICR_IRLM   0x4000
-#define INTC_ICR_IRQ	(~INTC_ICR_IRLM)
-
 static struct resource rtc_resources[] = {
 	[0] = {
 		.start	= 0xa413fec0,
@@ -170,6 +166,7 @@ enum {
 };
 
 static struct intc_vect vectors[] __initdata = {
+	/* IRQ0->5 are handled in setup-sh3.c */
 	INTC_VECT(TMU0, 0x400),       INTC_VECT(TMU1, 0x420),
 	INTC_VECT(TMU2, 0x440),       INTC_VECT(RTC_ATI, 0x480),
 	INTC_VECT(RTC_PRI, 0x4a0),    INTC_VECT(RTC_CUI, 0x4c0),
@@ -214,11 +211,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xA414FEE4UL, 0, 16, 4, /* IPRB */ { WDT, REF_RCMI, SIM, 0 } },
 	{ 0xA4140016UL, 0, 16, 4, /* IPRC */ { IRQ3, IRQ2, IRQ1, IRQ0 } },
 	{ 0xA4140018UL, 0, 16, 4, /* IPRD */ { USBF_SPD, TMU_SUNI, IRQ5, IRQ4 } },
-#if defined(CONFIG_CPU_SUBTYPE_SH7720)
 	{ 0xA414001AUL, 0, 16, 4, /* IPRE */ { DMAC1, 0, LCDC, SSL } },
-#else
-	{ 0xA414001AUL, 0, 16, 4, /* IPRE */ { DMAC1, 0, LCDC, 0 } },
-#endif
 	{ 0xA4080000UL, 0, 16, 4, /* IPRF */ { ADC, DMAC2, USBFI, CMT } },
 	{ 0xA4080002UL, 0, 16, 4, /* IPRG */ { SCIF0, SCIF1, 0, 0 } },
 	{ 0xA4080004UL, 0, 16, 4, /* IPRH */ { PINT07, PINT815, TPU, IIC } },
@@ -229,32 +222,8 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 static DECLARE_INTC_DESC(intc_desc, "sh7720", vectors, groups,
 		NULL, prio_registers, NULL);
 
-static struct intc_sense_reg sense_registers[] __initdata = {
-	{ INTC_ICR1, 16, 2, { 0, 0, IRQ5, IRQ4, IRQ3, IRQ2, IRQ1, IRQ0 } },
-};
-
-static struct intc_vect vectors_irq[] __initdata = {
-	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
-	INTC_VECT(IRQ2, 0x640), INTC_VECT(IRQ3, 0x660),
-	INTC_VECT(IRQ4, 0x680), INTC_VECT(IRQ5, 0x6a0),
-};
-
-static DECLARE_INTC_DESC(intc_irq_desc, "sh7720-irq", vectors_irq,
-		NULL, NULL, prio_registers, sense_registers);
-
-void __init plat_irq_setup_pins(int mode)
-{
-	switch (mode) {
-	case IRQ_MODE_IRQ:
-		ctrl_outw(ctrl_inw(INTC_ICR1) & INTC_ICR_IRQ, INTC_ICR1);
-		register_intc_controller(&intc_irq_desc);
-		break;
-	default:
-		BUG();
-	}
-}
-
 void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
+	plat_irq_setup_sh3();
 }

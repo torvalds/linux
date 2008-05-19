@@ -188,7 +188,8 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 EXPORT_SYMBOL_GPL(mlx4_cq_resize);
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
-		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq)
+		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
+		  int collapsed)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cq_table *cq_table = &priv->cq_table;
@@ -224,6 +225,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 	cq_context = mailbox->buf;
 	memset(cq_context, 0, sizeof *cq_context);
 
+	cq_context->flags	    = cpu_to_be32(!!collapsed << 18);
 	cq_context->logsize_usrpage = cpu_to_be32((ilog2(nent) << 24) | uar->index);
 	cq_context->comp_eqn        = priv->eq_table.eq[MLX4_EQ_COMP].eqn;
 	cq_context->log_page_size   = mtt->page_shift - MLX4_ICM_PAGE_SHIFT;

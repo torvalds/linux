@@ -24,6 +24,7 @@
 #include <asm/checksum.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
@@ -182,9 +183,6 @@ EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
 #if defined(CONFIG_BOOTX_TEXT)
 EXPORT_SYMBOL(btext_update_display);
-#endif
-#ifdef CONFIG_VT
-EXPORT_SYMBOL(kd_mksound);
 #endif
 EXPORT_SYMBOL(to_tm);
 

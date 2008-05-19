@@ -482,7 +482,6 @@
 static char version[] __devinitdata = "de4x5.c:V0.546 2001/02/22 davies@maniac.ultranet.com\n";
 
 #define c_char const char
-#define TWIDDLE(a) (u_short)le16_to_cpu(get_unaligned((__le16 *)(a)))
 
 /*
 ** MII Information
@@ -4405,7 +4404,7 @@ srom_infoleaf_info(struct net_device *dev)
 	}
     }
 
-    lp->infoleaf_offset = TWIDDLE(p+1);
+	lp->infoleaf_offset = get_unaligned_le16(p + 1);
 
     return 0;
 }
@@ -4476,7 +4475,7 @@ srom_exec(struct net_device *dev, u_char *p)
 
     while (count--) {
 	gep_wr(((lp->chipset==DC21140) && (lp->ibn!=5) ?
-		                                   *p++ : TWIDDLE(w++)), dev);
+		                                   *p++ : get_unaligned_le16(w++)), dev);
 	mdelay(2);                          /* 2ms per action */
     }
 
@@ -4711,10 +4710,10 @@ type1_infoblock(struct net_device *dev, u_char count, u_char *p)
 	lp->active = *p++;
 	lp->phy[lp->active].gep = (*p ? p : NULL); p += (*p + 1);
 	lp->phy[lp->active].rst = (*p ? p : NULL); p += (*p + 1);
-	lp->phy[lp->active].mc  = TWIDDLE(p); p += 2;
-	lp->phy[lp->active].ana = TWIDDLE(p); p += 2;
-	lp->phy[lp->active].fdx = TWIDDLE(p); p += 2;
-	lp->phy[lp->active].ttm = TWIDDLE(p);
+	lp->phy[lp->active].mc  = get_unaligned_le16(p); p += 2;
+	lp->phy[lp->active].ana = get_unaligned_le16(p); p += 2;
+	lp->phy[lp->active].fdx = get_unaligned_le16(p); p += 2;
+	lp->phy[lp->active].ttm = get_unaligned_le16(p);
 	return 0;
     } else if ((lp->media == INIT) && (lp->timeout < 0)) {
         lp->ibn = 1;
@@ -4751,16 +4750,16 @@ type2_infoblock(struct net_device *dev, u_char count, u_char *p)
 	lp->infoblock_media = (*p) & MEDIA_CODE;
 
         if ((*p++) & EXT_FIELD) {
-	    lp->cache.csr13 = TWIDDLE(p); p += 2;
-	    lp->cache.csr14 = TWIDDLE(p); p += 2;
-	    lp->cache.csr15 = TWIDDLE(p); p += 2;
+	    lp->cache.csr13 = get_unaligned_le16(p); p += 2;
+	    lp->cache.csr14 = get_unaligned_le16(p); p += 2;
+	    lp->cache.csr15 = get_unaligned_le16(p); p += 2;
 	} else {
 	    lp->cache.csr13 = CSR13;
 	    lp->cache.csr14 = CSR14;
 	    lp->cache.csr15 = CSR15;
 	}
-        lp->cache.gepc = ((s32)(TWIDDLE(p)) << 16); p += 2;
-        lp->cache.gep  = ((s32)(TWIDDLE(p)) << 16);
+        lp->cache.gepc = ((s32)(get_unaligned_le16(p)) << 16); p += 2;
+        lp->cache.gep  = ((s32)(get_unaligned_le16(p)) << 16);
 	lp->infoblock_csr6 = OMR_SIA;
 	lp->useMII = false;
 
@@ -4792,10 +4791,10 @@ type3_infoblock(struct net_device *dev, u_char count, u_char *p)
 	if (MOTO_SROM_BUG) lp->active = 0;
 	lp->phy[lp->active].gep = (*p ? p : NULL); p += (2 * (*p) + 1);
 	lp->phy[lp->active].rst = (*p ? p : NULL); p += (2 * (*p) + 1);
-	lp->phy[lp->active].mc  = TWIDDLE(p); p += 2;
-	lp->phy[lp->active].ana = TWIDDLE(p); p += 2;
-	lp->phy[lp->active].fdx = TWIDDLE(p); p += 2;
-	lp->phy[lp->active].ttm = TWIDDLE(p); p += 2;
+	lp->phy[lp->active].mc  = get_unaligned_le16(p); p += 2;
+	lp->phy[lp->active].ana = get_unaligned_le16(p); p += 2;
+	lp->phy[lp->active].fdx = get_unaligned_le16(p); p += 2;
+	lp->phy[lp->active].ttm = get_unaligned_le16(p); p += 2;
 	lp->phy[lp->active].mci = *p;
 	return 0;
     } else if ((lp->media == INIT) && (lp->timeout < 0)) {
@@ -4835,8 +4834,8 @@ type4_infoblock(struct net_device *dev, u_char count, u_char *p)
         lp->cache.csr13 = CSR13;              /* Hard coded defaults */
 	lp->cache.csr14 = CSR14;
 	lp->cache.csr15 = CSR15;
-        lp->cache.gepc = ((s32)(TWIDDLE(p)) << 16); p += 2;
-        lp->cache.gep  = ((s32)(TWIDDLE(p)) << 16); p += 2;
+        lp->cache.gepc = ((s32)(get_unaligned_le16(p)) << 16); p += 2;
+        lp->cache.gep  = ((s32)(get_unaligned_le16(p)) << 16); p += 2;
 	csr6 = *p++;
 	flags = *p++;
 

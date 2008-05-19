@@ -73,12 +73,6 @@
 #include <linux/proportions.h>
 #include <linux/rcupdate.h>
 
-/*
- * Limit the time part in order to ensure there are some bits left for the
- * cycle counter.
- */
-#define PROP_MAX_SHIFT (3*BITS_PER_LONG/4)
-
 int prop_descriptor_init(struct prop_descriptor *pd, int shift)
 {
 	int err;
@@ -264,6 +258,38 @@ void __prop_inc_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl)
 	prop_norm_percpu(pg, pl);
 	__percpu_counter_add(&pl->events, 1, PROP_BATCH);
 	percpu_counter_add(&pg->events, 1);
+	prop_put_global(pd, pg);
+}
+
+/*
+ * identical to __prop_inc_percpu, except that it limits this pl's fraction to
+ * @frac/PROP_FRAC_BASE by ignoring events when this limit has been exceeded.
+ */
+void __prop_inc_percpu_max(struct prop_descriptor *pd,
+			   struct prop_local_percpu *pl, long frac)
+{
+	struct prop_global *pg = prop_get_global(pd);
+
+	prop_norm_percpu(pg, pl);
+
+	if (unlikely(frac != PROP_FRAC_BASE)) {
+		unsigned long period_2 = 1UL << (pg->shift - 1);
+		unsigned long counter_mask = period_2 - 1;
+		unsigned long global_count;
+		long numerator, denominator;
+
+		numerator = percpu_counter_read_positive(&pl->events);
+		global_count = percpu_counter_read(&pg->events);
+		denominator = period_2 + (global_count & counter_mask);
+
+		if (numerator > ((denominator * frac) >> PROP_FRAC_SHIFT))
+			goto out_put;
+	}
+
+	percpu_counter_add(&pl->events, 1);
+	percpu_counter_add(&pg->events, 1);
+
+out_put:
 	prop_put_global(pd, pg);
 }
 

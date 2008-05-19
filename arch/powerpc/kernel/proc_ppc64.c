@@ -68,12 +68,11 @@ static int __init proc_ppc64_init(void)
 {
 	struct proc_dir_entry *pde;
 
-	pde = create_proc_entry("ppc64/systemcfg", S_IFREG|S_IRUGO, NULL);
+	pde = proc_create_data("ppc64/systemcfg", S_IFREG|S_IRUGO, NULL,
+			       &page_map_fops, vdso_data);
 	if (!pde)
 		return 1;
-	pde->data = vdso_data;
 	pde->size = PAGE_SIZE;
-	pde->proc_fops = &page_map_fops;
 
 	return 0;
 }

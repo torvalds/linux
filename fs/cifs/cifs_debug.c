@@ -468,7 +468,7 @@ cifs_proc_init(void)
 {
 	struct proc_dir_entry *pde;
 
-	proc_fs_cifs = proc_mkdir("cifs", proc_root_fs);
+	proc_fs_cifs = proc_mkdir("fs/cifs", NULL);
 	if (proc_fs_cifs == NULL)
 		return;
 
@@ -559,7 +559,7 @@ cifs_proc_clean(void)
 	remove_proc_entry("LinuxExtensionsEnabled", proc_fs_cifs);
 	remove_proc_entry("Experimental", proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled", proc_fs_cifs);
-	remove_proc_entry("cifs", proc_root_fs);
+	remove_proc_entry("fs/cifs", NULL);
 }
 
 static int

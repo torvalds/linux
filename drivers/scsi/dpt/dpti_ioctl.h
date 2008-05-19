@@ -89,7 +89,7 @@ typedef struct {
 	int      njobs;            /* # of jobs sent to HA            */
 	int      qdepth;           /* Controller queue depth.         */
 	int      wakebase;         /* mpx wakeup base index.          */
-	uLONG    SGsize;           /* Scatter/Gather list size.       */
+	uINT     SGsize;           /* Scatter/Gather list size.       */
 	unsigned heads;            /* heads for drives on cntlr.      */
 	unsigned sectors;          /* sectors for drives on cntlr.    */
 	uCHAR    do_drive32;       /* Flag for Above 16 MB Ability    */
@@ -97,8 +97,8 @@ typedef struct {
 	char     idPAL[4];         /* 4 Bytes Of The ID Pal           */
 	uCHAR    primary;          /* 1 For Primary, 0 For Secondary  */
 	uCHAR    eataVersion;      /* EATA Version                    */
-	uLONG    cpLength;         /* EATA Command Packet Length      */
-	uLONG    spLength;         /* EATA Status Packet Length       */
+	uINT     cpLength;         /* EATA Command Packet Length      */
+	uINT     spLength;         /* EATA Status Packet Length       */
 	uCHAR    drqNum;           /* DRQ Index (0,5,6,7)             */
 	uCHAR    flag1;            /* EATA Flags 1 (Byte 9)           */
 	uCHAR    flag2;            /* EATA Flags 2 (Byte 30)          */
@@ -107,23 +107,23 @@ typedef struct {
 typedef struct {
 	uSHORT length;		// Remaining length of this
 	uSHORT drvrHBAnum;	// Relative HBA # used by the driver
-	uLONG baseAddr;		// Base I/O address
+	uINT baseAddr;		// Base I/O address
 	uSHORT blinkState;	// Blink LED state (0=Not in blink LED)
 	uCHAR pciBusNum;	// PCI Bus # (Optional)
 	uCHAR pciDeviceNum;	// PCI Device # (Optional)
 	uSHORT hbaFlags;	// Miscellaneous HBA flags
 	uSHORT Interrupt;	// Interrupt set for this device.
 #   if (defined(_DPT_ARC))
-	uLONG baseLength;
+	uINT baseLength;
 	ADAPTER_OBJECT *AdapterObject;
 	LARGE_INTEGER DmaLogicalAddress;
 	PVOID DmaVirtualAddress;
 	LARGE_INTEGER ReplyLogicalAddress;
 	PVOID ReplyVirtualAddress;
 #   else
-	uLONG reserved1;	// Reserved for future expansion
-	uLONG reserved2;	// Reserved for future expansion
-	uLONG reserved3;	// Reserved for future expansion
+	uINT reserved1;		// Reserved for future expansion
+	uINT reserved2;		// Reserved for future expansion
+	uINT reserved3;		// Reserved for future expansion
 #   endif
 } drvrHBAinfo_S;
 

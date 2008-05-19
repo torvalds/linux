@@ -601,6 +601,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
 		policy->cpus = perf->shared_cpu_map;
 	}
+	policy->related_cpus = perf->shared_cpu_map;
 
 #ifdef CONFIG_SMP
 	dmi_check_system(sw_any_bug_dmi_table);

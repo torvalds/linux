@@ -73,7 +73,7 @@ do {								\
 	char tmp[P_BUF_SIZE];					\
 	snprintf(tmp, sizeof(tmp), ##args);			\
 	printk(_err_flag_ "[%d] %s(): %s\n", __LINE__,		\
-		__FUNCTION__, tmp);				\
+		__func__, tmp);				\
 } while (0)
 
 #define DBG1(args...) D_(0x01, ##args)
@@ -1407,7 +1407,7 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 	/* Find out what card type it is */
 	nozomi_get_card_type(dc);
 
-	dc->base_addr = ioremap(start, dc->card_type);
+	dc->base_addr = ioremap_nocache(start, dc->card_type);
 	if (!dc->base_addr) {
 		dev_err(&pdev->dev, "Unable to map card MMIO\n");
 		ret = -ENODEV;
@@ -1724,6 +1724,8 @@ static int ntty_tiocmget(struct tty_struct *tty, struct file *file)
 	const struct ctrl_dl *ctrl_dl = &port->ctrl_dl;
 	const struct ctrl_ul *ctrl_ul = &port->ctrl_ul;
 
+	/* Note: these could change under us but it is not clear this
+	   matters if so */
 	return	(ctrl_ul->RTS ? TIOCM_RTS : 0) |
 		(ctrl_ul->DTR ? TIOCM_DTR : 0) |
 		(ctrl_dl->DCD ? TIOCM_CAR : 0) |
@@ -1849,16 +1851,6 @@ static void ntty_throttle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
 }
 
-/* just to discard single character writes */
-static void ntty_put_char(struct tty_struct *tty, unsigned char c)
-{
-	/*
-	 * card does not react correct when we write single chars
-	 * to the card, so we discard them
-	 */
-	DBG2("PUT CHAR Function: %c", c);
-}
-
 /* Returns number of chars in buffer, called by tty layer */
 static s32 ntty_chars_in_buffer(struct tty_struct *tty)
 {
@@ -1892,7 +1884,6 @@ static const struct tty_operations tty_ops = {
 	.unthrottle = ntty_unthrottle,
 	.throttle = ntty_throttle,
 	.chars_in_buffer = ntty_chars_in_buffer,
-	.put_char = ntty_put_char,
 	.tiocmget = ntty_tiocmget,
 	.tiocmset = ntty_tiocmset,
 };

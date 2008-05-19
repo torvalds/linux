@@ -40,6 +40,17 @@
 /* AlphaMicro Components AMC-232USB01 device */
 #define FTDI_AMC232_PID 0xFF00 /* Product Id */
 
+/* SCS HF Radio Modems PID's (http://www.scs-ptc.com) */
+/* the VID is the standard ftdi vid (FTDI_VID) */
+#define FTDI_SCS_DEVICE_0_PID 0xD010    /* SCS PTC-IIusb */
+#define FTDI_SCS_DEVICE_1_PID 0xD011    /* SCS Tracker / DSP TNC */
+#define FTDI_SCS_DEVICE_2_PID 0xD012
+#define FTDI_SCS_DEVICE_3_PID 0xD013
+#define FTDI_SCS_DEVICE_4_PID 0xD014
+#define FTDI_SCS_DEVICE_5_PID 0xD015
+#define FTDI_SCS_DEVICE_6_PID 0xD016
+#define FTDI_SCS_DEVICE_7_PID 0xD017
+
 /* ACT Solutions HomePro ZWave interface (http://www.act-solutions.com/HomePro.htm) */
 #define FTDI_ACTZWAVE_PID	0xF2D0
 

@@ -19,8 +19,8 @@
 
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
 #include <linux/namei.h>
+#include "ext4.h"
 #include "xattr.h"
 
 static void * ext4_follow_link(struct dentry *dentry, struct nameidata *nd)

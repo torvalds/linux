@@ -114,6 +114,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 		return status;
 
 	rt2x00leds_led_radio(rt2x00dev, true);
+	rt2x00led_led_activity(rt2x00dev, true);
 
 	__set_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags);
 
@@ -157,6 +158,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Disable radio.
 	 */
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_OFF);
+	rt2x00led_led_activity(rt2x00dev, false);
 	rt2x00leds_led_radio(rt2x00dev, false);
 }
 
@@ -1030,8 +1032,10 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 	 * Initialize the device.
 	 */
 	status = rt2x00dev->ops->lib->initialize(rt2x00dev);
-	if (status)
-		goto exit;
+	if (status) {
+		rt2x00queue_uninitialize(rt2x00dev);
+		return status;
+	}
 
 	__set_bit(DEVICE_INITIALIZED, &rt2x00dev->flags);
 
@@ -1041,11 +1045,6 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 	rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
-
-exit:
-	rt2x00lib_uninitialize(rt2x00dev);
-
-	return status;
 }
 
 int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)

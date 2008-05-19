@@ -2458,6 +2458,7 @@ ppp_create_interface(int unit, int *retp)
 
 out3:
 	atomic_dec(&ppp_unit_count);
+	unregister_netdev(dev);
 out2:
 	mutex_unlock(&all_ppp_mutex);
 	free_netdev(dev);

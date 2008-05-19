@@ -545,11 +545,11 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 	 * be padded. Unaligned access might also happen if the length_info
 	 * structure is not present.
 	 */
-	if (get_unaligned(&length_info->tag) == cpu_to_le16(RX_LENGTH_INFO_TAG))
+	if (get_unaligned_le16(&length_info->tag) == RX_LENGTH_INFO_TAG)
 	{
 		unsigned int l, k, n;
 		for (i = 0, l = 0;; i++) {
-			k = le16_to_cpu(get_unaligned(&length_info->length[i]));
+			k = get_unaligned_le16(&length_info->length[i]);
 			if (k == 0)
 				return;
 			n = l+k;
@@ -889,9 +889,13 @@ static void tx_urb_complete(struct urb *urb)
 	}
 free_urb:
 	skb = (struct sk_buff *)urb->context;
-	zd_mac_tx_to_dev(skb, urb->status);
+	/*
+	 * grab 'usb' pointer before handing off the skb (since
+	 * it might be freed by zd_mac_tx_to_dev or mac80211)
+	 */
 	cb = (struct zd_tx_skb_control_block *)skb->cb;
 	usb = &zd_hw_mac(cb->hw)->chip.usb;
+	zd_mac_tx_to_dev(skb, urb->status);
 	free_tx_urb(usb, urb);
 	tx_dec_submitted_urbs(usb);
 	return;

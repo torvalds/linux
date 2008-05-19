@@ -589,16 +589,20 @@ static void takeover_tasklets(unsigned int cpu)
 	local_irq_disable();
 
 	/* Find end, append list for that CPU. */
-	*__get_cpu_var(tasklet_vec).tail = per_cpu(tasklet_vec, cpu).head;
-	__get_cpu_var(tasklet_vec).tail = per_cpu(tasklet_vec, cpu).tail;
-	per_cpu(tasklet_vec, cpu).head = NULL;
-	per_cpu(tasklet_vec, cpu).tail = &per_cpu(tasklet_vec, cpu).head;
+	if (&per_cpu(tasklet_vec, cpu).head != per_cpu(tasklet_vec, cpu).tail) {
+		*(__get_cpu_var(tasklet_vec).tail) = per_cpu(tasklet_vec, cpu).head;
+		__get_cpu_var(tasklet_vec).tail = per_cpu(tasklet_vec, cpu).tail;
+		per_cpu(tasklet_vec, cpu).head = NULL;
+		per_cpu(tasklet_vec, cpu).tail = &per_cpu(tasklet_vec, cpu).head;
+	}
 	raise_softirq_irqoff(TASKLET_SOFTIRQ);
 
-	*__get_cpu_var(tasklet_hi_vec).tail = per_cpu(tasklet_hi_vec, cpu).head;
-	__get_cpu_var(tasklet_hi_vec).tail = per_cpu(tasklet_hi_vec, cpu).tail;
-	per_cpu(tasklet_hi_vec, cpu).head = NULL;
-	per_cpu(tasklet_hi_vec, cpu).tail = &per_cpu(tasklet_hi_vec, cpu).head;
+	if (&per_cpu(tasklet_hi_vec, cpu).head != per_cpu(tasklet_hi_vec, cpu).tail) {
+		*__get_cpu_var(tasklet_hi_vec).tail = per_cpu(tasklet_hi_vec, cpu).head;
+		__get_cpu_var(tasklet_hi_vec).tail = per_cpu(tasklet_hi_vec, cpu).tail;
+		per_cpu(tasklet_hi_vec, cpu).head = NULL;
+		per_cpu(tasklet_hi_vec, cpu).tail = &per_cpu(tasklet_hi_vec, cpu).head;
+	}
 	raise_softirq_irqoff(HI_SOFTIRQ);
 
 	local_irq_enable();

@@ -13,14 +13,11 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/log2.h>
+#include <linux/gpio.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-
-#ifdef CONFIG_MT9M001_PCA9536_SWITCH
-#include <asm/gpio.h>
-#endif
 
 /* mt9v022 i2c address 0x48, 0x4c, 0x58, 0x5c
  * The platform has to define i2c_board_info
@@ -91,7 +88,7 @@ static const struct soc_camera_data_format mt9v022_monochrome_formats[] = {
 struct mt9v022 {
 	struct i2c_client *client;
 	struct soc_camera_device icd;
-	int model;	/* V4L2_IDENT_MT9M001* codes from v4l2-chip-ident.h */
+	int model;	/* V4L2_IDENT_MT9V022* codes from v4l2-chip-ident.h */
 	int switch_gpio;
 	u16 chip_control;
 	unsigned char datawidth;
@@ -452,7 +449,7 @@ static int mt9v022_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-const struct v4l2_queryctrl mt9v022_controls[] = {
+static const struct v4l2_queryctrl mt9v022_controls[] = {
 	{
 		.id		= V4L2_CID_VFLIP,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,
@@ -745,7 +742,8 @@ static void mt9v022_video_remove(struct soc_camera_device *icd)
 	soc_camera_video_stop(&mt9v022->icd);
 }
 
-static int mt9v022_probe(struct i2c_client *client)
+static int mt9v022_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct mt9v022 *mt9v022;
 	struct soc_camera_device *icd;
@@ -818,12 +816,19 @@ static int mt9v022_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id mt9v022_id[] = {
+	{ "mt9v022", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, mt9v022_id);
+
 static struct i2c_driver mt9v022_i2c_driver = {
 	.driver = {
 		.name = "mt9v022",
 	},
 	.probe		= mt9v022_probe,
 	.remove		= mt9v022_remove,
+	.id_table	= mt9v022_id,
 };
 
 static int __init mt9v022_mod_init(void)

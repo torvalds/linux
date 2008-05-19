@@ -795,6 +795,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  lg-lw		LG LW20/LW25 laptop
 	  tcl		TCL S700
 	  clevo		Clevo laptops (m520G, m665n)
+	  medion	Medion Rim 2150
 	  test		for testing/debugging purpose, almost all controls can be
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y

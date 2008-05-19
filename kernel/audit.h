@@ -74,6 +74,11 @@ struct audit_entry {
 	struct audit_krule	rule;
 };
 
+#ifdef CONFIG_AUDIT
+extern int audit_enabled;
+extern int audit_ever_enabled;
+#endif
+
 extern int audit_pid;
 
 #define AUDIT_INODE_BUCKETS	32
@@ -104,6 +109,9 @@ struct audit_netlink_list {
 int audit_send_list(void *);
 
 struct inotify_watch;
+/* Inotify handle */
+extern struct inotify_handle *audit_ih;
+
 extern void audit_free_parent(struct inotify_watch *);
 extern void audit_handle_ievent(struct inotify_watch *, u32, u32, u32,
 				const char *, struct inode *);
@@ -111,6 +119,7 @@ extern int selinux_audit_rule_update(void);
 
 extern struct mutex audit_filter_mutex;
 extern void audit_free_rule_rcu(struct rcu_head *);
+extern struct list_head audit_filter_list[];
 
 #ifdef CONFIG_AUDIT_TREE
 extern struct audit_chunk *audit_tree_lookup(const struct inode *);
@@ -136,6 +145,10 @@ extern void audit_put_tree(struct audit_tree *);
 #endif
 
 extern char *audit_unpack_string(void **, size_t *, size_t);
+
+extern pid_t audit_sig_pid;
+extern uid_t audit_sig_uid;
+extern u32 audit_sig_sid;
 
 #ifdef CONFIG_AUDITSYSCALL
 extern int __audit_signal_info(int sig, struct task_struct *t);

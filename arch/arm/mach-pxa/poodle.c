@@ -326,13 +326,11 @@ static struct platform_device *devices[] __initdata = {
 
 static void poodle_poweroff(void)
 {
-	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
 	arm_machine_restart('h');
 }
 
 static void poodle_restart(char mode)
 {
-	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
 	arm_machine_restart('h');
 }
 

@@ -369,11 +369,7 @@ static const struct file_operations proc_tlb_operations = {
 
 static int __init proctlb_init(void)
 {
-	struct proc_dir_entry *entry;
-
-	entry = create_proc_entry("tlb", 0, NULL);
-	if (entry)
-		entry->proc_fops = &proc_tlb_operations;
+	proc_create("tlb", 0, NULL, &proc_tlb_operations);
 	return 0;
 }
 late_initcall(proctlb_init);

@@ -127,6 +127,7 @@ extern int do_QDIO(struct ccw_device*, unsigned int flags,
 		   unsigned int qidx,unsigned int count,
 		   struct qdio_buffer *buffers);
 
+extern int qdio_get_ssqd_pct(struct ccw_device*);
 extern int qdio_synchronize(struct ccw_device*, unsigned int flags,
 			    unsigned int queue_number);
 

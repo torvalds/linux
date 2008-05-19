@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/parser.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/res_counter.h>
 #include <linux/uaccess.h>
 
@@ -27,6 +28,8 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
 	}
 
 	counter->usage += val;
+	if (counter->usage > counter->max_usage)
+		counter->max_usage = counter->usage;
 	return 0;
 }
 
@@ -65,6 +68,8 @@ res_counter_member(struct res_counter *counter, int member)
 	switch (member) {
 	case RES_USAGE:
 		return &counter->usage;
+	case RES_MAX_USAGE:
+		return &counter->max_usage;
 	case RES_LIMIT:
 		return &counter->limit;
 	case RES_FAILCNT:
@@ -90,6 +95,11 @@ ssize_t res_counter_read(struct res_counter *counter, int member,
 		s += sprintf(s, "%llu\n", *val);
 	return simple_read_from_buffer((void __user *)userbuf, nbytes,
 			pos, buf, s - buf);
+}
+
+u64 res_counter_read_u64(struct res_counter *counter, int member)
+{
+	return *res_counter_member(counter, member);
 }
 
 ssize_t res_counter_write(struct res_counter *counter, int member,

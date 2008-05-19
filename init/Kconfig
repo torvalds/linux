@@ -259,17 +259,14 @@ config IKCONFIG_PROC
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
 	range 12 21
-	default 17 if S390 || LOCKDEP
-	default 16 if X86_NUMAQ || IA64
-	default 15 if SMP
-	default 14
+	default 17
 	help
 	  Select kernel log buffer size as a power of 2.
-	  Defaults and Examples:
-	  	     17 => 128 KB for S/390
-		     16 => 64 KB for x86 NUMAQ or IA-64
-	             15 => 32 KB for SMP
-	             14 => 16 KB for uniprocessor
+	  Examples:
+	  	     17 => 128 KB
+		     16 => 64 KB
+	             15 => 32 KB
+	             14 => 16 KB
 		     13 =>  8 KB
 		     12 =>  4 KB
 
@@ -284,6 +281,7 @@ config CGROUPS
 config CGROUP_DEBUG
 	bool "Example debug cgroup subsystem"
 	depends on CGROUPS
+	default n
 	help
 	  This option enables a simple cgroup subsystem that
 	  exports useful debugging information about the cgroups
@@ -300,6 +298,13 @@ config CGROUP_NS
           for instance virtual servers and checkpoint/restart
           jobs.
 
+config CGROUP_DEVICE
+	bool "Device controller for cgroups"
+	depends on CGROUPS && EXPERIMENTAL
+	help
+	  Provides a cgroup implementing whitelists for devices which
+	  a process in the cgroup can mknod or open.
+
 config CPUSETS
 	bool "Cpuset support"
 	depends on SMP && CGROUPS
@@ -311,9 +316,16 @@ config CPUSETS
 
 	  Say N if unsure.
 
+#
+# Architectures with an unreliable sched_clock() should select this:
+#
+config HAVE_UNSTABLE_SCHED_CLOCK
+	bool
+
 config GROUP_SCHED
 	bool "Group CPU scheduler"
-	default y
+	depends on EXPERIMENTAL
+	default n
 	help
 	  This feature lets CPU scheduler recognize task groups and control CPU
 	  bandwidth allocation to such task groups.
@@ -321,7 +333,7 @@ config GROUP_SCHED
 config FAIR_GROUP_SCHED
 	bool "Group scheduling for SCHED_OTHER"
 	depends on GROUP_SCHED
-	default y
+	default GROUP_SCHED
 
 config RT_GROUP_SCHED
 	bool "Group scheduling for SCHED_RR/FIFO"
@@ -373,9 +385,13 @@ config RESOURCE_COUNTERS
           infrastructure that works with cgroups
 	depends on CGROUPS
 
+config MM_OWNER
+	bool
+
 config CGROUP_MEM_RES_CTLR
 	bool "Memory Resource Controller for Control Groups"
 	depends on CGROUPS && RESOURCE_COUNTERS
+	select MM_OWNER
 	help
 	  Provides a memory resource controller that manages both page cache and
 	  RSS memory.
@@ -387,6 +403,9 @@ config CGROUP_MEM_RES_CTLR
 
 	  Only enable when you're ok with these trade offs and really
 	  sure you need the memory resource controller.
+
+	  This config option also selects MM_OWNER config option, which
+	  could in turn add some fork/exit overhead.
 
 config SYSFS_DEPRECATED
 	bool
@@ -538,6 +557,17 @@ config SYSCTL_SYSCALL
 
 	  If unsure say Y here.
 
+config SYSCTL_SYSCALL_CHECK
+	bool "Sysctl checks" if EMBEDDED
+	depends on SYSCTL_SYSCALL
+	default y
+	---help---
+	  sys_sysctl uses binary paths that have been found challenging
+	  to properly maintain and use. This enables checks that help
+	  you to keep things correct.
+
+	  If unsure say Y here.
+
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EMBEDDED
 	 default y
@@ -603,6 +633,14 @@ config ELF_CORE
 	bool "Enable ELF core dumps" if EMBEDDED
 	help
 	  Enable support for generating core dumps. Disabling saves about 4k.
+
+config PCSPKR_PLATFORM
+	bool "Enable PC-Speaker support" if EMBEDDED
+	depends on ALPHA || X86 || MIPS || PPC_PREP || PPC_CHRP || PPC_PSERIES
+	default y
+	help
+          This option allows to disable the internal PC-Speaker
+          support, saving some memory.
 
 config COMPAT_BRK
 	bool "Disable heap randomization"
@@ -697,7 +735,7 @@ config VM_EVENT_COUNTERS
 config SLUB_DEBUG
 	default y
 	bool "Enable SLUB debugging support" if EMBEDDED
-	depends on SLUB
+	depends on SLUB && SYSFS
 	help
 	  SLUB has extensive debug support features. Disabling these can
 	  result in significant savings in code size. This also disables
@@ -801,6 +839,15 @@ menuconfig MODULES
 	  this).
 
 	  If unsure, say Y.
+
+config MODULE_FORCE_LOAD
+	bool "Forced module loading"
+	depends on MODULES
+	default n
+	help
+	  Allow loading of modules without version information (ie. modprobe
+	  --force).  Forced module loading sets the 'F' (forced) taint flag and
+	  is usually a really bad idea.
 
 config MODULE_UNLOAD
 	bool "Module unloading"

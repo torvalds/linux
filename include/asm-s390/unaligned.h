@@ -1,24 +1,13 @@
-/*
- *  include/asm-s390/unaligned.h
- *
- *  S390 version
- *
- *  Derived from "include/asm-i386/unaligned.h"
- */
-
-#ifndef __S390_UNALIGNED_H
-#define __S390_UNALIGNED_H
+#ifndef _ASM_S390_UNALIGNED_H
+#define _ASM_S390_UNALIGNED_H
 
 /*
  * The S390 can do unaligned accesses itself. 
- *
- * The strange macros are there to make sure these can't
- * be misused in a way that makes them not work on other
- * architectures where unaligned accesses aren't as simple.
  */
+#include <linux/unaligned/access_ok.h>
+#include <linux/unaligned/generic.h>
 
-#define get_unaligned(ptr) (*(ptr))
+#define get_unaligned	__get_unaligned_be
+#define put_unaligned	__put_unaligned_be
 
-#define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
-
-#endif
+#endif /* _ASM_S390_UNALIGNED_H */

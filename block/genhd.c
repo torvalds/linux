@@ -182,11 +182,17 @@ static int exact_lock(dev_t devt, void *data)
  */
 void add_disk(struct gendisk *disk)
 {
+	struct backing_dev_info *bdi;
+
 	disk->flags |= GENHD_FL_UP;
 	blk_register_region(MKDEV(disk->major, disk->first_minor),
 			    disk->minors, NULL, exact_match, exact_lock, disk);
 	register_disk(disk);
 	blk_register_queue(disk);
+
+	bdi = &disk->queue->backing_dev_info;
+	bdi_register_dev(bdi, MKDEV(disk->major, disk->first_minor));
+	sysfs_create_link(&disk->dev.kobj, &bdi->dev->kobj, "bdi");
 }
 
 EXPORT_SYMBOL(add_disk);
@@ -194,6 +200,8 @@ EXPORT_SYMBOL(del_gendisk);	/* in partitions/check.c */
 
 void unlink_gendisk(struct gendisk *disk)
 {
+	sysfs_remove_link(&disk->dev.kobj, "bdi");
+	bdi_unregister(&disk->queue->backing_dev_info);
 	blk_unregister_queue(disk);
 	blk_unregister_region(MKDEV(disk->major, disk->first_minor),
 			      disk->minors);
@@ -645,7 +653,7 @@ void genhd_media_change_notify(struct gendisk *disk)
 EXPORT_SYMBOL_GPL(genhd_media_change_notify);
 #endif  /*  0  */
 
-dev_t blk_lookup_devt(const char *name)
+dev_t blk_lookup_devt(const char *name, int part)
 {
 	struct device *dev;
 	dev_t devt = MKDEV(0, 0);
@@ -653,7 +661,11 @@ dev_t blk_lookup_devt(const char *name)
 	mutex_lock(&block_class_lock);
 	list_for_each_entry(dev, &block_class.devices, node) {
 		if (strcmp(dev->bus_id, name) == 0) {
-			devt = dev->devt;
+			struct gendisk *disk = dev_to_disk(dev);
+
+			if (part < disk->minors)
+				devt = MKDEV(MAJOR(dev->devt),
+					     MINOR(dev->devt) + part);
 			break;
 		}
 	}
@@ -661,7 +673,6 @@ dev_t blk_lookup_devt(const char *name)
 
 	return devt;
 }
-
 EXPORT_SYMBOL(blk_lookup_devt);
 
 struct gendisk *alloc_disk(int minors)

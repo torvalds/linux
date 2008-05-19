@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/magic.h>
+#include <linux/time.h>
 
 enum smb_protocol { 
 	SMB_PROTOCOL_NONE, 

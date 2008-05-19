@@ -23,6 +23,7 @@
 #include <asm/assembly.h>
 #include <asm/errno.h>
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 #ifdef CONFIG_SMP
 	.macro  get_fault_ip t1 t2
@@ -55,7 +56,7 @@
 
 	.level LEVEL
 
-	.text
+	__HEAD
 	.section .fixup, "ax"
 
 	/* get_user() fixups, store -EFAULT in r8, and 0 in r9 */

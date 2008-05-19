@@ -1217,7 +1217,7 @@ static int __init parse_crashkernel_mem(char 			*cmdline,
 		}
 
 		/* match ? */
-		if (system_ram >= start && system_ram <= end) {
+		if (system_ram >= start && system_ram < end) {
 			*crash_size = size;
 			break;
 		}

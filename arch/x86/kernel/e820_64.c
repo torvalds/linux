@@ -100,7 +100,7 @@ void __init free_early(unsigned long start, unsigned long end)
 	for (j = i + 1; j < MAX_EARLY_RES && early_res[j].end; j++)
 		;
 
-	memcpy(&early_res[i], &early_res[i + 1],
+	memmove(&early_res[i], &early_res[i + 1],
 	       (j - 1 - i) * sizeof(struct early_res));
 
 	early_res[j - 1].end = 0;

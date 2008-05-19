@@ -93,6 +93,8 @@ struct clocksource {
 #endif
 };
 
+extern struct clocksource *clock;	/* current clocksource */
+
 /*
  * Clock source flags bits::
  */

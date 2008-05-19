@@ -278,6 +278,17 @@ enum t3_qp_caps {
 	uP_RI_QP_STAG0_ENABLE = 0x10
 } __attribute__ ((packed));
 
+enum rdma_init_rtr_types {
+	RTR_READ = 1,
+	RTR_WRITE = 2,
+	RTR_SEND = 3,
+};
+
+#define S_RTR_TYPE	2
+#define M_RTR_TYPE	0x3
+#define V_RTR_TYPE(x)	((x) << S_RTR_TYPE)
+#define G_RTR_TYPE(x)	((((x) >> S_RTR_TYPE)) & M_RTR_TYPE)
+
 struct t3_rdma_init_attr {
 	u32 tid;
 	u32 qpid;
@@ -293,7 +304,9 @@ struct t3_rdma_init_attr {
 	u32 ird;
 	u64 qp_dma_addr;
 	u32 qp_dma_size;
-	u32 flags;
+	enum rdma_init_rtr_types rtr_type;
+	u16 flags;
+	u16 rqe_count;
 	u32 irs;
 };
 
@@ -309,8 +322,8 @@ struct t3_rdma_init_wr {
 	u8 mpaattrs;		/* 5 */
 	u8 qpcaps;
 	__be16 ulpdu_size;
-	__be32 flags;		/* bits 31-1 - reservered */
-				/* bit     0 - set if RECV posted */
+	__be16 flags_rtr_type;
+	__be16 rqe_count;
 	__be32 ord;		/* 6 */
 	__be32 ird;
 	__be64 qp_dma_addr;	/* 7 */
@@ -324,7 +337,7 @@ struct t3_genbit {
 };
 
 enum rdma_init_wr_flags {
-	RECVS_POSTED = (1<<0),
+	MPA_INITIATOR = (1<<0),
 	PRIV_QP = (1<<1),
 };
 

@@ -132,14 +132,14 @@ static const struct i2c_algorithm i2c_sibyte_algo = {
 /*
  * registering functions to load algorithms at runtime
  */
-int __init i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
+static int __init i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 {
 	struct i2c_algo_sibyte_data *adap = i2c_adap->algo_data;
 
-	/* register new adapter to i2c module... */
+	/* Register new adapter to i2c module... */
 	i2c_adap->algo = &i2c_sibyte_algo;
 
-	/* Set the frequency to 100 kHz */
+	/* Set the requested frequency. */
 	csr_out32(speed, SMB_CSR(adap,R_SMB_FREQ));
 	csr_out32(0, SMB_CSR(adap,R_SMB_CONTROL));
 

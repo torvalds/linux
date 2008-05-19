@@ -94,6 +94,24 @@ struct at91_nand_host {
 };
 
 /*
+ * Enable NAND.
+ */
+static void at91_nand_enable(struct at91_nand_host *host)
+{
+	if (host->board->enable_pin)
+		at91_set_gpio_value(host->board->enable_pin, 0);
+}
+
+/*
+ * Disable NAND.
+ */
+static void at91_nand_disable(struct at91_nand_host *host)
+{
+	if (host->board->enable_pin)
+		at91_set_gpio_value(host->board->enable_pin, 1);
+}
+
+/*
  * Hardware specific access to control-lines
  */
 static void at91_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
@@ -101,11 +119,11 @@ static void at91_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	struct nand_chip *nand_chip = mtd->priv;
 	struct at91_nand_host *host = nand_chip->priv;
 
-	if (host->board->enable_pin && (ctrl & NAND_CTRL_CHANGE)) {
+	if (ctrl & NAND_CTRL_CHANGE) {
 		if (ctrl & NAND_NCE)
-			at91_set_gpio_value(host->board->enable_pin, 0);
+			at91_nand_enable(host);
 		else
-			at91_set_gpio_value(host->board->enable_pin, 1);
+			at91_nand_disable(host);
 	}
 	if (cmd == NAND_CMD_NONE)
 		return;
@@ -125,24 +143,6 @@ static int at91_nand_device_ready(struct mtd_info *mtd)
 	struct at91_nand_host *host = nand_chip->priv;
 
 	return at91_get_gpio_value(host->board->rdy_pin);
-}
-
-/*
- * Enable NAND.
- */
-static void at91_nand_enable(struct at91_nand_host *host)
-{
-	if (host->board->enable_pin)
-		at91_set_gpio_value(host->board->enable_pin, 0);
-}
-
-/*
- * Disable NAND.
- */
-static void at91_nand_disable(struct at91_nand_host *host)
-{
-	if (host->board->enable_pin)
-		at91_set_gpio_value(host->board->enable_pin, 1);
 }
 
 /*

@@ -76,12 +76,13 @@
 # define SCSCR_INIT(port) 0x32	/* TIE=0,RIE=0,TE=1,RE=1,REIE=0,CKE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
-# define SCPDR0			0xA405013E	/* 16 bit SCIF0 PSDR */
-# define SCSPTR0		SCPDR0
+# define PADR			0xA4050120
+# define PSDR			0xA405013e
+# define PWDR			0xA4050166
+# define PSCR			0xA405011E
 # define SCIF_ORER		0x0001	/* overrun error bit */
 # define SCSCR_INIT(port)	0x0038	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
-# define PORT_PSCR		0xA405011E
 #elif defined(CONFIG_CPU_SUBTYPE_SH7366)
 # define SCPDR0			0xA405013E      /* 16 bit SCIF0 PSDR */
 # define SCSPTR0		SCPDR0
@@ -320,7 +321,7 @@
   unsigned int addr = port->mapbase + (offset);			\
   if ((size) == 8) {						\
     ctrl_outb(value, addr);					\
-  } else {							\
+  } else if ((size) == 16) {					\
     ctrl_outw(value, addr);					\
   }
 
@@ -451,7 +452,11 @@ SCIF_FNS(SCSPTR,			0,  0, 0x24, 16)
 SCIF_FNS(SCLSR,				0,  0, 0x28, 16)
 #else
 SCIF_FNS(SCFDR,                      0x0e, 16, 0x1C, 16)
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
+SCIF_FNS(SCSPTR,                        0,  0, 0, 0)
+#else
 SCIF_FNS(SCSPTR,                        0,  0, 0x20, 16)
+#endif
 SCIF_FNS(SCLSR,                         0,  0, 0x24, 16)
 #endif
 #endif
@@ -593,11 +598,23 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR3) & 0x0001 ? 1 : 0; /* SCIF */
 	return 1;
 }
-#elif defined(CONFIG_CPU_SUBTYPE_SH7722) || defined(CONFIG_CPU_SUBTYPE_SH7366)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7366)
 static inline int sci_rxd_in(struct uart_port *port)
 {
 	if (port->mapbase == 0xffe00000)
 		return ctrl_inb(SCPDR0) & 0x0001 ? 1 : 0; /* SCIF0 */
+	return 1;
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7722)
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	if (port->mapbase == 0xffe00000)
+		return ctrl_inb(PSDR) & 0x02 ? 1 : 0; /* SCIF0 */
+	if (port->mapbase == 0xffe10000)
+		return ctrl_inb(PADR) & 0x40 ? 1 : 0; /* SCIF1 */
+	if (port->mapbase == 0xffe20000)
+		return ctrl_inb(PWDR) & 0x04 ? 1 : 0; /* SCIF2 */
+
 	return 1;
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)

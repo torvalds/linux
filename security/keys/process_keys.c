@@ -1,6 +1,6 @@
-/* process_keys.c: management of a process's keyrings
+/* Management of a process's keyrings
  *
- * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-2005, 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -23,6 +23,9 @@
 /* session keyring create vs join semaphore */
 static DEFINE_MUTEX(key_session_mutex);
 
+/* user keyring creation semaphore */
+static DEFINE_MUTEX(key_user_keyring_mutex);
+
 /* the root user's tracking struct */
 struct key_user root_key_user = {
 	.usage		= ATOMIC_INIT(3),
@@ -33,78 +36,84 @@ struct key_user root_key_user = {
 	.uid		= 0,
 };
 
-/* the root user's UID keyring */
-struct key root_user_keyring = {
-	.usage		= ATOMIC_INIT(1),
-	.serial		= 2,
-	.type		= &key_type_keyring,
-	.user		= &root_key_user,
-	.sem		= __RWSEM_INITIALIZER(root_user_keyring.sem),
-	.perm		= (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
-	.flags		= 1 << KEY_FLAG_INSTANTIATED,
-	.description	= "_uid.0",
-#ifdef KEY_DEBUGGING
-	.magic		= KEY_DEBUG_MAGIC,
-#endif
-};
-
-/* the root user's default session keyring */
-struct key root_session_keyring = {
-	.usage		= ATOMIC_INIT(1),
-	.serial		= 1,
-	.type		= &key_type_keyring,
-	.user		= &root_key_user,
-	.sem		= __RWSEM_INITIALIZER(root_session_keyring.sem),
-	.perm		= (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
-	.flags		= 1 << KEY_FLAG_INSTANTIATED,
-	.description	= "_uid_ses.0",
-#ifdef KEY_DEBUGGING
-	.magic		= KEY_DEBUG_MAGIC,
-#endif
-};
-
 /*****************************************************************************/
 /*
- * allocate the keyrings to be associated with a UID
+ * install user and user session keyrings for a particular UID
  */
-int alloc_uid_keyring(struct user_struct *user,
-		      struct task_struct *ctx)
+static int install_user_keyrings(struct task_struct *tsk)
 {
+	struct user_struct *user = tsk->user;
 	struct key *uid_keyring, *session_keyring;
 	char buf[20];
 	int ret;
 
-	/* concoct a default session keyring */
-	sprintf(buf, "_uid_ses.%u", user->uid);
+	kenter("%p{%u}", user, user->uid);
 
-	session_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx,
-					KEY_ALLOC_IN_QUOTA, NULL);
-	if (IS_ERR(session_keyring)) {
-		ret = PTR_ERR(session_keyring);
-		goto error;
+	if (user->uid_keyring) {
+		kleave(" = 0 [exist]");
+		return 0;
 	}
 
-	/* and a UID specific keyring, pointed to by the default session
-	 * keyring */
-	sprintf(buf, "_uid.%u", user->uid);
-
-	uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx,
-				    KEY_ALLOC_IN_QUOTA, session_keyring);
-	if (IS_ERR(uid_keyring)) {
-		key_put(session_keyring);
-		ret = PTR_ERR(uid_keyring);
-		goto error;
-	}
-
-	/* install the keyrings */
-	user->uid_keyring = uid_keyring;
-	user->session_keyring = session_keyring;
+	mutex_lock(&key_user_keyring_mutex);
 	ret = 0;
 
-error:
-	return ret;
+	if (!user->uid_keyring) {
+		/* get the UID-specific keyring
+		 * - there may be one in existence already as it may have been
+		 *   pinned by a session, but the user_struct pointing to it
+		 *   may have been destroyed by setuid */
+		sprintf(buf, "_uid.%u", user->uid);
 
-} /* end alloc_uid_keyring() */
+		uid_keyring = find_keyring_by_name(buf, true);
+		if (IS_ERR(uid_keyring)) {
+			uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1,
+						    tsk, KEY_ALLOC_IN_QUOTA,
+						    NULL);
+			if (IS_ERR(uid_keyring)) {
+				ret = PTR_ERR(uid_keyring);
+				goto error;
+			}
+		}
+
+		/* get a default session keyring (which might also exist
+		 * already) */
+		sprintf(buf, "_uid_ses.%u", user->uid);
+
+		session_keyring = find_keyring_by_name(buf, true);
+		if (IS_ERR(session_keyring)) {
+			session_keyring =
+				keyring_alloc(buf, user->uid, (gid_t) -1,
+					      tsk, KEY_ALLOC_IN_QUOTA, NULL);
+			if (IS_ERR(session_keyring)) {
+				ret = PTR_ERR(session_keyring);
+				goto error_release;
+			}
+
+			/* we install a link from the user session keyring to
+			 * the user keyring */
+			ret = key_link(session_keyring, uid_keyring);
+			if (ret < 0)
+				goto error_release_both;
+		}
+
+		/* install the keyrings */
+		user->uid_keyring = uid_keyring;
+		user->session_keyring = session_keyring;
+	}
+
+	mutex_unlock(&key_user_keyring_mutex);
+	kleave(" = 0");
+	return 0;
+
+error_release_both:
+	key_put(session_keyring);
+error_release:
+	key_put(uid_keyring);
+error:
+	mutex_unlock(&key_user_keyring_mutex);
+	kleave(" = %d", ret);
+	return ret;
+}
 
 /*****************************************************************************/
 /*
@@ -481,7 +490,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 		}
 	}
 	/* or search the user-session keyring */
-	else {
+	else if (context->user->session_keyring) {
 		key_ref = keyring_search_aux(
 			make_key_ref(context->user->session_keyring, 1),
 			context, type, description, match);
@@ -614,6 +623,9 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 		if (!context->signal->session_keyring) {
 			/* always install a session keyring upon access if one
 			 * doesn't exist yet */
+			ret = install_user_keyrings(context);
+			if (ret < 0)
+				goto error;
 			ret = install_session_keyring(
 				context, context->user->session_keyring);
 			if (ret < 0)
@@ -628,12 +640,24 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 		break;
 
 	case KEY_SPEC_USER_KEYRING:
+		if (!context->user->uid_keyring) {
+			ret = install_user_keyrings(context);
+			if (ret < 0)
+				goto error;
+		}
+
 		key = context->user->uid_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_SESSION_KEYRING:
+		if (!context->user->session_keyring) {
+			ret = install_user_keyrings(context);
+			if (ret < 0)
+				goto error;
+		}
+
 		key = context->user->session_keyring;
 		atomic_inc(&key->usage);
 		key_ref = make_key_ref(key, 1);
@@ -744,7 +768,7 @@ long join_session_keyring(const char *name)
 	mutex_lock(&key_session_mutex);
 
 	/* look for an existing keyring of this name */
-	keyring = find_keyring_by_name(name, 0);
+	keyring = find_keyring_by_name(name, false);
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
 		keyring = keyring_alloc(name, tsk->uid, tsk->gid, tsk,

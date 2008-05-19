@@ -294,7 +294,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			break;
 #endif
 		default:
-			if (ic->nodes == (void *)ic && ic->nlink == 0)
+			if (ic->nodes == (void *)ic && ic->pino_nlink == 0)
 				jffs2_del_ino_cache(c, ic);
 	}
 }
@@ -332,7 +332,8 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 	if (c->mtd->point) {
 		unsigned long *wordebuf;
 
-		ret = c->mtd->point(c->mtd, jeb->offset, c->sector_size, &retlen, (unsigned char **)&ebuf);
+		ret = c->mtd->point(c->mtd, jeb->offset, c->sector_size,
+				    &retlen, &ebuf, NULL);
 		if (ret) {
 			D1(printk(KERN_DEBUG "MTD point failed %d\n", ret));
 			goto do_flash_read;
@@ -340,7 +341,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 		if (retlen < c->sector_size) {
 			/* Don't muck about if it won't let us point to the whole erase sector */
 			D1(printk(KERN_DEBUG "MTD point returned len too short: 0x%zx\n", retlen));
-			c->mtd->unpoint(c->mtd, ebuf, jeb->offset, retlen);
+			c->mtd->unpoint(c->mtd, jeb->offset, retlen);
 			goto do_flash_read;
 		}
 		wordebuf = ebuf-sizeof(*wordebuf);
@@ -349,7 +350,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 		   if (*++wordebuf != ~0)
 			   break;
 		} while(--retlen);
-		c->mtd->unpoint(c->mtd, ebuf, jeb->offset, c->sector_size);
+		c->mtd->unpoint(c->mtd, jeb->offset, c->sector_size);
 		if (retlen) {
 			printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08tx\n",
 			       *wordebuf, jeb->offset + c->sector_size-retlen*sizeof(*wordebuf));

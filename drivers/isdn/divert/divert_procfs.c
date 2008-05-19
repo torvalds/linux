@@ -288,13 +288,12 @@ divert_dev_init(void)
 	isdn_proc_entry = proc_mkdir("isdn", init_net.proc_net);
 	if (!isdn_proc_entry)
 		return (-1);
-	isdn_divert_entry = create_proc_entry("divert", S_IFREG | S_IRUGO, isdn_proc_entry);
+	isdn_divert_entry = proc_create("divert", S_IFREG | S_IRUGO,
+					isdn_proc_entry, &isdn_fops);
 	if (!isdn_divert_entry) {
 		remove_proc_entry("isdn", init_net.proc_net);
 		return (-1);
 	}
-	isdn_divert_entry->proc_fops = &isdn_fops; 
-	isdn_divert_entry->owner = THIS_MODULE; 
 #endif	/* CONFIG_PROC_FS */
 
 	return (0);

@@ -425,16 +425,12 @@ static void __devinit cciss_procinit(int i)
 	struct proc_dir_entry *pde;
 
 	if (proc_cciss == NULL)
-		proc_cciss = proc_mkdir("cciss", proc_root_driver);
+		proc_cciss = proc_mkdir("driver/cciss", NULL);
 	if (!proc_cciss)
 		return;
-	pde = proc_create(hba[i]->devname, S_IWUSR | S_IRUSR | S_IRGRP |
+	pde = proc_create_data(hba[i]->devname, S_IWUSR | S_IRUSR | S_IRGRP |
 					S_IROTH, proc_cciss,
-					&cciss_proc_fops);
-	if (!pde)
-		return;
-
-	pde->data = hba[i];
+					&cciss_proc_fops, hba[i]);
 }
 #endif				/* CONFIG_PROC_FS */
 
@@ -3700,7 +3696,7 @@ static void __exit cciss_cleanup(void)
 			cciss_remove_one(hba[i]->pdev);
 		}
 	}
-	remove_proc_entry("cciss", proc_root_driver);
+	remove_proc_entry("driver/cciss", NULL);
 }
 
 static void fail_all_cmds(unsigned long ctlr)

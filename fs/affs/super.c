@@ -71,12 +71,18 @@ static struct kmem_cache * affs_inode_cachep;
 
 static struct inode *affs_alloc_inode(struct super_block *sb)
 {
-	struct affs_inode_info *ei;
-	ei = (struct affs_inode_info *)kmem_cache_alloc(affs_inode_cachep, GFP_KERNEL);
-	if (!ei)
+	struct affs_inode_info *i;
+
+	i = kmem_cache_alloc(affs_inode_cachep, GFP_KERNEL);
+	if (!i)
 		return NULL;
-	ei->vfs_inode.i_version = 1;
-	return &ei->vfs_inode;
+
+	i->vfs_inode.i_version = 1;
+	i->i_lc = NULL;
+	i->i_ext_bh = NULL;
+	i->i_pa_cnt = 0;
+
+	return &i->vfs_inode;
 }
 
 static void affs_destroy_inode(struct inode *inode)
@@ -114,8 +120,6 @@ static const struct super_operations affs_sops = {
 	.alloc_inode	= affs_alloc_inode,
 	.destroy_inode	= affs_destroy_inode,
 	.write_inode	= affs_write_inode,
-	.put_inode	= affs_put_inode,
-	.drop_inode	= affs_drop_inode,
 	.delete_inode	= affs_delete_inode,
 	.clear_inode	= affs_clear_inode,
 	.put_super	= affs_put_super,
@@ -199,7 +203,6 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 		case Opt_prefix:
 			/* Free any previous prefix */
 			kfree(*prefix);
-			*prefix = NULL;
 			*prefix = match_strdup(&args[0]);
 			if (!*prefix)
 				return 0;
@@ -233,6 +236,8 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 			break;
 		case Opt_volume: {
 			char *vol = match_strdup(&args[0]);
+			if (!vol)
+				return 0;
 			strlcpy(volume, vol, 32);
 			kfree(vol);
 			break;

@@ -1,6 +1,7 @@
 config DVB_TTUSB_DEC
 	tristate "Technotrend/Hauppauge USB DEC devices"
 	depends on DVB_CORE && USB
+	depends on HOTPLUG	# due to FW_LOADER
 	select FW_LOADER
 	select CRC32
 	help

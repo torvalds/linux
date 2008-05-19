@@ -4,10 +4,10 @@
 extern ia64_mv_setup_t			dig_setup;
 extern ia64_mv_dma_alloc_coherent	sba_alloc_coherent;
 extern ia64_mv_dma_free_coherent	sba_free_coherent;
-extern ia64_mv_dma_map_single		sba_map_single;
-extern ia64_mv_dma_unmap_single		sba_unmap_single;
-extern ia64_mv_dma_map_sg		sba_map_sg;
-extern ia64_mv_dma_unmap_sg		sba_unmap_sg;
+extern ia64_mv_dma_map_single_attrs	sba_map_single_attrs;
+extern ia64_mv_dma_unmap_single_attrs	sba_unmap_single_attrs;
+extern ia64_mv_dma_map_sg_attrs		sba_map_sg_attrs;
+extern ia64_mv_dma_unmap_sg_attrs	sba_unmap_sg_attrs;
 extern ia64_mv_dma_supported		sba_dma_supported;
 extern ia64_mv_dma_mapping_error	sba_dma_mapping_error;
 
@@ -23,10 +23,10 @@ extern ia64_mv_dma_mapping_error	sba_dma_mapping_error;
 #define platform_dma_init			machvec_noop
 #define platform_dma_alloc_coherent		sba_alloc_coherent
 #define platform_dma_free_coherent		sba_free_coherent
-#define platform_dma_map_single			sba_map_single
-#define platform_dma_unmap_single		sba_unmap_single
-#define platform_dma_map_sg			sba_map_sg
-#define platform_dma_unmap_sg			sba_unmap_sg
+#define platform_dma_map_single_attrs		sba_map_single_attrs
+#define platform_dma_unmap_single_attrs		sba_unmap_single_attrs
+#define platform_dma_map_sg_attrs		sba_map_sg_attrs
+#define platform_dma_unmap_sg_attrs		sba_unmap_sg_attrs
 #define platform_dma_sync_single_for_cpu	machvec_dma_sync_single
 #define platform_dma_sync_sg_for_cpu		machvec_dma_sync_sg
 #define platform_dma_sync_single_for_device	machvec_dma_sync_single

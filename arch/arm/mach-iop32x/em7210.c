@@ -50,8 +50,7 @@ static struct sys_timer em7210_timer = {
  */
 static struct i2c_board_info __initdata em7210_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
-		.type = "rs5c372a",
+		I2C_BOARD_INFO("rs5c372a", 0x32),
 	},
 };
 

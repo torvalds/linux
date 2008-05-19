@@ -22,7 +22,6 @@ void orion5x_setup_dev0_win(u32 base, u32 size);
 void orion5x_setup_dev1_win(u32 base, u32 size);
 void orion5x_setup_dev2_win(u32 base, u32 size);
 void orion5x_setup_pcie_wa_win(u32 base, u32 size);
-void orion5x_setup_eth_wins(void);
 
 /*
  * Shared code used internally by other Orion core functions.
@@ -33,10 +32,9 @@ struct pci_sys_data;
 struct pci_bus;
 
 void orion5x_pcie_id(u32 *dev, u32 *rev);
-int orion5x_pcie_local_bus_nr(void);
-int orion5x_pci_local_bus_nr(void);
 int orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
+int orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin);
 
 /*
  * Valid GPIO pins according to MPP setup, used by machine-setup.

@@ -34,6 +34,12 @@
 #define S35390A_FLAG_RESET	0x80
 #define S35390A_FLAG_TEST	0x01
 
+static const struct i2c_device_id s35390a_id[] = {
+	{ "s35390a", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, s35390a_id);
+
 struct s35390a {
 	struct i2c_client *client[8];
 	struct rtc_device *rtc;
@@ -195,7 +201,8 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 
 static struct i2c_driver s35390a_driver;
 
-static int s35390a_probe(struct i2c_client *client)
+static int s35390a_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	int err;
 	unsigned int i;
@@ -220,7 +227,7 @@ static int s35390a_probe(struct i2c_client *client)
 	/* This chip uses multiple addresses, use dummy devices for them */
 	for (i = 1; i < 8; ++i) {
 		s35390a->client[i] = i2c_new_dummy(client->adapter,
-					client->addr + i, "rtc-s35390a");
+					client->addr + i);
 		if (!s35390a->client[i]) {
 			dev_err(&client->dev, "Address %02x unavailable\n",
 						client->addr + i);
@@ -296,6 +303,7 @@ static struct i2c_driver s35390a_driver = {
 	},
 	.probe		= s35390a_probe,
 	.remove		= s35390a_remove,
+	.id_table	= s35390a_id,
 };
 
 static int __init s35390a_rtc_init(void)

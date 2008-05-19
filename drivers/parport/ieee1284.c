@@ -76,7 +76,7 @@ int parport_wait_event (struct parport *port, signed long timeout)
 		   semaphore. */
 		return 1;
 
-	init_timer (&timer);
+	init_timer_on_stack(&timer);
 	timer.expires = jiffies + timeout;
 	timer.function = timeout_waiting_on_port;
 	port_from_cookie[port->number % PARPORT_MAX] = port;
@@ -87,6 +87,8 @@ int parport_wait_event (struct parport *port, signed long timeout)
 	if (!del_timer (&timer) && !ret)
 		/* Timed out. */
 		ret = 1;
+
+	destroy_timer_on_stack(&timer);
 
 	return ret;
 }

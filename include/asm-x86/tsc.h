@@ -32,7 +32,7 @@ static inline cycles_t get_cycles(void)
 	return ret;
 }
 
-static inline cycles_t vget_cycles(void)
+static __always_inline cycles_t vget_cycles(void)
 {
 	/*
 	 * We only do VDSOs on TSC capable CPUs, so this shouldnt

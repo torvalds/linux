@@ -4,6 +4,7 @@
  */
 
 #include <linux/clockchips.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/threads.h>
@@ -74,7 +75,7 @@ static irqreturn_t um_timer(int irq, void *dev)
 
 static cycle_t itimer_read(void)
 {
-	return os_nsecs();
+	return os_nsecs() / 1000;
 }
 
 static struct clocksource itimer_clocksource = {
@@ -82,7 +83,7 @@ static struct clocksource itimer_clocksource = {
 	.rating		= 300,
 	.read		= itimer_read,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.mult		= 1,
+	.mult		= 1000,
 	.shift		= 0,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
@@ -108,8 +109,6 @@ static void __init setup_itimer(void)
 	}
 	clockevents_register_device(&itimer_clockevent);
 }
-
-extern void (*late_time_init)(void);
 
 void __init time_init(void)
 {

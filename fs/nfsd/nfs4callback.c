@@ -104,7 +104,7 @@ xdr_writemem(__be32 *p, const void *ptr, int nbytes)
 } while (0)
 #define RESERVE_SPACE(nbytes)   do {                            \
 	p = xdr_reserve_space(xdr, nbytes);                     \
-	if (!p) dprintk("NFSD: RESERVE_SPACE(%d) failed in function %s\n", (int) (nbytes), __FUNCTION__); \
+	if (!p) dprintk("NFSD: RESERVE_SPACE(%d) failed in function %s\n", (int) (nbytes), __func__); \
 	BUG_ON(!p);                                             \
 } while (0)
 
@@ -134,7 +134,7 @@ xdr_error:                                      \
 	p = xdr_inline_decode(xdr, nbytes); \
 	if (!p) { \
 		dprintk("NFSD: %s: reply buffer overflowed in line %d.\n", \
-			__FUNCTION__, __LINE__); \
+			__func__, __LINE__); \
 		return -EIO; \
 	} \
 } while (0)

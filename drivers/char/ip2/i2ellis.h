@@ -185,10 +185,6 @@ typedef struct _i2eBordStr
 						// The highest allowable IRQ, based on the
 						// slot size.
 
-	unsigned char  i2eChangeIrq;
-						// Whether tis valid to change IRQ's
-						// ISA = ok, EISA, MicroChannel, no
-
 	// Accelerators for various addresses on the board
 	int            i2eBase;        // I/O Address of the Board
 	int            i2eData;        // From here data transfers happen
@@ -431,12 +427,6 @@ typedef struct _i2eBordStr
 // Manifests for i2eBordStr:
 //-------------------------------------------
 
-#define YES 1
-#define NO  0
-
-#define NULLFUNC (void (*)(void))0
-#define NULLPTR (void *)0
-
 typedef void (*delayFunc_t)(unsigned int);
 
 // i2eValid
@@ -494,8 +484,8 @@ typedef void (*delayFunc_t)(unsigned int);
 
 // i2eUsingIrq
 //
-#define IRQ_UNDEFINED   0x1352  // No valid irq (or polling = 0) can ever
-								// promote to this!
+#define I2_IRQ_UNDEFINED	0x1352  /* No valid irq (or polling = 0) can
+					 * ever promote to this! */
 //------------------------------------------
 // Handy Macros for i2ellis.c and others
 // Note these are common to -II and -IIEX
@@ -504,41 +494,14 @@ typedef void (*delayFunc_t)(unsigned int);
 // Given a pointer to the board structure, does the input FIFO have any data or
 // not?
 //
-#define HAS_INPUT(pB)      !(INB(pB->i2eStatus) & ST_IN_EMPTY)
-#define HAS_NO_INPUT(pB)   (INB(pB->i2eStatus) & ST_IN_EMPTY)
-
-// Given a pointer to board structure, read a byte or word from the fifo
-//
-#define BYTE_FROM(pB)      (unsigned char)INB(pB->i2eData)
-#define WORD_FROM(pB)      (unsigned short)INW(pB->i2eData)
-
-// Given a pointer to board structure, is there room for any data to be written
-// to the data fifo?
-//
-#define HAS_OUTROOM(pB)    !(INB(pB->i2eStatus) & ST_OUT_FULL)
-#define HAS_NO_OUTROOM(pB) (INB(pB->i2eStatus) & ST_OUT_FULL)
-
-// Given a pointer to board structure, write a single byte to the fifo
-// structure. Note that for 16-bit interfaces, the high order byte is undefined
-// and unknown.
-//
-#define BYTE_TO(pB, c)     OUTB(pB->i2eData,(c))
-
-// Write a word to the fifo structure. For 8-bit interfaces, this may have
-// unknown results.
-//
-#define WORD_TO(pB, c)     OUTW(pB->i2eData,(c))
+#define I2_HAS_INPUT(pB)	!(inb(pB->i2eStatus) & ST_IN_EMPTY)
 
 // Given a pointer to the board structure, is there anything in the incoming
 // mailbox?
 //
-#define HAS_MAIL(pB)       (INB(pB->i2eStatus) & ST_IN_MAIL)
+#define I2_HAS_MAIL(pB)		(inb(pB->i2eStatus) & ST_IN_MAIL)
 
-#define UPDATE_FIFO_ROOM(pB)  (pB)->i2eFifoRemains=(pB)->i2eFifoSize
-
-// Handy macro to round up a number (like the buffer write and read routines do)
-// 
-#define ROUNDUP(number)    (((number)+1) & (~1))
+#define I2_UPDATE_FIFO_ROOM(pB)	((pB)->i2eFifoRemains = (pB)->i2eFifoSize)
 
 //------------------------------------------
 // Function Declarations for i2ellis.c
@@ -593,20 +556,11 @@ static int iiDownloadBlock(i2eBordStrPtr, loadHdrStrPtr, int);
 //
 static int iiDownloadAll(i2eBordStrPtr, loadHdrStrPtr, int, int);
 
-// Called indirectly always.  Needed externally so the routine might be
-// SPECIFIED as an argument to iiReset()
-//
-//static void ii2DelayIO(unsigned int);		// N-millisecond delay using
-											//hardware spin
-//static void ii2DelayTimer(unsigned int);	// N-millisecond delay using Linux
-											//timer
-
 // Many functions defined here return True if good, False otherwise, with an
 // error code in i2eError field. Here is a handy macro for setting the error
 // code and returning.
 //
-#define COMPLETE(pB,code) \
-	do { \
+#define I2_COMPLETE(pB,code) do { \
 		 pB->i2eError = code; \
 		 return (code == I2EE_GOOD);\
 	} while (0)

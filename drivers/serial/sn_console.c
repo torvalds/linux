@@ -839,7 +839,7 @@ static int __init sn_sal_module_init(void)
 
 	if (uart_add_one_port(&sal_console_uart, &sal_console_port.sc_port) < 0) {
 		/* error - not sure what I'd do - so I'll do nothing */
-		printk(KERN_ERR "%s: unable to add port\n", __FUNCTION__);
+		printk(KERN_ERR "%s: unable to add port\n", __func__);
 	}
 
 	/* when this driver is compiled in, the console initialization

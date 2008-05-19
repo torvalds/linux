@@ -268,6 +268,9 @@ void do_sigreturn32(struct pt_regs *regs)
 	regs->tstate &= ~(TSTATE_ICC|TSTATE_XCC);
 	regs->tstate |= psr_to_tstate_icc(psr);
 
+	/* Prevent syscall restart.  */
+	pt_regs_clear_syscall(regs);
+
 	err |= __get_user(fpu_save, &sf->fpu_save);
 	if (fpu_save)
 		err |= restore_fpu_state32(regs, &sf->fpu_state);
@@ -351,6 +354,9 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	regs->tstate &= ~(TSTATE_ICC|TSTATE_XCC);
 	regs->tstate |= psr_to_tstate_icc(psr);
 
+	/* Prevent syscall restart.  */
+	pt_regs_clear_syscall(regs);
+
 	err |= __get_user(fpu_save, &sf->fpu_save);
 	if (fpu_save)
 		err |= restore_fpu_state32(regs, &sf->fpu_state);
@@ -400,11 +406,27 @@ static void __user *get_sigframe(struct sigaction *sa, struct pt_regs *regs, uns
 	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
 	sp = regs->u_regs[UREG_FP];
 	
+	/*
+	 * If we are on the alternate signal stack and would overflow it, don't.
+	 * Return an always-bogus address instead so we will die with SIGSEGV.
+	 */
+	if (on_sig_stack(sp) && !likely(on_sig_stack(sp - framesize)))
+		return (void __user *) -1L;
+
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (sa->sa_flags & SA_ONSTACK) {
-		if (!on_sig_stack(sp) && !((current->sas_ss_sp + current->sas_ss_size) & 7))
+		if (sas_ss_flags(sp) == 0)
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
+
+	/* Always align the stack frame.  This handles two cases.  First,
+	 * sigaltstack need not be mindful of platform specific stack
+	 * alignment.  Second, if we took this signal because the stack
+	 * is not aligned properly, we'd like to take the signal cleanly
+	 * and report that.
+	 */
+	sp &= ~7UL;
+
 	return (void __user *)(sp - framesize);
 }
 
@@ -746,48 +768,55 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
  * mistake.
  */
 void do_signal32(sigset_t *oldset, struct pt_regs * regs,
-		 struct signal_deliver_cookie *cookie)
+		 int restart_syscall, unsigned long orig_i0)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
 	
-	signr = get_signal_to_deliver(&info, &ka, regs, cookie);
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+
+	/* If the debugger messes with the program counter, it clears
+	 * the "in syscall" bit, directing us to not perform a syscall
+	 * restart.
+	 */
+	if (restart_syscall && !pt_regs_is_syscall(regs))
+		restart_syscall = 0;
+
 	if (signr > 0) {
-		if (cookie->restart_syscall)
-			syscall_restart32(cookie->orig_i0, regs, &ka.sa);
+		if (restart_syscall)
+			syscall_restart32(orig_i0, regs, &ka.sa);
 		handle_signal32(signr, &ka, &info, oldset, regs);
 
-		/* a signal was successfully delivered; the saved
+		/* A signal was successfully delivered; the saved
 		 * sigmask will have been stored in the signal frame,
 		 * and will be restored by sigreturn, so we can simply
-		 * clear the TIF_RESTORE_SIGMASK flag.
+		 * clear the TS_RESTORE_SIGMASK flag.
 		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		return;
 	}
-	if (cookie->restart_syscall &&
+	if (restart_syscall &&
 	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
 	     regs->u_regs[UREG_I0] == ERESTARTSYS ||
 	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) {
 		/* replay the system call when we are done */
-		regs->u_regs[UREG_I0] = cookie->orig_i0;
+		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
-	if (cookie->restart_syscall &&
+	if (restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
+	/* If there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }

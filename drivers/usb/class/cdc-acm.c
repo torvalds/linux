@@ -280,7 +280,7 @@ static void acm_ctrl_irq(struct urb *urb)
 
 		case USB_CDC_NOTIFY_SERIAL_STATE:
 
-			newctrl = le16_to_cpu(get_unaligned((__le16 *) data));
+			newctrl = get_unaligned_le16(data);
 
 			if (acm->tty && !acm->clocal && (acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
 				dbg("calling hangup");
@@ -1246,6 +1246,9 @@ static struct usb_device_id acm_ids[] = {
 	.driver_info = SINGLE_RX_URB, /* firmware bug */
 	},
 	{ USB_DEVICE(0x22b8, 0x7000), /* Motorola Q Phone */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x0803, 0x3095), /* Zoom Telephonics Model 3095F USB MODEM */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 

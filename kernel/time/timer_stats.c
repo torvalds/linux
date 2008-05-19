@@ -415,12 +415,9 @@ static int __init init_tstats_procfs(void)
 {
 	struct proc_dir_entry *pe;
 
-	pe = create_proc_entry("timer_stats", 0644, NULL);
+	pe = proc_create("timer_stats", 0644, NULL, &tstats_fops);
 	if (!pe)
 		return -ENOMEM;
-
-	pe->proc_fops = &tstats_fops;
-
 	return 0;
 }
 __initcall(init_tstats_procfs);

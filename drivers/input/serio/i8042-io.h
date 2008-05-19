@@ -25,7 +25,7 @@
 #elif defined(__arm__)
 /* defined in include/asm-arm/arch-xxx/irqs.h */
 #include <asm/irq.h>
-#elif defined(CONFIG_SUPERH64)
+#elif defined(CONFIG_SH_CAYMAN)
 #include <asm/irq.h>
 #else
 # define I8042_KBD_IRQ	1

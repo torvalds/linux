@@ -132,7 +132,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 
 	if (iter >= MAX_ASIC_ISR_LOOPS)
 		printk(KERN_ERR "%s: interrupt processing overrun\n",
-		       __FUNCTION__);
+		       __func__);
 }
 
 static inline int asic3_irq_to_bank(struct asic3 *asic, int irq)
@@ -409,7 +409,7 @@ int asic3_gpio_get_value(struct asic3 *asic, unsigned gpio)
 		return asic3_get_gpio_d(asic, Status) & mask;
 	default:
 		printk(KERN_ERR "%s: invalid GPIO value 0x%x",
-		       __FUNCTION__, gpio);
+		       __func__, gpio);
 		return -EINVAL;
 	}
 }
@@ -437,7 +437,7 @@ void asic3_gpio_set_value(struct asic3 *asic, unsigned gpio, int val)
 		return;
 	default:
 		printk(KERN_ERR "%s: invalid GPIO value 0x%x",
-		       __FUNCTION__, gpio);
+		       __func__, gpio);
 		return;
 	}
 }

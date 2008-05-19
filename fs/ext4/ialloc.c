@@ -15,8 +15,6 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/quotaops.h>
@@ -25,7 +23,8 @@
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <asm/byteorder.h>
-
+#include "ext4.h"
+#include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
 #include "group.h"
@@ -75,7 +74,7 @@ unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
 	/* If checksum is bad mark all blocks and inodes use to prevent
 	 * allocation, essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
-		ext4_error(sb, __FUNCTION__, "Checksum bad for group %lu\n",
+		ext4_error(sb, __func__, "Checksum bad for group %lu\n",
 			   block_group);
 		gdp->bg_free_blocks_count = 0;
 		gdp->bg_free_inodes_count = 0;
@@ -223,11 +222,9 @@ void ext4_free_inode (handle_t *handle, struct inode * inode)
 
 		if (gdp) {
 			spin_lock(sb_bgl_lock(sbi, block_group));
-			gdp->bg_free_inodes_count = cpu_to_le16(
-				le16_to_cpu(gdp->bg_free_inodes_count) + 1);
+			le16_add_cpu(&gdp->bg_free_inodes_count, 1);
 			if (is_directory)
-				gdp->bg_used_dirs_count = cpu_to_le16(
-				  le16_to_cpu(gdp->bg_used_dirs_count) - 1);
+				le16_add_cpu(&gdp->bg_used_dirs_count, -1);
 			gdp->bg_checksum = ext4_group_desc_csum(sbi,
 							block_group, gdp);
 			spin_unlock(sb_bgl_lock(sbi, block_group));
@@ -588,7 +585,7 @@ got:
 	ino++;
 	if ((group == 0 && ino < EXT4_FIRST_INO(sb)) ||
 	    ino > EXT4_INODES_PER_GROUP(sb)) {
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			   "reserved inode or inode > inodes count - "
 			   "block_group = %lu, inode=%lu", group,
 			   ino + group * EXT4_INODES_PER_GROUP(sb));
@@ -664,11 +661,9 @@ got:
 				cpu_to_le16(EXT4_INODES_PER_GROUP(sb) - ino);
 	}
 
-	gdp->bg_free_inodes_count =
-		cpu_to_le16(le16_to_cpu(gdp->bg_free_inodes_count) - 1);
+	le16_add_cpu(&gdp->bg_free_inodes_count, -1);
 	if (S_ISDIR(mode)) {
-		gdp->bg_used_dirs_count =
-			cpu_to_le16(le16_to_cpu(gdp->bg_used_dirs_count) + 1);
+		le16_add_cpu(&gdp->bg_used_dirs_count, 1);
 	}
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
 	spin_unlock(sb_bgl_lock(sbi, group));
@@ -744,21 +739,22 @@ got:
 	if (err)
 		goto fail_free_drop;
 
-	err = ext4_mark_inode_dirty(handle, inode);
-	if (err) {
-		ext4_std_error(sb, err);
-		goto fail_free_drop;
-	}
 	if (test_opt(sb, EXTENTS)) {
-		/* set extent flag only for directory and file */
-		if (S_ISDIR(mode) || S_ISREG(mode)) {
+		/* set extent flag only for diretory, file and normal symlink*/
+		if (S_ISDIR(mode) || S_ISREG(mode) || S_ISLNK(mode)) {
 			EXT4_I(inode)->i_flags |= EXT4_EXTENTS_FL;
 			ext4_ext_tree_init(handle, inode);
 			err = ext4_update_incompat_feature(handle, sb,
 					EXT4_FEATURE_INCOMPAT_EXTENTS);
 			if (err)
-				goto fail;
+				goto fail_free_drop;
 		}
+	}
+
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (err) {
+		ext4_std_error(sb, err);
+		goto fail_free_drop;
 	}
 
 	ext4_debug("allocating inode %lu\n", inode->i_ino);
@@ -796,7 +792,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 
 	/* Error cases - e2fsck has already cleaned up for us */
 	if (ino > max_ino) {
-		ext4_warning(sb, __FUNCTION__,
+		ext4_warning(sb, __func__,
 			     "bad orphan ino %lu!  e2fsck was run?", ino);
 		goto error;
 	}
@@ -805,7 +801,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	bit = (ino - 1) % EXT4_INODES_PER_GROUP(sb);
 	bitmap_bh = read_inode_bitmap(sb, block_group);
 	if (!bitmap_bh) {
-		ext4_warning(sb, __FUNCTION__,
+		ext4_warning(sb, __func__,
 			     "inode bitmap error for orphan %lu", ino);
 		goto error;
 	}
@@ -830,7 +826,7 @@ iget_failed:
 	err = PTR_ERR(inode);
 	inode = NULL;
 bad_orphan:
-	ext4_warning(sb, __FUNCTION__,
+	ext4_warning(sb, __func__,
 		     "bad orphan inode %lu!  e2fsck was run?", ino);
 	printk(KERN_NOTICE "ext4_test_bit(bit=%d, block=%llu) = %d\n",
 	       bit, (unsigned long long)bitmap_bh->b_blocknr,

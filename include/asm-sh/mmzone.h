@@ -41,6 +41,8 @@ void __init plat_mem_setup(void);
 
 /* arch/sh/kernel/setup.c */
 void __init setup_bootmem_allocator(unsigned long start_pfn);
+void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
+			       unsigned long end_pfn);
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_MMZONE_H */

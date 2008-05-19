@@ -1,9 +1,8 @@
 #
-#  Copyright 2000 MontaVista Software Inc.
-#  Author: MontaVista Software, Inc.
-#     	ppopov@mvista.com or source@mvista.com
+#  Copyright 2000, 2008 MontaVista Software Inc.
+#  Author: MontaVista Software, Inc. <source@mvista.com>
 #
-# Makefile for the Alchemy Au1000 CPU, generic files.
+# Makefile for the Alchemy Au1xx0 CPUs, generic files.
 #
 
 obj-y += prom.o irq.o puts.o time.o reset.o \

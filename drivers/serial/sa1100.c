@@ -655,7 +655,7 @@ void __init sa1100_register_uart_fns(struct sa1100_port_fns *fns)
 void __init sa1100_register_uart(int idx, int port)
 {
 	if (idx >= NR_PORTS) {
-		printk(KERN_ERR "%s: bad index number %d\n", __FUNCTION__, idx);
+		printk(KERN_ERR "%s: bad index number %d\n", __func__, idx);
 		return;
 	}
 
@@ -682,7 +682,7 @@ void __init sa1100_register_uart(int idx, int port)
 		break;
 
 	default:
-		printk(KERN_ERR "%s: bad port number %d\n", __FUNCTION__, port);
+		printk(KERN_ERR "%s: bad port number %d\n", __func__, port);
 	}
 }
 

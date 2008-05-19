@@ -13,6 +13,7 @@ config SPARC64
 	default y
 	select HAVE_IDE
 	select HAVE_LMB
+	select HAVE_ARCH_KGDB
 
 config GENERIC_TIME
 	bool

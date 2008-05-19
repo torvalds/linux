@@ -30,6 +30,7 @@
 #include <linux/capability.h>
 #include <linux/file.h>
 #include <linux/fcntl.h>
+#include <linux/device_cgroup.h>
 #include <asm/namei.h>
 #include <asm/uaccess.h>
 
@@ -278,6 +279,10 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 	} else {
 		retval = generic_permission(inode, submask, NULL);
 	}
+	if (retval)
+		return retval;
+
+	retval = devcgroup_inode_permission(inode, mask);
 	if (retval)
 		return retval;
 
@@ -2027,6 +2032,10 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 
 	if (!dir->i_op || !dir->i_op->mknod)
 		return -EPERM;
+
+	error = devcgroup_inode_mknod(mode, dev);
+	if (error)
+		return error;
 
 	error = security_inode_mknod(dir, dentry, mode, dev);
 	if (error)

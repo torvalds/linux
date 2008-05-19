@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -----------------------------------------------------------------------
 #
-#   Copyright 2007 rPath, Inc. - All Rights Reserved
+#   Copyright 2007-2008 rPath, Inc. - All Rights Reserved
 #
 #   This file is part of the Linux kernel, and is made available under
 #   the terms of the GNU General Public License version 2 or (at your
@@ -20,198 +20,138 @@
 %canned_values = (
 	24 => [
 		'0xa6aaaaab','0x2aaaaaa',26,
-		'0xa6aaaaaaaaaaaaab','0x2aaaaaaaaaaaaaa',58,
 		125,3,
 		'0xc49ba5e4','0x1fbe76c8b4',37,
-		'0xc49ba5e353f7ceda','0x1fbe76c8b439581062',69,
 		3,125,
 		'0xa2c2aaab','0xaaaa',16,
-		'0xa2c2aaaaaaaaaaab','0xaaaaaaaaaaaa',48,
 		125000,3,
 		'0xc9539b89','0x7fffbce4217d',47,
-		'0xc9539b8887229e91','0x7fffbce4217d2849cb25',79,
 		3,125000,
 	], 32 => [
 		'0xfa000000','0x6000000',27,
-		'0xfa00000000000000','0x600000000000000',59,
 		125,4,
 		'0x83126e98','0xfdf3b645a',36,
-		'0x83126e978d4fdf3c','0xfdf3b645a1cac0831',68,
 		4,125,
 		'0xf4240000','0x0',17,
-		'0xf424000000000000','0x0',49,
 		31250,1,
 		'0x8637bd06','0x3fff79c842fa',46,
-		'0x8637bd05af6c69b6','0x3fff79c842fa5093964a',78,
 		1,31250,
 	], 48 => [
 		'0xa6aaaaab','0x6aaaaaa',27,
-		'0xa6aaaaaaaaaaaaab','0x6aaaaaaaaaaaaaa',59,
 		125,6,
 		'0xc49ba5e4','0xfdf3b645a',36,
-		'0xc49ba5e353f7ceda','0xfdf3b645a1cac0831',68,
 		6,125,
 		'0xa2c2aaab','0x15555',17,
-		'0xa2c2aaaaaaaaaaab','0x1555555555555',49,
 		62500,3,
 		'0xc9539b89','0x3fffbce4217d',46,
-		'0xc9539b8887229e91','0x3fffbce4217d2849cb25',78,
 		3,62500,
 	], 64 => [
 		'0xfa000000','0xe000000',28,
-		'0xfa00000000000000','0xe00000000000000',60,
 		125,8,
 		'0x83126e98','0x7ef9db22d',35,
-		'0x83126e978d4fdf3c','0x7ef9db22d0e560418',67,
 		8,125,
 		'0xf4240000','0x0',18,
-		'0xf424000000000000','0x0',50,
 		15625,1,
 		'0x8637bd06','0x1fff79c842fa',45,
-		'0x8637bd05af6c69b6','0x1fff79c842fa5093964a',77,
 		1,15625,
 	], 100 => [
 		'0xa0000000','0x0',28,
-		'0xa000000000000000','0x0',60,
 		10,1,
 		'0xcccccccd','0x733333333',35,
-		'0xcccccccccccccccd','0x73333333333333333',67,
 		1,10,
 		'0x9c400000','0x0',18,
-		'0x9c40000000000000','0x0',50,
 		10000,1,
 		'0xd1b71759','0x1fff2e48e8a7',45,
-		'0xd1b71758e219652c','0x1fff2e48e8a71de69ad4',77,
 		1,10000,
 	], 122 => [
 		'0x8325c53f','0xfbcda3a',28,
-		'0x8325c53ef368eb05','0xfbcda3ac10c9714',60,
 		500,61,
 		'0xf9db22d1','0x7fbe76c8b',35,
-		'0xf9db22d0e560418a','0x7fbe76c8b43958106',67,
 		61,500,
 		'0x8012e2a0','0x3ef36',18,
-		'0x8012e29f79b47583','0x3ef368eb04325',50,
 		500000,61,
 		'0xffda4053','0x1ffffbce4217',45,
-		'0xffda4052d666a983','0x1ffffbce4217d2849cb2',77,
 		61,500000,
 	], 128 => [
 		'0xfa000000','0x1e000000',29,
-		'0xfa00000000000000','0x1e00000000000000',61,
 		125,16,
 		'0x83126e98','0x3f7ced916',34,
-		'0x83126e978d4fdf3c','0x3f7ced916872b020c',66,
 		16,125,
 		'0xf4240000','0x40000',19,
-		'0xf424000000000000','0x4000000000000',51,
 		15625,2,
 		'0x8637bd06','0xfffbce4217d',44,
-		'0x8637bd05af6c69b6','0xfffbce4217d2849cb25',76,
 		2,15625,
 	], 200 => [
 		'0xa0000000','0x0',29,
-		'0xa000000000000000','0x0',61,
 		5,1,
 		'0xcccccccd','0x333333333',34,
-		'0xcccccccccccccccd','0x33333333333333333',66,
 		1,5,
 		'0x9c400000','0x0',19,
-		'0x9c40000000000000','0x0',51,
 		5000,1,
 		'0xd1b71759','0xfff2e48e8a7',44,
-		'0xd1b71758e219652c','0xfff2e48e8a71de69ad4',76,
 		1,5000,
 	], 250 => [
 		'0x80000000','0x0',29,
-		'0x8000000000000000','0x0',61,
 		4,1,
 		'0x80000000','0x180000000',33,
-		'0x8000000000000000','0x18000000000000000',65,
 		1,4,
 		'0xfa000000','0x0',20,
-		'0xfa00000000000000','0x0',52,
 		4000,1,
 		'0x83126e98','0x7ff7ced9168',43,
-		'0x83126e978d4fdf3c','0x7ff7ced916872b020c4',75,
 		1,4000,
 	], 256 => [
 		'0xfa000000','0x3e000000',30,
-		'0xfa00000000000000','0x3e00000000000000',62,
 		125,32,
 		'0x83126e98','0x1fbe76c8b',33,
-		'0x83126e978d4fdf3c','0x1fbe76c8b43958106',65,
 		32,125,
 		'0xf4240000','0xc0000',20,
-		'0xf424000000000000','0xc000000000000',52,
 		15625,4,
 		'0x8637bd06','0x7ffde7210be',43,
-		'0x8637bd05af6c69b6','0x7ffde7210be9424e592',75,
 		4,15625,
 	], 300 => [
 		'0xd5555556','0x2aaaaaaa',30,
-		'0xd555555555555556','0x2aaaaaaaaaaaaaaa',62,
 		10,3,
 		'0x9999999a','0x1cccccccc',33,
-		'0x999999999999999a','0x1cccccccccccccccc',65,
 		3,10,
 		'0xd0555556','0xaaaaa',20,
-		'0xd055555555555556','0xaaaaaaaaaaaaa',52,
 		10000,3,
 		'0x9d495183','0x7ffcb923a29',43,
-		'0x9d495182a9930be1','0x7ffcb923a29c779a6b5',75,
 		3,10000,
 	], 512 => [
 		'0xfa000000','0x7e000000',31,
-		'0xfa00000000000000','0x7e00000000000000',63,
 		125,64,
 		'0x83126e98','0xfdf3b645',32,
-		'0x83126e978d4fdf3c','0xfdf3b645a1cac083',64,
 		64,125,
 		'0xf4240000','0x1c0000',21,
-		'0xf424000000000000','0x1c000000000000',53,
 		15625,8,
 		'0x8637bd06','0x3ffef39085f',42,
-		'0x8637bd05af6c69b6','0x3ffef39085f4a1272c9',74,
 		8,15625,
 	], 1000 => [
 		'0x80000000','0x0',31,
-		'0x8000000000000000','0x0',63,
 		1,1,
 		'0x80000000','0x0',31,
-		'0x8000000000000000','0x0',63,
 		1,1,
 		'0xfa000000','0x0',22,
-		'0xfa00000000000000','0x0',54,
 		1000,1,
 		'0x83126e98','0x1ff7ced9168',41,
-		'0x83126e978d4fdf3c','0x1ff7ced916872b020c4',73,
 		1,1000,
 	], 1024 => [
 		'0xfa000000','0xfe000000',32,
-		'0xfa00000000000000','0xfe00000000000000',64,
 		125,128,
 		'0x83126e98','0x7ef9db22',31,
-		'0x83126e978d4fdf3c','0x7ef9db22d0e56041',63,
 		128,125,
 		'0xf4240000','0x3c0000',22,
-		'0xf424000000000000','0x3c000000000000',54,
 		15625,16,
 		'0x8637bd06','0x1fff79c842f',41,
-		'0x8637bd05af6c69b6','0x1fff79c842fa5093964',73,
 		16,15625,
 	], 1200 => [
 		'0xd5555556','0xd5555555',32,
-		'0xd555555555555556','0xd555555555555555',64,
 		5,6,
 		'0x9999999a','0x66666666',31,
-		'0x999999999999999a','0x6666666666666666',63,
 		6,5,
 		'0xd0555556','0x2aaaaa',22,
-		'0xd055555555555556','0x2aaaaaaaaaaaaa',54,
 		2500,3,
 		'0x9d495183','0x1ffcb923a29',41,
-		'0x9d495182a9930be1','0x1ffcb923a29c779a6b5',73,
 		3,2500,
 	]
 );
@@ -264,6 +204,15 @@ sub fmuls($$$) {
 	return 0;
 }
 
+# Generate a hex value if the result fits in 64 bits;
+# otherwise skip.
+sub bignum_hex($) {
+	my($x) = @_;
+	my $s = $x->as_hex();
+
+	return (length($s) > 18) ? undef : $s;
+}
+
 # Provides mul, adj, and shr factors for a specific
 # (bit, time, hz) combination
 sub muladj($$$) {
@@ -271,7 +220,7 @@ sub muladj($$$) {
 	my $s = fmuls($b, $t, $hz);
 	my $m = fmul($s, $t, $hz);
 	my $a = fadj($s, $t, $hz);
-	return ($m->as_hex(), $a->as_hex(), $s);
+	return (bignum_hex($m), bignum_hex($a), $s);
 }
 
 # Provides numerator, denominator values
@@ -288,12 +237,10 @@ sub conversions($$) {
 
 	# HZ_TO_xx
 	push(@val, muladj(32, $t, $hz));
-	push(@val, muladj(64, $t, $hz));
 	push(@val, numden($t, $hz));
 
 	# xx_TO_HZ
 	push(@val, muladj(32, $hz, $t));
-	push(@val, muladj(64, $hz, $t));
 	push(@val, numden($hz, $t));
 
 	return @val;
@@ -318,6 +265,19 @@ sub compute_values($) {
 	return @val;
 }
 
+sub outputval($$)
+{
+	my($name, $val) = @_;
+	my $csuf;
+
+	if (defined($val)) {
+	    if ($name !~ /SHR/) {
+		$val = "U64_C($val)";
+	    }
+	    printf "#define %-23s %s\n", $name.$csuf, $val.$csuf;
+	}
+}
+
 sub output($@)
 {
 	my($hz, @val) = @_;
@@ -331,6 +291,7 @@ sub output($@)
 	print "\n";
 
 	print "#include <linux/param.h>\n";
+	print "#include <linux/types.h>\n";
 
 	print "\n";
 	print "#if HZ != $hz\n";
@@ -340,20 +301,35 @@ sub output($@)
 
 	foreach $pfx ('HZ_TO_MSEC','MSEC_TO_HZ',
 		      'HZ_TO_USEC','USEC_TO_HZ') {
-		foreach $bit (32, 64) {
+		foreach $bit (32) {
 			foreach $suf ('MUL', 'ADJ', 'SHR') {
-				printf "#define %-23s %s\n",
-					"${pfx}_$suf$bit", shift(@val);
+				outputval("${pfx}_$suf$bit", shift(@val));
 			}
 		}
 		foreach $suf ('NUM', 'DEN') {
-			printf "#define %-23s %s\n",
-				"${pfx}_$suf", shift(@val);
+			outputval("${pfx}_$suf", shift(@val));
 		}
 	}
 
 	print "\n";
 	print "#endif /* KERNEL_TIMECONST_H */\n";
+}
+
+# Pretty-print Perl values
+sub perlvals(@) {
+	my $v;
+	my @l = ();
+
+	foreach $v (@_) {
+		if (!defined($v)) {
+			push(@l, 'undef');
+		} elsif ($v =~ /^0x/) {
+			push(@l, "\'".$v."\'");
+		} else {
+			push(@l, $v.'');
+		}
+	}
+	return join(',', @l);
 }
 
 ($hz) = @ARGV;
@@ -373,15 +349,15 @@ if ($hz eq '--can') {
 		print "$pf$hz => [\n";
 		while (scalar(@values)) {
 			my $bit;
-			foreach $bit (32, 64) {
+			foreach $bit (32) {
 				my $m = shift(@values);
 				my $a = shift(@values);
 				my $s = shift(@values);
-				print "\t\t\'",$m,"\',\'",$a,"\',",$s,",\n";
+				print "\t\t", perlvals($m,$a,$s), ",\n";
 			}
 			my $n = shift(@values);
 			my $d = shift(@values);
-			print "\t\t",$n,',',$d,",\n";
+			print "\t\t", perlvals($n,$d), ",\n";
 		}
 		print "\t]";
 		$pf = ', ';

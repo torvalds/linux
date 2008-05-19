@@ -12,11 +12,6 @@ ENTRY(_start)
 
 SECTIONS
 {
-	. = HEADER_OFFSET;
-	.header : {
-		 *(.header)
-	}
-
 	. = 0;
 	.text : {
 		 *(.text*)
@@ -48,6 +43,11 @@ SECTIONS
 		__bss_start = .;
 		*(.bss)
 		__bss_end = .;
+	}
+
+	. = HEADER_OFFSET;
+	.header : {
+		*(.header)
 	}
 
 	. = ALIGN(16);

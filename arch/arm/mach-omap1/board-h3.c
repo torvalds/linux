@@ -473,8 +473,7 @@ static struct omap_board_config_kernel h3_config[] __initdata = {
 
 static struct i2c_board_info __initdata h3_i2c_board_info[] = {
        {
-               I2C_BOARD_INFO("tps65010", 0x48),
-               .type           = "tps65013",
+		I2C_BOARD_INFO("tps65013", 0x48),
                /* .irq         = OMAP_GPIO_IRQ(??), */
        },
 };

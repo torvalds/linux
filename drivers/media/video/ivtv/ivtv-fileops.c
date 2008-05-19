@@ -755,8 +755,10 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	IVTV_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (eof || s->q_full.length || s->q_io.length)
+	if (s->q_full.length || s->q_io.length)
 		return POLLIN | POLLRDNORM;
+	if (eof)
+		return POLLHUP;
 	return 0;
 }
 
@@ -985,6 +987,8 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	/* Find which card this open was on */
 	spin_lock(&ivtv_cards_lock);
 	for (x = 0; itv == NULL && x < ivtv_cards_active; x++) {
+		if (ivtv_cards[x] == NULL)
+			continue;
 		/* find out which stream this open was on */
 		for (y = 0; y < IVTV_MAX_STREAMS; y++) {
 			s = &ivtv_cards[x]->streams[y];

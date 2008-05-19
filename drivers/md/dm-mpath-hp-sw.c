@@ -137,7 +137,6 @@ static struct request *hp_sw_get_request(struct dm_path *path)
 	req->sense = h->sense;
 	memset(req->sense, 0, SCSI_SENSE_BUFFERSIZE);
 
-	memset(&req->cmd, 0, BLK_MAX_CDB);
 	req->cmd[0] = START_STOP;
 	req->cmd[4] = 1;
 	req->cmd_len = COMMAND_SIZE(req->cmd[0]);

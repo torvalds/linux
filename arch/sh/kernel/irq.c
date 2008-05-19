@@ -200,8 +200,6 @@ void irq_ctx_exit(int cpu)
 	hardirq_ctx[cpu] = NULL;
 }
 
-extern asmlinkage void __do_softirq(void);
-
 asmlinkage void do_softirq(void)
 {
 	unsigned long flags;

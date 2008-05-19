@@ -25,13 +25,13 @@
 #include <linux/hrtimer.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/math64.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/page.h>
 #include <asm/current.h>
 #include <asm/apicdef.h>
 #include <asm/atomic.h>
-#include <asm/div64.h>
 #include "irq.h"
 
 #define PRId64 "d"
@@ -526,8 +526,8 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 	} else
 		passed = ktime_sub(now, apic->timer.last_update);
 
-	counter_passed = div64_64(ktime_to_ns(passed),
-				  (APIC_BUS_CYCLE_NS * apic->timer.divide_count));
+	counter_passed = div64_u64(ktime_to_ns(passed),
+				   (APIC_BUS_CYCLE_NS * apic->timer.divide_count));
 
 	if (counter_passed > tmcct) {
 		if (unlikely(!apic_lvtt_period(apic))) {

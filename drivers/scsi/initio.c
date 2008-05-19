@@ -2590,7 +2590,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 	cblk->hastat = 0;
 	cblk->tastat = 0;
 	/* Command the command */
-	memcpy(&cblk->cdb[0], &cmnd->cmnd, cmnd->cmd_len);
+	memcpy(cblk->cdb, cmnd->cmnd, cmnd->cmd_len);
 
 	/* Set up tags */
 	if (cmnd->device->tagged_supported) {	/* Tag Support                  */

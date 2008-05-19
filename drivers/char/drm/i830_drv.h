@@ -158,7 +158,7 @@ extern int i830_driver_device_is_agp(struct drm_device * dev);
 	if (I830_VERBOSE)				\
 		printk("BEGIN_LP_RING(%d)\n", (n));	\
 	if (dev_priv->ring.space < n*4)			\
-		i830_wait_ring(dev, n*4, __FUNCTION__);		\
+		i830_wait_ring(dev, n*4, __func__);		\
 	outcount = 0;					\
 	outring = dev_priv->ring.tail;			\
 	ringmask = dev_priv->ring.tail_mask;		\

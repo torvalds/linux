@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define  I82860_REVISION " Ver: 2.0.2 " __DATE__
@@ -294,6 +295,9 @@ static int __init i82860_init(void)
 
 	debugf3("%s()\n", __func__);
 
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	if ((pci_rc = pci_register_driver(&i82860_driver)) < 0)
 		goto fail0;
 
@@ -345,3 +349,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com) "
 		"Ben Woodard <woodard@redhat.com>");
 MODULE_DESCRIPTION("ECC support for Intel 82860 memory hub controllers");
+
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

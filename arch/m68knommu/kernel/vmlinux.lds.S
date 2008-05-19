@@ -64,6 +64,7 @@ SECTIONS {
 		_stext = . ;
 		TEXT_TEXT
 		SCHED_TEXT
+		LOCK_TEXT
         	*(.text.lock)
 
 		. = ALIGN(16);          /* Exception table              */
@@ -73,6 +74,7 @@ SECTIONS {
 
 		*(.rodata) *(.rodata.*)
 		*(__vermagic)		/* Kernel version magic */
+		*(__markers_strings)
 		*(.rodata1)
 		*(.rodata.str1.1)
 
@@ -111,6 +113,16 @@ SECTIONS {
 		__start___kcrctab_gpl = .;
 		*(__kcrctab_gpl)
 		__stop___kcrctab_gpl = .;
+
+		/* Kernel symbol table: Normal unused symbols */
+		__start___kcrctab_unused = .;
+		*(__kcrctab_unused)
+		__stop___kcrctab_unused = .;
+
+		/* Kernel symbol table: GPL-only unused symbols */
+		__start___kcrctab_unused_gpl = .;
+		*(__kcrctab_unused_gpl)
+		__stop___kcrctab_unused_gpl = .;
 
 		/* Kernel symbol table: GPL-future symbols */
 		__start___kcrctab_gpl_future = .;
@@ -182,6 +194,7 @@ SECTIONS {
 		*(COMMON)
 		. = ALIGN(4) ;
 		_ebss = . ;
+	 	_end = . ;
 	} > BSS
 
 }

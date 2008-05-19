@@ -22,9 +22,6 @@
 #include "qeth_core.h"
 #include "qeth_core_offl.h"
 
-#define QETH_DBF_TXT_BUF qeth_l2_dbf_txt_buf
-static DEFINE_PER_CPU(char[256], qeth_l2_dbf_txt_buf);
-
 static int qeth_l2_set_offline(struct ccwgroup_device *);
 static int qeth_l2_stop(struct net_device *);
 static int qeth_l2_send_delmac(struct qeth_card *, __u8 *);
@@ -635,8 +632,6 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
 	struct qeth_eddp_context *ctx = NULL;
 
-	QETH_DBF_TEXT(TRACE, 6, "l2xmit");
-
 	if ((card->state != CARD_STATE_UP) || !card->lan_online) {
 		card->stats.tx_carrier_errors++;
 		goto tx_drop;
@@ -658,9 +653,12 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		hdr = (struct qeth_hdr *)skb->data;
 	else {
-		new_skb = qeth_prepare_skb(card, skb, &hdr);
+		/* create a clone with writeable headroom */
+		new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr));
 		if (!new_skb)
 			goto tx_drop;
+		hdr = (struct qeth_hdr *)skb_push(new_skb,
+						sizeof(struct qeth_hdr));
 		qeth_l2_fill_header(card, hdr, new_skb, ipv, cast_type);
 	}
 
@@ -747,7 +745,6 @@ static void qeth_l2_qdio_input_handler(struct ccw_device *ccwdev,
 	int index;
 	int i;
 
-	QETH_DBF_TEXT(TRACE, 6, "qdinput");
 	card = (struct qeth_card *) card_ptr;
 	net_dev = card->dev;
 	if (card->options.performance_stats) {
@@ -852,6 +849,22 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 	return;
 }
 
+static int qeth_l2_ethtool_set_tso(struct net_device *dev, u32 data)
+{
+	struct qeth_card *card = netdev_priv(dev);
+
+	if (data) {
+		if (card->options.large_send == QETH_LARGE_SEND_NO) {
+			card->options.large_send = QETH_LARGE_SEND_EDDP;
+			dev->features |= NETIF_F_TSO;
+		}
+	} else {
+		dev->features &= ~NETIF_F_TSO;
+		card->options.large_send = QETH_LARGE_SEND_NO;
+	}
+	return 0;
+}
+
 static struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_tx_csum = ethtool_op_get_tx_csum,
@@ -859,11 +872,12 @@ static struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,
-	.set_tso = ethtool_op_set_tso,
+	.set_tso = qeth_l2_ethtool_set_tso,
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
 	.get_stats_count = qeth_core_get_stats_count,
 	.get_drvinfo = qeth_core_get_drvinfo,
+	.get_settings = qeth_core_ethtool_get_settings,
 };
 
 static struct ethtool_ops qeth_l2_osn_ops = {

@@ -239,6 +239,10 @@ instruction_access_slb_pSeries:
 	.globl	system_call_pSeries
 system_call_pSeries:
 	HMT_MEDIUM
+BEGIN_FTR_SECTION
+	cmpdi	r0,0x1ebe
+	beq-	1f
+END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	mr	r9,r13
 	mfmsr	r10
 	mfspr	r13,SPRN_SPRG3
@@ -252,6 +256,13 @@ system_call_pSeries:
 	mtspr	SPRN_SRR1,r10
 	rfid
 	b	.	/* prevent speculative execution */
+
+/* Fast LE/BE switch system call */
+1:	mfspr	r12,SPRN_SRR1
+	xori	r12,r12,MSR_LE
+	mtspr	SPRN_SRR1,r12
+	rfid		/* return to userspace */
+	b	.
 
 	STD_EXCEPTION_PSERIES(0xd00, single_step)
 	STD_EXCEPTION_PSERIES(0xe00, trap_0e)
@@ -1505,10 +1516,6 @@ _INIT_STATIC(start_here_multiplatform)
 	addi	r2,r2,0x4000
 	addi	r2,r2,0x4000
 	add	r2,r2,r26
-
-	/* Set initial ptr to current */
-	LOAD_REG_IMMEDIATE(r4, init_task)
-	std	r4,PACACURRENT(r13)
 
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/

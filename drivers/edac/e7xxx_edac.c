@@ -414,16 +414,6 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 
 	debugf0("%s(): mci\n", __func__);
 
-	/* make sure error reporting method is sane */
-	switch (edac_op_state) {
-	case EDAC_OPSTATE_POLL:
-	case EDAC_OPSTATE_NMI:
-		break;
-	default:
-		edac_op_state = EDAC_OPSTATE_POLL;
-		break;
-	}
-
 	pci_read_config_dword(pdev, E7XXX_DRC, &drc);
 
 	drc_chan = dual_channel_active(drc, dev_idx);
@@ -565,6 +555,9 @@ static struct pci_driver e7xxx_driver = {
 
 static int __init e7xxx_init(void)
 {
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	return pci_register_driver(&e7xxx_driver);
 }
 

@@ -30,8 +30,6 @@ static void (*callback_init_IRQ)(void);
 
 extern unsigned char __res[sizeof(bd_t)];
 
-extern void (*late_time_init)(void);
-
 #ifdef CONFIG_GEN_RTC
 TODC_ALLOC();
 

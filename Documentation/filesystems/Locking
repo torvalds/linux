@@ -92,7 +92,6 @@ prototypes:
 	void (*destroy_inode)(struct inode *);
 	void (*dirty_inode) (struct inode *);
 	int (*write_inode) (struct inode *, int);
-	void (*put_inode) (struct inode *);
 	void (*drop_inode) (struct inode *);
 	void (*delete_inode) (struct inode *);
 	void (*put_super) (struct super_block *);
@@ -115,7 +114,6 @@ alloc_inode:		no	no	no
 destroy_inode:		no
 dirty_inode:		no				(must not sleep)
 write_inode:		no
-put_inode:		no
 drop_inode:		no				!!!inode_lock!!!
 delete_inode:		no
 put_super:		yes	yes	no

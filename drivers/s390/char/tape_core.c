@@ -76,32 +76,9 @@ const char *tape_op_verbose[TO_SIZE] =
 	[TO_KEKL_QUERY] = "KLQ",[TO_RDC] = "RDC",
 };
 
-static int
-busid_to_int(char *bus_id)
+static int devid_to_int(struct ccw_dev_id *dev_id)
 {
-	int	dec;
-	int	d;
-	char *	s;
-
-	for(s = bus_id, d = 0; *s != '\0' && *s != '.'; s++)
-		d = (d * 10) + (*s - '0');
-	dec = d;
-	for(s++, d = 0; *s != '\0' && *s != '.'; s++)
-		d = (d * 10) + (*s - '0');
-	dec = (dec << 8) + d;
-
-	for(s++; *s != '\0'; s++) {
-		if (*s >= '0' && *s <= '9') {
-			d = *s - '0';
-		} else if (*s >= 'a' && *s <= 'f') {
-			d = *s - 'a' + 10;
-		} else {
-			d = *s - 'A' + 10;
-		}
-		dec = (dec << 4) + d;
-	}
-
-	return dec;
+	return dev_id->devno + (dev_id->ssid << 16);
 }
 
 /*
@@ -551,6 +528,7 @@ tape_generic_probe(struct ccw_device *cdev)
 {
 	struct tape_device *device;
 	int ret;
+	struct ccw_dev_id dev_id;
 
 	device = tape_alloc_device();
 	if (IS_ERR(device))
@@ -565,7 +543,8 @@ tape_generic_probe(struct ccw_device *cdev)
 	cdev->dev.driver_data = device;
 	cdev->handler = __tape_do_irq;
 	device->cdev = cdev;
-	device->cdev_id = busid_to_int(cdev->dev.bus_id);
+	ccw_device_get_id(cdev, &dev_id);
+	device->cdev_id = devid_to_int(&dev_id);
 	PRINT_INFO("tape device %s found\n", cdev->dev.bus_id);
 	return ret;
 }

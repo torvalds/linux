@@ -35,7 +35,7 @@ struct virtblk_req
 	struct list_head list;
 	struct request *req;
 	struct virtio_blk_outhdr out_hdr;
-	struct virtio_blk_inhdr in_hdr;
+	u8 status;
 };
 
 static void blk_done(struct virtqueue *vq)
@@ -48,7 +48,7 @@ static void blk_done(struct virtqueue *vq)
 	spin_lock_irqsave(&vblk->lock, flags);
 	while ((vbr = vblk->vq->vq_ops->get_buf(vblk->vq, &len)) != NULL) {
 		int uptodate;
-		switch (vbr->in_hdr.status) {
+		switch (vbr->status) {
 		case VIRTIO_BLK_S_OK:
 			uptodate = 1;
 			break;
@@ -101,7 +101,7 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 	sg_init_table(vblk->sg, VIRTIO_MAX_SG);
 	sg_set_buf(&vblk->sg[0], &vbr->out_hdr, sizeof(vbr->out_hdr));
 	num = blk_rq_map_sg(q, vbr->req, vblk->sg+1);
-	sg_set_buf(&vblk->sg[num+1], &vbr->in_hdr, sizeof(vbr->in_hdr));
+	sg_set_buf(&vblk->sg[num+1], &vbr->status, sizeof(vbr->status));
 
 	if (rq_data_dir(vbr->req) == WRITE) {
 		vbr->out_hdr.type |= VIRTIO_BLK_T_OUT;
@@ -157,10 +157,25 @@ static int virtblk_ioctl(struct inode *inode, struct file *filp,
 /* We provide getgeo only to please some old bootloader/partitioning tools */
 static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 {
-	/* some standard values, similar to sd */
-	geo->heads = 1 << 6;
-	geo->sectors = 1 << 5;
-	geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+	struct virtio_blk *vblk = bd->bd_disk->private_data;
+	struct virtio_blk_geometry vgeo;
+	int err;
+
+	/* see if the host passed in geometry config */
+	err = virtio_config_val(vblk->vdev, VIRTIO_BLK_F_GEOMETRY,
+				offsetof(struct virtio_blk_config, geometry),
+				&vgeo);
+
+	if (!err) {
+		geo->heads = vgeo.heads;
+		geo->sectors = vgeo.sectors;
+		geo->cylinders = vgeo.cylinders;
+	} else {
+		/* some standard values, similar to sd */
+		geo->heads = 1 << 6;
+		geo->sectors = 1 << 5;
+		geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+	}
 	return 0;
 }
 
@@ -242,12 +257,12 @@ static int virtblk_probe(struct virtio_device *vdev)
 	index++;
 
 	/* If barriers are supported, tell block layer that queue is ordered */
-	if (vdev->config->feature(vdev, VIRTIO_BLK_F_BARRIER))
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER))
 		blk_queue_ordered(vblk->disk->queue, QUEUE_ORDERED_TAG, NULL);
 
 	/* Host must always specify the capacity. */
-	__virtio_config_val(vdev, offsetof(struct virtio_blk_config, capacity),
-			    &cap);
+	vdev->config->get(vdev, offsetof(struct virtio_blk_config, capacity),
+			  &cap, sizeof(cap));
 
 	/* If capacity is too big, truncate with warning. */
 	if ((sector_t)cap != cap) {
@@ -289,7 +304,6 @@ out:
 static void virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
-	int major = vblk->disk->major;
 
 	/* Nothing should be pending. */
 	BUG_ON(!list_empty(&vblk->reqs));
@@ -299,7 +313,6 @@ static void virtblk_remove(struct virtio_device *vdev)
 
 	blk_cleanup_queue(vblk->disk->queue);
 	put_disk(vblk->disk);
-	unregister_blkdev(major, "virtblk");
 	mempool_destroy(vblk->pool);
 	vdev->config->del_vq(vblk->vq);
 	kfree(vblk);
@@ -310,7 +323,14 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+static unsigned int features[] = {
+	VIRTIO_BLK_F_BARRIER, VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX,
+	VIRTIO_BLK_F_GEOMETRY,
+};
+
 static struct virtio_driver virtio_blk = {
+	.feature_table = features,
+	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,

@@ -894,7 +894,7 @@ static u32 RADEON_READ_IGPGART(drm_radeon_private_t *dev_priv, int addr)
 #if RADEON_FIFO_DEBUG
 static void radeon_status(drm_radeon_private_t * dev_priv)
 {
-	printk("%s:\n", __FUNCTION__);
+	printk("%s:\n", __func__);
 	printk("RBBM_STATUS = 0x%08x\n",
 	       (unsigned int)RADEON_READ(RADEON_RBBM_STATUS));
 	printk("CP_RB_RTPR = 0x%08x\n",

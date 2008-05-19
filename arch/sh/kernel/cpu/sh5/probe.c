@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
+#include <asm/tlb.h>
 
 int __init detect_cpu_and_cache_system(void)
 {
@@ -66,6 +67,9 @@ int __init detect_cpu_and_cache_system(void)
 #elif defined(CONFIG_CACHE_WRITEBACK)
 	set_bit(SH_CACHE_MODE_WB, &(boot_cpu_data.dcache.flags));
 #endif
+
+	/* Setup some I/D TLB defaults */
+	sh64_tlb_init();
 
 	return 0;
 }

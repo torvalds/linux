@@ -468,10 +468,9 @@ static int __init rtas_init(void)
 		return -ENOMEM;
 	}
 
-	entry = create_proc_entry("ppc64/rtas/error_log", S_IRUSR, NULL);
-	if (entry)
-		entry->proc_fops = &proc_rtas_log_operations;
-	else
+	entry = proc_create("ppc64/rtas/error_log", S_IRUSR, NULL,
+			    &proc_rtas_log_operations);
+	if (!entry)
 		printk(KERN_ERR "Failed to create error_log proc entry\n");
 
 	if (kernel_thread(rtasd, NULL, CLONE_FS) < 0)

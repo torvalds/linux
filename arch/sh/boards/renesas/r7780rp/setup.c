@@ -199,8 +199,7 @@ static struct platform_device smbus_device = {
 
 static struct i2c_board_info __initdata highlander_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
-		.type	= "r2025sd",
+		I2C_BOARD_INFO("r2025sd", 0x32),
 	},
 };
 
@@ -317,7 +316,7 @@ static void __init highlander_setup(char **cmdline_p)
 
 static unsigned char irl2irq[HL_NR_IRL];
 
-int highlander_irq_demux(int irq)
+static int highlander_irq_demux(int irq)
 {
 	if (irq >= HL_NR_IRL || !irl2irq[irq])
 		return irq;
@@ -325,27 +324,9 @@ int highlander_irq_demux(int irq)
 	return irl2irq[irq];
 }
 
-void __init highlander_init_irq(void)
+static void __init highlander_init_irq(void)
 {
-	unsigned char *ucp = NULL;
-
-	do {
-#ifdef CONFIG_SH_R7780MP
-		ucp = highlander_init_irq_r7780mp();
-		if (ucp)
-			break;
-#endif
-#ifdef CONFIG_SH_R7785RP
-		ucp = highlander_init_irq_r7785rp();
-		if (ucp)
-			break;
-#endif
-#ifdef CONFIG_SH_R7780RP
-		ucp = highlander_init_irq_r7780rp();
-		if (ucp)
-			break;
-#endif
-	} while (0);
+	unsigned char *ucp = highlander_plat_irq_setup();
 
 	if (ucp) {
 		plat_irq_setup_pins(IRQ_MODE_IRL3210);

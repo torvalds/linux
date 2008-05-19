@@ -709,7 +709,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 				break;
 #endif
 			default:
-				if (ic->nodes == (void *)ic && ic->nlink == 0)
+				if (ic->nodes == (void *)ic && ic->pino_nlink == 0)
 					jffs2_del_ino_cache(c, ic);
 				break;
 		}

@@ -205,7 +205,6 @@ struct super_operations {
 
         void (*dirty_inode) (struct inode *);
         int (*write_inode) (struct inode *, int);
-        void (*put_inode) (struct inode *);
         void (*drop_inode) (struct inode *);
         void (*delete_inode) (struct inode *);
         void (*put_super) (struct super_block *);
@@ -245,9 +244,6 @@ or bottom half).
   write_inode: this method is called when the VFS needs to write an
 	inode to disc.  The second parameter indicates whether the write
 	should be synchronous or not, not all filesystems check this flag.
-
-  put_inode: called when the VFS inode is removed from the inode
-	cache.
 
   drop_inode: called when the last access to the inode is dropped,
 	with the inode_lock spinlock held.

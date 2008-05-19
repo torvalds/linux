@@ -133,7 +133,7 @@ int is_vsmp_box(void)
 	}
 }
 #else
-static int __init detect_vsmp_box(void)
+static void __init detect_vsmp_box(void)
 {
 }
 int is_vsmp_box(void)

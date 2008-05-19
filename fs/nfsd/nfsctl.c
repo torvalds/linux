@@ -169,6 +169,7 @@ static const struct file_operations exports_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
+	.owner		= THIS_MODULE,
 };
 
 /*----------------------------------------------------------------------------*/
@@ -801,10 +802,9 @@ static int create_proc_exports_entry(void)
 	entry = proc_mkdir("fs/nfs", NULL);
 	if (!entry)
 		return -ENOMEM;
-	entry = create_proc_entry("fs/nfs/exports", 0, NULL);
+	entry = proc_create("exports", 0, entry, &exports_operations);
 	if (!entry)
 		return -ENOMEM;
-	entry->proc_fops =  &exports_operations;
 	return 0;
 }
 #else /* CONFIG_PROC_FS */

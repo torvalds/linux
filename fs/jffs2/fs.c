@@ -273,7 +273,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	inode->i_mtime = ITIME(je32_to_cpu(latest_node.mtime));
 	inode->i_ctime = ITIME(je32_to_cpu(latest_node.ctime));
 
-	inode->i_nlink = f->inocache->nlink;
+	inode->i_nlink = f->inocache->pino_nlink;
 
 	inode->i_blocks = (inode->i_size + 511) >> 9;
 
@@ -286,13 +286,12 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	case S_IFDIR:
 	{
 		struct jffs2_full_dirent *fd;
+		inode->i_nlink = 2; /* parent and '.' */
 
 		for (fd=f->dents; fd; fd = fd->next) {
 			if (fd->type == DT_DIR && fd->ino)
 				inc_nlink(inode);
 		}
-		/* and '..' */
-		inc_nlink(inode);
 		/* Root dir gets i_nlink 3 for some reason */
 		if (inode->i_ino == 1)
 			inc_nlink(inode);
@@ -586,11 +585,12 @@ void jffs2_gc_release_inode(struct jffs2_sb_info *c,
 }
 
 struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
-						     int inum, int nlink)
+					      int inum, int unlinked)
 {
 	struct inode *inode;
 	struct jffs2_inode_cache *ic;
-	if (!nlink) {
+
+	if (unlinked) {
 		/* The inode has zero nlink but its nodes weren't yet marked
 		   obsolete. This has to be because we're still waiting for
 		   the final (close() and) iput() to happen.
@@ -638,8 +638,8 @@ struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
 			return ERR_CAST(inode);
 	}
 	if (is_bad_inode(inode)) {
-		printk(KERN_NOTICE "Eep. read_inode() failed for ino #%u. nlink %d\n",
-		       inum, nlink);
+		printk(KERN_NOTICE "Eep. read_inode() failed for ino #%u. unlinked %d\n",
+		       inum, unlinked);
 		/* NB. This will happen again. We need to do something appropriate here. */
 		iput(inode);
 		return ERR_PTR(-EIO);

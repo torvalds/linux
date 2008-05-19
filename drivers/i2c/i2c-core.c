@@ -48,6 +48,17 @@ static DEFINE_IDR(i2c_adapter_idr);
 
 /* ------------------------------------------------------------------------- */
 
+static const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
+						const struct i2c_client *client)
+{
+	while (id->name[0]) {
+		if (strcmp(client->name, id->name) == 0)
+			return id;
+		id++;
+	}
+	return NULL;
+}
+
 static int i2c_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
@@ -59,10 +70,11 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 	if (!is_newstyle_driver(driver))
 		return 0;
 
-	/* new style drivers use the same kind of driver matching policy
-	 * as platform devices or SPI:  compare device and driver IDs.
-	 */
-	return strcmp(client->driver_name, drv->name) == 0;
+	/* match on an id table if there is one */
+	if (driver->id_table)
+		return i2c_match_id(driver->id_table, client) != NULL;
+
+	return 0;
 }
 
 #ifdef	CONFIG_HOTPLUG
@@ -73,10 +85,11 @@ static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct i2c_client	*client = to_i2c_client(dev);
 
 	/* by definition, legacy drivers can't hotplug */
-	if (dev->driver || !client->driver_name)
+	if (dev->driver)
 		return 0;
 
-	if (add_uevent_var(env, "MODALIAS=%s", client->driver_name))
+	if (add_uevent_var(env, "MODALIAS=%s%s",
+			   I2C_MODULE_PREFIX, client->name))
 		return -ENOMEM;
 	dev_dbg(dev, "uevent\n");
 	return 0;
@@ -90,13 +103,19 @@ static int i2c_device_probe(struct device *dev)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
 	struct i2c_driver	*driver = to_i2c_driver(dev->driver);
+	const struct i2c_device_id *id;
 	int status;
 
 	if (!driver->probe)
 		return -ENODEV;
 	client->driver = driver;
 	dev_dbg(dev, "probe\n");
-	status = driver->probe(client);
+
+	if (driver->id_table)
+		id = i2c_match_id(driver->id_table, client);
+	else
+		id = NULL;
+	status = driver->probe(client, id);
 	if (status)
 		client->driver = NULL;
 	return status;
@@ -179,9 +198,7 @@ static ssize_t show_client_name(struct device *dev, struct device_attribute *att
 static ssize_t show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	return client->driver_name
-		? sprintf(buf, "%s\n", client->driver_name)
-		: 0;
+	return sprintf(buf, "%s%s\n", I2C_MODULE_PREFIX, client->name);
 }
 
 static struct device_attribute i2c_dev_attrs[] = {
@@ -255,8 +272,6 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->addr = info->addr;
 	client->irq = info->irq;
 
-	strlcpy(client->driver_name, info->driver_name,
-		sizeof(client->driver_name));
 	strlcpy(client->name, info->type, sizeof(client->name));
 
 	/* a new style driver may be bound to this device when we
@@ -300,22 +315,33 @@ void i2c_unregister_device(struct i2c_client *client)
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
 
 
-static int dummy_nop(struct i2c_client *client)
+static const struct i2c_device_id dummy_id[] = {
+	{ "dummy", 0 },
+	{ },
+};
+
+static int dummy_probe(struct i2c_client *client,
+		       const struct i2c_device_id *id)
+{
+	return 0;
+}
+
+static int dummy_remove(struct i2c_client *client)
 {
 	return 0;
 }
 
 static struct i2c_driver dummy_driver = {
 	.driver.name	= "dummy",
-	.probe		= dummy_nop,
-	.remove		= dummy_nop,
+	.probe		= dummy_probe,
+	.remove		= dummy_remove,
+	.id_table	= dummy_id,
 };
 
 /**
  * i2c_new_dummy - return a new i2c device bound to a dummy driver
  * @adapter: the adapter managing the device
  * @address: seven bit address to be used
- * @type: optional label used for i2c_client.name
  * Context: can sleep
  *
  * This returns an I2C client bound to the "dummy" driver, intended for use
@@ -331,15 +357,12 @@ static struct i2c_driver dummy_driver = {
  * i2c_unregister_device(); or NULL to indicate an error.
  */
 struct i2c_client *
-i2c_new_dummy(struct i2c_adapter *adapter, u16 address, const char *type)
+i2c_new_dummy(struct i2c_adapter *adapter, u16 address)
 {
 	struct i2c_board_info info = {
-		.driver_name	= "dummy",
-		.addr		= address,
+		I2C_BOARD_INFO("dummy", address),
 	};
 
-	if (type)
-		strlcpy(info.type, type, sizeof info.type);
 	return i2c_new_device(adapter, &info);
 }
 EXPORT_SYMBOL_GPL(i2c_new_dummy);

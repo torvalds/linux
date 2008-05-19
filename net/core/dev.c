@@ -162,7 +162,7 @@ struct net_dma {
 	struct dma_client client;
 	spinlock_t lock;
 	cpumask_t channel_mask;
-	struct dma_chan *channels[NR_CPUS];
+	struct dma_chan **channels;
 };
 
 static enum dma_state_client
@@ -994,6 +994,8 @@ int dev_open(struct net_device *dev)
 {
 	int ret = 0;
 
+	ASSERT_RTNL();
+
 	/*
 	 *	Is it already up?
 	 */
@@ -1060,6 +1062,8 @@ int dev_open(struct net_device *dev)
  */
 int dev_close(struct net_device *dev)
 {
+	ASSERT_RTNL();
+
 	might_sleep();
 
 	if (!(dev->flags & IFF_UP))
@@ -1524,7 +1528,7 @@ static int dev_gso_segment(struct sk_buff *skb)
 	if (!segs)
 		return 0;
 
-	if (unlikely(IS_ERR(segs)))
+	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 
 	skb->next = segs;
@@ -2444,7 +2448,7 @@ static struct netif_rx_stats *softnet_get_online(loff_t *pos)
 {
 	struct netif_rx_stats *rc = NULL;
 
-	while (*pos < NR_CPUS)
+	while (*pos < nr_cpu_ids)
 		if (cpu_online(*pos)) {
 			rc = &per_cpu(netdev_rx_stat, *pos);
 			break;
@@ -3776,6 +3780,7 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
+	netdev_initialize_kobject(dev);
 	ret = netdev_register_kobject(dev);
 	if (ret)
 		goto err_uninit;
@@ -4208,7 +4213,8 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	}
 
 	/* Fixup kobjects */
-	err = device_rename(&dev->dev, dev->name);
+	netdev_unregister_kobject(dev);
+	err = netdev_register_kobject(dev);
 	WARN_ON(err);
 
 	/* Add the device back in the hashes */
@@ -4324,7 +4330,7 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 	spin_lock(&net_dma->lock);
 	switch (state) {
 	case DMA_RESOURCE_AVAILABLE:
-		for (i = 0; i < NR_CPUS; i++)
+		for (i = 0; i < nr_cpu_ids; i++)
 			if (net_dma->channels[i] == chan) {
 				found = 1;
 				break;
@@ -4339,7 +4345,7 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 		}
 		break;
 	case DMA_RESOURCE_REMOVED:
-		for (i = 0; i < NR_CPUS; i++)
+		for (i = 0; i < nr_cpu_ids; i++)
 			if (net_dma->channels[i] == chan) {
 				found = 1;
 				pos = i;
@@ -4366,6 +4372,13 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
  */
 static int __init netdev_dma_register(void)
 {
+	net_dma.channels = kzalloc(nr_cpu_ids * sizeof(struct net_dma),
+								GFP_KERNEL);
+	if (unlikely(!net_dma.channels)) {
+		printk(KERN_NOTICE
+				"netdev_dma: no memory for net_dma.channels\n");
+		return -ENOMEM;
+	}
 	spin_lock_init(&net_dma.lock);
 	dma_cap_set(DMA_MEMCPY, net_dma.client.cap_mask);
 	dma_async_client_register(&net_dma.client);
@@ -4471,17 +4484,19 @@ static void __net_exit default_device_exit(struct net *net)
 	rtnl_lock();
 	for_each_netdev_safe(net, dev, next) {
 		int err;
+		char fb_name[IFNAMSIZ];
 
 		/* Ignore unmoveable devices (i.e. loopback) */
 		if (dev->features & NETIF_F_NETNS_LOCAL)
 			continue;
 
 		/* Push remaing network devices to init_net */
-		err = dev_change_net_namespace(dev, &init_net, "dev%d");
+		snprintf(fb_name, IFNAMSIZ, "dev%d", dev->ifindex);
+		err = dev_change_net_namespace(dev, &init_net, fb_name);
 		if (err) {
-			printk(KERN_WARNING "%s: failed to move %s to init_net: %d\n",
+			printk(KERN_EMERG "%s: failed to move %s to init_net: %d\n",
 				__func__, dev->name, err);
-			unregister_netdevice(dev);
+			BUG();
 		}
 	}
 	rtnl_unlock();

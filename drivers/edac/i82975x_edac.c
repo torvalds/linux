@@ -14,7 +14,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
-
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define I82975X_REVISION	" Ver: 1.0.0 " __DATE__
@@ -611,6 +611,9 @@ static int __init i82975x_init(void)
 
 	debugf3("%s()\n", __func__);
 
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	pci_rc = pci_register_driver(&i82975x_driver);
 	if (pci_rc < 0)
 		goto fail0;
@@ -664,3 +667,6 @@ module_exit(i82975x_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arvind R. <arvind@acarlab.com>");
 MODULE_DESCRIPTION("MC support for Intel 82975 memory hub controllers");
+
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

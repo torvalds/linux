@@ -172,7 +172,8 @@ static int upd64083_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 /* i2c implementation */
 
-static int upd64083_probe(struct i2c_client *client)
+static int upd64083_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	struct upd64083_state *state;
 	int i;
@@ -204,6 +205,11 @@ static int upd64083_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+static const struct i2c_device_id upd64083_id[] = {
+	{ "upd64083", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, upd64083_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "upd64083",
@@ -211,4 +217,5 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.command = upd64083_command,
 	.probe = upd64083_probe,
 	.remove = upd64083_remove,
+	.id_table = upd64083_id,
 };

@@ -240,26 +240,28 @@ asmlinkage long sys_truncate64(const char __user *path, loff_t length);
 asmlinkage long sys_ftruncate64(unsigned int fd, loff_t length);
 #endif
 
-asmlinkage long sys_setxattr(char __user *path, char __user *name,
-				void __user *value, size_t size, int flags);
-asmlinkage long sys_lsetxattr(char __user *path, char __user *name,
-				void __user *value, size_t size, int flags);
-asmlinkage long sys_fsetxattr(int fd, char __user *name, void __user *value,
-				size_t size, int flags);
-asmlinkage ssize_t sys_getxattr(char __user *path, char __user *name,
+asmlinkage long sys_setxattr(const char __user *path, const char __user *name,
+			     const void __user *value, size_t size, int flags);
+asmlinkage long sys_lsetxattr(const char __user *path, const char __user *name,
+			      const void __user *value, size_t size, int flags);
+asmlinkage long sys_fsetxattr(int fd, const char __user *name,
+			      const void __user *value, size_t size, int flags);
+asmlinkage ssize_t sys_getxattr(const char __user *path, const char __user *name,
 				void __user *value, size_t size);
-asmlinkage ssize_t sys_lgetxattr(char __user *path, char __user *name,
+asmlinkage ssize_t sys_lgetxattr(const char __user *path, const char __user *name,
 				void __user *value, size_t size);
-asmlinkage ssize_t sys_fgetxattr(int fd, char __user *name,
+asmlinkage ssize_t sys_fgetxattr(int fd, const char __user *name,
 				void __user *value, size_t size);
-asmlinkage ssize_t sys_listxattr(char __user *path, char __user *list,
+asmlinkage ssize_t sys_listxattr(const char __user *path, char __user *list,
 				size_t size);
-asmlinkage ssize_t sys_llistxattr(char __user *path, char __user *list,
+asmlinkage ssize_t sys_llistxattr(const char __user *path, char __user *list,
 				size_t size);
 asmlinkage ssize_t sys_flistxattr(int fd, char __user *list, size_t size);
-asmlinkage long sys_removexattr(char __user *path, char __user *name);
-asmlinkage long sys_lremovexattr(char __user *path, char __user *name);
-asmlinkage long sys_fremovexattr(int fd, char __user *name);
+asmlinkage long sys_removexattr(const char __user *path,
+				const char __user *name);
+asmlinkage long sys_lremovexattr(const char __user *path,
+				 const char __user *name);
+asmlinkage long sys_fremovexattr(int fd, const char __user *name);
 
 asmlinkage unsigned long sys_brk(unsigned long brk);
 asmlinkage long sys_mprotect(unsigned long start, size_t len,

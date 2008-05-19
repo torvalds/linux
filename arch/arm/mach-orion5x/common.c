@@ -132,7 +132,7 @@ static struct platform_device orion5x_uart = {
 static struct resource orion5x_ehci0_resources[] = {
 	{
 		.start	= ORION5X_USB0_PHYS_BASE,
-		.end	= ORION5X_USB0_PHYS_BASE + SZ_4K,
+		.end	= ORION5X_USB0_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -145,7 +145,7 @@ static struct resource orion5x_ehci0_resources[] = {
 static struct resource orion5x_ehci1_resources[] = {
 	{
 		.start	= ORION5X_USB1_PHYS_BASE,
-		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K,
+		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -190,6 +190,11 @@ static struct platform_device orion5x_ehci1 = {
  * (The Orion and Discovery (MV643xx) families use the same Ethernet driver)
  ****************************************************************************/
 
+struct mv643xx_eth_shared_platform_data orion5x_eth_shared_data = {
+	.dram		= &orion5x_mbus_dram_info,
+	.t_clk		= ORION5X_TCLK,
+};
+
 static struct resource orion5x_eth_shared_resources[] = {
 	{
 		.start	= ORION5X_ETH_PHYS_BASE + 0x2000,
@@ -201,6 +206,9 @@ static struct resource orion5x_eth_shared_resources[] = {
 static struct platform_device orion5x_eth_shared = {
 	.name		= MV643XX_ETH_SHARED_NAME,
 	.id		= 0,
+	.dev		= {
+		.platform_data	= &orion5x_eth_shared_data,
+	},
 	.num_resources	= 1,
 	.resource	= orion5x_eth_shared_resources,
 };
@@ -223,7 +231,9 @@ static struct platform_device orion5x_eth = {
 
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
+	eth_data->shared = &orion5x_eth_shared;
 	orion5x_eth.dev.platform_data = eth_data;
+
 	platform_device_register(&orion5x_eth_shared);
 	platform_device_register(&orion5x_eth);
 }
@@ -317,7 +327,7 @@ struct sys_timer orion5x_timer = {
  ****************************************************************************/
 
 /*
- * Identify device ID and rev from PCIE configuration header space '0'.
+ * Identify device ID and rev from PCIe configuration header space '0'.
  */
 static void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 {
@@ -360,7 +370,6 @@ void __init orion5x_init(void)
 	 * Setup Orion address map
 	 */
 	orion5x_setup_cpu_mbus_bridge();
-	orion5x_setup_eth_wins();
 
 	/*
 	 * Register devices.

@@ -1255,11 +1255,11 @@ static int __init mf_proc_init(void)
 		if (i == 3)	/* no vmlinux entry for 'D' */
 			continue;
 
-		ent = create_proc_entry("vmlinux", S_IFREG|S_IWUSR, mf);
+		ent = proc_create_data("vmlinux", S_IFREG|S_IWUSR, mf,
+				       &proc_vmlinux_operations,
+				       (void *)(long)i);
 		if (!ent)
 			return 1;
-		ent->data = (void *)(long)i;
-		ent->proc_fops = &proc_vmlinux_operations;
 	}
 
 	ent = create_proc_entry("side", S_IFREG|S_IRUSR|S_IWUSR, mf_proc_root);

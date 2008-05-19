@@ -584,7 +584,7 @@ ulite_of_probe(struct of_device *op, const struct of_device_id *match)
 	const unsigned int *id;
 	int irq, rc;
 
-	dev_dbg(&op->dev, "%s(%p, %p)\n", __FUNCTION__, op, match);
+	dev_dbg(&op->dev, "%s(%p, %p)\n", __func__, op, match);
 
 	rc = of_address_to_resource(op->node, 0, &res);
 	if (rc) {

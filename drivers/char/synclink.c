@@ -2026,34 +2026,35 @@ static void mgsl_change_params(struct mgsl_struct *info)
  * 		
  * Return Value:	None
  */
-static void mgsl_put_char(struct tty_struct *tty, unsigned char ch)
+static int mgsl_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
+	int ret = 0;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO ) {
-		printk( "%s(%d):mgsl_put_char(%d) on %s\n",
-			__FILE__,__LINE__,ch,info->device_name);
+	if (debug_level >= DEBUG_LEVEL_INFO) {
+		printk(KERN_DEBUG "%s(%d):mgsl_put_char(%d) on %s\n",
+			__FILE__, __LINE__, ch, info->device_name);
 	}		
 	
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_put_char"))
-		return;
+		return 0;
 
 	if (!tty || !info->xmit_buf)
-		return;
+		return 0;
 
-	spin_lock_irqsave(&info->irq_spinlock,flags);
+	spin_lock_irqsave(&info->irq_spinlock, flags);
 	
-	if ( (info->params.mode == MGSL_MODE_ASYNC ) || !info->tx_active ) {
-	
+	if ((info->params.mode == MGSL_MODE_ASYNC ) || !info->tx_active) {
 		if (info->xmit_cnt < SERIAL_XMIT_SIZE - 1) {
 			info->xmit_buf[info->xmit_head++] = ch;
 			info->xmit_head &= SERIAL_XMIT_SIZE-1;
 			info->xmit_cnt++;
+			ret = 1;
 		}
 	}
-	
-	spin_unlock_irqrestore(&info->irq_spinlock,flags);
+	spin_unlock_irqrestore(&info->irq_spinlock, flags);
+	return ret;
 	
 }	/* end of mgsl_put_char() */
 
@@ -2942,6 +2943,7 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
+	int ret;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgsl_ioctl %s cmd=%08X\n", __FILE__,__LINE__,
@@ -2956,7 +2958,10 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    return -EIO;
 	}
 
-	return mgsl_ioctl_common(info, cmd, arg);
+	lock_kernel();
+	ret = mgsl_ioctl_common(info, cmd, arg);
+	unlock_kernel();
+	return ret;
 }
 
 static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigned long arg)
@@ -3153,8 +3158,7 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
  	if (info->flags & ASYNC_INITIALIZED)
  		mgsl_wait_until_sent(tty, info->timeout);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	mgsl_flush_buffer(tty);
 
 	tty_ldisc_flush(tty);
 		
@@ -3217,7 +3221,8 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * interval should also be less than the timeout.
 	 * Note: use tight timings here to satisfy the NIST-PCTS.
 	 */ 
-       
+
+	lock_kernel();
 	if ( info->params.data_rate ) {
 	       	char_time = info->timeout/(32 * 5);
 		if (!char_time)
@@ -3247,6 +3252,7 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 				break;
 		}
 	}
+	unlock_kernel();
       
 exit:
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -4144,7 +4150,8 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		}
 		info->lcr_mem_requested = true;
 
-		info->memory_base = ioremap(info->phys_memory_base,0x40000);
+		info->memory_base = ioremap_nocache(info->phys_memory_base,
+								0x40000);
 		if (!info->memory_base) {
 			printk( "%s(%d):Cant map shared memory on device %s MemAddr=%08X\n",
 				__FILE__,__LINE__,info->device_name, info->phys_memory_base );
@@ -4157,12 +4164,14 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 			goto errout;
 		}
 		
-		info->lcr_base = ioremap(info->phys_lcr_base,PAGE_SIZE) + info->lcr_offset;
+		info->lcr_base = ioremap_nocache(info->phys_lcr_base,
+								PAGE_SIZE);
 		if (!info->lcr_base) {
 			printk( "%s(%d):Cant map LCR memory on device %s MemAddr=%08X\n",
 				__FILE__,__LINE__,info->device_name, info->phys_lcr_base );
 			goto errout;
 		}
+		info->lcr_base += info->lcr_offset;
 		
 	} else {
 		/* claim DMA channel */

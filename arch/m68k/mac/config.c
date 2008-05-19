@@ -48,9 +48,6 @@
 struct mac_booter_data mac_bi_data;
 int mac_bisize = sizeof mac_bi_data;
 
-struct mac_hw_present mac_hw_present;
-EXPORT_SYMBOL(mac_hw_present);
-
 /* New m68k bootinfo stuff and videobase */
 
 extern int m68k_num_memory;
@@ -816,27 +813,6 @@ void __init mac_identify(void)
 	printk("Ramdisk: addr 0x%lx size 0x%lx\n",
 		m68k_ramdisk.addr, m68k_ramdisk.size);
 #endif
-
-	/*
-	 * TODO: set the various fields in macintosh_config->hw_present here!
-	 */
-	switch (macintosh_config->scsi_type) {
-	case MAC_SCSI_OLD:
-		MACHW_SET(MAC_SCSI_80);
-		break;
-	case MAC_SCSI_QUADRA:
-	case MAC_SCSI_QUADRA2:
-	case MAC_SCSI_QUADRA3:
-		MACHW_SET(MAC_SCSI_96);
-		if ((macintosh_config->ident == MAC_MODEL_Q900) ||
-		    (macintosh_config->ident == MAC_MODEL_Q950))
-			MACHW_SET(MAC_SCSI_96_2);
-		break;
-	default:
-		printk(KERN_WARNING "config.c: wtf: unknown scsi, using 53c80\n");
-		MACHW_SET(MAC_SCSI_80);
-		break;
-	}
 
 	iop_init();
 	via_init();

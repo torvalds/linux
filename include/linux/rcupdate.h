@@ -33,8 +33,6 @@
 #ifndef __LINUX_RCUPDATE_H
 #define __LINUX_RCUPDATE_H
 
-#ifdef __KERNEL__
-
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
@@ -132,18 +130,6 @@ struct rcu_head {
  * See rcu_read_lock_bh() for more information.
  */
 #define rcu_read_unlock_bh() __rcu_read_unlock_bh()
-
-/*
- * Prevent the compiler from merging or refetching accesses.  The compiler
- * is also forbidden from reordering successive instances of ACCESS_ONCE(),
- * but only when the compiler is aware of some particular ordering.  One way
- * to make the compiler aware of ordering is to put the two invocations of
- * ACCESS_ONCE() in different C statements.
- *
- * This macro does absolutely -nothing- to prevent the CPU from reordering,
- * merging, or refetching absolutely anything at any time.
- */
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
 /**
  * rcu_dereference - fetch an RCU-protected pointer in an
@@ -245,5 +231,4 @@ extern long rcu_batches_completed_bh(void);
 extern void rcu_init(void);
 extern int rcu_needs_cpu(int cpu);
 
-#endif /* __KERNEL__ */
 #endif /* __LINUX_RCUPDATE_H */

@@ -107,6 +107,8 @@ struct scsi_cmnd *scsi_host_get_command(struct Scsi_Host *shost,
 	cmd->jiffies_at_alloc = jiffies;
 	cmd->request = rq;
 
+	cmd->cmnd = rq->cmd;
+
 	rq->special = cmd;
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd_flags |= REQ_TYPE_BLOCK_PC;

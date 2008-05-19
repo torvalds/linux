@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -247,10 +247,6 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_disable_gpe);
-
-	if (!(gpe_event_info->flags & ACPI_GPE_ENABLE_MASK)) {
-		return_ACPI_STATUS(AE_OK);
-	}
 
 	/* Make sure HW enable masks are updated */
 

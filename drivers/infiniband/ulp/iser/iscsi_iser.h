@@ -71,6 +71,13 @@
 
 #define iser_dbg(fmt, arg...)				\
 	do {						\
+		if (iser_debug_level > 1)		\
+			printk(KERN_DEBUG PFX "%s:" fmt,\
+				__func__ , ## arg);	\
+	} while (0)
+
+#define iser_warn(fmt, arg...)				\
+	do {						\
 		if (iser_debug_level > 0)		\
 			printk(KERN_DEBUG PFX "%s:" fmt,\
 				__func__ , ## arg);	\

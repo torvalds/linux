@@ -21,14 +21,6 @@
  * for more details.
  */
 
-/* Shadows for LCD controller registers */
-struct pxafb_lcd_reg {
-	unsigned int lccr0;
-	unsigned int lccr1;
-	unsigned int lccr2;
-	unsigned int lccr3;
-};
-
 /* PXA LCD DMA descriptor */
 struct pxafb_dma_descriptor {
 	unsigned int fdadr;
@@ -37,10 +29,48 @@ struct pxafb_dma_descriptor {
 	unsigned int ldcmd;
 };
 
+enum {
+	PAL_NONE	= -1,
+	PAL_BASE	= 0,
+	PAL_OV1		= 1,
+	PAL_OV2		= 2,
+	PAL_MAX,
+};
+
+enum {
+	DMA_BASE	= 0,
+	DMA_UPPER	= 0,
+	DMA_LOWER	= 1,
+	DMA_OV1		= 1,
+	DMA_OV2_Y	= 2,
+	DMA_OV2_Cb	= 3,
+	DMA_OV2_Cr	= 4,
+	DMA_CURSOR	= 5,
+	DMA_CMD		= 6,
+	DMA_MAX,
+};
+
+/* maximum palette size - 256 entries, each 4 bytes long */
+#define PALETTE_SIZE	(256 * 4)
+#define CMD_BUFF_SIZE	(1024 * 50)
+
+struct pxafb_dma_buff {
+	unsigned char palette[PAL_MAX * PALETTE_SIZE];
+	uint16_t cmd_buff[CMD_BUFF_SIZE];
+	struct pxafb_dma_descriptor pal_desc[PAL_MAX];
+	struct pxafb_dma_descriptor dma_desc[DMA_MAX];
+};
+
 struct pxafb_info {
 	struct fb_info		fb;
 	struct device		*dev;
 	struct clk		*clk;
+
+	void __iomem		*mmio_base;
+
+	struct pxafb_dma_buff	*dma_buff;
+	dma_addr_t		dma_buff_phys;
+	dma_addr_t		fdadr[DMA_MAX];
 
 	/*
 	 * These are the addresses we mapped
@@ -55,19 +85,8 @@ struct pxafb_info {
 	u_char *		screen_cpu;	/* virtual address of frame buffer */
 	dma_addr_t		screen_dma;	/* physical address of frame buffer */
 	u16 *			palette_cpu;	/* virtual address of palette memory */
-	dma_addr_t		palette_dma;	/* physical address of palette memory */
 	u_int			palette_size;
-
-	/* DMA descriptors */
-	struct pxafb_dma_descriptor * 	dmadesc_fblow_cpu;
-	dma_addr_t		dmadesc_fblow_dma;
-	struct pxafb_dma_descriptor * 	dmadesc_fbhigh_cpu;
-	dma_addr_t		dmadesc_fbhigh_dma;
-	struct pxafb_dma_descriptor *	dmadesc_palette_cpu;
-	dma_addr_t		dmadesc_palette_dma;
-
-	dma_addr_t		fdadr0;
-	dma_addr_t		fdadr1;
+	ssize_t			video_offset;
 
 	u_int			lccr0;
 	u_int			lccr3;
@@ -81,6 +100,7 @@ struct pxafb_info {
 	u_int			reg_lccr2;
 	u_int			reg_lccr3;
 	u_int			reg_lccr4;
+	u_int			reg_cmdcr;
 
 	unsigned long	hsync_time;
 
@@ -89,6 +109,16 @@ struct pxafb_info {
 	struct semaphore	ctrlr_sem;
 	wait_queue_head_t	ctrlr_wait;
 	struct work_struct	task;
+
+	struct completion	disable_done;
+
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	uint16_t		*smart_cmds;
+	size_t			n_smart_cmds;
+	struct completion	command_done;
+	struct completion	refresh_done;
+	struct task_struct	*smart_thread;
+#endif
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;

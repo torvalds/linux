@@ -178,9 +178,6 @@ enum ps3_cpu_binding {
 	PS3_BINDING_CPU_1 = 1,
 };
 
-int ps3_virq_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
-	unsigned int *virq);
-int ps3_virq_destroy(unsigned int virq);
 int ps3_irq_plug_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 	unsigned int *virq);
 int ps3_irq_plug_destroy(unsigned int virq);

@@ -519,7 +519,7 @@ static void hangup(struct tty_struct *tty);
 static void set_termios(struct tty_struct *tty, struct ktermios *old_termios);
 
 static int  write(struct tty_struct *tty, const unsigned char *buf, int count);
-static void put_char(struct tty_struct *tty, unsigned char ch);
+static int put_char(struct tty_struct *tty, unsigned char ch);
 static void send_xchar(struct tty_struct *tty, char ch);
 static void wait_until_sent(struct tty_struct *tty, int timeout);
 static int  write_room(struct tty_struct *tty);
@@ -862,8 +862,7 @@ static void close(struct tty_struct *tty, struct file *filp)
  	if (info->flags & ASYNC_INITIALIZED)
  		wait_until_sent(tty, info->timeout);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	flush_buffer(tty);
 
 	tty_ldisc_flush(tty);
 
@@ -1046,10 +1045,11 @@ cleanup:
 
 /* Add a character to the transmit buffer.
  */
-static void put_char(struct tty_struct *tty, unsigned char ch)
+static int put_char(struct tty_struct *tty, unsigned char ch)
 {
 	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
 	unsigned long flags;
+	int ret = 0;
 
 	if ( debug_level >= DEBUG_LEVEL_INFO ) {
 		printk( "%s(%d):%s put_char(%d)\n",
@@ -1057,10 +1057,10 @@ static void put_char(struct tty_struct *tty, unsigned char ch)
 	}
 
 	if (sanity_check(info, tty->name, "put_char"))
-		return;
+		return 0;
 
 	if (!info->tx_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->lock,flags);
 
@@ -1072,10 +1072,12 @@ static void put_char(struct tty_struct *tty, unsigned char ch)
 			if (info->tx_put >= info->max_frame_size)
 				info->tx_put -= info->max_frame_size;
 			info->tx_count++;
+			ret = 1;
 		}
 	}
 
 	spin_unlock_irqrestore(&info->lock,flags);
+	return ret;
 }
 
 /* Send a high-priority XON/XOFF character
@@ -1119,6 +1121,8 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	if (sanity_check(info, tty->name, "wait_until_sent"))
 		return;
 
+	lock_kernel();
+
 	if (!(info->flags & ASYNC_INITIALIZED))
 		goto exit;
 
@@ -1161,6 +1165,7 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 
 exit:
+	unlock_kernel();
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s wait_until_sent() exit\n",
 			 __FILE__,__LINE__, info->device_name );
@@ -1176,6 +1181,7 @@ static int write_room(struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "write_room"))
 		return 0;
 
+	lock_kernel();
 	if (info->params.mode == MGSL_MODE_HDLC) {
 		ret = (info->tx_active) ? 0 : HDLC_MAX_FRAME_SIZE;
 	} else {
@@ -1183,6 +1189,7 @@ static int write_room(struct tty_struct *tty)
 		if (ret < 0)
 			ret = 0;
 	}
+	unlock_kernel();
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s write_room()=%d\n",
@@ -1303,7 +1310,7 @@ static void tx_release(struct tty_struct *tty)
  *
  * Return Value:	0 if success, otherwise error code
  */
-static int ioctl(struct tty_struct *tty, struct file *file,
+static int do_ioctl(struct tty_struct *tty, struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
 	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
@@ -1391,6 +1398,16 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		return -ENOIOCTLCMD;
 	}
 	return 0;
+}
+
+static int ioctl(struct tty_struct *tty, struct file *file,
+		 unsigned int cmd, unsigned long arg)
+{
+	int ret;
+	lock_kernel();
+	ret = do_ioctl(tty, file, cmd, arg);
+	unlock_kernel();
+	return ret;
 }
 
 /*
@@ -3626,7 +3643,8 @@ static int claim_resources(SLMP_INFO *info)
 	else
 		info->sca_statctrl_requested = true;
 
-	info->memory_base = ioremap(info->phys_memory_base,SCA_MEM_SIZE);
+	info->memory_base = ioremap_nocache(info->phys_memory_base,
+								SCA_MEM_SIZE);
 	if (!info->memory_base) {
 		printk( "%s(%d):%s Cant map shared memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_memory_base );
@@ -3634,7 +3652,7 @@ static int claim_resources(SLMP_INFO *info)
 		goto errout;
 	}
 
-	info->lcr_base = ioremap(info->phys_lcr_base,PAGE_SIZE);
+	info->lcr_base = ioremap_nocache(info->phys_lcr_base, PAGE_SIZE);
 	if (!info->lcr_base) {
 		printk( "%s(%d):%s Cant map LCR memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_lcr_base );
@@ -3643,7 +3661,7 @@ static int claim_resources(SLMP_INFO *info)
 	}
 	info->lcr_base += info->lcr_offset;
 
-	info->sca_base = ioremap(info->phys_sca_base,PAGE_SIZE);
+	info->sca_base = ioremap_nocache(info->phys_sca_base, PAGE_SIZE);
 	if (!info->sca_base) {
 		printk( "%s(%d):%s Cant map SCA memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_sca_base );
@@ -3652,7 +3670,8 @@ static int claim_resources(SLMP_INFO *info)
 	}
 	info->sca_base += info->sca_offset;
 
-	info->statctrl_base = ioremap(info->phys_statctrl_base,PAGE_SIZE);
+	info->statctrl_base = ioremap_nocache(info->phys_statctrl_base,
+								PAGE_SIZE);
 	if (!info->statctrl_base) {
 		printk( "%s(%d):%s Cant map SCA Status/Control memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_statctrl_base );

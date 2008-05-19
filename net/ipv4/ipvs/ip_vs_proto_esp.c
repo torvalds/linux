@@ -159,6 +159,7 @@ static void esp_exit(struct ip_vs_protocol *pp)
 struct ip_vs_protocol ip_vs_protocol_esp = {
 	.name =			"ESP",
 	.protocol =		IPPROTO_ESP,
+	.num_states =		1,
 	.dont_defrag =		1,
 	.init =			esp_init,
 	.exit =			esp_exit,

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -125,13 +125,20 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc,
 
 	/* The table must be either an SSDT or a PSDT or an OEMx */
 
-	if ((!ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_PSDT))
-	    &&
-	    (!ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_SSDT))
-	    && (strncmp(table_desc->pointer->signature, "OEM", 3))) {
-		ACPI_ERROR((AE_INFO,
-			    "Table has invalid signature [%4.4s], must be SSDT, PSDT or OEMx",
-			    table_desc->pointer->signature));
+	if (!ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_PSDT)&&
+	    !ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_SSDT)&&
+	    strncmp(table_desc->pointer->signature, "OEM", 3)) {
+		/* Check for a printable name */
+		if (acpi_ut_valid_acpi_name(
+			*(u32 *) table_desc->pointer->signature)) {
+			ACPI_ERROR((AE_INFO, "Table has invalid signature "
+					"[%4.4s], must be SSDT or PSDT",
+				    table_desc->pointer->signature));
+		} else {
+			ACPI_ERROR((AE_INFO, "Table has invalid signature "
+					"(0x%8.8X), must be SSDT or PSDT",
+				    *(u32 *) table_desc->pointer->signature));
+		}
 		return_ACPI_STATUS(AE_BAD_SIGNATURE);
 	}
 
@@ -162,6 +169,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc,
 
 		acpi_tb_delete_table(table_desc);
 		*table_index = i;
+		status = AE_ALREADY_EXISTS;
 		goto release;
 	}
 

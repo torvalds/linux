@@ -16,10 +16,9 @@
 #include <linux/init.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -562,7 +561,7 @@ static int __devinit leo_probe(struct of_device *op, const struct of_device_id *
 	par->physbase = op->resource[0].start;
 	par->which_io = op->resource[0].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&info->var, dp->node, 32);
+	sbusfb_fill_var(&info->var, dp, 32);
 	leo_fixup_var_rgb(&info->var);
 
 	linebytes = of_getintprop_default(dp, "linebytes",
@@ -601,7 +600,7 @@ static int __devinit leo_probe(struct of_device *op, const struct of_device_id *
 	leo_init_wids(info);
 	leo_init_hw(info);
 
-	leo_blank(0, info);
+	leo_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_regs;

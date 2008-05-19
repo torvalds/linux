@@ -1,4 +1,3 @@
-
 /*
  * kvm_ia64.c: Basic KVM suppport On Itanium series processors
  *
@@ -431,7 +430,7 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 	if (itc_diff < 0)
 		itc_diff = -itc_diff;
 
-	expires = div64_64(itc_diff, cyc_per_usec);
+	expires = div64_u64(itc_diff, cyc_per_usec);
 	kt = ktime_set(0, 1000 * expires);
 	vcpu->arch.ht_active = 1;
 	hrtimer_start(p_ht, kt, HRTIMER_MODE_ABS);

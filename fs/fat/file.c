@@ -208,7 +208,7 @@ static int fat_free(struct inode *inode, int skip)
 		} else if (ret == FAT_ENT_FREE) {
 			fat_fs_panic(sb,
 				     "%s: invalid cluster chain (i_pos %lld)",
-				     __FUNCTION__, MSDOS_I(inode)->i_pos);
+				     __func__, MSDOS_I(inode)->i_pos);
 			ret = -EIO;
 		} else if (ret > 0) {
 			err = fat_ent_write(inode, &fatent, FAT_ENT_EOF, wait);

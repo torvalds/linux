@@ -8,8 +8,6 @@
 #ifndef _LINUX_DEVICE_MAPPER_H
 #define _LINUX_DEVICE_MAPPER_H
 
-#ifdef __KERNEL__
-
 #include <linux/bio.h>
 
 struct dm_target;
@@ -344,5 +342,4 @@ static inline unsigned long to_bytes(sector_t n)
 	return (n << SECTOR_SHIFT);
 }
 
-#endif	/* __KERNEL__ */
 #endif	/* _LINUX_DEVICE_MAPPER_H */

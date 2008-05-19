@@ -245,7 +245,7 @@ unsigned long get_wchan(struct task_struct *p)
 
 void finish_atomic_sections (struct pt_regs *regs)
 {
-	int __user *up0 = (int __user *)&regs->p0;
+	int __user *up0 = (int __user *)regs->p0;
 
 	if (regs->pc < ATOMIC_SEQS_START || regs->pc >= ATOMIC_SEQS_END)
 		return;

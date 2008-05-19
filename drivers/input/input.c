@@ -898,30 +898,26 @@ static int __init input_proc_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	proc_bus_input_dir = proc_mkdir("input", proc_bus);
+	proc_bus_input_dir = proc_mkdir("bus/input", NULL);
 	if (!proc_bus_input_dir)
 		return -ENOMEM;
 
 	proc_bus_input_dir->owner = THIS_MODULE;
 
-	entry = create_proc_entry("devices", 0, proc_bus_input_dir);
+	entry = proc_create("devices", 0, proc_bus_input_dir,
+			    &input_devices_fileops);
 	if (!entry)
 		goto fail1;
 
-	entry->owner = THIS_MODULE;
-	entry->proc_fops = &input_devices_fileops;
-
-	entry = create_proc_entry("handlers", 0, proc_bus_input_dir);
+	entry = proc_create("handlers", 0, proc_bus_input_dir,
+			    &input_handlers_fileops);
 	if (!entry)
 		goto fail2;
-
-	entry->owner = THIS_MODULE;
-	entry->proc_fops = &input_handlers_fileops;
 
 	return 0;
 
  fail2:	remove_proc_entry("devices", proc_bus_input_dir);
- fail1: remove_proc_entry("input", proc_bus);
+ fail1: remove_proc_entry("bus/input", NULL);
 	return -ENOMEM;
 }
 
@@ -929,7 +925,7 @@ static void input_proc_exit(void)
 {
 	remove_proc_entry("devices", proc_bus_input_dir);
 	remove_proc_entry("handlers", proc_bus_input_dir);
-	remove_proc_entry("input", proc_bus);
+	remove_proc_entry("bus/input", NULL);
 }
 
 #else /* !CONFIG_PROC_FS */

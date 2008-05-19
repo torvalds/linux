@@ -840,7 +840,8 @@ static struct v4l2_int_device tcm825x_int_device = {
 	},
 };
 
-static int tcm825x_probe(struct i2c_client *client)
+static int tcm825x_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct tcm825x_sensor *sensor = &tcm825x;
 	int rval;
@@ -884,12 +885,19 @@ static int __exit tcm825x_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id tcm825x_id[] = {
+	{ "tcm825x", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tcm825x_id);
+
 static struct i2c_driver tcm825x_i2c_driver = {
 	.driver	= {
 		.name = TCM825X_NAME,
 	},
 	.probe	= tcm825x_probe,
 	.remove	= __exit_p(tcm825x_remove),
+	.id_table = tcm825x_id,
 };
 
 static struct tcm825x_sensor tcm825x = {

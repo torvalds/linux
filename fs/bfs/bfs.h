@@ -42,7 +42,7 @@ static inline struct bfs_inode_info *BFS_I(struct inode *inode)
 
 
 #define printf(format, args...) \
-	printk(KERN_ERR "BFS-fs: %s(): " format, __FUNCTION__, ## args)
+	printk(KERN_ERR "BFS-fs: %s(): " format, __func__, ## args)
 
 /* inode.c */
 extern struct inode *bfs_iget(struct super_block *sb, unsigned long ino);

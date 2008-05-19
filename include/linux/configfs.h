@@ -35,8 +35,6 @@
 #ifndef _CONFIGFS_H_
 #define _CONFIGFS_H_
 
-#ifdef __KERNEL__
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -193,7 +191,5 @@ void configfs_unregister_subsystem(struct configfs_subsystem *subsys);
 /* WARNING: These cannot be called underneath configfs callbacks!! */
 int configfs_depend_item(struct configfs_subsystem *subsys, struct config_item *target);
 void configfs_undepend_item(struct configfs_subsystem *subsys, struct config_item *target);
-
-#endif  /* __KERNEL__ */
 
 #endif /* _CONFIGFS_H_ */

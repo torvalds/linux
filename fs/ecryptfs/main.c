@@ -219,7 +219,7 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to initialize the "
 		       "persistent file for the dentry with name [%s]; "
-		       "rc = [%d]\n", __FUNCTION__, dentry->d_name.name, rc);
+		       "rc = [%d]\n", __func__, dentry->d_name.name, rc);
 		goto out;
 	}
 out:

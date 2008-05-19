@@ -97,8 +97,7 @@ static struct pxafb_mode_info toshiba_ltm04c380k_mode = {
 
 static struct pxafb_mach_info zylonite_toshiba_lcd_info = {
 	.num_modes      	= 1,
-	.lccr0			= LCCR0_Act,
-	.lccr3			= LCCR3_PCP,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 	.pxafb_backlight_power	= zylonite_backlight_power,
 };
 
@@ -134,8 +133,7 @@ static struct pxafb_mode_info sharp_ls037_modes[] = {
 static struct pxafb_mach_info zylonite_sharp_lcd_info = {
 	.modes			= sharp_ls037_modes,
 	.num_modes		= 2,
-	.lccr0			= LCCR0_Act,
-	.lccr3			= LCCR3_PCP | LCCR3_HSP | LCCR3_VSP,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 	.pxafb_backlight_power	= zylonite_backlight_power,
 };
 

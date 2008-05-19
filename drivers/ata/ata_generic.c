@@ -152,6 +152,12 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 	if (dev->vendor == PCI_VENDOR_ID_AL)
 		ata_pci_bmdma_clear_simplex(dev);
 
+	if (dev->vendor == PCI_VENDOR_ID_ATI) {
+		int rc = pcim_enable_device(dev);
+		if (rc < 0)
+			return rc;
+		pcim_pin_device(dev);
+	}
 	return ata_pci_sff_init_one(dev, ppi, &generic_sht, NULL);
 }
 

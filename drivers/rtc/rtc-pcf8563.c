@@ -246,7 +246,8 @@ static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.set_time	= pcf8563_rtc_set_time,
 };
 
-static int pcf8563_probe(struct i2c_client *client)
+static int pcf8563_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
 {
 	struct pcf8563 *pcf8563;
 
@@ -299,12 +300,19 @@ static int pcf8563_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id pcf8563_id[] = {
+	{ "pcf8563", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, pcf8563_id);
+
 static struct i2c_driver pcf8563_driver = {
 	.driver		= {
 		.name	= "rtc-pcf8563",
 	},
 	.probe		= pcf8563_probe,
 	.remove		= pcf8563_remove,
+	.id_table	= pcf8563_id,
 };
 
 static int __init pcf8563_init(void)

@@ -78,7 +78,7 @@ struct gs_port {
 #define GS_DEBUG_WRITE   0x00000040
 
 #ifdef __KERNEL__
-void gs_put_char(struct tty_struct *tty, unsigned char ch);
+int gs_put_char(struct tty_struct *tty, unsigned char ch);
 int  gs_write(struct tty_struct *tty, 
              const unsigned char *buf, int count);
 int  gs_write_room(struct tty_struct *tty);

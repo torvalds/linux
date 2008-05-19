@@ -544,10 +544,10 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 		struct resource *fb_res = &lcdc_resources[2];
 		size_t fb_len = fb_res->end - fb_res->start + 1;
 
-		fb = ioremap_writecombine(fb_res->start, fb_len);
+		fb = ioremap(fb_res->start, fb_len);
 		if (fb) {
 			memset(fb, 0, fb_len);
-			iounmap(fb, fb_len);
+			iounmap(fb);
 		}
 	}
 	lcdc_data = *data;

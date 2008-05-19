@@ -14,7 +14,7 @@ if INPUT_MISC
 
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
-	depends on ALPHA || X86 || MIPS || PPC_PREP || PPC_CHRP || PPC_PSERIES
+	depends on PCSPKR_PLATFORM
 	depends on SND_PCSP=n
 	help
 	  Say Y here if you want the standard PC Speaker to be used for

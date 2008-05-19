@@ -153,15 +153,15 @@ int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 	/* 7.1.3.5a.2 */
 	switch (ae) {
 	case 0:
-		return 5;
+		return 6;
 	case 1:
-		return 11;
+		return 12;
 	case 2:
-		return 17;
+		return 18;
 	case 3:
-		return 23;
+		return 24;
 	default:
-		return 5;
+		return 6;
 	}
 }
 

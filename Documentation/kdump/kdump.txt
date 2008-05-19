@@ -245,6 +245,8 @@ The syntax is:
     crashkernel=<range1>:<size1>[,<range2>:<size2>,...][@offset]
     range=start-[end]
 
+    'start' is inclusive and 'end' is exclusive.
+
 For example:
 
     crashkernel=512M-2G:64M,2G-:128M
@@ -253,8 +255,9 @@ This would mean:
 
     1) if the RAM is smaller than 512M, then don't reserve anything
        (this is the "rescue" case)
-    2) if the RAM size is between 512M and 2G, then reserve 64M
+    2) if the RAM size is between 512M and 2G (exclusive), then reserve 64M
     3) if the RAM size is larger than 2G, then reserve 128M
+
 
 
 Boot into System Kernel

@@ -18,6 +18,8 @@
 #include <linux/suspend.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/kbuild.h>
+
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -25,11 +27,6 @@
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
 #include <asm/vdso_datapage.h>
-
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 int
 main(void)

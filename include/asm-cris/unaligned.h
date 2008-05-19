@@ -1,16 +1,13 @@
-#ifndef __CRIS_UNALIGNED_H
-#define __CRIS_UNALIGNED_H
+#ifndef _ASM_CRIS_UNALIGNED_H
+#define _ASM_CRIS_UNALIGNED_H
 
 /*
  * CRIS can do unaligned accesses itself. 
- *
- * The strange macros are there to make sure these can't
- * be misused in a way that makes them not work on other
- * architectures where unaligned accesses aren't as simple.
  */
+#include <linux/unaligned/access_ok.h>
+#include <linux/unaligned/generic.h>
 
-#define get_unaligned(ptr) (*(ptr))
+#define get_unaligned	__get_unaligned_le
+#define put_unaligned	__put_unaligned_le
 
-#define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
-
-#endif
+#endif /* _ASM_CRIS_UNALIGNED_H */

@@ -2,9 +2,9 @@
 #define _SPARC64_FUTEX_H
 
 #include <linux/futex.h>
+#include <linux/uaccess.h>
 #include <asm/errno.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 
 #define __futex_cas_op(insn, ret, oldval, uaddr, oparg)	\
 	__asm__ __volatile__(				\

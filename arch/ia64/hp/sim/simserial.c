@@ -210,21 +210,23 @@ static void do_softint(struct work_struct *private_)
 	printk(KERN_ERR "simserial: do_softint called\n");
 }
 
-static void rs_put_char(struct tty_struct *tty, unsigned char ch)
+static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct async_struct *info = (struct async_struct *)tty->driver_data;
 	unsigned long flags;
 
-	if (!tty || !info->xmit.buf) return;
+	if (!tty || !info->xmit.buf)
+		return 0;
 
 	local_irq_save(flags);
 	if (CIRC_SPACE(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE) == 0) {
 		local_irq_restore(flags);
-		return;
+		return 0;
 	}
 	info->xmit.buf[info->xmit.head] = ch;
 	info->xmit.head = (info->xmit.head + 1) & (SERIAL_XMIT_SIZE-1);
 	local_irq_restore(flags);
+	return 1;
 }
 
 static void transmit_chars(struct async_struct *info, int *intr_done)
@@ -621,7 +623,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	shutdown(info);
-	if (tty->driver->flush_buffer) tty->driver->flush_buffer(tty);
+	if (tty->ops->flush_buffer)
+		tty->ops->flush_buffer(tty);
 	if (tty->ldisc.flush_buffer) tty->ldisc.flush_buffer(tty);
 	info->event = 0;
 	info->tty = NULL;

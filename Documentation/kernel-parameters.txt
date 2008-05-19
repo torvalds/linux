@@ -398,9 +398,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	cio_ignore=	[S390]
 			See Documentation/s390/CommonIO for details.
 
-	cio_msg=	[S390]
-			See Documentation/s390/CommonIO for details.
-
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
 			Forces specified clocksource (if available) to be used
@@ -496,6 +493,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			switching to the matching ttyS device later.  The
 			options are the same as for ttyS, above.
 
+                If the device connected to the port is not a TTY but a braille
+                device, prepend "brl," before the device type, for instance
+			console=brl,ttyS0
+		For now, only VisioBraille is supported.
+
 	earlycon=	[KNL] Output early console device and options.
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
@@ -555,6 +557,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			We default to 0 (no extra messages), setting it to
 			1 will print _a lot_ more information - normally
 			only useful to kernel developers.
+
+	debug_objects	[KNL] Enable object debugging
 
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
@@ -627,8 +631,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	eata=		[HW,SCSI]
 
 	edd=		[EDD]
-			Format: {"of[f]" | "sk[ipmbr]"}
-			See comment in arch/i386/boot/edd.S
+			Format: {"off" | "on" | "skip[mbr]"}
 
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
@@ -682,6 +685,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	floppy=		[HW]
 			See Documentation/floppy.txt.
+
+	force_pal_cache_flush
+			[IA-64] Avoid check_sal_cache_flush which may hang on
+			buggy SAL_CACHE_FLUSH implementations. Using this
+			parameter will force ia64_sal_cache_flush to call
+			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -1088,9 +1097,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	mac5380=	[HW,SCSI] Format:
 			<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
 
-	mac53c9x=	[HW,SCSI] Format:
-			<num_esps>,<disconnect>,<nosync>,<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
-
 	machvec=	[IA64] Force the use of a particular machine-vector
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1_swiotlb
@@ -1389,6 +1395,13 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
+	olpc_ec_timeout= [OLPC] ms delay when issuing EC commands
+			Rather than timing out after 20 ms if an EC
+			command is not properly ACKed, override the length
+			of the timeout.  We have interrupts disabled while
+			waiting for the ACK, so if this is set too high
+			interrupts *may* be lost!
+
 	opl3=		[HW,OSS]
 			Format: <io>
 
@@ -1512,6 +1525,8 @@ and is between 256 and 4096 characters. It is defined in the file
 				This is normally done in pci_enable_device(),
 				so this option is a temporary workaround
 				for broken drivers that don't call it.
+		skip_isa_align	[X86] do not align io start addr, so can
+				handle more pci cards
 		firmware	[ARM] Do not re-enumerate the bus but instead
 				just use the configuration from the
 				bootloader. This is currently used on

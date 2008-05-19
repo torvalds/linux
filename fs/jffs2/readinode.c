@@ -63,10 +63,11 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 	/* TODO: instead, incapsulate point() stuff to jffs2_flash_read(),
 	 * adding and jffs2_flash_read_end() interface. */
 	if (c->mtd->point) {
-		err = c->mtd->point(c->mtd, ofs, len, &retlen, &buffer);
+		err = c->mtd->point(c->mtd, ofs, len, &retlen,
+				    (void **)&buffer, NULL);
 		if (!err && retlen < len) {
 			JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
-			c->mtd->unpoint(c->mtd, buffer, ofs, retlen);
+			c->mtd->unpoint(c->mtd, ofs, retlen);
 		} else if (err)
 			JFFS2_WARNING("MTD point failed: error code %d.\n", err);
 		else
@@ -100,7 +101,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 		kfree(buffer);
 #ifndef __ECOS
 	else
-		c->mtd->unpoint(c->mtd, buffer, ofs, len);
+		c->mtd->unpoint(c->mtd, ofs, len);
 #endif
 
 	if (crc != tn->data_crc) {
@@ -136,7 +137,7 @@ free_out:
 		kfree(buffer);
 #ifndef __ECOS
 	else
-		c->mtd->unpoint(c->mtd, buffer, ofs, len);
+		c->mtd->unpoint(c->mtd, ofs, len);
 #endif
 	return err;
 }
@@ -1123,7 +1124,8 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 	size_t retlen;
 	int ret;
 
-	dbg_readinode("ino #%u nlink is %d\n", f->inocache->ino, f->inocache->nlink);
+	dbg_readinode("ino #%u pino/nlink is %d\n", f->inocache->ino,
+		      f->inocache->pino_nlink);
 
 	memset(&rii, 0, sizeof(rii));
 
@@ -1358,7 +1360,7 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		}
 		dbg_readinode("creating inocache for root inode\n");
 		memset(f->inocache, 0, sizeof(struct jffs2_inode_cache));
-		f->inocache->ino = f->inocache->nlink = 1;
+		f->inocache->ino = f->inocache->pino_nlink = 1;
 		f->inocache->nodes = (struct jffs2_raw_node_ref *)f->inocache;
 		f->inocache->state = INO_STATE_READING;
 		jffs2_add_ino_cache(c, f->inocache);
@@ -1401,7 +1403,7 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 	jffs2_clear_acl(f);
 	jffs2_xattr_delete_inode(c, f->inocache);
 	mutex_lock(&f->sem);
-	deleted = f->inocache && !f->inocache->nlink;
+	deleted = f->inocache && !f->inocache->pino_nlink;
 
 	if (f->inocache && f->inocache->state != INO_STATE_CHECKING)
 		jffs2_set_inocache_state(c, f->inocache, INO_STATE_CLEARING);

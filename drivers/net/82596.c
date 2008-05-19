@@ -1162,6 +1162,7 @@ struct net_device * __init i82596_probe(int unit)
 		memcpy(eth_addr, (void *) 0xfffc1f2c, 6);	/* YUCK! Get addr from NOVRAM */
 		dev->base_addr = MVME_I596_BASE;
 		dev->irq = (unsigned) MVME16x_IRQ_I596;
+		goto found;
 	}
 #endif
 #ifdef ENABLE_BVME6000_NET
@@ -1176,6 +1177,7 @@ struct net_device * __init i82596_probe(int unit)
 		rtc[3] = msr;
 		dev->base_addr = BVME_I596_BASE;
 		dev->irq = (unsigned) BVME_IRQ_I596;
+		goto found;
 	}
 #endif
 #ifdef ENABLE_APRICOT
@@ -1212,8 +1214,13 @@ struct net_device * __init i82596_probe(int unit)
 		}
 
 		dev->irq = 10;
+		goto found;
 	}
 #endif
+	err = -ENODEV;
+	goto out;
+
+found:
 	dev->mem_start = (int)__get_free_pages(GFP_ATOMIC, 0);
 	if (!dev->mem_start) {
 		err = -ENOMEM;

@@ -37,26 +37,32 @@
 #define BT_DEBUG_ENABLE	1	/* Generic messages */
 #define BT_DEBUG_MSG	2	/* Prints all request/response buffers */
 #define BT_DEBUG_STATES	4	/* Verbose look at state changes */
-/* BT_DEBUG_OFF must be zero to correspond to the default uninitialized
-   value */
+/*
+ * BT_DEBUG_OFF must be zero to correspond to the default uninitialized
+ * value
+ */
 
 static int bt_debug; /* 0 == BT_DEBUG_OFF */
 
 module_param(bt_debug, int, 0644);
 MODULE_PARM_DESC(bt_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
 
-/* Typical "Get BT Capabilities" values are 2-3 retries, 5-10 seconds,
-   and 64 byte buffers.  However, one HP implementation wants 255 bytes of
-   buffer (with a documented message of 160 bytes) so go for the max.
-   Since the Open IPMI architecture is single-message oriented at this
-   stage, the queue depth of BT is of no concern. */
+/*
+ * Typical "Get BT Capabilities" values are 2-3 retries, 5-10 seconds,
+ * and 64 byte buffers.  However, one HP implementation wants 255 bytes of
+ * buffer (with a documented message of 160 bytes) so go for the max.
+ * Since the Open IPMI architecture is single-message oriented at this
+ * stage, the queue depth of BT is of no concern.
+ */
 
 #define BT_NORMAL_TIMEOUT	5	/* seconds */
 #define BT_NORMAL_RETRY_LIMIT	2
 #define BT_RESET_DELAY		6	/* seconds after warm reset */
 
-/* States are written in chronological order and usually cover
-   multiple rows of the state table discussion in the IPMI spec. */
+/*
+ * States are written in chronological order and usually cover
+ * multiple rows of the state table discussion in the IPMI spec.
+ */
 
 enum bt_states {
 	BT_STATE_IDLE = 0,	/* Order is critical in this list */
@@ -76,10 +82,12 @@ enum bt_states {
 	BT_STATE_LONG_BUSY	/* BT doesn't get hosed :-) */
 };
 
-/* Macros seen at the end of state "case" blocks.  They help with legibility
-   and debugging. */
+/*
+ * Macros seen at the end of state "case" blocks.  They help with legibility
+ * and debugging.
+ */
 
-#define BT_STATE_CHANGE(X,Y) { bt->state = X; return Y; }
+#define BT_STATE_CHANGE(X, Y) { bt->state = X; return Y; }
 
 #define BT_SI_SM_RETURN(Y)   { last_printed = BT_STATE_PRINTME; return Y; }
 
@@ -110,11 +118,13 @@ struct si_sm_data {
 #define BT_H_BUSY	0x40
 #define BT_B_BUSY	0x80
 
-/* Some bits are toggled on each write: write once to set it, once
-   more to clear it; writing a zero does nothing.  To absolutely
-   clear it, check its state and write if set.  This avoids the "get
-   current then use as mask" scheme to modify one bit.  Note that the
-   variable "bt" is hardcoded into these macros. */
+/*
+ * Some bits are toggled on each write: write once to set it, once
+ * more to clear it; writing a zero does nothing.  To absolutely
+ * clear it, check its state and write if set.  This avoids the "get
+ * current then use as mask" scheme to modify one bit.  Note that the
+ * variable "bt" is hardcoded into these macros.
+ */
 
 #define BT_STATUS	bt->io->inputb(bt->io, 0)
 #define BT_CONTROL(x)	bt->io->outputb(bt->io, 0, x)
@@ -125,8 +135,10 @@ struct si_sm_data {
 #define BT_INTMASK_R	bt->io->inputb(bt->io, 2)
 #define BT_INTMASK_W(x)	bt->io->outputb(bt->io, 2, x)
 
-/* Convenience routines for debugging.  These are not multi-open safe!
-   Note the macros have hardcoded variables in them. */
+/*
+ * Convenience routines for debugging.  These are not multi-open safe!
+ * Note the macros have hardcoded variables in them.
+ */
 
 static char *state2txt(unsigned char state)
 {
@@ -182,7 +194,8 @@ static char *status2txt(unsigned char status)
 static unsigned int bt_init_data(struct si_sm_data *bt, struct si_sm_io *io)
 {
 	memset(bt, 0, sizeof(struct si_sm_data));
-	if (bt->io != io) {		/* external: one-time only things */
+	if (bt->io != io) {
+		/* external: one-time only things */
 		bt->io = io;
 		bt->seq = 0;
 	}
@@ -229,7 +242,7 @@ static int bt_start_transaction(struct si_sm_data *bt,
 		printk(KERN_WARNING "BT: +++++++++++++++++ New command\n");
 		printk(KERN_WARNING "BT: NetFn/LUN CMD [%d data]:", size - 2);
 		for (i = 0; i < size; i ++)
-			printk (" %02x", data[i]);
+			printk(" %02x", data[i]);
 		printk("\n");
 	}
 	bt->write_data[0] = size + 1;	/* all data plus seq byte */
@@ -246,8 +259,10 @@ static int bt_start_transaction(struct si_sm_data *bt,
 	return 0;
 }
 
-/* After the upper state machine has been told SI_SM_TRANSACTION_COMPLETE
-   it calls this.  Strip out the length and seq bytes. */
+/*
+ * After the upper state machine has been told SI_SM_TRANSACTION_COMPLETE
+ * it calls this.  Strip out the length and seq bytes.
+ */
 
 static int bt_get_result(struct si_sm_data *bt,
 			 unsigned char *data,
@@ -269,10 +284,10 @@ static int bt_get_result(struct si_sm_data *bt,
 		memcpy(data + 2, bt->read_data + 4, msg_len - 2);
 
 	if (bt_debug & BT_DEBUG_MSG) {
-		printk (KERN_WARNING "BT: result %d bytes:", msg_len);
+		printk(KERN_WARNING "BT: result %d bytes:", msg_len);
 		for (i = 0; i < msg_len; i++)
 			printk(" %02x", data[i]);
-		printk ("\n");
+		printk("\n");
 	}
 	return msg_len;
 }
@@ -292,8 +307,10 @@ static void reset_flags(struct si_sm_data *bt)
 	BT_INTMASK_W(BT_BMC_HWRST);
 }
 
-/* Get rid of an unwanted/stale response.  This should only be needed for
-   BMCs that support multiple outstanding requests. */
+/*
+ * Get rid of an unwanted/stale response.  This should only be needed for
+ * BMCs that support multiple outstanding requests.
+ */
 
 static void drain_BMC2HOST(struct si_sm_data *bt)
 {
@@ -326,8 +343,8 @@ static inline void write_all_bytes(struct si_sm_data *bt)
 		printk(KERN_WARNING "BT: write %d bytes seq=0x%02X",
 			bt->write_count, bt->seq);
 		for (i = 0; i < bt->write_count; i++)
-			printk (" %02x", bt->write_data[i]);
-		printk ("\n");
+			printk(" %02x", bt->write_data[i]);
+		printk("\n");
 	}
 	for (i = 0; i < bt->write_count; i++)
 		HOST2BMC(bt->write_data[i]);
@@ -337,8 +354,10 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 {
 	unsigned char i;
 
-	/* length is "framing info", minimum = 4: NetFn, Seq, Cmd, cCode.
-	   Keep layout of first four bytes aligned with write_data[] */
+	/*
+	 * length is "framing info", minimum = 4: NetFn, Seq, Cmd, cCode.
+	 * Keep layout of first four bytes aligned with write_data[]
+	 */
 
 	bt->read_data[0] = BMC2HOST;
 	bt->read_count = bt->read_data[0];
@@ -362,8 +381,8 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 		if (max > 16)
 			max = 16;
 		for (i = 0; i < max; i++)
-			printk (" %02x", bt->read_data[i]);
-		printk ("%s\n", bt->read_count == max ? "" : " ...");
+			printk(KERN_CONT " %02x", bt->read_data[i]);
+		printk(KERN_CONT "%s\n", bt->read_count == max ? "" : " ...");
 	}
 
 	/* per the spec, the (NetFn[1], Seq[2], Cmd[3]) tuples must match */
@@ -402,8 +421,10 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 	printk(KERN_WARNING "IPMI BT: %s in %s %s ", 	/* open-ended line */
 		reason, STATE2TXT, STATUS2TXT);
 
-	/* Per the IPMI spec, retries are based on the sequence number
-	   known only to this module, so manage a restart here. */
+	/*
+	 * Per the IPMI spec, retries are based on the sequence number
+	 * known only to this module, so manage a restart here.
+	 */
 	(bt->error_retries)++;
 	if (bt->error_retries < bt->BT_CAP_retries) {
 		printk("%d retries left\n",
@@ -412,8 +433,8 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 		return SI_SM_CALL_WITHOUT_DELAY;
 	}
 
-	printk("failed %d retries, sending error response\n",
-		bt->BT_CAP_retries);
+	printk(KERN_WARNING "failed %d retries, sending error response\n",
+	       bt->BT_CAP_retries);
 	if (!bt->nonzero_status)
 		printk(KERN_ERR "IPMI BT: stuck, try power cycle\n");
 
@@ -424,8 +445,10 @@ static enum si_sm_result error_recovery(struct si_sm_data *bt,
 		return SI_SM_CALL_WITHOUT_DELAY;
 	}
 
-	/* Concoct a useful error message, set up the next state, and
-	   be done with this sequence. */
+	/*
+	 * Concoct a useful error message, set up the next state, and
+	 * be done with this sequence.
+	 */
 
 	bt->state = BT_STATE_IDLE;
 	switch (cCode) {
@@ -461,10 +484,12 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		last_printed = bt->state;
 	}
 
-	/* Commands that time out may still (eventually) provide a response.
-	   This stale response will get in the way of a new response so remove
-	   it if possible (hopefully during IDLE).  Even if it comes up later
-	   it will be rejected by its (now-forgotten) seq number. */
+	/*
+	 * Commands that time out may still (eventually) provide a response.
+	 * This stale response will get in the way of a new response so remove
+	 * it if possible (hopefully during IDLE).  Even if it comes up later
+	 * it will be rejected by its (now-forgotten) seq number.
+	 */
 
 	if ((bt->state < BT_STATE_WRITE_BYTES) && (status & BT_B2H_ATN)) {
 		drain_BMC2HOST(bt);
@@ -472,7 +497,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 	}
 
 	if ((bt->state != BT_STATE_IDLE) &&
-	    (bt->state <  BT_STATE_PRINTME)) {		/* check timeout */
+	    (bt->state <  BT_STATE_PRINTME)) {
+		/* check timeout */
 		bt->timeout -= time;
 		if ((bt->timeout < 0) && (bt->state < BT_STATE_RESET1))
 			return error_recovery(bt,
@@ -482,8 +508,10 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 
 	switch (bt->state) {
 
-	/* Idle state first checks for asynchronous messages from another
-	   channel, then does some opportunistic housekeeping. */
+	/*
+	 * Idle state first checks for asynchronous messages from another
+	 * channel, then does some opportunistic housekeeping.
+	 */
 
 	case BT_STATE_IDLE:
 		if (status & BT_SMS_ATN) {
@@ -531,16 +559,19 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 			BT_SI_SM_RETURN(SI_SM_CALL_WITH_DELAY);
 		BT_CONTROL(BT_H_BUSY);		/* set */
 
-		/* Uncached, ordered writes should just proceeed serially but
-		   some BMCs don't clear B2H_ATN with one hit.  Fast-path a
-		   workaround without too much penalty to the general case. */
+		/*
+		 * Uncached, ordered writes should just proceeed serially but
+		 * some BMCs don't clear B2H_ATN with one hit.  Fast-path a
+		 * workaround without too much penalty to the general case.
+		 */
 
 		BT_CONTROL(BT_B2H_ATN);		/* clear it to ACK the BMC */
 		BT_STATE_CHANGE(BT_STATE_CLEAR_B2H,
 				SI_SM_CALL_WITHOUT_DELAY);
 
 	case BT_STATE_CLEAR_B2H:
-		if (status & BT_B2H_ATN) {	/* keep hitting it */
+		if (status & BT_B2H_ATN) {
+			/* keep hitting it */
 			BT_CONTROL(BT_B2H_ATN);
 			BT_SI_SM_RETURN(SI_SM_CALL_WITH_DELAY);
 		}
@@ -548,7 +579,8 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 				SI_SM_CALL_WITHOUT_DELAY);
 
 	case BT_STATE_READ_BYTES:
-		if (!(status & BT_H_BUSY))	/* check in case of retry */
+		if (!(status & BT_H_BUSY))
+			/* check in case of retry */
 			BT_CONTROL(BT_H_BUSY);
 		BT_CONTROL(BT_CLR_RD_PTR);	/* start of BMC2HOST buffer */
 		i = read_all_bytes(bt);		/* true == packet seq match */
@@ -599,8 +631,10 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		BT_STATE_CHANGE(BT_STATE_XACTION_START,
 				SI_SM_CALL_WITH_DELAY);
 
-	/* Get BT Capabilities, using timing of upper level state machine.
-	   Set outreqs to prevent infinite loop on timeout. */
+	/*
+	 * Get BT Capabilities, using timing of upper level state machine.
+	 * Set outreqs to prevent infinite loop on timeout.
+	 */
 	case BT_STATE_CAPABILITIES_BEGIN:
 		bt->BT_CAP_outreqs = 1;
 		{
@@ -638,10 +672,12 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 
 static int bt_detect(struct si_sm_data *bt)
 {
-	/* It's impossible for the BT status and interrupt registers to be
-	   all 1's, (assuming a properly functioning, self-initialized BMC)
-	   but that's what you get from reading a bogus address, so we
-	   test that first.  The calling routine uses negative logic. */
+	/*
+	 * It's impossible for the BT status and interrupt registers to be
+	 * all 1's, (assuming a properly functioning, self-initialized BMC)
+	 * but that's what you get from reading a bogus address, so we
+	 * test that first.  The calling routine uses negative logic.
+	 */
 
 	if ((BT_STATUS == 0xFF) && (BT_INTMASK_R == 0xFF))
 		return 1;
@@ -658,8 +694,7 @@ static int bt_size(void)
 	return sizeof(struct si_sm_data);
 }
 
-struct si_sm_handlers bt_smi_handlers =
-{
+struct si_sm_handlers bt_smi_handlers = {
 	.init_data		= bt_init_data,
 	.start_transaction	= bt_start_transaction,
 	.get_result		= bt_get_result,

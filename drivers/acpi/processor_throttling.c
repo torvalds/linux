@@ -1252,6 +1252,7 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 }
 
 struct file_operations acpi_processor_throttling_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_processor_throttling_open_fs,
 	.read = seq_read,
 	.write = acpi_processor_write_throttling,

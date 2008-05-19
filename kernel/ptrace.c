@@ -73,7 +73,7 @@ void __ptrace_unlink(struct task_struct *child)
 	BUG_ON(!child->ptrace);
 
 	child->ptrace = 0;
-	if (!list_empty(&child->ptrace_list)) {
+	if (ptrace_reparented(child)) {
 		list_del_init(&child->ptrace_list);
 		remove_parent(child);
 		child->parent = child->real_parent;
@@ -168,8 +168,6 @@ int ptrace_attach(struct task_struct *task)
 	audit_ptrace(task);
 
 	retval = -EPERM;
-	if (task->pid <= 1)
-		goto out;
 	if (same_thread_group(task, current))
 		goto out;
 
@@ -208,8 +206,7 @@ repeat:
 
 	__ptrace_link(task, current);
 
-	force_sig_specific(SIGSTOP, task);
-
+	send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
 bad:
 	write_unlock_irqrestore(&tasklist_lock, flags);
 	task_unlock(task);
@@ -522,12 +519,6 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 {
 	struct task_struct *child;
 
-	/*
-	 * Tracing init is not allowed.
-	 */
-	if (pid == 1)
-		return ERR_PTR(-EPERM);
-
 	read_lock(&tasklist_lock);
 	child = find_task_by_vpid(pid);
 	if (child)
@@ -543,7 +534,6 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 #define arch_ptrace_attach(child)	do { } while (0)
 #endif
 
-#ifndef __ARCH_SYS_PTRACE
 asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
@@ -591,7 +581,6 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 	unlock_kernel();
 	return ret;
 }
-#endif /* __ARCH_SYS_PTRACE */
 
 int generic_ptrace_peekdata(struct task_struct *tsk, long addr, long data)
 {

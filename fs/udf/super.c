@@ -240,7 +240,7 @@ static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 	sbi->s_partmaps = kcalloc(count, sizeof(struct udf_part_map),
 				  GFP_KERNEL);
 	if (!sbi->s_partmaps) {
-		udf_error(sb, __FUNCTION__,
+		udf_error(sb, __func__,
 			  "Unable to allocate space for %d partition maps",
 			  count);
 		sbi->s_partitions = 0;
@@ -1086,7 +1086,7 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 		bitmap = vmalloc(size); /* TODO: get rid of vmalloc */
 
 	if (bitmap == NULL) {
-		udf_error(sb, __FUNCTION__,
+		udf_error(sb, __func__,
 			  "Unable to allocate space for bitmap "
 			  "and %d buffer_head pointers", nr_groups);
 		return NULL;
@@ -1933,6 +1933,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	/* Fill in the rest of the superblock */
 	sb->s_op = &udf_sb_ops;
+	sb->s_export_op = &udf_export_ops;
 	sb->dq_op = NULL;
 	sb->s_dirt = 0;
 	sb->s_magic = UDF_SUPER_MAGIC;

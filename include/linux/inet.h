@@ -42,11 +42,9 @@
 #ifndef _LINUX_INET_H
 #define _LINUX_INET_H
 
-#ifdef __KERNEL__
 #include <linux/types.h>
 
 extern __be32 in_aton(const char *str);
 extern int in4_pton(const char *src, int srclen, u8 *dst, int delim, const char **end);
 extern int in6_pton(const char *src, int srclen, u8 *dst, int delim, const char **end);
-#endif
 #endif	/* _LINUX_INET_H */

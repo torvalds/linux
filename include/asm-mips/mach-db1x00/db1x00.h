@@ -1,9 +1,8 @@
 /*
- * AMD Alchemy DB1x00 Reference Boards
+ * AMD Alchemy DBAu1x00 Reference Boards
  *
- * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2001, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  * Copyright (C) 2005 Ralf Baechle (ralf@linux-mips.org)
  *
  * ########################################################################
@@ -32,26 +31,26 @@
 
 #ifdef CONFIG_MIPS_DB1550
 
-#define DBDMA_AC97_TX_CHAN DSCR_CMD0_PSC1_TX
-#define DBDMA_AC97_RX_CHAN DSCR_CMD0_PSC1_RX
-#define DBDMA_I2S_TX_CHAN  DSCR_CMD0_PSC3_TX
-#define DBDMA_I2S_RX_CHAN  DSCR_CMD0_PSC3_RX
+#define DBDMA_AC97_TX_CHAN	DSCR_CMD0_PSC1_TX
+#define DBDMA_AC97_RX_CHAN	DSCR_CMD0_PSC1_RX
+#define DBDMA_I2S_TX_CHAN	DSCR_CMD0_PSC3_TX
+#define DBDMA_I2S_RX_CHAN	DSCR_CMD0_PSC3_RX
 
-#define SPI_PSC_BASE       PSC0_BASE_ADDR
-#define AC97_PSC_BASE      PSC1_BASE_ADDR
-#define SMBUS_PSC_BASE     PSC2_BASE_ADDR
-#define I2S_PSC_BASE       PSC3_BASE_ADDR
+#define SPI_PSC_BASE		PSC0_BASE_ADDR
+#define AC97_PSC_BASE		PSC1_BASE_ADDR
+#define SMBUS_PSC_BASE		PSC2_BASE_ADDR
+#define I2S_PSC_BASE		PSC3_BASE_ADDR
 
-#define BCSR_KSEG1_ADDR 0xAF000000
-#define NAND_PHYS_ADDR  0x20000000
+#define BCSR_KSEG1_ADDR 	0xAF000000
+#define NAND_PHYS_ADDR		0x20000000
 
 #else
 #define BCSR_KSEG1_ADDR 0xAE000000
 #endif
 
 /*
- * Overlay data structure of the Db1x00 board registers.
- * Registers located at physical 0E0000xx, KSEG1 0xAE0000xx
+ * Overlay data structure of the DBAu1x00 board registers.
+ * Registers are located at physical 0E0000xx, KSEG1 0xAE0000xx.
  */
 typedef volatile struct
 {
@@ -138,18 +137,19 @@ typedef volatile struct
 
 #define BCSR_SWRESET_RESET		0x0080
 
-/* PCMCIA Db1x00 specific defines */
-#define PCMCIA_MAX_SOCK 1
-#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK+1)
+/* PCMCIA DBAu1x00 specific defines */
+#define PCMCIA_MAX_SOCK  1
+#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK + 1)
 
 /* VPP/VCC */
 #define SET_VCC_VPP(VCC, VPP, SLOT)\
-	((((VCC)<<2) | ((VPP)<<0)) << ((SLOT)*8))
+	((((VCC) << 2) | ((VPP) << 0)) << ((SLOT) * 8))
 
-/* SD controller macros */
 /*
- * Detect card.
+ * SD controller macros
  */
+
+/* Detect card. */
 #define mmc_card_inserted(_n_, _res_) \
 	do { \
 		BCSR * const bcsr = (BCSR *)0xAE000000; \
@@ -176,10 +176,10 @@ typedef volatile struct
 		unsigned long mmc_pwr, mmc_wp, board_specific; \
 		if ((_n_)) { \
 			mmc_pwr = BCSR_BOARD_SD1_PWR; \
-			mmc_wp = BCSR_BOARD_SD1_WP; \
+			mmc_wp	= BCSR_BOARD_SD1_WP; \
 		} else { \
 			mmc_pwr = BCSR_BOARD_SD0_PWR; \
-			mmc_wp = BCSR_BOARD_SD0_WP; \
+			mmc_wp	= BCSR_BOARD_SD0_WP; \
 		} \
 		board_specific = au_readl((unsigned long)(&bcsr->specific)); \
 		if (!(board_specific & mmc_wp)) {/* low means card present */ \
@@ -190,17 +190,19 @@ typedef volatile struct
 	} while (0)
 
 
-/* NAND defines */
-/* Timing values as described in databook, * ns value stripped of
+/*
+ * NAND defines
+ *
+ * Timing values as described in databook, * ns value stripped of the
  * lower 2 bits.
- * These defines are here rather than an SOC1550 generic file because
+ * These defines are here rather than an Au1550 generic file because
  * the parts chosen on another board may be different and may require
  * different timings.
  */
-#define NAND_T_H			(18 >> 2)
-#define NAND_T_PUL			(30 >> 2)
-#define NAND_T_SU			(30 >> 2)
-#define NAND_T_WH			(30 >> 2)
+#define NAND_T_H		(18 >> 2)
+#define NAND_T_PUL		(30 >> 2)
+#define NAND_T_SU		(30 >> 2)
+#define NAND_T_WH		(30 >> 2)
 
 /* Bitfield shift amounts */
 #define NAND_T_H_SHIFT		0
@@ -208,16 +210,15 @@ typedef volatile struct
 #define NAND_T_SU_SHIFT		8
 #define NAND_T_WH_SHIFT		12
 
-#define NAND_TIMING	((NAND_T_H   & 0xF)	<< NAND_T_H_SHIFT)   | \
-			((NAND_T_PUL & 0xF)	<< NAND_T_PUL_SHIFT) | \
-			((NAND_T_SU  & 0xF)	<< NAND_T_SU_SHIFT)  | \
-			((NAND_T_WH  & 0xF)	<< NAND_T_WH_SHIFT)
-#define NAND_CS 1
+#define NAND_TIMING	(((NAND_T_H   & 0xF) << NAND_T_H_SHIFT)   | \
+			 ((NAND_T_PUL & 0xF) << NAND_T_PUL_SHIFT) | \
+			 ((NAND_T_SU  & 0xF) << NAND_T_SU_SHIFT)  | \
+			 ((NAND_T_WH  & 0xF) << NAND_T_WH_SHIFT))
+#define NAND_CS 	1
 
-/* should be done by yamon */
-#define NAND_STCFG  0x00400005 /* 8-bit NAND */
-#define NAND_STTIME 0x00007774 /* valid for 396MHz SD=2 only */
-#define NAND_STADDR 0x12000FFF /* physical address 0x20000000 */
+/* Should be done by YAMON */
+#define NAND_STCFG	0x00400005 /* 8-bit NAND */
+#define NAND_STTIME	0x00007774 /* valid for 396 MHz SD=2 only */
+#define NAND_STADDR	0x12000FFF /* physical address 0x20000000 */
 
 #endif /* __ASM_DB1X00_H */
-

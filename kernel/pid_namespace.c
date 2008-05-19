@@ -66,7 +66,7 @@ err_alloc:
 	return NULL;
 }
 
-static struct pid_namespace *create_pid_namespace(int level)
+static struct pid_namespace *create_pid_namespace(unsigned int level)
 {
 	struct pid_namespace *ns;
 	int i;

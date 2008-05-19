@@ -1,11 +1,10 @@
 /*
  *
  * BRIEF MODULE DESCRIPTION
- *	Low level uart routines to directly access a 16550 uart.
+ *	Low level UART routines to directly access Alchemy UART.
  *
- * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2001, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -40,12 +39,12 @@
 
 static volatile unsigned long * const com1 = (unsigned long *)SERIAL_BASE;
 
-
 #ifdef SLOW_DOWN
 static inline void slow_down(void)
 {
-    int k;
-    for (k=0; k<10000; k++);
+	int k;
+
+	for (k = 0; k < 10000; k++);
 }
 #else
 #define slow_down()
@@ -54,16 +53,16 @@ static inline void slow_down(void)
 void
 prom_putchar(const unsigned char c)
 {
-    unsigned char ch;
-    int i = 0;
+	unsigned char ch;
+	int i = 0;
 
-    do {
-        ch = com1[SER_CMD];
-        slow_down();
-        i++;
-        if (i>TIMEOUT) {
-            break;
-        }
-    } while (0 == (ch & TX_BUSY));
-    com1[SER_DATA] = c;
+	do {
+		ch = com1[SER_CMD];
+		slow_down();
+		i++;
+		if (i > TIMEOUT)
+			break;
+	} while (0 == (ch & TX_BUSY));
+
+	com1[SER_DATA] = c;
 }

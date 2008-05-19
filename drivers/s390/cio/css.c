@@ -570,7 +570,7 @@ static void reprobe_all(struct work_struct *unused)
 {
 	int ret;
 
-	CIO_MSG_EVENT(2, "reprobe start\n");
+	CIO_MSG_EVENT(4, "reprobe start\n");
 
 	need_reprobe = 0;
 	/* Make sure initial subchannel scan is done. */
@@ -578,7 +578,7 @@ static void reprobe_all(struct work_struct *unused)
 		   atomic_read(&ccw_device_init_count) == 0);
 	ret = for_each_subchannel_staged(NULL, reprobe_subchannel, NULL);
 
-	CIO_MSG_EVENT(2, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
+	CIO_MSG_EVENT(4, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
 		      need_reprobe);
 }
 
@@ -705,13 +705,17 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 {
 	struct channel_subsystem *css = to_css(dev);
 	int ret;
+	unsigned long val;
 
+	ret = strict_strtoul(buf, 16, &val);
+	if (ret)
+		return ret;
 	mutex_lock(&css->mutex);
-	switch (buf[0]) {
-	case '0':
+	switch (val) {
+	case 0:
 		ret = css->cm_enabled ? chsc_secm(css, 0) : 0;
 		break;
-	case '1':
+	case 1:
 		ret = css->cm_enabled ? 0 : chsc_secm(css, 1);
 		break;
 	default:

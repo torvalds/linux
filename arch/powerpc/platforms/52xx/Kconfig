@@ -44,3 +44,9 @@ config PPC_MPC5200_BUGFIX
 
 	  It is safe to say 'Y' here
 
+config PPC_MPC5200_GPIO
+	bool "MPC5200 GPIO support"
+	depends on PPC_MPC52xx
+	select HAVE_GPIO_LIB
+	help
+	  Enable gpiolib support for mpc5200 based boards

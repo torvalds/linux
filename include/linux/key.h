@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/rcupdate.h>
+#include <linux/sysctl.h>
 #include <asm/atomic.h>
 
 #ifdef __KERNEL__
@@ -66,6 +67,8 @@ struct key;
 #define KEY_OTH_LINK	0x00000010
 #define KEY_OTH_SETATTR	0x00000020
 #define KEY_OTH_ALL	0x0000003f
+
+#define KEY_PERM_UNDEF	0xffffffff
 
 struct seq_file;
 struct user_struct;
@@ -208,16 +211,19 @@ extern struct key *request_key(struct key_type *type,
 
 extern struct key *request_key_with_auxdata(struct key_type *type,
 					    const char *description,
-					    const char *callout_info,
+					    const void *callout_info,
+					    size_t callout_len,
 					    void *aux);
 
 extern struct key *request_key_async(struct key_type *type,
 				     const char *description,
-				     const char *callout_info);
+				     const void *callout_info,
+				     size_t callout_len);
 
 extern struct key *request_key_async_with_auxdata(struct key_type *type,
 						  const char *description,
-						  const char *callout_info,
+						  const void *callout_info,
+						  size_t callout_len,
 						  void *aux);
 
 extern int wait_for_key_construction(struct key *key, bool intr);
@@ -229,6 +235,7 @@ extern key_ref_t key_create_or_update(key_ref_t keyring,
 				      const char *description,
 				      const void *payload,
 				      size_t plen,
+				      key_perm_t perm,
 				      unsigned long flags);
 
 extern int key_update(key_ref_t key,
@@ -257,14 +264,18 @@ extern int keyring_add_key(struct key *keyring,
 
 extern struct key *key_lookup(key_serial_t id);
 
-#define key_serial(key) ((key) ? (key)->serial : 0)
+static inline key_serial_t key_serial(struct key *key)
+{
+	return key ? key->serial : 0;
+}
+
+#ifdef CONFIG_SYSCTL
+extern ctl_table key_sysctls[];
+#endif
 
 /*
  * the userspace interface
  */
-extern struct key root_user_keyring, root_session_keyring;
-extern int alloc_uid_keyring(struct user_struct *user,
-			     struct task_struct *ctx);
 extern void switch_uid_keyring(struct user_struct *new_user);
 extern int copy_keys(unsigned long clone_flags, struct task_struct *tsk);
 extern int copy_thread_group_keys(struct task_struct *tsk);
@@ -293,7 +304,6 @@ extern void key_init(void);
 #define make_key_ref(k, p)			({ NULL; })
 #define key_ref_to_ptr(k)		({ NULL; })
 #define is_key_possessed(k)		0
-#define alloc_uid_keyring(u,c)		0
 #define switch_uid_keyring(u)		do { } while(0)
 #define __install_session_keyring(t, k)	({ NULL; })
 #define copy_keys(f,t)			0
@@ -305,10 +315,6 @@ extern void key_init(void);
 #define key_fsuid_changed(t)		do { } while(0)
 #define key_fsgid_changed(t)		do { } while(0)
 #define key_init()			do { } while(0)
-
-/* Initial keyrings */
-extern struct key root_user_keyring;
-extern struct key root_session_keyring;
 
 #endif /* CONFIG_KEYS */
 #endif /* __KERNEL__ */

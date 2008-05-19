@@ -1430,11 +1430,13 @@ static inline unsigned short guess_mtu(unsigned short old_mtu)
 }
 
 unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
-				 unsigned short new_mtu)
+				 unsigned short new_mtu,
+				 struct net_device *dev)
 {
-	int i;
+	int i, k;
 	unsigned short old_mtu = ntohs(iph->tot_len);
 	struct rtable *rth;
+	int  ikeys[2] = { dev->ifindex, 0 };
 	__be32  skeys[2] = { iph->saddr, 0, };
 	__be32  daddr = iph->daddr;
 	unsigned short est_mtu = 0;
@@ -1442,34 +1444,38 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 	if (ipv4_config.no_pmtu_disc)
 		return 0;
 
-	for (i = 0; i < 2; i++) {
-		unsigned hash = rt_hash(daddr, skeys[i], 0);
+	for (k = 0; k < 2; k++) {
+		for (i = 0; i < 2; i++) {
+			unsigned hash = rt_hash(daddr, skeys[i], ikeys[k]);
 
-		rcu_read_lock();
-		for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
-		     rth = rcu_dereference(rth->u.dst.rt_next)) {
-			if (rth->fl.fl4_dst == daddr &&
-			    rth->fl.fl4_src == skeys[i] &&
-			    rth->rt_dst  == daddr &&
-			    rth->rt_src  == iph->saddr &&
-			    rth->fl.iif == 0 &&
-			    !(dst_metric_locked(&rth->u.dst, RTAX_MTU)) &&
-			    net_eq(dev_net(rth->u.dst.dev), net) &&
-			    rth->rt_genid == atomic_read(&rt_genid)) {
+			rcu_read_lock();
+			for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
+			     rth = rcu_dereference(rth->u.dst.rt_next)) {
 				unsigned short mtu = new_mtu;
+
+				if (rth->fl.fl4_dst != daddr ||
+				    rth->fl.fl4_src != skeys[i] ||
+				    rth->rt_dst != daddr ||
+				    rth->rt_src != iph->saddr ||
+				    rth->fl.oif != ikeys[k] ||
+				    rth->fl.iif != 0 ||
+				    dst_metric_locked(&rth->u.dst, RTAX_MTU) ||
+				    !net_eq(dev_net(rth->u.dst.dev), net) ||
+				    rth->rt_genid != atomic_read(&rt_genid))
+					continue;
 
 				if (new_mtu < 68 || new_mtu >= old_mtu) {
 
 					/* BSD 4.2 compatibility hack :-( */
 					if (mtu == 0 &&
-					    old_mtu >= rth->u.dst.metrics[RTAX_MTU-1] &&
+					    old_mtu >= dst_metric(&rth->u.dst, RTAX_MTU) &&
 					    old_mtu >= 68 + (iph->ihl << 2))
 						old_mtu -= iph->ihl << 2;
 
 					mtu = guess_mtu(old_mtu);
 				}
-				if (mtu <= rth->u.dst.metrics[RTAX_MTU-1]) {
-					if (mtu < rth->u.dst.metrics[RTAX_MTU-1]) {
+				if (mtu <= dst_metric(&rth->u.dst, RTAX_MTU)) {
+					if (mtu < dst_metric(&rth->u.dst, RTAX_MTU)) {
 						dst_confirm(&rth->u.dst);
 						if (mtu < ip_rt_min_pmtu) {
 							mtu = ip_rt_min_pmtu;
@@ -1483,15 +1489,15 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 					est_mtu = mtu;
 				}
 			}
+			rcu_read_unlock();
 		}
-		rcu_read_unlock();
 	}
 	return est_mtu ? : new_mtu;
 }
 
 static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
-	if (dst->metrics[RTAX_MTU-1] > mtu && mtu >= 68 &&
+	if (dst_metric(dst, RTAX_MTU) > mtu && mtu >= 68 &&
 	    !(dst_metric_locked(dst, RTAX_MTU))) {
 		if (mtu < ip_rt_min_pmtu) {
 			mtu = ip_rt_min_pmtu;
@@ -1607,7 +1613,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 		       sizeof(rt->u.dst.metrics));
 		if (fi->fib_mtu == 0) {
 			rt->u.dst.metrics[RTAX_MTU-1] = rt->u.dst.dev->mtu;
-			if (rt->u.dst.metrics[RTAX_LOCK-1] & (1 << RTAX_MTU) &&
+			if (dst_metric_locked(&rt->u.dst, RTAX_MTU) &&
 			    rt->rt_gateway != rt->rt_dst &&
 			    rt->u.dst.dev->mtu > 576)
 				rt->u.dst.metrics[RTAX_MTU-1] = 576;
@@ -1618,14 +1624,14 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 	} else
 		rt->u.dst.metrics[RTAX_MTU-1]= rt->u.dst.dev->mtu;
 
-	if (rt->u.dst.metrics[RTAX_HOPLIMIT-1] == 0)
+	if (dst_metric(&rt->u.dst, RTAX_HOPLIMIT) == 0)
 		rt->u.dst.metrics[RTAX_HOPLIMIT-1] = sysctl_ip_default_ttl;
-	if (rt->u.dst.metrics[RTAX_MTU-1] > IP_MAX_MTU)
+	if (dst_metric(&rt->u.dst, RTAX_MTU) > IP_MAX_MTU)
 		rt->u.dst.metrics[RTAX_MTU-1] = IP_MAX_MTU;
-	if (rt->u.dst.metrics[RTAX_ADVMSS-1] == 0)
+	if (dst_metric(&rt->u.dst, RTAX_ADVMSS) == 0)
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = max_t(unsigned int, rt->u.dst.dev->mtu - 40,
 				       ip_rt_min_advmss);
-	if (rt->u.dst.metrics[RTAX_ADVMSS-1] > 65535 - 40)
+	if (dst_metric(&rt->u.dst, RTAX_ADVMSS) > 65535 - 40)
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = 65535 - 40;
 
 #ifdef CONFIG_NET_CLS_ROUTE

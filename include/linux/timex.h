@@ -58,6 +58,8 @@
 
 #include <asm/param.h>
 
+#define NTP_API		4	/* NTP API version */
+
 /*
  * SHIFT_KG and SHIFT_KF establish the damping of the PLL and are chosen
  * for a slightly underdamped convergence characteristic. SHIFT_KH
@@ -74,24 +76,22 @@
 #define MAXTC		10	/* maximum time constant (shift) */
 
 /*
- * The SHIFT_UPDATE define establishes the decimal point of the
- * time_offset variable which represents the current offset with
- * respect to standard time.
- *
  * SHIFT_USEC defines the scaling (shift) of the time_freq and
  * time_tolerance variables, which represent the current frequency
  * offset and maximum frequency tolerance.
  */
-#define SHIFT_UPDATE (SHIFT_HZ + 1) /* time offset scale (shift) */
 #define SHIFT_USEC 16		/* frequency offset scale (shift) */
-#define SHIFT_NSEC 12		/* kernel frequency offset scale */
+#define PPM_SCALE (NSEC_PER_USEC << (NTP_SCALE_SHIFT - SHIFT_USEC))
+#define PPM_SCALE_INV_SHIFT 20
+#define PPM_SCALE_INV ((1ll << (PPM_SCALE_INV_SHIFT + NTP_SCALE_SHIFT)) / \
+		       PPM_SCALE + 1)
 
-#define MAXPHASE 512000L        /* max phase error (us) */
-#define MAXFREQ (512L << SHIFT_USEC)  /* max frequency error (ppm) */
-#define MAXFREQ_NSEC (512000L << SHIFT_NSEC) /* max frequency error (ppb) */
+#define MAXPHASE 500000000l	/* max phase error (ns) */
+#define MAXFREQ 500000		/* max frequency error (ns/s) */
+#define MAXFREQ_SCALED ((s64)MAXFREQ << NTP_SCALE_SHIFT)
 #define MINSEC 256		/* min interval between updates (s) */
 #define MAXSEC 2048		/* max interval between updates (s) */
-#define	NTP_PHASE_LIMIT	(MAXPHASE << 5)	/* beyond max. dispersion */
+#define NTP_PHASE_LIMIT ((MAXPHASE / NSEC_PER_USEC) << 5) /* beyond max. dispersion */
 
 /*
  * syscall interface - used (mainly by NTP daemon)
@@ -121,9 +121,11 @@ struct timex {
 	long errcnt;            /* calibration errors (ro) */
 	long stbcnt;            /* stability limit exceeded (ro) */
 
+	int tai;		/* TAI offset (ro) */
+
 	int  :32; int  :32; int  :32; int  :32;
 	int  :32; int  :32; int  :32; int  :32;
-	int  :32; int  :32; int  :32; int  :32;
+	int  :32; int  :32; int  :32;
 };
 
 /*
@@ -135,6 +137,9 @@ struct timex {
 #define ADJ_ESTERROR		0x0008	/* estimated time error */
 #define ADJ_STATUS		0x0010	/* clock status */
 #define ADJ_TIMECONST		0x0020	/* pll time constant */
+#define ADJ_TAI			0x0080	/* set TAI offset */
+#define ADJ_MICRO		0x1000	/* select microsecond resolution */
+#define ADJ_NANO		0x2000	/* select nanosecond resolution */
 #define ADJ_TICK		0x4000	/* tick value */
 #define ADJ_OFFSET_SINGLESHOT	0x8001	/* old-fashioned adjtime */
 #define ADJ_OFFSET_SS_READ	0xa001  /* read-only adjtime */
@@ -146,8 +151,6 @@ struct timex {
 #define MOD_ESTERROR	ADJ_ESTERROR
 #define MOD_STATUS	ADJ_STATUS
 #define MOD_TIMECONST	ADJ_TIMECONST
-#define MOD_CLKB	ADJ_TICK
-#define MOD_CLKA	ADJ_OFFSET_SINGLESHOT /* 0x8000 in original */
 
 
 /*
@@ -169,9 +172,13 @@ struct timex {
 #define STA_PPSERROR	0x0800	/* PPS signal calibration error (ro) */
 
 #define STA_CLOCKERR	0x1000	/* clock hardware fault (ro) */
+#define STA_NANO	0x2000	/* resolution (0 = us, 1 = ns) (ro) */
+#define STA_MODE	0x4000	/* mode (0 = PLL, 1 = FLL) (ro) */
+#define STA_CLK		0x8000	/* clock source (0 = A, 1 = B) (ro) */
 
+/* read-only bits */
 #define STA_RONLY (STA_PPSSIGNAL | STA_PPSJITTER | STA_PPSWANDER | \
-    STA_PPSERROR | STA_CLOCKERR) /* read-only bits */
+	STA_PPSERROR | STA_CLOCKERR | STA_NANO | STA_MODE | STA_CLK)
 
 /*
  * Clock states (time_state)
@@ -203,10 +210,9 @@ extern int time_status;		/* clock synchronization status bits */
 extern long time_maxerror;	/* maximum error */
 extern long time_esterror;	/* estimated error */
 
-extern long time_freq;		/* frequency offset (scaled ppm) */
-
 extern long time_adjust;	/* The amount of adjtime left */
 
+extern void ntp_init(void);
 extern void ntp_clear(void);
 
 /**
@@ -225,7 +231,7 @@ static inline int ntp_synced(void)
 	__x < 0 ? -(-__x >> __s) : __x >> __s;	\
 })
 
-#define TICK_LENGTH_SHIFT	32
+#define NTP_SCALE_SHIFT		32
 
 #ifdef CONFIG_NO_HZ
 #define NTP_INTERVAL_FREQ  (2)
@@ -234,8 +240,8 @@ static inline int ntp_synced(void)
 #endif
 #define NTP_INTERVAL_LENGTH (NSEC_PER_SEC/NTP_INTERVAL_FREQ)
 
-/* Returns how long ticks are at present, in ns / 2^(SHIFT_SCALE-10). */
-extern u64 current_tick_length(void);
+/* Returns how long ticks are at present, in ns / 2^NTP_SCALE_SHIFT. */
+extern u64 tick_length;
 
 extern void second_overflow(void);
 extern void update_ntp_one_tick(void);

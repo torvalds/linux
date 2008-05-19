@@ -20,6 +20,8 @@
  */
 
 #include <asm/assembly.h>
+
+#include <linux/init.h>
 #include <linux/linkage.h>
 
 #ifdef CONFIG_64BIT
@@ -41,7 +43,7 @@
 ; The coprocessor only needs to be enabled when
 ; starting/stopping the coprocessor with the pmenb/pmdis.
 ;
-	.text
+	__HEAD
 
 ENTRY(perf_intrigue_enable_perf_counters)
 	.proc

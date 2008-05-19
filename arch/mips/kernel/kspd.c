@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/unistd.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/syscalls.h>
 #include <linux/workqueue.h>
@@ -256,7 +257,7 @@ void sp_work_handle_request(void)
 
 		vcwd = vpe_getcwd(tclimit);
 
- 		/* change to the cwd of the process that loaded the SP program */
+		/* change to cwd of the process that loaded the SP program */
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
 		sys_chdir(vcwd);
@@ -322,6 +323,9 @@ static void sp_cleanup(void)
 			set >>= 1;
 		}
 	}
+
+	/* Put daemon cwd back to root to avoid umount problems */
+	sys_chdir("/");
 }
 
 static int channel_open = 0;

@@ -64,7 +64,7 @@ static int irtty_chars_in_buffer(struct sir_dev *dev)
 	IRDA_ASSERT(priv != NULL, return -1;);
 	IRDA_ASSERT(priv->magic == IRTTY_MAGIC, return -1;);
 
-	return priv->tty->driver->chars_in_buffer(priv->tty);
+	return tty_chars_in_buffer(priv->tty);
 }
 
 /* Wait (sleep) until underlaying hardware finished transmission
@@ -93,10 +93,8 @@ static void irtty_wait_until_sent(struct sir_dev *dev)
 	IRDA_ASSERT(priv->magic == IRTTY_MAGIC, return;);
 
 	tty = priv->tty;
-	if (tty->driver->wait_until_sent) {
-		lock_kernel();
-		tty->driver->wait_until_sent(tty, msecs_to_jiffies(100));
-		unlock_kernel();
+	if (tty->ops->wait_until_sent) {
+		tty->ops->wait_until_sent(tty, msecs_to_jiffies(100));
 	}
 	else {
 		msleep(USBSERIAL_TX_DONE_DELAY);
@@ -125,48 +123,14 @@ static int irtty_change_speed(struct sir_dev *dev, unsigned speed)
 
 	tty = priv->tty;
 
-	lock_kernel();
+	mutex_lock(&tty->termios_mutex);
 	old_termios = *(tty->termios);
 	cflag = tty->termios->c_cflag;
-
-	cflag &= ~CBAUD;
-
-	IRDA_DEBUG(2, "%s(), Setting speed to %d\n", __FUNCTION__, speed);
-
-	switch (speed) {
-	case 1200:
-		cflag |= B1200;
-		break;
-	case 2400:
-		cflag |= B2400;
-		break;
-	case 4800:
-		cflag |= B4800;
-		break;
-	case 19200:
-		cflag |= B19200;
-		break;
-	case 38400:
-		cflag |= B38400;
-		break;
-	case 57600:
-		cflag |= B57600;
-		break;
-	case 115200:
-		cflag |= B115200;
-		break;
-	case 9600:
-	default:
-		cflag |= B9600;
-		break;
-	}	
-
-	tty->termios->c_cflag = cflag;
-	if (tty->driver->set_termios)
-		tty->driver->set_termios(tty, &old_termios);
-	unlock_kernel();
-
+	tty_encode_baud_rate(tty, speed, speed);
+	if (tty->ops->set_termios)
+		tty->ops->set_termios(tty, &old_termios);
 	priv->io.speed = speed;
+	mutex_unlock(&tty->termios_mutex);
 
 	return 0;
 }
@@ -202,8 +166,8 @@ static int irtty_set_dtr_rts(struct sir_dev *dev, int dtr, int rts)
 	 * This function is not yet defined for all tty driver, so
 	 * let's be careful... Jean II
 	 */
-	IRDA_ASSERT(priv->tty->driver->tiocmset != NULL, return -1;);
-	priv->tty->driver->tiocmset(priv->tty, NULL, set, clear);
+	IRDA_ASSERT(priv->tty->ops->tiocmset != NULL, return -1;);
+	priv->tty->ops->tiocmset(priv->tty, NULL, set, clear);
 
 	return 0;
 }
@@ -225,17 +189,13 @@ static int irtty_do_write(struct sir_dev *dev, const unsigned char *ptr, size_t 
 	IRDA_ASSERT(priv->magic == IRTTY_MAGIC, return -1;);
 
 	tty = priv->tty;
-	if (!tty->driver->write)
+	if (!tty->ops->write)
 		return 0;
 	tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
-	if (tty->driver->write_room) {
-		writelen = tty->driver->write_room(tty);
-		if (writelen > len)
-			writelen = len;
-	}
-	else
+	writelen = tty_write_room(tty);
+	if (writelen > len)
 		writelen = len;
-	return tty->driver->write(tty, ptr, writelen);
+	return tty->ops->write(tty, ptr, writelen);
 }
 
 /* ------------------------------------------------------- */
@@ -321,7 +281,7 @@ static inline void irtty_stop_receiver(struct tty_struct *tty, int stop)
 	struct ktermios old_termios;
 	int cflag;
 
-	lock_kernel();
+	mutex_lock(&tty->termios_mutex);
 	old_termios = *(tty->termios);
 	cflag = tty->termios->c_cflag;
 	
@@ -331,9 +291,9 @@ static inline void irtty_stop_receiver(struct tty_struct *tty, int stop)
 		cflag |= CREAD;
 
 	tty->termios->c_cflag = cflag;
-	if (tty->driver->set_termios)
-		tty->driver->set_termios(tty, &old_termios);
-	unlock_kernel();
+	if (tty->ops->set_termios)
+		tty->ops->set_termios(tty, &old_termios);
+	mutex_unlock(&tty->termios_mutex);
 }
 
 /*****************************************************************/
@@ -359,8 +319,8 @@ static int irtty_start_dev(struct sir_dev *dev)
 
 	tty = priv->tty;
 
-	if (tty->driver->start)
-		tty->driver->start(tty);
+	if (tty->ops->start)
+		tty->ops->start(tty);
 	/* Make sure we can receive more data */
 	irtty_stop_receiver(tty, FALSE);
 
@@ -388,8 +348,8 @@ static int irtty_stop_dev(struct sir_dev *dev)
 
 	/* Make sure we don't receive more data */
 	irtty_stop_receiver(tty, TRUE);
-	if (tty->driver->stop)
-		tty->driver->stop(tty);
+	if (tty->ops->stop)
+		tty->ops->stop(tty);
 
 	mutex_unlock(&irtty_mutex);
 
@@ -483,11 +443,10 @@ static int irtty_open(struct tty_struct *tty)
 
 	/* stop the underlying  driver */
 	irtty_stop_receiver(tty, TRUE);
-	if (tty->driver->stop)
-		tty->driver->stop(tty);
+	if (tty->ops->stop)
+		tty->ops->stop(tty);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
 	
 	/* apply mtt override */
 	sir_tty_drv.qos_mtt_bits = qos_mtt_bits;
@@ -564,8 +523,8 @@ static void irtty_close(struct tty_struct *tty)
 	/* Stop tty */
 	irtty_stop_receiver(tty, TRUE);
 	tty->flags &= ~(1 << TTY_DO_WRITE_WAKEUP);
-	if (tty->driver->stop)
-		tty->driver->stop(tty);
+	if (tty->ops->stop)
+		tty->ops->stop(tty);
 
 	kfree(priv);
 

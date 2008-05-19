@@ -742,7 +742,6 @@ struct iwl3945_priv {
 	u8 direct_ssid_len;
 	u8 direct_ssid[IW_ESSID_MAX_SIZE];
 	struct iwl3945_scan_cmd *scan;
-	u8 only_active_channel;
 
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */

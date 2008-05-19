@@ -139,15 +139,15 @@ static noinline __init void detect_machine_type(void)
 
 	/* Running under z/VM ? */
 	if (cpuinfo->cpu_id.version == 0xff)
-		machine_flags |= 1;
+		machine_flags |= MACHINE_FLAG_VM;
 
 	/* Running on a P/390 ? */
 	if (cpuinfo->cpu_id.machine == 0x7490)
-		machine_flags |= 4;
+		machine_flags |= MACHINE_FLAG_P390;
 
 	/* Running under KVM ? */
 	if (cpuinfo->cpu_id.version == 0xfe)
-		machine_flags |= 64;
+		machine_flags |= MACHINE_FLAG_KVM;
 }
 
 #ifdef CONFIG_64BIT
@@ -268,6 +268,118 @@ static noinline __init void setup_lowcore_early(void)
 	s390_base_pgm_handler_fn = early_pgm_check_handler;
 }
 
+static noinline __init void setup_hpage(void)
+{
+#ifndef CONFIG_DEBUG_PAGEALLOC
+	unsigned int facilities;
+
+	facilities = stfl();
+	if (!(facilities & (1UL << 23)) || !(facilities & (1UL << 29)))
+		return;
+	machine_flags |= MACHINE_FLAG_HPAGE;
+	__ctl_set_bit(0, 23);
+#endif
+}
+
+static __init void detect_mvpg(void)
+{
+#ifndef CONFIG_64BIT
+	int rc;
+
+	asm volatile(
+		"	la	0,0\n"
+		"	mvpg	%2,%2\n"
+		"0:	la	%0,0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "=d" (rc) : "0" (-EOPNOTSUPP), "a" (0) : "memory", "cc", "0");
+	if (!rc)
+		machine_flags |= MACHINE_FLAG_MVPG;
+#endif
+}
+
+static __init void detect_ieee(void)
+{
+#ifndef CONFIG_64BIT
+	int rc, tmp;
+
+	asm volatile(
+		"	efpc	%1,0\n"
+		"0:	la	%0,0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "=d" (rc), "=d" (tmp): "0" (-EOPNOTSUPP) : "cc");
+	if (!rc)
+		machine_flags |= MACHINE_FLAG_IEEE;
+#endif
+}
+
+static __init void detect_csp(void)
+{
+#ifndef CONFIG_64BIT
+	int rc;
+
+	asm volatile(
+		"	la	0,0\n"
+		"	la	1,0\n"
+		"	la	2,4\n"
+		"	csp	0,2\n"
+		"0:	la	%0,0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "=d" (rc) : "0" (-EOPNOTSUPP) : "cc", "0", "1", "2");
+	if (!rc)
+		machine_flags |= MACHINE_FLAG_CSP;
+#endif
+}
+
+static __init void detect_diag9c(void)
+{
+	unsigned int cpu_address;
+	int rc;
+
+	cpu_address = stap();
+	asm volatile(
+		"	diag	%2,0,0x9c\n"
+		"0:	la	%0,0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "=d" (rc) : "0" (-EOPNOTSUPP), "d" (cpu_address) : "cc");
+	if (!rc)
+		machine_flags |= MACHINE_FLAG_DIAG9C;
+}
+
+static __init void detect_diag44(void)
+{
+#ifdef CONFIG_64BIT
+	int rc;
+
+	asm volatile(
+		"	diag	0,0,0x44\n"
+		"0:	la	%0,0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "=d" (rc) : "0" (-EOPNOTSUPP) : "cc");
+	if (!rc)
+		machine_flags |= MACHINE_FLAG_DIAG44;
+#endif
+}
+
+static __init void detect_machine_facilities(void)
+{
+#ifdef CONFIG_64BIT
+	unsigned int facilities;
+
+	facilities = stfl();
+	if (facilities & (1 << 28))
+		machine_flags |= MACHINE_FLAG_IDTE;
+	if (facilities & (1 << 23))
+		machine_flags |= MACHINE_FLAG_PFMF;
+	if (facilities & (1 << 4))
+		machine_flags |= MACHINE_FLAG_MVCOS;
+#endif
+}
+
 /*
  * Save ipl parameters, clear bss memory, initialize storage keys
  * and create a kernel NSS at startup if the SAVESYS= parm is defined
@@ -285,6 +397,13 @@ void __init startup_init(void)
 	create_kernel_nss();
 	sort_main_extable();
 	setup_lowcore_early();
+	detect_mvpg();
+	detect_ieee();
+	detect_csp();
+	detect_diag9c();
+	detect_diag44();
+	detect_machine_facilities();
+	setup_hpage();
 	sclp_read_info_early();
 	sclp_facilities_detect();
 	memsize = sclp_memory_detect();

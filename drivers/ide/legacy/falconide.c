@@ -61,7 +61,7 @@ static void falconide_output_data(ide_drive_t *drive, struct request *rq,
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
 	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
-		return outsw(data_adr, buf, (len + 1) / 2);
+		return outsw(data_addr, buf, (len + 1) / 2);
 
 	outsw_swapw(data_addr, buf, (len + 1) / 2);
 }

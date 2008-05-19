@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -185,7 +185,7 @@ struct acpi_rsconvert_info acpi_rs_convert_end_tag[2] = {
  *
  ******************************************************************************/
 
-struct acpi_rsconvert_info acpi_rs_get_start_dpf[5] = {
+struct acpi_rsconvert_info acpi_rs_get_start_dpf[6] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_START_DEPENDENT,
 	 ACPI_RS_SIZE(struct acpi_resource_start_dependent),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_get_start_dpf)},
@@ -195,6 +195,12 @@ struct acpi_rsconvert_info acpi_rs_get_start_dpf[5] = {
 	{ACPI_RSC_SET8, ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
 	 ACPI_ACCEPTABLE_CONFIGURATION,
 	 2},
+
+	/* Get the descriptor length (0 or 1 for Start Dpf descriptor) */
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.start_dpf.descriptor_length),
+	 AML_OFFSET(start_dpf.descriptor_type),
+	 0},
 
 	/* All done if there is no flag byte present in the descriptor */
 
@@ -219,7 +225,9 @@ struct acpi_rsconvert_info acpi_rs_get_start_dpf[5] = {
  *
  ******************************************************************************/
 
-struct acpi_rsconvert_info acpi_rs_set_start_dpf[6] = {
+struct acpi_rsconvert_info acpi_rs_set_start_dpf[10] = {
+	/* Start with a default descriptor of length 1 */
+
 	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_START_DEPENDENT,
 	 sizeof(struct aml_resource_start_dependent),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_set_start_dpf)},
@@ -235,6 +243,33 @@ struct acpi_rsconvert_info acpi_rs_set_start_dpf[6] = {
 	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
 	 AML_OFFSET(start_dpf.flags),
 	 2},
+	/*
+	 * All done if the output descriptor length is required to be 1
+	 * (i.e., optimization to 0 bytes cannot be attempted)
+	 */
+	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.start_dpf.descriptor_length),
+	 1},
+
+	/* Set length to 0 bytes (no flags byte) */
+
+	{ACPI_RSC_LENGTH, 0, 0,
+	 sizeof(struct aml_resource_start_dependent_noprio)},
+
+	/*
+	 * All done if the output descriptor length is required to be 0.
+	 *
+	 * TBD: Perhaps we should check for error if input flags are not
+	 * compatible with a 0-byte descriptor.
+	 */
+	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.start_dpf.descriptor_length),
+	 0},
+
+	/* Reset length to 1 byte (descriptor with flags byte) */
+
+	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_start_dependent)},
+
 	/*
 	 * All done if flags byte is necessary -- if either priority value
 	 * is not ACPI_ACCEPTABLE_CONFIGURATION

@@ -356,17 +356,21 @@ static ssize_t pccard_store_cis(struct kobject *kobj,
 }
 
 
-static struct device_attribute *pccard_socket_attributes[] = {
-	&dev_attr_card_type,
-	&dev_attr_card_voltage,
-	&dev_attr_card_vpp,
-	&dev_attr_card_vcc,
-	&dev_attr_card_insert,
-	&dev_attr_card_pm_state,
-	&dev_attr_card_eject,
-	&dev_attr_card_irq_mask,
-	&dev_attr_available_resources_setup_done,
+static struct attribute *pccard_socket_attributes[] = {
+	&dev_attr_card_type.attr,
+	&dev_attr_card_voltage.attr,
+	&dev_attr_card_vpp.attr,
+	&dev_attr_card_vcc.attr,
+	&dev_attr_card_insert.attr,
+	&dev_attr_card_pm_state.attr,
+	&dev_attr_card_eject.attr,
+	&dev_attr_card_irq_mask.attr,
+	&dev_attr_available_resources_setup_done.attr,
 	NULL,
+};
+
+static const struct attribute_group socket_attrs = {
+	.attrs = pccard_socket_attributes,
 };
 
 static struct bin_attribute pccard_cis_attr = {
@@ -376,35 +380,21 @@ static struct bin_attribute pccard_cis_attr = {
 	.write = pccard_store_cis,
 };
 
-static int __devinit pccard_sysfs_add_socket(struct device *dev,
-					     struct class_interface *class_intf)
+int pccard_sysfs_add_socket(struct device *dev)
 {
-	struct device_attribute **attr;
 	int ret = 0;
 
-	for (attr = pccard_socket_attributes; *attr; attr++) {
-		ret = device_create_file(dev, *attr);
-		if (ret)
-			break;
-	}
-	if (!ret)
+	ret = sysfs_create_group(&dev->kobj, &socket_attrs);
+	if (!ret) {
 		ret = sysfs_create_bin_file(&dev->kobj, &pccard_cis_attr);
-
+		if (ret)
+			sysfs_remove_group(&dev->kobj, &socket_attrs);
+	}
 	return ret;
 }
 
-static void __devexit pccard_sysfs_remove_socket(struct device *dev,
-						 struct class_interface *class_intf)
+void pccard_sysfs_remove_socket(struct device *dev)
 {
-	struct device_attribute **attr;
-
 	sysfs_remove_bin_file(&dev->kobj, &pccard_cis_attr);
-	for (attr = pccard_socket_attributes; *attr; attr++)
-		device_remove_file(dev, *attr);
+	sysfs_remove_group(&dev->kobj, &socket_attrs);
 }
-
-struct class_interface pccard_sysfs_interface = {
-	.class = &pcmcia_socket_class,
-	.add_dev = &pccard_sysfs_add_socket,
-	.remove_dev = __devexit_p(&pccard_sysfs_remove_socket),
-};

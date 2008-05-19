@@ -208,6 +208,13 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 	f = JFFS2_INODE_INFO(inode);
 	dir_f = JFFS2_INODE_INFO(dir_i);
 
+	/* jffs2_do_create() will want to lock it, _after_ reserving
+	   space and taking c-alloc_sem. If we keep it locked here,
+	   lockdep gets unhappy (although it's a false positive;
+	   nothing else will be looking at this inode yet so there's
+	   no chance of AB-BA deadlock involving its f->sem). */
+	mutex_unlock(&f->sem);
+
 	ret = jffs2_do_create(c, dir_f, f, ri,
 			      dentry->d_name.name, dentry->d_name.len);
 	if (ret)
@@ -219,7 +226,8 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 	d_instantiate(dentry, inode);
 
 	D1(printk(KERN_DEBUG "jffs2_create: Created ino #%lu with mode %o, nlink %d(%d). nrpages %ld\n",
-		  inode->i_ino, inode->i_mode, inode->i_nlink, f->inocache->nlink, inode->i_mapping->nrpages));
+		  inode->i_ino, inode->i_mode, inode->i_nlink,
+		  f->inocache->pino_nlink, inode->i_mapping->nrpages));
 	return 0;
 
  fail:
@@ -243,7 +251,7 @@ static int jffs2_unlink(struct inode *dir_i, struct dentry *dentry)
 	ret = jffs2_do_unlink(c, dir_f, dentry->d_name.name,
 			      dentry->d_name.len, dead_f, now);
 	if (dead_f->inocache)
-		dentry->d_inode->i_nlink = dead_f->inocache->nlink;
+		dentry->d_inode->i_nlink = dead_f->inocache->pino_nlink;
 	if (!ret)
 		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
 	return ret;
@@ -276,7 +284,7 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 
 	if (!ret) {
 		mutex_lock(&f->sem);
-		old_dentry->d_inode->i_nlink = ++f->inocache->nlink;
+		old_dentry->d_inode->i_nlink = ++f->inocache->pino_nlink;
 		mutex_unlock(&f->sem);
 		d_instantiate(dentry, old_dentry->d_inode);
 		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
@@ -493,10 +501,13 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 
 	inode->i_op = &jffs2_dir_inode_operations;
 	inode->i_fop = &jffs2_dir_operations;
-	/* Directories get nlink 2 at start */
-	inode->i_nlink = 2;
 
 	f = JFFS2_INODE_INFO(inode);
+
+	/* Directories get nlink 2 at start */
+	inode->i_nlink = 2;
+	/* but ic->pino_nlink is the parent ino# */
+	f->inocache->pino_nlink = dir_i->i_ino;
 
 	ri->data_crc = cpu_to_je32(0);
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
@@ -594,17 +605,25 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 
 static int jffs2_rmdir (struct inode *dir_i, struct dentry *dentry)
 {
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(dir_i->i_sb);
+	struct jffs2_inode_info *dir_f = JFFS2_INODE_INFO(dir_i);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(dentry->d_inode);
 	struct jffs2_full_dirent *fd;
 	int ret;
+	uint32_t now = get_seconds();
 
 	for (fd = f->dents ; fd; fd = fd->next) {
 		if (fd->ino)
 			return -ENOTEMPTY;
 	}
-	ret = jffs2_unlink(dir_i, dentry);
-	if (!ret)
+
+	ret = jffs2_do_unlink(c, dir_f, dentry->d_name.name,
+			      dentry->d_name.len, f, now);
+	if (!ret) {
+		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
+		clear_nlink(dentry->d_inode);
 		drop_nlink(dir_i);
+	}
 	return ret;
 }
 
@@ -817,7 +836,10 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		   inode which didn't exist. */
 		if (victim_f->inocache) {
 			mutex_lock(&victim_f->sem);
-			victim_f->inocache->nlink--;
+			if (S_ISDIR(new_dentry->d_inode->i_mode))
+				victim_f->inocache->pino_nlink = 0;
+			else
+				victim_f->inocache->pino_nlink--;
 			mutex_unlock(&victim_f->sem);
 		}
 	}
@@ -838,8 +860,8 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		struct jffs2_inode_info *f = JFFS2_INODE_INFO(old_dentry->d_inode);
 		mutex_lock(&f->sem);
 		inc_nlink(old_dentry->d_inode);
-		if (f->inocache)
-			f->inocache->nlink++;
+		if (f->inocache && !S_ISDIR(old_dentry->d_inode->i_mode))
+			f->inocache->pino_nlink++;
 		mutex_unlock(&f->sem);
 
 		printk(KERN_NOTICE "jffs2_rename(): Link succeeded, unlink failed (err %d). You now have a hard link\n", ret);

@@ -3446,6 +3446,7 @@ static const struct snd_kcontrol_new snd_ac97_controls_vt1617a[] = {
 int patch_vt1617a(struct snd_ac97 * ac97)
 {
 	int err = 0;
+	int val;
 
 	/* we choose to not fail out at this point, but we tell the
 	   caller when we return */
@@ -3456,7 +3457,13 @@ int patch_vt1617a(struct snd_ac97 * ac97)
 	/* bring analog power consumption to normal by turning off the
 	 * headphone amplifier, like WinXP driver for EPIA SP
 	 */
-	snd_ac97_write_cache(ac97, 0x5c, 0x20);
+	/* We need to check the bit before writing it.
+	 * On some (many?) hardwares, setting bit actually clears it!
+	 */
+	val = snd_ac97_read(ac97, 0x5c);
+	if (!(val & 0x20))
+		snd_ac97_write_cache(ac97, 0x5c, 0x20);
+
 	ac97->ext_id |= AC97_EI_SPDIF;	/* force the detection of spdif */
 	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000;
 	ac97->build_ops = &patch_vt1616_ops;

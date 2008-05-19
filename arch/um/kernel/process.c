@@ -364,7 +364,7 @@ int __init make_proc_sysemu(void)
 	if (!sysemu_supported)
 		return 0;
 
-	ent = create_proc_entry("sysemu", 0600, &proc_root);
+	ent = create_proc_entry("sysemu", 0600, NULL);
 
 	if (ent == NULL)
 	{

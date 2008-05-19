@@ -154,19 +154,35 @@ out:
 
 /*
  * walk_memory_resource() needs to make sure there is no holes in a given
- * memory range. On PPC64, since this range comes from /sysfs, the range
- * is guaranteed to be valid, non-overlapping and can not contain any
- * holes. By the time we get here (memory add or remove), /proc/device-tree
- * is updated and correct. Only reason we need to check against device-tree
- * would be if we allow user-land to specify a memory range through a
- * system call/ioctl etc. instead of doing offline/online through /sysfs.
+ * memory range.  PPC64 does not maintain the memory layout in /proc/iomem.
+ * Instead it maintains it in lmb.memory structures.  Walk through the
+ * memory regions, find holes and callback for contiguous regions.
  */
 int
 walk_memory_resource(unsigned long start_pfn, unsigned long nr_pages, void *arg,
 			int (*func)(unsigned long, unsigned long, void *))
 {
-	return  (*func)(start_pfn, nr_pages, arg);
+	struct lmb_property res;
+	unsigned long pfn, len;
+	u64 end;
+	int ret = -1;
+
+	res.base = (u64) start_pfn << PAGE_SHIFT;
+	res.size = (u64) nr_pages << PAGE_SHIFT;
+
+	end = res.base + res.size - 1;
+	while ((res.base < end) && (lmb_find(&res) >= 0)) {
+		pfn = (unsigned long)(res.base >> PAGE_SHIFT);
+		len = (unsigned long)(res.size >> PAGE_SHIFT);
+		ret = (*func)(pfn, len, arg);
+		if (ret)
+			break;
+		res.base += (res.size + 1);
+		res.size = (end - res.base + 1);
+	}
+	return ret;
 }
+EXPORT_SYMBOL_GPL(walk_memory_resource);
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
 

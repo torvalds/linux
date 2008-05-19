@@ -1243,11 +1243,11 @@ install_route:
 		}
 	}
 
-	if (rt->u.dst.metrics[RTAX_HOPLIMIT-1] == 0)
+	if (dst_metric(&rt->u.dst, RTAX_HOPLIMIT) == 0)
 		rt->u.dst.metrics[RTAX_HOPLIMIT-1] = -1;
-	if (!rt->u.dst.metrics[RTAX_MTU-1])
+	if (!dst_metric(&rt->u.dst, RTAX_MTU))
 		rt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(dev);
-	if (!rt->u.dst.metrics[RTAX_ADVMSS-1])
+	if (!dst_metric(&rt->u.dst, RTAX_ADVMSS))
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(net, dst_mtu(&rt->u.dst));
 	rt->u.dst.dev = dev;
 	rt->rt6i_idev = idev;

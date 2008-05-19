@@ -322,10 +322,10 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	same_dev = 0; /* Keep the compiler quiet... */
 	switch (state) {
 	case DEV_STATE_NOT_OPER:
-		CIO_DEBUG(KERN_WARNING, 2,
-			  "SenseID : unknown device %04x on subchannel "
-			  "0.%x.%04x\n", cdev->private->dev_id.devno,
-			  sch->schid.ssid, sch->schid.sch_no);
+		CIO_MSG_EVENT(2, "SenseID : unknown device %04x on "
+			      "subchannel 0.%x.%04x\n",
+			      cdev->private->dev_id.devno,
+			      sch->schid.ssid, sch->schid.sch_no);
 		break;
 	case DEV_STATE_OFFLINE:
 		if (cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID) {
@@ -348,20 +348,19 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			return;
 		}
 		/* Issue device info message. */
-		CIO_DEBUG(KERN_INFO, 2,
-			  "SenseID : device 0.%x.%04x reports: "
-			  "CU  Type/Mod = %04X/%02X, Dev Type/Mod = "
-			  "%04X/%02X\n",
-			  cdev->private->dev_id.ssid,
-			  cdev->private->dev_id.devno,
-			  cdev->id.cu_type, cdev->id.cu_model,
-			  cdev->id.dev_type, cdev->id.dev_model);
+		CIO_MSG_EVENT(4, "SenseID : device 0.%x.%04x reports: "
+			      "CU  Type/Mod = %04X/%02X, Dev Type/Mod = "
+			      "%04X/%02X\n",
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno,
+			      cdev->id.cu_type, cdev->id.cu_model,
+			      cdev->id.dev_type, cdev->id.dev_model);
 		break;
 	case DEV_STATE_BOXED:
-		CIO_DEBUG(KERN_WARNING, 2,
-			  "SenseID : boxed device %04x on subchannel "
-			  "0.%x.%04x\n", cdev->private->dev_id.devno,
-			  sch->schid.ssid, sch->schid.sch_no);
+		CIO_MSG_EVENT(0, "SenseID : boxed device %04x on "
+			      " subchannel 0.%x.%04x\n",
+			      cdev->private->dev_id.devno,
+			      sch->schid.ssid, sch->schid.sch_no);
 		break;
 	}
 	cdev->private->state = state;
@@ -443,9 +442,8 @@ ccw_device_done(struct ccw_device *cdev, int state)
 
 
 	if (state == DEV_STATE_BOXED)
-		CIO_DEBUG(KERN_WARNING, 2,
-			  "Boxed device %04x on subchannel %04x\n",
-			  cdev->private->dev_id.devno, sch->schid.sch_no);
+		CIO_MSG_EVENT(0, "Boxed device %04x on subchannel %04x\n",
+			      cdev->private->dev_id.devno, sch->schid.sch_no);
 
 	if (cdev->private->flags.donotify) {
 		cdev->private->flags.donotify = 0;
@@ -555,8 +553,7 @@ ccw_device_recognition(struct ccw_device *cdev)
 	    (cdev->private->state != DEV_STATE_BOXED))
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
-	ret = cio_enable_subchannel(sch, sch->schib.pmcw.isc,
-				    (u32)(addr_t)sch);
+	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
 	if (ret != 0)
 		/* Couldn't enable the subchannel for i/o. Sick device. */
 		return ret;
@@ -667,8 +664,7 @@ ccw_device_online(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	if (css_init_done && !get_device(&cdev->dev))
 		return -ENODEV;
-	ret = cio_enable_subchannel(sch, sch->schib.pmcw.isc,
-				    (u32)(addr_t)sch);
+	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
 	if (ret != 0) {
 		/* Couldn't enable the subchannel for i/o. Sick device. */
 		if (ret == -ENODEV)
@@ -902,7 +898,7 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 			/* Basic sense hasn't started. Try again. */
 			ccw_device_do_sense(cdev, irb);
 		else {
-			CIO_MSG_EVENT(2, "Huh? 0.%x.%04x: unsolicited "
+			CIO_MSG_EVENT(0, "0.%x.%04x: unsolicited "
 				      "interrupt during w4sense...\n",
 				      cdev->private->dev_id.ssid,
 				      cdev->private->dev_id.devno);
@@ -1048,8 +1044,7 @@ ccw_device_start_id(struct ccw_device *cdev, enum dev_event dev_event)
 	struct subchannel *sch;
 
 	sch = to_subchannel(cdev->dev.parent);
-	if (cio_enable_subchannel(sch, sch->schib.pmcw.isc,
-				  (u32)(addr_t)sch) != 0)
+	if (cio_enable_subchannel(sch, (u32)(addr_t)sch) != 0)
 		/* Couldn't enable the subchannel for i/o. Sick device. */
 		return;
 
@@ -1082,7 +1077,6 @@ device_trigger_reprobe(struct subchannel *sch)
 	 */
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 	/* Re-set some bits in the pmcw that were lost. */
-	sch->schib.pmcw.isc = 3;
 	sch->schib.pmcw.csense = 1;
 	sch->schib.pmcw.ena = 0;
 	if ((sch->lpm & (sch->lpm - 1)) != 0)
@@ -1173,8 +1167,10 @@ ccw_device_nop(struct ccw_device *cdev, enum dev_event dev_event)
 static void
 ccw_device_bug(struct ccw_device *cdev, enum dev_event dev_event)
 {
-	CIO_MSG_EVENT(0, "dev_jumptable[%i][%i] == NULL\n",
-		      cdev->private->state, dev_event);
+	CIO_MSG_EVENT(0, "Internal state [%i][%i] not handled for device "
+		      "0.%x.%04x\n", cdev->private->state, dev_event,
+		      cdev->private->dev_id.ssid,
+		      cdev->private->dev_id.devno);
 	BUG();
 }
 

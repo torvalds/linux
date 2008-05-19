@@ -29,23 +29,6 @@
 #define MIN_MAP_ADDR	PAGE_SIZE	/* minimum fixed mmap address */
 
 /*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way Unix traditionally does this, though.
- */
-asmlinkage long sys_pipe(unsigned long __user *fildes)
-{
-	int fd[2];
-	int error;
-
-	error = do_pipe(fd);
-	if (!error) {
-		if (copy_to_user(fildes, fd, 2 * sizeof(int)))
-			error = -EFAULT;
-	}
-	return error;
-}
-
-/*
  * memory mapping syscall
  */
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,

@@ -17,6 +17,7 @@
 #include <linux/virtio_config.h>
 #include <linux/interrupt.h>
 #include <linux/virtio_ring.h>
+#include <linux/pfn.h>
 #include <asm/io.h>
 #include <asm/kvm_para.h>
 #include <asm/kvm_virtio.h>
@@ -180,11 +181,10 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 
 	config = kvm_vq_config(kdev->desc)+index;
 
-	if (add_shared_memory(config->address,
-				vring_size(config->num, PAGE_SIZE))) {
-		err = -ENOMEM;
+	err = vmem_add_mapping(config->address,
+			       vring_size(config->num, PAGE_SIZE));
+	if (err)
 		goto out;
-	}
 
 	vq = vring_new_virtqueue(config->num, vdev, (void *) config->address,
 				 kvm_notify, callback);
@@ -202,8 +202,8 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	vq->priv = config;
 	return vq;
 unmap:
-	remove_shared_memory(config->address, vring_size(config->num,
-			     PAGE_SIZE));
+	vmem_remove_mapping(config->address,
+			    vring_size(config->num, PAGE_SIZE));
 out:
 	return ERR_PTR(err);
 }
@@ -213,8 +213,8 @@ static void kvm_del_vq(struct virtqueue *vq)
 	struct kvm_vqconfig *config = vq->priv;
 
 	vring_del_virtqueue(vq);
-	remove_shared_memory(config->address,
-			     vring_size(config->num, PAGE_SIZE));
+	vmem_remove_mapping(config->address,
+			    vring_size(config->num, PAGE_SIZE));
 }
 
 /*
@@ -318,12 +318,13 @@ static int __init kvm_devices_init(void)
 		return rc;
 	}
 
-	if (add_shared_memory((max_pfn) << PAGE_SHIFT, PAGE_SIZE)) {
+	rc = vmem_add_mapping(PFN_PHYS(max_pfn), PAGE_SIZE);
+	if (rc) {
 		device_unregister(&kvm_root);
-		return -ENOMEM;
+		return rc;
 	}
 
-	kvm_devices  = (void *) (max_pfn << PAGE_SHIFT);
+	kvm_devices = (void *) PFN_PHYS(max_pfn);
 
 	ctl_set_bit(0, 9);
 	register_external_interrupt(0x2603, kvm_extint_handler);

@@ -2,8 +2,6 @@
 # Makefile for the linux kernel.
 #
 
-EXTRA_AFLAGS	:= -traditional
-
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.
 #

@@ -52,7 +52,6 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
-#include <linux/byteorder/generic.h>
 
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -74,6 +73,7 @@
 #include <media/v4l2-common.h>
 #include "videocodec.h"
 
+#include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>

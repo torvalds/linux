@@ -14,7 +14,7 @@ EXPORT_SYMBOL(forbid_dac);
 const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
-int iommu_sac_force __read_mostly = 0;
+static int iommu_sac_force __read_mostly;
 
 #ifdef CONFIG_IOMMU_DEBUG
 int panic_on_overflow __read_mostly = 1;
@@ -385,11 +385,13 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (dma_alloc_from_coherent_mem(dev, size, dma_handle, &memory))
 		return memory;
 
-	if (!dev)
+	if (!dev) {
 		dev = &fallback_dev;
+		gfp |= GFP_DMA;
+	}
 	dma_mask = dev->coherent_dma_mask;
 	if (dma_mask == 0)
-		dma_mask = DMA_32BIT_MASK;
+		dma_mask = (gfp & GFP_DMA) ? DMA_24BIT_MASK : DMA_32BIT_MASK;
 
 	/* Device not DMA able */
 	if (dev->dma_mask == NULL)
@@ -403,7 +405,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	   larger than 16MB and in this case we have a chance of
 	   finding fitting memory in the next higher zone first. If
 	   not retry with true GFP_DMA. -AK */
-	if (dma_mask <= DMA_32BIT_MASK)
+	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA))
 		gfp |= GFP_DMA32;
 #endif
 

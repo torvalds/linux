@@ -1,6 +1,6 @@
-#ifndef __UM_UNALIGNED_H
-#define __UM_UNALIGNED_H
+#ifndef _ASM_UM_UNALIGNED_H
+#define _ASM_UM_UNALIGNED_H
 
 #include "asm/arch/unaligned.h"
 
-#endif
+#endif /* _ASM_UM_UNALIGNED_H */

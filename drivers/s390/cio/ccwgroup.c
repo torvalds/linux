@@ -152,44 +152,89 @@ __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 	return 0;
 }
 
+static int __get_next_bus_id(const char **buf, char *bus_id)
+{
+	int rc, len;
+	char *start, *end;
+
+	start = (char *)*buf;
+	end = strchr(start, ',');
+	if (!end) {
+		/* Last entry. Strip trailing newline, if applicable. */
+		end = strchr(start, '\n');
+		if (end)
+			*end = '\0';
+		len = strlen(start) + 1;
+	} else {
+		len = end - start + 1;
+		end++;
+	}
+	if (len < BUS_ID_SIZE) {
+		strlcpy(bus_id, start, len);
+		rc = 0;
+	} else
+		rc = -EINVAL;
+	*buf = end;
+	return rc;
+}
+
+static int __is_valid_bus_id(char bus_id[BUS_ID_SIZE])
+{
+	int cssid, ssid, devno;
+
+	/* Must be of form %x.%x.%04x */
+	if (sscanf(bus_id, "%x.%1x.%04x", &cssid, &ssid, &devno) != 3)
+		return 0;
+	return 1;
+}
+
 /**
- * ccwgroup_create() - create and register a ccw group device
+ * ccwgroup_create_from_string() - create and register a ccw group device
  * @root: parent device for the new device
  * @creator_id: identifier of creating driver
  * @cdrv: ccw driver of slave devices
- * @argc: number of slave devices
- * @argv: bus ids of slave devices
+ * @num_devices: number of slave devices
+ * @buf: buffer containing comma separated bus ids of slave devices
  *
  * Create and register a new ccw group device as a child of @root. Slave
- * devices are obtained from the list of bus ids given in @argv[] and must all
+ * devices are obtained from the list of bus ids given in @buf and must all
  * belong to @cdrv.
  * Returns:
  *  %0 on success and an error code on failure.
  * Context:
  *  non-atomic
  */
-int ccwgroup_create(struct device *root, unsigned int creator_id,
-		    struct ccw_driver *cdrv, int argc, char *argv[])
+int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
+				struct ccw_driver *cdrv, int num_devices,
+				const char *buf)
 {
 	struct ccwgroup_device *gdev;
-	int i;
-	int rc;
+	int rc, i;
+	char tmp_bus_id[BUS_ID_SIZE];
+	const char *curr_buf;
 
-	if (argc > 256) /* disallow dumb users */
-		return -EINVAL;
-
-	gdev = kzalloc(sizeof(*gdev) + argc*sizeof(gdev->cdev[0]), GFP_KERNEL);
+	gdev = kzalloc(sizeof(*gdev) + num_devices * sizeof(gdev->cdev[0]),
+		       GFP_KERNEL);
 	if (!gdev)
 		return -ENOMEM;
 
 	atomic_set(&gdev->onoff, 0);
 	mutex_init(&gdev->reg_mutex);
 	mutex_lock(&gdev->reg_mutex);
-	for (i = 0; i < argc; i++) {
-		gdev->cdev[i] = get_ccwdev_by_busid(cdrv, argv[i]);
-
-		/* all devices have to be of the same type in
-		 * order to be grouped */
+	curr_buf = buf;
+	for (i = 0; i < num_devices && curr_buf; i++) {
+		rc = __get_next_bus_id(&curr_buf, tmp_bus_id);
+		if (rc != 0)
+			goto error;
+		if (!__is_valid_bus_id(tmp_bus_id)) {
+			rc = -EINVAL;
+			goto error;
+		}
+		gdev->cdev[i] = get_ccwdev_by_busid(cdrv, tmp_bus_id);
+		/*
+		 * All devices have to be of the same type in
+		 * order to be grouped.
+		 */
 		if (!gdev->cdev[i]
 		    || gdev->cdev[i]->id.driver_info !=
 		    gdev->cdev[0]->id.driver_info) {
@@ -203,9 +248,18 @@ int ccwgroup_create(struct device *root, unsigned int creator_id,
 		}
 		dev_set_drvdata(&gdev->cdev[i]->dev, gdev);
 	}
-
+	/* Check for sufficient number of bus ids. */
+	if (i < num_devices && !curr_buf) {
+		rc = -EINVAL;
+		goto error;
+	}
+	/* Check for trailing stuff. */
+	if (i == num_devices && strlen(curr_buf) > 0) {
+		rc = -EINVAL;
+		goto error;
+	}
 	gdev->creator_id = creator_id;
-	gdev->count = argc;
+	gdev->count = num_devices;
 	gdev->dev.bus = &ccwgroup_bus_type;
 	gdev->dev.parent = root;
 	gdev->dev.release = ccwgroup_release;
@@ -233,7 +287,7 @@ int ccwgroup_create(struct device *root, unsigned int creator_id,
 	device_remove_file(&gdev->dev, &dev_attr_ungroup);
 	device_unregister(&gdev->dev);
 error:
-	for (i = 0; i < argc; i++)
+	for (i = 0; i < num_devices; i++)
 		if (gdev->cdev[i]) {
 			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
 				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
@@ -243,6 +297,7 @@ error:
 	put_device(&gdev->dev);
 	return rc;
 }
+EXPORT_SYMBOL(ccwgroup_create_from_string);
 
 static int __init
 init_ccwgroup (void)
@@ -318,7 +373,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 {
 	struct ccwgroup_device *gdev;
 	struct ccwgroup_driver *gdrv;
-	unsigned int value;
+	unsigned long value;
 	int ret;
 
 	gdev = to_ccwgroupdev(dev);
@@ -329,7 +384,9 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 	if (!try_module_get(gdrv->owner))
 		return -EINVAL;
 
-	value = simple_strtoul(buf, NULL, 0);
+	ret = strict_strtoul(buf, 0, &value);
+	if (ret)
+		goto out;
 	ret = count;
 	if (value == 1)
 		ccwgroup_set_online(gdev);
@@ -337,6 +394,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 		ccwgroup_set_offline(gdev);
 	else
 		ret = -EINVAL;
+out:
 	module_put(gdrv->owner);
 	return ret;
 }
@@ -518,6 +576,5 @@ void ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(ccwgroup_driver_register);
 EXPORT_SYMBOL(ccwgroup_driver_unregister);
-EXPORT_SYMBOL(ccwgroup_create);
 EXPORT_SYMBOL(ccwgroup_probe_ccwdev);
 EXPORT_SYMBOL(ccwgroup_remove_ccwdev);

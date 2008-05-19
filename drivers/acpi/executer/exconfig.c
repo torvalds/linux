@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,6 @@
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acevents.h>
 #include <acpi/actables.h>
 #include <acpi/acdispat.h>
 
@@ -138,6 +137,14 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE(ex_load_table_op);
 
+	/* Validate lengths for the signature_string, OEMIDString, OEMtable_iD */
+
+	if ((operand[0]->string.length > ACPI_NAME_SIZE) ||
+	    (operand[1]->string.length > ACPI_OEM_ID_SIZE) ||
+	    (operand[2]->string.length > ACPI_OEM_TABLE_ID_SIZE)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
 	/* Find the ACPI table in the RSDT/XSDT */
 
 	status = acpi_tb_find_table(operand[0]->string.pointer,
@@ -229,9 +236,16 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	status = acpi_get_table_by_index(table_index, &table);
 	if (ACPI_SUCCESS(status)) {
 		ACPI_INFO((AE_INFO,
-			   "Dynamic OEM Table Load - [%4.4s] OemId [%6.6s] OemTableId [%8.8s]",
+			   "Dynamic OEM Table Load - [%.4s] OemId [%.6s] OemTableId [%.8s]",
 			   table->signature, table->oem_id,
 			   table->oem_table_id));
+	}
+
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
+					     acpi_gbl_table_handler_context);
 	}
 
 	*return_desc = ddb_handle;
@@ -268,6 +282,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	struct acpi_table_desc table_desc;
 	acpi_native_uint table_index;
 	acpi_status status;
+	u32 length;
 
 	ACPI_FUNCTION_TRACE(ex_load_op);
 
@@ -278,15 +293,15 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_REGION:
 
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Load from Region %p %s\n",
+				  obj_desc,
+				  acpi_ut_get_object_type_name(obj_desc)));
+
 		/* Region must be system_memory (from ACPI spec) */
 
 		if (obj_desc->region.space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
-
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Load from Region %p %s\n",
-				  obj_desc,
-				  acpi_ut_get_object_type_name(obj_desc)));
 
 		/*
 		 * If the Region Address and Length have not been previously evaluated,
@@ -299,6 +314,11 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			}
 		}
 
+		/*
+		 * We will simply map the memory region for the table. However, the
+		 * memory region is technically not guaranteed to remain stable and
+		 * we may eventually have to copy the table to a local buffer.
+		 */
 		table_desc.address = obj_desc->region.address;
 		table_desc.length = obj_desc->region.length;
 		table_desc.flags = ACPI_TABLE_ORIGIN_MAPPED;
@@ -306,18 +326,41 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_BUFFER:	/* Buffer or resolved region_field */
 
-		/* Simply extract the buffer from the buffer object */
-
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "Load from Buffer or Field %p %s\n", obj_desc,
 				  acpi_ut_get_object_type_name(obj_desc)));
 
-		table_desc.pointer = ACPI_CAST_PTR(struct acpi_table_header,
-						   obj_desc->buffer.pointer);
-		table_desc.length = table_desc.pointer->length;
-		table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
+		length = obj_desc->buffer.length;
 
-		obj_desc->buffer.pointer = NULL;
+		/* Must have at least an ACPI table header */
+
+		if (length < sizeof(struct acpi_table_header)) {
+			return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
+		}
+
+		/* Validate checksum here. It won't get validated in tb_add_table */
+
+		status =
+		    acpi_tb_verify_checksum(ACPI_CAST_PTR
+					    (struct acpi_table_header,
+					     obj_desc->buffer.pointer), length);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
+		/*
+		 * We need to copy the buffer since the original buffer could be
+		 * changed or deleted in the future
+		 */
+		table_desc.pointer = ACPI_ALLOCATE(length);
+		if (!table_desc.pointer) {
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
+
+		ACPI_MEMCPY(table_desc.pointer, obj_desc->buffer.pointer,
+			    length);
+		table_desc.length = length;
+		table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
 		break;
 
 	default:
@@ -333,7 +376,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	}
 
 	status =
-	    acpi_ex_add_table(table_index, acpi_gbl_root_node, &ddb_handle);
+	    acpi_ex_add_table(table_index, walk_state->scope_info->scope.node,
+			      &ddb_handle);
 	if (ACPI_FAILURE(status)) {
 
 		/* On error, table_ptr was deallocated above */
@@ -349,11 +393,23 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		/* table_ptr was deallocated above */
 
+		acpi_ut_remove_reference(ddb_handle);
 		return_ACPI_STATUS(status);
+	}
+
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD,
+					     table_desc.pointer,
+					     acpi_gbl_table_handler_context);
 	}
 
       cleanup:
 	if (ACPI_FAILURE(status)) {
+
+		/* Delete allocated buffer or mapping */
+
 		acpi_tb_delete_table(&table_desc);
 	}
 	return_ACPI_STATUS(status);
@@ -376,6 +432,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	acpi_status status = AE_OK;
 	union acpi_operand_object *table_desc = ddb_handle;
 	acpi_native_uint table_index;
+	struct acpi_table_header *table;
 
 	ACPI_FUNCTION_TRACE(ex_unload_table);
 
@@ -395,17 +452,25 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	table_index = (acpi_native_uint) table_desc->reference.object;
 
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		status = acpi_get_table_by_index(table_index, &table);
+		if (ACPI_SUCCESS(status)) {
+			(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_UNLOAD,
+						     table,
+						     acpi_gbl_table_handler_context);
+		}
+	}
+
 	/*
 	 * Delete the entire namespace under this table Node
 	 * (Offset contains the table_id)
 	 */
 	acpi_tb_delete_namespace_by_owner(table_index);
-	acpi_tb_release_owner_id(table_index);
+	(void)acpi_tb_release_owner_id(table_index);
 
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
-	/* Delete the table descriptor (ddb_handle) */
-
-	acpi_ut_remove_reference(table_desc);
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }

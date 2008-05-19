@@ -3,9 +3,11 @@
 #
 
 obj-y := common/
-obj-y += video/
+
+obj-$(CONFIG_VIDEO_MEDIA) += common/
+
+# Since hybrid devices are here, should be compiled if DVB and/or V4L
+obj-$(CONFIG_VIDEO_MEDIA) += video/
+
 obj-$(CONFIG_VIDEO_DEV) += radio/
 obj-$(CONFIG_DVB_CORE)  += dvb/
-ifeq ($(CONFIG_DVB_CORE),)
-  obj-$(CONFIG_VIDEO_TUNER)  += dvb/frontends/
-endif

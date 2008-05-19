@@ -468,6 +468,8 @@
 #define	VLEV_110		0x00B0	/* 		VLEV = 1.10 V (-5% - +10% Accuracy)	*/
 #define	VLEV_115		0x00C0	/* 		VLEV = 1.15 V (-5% - +10% Accuracy)	*/
 #define	VLEV_120		0x00D0	/* 		VLEV = 1.20 V (-5% - +10% Accuracy)	*/
+#define	VLEV_125		0x00E0	/*              VLEV = 1.25 V (-5% - +10% Accuracy)     */
+#define	VLEV_130		0x00F0	/*              VLEV = 1.30 V (-5% - +10% Accuracy)     */
 
 #define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate	*/
 #define	SCKELOW			0x8000	/* Do Not Drive SCKE High During Reset After Hibernate */

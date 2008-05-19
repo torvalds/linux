@@ -652,6 +652,9 @@ static int pccardd(void *__skt)
 		complete(&skt->thread_done);
 		return 0;
 	}
+	ret = pccard_sysfs_add_socket(&skt->dev);
+	if (ret)
+		dev_warn(&skt->dev, "err %d adding socket attributes\n", ret);
 
 	add_wait_queue(&skt->thread_wait, &wait);
 	complete(&skt->thread_done);
@@ -694,6 +697,7 @@ static int pccardd(void *__skt)
 	remove_wait_queue(&skt->thread_wait, &wait);
 
 	/* remove from the device core */
+	pccard_sysfs_remove_socket(&skt->dev);
 	device_unregister(&skt->dev);
 
 	return 0;
@@ -940,20 +944,13 @@ EXPORT_SYMBOL(pcmcia_socket_class);
 
 static int __init init_pcmcia_cs(void)
 {
-	int ret;
-
 	init_completion(&pcmcia_unload);
-	ret = class_register(&pcmcia_socket_class);
-	if (ret)
-		return (ret);
-	return class_interface_register(&pccard_sysfs_interface);
+	return class_register(&pcmcia_socket_class);
 }
 
 static void __exit exit_pcmcia_cs(void)
 {
-	class_interface_unregister(&pccard_sysfs_interface);
 	class_unregister(&pcmcia_socket_class);
-
 	wait_for_completion(&pcmcia_unload);
 }
 

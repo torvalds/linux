@@ -139,7 +139,6 @@ static void __smp_call_function_map(void (*func) (void *info), void *info,
 	if (wait)
 		data.finished = CPU_MASK_NONE;
 
-	spin_lock(&call_lock);
 	call_data = &data;
 
 	for_each_cpu_mask(cpu, map)
@@ -151,7 +150,6 @@ static void __smp_call_function_map(void (*func) (void *info), void *info,
 	if (wait)
 		while (!cpus_equal(map, data.finished))
 			cpu_relax();
-	spin_unlock(&call_lock);
 out:
 	if (local) {
 		local_irq_disable();
@@ -177,11 +175,11 @@ int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 {
 	cpumask_t map;
 
-	preempt_disable();
+	spin_lock(&call_lock);
 	map = cpu_online_map;
 	cpu_clear(smp_processor_id(), map);
 	__smp_call_function_map(func, info, nonatomic, wait, map);
-	preempt_enable();
+	spin_unlock(&call_lock);
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
@@ -202,10 +200,10 @@ EXPORT_SYMBOL(smp_call_function);
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 			     int nonatomic, int wait)
 {
-	preempt_disable();
+	spin_lock(&call_lock);
 	__smp_call_function_map(func, info, nonatomic, wait,
 				cpumask_of_cpu(cpu));
-	preempt_enable();
+	spin_unlock(&call_lock);
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function_single);
@@ -228,10 +226,10 @@ EXPORT_SYMBOL(smp_call_function_single);
 int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
 			   int wait)
 {
-	preempt_disable();
+	spin_lock(&call_lock);
 	cpu_clear(smp_processor_id(), mask);
 	__smp_call_function_map(func, info, 0, wait, mask);
-	preempt_enable();
+	spin_unlock(&call_lock);
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function_mask);
@@ -505,7 +503,7 @@ out:
 	return rc;
 }
 
-static int smp_rescan_cpus(void)
+static int __smp_rescan_cpus(void)
 {
 	cpumask_t avail;
 
@@ -570,7 +568,7 @@ out:
 	kfree(info);
 	printk(KERN_INFO "CPUs: %d configured, %d standby\n", c_cpus, s_cpus);
 	get_online_cpus();
-	smp_rescan_cpus();
+	__smp_rescan_cpus();
 	put_online_cpus();
 }
 
@@ -592,7 +590,9 @@ int __cpuinit start_secondary(void *cpuvoid)
 	pfault_init();
 
 	/* Mark this cpu as online */
+	spin_lock(&call_lock);
 	cpu_set(smp_processor_id(), cpu_online_map);
+	spin_unlock(&call_lock);
 	/* Switch on interrupts */
 	local_irq_enable();
 	/* Print info about this processor */
@@ -890,8 +890,8 @@ static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
 	if (val != 0 && val != 1)
 		return -EINVAL;
 
-	mutex_lock(&smp_cpu_state_mutex);
 	get_online_cpus();
+	mutex_lock(&smp_cpu_state_mutex);
 	rc = -EBUSY;
 	if (cpu_online(cpu))
 		goto out;
@@ -919,8 +919,8 @@ static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
 		break;
 	}
 out:
-	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
+	put_online_cpus();
 	return rc ? rc : count;
 }
 static SYSDEV_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
@@ -1088,17 +1088,17 @@ out:
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t __ref rescan_store(struct sys_device *dev,
-				  const char *buf, size_t count)
+
+int smp_rescan_cpus(void)
 {
 	cpumask_t newcpus;
 	int cpu;
 	int rc;
 
-	mutex_lock(&smp_cpu_state_mutex);
 	get_online_cpus();
+	mutex_lock(&smp_cpu_state_mutex);
 	newcpus = cpu_present_map;
-	rc = smp_rescan_cpus();
+	rc = __smp_rescan_cpus();
 	if (rc)
 		goto out;
 	cpus_andnot(newcpus, cpu_present_map, newcpus);
@@ -1109,10 +1109,19 @@ static ssize_t __ref rescan_store(struct sys_device *dev,
 	}
 	rc = 0;
 out:
-	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
+	put_online_cpus();
 	if (!cpus_empty(newcpus))
 		topology_schedule_update();
+	return rc;
+}
+
+static ssize_t __ref rescan_store(struct sys_device *dev, const char *buf,
+				  size_t count)
+{
+	int rc;
+
+	rc = smp_rescan_cpus();
 	return rc ? rc : count;
 }
 static SYSDEV_ATTR(rescan, 0200, NULL, rescan_store);
@@ -1139,16 +1148,16 @@ static ssize_t dispatching_store(struct sys_device *dev, const char *buf,
 	if (val != 0 && val != 1)
 		return -EINVAL;
 	rc = 0;
-	mutex_lock(&smp_cpu_state_mutex);
 	get_online_cpus();
+	mutex_lock(&smp_cpu_state_mutex);
 	if (cpu_management == val)
 		goto out;
 	rc = topology_set_cpu_management(val);
 	if (!rc)
 		cpu_management = val;
 out:
-	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
+	put_online_cpus();
 	return rc ? rc : count;
 }
 static SYSDEV_ATTR(dispatching, 0644, dispatching_show, dispatching_store);

@@ -171,24 +171,24 @@ static void spu_context_nospu_event(void *probe_private, void *call_data,
 }
 
 struct spu_probe spu_probes[] = {
-	{ "spu_bind_context__enter", "%p %p", spu_context_event },
-	{ "spu_unbind_context__enter", "%p %p", spu_context_event },
-	{ "spu_get_idle__enter", "%p", spu_context_nospu_event },
-	{ "spu_get_idle__found", "%p %p", spu_context_event },
-	{ "spu_get_idle__not_found", "%p", spu_context_nospu_event },
-	{ "spu_find_victim__enter", "%p", spu_context_nospu_event },
-	{ "spusched_tick__preempt", "%p %p", spu_context_event },
-	{ "spusched_tick__newslice", "%p", spu_context_nospu_event },
-	{ "spu_yield__enter", "%p", spu_context_nospu_event },
-	{ "spu_deactivate__enter", "%p", spu_context_nospu_event },
-	{ "__spu_deactivate__unload", "%p %p", spu_context_event },
-	{ "spufs_ps_nopfn__enter", "%p", spu_context_nospu_event },
-	{ "spufs_ps_nopfn__sleep", "%p", spu_context_nospu_event },
-	{ "spufs_ps_nopfn__wake", "%p %p", spu_context_event },
-	{ "spufs_ps_nopfn__insert", "%p %p", spu_context_event },
-	{ "spu_acquire_saved__enter", "%p", spu_context_nospu_event },
-	{ "destroy_spu_context__enter", "%p", spu_context_nospu_event },
-	{ "spufs_stop_callback__enter", "%p %p", spu_context_event },
+	{ "spu_bind_context__enter", "ctx %p spu %p", spu_context_event },
+	{ "spu_unbind_context__enter", "ctx %p spu %p", spu_context_event },
+	{ "spu_get_idle__enter", "ctx %p", spu_context_nospu_event },
+	{ "spu_get_idle__found", "ctx %p spu %p", spu_context_event },
+	{ "spu_get_idle__not_found", "ctx %p", spu_context_nospu_event },
+	{ "spu_find_victim__enter", "ctx %p", spu_context_nospu_event },
+	{ "spusched_tick__preempt", "ctx %p spu %p", spu_context_event },
+	{ "spusched_tick__newslice", "ctx %p", spu_context_nospu_event },
+	{ "spu_yield__enter", "ctx %p", spu_context_nospu_event },
+	{ "spu_deactivate__enter", "ctx %p", spu_context_nospu_event },
+	{ "__spu_deactivate__unload", "ctx %p spu %p", spu_context_event },
+	{ "spufs_ps_nopfn__enter", "ctx %p", spu_context_nospu_event },
+	{ "spufs_ps_nopfn__sleep", "ctx %p", spu_context_nospu_event },
+	{ "spufs_ps_nopfn__wake", "ctx %p spu %p", spu_context_event },
+	{ "spufs_ps_nopfn__insert", "ctx %p spu %p", spu_context_event },
+	{ "spu_acquire_saved__enter", "ctx %p", spu_context_nospu_event },
+	{ "destroy_spu_context__enter", "ctx %p", spu_context_nospu_event },
+	{ "spufs_stop_callback__enter", "ctx %p spu %p", spu_context_event },
 };
 
 static int __init sputrace_init(void)
@@ -201,10 +201,9 @@ static int __init sputrace_init(void)
 	if (!sputrace_log)
 		goto out;
 
-	entry = create_proc_entry("sputrace", S_IRUSR, NULL);
+	entry = proc_create("sputrace", S_IRUSR, NULL, &sputrace_fops);
 	if (!entry)
 		goto out_free_log;
-	entry->proc_fops = &sputrace_fops;
 
 	for (i = 0; i < ARRAY_SIZE(spu_probes); i++) {
 		struct spu_probe *p = &spu_probes[i];

@@ -995,10 +995,10 @@ static void rs_360_put_char(struct tty_struct *tty, unsigned char ch)
 	volatile QUICC_BD	*bdp;
 
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
-		return;
+		return 0;
 
 	if (!tty)
-		return;
+		return 0;
 
 	bdp = info->tx_cur;
 	while (bdp->status & BD_SC_READY);
@@ -1016,6 +1016,7 @@ static void rs_360_put_char(struct tty_struct *tty, unsigned char ch)
 		bdp++;
 
 	info->tx_cur = (QUICC_BD *)bdp;
+	return 1;
 
 }
 
@@ -1246,7 +1247,7 @@ static int rs_360_tiocmget(struct tty_struct *tty, struct file *file)
 #ifdef modem_control
 	unsigned char control, status;
 
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
 	if (tty->flags & (1 << TTY_IO_ERROR))
@@ -1277,12 +1278,12 @@ static int rs_360_tiocmset(struct tty_struct *tty, struct file *file,
 	ser_info_t *info = (ser_info_t *)tty->driver_data;
  	unsigned int arg;
 
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
-
+	/* FIXME: locking on info->mcr */
  	if (set & TIOCM_RTS)
  		info->mcr |= UART_MCR_RTS;
  	if (set & TIOCM_DTR)
@@ -1435,18 +1436,6 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 			if (retval)
 				return retval;
 			end_break(info);
-			return 0;
-		case TIOCGSOFTCAR:
-			/* return put_user(C_CLOCAL(tty) ? 1 : 0, (int *) arg); */
-			put_user(C_CLOCAL(tty) ? 1 : 0, (int *) arg);
-			return 0;
-		case TIOCSSOFTCAR:
-			error = get_user(arg, (unsigned int *) arg); 
-			if (error)
-				return error;
-			tty->termios->c_cflag =
-				((tty->termios->c_cflag & ~CLOCAL) |
-				 (arg ? CLOCAL : 0));
 			return 0;
 #ifdef maybe
 		case TIOCSERGETLSR: /* Get line status register */
@@ -1665,8 +1654,7 @@ static void rs_360_close(struct tty_struct *tty, struct file * filp)
 		rs_360_wait_until_sent(tty, info->timeout);
 	}
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	rs_360_flush_buffer(tty);
 	tty_ldisc_flush(tty);		
 	tty->closing = 0;
 	info->event = 0;
@@ -1717,6 +1705,7 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 	printk("jiff=%lu...", jiffies);
 #endif
 
+	lock_kernel();
 	/* We go through the loop at least once because we can't tell
 	 * exactly when the last character exits the shifter.  There can
 	 * be at least two characters waiting to be sent after the buffers
@@ -1745,6 +1734,7 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 			bdp--;
 	} while (bdp->status & BD_SC_READY);
 	current->state = TASK_RUNNING;
+	unlock_kernel();
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
 #endif

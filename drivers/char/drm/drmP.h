@@ -160,7 +160,7 @@ struct drm_device;
  * \param arg arguments
  */
 #define DRM_ERROR(fmt, arg...) \
-	printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* " fmt , __FUNCTION__ , ##arg)
+	printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* " fmt , __func__ , ##arg)
 
 /**
  * Memory error output.
@@ -170,7 +170,7 @@ struct drm_device;
  * \param arg arguments
  */
 #define DRM_MEM_ERROR(area, fmt, arg...) \
-	printk(KERN_ERR "[" DRM_NAME ":%s:%s] *ERROR* " fmt , __FUNCTION__, \
+	printk(KERN_ERR "[" DRM_NAME ":%s:%s] *ERROR* " fmt , __func__, \
 	       drm_mem_stats[area].name , ##arg)
 
 #define DRM_INFO(fmt, arg...)  printk(KERN_INFO "[" DRM_NAME "] " fmt , ##arg)
@@ -187,7 +187,7 @@ struct drm_device;
 		if ( drm_debug )			\
 			printk(KERN_DEBUG				\
 			       "[" DRM_NAME ":%s] " fmt ,	\
-			       __FUNCTION__ , ##arg);			\
+			       __func__ , ##arg);			\
 	} while (0)
 #else
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
@@ -238,7 +238,7 @@ do {									\
 	if ( !_DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ) ||		\
 	     dev->lock.file_priv != file_priv )	{			\
 		DRM_ERROR( "%s called without lock held, held  %d owner %p %p\n",\
-			   __FUNCTION__, _DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ),\
+			   __func__, _DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ),\
 			   dev->lock.file_priv, file_priv );		\
 		return -EINVAL;						\
 	}								\
