@@ -235,7 +235,7 @@ zfcp_qdio_request_handler(struct ccw_device *ccw_device,
  * zfcp_qdio_reqid_check - checks for valid reqids.
  */
 static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
-				  unsigned long req_id)
+				  unsigned long req_id, int sbal)
 {
 	struct zfcp_fsf_req *fsf_req;
 	unsigned long flags;
@@ -255,6 +255,7 @@ static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
 	atomic_dec(&adapter->reqs_active);
 	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 
+	fsf_req->sbal_response = sbal;
 	/* finish the FSF request */
 	zfcp_fsf_req_complete(fsf_req);
 }
@@ -321,7 +322,7 @@ zfcp_qdio_response_handler(struct ccw_device *ccw_device,
 			/* look for QDIO request identifiers in SB */
 			buffere = &buffer->element[buffere_index];
 			zfcp_qdio_reqid_check(adapter,
-					      (unsigned long) buffere->addr);
+					      (unsigned long) buffere->addr, i);
 
 			/*
 			 * A single used SBALE per inbound SBALE has been

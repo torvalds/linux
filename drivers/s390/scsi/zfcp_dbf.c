@@ -187,6 +187,7 @@ void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
 	response->fsf_req_status = fsf_req->status;
 	response->sbal_first = fsf_req->sbal_first;
 	response->sbal_last = fsf_req->sbal_last;
+	response->sbal_response = fsf_req->sbal_response;
 	response->pool = fsf_req->pool != NULL;
 	response->erp_action = (unsigned long)fsf_req->erp_action;
 
@@ -355,6 +356,7 @@ static void zfcp_hba_dbf_view_response(char **p,
 	zfcp_dbf_out(p, "fsf_req_status", "0x%08x", r->fsf_req_status);
 	zfcp_dbf_out(p, "sbal_first", "0x%02x", r->sbal_first);
 	zfcp_dbf_out(p, "sbal_last", "0x%02x", r->sbal_last);
+	zfcp_dbf_out(p, "sbal_response", "0x%02x", r->sbal_response);
 	zfcp_dbf_out(p, "pool", "0x%02x", r->pool);
 
 	switch (r->fsf_command) {

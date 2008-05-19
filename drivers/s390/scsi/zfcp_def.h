@@ -856,6 +856,7 @@ struct zfcp_fsf_req {
 						  this reuest */
 	u8		       sbale_curr;     /* current SBALE during creation
 						  of request */
+	u8			sbal_response;	/* SBAL used in interrupt */
 	wait_queue_head_t      completion_wq;  /* can be used by a routine
 						  to wait for completion */
 	volatile u32	       status;	       /* status of this request */
