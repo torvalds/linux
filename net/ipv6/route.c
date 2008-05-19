@@ -475,7 +475,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	lifetime = ntohl(rinfo->lifetime);
 	if (lifetime == 0xffffffff) {
 		/* infinity */
-	} else if (lifetime > 0x7fffffff/HZ) {
+	} else if (lifetime > 0x7fffffff/HZ - 1) {
 		/* Avoid arithmetic overflow */
 		lifetime = 0x7fffffff/HZ - 1;
 	}
