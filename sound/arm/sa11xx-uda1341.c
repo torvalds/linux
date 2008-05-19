@@ -21,8 +21,6 @@
  *                              merged HAL layer (patches from Brian)
  */
 
-/* $Id: sa11xx-uda1341.c,v 1.27 2005/12/07 09:13:42 cladisch Exp $ */
-
 /***************************************************************************************************
 *
 * To understand what Alsa Drivers should be doing look at "Writing an Alsa Driver" by Takashi Iwai
