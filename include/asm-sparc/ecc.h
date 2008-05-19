@@ -1,4 +1,4 @@
-/* $Id: ecc.h,v 1.3 1996/04/25 06:12:57 davem Exp $
+/*
  * ecc.h: Definitions and defines for the external cache/memory
  *        controller on the sun4m.
  *
