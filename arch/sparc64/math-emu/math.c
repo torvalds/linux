@@ -1,4 +1,4 @@
-/* $Id: math.c,v 1.11 1999/12/20 05:02:25 davem Exp $
+/*
  * arch/sparc64/math-emu/math.c
  *
  * Copyright (C) 1997,1999 Jakub Jelinek (jj@ultra.linux.cz)
