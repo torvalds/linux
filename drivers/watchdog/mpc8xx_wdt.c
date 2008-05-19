@@ -16,36 +16,35 @@
 #include <linux/module.h>
 #include <linux/watchdog.h>
 #include <asm/8xx_immap.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 #include <syslib/m8xx_wdt.h>
 
 static unsigned long wdt_opened;
 static int wdt_status;
+static spinlock_t wdt_lock;
 
 static void mpc8xx_wdt_handler_disable(void)
 {
 	volatile uint __iomem *piscr;
-	piscr = (uint *)&((immap_t*)IMAP_ADDR)->im_sit.sit_piscr;
+	piscr = (uint *)&((immap_t *)IMAP_ADDR)->im_sit.sit_piscr;
 
 	if (!m8xx_has_internal_rtc)
 		m8xx_wdt_stop_timer();
 	else
 		out_be32(piscr, in_be32(piscr) & ~(PISCR_PIE | PISCR_PTE));
-
 	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler deactivated\n");
 }
 
 static void mpc8xx_wdt_handler_enable(void)
 {
 	volatile uint __iomem *piscr;
-	piscr = (uint *)&((immap_t*)IMAP_ADDR)->im_sit.sit_piscr;
+	piscr = (uint *)&((immap_t *)IMAP_ADDR)->im_sit.sit_piscr;
 
 	if (!m8xx_has_internal_rtc)
 		m8xx_wdt_install_timer();
 	else
 		out_be32(piscr, in_be32(piscr) | PISCR_PIE | PISCR_PTE);
-
 	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler activated\n");
 }
 
@@ -53,37 +52,34 @@ static int mpc8xx_wdt_open(struct inode *inode, struct file *file)
 {
 	if (test_and_set_bit(0, &wdt_opened))
 		return -EBUSY;
-
 	m8xx_wdt_reset();
 	mpc8xx_wdt_handler_disable();
-
 	return nonseekable_open(inode, file);
 }
 
 static int mpc8xx_wdt_release(struct inode *inode, struct file *file)
 {
 	m8xx_wdt_reset();
-
 #if !defined(CONFIG_WATCHDOG_NOWAYOUT)
 	mpc8xx_wdt_handler_enable();
 #endif
-
 	clear_bit(0, &wdt_opened);
-
 	return 0;
 }
 
-static ssize_t mpc8xx_wdt_write(struct file *file, const char *data, size_t len,
-				loff_t * ppos)
+static ssize_t mpc8xx_wdt_write(struct file *file, const char *data,
+						size_t len, loff_t *ppos)
 {
-	if (len)
+	if (len) {
+		spin_lock(&wdt_lock);
 		m8xx_wdt_reset();
-
+		spin_unlock(&wdt_lock);
+	}
 	return len;
 }
 
-static int mpc8xx_wdt_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, unsigned long arg)
+static long mpc8xx_wdt_ioctl(struct file *file,
+					unsigned int cmd, unsigned long arg)
 {
 	int timeout;
 	static struct watchdog_info info = {
@@ -112,15 +108,19 @@ static int mpc8xx_wdt_ioctl(struct inode *inode, struct file *file,
 		return -EOPNOTSUPP;
 
 	case WDIOC_KEEPALIVE:
+		spin_lock(&wdt_lock);
 		m8xx_wdt_reset();
 		wdt_status |= WDIOF_KEEPALIVEPING;
+		spin_unlock(&wdt_lock);
 		break;
 
 	case WDIOC_SETTIMEOUT:
 		return -EOPNOTSUPP;
 
 	case WDIOC_GETTIMEOUT:
+		spin_lock(&wdt_lock);
 		timeout = m8xx_wdt_get_timeout();
+		spin_unlock(&wdt_lock);
 		if (put_user(timeout, (int *)arg))
 			return -EFAULT;
 		break;
@@ -136,7 +136,7 @@ static const struct file_operations mpc8xx_wdt_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.write = mpc8xx_wdt_write,
-	.ioctl = mpc8xx_wdt_ioctl,
+	.unlocked_ioctl = mpc8xx_wdt_ioctl,
 	.open = mpc8xx_wdt_open,
 	.release = mpc8xx_wdt_release,
 };
@@ -149,6 +149,7 @@ static struct miscdevice mpc8xx_wdt_miscdev = {
 
 static int __init mpc8xx_wdt_init(void)
 {
+	spin_lock_init(&wdt_lock);
 	return misc_register(&mpc8xx_wdt_miscdev);
 }
 
