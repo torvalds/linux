@@ -360,7 +360,10 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 			}
 			if (cifs_sb->tcon->seal)
 				seq_printf(s, ",seal");
+			if (cifs_sb->tcon->nocase)
 				seq_printf(s, ",nocase");
+			if (cifs_sb->tcon->retry)
+				seq_printf(s, ",hard");
 		}
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 			seq_printf(s, ",posixpaths");
