@@ -600,7 +600,6 @@ static irqreturn_t dummy_handler (int irq, void *dev_id)
 {
 	BUG();
 }
-extern irqreturn_t handle_IPI (int irq, void *dev_id);
 
 static struct irqaction ipi_irqaction = {
 	.handler =	handle_IPI,
