@@ -34,8 +34,6 @@
 #include "smscoreapi.h"
 #include "smstypes.h"
 
-#include "smschar.h"
-
 typedef struct _smscore_device_notifyee
 {
 	struct list_head entry;
@@ -1100,7 +1098,7 @@ int smscore_map_common_buffer(smscore_device_t *coredev, struct vm_area_struct *
 
 int smscore_module_init(void)
 {
-	int rc;
+	int rc = 0;
 
 	INIT_LIST_HEAD(&g_smscore_notifyees);
 	INIT_LIST_HEAD(&g_smscore_devices);
@@ -1109,8 +1107,6 @@ int smscore_module_init(void)
 	INIT_LIST_HEAD(&g_smscore_registry);
 	kmutex_init(&g_smscore_registrylock);
 
-	rc = smschar_initialize();
-
 	printk(KERN_INFO "%s, rc %d\n", __FUNCTION__, rc);
 
 	return rc;
@@ -1118,8 +1114,6 @@ int smscore_module_init(void)
 
 void smscore_module_exit(void)
 {
-	smschar_terminate();
-
 	kmutex_lock(&g_smscore_deviceslock);
 	while (!list_empty(&g_smscore_notifyees))
 	{
