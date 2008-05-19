@@ -161,9 +161,10 @@ int mod_reg_security(const char *name, struct security_operations *ops)
 
 /* Security operations */
 
-int security_ptrace(struct task_struct *parent, struct task_struct *child)
+int security_ptrace(struct task_struct *parent, struct task_struct *child,
+		    unsigned int mode)
 {
-	return security_ops->ptrace(parent, child);
+	return security_ops->ptrace(parent, child, mode);
 }
 
 int security_capget(struct task_struct *target,

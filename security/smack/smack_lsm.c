@@ -95,11 +95,12 @@ struct inode_smack *new_inode_smack(char *smack)
  *
  * Do the capability checks, and require read and write.
  */
-static int smack_ptrace(struct task_struct *ptp, struct task_struct *ctp)
+static int smack_ptrace(struct task_struct *ptp, struct task_struct *ctp,
+			unsigned int mode)
 {
 	int rc;
 
-	rc = cap_ptrace(ptp, ctp);
+	rc = cap_ptrace(ptp, ctp, mode);
 	if (rc != 0)
 		return rc;
 

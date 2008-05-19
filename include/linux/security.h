@@ -46,7 +46,8 @@ struct audit_krule;
  */
 extern int cap_capable(struct task_struct *tsk, int cap);
 extern int cap_settime(struct timespec *ts, struct timezone *tz);
-extern int cap_ptrace(struct task_struct *parent, struct task_struct *child);
+extern int cap_ptrace(struct task_struct *parent, struct task_struct *child,
+		      unsigned int mode);
 extern int cap_capget(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern int cap_capset_check(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
 extern void cap_capset_set(struct task_struct *target, kernel_cap_t *effective, kernel_cap_t *inheritable, kernel_cap_t *permitted);
@@ -1170,6 +1171,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	attributes would be changed by the execve.
  *	@parent contains the task_struct structure for parent process.
  *	@child contains the task_struct structure for child process.
+ *	@mode contains the PTRACE_MODE flags indicating the form of access.
  *	Return 0 if permission is granted.
  * @capget:
  *	Get the @effective, @inheritable, and @permitted capability sets for
@@ -1295,7 +1297,8 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
 struct security_operations {
 	char name[SECURITY_NAME_MAX + 1];
 
-	int (*ptrace) (struct task_struct *parent, struct task_struct *child);
+	int (*ptrace) (struct task_struct *parent, struct task_struct *child,
+		       unsigned int mode);
 	int (*capget) (struct task_struct *target,
 		       kernel_cap_t *effective,
 		       kernel_cap_t *inheritable, kernel_cap_t *permitted);
@@ -1573,7 +1576,8 @@ extern struct dentry *securityfs_create_dir(const char *name, struct dentry *par
 extern void securityfs_remove(struct dentry *dentry);
 
 /* Security operations */
-int security_ptrace(struct task_struct *parent, struct task_struct *child);
+int security_ptrace(struct task_struct *parent, struct task_struct *child,
+		    unsigned int mode);
 int security_capget(struct task_struct *target,
 		    kernel_cap_t *effective,
 		    kernel_cap_t *inheritable,
@@ -1755,9 +1759,11 @@ static inline int security_init(void)
 	return 0;
 }
 
-static inline int security_ptrace(struct task_struct *parent, struct task_struct *child)
+static inline int security_ptrace(struct task_struct *parent,
+				  struct task_struct *child,
+				  unsigned int mode)
 {
-	return cap_ptrace(parent, child);
+	return cap_ptrace(parent, child, mode);
 }
 
 static inline int security_capget(struct task_struct *target,

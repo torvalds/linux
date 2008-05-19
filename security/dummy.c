@@ -30,7 +30,8 @@
 #include <linux/prctl.h>
 #include <linux/securebits.h>
 
-static int dummy_ptrace (struct task_struct *parent, struct task_struct *child)
+static int dummy_ptrace (struct task_struct *parent, struct task_struct *child,
+			 unsigned int mode)
 {
 	return 0;
 }

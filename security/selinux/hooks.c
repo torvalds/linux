@@ -1686,13 +1686,22 @@ static inline u32 file_to_av(struct file *file)
 
 /* Hook functions begin here. */
 
-static int selinux_ptrace(struct task_struct *parent, struct task_struct *child)
+static int selinux_ptrace(struct task_struct *parent,
+			  struct task_struct *child,
+			  unsigned int mode)
 {
 	int rc;
 
-	rc = secondary_ops->ptrace(parent, child);
+	rc = secondary_ops->ptrace(parent, child, mode);
 	if (rc)
 		return rc;
+
+	if (mode == PTRACE_MODE_READ) {
+		struct task_security_struct *tsec = parent->security;
+		struct task_security_struct *csec = child->security;
+		return avc_has_perm(tsec->sid, csec->sid,
+				    SECCLASS_FILE, FILE__READ, NULL);
+	}
 
 	return task_has_perm(parent, child, PROCESS__PTRACE);
 }
