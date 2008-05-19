@@ -95,7 +95,7 @@ int __init dlm_netlink_init(void)
 	return rv;
 }
 
-void __exit dlm_netlink_exit(void)
+void dlm_netlink_exit(void)
 {
 	genl_unregister_ops(&family, &dlm_nl_ops);
 	genl_unregister_family(&family);
