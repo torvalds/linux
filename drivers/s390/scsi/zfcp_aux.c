@@ -970,6 +970,27 @@ static void zfcp_dummy_release(struct device *dev)
 	return;
 }
 
+int zfcp_status_read_refill(struct zfcp_adapter *adapter)
+{
+	while (atomic_read(&adapter->stat_miss) > 0)
+		if (zfcp_fsf_status_read(adapter, ZFCP_WAIT_FOR_SBAL))
+			break;
+	else
+		atomic_dec(&adapter->stat_miss);
+
+	if (ZFCP_STATUS_READS_RECOM <= atomic_read(&adapter->stat_miss)) {
+		zfcp_erp_adapter_reopen(adapter, 0, 103, NULL);
+		return 1;
+	}
+	return 0;
+}
+
+static void _zfcp_status_read_scheduler(struct work_struct *work)
+{
+	zfcp_status_read_refill(container_of(work, struct zfcp_adapter,
+					     stat_work));
+}
+
 /*
  * Enqueues an adapter at the end of the adapter list in the driver data.
  * All adapter internal structures are set up.
@@ -1063,6 +1084,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	/* initialize lock of associated request queue */
 	rwlock_init(&adapter->request_queue.queue_lock);
+	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
@@ -1123,6 +1145,7 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	int retval = 0;
 	unsigned long flags;
 
+	cancel_work_sync(&adapter->stat_work);
 	zfcp_adapter_scsi_unregister(adapter);
 	device_unregister(&adapter->generic_services);
 	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);

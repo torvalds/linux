@@ -2139,25 +2139,10 @@ static int
 zfcp_erp_adapter_strategy_open_fsf_statusread(struct zfcp_erp_action
 					      *erp_action)
 {
-	int retval = ZFCP_ERP_SUCCEEDED;
-	int temp_ret;
 	struct zfcp_adapter *adapter = erp_action->adapter;
-	int i;
 
-	adapter->status_read_failed = 0;
-	for (i = 0; i < ZFCP_STATUS_READS_RECOM; i++) {
-		temp_ret = zfcp_fsf_status_read(adapter, ZFCP_WAIT_FOR_SBAL);
-		if (temp_ret < 0) {
-			ZFCP_LOG_INFO("error: set-up of unsolicited status "
-				      "notification failed on adapter %s\n",
-				      zfcp_get_busid_by_adapter(adapter));
-			retval = ZFCP_ERP_FAILED;
-			i--;
-			break;
-		}
-	}
-
-	return retval;
+	atomic_set(&adapter->stat_miss, 16);
+	return zfcp_status_read_refill(adapter);
 }
 
 /*

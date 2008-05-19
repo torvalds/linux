@@ -1029,21 +1029,9 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 	 * FIXME:
 	 * allocation failure possible? (Is this code needed?)
 	 */
-	retval = zfcp_fsf_status_read(adapter, 0);
-	if (retval < 0) {
-		ZFCP_LOG_INFO("Failed to create unsolicited status read "
-			      "request for the adapter %s.\n",
-			      zfcp_get_busid_by_adapter(adapter));
-		/* temporary fix to avoid status read buffer shortage */
-		adapter->status_read_failed++;
-		if ((ZFCP_STATUS_READS_RECOM - adapter->status_read_failed)
-		    < ZFCP_STATUS_READ_FAILED_THRESHOLD) {
-			ZFCP_LOG_INFO("restart adapter %s due to status read "
-				      "buffer shortage\n",
-				      zfcp_get_busid_by_adapter(adapter));
-			zfcp_erp_adapter_reopen(adapter, 0, 103, fsf_req);
-		}
-	}
+
+	atomic_inc(&adapter->stat_miss);
+	schedule_work(&adapter->stat_work);
  out:
 	return retval;
 }
