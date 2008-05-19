@@ -20,6 +20,8 @@
  *
  */
 
+#define DO_SAVE_MIN		IA64_NATIVE_DO_SAVE_MIN
+
 #ifdef CONFIG_PARAVIRT_GUEST_ASM_CLOBBER_CHECK
 # define PARAVIRT_POISON	0xdeadbeefbaadf00d
 # define CLOBBER(clob)				\
