@@ -229,8 +229,6 @@
 *    in case a wake up is lost.
 *  - Following Documentation/DocBook/kernel-locking.pdf no spin locks
 *    are held when calling copy_to/from_user or printk.
-*    
-*  $Id: digi_acceleport.c,v 1.80.1.2 2000/11/02 05:45:08 root Exp $
 */
 
 #include <linux/kernel.h>
