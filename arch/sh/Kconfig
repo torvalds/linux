@@ -477,6 +477,10 @@ config SH_RTS7751R2D
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
 
+config SH_RSK7203
+	bool "RSK7203"
+	depends on CPU_SUBTYPE_SH7203
+
 config SH_SDK7780
 	bool "SDK7780R3"
 	depends on CPU_SUBTYPE_SH7780
