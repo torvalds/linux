@@ -1,0 +1,36 @@
+#
+# Mobile Digital TV device configuration
+#
+
+config MDTV_SIANO_STELLAR_COMMON
+	tristate "Siano SMS10xx adapter"
+	default m
+	---help---
+	  Choose Y here if you have SMS10xx chipset.
+
+	  In order to control the SMS10xx chipset you will need SMS Host Control library.
+
+	  Further documentation on this driver can be found on the WWW at
+	  <http://www.siano-ms.com/>.
+
+	  To compile this driver as a module, choose M here: the
+	  modules will be called smschar and smsnet.
+
+config MDTV_SIANO_STELLAR_USB
+	tristate "Siano SMS10xx USB dongle support"
+	depends on MDTV_SIANO_STELLAR_COMMON
+	default m
+	---help---
+	  Choose Y here if you have USB dongle with SMS10xx chipset.
+
+	  In order to control the SMS10xx chipset you will need SMS Host Control library.
+
+	  Further documentation on this driver can be found on the WWW at
+	  <http://www.siano-ms.com/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called smsusb.
+
+
+
+
