@@ -670,24 +670,20 @@ static struct debug_view zfcp_rec_dbf_view = {
  * zfcp_rec_dbf_event_thread - trace event related to recovery thread operation
  * @id2: identifier for event
  * @adapter: adapter
- * @lock: non-zero value indicates that erp_lock has not yet been acquired
+ * This function assumes that the caller is holding erp_lock.
  */
-void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter, int lock)
+void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter)
 {
 	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
 	unsigned long flags = 0;
 	struct list_head *entry;
 	unsigned ready = 0, running = 0, total;
 
-	if (lock)
-		read_lock_irqsave(&adapter->erp_lock, flags);
 	list_for_each(entry, &adapter->erp_ready_head)
 		ready++;
 	list_for_each(entry, &adapter->erp_running_head)
 		running++;
 	total = adapter->erp_total_count;
-	if (lock)
-		read_unlock_irqrestore(&adapter->erp_lock, flags);
 
 	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
@@ -698,6 +694,21 @@ void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter, int lock)
 	r->u.thread.running = running;
 	debug_event(adapter->rec_dbf, 6, r, sizeof(*r));
 	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
+}
+
+/**
+ * zfcp_rec_dbf_event_thread - trace event related to recovery thread operation
+ * @id2: identifier for event
+ * @adapter: adapter
+ * This function assumes that the caller does not hold erp_lock.
+ */
+void zfcp_rec_dbf_event_thread_lock(u8 id2, struct zfcp_adapter *adapter)
+{
+	unsigned long flags;
+
+	read_lock_irqsave(&adapter->erp_lock, flags);
+	zfcp_rec_dbf_event_thread(id2, adapter);
+	read_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
 static void zfcp_rec_dbf_event_target(u8 id2, void *ref,

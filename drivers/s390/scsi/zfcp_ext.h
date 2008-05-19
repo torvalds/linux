@@ -169,8 +169,8 @@ extern void zfcp_erp_port_access_changed(struct zfcp_port *, u8, void *);
 extern void zfcp_erp_unit_access_changed(struct zfcp_unit *, u8, void *);
 
 /******************************** AUX ****************************************/
-extern void zfcp_rec_dbf_event_thread(u8 id, struct zfcp_adapter *adapter,
-				      int lock);
+extern void zfcp_rec_dbf_event_thread(u8 id, struct zfcp_adapter *adapter);
+extern void zfcp_rec_dbf_event_thread_lock(u8 id, struct zfcp_adapter *adapter);
 extern void zfcp_rec_dbf_event_adapter(u8 id, void *ref, struct zfcp_adapter *);
 extern void zfcp_rec_dbf_event_port(u8 id, void *ref, struct zfcp_port *port);
 extern void zfcp_rec_dbf_event_unit(u8 id, void *ref, struct zfcp_unit *unit);
