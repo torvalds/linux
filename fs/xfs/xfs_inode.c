@@ -2986,7 +2986,7 @@ xfs_iflush_cluster(
 	ASSERT(pag->pag_ici_init);
 
 	ilist_size = XFS_INODE_CLUSTER_SIZE(mp) * sizeof(xfs_inode_t *);
-	ilist = kmem_alloc(ilist_size, KM_MAYFAIL);
+	ilist = kmem_alloc(ilist_size, KM_MAYFAIL|KM_NOFS);
 	if (!ilist)
 		return 0;
 
