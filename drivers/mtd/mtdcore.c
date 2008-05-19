@@ -70,9 +70,8 @@ int add_mtd_device(struct mtd_info *mtd)
 			DEBUG(0, "mtd: Giving out device %d to %s\n",i, mtd->name);
 			/* No need to get a refcount on the module containing
 			   the notifier, since we hold the mtd_table_mutex */
-			list_for_each_entry(not, &mtd_notifiers, list) {
+			list_for_each_entry(not, &mtd_notifiers, list)
 				not->add(mtd);
-			}
 
 			mutex_unlock(&mtd_table_mutex);
 			/* We _know_ we aren't being removed, because
@@ -114,9 +113,8 @@ int del_mtd_device (struct mtd_info *mtd)
 
 		/* No need to get a refcount on the module containing
 		   the notifier, since we hold the mtd_table_mutex */
-		list_for_each_entry(not, &mtd_notifiers, list) {
+		list_for_each_entry(not, &mtd_notifiers, list)
 			not->remove(mtd);
-		}
 
 		mtd_table[mtd->index] = NULL;
 

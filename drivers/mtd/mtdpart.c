@@ -300,22 +300,15 @@ static int part_block_markbad (struct mtd_info *mtd, loff_t ofs)
 
 int del_mtd_partitions(struct mtd_info *master)
 {
-	struct list_head *node;
-	struct mtd_part *slave;
+	struct mtd_part *slave, *next;
 
-	for (node = mtd_partitions.next;
-	     node != &mtd_partitions;
-	     node = node->next) {
-		slave = list_entry(node, struct mtd_part, list);
+	list_for_each_entry_safe(slave, next, &mtd_partitions, list)
 		if (slave->master == master) {
-			struct list_head *prev = node->prev;
-			__list_del(prev, node->next);
+			list_del(&slave->list);
 			if(slave->registered)
 				del_mtd_device(&slave->mtd);
 			kfree(slave);
-			node = prev;
 		}
-	}
 
 	return 0;
 }
@@ -511,18 +504,16 @@ static LIST_HEAD(part_parsers);
 
 static struct mtd_part_parser *get_partition_parser(const char *name)
 {
-	struct list_head *this;
-	void *ret = NULL;
+	struct mtd_part_parser *p, *ret = NULL;
+
 	spin_lock(&part_parser_lock);
 
-	list_for_each(this, &part_parsers) {
-		struct mtd_part_parser *p = list_entry(this, struct mtd_part_parser, list);
-
+	list_for_each_entry(p, &part_parsers, list)
 		if (!strcmp(p->name, name) && try_module_get(p->owner)) {
 			ret = p;
 			break;
 		}
-	}
+
 	spin_unlock(&part_parser_lock);
 
 	return ret;
