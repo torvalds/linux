@@ -739,15 +739,11 @@ xfs_vn_setxattr(
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
-	int		error;
 
 	namesp = attr_lookup_namespace(attr, attr_namespaces, ATTR_NAMECOUNT);
 	if (!namesp)
 		return -EOPNOTSUPP;
 	attr += namesp->attr_namelen;
-	error = namesp->attr_capable(vp, NULL);
-	if (error)
-		return error;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (flags & XATTR_CREATE)
@@ -769,15 +765,11 @@ xfs_vn_getxattr(
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
-	ssize_t		error;
 
 	namesp = attr_lookup_namespace(attr, attr_namespaces, ATTR_NAMECOUNT);
 	if (!namesp)
 		return -EOPNOTSUPP;
 	attr += namesp->attr_namelen;
-	error = namesp->attr_capable(vp, NULL);
-	if (error)
-		return error;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (!size) {
@@ -817,15 +809,12 @@ xfs_vn_removexattr(
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
-	int		error;
 
 	namesp = attr_lookup_namespace(attr, attr_namespaces, ATTR_NAMECOUNT);
 	if (!namesp)
 		return -EOPNOTSUPP;
 	attr += namesp->attr_namelen;
-	error = namesp->attr_capable(vp, NULL);
-	if (error)
-		return error;
+
 	xflags |= namesp->attr_flag;
 	return namesp->attr_remove(vp, attr, xflags);
 }

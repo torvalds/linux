@@ -2622,43 +2622,6 @@ attr_lookup_namespace(
 	return NULL;
 }
 
-/*
- * Some checks to prevent people abusing EAs to get over quota:
- * - Don't allow modifying user EAs on devices/symlinks;
- * - Don't allow modifying user EAs if sticky bit set;
- */
-STATIC int
-attr_user_capable(
-	bhv_vnode_t	*vp,
-	cred_t		*cred)
-{
-	struct inode	*inode = vn_to_inode(vp);
-
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return -EPERM;
-	if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode) &&
-	    !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX) &&
-	    (current_fsuid(cred) != inode->i_uid) && !capable(CAP_FOWNER))
-		return -EPERM;
-	return 0;
-}
-
-STATIC int
-attr_trusted_capable(
-	bhv_vnode_t	*vp,
-	cred_t		*cred)
-{
-	struct inode	*inode = vn_to_inode(vp);
-
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return -EPERM;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	return 0;
-}
-
 STATIC int
 attr_system_set(
 	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
@@ -2709,7 +2672,6 @@ struct attrnames attr_system = {
 	.attr_get	= attr_system_get,
 	.attr_set	= attr_system_set,
 	.attr_remove	= attr_system_remove,
-	.attr_capable	= (attrcapable_t)fs_noerr,
 };
 
 struct attrnames attr_trusted = {
@@ -2719,7 +2681,6 @@ struct attrnames attr_trusted = {
 	.attr_get	= attr_generic_get,
 	.attr_set	= attr_generic_set,
 	.attr_remove	= attr_generic_remove,
-	.attr_capable	= attr_trusted_capable,
 };
 
 struct attrnames attr_secure = {
@@ -2729,7 +2690,6 @@ struct attrnames attr_secure = {
 	.attr_get	= attr_generic_get,
 	.attr_set	= attr_generic_set,
 	.attr_remove	= attr_generic_remove,
-	.attr_capable	= (attrcapable_t)fs_noerr,
 };
 
 struct attrnames attr_user = {
@@ -2738,7 +2698,6 @@ struct attrnames attr_user = {
 	.attr_get	= attr_generic_get,
 	.attr_set	= attr_generic_set,
 	.attr_remove	= attr_generic_remove,
-	.attr_capable	= attr_user_capable,
 };
 
 struct attrnames *attr_namespaces[] =

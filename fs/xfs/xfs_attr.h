@@ -42,7 +42,6 @@ typedef int (*attrset_t)(bhv_vnode_t *, char *, void *, size_t, int);
 typedef int (*attrget_t)(bhv_vnode_t *, char *, void *, size_t, int);
 typedef int (*attrremove_t)(bhv_vnode_t *, char *, int);
 typedef int (*attrexists_t)(bhv_vnode_t *);
-typedef int (*attrcapable_t)(bhv_vnode_t *, struct cred *);
 
 typedef struct attrnames {
 	char *		attr_name;
@@ -52,7 +51,6 @@ typedef struct attrnames {
 	attrset_t	attr_set;
 	attrremove_t	attr_remove;
 	attrexists_t	attr_exists;
-	attrcapable_t	attr_capable;
 } attrnames_t;
 
 #define ATTR_NAMECOUNT	4
