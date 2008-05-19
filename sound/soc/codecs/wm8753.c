@@ -1274,29 +1274,29 @@ static int wm8753_mute(struct snd_soc_codec_dai *dai, int mute)
 	return 0;
 }
 
-static int wm8753_dapm_event(struct snd_soc_codec *codec, int event)
+static int wm8753_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
 {
 	u16 pwr_reg = wm8753_read_reg_cache(codec, WM8753_PWR1) & 0xfe3e;
 
-	switch (event) {
-	case SNDRV_CTL_POWER_D0: /* full On */
+	switch (level) {
+	case SND_SOC_BIAS_ON:
 		/* set vmid to 50k and unmute dac */
 		wm8753_write(codec, WM8753_PWR1, pwr_reg | 0x00c0);
 		break;
-	case SNDRV_CTL_POWER_D1: /* partial On */
-	case SNDRV_CTL_POWER_D2: /* partial On */
+	case SND_SOC_BIAS_PREPARE:
 		/* set vmid to 5k for quick power up */
 		wm8753_write(codec, WM8753_PWR1, pwr_reg | 0x01c1);
 		break;
-	case SNDRV_CTL_POWER_D3hot: /* Off, with power */
+	case SND_SOC_BIAS_STANDBY:
 		/* mute dac and set vmid to 500k, enable VREF */
 		wm8753_write(codec, WM8753_PWR1, pwr_reg | 0x0141);
 		break;
-	case SNDRV_CTL_POWER_D3cold: /* Off, without power */
+	case SND_SOC_BIAS_OFF:
 		wm8753_write(codec, WM8753_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm_state = event;
+	codec->bias_level = level;
 	return 0;
 }
 
@@ -1500,7 +1500,7 @@ static void wm8753_work(struct work_struct *work)
 {
 	struct snd_soc_codec *codec =
 		container_of(work, struct snd_soc_codec, delayed_work.work);
-	wm8753_dapm_event(codec, codec->dapm_state);
+	wm8753_set_bias_level(codec, codec->bias_level);
 }
 
 static int wm8753_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1512,7 +1512,7 @@ static int wm8753_suspend(struct platform_device *pdev, pm_message_t state)
 	if (!codec->card)
 		return 0;
 
-	wm8753_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
@@ -1537,12 +1537,12 @@ static int wm8753_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 
-	wm8753_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm8753_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* charge wm8753 caps */
-	if (codec->suspend_dapm_state == SNDRV_CTL_POWER_D0) {
-		wm8753_dapm_event(codec, SNDRV_CTL_POWER_D2);
-		codec->dapm_state = SNDRV_CTL_POWER_D0;
+	if (codec->suspend_bias_level == SND_SOC_BIAS_ON) {
+		wm8753_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
+		codec->bias_level = SND_SOC_BIAS_ON;
 		schedule_delayed_work(&codec->delayed_work,
 			msecs_to_jiffies(caps_charge));
 	}
@@ -1563,7 +1563,7 @@ static int wm8753_init(struct snd_soc_device *socdev)
 	codec->owner = THIS_MODULE;
 	codec->read = wm8753_read_reg_cache;
 	codec->write = wm8753_write;
-	codec->dapm_event = wm8753_dapm_event;
+	codec->set_bias_level = wm8753_set_bias_level;
 	codec->dai = wm8753_dai;
 	codec->num_dai = 2;
 	codec->reg_cache_size = sizeof(wm8753_reg);
@@ -1584,8 +1584,8 @@ static int wm8753_init(struct snd_soc_device *socdev)
 	}
 
 	/* charge output caps */
-	wm8753_dapm_event(codec, SNDRV_CTL_POWER_D2);
-	codec->dapm_state = SNDRV_CTL_POWER_D3hot;
+	wm8753_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
+	codec->bias_level = SND_SOC_BIAS_STANDBY;
 	schedule_delayed_work(&codec->delayed_work,
 		msecs_to_jiffies(caps_charge));
 
@@ -1792,7 +1792,7 @@ static int wm8753_remove(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->codec;
 
 	if (codec->control_data)
-		wm8753_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+		wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	run_delayed_work(&codec->delayed_work);
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);

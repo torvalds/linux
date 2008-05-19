@@ -847,13 +847,14 @@ static int aic3x_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
 	return 0;
 }
 
-static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
+static int aic3x_set_bias_level(struct snd_soc_codec *codec,
+				enum snd_soc_bias_level level)
 {
 	struct aic3x_priv *aic3x = codec->private_data;
 	u8 reg;
 
-	switch (event) {
-	case SNDRV_CTL_POWER_D0:
+	switch (level) {
+	case SND_SOC_BIAS_ON:
 		/* all power is driven by DAPM system */
 		if (aic3x->master) {
 			/* enable pll */
@@ -862,10 +863,9 @@ static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
 				    reg | PLL_ENABLE);
 		}
 		break;
-	case SNDRV_CTL_POWER_D1:
-	case SNDRV_CTL_POWER_D2:
+	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SNDRV_CTL_POWER_D3hot:
+	case SND_SOC_BIAS_STANDBY:
 		/*
 		 * all power is driven by DAPM system,
 		 * so output power is safe if bypass was set
@@ -877,7 +877,7 @@ static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
 				    reg & ~PLL_ENABLE);
 		}
 		break;
-	case SNDRV_CTL_POWER_D3cold:
+	case SND_SOC_BIAS_OFF:
 		/* force all power off */
 		reg = aic3x_read_reg_cache(codec, LINE1L_2_LADC_CTRL);
 		aic3x_write(codec, LINE1L_2_LADC_CTRL, reg & ~LADC_PWR_ON);
@@ -913,7 +913,7 @@ static int aic3x_dapm_event(struct snd_soc_codec *codec, int event)
 		}
 		break;
 	}
-	codec->dapm_state = event;
+	codec->bias_level = level;
 
 	return 0;
 }
@@ -979,7 +979,7 @@ static int aic3x_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->codec;
 
-	aic3x_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -999,7 +999,7 @@ static int aic3x_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 
-	aic3x_dapm_event(codec, codec->suspend_dapm_state);
+	aic3x_set_bias_level(codec, codec->suspend_bias_level);
 
 	return 0;
 }
@@ -1018,7 +1018,7 @@ static int aic3x_init(struct snd_soc_device *socdev)
 	codec->owner = THIS_MODULE;
 	codec->read = aic3x_read_reg_cache;
 	codec->write = aic3x_write;
-	codec->dapm_event = aic3x_dapm_event;
+	codec->set_bias_level = aic3x_set_bias_level;
 	codec->dai = &aic3x_dai;
 	codec->num_dai = 1;
 	codec->reg_cache_size = sizeof(aic3x_reg);
@@ -1100,7 +1100,7 @@ static int aic3x_init(struct snd_soc_device *socdev)
 	aic3x_write(codec, LINE2R_2_MONOLOPM_VOL, DEFAULT_VOL);
 
 	/* off, with power on */
-	aic3x_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	aic3x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* setup GPIO functions */
 	aic3x_write(codec, AIC3X_GPIO1_REG, (setup->gpio_func[0] & 0xf) << 4);
@@ -1271,7 +1271,7 @@ static int aic3x_remove(struct platform_device *pdev)
 
 	/* power down chip */
 	if (codec->control_data)
-		aic3x_dapm_event(codec, SNDRV_CTL_POWER_D3);
+		aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);

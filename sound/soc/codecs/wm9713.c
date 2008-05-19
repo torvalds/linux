@@ -1094,33 +1094,33 @@ int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 }
 EXPORT_SYMBOL_GPL(wm9713_reset);
 
-static int wm9713_dapm_event(struct snd_soc_codec *codec, int event)
+static int wm9713_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
 {
 	u16 reg;
 
-	switch (event) {
-	case SNDRV_CTL_POWER_D0: /* full On */
+	switch (level) {
+	case SND_SOC_BIAS_ON:
 		/* enable thermal shutdown */
 		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0x1bff;
 		ac97_write(codec, AC97_EXTENDED_MID, reg);
 		break;
-	case SNDRV_CTL_POWER_D1: /* partial On */
-	case SNDRV_CTL_POWER_D2: /* partial On */
+	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SNDRV_CTL_POWER_D3hot: /* Off, with power */
+	case SND_SOC_BIAS_STANDBY:
 		/* enable master bias and vmid */
 		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0x3bff;
 		ac97_write(codec, AC97_EXTENDED_MID, reg);
 		ac97_write(codec, AC97_POWERDOWN, 0x0000);
 		break;
-	case SNDRV_CTL_POWER_D3cold: /* Off, without power */
+	case SND_SOC_BIAS_OFF:
 		/* disable everything including AC link */
 		ac97_write(codec, AC97_EXTENDED_MID, 0xffff);
 		ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
 		ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
-	codec->dapm_state = event;
+	codec->bias_level = level;
 	return 0;
 }
 
@@ -1157,7 +1157,7 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm9713_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* do we need to re-start the PLL ? */
 	if (wm9713->pll_out)
@@ -1173,8 +1173,8 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 		}
 	}
 
-	if (codec->suspend_dapm_state == SNDRV_CTL_POWER_D0)
-		wm9713_dapm_event(codec, SNDRV_CTL_POWER_D0);
+	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
+		wm9713_set_bias_level(codec, SND_SOC_BIAS_ON);
 
 	return ret;
 }
@@ -1213,7 +1213,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	codec->num_dai = ARRAY_SIZE(wm9713_dai);
 	codec->write = ac97_write;
 	codec->read = ac97_read;
-	codec->dapm_event = wm9713_dapm_event;
+	codec->set_bias_level = wm9713_set_bias_level;
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
@@ -1235,7 +1235,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 		goto reset_err;
 	}
 
-	wm9713_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* unmute the adc - move to kcontrol */
 	reg = ac97_read(codec, AC97_CD) & 0x7fff;

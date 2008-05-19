@@ -221,7 +221,8 @@ int snd_soc_dapm_add_routes(struct snd_soc_codec *codec,
 /* dapm events */
 int snd_soc_dapm_stream_event(struct snd_soc_codec *codec, char *stream,
 	int event);
-int snd_soc_dapm_device_event(struct snd_soc_device *socdev, int event);
+int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
+	enum snd_soc_bias_level level);
 
 /* dapm sys fs - used by the core */
 int snd_soc_dapm_sys_add(struct device *dev);
