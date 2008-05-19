@@ -206,6 +206,20 @@ static void do_usb_table(void *symval, unsigned long size,
 		do_usb_entry_multi(symval + i, mod);
 }
 
+/* Looks like: hid:bNvNpN */
+static int do_hid_entry(const char *filename,
+			     struct hid_device_id *id, char *alias)
+{
+	id->vendor = TO_NATIVE(id->vendor);
+	id->product = TO_NATIVE(id->product);
+
+	sprintf(alias, "hid:b%04X", id->bus);
+	ADD(alias, "v", id->vendor != HID_ANY_ID, id->vendor);
+	ADD(alias, "p", id->product != HID_ANY_ID, id->product);
+
+	return 1;
+}
+
 /* Looks like: ieee1394:venNmoNspNverN */
 static int do_ieee1394_entry(const char *filename,
 			     struct ieee1394_device_id *id, char *alias)
@@ -745,6 +759,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	else if (sym_is(symname, "__mod_usb_device_table"))
 		/* special case to handle bcdDevice ranges */
 		do_usb_table(symval, sym->st_size, mod);
+	else if (sym_is(symname, "__mod_hid_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct hid_device_id), "hid",
+			 do_hid_entry, mod);
 	else if (sym_is(symname, "__mod_ieee1394_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct ieee1394_device_id), "ieee1394",

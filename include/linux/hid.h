@@ -67,6 +67,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h> /* hid_device_id */
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
