@@ -100,8 +100,11 @@ struct qe_pio_regs {
 #endif
 };
 
+extern void __init qe_add_gpiochips(void);
 extern int par_io_init(struct device_node *np);
 extern int par_io_of_config(struct device_node *np);
+#define QE_PIO_DIR_IN	2
+#define QE_PIO_DIR_OUT	1
 extern void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin,
 				int dir, int open_drain, int assignment,
 				int has_irq);
