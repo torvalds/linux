@@ -164,8 +164,7 @@ int tipc_core_start(void)
 	tipc_mode = TIPC_NODE_MODE;
 
 	if ((res = tipc_handler_start()) ||
-	    (res = tipc_ref_table_init(tipc_max_ports + tipc_max_subscriptions,
-				       tipc_random)) ||
+	    (res = tipc_ref_table_init(tipc_max_ports, tipc_random)) ||
 	    (res = tipc_reg_start()) ||
 	    (res = tipc_nametbl_init()) ||
 	    (res = tipc_k_signal((Handler)tipc_subscr_start, 0)) ||
