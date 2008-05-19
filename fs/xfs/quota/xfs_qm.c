@@ -631,7 +631,7 @@ xfs_qm_dqpurge_int(
 		 * freelist in INACTIVE state.
 		 */
 		nextdqp = dqp->MPL_NEXT;
-		nmisses += xfs_qm_dqpurge(dqp, flags);
+		nmisses += xfs_qm_dqpurge(dqp);
 		dqp = nextdqp;
 	}
 	xfs_qm_mplist_unlock(mp);
