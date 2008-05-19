@@ -696,7 +696,7 @@ void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter, int lock)
 	r->u.thread.total = total;
 	r->u.thread.ready = ready;
 	r->u.thread.running = running;
-	debug_event(adapter->rec_dbf, 5, r, sizeof(*r));
+	debug_event(adapter->rec_dbf, 6, r, sizeof(*r));
 	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
 }
 
@@ -823,7 +823,7 @@ void zfcp_rec_dbf_event_action(u8 id2, struct zfcp_erp_action *erp_action)
 	r->u.action.status = erp_action->status;
 	r->u.action.step = erp_action->step;
 	r->u.action.fsf_req = (unsigned long)erp_action->fsf_req;
-	debug_event(adapter->rec_dbf, 4, r, sizeof(*r));
+	debug_event(adapter->rec_dbf, 5, r, sizeof(*r));
 	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
 }
 
