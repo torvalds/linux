@@ -565,6 +565,7 @@ int smschar_initialize(void)
 
 	return smscore_register_hotplug(smschar_hotplug);
 }
+EXPORT_SYMBOL(smschar_initialize);
 
 void smschar_terminate(void)
 {
@@ -573,3 +574,4 @@ void smschar_terminate(void)
 	unregister_chrdev_region(devno, SMSCHAR_NR_DEVS);
 	smscore_unregister_hotplug(smschar_hotplug);
 }
+EXPORT_SYMBOL(smschar_terminate);
