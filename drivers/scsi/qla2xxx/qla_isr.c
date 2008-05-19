@@ -272,8 +272,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	uint32_t	rscn_entry, host_pid;
 	uint8_t		rscn_queue_index;
 	unsigned long	flags;
-	scsi_qla_host_t	*vha;
-	int		i;
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
@@ -544,18 +542,10 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_PORT_UPDATE:		/* Port database update */
-		if ((ha->flags.npiv_supported) && (ha->num_vhosts)) {
-			for_each_mapped_vp_idx(ha, i) {
-				list_for_each_entry(vha, &ha->vp_list,
-				    vp_list) {
-					if ((mb[3] & 0xff)
-					    == vha->vp_idx) {
-						ha = vha;
-						break;
-					}
-				}
-			}
-		}
+		/* Only handle SCNs for our Vport index. */
+		if (ha->parent && ha->vp_idx != (mb[3] & 0xff))
+			break;
+
 		/*
 		 * If PORT UPDATE is global (recieved LIP_OCCURED/LIP_RESET
 		 * event etc. earlier indicating loop is down) then process
@@ -590,18 +580,12 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
-		if ((ha->flags.npiv_supported) && (ha->num_vhosts)) {
-			for_each_mapped_vp_idx(ha, i) {
-				list_for_each_entry(vha, &ha->vp_list,
-				    vp_list) {
-					if ((mb[3] & 0xff)
-					    == vha->vp_idx) {
-						ha = vha;
-						break;
-					}
-				}
-			}
-		}
+		/* Check if the Vport has issued a SCR */
+		if (ha->parent && test_bit(VP_SCR_NEEDED, &ha->vp_flags))
+			break;
+		/* Only handle SCNs for our Vport index. */
+		if (ha->parent && ha->vp_idx != (mb[3] & 0xff))
+			break;
 
 		DEBUG2(printk("scsi(%ld): Asynchronous RSCR UPDATE.\n",
 		    ha->host_no));
