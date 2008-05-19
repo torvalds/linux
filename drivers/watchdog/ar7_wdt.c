@@ -69,7 +69,8 @@ struct ar7_wdt {
 	u32 prescale;
 };
 
-static struct semaphore open_semaphore;
+static unsigned long wdt_is_open;
+static spinlock_t wdt_lock;
 static unsigned expect_close;
 
 /* XXX currently fixed, allows max margin ~68.72 secs */
@@ -154,8 +155,10 @@ static void ar7_wdt_update_margin(int new_margin)
 	u32 change;
 
 	change = new_margin * (ar7_vbus_freq() / prescale_value);
-	if (change < 1) change = 1;
-	if (change > 0xffff) change = 0xffff;
+	if (change < 1)
+		change = 1;
+	if (change > 0xffff)
+		change = 0xffff;
 	ar7_wdt_change(change);
 	margin = change * prescale_value / ar7_vbus_freq();
 	printk(KERN_INFO DRVNAME
@@ -179,7 +182,7 @@ static void ar7_wdt_disable_wdt(void)
 static int ar7_wdt_open(struct inode *inode, struct file *file)
 {
 	/* only allow one at a time */
-	if (down_trylock(&open_semaphore))
+	if (test_and_set_bit(0, &wdt_is_open))
 		return -EBUSY;
 	ar7_wdt_enable_wdt();
 	expect_close = 0;
@@ -195,9 +198,7 @@ static int ar7_wdt_release(struct inode *inode, struct file *file)
 		"will not disable the watchdog timer\n");
 	else if (!nowayout)
 		ar7_wdt_disable_wdt();
-
-	up(&open_semaphore);
-
+	clear_bit(0, &wdt_is_open);
 	return 0;
 }
 
@@ -222,7 +223,9 @@ static ssize_t ar7_wdt_write(struct file *file, const char *data,
 	if (len) {
 		size_t i;
 
+		spin_lock(&wdt_lock);
 		ar7_wdt_kick(1);
+		spin_unlock(&wdt_lock);
 
 		expect_close = 0;
 		for (i = 0; i < len; ++i) {
@@ -237,8 +240,8 @@ static ssize_t ar7_wdt_write(struct file *file, const char *data,
 	return len;
 }
 
-static int ar7_wdt_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long ar7_wdt_ioctl(struct file *file,
+					unsigned int cmd, unsigned long arg)
 {
 	static struct watchdog_info ident = {
 		.identity = LONGNAME,
@@ -269,8 +272,10 @@ static int ar7_wdt_ioctl(struct inode *inode, struct file *file,
 		if (new_margin < 1)
 			return -EINVAL;
 
+		spin_lock(&wdt_lock);
 		ar7_wdt_update_margin(new_margin);
 		ar7_wdt_kick(1);
+		spin_unlock(&wdt_lock);
 
 	case WDIOC_GETTIMEOUT:
 		if (put_user(margin, (int *)arg))
@@ -282,7 +287,7 @@ static int ar7_wdt_ioctl(struct inode *inode, struct file *file,
 static const struct file_operations ar7_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ar7_wdt_write,
-	.ioctl		= ar7_wdt_ioctl,
+	.unlocked_ioctl	= ar7_wdt_ioctl,
 	.open		= ar7_wdt_open,
 	.release	= ar7_wdt_release,
 };
@@ -296,6 +301,8 @@ static struct miscdevice ar7_wdt_miscdev = {
 static int __init ar7_wdt_init(void)
 {
 	int rc;
+
+	spin_lock_init(&wdt_lock);
 
 	ar7_wdt_get_regs();
 
@@ -311,8 +318,6 @@ static int __init ar7_wdt_init(void)
 	ar7_wdt_disable_wdt();
 	ar7_wdt_prescale(prescale_value);
 	ar7_wdt_update_margin(margin);
-
-	sema_init(&open_semaphore, 1);
 
 	rc = register_reboot_notifier(&ar7_wdt_notifier);
 	if (rc) {
