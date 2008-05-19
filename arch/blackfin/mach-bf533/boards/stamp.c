@@ -111,7 +111,7 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
-#if defined(CONFIG_MTD_BF5xx) || defined(CONFIG_MTD_BF5xx_MODULE)
+#if defined(CONFIG_MTD_BFIN_ASYNC) || defined(CONFIG_MTD_BFIN_ASYNC_MODULE)
 static struct mtd_partition stamp_partitions[] = {
 	{
 		.name   = "Bootloader",
@@ -141,13 +141,17 @@ static struct resource stamp_flash_resource[] = {
 		.end   = 0x203fffff,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = CONFIG_ENET_FLASH_PIN,
+		.start = 0x7BB07BB0,	/* AMBCTL0 setting when accessing flash */
+		.end   = 0x7BB07BB0,	/* AMBCTL1 setting when accessing flash */
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = GPIO_PF0,
 		.flags = IORESOURCE_IRQ,
 	}
 };
 
 static struct platform_device stamp_flash_device = {
-	.name          = "BF5xx-Flash",
+	.name          = "bfin-async-flash",
 	.id            = 0,
 	.dev = {
 		.platform_data = &stamp_flash_data,
@@ -595,7 +599,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 	&bfin_gpios_device,
 
-#if defined(CONFIG_MTD_BF5xx) || defined(CONFIG_MTD_BF5xx_MODULE)
+#if defined(CONFIG_MTD_BFIN_ASYNC) || defined(CONFIG_MTD_BFIN_ASYNC_MODULE)
 	&stamp_flash_device,
 #endif
 };
@@ -617,8 +621,8 @@ static int __init stamp_init(void)
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	/* setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC */
-	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | (1 << CONFIG_ENET_FLASH_PIN));
-	bfin_write_FIO_FLAG_S(1 << CONFIG_ENET_FLASH_PIN);
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | PF0);
+	bfin_write_FIO_FLAG_S(PF0);
 	SSYNC();
 #endif
 
@@ -636,8 +640,8 @@ arch_initcall(stamp_init);
 
 void native_machine_restart(char *cmd)
 {
-#define BIT_TO_SET (1 << CONFIG_ENET_FLASH_PIN)
-	bfin_write_FIO_INEN(~BIT_TO_SET);
-	bfin_write_FIO_DIR(BIT_TO_SET);
-	bfin_write_FIO_FLAG_C(BIT_TO_SET);
+	/* workaround pull up on cpld / flash pin not being strong enough */
+	bfin_write_FIO_INEN(~PF0);
+	bfin_write_FIO_DIR(PF0);
+	bfin_write_FIO_FLAG_C(PF0);
 }

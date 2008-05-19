@@ -7,7 +7,7 @@
  * Description:  Implementation of outs{bwl} for BlackFin processors using zero overhead loops.
  *
  * Modified:     Copyright (C) 2005 Bas Vermeulen, BuyWays BV <bas@buyways.nl>
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2008 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -63,3 +63,17 @@ ENTRY(_outsb)
 .Lbyte_loop_e: B[P0] = R0;
 	RTS;
 ENDPROC(_outsb)
+
+ENTRY(_outsw_8)
+	P0 = R0;	/* P0 = port */
+	P1 = R1;	/* P1 = address */
+	P2 = R2;	/* P2 = count */
+
+	LSETUP( .Lword8_loop_s, .Lword8_loop_e) LC0 = P2;
+.Lword8_loop_s: R1 = B[P1++];
+		R0 = B[P1++];
+		R0 = R0 << 8;
+		R0 = R0 + R1;
+.Lword8_loop_e: W[P0] = R0;
+	RTS;
+ENDPROC(_outsw)
