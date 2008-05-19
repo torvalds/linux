@@ -47,7 +47,6 @@
  * @subscriber_list: adjacent subscribers in top. server's list of subscribers
  * @subscription_list: list of subscription objects for this subscriber
  * @port_ref: object reference to port used to communicate with subscriber
- * @swap: indicates if subscriber uses opposite endianness in its messages
  */
 
 struct subscriber {
@@ -56,7 +55,6 @@ struct subscriber {
 	struct list_head subscriber_list;
 	struct list_head subscription_list;
 	u32 port_ref;
-	int swap;
 };
 
 /**
@@ -109,11 +107,11 @@ static void subscr_send_event(struct subscription *sub,
 	msg_sect.iov_base = (void *)&sub->evt;
 	msg_sect.iov_len = sizeof(struct tipc_event);
 
-	sub->evt.event = htohl(event, sub->owner->swap);
-	sub->evt.found_lower = htohl(found_lower, sub->owner->swap);
-	sub->evt.found_upper = htohl(found_upper, sub->owner->swap);
-	sub->evt.port.ref = htohl(port_ref, sub->owner->swap);
-	sub->evt.port.node = htohl(node, sub->owner->swap);
+	sub->evt.event = htohl(event, sub->swap);
+	sub->evt.found_lower = htohl(found_lower, sub->swap);
+	sub->evt.found_upper = htohl(found_upper, sub->swap);
+	sub->evt.port.ref = htohl(port_ref, sub->swap);
+	sub->evt.port.node = htohl(node, sub->swap);
 	tipc_send(sub->owner->port_ref, 1, &msg_sect);
 }
 
@@ -324,18 +322,16 @@ static void subscr_subscribe(struct tipc_subscr *s,
 			     struct subscriber *subscriber)
 {
 	struct subscription *sub;
+	int swap;
 
-	/* Determine/update subscriber's endianness */
+	/* Determine subscriber's endianness */
 
-	if (s->filter & (TIPC_SUB_PORTS | TIPC_SUB_SERVICE))
-		subscriber->swap = 0;
-	else
-		subscriber->swap = 1;
+	swap = !(s->filter & (TIPC_SUB_PORTS | TIPC_SUB_SERVICE));
 
 	/* Detect & process a subscription cancellation request */
 
-	if (s->filter & htohl(TIPC_SUB_CANCEL, subscriber->swap)) {
-		s->filter &= ~htohl(TIPC_SUB_CANCEL, subscriber->swap);
+	if (s->filter & htohl(TIPC_SUB_CANCEL, swap)) {
+		s->filter &= ~htohl(TIPC_SUB_CANCEL, swap);
 		subscr_cancel(s, subscriber);
 		return;
 	}
@@ -360,11 +356,11 @@ static void subscr_subscribe(struct tipc_subscr *s,
 
 	/* Initialize subscription object */
 
-	sub->seq.type = htohl(s->seq.type, subscriber->swap);
-	sub->seq.lower = htohl(s->seq.lower, subscriber->swap);
-	sub->seq.upper = htohl(s->seq.upper, subscriber->swap);
-	sub->timeout = htohl(s->timeout, subscriber->swap);
-	sub->filter = htohl(s->filter, subscriber->swap);
+	sub->seq.type = htohl(s->seq.type, swap);
+	sub->seq.lower = htohl(s->seq.lower, swap);
+	sub->seq.upper = htohl(s->seq.upper, swap);
+	sub->timeout = htohl(s->timeout, swap);
+	sub->filter = htohl(s->filter, swap);
 	if ((!(sub->filter & TIPC_SUB_PORTS)
 	     == !(sub->filter & TIPC_SUB_SERVICE))
 	    || (sub->seq.lower > sub->seq.upper)) {
@@ -378,6 +374,7 @@ static void subscr_subscribe(struct tipc_subscr *s,
 	INIT_LIST_HEAD(&sub->subscription_list);
 	INIT_LIST_HEAD(&sub->nameseq_list);
 	list_add(&sub->subscription_list, &subscriber->subscription_list);
+	sub->swap = swap;
 	atomic_inc(&topsrv.subscription_count);
 	if (sub->timeout != TIPC_WAIT_FOREVER) {
 		k_init_timer(&sub->timer,
