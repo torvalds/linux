@@ -90,7 +90,7 @@ static const unsigned long ata_eh_reset_timeouts[] = {
 	10000,	/* > 99% working drives spin up before 20sec */
 	35000,	/* give > 30 secs of idleness for retarded devices */
 	 5000,	/* and sweet one last chance */
-	/* > 1 min has elapsed, give up */
+	ULONG_MAX, /* > 1 min has elapsed, give up */
 };
 
 static void __ata_port_freeze(struct ata_port *ap);
@@ -2077,13 +2077,12 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		 ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
 		 ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
 {
-	const int max_tries = ARRAY_SIZE(ata_eh_reset_timeouts);
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned int *classes = ehc->classes;
 	unsigned int lflags = link->flags;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
-	int try = 0;
+	int max_tries = 0, try = 0;
 	struct ata_device *dev;
 	unsigned long deadline, now;
 	ata_reset_fn_t reset;
@@ -2094,6 +2093,9 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/*
 	 * Prepare to reset
 	 */
+	while (ata_eh_reset_timeouts[max_tries] != ULONG_MAX)
+		max_tries++;
+
 	now = jiffies;
 	deadline = ata_deadline(ehc->last_reset, ATA_EH_RESET_COOL_DOWN);
 	if (time_before(now, deadline))
