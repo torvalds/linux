@@ -1,6 +1,4 @@
 /*
- *  $Id: nfsroot.c,v 1.45 1998/03/07 10:44:46 mj Exp $
- *
  *  Copyright (C) 1995, 1996  Gero Kuhlmann <gero@gkminix.han.de>
  *
  *  Allow an NFS filesystem to be mounted as root. The way this works is:
