@@ -272,9 +272,9 @@ struct snd_soc_ops {
 	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
-/* ASoC codec DAI ops */
-struct snd_soc_codec_ops {
-	/* codec DAI clocking configuration */
+/* ASoC DAI ops */
+struct snd_soc_dai_ops {
+	/* DAI clocking configuration */
 	int (*set_sysclk)(struct snd_soc_codec_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir);
 	int (*set_pll)(struct snd_soc_codec_dai *codec_dai,
@@ -282,7 +282,7 @@ struct snd_soc_codec_ops {
 	int (*set_clkdiv)(struct snd_soc_codec_dai *codec_dai,
 		int div_id, int div);
 
-	/* CPU DAI format configuration */
+	/* DAI format configuration */
 	int (*set_fmt)(struct snd_soc_codec_dai *codec_dai,
 		unsigned int fmt);
 	int (*set_tdm_slot)(struct snd_soc_codec_dai *codec_dai,
@@ -291,24 +291,6 @@ struct snd_soc_codec_ops {
 
 	/* digital mute */
 	int (*digital_mute)(struct snd_soc_codec_dai *, int mute);
-};
-
-/* ASoC cpu DAI ops */
-struct snd_soc_cpu_ops {
-	/* CPU DAI clocking configuration */
-	int (*set_sysclk)(struct snd_soc_cpu_dai *cpu_dai,
-		int clk_id, unsigned int freq, int dir);
-	int (*set_clkdiv)(struct snd_soc_cpu_dai *cpu_dai,
-		int div_id, int div);
-	int (*set_pll)(struct snd_soc_cpu_dai *cpu_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out);
-
-	/* CPU DAI format configuration */
-	int (*set_fmt)(struct snd_soc_cpu_dai *cpu_dai,
-		unsigned int fmt);
-	int (*set_tdm_slot)(struct snd_soc_cpu_dai *cpu_dai,
-		unsigned int mask, int slots);
-	int (*set_tristate)(struct snd_soc_cpu_dai *, int tristate);
 };
 
 /* SoC Codec DAI */
@@ -328,7 +310,7 @@ struct snd_soc_codec_dai {
 
 	/* ops */
 	struct snd_soc_ops ops;
-	struct snd_soc_codec_ops dai_ops;
+	struct snd_soc_dai_ops dai_ops;
 
 	/* DAI private data */
 	void *private_data;
@@ -352,7 +334,7 @@ struct snd_soc_cpu_dai {
 
 	/* ops */
 	struct snd_soc_ops ops;
-	struct snd_soc_cpu_ops dai_ops;
+	struct snd_soc_dai_ops dai_ops;
 
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream capture;
