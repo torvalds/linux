@@ -38,7 +38,7 @@ struct zfcp_rec_dbf_record_thread {
 	u32 total;
 	u32 ready;
 	u32 running;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record_target {
 	u64 ref;
@@ -47,7 +47,7 @@ struct zfcp_rec_dbf_record_target {
 	u64 wwpn;
 	u64 fcp_lun;
 	u32 erp_count;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record_trigger {
 	u8 want;
@@ -59,14 +59,14 @@ struct zfcp_rec_dbf_record_trigger {
 	u64 action;
 	u64 wwpn;
 	u64 fcp_lun;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record_action {
 	u32 status;
 	u32 step;
 	u64 action;
 	u64 fsf_req;
-} __attribute__ ((packed));
+};
 
 struct zfcp_rec_dbf_record {
 	u8 id;
@@ -77,7 +77,7 @@ struct zfcp_rec_dbf_record {
 		struct zfcp_rec_dbf_record_target target;
 		struct zfcp_rec_dbf_record_trigger trigger;
 	} u;
-} __attribute__ ((packed));
+};
 
 enum {
 	ZFCP_REC_DBF_ID_ACTION,
