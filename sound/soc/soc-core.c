@@ -14,10 +14,6 @@
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
  *
- *  Revision history
- *    12th Aug 2005   Initial version.
- *    25th Oct 2005   Working Codec, Interface and Platform registration.
- *
  *  TODO:
  *   o Add hw rules to enforce rates, etc.
  *   o More testing with other codecs/machines.

@@ -11,10 +11,6 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
- *
- *  Revision history
- *    30th Nov 2005   Initial version.
- *
  */
 
 #include <linux/module.h>

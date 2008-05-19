@@ -10,9 +10,6 @@
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
  *
- *  Revision history
- *    4th Feb 2006   Initial version.
- *
  *  Features:-
  *
  *   o Support for AC97 Codec, Voice DAC and Aux DAC

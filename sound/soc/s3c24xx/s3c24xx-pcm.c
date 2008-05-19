@@ -12,10 +12,6 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
- *
- *  Revision history
- *    11th Dec 2006   Merged with Simtec driver
- *    10th Nov 2006   Initial version.
  */
 
 #include <linux/module.h>

@@ -10,9 +10,6 @@
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
- *
- *  Revision history
- *	21st Mar 2007   Initial Version
  */
 
 #include <linux/init.h>

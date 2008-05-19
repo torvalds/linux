@@ -10,9 +10,6 @@
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
  *
- *  Revision history
- *    17th Oct 2005   Initial version.
- *
  * Generic AC97 support.
  */
 

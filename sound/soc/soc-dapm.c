@@ -10,11 +10,6 @@
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
  *
- *  Revision history
- *    12th Aug 2005   Initial version.
- *    25th Oct 2005   Implemented path power domain.
- *    18th Dec 2005   Implemented machine and stream level power domain.
- *
  *  Features:
  *    o Changes power status of internal codec blocks depending on the
  *      dynamic configuration of codec internal audio paths and active
