@@ -18,6 +18,8 @@
 # include <asm/gcc_intrin.h>
 #endif
 
+#define ia64_get_psr_i()	(ia64_getreg(_IA64_REG_PSR) & IA64_PSR_I)
+
 #define ia64_set_rr0_to_rr4(val0, val1, val2, val3, val4)	\
 do {								\
 	ia64_set_rr(0x0000000000000000UL, (val0));		\
