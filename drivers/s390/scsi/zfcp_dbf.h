@@ -98,7 +98,6 @@ struct zfcp_hba_dbf_record_response {
 	u32 fsf_req_status;
 	u8 sbal_first;
 	u8 sbal_curr;
-	u8 sbal_last;
 	u8 pool;
 	u64 erp_action;
 	union {
