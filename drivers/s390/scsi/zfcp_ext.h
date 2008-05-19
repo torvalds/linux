@@ -94,7 +94,8 @@ extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
 extern int  zfcp_fsf_status_read(struct zfcp_adapter *, int);
 extern int zfcp_status_read_refill(struct zfcp_adapter *adapter);
 extern int zfcp_fsf_req_create(struct zfcp_adapter *, u32, int, mempool_t *,
-			       unsigned long *, struct zfcp_fsf_req **);
+			       unsigned long *, struct zfcp_fsf_req **)
+	__acquires(adapter->request_queue.queue_lock);
 extern int zfcp_fsf_send_ct(struct zfcp_send_ct *, mempool_t *,
 			    struct zfcp_erp_action *);
 extern int zfcp_fsf_send_els(struct zfcp_send_els *);
