@@ -10,6 +10,8 @@
 #include "smscoreapi.h"
 #include "smstypes.h"
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 typedef struct _smsdvb_client
 {
 	struct list_head entry;
@@ -314,7 +316,7 @@ int smsdvb_hotplug(smscore_device_t *coredev, struct device* device, int arrival
 	}
 
 	// register dvb adapter
-	rc = dvb_register_adapter(&client->adapter, "Siano Digital Receiver", THIS_MODULE, device);
+	rc = dvb_register_adapter(&client->adapter, "Siano Digital Receiver", THIS_MODULE, device, adapter_nr);
 	if (rc < 0)
 	{
 		printk("%s dvb_register_adapter() failed %d\n", __func__, rc);
