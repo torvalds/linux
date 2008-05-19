@@ -112,6 +112,46 @@ static inline void paravirt_post_smp_prepare_boot_cpu(void)
 		pv_init_ops.post_smp_prepare_boot_cpu();
 }
 
+/******************************************************************************
+ * replacement of iosapic operations.
+ */
+
+struct pv_iosapic_ops {
+	void (*pcat_compat_init)(void);
+
+	struct irq_chip *(*get_irq_chip)(unsigned long trigger);
+
+	unsigned int (*__read)(char __iomem *iosapic, unsigned int reg);
+	void (*__write)(char __iomem *iosapic, unsigned int reg, u32 val);
+};
+
+extern struct pv_iosapic_ops pv_iosapic_ops;
+
+static inline void
+iosapic_pcat_compat_init(void)
+{
+	if (pv_iosapic_ops.pcat_compat_init)
+		pv_iosapic_ops.pcat_compat_init();
+}
+
+static inline struct irq_chip*
+iosapic_get_irq_chip(unsigned long trigger)
+{
+	return pv_iosapic_ops.get_irq_chip(trigger);
+}
+
+static inline unsigned int
+__iosapic_read(char __iomem *iosapic, unsigned int reg)
+{
+	return pv_iosapic_ops.__read(iosapic, reg);
+}
+
+static inline void
+__iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
+{
+	return pv_iosapic_ops.__write(iosapic, reg, val);
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #else

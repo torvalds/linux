@@ -312,3 +312,28 @@ paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch)
 		cpu_asm_switch->work_processed_syscall;
 	paravirt_leave_kernel_targ = cpu_asm_switch->leave_kernel;
 }
+
+/***************************************************************************
+ * pv_iosapic_ops
+ * iosapic read/write hooks.
+ */
+
+static unsigned int
+ia64_native_iosapic_read(char __iomem *iosapic, unsigned int reg)
+{
+	return __ia64_native_iosapic_read(iosapic, reg);
+}
+
+static void
+ia64_native_iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
+{
+	__ia64_native_iosapic_write(iosapic, reg, val);
+}
+
+struct pv_iosapic_ops pv_iosapic_ops = {
+	.pcat_compat_init = ia64_native_iosapic_pcat_compat_init,
+	.get_irq_chip = ia64_native_iosapic_get_irq_chip,
+
+	.__read = ia64_native_iosapic_read,
+	.__write = ia64_native_iosapic_write,
+};
