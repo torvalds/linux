@@ -712,7 +712,7 @@ zfcp_fsf_status_read(struct zfcp_adapter *adapter, int req_flags)
 	struct fsf_status_read_buffer *status_buffer;
 	unsigned long lock_flags;
 	volatile struct qdio_buffer_element *sbale;
-	int retval = 0;
+	int retval;
 
 	/* setup new FSF request */
 	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_UNSOLICITED_STATUS,
@@ -731,12 +731,11 @@ zfcp_fsf_status_read(struct zfcp_adapter *adapter, int req_flags)
         sbale[2].flags |= SBAL_FLAGS_LAST_ENTRY;
         fsf_req->sbale_curr = 2;
 
+	retval = -ENOMEM;
 	status_buffer =
 		mempool_alloc(adapter->pool.data_status_read, GFP_ATOMIC);
-	if (!status_buffer) {
-		ZFCP_LOG_NORMAL("bug: could not get some buffer\n");
+	if (!status_buffer)
 		goto failed_buf;
-	}
 	memset(status_buffer, 0, sizeof (struct fsf_status_read_buffer));
 	fsf_req->data = (unsigned long) status_buffer;
 
