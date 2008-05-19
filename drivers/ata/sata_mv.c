@@ -72,7 +72,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.20"
+#define DRV_VERSION	"1.21"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -1695,6 +1695,18 @@ static void mv_pmp_eh_prep(struct ata_port *ap, unsigned int pmp_map)
 	}
 }
 
+static int mv_req_q_empty(struct ata_port *ap)
+{
+	void __iomem *port_mmio = mv_ap_base(ap);
+	u32 in_ptr, out_ptr;
+
+	in_ptr  = (readl(port_mmio + EDMA_REQ_Q_IN_PTR_OFS)
+			>> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK;
+	out_ptr = (readl(port_mmio + EDMA_REQ_Q_OUT_PTR_OFS)
+			>> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK;
+	return (in_ptr == out_ptr);	/* 1 == queue_is_empty */
+}
+
 static int mv_handle_fbs_ncq_dev_err(struct ata_port *ap)
 {
 	struct mv_port_priv *pp = ap->private_data;
@@ -1728,7 +1740,7 @@ static int mv_handle_fbs_ncq_dev_err(struct ata_port *ap)
 			ap->qc_active, failed_links,
 			ap->nr_active_links);
 
-	if (ap->nr_active_links <= failed_links) {
+	if (ap->nr_active_links <= failed_links && mv_req_q_empty(ap)) {
 		mv_process_crpb_entries(ap, pp);
 		mv_stop_edma(ap);
 		mv_eh_freeze(ap);
