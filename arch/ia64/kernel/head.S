@@ -26,11 +26,14 @@
 #include <asm/mmu_context.h>
 #include <asm/asm-offsets.h>
 #include <asm/pal.h>
+#include <asm/paravirt.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/mca_asm.h>
+#include <linux/init.h>
+#include <linux/linkage.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define SAL_PSR_BITS_TO_SET				\
@@ -366,6 +369,44 @@ start_ap:
 (isBP)	movl r2=ia64_boot_param
 	;;
 (isBP)	st8 [r2]=r28		// save the address of the boot param area passed by the bootloader
+
+#ifdef CONFIG_PARAVIRT
+
+	movl r14=hypervisor_setup_hooks
+	movl r15=hypervisor_type
+	mov r16=num_hypervisor_hooks
+	;;
+	ld8 r2=[r15]
+	;;
+	cmp.ltu p7,p0=r2,r16	// array size check
+	shladd r8=r2,3,r14
+	;;
+(p7)	ld8 r9=[r8]
+	;;
+(p7)	mov b1=r9
+(p7)	cmp.ne.unc p7,p0=r9,r0	// no actual branch to NULL
+	;;
+(p7)	br.call.sptk.many rp=b1
+
+	__INITDATA
+
+default_setup_hook = 0		// Currently nothing needs to be done.
+
+	.weak xen_setup_hook
+
+	.global hypervisor_type
+hypervisor_type:
+	data8		PARAVIRT_HYPERVISOR_TYPE_DEFAULT
+
+	// must have the same order with PARAVIRT_HYPERVISOR_TYPE_xxx
+
+hypervisor_setup_hooks:
+	data8		default_setup_hook
+	data8		xen_setup_hook
+num_hypervisor_hooks = (. - hypervisor_setup_hooks) / 8
+	.previous
+
+#endif
 
 #ifdef CONFIG_SMP
 (isAP)	br.call.sptk.many rp=start_secondary

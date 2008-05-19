@@ -26,6 +26,9 @@
 
 #ifdef CONFIG_PARAVIRT_GUEST
 
+#define PARAVIRT_HYPERVISOR_TYPE_DEFAULT	0
+#define PARAVIRT_HYPERVISOR_TYPE_XEN		1
+
 #ifndef __ASSEMBLY__
 
 #include <asm/hw_irq.h>
