@@ -152,6 +152,54 @@ __iosapic_write(char __iomem *iosapic, unsigned int reg, u32 val)
 	return pv_iosapic_ops.__write(iosapic, reg, val);
 }
 
+/******************************************************************************
+ * replacement of irq operations.
+ */
+
+struct pv_irq_ops {
+	void (*register_ipi)(void);
+
+	int (*assign_irq_vector)(int irq);
+	void (*free_irq_vector)(int vector);
+
+	void (*register_percpu_irq)(ia64_vector vec,
+				    struct irqaction *action);
+
+	void (*resend_irq)(unsigned int vector);
+};
+
+extern struct pv_irq_ops pv_irq_ops;
+
+static inline void
+ia64_register_ipi(void)
+{
+	pv_irq_ops.register_ipi();
+}
+
+static inline int
+assign_irq_vector(int irq)
+{
+	return pv_irq_ops.assign_irq_vector(irq);
+}
+
+static inline void
+free_irq_vector(int vector)
+{
+	return pv_irq_ops.free_irq_vector(vector);
+}
+
+static inline void
+register_percpu_irq(ia64_vector vec, struct irqaction *action)
+{
+	pv_irq_ops.register_percpu_irq(vec, action);
+}
+
+static inline void
+ia64_resend_irq(unsigned int vector)
+{
+	pv_irq_ops.resend_irq(vector);
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #else

@@ -337,3 +337,18 @@ struct pv_iosapic_ops pv_iosapic_ops = {
 	.__read = ia64_native_iosapic_read,
 	.__write = ia64_native_iosapic_write,
 };
+
+/***************************************************************************
+ * pv_irq_ops
+ * irq operations
+ */
+
+struct pv_irq_ops pv_irq_ops = {
+	.register_ipi = ia64_native_register_ipi,
+
+	.assign_irq_vector = ia64_native_assign_irq_vector,
+	.free_irq_vector = ia64_native_free_irq_vector,
+	.register_percpu_irq = ia64_native_register_percpu_irq,
+
+	.resend_irq = ia64_native_resend_irq,
+};
