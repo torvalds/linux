@@ -632,7 +632,7 @@ static struct inet6_protocol frag_protocol =
 };
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table ip6_frags_ctl_table[] = {
+static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
 		.procname	= "ip6frag_high_thresh",
@@ -670,14 +670,14 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 	{ }
 };
 
-static int ip6_frags_sysctl_register(struct net *net)
+static int ip6_frags_ns_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
-	table = ip6_frags_ctl_table;
+	table = ip6_frags_ns_ctl_table;
 	if (net != &init_net) {
-		table = kmemdup(table, sizeof(ip6_frags_ctl_table), GFP_KERNEL);
+		table = kmemdup(table, sizeof(ip6_frags_ns_ctl_table), GFP_KERNEL);
 		if (table == NULL)
 			goto err_alloc;
 
@@ -701,7 +701,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void ip6_frags_sysctl_unregister(struct net *net)
+static void ip6_frags_ns_sysctl_unregister(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -710,12 +710,12 @@ static void ip6_frags_sysctl_unregister(struct net *net)
 	kfree(table);
 }
 #else
-static inline int ip6_frags_sysctl_register(struct net *net)
+static inline int ip6_frags_ns_sysctl_register(struct net *net)
 {
 	return 0;
 }
 
-static inline void ip6_frags_sysctl_unregister(struct net *net)
+static inline void ip6_frags_ns_sysctl_unregister(struct net *net)
 {
 }
 #endif
@@ -728,12 +728,12 @@ static int ipv6_frags_init_net(struct net *net)
 
 	inet_frags_init_net(&net->ipv6.frags);
 
-	return ip6_frags_sysctl_register(net);
+	return ip6_frags_ns_sysctl_register(net);
 }
 
 static void ipv6_frags_exit_net(struct net *net)
 {
-	ip6_frags_sysctl_unregister(net);
+	ip6_frags_ns_sysctl_unregister(net);
 	inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);
 }
 
