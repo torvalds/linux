@@ -1,6 +1,4 @@
 /*
- * $Id: ixp2000.c,v 1.9 2005/11/07 11:14:27 gleixner Exp $
- *
  * drivers/mtd/maps/ixp2000.c
  *
  * Mapping for the Intel XScale IXP2000 based systems

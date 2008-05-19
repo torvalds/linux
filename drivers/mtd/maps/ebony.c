@@ -1,6 +1,4 @@
 /*
- * $Id: ebony.c,v 1.16 2005/11/07 11:14:26 gleixner Exp $
- *
  * Mapping for Ebony user flash
  *
  * Matt Porter <mporter@kernel.crashing.org>

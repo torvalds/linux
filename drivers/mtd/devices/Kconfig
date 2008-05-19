@@ -1,5 +1,4 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.18 2005/11/07 11:14:24 gleixner Exp $
 
 menu "Self-contained MTD device drivers"
 	depends on MTD!=n

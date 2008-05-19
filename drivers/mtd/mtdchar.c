@@ -1,6 +1,4 @@
 /*
- * $Id: mtdchar.c,v 1.76 2005/11/07 11:14:20 gleixner Exp $
- *
  * Character-device access to raw MTD devices.
  *
  */

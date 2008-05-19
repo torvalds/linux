@@ -20,8 +20,6 @@
  *	20-Oct-2005  BJD  Fix timing calculation bug
  *	14-Jan-2006  BJD  Allow clock to be stopped when idle
  *
- * $Id: s3c2410.c,v 1.23 2006/04/01 18:06:29 bjd Exp $
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or

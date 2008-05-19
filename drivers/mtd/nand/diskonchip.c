@@ -15,8 +15,6 @@
  * converted to the generic Reed-Solomon library by Thomas Gleixner <tglx@linutronix.de>
  *
  * Interface to generic NAND code for M-Systems DiskOnChip devices
- *
- * $Id: diskonchip.c,v 1.55 2005/11/07 11:14:30 gleixner Exp $
  */
 
 #include <linux/kernel.h>

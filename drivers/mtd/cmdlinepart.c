@@ -1,6 +1,4 @@
 /*
- * $Id: cmdlinepart.c,v 1.19 2005/11/07 11:14:19 gleixner Exp $
- *
  * Read flash partition table from command line
  *
  * Copyright 2002 SYSGO Real-Time Solutions GmbH

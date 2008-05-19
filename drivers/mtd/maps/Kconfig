@@ -1,5 +1,4 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.61 2005/11/07 11:14:26 gleixner Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
