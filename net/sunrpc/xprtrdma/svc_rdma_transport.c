@@ -606,7 +606,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
  * will call the recvfrom method on the listen xprt which will accept the new
  * connection.
  */
-static void handle_connect_req(struct rdma_cm_id *new_cma_id)
+static void handle_connect_req(struct rdma_cm_id *new_cma_id, size_t client_ird)
 {
 	struct svcxprt_rdma *listen_xprt = new_cma_id->context;
 	struct svcxprt_rdma *newxprt;
@@ -622,6 +622,9 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id)
 	new_cma_id->context = newxprt;
 	dprintk("svcrdma: Creating newxprt=%p, cm_id=%p, listenxprt=%p\n",
 		newxprt, newxprt->sc_cm_id, listen_xprt);
+
+	/* Save client advertised inbound read limit for use later in accept. */
+	newxprt->sc_ord = client_ird;
 
 	/* Set the local and remote addresses in the transport */
 	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
@@ -659,7 +662,8 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
 		dprintk("svcrdma: Connect request on cma_id=%p, xprt = %p, "
 			"event=%d\n", cma_id, cma_id->context, event->event);
-		handle_connect_req(cma_id);
+		handle_connect_req(cma_id,
+				   event->param.conn.responder_resources);
 		break;
 
 	case RDMA_CM_EVENT_ESTABLISHED:
@@ -833,8 +837,12 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 				   (size_t)svcrdma_max_requests);
 	newxprt->sc_sq_depth = RPCRDMA_SQ_DEPTH_MULT * newxprt->sc_max_requests;
 
-	newxprt->sc_ord =  min((size_t)devattr.max_qp_rd_atom,
-			       (size_t)svcrdma_ord);
+	/*
+	 * Limit ORD based on client limit, local device limit, and
+	 * configured svcrdma limit.
+	 */
+	newxprt->sc_ord = min_t(size_t, devattr.max_qp_rd_atom, newxprt->sc_ord);
+	newxprt->sc_ord = min_t(size_t,	svcrdma_ord, newxprt->sc_ord);
 
 	newxprt->sc_pd = ib_alloc_pd(newxprt->sc_cm_id->device);
 	if (IS_ERR(newxprt->sc_pd)) {
