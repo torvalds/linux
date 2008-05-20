@@ -1789,10 +1789,10 @@ xfs_fs_fill_super(
 	 */
 	error = xfs_start_flags(args, mp);
 	if (error)
-		goto error1;
+		goto out_destroy_counters;
 	error = xfs_readsb(mp, flags);
 	if (error)
-		goto error1;
+		goto out_destroy_counters;
 	error = xfs_finish_flags(args, mp);
 	if (error)
 		goto error2;
@@ -1853,12 +1853,6 @@ xfs_fs_fill_super(
  error2:
 	if (mp->m_sb_bp)
 		xfs_freesb(mp);
- error1:
-	xfs_binval(mp->m_ddev_targp);
-	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
-		xfs_binval(mp->m_logdev_targp);
-	if (mp->m_rtdev_targp)
-		xfs_binval(mp->m_rtdev_targp);
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
