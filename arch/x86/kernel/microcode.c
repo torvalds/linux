@@ -75,6 +75,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -422,6 +423,7 @@ out:
 
 static int microcode_open (struct inode *unused1, struct file *unused2)
 {
+	cycle_kernel_lock();
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
