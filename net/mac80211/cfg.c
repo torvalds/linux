@@ -672,7 +672,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (params->vlan) {
 		sdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
-		if (sdata->vif.type != IEEE80211_IF_TYPE_VLAN ||
+		if (sdata->vif.type != IEEE80211_IF_TYPE_VLAN &&
 		    sdata->vif.type != IEEE80211_IF_TYPE_AP)
 			return -EINVAL;
 	} else
@@ -760,7 +760,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	if (params->vlan && params->vlan != sta->sdata->dev) {
 		vlansdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
-		if (vlansdata->vif.type != IEEE80211_IF_TYPE_VLAN ||
+		if (vlansdata->vif.type != IEEE80211_IF_TYPE_VLAN &&
 		    vlansdata->vif.type != IEEE80211_IF_TYPE_AP) {
 			rcu_read_unlock();
 			return -EINVAL;
