@@ -48,6 +48,7 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
@@ -797,6 +798,7 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 
 static int tun_chr_open(struct inode *inode, struct file * file)
 {
+	cycle_kernel_lock();
 	DBG1(KERN_INFO "tunX: tun_chr_open\n");
 	file->private_data = NULL;
 	return 0;
