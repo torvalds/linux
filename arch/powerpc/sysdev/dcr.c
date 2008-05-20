@@ -23,6 +23,7 @@
 #include <asm/prom.h>
 #include <asm/dcr.h>
 
+#ifdef CONFIG_PPC_DCR_MMIO
 static struct device_node *find_dcr_parent(struct device_node *node)
 {
 	struct device_node *par, *tmp;
@@ -41,6 +42,7 @@ static struct device_node *find_dcr_parent(struct device_node *node)
 	}
 	return par;
 }
+#endif
 
 #if defined(CONFIG_PPC_DCR_NATIVE) && defined(CONFIG_PPC_DCR_MMIO)
 
