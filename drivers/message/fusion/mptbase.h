@@ -176,6 +176,8 @@
 /* debug print string length used for events and iocstatus */
 # define EVENT_DESCR_STR_SZ             100
 
+#define MPT_POLLING_INTERVAL		1000	/* in milliseconds */
+
 #ifdef __KERNEL__	/* { */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
@@ -709,6 +711,12 @@ typedef struct _MPT_ADAPTER
 	struct workqueue_struct *fc_rescan_work_q;
 	struct scsi_cmnd	**ScsiLookup;
 	spinlock_t		  scsi_lookup_lock;
+
+	char			 reset_work_q_name[KOBJ_NAME_LEN];
+	struct workqueue_struct *reset_work_q;
+	struct delayed_work	 fault_reset_work;
+	spinlock_t		 fault_reset_work_lock;
+
 } MPT_ADAPTER;
 
 /*
