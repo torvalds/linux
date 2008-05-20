@@ -689,7 +689,8 @@ static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 {
 	struct nand_chip *chip = &nmtd->chip;
 
-	printk("%s: chip %p: %d\n", __func__, chip, chip->page_shift);
+	dev_dbg(info->device, "chip %p => page shift %d\n",
+		chip, chip->page_shift);
 
 	if (hardware_ecc) {
 		/* change the behaviour depending on wether we are using
