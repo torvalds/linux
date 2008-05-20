@@ -593,6 +593,7 @@ out:
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode * inode = filp->f_mapping->host;
+	int ret = -ENOLCK;
 
 	dprintk("NFS: nfs_lock(f=%s/%ld, t=%x, fl=%x, r=%Ld:%Ld)\n",
 			inode->i_sb->s_id, inode->i_ino,
@@ -602,13 +603,22 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 	/* No mandatory locks over NFS */
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
-		return -ENOLCK;
+		goto out_err;
+
+	if (NFS_PROTO(inode)->lock_check_bounds != NULL) {
+		ret = NFS_PROTO(inode)->lock_check_bounds(fl);
+		if (ret < 0)
+			goto out_err;
+	}
 
 	if (IS_GETLK(cmd))
-		return do_getlk(filp, cmd, fl);
-	if (fl->fl_type == F_UNLCK)
-		return do_unlk(filp, cmd, fl);
-	return do_setlk(filp, cmd, fl);
+		ret = do_getlk(filp, cmd, fl);
+	else if (fl->fl_type == F_UNLCK)
+		ret = do_unlk(filp, cmd, fl);
+	else
+		ret = do_setlk(filp, cmd, fl);
+out_err:
+	return ret;
 }
 
 /*
