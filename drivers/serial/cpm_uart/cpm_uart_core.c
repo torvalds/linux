@@ -969,6 +969,14 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 	unsigned int i;
 	cbd_t __iomem *bdp, *bdbase;
 	unsigned char *cp;
+	unsigned long flags;
+	int nolock = oops_in_progress;
+
+	if (unlikely(nolock)) {
+		local_irq_save(flags);
+	} else {
+		spin_lock_irqsave(&pinfo->port.lock, flags);
+	}
 
 	/* Get the address of the host memory buffer.
 	 */
@@ -1030,6 +1038,12 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 		;
 
 	pinfo->tx_cur = bdp;
+
+	if (unlikely(nolock)) {
+		local_irq_restore(flags);
+	} else {
+		spin_unlock_irqrestore(&pinfo->port.lock, flags);
+	}
 }
 
 
