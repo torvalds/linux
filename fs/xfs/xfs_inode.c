@@ -1763,67 +1763,6 @@ xfs_itruncate_finish(
 	return 0;
 }
 
-
-/*
- * xfs_igrow_start
- *
- * Do the first part of growing a file: zero any data in the last
- * block that is beyond the old EOF.  We need to do this before
- * the inode is joined to the transaction to modify the i_size.
- * That way we can drop the inode lock and call into the buffer
- * cache to get the buffer mapping the EOF.
- */
-int
-xfs_igrow_start(
-	xfs_inode_t	*ip,
-	xfs_fsize_t	new_size,
-	cred_t		*credp)
-{
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
-	ASSERT(new_size > ip->i_size);
-
-	/*
-	 * Zero any pages that may have been created by
-	 * xfs_write_file() beyond the end of the file
-	 * and any blocks between the old and new file sizes.
-	 */
-	return xfs_zero_eof(ip, new_size, ip->i_size);
-}
-
-/*
- * xfs_igrow_finish
- *
- * This routine is called to extend the size of a file.
- * The inode must have both the iolock and the ilock locked
- * for update and it must be a part of the current transaction.
- * The xfs_igrow_start() function must have been called previously.
- * If the change_flag is not zero, the inode change timestamp will
- * be updated.
- */
-void
-xfs_igrow_finish(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip,
-	xfs_fsize_t	new_size,
-	int		change_flag)
-{
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
-	ASSERT(ip->i_transp == tp);
-	ASSERT(new_size > ip->i_size);
-
-	/*
-	 * Update the file size.  Update the inode change timestamp
-	 * if change_flag set.
-	 */
-	ip->i_d.di_size = new_size;
-	ip->i_size = new_size;
-	if (change_flag)
-		xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-
-}
-
-
 /*
  * This is called when the inode's link count goes to 0.
  * We place the on-disk inode on a list in the AGI.  It

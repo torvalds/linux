@@ -444,7 +444,13 @@ xfs_setattr(
 		code = 0;
 		if ((vap->va_size > ip->i_size) &&
 		    (flags & ATTR_NOSIZETOK) == 0) {
-			code = xfs_igrow_start(ip, vap->va_size, credp);
+			/*
+			 * Do the first part of growing a file: zero any data
+			 * in the last block that is beyond the old EOF.  We
+			 * need to do this before the inode is joined to the
+			 * transaction to modify the i_size.
+			 */
+			code = xfs_zero_eof(ip, vap->va_size, ip->i_size);
 		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
@@ -512,8 +518,11 @@ xfs_setattr(
 			timeflags |= XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
 
 		if (vap->va_size > ip->i_size) {
-			xfs_igrow_finish(tp, ip, vap->va_size,
-			    !(flags & ATTR_DMI));
+			ip->i_d.di_size = vap->va_size;
+			ip->i_size = vap->va_size;
+			if (!(flags & ATTR_DMI))
+				xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
+			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		} else if ((vap->va_size <= ip->i_size) ||
 			   ((vap->va_size == 0) && ip->i_d.di_nextents)) {
 			/*
