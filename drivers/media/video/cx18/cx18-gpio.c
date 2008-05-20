@@ -62,11 +62,13 @@ void cx18_gpio_init(struct cx18 *cx)
 	gpio_dir = cx->card->gpio_init.direction;
 	gpio_val = cx->card->gpio_init.initial_value;
 
+	if (cx->card->xceive_pin) {
+		gpio_dir |= 1 << cx->card->xceive_pin;
+		gpio_val |= 1 << cx->card->xceive_pin;
+	}
+
 	if (gpio_dir == 0)
 		return;
-
-	gpio_dir |= 1 << cx->card->xceive_pin;
-	gpio_val |= 1 << cx->card->xceive_pin;
 
 	CX18_DEBUG_INFO("GPIO initial dir: %08x/%08x out: %08x/%08x\n",
 		   read_reg(CX18_REG_GPIO_DIR1), read_reg(CX18_REG_GPIO_DIR2),
