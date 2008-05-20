@@ -410,10 +410,8 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	int i, flgs;
 	struct net_device *vlandev;
 
-	if (is_vlan_dev(dev)) {
+	if (is_vlan_dev(dev))
 		__vlan_device_event(dev, event);
-		goto out;
-	}
 
 	grp = __vlan_find_group(dev);
 	if (!grp)
