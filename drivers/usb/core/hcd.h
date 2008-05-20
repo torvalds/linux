@@ -213,6 +213,8 @@ struct hc_driver {
 
 		/* force handover of high-speed port to full-speed companion */
 	void	(*relinquish_port)(struct usb_hcd *, int);
+		/* has a port been handed over to a companion? */
+	int	(*port_handed_over)(struct usb_hcd *, int);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

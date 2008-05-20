@@ -59,6 +59,7 @@ static const struct hc_driver ixp4xx_ehci_hc_driver = {
 	.bus_resume		= ehci_bus_resume,
 #endif
 	.relinquish_port	= ehci_relinquish_port,
+	.port_handed_over	= ehci_port_handed_over,
 };
 
 static int ixp4xx_ehci_probe(struct platform_device *pdev)

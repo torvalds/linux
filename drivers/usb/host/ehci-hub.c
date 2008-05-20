@@ -875,3 +875,13 @@ static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
 	set_owner(ehci, --portnum, PORT_OWNER);
 }
 
+static int ehci_port_handed_over(struct usb_hcd *hcd, int portnum)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	u32 __iomem		*reg;
+
+	if (ehci_is_TDI(ehci))
+		return 0;
+	reg = &ehci->regs->port_status[portnum - 1];
+	return ehci_readl(ehci, reg) & PORT_OWNER;
+}
