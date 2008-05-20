@@ -73,6 +73,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/smp_lock.h>
 #include <linux/sysctl.h>
 #include <linux/wait.h>
 #include <linux/bcd.h>
@@ -733,6 +734,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
  * needed here. Or anywhere else in this driver. */
 static int rtc_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	spin_lock_irq(&rtc_lock);
 
 	if (rtc_status & RTC_IS_OPEN)
@@ -742,10 +744,12 @@ static int rtc_open(struct inode *inode, struct file *file)
 
 	rtc_irq_data = 0;
 	spin_unlock_irq(&rtc_lock);
+	unlock_kernel();
 	return 0;
 
 out_busy:
 	spin_unlock_irq(&rtc_lock);
+	unlock_kernel();
 	return -EBUSY;
 }
 
