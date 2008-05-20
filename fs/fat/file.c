@@ -229,7 +229,8 @@ static int fat_free(struct inode *inode, int skip)
 
 void fat_truncate(struct inode *inode)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	const unsigned int cluster_size = sbi->cluster_size;
 	int nr_clusters;
 
@@ -242,9 +243,9 @@ void fat_truncate(struct inode *inode)
 
 	nr_clusters = (inode->i_size + (cluster_size - 1)) >> sbi->cluster_bits;
 
-	lock_kernel();
+	lock_super(sb);
 	fat_free(inode, nr_clusters);
-	unlock_kernel();
+	unlock_super(sb);
 	fat_flush_inodes(inode->i_sb, inode, NULL);
 }
 
@@ -297,12 +298,13 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 
 int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
 	int mask, error = 0;
 	unsigned int ia_valid;
 
-	lock_kernel();
+	lock_super(sb);
 
 	/*
 	 * Expand the file. Since inode_setattr() updates ->i_size
@@ -356,7 +358,7 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 		mask = sbi->options.fs_fmask;
 	inode->i_mode &= S_IFMT | (S_IRWXUGO & ~mask);
 out:
-	unlock_kernel();
+	unlock_super(sb);
 	return error;
 }
 EXPORT_SYMBOL_GPL(fat_setattr);
