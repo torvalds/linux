@@ -1721,7 +1721,7 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 	return 1;
 }
 
-int audit_filter_user(struct netlink_skb_parms *cb, int type)
+int audit_filter_user(struct netlink_skb_parms *cb)
 {
 	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;
