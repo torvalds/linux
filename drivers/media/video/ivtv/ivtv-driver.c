@@ -191,6 +191,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t23 = AverMedia PVR-150 Plus\n"
 		 "\t\t\t24 = AverMedia EZMaker PCI Deluxe\n"
 		 "\t\t\t25 = AverMedia M104 (not yet working)\n"
+		 "\t\t\t26 = Buffalo PC-MV5L/PCI\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: BGH, DK, I, M, N, Nc, 60");
