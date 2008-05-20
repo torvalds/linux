@@ -1,6 +1,6 @@
 /*  arch/sparc64/kernel/process.c
  *
- *  Copyright (C) 1995, 1996 David S. Miller (davem@caip.rutgers.edu)
+ *  Copyright (C) 1995, 1996, 2008 David S. Miller (davem@davemloft.net)
  *  Copyright (C) 1996       Eddie C. Dost   (ecd@skynet.be)
  *  Copyright (C) 1997, 1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
  */
@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/elfcore.h>
+#include <linux/sysrq.h>
 
 #include <asm/oplib.h>
 #include <asm/uaccess.h>
@@ -49,6 +50,8 @@
 #include <asm/sstate.h>
 #include <asm/reboot.h>
 #include <asm/syscalls.h>
+#include <asm/irq_regs.h>
+#include <asm/smp.h>
 
 /* #define VERBOSE_SHOWREGS */
 
@@ -297,6 +300,118 @@ void show_regs(struct pt_regs *regs)
 	}
 #endif
 }
+
+#ifdef CONFIG_MAGIC_SYSRQ
+struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
+static DEFINE_SPINLOCK(global_reg_snapshot_lock);
+
+static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
+			      int this_cpu)
+{
+	flushw_all();
+
+	global_reg_snapshot[this_cpu].tstate = regs->tstate;
+	global_reg_snapshot[this_cpu].tpc = regs->tpc;
+	global_reg_snapshot[this_cpu].tnpc = regs->tnpc;
+	global_reg_snapshot[this_cpu].o7 = regs->u_regs[UREG_I7];
+
+	if (regs->tstate & TSTATE_PRIV) {
+		struct reg_window *rw;
+
+		rw = (struct reg_window *)
+			(regs->u_regs[UREG_FP] + STACK_BIAS);
+		global_reg_snapshot[this_cpu].i7 = rw->ins[6];
+	} else
+		global_reg_snapshot[this_cpu].i7 = 0;
+
+	global_reg_snapshot[this_cpu].thread = tp;
+}
+
+/* In order to avoid hangs we do not try to synchronize with the
+ * global register dump client cpus.  The last store they make is to
+ * the thread pointer, so do a short poll waiting for that to become
+ * non-NULL.
+ */
+static void __global_reg_poll(struct global_reg_snapshot *gp)
+{
+	int limit = 0;
+
+	while (!gp->thread && ++limit < 100) {
+		barrier();
+		udelay(1);
+	}
+}
+
+static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+{
+	struct thread_info *tp = current_thread_info();
+	struct pt_regs *regs = get_irq_regs();
+#ifdef CONFIG_KALLSYMS
+	char buffer[KSYM_SYMBOL_LEN];
+#endif
+	unsigned long flags;
+	int this_cpu, cpu;
+
+	if (!regs)
+		regs = tp->kregs;
+
+	spin_lock_irqsave(&global_reg_snapshot_lock, flags);
+
+	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
+
+	this_cpu = raw_smp_processor_id();
+
+	__global_reg_self(tp, regs, this_cpu);
+
+	smp_fetch_global_regs();
+
+	for_each_online_cpu(cpu) {
+		struct global_reg_snapshot *gp = &global_reg_snapshot[cpu];
+		struct thread_info *tp;
+
+		__global_reg_poll(gp);
+
+		tp = gp->thread;
+		printk("%c CPU[%3d]: TSTATE[%016lx] TPC[%016lx] TNPC[%016lx] TASK[%s:%d]\n",
+		       (cpu == this_cpu ? '*' : ' '), cpu,
+		       gp->tstate, gp->tpc, gp->tnpc,
+		       ((tp && tp->task) ? tp->task->comm : "NULL"),
+		       ((tp && tp->task) ? tp->task->pid : -1));
+#ifdef CONFIG_KALLSYMS
+		if (gp->tstate & TSTATE_PRIV) {
+			sprint_symbol(buffer, gp->tpc);
+			printk("             TPC[%s] ", buffer);
+			sprint_symbol(buffer, gp->o7);
+			printk("O7[%s] ", buffer);
+			sprint_symbol(buffer, gp->i7);
+			printk("I7[%s]\n", buffer);
+		} else
+#endif
+		{
+			printk("             TPC[%lx] O7[%lx] I7[%lx]\n",
+			       gp->tpc, gp->o7, gp->i7);
+		}
+	}
+
+	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
+
+	spin_unlock_irqrestore(&global_reg_snapshot_lock, flags);
+}
+
+static struct sysrq_key_op sparc_globalreg_op = {
+	.handler	= sysrq_handle_globreg,
+	.help_msg	= "Globalregs",
+	.action_msg	= "Show Global CPU Regs",
+};
+
+static int __init sparc_globreg_init(void)
+{
+	return register_sysrq_key('y', &sparc_globalreg_op);
+}
+
+core_initcall(sparc_globreg_init);
+
+#endif
 
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {

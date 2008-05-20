@@ -126,6 +126,17 @@ struct sparc_trapf {
 #define TRACEREG32_SZ	sizeof(struct pt_regs32)
 #define STACKFRAME32_SZ	sizeof(struct sparc_stackf32)
 
+struct global_reg_snapshot {
+	unsigned long		tstate;
+	unsigned long		tpc;
+	unsigned long		tnpc;
+	unsigned long		o7;
+	unsigned long		i7;
+	struct thread_info	*thread;
+	unsigned long		pad1;
+	unsigned long		pad2;
+};
+
 #ifdef __KERNEL__
 
 #define __ARCH_WANT_COMPAT_SYS_PTRACE
@@ -294,6 +305,16 @@ extern void __show_regs(struct pt_regs *);
 #define SF_XARG4  0x54
 #define SF_XARG5  0x58
 #define SF_XXARG  0x5c
+
+/* global_reg_snapshot offsets */
+#define GR_SNAP_TSTATE	0x00
+#define GR_SNAP_TPC	0x08
+#define GR_SNAP_TNPC	0x10
+#define GR_SNAP_O7	0x18
+#define GR_SNAP_I7	0x20
+#define GR_SNAP_THREAD	0x28
+#define GR_SNAP_PAD1	0x30
+#define GR_SNAP_PAD2	0x38
 
 /* Stuff for the ptrace system call */
 #define PTRACE_SPARC_DETACH       11
