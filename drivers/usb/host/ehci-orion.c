@@ -115,6 +115,8 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
+	hcd->has_tt = 1;
+
 	ehci_reset(ehci);
 	ehci_port_power(ehci, 0);
 
