@@ -473,7 +473,7 @@ static struct pcxhr_cmd_info pcxhr_dsp_cmds[] = {
 [CMD_AUDIO_LEVEL_ADJUST] =		{ 0xc22000, 0, RMH_SSIZE_FIXED },
 };
 
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 static char* cmd_names[] = {
 [CMD_VERSION] =				"CMD_VERSION",
 [CMD_SUPPORTED] =			"CMD_SUPPORTED",
@@ -549,7 +549,7 @@ static int pcxhr_read_rmh_status(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 				}
 			}
 		}
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 		if (rmh->cmd_idx < CMD_LAST_INDEX)
 			snd_printdd("    stat[%d]=%x\n", i, data);
 #endif
@@ -597,7 +597,7 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 		data |= 0x008000;	/* MASK_MORE_THAN_1_WORD_COMMAND */
 	else
 		data &= 0xff7fff;	/* MASK_1_WORD_COMMAND */
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	if (rmh->cmd_idx < CMD_LAST_INDEX)
 		snd_printdd("MSG cmd[0]=%x (%s)\n", data, cmd_names[rmh->cmd_idx]);
 #endif
@@ -624,7 +624,7 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 		for (i=1; i < rmh->cmd_len; i++) {
 			/* send other words */
 			data = rmh->cmd[i];
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 			if (rmh->cmd_idx < CMD_LAST_INDEX)
 				snd_printdd("    cmd[%d]=%x\n", i, data);
 #endif
@@ -847,7 +847,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask, int capture_m
 	int state, i, err;
 	int audio_mask;
 
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	struct timeval my_tv1, my_tv2;
 	do_gettimeofday(&my_tv1);
 #endif
@@ -894,7 +894,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask, int capture_m
 		if (err)
 			return err;
 	}
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	do_gettimeofday(&my_tv2);
 	snd_printdd("***SET PIPE STATE*** TIME = %ld (err = %x)\n",
 		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
@@ -951,7 +951,7 @@ static int pcxhr_handle_async_err(struct pcxhr_mgr *mgr, u32 err,
 				  enum pcxhr_async_err_src err_src, int pipe,
 				  int is_capture)
 {
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	static char* err_src_name[] = {
 		[PCXHR_ERR_PIPE]	= "Pipe",
 		[PCXHR_ERR_STREAM]	= "Stream",
@@ -1169,7 +1169,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 				    mgr->dsp_time_last, dsp_time_new);
 			mgr->dsp_time_err++;
 		}
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 		if (dsp_time_diff == 0)
 			snd_printdd("ERROR DSP TIME NO DIFF time(%d)\n", dsp_time_new);
 		else if (dsp_time_diff >= (2*PCXHR_GRANULARITY))
@@ -1208,7 +1208,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 		mgr->src_it_dsp = reg;
 		tasklet_hi_schedule(&mgr->msg_taskq);
 	}
-#ifdef CONFIG_SND_DEBUG_DETECT
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 	if (reg & PCXHR_FATAL_DSP_ERR)
 		snd_printdd("FATAL DSP ERROR : %x\n", reg);
 #endif

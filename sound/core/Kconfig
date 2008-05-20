@@ -153,12 +153,14 @@ config SND_DEBUG
 	help
 	  Say Y here to enable ALSA debug code.
 
-config SND_DEBUG_DETECT
-	bool "Debug detection"
+config SND_DEBUG_VERBOSE
+	bool "More verbose debug"
 	depends on SND_DEBUG
 	help
-	  Say Y here to enable extra-verbose log messages printed when
-	  detecting devices.
+	  Say Y here to enable extra-verbose debugging messages.
+	  
+	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
+	  So, say Y only if you are ready to be annoyed.
 
 config SND_PCM_XRUN_DEBUG
 	bool "Enable PCM ring buffer overrun/underrun debugging"
