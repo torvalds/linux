@@ -47,7 +47,6 @@
 
 STATIC int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
-STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
 
@@ -1268,7 +1267,7 @@ xfs_mountfs(
 	/* FALLTHROUGH */
  error1:
 	if (uuid_mounted)
-		xfs_uuid_unmount(mp);
+		uuid_table_remove(&mp->m_sb.sb_uuid);
 	xfs_freesb(mp);
 	return error;
 }
@@ -1349,7 +1348,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 
 	xfs_unmountfs_close(mp, cr);
 	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
-		xfs_uuid_unmount(mp);
+		uuid_table_remove(&mp->m_sb.sb_uuid);
 
 #if defined(DEBUG) || defined(INDUCE_IO_ERROR)
 	xfs_errortag_clearall(mp, 0);
@@ -1908,16 +1907,6 @@ xfs_uuid_mount(
 		return -1;
 	}
 	return 0;
-}
-
-/*
- * Remove filesystem from the UUID table.
- */
-STATIC void
-xfs_uuid_unmount(
-	xfs_mount_t	*mp)
-{
-	uuid_table_remove(&mp->m_sb.sb_uuid);
 }
 
 /*
