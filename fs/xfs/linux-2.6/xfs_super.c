@@ -1795,22 +1795,22 @@ xfs_fs_fill_super(
 		goto out_destroy_counters;
 	error = xfs_finish_flags(args, mp);
 	if (error)
-		goto error2;
+		goto out_free_sb;
 
 	error = xfs_setup_devices(mp);
 	if (error)
-		goto error2;
+		goto out_free_sb;
 
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_mountfs_check_barriers(mp);
 
 	error = xfs_filestream_mount(mp);
 	if (error)
-		goto error2;
+		goto out_free_sb;
 
 	error = xfs_mountfs(mp, flags);
 	if (error)
-		goto error2;
+		goto out_free_sb;
 
 	XFS_SEND_MOUNT(mp, DM_RIGHT_NULL, args->mtpt, args->fsname);
 
@@ -1850,9 +1850,8 @@ xfs_fs_fill_super(
 	kfree(args);
 	return 0;
 
- error2:
-	if (mp->m_sb_bp)
-		xfs_freesb(mp);
+ out_free_sb:
+	xfs_freesb(mp);
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
