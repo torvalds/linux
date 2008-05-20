@@ -1,6 +1,8 @@
 #ifndef _ASM_X8664_IOMMU_H
 #define _ASM_X8664_IOMMU_H 1
 
+#include <asm/e820.h>
+
 extern void pci_iommu_shutdown(void);
 extern void no_iommu_init(void);
 extern int force_iommu, no_iommu;
@@ -67,6 +69,28 @@ static inline void enable_gart_translation(struct pci_dev *dev, u64 addr)
         ctl |= GARTEN;
         ctl &= ~(DISGARTCPU | DISGARTIO);
         pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
+}
+
+static inline int aperture_valid(u64 aper_base, u32 aper_size, u32 min_size)
+{
+	if (!aper_base)
+		return 0;
+
+	if (aper_base + aper_size > 0x100000000ULL) {
+		printk(KERN_ERR "Aperture beyond 4GB. Ignoring.\n");
+		return 0;
+	}
+	if (e820_any_mapped(aper_base, aper_base + aper_size, E820_RAM)) {
+		printk(KERN_ERR "Aperture pointing to e820 RAM. Ignoring.\n");
+		return 0;
+	}
+	if (aper_size < min_size) {
+		printk(KERN_ERR "Aperture too small (%d MB) than (%d MB)\n",
+				 aper_size>>20, min_size>>20);
+		return 0;
+	}
+
+	return 1;
 }
 
 #endif

@@ -228,24 +228,10 @@ static const struct agp_bridge_driver amd_8151_driver = {
 };
 
 /* Some basic sanity checks for the aperture. */
-static int __devinit aperture_valid(u64 aper, u32 size)
+static int __devinit agp_aperture_valid(u64 aper, u32 size)
 {
-	if (aper == 0) {
-		printk(KERN_ERR PFX "No aperture\n");
+	if (!aperture_valid(aper, size, 32*1024*1024))
 		return 0;
-	}
-	if ((u64)aper + size > 0x100000000ULL) {
-		printk(KERN_ERR PFX "Aperture out of bounds\n");
-		return 0;
-	}
-	if (e820_any_mapped(aper, aper + size, E820_RAM)) {
-		printk(KERN_ERR PFX "Aperture pointing to RAM\n");
-		return 0;
-	}
-	if (size < 32*1024*1024) {
-		printk(KERN_ERR PFX "Aperture too small (%d MB)\n", size>>20);
-		return 0;
-	}
 
 	/* Request the Aperture. This catches cases when someone else
 	   already put a mapping in there - happens with some very broken BIOS
@@ -282,7 +268,7 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	nb_order = (nb_order >> 1) & 7;
 	pci_read_config_dword(nb, AMD64_GARTAPERTUREBASE, &nb_base);
 	nb_aper = nb_base << 25;
-	if (aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) {
+	if (agp_aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) {
 		return 0;
 	}
 
@@ -313,7 +299,7 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	}
 
 	printk(KERN_INFO PFX "Aperture from AGP @ %Lx size %u MB\n", aper, 32 << order);
-	if (order < 0 || !aperture_valid(aper, (32*1024*1024)<<order))
+	if (order < 0 || !agp_aperture_valid(aper, (32*1024*1024)<<order))
 		return -1;
 
 	pci_write_config_dword(nb, AMD64_GARTAPERTURECTL, order << 1);
