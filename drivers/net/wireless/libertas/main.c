@@ -787,6 +787,11 @@ static int lbs_thread(void *data)
 					    le16_to_cpu(cmdnode->cmdbuf->command));
 				lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
 				priv->nr_retries = 0;
+				if (priv->reset_card) {
+					spin_unlock_irq(&priv->driver_lock);
+					priv->reset_card(priv);
+					spin_lock_irq(&priv->driver_lock);
+				}
 			} else {
 				priv->cur_cmd = NULL;
 				lbs_pr_info("requeueing command %x due to timeout (#%d)\n",
