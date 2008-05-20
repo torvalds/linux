@@ -52,6 +52,7 @@
 #include "xfs_version.h"
 #include "xfs_log_priv.h"
 #include "xfs_trans_priv.h"
+#include "xfs_filestream.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -1220,8 +1221,26 @@ xfs_fs_remount(
 	int			error;
 
 	error = xfs_parseargs(mp, options, args, 1);
-	if (!error)
-		error = xfs_mntupdate(mp, flags, args);
+	if (error)
+		goto out_free_args;
+
+	if (!(*flags & MS_RDONLY)) {			/* rw/ro -> rw */
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
+		mp->m_flags &= ~XFS_MOUNT_RDONLY;
+		if (args->flags & XFSMNT_BARRIER) {
+			mp->m_flags |= XFS_MOUNT_BARRIER;
+			xfs_mountfs_check_barriers(mp);
+		} else {
+			mp->m_flags &= ~XFS_MOUNT_BARRIER;
+		}
+	} else if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {	/* rw -> ro */
+		xfs_filestream_flush(mp);
+		xfs_sync(mp, SYNC_DATA_QUIESCE);
+		xfs_attr_quiesce(mp);
+		mp->m_flags |= XFS_MOUNT_RDONLY;
+	}
+
+ out_free_args:
 	kmem_free(args);
 	return -error;
 }

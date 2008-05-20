@@ -701,30 +701,6 @@ xfs_attr_quiesce(
 	xfs_unmountfs_writesb(mp);
 }
 
-int
-xfs_mntupdate(
-	struct xfs_mount		*mp,
-	int				*flags,
-	struct xfs_mount_args		*args)
-{
-	if (!(*flags & MS_RDONLY)) {			/* rw/ro -> rw */
-		if (mp->m_flags & XFS_MOUNT_RDONLY)
-			mp->m_flags &= ~XFS_MOUNT_RDONLY;
-		if (args->flags & XFSMNT_BARRIER) {
-			mp->m_flags |= XFS_MOUNT_BARRIER;
-			xfs_mountfs_check_barriers(mp);
-		} else {
-			mp->m_flags &= ~XFS_MOUNT_BARRIER;
-		}
-	} else if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {	/* rw -> ro */
-		xfs_filestream_flush(mp);
-		xfs_sync(mp, SYNC_DATA_QUIESCE);
-		xfs_attr_quiesce(mp);
-		mp->m_flags |= XFS_MOUNT_RDONLY;
-	}
-	return 0;
-}
-
 /*
  * xfs_unmount_flush implements a set of flush operation on special
  * inodes, which are needed as a separate set of operations so that
