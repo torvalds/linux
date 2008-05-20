@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <asm/dma.h>
@@ -196,6 +197,7 @@ static loff_t coreb_lseek(struct file *file, loff_t offset, int origin)
 
 static int coreb_open(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	spin_lock_irq(&coreb_lock);
 
 	if (coreb_status & COREB_IS_OPEN)
@@ -204,10 +206,12 @@ static int coreb_open(struct inode *inode, struct file *file)
 	coreb_status |= COREB_IS_OPEN;
 
 	spin_unlock_irq(&coreb_lock);
+	unlock_kernel();
 	return 0;
 
  out_busy:
 	spin_unlock_irq(&coreb_lock);
+	unlock_kernel();
 	return -EBUSY;
 }
 
