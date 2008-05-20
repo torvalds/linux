@@ -118,6 +118,4 @@ extern void *cio_get_console_priv(void);
 #define cio_get_console_priv() NULL
 #endif
 
-extern int cio_show_msg;
-
 #endif

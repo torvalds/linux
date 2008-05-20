@@ -90,6 +90,17 @@ int request_dma(unsigned int channel, char *device_id)
 {
 
 	pr_debug("request_dma() : BEGIN \n");
+
+#if defined(CONFIG_BF561) && ANOMALY_05000182
+	if (channel >= CH_IMEM_STREAM0_DEST && channel <= CH_IMEM_STREAM1_DEST) {
+		if (get_cclk() > 500000000) {
+			printk(KERN_WARNING
+			       "Request IMDMA failed due to ANOMALY 05000182\n");
+			return -EFAULT;
+		}
+	}
+#endif
+
 	mutex_lock(&(dma_ch[channel].dmalock));
 
 	if ((dma_ch[channel].chan_status == DMA_CHANNEL_REQUESTED)

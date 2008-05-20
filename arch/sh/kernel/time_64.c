@@ -172,6 +172,7 @@ void do_gettimeofday(struct timeval *tv)
 	tv->tv_sec = sec;
 	tv->tv_usec = usec;
 }
+EXPORT_SYMBOL(do_gettimeofday);
 
 int do_settimeofday(struct timespec *tv)
 {
@@ -240,7 +241,7 @@ static inline void do_timer_interrupt(void)
 	 * the irq version of write_lock because as just said we have irq
 	 * locally disabled. -arca
 	 */
-	write_lock(&xtime_lock);
+	write_seqlock(&xtime_lock);
 	asm ("getcon cr62, %0" : "=r" (current_ctc));
 	ctc_last_interrupt = (unsigned long) current_ctc;
 
@@ -266,7 +267,7 @@ static inline void do_timer_interrupt(void)
 			/* do it again in 60 s */
 			last_rtc_update = xtime.tv_sec - 600;
 	}
-	write_unlock(&xtime_lock);
+	write_sequnlock(&xtime_lock);
 
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));

@@ -13,9 +13,10 @@
 #include <asm/unistd.h>
 #include <asm/errno.h>
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 	.level	LEVEL
-	.text
+	__HEAD
 
 	.import hpux_call_table
 	.import hpux_syscall_exit,code

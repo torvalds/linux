@@ -184,9 +184,8 @@ int intc_irq_describe(char* p, int irq)
 
 void __init plat_irq_setup(void)
 {
-        unsigned long long __dummy0, __dummy1=~0x00000000100000f0;
+	unsigned long long __dummy0, __dummy1=~0x00000000100000f0;
 	unsigned long reg;
-	unsigned long data;
 	int i;
 
 	intc_virt = onchip_remap(INTC_BASE, 1024, "INTC");
@@ -196,11 +195,8 @@ void __init plat_irq_setup(void)
 
 
 	/* Set default: per-line enable/disable, priority driven ack/eoi */
-	for (i = 0; i < NR_INTC_IRQS; i++) {
-		if (platform_int_priority[i] != NO_PRIORITY) {
-			irq_desc[i].chip = &intc_irq_type;
-		}
-	}
+	for (i = 0; i < NR_INTC_IRQS; i++)
+		irq_desc[i].chip = &intc_irq_type;
 
 
 	/* Disable all interrupts and set all priorities to 0 to avoid trouble */
@@ -211,35 +207,42 @@ void __init plat_irq_setup(void)
 		ctrl_outl( NO_PRIORITY, reg);
 
 
-	/* Set IRLM */
-	/* If all the priorities are set to 'no priority', then
-	 * assume we are using encoded mode.
-	 */
-	irlm = platform_int_priority[IRQ_IRL0] + platform_int_priority[IRQ_IRL1] + \
-		platform_int_priority[IRQ_IRL2] + platform_int_priority[IRQ_IRL3];
+#ifdef CONFIG_SH_CAYMAN
+	{
+		unsigned long data;
 
-	if (irlm == NO_PRIORITY) {
-		/* IRLM = 0 */
-		reg = INTC_ICR_CLEAR;
-		i = IRQ_INTA;
-		printk("Trying to use encoded IRL0-3. IRLs unsupported.\n");
-	} else {
-		/* IRLM = 1 */
-		reg = INTC_ICR_SET;
-		i = IRQ_IRL0;
-	}
-	ctrl_outl(INTC_ICR_IRLM, reg);
-
-	/* Set interrupt priorities according to platform description */
-	for (data = 0, reg = INTC_INTPRI_0; i < NR_INTC_IRQS; i++) {
-		data |= platform_int_priority[i] << ((i % INTC_INTPRI_PPREG) * 4);
-		if ((i % INTC_INTPRI_PPREG) == (INTC_INTPRI_PPREG - 1)) {
-			/* Upon the 7th, set Priority Register */
-			ctrl_outl(data, reg);
-			data = 0;
-			reg += 8;
+		/* Set IRLM */
+		/* If all the priorities are set to 'no priority', then
+		 * assume we are using encoded mode.
+		 */
+		irlm = platform_int_priority[IRQ_IRL0] +
+		       platform_int_priority[IRQ_IRL1] +
+		       platform_int_priority[IRQ_IRL2] +
+		       platform_int_priority[IRQ_IRL3];
+		if (irlm == NO_PRIORITY) {
+			/* IRLM = 0 */
+			reg = INTC_ICR_CLEAR;
+			i = IRQ_INTA;
+			printk("Trying to use encoded IRL0-3. IRLs unsupported.\n");
+		} else {
+			/* IRLM = 1 */
+			reg = INTC_ICR_SET;
+			i = IRQ_IRL0;
 		}
-	}
+		ctrl_outl(INTC_ICR_IRLM, reg);
+
+		/* Set interrupt priorities according to platform description */
+		for (data = 0, reg = INTC_INTPRI_0; i < NR_INTC_IRQS; i++) {
+			data |= platform_int_priority[i] <<
+				((i % INTC_INTPRI_PPREG) * 4);
+			if ((i % INTC_INTPRI_PPREG) == (INTC_INTPRI_PPREG - 1)) {
+				/* Upon the 7th, set Priority Register */
+				ctrl_outl(data, reg);
+				data = 0;
+				reg += 8;
+			}
+		}
+#endif
 
 	/*
 	 * And now let interrupts come in.

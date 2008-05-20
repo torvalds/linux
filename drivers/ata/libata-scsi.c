@@ -1082,12 +1082,6 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	if (((cdb[4] >> 4) & 0xf) != 0)
 		goto invalid_fld;       /* power conditions not supported */
 
-	if (qc->dev->horkage & ATA_HORKAGE_SKIP_PM) {
-		/* the device lacks PM support, finish without doing anything */
-		scmd->result = SAM_STAT_GOOD;
-		return 1;
-	}
-
 	if (cdb[4] & 0x1) {
 		tf->nsect = 1;	/* 1 sector, lba=0 */
 

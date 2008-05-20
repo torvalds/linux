@@ -18,7 +18,6 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/sched.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>

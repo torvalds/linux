@@ -30,8 +30,8 @@ ENTRY(empty_zero_page)
 	.long	0		/* RAMDISK_FLAGS */
 	.long	0x0200		/* ORIG_ROOT_DEV */
 	.long	1		/* LOADER_TYPE */
-	.long	0x00360000	/* INITRD_START */
-	.long	0x000a0000	/* INITRD_SIZE */
+	.long	0x00000000	/* INITRD_START */
+	.long	0x00000000	/* INITRD_SIZE */
 #ifdef CONFIG_32BIT
 	.long	0x53453f00 + 32	/* "SE?" = 32 bit */
 #else

@@ -116,6 +116,12 @@ extern void pfault_fini(void);
 #define pfault_fini()		do { } while (0)
 #endif /* CONFIG_PFAULT */
 
+#ifdef CONFIG_PAGE_STATES
+extern void cmma_init(void);
+#else
+static inline void cmma_init(void) { }
+#endif
+
 #define finish_arch_switch(prev) do {					     \
 	set_fs(current->thread.mm_segment);				     \
 	account_vtime(prev);						     \

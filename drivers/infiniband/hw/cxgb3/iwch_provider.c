@@ -442,6 +442,7 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 	mmid = mhp->attr.stag >> 8;
 	cxio_dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
 		       mhp->attr.pbl_addr);
+	iwch_free_pbl(mhp);
 	remove_handle(rhp, &rhp->mmidr, mmid);
 	if (mhp->kva)
 		kfree((void *) (unsigned long) mhp->kva);
@@ -475,6 +476,8 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 
+	mhp->rhp = rhp;
+
 	/* First check that we have enough alignment */
 	if ((*iova_start & ~PAGE_MASK) != (buffer_list[0].addr & ~PAGE_MASK)) {
 		ret = -EINVAL;
@@ -492,7 +495,17 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 	if (ret)
 		goto err;
 
-	mhp->rhp = rhp;
+	ret = iwch_alloc_pbl(mhp, npages);
+	if (ret) {
+		kfree(page_list);
+		goto err_pbl;
+	}
+
+	ret = iwch_write_pbl(mhp, page_list, npages, 0);
+	kfree(page_list);
+	if (ret)
+		goto err_pbl;
+
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
 
@@ -502,12 +515,15 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 
 	mhp->attr.len = (u32) total_size;
 	mhp->attr.pbl_size = npages;
-	ret = iwch_register_mem(rhp, php, mhp, shift, page_list);
-	kfree(page_list);
-	if (ret) {
-		goto err;
-	}
+	ret = iwch_register_mem(rhp, php, mhp, shift);
+	if (ret)
+		goto err_pbl;
+
 	return &mhp->ibmr;
+
+err_pbl:
+	iwch_free_pbl(mhp);
+
 err:
 	kfree(mhp);
 	return ERR_PTR(ret);
@@ -560,7 +576,7 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 			return ret;
 	}
 
-	ret = iwch_reregister_mem(rhp, php, &mh, shift, page_list, npages);
+	ret = iwch_reregister_mem(rhp, php, &mh, shift, npages);
 	kfree(page_list);
 	if (ret) {
 		return ret;
@@ -602,6 +618,8 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 
+	mhp->rhp = rhp;
+
 	mhp->umem = ib_umem_get(pd->uobject->context, start, length, acc, 0);
 	if (IS_ERR(mhp->umem)) {
 		err = PTR_ERR(mhp->umem);
@@ -615,10 +633,14 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
 		n += chunk->nents;
 
-	pages = kmalloc(n * sizeof(u64), GFP_KERNEL);
+	err = iwch_alloc_pbl(mhp, n);
+	if (err)
+		goto err;
+
+	pages = (__be64 *) __get_free_page(GFP_KERNEL);
 	if (!pages) {
 		err = -ENOMEM;
-		goto err;
+		goto err_pbl;
 	}
 
 	i = n = 0;
@@ -630,25 +652,38 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				pages[i++] = cpu_to_be64(sg_dma_address(
 					&chunk->page_list[j]) +
 					mhp->umem->page_size * k);
+				if (i == PAGE_SIZE / sizeof *pages) {
+					err = iwch_write_pbl(mhp, pages, i, n);
+					if (err)
+						goto pbl_done;
+					n += i;
+					i = 0;
+				}
 			}
 		}
 
-	mhp->rhp = rhp;
+	if (i)
+		err = iwch_write_pbl(mhp, pages, i, n);
+
+pbl_done:
+	free_page((unsigned long) pages);
+	if (err)
+		goto err_pbl;
+
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
 	mhp->attr.perms = iwch_ib_to_tpt_access(acc);
 	mhp->attr.va_fbo = virt;
 	mhp->attr.page_size = shift - 12;
 	mhp->attr.len = (u32) length;
-	mhp->attr.pbl_size = i;
-	err = iwch_register_mem(rhp, php, mhp, shift, pages);
-	kfree(pages);
+
+	err = iwch_register_mem(rhp, php, mhp, shift);
 	if (err)
-		goto err;
+		goto err_pbl;
 
 	if (udata && !t3a_device(rhp)) {
 		uresp.pbl_addr = (mhp->attr.pbl_addr -
-	                         rhp->rdev.rnic_info.pbl_base) >> 3;
+				 rhp->rdev.rnic_info.pbl_base) >> 3;
 		PDBG("%s user resp pbl_addr 0x%x\n", __func__,
 		     uresp.pbl_addr);
 
@@ -660,6 +695,9 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	return &mhp->ibmr;
+
+err_pbl:
+	iwch_free_pbl(mhp);
 
 err:
 	ib_umem_release(mhp->umem);

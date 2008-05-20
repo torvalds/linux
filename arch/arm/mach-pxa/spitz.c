@@ -38,6 +38,7 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
+#include <asm/arch/pxa27x-udc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/ohci.h>
@@ -529,8 +530,6 @@ static struct platform_device *devices[] __initdata = {
 
 static void spitz_poweroff(void)
 {
-	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
-
 	pxa_gpio_mode(SPITZ_GPIO_ON_RESET | GPIO_OUT);
 	GPSR(SPITZ_GPIO_ON_RESET) = GPIO_bit(SPITZ_GPIO_ON_RESET);
 

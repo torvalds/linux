@@ -12,6 +12,7 @@
 #include <asm/assembly.h>
 
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 	.section	.bss
 	.export real_stack
@@ -39,7 +40,7 @@ save_cr_end:
 /************************ 32-bit real-mode calls ***********************/
 /* This can be called in both narrow and wide kernels */
 
-	.text
+	__HEAD
 
 	/* unsigned long real32_call_asm(unsigned int *sp,
 	 *		unsigned int *arg0p,
@@ -113,7 +114,7 @@ ENDPROC(real32_call_asm)
 #  define PUSH_CR(r, where) mfctl r, %r1 ! STREG,ma %r1, REG_SZ(where)
 #  define POP_CR(r, where) LDREG,mb -REG_SZ(where), %r1 ! mtctl %r1, r
 
-	.text
+	__HEAD
 save_control_regs:
 	load32	PA(save_cr_space), %r28
 	PUSH_CR(%cr24, %r28)
@@ -145,7 +146,7 @@ restore_control_regs:
 /* rfi_virt2real() and rfi_real2virt() could perhaps be adapted for
  * more general-purpose use by the several places which need RFIs
  */
-	.text
+	__HEAD
 	.align 128
 rfi_virt2real:
 	/* switch to real mode... */
@@ -180,7 +181,7 @@ rfi_v2r_1:
 	bv	0(%r2)
 	nop
 
-	.text
+	__HEAD
 	.align 128
 rfi_real2virt:
 	rsm		PSW_SM_I,%r0
@@ -218,7 +219,7 @@ rfi_r2v_1:
 
 /************************ 64-bit real-mode calls ***********************/
 /* This is only usable in wide kernels right now and will probably stay so */
-	.text
+	__HEAD
 	/* unsigned long real64_call_asm(unsigned long *sp,
 	 *		unsigned long *arg0p,
 	 *		unsigned long fn)
@@ -276,7 +277,7 @@ ENDPROC(real64_call_asm)
 
 #endif
 
-	.text
+	__HEAD
 	/* http://lists.parisc-linux.org/hypermail/parisc-linux/10916.html
 	**	GCC 3.3 and later has a new function in libgcc.a for
 	**	comparing function pointers.

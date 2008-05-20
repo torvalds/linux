@@ -374,7 +374,7 @@ config MTD_REDWOOD
 
 config MTD_SOLUTIONENGINE
 	tristate "CFI Flash device mapped on Hitachi SolutionEngine"
-	depends on SUPERH && MTD_CFI && MTD_REDBOOT_PARTS
+	depends on SUPERH && SOLUTION_ENGINE && MTD_CFI && MTD_REDBOOT_PARTS
 	help
 	  This enables access to the flash chips on the Hitachi SolutionEngine and
 	  similar boards. Say 'Y' if you are building a kernel for such a board.
@@ -478,13 +478,6 @@ config MTD_H720X
 	depends on MTD_CFI && ( ARCH_H7201 || ARCH_H7202 )
 	help
 	  This enables access to the flash chips on the Hynix evaluation boards.
-	  If you have such a board, say 'Y'.
-
-config MTD_MPC1211
-	tristate "CFI Flash device mapped on Interface MPC-1211"
-	depends on SH_MPC1211 && MTD_CFI
-	help
-	  This enables access to the flash chips on the Interface MPC-1211(CTP/PCI/MPC-SH02).
 	  If you have such a board, say 'Y'.
 
 config MTD_OMAP_NOR

@@ -25,6 +25,16 @@
 #ifndef _ASM_X86_TOPOLOGY_H
 #define _ASM_X86_TOPOLOGY_H
 
+#ifdef CONFIG_X86_32
+# ifdef CONFIG_X86_HT
+#  define ENABLE_TOPO_DEFINES
+# endif
+#else
+# ifdef CONFIG_SMP
+#  define ENABLE_TOPO_DEFINES
+# endif
+#endif
+
 #ifdef CONFIG_NUMA
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
@@ -130,20 +140,12 @@ extern unsigned long node_end_pfn[];
 extern unsigned long node_remap_size[];
 #define node_has_online_mem(nid) (node_start_pfn[nid] != node_end_pfn[nid])
 
-# ifdef CONFIG_X86_HT
-#  define ENABLE_TOPO_DEFINES
-# endif
-
 # define SD_CACHE_NICE_TRIES	1
 # define SD_IDLE_IDX		1
 # define SD_NEWIDLE_IDX		2
 # define SD_FORKEXEC_IDX	0
 
 #else
-
-# ifdef CONFIG_SMP
-#  define ENABLE_TOPO_DEFINES
-# endif
 
 # define SD_CACHE_NICE_TRIES	2
 # define SD_IDLE_IDX		2

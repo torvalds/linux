@@ -34,12 +34,3 @@ void cx18_stop_capture(struct cx18_open_id *id, int gop_end);
 void cx18_mute(struct cx18 *cx);
 void cx18_unmute(struct cx18 *cx);
 
-/* Utilities */
-
-/* Try to claim a stream for the filehandle. Return 0 on success,
-   -EBUSY if stream already claimed. Once a stream is claimed, it
-   remains claimed until the associated filehandle is closed. */
-int cx18_claim_stream(struct cx18_open_id *id, int type);
-
-/* Release a previously claimed stream. */
-void cx18_release_stream(struct cx18_stream *s);

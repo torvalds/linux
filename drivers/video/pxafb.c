@@ -355,9 +355,8 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	pr_debug("pxafb: dma period = %d ps, clock = %d kHz\n",
-		 pxafb_display_dma_period(var),
-		 get_clk_frequency_khz(0));
+	pr_debug("pxafb: dma period = %d ps\n",
+		 pxafb_display_dma_period(var));
 #endif
 
 	return 0;
@@ -1301,8 +1300,8 @@ static void pxafb_decode_mode_info(struct pxafb_info *fbi,
 	}
 }
 
-static int pxafb_decode_mach_info(struct pxafb_info *fbi,
-				  struct pxafb_mach_info *inf)
+static void pxafb_decode_mach_info(struct pxafb_info *fbi,
+				   struct pxafb_mach_info *inf)
 {
 	unsigned int lcd_conn = inf->lcd_conn;
 
@@ -1333,7 +1332,7 @@ static int pxafb_decode_mach_info(struct pxafb_info *fbi,
 		fbi->lccr0 = inf->lccr0;
 		fbi->lccr3 = inf->lccr3;
 		fbi->lccr4 = inf->lccr4;
-		return -EINVAL;
+		goto decode_mode;
 	}
 
 	if (lcd_conn == LCD_MONO_STN_8BPP)
@@ -1343,8 +1342,8 @@ static int pxafb_decode_mach_info(struct pxafb_info *fbi,
 	fbi->lccr3 |= (lcd_conn & LCD_BIAS_ACTIVE_LOW) ? LCCR3_OEP : 0;
 	fbi->lccr3 |= (lcd_conn & LCD_PCLK_EDGE_FALL)  ? LCCR3_PCP : 0;
 
+decode_mode:
 	pxafb_decode_mode_info(fbi, inf->modes, inf->num_modes);
-	return 0;
 }
 
 static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)

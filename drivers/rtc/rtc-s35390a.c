@@ -227,7 +227,7 @@ static int s35390a_probe(struct i2c_client *client,
 	/* This chip uses multiple addresses, use dummy devices for them */
 	for (i = 1; i < 8; ++i) {
 		s35390a->client[i] = i2c_new_dummy(client->adapter,
-					client->addr + i, "rtc-s35390a");
+					client->addr + i);
 		if (!s35390a->client[i]) {
 			dev_err(&client->dev, "Address %02x unavailable\n",
 						client->addr + i);

@@ -118,8 +118,8 @@ static void ata_acpi_associate_ide_port(struct ata_port *ap)
 		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
 }
 
-static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
-				    u32 event)
+static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device
+				    *dev, u32 event)
 {
 	char event_string[12];
 	char *envp[] = { event_string, NULL };
@@ -127,6 +127,9 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 	struct kobject *kobj = NULL;
 	int wait = 0;
 	unsigned long flags;
+	acpi_handle handle, tmphandle;
+	unsigned long sta;
+	acpi_status status;
 
 	if (!ap)
 		ap = dev->link->ap;
@@ -134,31 +137,56 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 
 	spin_lock_irqsave(ap->lock, flags);
 
+	if (dev)
+		handle = dev->acpi_handle;
+	else
+		handle = ap->acpi_handle;
+
+	status = acpi_get_handle(handle, "_EJ0", &tmphandle);
+	if (ACPI_FAILURE(status)) {
+		/* This device is not ejectable */
+		spin_unlock_irqrestore(ap->lock, flags);
+		return;
+	}
+
+	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+	if (ACPI_FAILURE(status)) {
+		printk ("Unable to determine bay status\n");
+		spin_unlock_irqrestore(ap->lock, flags);
+		return;
+	}
+
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		ata_ehi_push_desc(ehi, "ACPI event");
-		ata_ehi_hotplugged(ehi);
-		ata_port_freeze(ap);
-		break;
+		if (!sta) {
+                /* Device has been unplugged */
+			if (dev)
+				dev->flags |= ATA_DFLAG_DETACH;
+			else {
+				struct ata_link *tlink;
+				struct ata_device *tdev;
 
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		ata_ehi_push_desc(ehi, "ACPI event");
-		if (dev)
-			dev->flags |= ATA_DFLAG_DETACH;
-		else {
-			struct ata_link *tlink;
-			struct ata_device *tdev;
-
-			ata_port_for_each_link(tlink, ap)
-				ata_link_for_each_dev(tdev, tlink)
-					tdev->flags |= ATA_DFLAG_DETACH;
+				ata_port_for_each_link(tlink, ap) {
+					ata_link_for_each_dev(tdev, tlink) {
+						tdev->flags |=
+							ATA_DFLAG_DETACH;
+					}
+				}
+			}
+			ata_port_schedule_eh(ap);
+			wait = 1;
+		} else {
+			ata_ehi_hotplugged(ehi);
+			ata_port_freeze(ap);
 		}
-
-		ata_port_schedule_eh(ap);
-		wait = 1;
-		break;
 	}
+
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	if (wait)
+		ata_port_wait_eh(ap);
 
 	if (dev) {
 		if (dev->sdev)
@@ -170,11 +198,6 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 		sprintf(event_string, "BAY_EVENT=%d", event);
 		kobject_uevent_env(kobj, KOBJ_CHANGE, envp);
 	}
-
-	spin_unlock_irqrestore(ap->lock, flags);
-
-	if (wait)
-		ata_port_wait_eh(ap);
 }
 
 static void ata_acpi_dev_notify(acpi_handle handle, u32 event, void *data)

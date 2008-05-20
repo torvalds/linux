@@ -117,6 +117,10 @@ struct ipath_portdata {
 	u16 port_subport_cnt;
 	/* non-zero if port is being shared. */
 	u16 port_subport_id;
+	/* number of pio bufs for this port (all procs, if shared) */
+	u32 port_piocnt;
+	/* first pio buffer for this port */
+	u32 port_pio_base;
 	/* chip offset of PIO buffers for this port */
 	u32 port_piobufs;
 	/* how many alloc_pages() chunks in port_rcvegrbuf_pages */
@@ -155,8 +159,8 @@ struct ipath_portdata {
 	/* saved total number of polled urgent packets for poll edge trigger */
 	u32 port_urgent_poll;
 	/* pid of process using this port */
-	pid_t port_pid;
-	pid_t port_subpid[INFINIPATH_MAX_SUBPORT];
+	struct pid *port_pid;
+	struct pid *port_subpid[INFINIPATH_MAX_SUBPORT];
 	/* same size as task_struct .comm[] */
 	char port_comm[16];
 	/* pkeys set by this use of this port */
@@ -384,6 +388,8 @@ struct ipath_devdata {
 	u32 ipath_lastrpkts;
 	/* pio bufs allocated per port */
 	u32 ipath_pbufsport;
+	/* if remainder on bufs/port, ports < extrabuf get 1 extra */
+	u32 ipath_ports_extrabuf;
 	u32 ipath_pioupd_thresh; /* update threshold, some chips */
 	/*
 	 * number of ports configured as max; zero is set to number chip
@@ -477,7 +483,7 @@ struct ipath_devdata {
 
 	/* SendDMA related entries */
 	spinlock_t            ipath_sdma_lock;
-	u64                   ipath_sdma_status;
+	unsigned long         ipath_sdma_status;
 	unsigned long         ipath_sdma_abort_jiffies;
 	unsigned long         ipath_sdma_abort_intr_timeout;
 	unsigned long         ipath_sdma_buf_jiffies;
@@ -816,8 +822,8 @@ struct ipath_devdata {
 #define IPATH_SDMA_DISARMED  1
 #define IPATH_SDMA_DISABLED  2
 #define IPATH_SDMA_LAYERBUF  3
-#define IPATH_SDMA_RUNNING  62
-#define IPATH_SDMA_SHUTDOWN 63
+#define IPATH_SDMA_RUNNING  30
+#define IPATH_SDMA_SHUTDOWN 31
 
 /* bit combinations that correspond to abort states */
 #define IPATH_SDMA_ABORT_NONE 0
@@ -1011,7 +1017,7 @@ void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
-void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
+void ipath_disarm_senderrbufs(struct ipath_devdata *);
 void ipath_force_pio_avail_update(struct ipath_devdata *);
 void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev);
 

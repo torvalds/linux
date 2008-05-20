@@ -448,14 +448,6 @@ config SH_DREAMCAST
 	  Select Dreamcast if configuring for a SEGA Dreamcast.
 	  More information at <http://www.linux-sh.org>
 
-config SH_MPC1211
-	bool "Interface MPC1211"
-	depends on CPU_SUBTYPE_SH7751 && BROKEN
-	help
-	  CTP/PCI-SH02 is a CPU module computer that is produced
-	  by Interface Corporation.
-	  More information at <http://www.interface.co.jp>
-
 config SH_SH03
 	bool "Interface CTP/PCI-SH03"
 	depends on CPU_SUBTYPE_SH7751
@@ -657,8 +649,7 @@ source "arch/sh/drivers/Kconfig"
 endmenu
 
 config ISA_DMA_API
-	def_bool y
-	depends on SH_MPC1211
+	bool
 
 menu "Kernel features"
 
@@ -666,7 +657,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on SUPERH32 && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -683,7 +674,7 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on SUPERH32 && EXPERIMENTAL
 	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
@@ -763,7 +754,7 @@ menu "Boot options"
 
 config ZERO_PAGE_OFFSET
 	hex "Zero page offset"
-	default "0x00004000" if SH_MPC1211 || SH_SH03
+	default "0x00004000" if SH_SH03
 	default "0x00010000" if PAGE_SIZE_64KB
 	default "0x00002000" if PAGE_SIZE_8KB
 	default "0x00001000"

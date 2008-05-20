@@ -21,10 +21,9 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
-
-#include <asm/gpio.h>
 
 static struct gpio_keys_button mtx1_gpio_button[] = {
 	{

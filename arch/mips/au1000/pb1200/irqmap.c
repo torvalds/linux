@@ -39,25 +39,25 @@
 #endif
 
 struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-	{ AU1000_GPIO_7, INTC_INT_LOW_LEVEL, 0 }, // This is exteranl interrupt cascade
+	/* This is external interrupt cascade */
+	{ AU1000_GPIO_7, INTC_INT_LOW_LEVEL, 0 },
 };
 
 int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
 
 /*
- *	Support for External interrupts on the PbAu1200 Development platform.
+ * Support for External interrupts on the Pb1200 Development platform.
  */
-static volatile int pb1200_cascade_en=0;
+static volatile int pb1200_cascade_en;
 
-irqreturn_t pb1200_cascade_handler( int irq, void *dev_id)
+irqreturn_t pb1200_cascade_handler(int irq, void *dev_id)
 {
 	unsigned short bisr = bcsr->int_status;
 	int extirq_nr = 0;
 
-	/* Clear all the edge interrupts. This has no effect on level */
+	/* Clear all the edge interrupts. This has no effect on level. */
 	bcsr->int_status = bisr;
-	for( ; bisr; bisr &= (bisr-1) )
-	{
+	for ( ; bisr; bisr &= bisr - 1) {
 		extirq_nr = PB1200_INT_BEGIN + __ffs(bisr);
 		/* Ack and dispatch IRQ */
 		do_IRQ(extirq_nr);
@@ -68,26 +68,20 @@ irqreturn_t pb1200_cascade_handler( int irq, void *dev_id)
 
 inline void pb1200_enable_irq(unsigned int irq_nr)
 {
-	bcsr->intset_mask = 1<<(irq_nr - PB1200_INT_BEGIN);
-	bcsr->intset = 1<<(irq_nr - PB1200_INT_BEGIN);
+	bcsr->intset_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
+	bcsr->intset = 1 << (irq_nr - PB1200_INT_BEGIN);
 }
 
 inline void pb1200_disable_irq(unsigned int irq_nr)
 {
-	bcsr->intclr_mask = 1<<(irq_nr - PB1200_INT_BEGIN);
-	bcsr->intclr = 1<<(irq_nr - PB1200_INT_BEGIN);
+	bcsr->intclr_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
+	bcsr->intclr = 1 << (irq_nr - PB1200_INT_BEGIN);
 }
 
 static unsigned int pb1200_setup_cascade(void)
 {
-	int err;
-
-	err = request_irq(AU1000_GPIO_7, &pb1200_cascade_handler,
-			  0, "Pb1200 Cascade", &pb1200_cascade_handler);
-	if (err)
-		return err;
-
-	return 0;
+	return request_irq(AU1000_GPIO_7, &pb1200_cascade_handler,
+			   0, "Pb1200 Cascade", &pb1200_cascade_handler);
 }
 
 static unsigned int pb1200_startup_irq(unsigned int irq)
@@ -132,23 +126,23 @@ void _board_init_irq(void)
 	unsigned int irq;
 
 #ifdef CONFIG_MIPS_PB1200
-	/* We have a problem with CPLD rev3. Enable a workaround */
+	/* We have a problem with CPLD rev 3. */
 	if (((bcsr->whoami & BCSR_WHOAMI_CPLD) >> 4) <= 3) {
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("Pb1200 must be at CPLD rev4. Please have Pb1200\n");
-		printk("updated to latest revision. This software will not\n");
-		printk("work on anything less than CPLD rev4\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "Pb1200 must be at CPLD rev 4. Please have Pb1200\n");
+		printk(KERN_ERR "updated to latest revision. This software will\n");
+		printk(KERN_ERR "not work on anything less than CPLD rev 4.\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
 		panic("Game over.  Your score is 0.");
 	}
 #endif
@@ -161,6 +155,6 @@ void _board_init_irq(void)
 
 	/*
 	 * GPIO_7 can not be hooked here, so it is hooked upon first
-	 * request of any source attached to the cascade
+	 * request of any source attached to the cascade.
 	 */
 }

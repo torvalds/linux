@@ -73,6 +73,7 @@ struct task_struct;
 struct buffer_head;
 struct super_block;
 
+extern const struct export_operations udf_export_ops;
 extern const struct inode_operations udf_dir_inode_operations;
 extern const struct file_operations udf_dir_operations;
 extern const struct inode_operations udf_file_inode_operations;

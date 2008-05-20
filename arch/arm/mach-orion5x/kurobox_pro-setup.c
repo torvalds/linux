@@ -138,7 +138,7 @@ static int __init kurobox_pro_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci kurobox_pro_pci __initdata = {
-	.nr_controllers	= 1,
+	.nr_controllers	= 2,
 	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,

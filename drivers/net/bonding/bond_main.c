@@ -1425,13 +1425,13 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	res = netdev_set_master(slave_dev, bond_dev);
 	if (res) {
 		dprintk("Error %d calling netdev_set_master\n", res);
-		goto err_close;
+		goto err_restore_mac;
 	}
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
 		dprintk("Openning slave %s failed\n", slave_dev->name);
-		goto err_restore_mac;
+		goto err_unset_master;
 	}
 
 	new_slave->dev = slave_dev;
@@ -1444,7 +1444,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		 */
 		res = bond_alb_init_slave(bond, new_slave);
 		if (res) {
-			goto err_unset_master;
+			goto err_close;
 		}
 	}
 
@@ -1619,7 +1619,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	res = bond_create_slave_symlinks(bond_dev, slave_dev);
 	if (res)
-		goto err_unset_master;
+		goto err_close;
 
 	printk(KERN_INFO DRV_NAME
 	       ": %s: enslaving %s as a%s interface with a%s link.\n",
@@ -1631,11 +1631,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	return 0;
 
 /* Undo stages on error */
-err_unset_master:
-	netdev_set_master(slave_dev, NULL);
-
 err_close:
 	dev_close(slave_dev);
+
+err_unset_master:
+	netdev_set_master(slave_dev, NULL);
 
 err_restore_mac:
 	if (!bond->params.fail_over_mac) {
@@ -4936,7 +4936,9 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 	if (res < 0) {
 		rtnl_lock();
 		down_write(&bonding_rwsem);
-		goto out_bond;
+		bond_deinit(bond_dev);
+		unregister_netdevice(bond_dev);
+		goto out_rtnl;
 	}
 
 	return 0;
@@ -4990,9 +4992,10 @@ err:
 		destroy_workqueue(bond->wq);
 	}
 
+	bond_destroy_sysfs();
+
 	rtnl_lock();
 	bond_free_all();
-	bond_destroy_sysfs();
 	rtnl_unlock();
 out:
 	return res;
@@ -5004,9 +5007,10 @@ static void __exit bonding_exit(void)
 	unregister_netdevice_notifier(&bond_netdev_notifier);
 	unregister_inetaddr_notifier(&bond_inetaddr_notifier);
 
+	bond_destroy_sysfs();
+
 	rtnl_lock();
 	bond_free_all();
-	bond_destroy_sysfs();
 	rtnl_unlock();
 }
 

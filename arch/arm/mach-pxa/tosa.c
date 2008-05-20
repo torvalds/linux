@@ -467,8 +467,6 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
-
 	pxa_gpio_mode(TOSA_GPIO_ON_RESET | GPIO_OUT);
 	GPSR(TOSA_GPIO_ON_RESET) = GPIO_bit(TOSA_GPIO_ON_RESET);
 

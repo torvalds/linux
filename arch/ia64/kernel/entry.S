@@ -1156,6 +1156,9 @@ skip_rbs_switch:
 	 *	r31 = current->thread_info->flags
 	 * On exit:
 	 *	p6 = TRUE if work-pending-check needs to be redone
+	 *
+	 * Interrupts are disabled on entry, reenabled depend on work, and
+	 * disabled on exit.
 	 */
 .work_pending_syscall:
 	add r2=-8,r2
@@ -1164,16 +1167,16 @@ skip_rbs_switch:
 	st8 [r2]=r8
 	st8 [r3]=r10
 .work_pending:
-	tbit.z p6,p0=r31,TIF_NEED_RESCHED		// current_thread_info()->need_resched==0?
+	tbit.z p6,p0=r31,TIF_NEED_RESCHED	// is resched not needed?
 (p6)	br.cond.sptk.few .notify
 #ifdef CONFIG_PREEMPT
 (pKStk) dep r21=-1,r0,PREEMPT_ACTIVE_BIT,1
 	;;
 (pKStk) st4 [r20]=r21
-	ssm psr.i		// enable interrupts
 #endif
+	ssm psr.i		// enable interrupts
 	br.call.spnt.many rp=schedule
-.ret9:	cmp.eq p6,p0=r0,r0				// p6 <- 1
+.ret9:	cmp.eq p6,p0=r0,r0	// p6 <- 1 (re-check)
 	rsm psr.i		// disable interrupts
 	;;
 #ifdef CONFIG_PREEMPT
@@ -1182,13 +1185,13 @@ skip_rbs_switch:
 (pKStk)	st4 [r20]=r0		// preempt_count() <- 0
 #endif
 (pLvSys)br.cond.sptk.few  .work_pending_syscall_end
-	br.cond.sptk.many .work_processed_kernel	// re-check
+	br.cond.sptk.many .work_processed_kernel
 
 .notify:
 (pUStk)	br.call.spnt.many rp=notify_resume_user
-.ret10:	cmp.ne p6,p0=r0,r0				// p6 <- 0
+.ret10:	cmp.ne p6,p0=r0,r0	// p6 <- 0 (don't re-check)
 (pLvSys)br.cond.sptk.few  .work_pending_syscall_end
-	br.cond.sptk.many .work_processed_kernel	// don't re-check
+	br.cond.sptk.many .work_processed_kernel
 
 .work_pending_syscall_end:
 	adds r2=PT(R8)+16,r12
@@ -1196,7 +1199,7 @@ skip_rbs_switch:
 	;;
 	ld8 r8=[r2]
 	ld8 r10=[r3]
-	br.cond.sptk.many .work_processed_syscall	// re-check
+	br.cond.sptk.many .work_processed_syscall
 
 END(ia64_leave_kernel)
 
@@ -1234,9 +1237,12 @@ GLOBAL_ENTRY(ia64_invoke_schedule_tail)
 END(ia64_invoke_schedule_tail)
 
 	/*
-	 * Setup stack and call do_notify_resume_user().  Note that pSys and pNonSys need to
-	 * be set up by the caller.  We declare 8 input registers so the system call
-	 * args get preserved, in case we need to restart a system call.
+	 * Setup stack and call do_notify_resume_user(), keeping interrupts
+	 * disabled.
+	 *
+	 * Note that pSys and pNonSys need to be set up by the caller.
+	 * We declare 8 input registers so the system call args get preserved,
+	 * in case we need to restart a system call.
 	 */
 ENTRY(notify_resume_user)
 	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)

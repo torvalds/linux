@@ -653,7 +653,7 @@ void genhd_media_change_notify(struct gendisk *disk)
 EXPORT_SYMBOL_GPL(genhd_media_change_notify);
 #endif  /*  0  */
 
-dev_t blk_lookup_devt(const char *name)
+dev_t blk_lookup_devt(const char *name, int part)
 {
 	struct device *dev;
 	dev_t devt = MKDEV(0, 0);
@@ -661,7 +661,11 @@ dev_t blk_lookup_devt(const char *name)
 	mutex_lock(&block_class_lock);
 	list_for_each_entry(dev, &block_class.devices, node) {
 		if (strcmp(dev->bus_id, name) == 0) {
-			devt = dev->devt;
+			struct gendisk *disk = dev_to_disk(dev);
+
+			if (part < disk->minors)
+				devt = MKDEV(MAJOR(dev->devt),
+					     MINOR(dev->devt) + part);
 			break;
 		}
 	}
@@ -669,7 +673,6 @@ dev_t blk_lookup_devt(const char *name)
 
 	return devt;
 }
-
 EXPORT_SYMBOL(blk_lookup_devt);
 
 struct gendisk *alloc_disk(int minors)

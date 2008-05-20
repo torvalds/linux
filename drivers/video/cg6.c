@@ -17,9 +17,9 @@
 #include <linux/init.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
-#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -728,7 +728,7 @@ static int __devinit cg6_probe(struct of_device *op,
 	par->physbase = op->resource[0].start;
 	par->which_io = op->resource[0].flags & IORESOURCE_BITS;
 
-	sbusfb_fill_var(&info->var, dp->node, 8);
+	sbusfb_fill_var(&info->var, dp, 8);
 	info->var.red.length = 8;
 	info->var.green.length = 8;
 	info->var.blue.length = 8;
@@ -767,7 +767,7 @@ static int __devinit cg6_probe(struct of_device *op,
 
 	cg6_bt_init(par);
 	cg6_chip_init(info);
-	cg6_blank(0, info);
+	cg6_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_regs;

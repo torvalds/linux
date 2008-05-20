@@ -52,7 +52,7 @@ static struct intc_vect vectors[] __initdata = {
 #if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709)
-	INTC_VECT(IRQ4, 0x680), INTC_VECT(IRQ5, 0x6a0),
+	/* IRQ0->5 are handled in setup-sh3.c */
 	INTC_VECT(DMAC_DEI0, 0x800), INTC_VECT(DMAC_DEI1, 0x820),
 	INTC_VECT(DMAC_DEI2, 0x840), INTC_VECT(DMAC_DEI3, 0x860),
 	INTC_VECT(ADC_ADI, 0x980),
@@ -103,18 +103,6 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 
 static DECLARE_INTC_DESC(intc_desc, "sh770x", vectors, groups,
 			 NULL, prio_registers, NULL);
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7707) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7709)
-static struct intc_vect vectors_irq[] __initdata = {
-	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
-	INTC_VECT(IRQ2, 0x640), INTC_VECT(IRQ3, 0x660),
-};
-
-static DECLARE_INTC_DESC(intc_desc_irq, "sh770x-irq", vectors_irq, NULL,
-			 NULL, prio_registers, NULL);
-#endif
 
 static struct resource rtc_resources[] = {
 	[0] =	{
@@ -194,24 +182,12 @@ static int __init sh770x_devices_setup(void)
 }
 __initcall(sh770x_devices_setup);
 
-#define INTC_ICR1		0xa4000010UL
-#define INTC_ICR1_IRQLVL	(1<<14)
-
-void __init plat_irq_setup_pins(int mode)
-{
-	if (mode == IRQ_MODE_IRQ) {
-#if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7707) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7709)
-		ctrl_outw(ctrl_inw(INTC_ICR1) & ~INTC_ICR1_IRQLVL, INTC_ICR1);
-		register_intc_controller(&intc_desc_irq);
-		return;
-#endif
-	}
-	BUG();
-}
-
 void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
+#if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7707) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7709)
+	plat_irq_setup_sh3();
+#endif
 }

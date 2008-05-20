@@ -153,6 +153,15 @@ extern int tda18271_debug;
 #define tda_reg(fmt, arg...)  dprintk(KERN_DEBUG, DBG_REG,  fmt, ##arg)
 #define tda_cal(fmt, arg...)  dprintk(KERN_DEBUG, DBG_CAL,  fmt, ##arg)
 
+#define tda_fail(ret)							     \
+({									     \
+	int __ret;							     \
+	__ret = (ret < 0);						     \
+	if (__ret)							     \
+		tda_printk(KERN_ERR, "error %d on line %d\n", ret, __LINE__);\
+	__ret;								     \
+})
+
 /*---------------------------------------------------------------------*/
 
 enum tda18271_map_type {

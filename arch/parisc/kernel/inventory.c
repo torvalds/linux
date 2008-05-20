@@ -499,7 +499,7 @@ add_system_map_addresses(struct parisc_device *dev, int num_addrs,
 	dev->addr = kmalloc(num_addrs * sizeof(unsigned long), GFP_KERNEL);
 	if(!dev->addr) {
 		printk(KERN_ERR "%s %s(): memory allocation failure\n",
-		       __FILE__, __FUNCTION__);
+		       __FILE__, __func__);
 		return;
 	}
 

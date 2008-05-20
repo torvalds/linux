@@ -7,6 +7,7 @@ source "lib/Kconfig.debug"
 
 config SH_STANDARD_BIOS
 	bool "Use LinuxSH standard BIOS"
+	depends on SUPERH32
 	help
 	  Say Y here if your target has the gdb-sh-stub
 	  package from www.m17n.org (or any conforming standard LinuxSH BIOS)

@@ -438,8 +438,6 @@ void zap_low_mappings(void)
 {
 	int i;
 
-	save_pg_dir();
-
 	/*
 	 * Zap initial low-memory mappings.
 	 *
@@ -663,16 +661,8 @@ void __init mem_init(void)
 		test_wp_bit();
 
 	cpa_init();
-
-	/*
-	 * Subtle. SMP is doing it's boot stuff late (because it has to
-	 * fork idle threads) - but it also needs low mappings for the
-	 * protected-mode entry to work. We zap these entries only after
-	 * the WP-bit has been tested.
-	 */
-#ifndef CONFIG_SMP
+	save_pg_dir();
 	zap_low_mappings();
-#endif
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

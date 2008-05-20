@@ -1,7 +1,6 @@
 /*
- * Copyright 2000-2003 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2000-2003, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -39,40 +38,40 @@ void __init board_setup(void)
 {
 	u32 pin_func;
 
-	// set multiple use pins (UART3/GPIO) to UART (it's used as UART too)
-	pin_func = au_readl(SYS_PINFUNC) & (u32)(~SYS_PF_UR3);
+	/* Set multiple use pins (UART3/GPIO) to UART (it's used as UART too) */
+	pin_func  = au_readl(SYS_PINFUNC) & ~SYS_PF_UR3;
 	pin_func |= SYS_PF_UR3;
 	au_writel(pin_func, SYS_PINFUNC);
 
-	// enable UART
-	au_writel(0x01, UART3_ADDR+UART_MOD_CNTRL); // clock enable (CE)
+	/* Enable UART */
+	au_writel(0x01, UART3_ADDR + UART_MOD_CNTRL); /* clock enable (CE) */
 	mdelay(10);
-	au_writel(0x03, UART3_ADDR+UART_MOD_CNTRL); // CE and "enable"
+	au_writel(0x03, UART3_ADDR + UART_MOD_CNTRL); /* CE and "enable" */
 	mdelay(10);
 
-	// enable DTR = USB power up
-	au_writel(0x01, UART3_ADDR+UART_MCR); //? UART_MCR_DTR is 0x01???
+	/* Enable DTR = USB power up */
+	au_writel(0x01, UART3_ADDR + UART_MCR); /* UART_MCR_DTR is 0x01??? */
 
 #ifdef CONFIG_PCMCIA_XXS1500
-	/* setup pcmcia signals */
+	/* Setup PCMCIA signals */
 	au_writel(0, SYS_PININPUTEN);
 
-	/* gpio 0, 1, and 4 are inputs */
-	au_writel(1 | (1<<1) | (1<<4), SYS_TRIOUTCLR);
+	/* GPIO 0, 1, and 4 are inputs */
+	au_writel(1 | (1 << 1) | (1 << 4), SYS_TRIOUTCLR);
 
-	/* enable GPIO2 if not already enabled */
+	/* Enable GPIO2 if not already enabled */
 	au_writel(1, GPIO2_ENABLE);
-	/* gpio2 208/9/10/11 are inputs */
-	au_writel((1<<8) | (1<<9) | (1<<10) | (1<<11), GPIO2_DIR);
+	/* GPIO2 208/9/10/11 are inputs */
+	au_writel((1 << 8) | (1 << 9) | (1 << 10) | (1 << 11), GPIO2_DIR);
 
-	/* turn off power */
-	au_writel((au_readl(GPIO2_PINSTATE) & ~(1<<14))|(1<<30), GPIO2_OUTPUT);
+	/* Turn off power */
+	au_writel((au_readl(GPIO2_PINSTATE) & ~(1 << 14)) | (1 << 30),
+		  GPIO2_OUTPUT);
 #endif
-
 
 #ifdef CONFIG_PCI
 #if defined(__MIPSEB__)
-	au_writel(0xf | (2<<6) | (1<<4), Au1500_PCI_CFG);
+	au_writel(0xf | (2 << 6) | (1 << 4), Au1500_PCI_CFG);
 #else
 	au_writel(0xf, Au1500_PCI_CFG);
 #endif

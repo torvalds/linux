@@ -39,6 +39,7 @@
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
+#include <asm/dpmc.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -443,7 +444,37 @@ static struct platform_device i2c_gpio_device = {
 };
 #endif
 
+static const unsigned int cclk_vlev_datasheet[] =
+{
+	VRPAIR(VLEV_085, 250000000),
+	VRPAIR(VLEV_090, 300000000),
+	VRPAIR(VLEV_095, 313000000),
+	VRPAIR(VLEV_100, 350000000),
+	VRPAIR(VLEV_105, 400000000),
+	VRPAIR(VLEV_110, 444000000),
+	VRPAIR(VLEV_115, 450000000),
+	VRPAIR(VLEV_120, 475000000),
+	VRPAIR(VLEV_125, 500000000),
+	VRPAIR(VLEV_130, 600000000),
+};
+
+static struct bfin_dpmc_platform_data bfin_dmpc_vreg_data = {
+	.tuple_tab = cclk_vlev_datasheet,
+	.tabsize = ARRAY_SIZE(cclk_vlev_datasheet),
+	.vr_settling_time = 25 /* us */,
+};
+
+static struct platform_device bfin_dpmc = {
+	.name = "bfin dpmc",
+	.dev = {
+		.platform_data = &bfin_dmpc_vreg_data,
+	},
+};
+
 static struct platform_device *ezkit_devices[] __initdata = {
+
+	&bfin_dpmc,
+
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
 #endif

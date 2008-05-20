@@ -5,8 +5,12 @@
    hardware ignores reprogramming.  We also need userland buy-in to the 
    change in HZ, since this is visible in the wait4 resources etc.  */
 
+#ifdef __KERNEL__
 #define HZ		CONFIG_HZ
 #define USER_HZ		HZ
+#else
+#define HZ		1024
+#endif
 
 #define EXEC_PAGESIZE	8192
 

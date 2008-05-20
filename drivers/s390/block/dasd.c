@@ -925,6 +925,8 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 	struct dasd_ccw_req *cqr;
 	struct dasd_device *device;
 
+	if (!intparm)
+		return;
 	cqr = (struct dasd_ccw_req *) intparm;
 	if (cqr->status != DASD_CQR_IN_IO) {
 		MESSAGE(KERN_DEBUG,
@@ -976,17 +978,16 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	if (IS_ERR(irb)) {
 		switch (PTR_ERR(irb)) {
 		case -EIO:
-			dasd_handle_killed_request(cdev, intparm);
 			break;
 		case -ETIMEDOUT:
 			printk(KERN_WARNING"%s(%s): request timed out\n",
 			       __func__, cdev->dev.bus_id);
-			//FIXME - dasd uses own timeout interface...
 			break;
 		default:
 			printk(KERN_WARNING"%s(%s): unknown error %ld\n",
 			       __func__, cdev->dev.bus_id, PTR_ERR(irb));
 		}
+		dasd_handle_killed_request(cdev, intparm);
 		return;
 	}
 

@@ -44,9 +44,14 @@
 #define UART_PUT_CHAR(uart,v)   bfin_write16(((uart)->port.membase + OFFSET_THR),v)
 #define UART_PUT_DLL(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_DLL),v)
 #define UART_PUT_IER(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_IER),v)
+#define UART_SET_IER(uart,v)    UART_PUT_IER(uart, UART_GET_IER(uart) | (v))
+#define UART_CLEAR_IER(uart,v)  UART_PUT_IER(uart, UART_GET_IER(uart) & ~(v))
 #define UART_PUT_DLH(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_DLH),v)
 #define UART_PUT_LCR(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_LCR),v)
 #define UART_PUT_GCTL(uart,v)   bfin_write16(((uart)->port.membase + OFFSET_GCTL),v)
+
+#define UART_SET_DLAB(uart)     do { UART_PUT_LCR(uart, UART_GET_LCR(uart) | DLAB); SSYNC(); } while (0)
+#define UART_CLEAR_DLAB(uart)   do { UART_PUT_LCR(uart, UART_GET_LCR(uart) & ~DLAB); SSYNC(); } while (0)
 
 #ifdef CONFIG_BFIN_UART0_CTSRTS
 # define CONFIG_SERIAL_BFIN_CTSRTS

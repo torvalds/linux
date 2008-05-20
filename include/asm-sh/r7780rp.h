@@ -193,8 +193,6 @@
 #define IRQ_SCIF0		(HL_FPGA_IRQ_BASE + 15)
 #define IRQ_SCIF1		(HL_FPGA_IRQ_BASE + 16)
 
-unsigned char *highlander_init_irq_r7780mp(void);
-unsigned char *highlander_init_irq_r7780rp(void);
-unsigned char *highlander_init_irq_r7785rp(void);
+unsigned char *highlander_plat_irq_setup(void);
 
 #endif  /* __ASM_SH_RENESAS_R7780RP */

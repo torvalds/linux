@@ -3762,7 +3762,7 @@ static int any_slab_objects(struct kmem_cache *s)
 		if (!n)
 			continue;
 
-		if (atomic_read(&n->total_objects))
+		if (atomic_long_read(&n->total_objects))
 			return 1;
 	}
 	return 0;

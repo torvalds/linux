@@ -110,7 +110,6 @@ machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= se/7343
 machdir-$(CONFIG_SH_7721_SOLUTION_ENGINE)	+= se/7721
 machdir-$(CONFIG_SH_HP6XX)			+= hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
-machdir-$(CONFIG_SH_MPC1211)			+= mpc1211
 machdir-$(CONFIG_SH_SH03)			+= sh03
 machdir-$(CONFIG_SH_SECUREEDGE5410)		+= snapgear
 machdir-$(CONFIG_SH_RTS7751R2D)			+= renesas/rts7751r2d

@@ -1,7 +1,7 @@
 config VIDEO_EM28XX
 	tristate "Empia EM28xx USB video capture support"
 	depends on VIDEO_DEV && I2C && INPUT
-	select MEDIA_TUNER
+	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
 	select VIDEOBUF_VMALLOC
@@ -35,7 +35,6 @@ config VIDEO_EM28XX_DVB
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select VIDEOBUF_DVB
-	select FW_LOADER
 	---help---
 	  This adds support for DVB cards based on the
 	  Empiatech em28xx chips.

@@ -25,6 +25,7 @@
 #include "cx18-cards.h"
 #include "cx18-gpio.h"
 #include "cx18-av-core.h"
+#include "cx18-i2c.h"
 
 #include <media/ir-kbd-i2c.h>
 
@@ -73,7 +74,7 @@ static const u8 hw_bus[] = {
 };
 
 /* This array should match the CX18_HW_ defines */
-static const char * const hw_drivernames[] = {
+static const char * const hw_devicenames[] = {
 	"tuner",
 	"tveeprom",
 	"cs5345",
@@ -94,8 +95,7 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 	id = hw_driverids[idx];
 	bus = hw_bus[idx];
 	memset(&info, 0, sizeof(info));
-	strlcpy(info.driver_name, hw_drivernames[idx],
-			sizeof(info.driver_name));
+	strlcpy(info.type, hw_devicenames[idx], sizeof(info.type));
 	info.addr = hw_addrs[idx];
 	for (i = 0; i < I2C_CLIENTS_MAX; i++)
 		if (cx->i2c_clients[i] == NULL)
@@ -278,7 +278,7 @@ static const char *cx18_i2c_id_name(u32 id)
 
 	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
 		if (hw_driverids[i] == id)
-			return hw_drivernames[i];
+			return hw_devicenames[i];
 	return "unknown device";
 }
 
@@ -289,7 +289,7 @@ static const char *cx18_i2c_hw_name(u32 hw)
 
 	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
 		if (1 << i == hw)
-			return hw_drivernames[i];
+			return hw_devicenames[i];
 	return "unknown device";
 }
 

@@ -41,7 +41,9 @@ static void sum_vm_events(unsigned long *ret, cpumask_t *cpumask)
 */
 void all_vm_events(unsigned long *ret)
 {
+	get_online_cpus();
 	sum_vm_events(ret, &cpu_online_map);
+	put_online_cpus();
 }
 EXPORT_SYMBOL_GPL(all_vm_events);
 

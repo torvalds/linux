@@ -24,12 +24,11 @@
  */
 struct i2c_driver_device {
 	char    *of_device;
-	char    *i2c_driver;
 	char    *i2c_type;
 };
 
 static struct i2c_driver_device i2c_devices[] __initdata = {
-	{"dallas,ds1338",  "rtc-ds1307",  "ds1338"},
+	{"dallas,ds1338",  "ds1338"},
 };
 
 static int __init find_i2c_driver(struct device_node *node,
@@ -40,9 +39,7 @@ static int __init find_i2c_driver(struct device_node *node,
 	for (i = 0; i < ARRAY_SIZE(i2c_devices); i++) {
 		if (!of_device_is_compatible(node, i2c_devices[i].of_device))
 			continue;
-		if (strlcpy(info->driver_name, i2c_devices[i].i2c_driver,
-			    KOBJ_NAME_LEN) >= KOBJ_NAME_LEN ||
-		    strlcpy(info->type, i2c_devices[i].i2c_type,
+		if (strlcpy(info->type, i2c_devices[i].i2c_type,
 			    I2C_NAME_SIZE) >= I2C_NAME_SIZE)
 			return -ENOMEM;
 		return 0;

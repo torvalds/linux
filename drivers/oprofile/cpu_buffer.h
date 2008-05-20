@@ -46,7 +46,7 @@ struct oprofile_cpu_buffer {
 	unsigned long sample_invalid_eip;
 	int cpu;
 	struct delayed_work work;
-} ____cacheline_aligned;
+};
 
 DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 

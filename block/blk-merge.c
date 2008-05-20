@@ -149,9 +149,9 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 static int blk_hw_contig_segment(struct request_queue *q, struct bio *bio,
 				 struct bio *nxt)
 {
-	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
+	if (!bio_flagged(bio, BIO_SEG_VALID))
 		blk_recount_segments(q, bio);
-	if (unlikely(!bio_flagged(nxt, BIO_SEG_VALID)))
+	if (!bio_flagged(nxt, BIO_SEG_VALID))
 		blk_recount_segments(q, nxt);
 	if (!BIOVEC_VIRT_MERGEABLE(__BVEC_END(bio), __BVEC_START(nxt)) ||
 	    BIOVEC_VIRT_OVERSIZE(bio->bi_hw_back_size + nxt->bi_hw_front_size))
@@ -312,9 +312,9 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 			q->last_merge = NULL;
 		return 0;
 	}
-	if (unlikely(!bio_flagged(req->biotail, BIO_SEG_VALID)))
+	if (!bio_flagged(req->biotail, BIO_SEG_VALID))
 		blk_recount_segments(q, req->biotail);
-	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
+	if (!bio_flagged(bio, BIO_SEG_VALID))
 		blk_recount_segments(q, bio);
 	len = req->biotail->bi_hw_back_size + bio->bi_hw_front_size;
 	if (BIOVEC_VIRT_MERGEABLE(__BVEC_END(req->biotail), __BVEC_START(bio))
@@ -352,9 +352,9 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 		return 0;
 	}
 	len = bio->bi_hw_back_size + req->bio->bi_hw_front_size;
-	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
+	if (!bio_flagged(bio, BIO_SEG_VALID))
 		blk_recount_segments(q, bio);
-	if (unlikely(!bio_flagged(req->bio, BIO_SEG_VALID)))
+	if (!bio_flagged(req->bio, BIO_SEG_VALID))
 		blk_recount_segments(q, req->bio);
 	if (BIOVEC_VIRT_MERGEABLE(__BVEC_END(bio), __BVEC_START(req->bio)) &&
 	    !BIOVEC_VIRT_OVERSIZE(len)) {

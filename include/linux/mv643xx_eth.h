@@ -1,19 +1,31 @@
 /*
  * MV-643XX ethernet platform device data definition file.
  */
+
 #ifndef __LINUX_MV643XX_ETH_H
 #define __LINUX_MV643XX_ETH_H
 
-#define MV643XX_ETH_SHARED_NAME		"mv643xx_eth_shared"
-#define MV643XX_ETH_NAME		"mv643xx_eth"
+#include <linux/mbus.h>
+
+#define MV643XX_ETH_SHARED_NAME		"mv643xx_eth"
+#define MV643XX_ETH_NAME		"mv643xx_eth_port"
 #define MV643XX_ETH_SHARED_REGS		0x2000
 #define MV643XX_ETH_SHARED_REGS_SIZE	0x2000
 #define MV643XX_ETH_BAR_4		0x2220
 #define MV643XX_ETH_SIZE_REG_4		0x2224
 #define MV643XX_ETH_BASE_ADDR_ENABLE_REG	0x2290
 
+struct mv643xx_eth_shared_platform_data {
+	struct mbus_dram_target_info	*dram;
+	unsigned int	t_clk;
+};
+
 struct mv643xx_eth_platform_data {
+	struct platform_device	*shared;
 	int		port_number;
+
+	struct platform_device	*shared_smi;
+
 	u16		force_phy_addr;	/* force override if phy_addr == 0 */
 	u16		phy_addr;
 

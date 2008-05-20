@@ -10,9 +10,9 @@
 #define _S390_TYPES_H
 
 #ifndef __s390x__
-# include <asm-generic/int-l64.h>
-#else
 # include <asm-generic/int-ll64.h>
+#else
+# include <asm-generic/int-l64.h>
 #endif
 
 #ifndef __ASSEMBLY__

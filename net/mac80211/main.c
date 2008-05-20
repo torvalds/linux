@@ -1766,6 +1766,7 @@ fail_wep:
 fail_rate:
 	ieee80211_debugfs_remove_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
 	unregister_netdevice(local->mdev);
+	local->mdev = NULL;
 fail_dev:
 	rtnl_unlock();
 	sta_info_stop(local);
@@ -1773,8 +1774,10 @@ fail_sta_info:
 	debugfs_hw_del(local);
 	destroy_workqueue(local->hw.workqueue);
 fail_workqueue:
-	ieee80211_if_free(local->mdev);
-	local->mdev = NULL;
+	if (local->mdev != NULL) {
+		ieee80211_if_free(local->mdev);
+		local->mdev = NULL;
+	}
 fail_mdev_alloc:
 	wiphy_unregister(local->hw.wiphy);
 	return result;

@@ -8,17 +8,6 @@ Command line parameters
 
   Enable logging of debug information in case of ccw device timeouts.
 
-
-* cio_msg = yes | no
-  
-  Determines whether information on found devices and sensed device 
-  characteristics should be shown during startup or when new devices are
-  found, i. e. messages of the types "Detected device 0.0.4711 on subchannel
-  0.0.0042" and "SenseID: Device 0.0.4711 reports: ...".
-
-  Default is off.
-
-
 * cio_ignore = {all} |
 	       {<device> | <range of devices>} |
 	       {!<device> | !<range of devices>}
