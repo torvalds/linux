@@ -1,7 +1,6 @@
 		       Linux Joystick driver v2.0.0
 	       (c) 1996-2000 Vojtech Pavlik <vojtech@ucw.cz>
 			     Sponsored by SuSE
-	   $Id: joystick.txt,v 1.12 2002/03/03 12:13:07 jdeneux Exp $
 ----------------------------------------------------------------------------
 
 0. Disclaimer
