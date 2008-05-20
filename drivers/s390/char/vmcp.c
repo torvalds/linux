@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -39,11 +40,14 @@ static int vmcp_open(struct inode *inode, struct file *file)
 	session = kmalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
 		return -ENOMEM;
+
+	lock_kernel();
 	session->bufsize = PAGE_SIZE;
 	session->response = NULL;
 	session->resp_size = 0;
 	mutex_init(&session->mutex);
 	file->private_data = session;
+	unlock_kernel();
 	return nonseekable_open(inode, file);
 }
 
