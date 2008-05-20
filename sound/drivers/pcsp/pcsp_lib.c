@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <sound/pcm.h>
-#include <linux/interrupt.h>
 #include <asm/io.h>
 #include "pcsp.h"
 
@@ -20,34 +19,8 @@ MODULE_PARM_DESC(nforce_wa, "Apply NForce chipset workaround "
 
 #define DMIX_WANTS_S16	1
 
-static void pcsp_start_timer(unsigned long dummy)
-{
-	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
-}
-
-/*
- * We need the hrtimer_start as a tasklet to avoid
- * the nasty locking problem. :(
- * The problem:
- * - The timer handler is called with the cpu_base->lock
- *   already held by hrtimer code.
- * - snd_pcm_period_elapsed() takes the
- *   substream->self_group.lock.
- * So far so good.
- * But the snd_pcsp_trigger() is called with the
- * substream->self_group.lock held, and it calls
- * hrtimer_start(), which takes the cpu_base->lock.
- * You see the problem. We have the code pathes
- * which take two locks in a reverse order. This
- * can deadlock and the lock validator complains.
- * The only solution I could find was to move the
- * hrtimer_start() into a tasklet. -stsp
- */
-static DECLARE_TASKLET(pcsp_start_timer_tasklet, pcsp_start_timer, 0);
-
 enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 {
-	unsigned long flags;
 	unsigned char timer_cnt, val;
 	int fmt_size, periods_elapsed;
 	u64 ns;
@@ -66,9 +39,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		return HRTIMER_RESTART;
 	}
 
-	/* hrtimer calls us from both hardirq and softirq contexts,
-	 * so irqsave :( */
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	spin_lock_irq(&chip->substream_lock);
 	/* Takashi Iwai says regarding this extra lock:
 
 	If the irq handler handles some data on the DMA buffer, it should
@@ -139,7 +110,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		chip->period_ptr %= buffer_bytes;
 	}
 
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 
 	if (!atomic_read(&chip->timer_active))
 		return HRTIMER_NORESTART;
@@ -153,7 +124,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 exit_nr_unlock2:
 	snd_pcm_stream_unlock(substream);
 exit_nr_unlock1:
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 	return HRTIMER_NORESTART;
 }
 
@@ -174,7 +145,7 @@ static void pcsp_start_playing(struct snd_pcsp *chip)
 	atomic_set(&chip->timer_active, 1);
 	chip->thalf = 0;
 
-	tasklet_schedule(&pcsp_start_timer_tasklet);
+	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
 }
 
 static void pcsp_stop_playing(struct snd_pcsp *chip)
