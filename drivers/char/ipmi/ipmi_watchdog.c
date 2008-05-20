@@ -35,6 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
+#include <linux/smp_lock.h>
 #include <linux/watchdog.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
@@ -818,6 +819,8 @@ static int ipmi_open(struct inode *ino, struct file *filep)
 	case WATCHDOG_MINOR:
 		if (test_and_set_bit(0, &ipmi_wdog_open))
 			return -EBUSY;
+
+		cycle_kernel_lock();
 
 		/*
 		 * Don't start the timer now, let it start on the
