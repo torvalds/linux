@@ -1087,14 +1087,61 @@ xfs_fs_put_super(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
+	struct xfs_inode	*rip = mp->m_rootip;
+	int			unmount_event_flags = 0;
 	int			error;
 
 	kthread_stop(mp->m_sync_task);
 
 	xfs_sync(mp, SYNC_ATTR | SYNC_DELWRI);
-	error = xfs_unmount(mp, 0, NULL);
-	if (error)
-		printk("XFS: unmount got error=%d\n", error);
+
+#ifdef HAVE_DMAPI
+	if (mp->m_flags & XFS_MOUNT_DMAPI) {
+		unmount_event_flags =
+			(mp->m_dmevmask & (1 << DM_EVENT_UNMOUNT)) ?
+				0 : DM_FLAGS_UNWANTED;
+		/*
+		 * Ignore error from dmapi here, first unmount is not allowed
+		 * to fail anyway, and second we wouldn't want to fail a
+		 * unmount because of dmapi.
+		 */
+		XFS_SEND_PREUNMOUNT(mp, rip, DM_RIGHT_NULL, rip, DM_RIGHT_NULL,
+				NULL, NULL, 0, 0, unmount_event_flags);
+	}
+#endif
+
+	/*
+	 * Blow away any referenced inode in the filestreams cache.
+	 * This can and will cause log traffic as inodes go inactive
+	 * here.
+	 */
+	xfs_filestream_unmount(mp);
+
+	XFS_bflush(mp->m_ddev_targp);
+	error = xfs_unmount_flush(mp, 0);
+	WARN_ON(error);
+
+	IRELE(rip);
+
+	/*
+	 * If we're forcing a shutdown, typically because of a media error,
+	 * we want to make sure we invalidate dirty pages that belong to
+	 * referenced vnodes as well.
+	 */
+	if (XFS_FORCED_SHUTDOWN(mp)) {
+		error = xfs_sync(mp, SYNC_WAIT | SYNC_CLOSE);
+		ASSERT(error != EFSCORRUPTED);
+	}
+
+	if (mp->m_flags & XFS_MOUNT_DMAPI) {
+		XFS_SEND_UNMOUNT(mp, rip, DM_RIGHT_NULL, 0, 0,
+				unmount_event_flags);
+	}
+
+	xfs_unmountfs(mp, NULL);
+	xfs_qmops_put(mp);
+	xfs_dmops_put(mp);
+	kmem_free(mp);
 }
 
 STATIC void
@@ -1400,7 +1447,23 @@ fail_vnrele:
 	}
 
 fail_unmount:
-	xfs_unmount(mp, 0, NULL);
+	/*
+	 * Blow away any referenced inode in the filestreams cache.
+	 * This can and will cause log traffic as inodes go inactive
+	 * here.
+	 */
+	xfs_filestream_unmount(mp);
+
+	XFS_bflush(mp->m_ddev_targp);
+	error = xfs_unmount_flush(mp, 0);
+	WARN_ON(error);
+
+	IRELE(mp->m_rootip);
+
+	xfs_unmountfs(mp, NULL);
+	xfs_qmops_put(mp);
+	xfs_dmops_put(mp);
+	kmem_free(mp);
 
 fail_vfsop:
 	kmem_free(args);
