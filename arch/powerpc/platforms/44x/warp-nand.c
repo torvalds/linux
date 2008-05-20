@@ -11,7 +11,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/ndfc.h>
+#include <linux/of.h>
 #include <asm/machdep.h>
+
 
 #ifdef CONFIG_MTD_NAND_NDFC
 
@@ -35,13 +37,23 @@ static struct mtd_partition nand_parts[] = {
 	{
 		.name   = "root",
 		.offset = 0x0200000,
-		.size   = 0x3400000
+		.size   = 0x3E00000
 	},
 	{
-		.name   = "user",
-		.offset = 0x3600000,
-		.size   = 0x0A00000
+		.name   = "persistent",
+		.offset = 0x4000000,
+		.size   = 0x4000000
 	},
+	{
+		.name   = "persistent1",
+		.offset = 0x8000000,
+		.size   = 0x4000000
+	},
+	{
+		.name   = "persistent2",
+		.offset = 0xC000000,
+		.size   = 0x4000000
+	}
 };
 
 struct ndfc_controller_settings warp_ndfc_settings = {
@@ -67,19 +79,15 @@ static struct platform_device warp_ndfc_device = {
 	.resource = &warp_ndfc,
 };
 
-static struct nand_ecclayout nand_oob_16 = {
-	.eccbytes = 3,
-	.eccpos = { 0, 1, 2, 3, 6, 7 },
-	.oobfree = { {.offset = 8, .length = 16} }
-};
-
+/* Do NOT set the ecclayout: let it default so it is correct for both
+ * 64M and 256M flash chips.
+ */
 static struct platform_nand_chip warp_nand_chip0 = {
 	.nr_chips = 1,
 	.chip_offset = CS_NAND_0,
 	.nr_partitions = ARRAY_SIZE(nand_parts),
 	.partitions = nand_parts,
-	.chip_delay = 50,
-	.ecclayout = &nand_oob_16,
+	.chip_delay = 20,
 	.priv = &warp_chip0_settings,
 };
 
@@ -96,6 +104,23 @@ static struct platform_device warp_nand_device = {
 
 static int warp_setup_nand_flash(void)
 {
+	struct device_node *np;
+
+	/* Try to detect a rev A based on NOR size. */
+	np = of_find_compatible_node(NULL, NULL, "cfi-flash");
+	if (np) {
+		struct property *pp;
+
+		pp = of_find_property(np, "reg", NULL);
+		if (pp && (pp->length == 12)) {
+			u32 *v = pp->value;
+			if (v[2] == 0x4000000)
+				/* Rev A = 64M NAND */
+				warp_nand_chip0.nr_partitions = 2;
+		}
+		of_node_put(np);
+	}
+
 	platform_device_register(&warp_ndfc_device);
 	platform_device_register(&warp_nand_device);
 

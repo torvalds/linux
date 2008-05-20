@@ -12,6 +12,9 @@
 #include <linux/init.h>
 #include <linux/of_platform.h>
 #include <linux/kthread.h>
+#include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/delay.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -26,6 +29,18 @@ static __initdata struct of_device_id warp_of_bus[] = {
 	{ .compatible = "ibm,ebc", },
 	{},
 };
+
+static __initdata struct i2c_board_info warp_i2c_info[] = {
+	{ I2C_BOARD_INFO("ad7414", 0x4a) }
+};
+
+static int __init warp_arch_init(void)
+{
+	/* This should go away once support is moved to the dts. */
+	i2c_register_board_info(0, warp_i2c_info, ARRAY_SIZE(warp_i2c_info));
+	return 0;
+}
+machine_arch_initcall(warp, warp_arch_init);
 
 static int __init warp_device_probe(void)
 {
@@ -52,61 +67,232 @@ define_machine(warp) {
 };
 
 
-#define LED_GREEN (0x80000000 >> 0)
-#define LED_RED   (0x80000000 >> 1)
-
-
-/* This is for the power LEDs 1 = on, 0 = off, -1 = leave alone */
-void warp_set_power_leds(int green, int red)
+/* I am not sure this is the best place for this... */
+static int __init warp_post_info(void)
 {
-	static void __iomem *gpio_base = NULL;
-	unsigned leds;
+	struct device_node *np;
+	void __iomem *fpga;
+	u32 post1, post2;
 
-	if (gpio_base == NULL) {
-		struct device_node *np;
+	/* Sighhhh... POST information is in the sd area. */
+	np = of_find_compatible_node(NULL, NULL, "pika,fpga-sd");
+	if (np == NULL)
+		return -ENOENT;
 
-		/* Power LEDS are on the second GPIO controller */
-		np = of_find_compatible_node(NULL, NULL, "ibm,gpio-440EP");
-		if (np)
-			np = of_find_compatible_node(np, NULL, "ibm,gpio-440EP");
-		if (np == NULL) {
-			printk(KERN_ERR __FILE__ ": Unable to find gpio\n");
-			return;
-		}
+	fpga = of_iomap(np, 0);
+	of_node_put(np);
+	if (fpga == NULL)
+		return -ENOENT;
 
-		gpio_base = of_iomap(np, 0);
-		of_node_put(np);
-		if (gpio_base == NULL) {
-			printk(KERN_ERR __FILE__ ": Unable to map gpio");
-			return;
-		}
-	}
+	post1 = in_be32(fpga + 0x40);
+	post2 = in_be32(fpga + 0x44);
 
-	leds = in_be32(gpio_base);
+	iounmap(fpga);
 
-	switch (green) {
-	case 0: leds &= ~LED_GREEN; break;
-	case 1: leds |=  LED_GREEN; break;
-	}
-	switch (red) {
-	case 0: leds &= ~LED_RED; break;
-	case 1: leds |=  LED_RED; break;
-	}
+	if (post1 || post2)
+		printk(KERN_INFO "Warp POST %08x %08x\n", post1, post2);
+	else
+		printk(KERN_INFO "Warp POST OK\n");
 
-	out_be32(gpio_base, leds);
+	return 0;
 }
-EXPORT_SYMBOL(warp_set_power_leds);
+machine_late_initcall(warp, warp_post_info);
 
 
 #ifdef CONFIG_SENSORS_AD7414
+
+static LIST_HEAD(dtm_shutdown_list);
+static void __iomem *dtm_fpga;
+static void __iomem *gpio_base;
+
+
+struct dtm_shutdown {
+	struct list_head list;
+	void (*func)(void *arg);
+	void *arg;
+};
+
+
+int pika_dtm_register_shutdown(void (*func)(void *arg), void *arg)
+{
+	struct dtm_shutdown *shutdown;
+
+	shutdown = kmalloc(sizeof(struct dtm_shutdown), GFP_KERNEL);
+	if (shutdown == NULL)
+		return -ENOMEM;
+
+	shutdown->func = func;
+	shutdown->arg = arg;
+
+	list_add(&shutdown->list, &dtm_shutdown_list);
+
+	return 0;
+}
+
+int pika_dtm_unregister_shutdown(void (*func)(void *arg), void *arg)
+{
+	struct dtm_shutdown *shutdown;
+
+	list_for_each_entry(shutdown, &dtm_shutdown_list, list)
+		if (shutdown->func == func && shutdown->arg == arg) {
+			list_del(&shutdown->list);
+			kfree(shutdown);
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+static irqreturn_t temp_isr(int irq, void *context)
+{
+	struct dtm_shutdown *shutdown;
+
+	local_irq_disable();
+
+	/* Run through the shutdown list. */
+	list_for_each_entry(shutdown, &dtm_shutdown_list, list)
+		shutdown->func(shutdown->arg);
+
+	printk(KERN_EMERG "\n\nCritical Temperature Shutdown\n");
+
+	while (1) {
+		if (dtm_fpga) {
+			unsigned reset = in_be32(dtm_fpga + 0x14);
+			out_be32(dtm_fpga + 0x14, reset);
+		}
+
+		if (gpio_base) {
+			unsigned leds = in_be32(gpio_base);
+
+			/* green off, red toggle */
+			leds &= ~0x80000000;
+			leds ^=  0x40000000;
+
+			out_be32(gpio_base, leds);
+		}
+
+		mdelay(500);
+	}
+}
+
+static int pika_setup_leds(void)
+{
+	struct device_node *np;
+	const u32 *gpios;
+	int len;
+
+	np = of_find_compatible_node(NULL, NULL, "linux,gpio-led");
+	if (!np) {
+		printk(KERN_ERR __FILE__ ": Unable to find gpio-led\n");
+		return -ENOENT;
+	}
+
+	gpios = of_get_property(np, "gpios", &len);
+	of_node_put(np);
+	if (!gpios || len < 4) {
+		printk(KERN_ERR __FILE__
+		       ": Unable to get gpios property (%d)\n", len);
+		return -ENOENT;
+	}
+
+	np = of_find_node_by_phandle(gpios[0]);
+	if (!np) {
+		printk(KERN_ERR __FILE__ ": Unable to find gpio\n");
+		return -ENOENT;
+	}
+
+	gpio_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!gpio_base) {
+		printk(KERN_ERR __FILE__ ": Unable to map gpio");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void pika_setup_critical_temp(struct i2c_client *client)
+{
+	struct device_node *np;
+	int irq, rc;
+
+	/* Do this before enabling critical temp interrupt since we
+	 * may immediately interrupt.
+	 */
+	pika_setup_leds();
+
+	/* These registers are in 1 degree increments. */
+	i2c_smbus_write_byte_data(client, 2, 65); /* Thigh */
+	i2c_smbus_write_byte_data(client, 3, 55); /* Tlow */
+
+	np = of_find_compatible_node(NULL, NULL, "adi,ad7414");
+	if (np == NULL) {
+		printk(KERN_ERR __FILE__ ": Unable to find ad7414\n");
+		return;
+	}
+
+	irq = irq_of_parse_and_map(np, 0);
+	of_node_put(np);
+	if (irq  == NO_IRQ) {
+		printk(KERN_ERR __FILE__ ": Unable to get ad7414 irq\n");
+		return;
+	}
+
+	rc = request_irq(irq, temp_isr, 0, "ad7414", NULL);
+	if (rc) {
+		printk(KERN_ERR __FILE__
+		       ": Unable to request ad7414 irq %d = %d\n", irq, rc);
+		return;
+	}
+}
+
+static inline void pika_dtm_check_fan(void __iomem *fpga)
+{
+	static int fan_state;
+	u32 fan = in_be32(fpga + 0x34) & (1 << 14);
+
+	if (fan_state != fan) {
+		fan_state = fan;
+		if (fan)
+			printk(KERN_WARNING "Fan rotation error detected."
+				   " Please check hardware.\n");
+	}
+}
+
 static int pika_dtm_thread(void __iomem *fpga)
 {
-	extern int ad7414_get_temp(int index);
+	struct i2c_adapter *adap;
+	struct i2c_client *client;
+
+	/* We loop in case either driver was compiled as a module and
+	 * has not been insmoded yet.
+	 */
+	while (!(adap = i2c_get_adapter(0))) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ);
+	}
+
+	while (1) {
+		list_for_each_entry(client, &adap->clients, list)
+			if (client->addr == 0x4a)
+				goto found_it;
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ);
+	}
+
+found_it:
+	i2c_put_adapter(adap);
+
+	pika_setup_critical_temp(client);
+
+	printk(KERN_INFO "PIKA DTM thread running.\n");
 
 	while (!kthread_should_stop()) {
-		int temp = ad7414_get_temp(0);
+		u16 temp = swab16(i2c_smbus_read_word_data(client, 0));
+		out_be32(fpga + 0x20, temp);
 
-		out_be32(fpga, temp);
+		pika_dtm_check_fan(fpga);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(HZ);
@@ -115,37 +301,44 @@ static int pika_dtm_thread(void __iomem *fpga)
 	return 0;
 }
 
+
 static int __init pika_dtm_start(void)
 {
 	struct task_struct *dtm_thread;
 	struct device_node *np;
-	struct resource res;
-	void __iomem *fpga;
 
 	np = of_find_compatible_node(NULL, NULL, "pika,fpga");
 	if (np == NULL)
 		return -ENOENT;
 
-	/* We do not call of_iomap here since it would map in the entire
-	 * fpga space, which is over 8k.
-	 */
-	if (of_address_to_resource(np, 0, &res)) {
-		of_node_put(np);
-		return -ENOENT;
-	}
+	dtm_fpga = of_iomap(np, 0);
 	of_node_put(np);
-
-	fpga = ioremap(res.start, 0x24);
-	if (fpga == NULL)
+	if (dtm_fpga == NULL)
 		return -ENOENT;
 
-	dtm_thread = kthread_run(pika_dtm_thread, fpga + 0x20, "pika-dtm");
+	dtm_thread = kthread_run(pika_dtm_thread, dtm_fpga, "pika-dtm");
 	if (IS_ERR(dtm_thread)) {
-		iounmap(fpga);
+		iounmap(dtm_fpga);
 		return PTR_ERR(dtm_thread);
 	}
 
 	return 0;
 }
-device_initcall(pika_dtm_start);
+machine_late_initcall(warp, pika_dtm_start);
+
+#else /* !CONFIG_SENSORS_AD7414 */
+
+int pika_dtm_register_shutdown(void (*func)(void *arg), void *arg)
+{
+	return 0;
+}
+
+int pika_dtm_unregister_shutdown(void (*func)(void *arg), void *arg)
+{
+	return 0;
+}
+
 #endif
+
+EXPORT_SYMBOL(pika_dtm_register_shutdown);
+EXPORT_SYMBOL(pika_dtm_unregister_shutdown);
