@@ -228,6 +228,7 @@ static int suspend_enter(suspend_state_t state)
 {
 	int error = 0;
 
+	device_pm_lock();
 	arch_suspend_disable_irqs();
 	BUG_ON(!irqs_disabled());
 
@@ -239,10 +240,11 @@ static int suspend_enter(suspend_state_t state)
 	if (!suspend_test(TEST_CORE))
 		error = suspend_ops->enter(state);
 
-	device_power_up();
+	device_power_up(PMSG_RESUME);
  Done:
 	arch_suspend_enable_irqs();
 	BUG_ON(irqs_disabled());
+	device_pm_unlock();
 	return error;
 }
 
@@ -291,7 +293,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (suspend_ops->finish)
 		suspend_ops->finish();
  Resume_devices:
-	device_resume();
+	device_resume(PMSG_RESUME);
  Resume_console:
 	resume_console();
  Close:
