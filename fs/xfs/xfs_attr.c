@@ -2300,23 +2300,7 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 void
 xfs_attr_trace_l_c(char *where, struct xfs_attr_list_context *context)
 {
-	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_C, where,
-		(__psunsigned_t)context->dp,
-		(__psunsigned_t)context->cursor->hashval,
-		(__psunsigned_t)context->cursor->blkno,
-		(__psunsigned_t)context->cursor->offset,
-		(__psunsigned_t)context->alist,
-		(__psunsigned_t)context->bufsize,
-		(__psunsigned_t)context->count,
-		(__psunsigned_t)context->firstu,
-		(__psunsigned_t)
-			((context->count > 0) &&
-			!(context->flags & (ATTR_KERNAMELS|ATTR_KERNOVAL)))
-				? (ATTR_ENTRY(context->alist,
-					      context->count-1)->a_valuelen)
-				: 0,
-		(__psunsigned_t)context->dupcnt,
-		(__psunsigned_t)context->flags,
+	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_C, where, context,
 		(__psunsigned_t)NULL,
 		(__psunsigned_t)NULL,
 		(__psunsigned_t)NULL);
@@ -2329,23 +2313,7 @@ void
 xfs_attr_trace_l_cn(char *where, struct xfs_attr_list_context *context,
 			 struct xfs_da_intnode *node)
 {
-	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_CN, where,
-		(__psunsigned_t)context->dp,
-		(__psunsigned_t)context->cursor->hashval,
-		(__psunsigned_t)context->cursor->blkno,
-		(__psunsigned_t)context->cursor->offset,
-		(__psunsigned_t)context->alist,
-		(__psunsigned_t)context->bufsize,
-		(__psunsigned_t)context->count,
-		(__psunsigned_t)context->firstu,
-		(__psunsigned_t)
-			((context->count > 0) &&
-			!(context->flags & (ATTR_KERNAMELS|ATTR_KERNOVAL)))
-				? (ATTR_ENTRY(context->alist,
-					      context->count-1)->a_valuelen)
-				: 0,
-		(__psunsigned_t)context->dupcnt,
-		(__psunsigned_t)context->flags,
+	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_CN, where, context,
 		(__psunsigned_t)be16_to_cpu(node->hdr.count),
 		(__psunsigned_t)be32_to_cpu(node->btree[0].hashval),
 		(__psunsigned_t)be32_to_cpu(node->btree[
@@ -2359,23 +2327,7 @@ void
 xfs_attr_trace_l_cb(char *where, struct xfs_attr_list_context *context,
 			  struct xfs_da_node_entry *btree)
 {
-	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_CB, where,
-		(__psunsigned_t)context->dp,
-		(__psunsigned_t)context->cursor->hashval,
-		(__psunsigned_t)context->cursor->blkno,
-		(__psunsigned_t)context->cursor->offset,
-		(__psunsigned_t)context->alist,
-		(__psunsigned_t)context->bufsize,
-		(__psunsigned_t)context->count,
-		(__psunsigned_t)context->firstu,
-		(__psunsigned_t)
-			((context->count > 0) &&
-			!(context->flags & (ATTR_KERNAMELS|ATTR_KERNOVAL)))
-				? (ATTR_ENTRY(context->alist,
-					      context->count-1)->a_valuelen)
-				: 0,
-		(__psunsigned_t)context->dupcnt,
-		(__psunsigned_t)context->flags,
+	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_CB, where, context,
 		(__psunsigned_t)be32_to_cpu(btree->hashval),
 		(__psunsigned_t)be32_to_cpu(btree->before),
 		(__psunsigned_t)NULL);
@@ -2388,23 +2340,7 @@ void
 xfs_attr_trace_l_cl(char *where, struct xfs_attr_list_context *context,
 			      struct xfs_attr_leafblock *leaf)
 {
-	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_CL, where,
-		(__psunsigned_t)context->dp,
-		(__psunsigned_t)context->cursor->hashval,
-		(__psunsigned_t)context->cursor->blkno,
-		(__psunsigned_t)context->cursor->offset,
-		(__psunsigned_t)context->alist,
-		(__psunsigned_t)context->bufsize,
-		(__psunsigned_t)context->count,
-		(__psunsigned_t)context->firstu,
-		(__psunsigned_t)
-			((context->count > 0) &&
-			!(context->flags & (ATTR_KERNAMELS|ATTR_KERNOVAL)))
-				? (ATTR_ENTRY(context->alist,
-					      context->count-1)->a_valuelen)
-				: 0,
-		(__psunsigned_t)context->dupcnt,
-		(__psunsigned_t)context->flags,
+	xfs_attr_trace_enter(XFS_ATTR_KTRACE_L_CL, where, context,
 		(__psunsigned_t)be16_to_cpu(leaf->hdr.count),
 		(__psunsigned_t)be32_to_cpu(leaf->entries[0].hashval),
 		(__psunsigned_t)be32_to_cpu(leaf->entries[
@@ -2417,22 +2353,30 @@ xfs_attr_trace_l_cl(char *where, struct xfs_attr_list_context *context,
  */
 void
 xfs_attr_trace_enter(int type, char *where,
-			 __psunsigned_t a2, __psunsigned_t a3,
-			 __psunsigned_t a4, __psunsigned_t a5,
-			 __psunsigned_t a6, __psunsigned_t a7,
-			 __psunsigned_t a8, __psunsigned_t a9,
-			 __psunsigned_t a10, __psunsigned_t a11,
-			 __psunsigned_t a12, __psunsigned_t a13,
-			 __psunsigned_t a14, __psunsigned_t a15)
+			 struct xfs_attr_list_context *context,
+			 __psunsigned_t a13, __psunsigned_t a14,
+			 __psunsigned_t a15)
 {
 	ASSERT(xfs_attr_trace_buf);
 	ktrace_enter(xfs_attr_trace_buf, (void *)((__psunsigned_t)type),
-					 (void *)where,
-					 (void *)a2,  (void *)a3,  (void *)a4,
-					 (void *)a5,  (void *)a6,  (void *)a7,
-					 (void *)a8,  (void *)a9,  (void *)a10,
-					 (void *)a11, (void *)a12, (void *)a13,
-					 (void *)a14, (void *)a15);
+		(void *)((__psunsigned_t)where),
+		(void *)((__psunsigned_t)context->dp),
+		(void *)((__psunsigned_t)context->cursor->hashval),
+		(void *)((__psunsigned_t)context->cursor->blkno),
+		(void *)((__psunsigned_t)context->cursor->offset),
+		(void *)((__psunsigned_t)context->alist),
+		(void *)((__psunsigned_t)context->bufsize),
+		(void *)((__psunsigned_t)context->count),
+		(void *)((__psunsigned_t)context->firstu),
+		(void *)((__psunsigned_t)
+			(((context->count > 0) &&
+			!(context->flags & (ATTR_KERNAMELS|ATTR_KERNOVAL)))
+				? (ATTR_ENTRY(context->alist,
+					      context->count-1)->a_valuelen)
+				: 0)),
+		(void *)((__psunsigned_t)context->dupcnt),
+		(void *)((__psunsigned_t)context->flags),
+		(void *)a13, (void *)a14, (void *)a15);
 }
 #endif	/* XFS_ATTR_TRACE */
 
