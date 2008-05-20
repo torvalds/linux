@@ -130,6 +130,49 @@ static ssize_t boottime_set(struct device *dev,
 }
 
 /**
+ * @brief Get function for sysfs attribute channel
+ */
+static ssize_t channel_get(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct mrvl_mesh_defaults defs;
+	int ret;
+
+	ret = mesh_get_default_parameters(dev, &defs);
+
+	if (ret)
+		return ret;
+
+	return snprintf(buf, 12, "0x%x\n", le16_to_cpu(defs.channel));
+}
+
+/**
+ * @brief Set function for sysfs attribute channel
+ */
+static ssize_t channel_set(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct lbs_private *priv = to_net_dev(dev)->priv;
+	struct cmd_ds_mesh_config cmd;
+	uint16_t datum;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	ret = sscanf(buf, "%hx", &datum);
+	if (ret != 1 || datum < 1 || datum > 11)
+		return -EINVAL;
+
+	*((__le16 *)&cmd.data[0]) = cpu_to_le16(datum);
+	cmd.length = cpu_to_le16(sizeof(uint16_t));
+	ret = lbs_mesh_config_send(priv, &cmd, CMD_ACT_MESH_CONFIG_SET,
+				   CMD_TYPE_MESH_SET_DEF_CHANNEL);
+	if (ret)
+		return ret;
+
+	return strlen(buf);
+}
+
+/**
  * @brief Get function for sysfs attribute mesh_id
  */
 static ssize_t mesh_id_get(struct device *dev, struct device_attribute *attr,
@@ -365,6 +408,7 @@ static ssize_t capability_set(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(bootflag, 0644, bootflag_get, bootflag_set);
 static DEVICE_ATTR(boottime, 0644, boottime_get, boottime_set);
+static DEVICE_ATTR(channel, 0644, channel_get, channel_set);
 static DEVICE_ATTR(mesh_id, 0644, mesh_id_get, mesh_id_set);
 static DEVICE_ATTR(protocol_id, 0644, protocol_id_get, protocol_id_set);
 static DEVICE_ATTR(metric_id, 0644, metric_id_get, metric_id_set);
@@ -373,6 +417,7 @@ static DEVICE_ATTR(capability, 0644, capability_get, capability_set);
 static struct attribute *boot_opts_attrs[] = {
 	&dev_attr_bootflag.attr,
 	&dev_attr_boottime.attr,
+	&dev_attr_channel.attr,
 	NULL
 };
 
