@@ -1,5 +1,7 @@
 Version 1.53
 ------------
+DFS support added (Microsoft Distributed File System client support needed
+for referrals which enable a hierarchical name space among servers).
 
 Version 1.52
 ------------

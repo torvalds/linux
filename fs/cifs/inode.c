@@ -161,77 +161,108 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 	spin_unlock(&inode->i_lock);
 }
 
+static void fill_fake_finddataunix(FILE_UNIX_BASIC_INFO *pfnd_dat,
+			       struct super_block *sb)
+{
+	struct inode *pinode = NULL;
+
+	memset(pfnd_dat, sizeof(FILE_UNIX_BASIC_INFO), 0);
+
+/*	__le64 pfnd_dat->EndOfFile = cpu_to_le64(0);
+	__le64 pfnd_dat->NumOfBytes = cpu_to_le64(0);
+	__u64 UniqueId = 0;  */
+	pfnd_dat->LastStatusChange =
+		cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	pfnd_dat->LastAccessTime =
+		cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	pfnd_dat->LastModificationTime =
+		cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	pfnd_dat->Type = cpu_to_le32(UNIX_DIR);
+	pfnd_dat->Permissions = cpu_to_le64(S_IXUGO | S_IRWXU);
+	pfnd_dat->Nlinks = cpu_to_le64(2);
+	if (sb->s_root)
+		pinode = sb->s_root->d_inode;
+	if (pinode == NULL)
+		return;
+
+	/* fill in default values for the remaining based on root
+	   inode since we can not query the server for this inode info */
+	pfnd_dat->DevMajor = cpu_to_le64(MAJOR(pinode->i_rdev));
+	pfnd_dat->DevMinor = cpu_to_le64(MINOR(pinode->i_rdev));
+	pfnd_dat->Uid = cpu_to_le64(pinode->i_uid);
+	pfnd_dat->Gid = cpu_to_le64(pinode->i_gid);
+}
+
 int cifs_get_inode_info_unix(struct inode **pinode,
 	const unsigned char *full_path, struct super_block *sb, int xid)
 {
 	int rc = 0;
-	FILE_UNIX_BASIC_INFO findData;
+	FILE_UNIX_BASIC_INFO find_data;
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	bool is_dfs_referral = false;
+	struct cifsInodeInfo *cifsInfo;
+	__u64 num_of_bytes;
+	__u64 end_of_file;
 
 	pTcon = cifs_sb->tcon;
 	cFYI(1, ("Getting info on %s", full_path));
 
-try_again_CIFSSMBUnixQPathInfo:
 	/* could have done a find first instead but this returns more info */
-	rc = CIFSSMBUnixQPathInfo(xid, pTcon, full_path, &findData,
+	rc = CIFSSMBUnixQPathInfo(xid, pTcon, full_path, &find_data,
 				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-/*	dump_mem("\nUnixQPathInfo return data", &findData,
-		 sizeof(findData)); */
 	if (rc) {
 		if (rc == -EREMOTE && !is_dfs_referral) {
 			is_dfs_referral = true;
-			goto try_again_CIFSSMBUnixQPathInfo;
+			cERROR(1, ("DFS ref")); /* BB removeme BB */
+			/* for DFS, server does not give us real inode data */
+			fill_fake_finddataunix(&find_data, sb);
+			rc = 0;
 		}
-		goto cgiiu_exit;
-	} else {
-		struct cifsInodeInfo *cifsInfo;
-		__u64 num_of_bytes = le64_to_cpu(findData.NumOfBytes);
-		__u64 end_of_file = le64_to_cpu(findData.EndOfFile);
-
-		/* get new inode */
-		if (*pinode == NULL) {
-			*pinode = new_inode(sb);
-			if (*pinode == NULL) {
-				rc = -ENOMEM;
-				goto cgiiu_exit;
-			}
-			/* Is an i_ino of zero legal? */
-			/* Are there sanity checks we can use to ensure that
-			   the server is really filling in that field? */
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
-				(*pinode)->i_ino =
-					(unsigned long)findData.UniqueId;
-			} /* note ino incremented to unique num in new_inode */
-			if (sb->s_flags & MS_NOATIME)
-				(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
-
-			insert_inode_hash(*pinode);
-		}
-
-		inode = *pinode;
-		cifsInfo = CIFS_I(inode);
-
-		cFYI(1, ("Old time %ld", cifsInfo->time));
-		cifsInfo->time = jiffies;
-		cFYI(1, ("New time %ld", cifsInfo->time));
-		/* this is ok to set on every inode revalidate */
-		atomic_set(&cifsInfo->inUse, 1);
-
-		cifs_unix_info_to_inode(inode, &findData, 0);
-
-
-		if (num_of_bytes < end_of_file)
-			cFYI(1, ("allocation size less than end of file"));
-		cFYI(1, ("Size %ld and blocks %llu",
-			(unsigned long) inode->i_size,
-			(unsigned long long)inode->i_blocks));
-
-		cifs_set_ops(inode, is_dfs_referral);
 	}
+	num_of_bytes = le64_to_cpu(find_data.NumOfBytes);
+	end_of_file = le64_to_cpu(find_data.EndOfFile);
+
+	/* get new inode */
+	if (*pinode == NULL) {
+		*pinode = new_inode(sb);
+		if (*pinode == NULL) {
+			rc = -ENOMEM;
+		goto cgiiu_exit;
+		}
+		/* Is an i_ino of zero legal? */
+		/* note ino incremented to unique num in new_inode */
+		/* Are there sanity checks we can use to ensure that
+		   the server is really filling in that field? */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+			(*pinode)->i_ino = (unsigned long)find_data.UniqueId;
+
+		if (sb->s_flags & MS_NOATIME)
+			(*pinode)->i_flags |= S_NOATIME | S_NOCMTIME;
+
+		insert_inode_hash(*pinode);
+	}
+
+	inode = *pinode;
+	cifsInfo = CIFS_I(inode);
+
+	cFYI(1, ("Old time %ld", cifsInfo->time));
+	cifsInfo->time = jiffies;
+	cFYI(1, ("New time %ld", cifsInfo->time));
+	/* this is ok to set on every inode revalidate */
+	atomic_set(&cifsInfo->inUse, 1);
+
+	cifs_unix_info_to_inode(inode, &find_data, 0);
+
+	if (num_of_bytes < end_of_file)
+		cFYI(1, ("allocation size less than end of file"));
+	cFYI(1, ("Size %ld and blocks %llu",
+		(unsigned long) inode->i_size,
+		(unsigned long long)inode->i_blocks));
+
+	cifs_set_ops(inode, is_dfs_referral);
 cgiiu_exit:
 	return rc;
 }
