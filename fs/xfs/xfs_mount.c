@@ -51,7 +51,6 @@ STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
 
 #ifdef HAVE_PERCPU_SB
-STATIC void	xfs_icsb_destroy_counters(xfs_mount_t *);
 STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 						int);
 STATIC void	xfs_icsb_balance_counter_locked(xfs_mount_t *, xfs_sb_field_t,
@@ -62,7 +61,6 @@ STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
 
 #else
 
-#define xfs_icsb_destroy_counters(mp)			do { } while (0)
 #define xfs_icsb_balance_counter(mp, a, b)		do { } while (0)
 #define xfs_icsb_balance_counter_locked(mp, a, b)	do { } while (0)
 #define xfs_icsb_modify_counters(mp, a, b, c)		do { } while (0)
@@ -125,33 +123,11 @@ static const struct {
 };
 
 /*
- * Return a pointer to an initialized xfs_mount structure.
- */
-xfs_mount_t *
-xfs_mount_init(void)
-{
-	xfs_mount_t *mp;
-
-	mp = kmem_zalloc(sizeof(xfs_mount_t), KM_SLEEP);
-
-	if (xfs_icsb_init_counters(mp)) {
-		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
-	}
-
-	spin_lock_init(&mp->m_sb_lock);
-	mutex_init(&mp->m_ilock);
-	mutex_init(&mp->m_growlock);
-	atomic_set(&mp->m_active_trans, 0);
-
-	return mp;
-}
-
-/*
  * Free up the resources associated with a mount structure.  Assume that
  * the structure was initially zeroed, so we can tell which fields got
  * initialized.
  */
-void
+STATIC void
 xfs_mount_free(
 	xfs_mount_t	*mp)
 {
@@ -177,8 +153,6 @@ xfs_mount_free(
 		kmem_free(mp->m_rtname);
 	if (mp->m_logname != NULL)
 		kmem_free(mp->m_logname);
-
-	xfs_icsb_destroy_counters(mp);
 }
 
 /*
@@ -2093,7 +2067,7 @@ xfs_icsb_reinit_counters(
 	xfs_icsb_unlock(mp);
 }
 
-STATIC void
+void
 xfs_icsb_destroy_counters(
 	xfs_mount_t	*mp)
 {

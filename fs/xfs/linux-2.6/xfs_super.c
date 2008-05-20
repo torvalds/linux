@@ -1273,10 +1273,11 @@ xfs_fs_put_super(
 	}
 
 	xfs_unmountfs(mp);
+	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
 	xfs_qmops_put(mp);
 	xfs_dmops_put(mp);
-	kmem_free(mp);
+	kfree(mp);
 }
 
 STATIC void
@@ -1733,14 +1734,20 @@ xfs_fs_fill_super(
 	struct inode		*root;
 	struct xfs_mount	*mp = NULL;
 	struct xfs_mount_args	*args;
-	int			flags = 0, error;
+	int			flags = 0, error = ENOMEM;
 
 	args = xfs_args_allocate(sb, silent);
 	if (!args)
 		return -ENOMEM;
 
-	mp = xfs_mount_init();
+	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL);
+	if (!mp)
+		goto out_free_args;
 
+	spin_lock_init(&mp->m_sb_lock);
+	mutex_init(&mp->m_ilock);
+	mutex_init(&mp->m_growlock);
+	atomic_set(&mp->m_active_trans, 0);
 	INIT_LIST_HEAD(&mp->m_sync_list);
 	spin_lock_init(&mp->m_sync_lock);
 	init_waitqueue_head(&mp->m_wait_single_sync_task);
@@ -1753,7 +1760,7 @@ xfs_fs_fill_super(
 
 	error = xfs_parseargs(mp, (char *)data, args, 0);
 	if (error)
-		goto fail_vfsop;
+		goto out_free_mp;
 
 	sb_min_blocksize(sb, BBSIZE);
 	sb->s_export_op = &xfs_export_operations;
@@ -1762,7 +1769,7 @@ xfs_fs_fill_super(
 
 	error = xfs_dmops_get(mp, args);
 	if (error)
-		goto fail_vfsop;
+		goto out_free_mp;
 	error = xfs_qmops_get(mp, args);
 	if (error)
 		goto out_put_dmops;
@@ -1773,6 +1780,9 @@ xfs_fs_fill_super(
 	error = xfs_open_devices(mp, args);
 	if (error)
 		goto out_put_qmops;
+
+	if (xfs_icsb_init_counters(mp))
+		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
 
 	/*
 	 * Setup flags based on mount(2) options and then the superblock
@@ -1849,12 +1859,18 @@ xfs_fs_fill_super(
 		xfs_binval(mp->m_logdev_targp);
 	if (mp->m_rtdev_targp)
 		xfs_binval(mp->m_rtdev_targp);
+ out_destroy_counters:
+	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
  out_put_qmops:
 	xfs_qmops_put(mp);
  out_put_dmops:
 	xfs_dmops_put(mp);
-	goto fail_vfsop;
+ out_free_mp:
+	kfree(mp);
+ out_free_args:
+	kfree(args);
+	return -error;
 
  fail_vnrele:
 	if (sb->s_root) {
@@ -1879,14 +1895,7 @@ xfs_fs_fill_super(
 	IRELE(mp->m_rootip);
 
 	xfs_unmountfs(mp);
-	xfs_close_devices(mp);
-	xfs_qmops_put(mp);
-	xfs_dmops_put(mp);
-	kmem_free(mp);
-
- fail_vfsop:
-	kfree(args);
-	return -error;
+	goto out_destroy_counters;
 }
 
 STATIC int
