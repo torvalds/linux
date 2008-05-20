@@ -1268,7 +1268,6 @@ xfs_mountfs(
  error1:
 	if (uuid_mounted)
 		uuid_table_remove(&mp->m_sb.sb_uuid);
-	xfs_freesb(mp);
 	return error;
 }
 
