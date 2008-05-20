@@ -376,8 +376,8 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		break;
 
 	default:
-		lbs_deb_host("CMD_RESP: unknown cmd response 0x%04x\n",
-			     le16_to_cpu(resp->command));
+		lbs_pr_err("CMD_RESP: unknown cmd response 0x%04x\n",
+			   le16_to_cpu(resp->command));
 		break;
 	}
 	lbs_deb_leave(LBS_DEB_HOST);

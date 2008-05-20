@@ -1452,7 +1452,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_bcn_ctrl(priv, cmdptr, cmd_action);
 		break;
 	default:
-		lbs_deb_host("PREP_CMD: unknown command 0x%04x\n", cmd_no);
+		lbs_pr_err("PREP_CMD: unknown command 0x%04x\n", cmd_no);
 		ret = -1;
 		break;
 	}
