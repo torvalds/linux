@@ -1278,7 +1278,7 @@ xfs_mountfs(
  * log and makes sure that incore structures are freed.
  */
 int
-xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
+xfs_unmountfs(xfs_mount_t *mp)
 {
 	__uint64_t	resblks;
 	int		error = 0;
@@ -1345,7 +1345,6 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	 */
 	ASSERT(mp->m_inodes == NULL);
 
-	xfs_unmountfs_close(mp, cr);
 	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
 		uuid_table_remove(&mp->m_sb.sb_uuid);
 
@@ -1354,16 +1353,6 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 #endif
 	xfs_mount_free(mp);
 	return 0;
-}
-
-void
-xfs_unmountfs_close(xfs_mount_t *mp, struct cred *cr)
-{
-	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
-		xfs_free_buftarg(mp->m_logdev_targp, 1);
-	if (mp->m_rtdev_targp)
-		xfs_free_buftarg(mp->m_rtdev_targp, 1);
-	xfs_free_buftarg(mp->m_ddev_targp, 0);
 }
 
 STATIC void
