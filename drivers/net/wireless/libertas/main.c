@@ -11,6 +11,7 @@
 #include <linux/if_arp.h>
 #include <linux/kthread.h>
 #include <linux/kfifo.h>
+#include <linux/stddef.h>
 
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
@@ -446,6 +447,8 @@ static int lbs_mesh_stop(struct net_device *dev)
 
 	spin_unlock_irq(&priv->driver_lock);
 
+	schedule_work(&priv->mcast_work);
+
 	lbs_deb_leave(LBS_DEB_MESH);
 	return 0;
 }
@@ -466,6 +469,8 @@ static int lbs_eth_stop(struct net_device *dev)
 	priv->infra_open = 0;
 	netif_stop_queue(dev);
 	spin_unlock_irq(&priv->driver_lock);
+
+	schedule_work(&priv->mcast_work);
 
 	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
@@ -563,87 +568,114 @@ done:
 	return ret;
 }
 
-static int lbs_copy_multicast_address(struct lbs_private *priv,
-				     struct net_device *dev)
-{
-	int i = 0;
-	struct dev_mc_list *mcptr = dev->mc_list;
 
-	for (i = 0; i < dev->mc_count; i++) {
-		memcpy(&priv->multicastlist[i], mcptr->dmi_addr, ETH_ALEN);
-		mcptr = mcptr->next;
+static inline int mac_in_list(unsigned char *list, int list_len,
+			      unsigned char *mac)
+{
+	while (list_len) {
+		if (!memcmp(list, mac, ETH_ALEN))
+			return 1;
+		list += ETH_ALEN;
+		list_len--;
 	}
+	return 0;
+}
+
+
+static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
+			       struct net_device *dev, int nr_addrs)
+{
+	int i = nr_addrs;
+	struct dev_mc_list *mc_list;
+	DECLARE_MAC_BUF(mac);
+
+	if ((dev->flags & (IFF_UP|IFF_MULTICAST)) != (IFF_UP|IFF_MULTICAST))
+		return nr_addrs;
+
+	netif_tx_lock_bh(dev);
+	for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
+		if (mac_in_list(cmd->maclist, nr_addrs, mc_list->dmi_addr)) {
+			lbs_deb_net("mcast address %s:%s skipped\n", dev->name,
+				    print_mac(mac, mc_list->dmi_addr));
+			continue;
+		}
+
+		if (i == MRVDRV_MAX_MULTICAST_LIST_SIZE)
+			break;
+		memcpy(&cmd->maclist[6*i], mc_list->dmi_addr, ETH_ALEN);
+		lbs_deb_net("mcast address %s:%s added to filter\n", dev->name,
+			    print_mac(mac, mc_list->dmi_addr));
+		i++;
+	}
+	netif_tx_unlock_bh(dev);
+	if (mc_list)
+		return -EOVERFLOW;
+
 	return i;
+}
+
+static void lbs_set_mcast_worker(struct work_struct *work)
+{
+	struct lbs_private *priv = container_of(work, struct lbs_private, mcast_work);
+	struct cmd_ds_mac_multicast_adr mcast_cmd;
+	int dev_flags;
+	int nr_addrs;
+	int old_mac_control = priv->mac_control;
+
+	lbs_deb_enter(LBS_DEB_NET);
+
+	dev_flags = priv->dev->flags;
+	if (priv->mesh_dev)
+		dev_flags |= priv->mesh_dev->flags;
+
+	if (dev_flags & IFF_PROMISC) {
+		priv->mac_control |= CMD_ACT_MAC_PROMISCUOUS_ENABLE;
+		priv->mac_control &= ~(CMD_ACT_MAC_ALL_MULTICAST_ENABLE |
+				       CMD_ACT_MAC_MULTICAST_ENABLE);
+		goto out_set_mac_control;
+	} else if (dev_flags & IFF_ALLMULTI) {
+	do_allmulti:
+		priv->mac_control |= CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
+		priv->mac_control &= ~(CMD_ACT_MAC_PROMISCUOUS_ENABLE |
+				       CMD_ACT_MAC_MULTICAST_ENABLE);
+		goto out_set_mac_control;
+	}
+
+	/* Once for priv->dev, again for priv->mesh_dev if it exists */
+	nr_addrs = lbs_add_mcast_addrs(&mcast_cmd, priv->dev, 0);
+	if (nr_addrs >= 0 && priv->mesh_dev)
+		nr_addrs = lbs_add_mcast_addrs(&mcast_cmd, priv->mesh_dev, nr_addrs);
+	if (nr_addrs < 0)
+		goto do_allmulti;
+
+	if (nr_addrs) {
+		int size = offsetof(struct cmd_ds_mac_multicast_adr,
+				    maclist[6*nr_addrs]);
+
+		mcast_cmd.action = cpu_to_le16(CMD_ACT_SET);
+		mcast_cmd.hdr.size = cpu_to_le16(size);
+		mcast_cmd.nr_of_adrs = cpu_to_le16(nr_addrs);
+
+		lbs_cmd_async(priv, CMD_MAC_MULTICAST_ADR, &mcast_cmd.hdr, size);
+
+		priv->mac_control |= CMD_ACT_MAC_MULTICAST_ENABLE;
+	} else
+		priv->mac_control &= ~CMD_ACT_MAC_MULTICAST_ENABLE;
+
+	priv->mac_control &= ~(CMD_ACT_MAC_PROMISCUOUS_ENABLE |
+			       CMD_ACT_MAC_ALL_MULTICAST_ENABLE);
+ out_set_mac_control:
+	if (priv->mac_control != old_mac_control)
+		lbs_set_mac_control(priv);
+
+	lbs_deb_leave(LBS_DEB_NET);
 }
 
 static void lbs_set_multicast_list(struct net_device *dev)
 {
 	struct lbs_private *priv = dev->priv;
-	int old_mac_control;
-	DECLARE_MAC_BUF(mac);
 
-	lbs_deb_enter(LBS_DEB_NET);
-
-	old_mac_control = priv->mac_control;
-
-	if (dev->flags & IFF_PROMISC) {
-		lbs_deb_net("enable promiscuous mode\n");
-		priv->mac_control |=
-		    CMD_ACT_MAC_PROMISCUOUS_ENABLE;
-		priv->mac_control &=
-		    ~(CMD_ACT_MAC_ALL_MULTICAST_ENABLE |
-		      CMD_ACT_MAC_MULTICAST_ENABLE);
-	} else {
-		/* Multicast */
-		priv->mac_control &=
-		    ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
-
-		if (dev->flags & IFF_ALLMULTI || dev->mc_count >
-		    MRVDRV_MAX_MULTICAST_LIST_SIZE) {
-			lbs_deb_net( "enabling all multicast\n");
-			priv->mac_control |=
-			    CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
-			priv->mac_control &=
-			    ~CMD_ACT_MAC_MULTICAST_ENABLE;
-		} else {
-			priv->mac_control &=
-			    ~CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
-
-			if (!dev->mc_count) {
-				lbs_deb_net("no multicast addresses, "
-				       "disabling multicast\n");
-				priv->mac_control &=
-				    ~CMD_ACT_MAC_MULTICAST_ENABLE;
-			} else {
-				int i;
-
-				priv->mac_control |=
-				    CMD_ACT_MAC_MULTICAST_ENABLE;
-
-				priv->nr_of_multicastmacaddr =
-				    lbs_copy_multicast_address(priv, dev);
-
-				lbs_deb_net("multicast addresses: %d\n",
-				       dev->mc_count);
-
-				for (i = 0; i < dev->mc_count; i++) {
-					lbs_deb_net("Multicast address %d: %s\n",
-					       i, print_mac(mac,
-					       priv->multicastlist[i]));
-				}
-				/* send multicast addresses to firmware */
-				lbs_prepare_and_send_command(priv,
-						      CMD_MAC_MULTICAST_ADR,
-						      CMD_ACT_SET, 0, 0,
-						      NULL);
-			}
-		}
-	}
-
-	if (priv->mac_control != old_mac_control)
-		lbs_set_mac_control(priv);
-
-	lbs_deb_leave(LBS_DEB_NET);
+	schedule_work(&priv->mcast_work);
 }
 
 /**
@@ -1122,6 +1154,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->work_thread = create_singlethread_workqueue("lbs_worker");
 	INIT_DELAYED_WORK(&priv->assoc_work, lbs_association_worker);
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
+	INIT_WORK(&priv->mcast_work, lbs_set_mcast_worker);
 	INIT_WORK(&priv->sync_channel, lbs_sync_channel_worker);
 
 	sprintf(priv->mesh_ssid, "mesh");
@@ -1158,6 +1191,7 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	cancel_delayed_work_sync(&priv->scan_work);
 	cancel_delayed_work_sync(&priv->assoc_work);
+	cancel_work_sync(&priv->mcast_work);
 	destroy_workqueue(priv->work_thread);
 
 	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
@@ -1322,6 +1356,8 @@ static int lbs_add_mesh(struct lbs_private *priv)
 #ifdef	WIRELESS_EXT
 	mesh_dev->wireless_handlers = (struct iw_handler_def *)&mesh_handler_def;
 #endif
+	mesh_dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
+	mesh_dev->set_multicast_list = lbs_set_multicast_list;
 	/* Register virtual mesh interface */
 	ret = register_netdev(mesh_dev);
 	if (ret) {
@@ -1554,7 +1590,6 @@ static int lbs_add_rtap(struct lbs_private *priv)
 	rtap_dev->stop = lbs_rtap_stop;
 	rtap_dev->get_stats = lbs_rtap_get_stats;
 	rtap_dev->hard_start_xmit = lbs_rtap_hard_start_xmit;
-	rtap_dev->set_multicast_list = lbs_set_multicast_list;
 	rtap_dev->priv = priv;
 
 	ret = register_netdev(rtap_dev);

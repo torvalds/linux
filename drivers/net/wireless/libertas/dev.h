@@ -140,6 +140,8 @@ struct lbs_private {
 	wait_queue_head_t waitq;
 	struct workqueue_struct *work_thread;
 
+	struct work_struct mcast_work;
+
 	/** Scanning */
 	struct delayed_work scan_work;
 	struct delayed_work assoc_work;

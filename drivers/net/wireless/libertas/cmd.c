@@ -746,28 +746,6 @@ out:
 	return ret;
 }
 
-static int lbs_cmd_mac_multicast_adr(struct lbs_private *priv,
-				      struct cmd_ds_command *cmd,
-				      u16 cmd_action)
-{
-	struct cmd_ds_mac_multicast_adr *pMCastAdr = &cmd->params.madr;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_multicast_adr) +
-			     S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_MAC_MULTICAST_ADR);
-
-	lbs_deb_cmd("MULTICAST_ADR: setting %d addresses\n", pMCastAdr->nr_of_adrs);
-	pMCastAdr->action = cpu_to_le16(cmd_action);
-	pMCastAdr->nr_of_adrs =
-	    cpu_to_le16((u16) priv->nr_of_multicastmacaddr);
-	memcpy(pMCastAdr->maclist, priv->multicastlist,
-	       priv->nr_of_multicastmacaddr * ETH_ALEN);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 /**
  *  @brief Get the radio channel
  *
@@ -1247,8 +1225,7 @@ void lbs_set_mac_control(struct lbs_private *priv)
 	cmd.action = cpu_to_le16(priv->mac_control);
 	cmd.reserved = 0;
 
-	lbs_cmd_async(priv, CMD_MAC_CONTROL,
-		&cmd.hdr, sizeof(cmd));
+	lbs_cmd_async(priv, CMD_MAC_CONTROL, &cmd.hdr, sizeof(cmd));
 
 	lbs_deb_leave(LBS_DEB_CMD);
 }
@@ -1358,10 +1335,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_RATE_ADAPT_RATESET:
 		ret = lbs_cmd_802_11_rate_adapt_rateset(priv,
 							 cmdptr, cmd_action);
-		break;
-
-	case CMD_MAC_MULTICAST_ADR:
-		ret = lbs_cmd_mac_multicast_adr(priv, cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_MONITOR_MODE:
