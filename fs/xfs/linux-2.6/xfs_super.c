@@ -861,7 +861,41 @@ xfs_open_devices(
 	return error;
 }
 
+/*
+ * Setup xfs_mount buffer target pointers based on superblock
+ */
+STATIC int
+xfs_setup_devices(
+	struct xfs_mount	*mp)
+{
+	int			error;
 
+	error = xfs_setsize_buftarg(mp->m_ddev_targp, mp->m_sb.sb_blocksize,
+				    mp->m_sb.sb_sectsize);
+	if (error)
+		return error;
+
+	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
+		unsigned int	log_sector_size = BBSIZE;
+
+		if (xfs_sb_version_hassector(&mp->m_sb))
+			log_sector_size = mp->m_sb.sb_logsectsize;
+		error = xfs_setsize_buftarg(mp->m_logdev_targp,
+					    mp->m_sb.sb_blocksize,
+					    log_sector_size);
+		if (error)
+			return error;
+	}
+	if (mp->m_rtdev_targp) {
+		error = xfs_setsize_buftarg(mp->m_rtdev_targp,
+					    mp->m_sb.sb_blocksize,
+					    mp->m_sb.sb_sectsize);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
 
 /*
  * XFS AIL push thread support
@@ -1742,31 +1776,9 @@ xfs_fs_fill_super(
 	if (error)
 		goto error2;
 
-	/*
-	 * Setup xfs_mount buffer target pointers based on superblock
-	 */
-	error = xfs_setsize_buftarg(mp->m_ddev_targp, mp->m_sb.sb_blocksize,
-				    mp->m_sb.sb_sectsize);
+	error = xfs_setup_devices(mp);
 	if (error)
 		goto error2;
-	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
-		unsigned int	log_sector_size = BBSIZE;
-
-		if (xfs_sb_version_hassector(&mp->m_sb))
-			log_sector_size = mp->m_sb.sb_logsectsize;
-		error = xfs_setsize_buftarg(mp->m_logdev_targp,
-					    mp->m_sb.sb_blocksize,
-					    log_sector_size);
-		if (error)
-			goto error2;
-	}
-	if (mp->m_rtdev_targp) {
-		error = xfs_setsize_buftarg(mp->m_rtdev_targp,
-					    mp->m_sb.sb_blocksize,
-					    mp->m_sb.sb_sectsize);
-		if (error)
-			goto error2;
-	}
 
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_mountfs_check_barriers(mp);
