@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/watchdog.h>
+#include <linux/smp_lock.h>
 
 #include <asm/ebcdic.h>
 #include <asm/io.h>
@@ -131,11 +132,15 @@ static int __init vmwdt_probe(void)
 static int vmwdt_open(struct inode *i, struct file *f)
 {
 	int ret;
-	if (test_and_set_bit(0, &vmwdt_is_open))
+	lock_kernel();
+	if (test_and_set_bit(0, &vmwdt_is_open)) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 	ret = vmwdt_keepalive();
 	if (ret)
 		clear_bit(0, &vmwdt_is_open);
+	unlock_kernel();
 	return ret ? ret : nonseekable_open(i, f);
 }
 
