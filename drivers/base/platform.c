@@ -453,6 +453,8 @@ int platform_driver_register(struct platform_driver *drv)
 		drv->driver.suspend = platform_drv_suspend;
 	if (drv->resume)
 		drv->driver.resume = platform_drv_resume;
+	if (drv->pm)
+		drv->driver.pm = &drv->pm->base;
 	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(platform_driver_register);
@@ -560,7 +562,9 @@ static int platform_match(struct device *dev, struct device_driver *drv)
 	return (strncmp(pdev->name, drv->name, BUS_ID_SIZE) == 0);
 }
 
-static int platform_suspend(struct device *dev, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+
+static int platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 {
 	int ret = 0;
 
@@ -570,7 +574,7 @@ static int platform_suspend(struct device *dev, pm_message_t mesg)
 	return ret;
 }
 
-static int platform_suspend_late(struct device *dev, pm_message_t mesg)
+static int platform_legacy_suspend_late(struct device *dev, pm_message_t mesg)
 {
 	struct platform_driver *drv = to_platform_driver(dev->driver);
 	struct platform_device *pdev;
@@ -583,7 +587,7 @@ static int platform_suspend_late(struct device *dev, pm_message_t mesg)
 	return ret;
 }
 
-static int platform_resume_early(struct device *dev)
+static int platform_legacy_resume_early(struct device *dev)
 {
 	struct platform_driver *drv = to_platform_driver(dev->driver);
 	struct platform_device *pdev;
@@ -596,7 +600,7 @@ static int platform_resume_early(struct device *dev)
 	return ret;
 }
 
-static int platform_resume(struct device *dev)
+static int platform_legacy_resume(struct device *dev)
 {
 	int ret = 0;
 
@@ -606,15 +610,291 @@ static int platform_resume(struct device *dev)
 	return ret;
 }
 
+static int platform_pm_prepare(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (drv && drv->pm && drv->pm->prepare)
+		ret = drv->pm->prepare(dev);
+
+	return ret;
+}
+
+static void platform_pm_complete(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+
+	if (drv && drv->pm && drv->pm->complete)
+		drv->pm->complete(dev);
+}
+
+#ifdef CONFIG_SUSPEND
+
+static int platform_pm_suspend(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (drv && drv->pm) {
+		if (drv->pm->suspend)
+			ret = drv->pm->suspend(dev);
+	} else {
+		ret = platform_legacy_suspend(dev, PMSG_SUSPEND);
+	}
+
+	return ret;
+}
+
+static int platform_pm_suspend_noirq(struct device *dev)
+{
+	struct platform_driver *pdrv;
+	int ret = 0;
+
+	if (!dev->driver)
+		return 0;
+
+	pdrv = to_platform_driver(dev->driver);
+	if (pdrv->pm) {
+		if (pdrv->pm->suspend_noirq)
+			ret = pdrv->pm->suspend_noirq(dev);
+	} else {
+		ret = platform_legacy_suspend_late(dev, PMSG_SUSPEND);
+	}
+
+	return ret;
+}
+
+static int platform_pm_resume(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (drv && drv->pm) {
+		if (drv->pm->resume)
+			ret = drv->pm->resume(dev);
+	} else {
+		ret = platform_legacy_resume(dev);
+	}
+
+	return ret;
+}
+
+static int platform_pm_resume_noirq(struct device *dev)
+{
+	struct platform_driver *pdrv;
+	int ret = 0;
+
+	if (!dev->driver)
+		return 0;
+
+	pdrv = to_platform_driver(dev->driver);
+	if (pdrv->pm) {
+		if (pdrv->pm->resume_noirq)
+			ret = pdrv->pm->resume_noirq(dev);
+	} else {
+		ret = platform_legacy_resume_early(dev);
+	}
+
+	return ret;
+}
+
+#else /* !CONFIG_SUSPEND */
+
+#define platform_pm_suspend		NULL
+#define platform_pm_resume		NULL
+#define platform_pm_suspend_noirq	NULL
+#define platform_pm_resume_noirq	NULL
+
+#endif /* !CONFIG_SUSPEND */
+
+#ifdef CONFIG_HIBERNATION
+
+static int platform_pm_freeze(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (!drv)
+		return 0;
+
+	if (drv->pm) {
+		if (drv->pm->freeze)
+			ret = drv->pm->freeze(dev);
+	} else {
+		ret = platform_legacy_suspend(dev, PMSG_FREEZE);
+	}
+
+	return ret;
+}
+
+static int platform_pm_freeze_noirq(struct device *dev)
+{
+	struct platform_driver *pdrv;
+	int ret = 0;
+
+	if (!dev->driver)
+		return 0;
+
+	pdrv = to_platform_driver(dev->driver);
+	if (pdrv->pm) {
+		if (pdrv->pm->freeze_noirq)
+			ret = pdrv->pm->freeze_noirq(dev);
+	} else {
+		ret = platform_legacy_suspend_late(dev, PMSG_FREEZE);
+	}
+
+	return ret;
+}
+
+static int platform_pm_thaw(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (drv && drv->pm) {
+		if (drv->pm->thaw)
+			ret = drv->pm->thaw(dev);
+	} else {
+		ret = platform_legacy_resume(dev);
+	}
+
+	return ret;
+}
+
+static int platform_pm_thaw_noirq(struct device *dev)
+{
+	struct platform_driver *pdrv;
+	int ret = 0;
+
+	if (!dev->driver)
+		return 0;
+
+	pdrv = to_platform_driver(dev->driver);
+	if (pdrv->pm) {
+		if (pdrv->pm->thaw_noirq)
+			ret = pdrv->pm->thaw_noirq(dev);
+	} else {
+		ret = platform_legacy_resume_early(dev);
+	}
+
+	return ret;
+}
+
+static int platform_pm_poweroff(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (drv && drv->pm) {
+		if (drv->pm->poweroff)
+			ret = drv->pm->poweroff(dev);
+	} else {
+		ret = platform_legacy_suspend(dev, PMSG_HIBERNATE);
+	}
+
+	return ret;
+}
+
+static int platform_pm_poweroff_noirq(struct device *dev)
+{
+	struct platform_driver *pdrv;
+	int ret = 0;
+
+	if (!dev->driver)
+		return 0;
+
+	pdrv = to_platform_driver(dev->driver);
+	if (pdrv->pm) {
+		if (pdrv->pm->poweroff_noirq)
+			ret = pdrv->pm->poweroff_noirq(dev);
+	} else {
+		ret = platform_legacy_suspend_late(dev, PMSG_HIBERNATE);
+	}
+
+	return ret;
+}
+
+static int platform_pm_restore(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	int ret = 0;
+
+	if (drv && drv->pm) {
+		if (drv->pm->restore)
+			ret = drv->pm->restore(dev);
+	} else {
+		ret = platform_legacy_resume(dev);
+	}
+
+	return ret;
+}
+
+static int platform_pm_restore_noirq(struct device *dev)
+{
+	struct platform_driver *pdrv;
+	int ret = 0;
+
+	if (!dev->driver)
+		return 0;
+
+	pdrv = to_platform_driver(dev->driver);
+	if (pdrv->pm) {
+		if (pdrv->pm->restore_noirq)
+			ret = pdrv->pm->restore_noirq(dev);
+	} else {
+		ret = platform_legacy_resume_early(dev);
+	}
+
+	return ret;
+}
+
+#else /* !CONFIG_HIBERNATION */
+
+#define platform_pm_freeze		NULL
+#define platform_pm_thaw		NULL
+#define platform_pm_poweroff		NULL
+#define platform_pm_restore		NULL
+#define platform_pm_freeze_noirq	NULL
+#define platform_pm_thaw_noirq		NULL
+#define platform_pm_poweroff_noirq	NULL
+#define platform_pm_restore_noirq	NULL
+
+#endif /* !CONFIG_HIBERNATION */
+
+struct pm_ext_ops platform_pm_ops = {
+	.base = {
+		.prepare = platform_pm_prepare,
+		.complete = platform_pm_complete,
+		.suspend = platform_pm_suspend,
+		.resume = platform_pm_resume,
+		.freeze = platform_pm_freeze,
+		.thaw = platform_pm_thaw,
+		.poweroff = platform_pm_poweroff,
+		.restore = platform_pm_restore,
+	},
+	.suspend_noirq = platform_pm_suspend_noirq,
+	.resume_noirq = platform_pm_resume_noirq,
+	.freeze_noirq = platform_pm_freeze_noirq,
+	.thaw_noirq = platform_pm_thaw_noirq,
+	.poweroff_noirq = platform_pm_poweroff_noirq,
+	.restore_noirq = platform_pm_restore_noirq,
+};
+
+#define PLATFORM_PM_OPS_PTR	&platform_pm_ops
+
+#else /* !CONFIG_PM_SLEEP */
+
+#define PLATFORM_PM_OPS_PTR	NULL
+
+#endif /* !CONFIG_PM_SLEEP */
+
 struct bus_type platform_bus_type = {
 	.name		= "platform",
 	.dev_attrs	= platform_dev_attrs,
 	.match		= platform_match,
 	.uevent		= platform_uevent,
-	.suspend	= platform_suspend,
-	.suspend_late	= platform_suspend_late,
-	.resume_early	= platform_resume_early,
-	.resume		= platform_resume,
+	.pm		= PLATFORM_PM_OPS_PTR,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
 
