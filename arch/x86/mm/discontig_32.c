@@ -164,16 +164,13 @@ static void __init allocate_pgdat(int nid)
 	}
 }
 
-#ifdef CONFIG_DISCONTIGMEM
 /*
- * In the discontig memory model, a portion of the kernel virtual area (KVA)
- * is reserved and portions of nodes are mapped using it. This is to allow
- * node-local memory to be allocated for structures that would normally require
- * ZONE_NORMAL. The memory is allocated with alloc_remap() and callers
- * should be prepared to allocate from the bootmem allocator instead. This KVA
- * mechanism is incompatible with SPARSEMEM as it makes assumptions about the
- * layout of memory that are broken if alloc_remap() succeeds for some of the
- * map and fails for others
+ * In the DISCONTIGMEM and SPARSEMEM memory model, a portion of the kernel
+ * virtual address space (KVA) is reserved and portions of nodes are mapped
+ * using it. This is to allow node-local memory to be allocated for
+ * structures that would normally require ZONE_NORMAL. The memory is
+ * allocated with alloc_remap() and callers should be prepared to allocate
+ * from the bootmem allocator instead.
  */
 static unsigned long node_remap_start_pfn[MAX_NUMNODES];
 static void *node_remap_end_vaddr[MAX_NUMNODES];
@@ -290,25 +287,6 @@ static void init_remap_allocator(int nid)
 		(ulong) pfn_to_kaddr(highstart_pfn
 		   + node_remap_offset[nid] + node_remap_size[nid]));
 }
-#else
-void *alloc_remap(int nid, unsigned long size)
-{
-	return NULL;
-}
-
-static unsigned long calculate_numa_remap_pages(void)
-{
-	return 0;
-}
-
-static void init_remap_allocator(int nid)
-{
-}
-
-void __init remap_numa_kva(void)
-{
-}
-#endif /* CONFIG_DISCONTIGMEM */
 
 extern void setup_bootmem_allocator(void);
 unsigned long __init setup_memory(void)
