@@ -1810,7 +1810,7 @@ xfs_fs_fill_super(
 
 	error = xfs_mountfs(mp, flags);
 	if (error)
-		goto out_free_sb;
+		goto out_filestream_unmount;
 
 	XFS_SEND_MOUNT(mp, DM_RIGHT_NULL, args->mtpt, args->fsname);
 
@@ -1850,6 +1850,8 @@ xfs_fs_fill_super(
 	kfree(args);
 	return 0;
 
+ out_filestream_unmount:
+	xfs_filestream_unmount(mp);
  out_free_sb:
 	xfs_freesb(mp);
  out_destroy_counters:
