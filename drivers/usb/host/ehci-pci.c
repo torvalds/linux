@@ -129,7 +129,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	switch (pdev->vendor) {
 	case PCI_VENDOR_ID_TDI:
 		if (pdev->device == PCI_DEVICE_ID_TDI_EHCI) {
-			ehci->is_tdi_rh_tt = 1;
 			hcd->has_tt = 1;
 			tdi_reset(ehci);
 		}
@@ -379,7 +378,7 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	.hub_control =		ehci_hub_control,
 	.bus_suspend =		ehci_bus_suspend,
 	.bus_resume =		ehci_bus_resume,
-	.relinquish_port = 	ehci_relinquish_port,
+	.relinquish_port =	ehci_relinquish_port,
 };
 
 /*-------------------------------------------------------------------------*/

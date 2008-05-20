@@ -269,7 +269,7 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	ehci->is_tdi_rh_tt = 1;
+	hcd->has_tt = 1;
 
 	ehci->sbrn = 0x20;
 
@@ -295,10 +295,6 @@ static const struct hc_driver ehci_fsl_hc_driver = {
 	 */
 	.reset = ehci_fsl_setup,
 	.start = ehci_run,
-#ifdef	CONFIG_PM
-	.suspend = ehci_bus_suspend,
-	.resume = ehci_bus_resume,
-#endif
 	.stop = ehci_stop,
 	.shutdown = ehci_shutdown,
 
