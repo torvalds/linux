@@ -447,6 +447,7 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 	spi_max_offset(starget) = ioc->spi_data.maxSyncOffset;
 
 	spi_offset(starget) = 0;
+	spi_period(starget) = 0xFF;
 	mptspi_write_width(starget, 0);
 
 	return 0;
