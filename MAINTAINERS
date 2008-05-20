@@ -982,13 +982,6 @@ L:	bonding-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported
 
-BROADBAND PROCESSOR ARCHITECTURE
-P:	Arnd Bergmann
-M:	arnd@arndb.de
-L:	linuxppc-dev@ozlabs.org
-W:	http://www.penguinppc.org/ppc64/
-S:	Supported
-
 BROADCOM B44 10/100 ETHERNET DRIVER
 P:	Gary Zambrano
 M:	zambrano@broadcom.com
@@ -1051,6 +1044,14 @@ M:	jdmason@kudzu.us
 L:	linux-kernel@vger.kernel.org
 L:	discuss@x86-64.org
 S:	Maintained
+
+CELL BROADBAND ENGINE ARCHITECTURE
+P:	Arnd Bergmann
+M:	arnd@arndb.de
+L:	linuxppc-dev@ozlabs.org
+L:	cbe-oss-dev@ozlabs.org
+W:	http://www.ibm.com/developerworks/power/cell/
+S:	Supported
 
 CFAG12864B LCD DRIVER
 P:	Miguel Ojeda Sandonis
@@ -3775,6 +3776,14 @@ P:	David Brownell
 M:	dbrownell@users.sourceforge.net
 L:	spi-devel-general@lists.sourceforge.net
 S:	Maintained
+
+SPU FILE SYSTEM
+P:	Jeremy Kerr
+M:	jk@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
+L:	cbe-oss-dev@ozlabs.org
+W:	http://www.ibm.com/developerworks/power/cell/
+S:	Supported
 
 STABLE BRANCH:
 P:	Greg Kroah-Hartman
