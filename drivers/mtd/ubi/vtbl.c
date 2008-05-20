@@ -385,7 +385,16 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 		err = ubi_io_read_data(ubi, leb[seb->lnum], seb->pnum, 0,
 				       ubi->vtbl_size);
 		if (err == UBI_IO_BITFLIPS || err == -EBADMSG)
-			/* Scrub the PEB later */
+			/*
+			 * Scrub the PEB later. Note, -EBADMSG indicates an
+			 * uncorrectable ECC error, but we have our own CRC and
+			 * the data will be checked later. If the data is OK,
+			 * the PEB will be scrubbed (because we set
+			 * seb->scrub). If the data is not OK, the contents of
+			 * the PEB will be recovered from the second copy, and
+			 * seb->scrub will be cleared in
+			 * 'ubi_scan_add_used()'.
+			 */
 			seb->scrub = 1;
 		else if (err)
 			goto out_free;
