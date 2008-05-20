@@ -1061,6 +1061,7 @@ static int cfg_open(struct inode *inode, struct file *file)
 	if (!tmp)
 		return -ENOMEM;
 
+	lock_kernel();
 	file->private_data = (void *)(i2o_cfg_info_id++);
 	tmp->fp = file;
 	tmp->fasync = NULL;
@@ -1074,6 +1075,7 @@ static int cfg_open(struct inode *inode, struct file *file)
 	spin_lock_irqsave(&i2o_config_lock, flags);
 	open_files = tmp;
 	spin_unlock_irqrestore(&i2o_config_lock, flags);
+	unlock_kernel();
 
 	return 0;
 }
