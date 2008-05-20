@@ -923,7 +923,6 @@ static const struct ivtv_card ivtv_card_club3d = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO5 },
-	.gpio_init = { .direction = 0x1000, .initial_value = 0x1000 }, /* tuner reset */
 	.xceive_pin = 12,
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
@@ -959,7 +958,7 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
 	},
 	/* enable line-in */
-	.gpio_init = { .direction = 0xe400, .initial_value = 0x4400 },
+	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 },
 	.xceive_pin = 10,
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
@@ -1102,7 +1101,7 @@ static const struct ivtv_card ivtv_card_aver_m104 = {
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
 	/* enable line-in + reset tuner */
-	.gpio_init = { .direction = 0xe400, .initial_value = 0x4000 },
+	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 },
 	.xceive_pin = 10,
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
@@ -1138,7 +1137,6 @@ static const struct ivtv_card ivtv_card_buffalo = {
 		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
-	.gpio_init = { .direction = 0x1000, .initial_value = 0x1000 },
 	.xceive_pin = 12,
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
