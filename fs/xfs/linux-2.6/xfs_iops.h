@@ -20,6 +20,7 @@
 
 extern const struct inode_operations xfs_inode_operations;
 extern const struct inode_operations xfs_dir_inode_operations;
+extern const struct inode_operations xfs_dir_ci_inode_operations;
 extern const struct inode_operations xfs_symlink_inode_operations;
 
 extern const struct file_operations xfs_file_operations;

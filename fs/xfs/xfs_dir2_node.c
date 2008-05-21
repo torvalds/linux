@@ -549,7 +549,7 @@ xfs_dir2_leafn_lookup_for_entry(
 	xfs_dir2_data_entry_t	*dep;		/* data block entry */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return value */
-	int			di;		/* data entry index */
+	int			di = -1;	/* data entry index */
 	int			index;		/* leaf entry index */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
@@ -577,6 +577,7 @@ xfs_dir2_leafn_lookup_for_entry(
 	if (state->extravalid) {
 		curbp = state->extrablk.bp;
 		curdb = state->extrablk.blkno;
+		di = state->extrablk.index;
 	}
 	/*
 	 * Loop over leaf entries with the right hash value.
@@ -637,7 +638,6 @@ xfs_dir2_leafn_lookup_for_entry(
 	}
 	/* Didn't find an exact match. */
 	error = ENOENT;
-	di = -1;
 	ASSERT(index == be16_to_cpu(leaf->hdr.count) ||
 					(args->op_flags & XFS_DA_OP_OKNOENT));
 out:
@@ -652,7 +652,7 @@ out:
 		state->extravalid = 0;
 	}
 	/*
-	 * Return the index, that will be the insertion point.
+	 * Return the index, that will be the deletion point for remove/replace.
 	 */
 	*indexp = index;
 	return XFS_ERROR(error);
@@ -1820,8 +1820,14 @@ xfs_dir2_node_lookup(
 	error = xfs_da_node_lookup_int(state, &rval);
 	if (error)
 		rval = error;
-	else if (rval == ENOENT && args->cmpresult == XFS_CMP_CASE)
-		rval = EEXIST;	/* a case-insensitive match was found */
+	else if (rval == ENOENT && args->cmpresult == XFS_CMP_CASE) {
+		/* If a CI match, dup the actual name and return EEXIST */
+		xfs_dir2_data_entry_t	*dep;
+
+		dep = (xfs_dir2_data_entry_t *)((char *)state->extrablk.bp->
+						data + state->extrablk.index);
+		rval = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
+	}
 	/*
 	 * Release the btree blocks and leaf block.
 	 */

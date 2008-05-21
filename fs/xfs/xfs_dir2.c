@@ -193,14 +193,43 @@ xfs_dir_createname(
 }
 
 /*
- * Lookup a name in a directory, give back the inode number.
+ * If doing a CI lookup and case-insensitive match, dup actual name into
+ * args.value. Return EEXIST for success (ie. name found) or an error.
  */
+int
+xfs_dir_cilookup_result(
+	struct xfs_da_args *args,
+	const char	*name,
+	int		len)
+{
+	if (args->cmpresult == XFS_CMP_DIFFERENT)
+		return ENOENT;
+	if (args->cmpresult != XFS_CMP_CASE ||
+					!(args->op_flags & XFS_DA_OP_CILOOKUP))
+		return EEXIST;
+
+	args->value = kmem_alloc(len, KM_MAYFAIL);
+	if (!args->value)
+		return ENOMEM;
+
+	memcpy(args->value, name, len);
+	args->valuelen = len;
+	return EEXIST;
+}
+
+/*
+ * Lookup a name in a directory, give back the inode number.
+ * If ci_name is not NULL, returns the actual name in ci_name if it differs
+ * to name, or ci_name->name is set to NULL for an exact match.
+ */
+
 int
 xfs_dir_lookup(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*dp,
 	struct xfs_name	*name,
-	xfs_ino_t	*inum)		/* out: inode number */
+	xfs_ino_t	*inum,		/* out: inode number */
+	struct xfs_name *ci_name)	/* out: actual name if CI match */
 {
 	xfs_da_args_t	args;
 	int		rval;
@@ -217,6 +246,8 @@ xfs_dir_lookup(
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
 	args.op_flags = XFS_DA_OP_OKNOENT;
+	if (ci_name)
+		args.op_flags |= XFS_DA_OP_CILOOKUP;
 	args.cmpresult = XFS_CMP_DIFFERENT;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
@@ -233,8 +264,13 @@ xfs_dir_lookup(
 		rval = xfs_dir2_node_lookup(&args);
 	if (rval == EEXIST)
 		rval = 0;
-	if (rval == 0)
+	if (!rval) {
 		*inum = args.inumber;
+		if (ci_name) {
+			ci_name->name = args.value;
+			ci_name->len = args.valuelen;
+		}
+	}
 	return rval;
 }
 

@@ -382,7 +382,7 @@ xfs_vn_lookup(
 		return ERR_PTR(-ENAMETOOLONG);
 
 	xfs_dentry_to_name(&name, dentry);
-	error = xfs_lookup(XFS_I(dir), &name, &cip);
+	error = xfs_lookup(XFS_I(dir), &name, &cip, NULL);
 	if (unlikely(error)) {
 		if (unlikely(error != ENOENT))
 			return ERR_PTR(-error);
@@ -391,6 +391,42 @@ xfs_vn_lookup(
 	}
 
 	return d_splice_alias(cip->i_vnode, dentry);
+}
+
+STATIC struct dentry *
+xfs_vn_ci_lookup(
+	struct inode	*dir,
+	struct dentry	*dentry,
+	struct nameidata *nd)
+{
+	struct xfs_inode *ip;
+	struct xfs_name	xname;
+	struct xfs_name ci_name;
+	struct qstr	dname;
+	int		error;
+
+	if (dentry->d_name.len >= MAXNAMELEN)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	xfs_dentry_to_name(&xname, dentry);
+	error = xfs_lookup(XFS_I(dir), &xname, &ip, &ci_name);
+	if (unlikely(error)) {
+		if (unlikely(error != ENOENT))
+			return ERR_PTR(-error);
+		d_add(dentry, NULL);
+		return NULL;
+	}
+
+	/* if exact match, just splice and exit */
+	if (!ci_name.name)
+		return d_splice_alias(ip->i_vnode, dentry);
+
+	/* else case-insensitive match... */
+	dname.name = ci_name.name;
+	dname.len = ci_name.len;
+	dentry = d_add_ci(ip->i_vnode, dentry, &dname);
+	kmem_free(ci_name.name);
+	return dentry;
 }
 
 STATIC int
@@ -876,6 +912,25 @@ const struct inode_operations xfs_inode_operations = {
 const struct inode_operations xfs_dir_inode_operations = {
 	.create			= xfs_vn_create,
 	.lookup			= xfs_vn_lookup,
+	.link			= xfs_vn_link,
+	.unlink			= xfs_vn_unlink,
+	.symlink		= xfs_vn_symlink,
+	.mkdir			= xfs_vn_mkdir,
+	.rmdir			= xfs_vn_rmdir,
+	.mknod			= xfs_vn_mknod,
+	.rename			= xfs_vn_rename,
+	.permission		= xfs_vn_permission,
+	.getattr		= xfs_vn_getattr,
+	.setattr		= xfs_vn_setattr,
+	.setxattr		= xfs_vn_setxattr,
+	.getxattr		= xfs_vn_getxattr,
+	.listxattr		= xfs_vn_listxattr,
+	.removexattr		= xfs_vn_removexattr,
+};
+
+const struct inode_operations xfs_dir_ci_inode_operations = {
+	.create			= xfs_vn_create,
+	.lookup			= xfs_vn_ci_lookup,
 	.link			= xfs_vn_link,
 	.unlink			= xfs_vn_unlink,
 	.symlink		= xfs_vn_symlink,

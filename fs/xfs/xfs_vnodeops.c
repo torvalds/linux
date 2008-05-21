@@ -1610,12 +1610,18 @@ xfs_inactive(
 	return VN_INACTIVE_CACHE;
 }
 
-
+/*
+ * Lookups up an inode from "name". If ci_name is not NULL, then a CI match
+ * is allowed, otherwise it has to be an exact match. If a CI match is found,
+ * ci_name->name will point to a the actual name (caller must free) or
+ * will be set to NULL if an exact match is found.
+ */
 int
 xfs_lookup(
 	xfs_inode_t		*dp,
 	struct xfs_name		*name,
-	xfs_inode_t		**ipp)
+	xfs_inode_t		**ipp,
+	struct xfs_name		*ci_name)
 {
 	xfs_ino_t		inum;
 	int			error;
@@ -1627,7 +1633,7 @@ xfs_lookup(
 		return XFS_ERROR(EIO);
 
 	lock_mode = xfs_ilock_map_shared(dp);
-	error = xfs_dir_lookup(NULL, dp, name, &inum);
+	error = xfs_dir_lookup(NULL, dp, name, &inum, ci_name);
 	xfs_iunlock_map_shared(dp, lock_mode);
 
 	if (error)
@@ -1635,12 +1641,15 @@ xfs_lookup(
 
 	error = xfs_iget(dp->i_mount, NULL, inum, 0, 0, ipp, 0);
 	if (error)
-		goto out;
+		goto out_free_name;
 
 	xfs_itrace_ref(*ipp);
 	return 0;
 
- out:
+out_free_name:
+	if (ci_name)
+		kmem_free(ci_name->name);
+out:
 	*ipp = NULL;
 	return error;
 }

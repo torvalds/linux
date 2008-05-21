@@ -1299,12 +1299,13 @@ xfs_dir2_leaf_lookup(
 	      ((char *)dbp->data +
 	       xfs_dir2_dataptr_to_off(dp->i_mount, be32_to_cpu(lep->address)));
 	/*
-	 * Return the found inode number.
+	 * Return the found inode number & CI name if appropriate
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
+	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_da_brelse(tp, dbp);
 	xfs_da_brelse(tp, lbp);
-	return XFS_ERROR(EEXIST);
+	return XFS_ERROR(error);
 }
 
 /*

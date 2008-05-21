@@ -143,6 +143,7 @@ typedef struct xfs_da_args {
 #define XFS_DA_OP_RENAME	0x0002	/* this is an atomic rename op */
 #define XFS_DA_OP_ADDNAME	0x0004	/* this is an add operation */
 #define XFS_DA_OP_OKNOENT	0x0008	/* lookup/add op, ENOENT ok, else die */
+#define XFS_DA_OP_CILOOKUP	0x0010	/* lookup to return CI name if found */
 
 /*
  * Structure to describe buffer(s) for a block.

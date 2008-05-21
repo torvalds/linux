@@ -610,14 +610,15 @@ xfs_dir2_block_lookup(
 	/*
 	 * Get the offset from the leaf entry, to point to the data.
 	 */
-	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
+	dep = (xfs_dir2_data_entry_t *)((char *)block +
+		xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
 	/*
-	 * Fill in inode number, release the block.
+	 * Fill in inode number, CI name if appropriate, release the block.
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
+	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_da_brelse(args->trans, bp);
-	return XFS_ERROR(EEXIST);
+	return XFS_ERROR(error);
 }
 
 /*

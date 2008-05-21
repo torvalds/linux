@@ -812,9 +812,11 @@ xfs_dir2_sf_lookup(
 {
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			i;		/* entry index */
+	int			error;
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
 	enum xfs_dacmp		cmp;		/* comparison result */
+	xfs_dir2_sf_entry_t	*ci_sfep;	/* case-insens. entry */
 
 	xfs_dir2_trace_args("sf_lookup", args);
 	xfs_dir2_sf_check(args);
@@ -852,6 +854,7 @@ xfs_dir2_sf_lookup(
 	/*
 	 * Loop over all the entries trying to match ours.
 	 */
+	ci_sfep = NULL;
 	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp); i < sfp->hdr.count;
 				i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
 		/*
@@ -867,19 +870,19 @@ xfs_dir2_sf_lookup(
 						xfs_dir2_sf_inumberp(sfep));
 			if (cmp == XFS_CMP_EXACT)
 				return XFS_ERROR(EEXIST);
+			ci_sfep = sfep;
 		}
 	}
 	ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 	/*
 	 * Here, we can only be doing a lookup (not a rename or replace).
-	 * If a case-insensitive match was found earlier, return "found".
+	 * If a case-insensitive match was not found, return ENOENT.
 	 */
-	if (args->cmpresult == XFS_CMP_CASE)
-		return XFS_ERROR(EEXIST);
-	/*
-	 * Didn't find it.
-	 */
-	return XFS_ERROR(ENOENT);
+	if (!ci_sfep)
+		return XFS_ERROR(ENOENT);
+	/* otherwise process the CI match as required by the caller */
+	error = xfs_dir_cilookup_result(args, ci_sfep->name, ci_sfep->namelen);
+	return XFS_ERROR(error);
 }
 
 /*
