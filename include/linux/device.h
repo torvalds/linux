@@ -470,9 +470,6 @@ extern struct device *device_create_vargs(struct class *cls,
 					  void *drvdata,
 					  const char *fmt,
 					  va_list vargs);
-extern struct device *device_create(struct class *cls, struct device *parent,
-				    dev_t devt, const char *fmt, ...)
-				    __attribute__((format(printf, 4, 5)));
 extern struct device *device_create_drvdata(struct class *cls,
 					    struct device *parent,
 					    dev_t devt,
