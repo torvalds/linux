@@ -114,13 +114,11 @@ static struct attribute_group iscsi_transport_group = {
 	.attrs = iscsi_transport_attrs,
 };
 
-
-
 static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 			    struct device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 
 	memset(ihost, 0, sizeof(*ihost));
 	INIT_LIST_HEAD(&ihost->sessions);
@@ -140,7 +138,7 @@ static int iscsi_remove_host(struct transport_container *tc, struct device *dev,
 			     struct device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 
 	destroy_workqueue(ihost->scan_workq);
 	return 0;
@@ -293,7 +291,7 @@ static int iscsi_is_session_dev(const struct device *dev)
  */
 int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	/*
 	 * qla4xxx will have kicked off some session unblocks before calling
 	 * scsi_scan_host, so just wait for them to complete.
@@ -305,7 +303,7 @@ EXPORT_SYMBOL_GPL(iscsi_scan_finished);
 static int iscsi_user_scan(struct Scsi_Host *shost, uint channel,
 			   uint id, uint lun)
 {
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	struct iscsi_cls_session *session;
 
 	mutex_lock(&ihost->mutex);
@@ -325,7 +323,7 @@ static void iscsi_scan_session(struct work_struct *work)
 	struct iscsi_cls_session *session =
 			container_of(work, struct iscsi_cls_session, scan_work);
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&session->lock, flags);
@@ -377,7 +375,7 @@ static void __iscsi_unblock_session(struct work_struct *work)
 			container_of(work, struct iscsi_cls_session,
 				     unblock_work);
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	unsigned long flags;
 
 	/*
@@ -445,7 +443,7 @@ static void __iscsi_unbind_session(struct work_struct *work)
 			container_of(work, struct iscsi_cls_session,
 				     unbind_work);
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 
 	/* Prevent new scans and make sure scanning is not in progress */
 	mutex_lock(&ihost->mutex);
@@ -463,7 +461,7 @@ static void __iscsi_unbind_session(struct work_struct *work)
 static int iscsi_unbind_session(struct iscsi_cls_session *session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 
 	return queue_work(ihost->scan_workq, &session->unbind_work);
 }
@@ -505,7 +503,7 @@ EXPORT_SYMBOL_GPL(iscsi_alloc_session);
 int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_host *ihost;
+	struct iscsi_cls_host *ihost;
 	unsigned long flags;
 	int err;
 
@@ -591,7 +589,7 @@ static int iscsi_iter_destroy_conn_fn(struct device *dev, void *data)
 void iscsi_remove_session(struct iscsi_cls_session *session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
-	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	unsigned long flags;
 	int err;
 
@@ -1619,7 +1617,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	priv->t.host_attrs.ac.attrs = &priv->host_attrs[0];
 	priv->t.host_attrs.ac.class = &iscsi_host_class.class;
 	priv->t.host_attrs.ac.match = iscsi_host_match;
-	priv->t.host_size = sizeof(struct iscsi_host);
+	priv->t.host_size = sizeof(struct iscsi_cls_host);
 	transport_container_register(&priv->t.host_attrs);
 
 	SETUP_HOST_RD_ATTR(netdev, ISCSI_HOST_NETDEV_NAME);

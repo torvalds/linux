@@ -201,7 +201,7 @@ struct iscsi_cls_session {
 #define starget_to_session(_stgt) \
 	iscsi_dev_to_session(_stgt->dev.parent)
 
-struct iscsi_host {
+struct iscsi_cls_host {
 	struct list_head sessions;
 	atomic_t nr_scans;
 	struct mutex mutex;
