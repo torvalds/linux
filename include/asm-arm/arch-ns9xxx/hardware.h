@@ -66,13 +66,13 @@
 	 __REGGET(var, reg ## _ ## field) / __REGSHIFT(reg ## _ ## field)
 
 #  define REGGETIM_IDX(var, reg, field, idx)				\
-	 __REGGET(var, reg ## _ ## field((idx))) / 			\
+	 __REGGET(var, reg ## _ ## field((idx))) /			\
 	 __REGSHIFT(reg ## _ ## field((idx)))
 
 #else
 
 #  define __REG(x)	io_p2v(x)
-#  define __REG2(x, y)	io_p2v((x) + (y))
+#  define __REG2(x, y)	io_p2v((x) + 4 * (y))
 
 #endif
 
