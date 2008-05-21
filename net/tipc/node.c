@@ -52,7 +52,19 @@ static void node_established_contact(struct node *n_ptr);
 
 struct node *tipc_nodes = NULL;	/* sorted list of nodes within cluster */
 
+static DEFINE_SPINLOCK(node_create_lock);
+
 u32 tipc_own_tag = 0;
+
+/**
+ * tipc_node_create - create neighboring node
+ *
+ * Currently, this routine is called by neighbor discovery code, which holds
+ * net_lock for reading only.  We must take node_create_lock to ensure a node
+ * isn't created twice if two different bearers discover the node at the same
+ * time.  (It would be preferable to switch to holding net_lock in write mode,
+ * but this is a non-trivial change.)
+ */
 
 struct node *tipc_node_create(u32 addr)
 {
@@ -60,8 +72,20 @@ struct node *tipc_node_create(u32 addr)
 	struct node *n_ptr;
 	struct node **curr_node;
 
+	spin_lock_bh(&node_create_lock);
+
+	for (n_ptr = tipc_nodes; n_ptr; n_ptr = n_ptr->next) {
+		if (addr < n_ptr->addr)
+			break;
+		if (addr == n_ptr->addr) {
+			spin_unlock_bh(&node_create_lock);
+			return n_ptr;
+		}
+	}
+
 	n_ptr = kzalloc(sizeof(*n_ptr),GFP_ATOMIC);
 	if (!n_ptr) {
+		spin_unlock_bh(&node_create_lock);
 		warn("Node creation failed, no memory\n");
 		return NULL;
 	}
@@ -71,6 +95,7 @@ struct node *tipc_node_create(u32 addr)
 		c_ptr = tipc_cltr_create(addr);
 	}
 	if (!c_ptr) {
+		spin_unlock_bh(&node_create_lock);
 		kfree(n_ptr);
 		return NULL;
 	}
@@ -91,6 +116,7 @@ struct node *tipc_node_create(u32 addr)
 		}
 	}
 	(*curr_node) = n_ptr;
+	spin_unlock_bh(&node_create_lock);
 	return n_ptr;
 }
 
