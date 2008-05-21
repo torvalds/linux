@@ -1729,6 +1729,7 @@ static inline void __init check_timer(void)
 		apic_printk(APIC_VERBOSE," works.\n");
 		goto out;
 	}
+	disable_8259A_irq(0);
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | cfg->vector);
 	apic_printk(APIC_VERBOSE," failed.\n");
 

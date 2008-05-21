@@ -2228,6 +2228,7 @@ static inline void __init check_timer(void)
 		printk(" works.\n");
 		goto out;
 	}
+	disable_8259A_irq(0);
 	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
 	printk(" failed.\n");
 
