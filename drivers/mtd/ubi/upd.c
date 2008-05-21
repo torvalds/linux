@@ -237,10 +237,10 @@ static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	int err;
 
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
-		len = ALIGN(len, ubi->min_io_size);
-		memset(buf + len, 0xFF, len - len);
+		int l = ALIGN(len, ubi->min_io_size);
 
-		len = ubi_calc_data_len(ubi, buf, len);
+		memset(buf + len, 0xFF, l - len);
+		len = ubi_calc_data_len(ubi, buf, l);
 		if (len == 0) {
 			dbg_msg("all %d bytes contain 0xFF - skip", len);
 			return 0;
