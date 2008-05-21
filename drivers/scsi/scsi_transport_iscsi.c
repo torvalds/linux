@@ -1017,21 +1017,38 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 EXPORT_SYMBOL_GPL(iscsi_session_event);
 
 static int
-iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_uevent *ev)
+iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_uevent *ev,
+			uint32_t host_no, uint32_t initial_cmdsn,
+			uint16_t cmds_max, uint16_t queue_depth)
 {
 	struct iscsi_transport *transport = priv->iscsi_transport;
 	struct iscsi_cls_session *session;
-	uint32_t hostno;
+	struct Scsi_Host *shost = NULL;
 
-	session = transport->create_session(transport, &priv->t,
-					    ev->u.c_session.cmds_max,
-					    ev->u.c_session.queue_depth,
-					    ev->u.c_session.initial_cmdsn,
-					    &hostno);
+	/*
+	 * Software iscsi allocates a host per session, but
+	 * offload drivers (and possibly iser one day) allocate a host per
+	 * hba/nic/rnic. Offload will match a host here, but software will
+	 * return a new hostno after the create_session callback has returned.
+	 */
+	if (host_no != UINT_MAX) {
+		shost = scsi_host_lookup(host_no);
+		if (IS_ERR(shost)) {
+			printk(KERN_ERR "Could not find host no %u to "
+			       "create session\n", host_no);
+			return -ENODEV;
+		}
+	}
+
+	session = transport->create_session(transport, &priv->t, shost,
+					    cmds_max, queue_depth,
+					    initial_cmdsn, &host_no);
+	if (shost)
+		scsi_host_put(shost);
 	if (!session)
 		return -ENOMEM;
 
-	ev->r.c_session_ret.host_no = hostno;
+	ev->r.c_session_ret.host_no = host_no;
 	ev->r.c_session_ret.sid = session->sid;
 	return 0;
 }
@@ -1190,6 +1207,7 @@ static int
 iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err = 0;
+	uint32_t host_no = UINT_MAX;
 	struct iscsi_uevent *ev = NLMSG_DATA(nlh);
 	struct iscsi_transport *transport = NULL;
 	struct iscsi_internal *priv;
@@ -1208,7 +1226,17 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
-		err = iscsi_if_create_session(priv, ev);
+		err = iscsi_if_create_session(priv, ev, host_no,
+					      ev->u.c_session.initial_cmdsn,
+					      ev->u.c_session.cmds_max,
+					      ev->u.c_session.queue_depth);
+		break;
+	case ISCSI_UEVENT_CREATE_BOUND_SESSION:
+		err = iscsi_if_create_session(priv, ev,
+					ev->u.c_bound_session.host_no,
+					ev->u.c_bound_session.initial_cmdsn,
+					ev->u.c_bound_session.cmds_max,
+					ev->u.c_bound_session.queue_depth);
 		break;
 	case ISCSI_UEVENT_DESTROY_SESSION:
 		session = iscsi_session_lookup(ev->u.d_session.sid);

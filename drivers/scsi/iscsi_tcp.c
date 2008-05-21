@@ -1871,8 +1871,9 @@ iscsi_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *stats)
 static struct iscsi_cls_session *
 iscsi_tcp_session_create(struct iscsi_transport *iscsit,
 			 struct scsi_transport_template *scsit,
-			 uint16_t cmds_max, uint16_t qdepth,
-			 uint32_t initial_cmdsn, uint32_t *hostno)
+			 struct Scsi_Host *shost, uint16_t cmds_max,
+			 uint16_t qdepth, uint32_t initial_cmdsn,
+			 uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;

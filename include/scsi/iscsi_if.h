@@ -50,6 +50,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_TGT_DSCVR		= UEVENT_BASE + 15,
 	ISCSI_UEVENT_SET_HOST_PARAM	= UEVENT_BASE + 16,
 	ISCSI_UEVENT_UNBIND_SESSION	= UEVENT_BASE + 17,
+	ISCSI_UEVENT_CREATE_BOUND_SESSION	= UEVENT_BASE + 18,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -78,6 +79,12 @@ struct iscsi_uevent {
 			uint16_t	cmds_max;
 			uint16_t	queue_depth;
 		} c_session;
+		struct msg_create_bound_session {
+			uint32_t	host_no;
+			uint32_t	initial_cmdsn;
+			uint16_t	cmds_max;
+			uint16_t	queue_depth;
+		} c_bound_session;
 		struct msg_destroy_session {
 			uint32_t	sid;
 		} d_session;

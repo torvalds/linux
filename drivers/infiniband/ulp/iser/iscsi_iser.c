@@ -368,6 +368,7 @@ static struct iscsi_transport iscsi_iser_transport;
 static struct iscsi_cls_session *
 iscsi_iser_session_create(struct iscsi_transport *iscsit,
 			 struct scsi_transport_template *scsit,
+			 struct Scsi_Host *shost,
 			 uint16_t cmds_max, uint16_t qdepth,
 			 uint32_t initial_cmdsn, uint32_t *hostno)
 {
