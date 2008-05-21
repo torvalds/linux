@@ -283,8 +283,8 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		struct rndis_set_c	*set_c;
 		struct rndis_halt	*halt;
 	} u;
-	u32			tmp, phym_unspec;
-	__le32			*phym;
+	u32			tmp;
+	__le32			phym_unspec, *phym;
 	int			reply_len;
 	unsigned char		*bp;
 

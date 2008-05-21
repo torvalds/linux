@@ -2135,7 +2135,7 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 				return -1;
 		}
 
-		if (skb->protocol == ntohs(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
 
 			real_len = (((unsigned char *)iph - skb->data) +
