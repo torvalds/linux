@@ -1838,17 +1838,17 @@ iscsi_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *stats)
 }
 
 static struct iscsi_cls_session *
-iscsi_tcp_session_create(struct Scsi_Host *shost, uint16_t cmds_max,
+iscsi_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
 			 uint16_t qdepth, uint32_t initial_cmdsn,
 			 uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
+	struct Scsi_Host *shost;
 	int cmd_i;
 
-	if (shost) {
-		printk(KERN_ERR "iscsi_tcp: invalid shost %d.\n",
-		       shost->host_no);
+	if (ep) {
+		printk(KERN_ERR "iscsi_tcp: invalid ep %p.\n", ep);
 		return NULL;
 	}
 
