@@ -34,7 +34,6 @@ struct Scsi_Host;
 struct iscsi_cls_conn;
 struct iscsi_conn;
 struct iscsi_cmd_task;
-struct iscsi_mgmt_task;
 struct sockaddr;
 
 /**
@@ -58,19 +57,22 @@ struct sockaddr;
  * @stop_conn:		suspend/recover/terminate connection
  * @send_pdu:		send iSCSI PDU, Login, Logout, NOP-Out, Reject, Text.
  * @session_recovery_timedout: notify LLD a block during recovery timed out
- * @init_cmd_task:	Initialize a iscsi_cmd_task and any internal structs.
- *			Called from queuecommand with session lock held.
- * @init_mgmt_task:	Initialize a iscsi_mgmt_task and any internal structs.
- *			Called from iscsi_conn_send_generic with xmitmutex.
- * @xmit_cmd_task:	Requests LLD to transfer cmd task. Returns 0 or the
+ * @init_task:		Initialize a iscsi_task and any internal structs.
+ *			When offloading the data path, this is called from
+ *			queuecommand with the session lock, or from the
+ *			iscsi_conn_send_pdu context with the session lock.
+ *			When not offloading the data path, this is called
+ *			from the scsi work queue without the session lock.
+ * @xmit_task		Requests LLD to transfer cmd task. Returns 0 or the
  *			the number of bytes transferred on success, and -Exyz
- *			value on error.
- * @xmit_mgmt_task:	Requests LLD to transfer mgmt task. Returns 0 or the
- *			the number of bytes transferred on success, and -Exyz
- *			value on error.
- * @cleanup_cmd_task:	requests LLD to fail cmd task. Called with xmitmutex
- *			and session->lock after the connection has been
- *			suspended and terminated during recovery. If called
+ *			value on error. When offloading the data path, this
+ *			is called from queuecommand with the session lock, or
+ *			from the iscsi_conn_send_pdu context with the session
+ *			lock. When not offloading the data path, this is called
+ *			from the scsi work queue without the session lock.
+ * @cleanup_task:	requests LLD to fail task. Called with session lock
+ *			and after the connection has been suspended and
+ *			terminated during recovery. If called
  *			from abort task then connection is not suspended
  *			or terminated but sk_callback_lock is held
  *
@@ -110,15 +112,10 @@ struct iscsi_transport {
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
 			   struct iscsi_stats *stats);
-	int (*init_cmd_task) (struct iscsi_cmd_task *ctask);
-	void (*init_mgmt_task) (struct iscsi_conn *conn,
-				struct iscsi_mgmt_task *mtask);
-	int (*xmit_cmd_task) (struct iscsi_conn *conn,
-			      struct iscsi_cmd_task *ctask);
-	void (*cleanup_cmd_task) (struct iscsi_conn *conn,
-				  struct iscsi_cmd_task *ctask);
-	int (*xmit_mgmt_task) (struct iscsi_conn *conn,
-			       struct iscsi_mgmt_task *mtask);
+	int (*init_task) (struct iscsi_cmd_task *task);
+	int (*xmit_task) (struct iscsi_cmd_task *task);
+	void (*cleanup_task) (struct iscsi_conn *conn,
+				  struct iscsi_cmd_task *task);
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
 	int (*ep_connect) (struct sockaddr *dst_addr, int non_blocking,
 			   uint64_t *ep_handle);

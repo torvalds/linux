@@ -85,18 +85,6 @@ enum {
 	ISCSI_DIGEST_SIZE = sizeof(__u32),
 };
 
-struct iscsi_mgmt_task {
-	/*
-	 * Becuae LLDs allocate their hdr differently, this is a pointer to
-	 * that storage. It must be setup at session creation time.
-	 */
-	struct iscsi_hdr	*hdr;
-	char			*data;		/* mgmt payload */
-	unsigned		data_count;	/* counts data to be sent */
-	uint32_t		itt;		/* this ITT */
-	void			*dd_data;	/* driver/transport data */
-	struct list_head	running;
-};
 
 enum {
 	ISCSI_TASK_COMPLETED,
@@ -121,6 +109,7 @@ struct iscsi_cmd_task {
 	/* offset in unsolicited stream (bytes); */
 	unsigned		unsol_offset;
 	unsigned		data_count;	/* remaining Data-Out */
+	char			*data;		/* mgmt payload */
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
 	struct iscsi_conn	*conn;		/* used connection    */
 
@@ -162,7 +151,7 @@ struct iscsi_conn {
 	unsigned long		last_ping;
 	int			ping_timeout;
 	int			recv_timeout;
-	struct iscsi_mgmt_task	*ping_mtask;
+	struct iscsi_cmd_task 	*ping_ctask;
 
 	/* iSCSI connection-wide sequencing */
 	uint32_t		exp_statsn;
@@ -178,9 +167,8 @@ struct iscsi_conn {
 	 * should always fit in this buffer
 	 */
 	char			*data;
-	struct iscsi_mgmt_task	*login_mtask;	/* mtask used for login/text */
-	struct iscsi_mgmt_task	*mtask;		/* xmit mtask in progress */
-	struct iscsi_cmd_task	*ctask;		/* xmit ctask in progress */
+	struct iscsi_cmd_task 	*login_ctask;	/* mtask used for login/text */
+	struct iscsi_cmd_task	*ctask;		/* xmit task in progress */
 
 	/* xmit */
 	struct list_head	mgmtqueue;	/* mgmt (control) xmit queue */
@@ -295,12 +283,10 @@ struct iscsi_session {
 	int			state;		/* session state           */
 	int			age;		/* counts session re-opens */
 
+	int			scsi_cmds_max; 	/* max scsi commands */
 	int			cmds_max;	/* size of cmds array */
 	struct iscsi_cmd_task	**cmds;		/* Original Cmds arr */
 	struct iscsi_pool	cmdpool;	/* PDU's pool */
-	int			mgmtpool_max;	/* size of mgmt array */
-	struct iscsi_mgmt_task	**mgmt_cmds;	/* Original mgmt arr */
-	struct iscsi_pool	mgmtpool;	/* Mgmt PDU's pool */
 };
 
 struct iscsi_host {
@@ -345,7 +331,7 @@ extern void iscsi_host_free(struct Scsi_Host *shost);
  */
 extern struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *, struct Scsi_Host *shost,
-		    uint16_t, int, int, uint32_t);
+		    uint16_t, int, uint32_t);
 extern void iscsi_session_teardown(struct iscsi_cls_session *);
 extern void iscsi_session_recovery_timedout(struct iscsi_cls_session *);
 extern int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
@@ -388,8 +374,7 @@ extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 extern int iscsi_verify_itt(struct iscsi_conn *, itt_t);
 extern struct iscsi_cmd_task *iscsi_itt_to_ctask(struct iscsi_conn *, itt_t);
 extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);
-extern void iscsi_free_mgmt_task(struct iscsi_conn *conn,
-				 struct iscsi_mgmt_task *mtask);
+extern void iscsi_put_ctask(struct iscsi_cmd_task *ctask);
 
 /*
  * generic helpers
