@@ -1830,7 +1830,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 	shost->max_id = 1;
 	shost->max_channel = 0;
 	shost->max_lun = iscsit->max_lun;
-	shost->max_cmd_len = iscsit->max_cmd_len;
+	shost->max_cmd_len = 16;
 	shost->transportt = scsit;
 	shost->transportt->create_work_queue = 1;
 	shost->transportt->eh_timed_out = iscsi_eh_cmd_timed_out;

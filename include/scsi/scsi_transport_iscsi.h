@@ -89,8 +89,6 @@ struct iscsi_transport {
 	/* LLD session data size */
 	int sessiondata_size;
 	int max_lun;
-	unsigned int max_conn;
-	unsigned int max_cmd_len;
 	struct iscsi_cls_session *(*create_session) (struct iscsi_transport *it,
 		struct scsi_transport_template *t, struct Scsi_Host *shost,
 		uint16_t cmds_max, uint16_t qdepth, uint32_t sn, uint32_t *hn);

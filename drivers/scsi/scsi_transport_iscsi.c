@@ -102,15 +102,11 @@ static DEVICE_ATTR(name, S_IRUGO, show_transport_##name, NULL);
 
 show_transport_attr(caps, "0x%x");
 show_transport_attr(max_lun, "%d");
-show_transport_attr(max_conn, "%d");
-show_transport_attr(max_cmd_len, "%d");
 
 static struct attribute *iscsi_transport_attrs[] = {
 	&dev_attr_handle.attr,
 	&dev_attr_caps.attr,
 	&dev_attr_max_lun.attr,
-	&dev_attr_max_conn.attr,
-	&dev_attr_max_cmd_len.attr,
 	NULL,
 };
 

@@ -592,7 +592,6 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.host_template          = &iscsi_iser_sht,
 	.conndata_size		= sizeof(struct iscsi_conn),
 	.max_lun                = ISCSI_ISER_MAX_LUN,
-	.max_cmd_len            = ISCSI_ISER_MAX_CMD_LEN,
 	/* session management */
 	.create_session         = iscsi_iser_session_create,
 	.destroy_session        = iscsi_session_teardown,
