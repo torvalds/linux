@@ -443,7 +443,10 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
-	sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs);
+	if (sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs)) {
+		VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
+		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
 	local_irq_disable();
