@@ -33,7 +33,7 @@ struct iscsi_transport;
 struct Scsi_Host;
 struct iscsi_cls_conn;
 struct iscsi_conn;
-struct iscsi_cmd_task;
+struct iscsi_task;
 struct sockaddr;
 
 /**
@@ -112,10 +112,10 @@ struct iscsi_transport {
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
 			   struct iscsi_stats *stats);
-	int (*init_task) (struct iscsi_cmd_task *task);
-	int (*xmit_task) (struct iscsi_cmd_task *task);
+	int (*init_task) (struct iscsi_task *task);
+	int (*xmit_task) (struct iscsi_task *task);
 	void (*cleanup_task) (struct iscsi_conn *conn,
-				  struct iscsi_cmd_task *task);
+				  struct iscsi_task *task);
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
 	int (*ep_connect) (struct sockaddr *dst_addr, int non_blocking,
 			   uint64_t *ep_handle);

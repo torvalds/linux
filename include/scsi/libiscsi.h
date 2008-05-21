@@ -92,7 +92,7 @@ enum {
 	ISCSI_TASK_RUNNING,
 };
 
-struct iscsi_cmd_task {
+struct iscsi_task {
 	/*
 	 * Because LLDs allocate their hdr differently, this is a pointer
 	 * and length to that storage. It must be setup at session
@@ -120,9 +120,9 @@ struct iscsi_cmd_task {
 	void			*dd_data;	/* driver/transport data */
 };
 
-static inline void* iscsi_next_hdr(struct iscsi_cmd_task *ctask)
+static inline void* iscsi_next_hdr(struct iscsi_task *task)
 {
-	return (void*)ctask->hdr + ctask->hdr_len;
+	return (void*)task->hdr + task->hdr_len;
 }
 
 /* Connection's states */
@@ -151,7 +151,7 @@ struct iscsi_conn {
 	unsigned long		last_ping;
 	int			ping_timeout;
 	int			recv_timeout;
-	struct iscsi_cmd_task 	*ping_ctask;
+	struct iscsi_task 	*ping_task;
 
 	/* iSCSI connection-wide sequencing */
 	uint32_t		exp_statsn;
@@ -167,8 +167,8 @@ struct iscsi_conn {
 	 * should always fit in this buffer
 	 */
 	char			*data;
-	struct iscsi_cmd_task 	*login_ctask;	/* mtask used for login/text */
-	struct iscsi_cmd_task	*ctask;		/* xmit task in progress */
+	struct iscsi_task 	*login_task;	/* mtask used for login/text */
+	struct iscsi_task	*task;		/* xmit task in progress */
 
 	/* xmit */
 	struct list_head	mgmtqueue;	/* mgmt (control) xmit queue */
@@ -285,7 +285,7 @@ struct iscsi_session {
 
 	int			scsi_cmds_max; 	/* max scsi commands */
 	int			cmds_max;	/* size of cmds array */
-	struct iscsi_cmd_task	**cmds;		/* Original Cmds arr */
+	struct iscsi_task	**cmds;		/* Original Cmds arr */
 	struct iscsi_pool	cmdpool;	/* PDU's pool */
 };
 
@@ -365,16 +365,16 @@ extern void iscsi_suspend_tx(struct iscsi_conn *conn);
  * pdu and task processing
  */
 extern void iscsi_update_cmdsn(struct iscsi_session *, struct iscsi_nopin *);
-extern void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *,
+extern void iscsi_prep_unsolicit_data_pdu(struct iscsi_task *,
 					struct iscsi_data *hdr);
 extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,
 				char *, uint32_t);
 extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 			      char *, int);
 extern int iscsi_verify_itt(struct iscsi_conn *, itt_t);
-extern struct iscsi_cmd_task *iscsi_itt_to_ctask(struct iscsi_conn *, itt_t);
-extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);
-extern void iscsi_put_ctask(struct iscsi_cmd_task *ctask);
+extern struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_conn *, itt_t);
+extern void iscsi_requeue_task(struct iscsi_task *task);
+extern void iscsi_put_task(struct iscsi_task *task);
 
 /*
  * generic helpers
