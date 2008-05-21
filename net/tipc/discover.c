@@ -200,9 +200,8 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 		dbg(" in own cluster\n");
 		if (n_ptr == NULL) {
 			n_ptr = tipc_node_create(orig);
-		}
-		if (n_ptr == NULL) {
-			return;
+			if (!n_ptr)
+				return;
 		}
 		spin_lock_bh(&n_ptr->lock);
 		link = n_ptr->links[b_ptr->identity];
