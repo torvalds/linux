@@ -161,9 +161,10 @@ enum {
 	ISCSI_SESSION_FREE,
 };
 
+#define ISCSI_MAX_TARGET -1
+
 struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */
-	struct list_head host_list;
 	struct iscsi_transport *transport;
 	spinlock_t lock;
 	struct work_struct block_work;
@@ -175,7 +176,7 @@ struct iscsi_cls_session {
 	int recovery_tmo;
 	struct delayed_work recovery_work;
 
-	int target_id;
+	unsigned int target_id;
 
 	int state;
 	int sid;				/* session id */
@@ -193,7 +194,6 @@ struct iscsi_cls_session {
 	iscsi_dev_to_session(_stgt->dev.parent)
 
 struct iscsi_cls_host {
-	struct list_head sessions;
 	atomic_t nr_scans;
 	struct mutex mutex;
 	struct workqueue_struct *scan_workq;

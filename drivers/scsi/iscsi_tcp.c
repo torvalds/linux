@@ -1868,7 +1868,7 @@ iscsi_tcp_session_create(struct Scsi_Host *shost, uint16_t cmds_max,
 
 	cls_session = iscsi_session_setup(&iscsi_tcp_transport, shost, cmds_max,
 					  sizeof(struct iscsi_tcp_task),
-					  initial_cmdsn);
+					  initial_cmdsn, 0);
 	if (!cls_session)
 		goto remove_host;
 	session = cls_session->dd_data;

@@ -1897,7 +1897,7 @@ EXPORT_SYMBOL_GPL(iscsi_host_free);
 struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 		    uint16_t scsi_cmds_max, int cmd_task_size,
-		    uint32_t initial_cmdsn)
+		    uint32_t initial_cmdsn, unsigned int id)
 {
 	struct iscsi_session *session;
 	struct iscsi_cls_session *cls_session;
@@ -1957,7 +1957,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 	if (!try_module_get(iscsit->owner))
 		goto module_get_fail;
 
-	if (iscsi_add_session(cls_session, 0))
+	if (iscsi_add_session(cls_session, id))
 		goto cls_session_fail;
 	return cls_session;
 

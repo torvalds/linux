@@ -119,9 +119,8 @@ static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 	struct iscsi_cls_host *ihost = shost->shost_data;
 
 	memset(ihost, 0, sizeof(*ihost));
-	INIT_LIST_HEAD(&ihost->sessions);
-	mutex_init(&ihost->mutex);
 	atomic_set(&ihost->nr_scans, 0);
+	mutex_init(&ihost->mutex);
 
 	snprintf(ihost->scan_workq_name, KOBJ_NAME_LEN, "iscsi_scan_%d",
 		shost->host_no);
@@ -316,22 +315,61 @@ int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time)
 }
 EXPORT_SYMBOL_GPL(iscsi_scan_finished);
 
+struct iscsi_scan_data {
+	unsigned int channel;
+	unsigned int id;
+	unsigned int lun;
+};
+
+static int iscsi_user_scan_session(struct device *dev, void *data)
+{
+	struct iscsi_scan_data *scan_data = data;
+	struct iscsi_cls_session *session;
+	struct Scsi_Host *shost;
+	struct iscsi_cls_host *ihost;
+	unsigned long flags;
+	unsigned int id;
+
+	if (!iscsi_is_session_dev(dev))
+		return 0;
+
+	session = iscsi_dev_to_session(dev);
+	shost = iscsi_session_to_shost(session);
+	ihost = shost->shost_data;
+
+	mutex_lock(&ihost->mutex);
+	spin_lock_irqsave(&session->lock, flags);
+	if (session->state != ISCSI_SESSION_LOGGED_IN) {
+		spin_unlock_irqrestore(&session->lock, flags);
+		mutex_unlock(&ihost->mutex);
+		return 0;
+	}
+	id = session->target_id;
+	spin_unlock_irqrestore(&session->lock, flags);
+
+	if (id != ISCSI_MAX_TARGET) {
+		if ((scan_data->channel == SCAN_WILD_CARD ||
+		     scan_data->channel == 0) &&
+		    (scan_data->id == SCAN_WILD_CARD ||
+		     scan_data->id == id))
+			scsi_scan_target(&session->dev, 0, id,
+					 scan_data->lun, 1);
+	}
+	mutex_unlock(&ihost->mutex);
+	return 0;
+}
+
 static int iscsi_user_scan(struct Scsi_Host *shost, uint channel,
 			   uint id, uint lun)
 {
-	struct iscsi_cls_host *ihost = shost->shost_data;
-	struct iscsi_cls_session *session;
+	struct iscsi_scan_data scan_data;
 
-	mutex_lock(&ihost->mutex);
-	list_for_each_entry(session, &ihost->sessions, host_list) {
-		if ((channel == SCAN_WILD_CARD || channel == 0) &&
-		    (id == SCAN_WILD_CARD || id == session->target_id))
-			scsi_scan_target(&session->dev, 0,
-					 session->target_id, lun, 1);
-	}
-	mutex_unlock(&ihost->mutex);
+	scan_data.channel = channel;
+	scan_data.id = id;
+	scan_data.lun = lun;
 
-	return 0;
+	return device_for_each_child(&shost->shost_gendev, &scan_data,
+				     iscsi_user_scan_session);
 }
 
 static void iscsi_scan_session(struct work_struct *work)
@@ -340,18 +378,13 @@ static void iscsi_scan_session(struct work_struct *work)
 			container_of(work, struct iscsi_cls_session, scan_work);
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_cls_host *ihost = shost->shost_data;
-	unsigned long flags;
+	struct iscsi_scan_data scan_data;
 
-	spin_lock_irqsave(&session->lock, flags);
-	if (session->state != ISCSI_SESSION_LOGGED_IN) {
-		spin_unlock_irqrestore(&session->lock, flags);
-		goto done;
-	}
-	spin_unlock_irqrestore(&session->lock, flags);
+	scan_data.channel = 0;
+	scan_data.id = SCAN_WILD_CARD;
+	scan_data.lun = SCAN_WILD_CARD;
 
-	scsi_scan_target(&session->dev, 0, session->target_id,
-			 SCAN_WILD_CARD, 1);
-done:
+	iscsi_user_scan_session(&session->dev, &scan_data);
 	atomic_dec(&ihost->nr_scans);
 }
 
@@ -460,14 +493,18 @@ static void __iscsi_unbind_session(struct work_struct *work)
 				     unbind_work);
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_cls_host *ihost = shost->shost_data;
+	unsigned long flags;
 
 	/* Prevent new scans and make sure scanning is not in progress */
 	mutex_lock(&ihost->mutex);
-	if (list_empty(&session->host_list)) {
+	spin_lock_irqsave(&session->lock, flags);
+	if (session->target_id == ISCSI_MAX_TARGET) {
+		spin_unlock_irqrestore(&session->lock, flags);
 		mutex_unlock(&ihost->mutex);
 		return;
 	}
-	list_del_init(&session->host_list);
+	session->target_id = ISCSI_MAX_TARGET;
+	spin_unlock_irqrestore(&session->lock, flags);
 	mutex_unlock(&ihost->mutex);
 
 	scsi_remove_target(&session->dev);
@@ -497,7 +534,6 @@ iscsi_alloc_session(struct Scsi_Host *shost, struct iscsi_transport *transport,
 	session->recovery_tmo = 120;
 	session->state = ISCSI_SESSION_FREE;
 	INIT_DELAYED_WORK(&session->recovery_work, session_recovery_timedout);
-	INIT_LIST_HEAD(&session->host_list);
 	INIT_LIST_HEAD(&session->sess_list);
 	INIT_WORK(&session->unblock_work, __iscsi_unblock_session);
 	INIT_WORK(&session->block_work, __iscsi_block_session);
@@ -516,16 +552,51 @@ iscsi_alloc_session(struct Scsi_Host *shost, struct iscsi_transport *transport,
 }
 EXPORT_SYMBOL_GPL(iscsi_alloc_session);
 
+static int iscsi_get_next_target_id(struct device *dev, void *data)
+{
+	struct iscsi_cls_session *session;
+	unsigned long flags;
+	int err = 0;
+
+	if (!iscsi_is_session_dev(dev))
+		return 0;
+
+	session = iscsi_dev_to_session(dev);
+	spin_lock_irqsave(&session->lock, flags);
+	if (*((unsigned int *) data) == session->target_id)
+		err = -EEXIST;
+	spin_unlock_irqrestore(&session->lock, flags);
+	return err;
+}
+
 int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_cls_host *ihost;
 	unsigned long flags;
+	unsigned int id = target_id;
 	int err;
 
 	ihost = shost->shost_data;
 	session->sid = atomic_add_return(1, &iscsi_session_nr);
-	session->target_id = target_id;
+
+	if (id == ISCSI_MAX_TARGET) {
+		for (id = 0; id < ISCSI_MAX_TARGET; id++) {
+			err = device_for_each_child(&shost->shost_gendev, &id,
+						    iscsi_get_next_target_id);
+			if (!err)
+				break;
+		}
+
+		if (id == ISCSI_MAX_TARGET) {
+			iscsi_cls_session_printk(KERN_ERR, session,
+						 "Too many iscsi targets. Max "
+						 "number of targets is %d.\n",
+						 ISCSI_MAX_TARGET - 1);
+			goto release_host;
+		}
+	}
+	session->target_id = id;
 
 	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
 		 session->sid);
@@ -540,10 +611,6 @@ int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 	spin_lock_irqsave(&sesslock, flags);
 	list_add(&session->sess_list, &sesslist);
 	spin_unlock_irqrestore(&sesslock, flags);
-
-	mutex_lock(&ihost->mutex);
-	list_add(&session->host_list, &ihost->sessions);
-	mutex_unlock(&ihost->mutex);
 
 	iscsi_session_event(session, ISCSI_KEVENT_CREATE_SESSION);
 	return 0;

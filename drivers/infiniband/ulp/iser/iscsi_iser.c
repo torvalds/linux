@@ -437,7 +437,7 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,
 					  ISCSI_DEF_XMIT_CMDS_MAX,
 					  sizeof(struct iscsi_iser_task),
-					  initial_cmdsn);
+					  initial_cmdsn, 0);
 	if (!cls_session)
 		goto remove_host;
 	session = cls_session->dd_data;
