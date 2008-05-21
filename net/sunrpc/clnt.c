@@ -1526,23 +1526,29 @@ struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred, int
 EXPORT_SYMBOL_GPL(rpc_call_null);
 
 #ifdef RPC_DEBUG
+static void rpc_show_header(void)
+{
+	printk(KERN_INFO "-pid- proc flgs status -client- -prog- --rqstp- "
+		"-timeout -rpcwait -action- ---ops--\n");
+}
+
 void rpc_show_tasks(void)
 {
 	struct rpc_clnt *clnt;
 	struct rpc_task *t;
+	int header = 0;
 
 	spin_lock(&rpc_client_lock);
-	if (list_empty(&all_clients))
-		goto out;
-	printk("-pid- proc flgs status -client- -prog- --rqstp- -timeout "
-		"-rpcwait -action- ---ops--\n");
 	list_for_each_entry(clnt, &all_clients, cl_clients) {
-		if (list_empty(&clnt->cl_tasks))
-			continue;
 		spin_lock(&clnt->cl_lock);
 		list_for_each_entry(t, &clnt->cl_tasks, tk_task) {
 			const char *rpc_waitq = "none";
 			int proc;
+
+			if (!header) {
+				rpc_show_header();
+				header++;
+			}
 
 			if (t->tk_msg.rpc_proc)
 				proc = t->tk_msg.rpc_proc->p_proc;
@@ -1563,7 +1569,6 @@ void rpc_show_tasks(void)
 		}
 		spin_unlock(&clnt->cl_lock);
 	}
-out:
 	spin_unlock(&rpc_client_lock);
 }
 #endif
