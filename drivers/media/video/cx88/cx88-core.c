@@ -70,7 +70,7 @@ static DEFINE_MUTEX(devlist);
 
 /* @lpi: lines per IRQ, or 0 to not generate irqs. Note: IRQ to be
 	 generated _after_ lpi lines are transferred. */
-static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
+static __le32* cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 			    unsigned int offset, u32 sync_line,
 			    unsigned int bpl, unsigned int padding,
 			    unsigned int lines, unsigned int lpi)
@@ -130,7 +130,7 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 		     unsigned int bpl, unsigned int padding, unsigned int lines)
 {
 	u32 instructions,fields;
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	fields = 0;
@@ -168,7 +168,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 			 unsigned int lines, unsigned int lpi)
 {
 	u32 instructions;
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
@@ -193,7 +193,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 int cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 		      u32 reg, u32 mask, u32 value)
 {
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	if ((rc = btcx_riscmem_alloc(pci, risc, 4*16)) < 0)
