@@ -222,7 +222,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	if (rc) {
 		if (rc == -EREMOTE && !is_dfs_referral) {
 			is_dfs_referral = true;
-			cERROR(1, ("DFS ref")); /* BB removeme BB */
+			cFYI(DBG2, ("DFS ref"));
 			/* for DFS, server does not give us real inode data */
 			fill_fake_finddataunix(&find_data, sb);
 			rc = 0;
