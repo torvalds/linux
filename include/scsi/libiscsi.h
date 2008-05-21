@@ -270,6 +270,8 @@ struct iscsi_session {
 	char			*password;
 	char			*password_in;
 	char			*targetname;
+	char			*ifacename;
+	char			*initiatorname;
 	/* control data */
 	struct iscsi_transport	*tt;
 	struct Scsi_Host	*host;
