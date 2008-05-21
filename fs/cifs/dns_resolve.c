@@ -134,10 +134,6 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 	rkey = request_key(&key_type_dns_resolver, name, "");
 	if (!IS_ERR(rkey)) {
 		data = rkey->payload.data;
-		cFYI(1, ("%s: resolved: %s to %s", __func__,
-					rkey->description,
-					*ip_addr
-				));
 	} else {
 		cERROR(1, ("%s: unable to resolve: %s", __func__, name));
 		goto out;
@@ -150,6 +146,11 @@ skip_upcall:
 		if (*ip_addr) {
 			memcpy(*ip_addr, data, len);
 			(*ip_addr)[len] = '\0';
+			if (!IS_ERR(rkey))
+				cFYI(1, ("%s: resolved: %s to %s", __func__,
+							name,
+							*ip_addr
+					));
 			rc = 0;
 		} else {
 			rc = -ENOMEM;
