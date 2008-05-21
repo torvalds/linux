@@ -1230,8 +1230,8 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 	if (vif->flags & VIFF_TUNNEL) {
 		ip_encap(skb, vif->local, vif->remote);
 		/* FIXME: extra output firewall step used to be here. --RR */
-		((struct ip_tunnel *)netdev_priv(vif->dev))->stat.tx_packets++;
-		((struct ip_tunnel *)netdev_priv(vif->dev))->stat.tx_bytes+=skb->len;
+		vif->dev->stats.tx_packets++;
+		vif->dev->stats.tx_bytes += skb->len;
 	}
 
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
