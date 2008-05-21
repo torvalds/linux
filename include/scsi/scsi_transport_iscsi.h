@@ -207,6 +207,10 @@ struct iscsi_cls_host {
 	char scan_workq_name[KOBJ_NAME_LEN];
 };
 
+extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
+				void (*fn)(struct iscsi_cls_session *));
+
+
 /*
  * session and connection functions that can be used by HW iSCSI LLDs
  */

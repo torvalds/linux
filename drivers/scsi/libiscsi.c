@@ -1764,8 +1764,39 @@ void iscsi_pool_free(struct iscsi_pool *q)
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_free);
 
-void iscsi_host_setup(struct Scsi_Host *shost, uint16_t qdepth)
+/**
+ * iscsi_host_add - add host to system
+ * @shost: scsi host
+ * @pdev: parent device
+ *
+ * This should be called by partial offload and software iscsi drivers
+ * to add a host to the system.
+ */
+int iscsi_host_add(struct Scsi_Host *shost, struct device *pdev)
 {
+	return scsi_add_host(shost, pdev);
+}
+EXPORT_SYMBOL_GPL(iscsi_host_add);
+
+/**
+ * iscsi_host_alloc - allocate a host and driver data
+ * @sht: scsi host template
+ * @dd_data_size: driver host data size
+ * @qdepth: default device queue depth
+ *
+ * This should be called by partial offload and software iscsi drivers.
+ * To access the driver specific memory use the iscsi_host_priv() macro.
+ */
+struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
+				   int dd_data_size, uint16_t qdepth)
+{
+	struct Scsi_Host *shost;
+
+	shost = scsi_host_alloc(sht, sizeof(struct iscsi_host) + dd_data_size);
+	if (!shost)
+		return NULL;
+	shost->transportt->eh_timed_out = iscsi_eh_cmd_timed_out;
+
 	if (qdepth > ISCSI_MAX_CMD_PER_LUN || qdepth < 1) {
 		if (qdepth != 0)
 			printk(KERN_ERR "iscsi: invalid queue depth of %d. "
@@ -1773,22 +1804,37 @@ void iscsi_host_setup(struct Scsi_Host *shost, uint16_t qdepth)
 			       qdepth, ISCSI_MAX_CMD_PER_LUN);
 		qdepth = ISCSI_DEF_CMD_PER_LUN;
 	}
-
-	shost->transportt->create_work_queue = 1;
-	shost->transportt->eh_timed_out = iscsi_eh_cmd_timed_out;
 	shost->cmd_per_lun = qdepth;
+	return shost;
 }
-EXPORT_SYMBOL_GPL(iscsi_host_setup);
+EXPORT_SYMBOL_GPL(iscsi_host_alloc);
 
-void iscsi_host_teardown(struct Scsi_Host *shost)
+/**
+ * iscsi_host_remove - remove host and sessions
+ * @shost: scsi host
+ *
+ * This will also remove any sessions attached to the host, but if userspace
+ * is managing the session at the same time this will break. TODO: add
+ * refcounting to the netlink iscsi interface so a rmmod or host hot unplug
+ * does not remove the memory from under us.
+ */
+void iscsi_host_remove(struct Scsi_Host *shost)
+{
+	iscsi_host_for_each_session(shost, iscsi_session_teardown);
+	scsi_remove_host(shost);
+}
+EXPORT_SYMBOL_GPL(iscsi_host_remove);
+
+void iscsi_host_free(struct Scsi_Host *shost)
 {
 	struct iscsi_host *ihost = shost_priv(shost);
 
 	kfree(ihost->netdev);
 	kfree(ihost->hwaddress);
 	kfree(ihost->initiatorname);
+	scsi_host_put(shost);
 }
-EXPORT_SYMBOL_GPL(iscsi_host_teardown);
+EXPORT_SYMBOL_GPL(iscsi_host_free);
 
 /**
  * iscsi_session_setup - create iscsi cls session and host and session

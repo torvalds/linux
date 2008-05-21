@@ -32,6 +32,7 @@
 #include <scsi/iscsi_if.h>
 
 struct scsi_transport_template;
+struct scsi_host_template;
 struct scsi_device;
 struct Scsi_Host;
 struct scsi_cmnd;
@@ -41,6 +42,7 @@ struct iscsi_cls_session;
 struct iscsi_cls_conn;
 struct iscsi_session;
 struct iscsi_nopin;
+struct device;
 
 /* #define DEBUG_SCSI */
 #ifdef DEBUG_SCSI
@@ -311,6 +313,8 @@ struct iscsi_host {
 	char			local_address[ISCSI_ADDRESS_BUF_LEN];
 };
 
+#define iscsi_host_priv(_shost) \
+	(shost_priv(_shost) + sizeof(struct iscsi_host))
 /*
  * scsi host template
  */
@@ -330,8 +334,11 @@ extern int iscsi_host_set_param(struct Scsi_Host *shost,
 				int buflen);
 extern int iscsi_host_get_param(struct Scsi_Host *shost,
 				enum iscsi_host_param param, char *buf);
-extern void iscsi_host_setup(struct Scsi_Host *shost, uint16_t qdepth);
-extern void iscsi_host_teardown(struct Scsi_Host *shost);
+extern int iscsi_host_add(struct Scsi_Host *shost, struct device *pdev);
+extern struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
+					  int dd_data_size, uint16_t qdepth);
+extern void iscsi_host_remove(struct Scsi_Host *shost);
+extern void iscsi_host_free(struct Scsi_Host *shost);
 
 /*
  * session management

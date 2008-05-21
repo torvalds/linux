@@ -371,10 +371,8 @@ static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 
-	iscsi_session_teardown(cls_session);
-	scsi_remove_host(shost);
-	iscsi_host_teardown(shost);
-	scsi_host_put(shost);
+	iscsi_host_remove(shost);
+	iscsi_host_free(shost);
 }
 
 static struct iscsi_cls_session *
@@ -396,7 +394,7 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 		return NULL;
 	}
 
-	shost = scsi_host_alloc(&iscsi_iser_sht, 0);
+	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, ISCSI_MAX_CMD_PER_LUN);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_iser_scsi_transport;
@@ -405,9 +403,7 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 	shost->max_channel = 0;
 	shost->max_cmd_len = 16;
 
-	iscsi_host_setup(shost, qdepth);
-
-	if (scsi_add_host(shost, NULL))
+	if (iscsi_host_add(shost, NULL))
 		goto free_host;
 	*hostno = shost->host_no;
 
@@ -443,10 +439,9 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 	return cls_session;
 
 remove_host:
-	scsi_remove_host(shost);
+	iscsi_host_remove(shost);
 free_host:
-	iscsi_host_teardown(shost);
-	scsi_host_put(shost);
+	iscsi_host_free(shost);
 	return NULL;
 }
 

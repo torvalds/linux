@@ -1866,7 +1866,7 @@ iscsi_tcp_session_create(struct Scsi_Host *shost, uint16_t cmds_max,
 		return NULL;
 	}
 
-	shost = scsi_host_alloc(&iscsi_sht, sizeof(struct iscsi_host));
+	shost = iscsi_host_alloc(&iscsi_sht, 0, qdepth);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_tcp_scsi_transport;
@@ -1874,10 +1874,9 @@ iscsi_tcp_session_create(struct Scsi_Host *shost, uint16_t cmds_max,
 	shost->max_id = 0;
 	shost->max_channel = 0;
 	shost->max_cmd_len = 16;
+	shost->can_queue = cmds_max;
 
-	iscsi_host_setup(shost, qdepth);
-
-	if (scsi_add_host(shost, NULL))
+	if (iscsi_host_add(shost, NULL))
 		goto free_host;
 	*hostno = shost->host_no;
 
@@ -1912,10 +1911,9 @@ iscsi_tcp_session_create(struct Scsi_Host *shost, uint16_t cmds_max,
 remove_session:
 	iscsi_session_teardown(cls_session);
 remove_host:
-	scsi_remove_host(shost);
+	iscsi_host_remove(shost);
 free_host:
-	iscsi_host_teardown(shost);
-	scsi_host_put(shost);
+	iscsi_host_free(shost);
 	return NULL;
 }
 
@@ -1924,11 +1922,9 @@ static void iscsi_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 
 	iscsi_r2tpool_free(cls_session->dd_data);
-	iscsi_session_teardown(cls_session);
 
-	scsi_remove_host(shost);
-	iscsi_host_teardown(shost);
-	scsi_host_put(shost);
+	iscsi_host_remove(shost);
+	iscsi_host_free(shost);
 }
 
 static int iscsi_tcp_slave_configure(struct scsi_device *sdev)

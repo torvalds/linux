@@ -279,6 +279,24 @@ static int iscsi_is_session_dev(const struct device *dev)
 	return dev->release == iscsi_session_release;
 }
 
+static int iscsi_iter_session_fn(struct device *dev, void *data)
+{
+	void (* fn) (struct iscsi_cls_session *) = data;
+
+	if (!iscsi_is_session_dev(dev))
+		return 0;
+	fn(iscsi_dev_to_session(dev));
+	return 0;
+}
+
+void iscsi_host_for_each_session(struct Scsi_Host *shost,
+				 void (*fn)(struct iscsi_cls_session *))
+{
+	device_for_each_child(&shost->shost_gendev, fn,
+			      iscsi_iter_session_fn);
+}
+EXPORT_SYMBOL_GPL(iscsi_host_for_each_session);
+
 /**
  * iscsi_scan_finished - helper to report when running scans are done
  * @shost: scsi host
@@ -1599,6 +1617,8 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	priv->daemon_pid = -1;
 	priv->iscsi_transport = tt;
 	priv->t.user_scan = iscsi_user_scan;
+	if (!(tt->caps & CAP_DATA_PATH_OFFLOAD))
+		priv->t.create_work_queue = 1;
 
 	priv->dev.class = &iscsi_transport_class;
 	snprintf(priv->dev.bus_id, BUS_ID_SIZE, "%s", tt->name);
