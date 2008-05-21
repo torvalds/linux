@@ -74,6 +74,10 @@
 
 #include "iscsi_iser.h"
 
+static struct scsi_host_template iscsi_iser_sht;
+static struct iscsi_transport iscsi_iser_transport;
+static struct scsi_transport_template *iscsi_iser_scsi_transport;
+
 static unsigned int iscsi_max_lun = 512;
 module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 
@@ -363,40 +367,64 @@ iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
 	return iscsi_conn_start(cls_conn);
 }
 
-static struct iscsi_transport iscsi_iser_transport;
+static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
+{
+	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
+
+	iscsi_session_teardown(cls_session);
+	scsi_remove_host(shost);
+	iscsi_host_teardown(shost);
+	scsi_host_put(shost);
+}
 
 static struct iscsi_cls_session *
-iscsi_iser_session_create(struct iscsi_transport *iscsit,
-			 struct scsi_transport_template *scsit,
-			 struct Scsi_Host *shost,
-			 uint16_t cmds_max, uint16_t qdepth,
-			 uint32_t initial_cmdsn, uint32_t *hostno)
+iscsi_iser_session_create(struct Scsi_Host *shost,
+			  uint16_t cmds_max, uint16_t qdepth,
+			  uint32_t initial_cmdsn, uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	int i;
-	uint32_t hn;
 	struct iscsi_cmd_task  *ctask;
 	struct iscsi_mgmt_task *mtask;
 	struct iscsi_iser_cmd_task *iser_ctask;
 	struct iser_desc *desc;
 
+	if (shost) {
+		printk(KERN_ERR "iscsi_tcp: invalid shost %d.\n",
+		       shost->host_no);
+		return NULL;
+	}
+
+	shost = scsi_host_alloc(&iscsi_iser_sht, 0);
+	if (!shost)
+		return NULL;
+	shost->transportt = iscsi_iser_scsi_transport;
+	shost->max_lun = iscsi_max_lun;
+	shost->max_id = 0;
+	shost->max_channel = 0;
+	shost->max_cmd_len = 16;
+
+	iscsi_host_setup(shost, qdepth);
+
+	if (scsi_add_host(shost, NULL))
+		goto free_host;
+	*hostno = shost->host_no;
+
 	/*
 	 * we do not support setting can_queue cmd_per_lun from userspace yet
 	 * because we preallocate so many resources
 	 */
-	cls_session = iscsi_session_setup(iscsit, scsit,
+	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,
 					  ISCSI_DEF_XMIT_CMDS_MAX,
-					  ISCSI_MAX_CMD_PER_LUN,
 					  sizeof(struct iscsi_iser_cmd_task),
 					  sizeof(struct iser_desc),
-					  initial_cmdsn, &hn);
+					  initial_cmdsn);
 	if (!cls_session)
-	return NULL;
+		goto remove_host;
+	session = cls_session->dd_data;
 
-	*hostno = hn;
-	session = class_to_transport_session(cls_session);
-
+	shost->can_queue = session->cmds_max;
 	/* libiscsi setup itts, data and pool so just set desc fields */
 	for (i = 0; i < session->cmds_max; i++) {
 		ctask      = session->cmds[i];
@@ -413,6 +441,13 @@ iscsi_iser_session_create(struct iscsi_transport *iscsit,
 	}
 
 	return cls_session;
+
+remove_host:
+	scsi_remove_host(shost);
+free_host:
+	iscsi_host_teardown(shost);
+	scsi_host_put(shost);
+	return NULL;
 }
 
 static int
@@ -589,12 +624,11 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_NETDEV_NAME |
 				  ISCSI_HOST_INITIATOR_NAME,
-	.host_template          = &iscsi_iser_sht,
 	.conndata_size		= sizeof(struct iscsi_conn),
-	.max_lun                = ISCSI_ISER_MAX_LUN,
+	.sessiondata_size	= sizeof(struct iscsi_session),
 	/* session management */
 	.create_session         = iscsi_iser_session_create,
-	.destroy_session        = iscsi_session_teardown,
+	.destroy_session        = iscsi_iser_session_destroy,
 	/* connection management */
 	.create_conn            = iscsi_iser_conn_create,
 	.bind_conn              = iscsi_iser_conn_bind,
@@ -633,8 +667,6 @@ static int __init iser_init(void)
 		return -EINVAL;
 	}
 
-	iscsi_iser_transport.max_lun = iscsi_max_lun;
-
 	memset(&ig, 0, sizeof(struct iser_global));
 
 	ig.desc_cache = kmem_cache_create("iser_descriptors",
@@ -650,7 +682,9 @@ static int __init iser_init(void)
 	mutex_init(&ig.connlist_mutex);
 	INIT_LIST_HEAD(&ig.connlist);
 
-	if (!iscsi_register_transport(&iscsi_iser_transport)) {
+	iscsi_iser_scsi_transport = iscsi_register_transport(
+							&iscsi_iser_transport);
+	if (!iscsi_iser_scsi_transport) {
 		iser_err("iscsi_register_transport failed\n");
 		err = -EINVAL;
 		goto register_transport_failure;

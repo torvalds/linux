@@ -101,12 +101,10 @@ show_transport_##name(struct device *dev, 				\
 static DEVICE_ATTR(name, S_IRUGO, show_transport_##name, NULL);
 
 show_transport_attr(caps, "0x%x");
-show_transport_attr(max_lun, "%d");
 
 static struct attribute *iscsi_transport_attrs[] = {
 	&dev_attr_handle.attr,
 	&dev_attr_caps.attr,
-	&dev_attr_max_lun.attr,
 	NULL,
 };
 
@@ -1034,8 +1032,7 @@ iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_uevent *ev,
 		}
 	}
 
-	session = transport->create_session(transport, &priv->t, shost,
-					    cmds_max, queue_depth,
+	session = transport->create_session(shost, cmds_max, queue_depth,
 					    initial_cmdsn, &host_no);
 	if (shost)
 		scsi_host_put(shost);

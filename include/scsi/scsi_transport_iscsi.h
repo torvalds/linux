@@ -83,15 +83,13 @@ struct iscsi_transport {
 	/* LLD sets this to indicate what values it can export to sysfs */
 	uint64_t param_mask;
 	uint64_t host_param_mask;
-	struct scsi_host_template *host_template;
 	/* LLD connection data size */
 	int conndata_size;
 	/* LLD session data size */
 	int sessiondata_size;
-	int max_lun;
-	struct iscsi_cls_session *(*create_session) (struct iscsi_transport *it,
-		struct scsi_transport_template *t, struct Scsi_Host *shost,
-		uint16_t cmds_max, uint16_t qdepth, uint32_t sn, uint32_t *hn);
+	struct iscsi_cls_session *(*create_session) (struct Scsi_Host *shost,
+					uint16_t cmds_max, uint16_t qdepth,
+					uint32_t sn, uint32_t *hn);
 	void (*destroy_session) (struct iscsi_cls_session *session);
 	struct iscsi_cls_conn *(*create_conn) (struct iscsi_cls_session *sess,
 				uint32_t cid);

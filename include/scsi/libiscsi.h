@@ -209,9 +209,6 @@ struct iscsi_conn {
 	/* remote portal currently connected to */
 	int			portal_port;
 	char			portal_address[ISCSI_ADDRESS_BUF_LEN];
-	/* local address */
-	int			local_port;
-	char			local_address[ISCSI_ADDRESS_BUF_LEN];
 
 	/* MIB-statistics */
 	uint64_t		txdata_octets;
@@ -247,6 +244,7 @@ enum {
 };
 
 struct iscsi_session {
+	struct iscsi_cls_session *cls_session;
 	/*
 	 * Syncs up the scsi eh thread with the iscsi eh thread when sending
 	 * task management functions. This must be taken before the session
@@ -282,10 +280,6 @@ struct iscsi_session {
 	char			*password;
 	char			*password_in;
 	char			*targetname;
-	char			*initiatorname;
-	/* hw address or netdev iscsi connection is bound to */
-	char			*hwaddress;
-	char			*netdev;
 	/* control data */
 	struct iscsi_transport	*tt;
 	struct Scsi_Host	*host;
@@ -307,6 +301,16 @@ struct iscsi_session {
 	struct iscsi_pool	mgmtpool;	/* Mgmt PDU's pool */
 };
 
+struct iscsi_host {
+	char			*initiatorname;
+	/* hw address or netdev iscsi connection is bound to */
+	char			*hwaddress;
+	char			*netdev;
+	/* local address */
+	int			local_port;
+	char			local_address[ISCSI_ADDRESS_BUF_LEN];
+};
+
 /*
  * scsi host template
  */
@@ -326,27 +330,24 @@ extern int iscsi_host_set_param(struct Scsi_Host *shost,
 				int buflen);
 extern int iscsi_host_get_param(struct Scsi_Host *shost,
 				enum iscsi_host_param param, char *buf);
+extern void iscsi_host_setup(struct Scsi_Host *shost, uint16_t qdepth);
+extern void iscsi_host_teardown(struct Scsi_Host *shost);
 
 /*
  * session management
  */
 extern struct iscsi_cls_session *
-iscsi_session_setup(struct iscsi_transport *, struct scsi_transport_template *,
-		    uint16_t, uint16_t, int, int, uint32_t, uint32_t *);
+iscsi_session_setup(struct iscsi_transport *, struct Scsi_Host *shost,
+		    uint16_t, int, int, uint32_t);
 extern void iscsi_session_teardown(struct iscsi_cls_session *);
-extern struct iscsi_session *class_to_transport_session(struct iscsi_cls_session *);
 extern void iscsi_session_recovery_timedout(struct iscsi_cls_session *);
 extern int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 			   enum iscsi_param param, char *buf, int buflen);
 extern int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 				   enum iscsi_param param, char *buf);
 
-#define session_to_cls(_sess) \
-	hostdata_session(_sess->host->hostdata)
-
 #define iscsi_session_printk(prefix, _sess, fmt, a...)	\
-	iscsi_cls_session_printk(prefix,		\
-		(struct iscsi_cls_session *)session_to_cls(_sess), fmt, ##a)
+	iscsi_cls_session_printk(prefix, _sess->cls_session, fmt, ##a)
 
 /*
  * connection management

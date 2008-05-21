@@ -64,6 +64,10 @@ MODULE_LICENSE("GPL");
 #define BUG_ON(expr)
 #endif
 
+static struct scsi_transport_template *iscsi_tcp_scsi_transport;
+static struct scsi_host_template iscsi_sht;
+static struct iscsi_transport iscsi_tcp_transport;
+
 static unsigned int iscsi_max_lun = 512;
 module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 
@@ -1623,6 +1627,8 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 		    struct iscsi_cls_conn *cls_conn, uint64_t transport_eph,
 		    int is_leading)
 {
+	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
+	struct iscsi_host *ihost = shost_priv(shost);
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct sock *sk;
@@ -1646,8 +1652,8 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 	if (err)
 		goto free_socket;
 
-	err = iscsi_tcp_get_addr(conn, sock, conn->local_address,
-				&conn->local_port, kernel_getsockname);
+	err = iscsi_tcp_get_addr(conn, sock, ihost->local_address,
+				&ihost->local_port, kernel_getsockname);
 	if (err)
 		goto free_socket;
 
@@ -1821,29 +1827,6 @@ iscsi_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	return len;
 }
 
-static int
-iscsi_tcp_host_get_param(struct Scsi_Host *shost, enum iscsi_host_param param,
-			 char *buf)
-{
-        struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
-	int len;
-
-	switch (param) {
-	case ISCSI_HOST_PARAM_IPADDRESS:
-		spin_lock_bh(&session->lock);
-		if (!session->leadconn)
-			len = -ENODEV;
-		else
-			len = sprintf(buf, "%s\n",
-				     session->leadconn->local_address);
-		spin_unlock_bh(&session->lock);
-		break;
-	default:
-		return iscsi_host_get_param(shost, param, buf);
-	}
-	return len;
-}
-
 static void
 iscsi_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *stats)
 {
@@ -1869,26 +1852,44 @@ iscsi_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *stats)
 }
 
 static struct iscsi_cls_session *
-iscsi_tcp_session_create(struct iscsi_transport *iscsit,
-			 struct scsi_transport_template *scsit,
-			 struct Scsi_Host *shost, uint16_t cmds_max,
+iscsi_tcp_session_create(struct Scsi_Host *shost, uint16_t cmds_max,
 			 uint16_t qdepth, uint32_t initial_cmdsn,
 			 uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
-	uint32_t hn;
 	int cmd_i;
 
-	cls_session = iscsi_session_setup(iscsit, scsit, cmds_max, qdepth,
-					 sizeof(struct iscsi_tcp_cmd_task),
-					 sizeof(struct iscsi_tcp_mgmt_task),
-					 initial_cmdsn, &hn);
-	if (!cls_session)
+	if (shost) {
+		printk(KERN_ERR "iscsi_tcp: invalid shost %d.\n",
+		       shost->host_no);
 		return NULL;
-	*hostno = hn;
+	}
 
-	session = class_to_transport_session(cls_session);
+	shost = scsi_host_alloc(&iscsi_sht, sizeof(struct iscsi_host));
+	if (!shost)
+		return NULL;
+	shost->transportt = iscsi_tcp_scsi_transport;
+	shost->max_lun = iscsi_max_lun;
+	shost->max_id = 0;
+	shost->max_channel = 0;
+	shost->max_cmd_len = 16;
+
+	iscsi_host_setup(shost, qdepth);
+
+	if (scsi_add_host(shost, NULL))
+		goto free_host;
+	*hostno = shost->host_no;
+
+	cls_session = iscsi_session_setup(&iscsi_tcp_transport, shost, cmds_max,
+					  sizeof(struct iscsi_tcp_cmd_task),
+					  sizeof(struct iscsi_tcp_mgmt_task),
+					  initial_cmdsn);
+	if (!cls_session)
+		goto remove_host;
+	session = cls_session->dd_data;
+
+	shost->can_queue = session->cmds_max;
 	for (cmd_i = 0; cmd_i < session->cmds_max; cmd_i++) {
 		struct iscsi_cmd_task *ctask = session->cmds[cmd_i];
 		struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
@@ -1904,20 +1905,30 @@ iscsi_tcp_session_create(struct iscsi_transport *iscsit,
 		mtask->hdr = (struct iscsi_hdr *) &tcp_mtask->hdr;
 	}
 
-	if (iscsi_r2tpool_alloc(class_to_transport_session(cls_session)))
-		goto r2tpool_alloc_fail;
-
+	if (iscsi_r2tpool_alloc(session))
+		goto remove_session;
 	return cls_session;
 
-r2tpool_alloc_fail:
+remove_session:
 	iscsi_session_teardown(cls_session);
+remove_host:
+	scsi_remove_host(shost);
+free_host:
+	iscsi_host_teardown(shost);
+	scsi_host_put(shost);
 	return NULL;
 }
 
 static void iscsi_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 {
-	iscsi_r2tpool_free(class_to_transport_session(cls_session));
+	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
+
+	iscsi_r2tpool_free(cls_session->dd_data);
 	iscsi_session_teardown(cls_session);
+
+	scsi_remove_host(shost);
+	iscsi_host_teardown(shost);
+	scsi_host_put(shost);
 }
 
 static int iscsi_tcp_slave_configure(struct scsi_device *sdev)
@@ -1976,8 +1987,8 @@ static struct iscsi_transport iscsi_tcp_transport = {
 	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME |
 				  ISCSI_HOST_NETDEV_NAME,
-	.host_template		= &iscsi_sht,
 	.conndata_size		= sizeof(struct iscsi_conn),
+	.sessiondata_size	= sizeof(struct iscsi_session),
 	/* session management */
 	.create_session		= iscsi_tcp_session_create,
 	.destroy_session	= iscsi_tcp_session_destroy,
@@ -1991,7 +2002,7 @@ static struct iscsi_transport iscsi_tcp_transport = {
 	.start_conn		= iscsi_conn_start,
 	.stop_conn		= iscsi_tcp_conn_stop,
 	/* iscsi host params */
-	.get_host_param		= iscsi_tcp_host_get_param,
+	.get_host_param		= iscsi_host_get_param,
 	.set_host_param		= iscsi_host_set_param,
 	/* IO */
 	.send_pdu		= iscsi_conn_send_pdu,
@@ -2013,9 +2024,10 @@ iscsi_tcp_init(void)
 		       iscsi_max_lun);
 		return -EINVAL;
 	}
-	iscsi_tcp_transport.max_lun = iscsi_max_lun;
 
-	if (!iscsi_register_transport(&iscsi_tcp_transport))
+	iscsi_tcp_scsi_transport = iscsi_register_transport(
+							&iscsi_tcp_transport);
+	if (!iscsi_tcp_scsi_transport)
 		return -ENODEV;
 
 	return 0;
