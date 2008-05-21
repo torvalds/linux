@@ -1360,8 +1360,8 @@ printer_bind(struct usb_gadget *gadget)
 
 
 	/* Setup the sysfs files for the printer gadget. */
-	dev->pdev = device_create(usb_gadget_class, NULL, g_printer_devno,
-			"g_printer");
+	dev->pdev = device_create_drvdata(usb_gadget_class, NULL,
+					  g_printer_devno, NULL, "g_printer");
 	if (IS_ERR(dev->pdev)) {
 		ERROR(dev, "Failed to create device: g_printer\n");
 		goto fail;

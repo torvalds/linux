@@ -1729,9 +1729,9 @@ static int usb_classdev_add(struct usb_device *dev)
 {
 	struct device *cldev;
 
-	cldev = device_create(usb_classdev_class, &dev->dev, dev->dev.devt,
-			      "usbdev%d.%d", dev->bus->busnum,
-			      dev->devnum);
+	cldev = device_create_drvdata(usb_classdev_class, &dev->dev,
+				      dev->dev.devt, NULL, "usbdev%d.%d",
+				      dev->bus->busnum, dev->devnum);
 	if (IS_ERR(cldev))
 		return PTR_ERR(cldev);
 	dev->usb_classdev = cldev;
