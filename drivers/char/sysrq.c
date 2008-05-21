@@ -402,6 +402,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	&sysrq_showstate_blocked_op,	/* w */
 	/* x: May be registered on ppc/powerpc for xmon */
 	NULL,				/* x */
+	/* y: May be registered on sparc64 for global register dump */
 	NULL,				/* y */
 	NULL				/* z */
 };
