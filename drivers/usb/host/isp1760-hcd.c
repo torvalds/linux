@@ -2207,13 +2207,13 @@ struct usb_hcd *isp1760_register(u64 res_start, u64 res_len, int irq,
 		goto err_put;
 	}
 
-	ret = usb_add_hcd(hcd, irq, irqflags);
-	if (ret)
-		goto err_unmap;
-
 	hcd->irq = irq;
 	hcd->rsrc_start = res_start;
 	hcd->rsrc_len = res_len;
+
+	ret = usb_add_hcd(hcd, irq, irqflags);
+	if (ret)
+		goto err_unmap;
 
 	return hcd;
 
