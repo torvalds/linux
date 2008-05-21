@@ -90,6 +90,7 @@ static int no_timer_check;
 
 static int disable_timer_pin_1 __initdata;
 
+int timer_through_8259 __initdata;
 
 /* Where if anywhere is the i8259 connect in external int mode */
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
@@ -1700,6 +1701,7 @@ static inline void __init check_timer(void)
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
 			apic_printk(APIC_VERBOSE," works.\n");
+			timer_through_8259 = 1;
 			nmi_watchdog_default();
 			if (nmi_watchdog == NMI_IO_APIC) {
 				disable_8259A_irq(0);

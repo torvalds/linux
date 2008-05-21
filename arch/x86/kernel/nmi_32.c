@@ -24,6 +24,8 @@
 #include <linux/kdebug.h>
 #include <linux/slab.h>
 
+#include <asm/i8259.h>
+#include <asm/io_apic.h>
 #include <asm/smp.h>
 #include <asm/nmi.h>
 #include <asm/timer.h>
@@ -131,6 +133,8 @@ int __init check_nmi_watchdog(void)
 	kfree(prev_nmi_count);
 	return 0;
 error:
+	if (nmi_watchdog == NMI_IO_APIC && !timer_through_8259)
+		disable_8259A_irq(0);
 	timer_ack = 0;
 
 	return -1;

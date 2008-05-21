@@ -137,6 +137,9 @@ extern int sis_apic_bug;
 /* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
 
+/* 1 if the timer IRQ uses the '8259A Virtual Wire' mode */
+extern int timer_through_8259;
+
 static inline void disable_ioapic_setup(void)
 {
 	skip_ioapic_setup = 1;
@@ -162,6 +165,7 @@ extern void ioapic_init_mappings(void);
 
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
+static const int timer_through_8259 = 0;
 #endif
 
 #endif

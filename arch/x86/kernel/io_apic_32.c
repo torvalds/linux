@@ -58,6 +58,7 @@ static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 static DEFINE_SPINLOCK(ioapic_lock);
 static DEFINE_SPINLOCK(vector_lock);
 
+int timer_through_8259 __initdata;
 
 /*
  *	Is the SiS APIC rmw bug present ?
@@ -2194,6 +2195,7 @@ static inline void __init check_timer(void)
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
 			printk("works.\n");
+			timer_through_8259 = 1;
 			if (pin1 != -1)
 				replace_pin_at_irq(0, apic1, pin1, apic2, pin2);
 			else
