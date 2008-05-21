@@ -126,7 +126,7 @@ static int or51132_readreg(struct or51132_state *state, u8 reg)
 		       reg, err);
 		return -EREMOTEIO;
 	}
-	return le16_to_cpup((u16*)buf);
+	return buf[0] | (buf[1] << 8);
 }
 
 static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware *fw)
@@ -140,9 +140,9 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 	dprintk("Firmware is %Zd bytes\n",fw->size);
 
 	/* Get size of firmware A and B */
-	firmwareAsize = le32_to_cpu(*((u32*)fw->data));
+	firmwareAsize = le32_to_cpu(*((__le32*)fw->data));
 	dprintk("FirmwareA is %i bytes\n",firmwareAsize);
-	firmwareBsize = le32_to_cpu(*((u32*)(fw->data+4)));
+	firmwareBsize = le32_to_cpu(*((__le32*)(fw->data+4)));
 	dprintk("FirmwareB is %i bytes\n",firmwareBsize);
 
 	/* Upload firmware */
