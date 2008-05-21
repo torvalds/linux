@@ -740,7 +740,6 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	struct iscsi_session *session = conn->session;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_cmd_task *ctask;
-	uint32_t itt;
 
 	/* verify PDU length */
 	tcp_conn->in.datalen = ntoh24(hdr->dlength);
@@ -758,7 +757,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 
 	opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 	/* verify itt (itt encoding: age+cid+itt) */
-	rc = iscsi_verify_itt(conn, hdr, &itt);
+	rc = iscsi_verify_itt(conn, hdr->itt);
 	if (rc)
 		return rc;
 
@@ -767,7 +766,10 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 
 	switch(opcode) {
 	case ISCSI_OP_SCSI_DATA_IN:
-		ctask = session->cmds[itt];
+		ctask = iscsi_itt_to_ctask(conn, hdr->itt);
+		if (!ctask)
+			return ISCSI_ERR_BAD_ITT;
+
 		spin_lock(&conn->session->lock);
 		rc = iscsi_data_rsp(conn, ctask);
 		spin_unlock(&conn->session->lock);
@@ -810,7 +812,10 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 		rc = iscsi_complete_pdu(conn, hdr, NULL, 0);
 		break;
 	case ISCSI_OP_R2T:
-		ctask = session->cmds[itt];
+		ctask = iscsi_itt_to_ctask(conn, hdr->itt);
+		if (!ctask)
+			return ISCSI_ERR_BAD_ITT;
+
 		if (ahslen)
 			rc = ISCSI_ERR_AHSLEN;
 		else if (ctask->sc->sc_data_direction == DMA_TO_DEVICE) {

@@ -98,7 +98,6 @@ iscsi_iser_recv(struct iscsi_conn *conn,
 		struct iscsi_hdr *hdr, char *rx_data, int rx_data_len)
 {
 	int rc = 0;
-	uint32_t ret_itt;
 	int datalen;
 	int ahslen;
 
@@ -114,12 +113,7 @@ iscsi_iser_recv(struct iscsi_conn *conn,
 	/* read AHS */
 	ahslen = hdr->hlength * 4;
 
-	/* verify itt (itt encoding: age+cid+itt) */
-	rc = iscsi_verify_itt(conn, hdr, &ret_itt);
-
-	if (!rc)
-		rc = iscsi_complete_pdu(conn, hdr, rx_data, rx_data_len);
-
+	rc = iscsi_complete_pdu(conn, hdr, rx_data, rx_data_len);
 	if (rc && rc != ISCSI_ERR_NO_SCSI_CMD)
 		goto error;
 

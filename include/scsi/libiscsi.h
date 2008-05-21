@@ -385,8 +385,8 @@ extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,
 				char *, uint32_t);
 extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 			      char *, int);
-extern int iscsi_verify_itt(struct iscsi_conn *, struct iscsi_hdr *,
-			    uint32_t *);
+extern int iscsi_verify_itt(struct iscsi_conn *, itt_t);
+extern struct iscsi_cmd_task *iscsi_itt_to_ctask(struct iscsi_conn *, itt_t);
 extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);
 extern void iscsi_free_mgmt_task(struct iscsi_conn *conn,
 				 struct iscsi_mgmt_task *mtask);

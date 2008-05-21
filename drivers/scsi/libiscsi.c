@@ -640,6 +640,10 @@ static int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	uint32_t itt;
 
 	conn->last_recv = jiffies;
+	rc = iscsi_verify_itt(conn, hdr->itt);
+	if (rc)
+		return rc;
+
 	if (hdr->itt != RESERVED_ITT)
 		itt = get_itt(hdr->itt);
 	else
@@ -776,27 +780,22 @@ int iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 }
 EXPORT_SYMBOL_GPL(iscsi_complete_pdu);
 
-/* verify itt (itt encoding: age+cid+itt) */
-int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
-		     uint32_t *ret_itt)
+int iscsi_verify_itt(struct iscsi_conn *conn, itt_t itt)
 {
 	struct iscsi_session *session = conn->session;
 	struct iscsi_cmd_task *ctask;
-	uint32_t itt;
 
-	if (hdr->itt != RESERVED_ITT) {
-		if (((__force u32)hdr->itt & ISCSI_AGE_MASK) !=
-		    (session->age << ISCSI_AGE_SHIFT)) {
-			iscsi_conn_printk(KERN_ERR, conn,
-					  "received itt %x expected session "
-					  "age (%x)\n", (__force u32)hdr->itt,
-					  session->age & ISCSI_AGE_MASK);
-			return ISCSI_ERR_BAD_ITT;
-		}
+	if (itt == RESERVED_ITT)
+		return 0;
 
-		itt = get_itt(hdr->itt);
-	} else
-		itt = ~0U;
+	if (((__force u32)itt & ISCSI_AGE_MASK) !=
+	    (session->age << ISCSI_AGE_SHIFT)) {
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "received itt %x expected session age (%x)\n",
+				  (__force u32)itt,
+				  session->age & ISCSI_AGE_MASK);
+		return ISCSI_ERR_BAD_ITT;
+	}
 
 	if (itt < session->cmds_max) {
 		ctask = session->cmds[itt];
@@ -817,10 +816,37 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		}
 	}
 
-	*ret_itt = itt;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iscsi_verify_itt);
+
+struct iscsi_cmd_task *
+iscsi_itt_to_ctask(struct iscsi_conn *conn, itt_t itt)
+{
+	struct iscsi_session *session = conn->session;
+	struct iscsi_cmd_task *ctask;
+	uint32_t i;
+
+	if (iscsi_verify_itt(conn, itt))
+		return NULL;
+
+	if (itt == RESERVED_ITT)
+		return NULL;
+
+	i = get_itt(itt);
+	if (i >= session->cmds_max)
+		return NULL;
+
+	ctask = session->cmds[i];
+	if (!ctask->sc)
+		return NULL;
+
+	if (ctask->sc->SCp.phase != session->age)
+		return NULL;
+
+	return ctask;
+}
+EXPORT_SYMBOL_GPL(iscsi_itt_to_ctask);
 
 void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err)
 {

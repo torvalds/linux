@@ -537,13 +537,11 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 {
 	struct iser_dto        *dto = &rx_desc->dto;
 	struct iscsi_iser_conn *conn = dto->ib_conn->iser_conn;
-	struct iscsi_session *session = conn->iscsi_conn->session;
 	struct iscsi_cmd_task *ctask;
 	struct iscsi_iser_cmd_task *iser_ctask;
 	struct iscsi_hdr *hdr;
 	char   *rx_data = NULL;
 	int     rx_data_len = 0;
-	unsigned int itt;
 	unsigned char opcode;
 
 	hdr = &rx_desc->iscsi_header;
@@ -559,19 +557,18 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 	opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
 	if (opcode == ISCSI_OP_SCSI_CMD_RSP) {
-	        itt = get_itt(hdr->itt); /* mask out cid and age bits */
-		if (!(itt < session->cmds_max))
+		ctask = iscsi_itt_to_ctask(conn->iscsi_conn, hdr->itt);
+		if (!ctask)
 			iser_err("itt can't be matched to task!!! "
-				 "conn %p opcode %d cmds_max %d itt %d\n",
-				 conn->iscsi_conn,opcode,session->cmds_max,itt);
-		/* use the mapping given with the cmds array indexed by itt */
-		ctask = (struct iscsi_cmd_task *)session->cmds[itt];
-		iser_ctask = ctask->dd_data;
-		iser_dbg("itt %d ctask %p\n",itt,ctask);
-		iser_ctask->status = ISER_TASK_STATUS_COMPLETED;
-		iser_ctask_rdma_finalize(iser_ctask);
+				 "conn %p opcode %d itt %d\n",
+				 conn->iscsi_conn, opcode, hdr->itt);
+		else {
+			iser_ctask = ctask->dd_data;
+			iser_dbg("itt %d ctask %p\n",hdr->itt, ctask);
+			iser_ctask->status = ISER_TASK_STATUS_COMPLETED;
+			iser_ctask_rdma_finalize(iser_ctask);
+		}
 	}
-
 	iser_dto_buffs_release(dto);
 
 	iscsi_iser_recv(conn->iscsi_conn, hdr, rx_data, rx_data_len);
