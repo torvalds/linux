@@ -2199,7 +2199,9 @@ static inline void __init check_timer(void)
 			else
 				add_pin_to_irq(0, apic2, pin2);
 			if (nmi_watchdog == NMI_IO_APIC) {
+				disable_8259A_irq(0);
 				setup_nmi();
+				enable_8259A_irq(0);
 			}
 			goto out;
 		}
