@@ -4753,8 +4753,8 @@ static int __init stallion_module_init(void)
 	if (IS_ERR(stallion_class))
 		printk("STALLION: failed to create class\n");
 	for (i = 0; i < 4; i++)
-		device_create(stallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
-			      "staliomem%d", i);
+		device_create_drvdata(stallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
+				      NULL, "staliomem%d", i);
 
 	return 0;
 err_unrtty:
