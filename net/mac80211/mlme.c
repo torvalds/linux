@@ -2479,8 +2479,6 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	ifsta->state = IEEE80211_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
 
-	ieee80211_rx_bss_put(dev, bss);
-
 	return res;
 }
 
@@ -3523,6 +3521,7 @@ static int ieee80211_sta_create_ibss(struct net_device *dev,
 	struct ieee80211_supported_band *sband;
 	u8 bssid[ETH_ALEN], *pos;
 	int i;
+	int ret;
 	DECLARE_MAC_BUF(mac);
 
 #if 0
@@ -3567,7 +3566,9 @@ static int ieee80211_sta_create_ibss(struct net_device *dev,
 		*pos++ = (u8) (rate / 5);
 	}
 
-	return ieee80211_sta_join_ibss(dev, ifsta, bss);
+	ret = ieee80211_sta_join_ibss(dev, ifsta, bss);
+	ieee80211_rx_bss_put(dev, bss);
+	return ret;
 }
 
 
@@ -3615,10 +3616,13 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 	    (bss = ieee80211_rx_bss_get(dev, bssid,
 					local->hw.conf.channel->center_freq,
 					ifsta->ssid, ifsta->ssid_len))) {
+		int ret;
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %s"
 		       " based on configured SSID\n",
 		       dev->name, print_mac(mac, bssid));
-		return ieee80211_sta_join_ibss(dev, ifsta, bss);
+		ret = ieee80211_sta_join_ibss(dev, ifsta, bss);
+		ieee80211_rx_bss_put(dev, bss);
+		return ret;
 	}
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "   did not try to join ibss\n");
