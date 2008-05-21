@@ -173,7 +173,7 @@ struct iser_data_buf {
 /* fwd declarations */
 struct iser_device;
 struct iscsi_iser_conn;
-struct iscsi_iser_cmd_task;
+struct iscsi_iser_task;
 
 struct iser_mem_reg {
 	u32  lkey;
@@ -197,7 +197,7 @@ struct iser_regd_buf {
 #define MAX_REGD_BUF_VECTOR_LEN	2
 
 struct iser_dto {
-	struct iscsi_iser_cmd_task *ctask;
+	struct iscsi_iser_task *task;
 	struct iser_conn *ib_conn;
 	int                        notify_enable;
 
@@ -265,7 +265,7 @@ struct iscsi_iser_conn {
 	rwlock_t		     lock;
 };
 
-struct iscsi_iser_cmd_task {
+struct iscsi_iser_task {
 	struct iser_desc             desc;
 	struct iscsi_iser_conn	     *iser_conn;
 	enum iser_task_status 	     status;
@@ -299,13 +299,13 @@ extern int iser_debug_level;
 int iser_conn_set_full_featured_mode(struct iscsi_conn *conn);
 
 int iser_send_control(struct iscsi_conn *conn,
-		      struct iscsi_cmd_task *ctask);
+		      struct iscsi_task *task);
 
 int iser_send_command(struct iscsi_conn *conn,
-		      struct iscsi_cmd_task *ctask);
+		      struct iscsi_task *task);
 
 int iser_send_data_out(struct iscsi_conn *conn,
-		       struct iscsi_cmd_task *ctask,
+		       struct iscsi_task *task,
 		       struct iscsi_data *hdr);
 
 void iscsi_iser_recv(struct iscsi_conn *conn,
@@ -326,9 +326,9 @@ void iser_rcv_completion(struct iser_desc *desc,
 
 void iser_snd_completion(struct iser_desc *desc);
 
-void iser_ctask_rdma_init(struct iscsi_iser_cmd_task *ctask);
+void iser_task_rdma_init(struct iscsi_iser_task *task);
 
-void iser_ctask_rdma_finalize(struct iscsi_iser_cmd_task *ctask);
+void iser_task_rdma_finalize(struct iscsi_iser_task *task);
 
 void iser_dto_buffs_release(struct iser_dto *dto);
 
@@ -338,10 +338,10 @@ void iser_reg_single(struct iser_device      *device,
 		     struct iser_regd_buf    *regd_buf,
 		     enum dma_data_direction direction);
 
-void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *ctask,
+void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *task,
 				     enum iser_data_dir         cmd_dir);
 
-int  iser_reg_rdma_mem(struct iscsi_iser_cmd_task *ctask,
+int  iser_reg_rdma_mem(struct iscsi_iser_task *task,
 		       enum   iser_data_dir        cmd_dir);
 
 int  iser_connect(struct iser_conn   *ib_conn,
@@ -361,10 +361,10 @@ int  iser_post_send(struct iser_desc *tx_desc);
 int iser_conn_state_comp(struct iser_conn *ib_conn,
 			 enum iser_ib_conn_state comp);
 
-int iser_dma_map_task_data(struct iscsi_iser_cmd_task *iser_ctask,
+int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 			    struct iser_data_buf       *data,
 			    enum   iser_data_dir       iser_dir,
 			    enum   dma_data_direction  dma_dir);
 
-void iser_dma_unmap_task_data(struct iscsi_iser_cmd_task *iser_ctask);
+void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task);
 #endif

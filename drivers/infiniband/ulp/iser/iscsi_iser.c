@@ -124,33 +124,33 @@ error:
 
 
 /**
- * iscsi_iser_task_init - Initialize ctask
- * @ctask: iscsi ctask
+ * iscsi_iser_task_init - Initialize task
+ * @task: iscsi task
  *
- * Initialize the ctask for the scsi command or mgmt command.
+ * Initialize the task for the scsi command or mgmt command.
  */
 static int
-iscsi_iser_task_init(struct iscsi_cmd_task *ctask)
+iscsi_iser_task_init(struct iscsi_task *task)
 {
-	struct iscsi_iser_conn *iser_conn  = ctask->conn->dd_data;
-	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
+	struct iscsi_iser_conn *iser_conn  = task->conn->dd_data;
+	struct iscsi_iser_task *iser_task = task->dd_data;
 
-	/* mgmt ctask */
-	if (!ctask->sc) {
-		iser_ctask->desc.data = ctask->data;
+	/* mgmt task */
+	if (!task->sc) {
+		iser_task->desc.data = task->data;
 		return 0;
 	}
 
-	iser_ctask->command_sent = 0;
-	iser_ctask->iser_conn    = iser_conn;
-	iser_ctask_rdma_init(iser_ctask);
+	iser_task->command_sent = 0;
+	iser_task->iser_conn    = iser_conn;
+	iser_task_rdma_init(iser_task);
 	return 0;
 }
 
 /**
- * iscsi_iser_mtask_xmit - xmit management(immediate) ctask
+ * iscsi_iser_mtask_xmit - xmit management(immediate) task
  * @conn: iscsi connection
- * @ctask: ctask management ctask
+ * @task: task management task
  *
  * Notes:
  *	The function can return -EAGAIN in which case caller must
@@ -159,19 +159,19 @@ iscsi_iser_task_init(struct iscsi_cmd_task *ctask)
  *
  **/
 static int
-iscsi_iser_mtask_xmit(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+iscsi_iser_mtask_xmit(struct iscsi_conn *conn, struct iscsi_task *task)
 {
 	int error = 0;
 
-	debug_scsi("ctask deq [cid %d itt 0x%x]\n", conn->id, ctask->itt);
+	debug_scsi("task deq [cid %d itt 0x%x]\n", conn->id, task->itt);
 
-	error = iser_send_control(conn, ctask);
+	error = iser_send_control(conn, task);
 
-	/* since iser xmits control with zero copy, ctasks can not be recycled
+	/* since iser xmits control with zero copy, tasks can not be recycled
 	 * right after sending them.
 	 * The recycling scheme is based on whether a response is expected
-	 * - if yes, the ctask is recycled at iscsi_complete_pdu
-	 * - if no,  the ctask is recycled at iser_snd_completion
+	 * - if yes, the task is recycled at iscsi_complete_pdu
+	 * - if no,  the task is recycled at iser_snd_completion
 	 */
 	if (error && error != -ENOBUFS)
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
@@ -181,27 +181,27 @@ iscsi_iser_mtask_xmit(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 static int
 iscsi_iser_task_xmit_unsol_data(struct iscsi_conn *conn,
-				 struct iscsi_cmd_task *ctask)
+				 struct iscsi_task *task)
 {
 	struct iscsi_data  hdr;
 	int error = 0;
 
 	/* Send data-out PDUs while there's still unsolicited data to send */
-	while (ctask->unsol_count > 0) {
-		iscsi_prep_unsolicit_data_pdu(ctask, &hdr);
+	while (task->unsol_count > 0) {
+		iscsi_prep_unsolicit_data_pdu(task, &hdr);
 		debug_scsi("Sending data-out: itt 0x%x, data count %d\n",
-			   hdr.itt, ctask->data_count);
+			   hdr.itt, task->data_count);
 
 		/* the buffer description has been passed with the command */
 		/* Send the command */
-		error = iser_send_data_out(conn, ctask, &hdr);
+		error = iser_send_data_out(conn, task, &hdr);
 		if (error) {
-			ctask->unsol_datasn--;
+			task->unsol_datasn--;
 			goto iscsi_iser_task_xmit_unsol_data_exit;
 		}
-		ctask->unsol_count -= ctask->data_count;
+		task->unsol_count -= task->data_count;
 		debug_scsi("Need to send %d more as data-out PDUs\n",
-			   ctask->unsol_count);
+			   task->unsol_count);
 	}
 
 iscsi_iser_task_xmit_unsol_data_exit:
@@ -209,37 +209,37 @@ iscsi_iser_task_xmit_unsol_data_exit:
 }
 
 static int
-iscsi_iser_task_xmit(struct iscsi_cmd_task *ctask)
+iscsi_iser_task_xmit(struct iscsi_task *task)
 {
-	struct iscsi_conn *conn = ctask->conn;
-	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
+	struct iscsi_conn *conn = task->conn;
+	struct iscsi_iser_task *iser_task = task->dd_data;
 	int error = 0;
 
-	if (!ctask->sc)
-		return iscsi_iser_mtask_xmit(conn, ctask);
+	if (!task->sc)
+		return iscsi_iser_mtask_xmit(conn, task);
 
-	if (ctask->sc->sc_data_direction == DMA_TO_DEVICE) {
-		BUG_ON(scsi_bufflen(ctask->sc) == 0);
+	if (task->sc->sc_data_direction == DMA_TO_DEVICE) {
+		BUG_ON(scsi_bufflen(task->sc) == 0);
 
 		debug_scsi("cmd [itt %x total %d imm %d unsol_data %d\n",
-			   ctask->itt, scsi_bufflen(ctask->sc),
-			   ctask->imm_count, ctask->unsol_count);
+			   task->itt, scsi_bufflen(task->sc),
+			   task->imm_count, task->unsol_count);
 	}
 
-	debug_scsi("ctask deq [cid %d itt 0x%x]\n",
-		   conn->id, ctask->itt);
+	debug_scsi("task deq [cid %d itt 0x%x]\n",
+		   conn->id, task->itt);
 
 	/* Send the cmd PDU */
-	if (!iser_ctask->command_sent) {
-		error = iser_send_command(conn, ctask);
+	if (!iser_task->command_sent) {
+		error = iser_send_command(conn, task);
 		if (error)
 			goto iscsi_iser_task_xmit_exit;
-		iser_ctask->command_sent = 1;
+		iser_task->command_sent = 1;
 	}
 
 	/* Send unsolicited data-out PDU(s) if necessary */
-	if (ctask->unsol_count)
-		error = iscsi_iser_task_xmit_unsol_data(conn, ctask);
+	if (task->unsol_count)
+		error = iscsi_iser_task_xmit_unsol_data(conn, task);
 
  iscsi_iser_task_xmit_exit:
 	if (error && error != -ENOBUFS)
@@ -248,17 +248,17 @@ iscsi_iser_task_xmit(struct iscsi_cmd_task *ctask)
 }
 
 static void
-iscsi_iser_cleanup_task(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
+iscsi_iser_cleanup_task(struct iscsi_conn *conn, struct iscsi_task *task)
 {
-	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
+	struct iscsi_iser_task *iser_task = task->dd_data;
 
 	/* mgmt tasks do not need special cleanup */
-	if (!ctask->sc)
+	if (!task->sc)
 		return;
 
-	if (iser_ctask->status == ISER_TASK_STATUS_STARTED) {
-		iser_ctask->status = ISER_TASK_STATUS_COMPLETED;
-		iser_ctask_rdma_finalize(iser_ctask);
+	if (iser_task->status == ISER_TASK_STATUS_STARTED) {
+		iser_task->status = ISER_TASK_STATUS_COMPLETED;
+		iser_task_rdma_finalize(iser_task);
 	}
 }
 
@@ -408,8 +408,8 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	int i;
-	struct iscsi_cmd_task *ctask;
-	struct iscsi_iser_cmd_task *iser_ctask;
+	struct iscsi_task *task;
+	struct iscsi_iser_task *iser_task;
 
 	if (shost) {
 		printk(KERN_ERR "iscsi_tcp: invalid shost %d.\n",
@@ -436,7 +436,7 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 	 */
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,
 					  ISCSI_DEF_XMIT_CMDS_MAX,
-					  sizeof(struct iscsi_iser_cmd_task),
+					  sizeof(struct iscsi_iser_task),
 					  initial_cmdsn);
 	if (!cls_session)
 		goto remove_host;
@@ -445,10 +445,10 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 	shost->can_queue = session->scsi_cmds_max;
 	/* libiscsi setup itts, data and pool so just set desc fields */
 	for (i = 0; i < session->cmds_max; i++) {
-		ctask = session->cmds[i];
-		iser_ctask = ctask->dd_data;
-		ctask->hdr = (struct iscsi_cmd *)&iser_ctask->desc.iscsi_header;
-		ctask->hdr_max = sizeof(iser_ctask->desc.iscsi_header);
+		task = session->cmds[i];
+		iser_task = task->dd_data;
+		task->hdr = (struct iscsi_cmd *)&iser_task->desc.iscsi_header;
+		task->hdr_max = sizeof(iser_task->desc.iscsi_header);
 	}
 	return cls_session;
 
