@@ -592,6 +592,12 @@
 #define	FIC_NEO1973_DEBUG_PID	0x5118
 
 /*
+ * RATOC REX-USB60F
+ */
+#define RATOC_VENDOR_ID		0x0584
+#define RATOC_PRODUCT_ID_USB60F	0xb020
+
+/*
  *   BmRequestType:  1100 0000b
  *   bRequest:       FTDI_E2_READ
  *   wValue:         0
