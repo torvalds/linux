@@ -58,7 +58,6 @@ static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 static DEFINE_SPINLOCK(ioapic_lock);
 static DEFINE_SPINLOCK(vector_lock);
 
-int timer_over_8254 __initdata = 1;
 
 /*
  *	Is the SiS APIC rmw bug present ?
@@ -2157,8 +2156,6 @@ static inline void __init check_timer(void)
 	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
 	timer_ack = (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
-	if (timer_over_8254 > 0)
-		enable_8259A_irq(0);
 
 	pin1  = find_isa_irq_pin(0, mp_INT);
 	apic1 = find_isa_irq_apic(0, mp_INT);
@@ -2175,7 +2172,6 @@ static inline void __init check_timer(void)
 		unmask_IO_APIC_irq(0);
 		if (timer_irq_works()) {
 			if (nmi_watchdog == NMI_IO_APIC) {
-				disable_8259A_irq(0);
 				setup_nmi();
 				enable_8259A_irq(0);
 			}
@@ -2195,6 +2191,7 @@ static inline void __init check_timer(void)
 		 * legacy devices should be connected to IO APIC #0
 		 */
 		setup_ExtINT_IRQ0_pin(apic2, pin2, vector);
+		enable_8259A_irq(0);
 		if (timer_irq_works()) {
 			printk("works.\n");
 			if (pin1 != -1)
@@ -2209,6 +2206,7 @@ static inline void __init check_timer(void)
 		/*
 		 * Cleanup, just in case ...
 		 */
+		disable_8259A_irq(0);
 		clear_IO_APIC_pin(apic2, pin2);
 	}
 	printk(" failed.\n");
@@ -2221,7 +2219,6 @@ static inline void __init check_timer(void)
 
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
-	disable_8259A_irq(0);
 	set_irq_chip_and_handler_name(0, &lapic_chip, handle_fasteoi_irq,
 				      "fasteoi");
 	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
@@ -2291,20 +2288,6 @@ void __init setup_IO_APIC(void)
 	if (!acpi_ioapic)
 		print_IO_APIC();
 }
-
-static int __init setup_disable_8254_timer(char *s)
-{
-	timer_over_8254 = -1;
-	return 1;
-}
-static int __init setup_enable_8254_timer(char *s)
-{
-	timer_over_8254 = 2;
-	return 1;
-}
-
-__setup("disable_8254_timer", setup_disable_8254_timer);
-__setup("enable_8254_timer", setup_enable_8254_timer);
 
 /*
  *	Called after all the initialization is done. If we didnt find any
