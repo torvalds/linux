@@ -369,9 +369,11 @@ extern int iscsi_conn_bind(struct iscsi_cls_session *, struct iscsi_cls_conn *,
 extern void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err);
 extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 				enum iscsi_param param, char *buf);
+extern void iscsi_suspend_tx(struct iscsi_conn *conn);
 
 #define iscsi_conn_printk(prefix, _c, fmt, a...) \
-	iscsi_cls_conn_printk(prefix, _c->cls_conn, fmt, ##a)
+	iscsi_cls_conn_printk(prefix, ((struct iscsi_conn *)_c)->cls_conn, \
+			      fmt, ##a)
 
 /*
  * pdu and task processing
