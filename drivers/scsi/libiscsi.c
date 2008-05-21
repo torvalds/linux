@@ -362,10 +362,11 @@ static void iscsi_complete_command(struct iscsi_task *task)
 	}
 }
 
-static void __iscsi_get_task(struct iscsi_task *task)
+void __iscsi_get_task(struct iscsi_task *task)
 {
 	atomic_inc(&task->refcount);
 }
+EXPORT_SYMBOL_GPL(__iscsi_get_task);
 
 static void __iscsi_put_task(struct iscsi_task *task)
 {
@@ -403,9 +404,13 @@ static void fail_command(struct iscsi_conn *conn, struct iscsi_task *task,
 		conn->session->queued_cmdsn--;
 	else
 		conn->session->tt->cleanup_task(conn, task);
+	/*
+	 * Check if cleanup_task dropped the lock and the command completed,
+	 */
+	if (!task->sc)
+		return;
 
 	sc->result = err;
-
 	if (!scsi_bidi_cmnd(sc))
 		scsi_set_resid(sc, scsi_bufflen(sc));
 	else {
@@ -697,6 +702,31 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 }
 
 /**
+ * iscsi_itt_to_task - look up task by itt
+ * @conn: iscsi connection
+ * @itt: itt
+ *
+ * This should be used for mgmt tasks like login and nops, or if
+ * the LDD's itt space does not include the session age.
+ *
+ * The session lock must be held.
+ */
+static struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *conn, itt_t itt)
+{
+	struct iscsi_session *session = conn->session;
+	uint32_t i;
+
+	if (itt == RESERVED_ITT)
+		return NULL;
+
+	i = get_itt(itt);
+	if (i >= session->cmds_max)
+		return NULL;
+
+	return session->cmds[i];
+}
+
+/**
  * __iscsi_complete_pdu - complete pdu
  * @conn: iscsi conn
  * @hdr: iscsi header
@@ -707,8 +737,8 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
  * queuecommand or send generic. session lock must be held and verify
  * itt must have been called.
  */
-static int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
-				char *data, int datalen)
+int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
+			 char *data, int datalen)
 {
 	struct iscsi_session *session = conn->session;
 	int opcode = hdr->opcode & ISCSI_OPCODE_MASK, rc = 0;
@@ -758,31 +788,42 @@ static int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		goto out;
 	}
 
-	task = session->cmds[itt];
 	switch(opcode) {
 	case ISCSI_OP_SCSI_CMD_RSP:
-		if (!task->sc) {
-			rc = ISCSI_ERR_NO_SCSI_CMD;
-			break;
-		}
-		BUG_ON((void*)task != task->sc->SCp.ptr);
+	case ISCSI_OP_SCSI_DATA_IN:
+		task = iscsi_itt_to_ctask(conn, hdr->itt);
+		if (!task)
+			return ISCSI_ERR_BAD_ITT;
+		break;
+	case ISCSI_OP_R2T:
+		/*
+		 * LLD handles R2Ts if they need to.
+		 */
+		return 0;
+	case ISCSI_OP_LOGOUT_RSP:
+	case ISCSI_OP_LOGIN_RSP:
+	case ISCSI_OP_TEXT_RSP:
+	case ISCSI_OP_SCSI_TMFUNC_RSP:
+	case ISCSI_OP_NOOP_IN:
+		task = iscsi_itt_to_task(conn, hdr->itt);
+		if (!task)
+			return ISCSI_ERR_BAD_ITT;
+		break;
+	default:
+		return ISCSI_ERR_BAD_OPCODE;
+	}
+
+	switch(opcode) {
+	case ISCSI_OP_SCSI_CMD_RSP:
 		iscsi_scsi_cmd_rsp(conn, hdr, task, data, datalen);
 		break;
 	case ISCSI_OP_SCSI_DATA_IN:
-		if (!task->sc) {
-			rc = ISCSI_ERR_NO_SCSI_CMD;
-			break;
-		}
-		BUG_ON((void*)task != task->sc->SCp.ptr);
 		if (hdr->flags & ISCSI_FLAG_DATA_STATUS) {
 			conn->scsirsp_pdus_cnt++;
 			iscsi_update_cmdsn(session,
 					   (struct iscsi_nopin*) hdr);
 			__iscsi_put_task(task);
 		}
-		break;
-	case ISCSI_OP_R2T:
-		/* LLD handles this for now */
 		break;
 	case ISCSI_OP_LOGOUT_RSP:
 		iscsi_update_cmdsn(session, (struct iscsi_nopin*)hdr);
@@ -841,6 +882,7 @@ recv_pdu:
 	__iscsi_put_task(task);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(__iscsi_complete_pdu);
 
 int iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		       char *data, int datalen)
@@ -857,7 +899,6 @@ EXPORT_SYMBOL_GPL(iscsi_complete_pdu);
 int iscsi_verify_itt(struct iscsi_conn *conn, itt_t itt)
 {
 	struct iscsi_session *session = conn->session;
-	struct iscsi_task *task;
 	uint32_t i;
 
 	if (itt == RESERVED_ITT)
@@ -867,8 +908,7 @@ int iscsi_verify_itt(struct iscsi_conn *conn, itt_t itt)
 	    (session->age << ISCSI_AGE_SHIFT)) {
 		iscsi_conn_printk(KERN_ERR, conn,
 				  "received itt %x expected session age (%x)\n",
-				  (__force u32)itt,
-				  session->age & ISCSI_AGE_MASK);
+				  (__force u32)itt, session->age);
 		return ISCSI_ERR_BAD_ITT;
 	}
 
@@ -879,42 +919,36 @@ int iscsi_verify_itt(struct iscsi_conn *conn, itt_t itt)
 				   "%u.\n", i, session->cmds_max);
 		return ISCSI_ERR_BAD_ITT;
 	}
-
-	task = session->cmds[i];
-	if (task->sc && task->sc->SCp.phase != session->age) {
-		iscsi_conn_printk(KERN_ERR, conn,
-				  "iscsi: task's session age %d, "
-				  "expected %d\n", task->sc->SCp.phase,
-				  session->age);
-		return ISCSI_ERR_SESSION_FAILED;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iscsi_verify_itt);
 
-struct iscsi_task *
-iscsi_itt_to_ctask(struct iscsi_conn *conn, itt_t itt)
+/**
+ * iscsi_itt_to_ctask - look up ctask by itt
+ * @conn: iscsi connection
+ * @itt: itt
+ *
+ * This should be used for cmd tasks.
+ *
+ * The session lock must be held.
+ */
+struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_conn *conn, itt_t itt)
 {
-	struct iscsi_session *session = conn->session;
 	struct iscsi_task *task;
-	uint32_t i;
 
 	if (iscsi_verify_itt(conn, itt))
 		return NULL;
 
-	if (itt == RESERVED_ITT)
+	task = iscsi_itt_to_task(conn, itt);
+	if (!task || !task->sc)
 		return NULL;
 
-	i = get_itt(itt);
-	if (i >= session->cmds_max)
+	if (task->sc->SCp.phase != conn->session->age) {
+		iscsi_session_printk(KERN_ERR, conn->session,
+				  "task's session age %d, expected %d\n",
+				  task->sc->SCp.phase, conn->session->age);
 		return NULL;
-
-	task = session->cmds[i];
-	if (!task->sc)
-		return NULL;
-
-	if (task->sc->SCp.phase != session->age)
-		return NULL;
+	}
 
 	return task;
 }
@@ -1620,16 +1654,20 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	switch (conn->tmf_state) {
 	case TMF_SUCCESS:
 		spin_unlock_bh(&session->lock);
+		/*
+		 * stop tx side incase the target had sent a abort rsp but
+		 * the initiator was still writing out data.
+		 */
 		iscsi_suspend_tx(conn);
 		/*
-		 * clean up task if aborted. grab the recv lock as a writer
+		 * we do not stop the recv side because targets have been
+		 * good and have never sent us a successful tmf response
+		 * then sent more data for the cmd.
 		 */
-		write_lock_bh(conn->recv_lock);
 		spin_lock(&session->lock);
 		fail_command(conn, task, DID_ABORT << 16);
 		conn->tmf_state = TMF_INITIAL;
 		spin_unlock(&session->lock);
-		write_unlock_bh(conn->recv_lock);
 		iscsi_start_tx(conn);
 		goto success_unlocked;
 	case TMF_TIMEDOUT:
@@ -1729,13 +1767,11 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 	spin_unlock_bh(&session->lock);
 
 	iscsi_suspend_tx(conn);
-	/* need to grab the recv lock then session lock */
-	write_lock_bh(conn->recv_lock);
+
 	spin_lock(&session->lock);
 	fail_all_commands(conn, sc->device->lun, DID_ERROR);
 	conn->tmf_state = TMF_INITIAL;
 	spin_unlock(&session->lock);
-	write_unlock_bh(conn->recv_lock);
 
 	iscsi_start_tx(conn);
 	goto done;
@@ -2257,17 +2293,6 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	}
 
 	/*
-	 * The LLD either freed/unset the lock on us, or userspace called
-	 * stop but did not create a proper connection (connection was never
-	 * bound or it was unbound then stop was called).
-	 */
-	if (!conn->recv_lock) {
-		spin_unlock_bh(&session->lock);
-		mutex_unlock(&session->eh_mutex);
-		return;
-	}
-
-	/*
 	 * When this is called for the in_login state, we only want to clean
 	 * up the login task and connection. We do not need to block and set
 	 * the recovery state again
@@ -2283,11 +2308,6 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	spin_unlock_bh(&session->lock);
 
 	iscsi_suspend_tx(conn);
-
-	write_lock_bh(conn->recv_lock);
-	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
-	write_unlock_bh(conn->recv_lock);
-
 	/*
 	 * for connection level recovery we should not calculate
 	 * header digest. conn->hdr_size used for optimization

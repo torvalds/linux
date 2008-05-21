@@ -558,7 +558,12 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 	opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
 	if (opcode == ISCSI_OP_SCSI_CMD_RSP) {
+		spin_lock(&conn->iscsi_conn->session->lock);
 		task = iscsi_itt_to_ctask(conn->iscsi_conn, hdr->itt);
+		if (task)
+			__iscsi_get_task(task);
+		spin_unlock(&conn->iscsi_conn->session->lock);
+
 		if (!task)
 			iser_err("itt can't be matched to task!!! "
 				 "conn %p opcode %d itt %d\n",
@@ -568,6 +573,7 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 			iser_dbg("itt %d task %p\n",hdr->itt, task);
 			iser_task->status = ISER_TASK_STATUS_COMPLETED;
 			iser_task_rdma_finalize(iser_task);
+			iscsi_put_task(task);
 		}
 	}
 	iser_dto_buffs_release(dto);

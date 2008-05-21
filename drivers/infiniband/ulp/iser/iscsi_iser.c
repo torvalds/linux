@@ -281,9 +281,6 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	conn->max_recv_dlength = 128;
 
 	iser_conn = conn->dd_data;
-	/* currently this is the only field which need to be initiated */
-	rwlock_init(&iser_conn->lock);
-
 	conn->dd_data = iser_conn;
 	iser_conn->iscsi_conn = conn;
 
@@ -342,9 +339,6 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	ib_conn->iser_conn = iser_conn;
 	iser_conn->ib_conn  = ib_conn;
 	iser_conn_get(ib_conn);
-
-	conn->recv_lock = &iser_conn->lock;
-
 	return 0;
 }
 
@@ -355,12 +349,18 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 	struct iser_conn *ib_conn = iser_conn->ib_conn;
 
-	iscsi_conn_stop(cls_conn, flag);
 	/*
-	 * There is no unbind event so the stop callback
-	 * must release the ref from the bind.
+	 * Userspace may have goofed up and not bound the connection or
+	 * might have only partially setup the connection.
 	 */
-	iser_conn_put(ib_conn);
+	if (ib_conn) {
+		iscsi_conn_stop(cls_conn, flag);
+		/*
+		 * There is no unbind event so the stop callback
+		 * must release the ref from the bind.
+		 */
+		iser_conn_put(ib_conn);
+	}
 	iser_conn->ib_conn = NULL;
 }
 

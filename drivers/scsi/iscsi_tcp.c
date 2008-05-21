@@ -741,7 +741,6 @@ static int
 iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 {
 	int rc = 0, opcode, ahslen;
-	struct iscsi_session *session = conn->session;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_task *task;
 
@@ -770,17 +769,17 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 
 	switch(opcode) {
 	case ISCSI_OP_SCSI_DATA_IN:
+		spin_lock(&conn->session->lock);
 		task = iscsi_itt_to_ctask(conn, hdr->itt);
 		if (!task)
-			return ISCSI_ERR_BAD_ITT;
-		if (!task->sc)
-			return ISCSI_ERR_NO_SCSI_CMD;
+			rc = ISCSI_ERR_BAD_ITT;
+		else
+			rc = iscsi_data_rsp(conn, task);
+		if (rc) {
+			spin_unlock(&conn->session->lock);
+			break;
+		}
 
-		spin_lock(&conn->session->lock);
-		rc = iscsi_data_rsp(conn, task);
-		spin_unlock(&conn->session->lock);
-		if (rc)
-			return rc;
 		if (tcp_conn->in.datalen) {
 			struct iscsi_tcp_task *tcp_task = task->dd_data;
 			struct hash_desc *rx_hash = NULL;
@@ -801,15 +800,19 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 				  "datalen=%d)\n", tcp_conn,
 				  tcp_task->data_offset,
 				  tcp_conn->in.datalen);
-			return iscsi_segment_seek_sg(&tcp_conn->in.segment,
-						     sdb->table.sgl,
-						     sdb->table.nents,
-						     tcp_task->data_offset,
-						     tcp_conn->in.datalen,
-						     iscsi_tcp_process_data_in,
-						     rx_hash);
+			rc = iscsi_segment_seek_sg(&tcp_conn->in.segment,
+						   sdb->table.sgl,
+						   sdb->table.nents,
+						   tcp_task->data_offset,
+						   tcp_conn->in.datalen,
+						   iscsi_tcp_process_data_in,
+						   rx_hash);
+			spin_unlock(&conn->session->lock);
+			return rc;
 		}
-		/* fall through */
+		rc = __iscsi_complete_pdu(conn, hdr, NULL, 0);
+		spin_unlock(&conn->session->lock);
+		break;
 	case ISCSI_OP_SCSI_CMD_RSP:
 		if (tcp_conn->in.datalen) {
 			iscsi_tcp_data_recv_prep(tcp_conn);
@@ -818,20 +821,17 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 		rc = iscsi_complete_pdu(conn, hdr, NULL, 0);
 		break;
 	case ISCSI_OP_R2T:
+		spin_lock(&conn->session->lock);
 		task = iscsi_itt_to_ctask(conn, hdr->itt);
 		if (!task)
-			return ISCSI_ERR_BAD_ITT;
-		if (!task->sc)
-			return ISCSI_ERR_NO_SCSI_CMD;
-
-		if (ahslen)
+			rc = ISCSI_ERR_BAD_ITT;
+		else if (ahslen)
 			rc = ISCSI_ERR_AHSLEN;
-		else if (task->sc->sc_data_direction == DMA_TO_DEVICE) {
-			spin_lock(&session->lock);
+		else if (task->sc->sc_data_direction == DMA_TO_DEVICE)
 			rc = iscsi_r2t_rsp(conn, task);
-			spin_unlock(&session->lock);
-		} else
+		else
 			rc = ISCSI_ERR_PROTO;
+		spin_unlock(&conn->session->lock);
 		break;
 	case ISCSI_OP_LOGIN_RSP:
 	case ISCSI_OP_TEXT_RSP:
@@ -1553,7 +1553,6 @@ iscsi_tcp_release_conn(struct iscsi_conn *conn)
 
 	spin_lock_bh(&session->lock);
 	tcp_conn->sock = NULL;
-	conn->recv_lock = NULL;
 	spin_unlock_bh(&session->lock);
 	sockfd_put(sock);
 }
@@ -1578,6 +1577,19 @@ static void
 iscsi_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+
+	/* userspace may have goofed up and not bound us */
+	if (!tcp_conn->sock)
+		return;
+	/*
+	 * Make sure our recv side is stopped.
+	 * Older tools called conn stop before ep_disconnect
+	 * so IO could still be coming in.
+	 */
+	write_lock_bh(&tcp_conn->sock->sk->sk_callback_lock);
+	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
+	write_unlock_bh(&tcp_conn->sock->sk->sk_callback_lock);
 
 	iscsi_conn_stop(cls_conn, flag);
 	iscsi_tcp_release_conn(conn);
@@ -1671,13 +1683,6 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 	sk->sk_sndtimeo = 15 * HZ; /* FIXME: make it configurable */
 	sk->sk_allocation = GFP_ATOMIC;
 
-	/* FIXME: disable Nagle's algorithm */
-
-	/*
-	 * Intercept TCP callbacks for sendfile like receive
-	 * processing.
-	 */
-	conn->recv_lock = &sk->sk_callback_lock;
 	iscsi_conn_set_callbacks(conn);
 	tcp_conn->sendpage = tcp_conn->sock->ops->sendpage;
 	/*

@@ -263,8 +263,6 @@ struct iser_conn {
 struct iscsi_iser_conn {
 	struct iscsi_conn            *iscsi_conn;/* ptr to iscsi conn */
 	struct iser_conn             *ib_conn;   /* iSER IB conn      */
-
-	rwlock_t		     lock;
 };
 
 struct iscsi_iser_task {

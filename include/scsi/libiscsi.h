@@ -139,11 +139,6 @@ struct iscsi_conn {
 	void			*dd_data;	/* iscsi_transport data */
 	struct iscsi_session	*session;	/* parent session */
 	/*
-	 * LLDs should set this lock. It protects the transport recv
-	 * code
-	 */
-	rwlock_t		*recv_lock;
-	/*
 	 * conn_stop() flag: stop to recover, stop to terminate
 	 */
         int			stop_stage;
@@ -374,10 +369,13 @@ extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,
 				char *, uint32_t);
 extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 			      char *, int);
+extern int __iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
+				char *, int);
 extern int iscsi_verify_itt(struct iscsi_conn *, itt_t);
 extern struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_conn *, itt_t);
 extern void iscsi_requeue_task(struct iscsi_task *task);
 extern void iscsi_put_task(struct iscsi_task *task);
+extern void __iscsi_get_task(struct iscsi_task *task);
 
 /*
  * generic helpers
