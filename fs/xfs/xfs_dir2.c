@@ -46,6 +46,8 @@
 
 struct xfs_name xfs_name_dotdot = {"..", 2};
 
+extern const struct xfs_nameops xfs_default_nameops;
+
 void
 xfs_dir_mount(
 	xfs_mount_t	*mp)
@@ -173,8 +175,7 @@ xfs_dir_createname(
 	args.total = total;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
-	args.justcheck = 0;
-	args.addname = args.oknoent = 1;
+	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_addname(&args);
@@ -215,7 +216,7 @@ xfs_dir_lookup(
 	args.dp = dp;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
-	args.oknoent = 1;
+	args.op_flags = XFS_DA_OP_OKNOENT;
 	args.cmpresult = XFS_CMP_DIFFERENT;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
@@ -267,7 +268,7 @@ xfs_dir_removename(
 	args.total = total;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
-	args.justcheck = args.addname = args.oknoent = 0;
+	args.op_flags = 0;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_removename(&args);
@@ -350,7 +351,7 @@ xfs_dir_replace(
 	args.total = total;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
-	args.justcheck = args.addname = args.oknoent = 0;
+	args.op_flags = 0;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_replace(&args);
@@ -394,7 +395,8 @@ xfs_dir_canenter(
 	args.dp = dp;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
-	args.justcheck = args.addname = args.oknoent = 1;
+	args.op_flags = XFS_DA_OP_JUSTCHECK | XFS_DA_OP_ADDNAME |
+							XFS_DA_OP_OKNOENT;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_addname(&args);

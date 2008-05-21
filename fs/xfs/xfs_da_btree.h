@@ -132,12 +132,17 @@ typedef struct xfs_da_args {
 	int		index2;		/* index of 2nd attr in blk */
 	xfs_dablk_t	rmtblkno2;	/* remote attr value starting blkno */
 	int		rmtblkcnt2;	/* remote attr value block count */
-	unsigned char	justcheck;	/* T/F: check for ok with no space */
-	unsigned char	rename;		/* T/F: this is an atomic rename op */
-	unsigned char	addname;	/* T/F: this is an add operation */
-	unsigned char	oknoent;	/* T/F: ok to return ENOENT, else die */
+	int		op_flags;	/* operation flags */
 	enum xfs_dacmp	cmpresult;	/* name compare result for lookups */
 } xfs_da_args_t;
+
+/*
+ * Operation flags:
+ */
+#define XFS_DA_OP_JUSTCHECK	0x0001	/* check for ok with no space */
+#define XFS_DA_OP_RENAME	0x0002	/* this is an atomic rename op */
+#define XFS_DA_OP_ADDNAME	0x0004	/* this is an add operation */
+#define XFS_DA_OP_OKNOENT	0x0008	/* lookup/add op, ENOENT ok, else die */
 
 /*
  * Structure to describe buffer(s) for a block.

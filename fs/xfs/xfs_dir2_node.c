@@ -226,7 +226,7 @@ xfs_dir2_leafn_add(
 	ASSERT(index == be16_to_cpu(leaf->hdr.count) ||
 	       be32_to_cpu(leaf->ents[index].hashval) >= args->hashval);
 
-	if (args->justcheck)
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK)
 		return 0;
 
 	/*
@@ -515,7 +515,7 @@ xfs_dir2_leafn_lookup_for_addname(
 	/* Didn't find any space */
 	fi = -1;
 out:
-	ASSERT(args->oknoent);
+	ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 	if (curbp) {
 		/* Giving back a free block. */
 		state->extravalid = 1;
@@ -638,7 +638,8 @@ xfs_dir2_leafn_lookup_for_entry(
 	/* Didn't find an exact match. */
 	error = ENOENT;
 	di = -1;
-	ASSERT(index == be16_to_cpu(leaf->hdr.count) || args->oknoent);
+	ASSERT(index == be16_to_cpu(leaf->hdr.count) ||
+					(args->op_flags & XFS_DA_OP_OKNOENT));
 out:
 	if (curbp) {
 		/* Giving back a data block. */
@@ -669,7 +670,7 @@ xfs_dir2_leafn_lookup_int(
 	int			*indexp,	/* out: leaf entry index */
 	xfs_da_state_t		*state)		/* state to fill in */
 {
-	if (args->addname)
+	if (args->op_flags & XFS_DA_OP_ADDNAME)
 		return xfs_dir2_leafn_lookup_for_addname(bp, args, indexp,
 							state);
 	return xfs_dir2_leafn_lookup_for_entry(bp, args, indexp, state);
@@ -1383,7 +1384,7 @@ xfs_dir2_node_addname(
 		/*
 		 * It worked, fix the hash values up the btree.
 		 */
-		if (!args->justcheck)
+		if (!(args->op_flags & XFS_DA_OP_JUSTCHECK))
 			xfs_da_fixhashpath(state, &state->path);
 	} else {
 		/*
@@ -1566,7 +1567,8 @@ xfs_dir2_node_addname_int(
 		/*
 		 * Not allowed to allocate, return failure.
 		 */
-		if (args->justcheck || args->total == 0) {
+		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) ||
+							args->total == 0) {
 			/*
 			 * Drop the freespace buffer unless it came from our
 			 * caller.
@@ -1712,7 +1714,7 @@ xfs_dir2_node_addname_int(
 		/*
 		 * If just checking, we succeeded.
 		 */
-		if (args->justcheck) {
+		if (args->op_flags & XFS_DA_OP_JUSTCHECK) {
 			if ((fblk == NULL || fblk->bp == NULL) && fbp != NULL)
 				xfs_da_buf_done(fbp);
 			return 0;

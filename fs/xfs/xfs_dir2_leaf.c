@@ -263,20 +263,21 @@ xfs_dir2_leaf_addname(
 	 * If we don't have enough free bytes but we can make enough
 	 * by compacting out stale entries, we'll do that.
 	 */
-	if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] < needbytes &&
-	    be16_to_cpu(leaf->hdr.stale) > 1) {
+	if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] <
+				needbytes && be16_to_cpu(leaf->hdr.stale) > 1) {
 		compact = 1;
 	}
 	/*
 	 * Otherwise if we don't have enough free bytes we need to
 	 * convert to node form.
 	 */
-	else if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] <
-		 needbytes) {
+	else if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(
+						leaf->hdr.count)] < needbytes) {
 		/*
 		 * Just checking or no space reservation, give up.
 		 */
-		if (args->justcheck || args->total == 0) {
+		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) ||
+							args->total == 0) {
 			xfs_da_brelse(tp, lbp);
 			return XFS_ERROR(ENOSPC);
 		}
@@ -301,7 +302,7 @@ xfs_dir2_leaf_addname(
 	 * If just checking, then it will fit unless we needed to allocate
 	 * a new data block.
 	 */
-	if (args->justcheck) {
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK) {
 		xfs_da_brelse(tp, lbp);
 		return use_block == -1 ? XFS_ERROR(ENOSPC) : 0;
 	}
@@ -1414,7 +1415,7 @@ xfs_dir2_leaf_lookup_int(
 			cbp = dbp;
 		}
 	}
-	ASSERT(args->oknoent);
+	ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 	/*
 	 * Here, we can only be doing a lookup (not a rename or replace).
 	 * If a case-insensitive match was found earlier, release the current

@@ -1431,7 +1431,7 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 	}
 	if (level < 0) {
 		*result = XFS_ERROR(ENOENT);	/* we're out of our tree */
-		ASSERT(args->oknoent);
+		ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 		return(0);
 	}
 

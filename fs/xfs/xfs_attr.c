@@ -241,8 +241,7 @@ xfs_attr_set_int(xfs_inode_t *dp, struct xfs_name *name,
 	args.firstblock = &firstblock;
 	args.flist = &flist;
 	args.whichfork = XFS_ATTR_FORK;
-	args.addname = 1;
-	args.oknoent = 1;
+	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 
 	/*
 	 * Determine space new attribute will use, and if it would be
@@ -974,7 +973,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 			xfs_da_brelse(args->trans, bp);
 			return(retval);
 		}
-		args->rename = 1;			/* an atomic rename */
+		args->op_flags |= XFS_DA_OP_RENAME;	/* an atomic rename */
 		args->blkno2 = args->blkno;		/* set 2nd entry info*/
 		args->index2 = args->index;
 		args->rmtblkno2 = args->rmtblkno;
@@ -1054,7 +1053,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 	 * so that one disappears and one appears atomically.  Then we
 	 * must remove the "old" attribute/value pair.
 	 */
-	if (args->rename) {
+	if (args->op_flags & XFS_DA_OP_RENAME) {
 		/*
 		 * In a separate transaction, set the incomplete flag on the
 		 * "old" attr and clear the incomplete flag on the "new" attr.
@@ -1307,7 +1306,7 @@ restart:
 	} else if (retval == EEXIST) {
 		if (args->flags & ATTR_CREATE)
 			goto out;
-		args->rename = 1;			/* atomic rename op */
+		args->op_flags |= XFS_DA_OP_RENAME;	/* atomic rename op */
 		args->blkno2 = args->blkno;		/* set 2nd entry info*/
 		args->index2 = args->index;
 		args->rmtblkno2 = args->rmtblkno;
@@ -1425,7 +1424,7 @@ restart:
 	 * so that one disappears and one appears atomically.  Then we
 	 * must remove the "old" attribute/value pair.
 	 */
-	if (args->rename) {
+	if (args->op_flags & XFS_DA_OP_RENAME) {
 		/*
 		 * In a separate transaction, set the incomplete flag on the
 		 * "old" attr and clear the incomplete flag on the "new" attr.

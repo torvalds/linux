@@ -332,7 +332,7 @@ xfs_dir2_sf_addname(
 		/*
 		 * Just checking or no space reservation, it doesn't fit.
 		 */
-		if (args->justcheck || args->total == 0)
+		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) || args->total == 0)
 			return XFS_ERROR(ENOSPC);
 		/*
 		 * Convert to block form then add the name.
@@ -345,7 +345,7 @@ xfs_dir2_sf_addname(
 	/*
 	 * Just checking, it fits.
 	 */
-	if (args->justcheck)
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK)
 		return 0;
 	/*
 	 * Do it the easy way - just add it at the end.
@@ -869,7 +869,7 @@ xfs_dir2_sf_lookup(
 				return XFS_ERROR(EEXIST);
 		}
 	}
-	ASSERT(args->oknoent);
+	ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 	/*
 	 * Here, we can only be doing a lookup (not a rename or replace).
 	 * If a case-insensitive match was found earlier, return "found".
@@ -1071,7 +1071,7 @@ xfs_dir2_sf_replace(
 		 * Didn't find it.
 		 */
 		if (i == sfp->hdr.count) {
-			ASSERT(args->oknoent);
+			ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 #if XFS_BIG_INUMS
 			if (i8elevated)
 				xfs_dir2_sf_toino4(args);

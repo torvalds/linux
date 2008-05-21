@@ -215,7 +215,7 @@ xfs_dir2_block_addname(
 	/*
 	 * If this isn't a real add, we're done with the buffer.
 	 */
-	if (args->justcheck)
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK)
 		xfs_da_brelse(tp, bp);
 	/*
 	 * If we don't have space for the new entry & leaf ...
@@ -225,7 +225,7 @@ xfs_dir2_block_addname(
 		 * Not trying to actually do anything, or don't have
 		 * a space reservation: return no-space.
 		 */
-		if (args->justcheck || args->total == 0)
+		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) || args->total == 0)
 			return XFS_ERROR(ENOSPC);
 		/*
 		 * Convert to the next larger format.
@@ -240,7 +240,7 @@ xfs_dir2_block_addname(
 	/*
 	 * Just checking, and it would work, so say so.
 	 */
-	if (args->justcheck)
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK)
 		return 0;
 	needlog = needscan = 0;
 	/*
@@ -674,7 +674,7 @@ xfs_dir2_block_lookup_int(
 		else
 			high = mid - 1;
 		if (low > high) {
-			ASSERT(args->oknoent);
+			ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 			xfs_da_brelse(tp, bp);
 			return XFS_ERROR(ENOENT);
 		}
@@ -713,7 +713,7 @@ xfs_dir2_block_lookup_int(
 	} while (++mid < be32_to_cpu(btp->count) &&
 			be32_to_cpu(blp[mid].hashval) == hash);
 
-	ASSERT(args->oknoent);
+	ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 	/*
 	 * Here, we can only be doing a lookup (not a rename or replace).
 	 * If a case-insensitive match was found earlier, return success.

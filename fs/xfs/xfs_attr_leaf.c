@@ -369,9 +369,10 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	 * Fix up the start offset of the attribute fork
 	 */
 	totsize -= size;
-	if (totsize == sizeof(xfs_attr_sf_hdr_t) && !args->addname &&
-	    (mp->m_flags & XFS_MOUNT_ATTR2) && 
-	    (dp->i_d.di_format != XFS_DINODE_FMT_BTREE)) {
+	if (totsize == sizeof(xfs_attr_sf_hdr_t) &&
+				!(args->op_flags & XFS_DA_OP_ADDNAME) &&
+				(mp->m_flags & XFS_MOUNT_ATTR2) &&
+				(dp->i_d.di_format != XFS_DINODE_FMT_BTREE)) {
 		/*
 		 * Last attribute now removed, revert to original
 		 * inode format making all literal area available
@@ -389,9 +390,10 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 		xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
 		dp->i_d.di_forkoff = xfs_attr_shortform_bytesfit(dp, totsize);
 		ASSERT(dp->i_d.di_forkoff);
-		ASSERT(totsize > sizeof(xfs_attr_sf_hdr_t) || args->addname ||
-			!(mp->m_flags & XFS_MOUNT_ATTR2) ||
-			dp->i_d.di_format == XFS_DINODE_FMT_BTREE);
+		ASSERT(totsize > sizeof(xfs_attr_sf_hdr_t) ||
+				(args->op_flags & XFS_DA_OP_ADDNAME) ||
+				!(mp->m_flags & XFS_MOUNT_ATTR2) ||
+				dp->i_d.di_format == XFS_DINODE_FMT_BTREE);
 		dp->i_afp->if_ext_max =
 			XFS_IFORK_ASIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
 		dp->i_df.if_ext_max =
@@ -531,7 +533,7 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
-	nargs.oknoent = 1;
+	nargs.op_flags = XFS_DA_OP_OKNOENT;
 
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count; i++) {
@@ -853,7 +855,7 @@ xfs_attr_leaf_to_shortform(xfs_dabuf_t *bp, xfs_da_args_t *args, int forkoff)
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
-	nargs.oknoent = 1;
+	nargs.op_flags = XFS_DA_OP_OKNOENT;
 	entry = &leaf->entries[0];
 	for (i = 0; i < be16_to_cpu(leaf->hdr.count); entry++, i++) {
 		if (entry->flags & XFS_ATTR_INCOMPLETE)
@@ -1155,7 +1157,7 @@ xfs_attr_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int mapindex)
 	entry->hashval = cpu_to_be32(args->hashval);
 	entry->flags = tmp ? XFS_ATTR_LOCAL : 0;
 	entry->flags |= XFS_ATTR_NSP_ARGS_TO_ONDISK(args->flags);
-	if (args->rename) {
+	if (args->op_flags & XFS_DA_OP_RENAME) {
 		entry->flags |= XFS_ATTR_INCOMPLETE;
 		if ((args->blkno2 == args->blkno) &&
 		    (args->index2 <= args->index)) {
