@@ -3586,7 +3586,8 @@ static int __init fb_console_init(void)
 
 	acquire_console_sem();
 	fb_register_client(&fbcon_event_notifier);
-	fbcon_device = device_create(fb_class, NULL, MKDEV(0, 0), "fbcon");
+	fbcon_device = device_create_drvdata(fb_class, NULL, MKDEV(0, 0),
+					     NULL, "fbcon");
 
 	if (IS_ERR(fbcon_device)) {
 		printk(KERN_WARNING "Unable to create device "
