@@ -351,8 +351,8 @@ static struct snd_card* create_card(struct usb_device* usb_dev)
 	dev = caiaqdev(card);
 	dev->chip.dev = usb_dev;
 	dev->chip.card = card;
-	dev->chip.usb_id = USB_ID(usb_dev->descriptor.idVendor,
-					usb_dev->descriptor.idProduct);
+	dev->chip.usb_id = USB_ID(le16_to_cpu(usb_dev->descriptor.idVendor),
+				  le16_to_cpu(usb_dev->descriptor.idProduct));
 	spin_lock_init(&dev->spinlock);
 	snd_card_set_dev(card, &usb_dev->dev);
 
