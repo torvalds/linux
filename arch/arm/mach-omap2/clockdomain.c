@@ -315,6 +315,22 @@ int clkdm_for_each(int (*fn)(struct clockdomain *clkdm))
 }
 
 
+/**
+ * clkdm_get_pwrdm - return a ptr to the pwrdm that this clkdm resides in
+ * @clkdm: struct clockdomain *
+ *
+ * Return a pointer to the struct powerdomain that the specified clockdomain
+ * 'clkdm' exists in, or returns NULL if clkdm argument is NULL.
+ */
+struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm)
+{
+	if (!clkdm)
+		return NULL;
+
+	return clkdm->pwrdm;
+}
+
+
 /* Hardware clockdomain control */
 
 /**
