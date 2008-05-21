@@ -30,8 +30,8 @@
  *
  * For wmb(), we use sync since wmb is used in drivers to order
  * stores to system memory with respect to writes to the device.
- * However, smp_wmb() can be a lighter-weight eieio barrier on
- * SMP since it is only used to order updates to system memory.
+ * However, smp_wmb() can be a lighter-weight lwsync or eieio barrier
+ * on SMP since it is only used to order updates to system memory.
  */
 #define mb()   __asm__ __volatile__ ("sync" : : : "memory")
 #define rmb()  __asm__ __volatile__ ("sync" : : : "memory")
@@ -43,9 +43,16 @@
 #ifdef __KERNEL__
 #define AT_VECTOR_SIZE_ARCH 6 /* entries in ARCH_DLINFO */
 #ifdef CONFIG_SMP
+
+#ifdef __SUBARCH_HAS_LWSYNC
+#    define SMPWMB      lwsync
+#else
+#    define SMPWMB      eieio
+#endif
+
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	eieio()
+#define smp_wmb()	__asm__ __volatile__ (__stringify(SMPWMB) : : :"memory")
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
