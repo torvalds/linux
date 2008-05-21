@@ -174,6 +174,7 @@ struct iser_data_buf {
 struct iser_device;
 struct iscsi_iser_conn;
 struct iscsi_iser_task;
+struct iscsi_endpoint;
 
 struct iser_mem_reg {
 	u32  lkey;
@@ -241,6 +242,7 @@ struct iser_device {
 
 struct iser_conn {
 	struct iscsi_iser_conn       *iser_conn; /* iser conn for upcalls  */
+	struct iscsi_endpoint	     *ep;
 	enum iser_ib_conn_state	     state;	    /* rdma connection state   */
 	atomic_t		     refcount;
 	spinlock_t		     lock;	    /* used for state changes  */
@@ -313,7 +315,7 @@ void iscsi_iser_recv(struct iscsi_conn *conn,
 		     char                   *rx_data,
 		     int                    rx_data_len);
 
-int  iser_conn_init(struct iser_conn **ib_conn);
+void iser_conn_init(struct iser_conn *ib_conn);
 
 void iser_conn_get(struct iser_conn *ib_conn);
 

@@ -262,24 +262,6 @@ iscsi_iser_cleanup_task(struct iscsi_conn *conn, struct iscsi_task *task)
 	}
 }
 
-static struct iser_conn *
-iscsi_iser_ib_conn_lookup(__u64 ep_handle)
-{
-	struct iser_conn *ib_conn;
-	struct iser_conn *uib_conn = (struct iser_conn *)(unsigned long)ep_handle;
-
-	mutex_lock(&ig.connlist_mutex);
-	list_for_each_entry(ib_conn, &ig.connlist, conn_list) {
-		if (ib_conn == uib_conn) {
-			mutex_unlock(&ig.connlist_mutex);
-			return ib_conn;
-		}
-	}
-	mutex_unlock(&ig.connlist_mutex);
-	iser_err("no conn exists for eph %llx\n",(unsigned long long)ep_handle);
-	return NULL;
-}
-
 static struct iscsi_cls_conn *
 iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 {
@@ -335,6 +317,7 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_iser_conn *iser_conn;
 	struct iser_conn *ib_conn;
+	struct iscsi_endpoint *ep;
 	int error;
 
 	error = iscsi_conn_bind(cls_session, cls_conn, is_leading);
@@ -343,12 +326,14 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 
 	/* the transport ep handle comes from user space so it must be
 	 * verified against the global ib connections list */
-	ib_conn = iscsi_iser_ib_conn_lookup(transport_eph);
-	if (!ib_conn) {
+	ep = iscsi_lookup_endpoint(transport_eph);
+	if (!ep) {
 		iser_err("can't bind eph %llx\n",
 			 (unsigned long long)transport_eph);
 		return -EINVAL;
 	}
+	ib_conn = ep->dd_data;
+
 	/* binds the iSER connection retrieved from the previously
 	 * connected ep_handle to the iSCSI layer connection. exchanges
 	 * connection pointers */
@@ -401,21 +386,17 @@ static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 }
 
 static struct iscsi_cls_session *
-iscsi_iser_session_create(struct Scsi_Host *shost,
+iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			  uint16_t cmds_max, uint16_t qdepth,
 			  uint32_t initial_cmdsn, uint32_t *hostno)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
+	struct Scsi_Host *shost;
 	int i;
 	struct iscsi_task *task;
 	struct iscsi_iser_task *iser_task;
-
-	if (shost) {
-		printk(KERN_ERR "iscsi_tcp: invalid shost %d.\n",
-		       shost->host_no);
-		return NULL;
-	}
+	struct iser_conn *ib_conn;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, ISCSI_MAX_CMD_PER_LUN);
 	if (!shost)
@@ -426,7 +407,15 @@ iscsi_iser_session_create(struct Scsi_Host *shost,
 	shost->max_channel = 0;
 	shost->max_cmd_len = 16;
 
-	if (iscsi_host_add(shost, NULL))
+	/*
+	 * older userspace tools (before 2.0-870) did not pass us
+	 * the leading conn's ep so this will be NULL;
+	 */
+	if (ep)
+		ib_conn = ep->dd_data;
+
+	if (iscsi_host_add(shost,
+			   ep ? ib_conn->device->ib_device->dma_device : NULL))
 		goto free_host;
 	*hostno = shost->host_no;
 
@@ -529,34 +518,37 @@ iscsi_iser_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *s
 	stats->custom[3].value = conn->fmr_unalign_cnt;
 }
 
-static int
-iscsi_iser_ep_connect(struct sockaddr *dst_addr, int non_blocking,
-		      __u64 *ep_handle)
+static struct iscsi_endpoint *
+iscsi_iser_ep_connect(struct sockaddr *dst_addr, int non_blocking)
 {
 	int err;
 	struct iser_conn *ib_conn;
+	struct iscsi_endpoint *ep;
 
-	err = iser_conn_init(&ib_conn);
-	if (err)
-		goto out;
+	ep = iscsi_create_endpoint(sizeof(*ib_conn));
+	if (!ep)
+		return ERR_PTR(-ENOMEM);
 
-	err = iser_connect(ib_conn, NULL, (struct sockaddr_in *)dst_addr, non_blocking);
-	if (!err)
-		*ep_handle = (__u64)(unsigned long)ib_conn;
+	ib_conn = ep->dd_data;
+	ib_conn->ep = ep;
+	iser_conn_init(ib_conn);
 
-out:
-	return err;
+	err = iser_connect(ib_conn, NULL, (struct sockaddr_in *)dst_addr,
+			   non_blocking);
+	if (err) {
+		iscsi_destroy_endpoint(ep);
+		return ERR_PTR(err);
+	}
+	return ep;
 }
 
 static int
-iscsi_iser_ep_poll(__u64 ep_handle, int timeout_ms)
+iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 {
-	struct iser_conn *ib_conn = iscsi_iser_ib_conn_lookup(ep_handle);
+	struct iser_conn *ib_conn;
 	int rc;
 
-	if (!ib_conn)
-		return -EINVAL;
-
+	ib_conn = ep->dd_data;
 	rc = wait_event_interruptible_timeout(ib_conn->wait,
 			     ib_conn->state == ISER_CONN_UP,
 			     msecs_to_jiffies(timeout_ms));
@@ -578,14 +570,11 @@ iscsi_iser_ep_poll(__u64 ep_handle, int timeout_ms)
 }
 
 static void
-iscsi_iser_ep_disconnect(__u64 ep_handle)
+iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 {
 	struct iser_conn *ib_conn;
 
-	ib_conn = iscsi_iser_ib_conn_lookup(ep_handle);
-	if (!ib_conn)
-		return;
-
+	ib_conn = ep->dd_data;
 	if (ib_conn->iser_conn)
 		/*
 		 * Must suspend xmit path if the ep is bound to the

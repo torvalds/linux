@@ -325,7 +325,7 @@ static void iser_conn_release(struct iser_conn *ib_conn)
 		iser_device_try_release(device);
 	if (ib_conn->iser_conn)
 		ib_conn->iser_conn->ib_conn = NULL;
-	kfree(ib_conn);
+	iscsi_destroy_endpoint(ib_conn->ep);
 }
 
 void iser_conn_get(struct iser_conn *ib_conn)
@@ -494,15 +494,8 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 	return ret;
 }
 
-int iser_conn_init(struct iser_conn **ibconn)
+void iser_conn_init(struct iser_conn *ib_conn)
 {
-	struct iser_conn *ib_conn;
-
-	ib_conn = kzalloc(sizeof *ib_conn, GFP_KERNEL);
-	if (!ib_conn) {
-		iser_err("can't alloc memory for struct iser_conn\n");
-		return -ENOMEM;
-	}
 	ib_conn->state = ISER_CONN_INIT;
 	init_waitqueue_head(&ib_conn->wait);
 	atomic_set(&ib_conn->post_recv_buf_count, 0);
@@ -510,9 +503,6 @@ int iser_conn_init(struct iser_conn **ibconn)
 	atomic_set(&ib_conn->refcount, 1);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
-
-	*ibconn = ib_conn;
-	return 0;
 }
 
  /**
