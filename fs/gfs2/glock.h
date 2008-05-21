@@ -26,11 +26,8 @@
 #define GL_SKIP			0x00000100
 #define GL_ATIME		0x00000200
 #define GL_NOCACHE		0x00000400
-#define GL_FLOCK		0x00000800
-#define GL_NOCANCEL		0x00001000
 
 #define GLR_TRYFAILED		13
-#define GLR_CANCELED		14
 
 static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
 {
@@ -41,6 +38,8 @@ static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *
 	spin_lock(&gl->gl_spin);
 	pid = task_pid(current);
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
+		if (!test_bit(HIF_HOLDER, &gh->gh_iflags))
+			break;
 		if (gh->gh_owner_pid == pid)
 			goto out;
 	}
@@ -70,7 +69,7 @@ static inline int gfs2_glock_is_blocking(struct gfs2_glock *gl)
 {
 	int ret;
 	spin_lock(&gl->gl_spin);
-	ret = test_bit(GLF_DEMOTE, &gl->gl_flags) || !list_empty(&gl->gl_waiters3);
+	ret = test_bit(GLF_DEMOTE, &gl->gl_flags);
 	spin_unlock(&gl->gl_spin);
 	return ret;
 }
@@ -98,6 +97,7 @@ int gfs2_glock_nq_num(struct gfs2_sbd *sdp,
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
+void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
 /**
  * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock
@@ -130,7 +130,6 @@ int gfs2_lvb_hold(struct gfs2_glock *gl);
 void gfs2_lvb_unhold(struct gfs2_glock *gl);
 
 void gfs2_glock_cb(void *cb_data, unsigned int type, void *data);
-
 void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl);
 void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait);

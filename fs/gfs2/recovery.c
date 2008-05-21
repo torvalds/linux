@@ -505,7 +505,7 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 
 		error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
 					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY |
-					   GL_NOCANCEL | GL_NOCACHE, &t_gh);
+					   GL_NOCACHE, &t_gh);
 		if (error)
 			goto fail_gunlock_ji;
 

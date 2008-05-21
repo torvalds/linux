@@ -507,26 +507,23 @@ static int __gfs2_readpage(void *file, struct page *page)
 static int gfs2_readpage(struct file *file, struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
-	struct gfs2_holder *gh;
+	struct gfs2_holder gh;
 	int error;
 
-	gh = gfs2_glock_is_locked_by_me(ip->i_gl);
-	if (!gh) {
-		gh = kmalloc(sizeof(struct gfs2_holder), GFP_NOFS);
-		if (!gh)
-			return -ENOBUFS;
-		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
+	error = gfs2_glock_nq_atime(&gh);
+	if (unlikely(error)) {
 		unlock_page(page);
-		error = gfs2_glock_nq_atime(gh);
-		if (likely(error != 0))
-			goto out;
-		return AOP_TRUNCATED_PAGE;
+		goto out;
 	}
 	error = __gfs2_readpage(file, page);
-	gfs2_glock_dq(gh);
+	gfs2_glock_dq(&gh);
 out:
-	gfs2_holder_uninit(gh);
-	kfree(gh);
+	gfs2_holder_uninit(&gh);
+	if (error == GLR_TRYFAILED) {
+		yield();
+		return AOP_TRUNCATED_PAGE;
+	}
 	return error;
 }
 

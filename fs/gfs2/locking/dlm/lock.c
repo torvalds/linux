@@ -308,6 +308,9 @@ unsigned int gdlm_lock(void *lock, unsigned int cur_state,
 {
 	struct gdlm_lock *lp = lock;
 
+	if (req_state == LM_ST_UNLOCKED)
+		return gdlm_unlock(lock, cur_state);
+
 	clear_bit(LFL_DLM_CANCEL, &lp->flags);
 	if (flags & LM_FLAG_NOEXP)
 		set_bit(LFL_NOBLOCK, &lp->flags);

@@ -128,20 +128,20 @@ struct gfs2_bufdata {
 
 struct gfs2_glock_operations {
 	void (*go_xmote_th) (struct gfs2_glock *gl);
-	void (*go_xmote_bh) (struct gfs2_glock *gl);
+	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
+	int (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
 	const int go_type;
 	const unsigned long go_min_hold_time;
 };
 
 enum {
 	/* States */
-	HIF_HOLDER		= 6,
+	HIF_HOLDER		= 6,  /* Set for gh that "holds" the glock */
 	HIF_FIRST		= 7,
-	HIF_ABORTED		= 9,
 	HIF_WAIT		= 10,
 };
 
@@ -154,20 +154,20 @@ struct gfs2_holder {
 	unsigned gh_flags;
 
 	int gh_error;
-	unsigned long gh_iflags;
+	unsigned long gh_iflags; /* HIF_... */
 	unsigned long gh_ip;
 };
 
 enum {
-	GLF_LOCK		= 1,
-	GLF_STICKY		= 2,
-	GLF_DEMOTE		= 3,
-	GLF_PENDING_DEMOTE	= 4,
-	GLF_DIRTY		= 5,
-	GLF_DEMOTE_IN_PROGRESS	= 6,
-	GLF_LFLUSH		= 7,
-	GLF_WAITERS2		= 8,
-	GLF_CONV_DEADLK		= 9,
+	GLF_LOCK			= 1,
+	GLF_STICKY			= 2,
+	GLF_DEMOTE			= 3,
+	GLF_PENDING_DEMOTE		= 4,
+	GLF_DEMOTE_IN_PROGRESS		= 5,
+	GLF_DIRTY			= 6,
+	GLF_LFLUSH			= 7,
+	GLF_INVALIDATE_IN_PROGRESS	= 8,
+	GLF_REPLY_PENDING		= 9,
 };
 
 struct gfs2_glock {
@@ -179,19 +179,14 @@ struct gfs2_glock {
 	spinlock_t gl_spin;
 
 	unsigned int gl_state;
+	unsigned int gl_target;
+	unsigned int gl_reply;
 	unsigned int gl_hash;
 	unsigned int gl_demote_state; /* state requested by remote node */
 	unsigned long gl_demote_time; /* time of first demote request */
-	struct pid *gl_owner_pid;
-	unsigned long gl_ip;
 	struct list_head gl_holders;
-	struct list_head gl_waiters1;	/* HIF_MUTEX */
-	struct list_head gl_waiters3;	/* HIF_PROMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
-
-	struct gfs2_holder *gl_req_gh;
-
 	void *gl_lock;
 	char *gl_lvb;
 	atomic_t gl_lvb_count;

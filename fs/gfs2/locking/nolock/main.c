@@ -107,6 +107,8 @@ static void nolock_put_lock(void *lock)
 static unsigned int nolock_lock(void *lock, unsigned int cur_state,
 				unsigned int req_state, unsigned int flags)
 {
+	if (req_state == LM_ST_UNLOCKED)
+		return 0;
 	return req_state | LM_OUT_CACHEABLE;
 }
 
