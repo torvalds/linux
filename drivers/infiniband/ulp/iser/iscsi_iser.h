@@ -298,15 +298,15 @@ extern int iser_debug_level;
 /* allocate connection resources needed for rdma functionality */
 int iser_conn_set_full_featured_mode(struct iscsi_conn *conn);
 
-int iser_send_control(struct iscsi_conn      *conn,
-		      struct iscsi_mgmt_task *mtask);
+int iser_send_control(struct iscsi_conn *conn,
+		      struct iscsi_cmd_task *ctask);
 
-int iser_send_command(struct iscsi_conn      *conn,
-		      struct iscsi_cmd_task  *ctask);
+int iser_send_command(struct iscsi_conn *conn,
+		      struct iscsi_cmd_task *ctask);
 
-int iser_send_data_out(struct iscsi_conn     *conn,
+int iser_send_data_out(struct iscsi_conn *conn,
 		       struct iscsi_cmd_task *ctask,
-		       struct iscsi_data          *hdr);
+		       struct iscsi_data *hdr);
 
 void iscsi_iser_recv(struct iscsi_conn *conn,
 		     struct iscsi_hdr       *hdr,
@@ -326,7 +326,7 @@ void iser_rcv_completion(struct iser_desc *desc,
 
 void iser_snd_completion(struct iser_desc *desc);
 
-void iser_ctask_rdma_init(struct iscsi_iser_cmd_task     *ctask);
+void iser_ctask_rdma_init(struct iscsi_iser_cmd_task *ctask);
 
 void iser_ctask_rdma_finalize(struct iscsi_iser_cmd_task *ctask);
 

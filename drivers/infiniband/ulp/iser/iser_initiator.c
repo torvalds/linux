@@ -300,13 +300,13 @@ int iser_conn_set_full_featured_mode(struct iscsi_conn *conn)
 }
 
 static int
-iser_check_xmit(struct iscsi_conn *conn, void *task)
+iser_check_xmit(struct iscsi_conn *conn, void *ctask)
 {
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 
 	if (atomic_read(&iser_conn->ib_conn->post_send_buf_count) ==
 	    ISER_QP_MAX_REQ_DTOS) {
-		iser_dbg("%ld can't xmit task %p\n",jiffies,task);
+		iser_dbg("%ld can't xmit ctask %p\n",jiffies,ctask);
 		return -ENOBUFS;
 	}
 	return 0;
@@ -316,7 +316,7 @@ iser_check_xmit(struct iscsi_conn *conn, void *task)
 /**
  * iser_send_command - send command PDU
  */
-int iser_send_command(struct iscsi_conn     *conn,
+int iser_send_command(struct iscsi_conn *conn,
 		      struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
@@ -395,7 +395,7 @@ send_command_error:
 /**
  * iser_send_data_out - send data out PDU
  */
-int iser_send_data_out(struct iscsi_conn     *conn,
+int iser_send_data_out(struct iscsi_conn *conn,
 		       struct iscsi_cmd_task *ctask,
 		       struct iscsi_data *hdr)
 {
@@ -470,10 +470,11 @@ send_data_out_error:
 }
 
 int iser_send_control(struct iscsi_conn *conn,
-		      struct iscsi_mgmt_task *mtask)
+		      struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
-	struct iser_desc *mdesc = mtask->dd_data;
+	struct iscsi_iser_cmd_task *iser_ctask = ctask->dd_data;
+	struct iser_desc *mdesc = &iser_ctask->desc;
 	struct iser_dto *send_dto = NULL;
 	unsigned long data_seg_len;
 	int err = 0;
@@ -485,7 +486,7 @@ int iser_send_control(struct iscsi_conn *conn,
 		return -EPERM;
 	}
 
-	if (iser_check_xmit(conn,mtask))
+	if (iser_check_xmit(conn, ctask))
 		return -ENOBUFS;
 
 	/* build the tx desc regd header and add it to the tx desc dto */
@@ -498,14 +499,14 @@ int iser_send_control(struct iscsi_conn *conn,
 
 	iser_reg_single(device, send_dto->regd[0], DMA_TO_DEVICE);
 
-	data_seg_len = ntoh24(mtask->hdr->dlength);
+	data_seg_len = ntoh24(ctask->hdr->dlength);
 
 	if (data_seg_len > 0) {
 		regd_buf = &mdesc->data_regd_buf;
 		memset(regd_buf, 0, sizeof(struct iser_regd_buf));
 		regd_buf->device = device;
-		regd_buf->virt_addr = mtask->data;
-		regd_buf->data_size = mtask->data_count;
+		regd_buf->virt_addr = ctask->data;
+		regd_buf->data_size = ctask->data_count;
 		iser_reg_single(device, regd_buf,
 				DMA_TO_DEVICE);
 		iser_dto_add_regd_buff(send_dto, regd_buf,
@@ -535,7 +536,7 @@ send_control_error:
 void iser_rcv_completion(struct iser_desc *rx_desc,
 			 unsigned long dto_xfer_len)
 {
-	struct iser_dto        *dto = &rx_desc->dto;
+	struct iser_dto *dto = &rx_desc->dto;
 	struct iscsi_iser_conn *conn = dto->ib_conn->iser_conn;
 	struct iscsi_cmd_task *ctask;
 	struct iscsi_iser_cmd_task *iser_ctask;
@@ -559,7 +560,7 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 	if (opcode == ISCSI_OP_SCSI_CMD_RSP) {
 		ctask = iscsi_itt_to_ctask(conn->iscsi_conn, hdr->itt);
 		if (!ctask)
-			iser_err("itt can't be matched to task!!! "
+			iser_err("itt can't be matched to ctask!!! "
 				 "conn %p opcode %d itt %d\n",
 				 conn->iscsi_conn, opcode, hdr->itt);
 		else {
@@ -577,7 +578,7 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 	kmem_cache_free(ig.desc_cache, rx_desc);
 
 	/* decrementing conn->post_recv_buf_count only --after-- freeing the   *
-	 * task eliminates the need to worry on tasks which are completed in   *
+	 * ctask eliminates the need to worry on ctasks which are completed in   *
 	 * parallel to the execution of iser_conn_term. So the code that waits *
 	 * for the posted rx bufs refcount to become zero handles everything   */
 	atomic_dec(&conn->ib_conn->post_recv_buf_count);
@@ -589,7 +590,7 @@ void iser_snd_completion(struct iser_desc *tx_desc)
 	struct iser_conn       *ib_conn = dto->ib_conn;
 	struct iscsi_iser_conn *iser_conn = ib_conn->iser_conn;
 	struct iscsi_conn      *conn = iser_conn->iscsi_conn;
-	struct iscsi_mgmt_task *mtask;
+	struct iscsi_cmd_task *ctask;
 	int resume_tx = 0;
 
 	iser_dbg("Initiator, Data sent dto=0x%p\n", dto);
@@ -612,15 +613,10 @@ void iser_snd_completion(struct iser_desc *tx_desc)
 
 	if (tx_desc->type == ISCSI_TX_CONTROL) {
 		/* this arithmetic is legal by libiscsi dd_data allocation */
-		mtask = (void *) ((long)(void *)tx_desc -
-				  sizeof(struct iscsi_mgmt_task));
-		if (mtask->hdr->itt == RESERVED_ITT) {
-			struct iscsi_session *session = conn->session;
-
-			spin_lock(&conn->session->lock);
-			iscsi_free_mgmt_task(conn, mtask);
-			spin_unlock(&session->lock);
-		}
+		ctask = (void *) ((long)(void *)tx_desc -
+				  sizeof(struct iscsi_cmd_task));
+		if (ctask->hdr->itt == RESERVED_ITT)
+			iscsi_put_ctask(ctask);
 	}
 }
 
