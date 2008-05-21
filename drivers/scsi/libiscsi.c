@@ -1867,7 +1867,8 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 		cmds_max = ISCSI_DEF_XMIT_CMDS_MAX;
 	}
 
-	cls_session = iscsi_alloc_session(shost, iscsit);
+	cls_session = iscsi_alloc_session(shost, iscsit,
+					  sizeof(struct iscsi_session));
 	if (!cls_session)
 		return NULL;
 	session = cls_session->dd_data;
@@ -1968,22 +1969,26 @@ EXPORT_SYMBOL_GPL(iscsi_session_teardown);
 /**
  * iscsi_conn_setup - create iscsi_cls_conn and iscsi_conn
  * @cls_session: iscsi_cls_session
+ * @dd_size: private driver data size
  * @conn_idx: cid
- **/
+ */
 struct iscsi_cls_conn *
-iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
+iscsi_conn_setup(struct iscsi_cls_session *cls_session, int dd_size,
+		 uint32_t conn_idx)
 {
 	struct iscsi_session *session = cls_session->dd_data;
 	struct iscsi_conn *conn;
 	struct iscsi_cls_conn *cls_conn;
 	char *data;
 
-	cls_conn = iscsi_create_conn(cls_session, conn_idx);
+	cls_conn = iscsi_create_conn(cls_session, sizeof(*conn) + dd_size,
+				     conn_idx);
 	if (!cls_conn)
 		return NULL;
 	conn = cls_conn->dd_data;
-	memset(conn, 0, sizeof(*conn));
+	memset(conn, 0, sizeof(*conn) + dd_size);
 
+	conn->dd_data = cls_conn->dd_data + sizeof(*conn);
 	conn->session = session;
 	conn->cls_conn = cls_conn;
 	conn->c_stage = ISCSI_CONN_INITIAL_STAGE;

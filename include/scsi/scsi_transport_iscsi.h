@@ -83,10 +83,6 @@ struct iscsi_transport {
 	/* LLD sets this to indicate what values it can export to sysfs */
 	uint64_t param_mask;
 	uint64_t host_param_mask;
-	/* LLD connection data size */
-	int conndata_size;
-	/* LLD session data size */
-	int sessiondata_size;
 	struct iscsi_cls_session *(*create_session) (struct Scsi_Host *shost,
 					uint16_t cmds_max, uint16_t qdepth,
 					uint32_t sn, uint32_t *hn);
@@ -222,19 +218,20 @@ extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
 
 extern int iscsi_session_chkready(struct iscsi_cls_session *session);
 extern struct iscsi_cls_session *iscsi_alloc_session(struct Scsi_Host *shost,
-					struct iscsi_transport *transport);
+				struct iscsi_transport *transport, int dd_size);
 extern int iscsi_add_session(struct iscsi_cls_session *session,
 			     unsigned int target_id);
 extern int iscsi_session_event(struct iscsi_cls_session *session,
 			       enum iscsi_uevent_e event);
 extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
 						struct iscsi_transport *t,
+						int dd_size,
 						unsigned int target_id);
 extern void iscsi_remove_session(struct iscsi_cls_session *session);
 extern void iscsi_free_session(struct iscsi_cls_session *session);
 extern int iscsi_destroy_session(struct iscsi_cls_session *session);
 extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
-					    uint32_t cid);
+						int dd_size, uint32_t cid);
 extern int iscsi_destroy_conn(struct iscsi_cls_conn *conn);
 extern void iscsi_unblock_session(struct iscsi_cls_session *session);
 extern void iscsi_block_session(struct iscsi_cls_session *session);

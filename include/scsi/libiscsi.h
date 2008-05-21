@@ -313,8 +313,6 @@ struct iscsi_host {
 	char			local_address[ISCSI_ADDRESS_BUF_LEN];
 };
 
-#define iscsi_host_priv(_shost) \
-	(shost_priv(_shost) + sizeof(struct iscsi_host))
 /*
  * scsi host template
  */
@@ -325,10 +323,12 @@ extern int iscsi_eh_device_reset(struct scsi_cmnd *sc);
 extern int iscsi_queuecommand(struct scsi_cmnd *sc,
 			      void (*done)(struct scsi_cmnd *));
 
-
 /*
  * iSCSI host helpers.
  */
+#define iscsi_host_priv(_shost) \
+	(shost_priv(_shost) + sizeof(struct iscsi_host))
+
 extern int iscsi_host_set_param(struct Scsi_Host *shost,
 				enum iscsi_host_param param, char *buf,
 				int buflen);
@@ -360,7 +360,7 @@ extern int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
  * connection management
  */
 extern struct iscsi_cls_conn *iscsi_conn_setup(struct iscsi_cls_session *,
-					       uint32_t);
+					       int, uint32_t);
 extern void iscsi_conn_teardown(struct iscsi_cls_conn *);
 extern int iscsi_conn_start(struct iscsi_cls_conn *);
 extern void iscsi_conn_stop(struct iscsi_cls_conn *, int);

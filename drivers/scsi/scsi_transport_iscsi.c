@@ -483,12 +483,12 @@ static int iscsi_unbind_session(struct iscsi_cls_session *session)
 }
 
 struct iscsi_cls_session *
-iscsi_alloc_session(struct Scsi_Host *shost,
-		    struct iscsi_transport *transport)
+iscsi_alloc_session(struct Scsi_Host *shost, struct iscsi_transport *transport,
+		    int dd_size)
 {
 	struct iscsi_cls_session *session;
 
-	session = kzalloc(sizeof(*session) + transport->sessiondata_size,
+	session = kzalloc(sizeof(*session) + dd_size,
 			  GFP_KERNEL);
 	if (!session)
 		return NULL;
@@ -510,7 +510,7 @@ iscsi_alloc_session(struct Scsi_Host *shost,
 	session->dev.parent = &shost->shost_gendev;
 	session->dev.release = iscsi_session_release;
 	device_initialize(&session->dev);
-	if (transport->sessiondata_size)
+	if (dd_size)
 		session->dd_data = &session[1];
 	return session;
 }
@@ -558,18 +558,18 @@ EXPORT_SYMBOL_GPL(iscsi_add_session);
  * iscsi_create_session - create iscsi class session
  * @shost: scsi host
  * @transport: iscsi transport
+ * @dd_size: private driver data size
  * @target_id: which target
  *
  * This can be called from a LLD or iscsi_transport.
  */
 struct iscsi_cls_session *
-iscsi_create_session(struct Scsi_Host *shost,
-		     struct iscsi_transport *transport,
-		     unsigned int target_id)
+iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport,
+		     int dd_size, unsigned int target_id)
 {
 	struct iscsi_cls_session *session;
 
-	session = iscsi_alloc_session(shost, transport);
+	session = iscsi_alloc_session(shost, transport, dd_size);
 	if (!session)
 		return NULL;
 
@@ -671,6 +671,7 @@ EXPORT_SYMBOL_GPL(iscsi_destroy_session);
 /**
  * iscsi_create_conn - create iscsi class connection
  * @session: iscsi cls session
+ * @dd_size: private driver data size
  * @cid: connection id
  *
  * This can be called from a LLD or iscsi_transport. The connection
@@ -683,18 +684,17 @@ EXPORT_SYMBOL_GPL(iscsi_destroy_session);
  * non-zero.
  */
 struct iscsi_cls_conn *
-iscsi_create_conn(struct iscsi_cls_session *session, uint32_t cid)
+iscsi_create_conn(struct iscsi_cls_session *session, int dd_size, uint32_t cid)
 {
 	struct iscsi_transport *transport = session->transport;
 	struct iscsi_cls_conn *conn;
 	unsigned long flags;
 	int err;
 
-	conn = kzalloc(sizeof(*conn) + transport->conndata_size, GFP_KERNEL);
+	conn = kzalloc(sizeof(*conn) + dd_size, GFP_KERNEL);
 	if (!conn)
 		return NULL;
-
-	if (transport->conndata_size)
+	if (dd_size)
 		conn->dd_data = &conn[1];
 
 	INIT_LIST_HEAD(&conn->conn_list);

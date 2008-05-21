@@ -1490,7 +1490,7 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	struct iscsi_cls_conn *cls_conn;
 	struct iscsi_tcp_conn *tcp_conn;
 
-	cls_conn = iscsi_conn_setup(cls_session, conn_idx);
+	cls_conn = iscsi_conn_setup(cls_session, sizeof(*tcp_conn), conn_idx);
 	if (!cls_conn)
 		return NULL;
 	conn = cls_conn->dd_data;
@@ -1500,18 +1500,14 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	 */
 	conn->max_recv_dlength = ISCSI_DEF_MAX_RECV_SEG_LEN;
 
-	tcp_conn = kzalloc(sizeof(*tcp_conn), GFP_KERNEL);
-	if (!tcp_conn)
-		goto tcp_conn_alloc_fail;
-
-	conn->dd_data = tcp_conn;
+	tcp_conn = conn->dd_data;
 	tcp_conn->iscsi_conn = conn;
 
 	tcp_conn->tx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
 	tcp_conn->tx_hash.flags = 0;
 	if (IS_ERR(tcp_conn->tx_hash.tfm))
-		goto free_tcp_conn;
+		goto free_conn;
 
 	tcp_conn->rx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
@@ -1523,14 +1519,12 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 
 free_tx_tfm:
 	crypto_free_hash(tcp_conn->tx_hash.tfm);
-free_tcp_conn:
+free_conn:
 	iscsi_conn_printk(KERN_ERR, conn,
 			  "Could not create connection due to crc32c "
 			  "loading error. Make sure the crc32c "
 			  "module is built as a module or into the "
 			  "kernel\n");
-	kfree(tcp_conn);
-tcp_conn_alloc_fail:
 	iscsi_conn_teardown(cls_conn);
 	return NULL;
 }
@@ -1563,14 +1557,13 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 
 	iscsi_tcp_release_conn(conn);
-	iscsi_conn_teardown(cls_conn);
 
 	if (tcp_conn->tx_hash.tfm)
 		crypto_free_hash(tcp_conn->tx_hash.tfm);
 	if (tcp_conn->rx_hash.tfm)
 		crypto_free_hash(tcp_conn->rx_hash.tfm);
 
-	kfree(tcp_conn);
+	iscsi_conn_teardown(cls_conn);
 }
 
 static void
@@ -1983,8 +1976,6 @@ static struct iscsi_transport iscsi_tcp_transport = {
 	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME |
 				  ISCSI_HOST_NETDEV_NAME,
-	.conndata_size		= sizeof(struct iscsi_conn),
-	.sessiondata_size	= sizeof(struct iscsi_session),
 	/* session management */
 	.create_session		= iscsi_tcp_session_create,
 	.destroy_session	= iscsi_tcp_session_destroy,

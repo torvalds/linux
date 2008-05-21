@@ -279,7 +279,7 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	struct iscsi_cls_conn *cls_conn;
 	struct iscsi_iser_conn *iser_conn;
 
-	cls_conn = iscsi_conn_setup(cls_session, conn_idx);
+	cls_conn = iscsi_conn_setup(cls_session, sizeof(*iser_conn), conn_idx);
 	if (!cls_conn)
 		return NULL;
 	conn = cls_conn->dd_data;
@@ -290,10 +290,7 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	 */
 	conn->max_recv_dlength = 128;
 
-	iser_conn = kzalloc(sizeof(*iser_conn), GFP_KERNEL);
-	if (!iser_conn)
-		goto conn_alloc_fail;
-
+	iser_conn = conn->dd_data;
 	/* currently this is the only field which need to be initiated */
 	rwlock_init(&iser_conn->lock);
 
@@ -301,10 +298,6 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	iser_conn->iscsi_conn = conn;
 
 	return cls_conn;
-
-conn_alloc_fail:
-	iscsi_conn_teardown(cls_conn);
-	return NULL;
 }
 
 static void
@@ -313,10 +306,9 @@ iscsi_iser_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 
-	iscsi_conn_teardown(cls_conn);
 	if (iser_conn->ib_conn)
 		iser_conn->ib_conn->iser_conn = NULL;
-	kfree(iser_conn);
+	iscsi_conn_teardown(cls_conn);
 }
 
 static int
@@ -619,8 +611,6 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_NETDEV_NAME |
 				  ISCSI_HOST_INITIATOR_NAME,
-	.conndata_size		= sizeof(struct iscsi_conn),
-	.sessiondata_size	= sizeof(struct iscsi_session),
 	/* session management */
 	.create_session         = iscsi_iser_session_create,
 	.destroy_session        = iscsi_iser_session_destroy,
