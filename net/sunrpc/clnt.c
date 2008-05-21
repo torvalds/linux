@@ -25,6 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/kallsyms.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
@@ -1528,29 +1529,31 @@ EXPORT_SYMBOL_GPL(rpc_call_null);
 #ifdef RPC_DEBUG
 static void rpc_show_header(void)
 {
-	printk(KERN_INFO "-pid- proc flgs status -client- -prog- --rqstp- "
-		"-timeout -rpcwait -action- ---ops--\n");
+	printk(KERN_INFO "-pid- flgs status -client- --rqstp- "
+		"-timeout ---ops--\n");
 }
 
 static void rpc_show_task(const struct rpc_clnt *clnt,
 			  const struct rpc_task *task)
 {
 	const char *rpc_waitq = "none";
-	int proc = -1;
-
-	if (task->tk_msg.rpc_proc)
-		proc = task->tk_msg.rpc_proc->p_proc;
+	char *p, action[KSYM_SYMBOL_LEN];
 
 	if (RPC_IS_QUEUED(task))
 		rpc_waitq = rpc_qname(task->tk_waitqueue);
 
-	printk(KERN_INFO "%5u %04d %04x %6d %8p %6d %8p %8ld %8s %8p %8p\n",
-		task->tk_pid, proc,
-		task->tk_flags, task->tk_status,
-		clnt, clnt->cl_prog,
-		task->tk_rqstp, task->tk_timeout,
-		rpc_waitq,
-		task->tk_action, task->tk_ops);
+	/* map tk_action pointer to a function name; then trim off
+	 * the "+0x0 [sunrpc]" */
+	sprint_symbol(action, (unsigned long)task->tk_action);
+	p = strchr(action, '+');
+	if (p)
+		*p = '\0';
+
+	printk(KERN_INFO "%5u %04x %6d %8p %8p %8ld %8p %sv%u %s a:%s q:%s\n",
+		task->tk_pid, task->tk_flags, task->tk_status,
+		clnt, task->tk_rqstp, task->tk_timeout, task->tk_ops,
+		clnt->cl_protname, clnt->cl_vers, rpc_proc_name(task),
+		action, rpc_waitq);
 }
 
 void rpc_show_tasks(void)
