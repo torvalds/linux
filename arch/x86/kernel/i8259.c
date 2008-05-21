@@ -1,14 +1,10 @@
-#ifdef CONFIG_X86_64
 #include <linux/linkage.h>
-#endif /* CONFIG_X86_64 */
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
-#ifdef CONFIG_X86_64
 #include <linux/timex.h>
-#endif /* CONFIG_X86_64 */
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/init.h>
@@ -16,24 +12,17 @@
 #include <linux/sysdev.h>
 #include <linux/bitops.h>
 
-#ifdef CONFIG_X86_64
 #include <asm/acpi.h>
-#endif /* CONFIG_X86_64 */
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#ifndef CONFIG_X86_64
 #include <asm/timer.h>
-#else /* CONFIG_X86_64 */
 #include <asm/hw_irq.h>
-#endif /* CONFIG_X86_64 */
 #include <asm/pgtable.h>
 #include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
-#ifndef CONFIG_X86_64
 #include <asm/arch_hooks.h>
-#endif /* ! CONFIG_X86_64 */
 #include <asm/i8259.h>
 
 /*
