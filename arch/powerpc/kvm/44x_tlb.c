@@ -116,8 +116,6 @@ static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
 	struct tlbe *stlbe = &vcpu->arch.shadow_tlb[index];
 	struct page *page = vcpu->arch.shadow_pages[index];
 
-	kunmap(vcpu->arch.shadow_pages[index]);
-
 	if (get_tlb_v(stlbe)) {
 		if (kvmppc_44x_tlbe_is_writable(stlbe))
 			kvm_release_page_dirty(page);
