@@ -48,6 +48,52 @@ struct xfs_name xfs_name_dotdot = {"..", 2};
 
 extern const struct xfs_nameops xfs_default_nameops;
 
+/*
+ * ASCII case-insensitive (ie. A-Z) support for directories that was
+ * used in IRIX.
+ */
+STATIC xfs_dahash_t
+xfs_ascii_ci_hashname(
+	struct xfs_name	*name)
+{
+	xfs_dahash_t	hash;
+	int		i;
+
+	for (i = 0, hash = 0; i < name->len; i++)
+		hash = tolower(name->name[i]) ^ rol32(hash, 7);
+
+	return hash;
+}
+
+STATIC enum xfs_dacmp
+xfs_ascii_ci_compname(
+	struct xfs_da_args *args,
+	const char	*name,
+	int 		len)
+{
+	enum xfs_dacmp	result;
+	int		i;
+
+	if (args->namelen != len)
+		return XFS_CMP_DIFFERENT;
+
+	result = XFS_CMP_EXACT;
+	for (i = 0; i < len; i++) {
+		if (args->name[i] == name[i])
+			continue;
+		if (tolower(args->name[i]) != tolower(name[i]))
+			return XFS_CMP_DIFFERENT;
+		result = XFS_CMP_CASE;
+	}
+
+	return result;
+}
+
+static struct xfs_nameops xfs_ascii_ci_nameops = {
+	.hashname	= xfs_ascii_ci_hashname,
+	.compname	= xfs_ascii_ci_compname,
+};
+
 void
 xfs_dir_mount(
 	xfs_mount_t	*mp)
@@ -67,7 +113,10 @@ xfs_dir_mount(
 		(mp->m_dirblksize - (uint)sizeof(xfs_da_node_hdr_t)) /
 		(uint)sizeof(xfs_da_node_entry_t);
 	mp->m_dir_magicpct = (mp->m_dirblksize * 37) / 100;
-	mp->m_dirnameops = &xfs_default_nameops;
+	if (xfs_sb_version_hasasciici(&mp->m_sb))
+		mp->m_dirnameops = &xfs_ascii_ci_nameops;
+	else
+		mp->m_dirnameops = &xfs_default_nameops;
 }
 
 /*

@@ -76,6 +76,7 @@
 #include <linux/log2.h>
 #include <linux/spinlock.h>
 #include <linux/random.h>
+#include <linux/ctype.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
