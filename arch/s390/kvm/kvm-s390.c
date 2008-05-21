@@ -435,6 +435,8 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	if (test_thread_flag(TIF_MCCK_PENDING))
 		s390_handle_mcck();
 
+	kvm_s390_deliver_pending_interrupts(vcpu);
+
 	vcpu->arch.sie_block->icptcode = 0;
 	local_irq_disable();
 	kvm_guest_enter();
@@ -480,7 +482,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	might_sleep();
 
 	do {
-		kvm_s390_deliver_pending_interrupts(vcpu);
 		__vcpu_run(vcpu);
 		rc = kvm_handle_sie_intercept(vcpu);
 	} while (!signal_pending(current) && !rc);
