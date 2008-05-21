@@ -495,7 +495,7 @@ jpg_fbuffer_alloc (struct file *file)
 			jpg_fbuffer_free(file);
 			return -ENOBUFS;
 		}
-		fh->jpg_buffers.buffer[i].frag_tab = (u32 *) mem;
+		fh->jpg_buffers.buffer[i].frag_tab = (__le32 *) mem;
 		fh->jpg_buffers.buffer[i].frag_tab_bus =
 		    virt_to_bus((void *) mem);
 
@@ -4506,7 +4506,7 @@ zoran_mmap (struct file           *file,
 				if (todo > fraglen)
 					todo = fraglen;
 				pos =
-				    le32_to_cpu((unsigned long) fh->jpg_buffers.
+				    le32_to_cpu(fh->jpg_buffers.
 				    buffer[i].frag_tab[2 * j]);
 				/* should just be pos on i386 */
 				page = virt_to_phys(bus_to_virt(pos))
