@@ -33,6 +33,7 @@
 #define ISCSI_SESSION_ATTRS 19
 #define ISCSI_CONN_ATTRS 13
 #define ISCSI_HOST_ATTRS 4
+
 #define ISCSI_TRANSPORT_VERSION "2.0-869"
 
 struct iscsi_internal {
@@ -111,6 +112,123 @@ static struct attribute *iscsi_transport_attrs[] = {
 static struct attribute_group iscsi_transport_group = {
 	.attrs = iscsi_transport_attrs,
 };
+
+/*
+ * iSCSI endpoint attrs
+ */
+#define iscsi_dev_to_endpoint(_dev) \
+	container_of(_dev, struct iscsi_endpoint, dev)
+
+#define ISCSI_ATTR(_prefix,_name,_mode,_show,_store)	\
+struct device_attribute dev_attr_##_prefix##_##_name =	\
+        __ATTR(_name,_mode,_show,_store)
+
+static void iscsi_endpoint_release(struct device *dev)
+{
+	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
+	kfree(ep);
+}
+
+static struct class iscsi_endpoint_class = {
+	.name = "iscsi_endpoint",
+	.dev_release = iscsi_endpoint_release,
+};
+
+static ssize_t
+show_ep_handle(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
+	return sprintf(buf, "%u\n", ep->id);
+}
+static ISCSI_ATTR(ep, handle, S_IRUGO, show_ep_handle, NULL);
+
+static struct attribute *iscsi_endpoint_attrs[] = {
+	&dev_attr_ep_handle.attr,
+	NULL,
+};
+
+static struct attribute_group iscsi_endpoint_group = {
+	.attrs = iscsi_endpoint_attrs,
+};
+
+#define ISCSI_MAX_EPID -1
+
+static int iscsi_match_epid(struct device *dev, void *data)
+{
+	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
+	unsigned int *epid = (unsigned int *) data;
+
+	return *epid == ep->id;
+}
+
+struct iscsi_endpoint *
+iscsi_create_endpoint(int dd_size)
+{
+	struct device *dev;
+	struct iscsi_endpoint *ep;
+	unsigned int id;
+	int err;
+
+	for (id = 1; id < ISCSI_MAX_EPID; id++) {
+		dev = class_find_device(&iscsi_endpoint_class, &id,
+					iscsi_match_epid);
+		if (!dev)
+			break;
+	}
+	if (id == ISCSI_MAX_EPID) {
+		printk(KERN_ERR "Too many connections. Max supported %u\n",
+		       ISCSI_MAX_EPID - 1);
+		return NULL;
+	}
+
+	ep = kzalloc(sizeof(*ep) + dd_size, GFP_KERNEL);
+	if (!ep)
+		return NULL;
+
+	ep->id = id;
+	ep->dev.class = &iscsi_endpoint_class;
+	snprintf(ep->dev.bus_id, BUS_ID_SIZE, "ep-%u", id);
+	err = device_register(&ep->dev);
+        if (err)
+                goto free_ep;
+
+	err = sysfs_create_group(&ep->dev.kobj, &iscsi_endpoint_group);
+	if (err)
+		goto unregister_dev;
+
+	if (dd_size)
+		ep->dd_data = &ep[1];
+	return ep;
+
+unregister_dev:
+	device_unregister(&ep->dev);
+	return NULL;
+
+free_ep:
+	kfree(ep);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(iscsi_create_endpoint);
+
+void iscsi_destroy_endpoint(struct iscsi_endpoint *ep)
+{
+	sysfs_remove_group(&ep->dev.kobj, &iscsi_endpoint_group);
+	device_unregister(&ep->dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_destroy_endpoint);
+
+struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle)
+{
+	struct device *dev;
+
+	dev = class_find_device(&iscsi_endpoint_class, &handle,
+				iscsi_match_epid);
+	if (!dev)
+		return NULL;
+
+	return iscsi_dev_to_endpoint(dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_lookup_endpoint);
 
 static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 			    struct device *cdev)
@@ -1094,33 +1212,16 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 EXPORT_SYMBOL_GPL(iscsi_session_event);
 
 static int
-iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_uevent *ev,
-			uint32_t host_no, uint32_t initial_cmdsn,
+iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_endpoint *ep,
+			struct iscsi_uevent *ev, uint32_t initial_cmdsn,
 			uint16_t cmds_max, uint16_t queue_depth)
 {
 	struct iscsi_transport *transport = priv->iscsi_transport;
 	struct iscsi_cls_session *session;
-	struct Scsi_Host *shost = NULL;
+	uint32_t host_no;
 
-	/*
-	 * Software iscsi allocates a host per session, but
-	 * offload drivers (and possibly iser one day) allocate a host per
-	 * hba/nic/rnic. Offload will match a host here, but software will
-	 * return a new hostno after the create_session callback has returned.
-	 */
-	if (host_no != UINT_MAX) {
-		shost = scsi_host_lookup(host_no);
-		if (IS_ERR(shost)) {
-			printk(KERN_ERR "Could not find host no %u to "
-			       "create session\n", host_no);
-			return -ENODEV;
-		}
-	}
-
-	session = transport->create_session(shost, cmds_max, queue_depth,
+	session = transport->create_session(ep, cmds_max, queue_depth,
 					    initial_cmdsn, &host_no);
-	if (shost)
-		scsi_host_put(shost);
 	if (!session)
 		return -ENOMEM;
 
@@ -1199,6 +1300,7 @@ static int
 iscsi_if_transport_ep(struct iscsi_transport *transport,
 		      struct iscsi_uevent *ev, int msg_type)
 {
+	struct iscsi_endpoint *ep;
 	struct sockaddr *dst_addr;
 	int rc = 0;
 
@@ -1208,22 +1310,33 @@ iscsi_if_transport_ep(struct iscsi_transport *transport,
 			return -EINVAL;
 
 		dst_addr = (struct sockaddr *)((char*)ev + sizeof(*ev));
-		rc = transport->ep_connect(dst_addr,
-					   ev->u.ep_connect.non_blocking,
-					   &ev->r.ep_connect_ret.handle);
+		ep = transport->ep_connect(dst_addr,
+					   ev->u.ep_connect.non_blocking);
+		if (IS_ERR(ep))
+			return PTR_ERR(ep);
+
+		ev->r.ep_connect_ret.handle = ep->id;
 		break;
 	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
 		if (!transport->ep_poll)
 			return -EINVAL;
 
-		ev->r.retcode = transport->ep_poll(ev->u.ep_poll.ep_handle,
+		ep = iscsi_lookup_endpoint(ev->u.ep_poll.ep_handle);
+		if (!ep)
+			return -EINVAL;
+
+		ev->r.retcode = transport->ep_poll(ep,
 						   ev->u.ep_poll.timeout_ms);
 		break;
 	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
 		if (!transport->ep_disconnect)
 			return -EINVAL;
 
-		transport->ep_disconnect(ev->u.ep_disconnect.ep_handle);
+		ep = iscsi_lookup_endpoint(ev->u.ep_disconnect.ep_handle);
+		if (!ep)
+			return -EINVAL;
+
+		transport->ep_disconnect(ep);
 		break;
 	}
 	return rc;
@@ -1283,12 +1396,12 @@ static int
 iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err = 0;
-	uint32_t host_no = UINT_MAX;
 	struct iscsi_uevent *ev = NLMSG_DATA(nlh);
 	struct iscsi_transport *transport = NULL;
 	struct iscsi_internal *priv;
 	struct iscsi_cls_session *session;
 	struct iscsi_cls_conn *conn;
+	struct iscsi_endpoint *ep = NULL;
 
 	priv = iscsi_if_transport_lookup(iscsi_ptr(ev->transport_handle));
 	if (!priv)
@@ -1302,14 +1415,17 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
-		err = iscsi_if_create_session(priv, ev, host_no,
+		err = iscsi_if_create_session(priv, ep, ev,
 					      ev->u.c_session.initial_cmdsn,
 					      ev->u.c_session.cmds_max,
 					      ev->u.c_session.queue_depth);
 		break;
 	case ISCSI_UEVENT_CREATE_BOUND_SESSION:
-		err = iscsi_if_create_session(priv, ev,
-					ev->u.c_bound_session.host_no,
+		ep = iscsi_lookup_endpoint(ev->u.c_bound_session.ep_handle);
+		if (!ep)
+			return -EINVAL;
+
+		err = iscsi_if_create_session(priv, ep, ev,
 					ev->u.c_bound_session.initial_cmdsn,
 					ev->u.c_bound_session.cmds_max,
 					ev->u.c_bound_session.queue_depth);
@@ -1774,6 +1890,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 
 unregister_dev:
 	device_unregister(&priv->dev);
+	return NULL;
 free_priv:
 	kfree(priv);
 	return NULL;
@@ -1821,9 +1938,13 @@ static __init int iscsi_transport_init(void)
 	if (err)
 		return err;
 
-	err = transport_class_register(&iscsi_host_class);
+	err = class_register(&iscsi_endpoint_class);
 	if (err)
 		goto unregister_transport_class;
+
+	err = transport_class_register(&iscsi_host_class);
+	if (err)
+		goto unregister_endpoint_class;
 
 	err = transport_class_register(&iscsi_connection_class);
 	if (err)
@@ -1833,8 +1954,8 @@ static __init int iscsi_transport_init(void)
 	if (err)
 		goto unregister_conn_class;
 
-	nls = netlink_kernel_create(&init_net, NETLINK_ISCSI, 1, iscsi_if_rx, NULL,
-			THIS_MODULE);
+	nls = netlink_kernel_create(&init_net, NETLINK_ISCSI, 1, iscsi_if_rx,
+				    NULL, THIS_MODULE);
 	if (!nls) {
 		err = -ENOBUFS;
 		goto unregister_session_class;
@@ -1854,6 +1975,8 @@ unregister_conn_class:
 	transport_class_unregister(&iscsi_connection_class);
 unregister_host_class:
 	transport_class_unregister(&iscsi_host_class);
+unregister_endpoint_class:
+	class_unregister(&iscsi_endpoint_class);
 unregister_transport_class:
 	class_unregister(&iscsi_transport_class);
 	return err;
@@ -1866,6 +1989,7 @@ static void __exit iscsi_transport_exit(void)
 	transport_class_unregister(&iscsi_connection_class);
 	transport_class_unregister(&iscsi_session_class);
 	transport_class_unregister(&iscsi_host_class);
+	class_unregister(&iscsi_endpoint_class);
 	class_unregister(&iscsi_transport_class);
 }
 

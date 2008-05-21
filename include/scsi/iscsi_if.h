@@ -80,7 +80,7 @@ struct iscsi_uevent {
 			uint16_t	queue_depth;
 		} c_session;
 		struct msg_create_bound_session {
-			uint32_t	host_no;
+			uint64_t	ep_handle;
 			uint32_t	initial_cmdsn;
 			uint16_t	cmds_max;
 			uint16_t	queue_depth;

@@ -30,6 +30,7 @@
 
 struct scsi_transport_template;
 struct iscsi_transport;
+struct iscsi_endpoint;
 struct Scsi_Host;
 struct iscsi_cls_conn;
 struct iscsi_conn;
@@ -85,7 +86,7 @@ struct iscsi_transport {
 	/* LLD sets this to indicate what values it can export to sysfs */
 	uint64_t param_mask;
 	uint64_t host_param_mask;
-	struct iscsi_cls_session *(*create_session) (struct Scsi_Host *shost,
+	struct iscsi_cls_session *(*create_session) (struct iscsi_endpoint *ep,
 					uint16_t cmds_max, uint16_t qdepth,
 					uint32_t sn, uint32_t *hn);
 	void (*destroy_session) (struct iscsi_cls_session *session);
@@ -117,10 +118,10 @@ struct iscsi_transport {
 	void (*cleanup_task) (struct iscsi_conn *conn,
 				  struct iscsi_task *task);
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
-	int (*ep_connect) (struct sockaddr *dst_addr, int non_blocking,
-			   uint64_t *ep_handle);
-	int (*ep_poll) (uint64_t ep_handle, int timeout_ms);
-	void (*ep_disconnect) (uint64_t ep_handle);
+	struct iscsi_endpoint *(*ep_connect) (struct sockaddr *dst_addr,
+					      int non_blocking);
+	int (*ep_poll) (struct iscsi_endpoint *ep, int timeout_ms);
+	void (*ep_disconnect) (struct iscsi_endpoint *ep);
 	int (*tgt_dscvr) (struct Scsi_Host *shost, enum iscsi_tgt_dscvr type,
 			  uint32_t enable, struct sockaddr *dst_addr);
 };
@@ -203,6 +204,11 @@ struct iscsi_cls_host {
 extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
 				void (*fn)(struct iscsi_cls_session *));
 
+struct iscsi_endpoint {
+	void *dd_data;			/* LLD private data */
+	struct device dev;
+	unsigned int id;
+};
 
 /*
  * session and connection functions that can be used by HW iSCSI LLDs
@@ -233,5 +239,8 @@ extern int iscsi_destroy_conn(struct iscsi_cls_conn *conn);
 extern void iscsi_unblock_session(struct iscsi_cls_session *session);
 extern void iscsi_block_session(struct iscsi_cls_session *session);
 extern int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time);
+extern struct iscsi_endpoint *iscsi_create_endpoint(int dd_size);
+extern void iscsi_destroy_endpoint(struct iscsi_endpoint *ep);
+extern struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle);
 
 #endif
