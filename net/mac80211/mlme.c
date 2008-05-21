@@ -730,7 +730,17 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		if (bss->wmm_ie) {
 			wmm = 1;
 		}
+
+		/* get all rates supported by the device and the AP as
+		 * some APs don't like getting a superset of their rates
+		 * in the association request (e.g. D-Link DAP 1353 in
+		 * b-only mode) */
+		rates_len = ieee80211_compatible_rates(bss, sband, &rates);
+
 		ieee80211_rx_bss_put(dev, bss);
+	} else {
+		rates = ~0;
+		rates_len = sband->n_bitrates;
 	}
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
@@ -761,10 +771,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 	*pos++ = ifsta->ssid_len;
 	memcpy(pos, ifsta->ssid, ifsta->ssid_len);
 
-	/* all supported rates should be added here but some APs
-	 * (e.g. D-Link DAP 1353 in b-only mode) don't like that
-	 * Therefore only add rates the AP supports */
-	rates_len = ieee80211_compatible_rates(bss, sband, &rates);
+	/* add all rates which were marked to be used above */
 	supp_rates_len = rates_len;
 	if (supp_rates_len > 8)
 		supp_rates_len = 8;
