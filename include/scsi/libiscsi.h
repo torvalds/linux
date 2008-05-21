@@ -52,9 +52,7 @@ struct device;
 #endif
 
 #define ISCSI_DEF_XMIT_CMDS_MAX	128	/* must be power of 2 */
-#define ISCSI_MGMT_CMDS_MAX	16	/* must be power of 2 */
-
-#define ISCSI_MGMT_ITT_OFFSET	0xa00
+#define ISCSI_MGMT_CMDS_MAX	15
 
 #define ISCSI_DEF_CMD_PER_LUN		32
 #define ISCSI_MAX_CMD_PER_LUN		128
@@ -72,7 +70,10 @@ enum {
 /* Connection suspend "bit" */
 #define ISCSI_SUSPEND_BIT		1
 
-#define ISCSI_ITT_MASK			(0xfff)
+#define ISCSI_ITT_MASK			(0x1fff)
+#define ISCSI_TOTAL_CMDS_MAX		4096
+/* this must be a power of two greater than ISCSI_MGMT_CMDS_MAX */
+#define ISCSI_TOTAL_CMDS_MIN		16
 #define ISCSI_AGE_SHIFT			28
 #define ISCSI_AGE_MASK			(0xf << ISCSI_AGE_SHIFT)
 

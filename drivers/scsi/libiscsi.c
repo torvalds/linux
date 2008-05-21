@@ -1893,29 +1893,48 @@ EXPORT_SYMBOL_GPL(iscsi_host_free);
  *
  * This can be used by software iscsi_transports that allocate
  * a session per scsi host.
+ *
+ * Callers should set cmds_max to the largest total numer (mgmt + scsi) of
+ * tasks they support. The iscsi layer reserves ISCSI_MGMT_CMDS_MAX tasks
+ * for nop handling and login/logout requests.
  */
 struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
-		    uint16_t scsi_cmds_max, int cmd_task_size,
+		    uint16_t cmds_max, int cmd_task_size,
 		    uint32_t initial_cmdsn, unsigned int id)
 {
 	struct iscsi_session *session;
 	struct iscsi_cls_session *cls_session;
-	int cmd_i, cmds_max;
-
+	int cmd_i, scsi_cmds, total_cmds = cmds_max;
 	/*
-	 * The iscsi layer needs some tasks for nop handling and tmfs.
+	 * The iscsi layer needs some tasks for nop handling and tmfs,
+	 * so the cmds_max must at least be greater than ISCSI_MGMT_CMDS_MAX
+	 * + 1 command for scsi IO.
 	 */
-	if (scsi_cmds_max < 1)
-		scsi_cmds_max = ISCSI_MGMT_CMDS_MAX;
-	if ((scsi_cmds_max + ISCSI_MGMT_CMDS_MAX) >= ISCSI_MGMT_ITT_OFFSET) {
-		printk(KERN_ERR "iscsi: invalid can_queue of %d. "
-		       "can_queue must be less than %d.\n",
-		       scsi_cmds_max,
-		       ISCSI_MGMT_ITT_OFFSET - ISCSI_MGMT_CMDS_MAX);
-		scsi_cmds_max = ISCSI_DEF_XMIT_CMDS_MAX;
+	if (total_cmds < ISCSI_TOTAL_CMDS_MIN) {
+		printk(KERN_ERR "iscsi: invalid can_queue of %d. can_queue "
+		       "must be a power of two that is at least %d.\n",
+		       total_cmds, ISCSI_TOTAL_CMDS_MIN);
+		return NULL;
 	}
-	cmds_max = roundup_pow_of_two(scsi_cmds_max + ISCSI_MGMT_CMDS_MAX);
+
+	if (total_cmds > ISCSI_TOTAL_CMDS_MAX) {
+		printk(KERN_ERR "iscsi: invalid can_queue of %d. can_queue "
+		       "must be a power of 2 less than or equal to %d.\n",
+		       cmds_max, ISCSI_TOTAL_CMDS_MAX);
+		total_cmds = ISCSI_TOTAL_CMDS_MAX;
+	}
+
+	if (!is_power_of_2(total_cmds)) {
+		printk(KERN_ERR "iscsi: invalid can_queue of %d. can_queue "
+		       "must be a power of 2.\n", total_cmds);
+		total_cmds = rounddown_pow_of_two(total_cmds);
+		if (total_cmds < ISCSI_TOTAL_CMDS_MIN)
+			return NULL;
+		printk(KERN_INFO "iscsi: Rounding can_queue to %d.\n",
+		       total_cmds);
+	}
+	scsi_cmds = total_cmds - ISCSI_MGMT_CMDS_MAX;
 
 	cls_session = iscsi_alloc_session(shost, iscsit,
 					  sizeof(struct iscsi_session));
@@ -1928,8 +1947,8 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 	session->fast_abort = 1;
 	session->lu_reset_timeout = 15;
 	session->abort_timeout = 10;
-	session->scsi_cmds_max = scsi_cmds_max;
-	session->cmds_max = cmds_max;
+	session->scsi_cmds_max = scsi_cmds;
+	session->cmds_max = total_cmds;
 	session->queued_cmdsn = session->cmdsn = initial_cmdsn;
 	session->exp_cmdsn = initial_cmdsn + 1;
 	session->max_cmdsn = initial_cmdsn + 1;
