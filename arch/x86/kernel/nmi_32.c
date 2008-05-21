@@ -131,7 +131,7 @@ int __init check_nmi_watchdog(void)
 	kfree(prev_nmi_count);
 	return 0;
 error:
-	timer_ack = !cpu_has_tsc;
+	timer_ack = 0;
 
 	return -1;
 }

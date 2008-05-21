@@ -2146,19 +2146,17 @@ static inline void __init check_timer(void)
 	set_intr_gate(vector, interrupt[0]);
 
 	/*
-	 * Subtle, code in do_timer_interrupt() expects an AEOI
-	 * mode for the 8259A whenever interrupts are routed
-	 * through I/O APICs.  Also IRQ0 has to be enabled in
-	 * the 8259A which implies the virtual wire has to be
-	 * disabled in the local APIC.  Finally timer interrupts
-	 * need to be acknowledged manually in the 8259A for
-	 * timer_interrupt() and for the i82489DX when using
-	 * the NMI watchdog.
+	 * As IRQ0 is to be enabled in the 8259A, the virtual
+	 * wire has to be disabled in the local APIC.  Also
+	 * timer interrupts need to be acknowledged manually in
+	 * the 8259A for the i82489DX when using the NMI
+	 * watchdog as that APIC treats NMIs as level-triggered.
+	 * The AEOI mode will finish them in the 8259A
+	 * automatically.
 	 */
 	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
-	timer_ack = !cpu_has_tsc;
-	timer_ack |= (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
+	timer_ack = (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
 	if (timer_over_8254 > 0)
 		enable_8259A_irq(0);
 
@@ -2219,6 +2217,7 @@ static inline void __init check_timer(void)
 		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
 		nmi_watchdog = 0;
 	}
+	timer_ack = 0;
 
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
@@ -2237,7 +2236,6 @@ static inline void __init check_timer(void)
 
 	printk(KERN_INFO "...trying to set up timer as ExtINT IRQ...");
 
-	timer_ack = 0;
 	init_8259A(0);
 	make_8259A_irq(0);
 	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
