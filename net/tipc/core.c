@@ -117,11 +117,11 @@ void tipc_core_stop_net(void)
  * start_net - start TIPC networking sub-systems
  */
 
-int tipc_core_start_net(void)
+int tipc_core_start_net(unsigned long addr)
 {
 	int res;
 
-	if ((res = tipc_net_start()) ||
+	if ((res = tipc_net_start(addr)) ||
 	    (res = tipc_eth_media_start())) {
 		tipc_core_stop_net();
 	}

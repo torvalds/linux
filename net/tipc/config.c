@@ -293,7 +293,6 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_mode == TIPC_NET_MODE)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-	tipc_own_addr = addr;
 
 	/*
 	 * Must release all spinlocks before calling start_net() because
@@ -306,7 +305,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	 */
 
 	spin_unlock_bh(&config_lock);
-	tipc_core_start_net();
+	tipc_core_start_net(addr);
 	spin_lock_bh(&config_lock);
 	return tipc_cfg_reply_none();
 }

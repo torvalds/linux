@@ -202,7 +202,7 @@ extern atomic_t tipc_user_count;
 
 extern int  tipc_core_start(void);
 extern void tipc_core_stop(void);
-extern int  tipc_core_start_net(void);
+extern int  tipc_core_start_net(unsigned long addr);
 extern void tipc_core_stop_net(void);
 extern int  tipc_handler_start(void);
 extern void tipc_handler_stop(void);
