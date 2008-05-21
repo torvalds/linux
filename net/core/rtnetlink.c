@@ -606,6 +606,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 {
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
+	struct net_device_stats *stats;
+	struct nlattr *attr;
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ifm), flags);
 	if (nlh == NULL)
@@ -652,19 +654,13 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		NLA_PUT(skb, IFLA_BROADCAST, dev->addr_len, dev->broadcast);
 	}
 
-	if (dev->get_stats) {
-		struct net_device_stats *stats = dev->get_stats(dev);
-		if (stats) {
-			struct nlattr *attr;
+	attr = nla_reserve(skb, IFLA_STATS,
+			sizeof(struct rtnl_link_stats));
+	if (attr == NULL)
+		goto nla_put_failure;
 
-			attr = nla_reserve(skb, IFLA_STATS,
-					   sizeof(struct rtnl_link_stats));
-			if (attr == NULL)
-				goto nla_put_failure;
-
-			copy_rtnl_link_stats(nla_data(attr), stats);
-		}
-	}
+	stats = dev->get_stats(dev);
+	copy_rtnl_link_stats(nla_data(attr), stats);
 
 	if (dev->rtnl_link_ops) {
 		if (rtnl_link_fill(skb, dev) < 0)
