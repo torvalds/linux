@@ -901,7 +901,7 @@ endif # V4L_USB_DRIVERS
 
 config SOC_CAMERA
 	tristate "SoC camera support"
-	depends on VIDEO_V4L2
+	depends on VIDEO_V4L2 && HAS_DMA
 	select VIDEOBUF_DMA_SG
 	help
 	  SoC Camera is a common API to several cameras, not connecting
