@@ -516,7 +516,7 @@ void __init setup_arch(char **cmdline_p)
 	 * We trust e820 completely. No explicit ROM probing in memory.
 	 */
 	e820_reserve_resources();
-	e820_mark_nosave_regions();
+	e820_mark_nosave_regions(end_pfn);
 
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)

@@ -17,7 +17,6 @@
 #include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/suspend.h>
 #include <linux/pfn.h>
 #include <linux/pci.h>
 
@@ -90,37 +89,6 @@ void __init e820_reserve_resources(void)
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		insert_resource(&iomem_resource, res);
 		res++;
-	}
-}
-
-/*
- * Find the ranges of physical addresses that do not correspond to
- * e820 RAM areas and mark the corresponding pages as nosave for software
- * suspend and suspend to RAM.
- *
- * This function requires the e820 map to be sorted and without any
- * overlapping entries and assumes the first e820 area to be RAM.
- */
-void __init e820_mark_nosave_regions(void)
-{
-	int i;
-	unsigned long paddr;
-
-	paddr = round_down(e820.map[0].addr + e820.map[0].size, PAGE_SIZE);
-	for (i = 1; i < e820.nr_map; i++) {
-		struct e820entry *ei = &e820.map[i];
-
-		if (paddr < ei->addr)
-			register_nosave_region(PFN_DOWN(paddr),
-						PFN_UP(ei->addr));
-
-		paddr = round_down(ei->addr + ei->size, PAGE_SIZE);
-		if (ei->type != E820_RAM)
-			register_nosave_region(PFN_UP(ei->addr),
-						PFN_DOWN(paddr));
-
-		if (paddr >= (end_pfn << PAGE_SHIFT))
-			break;
 	}
 }
 

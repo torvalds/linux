@@ -70,6 +70,15 @@ extern u64 update_memory_range(u64 start, u64 size, unsigned old_type,
 extern void update_e820(void);
 extern void e820_setup_gap(void);
 
+#if defined(CONFIG_X86_64) || \
+	(defined(CONFIG_X86_32) && defined(CONFIG_HIBERNATION))
+extern void e820_mark_nosave_regions(unsigned long limit_pfn);
+#else
+static inline void e820_mark_nosave_regions(unsigned long limit_pfn)
+{
+}
+#endif
+
 extern u64 find_e820_area(u64 start, u64 end, u64 size, u64 align);
 extern u64 find_e820_area_size(u64 start, u64 *sizep, u64 align);
 extern void reserve_early(u64 start, u64 end, char *name);

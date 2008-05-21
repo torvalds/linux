@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/pfn.h>
+#include <linux/suspend.h>
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -495,6 +496,37 @@ __init void e820_setup_gap(void)
 	       pci_mem_start, gapstart, gapsize);
 }
 
+#if defined(CONFIG_X86_64) || \
+	(defined(CONFIG_X86_32) && defined(CONFIG_HIBERNATION))
+/**
+ * Find the ranges of physical addresses that do not correspond to
+ * e820 RAM areas and mark the corresponding pages as nosave for
+ * hibernation (32 bit) or software suspend and suspend to RAM (64 bit).
+ *
+ * This function requires the e820 map to be sorted and without any
+ * overlapping entries and assumes the first e820 area to be RAM.
+ */
+void __init e820_mark_nosave_regions(unsigned long limit_pfn)
+{
+	int i;
+	unsigned long pfn;
+
+	pfn = PFN_DOWN(e820.map[0].addr + e820.map[0].size);
+	for (i = 1; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+
+		if (pfn < PFN_UP(ei->addr))
+			register_nosave_region(pfn, PFN_UP(ei->addr));
+
+		pfn = PFN_DOWN(ei->addr + ei->size);
+		if (ei->type != E820_RAM)
+			register_nosave_region(PFN_UP(ei->addr), pfn);
+
+		if (pfn >= limit_pfn)
+			break;
+	}
+}
+#endif
 
 /*
  * Early reserved memory areas.

@@ -28,13 +28,5 @@ extern void init_iomem_resources(struct resource *code_resource,
 				 struct resource *data_resource,
 				 struct resource *bss_resource);
 
-#if defined(CONFIG_PM) && defined(CONFIG_HIBERNATION)
-extern void e820_mark_nosave_regions(void);
-#else
-static inline void e820_mark_nosave_regions(void)
-{
-}
-#endif
-
 #endif/*!__ASSEMBLY__*/
 #endif/*__E820_HEADER*/

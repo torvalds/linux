@@ -820,7 +820,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	e820_setup_gap();
-	e820_mark_nosave_regions();
+	e820_mark_nosave_regions(max_low_pfn);
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)

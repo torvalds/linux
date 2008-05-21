@@ -9,7 +9,6 @@
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
-#include <linux/suspend.h>
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -207,37 +206,6 @@ void __init init_iomem_resources(struct resource *code_resource,
 		}
 	}
 }
-
-#if defined(CONFIG_PM) && defined(CONFIG_HIBERNATION)
-/**
- * e820_mark_nosave_regions - Find the ranges of physical addresses that do not
- * correspond to e820 RAM areas and mark the corresponding pages as nosave for
- * hibernation.
- *
- * This function requires the e820 map to be sorted and without any
- * overlapping entries and assumes the first e820 area to be RAM.
- */
-void __init e820_mark_nosave_regions(void)
-{
-	int i;
-	unsigned long pfn;
-
-	pfn = PFN_DOWN(e820.map[0].addr + e820.map[0].size);
-	for (i = 1; i < e820.nr_map; i++) {
-		struct e820entry *ei = &e820.map[i];
-
-		if (pfn < PFN_UP(ei->addr))
-			register_nosave_region(pfn, PFN_UP(ei->addr));
-
-		pfn = PFN_DOWN(ei->addr + ei->size);
-		if (ei->type != E820_RAM)
-			register_nosave_region(PFN_UP(ei->addr), pfn);
-
-		if (pfn >= max_low_pfn)
-			break;
-	}
-}
-#endif
 
 /*
  * Find the highest page frame number we have available
