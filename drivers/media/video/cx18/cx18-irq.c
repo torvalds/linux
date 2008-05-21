@@ -161,13 +161,15 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 	*/
 
 	if (sw2) {
-		if (sw2 & (cx->scb->cpu2hpu_irq_ack | cx->scb->cpu2epu_irq_ack))
+		if (sw2 & (readl(&cx->scb->cpu2hpu_irq_ack) |
+			   readl(&cx->scb->cpu2epu_irq_ack)))
 			wake_up(&cx->mb_cpu_waitq);
-		if (sw2 & (cx->scb->apu2hpu_irq_ack | cx->scb->apu2epu_irq_ack))
+		if (sw2 & (readl(&cx->scb->apu2hpu_irq_ack) |
+			   readl(&cx->scb->apu2epu_irq_ack)))
 			wake_up(&cx->mb_apu_waitq);
-		if (sw2 & cx->scb->epu2hpu_irq_ack)
+		if (sw2 & readl(&cx->scb->epu2hpu_irq_ack))
 			wake_up(&cx->mb_epu_waitq);
-		if (sw2 & cx->scb->hpu2epu_irq_ack)
+		if (sw2 & readl(&cx->scb->hpu2epu_irq_ack))
 			wake_up(&cx->mb_hpu_waitq);
 	}
 
