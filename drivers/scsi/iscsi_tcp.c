@@ -544,7 +544,7 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 
 	if (tcp_task->exp_datasn != datasn) {
 		debug_tcp("%s: task->exp_datasn(%d) != rhdr->datasn(%d)\n",
-		          __FUNCTION__, tcp_task->exp_datasn, datasn);
+		          __func__, tcp_task->exp_datasn, datasn);
 		return ISCSI_ERR_DATASN;
 	}
 
@@ -553,7 +553,7 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 	tcp_task->data_offset = be32_to_cpu(rhdr->offset);
 	if (tcp_task->data_offset + tcp_conn->in.datalen > total_in_length) {
 		debug_tcp("%s: data_offset(%d) + data_len(%d) > total_length_in(%d)\n",
-		          __FUNCTION__, tcp_task->data_offset,
+		          __func__, tcp_task->data_offset,
 		          tcp_conn->in.datalen, total_in_length);
 		return ISCSI_ERR_DATA_OFFSET;
 	}
@@ -646,7 +646,7 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 
 	if (tcp_task->exp_datasn != r2tsn){
 		debug_tcp("%s: task->exp_datasn(%d) != rhdr->r2tsn(%d)\n",
-		          __FUNCTION__, tcp_task->exp_datasn, r2tsn);
+		          __func__, tcp_task->exp_datasn, r2tsn);
 		return ISCSI_ERR_R2TSN;
 	}
 
@@ -1193,7 +1193,7 @@ iscsi_tcp_send_hdr_prep(struct iscsi_conn *conn, void *hdr, size_t hdrlen)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 
-	debug_tcp("%s(%p%s)\n", __FUNCTION__, tcp_conn,
+	debug_tcp("%s(%p%s)\n", __func__, tcp_conn,
 			conn->hdrdgst_en? ", digest enabled" : "");
 
 	/* Clear the data segment - needs to be filled in by the
@@ -1234,7 +1234,7 @@ iscsi_tcp_send_data_prep(struct iscsi_conn *conn, struct scatterlist *sg,
 	struct hash_desc *tx_hash = NULL;
 	unsigned int hdr_spec_len;
 
-	debug_tcp("%s(%p, offset=%d, datalen=%d%s)\n", __FUNCTION__,
+	debug_tcp("%s(%p, offset=%d, datalen=%d%s)\n", __func__,
 			tcp_conn, offset, len,
 			conn->datadgst_en? ", digest enabled" : "");
 
@@ -1259,7 +1259,7 @@ iscsi_tcp_send_linear_data_prepare(struct iscsi_conn *conn, void *data,
 	struct hash_desc *tx_hash = NULL;
 	unsigned int hdr_spec_len;
 
-	debug_tcp("%s(%p, datalen=%d%s)\n", __FUNCTION__, tcp_conn, len,
+	debug_tcp("%s(%p, datalen=%d%s)\n", __func__, tcp_conn, len,
 		  conn->datadgst_en? ", digest enabled" : "");
 
 	/* Make sure the datalen matches what the caller
