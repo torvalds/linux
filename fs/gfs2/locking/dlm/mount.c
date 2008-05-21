@@ -28,15 +28,11 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
 	ls->sdp = sdp;
 	ls->fsflags = flags;
 	spin_lock_init(&ls->async_lock);
-	INIT_LIST_HEAD(&ls->complete);
-	INIT_LIST_HEAD(&ls->blocking);
 	INIT_LIST_HEAD(&ls->delayed);
 	INIT_LIST_HEAD(&ls->submit);
 	INIT_LIST_HEAD(&ls->all_locks);
 	init_waitqueue_head(&ls->thread_wait);
 	init_waitqueue_head(&ls->wait_control);
-	ls->thread1 = NULL;
-	ls->thread2 = NULL;
 	ls->drop_time = jiffies;
 	ls->jid = -1;
 
