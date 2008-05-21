@@ -816,6 +816,7 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 	complete(&c_idle->done);
 }
 
+#ifdef CONFIG_X86_64
 /*
  * Allocate node local memory for the AP pda.
  *
@@ -852,6 +853,7 @@ static int __cpuinit get_local_pda(int cpu)
 	cpu_pda(cpu) = newpda;
 	return 0;
 }
+#endif /* CONFIG_X86_64 */
 
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
