@@ -361,7 +361,8 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 				cx18_enqueue(s, buf, &s->q_free);
 				cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5,
 					s->handle,
-					(void *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+					(void __iomem *)&cx->scb->cpu_mdl[buf->id] -
+					  cx->enc_mem,
 					1, buf->id, s->buf_size);
 			} else
 				cx18_enqueue(s, buf, &s->q_io);

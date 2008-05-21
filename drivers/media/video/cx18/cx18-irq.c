@@ -75,7 +75,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 
 			cx18_buf_sync_for_device(s, buf);
 			cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-			    (void *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+			    (void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
 			    1, buf->id, s->buf_size);
 		} else
 			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);

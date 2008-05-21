@@ -358,7 +358,7 @@ struct cx18 {
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags; 		/* Hardware description of the board */
 	unsigned mdl_offset;
-	struct cx18_scb *scb;   /* pointer to SCB */
+	struct cx18_scb __iomem *scb;   /* pointer to SCB */
 
 	struct cx18_av_state av_state;
 

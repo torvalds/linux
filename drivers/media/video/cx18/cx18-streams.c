@@ -473,8 +473,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	}
 
 	cx18_vapi(cx, CX18_CPU_DE_SET_MDL_ACK, 3, s->handle,
-		(void *)&cx->scb->cpu_mdl_ack[s->type][0] - cx->enc_mem,
-		(void *)&cx->scb->cpu_mdl_ack[s->type][1] - cx->enc_mem);
+		(void __iomem *)&cx->scb->cpu_mdl_ack[s->type][0] - cx->enc_mem,
+		(void __iomem *)&cx->scb->cpu_mdl_ack[s->type][1] - cx->enc_mem);
 
 	list_for_each(p, &s->q_free.list) {
 		struct cx18_buffer *buf = list_entry(p, struct cx18_buffer, list);
@@ -482,8 +482,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		writel(buf->dma_handle, &cx->scb->cpu_mdl[buf->id].paddr);
 		writel(s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
 		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-			(void *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem, 1,
-			buf->id, s->buf_size);
+			(void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+			1, buf->id, s->buf_size);
 	}
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {

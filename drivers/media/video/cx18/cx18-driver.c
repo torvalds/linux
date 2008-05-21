@@ -670,7 +670,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	cx18_init_power(cx, 1);
 	cx18_init_memory(cx);
 
-	cx->scb = (struct cx18_scb *)(cx->enc_mem + SCB_OFFSET);
+	cx->scb = (struct cx18_scb __iomem *)(cx->enc_mem + SCB_OFFSET);
 	cx18_init_scb(cx);
 
 	cx18_gpio_init(cx);
