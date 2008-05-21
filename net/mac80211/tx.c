@@ -761,73 +761,18 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_local *local = tx->local;
-	struct sk_buff *skb = tx->skb;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u32 load = 0, hdrtime;
-	struct ieee80211_rate *rate;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int i;
 
-	sband = tx->local->hw.wiphy->bands[tx->channel->band];
-	rate = &sband->bitrates[tx->rate_idx];
+	if (!tx->sta)
+		return TX_CONTINUE;
 
-	/* TODO: this could be part of tx_status handling, so that the number
-	 * of retries would be known; TX rate should in that case be stored
-	 * somewhere with the packet */
-
-	/* Estimate total channel use caused by this frame */
-
-	/* 1 bit at 1 Mbit/s takes 1 usec; in channel_use values,
-	 * 1 usec = 1/8 * (1080 / 10) = 13.5 */
-
-	if (tx->channel->band == IEEE80211_BAND_5GHZ ||
-	    (tx->channel->band == IEEE80211_BAND_2GHZ &&
-	     rate->flags & IEEE80211_RATE_ERP_G))
-		hdrtime = CHAN_UTIL_HDR_SHORT;
-	else
-		hdrtime = CHAN_UTIL_HDR_LONG;
-
-	load = hdrtime;
-	if (!is_multicast_ether_addr(hdr->addr1))
-		load += hdrtime;
-
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS)
-		load += 2 * hdrtime;
-	else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
-		load += hdrtime;
-
-	/* TODO: optimise again */
-	load += skb->len * CHAN_UTIL_RATE_LCM / rate->bitrate;
-
+	tx->sta->tx_packets++;
+	tx->sta->tx_fragments++;
+	tx->sta->tx_bytes += tx->skb->len;
 	if (tx->extra_frag) {
-		int i;
-		for (i = 0; i < tx->num_extra_frag; i++) {
-			load += 2 * hdrtime;
-			load += tx->extra_frag[i]->len *
-				rate->bitrate;
-		}
-	}
-
-	/* Divide channel_use by 8 to avoid wrapping around the counter */
-	load >>= CHAN_UTIL_SHIFT;
-	local->channel_use_raw += load;
-	if (tx->sta)
-		tx->sta->channel_use_raw += load;
-	tx->sdata->channel_use_raw += load;
-
-	if (tx->sta) {
-		tx->sta->tx_packets++;
-		tx->sta->tx_fragments++;
-		tx->sta->tx_bytes += tx->skb->len;
-		if (tx->extra_frag) {
-			int i;
-			tx->sta->tx_fragments += tx->num_extra_frag;
-			for (i = 0; i < tx->num_extra_frag; i++) {
-				tx->sta->tx_bytes +=
-					tx->extra_frag[i]->len;
-			}
-		}
+		tx->sta->tx_fragments += tx->num_extra_frag;
+		for (i = 0; i < tx->num_extra_frag; i++)
+			tx->sta->tx_bytes += tx->extra_frag[i]->len;
 	}
 
 	return TX_CONTINUE;

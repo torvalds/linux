@@ -201,7 +201,6 @@ struct ieee80211_rx_data {
 	unsigned int flags;
 	int sent_ps_buffered;
 	int queue;
-	int load;
 	u32 tkip_iv32;
 	u16 tkip_iv16;
 };
@@ -448,14 +447,11 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_sta sta;
 		u32 mntr_flags;
 	} u;
-	int channel_use;
-	int channel_use_raw;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfsdir;
 	union {
 		struct {
-			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
 			struct dentry *state;
 			struct dentry *bssid;
@@ -474,7 +470,6 @@ struct ieee80211_sub_if_data {
 			struct dentry *num_beacons_sta;
 		} sta;
 		struct {
-			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
 			struct dentry *num_sta_ps;
 			struct dentry *dtim_count;
@@ -484,12 +479,10 @@ struct ieee80211_sub_if_data {
 			struct dentry *num_buffered_multicast;
 		} ap;
 		struct {
-			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
 			struct dentry *peer;
 		} wds;
 		struct {
-			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
 		} vlan;
 		struct {
@@ -660,9 +653,6 @@ struct ieee80211_local {
 	char tx_led_name[32], rx_led_name[32],
 	     assoc_led_name[32], radio_led_name[32];
 #endif
-
-	u32 channel_use;
-	u32 channel_use_raw;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct work_struct sta_debugfs_add;
@@ -861,28 +851,6 @@ u32 ieee80211_handle_ht(struct ieee80211_local *local, int enable_ht,
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
-
-
-/* Least common multiple of the used rates (in 100 kbps). This is used to
- * calculate rate_inv values for each rate so that only integers are needed. */
-#define CHAN_UTIL_RATE_LCM 95040
-/* 1 usec is 1/8 * (95040/10) = 1188 */
-#define CHAN_UTIL_PER_USEC 1188
-/* Amount of bits to shift the result right to scale the total utilization
- * to values that will not wrap around 32-bit integers. */
-#define CHAN_UTIL_SHIFT 9
-/* Theoretical maximum of channel utilization counter in 10 ms (stat_time=1):
- * (CHAN_UTIL_PER_USEC * 10000) >> CHAN_UTIL_SHIFT = 23203. So dividing the
- * raw value with about 23 should give utilization in 10th of a percentage
- * (1/1000). However, utilization is only estimated and not all intervals
- * between frames etc. are calculated. 18 seems to give numbers that are closer
- * to the real maximum. */
-#define CHAN_UTIL_PER_10MS 18
-#define CHAN_UTIL_HDR_LONG (202 * CHAN_UTIL_PER_USEC)
-#define CHAN_UTIL_HDR_SHORT (40 * CHAN_UTIL_PER_USEC)
-
-
-/* ieee80211_ioctl.c */
 int ieee80211_set_freq(struct ieee80211_local *local, int freq);
 /* ieee80211_sta.c */
 void ieee80211_sta_timer(unsigned long data);

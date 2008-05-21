@@ -387,49 +387,7 @@ static void ieee80211_verify_ip_alignment(struct ieee80211_rx_data *rx)
 }
 
 
-static u32 ieee80211_rx_load_stats(struct ieee80211_local *local,
-				   struct sk_buff *skb,
-				   struct ieee80211_rx_status *status,
-				   struct ieee80211_rate *rate)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u32 load = 0, hdrtime;
-
-	/* Estimate total channel use caused by this frame */
-
-	/* 1 bit at 1 Mbit/s takes 1 usec; in channel_use values,
-	 * 1 usec = 1/8 * (1080 / 10) = 13.5 */
-
-	if (status->band == IEEE80211_BAND_5GHZ ||
-	    (status->band == IEEE80211_BAND_5GHZ &&
-	     rate->flags & IEEE80211_RATE_ERP_G))
-		hdrtime = CHAN_UTIL_HDR_SHORT;
-	else
-		hdrtime = CHAN_UTIL_HDR_LONG;
-
-	load = hdrtime;
-	if (!is_multicast_ether_addr(hdr->addr1))
-		load += hdrtime;
-
-	/* TODO: optimise again */
-	load += skb->len * CHAN_UTIL_RATE_LCM / rate->bitrate;
-
-	/* Divide channel_use by 8 to avoid wrapping around the counter */
-	load >>= CHAN_UTIL_SHIFT;
-
-	return load;
-}
-
 /* rx handlers */
-
-static ieee80211_rx_result
-ieee80211_rx_h_if_stats(struct ieee80211_rx_data *rx)
-{
-	if (rx->sta)
-		rx->sta->channel_use_raw += rx->load;
-	rx->sdata->channel_use_raw += rx->load;
-	return RX_CONTINUE;
-}
 
 static ieee80211_rx_result
 ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
@@ -1780,7 +1738,6 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx)
 typedef ieee80211_rx_result (*ieee80211_rx_handler)(struct ieee80211_rx_data *);
 static ieee80211_rx_handler ieee80211_rx_handlers[] =
 {
-	ieee80211_rx_h_if_stats,
 	ieee80211_rx_h_passive_scan,
 	ieee80211_rx_h_check,
 	ieee80211_rx_h_decrypt,
@@ -1939,7 +1896,6 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					 struct sk_buff *skb,
 					 struct ieee80211_rx_status *status,
-					 u32 load,
 					 struct ieee80211_rate *rate)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1958,7 +1914,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	rx.local = local;
 
 	rx.status = status;
-	rx.load = load;
 	rx.rate = rate;
 	rx.fc = le16_to_cpu(hdr->frame_control);
 	type = rx.fc & IEEE80211_FCTL_FTYPE;
@@ -2067,7 +2022,6 @@ u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	struct ieee80211_rx_status status;
 	u16 head_seq_num, buf_size;
 	int index;
-	u32 pkt_load;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *rate;
 
@@ -2102,12 +2056,9 @@ u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 					sizeof(status));
 				sband = local->hw.wiphy->bands[status.band];
 				rate = &sband->bitrates[status.rate_idx];
-				pkt_load = ieee80211_rx_load_stats(local,
-						tid_agg_rx->reorder_buf[index],
-						&status, rate);
 				__ieee80211_rx_handle_packet(hw,
 					tid_agg_rx->reorder_buf[index],
-					&status, pkt_load, rate);
+					&status, rate);
 				tid_agg_rx->stored_mpdu_num--;
 				tid_agg_rx->reorder_buf[index] = NULL;
 			}
@@ -2149,11 +2100,8 @@ u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 			sizeof(status));
 		sband = local->hw.wiphy->bands[status.band];
 		rate = &sband->bitrates[status.rate_idx];
-		pkt_load = ieee80211_rx_load_stats(local,
-					tid_agg_rx->reorder_buf[index],
-					&status, rate);
 		__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
-					     &status, pkt_load, rate);
+					     &status, rate);
 		tid_agg_rx->stored_mpdu_num--;
 		tid_agg_rx->reorder_buf[index] = NULL;
 		tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
@@ -2232,7 +2180,6 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		    struct ieee80211_rx_status *status)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	u32 pkt_load;
 	struct ieee80211_rate *rate = NULL;
 	struct ieee80211_supported_band *sband;
 
@@ -2272,11 +2219,8 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 	}
 
-	pkt_load = ieee80211_rx_load_stats(local, skb, status, rate);
-	local->channel_use_raw += pkt_load;
-
 	if (!ieee80211_rx_reorder_ampdu(local, skb))
-		__ieee80211_rx_handle_packet(hw, skb, status, pkt_load, rate);
+		__ieee80211_rx_handle_packet(hw, skb, status, rate);
 
 	rcu_read_unlock();
 }
