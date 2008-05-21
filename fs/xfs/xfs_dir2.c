@@ -65,6 +65,7 @@ xfs_dir_mount(
 		(mp->m_dirblksize - (uint)sizeof(xfs_da_node_hdr_t)) /
 		(uint)sizeof(xfs_da_node_entry_t);
 	mp->m_dir_magicpct = (mp->m_dirblksize * 37) / 100;
+	mp->m_dirnameops = &xfs_default_nameops;
 }
 
 /*
@@ -164,7 +165,7 @@ xfs_dir_createname(
 
 	args.name = name->name;
 	args.namelen = name->len;
-	args.hashval = xfs_da_hashname(name->name, name->len);
+	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.inumber = inum;
 	args.dp = dp;
 	args.firstblock = first;
@@ -210,11 +211,12 @@ xfs_dir_lookup(
 
 	args.name = name->name;
 	args.namelen = name->len;
-	args.hashval = xfs_da_hashname(name->name, name->len);
+	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.dp = dp;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
 	args.oknoent = 1;
+	args.cmpresult = XFS_CMP_DIFFERENT;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_lookup(&args);
@@ -257,7 +259,7 @@ xfs_dir_removename(
 
 	args.name = name->name;
 	args.namelen = name->len;
-	args.hashval = xfs_da_hashname(name->name, name->len);
+	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.inumber = ino;
 	args.dp = dp;
 	args.firstblock = first;
@@ -340,7 +342,7 @@ xfs_dir_replace(
 
 	args.name = name->name;
 	args.namelen = name->len;
-	args.hashval = xfs_da_hashname(name->name, name->len);
+	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.inumber = inum;
 	args.dp = dp;
 	args.firstblock = first;
@@ -388,7 +390,7 @@ xfs_dir_canenter(
 
 	args.name = name->name;
 	args.namelen = name->len;
-	args.hashval = xfs_da_hashname(name->name, name->len);
+	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.dp = dp;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;

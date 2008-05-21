@@ -1331,6 +1331,8 @@ xfs_dir2_leaf_lookup_int(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_dir2_db_t		newdb;		/* new data block number */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	xfs_dabuf_t		*cbp;		/* case match data buffer */
+	enum xfs_dacmp		cmp;		/* name compare result */
 
 	dp = args->dp;
 	tp = args->trans;
@@ -1354,9 +1356,11 @@ xfs_dir2_leaf_lookup_int(
 	 * Loop over all the entries with the right hash value
 	 * looking to match the name.
 	 */
+	cbp = NULL;
 	for (lep = &leaf->ents[index], dbp = NULL, curdb = -1;
-	     index < be16_to_cpu(leaf->hdr.count) && be32_to_cpu(lep->hashval) == args->hashval;
-	     lep++, index++) {
+				index < be16_to_cpu(leaf->hdr.count) &&
+				be32_to_cpu(lep->hashval) == args->hashval;
+				lep++, index++) {
 		/*
 		 * Skip over stale leaf entries.
 		 */
@@ -1371,12 +1375,12 @@ xfs_dir2_leaf_lookup_int(
 		 * need to pitch the old one and read the new one.
 		 */
 		if (newdb != curdb) {
-			if (dbp)
+			if (dbp != cbp)
 				xfs_da_brelse(tp, dbp);
-			if ((error =
-			    xfs_da_read_buf(tp, dp,
-				    xfs_dir2_db_to_da(mp, newdb), -1, &dbp,
-				    XFS_DATA_FORK))) {
+			error = xfs_da_read_buf(tp, dp,
+						xfs_dir2_db_to_da(mp, newdb),
+						-1, &dbp, XFS_DATA_FORK);
+			if (error) {
 				xfs_da_brelse(tp, lbp);
 				return error;
 			}
@@ -1386,24 +1390,46 @@ xfs_dir2_leaf_lookup_int(
 		/*
 		 * Point to the data entry.
 		 */
-		dep = (xfs_dir2_data_entry_t *)
-		      ((char *)dbp->data +
-		       xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
+		dep = (xfs_dir2_data_entry_t *)((char *)dbp->data +
+			xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
 		/*
-		 * If it matches then return it.
+		 * Compare name and if it's an exact match, return the index
+		 * and buffer. If it's the first case-insensitive match, store
+		 * the index and buffer and continue looking for an exact match.
 		 */
-		if (dep->namelen == args->namelen &&
-		    dep->name[0] == args->name[0] &&
-		    memcmp(dep->name, args->name, args->namelen) == 0) {
-			*dbpp = dbp;
+		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
+		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
+			args->cmpresult = cmp;
 			*indexp = index;
-			return 0;
+			/*
+			 * case exact match: release the stored CI buffer if it
+			 * exists and return the current buffer.
+			 */
+			if (cmp == XFS_CMP_EXACT) {
+				if (cbp && cbp != dbp)
+					xfs_da_brelse(tp, cbp);
+				*dbpp = dbp;
+				return 0;
+			}
+			cbp = dbp;
 		}
+	}
+	ASSERT(args->oknoent);
+	/*
+	 * Here, we can only be doing a lookup (not a rename or replace).
+	 * If a case-insensitive match was found earlier, release the current
+	 * buffer and return the stored CI matching buffer.
+	 */
+	if (args->cmpresult == XFS_CMP_CASE) {
+		if (cbp != dbp)
+			xfs_da_brelse(tp, dbp);
+		*dbpp = cbp;
+		return 0;
 	}
 	/*
 	 * No match found, return ENOENT.
 	 */
-	ASSERT(args->oknoent);
+	ASSERT(cbp == NULL);
 	if (dbp)
 		xfs_da_brelse(tp, dbp);
 	xfs_da_brelse(tp, lbp);

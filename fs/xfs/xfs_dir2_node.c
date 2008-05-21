@@ -556,6 +556,7 @@ xfs_dir2_leafn_lookup_for_entry(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_dir2_db_t		newdb;		/* new data block number */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	enum xfs_dacmp		cmp;		/* comparison result */
 
 	dp = args->dp;
 	tp = args->trans;
@@ -620,17 +621,21 @@ xfs_dir2_leafn_lookup_for_entry(
 		dep = (xfs_dir2_data_entry_t *)((char *)curbp->data +
 			xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
 		/*
-		 * Compare the entry, return it if it matches.
+		 * Compare the entry and if it's an exact match, return
+		 * EEXIST immediately. If it's the first case-insensitive
+		 * match, store the inode number and continue looking.
 		 */
-		if (dep->namelen == args->namelen && memcmp(dep->name,
-					args->name, args->namelen) == 0) {
+		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
+		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
+			args->cmpresult = cmp;
 			args->inumber = be64_to_cpu(dep->inumber);
 			di = (int)((char *)dep - (char *)curbp->data);
 			error = EEXIST;
-			goto out;
+			if (cmp == XFS_CMP_EXACT)
+				goto out;
 		}
 	}
-	/* Didn't find a match. */
+	/* Didn't find an exact match. */
 	error = ENOENT;
 	di = -1;
 	ASSERT(index == be16_to_cpu(leaf->hdr.count) || args->oknoent);
@@ -1813,6 +1818,8 @@ xfs_dir2_node_lookup(
 	error = xfs_da_node_lookup_int(state, &rval);
 	if (error)
 		rval = error;
+	else if (rval == ENOENT && args->cmpresult == XFS_CMP_CASE)
+		rval = EEXIST;	/* a case-insensitive match was found */
 	/*
 	 * Release the btree blocks and leaf block.
 	 */
@@ -1856,9 +1863,8 @@ xfs_dir2_node_removename(
 	 * Look up the entry we're deleting, set up the cursor.
 	 */
 	error = xfs_da_node_lookup_int(state, &rval);
-	if (error) {
+	if (error)
 		rval = error;
-	}
 	/*
 	 * Didn't find it, upper layer screwed up.
 	 */
@@ -1875,9 +1881,8 @@ xfs_dir2_node_removename(
 	 */
 	error = xfs_dir2_leafn_remove(args, blk->bp, blk->index,
 		&state->extrablk, &rval);
-	if (error) {
+	if (error)
 		return error;
-	}
 	/*
 	 * Fix the hash values up the btree.
 	 */

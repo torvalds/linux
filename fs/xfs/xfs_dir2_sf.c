@@ -814,6 +814,7 @@ xfs_dir2_sf_lookup(
 	int			i;		/* entry index */
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
+	enum xfs_dacmp		cmp;		/* comparison result */
 
 	xfs_dir2_trace_args("sf_lookup", args);
 	xfs_dir2_sf_check(args);
@@ -836,6 +837,7 @@ xfs_dir2_sf_lookup(
 	 */
 	if (args->namelen == 1 && args->name[0] == '.') {
 		args->inumber = dp->i_ino;
+		args->cmpresult = XFS_CMP_EXACT;
 		return XFS_ERROR(EEXIST);
 	}
 	/*
@@ -844,27 +846,39 @@ xfs_dir2_sf_lookup(
 	if (args->namelen == 2 &&
 	    args->name[0] == '.' && args->name[1] == '.') {
 		args->inumber = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
+		args->cmpresult = XFS_CMP_EXACT;
 		return XFS_ERROR(EEXIST);
 	}
 	/*
 	 * Loop over all the entries trying to match ours.
 	 */
-	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp);
-	     i < sfp->hdr.count;
-	     i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
-		if (sfep->namelen == args->namelen &&
-		    sfep->name[0] == args->name[0] &&
-		    memcmp(args->name, sfep->name, args->namelen) == 0) {
-			args->inumber =
-				xfs_dir2_sf_get_inumber(sfp,
-					xfs_dir2_sf_inumberp(sfep));
-			return XFS_ERROR(EEXIST);
+	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp); i < sfp->hdr.count;
+				i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
+		/*
+		 * Compare name and if it's an exact match, return the inode
+		 * number. If it's the first case-insensitive match, store the
+		 * inode number and continue looking for an exact match.
+		 */
+		cmp = dp->i_mount->m_dirnameops->compname(args, sfep->name,
+								sfep->namelen);
+		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
+			args->cmpresult = cmp;
+			args->inumber = xfs_dir2_sf_get_inumber(sfp,
+						xfs_dir2_sf_inumberp(sfep));
+			if (cmp == XFS_CMP_EXACT)
+				return XFS_ERROR(EEXIST);
 		}
 	}
+	ASSERT(args->oknoent);
+	/*
+	 * Here, we can only be doing a lookup (not a rename or replace).
+	 * If a case-insensitive match was found earlier, return "found".
+	 */
+	if (args->cmpresult == XFS_CMP_CASE)
+		return XFS_ERROR(EEXIST);
 	/*
 	 * Didn't find it.
 	 */
-	ASSERT(args->oknoent);
 	return XFS_ERROR(ENOENT);
 }
 
@@ -904,24 +918,21 @@ xfs_dir2_sf_removename(
 	 * Loop over the old directory entries.
 	 * Find the one we're deleting.
 	 */
-	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp);
-	     i < sfp->hdr.count;
-	     i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
-		if (sfep->namelen == args->namelen &&
-		    sfep->name[0] == args->name[0] &&
-		    memcmp(sfep->name, args->name, args->namelen) == 0) {
+	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp); i < sfp->hdr.count;
+				i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
+		if (xfs_da_compname(args, sfep->name, sfep->namelen) ==
+								XFS_CMP_EXACT) {
 			ASSERT(xfs_dir2_sf_get_inumber(sfp,
-					xfs_dir2_sf_inumberp(sfep)) ==
-				args->inumber);
+						xfs_dir2_sf_inumberp(sfep)) ==
+								args->inumber);
 			break;
 		}
 	}
 	/*
 	 * Didn't find it.
 	 */
-	if (i == sfp->hdr.count) {
+	if (i == sfp->hdr.count)
 		return XFS_ERROR(ENOENT);
-	}
 	/*
 	 * Calculate sizes.
 	 */
@@ -1042,11 +1053,10 @@ xfs_dir2_sf_replace(
 	 */
 	else {
 		for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp);
-		     i < sfp->hdr.count;
-		     i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
-			if (sfep->namelen == args->namelen &&
-			    sfep->name[0] == args->name[0] &&
-			    memcmp(args->name, sfep->name, args->namelen) == 0) {
+				i < sfp->hdr.count;
+				i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
+			if (xfs_da_compname(args, sfep->name, sfep->namelen) ==
+								XFS_CMP_EXACT) {
 #if XFS_BIG_INUMS || defined(DEBUG)
 				ino = xfs_dir2_sf_get_inumber(sfp,
 					xfs_dir2_sf_inumberp(sfep));

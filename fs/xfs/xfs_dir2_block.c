@@ -643,6 +643,7 @@ xfs_dir2_block_lookup_int(
 	int			mid;		/* binary search current idx */
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	enum xfs_dacmp		cmp;		/* comparison result */
 
 	dp = args->dp;
 	tp = args->trans;
@@ -697,20 +698,31 @@ xfs_dir2_block_lookup_int(
 		dep = (xfs_dir2_data_entry_t *)
 			((char *)block + xfs_dir2_dataptr_to_off(mp, addr));
 		/*
-		 * Compare, if it's right give back buffer & entry number.
+		 * Compare name and if it's an exact match, return the index
+		 * and buffer. If it's the first case-insensitive match, store
+		 * the index and buffer and continue looking for an exact match.
 		 */
-		if (dep->namelen == args->namelen &&
-		    dep->name[0] == args->name[0] &&
-		    memcmp(dep->name, args->name, args->namelen) == 0) {
+		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
+		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
+			args->cmpresult = cmp;
 			*bpp = bp;
 			*entno = mid;
-			return 0;
+			if (cmp == XFS_CMP_EXACT)
+				return 0;
 		}
-	} while (++mid < be32_to_cpu(btp->count) && be32_to_cpu(blp[mid].hashval) == hash);
+	} while (++mid < be32_to_cpu(btp->count) &&
+			be32_to_cpu(blp[mid].hashval) == hash);
+
+	ASSERT(args->oknoent);
+	/*
+	 * Here, we can only be doing a lookup (not a rename or replace).
+	 * If a case-insensitive match was found earlier, return success.
+	 */
+	if (args->cmpresult == XFS_CMP_CASE)
+		return 0;
 	/*
 	 * No match, release the buffer and return ENOENT.
 	 */
-	ASSERT(args->oknoent);
 	xfs_da_brelse(tp, bp);
 	return XFS_ERROR(ENOENT);
 }
@@ -1033,6 +1045,7 @@ xfs_dir2_sf_to_block(
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
 	__be16			*tagp;		/* end of data entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	struct xfs_name		name;
 
 	xfs_dir2_trace_args("sf_to_block", args);
 	dp = args->dp;
@@ -1187,8 +1200,10 @@ xfs_dir2_sf_to_block(
 		tagp = xfs_dir2_data_entry_tag_p(dep);
 		*tagp = cpu_to_be16((char *)dep - (char *)block);
 		xfs_dir2_data_log_entry(tp, bp, dep);
-		blp[2 + i].hashval = cpu_to_be32(xfs_da_hashname(
-					(char *)sfep->name, sfep->namelen));
+		name.name = sfep->name;
+		name.len = sfep->namelen;
+		blp[2 + i].hashval = cpu_to_be32(mp->m_dirnameops->
+							hashname(&name));
 		blp[2 + i].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
 						 (char *)dep - (char *)block));
 		offset = (int)((char *)(tagp + 1) - (char *)block);
