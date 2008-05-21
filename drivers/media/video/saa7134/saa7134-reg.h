@@ -353,6 +353,7 @@
 
 /* I2S output */
 #define SAA7134_I2S_AUDIO_OUTPUT                0x1c0
+#define SAA7134_I2S_AUDIO_CONTROL               0x591
 
 /* test modes */
 #define SAA7134_SPECIAL_MODE                    0x1d0
