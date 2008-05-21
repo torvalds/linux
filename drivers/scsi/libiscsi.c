@@ -1383,11 +1383,12 @@ static void fail_all_commands(struct iscsi_conn *conn, unsigned lun,
 	}
 }
 
-static void iscsi_suspend_tx(struct iscsi_conn *conn)
+void iscsi_suspend_tx(struct iscsi_conn *conn)
 {
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	scsi_flush_work(conn->session->host);
 }
+EXPORT_SYMBOL_GPL(iscsi_suspend_tx);
 
 static void iscsi_start_tx(struct iscsi_conn *conn)
 {

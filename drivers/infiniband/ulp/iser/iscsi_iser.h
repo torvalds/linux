@@ -242,6 +242,7 @@ struct iser_device {
 struct iser_conn {
 	struct iscsi_iser_conn       *iser_conn; /* iser conn for upcalls  */
 	enum iser_ib_conn_state	     state;	    /* rdma connection state   */
+	atomic_t		     refcount;
 	spinlock_t		     lock;	    /* used for state changes  */
 	struct iser_device           *device;       /* device context          */
 	struct rdma_cm_id            *cma_id;       /* CMA ID		       */
@@ -313,6 +314,10 @@ void iscsi_iser_recv(struct iscsi_conn *conn,
 		     int                    rx_data_len);
 
 int  iser_conn_init(struct iser_conn **ib_conn);
+
+void iser_conn_get(struct iser_conn *ib_conn);
+
+void iser_conn_put(struct iser_conn *ib_conn);
 
 void iser_conn_terminate(struct iser_conn *ib_conn);
 

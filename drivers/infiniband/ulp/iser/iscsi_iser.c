@@ -305,10 +305,18 @@ iscsi_iser_conn_destroy(struct iscsi_cls_conn *cls_conn)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
+	struct iser_conn *ib_conn = iser_conn->ib_conn;
 
-	if (iser_conn->ib_conn)
-		iser_conn->ib_conn->iser_conn = NULL;
 	iscsi_conn_teardown(cls_conn);
+	/*
+	 * Userspace will normally call the stop callback and
+	 * already have freed the ib_conn, but if it goofed up then
+	 * we free it here.
+	 */
+	if (ib_conn) {
+		ib_conn->iser_conn = NULL;
+		iser_conn_put(ib_conn);
+	}
 }
 
 static int
@@ -340,10 +348,27 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	iser_conn = conn->dd_data;
 	ib_conn->iser_conn = iser_conn;
 	iser_conn->ib_conn  = ib_conn;
+	iser_conn_get(ib_conn);
 
 	conn->recv_lock = &iser_conn->lock;
 
 	return 0;
+}
+
+static void
+iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
+{
+	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct iscsi_iser_conn *iser_conn = conn->dd_data;
+	struct iser_conn *ib_conn = iser_conn->ib_conn;
+
+	iscsi_conn_stop(cls_conn, flag);
+	/*
+	 * There is no unbind event so the stop callback
+	 * must release the ref from the bind.
+	 */
+	iser_conn_put(ib_conn);
+	iser_conn->ib_conn = NULL;
 }
 
 static int
@@ -564,6 +589,17 @@ iscsi_iser_ep_disconnect(__u64 ep_handle)
 	if (!ib_conn)
 		return;
 
+	if (ib_conn->iser_conn)
+		/*
+		 * Must suspend xmit path if the ep is bound to the
+		 * iscsi_conn, so we know we are not accessing the ib_conn
+		 * when we free it.
+		 *
+		 * This may not be bound if the ep poll failed.
+		 */
+		iscsi_suspend_tx(ib_conn->iser_conn->iscsi_conn);
+
+
 	iser_err("ib conn %p state %d\n",ib_conn, ib_conn->state);
 	iser_conn_terminate(ib_conn);
 }
@@ -622,7 +658,7 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.get_conn_param		= iscsi_conn_get_param,
 	.get_session_param	= iscsi_session_get_param,
 	.start_conn             = iscsi_iser_conn_start,
-	.stop_conn              = iscsi_conn_stop,
+	.stop_conn              = iscsi_iser_conn_stop,
 	/* iscsi host params */
 	.get_host_param		= iscsi_host_get_param,
 	.set_host_param		= iscsi_host_set_param,

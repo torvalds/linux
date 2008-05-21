@@ -328,6 +328,17 @@ static void iser_conn_release(struct iser_conn *ib_conn)
 	kfree(ib_conn);
 }
 
+void iser_conn_get(struct iser_conn *ib_conn)
+{
+	atomic_inc(&ib_conn->refcount);
+}
+
+void iser_conn_put(struct iser_conn *ib_conn)
+{
+	if (atomic_dec_and_test(&ib_conn->refcount))
+		iser_conn_release(ib_conn);
+}
+
 /**
  * triggers start of the disconnect procedures and wait for them to be done
  */
@@ -349,7 +360,7 @@ void iser_conn_terminate(struct iser_conn *ib_conn)
 	wait_event_interruptible(ib_conn->wait,
 				 ib_conn->state == ISER_CONN_DOWN);
 
-	iser_conn_release(ib_conn);
+	iser_conn_put(ib_conn);
 }
 
 static void iser_connect_error(struct rdma_cm_id *cma_id)
@@ -496,6 +507,7 @@ int iser_conn_init(struct iser_conn **ibconn)
 	init_waitqueue_head(&ib_conn->wait);
 	atomic_set(&ib_conn->post_recv_buf_count, 0);
 	atomic_set(&ib_conn->post_send_buf_count, 0);
+	atomic_set(&ib_conn->refcount, 1);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
 
