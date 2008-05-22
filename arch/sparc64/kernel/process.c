@@ -657,20 +657,39 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct thread_info *t = task_thread_info(p);
+	struct sparc_stackf *parent_sf;
+	unsigned long child_stack_sz;
 	char *child_trap_frame;
+	int kernel_thread;
+
+	kernel_thread = (regs->tstate & TSTATE_PRIV) ? 1 : 0;
+	parent_sf = ((struct sparc_stackf *) regs) - 1;
 
 	/* Calculate offset to stack_frame & pt_regs */
-	child_trap_frame = task_stack_page(p) + (THREAD_SIZE - (TRACEREG_SZ+STACKFRAME_SZ));
-	memcpy(child_trap_frame, (((struct sparc_stackf *)regs)-1), (TRACEREG_SZ+STACKFRAME_SZ));
+	child_stack_sz = ((STACKFRAME_SZ + TRACEREG_SZ) +
+			  (kernel_thread ? STACKFRAME_SZ : 0));
+	child_trap_frame = (task_stack_page(p) +
+			    (THREAD_SIZE - child_stack_sz));
+	memcpy(child_trap_frame, parent_sf, child_stack_sz);
 
-	t->flags = (t->flags & ~((0xffUL << TI_FLAG_CWP_SHIFT) | (0xffUL << TI_FLAG_CURRENT_DS_SHIFT))) |
+	t->flags = (t->flags & ~((0xffUL << TI_FLAG_CWP_SHIFT) |
+				 (0xffUL << TI_FLAG_CURRENT_DS_SHIFT))) |
 		(((regs->tstate + 1) & TSTATE_CWP) << TI_FLAG_CWP_SHIFT);
 	t->new_child = 1;
 	t->ksp = ((unsigned long) child_trap_frame) - STACK_BIAS;
-	t->kregs = (struct pt_regs *)(child_trap_frame+sizeof(struct sparc_stackf));
+	t->kregs = (struct pt_regs *) (child_trap_frame +
+				       sizeof(struct sparc_stackf));
 	t->fpsaved[0] = 0;
 
-	if (regs->tstate & TSTATE_PRIV) {
+	if (kernel_thread) {
+		struct sparc_stackf *child_sf = (struct sparc_stackf *)
+			(child_trap_frame + (STACKFRAME_SZ + TRACEREG_SZ));
+
+		/* Zero terminate the stack backtrace.  */
+		child_sf->fp = NULL;
+		t->kregs->u_regs[UREG_FP] =
+		  ((unsigned long) child_sf) - STACK_BIAS;
+
 		/* Special case, if we are spawning a kernel thread from
 		 * a userspace task (via KMOD, NFS, or similar) we must
 		 * disable performance counters in the child because the
@@ -681,12 +700,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 			t->pcr_reg = 0;
 			t->flags &= ~_TIF_PERFCTR;
 		}
-		t->kregs->u_regs[UREG_FP] = t->ksp;
 		t->flags |= ((long)ASI_P << TI_FLAG_CURRENT_DS_SHIFT);
-		flush_register_windows();
-		memcpy((void *)(t->ksp + STACK_BIAS),
-		       (void *)(regs->u_regs[UREG_FP] + STACK_BIAS),
-		       sizeof(struct sparc_stackf));
 		t->kregs->u_regs[UREG_G6] = (unsigned long) t;
 		t->kregs->u_regs[UREG_G4] = (unsigned long) t->task;
 	} else {
