@@ -227,58 +227,65 @@ struct gendisk *get_gendisk(dev_t devt, int *part)
 }
 
 /*
+ * print a partitions - intended for places where the root filesystem can't be
+ * mounted and thus to give the victim some idea of what went wrong
+ */
+static int printk_partition(struct device *dev, void *data)
+{
+	struct gendisk *sgp;
+	char buf[BDEVNAME_SIZE];
+	int n;
+
+	if (dev->type != &disk_type)
+		goto exit;
+
+	sgp = dev_to_disk(dev);
+	/*
+	 * Don't show empty devices or things that have been surpressed
+	 */
+	if (get_capacity(sgp) == 0 ||
+	    (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
+		goto exit;
+
+	/*
+	 * Note, unlike /proc/partitions, I am showing the numbers in
+	 * hex - the same format as the root= option takes.
+	 */
+	printk("%02x%02x %10llu %s",
+		sgp->major, sgp->first_minor,
+		(unsigned long long)get_capacity(sgp) >> 1,
+		disk_name(sgp, 0, buf));
+	if (sgp->driverfs_dev != NULL &&
+	    sgp->driverfs_dev->driver != NULL)
+		printk(" driver: %s\n",
+			sgp->driverfs_dev->driver->name);
+	else
+		printk(" (driver?)\n");
+
+	/* now show the partitions */
+	for (n = 0; n < sgp->minors - 1; ++n) {
+		if (sgp->part[n] == NULL)
+			goto exit;
+		if (sgp->part[n]->nr_sects == 0)
+			goto exit;
+		printk("  %02x%02x %10llu %s\n",
+			sgp->major, n + 1 + sgp->first_minor,
+			(unsigned long long)sgp->part[n]->nr_sects >> 1,
+			disk_name(sgp, n + 1, buf));
+	}
+exit:
+	return 0;
+}
+
+/*
  * print a full list of all partitions - intended for places where the root
  * filesystem can't be mounted and thus to give the victim some idea of what
  * went wrong
  */
 void __init printk_all_partitions(void)
 {
-	struct device *dev;
-	struct gendisk *sgp;
-	char buf[BDEVNAME_SIZE];
-	int n;
-
 	mutex_lock(&block_class_lock);
-	/* For each block device... */
-	list_for_each_entry(dev, &block_class.devices, node) {
-		if (dev->type != &disk_type)
-			continue;
-		sgp = dev_to_disk(dev);
-		/*
-		 * Don't show empty devices or things that have been surpressed
-		 */
-		if (get_capacity(sgp) == 0 ||
-		    (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
-			continue;
-
-		/*
-		 * Note, unlike /proc/partitions, I am showing the numbers in
-		 * hex - the same format as the root= option takes.
-		 */
-		printk("%02x%02x %10llu %s",
-			sgp->major, sgp->first_minor,
-			(unsigned long long)get_capacity(sgp) >> 1,
-			disk_name(sgp, 0, buf));
-		if (sgp->driverfs_dev != NULL &&
-		    sgp->driverfs_dev->driver != NULL)
-			printk(" driver: %s\n",
-				sgp->driverfs_dev->driver->name);
-		else
-			printk(" (driver?)\n");
-
-		/* now show the partitions */
-		for (n = 0; n < sgp->minors - 1; ++n) {
-			if (sgp->part[n] == NULL)
-				continue;
-			if (sgp->part[n]->nr_sects == 0)
-				continue;
-			printk("  %02x%02x %10llu %s\n",
-				sgp->major, n + 1 + sgp->first_minor,
-				(unsigned long long)sgp->part[n]->nr_sects >> 1,
-				disk_name(sgp, n + 1, buf));
-		}
-	}
-
+	class_for_each_device(&block_class, NULL, NULL, printk_partition);
 	mutex_unlock(&block_class_lock);
 }
 
