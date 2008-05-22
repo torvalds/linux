@@ -508,7 +508,11 @@ extern smscore_buffer_t *smscore_getbuffer(smscore_device_t *coredev);
 extern void smscore_putbuffer(smscore_device_t *coredev, smscore_buffer_t *cb);
 
 /* smsdvb.c */
-int smsdvb_hotplug(smscore_device_t *coredev, struct device* device, int arrival);
-void smsdvb_unregister_client(smsdvb_client_t* client);
+int smsdvb_register(void);
+void smsdvb_unregister(void);
+
+/* smsusb.c */
+int smsusb_register(void);
+void smsusb_unregister(void);
 
 #endif // __smscoreapi_h__

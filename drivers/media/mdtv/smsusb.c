@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
 
@@ -401,46 +400,21 @@ static struct usb_driver smsusb_driver = {
 	.id_table		= smsusb_id_table,
 };
 
-extern struct list_head g_smsdvb_clients;
-kmutex_t g_smsdvb_clientslock;
-
-int smsusb_module_init(void)
+int smsusb_register(void)
 {
 	int rc = usb_register(&smsusb_driver);
 	if (rc)
 		printk(KERN_INFO "usb_register failed. Error number %d\n", rc);
-
-	/* Bring up the dvb componenets */
-	INIT_LIST_HEAD(&g_smsdvb_clients);
-	kmutex_init(&g_smsdvb_clientslock);
-
-	rc = smscore_register_hotplug(smsdvb_hotplug);
 
 	printk(KERN_INFO "%s\n", __FUNCTION__);
 
 	return rc;
 }
 
-void smsusb_module_exit(void)
+void smsusb_unregister(void)
 {
-	/* Tear down the DVB components */
-	smscore_unregister_hotplug(smsdvb_hotplug);
-
-	kmutex_lock(&g_smsdvb_clientslock);
-
-	while (!list_empty(&g_smsdvb_clients))
-		smsdvb_unregister_client((smsdvb_client_t*) g_smsdvb_clients.next);
-
-	kmutex_unlock(&g_smsdvb_clientslock);
-
 	/* Regular USB Cleanup */
 	usb_deregister(&smsusb_driver);
 	printk(KERN_INFO "%s\n", __FUNCTION__);
 }
 
-module_init(smsusb_module_init);
-module_exit(smsusb_module_exit);
-
-MODULE_DESCRIPTION("smsusb");
-MODULE_AUTHOR("Anatoly Greenblatt,,, (anatolyg@siano-ms.com)");
-MODULE_LICENSE("GPL");

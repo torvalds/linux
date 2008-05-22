@@ -1104,6 +1104,12 @@ int smscore_module_init(void)
 	INIT_LIST_HEAD(&g_smscore_registry);
 	kmutex_init(&g_smscore_registrylock);
 
+	/* USB Register */
+	rc = smsusb_register();
+
+	/* DVB Register */
+	rc = smsdvb_register();
+
 	printk(KERN_INFO "%s, rc %d\n", __FUNCTION__, rc);
 
 	return rc;
@@ -1111,6 +1117,7 @@ int smscore_module_init(void)
 
 void smscore_module_exit(void)
 {
+
 	kmutex_lock(&g_smscore_deviceslock);
 	while (!list_empty(&g_smscore_notifyees))
 	{
@@ -1130,6 +1137,12 @@ void smscore_module_exit(void)
 		kfree(entry);
 	}
 	kmutex_unlock(&g_smscore_registrylock);
+
+	/* DVB UnRegister */
+	smsdvb_unregister();
+
+	/* Unregister USB */
+	smsusb_unregister();
 
 	printk(KERN_INFO "%s\n", __FUNCTION__);
 }

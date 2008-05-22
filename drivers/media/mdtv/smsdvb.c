@@ -375,3 +375,30 @@ adapter_error:
 	return rc;
 }
 
+int smsdvb_register(void)
+{
+	int rc;
+
+	INIT_LIST_HEAD(&g_smsdvb_clients);
+	kmutex_init(&g_smsdvb_clientslock);
+
+	rc = smscore_register_hotplug(smsdvb_hotplug);
+
+	printk(KERN_INFO "%s\n", __FUNCTION__);
+
+	return rc;
+}
+
+void smsdvb_unregister(void)
+{
+	smscore_unregister_hotplug(smsdvb_hotplug);
+
+	kmutex_lock(&g_smsdvb_clientslock);
+
+	while (!list_empty(&g_smsdvb_clients))
+		smsdvb_unregister_client((smsdvb_client_t*) g_smsdvb_clients.next);
+
+	kmutex_unlock(&g_smsdvb_clientslock);
+
+}
+
