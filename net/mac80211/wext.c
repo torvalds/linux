@@ -209,7 +209,6 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 	range->num_frequency = c;
 
 	IW_EVENT_CAPA_SET_KERNEL(range->event_capa);
-	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWTHRSPY);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWAP);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
 
