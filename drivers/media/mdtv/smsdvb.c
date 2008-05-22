@@ -6,7 +6,6 @@
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
 
-#include "smskdefs.h" // page, scatterlist, kmutex
 #include "smscoreapi.h"
 #include "smstypes.h"
 

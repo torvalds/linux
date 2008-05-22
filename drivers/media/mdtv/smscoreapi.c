@@ -27,8 +27,6 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 
-#include "smskdefs.h" // device, page, scatterlist, kmutex
-
 #include <linux/firmware.h>
 
 #include "smscoreapi.h"

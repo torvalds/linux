@@ -4,7 +4,6 @@
 #include <linux/usb.h>
 #include <linux/firmware.h>
 
-#include "smskdefs.h" // page, scatterlist, kmutex
 #include "smscoreapi.h"
 #include "smstypes.h"
 
