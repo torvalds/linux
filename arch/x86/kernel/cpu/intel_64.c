@@ -79,11 +79,6 @@ void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		unsigned eax = cpuid_eax(0x80000008);
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
-		/* CPUID workaround for Intel 0F34 CPU */
-		if (c->x86_vendor == X86_VENDOR_INTEL &&
-		    c->x86 == 0xF && c->x86_model == 0x3 &&
-		    c->x86_mask == 0x4)
-			c->x86_phys_bits = 36;
 	}
 
 	if (c->x86 == 15)
