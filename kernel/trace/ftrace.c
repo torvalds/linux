@@ -170,7 +170,7 @@ static DEFINE_PER_CPU(int, ftrace_shutdown_disable_cpu);
 
 static DEFINE_SPINLOCK(ftrace_shutdown_lock);
 static DEFINE_MUTEX(ftraced_lock);
-static DEFINE_MUTEX(ftrace_filter_lock);
+static DEFINE_MUTEX(ftrace_regex_lock);
 
 struct ftrace_page {
 	struct ftrace_page	*next;
@@ -337,13 +337,12 @@ static void
 __ftrace_replace_code(struct dyn_ftrace *rec,
 		      unsigned char *old, unsigned char *new, int enable)
 {
-	unsigned long ip;
+	unsigned long ip, fl;
 	int failed;
 
 	ip = rec->ip;
 
 	if (ftrace_filtered && enable) {
-		unsigned long fl;
 		/*
 		 * If filtering is on:
 		 *
@@ -356,13 +355,16 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 		 * If this record is not set to be filtered
 		 * and it is not enabled do nothing.
 		 *
+		 * If this record is set not to trace then
+		 * do nothing.
+		 *
 		 * If this record is not set to be filtered and
 		 * it is enabled, disable it.
 		 */
 		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_ENABLED);
 
 		if ((fl ==  (FTRACE_FL_FILTER | FTRACE_FL_ENABLED)) ||
-		    (fl == 0))
+		    (fl == 0) || (rec->flags & FTRACE_FL_NOTRACE))
 			return;
 
 		/*
@@ -380,9 +382,17 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 		}
 	} else {
 
-		if (enable)
+		if (enable) {
+			/*
+			 * If this record is set not to trace and is
+			 * not enabled, do nothing.
+			 */
+			fl = rec->flags & (FTRACE_FL_NOTRACE | FTRACE_FL_ENABLED);
+			if (fl == FTRACE_FL_NOTRACE)
+				return;
+
 			new = ftrace_call_replace(ip, FTRACE_ADDR);
-		else
+		} else
 			old = ftrace_call_replace(ip, FTRACE_ADDR);
 
 		if (enable) {
@@ -721,6 +731,7 @@ static int __init ftrace_dyn_table_alloc(void)
 enum {
 	FTRACE_ITER_FILTER	= (1 << 0),
 	FTRACE_ITER_CONT	= (1 << 1),
+	FTRACE_ITER_NOTRACE	= (1 << 2),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
@@ -754,7 +765,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		rec = &iter->pg->records[iter->idx++];
 		if ((rec->flags & FTRACE_FL_FAILED) ||
 		    ((iter->flags & FTRACE_ITER_FILTER) &&
-		     !(rec->flags & FTRACE_FL_FILTER))) {
+		     !(rec->flags & FTRACE_FL_FILTER)) ||
+		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
+		     !(rec->flags & FTRACE_FL_NOTRACE))) {
 			rec = NULL;
 			goto retry;
 		}
@@ -847,22 +860,24 @@ int ftrace_avail_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static void ftrace_filter_reset(void)
+static void ftrace_filter_reset(int enable)
 {
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
+	unsigned long type = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 	unsigned i;
 
 	/* keep kstop machine from running */
 	preempt_disable();
-	ftrace_filtered = 0;
+	if (enable)
+		ftrace_filtered = 0;
 	pg = ftrace_pages_start;
 	while (pg) {
 		for (i = 0; i < pg->index; i++) {
 			rec = &pg->records[i];
 			if (rec->flags & FTRACE_FL_FAILED)
 				continue;
-			rec->flags &= ~FTRACE_FL_FILTER;
+			rec->flags &= ~type;
 		}
 		pg = pg->next;
 	}
@@ -870,7 +885,7 @@ static void ftrace_filter_reset(void)
 }
 
 static int
-ftrace_filter_open(struct inode *inode, struct file *file)
+ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 {
 	struct ftrace_iterator *iter;
 	int ret = 0;
@@ -882,15 +897,16 @@ ftrace_filter_open(struct inode *inode, struct file *file)
 	if (!iter)
 		return -ENOMEM;
 
-	mutex_lock(&ftrace_filter_lock);
+	mutex_lock(&ftrace_regex_lock);
 	if ((file->f_mode & FMODE_WRITE) &&
 	    !(file->f_flags & O_APPEND))
-		ftrace_filter_reset();
+		ftrace_filter_reset(enable);
 
 	if (file->f_mode & FMODE_READ) {
 		iter->pg = ftrace_pages_start;
 		iter->pos = -1;
-		iter->flags = FTRACE_ITER_FILTER;
+		iter->flags = enable ? FTRACE_ITER_FILTER :
+			FTRACE_ITER_NOTRACE;
 
 		ret = seq_open(file, &show_ftrace_seq_ops);
 		if (!ret) {
@@ -900,13 +916,25 @@ ftrace_filter_open(struct inode *inode, struct file *file)
 			kfree(iter);
 	} else
 		file->private_data = iter;
-	mutex_unlock(&ftrace_filter_lock);
+	mutex_unlock(&ftrace_regex_lock);
 
 	return ret;
 }
 
+static int
+ftrace_filter_open(struct inode *inode, struct file *file)
+{
+	return ftrace_regex_open(inode, file, 1);
+}
+
+static int
+ftrace_notrace_open(struct inode *inode, struct file *file)
+{
+	return ftrace_regex_open(inode, file, 0);
+}
+
 static ssize_t
-ftrace_filter_read(struct file *file, char __user *ubuf,
+ftrace_regex_read(struct file *file, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
 	if (file->f_mode & FMODE_READ)
@@ -916,7 +944,7 @@ ftrace_filter_read(struct file *file, char __user *ubuf,
 }
 
 static loff_t
-ftrace_filter_lseek(struct file *file, loff_t offset, int origin)
+ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t ret;
 
@@ -936,13 +964,14 @@ enum {
 };
 
 static void
-ftrace_match(unsigned char *buff, int len)
+ftrace_match(unsigned char *buff, int len, int enable)
 {
 	char str[KSYM_SYMBOL_LEN];
 	char *search = NULL;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	int type = MATCH_FULL;
+	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 	unsigned i, match = 0, search_len = 0;
 
 	for (i = 0; i < len; i++) {
@@ -966,7 +995,8 @@ ftrace_match(unsigned char *buff, int len)
 
 	/* keep kstop machine from running */
 	preempt_disable();
-	ftrace_filtered = 1;
+	if (enable)
+		ftrace_filtered = 1;
 	pg = ftrace_pages_start;
 	while (pg) {
 		for (i = 0; i < pg->index; i++) {
@@ -997,7 +1027,7 @@ ftrace_match(unsigned char *buff, int len)
 				break;
 			}
 			if (matched)
-				rec->flags |= FTRACE_FL_FILTER;
+				rec->flags |= flag;
 		}
 		pg = pg->next;
 	}
@@ -1005,8 +1035,8 @@ ftrace_match(unsigned char *buff, int len)
 }
 
 static ssize_t
-ftrace_filter_write(struct file *file, const char __user *ubuf,
-		    size_t cnt, loff_t *ppos)
+ftrace_regex_write(struct file *file, const char __user *ubuf,
+		   size_t cnt, loff_t *ppos, int enable)
 {
 	struct ftrace_iterator *iter;
 	char ch;
@@ -1016,7 +1046,7 @@ ftrace_filter_write(struct file *file, const char __user *ubuf,
 	if (!cnt || cnt < 0)
 		return 0;
 
-	mutex_lock(&ftrace_filter_lock);
+	mutex_lock(&ftrace_regex_lock);
 
 	if (file->f_mode & FMODE_READ) {
 		struct seq_file *m = file->private_data;
@@ -1045,7 +1075,6 @@ ftrace_filter_write(struct file *file, const char __user *ubuf,
 			cnt--;
 		}
 
-
 		if (isspace(ch)) {
 			file->f_pos += read;
 			ret = read;
@@ -1072,7 +1101,7 @@ ftrace_filter_write(struct file *file, const char __user *ubuf,
 	if (isspace(ch)) {
 		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match(iter->buffer, iter->buffer_idx);
+		ftrace_match(iter->buffer, iter->buffer_idx, enable);
 		iter->buffer_idx = 0;
 	} else
 		iter->flags |= FTRACE_ITER_CONT;
@@ -1082,9 +1111,37 @@ ftrace_filter_write(struct file *file, const char __user *ubuf,
 
 	ret = read;
  out:
-	mutex_unlock(&ftrace_filter_lock);
+	mutex_unlock(&ftrace_regex_lock);
 
 	return ret;
+}
+
+static ssize_t
+ftrace_filter_write(struct file *file, const char __user *ubuf,
+		    size_t cnt, loff_t *ppos)
+{
+	return ftrace_regex_write(file, ubuf, cnt, ppos, 1);
+}
+
+static ssize_t
+ftrace_notrace_write(struct file *file, const char __user *ubuf,
+		     size_t cnt, loff_t *ppos)
+{
+	return ftrace_regex_write(file, ubuf, cnt, ppos, 0);
+}
+
+static void
+ftrace_set_regex(unsigned char *buf, int len, int reset, int enable)
+{
+	if (unlikely(ftrace_disabled))
+		return;
+
+	mutex_lock(&ftrace_regex_lock);
+	if (reset)
+		ftrace_filter_reset(enable);
+	if (buf)
+		ftrace_match(buf, len, enable);
+	mutex_unlock(&ftrace_regex_lock);
 }
 
 /**
@@ -1098,24 +1155,31 @@ ftrace_filter_write(struct file *file, const char __user *ubuf,
  */
 void ftrace_set_filter(unsigned char *buf, int len, int reset)
 {
-	if (unlikely(ftrace_disabled))
-		return;
+	ftrace_set_regex(buf, len, reset, 1);
+}
 
-	mutex_lock(&ftrace_filter_lock);
-	if (reset)
-		ftrace_filter_reset();
-	if (buf)
-		ftrace_match(buf, len);
-	mutex_unlock(&ftrace_filter_lock);
+/**
+ * ftrace_set_notrace - set a function to not trace in ftrace
+ * @buf - the string that holds the function notrace text.
+ * @len - the length of the string.
+ * @reset - non zero to reset all filters before applying this filter.
+ *
+ * Notrace Filters denote which functions should not be enabled when tracing
+ * is enabled. If @buf is NULL and reset is set, all functions will be enabled
+ * for tracing.
+ */
+void ftrace_set_notrace(unsigned char *buf, int len, int reset)
+{
+	ftrace_set_regex(buf, len, reset, 0);
 }
 
 static int
-ftrace_filter_release(struct inode *inode, struct file *file)
+ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
 	struct ftrace_iterator *iter;
 
-	mutex_lock(&ftrace_filter_lock);
+	mutex_lock(&ftrace_regex_lock);
 	if (file->f_mode & FMODE_READ) {
 		iter = m->private;
 
@@ -1126,7 +1190,7 @@ ftrace_filter_release(struct inode *inode, struct file *file)
 	if (iter->buffer_idx) {
 		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match(iter->buffer, iter->buffer_idx);
+		ftrace_match(iter->buffer, iter->buffer_idx, enable);
 	}
 
 	mutex_lock(&ftrace_sysctl_lock);
@@ -1137,8 +1201,20 @@ ftrace_filter_release(struct inode *inode, struct file *file)
 	mutex_unlock(&ftrace_sysctl_lock);
 
 	kfree(iter);
-	mutex_unlock(&ftrace_filter_lock);
+	mutex_unlock(&ftrace_regex_lock);
 	return 0;
+}
+
+static int
+ftrace_filter_release(struct inode *inode, struct file *file)
+{
+	return ftrace_regex_release(inode, file, 1);
+}
+
+static int
+ftrace_notrace_release(struct inode *inode, struct file *file)
+{
+	return ftrace_regex_release(inode, file, 0);
 }
 
 static struct file_operations ftrace_avail_fops = {
@@ -1150,10 +1226,18 @@ static struct file_operations ftrace_avail_fops = {
 
 static struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
-	.read = ftrace_filter_read,
+	.read = ftrace_regex_read,
 	.write = ftrace_filter_write,
-	.llseek = ftrace_filter_lseek,
+	.llseek = ftrace_regex_lseek,
 	.release = ftrace_filter_release,
+};
+
+static struct file_operations ftrace_notrace_fops = {
+	.open = ftrace_notrace_open,
+	.read = ftrace_regex_read,
+	.write = ftrace_notrace_write,
+	.llseek = ftrace_regex_lseek,
+	.release = ftrace_notrace_release,
 };
 
 /**
@@ -1239,6 +1323,12 @@ static __init int ftrace_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'set_ftrace_filter' entry\n");
+
+	entry = debugfs_create_file("set_ftrace_notrace", 0644, d_tracer,
+				    NULL, &ftrace_notrace_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'set_ftrace_notrace' entry\n");
 	return 0;
 }
 
