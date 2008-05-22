@@ -30,7 +30,6 @@
 #include <linux/firmware.h>
 
 #include "smscoreapi.h"
-#include "smstypes.h"
 
 typedef struct _smscore_device_notifyee
 {

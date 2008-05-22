@@ -5,7 +5,6 @@
 #include <linux/firmware.h>
 
 #include "smscoreapi.h"
-#include "smstypes.h"
 
 #define USB_VID_SIANO	0x187f
 #define USB_PID_0010	0x0010

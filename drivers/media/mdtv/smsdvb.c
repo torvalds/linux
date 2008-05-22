@@ -7,7 +7,6 @@
 #include "dvb_frontend.h"
 
 #include "smscoreapi.h"
-#include "smstypes.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
