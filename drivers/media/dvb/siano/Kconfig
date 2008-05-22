@@ -1,0 +1,16 @@
+#
+# Siano Mobile Silicon Digital TV device configuration
+#
+
+config DVB_SIANO_SMS1XXX
+	tristate "Siano SMS1xxx USB dongle support"
+	depends on DVB_CORE && USB
+	---help---
+	  Choose Y here if you have USB dongle with SMS1xxx chipset.
+
+	  Further documentation on this driver can be found on the WWW at
+	  <http://www.siano-ms.com/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sms1xxx.
+
