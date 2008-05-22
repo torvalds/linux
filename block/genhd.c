@@ -305,6 +305,10 @@ static int find_start(struct device *dev, void *data)
 static void *part_start(struct seq_file *part, loff_t *pos)
 {
 	struct device *dev;
+	loff_t n = *pos;
+
+	if (!n)
+		seq_puts(part, "major minor  #blocks  name\n\n");
 
 	mutex_lock(&block_class_lock);
 	dev = class_find_device(&block_class, NULL, (void *)pos, find_start);
@@ -337,9 +341,6 @@ static int show_partition(struct seq_file *part, void *v)
 	struct gendisk *sgp = v;
 	int n;
 	char buf[BDEVNAME_SIZE];
-
-	if (&sgp->dev.node == block_class.devices.next)
-		seq_puts(part, "major minor  #blocks  name\n\n");
 
 	/* Don't show non-partitionable removeable devices or empty devices */
 	if (!get_capacity(sgp) ||
