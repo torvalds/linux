@@ -1,36 +1,9 @@
-/*
- * linux/drivers/serial/s3c2410.c
+/* linux/drivers/serial/s3c2410.c
  *
- * Driver for onboard UARTs on the Samsung S3C24XX
+ * Driver for Samsung SoC onboard UARTs.
  *
- * Based on drivers/char/serial.c and drivers/char/21285.c
- *
- * Ben Dooks, (c) 2003-2005 Simtec Electronics
- *	http://www.simtec.co.uk/products/SWLINUX/
- *
- * Changelog:
- *
- * 22-Jul-2004  BJD  Finished off device rewrite
- *
- * 21-Jul-2004  BJD  Thanks to <herbet@13thfloor.at> for pointing out
- *                   problems with baud rate and loss of IR settings. Update
- *                   to add configuration via platform_device structure
- *
- * 28-Sep-2004  BJD  Re-write for the following items
- *		     - S3C2410 and S3C2440 serial support
- *		     - Power Management support
- *		     - Fix console via IrDA devices
- *		     - SysReq (Herbert Pötzl)
- *		     - Break character handling (Herbert Pötzl)
- *		     - spin-lock initialisation (Dimitry Andric)
- *		     - added clock control
- *		     - updated init code to use platform_device info
- *
- * 06-Mar-2005  BJD  Add s3c2440 fclk clock source
- *
- * 09-Mar-2005  BJD  Add s3c2400 support
- *
- * 10-Mar-2005  LCVR Changed S3C2410_VA_UART to S3C24XX_VA_UART
+ * Ben Dooks, Copyright (c) 2003-2005 Simtec Electronics
+ *	http://armlinux.simtec.co.uk/
 */
 
 /* Note on 2440 fclk clock source handling
