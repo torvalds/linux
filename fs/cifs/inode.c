@@ -172,7 +172,7 @@ static void fill_fake_finddataunix(FILE_UNIX_BASIC_INFO *pfnd_dat,
 {
 	struct inode *pinode = NULL;
 
-	memset(pfnd_dat, sizeof(FILE_UNIX_BASIC_INFO), 0);
+	memset(pfnd_dat, 0, sizeof(FILE_UNIX_BASIC_INFO));
 
 /*	__le64 pfnd_dat->EndOfFile = cpu_to_le64(0);
 	__le64 pfnd_dat->NumOfBytes = cpu_to_le64(0);
@@ -384,7 +384,7 @@ static int get_sfu_mode(struct inode *inode,
 static void fill_fake_finddata(FILE_ALL_INFO *pfnd_dat,
 			       struct super_block *sb)
 {
-	memset(pfnd_dat, sizeof(FILE_ALL_INFO), 0);
+	memset(pfnd_dat, 0, sizeof(FILE_ALL_INFO));
 
 /*	__le64 pfnd_dat->AllocationSize = cpu_to_le64(0);
 	__le64 pfnd_dat->EndOfFile = cpu_to_le64(0);
