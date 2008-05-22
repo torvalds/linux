@@ -173,7 +173,7 @@ config MACH_COLIBRI
 	select PXA27x
 
 config MACH_ZYLONITE
-	bool "PXA3xx Development Platform"
+	bool "PXA3xx Development Platform (aka Zylonite)"
 	select PXA3xx
 	select HAVE_PWM
 
