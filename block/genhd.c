@@ -291,18 +291,25 @@ void __init printk_all_partitions(void)
 
 #ifdef CONFIG_PROC_FS
 /* iterator */
+static int find_start(struct device *dev, void *data)
+{
+	loff_t k = *(loff_t *)data;
+
+	if (dev->type != &disk_type)
+		return 0;
+	if (!k--)
+		return 1;
+	return 0;
+}
+
 static void *part_start(struct seq_file *part, loff_t *pos)
 {
-	loff_t k = *pos;
 	struct device *dev;
 
 	mutex_lock(&block_class_lock);
-	list_for_each_entry(dev, &block_class.devices, node) {
-		if (dev->type != &disk_type)
-			continue;
-		if (!k--)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, NULL, (void *)pos, find_start);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
 }
 
@@ -555,16 +562,12 @@ static struct device_type disk_type = {
 
 static void *diskstats_start(struct seq_file *part, loff_t *pos)
 {
-	loff_t k = *pos;
 	struct device *dev;
 
 	mutex_lock(&block_class_lock);
-	list_for_each_entry(dev, &block_class.devices, node) {
-		if (dev->type != &disk_type)
-			continue;
-		if (!k--)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, NULL, (void *)pos, find_start);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
 }
 
