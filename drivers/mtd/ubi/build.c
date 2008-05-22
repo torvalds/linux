@@ -530,7 +530,11 @@ static int io_init(struct ubi_device *ubi)
 	ubi->min_io_size = ubi->mtd->writesize;
 	ubi->hdrs_min_io_size = ubi->mtd->writesize >> ubi->mtd->subpage_sft;
 
-	/* Make sure minimal I/O unit is power of 2 */
+	/*
+	 * Make sure minimal I/O unit is power of 2. Note, there is no
+	 * fundamental reason for this assumption. It is just an optimization
+	 * which allows us to avoid costly division operations.
+	 */
 	if (!is_power_of_2(ubi->min_io_size)) {
 		ubi_err("min. I/O unit (%d) is not power of 2",
 			ubi->min_io_size);
@@ -581,7 +585,7 @@ static int io_init(struct ubi_device *ubi)
 	if (ubi->vid_hdr_offset < UBI_EC_HDR_SIZE ||
 	    ubi->leb_start < ubi->vid_hdr_offset + UBI_VID_HDR_SIZE ||
 	    ubi->leb_start > ubi->peb_size - UBI_VID_HDR_SIZE ||
-	    ubi->leb_start % ubi->min_io_size) {
+	    ubi->leb_start & (ubi->min_io_size - 1)) {
 		ubi_err("bad VID header (%d) or data offsets (%d)",
 			ubi->vid_hdr_offset, ubi->leb_start);
 		return -EINVAL;

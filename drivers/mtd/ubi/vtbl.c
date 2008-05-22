@@ -170,7 +170,7 @@ static int vtbl_check(const struct ubi_device *ubi,
 			goto bad;
 		}
 
-		n = alignment % ubi->min_io_size;
+		n = alignment & (ubi->min_io_size - 1);
 		if (alignment != 1 && n) {
 			err = 5;
 			goto bad;
@@ -684,13 +684,12 @@ static int check_scanning_info(const struct ubi_device *ubi,
 		return -EINVAL;
 	}
 
-	if (si->highest_vol_id >= ubi->vtbl_slots + UBI_INT_VOL_COUNT&&
+	if (si->highest_vol_id >= ubi->vtbl_slots + UBI_INT_VOL_COUNT &&
 	    si->highest_vol_id < UBI_INTERNAL_VOL_START) {
 		ubi_err("too large volume ID %d found by scanning",
 			si->highest_vol_id);
 		return -EINVAL;
 	}
-
 
 	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
 		cond_resched();

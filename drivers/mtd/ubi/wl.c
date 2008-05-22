@@ -1368,7 +1368,7 @@ int ubi_thread(void *u)
 		int err;
 
 		if (kthread_should_stop())
-			goto out;
+			break;
 
 		if (try_to_freeze())
 			continue;
@@ -1403,7 +1403,6 @@ int ubi_thread(void *u)
 		cond_resched();
 	}
 
-out:
 	dbg_wl("background thread \"%s\" is killed", ubi->bgt_name);
 	return 0;
 }

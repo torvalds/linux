@@ -295,7 +295,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	off = do_div(tmp, vol->usable_leb_size);
 	lnum = tmp;
 
-	if (off % ubi->min_io_size) {
+	if (off & (ubi->min_io_size - 1)) {
 		dbg_err("unaligned position");
 		return -EINVAL;
 	}
@@ -304,7 +304,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 		count_save = count = vol->used_bytes - *offp;
 
 	/* We can write only in fractions of the minimum I/O unit */
-	if (count % ubi->min_io_size) {
+	if (count & (ubi->min_io_size - 1)) {
 		dbg_err("unaligned write length");
 		return -EINVAL;
 	}
@@ -564,7 +564,7 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 	if (req->alignment > ubi->leb_size)
 		goto bad;
 
-	n = req->alignment % ubi->min_io_size;
+	n = req->alignment & (ubi->min_io_size - 1);
 	if (req->alignment != 1 && n)
 		goto bad;
 

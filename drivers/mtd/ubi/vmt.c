@@ -727,7 +727,7 @@ static void paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 		goto fail;
 	}
 
-	n = vol->alignment % ubi->min_io_size;
+	n = vol->alignment & (ubi->min_io_size - 1);
 	if (vol->alignment != 1 && n) {
 		ubi_err("alignment is not multiple of min I/O unit");
 		goto fail;

@@ -752,7 +752,7 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
 		/* If this is the last LEB @len may be unaligned */
 		len = ALIGN(data_size, ubi->min_io_size);
 	else
-		ubi_assert(len % ubi->min_io_size == 0);
+		ubi_assert(!(len & (ubi->min_io_size - 1)));
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
