@@ -62,6 +62,9 @@ void __cpuinit validate_pat_support(struct cpuinfo_x86 *c)
 		if (c->x86 == 0xF || (c->x86 == 6 && c->x86_model >= 15))
 			return;
 		break;
+	case X86_VENDOR_CENTAUR:
+	case X86_VENDOR_TRANSMETA:
+		return;
 	}
 
 	pat_disable(cpu_has_pat ?
