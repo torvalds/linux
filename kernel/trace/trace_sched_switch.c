@@ -29,6 +29,9 @@ sched_switch_func(void *private, void *__rq, struct task_struct *prev,
 	long disabled;
 	int cpu;
 
+	tracing_record_cmdline(prev);
+	tracing_record_cmdline(next);
+
 	if (!tracer_enabled)
 		return;
 
@@ -62,8 +65,6 @@ sched_switch_callback(void *probe_data, void *call_data,
 	__rq = va_arg(*args, typeof(__rq));
 	prev = va_arg(*args, typeof(prev));
 	next = va_arg(*args, typeof(next));
-
-	tracing_record_cmdline(prev);
 
 	/*
 	 * If tracer_switch_func only points to the local
@@ -213,18 +214,26 @@ void tracing_stop_sched_switch(void)
 		tracing_sched_unregister();
 }
 
+void tracing_start_cmdline_record(void)
+{
+	tracing_start_sched_switch();
+}
+
+void tracing_stop_cmdline_record(void)
+{
+	tracing_stop_sched_switch();
+}
+
 static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
-	atomic_inc(&trace_record_cmdline_enabled);
 	tracer_enabled = 1;
-	tracing_start_sched_switch();
+	tracing_start_cmdline_record();
 }
 
 static void stop_sched_trace(struct trace_array *tr)
 {
-	tracing_stop_sched_switch();
-	atomic_dec(&trace_record_cmdline_enabled);
+	tracing_stop_cmdline_record();
 	tracer_enabled = 0;
 }
 

@@ -218,6 +218,8 @@ void trace_function(struct trace_array *tr,
 
 void tracing_start_function_trace(void);
 void tracing_stop_function_trace(void);
+void tracing_start_cmdline_record(void);
+void tracing_stop_cmdline_record(void);
 int register_tracer(struct tracer *type);
 void unregister_tracer(struct tracer *type);
 
@@ -225,8 +227,6 @@ extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 
 extern unsigned long tracing_max_latency;
 extern unsigned long tracing_thresh;
-
-extern atomic_t trace_record_cmdline_enabled;
 
 void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);
 void update_max_tr_single(struct trace_array *tr,
