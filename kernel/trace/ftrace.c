@@ -50,7 +50,7 @@ static struct ftrace_ops ftrace_list_end __read_mostly =
 static struct ftrace_ops *ftrace_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 
-void ftrace_list_func(unsigned long ip, unsigned long parent_ip)
+static void ftrace_list_func(unsigned long ip, unsigned long parent_ip)
 {
 	struct ftrace_ops *op = ftrace_list;
 

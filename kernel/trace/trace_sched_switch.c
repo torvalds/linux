@@ -196,7 +196,7 @@ static void tracing_sched_unregister(void)
 				&ctx_trace);
 }
 
-void tracing_start_sched_switch(void)
+static void tracing_start_sched_switch(void)
 {
 	long ref;
 
@@ -205,7 +205,7 @@ void tracing_start_sched_switch(void)
 		tracing_sched_register();
 }
 
-void tracing_stop_sched_switch(void)
+static void tracing_stop_sched_switch(void)
 {
 	long ref;
 
