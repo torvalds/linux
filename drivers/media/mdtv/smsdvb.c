@@ -1,36 +1,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-
 #include "smscoreapi.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
-typedef struct _smsdvb_client
-{
-	struct list_head entry;
-
-	smscore_device_t	*coredev;
-	smscore_client_t	*smsclient;
-
-	struct dvb_adapter	adapter;
-	struct dvb_demux	demux;
-	struct dmxdev		dmxdev;
-	struct dvb_frontend	frontend;
-
-	fe_status_t			fe_status;
-	int					fe_ber, fe_snr, fe_signal_strength;
-
-	struct completion	tune_done, stat_done;
-
-	// todo: save freq/band instead whole struct
-	struct dvb_frontend_parameters fe_params;
-
-} smsdvb_client_t;
 
 struct list_head g_smsdvb_clients;
 kmutex_t g_smsdvb_clientslock;
@@ -402,37 +375,3 @@ adapter_error:
 	return rc;
 }
 
-int smsdvb_module_init(void)
-{
-	int rc;
-
-	INIT_LIST_HEAD(&g_smsdvb_clients);
-	kmutex_init(&g_smsdvb_clientslock);
-
-	rc = smscore_register_hotplug(smsdvb_hotplug);
-
-	printk(KERN_INFO "%s, rc %d\n", __FUNCTION__, rc);
-
-	return rc;
-}
-
-void smsdvb_module_exit(void)
-{
-	smscore_unregister_hotplug(smsdvb_hotplug);
-
-	kmutex_lock(&g_smsdvb_clientslock);
-
-	while (!list_empty(&g_smsdvb_clients))
-		smsdvb_unregister_client((smsdvb_client_t*) g_smsdvb_clients.next);
-
-	kmutex_unlock(&g_smsdvb_clientslock);
-
-	printk(KERN_INFO "%s\n", __FUNCTION__);
-}
-
-module_init(smsdvb_module_init);
-module_exit(smsdvb_module_exit);
-
-MODULE_DESCRIPTION("smsdvb dvb-api module");
-MODULE_AUTHOR("Anatoly Greenblatt,,, (anatolyg@siano-ms.com)");
-MODULE_LICENSE("GPL");

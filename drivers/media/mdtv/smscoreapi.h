@@ -1,6 +1,11 @@
 #ifndef __smscoreapi_h__
 #define __smscoreapi_h__
 
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+
 /* From sysksyms.h */
 
 #include <linux/version.h>
@@ -453,6 +458,28 @@ typedef struct SMSHOSTLIB_I2C_RES_S
 
 /* End types.h */
 
+typedef struct _smsdvb_client
+{
+	struct list_head entry;
+
+	smscore_device_t	*coredev;
+	smscore_client_t	*smsclient;
+
+	struct dvb_adapter	adapter;
+	struct dvb_demux	demux;
+	struct dmxdev		dmxdev;
+	struct dvb_frontend	frontend;
+
+	fe_status_t			fe_status;
+	int					fe_ber, fe_snr, fe_signal_strength;
+
+	struct completion	tune_done, stat_done;
+
+	// todo: save freq/band instead whole struct
+	struct dvb_frontend_parameters fe_params;
+
+} smsdvb_client_t;
+
 extern void smscore_registry_setmode(char *devpath, int mode);
 extern int smscore_registry_getmode(char *devpath);
 
@@ -479,5 +506,9 @@ extern int smscore_map_common_buffer(smscore_device_t *coredev, struct vm_area_s
 
 extern smscore_buffer_t *smscore_getbuffer(smscore_device_t *coredev);
 extern void smscore_putbuffer(smscore_device_t *coredev, smscore_buffer_t *cb);
+
+/* smsdvb.c */
+int smsdvb_hotplug(smscore_device_t *coredev, struct device* device, int arrival);
+void smsdvb_unregister_client(smsdvb_client_t* client);
 
 #endif // __smscoreapi_h__
