@@ -1,7 +1,10 @@
-#
-# Makefile for the kernel MDTV driver
-#
+smscore-objs := smscoreapi.o smsusb.o smsdvb.o
 
-smscore-objs := smscoreapi.o
+obj-$(CONFIG_MDTV_SIANO_STELLAR_USB) += smscore.o
 
-obj-$(CONFIG_MDTV_SIANO_STELLAR_USB) += smscore.o smsusb.o smsdvb.o
+EXTRA_CFLAGS += -Idrivers/media/video
+EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
+EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
+
+EXTRA_CFLAGS += $(extra-cflags-y) $(extra-cflags-m)
+
