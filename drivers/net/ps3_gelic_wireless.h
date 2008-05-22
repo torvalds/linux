@@ -266,7 +266,7 @@ struct gelic_wl_info {
 	enum gelic_wl_wpa_level wpa_level; /* wpa/wpa2 */
 
 	/* association handling */
-	struct semaphore assoc_stat_lock;
+	struct mutex assoc_stat_lock;
 	struct delayed_work assoc_work;
 	enum gelic_wl_assoc_state assoc_stat;
 	struct completion assoc_done;
