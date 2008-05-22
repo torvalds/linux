@@ -205,6 +205,11 @@ static inline void __deprecated pxa_set_cken(int clock, int enable)
  */
 extern unsigned int get_memclk_frequency_10khz(void);
 
+/*
+ * register GPIO as reset generator
+ */
+extern int init_gpio_reset(int gpio);
+
 #endif
 
 #if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
