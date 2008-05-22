@@ -1575,7 +1575,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		attrs->ia_valid &= ~ATTR_MODE;
 
 	if (attrs->ia_valid & ATTR_MODE) {
-		cFYI(1, ("Mode changed to 0x%x", attrs->ia_mode));
+		cFYI(1, ("Mode changed to 0%o", attrs->ia_mode));
 		mode = attrs->ia_mode;
 	}
 
@@ -1590,18 +1590,18 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
 			rc = mode_to_acl(inode, full_path, mode);
-		else if ((mode & S_IWUGO) == 0) {
-#else
-		if ((mode & S_IWUGO) == 0) {
+		else
 #endif
-			/* not writeable */
-			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
-				set_dosattr = true;
-				time_buf.Attributes =
-					cpu_to_le32(cifsInode->cifsAttrs |
-						    ATTR_READONLY);
-			}
-		} else if (cifsInode->cifsAttrs & ATTR_READONLY) {
+		if (((mode & S_IWUGO) == 0) &&
+		    (cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
+			set_dosattr = true;
+			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs |
+							  ATTR_READONLY);
+			/* fix up mode if we're not using dynperm */
+			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM) == 0)
+				attrs->ia_mode = inode->i_mode & ~S_IWUGO;
+		} else if ((mode & S_IWUGO) &&
+			   (cifsInode->cifsAttrs & ATTR_READONLY)) {
 			/* If file is readonly on server, we would
 			not be able to write to it - so if any write
 			bit is enabled for user or group or other we
@@ -1612,6 +1612,20 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			/* Windows ignores set to zero */
 			if (time_buf.Attributes == 0)
 				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
+
+			/* reset local inode permissions to normal */
+			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)) {
+				attrs->ia_mode &= ~(S_IALLUGO);
+				if (S_ISDIR(inode->i_mode))
+					attrs->ia_mode |=
+						cifs_sb->mnt_dir_mode;
+				else
+					attrs->ia_mode |=
+						cifs_sb->mnt_file_mode;
+			}
+		} else if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)) {
+			/* ignore mode change - ATTR_READONLY hasn't changed */
+			attrs->ia_valid &= ~ATTR_MODE;
 		}
 	}
 
