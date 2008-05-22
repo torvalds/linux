@@ -183,6 +183,7 @@ static int exact_lock(dev_t devt, void *data)
 void add_disk(struct gendisk *disk)
 {
 	struct backing_dev_info *bdi;
+	int retval;
 
 	disk->flags |= GENHD_FL_UP;
 	blk_register_region(MKDEV(disk->major, disk->first_minor),
@@ -193,7 +194,8 @@ void add_disk(struct gendisk *disk)
 
 	bdi = &disk->queue->backing_dev_info;
 	bdi_register_dev(bdi, MKDEV(disk->major, disk->first_minor));
-	sysfs_create_link(&disk->dev.kobj, &bdi->dev->kobj, "bdi");
+	retval = sysfs_create_link(&disk->dev.kobj, &bdi->dev->kobj, "bdi");
+	WARN_ON(retval);
 }
 
 EXPORT_SYMBOL(add_disk);
