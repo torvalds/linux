@@ -174,6 +174,13 @@ enum {				/* TCP congestion control algorithms */
 	CONG_ALG_HIGHSPEED
 };
 
+enum {			/* RSS hash type */
+	RSS_HASH_NONE = 0,
+	RSS_HASH_2_TUPLE = 1,
+	RSS_HASH_4_TUPLE = 2,
+	RSS_HASH_TCPV6 = 3
+};
+
 union opcode_tid {
 	__be32 opcode_tid;
 	__u8 opcode;
@@ -183,6 +190,10 @@ union opcode_tid {
 #define V_OPCODE(x) ((x) << S_OPCODE)
 #define G_OPCODE(x) (((x) >> S_OPCODE) & 0xFF)
 #define G_TID(x)    ((x) & 0xFFFFFF)
+
+#define S_HASHTYPE 22
+#define M_HASHTYPE 0x3
+#define G_HASHTYPE(x) (((x) >> S_HASHTYPE) & M_HASHTYPE)
 
 /* tid is assumed to be 24-bits */
 #define MK_OPCODE_TID(opcode, tid) (V_OPCODE(opcode) | (tid))
