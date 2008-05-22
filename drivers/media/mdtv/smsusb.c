@@ -26,11 +26,6 @@
 
 #include "smscoreapi.h"
 
-#define USB_VID_SIANO	0x187f
-#define USB_PID_0010	0x0010
-#define USB_PID_0100	0x0100
-#define USB_PID_0200	0x0200
-
 #define USB1_BUFFER_SIZE		0x1000
 #define USB2_BUFFER_SIZE		0x4000
 
@@ -57,14 +52,6 @@ typedef struct _smsusb_device
 	int				response_alignment;
 	int				buffer_size;
 } *psmsusb_device_t;
-
-static struct usb_device_id smsusb_id_table [] = {
-	{ USB_DEVICE(USB_VID_SIANO, USB_PID_0010) },
-	{ USB_DEVICE(USB_VID_SIANO, USB_PID_0100) },
-	{ USB_DEVICE(USB_VID_SIANO, USB_PID_0200) },
-	{ }		/* Terminating entry */
-};
-MODULE_DEVICE_TABLE (usb, smsusb_id_table);
 
 int smsusb_submit_urb(smsusb_device_t* dev, smsusb_urb_t* surb);
 
@@ -315,7 +302,7 @@ int smsusb_init_device(struct usb_interface *intf)
 
 	switch (dev->udev->descriptor.idProduct)
 	{
-		case USB_PID_0100:
+		case 0x100:
 			dev->buffer_size = USB1_BUFFER_SIZE;
 
 			params.setmode_handler = smsusb1_setmode;
@@ -413,6 +400,14 @@ void smsusb_disconnect(struct usb_interface *intf)
 {
 	smsusb_term_device(intf);
 }
+
+static struct usb_device_id smsusb_id_table [] = {
+	{ USB_DEVICE(0x187F, 0x0010) },
+	{ USB_DEVICE(0x187F, 0x0100) },
+	{ USB_DEVICE(0x187F, 0x0200) },
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE (usb, smsusb_id_table);
 
 static struct usb_driver smsusb_driver = {
 	.name			= "smsusb",
