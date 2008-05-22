@@ -25,6 +25,7 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/gpio.h>
 #include <asm/hardware.h>
@@ -39,6 +40,7 @@
 #include <asm/arch/irda.h>
 #include <asm/arch/ohci.h>
 
+#include "devices.h"
 #include "generic.h"
 
 static unsigned long magician_pin_config[] = {
@@ -348,40 +350,58 @@ static struct pxafb_mach_info samsung_info = {
  * Backlight
  */
 
-static void magician_set_bl_intensity(int intensity)
+static int magician_backlight_init(struct device *dev)
 {
-	if (intensity) {
-		PWM_CTRL0 = 1;
-		PWM_PERVAL0 = 0xc8;
-		if (intensity > 0xc7) {
-			PWM_PWDUTY0 = intensity - 0x48;
-			gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 1);
-		} else {
-			PWM_PWDUTY0 = intensity;
-			gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 0);
-		}
-		gpio_set_value(EGPIO_MAGICIAN_BL_POWER, 1);
-		pxa_set_cken(CKEN_PWM0, 1);
+	int ret;
+
+	ret = gpio_request(EGPIO_MAGICIAN_BL_POWER, "BL_POWER");
+	if (ret)
+		goto err;
+	ret = gpio_request(EGPIO_MAGICIAN_BL_POWER2, "BL_POWER2");
+	if (ret)
+		goto err2;
+	return 0;
+
+err2:
+	gpio_free(EGPIO_MAGICIAN_BL_POWER);
+err:
+	return ret;
+}
+
+static int magician_backlight_notify(int brightness)
+{
+	gpio_set_value(EGPIO_MAGICIAN_BL_POWER, brightness);
+	if (brightness >= 200) {
+		gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 1);
+		return brightness - 72;
 	} else {
-		/* PWM_PWDUTY0 = intensity; */
-		gpio_set_value(EGPIO_MAGICIAN_BL_POWER, 0);
-		pxa_set_cken(CKEN_PWM0, 0);
+		gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 0);
+		return brightness;
 	}
 }
 
-static struct generic_bl_info backlight_info = {
-	.default_intensity = 0x64,
-	.limit_mask        = 0x0b,
-	.max_intensity     = 0xc7+0x48,
-	.set_bl_intensity  = magician_set_bl_intensity,
+static void magician_backlight_exit(struct device *dev)
+{
+	gpio_free(EGPIO_MAGICIAN_BL_POWER);
+	gpio_free(EGPIO_MAGICIAN_BL_POWER2);
+}
+
+static struct platform_pwm_backlight_data backlight_data = {
+	.pwm_id         = 0,
+	.max_brightness = 272,
+	.dft_brightness = 100,
+	.pwm_period_ns  = 30923,
+	.init           = magician_backlight_init,
+	.notify         = magician_backlight_notify,
+	.exit           = magician_backlight_exit,
 };
 
 static struct platform_device backlight = {
-	.name = "generic-bl",
+	.name = "pwm-backlight",
 	.dev  = {
-		.platform_data = &backlight_info,
+		.parent        = &pxa27x_device_pwm0.dev,
+		.platform_data = &backlight_data,
 	},
-	.id   = -1,
 };
 
 /*
