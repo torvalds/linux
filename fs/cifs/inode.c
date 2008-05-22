@@ -418,6 +418,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	char *buf = NULL;
 	bool adjustTZ = false;
 	bool is_dfs_referral = false;
+	umode_t default_mode;
 
 	pTcon = cifs_sb->tcon;
 	cFYI(1, ("Getting info on %s", full_path));
@@ -530,47 +531,42 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode->i_mtime.tv_sec += pTcon->ses->server->timeAdj;
 	}
 
-	/* set default mode. will override for dirs below */
-	if (atomic_read(&cifsInfo->inUse) == 0)
-		/* new inode, can safely set these fields */
-		inode->i_mode = cifs_sb->mnt_file_mode;
-	else /* since we set the inode type below we need to mask off
-	     to avoid strange results if type changes and both
-	     get orred in */
-		inode->i_mode &= ~S_IFMT;
-/*	if (attr & ATTR_REPARSE)  */
-	/* We no longer handle these as symlinks because we could not
-	   follow them due to the absolute path with drive letter */
-	if (attr & ATTR_DIRECTORY) {
-	/* override default perms since we do not do byte range locking
-	   on dirs */
-		inode->i_mode = cifs_sb->mnt_dir_mode;
-		inode->i_mode |= S_IFDIR;
-	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
-		   (cifsInfo->cifsAttrs & ATTR_SYSTEM) &&
-		   /* No need to le64 convert size of zero */
-		   (pfindData->EndOfFile == 0)) {
-		inode->i_mode = cifs_sb->mnt_file_mode;
-		inode->i_mode |= S_IFIFO;
-/* BB Finish for SFU style symlinks and devices */
-	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
-		   (cifsInfo->cifsAttrs & ATTR_SYSTEM)) {
-		if (decode_sfu_inode(inode, le64_to_cpu(pfindData->EndOfFile),
-				     full_path, cifs_sb, xid))
-			cFYI(1, ("Unrecognized sfu inode type"));
+	/* get default inode mode */
+	if (attr & ATTR_DIRECTORY)
+		default_mode = cifs_sb->mnt_dir_mode;
+	else
+		default_mode = cifs_sb->mnt_file_mode;
 
-		cFYI(1, ("sfu mode 0%o", inode->i_mode));
+	/* set permission bits */
+	if (atomic_read(&cifsInfo->inUse) == 0 ||
+	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM) == 0)
+		inode->i_mode = default_mode;
+	else {
+		/* just reenable write bits if !ATTR_READONLY */
+		if ((inode->i_mode & S_IWUGO) == 0 &&
+		    (attr & ATTR_READONLY) == 0)
+			inode->i_mode |= (S_IWUGO & default_mode);
+			inode->i_mode &= ~S_IFMT;
+	}
+	/* clear write bits if ATTR_READONLY is set */
+	if (attr & ATTR_READONLY)
+		inode->i_mode &= ~S_IWUGO;
+
+	/* set inode type */
+	if ((attr & ATTR_SYSTEM) &&
+	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)) {
+		/* no need to fix endianness on 0 */
+		if (pfindData->EndOfFile == 0)
+			inode->i_mode |= S_IFIFO;
+		else if (decode_sfu_inode(inode,
+				le64_to_cpu(pfindData->EndOfFile),
+				full_path, cifs_sb, xid))
+			cFYI(1, ("unknown SFU file type\n"));
 	} else {
-		inode->i_mode |= S_IFREG;
-		/* treat dos attribute of read-only as read-only mode eg 555 */
-		if (cifsInfo->cifsAttrs & ATTR_READONLY)
-			inode->i_mode &= ~(S_IWUGO);
-		else if ((inode->i_mode & S_IWUGO) == 0)
-			/* the ATTR_READONLY flag may have been	*/
-			/* changed on server -- set any w bits	*/
-			/* allowed by mnt_file_mode		*/
-			inode->i_mode |= (S_IWUGO & cifs_sb->mnt_file_mode);
-	/* BB add code to validate if device or weird share or device type? */
+		if (attr & ATTR_DIRECTORY)
+			inode->i_mode |= S_IFDIR;
+		else
+			inode->i_mode |= S_IFREG;
 	}
 
 	spin_lock(&inode->i_lock);
