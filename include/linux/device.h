@@ -213,7 +213,8 @@ extern void class_unregister(struct class *class);
 extern int class_for_each_device(struct class *class, struct device *start,
 				 void *data,
 				 int (*fn)(struct device *dev, void *data));
-extern struct device *class_find_device(struct class *class, void *data,
+extern struct device *class_find_device(struct class *class,
+					struct device *start, void *data,
 					int (*match)(struct device *, void *));
 
 struct class_attribute {

@@ -302,6 +302,7 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
 /**
  * class_find_device - device iterator for locating a particular device
  * @class: the class we're iterating
+ * @start: Device to begin with
  * @data: data for the match function
  * @match: function to check device
  *
@@ -319,8 +320,9 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  * re-acquired in @match, otherwise it will self-deadlocking. For
  * example, calls to add or remove class members would be verboten.
  */
-struct device *class_find_device(struct class *class, void *data,
-				   int (*match)(struct device *, void *))
+struct device *class_find_device(struct class *class, struct device *start,
+				 void *data,
+				 int (*match)(struct device *, void *))
 {
 	struct device *dev;
 	int found = 0;
@@ -330,15 +332,17 @@ struct device *class_find_device(struct class *class, void *data,
 
 	down(&class->sem);
 	list_for_each_entry(dev, &class->devices, node) {
+		if (start) {
+			if (start == dev)
+				start = NULL;
+			continue;
+		}
 		dev = get_device(dev);
-		if (dev) {
-			if (match(dev, data)) {
-				found = 1;
-				break;
-			} else
-				put_device(dev);
-		} else
+		if (match(dev, data)) {
+			found = 1;
 			break;
+		} else
+			put_device(dev);
 	}
 	up(&class->sem);
 

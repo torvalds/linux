@@ -1289,7 +1289,7 @@ void device_destroy(struct class *class, dev_t devt)
 {
 	struct device *dev;
 
-	dev = class_find_device(class, &devt, __match_devt);
+	dev = class_find_device(class, NULL, &devt, __match_devt);
 	if (dev) {
 		put_device(dev);
 		device_unregister(dev);

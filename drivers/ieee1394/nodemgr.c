@@ -754,7 +754,8 @@ static void nodemgr_remove_uds(struct node_entry *ne)
 	 */
 	mutex_lock(&nodemgr_serialize_remove_uds);
 	for (;;) {
-		dev = class_find_device(&nodemgr_ud_class, ne, __match_ne);
+		dev = class_find_device(&nodemgr_ud_class, NULL, ne,
+					__match_ne);
 		if (!dev)
 			break;
 		ud = container_of(dev, struct unit_directory, unit_dev);
@@ -901,7 +902,8 @@ static struct node_entry *find_entry_by_guid(u64 guid)
 	struct device *dev;
 	struct node_entry *ne;
 
-	dev = class_find_device(&nodemgr_ne_class, &guid, __match_ne_guid);
+	dev = class_find_device(&nodemgr_ne_class, NULL, &guid,
+				__match_ne_guid);
 	if (!dev)
 		return NULL;
 	ne = container_of(dev, struct node_entry, node_dev);
@@ -940,7 +942,8 @@ static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host,
 	param.host = host;
 	param.nodeid = nodeid;
 
-	dev = class_find_device(&nodemgr_ne_class, &param, __match_ne_nodeid);
+	dev = class_find_device(&nodemgr_ne_class, NULL, &param,
+				__match_ne_nodeid);
 	if (!dev)
 		return NULL;
 	ne = container_of(dev, struct node_entry, node_dev);
