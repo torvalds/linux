@@ -125,30 +125,6 @@ wake_up_callback(void *probe_data, void *call_data,
 	wakeup_func(probe_data, __rq, task, curr);
 }
 
-void
-ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
-{
-	struct trace_array *tr = ctx_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	long disabled;
-	int cpu;
-
-	if (!tracer_enabled)
-		return;
-
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-
-	if (likely(disabled == 1))
-		__trace_special(tr, data, arg1, arg2, arg3);
-
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
-}
-
 static void sched_switch_reset(struct trace_array *tr)
 {
 	int cpu;

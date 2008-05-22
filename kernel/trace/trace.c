@@ -941,6 +941,30 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	trace_wake_up();
 }
 
+void
+ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
+{
+	struct trace_array *tr = &global_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int cpu;
+
+	if (tracing_disabled || current_trace == &no_tracer || !tr->ctrl)
+		return;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+
+	if (likely(disabled == 1))
+		__trace_special(tr, data, arg1, arg2, arg3);
+
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+}
+
 #ifdef CONFIG_FTRACE
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip)
@@ -2941,8 +2965,6 @@ __init static int tracer_alloc_buffers(void)
 	int ret = -ENOMEM;
 	int i;
 
-	global_trace.ctrl = tracer_enabled;
-
 	/* TODO: make the number of buffers hot pluggable with CPUS */
 	tracing_nr_buffers = num_possible_cpus();
 	tracing_buffer_mask = cpu_possible_map;
@@ -3012,6 +3034,7 @@ __init static int tracer_alloc_buffers(void)
 	current_trace = &no_tracer;
 
 	/* All seems OK, enable tracing */
+	global_trace.ctrl = tracer_enabled;
 	tracing_disabled = 0;
 
 	return 0;
