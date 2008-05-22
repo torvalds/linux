@@ -2159,8 +2159,7 @@ copyRetry:
 		cFYI(1, ("Send error in copy = %d with %d files copied",
 			rc, le16_to_cpu(pSMBr->CopyCount)));
 	}
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 
 	if (rc == -EAGAIN)
 		goto copyRetry;
@@ -2249,8 +2248,7 @@ createSymLinkRetry:
 	if (rc)
 		cFYI(1, ("Send error in SetPathInfo create symlink = %d", rc));
 
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 
 	if (rc == -EAGAIN)
 		goto createSymLinkRetry;
@@ -4095,8 +4093,7 @@ getDFSRetry:
 				 target_nodes, nls_codepage);
 
 GetDFSRefExit:
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 
 	if (rc == -EAGAIN)
 		goto getDFSRetry;
@@ -5117,8 +5114,7 @@ setPermsRetry:
 	if (rc)
 		cFYI(1, ("SetPathInfo (perms) returned %d", rc));
 
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
 		goto setPermsRetry;
 	return rc;
@@ -5340,8 +5336,7 @@ QAllEAsRetry:
 			}
 		}
 	}
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
 		goto QAllEAsRetry;
 
@@ -5490,8 +5485,7 @@ QEARetry:
 			}
 		}
 	}
-	if (pSMB)
-		cifs_buf_release(pSMB);
+	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
 		goto QEARetry;
 
