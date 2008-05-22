@@ -11,8 +11,6 @@
 /* Have we found an MP table */
 int smp_found_config;
 
-int pic_mode;
-
 extern unsigned int __cpuinitdata maxcpus;
 
 /*

@@ -48,8 +48,6 @@ int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
 
 static int mp_current_pci_id;
 
-int pic_mode;
-
 /*
  * Intel MP BIOS table parsing routines:
  */

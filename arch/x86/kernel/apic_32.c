@@ -76,6 +76,8 @@ EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
  */
 int apic_verbosity;
 
+int pic_mode;
+
 static unsigned int calibration_result;
 
 static int lapic_next_event(unsigned long delta,
