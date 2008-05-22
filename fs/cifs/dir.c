@@ -260,7 +260,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						 buf, inode->i_sb, xid,
 						 &fileHandle);
 			if (newinode) {
-				newinode->i_mode = mode;
+				if (cifs_sb->mnt_cifs_flags &
+				    CIFS_MOUNT_DYNPERM)
+					newinode->i_mode = mode;
 				if ((oplock & CIFS_CREATE_ACTION) &&
 				    (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID)) {

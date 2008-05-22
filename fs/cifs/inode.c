@@ -1015,8 +1015,11 @@ mkdir_get_info:
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 			if (direntry->d_inode) {
-				direntry->d_inode->i_mode = mode;
-				direntry->d_inode->i_mode |= S_IFDIR;
+				if (cifs_sb->mnt_cifs_flags &
+				     CIFS_MOUNT_DYNPERM)
+					direntry->d_inode->i_mode =
+						(mode | S_IFDIR);
+					
 				if (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid =
