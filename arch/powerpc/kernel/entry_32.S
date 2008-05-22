@@ -1129,18 +1129,11 @@ _GLOBAL(_mcount)
 	stw	r5, 8(r1)
 
 	LOAD_REG_ADDR(r5, ftrace_trace_function)
-#if 0
-	mtctr	r3
-	mr	r1, r5
-	bctrl
-#endif
 	lwz	r5,0(r5)
-#if 1
+
 	mtctr	r5
 	bctrl
-#else
-	bl	ftrace_stub
-#endif
+
 	nop
 
 	lwz	r6, 8(r1)

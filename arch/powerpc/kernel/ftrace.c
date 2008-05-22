@@ -51,10 +51,16 @@ notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
 	static unsigned int op;
 
+	/*
+	 * It would be nice to just use create_function_call, but that will
+	 * update the code itself. Here we need to just return the
+	 * instruction that is going to be modified, without modifying the
+	 * code.
+	 */
 	addr = GET_ADDR(addr);
 
 	/* Set to "bl addr" */
-	op = 0x48000001 | (ftrace_calc_offset(ip, addr) & 0x03fffffe);
+	op = 0x48000001 | (ftrace_calc_offset(ip, addr) & 0x03fffffc);
 
 	/*
 	 * No locking needed, this must be called via kstop_machine
