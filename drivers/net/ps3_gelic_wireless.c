@@ -240,12 +240,12 @@ static u32 gelic_wl_get_link(struct net_device *netdev)
 	u32 ret;
 
 	pr_debug("%s: <-\n", __func__);
-	down(&wl->assoc_stat_lock);
+	mutex_lock(&wl->assoc_stat_lock);
 	if (wl->assoc_stat == GELIC_WL_ASSOC_STAT_ASSOCIATED)
 		ret = 1;
 	else
 		ret = 0;
-	up(&wl->assoc_stat_lock);
+	mutex_unlock(&wl->assoc_stat_lock);
 	pr_debug("%s: ->\n", __func__);
 	return ret;
 }
@@ -979,7 +979,7 @@ static int gelic_wl_get_essid(struct net_device *netdev,
 	unsigned long irqflag;
 
 	pr_debug("%s: <- \n", __func__);
-	down(&wl->assoc_stat_lock);
+	mutex_lock(&wl->assoc_stat_lock);
 	spin_lock_irqsave(&wl->lock, irqflag);
 	if (test_bit(GELIC_WL_STAT_ESSID_SET, &wl->stat) ||
 	    wl->assoc_stat == GELIC_WL_ASSOC_STAT_ASSOCIATED) {
@@ -989,7 +989,7 @@ static int gelic_wl_get_essid(struct net_device *netdev,
 	} else
 		data->essid.flags = 0;
 
-	up(&wl->assoc_stat_lock);
+	mutex_unlock(&wl->assoc_stat_lock);
 	spin_unlock_irqrestore(&wl->lock, irqflag);
 	pr_debug("%s: -> len=%d \n", __func__, data->essid.length);
 
@@ -1170,7 +1170,7 @@ static int gelic_wl_get_ap(struct net_device *netdev,
 	unsigned long irqflag;
 
 	pr_debug("%s: <-\n", __func__);
-	down(&wl->assoc_stat_lock);
+	mutex_lock(&wl->assoc_stat_lock);
 	spin_lock_irqsave(&wl->lock, irqflag);
 	if (wl->assoc_stat == GELIC_WL_ASSOC_STAT_ASSOCIATED) {
 		data->ap_addr.sa_family = ARPHRD_ETHER;
@@ -1180,7 +1180,7 @@ static int gelic_wl_get_ap(struct net_device *netdev,
 		memset(data->ap_addr.sa_data, 0, ETH_ALEN);
 
 	spin_unlock_irqrestore(&wl->lock, irqflag);
-	up(&wl->assoc_stat_lock);
+	mutex_unlock(&wl->assoc_stat_lock);
 	pr_debug("%s: ->\n", __func__);
 	return 0;
 }
@@ -2151,7 +2151,7 @@ static void gelic_wl_disconnect_event(struct gelic_wl_info *wl,
 	 * As it waits with timeout, just leave assoc_done
 	 * uncompleted, then it terminates with timeout
 	 */
-	if (down_trylock(&wl->assoc_stat_lock)) {
+	if (!mutex_trylock(&wl->assoc_stat_lock)) {
 		pr_debug("%s: already locked\n", __func__);
 		lock = 0;
 	} else {
@@ -2170,7 +2170,7 @@ static void gelic_wl_disconnect_event(struct gelic_wl_info *wl,
 	netif_carrier_off(port_to_netdev(wl_port(wl)));
 
 	if (lock)
-		up(&wl->assoc_stat_lock);
+		mutex_unlock(&wl->assoc_stat_lock);
 }
 /*
  * event worker
@@ -2258,7 +2258,7 @@ static void gelic_wl_assoc_worker(struct work_struct *work)
 
 	wl = container_of(work, struct gelic_wl_info, assoc_work.work);
 
-	down(&wl->assoc_stat_lock);
+	mutex_lock(&wl->assoc_stat_lock);
 
 	if (wl->assoc_stat != GELIC_WL_ASSOC_STAT_DISCONN)
 		goto out;
@@ -2304,7 +2304,7 @@ static void gelic_wl_assoc_worker(struct work_struct *work)
 scan_lock_out:
 	mutex_unlock(&wl->scan_lock);
 out:
-	up(&wl->assoc_stat_lock);
+	mutex_unlock(&wl->assoc_stat_lock);
 }
 /*
  * Interrupt handler
@@ -2432,7 +2432,7 @@ static struct net_device *gelic_wl_alloc(struct gelic_card *card)
 	INIT_DELAYED_WORK(&wl->event_work, gelic_wl_event_worker);
 	INIT_DELAYED_WORK(&wl->assoc_work, gelic_wl_assoc_worker);
 	mutex_init(&wl->scan_lock);
-	init_MUTEX(&wl->assoc_stat_lock);
+	mutex_init(&wl->assoc_stat_lock);
 
 	init_completion(&wl->scan_done);
 	/* for the case that no scan request is issued and stop() is called */
