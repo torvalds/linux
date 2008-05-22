@@ -466,11 +466,11 @@ static bool do_relocate_initrd = false;
 
 static void __init reserve_initrd(void)
 {
-	unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
-	unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
-	unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
-	unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
-	unsigned long ramdisk_here;
+	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
+	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
+	u64 ramdisk_end   = ramdisk_image + ramdisk_size;
+	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	u64 ramdisk_here;
 
 	if (!boot_params.hdr.type_of_loader ||
 	    !ramdisk_image || !ramdisk_size)
@@ -478,14 +478,8 @@ static void __init reserve_initrd(void)
 
 	initrd_start = 0;
 
-	if (ramdisk_end < ramdisk_image) {
-		free_bootmem(ramdisk_image, ramdisk_size);
-		printk(KERN_ERR "initrd wraps around end of memory, "
-		       "disabling initrd\n");
-		return;
-	}
 	if (ramdisk_size >= end_of_lowmem/2) {
-		free_bootmem(ramdisk_image, ramdisk_size);
+		free_early(ramdisk_image, ramdisk_image + ramdisk_size - 1);
 		printk(KERN_ERR "initrd too large to handle, "
 		       "disabling initrd\n");
 		return;
@@ -495,8 +489,7 @@ static void __init reserve_initrd(void)
 		/* All in lowmem, easy case */
 		/*
 		 * don't need to reserve again, already reserved early
-		 * in i386_start_kernel, and early_res_to_bootmem
-		 * convert that to reserved in bootmem
+		 * in i386_start_kernel
 		 */
 		initrd_start = ramdisk_image + PAGE_OFFSET;
 		initrd_end = initrd_start+ramdisk_size;
@@ -504,11 +497,14 @@ static void __init reserve_initrd(void)
 	}
 
 	/* We need to move the initrd down into lowmem */
-	ramdisk_here = (end_of_lowmem - ramdisk_size) & PAGE_MASK;
+	ramdisk_here = find_e820_area(min_low_pfn<<PAGE_SHIFT,
+				 end_of_lowmem, ramdisk_size,
+				 PAGE_SIZE);
 
 	/* Note: this includes all the lowmem currently occupied by
 	   the initrd, we rely on that fact to keep the data intact. */
-	reserve_bootmem(ramdisk_here, ramdisk_size, BOOTMEM_DEFAULT);
+	reserve_early(ramdisk_here, ramdisk_here + ramdisk_size - 1,
+			 "NEW RAMDISK");
 	initrd_start = ramdisk_here + PAGE_OFFSET;
 	initrd_end   = initrd_start + ramdisk_size;
 
@@ -519,10 +515,10 @@ static void __init reserve_initrd(void)
 
 static void __init relocate_initrd(void)
 {
-	unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
-	unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
-	unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
-	unsigned long ramdisk_here;
+	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
+	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
+	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	u64 ramdisk_here;
 	unsigned long slop, clen, mapaddr;
 	char *p, *q;
 
@@ -540,6 +536,8 @@ static void __init relocate_initrd(void)
 		memcpy(q, p, clen);
 		q += clen;
 		/* need to free these low pages...*/
+		printk(KERN_INFO "Freeing old partial RAMDISK %08llx-%08llx\n",
+			 ramdisk_image, ramdisk_image + clen - 1);
 		free_bootmem(ramdisk_image, clen);
 		ramdisk_image += clen;
 		ramdisk_size  -= clen;
@@ -560,6 +558,11 @@ static void __init relocate_initrd(void)
 		ramdisk_size  -= clen;
 	}
 	/* high pages is not converted by early_res_to_bootmem */
+	ramdisk_image = boot_params.hdr.ramdisk_image;
+	ramdisk_size  = boot_params.hdr.ramdisk_size;
+	printk(KERN_INFO "Copied RAMDISK from %016llx - %016llx to %08llx - %08llx\n",
+		ramdisk_image, ramdisk_image + ramdisk_size - 1,
+		ramdisk_here, ramdisk_here + ramdisk_size - 1);
 }
 
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -576,10 +579,17 @@ void __init setup_bootmem_allocator(void)
 				 PAGE_SIZE);
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
+	reserve_early(bootmap, bootmap + bootmap_size - 1, "BOOTMAP");
+#ifdef CONFIG_BLK_DEV_INITRD
+	reserve_initrd();
+#endif
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
+	printk(KERN_INFO "  low ram: %08lx - %08lx\n",
+		 min_low_pfn<<PAGE_SHIFT, max_low_pfn<<PAGE_SHIFT);
+	printk(KERN_INFO "  bootmap [%08lx -  %08lx]\n",
+		 bootmap, bootmap + bootmap_size - 1);
 	register_bootmem_low_pages(max_low_pfn);
 	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
-	reserve_bootmem(bootmap, bootmap_size, BOOTMEM_DEFAULT);
 
 #ifdef CONFIG_ACPI_SLEEP
 	/*
@@ -592,9 +602,6 @@ void __init setup_bootmem_allocator(void)
 	 * Find and reserve possible boot-time SMP configuration:
 	 */
 	find_smp_config();
-#endif
-#ifdef CONFIG_BLK_DEV_INITRD
-	reserve_initrd();
 #endif
 	numa_kva_reserve();
 	reserve_crashkernel();
