@@ -1546,13 +1546,26 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		} else
 			goto cifs_setattr_exit;
 	}
-	if (attrs->ia_valid & ATTR_UID) {
-		cFYI(1, ("UID changed to %d", attrs->ia_uid));
-		uid = attrs->ia_uid;
-	}
-	if (attrs->ia_valid & ATTR_GID) {
-		cFYI(1, ("GID changed to %d", attrs->ia_gid));
-		gid = attrs->ia_gid;
+
+	/*
+	 * Without unix extensions we can't send ownership changes to the
+	 * server, so silently ignore them. This is consistent with how
+	 * local DOS/Windows filesystems behave (VFAT, NTFS, etc). With
+	 * CIFSACL support + proper Windows to Unix idmapping, we may be
+	 * able to support this in the future.
+	 */
+	if (!pTcon->unix_ext &&
+	    !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)) {
+		attrs->ia_valid &= ~(ATTR_UID | ATTR_GID);
+	} else {
+		if (attrs->ia_valid & ATTR_UID) {
+			cFYI(1, ("UID changed to %d", attrs->ia_uid));
+			uid = attrs->ia_uid;
+		}
+		if (attrs->ia_valid & ATTR_GID) {
+			cFYI(1, ("GID changed to %d", attrs->ia_gid));
+			gid = attrs->ia_gid;
+		}
 	}
 
 	time_buf.Attributes = 0;
