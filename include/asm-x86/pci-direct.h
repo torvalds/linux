@@ -15,4 +15,7 @@ extern void write_pci_config_16(u8 bus, u8 slot, u8 func, u8 offset, u16 val);
 
 extern int early_pci_allowed(void);
 
+extern unsigned int pci_early_dump_regs;
+extern void early_dump_pci_device(u8 bus, u8 slot, u8 func);
+extern void early_dump_pci_devices(void);
 #endif

@@ -64,3 +64,54 @@ int early_pci_allowed(void)
 	return (pci_probe & (PCI_PROBE_CONF1|PCI_PROBE_NOEARLY)) ==
 			PCI_PROBE_CONF1;
 }
+
+void early_dump_pci_device(u8 bus, u8 slot, u8 func)
+{
+	int i;
+	int j;
+	u32 val;
+
+	printk("PCI: %02x:%02x:%02x", bus, slot, func);
+
+	for (i = 0; i < 256; i += 4) {
+		if (!(i & 0x0f))
+			printk("\n%04x:",i);
+
+		val = read_pci_config(bus, slot, func, i);
+		for (j = 0; j < 4; j++) {
+			printk(" %02x", val & 0xff);
+			val >>= 8;
+		}
+	}
+	printk("\n");
+}
+
+void early_dump_pci_devices(void)
+{
+	unsigned bus, slot, func;
+
+	if (!early_pci_allowed())
+		return;
+
+	for (bus = 0; bus < 256; bus++) {
+		for (slot = 0; slot < 32; slot++) {
+			for (func = 0; func < 8; func++) {
+				u32 class;
+				u8 type;
+				class = read_pci_config(bus, slot, func,
+							PCI_CLASS_REVISION);
+				if (class == 0xffffffff)
+					break;
+
+				early_dump_pci_device(bus, slot, func);
+
+				/* No multi-function device? */
+				type = read_pci_config_byte(bus, slot, func,
+							       PCI_HEADER_TYPE);
+				if (!(type & 0x80))
+					break;
+			}
+		}
+	}
+}
+
