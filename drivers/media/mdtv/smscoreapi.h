@@ -22,19 +22,17 @@
 #ifndef __smscoreapi_h__
 #define __smscoreapi_h__
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-
-/* From sysksyms.h */
-
 #include <linux/version.h>
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <asm/scatterlist.h>
 #include <asm/page.h>
+
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
 
 #include <linux/mutex.h>
 
@@ -45,8 +43,6 @@ typedef struct mutex kmutex_t;
 #define kmutex_trylock(_p_) mutex_trylock(_p_)
 #define kmutex_unlock(_p_) mutex_unlock(_p_)
 
-
-/* End  sysksyms.h */
 
 #ifndef min
 #define min(a,b) (((a) < (b)) ? (a) : (b))
@@ -117,8 +113,6 @@ typedef struct _smsclient_params
 
 	void			*context;
 } smsclient_params_t;
-
-/* Begin types.h */
 
 // GPIO definitions for antenna frequency domain control (SMS8021)
 #define SMS_ANTENNA_GPIO_0					1
@@ -476,8 +470,6 @@ typedef struct SMSHOSTLIB_I2C_RES_S
 	UINT32	ReadCount;				// number of bytes read
 	UINT8	Data[1];
 } SMSHOSTLIB_I2C_RES_ST;
-
-/* End types.h */
 
 typedef struct _smsdvb_client
 {
