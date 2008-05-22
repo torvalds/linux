@@ -530,11 +530,7 @@ static struct platform_device *devices[] __initdata = {
 
 static void spitz_poweroff(void)
 {
-	pxa_gpio_mode(SPITZ_GPIO_ON_RESET | GPIO_OUT);
-	GPSR(SPITZ_GPIO_ON_RESET) = GPIO_bit(SPITZ_GPIO_ON_RESET);
-
-	mdelay(1000);
-	arm_machine_restart('h');
+	arm_machine_restart('g');
 }
 
 static void spitz_restart(char mode)
@@ -548,6 +544,7 @@ static void spitz_restart(char mode)
 
 static void __init common_init(void)
 {
+	init_gpio_reset(SPITZ_GPIO_ON_RESET);
 	pm_power_off = spitz_poweroff;
 	arm_pm_restart = spitz_restart;
 

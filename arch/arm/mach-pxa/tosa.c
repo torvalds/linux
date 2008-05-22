@@ -24,6 +24,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/reboot.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -467,11 +468,7 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	pxa_gpio_mode(TOSA_GPIO_ON_RESET | GPIO_OUT);
-	GPSR(TOSA_GPIO_ON_RESET) = GPIO_bit(TOSA_GPIO_ON_RESET);
-
-	mdelay(1000);
-	arm_machine_restart('h');
+	arm_machine_restart('g');
 }
 
 static void tosa_restart(char mode)
@@ -488,6 +485,8 @@ static void __init tosa_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_config));
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
+
+	init_gpio_reset(TOSA_GPIO_ON_RESET);
 
 	pm_power_off = tosa_poweroff;
 	arm_pm_restart = tosa_restart;
