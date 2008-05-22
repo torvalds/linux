@@ -30,6 +30,69 @@ static DEFINE_SPINLOCK(wakeup_lock);
 
 static void __wakeup_reset(struct trace_array *tr);
 
+#ifdef CONFIG_FTRACE
+/*
+ * irqsoff uses its own tracer function to keep the overhead down:
+ */
+static void
+wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct trace_array *tr = wakeup_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int resched;
+	int cpu;
+
+	if (likely(!wakeup_task))
+		return;
+
+	resched = need_resched();
+	preempt_disable_notrace();
+
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+	if (unlikely(disabled != 1))
+		goto out;
+
+	spin_lock_irqsave(&wakeup_lock, flags);
+
+	if (unlikely(!wakeup_task))
+		goto unlock;
+
+	/*
+	 * The task can't disappear because it needs to
+	 * wake up first, and we have the wakeup_lock.
+	 */
+	if (task_cpu(wakeup_task) != cpu)
+		goto unlock;
+
+	trace_function(tr, data, ip, parent_ip, flags);
+
+ unlock:
+	spin_unlock_irqrestore(&wakeup_lock, flags);
+
+ out:
+	atomic_dec(&data->disabled);
+
+	/*
+	 * To prevent recursion from the scheduler, if the
+	 * resched flag was set before we entered, then
+	 * don't reschedule.
+	 */
+	if (resched)
+		preempt_enable_no_resched_notrace();
+	else
+		preempt_enable_notrace();
+}
+
+static struct ftrace_ops trace_ops __read_mostly =
+{
+	.func = wakeup_tracer_call,
+};
+#endif /* CONFIG_FTRACE */
+
 /*
  * Should this new latency be reported/recorded?
  */
@@ -73,7 +136,7 @@ wakeup_sched_switch(void *private, void *rq, struct task_struct *prev,
 	if (next != wakeup_task)
 		return;
 
-	/* The task we are waitng for is waking up */
+	/* The task we are waiting for is waking up */
 	data = tr->data[wakeup_cpu];
 
 	/* disable local data, not wakeup_cpu data */
@@ -290,6 +353,7 @@ static void start_wakeup_tracer(struct trace_array *tr)
 	smp_wmb();
 
 	tracer_enabled = 1;
+	register_ftrace_function(&trace_ops);
 
 	return;
 fail_deprobe_wake_new:
@@ -305,6 +369,7 @@ fail_deprobe:
 static void stop_wakeup_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
+	unregister_ftrace_function(&trace_ops);
 	marker_probe_unregister("kernel_sched_schedule",
 				sched_switch_callback,
 				&wakeup_trace);
