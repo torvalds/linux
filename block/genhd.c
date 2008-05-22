@@ -317,17 +317,21 @@ static void *part_start(struct seq_file *part, loff_t *pos)
 	return NULL;
 }
 
+static int find_next(struct device *dev, void *data)
+{
+	if (dev->type == &disk_type)
+		return 1;
+	return 0;
+}
+
 static void *part_next(struct seq_file *part, void *v, loff_t *pos)
 {
 	struct gendisk *gp = v;
 	struct device *dev;
 	++*pos;
-	list_for_each_entry(dev, &gp->dev.node, node) {
-		if (&dev->node == &block_class.devices)
-			return NULL;
-		if (dev->type == &disk_type)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, &gp->dev, NULL, find_next);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
 }
 
@@ -578,12 +582,9 @@ static void *diskstats_next(struct seq_file *part, void *v, loff_t *pos)
 	struct device *dev;
 
 	++*pos;
-	list_for_each_entry(dev, &gp->dev.node, node) {
-		if (&dev->node == &block_class.devices)
-			return NULL;
-		if (dev->type == &disk_type)
-			return dev_to_disk(dev);
-	}
+	dev = class_find_device(&block_class, &gp->dev, NULL, find_next);
+	if (dev)
+		return dev_to_disk(dev);
 	return NULL;
 }
 
