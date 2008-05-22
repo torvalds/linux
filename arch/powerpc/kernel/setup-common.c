@@ -500,6 +500,7 @@ void __init smp_setup_cpu_sibling_map(void)
 }
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_PCSPKR_PLATFORM
 static __init int add_pcspkr(void)
 {
 	struct device_node *np;
@@ -522,6 +523,7 @@ static __init int add_pcspkr(void)
 	return ret;
 }
 device_initcall(add_pcspkr);
+#endif	/* CONFIG_PCSPKR_PLATFORM */
 
 void probe_machine(void)
 {
