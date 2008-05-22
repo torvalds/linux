@@ -115,20 +115,6 @@ source "drivers/media/radio/Kconfig"
 
 source "drivers/media/dvb/Kconfig"
 
-#
-# Mobile Digital TV devices (DVB-H, T-DMB, etc.)
-#
-menuconfig MDTV_ADAPTERS
-	bool "Mobile Digital TV adapter"
-	default y
-
-if MDTV_ADAPTERS
-
-source "drivers/media/mdtv/Kconfig"
-
-endif # MDTV_ADAPTERS
-
-
 config DAB
 	boolean "DAB adapters"
 	---help---
