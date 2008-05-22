@@ -87,6 +87,7 @@ core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
 core-y		+= $(buildvar) $(buildplf)
 
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
+drivers-$(CONFIG_OPROFILE)	+= arch/xtensa/oprofile/
 
 ifneq ($(CONFIG_BUILTIN_DTB),"")
 core-$(CONFIG_OF) += arch/xtensa/boot/dts/

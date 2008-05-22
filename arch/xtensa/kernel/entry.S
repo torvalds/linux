@@ -399,7 +399,7 @@ common_exception:
 	callx4	a4
 
 	/* Jump here for exception exit */
-
+	.global common_exception_return
 common_exception_return:
 
 	/* Jump if we are returning from kernel exceptions. */
