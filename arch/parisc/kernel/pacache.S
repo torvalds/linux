@@ -37,9 +37,8 @@
 #include <asm/pgtable.h>
 #include <asm/cache.h>
 #include <linux/linkage.h>
-#include <linux/init.h>
 
-	__HEAD
+	.text
 	.align	128
 
 ENTRY(flush_tlb_all_local)

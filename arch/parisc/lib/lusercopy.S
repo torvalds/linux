@@ -33,12 +33,11 @@
  */
 
 
+	.text
+	
 #include <asm/assembly.h>
 #include <asm/errno.h>
 #include <linux/linkage.h>
-#include <linux/init.h>
-
-	__HEAD
 
 	/*
 	 * get_sr gets the appropriate space value into
