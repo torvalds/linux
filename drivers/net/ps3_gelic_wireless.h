@@ -241,7 +241,7 @@ enum gelic_wl_assoc_state {
 #define GELIC_WEP_KEYS 4
 struct gelic_wl_info {
 	/* bss list */
-	struct semaphore scan_lock;
+	struct mutex scan_lock;
 	struct list_head network_list;
 	struct list_head network_free_list;
 	struct gelic_wl_scan_info *networks;
