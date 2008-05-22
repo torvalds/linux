@@ -28,6 +28,7 @@ trace_test_buffer_cpu(struct trace_array *tr, struct trace_array_cpu *data)
 	page = list_entry(data->trace_pages.next, struct page, lru);
 	entries = page_address(page);
 
+	check_pages(data);
 	if (head_page(data) != entries)
 		goto failed;
 

@@ -249,24 +249,32 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tracing_record_cmdline(current);
 }
 
+#define CHECK_COND(cond)			\
+	if (unlikely(cond)) {			\
+		tracing_disabled = 1;		\
+		WARN_ON(1);			\
+		return -1;			\
+	}
+
 /**
  * check_pages - integrity check of trace buffers
  *
  * As a safty measure we check to make sure the data pages have not
- * been corrupted. TODO: configure to disable this because it adds
- * a bit of overhead.
+ * been corrupted.
  */
-void check_pages(struct trace_array_cpu *data)
+int check_pages(struct trace_array_cpu *data)
 {
 	struct page *page, *tmp;
 
-	BUG_ON(data->trace_pages.next->prev != &data->trace_pages);
-	BUG_ON(data->trace_pages.prev->next != &data->trace_pages);
+	CHECK_COND(data->trace_pages.next->prev != &data->trace_pages);
+	CHECK_COND(data->trace_pages.prev->next != &data->trace_pages);
 
 	list_for_each_entry_safe(page, tmp, &data->trace_pages, lru) {
-		BUG_ON(page->lru.next->prev != &page->lru);
-		BUG_ON(page->lru.prev->next != &page->lru);
+		CHECK_COND(page->lru.next->prev != &page->lru);
+		CHECK_COND(page->lru.prev->next != &page->lru);
 	}
+
+	return 0;
 }
 
 /**
@@ -280,7 +288,6 @@ void *head_page(struct trace_array_cpu *data)
 {
 	struct page *page;
 
-	check_pages(data);
 	if (list_empty(&data->trace_pages))
 		return NULL;
 
@@ -2566,7 +2573,7 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 {
 	unsigned long val;
 	char buf[64];
-	int ret;
+	int i, ret;
 
 	if (cnt >= sizeof(buf))
 		return -EINVAL;
@@ -2635,8 +2642,15 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 			trace_free_page();
 	}
 
+	/* check integrity */
+	for_each_tracing_cpu(i)
+		check_pages(global_trace.data[i]);
+
 	filp->f_pos += cnt;
 
+	/* If check pages failed, return ENOMEM */
+	if (tracing_disabled)
+		cnt = -ENOMEM;
  out:
 	max_tr.entries = global_trace.entries;
 	mutex_unlock(&trace_types_lock);
