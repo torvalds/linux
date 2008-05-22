@@ -256,11 +256,14 @@ char *make_class_name(const char *name, struct kobject *kobj)
 /**
  * class_for_each_device - device iterator
  * @class: the class we're iterating
+ * @start: the device to start with in the list, if any.
  * @data: data for the callback
  * @fn: function to be called for each device
  *
  * Iterate over @class's list of devices, and call @fn for each,
- * passing it @data.
+ * passing it @data.  If @start is set, the list iteration will start
+ * there, otherwise if it is NULL, the iteration starts at the
+ * beginning of the list.
  *
  * We check the return of @fn each time. If it returns anything
  * other than 0, we break out and return that value.
@@ -269,8 +272,8 @@ char *make_class_name(const char *name, struct kobject *kobj)
  * re-acquired in @fn, otherwise it will self-deadlocking. For
  * example, calls to add or remove class members would be verboten.
  */
-int class_for_each_device(struct class *class, void *data,
-			   int (*fn)(struct device *, void *))
+int class_for_each_device(struct class *class, struct device *start,
+			  void *data, int (*fn)(struct device *, void *))
 {
 	struct device *dev;
 	int error = 0;
@@ -279,12 +282,14 @@ int class_for_each_device(struct class *class, void *data,
 		return -EINVAL;
 	down(&class->sem);
 	list_for_each_entry(dev, &class->devices, node) {
+		if (start) {
+			if (start == dev)
+				start = NULL;
+			continue;
+		}
 		dev = get_device(dev);
-		if (dev) {
-			error = fn(dev, data);
-			put_device(dev);
-		} else
-			error = -ENODEV;
+		error = fn(dev, data);
+		put_device(dev);
 		if (error)
 			break;
 	}

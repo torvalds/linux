@@ -1453,7 +1453,8 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 	ne->in_limbo = 1;
 	WARN_ON(device_create_file(&ne->device, &dev_attr_ne_in_limbo));
 
-	class_for_each_device(&nodemgr_ud_class, ne, __nodemgr_driver_suspend);
+	class_for_each_device(&nodemgr_ud_class, NULL, ne,
+			      __nodemgr_driver_suspend);
 }
 
 
@@ -1462,7 +1463,8 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 	ne->in_limbo = 0;
 	device_remove_file(&ne->device, &dev_attr_ne_in_limbo);
 
-	class_for_each_device(&nodemgr_ud_class, ne, __nodemgr_driver_resume);
+	class_for_each_device(&nodemgr_ud_class, NULL, ne,
+			      __nodemgr_driver_resume);
 	HPSB_DEBUG("Node resumed: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
 		   NODE_BUS_ARGS(ne->host, ne->nodeid), (unsigned long long)ne->guid);
 }
@@ -1498,7 +1500,8 @@ static int __nodemgr_update_pdrv(struct device *dev, void *data)
 
 static void nodemgr_update_pdrv(struct node_entry *ne)
 {
-	class_for_each_device(&nodemgr_ud_class, ne, __nodemgr_update_pdrv);
+	class_for_each_device(&nodemgr_ud_class, NULL, ne,
+			      __nodemgr_update_pdrv);
 }
 
 
@@ -1591,7 +1594,8 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	 * while probes are time-consuming. (Well, those probes need some
 	 * improvement...) */
 
-	class_for_each_device(&nodemgr_ne_class, &param, __nodemgr_node_probe);
+	class_for_each_device(&nodemgr_ne_class, NULL, &param,
+			      __nodemgr_node_probe);
 
 	/* If we had a bus reset while we were scanning the bus, it is
 	 * possible that we did not probe all nodes.  In that case, we
@@ -1826,7 +1830,7 @@ int nodemgr_for_each_host(void *data, int (*cb)(struct hpsb_host *, void *))
 
 	hip.cb = cb;
 	hip.data = data;
-	error = class_for_each_device(&hpsb_host_class, &hip,
+	error = class_for_each_device(&hpsb_host_class, NULL, &hip,
 				      __nodemgr_for_each_host);
 
 	return error;

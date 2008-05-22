@@ -210,7 +210,8 @@ extern struct kobject *sysfs_dev_block_kobj;
 extern struct kobject *sysfs_dev_char_kobj;
 extern int __must_check class_register(struct class *class);
 extern void class_unregister(struct class *class);
-extern int class_for_each_device(struct class *class, void *data,
+extern int class_for_each_device(struct class *class, struct device *start,
+				 void *data,
 				 int (*fn)(struct device *dev, void *data));
 extern struct device *class_find_device(struct class *class, void *data,
 					int (*match)(struct device *, void *));
