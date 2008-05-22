@@ -23,6 +23,7 @@
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
 	unsigned int		period;
+	int			(*notify)(int brightness);
 };
 
 static int pwm_backlight_update_status(struct backlight_device *bl)
@@ -36,6 +37,9 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 
 	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
 		brightness = 0;
+
+	if (pb->notify)
+		brightness = pb->notify(brightness);
 
 	if (brightness == 0) {
 		pwm_config(pb->pwm, 0, pb->period);
@@ -62,30 +66,39 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	struct platform_pwm_backlight_data *data = pdev->dev.platform_data;
 	struct backlight_device *bl;
 	struct pwm_bl_data *pb;
+	int ret;
 
 	if (!data)
 		return -EINVAL;
 
+	if (data->init) {
+		ret = data->init(&pdev->dev);
+		if (ret < 0)
+			return ret;
+	}
+
 	pb = kzalloc(sizeof(*pb), GFP_KERNEL);
-	if (!pb)
-		return -ENOMEM;
+	if (!pb) {
+		ret = -ENOMEM;
+		goto err_alloc;
+	}
 
 	pb->period = data->pwm_period_ns;
+	pb->notify = data->notify;
 
 	pb->pwm = pwm_request(data->pwm_id, "backlight");
 	if (pb->pwm == NULL) {
 		dev_err(&pdev->dev, "unable to request PWM for backlight\n");
-		kfree(pb);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto err_pwm;
 	}
 
 	bl = backlight_device_register(pdev->name, &pdev->dev,
 			pb, &pwm_backlight_ops);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
-		pwm_free(pb->pwm);
-		kfree(pb);
-		return PTR_ERR(bl);
+		ret = PTR_ERR(bl);
+		goto err_bl;
 	}
 
 	bl->props.max_brightness = data->max_brightness;
@@ -94,10 +107,20 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, bl);
 	return 0;
+
+err_bl:
+	pwm_free(pb->pwm);
+err_pwm:
+	kfree(pb);
+err_alloc:
+	if (data->exit)
+		data->exit(&pdev->dev);
+	return ret;
 }
 
 static int pwm_backlight_remove(struct platform_device *pdev)
 {
+	struct platform_pwm_backlight_data *data = pdev->dev.platform_data;
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
 
@@ -106,6 +129,8 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 	pwm_disable(pb->pwm);
 	pwm_free(pb->pwm);
 	kfree(pb);
+	if (data->exit)
+		data->exit(&pdev->dev);
 	return 0;
 }
 
