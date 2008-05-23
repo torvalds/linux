@@ -853,6 +853,7 @@ do_sku:
 		case 0x10ec0269:
 		case 0x10ec0862:
 		case 0x10ec0662:	
+		case 0x10ec0889:
 			snd_hda_codec_write(codec, 0x14, 0,
 					    AC_VERB_SET_EAPD_BTLENABLE, 2);
 			snd_hda_codec_write(codec, 0x15, 0,
@@ -877,6 +878,7 @@ do_sku:
 		case 0x10ec0883:
 		case 0x10ec0885:
 		case 0x10ec0888:
+		case 0x10ec0889:
 			snd_hda_codec_write(codec, 0x20, 0,
 					    AC_VERB_SET_COEF_INDEX, 7);
 			tmp = snd_hda_codec_read(codec, 0x20, 0,
