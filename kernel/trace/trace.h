@@ -6,6 +6,18 @@
 #include <linux/sched.h>
 #include <linux/clocksource.h>
 
+enum trace_type {
+	__TRACE_FIRST_TYPE = 0,
+
+	TRACE_FN,
+	TRACE_CTX,
+	TRACE_WAKE,
+	TRACE_STACK,
+	TRACE_SPECIAL,
+
+	__TRACE_LAST_TYPE
+};
+
 /*
  * Function trace entry - function address and parent function addres:
  */
@@ -130,6 +142,7 @@ struct tracer {
 	int			(*selftest)(struct tracer *trace,
 					    struct trace_array *tr);
 #endif
+	int			(*print_line)(struct trace_iterator *iter);
 	struct tracer		*next;
 	int			print_max;
 };
@@ -276,6 +289,8 @@ extern int trace_selftest_startup_sched_switch(struct tracer *trace,
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
+extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...);
+extern long ns2usecs(cycle_t nsec);
 
 extern unsigned long trace_flags;
 
