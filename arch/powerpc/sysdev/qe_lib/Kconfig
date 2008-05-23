@@ -20,3 +20,7 @@ config UCC
 	bool
 	default y if UCC_FAST || UCC_SLOW
 
+config QE_USB
+	bool
+	help
+	  QE USB Host Controller support

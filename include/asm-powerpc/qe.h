@@ -16,6 +16,7 @@
 #define _ASM_POWERPC_QE_H
 #ifdef __KERNEL__
 
+#include <linux/spinlock.h>
 #include <asm/immap_qe.h>
 
 #define QE_NUM_OF_SNUM	28
@@ -73,6 +74,13 @@ enum qe_clock {
 	QE_CLK24,		/* Clock 24 */
 	QE_CLK_DUMMY
 };
+
+static inline bool qe_clock_is_brg(enum qe_clock clk)
+{
+	return clk >= QE_BRG1 && clk <= QE_BRG16;
+}
+
+extern spinlock_t cmxgcr_lock;
 
 /* Export QE common operations */
 extern void qe_reset(void);
@@ -155,6 +163,9 @@ int qe_upload_firmware(const struct qe_firmware *firmware);
 
 /* Obtain information on the uploaded firmware */
 struct qe_firmware_info *qe_get_firmware_info(void);
+
+/* QE USB */
+int qe_usb_clock_set(enum qe_clock clk, int rate);
 
 /* Buffer descriptors */
 struct qe_bd {
@@ -254,6 +265,16 @@ enum comm_dir {
 #define QE_CMXGCR_MII_ENET_MNG		0x00007000
 #define QE_CMXGCR_MII_ENET_MNG_SHIFT	12
 #define QE_CMXGCR_USBCS			0x0000000f
+#define QE_CMXGCR_USBCS_CLK3		0x1
+#define QE_CMXGCR_USBCS_CLK5		0x2
+#define QE_CMXGCR_USBCS_CLK7		0x3
+#define QE_CMXGCR_USBCS_CLK9		0x4
+#define QE_CMXGCR_USBCS_CLK13		0x5
+#define QE_CMXGCR_USBCS_CLK17		0x6
+#define QE_CMXGCR_USBCS_CLK19		0x7
+#define QE_CMXGCR_USBCS_CLK21		0x8
+#define QE_CMXGCR_USBCS_BRG9		0x9
+#define QE_CMXGCR_USBCS_BRG10		0xa
 
 /* QE CECR Commands.
 */
@@ -283,7 +304,7 @@ enum comm_dir {
 #define QE_HPAC_START_TX		0x0000060b
 #define QE_HPAC_START_RX		0x0000070b
 #define QE_USB_STOP_TX			0x0000000a
-#define QE_USB_RESTART_TX		0x0000000b
+#define QE_USB_RESTART_TX		0x0000000c
 #define QE_QMC_STOP_TX			0x0000000c
 #define QE_QMC_STOP_RX			0x0000000d
 #define QE_SS7_SU_FIL_RESET		0x0000000e

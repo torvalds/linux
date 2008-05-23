@@ -26,7 +26,8 @@
 #include <asm/qe.h>
 #include <asm/ucc.h>
 
-static DEFINE_SPINLOCK(ucc_lock);
+DEFINE_SPINLOCK(cmxgcr_lock);
+EXPORT_SYMBOL(cmxgcr_lock);
 
 int ucc_set_qe_mux_mii_mng(unsigned int ucc_num)
 {
@@ -35,10 +36,10 @@ int ucc_set_qe_mux_mii_mng(unsigned int ucc_num)
 	if (ucc_num > UCC_MAX_NUM - 1)
 		return -EINVAL;
 
-	spin_lock_irqsave(&ucc_lock, flags);
+	spin_lock_irqsave(&cmxgcr_lock, flags);
 	clrsetbits_be32(&qe_immr->qmx.cmxgcr, QE_CMXGCR_MII_ENET_MNG,
 		ucc_num << QE_CMXGCR_MII_ENET_MNG_SHIFT);
-	spin_unlock_irqrestore(&ucc_lock, flags);
+	spin_unlock_irqrestore(&cmxgcr_lock, flags);
 
 	return 0;
 }
