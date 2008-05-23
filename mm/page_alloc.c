@@ -1396,6 +1396,9 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 
 	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
 							&preferred_zone);
+	if (!preferred_zone)
+		return NULL;
+
 	classzone_idx = zone_idx(preferred_zone);
 
 zonelist_scan:
