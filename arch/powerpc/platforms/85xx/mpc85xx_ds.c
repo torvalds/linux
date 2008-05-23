@@ -78,7 +78,8 @@ void __init mpc85xx_ds_pic_init(void)
 	}
 
 	mpic = mpic_alloc(np, r.start,
-			  MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
+			  MPIC_PRIMARY | MPIC_WANTS_RESET |
+			  MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
 
@@ -195,6 +196,7 @@ static int __init mpc85xxds_publish_devices(void)
 	return of_platform_bus_probe(NULL, mpc85xxds_ids, NULL);
 }
 machine_device_initcall(mpc8544_ds, mpc85xxds_publish_devices);
+machine_device_initcall(mpc8572_ds, mpc85xxds_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened
