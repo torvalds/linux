@@ -242,12 +242,19 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 
 static void __cpuinit acpi_register_lapic(int id, u8 enabled)
 {
+	unsigned int ver = 0;
+
 	if (!enabled) {
 		++disabled_cpus;
 		return;
 	}
 
-	generic_processor_info(id, 0);
+#ifdef CONFIG_X86_32
+	if (boot_cpu_physical_apicid != -1U)
+		ver = apic_version[boot_cpu_physical_apicid];
+#endif
+
+	generic_processor_info(id, ver);
 }
 
 static int __init
@@ -767,8 +774,13 @@ static void __init acpi_register_lapic_address(unsigned long address)
 	mp_lapic_addr = address;
 
 	set_fixmap_nocache(FIX_APIC_BASE, address);
-	if (boot_cpu_physical_apicid == -1U)
+	if (boot_cpu_physical_apicid == -1U) {
 		boot_cpu_physical_apicid  = GET_APIC_ID(read_apic_id());
+#ifdef CONFIG_X86_32
+		apic_version[boot_cpu_physical_apicid] =
+			 GET_APIC_VERSION(apic_read(APIC_LVR));
+#endif
+	}
 }
 
 static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
