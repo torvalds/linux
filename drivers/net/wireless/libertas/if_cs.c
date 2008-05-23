@@ -148,11 +148,11 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 {
 	int i;
 
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 100000; i++) {
 		u8 val = if_cs_read8(card, addr);
 		if (val == reg)
 			return i;
-		udelay(500);
+		udelay(5);
 	}
 	return -ETIME;
 }
