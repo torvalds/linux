@@ -46,6 +46,7 @@
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -677,6 +678,17 @@ free_op:
 	return ret;
 }
 
+static long viotap_unlocked_ioctl(struct file *file,
+		unsigned int cmd, unsigned long arg)
+{
+	long rc;
+
+	lock_kernel();
+	rc = viotap_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+	unlock_kernel();
+	return rc;
+}
+
 static int viotap_open(struct inode *inode, struct file *file)
 {
 	HvLpEvent_Rc hvrc;
@@ -783,12 +795,12 @@ free_op:
 }
 
 const struct file_operations viotap_fops = {
-	.owner =	THIS_MODULE,
-	.read =		viotap_read,
-	.write =	viotap_write,
-	.ioctl =	viotap_ioctl,
-	.open =		viotap_open,
-	.release =	viotap_release,
+	.owner =		THIS_MODULE,
+	.read =			viotap_read,
+	.write =		viotap_write,
+	.unlocked_ioctl =	viotap_unlocked_ioctl,
+	.open =			viotap_open,
+	.release =		viotap_release,
 };
 
 /* Handle interrupt events for tape */
