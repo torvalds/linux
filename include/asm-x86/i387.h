@@ -193,6 +193,8 @@ static inline int restore_i387(struct _fpstate __user *buf)
 
 #else  /* CONFIG_X86_32 */
 
+extern void finit(void);
+
 static inline void tolerant_fwait(void)
 {
 	asm volatile("fnclex ; fwait");
