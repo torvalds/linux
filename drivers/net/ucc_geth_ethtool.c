@@ -73,6 +73,7 @@ static char tx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 	"tx-frames-ok",
 	"tx-excessive-differ-frames",
 	"tx-256-511-frames",
+	"tx-512-1023-frames",
 	"tx-1024-1518-frames",
 	"tx-jumbo-frames",
 };
