@@ -1268,7 +1268,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 			/*
 			 * if recovery was running, make sure it aborts.
 			 */
-			set_bit(MD_RECOVERY_ERR, &mddev->recovery);
+			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		}
 		set_bit(Faulty, &rdev->flags);
 		printk (KERN_ALERT
@@ -4571,6 +4571,14 @@ static int raid5_remove_disk(mddev_t *mddev, int number)
 	if (rdev) {
 		if (test_bit(In_sync, &rdev->flags) ||
 		    atomic_read(&rdev->nr_pending)) {
+			err = -EBUSY;
+			goto abort;
+		}
+		/* Only remove non-faulty devices if recovery
+		 * isn't possible.
+		 */
+		if (!test_bit(Faulty, &rdev->flags) &&
+		    mddev->degraded <= conf->max_degraded) {
 			err = -EBUSY;
 			goto abort;
 		}
