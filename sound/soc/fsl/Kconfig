@@ -2,7 +2,7 @@ menu "ALSA SoC audio for Freescale SOCs"
 
 config SND_SOC_MPC8610
 	bool "ALSA SoC support for the MPC8610 SOC"
-	depends on SND_SOC && MPC8610_HPCD
+	depends on MPC8610_HPCD
 	default y if MPC8610
 	help
 	  Say Y if you want to add support for codecs attached to the SSI

@@ -1,15 +1,21 @@
 # ALSA MIPS drivers
 
-menu "ALSA MIPS devices"
-	depends on SND!=n && MIPS
+menuconfig SND_MIPS
+	bool "MIPS sound devices"
+	depends on MIPS
+	default y
+	help
+	  Support for sound devices of MIPS architectures.
+
+if SND_MIPS
 
 config SND_AU1X00
 	tristate "Au1x00 AC97 Port Driver"
-	depends on (SOC_AU1000 || SOC_AU1100 || SOC_AU1500) && SND
+	depends on SOC_AU1000 || SOC_AU1100 || SOC_AU1500
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
 	  ALSA Sound driver for the Au1x00's AC97 port.
 
-endmenu
+endif	# SND_MIPS
 

@@ -1,40 +1,3 @@
-# ALSA generic drivers
-
-menu "Generic devices"
-	depends on SND!=n
-
-
-config SND_PCSP
-	tristate "PC-Speaker support (READ HELP!)"
-	depends on PCSPKR_PLATFORM && X86_PC && HIGH_RES_TIMERS
-	depends on INPUT
-	depends on EXPERIMENTAL
-	depends on SND
-	select SND_PCM
-	help
-	  If you don't have a sound card in your computer, you can include a
-	  driver for the PC speaker which allows it to act like a primitive
-	  sound card.
-	  This driver also replaces the pcspkr driver for beeps.
-
-	  You can compile this as a module which will be called snd-pcsp.
-
-	  WARNING: if you already have a soundcard, enabling this
-	  driver may lead to a problem. Namely, it may get loaded
-	  before the other sound driver of yours, making the
-	  pc-speaker a default sound device. Which is likely not
-	  what you want. To make this driver play nicely with other
-	  sound driver, you can add this into your /etc/modprobe.conf:
-	  options snd-pcsp index=2
-
-	  You don't need this driver if you only want your pc-speaker to beep.
-	  You don't need this driver if you have a tablet piezo beeper
-	  in your PC instead of the real speaker.
-
-	  Say N if you have a sound card.
-	  Say M if you don't.
-	  Say Y only if you really know what you do.
-
 config SND_MPU401_UART
         tristate
         select SND_RAWMIDI
@@ -60,9 +23,46 @@ config SND_AC97_CODEC
 	select AC97_BUS
 	select SND_VMASTER
 
+menuconfig SND_DRIVERS
+	bool "Generic sound devices"
+	default y
+	help
+	  Support for generic sound devices.
+  
+if SND_DRIVERS
+
+config SND_PCSP
+	tristate "PC-Speaker support (READ HELP!)"
+	depends on PCSPKR_PLATFORM && X86_PC && HIGH_RES_TIMERS
+	depends on INPUT
+	depends on EXPERIMENTAL
+	select SND_PCM
+	help
+	  If you don't have a sound card in your computer, you can include a
+	  driver for the PC speaker which allows it to act like a primitive
+	  sound card.
+	  This driver also replaces the pcspkr driver for beeps.
+
+	  You can compile this as a module which will be called snd-pcsp.
+
+	  WARNING: if you already have a soundcard, enabling this
+	  driver may lead to a problem. Namely, it may get loaded
+	  before the other sound driver of yours, making the
+	  pc-speaker a default sound device. Which is likely not
+	  what you want. To make this driver play nicely with other
+	  sound driver, you can add this into your /etc/modprobe.conf:
+	  options snd-pcsp index=2
+
+	  You don't need this driver if you only want your pc-speaker to beep.
+	  You don't need this driver if you have a tablet piezo beeper
+	  in your PC instead of the real speaker.
+
+	  Say N if you have a sound card.
+	  Say M if you don't.
+	  Say Y only if you really know what you do.
+
 config SND_DUMMY
 	tristate "Dummy (/dev/null) soundcard"
-	depends on SND
 	select SND_PCM
 	help
 	  Say Y here to include the dummy driver.  This driver does
@@ -91,7 +91,6 @@ config SND_VIRMIDI
 
 config SND_MTPAV
 	tristate "MOTU MidiTimePiece AV multiport MIDI"
-	depends on SND
 	select SND_RAWMIDI
 	help
 	  To use a MOTU MidiTimePiece AV multiport MIDI adapter
@@ -103,7 +102,7 @@ config SND_MTPAV
 
 config SND_MTS64
 	tristate "ESI Miditerminal 4140 driver"
-	depends on SND && PARPORT
+	depends on PARPORT
 	select SND_RAWMIDI
 	help
 	  The ESI Miditerminal 4140 is a 4 In 4 Out MIDI Interface with 
@@ -116,7 +115,6 @@ config SND_MTS64
 
 config SND_SERIAL_U16550
 	tristate "UART16550 serial MIDI driver"
-	depends on SND
 	select SND_RAWMIDI
 	help
 	  To include support for MIDI serial port interfaces, say Y here
@@ -132,7 +130,6 @@ config SND_SERIAL_U16550
 
 config SND_MPU401
 	tristate "Generic MPU-401 UART driver"
-	depends on SND
 	select SND_MPU401_UART
 	help
 	  Say Y here to include support for MIDI ports compatible with
@@ -143,7 +140,7 @@ config SND_MPU401
 
 config SND_PORTMAN2X4
 	tristate "Portman 2x4 driver"
-	depends on SND && PARPORT
+	depends on PARPORT
 	select SND_RAWMIDI
 	help
 	  Say Y here to include support for Midiman Portman 2x4 parallel
@@ -154,7 +151,7 @@ config SND_PORTMAN2X4
 
 config SND_ML403_AC97CR
 	tristate "Xilinx ML403 AC97 Controller Reference"
-	depends on SND && XILINX_VIRTEX
+	depends on XILINX_VIRTEX
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the
@@ -164,4 +161,4 @@ config SND_ML403_AC97CR
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ml403_ac97cr.
 
-endmenu
+endif	# SND_DRIVERS

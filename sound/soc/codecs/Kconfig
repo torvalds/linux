@@ -1,31 +1,25 @@
 config SND_SOC_AC97_CODEC
 	tristate
-	depends on SND_SOC
+	select SND_AC97_CODEC
 
 config SND_SOC_WM8731
 	tristate
-	depends on SND_SOC
 
 config SND_SOC_WM8750
 	tristate
-	depends on SND_SOC
 
 config SND_SOC_WM8753
 	tristate
-	depends on SND_SOC
 
 config SND_SOC_WM9712
 	tristate
-	depends on SND_SOC
 
 config SND_SOC_WM9713
 	tristate
-	depends on SND_SOC
 
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
 	tristate
-	depends on SND_SOC
 
 # Cirrus Logic CS4270 Codec Hardware Mute Support
 # Select if you have external muting circuitry attached to your CS4270.
@@ -43,4 +37,4 @@ config SND_SOC_CS4270_VD33_ERRATA
 
 config SND_SOC_TLV320AIC3X
 	tristate
-	depends on SND_SOC && I2C
+	depends on I2C
