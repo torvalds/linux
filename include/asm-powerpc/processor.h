@@ -81,6 +81,10 @@ extern struct task_struct *last_task_used_altivec;
 extern struct task_struct *last_task_used_spe;
 
 #ifdef CONFIG_PPC32
+
+#if CONFIG_TASK_SIZE > CONFIG_KERNEL_START
+#error User TASK_SIZE overlaps with KERNEL_START address
+#endif
 #define TASK_SIZE	(CONFIG_TASK_SIZE)
 
 /* This decides where the kernel will search for a free chunk of vm
