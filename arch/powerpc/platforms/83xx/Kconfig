@@ -58,6 +58,17 @@ config MPC836x_MDS
 	help
 	  This option enables support for the MPC836x MDS Processor Board.
 
+config MPC836x_RDK
+	bool "Freescale/Logic MPC836x RDK"
+	select DEFAULT_UIMAGE
+	select QUICC_ENGINE
+	select QE_GPIO
+	select FSL_GTM
+	select FSL_LBC
+	help
+	  This option enables support for the MPC836x RDK Processor Board,
+	  also known as ZOOM PowerQUICC Kit.
+
 config MPC837x_MDS
 	bool "Freescale MPC837x MDS"
 	select DEFAULT_UIMAGE
