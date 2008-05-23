@@ -153,7 +153,7 @@ static void glock_free(struct gfs2_glock *gl)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct inode *aspace = gl->gl_aspace;
 
-	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+	if (sdp->sd_lockstruct.ls_ops->lm_put_lock)
 		sdp->sd_lockstruct.ls_ops->lm_put_lock(gl->gl_lock);
 
 	if (aspace)
@@ -488,6 +488,10 @@ static unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, void *lock,
 				 unsigned int flags)
 {
 	int ret = LM_OUT_ERROR;
+
+	if (!sdp->sd_lockstruct.ls_ops->lm_lock)
+		return req_state == LM_ST_UNLOCKED ? 0 : req_state;
+
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		ret = sdp->sd_lockstruct.ls_ops->lm_lock(lock, cur_state,
 							 req_state, flags);
@@ -631,6 +635,8 @@ static int gfs2_lm_get_lock(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		     void **lockp)
 {
 	int error = -EIO;
+	if (!sdp->sd_lockstruct.ls_ops->lm_get_lock)
+		return 0;
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = sdp->sd_lockstruct.ls_ops->lm_get_lock(
 				sdp->sd_lockstruct.ls_lockspace, name, lockp);
@@ -910,7 +916,8 @@ do_cancel:
 	gh = list_entry(gl->gl_holders.next, struct gfs2_holder, gh_list);
 	if (!(gh->gh_flags & LM_FLAG_PRIORITY)) {
 		spin_unlock(&gl->gl_spin);
-		sdp->sd_lockstruct.ls_ops->lm_cancel(gl->gl_lock);
+		if (sdp->sd_lockstruct.ls_ops->lm_cancel)
+			sdp->sd_lockstruct.ls_ops->lm_cancel(gl->gl_lock);
 		spin_lock(&gl->gl_spin);
 	}
 	return;
@@ -1187,6 +1194,8 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs)
 static int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, void *lock, char **lvbp)
 {
 	int error = -EIO;
+	if (!sdp->sd_lockstruct.ls_ops->lm_hold_lvb)
+		return 0;
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = sdp->sd_lockstruct.ls_ops->lm_hold_lvb(lock, lvbp);
 	return error;
@@ -1226,7 +1235,7 @@ void gfs2_lvb_unhold(struct gfs2_glock *gl)
 	gfs2_glock_hold(gl);
 	gfs2_assert(gl->gl_sbd, atomic_read(&gl->gl_lvb_count) > 0);
 	if (atomic_dec_and_test(&gl->gl_lvb_count)) {
-		if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		if (sdp->sd_lockstruct.ls_ops->lm_unhold_lvb)
 			sdp->sd_lockstruct.ls_ops->lm_unhold_lvb(gl->gl_lock, gl->gl_lvb);
 		gl->gl_lvb = NULL;
 		gfs2_glock_put(gl);

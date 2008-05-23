@@ -364,6 +364,8 @@ static int map_journal_extents(struct gfs2_sbd *sdp)
 
 static void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp)
 {
+	if (!sdp->sd_lockstruct.ls_ops->lm_others_may_mount)
+		return;
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		sdp->sd_lockstruct.ls_ops->lm_others_may_mount(
 					sdp->sd_lockstruct.ls_lockspace);
@@ -741,8 +743,7 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 		goto out;
 	}
 
-	if (gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_lockspace) ||
-	    gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_ops) ||
+	if (gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_ops) ||
 	    gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_lvb_size >=
 				  GFS2_MIN_LVB_SIZE)) {
 		gfs2_unmount_lockproto(&sdp->sd_lockstruct);

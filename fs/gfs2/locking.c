@@ -23,11 +23,53 @@ struct lmh_wrapper {
 	const struct lm_lockops *lw_ops;
 };
 
+static int nolock_mount(char *table_name, char *host_data,
+			lm_callback_t cb, void *cb_data,
+			unsigned int min_lvb_size, int flags,
+			struct lm_lockstruct *lockstruct,
+			struct kobject *fskobj);
+
 /* List of registered low-level locking protocols.  A file system selects one
    of them by name at mount time, e.g. lock_nolock, lock_dlm. */
 
+static const struct lm_lockops nolock_ops = {
+	.lm_proto_name = "lock_nolock",
+	.lm_mount = nolock_mount,
+};
+
+static struct lmh_wrapper nolock_proto  = {
+	.lw_list = LIST_HEAD_INIT(nolock_proto.lw_list),
+	.lw_ops = &nolock_ops,
+};
+
 static LIST_HEAD(lmh_list);
 static DEFINE_MUTEX(lmh_lock);
+
+static int nolock_mount(char *table_name, char *host_data,
+			lm_callback_t cb, void *cb_data,
+			unsigned int min_lvb_size, int flags,
+			struct lm_lockstruct *lockstruct,
+			struct kobject *fskobj)
+{
+	char *c;
+	unsigned int jid;
+
+	c = strstr(host_data, "jid=");
+	if (!c)
+		jid = 0;
+	else {
+		c += 4;
+		sscanf(c, "%u", &jid);
+	}
+
+	lockstruct->ls_jid = jid;
+	lockstruct->ls_first = 1;
+	lockstruct->ls_lvb_size = min_lvb_size;
+	lockstruct->ls_ops = &nolock_ops;
+	lockstruct->ls_flags = LM_LSFLAG_LOCAL;
+
+	return 0;
+}
 
 /**
  * gfs2_register_lockproto - Register a low-level locking protocol
@@ -116,8 +158,12 @@ int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
 	int try = 0;
 	int error, found;
 
+
 retry:
 	mutex_lock(&lmh_lock);
+
+	if (list_empty(&nolock_proto.lw_list))
+		list_add(&lmh_list, &nolock_proto.lw_list);
 
 	found = 0;
 	list_for_each_entry(lw, &lmh_list, lw_list) {
@@ -139,7 +185,8 @@ retry:
 		goto out;
 	}
 
-	if (!try_module_get(lw->lw_ops->lm_owner)) {
+	if (lw->lw_ops->lm_owner &&
+	    !try_module_get(lw->lw_ops->lm_owner)) {
 		try = 0;
 		mutex_unlock(&lmh_lock);
 		msleep(1000);
@@ -158,7 +205,8 @@ out:
 void gfs2_unmount_lockproto(struct lm_lockstruct *lockstruct)
 {
 	mutex_lock(&lmh_lock);
-	lockstruct->ls_ops->lm_unmount(lockstruct->ls_lockspace);
+	if (lockstruct->ls_ops->lm_unmount)
+		lockstruct->ls_ops->lm_unmount(lockstruct->ls_lockspace);
 	if (lockstruct->ls_ops->lm_owner)
 		module_put(lockstruct->ls_ops->lm_owner);
 	mutex_unlock(&lmh_lock);
