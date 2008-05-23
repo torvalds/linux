@@ -498,7 +498,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 #ifdef CONFIG_PPC64
 unsigned long arch_deref_entry_point(void *entry)
 {
-	return (unsigned long)(((func_descr_t *)entry)->entry);
+	return ((func_descr_t *)entry)->entry;
 }
 #endif
 
