@@ -53,6 +53,7 @@ struct uio_device;
  * @mmap:		mmap operation for this uio device
  * @open:		open operation for this uio device
  * @release:		release operation for this uio device
+ * @irqcontrol:		disable/enable irqs when 0/1 is written to /dev/uioX
  */
 struct uio_info {
 	struct uio_device	*uio_dev;
@@ -66,6 +67,7 @@ struct uio_info {
 	int (*mmap)(struct uio_info *info, struct vm_area_struct *vma);
 	int (*open)(struct uio_info *info, struct inode *inode);
 	int (*release)(struct uio_info *info, struct inode *inode);
+	int (*irqcontrol)(struct uio_info *info, s32 irq_on);
 };
 
 extern int __must_check
