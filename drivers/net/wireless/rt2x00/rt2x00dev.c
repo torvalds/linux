@@ -507,7 +507,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * Update TX statistics.
 	 */
 	rt2x00dev->link.qual.tx_success += success;
-	rt2x00dev->link.qual.tx_failed += txdesc->retry + fail;
+	rt2x00dev->link.qual.tx_failed += fail;
 
 	/*
 	 * Initialize TX status
