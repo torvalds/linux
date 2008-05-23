@@ -572,16 +572,17 @@ void audit_send_reply(int pid, int seq, int type, int done, int multi,
 
 	skb = audit_make_reply(pid, seq, type, done, multi, payload, size);
 	if (!skb)
-		return;
+		goto out;
 
 	reply->pid = pid;
 	reply->skb = skb;
 
 	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
-	if (IS_ERR(tsk)) {
-		kfree(reply);
-		kfree_skb(skb);
-	}
+	if (!IS_ERR(tsk))
+		return;
+	kfree_skb(skb);
+out:
+	kfree(reply);
 }
 
 /*

@@ -54,6 +54,5 @@ series
 cscope.*
 
 *.orig
-*.rej
 *~
 \#*#

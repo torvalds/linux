@@ -183,4 +183,4 @@ module_exit(aaedkbd_exit);
 
 MODULE_AUTHOR("Nicolas Bellido Y Ortega");
 MODULE_DESCRIPTION("AAED-2000 Keyboard Driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

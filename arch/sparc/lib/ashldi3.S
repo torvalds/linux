@@ -1,4 +1,4 @@
-/* $Id: ashldi3.S,v 1.2 1999/11/19 04:11:46 davem Exp $
+/*
  * ashldi3.S:	GCC emits these for certain drivers playing
  *		with long longs.
  *

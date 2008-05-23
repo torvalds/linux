@@ -109,7 +109,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.negative_advice	=	ip6_negative_advice,
 	.link_failure		=	ip6_link_failure,
 	.update_pmtu		=	ip6_rt_update_pmtu,
-	.local_out		=	ip6_local_out,
+	.local_out		=	__ip6_local_out,
 	.entry_size		=	sizeof(struct rt6_info),
 	.entries		=	ATOMIC_INIT(0),
 };
@@ -475,7 +475,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	lifetime = ntohl(rinfo->lifetime);
 	if (lifetime == 0xffffffff) {
 		/* infinity */
-	} else if (lifetime > 0x7fffffff/HZ) {
+	} else if (lifetime > 0x7fffffff/HZ - 1) {
 		/* Avoid arithmetic overflow */
 		lifetime = 0x7fffffff/HZ - 1;
 	}
@@ -1106,7 +1106,9 @@ int ip6_route_add(struct fib6_config *cfg)
 	}
 
 	rt->u.dst.obsolete = -1;
-	rt->rt6i_expires = jiffies + clock_t_to_jiffies(cfg->fc_expires);
+	rt->rt6i_expires = (cfg->fc_flags & RTF_EXPIRES) ?
+				jiffies + clock_t_to_jiffies(cfg->fc_expires) :
+				0;
 
 	if (cfg->fc_protocol == RTPROT_UNSPEC)
 		cfg->fc_protocol = RTPROT_BOOT;
@@ -2200,7 +2202,9 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 
 	NLA_PUT_U32(skb, RTA_PRIORITY, rt->rt6i_metric);
 
-	expires = rt->rt6i_expires ? rt->rt6i_expires - jiffies : 0;
+	expires = (rt->rt6i_flags & RTF_EXPIRES) ?
+			rt->rt6i_expires - jiffies : 0;
+
 	if (rtnl_put_cacheinfo(skb, &rt->u.dst, 0, 0, 0,
 			       expires, rt->u.dst.error) < 0)
 		goto nla_put_failure;

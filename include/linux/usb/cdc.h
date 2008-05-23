@@ -130,6 +130,15 @@ struct usb_cdc_ether_desc {
 	__u8	bNumberPowerFilters;
 } __attribute__ ((packed));
 
+/* "Telephone Control Model Functional Descriptor" from CDC WMC spec 6.3..3 */
+struct usb_cdc_dmm_desc {
+	__u8	bFunctionLength;
+	__u8	bDescriptorType;
+	__u8	bDescriptorSubtype;
+	__u16	bcdVersion;
+	__le16	wMaxCommand;
+} __attribute__ ((packed));
+
 /* "MDLM Functional Descriptor" from CDC WMC spec 6.7.2.3 */
 struct usb_cdc_mdlm_desc {
 	__u8	bLength;

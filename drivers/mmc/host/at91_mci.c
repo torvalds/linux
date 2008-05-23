@@ -663,9 +663,12 @@ static void at91_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				gpio_set_value(host->board->vcc_pin, 0);
 				break;
 			case MMC_POWER_UP:
-			case MMC_POWER_ON:
 				gpio_set_value(host->board->vcc_pin, 1);
 				break;
+			case MMC_POWER_ON:
+				break;
+			default:
+				WARN_ON(1);
 		}
 	}
 }

@@ -126,10 +126,10 @@
 
 	 mov.l	r3,@-r0		!  30 LS
 #else
-3:	mov	r1,r3		! OPQR
+3:	mov	r7,r3		! OPQR
 	shlr8	r3		! xOPQ
-	mov.l	@(r0,r5),r1	! KLMN
-	mov	r1,r6
+	mov.l	@(r0,r5),r7	! KLMN
+	mov	r7,r6
 	shll16	r6
 	shll8	r6		! Nxxx
 	or	r6,r3		! NOPQ
@@ -733,24 +733,24 @@ ENTRY(memcpy)
 	movca.l	r0,@r1		!  40 LS (latency=3-7)
 	add	#-0x1c, r1	!  50 EX
 
-	mov.l	r3, @(0x1c,r1)	!  33 LS
+	mov.l	r3, @(0x18,r1)	!  33 LS
 	xtrct	r11, r10	!  48 EX
 
-	mov.l	r6, @(0x18,r1)	!  33 LS
+	mov.l	r6, @(0x14,r1)	!  33 LS
 	xtrct	r12, r11	!  48 EX
 
-	mov.l	r7, @(0x14,r1)	!  33 LS
+	mov.l	r7, @(0x10,r1)	!  33 LS
 
-	mov.l	r8, @(0x10,r1)	!  33 LS
-	add	#-0x3e, r5	!  50 EX
+	mov.l	r8, @(0x0c,r1)	!  33 LS
+	add	#-0x1e, r5	!  50 EX
 
-	mov.l	r9, @(0x0c,r1)	!  33 LS
+	mov.l	r9, @(0x08,r1)	!  33 LS
 	cmp/eq	r2,r1		!  54 MT
 
-	mov.l	r10, @(0x08,r1)	!  33 LS
+	mov.l	r10, @(0x04,r1)	!  33 LS
 	bf/s	2b		! 109 BR
 
-	 mov.l	r11, @(0x04,r1)	!  33 LS
+	 mov.l	r11, @(0x00,r1)	!  33 LS
 #endif
 
 	mov.l	@r15+, r12
