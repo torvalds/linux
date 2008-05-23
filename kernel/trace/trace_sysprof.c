@@ -81,7 +81,7 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 
 	}
 
-	trace_special(tr, data, 0, current->pid, regs->ip);
+	__trace_special(tr, data, 0, current->pid, regs->ip);
 
 	fp = (void __user *)regs->bp;
 
@@ -93,18 +93,18 @@ static void timer_notify(struct pt_regs *regs, int cpu)
 		if ((unsigned long)fp < regs->sp)
 			break;
 
-		trace_special(tr, data, 1, frame.return_address,
+		__trace_special(tr, data, 1, frame.return_address,
 			      (unsigned long)fp);
 		fp = frame.next_fp;
 	}
 
-	trace_special(tr, data, 2, current->pid, i);
+	__trace_special(tr, data, 2, current->pid, i);
 
 	/*
 	 * Special trace entry if we overflow the max depth:
 	 */
 	if (i == sample_max_depth)
-		trace_special(tr, data, -1, -1, -1);
+		__trace_special(tr, data, -1, -1, -1);
 }
 
 static enum hrtimer_restart stack_trace_timer_fn(struct hrtimer *hrtimer)
