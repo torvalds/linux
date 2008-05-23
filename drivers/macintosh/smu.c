@@ -35,6 +35,8 @@
 #include <linux/sysdev.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -45,8 +47,6 @@
 #include <asm/sections.h>
 #include <asm/abs_addr.h>
 #include <asm/uaccess.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 
 #define VERSION "0.7"
 #define AUTHOR  "(c) 2005 Benjamin Herrenschmidt, IBM Corp."
