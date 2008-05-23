@@ -124,6 +124,8 @@ struct cfq_data {
 struct cfq_queue {
 	/* reference count */
 	atomic_t ref;
+	/* various state flags, see below */
+	unsigned int flags;
 	/* parent cfq_data */
 	struct cfq_data *cfqd;
 	/* service_tree member */
@@ -138,14 +140,14 @@ struct cfq_queue {
 	int queued[2];
 	/* currently allocated requests */
 	int allocated[2];
-	/* pending metadata requests */
-	int meta_pending;
 	/* fifo list of requests in sort_list */
 	struct list_head fifo;
 
 	unsigned long slice_end;
 	long slice_resid;
 
+	/* pending metadata requests */
+	int meta_pending;
 	/* number of requests that are on the dispatch list or inside driver */
 	int dispatched;
 
@@ -153,8 +155,6 @@ struct cfq_queue {
 	unsigned short ioprio, org_ioprio;
 	unsigned short ioprio_class, org_ioprio_class;
 
-	/* various state flags, see below */
-	unsigned int flags;
 };
 
 enum cfqq_state_flags {
