@@ -259,8 +259,9 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 		return minor;
 	}
 	snd_minors[minor] = preg;
-	preg->dev = device_create(sound_class, device, MKDEV(major, minor),
-				  "%s", name);
+	preg->dev = device_create_drvdata(sound_class, device,
+					  MKDEV(major, minor),
+					  private_data, "%s", name);
 	if (IS_ERR(preg->dev)) {
 		snd_minors[minor] = NULL;
 		mutex_unlock(&sound_mutex);
@@ -268,9 +269,6 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 		kfree(preg);
 		return minor;
 	}
-
-	if (preg->dev)
-		dev_set_drvdata(preg->dev, private_data);
 
 	mutex_unlock(&sound_mutex);
 	return 0;

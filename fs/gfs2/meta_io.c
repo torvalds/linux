@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -69,13 +69,15 @@ static const struct address_space_operations aspace_aops = {
 struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp)
 {
 	struct inode *aspace;
+	struct gfs2_inode *ip;
 
 	aspace = new_inode(sdp->sd_vfs);
 	if (aspace) {
 		mapping_set_gfp_mask(aspace->i_mapping, GFP_NOFS);
 		aspace->i_mapping->a_ops = &aspace_aops;
 		aspace->i_size = ~0ULL;
-		aspace->i_private = NULL;
+		ip = GFS2_I(aspace);
+		clear_bit(GIF_USER, &ip->i_flags);
 		insert_inode_hash(aspace);
 	}
 	return aspace;

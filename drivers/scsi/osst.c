@@ -5695,13 +5695,12 @@ static int osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * S
 	struct device *osst_member;
 	int err;
 
-	osst_member = device_create(osst_sysfs_class, device, dev, "%s", name);
+	osst_member = device_create_drvdata(osst_sysfs_class, device, dev, STp, "%s", name);
 	if (IS_ERR(osst_member)) {
 		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
 		return PTR_ERR(osst_member);
 	}
 
-	dev_set_drvdata(osst_member, STp);
 	err = device_create_file(osst_member, &dev_attr_ADR_rev);
 	if (err)
 		goto err_out;

@@ -677,8 +677,9 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	c->use_modrm_ea = 1;
 
 	if (c->modrm_mod == 3) {
-		c->modrm_val = *(unsigned long *)
-			decode_register(c->modrm_rm, c->regs, c->d & ByteOp);
+		c->modrm_ptr = decode_register(c->modrm_rm,
+					       c->regs, c->d & ByteOp);
+		c->modrm_val = *(unsigned long *)c->modrm_ptr;
 		return rc;
 	}
 
@@ -1005,6 +1006,7 @@ done_prefixes:
 		if ((c->d & ModRM) && c->modrm_mod == 3) {
 			c->src.type = OP_REG;
 			c->src.val = c->modrm_val;
+			c->src.ptr = c->modrm_ptr;
 			break;
 		}
 		c->src.type = OP_MEM;
@@ -1049,6 +1051,7 @@ done_prefixes:
 		if ((c->d & ModRM) && c->modrm_mod == 3) {
 			c->dst.type = OP_REG;
 			c->dst.val = c->dst.orig_val = c->modrm_val;
+			c->dst.ptr = c->modrm_ptr;
 			break;
 		}
 		c->dst.type = OP_MEM;

@@ -236,6 +236,7 @@ enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
 	GIF_SW_PAGED		= 3,
+	GIF_USER                = 4, /* user inode, not metadata addr space */
 };
 
 struct gfs2_dinode_host {

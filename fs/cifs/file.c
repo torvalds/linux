@@ -75,7 +75,11 @@ static inline int cifs_convert_flags(unsigned int flags)
 		return (GENERIC_READ | GENERIC_WRITE);
 	}
 
-	return 0x20197;
+	return (READ_CONTROL | FILE_WRITE_ATTRIBUTES | FILE_READ_ATTRIBUTES |
+		FILE_WRITE_EA | FILE_APPEND_DATA | FILE_WRITE_DATA |
+		FILE_READ_DATA);
+
+
 }
 
 static inline int cifs_get_disposition(unsigned int flags)

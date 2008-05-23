@@ -53,7 +53,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	DECLARE_WAITQUEUE(entry, current);
 	struct drm_lock *lock = data;
 	int ret = 0;
-	unsigned long irqflags;
 
 	++file_priv->lock_count;
 
@@ -72,9 +71,9 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			return -EINVAL;
 
 	add_wait_queue(&dev->lock.lock_queue, &entry);
-	spin_lock_irqsave(&dev->lock.spinlock, irqflags);
+	spin_lock_bh(&dev->lock.spinlock);
 	dev->lock.user_waiters++;
-	spin_unlock_irqrestore(&dev->lock.spinlock, irqflags);
+	spin_unlock_bh(&dev->lock.spinlock);
 	for (;;) {
 		__set_current_state(TASK_INTERRUPTIBLE);
 		if (!dev->lock.hw_lock) {
@@ -96,9 +95,9 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			break;
 		}
 	}
-	spin_lock_irqsave(&dev->lock.spinlock, irqflags);
+	spin_lock_bh(&dev->lock.spinlock);
 	dev->lock.user_waiters--;
-	spin_unlock_irqrestore(&dev->lock.spinlock, irqflags);
+	spin_unlock_bh(&dev->lock.spinlock);
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&dev->lock.lock_queue, &entry);
 
@@ -199,9 +198,8 @@ int drm_lock_take(struct drm_lock_data *lock_data,
 {
 	unsigned int old, new, prev;
 	volatile unsigned int *lock = &lock_data->hw_lock->lock;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&lock_data->spinlock, irqflags);
+	spin_lock_bh(&lock_data->spinlock);
 	do {
 		old = *lock;
 		if (old & _DRM_LOCK_HELD)
@@ -213,7 +211,7 @@ int drm_lock_take(struct drm_lock_data *lock_data,
 		}
 		prev = cmpxchg(lock, old, new);
 	} while (prev != old);
-	spin_unlock_irqrestore(&lock_data->spinlock, irqflags);
+	spin_unlock_bh(&lock_data->spinlock);
 
 	if (_DRM_LOCKING_CONTEXT(old) == context) {
 		if (old & _DRM_LOCK_HELD) {
@@ -274,16 +272,15 @@ int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context)
 {
 	unsigned int old, new, prev;
 	volatile unsigned int *lock = &lock_data->hw_lock->lock;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&lock_data->spinlock, irqflags);
+	spin_lock_bh(&lock_data->spinlock);
 	if (lock_data->kernel_waiters != 0) {
 		drm_lock_transfer(lock_data, 0);
 		lock_data->idle_has_lock = 1;
-		spin_unlock_irqrestore(&lock_data->spinlock, irqflags);
+		spin_unlock_bh(&lock_data->spinlock);
 		return 1;
 	}
-	spin_unlock_irqrestore(&lock_data->spinlock, irqflags);
+	spin_unlock_bh(&lock_data->spinlock);
 
 	do {
 		old = *lock;
@@ -347,20 +344,19 @@ static int drm_notifier(void *priv)
 void drm_idlelock_take(struct drm_lock_data *lock_data)
 {
 	int ret = 0;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&lock_data->spinlock, irqflags);
+	spin_lock_bh(&lock_data->spinlock);
 	lock_data->kernel_waiters++;
 	if (!lock_data->idle_has_lock) {
 
-		spin_unlock_irqrestore(&lock_data->spinlock, irqflags);
+		spin_unlock_bh(&lock_data->spinlock);
 		ret = drm_lock_take(lock_data, DRM_KERNEL_CONTEXT);
-		spin_lock_irqsave(&lock_data->spinlock, irqflags);
+		spin_lock_bh(&lock_data->spinlock);
 
 		if (ret == 1)
 			lock_data->idle_has_lock = 1;
 	}
-	spin_unlock_irqrestore(&lock_data->spinlock, irqflags);
+	spin_unlock_bh(&lock_data->spinlock);
 }
 EXPORT_SYMBOL(drm_idlelock_take);
 
@@ -368,9 +364,8 @@ void drm_idlelock_release(struct drm_lock_data *lock_data)
 {
 	unsigned int old, prev;
 	volatile unsigned int *lock = &lock_data->hw_lock->lock;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&lock_data->spinlock, irqflags);
+	spin_lock_bh(&lock_data->spinlock);
 	if (--lock_data->kernel_waiters == 0) {
 		if (lock_data->idle_has_lock) {
 			do {
@@ -381,7 +376,7 @@ void drm_idlelock_release(struct drm_lock_data *lock_data)
 			lock_data->idle_has_lock = 0;
 		}
 	}
-	spin_unlock_irqrestore(&lock_data->spinlock, irqflags);
+	spin_unlock_bh(&lock_data->spinlock);
 }
 EXPORT_SYMBOL(drm_idlelock_release);
 

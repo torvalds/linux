@@ -182,7 +182,7 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 	if (clp == NULL)
 		return SVC_DROP;
 
-	dprintk("%s: %s NFSv4 callback!\n", __FUNCTION__,
+	dprintk("%s: %s NFSv4 callback!\n", __func__,
 			svc_print_addr(rqstp, buf, sizeof(buf)));
 	nfs_put_client(clp);
 

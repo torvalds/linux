@@ -2441,7 +2441,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("oom_adj",    S_IRUGO|S_IWUSR, oom_adjust),
 #ifdef CONFIG_AUDITSYSCALL
 	REG("loginuid",   S_IWUSR|S_IRUGO, loginuid),
-	REG("sessionid",  S_IRUSR, sessionid),
+	REG("sessionid",  S_IRUGO, sessionid),
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, fault_inject),

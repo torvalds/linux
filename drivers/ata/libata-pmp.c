@@ -48,7 +48,7 @@ static unsigned int sata_pmp_read(struct ata_link *link, int reg, u32 *r_val)
 	tf.device = link->pmp;
 
 	err_mask = ata_exec_internal(pmp_dev, &tf, NULL, DMA_NONE, NULL, 0,
-				     SATA_PMP_SCR_TIMEOUT);
+				     SATA_PMP_RW_TIMEOUT);
 	if (err_mask)
 		return err_mask;
 
@@ -88,7 +88,7 @@ static unsigned int sata_pmp_write(struct ata_link *link, int reg, u32 val)
 	tf.lbah = (val >> 24) & 0xff;
 
 	return ata_exec_internal(pmp_dev, &tf, NULL, DMA_NONE, NULL, 0,
-				 SATA_PMP_SCR_TIMEOUT);
+				 SATA_PMP_RW_TIMEOUT);
 }
 
 /**
@@ -255,19 +255,6 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 		rc = -EIO;
 		reason = "failed to write GSCR_ERROR_EN";
 		goto fail;
-	}
-
-	/* turn off notification till fan-out ports are reset and configured */
-	if (gscr[SATA_PMP_GSCR_FEAT_EN] & SATA_PMP_FEAT_NOTIFY) {
-		gscr[SATA_PMP_GSCR_FEAT_EN] &= ~SATA_PMP_FEAT_NOTIFY;
-
-		err_mask = sata_pmp_write(dev->link, SATA_PMP_GSCR_FEAT_EN,
-					  gscr[SATA_PMP_GSCR_FEAT_EN]);
-		if (err_mask) {
-			rc = -EIO;
-			reason = "failed to write GSCR_FEAT_EN";
-			goto fail;
-		}
 	}
 
 	if (print_info) {
@@ -700,8 +687,6 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 	if (ehc->i.action & ATA_EH_RESET) {
 		struct ata_link *tlink;
 
-		ata_eh_freeze_port(ap);
-
 		/* reset */
 		rc = ata_eh_reset(link, 0, prereset, softreset, hardreset,
 				  postreset);
@@ -710,8 +695,6 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 					"failed to reset PMP, giving up\n");
 			goto fail;
 		}
-
-		ata_eh_thaw_port(ap);
 
 		/* PMP is reset, SErrors cannot be trusted, scan all */
 		ata_port_for_each_link(tlink, ap) {
@@ -864,6 +847,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 	struct ata_link *pmp_link = &ap->link;
 	struct ata_device *pmp_dev = pmp_link->device;
 	struct ata_eh_context *pmp_ehc = &pmp_link->eh_context;
+	u32 *gscr = pmp_dev->gscr;
 	struct ata_link *link;
 	struct ata_device *dev;
 	unsigned int err_mask;
@@ -901,6 +885,22 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 	if (rc)
 		goto pmp_fail;
 
+	/* PHY event notification can disturb reset and other recovery
+	 * operations.  Turn it off.
+	 */
+	if (gscr[SATA_PMP_GSCR_FEAT_EN] & SATA_PMP_FEAT_NOTIFY) {
+		gscr[SATA_PMP_GSCR_FEAT_EN] &= ~SATA_PMP_FEAT_NOTIFY;
+
+		err_mask = sata_pmp_write(pmp_link, SATA_PMP_GSCR_FEAT_EN,
+					  gscr[SATA_PMP_GSCR_FEAT_EN]);
+		if (err_mask) {
+			ata_link_printk(pmp_link, KERN_WARNING,
+				"failed to disable NOTIFY (err_mask=0x%x)\n",
+				err_mask);
+			goto pmp_fail;
+		}
+	}
+
 	/* handle disabled links */
 	rc = sata_pmp_eh_handle_disabled_links(ap);
 	if (rc)
@@ -923,10 +923,10 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 
 	/* enable notification */
 	if (pmp_dev->flags & ATA_DFLAG_AN) {
-		pmp_dev->gscr[SATA_PMP_GSCR_FEAT_EN] |= SATA_PMP_FEAT_NOTIFY;
+		gscr[SATA_PMP_GSCR_FEAT_EN] |= SATA_PMP_FEAT_NOTIFY;
 
-		err_mask = sata_pmp_write(pmp_dev->link, SATA_PMP_GSCR_FEAT_EN,
-					  pmp_dev->gscr[SATA_PMP_GSCR_FEAT_EN]);
+		err_mask = sata_pmp_write(pmp_link, SATA_PMP_GSCR_FEAT_EN,
+					  gscr[SATA_PMP_GSCR_FEAT_EN]);
 		if (err_mask) {
 			ata_dev_printk(pmp_dev, KERN_ERR, "failed to write "
 				       "PMP_FEAT_EN (Emask=0x%x)\n", err_mask);

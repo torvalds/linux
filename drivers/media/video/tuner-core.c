@@ -1115,7 +1115,6 @@ static int tuner_probe(struct i2c_client *client,
 	if (NULL == t)
 		return -ENOMEM;
 	t->i2c = client;
-	strlcpy(client->name, "(tuner unset)", sizeof(client->name));
 	i2c_set_clientdata(client, t);
 	t->type = UNSET;
 	t->audmode = V4L2_TUNER_MODE_STEREO;
@@ -1273,10 +1272,25 @@ static int tuner_remove(struct i2c_client *client)
 
 	list_del(&t->list);
 	kfree(t);
+
+	/* The probing code has overwritten the device name, restore it so
+	   that reloading the driver will work. Ideally the device name
+	   should not be overwritten in the first place, but for now that
+	   will do. */
+	strlcpy(client->name, "tuner", I2C_NAME_SIZE);
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
+
+/* This driver supports many devices and the idea is to let the driver
+   detect which device is present. So rather than listing all supported
+   devices here, we pretend to support a single, fake device type. */
+static const struct i2c_device_id tuner_id[] = {
+	{ "tuner", }, /* autodetect */
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tuner_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tuner",
@@ -1287,6 +1301,7 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.suspend = tuner_suspend,
 	.resume = tuner_resume,
 	.legacy_probe = tuner_legacy_probe,
+	.id_table = tuner_id,
 };
 
 

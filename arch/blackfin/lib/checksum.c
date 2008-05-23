@@ -72,9 +72,9 @@ static unsigned short do_csum(const unsigned char *buff, int len)
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  */
-unsigned short ip_fast_csum(unsigned char *iph, unsigned int ihl)
+__sum16 ip_fast_csum(unsigned char *iph, unsigned int ihl)
 {
-	return ~do_csum(iph, ihl * 4);
+	return (__force __sum16)~do_csum(iph, ihl * 4);
 }
 
 /*
@@ -89,7 +89,7 @@ unsigned short ip_fast_csum(unsigned char *iph, unsigned int ihl)
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum)
+__wsum csum_partial(const void *buff, int len, __wsum sum)
 {
 	/*
 	 * Just in case we get nasty checksum data...
@@ -109,22 +109,22 @@ unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum)
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c
  */
-unsigned short ip_compute_csum(const unsigned char *buff, int len)
+__sum16 ip_compute_csum(const void *buff, int len)
 {
-	return ~do_csum(buff, len);
+	return (__force __sum16)~do_csum(buff, len);
 }
 
 /*
  * copy from fs while checksumming, otherwise like csum_partial
  */
 
-unsigned int
-csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
-			    int len, int sum, int *csum_err)
+__wsum
+csum_partial_copy_from_user(const void __user *src, void *dst,
+			    int len, __wsum sum, int *csum_err)
 {
 	if (csum_err)
 		*csum_err = 0;
-	memcpy(dst, src, len);
+	memcpy(dst, (__force void *)src, len);
 	return csum_partial(dst, len, sum);
 }
 
@@ -132,8 +132,7 @@ csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
  * copy from ds while checksumming, otherwise like csum_partial
  */
 
-unsigned int csum_partial_copy(const unsigned char *src, unsigned char *dst,
-			       int len, int sum)
+__wsum csum_partial_copy(const void *src, void *dst, int len, __wsum sum)
 {
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, sum);

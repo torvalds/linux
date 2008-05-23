@@ -781,6 +781,9 @@ static int __init mac_mace_init_module(void)
 {
 	int err;
 
+	if (!MACH_IS_MAC)
+		return -ENODEV;
+
 	if ((err = platform_driver_register(&mac_mace_driver))) {
 		printk(KERN_ERR "Driver registration failed\n");
 		return err;

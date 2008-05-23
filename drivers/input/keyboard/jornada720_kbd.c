@@ -29,7 +29,7 @@
 
 MODULE_AUTHOR("Kristoffer Ericson <Kristoffer.Ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 710/720/728 keyboard driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
 
 static unsigned short jornada_std_keymap[128] = {					/* ROW */
 	0, KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6, KEY_F7,		/* #1  */

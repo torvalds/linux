@@ -44,7 +44,7 @@ config GENERIC_IOMAP
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	depends on Q40 || (BROKEN && SUN3X)
+	depends on BROKEN && (Q40 || SUN3X)
 	default y
 
 config NO_IOPORT
@@ -538,13 +538,6 @@ config AMIGA_BUILTIN_SERIAL
 	  answer Y.
 
 	  To compile this driver as a module, choose M here.
-
-config WHIPPET_SERIAL
-	tristate "Hisoft Whippet PCMCIA serial support"
-	depends on AMIGA_PCMCIA
-	help
-	  HiSoft has a web page at <http://www.hisoft.co.uk/>, but there
-	  is no listing for the Whippet in their Amiga section.
 
 config MULTIFACE_III_TTY
 	tristate "Multiface Card III serial support"
