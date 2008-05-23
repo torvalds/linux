@@ -2120,6 +2120,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
 		}
 
+		if ((volume_info.cifs_acl) && (volume_info.dynperm))
+			cERROR(1, ("mount option dynperm ignored if cifsacl "
+				   "mount option supported"));
+
 		tcon =
 		    find_unc(sin_server.sin_addr.s_addr, volume_info.UNC,
 			     volume_info.username);
