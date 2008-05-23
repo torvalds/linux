@@ -257,7 +257,7 @@ firmware_data_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (retval)
 		goto out;
 
-	memcpy(fw->data + offset, buffer, count);
+	memcpy((u8 *)fw->data + offset, buffer, count);
 
 	fw->size = max_t(size_t, offset + count, fw->size);
 	retval = count;

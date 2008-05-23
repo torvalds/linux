@@ -8,7 +8,7 @@
 
 struct firmware {
 	size_t size;
-	u8 *data;
+	const u8 *data;
 };
 
 struct device;
