@@ -5823,6 +5823,7 @@ static int nv_resume(struct pci_dev *pdev)
 	writel(txreg, base + NvRegTransmitPoll);
 
 	rc = nv_open(dev);
+	nv_set_multicast(dev);
 out:
 	return rc;
 }

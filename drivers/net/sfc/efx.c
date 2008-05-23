@@ -199,11 +199,12 @@ static inline int efx_process_channel(struct efx_channel *channel, int rx_quota)
  */
 static inline void efx_channel_processed(struct efx_channel *channel)
 {
-	/* Write to EVQ_RPTR_REG.  If a new event arrived in a race
-	 * with finishing processing, a new interrupt will be raised.
-	 */
+	/* The interrupt handler for this channel may set work_pending
+	 * as soon as we acknowledge the events we've seen.  Make sure
+	 * it's cleared before then. */
 	channel->work_pending = 0;
-	smp_wmb(); /* Ensure channel updated before any new interrupt. */
+	smp_wmb();
+
 	falcon_eventq_read_ack(channel);
 }
 
@@ -265,7 +266,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 	napi_disable(&channel->napi_str);
 
 	/* Poll the channel */
-	(void) efx_process_channel(channel, efx->type->evq_size);
+	efx_process_channel(channel, efx->type->evq_size);
 
 	/* Ack the eventq. This may cause an interrupt to be generated
 	 * when they are reenabled */
@@ -317,26 +318,6 @@ static void efx_remove_eventq(struct efx_channel *channel)
  *
  *************************************************************************/
 
-/* Setup per-NIC RX buffer parameters.
- * Calculate the rx buffer allocation parameters required to support
- * the current MTU, including padding for header alignment and overruns.
- */
-static void efx_calc_rx_buffer_params(struct efx_nic *efx)
-{
-	unsigned int order, len;
-
-	len = (max(EFX_PAGE_IP_ALIGN, NET_IP_ALIGN) +
-	       EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
-	       efx->type->rx_buffer_padding);
-
-	/* Calculate page-order */
-	for (order = 0; ((1u << order) * PAGE_SIZE) < len; ++order)
-		;
-
-	efx->rx_buffer_len = len;
-	efx->rx_buffer_order = order;
-}
-
 static int efx_probe_channel(struct efx_channel *channel)
 {
 	struct efx_tx_queue *tx_queue;
@@ -387,7 +368,14 @@ static int efx_init_channels(struct efx_nic *efx)
 	struct efx_channel *channel;
 	int rc = 0;
 
-	efx_calc_rx_buffer_params(efx);
+	/* Calculate the rx buffer allocation parameters required to
+	 * support the current MTU, including padding for header
+	 * alignment and overruns.
+	 */
+	efx->rx_buffer_len = (max(EFX_PAGE_IP_ALIGN, NET_IP_ALIGN) +
+			      EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
+			      efx->type->rx_buffer_padding);
+	efx->rx_buffer_order = get_order(efx->rx_buffer_len);
 
 	/* Initialise the channels */
 	efx_for_each_channel(channel, efx) {
@@ -440,9 +428,12 @@ static void efx_start_channel(struct efx_channel *channel)
 		netif_napi_add(channel->napi_dev, &channel->napi_str,
 			       efx_poll, napi_weight);
 
+	/* The interrupt handler for this channel may set work_pending
+	 * as soon as we enable it.  Make sure it's cleared before
+	 * then.  Similarly, make sure it sees the enabled flag set. */
 	channel->work_pending = 0;
 	channel->enabled = 1;
-	smp_wmb(); /* ensure channel updated before first interrupt */
+	smp_wmb();
 
 	napi_enable(&channel->napi_str);
 
@@ -704,7 +695,7 @@ static void efx_stop_port(struct efx_nic *efx)
 	mutex_unlock(&efx->mac_lock);
 
 	/* Serialise against efx_set_multicast_list() */
-	if (NET_DEV_REGISTERED(efx)) {
+	if (efx_dev_registered(efx)) {
 		netif_tx_lock_bh(efx->net_dev);
 		netif_tx_unlock_bh(efx->net_dev);
 	}
@@ -791,22 +782,23 @@ static int efx_init_io(struct efx_nic *efx)
 	efx->membase = ioremap_nocache(efx->membase_phys,
 				       efx->type->mem_map_size);
 	if (!efx->membase) {
-		EFX_ERR(efx, "could not map memory BAR %d at %lx+%x\n",
-			efx->type->mem_bar, efx->membase_phys,
+		EFX_ERR(efx, "could not map memory BAR %d at %llx+%x\n",
+			efx->type->mem_bar,
+			(unsigned long long)efx->membase_phys,
 			efx->type->mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
-	EFX_LOG(efx, "memory BAR %u at %lx+%x (virtual %p)\n",
-		efx->type->mem_bar, efx->membase_phys, efx->type->mem_map_size,
-		efx->membase);
+	EFX_LOG(efx, "memory BAR %u at %llx+%x (virtual %p)\n",
+		efx->type->mem_bar, (unsigned long long)efx->membase_phys,
+		efx->type->mem_map_size, efx->membase);
 
 	return 0;
 
  fail4:
 	release_mem_region(efx->membase_phys, efx->type->mem_map_size);
  fail3:
-	efx->membase_phys = 0UL;
+	efx->membase_phys = 0;
  fail2:
 	pci_disable_device(efx->pci_dev);
  fail1:
@@ -824,7 +816,7 @@ static void efx_fini_io(struct efx_nic *efx)
 
 	if (efx->membase_phys) {
 		pci_release_region(efx->pci_dev, efx->type->mem_bar);
-		efx->membase_phys = 0UL;
+		efx->membase_phys = 0;
 	}
 
 	pci_disable_device(efx->pci_dev);
@@ -1043,7 +1035,7 @@ static void efx_start_all(struct efx_nic *efx)
 		return;
 	if ((efx->state != STATE_RUNNING) && (efx->state != STATE_INIT))
 		return;
-	if (NET_DEV_REGISTERED(efx) && !netif_running(efx->net_dev))
+	if (efx_dev_registered(efx) && !netif_running(efx->net_dev))
 		return;
 
 	/* Mark the port as enabled so port reconfigurations can start, then
@@ -1073,9 +1065,8 @@ static void efx_flush_all(struct efx_nic *efx)
 	cancel_delayed_work_sync(&efx->monitor_work);
 
 	/* Ensure that all RX slow refills are complete. */
-	efx_for_each_rx_queue(rx_queue, efx) {
+	efx_for_each_rx_queue(rx_queue, efx)
 		cancel_delayed_work_sync(&rx_queue->work);
-	}
 
 	/* Stop scheduled port reconfigurations */
 	cancel_work_sync(&efx->reconfigure_work);
@@ -1101,9 +1092,10 @@ static void efx_stop_all(struct efx_nic *efx)
 	falcon_disable_interrupts(efx);
 	if (efx->legacy_irq)
 		synchronize_irq(efx->legacy_irq);
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel_with_interrupt(channel, efx) {
 		if (channel->irq)
 			synchronize_irq(channel->irq);
+	}
 
 	/* Stop all NAPI processing and synchronous rx refills */
 	efx_for_each_channel(channel, efx)
@@ -1125,7 +1117,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
 	efx_stop_queue(efx);
-	if (NET_DEV_REGISTERED(efx)) {
+	if (efx_dev_registered(efx)) {
 		netif_tx_lock_bh(efx->net_dev);
 		netif_tx_unlock_bh(efx->net_dev);
 	}
@@ -1344,13 +1336,17 @@ static int efx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
-/* Context: process, dev_base_lock held, non-blocking. */
+/* Context: process, dev_base_lock or RTNL held, non-blocking. */
 static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 {
 	struct efx_nic *efx = net_dev->priv;
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	struct net_device_stats *stats = &net_dev->stats;
 
+	/* Update stats if possible, but do not wait if another thread
+	 * is updating them (or resetting the NIC); slightly stale
+	 * stats are acceptable.
+	 */
 	if (!spin_trylock(&efx->stats_lock))
 		return stats;
 	if (efx->state == STATE_RUNNING) {
@@ -1494,7 +1490,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 static int efx_netdev_event(struct notifier_block *this,
 			    unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = (struct net_device *)ptr;
+	struct net_device *net_dev = ptr;
 
 	if (net_dev->open == efx_net_open && event == NETDEV_CHANGENAME) {
 		struct efx_nic *efx = net_dev->priv;
@@ -1563,7 +1559,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 	efx_for_each_tx_queue(tx_queue, efx)
 		efx_release_tx_buffers(tx_queue);
 
-	if (NET_DEV_REGISTERED(efx)) {
+	if (efx_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
 		unregister_netdev(efx->net_dev);
 	}
@@ -1688,7 +1684,7 @@ static int efx_reset(struct efx_nic *efx)
 	if (method == RESET_TYPE_DISABLE) {
 		/* Reinitialise the device anyway so the driver unload sequence
 		 * can talk to the external SRAM */
-		(void) falcon_init_nic(efx);
+		falcon_init_nic(efx);
 		rc = -EIO;
 		goto fail4;
 	}
