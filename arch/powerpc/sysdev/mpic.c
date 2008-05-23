@@ -1143,13 +1143,14 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
 	mpic->num_cpus = ((greg_feature & MPIC_GREG_FEATURE_LAST_CPU_MASK)
 			  >> MPIC_GREG_FEATURE_LAST_CPU_SHIFT) + 1;
-	if (isu_size == 0)
+	if (isu_size == 0) {
 		if (flags & MPIC_BROKEN_FRR_NIRQS)
 			mpic->num_sources = mpic->irq_count;
 		else
 			mpic->num_sources =
 				((greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
 				 >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
+	}
 
 	/* Map the per-CPU registers */
 	for (i = 0; i < mpic->num_cpus; i++) {
