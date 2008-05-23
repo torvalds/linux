@@ -155,7 +155,7 @@ static void stop_stack_timers(void)
 		stop_stack_timer(cpu);
 }
 
-static notrace void stack_reset(struct trace_array *tr)
+static void stack_reset(struct trace_array *tr)
 {
 	int cpu;
 
@@ -165,7 +165,7 @@ static notrace void stack_reset(struct trace_array *tr)
 		tracing_reset(tr->data[cpu]);
 }
 
-static notrace void start_stack_trace(struct trace_array *tr)
+static void start_stack_trace(struct trace_array *tr)
 {
 	mutex_lock(&sample_timer_lock);
 	stack_reset(tr);
@@ -174,7 +174,7 @@ static notrace void start_stack_trace(struct trace_array *tr)
 	mutex_unlock(&sample_timer_lock);
 }
 
-static notrace void stop_stack_trace(struct trace_array *tr)
+static void stop_stack_trace(struct trace_array *tr)
 {
 	mutex_lock(&sample_timer_lock);
 	stop_stack_timers();
@@ -182,7 +182,7 @@ static notrace void stop_stack_trace(struct trace_array *tr)
 	mutex_unlock(&sample_timer_lock);
 }
 
-static notrace void stack_trace_init(struct trace_array *tr)
+static void stack_trace_init(struct trace_array *tr)
 {
 	sysprof_trace = tr;
 
@@ -190,7 +190,7 @@ static notrace void stack_trace_init(struct trace_array *tr)
 		start_stack_trace(tr);
 }
 
-static notrace void stack_trace_reset(struct trace_array *tr)
+static void stack_trace_reset(struct trace_array *tr)
 {
 	if (tr->ctrl)
 		stop_stack_trace(tr);
