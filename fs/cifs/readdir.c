@@ -675,8 +675,6 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 			cifsFile->invalidHandle = true;
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		}
-		kfree(cifsFile->search_resume_name);
-		cifsFile->search_resume_name = NULL;
 		if (cifsFile->srch_inf.ntwrk_buf_start) {
 			cFYI(1, ("freeing SMB ff cache buf on search rewind"));
 			if (cifsFile->srch_inf.smallBuf)
@@ -1043,9 +1041,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		} /* else {
 			cifsFile->invalidHandle = true;
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
-		}
-		kfree(cifsFile->search_resume_name);
-		cifsFile->search_resume_name = NULL; */
+		} */
 
 		rc = find_cifs_entry(xid, pTcon, file,
 				&current_entry, &num_to_fill);
