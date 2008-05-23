@@ -580,6 +580,27 @@ static int s3c2410fb_setcolreg(unsigned regno,
 	return 0;
 }
 
+/* s3c2410fb_lcd_enable
+ *
+ * shutdown the lcd controller
+ */
+static void s3c2410fb_lcd_enable(struct s3c2410fb_info *fbi, int enable)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	if (enable)
+		fbi->regs.lcdcon1 |= S3C2410_LCDCON1_ENVID;
+	else
+		fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_ENVID;
+
+	writel(fbi->regs.lcdcon1, fbi->io + S3C2410_LCDCON1);
+
+	local_irq_restore(flags);
+}
+
+
 /*
  *      s3c2410fb_blank
  *	@blank_mode: the blank mode we want.
@@ -589,9 +610,6 @@ static int s3c2410fb_setcolreg(unsigned regno,
  *	blanking succeeded, != 0 if un-/blanking failed due to e.g. a
  *	video mode which doesn't support it. Implements VESA suspend
  *	and powerdown modes on hardware that supports disabling hsync/vsync:
- *	blank_mode == 2: suspend vsync
- *	blank_mode == 3: suspend hsync
- *	blank_mode == 4: powerdown
  *
  *	Returns negative errno on error, or zero on success.
  *
@@ -604,6 +622,12 @@ static int s3c2410fb_blank(int blank_mode, struct fb_info *info)
 	dprintk("blank(mode=%d, info=%p)\n", blank_mode, info);
 
 	tpal_reg += is_s3c2412(fbi) ? S3C2412_TPAL : S3C2410_TPAL;
+
+	if (blank_mode == FB_BLANK_POWERDOWN) {
+		s3c2410fb_lcd_enable(fbi, 0);
+	} else {
+		s3c2410fb_lcd_enable(fbi, 1);
+	}
 
 	if (blank_mode == FB_BLANK_UNBLANK)
 		writel(0x0, tpal_reg);
@@ -983,21 +1007,6 @@ static int __init s3c2412fb_probe(struct platform_device *pdev)
 	return s3c24xxfb_probe(pdev, DRV_S3C2412);
 }
 
-/* s3c2410fb_stop_lcd
- *
- * shutdown the lcd controller
- */
-static void s3c2410fb_stop_lcd(struct s3c2410fb_info *fbi)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	fbi->regs.lcdcon1 &= ~S3C2410_LCDCON1_ENVID;
-	writel(fbi->regs.lcdcon1, fbi->io + S3C2410_LCDCON1);
-
-	local_irq_restore(flags);
-}
 
 /*
  *  Cleanup
@@ -1010,7 +1019,7 @@ static int s3c2410fb_remove(struct platform_device *pdev)
 
 	unregister_framebuffer(fbinfo);
 
-	s3c2410fb_stop_lcd(info);
+	s3c2410fb_lcd_enable(info, 0);
 	msleep(1);
 
 	s3c2410fb_unmap_video_memory(fbinfo);
@@ -1043,7 +1052,7 @@ static int s3c2410fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct fb_info	   *fbinfo = platform_get_drvdata(dev);
 	struct s3c2410fb_info *info = fbinfo->par;
 
-	s3c2410fb_stop_lcd(info);
+	s3c2410fb_lcd_enable(info, 0);
 
 	/* sleep before disabling the clock, we need to ensure
 	 * the LCD DMA engine is not going to get back on the bus
