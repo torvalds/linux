@@ -4,6 +4,10 @@
  *
  * Ben Dooks, Copyright (c) 2003-2005 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
 */
 
 /* Note on 2440 fclk clock source handling
@@ -1908,7 +1912,7 @@ console_initcall(s3c24xx_serial_initconsole);
 
 #endif /* CONFIG_SERIAL_S3C2410_CONSOLE */
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung S3C2410/S3C2440/S3C2412 Serial port driver");
 MODULE_ALIAS("platform:s3c2400-uart");
