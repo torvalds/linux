@@ -318,14 +318,14 @@ struct kvm_trace_rec {
 	__u32 vcpu_id;
 	union {
 		struct {
-			__u32 cycle_lo, cycle_hi;
+			__u64 cycle_u64;
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
 		} cycle;
 		struct {
 			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
 		} nocycle;
 	} u;
-};
+} __attribute__((packed));
 
 #define KVMIO 0xAE
 
