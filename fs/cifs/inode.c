@@ -1019,7 +1019,7 @@ mkdir_get_info:
 				     CIFS_MOUNT_DYNPERM)
 					direntry->d_inode->i_mode =
 						(mode | S_IFDIR);
-					
+
 				if (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid =
