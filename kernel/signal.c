@@ -1242,7 +1242,8 @@ void sigqueue_free(struct sigqueue *q)
 	/*
 	 * If the signal is still pending remove it from the
 	 * pending queue. We must hold ->siglock while testing
-	 * q->list to serialize with collect_signal().
+	 * q->list to serialize with collect_signal() or with
+	 * __exit_signal()->flush_sigqueue().
 	 */
 	spin_lock_irqsave(lock, flags);
 	if (!list_empty(&q->list))
