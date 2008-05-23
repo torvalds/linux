@@ -308,7 +308,7 @@ static void uec_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 		buf += UEC_TX_FW_STATS_LEN * ETH_GSTRING_LEN;
 	}
 	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_RX)
-		memcpy(buf, tx_fw_stat_gstrings, UEC_RX_FW_STATS_LEN *
+		memcpy(buf, rx_fw_stat_gstrings, UEC_RX_FW_STATS_LEN *
 			       	ETH_GSTRING_LEN);
 }
 
