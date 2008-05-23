@@ -773,7 +773,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	r1bio_t *r1_bio;
 	struct bio *read_bio;
 	int i, targets = 0, disks;
-	struct bitmap *bitmap = mddev->bitmap;
+	struct bitmap *bitmap;
 	unsigned long flags;
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
@@ -801,6 +801,8 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	}
 
 	wait_barrier(conf);
+
+	bitmap = mddev->bitmap;
 
 	disk_stat_inc(mddev->gendisk, ios[rw]);
 	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
