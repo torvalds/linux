@@ -387,14 +387,8 @@ static void vlan_transfer_features(struct net_device *dev,
 {
 	unsigned long old_features = vlandev->features;
 
-	if (dev->features & NETIF_F_VLAN_TSO) {
-		vlandev->features &= ~VLAN_TSO_FEATURES;
-		vlandev->features |= dev->features & VLAN_TSO_FEATURES;
-	}
-	if (dev->features & NETIF_F_VLAN_CSUM) {
-		vlandev->features &= ~NETIF_F_ALL_CSUM;
-		vlandev->features |= dev->features & NETIF_F_ALL_CSUM;
-	}
+	vlandev->features &= ~dev->vlan_features;
+	vlandev->features |= dev->features & dev->vlan_features;
 
 	if (old_features != vlandev->features)
 		netdev_features_change(vlandev);
