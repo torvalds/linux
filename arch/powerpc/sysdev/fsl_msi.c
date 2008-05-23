@@ -36,12 +36,6 @@ static inline u32 fsl_msi_read(u32 __iomem *base, unsigned int reg)
 	return in_be32(base + (reg >> 2));
 }
 
-static inline void fsl_msi_write(u32 __iomem *base,
-				unsigned int reg, u32 value)
-{
-	out_be32(base + (reg >> 2), value);
-}
-
 /*
  * We do not need this actually. The MSIR register has been read once
  * in the cascade interrupt. So, this MSI interrupt has been acked
@@ -64,7 +58,7 @@ static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
 
 	get_irq_desc(virq)->status |= IRQ_TYPE_EDGE_FALLING;
 
-	set_irq_chip_and_handler(virq, chip,  handle_edge_irq);
+	set_irq_chip_and_handler(virq, chip, handle_edge_irq);
 
 	return 0;
 }
@@ -73,10 +67,11 @@ static struct irq_host_ops fsl_msi_host_ops = {
 	.map = fsl_msi_host_map,
 };
 
-irq_hw_number_t fsl_msi_alloc_hwirqs(struct fsl_msi *msi, int num)
+static irq_hw_number_t fsl_msi_alloc_hwirqs(struct fsl_msi *msi, int num)
 {
 	unsigned long flags;
-	int offset, order = get_count_order(num);
+	int order = get_count_order(num);
+	int offset;
 
 	spin_lock_irqsave(&msi->bitmap_lock, flags);
 
@@ -91,7 +86,7 @@ irq_hw_number_t fsl_msi_alloc_hwirqs(struct fsl_msi *msi, int num)
 	return offset;
 }
 
-void fsl_msi_free_hwirqs(struct fsl_msi *msi, int offset, int num)
+static void fsl_msi_free_hwirqs(struct fsl_msi *msi, int offset, int num)
 {
 	unsigned long flags;
 	int order = get_count_order(num);
@@ -106,7 +101,8 @@ void fsl_msi_free_hwirqs(struct fsl_msi *msi, int offset, int num)
 
 static int fsl_msi_free_dt_hwirqs(struct fsl_msi *msi)
 {
-	int i, len;
+	int i;
+	int len;
 	const u32 *p;
 
 	bitmap_allocate_region(msi->fsl_msi_bitmap, 0,
@@ -138,9 +134,8 @@ static int fsl_msi_free_dt_hwirqs(struct fsl_msi *msi)
 
 static int fsl_msi_init_allocator(struct fsl_msi *msi_data)
 {
-	int rc, size;
-
-	size = BITS_TO_LONGS(NR_MSI_IRQS) * sizeof(u32);
+	int rc;
+	int size = BITS_TO_LONGS(NR_MSI_IRQS) * sizeof(u32);
 
 	msi_data->fsl_msi_bitmap = kzalloc(size, GFP_KERNEL);
 
@@ -238,7 +233,7 @@ out_free:
 	return rc;
 }
 
-void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
+static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cascade_irq;
 	struct fsl_msi *msi_data = fsl_msi;
@@ -260,7 +255,7 @@ void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	if (unlikely(desc->status & IRQ_INPROGRESS))
 		goto unlock;
 
-	msir_index = (int)(desc->handler_data);
+	msir_index = (int)desc->handler_data;
 
 	if (msir_index >= NR_MSI_REG)
 		cascade_irq = NO_IRQ;
@@ -280,12 +275,12 @@ void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		intr_index = ffs(msir_value) - 1;
 
 		cascade_irq = irq_linear_revmap(msi_data->irqhost,
-				(msir_index * IRQS_PER_MSI_REG +
-					intr_index + have_shift));
+				msir_index * IRQS_PER_MSI_REG +
+					intr_index + have_shift);
 		if (cascade_irq != NO_IRQ)
 			generic_handle_irq(cascade_irq);
-		have_shift += (intr_index + 1);
-		msir_value = (msir_value >> (intr_index + 1));
+		have_shift += intr_index + 1;
+		msir_value = msir_value >> (intr_index + 1);
 	}
 	desc->status &= ~IRQ_INPROGRESS;
 
@@ -311,7 +306,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	int rc;
 	int virt_msir;
 	const u32 *p;
-	struct fsl_msi_feature *tmp_data;
+	struct fsl_msi_feature *features = match->data;
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 
@@ -348,14 +343,12 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		goto error_out;
 	}
 
-	tmp_data = (struct fsl_msi_feature *)match->data;
-
-	msi->feature = tmp_data->fsl_pic_ip;
+	msi->feature = features->fsl_pic_ip;
 
 	msi->irqhost->host_data = msi;
 
 	msi->msi_addr_hi = 0x0;
-	msi->msi_addr_lo = res.start + tmp_data->msiir_offset;
+	msi->msi_addr_lo = res.start + features->msiir_offset;
 
 	rc = fsl_msi_init_allocator(msi);
 	if (rc) {
