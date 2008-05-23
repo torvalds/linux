@@ -84,8 +84,27 @@ extern spinlock_t cmxgcr_lock;
 
 /* Export QE common operations */
 extern void qe_reset(void);
+
+/* QE PIO */
+#define QE_PIO_PINS 32
+
+struct qe_pio_regs {
+	__be32	cpodr;		/* Open drain register */
+	__be32	cpdata;		/* Data register */
+	__be32	cpdir1;		/* Direction register */
+	__be32	cpdir2;		/* Direction register */
+	__be32	cppar1;		/* Pin assignment register */
+	__be32	cppar2;		/* Pin assignment register */
+#ifdef CONFIG_PPC_85xx
+	u8	pad[8];
+#endif
+};
+
 extern int par_io_init(struct device_node *np);
 extern int par_io_of_config(struct device_node *np);
+extern void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin,
+				int dir, int open_drain, int assignment,
+				int has_irq);
 extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
 			     int assignment, int has_irq);
 extern int par_io_data_set(u8 port, u8 pin, u8 val);
