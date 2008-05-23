@@ -901,25 +901,4 @@ config SND_YMFPCI_FIRMWARE_IN_KERNEL
 	  for the YMFPCI driver.  If you choose N here, you need to
 	  install the firmware files from the alsa-firmware package.
 
-config SND_AC97_POWER_SAVE
-	bool "AC97 Power-Saving Mode"
-	depends on SND_AC97_CODEC && EXPERIMENTAL
-	default n
-	help
-	  Say Y here to enable the aggressive power-saving support of
-	  AC97 codecs.  In this mode, the power-mode is dynamically
-	  controlled at each open/close.
-
-	  The mode is activated by passing power_save=1 option to
-	  snd-ac97-codec driver.  You can toggle it dynamically over
-	  sysfs, too.
-
-config SND_AC97_POWER_SAVE_DEFAULT
-	int "Default time-out for AC97 power-save mode"
-	depends on SND_AC97_POWER_SAVE
-	default 0
-	help
-	  The default time-out value in seconds for AC97 automatic
-	  power-save mode.  0 means to disable the power-save mode.
-
 endif	# SND_PCI
