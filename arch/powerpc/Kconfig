@@ -538,6 +538,12 @@ config FSL_LBC
 	help
 	  Freescale Localbus support
 
+config FSL_GTM
+	bool
+	depends on PPC_83xx || QUICC_ENGINE || CPM2
+	help
+	  Freescale General-purpose Timers support
+
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
 	bool
