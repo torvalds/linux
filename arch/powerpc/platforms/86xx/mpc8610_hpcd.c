@@ -70,7 +70,8 @@ static void __init mpc86xx_hpcd_init_irq(void)
 
 	/* Alloc mpic structure and per isu has 16 INT entries. */
 	mpic1 = mpic_alloc(np, res.start,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
+			MPIC_PRIMARY | MPIC_WANTS_RESET |
+			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS,
 			0, 256, " MPIC     ");
 	BUG_ON(mpic1 == NULL);
 
