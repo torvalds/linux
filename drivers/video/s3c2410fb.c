@@ -1,75 +1,15 @@
-/*
- * linux/drivers/video/s3c2410fb.c
- *	Copyright (c) Arnaud Patard, Ben Dooks
+/* linux/drivers/video/s3c2410fb.c
+ *	Copyright (c) 2004,2005 Arnaud Patard
+ *	Copyright (c) 2004-2008 Ben Dooks
+ *
+ * S3C2410 LCD Framebuffer Driver
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive for
  * more details.
  *
- *	    S3C2410 LCD Controller Frame Buffer Driver
- *	    based on skeletonfb.c, sa1100fb.c and others
- *
- * ChangeLog
- * 2005-04-07: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - u32 state -> pm_message_t state
- *      - S3C2410_{VA,SZ}_LCD -> S3C24XX
- *
- * 2005-03-15: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - Removed the ioctl
- *      - use readl/writel instead of __raw_writel/__raw_readl
- *
- * 2004-12-04: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - Added the possibility to set on or off the
- *      debugging messages
- *      - Replaced 0 and 1 by on or off when reading the
- *      /sys files
- *
- * 2005-03-23: Ben Dooks <ben-linux@fluff.org>
- *	- added non 16bpp modes
- *	- updated platform information for range of x/y/bpp
- *	- add code to ensure palette is written correctly
- *	- add pixel clock divisor control
- *
- * 2004-11-11: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- Removed the use of currcon as it no more exists
- *	- Added LCD power sysfs interface
- *
- * 2004-11-03: Ben Dooks <ben-linux@fluff.org>
- *	- minor cleanups
- *	- add suspend/resume support
- *	- s3c2410fb_setcolreg() not valid in >8bpp modes
- *	- removed last CONFIG_FB_S3C2410_FIXED
- *	- ensure lcd controller stopped before cleanup
- *	- added sysfs interface for backlight power
- *	- added mask for gpio configuration
- *	- ensured IRQs disabled during GPIO configuration
- *	- disable TPAL before enabling video
- *
- * 2004-09-20: Arnaud Patard <arnaud.patard@rtp-net.org>
- *      - Suppress command line options
- *
- * 2004-09-15: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- code cleanup
- *
- * 2004-09-07: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- Renamed from h1940fb.c to s3c2410fb.c
- *	- Add support for different devices
- *	- Backlight support
- *
- * 2004-09-05: Herbert Pötzl <herbert@13thfloor.at>
- *	- added clock (de-)allocation code
- *	- added fixem fbmem option
- *
- * 2004-07-27: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- code cleanup
- *	- added a forgotten return in h1940fb_init
- *
- * 2004-07-19: Herbert Pötzl <herbert@13thfloor.at>
- *	- code cleanup and extended debugging
- *
- * 2004-07-15: Arnaud Patard <arnaud.patard@rtp-net.org>
- *	- First version
- */
+ * Driver based on skeletonfb.c, sa1100fb.c and others.
+*/
 
 #include <linux/module.h>
 #include <linux/kernel.h>
