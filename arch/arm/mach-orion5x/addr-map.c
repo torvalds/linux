@@ -155,8 +155,8 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 			w = &orion5x_mbus_dram_info.cs[cs++];
 			w->cs_index = i;
 			w->mbus_attr = 0xf & ~(1 << i);
-			w->base = base & 0xff000000;
-			w->size = (size | 0x00ffffff) + 1;
+			w->base = base & 0xffff0000;
+			w->size = (size | 0x0000ffff) + 1;
 		}
 	}
 	orion5x_mbus_dram_info.num_cs = cs;
