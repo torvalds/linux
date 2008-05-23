@@ -106,6 +106,16 @@ void __init setup_pci_cmd(struct pci_controller *hose)
 	}
 }
 
+#ifdef CONFIG_PCI_MSI
+void __init setup_pci_pcsrbar(struct pci_controller *hose)
+{
+	phys_addr_t immr_base;
+
+	immr_base = get_immrbase();
+	early_write_config_dword(hose, 0, 0, PCI_BASE_ADDRESS_0, immr_base);
+}
+#endif
+
 static int fsl_pcie_bus_fixup;
 
 static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
@@ -211,6 +221,10 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	/* Setup PEX window registers */
 	setup_pci_atmu(hose, &rsrc);
 
+	/* Setup PEXCSRBAR */
+#ifdef CONFIG_PCI_MSI
+	setup_pci_pcsrbar(hose);
+#endif
 	return 0;
 }
 
