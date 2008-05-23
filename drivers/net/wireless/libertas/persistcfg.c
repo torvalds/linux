@@ -188,7 +188,7 @@ static ssize_t mesh_id_get(struct device *dev, struct device_attribute *attr,
 		return ret;
 
 	if (defs.meshie.val.mesh_id_len > IW_ESSID_MAX_SIZE) {
-		printk(KERN_ERR "Inconsistent mesh ID length");
+		lbs_pr_err("inconsistent mesh ID length");
 		defs.meshie.val.mesh_id_len = IW_ESSID_MAX_SIZE;
 	}
 
