@@ -425,7 +425,7 @@ static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 	char buf[64];
 
 	sprintf(buf, "NMI received for unknown reason %02x\n", reason);
-	die_nmi(buf, regs, 0);
+	die_nmi(buf, regs, 1); /* Always panic here */
 	return 0;
 }
 
