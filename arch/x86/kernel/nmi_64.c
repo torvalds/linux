@@ -98,7 +98,7 @@ int __init check_nmi_watchdog(void)
 		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
 #endif
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	for_each_possible_cpu(cpu)
 		prev_nmi_count[cpu] = cpu_pda(cpu)->__nmi_count;
 	local_irq_enable();
 	mdelay((20*1000)/nmi_hz); // wait 20 ticks
