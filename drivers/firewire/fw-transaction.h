@@ -20,12 +20,12 @@
 #define __fw_transaction_h
 
 #include <linux/device.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
-#include <linux/list.h>
-#include <linux/fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/firewire-constants.h>
+#include <linux/list.h>
+#include <linux/spinlock_types.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 #include <asm/atomic.h>
 
 #define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
