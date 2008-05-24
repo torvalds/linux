@@ -255,7 +255,7 @@ int ptep_test_and_clear_young(struct vm_area_struct *vma,
 
 	if (pte_young(*ptep))
 		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
-					 &ptep->pte);
+					 (unsigned long *) &ptep->pte);
 
 	if (ret)
 		pte_update(vma->vm_mm, addr, ptep);
