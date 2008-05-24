@@ -106,9 +106,9 @@ int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 		do_realtime((struct timespec *)tv);
 		tv->tv_usec /= 1000;
 		if (unlikely(tz != NULL)) {
-			/* This relies on gcc inlining the memcpy. We'll notice
-			   if it ever fails to do so. */
-			memcpy(tz, &gtod->sys_tz, sizeof(struct timezone));
+			/* Avoid memcpy. Some old compilers fail to inline it */
+			tz->tz_minuteswest = gtod->sys_tz.tz_minuteswest;
+			tz->tz_dsttime = gtod->sys_tz.tz_dsttime;
 		}
 		return 0;
 	}
