@@ -248,7 +248,7 @@ void acpi_nmi_enable(void)
 
 static void __acpi_nmi_disable(void *__unused)
 {
-	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
+	apic_write_around(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
 }
 
 /*
