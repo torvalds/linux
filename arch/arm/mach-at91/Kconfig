@@ -170,6 +170,20 @@ config MACH_SAM9_L9260
 	  Select this if you are using Olimex's SAM9-L9260 board based on the Atmel AT91SAM9260.
 	  <http://www.olimex.com/dev/sam9-L9260.html>
 
+config MACH_USB_A9260
+	bool "CALAO USB-A9260"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using a Calao Systems USB-A9260.
+	  <http://www.calao-systems.com>
+
+config MACH_QIL_A9260
+	bool "CALAO QIL-A9260 board"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using a Calao Systems QIL-A9260 Board.
+	  <http://www.calao-systems.com>
+
 endif
 
 # ----------------------------------------------------------
@@ -199,6 +213,13 @@ config MACH_AT91SAM9263EK
 	help
 	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
+
+config MACH_USB_A9263
+	bool "CALAO USB-A9263"
+	depends on ARCH_AT91SAM9263
+	help
+	  Select this if you are using a Calao Systems USB-A9263.
+	  <http://www.calao-systems.com>
 
 endif
 
