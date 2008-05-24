@@ -231,7 +231,7 @@ static inline void boot_delay_msec(void)
 /*
  * Return the number of unread characters in the log buffer.
  */
-int log_buf_get_len(void)
+static int log_buf_get_len(void)
 {
 	return logged_chars;
 }
@@ -270,7 +270,7 @@ int log_buf_copy(char *dest, int idx, int len)
 /*
  * Extract a single character from the log buffer.
  */
-int log_buf_read(int idx)
+static int log_buf_read(int idx)
 {
 	char ret;
 
