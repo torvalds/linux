@@ -1633,7 +1633,7 @@ inline int task_curr(const struct task_struct *p)
 }
 
 /* Used instead of source_load when we know the type == 0 */
-unsigned long weighted_cpuload(const int cpu)
+static unsigned long weighted_cpuload(const int cpu)
 {
 	return cpu_rq(cpu)->load.weight;
 }
