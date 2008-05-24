@@ -126,6 +126,12 @@ config MACH_ECBAT91
 	  Select this if you are using emQbit's ECB_AT91 board.
 	  <http://wiki.emqbit.com/free-ecb-at91>
 
+config MACH_YL9200
+	bool "ucDragon YL-9200"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using the ucDragon YL-9200 board.
+
 endif
 
 # ----------------------------------------------------------
