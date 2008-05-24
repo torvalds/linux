@@ -198,6 +198,13 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 	if (root->defrag_progress.objectid == 0) {
+		u32 nritems;
+
+		nritems = btrfs_header_nritems(root->node);
+		root->defrag_max.objectid = 0;
+		/* from above we know this is not a leaf */
+		btrfs_node_key_to_cpu(root->node, &root->defrag_max,
+				      nritems - 1);
 		extent_buffer_get(root->node);
 		ret = btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
 		BUG_ON(ret);
@@ -254,6 +261,16 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 out:
 	if (path)
 		btrfs_free_path(path);
+	if (ret == -EAGAIN) {
+		if (root->defrag_max.objectid > root->defrag_progress.objectid)
+			goto done;
+		if (root->defrag_max.type > root->defrag_progress.type)
+			goto done;
+		if (root->defrag_max.offset > root->defrag_progress.offset)
+			goto done;
+		ret = 0;
+	}
+done:
 	if (ret != -EAGAIN) {
 		memset(&root->defrag_progress, 0,
 		       sizeof(root->defrag_progress));

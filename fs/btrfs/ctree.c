@@ -363,7 +363,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			other = btrfs_node_blockptr(parent, i - 1);
 			close = close_blocks(blocknr, other, blocksize);
 		}
-		if (close && i < end_slot - 2) {
+		if (!close && i < end_slot - 2) {
 			other = btrfs_node_blockptr(parent, i + 1);
 			close = close_blocks(blocknr, other, blocksize);
 		}

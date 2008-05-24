@@ -750,10 +750,6 @@ static int btrfs_rm_dev_item(struct btrfs_root *root,
 	if (bdev == fs_devices->latest_bdev)
 		fs_devices->latest_bdev = next_dev->bdev;
 
-	total_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
-	btrfs_set_super_total_bytes(&root->fs_info->super_copy,
-				    total_bytes - device->total_bytes);
-
 	total_bytes = btrfs_super_num_devices(&root->fs_info->super_copy);
 	btrfs_set_super_num_devices(&root->fs_info->super_copy,
 				    total_bytes - 1);
@@ -849,6 +845,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 
 	}
 	root->fs_info->fs_devices->num_devices--;
+	root->fs_info->fs_devices->open_devices--;
 
 	ret = btrfs_shrink_device(device, 0);
 	if (ret)
@@ -873,7 +870,6 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (device->bdev) {
 		/* one close for the device struct or super_block */
 		close_bdev_excl(device->bdev);
-		root->fs_info->fs_devices->open_devices--;
 	}
 	if (bdev) {
 		/* one close for us */
@@ -1450,7 +1446,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		return -ENOSPC;
 
 	if (type & (BTRFS_BLOCK_GROUP_RAID0)) {
-		num_stripes = btrfs_super_num_devices(&info->super_copy);
+		num_stripes = extent_root->fs_info->fs_devices->open_devices;
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_DUP)) {
@@ -1459,13 +1455,13 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
 		num_stripes = min_t(u64, 2,
-				  btrfs_super_num_devices(&info->super_copy));
+			    extent_root->fs_info->fs_devices->open_devices);
 		if (num_stripes < 2)
 			return -ENOSPC;
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID10)) {
-		num_stripes = btrfs_super_num_devices(&info->super_copy);
+		num_stripes = extent_root->fs_info->fs_devices->open_devices;
 		if (num_stripes < 4)
 			return -ENOSPC;
 		num_stripes &= ~(u32)1;

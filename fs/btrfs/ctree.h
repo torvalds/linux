@@ -464,6 +464,7 @@ struct btrfs_space_info {
 	u64 bytes_used;
 	u64 bytes_pinned;
 	int full;
+	int force_alloc;
 	struct list_head list;
 };
 
@@ -589,6 +590,7 @@ struct btrfs_root {
 	int ref_cows;
 	int track_dirty;
 	struct btrfs_key defrag_progress;
+	struct btrfs_key defrag_max;
 	int defrag_running;
 	int defrag_level;
 	char *name;
