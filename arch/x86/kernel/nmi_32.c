@@ -51,6 +51,17 @@ static DEFINE_PER_CPU(short, wd_enabled);
 
 static int endflag __initdata = 0;
 
+/* Run after command line and cpu_init init, but before all other checks */
+void nmi_watchdog_default(void)
+{
+	if (nmi_watchdog != NMI_DEFAULT)
+		return;
+	if (lapic_watchdog_ok())
+		nmi_watchdog = NMI_LOCAL_APIC;
+	else
+		nmi_watchdog = NMI_IO_APIC;
+}
+
 #ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
  * the CPU is idle. To make sure the NMI watchdog really ticks on all
@@ -437,12 +448,8 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 		return -EIO;
 	}
 
-	if (nmi_watchdog == NMI_DEFAULT) {
-		if (lapic_watchdog_ok())
-			nmi_watchdog = NMI_LOCAL_APIC;
-		else
-			nmi_watchdog = NMI_IO_APIC;
-	}
+	/* if nmi_watchdog is not set yet, then set it */
+	nmi_watchdog_default();
 
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		if (nmi_watchdog_enabled)
