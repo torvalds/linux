@@ -1351,7 +1351,6 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	struct pxafb_info *fbi;
 	void *addr;
 	struct pxafb_mach_info *inf = dev->platform_data;
-	struct pxafb_mode_info *mode = inf->modes;
 
 	/* Alloc the pxafb_info and pseudo_palette in one step */
 	fbi = kmalloc(sizeof(struct pxafb_info) + sizeof(u32) * 16, GFP_KERNEL);
