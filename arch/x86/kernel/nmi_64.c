@@ -47,6 +47,30 @@ static unsigned int nmi_hz = HZ;
 
 static DEFINE_PER_CPU(short, wd_enabled);
 
+static int endflag __initdata = 0;
+
+static inline unsigned int get_nmi_count(int cpu)
+{
+	return cpu_pda(cpu)->__nmi_count;
+}
+
+static inline int mce_in_progress(void)
+{
+#ifdef CONFIG_X86_MCE
+	return atomic_read(&mce_entry) > 0;
+#endif
+	return 0;
+}
+
+/*
+ * Take the local apic timer and PIT/HPET into account. We don't
+ * know which one is active, when we have highres/dyntick on
+ */
+static inline unsigned int get_timer_irqs(int cpu)
+{
+	return read_pda(apic_timer_irqs) + read_pda(irq0_irqs);
+}
+
 /* Run after command line and cpu_init init, but before all other checks */
 void nmi_watchdog_default(void)
 {
@@ -54,8 +78,6 @@ void nmi_watchdog_default(void)
 		return;
 	nmi_watchdog = NMI_NONE;
 }
-
-static int endflag __initdata = 0;
 
 #ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
@@ -99,19 +121,19 @@ int __init check_nmi_watchdog(void)
 #endif
 
 	for_each_possible_cpu(cpu)
-		prev_nmi_count[cpu] = cpu_pda(cpu)->__nmi_count;
+		prev_nmi_count[cpu] = get_nmi_count(cpu);
 	local_irq_enable();
 	mdelay((20*1000)/nmi_hz); // wait 20 ticks
 
 	for_each_online_cpu(cpu) {
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
-		if (cpu_pda(cpu)->__nmi_count - prev_nmi_count[cpu] <= 5) {
+		if (get_nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
 			printk(KERN_WARNING "WARNING: CPU#%d: NMI "
 			       "appears to be stuck (%d->%d)!\n",
 				cpu,
 				prev_nmi_count[cpu],
-				cpu_pda(cpu)->__nmi_count);
+				get_nmi_count(cpu));
 			per_cpu(wd_enabled, cpu) = 0;
 			atomic_dec(&nmi_active);
 		}
@@ -327,7 +349,8 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		touched = 1;
 	}
 
-	sum = read_pda(apic_timer_irqs) + read_pda(irq0_irqs);
+	sum = get_timer_irqs(cpu);
+
 	if (__get_cpu_var(nmi_touch)) {
 		__get_cpu_var(nmi_touch) = 0;
 		touched = 1;
@@ -343,12 +366,9 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		cpu_clear(cpu, backtrace_mask);
 	}
 
-#ifdef CONFIG_X86_MCE
-	/* Could check oops_in_progress here too, but it's safer
-	   not too */
-	if (atomic_read(&mce_entry) > 0)
+	if (mce_in_progress())
 		touched = 1;
-#endif
+
 	/* if the apic timer isn't firing, this cpu isn't doing much */
 	if (!touched && __get_cpu_var(last_irq_sum) == sum) {
 		/*

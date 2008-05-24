@@ -51,6 +51,26 @@ static DEFINE_PER_CPU(short, wd_enabled);
 
 static int endflag __initdata = 0;
 
+static inline unsigned int get_nmi_count(int cpu)
+{
+	return nmi_count(cpu);
+}
+
+static inline int mce_in_progress(void)
+{
+	return 0;
+}
+
+/*
+ * Take the local apic timer and PIT/HPET into account. We don't
+ * know which one is active, when we have highres/dyntick on
+ */
+static inline unsigned int get_timer_irqs(int cpu)
+{
+	return per_cpu(irq_stat, cpu).apic_timer_irqs +
+		per_cpu(irq_stat, cpu).irq0_irqs;
+}
+
 /* Run after command line and cpu_init init, but before all other checks */
 void nmi_watchdog_default(void)
 {
@@ -104,19 +124,19 @@ int __init check_nmi_watchdog(void)
 #endif
 
 	for_each_possible_cpu(cpu)
-		prev_nmi_count[cpu] = nmi_count(cpu);
+		prev_nmi_count[cpu] = get_nmi_count(cpu);
 	local_irq_enable();
 	mdelay((20*1000)/nmi_hz); // wait 20 ticks
 
 	for_each_online_cpu(cpu) {
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
-		if (nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
+		if (get_nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
 			printk(KERN_WARNING "WARNING: CPU#%d: NMI "
 				"appears to be stuck (%d->%d)!\n",
 				cpu,
 				prev_nmi_count[cpu],
-				nmi_count(cpu));
+				get_nmi_count(cpu));
 			per_cpu(wd_enabled, cpu) = 0;
 			atomic_dec(&nmi_active);
 		}
@@ -355,6 +375,13 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		touched = 1;
 	}
 
+	sum = get_timer_irqs(cpu);
+
+	if (__get_cpu_var(nmi_touch)) {
+		__get_cpu_var(nmi_touch) = 0;
+		touched = 1;
+	}
+
 	if (cpu_isset(cpu, backtrace_mask)) {
 		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
 
@@ -365,16 +392,9 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		cpu_clear(cpu, backtrace_mask);
 	}
 
-	/*
-	 * Take the local apic timer and PIT/HPET into account. We don't
-	 * know which one is active, when we have highres/dyntick on
-	 */
-	sum = per_cpu(irq_stat, cpu).apic_timer_irqs +
-		per_cpu(irq_stat, cpu).irq0_irqs;
-	if (__get_cpu_var(nmi_touch)) {
-		__get_cpu_var(nmi_touch) = 0;
+	/* Could check oops_in_progress here too, but it's safer not to */
+	if (mce_in_progress())
 		touched = 1;
-	}
 
 	/* if the none of the timers isn't firing, this cpu isn't doing much */
 	if (!touched && __get_cpu_var(last_irq_sum) == sum) {
