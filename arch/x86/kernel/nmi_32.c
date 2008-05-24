@@ -42,6 +42,7 @@ static cpumask_t backtrace_mask = CPU_MASK_NONE;
  *  0: the lapic NMI watchdog is disabled, but can be enabled
  */
 atomic_t nmi_active = ATOMIC_INIT(0);		/* oprofile uses this */
+static int panic_on_timeout;
 
 unsigned int nmi_watchdog = NMI_DEFAULT;
 static unsigned int nmi_hz = HZ;
@@ -139,6 +140,14 @@ error:
 static int __init setup_nmi_watchdog(char *str)
 {
 	int nmi;
+
+	if (!strncmp(str, "panic", 5)) {
+		panic_on_timeout = 1;
+		str = strchr(str, ',');
+		if (!str)
+			return 1;
+		++str;
+	}
 
 	get_option(&str, &nmi);
 
@@ -374,7 +383,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
 			die_nmi("BUG: NMI Watchdog detected LOCKUP",
-				regs, 0);
+				regs, panic_on_timeout);
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
 		local_set(&__get_cpu_var(alert_counter), 0);
