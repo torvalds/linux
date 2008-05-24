@@ -320,8 +320,6 @@ void touch_nmi_watchdog(void)
 }
 EXPORT_SYMBOL(touch_nmi_watchdog);
 
-extern void die_nmi(struct pt_regs *, const char *msg);
-
 notrace __kprobes int
 nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 {
@@ -375,7 +373,8 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 			/*
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
-			die_nmi(regs, "BUG: NMI Watchdog detected LOCKUP");
+			die_nmi("BUG: NMI Watchdog detected LOCKUP",
+				regs, 0);
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
 		local_set(&__get_cpu_var(alert_counter), 0);
@@ -406,7 +405,7 @@ static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 	char buf[64];
 
 	sprintf(buf, "NMI received for unknown reason %02x\n", reason);
-	die_nmi(regs, buf);
+	die_nmi(buf, regs, 0);
 	return 0;
 }
 
