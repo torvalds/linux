@@ -40,24 +40,24 @@
 #include "generic.h"
 
 
-/*
- * Serial port configuration.
- *    0 .. 3 = USART0 .. USART3
- *    4      = DBGU
- */
-static struct at91_uart_config __initdata eb9200_uart_config = {
-	.console_tty	= 0,				/* ttyS0 */
-	.nr_tty		= 2,
-	.tty_map	= { 4, 1, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
-};
-
 static void __init eb9200_map_io(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91rm9200_initialize(18432000, AT91RM9200_BGA);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&eb9200_uart_config);
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+			| ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
+			| ATMEL_UART_RI);
+
+	/* USART2 on ttyS2. (Rx, Tx) - IRDA */
+	at91_register_uart(AT91RM9200_ID_US2, 2, 0);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
 }
 
 static void __init eb9200_init_irq(void)
