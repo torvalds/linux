@@ -201,7 +201,7 @@ ftrace_ip_in_hash(unsigned long ip, unsigned long key)
 	struct hlist_node *t;
 	int found = 0;
 
-	hlist_for_each_entry(p, t, &ftrace_hash[key], node) {
+	hlist_for_each_entry_rcu(p, t, &ftrace_hash[key], node) {
 		if (p->ip == ip) {
 			found = 1;
 			break;
@@ -214,7 +214,7 @@ ftrace_ip_in_hash(unsigned long ip, unsigned long key)
 static inline void
 ftrace_add_hash(struct dyn_ftrace *node, unsigned long key)
 {
-	hlist_add_head(&node->node, &ftrace_hash[key]);
+	hlist_add_head_rcu(&node->node, &ftrace_hash[key]);
 }
 
 static void ftrace_free_rec(struct dyn_ftrace *rec)
