@@ -30,7 +30,6 @@
 
 int unknown_nmi_panic;
 int nmi_watchdog_enabled;
-int panic_on_unrecovered_nmi;
 
 static cpumask_t backtrace_mask = CPU_MASK_NONE;
 
@@ -381,30 +380,6 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		break;
 	}
 	return rc;
-}
-
-static unsigned ignore_nmis;
-
-asmlinkage notrace __kprobes void
-do_nmi(struct pt_regs *regs, long error_code)
-{
-	nmi_enter();
-	add_pda(__nmi_count,1);
-	if (!ignore_nmis)
-		default_do_nmi(regs);
-	nmi_exit();
-}
-
-void stop_nmi(void)
-{
-	acpi_nmi_disable();
-	ignore_nmis++;
-}
-
-void restart_nmi(void)
-{
-	ignore_nmis--;
-	acpi_nmi_enable();
 }
 
 #ifdef CONFIG_SYSCTL
