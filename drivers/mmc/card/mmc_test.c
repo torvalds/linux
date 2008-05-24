@@ -743,7 +743,7 @@ static const struct mmc_test_case mmc_test_cases[] = {
 
 static struct mutex mmc_test_lock;
 
-static void mmc_test_run(struct mmc_test_card *test)
+static void mmc_test_run(struct mmc_test_card *test, int testcase)
 {
 	int i, ret;
 
@@ -753,6 +753,9 @@ static void mmc_test_run(struct mmc_test_card *test)
 	mmc_claim_host(test->card->host);
 
 	for (i = 0;i < ARRAY_SIZE(mmc_test_cases);i++) {
+		if (testcase && ((i + 1) != testcase))
+			continue;
+
 		printk(KERN_INFO "%s: Test case %d. %s...\n",
 			mmc_hostname(test->card->host), i + 1,
 			mmc_test_cases[i].name);
@@ -824,8 +827,11 @@ static ssize_t mmc_test_store(struct device *dev,
 {
 	struct mmc_card *card;
 	struct mmc_test_card *test;
+	int testcase;
 
 	card = container_of(dev, struct mmc_card, dev);
+
+	testcase = simple_strtol(buf, NULL, 10);
 
 	test = kzalloc(sizeof(struct mmc_test_card), GFP_KERNEL);
 	if (!test)
@@ -836,7 +842,7 @@ static ssize_t mmc_test_store(struct device *dev,
 	test->buffer = kzalloc(BUFFER_SIZE, GFP_KERNEL);
 	if (test->buffer) {
 		mutex_lock(&mmc_test_lock);
-		mmc_test_run(test);
+		mmc_test_run(test, testcase);
 		mutex_unlock(&mmc_test_lock);
 	}
 
