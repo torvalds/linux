@@ -614,7 +614,9 @@ die_nmi(char *str, struct pt_regs *regs, int do_panic)
 	 * We are in trouble anyway, lets at least try
 	 * to get a message out.
 	 */
-	printk(str, smp_processor_id());
+	printk(KERN_EMERG "%s", str);
+	printk(" on CPU%d, ip %08lx, registers:\n",
+		smp_processor_id(), regs->ip);
 	show_registers(regs);
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
