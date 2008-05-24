@@ -268,19 +268,6 @@ int log_buf_copy(char *dest, int idx, int len)
 }
 
 /*
- * Extract a single character from the log buffer.
- */
-static int log_buf_read(int idx)
-{
-	char ret;
-
-	if (log_buf_copy(&ret, idx, 1) == 1)
-		return ret;
-	else
-		return -1;
-}
-
-/*
  * Commands to do_syslog:
  *
  * 	0 -- Close the log.  Currently a NOP.
