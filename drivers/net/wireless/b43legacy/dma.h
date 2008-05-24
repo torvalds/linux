@@ -321,8 +321,7 @@ void b43legacy_dma_get_tx_stats(struct b43legacy_wldev *dev,
 }
 static inline
 int b43legacy_dma_tx(struct b43legacy_wldev *dev,
-		     struct sk_buff *skb,
-		     struct ieee80211_tx_control *ctl)
+		     struct sk_buff *skb)
 {
 	return 0;
 }
