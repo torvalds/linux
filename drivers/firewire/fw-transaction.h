@@ -80,6 +80,9 @@
 #define CSR_SPEED_MAP			0x2000
 #define CSR_SPEED_MAP_END		0x3000
 
+#define BROADCAST_CHANNEL_INITIAL	(1 << 31 | 31)
+#define BROADCAST_CHANNEL_VALID		(1 << 30)
+
 #define fw_notify(s, args...) printk(KERN_NOTICE KBUILD_MODNAME ": " s, ## args)
 #define fw_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
 
@@ -236,6 +239,7 @@ struct fw_card {
 	 */
 	int self_id_count;
 	u32 topology_map[252 + 3];
+	u32 broadcast_channel;
 
 	spinlock_t lock; /* Take this lock when handling the lists in
 			  * this struct. */
