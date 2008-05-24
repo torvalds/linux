@@ -453,7 +453,7 @@ static void ftrace_shutdown_replenish(void)
 	ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
 }
 
-static void
+static int
 ftrace_code_disable(struct dyn_ftrace *rec)
 {
 	unsigned long ip;
@@ -469,7 +469,9 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 	if (failed) {
 		rec->flags |= FTRACE_FL_FAILED;
 		ftrace_free_rec(rec);
+		return 0;
 	}
+	return 1;
 }
 
 static int __ftrace_modify_code(void *data)
@@ -617,8 +619,8 @@ static int __ftrace_update_code(void *ignore)
 
 		/* all CPUS are stopped, we are safe to modify code */
 		hlist_for_each_entry(p, t, &head, node) {
-			ftrace_code_disable(p);
-			ftrace_update_cnt++;
+			if (ftrace_code_disable(p))
+				ftrace_update_cnt++;
 		}
 
 	}
