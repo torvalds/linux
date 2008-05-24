@@ -108,13 +108,7 @@ int __init check_nmi_watchdog(void)
 	local_irq_enable();
 	mdelay((20*1000)/nmi_hz); // wait 20 ticks
 
-	for_each_possible_cpu(cpu) {
-#ifdef CONFIG_SMP
-		/* Check cpu_callin_map here because that is set
-		   after the timer is started. */
-		if (!cpu_isset(cpu, cpu_callin_map))
-			continue;
-#endif
+	for_each_online_cpu(cpu) {
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
 		if (nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
