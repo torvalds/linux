@@ -497,7 +497,6 @@ dummy_enable_phys_dma(struct fw_card *card,
 }
 
 static struct fw_card_driver dummy_driver = {
-	.name            = "dummy",
 	.enable          = dummy_enable,
 	.update_phy_reg  = dummy_update_phy_reg,
 	.set_config_rom  = dummy_set_config_rom,

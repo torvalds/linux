@@ -352,8 +352,6 @@ int
 fw_iso_context_stop(struct fw_iso_context *ctx);
 
 struct fw_card_driver {
-	const char *name;
-
 	/*
 	 * Enable the given card with the given initial config rom.
 	 * This function is expected to activate the card, and either
