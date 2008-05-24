@@ -19,14 +19,15 @@
 #ifndef __fw_transaction_h
 #define __fw_transaction_h
 
+#include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/firewire-constants.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/spinlock_types.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <asm/atomic.h>
 
 #define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
 #define TCODE_IS_BLOCK_PACKET(tcode)	(((tcode) &  1) != 0)
@@ -219,7 +220,8 @@ extern struct bus_type fw_bus_type;
 struct fw_card {
 	const struct fw_card_driver *driver;
 	struct device *device;
-	atomic_t device_count;
+	struct kref kref;
+	struct completion done;
 
 	int node_id;
 	int generation;
@@ -259,6 +261,20 @@ struct fw_card {
 	int bm_retries;
 	int bm_generation;
 };
+
+static inline struct fw_card *fw_card_get(struct fw_card *card)
+{
+	kref_get(&card->kref);
+
+	return card;
+}
+
+void fw_card_release(struct kref *kref);
+
+static inline void fw_card_put(struct fw_card *card)
+{
+	kref_put(&card->kref, fw_card_release);
+}
 
 /*
  * The iso packet format allows for an immediate header/payload part
