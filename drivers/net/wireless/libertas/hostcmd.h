@@ -500,6 +500,7 @@ struct cmd_ds_802_11_data_rate {
 };
 
 struct cmd_ds_802_11_rate_adapt_rateset {
+	struct cmd_header hdr;
 	__le16 action;
 	__le16 enablehwauto;
 	__le16 bitmap;
@@ -703,7 +704,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_rf_tx_power txp;
 		struct cmd_ds_802_11_rf_antenna rant;
 		struct cmd_ds_802_11_monitor_mode monitor;
-		struct cmd_ds_802_11_rate_adapt_rateset rateset;
 		struct cmd_ds_802_11_ad_hoc_join adj;
 		struct cmd_ds_802_11_rssi rssi;
 		struct cmd_ds_802_11_rssi_rsp rssirsp;

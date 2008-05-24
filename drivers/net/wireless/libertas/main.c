@@ -1044,7 +1044,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
 	priv->radioon = RADIO_ON;
-	priv->auto_rate = 1;
+	priv->enablehwauto = 1;
 	priv->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 	priv->psmode = LBS802_11POWERMODECAM;
 	priv->psstate = PS_STATE_FULL_POWER;

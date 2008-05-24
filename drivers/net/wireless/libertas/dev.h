@@ -237,8 +237,8 @@ struct lbs_private {
 	/** 802.11 statistics */
 //	struct cmd_DS_802_11_GET_STAT wlan802_11Stat;
 
-	u16 enablehwauto;
-	u16 ratebitmap;
+	uint16_t enablehwauto;
+	uint16_t ratebitmap;
 
 	u32 fragthsd;
 	u32 rtsthsd;
@@ -296,7 +296,6 @@ struct lbs_private {
 
 	/** data rate stuff */
 	u8 cur_rate;
-	u8 auto_rate;
 
 	/** RF calibration data */
 

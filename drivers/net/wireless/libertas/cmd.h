@@ -48,6 +48,8 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria);
 int lbs_suspend(struct lbs_private *priv);
 void lbs_resume(struct lbs_private *priv);
 
+int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
+				      uint16_t cmd_action);
 int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
 				      uint16_t cmd_action, uint16_t *timeout);
 int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,

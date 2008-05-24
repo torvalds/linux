@@ -1250,7 +1250,7 @@ static int get_common_rates(struct lbs_private *priv,
 	lbs_deb_hex(LBS_DEB_JOIN, "common rates", tmp, tmp_size);
 	lbs_deb_join("TX data rate 0x%02x\n", priv->cur_rate);
 
-	if (!priv->auto_rate) {
+	if (!priv->enablehwauto) {
 		for (i = 0; i < tmp_size; i++) {
 			if (tmp[i] == priv->cur_rate)
 				goto done;

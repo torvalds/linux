@@ -203,22 +203,6 @@ static int lbs_ret_802_11_rf_tx_power(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_rate_adapt_rateset(struct lbs_private *priv,
-					      struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_rate_adapt_rateset *rates = &resp->params.rateset;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	if (rates->action == CMD_ACT_GET) {
-		priv->enablehwauto = le16_to_cpu(rates->enablehwauto);
-		priv->ratebitmap = le16_to_cpu(rates->bitmap);
-	}
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
@@ -319,10 +303,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_802_11_RESET):
 	case CMD_RET(CMD_802_11_AUTHENTICATE):
 	case CMD_RET(CMD_802_11_BEACON_STOP):
-		break;
-
-	case CMD_RET(CMD_802_11_RATE_ADAPT_RATESET):
-		ret = lbs_ret_802_11_rate_adapt_rateset(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_RSSI):

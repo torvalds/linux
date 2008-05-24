@@ -676,26 +676,60 @@ static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
-					      struct cmd_ds_command *cmd,
-					      u16 cmd_action)
+static __le16 lbs_rate_to_fw_bitmap(int rate, int lower_rates_ok)
 {
-	struct cmd_ds_802_11_rate_adapt_rateset
-	*rateadapt = &cmd->params.rateset;
+/*		Bit  	Rate
+*		15:13 Reserved
+*		12    54 Mbps
+*		11    48 Mbps
+*		10    36 Mbps
+*		9     24 Mbps
+*		8     18 Mbps
+*		7     12 Mbps
+*		6     9 Mbps
+*		5     6 Mbps
+*		4     Reserved
+*		3     11 Mbps
+*		2     5.5 Mbps
+*		1     2 Mbps
+*		0     1 Mbps
+**/
+
+	uint16_t ratemask;
+	int i = lbs_data_rate_to_fw_index(rate);
+	if (lower_rates_ok)
+		ratemask = (0x1fef >> (12 - i));
+	else
+		ratemask = (1 << i);
+	return cpu_to_le16(ratemask);
+}
+
+int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
+				      uint16_t cmd_action)
+{
+	struct cmd_ds_802_11_rate_adapt_rateset cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_rate_adapt_rateset)
-			     + S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_802_11_RATE_ADAPT_RATESET);
 
-	rateadapt->action = cpu_to_le16(cmd_action);
-	rateadapt->enablehwauto = cpu_to_le16(priv->enablehwauto);
-	rateadapt->bitmap = cpu_to_le16(priv->ratebitmap);
+	if (!priv->cur_rate && !priv->enablehwauto)
+		return -EINVAL;
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+
+	cmd.action = cpu_to_le16(cmd_action);
+	cmd.enablehwauto = cpu_to_le16(priv->enablehwauto);
+	cmd.bitmap = lbs_rate_to_fw_bitmap(priv->cur_rate, priv->enablehwauto);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RATE_ADAPT_RATESET, &cmd);
+	if (!ret && cmd_action == CMD_ACT_GET) {
+		priv->ratebitmap = le16_to_cpu(cmd.bitmap);
+		priv->enablehwauto = le16_to_cpu(cmd.enablehwauto);
+	}
+
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
+EXPORT_SYMBOL_GPL(lbs_cmd_802_11_rate_adapt_rateset);
 
 /**
  *  @brief Set the data rate
@@ -1376,11 +1410,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_RF_TX_POWER:
 		ret = lbs_cmd_802_11_rf_tx_power(cmdptr,
 						 cmd_action, pdata_buf);
-		break;
-
-	case CMD_802_11_RATE_ADAPT_RATESET:
-		ret = lbs_cmd_802_11_rate_adapt_rateset(priv,
-							 cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_MONITOR_MODE:
