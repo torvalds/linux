@@ -245,7 +245,7 @@ static inline void set_restore_sigmask(void)
 {
 	struct thread_info *ti = current_thread_info();
 	ti->status |= TS_RESTORE_SIGMASK;
-	set_bit(TIF_SIGPENDING, &ti->flags);
+	set_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags);
 }
 #endif	/* !__ASSEMBLY__ */
 
