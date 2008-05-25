@@ -81,6 +81,7 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	generic_processor_info(apicid, m->mpc_apicver);
 }
 
+#ifdef CONFIG_X86_IO_APIC
 static void __init MP_bus_info(struct mpc_config_bus *m)
 {
 	char str[7];
@@ -122,6 +123,7 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 	} else
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 }
+#endif
 
 #ifdef CONFIG_X86_IO_APIC
 
@@ -336,7 +338,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 			{
 				struct mpc_config_bus *m =
 				    (struct mpc_config_bus *)mpt;
+#ifdef CONFIG_X86_IO_APIC
 				MP_bus_info(m);
+#endif
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
@@ -472,40 +476,11 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	MP_intsrc_info(&intsrc);
 }
 
-#endif
 
-static inline void __init construct_default_ISA_mptable(int mpc_default_type)
+static void construct_ioapic_table(int mpc_default_type)
 {
-	struct mpc_config_processor processor;
-	struct mpc_config_bus bus;
-#ifdef CONFIG_X86_IO_APIC
 	struct mpc_config_ioapic ioapic;
-#endif
-	struct mpc_config_lintsrc lintsrc;
-	int linttypes[2] = { mp_ExtINT, mp_NMI };
-	int i;
-
-	/*
-	 * local APIC has default address
-	 */
-	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
-
-	/*
-	 * 2 CPUs, numbered 0 & 1.
-	 */
-	processor.mpc_type = MP_PROCESSOR;
-	/* Either an integrated APIC or a discrete 82489DX. */
-	processor.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
-	processor.mpc_cpuflag = CPU_ENABLED;
-	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) |
-	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
-	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
-	processor.mpc_reserved[0] = 0;
-	processor.mpc_reserved[1] = 0;
-	for (i = 0; i < 2; i++) {
-		processor.mpc_apicid = i;
-		MP_processor_info(&processor);
-	}
+	struct mpc_config_bus bus;
 
 	bus.mpc_type = MP_BUS;
 	bus.mpc_busid = 0;
@@ -534,7 +509,6 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 		MP_bus_info(&bus);
 	}
 
-#ifdef CONFIG_X86_IO_APIC
 	ioapic.mpc_type = MP_IOAPIC;
 	ioapic.mpc_apicid = 2;
 	ioapic.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
@@ -546,7 +520,42 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	 * We set up most of the low 16 IO-APIC pins according to MPS rules.
 	 */
 	construct_default_ioirq_mptable(mpc_default_type);
+}
+#else
+static inline void construct_ioapic_table(int mpc_default_type) { }
 #endif
+
+static inline void __init construct_default_ISA_mptable(int mpc_default_type)
+{
+	struct mpc_config_processor processor;
+	struct mpc_config_lintsrc lintsrc;
+	int linttypes[2] = { mp_ExtINT, mp_NMI };
+	int i;
+
+	/*
+	 * local APIC has default address
+	 */
+	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+
+	/*
+	 * 2 CPUs, numbered 0 & 1.
+	 */
+	processor.mpc_type = MP_PROCESSOR;
+	/* Either an integrated APIC or a discrete 82489DX. */
+	processor.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
+	processor.mpc_cpuflag = CPU_ENABLED;
+	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) |
+	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
+	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
+	processor.mpc_reserved[0] = 0;
+	processor.mpc_reserved[1] = 0;
+	for (i = 0; i < 2; i++) {
+		processor.mpc_apicid = i;
+		MP_processor_info(&processor);
+	}
+
+	construct_ioapic_table(mpc_default_type);
+
 	lintsrc.mpc_type = MP_LINTSRC;
 	lintsrc.mpc_irqflag = 0;	/* conforming */
 	lintsrc.mpc_srcbusid = 0;
