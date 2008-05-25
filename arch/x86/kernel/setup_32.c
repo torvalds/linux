@@ -479,7 +479,7 @@ static void __init reserve_initrd(void)
 	initrd_start = 0;
 
 	if (ramdisk_size >= end_of_lowmem/2) {
-		free_early(ramdisk_image, ramdisk_image + ramdisk_size - 1);
+		free_early(ramdisk_image, ramdisk_end);
 		printk(KERN_ERR "initrd too large to handle, "
 		       "disabling initrd\n");
 		return;
@@ -501,9 +501,13 @@ static void __init reserve_initrd(void)
 				 end_of_lowmem, ramdisk_size,
 				 PAGE_SIZE);
 
+	if (ramdisk_here == -1ULL)
+		panic("Cannot find place for new RAMDISK of size %lld\n",
+			 ramdisk_size);
+
 	/* Note: this includes all the lowmem currently occupied by
 	   the initrd, we rely on that fact to keep the data intact. */
-	reserve_early(ramdisk_here, ramdisk_here + ramdisk_size - 1,
+	reserve_early(ramdisk_here, ramdisk_here + ramdisk_size,
 			 "NEW RAMDISK");
 	initrd_start = ramdisk_here + PAGE_OFFSET;
 	initrd_end   = initrd_start + ramdisk_size;
@@ -579,15 +583,15 @@ void __init setup_bootmem_allocator(void)
 				 PAGE_SIZE);
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
-	reserve_early(bootmap, bootmap + bootmap_size - 1, "BOOTMAP");
+	reserve_early(bootmap, bootmap + bootmap_size, "BOOTMAP");
 #ifdef CONFIG_BLK_DEV_INITRD
 	reserve_initrd();
 #endif
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
 	printk(KERN_INFO "  low ram: %08lx - %08lx\n",
 		 min_low_pfn<<PAGE_SHIFT, max_low_pfn<<PAGE_SHIFT);
-	printk(KERN_INFO "  bootmap [%08lx -  %08lx]\n",
-		 bootmap, bootmap + bootmap_size - 1);
+	printk(KERN_INFO "  bootmap %08lx - %08lx\n",
+		 bootmap, bootmap + bootmap_size);
 	register_bootmem_low_pages(max_low_pfn);
 	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 
