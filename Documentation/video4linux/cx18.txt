@@ -1,7 +1,9 @@
 Some notes regarding the cx18 driver for the Conexant CX23418 MPEG
 encoder chip:
 
-1) The only hardware currently supported is the Hauppauge HVR-1600.
+1) The only hardware currently supported is the Hauppauge HVR-1600
+   card and the Compro VideoMate H900 (note that this card only
+   supports analog input, it has no digital tuner!).
 
 2) Some people have problems getting the i2c bus to work. Cause unknown.
    The symptom is that the eeprom cannot be read and the card is
