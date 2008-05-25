@@ -424,6 +424,10 @@ struct cx18 {
 	struct mutex i2c_bus_lock[2];
 	struct i2c_client *i2c_clients[I2C_CLIENTS_MAX];
 
+	/* gpio */
+	u32 gpio_dir;
+	u32 gpio_val;
+
 	/* v4l2 and User settings */
 
 	/* codec settings */
