@@ -159,7 +159,7 @@ static int cx18_setup_vbi_fmt(struct cx18 *cx, enum v4l2_mpeg_stream_vbi_fmt fmt
 {
 	if (!(cx->v4l2_cap & V4L2_CAP_SLICED_VBI_CAPTURE))
 		return -EINVAL;
-	if (atomic_read(&cx->capturing) > 0)
+	if (atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
 	/* First try to allocate sliced VBI buffers if needed. */
@@ -235,7 +235,7 @@ int cx18_control_ioctls(struct cx18 *cx, unsigned int cmd, void *arg)
 		CX18_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
 			struct cx2341x_mpeg_params p = cx->params;
-			int err = cx2341x_ext_ctrls(&p, atomic_read(&cx->capturing), arg, cmd);
+			int err = cx2341x_ext_ctrls(&p, atomic_read(&cx->ana_capturing), arg, cmd);
 
 			if (err)
 				return err;
@@ -295,7 +295,7 @@ int cx18_control_ioctls(struct cx18 *cx, unsigned int cmd, void *arg)
 		CX18_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
 			return cx2341x_ext_ctrls(&cx->params,
-					atomic_read(&cx->capturing), arg, cmd);
+					atomic_read(&cx->ana_capturing), arg, cmd);
 		return -EINVAL;
 	}
 
