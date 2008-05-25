@@ -55,6 +55,9 @@
 #define HEADER_GET_DATA_LENGTH(q)	(((q) >> 16) & 0xffff)
 #define HEADER_GET_EXTENDED_TCODE(q)	(((q) >> 0) & 0xffff)
 
+#define HEADER_DESTINATION_IS_BROADCAST(q) \
+	(((q) & HEADER_DESTINATION(0x3f)) == HEADER_DESTINATION(0x3f))
+
 #define PHY_CONFIG_GAP_COUNT(gap_count)	(((gap_count) << 16) | (1 << 22))
 #define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
 #define PHY_IDENTIFIER(id)		((id) << 30)
@@ -624,12 +627,9 @@ allocate_request(struct fw_packet *p)
 void
 fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 {
-	/*
-	 * Broadcast packets are reported as ACK_COMPLETE, so this
-	 * check is sufficient to ensure we don't send response to
-	 * broadcast packets or posted writes.
-	 */
-	if (request->ack != ACK_PENDING) {
+	/* unified transaction or broadcast transaction: don't respond */
+	if (request->ack != ACK_PENDING ||
+	    HEADER_DESTINATION_IS_BROADCAST(request->request_header[0])) {
 		kfree(request);
 		return;
 	}
