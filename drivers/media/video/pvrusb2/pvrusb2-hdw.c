@@ -39,6 +39,21 @@
 #define TV_MIN_FREQ     55250000L
 #define TV_MAX_FREQ    850000000L
 
+/* This defines a minimum interval that the decoder must remain quiet
+   before we are allowed to start it running. */
+#define TIME_MSEC_DECODER_WAIT 50
+
+/* This defines a minimum interval that the encoder must remain quiet
+   before we are allowed to configure it. */
+#define TIME_MSEC_ENCODER_WAIT 50
+
+/* This defines the minimum interval that the encoder must successfully run
+   before we consider that the encoder has run at least once since its
+   firmware has been loaded.  This measurement is in important for cases
+   where we can't do something until we know that the encoder has been run
+   at least once. */
+#define TIME_MSEC_ENCODER_OK 250
+
 static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = NULL};
 static DEFINE_MUTEX(pvr2_unit_mtx);
 
@@ -3608,7 +3623,9 @@ static int state_eval_encoder_config(struct pvr2_hdw *hdw)
 				   the encoder. */
 				if (!hdw->state_encoder_waitok) {
 					hdw->encoder_wait_timer.expires =
-						jiffies + (HZ*50/1000);
+						jiffies +
+						(HZ * TIME_MSEC_ENCODER_WAIT
+						 / 1000);
 					add_timer(&hdw->encoder_wait_timer);
 				}
 			}
@@ -3732,7 +3749,7 @@ static int state_eval_encoder_run(struct pvr2_hdw *hdw)
 		hdw->state_encoder_run = !0;
 		if (!hdw->state_encoder_runok) {
 			hdw->encoder_run_timer.expires =
-				jiffies + (HZ*250/1000);
+				jiffies + (HZ * TIME_MSEC_ENCODER_OK / 1000);
 			add_timer(&hdw->encoder_run_timer);
 		}
 	}
@@ -3807,7 +3824,9 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 				   but before we did the pending check. */
 				if (!hdw->state_decoder_quiescent) {
 					hdw->quiescent_timer.expires =
-						jiffies + (HZ*50/1000);
+						jiffies +
+						(HZ * TIME_MSEC_DECODER_WAIT
+						 / 1000);
 					add_timer(&hdw->quiescent_timer);
 				}
 			}
