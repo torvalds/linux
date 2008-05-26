@@ -880,6 +880,8 @@ static __init void setup_shared_info(void)
 	/* In UP this is as good a place as any to set up shared info */
 	xen_setup_vcpu_info_placement();
 #endif
+
+	xen_setup_mfn_list_list();
 }
 
 static __init void xen_pagetable_setup_done(pgd_t *base)

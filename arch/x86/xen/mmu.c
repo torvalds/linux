@@ -69,6 +69,13 @@ static unsigned long *p2m_top[TOP_ENTRIES]
 	__attribute__((section(".data.page_aligned"))) =
 		{ [ 0 ... TOP_ENTRIES - 1] = &p2m_missing[0] };
 
+/* Arrays of p2m arrays expressed in mfns used for save/restore */
+static unsigned long p2m_top_mfn[TOP_ENTRIES]
+	__attribute__((section(".bss.page_aligned")));
+
+static unsigned long p2m_top_mfn_list[TOP_ENTRIES / P2M_ENTRIES_PER_PAGE]
+	__attribute__((section(".bss.page_aligned")));
+
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
 	BUG_ON(pfn >= MAX_DOMAIN_PAGES);
@@ -80,11 +87,35 @@ static inline unsigned p2m_index(unsigned long pfn)
 	return pfn % P2M_ENTRIES_PER_PAGE;
 }
 
+/* Build the parallel p2m_top_mfn structures */
+void xen_setup_mfn_list_list(void)
+{
+	unsigned pfn, idx;
+
+	for(pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_ENTRIES_PER_PAGE) {
+		unsigned topidx = p2m_top_index(pfn);
+
+		p2m_top_mfn[topidx] = virt_to_mfn(p2m_top[topidx]);
+	}
+
+	for(idx = 0; idx < ARRAY_SIZE(p2m_top_mfn_list); idx++) {
+		unsigned topidx = idx * P2M_ENTRIES_PER_PAGE;
+		p2m_top_mfn_list[idx] = virt_to_mfn(&p2m_top_mfn[topidx]);
+	}
+
+	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+
+	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+		virt_to_mfn(p2m_top_mfn_list);
+	HYPERVISOR_shared_info->arch.max_pfn = xen_start_info->nr_pages;
+}
+
+/* Set up p2m_top to point to the domain-builder provided p2m pages */
 void __init xen_build_dynamic_phys_to_machine(void)
 {
-	unsigned pfn;
 	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
 	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
+	unsigned pfn;
 
 	for(pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
@@ -105,7 +136,7 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 	return p2m_top[topidx][idx];
 }
 
-static void alloc_p2m(unsigned long **pp)
+static void alloc_p2m(unsigned long **pp, unsigned long *mfnp)
 {
 	unsigned long *p;
 	unsigned i;
@@ -118,6 +149,8 @@ static void alloc_p2m(unsigned long **pp)
 
 	if (cmpxchg(pp, p2m_missing, p) != p2m_missing)
 		free_page((unsigned long)p);
+	else
+		*mfnp = virt_to_mfn(p);
 }
 
 void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
@@ -139,7 +172,7 @@ void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 		/* no need to allocate a page to store an invalid entry */
 		if (mfn == INVALID_P2M_ENTRY)
 			return;
-		alloc_p2m(&p2m_top[topidx]);
+		alloc_p2m(&p2m_top[topidx], &p2m_top_mfn[topidx]);
 	}
 
 	idx = p2m_index(pfn);
