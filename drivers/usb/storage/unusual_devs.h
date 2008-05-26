@@ -1716,10 +1716,12 @@ UNUSUAL_DEV(  0x22b8, 0x3010, 0x0001, 0x0001,
 /*
  * Patch by Pete Zaitcev <zaitcev@redhat.com>
  * Report by Mark Patton. Red Hat bz#208928.
+ * Added support for rev 0x0002 (Motorola ROKR W5)
+ * by Javier Smaldone <javier@smaldone.com.ar>
  */
-UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0001,
+UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0002,
 		"Motorola",
-		"RAZR V3i",
+		"RAZR V3i/ROKR W5",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
