@@ -2480,6 +2480,7 @@ struct tg3 {
 #define TG3_FLG3_ENABLE_APE		0x00000002
 #define TG3_FLG3_5761_5784_AX_FIXES	0x00000004
 #define TG3_FLG3_5701_DMA_BUG		0x00000008
+#define TG3_FLG3_USE_PHYLIB		0x00000010
 
 	struct timer_list		timer;
 	u16				timer_counter;
