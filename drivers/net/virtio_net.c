@@ -47,6 +47,9 @@ struct virtnet_info
 	/* Number of input buffers, and max we've ever had. */
 	unsigned int num, max;
 
+	/* For cleaning up after transmission. */
+	struct tasklet_struct tasklet;
+
 	/* Receive & send queues. */
 	struct sk_buff_head recv;
 	struct sk_buff_head send;
@@ -68,8 +71,13 @@ static void skb_xmit_done(struct virtqueue *svq)
 
 	/* Suppress further interrupts. */
 	svq->vq_ops->disable_cb(svq);
+
 	/* We were waiting for more output buffers. */
 	netif_wake_queue(vi->dev);
+
+	/* Make sure we re-xmit last_xmit_skb: if there are no more packets
+	 * queued, start_xmit won't be called. */
+	tasklet_schedule(&vi->tasklet);
 }
 
 static void receive_skb(struct net_device *dev, struct sk_buff *skb,
@@ -278,6 +286,18 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	return vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
 }
 
+static void xmit_tasklet(unsigned long data)
+{
+	struct virtnet_info *vi = (void *)data;
+
+	netif_tx_lock_bh(vi->dev);
+	if (vi->last_xmit_skb && xmit_skb(vi, vi->last_xmit_skb) == 0) {
+		vi->svq->vq_ops->kick(vi->svq);
+		vi->last_xmit_skb = NULL;
+	}
+	netif_tx_unlock_bh(vi->dev);
+}
+
 static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -431,6 +451,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* Initialize our empty receive and send queues. */
 	skb_queue_head_init(&vi->recv);
 	skb_queue_head_init(&vi->send);
+
+	tasklet_init(&vi->tasklet, xmit_tasklet, (unsigned long)vi);
 
 	err = register_netdev(dev);
 	if (err) {
