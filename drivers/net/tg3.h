@@ -2205,6 +2205,7 @@ struct tg3_link_config {
 	u16				orig_speed;
 	u8				orig_duplex;
 	u8				orig_autoneg;
+	u32				orig_advertising;
 };
 
 struct tg3_bufmgr_config {
@@ -2483,6 +2484,7 @@ struct tg3 {
 #define TG3_FLG3_USE_PHYLIB		0x00000010
 #define TG3_FLG3_MDIOBUS_INITED		0x00000020
 #define TG3_FLG3_MDIOBUS_PAUSED		0x00000040
+#define TG3_FLG3_PHY_CONNECTED		0x00000080
 
 	struct timer_list		timer;
 	u16				timer_counter;
