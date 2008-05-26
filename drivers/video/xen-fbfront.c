@@ -572,4 +572,6 @@ static void __exit xenfb_cleanup(void)
 module_init(xenfb_init);
 module_exit(xenfb_cleanup);
 
+MODULE_DESCRIPTION("Xen virtual framebuffer device frontend");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("xen:vfb");
