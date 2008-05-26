@@ -565,7 +565,11 @@ load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
 #
 core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
 cflags-$(CONFIG_SNI_RM)		+= -Iinclude/asm-mips/mach-rm
+ifdef CONFIG_CPU_LITTLE_ENDIAN
 load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
+else
+load-$(CONFIG_SNI_RM)		+= 0xffffffff80030000
+endif
 all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
 
 #
