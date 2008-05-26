@@ -725,6 +725,10 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	struct resource res;
 	u32 temp = 0, ret;
 
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret)
+		return NULL;
+
 	ipic = alloc_bootmem(sizeof(struct ipic));
 	if (ipic == NULL)
 		return NULL;
@@ -735,12 +739,6 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 				       NR_IPIC_INTS,
 				       &ipic_host_ops, 0);
 	if (ipic->irqhost == NULL) {
-		of_node_put(node);
-		return NULL;
-	}
-
-	ret = of_address_to_resource(node, 0, &res);
-	if (ret) {
 		of_node_put(node);
 		return NULL;
 	}
