@@ -61,6 +61,7 @@ static void xenfb_do_update(struct xenfb_info *info,
 	union xenfb_out_event event;
 	u32 prod;
 
+	memset(&event, 0, sizeof(event));
 	event.type = XENFB_TYPE_UPDATE;
 	event.update.x = x;
 	event.update.y = y;
