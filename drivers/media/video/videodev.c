@@ -278,6 +278,7 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
 
 	[_IOC_NR(VIDIOC_G_CHIP_IDENT)]     = "VIDIOC_G_CHIP_IDENT",
+	[_IOC_NR(VIDIOC_S_HW_FREQ_SEEK)]   = "VIDIOC_S_HW_FREQ_SEEK",
 #endif
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
@@ -1761,6 +1762,17 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		if (!vfd->vidioc_default)
 			break;
 		ret = vfd->vidioc_default(file, fh, cmd, arg);
+		break;
+	}
+	case VIDIOC_S_HW_FREQ_SEEK:
+	{
+		struct v4l2_hw_freq_seek *p = arg;
+		if (!vfd->vidioc_s_hw_freq_seek)
+			break;
+		dbgarg(cmd,
+			"tuner=%d, type=%d, seek_upward=%d, wrap_around=%d\n",
+			p->tuner, p->type, p->seek_upward, p->wrap_around);
+		ret = vfd->vidioc_s_hw_freq_seek(file, fh, p);
 		break;
 	}
 	} /* switch */

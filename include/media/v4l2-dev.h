@@ -306,6 +306,8 @@ struct video_device
 	/* Log status ioctl */
 	int (*vidioc_log_status)       (struct file *file, void *fh);
 
+	int (*vidioc_s_hw_freq_seek)   (struct file *file, void *fh,
+					struct v4l2_hw_freq_seek *a);
 
 	/* Debugging ioctls */
 #ifdef CONFIG_VIDEO_ADV_DEBUG
