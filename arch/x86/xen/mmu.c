@@ -57,8 +57,17 @@
 #include "mmu.h"
 
 #define P2M_ENTRIES_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long))
+#define TOP_ENTRIES		(MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE)
 
-static unsigned long *p2m_top[MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE];
+/* Placeholder for holes in the address space */
+static unsigned long p2m_missing[P2M_ENTRIES_PER_PAGE]
+	__attribute__((section(".data.page_aligned"))) =
+		{ [ 0 ... P2M_ENTRIES_PER_PAGE-1 ] = ~0UL };
+
+ /* Array of pointers to pages containing p2m entries */
+static unsigned long *p2m_top[TOP_ENTRIES]
+	__attribute__((section(".data.page_aligned"))) =
+		{ [ 0 ... TOP_ENTRIES - 1] = &p2m_missing[0] };
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
@@ -92,9 +101,6 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 		return INVALID_P2M_ENTRY;
 
 	topidx = p2m_top_index(pfn);
-	if (p2m_top[topidx] == NULL)
-		return INVALID_P2M_ENTRY;
-
 	idx = p2m_index(pfn);
 	return p2m_top[topidx][idx];
 }
@@ -110,7 +116,7 @@ static void alloc_p2m(unsigned long **pp)
 	for(i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
 		p[i] = INVALID_P2M_ENTRY;
 
-	if (cmpxchg(pp, NULL, p) != NULL)
+	if (cmpxchg(pp, p2m_missing, p) != p2m_missing)
 		free_page((unsigned long)p);
 }
 
@@ -129,7 +135,7 @@ void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	}
 
 	topidx = p2m_top_index(pfn);
-	if (p2m_top[topidx] == NULL) {
+	if (p2m_top[topidx] == p2m_missing) {
 		/* no need to allocate a page to store an invalid entry */
 		if (mfn == INVALID_P2M_ENTRY)
 			return;
