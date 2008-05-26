@@ -355,7 +355,7 @@ static void unbind_from_irq(unsigned int irq)
 
 	spin_lock(&irq_mapping_update_lock);
 
-	if (VALID_EVTCHN(evtchn) && (--irq_bindcount[irq] == 0)) {
+	if ((--irq_bindcount[irq] == 0) && VALID_EVTCHN(evtchn)) {
 		close.port = evtchn;
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
 			BUG();
@@ -375,7 +375,7 @@ static void unbind_from_irq(unsigned int irq)
 		evtchn_to_irq[evtchn] = -1;
 		irq_info[irq] = IRQ_UNBOUND;
 
-		dynamic_irq_init(irq);
+		dynamic_irq_cleanup(irq);
 	}
 
 	spin_unlock(&irq_mapping_update_lock);
