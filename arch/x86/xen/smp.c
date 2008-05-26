@@ -65,6 +65,12 @@ static struct call_data_struct *call_data;
  */
 static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 {
+#ifdef CONFIG_X86_32
+	__get_cpu_var(irq_stat).irq_resched_count++;
+#else
+	add_pda(irq_resched_count, 1);
+#endif
+
 	return IRQ_HANDLED;
 }
 
