@@ -329,6 +329,10 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 	struct resource res;
 	u32 temp = 0, ret, high_active = 0;
 
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret)
+		return;
+
 	qe_ic = alloc_bootmem(sizeof(struct qe_ic));
 	if (qe_ic == NULL)
 		return;
@@ -341,10 +345,6 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 		of_node_put(node);
 		return;
 	}
-
-	ret = of_address_to_resource(node, 0, &res);
-	if (ret)
-		return;
 
 	qe_ic->regs = ioremap(res.start, res.end - res.start + 1);
 
