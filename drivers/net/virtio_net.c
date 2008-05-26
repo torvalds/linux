@@ -287,21 +287,25 @@ again:
 	free_old_xmit_skbs(vi);
 
 	/* If we has a buffer left over from last time, send it now. */
-	if (vi->last_xmit_skb) {
+	if (unlikely(vi->last_xmit_skb)) {
 		if (xmit_skb(vi, vi->last_xmit_skb) != 0) {
 			/* Drop this skb: we only queue one. */
 			vi->dev->stats.tx_dropped++;
 			kfree_skb(skb);
+			skb = NULL;
 			goto stop_queue;
 		}
 		vi->last_xmit_skb = NULL;
 	}
 
 	/* Put new one in send queue and do transmit */
-	__skb_queue_head(&vi->send, skb);
-	if (xmit_skb(vi, skb) != 0) {
-		vi->last_xmit_skb = skb;
-		goto stop_queue;
+	if (likely(skb)) {
+		__skb_queue_head(&vi->send, skb);
+		if (xmit_skb(vi, skb) != 0) {
+			vi->last_xmit_skb = skb;
+			skb = NULL;
+			goto stop_queue;
+		}
 	}
 done:
 	vi->svq->vq_ops->kick(vi->svq);
