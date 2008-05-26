@@ -75,13 +75,13 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
 
-static /* __initdata */ struct shared_info dummy_shared_info;
+struct shared_info xen_dummy_shared_info;
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
  * page as soon as fixmap is up and running.
  */
-struct shared_info *HYPERVISOR_shared_info = (void *)&dummy_shared_info;
+struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
 
 /*
  * Flag to determine whether vcpu info placement is available on all
@@ -104,7 +104,7 @@ static void __init xen_vcpu_setup(int cpu)
 	int err;
 	struct vcpu_info *vcpup;
 
-	BUG_ON(HYPERVISOR_shared_info == &dummy_shared_info);
+	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 	per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
 
 	if (!have_vcpu_info_placement)
