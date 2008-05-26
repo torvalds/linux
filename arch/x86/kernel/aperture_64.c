@@ -331,8 +331,10 @@ void __init early_gart_iommu_check(void)
 			add_memory_region(aper_base, aper_size, E820_RESERVED);
 			update_e820();
 		}
-		return;
 	}
+
+	if (!fix)
+		return;
 
 	/* different nodes have different setting, disable them all at first*/
 	for (i = 0; i < ARRAY_SIZE(bus_dev_ranges); i++) {
