@@ -1062,7 +1062,6 @@ el3_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			skb = dev_alloc_skb(pkt_len+5);
-			dev->stats.rx_bytes += pkt_len;
 			if (el3_debug > 4)
 				printk("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
@@ -1077,6 +1076,7 @@ el3_rx(struct net_device *dev)
 				skb->protocol = eth_type_trans(skb,dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;
+				dev->stats.rx_bytes += pkt_len;
 				dev->stats.rx_packets++;
 				continue;
 			}

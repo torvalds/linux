@@ -221,7 +221,7 @@ static int falcon_xgmii_status(struct efx_nic *efx)
 {
 	efx_dword_t reg;
 
-	if (FALCON_REV(efx) < FALCON_REV_B0)
+	if (falcon_rev(efx) < FALCON_REV_B0)
 		return 1;
 
 	/* The ISR latches, so clear it and re-read */
@@ -241,7 +241,7 @@ static void falcon_mask_status_intr(struct efx_nic *efx, int enable)
 {
 	efx_dword_t reg;
 
-	if ((FALCON_REV(efx) < FALCON_REV_B0) || LOOPBACK_INTERNAL(efx))
+	if ((falcon_rev(efx) < FALCON_REV_B0) || LOOPBACK_INTERNAL(efx))
 		return;
 
 	/* Flush the ISR */
@@ -454,7 +454,7 @@ static int falcon_check_xaui_link_up(struct efx_nic *efx)
 
 		EFX_LOG(efx, "%s Clobbering XAUI (%d tries left).\n",
 			__func__, tries);
-		(void) falcon_reset_xaui(efx);
+		falcon_reset_xaui(efx);
 		udelay(200);
 		tries--;
 	}
@@ -572,7 +572,7 @@ int falcon_check_xmac(struct efx_nic *efx)
 	xaui_link_ok = falcon_xaui_link_ok(efx);
 
 	if (EFX_WORKAROUND_5147(efx) && !xaui_link_ok)
-		(void) falcon_reset_xaui(efx);
+		falcon_reset_xaui(efx);
 
 	/* Call the PHY check_hw routine */
 	rc = efx->phy_op->check_hw(efx);
@@ -639,7 +639,7 @@ int falcon_xmac_set_pause(struct efx_nic *efx, enum efx_fc_type flow_control)
 	reset = ((flow_control & EFX_FC_TX) &&
 		 !(efx->flow_control & EFX_FC_TX));
 	if (EFX_WORKAROUND_11482(efx) && reset) {
-		if (FALCON_REV(efx) >= FALCON_REV_B0) {
+		if (falcon_rev(efx) >= FALCON_REV_B0) {
 			/* Recover by resetting the EM block */
 			if (efx->link_up)
 				falcon_drain_tx_fifo(efx);

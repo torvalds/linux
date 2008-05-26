@@ -470,8 +470,7 @@ static void virtnet_remove(struct virtio_device *vdev)
 		kfree_skb(skb);
 		vi->num--;
 	}
-	while ((skb = __skb_dequeue(&vi->send)) != NULL)
-		kfree_skb(skb);
+	__skb_queue_purge(&vi->send);
 
 	BUG_ON(vi->num != 0);
 

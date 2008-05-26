@@ -264,7 +264,7 @@ struct xl_private {
 	u16 asb;
 
 	u8 __iomem *xl_mmio;
-	char *xl_card_name;
+	const char *xl_card_name;
 	struct pci_dev *pdev ; 
 	
 	spinlock_t xl_lock ; 

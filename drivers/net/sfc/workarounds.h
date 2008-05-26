@@ -16,7 +16,7 @@
  */
 
 #define EFX_WORKAROUND_ALWAYS(efx) 1
-#define EFX_WORKAROUND_FALCON_A(efx) (FALCON_REV(efx) <= FALCON_REV_A1)
+#define EFX_WORKAROUND_FALCON_A(efx) (falcon_rev(efx) <= FALCON_REV_A1)
 
 /* XAUI resets if link not detected */
 #define EFX_WORKAROUND_5147 EFX_WORKAROUND_ALWAYS

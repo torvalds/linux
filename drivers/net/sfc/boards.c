@@ -27,10 +27,8 @@ static void blink_led_timer(unsigned long context)
 	struct efx_blinker *bl = &efx->board_info.blinker;
 	efx->board_info.set_fault_led(efx, bl->state);
 	bl->state = !bl->state;
-	if (bl->resubmit) {
-		bl->timer.expires = jiffies + BLINK_INTERVAL;
-		add_timer(&bl->timer);
-	}
+	if (bl->resubmit)
+		mod_timer(&bl->timer, jiffies + BLINK_INTERVAL);
 }
 
 static void board_blink(struct efx_nic *efx, int blink)
@@ -44,8 +42,7 @@ static void board_blink(struct efx_nic *efx, int blink)
 		blinker->state = 0;
 		setup_timer(&blinker->timer, blink_led_timer,
 			    (unsigned long)efx);
-		blinker->timer.expires = jiffies + BLINK_INTERVAL;
-		add_timer(&blinker->timer);
+		mod_timer(&blinker->timer, jiffies + BLINK_INTERVAL);
 	} else {
 		blinker->resubmit = 0;
 		if (blinker->timer.function)
