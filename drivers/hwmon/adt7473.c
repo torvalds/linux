@@ -559,10 +559,9 @@ static ssize_t set_max_duty_at_crit(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adt7473_data *data = i2c_get_clientdata(client);
 	int temp = simple_strtol(buf, NULL, 10);
-	temp = temp && 0xFF;
 
 	mutex_lock(&data->lock);
-	data->max_duty_at_overheat = temp;
+	data->max_duty_at_overheat = !!temp;
 	reg = i2c_smbus_read_byte_data(client, ADT7473_REG_CFG4);
 	if (temp)
 		reg |= ADT7473_CFG4_MAX_DUTY_AT_OVT;
