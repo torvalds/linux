@@ -134,11 +134,26 @@ module_init(xen_init);
 module_exit(xen_fini);
 console_initcall(xen_cons_init);
 
+static void raw_console_write(const char *str, int len)
+{
+	while(len > 0) {
+		int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
+		if (rc <= 0)
+			break;
+
+		str += rc;
+		len -= rc;
+	}
+}
+
+#ifdef CONFIG_EARLY_PRINTK
 static void xenboot_write_console(struct console *console, const char *string,
 				  unsigned len)
 {
 	unsigned int linelen, off = 0;
 	const char *pos;
+
+	raw_console_write(string, len);
 
 	while (off < len && NULL != (pos = strchr(string+off, '\n'))) {
 		linelen = pos-string+off;
@@ -155,21 +170,13 @@ static void xenboot_write_console(struct console *console, const char *string,
 struct console xenboot_console = {
 	.name		= "xenboot",
 	.write		= xenboot_write_console,
-	.flags		= CON_PRINTBUFFER | CON_BOOT,
+	.flags		= CON_PRINTBUFFER | CON_BOOT | CON_ANYTIME,
 };
+#endif	/* CONFIG_EARLY_PRINTK */
 
 void xen_raw_console_write(const char *str)
 {
-	int len = strlen(str);
-
-	while(len > 0) {
-		int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
-		if (rc <= 0)
-			break;
-
-		str += rc;
-		len -= rc;
-	}
+	raw_console_write(str, strlen(str));
 }
 
 void xen_raw_printk(const char *fmt, ...)
