@@ -276,7 +276,7 @@ void i8259_init(struct device_node *node, unsigned long intack_addr)
 	spin_unlock_irqrestore(&i8259_lock, flags);
 
 	/* create a legacy host */
-	i8259_host = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LEGACY,
+	i8259_host = irq_alloc_host(node, IRQ_HOST_MAP_LEGACY,
 				    0, &i8259_host_ops, 0);
 	if (i8259_host == NULL) {
 		printk(KERN_ERR "i8259: failed to allocate irq host !\n");

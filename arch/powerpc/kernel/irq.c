@@ -498,7 +498,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	host->revmap_type = revmap_type;
 	host->inval_irq = inval_irq;
 	host->ops = ops;
-	host->of_node = of_node;
+	host->of_node = of_node_get(of_node);
 
 	if (host->ops->match == NULL)
 		host->ops->match = default_irq_host_match;

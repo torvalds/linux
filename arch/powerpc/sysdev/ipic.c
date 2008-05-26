@@ -735,13 +735,11 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 
 	memset(ipic, 0, sizeof(struct ipic));
 
-	ipic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+	ipic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 				       NR_IPIC_INTS,
 				       &ipic_host_ops, 0);
-	if (ipic->irqhost == NULL) {
-		of_node_put(node);
+	if (ipic->irqhost == NULL)
 		return NULL;
-	}
 
 	ipic->regs = ioremap(res.start, res.end - res.start + 1);
 

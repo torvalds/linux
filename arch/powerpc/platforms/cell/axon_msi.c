@@ -365,7 +365,7 @@ static int axon_msi_probe(struct of_device *device,
 		goto out_free_fifo;
 	}
 
-	msic->irq_host = irq_alloc_host(of_node_get(dn), IRQ_HOST_MAP_NOMAP,
+	msic->irq_host = irq_alloc_host(dn, IRQ_HOST_MAP_NOMAP,
 					NR_IRQS, &msic_host_ops, 0);
 	if (!msic->irq_host) {
 		printk(KERN_ERR "axon_msi: couldn't allocate irq_host for %s\n",

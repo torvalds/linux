@@ -339,12 +339,10 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 
 	memset(qe_ic, 0, sizeof(struct qe_ic));
 
-	qe_ic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+	qe_ic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 					NR_QE_IC_INTS, &qe_ic_host_ops, 0);
-	if (qe_ic->irqhost == NULL) {
-		of_node_put(node);
+	if (qe_ic->irqhost == NULL)
 		return;
-	}
 
 	qe_ic->regs = ioremap(res.start, res.end - res.start + 1);
 

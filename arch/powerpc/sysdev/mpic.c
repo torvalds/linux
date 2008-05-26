@@ -1016,13 +1016,11 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	memset(mpic, 0, sizeof(struct mpic));
 	mpic->name = name;
 
-	mpic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+	mpic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 				       isu_size, &mpic_host_ops,
 				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
-	if (mpic->irqhost == NULL) {
-		of_node_put(node);
+	if (mpic->irqhost == NULL)
 		return NULL;
-	}
 
 	mpic->irqhost->host_data = mpic;
 	mpic->hc_irq = mpic_irq_chip;
