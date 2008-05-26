@@ -607,6 +607,30 @@ static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 
+static void xen_clts(void)
+{
+	struct multicall_space mcs;
+
+	mcs = xen_mc_entry(0);
+
+	MULTI_fpu_taskswitch(mcs.mc, 0);
+
+	xen_mc_issue(PARAVIRT_LAZY_CPU);
+}
+
+static void xen_write_cr0(unsigned long cr0)
+{
+	struct multicall_space mcs;
+
+	/* Only pay attention to cr0.TS; everything else is
+	   ignored. */
+	mcs = xen_mc_entry(0);
+
+	MULTI_fpu_taskswitch(mcs.mc, (cr0 & X86_CR0_TS) != 0);
+
+	xen_mc_issue(PARAVIRT_LAZY_CPU);
+}
+
 static void xen_write_cr2(unsigned long cr2)
 {
 	x86_read_percpu(xen_vcpu)->arch.cr2 = cr2;
@@ -978,10 +1002,10 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.set_debugreg = xen_set_debugreg,
 	.get_debugreg = xen_get_debugreg,
 
-	.clts = native_clts,
+	.clts = xen_clts,
 
 	.read_cr0 = native_read_cr0,
-	.write_cr0 = native_write_cr0,
+	.write_cr0 = xen_write_cr0,
 
 	.read_cr4 = native_read_cr4,
 	.read_cr4_safe = native_read_cr4_safe,

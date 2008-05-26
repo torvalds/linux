@@ -315,6 +315,13 @@ HYPERVISOR_nmi_op(unsigned long op, unsigned long arg)
 }
 
 static inline void
+MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
+{
+	mcl->op = __HYPERVISOR_fpu_taskswitch;
+	mcl->args[0] = set;
+}
+
+static inline void
 MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
 			pte_t new_val, unsigned long flags)
 {
