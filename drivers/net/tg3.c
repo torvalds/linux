@@ -804,6 +804,243 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 	return ret;
 }
 
+static int tg3_bmcr_reset(struct tg3 *tp)
+{
+	u32 phy_control;
+	int limit, err;
+
+	/* OK, reset it, and poll the BMCR_RESET bit until it
+	 * clears or we time out.
+	 */
+	phy_control = BMCR_RESET;
+	err = tg3_writephy(tp, MII_BMCR, phy_control);
+	if (err != 0)
+		return -EBUSY;
+
+	limit = 5000;
+	while (limit--) {
+		err = tg3_readphy(tp, MII_BMCR, &phy_control);
+		if (err != 0)
+			return -EBUSY;
+
+		if ((phy_control & BMCR_RESET) == 0) {
+			udelay(40);
+			break;
+		}
+		udelay(10);
+	}
+	if (limit <= 0)
+		return -EBUSY;
+
+	return 0;
+}
+
+/* tp->lock is held. */
+static void tg3_wait_for_event_ack(struct tg3 *tp)
+{
+	int i;
+
+	/* Wait for up to 2.5 milliseconds */
+	for (i = 0; i < 250000; i++) {
+		if (!(tr32(GRC_RX_CPU_EVENT) & GRC_RX_CPU_DRIVER_EVENT))
+			break;
+		udelay(10);
+	}
+}
+
+/* tp->lock is held. */
+static void tg3_ump_link_report(struct tg3 *tp)
+{
+	u32 reg;
+	u32 val;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
+	    !(tp->tg3_flags  & TG3_FLAG_ENABLE_ASF))
+		return;
+
+	tg3_wait_for_event_ack(tp);
+
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX, FWCMD_NICDRV_LINK_UPDATE);
+
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 14);
+
+	val = 0;
+	if (!tg3_readphy(tp, MII_BMCR, &reg))
+		val = reg << 16;
+	if (!tg3_readphy(tp, MII_BMSR, &reg))
+		val |= (reg & 0xffff);
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, val);
+
+	val = 0;
+	if (!tg3_readphy(tp, MII_ADVERTISE, &reg))
+		val = reg << 16;
+	if (!tg3_readphy(tp, MII_LPA, &reg))
+		val |= (reg & 0xffff);
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 4, val);
+
+	val = 0;
+	if (!(tp->tg3_flags2 & TG3_FLG2_MII_SERDES)) {
+		if (!tg3_readphy(tp, MII_CTRL1000, &reg))
+			val = reg << 16;
+		if (!tg3_readphy(tp, MII_STAT1000, &reg))
+			val |= (reg & 0xffff);
+	}
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 8, val);
+
+	if (!tg3_readphy(tp, MII_PHYADDR, &reg))
+		val = reg << 16;
+	else
+		val = 0;
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 12, val);
+
+	val = tr32(GRC_RX_CPU_EVENT);
+	val |= GRC_RX_CPU_DRIVER_EVENT;
+	tw32_f(GRC_RX_CPU_EVENT, val);
+}
+
+static void tg3_link_report(struct tg3 *tp)
+{
+	if (!netif_carrier_ok(tp->dev)) {
+		if (netif_msg_link(tp))
+			printk(KERN_INFO PFX "%s: Link is down.\n",
+			       tp->dev->name);
+		tg3_ump_link_report(tp);
+	} else if (netif_msg_link(tp)) {
+		printk(KERN_INFO PFX "%s: Link is up at %d Mbps, %s duplex.\n",
+		       tp->dev->name,
+		       (tp->link_config.active_speed == SPEED_1000 ?
+			1000 :
+			(tp->link_config.active_speed == SPEED_100 ?
+			 100 : 10)),
+		       (tp->link_config.active_duplex == DUPLEX_FULL ?
+			"full" : "half"));
+
+		printk(KERN_INFO PFX
+		       "%s: Flow control is %s for TX and %s for RX.\n",
+		       tp->dev->name,
+		       (tp->link_config.active_flowctrl & TG3_FLOW_CTRL_TX) ?
+		       "on" : "off",
+		       (tp->link_config.active_flowctrl & TG3_FLOW_CTRL_RX) ?
+		       "on" : "off");
+		tg3_ump_link_report(tp);
+	}
+}
+
+static u16 tg3_advert_flowctrl_1000T(u8 flow_ctrl)
+{
+	u16 miireg;
+
+	if ((flow_ctrl & TG3_FLOW_CTRL_TX) && (flow_ctrl & TG3_FLOW_CTRL_RX))
+		miireg = ADVERTISE_PAUSE_CAP;
+	else if (flow_ctrl & TG3_FLOW_CTRL_TX)
+		miireg = ADVERTISE_PAUSE_ASYM;
+	else if (flow_ctrl & TG3_FLOW_CTRL_RX)
+		miireg = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+	else
+		miireg = 0;
+
+	return miireg;
+}
+
+static u16 tg3_advert_flowctrl_1000X(u8 flow_ctrl)
+{
+	u16 miireg;
+
+	if ((flow_ctrl & TG3_FLOW_CTRL_TX) && (flow_ctrl & TG3_FLOW_CTRL_RX))
+		miireg = ADVERTISE_1000XPAUSE;
+	else if (flow_ctrl & TG3_FLOW_CTRL_TX)
+		miireg = ADVERTISE_1000XPSE_ASYM;
+	else if (flow_ctrl & TG3_FLOW_CTRL_RX)
+		miireg = ADVERTISE_1000XPAUSE | ADVERTISE_1000XPSE_ASYM;
+	else
+		miireg = 0;
+
+	return miireg;
+}
+
+static u8 tg3_resolve_flowctrl_1000T(u16 lcladv, u16 rmtadv)
+{
+	u8 cap = 0;
+
+	if (lcladv & ADVERTISE_PAUSE_CAP) {
+		if (lcladv & ADVERTISE_PAUSE_ASYM) {
+			if (rmtadv & LPA_PAUSE_CAP)
+				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
+			else if (rmtadv & LPA_PAUSE_ASYM)
+				cap = TG3_FLOW_CTRL_RX;
+		} else {
+			if (rmtadv & LPA_PAUSE_CAP)
+				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
+		}
+	} else if (lcladv & ADVERTISE_PAUSE_ASYM) {
+		if ((rmtadv & LPA_PAUSE_CAP) && (rmtadv & LPA_PAUSE_ASYM))
+			cap = TG3_FLOW_CTRL_TX;
+	}
+
+	return cap;
+}
+
+static u8 tg3_resolve_flowctrl_1000X(u16 lcladv, u16 rmtadv)
+{
+	u8 cap = 0;
+
+	if (lcladv & ADVERTISE_1000XPAUSE) {
+		if (lcladv & ADVERTISE_1000XPSE_ASYM) {
+			if (rmtadv & LPA_1000XPAUSE)
+				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
+			else if (rmtadv & LPA_1000XPAUSE_ASYM)
+				cap = TG3_FLOW_CTRL_RX;
+		} else {
+			if (rmtadv & LPA_1000XPAUSE)
+				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
+		}
+	} else if (lcladv & ADVERTISE_1000XPSE_ASYM) {
+		if ((rmtadv & LPA_1000XPAUSE) && (rmtadv & LPA_1000XPAUSE_ASYM))
+			cap = TG3_FLOW_CTRL_TX;
+	}
+
+	return cap;
+}
+
+static void tg3_setup_flow_control(struct tg3 *tp, u32 local_adv, u32 remote_adv)
+{
+	u8 new_tg3_flags = 0;
+	u32 old_rx_mode = tp->rx_mode;
+	u32 old_tx_mode = tp->tx_mode;
+
+	if (tp->link_config.autoneg == AUTONEG_ENABLE &&
+	    (tp->tg3_flags & TG3_FLAG_PAUSE_AUTONEG)) {
+		if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES)
+			new_tg3_flags = tg3_resolve_flowctrl_1000X(local_adv,
+								   remote_adv);
+		else
+			new_tg3_flags = tg3_resolve_flowctrl_1000T(local_adv,
+								   remote_adv);
+	} else {
+		new_tg3_flags = tp->link_config.flowctrl;
+	}
+
+	tp->link_config.active_flowctrl = new_tg3_flags;
+
+	if (new_tg3_flags & TG3_FLOW_CTRL_RX)
+		tp->rx_mode |= RX_MODE_FLOW_CTRL_ENABLE;
+	else
+		tp->rx_mode &= ~RX_MODE_FLOW_CTRL_ENABLE;
+
+	if (old_rx_mode != tp->rx_mode) {
+		tw32_f(MAC_RX_MODE, tp->rx_mode);
+	}
+
+	if (new_tg3_flags & TG3_FLOW_CTRL_TX)
+		tp->tx_mode |= TX_MODE_FLOW_CTRL_ENABLE;
+	else
+		tp->tx_mode &= ~TX_MODE_FLOW_CTRL_ENABLE;
+
+	if (old_tx_mode != tp->tx_mode) {
+		tw32_f(MAC_TX_MODE, tp->tx_mode);
+	}
+}
+
 static void tg3_phydsp_write(struct tg3 *tp, u32 reg, u32 val)
 {
 	tg3_writephy(tp, MII_TG3_DSP_ADDRESS, reg);
@@ -859,37 +1096,6 @@ static void tg3_phy_set_wirespeed(struct tg3 *tp)
 	    !tg3_readphy(tp, MII_TG3_AUX_CTRL, &val))
 		tg3_writephy(tp, MII_TG3_AUX_CTRL,
 			     (val | (1 << 15) | (1 << 4)));
-}
-
-static int tg3_bmcr_reset(struct tg3 *tp)
-{
-	u32 phy_control;
-	int limit, err;
-
-	/* OK, reset it, and poll the BMCR_RESET bit until it
-	 * clears or we time out.
-	 */
-	phy_control = BMCR_RESET;
-	err = tg3_writephy(tp, MII_BMCR, phy_control);
-	if (err != 0)
-		return -EBUSY;
-
-	limit = 5000;
-	while (limit--) {
-		err = tg3_readphy(tp, MII_BMCR, &phy_control);
-		if (err != 0)
-			return -EBUSY;
-
-		if ((phy_control & BMCR_RESET) == 0) {
-			udelay(40);
-			break;
-		}
-		udelay(10);
-	}
-	if (limit <= 0)
-		return -EBUSY;
-
-	return 0;
 }
 
 static void tg3_phy_apply_otp(struct tg3 *tp)
@@ -1114,8 +1320,6 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 
 	return err;
 }
-
-static void tg3_link_report(struct tg3 *);
 
 /* This will reset the tigon3 PHY if there is no valid
  * link unless the FORCE argument is non-zero.
@@ -1654,212 +1858,6 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 	udelay(100);	/* Delay after power state change */
 
 	return 0;
-}
-
-/* tp->lock is held. */
-static void tg3_wait_for_event_ack(struct tg3 *tp)
-{
-	int i;
-
-	/* Wait for up to 2.5 milliseconds */
-	for (i = 0; i < 250000; i++) {
-		if (!(tr32(GRC_RX_CPU_EVENT) & GRC_RX_CPU_DRIVER_EVENT))
-			break;
-		udelay(10);
-	}
-}
-
-/* tp->lock is held. */
-static void tg3_ump_link_report(struct tg3 *tp)
-{
-	u32 reg;
-	u32 val;
-
-	if (!(tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
-	    !(tp->tg3_flags  & TG3_FLAG_ENABLE_ASF))
-		return;
-
-	tg3_wait_for_event_ack(tp);
-
-	tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX, FWCMD_NICDRV_LINK_UPDATE);
-
-	tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 14);
-
-	val = 0;
-	if (!tg3_readphy(tp, MII_BMCR, &reg))
-		val = reg << 16;
-	if (!tg3_readphy(tp, MII_BMSR, &reg))
-		val |= (reg & 0xffff);
-	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, val);
-
-	val = 0;
-	if (!tg3_readphy(tp, MII_ADVERTISE, &reg))
-		val = reg << 16;
-	if (!tg3_readphy(tp, MII_LPA, &reg))
-		val |= (reg & 0xffff);
-	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 4, val);
-
-	val = 0;
-	if (!(tp->tg3_flags2 & TG3_FLG2_MII_SERDES)) {
-		if (!tg3_readphy(tp, MII_CTRL1000, &reg))
-			val = reg << 16;
-		if (!tg3_readphy(tp, MII_STAT1000, &reg))
-			val |= (reg & 0xffff);
-	}
-	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 8, val);
-
-	if (!tg3_readphy(tp, MII_PHYADDR, &reg))
-		val = reg << 16;
-	else
-		val = 0;
-	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 12, val);
-
-	val = tr32(GRC_RX_CPU_EVENT);
-	val |= GRC_RX_CPU_DRIVER_EVENT;
-	tw32_f(GRC_RX_CPU_EVENT, val);
-}
-
-static void tg3_link_report(struct tg3 *tp)
-{
-	if (!netif_carrier_ok(tp->dev)) {
-		if (netif_msg_link(tp))
-			printk(KERN_INFO PFX "%s: Link is down.\n",
-			       tp->dev->name);
-		tg3_ump_link_report(tp);
-	} else if (netif_msg_link(tp)) {
-		printk(KERN_INFO PFX "%s: Link is up at %d Mbps, %s duplex.\n",
-		       tp->dev->name,
-		       (tp->link_config.active_speed == SPEED_1000 ?
-			1000 :
-			(tp->link_config.active_speed == SPEED_100 ?
-			 100 : 10)),
-		       (tp->link_config.active_duplex == DUPLEX_FULL ?
-			"full" : "half"));
-
-		printk(KERN_INFO PFX
-		       "%s: Flow control is %s for TX and %s for RX.\n",
-		       tp->dev->name,
-		       (tp->link_config.active_flowctrl & TG3_FLOW_CTRL_TX) ?
-		       "on" : "off",
-		       (tp->link_config.active_flowctrl & TG3_FLOW_CTRL_RX) ?
-		       "on" : "off");
-		tg3_ump_link_report(tp);
-	}
-}
-
-static u16 tg3_advert_flowctrl_1000T(u8 flow_ctrl)
-{
-	u16 miireg;
-
-	if ((flow_ctrl & TG3_FLOW_CTRL_TX) && (flow_ctrl & TG3_FLOW_CTRL_RX))
-		miireg = ADVERTISE_PAUSE_CAP;
-	else if (flow_ctrl & TG3_FLOW_CTRL_TX)
-		miireg = ADVERTISE_PAUSE_ASYM;
-	else if (flow_ctrl & TG3_FLOW_CTRL_RX)
-		miireg = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
-	else
-		miireg = 0;
-
-	return miireg;
-}
-
-static u16 tg3_advert_flowctrl_1000X(u8 flow_ctrl)
-{
-	u16 miireg;
-
-	if ((flow_ctrl & TG3_FLOW_CTRL_TX) && (flow_ctrl & TG3_FLOW_CTRL_RX))
-		miireg = ADVERTISE_1000XPAUSE;
-	else if (flow_ctrl & TG3_FLOW_CTRL_TX)
-		miireg = ADVERTISE_1000XPSE_ASYM;
-	else if (flow_ctrl & TG3_FLOW_CTRL_RX)
-		miireg = ADVERTISE_1000XPAUSE | ADVERTISE_1000XPSE_ASYM;
-	else
-		miireg = 0;
-
-	return miireg;
-}
-
-static u8 tg3_resolve_flowctrl_1000T(u16 lcladv, u16 rmtadv)
-{
-	u8 cap = 0;
-
-	if (lcladv & ADVERTISE_PAUSE_CAP) {
-		if (lcladv & ADVERTISE_PAUSE_ASYM) {
-			if (rmtadv & LPA_PAUSE_CAP)
-				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
-			else if (rmtadv & LPA_PAUSE_ASYM)
-				cap = TG3_FLOW_CTRL_RX;
-		} else {
-			if (rmtadv & LPA_PAUSE_CAP)
-				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
-		}
-	} else if (lcladv & ADVERTISE_PAUSE_ASYM) {
-		if ((rmtadv & LPA_PAUSE_CAP) && (rmtadv & LPA_PAUSE_ASYM))
-			cap = TG3_FLOW_CTRL_TX;
-	}
-
-	return cap;
-}
-
-static u8 tg3_resolve_flowctrl_1000X(u16 lcladv, u16 rmtadv)
-{
-	u8 cap = 0;
-
-	if (lcladv & ADVERTISE_1000XPAUSE) {
-		if (lcladv & ADVERTISE_1000XPSE_ASYM) {
-			if (rmtadv & LPA_1000XPAUSE)
-				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
-			else if (rmtadv & LPA_1000XPAUSE_ASYM)
-				cap = TG3_FLOW_CTRL_RX;
-		} else {
-			if (rmtadv & LPA_1000XPAUSE)
-				cap = TG3_FLOW_CTRL_TX | TG3_FLOW_CTRL_RX;
-		}
-	} else if (lcladv & ADVERTISE_1000XPSE_ASYM) {
-		if ((rmtadv & LPA_1000XPAUSE) && (rmtadv & LPA_1000XPAUSE_ASYM))
-			cap = TG3_FLOW_CTRL_TX;
-	}
-
-	return cap;
-}
-
-static void tg3_setup_flow_control(struct tg3 *tp, u32 local_adv, u32 remote_adv)
-{
-	u8 new_tg3_flags = 0;
-	u32 old_rx_mode = tp->rx_mode;
-	u32 old_tx_mode = tp->tx_mode;
-
-	if (tp->link_config.autoneg == AUTONEG_ENABLE &&
-	    (tp->tg3_flags & TG3_FLAG_PAUSE_AUTONEG)) {
-		if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES)
-			new_tg3_flags = tg3_resolve_flowctrl_1000X(local_adv,
-								   remote_adv);
-		else
-			new_tg3_flags = tg3_resolve_flowctrl_1000T(local_adv,
-								   remote_adv);
-	} else {
-		new_tg3_flags = tp->link_config.flowctrl;
-	}
-
-	tp->link_config.active_flowctrl = new_tg3_flags;
-
-	if (new_tg3_flags & TG3_FLOW_CTRL_RX)
-		tp->rx_mode |= RX_MODE_FLOW_CTRL_ENABLE;
-	else
-		tp->rx_mode &= ~RX_MODE_FLOW_CTRL_ENABLE;
-
-	if (old_rx_mode != tp->rx_mode) {
-		tw32_f(MAC_RX_MODE, tp->rx_mode);
-	}
-
-	if (new_tg3_flags & TG3_FLOW_CTRL_TX)
-		tp->tx_mode |= TX_MODE_FLOW_CTRL_ENABLE;
-	else
-		tp->tx_mode &= ~TX_MODE_FLOW_CTRL_ENABLE;
-
-	if (old_tx_mode != tp->tx_mode) {
-		tw32_f(MAC_TX_MODE, tp->tx_mode);
-	}
 }
 
 static void tg3_aux_stat_to_speed_duplex(struct tg3 *tp, u32 val, u16 *speed, u8 *duplex)
