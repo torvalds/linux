@@ -368,7 +368,7 @@ static void balloon_process(struct work_struct *work)
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
-void balloon_set_new_target(unsigned long target)
+static void balloon_set_new_target(unsigned long target)
 {
 	/* No need for lock. Not read-modify-write updates. */
 	balloon_stats.hard_limit   = ~0UL;
