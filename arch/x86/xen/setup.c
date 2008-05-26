@@ -16,6 +16,7 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
+#include <xen/page.h>
 #include <xen/interface/callback.h>
 #include <xen/interface/physdev.h>
 #include <xen/features.h>
@@ -35,6 +36,8 @@ extern const char xen_failsafe_callback[];
 char * __init xen_memory_setup(void)
 {
 	unsigned long max_pfn = xen_start_info->nr_pages;
+
+	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
 
 	e820.nr_map = 0;
 	add_memory_region(0, LOWMEMSIZE(), E820_RAM);

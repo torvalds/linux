@@ -56,19 +56,13 @@
 #include "multicalls.h"
 #include "mmu.h"
 
-/*
- * This should probably be a config option.  On 32-bit, it costs 1
- * page/gig of memory; on 64-bit its 2 pages/gig.  If we want it to be
- * completely unbounded we can add another level to the p2m structure.
- */
-#define MAX_GUEST_PAGES		(16ull * 1024*1024*1024 / PAGE_SIZE)
 #define P2M_ENTRIES_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long))
 
-static unsigned long *p2m_top[MAX_GUEST_PAGES / P2M_ENTRIES_PER_PAGE];
+static unsigned long *p2m_top[MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE];
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
-	BUG_ON(pfn >= MAX_GUEST_PAGES);
+	BUG_ON(pfn >= MAX_DOMAIN_PAGES);
 	return pfn / P2M_ENTRIES_PER_PAGE;
 }
 
@@ -81,12 +75,9 @@ void __init xen_build_dynamic_phys_to_machine(void)
 {
 	unsigned pfn;
 	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
+	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
 
-	BUG_ON(xen_start_info->nr_pages >= MAX_GUEST_PAGES);
-
-	for(pfn = 0;
-	    pfn < xen_start_info->nr_pages;
-	    pfn += P2M_ENTRIES_PER_PAGE) {
+	for(pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
 
 		p2m_top[topidx] = &mfn_list[pfn];
@@ -96,6 +87,9 @@ void __init xen_build_dynamic_phys_to_machine(void)
 unsigned long get_phys_to_machine(unsigned long pfn)
 {
 	unsigned topidx, idx;
+
+	if (unlikely(pfn >= MAX_DOMAIN_PAGES))
+		return INVALID_P2M_ENTRY;
 
 	topidx = p2m_top_index(pfn);
 	if (p2m_top[topidx] == NULL)
@@ -126,6 +120,11 @@ void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
 		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
+		return;
+	}
+
+	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
+		BUG_ON(mfn != INVALID_P2M_ENTRY);
 		return;
 	}
 
