@@ -215,8 +215,20 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 
 
 /********************************************************************/
-/* I/O                                                              */
+/* I/O and interrupt handling                                       */
 /********************************************************************/
+
+static inline void if_cs_enable_ints(struct if_cs_card *card)
+{
+	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_write16(card, IF_CS_H_INT_MASK, 0);
+}
+
+static inline void if_cs_disable_ints(struct if_cs_card *card)
+{
+	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_write16(card, IF_CS_H_INT_MASK, IF_CS_H_IM_MASK);
+}
 
 /*
  * Called from if_cs_host_to_card to send a command to the hardware
@@ -228,6 +240,7 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 	int loops = 0;
 
 	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_disable_ints(card);
 
 	/* Is hardware ready? */
 	while (1) {
@@ -258,10 +271,10 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 	ret = 0;
 
 done:
+	if_cs_enable_ints(card);
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
-
 
 /*
  * Called from if_cs_host_to_card to send a data to the hardware
@@ -269,8 +282,13 @@ done:
 static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
+	u16 status;
 
 	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_disable_ints(card);
+
+	status = if_cs_read16(card, IF_CS_C_STATUS);
+	BUG_ON((status & IF_CS_C_S_TX_DNLD_RDY) == 0);
 
 	if_cs_write16(card, IF_CS_H_WRITE_LEN, nb);
 
@@ -281,10 +299,10 @@ static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 
 	if_cs_write16(card, IF_CS_H_STATUS, IF_CS_H_STATUS_TX_OVER);
 	if_cs_write16(card, IF_CS_H_INT_CAUSE, IF_CS_H_STATUS_TX_OVER);
+	if_cs_enable_ints(card);
 
 	lbs_deb_leave(LBS_DEB_CS);
 }
-
 
 /*
  * Get the command result out of the card.
@@ -330,7 +348,6 @@ out:
 	return ret;
 }
 
-
 static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 {
 	struct sk_buff *skb = NULL;
@@ -367,25 +384,6 @@ out:
 	return skb;
 }
 
-
-
-/********************************************************************/
-/* Interrupts                                                       */
-/********************************************************************/
-
-static inline void if_cs_enable_ints(struct if_cs_card *card)
-{
-	lbs_deb_enter(LBS_DEB_CS);
-	if_cs_write16(card, IF_CS_H_INT_MASK, 0);
-}
-
-static inline void if_cs_disable_ints(struct if_cs_card *card)
-{
-	lbs_deb_enter(LBS_DEB_CS);
-	if_cs_write16(card, IF_CS_H_INT_MASK, IF_CS_H_IM_MASK);
-}
-
-
 static irqreturn_t if_cs_interrupt(int irq, void *data)
 {
 	struct if_cs_card *card = data;
@@ -394,10 +392,8 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
+	/* Ask card interrupt cause register if there is something for us */
 	cause = if_cs_read16(card, IF_CS_C_INT_CAUSE);
-	if_cs_write16(card, IF_CS_C_INT_CAUSE, cause & IF_CS_C_IC_MASK);
-
-	lbs_deb_cs("cause 0x%04x\n", cause);
 	if (cause == 0) {
 		/* Not for us */
 		return IRQ_NONE;
@@ -409,9 +405,9 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	/* TODO: I'm not sure what the best ordering is */
-
-	cause = if_cs_read16(card, IF_CS_C_STATUS) & IF_CS_C_S_MASK;
+	/* Clear interrupt cause */
+	if_cs_write16(card, IF_CS_C_INT_CAUSE, cause & IF_CS_C_IC_MASK);
+	lbs_deb_cs("cause 0x%04x\n", cause);
 
 	if (cause & IF_CS_C_S_RX_UPLD_RDY) {
 		struct sk_buff *skb;
@@ -422,7 +418,7 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 	}
 
 	if (cause & IF_CS_H_IC_TX_OVER) {
-		lbs_deb_cs("tx over\n");
+		lbs_deb_cs("tx done\n");
 		lbs_host_to_card_done(priv);
 	}
 
@@ -430,7 +426,7 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		unsigned long flags;
 		u8 i;
 
-		lbs_deb_cs("cmd upload ready\n");
+		lbs_deb_cs("cmd resp\n");
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		i = (priv->resp_idx == 0) ? 1 : 0;
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -449,10 +445,11 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 			& IF_CS_C_S_STATUS_MASK;
 		if_cs_write16(priv->card, IF_CS_H_INT_CAUSE,
 			IF_CS_H_IC_HOST_EVENT);
-		lbs_deb_cs("eventcause 0x%04x\n", event);
+		lbs_deb_cs("host event 0x%04x\n", event);
 		lbs_queue_event(priv, event >> 8 & 0xff);
 	}
 
+	lbs_deb_leave(LBS_DEB_CS);
 	return IRQ_HANDLED;
 }
 
