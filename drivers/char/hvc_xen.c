@@ -39,9 +39,14 @@ static int xencons_irq;
 
 /* ------------------------------------------------------------------ */
 
+static unsigned long console_pfn = ~0ul;
+
 static inline struct xencons_interface *xencons_interface(void)
 {
-	return mfn_to_virt(xen_start_info->console.domU.mfn);
+	if (console_pfn == ~0ul)
+		return mfn_to_virt(xen_start_info->console.domU.mfn);
+	else
+		return __va(console_pfn << PAGE_SHIFT);
 }
 
 static inline void notify_daemon(void)
@@ -101,18 +106,30 @@ static int __init xen_init(void)
 {
 	struct hvc_struct *hp;
 
-	if (!is_running_on_xen())
-		return 0;
+	if (!is_running_on_xen() ||
+	    is_initial_xendomain() ||
+	    !xen_start_info->console.domU.evtchn)
+		return -ENODEV;
 
 	xencons_irq = bind_evtchn_to_irq(xen_start_info->console.domU.evtchn);
 	if (xencons_irq < 0)
-		xencons_irq = 0 /* NO_IRQ */;
+		xencons_irq = 0; /* NO_IRQ */
+
 	hp = hvc_alloc(HVC_COOKIE, xencons_irq, &hvc_ops, 256);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 
 	hvc = hp;
+
+	console_pfn = mfn_to_pfn(xen_start_info->console.domU.mfn);
+
 	return 0;
+}
+
+void xen_console_resume(void)
+{
+	if (xencons_irq)
+		rebind_evtchn_irq(xen_start_info->console.domU.evtchn, xencons_irq);
 }
 
 static void __exit xen_fini(void)

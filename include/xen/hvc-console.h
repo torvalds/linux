@@ -3,6 +3,8 @@
 
 extern struct console xenboot_console;
 
+void xen_console_resume(void);
+
 void xen_raw_console_write(const char *str);
 void xen_raw_printk(const char *fmt, ...);
 
