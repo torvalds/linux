@@ -66,6 +66,9 @@ static irqreturn_t input_handler(int rq, void *dev_id)
 		case XENKBD_TYPE_MOTION:
 			input_report_rel(dev, REL_X, event->motion.rel_x);
 			input_report_rel(dev, REL_Y, event->motion.rel_y);
+			if (event->motion.rel_z)
+				input_report_rel(dev, REL_WHEEL,
+						 -event->motion.rel_z);
 			break;
 		case XENKBD_TYPE_KEY:
 			dev = NULL;
@@ -84,6 +87,9 @@ static irqreturn_t input_handler(int rq, void *dev_id)
 		case XENKBD_TYPE_POS:
 			input_report_abs(dev, ABS_X, event->pos.abs_x);
 			input_report_abs(dev, ABS_Y, event->pos.abs_y);
+			if (event->pos.rel_z)
+				input_report_rel(dev, REL_WHEEL,
+						 -event->pos.rel_z);
 			break;
 		}
 		if (dev)
@@ -152,7 +158,7 @@ static int __devinit xenkbd_probe(struct xenbus_device *dev,
 	ptr->evbit[0] = BIT(EV_KEY) | BIT(EV_REL) | BIT(EV_ABS);
 	for (i = BTN_LEFT; i <= BTN_TASK; i++)
 		set_bit(i, ptr->keybit);
-	ptr->relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	ptr->relbit[0] = BIT(REL_X) | BIT(REL_Y) | BIT(REL_WHEEL);
 	input_set_abs_params(ptr, ABS_X, 0, XENFB_WIDTH, 0, 0);
 	input_set_abs_params(ptr, ABS_Y, 0, XENFB_HEIGHT, 0, 0);
 
