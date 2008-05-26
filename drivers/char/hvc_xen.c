@@ -157,3 +157,29 @@ struct console xenboot_console = {
 	.write		= xenboot_write_console,
 	.flags		= CON_PRINTBUFFER | CON_BOOT,
 };
+
+void xen_raw_console_write(const char *str)
+{
+	int len = strlen(str);
+
+	while(len > 0) {
+		int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
+		if (rc <= 0)
+			break;
+
+		str += rc;
+		len -= rc;
+	}
+}
+
+void xen_raw_printk(const char *fmt, ...)
+{
+	static char buf[512];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	xen_raw_console_write(buf);
+}
