@@ -344,6 +344,7 @@ static int calc_chksums(journal_t *journal, struct buffer_head *bh,
 			*crc32_sum = crc32_be(*crc32_sum, (void *)obh->b_data,
 				     obh->b_size);
 		}
+		put_bh(obh);
 	}
 	return 0;
 }
