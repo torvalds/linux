@@ -1256,8 +1256,10 @@ asmlinkage void __init xen_start_kernel(void)
 		? __pa(xen_start_info->mod_start) : 0;
 	boot_params.hdr.ramdisk_size = xen_start_info->mod_len;
 
-	if (!is_initial_xendomain())
+	if (!is_initial_xendomain()) {
+		add_preferred_console("tty", 0, NULL);
 		add_preferred_console("hvc", 0, NULL);
+	}
 
 	/* Start the world */
 	start_kernel();
