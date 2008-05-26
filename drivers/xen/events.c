@@ -557,6 +557,33 @@ out:
 	put_cpu();
 }
 
+/* Rebind a new event channel to an existing irq. */
+void rebind_evtchn_irq(int evtchn, int irq)
+{
+	/* Make sure the irq is masked, since the new event channel
+	   will also be masked. */
+	disable_irq(irq);
+
+	spin_lock(&irq_mapping_update_lock);
+
+	/* After resume the irq<->evtchn mappings are all cleared out */
+	BUG_ON(evtchn_to_irq[evtchn] != -1);
+	/* Expect irq to have been bound before,
+	   so the bindcount should be non-0 */
+	BUG_ON(irq_bindcount[irq] == 0);
+
+	evtchn_to_irq[evtchn] = irq;
+	irq_info[irq] = mk_irq_info(IRQT_EVTCHN, 0, evtchn);
+
+	spin_unlock(&irq_mapping_update_lock);
+
+	/* new event channels are always bound to cpu 0 */
+	irq_set_affinity(irq, cpumask_of_cpu(0));
+
+	/* Unmask the event channel. */
+	enable_irq(irq);
+}
+
 /* Rebind an evtchn so that it gets delivered to a specific cpu */
 static void rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 {
