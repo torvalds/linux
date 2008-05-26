@@ -254,7 +254,7 @@ static void xen_irq_enable(void)
 static void xen_safe_halt(void)
 {
 	/* Blocking includes an implicit local_irq_enable(). */
-	if (HYPERVISOR_sched_op(SCHEDOP_block, 0) != 0)
+	if (HYPERVISOR_sched_op(SCHEDOP_block, NULL) != 0)
 		BUG();
 }
 
@@ -1138,11 +1138,13 @@ static const struct smp_ops xen_smp_ops __initdata = {
 
 static void xen_reboot(int reason)
 {
+	struct sched_shutdown r = { .reason = reason };
+
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
 
-	if (HYPERVISOR_sched_op(SCHEDOP_shutdown, reason))
+	if (HYPERVISOR_sched_op(SCHEDOP_shutdown, &r))
 		BUG();
 }
 
