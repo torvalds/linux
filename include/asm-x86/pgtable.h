@@ -164,37 +164,37 @@ extern struct list_head pgd_list;
  */
 static inline int pte_dirty(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_DIRTY;
+	return pte_flags(pte) & _PAGE_DIRTY;
 }
 
 static inline int pte_young(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_ACCESSED;
+	return pte_flags(pte) & _PAGE_ACCESSED;
 }
 
 static inline int pte_write(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_RW;
+	return pte_flags(pte) & _PAGE_RW;
 }
 
 static inline int pte_file(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_FILE;
+	return pte_flags(pte) & _PAGE_FILE;
 }
 
 static inline int pte_huge(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_PSE;
+	return pte_flags(pte) & _PAGE_PSE;
 }
 
 static inline int pte_global(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_GLOBAL;
+	return pte_flags(pte) & _PAGE_GLOBAL;
 }
 
 static inline int pte_exec(pte_t pte)
 {
-	return !(pte_val(pte) & _PAGE_NX);
+	return !(pte_flags(pte) & _PAGE_NX);
 }
 
 static inline int pte_special(pte_t pte)
@@ -305,7 +305,7 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 	return __pgprot(preservebits | addbits);
 }
 
-#define pte_pgprot(x) __pgprot(pte_val(x) & ~PTE_MASK)
+#define pte_pgprot(x) __pgprot(pte_flags(x) & ~PTE_MASK)
 
 #define canon_pgprot(p) __pgprot(pgprot_val(p) & __supported_pte_mask)
 

@@ -1101,6 +1101,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.set_pmd = xen_set_pmd,
 
 	.pte_val = xen_pte_val,
+	.pte_flags = native_pte_val,
 	.pgd_val = xen_pgd_val,
 
 	.make_pte = xen_make_pte,

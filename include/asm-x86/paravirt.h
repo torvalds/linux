@@ -239,6 +239,7 @@ struct pv_mmu_ops {
 				 unsigned long addr, pte_t *ptep);
 
 	pteval_t (*pte_val)(pte_t);
+	pteval_t (*pte_flags)(pte_t);
 	pte_t (*make_pte)(pteval_t pte);
 
 	pgdval_t (*pgd_val)(pgd_t);
@@ -991,6 +992,20 @@ static inline pteval_t pte_val(pte_t pte)
 				 pte.pte, (u64)pte.pte >> 32);
 	else
 		ret = PVOP_CALL1(pteval_t, pv_mmu_ops.pte_val,
+				 pte.pte);
+
+	return ret;
+}
+
+static inline pteval_t pte_flags(pte_t pte)
+{
+	pteval_t ret;
+
+	if (sizeof(pteval_t) > sizeof(long))
+		ret = PVOP_CALL2(pteval_t, pv_mmu_ops.pte_flags,
+				 pte.pte, (u64)pte.pte >> 32);
+	else
+		ret = PVOP_CALL1(pteval_t, pv_mmu_ops.pte_flags,
 				 pte.pte);
 
 	return ret;
