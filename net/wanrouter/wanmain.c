@@ -350,9 +350,9 @@ __be16 wanrouter_type_trans(struct sk_buff *skb, struct net_device *dev)
  *	o execute requested action or pass command to the device driver
  */
 
-int wanrouter_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg)
+long wanrouter_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int err = 0;
 	struct proc_dir_entry *dent;
 	struct wan_device *wandev;
@@ -372,6 +372,7 @@ int wanrouter_ioctl(struct inode *inode, struct file *file,
 	if (wandev->magic != ROUTER_MAGIC)
 		return -EINVAL;
 
+	lock_kernel();
 	switch (cmd) {
 	case ROUTER_SETUP:
 		err = wanrouter_device_setup(wandev, data);
@@ -403,6 +404,7 @@ int wanrouter_ioctl(struct inode *inode, struct file *file,
 			err = wandev->ioctl(wandev, cmd, arg);
 		else err = -EINVAL;
 	}
+	unlock_kernel();
 	return err;
 }
 
