@@ -155,6 +155,7 @@ static void xenboot_write_console(struct console *console, const char *string,
 
 	raw_console_write(string, len);
 
+	write_console(0, "(early) ", 8);
 	while (off < len && NULL != (pos = strchr(string+off, '\n'))) {
 		linelen = pos-string+off;
 		if (off + linelen > len)
