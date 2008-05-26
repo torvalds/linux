@@ -41,4 +41,7 @@ static inline void notify_remote_via_evtchn(int port)
 }
 
 extern void notify_remote_via_irq(int irq);
+
+extern void xen_irq_resume(void);
+
 #endif	/* _XEN_EVENTS_H */

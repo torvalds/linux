@@ -5,21 +5,113 @@
 #include <linux/err.h>
 #include <linux/reboot.h>
 #include <linux/sysrq.h>
+#include <linux/stop_machine.h>
+#include <linux/freezer.h>
 
 #include <xen/xenbus.h>
+#include <xen/grant_table.h>
+#include <xen/events.h>
+#include <xen/hvc-console.h>
+#include <xen/xen-ops.h>
 
-#define SHUTDOWN_INVALID  -1
-#define SHUTDOWN_POWEROFF  0
-#define SHUTDOWN_SUSPEND   2
-/* Code 3 is SHUTDOWN_CRASH, which we don't use because the domain can only
- * report a crash, not be instructed to crash!
- * HALT is the same as POWEROFF, as far as we're concerned.  The tools use
- * the distinction when we return the reason code to them.
- */
-#define SHUTDOWN_HALT      4
+#include <asm/xen/hypercall.h>
+#include <asm/xen/page.h>
+
+enum shutdown_state {
+	SHUTDOWN_INVALID = -1,
+	SHUTDOWN_POWEROFF = 0,
+	SHUTDOWN_SUSPEND = 2,
+	/* Code 3 is SHUTDOWN_CRASH, which we don't use because the domain can only
+	   report a crash, not be instructed to crash!
+	   HALT is the same as POWEROFF, as far as we're concerned.  The tools use
+	   the distinction when we return the reason code to them.  */
+	 SHUTDOWN_HALT = 4,
+};
 
 /* Ignore multiple shutdown requests. */
-static int shutting_down = SHUTDOWN_INVALID;
+static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
+
+static int xen_suspend(void *data)
+{
+	int *cancelled = data;
+
+	BUG_ON(!irqs_disabled());
+
+	load_cr3(swapper_pg_dir);
+
+	xen_mm_pin_all();
+	gnttab_suspend();
+	xen_time_suspend();
+	xen_pre_suspend();
+
+	/*
+	 * This hypercall returns 1 if suspend was cancelled
+	 * or the domain was merely checkpointed, and 0 if it
+	 * is resuming in a new domain.
+	 */
+	*cancelled = HYPERVISOR_suspend(virt_to_mfn(xen_start_info));
+
+	xen_post_suspend(*cancelled);
+	xen_time_resume();
+	gnttab_resume();
+	xen_mm_unpin_all();
+
+	if (!*cancelled) {
+		xen_irq_resume();
+		xen_console_resume();
+	}
+
+	return 0;
+}
+
+static void do_suspend(void)
+{
+	int err;
+	int cancelled = 1;
+
+	shutting_down = SHUTDOWN_SUSPEND;
+
+#ifdef CONFIG_PREEMPT
+	/* If the kernel is preemptible, we need to freeze all the processes
+	   to prevent them from being in the middle of a pagetable update
+	   during suspend. */
+	err = freeze_processes();
+	if (err) {
+		printk(KERN_ERR "xen suspend: freeze failed %d\n", err);
+		return;
+	}
+#endif
+
+	err = device_suspend(PMSG_SUSPEND);
+	if (err) {
+		printk(KERN_ERR "xen suspend: device_suspend %d\n", err);
+		goto out;
+	}
+
+	printk("suspending xenbus...\n");
+	/* XXX use normal device tree? */
+	xenbus_suspend();
+
+	err = stop_machine_run(xen_suspend, &cancelled, 0);
+	if (err) {
+		printk(KERN_ERR "failed to start xen_suspend: %d\n", err);
+		goto out;
+	}
+
+	if (!cancelled)
+		xenbus_resume();
+	else
+		xenbus_suspend_cancel();
+
+	device_resume();
+
+
+out:
+#ifdef CONFIG_PREEMPT
+	thaw_processes();
+#endif
+	shutting_down = SHUTDOWN_INVALID;
+}
 
 static void shutdown_handler(struct xenbus_watch *watch,
 			     const char **vec, unsigned int len)
@@ -52,11 +144,17 @@ static void shutdown_handler(struct xenbus_watch *watch,
 	}
 
 	if (strcmp(str, "poweroff") == 0 ||
-	    strcmp(str, "halt") == 0)
+	    strcmp(str, "halt") == 0) {
+		shutting_down = SHUTDOWN_POWEROFF;
 		orderly_poweroff(false);
-	else if (strcmp(str, "reboot") == 0)
+	} else if (strcmp(str, "reboot") == 0) {
+		shutting_down = SHUTDOWN_POWEROFF; /* ? */
 		ctrl_alt_del();
-	else {
+#ifdef CONFIG_PM_SLEEP
+	} else if (strcmp(str, "suspend") == 0) {
+		do_suspend();
+#endif
+	} else {
 		printk(KERN_INFO "Ignoring shutdown request: %s\n", str);
 		shutting_down = SHUTDOWN_INVALID;
 	}

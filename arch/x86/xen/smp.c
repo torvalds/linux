@@ -35,7 +35,7 @@
 #include "xen-ops.h"
 #include "mmu.h"
 
-static cpumask_t xen_cpu_initialized_map;
+cpumask_t xen_cpu_initialized_map;
 static DEFINE_PER_CPU(int, resched_irq) = -1;
 static DEFINE_PER_CPU(int, callfunc_irq) = -1;
 static DEFINE_PER_CPU(int, debug_irq) = -1;

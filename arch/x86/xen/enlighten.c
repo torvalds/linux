@@ -857,7 +857,7 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 			  PFN_DOWN(__pa(xen_start_info->pt_base)));
 }
 
-static __init void setup_shared_info(void)
+void xen_setup_shared_info(void)
 {
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 		unsigned long addr = fix_to_virt(FIX_PARAVIRT_BOOTMAP);
@@ -894,7 +894,7 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 	pv_mmu_ops.release_pmd = xen_release_pmd;
 	pv_mmu_ops.set_pte = xen_set_pte;
 
-	setup_shared_info();
+	xen_setup_shared_info();
 
 	/* Actually pin the pagetable down, but we can't set PG_pinned
 	   yet because the page structures don't exist yet. */
@@ -902,7 +902,7 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 }
 
 /* This is called once we have the cpu_possible_map */
-void __init xen_setup_vcpu_info_placement(void)
+void xen_setup_vcpu_info_placement(void)
 {
 	int cpu;
 

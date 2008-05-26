@@ -9,6 +9,7 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
+struct trap_info;
 void xen_copy_trap_info(struct trap_info *traps);
 
 DECLARE_PER_CPU(unsigned long, xen_cr3);
@@ -19,6 +20,7 @@ extern struct shared_info xen_dummy_shared_info;
 extern struct shared_info *HYPERVISOR_shared_info;
 
 void xen_setup_mfn_list_list(void);
+void xen_setup_shared_info(void);
 
 char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);
@@ -58,6 +60,8 @@ int xen_smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 
 int xen_smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 			       void *info, int wait);
+
+extern cpumask_t xen_cpu_initialized_map;
 
 
 /* Declare an asm function, along with symbols needed to make it

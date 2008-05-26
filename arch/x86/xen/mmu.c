@@ -560,6 +560,29 @@ void xen_pgd_pin(pgd_t *pgd)
 	xen_mc_issue(0);
 }
 
+/*
+ * On save, we need to pin all pagetables to make sure they get their
+ * mfns turned into pfns.  Search the list for any unpinned pgds and pin
+ * them (unpinned pgds are not currently in use, probably because the
+ * process is under construction or destruction).
+ */
+void xen_mm_pin_all(void)
+{
+	unsigned long flags;
+	struct page *page;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+
+	list_for_each_entry(page, &pgd_list, lru) {
+		if (!PagePinned(page)) {
+			xen_pgd_pin((pgd_t *)page_address(page));
+			SetPageSavePinned(page);
+		}
+	}
+
+	spin_unlock_irqrestore(&pgd_lock, flags);
+}
+
 /* The init_mm pagetable is really pinned as soon as its created, but
    that's before we have page structures to store the bits.  So do all
    the book-keeping now. */
@@ -615,6 +638,29 @@ static void xen_pgd_unpin(pgd_t *pgd)
 	pgd_walk(pgd, unpin_page, TASK_SIZE);
 
 	xen_mc_issue(0);
+}
+
+/*
+ * On resume, undo any pinning done at save, so that the rest of the
+ * kernel doesn't see any unexpected pinned pagetables.
+ */
+void xen_mm_unpin_all(void)
+{
+	unsigned long flags;
+	struct page *page;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+
+	list_for_each_entry(page, &pgd_list, lru) {
+		if (PageSavePinned(page)) {
+			BUG_ON(!PagePinned(page));
+			printk("unpinning pinned %p\n", page_address(page));
+			xen_pgd_unpin((pgd_t *)page_address(page));
+			ClearPageSavePinned(page);
+		}
+	}
+
+	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
