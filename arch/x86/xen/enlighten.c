@@ -648,8 +648,10 @@ static unsigned long xen_read_cr2_direct(void)
 
 static void xen_write_cr4(unsigned long cr4)
 {
-	/* Just ignore cr4 changes; Xen doesn't allow us to do
-	   anything anyway. */
+	cr4 &= ~X86_CR4_PGE;
+	cr4 &= ~X86_CR4_PSE;
+
+	native_write_cr4(cr4);
 }
 
 static unsigned long xen_read_cr3(void)
