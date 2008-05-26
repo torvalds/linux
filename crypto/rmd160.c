@@ -47,7 +47,7 @@ struct rmd160_ctx {
 #define F5(x, y, z) (x ^ (y | ~z))
 
 #define ROUND(a, b, c, d, e, f, k, x, s)  { \
-	(a) += f((b), (c), (d)) + (x) + (k); \
+	(a) += f((b), (c), (d)) + le32_to_cpu(x) + (k); \
 	(a) = rol32((a), (s)) + (e); \
 	(c) = rol32((c), 10); \
 }
@@ -261,28 +261,6 @@ static void rmd160_transform(u32 *state, u32 const *in)
 	return;
 }
 
-static inline void le32_to_cpu_array(u32 *buf, unsigned int words)
-{
-	while (words--) {
-		le32_to_cpus(buf);
-		buf++;
-	}
-}
-
-static inline void cpu_to_le32_array(u32 *buf, unsigned int words)
-{
-	while (words--) {
-		cpu_to_le32s(buf);
-		buf++;
-	}
-}
-
-static inline void rmd160_transform_helper(struct rmd160_ctx *ctx)
-{
-	le32_to_cpu_array(ctx->buffer, sizeof(ctx->buffer) / sizeof(u32));
-	rmd160_transform(ctx->state, ctx->buffer);
-}
-
 static void rmd160_init(struct crypto_tfm *tfm)
 {
 	struct rmd160_ctx *rctx = crypto_tfm_ctx(tfm);
@@ -316,13 +294,13 @@ static void rmd160_update(struct crypto_tfm *tfm, const u8 *data,
 	memcpy((char *)rctx->buffer + (sizeof(rctx->buffer) - avail),
 	       data, avail);
 
-	rmd160_transform_helper(rctx);
+	rmd160_transform(rctx->state, rctx->buffer);
 	data += avail;
 	len -= avail;
 
 	while (len >= sizeof(rctx->buffer)) {
 		memcpy(rctx->buffer, data, sizeof(rctx->buffer));
-		rmd160_transform_helper(rctx);
+		rmd160_transform(rctx->state, rctx->buffer);
 		data += sizeof(rctx->buffer);
 		len -= sizeof(rctx->buffer);
 	}
@@ -334,10 +312,12 @@ static void rmd160_update(struct crypto_tfm *tfm, const u8 *data,
 static void rmd160_final(struct crypto_tfm *tfm, u8 *out)
 {
 	struct rmd160_ctx *rctx = crypto_tfm_ctx(tfm);
-	u32 index, padlen;
+	u32 i, index, padlen;
 	u64 bits;
+	u32 *dst = (u32 *)out;
 	static const u8 padding[64] = { 0x80, };
-	bits = rctx->byte_count << 3;
+
+	bits = cpu_to_le64(rctx->byte_count << 3);
 
 	/* Pad out to 56 mod 64 */
 	index = rctx->byte_count & 0x3f;
@@ -348,7 +328,8 @@ static void rmd160_final(struct crypto_tfm *tfm, u8 *out)
 	rmd160_update(tfm, (const u8 *)&bits, sizeof(bits));
 
 	/* Store state in digest */
-	memcpy(out, rctx->state, sizeof(rctx->state));
+	for (i = 0; i < 5; i++)
+		dst[i] = cpu_to_le32(rctx->state[i]);
 
 	/* Wipe context */
 	memset(rctx, 0, sizeof(*rctx));
