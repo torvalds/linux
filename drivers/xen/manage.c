@@ -34,14 +34,21 @@ static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 static int xen_suspend(void *data)
 {
 	int *cancelled = data;
+	int err;
 
 	BUG_ON(!irqs_disabled());
 
 	load_cr3(swapper_pg_dir);
 
+	err = device_power_down(PMSG_SUSPEND);
+	if (err) {
+		printk(KERN_ERR "xen_suspend: device_power_down failed: %d\n",
+		       err);
+		return err;
+	}
+
 	xen_mm_pin_all();
 	gnttab_suspend();
-	xen_time_suspend();
 	xen_pre_suspend();
 
 	/*
@@ -52,9 +59,10 @@ static int xen_suspend(void *data)
 	*cancelled = HYPERVISOR_suspend(virt_to_mfn(xen_start_info));
 
 	xen_post_suspend(*cancelled);
-	xen_time_resume();
 	gnttab_resume();
 	xen_mm_unpin_all();
+
+	device_power_up();
 
 	if (!*cancelled) {
 		xen_irq_resume();
@@ -105,7 +113,8 @@ static void do_suspend(void)
 
 	device_resume();
 
-
+	/* Make sure timer events get retriggered on all CPUs */
+	clock_was_set();
 out:
 #ifdef CONFIG_PREEMPT
 	thaw_processes();

@@ -572,14 +572,6 @@ void xen_setup_cpu_clockevents(void)
 	clockevents_register_device(&__get_cpu_var(xen_clock_events));
 }
 
-void xen_time_suspend(void)
-{
-}
-
-void xen_time_resume(void)
-{
-}
-
 __init void xen_time_init(void)
 {
 	int cpu = smp_processor_id();

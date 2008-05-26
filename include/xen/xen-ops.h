@@ -11,7 +11,4 @@ void xen_post_suspend(int suspend_cancelled);
 void xen_mm_pin_all(void);
 void xen_mm_unpin_all(void);
 
-void xen_time_suspend(void);
-void xen_time_resume(void);
-
 #endif /* INCLUDE_XEN_OPS_H */
