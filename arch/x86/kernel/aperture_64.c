@@ -271,16 +271,16 @@ void __init early_gart_iommu_check(void)
 	 * or BIOS forget to put that in reserved.
 	 * try to update e820 to make that region as reserved.
 	 */
-	int fix, slot;
+	int i, fix, slot;
 	u32 ctl;
 	u32 aper_size = 0, aper_order = 0, last_aper_order = 0;
 	u64 aper_base = 0, last_aper_base = 0;
-	int aper_enabled = 0, last_aper_enabled = 0;
-	int i;
+	int aper_enabled = 0, last_aper_enabled = 0, last_valid = 0;
 
 	if (!early_pci_allowed())
 		return;
 
+	/* This is mostly duplicate of iommu_hole_init */
 	fix = 0;
 	for (i = 0; i < ARRAY_SIZE(bus_dev_ranges); i++) {
 		int bus;
@@ -301,19 +301,22 @@ void __init early_gart_iommu_check(void)
 			aper_base = read_pci_config(bus, slot, 3, AMD64_GARTAPERTUREBASE) & 0x7fff;
 			aper_base <<= 25;
 
-			if ((last_aper_order && aper_order != last_aper_order) ||
-			    (last_aper_base && aper_base != last_aper_base) ||
-			    (last_aper_enabled && aper_enabled != last_aper_enabled)) {
-				fix = 1;
-				goto out;
+			if (last_valid) {
+				if ((aper_order != last_aper_order) ||
+				    (aper_base != last_aper_base) ||
+				    (aper_enabled != last_aper_enabled)) {
+					fix = 1;
+					break;
+				}
 			}
+
 			last_aper_order = aper_order;
 			last_aper_base = aper_base;
 			last_aper_enabled = aper_enabled;
+			last_valid = 1;
 		}
 	}
 
-out:
 	if (!fix && !aper_enabled)
 		return;
 
