@@ -33,6 +33,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/brcmphy.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -869,6 +870,51 @@ static int tg3_mdio_reset(struct mii_bus *bp)
 	return 0;
 }
 
+static void tg3_mdio_config(struct tg3 *tp)
+{
+	u32 val;
+
+	if (tp->mdio_bus.phy_map[PHY_ADDR]->interface !=
+	    PHY_INTERFACE_MODE_RGMII)
+		return;
+
+	val = tr32(MAC_PHYCFG1) & ~(MAC_PHYCFG1_RGMII_EXT_RX_DEC |
+				    MAC_PHYCFG1_RGMII_SND_STAT_EN);
+	if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE) {
+		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)
+			val |= MAC_PHYCFG1_RGMII_EXT_RX_DEC;
+		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_TX_EN)
+			val |= MAC_PHYCFG1_RGMII_SND_STAT_EN;
+	}
+	tw32(MAC_PHYCFG1, val | MAC_PHYCFG1_RGMII_INT | MAC_PHYCFG1_TXC_DRV);
+
+	val = tr32(MAC_PHYCFG2) & ~(MAC_PHYCFG2_INBAND_ENABLE);
+	if (!(tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE))
+		val |= MAC_PHYCFG2_INBAND_ENABLE;
+	tw32(MAC_PHYCFG2, val);
+
+	val = tr32(MAC_EXT_RGMII_MODE);
+	val &= ~(MAC_RGMII_MODE_RX_INT_B |
+		 MAC_RGMII_MODE_RX_QUALITY |
+		 MAC_RGMII_MODE_RX_ACTIVITY |
+		 MAC_RGMII_MODE_RX_ENG_DET |
+		 MAC_RGMII_MODE_TX_ENABLE |
+		 MAC_RGMII_MODE_TX_LOWPWR |
+		 MAC_RGMII_MODE_TX_RESET);
+	if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE) {
+		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)
+			val |= MAC_RGMII_MODE_RX_INT_B |
+			       MAC_RGMII_MODE_RX_QUALITY |
+			       MAC_RGMII_MODE_RX_ACTIVITY |
+			       MAC_RGMII_MODE_RX_ENG_DET;
+		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_TX_EN)
+			val |= MAC_RGMII_MODE_TX_ENABLE |
+			       MAC_RGMII_MODE_TX_LOWPWR |
+			       MAC_RGMII_MODE_TX_RESET;
+	}
+	tw32(MAC_EXT_RGMII_MODE, val);
+}
+
 static void tg3_mdio_start(struct tg3 *tp)
 {
 	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) {
@@ -880,6 +926,9 @@ static void tg3_mdio_start(struct tg3 *tp)
 	tp->mi_mode &= ~MAC_MI_MODE_AUTO_POLL;
 	tw32_f(MAC_MI_MODE, tp->mi_mode);
 	udelay(80);
+
+	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED)
+		tg3_mdio_config(tp);
 }
 
 static void tg3_mdio_stop(struct tg3 *tp)
@@ -895,6 +944,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 {
 	int i;
 	u32 reg;
+	struct phy_device *phydev;
 	struct mii_bus *mdio_bus = &tp->mdio_bus;
 
 	tg3_mdio_start(tp);
@@ -928,13 +978,34 @@ static int tg3_mdio_init(struct tg3 *tp)
 		tg3_bmcr_reset(tp);
 
 	i = mdiobus_register(mdio_bus);
-	if (!i)
-		tp->tg3_flags3 |= TG3_FLG3_MDIOBUS_INITED;
-	else
+	if (i) {
 		printk(KERN_WARNING "%s: mdiobus_reg failed (0x%x)\n",
 			tp->dev->name, i);
+		return i;
+	}
 
-	return i;
+	tp->tg3_flags3 |= TG3_FLG3_MDIOBUS_INITED;
+
+	phydev = tp->mdio_bus.phy_map[PHY_ADDR];
+
+	switch (phydev->phy_id) {
+	case TG3_PHY_ID_BCM50610:
+		phydev->interface = PHY_INTERFACE_MODE_RGMII;
+		if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE)
+			phydev->dev_flags |= PHY_BRCM_STD_IBND_DISABLE;
+		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)
+			phydev->dev_flags |= PHY_BRCM_EXT_IBND_RX_ENABLE;
+		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_TX_EN)
+			phydev->dev_flags |= PHY_BRCM_EXT_IBND_TX_ENABLE;
+		break;
+	case TG3_PHY_ID_BCMAC131:
+		phydev->interface = PHY_INTERFACE_MODE_MII;
+		break;
+	}
+
+	tg3_mdio_config(tp);
+
+	return 0;
 }
 
 static void tg3_mdio_fini(struct tg3 *tp)
@@ -1238,8 +1309,8 @@ static int tg3_phy_init(struct tg3 *tp)
 	phydev = tp->mdio_bus.phy_map[PHY_ADDR];
 
 	/* Attach the MAC to the PHY. */
-	phydev = phy_connect(tp->dev, phydev->dev.bus_id,
-			     tg3_adjust_link, 0, phydev->interface);
+	phydev = phy_connect(tp->dev, phydev->dev.bus_id, tg3_adjust_link,
+			     phydev->dev_flags, phydev->interface);
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", tp->dev->name);
 		return PTR_ERR(phydev);
@@ -11219,7 +11290,7 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
 		u32 nic_cfg, led_cfg;
-		u32 nic_phy_id, ver, cfg2 = 0, eeprom_phy_id;
+		u32 nic_phy_id, ver, cfg2 = 0, cfg4 = 0, eeprom_phy_id;
 		int eeprom_phy_serdes = 0;
 
 		tg3_read_mem(tp, NIC_SRAM_DATA_CFG, &nic_cfg);
@@ -11232,6 +11303,9 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5703) &&
 		    (ver > 0) && (ver < 0x100))
 			tg3_read_mem(tp, NIC_SRAM_DATA_CFG_2, &cfg2);
+
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
+			tg3_read_mem(tp, NIC_SRAM_DATA_CFG_4, &cfg4);
 
 		if ((nic_cfg & NIC_SRAM_DATA_CFG_PHY_TYPE_MASK) ==
 		    NIC_SRAM_DATA_CFG_PHY_TYPE_FIBER)
@@ -11357,6 +11431,13 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 			if (cfg3 & NIC_SRAM_ASPM_DEBOUNCE)
 				tp->tg3_flags |= TG3_FLAG_ASPM_WORKAROUND;
 		}
+
+		if (cfg4 & NIC_SRAM_RGMII_STD_IBND_DISABLE)
+			tp->tg3_flags3 |= TG3_FLG3_RGMII_STD_IBND_DISABLE;
+		if (cfg4 & NIC_SRAM_RGMII_EXT_IBND_RX_EN)
+			tp->tg3_flags3 |= TG3_FLG3_RGMII_EXT_IBND_RX_EN;
+		if (cfg4 & NIC_SRAM_RGMII_EXT_IBND_TX_EN)
+			tp->tg3_flags3 |= TG3_FLG3_RGMII_EXT_IBND_TX_EN;
 	}
 }
 
