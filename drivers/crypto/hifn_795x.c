@@ -895,7 +895,7 @@ static int hifn_enable_crypto(struct hifn_device *dev)
 	char *offtbl = NULL;
 	int i;
 
-	for (i = 0; i < sizeof(pci2id)/sizeof(pci2id[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(pci2id); i++) {
 		if (pci2id[i].pci_vendor == dev->pdev->vendor &&
 				pci2id[i].pci_prod == dev->pdev->device) {
 			offtbl = pci2id[i].card_id;
