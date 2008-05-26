@@ -227,7 +227,6 @@ static bool vring_enable_cb(struct virtqueue *_vq)
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
 	START_USE(vq);
-	BUG_ON(!(vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT));
 
 	/* We optimistically turn back on interrupts, then check if there was
 	 * more to do. */
