@@ -1,8 +1,4 @@
 /******************************************************************* 
- * ident "$Id: idt77252.c,v 1.2 2001/11/11 08:13:54 ecd Exp $"
- *
- * $Author: ecd $
- * $Date: 2001/11/11 08:13:54 $
  *
  * Copyright (c) 2000 ATecoM GmbH 
  *
@@ -29,9 +25,6 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *******************************************************************/
-static char const rcsid[] =
-"$Id: idt77252.c,v 1.2 2001/11/11 08:13:54 ecd Exp $";
-
 
 #include <linux/module.h>
 #include <linux/pci.h>

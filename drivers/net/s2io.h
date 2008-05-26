@@ -706,7 +706,7 @@ struct ring_info {
 	/* per-ring buffer counter */
 	u32 rx_bufs_left;
 
-	#define MAX_LRO_SESSIONS	32
+#define MAX_LRO_SESSIONS       32
 	struct lro lro0_n[MAX_LRO_SESSIONS];
 	u8		lro;
 
@@ -724,6 +724,11 @@ struct ring_info {
 
 	/* copy of sp->pdev pointer */
 	struct pci_dev *pdev;
+
+	/* Per ring napi struct */
+	struct napi_struct napi;
+
+	unsigned long interrupt_count;
 
 	/*
 	 *  Place holders for the virtual and physical addresses of
@@ -841,7 +846,7 @@ struct usr_addr {
  * Structure to keep track of the MSI-X vectors and the corresponding
  * argument registered against each vector
  */
-#define MAX_REQUESTED_MSI_X	17
+#define MAX_REQUESTED_MSI_X	9
 struct s2io_msix_entry
 {
 	u16 vector;
@@ -849,8 +854,8 @@ struct s2io_msix_entry
 	void *arg;
 
 	u8 type;
-#define	MSIX_FIFO_TYPE	1
-#define	MSIX_RING_TYPE	2
+#define        MSIX_ALARM_TYPE         1
+#define        MSIX_RING_TYPE          2
 
 	u8 in_use;
 #define MSIX_REGISTERED_SUCCESS	0xAA
@@ -877,7 +882,6 @@ struct s2io_nic {
 	 */
 	int pkts_to_process;
 	struct net_device *dev;
-	struct napi_struct napi;
 	struct mac_info mac_control;
 	struct config_param config;
 	struct pci_dev *pdev;
@@ -948,6 +952,7 @@ struct s2io_nic {
 	*/
 	u8 other_fifo_idx;
 
+	struct napi_struct napi;
 	/*  after blink, the adapter must be restored with original
 	 *  values.
 	 */
@@ -962,6 +967,7 @@ struct s2io_nic {
 	unsigned long long start_time;
 	struct vlan_group *vlgrp;
 #define MSIX_FLG                0xA5
+	int num_entries;
 	struct msix_entry *entries;
 	int msi_detected;
 	wait_queue_head_t msi_wait;
@@ -982,6 +988,7 @@ struct s2io_nic {
 	u16		lro_max_aggr_per_sess;
 	volatile unsigned long state;
 	u64		general_int_mask;
+
 #define VPD_STRING_LEN 80
 	u8  product_name[VPD_STRING_LEN];
 	u8  serial_num[VPD_STRING_LEN];
@@ -1103,7 +1110,7 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev);
 static int init_shared_mem(struct s2io_nic *sp);
 static void free_shared_mem(struct s2io_nic *sp);
 static int init_nic(struct s2io_nic *nic);
-static void rx_intr_handler(struct ring_info *ring_data);
+static int rx_intr_handler(struct ring_info *ring_data, int budget);
 static void tx_intr_handler(struct fifo_info *fifo_data);
 static void s2io_handle_errors(void * dev_id);
 
@@ -1114,7 +1121,8 @@ static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp);
 static void s2io_link(struct s2io_nic * sp, int link);
 static void s2io_reset(struct s2io_nic * sp);
-static int s2io_poll(struct napi_struct *napi, int budget);
+static int s2io_poll_msix(struct napi_struct *napi, int budget);
+static int s2io_poll_inta(struct napi_struct *napi, int budget);
 static void s2io_init_pci(struct s2io_nic * sp);
 static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr);
 static void s2io_alarm_handle(unsigned long data);

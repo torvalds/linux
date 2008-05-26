@@ -1251,7 +1251,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 		x->sel.prefixlen_s = addr->sadb_address_prefixlen;
 	}
 
-	if (x->props.mode == XFRM_MODE_TRANSPORT)
+	if (!x->sel.family)
 		x->sel.family = x->props.family;
 
 	if (ext_hdrs[SADB_X_EXT_NAT_T_TYPE-1]) {

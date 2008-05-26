@@ -355,7 +355,7 @@ struct tcp_sock {
 	u32	lost_retrans_low;	/* Sent seq after any rxmit (lowest) */
 
 	u16	advmss;		/* Advertised MSS			*/
-	u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
+	u32	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/

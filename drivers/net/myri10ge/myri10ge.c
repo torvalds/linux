@@ -631,7 +631,7 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 	return status;
 }
 
-int myri10ge_get_firmware_capabilities(struct myri10ge_priv *mgp)
+static int myri10ge_get_firmware_capabilities(struct myri10ge_priv *mgp)
 {
 	struct myri10ge_cmd cmd;
 	int status;

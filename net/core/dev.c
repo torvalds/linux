@@ -3141,7 +3141,7 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	 *	Load in the correct multicast list now the flags have changed.
 	 */
 
-	if (dev->change_rx_flags && (dev->flags ^ flags) & IFF_MULTICAST)
+	if (dev->change_rx_flags && (old_flags ^ flags) & IFF_MULTICAST)
 		dev->change_rx_flags(dev, IFF_MULTICAST);
 
 	dev_set_rx_mode(dev);

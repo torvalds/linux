@@ -86,7 +86,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.23"
+#define DRV_VERSION "2.0.26.24"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -1113,9 +1113,10 @@ static int s2io_on_nec_bridge(struct pci_dev *s2io_pdev)
 	struct pci_dev *tdev = NULL;
 	while ((tdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, tdev)) != NULL) {
 		if (tdev->vendor == NEC_VENID && tdev->device == NEC_DEVID) {
-			if (tdev->bus == s2io_pdev->bus->parent)
+			if (tdev->bus == s2io_pdev->bus->parent) {
 				pci_dev_put(tdev);
 				return 1;
+			}
 		}
 	}
 	return 0;
@@ -1219,15 +1220,33 @@ static int init_tti(struct s2io_nic *nic, int link)
 				TTI_DATA1_MEM_TX_URNG_B(0x10) |
 				TTI_DATA1_MEM_TX_URNG_C(0x30) |
 				TTI_DATA1_MEM_TX_TIMER_AC_EN;
-
-		if (use_continuous_tx_intrs && (link == LINK_UP))
-			val64 |= TTI_DATA1_MEM_TX_TIMER_CI_EN;
+		if (i == 0)
+			if (use_continuous_tx_intrs && (link == LINK_UP))
+				val64 |= TTI_DATA1_MEM_TX_TIMER_CI_EN;
 		writeq(val64, &bar0->tti_data1_mem);
 
-		val64 = TTI_DATA2_MEM_TX_UFC_A(0x10) |
-				TTI_DATA2_MEM_TX_UFC_B(0x20) |
-				TTI_DATA2_MEM_TX_UFC_C(0x40) |
-				TTI_DATA2_MEM_TX_UFC_D(0x80);
+		if (nic->config.intr_type == MSI_X) {
+			val64 = TTI_DATA2_MEM_TX_UFC_A(0x10) |
+				TTI_DATA2_MEM_TX_UFC_B(0x100) |
+				TTI_DATA2_MEM_TX_UFC_C(0x200) |
+				TTI_DATA2_MEM_TX_UFC_D(0x300);
+		} else {
+			if ((nic->config.tx_steering_type ==
+				TX_DEFAULT_STEERING) &&
+				(config->tx_fifo_num > 1) &&
+				(i >= nic->udp_fifo_idx) &&
+				(i < (nic->udp_fifo_idx +
+				nic->total_udp_fifos)))
+				val64 = TTI_DATA2_MEM_TX_UFC_A(0x50) |
+					TTI_DATA2_MEM_TX_UFC_B(0x80) |
+					TTI_DATA2_MEM_TX_UFC_C(0x100) |
+					TTI_DATA2_MEM_TX_UFC_D(0x120);
+			else
+				val64 = TTI_DATA2_MEM_TX_UFC_A(0x10) |
+					TTI_DATA2_MEM_TX_UFC_B(0x20) |
+					TTI_DATA2_MEM_TX_UFC_C(0x40) |
+					TTI_DATA2_MEM_TX_UFC_D(0x80);
+		}
 
 		writeq(val64, &bar0->tti_data2_mem);
 
@@ -2813,6 +2832,15 @@ static void free_rx_buffers(struct s2io_nic *sp)
 	}
 }
 
+static int s2io_chk_rx_buffers(struct ring_info *ring)
+{
+	if (fill_rx_buffers(ring) == -ENOMEM) {
+		DBG_PRINT(INFO_DBG, "%s:Out of memory", ring->dev->name);
+		DBG_PRINT(INFO_DBG, " in Rx Intr!!\n");
+	}
+	return 0;
+}
+
 /**
  * s2io_poll - Rx interrupt handler for NAPI support
  * @napi : pointer to the napi structure.
@@ -2826,57 +2854,72 @@ static void free_rx_buffers(struct s2io_nic *sp)
  * 0 on success and 1 if there are No Rx packets to be processed.
  */
 
-static int s2io_poll(struct napi_struct *napi, int budget)
+static int s2io_poll_msix(struct napi_struct *napi, int budget)
+{
+	struct ring_info *ring = container_of(napi, struct ring_info, napi);
+	struct net_device *dev = ring->dev;
+	struct config_param *config;
+	struct mac_info *mac_control;
+	int pkts_processed = 0;
+	u8 *addr = NULL, val8 = 0;
+	struct s2io_nic *nic = dev->priv;
+	struct XENA_dev_config __iomem *bar0 = nic->bar0;
+	int budget_org = budget;
+
+	config = &nic->config;
+	mac_control = &nic->mac_control;
+
+	if (unlikely(!is_s2io_card_up(nic)))
+		return 0;
+
+	pkts_processed = rx_intr_handler(ring, budget);
+	s2io_chk_rx_buffers(ring);
+
+	if (pkts_processed < budget_org) {
+		netif_rx_complete(dev, napi);
+		/*Re Enable MSI-Rx Vector*/
+		addr = (u8 *)&bar0->xmsi_mask_reg;
+		addr += 7 - ring->ring_no;
+		val8 = (ring->ring_no == 0) ? 0x3f : 0xbf;
+		writeb(val8, addr);
+		val8 = readb(addr);
+	}
+	return pkts_processed;
+}
+static int s2io_poll_inta(struct napi_struct *napi, int budget)
 {
 	struct s2io_nic *nic = container_of(napi, struct s2io_nic, napi);
+	struct ring_info *ring;
 	struct net_device *dev = nic->dev;
-	int pkt_cnt = 0, org_pkts_to_process;
-	struct mac_info *mac_control;
 	struct config_param *config;
+	struct mac_info *mac_control;
+	int pkts_processed = 0;
+	int ring_pkts_processed, i;
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
-	int i;
+	int budget_org = budget;
 
-	mac_control = &nic->mac_control;
 	config = &nic->config;
+	mac_control = &nic->mac_control;
 
-	nic->pkts_to_process = budget;
-	org_pkts_to_process = nic->pkts_to_process;
-
-	writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
-	readl(&bar0->rx_traffic_int);
+	if (unlikely(!is_s2io_card_up(nic)))
+		return 0;
 
 	for (i = 0; i < config->rx_ring_num; i++) {
-		rx_intr_handler(&mac_control->rings[i]);
-		pkt_cnt = org_pkts_to_process - nic->pkts_to_process;
-		if (!nic->pkts_to_process) {
-			/* Quota for the current iteration has been met */
-			goto no_rx;
-		}
-	}
-
-	netif_rx_complete(dev, napi);
-
-	for (i = 0; i < config->rx_ring_num; i++) {
-		if (fill_rx_buffers(&mac_control->rings[i]) == -ENOMEM) {
-			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
-			DBG_PRINT(INFO_DBG, " in Rx Poll!!\n");
+		ring = &mac_control->rings[i];
+		ring_pkts_processed = rx_intr_handler(ring, budget);
+		s2io_chk_rx_buffers(ring);
+		pkts_processed += ring_pkts_processed;
+		budget -= ring_pkts_processed;
+		if (budget <= 0)
 			break;
-		}
 	}
-	/* Re enable the Rx interrupts. */
-	writeq(0x0, &bar0->rx_traffic_mask);
-	readl(&bar0->rx_traffic_mask);
-	return pkt_cnt;
-
-no_rx:
-	for (i = 0; i < config->rx_ring_num; i++) {
-		if (fill_rx_buffers(&mac_control->rings[i]) == -ENOMEM) {
-			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
-			DBG_PRINT(INFO_DBG, " in Rx Poll!!\n");
-			break;
-		}
+	if (pkts_processed < budget_org) {
+		netif_rx_complete(dev, napi);
+		/* Re enable the Rx interrupts for the ring */
+		writeq(0, &bar0->rx_traffic_mask);
+		readl(&bar0->rx_traffic_mask);
 	}
-	return pkt_cnt;
+	return pkts_processed;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2918,7 +2961,7 @@ static void s2io_netpoll(struct net_device *dev)
 
 	/* check for received packet and indicate up to network */
 	for (i = 0; i < config->rx_ring_num; i++)
-		rx_intr_handler(&mac_control->rings[i]);
+		rx_intr_handler(&mac_control->rings[i], 0);
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(&mac_control->rings[i]) == -ENOMEM) {
@@ -2934,7 +2977,8 @@ static void s2io_netpoll(struct net_device *dev)
 
 /**
  *  rx_intr_handler - Rx interrupt handler
- *  @nic: device private variable.
+ *  @ring_info: per ring structure.
+ *  @budget: budget for napi processing.
  *  Description:
  *  If the interrupt is because of a received frame or if the
  *  receive ring contains fresh as yet un-processed frames,this function is
@@ -2942,15 +2986,15 @@ static void s2io_netpoll(struct net_device *dev)
  *  stopped and sends the skb to the OSM's Rx handler and then increments
  *  the offset.
  *  Return Value:
- *  NONE.
+ *  No. of napi packets processed.
  */
-static void rx_intr_handler(struct ring_info *ring_data)
+static int rx_intr_handler(struct ring_info *ring_data, int budget)
 {
 	int get_block, put_block;
 	struct rx_curr_get_info get_info, put_info;
 	struct RxD_t *rxdp;
 	struct sk_buff *skb;
-	int pkt_cnt = 0;
+	int pkt_cnt = 0, napi_pkts = 0;
 	int i;
 	struct RxD1* rxdp1;
 	struct RxD3* rxdp3;
@@ -2977,7 +3021,7 @@ static void rx_intr_handler(struct ring_info *ring_data)
 			DBG_PRINT(ERR_DBG, "%s: The skb is ",
 				  ring_data->dev->name);
 			DBG_PRINT(ERR_DBG, "Null in Rx Intr\n");
-			return;
+			return 0;
 		}
 		if (ring_data->rxd_mode == RXD_MODE_1) {
 			rxdp1 = (struct RxD1*)rxdp;
@@ -3014,9 +3058,10 @@ static void rx_intr_handler(struct ring_info *ring_data)
 			rxdp = ring_data->rx_blocks[get_block].block_virt_addr;
 		}
 
-		if(ring_data->nic->config.napi){
-			ring_data->nic->pkts_to_process -= 1;
-			if (!ring_data->nic->pkts_to_process)
+		if (ring_data->nic->config.napi) {
+			budget--;
+			napi_pkts++;
+			if (!budget)
 				break;
 		}
 		pkt_cnt++;
@@ -3034,6 +3079,7 @@ static void rx_intr_handler(struct ring_info *ring_data)
 			}
 		}
 	}
+	return(napi_pkts);
 }
 
 /**
@@ -3730,14 +3776,19 @@ static void restore_xmsi_data(struct s2io_nic *nic)
 {
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	u64 val64;
-	int i;
+	int i, msix_index;
+
+
+	if (nic->device_type == XFRAME_I_DEVICE)
+		return;
 
 	for (i=0; i < MAX_REQUESTED_MSI_X; i++) {
+		msix_index = (i) ? ((i-1) * 8 + 1): 0;
 		writeq(nic->msix_info[i].addr, &bar0->xmsi_address);
 		writeq(nic->msix_info[i].data, &bar0->xmsi_data);
-		val64 = (s2BIT(7) | s2BIT(15) | vBIT(i, 26, 6));
+		val64 = (s2BIT(7) | s2BIT(15) | vBIT(msix_index, 26, 6));
 		writeq(val64, &bar0->xmsi_access);
-		if (wait_for_msix_trans(nic, i)) {
+		if (wait_for_msix_trans(nic, msix_index)) {
 			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
 			continue;
 		}
@@ -3748,13 +3799,17 @@ static void store_xmsi_data(struct s2io_nic *nic)
 {
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	u64 val64, addr, data;
-	int i;
+	int i, msix_index;
+
+	if (nic->device_type == XFRAME_I_DEVICE)
+		return;
 
 	/* Store and display */
 	for (i=0; i < MAX_REQUESTED_MSI_X; i++) {
-		val64 = (s2BIT(15) | vBIT(i, 26, 6));
+		msix_index = (i) ? ((i-1) * 8 + 1): 0;
+		val64 = (s2BIT(15) | vBIT(msix_index, 26, 6));
 		writeq(val64, &bar0->xmsi_access);
-		if (wait_for_msix_trans(nic, i)) {
+		if (wait_for_msix_trans(nic, msix_index)) {
 			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
 			continue;
 		}
@@ -3770,11 +3825,11 @@ static void store_xmsi_data(struct s2io_nic *nic)
 static int s2io_enable_msi_x(struct s2io_nic *nic)
 {
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
-	u64 tx_mat, rx_mat;
+	u64 rx_mat;
 	u16 msi_control; /* Temp variable */
 	int ret, i, j, msix_indx = 1;
 
-	nic->entries = kcalloc(MAX_REQUESTED_MSI_X, sizeof(struct msix_entry),
+	nic->entries = kmalloc(nic->num_entries * sizeof(struct msix_entry),
 			       GFP_KERNEL);
 	if (!nic->entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", \
@@ -3783,10 +3838,12 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 		return -ENOMEM;
 	}
 	nic->mac_control.stats_info->sw_stat.mem_allocated
-		+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
+		+= (nic->num_entries * sizeof(struct msix_entry));
+
+	memset(nic->entries, 0, nic->num_entries * sizeof(struct msix_entry));
 
 	nic->s2io_entries =
-		kcalloc(MAX_REQUESTED_MSI_X, sizeof(struct s2io_msix_entry),
+		kmalloc(nic->num_entries * sizeof(struct s2io_msix_entry),
 				   GFP_KERNEL);
 	if (!nic->s2io_entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n",
@@ -3794,60 +3851,52 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		kfree(nic->entries);
 		nic->mac_control.stats_info->sw_stat.mem_freed
-			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
+			+= (nic->num_entries * sizeof(struct msix_entry));
 		return -ENOMEM;
 	}
 	 nic->mac_control.stats_info->sw_stat.mem_allocated
-		+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
+		+= (nic->num_entries * sizeof(struct s2io_msix_entry));
+	memset(nic->s2io_entries, 0,
+		nic->num_entries * sizeof(struct s2io_msix_entry));
 
-	for (i=0; i< MAX_REQUESTED_MSI_X; i++) {
-		nic->entries[i].entry = i;
-		nic->s2io_entries[i].entry = i;
+	nic->entries[0].entry = 0;
+	nic->s2io_entries[0].entry = 0;
+	nic->s2io_entries[0].in_use = MSIX_FLG;
+	nic->s2io_entries[0].type = MSIX_ALARM_TYPE;
+	nic->s2io_entries[0].arg = &nic->mac_control.fifos;
+
+	for (i = 1; i < nic->num_entries; i++) {
+		nic->entries[i].entry = ((i - 1) * 8) + 1;
+		nic->s2io_entries[i].entry = ((i - 1) * 8) + 1;
 		nic->s2io_entries[i].arg = NULL;
 		nic->s2io_entries[i].in_use = 0;
 	}
 
-	tx_mat = readq(&bar0->tx_mat0_n[0]);
-	for (i=0; i<nic->config.tx_fifo_num; i++, msix_indx++) {
-		tx_mat |= TX_MAT_SET(i, msix_indx);
-		nic->s2io_entries[msix_indx].arg = &nic->mac_control.fifos[i];
-		nic->s2io_entries[msix_indx].type = MSIX_FIFO_TYPE;
-		nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
-	}
-	writeq(tx_mat, &bar0->tx_mat0_n[0]);
-
 	rx_mat = readq(&bar0->rx_mat);
-	for (j = 0; j < nic->config.rx_ring_num; j++, msix_indx++) {
+	for (j = 0; j < nic->config.rx_ring_num; j++) {
 		rx_mat |= RX_MAT_SET(j, msix_indx);
-		nic->s2io_entries[msix_indx].arg
-			= &nic->mac_control.rings[j];
-		nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
-		nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
+		nic->s2io_entries[j+1].arg = &nic->mac_control.rings[j];
+		nic->s2io_entries[j+1].type = MSIX_RING_TYPE;
+		nic->s2io_entries[j+1].in_use = MSIX_FLG;
+		msix_indx += 8;
 	}
 	writeq(rx_mat, &bar0->rx_mat);
+	readq(&bar0->rx_mat);
 
-	nic->avail_msix_vectors = 0;
-	ret = pci_enable_msix(nic->pdev, nic->entries, MAX_REQUESTED_MSI_X);
+	ret = pci_enable_msix(nic->pdev, nic->entries, nic->num_entries);
 	/* We fail init if error or we get less vectors than min required */
-	if (ret >= (nic->config.tx_fifo_num + nic->config.rx_ring_num + 1)) {
-		nic->avail_msix_vectors = ret;
-		ret = pci_enable_msix(nic->pdev, nic->entries, ret);
-	}
 	if (ret) {
 		DBG_PRINT(ERR_DBG, "%s: Enabling MSIX failed\n", nic->dev->name);
 		kfree(nic->entries);
 		nic->mac_control.stats_info->sw_stat.mem_freed
-			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
+			+= (nic->num_entries * sizeof(struct msix_entry));
 		kfree(nic->s2io_entries);
 		nic->mac_control.stats_info->sw_stat.mem_freed
-		+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
+			+= (nic->num_entries * sizeof(struct s2io_msix_entry));
 		nic->entries = NULL;
 		nic->s2io_entries = NULL;
-		nic->avail_msix_vectors = 0;
 		return -ENOMEM;
 	}
-	if (!nic->avail_msix_vectors)
-		nic->avail_msix_vectors = MAX_REQUESTED_MSI_X;
 
 	/*
 	 * To enable MSI-X, MSI also needs to be enabled, due to a bug
@@ -3919,7 +3968,7 @@ static void remove_msix_isr(struct s2io_nic *sp)
 	int i;
 	u16 msi_control;
 
-	for (i = 0; i < MAX_REQUESTED_MSI_X; i++) {
+	for (i = 0; i < sp->num_entries; i++) {
 		if (sp->s2io_entries[i].in_use ==
 			MSIX_REGISTERED_SUCCESS) {
 			int vector = sp->entries[i].vector;
@@ -3975,29 +4024,6 @@ static int s2io_open(struct net_device *dev)
 	netif_carrier_off(dev);
 	sp->last_link_state = 0;
 
-	if (sp->config.intr_type == MSI_X) {
-		int ret = s2io_enable_msi_x(sp);
-
-		if (!ret) {
-			ret = s2io_test_msi(sp);
-			/* rollback MSI-X, will re-enable during add_isr() */
-			remove_msix_isr(sp);
-		}
-		if (ret) {
-
-			DBG_PRINT(ERR_DBG,
-			  "%s: MSI-X requested but failed to enable\n",
-			  dev->name);
-			sp->config.intr_type = INTA;
-		}
-	}
-
-	/* NAPI doesn't work well with MSI(X) */
-	 if (sp->config.intr_type != INTA) {
-		if(sp->config.napi)
-			sp->config.napi = 0;
-	}
-
 	/* Initialize H/W and enable interrupts */
 	err = s2io_card_up(sp);
 	if (err) {
@@ -4020,12 +4046,12 @@ hw_init_failed:
 		if (sp->entries) {
 			kfree(sp->entries);
 			sp->mac_control.stats_info->sw_stat.mem_freed
-			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
+			+= (sp->num_entries * sizeof(struct msix_entry));
 		}
 		if (sp->s2io_entries) {
 			kfree(sp->s2io_entries);
 			sp->mac_control.stats_info->sw_stat.mem_freed
-			+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
+			+= (sp->num_entries * sizeof(struct s2io_msix_entry));
 		}
 	}
 	return err;
@@ -4327,40 +4353,64 @@ s2io_alarm_handle(unsigned long data)
 	mod_timer(&sp->alarm_timer, jiffies + HZ / 2);
 }
 
-static int s2io_chk_rx_buffers(struct ring_info *ring)
-{
-	if (fill_rx_buffers(ring) == -ENOMEM) {
-		DBG_PRINT(INFO_DBG, "%s:Out of memory", ring->dev->name);
-		DBG_PRINT(INFO_DBG, " in Rx Intr!!\n");
-	}
-	return 0;
-}
-
 static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 {
 	struct ring_info *ring = (struct ring_info *)dev_id;
 	struct s2io_nic *sp = ring->nic;
+	struct XENA_dev_config __iomem *bar0 = sp->bar0;
+	struct net_device *dev = sp->dev;
 
-	if (!is_s2io_card_up(sp))
+	if (unlikely(!is_s2io_card_up(sp)))
 		return IRQ_HANDLED;
 
-	rx_intr_handler(ring);
-	s2io_chk_rx_buffers(ring);
+	if (sp->config.napi) {
+		u8 *addr = NULL, val8 = 0;
+
+		addr = (u8 *)&bar0->xmsi_mask_reg;
+		addr += (7 - ring->ring_no);
+		val8 = (ring->ring_no == 0) ? 0x7f : 0xff;
+		writeb(val8, addr);
+		val8 = readb(addr);
+		netif_rx_schedule(dev, &ring->napi);
+	} else {
+		rx_intr_handler(ring, 0);
+		s2io_chk_rx_buffers(ring);
+	}
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t s2io_msix_fifo_handle(int irq, void *dev_id)
 {
-	struct fifo_info *fifo = (struct fifo_info *)dev_id;
-	struct s2io_nic *sp = fifo->nic;
+	int i;
+	struct fifo_info *fifos = (struct fifo_info *)dev_id;
+	struct s2io_nic *sp = fifos->nic;
+	struct XENA_dev_config __iomem *bar0 = sp->bar0;
+	struct config_param *config  = &sp->config;
+	u64 reason;
 
-	if (!is_s2io_card_up(sp))
+	if (unlikely(!is_s2io_card_up(sp)))
+		return IRQ_NONE;
+
+	reason = readq(&bar0->general_int_status);
+	if (unlikely(reason == S2IO_MINUS_ONE))
+		/* Nothing much can be done. Get out */
 		return IRQ_HANDLED;
 
-	tx_intr_handler(fifo);
+	writeq(S2IO_MINUS_ONE, &bar0->general_int_mask);
+
+	if (reason & GEN_INTR_TXTRAFFIC)
+		writeq(S2IO_MINUS_ONE, &bar0->tx_traffic_int);
+
+	for (i = 0; i < config->tx_fifo_num; i++)
+		tx_intr_handler(&fifos[i]);
+
+	writeq(sp->general_int_mask, &bar0->general_int_mask);
+	readl(&bar0->general_int_status);
+
 	return IRQ_HANDLED;
 }
+
 static void s2io_txpic_intr_handle(struct s2io_nic *sp)
 {
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
@@ -4762,14 +4812,10 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 
 		if (config->napi) {
 			if (reason & GEN_INTR_RXTRAFFIC) {
-				if (likely(netif_rx_schedule_prep(dev,
-							&sp->napi))) {
-					__netif_rx_schedule(dev, &sp->napi);
-					writeq(S2IO_MINUS_ONE,
-					       &bar0->rx_traffic_mask);
-				} else
-					writeq(S2IO_MINUS_ONE,
-					       &bar0->rx_traffic_int);
+				netif_rx_schedule(dev, &sp->napi);
+				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_mask);
+				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
+				readl(&bar0->rx_traffic_int);
 			}
 		} else {
 			/*
@@ -4781,7 +4827,7 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
 
 			for (i = 0; i < config->rx_ring_num; i++)
-				rx_intr_handler(&mac_control->rings[i]);
+				rx_intr_handler(&mac_control->rings[i], 0);
 		}
 
 		/*
@@ -6984,62 +7030,62 @@ static int s2io_add_isr(struct s2io_nic * sp)
 
 	/* After proper initialization of H/W, register ISR */
 	if (sp->config.intr_type == MSI_X) {
-		int i, msix_tx_cnt=0,msix_rx_cnt=0;
+		int i, msix_rx_cnt = 0;
 
-		for (i=1; (sp->s2io_entries[i].in_use == MSIX_FLG); i++) {
-			if (sp->s2io_entries[i].type == MSIX_FIFO_TYPE) {
-				sprintf(sp->desc[i], "%s:MSI-X-%d-TX",
+		for (i = 0; i < sp->num_entries; i++) {
+			if (sp->s2io_entries[i].in_use == MSIX_FLG) {
+				if (sp->s2io_entries[i].type ==
+					MSIX_RING_TYPE) {
+					sprintf(sp->desc[i], "%s:MSI-X-%d-RX",
+						dev->name, i);
+					err = request_irq(sp->entries[i].vector,
+						s2io_msix_ring_handle, 0,
+						sp->desc[i],
+						sp->s2io_entries[i].arg);
+				} else if (sp->s2io_entries[i].type ==
+					MSIX_ALARM_TYPE) {
+					sprintf(sp->desc[i], "%s:MSI-X-%d-TX",
 					dev->name, i);
-				err = request_irq(sp->entries[i].vector,
-					  s2io_msix_fifo_handle, 0, sp->desc[i],
-						  sp->s2io_entries[i].arg);
-				/* If either data or addr is zero print it */
-				if(!(sp->msix_info[i].addr &&
-					sp->msix_info[i].data)) {
-					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
-						"Data:0x%llx\n",sp->desc[i],
-						(unsigned long long)
-						sp->msix_info[i].addr,
-						(unsigned long long)
-						sp->msix_info[i].data);
-				} else {
-					msix_tx_cnt++;
+					err = request_irq(sp->entries[i].vector,
+						s2io_msix_fifo_handle, 0,
+						sp->desc[i],
+						sp->s2io_entries[i].arg);
+
 				}
-			} else {
-				sprintf(sp->desc[i], "%s:MSI-X-%d-RX",
-					dev->name, i);
-				err = request_irq(sp->entries[i].vector,
-					  s2io_msix_ring_handle, 0, sp->desc[i],
-						  sp->s2io_entries[i].arg);
-				/* If either data or addr is zero print it */
-				if(!(sp->msix_info[i].addr &&
+				/* if either data or addr is zero print it. */
+				if (!(sp->msix_info[i].addr &&
 					sp->msix_info[i].data)) {
-					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
-						"Data:0x%llx\n",sp->desc[i],
+					DBG_PRINT(ERR_DBG,
+						"%s @Addr:0x%llx Data:0x%llx\n",
+						sp->desc[i],
 						(unsigned long long)
 						sp->msix_info[i].addr,
 						(unsigned long long)
-						sp->msix_info[i].data);
-				} else {
+						ntohl(sp->msix_info[i].data));
+				} else
 					msix_rx_cnt++;
+				if (err) {
+					remove_msix_isr(sp);
+
+					DBG_PRINT(ERR_DBG,
+						"%s:MSI-X-%d registration "
+						"failed\n", dev->name, i);
+
+					DBG_PRINT(ERR_DBG,
+						"%s: Defaulting to INTA\n",
+						dev->name);
+					sp->config.intr_type = INTA;
+					break;
 				}
+				sp->s2io_entries[i].in_use =
+					MSIX_REGISTERED_SUCCESS;
 			}
-			if (err) {
-				remove_msix_isr(sp);
-				DBG_PRINT(ERR_DBG,"%s:MSI-X-%d registration "
-					  "failed\n", dev->name, i);
-				DBG_PRINT(ERR_DBG, "%s: defaulting to INTA\n",
-						 dev->name);
-				sp->config.intr_type = INTA;
-				break;
-			}
-			sp->s2io_entries[i].in_use = MSIX_REGISTERED_SUCCESS;
 		}
 		if (!err) {
-			printk(KERN_INFO "MSI-X-TX %d entries enabled\n",
-				msix_tx_cnt);
 			printk(KERN_INFO "MSI-X-RX %d entries enabled\n",
-				msix_rx_cnt);
+				--msix_rx_cnt);
+			DBG_PRINT(INFO_DBG, "MSI-X-TX entries enabled"
+						" through alarm vector\n");
 		}
 	}
 	if (sp->config.intr_type == INTA) {
@@ -7080,8 +7126,15 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 	clear_bit(__S2IO_STATE_CARD_UP, &sp->state);
 
 	/* Disable napi */
-	if (config->napi)
-		napi_disable(&sp->napi);
+	if (sp->config.napi) {
+		int off = 0;
+		if (config->intr_type ==  MSI_X) {
+			for (; off < sp->config.rx_ring_num; off++)
+				napi_disable(&sp->mac_control.rings[off].napi);
+			}
+		else
+			napi_disable(&sp->napi);
+	}
 
 	/* disable Tx and Rx traffic on the NIC */
 	if (do_io)
@@ -7173,8 +7226,15 @@ static int s2io_card_up(struct s2io_nic * sp)
 	}
 
 	/* Initialise napi */
-	if (config->napi)
-		napi_enable(&sp->napi);
+	if (config->napi) {
+		int i;
+		if (config->intr_type ==  MSI_X) {
+			for (i = 0; i < sp->config.rx_ring_num; i++)
+				napi_enable(&sp->mac_control.rings[i].napi);
+		} else {
+			napi_enable(&sp->napi);
+		}
+	}
 
 	/* Maintain the state prior to the open */
 	if (sp->promisc_flg)
@@ -7217,7 +7277,7 @@ static int s2io_card_up(struct s2io_nic * sp)
 	/*  Enable select interrupts */
 	en_dis_err_alarms(sp, ENA_ALL_INTRS, ENABLE_INTRS);
 	if (sp->config.intr_type != INTA)
-		en_dis_able_nic_intrs(sp, ENA_ALL_INTRS, DISABLE_INTRS);
+		en_dis_able_nic_intrs(sp, TX_TRAFFIC_INTR, ENABLE_INTRS);
 	else {
 		interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
 		interruptible |= TX_PIC_INTR;
@@ -7615,9 +7675,6 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 		rx_ring_num = MAX_RX_RINGS;
 	}
 
-	if (*dev_intr_type != INTA)
-		napi = 0;
-
 	if ((*dev_intr_type != INTA) && (*dev_intr_type != MSI_X)) {
 		DBG_PRINT(ERR_DBG, "s2io: Wrong intr_type requested. "
 			  "Defaulting to INTA\n");
@@ -7918,8 +7975,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * will use eth_mac_addr() for  dev->set_mac_address
 	 * mac address will be set every time dev->open() is called
 	 */
-	netif_napi_add(dev, &sp->napi, s2io_poll, 32);
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = s2io_netpoll;
 #endif
@@ -7961,6 +8016,32 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 			ret = -EBADSLT;
 			goto set_swap_failed;
 		}
+	}
+
+	if (sp->config.intr_type == MSI_X) {
+		sp->num_entries = config->rx_ring_num + 1;
+		ret = s2io_enable_msi_x(sp);
+
+		if (!ret) {
+			ret = s2io_test_msi(sp);
+			/* rollback MSI-X, will re-enable during add_isr() */
+			remove_msix_isr(sp);
+		}
+		if (ret) {
+
+			DBG_PRINT(ERR_DBG,
+			  "%s: MSI-X requested but failed to enable\n",
+			  dev->name);
+			sp->config.intr_type = INTA;
+		}
+	}
+
+	if (config->intr_type ==  MSI_X) {
+		for (i = 0; i < config->rx_ring_num ; i++)
+			netif_napi_add(dev, &mac_control->rings[i].napi,
+				s2io_poll_msix, 64);
+	} else {
+		netif_napi_add(dev, &sp->napi, s2io_poll_inta, 64);
 	}
 
 	/* Not needed for Herc */
@@ -8012,6 +8093,11 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/* store mac addresses from CAM to s2io_nic structure */
 	do_s2io_store_unicast_mc(sp);
+
+	/* Configure MSIX vector for number of rings configured plus one */
+	if ((sp->device_type == XFRAME_II_DEVICE) &&
+		(config->intr_type == MSI_X))
+		sp->num_entries = config->rx_ring_num + 1;
 
 	 /* Store the values of the MSIX table in the s2io_nic structure */
 	store_xmsi_data(sp);
@@ -8078,8 +8164,14 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		    break;
 	}
 
-	if (napi)
+	switch (sp->config.napi) {
+	case 0:
+		DBG_PRINT(ERR_DBG, "%s: NAPI disabled\n", dev->name);
+		break;
+	case 1:
 		DBG_PRINT(ERR_DBG, "%s: NAPI enabled\n", dev->name);
+		break;
+	}
 
 	DBG_PRINT(ERR_DBG, "%s: Using %d Tx fifo(s)\n", dev->name,
 		sp->config.tx_fifo_num);

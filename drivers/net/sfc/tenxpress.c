@@ -211,6 +211,8 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	int rc = 0;
 
 	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
+	if (!phy_data)
+		return -ENOMEM;
 	efx->phy_data = phy_data;
 
 	tenxpress_set_state(efx, TENXPRESS_STATUS_NORMAL);
@@ -376,7 +378,7 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	 * perform a special software reset */
 	if ((phy_data->tx_disabled && !efx->tx_disabled) ||
 	    loop_change) {
-		(void) tenxpress_special_reset(efx);
+		tenxpress_special_reset(efx);
 		falcon_reset_xaui(efx);
 	}
 

@@ -1125,7 +1125,7 @@ struct falcon_nvconfig_board_v2 {
 	u8 port1_phy_type;
 	__le16 asic_sub_revision;
 	__le16 board_revision;
-} __attribute__ ((packed));
+} __packed;
 
 #define NVCONFIG_BASE 0x300
 #define NVCONFIG_BOARD_MAGIC_NUM 0xFA1C
@@ -1144,6 +1144,6 @@ struct falcon_nvconfig {
 	__le16 board_struct_ver;
 	__le16 board_checksum;
 	struct falcon_nvconfig_board_v2 board_v2;
-} __attribute__ ((packed));
+} __packed;
 
 #endif /* EFX_FALCON_HWDEFS_H */

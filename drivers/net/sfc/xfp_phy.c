@@ -85,7 +85,9 @@ static int xfp_phy_init(struct efx_nic *efx)
 	int rc;
 
 	phy_data = kzalloc(sizeof(struct xfp_phy_data), GFP_KERNEL);
-	efx->phy_data = (void *) phy_data;
+	if (!phy_data)
+		return -ENOMEM;
+	efx->phy_data = phy_data;
 
 	EFX_INFO(efx, "XFP: PHY ID reg %x (OUI %x model %x revision"
 		 " %x)\n", devid, MDIO_ID_OUI(devid), MDIO_ID_MODEL(devid),
