@@ -58,6 +58,7 @@ Table of Contents
       o) Xilinx IP cores
       p) Freescale Synchronous Serial Interface
 	  q) USB EHCI controllers
+      r) MDIO on GPIOs
 
   VII - Marvell Discovery mv64[345]6x System Controller chips
     1) The /system-controller node
@@ -2868,6 +2869,26 @@ platforms are moved over to use the flattened-device-tree model.
 	board-control@e8000000 {
 		compatible = "fsl,fpga-pixis";
 		reg = <0xe8000000 32>;
+	};
+
+   r) MDIO on GPIOs
+
+   Currently defined compatibles:
+   - virtual,gpio-mdio
+
+   MDC and MDIO lines connected to GPIO controllers are listed in the
+   gpios property as described in section VIII.1 in the following order:
+
+   MDC, MDIO.
+
+   Example:
+
+	mdio {
+		compatible = "virtual,mdio-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpios = <&qe_pio_a 11
+			 &qe_pio_c 6>;
 	};
 
 VII - Marvell Discovery mv64[345]6x System Controller chips
