@@ -1864,7 +1864,7 @@ iscsi_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
 	shost->max_lun = iscsi_max_lun;
 	shost->max_id = 0;
 	shost->max_channel = 0;
-	shost->max_cmd_len = 16;
+	shost->max_cmd_len = SCSI_MAX_VARLEN_CDB_SIZE;
 	shost->can_queue = cmds_max;
 
 	if (iscsi_host_add(shost, NULL))
