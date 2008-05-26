@@ -1296,7 +1296,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	struct ath5k_txq *txq = sc->txq;
 	struct ath5k_desc *ds = bf->desc;
 	struct sk_buff *skb = bf->skb;
-	struct ieee80211_tx_info *info = (void*) skb->cb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	unsigned int pktlen, flags, keyidx = AR5K_TXKEYIX_INVALID;
 	int ret;
 
@@ -1945,7 +1945,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		}
 
 		skb = bf->skb;
-		info = (void*) skb->cb;
+		info = IEEE80211_SKB_CB(skb);
 		bf->skb = NULL;
 
 		pci_unmap_single(sc->pdev, bf->skbaddr, skb->len,
@@ -2003,7 +2003,7 @@ static int
 ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 {
 	struct sk_buff *skb = bf->skb;
-	struct	ieee80211_tx_info *info = (void*) skb->cb;
+	struct	ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ath5k_hw *ah = sc->ah;
 	struct ath5k_desc *ds;
 	int ret, antenna = 0;
@@ -2625,7 +2625,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_buf *bf;
-	struct ieee80211_tx_info *info = (void*) skb->cb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	unsigned long flags;
 	int hdrlen;
 	int pad;
