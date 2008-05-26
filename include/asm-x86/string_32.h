@@ -267,11 +267,18 @@ void *__constant_c_and_count_memset(void *s, unsigned long pattern,
 	asm volatile("rep ; stosl"					\
 		     x							\
 		     : "=&c" (d0), "=&D" (d1)				\
-		     : "a" (pattern), "0" (count/4), "1" ((long)s)	\
+		     : "a" (eax), "0" (count/4), "1" ((long)s)	\
 		     : "memory")
 
 	{
 		int d0, d1;
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 0
+		/* Workaround for broken gcc 4.0 */
+		register unsigned long eax asm("%eax") = pattern;
+#else
+		unsigned long eax = pattern;
+#endif
+
 		switch (count % 4) {
 		case 0:
 			COMMON("");
