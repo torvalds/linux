@@ -1,0 +1,19 @@
+             **********
+             * WHENCE *
+             **********
+
+This file attempts to document the origin and licensing information,
+if known, for each piece of firmware distributed for use with the Linux
+kernel.
+
+--------------------------------------------------------------------------
+
+Driver: korg1212 -- Korg 1212 IO audio device
+
+File: korg/k1212.dsp
+
+Licence: Unknown
+
+Found in alsa-firmware package in hex form; no licensing information.
+
+--------------------------------------------------------------------------
