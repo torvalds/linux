@@ -79,6 +79,7 @@
 #define KVM_MIN_FREE_MMU_PAGES 5
 #define KVM_REFILL_PAGES 25
 #define KVM_MAX_CPUID_ENTRIES 40
+#define KVM_NR_VAR_MTRR 8
 
 extern spinlock_t kvm_lock;
 extern struct list_head vm_list;
@@ -290,6 +291,8 @@ struct kvm_vcpu_arch {
 	struct page *time_page;
 
 	bool nmi_pending;
+
+	u64 mtrr[0x100];
 };
 
 struct kvm_mem_alias {
