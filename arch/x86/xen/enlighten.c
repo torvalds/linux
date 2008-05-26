@@ -235,13 +235,13 @@ static void xen_irq_enable(void)
 {
 	struct vcpu_info *vcpu;
 
-	/* There's a one instruction preempt window here.  We need to
-	   make sure we're don't switch CPUs between getting the vcpu
-	   pointer and updating the mask. */
-	preempt_disable();
+	/* We don't need to worry about being preempted here, since
+	   either a) interrupts are disabled, so no preemption, or b)
+	   the caller is confused and is trying to re-enable interrupts
+	   on an indeterminate processor. */
+
 	vcpu = x86_read_percpu(xen_vcpu);
 	vcpu->evtchn_upcall_mask = 0;
-	preempt_enable_no_resched();
 
 	/* Doesn't matter if we get preempted here, because any
 	   pending event will get dealt with anyway. */
