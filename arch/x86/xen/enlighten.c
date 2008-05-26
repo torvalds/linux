@@ -1221,7 +1221,7 @@ asmlinkage void __init xen_start_kernel(void)
 
 	/* Get mfn list */
 	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		phys_to_machine_mapping = (unsigned long *)xen_start_info->mfn_list;
+		xen_build_dynamic_phys_to_machine();
 
 	pgd = (pgd_t *)xen_start_info->pt_base;
 

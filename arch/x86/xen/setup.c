@@ -27,8 +27,6 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
-unsigned long *phys_to_machine_mapping;
-EXPORT_SYMBOL(phys_to_machine_mapping);
 
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.

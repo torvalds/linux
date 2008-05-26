@@ -56,6 +56,91 @@
 #include "multicalls.h"
 #include "mmu.h"
 
+/*
+ * This should probably be a config option.  On 32-bit, it costs 1
+ * page/gig of memory; on 64-bit its 2 pages/gig.  If we want it to be
+ * completely unbounded we can add another level to the p2m structure.
+ */
+#define MAX_GUEST_PAGES		(16ull * 1024*1024*1024 / PAGE_SIZE)
+#define P2M_ENTRIES_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long))
+
+static unsigned long *p2m_top[MAX_GUEST_PAGES / P2M_ENTRIES_PER_PAGE];
+
+static inline unsigned p2m_top_index(unsigned long pfn)
+{
+	BUG_ON(pfn >= MAX_GUEST_PAGES);
+	return pfn / P2M_ENTRIES_PER_PAGE;
+}
+
+static inline unsigned p2m_index(unsigned long pfn)
+{
+	return pfn % P2M_ENTRIES_PER_PAGE;
+}
+
+void __init xen_build_dynamic_phys_to_machine(void)
+{
+	unsigned pfn;
+	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
+
+	BUG_ON(xen_start_info->nr_pages >= MAX_GUEST_PAGES);
+
+	for(pfn = 0;
+	    pfn < xen_start_info->nr_pages;
+	    pfn += P2M_ENTRIES_PER_PAGE) {
+		unsigned topidx = p2m_top_index(pfn);
+
+		p2m_top[topidx] = &mfn_list[pfn];
+	}
+}
+
+unsigned long get_phys_to_machine(unsigned long pfn)
+{
+	unsigned topidx, idx;
+
+	topidx = p2m_top_index(pfn);
+	if (p2m_top[topidx] == NULL)
+		return INVALID_P2M_ENTRY;
+
+	idx = p2m_index(pfn);
+	return p2m_top[topidx][idx];
+}
+
+static void alloc_p2m(unsigned long **pp)
+{
+	unsigned long *p;
+	unsigned i;
+
+	p = (void *)__get_free_page(GFP_KERNEL | __GFP_NOFAIL);
+	BUG_ON(p == NULL);
+
+	for(i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
+		p[i] = INVALID_P2M_ENTRY;
+
+	if (cmpxchg(pp, NULL, p) != NULL)
+		free_page((unsigned long)p);
+}
+
+void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+{
+	unsigned topidx, idx;
+
+	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
+		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
+		return;
+	}
+
+	topidx = p2m_top_index(pfn);
+	if (p2m_top[topidx] == NULL) {
+		/* no need to allocate a page to store an invalid entry */
+		if (mfn == INVALID_P2M_ENTRY)
+			return;
+		alloc_p2m(&p2m_top[topidx]);
+	}
+
+	idx = p2m_index(pfn);
+	p2m_top[topidx][idx] = mfn;
+}
+
 xmaddr_t arbitrary_virt_to_machine(unsigned long address)
 {
 	unsigned int level;
