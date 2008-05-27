@@ -802,7 +802,7 @@ void wm97xx_unregister_mach_ops(struct wm97xx *wm)
 EXPORT_SYMBOL_GPL(wm97xx_unregister_mach_ops);
 
 static struct device_driver wm97xx_driver = {
-	.name =		"ac97",
+	.name =		"wm97xx-ts",
 	.bus =		&ac97_bus_type,
 	.owner =	THIS_MODULE,
 	.probe =	wm97xx_probe,
