@@ -6357,7 +6357,9 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 			continue;
 		vref = PIN_IN;
 		if (1 /*i <= AUTO_PIN_FRONT_MIC*/) {
-			if (snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP) &
+			unsigned int pincap;
+			pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+			if ((pincap >> AC_PINCAP_VREF_SHIFT) &
 			    AC_PINCAP_VREF_80)
 				vref = PIN_VREF80;
 		}
