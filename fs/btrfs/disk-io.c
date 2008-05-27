@@ -434,13 +434,6 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 {
 	struct async_submit_bio *async;
 
-	/*
-	 * inline writerback should stay inline, only hop to the async
-	 * queue if we're pdflush
-	 */
-	if (!current_is_pdflush())
-		return submit_bio_hook(inode, rw, bio, mirror_num);
-
 	async = kmalloc(sizeof(*async), GFP_NOFS);
 	if (!async)
 		return -ENOMEM;
