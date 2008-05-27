@@ -27,6 +27,7 @@
 #include <linux/poll.h>
 #include <linux/gfp.h>
 #include <linux/fs.h>
+#include <linux/kprobes.h>
 #include <linux/writeback.h>
 
 #include <linux/stacktrace.h>
@@ -1199,6 +1200,20 @@ static void s_stop(struct seq_file *m, void *p)
 	mutex_unlock(&trace_types_lock);
 }
 
+#define KRETPROBE_MSG "[unknown/kretprobe'd]"
+
+#ifdef CONFIG_KRETPROBES
+static inline int kretprobed(unsigned long addr)
+{
+	return addr == (unsigned long)kretprobe_trampoline;
+}
+#else
+static inline int kretprobed(unsigned long addr)
+{
+	return 0;
+}
+#endif /* CONFIG_KRETPROBES */
+
 static int
 seq_print_sym_short(struct trace_seq *s, const char *fmt, unsigned long address)
 {
@@ -1434,7 +1449,10 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	case TRACE_FN:
 		seq_print_ip_sym(s, entry->fn.ip, sym_flags);
 		trace_seq_puts(s, " (");
-		seq_print_ip_sym(s, entry->fn.parent_ip, sym_flags);
+		if (kretprobed(entry->fn.parent_ip))
+			trace_seq_puts(s, KRETPROBE_MSG);
+		else
+			seq_print_ip_sym(s, entry->fn.parent_ip, sym_flags);
 		trace_seq_puts(s, ")\n");
 		break;
 	case TRACE_CTX:
@@ -1514,8 +1532,11 @@ static int print_trace_fmt(struct trace_iterator *iter)
 			ret = trace_seq_printf(s, " <-");
 			if (!ret)
 				return 0;
-			ret = seq_print_ip_sym(s, entry->fn.parent_ip,
-					       sym_flags);
+			if (kretprobed(entry->fn.parent_ip))
+				ret = trace_seq_puts(s, KRETPROBE_MSG);
+			else
+				ret = seq_print_ip_sym(s, entry->fn.parent_ip,
+						       sym_flags);
 			if (!ret)
 				return 0;
 		}
