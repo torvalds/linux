@@ -247,14 +247,38 @@ static inline void pciehp_free_irq(struct controller *ctrl)
 		free_irq(ctrl->pci_dev->irq, ctrl);
 }
 
-static inline int pcie_wait_cmd(struct controller *ctrl)
+static inline int pcie_poll_cmd(struct controller *ctrl)
+{
+	u16 slot_status;
+	int timeout = 1000;
+
+	if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status))
+		if (slot_status & CMD_COMPLETED)
+			goto completed;
+	for (timeout = 1000; timeout > 0; timeout -= 100) {
+		msleep(100);
+		if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status))
+			if (slot_status & CMD_COMPLETED)
+				goto completed;
+	}
+	return 0;	/* timeout */
+
+completed:
+	pciehp_writew(ctrl, SLOTSTATUS, CMD_COMPLETED);
+	return timeout;
+}
+
+static inline int pcie_wait_cmd(struct controller *ctrl, int poll)
 {
 	int retval = 0;
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
 	unsigned long timeout = msecs_to_jiffies(msecs);
 	int rc;
 
-	rc = wait_event_interruptible_timeout(ctrl->queue,
+	if (poll)
+		rc = pcie_poll_cmd(ctrl);
+	else
+		rc = wait_event_interruptible_timeout(ctrl->queue,
 					      !ctrl->cmd_busy, timeout);
 	if (!rc)
 		dbg("Command not completed in 1000 msec\n");
@@ -331,8 +355,18 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	/*
 	 * Wait for command completion.
 	 */
-	if (!retval && !ctrl->no_cmd_complete)
-		retval = pcie_wait_cmd(ctrl);
+	if (!retval && !ctrl->no_cmd_complete) {
+		int poll = 0;
+		/*
+		 * if hotplug interrupt is not enabled or command
+		 * completed interrupt is not enabled, we need to poll
+		 * command completed event.
+		 */
+		if (!(slot_ctrl & HP_INTR_ENABLE) ||
+		    !(slot_ctrl & CMD_CMPL_INTR_ENABLE))
+			poll = 1;
+                retval = pcie_wait_cmd(ctrl, poll);
+	}
  out:
 	mutex_unlock(&ctrl->ctrl_lock);
 	return retval;
