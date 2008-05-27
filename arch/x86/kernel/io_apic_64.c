@@ -906,8 +906,6 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 
 	memset(&entry, 0, sizeof(entry));
 
-	disable_8259A_irq(0);
-
 	/* mask LVT0 */
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 
@@ -933,8 +931,6 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	 * Add it to the IO-APIC irq-routing table:
 	 */
 	ioapic_write_entry(apic, pin, entry);
-
-	enable_8259A_irq(0);
 }
 
 void __apicdebuginit print_IO_APIC(void)
