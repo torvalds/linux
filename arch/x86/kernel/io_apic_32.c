@@ -1316,7 +1316,7 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic, unsigned int pin,
 	 * to the first CPU.
 	 */
 	entry.dest_mode = INT_DEST_MODE;
-	entry.mask = 0;					/* unmask IRQ now */
+	entry.mask = 1;					/* mask IRQ now */
 	entry.dest.logical.logical_dest = cpu_mask_to_apicid(TARGET_CPUS);
 	entry.delivery_mode = INT_DELIVERY_MODE;
 	entry.polarity = 0;
