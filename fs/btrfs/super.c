@@ -487,7 +487,6 @@ static void btrfs_unlockfs(struct super_block *sb)
 
 static struct super_operations btrfs_super_ops = {
 	.delete_inode	= btrfs_delete_inode,
-	.put_inode	= btrfs_put_inode,
 	.put_super	= btrfs_put_super,
 	.write_super	= btrfs_write_super,
 	.sync_fs	= btrfs_sync_fs,

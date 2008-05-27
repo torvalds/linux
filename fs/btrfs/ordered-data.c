@@ -231,7 +231,7 @@ int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 	return 1;
 }
 
-static int __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
+static void __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 				     struct inode *inode,
 				     u64 root_objectid, u64 objectid)
 {
@@ -243,31 +243,38 @@ static int __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 	node = __tree_search(&tree->tree, root_objectid, objectid, &prev);
 	if (!node) {
 		write_unlock(&tree->lock);
-		return 0;
+		return;
 	}
 	rb_erase(node, &tree->tree);
 	BTRFS_I(inode)->ordered_trans = 0;
 	write_unlock(&tree->lock);
+	atomic_dec(&inode->i_count);
 	entry = rb_entry(node, struct tree_entry, rb_node);
 	kfree(entry);
-	return 1;
+	return;
 }
 
-int btrfs_del_ordered_inode(struct inode *inode)
+void btrfs_del_ordered_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 root_objectid = root->root_key.objectid;
-	int ret = 0;
+
+	if (!BTRFS_I(inode)->ordered_trans) {
+		return;
+	}
+
+	if (mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY) ||
+	    mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK))
+		return;
 
 	spin_lock(&root->fs_info->new_trans_lock);
 	if (root->fs_info->running_transaction) {
 		struct btrfs_ordered_inode_tree *tree;
 		tree = &root->fs_info->running_transaction->ordered_inode_tree;
-		ret = __btrfs_del_ordered_inode(tree, inode, root_objectid,
+		 __btrfs_del_ordered_inode(tree, inode, root_objectid,
 						inode->i_ino);
 	}
 	spin_unlock(&root->fs_info->new_trans_lock);
-	return ret;
 }
 
 int btrfs_ordered_throttle(struct btrfs_root *root, struct inode *inode)

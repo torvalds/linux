@@ -978,6 +978,12 @@ out_nolock:
 	return num_written ? num_written : err;
 }
 
+static int btrfs_release_file (struct inode * inode, struct file * filp)
+{
+	btrfs_del_ordered_inode(inode);
+	return 0;
+}
+
 static int btrfs_sync_file(struct file *file,
 			   struct dentry *dentry, int datasync)
 {
@@ -1044,6 +1050,7 @@ struct file_operations btrfs_file_operations = {
 	.write		= btrfs_file_write,
 	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,
+	.release	= btrfs_release_file,
 	.fsync		= btrfs_sync_file,
 	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT

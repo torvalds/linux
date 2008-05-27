@@ -857,15 +857,11 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	nr = trans->blocks_used;
 
 	if (inode->i_nlink == 0) {
-		int found;
 		/* if the inode isn't linked anywhere,
 		 * we don't need to worry about
 		 * data=ordered
 		 */
-		found = btrfs_del_ordered_inode(inode);
-		if (found == 1) {
-			atomic_dec(&inode->i_count);
-		}
+		btrfs_del_ordered_inode(inode);
 	}
 
 	btrfs_end_transaction(trans, root);
@@ -1269,24 +1265,6 @@ out:
 	err = inode_setattr(inode, attr);
 fail:
 	return err;
-}
-
-void btrfs_put_inode(struct inode *inode)
-{
-	int ret;
-
-	if (!BTRFS_I(inode)->ordered_trans) {
-		return;
-	}
-
-	if (mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY) ||
-	    mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK))
-		return;
-
-	ret = btrfs_del_ordered_inode(inode);
-	if (ret == 1) {
-		atomic_dec(&inode->i_count);
-	}
 }
 
 void btrfs_delete_inode(struct inode *inode)

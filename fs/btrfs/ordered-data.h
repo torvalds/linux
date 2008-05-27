@@ -38,6 +38,6 @@ int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 int btrfs_find_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 				       u64 *root_objectid, u64 *objectid,
 				       struct inode **inode);
-int btrfs_del_ordered_inode(struct inode *inode);
+void btrfs_del_ordered_inode(struct inode *inode);
 int btrfs_ordered_throttle(struct btrfs_root *root, struct inode *inode);
 #endif
