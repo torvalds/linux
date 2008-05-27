@@ -138,7 +138,7 @@ static u16 opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	0, ModRM | DstReg,
+	DstMem | SrcReg | ModRM | Mov, ModRM | DstReg,
 	DstReg | SrcMem | ModRM | Mov, Group | Group1A,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -1518,6 +1518,19 @@ special_insn:
 		break;
 	case 0x88 ... 0x8b:	/* mov */
 		goto mov;
+	case 0x8c: { /* mov r/m, sreg */
+		struct kvm_segment segreg;
+
+		if (c->modrm_reg <= 5)
+			kvm_get_segment(ctxt->vcpu, &segreg, c->modrm_reg);
+		else {
+			printk(KERN_INFO "0x8c: Invalid segreg in modrm byte 0x%02x\n",
+			       c->modrm);
+			goto cannot_emulate;
+		}
+		c->dst.val = segreg.selector;
+		break;
+	}
 	case 0x8d: /* lea r16/r32, m */
 		c->dst.val = c->modrm_ea;
 		break;
