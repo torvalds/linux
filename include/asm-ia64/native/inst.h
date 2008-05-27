@@ -22,6 +22,14 @@
 
 #define DO_SAVE_MIN		IA64_NATIVE_DO_SAVE_MIN
 
+#define __paravirt_switch_to			ia64_native_switch_to
+#define __paravirt_leave_syscall		ia64_native_leave_syscall
+#define __paravirt_work_processed_syscall	ia64_native_work_processed_syscall
+#define __paravirt_leave_kernel			ia64_native_leave_kernel
+#define __paravirt_pending_syscall_end		ia64_work_pending_syscall_end
+#define __paravirt_work_processed_syscall_target \
+						ia64_work_processed_syscall
+
 #ifdef CONFIG_PARAVIRT_GUEST_ASM_CLOBBER_CHECK
 # define PARAVIRT_POISON	0xdeadbeefbaadf00d
 # define CLOBBER(clob)				\

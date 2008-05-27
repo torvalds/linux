@@ -286,3 +286,22 @@ struct pv_cpu_ops pv_cpu_ops = {
 			= ia64_native_intrin_local_irq_restore_func,
 };
 EXPORT_SYMBOL(pv_cpu_ops);
+
+/******************************************************************************
+ * replacement of hand written assembly codes.
+ */
+
+void
+paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch)
+{
+	extern unsigned long paravirt_switch_to_targ;
+	extern unsigned long paravirt_leave_syscall_targ;
+	extern unsigned long paravirt_work_processed_syscall_targ;
+	extern unsigned long paravirt_leave_kernel_targ;
+
+	paravirt_switch_to_targ = cpu_asm_switch->switch_to;
+	paravirt_leave_syscall_targ = cpu_asm_switch->leave_syscall;
+	paravirt_work_processed_syscall_targ =
+		cpu_asm_switch->work_processed_syscall;
+	paravirt_leave_kernel_targ = cpu_asm_switch->leave_kernel;
+}

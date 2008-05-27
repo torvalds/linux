@@ -80,12 +80,35 @@ extern unsigned long ia64_native_getreg_func(int regnum);
 			ia64_native_rsm(mask);	\
 	} while (0)
 
+/******************************************************************************
+ * replacement of hand written assembly codes.
+ */
+struct pv_cpu_asm_switch {
+	unsigned long switch_to;
+	unsigned long leave_syscall;
+	unsigned long work_processed_syscall;
+	unsigned long leave_kernel;
+};
+void paravirt_cpu_asm_init(const struct pv_cpu_asm_switch *cpu_asm_switch);
+
 #endif /* __ASSEMBLY__ */
+
+#define IA64_PARAVIRT_ASM_FUNC(name)	paravirt_ ## name
 
 #else
 
 /* fallback for native case */
+#define IA64_PARAVIRT_ASM_FUNC(name)	ia64_native_ ## name
 
 #endif /* CONFIG_PARAVIRT */
+
+/* these routines utilize privilege-sensitive or performance-sensitive
+ * privileged instructions so the code must be replaced with
+ * paravirtualized versions */
+#define ia64_switch_to			IA64_PARAVIRT_ASM_FUNC(switch_to)
+#define ia64_leave_syscall		IA64_PARAVIRT_ASM_FUNC(leave_syscall)
+#define ia64_work_processed_syscall	\
+	IA64_PARAVIRT_ASM_FUNC(work_processed_syscall)
+#define ia64_leave_kernel		IA64_PARAVIRT_ASM_FUNC(leave_kernel)
 
 #endif /* _ASM_IA64_PARAVIRT_PRIVOP_H */
