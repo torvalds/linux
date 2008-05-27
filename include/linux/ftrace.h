@@ -122,7 +122,7 @@ static inline void tracer_disable(void)
 # define trace_preempt_off(a0, a1)		do { } while (0)
 #endif
 
-#ifdef CONFIG_CONTEXT_SWITCH_TRACER
+#ifdef CONFIG_TRACING
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
 #else
