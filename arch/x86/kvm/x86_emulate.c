@@ -138,7 +138,8 @@ static u16 opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	0, ModRM | DstReg, 0, Group | Group1A,
+	0, ModRM | DstReg,
+	DstReg | SrcMem | ModRM | Mov, Group | Group1A,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
@@ -1520,6 +1521,28 @@ special_insn:
 	case 0x8d: /* lea r16/r32, m */
 		c->dst.val = c->modrm_ea;
 		break;
+	case 0x8e: { /* mov seg, r/m16 */
+		uint16_t sel;
+		int type_bits;
+		int err;
+
+		sel = c->src.val;
+		if (c->modrm_reg <= 5) {
+			type_bits = (c->modrm_reg == 1) ? 9 : 1;
+			err = kvm_load_segment_descriptor(ctxt->vcpu, sel,
+							  type_bits, c->modrm_reg);
+		} else {
+			printk(KERN_INFO "Invalid segreg in modrm byte 0x%02x\n",
+					c->modrm);
+			goto cannot_emulate;
+		}
+
+		if (err < 0)
+			goto cannot_emulate;
+
+		c->dst.type = OP_NONE;  /* Disable writeback. */
+		break;
+	}
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		rc = emulate_grp1a(ctxt, ops);
 		if (rc != 0)
