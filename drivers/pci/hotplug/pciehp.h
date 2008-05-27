@@ -146,10 +146,10 @@ struct controller {
 
 extern int pciehp_sysfs_enable_slot(struct slot *slot);
 extern int pciehp_sysfs_disable_slot(struct slot *slot);
-extern u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl);
-extern u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
-extern u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
-extern u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
+extern u8 pciehp_handle_attention_button(struct slot *p_slot);
+  extern u8 pciehp_handle_switch_change(struct slot *p_slot);
+extern u8 pciehp_handle_presence_change(struct slot *p_slot);
+extern u8 pciehp_handle_power_fault(struct slot *p_slot);
 extern int pciehp_configure_device(struct slot *p_slot);
 extern int pciehp_unconfigure_device(struct slot *p_slot);
 extern void pciehp_queue_pushbutton_work(struct work_struct *work);

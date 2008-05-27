@@ -722,6 +722,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	u16 detected, intr_loc;
+	struct slot *p_slot;
 
 	/*
 	 * In order to guarantee that all interrupt events are
@@ -756,21 +757,38 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		wake_up_interruptible(&ctrl->queue);
 	}
 
+	if (!(intr_loc & ~CMD_COMPLETED))
+		return IRQ_HANDLED;
+
+	/*
+	 * Return without handling events if this handler routine is
+	 * called before controller initialization is done. This may
+	 * happen if hotplug event or another interrupt that shares
+	 * the IRQ with pciehp arrives before slot initialization is
+	 * done after interrupt handler is registered.
+	 *
+	 * FIXME - Need more structural fixes. We need to be ready to
+	 * handle the event before installing interrupt handler.
+	 */
+	p_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
+	if (!p_slot || !p_slot->hpc_ops)
+		return IRQ_HANDLED;
+
 	/* Check MRL Sensor Changed */
 	if (intr_loc & MRL_SENS_CHANGED)
-		pciehp_handle_switch_change(0, ctrl);
+		pciehp_handle_switch_change(p_slot);
 
 	/* Check Attention Button Pressed */
 	if (intr_loc & ATTN_BUTTN_PRESSED)
-		pciehp_handle_attention_button(0, ctrl);
+		pciehp_handle_attention_button(p_slot);
 
 	/* Check Presence Detect Changed */
 	if (intr_loc & PRSN_DETECT_CHANGED)
-		pciehp_handle_presence_change(0, ctrl);
+		pciehp_handle_presence_change(p_slot);
 
 	/* Check Power Fault Detected */
 	if (intr_loc & PWR_FAULT_DETECTED)
-		pciehp_handle_power_fault(0, ctrl);
+		pciehp_handle_power_fault(p_slot);
 
 	return IRQ_HANDLED;
 }
@@ -1028,6 +1046,12 @@ static int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 static int pcie_init_hardware_part1(struct controller *ctrl,
 				    struct pcie_device *dev)
 {
+	/* Clear all remaining event bits in Slot Status register */
+	if (pciehp_writew(ctrl, SLOTSTATUS, 0x1f)) {
+		err("%s: Cannot write to SLOTSTATUS register\n", __func__);
+		return -1;
+	}
+
 	/* Mask Hot-plug Interrupt Enable */
 	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE)) {
 		err("%s: Cannot mask hotplug interrupt enable\n", __func__);
@@ -1039,16 +1063,6 @@ static int pcie_init_hardware_part1(struct controller *ctrl,
 int pcie_init_hardware_part2(struct controller *ctrl, struct pcie_device *dev)
 {
 	u16 cmd, mask;
-
-	/*
-	 * We need to clear all events before enabling hotplug interrupt
-	 * notification mechanism in order for hotplug controler to
-	 * generate interrupts.
-	 */
-	if (pciehp_writew(ctrl, SLOTSTATUS, 0x1f)) {
-		err("%s: Cannot write to SLOTSTATUS register\n", __FUNCTION__);
-		return -1;
-	}
 
 	cmd = PRSN_DETECT_ENABLE;
 	if (ATTN_BUTTN(ctrl))
