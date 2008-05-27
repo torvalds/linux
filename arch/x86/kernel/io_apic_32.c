@@ -1310,9 +1310,6 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 
 	memset(&entry,0,sizeof(entry));
 
-	/* mask LVT0 */
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
-
 	/*
 	 * We use logical delivery to get the timer IRQ
 	 * to the first CPU.
