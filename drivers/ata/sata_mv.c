@@ -72,7 +72,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.21"
+#define DRV_VERSION	"1.22"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -354,7 +354,6 @@ enum {
 	MV_HP_ERRATA_50XXB2	= (1 << 2),
 	MV_HP_ERRATA_60X1B2	= (1 << 3),
 	MV_HP_ERRATA_60X1C0	= (1 << 4),
-	MV_HP_ERRATA_XX42A0	= (1 << 5),
 	MV_HP_GEN_I		= (1 << 6),	/* Generation I: 50xx */
 	MV_HP_GEN_II		= (1 << 7),	/* Generation II: 60xx */
 	MV_HP_GEN_IIE		= (1 << 8),	/* Generation IIE: 6042/7042 */
@@ -811,12 +810,7 @@ static void mv_set_edma_ptrs(void __iomem *port_mmio,
 	writel((pp->crqb_dma >> 16) >> 16, port_mmio + EDMA_REQ_Q_BASE_HI_OFS);
 	writelfl((pp->crqb_dma & EDMA_REQ_Q_BASE_LO_MASK) | index,
 		 port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
-		writelfl((pp->crqb_dma & 0xffffffff) | index,
-			 port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
-	else
-		writelfl(index, port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
+	writelfl(index, port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
 
 	/*
 	 * initialize response queue
@@ -826,13 +820,7 @@ static void mv_set_edma_ptrs(void __iomem *port_mmio,
 
 	WARN_ON(pp->crpb_dma & 0xff);
 	writel((pp->crpb_dma >> 16) >> 16, port_mmio + EDMA_RSP_Q_BASE_HI_OFS);
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
-		writelfl((pp->crpb_dma & 0xffffffff) | index,
-			 port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
-	else
-		writelfl(index, port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
-
+	writelfl(index, port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
 	writelfl((pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK) | index,
 		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 }
@@ -3002,10 +2990,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			hp_flags |= MV_HP_CUT_THROUGH;
 
 		switch (pdev->revision) {
-		case 0x0:
-			hp_flags |= MV_HP_ERRATA_XX42A0;
-			break;
-		case 0x1:
+		case 0x2: /* Rev.B0: the first/only public release */
 			hp_flags |= MV_HP_ERRATA_60X1C0;
 			break;
 		default:
