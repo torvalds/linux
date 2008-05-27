@@ -2037,7 +2037,7 @@ static void unmask_lapic_irq (unsigned int irq)
 }
 
 static struct irq_chip lapic_chip __read_mostly = {
-	.name		= "local-APIC-edge",
+	.name		= "local-APIC",
 	.mask		= mask_lapic_irq,
 	.unmask		= unmask_lapic_irq,
 	.eoi		= ack_apic,
