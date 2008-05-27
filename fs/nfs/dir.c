@@ -629,10 +629,11 @@ out:
  */
 static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
 {
-	dfprintk(VFS, "NFS: fsync_dir(%s/%s) datasync %d\n",
+	dfprintk(VFS, "NFS: fsync dir(%s/%s) datasync %d\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
 			datasync);
 
+	nfs_inc_stats(dentry->d_inode, NFSIOS_VFSFSYNC);
 	return 0;
 }
 

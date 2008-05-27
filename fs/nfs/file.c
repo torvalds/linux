@@ -50,7 +50,7 @@ static ssize_t nfs_file_read(struct kiocb *, const struct iovec *iov,
 static ssize_t nfs_file_write(struct kiocb *, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos);
 static int  nfs_file_flush(struct file *, fl_owner_t id);
-static int  nfs_fsync(struct file *, struct dentry *dentry, int datasync);
+static int  nfs_file_fsync(struct file *, struct dentry *dentry, int datasync);
 static int nfs_check_flags(int flags);
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
@@ -72,7 +72,7 @@ const struct file_operations nfs_file_operations = {
 	.open		= nfs_file_open,
 	.flush		= nfs_file_flush,
 	.release	= nfs_file_release,
-	.fsync		= nfs_fsync,
+	.fsync		= nfs_file_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
@@ -181,7 +181,7 @@ static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
 }
 
 /*
- * Helper for nfs_file_flush() and nfs_fsync()
+ * Helper for nfs_file_flush() and nfs_file_fsync()
  *
  * Notice that it clears the NFS_CONTEXT_ERROR_WRITE before synching to
  * disk, but it retrieves and clears ctx->error after synching, despite
@@ -296,12 +296,14 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
  * whether any write errors occurred for this process.
  */
 static int
-nfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+nfs_file_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct inode *inode = dentry->d_inode;
 
-	dfprintk(VFS, "nfs: fsync(%s/%ld)\n", inode->i_sb->s_id, inode->i_ino);
+	dfprintk(VFS, "NFS: fsync file(%s/%s) datasync %d\n",
+			dentry->d_parent->d_name.name, dentry->d_name.name,
+			datasync);
 
 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
 	return nfs_do_fsync(ctx, inode);
