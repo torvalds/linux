@@ -2185,6 +2185,7 @@ static inline void __init check_timer(void)
 		 * legacy devices should be connected to IO APIC #0
 		 */
 		setup_timer_IRQ0_pin(apic2, pin2, vector);
+		unmask_IO_APIC_irq(0);
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
 			printk("works.\n");
