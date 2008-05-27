@@ -2122,6 +2122,7 @@ static inline void __init unlock_ExtINT_logic(void)
 static inline void __init check_timer(void)
 {
 	int apic1, pin1, apic2, pin2;
+	int no_pin1 = 0;
 	int vector;
 	unsigned int ver;
 	unsigned long flags;
@@ -2159,10 +2160,30 @@ static inline void __init check_timer(void)
 	printk(KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
 		vector, apic1, pin1, apic2, pin2);
 
+	/*
+	 * Some BIOS writers are clueless and report the ExtINTA
+	 * I/O APIC input from the cascaded 8259A as the timer
+	 * interrupt input.  So just in case, if only one pin
+	 * was found above, try it both directly and through the
+	 * 8259A.
+	 */
+	if (pin1 == -1) {
+		pin1 = pin2;
+		apic1 = apic2;
+		no_pin1 = 1;
+	} else if (pin2 == -1) {
+		pin2 = pin1;
+		apic2 = apic1;
+	}
+
 	if (pin1 != -1) {
 		/*
 		 * Ok, does IRQ0 through the IOAPIC work?
 		 */
+		if (no_pin1) {
+			add_pin_to_irq(0, apic1, pin1);
+			setup_timer_IRQ0_pin(apic1, pin1, vector);
+		}
 		unmask_IO_APIC_irq(0);
 		if (timer_irq_works()) {
 			if (nmi_watchdog == NMI_IO_APIC) {
@@ -2174,26 +2195,23 @@ static inline void __init check_timer(void)
 			goto out;
 		}
 		clear_IO_APIC_pin(apic1, pin1);
-		printk(KERN_ERR "..MP-BIOS bug: 8254 timer not connected to "
-				"IO-APIC\n");
-	}
+		if (!no_pin1)
+			printk(KERN_ERR "..MP-BIOS bug: "
+			       "8254 timer not connected to IO-APIC\n");
 
-	printk(KERN_INFO "...trying to set up timer (IRQ0) through the 8259A ... ");
-	if (pin2 != -1) {
+		printk(KERN_INFO "...trying to set up timer (IRQ0) "
+		       "through the 8259A ... ");
 		printk("\n..... (found pin %d) ...", pin2);
 		/*
 		 * legacy devices should be connected to IO APIC #0
 		 */
+		replace_pin_at_irq(0, apic1, pin1, apic2, pin2);
 		setup_timer_IRQ0_pin(apic2, pin2, vector);
 		unmask_IO_APIC_irq(0);
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
 			printk("works.\n");
 			timer_through_8259 = 1;
-			if (pin1 != -1)
-				replace_pin_at_irq(0, apic1, pin1, apic2, pin2);
-			else
-				add_pin_to_irq(0, apic2, pin2);
 			if (nmi_watchdog == NMI_IO_APIC) {
 				disable_8259A_irq(0);
 				setup_nmi();
@@ -2206,8 +2224,8 @@ static inline void __init check_timer(void)
 		 */
 		disable_8259A_irq(0);
 		clear_IO_APIC_pin(apic2, pin2);
+		printk(" failed.\n");
 	}
-	printk(" failed.\n");
 
 	if (nmi_watchdog == NMI_IO_APIC) {
 		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
