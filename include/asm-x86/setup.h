@@ -50,14 +50,8 @@ extern struct boot_params boot_params;
  */
 #define LOWMEMSIZE()	(0x9f000)
 
-struct e820entry;
-
 char * __init machine_specific_memory_setup(void);
 char *memory_setup(void);
-
-int __init copy_e820_map(struct e820entry *biosmap, int nr_map);
-void __init add_memory_region(unsigned long long start,
-			      unsigned long long size, int type);
 
 
 void __init i386_start_kernel(void);
