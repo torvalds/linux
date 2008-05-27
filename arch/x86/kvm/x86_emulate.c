@@ -152,7 +152,8 @@ static u16 opcode_table[256] = {
 	ByteOp | ImplicitOps | Mov | String, ImplicitOps | Mov | String,
 	ByteOp | ImplicitOps | String, ImplicitOps | String,
 	/* 0xB0 - 0xBF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0,
+	DstReg | SrcImm | Mov, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xC0 - 0xC7 */
 	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImmByte | ModRM,
 	0, ImplicitOps | Stack, 0, 0,
@@ -1624,6 +1625,8 @@ special_insn:
 	case 0xae ... 0xaf:	/* scas */
 		DPRINTF("Urk! I don't handle SCAS.\n");
 		goto cannot_emulate;
+	case 0xb8: /* mov r, imm */
+		goto mov;
 	case 0xc0 ... 0xc1:
 		emulate_grp2(ctxt);
 		break;
