@@ -754,13 +754,6 @@ static int hpc_power_off_slot(struct slot * slot)
 	}
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __func__, ctrl->cap_base + SLOTCTRL, slot_cmd);
-
-	/*
-	 * After turning power off, we must wait for at least 1 second
-	 * before taking any action that relies on power having been
-	 * removed from the slot/adapter.
-	 */
-	msleep(1000);
  out:
 	if (changed)
 		pcie_unmask_bad_dllp(ctrl);
