@@ -111,7 +111,7 @@ static u32 __init allocate_aperture(void)
 
 
 /* Find a PCI capability */
-static __u32 __init find_cap(int bus, int slot, int func, int cap)
+static u32 __init find_cap(int bus, int slot, int func, int cap)
 {
 	int bytes;
 	u8 pos;
@@ -137,7 +137,7 @@ static __u32 __init find_cap(int bus, int slot, int func, int cap)
 }
 
 /* Read a standard AGPv3 bridge header */
-static __u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
+static u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
 {
 	u32 apsize;
 	u32 apsizereg;
@@ -202,7 +202,7 @@ static __u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
  * the AGP bridges should be always an own bus on the HT hierarchy,
  * but do it here for future safety.
  */
-static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
+static u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 {
 	int bus, slot, func;
 
