@@ -44,6 +44,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
+#include <linux/kdev_t.h>
 
 #include <rdma/ib_cache.h>
 #include <rdma/ib_cm.h>
@@ -163,7 +164,7 @@ struct cm_port {
 struct cm_device {
 	struct list_head list;
 	struct ib_device *ib_device;
-	struct kobject dev_obj;
+	struct device *device;
 	u8 ack_delay;
 	struct cm_port *port[0];
 };
@@ -3618,18 +3619,6 @@ static struct kobj_type cm_port_obj_type = {
 	.release = cm_release_port_obj
 };
 
-static void cm_release_dev_obj(struct kobject *obj)
-{
-	struct cm_device *cm_dev;
-
-	cm_dev = container_of(obj, struct cm_device, dev_obj);
-	kfree(cm_dev);
-}
-
-static struct kobj_type cm_dev_obj_type = {
-	.release = cm_release_dev_obj
-};
-
 struct class cm_class = {
 	.name    = "infiniband_cm",
 };
@@ -3640,7 +3629,7 @@ static int cm_create_port_fs(struct cm_port *port)
 	int i, ret;
 
 	ret = kobject_init_and_add(&port->port_obj, &cm_port_obj_type,
-				   &port->cm_dev->dev_obj,
+				   &port->cm_dev->device->kobj,
 				   "%d", port->port_num);
 	if (ret) {
 		kfree(port);
@@ -3702,10 +3691,10 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->ib_device = ib_device;
 	cm_get_ack_delay(cm_dev);
 
-	ret = kobject_init_and_add(&cm_dev->dev_obj, &cm_dev_obj_type,
-				   &cm_class.subsys.kobj, "%s",
-				   ib_device->name);
-	if (ret) {
+	cm_dev->device = device_create_drvdata(&cm_class, &ib_device->dev,
+					       MKDEV(0, 0), NULL,
+					       "%s", ib_device->name);
+	if (!cm_dev->device) {
 		kfree(cm_dev);
 		return;
 	}
@@ -3758,7 +3747,7 @@ error1:
 		ib_unregister_mad_agent(port->mad_agent);
 		cm_remove_port_fs(port);
 	}
-	kobject_put(&cm_dev->dev_obj);
+	device_unregister(cm_dev->device);
 }
 
 static void cm_remove_one(struct ib_device *ib_device)
@@ -3786,7 +3775,7 @@ static void cm_remove_one(struct ib_device *ib_device)
 		flush_workqueue(cm.wq);
 		cm_remove_port_fs(port);
 	}
-	kobject_put(&cm_dev->dev_obj);
+	device_unregister(cm_dev->device);
 }
 
 static int __init ib_cm_init(void)
