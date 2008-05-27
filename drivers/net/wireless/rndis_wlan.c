@@ -2470,6 +2470,11 @@ static int bcm4320_early_init(struct usbnet *dev)
 	else if (priv->param_power_save > 2)
 		priv->param_power_save = 2;
 
+	if (priv->param_power_output < 0)
+		priv->param_power_output = 0;
+	else if (priv->param_power_output > 3)
+		priv->param_power_output = 3;
+
 	if (priv->param_roamtrigger < -80)
 		priv->param_roamtrigger = -80;
 	else if (priv->param_roamtrigger > -60)
