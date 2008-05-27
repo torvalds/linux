@@ -286,12 +286,28 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 		goto out;
 	}
 
-	if ((slot_status & CMD_COMPLETED) == CMD_COMPLETED ) {
-		/* After 1 sec and CMD_COMPLETED still not set, just
-		   proceed forward to issue the next command according
-		   to spec.  Just print out the error message */
-		dbg("%s: CMD_COMPLETED not clear after 1 sec.\n",
-		    __func__);
+	if (slot_status & CMD_COMPLETED) {
+		if (!ctrl->no_cmd_complete) {
+			/*
+			 * After 1 sec and CMD_COMPLETED still not set, just
+			 * proceed forward to issue the next command according
+			 * to spec. Just print out the error message.
+			 */
+			dbg("%s: CMD_COMPLETED not clear after 1 sec.\n",
+			    __func__);
+		} else if (!NO_CMD_CMPL(ctrl)) {
+			/*
+			 * This controller semms to notify of command completed
+			 * event even though it supports none of power
+			 * controller, attention led, power led and EMI.
+			 */
+			dbg("%s: Unexpected CMD_COMPLETED. Need to wait for "
+			    "command completed event.\n", __func__);
+			ctrl->no_cmd_complete = 0;
+		} else {
+			dbg("%s: Unexpected CMD_COMPLETED. Maybe the "
+			    "controller is broken.\n", __func__);
+		}
 	}
 
 	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
@@ -315,7 +331,7 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	/*
 	 * Wait for command completion.
 	 */
-	if (!retval)
+	if (!retval && !ctrl->no_cmd_complete)
 		retval = pcie_wait_cmd(ctrl);
  out:
 	mutex_unlock(&ctrl->ctrl_lock);
@@ -1130,6 +1146,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	dbg("  Power Indicator      : %3s\n", PWR_LED(ctrl)    ? "yes" : "no");
 	dbg("  Hot-Plug Surprise    : %3s\n", HP_SUPR_RM(ctrl) ? "yes" : "no");
 	dbg("  EMI Present          : %3s\n", EMI(ctrl)        ? "yes" : "no");
+	dbg("  Comamnd Completed    : %3s\n", NO_CMD_CMPL(ctrl)? "no" : "yes");
 	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
 	dbg("Slot Status            : 0x%04x\n", reg16);
 	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
@@ -1161,6 +1178,15 @@ int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
+	/*
+	 * Controller doesn't notify of command completion if the "No
+	 * Command Completed Support" bit is set in Slot Capability
+	 * register or the controller supports none of power
+	 * controller, attention led, power led and EMI.
+	 */
+	if (NO_CMD_CMPL(ctrl) ||
+	    !(POWER_CTRL(ctrl) | ATTN_LED(ctrl) | PWR_LED(ctrl) | EMI(ctrl)))
+	    ctrl->no_cmd_complete = 1;
 
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",
 	     pdev->vendor, pdev->device,
