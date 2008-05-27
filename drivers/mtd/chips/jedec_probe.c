@@ -37,6 +37,7 @@
 #define MANUFACTURER_ST		0x0020
 #define MANUFACTURER_TOSHIBA	0x0098
 #define MANUFACTURER_WINBOND	0x00da
+#define CONTINUATION_CODE	0x007f
 
 
 /* AMD */
@@ -1760,9 +1761,21 @@ static inline u32 jedec_read_mfr(struct map_info *map, uint32_t base,
 {
 	map_word result;
 	unsigned long mask;
-	u32 ofs = cfi_build_cmd_addr(0, cfi_interleave(cfi), cfi->device_type);
-	mask = (1 << (cfi->device_type * 8)) -1;
-	result = map_read(map, base + ofs);
+	int bank = 0;
+
+	/* According to JEDEC "Standard Manufacturer's Identification Code"
+	 * (http://www.jedec.org/download/search/jep106W.pdf)
+	 * several first banks can contain 0x7f instead of actual ID
+	 */
+	do {
+		uint32_t ofs = cfi_build_cmd_addr(0 + (bank << 8),
+						  cfi_interleave(cfi),
+						  cfi->device_type);
+		mask = (1 << (cfi->device_type * 8)) - 1;
+		result = map_read(map, base + ofs);
+		bank++;
+	} while ((result.x[0] & mask) == CONTINUATION_CODE);
+
 	return result.x[0] & mask;
 }
 
