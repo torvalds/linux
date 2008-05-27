@@ -6491,14 +6491,20 @@ static int patch_alc882(struct hda_codec *codec)
 	if (board_config != ALC882_AUTO)
 		setup_preset(spec, &alc882_presets[board_config]);
 
-	spec->stream_name_analog = "ALC882 Analog";
+	if (codec->vendor_id == 0x10ec0885) {
+		spec->stream_name_analog = "ALC885 Analog";
+		spec->stream_name_digital = "ALC885 Digital";
+	} else {
+		spec->stream_name_analog = "ALC882 Analog";
+		spec->stream_name_digital = "ALC882 Digital";
+	}
+
 	spec->stream_analog_playback = &alc882_pcm_analog_playback;
 	spec->stream_analog_capture = &alc882_pcm_analog_capture;
 	/* FIXME: setup DAC5 */
 	/*spec->stream_analog_alt_playback = &alc880_pcm_analog_alt_playback;*/
 	spec->stream_analog_alt_capture = &alc880_pcm_analog_alt_capture;
 
-	spec->stream_name_digital = "ALC882 Digital";
 	spec->stream_digital_playback = &alc882_pcm_digital_playback;
 	spec->stream_digital_capture = &alc882_pcm_digital_capture;
 
@@ -8177,12 +8183,25 @@ static int patch_alc883(struct hda_codec *codec)
 	if (board_config != ALC883_AUTO)
 		setup_preset(spec, &alc883_presets[board_config]);
 
-	spec->stream_name_analog = "ALC883 Analog";
+	switch (codec->vendor_id) {
+	case 0x10ec0888:
+		spec->stream_name_analog = "ALC888 Analog";
+		spec->stream_name_digital = "ALC888 Digital";
+		break;
+	case 0x10ec0889:
+		spec->stream_name_analog = "ALC889 Analog";
+		spec->stream_name_digital = "ALC889 Digital";
+		break;
+	default:
+		spec->stream_name_analog = "ALC883 Analog";
+		spec->stream_name_digital = "ALC883 Digital";
+		break;
+	}
+
 	spec->stream_analog_playback = &alc883_pcm_analog_playback;
 	spec->stream_analog_capture = &alc883_pcm_analog_capture;
 	spec->stream_analog_alt_capture = &alc883_pcm_analog_alt_capture;
 
-	spec->stream_name_digital = "ALC883 Digital";
 	spec->stream_digital_playback = &alc883_pcm_digital_playback;
 	spec->stream_digital_capture = &alc883_pcm_digital_capture;
 
@@ -10680,12 +10699,18 @@ static int patch_alc268(struct hda_codec *codec)
 	if (board_config != ALC268_AUTO)
 		setup_preset(spec, &alc268_presets[board_config]);
 
-	spec->stream_name_analog = "ALC268 Analog";
+	if (codec->vendor_id == 0x10ec0267) {
+		spec->stream_name_analog = "ALC267 Analog";
+		spec->stream_name_digital = "ALC267 Digital";
+	} else {
+		spec->stream_name_analog = "ALC268 Analog";
+		spec->stream_name_digital = "ALC268 Digital";
+	}
+
 	spec->stream_analog_playback = &alc268_pcm_analog_playback;
 	spec->stream_analog_capture = &alc268_pcm_analog_capture;
 	spec->stream_analog_alt_capture = &alc268_pcm_analog_alt_capture;
 
-	spec->stream_name_digital = "ALC268 Digital";
 	spec->stream_digital_playback = &alc268_pcm_digital_playback;
 
 	if (!query_amp_caps(codec, 0x1d, HDA_INPUT))
@@ -13174,11 +13199,17 @@ static int patch_alc861vd(struct hda_codec *codec)
 	if (board_config != ALC861VD_AUTO)
 		setup_preset(spec, &alc861vd_presets[board_config]);
 
-	spec->stream_name_analog = "ALC861VD Analog";
+	if (codec->vendor_id == 0x10ec0660) {
+		spec->stream_name_analog = "ALC660-VD Analog";
+		spec->stream_name_digital = "ALC660-VD Digital";
+	} else {
+		spec->stream_name_analog = "ALC861VD Analog";
+		spec->stream_name_digital = "ALC861VD Digital";
+	}
+
 	spec->stream_analog_playback = &alc861vd_pcm_analog_playback;
 	spec->stream_analog_capture = &alc861vd_pcm_analog_capture;
 
-	spec->stream_name_digital = "ALC861VD Digital";
 	spec->stream_digital_playback = &alc861vd_pcm_digital_playback;
 	spec->stream_digital_capture = &alc861vd_pcm_digital_capture;
 
