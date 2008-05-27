@@ -72,6 +72,7 @@ extern atomic_t rdma_stat_sq_prod;
  */
 struct svc_rdma_op_ctxt {
 	struct svc_rdma_op_ctxt *read_hdr;
+	int hdr_count;
 	struct list_head free_list;
 	struct xdr_buf arg;
 	struct list_head dto_q;
