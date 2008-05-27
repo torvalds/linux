@@ -26,6 +26,7 @@
 /* Manufacturers */
 #define MANUFACTURER_AMD	0x0001
 #define MANUFACTURER_ATMEL	0x001f
+#define MANUFACTURER_EON	0x001c
 #define MANUFACTURER_FUJITSU	0x0004
 #define MANUFACTURER_HYUNDAI	0x00AD
 #define MANUFACTURER_INTEL	0x0089
@@ -69,6 +70,10 @@
 #define AT49BV16XT	0x00C2
 #define AT49BV32X	0x00C8
 #define AT49BV32XT	0x00C9
+
+/* Eon */
+#define EN29SL800BB	0x226B
+#define EN29SL800BT	0x22EA
 
 /* Fujitsu */
 #define MBM29F040C	0x00A4
@@ -632,6 +637,36 @@ static const struct amd_flash_info jedec_table[] = {
 		.regions	= {
 			ERASEINFO(0x10000,63),
 			ERASEINFO(0x02000,8)
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_EON,
+		.dev_id		= EN29SL800BT,
+		.name		= "Eon EN29SL800BT",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x10000,15),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x04000,1),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_EON,
+		.dev_id		= EN29SL800BB,
+		.name		= "Eon EN29SL800BB",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x04000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x10000,15),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_FUJITSU,
