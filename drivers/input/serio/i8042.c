@@ -885,6 +885,20 @@ static long i8042_panic_blink(long count)
 
 #undef DELAY
 
+#ifdef CONFIG_X86
+static void i8042_dritek_enable(void)
+{
+	char param = 0x90;
+	int error;
+
+	error = i8042_command(&param, 0x1059);
+	if (error)
+		printk(KERN_WARNING
+			"Failed to enable DRITEK extension: %d\n",
+			error);
+}
+#endif
+
 #ifdef CONFIG_PM
 /*
  * Here we try to restore the original BIOS settings. We only want to
@@ -941,6 +955,12 @@ static int i8042_resume(struct platform_device *dev)
 		printk(KERN_ERR "i8042: Can't write CTR to resume\n");
 		return -EIO;
 	}
+
+
+#ifdef CONFIG_X86
+	if (i8042_dritek)
+		i8042_dritek_enable();
+#endif
 
 	if (i8042_mux_present) {
 		if (i8042_set_mux_mode(1, NULL) || i8042_enable_mux_ports())
@@ -1160,6 +1180,11 @@ static int __devinit i8042_probe(struct platform_device *dev)
 	if (error)
 		return error;
 
+#ifdef CONFIG_X86
+	if (i8042_dritek)
+		i8042_dritek_enable();
+#endif
+
 	if (!i8042_noaux) {
 		error = i8042_setup_aux();
 		if (error && error != -ENODEV && error != -EBUSY)
@@ -1171,14 +1196,6 @@ static int __devinit i8042_probe(struct platform_device *dev)
 		if (error)
 			goto out_fail;
 	}
-#ifdef CONFIG_X86
-	if (i8042_dritek) {
-		char param = 0x90;
-		error = i8042_command(&param, 0x1059);
-		if (error)
-			goto out_fail;
-	}
-#endif
 /*
  * Ok, everything is ready, let's register all serio ports
  */
