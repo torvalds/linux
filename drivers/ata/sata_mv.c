@@ -2546,7 +2546,7 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
 	int fix_phy_mode4 =
 		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
-	u32 m2, tmp;
+	u32 m2, m3;
 
 	if (fix_phy_mode2) {
 		m2 = readl(port_mmio + PHY_MODE2);
@@ -2563,27 +2563,27 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		udelay(200);
 	}
 
-	/* who knows what this magic does */
-	tmp = readl(port_mmio + PHY_MODE3);
-	tmp &= ~0x7F800000;
-	tmp |= 0x2A800000;
-	writel(tmp, port_mmio + PHY_MODE3);
+	/*
+	 * Gen-II/IIe PHY_MODE3 errata RM#2:
+	 * Achieves better receiver noise performance than the h/w default:
+	 */
+	m3 = readl(port_mmio + PHY_MODE3);
+	m3 = (m3 & 0x1f) | (0x5555601 << 5);
+	writel(m3, port_mmio + PHY_MODE3);
 
 	if (fix_phy_mode4) {
 		u32 m4;
 
 		m4 = readl(port_mmio + PHY_MODE4);
 
-		if (hp_flags & MV_HP_ERRATA_60X1B2)
-			tmp = readl(port_mmio + PHY_MODE3);
-
 		/* workaround for errata FEr SATA#10 (part 1) */
 		m4 = (m4 & ~(1 << 1)) | (1 << 0);
 
-		writel(m4, port_mmio + PHY_MODE4);
+		/* enforce bit restrictions on GenIIe devices */
+		if (IS_GEN_IIE(hpriv))
+			m4 = (m4 & ~0x5DE3FFFC) | (1 << 2);
 
-		if (hp_flags & MV_HP_ERRATA_60X1B2)
-			writel(tmp, port_mmio + PHY_MODE3);
+		writel(m4, port_mmio + PHY_MODE4);
 	}
 
 	/* Revert values of pre-emphasis and signal amps to the saved ones */
