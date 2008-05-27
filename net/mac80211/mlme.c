@@ -4128,6 +4128,14 @@ ieee80211_sta_scan_result(struct net_device *dev,
 						  bss->rsn_ie);
 	}
 
+	if (bss && bss->ht_ie) {
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = IWEVGENIE;
+		iwe.u.data.length = bss->ht_ie_len;
+		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
+						  bss->ht_ie);
+	}
+
 	if (bss && bss->supp_rates_len > 0) {
 		/* display all supported rates in readable format */
 		char *p = current_ev + IW_EV_LCP_LEN;
