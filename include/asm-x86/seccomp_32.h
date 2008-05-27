@@ -1,4 +1,5 @@
 #ifndef _ASM_SECCOMP_H
+#define _ASM_SECCOMP_H
 
 #include <linux/thread_info.h>
 
