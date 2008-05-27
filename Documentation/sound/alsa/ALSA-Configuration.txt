@@ -845,7 +845,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	ALC269
 	  basic		Basic preset
 
-	ALC662
+	ALC662/663
 	  3stack-dig	3-stack (2-channel) with SPDIF
 	  3stack-6ch	 3-stack (6-channel)
 	  3stack-6ch-dig 3-stack (6-channel) with SPDIF
@@ -853,6 +853,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  lenovo-101e	 Lenovo laptop
 	  eeepc-p701	ASUS Eeepc P701
 	  eeepc-ep20	ASUS Eeepc EP20
+	  m51va		ASUS M51VA
+	  g71v		ASUS G71V
+	  h13		ASUS H13
+	  g50v		ASUS G50V
 	  auto		auto-config reading BIOS (default)
 
 	ALC882/885
