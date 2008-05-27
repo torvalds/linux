@@ -1331,8 +1331,7 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	 * The timer IRQ doesn't have to know that behind the
 	 * scene we have a 8259A-master in AEOI mode ...
 	 */
-	irq_desc[0].chip = &ioapic_chip;
-	set_irq_handler(0, handle_edge_irq);
+	ioapic_register_intr(0, vector, IOAPIC_EDGE);
 
 	/*
 	 * Add it to the IO-APIC irq-routing table:
