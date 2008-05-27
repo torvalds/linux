@@ -897,10 +897,10 @@ static void __init setup_IO_APIC_irqs(void)
 }
 
 /*
- * Set up the 8259A-master output pin as broadcast to all
- * CPUs.
+ * Set up the timer pin, possibly with the 8259A-master behind.
  */
-static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, int vector)
+static void __init setup_timer_IRQ0_pin(unsigned int apic, unsigned int pin,
+					int vector)
 {
 	struct IO_APIC_route_entry entry;
 
@@ -920,7 +920,7 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 
 	/*
 	 * The timer IRQ doesn't have to know that behind the
-	 * scene we have a 8259A-master in AEOI mode ...
+	 * scene we may have a 8259A-master in AEOI mode ...
 	 */
 	set_irq_chip_and_handler_name(0, &ioapic_chip, handle_edge_irq, "edge");
 
@@ -1690,7 +1690,7 @@ static inline void __init check_timer(void)
 		/*
 		 * legacy devices should be connected to IO APIC #0
 		 */
-		setup_ExtINT_IRQ0_pin(apic2, pin2, cfg->vector);
+		setup_timer_IRQ0_pin(apic2, pin2, cfg->vector);
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
 			apic_printk(APIC_VERBOSE," works.\n");
