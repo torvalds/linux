@@ -780,6 +780,24 @@ static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 	alc_sku_automute(codec);
 }
 
+/* additional initialization for ALC888 variants */
+static void alc888_coef_init(struct hda_codec *codec)
+{
+	unsigned int tmp;
+
+	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX, 0);
+	tmp = snd_hda_codec_read(codec, 0x20, 0, AC_VERB_GET_PROC_COEF, 0);
+	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX, 7);
+	if ((tmp & 0xf0) == 2)
+		/* alc888S-VC */
+		snd_hda_codec_read(codec, 0x20, 0,
+				   AC_VERB_SET_PROC_COEF, 0x830);
+	 else
+		 /* alc888-VB */
+		 snd_hda_codec_read(codec, 0x20, 0,
+				    AC_VERB_SET_PROC_COEF, 0x3030);
+}
+
 /* 32-bit subsystem ID for BIOS loading in HD Audio codec.
  *	31 ~ 16 :	Manufacture ID
  *	15 ~ 8	:	SKU ID
@@ -855,8 +873,10 @@ do_sku:
 		case 0x10ec0267:
 		case 0x10ec0268:
 		case 0x10ec0269:
+		case 0x10ec0660:
+		case 0x10ec0662:
+		case 0x10ec0663:
 		case 0x10ec0862:
-		case 0x10ec0662:	
 		case 0x10ec0889:
 			snd_hda_codec_write(codec, 0x14, 0,
 					    AC_VERB_SET_EAPD_BTLENABLE, 2);
@@ -881,7 +901,6 @@ do_sku:
 		case 0x10ec0882:
 		case 0x10ec0883:
 		case 0x10ec0885:
-		case 0x10ec0888:
 		case 0x10ec0889:
 			snd_hda_codec_write(codec, 0x20, 0,
 					    AC_VERB_SET_COEF_INDEX, 7);
@@ -892,6 +911,9 @@ do_sku:
 			snd_hda_codec_write(codec, 0x20, 0,
 					    AC_VERB_SET_PROC_COEF,
 					    tmp | 0x2010);
+			break;
+		case 0x10ec0888:
+			alc888_coef_init(codec);
 			break;
 		case 0x10ec0267:
 		case 0x10ec0268:
@@ -8214,6 +8236,9 @@ static int patch_alc883(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC883_AUTO)
 		spec->init_hook = alc883_auto_init;
+	else if (codec->vendor_id == 0x10ec0888)
+		spec->init_hook = alc888_coef_init;
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc883_loopbacks;
@@ -12662,6 +12687,12 @@ static struct hda_verb alc861vd_eapd_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc660vd_eapd_verbs[] = {
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{ }
+};
+
 static struct hda_verb alc861vd_lenovo_unsol_verbs[] = {
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
@@ -13202,6 +13233,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 	if (codec->vendor_id == 0x10ec0660) {
 		spec->stream_name_analog = "ALC660-VD Analog";
 		spec->stream_name_digital = "ALC660-VD Digital";
+		/* always turn on EAPD */
+		spec->init_verbs[spec->num_init_verbs++] = alc660vd_eapd_verbs;
 	} else {
 		spec->stream_name_analog = "ALC861VD Analog";
 		spec->stream_name_digital = "ALC861VD Digital";
