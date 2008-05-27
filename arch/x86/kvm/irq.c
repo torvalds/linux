@@ -94,3 +94,9 @@ void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec)
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_timer_intr_post);
+
+void __kvm_migrate_timers(struct kvm_vcpu *vcpu)
+{
+	__kvm_migrate_apic_timer(vcpu);
+	__kvm_migrate_pit_timer(vcpu);
+}

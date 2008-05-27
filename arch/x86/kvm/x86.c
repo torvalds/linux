@@ -2758,7 +2758,7 @@ again:
 
 	if (vcpu->requests) {
 		if (test_and_clear_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests))
-			__kvm_migrate_apic_timer(vcpu);
+			__kvm_migrate_timers(vcpu);
 		if (test_and_clear_bit(KVM_REQ_REPORT_TPR_ACCESS,
 				       &vcpu->requests)) {
 			kvm_run->exit_reason = KVM_EXIT_TPR_ACCESS;

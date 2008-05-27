@@ -608,7 +608,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if (vcpu->cpu != cpu) {
 		vcpu_clear(vmx);
-		kvm_migrate_apic_timer(vcpu);
+		kvm_migrate_timers(vcpu);
 		vpid_sync_vcpu_all(vmx);
 	}
 
