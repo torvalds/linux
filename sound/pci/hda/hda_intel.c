@@ -197,6 +197,10 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define ATIHDMI_NUM_CAPTURE	0
 #define ATIHDMI_NUM_PLAYBACK	1
 
+/* TERA has 4 playback and 3 capture */
+#define TERA_NUM_CAPTURE	3
+#define TERA_NUM_PLAYBACK	4
+
 /* this number is statically defined for simplicity */
 #define MAX_AZX_DEV		16
 
@@ -384,6 +388,7 @@ enum {
 	AZX_DRIVER_SIS,
 	AZX_DRIVER_ULI,
 	AZX_DRIVER_NVIDIA,
+	AZX_DRIVER_TERA,
 };
 
 static char *driver_short_names[] __devinitdata = {
@@ -395,6 +400,7 @@ static char *driver_short_names[] __devinitdata = {
 	[AZX_DRIVER_SIS] = "HDA SIS966",
 	[AZX_DRIVER_ULI] = "HDA ULI M5461",
 	[AZX_DRIVER_NVIDIA] = "HDA NVidia",
+	[AZX_DRIVER_TERA] = "HDA Teradici", 
 };
 
 /*
@@ -1106,6 +1112,7 @@ static unsigned int azx_max_codecs[] __devinitdata = {
 	[AZX_DRIVER_SIS] = 3,		/* FIXME: correct? */
 	[AZX_DRIVER_ULI] = 3,		/* FIXME: correct? */
 	[AZX_DRIVER_NVIDIA] = 3,	/* FIXME: correct? */
+	[AZX_DRIVER_TERA] = 1,
 };
 
 static int __devinit azx_codec_create(struct azx *chip, const char *model,
@@ -2229,6 +2236,8 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x10de, 0x0bd5), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0bd6), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0bd7), .driver_data = AZX_DRIVER_NVIDIA },
+	/* Teradici */
+	{ PCI_DEVICE(0x6549, 0x1200), .driver_data = AZX_DRIVER_TERA },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);
