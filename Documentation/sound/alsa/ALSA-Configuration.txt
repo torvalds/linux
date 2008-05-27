@@ -2271,6 +2271,10 @@ case above again, the first two slots are already reserved.  If any
 other driver (e.g. snd-usb-audio) is loaded before snd-interwave or
 snd-ens1371, it will be assigned to the third or later slot.
 
+When a module name is given with '!', the slot will be given for any
+modules but that name.  For example, "slots=!snd-pcsp" will reserve
+the first slot for any modules but snd-pcsp. 
+
 
 ALSA PCM devices to OSS devices mapping
 =======================================
