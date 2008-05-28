@@ -72,7 +72,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.23"
+#define DRV_VERSION	"1.24"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -2557,6 +2557,10 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 	 */
 	m3 = readl(port_mmio + PHY_MODE3);
 	m3 = (m3 & 0x1f) | (0x5555601 << 5);
+
+	/* Guideline 88F5182 (GL# SATA-S11) */
+	if (IS_SOC(hpriv))
+		m3 &= ~0x1c;
 
 	if (fix_phy_mode4) {
 		u32 m4;
