@@ -1,24 +1,31 @@
-/* DVB USB compliant linux driver for Sigmatek DVB-110 DVB-T USB2.0 receiver
+/*
+ * DVB USB Linux driver for Alcor Micro AU6610 DVB-T USB2.0.
  *
  * Copyright (C) 2006 Antti Palosaari <crope@iki.fi>
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the
- *      Free Software Foundation, version 2.
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
  *
- * see Documentation/dvb/README.dvb-usb for more information
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program; if not, write to the Free Software
+ *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "au6610.h"
-
 #include "zl10353.h"
 #include "qt1010.h"
 
 /* debug */
 static int dvb_usb_au6610_debug;
 module_param_named(debug, dvb_usb_au6610_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))."
-	DVB_USB_DEBUG_STATUS);
+MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
@@ -126,7 +133,7 @@ static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 	adap->fe = dvb_attach(zl10353_attach, &au6610_zl10353_config,
 		&adap->dev->i2c_adap);
 	if (adap->fe == NULL)
-		return -EIO;
+		return -ENODEV;
 
 	return 0;
 }
@@ -161,7 +168,7 @@ static int au6610_probe(struct usb_interface *intf,
 		alt = usb_altnum_to_altsetting(intf, AU6610_ALTSETTING);
 
 		if (alt == NULL) {
-			deb_rc("no alt found!\n");
+			deb_info("%s: no alt found!\n", __func__);
 			return -ENODEV;
 		}
 		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
@@ -171,7 +178,6 @@ static int au6610_probe(struct usb_interface *intf,
 	return ret;
 }
 
-
 static struct usb_device_id au6610_table [] = {
 	{ USB_DEVICE(USB_VID_ALCOR_MICRO, USB_PID_SIGMATEK_DVB_110) },
 	{ }		/* Terminating entry */
@@ -180,8 +186,11 @@ MODULE_DEVICE_TABLE(usb, au6610_table);
 
 static struct dvb_usb_device_properties au6610_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.size_of_priv     = 0,
+
+	.size_of_priv = 0,
+
 	.num_adapters = 1,
 	.adapter = {
 		{
@@ -196,12 +205,13 @@ static struct dvb_usb_device_properties au6610_properties = {
 					.isoc = {
 						.framesperurb = 40,
 						.framesize = 942,
-						.interval = 1.25,   /* 125 us */
+						.interval = 1,
 					}
 				}
 			},
 		}
 	},
+
 	.i2c_algo = &au6610_i2c_algo,
 
 	.num_device_descs = 1,
@@ -243,6 +253,6 @@ module_init(au6610_module_init);
 module_exit(au6610_module_exit);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
-MODULE_DESCRIPTION("Driver Sigmatek DVB-110 DVB-T USB2.0 / AU6610");
+MODULE_DESCRIPTION("Driver for Alcor Micro AU6610 DVB-T USB2.0");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
