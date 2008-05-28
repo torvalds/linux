@@ -38,7 +38,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20060524"
+#define DRIVER_DATE		"20080528"
 
 /* Interface history:
  *
@@ -98,9 +98,10 @@
  * 1.26- Add support for variable size PCI(E) gart aperture
  * 1.27- Add support for IGP GART
  * 1.28- Add support for VBL on CRTC2
+ * 1.29- R500 3D cmd buffer support
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		28
+#define DRIVER_MINOR		29
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -294,6 +295,7 @@ typedef struct drm_radeon_private {
 	int vblank_crtc;
 	uint32_t irq_enable_reg;
 	int irq_enabled;
+	uint32_t r500_disp_irq_reg;
 
 	struct radeon_surface surfaces[RADEON_MAX_SURFACES];
 	struct radeon_virt_surface virt_surfaces[2 * RADEON_MAX_SURFACES];
@@ -1102,6 +1104,31 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define R200_PP_AFS_1                     0x2f00	/* same as txcblend_0 */
 
 #define R200_VAP_PVS_CNTL_1               0x22D0
+
+#define R500_D1CRTC_STATUS 0x609c
+#define R500_D2CRTC_STATUS 0x689c
+#define R500_CRTC_V_BLANK (1<<0)
+
+#define R500_D1CRTC_FRAME_COUNT 0x60a4
+#define R500_D2CRTC_FRAME_COUNT 0x68a4
+
+#define R500_D1MODE_V_COUNTER 0x6530
+#define R500_D2MODE_V_COUNTER 0x6d30
+
+#define R500_D1MODE_VBLANK_STATUS 0x6534
+#define R500_D2MODE_VBLANK_STATUS 0x6d34
+#define R500_VBLANK_OCCURED (1<<0)
+#define R500_VBLANK_ACK     (1<<4)
+#define R500_VBLANK_STAT    (1<<12)
+#define R500_VBLANK_INT     (1<<16)
+
+#define R500_DxMODE_INT_MASK 0x6540
+#define R500_D1MODE_INT_MASK (1<<0)
+#define R500_D2MODE_INT_MASK (1<<8)
+
+#define R500_DISP_INTERRUPT_STATUS 0x7edc
+#define R500_D1_VBLANK_INTERRUPT (1 << 4)
+#define R500_D2_VBLANK_INTERRUPT (1 << 5)
 
 /* Constants */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */

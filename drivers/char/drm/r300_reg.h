@@ -1623,4 +1623,20 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define R300_CP_CMD_BITBLT_MULTI	0xC0009B00
 
+#define R500_VAP_INDEX_OFFSET		0x208c
+
+#define R500_GA_US_VECTOR_INDEX         0x4250
+#define R500_GA_US_VECTOR_DATA          0x4254
+
+#define R500_RS_IP_0                    0x4074
+#define R500_RS_INST_0                  0x4320
+
+#define R500_US_CONFIG                  0x4600
+
+#define R500_US_FC_CTRL			0x4624
+#define R500_US_CODE_ADDR		0x4630
+
+#define R500_RB3D_COLOR_CLEAR_VALUE_AR  0x46c0
+#define R500_RB3D_CONSTANT_COLOR_AR     0x4ef8
+
 #endif /* _R300_REG_H */

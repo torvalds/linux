@@ -189,18 +189,12 @@ void r300_init_reg_flags(struct drm_device *dev)
 	ADD_RANGE(R300_RE_CULL_CNTL, 1);
 	ADD_RANGE(0x42C0, 2);
 	ADD_RANGE(R300_RS_CNTL_0, 2);
-	ADD_RANGE(R300_RS_INTERP_0, 8);
-	ADD_RANGE(R300_RS_ROUTE_0, 8);
+
 	ADD_RANGE(0x43A4, 2);
 	ADD_RANGE(0x43E8, 1);
-	ADD_RANGE(R300_PFS_CNTL_0, 3);
-	ADD_RANGE(R300_PFS_NODE_0, 4);
-	ADD_RANGE(R300_PFS_TEXI_0, 64);
+
 	ADD_RANGE(0x46A4, 5);
-	ADD_RANGE(R300_PFS_INSTR0_0, 64);
-	ADD_RANGE(R300_PFS_INSTR1_0, 64);
-	ADD_RANGE(R300_PFS_INSTR2_0, 64);
-	ADD_RANGE(R300_PFS_INSTR3_0, 64);
+
 	ADD_RANGE(R300_RE_FOG_STATE, 1);
 	ADD_RANGE(R300_FOG_COLOR_R, 3);
 	ADD_RANGE(R300_PP_ALPHA_TEST, 2);
@@ -241,7 +235,25 @@ void r300_init_reg_flags(struct drm_device *dev)
 	ADD_RANGE(R300_VAP_INPUT_ROUTE_1_0, 8);
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV515) {
-		ADD_RANGE(0x4074, 16);
+		ADD_RANGE(R500_VAP_INDEX_OFFSET, 1);
+		ADD_RANGE(R500_US_CONFIG, 2);
+		ADD_RANGE(R500_US_CODE_ADDR, 3);
+		ADD_RANGE(R500_US_FC_CTRL, 1);
+		ADD_RANGE(R500_RS_IP_0, 16);
+		ADD_RANGE(R500_RS_INST_0, 16);
+		ADD_RANGE(R500_RB3D_COLOR_CLEAR_VALUE_AR, 2);
+		ADD_RANGE(R500_RB3D_CONSTANT_COLOR_AR, 2);
+	} else {
+		ADD_RANGE(R300_PFS_CNTL_0, 3);
+		ADD_RANGE(R300_PFS_NODE_0, 4);
+		ADD_RANGE(R300_PFS_TEXI_0, 64);
+		ADD_RANGE(R300_PFS_INSTR0_0, 64);
+		ADD_RANGE(R300_PFS_INSTR1_0, 64);
+		ADD_RANGE(R300_PFS_INSTR2_0, 64);
+		ADD_RANGE(R300_PFS_INSTR3_0, 64);
+		ADD_RANGE(R300_RS_INTERP_0, 8);
+		ADD_RANGE(R300_RS_ROUTE_0, 8);
+
 	}
 }
 
@@ -829,6 +841,54 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
 }
 
 /**
+ * Uploads user-supplied vertex program instructions or parameters onto
+ * the graphics card.
+ * Called by r300_do_cp_cmdbuf.
+ */
+static inline int r300_emit_r500fp(drm_radeon_private_t *dev_priv,
+				       drm_radeon_kcmd_buffer_t *cmdbuf,
+				       drm_r300_cmd_header_t header)
+{
+	int sz;
+	int addr;
+	int type;
+	int clamp;
+	int stride;
+	RING_LOCALS;
+
+	sz = header.r500fp.count;
+	/* address is 9 bits 0 - 8, bit 1 of flags is part of address */
+	addr = ((header.r500fp.adrhi_flags & 1) << 8) | header.r500fp.adrlo;
+
+	type = !!(header.r500fp.adrhi_flags & R500FP_CONSTANT_TYPE);
+	clamp = !!(header.r500fp.adrhi_flags & R500FP_CONSTANT_CLAMP);
+
+	addr |= (type << 16);
+	addr |= (clamp << 17);
+
+	stride = type ? 4 : 6;
+
+	DRM_DEBUG("r500fp %d %d type: %d\n", sz, addr, type);
+	if (!sz)
+		return 0;
+	if (sz * stride * 4 > cmdbuf->bufsz)
+		return -EINVAL;
+
+	BEGIN_RING(3 + sz * stride);
+	OUT_RING_REG(R500_GA_US_VECTOR_INDEX, addr);
+	OUT_RING(CP_PACKET0_TABLE(R500_GA_US_VECTOR_DATA, sz * stride - 1));
+	OUT_RING_TABLE((int *)cmdbuf->buf, sz * stride);
+
+	ADVANCE_RING();
+
+	cmdbuf->buf += sz * stride * 4;
+	cmdbuf->bufsz -= sz * stride * 4;
+
+	return 0;
+}
+
+
+/**
  * Parses and validates a user-supplied command buffer and emits appropriate
  * commands on the DMA ring buffer.
  * Called by the ioctl handler function radeon_cp_cmdbuf.
@@ -963,6 +1023,19 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 			}
 			break;
 
+		case R300_CMD_R500FP:
+			if ((dev_priv->flags & RADEON_FAMILY_MASK) < CHIP_RV515) {
+				DRM_ERROR("Calling r500 command on r300 card\n");
+				ret = -EINVAL;
+				goto cleanup;
+			}
+			DRM_DEBUG("R300_CMD_R500FP\n");
+			ret = r300_emit_r500fp(dev_priv, cmdbuf, header);
+			if (ret) {
+				DRM_ERROR("r300_emit_r500fp failed\n");
+				goto cleanup;
+			}
+			break;
 		default:
 			DRM_ERROR("bad cmd_type %i at %p\n",
 				  header.header.cmd_type,
