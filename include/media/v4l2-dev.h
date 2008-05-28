@@ -132,6 +132,8 @@ struct video_device
 					    struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_vbi_output)  (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
+	int (*vidioc_enum_fmt_sliced_vbi_output)  (struct file *file, void *fh,
+					    struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_type_private)(struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
 
@@ -143,6 +145,8 @@ struct video_device
 	int (*vidioc_g_fmt_vbi)        (struct file *file, void *fh,
 					struct v4l2_format *f);
 	int (*vidioc_g_fmt_vbi_output) (struct file *file, void *fh,
+					struct v4l2_format *f);
+	int (*vidioc_g_fmt_sliced_vbi_output) (struct file *file, void *fh,
 					struct v4l2_format *f);
 	int (*vidioc_g_fmt_vbi_capture)(struct file *file, void *fh,
 					struct v4l2_format *f);
@@ -163,6 +167,8 @@ struct video_device
 					struct v4l2_format *f);
 	int (*vidioc_s_fmt_vbi_output) (struct file *file, void *fh,
 					struct v4l2_format *f);
+	int (*vidioc_s_fmt_sliced_vbi_output) (struct file *file, void *fh,
+					struct v4l2_format *f);
 	int (*vidioc_s_fmt_vbi_capture)(struct file *file, void *fh,
 					struct v4l2_format *f);
 	int (*vidioc_s_fmt_video_output)(struct file *file, void *fh,
@@ -180,6 +186,8 @@ struct video_device
 	int (*vidioc_try_fmt_vbi)        (struct file *file, void *fh,
 					  struct v4l2_format *f);
 	int (*vidioc_try_fmt_vbi_output) (struct file *file, void *fh,
+					  struct v4l2_format *f);
+	int (*vidioc_try_fmt_sliced_vbi_output) (struct file *file, void *fh,
 					  struct v4l2_format *f);
 	int (*vidioc_try_fmt_vbi_capture)(struct file *file, void *fh,
 					  struct v4l2_format *f);
@@ -225,7 +233,7 @@ struct video_device
 	int (*vidioc_s_input)   (struct file *file, void *fh, unsigned int i);
 
 		/* Output handling */
-	int (*vidioc_enumoutput) (struct file *file, void *fh,
+	int (*vidioc_enum_output) (struct file *file, void *fh,
 				  struct v4l2_output *a);
 	int (*vidioc_g_output)   (struct file *file, void *fh, unsigned int *i);
 	int (*vidioc_s_output)   (struct file *file, void *fh, unsigned int i);
