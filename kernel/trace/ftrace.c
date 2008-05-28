@@ -151,8 +151,6 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 static struct task_struct *ftraced_task;
-static DECLARE_WAIT_QUEUE_HEAD(ftraced_waiters);
-static unsigned long ftraced_iteration_counter;
 
 enum {
 	FTRACE_ENABLE_CALLS		= (1 << 0),
@@ -189,6 +187,7 @@ static struct ftrace_page	*ftrace_pages;
 
 static int ftraced_trigger;
 static int ftraced_suspend;
+static int ftraced_stop;
 
 static int ftrace_record_suspend;
 
@@ -474,14 +473,21 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 	return 1;
 }
 
+static int __ftrace_update_code(void *ignore);
+
 static int __ftrace_modify_code(void *data)
 {
 	unsigned long addr;
 	int *command = data;
 
-	if (*command & FTRACE_ENABLE_CALLS)
+	if (*command & FTRACE_ENABLE_CALLS) {
+		/*
+		 * Update any recorded ips now that we have the
+		 * machine stopped
+		 */
+		__ftrace_update_code(NULL);
 		ftrace_replace_code(1);
-	else if (*command & FTRACE_DISABLE_CALLS)
+	} else if (*command & FTRACE_DISABLE_CALLS)
 		ftrace_replace_code(0);
 
 	if (*command & FTRACE_UPDATE_TRACE_FUNC)
@@ -501,6 +507,25 @@ static int __ftrace_modify_code(void *data)
 static void ftrace_run_update_code(int command)
 {
 	stop_machine_run(__ftrace_modify_code, &command, NR_CPUS);
+}
+
+void ftrace_disable_daemon(void)
+{
+	/* Stop the daemon from calling kstop_machine */
+	mutex_lock(&ftraced_lock);
+	ftraced_stop = 1;
+	mutex_unlock(&ftraced_lock);
+
+	ftrace_force_update();
+}
+
+void ftrace_enable_daemon(void)
+{
+	mutex_lock(&ftraced_lock);
+	ftraced_stop = 0;
+	mutex_unlock(&ftraced_lock);
+
+	ftrace_force_update();
 }
 
 static ftrace_func_t saved_ftrace_func;
@@ -603,6 +628,7 @@ static int __ftrace_update_code(void *ignore)
 	int i;
 
 	/* Don't be recording funcs now */
+	ftrace_record_suspend++;
 	save_ftrace_enabled = ftrace_enabled;
 	ftrace_enabled = 0;
 
@@ -628,18 +654,23 @@ static int __ftrace_update_code(void *ignore)
 	stop = ftrace_now(raw_smp_processor_id());
 	ftrace_update_time = stop - start;
 	ftrace_update_tot_cnt += ftrace_update_cnt;
+	ftraced_trigger = 0;
 
 	ftrace_enabled = save_ftrace_enabled;
+	ftrace_record_suspend--;
 
 	return 0;
 }
 
-static void ftrace_update_code(void)
+static int ftrace_update_code(void)
 {
-	if (unlikely(ftrace_disabled))
-		return;
+	if (unlikely(ftrace_disabled) ||
+	    !ftrace_enabled || !ftraced_trigger)
+		return 0;
 
 	stop_machine_run(__ftrace_update_code, NULL, NR_CPUS);
+
+	return 1;
 }
 
 static int ftraced(void *ignore)
@@ -658,14 +689,13 @@ static int ftraced(void *ignore)
 
 		mutex_lock(&ftrace_sysctl_lock);
 		mutex_lock(&ftraced_lock);
-		if (ftrace_enabled && ftraced_trigger && !ftraced_suspend) {
-			ftrace_record_suspend++;
-			ftrace_update_code();
+		if (!ftraced_suspend && !ftraced_stop &&
+		    ftrace_update_code()) {
 			usecs = nsecs_to_usecs(ftrace_update_time);
 			if (ftrace_update_tot_cnt > 100000) {
 				ftrace_update_tot_cnt = 0;
 				pr_info("hm, dftrace overflow: %lu change%s"
-					 " (%lu total) in %lu usec%s\n",
+					" (%lu total) in %lu usec%s\n",
 					ftrace_update_cnt,
 					ftrace_update_cnt != 1 ? "s" : "",
 					ftrace_update_tot_cnt,
@@ -673,14 +703,9 @@ static int ftraced(void *ignore)
 				ftrace_disabled = 1;
 				WARN_ON_ONCE(1);
 			}
-			ftraced_trigger = 0;
-			ftrace_record_suspend--;
 		}
-		ftraced_iteration_counter++;
 		mutex_unlock(&ftraced_lock);
 		mutex_unlock(&ftrace_sysctl_lock);
-
-		wake_up_interruptible(&ftraced_waiters);
 
 		ftrace_shutdown_replenish();
 	}
@@ -1219,6 +1244,55 @@ ftrace_notrace_release(struct inode *inode, struct file *file)
 	return ftrace_regex_release(inode, file, 0);
 }
 
+static ssize_t
+ftraced_read(struct file *filp, char __user *ubuf,
+		     size_t cnt, loff_t *ppos)
+{
+	/* don't worry about races */
+	char *buf = ftraced_stop ? "disabled\n" : "enabled\n";
+	int r = strlen(buf);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+}
+
+static ssize_t
+ftraced_write(struct file *filp, const char __user *ubuf,
+		      size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+	long val;
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	if (strncmp(buf, "enable", 6) == 0)
+		val = 1;
+	else if (strncmp(buf, "disable", 7) == 0)
+		val = 0;
+	else {
+		buf[cnt] = 0;
+
+		ret = strict_strtoul(buf, 10, &val);
+		if (ret < 0)
+			return ret;
+
+		val = !!val;
+	}
+
+	if (val)
+		ftrace_enable_daemon();
+	else
+		ftrace_disable_daemon();
+
+	filp->f_pos += cnt;
+
+	return cnt;
+}
+
 static struct file_operations ftrace_avail_fops = {
 	.open = ftrace_avail_open,
 	.read = seq_read,
@@ -1242,51 +1316,34 @@ static struct file_operations ftrace_notrace_fops = {
 	.release = ftrace_notrace_release,
 };
 
+static struct file_operations ftraced_fops = {
+	.open = tracing_open_generic,
+	.read = ftraced_read,
+	.write = ftraced_write,
+};
+
 /**
  * ftrace_force_update - force an update to all recording ftrace functions
- *
- * The ftrace dynamic update daemon only wakes up once a second.
- * There may be cases where an update needs to be done immediately
- * for tests or internal kernel tracing to begin. This function
- * wakes the daemon to do an update and will not return until the
- * update is complete.
  */
 int ftrace_force_update(void)
 {
-	unsigned long last_counter;
-	DECLARE_WAITQUEUE(wait, current);
 	int ret = 0;
 
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
+	mutex_lock(&ftrace_sysctl_lock);
 	mutex_lock(&ftraced_lock);
-	last_counter = ftraced_iteration_counter;
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	add_wait_queue(&ftraced_waiters, &wait);
+	/*
+	 * If ftraced_trigger is not set, then there is nothing
+	 * to update.
+	 */
+	if (ftraced_trigger && !ftrace_update_code())
+		ret = -EBUSY;
 
-	if (unlikely(!ftraced_task)) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	do {
-		mutex_unlock(&ftraced_lock);
-		wake_up_process(ftraced_task);
-		schedule();
-		mutex_lock(&ftraced_lock);
-		if (signal_pending(current)) {
-			ret = -EINTR;
-			break;
-		}
-		set_current_state(TASK_INTERRUPTIBLE);
-	} while (last_counter == ftraced_iteration_counter);
-
- out:
 	mutex_unlock(&ftraced_lock);
-	remove_wait_queue(&ftraced_waiters, &wait);
-	set_current_state(TASK_RUNNING);
+	mutex_unlock(&ftrace_sysctl_lock);
 
 	return ret;
 }
@@ -1331,6 +1388,12 @@ static __init int ftrace_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'set_ftrace_notrace' entry\n");
+
+	entry = debugfs_create_file("ftraced_enabled", 0644, d_tracer,
+				    NULL, &ftraced_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'ftraced_enabled' entry\n");
 	return 0;
 }
 

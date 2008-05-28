@@ -72,9 +72,15 @@ extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
+
+void ftrace_disable_daemon(void);
+void ftrace_enable_daemon(void);
+
 #else
 # define ftrace_force_update()			({ 0; })
 # define ftrace_set_filter(buf, len, reset)	do { } while (0)
+# define ftrace_disable_daemon()		do { } while (0)
+# define ftrace_enable_daemon()			do { } while (0)
 #endif
 
 /* totally disable ftrace - can not re-enable after this */
