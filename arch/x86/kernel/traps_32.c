@@ -1119,7 +1119,7 @@ void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 
 unsigned long patch_espfix_desc(unsigned long uesp, unsigned long kesp)
 {
-	struct desc_struct *gdt = __get_cpu_var(gdt_page).gdt;
+	struct desc_struct *gdt = get_cpu_gdt_table(smp_processor_id());
 	unsigned long base = (kesp - uesp) & -THREAD_SIZE;
 	unsigned long new_kesp = kesp - base;
 	unsigned long lim_pages = (new_kesp | (THREAD_SIZE - 1)) >> PAGE_SHIFT;
