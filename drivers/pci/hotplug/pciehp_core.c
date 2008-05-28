@@ -454,7 +454,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	INIT_LIST_HEAD(&ctrl->slot_list);
 
 	pdev = dev->port;
-	ctrl->pci_dev = pdev;
 
 	rc = pcie_init(ctrl, dev);
 	if (rc) {
