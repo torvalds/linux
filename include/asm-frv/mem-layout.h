@@ -35,8 +35,8 @@
  * the slab must be aligned such that load- and store-double instructions don't
  * fault if used
  */
-#define	ARCH_KMALLOC_MINALIGN		(sizeof(long) * 2)
-#define	ARCH_SLAB_MINALIGN		(sizeof(long) * 2)
+#define	ARCH_KMALLOC_MINALIGN		8
+#define	ARCH_SLAB_MINALIGN		8
 
 /*****************************************************************************/
 /*
