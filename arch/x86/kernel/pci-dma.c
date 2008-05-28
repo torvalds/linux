@@ -397,9 +397,6 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (dev->dma_mask == NULL)
 		return NULL;
 
-	/* Don't invoke OOM killer */
-	gfp |= __GFP_NORETRY;
-
 #ifdef CONFIG_X86_64
 	/* Why <=? Even when the mask is smaller than 4GB it is often
 	   larger than 16MB and in this case we have a chance of
@@ -410,7 +407,9 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 #endif
 
  again:
-	page = dma_alloc_pages(dev, gfp, get_order(size));
+	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
+	page = dma_alloc_pages(dev,
+		(gfp & GFP_DMA) ? gfp | __GFP_NORETRY : gfp, get_order(size));
 	if (page == NULL)
 		return NULL;
 
