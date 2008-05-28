@@ -45,7 +45,7 @@ struct driver_private {
  * @class_devices - list of devices associated with this class
  * @class_interfaces - list of class_interfaces associated with this class
  * @class_dirs -
- * @sem - semaphore to protect the children, devices, and interfaces lists.
+ * @class_sem - semaphore to protect the children, devices, and interfaces lists.
  * @class - pointer back to the struct class that this structure is associated
  * with.
  *
@@ -58,7 +58,7 @@ struct class_private {
 	struct list_head class_devices;
 	struct list_head class_interfaces;
 	struct kset class_dirs;
-	struct semaphore sem;
+	struct semaphore class_sem;
 	struct class *class;
 };
 #define to_class(obj)	\

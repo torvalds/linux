@@ -907,7 +907,7 @@ int device_add(struct device *dev)
 		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
 	if (dev->class) {
-		down(&dev->class->p->sem);
+		down(&dev->class->p->class_sem);
 		/* tie the class to the device */
 		list_add_tail(&dev->node, &dev->class->p->class_devices);
 
@@ -916,7 +916,7 @@ int device_add(struct device *dev)
 				    &dev->class->p->class_interfaces, node)
 			if (class_intf->add_dev)
 				class_intf->add_dev(dev, class_intf);
-		up(&dev->class->p->sem);
+		up(&dev->class->p->class_sem);
 	}
  Done:
 	put_device(dev);
@@ -1017,7 +1017,7 @@ void device_del(struct device *dev)
 	if (dev->class) {
 		device_remove_class_symlinks(dev);
 
-		down(&dev->class->p->sem);
+		down(&dev->class->p->class_sem);
 		/* notify any interfaces that the device is now gone */
 		list_for_each_entry(class_intf,
 				    &dev->class->p->class_interfaces, node)
@@ -1025,7 +1025,7 @@ void device_del(struct device *dev)
 				class_intf->remove_dev(dev, class_intf);
 		/* remove the device from the class list */
 		list_del_init(&dev->node);
-		up(&dev->class->p->sem);
+		up(&dev->class->p->class_sem);
 	}
 	device_remove_file(dev, &uevent_attr);
 	device_remove_attrs(dev);
