@@ -1206,11 +1206,15 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		v4l2_std_id *id = arg;
 
-		*id = vfd->current_norm;
+		ret = 0;
+		/* Calls the specific handler */
+		if (vfd->vidioc_g_std)
+			ret = vfd->vidioc_g_std(file, fh, id);
+		else
+			*id = vfd->current_norm;
 
-		dbgarg (cmd, "value=%08Lx\n", (long long unsigned) *id);
-
-		ret=0;
+		if (!ret)
+			dbgarg(cmd, "value=%08Lx\n", (long long unsigned)*id);
 		break;
 	}
 	case VIDIOC_S_STD:

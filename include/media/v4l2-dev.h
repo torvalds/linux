@@ -212,8 +212,9 @@ struct video_device
 	int (*vidioc_streamoff)(struct file *file, void *fh, enum v4l2_buf_type i);
 
 		/* Standard handling
-			G_STD and ENUMSTD are handled by videodev.c
+			ENUMSTD is handled by videodev.c
 		 */
+	int (*vidioc_g_std) (struct file *file, void *fh, v4l2_std_id *norm);
 	int (*vidioc_s_std) (struct file *file, void *fh, v4l2_std_id *norm);
 	int (*vidioc_querystd) (struct file *file, void *fh, v4l2_std_id *a);
 
