@@ -143,7 +143,7 @@ int class_register(struct class *cls)
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
-	INIT_LIST_HEAD(&cp->devices);
+	INIT_LIST_HEAD(&cp->class_devices);
 	INIT_LIST_HEAD(&cp->interfaces);
 	kset_init(&cp->class_dirs);
 	init_MUTEX(&cp->sem);
@@ -290,7 +290,7 @@ int class_for_each_device(struct class *class, struct device *start,
 	if (!class)
 		return -EINVAL;
 	down(&class->p->sem);
-	list_for_each_entry(dev, &class->p->devices, node) {
+	list_for_each_entry(dev, &class->p->class_devices, node) {
 		if (start) {
 			if (start == dev)
 				start = NULL;
@@ -340,7 +340,7 @@ struct device *class_find_device(struct class *class, struct device *start,
 		return NULL;
 
 	down(&class->p->sem);
-	list_for_each_entry(dev, &class->p->devices, node) {
+	list_for_each_entry(dev, &class->p->class_devices, node) {
 		if (start) {
 			if (start == dev)
 				start = NULL;
@@ -374,7 +374,7 @@ int class_interface_register(struct class_interface *class_intf)
 	down(&parent->p->sem);
 	list_add_tail(&class_intf->node, &parent->p->interfaces);
 	if (class_intf->add_dev) {
-		list_for_each_entry(dev, &parent->p->devices, node)
+		list_for_each_entry(dev, &parent->p->class_devices, node)
 			class_intf->add_dev(dev, class_intf);
 	}
 	up(&parent->p->sem);
@@ -393,7 +393,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 	down(&parent->p->sem);
 	list_del_init(&class_intf->node);
 	if (class_intf->remove_dev) {
-		list_for_each_entry(dev, &parent->p->devices, node)
+		list_for_each_entry(dev, &parent->p->class_devices, node)
 			class_intf->remove_dev(dev, class_intf);
 	}
 	up(&parent->p->sem);

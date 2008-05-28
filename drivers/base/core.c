@@ -906,7 +906,7 @@ int device_add(struct device *dev)
 	if (dev->class) {
 		down(&dev->class->p->sem);
 		/* tie the class to the device */
-		list_add_tail(&dev->node, &dev->class->p->devices);
+		list_add_tail(&dev->node, &dev->class->p->class_devices);
 
 		/* notify any interfaces that the device is here */
 		list_for_each_entry(class_intf, &dev->class->p->interfaces,
