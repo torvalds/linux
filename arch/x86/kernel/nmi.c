@@ -23,9 +23,8 @@
 #include <linux/cpumask.h>
 #include <linux/kernel_stat.h>
 #include <linux/kdebug.h>
+#include <linux/smp.h>
 
-#include <asm/smp.h>
-#include <asm/nmi.h>
 #include <asm/proto.h>
 #include <asm/timer.h>
 
@@ -45,13 +44,16 @@ static cpumask_t backtrace_mask = CPU_MASK_NONE;
  *  0: the lapic NMI watchdog is disabled, but can be enabled
  */
 atomic_t nmi_active = ATOMIC_INIT(0);		/* oprofile uses this */
-static int panic_on_timeout;
+EXPORT_SYMBOL(nmi_active);
 
 unsigned int nmi_watchdog = NMI_DEFAULT;
+EXPORT_SYMBOL(nmi_watchdog);
+
+static int panic_on_timeout;
 
 static unsigned int nmi_hz = HZ;
 static DEFINE_PER_CPU(short, wd_enabled);
-static int endflag __initdata = 0;
+static int endflag __initdata;
 
 static inline unsigned int get_nmi_count(int cpu)
 {
@@ -404,7 +406,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
 
 		spin_lock(&lock);
-		printk("NMI backtrace for cpu %d\n", cpu);
+		printk(KERN_WARNING "NMI backtrace for cpu %d\n", cpu);
 		dump_stack();
 		spin_unlock(&lock);
 		cpu_clear(cpu, backtrace_mask);
@@ -529,7 +531,3 @@ void __trigger_all_cpu_backtrace(void)
 		mdelay(1);
 	}
 }
-
-EXPORT_SYMBOL(nmi_active);
-EXPORT_SYMBOL(nmi_watchdog);
-
