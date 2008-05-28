@@ -118,82 +118,76 @@ struct video_device
 				    enum v4l2_priority p);
 
 	/* VIDIOC_ENUM_FMT handlers */
-	int (*vidioc_enum_fmt_cap)         (struct file *file, void *fh,
+	int (*vidioc_enum_fmt_vid_cap)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_overlay)     (struct file *file, void *fh,
+	int (*vidioc_enum_fmt_vid_overlay) (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_vbi)         (struct file *file, void *fh,
+	int (*vidioc_enum_fmt_vid_out)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_vbi_capture) (struct file *file, void *fh,
+#if 1
+	/* deprecated, will be removed in 2.6.28 */
+	int (*vidioc_enum_fmt_vbi_cap)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_video_output)(struct file *file, void *fh,
-					    struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_output_overlay) (struct file *file, void *fh,
-					    struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_vbi_output)  (struct file *file, void *fh,
-					    struct v4l2_fmtdesc *f);
-	int (*vidioc_enum_fmt_sliced_vbi_output)  (struct file *file, void *fh,
-					    struct v4l2_fmtdesc *f);
+#endif
 	int (*vidioc_enum_fmt_type_private)(struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
 
 	/* VIDIOC_G_FMT handlers */
-	int (*vidioc_g_fmt_cap)        (struct file *file, void *fh,
+	int (*vidioc_g_fmt_vid_cap)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_g_fmt_overlay)    (struct file *file, void *fh,
+	int (*vidioc_g_fmt_vid_overlay)(struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_g_fmt_vbi)        (struct file *file, void *fh,
+	int (*vidioc_g_fmt_vid_out)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_g_fmt_vbi_output) (struct file *file, void *fh,
+	int (*vidioc_g_fmt_vid_out_overlay)(struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_g_fmt_sliced_vbi_output) (struct file *file, void *fh,
+	int (*vidioc_g_fmt_vbi_cap)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_g_fmt_vbi_capture)(struct file *file, void *fh,
+	int (*vidioc_g_fmt_vbi_out)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_g_fmt_video_output)(struct file *file, void *fh,
+	int (*vidioc_g_fmt_sliced_vbi_cap)(struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_g_fmt_output_overlay) (struct file *file, void *fh,
+	int (*vidioc_g_fmt_sliced_vbi_out)(struct file *file, void *fh,
 					struct v4l2_format *f);
 	int (*vidioc_g_fmt_type_private)(struct file *file, void *fh,
 					struct v4l2_format *f);
 
 	/* VIDIOC_S_FMT handlers */
-	int (*vidioc_s_fmt_cap)        (struct file *file, void *fh,
+	int (*vidioc_s_fmt_vid_cap)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-
-	int (*vidioc_s_fmt_overlay)    (struct file *file, void *fh,
+	int (*vidioc_s_fmt_vid_overlay)(struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_s_fmt_vbi)        (struct file *file, void *fh,
+	int (*vidioc_s_fmt_vid_out)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_s_fmt_vbi_output) (struct file *file, void *fh,
+	int (*vidioc_s_fmt_vid_out_overlay)(struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_s_fmt_sliced_vbi_output) (struct file *file, void *fh,
+	int (*vidioc_s_fmt_vbi_cap)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_s_fmt_vbi_capture)(struct file *file, void *fh,
+	int (*vidioc_s_fmt_vbi_out)    (struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_s_fmt_video_output)(struct file *file, void *fh,
+	int (*vidioc_s_fmt_sliced_vbi_cap)(struct file *file, void *fh,
 					struct v4l2_format *f);
-	int (*vidioc_s_fmt_output_overlay) (struct file *file, void *fh,
+	int (*vidioc_s_fmt_sliced_vbi_out)(struct file *file, void *fh,
 					struct v4l2_format *f);
 	int (*vidioc_s_fmt_type_private)(struct file *file, void *fh,
 					struct v4l2_format *f);
 
 	/* VIDIOC_TRY_FMT handlers */
-	int (*vidioc_try_fmt_cap)        (struct file *file, void *fh,
+	int (*vidioc_try_fmt_vid_cap)    (struct file *file, void *fh,
 					  struct v4l2_format *f);
-	int (*vidioc_try_fmt_overlay)    (struct file *file, void *fh,
+	int (*vidioc_try_fmt_vid_overlay)(struct file *file, void *fh,
 					  struct v4l2_format *f);
-	int (*vidioc_try_fmt_vbi)        (struct file *file, void *fh,
+	int (*vidioc_try_fmt_vid_out)    (struct file *file, void *fh,
 					  struct v4l2_format *f);
-	int (*vidioc_try_fmt_vbi_output) (struct file *file, void *fh,
+	int (*vidioc_try_fmt_vid_out_overlay)(struct file *file, void *fh,
 					  struct v4l2_format *f);
-	int (*vidioc_try_fmt_sliced_vbi_output) (struct file *file, void *fh,
+	int (*vidioc_try_fmt_vbi_cap)    (struct file *file, void *fh,
 					  struct v4l2_format *f);
-	int (*vidioc_try_fmt_vbi_capture)(struct file *file, void *fh,
+	int (*vidioc_try_fmt_vbi_out)    (struct file *file, void *fh,
 					  struct v4l2_format *f);
-	int (*vidioc_try_fmt_video_output)(struct file *file, void *fh,
+	int (*vidioc_try_fmt_sliced_vbi_cap)(struct file *file, void *fh,
 					  struct v4l2_format *f);
-	int (*vidioc_try_fmt_output_overlay)(struct file *file, void *fh,
+	int (*vidioc_try_fmt_sliced_vbi_out)(struct file *file, void *fh,
 					  struct v4l2_format *f);
 	int (*vidioc_try_fmt_type_private)(struct file *file, void *fh,
 					  struct v4l2_format *f);

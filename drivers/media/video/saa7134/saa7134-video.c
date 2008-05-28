@@ -1496,7 +1496,7 @@ static int video_mmap(struct file *file, struct vm_area_struct * vma)
 
 /* ------------------------------------------------------------------ */
 
-static int saa7134_try_get_set_fmt_vbi(struct file *file, void *priv,
+static int saa7134_try_get_set_fmt_vbi_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1516,7 +1516,7 @@ static int saa7134_try_get_set_fmt_vbi(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_g_fmt_cap(struct file *file, void *priv,
+static int saa7134_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1532,7 +1532,7 @@ static int saa7134_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_g_fmt_overlay(struct file *file, void *priv,
+static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1546,7 +1546,7 @@ static int saa7134_g_fmt_overlay(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_try_fmt_cap(struct file *file, void *priv,
+static int saa7134_try_fmt_vid_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1597,7 +1597,7 @@ static int saa7134_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_try_fmt_overlay(struct file *file, void *priv,
+static int saa7134_try_fmt_vid_overlay(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1611,13 +1611,13 @@ static int saa7134_try_fmt_overlay(struct file *file, void *priv,
 	return verify_preview(dev, &f->fmt.win);
 }
 
-static int saa7134_s_fmt_cap(struct file *file, void *priv,
+static int saa7134_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
 	int err;
 
-	err = saa7134_try_fmt_cap(file, priv, f);
+	err = saa7134_try_fmt_vid_cap(file, priv, f);
 	if (0 != err)
 		return err;
 
@@ -1628,7 +1628,7 @@ static int saa7134_s_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_s_fmt_overlay(struct file *file, void *priv,
+static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -2028,7 +2028,7 @@ static int saa7134_s_priority(struct file *file, void *f,
 	return v4l2_prio_change(&dev->prio, &fh->prio, prio);
 }
 
-static int saa7134_enum_fmt_cap(struct file *file, void  *priv,
+static int saa7134_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (f->index >= FORMATS)
@@ -2042,7 +2042,7 @@ static int saa7134_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int saa7134_enum_fmt_overlay(struct file *file, void  *priv,
+static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (saa7134_no_overlay > 0) {
@@ -2061,7 +2061,7 @@ static int saa7134_enum_fmt_overlay(struct file *file, void  *priv,
 	return 0;
 }
 
-static int saa7134_enum_fmt_vbi(struct file *file, void  *priv,
+static int saa7134_enum_fmt_vbi_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (0 != f->index)
@@ -2348,18 +2348,18 @@ struct video_device saa7134_video_template =
 	.fops				= &video_fops,
 	.minor				= -1,
 	.vidioc_querycap		= saa7134_querycap,
-	.vidioc_enum_fmt_cap		= saa7134_enum_fmt_cap,
-	.vidioc_g_fmt_cap		= saa7134_g_fmt_cap,
-	.vidioc_try_fmt_cap		= saa7134_try_fmt_cap,
-	.vidioc_s_fmt_cap		= saa7134_s_fmt_cap,
-	.vidioc_enum_fmt_overlay	= saa7134_enum_fmt_overlay,
-	.vidioc_g_fmt_overlay		= saa7134_g_fmt_overlay,
-	.vidioc_try_fmt_overlay		= saa7134_try_fmt_overlay,
-	.vidioc_s_fmt_overlay		= saa7134_s_fmt_overlay,
-	.vidioc_enum_fmt_vbi		= saa7134_enum_fmt_vbi,
-	.vidioc_g_fmt_vbi		= saa7134_try_get_set_fmt_vbi,
-	.vidioc_try_fmt_vbi		= saa7134_try_get_set_fmt_vbi,
-	.vidioc_s_fmt_vbi		= saa7134_try_get_set_fmt_vbi,
+	.vidioc_enum_fmt_vid_cap	= saa7134_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap		= saa7134_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		= saa7134_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap		= saa7134_s_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_overlay	= saa7134_enum_fmt_vid_overlay,
+	.vidioc_g_fmt_vid_overlay	= saa7134_g_fmt_vid_overlay,
+	.vidioc_try_fmt_vid_overlay	= saa7134_try_fmt_vid_overlay,
+	.vidioc_s_fmt_vid_overlay	= saa7134_s_fmt_vid_overlay,
+	.vidioc_enum_fmt_vbi_cap	= saa7134_enum_fmt_vbi_cap,
+	.vidioc_g_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
+	.vidioc_try_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
+	.vidioc_s_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_g_audio			= saa7134_g_audio,
 	.vidioc_s_audio			= saa7134_s_audio,
 	.vidioc_cropcap			= saa7134_cropcap,

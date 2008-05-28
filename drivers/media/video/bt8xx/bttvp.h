@@ -254,9 +254,9 @@ int bttv_overlay_risc(struct bttv *btv, struct bttv_overlay *ov,
 /* ---------------------------------------------------------- */
 /* bttv-vbi.c                                                 */
 
-int bttv_try_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
-int bttv_g_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
-int bttv_s_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
+int bttv_try_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
+int bttv_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
+int bttv_s_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 
 extern struct videobuf_queue_ops bttv_vbi_qops;
 

@@ -683,35 +683,35 @@ static int check_fmt (struct video_device *vfd, enum v4l2_buf_type type)
 {
 	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (vfd->vidioc_try_fmt_cap)
+		if (vfd->vidioc_try_fmt_vid_cap)
 			return (0);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-		if (vfd->vidioc_try_fmt_overlay)
-			return (0);
-		break;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		if (vfd->vidioc_try_fmt_vbi)
-			return (0);
-		break;
-	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-		if (vfd->vidioc_try_fmt_vbi_output)
-			return (0);
-		break;
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		if (vfd->vidioc_try_fmt_vbi_capture)
+		if (vfd->vidioc_try_fmt_vid_overlay)
 			return (0);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		if (vfd->vidioc_try_fmt_video_output)
-			return (0);
-		break;
-	case V4L2_BUF_TYPE_VBI_OUTPUT:
-		if (vfd->vidioc_try_fmt_vbi_output)
+		if (vfd->vidioc_try_fmt_vid_out)
 			return (0);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-		if (vfd->vidioc_try_fmt_output_overlay)
+		if (vfd->vidioc_try_fmt_vid_out_overlay)
+			return (0);
+		break;
+	case V4L2_BUF_TYPE_VBI_CAPTURE:
+		if (vfd->vidioc_try_fmt_vbi_cap)
+			return (0);
+		break;
+	case V4L2_BUF_TYPE_VBI_OUTPUT:
+		if (vfd->vidioc_try_fmt_vbi_out)
+			return (0);
+		break;
+	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+		if (vfd->vidioc_try_fmt_sliced_vbi_cap)
+			return (0);
+		break;
+	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+		if (vfd->vidioc_try_fmt_sliced_vbi_out)
 			return (0);
 		break;
 	case V4L2_BUF_TYPE_PRIVATE:
@@ -828,45 +828,36 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 
 		switch (type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-			if (vfd->vidioc_enum_fmt_cap)
-				ret=vfd->vidioc_enum_fmt_cap(file, fh, f);
+			if (vfd->vidioc_enum_fmt_vid_cap)
+				ret = vfd->vidioc_enum_fmt_vid_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-			if (vfd->vidioc_enum_fmt_overlay)
-				ret=vfd->vidioc_enum_fmt_overlay(file, fh, f);
+			if (vfd->vidioc_enum_fmt_vid_overlay)
+				ret = vfd->vidioc_enum_fmt_vid_overlay(file,
+					fh, f);
 			break;
+#if 1
+		/* V4L2_BUF_TYPE_VBI_CAPTURE should not support VIDIOC_ENUM_FMT
+		 * according to the spec. The bttv and saa7134 drivers support
+		 * it though, so just warn that this is deprecated and will be
+		 * removed in the near future. */
 		case V4L2_BUF_TYPE_VBI_CAPTURE:
-			if (vfd->vidioc_enum_fmt_vbi)
-				ret=vfd->vidioc_enum_fmt_vbi(file, fh, f);
+			if (vfd->vidioc_enum_fmt_vbi_cap) {
+				printk(KERN_WARNING "vidioc_enum_fmt_vbi_cap will be removed in 2.6.28!\n");
+				ret = vfd->vidioc_enum_fmt_vbi_cap(file, fh, f);
+			}
 			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-			if (vfd->vidioc_enum_fmt_sliced_vbi_output)
-				ret = vfd->vidioc_enum_fmt_sliced_vbi_output(file,
-								fh, f);
-			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-			if (vfd->vidioc_enum_fmt_vbi_capture)
-				ret=vfd->vidioc_enum_fmt_vbi_capture(file,
-								fh, f);
-			break;
+#endif
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-			if (vfd->vidioc_enum_fmt_video_output)
-				ret=vfd->vidioc_enum_fmt_video_output(file,
-								fh, f);
-			break;
-		case V4L2_BUF_TYPE_VBI_OUTPUT:
-			if (vfd->vidioc_enum_fmt_vbi_output)
-				ret=vfd->vidioc_enum_fmt_vbi_output(file,
-								fh, f);
-			break;
-		case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-			if (vfd->vidioc_enum_fmt_output_overlay)
-				ret=vfd->vidioc_enum_fmt_output_overlay(file, fh, f);
+			if (vfd->vidioc_enum_fmt_vid_out)
+				ret = vfd->vidioc_enum_fmt_vid_out(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_PRIVATE:
 			if (vfd->vidioc_enum_fmt_type_private)
-				ret=vfd->vidioc_enum_fmt_type_private(file,
+				ret = vfd->vidioc_enum_fmt_type_private(file,
 								fh, f);
+			break;
+		default:
 			break;
 		}
 		if (!ret)
@@ -891,43 +882,46 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-			if (vfd->vidioc_g_fmt_cap)
-				ret=vfd->vidioc_g_fmt_cap(file, fh, f);
+			if (vfd->vidioc_g_fmt_vid_cap)
+				ret = vfd->vidioc_g_fmt_vid_cap(file, fh, f);
 			if (!ret)
 				v4l_print_pix_fmt(vfd,&f->fmt.pix);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-			if (vfd->vidioc_g_fmt_overlay)
-				ret=vfd->vidioc_g_fmt_overlay(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_VBI_CAPTURE:
-			if (vfd->vidioc_g_fmt_vbi)
-				ret=vfd->vidioc_g_fmt_vbi(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-			if (vfd->vidioc_g_fmt_sliced_vbi_output)
-				ret = vfd->vidioc_g_fmt_sliced_vbi_output(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-			if (vfd->vidioc_g_fmt_vbi_capture)
-				ret=vfd->vidioc_g_fmt_vbi_capture(file, fh, f);
+			if (vfd->vidioc_g_fmt_vid_overlay)
+				ret = vfd->vidioc_g_fmt_vid_overlay(file,
+								    fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-			if (vfd->vidioc_g_fmt_video_output)
-				ret=vfd->vidioc_g_fmt_video_output(file,
-								fh, f);
+			if (vfd->vidioc_g_fmt_vid_out)
+				ret = vfd->vidioc_g_fmt_vid_out(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-			if (vfd->vidioc_g_fmt_output_overlay)
-				ret=vfd->vidioc_g_fmt_output_overlay(file, fh, f);
+			if (vfd->vidioc_g_fmt_vid_out_overlay)
+				ret = vfd->vidioc_g_fmt_vid_out_overlay(file,
+				       fh, f);
+			break;
+		case V4L2_BUF_TYPE_VBI_CAPTURE:
+			if (vfd->vidioc_g_fmt_vbi_cap)
+				ret = vfd->vidioc_g_fmt_vbi_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VBI_OUTPUT:
-			if (vfd->vidioc_g_fmt_vbi_output)
-				ret=vfd->vidioc_g_fmt_vbi_output(file, fh, f);
+			if (vfd->vidioc_g_fmt_vbi_out)
+				ret = vfd->vidioc_g_fmt_vbi_out(file, fh, f);
+			break;
+		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+			if (vfd->vidioc_g_fmt_sliced_vbi_cap)
+				ret = vfd->vidioc_g_fmt_sliced_vbi_cap(file,
+									fh, f);
+			break;
+		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+			if (vfd->vidioc_g_fmt_sliced_vbi_out)
+				ret = vfd->vidioc_g_fmt_sliced_vbi_out(file,
+									fh, f);
 			break;
 		case V4L2_BUF_TYPE_PRIVATE:
 			if (vfd->vidioc_g_fmt_type_private)
-				ret=vfd->vidioc_g_fmt_type_private(file,
+				ret = vfd->vidioc_g_fmt_type_private(file,
 								fh, f);
 			break;
 		}
@@ -945,42 +939,44 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 			v4l_print_pix_fmt(vfd,&f->fmt.pix);
-			if (vfd->vidioc_s_fmt_cap)
-				ret=vfd->vidioc_s_fmt_cap(file, fh, f);
+			if (vfd->vidioc_s_fmt_vid_cap)
+				ret = vfd->vidioc_s_fmt_vid_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-			if (vfd->vidioc_s_fmt_overlay)
-				ret=vfd->vidioc_s_fmt_overlay(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_VBI_CAPTURE:
-			if (vfd->vidioc_s_fmt_vbi)
-				ret=vfd->vidioc_s_fmt_vbi(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-			if (vfd->vidioc_s_fmt_sliced_vbi_output)
-				ret = vfd->vidioc_s_fmt_sliced_vbi_output(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-			if (vfd->vidioc_s_fmt_vbi_capture)
-				ret=vfd->vidioc_s_fmt_vbi_capture(file, fh, f);
+			if (vfd->vidioc_s_fmt_vid_overlay)
+				ret = vfd->vidioc_s_fmt_vid_overlay(file,
+								    fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-			if (vfd->vidioc_s_fmt_video_output)
-				ret=vfd->vidioc_s_fmt_video_output(file,
-								fh, f);
+			if (vfd->vidioc_s_fmt_vid_out)
+				ret = vfd->vidioc_s_fmt_vid_out(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-			if (vfd->vidioc_s_fmt_output_overlay)
-				ret=vfd->vidioc_s_fmt_output_overlay(file, fh, f);
+			if (vfd->vidioc_s_fmt_vid_out_overlay)
+				ret = vfd->vidioc_s_fmt_vid_out_overlay(file,
+					fh, f);
+			break;
+		case V4L2_BUF_TYPE_VBI_CAPTURE:
+			if (vfd->vidioc_s_fmt_vbi_cap)
+				ret = vfd->vidioc_s_fmt_vbi_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VBI_OUTPUT:
-			if (vfd->vidioc_s_fmt_vbi_output)
-				ret=vfd->vidioc_s_fmt_vbi_output(file,
-								fh, f);
+			if (vfd->vidioc_s_fmt_vbi_out)
+				ret = vfd->vidioc_s_fmt_vbi_out(file, fh, f);
+			break;
+		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+			if (vfd->vidioc_s_fmt_sliced_vbi_cap)
+				ret = vfd->vidioc_s_fmt_sliced_vbi_cap(file,
+									fh, f);
+			break;
+		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+			if (vfd->vidioc_s_fmt_sliced_vbi_out)
+				ret = vfd->vidioc_s_fmt_sliced_vbi_out(file,
+									fh, f);
 			break;
 		case V4L2_BUF_TYPE_PRIVATE:
 			if (vfd->vidioc_s_fmt_type_private)
-				ret=vfd->vidioc_s_fmt_type_private(file,
+				ret = vfd->vidioc_s_fmt_type_private(file,
 								fh, f);
 			break;
 		}
@@ -995,46 +991,46 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 						v4l2_type_names));
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-			if (vfd->vidioc_try_fmt_cap)
-				ret=vfd->vidioc_try_fmt_cap(file, fh, f);
+			if (vfd->vidioc_try_fmt_vid_cap)
+				ret = vfd->vidioc_try_fmt_vid_cap(file, fh, f);
 			if (!ret)
 				v4l_print_pix_fmt(vfd,&f->fmt.pix);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-			if (vfd->vidioc_try_fmt_overlay)
-				ret=vfd->vidioc_try_fmt_overlay(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_VBI_CAPTURE:
-			if (vfd->vidioc_try_fmt_vbi)
-				ret=vfd->vidioc_try_fmt_vbi(file, fh, f);
-			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-			if (vfd->vidioc_try_fmt_sliced_vbi_output)
-				ret = vfd->vidioc_try_fmt_sliced_vbi_output(file,
-								fh, f);
-			break;
-		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-			if (vfd->vidioc_try_fmt_vbi_capture)
-				ret=vfd->vidioc_try_fmt_vbi_capture(file,
-								fh, f);
+			if (vfd->vidioc_try_fmt_vid_overlay)
+				ret = vfd->vidioc_try_fmt_vid_overlay(file,
+					fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-			if (vfd->vidioc_try_fmt_video_output)
-				ret=vfd->vidioc_try_fmt_video_output(file,
-								fh, f);
+			if (vfd->vidioc_try_fmt_vid_out)
+				ret = vfd->vidioc_try_fmt_vid_out(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-			if (vfd->vidioc_try_fmt_output_overlay)
-				ret=vfd->vidioc_try_fmt_output_overlay(file, fh, f);
+			if (vfd->vidioc_try_fmt_vid_out_overlay)
+				ret = vfd->vidioc_try_fmt_vid_out_overlay(file,
+				       fh, f);
+			break;
+		case V4L2_BUF_TYPE_VBI_CAPTURE:
+			if (vfd->vidioc_try_fmt_vbi_cap)
+				ret = vfd->vidioc_try_fmt_vbi_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VBI_OUTPUT:
-			if (vfd->vidioc_try_fmt_vbi_output)
-				ret=vfd->vidioc_try_fmt_vbi_output(file,
+			if (vfd->vidioc_try_fmt_vbi_out)
+				ret = vfd->vidioc_try_fmt_vbi_out(file, fh, f);
+			break;
+		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+			if (vfd->vidioc_try_fmt_sliced_vbi_cap)
+				ret = vfd->vidioc_try_fmt_sliced_vbi_cap(file,
+								fh, f);
+			break;
+		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+			if (vfd->vidioc_try_fmt_sliced_vbi_out)
+				ret = vfd->vidioc_try_fmt_sliced_vbi_out(file,
 								fh, f);
 			break;
 		case V4L2_BUF_TYPE_PRIVATE:
 			if (vfd->vidioc_try_fmt_type_private)
-				ret=vfd->vidioc_try_fmt_type_private(file,
+				ret = vfd->vidioc_try_fmt_type_private(file,
 								fh, f);
 			break;
 		}

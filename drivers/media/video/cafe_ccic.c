@@ -1593,7 +1593,7 @@ static struct v4l2_pix_format cafe_def_pix_format = {
 	.sizeimage	= VGA_WIDTH*VGA_HEIGHT*2,
 };
 
-static int cafe_vidioc_enum_fmt_cap(struct file *filp,
+static int cafe_vidioc_enum_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_fmtdesc *fmt)
 {
 	struct cafe_camera *cam = priv;
@@ -1608,7 +1608,7 @@ static int cafe_vidioc_enum_fmt_cap(struct file *filp,
 }
 
 
-static int cafe_vidioc_try_fmt_cap (struct file *filp, void *priv,
+static int cafe_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
 	struct cafe_camera *cam = priv;
@@ -1620,7 +1620,7 @@ static int cafe_vidioc_try_fmt_cap (struct file *filp, void *priv,
 	return ret;
 }
 
-static int cafe_vidioc_s_fmt_cap(struct file *filp, void *priv,
+static int cafe_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
 	struct cafe_camera *cam = priv;
@@ -1635,7 +1635,7 @@ static int cafe_vidioc_s_fmt_cap(struct file *filp, void *priv,
 	/*
 	 * See if the formatting works in principle.
 	 */
-	ret = cafe_vidioc_try_fmt_cap(filp, priv, fmt);
+	ret = cafe_vidioc_try_fmt_vid_cap(filp, priv, fmt);
 	if (ret)
 		return ret;
 	/*
@@ -1670,7 +1670,7 @@ static int cafe_vidioc_s_fmt_cap(struct file *filp, void *priv,
  * The V4l2 spec wants us to be smarter, and actually get this from
  * the camera (and not mess with it at open time).  Someday.
  */
-static int cafe_vidioc_g_fmt_cap(struct file *filp, void *priv,
+static int cafe_vidioc_g_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *f)
 {
 	struct cafe_camera *cam = priv;
@@ -1780,10 +1780,10 @@ static struct video_device cafe_v4l_template = {
 	.release = cafe_v4l_dev_release,
 
 	.vidioc_querycap 	= cafe_vidioc_querycap,
-	.vidioc_enum_fmt_cap	= cafe_vidioc_enum_fmt_cap,
-	.vidioc_try_fmt_cap	= cafe_vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap	= cafe_vidioc_s_fmt_cap,
-	.vidioc_g_fmt_cap	= cafe_vidioc_g_fmt_cap,
+	.vidioc_enum_fmt_vid_cap = cafe_vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	= cafe_vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	= cafe_vidioc_s_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	= cafe_vidioc_g_fmt_vid_cap,
 	.vidioc_enum_input	= cafe_vidioc_enum_input,
 	.vidioc_g_input		= cafe_vidioc_g_input,
 	.vidioc_s_input		= cafe_vidioc_s_input,

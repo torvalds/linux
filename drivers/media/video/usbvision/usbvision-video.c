@@ -998,7 +998,7 @@ static int vidioc_streamoff(struct file *file,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 					struct v4l2_fmtdesc *vfd)
 {
 	if(vfd->index>=USBVISION_SUPPORTED_PALETTES-1) {
@@ -1012,7 +1012,7 @@ static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap (struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *vf)
 {
 	struct video_device *dev = video_devdata(file);
@@ -1030,7 +1030,7 @@ static int vidioc_g_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap (struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 			       struct v4l2_format *vf)
 {
 	struct video_device *dev = video_devdata(file);
@@ -1060,7 +1060,7 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			       struct v4l2_format *vf)
 {
 	struct video_device *dev = video_devdata(file);
@@ -1068,7 +1068,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 		(struct usb_usbvision *) video_get_drvdata(dev);
 	int ret;
 
-	if( 0 != (ret=vidioc_try_fmt_cap (file, priv, vf)) ) {
+	if( 0 != (ret=vidioc_try_fmt_vid_cap (file, priv, vf)) ) {
 		return ret;
 	}
 
@@ -1407,10 +1407,10 @@ static struct video_device usbvision_video_template = {
 	.release	= video_device_release,
 	.minor		= -1,
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vidioc_reqbufs,
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
