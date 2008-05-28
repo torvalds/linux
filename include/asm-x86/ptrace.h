@@ -3,7 +3,12 @@
 
 #include <linux/compiler.h>	/* For __user */
 #include <asm/ptrace-abi.h>
+#include <asm/processor-flags.h>
 
+#ifdef __KERNEL__
+#include <asm/ds.h>		/* the DS BTS struct is used for ptrace too */
+#include <asm/segment.h>
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -54,9 +59,6 @@ struct pt_regs {
 	unsigned long sp;
 	unsigned long ss;
 };
-
-#include <asm/vm86.h>
-#include <asm/segment.h>
 
 #endif /* __KERNEL__ */
 
