@@ -150,6 +150,18 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 	return ctxt;
 }
 
+static void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
+{
+	struct svcxprt_rdma *xprt = ctxt->xprt;
+	int i;
+	for (i = 0; i < ctxt->count && ctxt->sge[i].length; i++) {
+		ib_dma_unmap_single(xprt->sc_cm_id->device,
+				    ctxt->sge[i].addr,
+				    ctxt->sge[i].length,
+				    ctxt->direction);
+	}
+}
+
 void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 {
 	struct svcxprt_rdma *xprt;
@@ -160,12 +172,6 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 	if (free_pages)
 		for (i = 0; i < ctxt->count; i++)
 			put_page(ctxt->pages[i]);
-
-	for (i = 0; i < ctxt->count; i++)
-		ib_dma_unmap_single(xprt->sc_cm_id->device,
-				    ctxt->sge[i].addr,
-				    ctxt->sge[i].length,
-				    ctxt->direction);
 
 	spin_lock_bh(&xprt->sc_ctxt_lock);
 	list_add(&ctxt->free_list, &xprt->sc_ctxt_free);
@@ -328,6 +334,7 @@ static void rq_cq_reap(struct svcxprt_rdma *xprt)
 		ctxt = (struct svc_rdma_op_ctxt *)(unsigned long)wc.wr_id;
 		ctxt->wc_status = wc.status;
 		ctxt->byte_len = wc.byte_len;
+		svc_rdma_unmap_dma(ctxt);
 		if (wc.status != IB_WC_SUCCESS) {
 			/* Close the transport */
 			dprintk("svcrdma: transport closing putting ctxt %p\n", ctxt);
@@ -377,6 +384,7 @@ static void sq_cq_reap(struct svcxprt_rdma *xprt)
 		ctxt = (struct svc_rdma_op_ctxt *)(unsigned long)wc.wr_id;
 		xprt = ctxt->xprt;
 
+		svc_rdma_unmap_dma(ctxt);
 		if (wc.status != IB_WC_SUCCESS)
 			/* Close the transport */
 			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
