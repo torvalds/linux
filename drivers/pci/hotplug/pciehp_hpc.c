@@ -1018,7 +1018,7 @@ static struct hpc_ops pciehp_hpc_ops = {
 };
 
 #ifdef CONFIG_ACPI
-static int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
+int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
 	acpi_status status;
 	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
@@ -1122,23 +1122,10 @@ int pcie_init_hardware_part2(struct controller *ctrl, struct pcie_device *dev)
 
 	if (pcie_write_cmd(ctrl, cmd, mask)) {
 		err("%s: Cannot enable software notification\n", __func__);
-		goto abort;
+		return -1;
 	}
 
-	if (pciehp_force)
-		dbg("Bypassing BIOS check for pciehp use on %s\n",
-				pci_name(ctrl->pci_dev));
-	else if (pciehp_get_hp_hw_control_from_firmware(ctrl->pci_dev))
-		goto abort_disable_intr;
-
 	return 0;
-
-	/* We end up here for the many possible ways to fail this API. */
-abort_disable_intr:
-	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE))
-		err("%s : disabling interrupts failed\n", __func__);
-abort:
-	return -1;
 }
 
 static inline void dbg_ctrl(struct controller *ctrl)

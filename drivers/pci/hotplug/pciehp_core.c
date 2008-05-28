@@ -444,7 +444,13 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	struct controller *ctrl;
 	struct slot *t_slot;
 	u8 value;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = dev->port;
+
+	if (pciehp_force)
+		dbg("Bypassing BIOS check for pciehp use on %s\n",
+		    pci_name(pdev));
+	else if (pciehp_get_hp_hw_control_from_firmware(pdev))
+		goto err_out_none;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
@@ -452,8 +458,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		goto err_out_none;
 	}
 	INIT_LIST_HEAD(&ctrl->slot_list);
-
-	pdev = dev->port;
 
 	rc = pcie_init(ctrl, dev);
 	if (rc) {
