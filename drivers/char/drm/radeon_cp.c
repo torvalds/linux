@@ -669,6 +669,8 @@ static void radeon_set_rs690gart(drm_radeon_private_t *dev_priv, int on)
 		RS690_WRITE_MCIND(RS690_MC_AGP_BASE,
 				  (unsigned int)dev_priv->gart_vm_start);
 
+		RS690_WRITE_MCIND(RS690_MC_AGP_BASE_2, 0);
+
 		dev_priv->gart_size = 32*1024*1024;
 		temp = (((dev_priv->gart_vm_start - 1 + dev_priv->gart_size) &
 			 0xffff0000) | (dev_priv->gart_vm_start >> 16));

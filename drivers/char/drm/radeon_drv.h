@@ -497,6 +497,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RS690_MC_FB_LOCATION            0x100
 #define RS690_MC_AGP_LOCATION           0x101
 #define RS690_MC_AGP_BASE               0x102
+#define RS690_MC_AGP_BASE_2             0x103
 
 #define R520_MC_IND_INDEX 0x70
 #define R520_MC_IND_WR_EN (1<<24)
