@@ -307,6 +307,8 @@ typedef struct drm_radeon_private {
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
 	unsigned long fb_aper_offset;
+
+	int num_gb_pipes;
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {
@@ -528,6 +530,27 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_AGP_BASE_2		0x015c /* r200+ only */
 #define RS480_AGP_BASE_2		0x0164
 #define RADEON_AGP_BASE			0x0170
+
+/* pipe config regs */
+#define R400_GB_PIPE_SELECT             0x402c
+#define R500_DYN_SCLK_PWMEM_PIPE        0x000d /* PLL */
+#define R500_SU_REG_DEST                0x42c8
+#define R300_GB_TILE_CONFIG             0x4018
+#       define R300_ENABLE_TILING       (1 << 0)
+#       define R300_PIPE_COUNT_RV350    (0 << 1)
+#       define R300_PIPE_COUNT_R300     (3 << 1)
+#       define R300_PIPE_COUNT_R420_3P  (6 << 1)
+#       define R300_PIPE_COUNT_R420     (7 << 1)
+#       define R300_TILE_SIZE_8         (0 << 4)
+#       define R300_TILE_SIZE_16        (1 << 4)
+#       define R300_TILE_SIZE_32        (2 << 4)
+#       define R300_SUBPIXEL_1_12       (0 << 16)
+#       define R300_SUBPIXEL_1_16       (1 << 16)
+#define R300_DST_PIPE_CONFIG            0x170c
+#       define R300_PIPE_AUTO_CONFIG    (1 << 31)
+#define R300_RB2D_DSTCACHE_MODE         0x3428
+#       define R300_DC_AUTOFLUSH_ENABLE (1 << 8)
+#       define R300_DC_DC_DISABLE_IGNORE_PE (1 << 17)
 
 #define RADEON_RB3D_COLOROFFSET		0x1c40
 #define RADEON_RB3D_COLORPITCH		0x1c48

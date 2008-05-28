@@ -247,6 +247,50 @@ static int radeon_do_wait_for_idle(drm_radeon_private_t * dev_priv)
 	return -EBUSY;
 }
 
+static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
+{
+	uint32_t gb_tile_config, gb_pipe_sel = 0;
+
+	/* RS4xx/RS6xx/R4xx/R5xx */
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R420) {
+		gb_pipe_sel = RADEON_READ(R400_GB_PIPE_SELECT);
+		dev_priv->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
+	} else {
+		/* R3xx */
+		if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R300) ||
+		    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R350)) {
+			dev_priv->num_gb_pipes = 2;
+		} else {
+			/* R3Vxx */
+			dev_priv->num_gb_pipes = 1;
+		}
+	}
+	DRM_INFO("Num pipes: %d\n", dev_priv->num_gb_pipes);
+
+	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 /*| R300_SUBPIXEL_1_16*/);
+
+	switch (dev_priv->num_gb_pipes) {
+	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
+	case 3: gb_tile_config |= R300_PIPE_COUNT_R420_3P; break;
+	case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
+	default:
+	case 1: gb_tile_config |= R300_PIPE_COUNT_RV350; break;
+	}
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV515) {
+		RADEON_WRITE_PLL(R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
+		RADEON_WRITE(R500_SU_REG_DEST, ((1 << dev_priv->num_gb_pipes) - 1));
+	}
+	RADEON_WRITE(R300_GB_TILE_CONFIG, gb_tile_config);
+	radeon_do_wait_for_idle(dev_priv);
+	RADEON_WRITE(R300_DST_PIPE_CONFIG, RADEON_READ(R300_DST_PIPE_CONFIG) | R300_PIPE_AUTO_CONFIG);
+	RADEON_WRITE(R300_RB2D_DSTCACHE_MODE, (RADEON_READ(R300_RB2D_DSTCACHE_MODE) |
+					       R300_DC_AUTOFLUSH_ENABLE |
+					       R300_DC_DC_DISABLE_IGNORE_PE));
+
+
+}
+
 /* ================================================================
  * CP control, initialization
  */
@@ -463,6 +507,10 @@ static int radeon_do_engine_reset(struct drm_device * dev)
 		RADEON_WRITE(RADEON_CLOCK_CNTL_INDEX, clock_cntl_index);
 		RADEON_WRITE(RADEON_RBBM_SOFT_RESET, rbbm_soft_reset);
 	}
+
+	/* setup the raster pipes */
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R300)
+	    radeon_init_pipes(dev_priv);
 
 	/* Reset the CP ring */
 	radeon_do_cp_reset(dev_priv);
