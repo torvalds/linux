@@ -28,6 +28,8 @@ static char *cpu_name(int level)
 	if (level == 64) {
 		return "x86-64";
 	} else {
+		if (level == 15)
+			level = 6;
 		sprintf(buf, "i%d86", level);
 		return buf;
 	}
