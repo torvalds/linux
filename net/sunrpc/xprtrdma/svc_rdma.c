@@ -69,6 +69,9 @@ atomic_t rdma_stat_rq_prod;
 atomic_t rdma_stat_sq_poll;
 atomic_t rdma_stat_sq_prod;
 
+/* Temporary NFS request map cache */
+struct kmem_cache *svc_rdma_map_cachep;
+
 /*
  * This function implements reading and resetting an atomic_t stat
  * variable through read/write to a proc file. Any write to the file
@@ -241,6 +244,7 @@ void svc_rdma_cleanup(void)
 		svcrdma_table_header = NULL;
 	}
 	svc_unreg_xprt_class(&svc_rdma_class);
+	kmem_cache_destroy(svc_rdma_map_cachep);
 }
 
 int svc_rdma_init(void)
@@ -255,9 +259,24 @@ int svc_rdma_init(void)
 		svcrdma_table_header =
 			register_sysctl_table(svcrdma_root_table);
 
+	/* Create the temporary map cache */
+	svc_rdma_map_cachep = kmem_cache_create("svc_rdma_map_cache",
+						sizeof(struct svc_rdma_req_map),
+						0,
+						SLAB_HWCACHE_ALIGN,
+						NULL);
+	if (!svc_rdma_map_cachep) {
+		printk(KERN_INFO "Could not allocate map cache.\n");
+		goto err;
+	}
+
 	/* Register RDMA with the SVC transport switch */
 	svc_reg_xprt_class(&svc_rdma_class);
 	return 0;
+
+ err:
+	unregister_sysctl_table(svcrdma_table_header);
+	return -ENOMEM;
 }
 MODULE_AUTHOR("Tom Tucker <tom@opengridcomputing.com>");
 MODULE_DESCRIPTION("SVC RDMA Transport");

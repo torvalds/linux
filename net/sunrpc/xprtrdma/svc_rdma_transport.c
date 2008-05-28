@@ -173,6 +173,32 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 	atomic_dec(&xprt->sc_ctxt_used);
 }
 
+/* Temporary NFS request map cache. Created in svc_rdma.c  */
+extern struct kmem_cache *svc_rdma_map_cachep;
+
+/*
+ * Temporary NFS req mappings are shared across all transport
+ * instances. These are short lived and should be bounded by the number
+ * of concurrent server threads * depth of the SQ.
+ */
+struct svc_rdma_req_map *svc_rdma_get_req_map(void)
+{
+	struct svc_rdma_req_map *map;
+	while (1) {
+		map = kmem_cache_alloc(svc_rdma_map_cachep, GFP_KERNEL);
+		if (map)
+			break;
+		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
+	}
+	map->count = 0;
+	return map;
+}
+
+void svc_rdma_put_req_map(struct svc_rdma_req_map *map)
+{
+	kmem_cache_free(svc_rdma_map_cachep, map);
+}
+
 /* ib_cq event handler */
 static void cq_event_handler(struct ib_event *event, void *context)
 {

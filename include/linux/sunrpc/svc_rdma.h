@@ -86,6 +86,31 @@ struct svc_rdma_op_ctxt {
 	struct page *pages[RPCSVC_MAXPAGES];
 };
 
+/*
+ * NFS_ requests are mapped on the client side by the chunk lists in
+ * the RPCRDMA header. During the fetching of the RPC from the client
+ * and the writing of the reply to the client, the memory in the
+ * client and the memory in the server must be mapped as contiguous
+ * vaddr/len for access by the hardware. These data strucures keep
+ * these mappings.
+ *
+ * For an RDMA_WRITE, the 'sge' maps the RPC REPLY. For RDMA_READ, the
+ * 'sge' in the svc_rdma_req_map maps the server side RPC reply and the
+ * 'ch' field maps the read-list of the RPCRDMA header to the 'sge'
+ * mapping of the reply.
+ */
+struct svc_rdma_chunk_sge {
+	int start;		/* sge no for this chunk */
+	int count;		/* sge count for this chunk */
+};
+struct svc_rdma_req_map {
+	unsigned long count;
+	union {
+		struct kvec sge[RPCSVC_MAXPAGES];
+		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
+	};
+};
+
 #define RDMACTXT_F_LAST_CTXT	2
 
 struct svcxprt_rdma {
@@ -173,6 +198,8 @@ extern int svc_rdma_post_recv(struct svcxprt_rdma *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
+extern struct svc_rdma_req_map *svc_rdma_get_req_map(void);
+extern void svc_rdma_put_req_map(struct svc_rdma_req_map *);
 extern void svc_sq_reap(struct svcxprt_rdma *);
 extern void svc_rq_reap(struct svcxprt_rdma *);
 extern struct svc_xprt_class svc_rdma_class;
