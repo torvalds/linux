@@ -80,7 +80,6 @@ subsys_initcall(dns323_pci_init);
 
 static struct mv643xx_eth_platform_data dns323_eth_data = {
 	.phy_addr = 8,
-	.force_phy_addr = 1,
 };
 
 /****************************************************************************

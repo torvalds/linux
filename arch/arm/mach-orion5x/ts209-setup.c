@@ -191,7 +191,6 @@ subsys_initcall(qnap_ts209_pci_init);
 
 static struct mv643xx_eth_platform_data qnap_ts209_eth_data = {
 	.phy_addr	= 8,
-	.force_phy_addr	= 1,
 };
 
 static int __init parse_hex_nibble(char n)
