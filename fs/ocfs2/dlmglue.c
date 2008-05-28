@@ -2592,12 +2592,12 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 # define lock_max_exmode(_l)		(_l)->l_lock_max_exmode
 # define lock_refresh(_l)		(_l)->l_lock_refresh
 #else
-# define lock_num_prmode(_l)		(0)
-# define lock_num_exmode(_l)		(0)
+# define lock_num_prmode(_l)		(0ULL)
+# define lock_num_exmode(_l)		(0ULL)
 # define lock_num_prmode_failed(_l)	(0)
 # define lock_num_exmode_failed(_l)	(0)
-# define lock_total_prmode(_l)		(0)
-# define lock_total_exmode(_l)		(0)
+# define lock_total_prmode(_l)		(0ULL)
+# define lock_total_exmode(_l)		(0ULL)
 # define lock_max_prmode(_l)		(0)
 # define lock_max_exmode(_l)		(0)
 # define lock_refresh(_l)		(0)
