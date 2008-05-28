@@ -121,6 +121,7 @@ struct blk_trace {
 	int trace_state;
 	struct rchan *rchan;
 	unsigned long *sequence;
+	unsigned char *msg_data;
 	u16 act_mask;
 	u64 start_lba;
 	u64 end_lba;
@@ -172,7 +173,7 @@ extern void __trace_note_message(struct blk_trace *, const char *fmt, ...);
 		if (unlikely(bt))					\
 			__trace_note_message(bt, fmt, ##__VA_ARGS__);	\
 	} while (0)
-#define BLK_TN_MAX_MSG		1024
+#define BLK_TN_MAX_MSG		128
 
 /**
  * blk_add_trace_rq - Add a trace for a request oriented action

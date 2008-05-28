@@ -79,13 +79,16 @@ void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
 {
 	int n;
 	va_list args;
-	static char bt_msg_buf[BLK_TN_MAX_MSG];
+	char *buf;
 
+	preempt_disable();
+	buf = per_cpu_ptr(bt->msg_data, smp_processor_id());
 	va_start(args, fmt);
-	n = vscnprintf(bt_msg_buf, BLK_TN_MAX_MSG, fmt, args);
+	n = vscnprintf(buf, BLK_TN_MAX_MSG, fmt, args);
 	va_end(args);
 
-	trace_note(bt, 0, BLK_TN_MESSAGE, bt_msg_buf, n);
+	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n);
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(__trace_note_message);
 
@@ -246,6 +249,7 @@ static void blk_trace_cleanup(struct blk_trace *bt)
 	debugfs_remove(bt->dropped_file);
 	blk_remove_tree(bt->dir);
 	free_percpu(bt->sequence);
+	free_percpu(bt->msg_data);
 	kfree(bt);
 }
 
@@ -360,6 +364,10 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!bt->sequence)
 		goto err;
 
+	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG);
+	if (!bt->msg_data)
+		goto err;
+
 	ret = -ENOENT;
 	dir = blk_create_tree(buts->name);
 	if (!dir)
@@ -406,6 +414,7 @@ err:
 		if (bt->dropped_file)
 			debugfs_remove(bt->dropped_file);
 		free_percpu(bt->sequence);
+		free_percpu(bt->msg_data);
 		if (bt->rchan)
 			relay_close(bt->rchan);
 		kfree(bt);
