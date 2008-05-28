@@ -40,7 +40,7 @@ struct driver_private {
 /**
  * struct class_private - structure to hold the private to the driver core portions of the class structure.
  *
- * @subsys - the struct kset that defines this class.  This is the main kobject
+ * @class_subsys - the struct kset that defines this class.  This is the main kobject
  * @children - list of class_devices associated with this class
  * @class_devices - list of devices associated with this class
  * @class_interfaces - list of class_interfaces associated with this class
@@ -54,14 +54,15 @@ struct driver_private {
  * core should ever touch these fields.
  */
 struct class_private {
-	struct kset subsys;
+	struct kset class_subsys;
 	struct list_head class_devices;
 	struct list_head class_interfaces;
 	struct kset class_dirs;
 	struct semaphore sem;
 	struct class *class;
 };
-#define to_class(obj) container_of(obj, struct class_private, subsys.kobj)
+#define to_class(obj)	\
+	container_of(obj, struct class_private, class_subsys.kobj)
 
 /* initialisation functions */
 extern int devices_init(void);

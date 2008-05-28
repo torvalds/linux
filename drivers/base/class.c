@@ -70,7 +70,7 @@ static struct kobj_type class_ktype = {
 	.release	= class_release,
 };
 
-/* Hotplug events for classes go to the class_obj subsys */
+/* Hotplug events for classes go to the class class_subsys */
 static struct kset *class_kset;
 
 
@@ -78,7 +78,8 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 {
 	int error;
 	if (cls)
-		error = sysfs_create_file(&cls->p->subsys.kobj, &attr->attr);
+		error = sysfs_create_file(&cls->p->class_subsys.kobj,
+					  &attr->attr);
 	else
 		error = -EINVAL;
 	return error;
@@ -87,20 +88,20 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 void class_remove_file(struct class *cls, const struct class_attribute *attr)
 {
 	if (cls)
-		sysfs_remove_file(&cls->p->subsys.kobj, &attr->attr);
+		sysfs_remove_file(&cls->p->class_subsys.kobj, &attr->attr);
 }
 
 static struct class *class_get(struct class *cls)
 {
 	if (cls)
-		kset_get(&cls->p->subsys);
+		kset_get(&cls->p->class_subsys);
 	return cls;
 }
 
 static void class_put(struct class *cls)
 {
 	if (cls)
-		kset_put(&cls->p->subsys);
+		kset_put(&cls->p->class_subsys);
 }
 
 static int add_class_attrs(struct class *cls)
@@ -147,7 +148,7 @@ int class_register(struct class *cls)
 	INIT_LIST_HEAD(&cp->class_interfaces);
 	kset_init(&cp->class_dirs);
 	init_MUTEX(&cp->sem);
-	error = kobject_set_name(&cp->subsys.kobj, "%s", cls->name);
+	error = kobject_set_name(&cp->class_subsys.kobj, "%s", cls->name);
 	if (error) {
 		kfree(cp);
 		return error;
@@ -160,15 +161,15 @@ int class_register(struct class *cls)
 #if defined(CONFIG_SYSFS_DEPRECATED) && defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
 	if (cls != &block_class)
-		cp->subsys.kobj.kset = class_kset;
+		cp->class_subsys.kobj.kset = class_kset;
 #else
-	cp->subsys.kobj.kset = class_kset;
+	cp->class_subsys.kobj.kset = class_kset;
 #endif
-	cp->subsys.kobj.ktype = &class_ktype;
+	cp->class_subsys.kobj.ktype = &class_ktype;
 	cp->class = cls;
 	cls->p = cp;
 
-	error = kset_register(&cp->subsys);
+	error = kset_register(&cp->class_subsys);
 	if (error) {
 		kfree(cp);
 		return error;
@@ -182,7 +183,7 @@ void class_unregister(struct class *cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
 	remove_class_attrs(cls);
-	kset_unregister(&cls->p->subsys);
+	kset_unregister(&cls->p->class_subsys);
 }
 
 static void class_create_release(struct class *cls)

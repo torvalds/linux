@@ -551,7 +551,7 @@ static struct kobject *get_device_parent(struct device *dev,
 {
 	/* class devices without a parent live in /sys/class/<classname>/ */
 	if (dev->class && (!parent || parent->class != dev->class))
-		return &dev->class->p->subsys.kobj;
+		return &dev->class->p->class_subsys.kobj;
 	/* all other devices keep their parent */
 	else if (parent)
 		return &parent->kobj;
@@ -657,16 +657,17 @@ static int device_add_class_symlinks(struct device *dev)
 	if (!dev->class)
 		return 0;
 
-	error = sysfs_create_link(&dev->kobj, &dev->class->p->subsys.kobj,
+	error = sysfs_create_link(&dev->kobj,
+				  &dev->class->p->class_subsys.kobj,
 				  "subsystem");
 	if (error)
 		goto out;
 
 #ifdef CONFIG_SYSFS_DEPRECATED
 	/* stacked class devices need a symlink in the class directory */
-	if (dev->kobj.parent != &dev->class->p->subsys.kobj &&
+	if (dev->kobj.parent != &dev->class->p->class_subsys.kobj &&
 	    device_is_not_partition(dev)) {
-		error = sysfs_create_link(&dev->class->p->subsys.kobj,
+		error = sysfs_create_link(&dev->class->p->class_subsys.kobj,
 					  &dev->kobj, dev->bus_id);
 		if (error)
 			goto out_subsys;
@@ -704,13 +705,14 @@ out_device:
 	if (dev->parent && device_is_not_partition(dev))
 		sysfs_remove_link(&dev->kobj, "device");
 out_busid:
-	if (dev->kobj.parent != &dev->class->p->subsys.kobj &&
+	if (dev->kobj.parent != &dev->class->p->class_subsys.kobj &&
 	    device_is_not_partition(dev))
-		sysfs_remove_link(&dev->class->p->subsys.kobj, dev->bus_id);
+		sysfs_remove_link(&dev->class->p->class_subsys.kobj,
+				  dev->bus_id);
 #else
 	/* link in the class directory pointing to the device */
-	error = sysfs_create_link(&dev->class->p->subsys.kobj, &dev->kobj,
-				  dev->bus_id);
+	error = sysfs_create_link(&dev->class->p->class_subsys.kobj,
+				  &dev->kobj, dev->bus_id);
 	if (error)
 		goto out_subsys;
 
@@ -723,7 +725,7 @@ out_busid:
 	return 0;
 
 out_busid:
-	sysfs_remove_link(&dev->class->p->subsys.kobj, dev->bus_id);
+	sysfs_remove_link(&dev->class->p->class_subsys.kobj, dev->bus_id);
 #endif
 
 out_subsys:
@@ -749,14 +751,15 @@ static void device_remove_class_symlinks(struct device *dev)
 		sysfs_remove_link(&dev->kobj, "device");
 	}
 
-	if (dev->kobj.parent != &dev->class->p->subsys.kobj &&
+	if (dev->kobj.parent != &dev->class->p->class_subsys.kobj &&
 	    device_is_not_partition(dev))
-		sysfs_remove_link(&dev->class->p->subsys.kobj, dev->bus_id);
+		sysfs_remove_link(&dev->class->p->class_subsys.kobj,
+				  dev->bus_id);
 #else
 	if (dev->parent && device_is_not_partition(dev))
 		sysfs_remove_link(&dev->kobj, "device");
 
-	sysfs_remove_link(&dev->class->p->subsys.kobj, dev->bus_id);
+	sysfs_remove_link(&dev->class->p->class_subsys.kobj, dev->bus_id);
 #endif
 
 	sysfs_remove_link(&dev->kobj, "subsystem");
@@ -1350,11 +1353,11 @@ int device_rename(struct device *dev, char *new_name)
 	}
 #else
 	if (dev->class) {
-		error = sysfs_create_link(&dev->class->p->subsys.kobj,
+		error = sysfs_create_link(&dev->class->p->class_subsys.kobj,
 					  &dev->kobj, dev->bus_id);
 		if (error)
 			goto out;
-		sysfs_remove_link(&dev->class->p->subsys.kobj,
+		sysfs_remove_link(&dev->class->p->class_subsys.kobj,
 				  old_device_name);
 	}
 #endif
