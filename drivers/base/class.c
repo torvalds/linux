@@ -134,7 +134,7 @@ static void remove_class_attrs(struct class *cls)
 	}
 }
 
-int class_register(struct class *cls)
+int __class_register(struct class *cls, struct lock_class_key *key)
 {
 	struct class_private *cp;
 	int error;
@@ -178,6 +178,7 @@ int class_register(struct class *cls)
 	class_put(cls);
 	return error;
 }
+EXPORT_SYMBOL_GPL(__class_register);
 
 void class_unregister(struct class *cls)
 {
@@ -203,7 +204,8 @@ static void class_create_release(struct class *cls)
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
-struct class *class_create(struct module *owner, const char *name)
+struct class *__class_create(struct module *owner, const char *name,
+			     struct lock_class_key *key)
 {
 	struct class *cls;
 	int retval;
@@ -218,7 +220,7 @@ struct class *class_create(struct module *owner, const char *name)
 	cls->owner = owner;
 	cls->class_release = class_create_release;
 
-	retval = class_register(cls);
+	retval = __class_register(cls, key);
 	if (retval)
 		goto error;
 
@@ -228,6 +230,7 @@ error:
 	kfree(cls);
 	return ERR_PTR(retval);
 }
+EXPORT_SYMBOL_GPL(__class_create);
 
 /**
  * class_destroy - destroys a struct class structure
@@ -412,9 +415,7 @@ int __init classes_init(void)
 
 EXPORT_SYMBOL_GPL(class_create_file);
 EXPORT_SYMBOL_GPL(class_remove_file);
-EXPORT_SYMBOL_GPL(class_register);
 EXPORT_SYMBOL_GPL(class_unregister);
-EXPORT_SYMBOL_GPL(class_create);
 EXPORT_SYMBOL_GPL(class_destroy);
 
 EXPORT_SYMBOL_GPL(class_interface_register);

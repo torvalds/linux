@@ -16,6 +16,7 @@
 #include <linux/kobject.h>
 #include <linux/klist.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -205,8 +206,18 @@ struct class {
 
 extern struct kobject *sysfs_dev_block_kobj;
 extern struct kobject *sysfs_dev_char_kobj;
-extern int __must_check class_register(struct class *class);
+extern int __must_check __class_register(struct class *class,
+					 struct lock_class_key *key);
 extern void class_unregister(struct class *class);
+
+/* This is a #define to keep the compiler from merging different
+ * instances of the __key variable */
+#define class_register(class)			\
+({						\
+	static struct lock_class_key __key;	\
+	__class_register(class, &__key);	\
+})
+
 extern int class_for_each_device(struct class *class, struct device *start,
 				 void *data,
 				 int (*fn)(struct device *dev, void *data));
@@ -239,8 +250,18 @@ struct class_interface {
 extern int __must_check class_interface_register(struct class_interface *);
 extern void class_interface_unregister(struct class_interface *);
 
-extern struct class *class_create(struct module *owner, const char *name);
+extern struct class * __must_check __class_create(struct module *owner,
+						  const char *name,
+						  struct lock_class_key *key);
 extern void class_destroy(struct class *cls);
+
+/* This is a #define to keep the compiler from merging different
+ * instances of the __key variable */
+#define class_create(owner, name)		\
+({						\
+	static struct lock_class_key __key;	\
+	__class_create(owner, name, &__key);	\
+})
 
 /*
  * The type of device, "struct device" is embedded in. A class
