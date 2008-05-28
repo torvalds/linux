@@ -73,7 +73,8 @@ static unsigned long *p2m_top[TOP_ENTRIES]
 static unsigned long p2m_top_mfn[TOP_ENTRIES]
 	__attribute__((section(".bss.page_aligned")));
 
-static unsigned long p2m_top_mfn_list[TOP_ENTRIES / P2M_ENTRIES_PER_PAGE]
+static unsigned long p2m_top_mfn_list[
+			PAGE_ALIGN(TOP_ENTRIES / P2M_ENTRIES_PER_PAGE)]
 	__attribute__((section(".bss.page_aligned")));
 
 static inline unsigned p2m_top_index(unsigned long pfn)
