@@ -81,8 +81,6 @@
 #define ARCH_SETUP
 #endif
 
-#include "cpu/cpu.h"
-
 /*
  * Machine setup..
  */
@@ -227,6 +225,23 @@ static inline void copy_edd(void)
 {
 }
 #endif
+
+/* Overridden in paravirt.c if CONFIG_PARAVIRT */
+void __attribute__((weak)) __init memory_setup(void)
+{
+       machine_specific_memory_setup();
+}
+
+/* Current gdt points %fs at the "master" per-cpu area: after this,
+ * it's on the real one. */
+void switch_to_new_gdt(void)
+{
+	struct desc_ptr gdt_descr;
+
+	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
+	gdt_descr.size = GDT_SIZE - 1;
+	load_gdt(&gdt_descr);
+}
 
 /*
  * setup_arch - architecture-specific boot-time initializations

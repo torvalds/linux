@@ -203,7 +203,7 @@ ENTRY(secondary_startup_64)
 	 * addresses where we're currently running on. We have to do that here
 	 * because in 32bit we couldn't load a 64bit linear address.
 	 */
-	lgdt	cpu_gdt_descr(%rip)
+	lgdt	early_gdt_descr(%rip)
 
 	/* set up data segments. actually 0 would do too */
 	movl $__KERNEL_DS,%eax
@@ -391,54 +391,16 @@ NEXT_PAGE(level2_spare_pgt)
 
 	.data
 	.align 16
-	.globl cpu_gdt_descr
-cpu_gdt_descr:
-	.word	gdt_end-cpu_gdt_table-1
-gdt:
-	.quad	cpu_gdt_table
-#ifdef CONFIG_SMP
-	.rept	NR_CPUS-1
-	.word	0
-	.quad	0
-	.endr
-#endif
+	.globl early_gdt_descr
+early_gdt_descr:
+	.word	GDT_ENTRIES*8-1
+	.quad   per_cpu__gdt_page
 
 ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */
 	.quad   0x0000000000000000
 
-/* We need valid kernel segments for data and code in long mode too
- * IRET will check the segment types  kkeil 2000/10/28
- * Also sysret mandates a special GDT layout 
- */
-		 		
-	.section .data.page_aligned, "aw"
-	.align PAGE_SIZE
-
-/* The TLS descriptors are currently at a different place compared to i386.
-   Hopefully nobody expects them at a fixed place (Wine?) */
 	
-ENTRY(cpu_gdt_table)
-	.quad	0x0000000000000000	/* NULL descriptor */
-	.quad	0x00cf9b000000ffff	/* __KERNEL32_CS */
-	.quad	0x00af9b000000ffff	/* __KERNEL_CS */
-	.quad	0x00cf93000000ffff	/* __KERNEL_DS */
-	.quad	0x00cffb000000ffff	/* __USER32_CS */
-	.quad	0x00cff3000000ffff	/* __USER_DS, __USER32_DS  */
-	.quad	0x00affb000000ffff	/* __USER_CS */
-	.quad	0x0			/* unused */
-	.quad	0,0			/* TSS */
-	.quad	0,0			/* LDT */
-	.quad   0,0,0			/* three TLS descriptors */ 
-	.quad	0x0000f40000000000	/* node/CPU stored in limit */
-gdt_end:	
-	/* asm/segment.h:GDT_ENTRIES must match this */	
-	/* This should be a multiple of the cache line size */
-	/* GDTs of other CPUs are now dynamically allocated */
-
-	/* zero the remaining page */
-	.fill PAGE_SIZE / 8 - GDT_ENTRIES,8,0
-
 	.section .bss, "aw", @nobits
 	.align L1_CACHE_BYTES
 ENTRY(idt_table)

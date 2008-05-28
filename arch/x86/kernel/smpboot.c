@@ -849,14 +849,8 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
 	INIT_WORK(&c_idle.work, do_fork_idle);
-#ifdef CONFIG_X86_64
-	/* allocate memory for gdts of secondary cpus. Hotplug is considered */
-	if (!cpu_gdt_descr[cpu].address &&
-		!(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
-		printk(KERN_ERR "Failed to allocate GDT for CPU %d\n", cpu);
-		return -1;
-	}
 
+#ifdef CONFIG_X86_64
 	/* Allocate node local memory for AP pdas */
 	if (cpu > 0) {
 		boot_error = get_local_pda(cpu);
@@ -898,7 +892,6 @@ do_rest:
 #ifdef CONFIG_X86_32
 	per_cpu(current_task, cpu) = c_idle.idle;
 	init_gdt(cpu);
-	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	c_idle.idle->thread.ip = (unsigned long) start_secondary;
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	irq_ctx_init(cpu);
@@ -908,6 +901,7 @@ do_rest:
 	initial_code = (unsigned long)start_secondary;
 	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
 #endif
+	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	stack_start.sp = (void *) c_idle.idle->thread.sp;
 
 	/* start_ip had better be page-aligned! */
@@ -1252,8 +1246,8 @@ void __init native_smp_prepare_boot_cpu(void)
 	int me = smp_processor_id();
 #ifdef CONFIG_X86_32
 	init_gdt(me);
-	switch_to_new_gdt();
 #endif
+	switch_to_new_gdt();
 	/* already set me in cpu_online_map in boot_cpu_init() */
 	cpu_set(me, cpu_callout_map);
 	per_cpu(cpu_state, me) = CPU_ONLINE;

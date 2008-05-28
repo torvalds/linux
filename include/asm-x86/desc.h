@@ -29,11 +29,17 @@ static inline void fill_ldt(struct desc_struct *desc,
 extern struct desc_ptr idt_descr;
 extern gate_desc idt_table[];
 
+struct gdt_page {
+	struct desc_struct gdt[GDT_ENTRIES];
+} __attribute__((aligned(PAGE_SIZE)));
+DECLARE_PER_CPU(struct gdt_page, gdt_page);
+
+static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
+{
+	return per_cpu(gdt_page, cpu).gdt;
+}
+
 #ifdef CONFIG_X86_64
-extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
-extern struct desc_ptr cpu_gdt_descr[];
-/* the cpu gdt accessor */
-#define get_cpu_gdt_table(x) ((struct desc_struct *)cpu_gdt_descr[x].address)
 
 static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
 			     unsigned dpl, unsigned ist, unsigned seg)
@@ -51,16 +57,6 @@ static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
 }
 
 #else
-struct gdt_page {
-	struct desc_struct gdt[GDT_ENTRIES];
-} __attribute__((aligned(PAGE_SIZE)));
-DECLARE_PER_CPU(struct gdt_page, gdt_page);
-
-static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
-{
-	return per_cpu(gdt_page, cpu).gdt;
-}
-
 static inline void pack_gate(gate_desc *gate, unsigned char type,
 			     unsigned long base, unsigned dpl, unsigned flags,
 			     unsigned short seg)
