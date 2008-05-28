@@ -91,6 +91,7 @@ static int ricoh_probe(struct sdhci_pci_chip *chip)
 
 static const struct sdhci_pci_fixes sdhci_ricoh = {
 	.probe		= ricoh_probe,
+	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR,
 };
 
 static const struct sdhci_pci_fixes sdhci_ene_712 = {
