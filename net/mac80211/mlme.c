@@ -1614,7 +1614,7 @@ void sta_addba_resp_timer_expired(unsigned long data)
 	 * only one argument, and both sta_info and TID are needed, so init
 	 * flow in sta_info_create gives the TID as data, while the timer_to_id
 	 * array gives the sta through container_of */
-	u16 tid = *(int *)data;
+	u16 tid = *(u8 *)data;
 	struct sta_info *temp_sta = container_of((void *)data,
 		struct sta_info, timer_to_tid[tid]);
 
@@ -1662,7 +1662,7 @@ timer_expired_exit:
 void sta_rx_agg_session_timer_expired(unsigned long data)
 {
 	/* not an elegant detour, but there is no choice as the timer passes
-	 * only one argument, and verious sta_info are needed here, so init
+	 * only one argument, and various sta_info are needed here, so init
 	 * flow in sta_info_create gives the TID as data, while the timer_to_id
 	 * array gives the sta through container_of */
 	u8 *ptid = (u8 *)data;
