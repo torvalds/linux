@@ -883,16 +883,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_FMT:
 	{
 		struct v4l2_format *f = (struct v4l2_format *)arg;
-		enum v4l2_buf_type type=f->type;
 
-		memset(&f->fmt.pix,0,sizeof(f->fmt.pix));
-		f->type=type;
+		memset(f->fmt.raw_data, 0, sizeof(f->fmt.raw_data));
 
 		/* FIXME: Should be one dump per type */
-		dbgarg (cmd, "type=%s\n", prt_names(type,
-					v4l2_type_names));
+		dbgarg(cmd, "type=%s\n", prt_names(f->type, v4l2_type_names));
 
-		switch (type) {
+		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 			if (vfd->vidioc_g_fmt_cap)
 				ret=vfd->vidioc_g_fmt_cap(file, fh, f);
@@ -1688,16 +1685,17 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	}
 	case VIDIOC_G_FREQUENCY:
 	{
-		struct v4l2_frequency *p=arg;
+		struct v4l2_frequency *p = arg;
+
 		if (!vfd->vidioc_g_frequency)
 			break;
 
-		memset(p,0,sizeof(*p));
+		memset(p->reserved, 0, sizeof(p->reserved));
 
-		ret=vfd->vidioc_g_frequency(file, fh, p);
+		ret = vfd->vidioc_g_frequency(file, fh, p);
 		if (!ret)
-			dbgarg (cmd, "tuner=%d, type=%d, frequency=%d\n",
-						p->tuner,p->type,p->frequency);
+			dbgarg(cmd, "tuner=%d, type=%d, frequency=%d\n",
+					p->tuner, p->type, p->frequency);
 		break;
 	}
 	case VIDIOC_S_FREQUENCY:
