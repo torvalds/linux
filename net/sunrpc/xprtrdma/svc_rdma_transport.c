@@ -155,6 +155,7 @@ static void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 	struct svcxprt_rdma *xprt = ctxt->xprt;
 	int i;
 	for (i = 0; i < ctxt->count && ctxt->sge[i].length; i++) {
+		atomic_dec(&xprt->sc_dma_used);
 		ib_dma_unmap_single(xprt->sc_cm_id->device,
 				    ctxt->sge[i].addr,
 				    ctxt->sge[i].length,
@@ -519,6 +520,7 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	cma_xprt->sc_max_requests = svcrdma_max_requests;
 	cma_xprt->sc_sq_depth = svcrdma_max_requests * RPCRDMA_SQ_DEPTH_MULT;
 	atomic_set(&cma_xprt->sc_sq_count, 0);
+	atomic_set(&cma_xprt->sc_ctxt_used, 0);
 
 	if (!listener) {
 		int reqs = cma_xprt->sc_max_requests;
@@ -569,6 +571,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 		BUG_ON(sge_no >= xprt->sc_max_sge);
 		page = svc_rdma_get_page();
 		ctxt->pages[sge_no] = page;
+		atomic_inc(&xprt->sc_dma_used);
 		pa = ib_dma_map_page(xprt->sc_cm_id->device,
 				     page, 0, PAGE_SIZE,
 				     DMA_FROM_DEVICE);
@@ -1049,6 +1052,7 @@ static void __svc_rdma_free(struct work_struct *work)
 
 	/* Warn if we leaked a resource or under-referenced */
 	WARN_ON(atomic_read(&rdma->sc_ctxt_used) != 0);
+	WARN_ON(atomic_read(&rdma->sc_dma_used) != 0);
 
 	/* Destroy the QP if present (not a listener) */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
@@ -1169,6 +1173,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	length = svc_rdma_xdr_encode_error(xprt, rmsgp, err, va);
 
 	/* Prepare SGE for local address */
+	atomic_inc(&xprt->sc_dma_used);
 	sge.addr = ib_dma_map_page(xprt->sc_cm_id->device,
 				   p, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 	sge.lkey = xprt->sc_phys_mr->lkey;

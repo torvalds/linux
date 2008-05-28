@@ -163,6 +163,7 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		sge_bytes = min((size_t)bc,
 				(size_t)(vec->sge[xdr_sge_no].iov_len-sge_off));
 		sge[sge_no].length = sge_bytes;
+		atomic_inc(&xprt->sc_dma_used);
 		sge[sge_no].addr =
 			ib_dma_map_single(xprt->sc_cm_id->device,
 					  (void *)
@@ -385,6 +386,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	ctxt->count = 1;
 
 	/* Prepare the SGE for the RPCRDMA Header */
+	atomic_inc(&rdma->sc_dma_used);
 	ctxt->sge[0].addr =
 		ib_dma_map_page(rdma->sc_cm_id->device,
 				page, 0, PAGE_SIZE, DMA_TO_DEVICE);
@@ -396,6 +398,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	for (sge_no = 1; byte_count && sge_no < vec->count; sge_no++) {
 		sge_bytes = min_t(size_t, vec->sge[sge_no].iov_len, byte_count);
 		byte_count -= sge_bytes;
+		atomic_inc(&rdma->sc_dma_used);
 		ctxt->sge[sge_no].addr =
 			ib_dma_map_single(rdma->sc_cm_id->device,
 					  vec->sge[sge_no].iov_base,

@@ -222,6 +222,7 @@ static void rdma_set_ctxt_sge(struct svcxprt_rdma *xprt,
 	ctxt->count = count;
 	ctxt->direction = DMA_FROM_DEVICE;
 	for (i = 0; i < count; i++) {
+		atomic_inc(&xprt->sc_dma_used);
 		ctxt->sge[i].addr =
 			ib_dma_map_single(xprt->sc_cm_id->device,
 					  vec[i].iov_base, vec[i].iov_len,

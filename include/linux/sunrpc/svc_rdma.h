@@ -130,6 +130,7 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
+	atomic_t	     sc_dma_used;
 	atomic_t	     sc_ctxt_used;
 	struct list_head     sc_ctxt_free;
 	int		     sc_ctxt_cnt;
