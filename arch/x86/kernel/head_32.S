@@ -455,7 +455,10 @@ is386:	movl $2,%ecx		# set MP
 	jmp initialize_secondary # all other CPUs call initialize_secondary
 1:
 #endif /* CONFIG_SMP */
-	jmp i386_start_kernel
+	jmp *(initial_code)
+.align 4
+ENTRY(initial_code)
+	.long i386_start_kernel
 
 /*
  * We depend on ET to be correct. This checks for 287/387.
