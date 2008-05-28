@@ -122,7 +122,7 @@ enum radeon_family {
 	CHIP_RV380,
 	CHIP_R420,
 	CHIP_RV410,
-	CHIP_RS400,
+	CHIP_RS480,
 	CHIP_RS690,
 	CHIP_RV515,
 	CHIP_R520,
@@ -459,9 +459,9 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_PCIE_TX_GART_END_LO	0x16
 #define RADEON_PCIE_TX_GART_END_HI	0x17
 
-#define RS400_NB_MC_INDEX               0x168
-#	define RS400_NB_MC_IND_WR_EN	(1 << 8)
-#define RS400_NB_MC_DATA                0x16c
+#define RS480_NB_MC_INDEX               0x168
+#	define RS480_NB_MC_IND_WR_EN	(1 << 8)
+#define RS480_NB_MC_DATA                0x16c
 
 #define RS690_MC_INDEX                  0x78
 #   define RS690_MC_INDEX_MASK          0x1ff
@@ -470,46 +470,42 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RS690_MC_DATA                   0x7c
 
 /* MC indirect registers */
-#define RS400_MC_MISC_CNTL              0x18
-#	define RS400_DISABLE_GTW	(1 << 1)
+#define RS480_MC_MISC_CNTL              0x18
+#	define RS480_DISABLE_GTW	(1 << 1)
 /* switch between MCIND GART and MM GART registers. 0 = mmgart, 1 = mcind gart */
-#	define RS400_GART_INDEX_REG_EN	(1 << 12)
+#	define RS480_GART_INDEX_REG_EN	(1 << 12)
 #	define RS690_BLOCK_GFX_D3_EN	(1 << 14)
-#define RS400_K8_FB_LOCATION            0x1e
-#define RS400_GART_FEATURE_ID           0x2b
-#	define RS400_HANG_EN	        (1 << 11)
-#	define RS400_TLB_ENABLE	        (1 << 18)
-#	define RS400_P2P_ENABLE	        (1 << 19)
-#	define RS400_GTW_LAC_EN	        (1 << 25)
-#	define RS400_2LEVEL_GART	(0 << 30)
-#	define RS400_1LEVEL_GART	(1 << 30)
-#	define RS400_PDC_EN	        (1 << 31)
-#define RS400_GART_BASE                 0x2c
-#define RS400_GART_CACHE_CNTRL          0x2e
-#	define RS400_GART_CACHE_INVALIDATE (1 << 0) /* wait for it to clear */
-/* ??? */
-#       define RS690_MC_GART_CLEAR_STATUS   (1 << 1)
-#       define RS690_MC_GART_CLEAR_DONE     (0 << 1)
-#       define RS690_MC_GART_CLEAR_PENDING  (1 << 1)
-#define RS400_AGP_ADDRESS_SPACE_SIZE    0x38
-#	define RS400_GART_EN	        (1 << 0)
-#	define RS400_VA_SIZE_32MB	(0 << 1)
-#	define RS400_VA_SIZE_64MB	(1 << 1)
-#	define RS400_VA_SIZE_128MB	(2 << 1)
-#	define RS400_VA_SIZE_256MB	(3 << 1)
-#	define RS400_VA_SIZE_512MB	(4 << 1)
-#	define RS400_VA_SIZE_1GB	(5 << 1)
-#	define RS400_VA_SIZE_2GB	(6 << 1)
-#define RS400_AGP_MODE_CNTL             0x39
-#	define RS400_POST_GART_Q_SIZE	(1 << 18)
-#	define RS400_NONGART_SNOOP	(1 << 19)
-#	define RS400_AGP_RD_BUF_SIZE	(1 << 20)
-#	define RS400_REQ_TYPE_SNOOP_SHIFT 22
-#	define RS400_REQ_TYPE_SNOOP_MASK  0x3
-#	define RS400_REQ_TYPE_SNOOP_DIS	(1 << 24)
-#define RS400_MC_MISC_UMA_CNTL          0x5f
-#define RS400_MC_MCLK_CNTL              0x7a
-#define RS400_MC_UMA_DUALCH_CNTL        0x86
+#define RS480_K8_FB_LOCATION            0x1e
+#define RS480_GART_FEATURE_ID           0x2b
+#	define RS480_HANG_EN	        (1 << 11)
+#	define RS480_TLB_ENABLE	        (1 << 18)
+#	define RS480_P2P_ENABLE	        (1 << 19)
+#	define RS480_GTW_LAC_EN	        (1 << 25)
+#	define RS480_2LEVEL_GART	(0 << 30)
+#	define RS480_1LEVEL_GART	(1 << 30)
+#	define RS480_PDC_EN	        (1 << 31)
+#define RS480_GART_BASE                 0x2c
+#define RS480_GART_CACHE_CNTRL          0x2e
+#	define RS480_GART_CACHE_INVALIDATE (1 << 0) /* wait for it to clear */
+#define RS480_AGP_ADDRESS_SPACE_SIZE    0x38
+#	define RS480_GART_EN	        (1 << 0)
+#	define RS480_VA_SIZE_32MB	(0 << 1)
+#	define RS480_VA_SIZE_64MB	(1 << 1)
+#	define RS480_VA_SIZE_128MB	(2 << 1)
+#	define RS480_VA_SIZE_256MB	(3 << 1)
+#	define RS480_VA_SIZE_512MB	(4 << 1)
+#	define RS480_VA_SIZE_1GB	(5 << 1)
+#	define RS480_VA_SIZE_2GB	(6 << 1)
+#define RS480_AGP_MODE_CNTL             0x39
+#	define RS480_POST_GART_Q_SIZE	(1 << 18)
+#	define RS480_NONGART_SNOOP	(1 << 19)
+#	define RS480_AGP_RD_BUF_SIZE	(1 << 20)
+#	define RS480_REQ_TYPE_SNOOP_SHIFT 22
+#	define RS480_REQ_TYPE_SNOOP_MASK  0x3
+#	define RS480_REQ_TYPE_SNOOP_DIS	(1 << 24)
+#define RS480_MC_MISC_UMA_CNTL          0x5f
+#define RS480_MC_MCLK_CNTL              0x7a
+#define RS480_MC_UMA_DUALCH_CNTL        0x86
 
 #define RS690_MC_FB_LOCATION            0x100
 #define RS690_MC_AGP_LOCATION           0x101
@@ -529,8 +525,8 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_MPP_TB_CONFIG		0x01c0
 #define RADEON_MEM_CNTL			0x0140
 #define RADEON_MEM_SDRAM_MODE_REG	0x0158
-#define RADEON_AGP_BASE_2		0x015c
-#define RS400_AGP_BASE_2		0x0164
+#define RADEON_AGP_BASE_2		0x015c /* r200+ only */
+#define RS480_AGP_BASE_2		0x0164
 #define RADEON_AGP_BASE			0x0170
 
 #define RADEON_RB3D_COLOROFFSET		0x1c40
@@ -1105,14 +1101,6 @@ do {									\
 	RADEON_WRITE(RADEON_CLOCK_CNTL_DATA, (val));			\
 } while (0)
 
-#define RADEON_WRITE_IGPGART(addr, val)				\
-do {									\
-	RADEON_WRITE(RS400_NB_MC_INDEX,				\
-			((addr) & 0x7f) | RS400_NB_MC_IND_WR_EN);	\
-	RADEON_WRITE(RS400_NB_MC_DATA, (val));			\
-	RADEON_WRITE(RS400_NB_MC_INDEX, 0x7f);			\
-} while (0)
-
 #define RADEON_WRITE_PCIE(addr, val)					\
 do {									\
 	RADEON_WRITE8(RADEON_PCIE_INDEX,				\
@@ -1120,18 +1108,34 @@ do {									\
 	RADEON_WRITE(RADEON_PCIE_DATA, (val));			\
 } while (0)
 
-#define RADEON_WRITE_MCIND(addr, val)					\
-	do {								\
-		RADEON_WRITE(R520_MC_IND_INDEX, 0xff0000 | ((addr) & 0xff));	\
-		RADEON_WRITE(R520_MC_IND_DATA, (val));			\
-		RADEON_WRITE(R520_MC_IND_INDEX, 0);	\
-	} while (0)
+#define R500_WRITE_MCIND(addr, val)					\
+do {								\
+	RADEON_WRITE(R520_MC_IND_INDEX, 0xff0000 | ((addr) & 0xff));	\
+	RADEON_WRITE(R520_MC_IND_DATA, (val));			\
+	RADEON_WRITE(R520_MC_IND_INDEX, 0);	\
+} while (0)
+
+#define RS480_WRITE_MCIND(addr, val)				\
+do {									\
+	RADEON_WRITE(RS480_NB_MC_INDEX,				\
+			((addr) & 0xff) | RS480_NB_MC_IND_WR_EN);	\
+	RADEON_WRITE(RS480_NB_MC_DATA, (val));			\
+	RADEON_WRITE(RS480_NB_MC_INDEX, 0xff);			\
+} while (0)
 
 #define RS690_WRITE_MCIND(addr, val)					\
 do {								\
 	RADEON_WRITE(RS690_MC_INDEX, RS690_MC_INDEX_WR_EN | ((addr) & RS690_MC_INDEX_MASK));	\
 	RADEON_WRITE(RS690_MC_DATA, val);			\
 	RADEON_WRITE(RS690_MC_INDEX, RS690_MC_INDEX_WR_ACK);	\
+} while (0)
+
+#define IGP_WRITE_MCIND(addr, val)				\
+do {									\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)       \
+		RS690_WRITE_MCIND(addr, val);				\
+	else								\
+		RS480_WRITE_MCIND(addr, val);				\
 } while (0)
 
 #define CP_PACKET0( reg, n )						\
