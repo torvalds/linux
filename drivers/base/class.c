@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/genhd.h>
+#include <linux/mutex.h>
 #include "base.h"
 
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
@@ -147,7 +148,7 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	INIT_LIST_HEAD(&cp->class_devices);
 	INIT_LIST_HEAD(&cp->class_interfaces);
 	kset_init(&cp->class_dirs);
-	init_MUTEX(&cp->class_sem);
+	__mutex_init(&cp->class_mutex, "struct class mutex", key);
 	error = kobject_set_name(&cp->class_subsys.kobj, "%s", cls->name);
 	if (error) {
 		kfree(cp);
@@ -281,7 +282,7 @@ char *make_class_name(const char *name, struct kobject *kobj)
  * We check the return of @fn each time. If it returns anything
  * other than 0, we break out and return that value.
  *
- * Note, we hold class->class_sem in this function, so it can not be
+ * Note, we hold class->class_mutex in this function, so it can not be
  * re-acquired in @fn, otherwise it will self-deadlocking. For
  * example, calls to add or remove class members would be verboten.
  */
@@ -293,7 +294,7 @@ int class_for_each_device(struct class *class, struct device *start,
 
 	if (!class)
 		return -EINVAL;
-	down(&class->p->class_sem);
+	mutex_lock(&class->p->class_mutex);
 	list_for_each_entry(dev, &class->p->class_devices, node) {
 		if (start) {
 			if (start == dev)
@@ -306,7 +307,7 @@ int class_for_each_device(struct class *class, struct device *start,
 		if (error)
 			break;
 	}
-	up(&class->p->class_sem);
+	mutex_unlock(&class->p->class_mutex);
 
 	return error;
 }
@@ -329,7 +330,7 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  *
  * Note, you will need to drop the reference with put_device() after use.
  *
- * We hold class->class_sem in this function, so it can not be
+ * We hold class->class_mutex in this function, so it can not be
  * re-acquired in @match, otherwise it will self-deadlocking. For
  * example, calls to add or remove class members would be verboten.
  */
@@ -343,7 +344,7 @@ struct device *class_find_device(struct class *class, struct device *start,
 	if (!class)
 		return NULL;
 
-	down(&class->p->class_sem);
+	mutex_lock(&class->p->class_mutex);
 	list_for_each_entry(dev, &class->p->class_devices, node) {
 		if (start) {
 			if (start == dev)
@@ -357,7 +358,7 @@ struct device *class_find_device(struct class *class, struct device *start,
 		} else
 			put_device(dev);
 	}
-	up(&class->p->class_sem);
+	mutex_unlock(&class->p->class_mutex);
 
 	return found ? dev : NULL;
 }
@@ -375,13 +376,13 @@ int class_interface_register(struct class_interface *class_intf)
 	if (!parent)
 		return -EINVAL;
 
-	down(&parent->p->class_sem);
+	mutex_lock(&parent->p->class_mutex);
 	list_add_tail(&class_intf->node, &parent->p->class_interfaces);
 	if (class_intf->add_dev) {
 		list_for_each_entry(dev, &parent->p->class_devices, node)
 			class_intf->add_dev(dev, class_intf);
 	}
-	up(&parent->p->class_sem);
+	mutex_unlock(&parent->p->class_mutex);
 
 	return 0;
 }
@@ -394,13 +395,13 @@ void class_interface_unregister(struct class_interface *class_intf)
 	if (!parent)
 		return;
 
-	down(&parent->p->class_sem);
+	mutex_lock(&parent->p->class_mutex);
 	list_del_init(&class_intf->node);
 	if (class_intf->remove_dev) {
 		list_for_each_entry(dev, &parent->p->class_devices, node)
 			class_intf->remove_dev(dev, class_intf);
 	}
-	up(&parent->p->class_sem);
+	mutex_unlock(&parent->p->class_mutex);
 
 	class_put(parent);
 }
