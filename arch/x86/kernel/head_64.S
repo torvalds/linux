@@ -191,7 +191,7 @@ ENTRY(secondary_startup_64)
 	movq	%rax, %cr0
 
 	/* Setup a boot time stack */
-	movq init_rsp(%rip),%rsp
+	movq stack_start(%rip),%rsp
 
 	/* zero EFLAGS after setting rsp */
 	pushq $0
@@ -252,8 +252,9 @@ ENTRY(secondary_startup_64)
 	.quad	x86_64_start_kernel
 	__FINITDATA
 
-	ENTRY(init_rsp)
+	ENTRY(stack_start)
 	.quad  init_thread_union+THREAD_SIZE-8
+	.word  0
 
 bad_address:
 	jmp bad_address
