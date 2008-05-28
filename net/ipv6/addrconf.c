@@ -2027,7 +2027,7 @@ err_exit:
  *	Manual configuration of address on an interface
  */
 static int inet6_addr_add(struct net *net, int ifindex, struct in6_addr *pfx,
-			  int plen, __u8 ifa_flags, __u32 prefered_lft,
+			  unsigned int plen, __u8 ifa_flags, __u32 prefered_lft,
 			  __u32 valid_lft)
 {
 	struct inet6_ifaddr *ifp;
@@ -2038,6 +2038,9 @@ static int inet6_addr_add(struct net *net, int ifindex, struct in6_addr *pfx,
 	clock_t expires;
 
 	ASSERT_RTNL();
+
+	if (plen > 128)
+		return -EINVAL;
 
 	/* check the lifetime */
 	if (!valid_lft || prefered_lft > valid_lft)
@@ -2095,11 +2098,14 @@ static int inet6_addr_add(struct net *net, int ifindex, struct in6_addr *pfx,
 }
 
 static int inet6_addr_del(struct net *net, int ifindex, struct in6_addr *pfx,
-			  int plen)
+			  unsigned int plen)
 {
 	struct inet6_ifaddr *ifp;
 	struct inet6_dev *idev;
 	struct net_device *dev;
+
+	if (plen > 128)
+		return -EINVAL;
 
 	dev = __dev_get_by_index(net, ifindex);
 	if (!dev)
