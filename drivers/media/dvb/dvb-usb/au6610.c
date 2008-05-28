@@ -115,15 +115,6 @@ static struct i2c_algorithm au6610_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
-static int au6610_identify_state(struct usb_device *udev,
-				 struct dvb_usb_device_properties *props,
-				 struct dvb_usb_device_description **desc,
-				 int *cold)
-{
-	*cold = 0;
-	return 0;
-}
-
 static struct zl10353_config au6610_zl10353_config = {
 	.demod_address = 0x0f,
 	.no_tuner = 1,
@@ -191,7 +182,6 @@ static struct dvb_usb_device_properties au6610_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.size_of_priv     = 0,
-	.identify_state   = au6610_identify_state,
 	.num_adapters = 1,
 	.adapter = {
 		{
@@ -213,12 +203,13 @@ static struct dvb_usb_device_properties au6610_properties = {
 		}
 	},
 	.i2c_algo = &au6610_i2c_algo,
+
 	.num_device_descs = 1,
 	.devices = {
 		{
-			"Sigmatek DVB-110 DVB-T USB2.0",
-			{ &au6610_table[0], NULL },
-			{ NULL },
+			.name = "Sigmatek DVB-110 DVB-T USB2.0",
+			.cold_ids = {NULL},
+			.warm_ids = {&au6610_table[0], NULL},
 		},
 	}
 };
