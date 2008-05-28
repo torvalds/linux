@@ -72,7 +72,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.22"
+#define DRV_VERSION	"1.23"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -2557,7 +2557,6 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 	 */
 	m3 = readl(port_mmio + PHY_MODE3);
 	m3 = (m3 & 0x1f) | (0x5555601 << 5);
-	writel(m3, port_mmio + PHY_MODE3);
 
 	if (fix_phy_mode4) {
 		u32 m4;
@@ -2573,6 +2572,12 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 
 		writel(m4, port_mmio + PHY_MODE4);
 	}
+	/*
+	 * Workaround for 60x1-B2 errata SATA#13:
+	 * Any write to PHY_MODE4 (above) may corrupt PHY_MODE3,
+	 * so we must always rewrite PHY_MODE3 after PHY_MODE4.
+	 */
+	writel(m3, port_mmio + PHY_MODE3);
 
 	/* Revert values of pre-emphasis and signal amps to the saved ones */
 	m2 = readl(port_mmio + PHY_MODE2);
