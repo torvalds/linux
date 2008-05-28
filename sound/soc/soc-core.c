@@ -1589,6 +1589,78 @@ int snd_soc_put_volsw_2r(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_2r);
 
+/**
+ * snd_soc_info_volsw_s8 - signed mixer info callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Callback to provide information about a signed mixer control.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_info_volsw_s8(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	int max = (signed char)((kcontrol->private_value >> 16) & 0xff);
+	int min = (signed char)((kcontrol->private_value >> 24) & 0xff);
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = max-min;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_info_volsw_s8);
+
+/**
+ * snd_soc_get_volsw_s8 - signed mixer get callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Callback to get the value of a signed mixer control.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int reg = kcontrol->private_value & 0xff;
+	int min = (signed char)((kcontrol->private_value >> 24) & 0xff);
+	int val = snd_soc_read(codec, reg);
+
+	ucontrol->value.integer.value[0] =
+		((signed char)(val & 0xff))-min;
+	ucontrol->value.integer.value[1] =
+		((signed char)((val >> 8) & 0xff))-min;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_volsw_s8);
+
+/**
+ * snd_soc_put_volsw_sgn - signed mixer put callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Callback to set the value of a signed mixer control.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int reg = kcontrol->private_value & 0xff;
+	int min = (signed char)((kcontrol->private_value >> 24) & 0xff);
+	unsigned short val;
+
+	val = (ucontrol->value.integer.value[0]+min) & 0xff;
+	val |= ((ucontrol->value.integer.value[1]+min) & 0xff) << 8;
+
+	return snd_soc_update_bits(codec, reg, 0xffff, val);
+}
+EXPORT_SYMBOL_GPL(snd_soc_put_volsw_s8);
+
 static int __devinit snd_soc_init(void)
 {
 	printk(KERN_INFO "ASoC version %s\n", SND_SOC_VERSION);
