@@ -3,8 +3,8 @@
  * Copyright (C) 2006 Antti Palosaari <crope@iki.fi>
  *
  *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
+ *	under the terms of the GNU General Public License as published by the
+ *      Free Software Foundation, version 2.
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
@@ -17,8 +17,8 @@
 /* debug */
 static int dvb_usb_au6610_debug;
 module_param_named(debug, dvb_usb_au6610_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
-
+MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))."
+	DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
@@ -42,9 +42,8 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 	}
 
 	ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), operation,
-			      USB_TYPE_VENDOR|USB_DIR_IN, addr << 1, index, usb_buf,
-			      sizeof(usb_buf), AU6610_USB_TIMEOUT);
-
+			      USB_TYPE_VENDOR|USB_DIR_IN, addr << 1, index,
+			      usb_buf, sizeof(usb_buf), AU6610_USB_TIMEOUT);
 	if (ret < 0)
 		return ret;
 
@@ -133,12 +132,12 @@ static struct zl10353_config au6610_zl10353_config = {
 
 static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	if ((adap->fe = dvb_attach(zl10353_attach, &au6610_zl10353_config,
-				   &adap->dev->i2c_adap)) != NULL) {
-		return 0;
-	}
+	adap->fe = dvb_attach(zl10353_attach, &au6610_zl10353_config,
+		&adap->dev->i2c_adap);
+	if (adap->fe == NULL)
+		return -EIO;
 
-	return -EIO;
+	return 0;
 }
 
 static struct qt1010_config au6610_qt1010_config = {
@@ -186,7 +185,7 @@ static struct usb_device_id au6610_table [] = {
 	{ USB_DEVICE(USB_VID_ALCOR_MICRO, USB_PID_SIGMATEK_DVB_110) },
 	{ }		/* Terminating entry */
 };
-MODULE_DEVICE_TABLE (usb, au6610_table);
+MODULE_DEVICE_TABLE(usb, au6610_table);
 
 static struct dvb_usb_device_properties au6610_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
@@ -206,7 +205,7 @@ static struct dvb_usb_device_properties au6610_properties = {
 				.u = {
 					.isoc = {
 						.framesperurb = 40,
-						.framesize = 942,   /* maximum packet size */
+						.framesize = 942,
 						.interval = 1.25,   /* 125 us */
 					}
 				}
@@ -236,12 +235,11 @@ static int __init au6610_module_init(void)
 {
 	int ret;
 
-	if ((ret = usb_register(&au6610_driver))) {
+	ret = usb_register(&au6610_driver);
+	if (ret)
 		err("usb_register failed. Error number %d", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static void __exit au6610_module_exit(void)
@@ -250,8 +248,8 @@ static void __exit au6610_module_exit(void)
 	usb_deregister(&au6610_driver);
 }
 
-module_init (au6610_module_init);
-module_exit (au6610_module_exit);
+module_init(au6610_module_init);
+module_exit(au6610_module_exit);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver Sigmatek DVB-110 DVB-T USB2.0 / AU6610");

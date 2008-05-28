@@ -4,7 +4,7 @@
 #define DVB_USB_LOG_PREFIX "au6610"
 #include "dvb-usb.h"
 
-#define deb_rc(args...)   dprintk(dvb_usb_au6610_debug,0x01,args)
+#define deb_rc(args...)   dprintk(dvb_usb_au6610_debug, 0x01, args)
 
 #define AU6610_REQ_I2C_WRITE	0x14
 #define AU6610_REQ_I2C_READ	0x13
