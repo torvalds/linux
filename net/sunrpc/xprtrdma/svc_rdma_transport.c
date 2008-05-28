@@ -84,69 +84,23 @@ struct svc_xprt_class svc_rdma_class = {
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
 };
 
-static int rdma_bump_context_cache(struct svcxprt_rdma *xprt)
-{
-	int target;
-	int at_least_one = 0;
-	struct svc_rdma_op_ctxt *ctxt;
-
-	target = min(xprt->sc_ctxt_cnt + xprt->sc_ctxt_bump,
-		     xprt->sc_ctxt_max);
-
-	spin_lock_bh(&xprt->sc_ctxt_lock);
-	while (xprt->sc_ctxt_cnt < target) {
-		xprt->sc_ctxt_cnt++;
-		spin_unlock_bh(&xprt->sc_ctxt_lock);
-
-		ctxt = kmalloc(sizeof(*ctxt), GFP_KERNEL);
-
-		spin_lock_bh(&xprt->sc_ctxt_lock);
-		if (ctxt) {
-			at_least_one = 1;
-			INIT_LIST_HEAD(&ctxt->free_list);
-			list_add(&ctxt->free_list, &xprt->sc_ctxt_free);
-		} else {
-			/* kmalloc failed...give up for now */
-			xprt->sc_ctxt_cnt--;
-			break;
-		}
-	}
-	spin_unlock_bh(&xprt->sc_ctxt_lock);
-	dprintk("svcrdma: sc_ctxt_max=%d, sc_ctxt_cnt=%d\n",
-		xprt->sc_ctxt_max, xprt->sc_ctxt_cnt);
-	return at_least_one;
-}
+/* WR context cache. Created in svc_rdma.c  */
+extern struct kmem_cache *svc_rdma_ctxt_cachep;
 
 struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
 	struct svc_rdma_op_ctxt *ctxt;
 
 	while (1) {
-		spin_lock_bh(&xprt->sc_ctxt_lock);
-		if (unlikely(list_empty(&xprt->sc_ctxt_free))) {
-			/* Try to bump my cache. */
-			spin_unlock_bh(&xprt->sc_ctxt_lock);
-
-			if (rdma_bump_context_cache(xprt))
-				continue;
-
-			printk(KERN_INFO "svcrdma: sleeping waiting for "
-			       "context memory on xprt=%p\n",
-			       xprt);
-			schedule_timeout_uninterruptible(msecs_to_jiffies(500));
-			continue;
-		}
-		ctxt = list_entry(xprt->sc_ctxt_free.next,
-				  struct svc_rdma_op_ctxt,
-				  free_list);
-		list_del_init(&ctxt->free_list);
-		spin_unlock_bh(&xprt->sc_ctxt_lock);
-		ctxt->xprt = xprt;
-		INIT_LIST_HEAD(&ctxt->dto_q);
-		ctxt->count = 0;
-		atomic_inc(&xprt->sc_ctxt_used);
-		break;
+		ctxt = kmem_cache_alloc(svc_rdma_ctxt_cachep, GFP_KERNEL);
+		if (ctxt)
+			break;
+		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 	}
+	ctxt->xprt = xprt;
+	INIT_LIST_HEAD(&ctxt->dto_q);
+	ctxt->count = 0;
+	atomic_inc(&xprt->sc_ctxt_used);
 	return ctxt;
 }
 
@@ -174,9 +128,7 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 		for (i = 0; i < ctxt->count; i++)
 			put_page(ctxt->pages[i]);
 
-	spin_lock_bh(&xprt->sc_ctxt_lock);
-	list_add(&ctxt->free_list, &xprt->sc_ctxt_free);
-	spin_unlock_bh(&xprt->sc_ctxt_lock);
+	kmem_cache_free(svc_rdma_ctxt_cachep, ctxt);
 	atomic_dec(&xprt->sc_ctxt_used);
 }
 
@@ -461,40 +413,6 @@ static void sq_comp_handler(struct ib_cq *cq, void *cq_context)
 	tasklet_schedule(&dto_tasklet);
 }
 
-static void create_context_cache(struct svcxprt_rdma *xprt,
-				 int ctxt_count, int ctxt_bump, int ctxt_max)
-{
-	struct svc_rdma_op_ctxt *ctxt;
-	int i;
-
-	xprt->sc_ctxt_max = ctxt_max;
-	xprt->sc_ctxt_bump = ctxt_bump;
-	xprt->sc_ctxt_cnt = 0;
-	atomic_set(&xprt->sc_ctxt_used, 0);
-
-	INIT_LIST_HEAD(&xprt->sc_ctxt_free);
-	for (i = 0; i < ctxt_count; i++) {
-		ctxt = kmalloc(sizeof(*ctxt), GFP_KERNEL);
-		if (ctxt) {
-			INIT_LIST_HEAD(&ctxt->free_list);
-			list_add(&ctxt->free_list, &xprt->sc_ctxt_free);
-			xprt->sc_ctxt_cnt++;
-		}
-	}
-}
-
-static void destroy_context_cache(struct svcxprt_rdma *xprt)
-{
-	while (!list_empty(&xprt->sc_ctxt_free)) {
-		struct svc_rdma_op_ctxt *ctxt;
-		ctxt = list_entry(xprt->sc_ctxt_free.next,
-				  struct svc_rdma_op_ctxt,
-				  free_list);
-		list_del_init(&ctxt->free_list);
-		kfree(ctxt);
-	}
-}
-
 static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 					     int listener)
 {
@@ -511,7 +429,6 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 
 	spin_lock_init(&cma_xprt->sc_lock);
 	spin_lock_init(&cma_xprt->sc_read_complete_lock);
-	spin_lock_init(&cma_xprt->sc_ctxt_lock);
 	spin_lock_init(&cma_xprt->sc_rq_dto_lock);
 
 	cma_xprt->sc_ord = svcrdma_ord;
@@ -522,20 +439,7 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	atomic_set(&cma_xprt->sc_sq_count, 0);
 	atomic_set(&cma_xprt->sc_ctxt_used, 0);
 
-	if (!listener) {
-		int reqs = cma_xprt->sc_max_requests;
-		create_context_cache(cma_xprt,
-				     reqs << 1, /* starting size */
-				     reqs,	/* bump amount */
-				     reqs +
-				     cma_xprt->sc_sq_depth +
-				     RPCRDMA_MAX_THREADS + 1); /* max */
-		if (list_empty(&cma_xprt->sc_ctxt_free)) {
-			kfree(cma_xprt);
-			return NULL;
-		}
-		clear_bit(XPT_LISTENER, &cma_xprt->sc_xprt.xpt_flags);
-	} else
+	if (listener)
 		set_bit(XPT_LISTENER, &cma_xprt->sc_xprt.xpt_flags);
 
 	return cma_xprt;
@@ -1077,7 +981,6 @@ static void __svc_rdma_free(struct work_struct *work)
 	/* Destroy the CM ID */
 	rdma_destroy_id(rdma->sc_cm_id);
 
-	destroy_context_cache(rdma);
 	kfree(rdma);
 }
 
