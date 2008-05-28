@@ -94,16 +94,16 @@ static void __init setup_cpu_win(int win, u32 base, u32 size,
 		return;
 	}
 
-	orion5x_write(CPU_WIN_BASE(win), base & 0xffff0000);
-	orion5x_write(CPU_WIN_CTRL(win),
-		((size - 1) & 0xffff0000) | (attr << 8) | (target << 4) | 1);
+	writel(base & 0xffff0000, CPU_WIN_BASE(win));
+	writel(((size - 1) & 0xffff0000) | (attr << 8) | (target << 4) | 1,
+		CPU_WIN_CTRL(win));
 
 	if (orion5x_cpu_win_can_remap(win)) {
 		if (remap < 0)
 			remap = base;
 
-		orion5x_write(CPU_WIN_REMAP_LO(win), remap & 0xffff0000);
-		orion5x_write(CPU_WIN_REMAP_HI(win), 0);
+		writel(remap & 0xffff0000, CPU_WIN_REMAP_LO(win));
+		writel(0, CPU_WIN_REMAP_HI(win));
 	}
 }
 
@@ -116,11 +116,11 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 	 * First, disable and clear windows.
 	 */
 	for (i = 0; i < 8; i++) {
-		orion5x_write(CPU_WIN_BASE(i), 0);
-		orion5x_write(CPU_WIN_CTRL(i), 0);
+		writel(0, CPU_WIN_BASE(i));
+		writel(0, CPU_WIN_CTRL(i));
 		if (orion5x_cpu_win_can_remap(i)) {
-			orion5x_write(CPU_WIN_REMAP_LO(i), 0);
-			orion5x_write(CPU_WIN_REMAP_HI(i), 0);
+			writel(0, CPU_WIN_REMAP_LO(i));
+			writel(0, CPU_WIN_REMAP_HI(i));
 		}
 	}
 

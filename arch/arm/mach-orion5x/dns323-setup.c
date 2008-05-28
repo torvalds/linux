@@ -269,7 +269,7 @@ static void __init dns323_init(void)
 	orion5x_init();
 
 	orion5x_mpp_conf(dns323_mpp_modes);
-	orion5x_write(MPP_DEV_CTRL, 0);		/* DEV_D[31:16] */
+	writel(0, MPP_DEV_CTRL);		/* DEV_D[31:16] */
 
 	/*
 	 * Configure peripherals.

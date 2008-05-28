@@ -52,15 +52,12 @@ static inline void __iomem *__io(unsigned long addr)
 /*****************************************************************************
  * Helpers to access Orion registers
  ****************************************************************************/
-#define orion5x_read(r)		__raw_readl(r)
-#define orion5x_write(r, val)	__raw_writel(val, r)
-
 /*
  * These are not preempt-safe.  Locks, if needed, must be taken
  * care of by the caller.
  */
-#define orion5x_setbits(r, mask)	orion5x_write((r), orion5x_read(r) | (mask))
-#define orion5x_clrbits(r, mask)	orion5x_write((r), orion5x_read(r) & ~(mask))
+#define orion5x_setbits(r, mask)	writel(readl(r) | (mask), (r))
+#define orion5x_clrbits(r, mask)	writel(readl(r) & ~(mask), (r))
 
 
 #endif
