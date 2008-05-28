@@ -1346,7 +1346,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Guess by Vladimir.
  * Set to 0A before 3D operations, set to 02 afterwards.
  */
-#define R300_RB3D_DSTCACHE_CTLSTAT          0x4E4C
+/*#define R300_RB3D_DSTCACHE_CTLSTAT          0x4E4C*/
 #       define R300_RB3D_DSTCACHE_UNKNOWN_02             0x00000002
 #       define R300_RB3D_DSTCACHE_UNKNOWN_0A             0x0000000A
 

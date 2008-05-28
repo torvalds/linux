@@ -161,16 +161,36 @@ static int radeon_do_pixcache_flush(drm_radeon_private_t * dev_priv)
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
-	tmp = RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT);
-	tmp |= RADEON_RB3D_DC_FLUSH_ALL;
-	RADEON_WRITE(RADEON_RB3D_DSTCACHE_CTLSTAT, tmp);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV280) {
+		tmp = RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT);
+		tmp |= RADEON_RB3D_DC_FLUSH_ALL;
+		RADEON_WRITE(RADEON_RB3D_DSTCACHE_CTLSTAT, tmp);
 
-	for (i = 0; i < dev_priv->usec_timeout; i++) {
-		if (!(RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT)
-		      & RADEON_RB3D_DC_BUSY)) {
-			return 0;
+		for (i = 0; i < dev_priv->usec_timeout; i++) {
+			if (!(RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT)
+			      & RADEON_RB3D_DC_BUSY)) {
+				return 0;
+			}
+			DRM_UDELAY(1);
 		}
-		DRM_UDELAY(1);
+	} else {
+		/* 3D */
+		tmp = RADEON_READ(R300_RB3D_DSTCACHE_CTLSTAT);
+		tmp |= RADEON_RB3D_DC_FLUSH_ALL;
+		RADEON_WRITE(R300_RB3D_DSTCACHE_CTLSTAT, tmp);
+
+		/* 2D */
+		tmp = RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT);
+		tmp |= RADEON_RB3D_DC_FLUSH_ALL;
+		RADEON_WRITE(RADEON_RB3D_DSTCACHE_CTLSTAT, tmp);
+
+		for (i = 0; i < dev_priv->usec_timeout; i++) {
+			if (!(RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT)
+			  & RADEON_RB3D_DC_BUSY)) {
+				return 0;
+			}
+			DRM_UDELAY(1);
+		}
 	}
 
 #if RADEON_FIFO_DEBUG

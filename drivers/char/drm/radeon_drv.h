@@ -659,11 +659,18 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_RB3D_ZC_FREE		(1 << 2)
 #	define RADEON_RB3D_ZC_FLUSH_ALL		0x5
 #	define RADEON_RB3D_ZC_BUSY		(1 << 31)
+#define R300_ZB_ZCACHE_CTLSTAT                  0x4f18
+#	define R300_ZC_FLUSH		        (1 << 0)
+#	define R300_ZC_FREE		        (1 << 1)
+#	define R300_ZC_FLUSH_ALL		0x3
+#	define R300_ZC_BUSY		        (1 << 31)
 #define RADEON_RB3D_DSTCACHE_CTLSTAT	0x325c
 #	define RADEON_RB3D_DC_FLUSH		(3 << 0)
 #	define RADEON_RB3D_DC_FREE		(3 << 2)
 #	define RADEON_RB3D_DC_FLUSH_ALL		0xf
 #	define RADEON_RB3D_DC_BUSY		(1 << 31)
+#define R300_RB3D_DSTCACHE_CTLSTAT              0x4e4c
+#	define R300_RB3D_DC_FINISH		(1 << 4)
 #define RADEON_RB3D_ZSTENCILCNTL	0x1c2c
 #	define RADEON_Z_TEST_MASK		(7 << 4)
 #	define RADEON_Z_TEST_ALWAYS		(7 << 4)
@@ -1178,23 +1185,43 @@ do {									\
 } while (0)
 
 #define RADEON_FLUSH_CACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB3D_DC_FLUSH );				\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV280) {	\
+		OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));	\
+		OUT_RING(RADEON_RB3D_DC_FLUSH);				\
+	} else {                                                        \
+		OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));	\
+		OUT_RING(RADEON_RB3D_DC_FLUSH);				\
+	}                                                               \
 } while (0)
 
 #define RADEON_PURGE_CACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB3D_DC_FLUSH_ALL );				\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV280) {	\
+		OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));	\
+		OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);			\
+	} else {                                                        \
+		OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));	\
+		OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);			\
+	}                                                               \
 } while (0)
 
 #define RADEON_FLUSH_ZCACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB3D_ZCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB3D_ZC_FLUSH );				\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV280) {	\
+		OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));	\
+		OUT_RING(RADEON_RB3D_ZC_FLUSH);				\
+	} else {                                                        \
+		OUT_RING(CP_PACKET0(R300_ZB_ZCACHE_CTLSTAT, 0));	\
+		OUT_RING(R300_ZC_FLUSH);				\
+	}                                                               \
 } while (0)
 
 #define RADEON_PURGE_ZCACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB3D_ZCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB3D_ZC_FLUSH_ALL );				\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV280) {	\
+		OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));	\
+		OUT_RING(RADEON_RB3D_ZC_FLUSH_ALL);			\
+	} else {                                                        \
+		OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));	\
+		OUT_RING(R300_ZC_FLUSH_ALL);				\
+	}                                                               \
 } while (0)
 
 /* ================================================================
