@@ -418,12 +418,13 @@ static void radeon_do_cp_stop(drm_radeon_private_t * dev_priv)
 static int radeon_do_engine_reset(struct drm_device * dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	u32 clock_cntl_index, mclk_cntl, rbbm_soft_reset;
+	u32 clock_cntl_index = 0, mclk_cntl = 0, rbbm_soft_reset;
 	DRM_DEBUG("\n");
 
 	radeon_do_pixcache_flush(dev_priv);
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) < CHIP_RV515) {
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV410) {
+		/* may need something similar for newer chips */
 		clock_cntl_index = RADEON_READ(RADEON_CLOCK_CNTL_INDEX);
 		mclk_cntl = RADEON_READ_PLL(dev, RADEON_MCLK_CNTL);
 
@@ -434,28 +435,30 @@ static int radeon_do_engine_reset(struct drm_device * dev)
 						    RADEON_FORCEON_YCLKB |
 						    RADEON_FORCEON_MC |
 						    RADEON_FORCEON_AIC));
+	}
 
-		rbbm_soft_reset = RADEON_READ(RADEON_RBBM_SOFT_RESET);
+	rbbm_soft_reset = RADEON_READ(RADEON_RBBM_SOFT_RESET);
 
-		RADEON_WRITE(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset |
-						      RADEON_SOFT_RESET_CP |
-						      RADEON_SOFT_RESET_HI |
-						      RADEON_SOFT_RESET_SE |
-						      RADEON_SOFT_RESET_RE |
-						      RADEON_SOFT_RESET_PP |
-						      RADEON_SOFT_RESET_E2 |
-						      RADEON_SOFT_RESET_RB));
-		RADEON_READ(RADEON_RBBM_SOFT_RESET);
-		RADEON_WRITE(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset &
-						      ~(RADEON_SOFT_RESET_CP |
-							RADEON_SOFT_RESET_HI |
-							RADEON_SOFT_RESET_SE |
-							RADEON_SOFT_RESET_RE |
-							RADEON_SOFT_RESET_PP |
-							RADEON_SOFT_RESET_E2 |
-							RADEON_SOFT_RESET_RB)));
-		RADEON_READ(RADEON_RBBM_SOFT_RESET);
+	RADEON_WRITE(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset |
+					      RADEON_SOFT_RESET_CP |
+					      RADEON_SOFT_RESET_HI |
+					      RADEON_SOFT_RESET_SE |
+					      RADEON_SOFT_RESET_RE |
+					      RADEON_SOFT_RESET_PP |
+					      RADEON_SOFT_RESET_E2 |
+					      RADEON_SOFT_RESET_RB));
+	RADEON_READ(RADEON_RBBM_SOFT_RESET);
+	RADEON_WRITE(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset &
+					      ~(RADEON_SOFT_RESET_CP |
+						RADEON_SOFT_RESET_HI |
+						RADEON_SOFT_RESET_SE |
+						RADEON_SOFT_RESET_RE |
+						RADEON_SOFT_RESET_PP |
+						RADEON_SOFT_RESET_E2 |
+						RADEON_SOFT_RESET_RB)));
+	RADEON_READ(RADEON_RBBM_SOFT_RESET);
 
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV410) {
 		RADEON_WRITE_PLL(RADEON_MCLK_CNTL, mclk_cntl);
 		RADEON_WRITE(RADEON_CLOCK_CNTL_INDEX, clock_cntl_index);
 		RADEON_WRITE(RADEON_RBBM_SOFT_RESET, rbbm_soft_reset);
