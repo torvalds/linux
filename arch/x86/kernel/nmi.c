@@ -84,20 +84,15 @@ static inline unsigned int get_timer_irqs(int cpu)
 #endif
 }
 
+#ifdef CONFIG_X86_64
 /* Run after command line and cpu_init init, but before all other checks */
 void nmi_watchdog_default(void)
 {
 	if (nmi_watchdog != NMI_DEFAULT)
 		return;
-#ifdef CONFIG_X86_64
 	nmi_watchdog = NMI_NONE;
-#else
-	if (lapic_watchdog_ok())
-		nmi_watchdog = NMI_LOCAL_APIC;
-	else
-		nmi_watchdog = NMI_IO_APIC;
-#endif
 }
+#endif
 
 #ifdef CONFIG_SMP
 /*
@@ -488,8 +483,15 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 		return -EIO;
 	}
 
+#ifdef CONFIG_X86_64
 	/* if nmi_watchdog is not set yet, then set it */
 	nmi_watchdog_default();
+#else
+	if (lapic_watchdog_ok())
+		nmi_watchdog = NMI_LOCAL_APIC;
+	else
+		nmi_watchdog = NMI_IO_APIC;
+#endif
 
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		if (nmi_watchdog_enabled)
