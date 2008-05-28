@@ -1116,9 +1116,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 
 		localise_nmi_watchdog();
 
-#ifdef CONFIG_X86_32
 		connect_bsp_APIC();
-#endif
 		setup_local_APIC();
 		end_local_APIC_setup();
 		return -1;
@@ -1173,9 +1171,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	}
 	preempt_enable();
 
-#ifdef CONFIG_X86_32
 	connect_bsp_APIC();
-#endif
+
 	/*
 	 * Switch from PIC to APIC mode.
 	 */

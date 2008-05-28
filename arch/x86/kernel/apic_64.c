@@ -918,6 +918,8 @@ int __init APIC_init_uniprocessor(void)
 
 	verify_local_APIC();
 
+	connect_bsp_APIC();
+
 	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
 
@@ -997,6 +999,14 @@ asmlinkage void smp_error_interrupt(void)
 	printk(KERN_DEBUG "APIC error on CPU%d: %02x(%02x)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
+}
+
+/**
+ *  * connect_bsp_APIC - attach the APIC to the interrupt system
+ *   */
+void __init connect_bsp_APIC(void)
+{
+	enable_apic_mode();
 }
 
 void disconnect_bsp_APIC(int virt_wire_setup)
