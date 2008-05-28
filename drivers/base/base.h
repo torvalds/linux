@@ -41,10 +41,9 @@ struct driver_private {
  * struct class_private - structure to hold the private to the driver core portions of the class structure.
  *
  * @class_subsys - the struct kset that defines this class.  This is the main kobject
- * @children - list of class_devices associated with this class
  * @class_devices - list of devices associated with this class
  * @class_interfaces - list of class_interfaces associated with this class
- * @class_dirs -
+ * @class_dirs - "glue" directory for virtual devices associated with this class
  * @class_sem - semaphore to protect the children, devices, and interfaces lists.
  * @class - pointer back to the struct class that this structure is associated
  * with.
