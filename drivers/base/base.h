@@ -43,7 +43,7 @@ struct driver_private {
  * @subsys - the struct kset that defines this class.  This is the main kobject
  * @children - list of class_devices associated with this class
  * @class_devices - list of devices associated with this class
- * @interfaces - list of class_interfaces associated with this class
+ * @class_interfaces - list of class_interfaces associated with this class
  * @class_dirs -
  * @sem - semaphore to protect the children, devices, and interfaces lists.
  * @class - pointer back to the struct class that this structure is associated
@@ -56,7 +56,7 @@ struct driver_private {
 struct class_private {
 	struct kset subsys;
 	struct list_head class_devices;
-	struct list_head interfaces;
+	struct list_head class_interfaces;
 	struct kset class_dirs;
 	struct semaphore sem;
 	struct class *class;

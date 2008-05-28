@@ -144,7 +144,7 @@ int class_register(struct class *cls)
 	if (!cp)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&cp->class_devices);
-	INIT_LIST_HEAD(&cp->interfaces);
+	INIT_LIST_HEAD(&cp->class_interfaces);
 	kset_init(&cp->class_dirs);
 	init_MUTEX(&cp->sem);
 	error = kobject_set_name(&cp->subsys.kobj, "%s", cls->name);
@@ -372,7 +372,7 @@ int class_interface_register(struct class_interface *class_intf)
 		return -EINVAL;
 
 	down(&parent->p->sem);
-	list_add_tail(&class_intf->node, &parent->p->interfaces);
+	list_add_tail(&class_intf->node, &parent->p->class_interfaces);
 	if (class_intf->add_dev) {
 		list_for_each_entry(dev, &parent->p->class_devices, node)
 			class_intf->add_dev(dev, class_intf);

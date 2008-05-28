@@ -909,8 +909,8 @@ int device_add(struct device *dev)
 		list_add_tail(&dev->node, &dev->class->p->class_devices);
 
 		/* notify any interfaces that the device is here */
-		list_for_each_entry(class_intf, &dev->class->p->interfaces,
-				    node)
+		list_for_each_entry(class_intf,
+				    &dev->class->p->class_interfaces, node)
 			if (class_intf->add_dev)
 				class_intf->add_dev(dev, class_intf);
 		up(&dev->class->p->sem);
@@ -1016,8 +1016,8 @@ void device_del(struct device *dev)
 
 		down(&dev->class->p->sem);
 		/* notify any interfaces that the device is now gone */
-		list_for_each_entry(class_intf, &dev->class->p->interfaces,
-				    node)
+		list_for_each_entry(class_intf,
+				    &dev->class->p->class_interfaces, node)
 			if (class_intf->remove_dev)
 				class_intf->remove_dev(dev, class_intf);
 		/* remove the device from the class list */
