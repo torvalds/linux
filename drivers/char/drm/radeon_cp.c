@@ -659,8 +659,9 @@ static void radeon_set_rs690gart(drm_radeon_private_t *dev_priv, int on)
 		temp = RS690_READ_MCIND(dev_priv, RS690_MC_GART_FEATURE_ID);
 		RS690_WRITE_MCIND(RS690_MC_GART_FEATURE_ID, 0x42040800);
 
-		RS690_WRITE_MCIND(RS690_MC_GART_BASE,
-				  dev_priv->gart_info.bus_addr);
+		temp = dev_priv->gart_info.bus_addr & 0xfffff000;
+		temp |= (upper_32_bits(dev_priv->gart_info.bus_addr) & 0xff) << 4;
+		RS690_WRITE_MCIND(RS690_MC_GART_BASE, temp);
 
 		temp = RS690_READ_MCIND(dev_priv, RS690_MC_AGP_MODE_CONTROL);
 		RS690_WRITE_MCIND(RS690_MC_AGP_MODE_CONTROL, 0x01400000);
