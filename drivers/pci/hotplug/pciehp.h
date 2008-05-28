@@ -202,9 +202,13 @@ struct hpc_ops {
 #include <acpi/actypes.h>
 #include <linux/pci-acpi.h>
 
-extern int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev);
-#define pciehp_get_hp_hw_control_from_firmware(dev)			\
-	pciehp_acpi_get_hp_hw_control_from_firmware(dev)
+static inline int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
+{
+	u32 flags = (OSC_PCI_EXPRESS_NATIVE_HP_CONTROL |
+		     OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+	return acpi_get_hp_hw_control_from_firmware(dev, flags);
+}
+
 static inline int pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
 			struct hotplug_params *hpp)
 {

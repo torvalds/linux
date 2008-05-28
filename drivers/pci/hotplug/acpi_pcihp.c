@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/pci-acpi.h>
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/actypes.h>
@@ -299,7 +300,7 @@ free_and_return:
  *
  * @handle - the handle of the hotplug controller.
  */
-acpi_status acpi_run_oshp(acpi_handle handle)
+static acpi_status acpi_run_oshp(acpi_handle handle)
 {
 	acpi_status		status;
 	struct acpi_buffer	string = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -322,9 +323,6 @@ acpi_status acpi_run_oshp(acpi_handle handle)
 	kfree(string.pointer);
 	return status;
 }
-EXPORT_SYMBOL_GPL(acpi_run_oshp);
-
-
 
 /* acpi_get_hp_params_from_firmware
  *
@@ -374,6 +372,85 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 }
 EXPORT_SYMBOL_GPL(acpi_get_hp_params_from_firmware);
 
+/**
+ * acpi_get_hp_hw_control_from_firmware
+ * @dev: the pci_dev of the bridge that has a hotplug controller
+ * @flags: requested control bits for _OSC
+ *
+ * Attempt to take hotplug control from firmware.
+ */
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
+{
+	acpi_status status;
+	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
+	struct pci_dev *pdev = dev;
+	struct pci_bus *parent;
+	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	flags &= (OSC_PCI_EXPRESS_NATIVE_HP_CONTROL |
+		  OSC_SHPC_NATIVE_HP_CONTROL |
+		  OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+	if (!flags) {
+		err("Invalid flags %u specified!\n", flags);
+		return -EINVAL;
+	}
+
+	/*
+	 * Per PCI firmware specification, we should run the ACPI _OSC
+	 * method to get control of hotplug hardware before using it. If
+	 * an _OSC is missing, we look for an OSHP to do the same thing.
+	 * To handle different BIOS behavior, we look for _OSC and OSHP
+	 * within the scope of the hotplug controller and its parents,
+	 * upto the host bridge under which this controller exists.
+	 */
+	while (!handle) {
+		/*
+		 * This hotplug controller was not listed in the ACPI name
+		 * space at all. Try to get acpi handle of parent pci bus.
+		 */
+		if (!pdev || !pdev->bus->parent)
+			break;
+		parent = pdev->bus->parent;
+		dbg("Could not find %s in acpi namespace, trying parent\n",
+		    pci_name(pdev));
+		if (!parent->self)
+			/* Parent must be a host bridge */
+			handle = acpi_get_pci_rootbridge_handle(
+					pci_domain_nr(parent),
+					parent->number);
+		else
+			handle = DEVICE_ACPI_HANDLE(&(parent->self->dev));
+		pdev = parent->self;
+	}
+
+	while (handle) {
+		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
+		dbg("Trying to get hotplug control for %s \n",
+		    (char *)string.pointer);
+		status = pci_osc_control_set(handle, flags);
+		if (status == AE_NOT_FOUND)
+			status = acpi_run_oshp(handle);
+		if (ACPI_SUCCESS(status)) {
+			dbg("Gained control for hotplug HW for pci %s (%s)\n",
+			    pci_name(dev), (char *)string.pointer);
+			kfree(string.pointer);
+			return 0;
+		}
+		if (acpi_root_bridge(handle))
+			break;
+		chandle = handle;
+		status = acpi_get_parent(chandle, &handle);
+		if (ACPI_FAILURE(status))
+			break;
+	}
+
+	dbg("Cannot get control of hotplug hardware for pci %s\n",
+	    pci_name(dev));
+
+	kfree(string.pointer);
+	return -ENODEV;
+}
+EXPORT_SYMBOL(acpi_get_hp_hw_control_from_firmware);
 
 /* acpi_root_bridge - check to see if this acpi object is a root bridge
  *

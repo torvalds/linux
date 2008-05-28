@@ -1084,7 +1084,6 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 	dbg("%s: HPC at b:d:f:irq=0x%x:%x:%x:%x\n", __func__,
 			pdev->bus->number, PCI_SLOT(pdev->devfn),
 			PCI_FUNC(pdev->devfn), pdev->irq);
-	get_hp_hw_control_from_firmware(pdev);
 
 	/*
 	 * If this is the first controller to be initialized,

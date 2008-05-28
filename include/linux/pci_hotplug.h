@@ -227,9 +227,9 @@ struct hotplug_params {
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/actypes.h>
-extern acpi_status acpi_run_oshp(acpi_handle handle);
 extern acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 				struct hotplug_params *hpp);
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
 int acpi_root_bridge(acpi_handle handle);
 #endif
 #endif
