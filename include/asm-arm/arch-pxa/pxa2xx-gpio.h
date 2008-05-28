@@ -134,7 +134,11 @@
 #define GPIO93_CIF_DD_6		93	/* Camera data pin 6 */
 #define GPIO94_CIF_DD_5		94	/* Camera data pin 5 */
 #define GPIO95_CIF_DD_4		95	/* Camera data pin 4 */
+#define GPIO96_FFRXD		96	/* FFUART recieve */
+#define GPIO98_FFRTS		98	/* FFUART request to send */
 #define GPIO98_CIF_DD_0		98	/* Camera data pin 0 */
+#define GPIO99_FFTXD		99	/* FFUART transmit data */
+#define GPIO100_FFCTS		100	/* FFUART Clear to send */
 #define GPIO102_nPCE_1		102	/* PCMCIA (PXA27x) */
 #define GPIO103_CIF_DD_3	103	/* Camera data pin 3 */
 #define GPIO104_CIF_DD_2	104	/* Camera data pin 2 */
@@ -316,6 +320,8 @@
 #define GPIO85_nPCE_1_MD	(85 | GPIO_ALT_FN_1_OUT)
 #define GPIO85_CIF_LV_MD	(85 | GPIO_ALT_FN_3_IN)
 #define GPIO86_nPCE_1_MD	(86 | GPIO_ALT_FN_1_OUT)
+#define GPIO88_USBH1_PWR_MD	(88 | GPIO_ALT_FN_1_IN)
+#define GPIO89_USBH1_PEN_MD	(89 | GPIO_ALT_FN_2_OUT)
 #define GPIO90_CIF_DD_4_MD	(90 | GPIO_ALT_FN_3_IN)
 #define GPIO91_CIF_DD_5_MD	(91 | GPIO_ALT_FN_3_IN)
 #define GPIO92_MMCDAT0_MD	(92 | GPIO_ALT_FN_1_OUT)
@@ -324,8 +330,11 @@
 #define GPIO95_CIF_DD_4_MD	(95 | GPIO_ALT_FN_2_IN)
 #define GPIO95_KP_MKIN6_MD	(95 | GPIO_ALT_FN_3_IN)
 #define GPIO96_KP_DKIN3_MD	(96 | GPIO_ALT_FN_1_IN)
+#define GPIO96_FFRXD_MD		(96 | GPIO_ALT_FN_3_IN)
 #define GPIO97_KP_MKIN3_MD	(97 | GPIO_ALT_FN_3_IN)
 #define GPIO98_CIF_DD_0_MD	(98 | GPIO_ALT_FN_2_IN)
+#define GPIO98_FFRTS_MD		(98 | GPIO_ALT_FN_3_OUT)
+#define GPIO99_FFTXD_MD		(99 | GPIO_ALT_FN_3_OUT)
 #define GPIO100_KP_MKIN0_MD	(100 | GPIO_ALT_FN_1_IN)
 #define GPIO101_KP_MKIN1_MD	(101 | GPIO_ALT_FN_1_IN)
 #define GPIO102_nPCE_1_MD	(102 | GPIO_ALT_FN_1_OUT)
