@@ -297,34 +297,28 @@ void init_8259A(int auto_eoi)
 	 * outb_pic - this has to work on a wide range of PC hardware.
 	 */
 	outb_pic(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
-#ifndef CONFIG_X86_64
-	outb_pic(0x20 + 0, PIC_MASTER_IMR);	/* ICW2: 8259A-1 IR0-7 mapped to 0x20-0x27 */
-	outb_pic(1U << PIC_CASCADE_IR, PIC_MASTER_IMR);	/* 8259A-1 (the master) has a slave on IR2 */
-#else /* CONFIG_X86_64 */
-	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 */
+
+	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 on x86-64,
+	                       to 0x20-0x27 on i386 */
 	outb_pic(IRQ0_VECTOR, PIC_MASTER_IMR);
+
 	/* 8259A-1 (the master) has a slave on IR2 */
-	outb_pic(0x04, PIC_MASTER_IMR);
-#endif /* CONFIG_X86_64 */
+	outb_pic(1U << PIC_CASCADE_IR, PIC_MASTER_IMR);
+
 	if (auto_eoi)	/* master does Auto EOI */
 		outb_pic(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
 	else		/* master expects normal EOI */
 		outb_pic(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
 
 	outb_pic(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
-#ifndef CONFIG_X86_64
-	outb_pic(0x20 + 8, PIC_SLAVE_IMR);	/* ICW2: 8259A-2 IR0-7 mapped to 0x28-0x2f */
-	outb_pic(PIC_CASCADE_IR, PIC_SLAVE_IMR);	/* 8259A-2 is a slave on master's IR2 */
-	outb_pic(SLAVE_ICW4_DEFAULT, PIC_SLAVE_IMR); /* (slave's support for AEOI in flat mode is to be investigated) */
-#else /* CONFIG_X86_64 */
-	/* ICW2: 8259A-2 IR0-7 mapped to 0x38-0x3f */
+
+	/* ICW2: 8259A-2 IR0-7 mapped to IRQ8_VECTOR */
 	outb_pic(IRQ8_VECTOR, PIC_SLAVE_IMR);
 	/* 8259A-2 is a slave on master's IR2 */
 	outb_pic(PIC_CASCADE_IR, PIC_SLAVE_IMR);
 	/* (slave's support for AEOI in flat mode is to be investigated) */
 	outb_pic(SLAVE_ICW4_DEFAULT, PIC_SLAVE_IMR);
 
-#endif /* CONFIG_X86_64 */
 	if (auto_eoi)
 		/*
 		 * In AEOI mode we just have to mask the interrupt
