@@ -14,7 +14,6 @@
 #include "orion5x.h"
 
 #define IO_SPACE_LIMIT		0xffffffff
-#define IO_SPACE_REMAP		ORION5X_PCI_SYS_IO_BASE
 
 static inline void __iomem *
 __arch_ioremap(unsigned long paddr, size_t size, unsigned int mtype)
