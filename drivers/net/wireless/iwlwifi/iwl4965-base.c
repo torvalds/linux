@@ -3244,11 +3244,11 @@ static int iwl4965_read_ucode(struct iwl_priv *priv)
 }
 
 /**
- * iwl4965_alive_start - called after REPLY_ALIVE notification received
+ * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
- *                   Alive gets handled by iwl4965_init_alive_start()).
+ *                   Alive gets handled by iwl_init_alive_start()).
  */
-static void iwl4965_alive_start(struct iwl_priv *priv)
+static void iwl_alive_start(struct iwl_priv *priv)
 {
 	int ret = 0;
 
@@ -3272,7 +3272,6 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 	}
 
 	iwlcore_clear_stations_table(priv);
-
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
 		IWL_WARNING("Could not complete ALIVE transition [ntf]: %d\n",
@@ -3309,6 +3308,8 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 
 	/* Configure Bluetooth device coexistence support */
 	iwl4965_send_bt_config(priv);
+
+	iwl_reset_run_time_calib(priv);
 
 	/* Configure the adapter for unassociated operation */
 	iwl4965_commit_rxon(priv);
@@ -3554,7 +3555,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
  *
  *****************************************************************************/
 
-static void iwl4965_bg_init_alive_start(struct work_struct *data)
+static void iwl_bg_init_alive_start(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, init_alive_start.work);
@@ -3567,7 +3568,7 @@ static void iwl4965_bg_init_alive_start(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-static void iwl4965_bg_alive_start(struct work_struct *data)
+static void iwl_bg_alive_start(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, alive_start.work);
@@ -3576,7 +3577,7 @@ static void iwl4965_bg_alive_start(struct work_struct *data)
 		return;
 
 	mutex_lock(&priv->mutex);
-	iwl4965_alive_start(priv);
+	iwl_alive_start(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -5466,8 +5467,8 @@ static void iwl4965_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->beacon_update, iwl4965_bg_beacon_update);
 	INIT_WORK(&priv->set_monitor, iwl4965_bg_set_monitor);
 	INIT_DELAYED_WORK(&priv->post_associate, iwl4965_bg_post_associate);
-	INIT_DELAYED_WORK(&priv->init_alive_start, iwl4965_bg_init_alive_start);
-	INIT_DELAYED_WORK(&priv->alive_start, iwl4965_bg_alive_start);
+	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
+	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl4965_bg_scan_check);
 
 	iwl4965_hw_setup_deferred_work(priv);

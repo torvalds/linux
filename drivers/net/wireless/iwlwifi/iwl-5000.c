@@ -580,10 +580,6 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 
 	iwl5000_send_wimax_coex(priv);
 
-	/* Ask for statistics now, the uCode will send notification
-	 * periodically after association */
-	iwl_send_statistics_request(priv, CMD_ASYNC);
-
 	return 0;
 }
 

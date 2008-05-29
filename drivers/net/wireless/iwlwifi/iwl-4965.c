@@ -921,15 +921,6 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
-	memset(&(priv->sensitivity_data), 0,
-	       sizeof(struct iwl_sensitivity_data));
-	memset(&(priv->chain_noise_data), 0,
-	       sizeof(struct iwl_chain_noise_data));
-	for (i = 0; i < NUM_RX_CHAINS; i++)
-		priv->chain_noise_data.delta_gain_code[i] =
-				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
-#endif /* CONFIG_IWL4965_RUN_TIME_CALIB*/
 	ret = iwl_grab_nic_access(priv);
 	if (ret) {
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -996,9 +987,6 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Ask for statistics now, the uCode will send statistics notification
-	 * periodically after association */
-	iwl_send_statistics_request(priv, CMD_ASYNC);
 	return ret;
 }
 
