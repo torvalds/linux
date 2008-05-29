@@ -15,14 +15,14 @@
 struct virtio_blk_config
 {
 	/* The capacity (in 512-byte sectors). */
-	__le64 capacity;
+	__u64 capacity;
 	/* The maximum segment size (if VIRTIO_BLK_F_SIZE_MAX) */
-	__le32 size_max;
+	__u32 size_max;
 	/* The maximum number of segments (if VIRTIO_BLK_F_SEG_MAX) */
-	__le32 seg_max;
+	__u32 seg_max;
 	/* geometry the device (if VIRTIO_BLK_F_GEOMETRY) */
 	struct virtio_blk_geometry {
-		__le16 cylinders;
+		__u16 cylinders;
 		__u8 heads;
 		__u8 sectors;
 	} geometry;
