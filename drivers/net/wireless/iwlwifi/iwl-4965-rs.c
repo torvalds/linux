@@ -1336,7 +1336,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 				lq_sta->search_better_tbl = 1;
 				goto out;
 			}
-
+			break;
 		case IWL_LEGACY_SWITCH_SISO:
 			IWL_DEBUG_RATE("LQ: Legacy switch to SISO\n");
 
@@ -1422,9 +1422,9 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 				lq_sta->search_better_tbl = 1;
 				goto out;
 			}
-
+			break;
 		case IWL_SISO_SWITCH_MIMO2:
-			IWL_DEBUG_RATE("LQ: SISO switch to MIMO\n");
+			IWL_DEBUG_RATE("LQ: SISO switch to MIMO2\n");
 			memcpy(search_tbl, tbl, sz);
 			search_tbl->is_SGI = 0;
 			search_tbl->ant_type = ANT_AB; /*FIXME:RS*/
@@ -1689,6 +1689,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	u8 active_tbl = 0;
 	u8 done_search = 0;
 	u16 high_low;
+	s32 sr;
 #ifdef CONFIG_IWL4965_HT
 	u8 tid = MAX_TID_COUNT;
 #endif
@@ -1864,6 +1865,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	low = high_low & 0xff;
 	high = (high_low >> 8) & 0xff;
 
+	sr = window->success_ratio;
+
 	/* Collect measured throughputs for current and adjacent rates */
 	current_tpt = window->average_tpt;
 	if (low != IWL_RATE_INVALID)
@@ -1871,19 +1874,22 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (high != IWL_RATE_INVALID)
 		high_tpt = tbl->win[high].average_tpt;
 
-	/* Assume rate increase */
-	scale_action = 1;
+	scale_action = 0;
 
 	/* Too many failures, decrease rate */
-	if ((window->success_ratio <= IWL_RATE_DECREASE_TH) ||
-	    (current_tpt == 0)) {
+	if ((sr <= IWL_RATE_DECREASE_TH) || (current_tpt == 0)) {
 		IWL_DEBUG_RATE("decrease rate because of low success_ratio\n");
 		scale_action = -1;
 
 	/* No throughput measured yet for adjacent rates; try increase. */
 	} else if ((low_tpt == IWL_INVALID_VALUE) &&
-		   (high_tpt == IWL_INVALID_VALUE))
-		scale_action = 1;
+		   (high_tpt == IWL_INVALID_VALUE)) {
+
+		if (high != IWL_RATE_INVALID && sr >= IWL_RATE_INCREASE_TH)
+			scale_action = 1;
+		else if (low != IWL_RATE_INVALID)
+			scale_action = -1;
+	}
 
 	/* Both adjacent throughputs are measured, but neither one has better
 	 * throughput; we're using the best rate, don't change it! */
@@ -1899,9 +1905,10 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		/* Higher adjacent rate's throughput is measured */
 		if (high_tpt != IWL_INVALID_VALUE) {
 			/* Higher rate has better throughput */
-			if (high_tpt > current_tpt)
+			if (high_tpt > current_tpt &&
+					sr >= IWL_RATE_INCREASE_TH) {
 				scale_action = 1;
-			else {
+			} else {
 				IWL_DEBUG_RATE
 				    ("decrease rate because of high tpt\n");
 				scale_action = -1;
@@ -1914,23 +1921,17 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 				IWL_DEBUG_RATE
 				    ("decrease rate because of low tpt\n");
 				scale_action = -1;
-			} else
+			} else if (sr >= IWL_RATE_INCREASE_TH) {
 				scale_action = 1;
+			}
 		}
 	}
 
 	/* Sanity check; asked for decrease, but success rate or throughput
 	 * has been good at old rate.  Don't change it. */
-	if (scale_action == -1) {
-		if ((low != IWL_RATE_INVALID) &&
-		    ((window->success_ratio > IWL_RATE_HIGH_TH) ||
+	if ((scale_action == -1) && (low != IWL_RATE_INVALID) &&
+		    ((sr > IWL_RATE_HIGH_TH) ||
 		     (current_tpt > (100 * tbl->expected_tpt[low]))))
-			scale_action = 0;
-
-	/* Sanity check; asked for increase, but success rate has not been great
-	 * even at old rate, higher rate will be worse.  Don't change it. */
-	} else if ((scale_action == 1) &&
-		   (window->success_ratio < IWL_RATE_INCREASE_TH))
 		scale_action = 0;
 
 	switch (scale_action) {
@@ -1959,7 +1960,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		    "high %d type %d\n",
 		     index, scale_action, low, high, tbl->lq_type);
 
- lq_update:
+lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq) {
 		rate = rate_n_flags_from_tbl(tbl, index, is_green);
