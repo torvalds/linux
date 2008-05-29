@@ -550,11 +550,7 @@ void __init setup_arch(char **cmdline_p)
 	prom_init();
 
 #ifdef CONFIG_EARLY_PRINTK
-	{
-		extern void setup_early_printk(void);
-
-		setup_early_printk();
-	}
+	setup_early_printk();
 #endif
 	cpu_report();
 	check_bugs_early();
