@@ -1052,9 +1052,8 @@ static __init void disable_smp(void)
 {
 	cpu_present_map = cpumask_of_cpu(0);
 	cpu_possible_map = cpumask_of_cpu(0);
-#ifdef CONFIG_X86_32
 	smpboot_clear_io_apic_irqs();
-#endif
+
 	if (smp_found_config)
 		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	else
