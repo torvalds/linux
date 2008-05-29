@@ -48,6 +48,7 @@ static struct kmem_cache *cfq_ioc_pool;
 
 static DEFINE_PER_CPU(unsigned long, ioc_count);
 static struct completion *ioc_gone;
+static DEFINE_SPINLOCK(ioc_gone_lock);
 
 #define CFQ_PRIO_LISTS		IOPRIO_BE_NR
 #define cfq_class_idle(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_IDLE)
@@ -1177,8 +1178,19 @@ static void cfq_cic_free_rcu(struct rcu_head *head)
 	kmem_cache_free(cfq_ioc_pool, cic);
 	elv_ioc_count_dec(ioc_count);
 
-	if (ioc_gone && !elv_ioc_count_read(ioc_count))
-		complete(ioc_gone);
+	if (ioc_gone) {
+		/*
+		 * CFQ scheduler is exiting, grab exit lock and check
+		 * the pending io context count. If it hits zero,
+		 * complete ioc_gone and set it back to NULL
+		 */
+		spin_lock(&ioc_gone_lock);
+		if (ioc_gone && !elv_ioc_count_read(ioc_count)) {
+			complete(ioc_gone);
+			ioc_gone = NULL;
+		}
+		spin_unlock(&ioc_gone_lock);
+	}
 }
 
 static void cfq_cic_free(struct cfq_io_context *cic)
@@ -2317,7 +2329,7 @@ static void __exit cfq_exit(void)
 	 * pending RCU callbacks
 	 */
 	if (elv_ioc_count_read(ioc_count))
-		wait_for_completion(ioc_gone);
+		wait_for_completion(&all_gone);
 	cfq_slab_kill();
 }
 
