@@ -59,9 +59,11 @@ int __init copy_e820_map(struct e820entry *biosmap, int nr_map);
 void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
 
+
+void __init i386_start_kernel(void);
+
+extern unsigned long init_pg_tables_start;
 extern unsigned long init_pg_tables_end;
-
-
 
 #endif /* __i386__ */
 #endif /* _SETUP */

@@ -1211,6 +1211,7 @@ asmlinkage void __init xen_start_kernel(void)
 
 	pgd = (pgd_t *)xen_start_info->pt_base;
 
+	init_pg_tables_start = __pa(pgd);
 	init_pg_tables_end = __pa(pgd) + xen_start_info->nr_pt_frames*PAGE_SIZE;
 
 	init_mm.pgd = pgd; /* use the Xen pagetables to start */
@@ -1246,5 +1247,5 @@ asmlinkage void __init xen_start_kernel(void)
 		add_preferred_console("hvc", 0, NULL);
 
 	/* Start the world */
-	start_kernel();
+	i386_start_kernel();
 }

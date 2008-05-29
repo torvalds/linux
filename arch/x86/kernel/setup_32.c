@@ -71,6 +71,7 @@
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
    address, and must not be in the .bss segment! */
+unsigned long init_pg_tables_start __initdata = ~0UL;
 unsigned long init_pg_tables_end __initdata = ~0UL;
 
 /*
@@ -485,6 +486,10 @@ static void __init reserve_initrd(void)
 		return;
 	}
 
+	printk(KERN_INFO "old RAMDISK: %08llx - %08llx\n", ramdisk_image,
+			ramdisk_end);
+
+
 	if (ramdisk_end <= end_of_lowmem) {
 		/* All in lowmem, easy case */
 		/*
@@ -511,6 +516,8 @@ static void __init reserve_initrd(void)
 			 "NEW RAMDISK");
 	initrd_start = ramdisk_here + PAGE_OFFSET;
 	initrd_end   = initrd_start + ramdisk_size;
+	printk(KERN_INFO "Allocated new RAMDISK: %08llx - %08llx\n",
+			 ramdisk_here, ramdisk_here + ramdisk_size);
 
 	do_relocate_initrd = true;
 }

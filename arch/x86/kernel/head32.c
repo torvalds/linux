@@ -76,7 +76,8 @@ void __init i386_start_kernel(void)
 		reserve_early(ramdisk_image, ramdisk_end, "RAMDISK");
 	}
 #endif
-	reserve_early(__pa_symbol(&_end), init_pg_tables_end, "INIT_PG_TABLE");
+	reserve_early(init_pg_tables_start, init_pg_tables_end,
+			"INIT_PG_TABLE");
 
 	reserve_ebda_region();
 
