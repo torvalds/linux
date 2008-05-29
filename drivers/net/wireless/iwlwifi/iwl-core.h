@@ -342,4 +342,10 @@ static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
 	return priv->cfg->ops->hcmd->rxon_assoc(priv);
 }
 
+static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
+			struct iwl_priv *priv, enum ieee80211_band band)
+{
+	return priv->hw->wiphy->bands[band];
+}
+
 #endif /* __iwl_core_h__ */

@@ -87,12 +87,6 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-static const struct ieee80211_supported_band *iwl_get_hw_mode(
-		struct iwl_priv *priv, enum ieee80211_band band)
-{
-	return priv->hw->wiphy->bands[band];
-}
-
 static int iwl4965_is_empty_essid(const char *essid, int essid_len)
 {
 	/* Single white space is for Linksys APs */
