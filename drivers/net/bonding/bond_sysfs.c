@@ -50,6 +50,7 @@ extern struct bond_parm_tbl bond_mode_tbl[];
 extern struct bond_parm_tbl bond_lacp_tbl[];
 extern struct bond_parm_tbl xmit_hashtype_tbl[];
 extern struct bond_parm_tbl arp_validate_tbl[];
+extern struct bond_parm_tbl fail_over_mac_tbl[];
 
 static int expected_refcount = -1;
 static struct class *netdev_class;
@@ -111,7 +112,6 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 	char *ifname;
 	int rv, res = count;
 	struct bonding *bond;
-	struct bonding *nxt;
 
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
@@ -122,7 +122,7 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 	if (command[0] == '+') {
 		printk(KERN_INFO DRV_NAME
 			": %s is being created...\n", ifname);
-		rv = bond_create(ifname, &bonding_defaults, &bond);
+		rv = bond_create(ifname, &bonding_defaults);
 		if (rv) {
 			printk(KERN_INFO DRV_NAME ": Bond creation failed.\n");
 			res = rv;
@@ -134,7 +134,7 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 		rtnl_lock();
 		down_write(&bonding_rwsem);
 
-		list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list)
+		list_for_each_entry(bond, &bond_dev_list, bond_list)
 			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
 				/* check the ref count on the bond's kobject.
 				 * If it's > expected, then there's a file open,
@@ -548,42 +548,37 @@ static ssize_t bonding_show_fail_over_mac(struct device *d, struct device_attrib
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.fail_over_mac) + 1;
+	return sprintf(buf, "%s %d\n",
+		       fail_over_mac_tbl[bond->params.fail_over_mac].modename,
+		       bond->params.fail_over_mac);
 }
 
 static ssize_t bonding_store_fail_over_mac(struct device *d, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int new_value;
-	int ret = count;
 	struct bonding *bond = to_bond(d);
 
 	if (bond->slave_cnt != 0) {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: Can't alter fail_over_mac with slaves in bond.\n",
 		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
+		return -EPERM;
 	}
 
-	if (sscanf(buf, "%d", &new_value) != 1) {
+	new_value = bond_parse_parm(buf, fail_over_mac_tbl);
+	if (new_value < 0) {
 		printk(KERN_ERR DRV_NAME
-		       ": %s: no fail_over_mac value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
+		       ": %s: Ignoring invalid fail_over_mac value %s.\n",
+		       bond->dev->name, buf);
+		return -EINVAL;
 	}
 
-	if ((new_value == 0) || (new_value == 1)) {
-		bond->params.fail_over_mac = new_value;
-		printk(KERN_INFO DRV_NAME ": %s: Setting fail_over_mac to %d.\n",
-		       bond->dev->name, new_value);
-	} else {
-		printk(KERN_INFO DRV_NAME
-		       ": %s: Ignoring invalid fail_over_mac value %d.\n",
-		       bond->dev->name, new_value);
-	}
-out:
-	return ret;
+	bond->params.fail_over_mac = new_value;
+	printk(KERN_INFO DRV_NAME ": %s: Setting fail_over_mac to %s (%d).\n",
+	       bond->dev->name, fail_over_mac_tbl[new_value].modename,
+	       new_value);
+
+	return count;
 }
 
 static DEVICE_ATTR(fail_over_mac, S_IRUGO | S_IWUSR, bonding_show_fail_over_mac, bonding_store_fail_over_mac);
@@ -951,6 +946,45 @@ out:
 }
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR, bonding_show_lacp, bonding_store_lacp);
 
+/*
+ * Show and set the number of grat ARP to send after a failover event.
+ */
+static ssize_t bonding_show_n_grat_arp(struct device *d,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.num_grat_arp);
+}
+
+static ssize_t bonding_store_n_grat_arp(struct device *d,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: no num_grat_arp value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (new_value < 0 || new_value > 255) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: Invalid num_grat_arp value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	} else {
+		bond->params.num_grat_arp = new_value;
+	}
+out:
+	return ret;
+}
+static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR, bonding_show_n_grat_arp, bonding_store_n_grat_arp);
 /*
  * Show and set the MII monitor interval.  There are two tricky bits
  * here.  First, if MII monitoring is activated, then we must disable
@@ -1388,6 +1422,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_updelay.attr,
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_xmit_hash_policy.attr,
+	&dev_attr_num_grat_arp.attr,
 	&dev_attr_miimon.attr,
 	&dev_attr_primary.attr,
 	&dev_attr_use_carrier.attr,
