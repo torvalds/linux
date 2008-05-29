@@ -911,6 +911,7 @@ void iwl_uninit_drv(struct iwl_priv *priv)
 	iwl_free_calib_results(priv);
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
+	kfree(priv->scan);
 }
 EXPORT_SYMBOL(iwl_uninit_drv);
 
