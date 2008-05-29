@@ -367,6 +367,7 @@ DEBUGFS_READ_FILE_OPS(tx_statistics);
 int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {
 	struct iwl_debugfs *dbgfs;
+	struct dentry *phyd = priv->hw->wiphy->debugfsdir;
 
 	dbgfs = kzalloc(sizeof(struct iwl_debugfs), GFP_KERNEL);
 	if (!dbgfs) {
@@ -375,7 +376,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	priv->dbgfs = dbgfs;
 	dbgfs->name = name;
-	dbgfs->dir_drv = debugfs_create_dir(name, NULL);
+	dbgfs->dir_drv = debugfs_create_dir(name, phyd);
 	if (!dbgfs->dir_drv || IS_ERR(dbgfs->dir_drv)){
 		goto err;
 	}
