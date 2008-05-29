@@ -928,12 +928,12 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
 
-	unlock_policy_rwsem_write(cpu);
-
 	if (ret) {
 		dprintk("setting policy failed\n");
 		goto err_out_unregister;
 	}
+
+	unlock_policy_rwsem_write(cpu);
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	module_put(cpufreq_driver->owner);
