@@ -237,6 +237,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 ******************************************************/
 void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 			 u32 num_events, u32 mode);
+void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
 
 /*************** DRIVER STATUS FUNCTIONS   *****/
