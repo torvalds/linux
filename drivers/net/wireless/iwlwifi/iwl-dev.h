@@ -1242,6 +1242,36 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 	clear_bit(txq_id, &priv->txq_ctx_active_msk);
 }
 
+#ifdef CONFIG_IWLWIF_DEBUG
+const char *iwl_get_tx_fail_reason(u32 status);
+#else
+static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
+#endif
+
+
+#ifdef CONFIG_IWL4965_HT
+static inline int iwl_get_ra_sta_id(struct iwl_priv *priv,
+				    struct ieee80211_hdr *hdr)
+{
+	if (priv->iw_mode == IEEE80211_IF_TYPE_STA) {
+		return IWL_AP_ID;
+	} else {
+		u8 *da = ieee80211_get_DA(hdr);
+		return iwl_find_station(priv, da);
+	}
+}
+
+static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
+							 int txq_id, int idx)
+{
+	if (priv->txq[txq_id].txb[idx].skb[0])
+		return (struct ieee80211_hdr *)priv->txq[txq_id].
+				txb[idx].skb[0]->data;
+	return NULL;
+}
+#endif
+
+
 static inline int iwl_is_associated(struct iwl_priv *priv)
 {
 	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;

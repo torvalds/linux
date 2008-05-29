@@ -915,33 +915,7 @@ int iwl4965_is_network_packet(struct iwl_priv *priv, struct ieee80211_hdr *heade
 	return 1;
 }
 
-#define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 
-static const char *iwl4965_get_tx_fail_reason(u32 status)
-{
-	switch (status & TX_STATUS_MSK) {
-	case TX_STATUS_SUCCESS:
-		return "SUCCESS";
-		TX_STATUS_ENTRY(SHORT_LIMIT);
-		TX_STATUS_ENTRY(LONG_LIMIT);
-		TX_STATUS_ENTRY(FIFO_UNDERRUN);
-		TX_STATUS_ENTRY(MGMNT_ABORT);
-		TX_STATUS_ENTRY(NEXT_FRAG);
-		TX_STATUS_ENTRY(LIFE_EXPIRE);
-		TX_STATUS_ENTRY(DEST_PS);
-		TX_STATUS_ENTRY(ABORTED);
-		TX_STATUS_ENTRY(BT_RETRY);
-		TX_STATUS_ENTRY(STA_INVALID);
-		TX_STATUS_ENTRY(FRAG_DROPPED);
-		TX_STATUS_ENTRY(TID_DISABLE);
-		TX_STATUS_ENTRY(FRAME_FLUSHED);
-		TX_STATUS_ENTRY(INSUFFICIENT_CF_POLL);
-		TX_STATUS_ENTRY(TX_LOCKED);
-		TX_STATUS_ENTRY(NO_BEACON_ON_RADAR);
-	}
-
-	return "UNKNOWN";
-}
 
 /**
  * iwl4965_scan_cancel - Cancel any currently executing HW scan
@@ -1606,40 +1580,12 @@ int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	return nfreed;
 }
 
-static int iwl4965_is_tx_success(u32 status)
-{
-	status &= TX_STATUS_MSK;
-	return (status == TX_STATUS_SUCCESS)
-	    || (status == TX_STATUS_DIRECT_DONE);
-}
-
 /******************************************************************************
  *
  * Generic RX handler implementations
  *
  ******************************************************************************/
 #ifdef CONFIG_IWL4965_HT
-
-static inline int iwl4965_get_ra_sta_id(struct iwl_priv *priv,
-				    struct ieee80211_hdr *hdr)
-{
-	if (priv->iw_mode == IEEE80211_IF_TYPE_STA)
-		return IWL_AP_ID;
-	else {
-		u8 *da = ieee80211_get_DA(hdr);
-		return iwl_find_station(priv, da);
-	}
-}
-
-static struct ieee80211_hdr *iwl4965_tx_queue_get_hdr(
-	struct iwl_priv *priv, int txq_id, int idx)
-{
-	if (priv->txq[txq_id].txb[idx].skb[0])
-		return (struct ieee80211_hdr *)priv->txq[txq_id].
-				txb[idx].skb[0]->data;
-	return NULL;
-}
-
 static inline u32 iwl4965_get_scd_ssn(struct iwl4965_tx_resp *tx_resp)
 {
 	__le32 *scd_ssn = (__le32 *)((u32 *)&tx_resp->status +
@@ -1687,7 +1633,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
 		info->status.retry_count = tx_resp->failure_frame;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-		info->flags |= iwl4965_is_tx_success(status)?
+		info->flags |= iwl_is_tx_success(status)?
 			IEEE80211_TX_STAT_ACK : 0;
 		iwl4965_hwrate_to_tx_control(priv,
 					     le32_to_cpu(tx_resp->rate_n_flags),
@@ -1720,7 +1666,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 			IWL_DEBUG_TX_REPLY("FrameCnt = %d, txq_id=%d idx=%d\n",
 					   agg->frame_count, txq_id, idx);
 
-			hdr = iwl4965_tx_queue_get_hdr(priv, txq_id, idx);
+			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
@@ -1800,14 +1746,14 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	memset(&info->status, 0, sizeof(info->status));
 
 #ifdef CONFIG_IWL4965_HT
-	hdr = iwl4965_tx_queue_get_hdr(priv, txq_id, index);
+	hdr = iwl_tx_queue_get_hdr(priv, txq_id, index);
 	fc = le16_to_cpu(hdr->frame_control);
 	if (ieee80211_is_qos_data(fc)) {
 		qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
 		tid = qc[0] & 0xf;
 	}
 
-	sta_id = iwl4965_get_ra_sta_id(priv, hdr);
+	sta_id = iwl_get_ra_sta_id(priv, hdr);
 	if (txq->sched_retry && unlikely(sta_id == IWL_INVALID_STATION)) {
 		IWL_ERROR("Station not known\n");
 		return;
@@ -1825,8 +1771,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		iwl4965_tx_status_reply_tx(priv, agg,
 				(struct iwl4965_tx_resp_agg *)tx_resp, index);
 
-		if ((tx_resp->frame_count == 1) &&
-		    !iwl4965_is_tx_success(status)) {
+		if ((tx_resp->frame_count == 1) && !iwl_is_tx_success(status)) {
 			/* TODO: send BAR */
 		}
 
@@ -1856,12 +1801,12 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 	info->status.retry_count = tx_resp->failure_frame;
 	info->flags |=
-	    iwl4965_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
+	    iwl_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
 	iwl4965_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
 				     info);
 
 	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) rate_n_flags 0x%x "
-		     "retries %d\n", txq_id, iwl4965_get_tx_fail_reason(status),
+		     "retries %d\n", txq_id, iwl_get_tx_fail_reason(status),
 		     status, le32_to_cpu(tx_resp->rate_n_flags),
 		     tx_resp->failure_frame);
 

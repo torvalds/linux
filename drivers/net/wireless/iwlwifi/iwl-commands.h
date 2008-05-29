@@ -1365,6 +1365,15 @@ enum {
 	TX_ABORT_REQUIRED_MSK = 0x80000000,	/* bits 31:31 */
 };
 
+static inline int iwl_is_tx_success(u32 status)
+{
+	status &= TX_STATUS_MSK;
+	return (status == TX_STATUS_SUCCESS)
+	    || (status == TX_STATUS_DIRECT_DONE);
+}
+
+
+
 /* *******************************
  * TX aggregation status
  ******************************* */
