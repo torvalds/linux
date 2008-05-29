@@ -1432,7 +1432,8 @@ extern void ata_sff_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_sff_dumb_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_sff_dev_select(struct ata_port *ap, unsigned int device);
 extern u8 ata_sff_check_status(struct ata_port *ap);
-extern u8 ata_sff_altstatus(struct ata_port *ap);
+extern void ata_sff_pause(struct ata_port *ap);
+extern void ata_sff_dma_pause(struct ata_port *ap);
 extern int ata_sff_busy_sleep(struct ata_port *ap,
 			      unsigned long timeout_pat, unsigned long timeout);
 extern int ata_sff_wait_ready(struct ata_link *link, unsigned long deadline);
@@ -1491,19 +1492,6 @@ extern int ata_pci_sff_init_one(struct pci_dev *pdev,
 				const struct ata_port_info * const * ppi,
 				struct scsi_host_template *sht, void *host_priv);
 #endif /* CONFIG_PCI */
-
-/**
- *	ata_sff_pause - Flush writes and pause 400 nanoseconds.
- *	@ap: Port to wait for.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-static inline void ata_sff_pause(struct ata_port *ap)
-{
-	ata_sff_altstatus(ap);
-	ndelay(400);
-}
 
 /**
  *	ata_sff_busy_wait - Wait for a port status register
