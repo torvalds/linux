@@ -121,7 +121,7 @@ static u16 opcode_table[256] = {
 	0, 0, 0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
 	0, 0, 0, 0,
 	/* 0x68 - 0x6F */
-	0, 0, SrcImmByte | Mov | Stack, 0,
+	SrcImm | Mov | Stack, 0, SrcImmByte | Mov | Stack, 0,
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
 	/* 0x70 - 0x77 */
@@ -1424,6 +1424,7 @@ special_insn:
 			goto cannot_emulate;
 		c->dst.val = (s32) c->src.val;
 		break;
+	case 0x68: /* push imm */
 	case 0x6a: /* push imm8 */
 		emulate_push(ctxt);
 		break;
