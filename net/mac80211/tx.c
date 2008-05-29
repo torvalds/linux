@@ -1215,6 +1215,45 @@ retry:
 
 /* device xmit handlers */
 
+static int ieee80211_skb_resize(struct ieee80211_local *local,
+				struct sk_buff *skb,
+				int head_need, bool may_encrypt)
+{
+	int tail_need = 0;
+
+	/*
+	 * This could be optimised, devices that do full hardware
+	 * crypto (including TKIP MMIC) need no tailroom... But we
+	 * have no drivers for such devices currently.
+	 */
+	if (may_encrypt) {
+		tail_need = IEEE80211_ENCRYPT_TAILROOM;
+		tail_need -= skb_tailroom(skb);
+		tail_need = max_t(int, tail_need, 0);
+	}
+
+	if (head_need || tail_need) {
+		/* Sorry. Can't account for this any more */
+		skb_orphan(skb);
+	}
+
+	if (skb_header_cloned(skb))
+		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
+	else
+		I802_DEBUG_INC(local->tx_expand_skb_head);
+
+	if (pskb_expand_head(skb, head_need, tail_need, GFP_ATOMIC)) {
+		printk(KERN_DEBUG "%s: failed to reallocate TX buffer\n",
+		       wiphy_name(local->hw.wiphy));
+		return -ENOMEM;
+	}
+
+	/* update truesize too */
+	skb->truesize += head_need + tail_need;
+
+	return 0;
+}
+
 int ieee80211_master_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
@@ -1222,6 +1261,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 	struct net_device *odev = NULL;
 	struct ieee80211_sub_if_data *osdata;
 	int headroom;
+	bool may_encrypt;
 	int ret;
 
 	if (info->control.ifindex)
@@ -1241,13 +1281,18 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 
 	osdata = IEEE80211_DEV_TO_SUB_IF(odev);
 
-	headroom = osdata->local->tx_headroom + IEEE80211_ENCRYPT_HEADROOM;
-	if (skb_headroom(skb) < headroom) {
-		if (pskb_expand_head(skb, headroom, 0, GFP_ATOMIC)) {
-			dev_kfree_skb(skb);
-			dev_put(odev);
-			return 0;
-		}
+	may_encrypt = !(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT);
+
+	headroom = osdata->local->tx_headroom;
+	if (may_encrypt)
+		headroom += IEEE80211_ENCRYPT_HEADROOM;
+	headroom -= skb_headroom(skb);
+	headroom = max_t(int, 0, headroom);
+
+	if (ieee80211_skb_resize(osdata->local, skb, headroom, may_encrypt)) {
+		dev_kfree_skb(skb);
+		dev_put(odev);
+		return 0;
 	}
 
 	info->control.vif = &osdata->vif;
@@ -1509,32 +1554,26 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * build in headroom in __dev_alloc_skb() (linux/skbuff.h) and
 	 * alloc_skb() (net/core/skbuff.c)
 	 */
-	head_need = hdrlen + encaps_len + meshhdrlen + local->tx_headroom;
-	head_need -= skb_headroom(skb);
+	head_need = hdrlen + encaps_len + meshhdrlen - skb_headroom(skb);
 
-	/* We are going to modify skb data, so make a copy of it if happens to
-	 * be cloned. This could happen, e.g., with Linux bridge code passing
-	 * us broadcast frames. */
+	/*
+	 * So we need to modify the skb header and hence need a copy of
+	 * that. The head_need variable above doesn't, so far, include
+	 * the needed header space that we don't need right away. If we
+	 * can, then we don't reallocate right now but only after the
+	 * frame arrives at the master device (if it does...)
+	 *
+	 * If we cannot, however, then we will reallocate to include all
+	 * the ever needed space. Also, if we need to reallocate it anyway,
+	 * make it big enough for everything we may ever need.
+	 */
 
 	if (head_need > 0 || skb_header_cloned(skb)) {
-#if 0
-		printk(KERN_DEBUG "%s: need to reallocate buffer for %d bytes "
-		       "of headroom\n", dev->name, head_need);
-#endif
-
-		if (skb_header_cloned(skb))
-			I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
-		else
-			I802_DEBUG_INC(local->tx_expand_skb_head);
-		/* Since we have to reallocate the buffer, make sure that there
-		 * is enough room for possible WEP IV/ICV and TKIP (8 bytes
-		 * before payload and 12 after). */
-		if (pskb_expand_head(skb, (head_need > 0 ? head_need + 8 : 8),
-				     12, GFP_ATOMIC)) {
-			printk(KERN_DEBUG "%s: failed to reallocate TX buffer"
-			       "\n", dev->name);
+		head_need += IEEE80211_ENCRYPT_HEADROOM;
+		head_need += local->tx_headroom;
+		head_need = max_t(int, 0, head_need);
+		if (ieee80211_skb_resize(local, skb, head_need, true))
 			goto fail;
-		}
 	}
 
 	if (encaps_data) {

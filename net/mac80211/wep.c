@@ -93,13 +93,9 @@ static u8 *ieee80211_wep_add_iv(struct ieee80211_local *local,
 	fc |= IEEE80211_FCTL_PROTECTED;
 	hdr->frame_control = cpu_to_le16(fc);
 
-	if ((skb_headroom(skb) < WEP_IV_LEN ||
-	     skb_tailroom(skb) < WEP_ICV_LEN)) {
-		I802_DEBUG_INC(local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, WEP_IV_LEN, WEP_ICV_LEN,
-					      GFP_ATOMIC)))
-			return NULL;
-	}
+	if (WARN_ON(skb_tailroom(skb) < WEP_ICV_LEN ||
+		    skb_headroom(skb) < WEP_IV_LEN))
+		return NULL;
 
 	hdrlen = ieee80211_get_hdrlen(fc);
 	newhdr = skb_push(skb, WEP_IV_LEN);

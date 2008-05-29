@@ -79,6 +79,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	struct sk_buff *skb = tx->skb;
 	int authenticator;
 	int wpa_test = 0;
+	int tail;
 
 	fc = tx->fc;
 
@@ -98,16 +99,13 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 	}
 
-	if (skb_tailroom(skb) < MICHAEL_MIC_LEN) {
-		I802_DEBUG_INC(tx->local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, TKIP_IV_LEN,
-					      MICHAEL_MIC_LEN + TKIP_ICV_LEN,
-					      GFP_ATOMIC))) {
-			printk(KERN_DEBUG "%s: failed to allocate more memory "
-			       "for Michael MIC\n", tx->dev->name);
-			return TX_DROP;
-		}
-	}
+	tail = MICHAEL_MIC_LEN;
+	if (!(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+		tail += TKIP_ICV_LEN;
+
+	if (WARN_ON(skb_tailroom(skb) < tail ||
+		    skb_headroom(skb) < TKIP_IV_LEN))
+		return TX_DROP;
 
 #if 0
 	authenticator = fc & IEEE80211_FCTL_FROMDS; /* FIX */
@@ -188,7 +186,7 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int hdrlen, len, tailneed;
+	int hdrlen, len, tail;
 	u16 fc;
 	u8 *pos;
 
@@ -199,7 +197,7 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
 		/* hwaccel - with no need for preallocated room for IV/ICV */
 		info->control.hw_key = &tx->key->conf;
-		return TX_CONTINUE;
+		return 0;
 	}
 
 	fc = le16_to_cpu(hdr->frame_control);
@@ -207,17 +205,13 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	len = skb->len - hdrlen;
 
 	if (tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
-		tailneed = 0;
+		tail = 0;
 	else
-		tailneed = TKIP_ICV_LEN;
+		tail = TKIP_ICV_LEN;
 
-	if ((skb_headroom(skb) < TKIP_IV_LEN ||
-	     skb_tailroom(skb) < tailneed)) {
-		I802_DEBUG_INC(tx->local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, TKIP_IV_LEN, tailneed,
-					      GFP_ATOMIC)))
-			return -1;
-	}
+	if (WARN_ON(skb_tailroom(skb) < tail ||
+		    skb_headroom(skb) < TKIP_IV_LEN))
+		return -1;
 
 	pos = skb_push(skb, TKIP_IV_LEN);
 	memmove(pos, pos + TKIP_IV_LEN, hdrlen);
@@ -432,7 +426,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int hdrlen, len, tailneed;
+	int hdrlen, len, tail;
 	u16 fc;
 	u8 *pos, *pn, *b_0, *aad, *scratch;
 	int i;
@@ -445,7 +439,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 		/* hwaccel - with no need for preallocated room for CCMP "
 		 * header or MIC fields */
 		info->control.hw_key = &tx->key->conf;
-		return TX_CONTINUE;
+		return 0;
 	}
 
 	scratch = key->u.ccmp.tx_crypto_buf;
@@ -457,17 +451,13 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	len = skb->len - hdrlen;
 
 	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
-		tailneed = 0;
+		tail = 0;
 	else
-		tailneed = CCMP_MIC_LEN;
+		tail = CCMP_MIC_LEN;
 
-	if ((skb_headroom(skb) < CCMP_HDR_LEN ||
-	     skb_tailroom(skb) < tailneed)) {
-		I802_DEBUG_INC(tx->local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, CCMP_HDR_LEN, tailneed,
-					      GFP_ATOMIC)))
-			return -1;
-	}
+	if (WARN_ON(skb_tailroom(skb) < tail ||
+		    skb_headroom(skb) < CCMP_HDR_LEN))
+		return -1;
 
 	pos = skb_push(skb, CCMP_HDR_LEN);
 	memmove(pos, pos + CCMP_HDR_LEN, hdrlen);
