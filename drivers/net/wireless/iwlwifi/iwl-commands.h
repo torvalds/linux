@@ -373,7 +373,7 @@ struct iwl4965_tx_power_db {
  * 3)  Tx gain compensation to balance 4965's 2 Tx chains for MIMO operation,
  *     for each of 5 frequency ranges.
  */
-struct iwl4965_init_alive_resp {
+struct iwl_init_alive_resp {
 	u8 ucode_minor;
 	u8 ucode_major;
 	__le16 reserved1;
@@ -449,7 +449,7 @@ struct iwl4965_init_alive_resp {
  * The Linux driver can print both logs to the system log when a uCode error
  * occurs.
  */
-struct iwl4965_alive_resp {
+struct iwl_alive_resp {
 	u8 ucode_minor;
 	u8 ucode_major;
 	__le16 reserved1;
@@ -473,7 +473,7 @@ union tsf {
 /*
  * REPLY_ERROR = 0x2 (response only, not a command)
  */
-struct iwl4965_error_resp {
+struct iwl_error_resp {
 	__le32 error_type;
 	u8 cmd_id;
 	u8 reserved1;
@@ -2861,12 +2861,12 @@ struct iwl_rx_packet {
 	__le32 len;
 	struct iwl_cmd_header hdr;
 	union {
-		struct iwl4965_alive_resp alive_frame;
+		struct iwl_alive_resp alive_frame;
 		struct iwl4965_rx_frame rx_frame;
 		struct iwl4965_tx_resp tx_resp;
 		struct iwl4965_spectrum_notification spectrum_notif;
 		struct iwl4965_csa_notification csa_notif;
-		struct iwl4965_error_resp err_resp;
+		struct iwl_error_resp err_resp;
 		struct iwl4965_card_state_notif card_state_notif;
 		struct iwl4965_beacon_notif beacon_status;
 		struct iwl4965_add_sta_resp add_sta;

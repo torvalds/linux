@@ -1035,8 +1035,8 @@ struct iwl_priv {
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * 4965's initialize alive response contains some calibration data. */
-	struct iwl4965_init_alive_resp card_alive_init;
-	struct iwl4965_alive_resp card_alive;
+	struct iwl_init_alive_resp card_alive_init;
+	struct iwl_alive_resp card_alive;
 #ifdef CONFIG_IWLWIFI_RFKILL
 	struct iwl_rfkill_mngr rfkill_mngr;
 #endif

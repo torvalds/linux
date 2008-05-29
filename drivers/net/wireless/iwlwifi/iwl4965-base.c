@@ -1927,11 +1927,11 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 }
 
 
-static void iwl4965_rx_reply_alive(struct iwl_priv *priv,
-				   struct iwl_rx_mem_buffer *rxb)
+static void iwl_rx_reply_alive(struct iwl_priv *priv,
+				struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_alive_resp *palive;
+	struct iwl_alive_resp *palive;
 	struct delayed_work *pwork;
 
 	palive = &pkt->u.alive_frame;
@@ -1945,12 +1945,12 @@ static void iwl4965_rx_reply_alive(struct iwl_priv *priv,
 		IWL_DEBUG_INFO("Initialization Alive received.\n");
 		memcpy(&priv->card_alive_init,
 		       &pkt->u.alive_frame,
-		       sizeof(struct iwl4965_init_alive_resp));
+		       sizeof(struct iwl_init_alive_resp));
 		pwork = &priv->init_alive_start;
 	} else {
 		IWL_DEBUG_INFO("Runtime Alive received.\n");
 		memcpy(&priv->card_alive, &pkt->u.alive_frame,
-		       sizeof(struct iwl4965_alive_resp));
+		       sizeof(struct iwl_alive_resp));
 		pwork = &priv->alive_start;
 	}
 
@@ -2279,7 +2279,7 @@ static void iwl4965_rx_card_state_notif(struct iwl_priv *priv,
  */
 static void iwl4965_setup_rx_handlers(struct iwl_priv *priv)
 {
-	priv->rx_handlers[REPLY_ALIVE] = iwl4965_rx_reply_alive;
+	priv->rx_handlers[REPLY_ALIVE] = iwl_rx_reply_alive;
 	priv->rx_handlers[REPLY_ADD_STA] = iwl4965_rx_reply_add_sta;
 	priv->rx_handlers[REPLY_ERROR] = iwl4965_rx_reply_error;
 	priv->rx_handlers[CHANNEL_SWITCH_NOTIFICATION] = iwl4965_rx_csa;
@@ -3423,7 +3423,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 	priv->cfg->ops->lib->free_shared_mem(priv);
 
  exit:
-	memset(&priv->card_alive, 0, sizeof(struct iwl4965_alive_resp));
+	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);
@@ -5075,7 +5075,7 @@ static ssize_t show_version(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct iwl_priv *priv = d->driver_data;
-	struct iwl4965_alive_resp *palive = &priv->card_alive;
+	struct iwl_alive_resp *palive = &priv->card_alive;
 
 	if (palive->is_valid)
 		return sprintf(buf, "fw version: 0x%01X.0x%01X.0x%01X.0x%01X\n"
