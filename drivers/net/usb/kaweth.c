@@ -57,12 +57,11 @@
 #include <linux/ethtool.h>
 #include <linux/dma-mapping.h>
 #include <linux/wait.h>
+#include <linux/firmware.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
 #undef DEBUG
-
-#include "kawethfw.h"
 
 #define KAWETH_MTU			1514
 #define KAWETH_BUF_SIZE			1664
@@ -108,6 +107,10 @@
 MODULE_AUTHOR("Michael Zappe <zapman@interlan.net>, Stephane Alnet <stephane@u-picardie.fr>, Brad Hards <bhards@bigpond.net.au> and Oliver Neukum <oliver@neukum.org>");
 MODULE_DESCRIPTION("KL5USB101 USB Ethernet driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("kaweth/new_code.bin");
+MODULE_FIRMWARE("kaweth/new_code_fix.bin");
+MODULE_FIRMWARE("kaweth/trigger_code.bin");
+MODULE_FIRMWARE("kaweth/trigger_code_fix.bin");
 
 static const char driver_name[] = "kaweth";
 
@@ -385,17 +388,28 @@ static int kaweth_set_receive_filter(struct kaweth_device *kaweth,
  *     kaweth_download_firmware
  ****************************************************************/
 static int kaweth_download_firmware(struct kaweth_device *kaweth,
-				    __u8 *data,
-				    __u16 data_len,
+				    const char *fwname,
 				    __u8 interrupt,
 				    __u8 type)
 {
-	if(data_len > KAWETH_FIRMWARE_BUF_SIZE)	{
-		err("Firmware too big: %d", data_len);
-		return -ENOSPC;
+	const struct firmware *fw;
+	int data_len;
+	int ret;
+
+	ret = request_firmware(&fw, fwname, &kaweth->dev->dev);
+	if (ret) {
+		err("Firmware request failed\n");
+		return ret;
 	}
 
-	memcpy(kaweth->firmware_buf, data, data_len);
+	if (fw->size > KAWETH_FIRMWARE_BUF_SIZE) {
+		err("Firmware too big: %zu", fw->size);
+		return -ENOSPC;
+	}
+	data_len = fw->size;
+	memcpy(kaweth->firmware_buf, fw->data, fw->size);
+
+	release_firmware(fw);
 
 	kaweth->firmware_buf[2] = (data_len & 0xFF) - 7;
 	kaweth->firmware_buf[3] = data_len >> 8;
@@ -406,8 +420,7 @@ static int kaweth_download_firmware(struct kaweth_device *kaweth,
 		   kaweth->firmware_buf[2]);
 
 	dbg("Downloading firmware at %p to kaweth device at %p",
-	    data,
-	    kaweth);
+	    fw->data, kaweth);
 	dbg("Firmware length: %d", data_len);
 
 	return kaweth_control(kaweth,
@@ -1009,8 +1022,7 @@ static int kaweth_probe(
 		info("Downloading firmware...");
 		kaweth->firmware_buf = (__u8 *)__get_free_page(GFP_KERNEL);
 		if ((result = kaweth_download_firmware(kaweth,
-						      kaweth_new_code,
-						      len_kaweth_new_code,
+						      "kaweth/new_code.bin",
 						      100,
 						      2)) < 0) {
 			err("Error downloading firmware (%d)", result);
@@ -1018,8 +1030,7 @@ static int kaweth_probe(
 		}
 
 		if ((result = kaweth_download_firmware(kaweth,
-						      kaweth_new_code_fix,
-						      len_kaweth_new_code_fix,
+						      "kaweth/new_code_fix.bin",
 						      100,
 						      3)) < 0) {
 			err("Error downloading firmware fix (%d)", result);
@@ -1027,8 +1038,7 @@ static int kaweth_probe(
 		}
 
 		if ((result = kaweth_download_firmware(kaweth,
-						      kaweth_trigger_code,
-						      len_kaweth_trigger_code,
+						      "kaweth/trigger_code.bin",
 						      126,
 						      2)) < 0) {
 			err("Error downloading trigger code (%d)", result);
@@ -1037,8 +1047,7 @@ static int kaweth_probe(
 		}
 
 		if ((result = kaweth_download_firmware(kaweth,
-						      kaweth_trigger_code_fix,
-						      len_kaweth_trigger_code_fix,
+						      "kaweth/trigger_code_fix.bin",
 						      126,
 						      3)) < 0) {
 			err("Error downloading trigger code fix (%d)", result);

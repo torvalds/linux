@@ -57,3 +57,16 @@ Original licence info:
  * expressed or implied about its fitness for any purpose.
 
 --------------------------------------------------------------------------
+
+Driver: kaweth -- USB KLSI KL5USB101-based Ethernet device
+
+File: kaweth/new_code.bin
+File: kaweth/new_code_fix.bin
+File: kaweth/trigger_code.bin
+File: kaweth/trigger_code_fix.bin
+
+Licence: Unknown
+
+Found in hex form in the kernel source.
+
+--------------------------------------------------------------------------
