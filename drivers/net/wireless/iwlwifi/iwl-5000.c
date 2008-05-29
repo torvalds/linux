@@ -428,28 +428,37 @@ static int iwl5000_send_calib_results(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	if (priv->calib_results.lo_res)
-		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
-					priv->calib_results.lo_res_len,
-					priv->calib_results.lo_res);
-	if (ret)
-		goto err;
+	struct iwl_host_cmd hcmd = {
+		.id = REPLY_PHY_CALIBRATION_CMD,
+		.meta.flags = CMD_SIZE_HUGE,
+	};
 
+	if (priv->calib_results.lo_res) {
+		hcmd.len = priv->calib_results.lo_res_len;
+		hcmd.data = priv->calib_results.lo_res;
+		ret = iwl_send_cmd_sync(priv, &hcmd);
 
-	if (priv->calib_results.tx_iq_res)
-		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
-				priv->calib_results.tx_iq_res_len,
-				priv->calib_results.tx_iq_res);
+		if (ret)
+			goto err;
+	}
 
-	if (ret)
-		goto err;
+	if (priv->calib_results.tx_iq_res) {
+		hcmd.len = priv->calib_results.tx_iq_res_len;
+		hcmd.data = priv->calib_results.tx_iq_res;
+		ret = iwl_send_cmd_sync(priv, &hcmd);
 
-	if (priv->calib_results.tx_iq_perd_res)
-		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
-				      priv->calib_results.tx_iq_perd_res_len,
-				      priv->calib_results.tx_iq_perd_res);
-	if (ret)
-		goto err;
+		if (ret)
+			goto err;
+	}
+
+	if (priv->calib_results.tx_iq_perd_res) {
+		hcmd.len = priv->calib_results.tx_iq_perd_res_len;
+		hcmd.data = priv->calib_results.tx_iq_perd_res;
+		ret = iwl_send_cmd_sync(priv, &hcmd);
+
+		if (ret)
+			goto err;
+	}
 
 	return 0;
 err:

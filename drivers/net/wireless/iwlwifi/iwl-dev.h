@@ -307,7 +307,7 @@ struct iwl_cmd_meta {
 
 } __attribute__ ((packed));
 
-#define IWL_CMD_MAX_PAYLOAD 640
+#define IWL_CMD_MAX_PAYLOAD 320
 
 /**
  * struct iwl_cmd
