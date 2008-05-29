@@ -876,6 +876,15 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
+struct iwl_calib_results {
+	void *tx_iq_res;
+	void *tx_iq_perd_res;
+	void *lo_res;
+	u32 tx_iq_res_len;
+	u32 tx_iq_perd_res_len;
+	u32 lo_res_len;
+};
+
 enum ucode_type {
 	UCODE_NONE = 0,
 	UCODE_INIT,
@@ -982,6 +991,9 @@ struct iwl_priv {
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
 	s32 last_temperature;
+
+	/* init calibration results */
+	struct iwl_calib_results calib_results;
 
 	/* Scan related variables */
 	unsigned long last_scan_jiffies;

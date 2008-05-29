@@ -871,9 +871,25 @@ err:
 }
 EXPORT_SYMBOL(iwl_init_drv);
 
+void iwl_free_calib_results(struct iwl_priv *priv)
+{
+	kfree(priv->calib_results.lo_res);
+	priv->calib_results.lo_res = NULL;
+	priv->calib_results.lo_res_len = 0;
+
+	kfree(priv->calib_results.tx_iq_res);
+	priv->calib_results.tx_iq_res = NULL;
+	priv->calib_results.tx_iq_res_len = 0;
+
+	kfree(priv->calib_results.tx_iq_perd_res);
+	priv->calib_results.tx_iq_perd_res = NULL;
+	priv->calib_results.tx_iq_perd_res_len = 0;
+}
+EXPORT_SYMBOL(iwl_free_calib_results);
 
 void iwl_uninit_drv(struct iwl_priv *priv)
 {
+	iwl_free_calib_results(priv);
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
 }

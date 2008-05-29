@@ -395,12 +395,126 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 
 #endif /* CONFIG_IWL5000_RUN_TIME_CALIB */
 
+
+
 static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 					   size_t offset)
 {
 	u32 address = eeprom_indirect_address(priv, offset);
 	BUG_ON(address >= priv->cfg->eeprom_size);
 	return &priv->eeprom[address];
+}
+
+/*
+ *  Calibration
+ */
+static int iwl5000_send_Xtal_calib(struct iwl_priv *priv)
+{
+	u16 *xtal_calib = (u16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
+
+	struct iwl5000_calibration cal_cmd = {
+		.op_code = IWL5000_PHY_CALIBRATE_CRYSTAL_FRQ_CMD,
+		.data = {
+			(u8)xtal_calib[0],
+			(u8)xtal_calib[1],
+		}
+	};
+
+	return iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+				sizeof(cal_cmd), &cal_cmd);
+}
+
+static int iwl5000_send_calib_results(struct iwl_priv *priv)
+{
+	int ret = 0;
+
+	if (priv->calib_results.lo_res)
+		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+					priv->calib_results.lo_res_len,
+					priv->calib_results.lo_res);
+	if (ret)
+		goto err;
+
+
+	if (priv->calib_results.tx_iq_res)
+		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+				priv->calib_results.tx_iq_res_len,
+				priv->calib_results.tx_iq_res);
+
+	if (ret)
+		goto err;
+
+	if (priv->calib_results.tx_iq_perd_res)
+		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+				      priv->calib_results.tx_iq_perd_res_len,
+				      priv->calib_results.tx_iq_perd_res);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	IWL_ERROR("Error %d\n", ret);
+	return ret;
+}
+
+static int iwl5000_send_calib_cfg(struct iwl_priv *priv)
+{
+	struct iwl5000_calib_cfg_cmd calib_cfg_cmd;
+	struct iwl_host_cmd cmd = {
+		.id = CALIBRATION_CFG_CMD,
+		.len = sizeof(struct iwl5000_calib_cfg_cmd),
+		.data = &calib_cfg_cmd,
+	};
+
+	memset(&calib_cfg_cmd, 0, sizeof(calib_cfg_cmd));
+	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
+	calib_cfg_cmd.ucd_calib_cfg.once.start = IWL_CALIB_INIT_CFG_ALL;
+	calib_cfg_cmd.ucd_calib_cfg.once.send_res = IWL_CALIB_INIT_CFG_ALL;
+	calib_cfg_cmd.ucd_calib_cfg.flags = IWL_CALIB_INIT_CFG_ALL;
+
+	return iwl_send_cmd(priv, &cmd);
+}
+
+static void iwl5000_rx_calib_result(struct iwl_priv *priv,
+			     struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl5000_calib_hdr *hdr = (struct iwl5000_calib_hdr *)pkt->u.raw;
+	int len = le32_to_cpu(pkt->len) & FH_RSCSR_FRAME_SIZE_MSK;
+
+	iwl_free_calib_results(priv);
+
+	/* reduce the size of the length field itself */
+	len -= 4;
+
+	switch (hdr->op_code) {
+	case IWL5000_PHY_CALIBRATE_LO_CMD:
+		priv->calib_results.lo_res = kzalloc(len, GFP_ATOMIC);
+		priv->calib_results.lo_res_len = len;
+		memcpy(priv->calib_results.lo_res, pkt->u.raw, len);
+		break;
+	case IWL5000_PHY_CALIBRATE_TX_IQ_CMD:
+		priv->calib_results.tx_iq_res = kzalloc(len, GFP_ATOMIC);
+		priv->calib_results.tx_iq_res_len = len;
+		memcpy(priv->calib_results.tx_iq_res, pkt->u.raw, len);
+		break;
+	case IWL5000_PHY_CALIBRATE_TX_IQ_PERD_CMD:
+		priv->calib_results.tx_iq_perd_res = kzalloc(len, GFP_ATOMIC);
+		priv->calib_results.tx_iq_perd_res_len = len;
+		memcpy(priv->calib_results.tx_iq_perd_res, pkt->u.raw, len);
+		break;
+	default:
+		IWL_ERROR("Unknown calibration notification %d\n",
+			  hdr->op_code);
+		return;
+	}
+}
+
+static void iwl5000_rx_calib_complete(struct iwl_priv *priv,
+			       struct iwl_rx_mem_buffer *rxb)
+{
+	IWL_DEBUG_INFO("Init. calibration is completed, restarting fw.\n");
+	queue_work(priv->workqueue, &priv->restart);
 }
 
 /*
@@ -565,6 +679,7 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
+	iwl5000_send_calib_cfg(priv);
 	return;
 
 restart:
@@ -684,7 +799,13 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+
 	iwl5000_send_wimax_coex(priv);
+
+	iwl5000_send_Xtal_calib(priv);
+
+	if (priv->ucode_type == UCODE_RT)
+		iwl5000_send_calib_results(priv);
 
 	return 0;
 }
@@ -856,7 +977,13 @@ static u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
 
 static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 {
+	/* init calibration handlers */
+	priv->rx_handlers[CALIBRATION_RES_NOTIFICATION] =
+					iwl5000_rx_calib_result;
+	priv->rx_handlers[CALIBRATION_COMPLETE_NOTIFICATION] =
+					iwl5000_rx_calib_complete;
 }
+
 
 static int iwl5000_hw_valid_rtc_data_addr(u32 addr)
 {

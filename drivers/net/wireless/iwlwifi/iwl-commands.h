@@ -2778,9 +2778,58 @@ enum {
 	IWL5000_PHY_CALIBRATE_AGC_TABLE_CMD	= 14,
 	IWL5000_PHY_CALIBRATE_CRYSTAL_FRQ_CMD	= 15,
 	IWL5000_PHY_CALIBRATE_BASE_BAND_CMD	= 16,
+	IWL5000_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
 	IWL5000_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD = 18,
 	IWL5000_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD = 19,
 };
+
+enum {
+	CALIBRATION_CFG_CMD = 0x65,
+	CALIBRATION_RES_NOTIFICATION = 0x66,
+	CALIBRATION_COMPLETE_NOTIFICATION = 0x67
+};
+
+struct iwl_cal_crystal_freq_cmd {
+	u8 cap_pin1;
+	u8 cap_pin2;
+} __attribute__ ((packed));
+
+struct iwl5000_calibration {
+	u8 op_code;
+	u8 first_group;
+	u8 num_groups;
+	u8 all_data_valid;
+	struct iwl_cal_crystal_freq_cmd data;
+} __attribute__ ((packed));
+
+#define IWL_CALIB_INIT_CFG_ALL	__constant_cpu_to_le32(0xffffffff)
+
+struct iwl_calib_cfg_elmnt_s {
+	__le32 is_enable;
+	__le32 start;
+	__le32 send_res;
+	__le32 apply_res;
+	__le32 reserved;
+} __attribute__ ((packed));
+
+struct iwl_calib_cfg_status_s {
+	struct iwl_calib_cfg_elmnt_s once;
+	struct iwl_calib_cfg_elmnt_s perd;
+	__le32 flags;
+} __attribute__ ((packed));
+
+struct iwl5000_calib_cfg_cmd {
+	struct iwl_calib_cfg_status_s ucd_calib_cfg;
+	struct iwl_calib_cfg_status_s drv_calib_cfg;
+	__le32 reserved1;
+} __attribute__ ((packed));
+
+struct iwl5000_calib_hdr {
+	u8 op_code;
+	u8 first_group;
+	u8 groups_num;
+	u8 data_valid;
+} __attribute__ ((packed));
 
 struct iwl5000_calibration_chain_noise_reset_cmd {
 	u8 op_code;	/* IWL5000_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
@@ -2894,6 +2943,7 @@ struct iwl_rx_packet {
 		struct iwl4965_notif_statistics stats;
 		struct iwl4965_compressed_ba_resp compressed_ba;
 		struct iwl4965_missed_beacon_notif missed_beacon;
+		struct iwl5000_calibration calib;
 		__le32 status;
 		u8 raw[0];
 	} u;
