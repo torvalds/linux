@@ -204,6 +204,9 @@ int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwl_rx_queue_restock(struct iwl_priv *priv);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
 void iwl_rx_allocate(struct iwl_priv *priv);
+/* Handlers */
+void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
+			       struct iwl_rx_mem_buffer *rxb);
 
 /*****************************************************
 * TX

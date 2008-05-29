@@ -33,6 +33,7 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-io.h"
+#include "iwl-calib.h"
 #include "iwl-helpers.h"
 /************************** RX-FUNCTIONS ****************************/
 /*
@@ -446,3 +447,24 @@ int iwl_rxq_stop(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_rxq_stop);
 
+void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
+				struct iwl_rx_mem_buffer *rxb)
+
+{
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	struct iwl4965_missed_beacon_notif *missed_beacon;
+
+	missed_beacon = &pkt->u.missed_beacon;
+	if (le32_to_cpu(missed_beacon->consequtive_missed_beacons) > 5) {
+		IWL_DEBUG_CALIB("missed bcn cnsq %d totl %d rcd %d expctd %d\n",
+		    le32_to_cpu(missed_beacon->consequtive_missed_beacons),
+		    le32_to_cpu(missed_beacon->total_missed_becons),
+		    le32_to_cpu(missed_beacon->num_recvd_beacons),
+		    le32_to_cpu(missed_beacon->num_expected_beacons));
+		if (!test_bit(STATUS_SCANNING, &priv->status))
+			iwl_init_sensitivity(priv);
+	}
+#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
+}
+EXPORT_SYMBOL(iwl_rx_missed_beacon_notif);

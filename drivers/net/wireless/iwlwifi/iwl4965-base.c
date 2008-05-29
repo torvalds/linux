@@ -2255,6 +2255,9 @@ static void iwl4965_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[CARD_STATE_NOTIFICATION] = iwl4965_rx_card_state_notif;
 	priv->rx_handlers[REPLY_TX] = iwl4965_rx_reply_tx;
 
+	priv->rx_handlers[MISSED_BEACONS_NOTIFICATION] =
+	    iwl_rx_missed_beacon_notif;
+
 	/* Set up hardware specific Rx handlers */
 	priv->cfg->ops->lib->rx_handler_setup(priv);
 }

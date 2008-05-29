@@ -2898,26 +2898,7 @@ static void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
 	memcpy(&priv->last_phy_res[1], &(pkt->u.raw[0]),
 	       sizeof(struct iwl4965_rx_phy_res));
 }
-static void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
-					   struct iwl_rx_mem_buffer *rxb)
 
-{
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_missed_beacon_notif *missed_beacon;
-
-	missed_beacon = &pkt->u.missed_beacon;
-	if (le32_to_cpu(missed_beacon->consequtive_missed_beacons) > 5) {
-		IWL_DEBUG_CALIB("missed bcn cnsq %d totl %d rcd %d expctd %d\n",
-		    le32_to_cpu(missed_beacon->consequtive_missed_beacons),
-		    le32_to_cpu(missed_beacon->total_missed_becons),
-		    le32_to_cpu(missed_beacon->num_recvd_beacons),
-		    le32_to_cpu(missed_beacon->num_expected_beacons));
-		if (!test_bit(STATUS_SCANNING, &priv->status))
-			iwl_init_sensitivity(priv);
-	}
-#endif /*CONFIG_IWL4965_RUN_TIME_CALIB*/
-}
 #ifdef CONFIG_IWL4965_HT
 
 /**
@@ -3507,9 +3488,6 @@ static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
 	/* High-throughput (HT) Rx frames */
 	priv->rx_handlers[REPLY_RX_PHY_CMD] = iwl4965_rx_reply_rx_phy;
 	priv->rx_handlers[REPLY_RX_MPDU_CMD] = iwl4965_rx_reply_rx;
-
-	priv->rx_handlers[MISSED_BEACONS_NOTIFICATION] =
-	    iwl4965_rx_missed_beacon_notif;
 
 #ifdef CONFIG_IWL4965_HT
 	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwl4965_rx_reply_compressed_ba;
