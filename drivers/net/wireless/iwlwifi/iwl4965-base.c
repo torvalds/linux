@@ -1872,6 +1872,17 @@ static void iwl4965_rx_card_state_notif(struct iwl_priv *priv,
 		wake_up_interruptible(&priv->wait_command_queue);
 }
 
+/* Cache phy data (Rx signal strength, etc) for HT frame (REPLY_RX_PHY_CMD).
+ * This will be used later in iwl4965_rx_reply_rx() for REPLY_RX_MPDU_CMD. */
+static void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
+				    struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	priv->last_phy_res[0] = 1;
+	memcpy(&priv->last_phy_res[1], &(pkt->u.raw[0]),
+	       sizeof(struct iwl4965_rx_phy_res));
+}
+
 /**
  * iwl4965_setup_rx_handlers - Initialize Rx handler callbacks
  *
@@ -1900,18 +1911,21 @@ static void iwl4965_setup_rx_handlers(struct iwl_priv *priv)
 	 */
 	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl4965_hw_rx_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl4965_hw_rx_statistics;
-
+	/* scan handlers */
 	priv->rx_handlers[REPLY_SCAN_CMD] = iwl4965_rx_reply_scan;
 	priv->rx_handlers[SCAN_START_NOTIFICATION] = iwl4965_rx_scan_start_notif;
 	priv->rx_handlers[SCAN_RESULTS_NOTIFICATION] =
 	    iwl4965_rx_scan_results_notif;
 	priv->rx_handlers[SCAN_COMPLETE_NOTIFICATION] =
 	    iwl4965_rx_scan_complete_notif;
+	/* status change handler */
 	priv->rx_handlers[CARD_STATE_NOTIFICATION] = iwl4965_rx_card_state_notif;
 
 	priv->rx_handlers[MISSED_BEACONS_NOTIFICATION] =
 	    iwl_rx_missed_beacon_notif;
-
+	/* Rx handlers */
+	priv->rx_handlers[REPLY_RX_PHY_CMD] = iwl4965_rx_reply_rx_phy;
+	priv->rx_handlers[REPLY_RX_MPDU_CMD] = iwl4965_rx_reply_rx;
 	/* Set up hardware specific Rx handlers */
 	priv->cfg->ops->lib->rx_handler_setup(priv);
 }

@@ -702,6 +702,8 @@ extern void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl4965_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
+extern void iwl4965_rx_reply_rx(struct iwl_priv *priv,
+				struct iwl_rx_mem_buffer *rxb);
 
 /**
  * iwl_find_station - Find station id for a given BSSID
