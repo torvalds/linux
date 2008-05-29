@@ -165,6 +165,10 @@ void main(void)
 	/* Set the video mode */
 	set_video();
 
+	/* Parse command line for 'quiet' and pass it to decompressor. */
+	if (cmdline_find_option_bool("quiet"))
+		boot_params.hdr.loadflags |= QUIET_FLAG;
+
 	/* Do the last things and invoke protected mode */
 	go_to_protected_mode();
 }

@@ -189,6 +189,7 @@ static void gzip_release(void **);
  * This is set up by the setup-routine at boot-time
  */
 static struct boot_params *real_mode;		/* Pointer to real-mode data */
+static int quiet;
 
 extern unsigned char input_data[];
 extern int input_len;
@@ -391,7 +392,8 @@ static void parse_elf(void *output)
 		return;
 	}
 
-	putstr("Parsing ELF... ");
+	if (!quiet)
+		putstr("Parsing ELF... ");
 
 	phdrs = malloc(sizeof(*phdrs) * ehdr.e_phnum);
 	if (!phdrs)
@@ -425,6 +427,9 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 				  unsigned char *output)
 {
 	real_mode = rmode;
+
+	if (real_mode->hdr.loadflags & QUIET_FLAG)
+		quiet = 1;
 
 	if (real_mode->screen_info.orig_video_mode == 7) {
 		vidmem = (char *) 0xb0000;
@@ -461,9 +466,11 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 #endif
 
 	makecrc();
-	putstr("\nDecompressing Linux... ");
+	if (!quiet)
+		putstr("\nDecompressing Linux... ");
 	gunzip();
 	parse_elf(output);
-	putstr("done.\nBooting the kernel.\n");
+	if (!quiet)
+		putstr("done.\nBooting the kernel.\n");
 	return;
 }
