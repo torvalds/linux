@@ -5323,6 +5323,9 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 
 	IWL_DEBUG_INFO("*** UNLOAD DRIVER ***\n");
 
+	iwl_dbgfs_unregister(priv);
+	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
+
 	if (priv->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);
 		priv->mac80211_registered = 0;
@@ -5350,8 +5353,6 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 	}
 
 	iwlcore_low_level_notify(priv, IWLCORE_REMOVE_EVT);
-	iwl_dbgfs_unregister(priv);
-	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 
 	iwl4965_dealloc_ucode_pci(priv);
 
