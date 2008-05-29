@@ -70,3 +70,13 @@ Licence: Unknown
 Found in hex form in the kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: ttusb-budget -- Technotrend/Hauppauge Nova-USB devices
+
+File: ttusb-budget/dspbootcode.bin
+
+Licence: Unknown
+
+Found in hex form in the kernel source.
+
+--------------------------------------------------------------------------
