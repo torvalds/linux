@@ -56,6 +56,31 @@ static const u16 iwl5000_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_HCCA_2
 };
 
+/* FIXME: same implementation as 4965 */
+static int iwl5000_apm_stop_master(struct iwl_priv *priv)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* set stop master bit */
+	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+
+	ret = iwl_poll_bit(priv, CSR_RESET,
+				  CSR_RESET_REG_FLAG_MASTER_DISABLED,
+				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	if (ret < 0)
+		goto out;
+
+out:
+	spin_unlock_irqrestore(&priv->lock, flags);
+	IWL_DEBUG_INFO("stop master\n");
+
+	return ret;
+}
+
+
 static int iwl5000_apm_init(struct iwl_priv *priv)
 {
 	int ret = 0;
@@ -105,7 +130,7 @@ static void iwl5000_apm_stop(struct iwl_priv *priv)
 {
 	unsigned long flags;
 
-	iwl4965_hw_nic_stop_master(priv);
+	iwl5000_apm_stop_master(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -124,7 +149,7 @@ static int iwl5000_apm_reset(struct iwl_priv *priv)
 	int ret = 0;
 	unsigned long flags;
 
-	iwl4965_hw_nic_stop_master(priv);
+	iwl5000_apm_stop_master(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 

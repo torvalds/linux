@@ -579,39 +579,6 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-int iwl4965_hw_nic_stop_master(struct iwl_priv *priv)
-{
-	int rc = 0;
-	u32 reg_val;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	reg_val = iwl_read32(priv, CSR_GP_CNTRL);
-
-	if (CSR_GP_CNTRL_REG_FLAG_MAC_POWER_SAVE ==
-	    (reg_val & CSR_GP_CNTRL_REG_MSK_POWER_SAVE_TYPE))
-		IWL_DEBUG_INFO("Card in power save, master is already "
-			       "stopped\n");
-	else {
-		rc = iwl_poll_bit(priv, CSR_RESET,
-				  CSR_RESET_REG_FLAG_MASTER_DISABLED,
-				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-		if (rc < 0) {
-			spin_unlock_irqrestore(&priv->lock, flags);
-			return rc;
-		}
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO("stop master\n");
-
-	return rc;
-}
-
 /**
  * iwl4965_hw_txq_ctx_stop - Stop all Tx DMA channels, free Tx queue memory
  */
@@ -642,11 +609,34 @@ void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl_hw_txq_ctx_free(priv);
 }
 
+static int iwl4965_apm_stop_master(struct iwl_priv *priv)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* set stop master bit */
+	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+
+	ret = iwl_poll_bit(priv, CSR_RESET,
+				  CSR_RESET_REG_FLAG_MASTER_DISABLED,
+				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	if (ret < 0)
+		goto out;
+
+out:
+	spin_unlock_irqrestore(&priv->lock, flags);
+	IWL_DEBUG_INFO("stop master\n");
+
+	return ret;
+}
+
 static void iwl4965_apm_stop(struct iwl_priv *priv)
 {
 	unsigned long flags;
 
-	iwl4965_hw_nic_stop_master(priv);
+	iwl4965_apm_stop_master(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -663,7 +653,7 @@ static int iwl4965_apm_reset(struct iwl_priv *priv)
 	int ret = 0;
 	unsigned long flags;
 
-	iwl4965_hw_nic_stop_master(priv);
+	iwl4965_apm_stop_master(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
