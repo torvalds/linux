@@ -351,7 +351,6 @@ static void __cpuinit start_secondary(void *unused)
 
 static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_32
 	/*
 	 * Mask B, Pentium, but not Pentium MMX
 	 */
@@ -401,7 +400,6 @@ static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 
 valid_k7:
 	;
-#endif
 }
 
 static void __cpuinit smp_checks(void)
