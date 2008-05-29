@@ -63,6 +63,10 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
 		    CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 
+	/* disable L0s without affecting L1 :don't wait for ICH L0s bug W/A) */
+	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
+		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
+
 	iwl_set_bit(priv, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
 	/* set "initialization complete" bit to move adapter
@@ -83,13 +87,13 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 		return ret;
 
 	/* enable DMA */
-	iwl_write_prph(priv, APMG_CLK_EN_REG,
-			APMG_CLK_VAL_DMA_CLK_RQT);
+	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 
 	udelay(20);
 
+	/* disable L1-Active */
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
-			APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
 	iwl_release_nic_access(priv);
 
@@ -106,8 +110,13 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 
 	pci_read_config_byte(priv->pci_dev, PCI_LINK_CTRL, &val_link);
 
-	/* disable L1 entry -- workaround for pre-B1 */
-	pci_write_config_byte(priv->pci_dev, PCI_LINK_CTRL, val_link & ~0x02);
+	/* L1 is enabled by BIOS */
+	if ((val_link & PCI_LINK_VAL_L1_EN) == PCI_LINK_VAL_L1_EN)
+		/* diable L0S disabled L1A enabled */
+		iwl_set_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
+	else
+		/* L0S enabled L1A disabled */
+		iwl_clear_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 
 	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
 

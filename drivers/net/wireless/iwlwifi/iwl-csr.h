@@ -87,13 +87,14 @@
 /* EEPROM reads */
 #define CSR_EEPROM_REG          (CSR_BASE+0x02c)
 #define CSR_EEPROM_GP           (CSR_BASE+0x030)
+#define CSR_GIO_REG		(CSR_BASE+0x03C)
 #define CSR_GP_UCODE		(CSR_BASE+0x044)
 #define CSR_UCODE_DRV_GP1       (CSR_BASE+0x054)
 #define CSR_UCODE_DRV_GP1_SET   (CSR_BASE+0x058)
 #define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
 #define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
-#define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 #define CSR_LED_REG             (CSR_BASE+0x094)
+#define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
 /* Analog phase-lock-loop configuration  */
 #define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
@@ -212,6 +213,9 @@
 #define CSR_EEPROM_GP_VALID_MSK		(0x00000006)
 #define CSR_EEPROM_GP_BAD_SIGNATURE	(0x00000000)
 #define CSR_EEPROM_GP_IF_OWNER_MSK	(0x00000180)
+
+/* CSR GIO */
+#define CSR_GIO_REG_VAL_L0S_ENABLED	(0x00000002)
 
 /* UCODE DRV GP */
 #define CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP             (0x00000001)
