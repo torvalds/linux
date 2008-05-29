@@ -2444,6 +2444,7 @@ static void rs_fill_link_cmd(const struct iwl_priv *priv,
 		repeat_rate--;
 	}
 
+	lq_cmd->agg_params.agg_frame_cnt_limit = 64;
 	lq_cmd->agg_params.agg_dis_start_th = 3;
 	lq_cmd->agg_params.agg_time_limit = cpu_to_le16(4000);
 }
