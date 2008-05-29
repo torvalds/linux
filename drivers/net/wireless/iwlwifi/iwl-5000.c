@@ -768,6 +768,12 @@ static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 {
 }
 
+static int iwl5000_hw_valid_rtc_data_addr(u32 addr)
+{
+	return (addr >= RTC_DATA_LOWER_BOUND) &&
+		(addr < IWL50_RTC_DATA_UPPER_BOUND);
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -788,6 +794,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.disable_tx_fifo = iwl5000_disable_tx_fifo,
 	.rx_handler_setup = iwl5000_rx_handler_setup,
+	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
 	.load_ucode = iwl5000_load_ucode,
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
