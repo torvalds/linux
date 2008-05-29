@@ -156,6 +156,8 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO("Begin load bsm\n");
 
+	priv->ucode_type = UCODE_RT;
+
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
 	if (len > IWL_MAX_BSM_SIZE)
 		return -EINVAL;
@@ -221,8 +223,6 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	iwl_release_nic_access(priv);
 
-	priv->ucode_type = UCODE_INIT;
-
 	return 0;
 }
 
@@ -268,8 +268,6 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	IWL_DEBUG_INFO("Runtime uCode pointers are set.\n");
-
-	priv->ucode_type = UCODE_RT;
 
 	return ret;
 }

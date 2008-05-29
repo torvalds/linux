@@ -4074,21 +4074,23 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 	if (test_bit(STATUS_IN_SUSPEND, &priv->status))
 		return 0;
 
-	/* Wait for START_ALIVE from ucode. Otherwise callbacks from
+	/* Wait for START_ALIVE from Run Time ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-			test_bit(STATUS_READY, &priv->status),
-			UCODE_READY_TIMEOUT);
-	if (!ret) {
-		if (!test_bit(STATUS_READY, &priv->status)) {
-			IWL_ERROR("Wait for START_ALIVE timeout after %dms.\n",
-				  jiffies_to_msecs(UCODE_READY_TIMEOUT));
-			ret = -ETIMEDOUT;
-			goto out_release_irq;
+	if (priv->ucode_type == UCODE_RT) {
+		ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+				test_bit(STATUS_READY, &priv->status),
+				UCODE_READY_TIMEOUT);
+		if (!ret) {
+			if (!test_bit(STATUS_READY, &priv->status)) {
+				IWL_ERROR("START_ALIVE timeout after %dms.\n",
+					jiffies_to_msecs(UCODE_READY_TIMEOUT));
+				ret = -ETIMEDOUT;
+				goto out_release_irq;
+			}
 		}
-	}
 
-	priv->is_open = 1;
+		priv->is_open = 1;
+	}
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
 
