@@ -744,7 +744,6 @@ config SND_KORG1212
 config SND_MAESTRO3
 	tristate "ESS Allegro/Maestro3"
 	depends on SND
-	select FW_LOADER if !SND_MAESTRO3_FIRMWARE_IN_KERNEL
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for soundcards based on ESS Maestro 3
@@ -752,15 +751,6 @@ config SND_MAESTRO3
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-maestro3.
-
-config SND_MAESTRO3_FIRMWARE_IN_KERNEL
-	bool "In-kernel firmware for Maestro3 driver"
-	depends on SND_MAESTRO3
-	default y
-	help
-	  Say Y here to include the static firmware built in the kernel
-	  for the Maestro3 driver.  If you choose N here, you need to
-	  install the firmware files from the alsa-firmware package.
 
 config SND_MIXART
 	tristate "Digigram miXart"

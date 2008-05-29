@@ -17,3 +17,17 @@ Licence: Unknown
 Found in alsa-firmware package in hex form; no licensing information.
 
 --------------------------------------------------------------------------
+
+Driver: maestro3 -- ESS Allegro Maestro3 audio device
+
+File: ess/maestro3_assp_kernel.fw
+File: ess/maestro3_assp_minisrc.fw
+
+Licence: Unknown
+
+Found in alsa-firmware package in hex form with a comment claiming to
+be GPLv2+, but without source -- and with another comment saying "ESS
+drops binary dsp code images on our heads, but we don't get to see
+specs on the dsp."
+
+--------------------------------------------------------------------------

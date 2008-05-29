@@ -21,6 +21,8 @@ fw-external-y := $(subst ",,$(CONFIG_EXTRA_FIRMWARE))
 # But be aware that the config file might not be included at all.
 
 fw-shipped-$(CONFIG_SND_KORG1212) += korg/k1212.dsp
+fw-shipped-$(CONFIG_SND_MAESTRO3) += ess/maestro3_assp_kernel.fw \
+				     ess/maestro3_assp_minisrc.fw
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
