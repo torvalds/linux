@@ -808,8 +808,29 @@ static void ieee80211_send_assoc(struct net_device *dev,
 
 	/* wmm support is a must to HT */
 	if (wmm && (ifsta->flags & IEEE80211_STA_WMM_ENABLED) &&
-	    sband->ht_info.ht_supported) {
-		__le16 tmp = cpu_to_le16(sband->ht_info.cap);
+	    sband->ht_info.ht_supported && bss->ht_add_ie) {
+		struct ieee80211_ht_addt_info *ht_add_info =
+			(struct ieee80211_ht_addt_info *)bss->ht_add_ie;
+		u16 cap = sband->ht_info.cap;
+		__le16 tmp;
+		u32 flags = local->hw.conf.channel->flags;
+
+		switch (ht_add_info->ht_param & IEEE80211_HT_IE_CHA_SEC_OFFSET) {
+		case IEEE80211_HT_IE_CHA_SEC_ABOVE:
+			if (flags & IEEE80211_CHAN_NO_FAT_ABOVE) {
+				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH;
+				cap &= ~IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		case IEEE80211_HT_IE_CHA_SEC_BELOW:
+			if (flags & IEEE80211_CHAN_NO_FAT_BELOW) {
+				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH;
+				cap &= ~IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		}
+
+		tmp = cpu_to_le16(cap);
 		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap)+2);
 		*pos++ = WLAN_EID_HT_CAPABILITY;
 		*pos++ = sizeof(struct ieee80211_ht_cap);
@@ -2264,6 +2285,7 @@ static void ieee80211_rx_bss_free(struct ieee80211_sta_bss *bss)
 	kfree(bss->rsn_ie);
 	kfree(bss->wmm_ie);
 	kfree(bss->ht_ie);
+	kfree(bss->ht_add_ie);
 	kfree(bss_mesh_id(bss));
 	kfree(bss_mesh_cfg(bss));
 	kfree(bss);
@@ -2638,6 +2660,26 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		kfree(bss->ht_ie);
 		bss->ht_ie = NULL;
 		bss->ht_ie_len = 0;
+	}
+
+	if (elems.ht_info_elem &&
+	     (!bss->ht_add_ie ||
+	     bss->ht_add_ie_len != elems.ht_info_elem_len ||
+	     memcmp(bss->ht_add_ie, elems.ht_info_elem,
+			elems.ht_info_elem_len))) {
+		kfree(bss->ht_add_ie);
+		bss->ht_add_ie =
+			kmalloc(elems.ht_info_elem_len + 2, GFP_ATOMIC);
+		if (bss->ht_add_ie) {
+			memcpy(bss->ht_add_ie, elems.ht_info_elem - 2,
+				elems.ht_info_elem_len + 2);
+			bss->ht_add_ie_len = elems.ht_info_elem_len + 2;
+		} else
+			bss->ht_add_ie_len = 0;
+	} else if (!elems.ht_info_elem && bss->ht_add_ie) {
+		kfree(bss->ht_add_ie);
+		bss->ht_add_ie = NULL;
+		bss->ht_add_ie_len = 0;
 	}
 
 	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);

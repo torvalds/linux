@@ -92,6 +92,8 @@ struct ieee80211_sta_bss {
 	size_t wmm_ie_len;
 	u8 *ht_ie;
 	size_t ht_ie_len;
+	u8 *ht_add_ie;
+	size_t ht_add_ie_len;
 #ifdef CONFIG_MAC80211_MESH
 	u8 *mesh_id;
 	size_t mesh_id_len;
