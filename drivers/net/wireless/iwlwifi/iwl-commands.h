@@ -630,6 +630,20 @@ struct iwl_rxon_cmd {
 	__le16 reserved6;
 } __attribute__ ((packed));
 
+struct iwl5000_rxon_assoc_cmd {
+	__le32 flags;
+	__le32 filter_flags;
+	u8 ofdm_basic_rates;
+	u8 cck_basic_rates;
+	__le16 reserved1;
+	u8 ofdm_ht_single_stream_basic_rates;
+	u8 ofdm_ht_dual_stream_basic_rates;
+	u8 ofdm_ht_triple_stream_basic_rates;
+	u8 reserved2;
+	__le16 rx_chain_select_flags;
+	__le16 acquisition_data;
+	__le32 reserved3;
+} __attribute__ ((packed));
 
 /*
  * REPLY_RXON_ASSOC = 0x11 (command, has simple generic response)
@@ -644,6 +658,9 @@ struct iwl4965_rxon_assoc_cmd {
 	__le16 rx_chain_select_flags;
 	__le16 reserved;
 } __attribute__ ((packed));
+
+
+
 
 /*
  * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)

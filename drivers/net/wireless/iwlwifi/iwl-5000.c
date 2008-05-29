@@ -1250,7 +1250,55 @@ static int iwl5000_hw_valid_rtc_data_addr(u32 addr)
 		(addr < IWL50_RTC_DATA_UPPER_BOUND);
 }
 
+static int iwl5000_send_rxon_assoc(struct iwl_priv *priv)
+{
+	int ret = 0;
+	struct iwl5000_rxon_assoc_cmd rxon_assoc;
+	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
+	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
+
+	if ((rxon1->flags == rxon2->flags) &&
+	    (rxon1->filter_flags == rxon2->filter_flags) &&
+	    (rxon1->cck_basic_rates == rxon2->cck_basic_rates) &&
+	    (rxon1->ofdm_ht_single_stream_basic_rates ==
+	     rxon2->ofdm_ht_single_stream_basic_rates) &&
+	    (rxon1->ofdm_ht_dual_stream_basic_rates ==
+	     rxon2->ofdm_ht_dual_stream_basic_rates) &&
+	    (rxon1->ofdm_ht_triple_stream_basic_rates ==
+	     rxon2->ofdm_ht_triple_stream_basic_rates) &&
+	    (rxon1->acquisition_data == rxon2->acquisition_data) &&
+	    (rxon1->rx_chain == rxon2->rx_chain) &&
+	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
+		IWL_DEBUG_INFO("Using current RXON_ASSOC.  Not resending.\n");
+		return 0;
+	}
+
+	rxon_assoc.flags = priv->staging_rxon.flags;
+	rxon_assoc.filter_flags = priv->staging_rxon.filter_flags;
+	rxon_assoc.ofdm_basic_rates = priv->staging_rxon.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = priv->staging_rxon.cck_basic_rates;
+	rxon_assoc.reserved1 = 0;
+	rxon_assoc.reserved2 = 0;
+	rxon_assoc.reserved3 = 0;
+	rxon_assoc.ofdm_ht_single_stream_basic_rates =
+	    priv->staging_rxon.ofdm_ht_single_stream_basic_rates;
+	rxon_assoc.ofdm_ht_dual_stream_basic_rates =
+	    priv->staging_rxon.ofdm_ht_dual_stream_basic_rates;
+	rxon_assoc.rx_chain_select_flags = priv->staging_rxon.rx_chain;
+	rxon_assoc.ofdm_ht_triple_stream_basic_rates =
+		 priv->staging_rxon.ofdm_ht_triple_stream_basic_rates;
+	rxon_assoc.acquisition_data = priv->staging_rxon.acquisition_data;
+
+	ret = iwl_send_cmd_pdu_async(priv, REPLY_RXON_ASSOC,
+				     sizeof(rxon_assoc), &rxon_assoc, NULL);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
+	.rxon_assoc = iwl5000_send_rxon_assoc,
 };
 
 static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
