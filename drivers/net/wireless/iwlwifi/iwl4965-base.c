@@ -3405,7 +3405,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_txq_ctx_stop(priv);
-	iwl4965_hw_rxq_stop(priv);
+	iwl_rxq_stop(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (!iwl_grab_nic_access(priv)) {

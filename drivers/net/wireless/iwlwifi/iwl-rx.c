@@ -420,3 +420,29 @@ int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	return 0;
 }
 
+int iwl_rxq_stop(struct iwl_priv *priv)
+{
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (unlikely(ret)) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	/* stop Rx DMA */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	ret = iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
+				     (1 << 24), 1000);
+	if (ret < 0)
+		IWL_ERROR("Can't stop Rx DMA.\n");
+
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_rxq_stop);
+
