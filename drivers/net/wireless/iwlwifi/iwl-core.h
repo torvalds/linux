@@ -107,10 +107,12 @@ struct iwl_lib_ops {
 	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
 					struct iwl_tx_queue *txq,
 					u16 byte_cnt);
+	void (*txq_inval_byte_cnt_tbl)(struct iwl_priv *priv,
+				       struct iwl_tx_queue *txq);
+	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* nic Tx fifo handling */
-	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
 	/* alive notification after init uCode load */
 	void (*init_alive_start)(struct iwl_priv *priv);
 	/* alive notification */

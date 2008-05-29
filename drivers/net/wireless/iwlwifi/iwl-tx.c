@@ -1080,8 +1080,11 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 		tx_info = &txq->txb[txq->q.read_ptr];
 		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0]);
 		tx_info->skb[0] = NULL;
-		iwl_hw_txq_free_tfd(priv, txq);
 
+		if (priv->cfg->ops->lib->txq_inval_byte_cnt_tbl)
+			priv->cfg->ops->lib->txq_inval_byte_cnt_tbl(priv, txq);
+
+		iwl_hw_txq_free_tfd(priv, txq);
 		nfreed++;
 	}
 	return nfreed;

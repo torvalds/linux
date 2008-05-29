@@ -955,6 +955,26 @@ static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 	}
 }
 
+static void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+					   struct iwl_tx_queue *txq)
+{
+	int txq_id = txq->q.id;
+	struct iwl5000_shared *shared_data = priv->shared_virt;
+	u8 sta = 0;
+
+	if (txq_id != IWL_CMD_QUEUE_NUM)
+		sta = txq->cmd[txq->q.read_ptr].cmd.tx.sta_id;
+
+	shared_data->queues_byte_cnt_tbls[txq_id].tfd_offset[txq->q.read_ptr].
+					val = cpu_to_le16(1 | (sta << 12));
+
+	if (txq->q.write_ptr < IWL50_MAX_WIN_SIZE) {
+		shared_data->queues_byte_cnt_tbls[txq_id].
+			tfd_offset[IWL50_QUEUE_SIZE + txq->q.read_ptr].
+				val = cpu_to_le16(1 | (sta << 12));
+	}
+}
+
 static u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
 	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
@@ -1248,6 +1268,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.free_shared_mem = iwl5000_free_shared_mem,
 	.shared_mem_rx_idx = iwl5000_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
+	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwl5000_txq_set_sched,
 	.rx_handler_setup = iwl5000_rx_handler_setup,
 	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
