@@ -2240,18 +2240,16 @@ static const struct firmware assp_minisrc = {
 	.size = sizeof assp_minisrc_image
 };
 
-#else /* CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL */
-
 #ifdef __LITTLE_ENDIAN
-static inline void snd_m3_convert_from_le(const struct firmware *fw) { }
+static inline void snd_m3_convert_to_le(const struct firmware *fw) { }
 #else
-static void snd_m3_convert_from_le(const struct firmware *fw)
+static void snd_m3_convert_to_le(const struct firmware *fw)
 {
 	int i;
 	u16 *data = (u16 *)fw->data;
 
 	for (i = 0; i < fw->size / 2; ++i)
-		le16_to_cpus(&data[i]);
+		cpu_to_le16s(&data[i]);
 }
 #endif
 
@@ -2271,7 +2269,7 @@ static const u16 minisrc_lpf[MINISRC_LPF_LEN] = {
 static void snd_m3_assp_init(struct snd_m3 *chip)
 {
 	unsigned int i;
-	u16 *data;
+	const u16 *data;
 
 	/* zero kernel data */
 	for (i = 0; i < (REV_B_DATA_MEMORY_UNIT_LENGTH * NUM_UNITS_KERNEL_DATA) / 2; i++)
@@ -2289,10 +2287,11 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 			  KDATA_DMA_XFER0);
 
 	/* write kernel into code memory.. */
-	data = (u16 *)chip->assp_kernel_image->data;
+	data = (const u16 *)chip->assp_kernel_image->data;
 	for (i = 0 ; i * 2 < chip->assp_kernel_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
-				  REV_B_CODE_MEMORY_BEGIN + i, data[i]);
+				  REV_B_CODE_MEMORY_BEGIN + i,
+				  le16_to_cpu(data[i]));
 	}
 
 	/*
@@ -2301,10 +2300,10 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	 * drop it there.  It seems that the minisrc doesn't
 	 * need vectors, so we won't bother with them..
 	 */
-	data = (u16 *)chip->assp_minisrc_image->data;
+	data = (const u16 *)chip->assp_minisrc_image->data;
 	for (i = 0; i * 2 < chip->assp_minisrc_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
-				  0x400 + i, data[i]);
+				  0x400 + i, le16_to_cpu(data[i]));
 	}
 
 	/*
@@ -2749,8 +2748,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	if (err < 0) {
 		snd_m3_free(chip);
 		return err;
-	} else
-		snd_m3_convert_from_le(chip->assp_kernel_image);
+	}
 #endif
 
 #ifdef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
@@ -2761,8 +2759,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	if (err < 0) {
 		snd_m3_free(chip);
 		return err;
-	} else
-		snd_m3_convert_from_le(chip->assp_minisrc_image);
+	}
 #endif
 
 	if ((err = pci_request_regions(pci, card->driver)) < 0) {
@@ -2915,6 +2912,10 @@ static struct pci_driver driver = {
 	
 static int __init alsa_card_m3_init(void)
 {
+#ifdef CONFIG_SND_MAESTRO3_FIRMWARE_IN_KERNEL
+	snd_m3_convert_to_le(&assp_kernel);
+	snd_m3_convert_to_le(&assp_minisrc);
+#endif
 	return pci_register_driver(&driver);
 }
 
