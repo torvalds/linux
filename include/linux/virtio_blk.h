@@ -13,6 +13,7 @@
 #define VIRTIO_BLK_F_SEG_MAX	2	/* Indicates maximum # of segments */
 #define VIRTIO_BLK_F_GEOMETRY	4	/* Legacy geometry available  */
 #define VIRTIO_BLK_F_RO		5	/* Disk is read-only */
+#define VIRTIO_BLK_F_BLK_SIZE	6	/* Block size of disk is available*/
 
 struct virtio_blk_config
 {
@@ -28,6 +29,8 @@ struct virtio_blk_config
 		__u8 heads;
 		__u8 sectors;
 	} geometry;
+	/* block size of device (if VIRTIO_BLK_F_BLK_SIZE) */
+	__u32 blk_size;
 } __attribute__((packed));
 
 /* These two define direction. */
