@@ -1284,10 +1284,17 @@ static int cx25840_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id cx25840_id[] = {
+	{ "cx25840", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, cx25840_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cx25840",
 	.driverid = I2C_DRIVERID_CX25840,
 	.command = cx25840_command,
 	.probe = cx25840_probe,
 	.remove = cx25840_remove,
+	.id_table = cx25840_id,
 };

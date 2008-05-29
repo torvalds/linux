@@ -389,6 +389,17 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	int page_no;
 	int ret;
 
+	/* Post a recv buffer to handle another request. */
+	ret = svc_rdma_post_recv(rdma);
+	if (ret) {
+		printk(KERN_INFO
+		       "svcrdma: could not post a receive buffer, err=%d."
+		       "Closing transport %p.\n", ret, rdma);
+		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
+		svc_rdma_put_context(ctxt, 0);
+		return -ENOTCONN;
+	}
+
 	/* Prepare the context */
 	ctxt->pages[0] = page;
 	ctxt->count = 1;

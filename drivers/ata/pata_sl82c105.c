@@ -216,7 +216,7 @@ static int sl82c105_qc_defer(struct ata_queued_cmd *qc)
 	struct ata_port *alt = host->ports[1 ^ qc->ap->port_no];
 	int rc;
 
-	/* First apply the usual rules */	
+	/* First apply the usual rules */
 	rc = ata_std_qc_defer(qc);
 	if (rc != 0)
 		return rc;

@@ -1836,7 +1836,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	unsigned int cur_mss = tcp_current_mss(sk, 0);
+	unsigned int cur_mss;
 	int err;
 
 	/* Inconslusive MTU probe */
@@ -1857,6 +1857,11 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 		if (tcp_trim_head(sk, skb, tp->snd_una - TCP_SKB_CB(skb)->seq))
 			return -ENOMEM;
 	}
+
+	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk))
+		return -EHOSTUNREACH; /* Routing failure or similar. */
+
+	cur_mss = tcp_current_mss(sk, 0);
 
 	/* If receiver has shrunk his window, and skb is out of
 	 * new window, do not retransmit it. The exception is the
@@ -1883,9 +1888,6 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	     tcp_skb_pcount(tcp_write_queue_next(sk, skb)) == 1) &&
 	    (sysctl_tcp_retrans_collapse != 0))
 		tcp_retrans_try_collapse(sk, skb, cur_mss);
-
-	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk))
-		return -EHOSTUNREACH; /* Routing failure or similar. */
 
 	/* Some Solaris stacks overoptimize and ignore the FIN on a
 	 * retransmit when old data is attached.  So strip it off

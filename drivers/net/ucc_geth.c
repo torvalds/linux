@@ -237,7 +237,7 @@ static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 	skb->dev = ugeth->dev;
 
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(NULL,
+		      dma_map_single(&ugeth->dev->dev,
 				     skb->data,
 				     ugeth->ug_info->uf_info.max_rx_buf_length +
 				     UCC_GETH_RX_DATA_BUF_ALIGNMENT,
@@ -2158,7 +2158,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			continue;
 		for (j = 0; j < ugeth->ug_info->bdRingLenTx[i]; j++) {
 			if (ugeth->tx_skbuff[i][j]) {
-				dma_unmap_single(NULL,
+				dma_unmap_single(&ugeth->dev->dev,
 						 in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						 (in_be32((u32 __iomem *)bd) &
 						  BD_LENGTH_MASK),
@@ -2186,7 +2186,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			bd = ugeth->p_rx_bd_ring[i];
 			for (j = 0; j < ugeth->ug_info->bdRingLenRx[i]; j++) {
 				if (ugeth->rx_skbuff[i][j]) {
-					dma_unmap_single(NULL,
+					dma_unmap_single(&ugeth->dev->dev,
 						in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						ugeth->ug_info->
 						uf_info.max_rx_buf_length +
@@ -3406,7 +3406,8 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* set up the buffer descriptor */
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(NULL, skb->data, skb->len, DMA_TO_DEVICE));
+		      dma_map_single(&ugeth->dev->dev, skb->data,
+			      skb->len, DMA_TO_DEVICE));
 
 	/* printk(KERN_DEBUG"skb->data is 0x%x\n",skb->data); */
 

@@ -343,8 +343,8 @@ static void ht6560a_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	/* Get the timing data in cycles. For now play safe at 50Mhz */
 	ata_timing_compute(adev, adev->pio_mode, &t, 20000, 1000);
 
-	active = FIT(t.active, 2, 15);
-	recover = FIT(t.recover, 4, 15);
+	active = clamp_val(t.active, 2, 15);
+	recover = clamp_val(t.recover, 4, 15);
 
 	inb(0x3E6);
 	inb(0x3E6);
@@ -377,8 +377,8 @@ static void ht6560b_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	/* Get the timing data in cycles. For now play safe at 50Mhz */
 	ata_timing_compute(adev, adev->pio_mode, &t, 20000, 1000);
 
-	active = FIT(t.active, 2, 15);
-	recover = FIT(t.recover, 2, 16);
+	active = clamp_val(t.active, 2, 15);
+	recover = clamp_val(t.recover, 2, 16);
 	recover &= 0x15;
 
 	inb(0x3E6);
@@ -462,9 +462,9 @@ static void opti82c611a_set_piomode(struct ata_port *ap,
 		ata_timing_merge(&t, &tp, &t, ATA_TIMING_SETUP);
 	}
 
-	active = FIT(t.active, 2, 17) - 2;
-	recover = FIT(t.recover, 1, 16) - 1;
-	setup = FIT(t.setup, 1, 4) - 1;
+	active = clamp_val(t.active, 2, 17) - 2;
+	recover = clamp_val(t.recover, 1, 16) - 1;
+	setup = clamp_val(t.setup, 1, 4) - 1;
 
 	/* Select the right timing bank for write timing */
 	rc = ioread8(ap->ioaddr.lbal_addr);
@@ -541,9 +541,9 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		ata_timing_merge(&t, &tp, &t, ATA_TIMING_SETUP);
 	}
 
-	active = FIT(t.active, 2, 17) - 2;
-	recover = FIT(t.recover, 1, 16) - 1;
-	setup = FIT(t.setup, 1, 4) - 1;
+	active = clamp_val(t.active, 2, 17) - 2;
+	recover = clamp_val(t.recover, 1, 16) - 1;
+	setup = clamp_val(t.setup, 1, 4) - 1;
 
 	/* Select the right timing bank for write timing */
 	rc = ioread8(ap->ioaddr.lbal_addr);
@@ -624,11 +624,11 @@ static void qdi6500_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
 
 	if (ld_qdi->fast) {
-		active = 8 - FIT(t.active, 1, 8);
-		recovery = 18 - FIT(t.recover, 3, 18);
+		active = 8 - clamp_val(t.active, 1, 8);
+		recovery = 18 - clamp_val(t.recover, 3, 18);
 	} else {
-		active = 9 - FIT(t.active, 2, 9);
-		recovery = 15 - FIT(t.recover, 0, 15);
+		active = 9 - clamp_val(t.active, 2, 9);
+		recovery = 15 - clamp_val(t.recover, 0, 15);
 	}
 	timing = (recovery << 4) | active | 0x08;
 
@@ -658,11 +658,11 @@ static void qdi6580dp_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
 
 	if (ld_qdi->fast) {
-		active = 8 - FIT(t.active, 1, 8);
-		recovery = 18 - FIT(t.recover, 3, 18);
+		active = 8 - clamp_val(t.active, 1, 8);
+		recovery = 18 - clamp_val(t.recover, 3, 18);
 	} else {
-		active = 9 - FIT(t.active, 2, 9);
-		recovery = 15 - FIT(t.recover, 0, 15);
+		active = 9 - clamp_val(t.active, 2, 9);
+		recovery = 15 - clamp_val(t.recover, 0, 15);
 	}
 	timing = (recovery << 4) | active | 0x08;
 
@@ -695,11 +695,11 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
 
 	if (ld_qdi->fast) {
-		active = 8 - FIT(t.active, 1, 8);
-		recovery = 18 - FIT(t.recover, 3, 18);
+		active = 8 - clamp_val(t.active, 1, 8);
+		recovery = 18 - clamp_val(t.recover, 3, 18);
 	} else {
-		active = 9 - FIT(t.active, 2, 9);
-		recovery = 15 - FIT(t.recover, 0, 15);
+		active = 9 - clamp_val(t.active, 2, 9);
+		recovery = 15 - clamp_val(t.recover, 0, 15);
 	}
 	timing = (recovery << 4) | active | 0x08;
 	ld_qdi->clock[adev->devno] = timing;
@@ -830,8 +830,8 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	else
 		ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
 
-	active = (FIT(t.active, 3, 17) - 1) & 0x0F;
-	recovery = (FIT(t.recover, 1, 15) + 1) & 0x0F;
+	active = (clamp_val(t.active, 3, 17) - 1) & 0x0F;
+	recovery = (clamp_val(t.recover, 1, 15) + 1) & 0x0F;
 	timing = (active << 4) | recovery;
 	winbond_writecfg(ld_winbond->timing, timing, reg);
 
@@ -842,7 +842,7 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		reg |= 0x08;	/* FIFO off */
 	if (!ata_pio_need_iordy(adev))
 		reg |= 0x02;	/* IORDY off */
-	reg |= (FIT(t.setup, 0, 3) << 6);
+	reg |= (clamp_val(t.setup, 0, 3) << 6);
 	winbond_writecfg(ld_winbond->timing, timing + 1, reg);
 }
 

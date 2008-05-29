@@ -648,13 +648,12 @@ static int ide_register_port(ide_hwif_t *hwif)
 
 	get_device(&hwif->gendev);
 
-	hwif->portdev = device_create(ide_port_class, &hwif->gendev,
-				      MKDEV(0, 0), hwif->name);
+	hwif->portdev = device_create_drvdata(ide_port_class, &hwif->gendev,
+					      MKDEV(0, 0), hwif, hwif->name);
 	if (IS_ERR(hwif->portdev)) {
 		ret = PTR_ERR(hwif->portdev);
 		device_unregister(&hwif->gendev);
 	}
-	dev_set_drvdata(hwif->portdev, hwif);
 out:
 	return ret;
 }

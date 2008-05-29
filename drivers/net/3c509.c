@@ -413,7 +413,7 @@ static int __devinit el3_pnp_probe(struct pnp_dev *pdev,
 {
 	short i;
 	int ioaddr, irq, if_port;
-	u16 phys_addr[3];
+	__be16 phys_addr[3];
 	struct net_device *dev = NULL;
 	int err;
 
@@ -605,7 +605,7 @@ static int __init el3_mca_probe(struct device *device)
 
 	short i;
 	int ioaddr, irq, if_port;
-	u16 phys_addr[3];
+	__be16 phys_addr[3];
 	struct net_device *dev = NULL;
 	u_char pos4, pos5;
 	struct mca_device *mdev = to_mca_device(device);
@@ -635,14 +635,13 @@ static int __init el3_mca_probe(struct device *device)
 			printk(KERN_DEBUG "3c529: irq %d  ioaddr 0x%x  ifport %d\n", irq, ioaddr, if_port);
 	}
 	EL3WINDOW(0);
-	for (i = 0; i < 3; i++) {
-			phys_addr[i] = htons(read_eeprom(ioaddr, i));
-	}
+	for (i = 0; i < 3; i++)
+		phys_addr[i] = htons(read_eeprom(ioaddr, i));
 
 	dev = alloc_etherdev(sizeof (struct el3_private));
 	if (dev == NULL) {
-			release_region(ioaddr, EL3_IO_EXTENT);
-			return -ENOMEM;
+		release_region(ioaddr, EL3_IO_EXTENT);
+		return -ENOMEM;
 	}
 
 	netdev_boot_setup_check(dev);
@@ -668,7 +667,7 @@ static int __init el3_eisa_probe (struct device *device)
 {
 	short i;
 	int ioaddr, irq, if_port;
-	u16 phys_addr[3];
+	__be16 phys_addr[3];
 	struct net_device *dev = NULL;
 	struct eisa_device *edev;
 	int err;
@@ -1063,7 +1062,6 @@ el3_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			skb = dev_alloc_skb(pkt_len+5);
-			dev->stats.rx_bytes += pkt_len;
 			if (el3_debug > 4)
 				printk("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
@@ -1078,6 +1076,7 @@ el3_rx(struct net_device *dev)
 				skb->protocol = eth_type_trans(skb,dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;
+				dev->stats.rx_bytes += pkt_len;
 				dev->stats.rx_packets++;
 				continue;
 			}

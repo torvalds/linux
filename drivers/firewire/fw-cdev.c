@@ -113,6 +113,11 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	if (device == NULL)
 		return -ENODEV;
 
+	if (fw_device_is_shutdown(device)) {
+		fw_device_put(device);
+		return -ENODEV;
+	}
+
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL) {
 		fw_device_put(device);
@@ -901,6 +906,9 @@ fw_device_op_ioctl(struct file *file,
 {
 	struct client *client = file->private_data;
 
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
+
 	return dispatch_ioctl(client, cmd, (void __user *) arg);
 }
 
@@ -910,6 +918,9 @@ fw_device_op_compat_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct client *client = file->private_data;
+
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
 
 	return dispatch_ioctl(client, cmd, compat_ptr(arg));
 }
@@ -921,6 +932,9 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	enum dma_data_direction direction;
 	unsigned long size;
 	int page_count, retval;
+
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
 
 	/* FIXME: We could support multiple buffers, but we don't. */
 	if (client->buffer.pages != NULL)

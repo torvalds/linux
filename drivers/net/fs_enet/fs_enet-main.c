@@ -1093,7 +1093,7 @@ err:
 		if (registered)
 			unregister_netdev(ndev);
 
-		if (fep != NULL) {
+		if (fep && fep->ops) {
 			(*fep->ops->free_bd)(ndev);
 			(*fep->ops->cleanup_data)(ndev);
 		}

@@ -1308,12 +1308,7 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 	unsigned int err_mask = 0, action = 0;
 	u32 hotplug_mask;
 
-	if (serror & SERR_PERSISTENT) {
-		err_mask |= AC_ERR_ATA_BUS;
-		action |= ATA_EH_RESET;
-	}
-	if (serror &
-	    (SERR_DATA_RECOVERED | SERR_COMM_RECOVERED | SERR_DATA)) {
+	if (serror & (SERR_PERSISTENT | SERR_DATA)) {
 		err_mask |= AC_ERR_ATA_BUS;
 		action |= ATA_EH_RESET;
 	}
@@ -2047,19 +2042,11 @@ static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 			unsigned int *classes, unsigned long deadline)
 {
 	struct ata_device *dev;
-	int rc;
 
 	ata_link_for_each_dev(dev, link)
 		classes[dev->devno] = ATA_DEV_UNKNOWN;
 
-	rc = reset(link, classes, deadline);
-
-	/* convert all ATA_DEV_UNKNOWN to ATA_DEV_NONE */
-	ata_link_for_each_dev(dev, link)
-		if (classes[dev->devno] == ATA_DEV_UNKNOWN)
-			classes[dev->devno] = ATA_DEV_NONE;
-
-	return rc;
+	return reset(link, classes, deadline);
 }
 
 static int ata_eh_followup_srst_needed(struct ata_link *link,
@@ -2096,9 +2083,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ata_reset_fn_t reset;
 	unsigned long flags;
 	u32 sstatus;
-	int rc;
+	int nr_known, rc;
 
-	/* about to reset */
+	/*
+	 * Prepare to reset
+	 */
 	spin_lock_irqsave(ap->lock, flags);
 	ap->pflags |= ATA_PFLAG_RESETTING;
 	spin_unlock_irqrestore(ap->lock, flags);
@@ -2124,16 +2113,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			ap->ops->set_piomode(ap, dev);
 	}
 
-	if (!softreset && !hardreset) {
-		if (verbose)
-			ata_link_printk(link, KERN_INFO, "no reset method "
-					"available, skipping reset\n");
-		if (!(lflags & ATA_LFLAG_ASSUME_CLASS))
-			lflags |= ATA_LFLAG_ASSUME_ATA;
-		goto done;
-	}
-
 	/* prefer hardreset */
+	reset = NULL;
 	ehc->i.action &= ~ATA_EH_RESET;
 	if (hardreset) {
 		reset = hardreset;
@@ -2141,11 +2122,6 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	} else if (softreset) {
 		reset = softreset;
 		ehc->i.action = ATA_EH_SOFTRESET;
-	} else {
-		ata_link_printk(link, KERN_ERR, "BUG: no reset method, "
-				"please report to linux-ide@vger.kernel.org\n");
-		dump_stack();
-		return -EINVAL;
 	}
 
 	if (prereset) {
@@ -2165,55 +2141,71 @@ int ata_eh_reset(struct ata_link *link, int classify,
 					"prereset failed (errno=%d)\n", rc);
 			goto out;
 		}
-	}
 
-	/* prereset() might have cleared ATA_EH_RESET */
-	if (!(ehc->i.action & ATA_EH_RESET)) {
-		/* prereset told us not to reset, bang classes and return */
-		ata_link_for_each_dev(dev, link)
-			classes[dev->devno] = ATA_DEV_NONE;
-		rc = 0;
-		goto out;
+		/* prereset() might have cleared ATA_EH_RESET.  If so,
+		 * bang classes and return.
+		 */
+		if (reset && !(ehc->i.action & ATA_EH_RESET)) {
+			ata_link_for_each_dev(dev, link)
+				classes[dev->devno] = ATA_DEV_NONE;
+			rc = 0;
+			goto out;
+		}
 	}
 
  retry:
+	/*
+	 * Perform reset
+	 */
+	if (ata_is_host_link(link))
+		ata_eh_freeze_port(ap);
+
 	deadline = jiffies + ata_eh_reset_timeouts[try++];
 
-	/* shut up during boot probing */
-	if (verbose)
-		ata_link_printk(link, KERN_INFO, "%s resetting link\n",
-				reset == softreset ? "soft" : "hard");
+	if (reset) {
+		if (verbose)
+			ata_link_printk(link, KERN_INFO, "%s resetting link\n",
+					reset == softreset ? "soft" : "hard");
 
-	/* mark that this EH session started with reset */
-	if (reset == hardreset)
-		ehc->i.flags |= ATA_EHI_DID_HARDRESET;
-	else
-		ehc->i.flags |= ATA_EHI_DID_SOFTRESET;
+		/* mark that this EH session started with reset */
+		if (reset == hardreset)
+			ehc->i.flags |= ATA_EHI_DID_HARDRESET;
+		else
+			ehc->i.flags |= ATA_EHI_DID_SOFTRESET;
 
-	rc = ata_do_reset(link, reset, classes, deadline);
+		rc = ata_do_reset(link, reset, classes, deadline);
 
-	if (reset == hardreset &&
-	    ata_eh_followup_srst_needed(link, rc, classify, classes)) {
-		/* okay, let's do follow-up softreset */
-		reset = softreset;
+		if (reset == hardreset &&
+		    ata_eh_followup_srst_needed(link, rc, classify, classes)) {
+			/* okay, let's do follow-up softreset */
+			reset = softreset;
 
-		if (!reset) {
-			ata_link_printk(link, KERN_ERR,
-					"follow-up softreset required "
-					"but no softreset avaliable\n");
-			rc = -EINVAL;
-			goto fail;
+			if (!reset) {
+				ata_link_printk(link, KERN_ERR,
+						"follow-up softreset required "
+						"but no softreset avaliable\n");
+				rc = -EINVAL;
+				goto fail;
+			}
+
+			ata_eh_about_to_do(link, NULL, ATA_EH_RESET);
+			rc = ata_do_reset(link, reset, classes, deadline);
 		}
 
-		ata_eh_about_to_do(link, NULL, ATA_EH_RESET);
-		rc = ata_do_reset(link, reset, classes, deadline);
+		/* -EAGAIN can happen if we skipped followup SRST */
+		if (rc && rc != -EAGAIN)
+			goto fail;
+	} else {
+		if (verbose)
+			ata_link_printk(link, KERN_INFO, "no reset method "
+					"available, skipping reset\n");
+		if (!(lflags & ATA_LFLAG_ASSUME_CLASS))
+			lflags |= ATA_LFLAG_ASSUME_ATA;
 	}
 
-	/* -EAGAIN can happen if we skipped followup SRST */
-	if (rc && rc != -EAGAIN)
-		goto fail;
-
- done:
+	/*
+	 * Post-reset processing
+	 */
 	ata_link_for_each_dev(dev, link) {
 		/* After the reset, the device state is PIO 0 and the
 		 * controller state is undefined.  Reset also wakes up
@@ -2236,8 +2228,52 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0)
 		link->sata_spd = (sstatus >> 4) & 0xf;
 
+	/* thaw the port */
+	if (ata_is_host_link(link))
+		ata_eh_thaw_port(ap);
+
+	/* postreset() should clear hardware SError.  Although SError
+	 * is cleared during link resume, clearing SError here is
+	 * necessary as some PHYs raise hotplug events after SRST.
+	 * This introduces race condition where hotplug occurs between
+	 * reset and here.  This race is mediated by cross checking
+	 * link onlineness and classification result later.
+	 */
 	if (postreset)
 		postreset(link, classes);
+
+	/* clear cached SError */
+	spin_lock_irqsave(link->ap->lock, flags);
+	link->eh_info.serror = 0;
+	spin_unlock_irqrestore(link->ap->lock, flags);
+
+	/* Make sure onlineness and classification result correspond.
+	 * Hotplug could have happened during reset and some
+	 * controllers fail to wait while a drive is spinning up after
+	 * being hotplugged causing misdetection.  By cross checking
+	 * link onlineness and classification result, those conditions
+	 * can be reliably detected and retried.
+	 */
+	nr_known = 0;
+	ata_link_for_each_dev(dev, link) {
+		/* convert all ATA_DEV_UNKNOWN to ATA_DEV_NONE */
+		if (classes[dev->devno] == ATA_DEV_UNKNOWN)
+			classes[dev->devno] = ATA_DEV_NONE;
+		else
+			nr_known++;
+	}
+
+	if (classify && !nr_known && ata_link_online(link)) {
+		if (try < max_tries) {
+			ata_link_printk(link, KERN_WARNING, "link online but "
+				       "device misclassified, retrying\n");
+			rc = -EAGAIN;
+			goto fail;
+		}
+		ata_link_printk(link, KERN_WARNING,
+			       "link online but device misclassified, "
+			       "device detection might fail\n");
+	}
 
 	/* reset successful, schedule revalidation */
 	ata_eh_done(link, NULL, ATA_EH_RESET);
@@ -2587,7 +2623,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_link *link;
 	struct ata_device *dev;
 	int nr_failed_devs, nr_disabled_devs;
-	int reset, rc;
+	int rc;
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
@@ -2630,7 +2666,6 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	rc = 0;
 	nr_failed_devs = 0;
 	nr_disabled_devs = 0;
-	reset = 0;
 
 	/* if UNLOADING, finish immediately */
 	if (ap->pflags & ATA_PFLAG_UNLOADING)
@@ -2644,40 +2679,24 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (ata_eh_skip_recovery(link))
 			ehc->i.action = 0;
 
-		/* do we need to reset? */
-		if (ehc->i.action & ATA_EH_RESET)
-			reset = 1;
-
 		ata_link_for_each_dev(dev, link)
 			ehc->classes[dev->devno] = ATA_DEV_UNKNOWN;
 	}
 
 	/* reset */
-	if (reset) {
-		/* if PMP is attached, this function only deals with
-		 * downstream links, port should stay thawed.
-		 */
-		if (!sata_pmp_attached(ap))
-			ata_eh_freeze_port(ap);
+	ata_port_for_each_link(link, ap) {
+		struct ata_eh_context *ehc = &link->eh_context;
 
-		ata_port_for_each_link(link, ap) {
-			struct ata_eh_context *ehc = &link->eh_context;
+		if (!(ehc->i.action & ATA_EH_RESET))
+			continue;
 
-			if (!(ehc->i.action & ATA_EH_RESET))
-				continue;
-
-			rc = ata_eh_reset(link, ata_link_nr_vacant(link),
-					  prereset, softreset, hardreset,
-					  postreset);
-			if (rc) {
-				ata_link_printk(link, KERN_ERR,
-						"reset failed, giving up\n");
-				goto out;
-			}
+		rc = ata_eh_reset(link, ata_link_nr_vacant(link),
+				  prereset, softreset, hardreset, postreset);
+		if (rc) {
+			ata_link_printk(link, KERN_ERR,
+					"reset failed, giving up\n");
+			goto out;
 		}
-
-		if (!sata_pmp_attached(ap))
-			ata_eh_thaw_port(ap);
 	}
 
 	/* the rest */

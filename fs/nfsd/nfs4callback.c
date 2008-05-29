@@ -419,9 +419,9 @@ static int do_probe_callback(void *data)
 out_release_client:
 	rpc_shutdown_client(client);
 out_err:
-	put_nfs4_client(clp);
 	dprintk("NFSD: warning: no callback path to client %.*s\n",
 		(int)clp->cl_name.len, clp->cl_name.data);
+	put_nfs4_client(clp);
 	return status;
 }
 

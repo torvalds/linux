@@ -758,25 +758,26 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
  */
 void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	DEFINE_WAIT(wait);
 
-	add_wait_queue(&vcpu->wq, &wait);
+	for (;;) {
+		prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
 
-	/*
-	 * We will block until either an interrupt or a signal wakes us up
-	 */
-	while (!kvm_cpu_has_interrupt(vcpu)
-	       && !kvm_cpu_has_pending_timer(vcpu)
-	       && !signal_pending(current)
-	       && !kvm_arch_vcpu_runnable(vcpu)) {
-		set_current_state(TASK_INTERRUPTIBLE);
+		if (kvm_cpu_has_interrupt(vcpu))
+			break;
+		if (kvm_cpu_has_pending_timer(vcpu))
+			break;
+		if (kvm_arch_vcpu_runnable(vcpu))
+			break;
+		if (signal_pending(current))
+			break;
+
 		vcpu_put(vcpu);
 		schedule();
 		vcpu_load(vcpu);
 	}
 
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&vcpu->wq, &wait);
+	finish_wait(&vcpu->wq, &wait);
 }
 
 void kvm_resched(struct kvm_vcpu *vcpu)

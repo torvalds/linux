@@ -26,7 +26,6 @@
 #ifndef __ASM_ARCH_OMAP_GPIO_H
 #define __ASM_ARCH_OMAP_GPIO_H
 
-#include <asm/hardware.h>
 #include <asm/arch/irqs.h>
 #include <asm/io.h>
 

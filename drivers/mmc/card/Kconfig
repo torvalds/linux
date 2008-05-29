@@ -39,3 +39,15 @@ config SDIO_UART
 	  SDIO function driver for SDIO cards that implements the UART
 	  class, as well as the GPS class which appears like a UART.
 
+config MMC_TEST
+	tristate "MMC host test driver"
+	default n
+	help
+	  Development driver that performs a series of reads and writes
+	  to a memory card in order to expose certain well known bugs
+	  in host controllers. The tests are executed by writing to the
+	  "test" file in sysfs under each card. Note that whatever is
+	  on your card will be overwritten by these tests.
+
+	  This driver is only of interest to those developing or
+	  testing a host driver. Most people should say N here.

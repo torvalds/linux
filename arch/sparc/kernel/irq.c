@@ -1,4 +1,4 @@
-/*  $Id: irq.c,v 1.114 2001/12/11 04:55:51 davem Exp $
+/*
  *  arch/sparc/kernel/irq.c:  Interrupt request handling routines. On the
  *                            Sparc the IRQs are basically 'cast in stone'
  *                            and you are supposed to probe the prom's device

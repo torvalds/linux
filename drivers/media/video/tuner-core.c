@@ -92,6 +92,7 @@ struct tuner {
 	unsigned int        type; /* chip type id */
 	unsigned int        config;
 	int (*tuner_callback) (void *dev, int command, int arg);
+	const char          *name;
 };
 
 /* standard i2c insmod options */
@@ -330,13 +331,13 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("Support for tuners in i2c address range 0x64 thru 0x6f\n");
 	tuner_warn("will soon be dropped. This message indicates that your\n");
 	tuner_warn("hardware has a %s tuner at i2c address 0x%02x.\n",
-		   t->i2c->name, t->i2c->addr);
+		   t->name, t->i2c->addr);
 	tuner_warn("To ensure continued support for your device, please\n");
 	tuner_warn("send a copy of this message, along with full dmesg\n");
 	tuner_warn("output to v4l-dvb-maintainer@linuxtv.org\n");
 	tuner_warn("Please use subject line: \"obsolete tuner i2c address.\"\n");
 	tuner_warn("driver: %s, addr: 0x%02x, type: %d (%s)\n",
-		   t->i2c->adapter->name, t->i2c->addr, t->type, t->i2c->name);
+		   t->i2c->adapter->name, t->i2c->addr, t->type, t->name);
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
@@ -470,19 +471,17 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	if ((NULL == analog_ops->set_params) &&
 	    (fe_tuner_ops->set_analog_params)) {
 
-		strlcpy(t->i2c->name, fe_tuner_ops->info.name,
-			sizeof(t->i2c->name));
+		t->name = fe_tuner_ops->info.name;
 
 		t->fe.analog_demod_priv = t;
 		memcpy(analog_ops, &tuner_core_ops,
 		       sizeof(struct analog_demod_ops));
 
 	} else {
-		strlcpy(t->i2c->name, analog_ops->info.name,
-			sizeof(t->i2c->name));
+		t->name = analog_ops->info.name;
 	}
 
-	tuner_dbg("type set to %s\n", t->i2c->name);
+	tuner_dbg("type set to %s\n", t->name);
 
 	if (t->mode_mask == T_UNINITIALIZED)
 		t->mode_mask = new_mode_mask;
@@ -1115,7 +1114,7 @@ static int tuner_probe(struct i2c_client *client,
 	if (NULL == t)
 		return -ENOMEM;
 	t->i2c = client;
-	strlcpy(client->name, "(tuner unset)", sizeof(client->name));
+	t->name = "(tuner unset)";
 	i2c_set_clientdata(client, t);
 	t->type = UNSET;
 	t->audmode = V4L2_TUNER_MODE_STEREO;
@@ -1278,6 +1277,15 @@ static int tuner_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+/* This driver supports many devices and the idea is to let the driver
+   detect which device is present. So rather than listing all supported
+   devices here, we pretend to support a single, fake device type. */
+static const struct i2c_device_id tuner_id[] = {
+	{ "tuner", }, /* autodetect */
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tuner_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tuner",
 	.driverid = I2C_DRIVERID_TUNER,
@@ -1287,6 +1295,7 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.suspend = tuner_suspend,
 	.resume = tuner_resume,
 	.legacy_probe = tuner_legacy_probe,
+	.id_table = tuner_id,
 };
 
 

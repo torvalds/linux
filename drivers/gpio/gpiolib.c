@@ -127,7 +127,7 @@ int __init gpiochip_reserve(int start, int ngpio)
 	unsigned long flags;
 	int i;
 
-	if (!gpio_is_valid(start) || !gpio_is_valid(start + ngpio))
+	if (!gpio_is_valid(start) || !gpio_is_valid(start + ngpio - 1))
 		return -EINVAL;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -170,7 +170,7 @@ int gpiochip_add(struct gpio_chip *chip)
 	unsigned	id;
 	int		base = chip->base;
 
-	if ((!gpio_is_valid(base) || !gpio_is_valid(base + chip->ngpio))
+	if ((!gpio_is_valid(base) || !gpio_is_valid(base + chip->ngpio - 1))
 			&& base >= 0) {
 		status = -EINVAL;
 		goto fail;
@@ -207,7 +207,7 @@ fail:
 	/* failures here can mean systems won't boot... */
 	if (status)
 		pr_err("gpiochip_add: gpios %d..%d (%s) not registered\n",
-			chip->base, chip->base + chip->ngpio,
+			chip->base, chip->base + chip->ngpio - 1,
 			chip->label ? : "generic");
 	return status;
 }

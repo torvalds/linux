@@ -219,53 +219,6 @@ static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
 
 }
 
-static char *build_full_dfs_path_from_dentry(struct dentry *dentry)
-{
-	char *full_path = NULL;
-	char *search_path;
-	char *tmp_path;
-	size_t l_max_len;
-	struct cifs_sb_info *cifs_sb;
-
-	if (dentry->d_inode == NULL)
-		return NULL;
-
-	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-
-	if (cifs_sb->tcon == NULL)
-		return NULL;
-
-	search_path = build_path_from_dentry(dentry);
-	if (search_path == NULL)
-		return NULL;
-
-	if (cifs_sb->tcon->Flags & SMB_SHARE_IS_IN_DFS) {
-		int i;
-		/* we should use full path name for correct working with DFS */
-		l_max_len = strnlen(cifs_sb->tcon->treeName, MAX_TREE_SIZE+1) +
-					strnlen(search_path, MAX_PATHCONF) + 1;
-		tmp_path = kmalloc(l_max_len, GFP_KERNEL);
-		if (tmp_path == NULL) {
-			kfree(search_path);
-			return NULL;
-		}
-		strncpy(tmp_path, cifs_sb->tcon->treeName, l_max_len);
-		tmp_path[l_max_len-1] = 0;
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
-			for (i = 0; i < l_max_len; i++) {
-				if (tmp_path[i] == '\\')
-					tmp_path[i] = '/';
-			}
-		strncat(tmp_path, search_path, l_max_len - strlen(tmp_path));
-
-		full_path = tmp_path;
-		kfree(search_path);
-	} else {
-		full_path = search_path;
-	}
-	return full_path;
-}
-
 static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
 				struct list_head *mntlist)
 {
@@ -333,7 +286,7 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_err;
 	}
 
-	full_path = build_full_dfs_path_from_dentry(dentry);
+	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
 		goto out_err;

@@ -5,6 +5,7 @@
  */
 
 #include <errno.h>
+#include <sys/ptrace.h>
 #include <asm/user.h>
 #include "kern_constants.h"
 #include "longjmp.h"

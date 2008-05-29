@@ -43,8 +43,7 @@ static const char* version = "HDLC support module revision 1.22";
 
 #undef DEBUG_LINK
 
-static struct hdlc_proto *first_proto = NULL;
-
+static struct hdlc_proto *first_proto;
 
 static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -314,21 +313,25 @@ void detach_hdlc_protocol(struct net_device *dev)
 
 void register_hdlc_protocol(struct hdlc_proto *proto)
 {
+	rtnl_lock();
 	proto->next = first_proto;
 	first_proto = proto;
+	rtnl_unlock();
 }
 
 
 void unregister_hdlc_protocol(struct hdlc_proto *proto)
 {
-	struct hdlc_proto **p = &first_proto;
-	while (*p) {
-		if (*p == proto) {
-			*p = proto->next;
-			return;
-		}
+	struct hdlc_proto **p;
+
+	rtnl_lock();
+	p = &first_proto;
+	while (*p != proto) {
+		BUG_ON(!*p);
 		p = &((*p)->next);
 	}
+	*p = proto->next;
+	rtnl_unlock();
 }
 
 

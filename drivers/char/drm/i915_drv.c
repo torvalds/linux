@@ -147,7 +147,7 @@ static void i915_save_vga(struct drm_device *dev)
 	i915_write_indexed(cr_index, cr_data, 0x11,
 			   i915_read_indexed(cr_index, cr_data, 0x11) &
 			   (~0x80));
-	for (i = 0; i < 0x24; i++)
+	for (i = 0; i <= 0x24; i++)
 		dev_priv->saveCR[i] =
 			i915_read_indexed(cr_index, cr_data, i);
 	/* Make sure we don't turn off CR group 0 writes */
@@ -156,7 +156,7 @@ static void i915_save_vga(struct drm_device *dev)
 	/* Attribute controller registers */
 	inb(st01);
 	dev_priv->saveAR_INDEX = inb(VGA_AR_INDEX);
-	for (i = 0; i < 20; i++)
+	for (i = 0; i <= 0x14; i++)
 		dev_priv->saveAR[i] = i915_read_ar(st01, i, 0);
 	inb(st01);
 	outb(dev_priv->saveAR_INDEX, VGA_AR_INDEX);
@@ -206,7 +206,7 @@ static void i915_restore_vga(struct drm_device *dev)
 	/* CRT controller regs */
 	/* Enable CR group 0 writes */
 	i915_write_indexed(cr_index, cr_data, 0x11, dev_priv->saveCR[0x11]);
-	for (i = 0; i < 0x24; i++)
+	for (i = 0; i <= 0x24; i++)
 		i915_write_indexed(cr_index, cr_data, i, dev_priv->saveCR[i]);
 
 	/* Graphics controller regs */
@@ -223,7 +223,7 @@ static void i915_restore_vga(struct drm_device *dev)
 
 	/* Attribute controller registers */
 	inb(st01);
-	for (i = 0; i < 20; i++)
+	for (i = 0; i <= 0x14; i++)
 		i915_write_ar(st01, i, dev_priv->saveAR[i], 0);
 	inb(st01); /* switch back to index mode */
 	outb(dev_priv->saveAR_INDEX | 0x20, VGA_AR_INDEX);
@@ -255,6 +255,9 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 	pci_save_state(dev->pdev);
 	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
+
+	/* Display arbitration control */
+	dev_priv->saveDSPARB = I915_READ(DSPARB);
 
 	/* Pipe & plane A info */
 	dev_priv->savePIPEACONF = I915_READ(PIPEACONF);
@@ -349,6 +352,7 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	dev_priv->saveVGACNTRL = I915_READ(VGACNTRL);
 
 	/* Clock gating state */
+	dev_priv->saveD_STATE = I915_READ(D_STATE);
 	dev_priv->saveDSPCLK_GATE_D = I915_READ(DSPCLK_GATE_D);
 
 	/* Cache mode state */
@@ -387,6 +391,8 @@ static int i915_resume(struct drm_device *dev)
 		return -1;
 
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
+
+	I915_WRITE(DSPARB, dev_priv->saveDSPARB);
 
 	/* Pipe & plane A info */
 	/* Prime the clock */
@@ -507,6 +513,7 @@ static int i915_resume(struct drm_device *dev)
 	udelay(150);
 
 	/* Clock gating state */
+	I915_WRITE (D_STATE, dev_priv->saveD_STATE);
 	I915_WRITE (DSPCLK_GATE_D, dev_priv->saveDSPCLK_GATE_D);
 
 	/* Cache mode state */
@@ -533,7 +540,8 @@ static struct drm_driver driver = {
 	 */
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
+	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_IRQ_VBL |
+	    DRIVER_IRQ_VBL2,
 	.load = i915_driver_load,
 	.unload = i915_driver_unload,
 	.lastclose = i915_driver_lastclose,
@@ -541,9 +549,8 @@ static struct drm_driver driver = {
 	.suspend = i915_suspend,
 	.resume = i915_resume,
 	.device_is_agp = i915_driver_device_is_agp,
-	.get_vblank_counter = i915_get_vblank_counter,
-	.enable_vblank = i915_enable_vblank,
-	.disable_vblank = i915_disable_vblank,
+	.vblank_wait = i915_driver_vblank_wait,
+	.vblank_wait2 = i915_driver_vblank_wait2,
 	.irq_preinstall = i915_driver_irq_preinstall,
 	.irq_postinstall = i915_driver_irq_postinstall,
 	.irq_uninstall = i915_driver_irq_uninstall,

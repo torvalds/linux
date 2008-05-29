@@ -345,7 +345,7 @@ resched:
 	 * state change
 	 */
 	if (jiffies > dd->ipath_sdma_abort_jiffies) {
-		ipath_dbg("looping with status 0x%016llx\n",
+		ipath_dbg("looping with status 0x%08lx\n",
 			  dd->ipath_sdma_status);
 		dd->ipath_sdma_abort_jiffies = jiffies + 5 * HZ;
 	}
@@ -615,7 +615,7 @@ void ipath_restart_sdma(struct ipath_devdata *dd)
 	}
 	spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
 	if (!needed) {
-		ipath_dbg("invalid attempt to restart SDMA, status 0x%016llx\n",
+		ipath_dbg("invalid attempt to restart SDMA, status 0x%08lx\n",
 			dd->ipath_sdma_status);
 		goto bail;
 	}

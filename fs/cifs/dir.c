@@ -49,18 +49,25 @@ build_path_from_dentry(struct dentry *direntry)
 	struct dentry *temp;
 	int namelen;
 	int pplen;
+	int dfsplen;
 	char *full_path;
 	char dirsep;
+	struct cifs_sb_info *cifs_sb;
 
 	if (direntry == NULL)
 		return NULL;  /* not much we can do if dentry is freed and
 		we need to reopen the file after it was closed implicitly
 		when the server crashed */
 
-	dirsep = CIFS_DIR_SEP(CIFS_SB(direntry->d_sb));
-	pplen = CIFS_SB(direntry->d_sb)->prepathlen;
+	cifs_sb = CIFS_SB(direntry->d_sb);
+	dirsep = CIFS_DIR_SEP(cifs_sb);
+	pplen = cifs_sb->prepathlen;
+	if (cifs_sb->tcon && (cifs_sb->tcon->Flags & SMB_SHARE_IS_IN_DFS))
+		dfsplen = strnlen(cifs_sb->tcon->treeName, MAX_TREE_SIZE + 1);
+	else
+		dfsplen = 0;
 cifs_bp_rename_retry:
-	namelen = pplen;
+	namelen = pplen + dfsplen;
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
@@ -91,7 +98,7 @@ cifs_bp_rename_retry:
 			return NULL;
 		}
 	}
-	if (namelen != pplen) {
+	if (namelen != pplen + dfsplen) {
 		cERROR(1,
 		       ("did not end path lookup where expected namelen is %d",
 			namelen));
@@ -107,7 +114,18 @@ cifs_bp_rename_retry:
 	   since the '\' is a valid posix character so we can not switch
 	   those safely to '/' if any are found in the middle of the prepath */
 	/* BB test paths to Windows with '/' in the midst of prepath */
-	strncpy(full_path, CIFS_SB(direntry->d_sb)->prepath, pplen);
+
+	if (dfsplen) {
+		strncpy(full_path, cifs_sb->tcon->treeName, dfsplen);
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
+			int i;
+			for (i = 0; i < dfsplen; i++) {
+				if (full_path[i] == '\\')
+					full_path[i] = '/';
+			}
+		}
+	}
+	strncpy(full_path + dfsplen, CIFS_SB(direntry->d_sb)->prepath, pplen);
 	return full_path;
 }
 
@@ -590,7 +608,7 @@ static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
 		 * case take precedence.  If a is not a negative dentry, this
 		 * should have no side effects
 		 */
-		memcpy(a->name, b->name, a->len);
+		memcpy((void *)a->name, b->name, a->len);
 		return 0;
 	}
 	return 1;

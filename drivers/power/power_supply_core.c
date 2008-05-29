@@ -91,14 +91,12 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 {
 	int rc = 0;
 
-	psy->dev = device_create(power_supply_class, parent, 0,
-				 "%s", psy->name);
+	psy->dev = device_create_drvdata(power_supply_class, parent, 0,
+					 psy, "%s", psy->name);
 	if (IS_ERR(psy->dev)) {
 		rc = PTR_ERR(psy->dev);
 		goto dev_create_failed;
 	}
-
-	dev_set_drvdata(psy->dev, psy);
 
 	INIT_WORK(&psy->changed_work, power_supply_changed_work);
 

@@ -332,7 +332,7 @@ z2_init(void)
     int ret;
 
     if (!MACH_IS_AMIGA)
-	return -ENXIO;
+	return -ENODEV;
 
     ret = -EBUSY;
     if (register_blkdev(Z2RAM_MAJOR, DEVICE_NAME))
