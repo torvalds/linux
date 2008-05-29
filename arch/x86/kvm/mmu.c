@@ -850,7 +850,10 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	hlist_add_head(&sp->hash_link, bucket);
 	if (!metaphysical)
 		rmap_write_protect(vcpu->kvm, gfn);
-	vcpu->arch.mmu.prefetch_page(vcpu, sp);
+	if (shadow_trap_nonpresent_pte != shadow_notrap_nonpresent_pte)
+		vcpu->arch.mmu.prefetch_page(vcpu, sp);
+	else
+		nonpaging_prefetch_page(vcpu, sp);
 	return sp;
 }
 
