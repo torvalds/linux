@@ -614,7 +614,6 @@ void __init setup_bootmem_allocator(void)
 	 */
 	find_smp_config();
 #endif
-	numa_kva_reserve();
 	reserve_crashkernel();
 
 	reserve_ibft_region();

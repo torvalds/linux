@@ -357,6 +357,11 @@ unsigned long __init setup_memory(void)
 	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
 		kva_start_pfn, max_low_pfn);
 	printk("max_pfn = %ld\n", max_pfn);
+
+	/* avoid clash with initrd */
+	reserve_early(kva_start_pfn<<PAGE_SHIFT,
+		      (kva_start_pfn + kva_pages)<<PAGE_SHIFT,
+		     "KVA PG");
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
 	if (max_pfn > system_max_low_pfn)
@@ -390,13 +395,6 @@ unsigned long __init setup_memory(void)
 	NODE_DATA(0)->bdata = &node0_bdata;
 	setup_bootmem_allocator();
 	return max_low_pfn;
-}
-
-void __init numa_kva_reserve(void)
-{
-	if (kva_pages)
-		reserve_bootmem(PFN_PHYS(kva_start_pfn), PFN_PHYS(kva_pages),
-				BOOTMEM_DEFAULT);
 }
 
 void __init zone_sizes_init(void)
