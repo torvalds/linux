@@ -996,23 +996,10 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	struct task_struct *curr = this_rq->curr;
 	unsigned long tl = this_load;
 	unsigned long tl_per_task;
+	int balanced;
 
-	if (!(this_sd->flags & SD_WAKE_AFFINE))
+	if (!(this_sd->flags & SD_WAKE_AFFINE) || !sched_feat(AFFINE_WAKEUPS))
 		return 0;
-
-	/*
-	 * If the currently running task will sleep within
-	 * a reasonable amount of time then attract this newly
-	 * woken task:
-	 */
-	if (sync && curr->sched_class == &fair_sched_class) {
-		if (curr->se.avg_overlap < sysctl_sched_migration_cost &&
-				p->se.avg_overlap < sysctl_sched_migration_cost)
-			return 1;
-	}
-
-	schedstat_inc(p, se.nr_wakeups_affine_attempts);
-	tl_per_task = cpu_avg_load_per_task(this_cpu);
 
 	/*
 	 * If sync wakeup then subtract the (maximum possible)
@@ -1022,8 +1009,24 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	if (sync)
 		tl -= current->se.load.weight;
 
+	balanced = 100*(tl + p->se.load.weight) <= imbalance*load;
+
+	/*
+	 * If the currently running task will sleep within
+	 * a reasonable amount of time then attract this newly
+	 * woken task:
+	 */
+	if (sync && balanced && curr->sched_class == &fair_sched_class) {
+		if (curr->se.avg_overlap < sysctl_sched_migration_cost &&
+				p->se.avg_overlap < sysctl_sched_migration_cost)
+			return 1;
+	}
+
+	schedstat_inc(p, se.nr_wakeups_affine_attempts);
+	tl_per_task = cpu_avg_load_per_task(this_cpu);
+
 	if ((tl <= load && tl + target_load(prev_cpu, idx) <= tl_per_task) ||
-			100*(tl + p->se.load.weight) <= imbalance*load) {
+			balanced) {
 		/*
 		 * This domain has SD_WAKE_AFFINE and
 		 * p is cache cold in this domain, and
