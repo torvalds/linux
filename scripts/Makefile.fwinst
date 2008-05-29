@@ -1,0 +1,45 @@
+# ==========================================================================
+# Installing firmware
+#
+# We don't include the .config, so all firmware files are in $(fw-shipped-)
+# rather than in $(fw-shipped-y) or $(fw-shipped-n).
+# ==========================================================================
+
+INSTALL := install
+
+# For modules_install installing firmware, we want to see .config
+# But for firmware_install, we don't care, but don't want to require it.
+-include $(objtree)/.config
+
+include scripts/Kbuild.include
+include $(srctree)/$(obj)/Makefile
+
+include scripts/Makefile.host
+
+mod-fw := $(addprefix $(INSTALL_FW_PATH)/,$(fw-shipped-m))
+
+# If CONFIG_FIRMWARE_IN_KERNEL isn't set, then install the 
+# firmware for in-kernel drivers too.
+ifndef CONFIG_FIRMWARE_IN_KERNEL
+mod-fw += $(addprefix $(INSTALL_FW_PATH)/,$(fw-shipped-y))
+endif
+
+installed-fw := $(addprefix $(INSTALL_FW_PATH)/,$(fw-shipped-all))
+installed-fw-dirs := $(sort $(dir $(installed-fw))) $(INSTALL_FW_PATH)/.
+
+quiet_cmd_install = INSTALL $(subst $(srctree)/,,$@)
+      cmd_install = $(INSTALL) -m0644 $< $@
+
+$(installed-fw-dirs):
+	$(call cmd,mkdir)
+
+$(installed-fw): $(INSTALL_FW_PATH)/%: $(obj)/% | $(INSTALL_FW_PATH)/$$(dir %)/
+	$(call cmd,install)
+
+.PHONY: __fw_install __fw_modinst FORCE
+
+__fw_install: $(installed-fw)
+__fw_modinst: $(mod-fw)
+
+
+FORCE:
