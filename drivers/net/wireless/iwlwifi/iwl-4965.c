@@ -162,9 +162,10 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	/* Tell bootstrap uCode where to find the "Initialize" uCode
 	 *   in host DRAM ... host DRAM physical address bits 35:4 for 4965.
-	 * NOTE:  iwl4965_initialize_alive_start() will replace these values,
+	 * NOTE:  iwl_init_alive_start() will replace these values,
 	 *        after the "initialize" uCode has run, to point to
-	 *        runtime/protocol instructions and backup data cache. */
+	 *        runtime/protocol instructions and backup data cache.
+	 */
 	pinst = priv->ucode_init.p_addr >> 4;
 	pdata = priv->ucode_init_data.p_addr >> 4;
 	inst_len = priv->ucode_init.len;
@@ -220,6 +221,8 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	iwl_release_nic_access(priv);
 
+	priv->ucode_type = UCODE_INIT;
+
 	return 0;
 }
 
@@ -265,6 +268,8 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	IWL_DEBUG_INFO("Runtime uCode pointers are set.\n");
+
+	priv->ucode_type = UCODE_RT;
 
 	return ret;
 }
