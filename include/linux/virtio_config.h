@@ -99,7 +99,7 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
  * The return value is -ENOENT if the feature doesn't exist.  Otherwise
  * the config value is copied into whatever is pointed to by v. */
 #define virtio_config_val(vdev, fbit, offset, v) \
-	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(v))
+	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(*v))
 
 static inline int virtio_config_buf(struct virtio_device *vdev,
 				    unsigned int fbit,
