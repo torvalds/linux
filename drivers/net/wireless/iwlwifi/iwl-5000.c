@@ -1193,7 +1193,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 				else
 					ieee80211_wake_queue(priv->hw, ampdu_q);
 			}
-			iwl4965_check_empty_hw_queue(priv, sta_id, tid, txq_id);
+			iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 		}
 	} else {
 #endif /* CONFIG_IWL4965_HT */
@@ -1218,7 +1218,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 			(txq_id >= 0) && priv->mac80211_registered)
 			ieee80211_wake_queue(priv->hw, txq_id);
 		if (tid != MAX_TID_COUNT)
-			iwl4965_check_empty_hw_queue(priv, sta_id, tid, txq_id);
+			iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 	}
 	}
 #endif /* CONFIG_IWL4965_HT */

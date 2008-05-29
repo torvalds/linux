@@ -36,6 +36,32 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 
+#ifdef CONFIG_IWL4965_HT
+
+static const u16 default_tid_to_tx_fifo[] = {
+	IWL_TX_FIFO_AC1,
+	IWL_TX_FIFO_AC0,
+	IWL_TX_FIFO_AC0,
+	IWL_TX_FIFO_AC1,
+	IWL_TX_FIFO_AC2,
+	IWL_TX_FIFO_AC2,
+	IWL_TX_FIFO_AC3,
+	IWL_TX_FIFO_AC3,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_AC3
+};
+
+#endif	/*CONFIG_IWL4965_HT */
+
+
+
 /**
  * iwl_hw_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  *
@@ -1170,6 +1196,170 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 }
 EXPORT_SYMBOL(iwl_tx_cmd_complete);
 
+
+#ifdef CONFIG_IWL4965_HT
+/*
+ * Find first available (lowest unused) Tx Queue, mark it "active".
+ * Called only when finding queue for aggregation.
+ * Should never return anything < 7, because they should already
+ * be in use as EDCA AC (0-3), Command (4), HCCA (5, 6).
+ */
+static int iwl_txq_ctx_activate_free(struct iwl_priv *priv)
+{
+	int txq_id;
+
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+		if (!test_and_set_bit(txq_id, &priv->txq_ctx_active_msk))
+			return txq_id;
+	return -1;
+}
+
+int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
+{
+	int sta_id;
+	int tx_fifo;
+	int txq_id;
+	int ret;
+	unsigned long flags;
+	struct iwl_tid_data *tid_data;
+	DECLARE_MAC_BUF(mac);
+
+	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
+		tx_fifo = default_tid_to_tx_fifo[tid];
+	else
+		return -EINVAL;
+
+	IWL_WARNING("%s on ra = %s tid = %d\n",
+			__func__, print_mac(mac, ra), tid);
+
+	sta_id = iwl_find_station(priv, ra);
+	if (sta_id == IWL_INVALID_STATION)
+		return -ENXIO;
+
+	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
+		IWL_ERROR("Start AGG when state is not IWL_AGG_OFF !\n");
+		return -ENXIO;
+	}
+
+	txq_id = iwl_txq_ctx_activate_free(priv);
+	if (txq_id == -1)
+		return -ENXIO;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	tid_data = &priv->stations[sta_id].tid[tid];
+	*ssn = SEQ_TO_SN(tid_data->seq_number);
+	tid_data->agg.txq_id = txq_id;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	ret = priv->cfg->ops->lib->txq_agg_enable(priv, txq_id, tx_fifo,
+						  sta_id, tid, *ssn);
+	if (ret)
+		return ret;
+
+	if (tid_data->tfds_in_queue == 0) {
+		printk(KERN_ERR "HW queue is empty\n");
+		tid_data->agg.state = IWL_AGG_ON;
+		ieee80211_start_tx_ba_cb_irqsafe(priv->hw, ra, tid);
+	} else {
+		IWL_DEBUG_HT("HW queue is NOT empty: %d packets in HW queue\n",
+			     tid_data->tfds_in_queue);
+		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(iwl_tx_agg_start);
+
+int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
+{
+	int tx_fifo_id, txq_id, sta_id, ssn = -1;
+	struct iwl_tid_data *tid_data;
+	int ret, write_ptr, read_ptr;
+	unsigned long flags;
+	DECLARE_MAC_BUF(mac);
+
+	if (!ra) {
+		IWL_ERROR("ra = NULL\n");
+		return -EINVAL;
+	}
+
+	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
+		tx_fifo_id = default_tid_to_tx_fifo[tid];
+	else
+		return -EINVAL;
+
+	sta_id = iwl_find_station(priv, ra);
+
+	if (sta_id == IWL_INVALID_STATION)
+		return -ENXIO;
+
+	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_ON)
+		IWL_WARNING("Stopping AGG while state not IWL_AGG_ON\n");
+
+	tid_data = &priv->stations[sta_id].tid[tid];
+	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;
+	txq_id = tid_data->agg.txq_id;
+	write_ptr = priv->txq[txq_id].q.write_ptr;
+	read_ptr = priv->txq[txq_id].q.read_ptr;
+
+	/* The queue is not empty */
+	if (write_ptr != read_ptr) {
+		IWL_DEBUG_HT("Stopping a non empty AGG HW QUEUE\n");
+		priv->stations[sta_id].tid[tid].agg.state =
+				IWL_EMPTYING_HW_QUEUE_DELBA;
+		return 0;
+	}
+
+	IWL_DEBUG_HT("HW queue is empty\n");
+	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = priv->cfg->ops->lib->txq_agg_disable(priv, txq_id, ssn,
+						   tx_fifo_id);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (ret)
+		return ret;
+
+	ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, ra, tid);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_tx_agg_stop);
+
+int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
+{
+	struct iwl_queue *q = &priv->txq[txq_id].q;
+	u8 *addr = priv->stations[sta_id].sta.sta.addr;
+	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
+
+	switch (priv->stations[sta_id].tid[tid].agg.state) {
+	case IWL_EMPTYING_HW_QUEUE_DELBA:
+		/* We are reclaiming the last packet of the */
+		/* aggregated HW queue */
+		if (txq_id  == tid_data->agg.txq_id &&
+		    q->read_ptr == q->write_ptr) {
+			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
+			int tx_fifo = default_tid_to_tx_fifo[tid];
+			IWL_DEBUG_HT("HW queue empty: continue DELBA flow\n");
+			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
+							     ssn, tx_fifo);
+			tid_data->agg.state = IWL_AGG_OFF;
+			ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+		}
+		break;
+	case IWL_EMPTYING_HW_QUEUE_ADDBA:
+		/* We are reclaiming the last packet of the queue */
+		if (tid_data->tfds_in_queue == 0) {
+			IWL_DEBUG_HT("HW queue empty: continue ADDBA flow\n");
+			tid_data->agg.state = IWL_AGG_ON;
+			ieee80211_start_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+		}
+		break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(iwl_txq_check_empty);
+#endif /* CONFIG_IWL4965_HT */
 
 #ifdef CONFIG_IWLWIF_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
