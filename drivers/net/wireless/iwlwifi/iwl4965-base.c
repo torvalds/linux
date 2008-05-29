@@ -3341,11 +3341,8 @@ static void __iwl4965_down(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	int exit_pending = test_bit(STATUS_EXIT_PENDING, &priv->status);
-	struct ieee80211_conf *conf = NULL;
 
 	IWL_DEBUG_INFO(DRV_NAME " is going down\n");
-
-	conf = ieee80211_get_hw_conf(priv->hw);
 
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
