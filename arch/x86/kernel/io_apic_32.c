@@ -2229,7 +2229,7 @@ static inline void __init check_timer(void)
 
 	if (nmi_watchdog == NMI_IO_APIC) {
 		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
-		nmi_watchdog = 0;
+		nmi_watchdog = NMI_NONE;
 	}
 	timer_ack = 0;
 
