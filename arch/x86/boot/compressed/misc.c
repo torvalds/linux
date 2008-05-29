@@ -30,6 +30,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/boot.h>
+#include <asm/bootparam.h>
 
 /* WARNING!!
  * This code is compiled with -fPIC and it is relocated dynamically
@@ -187,13 +188,7 @@ static void gzip_release(void **);
 /*
  * This is set up by the setup-routine at boot-time
  */
-static unsigned char *real_mode; /* Pointer to real-mode data */
-
-#define RM_EXT_MEM_K   (*(unsigned short *)(real_mode + 0x2))
-#ifndef STANDARD_MEMORY_BIOS_CALL
-#define RM_ALT_MEM_K   (*(unsigned long *)(real_mode + 0x1e0))
-#endif
-#define RM_SCREEN_INFO (*(struct screen_info *)(real_mode+0))
+static struct boot_params *real_mode;		/* Pointer to real-mode data */
 
 extern unsigned char input_data[];
 extern int input_len;
@@ -276,12 +271,13 @@ static void putstr(const char *s)
 	char c;
 
 #ifdef CONFIG_X86_32
-	if (RM_SCREEN_INFO.orig_video_mode == 0 && lines == 0 && cols == 0)
+	if (real_mode->screen_info.orig_video_mode == 0 &&
+	    lines == 0 && cols == 0)
 		return;
 #endif
 
-	x = RM_SCREEN_INFO.orig_x;
-	y = RM_SCREEN_INFO.orig_y;
+	x = real_mode->screen_info.orig_x;
+	y = real_mode->screen_info.orig_y;
 
 	while ((c = *s++) != '\0') {
 		if (c == '\n') {
@@ -302,8 +298,8 @@ static void putstr(const char *s)
 		}
 	}
 
-	RM_SCREEN_INFO.orig_x = x;
-	RM_SCREEN_INFO.orig_y = y;
+	real_mode->screen_info.orig_x = x;
+	real_mode->screen_info.orig_y = y;
 
 	pos = (x + cols * y) * 2;	/* Update cursor position */
 	outb(14, vidport);
@@ -430,7 +426,7 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 {
 	real_mode = rmode;
 
-	if (RM_SCREEN_INFO.orig_video_mode == 7) {
+	if (real_mode->screen_info.orig_video_mode == 7) {
 		vidmem = (char *) 0xb0000;
 		vidport = 0x3b4;
 	} else {
@@ -438,8 +434,8 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 		vidport = 0x3d4;
 	}
 
-	lines = RM_SCREEN_INFO.orig_video_lines;
-	cols = RM_SCREEN_INFO.orig_video_cols;
+	lines = real_mode->screen_info.orig_video_lines;
+	cols = real_mode->screen_info.orig_video_cols;
 
 	window = output;		/* Output buffer (Normally at 1M) */
 	free_mem_ptr     = heap;	/* Heap */
