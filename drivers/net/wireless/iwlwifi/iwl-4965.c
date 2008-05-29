@@ -642,6 +642,22 @@ void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl_hw_txq_ctx_free(priv);
 }
 
+static void iwl4965_apm_stop(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	iwl4965_hw_nic_stop_master(priv);
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+
+	udelay(10);
+
+	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
 static int iwl4965_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
@@ -658,6 +674,7 @@ static int iwl4965_apm_reset(struct iwl_priv *priv)
 	/* FIXME: put here L1A -L0S w/a */
 
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+
 	ret = iwl_poll_bit(priv, CSR_RESET,
 			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25);
@@ -689,7 +706,6 @@ out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ret;
-
 }
 
 #define REG_RECALIB_PERIOD (60)
@@ -3625,6 +3641,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.apm_ops = {
 		.init = iwl4965_apm_init,
 		.reset = iwl4965_apm_reset,
+		.stop = iwl4965_apm_stop,
 		.config = iwl4965_nic_config,
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},
