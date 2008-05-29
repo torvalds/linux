@@ -921,3 +921,23 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 }
 EXPORT_SYMBOL(iwl_get_sta_id);
 
+
+/**
+ * iwl_sta_modify_enable_tid_tx - Enable Tx for this TID in station table
+ */
+void iwl_sta_modify_enable_tid_tx(struct iwl_priv *priv, int sta_id, int tid)
+{
+	unsigned long flags;
+
+	/* Remove "disable" flag, to enable Tx for this TID */
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_TID_DISABLE_TX;
+	priv->stations[sta_id].sta.tid_disable_tx &= cpu_to_le16(~(1 << tid));
+	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
+}
+EXPORT_SYMBOL(iwl_sta_modify_enable_tid_tx);
+
+

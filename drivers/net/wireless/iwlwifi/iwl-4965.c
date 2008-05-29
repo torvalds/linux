@@ -44,6 +44,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-calib.h"
+#include "iwl-sta.h"
 
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
@@ -2900,24 +2901,6 @@ static void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
 #ifdef CONFIG_IWL4965_HT
 
 /**
- * iwl4965_sta_modify_enable_tid_tx - Enable Tx for this TID in station table
- */
-static void iwl4965_sta_modify_enable_tid_tx(struct iwl_priv *priv,
-					 int sta_id, int tid)
-{
-	unsigned long flags;
-
-	/* Remove "disable" flag, to enable Tx for this TID */
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_TID_DISABLE_TX;
-	priv->stations[sta_id].sta.tid_disable_tx &= cpu_to_le16(~(1 << tid));
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-
-	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
-}
-
-/**
  * iwl4965_tx_status_reply_compressed_ba - Update tx status from block-ack
  *
  * Go through block-ack's bitmap of ACK'd frames, update driver's record of
@@ -3193,7 +3176,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
 	/* Modify device's station table to Tx this TID */
-	iwl4965_sta_modify_enable_tid_tx(priv, sta_id, tid);
+	iwl_sta_modify_enable_tid_tx(priv, sta_id, tid);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	rc = iwl_grab_nic_access(priv);
