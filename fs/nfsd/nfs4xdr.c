@@ -1201,7 +1201,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	*p++ = htonl((u32)((n) >> 32));				\
 	*p++ = htonl((u32)(n));					\
 } while (0)
-#define WRITEMEM(ptr,nbytes)     do {				\
+#define WRITEMEM(ptr,nbytes)     do if (nbytes > 0) {		\
 	*(p + XDR_QUADLEN(nbytes) -1) = 0;                      \
 	memcpy(p, ptr, nbytes);					\
 	p += XDR_QUADLEN(nbytes);				\
