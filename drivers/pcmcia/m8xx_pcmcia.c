@@ -60,7 +60,6 @@
 #include <asm/of_device.h>
 #include <asm/of_platform.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
