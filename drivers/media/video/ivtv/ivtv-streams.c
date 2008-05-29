@@ -220,7 +220,8 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 	s->v4l2dev->dev = &itv->dev->dev;
 	s->v4l2dev->fops = ivtv_stream_info[type].fops;
 	s->v4l2dev->release = video_device_release;
-
+	s->v4l2dev->tvnorms = V4L2_STD_ALL;
+	ivtv_set_funcs(s->v4l2dev);
 	return 0;
 }
 

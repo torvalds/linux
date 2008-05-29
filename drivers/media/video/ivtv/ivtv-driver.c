@@ -1262,8 +1262,12 @@ err:
 int ivtv_init_on_first_open(struct ivtv *itv)
 {
 	struct v4l2_frequency vf;
+	/* Needed to call ioctls later */
+	struct ivtv_open_id fh;
 	int fw_retry_count = 3;
 	int video_input;
+
+	fh.itv = itv;
 
 	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags))
 		return -ENXIO;
@@ -1312,18 +1316,18 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 
 	video_input = itv->active_input;
 	itv->active_input++;	/* Force update of input */
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_INPUT, &video_input);
+	ivtv_s_input(NULL, &fh, video_input);
 
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	itv->std++;		/* Force full standard initialization */
 	itv->std_out = itv->std;
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_FREQUENCY, &vf);
+	ivtv_s_frequency(NULL, &fh, &vf);
 
 	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_init_mpeg_decoder(itv);
 	}
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
+	ivtv_s_std(NULL, &fh, &itv->tuner_std);
 
 	/* On a cx23416 this seems to be able to enable DMA to the chip? */
 	if (!itv->has_cx23415)
