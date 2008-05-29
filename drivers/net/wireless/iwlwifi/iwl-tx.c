@@ -1060,6 +1060,114 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	return ret ? ret : idx;
 }
 
+int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
+{
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_queue *q = &txq->q;
+	struct iwl_tx_info *tx_info;
+	int nfreed = 0;
+
+	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
+		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
+			  "is out of range [0-%d] %d %d.\n", txq_id,
+			  index, q->n_bd, q->write_ptr, q->read_ptr);
+		return 0;
+	}
+
+	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+
+		tx_info = &txq->txb[txq->q.read_ptr];
+		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0]);
+		tx_info->skb[0] = NULL;
+		iwl_hw_txq_free_tfd(priv, txq);
+
+		nfreed++;
+	}
+	return nfreed;
+}
+EXPORT_SYMBOL(iwl_tx_queue_reclaim);
+
+
+/**
+ * iwl_hcmd_queue_reclaim - Reclaim TX command queue entries already Tx'd
+ *
+ * When FW advances 'R' index, all entries between old and new 'R' index
+ * need to be reclaimed. As result, some free space forms.  If there is
+ * enough free space (> low mark), wake the stack that feeds us.
+ */
+static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
+{
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_queue *q = &txq->q;
+	int nfreed = 0;
+
+	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
+		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
+			  "is out of range [0-%d] %d %d.\n", txq_id,
+			  index, q->n_bd, q->write_ptr, q->read_ptr);
+		return;
+	}
+
+	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+
+		if (nfreed > 1) {
+			IWL_ERROR("HCMD skipped: index (%d) %d %d\n", index,
+					q->write_ptr, q->read_ptr);
+			queue_work(priv->workqueue, &priv->restart);
+		}
+		nfreed++;
+	}
+}
+
+/**
+ * iwl_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
+ * @rxb: Rx buffer to reclaim
+ *
+ * If an Rx buffer has an async callback associated with it the callback
+ * will be executed.  The attached skb (if present) will only be freed
+ * if the callback returns 1
+ */
+void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
+	int txq_id = SEQ_TO_QUEUE(sequence);
+	int index = SEQ_TO_INDEX(sequence);
+	int huge = sequence & SEQ_HUGE_FRAME;
+	int cmd_index;
+	struct iwl_cmd *cmd;
+
+	/* If a Tx command is being handled and it isn't in the actual
+	 * command queue then there a command routing bug has been introduced
+	 * in the queue management code. */
+	if (txq_id != IWL_CMD_QUEUE_NUM)
+		IWL_ERROR("Error wrong command queue %d command id 0x%X\n",
+			  txq_id, pkt->hdr.cmd);
+	BUG_ON(txq_id != IWL_CMD_QUEUE_NUM);
+
+	cmd_index = get_cmd_index(&priv->txq[IWL_CMD_QUEUE_NUM].q, index, huge);
+	cmd = &priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_index];
+
+	/* Input error checking is done when commands are added to queue. */
+	if (cmd->meta.flags & CMD_WANT_SKB) {
+		cmd->meta.source->u.skb = rxb->skb;
+		rxb->skb = NULL;
+	} else if (cmd->meta.u.callback &&
+		   !cmd->meta.u.callback(priv, cmd, rxb->skb))
+		rxb->skb = NULL;
+
+	iwl_hcmd_queue_reclaim(priv, txq_id, index);
+
+	if (!(cmd->meta.flags & CMD_ASYNC)) {
+		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+		wake_up_interruptible(&priv->wait_command_queue);
+	}
+}
+EXPORT_SYMBOL(iwl_tx_cmd_complete);
+
+
 #ifdef CONFIG_IWLWIF_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 

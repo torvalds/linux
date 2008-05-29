@@ -1159,7 +1159,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
-			freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
+			freed = iwl_tx_queue_reclaim(priv, txq_id, index);
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 
 			if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
@@ -1191,7 +1191,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
 #ifdef CONFIG_IWL4965_HT
 	if (index != -1) {
-		int freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
+		int freed = iwl_tx_queue_reclaim(priv, txq_id, index);
 		if (tid != MAX_TID_COUNT)
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&

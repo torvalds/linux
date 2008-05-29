@@ -3132,7 +3132,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 		/* calculate mac80211 ampdu sw queue to wake */
 		int ampdu_q =
 		   scd_flow - IWL_BACK_QUEUE_FIRST_ID + priv->hw->queues;
-		int freed = iwl4965_tx_queue_reclaim(priv, scd_flow, index);
+		int freed = iwl_tx_queue_reclaim(priv, scd_flow, index);
 		priv->stations[ba_resp->sta_id].
 			tid[ba_resp->tid].tfds_in_queue -= freed;
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
@@ -3673,7 +3673,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
-			freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
+			freed = iwl_tx_queue_reclaim(priv, txq_id, index);
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 
 			if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
@@ -3705,7 +3705,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
 #ifdef CONFIG_IWL4965_HT
 	if (index != -1) {
-		int freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
+		int freed = iwl_tx_queue_reclaim(priv, txq_id, index);
 		if (tid != MAX_TID_COUNT)
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
