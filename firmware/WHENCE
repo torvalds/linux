@@ -44,3 +44,16 @@ Found alsa-firmware package in hex form, with the following comment:
    Copyright (c) 1997-1999 Yamaha Corporation. All Rights Reserved.
 
 --------------------------------------------------------------------------
+
+Driver: smctr -- SMC ISA/MCA Token Ring adapter
+
+File: tr_smctr.bin
+Info: MCT.BIN v6.3C1 03/01/95
+
+Original licence info:
+
+ * This firmware is licensed to you strictly for use in conjunction
+ * with the use of SMC TokenRing adapters. There is no waranty
+ * expressed or implied about its fitness for any purpose.
+
+--------------------------------------------------------------------------
