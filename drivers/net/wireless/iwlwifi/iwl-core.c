@@ -486,6 +486,25 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
 				geo_ch->flags |= IEEE80211_CHAN_RADAR;
 
+			switch (ch->fat_extension_channel) {
+			case HT_IE_EXT_CHANNEL_ABOVE:
+				/* only above is allowed, disable below */
+				geo_ch->flags |= IEEE80211_CHAN_NO_FAT_BELOW;
+				break;
+			case HT_IE_EXT_CHANNEL_BELOW:
+				/* only below is allowed, disable above */
+				geo_ch->flags |= IEEE80211_CHAN_NO_FAT_ABOVE;
+				break;
+			case HT_IE_EXT_CHANNEL_NONE:
+				/* fat not allowed: disable both*/
+				geo_ch->flags |= (IEEE80211_CHAN_NO_FAT_ABOVE |
+						  IEEE80211_CHAN_NO_FAT_BELOW);
+				break;
+			case HT_IE_EXT_CHANNEL_MAX:
+				/* both above and below are permitted */
+				break;
+			}
+
 			if (ch->max_power_avg > priv->max_channel_txpower_limit)
 				priv->max_channel_txpower_limit =
 				    ch->max_power_avg;
