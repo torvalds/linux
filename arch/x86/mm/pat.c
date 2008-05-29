@@ -34,7 +34,7 @@ void __cpuinit pat_disable(char *reason)
 	printk(KERN_INFO "%s\n", reason);
 }
 
-static int nopat(char *str)
+static int __init nopat(char *str)
 {
 	pat_disable("PAT support disabled.");
 	return 0;
