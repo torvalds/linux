@@ -31,6 +31,7 @@ enum shutdown_state {
 /* Ignore multiple shutdown requests. */
 static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 
+#ifdef CONFIG_PM_SLEEP
 static int xen_suspend(void *data)
 {
 	int *cancelled = data;
@@ -121,6 +122,7 @@ out:
 #endif
 	shutting_down = SHUTDOWN_INVALID;
 }
+#endif	/* CONFIG_PM_SLEEP */
 
 static void shutdown_handler(struct xenbus_watch *watch,
 			     const char **vec, unsigned int len)
