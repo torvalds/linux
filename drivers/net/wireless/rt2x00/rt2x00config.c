@@ -129,6 +129,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00dev->ops->lib->config(rt2x00dev, &libconf, CONFIG_UPDATE_ANTENNA);
 	rt2x00lib_reset_link_tuner(rt2x00dev);
+	rt2x00_reset_link_ant_rssi(&rt2x00dev->link);
 
 	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
 	rt2x00dev->link.ant.active.tx = libconf.ant.tx;
