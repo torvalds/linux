@@ -5847,9 +5847,6 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 	/* Configure the adapter for unassociated operation */
 	iwl3945_commit_rxon(priv);
 
-	/* At this point, the NIC is initialized and operational */
-	priv->notif_missed_beacons = 0;
-
 	iwl3945_reg_txpower_periodic(priv);
 
 	iwl3945_led_register(priv);

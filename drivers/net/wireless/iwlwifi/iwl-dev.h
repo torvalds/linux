@@ -1125,8 +1125,6 @@ struct iwl_priv {
 
 	u8 mac80211_registered;
 
-	u32 notif_missed_beacons;
-
 	/* Rx'd packet timing information */
 	u32 last_beacon_time;
 	u64 last_tsf;
