@@ -642,9 +642,9 @@ void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl_hw_txq_ctx_free(priv);
 }
 
-int iwl4965_hw_nic_reset(struct iwl_priv *priv)
+static int iwl4965_apm_reset(struct iwl_priv *priv)
 {
-	int rc = 0;
+	int ret = 0;
 	unsigned long flags;
 
 	iwl4965_hw_nic_stop_master(priv);
@@ -655,33 +655,40 @@ int iwl4965_hw_nic_reset(struct iwl_priv *priv)
 
 	udelay(10);
 
+	/* FIXME: put here L1A -L0S w/a */
+
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	rc = iwl_poll_bit(priv, CSR_RESET,
+	ret = iwl_poll_bit(priv, CSR_RESET,
 			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25);
 
+	if (ret)
+		goto out;
+
 	udelay(10);
 
-	rc = iwl_grab_nic_access(priv);
-	if (!rc) {
-		iwl_write_prph(priv, APMG_CLK_EN_REG,
-				APMG_CLK_VAL_DMA_CLK_RQT |
-				APMG_CLK_VAL_BSM_CLK_RQT);
+	ret = iwl_grab_nic_access(priv);
+	if (ret)
+		goto out;
+	/* Enable DMA and BSM Clock */
+	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT |
+					      APMG_CLK_VAL_BSM_CLK_RQT);
 
-		udelay(10);
+	udelay(10);
 
-		iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
-					APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+	/* disable L1A */
+	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
+			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-		iwl_release_nic_access(priv);
-	}
+	iwl_release_nic_access(priv);
 
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
+out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return rc;
+	return ret;
 
 }
 
@@ -3617,6 +3624,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.load_ucode = iwl4965_load_bsm,
 	.apm_ops = {
 		.init = iwl4965_apm_init,
+		.reset = iwl4965_apm_reset,
 		.config = iwl4965_nic_config,
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},

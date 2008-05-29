@@ -3417,9 +3417,8 @@ static void __iwl4965_down(struct iwl_priv *priv)
 
 	udelay(5);
 
-	iwl4965_hw_nic_stop_master(priv);
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	iwl4965_hw_nic_reset(priv);
+	/* FIXME: apm_ops.suspend(priv) */
+	priv->cfg->ops->lib->apm_ops.reset(priv);
 	priv->cfg->ops->lib->free_shared_mem(priv);
 
  exit:
