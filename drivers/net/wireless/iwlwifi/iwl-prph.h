@@ -358,11 +358,6 @@
  *  7- 0:  Enable (1), disable (0), one bit for each channel 0-7
  */
 #define IWL49_SCD_TXFACT                   (IWL49_SCD_START_OFFSET + 0x1c)
-
-/* Mask to enable contiguous Tx DMA/FIFO channels between "lo" and "hi". */
-#define SCD_TXFACT_REG_TXFIFO_MASK(lo, hi) \
-       ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
-
 /*
  * Queue (x) Write Pointers (indexes, really!), one for each Tx queue.
  * Initialized and updated by driver as new TFDs are added to queue.

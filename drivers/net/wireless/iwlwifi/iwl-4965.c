@@ -468,25 +468,13 @@ int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 	return ret;
 }
 
-static int iwl4965_disable_tx_fifo(struct iwl_priv *priv)
+/*
+ * Activate/Deactivat Tx DMA/FIFO channels according tx fifos mask
+ * must be called under priv->lock and mac access
+ */
+static void iwl4965_txq_set_sched(struct iwl_priv *priv, u32 mask)
 {
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	ret = iwl_grab_nic_access(priv);
-	if (unlikely(ret)) {
-		IWL_ERROR("Tx fifo reset failed");
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
-
-	iwl_write_prph(priv, IWL49_SCD_TXFACT, 0);
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
+	iwl_write_prph(priv, IWL49_SCD_TXFACT, mask);
 }
 
 static int iwl4965_apm_init(struct iwl_priv *priv)
@@ -577,36 +565,6 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 		iwl_eeprom_query_addr(priv, EEPROM_4965_CALIB_TXPOWER_OFFSET);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-/**
- * iwl4965_hw_txq_ctx_stop - Stop all Tx DMA channels, free Tx queue memory
- */
-void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv)
-{
-
-	int txq_id;
-	unsigned long flags;
-
-	/* Stop each Tx DMA channel, and wait for it to be idle */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		spin_lock_irqsave(&priv->lock, flags);
-		if (iwl_grab_nic_access(priv)) {
-			spin_unlock_irqrestore(&priv->lock, flags);
-			continue;
-		}
-
-		iwl_write_direct32(priv,
-				   FH_TCSR_CHNL_TX_CONFIG_REG(txq_id), 0x0);
-		iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
-				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE
-				    (txq_id), 200);
-		iwl_release_nic_access(priv);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
-
-	/* Deallocate memory for all Tx queues */
-	iwl_hw_txq_ctx_free(priv);
 }
 
 static int iwl4965_apm_stop_master(struct iwl_priv *priv)
@@ -995,8 +953,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 				 (1 << priv->hw_params.max_txq_num) - 1);
 
 	/* Activate all Tx DMA/FIFO channels */
-	iwl_write_prph(priv, IWL49_SCD_TXFACT,
-				 SCD_TXFACT_REG_TXFIFO_MASK(0, 7));
+	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
 
 	iwl4965_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
 
@@ -3622,7 +3579,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.free_shared_mem = iwl4965_free_shared_mem,
 	.shared_mem_rx_idx = iwl4965_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
-	.disable_tx_fifo = iwl4965_disable_tx_fifo,
+	.txq_set_sched = iwl4965_txq_set_sched,
 	.rx_handler_setup = iwl4965_rx_handler_setup,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
 	.alive_notify = iwl4965_alive_notify,

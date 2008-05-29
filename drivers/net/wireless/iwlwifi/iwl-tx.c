@@ -263,24 +263,6 @@ EXPORT_SYMBOL(iwl_queue_space);
 
 
 /**
- * iwl_hw_txq_ctx_free - Free TXQ Context
- *
- * Destroy all TX DMA queues and structures
- */
-void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
-{
-	int txq_id;
-
-	/* Tx queues */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-		iwl_tx_queue_free(priv, &priv->txq[txq_id]);
-
-	/* Keep-warm buffer */
-	iwl_kw_free(priv);
-}
-EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
-
-/**
  * iwl_queue_init - Initialize queue's high/low-water and read/write indexes
  */
 static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
@@ -437,6 +419,24 @@ static int iwl_tx_queue_init(struct iwl_priv *priv,
 
 	return 0;
 }
+/**
+ * iwl_hw_txq_ctx_free - Free TXQ Context
+ *
+ * Destroy all TX DMA queues and structures
+ */
+void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
+{
+	int txq_id;
+
+	/* Tx queues */
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+		iwl_tx_queue_free(priv, &priv->txq[txq_id]);
+
+	/* Keep-warm buffer */
+	iwl_kw_free(priv);
+}
+EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
+
 
 /**
  * iwl_txq_ctx_reset - Reset TX queue context
@@ -449,6 +449,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
 	int txq_id, slots_num;
+	unsigned long flags;
 
 	iwl_kw_free(priv);
 
@@ -461,11 +462,19 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 		IWL_ERROR("Keep Warm allocation failed");
 		goto error_kw;
 	}
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (unlikely(ret)) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		goto error_reset;
+	}
 
 	/* Turn off all Tx DMA fifos */
-	ret = priv->cfg->ops->lib->disable_tx_fifo(priv);
-	if (unlikely(ret))
-		goto error_reset;
+	priv->cfg->ops->lib->txq_set_sched(priv, 0);
+
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 
 	/* Tell nic where to find the keep-warm buffer */
 	ret = iwl_kw_init(priv);
@@ -474,8 +483,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 		goto error_reset;
 	}
 
-	/* Alloc and init all (default 16) Tx queues,
-	 * including the command queue (#4) */
+	/* Alloc and init all Tx queues, including the command queue (#4) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
@@ -496,6 +504,40 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
  error_kw:
 	return ret;
 }
+/**
+ * iwl_txq_ctx_stop - Stop all Tx DMA channels, free Tx queue memory
+ */
+void iwl_txq_ctx_stop(struct iwl_priv *priv)
+{
+
+	int txq_id;
+	unsigned long flags;
+
+
+	/* Turn off all Tx DMA fifos */
+	spin_lock_irqsave(&priv->lock, flags);
+	if (iwl_grab_nic_access(priv)) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return;
+	}
+
+	priv->cfg->ops->lib->txq_set_sched(priv, 0);
+
+	/* Stop each Tx DMA channel, and wait for it to be idle */
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
+		iwl_write_direct32(priv,
+				   FH_TCSR_CHNL_TX_CONFIG_REG(txq_id), 0x0);
+		iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
+				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE
+				    (txq_id), 200);
+	}
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Deallocate memory for all Tx queues */
+	iwl_hw_txq_ctx_free(priv);
+}
+EXPORT_SYMBOL(iwl_txq_ctx_stop);
 
 /*
  * handle build REPLY_TX command notification.

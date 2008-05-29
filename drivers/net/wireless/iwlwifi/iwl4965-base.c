@@ -3404,7 +3404,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 			 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	iwl4965_hw_txq_ctx_stop(priv);
+	iwl_txq_ctx_stop(priv);
 	iwl4965_hw_rxq_stop(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
