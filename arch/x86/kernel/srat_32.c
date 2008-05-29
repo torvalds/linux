@@ -261,7 +261,7 @@ out_fail:
 
 struct acpi_static_rsdt {
 	struct acpi_table_rsdt table;
-	u32 padding[7]; /* Allow for 7 more table entries */
+	u32 padding[32]; /* Allow for 32 more table entries */
 };
 
 int __init get_memcfg_from_srat(void)
@@ -297,7 +297,7 @@ int __init get_memcfg_from_srat(void)
 	}
 
 	rsdt = (struct acpi_table_rsdt *)
-	    early_ioremap(rsdp->rsdt_physical_address, sizeof(struct acpi_table_rsdt));
+	    early_ioremap(rsdp->rsdt_physical_address, sizeof(saved_rsdt));
 
 	if (!rsdt) {
 		printk(KERN_WARNING
@@ -310,6 +310,7 @@ int __init get_memcfg_from_srat(void)
 
 	if (strncmp(header->signature, ACPI_SIG_RSDT, strlen(ACPI_SIG_RSDT))) {
 		printk(KERN_WARNING "ACPI: RSDT signature incorrect\n");
+		early_iounmap(rsdt, sizeof(saved_rsdt));
 		goto out_err;
 	}
 
@@ -319,37 +320,51 @@ int __init get_memcfg_from_srat(void)
 	 * size of RSDT) divided by the size of each entry
 	 * (4-byte table pointers).
 	 */
-	tables = (header->length - sizeof(struct acpi_table_header)) / 4;
+	tables = (header->length - sizeof(struct acpi_table_header)) / sizeof(u32);
 
 	if (!tables)
 		goto out_err;
 
 	memcpy(&saved_rsdt, rsdt, sizeof(saved_rsdt));
-
+	early_iounmap(rsdt, sizeof(saved_rsdt));
 	if (saved_rsdt.table.header.length > sizeof(saved_rsdt)) {
 		printk(KERN_WARNING "ACPI: Too big length in RSDT: %d\n",
 		       saved_rsdt.table.header.length);
 		goto out_err;
 	}
 
-	printk("Begin SRAT table scan....\n");
+	printk("Begin SRAT table scan....%d\n", tables);
 
-	for (i = 0; i < tables; i++) {
+	for (i = 0; i < tables; i++){
+		int result;
+		u32 length;
 		/* Map in header, then map in full table length. */
 		header = (struct acpi_table_header *)
 			early_ioremap(saved_rsdt.table.table_offset_entry[i], sizeof(struct acpi_table_header));
 		if (!header)
 			break;
+
+                printk(KERN_INFO "ACPI: %4.4s %08lX, %04X\n",
+                           header->signature,
+		   (unsigned long)saved_rsdt.table.table_offset_entry[i],
+                           header->length);
+
+		if (strncmp((char *) &header->signature, ACPI_SIG_SRAT, 4)) {
+			early_iounmap(header, sizeof(struct acpi_table_header));
+			continue;
+		}
+
+		length = header->length;
+		early_iounmap(header, sizeof(struct acpi_table_header));
 		header = (struct acpi_table_header *)
-			early_ioremap(saved_rsdt.table.table_offset_entry[i], header->length);
+			early_ioremap(saved_rsdt.table.table_offset_entry[i], length);
 		if (!header)
 			break;
 
-		if (strncmp((char *) &header->signature, ACPI_SIG_SRAT, 4))
-			continue;
-
 		/* we've found the srat table. don't need to look at any more tables */
-		return acpi20_parse_srat((struct acpi_table_srat *)header);
+		result = acpi20_parse_srat((struct acpi_table_srat *)header);
+		early_iounmap(header, length);
+		return result;
 	}
 out_err:
 	remove_all_active_ranges();
