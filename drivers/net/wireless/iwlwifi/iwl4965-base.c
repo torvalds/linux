@@ -1084,8 +1084,8 @@ static int iwl4965_scan_initiate(struct iwl_priv *priv)
 }
 
 
-static void iwl4965_set_flags_for_phymode(struct iwl_priv *priv,
-					  enum ieee80211_band band)
+static void iwl_set_flags_for_band(struct iwl_priv *priv,
+				   enum ieee80211_band band)
 {
 	if (band == IEEE80211_BAND_5GHZ) {
 		priv->staging_rxon.flags &=
@@ -1170,7 +1170,7 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 	priv->staging_rxon.channel = cpu_to_le16(ch_info->channel);
 	priv->band = ch_info->band;
 
-	iwl4965_set_flags_for_phymode(priv, priv->band);
+	iwl_set_flags_for_band(priv, priv->band);
 
 	priv->staging_rxon.ofdm_basic_rates =
 	    (IWL_OFDM_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
@@ -3823,6 +3823,7 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	const struct iwl_channel_info *ch_info;
 	unsigned long flags;
 	int ret = 0;
+	u16 channel;
 
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter to channel %d\n", conf->channel->hw_value);
@@ -3843,22 +3844,21 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		return 0;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	ch_info = iwl_get_channel_info(priv, conf->channel->band,
-			ieee80211_frequency_to_channel(conf->channel->center_freq));
+	channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
+	ch_info = iwl_get_channel_info(priv, conf->channel->band, channel);
 	if (!is_channel_valid(ch_info)) {
 		IWL_DEBUG_MAC80211("leave - invalid channel\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
 		ret = -EINVAL;
 		goto out;
 	}
+
+	spin_lock_irqsave(&priv->lock, flags);
 
 #ifdef CONFIG_IWL4965_HT
 	/* if we are switching from ht to 2.4 clear flags
 	 * from any ht related info since 2.4 does not
 	 * support ht */
-	if ((le16_to_cpu(priv->staging_rxon.channel) != conf->channel->hw_value)
+	if ((le16_to_cpu(priv->staging_rxon.channel) != channel)
 #ifdef IEEE80211_CONF_CHANNEL_SWITCH
 	    && !(conf->flags & IEEE80211_CONF_CHANNEL_SWITCH)
 #endif
@@ -3866,10 +3866,9 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		priv->staging_rxon.flags = 0;
 #endif /* CONFIG_IWL4965_HT */
 
-	iwl_set_rxon_channel(priv, conf->channel->band,
-		ieee80211_frequency_to_channel(conf->channel->center_freq));
+	iwl_set_rxon_channel(priv, conf->channel->band, channel);
 
-	iwl4965_set_flags_for_phymode(priv, conf->channel->band);
+	iwl_set_flags_for_band(priv, conf->channel->band);
 
 	/* The list of supported rates and rate mask can be different
 	 * for each band; since the band may have changed, reset
