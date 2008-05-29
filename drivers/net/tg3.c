@@ -32,6 +32,7 @@
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -833,6 +834,115 @@ static int tg3_bmcr_reset(struct tg3 *tp)
 		return -EBUSY;
 
 	return 0;
+}
+
+static int tg3_mdio_read(struct mii_bus *bp, int mii_id, int reg)
+{
+	struct tg3 *tp = (struct tg3 *)bp->priv;
+	u32 val;
+
+	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_PAUSED)
+		return -EAGAIN;
+
+	if (tg3_readphy(tp, reg, &val))
+		return -EIO;
+
+	return val;
+}
+
+static int tg3_mdio_write(struct mii_bus *bp, int mii_id, int reg, u16 val)
+{
+	struct tg3 *tp = (struct tg3 *)bp->priv;
+
+	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_PAUSED)
+		return -EAGAIN;
+
+	if (tg3_writephy(tp, reg, val))
+		return -EIO;
+
+	return 0;
+}
+
+static int tg3_mdio_reset(struct mii_bus *bp)
+{
+	return 0;
+}
+
+static void tg3_mdio_start(struct tg3 *tp)
+{
+	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) {
+		mutex_lock(&tp->mdio_bus.mdio_lock);
+		tp->tg3_flags3 &= ~TG3_FLG3_MDIOBUS_PAUSED;
+		mutex_unlock(&tp->mdio_bus.mdio_lock);
+	}
+
+	tp->mi_mode &= ~MAC_MI_MODE_AUTO_POLL;
+	tw32_f(MAC_MI_MODE, tp->mi_mode);
+	udelay(80);
+}
+
+static void tg3_mdio_stop(struct tg3 *tp)
+{
+	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) {
+		mutex_lock(&tp->mdio_bus.mdio_lock);
+		tp->tg3_flags3 |= TG3_FLG3_MDIOBUS_PAUSED;
+		mutex_unlock(&tp->mdio_bus.mdio_lock);
+	}
+}
+
+static int tg3_mdio_init(struct tg3 *tp)
+{
+	int i;
+	u32 reg;
+	struct mii_bus *mdio_bus = &tp->mdio_bus;
+
+	tg3_mdio_start(tp);
+
+	if (!(tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB) ||
+	    (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED))
+		return 0;
+
+	memset(mdio_bus, 0, sizeof(*mdio_bus));
+
+	mdio_bus->name     = "tg3 mdio bus";
+	snprintf(mdio_bus->id, MII_BUS_ID_SIZE, "%x",
+		 (tp->pdev->bus->number << 8) | tp->pdev->devfn);
+	mdio_bus->priv     = tp;
+	mdio_bus->dev      = &tp->pdev->dev;
+	mdio_bus->read     = &tg3_mdio_read;
+	mdio_bus->write    = &tg3_mdio_write;
+	mdio_bus->reset    = &tg3_mdio_reset;
+	mdio_bus->phy_mask = ~(1 << PHY_ADDR);
+	mdio_bus->irq      = &tp->mdio_irq[0];
+
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		mdio_bus->irq[i] = PHY_POLL;
+
+	/* The bus registration will look for all the PHYs on the mdio bus.
+	 * Unfortunately, it does not ensure the PHY is powered up before
+	 * accessing the PHY ID registers.  A chip reset is the
+	 * quickest way to bring the device back to an operational state..
+	 */
+	if (tg3_readphy(tp, MII_BMCR, &reg) || (reg & BMCR_PDOWN))
+		tg3_bmcr_reset(tp);
+
+	i = mdiobus_register(mdio_bus);
+	if (!i)
+		tp->tg3_flags3 |= TG3_FLG3_MDIOBUS_INITED;
+	else
+		printk(KERN_WARNING "%s: mdiobus_reg failed (0x%x)\n",
+			tp->dev->name, i);
+
+	return i;
+}
+
+static void tg3_mdio_fini(struct tg3 *tp)
+{
+	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) {
+		tp->tg3_flags3 &= ~TG3_FLG3_MDIOBUS_INITED;
+		mdiobus_unregister(&tp->mdio_bus);
+		tp->tg3_flags3 &= ~TG3_FLG3_MDIOBUS_PAUSED;
+	}
 }
 
 /* tp->lock is held. */
@@ -5386,6 +5496,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_nvram_lock(tp);
 
+	tg3_mdio_stop(tp);
+
 	/* No matching tg3_nvram_unlock() after this because
 	 * chip reset below will undo the nvram lock.
 	 */
@@ -5536,6 +5648,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 	} else
 		tw32_f(MAC_MODE, 0);
 	udelay(40);
+
+	tg3_mdio_start(tp);
 
 	err = tg3_poll_fw(tp);
 	if (err)
@@ -7167,10 +7281,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 
 	tw32_f(MAC_RX_MODE, tp->rx_mode);
 	udelay(10);
-
-	tp->mi_mode &= ~MAC_MI_MODE_AUTO_POLL;
-	tw32_f(MAC_MI_MODE, tp->mi_mode);
-	udelay(80);
 
 	tw32(MAC_LED_CTRL, tp->led_ctrl);
 
@@ -11850,9 +11960,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5700_BX)
 		tp->coalesce_mode |= HOSTCC_MODE_32BYTE;
 
-	/* Initialize MAC MI mode, polling disabled. */
-	tw32_f(MAC_MI_MODE, tp->mi_mode);
-	udelay(80);
+	err = tg3_mdio_init(tp);
+	if (err)
+		return err;
 
 	/* Initialize data/descriptor byte/word swapping. */
 	val = tr32(GRC_MODE);
@@ -13052,6 +13162,10 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 		struct tg3 *tp = netdev_priv(dev);
 
 		flush_scheduled_work();
+
+		if (tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB)
+			tg3_mdio_fini(tp);
+
 		unregister_netdev(dev);
 		if (tp->aperegs) {
 			iounmap(tp->aperegs);

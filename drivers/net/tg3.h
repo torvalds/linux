@@ -2481,6 +2481,8 @@ struct tg3 {
 #define TG3_FLG3_5761_5784_AX_FIXES	0x00000004
 #define TG3_FLG3_5701_DMA_BUG		0x00000008
 #define TG3_FLG3_USE_PHYLIB		0x00000010
+#define TG3_FLG3_MDIOBUS_INITED		0x00000020
+#define TG3_FLG3_MDIOBUS_PAUSED		0x00000040
 
 	struct timer_list		timer;
 	u16				timer_counter;
@@ -2520,6 +2522,9 @@ struct tg3 {
 	int				pm_cap;
 	int				msi_cap;
 	int				pcix_cap;
+
+	struct mii_bus			mdio_bus;
+	int				mdio_irq[PHY_MAX_ADDR];
 
 	/* PHY info */
 	u32				phy_id;
