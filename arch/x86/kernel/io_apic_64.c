@@ -801,7 +801,7 @@ static void __clear_irq_vector(int irq)
 	cpus_clear(cfg->domain);
 }
 
-void __setup_vector_irq(int cpu)
+static void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
 	/* This function must be called with vector_lock held */
@@ -822,6 +822,13 @@ void __setup_vector_irq(int cpu)
 		if (!cpu_isset(cpu, irq_cfg[irq].domain))
 			per_cpu(vector_irq, cpu)[vector] = -1;
 	}
+}
+
+void setup_vector_irq(int cpu)
+{
+	spin_lock(&vector_lock);
+	__setup_vector_irq(smp_processor_id());
+	spin_unlock(&vector_lock);
 }
 
 

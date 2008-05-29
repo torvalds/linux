@@ -329,15 +329,8 @@ static void __cpuinit start_secondary(void *unused)
 	 * smp_call_function().
 	 */
 	lock_ipi_call_lock();
-#ifdef CONFIG_X86_64
-	spin_lock(&vector_lock);
-
-	/* Setup the per cpu irq handling data structures */
-	__setup_vector_irq(smp_processor_id());
-	/*
-	 * Allow the master to continue.
-	 */
-	spin_unlock(&vector_lock);
+#ifdef CONFIG_X86_IO_APIC
+	setup_vector_irq(smp_processor_id());
 #endif
 	cpu_set(smp_processor_id(), cpu_online_map);
 	unlock_ipi_call_lock();
