@@ -928,8 +928,26 @@ struct iwl_addsta_cmd {
 /*
  * REPLY_ADD_STA = 0x18 (response)
  */
-struct iwl4965_add_sta_resp {
+struct iwl_add_sta_resp {
 	u8 status;	/* ADD_STA_* */
+} __attribute__ ((packed));
+
+#define REM_STA_SUCCESS_MSK              0x1
+/*
+ *  REPLY_REM_STA = 0x19 (response)
+ */
+struct iwl_rem_sta_resp {
+	u8 status;
+} __attribute__ ((packed));
+
+/*
+ *  REPLY_REM_STA = 0x19 (command)
+ */
+struct iwl_rem_sta_cmd {
+	u8 num_sta;     /* number of removed stations */
+	u8 reserved[3];
+	u8 addr[ETH_ALEN]; /* MAC addr of the first station */
+	u8 reserved2[2];
 } __attribute__ ((packed));
 
 /*
@@ -2869,7 +2887,8 @@ struct iwl_rx_packet {
 		struct iwl_error_resp err_resp;
 		struct iwl4965_card_state_notif card_state_notif;
 		struct iwl4965_beacon_notif beacon_status;
-		struct iwl4965_add_sta_resp add_sta;
+		struct iwl_add_sta_resp add_sta;
+		struct iwl_rem_sta_resp rem_sta;
 		struct iwl4965_sleep_notification sleep_notif;
 		struct iwl4965_spectrum_resp spectrum;
 		struct iwl4965_notif_statistics stats;

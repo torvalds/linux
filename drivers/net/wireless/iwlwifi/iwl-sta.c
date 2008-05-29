@@ -37,6 +37,10 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 
+
+#define IWL_STA_DRIVER_ACTIVE		0x1     /* ucode entry is active */
+#define IWL_STA_UCODE_ACTIVE		0x2     /* ucode entry is active */
+
 u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 {
 	int i;
@@ -241,6 +245,152 @@ u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 }
 EXPORT_SYMBOL(iwl_add_station_flags);
 
+
+static int iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
+{
+	unsigned long flags;
+	u8 sta_id;
+	DECLARE_MAC_BUF(mac);
+
+	sta_id = iwl_find_station(priv, addr);
+	if (sta_id != IWL_INVALID_STATION) {
+		IWL_DEBUG_ASSOC("Removed STA from Ucode: %s\n",
+				print_mac(mac, addr));
+		spin_lock_irqsave(&priv->sta_lock, flags);
+		priv->stations[sta_id].used &= ~IWL_STA_UCODE_ACTIVE;
+		memset(&priv->stations[sta_id], 0,
+			sizeof(struct iwl_station_entry));
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int iwl_remove_sta_callback(struct iwl_priv *priv,
+				   struct iwl_cmd *cmd, struct sk_buff *skb)
+{
+	struct iwl_rx_packet *res = NULL;
+	const char *addr = cmd->cmd.rm_sta.addr;
+
+	if (!skb) {
+		IWL_ERROR("Error: Response NULL in REPLY_REMOVE_STA.\n");
+		return 1;
+	}
+
+	res = (struct iwl_rx_packet *)skb->data;
+	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERROR("Bad return from REPLY_REMOVE_STA (0x%08X)\n",
+		res->hdr.flags);
+		return 1;
+	}
+
+	switch (res->u.rem_sta.status) {
+	case REM_STA_SUCCESS_MSK:
+		iwl_sta_ucode_deactivate(priv, addr);
+		break;
+	default:
+		break;
+	}
+
+	/* We didn't cache the SKB; let the caller free it */
+	return 1;
+}
+
+static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
+				   u8 flags)
+{
+	struct iwl_rx_packet *res = NULL;
+	int ret;
+
+	struct iwl_rem_sta_cmd rm_sta_cmd;
+
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_REMOVE_STA,
+		.len = sizeof(struct iwl_rem_sta_cmd),
+		.meta.flags = flags,
+		.data = &rm_sta_cmd,
+	};
+
+	memset(&rm_sta_cmd, 0, sizeof(rm_sta_cmd));
+	rm_sta_cmd.num_sta = 1;
+	memcpy(&rm_sta_cmd.addr, addr , ETH_ALEN);
+
+	if (flags & CMD_ASYNC)
+		cmd.meta.u.callback = iwl_remove_sta_callback;
+	else
+		cmd.meta.flags |= CMD_WANT_SKB;
+	ret = iwl_send_cmd(priv, &cmd);
+
+	if (ret || (flags & CMD_ASYNC))
+		return ret;
+
+	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERROR("Bad return from REPLY_REMOVE_STA (0x%08X)\n",
+			  res->hdr.flags);
+		ret = -EIO;
+	}
+
+	if (!ret) {
+		switch (res->u.rem_sta.status) {
+		case REM_STA_SUCCESS_MSK:
+			iwl_sta_ucode_deactivate(priv, addr);
+			IWL_DEBUG_ASSOC("REPLY_REMOVE_STA PASSED\n");
+			break;
+		default:
+			ret = -EIO;
+			IWL_ERROR("REPLY_REMOVE_STA failed\n");
+			break;
+		}
+	}
+
+	priv->alloc_rxb_skb--;
+	dev_kfree_skb_any(cmd.meta.u.skb);
+
+	return ret;
+}
+/**
+ * iwl_remove_station - Remove driver's knowledge of station.
+ *
+ */
+u8 iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
+{
+	int index = IWL_INVALID_STATION;
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	if (is_ap)
+		index = IWL_AP_ID;
+	else if (is_broadcast_ether_addr(addr))
+		index = priv->hw_params.bcast_sta_id;
+	else
+		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++)
+			if (priv->stations[i].used &&
+			    !compare_ether_addr(priv->stations[i].sta.sta.addr,
+						addr)) {
+				index = i;
+				break;
+			}
+
+	if (unlikely(index == IWL_INVALID_STATION))
+		goto out;
+
+	if (priv->stations[index].used) {
+		priv->stations[index].used = 0;
+		priv->num_stations--;
+	}
+
+	BUG_ON(priv->num_stations < 0);
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	iwl_send_remove_station(priv, addr, CMD_ASYNC);
+	return index;
+out:
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL(iwl_remove_station);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
 	int i;

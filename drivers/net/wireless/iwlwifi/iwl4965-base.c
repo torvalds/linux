@@ -140,49 +140,6 @@ static const char *iwl4965_escape_essid(const char *essid, u8 essid_len)
 
 /**************************************************************/
 
-#if 0 /* temporary disable till we add real remove station */
-/**
- * iwl4965_remove_station - Remove driver's knowledge of station.
- *
- * NOTE:  This does not remove station from device's station table.
- */
-static u8 iwl4965_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
-{
-	int index = IWL_INVALID_STATION;
-	int i;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-
-	if (is_ap)
-		index = IWL_AP_ID;
-	else if (is_broadcast_ether_addr(addr))
-		index = priv->hw_params.bcast_sta_id;
-	else
-		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++)
-			if (priv->stations[i].used &&
-			    !compare_ether_addr(priv->stations[i].sta.sta.addr,
-						addr)) {
-				index = i;
-				break;
-			}
-
-	if (unlikely(index == IWL_INVALID_STATION))
-		goto out;
-
-	if (priv->stations[index].used) {
-		priv->stations[index].used = 0;
-		priv->num_stations--;
-	}
-
-	BUG_ON(priv->num_stations < 0);
-
-out:
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-	return 0;
-}
-#endif
-
 
 
 static void iwl4965_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt)
@@ -404,6 +361,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 		return rc;
 	}
 
+	iwl_remove_station(priv, iwl_bcast_addr, 0);
 	iwlcore_clear_stations_table(priv);
 
 	if (!priv->error_recovering)

@@ -333,6 +333,7 @@ struct iwl_cmd {
 		struct iwl_tx_cmd tx;
 		struct iwl4965_tx_beacon_cmd tx_beacon;
 		struct iwl4965_rxon_assoc_cmd rxon_assoc;
+		struct iwl_rem_sta_cmd rm_sta;
 		u8 *indirect;
 		u8 payload[IWL_CMD_MAX_PAYLOAD];
 	} __attribute__ ((packed)) cmd;
