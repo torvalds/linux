@@ -74,6 +74,39 @@ u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 }
 EXPORT_SYMBOL(iwl_find_station);
 
+static int iwl_add_sta_callback(struct iwl_priv *priv,
+				   struct iwl_cmd *cmd, struct sk_buff *skb)
+{
+	struct iwl_rx_packet *res = NULL;
+
+	if (!skb) {
+		IWL_ERROR("Error: Response NULL in REPLY_ADD_STA.\n");
+		return 1;
+	}
+
+	res = (struct iwl_rx_packet *)skb->data;
+	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERROR("Bad return from REPLY_ADD_STA (0x%08X)\n",
+			  res->hdr.flags);
+		return 1;
+	}
+
+	switch (res->u.add_sta.status) {
+	case ADD_STA_SUCCESS_MSK:
+		/* FIXME: implement iwl_sta_ucode_activate(priv, addr); */
+		/* fail through */
+	default:
+		IWL_DEBUG_HC("Received REPLY_ADD_STA:(0x%08X)\n",
+			     res->u.add_sta.status);
+		break;
+	}
+
+	/* We didn't cache the SKB; let the caller free it */
+	return 1;
+}
+
+
+
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
 {
@@ -86,7 +119,9 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		.data = data,
 	};
 
-	if (!(flags & CMD_ASYNC))
+	if (flags & CMD_ASYNC)
+		cmd.meta.u.callback = iwl_add_sta_callback;
+	else
 		cmd.meta.flags |= CMD_WANT_SKB;
 
 	cmd.len = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
