@@ -119,3 +119,17 @@ Original licence information:
 	part, requires the inclusion of this statement."
 
 --------------------------------------------------------------------------
+
+Driver: keyspan_pda -- USB Keyspan PDA single-port serial device
+
+File: keyspan_pda/keyspan_pda.fw
+Source: keyspan_pda/keyspan_pda.S
+
+File: keyspan_pda/xircom_pgs.fw
+Source: keyspan_pda/xircom_pgs.S
+
+Licence: GPLv2+
+
+Compiled from original 8051 source into Intel HEX, used in our binary ihex form.
+
+--------------------------------------------------------------------------
