@@ -44,6 +44,7 @@
 			timebase-frequency = <0>;	// From uboot
 			bus-frequency = <0>;
 			clock-frequency = <0>;
+			next-level-cache = <&L2>;
 		};
 	};
 
@@ -161,7 +162,7 @@
 			interrupts = <0x12 0x2>;
 		};
 
-		l2-cache-controller@20000 {
+		L2: l2-cache-controller@20000 {
 			compatible = "fsl,8548-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <0x20>;	// 32 bytes

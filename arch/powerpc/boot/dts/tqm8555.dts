@@ -39,6 +39,7 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
+			next-level-cache = <&L2>;
 		};
 	};
 
@@ -63,7 +64,7 @@
 			interrupts = <18 2>;
 		};
 
-		l2-cache-controller@20000 {
+		L2: l2-cache-controller@20000 {
 			compatible = "fsl,8540-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <32>;
