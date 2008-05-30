@@ -190,3 +190,18 @@ Converted from Intel HEX files, used in our binary representation of ihex.
 Original licence information: None
 
 --------------------------------------------------------------------------
+
+Driver: tu_usb_3410_5052 -- USB TI 3410/5052 serial device
+
+File: ti_3410.fw
+Info: firmware 9/10/04 FW3410_Special_StartWdogOnStartPort
+
+File: ti_5052.fw
+Info: firmware 9/18/04
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+	 Copyright (C) 2004 Texas Instruments
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
