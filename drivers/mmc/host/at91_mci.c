@@ -660,10 +660,9 @@ static void at91_mci_process_next(struct at91mci_host *host)
 /*
  * Handle a command that has been completed
  */
-static void at91_mci_completed_command(struct at91mci_host *host)
+static void at91_mci_completed_command(struct at91mci_host *host, unsigned int status)
 {
 	struct mmc_command *cmd = host->cmd;
-	unsigned int status;
 
 	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff & ~(AT91_MCI_SDIOIRQA | AT91_MCI_SDIOIRQB));
 
@@ -677,10 +676,9 @@ static void at91_mci_completed_command(struct at91mci_host *host)
 		host->buffer = NULL;
 	}
 
-	status = at91_mci_read(host, AT91_MCI_SR);
-
-	pr_debug("Status = %08X [%08X %08X %08X %08X]\n",
-		 status, cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
+	pr_debug("Status = %08X/%08x [%08X %08X %08X %08X]\n",
+		 status, at91_mci_read(host, AT91_MCI_SR),
+		 cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
 
 	if (status & AT91_MCI_ERRORS) {
 		if ((status & AT91_MCI_RCRCE) && !(mmc_resp_type(cmd) & MMC_RSP_CRC)) {
@@ -877,7 +875,7 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 	if (completed) {
 		pr_debug("Completed command\n");
 		at91_mci_write(host, AT91_MCI_IDR, 0xffffffff & ~(AT91_MCI_SDIOIRQA | AT91_MCI_SDIOIRQB));
-		at91_mci_completed_command(host);
+		at91_mci_completed_command(host, int_status);
 	} else
 		at91_mci_write(host, AT91_MCI_IDR, int_status & ~(AT91_MCI_SDIOIRQA | AT91_MCI_SDIOIRQB));
 
