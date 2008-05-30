@@ -308,6 +308,9 @@ config ARCH_SPARSEMEM_ENABLE
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
+config ARCH_SELECT_MEMORY_MODEL
+       def_bool y
+
 source "mm/Kconfig"
 
 comment "I/O subsystem configuration"
