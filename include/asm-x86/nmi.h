@@ -40,7 +40,7 @@ static inline void unset_nmi_pm_callback(struct pm_dev *dev)
 extern void default_do_nmi(struct pt_regs *);
 extern void nmi_watchdog_default(void);
 #else
-#define nmi_watchdog_default(void) do {} while (0)
+#define nmi_watchdog_default() do { } while (0)
 #endif
 
 extern void die_nmi(char *str, struct pt_regs *regs, int do_panic);
