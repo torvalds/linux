@@ -167,3 +167,26 @@ Original licence information:
  */
 
 --------------------------------------------------------------------------
+
+Driver: emi62 -- EMI 6|2m USB Audio interface
+
+File: emi62/bitstream.fw
+Info: VERSION=1.0.0.191 DATE= 2002oct28
+
+File: emi62/loader.fw
+Source: EMILOAD.HEX
+Info: VERSION=1.0.2.002 DATE=10.01.2002
+
+File: emi62/midi.fw
+Source: EMI62MFW.HEX
+Info: VERSION=1.04.062 DATE=16.10.2002
+
+File: emi62/spdif.fw
+Source: EMI62SFW.HEX
+Info: VERSION=1.04.062 DATE=16.10.2002
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information: None
+
+--------------------------------------------------------------------------
