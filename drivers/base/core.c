@@ -760,6 +760,21 @@ static void device_remove_class_symlinks(struct device *dev)
 }
 
 /**
+ * dev_set_name - set a device name
+ * @dev: device
+ */
+int dev_set_name(struct device *dev, const char *fmt, ...)
+{
+	va_list vargs;
+
+	va_start(vargs, fmt);
+	vsnprintf(dev->bus_id, sizeof(dev->bus_id), fmt, vargs);
+	va_end(vargs);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_set_name);
+
+/**
  * device_add - add device to device hierarchy.
  * @dev: device.
  *
