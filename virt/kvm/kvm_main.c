@@ -47,6 +47,10 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#include "coalesced_mmio.h"
+#endif
+
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
@@ -185,9 +189,22 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_uninit);
 static struct kvm *kvm_create_vm(void)
 {
 	struct kvm *kvm = kvm_arch_create_vm();
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	struct page *page;
+#endif
 
 	if (IS_ERR(kvm))
 		goto out;
+
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page) {
+		kfree(kvm);
+		return ERR_PTR(-ENOMEM);
+	}
+	kvm->coalesced_mmio_ring =
+			(struct kvm_coalesced_mmio_ring *)page_address(page);
+#endif
 
 	kvm->mm = current->mm;
 	atomic_inc(&kvm->mm->mm_count);
@@ -200,6 +217,9 @@ static struct kvm *kvm_create_vm(void)
 	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
 	spin_unlock(&kvm_lock);
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	kvm_coalesced_mmio_init(kvm);
+#endif
 out:
 	return kvm;
 }
@@ -242,6 +262,10 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	if (kvm->coalesced_mmio_ring != NULL)
+		free_page((unsigned long)kvm->coalesced_mmio_ring);
+#endif
 	kvm_arch_destroy_vm(kvm);
 	mmdrop(mm);
 }
@@ -826,6 +850,10 @@ static int kvm_vcpu_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	else if (vmf->pgoff == KVM_PIO_PAGE_OFFSET)
 		page = virt_to_page(vcpu->arch.pio_data);
 #endif
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	else if (vmf->pgoff == KVM_COALESCED_MMIO_PAGE_OFFSET)
+		page = virt_to_page(vcpu->kvm->coalesced_mmio_ring);
+#endif
 	else
 		return VM_FAULT_SIGBUS;
 	get_page(page);
@@ -1148,6 +1176,32 @@ static long kvm_vm_ioctl(struct file *filp,
 			goto out;
 		break;
 	}
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	case KVM_REGISTER_COALESCED_MMIO: {
+		struct kvm_coalesced_mmio_zone zone;
+		r = -EFAULT;
+		if (copy_from_user(&zone, argp, sizeof zone))
+			goto out;
+		r = -ENXIO;
+		r = kvm_vm_ioctl_register_coalesced_mmio(kvm, &zone);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_UNREGISTER_COALESCED_MMIO: {
+		struct kvm_coalesced_mmio_zone zone;
+		r = -EFAULT;
+		if (copy_from_user(&zone, argp, sizeof zone))
+			goto out;
+		r = -ENXIO;
+		r = kvm_vm_ioctl_unregister_coalesced_mmio(kvm, &zone);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+#endif
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
 	}
@@ -1231,6 +1285,9 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = PAGE_SIZE;     /* struct kvm_run */
 #ifdef CONFIG_X86
 		r += PAGE_SIZE;    /* pio data page */
+#endif
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+		r += PAGE_SIZE;    /* coalesced mmio ring page */
 #endif
 		break;
 	case KVM_TRACE_ENABLE:

@@ -117,6 +117,10 @@ struct kvm {
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
 	atomic_t users_count;
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	struct kvm_coalesced_mmio_dev *coalesced_mmio_dev;
+	struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
+#endif
 };
 
 /* The guest did something we don't support. */
