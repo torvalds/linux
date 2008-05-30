@@ -2,6 +2,9 @@
 #include <linux/spinlock.h>
 #include <linux/virtio_config.h>
 
+/* Unique numbering for virtio devices. */
+static unsigned int dev_index;
+
 static ssize_t device_show(struct device *_d,
 			   struct device_attribute *attr, char *buf)
 {
@@ -166,6 +169,9 @@ int register_virtio_device(struct virtio_device *dev)
 	int err;
 
 	dev->dev.bus = &virtio_bus;
+
+	/* Assign a unique device index and hence name. */
+	dev->index = dev_index++;
 	sprintf(dev->dev.bus_id, "virtio%u", dev->index);
 
 	/* We always start by resetting the device, in case a previous

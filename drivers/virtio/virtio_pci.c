@@ -78,9 +78,6 @@ static struct device virtio_pci_root = {
 	.bus_id		= "virtio-pci",
 };
 
-/* Unique numbering for devices under the kvm root */
-static unsigned int dev_index;
-
 /* Convert a generic virtio device to our structure */
 static struct virtio_pci_device *to_vp_device(struct virtio_device *vdev)
 {
@@ -324,9 +321,6 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	vp_dev = kzalloc(sizeof(struct virtio_pci_device), GFP_KERNEL);
 	if (vp_dev == NULL)
 		return -ENOMEM;
-
-	vp_dev->vdev.index = dev_index;
-	dev_index++;
 
 	vp_dev->vdev.dev.parent = &virtio_pci_root;
 	vp_dev->vdev.config = &virtio_pci_config_ops;
