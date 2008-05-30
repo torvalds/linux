@@ -205,3 +205,24 @@ Licence: Allegedly GPLv2+, but no source visible. Marked:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: whiteheat -- USB ConnectTech WhiteHEAT serial device
+
+File: whiteheat.fw
+Version: 4.06
+
+File: whiteheat_loader.fw
+File: whiteheat_loader_debug.fw
+
+Licence: Allegedly GPLv2, but no source visible. Marked:
+	 Copyright (C) 2000-2002  ConnectTech Inc
+
+Debug loader claims the following behaviour:
+	Port 1 LED flashes when the vend_ax program is running
+	Port 2 LED flashes when any SETUP command arrives
+	Port 3 LED flashes when any valid VENDOR request occurs
+	Port 4 LED flashes when the EXTERNAL RAM DOWNLOAD request occurs
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+--------------------------------------------------------------------------
