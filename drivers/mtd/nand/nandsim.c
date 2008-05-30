@@ -2022,6 +2022,7 @@ static int __init ns_init_module(void)
 		nsmtd->size = new_size;
 		chip->chipsize = new_size;
 		chip->chip_shift = ffs(new_size) - 1;
+		chip->pagemask = (chip->chipsize >> chip->page_shift) - 1;
 	}
 
 	if ((retval = setup_wear_reporting(nsmtd)) != 0)
