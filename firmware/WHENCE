@@ -80,3 +80,42 @@ Licence: Unknown
 Found in hex form in the kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: keyspan -- USB Keyspan USA-xxx serial device
+
+File: keyspan/mpr.fw
+File: keyspan/usa18x.fw
+File: keyspan/usa19.fw
+File: keyspan/usa19qi.fw
+File: keyspan/usa19qw.fw
+File: keyspan/usa19w.fw
+File: keyspan/usa28.fw
+File: keyspan/usa28xa.fw
+File: keyspan/usa28xb.fw
+File: keyspan/usa28x.fw
+File: keyspan/usa49w.fw
+File: keyspan/usa49wlc.fw
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information:
+
+		Copyright (C) 1999-2001
+		Keyspan, A division of InnoSys Incorporated ("Keyspan")
+
+	as an unpublished work. This notice does not imply unrestricted or
+	public access to the source code from which this firmware image is
+	derived.  Except as noted below this firmware image may not be
+	reproduced, used, sold or transferred to any third party without
+	Keyspan's prior written consent.  All Rights Reserved.
+
+	Permission is hereby granted for the distribution of this firmware
+	image as part of a Linux or other Open Source operating system kernel
+	in text or binary form as required.
+
+	This firmware may not be modified and may only be used with
+	Keyspan hardware.  Distribution and/or Modification of the
+	keyspan.c driver which includes this firmware, in whole or in
+	part, requires the inclusion of this statement."
+
+--------------------------------------------------------------------------
