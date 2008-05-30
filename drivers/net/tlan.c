@@ -218,8 +218,6 @@ static	int		bbuf;
 module_param(bbuf, int, 0);
 MODULE_PARM_DESC(bbuf, "ThunderLAN use big buffer (0-1)");
 
-static	u8		*TLanPadBuffer;
-static  dma_addr_t	TLanPadBufferDMA;
 static	char		TLanSignature[] = "TLAN";
 static  const char tlan_banner[] = "ThunderLAN driver v1.15\n";
 static  int tlan_have_pci;
@@ -469,16 +467,6 @@ static int __init tlan_probe(void)
 
 	printk(KERN_INFO "%s", tlan_banner);
 
-	TLanPadBuffer = (u8 *) pci_alloc_consistent(NULL, TLAN_MIN_FRAME_SIZE, &TLanPadBufferDMA);
-
-	if (TLanPadBuffer == NULL) {
-		printk(KERN_ERR "TLAN: Could not allocate memory for pad buffer.\n");
-		rc = -ENOMEM;
-		goto err_out;
-	}
-
-	memset(TLanPadBuffer, 0, TLAN_MIN_FRAME_SIZE);
-
 	TLAN_DBG(TLAN_DEBUG_PROBE, "Starting PCI Probe....\n");
 
 	/* Use new style PCI probing. Now the kernel will
@@ -506,8 +494,6 @@ static int __init tlan_probe(void)
 err_out_pci_unreg:
 	pci_unregister_driver(&tlan_driver);
 err_out_pci_free:
-	pci_free_consistent(NULL, TLAN_MIN_FRAME_SIZE, TLanPadBuffer, TLanPadBufferDMA);
-err_out:
 	return rc;
 }
 
@@ -723,8 +709,6 @@ static void __exit tlan_exit(void)
 
 	if (tlan_have_eisa)
 		TLan_Eisa_Cleanup();
-
-	pci_free_consistent(NULL, TLAN_MIN_FRAME_SIZE, TLanPadBuffer, TLanPadBufferDMA);
 
 }
 
@@ -1096,7 +1080,6 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 	TLanList	*tail_list;
 	dma_addr_t	tail_list_phys;
 	u8		*tail_buffer;
-	int		pad;
 	unsigned long	flags;
 
 	if ( ! priv->phyOnline ) {
@@ -1104,6 +1087,9 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
+
+	if (skb_padto(skb, TLAN_MIN_FRAME_SIZE))
+		return 0;
 
 	tail_list = priv->txList + priv->txTail;
 	tail_list_phys = priv->txListDMA + sizeof(TLanList) * priv->txTail;
@@ -1125,19 +1111,10 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 		TLan_StoreSKB(tail_list, skb);
 	}
 
-	pad = TLAN_MIN_FRAME_SIZE - skb->len;
-
-	if ( pad > 0 ) {
-		tail_list->frameSize = (u16) skb->len + pad;
-		tail_list->buffer[0].count = (u32) skb->len;
-		tail_list->buffer[1].count = TLAN_LAST_BUFFER | (u32) pad;
-		tail_list->buffer[1].address = TLanPadBufferDMA;
-	} else {
-		tail_list->frameSize = (u16) skb->len;
-		tail_list->buffer[0].count = TLAN_LAST_BUFFER | (u32) skb->len;
-		tail_list->buffer[1].count = 0;
-		tail_list->buffer[1].address = 0;
-	}
+	tail_list->frameSize = (u16) skb->len;
+	tail_list->buffer[0].count = TLAN_LAST_BUFFER | (u32) skb->len;
+	tail_list->buffer[1].count = 0;
+	tail_list->buffer[1].address = 0;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	tail_list->cStat = TLAN_CSTAT_READY;
