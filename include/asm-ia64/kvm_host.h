@@ -38,6 +38,7 @@
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
 
+#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 
 /* define exit reasons from vmm to kvm*/
 #define EXIT_REASON_VM_PANIC		0
