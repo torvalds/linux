@@ -221,8 +221,7 @@ geodewdt_probe(struct platform_device *dev)
 {
 	int ret, timer;
 
-	timer = geode_mfgpt_alloc_timer(MFGPT_TIMER_ANY,
-					MFGPT_DOMAIN_WORKING, THIS_MODULE);
+	timer = geode_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 
 	if (timer == -1) {
 		printk(KERN_ERR "geodewdt:  No timers were available\n");
