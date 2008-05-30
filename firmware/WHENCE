@@ -133,3 +133,37 @@ Licence: GPLv2+
 Compiled from original 8051 source into Intel HEX, used in our binary ihex form.
 
 --------------------------------------------------------------------------
+
+Driver: emi26 -- EMI 2|6 USB Audio interface
+
+File: emi26/bitstream.fw
+Info: VERSION=1.1.1.131 DATE=2001dec06
+
+File: emi26/firmware.fw
+Info: VERSION=1.0.2.916 DATE=12.02.2002
+
+File: emi26/loader.fw
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information:
+/*
+ * This firmware is for the Emagic EMI 2|6 Audio Interface
+ *
+ * The firmware contained herein is Copyright (c) 1999-2002 Emagic
+ * as an unpublished work. This notice does not imply unrestricted
+ * or public access to this firmware which is a trade secret of Emagic,
+ * and which may not be reproduced, used, sold or transferred to
+ * any third party without Emagic's written consent. All Rights Reserved.
+ *
+ * Permission is hereby granted for the distribution of this firmware
+ * image as part of a Linux or other Open Source operating system kernel
+ * in text or binary form as required.
+ *
+ * This firmware may not be modified and may only be used with the
+ * Emagic EMI 2|6 Audio Interface. Distribution and/or Modification of
+ * any driver which includes this firmware, in whole or in part,
+ * requires the inclusion of this statement.
+ */
+
+--------------------------------------------------------------------------
