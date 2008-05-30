@@ -270,7 +270,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_master, -6200, 200, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_mono, -2800, 400, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_input, -5000, 200, 0);
 
-static struct snd_kcontrol_new snd_ak4531_controls[] = {
+static struct snd_kcontrol_new snd_ak4531_controls[] __devinitdata = {
 
 AK4531_DOUBLE_TLV("Master Playback Switch", 0,
 		  AK4531_LMASTER, AK4531_RMASTER, 7, 7, 1, 1,
@@ -379,8 +379,9 @@ static u8 snd_ak4531_initial_map[0x19 + 1] = {
 	0x01		/* 19: Mic Amp Setup */
 };
 
-int snd_ak4531_mixer(struct snd_card *card, struct snd_ak4531 *_ak4531,
-		     struct snd_ak4531 **rak4531)
+int __devinit snd_ak4531_mixer(struct snd_card *card,
+			       struct snd_ak4531 *_ak4531,
+			       struct snd_ak4531 **rak4531)
 {
 	unsigned int idx;
 	int err;
@@ -476,7 +477,8 @@ static void snd_ak4531_proc_read(struct snd_info_entry *entry,
 		    ak4531->regs[AK4531_MIC_GAIN] & 1 ? "+30dB" : "+0dB");
 }
 
-static void snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak4531)
+static void __devinit
+snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak4531)
 {
 	struct snd_info_entry *entry;
 
@@ -484,25 +486,3 @@ static void snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak453
 		snd_info_set_text_ops(entry, ak4531, snd_ak4531_proc_read);
 }
 #endif
-
-EXPORT_SYMBOL(snd_ak4531_mixer);
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(snd_ak4531_suspend);
-EXPORT_SYMBOL(snd_ak4531_resume);
-#endif
-
-/*
- *  INIT part
- */
-
-static int __init alsa_ak4531_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_ak4531_exit(void)
-{
-}
-
-module_init(alsa_ak4531_init)
-module_exit(alsa_ak4531_exit)
