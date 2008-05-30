@@ -338,7 +338,7 @@ static void o2hb_stop(const char *group)
 	int ret;
 	char *argv[5], *envp[3];
 
-	argv[0] = (char *)o2nm_get_hb_ctl_path();
+	argv[0] = (char *)ocfs2_get_hb_ctl_path();
 	argv[1] = "-K";
 	argv[2] = "-u";
 	argv[3] = (char *)group;

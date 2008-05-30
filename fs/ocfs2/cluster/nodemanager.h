@@ -33,10 +33,6 @@
 #include <linux/configfs.h>
 #include <linux/rbtree.h>
 
-#define FS_OCFS2_NM		1
-
-const char *o2nm_get_hb_ctl_path(void);
-
 struct o2nm_node {
 	spinlock_t		nd_lock;
 	struct config_item	nd_item;

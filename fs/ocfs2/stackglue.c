@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/sysctl.h>
 
 #include "ocfs2_fs.h"
 
@@ -548,9 +549,91 @@ error:
 	return ret;
 }
 
+/*
+ * Sysctl bits
+ *
+ * The sysctl lives at /proc/sys/fs/ocfs2/nm/hb_ctl_path.  The 'nm' doesn't
+ * make as much sense in a multiple cluster stack world, but it's safer
+ * and easier to preserve the name.
+ */
+
+#define FS_OCFS2_NM		1
+
+#define OCFS2_MAX_HB_CTL_PATH 256
+static char ocfs2_hb_ctl_path[OCFS2_MAX_HB_CTL_PATH] = "/sbin/ocfs2_hb_ctl";
+
+static ctl_table ocfs2_nm_table[] = {
+	{
+		.ctl_name	= 1,
+		.procname	= "hb_ctl_path",
+		.data		= ocfs2_hb_ctl_path,
+		.maxlen		= OCFS2_MAX_HB_CTL_PATH,
+		.mode		= 0644,
+		.proc_handler	= &proc_dostring,
+		.strategy	= &sysctl_string,
+	},
+	{ .ctl_name = 0 }
+};
+
+static ctl_table ocfs2_mod_table[] = {
+	{
+		.ctl_name	= FS_OCFS2_NM,
+		.procname	= "nm",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0555,
+		.child		= ocfs2_nm_table
+	},
+	{ .ctl_name = 0}
+};
+
+static ctl_table ocfs2_kern_table[] = {
+	{
+		.ctl_name	= FS_OCFS2,
+		.procname	= "ocfs2",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0555,
+		.child		= ocfs2_mod_table
+	},
+	{ .ctl_name = 0}
+};
+
+static ctl_table ocfs2_root_table[] = {
+	{
+		.ctl_name	= CTL_FS,
+		.procname	= "fs",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0555,
+		.child		= ocfs2_kern_table
+	},
+	{ .ctl_name = 0 }
+};
+
+static struct ctl_table_header *ocfs2_table_header = NULL;
+
+const char *ocfs2_get_hb_ctl_path(void)
+{
+	return ocfs2_hb_ctl_path;
+}
+EXPORT_SYMBOL_GPL(ocfs2_get_hb_ctl_path);
+
+
+/*
+ * Initialization
+ */
+
 static int __init ocfs2_stack_glue_init(void)
 {
 	strcpy(cluster_stack_name, OCFS2_STACK_PLUGIN_O2CB);
+
+	ocfs2_table_header = register_sysctl_table(ocfs2_root_table);
+	if (!ocfs2_table_header) {
+		printk(KERN_ERR
+		       "ocfs2 stack glue: unable to register sysctl\n");
+		return -ENOMEM; /* or something. */
+	}
 
 	return ocfs2_sysfs_init();
 }
@@ -559,6 +642,8 @@ static void __exit ocfs2_stack_glue_exit(void)
 {
 	lproto = NULL;
 	ocfs2_sysfs_exit();
+	if (ocfs2_table_header)
+		unregister_sysctl_table(ocfs2_table_header);
 }
 
 MODULE_AUTHOR("Oracle");

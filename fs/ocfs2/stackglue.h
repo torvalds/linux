@@ -258,4 +258,6 @@ void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto)
 /* Used by stack plugins */
 int ocfs2_stack_glue_register(struct ocfs2_stack_plugin *plugin);
 void ocfs2_stack_glue_unregister(struct ocfs2_stack_plugin *plugin);
+const char *ocfs2_get_hb_ctl_path(void);
+
 #endif  /* STACKGLUE_H */
