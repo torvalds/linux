@@ -340,8 +340,6 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 
 		dma_unmap_page(NULL, sg->dma_address, sg->length, DMA_FROM_DEVICE);
 
-		data->bytes_xfered += sg->length;
-
 		if (cpu_is_at91rm9200()) {	/* AT91RM9200 errata */
 			unsigned int *buffer;
 			int index;
@@ -357,6 +355,8 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 		}
 
 		flush_dcache_page(sg_page(sg));
+
+		data->bytes_xfered += sg->length;
 	}
 
 	/* Is there another transfer to trigger? */
@@ -397,9 +397,31 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_BLKE);
 	} else
 		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_NOTBUSY);
-
-	data->bytes_xfered = host->total_length;
 }
+
+/*
+ * Update bytes tranfered count during a write operation
+ */
+static void at91_mci_update_bytes_xfered(struct at91mci_host *host)
+{
+	struct mmc_data *data;
+
+	/* always deal with the effective request (and not the current cmd) */
+
+	if (host->request->cmd && host->request->cmd->error != 0)
+		return;
+
+	if (host->request->data) {
+		data = host->request->data;
+		if (data->flags & MMC_DATA_WRITE) {
+			/* card is in IDLE mode now */
+			pr_debug("-> bytes_xfered %d, total_length = %d\n",
+				data->bytes_xfered, host->total_length);
+			data->bytes_xfered = host->total_length;
+		}
+	}
+}
+
 
 /*Handle after command sent ready*/
 static int at91_mci_handle_cmdrdy(struct at91mci_host *host)
@@ -413,8 +435,7 @@ static int at91_mci_handle_cmdrdy(struct at91mci_host *host)
 		} else return 1;
 	} else if (host->cmd->data->flags & MMC_DATA_WRITE) {
 		/*After sendding multi-block-write command, start DMA transfer*/
-		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_TXBUFE);
-		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_BLKE);
+		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_TXBUFE | AT91_MCI_BLKE);
 		at91_mci_write(host, ATMEL_PDC_PTCR, ATMEL_PDC_TXTEN);
 	}
 
@@ -817,6 +838,7 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 
 		if (int_status & AT91_MCI_NOTBUSY) {
 			pr_debug("Card is ready\n");
+			at91_mci_update_bytes_xfered(host);
 			completed = 1;
 		}
 
@@ -825,7 +847,13 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 
 		if (int_status & AT91_MCI_BLKE) {
 			pr_debug("Block transfer has ended\n");
-			completed = 1;
+			if (host->request->data && host->request->data->blocks > 1) {
+				/* multi block write : complete multi write
+				 * command and send stop */
+				completed = 1;
+			} else {
+				at91_mci_write(host, AT91_MCI_IER, AT91_MCI_NOTBUSY);
+			}
 		}
 
 		if (int_status & AT91_MCI_TXRDY)
