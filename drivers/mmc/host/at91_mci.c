@@ -233,11 +233,11 @@ static void at91_mci_pre_dma_read(struct at91mci_host *host)
 
 		if (i == 0) {
 			at91_mci_write(host, ATMEL_PDC_RPR, sg->dma_address);
-			at91_mci_write(host, ATMEL_PDC_RCR, sg->length / 4);
+			at91_mci_write(host, ATMEL_PDC_RCR, (data->blksz & 0x3) ? sg->length : sg->length / 4);
 		}
 		else {
 			at91_mci_write(host, ATMEL_PDC_RNPR, sg->dma_address);
-			at91_mci_write(host, ATMEL_PDC_RNCR, sg->length / 4);
+			at91_mci_write(host, ATMEL_PDC_RNCR, (data->blksz & 0x3) ? sg->length : sg->length / 4);
 		}
 	}
 
@@ -430,7 +430,7 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 
 	if (data) {
 
-		if ( data->blksz & 0x3 ) {
+		if ( cpu_is_at91rm9200() && (data->blksz & 0x3) ) {
 			pr_debug("Unsupported block size\n");
 			cmd->error = -EINVAL;
 			mmc_request_done(host->mmc, host->request);
@@ -482,7 +482,10 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 	} else {
 		/* zero block length and PDC mode */
 		mr = at91_mci_read(host, AT91_MCI_MR) & 0x7fff;
-		at91_mci_write(host, AT91_MCI_MR, mr | (block_length << 16) | AT91_MCI_PDCMODE);
+		mr |= (data->blksz & 0x3) ? AT91_MCI_PDCFBYTE : 0;
+		mr |= (block_length << 16);
+		mr |= AT91_MCI_PDCMODE;
+		at91_mci_write(host, AT91_MCI_MR, mr);
 
 		/*
 		 * Disable the PDC controller
@@ -517,7 +520,9 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 				pr_debug("Transmitting %d bytes\n", host->total_length);
 
 				at91_mci_write(host, ATMEL_PDC_TPR, host->physical_address);
-				at91_mci_write(host, ATMEL_PDC_TCR, host->total_length / 4);
+				at91_mci_write(host, ATMEL_PDC_TCR, (data->blksz & 0x3) ?
+						host->total_length : host->total_length / 4);
+
 				ier = AT91_MCI_CMDRDY;
 			}
 		}
