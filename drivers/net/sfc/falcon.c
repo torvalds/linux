@@ -222,7 +222,7 @@ static struct i2c_algo_bit_data falcon_i2c_bit_operations = {
 	.setscl		= falcon_setscl,
 	.getsda		= falcon_getsda,
 	.getscl		= falcon_getscl,
-	.udelay		= 100,
+	.udelay		= 5,
 	/*
 	 * This is the number of system clock ticks after which
 	 * i2c-algo-bit gives up waiting for SCL to become high.
