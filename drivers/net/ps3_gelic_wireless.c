@@ -350,7 +350,8 @@ static int gelic_wl_get_range(struct net_device *netdev,
 
 	/* encryption capability */
 	range->enc_capa = IW_ENC_CAPA_WPA |
-		IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
+		IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP |
+		IW_ENC_CAPA_4WAY_HANDSHAKE;
 	if (wpa2_capable())
 		range->enc_capa |= IW_ENC_CAPA_WPA2;
 	range->encoding_size[0] = 5;	/* 40bit WEP */
@@ -1256,42 +1257,19 @@ static int gelic_wl_set_encodeext(struct net_device *netdev,
 		set_bit(key_index, &wl->key_enabled);
 		/* remember wep info changed */
 		set_bit(GELIC_WL_STAT_CONFIGURED, &wl->stat);
-	} else if ((alg == IW_ENCODE_ALG_TKIP) || (alg == IW_ENCODE_ALG_CCMP)) {
-		pr_debug("%s: TKIP/CCMP requested alg=%d\n", __func__, alg);
-		/* check key length */
-		if (IW_ENCODING_TOKEN_MAX < ext->key_len) {
-			pr_info("%s: key is too long %d\n", __func__,
-				ext->key_len);
+	} else if (alg == IW_ENCODE_ALG_PMK) {
+		if (ext->key_len != WPA_PSK_LEN) {
+			pr_err("%s: PSK length wrong %d\n", __func__,
+			       ext->key_len);
 			ret = -EINVAL;
 			goto done;
 		}
-		if (alg == IW_ENCODE_ALG_CCMP) {
-			pr_debug("%s: AES selected\n", __func__);
-			wl->group_cipher_method = GELIC_WL_CIPHER_AES;
-			wl->pairwise_cipher_method = GELIC_WL_CIPHER_AES;
-			wl->wpa_level = GELIC_WL_WPA_LEVEL_WPA2;
-		} else {
-			pr_debug("%s: TKIP selected, WPA forced\n", __func__);
-			wl->group_cipher_method = GELIC_WL_CIPHER_TKIP;
-			wl->pairwise_cipher_method = GELIC_WL_CIPHER_TKIP;
-			/* FIXME: how do we do if WPA2 + TKIP? */
-			wl->wpa_level = GELIC_WL_WPA_LEVEL_WPA;
-		}
-		if (flags & IW_ENCODE_RESTRICTED)
-			BUG();
-		wl->auth_method = GELIC_EURUS_AUTH_OPEN;
-		/* We should use same key for both and unicast */
-		if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
-			pr_debug("%s: group key \n", __func__);
-		else
-			pr_debug("%s: unicast key \n", __func__);
-		/* OK, update the key */
-		wl->key_len[key_index] = ext->key_len;
-		memset(wl->key[key_index], 0, IW_ENCODING_TOKEN_MAX);
-		memcpy(wl->key[key_index], ext->key, ext->key_len);
-		set_bit(key_index, &wl->key_enabled);
-		/* remember info changed */
-		set_bit(GELIC_WL_STAT_CONFIGURED, &wl->stat);
+		memset(wl->psk, 0, sizeof(wl->psk));
+		memcpy(wl->psk, ext->key, ext->key_len);
+		wl->psk_len = ext->key_len;
+		wl->psk_type = GELIC_EURUS_WPA_PSK_BIN;
+		/* remember PSK configured */
+		set_bit(GELIC_WL_STAT_WPA_PSK_SET, &wl->stat);
 	}
 done:
 	spin_unlock_irqrestore(&wl->lock, irqflag);
