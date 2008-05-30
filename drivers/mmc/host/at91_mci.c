@@ -125,7 +125,32 @@ struct at91mci_host
 
 	/* Latest in the scatterlist that has been enabled for transfer */
 	int transfer_index;
+
+	/* Timer for timeouts */
+	struct timer_list timer;
 };
+
+static void at91_timeout_timer(unsigned long data)
+{
+	struct at91mci_host *host;
+
+	host = (struct at91mci_host *)data;
+
+	if (host->request) {
+		dev_err(host->mmc->parent, "Timeout waiting end of packet\n");
+
+		if (host->cmd && host->cmd->data) {
+			host->cmd->data->error = -ETIMEDOUT;
+		} else {
+			if (host->cmd)
+				host->cmd->error = -ETIMEDOUT;
+			else
+				host->request->cmd->error = -ETIMEDOUT;
+		}
+
+		mmc_request_done(host->mmc, host->request);
+	}
+}
 
 /*
  * Copy from sg to a dma block - used for transfers
@@ -557,9 +582,10 @@ static void at91_mci_process_next(struct at91mci_host *host)
 	else if ((!(host->flags & FL_SENT_STOP)) && host->request->stop) {
 		host->flags |= FL_SENT_STOP;
 		at91_mci_send_command(host, host->request->stop);
-	}
-	else
+	} else {
+		del_timer(&host->timer);
 		mmc_request_done(host->mmc, host->request);
+	}
 }
 
 /*
@@ -617,6 +643,8 @@ static void at91_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct at91mci_host *host = mmc_priv(mmc);
 	host->request = mrq;
 	host->flags = 0;
+
+	mod_timer(&host->timer, jiffies +  HZ);
 
 	at91_mci_process_next(host);
 }
@@ -936,6 +964,8 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 
 	mmc_add_host(mmc);
 
+	setup_timer(&host->timer, at91_timeout_timer, (unsigned long)host);
+
 	/*
 	 * monitor card insertion/removal if we can
 	 */
@@ -996,6 +1026,7 @@ static int __exit at91_mci_remove(struct platform_device *pdev)
 	}
 
 	at91_mci_disable(host);
+	del_timer_sync(&host->timer);
 	mmc_remove_host(mmc);
 	free_irq(host->irq, host);
 
