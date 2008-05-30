@@ -844,13 +844,19 @@ int device_add(struct device *dev)
 {
 	struct device *parent = NULL;
 	struct class_interface *class_intf;
-	int error;
+	int error = -EINVAL;
 
 	dev = get_device(dev);
-	if (!dev || !strlen(dev->bus_id)) {
-		error = -EINVAL;
-		goto Done;
-	}
+	if (!dev)
+		goto done;
+
+	/* Temporarily support init_name if it is set.
+	 * It will override bus_id for now */
+	if (dev->init_name)
+		dev_set_name(dev, "%s", dev->init_name);
+
+	if (!strlen(dev->bus_id))
+		goto done;
 
 	pr_debug("device: '%s': %s\n", dev->bus_id, __func__);
 
@@ -919,7 +925,7 @@ int device_add(struct device *dev)
 				class_intf->add_dev(dev, class_intf);
 		mutex_unlock(&dev->class->p->class_mutex);
 	}
- Done:
+done:
 	put_device(dev);
 	return error;
  DPMError:
@@ -946,7 +952,7 @@ int device_add(struct device *dev)
 	cleanup_device_parent(dev);
 	if (parent)
 		put_device(parent);
-	goto Done;
+	goto done;
 }
 
 /**

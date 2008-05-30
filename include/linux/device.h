@@ -358,6 +358,7 @@ struct device {
 
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
+	const char		*init_name; /* initial name of the device */
 	struct device_type	*type;
 	unsigned		uevent_suppress:1;
 
