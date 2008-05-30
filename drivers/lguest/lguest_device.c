@@ -27,7 +27,7 @@ static unsigned int dev_index;
  * __iomem to quieten sparse. */
 static inline void *lguest_map(unsigned long phys_addr, unsigned long pages)
 {
-	return (__force void *)ioremap(phys_addr, PAGE_SIZE*pages);
+	return (__force void *)ioremap_cache(phys_addr, PAGE_SIZE*pages);
 }
 
 static inline void lguest_unmap(void *addr)
