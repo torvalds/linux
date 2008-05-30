@@ -2472,16 +2472,9 @@ static struct net_device *gelic_wl_alloc(struct gelic_card *card)
 	BUILD_BUG_ON(PAGE_SIZE <
 		     sizeof(struct gelic_eurus_scan_info) *
 		     GELIC_EURUS_MAX_SCAN);
-	wl->buf = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!wl->buf) {
-		pr_info("%s:buffer allocation failed\n", __func__);
-		goto fail_getpage;
-	}
 	pr_debug("%s:end\n", __func__);
 	return netdev;
 
-fail_getpage:
-	destroy_workqueue(wl->event_queue);
 fail_event_workqueue:
 	destroy_workqueue(wl->eurus_cmd_queue);
 fail_cmd_workqueue:
@@ -2499,8 +2492,6 @@ static void gelic_wl_free(struct gelic_wl_info *wl)
 	unsigned int i;
 
 	pr_debug("%s: <-\n", __func__);
-
-	free_page((unsigned long)wl->buf);
 
 	pr_debug("%s: destroy queues\n", __func__);
 	destroy_workqueue(wl->eurus_cmd_queue);
