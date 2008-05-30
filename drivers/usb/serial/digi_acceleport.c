@@ -571,6 +571,7 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 static long cond_wait_interruptible_timeout_irqrestore(
 	wait_queue_head_t *q, long timeout,
 	spinlock_t *lock, unsigned long flags)
+__releases(lock)
 {
 	DEFINE_WAIT(wait);
 
