@@ -194,7 +194,6 @@ typedef struct tlan_private_tag {
 	u32			timerSetAt;
 	u32			timerType;
 	struct timer_list	timer;
-	struct net_device_stats	stats;
 	struct board		*adapter;
 	u32			adapterRev;
 	u32			aui;

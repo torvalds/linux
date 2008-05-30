@@ -1276,7 +1276,7 @@ static struct net_device_stats *TLan_GetStats( struct net_device *dev )
 			TLan_PrintList( priv->txList + i, "TX", i );
 	}
 
-	return ( &( (TLanPrivateInfo *) netdev_priv(dev) )->stats );
+	return &dev->stats;
 
 } /* TLan_GetStats */
 
@@ -1434,7 +1434,7 @@ static u32 TLan_HandleTxEOF( struct net_device *dev, u16 host_int )
 		if ( tmpCStat & TLAN_CSTAT_EOC )
 			eoc = 1;
 
-		priv->stats.tx_bytes += head_list->frameSize;
+		dev->stats.tx_bytes += head_list->frameSize;
 
 		head_list->cStat = TLAN_CSTAT_UNUSED;
 		netif_start_queue(dev);
@@ -1564,7 +1564,7 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 				skb_reserve(skb, 2);
 				t = (void *) skb_put(skb, frameSize);
 
-				priv->stats.rx_bytes += head_list->frameSize;
+				dev->stats.rx_bytes += head_list->frameSize;
 
 				memcpy( t, head_buffer, frameSize );
 				skb->protocol = eth_type_trans( skb, dev );
@@ -1586,7 +1586,7 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 				pci_unmap_single(priv->pciDev, head_list->buffer[0].address, TLAN_MAX_FRAME_SIZE, PCI_DMA_FROMDEVICE);
 				skb_trim( skb, frameSize );
 
-				priv->stats.rx_bytes += frameSize;
+				dev->stats.rx_bytes += frameSize;
 
 				skb->protocol = eth_type_trans( skb, dev );
 				netif_rx( skb );
@@ -2142,7 +2142,6 @@ static void TLan_PrintList( TLanList *list, char *type, int num)
 
 static void TLan_ReadAndClearStats( struct net_device *dev, int record )
 {
-	TLanPrivateInfo	*priv = netdev_priv(dev);
 	u32		tx_good, tx_under;
 	u32		rx_good, rx_over;
 	u32		def_tx, crc, code;
@@ -2179,18 +2178,18 @@ static void TLan_ReadAndClearStats( struct net_device *dev, int record )
 	loss       = inb( dev->base_addr + TLAN_DIO_DATA + 2 );
 
 	if ( record ) {
-		priv->stats.rx_packets += rx_good;
-		priv->stats.rx_errors  += rx_over + crc + code;
-		priv->stats.tx_packets += tx_good;
-		priv->stats.tx_errors  += tx_under + loss;
-		priv->stats.collisions += multi_col + single_col + excess_col + late_col;
+		dev->stats.rx_packets += rx_good;
+		dev->stats.rx_errors  += rx_over + crc + code;
+		dev->stats.tx_packets += tx_good;
+		dev->stats.tx_errors  += tx_under + loss;
+		dev->stats.collisions += multi_col + single_col + excess_col + late_col;
 
-		priv->stats.rx_over_errors    += rx_over;
-		priv->stats.rx_crc_errors     += crc;
-		priv->stats.rx_frame_errors   += code;
+		dev->stats.rx_over_errors    += rx_over;
+		dev->stats.rx_crc_errors     += crc;
+		dev->stats.rx_frame_errors   += code;
 
-		priv->stats.tx_aborted_errors += tx_under;
-		priv->stats.tx_carrier_errors += loss;
+		dev->stats.tx_aborted_errors += tx_under;
+		dev->stats.tx_carrier_errors += loss;
 	}
 
 } /* TLan_ReadAndClearStats */
