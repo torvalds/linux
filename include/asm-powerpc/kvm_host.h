@@ -31,6 +31,8 @@
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
 
+#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+
 /* We don't currently support large pages. */
 #define KVM_PAGES_PER_HPAGE (1<<31)
 
