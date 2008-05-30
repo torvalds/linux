@@ -317,8 +317,7 @@ out:
 	return rc;
 }
 
-static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn,
-				   int hangup_pending)
+static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 {
 	struct dlm_ctxt *dlm = conn->cc_lockspace;
 	struct o2dlm_private *priv = conn->cc_private;

@@ -352,7 +352,7 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 
 	BUG_ON(conn == NULL);
 
-	ret = active_stack->sp_ops->disconnect(conn, hangup_pending);
+	ret = active_stack->sp_ops->disconnect(conn);
 
 	/* XXX Should we free it anyway? */
 	if (!ret) {
@@ -405,9 +405,6 @@ void ocfs2_cluster_hangup(const char *group, int grouplen)
 {
 	BUG_ON(group == NULL);
 	BUG_ON(group[grouplen] != '\0');
-
-	if (active_stack->sp_ops->hangup)
-		active_stack->sp_ops->hangup(group, grouplen);
 
 	ocfs2_leave_group(group);
 

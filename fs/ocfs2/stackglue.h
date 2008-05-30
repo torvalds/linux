@@ -134,22 +134,10 @@ struct ocfs2_stack_operations {
 	 * be freed.  Thus, a stack must not return from ->disconnect()
 	 * until it will no longer reference the conn pointer.
 	 *
-	 * If hangup_pending is zero, ocfs2_cluster_disconnect() will also
-	 * be dropping the reference on the module.
+	 * Once this call returns, the stack glue will be dropping this
+	 * connection's reference on the module.
 	 */
-	int (*disconnect)(struct ocfs2_cluster_connection *conn,
-			  int hangup_pending);
-
-	/*
-	 * ocfs2_cluster_hangup() exists for compatibility with older
-	 * ocfs2 tools.  Only the classic stack really needs it.  As such
-	 * ->hangup() is not required of all stacks.  See the comment by
-	 * ocfs2_cluster_hangup() for more details.
-	 *
-	 * Note that ocfs2_cluster_hangup() can only be called if
-	 * hangup_pending was passed to ocfs2_cluster_disconnect().
-	 */
-	void (*hangup)(const char *group, int grouplen);
+	int (*disconnect)(struct ocfs2_cluster_connection *conn);
 
 	/*
 	 * ->this_node() returns the cluster's unique identifier for the
