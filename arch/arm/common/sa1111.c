@@ -550,9 +550,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 		goto out;
 	}
 
-	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
-		 "%4.4lx", info->offset);
-
+	dev_set_name(&dev->dev, "%4.4lx", info->offset);
 	dev->devid	 = info->devid;
 	dev->dev.parent  = sachip->dev;
 	dev->dev.bus     = &sa1111_bus_type;
@@ -560,7 +558,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	dev->dev.coherent_dma_mask = sachip->dev->coherent_dma_mask;
 	dev->res.start   = sachip->phys + info->offset;
 	dev->res.end     = dev->res.start + 511;
-	dev->res.name    = dev->dev.bus_id;
+	dev->res.name    = dev_name(&dev->dev);
 	dev->res.flags   = IORESOURCE_MEM;
 	dev->mapbase     = sachip->base + info->offset;
 	dev->skpcr_mask  = info->skpcr_mask;
@@ -570,6 +568,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	if (ret) {
 		printk("SA1111: failed to allocate resource for %s\n",
 			dev->res.name);
+		dev_set_name(&dev->dev, NULL);
 		kfree(dev);
 		goto out;
 	}

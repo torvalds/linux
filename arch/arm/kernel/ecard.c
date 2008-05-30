@@ -783,7 +783,7 @@ static void ecard_proc_init(void)
 
 #define ec_set_resource(ec,nr,st,sz)				\
 	do {							\
-		(ec)->resource[nr].name = ec->dev.bus_id;	\
+		(ec)->resource[nr].name = dev_name(&ec->dev);	\
 		(ec)->resource[nr].start = st;			\
 		(ec)->resource[nr].end = (st) + (sz) - 1;	\
 		(ec)->resource[nr].flags = IORESOURCE_MEM;	\

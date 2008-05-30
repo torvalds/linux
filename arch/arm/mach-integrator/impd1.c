@@ -393,9 +393,7 @@ static int impd1_probe(struct lm_device *dev)
 		if (!d)
 			continue;
 
-		snprintf(d->dev.bus_id, sizeof(d->dev.bus_id),
-			 "lm%x:%5.5lx", dev->id, idev->offset >> 12);
-
+		dev_set_name(&d->dev, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
 		d->dev.parent	= &dev->dev;
 		d->res.start	= dev->resource.start + idev->offset;
 		d->res.end	= d->res.start + SZ_4K - 1;
