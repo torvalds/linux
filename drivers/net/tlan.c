@@ -346,23 +346,21 @@ static void	TLan_EeReceiveByte( u16, u8 *, int );
 static int	TLan_EeReadByte( struct net_device *, u8, u8 * );
 
 
-static void
+static inline void
 TLan_StoreSKB( struct tlan_list_tag *tag, struct sk_buff *skb)
 {
 	unsigned long addr = (unsigned long)skb;
-	tag->buffer[9].address = (u32)addr;
-	addr >>= 31;	/* >>= 32 is undefined for 32bit arch, stupid C */
-	addr >>= 1;
-	tag->buffer[8].address = (u32)addr;
+	tag->buffer[9].address = addr;
+	tag->buffer[8].address = upper_32_bits(addr);
 }
 
-static struct sk_buff *
-TLan_GetSKB( struct tlan_list_tag *tag)
+static inline struct sk_buff *
+TLan_GetSKB( const struct tlan_list_tag *tag)
 {
-	unsigned long addr = tag->buffer[8].address;
-	addr <<= 31;
-	addr <<= 1;
-	addr |= tag->buffer[9].address;
+	unsigned long addr;
+
+	addr = tag->buffer[8].address;
+	addr |= (tag->buffer[9].address << 16) << 16;
 	return (struct sk_buff *) addr;
 }
 
@@ -858,7 +856,8 @@ static int TLan_Init( struct net_device *dev )
 		dma_size = ( TLAN_NUM_RX_LISTS + TLAN_NUM_TX_LISTS )
 	           * ( sizeof(TLanList) );
 	}
-	priv->dmaStorage = pci_alloc_consistent(priv->pciDev, dma_size, &priv->dmaStorageDMA);
+	priv->dmaStorage = pci_alloc_consistent(priv->pciDev,
+						dma_size, &priv->dmaStorageDMA);
 	priv->dmaSize = dma_size;
 
 	if ( priv->dmaStorage == NULL ) {
@@ -867,11 +866,11 @@ static int TLan_Init( struct net_device *dev )
 		return -ENOMEM;
 	}
 	memset( priv->dmaStorage, 0, dma_size );
-	priv->rxList = (TLanList *)
-		       ( ( ( (u32) priv->dmaStorage ) + 7 ) & 0xFFFFFFF8 );
-	priv->rxListDMA = ( ( ( (u32) priv->dmaStorageDMA ) + 7 ) & 0xFFFFFFF8 );
+	priv->rxList = (TLanList *) ALIGN((unsigned long)priv->dmaStorage, 8);
+	priv->rxListDMA = ALIGN(priv->dmaStorageDMA, 8);
 	priv->txList = priv->rxList + TLAN_NUM_RX_LISTS;
 	priv->txListDMA = priv->rxListDMA + sizeof(TLanList) * TLAN_NUM_RX_LISTS;
+
 	if ( bbuf ) {
 		priv->rxBuffer = (u8 *) ( priv->txList + TLAN_NUM_TX_LISTS );
 		priv->rxBufferDMA =priv->txListDMA + sizeof(TLanList) * TLAN_NUM_TX_LISTS;
@@ -1584,7 +1583,7 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 			if ( new_skb != NULL ) {
 				skb = TLan_GetSKB(head_list);
 				pci_unmap_single(priv->pciDev, head_list->buffer[0].address, TLAN_MAX_FRAME_SIZE, PCI_DMA_FROMDEVICE);
-				skb_trim( skb, frameSize );
+				skb_put( skb, frameSize );
 
 				dev->stats.rx_bytes += frameSize;
 
@@ -1592,9 +1591,8 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 				netif_rx( skb );
 
 				skb_reserve( new_skb, 2 );
-				t = (void *) skb_put( new_skb, TLAN_MAX_FRAME_SIZE );
 				head_list->buffer[0].address = pci_map_single(priv->pciDev, new_skb->data, TLAN_MAX_FRAME_SIZE, PCI_DMA_FROMDEVICE);
-				head_list->buffer[8].address = (u32) t;
+
 				TLan_StoreSKB(head_list, new_skb);
 			} else
 				printk(KERN_WARNING "TLAN:  Couldn't allocate memory for received data.\n" );
@@ -2003,10 +2001,8 @@ static void TLan_ResetLists( struct net_device *dev )
 			} else {
 				skb->dev = dev;
 				skb_reserve( skb, 2 );
-				t = (void *) skb_put( skb, TLAN_MAX_FRAME_SIZE );
 			}
 			list->buffer[0].address = pci_map_single(priv->pciDev, t, TLAN_MAX_FRAME_SIZE, PCI_DMA_FROMDEVICE);
-			list->buffer[8].address = (u32) t;
 			TLan_StoreSKB(list, skb);
 		}
 		list->buffer[1].count = 0;
@@ -2108,7 +2104,7 @@ static void TLan_PrintList( TLanList *list, char *type, int num)
 {
 	int i;
 
-	printk( "TLAN:   %s List %d at 0x%08x\n", type, num, (u32) list );
+	printk( "TLAN:   %s List %d at %p\n", type, num, list );
 	printk( "TLAN:      Forward    = 0x%08x\n",  list->forward );
 	printk( "TLAN:      CSTAT      = 0x%04hx\n", list->cStat );
 	printk( "TLAN:      Frame Size = 0x%04hx\n", list->frameSize );
