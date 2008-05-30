@@ -665,7 +665,7 @@ static void at91_mci_completed_command(struct at91mci_host *host)
 	struct mmc_command *cmd = host->cmd;
 	unsigned int status;
 
-	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
+	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff & ~(AT91_MCI_SDIOIRQA | AT91_MCI_SDIOIRQB));
 
 	cmd->resp[0] = at91_mci_read(host, AT91_MCI_RSPR(0));
 	cmd->resp[1] = at91_mci_read(host, AT91_MCI_RSPR(1));
@@ -856,6 +856,12 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 			}
 		}
 
+		if (int_status & AT91_MCI_SDIOIRQA)
+			mmc_signal_sdio_irq(host->mmc);
+
+		if (int_status & AT91_MCI_SDIOIRQB)
+			mmc_signal_sdio_irq(host->mmc);
+
 		if (int_status & AT91_MCI_TXRDY)
 			pr_debug("Ready to transmit\n");
 
@@ -870,10 +876,10 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 
 	if (completed) {
 		pr_debug("Completed command\n");
-		at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
+		at91_mci_write(host, AT91_MCI_IDR, 0xffffffff & ~(AT91_MCI_SDIOIRQA | AT91_MCI_SDIOIRQB));
 		at91_mci_completed_command(host);
 	} else
-		at91_mci_write(host, AT91_MCI_IDR, int_status);
+		at91_mci_write(host, AT91_MCI_IDR, int_status & ~(AT91_MCI_SDIOIRQA | AT91_MCI_SDIOIRQB));
 
 	return IRQ_HANDLED;
 }
@@ -913,10 +919,22 @@ static int at91_mci_get_ro(struct mmc_host *mmc)
 	return -ENOSYS;
 }
 
+static void at91_mci_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	struct at91mci_host *host = mmc_priv(mmc);
+
+	pr_debug("%s: sdio_irq %c : %s\n", mmc_hostname(host->mmc),
+		host->board->slot_b ? 'B':'A', enable ? "enable" : "disable");
+	at91_mci_write(host, enable ? AT91_MCI_IER : AT91_MCI_IDR,
+		host->board->slot_b ? AT91_MCI_SDIOIRQB : AT91_MCI_SDIOIRQA);
+
+}
+
 static const struct mmc_host_ops at91_mci_ops = {
 	.request	= at91_mci_request,
 	.set_ios	= at91_mci_set_ios,
 	.get_ro		= at91_mci_get_ro,
+	.enable_sdio_irq = at91_mci_enable_sdio_irq,
 };
 
 /*
@@ -947,7 +965,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	mmc->f_min = 375000;
 	mmc->f_max = 25000000;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps = MMC_CAP_MULTIWRITE;
+	mmc->caps = MMC_CAP_MULTIWRITE | MMC_CAP_SDIO_IRQ;
 
 	mmc->max_blk_size = 4095;
 	mmc->max_blk_count = mmc->max_req_size;
