@@ -177,6 +177,7 @@
 			#interrupt-cells = <2>;
 			reg = <0x40000 0x40000>;
 			device_type = "open-pic";
+			compatible = "chrp,open-pic";
 		};
 	};
 

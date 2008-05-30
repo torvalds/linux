@@ -155,8 +155,8 @@
 		mpic: pic@40000 {
 			interrupt-controller;
 			#address-cells = <0>;
-			#size-cells = <0>;
 			#interrupt-cells = <2>;
+			compatible = "chrp,open-pic";
 			reg = <0x40000 0x40000>;
 			device_type = "open-pic";
 		};

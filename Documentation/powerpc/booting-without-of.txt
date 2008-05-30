@@ -1363,14 +1363,11 @@ platforms are moved over to use the flattened-device-tree model.
 
 	pic@40000 {
 		linux,phandle = <40000>;
-		clock-frequency = <0>;
 		interrupt-controller;
 		#address-cells = <0>;
 		reg = <40000 40000>;
-		built-in;
 		compatible = "chrp,open-pic";
 		device_type = "open-pic";
-		big-endian;
 	};
 
 
@@ -3663,14 +3660,11 @@ not necessary as they are usually the same as the root node.
 
 		pic@40000 {
 			linux,phandle = <40000>;
-			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
-                        big-endian;
 		};
 
 		i2c@3000 {
