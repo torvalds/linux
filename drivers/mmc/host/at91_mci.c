@@ -130,6 +130,43 @@ struct at91mci_host
 	struct timer_list timer;
 };
 
+/*
+ * Reset the controller and restore most of the state
+ */
+static void at91_reset_host(struct at91mci_host *host)
+{
+	unsigned long flags;
+	u32 mr;
+	u32 sdcr;
+	u32 dtor;
+	u32 imr;
+
+	local_irq_save(flags);
+	imr = at91_mci_read(host, AT91_MCI_IMR);
+
+	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
+
+	/* save current state */
+	mr = at91_mci_read(host, AT91_MCI_MR) & 0x7fff;
+	sdcr = at91_mci_read(host, AT91_MCI_SDCR);
+	dtor = at91_mci_read(host, AT91_MCI_DTOR);
+
+	/* reset the controller */
+	at91_mci_write(host, AT91_MCI_CR, AT91_MCI_MCIDIS | AT91_MCI_SWRST);
+
+	/* restore state */
+	at91_mci_write(host, AT91_MCI_CR, AT91_MCI_MCIEN);
+	at91_mci_write(host, AT91_MCI_MR, mr);
+	at91_mci_write(host, AT91_MCI_SDCR, sdcr);
+	at91_mci_write(host, AT91_MCI_DTOR, dtor);
+	at91_mci_write(host, AT91_MCI_IER, imr);
+
+	/* make sure sdio interrupts will fire */
+	at91_mci_read(host, AT91_MCI_SR);
+
+	local_irq_restore(flags);
+}
+
 static void at91_timeout_timer(unsigned long data)
 {
 	struct at91mci_host *host;
@@ -148,6 +185,7 @@ static void at91_timeout_timer(unsigned long data)
 				host->request->cmd->error = -ETIMEDOUT;
 		}
 
+		at91_reset_host(host);
 		mmc_request_done(host->mmc, host->request);
 	}
 }
@@ -512,6 +550,11 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 		mr |= AT91_MCI_PDCMODE;
 		at91_mci_write(host, AT91_MCI_MR, mr);
 
+		if (!cpu_is_at91rm9200())
+			at91_mci_write(host, AT91_MCI_BLKR,
+				AT91_MCI_BLKR_BCNT(blocks) |
+				AT91_MCI_BLKR_BLKLEN(block_length));
+
 		/*
 		 * Disable the PDC controller
 		 */
@@ -584,6 +627,11 @@ static void at91_mci_process_next(struct at91mci_host *host)
 		at91_mci_send_command(host, host->request->stop);
 	} else {
 		del_timer(&host->timer);
+		/* the at91rm9200 mci controller hangs after some transfers,
+		 * and the workaround is to reset it after each transfer.
+		 */
+		if (cpu_is_at91rm9200())
+			at91_reset_host(host);
 		mmc_request_done(host->mmc, host->request);
 	}
 }
