@@ -307,7 +307,8 @@ void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
 			__kvm_ioapic_update_eoi(ioapic, i);
 }
 
-static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr)
+static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr,
+			   int len, int is_write)
 {
 	struct kvm_ioapic *ioapic = (struct kvm_ioapic *)this->private;
 

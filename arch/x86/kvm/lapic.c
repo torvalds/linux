@@ -785,7 +785,8 @@ static void apic_mmio_write(struct kvm_io_device *this,
 
 }
 
-static int apic_mmio_range(struct kvm_io_device *this, gpa_t addr)
+static int apic_mmio_range(struct kvm_io_device *this, gpa_t addr,
+			   int len, int size)
 {
 	struct kvm_lapic *apic = (struct kvm_lapic *)this->private;
 	int ret = 0;

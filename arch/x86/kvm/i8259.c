@@ -346,7 +346,8 @@ static u32 elcr_ioport_read(void *opaque, u32 addr1)
 	return s->elcr;
 }
 
-static int picdev_in_range(struct kvm_io_device *this, gpa_t addr)
+static int picdev_in_range(struct kvm_io_device *this, gpa_t addr,
+			   int len, int is_write)
 {
 	switch (addr) {
 	case 0x20:
