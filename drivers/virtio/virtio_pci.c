@@ -325,7 +325,6 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	if (vp_dev == NULL)
 		return -ENOMEM;
 
-	snprintf(vp_dev->vdev.dev.bus_id, BUS_ID_SIZE, "virtio%d", dev_index);
 	vp_dev->vdev.index = dev_index;
 	dev_index++;
 
