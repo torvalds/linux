@@ -204,7 +204,6 @@ typedef struct tlan_private_tag {
 	u32			speed;
 	u8			tlanRev;
 	u8			tlanFullDuplex;
-	char                    devName[8];
 	spinlock_t		lock;
 	u8			link;
 	u8			is_eisa;
