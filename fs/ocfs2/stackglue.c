@@ -34,11 +34,13 @@
 
 #define OCFS2_STACK_PLUGIN_O2CB		"o2cb"
 #define OCFS2_STACK_PLUGIN_USER		"user"
+#define OCFS2_MAX_HB_CTL_PATH		256
 
 static struct ocfs2_locking_protocol *lproto;
 static DEFINE_SPINLOCK(ocfs2_stack_lock);
 static LIST_HEAD(ocfs2_stack_list);
 static char cluster_stack_name[OCFS2_STACK_LABEL_LEN + 1];
+static char ocfs2_hb_ctl_path[OCFS2_MAX_HB_CTL_PATH] = "/sbin/ocfs2_hb_ctl";
 
 /*
  * The stack currently in use.  If not null, active_stack->sp_count > 0,
@@ -363,6 +365,42 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 }
 EXPORT_SYMBOL_GPL(ocfs2_cluster_disconnect);
 
+/*
+ * Leave the group for this filesystem.  This is executed by a userspace
+ * program (stored in ocfs2_hb_ctl_path).
+ */
+static void ocfs2_leave_group(const char *group)
+{
+	int ret;
+	char *argv[5], *envp[3];
+
+	argv[0] = ocfs2_hb_ctl_path;
+	argv[1] = "-K";
+	argv[2] = "-u";
+	argv[3] = (char *)group;
+	argv[4] = NULL;
+
+	/* minimal command environment taken from cpu_run_sbin_hotplug */
+	envp[0] = "HOME=/";
+	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
+	envp[2] = NULL;
+
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "ocfs2: Error %d running user helper "
+		       "\"%s %s %s %s\"\n",
+		       ret, argv[0], argv[1], argv[2], argv[3]);
+	}
+}
+
+/*
+ * Hangup is a required post-umount.  ocfs2-tools software expects the
+ * filesystem to call "ocfs2_hb_ctl" during unmount.  This happens
+ * regardless of whether the DLM got started, so we can't do it
+ * in ocfs2_cluster_disconnect().  The ocfs2_leave_group() function does
+ * the actual work.
+ */
 void ocfs2_cluster_hangup(const char *group, int grouplen)
 {
 	BUG_ON(group == NULL);
@@ -370,6 +408,8 @@ void ocfs2_cluster_hangup(const char *group, int grouplen)
 
 	if (active_stack->sp_ops->hangup)
 		active_stack->sp_ops->hangup(group, grouplen);
+
+	ocfs2_leave_group(group);
 
 	/* cluster_disconnect() was called with hangup_pending==1 */
 	ocfs2_stack_driver_put();
@@ -559,9 +599,6 @@ error:
 
 #define FS_OCFS2_NM		1
 
-#define OCFS2_MAX_HB_CTL_PATH 256
-static char ocfs2_hb_ctl_path[OCFS2_MAX_HB_CTL_PATH] = "/sbin/ocfs2_hb_ctl";
-
 static ctl_table ocfs2_nm_table[] = {
 	{
 		.ctl_name	= 1,
@@ -612,12 +649,6 @@ static ctl_table ocfs2_root_table[] = {
 };
 
 static struct ctl_table_header *ocfs2_table_header = NULL;
-
-const char *ocfs2_get_hb_ctl_path(void)
-{
-	return ocfs2_hb_ctl_path;
-}
-EXPORT_SYMBOL_GPL(ocfs2_get_hb_ctl_path);
 
 
 /*
