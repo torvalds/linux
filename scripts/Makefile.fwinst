@@ -6,6 +6,7 @@
 # ==========================================================================
 
 INSTALL := install
+src := $(obj)
 
 # For modules_install installing firmware, we want to see .config
 # But for firmware_install, we don't care, but don't want to require it.
@@ -40,6 +41,5 @@ $(installed-fw): $(INSTALL_FW_PATH)/%: $(obj)/% | $(INSTALL_FW_PATH)/$$(dir %)/
 
 __fw_install: $(installed-fw)
 __fw_modinst: $(mod-fw)
-
 
 FORCE:
