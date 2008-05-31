@@ -1685,7 +1685,7 @@ static inline void __init check_timer(void)
 		 */
 		if (no_pin1) {
 			add_pin_to_irq(0, apic1, pin1);
-			setup_timer_IRQ0_pin(apic1, pin1, vector);
+			setup_timer_IRQ0_pin(apic1, pin1, cfg->vector);
 		}
 		unmask_IO_APIC_irq(0);
 		if (!no_timer_check && timer_irq_works()) {
