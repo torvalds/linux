@@ -24,6 +24,19 @@
 
 
 /*
+ * User Notes:
+ * - USB Audio is provided by the alsa snd_usb_audio module.
+ *   For listing you have to redirect the sound, for example using:
+ *   arecord -D hw:1,0 -r96000 -c2 -f S16_LE | artsdsp aplay -B -
+ * - regarding module parameters in /sys/module/radio_si470x/parameters:
+ *   the contents of read-only files (0444) are not updated, even if
+ *   space, band and de are changed using private video controls
+ * - increase tune_timeout, if you often get -EIO errors
+ * - hw_freq_seek returns -EAGAIN, when timed out or band limit is reached
+ */
+
+
+/*
  * History:
  * 2008-01-12	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.0
@@ -86,6 +99,9 @@
  *		Version 1.0.7
  *		- usb autosuspend support
  *		- unplugging fixed
+ * 2008-05-07	Tobias Lorenz <tobias.lorenz@gmx.net>
+ *		Version 1.0.8
+ *		- let si470x_get_freq return errno
  *
  * ToDo:
  * - add seeking support
@@ -98,10 +114,10 @@
 /* driver definitions */
 #define DRIVER_AUTHOR "Tobias Lorenz <tobias.lorenz@gmx.net>"
 #define DRIVER_NAME "radio-si470x"
-#define DRIVER_KERNEL_VERSION KERNEL_VERSION(1, 0, 7)
+#define DRIVER_KERNEL_VERSION KERNEL_VERSION(1, 0, 8)
 #define DRIVER_CARD "Silicon Labs Si470x FM Radio Receiver"
 #define DRIVER_DESC "USB radio driver for Si470x FM Radio Receivers"
-#define DRIVER_VERSION "1.0.7"
+#define DRIVER_VERSION "1.0.8"
 
 
 /* kernel includes */
@@ -631,9 +647,9 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 /*
  * si470x_get_freq - get the frequency
  */
-static unsigned int si470x_get_freq(struct si470x_device *radio)
+static int si470x_get_freq(struct si470x_device *radio, unsigned int *freq)
 {
-	unsigned int spacing, band_bottom, freq;
+	unsigned int spacing, band_bottom;
 	unsigned short chan;
 	int retval;
 
@@ -659,14 +675,12 @@ static unsigned int si470x_get_freq(struct si470x_device *radio)
 
 	/* read channel */
 	retval = si470x_get_register(radio, READCHAN);
-	if (retval < 0)
-		return retval;
 	chan = radio->registers[READCHAN] & READCHAN_READCHAN;
 
 	/* Frequency (MHz) = Spacing (kHz) x Channel + Bottom of Band (MHz) */
-	freq = chan * spacing + band_bottom;
+	*freq = chan * spacing + band_bottom;
 
-	return freq;
+	return retval;
 }
 
 
@@ -1351,9 +1365,7 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
 		return -EIO;
 
 	freq->type = V4L2_TUNER_RADIO;
-	freq->frequency = si470x_get_freq(radio);
-
-	return 0;
+	return si470x_get_freq(radio, &radio->frequency);
 }
 
 
