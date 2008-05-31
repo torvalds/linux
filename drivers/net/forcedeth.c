@@ -5559,6 +5559,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	/* set mac address */
 	nv_copy_mac_to_hw(dev);
 
+	/* Workaround current PCI init glitch:  wakeup bits aren't
+	 * being set from PCI PM capability.
+	 */
+	device_init_wakeup(&pci_dev->dev, 1);
+
 	/* disable WOL */
 	writel(0, base + NvRegWakeUpFlags);
 	np->wolenabled = 0;
