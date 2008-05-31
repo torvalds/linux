@@ -101,11 +101,11 @@
  *		- unplugging fixed
  * 2008-05-07	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.8
+ *		- hardware frequency seek support
  *		- afc indication
  *		- more safety checks, let si470x_get_freq return errno
  *
  * ToDo:
- * - add seeking support
  * - add firmware download/update support
  * - RDS support: interrupt mode, instead of polling
  * - add LED status output (check if that's not already done in firmware)
@@ -191,6 +191,11 @@ MODULE_PARM_DESC(usb_timeout, "USB timeout (ms): *500*");
 static unsigned int tune_timeout = 3000;
 module_param(tune_timeout, uint, 0);
 MODULE_PARM_DESC(tune_timeout, "Tune timeout: *3000*");
+
+/* Seek timeout */
+static unsigned int seek_timeout = 5000;
+module_param(seek_timeout, uint, 0);
+MODULE_PARM_DESC(seek_timeout, "Seek timeout: *5000*");
 
 /* RDS buffer blocks */
 static unsigned int rds_buf = 100;
@@ -727,6 +732,62 @@ static int si470x_set_freq(struct si470x_device *radio, unsigned int freq)
 
 
 /*
+ * si470x_set_seek - set seek
+ */
+static int si470x_set_seek(struct si470x_device *radio,
+		unsigned int wrap_around, unsigned int seek_upward)
+{
+	int retval = 0;
+	unsigned long timeout;
+	bool timed_out = 0;
+
+	/* start seeking */
+	radio->registers[POWERCFG] |= POWERCFG_SEEK;
+	if (wrap_around == 1)
+		radio->registers[POWERCFG] &= ~POWERCFG_SKMODE;
+	else
+		radio->registers[POWERCFG] |= POWERCFG_SKMODE;
+	if (seek_upward == 1)
+		radio->registers[POWERCFG] |= POWERCFG_SEEKUP;
+	else
+		radio->registers[POWERCFG] &= ~POWERCFG_SEEKUP;
+	retval = si470x_set_register(radio, POWERCFG);
+	if (retval < 0)
+		goto done;
+
+	/* wait till seek operation has completed */
+	timeout = jiffies + msecs_to_jiffies(seek_timeout);
+	do {
+		retval = si470x_get_register(radio, STATUSRSSI);
+		if (retval < 0)
+			goto stop;
+		timed_out = time_after(jiffies, timeout);
+	} while (((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0) &&
+		(!timed_out));
+	if ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
+		printk(KERN_WARNING DRIVER_NAME ": seek does not complete\n");
+	if (radio->registers[STATUSRSSI] & STATUSRSSI_SF)
+		printk(KERN_WARNING DRIVER_NAME
+			": seek failed / band limit reached\n");
+	if (timed_out)
+		printk(KERN_WARNING DRIVER_NAME
+			": seek timed out after %u ms\n", seek_timeout);
+
+stop:
+	/* stop seeking */
+	radio->registers[POWERCFG] &= ~POWERCFG_SEEK;
+	retval = si470x_set_register(radio, POWERCFG);
+
+done:
+	/* try again, if timed out */
+	if ((retval == 0) && timed_out)
+		retval = -EAGAIN;
+
+	return retval;
+}
+
+
+/*
  * si470x_start - switch on radio
  */
 static int si470x_start(struct si470x_device *radio)
@@ -1148,7 +1209,8 @@ static int si470x_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(capability->card, DRIVER_CARD, sizeof(capability->card));
 	sprintf(capability->bus_info, "USB");
 	capability->version = DRIVER_KERNEL_VERSION;
-	capability->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	capability->capabilities = V4L2_CAP_HW_FREQ_SEEK |
+		V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 
 	return 0;
 }
@@ -1495,6 +1557,36 @@ done:
 
 
 /*
+ * si470x_vidioc_s_hw_freq_seek - set hardware frequency seek
+ */
+static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
+		struct v4l2_hw_freq_seek *seek)
+{
+	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	int retval = 0;
+
+	/* safety checks */
+	if (radio->disconnected) {
+		retval = -EIO;
+		goto done;
+	}
+	if ((seek->tuner != 0) && (seek->type != V4L2_TUNER_RADIO)) {
+		retval = -EINVAL;
+		goto done;
+	}
+
+	retval = si470x_set_seek(radio, seek->wrap_around, seek->seek_upward);
+
+done:
+	if (retval < 0)
+		printk(KERN_WARNING DRIVER_NAME
+			": set hardware frequency seek failed with %d\n",
+			retval);
+	return retval;
+}
+
+
+/*
  * si470x_viddev_tamples - video device interface
  */
 static struct video_device si470x_viddev_template = {
@@ -1514,6 +1606,7 @@ static struct video_device si470x_viddev_template = {
 	.vidioc_s_tuner		= si470x_vidioc_s_tuner,
 	.vidioc_g_frequency	= si470x_vidioc_g_frequency,
 	.vidioc_s_frequency	= si470x_vidioc_s_frequency,
+	.vidioc_s_hw_freq_seek	= si470x_vidioc_s_hw_freq_seek,
 	.owner			= THIS_MODULE,
 };
 
