@@ -103,6 +103,7 @@ static char mv643xx_driver_version[] = "1.0";
 #define SDMA_CONFIG(p)			(0x041c + ((p) << 10))
 #define PORT_SERIAL_CONTROL(p)		(0x043c + ((p) << 10))
 #define PORT_STATUS(p)			(0x0444 + ((p) << 10))
+#define  TX_FIFO_EMPTY			0x00000400
 #define TXQ_COMMAND(p)			(0x0448 + ((p) << 10))
 #define TX_BW_MTU(p)			(0x0458 + ((p) << 10))
 #define INT_CAUSE(p)			(0x0460 + ((p) << 10))
@@ -168,18 +169,6 @@ static char mv643xx_driver_version[] = "1.0";
 
 #define PORT_DEFAULT_TRANSMIT_QUEUE_SIZE	800
 #define PORT_DEFAULT_RECEIVE_QUEUE_SIZE		400
-
-/* Port serial status reg (PSR) */
-#define ETH_INTERFACE_PCM			0x00000001
-#define ETH_LINK_IS_UP				0x00000002
-#define ETH_PORT_AT_FULL_DUPLEX			0x00000004
-#define ETH_RX_FLOW_CTRL_ENABLED		0x00000008
-#define ETH_GMII_SPEED_1000			0x00000010
-#define ETH_MII_SPEED_100			0x00000020
-#define ETH_TX_IN_PROGRESS			0x00000080
-#define ETH_BYPASS_ACTIVE			0x00000100
-#define ETH_PORT_AT_PARTITION_STATE		0x00000200
-#define ETH_PORT_TX_FIFO_EMPTY			0x00000400
 
 /* SMI reg */
 #define ETH_SMI_BUSY		0x10000000	/* 0 - Write, 1 - Read	*/
@@ -471,7 +460,7 @@ static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_private *mp)
 			udelay(10);
 
 		/* Wait for Tx FIFO to empty */
-		while (rdl(mp, PORT_STATUS(port_num)) & ETH_PORT_TX_FIFO_EMPTY)
+		while (rdl(mp, PORT_STATUS(port_num)) & TX_FIFO_EMPTY)
 			udelay(10);
 	}
 
