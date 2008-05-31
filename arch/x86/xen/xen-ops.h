@@ -37,6 +37,7 @@ void __init xen_time_init(void);
 unsigned long xen_get_wallclock(void);
 int xen_set_wallclock(unsigned long time);
 unsigned long long xen_sched_clock(void);
+void xen_timer_resume(void);
 
 irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
 

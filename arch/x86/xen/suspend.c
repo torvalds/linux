@@ -38,6 +38,7 @@ void xen_post_suspend(int suspend_cancelled)
 		xen_cpu_initialized_map = cpu_online_map;
 #endif
 		xen_vcpu_restore();
+		xen_timer_resume();
 	}
 
 }
