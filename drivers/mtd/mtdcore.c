@@ -53,7 +53,7 @@ int add_mtd_device(struct mtd_info *mtd)
 
 	for (i=0; i < MAX_MTD_DEVICES; i++)
 		if (!mtd_table[i]) {
-			struct list_head *this;
+			struct mtd_notifier *not;
 
 			mtd_table[i] = mtd;
 			mtd->index = i;
@@ -72,8 +72,7 @@ int add_mtd_device(struct mtd_info *mtd)
 			DEBUG(0, "mtd: Giving out device %d to %s\n",i, mtd->name);
 			/* No need to get a refcount on the module containing
 			   the notifier, since we hold the mtd_table_mutex */
-			list_for_each(this, &mtd_notifiers) {
-				struct mtd_notifier *not = list_entry(this, struct mtd_notifier, list);
+			list_for_each_entry(not, &mtd_notifiers, list) {
 				not->add(mtd);
 			}
 
