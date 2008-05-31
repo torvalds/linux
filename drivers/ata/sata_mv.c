@@ -224,6 +224,11 @@ enum {
 
 	PHY_MODE3		= 0x310,
 	PHY_MODE4		= 0x314,
+	PHY_MODE4_CFG_MASK	= 0x00000003,	/* phy internal config field */
+	PHY_MODE4_CFG_VALUE	= 0x00000001,	/* phy internal config field */
+	PHY_MODE4_RSVD_ZEROS	= 0x5de3fffa,	/* Gen2e always write zeros */
+	PHY_MODE4_RSVD_ONES	= 0x00000005,	/* Gen2e always write ones */
+
 	PHY_MODE2		= 0x330,
 	SATA_IFCTL_OFS		= 0x344,
 	SATA_TESTCTL_OFS	= 0x348,
@@ -2563,17 +2568,16 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		m3 &= ~0x1c;
 
 	if (fix_phy_mode4) {
-		u32 m4;
-
-		m4 = readl(port_mmio + PHY_MODE4);
-
-		/* workaround for errata FEr SATA#10 (part 1) */
-		m4 = (m4 & ~(1 << 1)) | (1 << 0);
-
-		/* enforce bit restrictions on GenIIe devices */
+		u32 m4 = readl(port_mmio + PHY_MODE4);
+		/*
+		 * Enforce reserved-bit restrictions on GenIIe devices only.
+		 * For earlier chipsets, force only the internal config field
+		 *  (workaround for errata FEr SATA#10 part 1).
+		 */
 		if (IS_GEN_IIE(hpriv))
-			m4 = (m4 & ~0x5DE3FFFC) | (1 << 2);
-
+			m4 = (m4 & ~PHY_MODE4_RSVD_ZEROS) | PHY_MODE4_RSVD_ONES;
+		else
+			m4 = (m4 & ~PHY_MODE4_CFG_MASK) | PHY_MODE4_CFG_VALUE;
 		writel(m4, port_mmio + PHY_MODE4);
 	}
 	/*
