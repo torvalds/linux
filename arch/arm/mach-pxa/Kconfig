@@ -148,23 +148,6 @@ config MACH_PCM990_BASEBOARD
 
 endchoice
 
-if PXA_SHARPSL
-
-choice
-	prompt "Select target Sharp Zaurus device range"
-
-config PXA_SHARPSL_25x
-	bool "Sharp PXA25x models (SL-5600, SL-C7xx and SL-C6000x)"
-	select PXA25x
-
-config PXA_SHARPSL_27x
-	bool "Sharp PXA270 models (SL-Cxx00)"
-	select PXA27x
-
-endchoice
-
-endif
-
 if ARCH_GUMSTIX
 
 choice
@@ -198,28 +181,33 @@ endmenu
 
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
-	depends on PXA_SHARPSL_25x
+	depends on PXA_SHARPSL
+	select PXA25x
 	select SHARP_LOCOMO
 	select PXA_SSP
 
 config MACH_CORGI
 	bool "Enable Sharp SL-C700 (Corgi) Support"
-	depends on PXA_SHARPSL_25x
+	depends on PXA_SHARPSL
+	select PXA25x
 	select PXA_SHARP_C7xx
 
 config MACH_SHEPHERD
 	bool "Enable Sharp SL-C750 (Shepherd) Support"
-	depends on PXA_SHARPSL_25x
+	depends on PXA_SHARPSL
+	select PXA25x
 	select PXA_SHARP_C7xx
 
 config MACH_HUSKY
 	bool "Enable Sharp SL-C760 (Husky) Support"
-	depends on PXA_SHARPSL_25x
+	depends on PXA_SHARPSL
+	select PXA25x
 	select PXA_SHARP_C7xx
 
 config MACH_AKITA
 	bool "Enable Sharp SL-1000 (Akita) Support"
-	depends on PXA_SHARPSL_27x
+	depends on PXA_SHARPSL
+	select PXA27x
 	select PXA_SHARP_Cxx00
 	select MACH_SPITZ
 	select I2C
@@ -227,17 +215,20 @@ config MACH_AKITA
 
 config MACH_SPITZ
 	bool "Enable Sharp Zaurus SL-3000 (Spitz) Support"
-	depends on PXA_SHARPSL_27x
+	depends on PXA_SHARPSL
+	select PXA27x
 	select PXA_SHARP_Cxx00
 
 config MACH_BORZOI
 	bool "Enable Sharp Zaurus SL-3100 (Borzoi) Support"
-	depends on PXA_SHARPSL_27x
+	depends on PXA_SHARPSL
+	select PXA27x
 	select PXA_SHARP_Cxx00
 
 config MACH_TOSA
 	bool "Enable Sharp SL-6000x (Tosa) Support"
-	depends on PXA_SHARPSL_25x
+	depends on PXA_SHARPSL
+	select PXA25x
 
 config PXA25x
 	bool
