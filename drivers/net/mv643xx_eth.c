@@ -159,20 +159,6 @@ static char mv643xx_driver_version[] = "1.0";
 #define FORCE_LINK_PASS				(1 << 1)
 #define SERIAL_PORT_ENABLE			(1 << 0)
 
-/* These macros describe Ethernet Serial Status reg (PSR) bits */
-#define PORT_STATUS_MODE_10_BIT		(1 << 0)
-#define PORT_STATUS_LINK_UP		(1 << 1)
-#define PORT_STATUS_FULL_DUPLEX		(1 << 2)
-#define PORT_STATUS_FLOW_CONTROL	(1 << 3)
-#define PORT_STATUS_GMII_1000		(1 << 4)
-#define PORT_STATUS_MII_100		(1 << 5)
-/* PSR bit 6 is undocumented */
-#define PORT_STATUS_TX_IN_PROGRESS	(1 << 7)
-#define PORT_STATUS_AUTONEG_BYPASSED	(1 << 8)
-#define PORT_STATUS_PARTITION		(1 << 9)
-#define PORT_STATUS_TX_FIFO_EMPTY	(1 << 10)
-/* PSR bits 11-31 are reserved */
-
 #define PORT_DEFAULT_TRANSMIT_QUEUE_SIZE	800
 #define PORT_DEFAULT_RECEIVE_QUEUE_SIZE		400
 
