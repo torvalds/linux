@@ -103,6 +103,14 @@ config LEDS_HP6XX
 	  This option enables led support for the handheld
 	  HP Jornada 620/660/680/690.
 
+config LEDS_PCA9532
+	tristate "LED driver for PCA9532 dimmer"
+	depends on LEDS_CLASS && I2C && INPUT && EXPERIMENTAL
+	help
+	  This option enables support for NXP pca9532
+	  led controller. It is generally only usefull
+	  as a platform driver
+
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on LEDS_CLASS && GENERIC_GPIO
