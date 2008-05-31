@@ -98,7 +98,7 @@ struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
  */
 static int have_vcpu_info_placement = 1;
 
-static void __init xen_vcpu_setup(int cpu)
+static void xen_vcpu_setup(int cpu)
 {
 	struct vcpu_register_vcpu_info info;
 	int err;
@@ -133,6 +133,34 @@ static void __init xen_vcpu_setup(int cpu)
 
 		printk(KERN_DEBUG "cpu %d using vcpu_info at %p\n",
 		       cpu, vcpup);
+	}
+}
+
+/*
+ * On restore, set the vcpu placement up again.
+ * If it fails, then we're in a bad state, since
+ * we can't back out from using it...
+ */
+void xen_vcpu_restore(void)
+{
+	if (have_vcpu_info_placement) {
+		int cpu;
+
+		for_each_online_cpu(cpu) {
+			bool other_cpu = (cpu != smp_processor_id());
+
+			if (other_cpu &&
+			    HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL))
+				BUG();
+
+			xen_vcpu_setup(cpu);
+
+			if (other_cpu &&
+			    HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL))
+				BUG();
+		}
+
+		BUG_ON(!have_vcpu_info_placement);
 	}
 }
 

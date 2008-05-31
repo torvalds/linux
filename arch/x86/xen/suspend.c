@@ -26,6 +26,8 @@ void xen_pre_suspend(void)
 
 void xen_post_suspend(int suspend_cancelled)
 {
+	xen_setup_shared_info();
+
 	if (suspend_cancelled) {
 		xen_start_info->store_mfn =
 			pfn_to_mfn(xen_start_info->store_mfn);
@@ -35,8 +37,8 @@ void xen_post_suspend(int suspend_cancelled)
 #ifdef CONFIG_SMP
 		xen_cpu_initialized_map = cpu_online_map;
 #endif
+		xen_vcpu_restore();
 	}
 
-	xen_setup_shared_info();
 }
 
