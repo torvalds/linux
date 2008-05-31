@@ -548,6 +548,11 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 		p.header_length = 12;
 		p.payload_length = 0;
 		break;
+
+	default:
+		/* FIXME: Stop context, discard everything, and restart? */
+		p.header_length = 0;
+		p.payload_length = 0;
 	}
 
 	p.payload = (void *) buffer + p.header_length;
