@@ -229,6 +229,10 @@ static int __devinit corgipm_init(void)
 {
 	int ret;
 
+	if (!machine_is_corgi() && !machine_is_shepherd()
+			&& !machine_is_husky())
+		return -ENODEV;
+
 	corgipm_device = platform_device_alloc("sharpsl-pm", -1);
 	if (!corgipm_device)
 		return -ENOMEM;
