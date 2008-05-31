@@ -2,7 +2,7 @@
  * include/asm-arm/arch-orion5x/orion5x.h
  *
  * Generic definitions of Orion SoC flavors:
- *  Orion-1, Orion-NAS, Orion-VoIP, and Orion-2.
+ *  Orion-1, Orion-VoIP, Orion-NAS, and Orion-2.
  *
  * Maintainer: Tzachi Perelstein <tzachi@marvell.com>
  *
@@ -63,9 +63,11 @@
 /*******************************************************************************
  * Supported Devices & Revisions
  ******************************************************************************/
-/* Orion-1 (88F5181) */
+/* Orion-1 (88F5181) and Orion-VoIP (88F5181L) */
 #define MV88F5181_DEV_ID	0x5181
 #define MV88F5181_REV_B1	3
+#define MV88F5181L_REV_A0	8
+#define MV88F5181L_REV_A1	9
 /* Orion-NAS (88F5182) */
 #define MV88F5182_DEV_ID	0x5182
 #define MV88F5182_REV_A2	2
