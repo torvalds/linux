@@ -901,6 +901,14 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 	pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(base)));
 }
 
+static __init void xen_post_allocator_init(void)
+{
+	pv_mmu_ops.set_pmd = xen_set_pmd;
+	pv_mmu_ops.set_pud = xen_set_pud;
+
+	xen_mark_init_mm_pinned();
+}
+
 /* This is called once we have the cpu_possible_map */
 void xen_setup_vcpu_info_placement(void)
 {
@@ -988,7 +996,7 @@ static const struct pv_init_ops xen_init_ops __initdata = {
 	.banner = xen_banner,
 	.memory_setup = xen_memory_setup,
 	.arch_setup = xen_arch_setup,
-	.post_allocator_init = xen_mark_init_mm_pinned,
+	.post_allocator_init = xen_post_allocator_init,
 };
 
 static const struct pv_time_ops xen_time_ops __initdata = {
@@ -1100,7 +1108,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 	.set_pte = NULL,	/* see xen_pagetable_setup_* */
 	.set_pte_at = xen_set_pte_at,
-	.set_pmd = xen_set_pmd,
+	.set_pmd = xen_set_pmd_hyper,
 
 	.pte_val = xen_pte_val,
 	.pte_flags = native_pte_val,
@@ -1111,7 +1119,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 	.set_pte_atomic = xen_set_pte_atomic,
 	.set_pte_present = xen_set_pte_at,
-	.set_pud = xen_set_pud,
+	.set_pud = xen_set_pud_hyper,
 	.pte_clear = xen_pte_clear,
 	.pmd_clear = xen_pmd_clear,
 

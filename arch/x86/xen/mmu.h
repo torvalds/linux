@@ -25,10 +25,6 @@ enum pt_level {
 
 void set_pte_mfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
-void xen_set_pte(pte_t *ptep, pte_t pteval);
-void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
-		    pte_t *ptep, pte_t pteval);
-void xen_set_pmd(pmd_t *pmdp, pmd_t pmdval);
 
 void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next);
 void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
@@ -45,10 +41,14 @@ pte_t xen_make_pte(pteval_t);
 pmd_t xen_make_pmd(pmdval_t);
 pgd_t xen_make_pgd(pgdval_t);
 
+void xen_set_pte(pte_t *ptep, pte_t pteval);
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval);
 void xen_set_pte_atomic(pte_t *ptep, pte_t pte);
+void xen_set_pmd(pmd_t *pmdp, pmd_t pmdval);
 void xen_set_pud(pud_t *ptr, pud_t val);
+void xen_set_pmd_hyper(pmd_t *pmdp, pmd_t pmdval);
+void xen_set_pud_hyper(pud_t *ptr, pud_t val);
 void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
 void xen_pmd_clear(pmd_t *pmdp);
 

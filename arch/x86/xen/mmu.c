@@ -223,7 +223,14 @@ void make_lowmem_page_readwrite(void *vaddr)
 }
 
 
-void xen_set_pmd(pmd_t *ptr, pmd_t val)
+static bool page_pinned(void *ptr)
+{
+	struct page *page = virt_to_page(ptr);
+
+	return PagePinned(page);
+}
+
+void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 {
 	struct multicall_space mcs;
 	struct mmu_update *u;
@@ -239,6 +246,18 @@ void xen_set_pmd(pmd_t *ptr, pmd_t val)
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
+}
+
+void xen_set_pmd(pmd_t *ptr, pmd_t val)
+{
+	/* If page is not pinned, we can just update the entry
+	   directly */
+	if (!page_pinned(ptr)) {
+		*ptr = val;
+		return;
+	}
+
+	xen_set_pmd_hyper(ptr, val);
 }
 
 /*
@@ -348,7 +367,7 @@ pmdval_t xen_pmd_val(pmd_t pmd)
 	return ret;
 }
 
-void xen_set_pud(pud_t *ptr, pud_t val)
+void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 {
 	struct multicall_space mcs;
 	struct mmu_update *u;
@@ -364,6 +383,18 @@ void xen_set_pud(pud_t *ptr, pud_t val)
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
+}
+
+void xen_set_pud(pud_t *ptr, pud_t val)
+{
+	/* If page is not pinned, we can just update the entry
+	   directly */
+	if (!page_pinned(ptr)) {
+		*ptr = val;
+		return;
+	}
+
+	xen_set_pud_hyper(ptr, val);
 }
 
 void xen_set_pte(pte_t *ptep, pte_t pte)
@@ -387,7 +418,7 @@ void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 
 void xen_pmd_clear(pmd_t *pmdp)
 {
-	xen_set_pmd(pmdp, __pmd(0));
+	set_pmd(pmdp, __pmd(0));
 }
 
 pmd_t xen_make_pmd(pmdval_t pmd)
@@ -758,7 +789,7 @@ void xen_exit_mmap(struct mm_struct *mm)
 	spin_lock(&mm->page_table_lock);
 
 	/* pgd may not be pinned in the error exit path of execve */
-	if (PagePinned(virt_to_page(mm->pgd)))
+	if (page_pinned(mm->pgd))
 		xen_pgd_unpin(mm->pgd);
 
 	spin_unlock(&mm->page_table_lock);
