@@ -118,17 +118,6 @@ static char mv643xx_driver_version[] = "1.0";
 #define OTHER_MCAST_TABLE(p)		(0x1500 + ((p) << 10))
 #define UNICAST_TABLE(p)		(0x1600 + ((p) << 10))
 
-/* These macros describe Ethernet Port configuration extend reg (Px_cXR) bits*/
-#define CLASSIFY_EN				(1 << 0)
-#define SPAN_BPDU_PACKETS_AS_NORMAL		(0 << 1)
-#define SPAN_BPDU_PACKETS_TO_RX_QUEUE_7		(1 << 1)
-#define PARTITION_DISABLE			(0 << 2)
-#define PARTITION_ENABLE			(1 << 2)
-
-#define PORT_CONFIG_EXTEND_DEFAULT_VALUE		\
-		SPAN_BPDU_PACKETS_AS_NORMAL	|	\
-		PARTITION_DISABLE
-
 /* These macros describe Ethernet Port Sdma configuration reg (SDCR) bits */
 #define RIFB				(1 << 0)
 #define RX_BURST_SIZE_1_64BIT		(0 << 1)
@@ -2208,7 +2197,10 @@ static void eth_port_start(struct net_device *dev)
 	 */
 	wrl(mp, PORT_CONFIG(port_num), 0x00000000);
 
-	wrl(mp, PORT_CONFIG_EXT(port_num), PORT_CONFIG_EXTEND_DEFAULT_VALUE);
+	/*
+	 * Treat BPDUs as normal multicasts, and disable partition mode.
+	 */
+	wrl(mp, PORT_CONFIG_EXT(port_num), 0x00000000);
 
 	pscr = rdl(mp, PORT_SERIAL_CONTROL(port_num));
 
