@@ -29,6 +29,7 @@
 #include <asm/arch/orion5x.h>
 #include "common.h"
 #include "mpp.h"
+#include "tsx09-common.h"
 
 #define QNAP_TS209_NOR_BOOT_BASE 0xf4000000
 #define QNAP_TS209_NOR_BOOT_SIZE SZ_8M
@@ -186,95 +187,6 @@ static int __init qnap_ts209_pci_init(void)
 subsys_initcall(qnap_ts209_pci_init);
 
 /*****************************************************************************
- * Ethernet
- ****************************************************************************/
-
-static struct mv643xx_eth_platform_data qnap_ts209_eth_data = {
-	.phy_addr	= 8,
-};
-
-static int __init parse_hex_nibble(char n)
-{
-	if (n >= '0' && n <= '9')
-		return n - '0';
-
-	if (n >= 'A' && n <= 'F')
-		return n - 'A' + 10;
-
-	if (n >= 'a' && n <= 'f')
-		return n - 'a' + 10;
-
-	return -1;
-}
-
-static int __init parse_hex_byte(const char *b)
-{
-	int hi;
-	int lo;
-
-	hi = parse_hex_nibble(b[0]);
-	lo = parse_hex_nibble(b[1]);
-
-	if (hi < 0 || lo < 0)
-		return -1;
-
-	return (hi << 4) | lo;
-}
-
-static int __init check_mac_addr(const char *addr_str)
-{
-	u_int8_t addr[6];
-	int i;
-
-	for (i = 0; i < 6; i++) {
-		int byte;
-
-		/*
-		 * Enforce "xx:xx:xx:xx:xx:xx\n" format.
-		 */
-		if (addr_str[(i * 3) + 2] != ((i < 5) ? ':' : '\n'))
-			return -1;
-
-		byte = parse_hex_byte(addr_str + (i * 3));
-		if (byte < 0)
-			return -1;
-		addr[i] = byte;
-	}
-
-	printk(KERN_INFO "ts209: found ethernet mac address ");
-	for (i = 0; i < 6; i++)
-		printk("%.2x%s", addr[i], (i < 5) ? ":" : ".\n");
-
-	memcpy(qnap_ts209_eth_data.mac_addr, addr, 6);
-
-	return 0;
-}
-
-/*
- * The 'NAS Config' flash partition has an ext2 filesystem which
- * contains a file that has the ethernet MAC address in plain text
- * (format "xx:xx:xx:xx:xx:xx\n".)
- */
-static void __init ts209_find_mac_addr(void)
-{
-	unsigned long addr;
-
-	for (addr = 0x00700000; addr < 0x00760000; addr += 1024) {
-		char *nor_page;
-		int ret = 0;
-
-		nor_page = ioremap(QNAP_TS209_NOR_BOOT_BASE + addr, 1024);
-		if (nor_page != NULL) {
-			ret = check_mac_addr(nor_page);
-			iounmap(nor_page);
-		}
-
-		if (ret == 0)
-			break;
-	}
-}
-
-/*****************************************************************************
  * RTC S35390A on I2C bus
  ****************************************************************************/
 
@@ -356,31 +268,6 @@ static struct orion5x_mpp_mode ts209_mpp_modes[] __initdata = {
 	{ -1 },
 };
 
-/*
- * QNAP TS-[12]09 specific power off method via UART1-attached PIC
- */
-#define UART1_REG(x)	(UART1_VIRT_BASE + ((UART_##x) << 2))
-
-static void qnap_ts209_power_off(void)
-{
-	/* 19200 baud divisor */
-	const unsigned divisor = ((ORION5X_TCLK + (8 * 19200)) / (16 * 19200));
-
-	pr_info("%s: triggering power-off...\n", __func__);
-
-	/* hijack uart1 and reset into sane state (19200,8n1) */
-	orion5x_write(UART1_REG(LCR), 0x83);
-	orion5x_write(UART1_REG(DLL), divisor & 0xff);
-	orion5x_write(UART1_REG(DLM), (divisor >> 8) & 0xff);
-	orion5x_write(UART1_REG(LCR), 0x03);
-	orion5x_write(UART1_REG(IER), 0x00);
-	orion5x_write(UART1_REG(FCR), 0x00);
-	orion5x_write(UART1_REG(MCR), 0x00);
-
-	/* send the power-off command 'A' to PIC */
-	orion5x_write(UART1_REG(TX), 'A');
-}
-
 static void __init qnap_ts209_init(void)
 {
 	/*
@@ -402,8 +289,10 @@ static void __init qnap_ts209_init(void)
 	 */
 	orion5x_ehci0_init();
 	orion5x_ehci1_init();
-	ts209_find_mac_addr();
-	orion5x_eth_init(&qnap_ts209_eth_data);
+	qnap_tsx09_find_mac_addr(QNAP_TS209_NOR_BOOT_BASE +
+				 qnap_ts209_partitions[5].offset,
+				 qnap_ts209_partitions[5].size);
+	orion5x_eth_init(&qnap_tsx09_eth_data);
 	orion5x_i2c_init();
 	orion5x_sata_init(&qnap_ts209_sata_data);
 	orion5x_uart0_init();
@@ -425,8 +314,8 @@ static void __init qnap_ts209_init(void)
 		pr_warning("qnap_ts209_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 
-	/* register ts209 specific power-off method */
-	pm_power_off = qnap_ts209_power_off;
+	/* register tsx09 specific power-off method */
+	pm_power_off = qnap_tsx09_power_off;
 }
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
