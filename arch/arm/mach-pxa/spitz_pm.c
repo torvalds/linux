@@ -26,6 +26,7 @@
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/spitz.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
 #include "sharpsl.h"
 
@@ -230,6 +231,10 @@ static struct platform_device *spitzpm_device;
 static int __devinit spitzpm_init(void)
 {
 	int ret;
+
+	if (!machine_is_spitz() && !machine_is_akita()
+			&& !machine_is_borzoi())
+		return -ENODEV;
 
 	spitzpm_device = platform_device_alloc("sharpsl-pm", -1);
 	if (!spitzpm_device)
