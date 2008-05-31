@@ -648,11 +648,11 @@ int tda18271_calc_rf_cal(struct dvb_frontend *fe, u32 *freq)
 	unsigned char *regs = priv->tda18271_regs;
 	u8 val;
 
-	tda18271_lookup_map(fe, RF_CAL, freq, &val);
+	int ret = tda18271_lookup_map(fe, RF_CAL, freq, &val);
 
 	regs[R_EB14] = val;
 
-	return 0;
+	return ret;
 }
 
 /*
