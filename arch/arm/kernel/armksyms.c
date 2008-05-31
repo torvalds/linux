@@ -48,6 +48,11 @@ extern void __aeabi_ulcmp(void);
 extern void fpundefinstr(void);
 extern void fp_enter(void);
 
+#ifdef CONFIG_FTRACE
+extern void mcount(void);
+EXPORT_SYMBOL(mcount);
+#endif
+
 /*
  * This has a special calling convention; it doesn't
  * modify any of the usual registers, except for LR.
