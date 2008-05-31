@@ -85,7 +85,7 @@
  *		Oliver Neukum <oliver@neukum.org>
  *		Version 1.0.7
  *		- usb autosuspend support
- *             - unplugging fixed
+ *		- unplugging fixed
  *
  * ToDo:
  * - add seeking support
@@ -425,7 +425,8 @@ struct si470x_device {
 
 	/* driver management */
 	unsigned int users;
-       unsigned char disconnected;
+	unsigned char disconnected;
+	struct mutex disconnect_lock;
 
 	/* Silabs internal registers (0..15) */
 	unsigned short registers[RADIO_REGISTER_NUM];
@@ -439,12 +440,6 @@ struct si470x_device {
 	unsigned int rd_index;
 	unsigned int wr_index;
 };
-
-
-/*
- * Lock to prevent kfree of data before all users have releases the device.
- */
-static DEFINE_MUTEX(open_close_lock);
 
 
 /*
@@ -582,7 +577,7 @@ static int si470x_get_rds_registers(struct si470x_device *radio)
 		usb_rcvintpipe(radio->usbdev, 1),
 		(void *) &buf, sizeof(buf), &size, usb_timeout);
 	if (size != sizeof(buf))
-	       printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
+		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
 			"return size differs: %d != %zu\n", size, sizeof(buf));
 	if (retval < 0)
 		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
@@ -591,7 +586,8 @@ static int si470x_get_rds_registers(struct si470x_device *radio)
 	if (retval >= 0)
 		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++)
 			radio->registers[STATUSRSSI + regnr] =
-				get_unaligned_be16(&buf[regnr * RADIO_REGISTER_SIZE + 1]);
+				get_unaligned_be16(
+				&buf[regnr * RADIO_REGISTER_SIZE + 1]);
 
 	return (retval < 0) ? -EINVAL : 0;
 }
@@ -879,8 +875,8 @@ static void si470x_work(struct work_struct *work)
 	struct si470x_device *radio = container_of(work, struct si470x_device,
 		work.work);
 
-       if (radio->disconnected)
-	       return;
+	if (radio->disconnected)
+		return;
 	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
 		return;
 
@@ -1007,20 +1003,20 @@ static int si470x_fops_open(struct inode *inode, struct file *file)
 static int si470x_fops_release(struct inode *inode, struct file *file)
 {
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
-       int retval = 0;
+	int retval = 0;
 
 	if (!radio)
 		return -ENODEV;
 
-       mutex_lock(&open_close_lock);
+	mutex_lock(&radio->disconnect_lock);
 	radio->users--;
 	if (radio->users == 0) {
-	       if (radio->disconnected) {
-		       video_unregister_device(radio->videodev);
-		       kfree(radio->buffer);
-		       kfree(radio);
-		       goto done;
-	       }
+		if (radio->disconnected) {
+			video_unregister_device(radio->videodev);
+			kfree(radio->buffer);
+			kfree(radio);
+			goto unlock;
+		}
 
 		/* stop rds reception */
 		cancel_delayed_work_sync(&radio->work);
@@ -1032,9 +1028,9 @@ static int si470x_fops_release(struct inode *inode, struct file *file)
 		usb_autopm_put_interface(radio->intf);
 	}
 
-done:
-       mutex_unlock(&open_close_lock);
-       return retval;
+unlock:
+	mutex_unlock(&radio->disconnect_lock);
+	return retval;
 }
 
 
@@ -1174,8 +1170,8 @@ static int si470x_vidioc_g_ctrl(struct file *file, void *priv,
 {
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 
-       if (radio->disconnected)
-	       return -EIO;
+	if (radio->disconnected)
+		return -EIO;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
@@ -1201,8 +1197,8 @@ static int si470x_vidioc_s_ctrl(struct file *file, void *priv,
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 	int retval;
 
-       if (radio->disconnected)
-	       return -EIO;
+	if (radio->disconnected)
+		return -EIO;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
@@ -1266,8 +1262,8 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 	int retval;
 
-       if (radio->disconnected)
-	       return -EIO;
+	if (radio->disconnected)
+		return -EIO;
 	if (tuner->index > 0)
 		return -EINVAL;
 
@@ -1324,8 +1320,8 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 	int retval;
 
-       if (radio->disconnected)
-	       return -EIO;
+	if (radio->disconnected)
+		return -EIO;
 	if (tuner->index > 0)
 		return -EINVAL;
 
@@ -1351,8 +1347,8 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 
-       if (radio->disconnected)
-	       return -EIO;
+	if (radio->disconnected)
+		return -EIO;
 
 	freq->type = V4L2_TUNER_RADIO;
 	freq->frequency = si470x_get_freq(radio);
@@ -1370,8 +1366,8 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 	int retval;
 
-       if (radio->disconnected)
-	       return -EIO;
+	if (radio->disconnected)
+		return -EIO;
 	if (freq->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
 
@@ -1436,8 +1432,10 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	memcpy(radio->videodev, &si470x_viddev_template,
 			sizeof(si470x_viddev_template));
 	radio->users = 0;
+	radio->disconnected = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;
+	mutex_init(&radio->disconnect_lock);
 	mutex_init(&radio->lock);
 	video_set_drvdata(radio->videodev, radio);
 
@@ -1542,16 +1540,16 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 {
 	struct si470x_device *radio = usb_get_intfdata(intf);
 
-       mutex_lock(&open_close_lock);
-       radio->disconnected = 1;
+	mutex_lock(&radio->disconnect_lock);
+	radio->disconnected = 1;
 	cancel_delayed_work_sync(&radio->work);
 	usb_set_intfdata(intf, NULL);
-       if (radio->users == 0) {
-	       video_unregister_device(radio->videodev);
-	       kfree(radio->buffer);
-	       kfree(radio);
-       }
-       mutex_unlock(&open_close_lock);
+	if (radio->users == 0) {
+		video_unregister_device(radio->videodev);
+		kfree(radio->buffer);
+		kfree(radio);
+	}
+	mutex_unlock(&radio->disconnect_lock);
 }
 
 
