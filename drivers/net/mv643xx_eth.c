@@ -62,6 +62,9 @@
 #include <asm/delay.h>
 #include <asm/dma-mapping.h>
 
+static char mv643xx_driver_name[] = "mv643xx_eth";
+static char mv643xx_driver_version[] = "1.0";
+
 #define MV643XX_CHECKSUM_OFFLOAD_TX
 #define MV643XX_NAPI
 #define MV643XX_TX_FAST_REFILL
@@ -478,7 +481,21 @@ struct pkt_info {
 	struct sk_buff *return_info;	/* User resource return information */
 };
 
-/* Ethernet port specific information */
+
+/* global *******************************************************************/
+struct mv643xx_shared_private {
+	void __iomem *eth_base;
+
+	/* used to protect SMI_REG, which is shared across ports */
+	spinlock_t phy_lock;
+
+	u32 win_protect;
+
+	unsigned int t_clk;
+};
+
+
+/* per-port *****************************************************************/
 struct mv643xx_mib_counters {
 	u64 good_octets_received;
 	u32 bad_octets_received;
@@ -510,17 +527,6 @@ struct mv643xx_mib_counters {
 	u32 bad_crc_event;
 	u32 collision;
 	u32 late_collision;
-};
-
-struct mv643xx_shared_private {
-	void __iomem *eth_base;
-
-	/* used to protect SMI_REG, which is shared across ports */
-	spinlock_t phy_lock;
-
-	u32 win_protect;
-
-	unsigned int t_clk;
 };
 
 struct mv643xx_private {
@@ -585,54 +591,8 @@ struct mv643xx_private {
 	struct mii_if_info mii;
 };
 
-/* Static function declarations */
-static void eth_port_init(struct mv643xx_private *mp);
-static void eth_port_reset(struct mv643xx_private *mp);
-static void eth_port_start(struct net_device *dev);
 
-static void ethernet_phy_reset(struct mv643xx_private *mp);
-
-static void eth_port_write_smi_reg(struct mv643xx_private *mp,
-				   unsigned int phy_reg, unsigned int value);
-
-static void eth_port_read_smi_reg(struct mv643xx_private *mp,
-				  unsigned int phy_reg, unsigned int *value);
-
-static void eth_clear_mib_counters(struct mv643xx_private *mp);
-
-static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
-					    struct pkt_info *p_pkt_info);
-static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
-					      struct pkt_info *p_pkt_info);
-
-static void eth_port_uc_addr_get(struct mv643xx_private *mp,
-				 unsigned char *p_addr);
-static void eth_port_uc_addr_set(struct mv643xx_private *mp,
-				 unsigned char *p_addr);
-static void eth_port_set_multicast_list(struct net_device *);
-static void mv643xx_eth_port_enable_tx(struct mv643xx_private *mp,
-						unsigned int queues);
-static void mv643xx_eth_port_enable_rx(struct mv643xx_private *mp,
-						unsigned int queues);
-static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_private *mp);
-static unsigned int mv643xx_eth_port_disable_rx(struct mv643xx_private *mp);
-static int mv643xx_eth_open(struct net_device *);
-static int mv643xx_eth_stop(struct net_device *);
-static void eth_port_init_mac_tables(struct mv643xx_private *mp);
-#ifdef MV643XX_NAPI
-static int mv643xx_poll(struct napi_struct *napi, int budget);
-#endif
-static int ethernet_phy_get(struct mv643xx_private *mp);
-static void ethernet_phy_set(struct mv643xx_private *mp, int phy_addr);
-static int ethernet_phy_detect(struct mv643xx_private *mp);
-static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location);
-static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val);
-static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static const struct ethtool_ops mv643xx_ethtool_ops;
-
-static char mv643xx_driver_name[] = "mv643xx_eth";
-static char mv643xx_driver_version[] = "1.0";
-
+/* port register accessors **************************************************/
 static inline u32 rdl(struct mv643xx_private *mp, int offset)
 {
 	return readl(mp->shared->eth_base + offset);
@@ -643,35 +603,123 @@ static inline void wrl(struct mv643xx_private *mp, int offset, u32 data)
 	writel(data, mp->shared->eth_base + offset);
 }
 
-/*
- * Changes MTU (maximum transfer unit) of the gigabit ethenret port
- *
- * Input :	pointer to ethernet interface network device structure
- *		new mtu size
- * Output :	0 upon success, -EINVAL upon failure
- */
-static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
+
+/* rxq/txq helper functions *************************************************/
+static void mv643xx_eth_port_enable_rx(struct mv643xx_private *mp,
+					unsigned int queues)
 {
-	if ((new_mtu > 9500) || (new_mtu < 64))
-		return -EINVAL;
+	wrl(mp, RECEIVE_QUEUE_COMMAND_REG(mp->port_num), queues);
+}
 
-	dev->mtu = new_mtu;
-	if (!netif_running(dev))
-		return 0;
+static unsigned int mv643xx_eth_port_disable_rx(struct mv643xx_private *mp)
+{
+	unsigned int port_num = mp->port_num;
+	u32 queues;
 
-	/*
-	 * Stop and then re-open the interface. This will allocate RX
-	 * skbs of the new MTU.
-	 * There is a possible danger that the open will not succeed,
-	 * due to memory being full, which might fail the open function.
-	 */
-	mv643xx_eth_stop(dev);
-	if (mv643xx_eth_open(dev)) {
-		printk(KERN_ERR "%s: Fatal error on opening device\n",
-			dev->name);
+	/* Stop Rx port activity. Check port Rx activity. */
+	queues = rdl(mp, RECEIVE_QUEUE_COMMAND_REG(port_num)) & 0xFF;
+	if (queues) {
+		/* Issue stop command for active queues only */
+		wrl(mp, RECEIVE_QUEUE_COMMAND_REG(port_num), (queues << 8));
+
+		/* Wait for all Rx activity to terminate. */
+		/* Check port cause register that all Rx queues are stopped */
+		while (rdl(mp, RECEIVE_QUEUE_COMMAND_REG(port_num)) & 0xFF)
+			udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	return 0;
+	return queues;
+}
+
+static void mv643xx_eth_port_enable_tx(struct mv643xx_private *mp,
+					unsigned int queues)
+{
+	wrl(mp, TRANSMIT_QUEUE_COMMAND_REG(mp->port_num), queues);
+}
+
+static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_private *mp)
+{
+	unsigned int port_num = mp->port_num;
+	u32 queues;
+
+	/* Stop Tx port activity. Check port Tx activity. */
+	queues = rdl(mp, TRANSMIT_QUEUE_COMMAND_REG(port_num)) & 0xFF;
+	if (queues) {
+		/* Issue stop command for active queues only */
+		wrl(mp, TRANSMIT_QUEUE_COMMAND_REG(port_num), (queues << 8));
+
+		/* Wait for all Tx activity to terminate. */
+		/* Check port cause register that all Tx queues are stopped */
+		while (rdl(mp, TRANSMIT_QUEUE_COMMAND_REG(port_num)) & 0xFF)
+			udelay(PHY_WAIT_MICRO_SECONDS);
+
+		/* Wait for Tx FIFO to empty */
+		while (rdl(mp, PORT_STATUS_REG(port_num)) &
+							ETH_PORT_TX_FIFO_EMPTY)
+			udelay(PHY_WAIT_MICRO_SECONDS);
+	}
+
+	return queues;
+}
+
+
+/* rx ***********************************************************************/
+static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev);
+
+/*
+ * eth_rx_return_buff - Returns a Rx buffer back to the Rx ring.
+ *
+ * DESCRIPTION:
+ *	This routine returns a Rx buffer back to the Rx ring. It retrieves the
+ *	next 'used' descriptor and attached the returned buffer to it.
+ *	In case the Rx ring was in "resource error" condition, where there are
+ *	no available Rx resources, the function resets the resource error flag.
+ *
+ * INPUT:
+ *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
+ *	struct pkt_info		*p_pkt_info	Information on returned buffer.
+ *
+ * OUTPUT:
+ *	New available Rx resource in Rx descriptor ring.
+ *
+ * RETURN:
+ *	ETH_ERROR in case the routine can not access Rx desc ring.
+ *	ETH_OK otherwise.
+ */
+static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
+						struct pkt_info *p_pkt_info)
+{
+	int used_rx_desc;	/* Where to return Rx resource */
+	volatile struct eth_rx_desc *p_used_rx_desc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->lock, flags);
+
+	/* Get 'used' Rx descriptor */
+	used_rx_desc = mp->rx_used_desc_q;
+	p_used_rx_desc = &mp->p_rx_desc_area[used_rx_desc];
+
+	p_used_rx_desc->buf_ptr = p_pkt_info->buf_ptr;
+	p_used_rx_desc->buf_size = p_pkt_info->byte_cnt;
+	mp->rx_skb[used_rx_desc] = p_pkt_info->return_info;
+
+	/* Flush the write pipe */
+
+	/* Return the descriptor to DMA ownership */
+	wmb();
+	p_used_rx_desc->cmd_sts =
+			ETH_BUFFER_OWNED_BY_DMA | ETH_RX_ENABLE_INTERRUPT;
+	wmb();
+
+	/* Move the used descriptor pointer to the next descriptor */
+	mp->rx_used_desc_q = (used_rx_desc + 1) % mp->rx_ring_size;
+
+	/* Any Rx return cancels the Rx resource error status */
+	mp->rx_resource_err = 0;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
+
+	return ETH_OK;
 }
 
 /*
@@ -736,184 +784,81 @@ static inline void mv643xx_eth_rx_refill_descs_timer_wrapper(unsigned long data)
 }
 
 /*
- * mv643xx_eth_update_mac_address
+ * eth_port_receive - Get received information from Rx ring.
  *
- * Update the MAC address of the port in the address table
+ * DESCRIPTION:
+ * 	This routine returns the received data to the caller. There is no
+ *	data copying during routine operation. All information is returned
+ *	using pointer to packet information struct passed from the caller.
+ *	If the routine exhausts Rx ring resources then the resource error flag
+ *	is set.
  *
- * Input :	pointer to ethernet interface network device structure
- * Output :	N/A
+ * INPUT:
+ *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
+ *	struct pkt_info		*p_pkt_info	User packet buffer.
+ *
+ * OUTPUT:
+ *	Rx ring current and used indexes are updated.
+ *
+ * RETURN:
+ *	ETH_ERROR in case the routine can not access Rx desc ring.
+ *	ETH_QUEUE_FULL if Rx ring resources are exhausted.
+ *	ETH_END_OF_JOB if there is no received data.
+ *	ETH_OK otherwise.
  */
-static void mv643xx_eth_update_mac_address(struct net_device *dev)
+static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
+						struct pkt_info *p_pkt_info)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	eth_port_init_mac_tables(mp);
-	eth_port_uc_addr_set(mp, dev->dev_addr);
-}
-
-/*
- * mv643xx_eth_set_rx_mode
- *
- * Change from promiscuos to regular rx mode
- *
- * Input :	pointer to ethernet interface network device structure
- * Output :	N/A
- */
-static void mv643xx_eth_set_rx_mode(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	u32 config_reg;
-
-	config_reg = rdl(mp, PORT_CONFIG_REG(mp->port_num));
-	if (dev->flags & IFF_PROMISC)
-		config_reg |= (u32) UNICAST_PROMISCUOUS_MODE;
-	else
-		config_reg &= ~(u32) UNICAST_PROMISCUOUS_MODE;
-	wrl(mp, PORT_CONFIG_REG(mp->port_num), config_reg);
-
-	eth_port_set_multicast_list(dev);
-}
-
-/*
- * mv643xx_eth_set_mac_address
- *
- * Change the interface's mac address.
- * No special hardware thing should be done because interface is always
- * put in promiscuous mode.
- *
- * Input :	pointer to ethernet interface network device structure and
- *		a pointer to the designated entry to be added to the cache.
- * Output :	zero upon success, negative upon failure
- */
-static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
-{
-	int i;
-
-	for (i = 0; i < 6; i++)
-		/* +2 is for the offset of the HW addr type */
-		dev->dev_addr[i] = ((unsigned char *)addr)[i + 2];
-	mv643xx_eth_update_mac_address(dev);
-	return 0;
-}
-
-/*
- * mv643xx_eth_tx_timeout
- *
- * Called upon a timeout on transmitting a packet
- *
- * Input :	pointer to ethernet interface network device structure.
- * Output :	N/A
- */
-static void mv643xx_eth_tx_timeout(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	printk(KERN_INFO "%s: TX timeout  ", dev->name);
-
-	/* Do the reset outside of interrupt context */
-	schedule_work(&mp->tx_timeout_task);
-}
-
-/*
- * mv643xx_eth_tx_timeout_task
- *
- * Actual routine to reset the adapter when a timeout on Tx has occurred
- */
-static void mv643xx_eth_tx_timeout_task(struct work_struct *ugly)
-{
-	struct mv643xx_private *mp = container_of(ugly, struct mv643xx_private,
-						  tx_timeout_task);
-	struct net_device *dev = mp->dev;
-
-	if (!netif_running(dev))
-		return;
-
-	netif_stop_queue(dev);
-
-	eth_port_reset(mp);
-	eth_port_start(dev);
-
-	if (mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
-		netif_wake_queue(dev);
-}
-
-/**
- * mv643xx_eth_free_tx_descs - Free the tx desc data for completed descriptors
- *
- * If force is non-zero, frees uncompleted descriptors as well
- */
-static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	struct eth_tx_desc *desc;
-	u32 cmd_sts;
-	struct sk_buff *skb;
+	int rx_next_curr_desc, rx_curr_desc, rx_used_desc;
+	volatile struct eth_rx_desc *p_rx_desc;
+	unsigned int command_status;
 	unsigned long flags;
-	int tx_index;
-	dma_addr_t addr;
-	int count;
-	int released = 0;
 
-	while (mp->tx_desc_count > 0) {
-		spin_lock_irqsave(&mp->lock, flags);
+	/* Do not process Rx ring in case of Rx ring resource error */
+	if (mp->rx_resource_err)
+		return ETH_QUEUE_FULL;
 
-		/* tx_desc_count might have changed before acquiring the lock */
-		if (mp->tx_desc_count <= 0) {
-			spin_unlock_irqrestore(&mp->lock, flags);
-			return released;
-		}
+	spin_lock_irqsave(&mp->lock, flags);
 
-		tx_index = mp->tx_used_desc_q;
-		desc = &mp->p_tx_desc_area[tx_index];
-		cmd_sts = desc->cmd_sts;
+	/* Get the Rx Desc ring 'curr and 'used' indexes */
+	rx_curr_desc = mp->rx_curr_desc_q;
+	rx_used_desc = mp->rx_used_desc_q;
 
-		if (!force && (cmd_sts & ETH_BUFFER_OWNED_BY_DMA)) {
-			spin_unlock_irqrestore(&mp->lock, flags);
-			return released;
-		}
+	p_rx_desc = &mp->p_rx_desc_area[rx_curr_desc];
 
-		mp->tx_used_desc_q = (tx_index + 1) % mp->tx_ring_size;
-		mp->tx_desc_count--;
+	/* The following parameters are used to save readings from memory */
+	command_status = p_rx_desc->cmd_sts;
+	rmb();
 
-		addr = desc->buf_ptr;
-		count = desc->byte_cnt;
-		skb = mp->tx_skb[tx_index];
-		if (skb)
-			mp->tx_skb[tx_index] = NULL;
-
-		if (cmd_sts & ETH_ERROR_SUMMARY) {
-			printk("%s: Error in TX\n", dev->name);
-			dev->stats.tx_errors++;
-		}
-
+	/* Nothing to receive... */
+	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
 		spin_unlock_irqrestore(&mp->lock, flags);
-
-		if (cmd_sts & ETH_TX_FIRST_DESC)
-			dma_unmap_single(NULL, addr, count, DMA_TO_DEVICE);
-		else
-			dma_unmap_page(NULL, addr, count, DMA_TO_DEVICE);
-
-		if (skb)
-			dev_kfree_skb_irq(skb);
-
-		released = 1;
+		return ETH_END_OF_JOB;
 	}
 
-	return released;
-}
+	p_pkt_info->byte_cnt = (p_rx_desc->byte_cnt) - RX_BUF_OFFSET;
+	p_pkt_info->cmd_sts = command_status;
+	p_pkt_info->buf_ptr = (p_rx_desc->buf_ptr) + RX_BUF_OFFSET;
+	p_pkt_info->return_info = mp->rx_skb[rx_curr_desc];
+	p_pkt_info->l4i_chk = p_rx_desc->buf_size;
 
-static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
+	/*
+	 * Clean the return info field to indicate that the
+	 * packet has been moved to the upper layers
+	 */
+	mp->rx_skb[rx_curr_desc] = NULL;
 
-	if (mv643xx_eth_free_tx_descs(dev, 0) &&
-	    mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
-		netif_wake_queue(dev);
-}
+	/* Update current index in data structure */
+	rx_next_curr_desc = (rx_curr_desc + 1) % mp->rx_ring_size;
+	mp->rx_curr_desc_q = rx_next_curr_desc;
 
-static void mv643xx_eth_free_all_tx_descs(struct net_device *dev)
-{
-	mv643xx_eth_free_tx_descs(dev, 1);
+	/* Rx descriptors exhausted. Set the Rx ring resource error flag */
+	if (rx_next_curr_desc == rx_used_desc)
+		mp->rx_resource_err = 1;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
+
+	return ETH_OK;
 }
 
 /*
@@ -996,544 +941,6 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 	return received_packets;
 }
 
-/* Set the mv643xx port configuration register for the speed/duplex mode. */
-static void mv643xx_eth_update_pscr(struct net_device *dev,
-				    struct ethtool_cmd *ecmd)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	int port_num = mp->port_num;
-	u32 o_pscr, n_pscr;
-	unsigned int queues;
-
-	o_pscr = rdl(mp, PORT_SERIAL_CONTROL_REG(port_num));
-	n_pscr = o_pscr;
-
-	/* clear speed, duplex and rx buffer size fields */
-	n_pscr &= ~(SET_MII_SPEED_TO_100  |
-		   SET_GMII_SPEED_TO_1000 |
-		   SET_FULL_DUPLEX_MODE   |
-		   MAX_RX_PACKET_MASK);
-
-	if (ecmd->duplex == DUPLEX_FULL)
-		n_pscr |= SET_FULL_DUPLEX_MODE;
-
-	if (ecmd->speed == SPEED_1000)
-		n_pscr |= SET_GMII_SPEED_TO_1000 |
-			  MAX_RX_PACKET_9700BYTE;
-	else {
-		if (ecmd->speed == SPEED_100)
-			n_pscr |= SET_MII_SPEED_TO_100;
-		n_pscr |= MAX_RX_PACKET_1522BYTE;
-	}
-
-	if (n_pscr != o_pscr) {
-		if ((o_pscr & SERIAL_PORT_ENABLE) == 0)
-			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), n_pscr);
-		else {
-			queues = mv643xx_eth_port_disable_tx(mp);
-
-			o_pscr &= ~SERIAL_PORT_ENABLE;
-			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), o_pscr);
-			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), n_pscr);
-			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), n_pscr);
-			if (queues)
-				mv643xx_eth_port_enable_tx(mp, queues);
-		}
-	}
-}
-
-/*
- * mv643xx_eth_int_handler
- *
- * Main interrupt handler for the gigbit ethernet ports
- *
- * Input :	irq	- irq number (not used)
- *		dev_id	- a pointer to the required interface's data structure
- *		regs	- not used
- * Output :	N/A
- */
-
-static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
-{
-	struct net_device *dev = (struct net_device *)dev_id;
-	struct mv643xx_private *mp = netdev_priv(dev);
-	u32 eth_int_cause, eth_int_cause_ext = 0;
-	unsigned int port_num = mp->port_num;
-
-	/* Read interrupt cause registers */
-	eth_int_cause = rdl(mp, INTERRUPT_CAUSE_REG(port_num)) &
-						ETH_INT_UNMASK_ALL;
-	if (eth_int_cause & ETH_INT_CAUSE_EXT) {
-		eth_int_cause_ext = rdl(mp,
-			INTERRUPT_CAUSE_EXTEND_REG(port_num)) &
-						ETH_INT_UNMASK_ALL_EXT;
-		wrl(mp, INTERRUPT_CAUSE_EXTEND_REG(port_num),
-							~eth_int_cause_ext);
-	}
-
-	/* PHY status changed */
-	if (eth_int_cause_ext & (ETH_INT_CAUSE_PHY | ETH_INT_CAUSE_STATE)) {
-		struct ethtool_cmd cmd;
-
-		if (mii_link_ok(&mp->mii)) {
-			mii_ethtool_gset(&mp->mii, &cmd);
-			mv643xx_eth_update_pscr(dev, &cmd);
-			mv643xx_eth_port_enable_tx(mp, ETH_TX_QUEUES_ENABLED);
-			if (!netif_carrier_ok(dev)) {
-				netif_carrier_on(dev);
-				if (mp->tx_ring_size - mp->tx_desc_count >=
-							MAX_DESCS_PER_SKB)
-					netif_wake_queue(dev);
-			}
-		} else if (netif_carrier_ok(dev)) {
-			netif_stop_queue(dev);
-			netif_carrier_off(dev);
-		}
-	}
-
-#ifdef MV643XX_NAPI
-	if (eth_int_cause & ETH_INT_CAUSE_RX) {
-		/* schedule the NAPI poll routine to maintain port */
-		wrl(mp, INTERRUPT_MASK_REG(port_num), ETH_INT_MASK_ALL);
-
-		/* wait for previous write to complete */
-		rdl(mp, INTERRUPT_MASK_REG(port_num));
-
-		netif_rx_schedule(dev, &mp->napi);
-	}
-#else
-	if (eth_int_cause & ETH_INT_CAUSE_RX)
-		mv643xx_eth_receive_queue(dev, INT_MAX);
-#endif
-	if (eth_int_cause_ext & ETH_INT_CAUSE_TX)
-		mv643xx_eth_free_completed_tx_descs(dev);
-
-	/*
-	 * If no real interrupt occured, exit.
-	 * This can happen when using gigE interrupt coalescing mechanism.
-	 */
-	if ((eth_int_cause == 0x0) && (eth_int_cause_ext == 0x0))
-		return IRQ_NONE;
-
-	return IRQ_HANDLED;
-}
-
-#ifdef MV643XX_COAL
-
-/*
- * eth_port_set_rx_coal - Sets coalescing interrupt mechanism on RX path
- *
- * DESCRIPTION:
- *	This routine sets the RX coalescing interrupt mechanism parameter.
- *	This parameter is a timeout counter, that counts in 64 t_clk
- *	chunks ; that when timeout event occurs a maskable interrupt
- *	occurs.
- *	The parameter is calculated using the tClk of the MV-643xx chip
- *	, and the required delay of the interrupt in usec.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet port
- *	unsigned int delay		Delay in usec
- *
- * OUTPUT:
- *	Interrupt coalescing mechanism value is set in MV-643xx chip.
- *
- * RETURN:
- *	The interrupt coalescing value set in the gigE port.
- *
- */
-static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
-					unsigned int delay)
-{
-	unsigned int port_num = mp->port_num;
-	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
-
-	/* Set RX Coalescing mechanism */
-	wrl(mp, SDMA_CONFIG_REG(port_num),
-		((coal & 0x3fff) << 8) |
-		(rdl(mp, SDMA_CONFIG_REG(port_num))
-			& 0xffc000ff));
-
-	return coal;
-}
-#endif
-
-/*
- * eth_port_set_tx_coal - Sets coalescing interrupt mechanism on TX path
- *
- * DESCRIPTION:
- *	This routine sets the TX coalescing interrupt mechanism parameter.
- *	This parameter is a timeout counter, that counts in 64 t_clk
- *	chunks ; that when timeout event occurs a maskable interrupt
- *	occurs.
- *	The parameter is calculated using the t_cLK frequency of the
- *	MV-643xx chip and the required delay in the interrupt in uSec
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet port
- *	unsigned int delay		Delay in uSeconds
- *
- * OUTPUT:
- *	Interrupt coalescing mechanism value is set in MV-643xx chip.
- *
- * RETURN:
- *	The interrupt coalescing value set in the gigE port.
- *
- */
-static unsigned int eth_port_set_tx_coal(struct mv643xx_private *mp,
-					unsigned int delay)
-{
-	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
-
-	/* Set TX Coalescing mechanism */
-	wrl(mp, TX_FIFO_URGENT_THRESHOLD_REG(mp->port_num), coal << 4);
-
-	return coal;
-}
-
-/*
- * ether_init_rx_desc_ring - Curve a Rx chain desc list and buffer in memory.
- *
- * DESCRIPTION:
- *	This function prepares a Rx chained list of descriptors and packet
- *	buffers in a form of a ring. The routine must be called after port
- *	initialization routine and before port start routine.
- *	The Ethernet SDMA engine uses CPU bus addresses to access the various
- *	devices in the system (i.e. DRAM). This function uses the ethernet
- *	struct 'virtual to physical' routine (set by the user) to set the ring
- *	with physical addresses.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port Control srtuct.
- *
- * OUTPUT:
- *	The routine updates the Ethernet port control struct with information
- *	regarding the Rx descriptors and buffers.
- *
- * RETURN:
- *	None.
- */
-static void ether_init_rx_desc_ring(struct mv643xx_private *mp)
-{
-	volatile struct eth_rx_desc *p_rx_desc;
-	int rx_desc_num = mp->rx_ring_size;
-	int i;
-
-	/* initialize the next_desc_ptr links in the Rx descriptors ring */
-	p_rx_desc = (struct eth_rx_desc *)mp->p_rx_desc_area;
-	for (i = 0; i < rx_desc_num; i++) {
-		p_rx_desc[i].next_desc_ptr = mp->rx_desc_dma +
-			((i + 1) % rx_desc_num) * sizeof(struct eth_rx_desc);
-	}
-
-	/* Save Rx desc pointer to driver struct. */
-	mp->rx_curr_desc_q = 0;
-	mp->rx_used_desc_q = 0;
-
-	mp->rx_desc_area_size = rx_desc_num * sizeof(struct eth_rx_desc);
-}
-
-/*
- * ether_init_tx_desc_ring - Curve a Tx chain desc list and buffer in memory.
- *
- * DESCRIPTION:
- *	This function prepares a Tx chained list of descriptors and packet
- *	buffers in a form of a ring. The routine must be called after port
- *	initialization routine and before port start routine.
- *	The Ethernet SDMA engine uses CPU bus addresses to access the various
- *	devices in the system (i.e. DRAM). This function uses the ethernet
- *	struct 'virtual to physical' routine (set by the user) to set the ring
- *	with physical addresses.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port Control srtuct.
- *
- * OUTPUT:
- *	The routine updates the Ethernet port control struct with information
- *	regarding the Tx descriptors and buffers.
- *
- * RETURN:
- *	None.
- */
-static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
-{
-	int tx_desc_num = mp->tx_ring_size;
-	struct eth_tx_desc *p_tx_desc;
-	int i;
-
-	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
-	p_tx_desc = (struct eth_tx_desc *)mp->p_tx_desc_area;
-	for (i = 0; i < tx_desc_num; i++) {
-		p_tx_desc[i].next_desc_ptr = mp->tx_desc_dma +
-			((i + 1) % tx_desc_num) * sizeof(struct eth_tx_desc);
-	}
-
-	mp->tx_curr_desc_q = 0;
-	mp->tx_used_desc_q = 0;
-
-	mp->tx_desc_area_size = tx_desc_num * sizeof(struct eth_tx_desc);
-}
-
-static int mv643xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	int err;
-
-	spin_lock_irq(&mp->lock);
-	err = mii_ethtool_sset(&mp->mii, cmd);
-	spin_unlock_irq(&mp->lock);
-
-	return err;
-}
-
-static int mv643xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	int err;
-
-	spin_lock_irq(&mp->lock);
-	err = mii_ethtool_gset(&mp->mii, cmd);
-	spin_unlock_irq(&mp->lock);
-
-	/* The PHY may support 1000baseT_Half, but the mv643xx does not */
-	cmd->supported &= ~SUPPORTED_1000baseT_Half;
-	cmd->advertising &= ~ADVERTISED_1000baseT_Half;
-
-	return err;
-}
-
-/*
- * mv643xx_eth_open
- *
- * This function is called when openning the network device. The function
- * should initialize all the hardware, initialize cyclic Rx/Tx
- * descriptors chain and buffers and allocate an IRQ to the network
- * device.
- *
- * Input :	a pointer to the network device structure
- *
- * Output :	zero of success , nonzero if fails.
- */
-
-static int mv643xx_eth_open(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned int port_num = mp->port_num;
-	unsigned int size;
-	int err;
-
-	/* Clear any pending ethernet port interrupts */
-	wrl(mp, INTERRUPT_CAUSE_REG(port_num), 0);
-	wrl(mp, INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
-	/* wait for previous write to complete */
-	rdl(mp, INTERRUPT_CAUSE_EXTEND_REG(port_num));
-
-	err = request_irq(dev->irq, mv643xx_eth_int_handler,
-			IRQF_SHARED | IRQF_SAMPLE_RANDOM, dev->name, dev);
-	if (err) {
-		printk(KERN_ERR "%s: Can not assign IRQ\n", dev->name);
-		return -EAGAIN;
-	}
-
-	eth_port_init(mp);
-
-	memset(&mp->timeout, 0, sizeof(struct timer_list));
-	mp->timeout.function = mv643xx_eth_rx_refill_descs_timer_wrapper;
-	mp->timeout.data = (unsigned long)dev;
-
-	/* Allocate RX and TX skb rings */
-	mp->rx_skb = kmalloc(sizeof(*mp->rx_skb) * mp->rx_ring_size,
-								GFP_KERNEL);
-	if (!mp->rx_skb) {
-		printk(KERN_ERR "%s: Cannot allocate Rx skb ring\n", dev->name);
-		err = -ENOMEM;
-		goto out_free_irq;
-	}
-	mp->tx_skb = kmalloc(sizeof(*mp->tx_skb) * mp->tx_ring_size,
-								GFP_KERNEL);
-	if (!mp->tx_skb) {
-		printk(KERN_ERR "%s: Cannot allocate Tx skb ring\n", dev->name);
-		err = -ENOMEM;
-		goto out_free_rx_skb;
-	}
-
-	/* Allocate TX ring */
-	mp->tx_desc_count = 0;
-	size = mp->tx_ring_size * sizeof(struct eth_tx_desc);
-	mp->tx_desc_area_size = size;
-
-	if (mp->tx_sram_size) {
-		mp->p_tx_desc_area = ioremap(mp->tx_sram_addr,
-							mp->tx_sram_size);
-		mp->tx_desc_dma = mp->tx_sram_addr;
-	} else
-		mp->p_tx_desc_area = dma_alloc_coherent(NULL, size,
-							&mp->tx_desc_dma,
-							GFP_KERNEL);
-
-	if (!mp->p_tx_desc_area) {
-		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
-							dev->name, size);
-		err = -ENOMEM;
-		goto out_free_tx_skb;
-	}
-	BUG_ON((u32) mp->p_tx_desc_area & 0xf);	/* check 16-byte alignment */
-	memset((void *)mp->p_tx_desc_area, 0, mp->tx_desc_area_size);
-
-	ether_init_tx_desc_ring(mp);
-
-	/* Allocate RX ring */
-	mp->rx_desc_count = 0;
-	size = mp->rx_ring_size * sizeof(struct eth_rx_desc);
-	mp->rx_desc_area_size = size;
-
-	if (mp->rx_sram_size) {
-		mp->p_rx_desc_area = ioremap(mp->rx_sram_addr,
-							mp->rx_sram_size);
-		mp->rx_desc_dma = mp->rx_sram_addr;
-	} else
-		mp->p_rx_desc_area = dma_alloc_coherent(NULL, size,
-							&mp->rx_desc_dma,
-							GFP_KERNEL);
-
-	if (!mp->p_rx_desc_area) {
-		printk(KERN_ERR "%s: Cannot allocate Rx ring (size %d bytes)\n",
-							dev->name, size);
-		printk(KERN_ERR "%s: Freeing previously allocated TX queues...",
-							dev->name);
-		if (mp->rx_sram_size)
-			iounmap(mp->p_tx_desc_area);
-		else
-			dma_free_coherent(NULL, mp->tx_desc_area_size,
-					mp->p_tx_desc_area, mp->tx_desc_dma);
-		err = -ENOMEM;
-		goto out_free_tx_skb;
-	}
-	memset((void *)mp->p_rx_desc_area, 0, size);
-
-	ether_init_rx_desc_ring(mp);
-
-	mv643xx_eth_rx_refill_descs(dev);	/* Fill RX ring with skb's */
-
-#ifdef MV643XX_NAPI
-	napi_enable(&mp->napi);
-#endif
-
-	eth_port_start(dev);
-
-	/* Interrupt Coalescing */
-
-#ifdef MV643XX_COAL
-	mp->rx_int_coal =
-		eth_port_set_rx_coal(mp, MV643XX_RX_COAL);
-#endif
-
-	mp->tx_int_coal =
-		eth_port_set_tx_coal(mp, MV643XX_TX_COAL);
-
-	/* Unmask phy and link status changes interrupts */
-	wrl(mp, INTERRUPT_EXTEND_MASK_REG(port_num), ETH_INT_UNMASK_ALL_EXT);
-
-	/* Unmask RX buffer and TX end interrupt */
-	wrl(mp, INTERRUPT_MASK_REG(port_num), ETH_INT_UNMASK_ALL);
-
-	return 0;
-
-out_free_tx_skb:
-	kfree(mp->tx_skb);
-out_free_rx_skb:
-	kfree(mp->rx_skb);
-out_free_irq:
-	free_irq(dev->irq, dev);
-
-	return err;
-}
-
-static void mv643xx_eth_free_tx_rings(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	/* Stop Tx Queues */
-	mv643xx_eth_port_disable_tx(mp);
-
-	/* Free outstanding skb's on TX ring */
-	mv643xx_eth_free_all_tx_descs(dev);
-
-	BUG_ON(mp->tx_used_desc_q != mp->tx_curr_desc_q);
-
-	/* Free TX ring */
-	if (mp->tx_sram_size)
-		iounmap(mp->p_tx_desc_area);
-	else
-		dma_free_coherent(NULL, mp->tx_desc_area_size,
-				mp->p_tx_desc_area, mp->tx_desc_dma);
-}
-
-static void mv643xx_eth_free_rx_rings(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	int curr;
-
-	/* Stop RX Queues */
-	mv643xx_eth_port_disable_rx(mp);
-
-	/* Free preallocated skb's on RX rings */
-	for (curr = 0; mp->rx_desc_count && curr < mp->rx_ring_size; curr++) {
-		if (mp->rx_skb[curr]) {
-			dev_kfree_skb(mp->rx_skb[curr]);
-			mp->rx_desc_count--;
-		}
-	}
-
-	if (mp->rx_desc_count)
-		printk(KERN_ERR
-			"%s: Error in freeing Rx Ring. %d skb's still"
-			" stuck in RX Ring - ignoring them\n", dev->name,
-			mp->rx_desc_count);
-	/* Free RX ring */
-	if (mp->rx_sram_size)
-		iounmap(mp->p_rx_desc_area);
-	else
-		dma_free_coherent(NULL, mp->rx_desc_area_size,
-				mp->p_rx_desc_area, mp->rx_desc_dma);
-}
-
-/*
- * mv643xx_eth_stop
- *
- * This function is used when closing the network device.
- * It updates the hardware,
- * release all memory that holds buffers and descriptors and release the IRQ.
- * Input :	a pointer to the device structure
- * Output :	zero if success , nonzero if fails
- */
-
-static int mv643xx_eth_stop(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned int port_num = mp->port_num;
-
-	/* Mask all interrupts on ethernet port */
-	wrl(mp, INTERRUPT_MASK_REG(port_num), ETH_INT_MASK_ALL);
-	/* wait for previous write to complete */
-	rdl(mp, INTERRUPT_MASK_REG(port_num));
-
-#ifdef MV643XX_NAPI
-	napi_disable(&mp->napi);
-#endif
-	netif_carrier_off(dev);
-	netif_stop_queue(dev);
-
-	eth_port_reset(mp);
-
-	mv643xx_eth_free_tx_rings(dev);
-	mv643xx_eth_free_rx_rings(dev);
-
-	free_irq(dev->irq, dev);
-
-	return 0;
-}
-
 #ifdef MV643XX_NAPI
 /*
  * mv643xx_poll
@@ -1570,6 +977,8 @@ static int mv643xx_poll(struct napi_struct *napi, int budget)
 }
 #endif
 
+
+/* tx ***********************************************************************/
 /**
  * has_tiny_unaligned_frags - check if skb has any small, unaligned fragments
  *
@@ -1763,6 +1172,1529 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+
+/* mii management interface *************************************************/
+static int ethernet_phy_get(struct mv643xx_private *mp);
+
+/*
+ * eth_port_read_smi_reg - Read PHY registers
+ *
+ * DESCRIPTION:
+ *	This routine utilize the SMI interface to interact with the PHY in
+ *	order to perform PHY register read.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *	unsigned int	phy_reg		PHY register address offset.
+ *	unsigned int	*value		Register value buffer.
+ *
+ * OUTPUT:
+ *	Write the value of a specified PHY register into given buffer.
+ *
+ * RETURN:
+ *	false if the PHY is busy or read data is not in valid state.
+ *	true otherwise.
+ *
+ */
+static void eth_port_read_smi_reg(struct mv643xx_private *mp,
+				unsigned int phy_reg, unsigned int *value)
+{
+	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
+	int phy_addr = ethernet_phy_get(mp);
+	unsigned long flags;
+	int i;
+
+	/* the SMI register is a shared resource */
+	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
+
+	/* wait for the SMI register to become available */
+	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
+		if (i == PHY_WAIT_ITERATIONS) {
+			printk("%s: PHY busy timeout\n", mp->dev->name);
+			goto out;
+		}
+		udelay(PHY_WAIT_MICRO_SECONDS);
+	}
+
+	writel((phy_addr << 16) | (phy_reg << 21) | ETH_SMI_OPCODE_READ,
+		smi_reg);
+
+	/* now wait for the data to be valid */
+	for (i = 0; !(readl(smi_reg) & ETH_SMI_READ_VALID); i++) {
+		if (i == PHY_WAIT_ITERATIONS) {
+			printk("%s: PHY read timeout\n", mp->dev->name);
+			goto out;
+		}
+		udelay(PHY_WAIT_MICRO_SECONDS);
+	}
+
+	*value = readl(smi_reg) & 0xffff;
+out:
+	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
+}
+
+/*
+ * eth_port_write_smi_reg - Write to PHY registers
+ *
+ * DESCRIPTION:
+ *	This routine utilize the SMI interface to interact with the PHY in
+ *	order to perform writes to PHY registers.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *	unsigned int	phy_reg		PHY register address offset.
+ *	unsigned int	value		Register value.
+ *
+ * OUTPUT:
+ *	Write the given value to the specified PHY register.
+ *
+ * RETURN:
+ *	false if the PHY is busy.
+ *	true otherwise.
+ *
+ */
+static void eth_port_write_smi_reg(struct mv643xx_private *mp,
+				   unsigned int phy_reg, unsigned int value)
+{
+	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
+	int phy_addr = ethernet_phy_get(mp);
+	unsigned long flags;
+	int i;
+
+	/* the SMI register is a shared resource */
+	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
+
+	/* wait for the SMI register to become available */
+	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
+		if (i == PHY_WAIT_ITERATIONS) {
+			printk("%s: PHY busy timeout\n", mp->dev->name);
+			goto out;
+		}
+		udelay(PHY_WAIT_MICRO_SECONDS);
+	}
+
+	writel((phy_addr << 16) | (phy_reg << 21) |
+		ETH_SMI_OPCODE_WRITE | (value & 0xffff), smi_reg);
+out:
+	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
+}
+
+
+/* mib counters *************************************************************/
+/*
+ * eth_clear_mib_counters - Clear all MIB counters
+ *
+ * DESCRIPTION:
+ *	This function clears all MIB counters of a specific ethernet port.
+ *	A read from the MIB counter will reset the counter.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *
+ * OUTPUT:
+ *	After reading all MIB counters, the counters resets.
+ *
+ * RETURN:
+ *	MIB counter value.
+ *
+ */
+static void eth_clear_mib_counters(struct mv643xx_private *mp)
+{
+	unsigned int port_num = mp->port_num;
+	int i;
+
+	/* Perform dummy reads from MIB counters */
+	for (i = ETH_MIB_GOOD_OCTETS_RECEIVED_LOW; i < ETH_MIB_LATE_COLLISION;
+									i += 4)
+		rdl(mp, MIB_COUNTERS_BASE(port_num) + i);
+}
+
+static inline u32 read_mib(struct mv643xx_private *mp, int offset)
+{
+	return rdl(mp, MIB_COUNTERS_BASE(mp->port_num) + offset);
+}
+
+static void eth_update_mib_counters(struct mv643xx_private *mp)
+{
+	struct mv643xx_mib_counters *p = &mp->mib_counters;
+	int offset;
+
+	p->good_octets_received +=
+		read_mib(mp, ETH_MIB_GOOD_OCTETS_RECEIVED_LOW);
+	p->good_octets_received +=
+		(u64)read_mib(mp, ETH_MIB_GOOD_OCTETS_RECEIVED_HIGH) << 32;
+
+	for (offset = ETH_MIB_BAD_OCTETS_RECEIVED;
+			offset <= ETH_MIB_FRAMES_1024_TO_MAX_OCTETS;
+			offset += 4)
+		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
+
+	p->good_octets_sent += read_mib(mp, ETH_MIB_GOOD_OCTETS_SENT_LOW);
+	p->good_octets_sent +=
+		(u64)read_mib(mp, ETH_MIB_GOOD_OCTETS_SENT_HIGH) << 32;
+
+	for (offset = ETH_MIB_GOOD_FRAMES_SENT;
+			offset <= ETH_MIB_LATE_COLLISION;
+			offset += 4)
+		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
+}
+
+
+/* ethtool ******************************************************************/
+struct mv643xx_stats {
+	char stat_string[ETH_GSTRING_LEN];
+	int sizeof_stat;
+	int stat_offset;
+};
+
+#define MV643XX_STAT(m) FIELD_SIZEOF(struct mv643xx_private, m), \
+					offsetof(struct mv643xx_private, m)
+
+static const struct mv643xx_stats mv643xx_gstrings_stats[] = {
+	{ "rx_packets", MV643XX_STAT(stats.rx_packets) },
+	{ "tx_packets", MV643XX_STAT(stats.tx_packets) },
+	{ "rx_bytes", MV643XX_STAT(stats.rx_bytes) },
+	{ "tx_bytes", MV643XX_STAT(stats.tx_bytes) },
+	{ "rx_errors", MV643XX_STAT(stats.rx_errors) },
+	{ "tx_errors", MV643XX_STAT(stats.tx_errors) },
+	{ "rx_dropped", MV643XX_STAT(stats.rx_dropped) },
+	{ "tx_dropped", MV643XX_STAT(stats.tx_dropped) },
+	{ "good_octets_received", MV643XX_STAT(mib_counters.good_octets_received) },
+	{ "bad_octets_received", MV643XX_STAT(mib_counters.bad_octets_received) },
+	{ "internal_mac_transmit_err", MV643XX_STAT(mib_counters.internal_mac_transmit_err) },
+	{ "good_frames_received", MV643XX_STAT(mib_counters.good_frames_received) },
+	{ "bad_frames_received", MV643XX_STAT(mib_counters.bad_frames_received) },
+	{ "broadcast_frames_received", MV643XX_STAT(mib_counters.broadcast_frames_received) },
+	{ "multicast_frames_received", MV643XX_STAT(mib_counters.multicast_frames_received) },
+	{ "frames_64_octets", MV643XX_STAT(mib_counters.frames_64_octets) },
+	{ "frames_65_to_127_octets", MV643XX_STAT(mib_counters.frames_65_to_127_octets) },
+	{ "frames_128_to_255_octets", MV643XX_STAT(mib_counters.frames_128_to_255_octets) },
+	{ "frames_256_to_511_octets", MV643XX_STAT(mib_counters.frames_256_to_511_octets) },
+	{ "frames_512_to_1023_octets", MV643XX_STAT(mib_counters.frames_512_to_1023_octets) },
+	{ "frames_1024_to_max_octets", MV643XX_STAT(mib_counters.frames_1024_to_max_octets) },
+	{ "good_octets_sent", MV643XX_STAT(mib_counters.good_octets_sent) },
+	{ "good_frames_sent", MV643XX_STAT(mib_counters.good_frames_sent) },
+	{ "excessive_collision", MV643XX_STAT(mib_counters.excessive_collision) },
+	{ "multicast_frames_sent", MV643XX_STAT(mib_counters.multicast_frames_sent) },
+	{ "broadcast_frames_sent", MV643XX_STAT(mib_counters.broadcast_frames_sent) },
+	{ "unrec_mac_control_received", MV643XX_STAT(mib_counters.unrec_mac_control_received) },
+	{ "fc_sent", MV643XX_STAT(mib_counters.fc_sent) },
+	{ "good_fc_received", MV643XX_STAT(mib_counters.good_fc_received) },
+	{ "bad_fc_received", MV643XX_STAT(mib_counters.bad_fc_received) },
+	{ "undersize_received", MV643XX_STAT(mib_counters.undersize_received) },
+	{ "fragments_received", MV643XX_STAT(mib_counters.fragments_received) },
+	{ "oversize_received", MV643XX_STAT(mib_counters.oversize_received) },
+	{ "jabber_received", MV643XX_STAT(mib_counters.jabber_received) },
+	{ "mac_receive_error", MV643XX_STAT(mib_counters.mac_receive_error) },
+	{ "bad_crc_event", MV643XX_STAT(mib_counters.bad_crc_event) },
+	{ "collision", MV643XX_STAT(mib_counters.collision) },
+	{ "late_collision", MV643XX_STAT(mib_counters.late_collision) },
+};
+
+#define MV643XX_STATS_LEN	ARRAY_SIZE(mv643xx_gstrings_stats)
+
+static int mv643xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int err;
+
+	spin_lock_irq(&mp->lock);
+	err = mii_ethtool_gset(&mp->mii, cmd);
+	spin_unlock_irq(&mp->lock);
+
+	/* The PHY may support 1000baseT_Half, but the mv643xx does not */
+	cmd->supported &= ~SUPPORTED_1000baseT_Half;
+	cmd->advertising &= ~ADVERTISED_1000baseT_Half;
+
+	return err;
+}
+
+static int mv643xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int err;
+
+	spin_lock_irq(&mp->lock);
+	err = mii_ethtool_sset(&mp->mii, cmd);
+	spin_unlock_irq(&mp->lock);
+
+	return err;
+}
+
+static void mv643xx_get_drvinfo(struct net_device *netdev,
+				struct ethtool_drvinfo *drvinfo)
+{
+	strncpy(drvinfo->driver,  mv643xx_driver_name, 32);
+	strncpy(drvinfo->version, mv643xx_driver_version, 32);
+	strncpy(drvinfo->fw_version, "N/A", 32);
+	strncpy(drvinfo->bus_info, "mv643xx", 32);
+	drvinfo->n_stats = MV643XX_STATS_LEN;
+}
+
+static int mv643xx_eth_nway_restart(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	return mii_nway_restart(&mp->mii);
+}
+
+static u32 mv643xx_eth_get_link(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	return mii_link_ok(&mp->mii);
+}
+
+static void mv643xx_get_strings(struct net_device *netdev, uint32_t stringset,
+				uint8_t *data)
+{
+	int i;
+
+	switch(stringset) {
+	case ETH_SS_STATS:
+		for (i=0; i < MV643XX_STATS_LEN; i++) {
+			memcpy(data + i * ETH_GSTRING_LEN,
+					mv643xx_gstrings_stats[i].stat_string,
+					ETH_GSTRING_LEN);
+		}
+		break;
+	}
+}
+
+static void mv643xx_get_ethtool_stats(struct net_device *netdev,
+				struct ethtool_stats *stats, uint64_t *data)
+{
+	struct mv643xx_private *mp = netdev->priv;
+	int i;
+
+	eth_update_mib_counters(mp);
+
+	for (i = 0; i < MV643XX_STATS_LEN; i++) {
+		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;
+		data[i] = (mv643xx_gstrings_stats[i].sizeof_stat ==
+			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
+	}
+}
+
+static int mv643xx_get_sset_count(struct net_device *netdev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return MV643XX_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static const struct ethtool_ops mv643xx_ethtool_ops = {
+	.get_settings           = mv643xx_get_settings,
+	.set_settings           = mv643xx_set_settings,
+	.get_drvinfo            = mv643xx_get_drvinfo,
+	.get_link               = mv643xx_eth_get_link,
+	.set_sg			= ethtool_op_set_sg,
+	.get_sset_count		= mv643xx_get_sset_count,
+	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
+	.get_strings            = mv643xx_get_strings,
+	.nway_reset		= mv643xx_eth_nway_restart,
+};
+
+
+/* address handling *********************************************************/
+/*
+ * eth_port_uc_addr_get - Read the MAC address from the port's hw registers
+ */
+static void eth_port_uc_addr_get(struct mv643xx_private *mp,
+				 unsigned char *p_addr)
+{
+	unsigned int port_num = mp->port_num;
+	unsigned int mac_h;
+	unsigned int mac_l;
+
+	mac_h = rdl(mp, MAC_ADDR_HIGH(port_num));
+	mac_l = rdl(mp, MAC_ADDR_LOW(port_num));
+
+	p_addr[0] = (mac_h >> 24) & 0xff;
+	p_addr[1] = (mac_h >> 16) & 0xff;
+	p_addr[2] = (mac_h >> 8) & 0xff;
+	p_addr[3] = mac_h & 0xff;
+	p_addr[4] = (mac_l >> 8) & 0xff;
+	p_addr[5] = mac_l & 0xff;
+}
+
+/*
+ * eth_port_init_mac_tables - Clear all entrance in the UC, SMC and OMC tables
+ *
+ * DESCRIPTION:
+ *	Go through all the DA filter tables (Unicast, Special Multicast &
+ *	Other Multicast) and set each entry to 0.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *
+ * OUTPUT:
+ *	Multicast and Unicast packets are rejected.
+ *
+ * RETURN:
+ *	None.
+ */
+static void eth_port_init_mac_tables(struct mv643xx_private *mp)
+{
+	unsigned int port_num = mp->port_num;
+	int table_index;
+
+	/* Clear DA filter unicast table (Ex_dFUT) */
+	for (table_index = 0; table_index <= 0xC; table_index += 4)
+		wrl(mp, DA_FILTER_UNICAST_TABLE_BASE(port_num) +
+					table_index, 0);
+
+	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
+		/* Clear DA filter special multicast table (Ex_dFSMT) */
+		wrl(mp, DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(port_num) +
+					table_index, 0);
+		/* Clear DA filter other multicast table (Ex_dFOMT) */
+		wrl(mp, DA_FILTER_OTHER_MULTICAST_TABLE_BASE(port_num) +
+					table_index, 0);
+	}
+}
+
+/*
+ * The entries in each table are indexed by a hash of a packet's MAC
+ * address.  One bit in each entry determines whether the packet is
+ * accepted.  There are 4 entries (each 8 bits wide) in each register
+ * of the table.  The bits in each entry are defined as follows:
+ *	0	Accept=1, Drop=0
+ *	3-1	Queue			(ETH_Q0=0)
+ *	7-4	Reserved = 0;
+ */
+static void eth_port_set_filter_table_entry(struct mv643xx_private *mp,
+					    int table, unsigned char entry)
+{
+	unsigned int table_reg;
+	unsigned int tbl_offset;
+	unsigned int reg_offset;
+
+	tbl_offset = (entry / 4) * 4;	/* Register offset of DA table entry */
+	reg_offset = entry % 4;		/* Entry offset within the register */
+
+	/* Set "accepts frame bit" at specified table entry */
+	table_reg = rdl(mp, table + tbl_offset);
+	table_reg |= 0x01 << (8 * reg_offset);
+	wrl(mp, table + tbl_offset, table_reg);
+}
+
+/*
+ * eth_port_uc_addr_set - Write a MAC address into the port's hw registers
+ */
+static void eth_port_uc_addr_set(struct mv643xx_private *mp,
+				 unsigned char *p_addr)
+{
+	unsigned int port_num = mp->port_num;
+	unsigned int mac_h;
+	unsigned int mac_l;
+	int table;
+
+	mac_l = (p_addr[4] << 8) | (p_addr[5]);
+	mac_h = (p_addr[0] << 24) | (p_addr[1] << 16) | (p_addr[2] << 8) |
+							(p_addr[3] << 0);
+
+	wrl(mp, MAC_ADDR_LOW(port_num), mac_l);
+	wrl(mp, MAC_ADDR_HIGH(port_num), mac_h);
+
+	/* Accept frames with this address */
+	table = DA_FILTER_UNICAST_TABLE_BASE(port_num);
+	eth_port_set_filter_table_entry(mp, table, p_addr[5] & 0x0f);
+}
+
+/*
+ * mv643xx_eth_update_mac_address
+ *
+ * Update the MAC address of the port in the address table
+ *
+ * Input :	pointer to ethernet interface network device structure
+ * Output :	N/A
+ */
+static void mv643xx_eth_update_mac_address(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	eth_port_init_mac_tables(mp);
+	eth_port_uc_addr_set(mp, dev->dev_addr);
+}
+
+/*
+ * mv643xx_eth_set_mac_address
+ *
+ * Change the interface's mac address.
+ * No special hardware thing should be done because interface is always
+ * put in promiscuous mode.
+ *
+ * Input :	pointer to ethernet interface network device structure and
+ *		a pointer to the designated entry to be added to the cache.
+ * Output :	zero upon success, negative upon failure
+ */
+static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
+{
+	int i;
+
+	for (i = 0; i < 6; i++)
+		/* +2 is for the offset of the HW addr type */
+		dev->dev_addr[i] = ((unsigned char *)addr)[i + 2];
+	mv643xx_eth_update_mac_address(dev);
+	return 0;
+}
+
+/*
+ * eth_port_mc_addr - Multicast address settings.
+ *
+ * The MV device supports multicast using two tables:
+ * 1) Special Multicast Table for MAC addresses of the form
+ *    0x01-00-5E-00-00-XX (where XX is between 0x00 and 0x_FF).
+ *    The MAC DA[7:0] bits are used as a pointer to the Special Multicast
+ *    Table entries in the DA-Filter table.
+ * 2) Other Multicast Table for multicast of another type. A CRC-8bit
+ *    is used as an index to the Other Multicast Table entries in the
+ *    DA-Filter table.  This function calculates the CRC-8bit value.
+ * In either case, eth_port_set_filter_table_entry() is then called
+ * to set to set the actual table entry.
+ */
+static void eth_port_mc_addr(struct mv643xx_private *mp, unsigned char *p_addr)
+{
+	unsigned int port_num = mp->port_num;
+	unsigned int mac_h;
+	unsigned int mac_l;
+	unsigned char crc_result = 0;
+	int table;
+	int mac_array[48];
+	int crc[8];
+	int i;
+
+	if ((p_addr[0] == 0x01) && (p_addr[1] == 0x00) &&
+	    (p_addr[2] == 0x5E) && (p_addr[3] == 0x00) && (p_addr[4] == 0x00)) {
+		table = DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(port_num);
+		eth_port_set_filter_table_entry(mp, table, p_addr[5]);
+		return;
+	}
+
+	/* Calculate CRC-8 out of the given address */
+	mac_h = (p_addr[0] << 8) | (p_addr[1]);
+	mac_l = (p_addr[2] << 24) | (p_addr[3] << 16) |
+			(p_addr[4] << 8) | (p_addr[5] << 0);
+
+	for (i = 0; i < 32; i++)
+		mac_array[i] = (mac_l >> i) & 0x1;
+	for (i = 32; i < 48; i++)
+		mac_array[i] = (mac_h >> (i - 32)) & 0x1;
+
+	crc[0] = mac_array[45] ^ mac_array[43] ^ mac_array[40] ^ mac_array[39] ^
+		 mac_array[35] ^ mac_array[34] ^ mac_array[31] ^ mac_array[30] ^
+		 mac_array[28] ^ mac_array[23] ^ mac_array[21] ^ mac_array[19] ^
+		 mac_array[18] ^ mac_array[16] ^ mac_array[14] ^ mac_array[12] ^
+		 mac_array[8]  ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[0];
+
+	crc[1] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[41] ^ mac_array[39] ^ mac_array[36] ^ mac_array[34] ^
+		 mac_array[32] ^ mac_array[30] ^ mac_array[29] ^ mac_array[28] ^
+		 mac_array[24] ^ mac_array[23] ^ mac_array[22] ^ mac_array[21] ^
+		 mac_array[20] ^ mac_array[18] ^ mac_array[17] ^ mac_array[16] ^
+		 mac_array[15] ^ mac_array[14] ^ mac_array[13] ^ mac_array[12] ^
+		 mac_array[9]  ^ mac_array[6]  ^ mac_array[1]  ^ mac_array[0];
+
+	crc[2] = mac_array[47] ^ mac_array[46] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[42] ^ mac_array[39] ^ mac_array[37] ^ mac_array[34] ^
+		 mac_array[33] ^ mac_array[29] ^ mac_array[28] ^ mac_array[25] ^
+		 mac_array[24] ^ mac_array[22] ^ mac_array[17] ^ mac_array[15] ^
+		 mac_array[13] ^ mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^
+		 mac_array[6]  ^ mac_array[2]  ^ mac_array[1]  ^ mac_array[0];
+
+	crc[3] = mac_array[47] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[40] ^ mac_array[38] ^ mac_array[35] ^ mac_array[34] ^
+		 mac_array[30] ^ mac_array[29] ^ mac_array[26] ^ mac_array[25] ^
+		 mac_array[23] ^ mac_array[18] ^ mac_array[16] ^ mac_array[14] ^
+		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[7]  ^
+		 mac_array[3]  ^ mac_array[2]  ^ mac_array[1];
+
+	crc[4] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[41] ^
+		 mac_array[39] ^ mac_array[36] ^ mac_array[35] ^ mac_array[31] ^
+		 mac_array[30] ^ mac_array[27] ^ mac_array[26] ^ mac_array[24] ^
+		 mac_array[19] ^ mac_array[17] ^ mac_array[15] ^ mac_array[14] ^
+		 mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^ mac_array[4]  ^
+		 mac_array[3]  ^ mac_array[2];
+
+	crc[5] = mac_array[47] ^ mac_array[46] ^ mac_array[45] ^ mac_array[42] ^
+		 mac_array[40] ^ mac_array[37] ^ mac_array[36] ^ mac_array[32] ^
+		 mac_array[31] ^ mac_array[28] ^ mac_array[27] ^ mac_array[25] ^
+		 mac_array[20] ^ mac_array[18] ^ mac_array[16] ^ mac_array[15] ^
+		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[5]  ^
+		 mac_array[4]  ^ mac_array[3];
+
+	crc[6] = mac_array[47] ^ mac_array[46] ^ mac_array[43] ^ mac_array[41] ^
+		 mac_array[38] ^ mac_array[37] ^ mac_array[33] ^ mac_array[32] ^
+		 mac_array[29] ^ mac_array[28] ^ mac_array[26] ^ mac_array[21] ^
+		 mac_array[19] ^ mac_array[17] ^ mac_array[16] ^ mac_array[14] ^
+		 mac_array[12] ^ mac_array[10] ^ mac_array[6]  ^ mac_array[5]  ^
+		 mac_array[4];
+
+	crc[7] = mac_array[47] ^ mac_array[44] ^ mac_array[42] ^ mac_array[39] ^
+		 mac_array[38] ^ mac_array[34] ^ mac_array[33] ^ mac_array[30] ^
+		 mac_array[29] ^ mac_array[27] ^ mac_array[22] ^ mac_array[20] ^
+		 mac_array[18] ^ mac_array[17] ^ mac_array[15] ^ mac_array[13] ^
+		 mac_array[11] ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[5];
+
+	for (i = 0; i < 8; i++)
+		crc_result = crc_result | (crc[i] << i);
+
+	table = DA_FILTER_OTHER_MULTICAST_TABLE_BASE(port_num);
+	eth_port_set_filter_table_entry(mp, table, crc_result);
+}
+
+/*
+ * Set the entire multicast list based on dev->mc_list.
+ */
+static void eth_port_set_multicast_list(struct net_device *dev)
+{
+
+	struct dev_mc_list	*mc_list;
+	int			i;
+	int			table_index;
+	struct mv643xx_private	*mp = netdev_priv(dev);
+	unsigned int		eth_port_num = mp->port_num;
+
+	/* If the device is in promiscuous mode or in all multicast mode,
+	 * we will fully populate both multicast tables with accept.
+	 * This is guaranteed to yield a match on all multicast addresses...
+	 */
+	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI)) {
+		for (table_index = 0; table_index <= 0xFC; table_index += 4) {
+			/* Set all entries in DA filter special multicast
+			 * table (Ex_dFSMT)
+			 * Set for ETH_Q0 for now
+			 * Bits
+			 * 0	  Accept=1, Drop=0
+			 * 3-1  Queue	 ETH_Q0=0
+			 * 7-4  Reserved = 0;
+			 */
+			wrl(mp, DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+
+			/* Set all entries in DA filter other multicast
+			 * table (Ex_dFOMT)
+			 * Set for ETH_Q0 for now
+			 * Bits
+			 * 0	  Accept=1, Drop=0
+			 * 3-1  Queue	 ETH_Q0=0
+			 * 7-4  Reserved = 0;
+			 */
+			wrl(mp, DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+		}
+		return;
+	}
+
+	/* We will clear out multicast tables every time we get the list.
+	 * Then add the entire new list...
+	 */
+	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
+		/* Clear DA filter special multicast table (Ex_dFSMT) */
+		wrl(mp, DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
+				(eth_port_num) + table_index, 0);
+
+		/* Clear DA filter other multicast table (Ex_dFOMT) */
+		wrl(mp, DA_FILTER_OTHER_MULTICAST_TABLE_BASE
+				(eth_port_num) + table_index, 0);
+	}
+
+	/* Get pointer to net_device multicast list and add each one... */
+	for (i = 0, mc_list = dev->mc_list;
+			(i < 256) && (mc_list != NULL) && (i < dev->mc_count);
+			i++, mc_list = mc_list->next)
+		if (mc_list->dmi_addrlen == 6)
+			eth_port_mc_addr(mp, mc_list->dmi_addr);
+}
+
+/*
+ * mv643xx_eth_set_rx_mode
+ *
+ * Change from promiscuos to regular rx mode
+ *
+ * Input :	pointer to ethernet interface network device structure
+ * Output :	N/A
+ */
+static void mv643xx_eth_set_rx_mode(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	u32 config_reg;
+
+	config_reg = rdl(mp, PORT_CONFIG_REG(mp->port_num));
+	if (dev->flags & IFF_PROMISC)
+		config_reg |= (u32) UNICAST_PROMISCUOUS_MODE;
+	else
+		config_reg &= ~(u32) UNICAST_PROMISCUOUS_MODE;
+	wrl(mp, PORT_CONFIG_REG(mp->port_num), config_reg);
+
+	eth_port_set_multicast_list(dev);
+}
+
+
+/* rx/tx queue initialisation ***********************************************/
+/*
+ * ether_init_rx_desc_ring - Curve a Rx chain desc list and buffer in memory.
+ *
+ * DESCRIPTION:
+ *	This function prepares a Rx chained list of descriptors and packet
+ *	buffers in a form of a ring. The routine must be called after port
+ *	initialization routine and before port start routine.
+ *	The Ethernet SDMA engine uses CPU bus addresses to access the various
+ *	devices in the system (i.e. DRAM). This function uses the ethernet
+ *	struct 'virtual to physical' routine (set by the user) to set the ring
+ *	with physical addresses.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port Control srtuct.
+ *
+ * OUTPUT:
+ *	The routine updates the Ethernet port control struct with information
+ *	regarding the Rx descriptors and buffers.
+ *
+ * RETURN:
+ *	None.
+ */
+static void ether_init_rx_desc_ring(struct mv643xx_private *mp)
+{
+	volatile struct eth_rx_desc *p_rx_desc;
+	int rx_desc_num = mp->rx_ring_size;
+	int i;
+
+	/* initialize the next_desc_ptr links in the Rx descriptors ring */
+	p_rx_desc = (struct eth_rx_desc *)mp->p_rx_desc_area;
+	for (i = 0; i < rx_desc_num; i++) {
+		p_rx_desc[i].next_desc_ptr = mp->rx_desc_dma +
+			((i + 1) % rx_desc_num) * sizeof(struct eth_rx_desc);
+	}
+
+	/* Save Rx desc pointer to driver struct. */
+	mp->rx_curr_desc_q = 0;
+	mp->rx_used_desc_q = 0;
+
+	mp->rx_desc_area_size = rx_desc_num * sizeof(struct eth_rx_desc);
+}
+
+static void mv643xx_eth_free_rx_rings(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int curr;
+
+	/* Stop RX Queues */
+	mv643xx_eth_port_disable_rx(mp);
+
+	/* Free preallocated skb's on RX rings */
+	for (curr = 0; mp->rx_desc_count && curr < mp->rx_ring_size; curr++) {
+		if (mp->rx_skb[curr]) {
+			dev_kfree_skb(mp->rx_skb[curr]);
+			mp->rx_desc_count--;
+		}
+	}
+
+	if (mp->rx_desc_count)
+		printk(KERN_ERR
+			"%s: Error in freeing Rx Ring. %d skb's still"
+			" stuck in RX Ring - ignoring them\n", dev->name,
+			mp->rx_desc_count);
+	/* Free RX ring */
+	if (mp->rx_sram_size)
+		iounmap(mp->p_rx_desc_area);
+	else
+		dma_free_coherent(NULL, mp->rx_desc_area_size,
+				mp->p_rx_desc_area, mp->rx_desc_dma);
+}
+
+/*
+ * ether_init_tx_desc_ring - Curve a Tx chain desc list and buffer in memory.
+ *
+ * DESCRIPTION:
+ *	This function prepares a Tx chained list of descriptors and packet
+ *	buffers in a form of a ring. The routine must be called after port
+ *	initialization routine and before port start routine.
+ *	The Ethernet SDMA engine uses CPU bus addresses to access the various
+ *	devices in the system (i.e. DRAM). This function uses the ethernet
+ *	struct 'virtual to physical' routine (set by the user) to set the ring
+ *	with physical addresses.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port Control srtuct.
+ *
+ * OUTPUT:
+ *	The routine updates the Ethernet port control struct with information
+ *	regarding the Tx descriptors and buffers.
+ *
+ * RETURN:
+ *	None.
+ */
+static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
+{
+	int tx_desc_num = mp->tx_ring_size;
+	struct eth_tx_desc *p_tx_desc;
+	int i;
+
+	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
+	p_tx_desc = (struct eth_tx_desc *)mp->p_tx_desc_area;
+	for (i = 0; i < tx_desc_num; i++) {
+		p_tx_desc[i].next_desc_ptr = mp->tx_desc_dma +
+			((i + 1) % tx_desc_num) * sizeof(struct eth_tx_desc);
+	}
+
+	mp->tx_curr_desc_q = 0;
+	mp->tx_used_desc_q = 0;
+
+	mp->tx_desc_area_size = tx_desc_num * sizeof(struct eth_tx_desc);
+}
+
+/**
+ * mv643xx_eth_free_tx_descs - Free the tx desc data for completed descriptors
+ *
+ * If force is non-zero, frees uncompleted descriptors as well
+ */
+static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	struct eth_tx_desc *desc;
+	u32 cmd_sts;
+	struct sk_buff *skb;
+	unsigned long flags;
+	int tx_index;
+	dma_addr_t addr;
+	int count;
+	int released = 0;
+
+	while (mp->tx_desc_count > 0) {
+		spin_lock_irqsave(&mp->lock, flags);
+
+		/* tx_desc_count might have changed before acquiring the lock */
+		if (mp->tx_desc_count <= 0) {
+			spin_unlock_irqrestore(&mp->lock, flags);
+			return released;
+		}
+
+		tx_index = mp->tx_used_desc_q;
+		desc = &mp->p_tx_desc_area[tx_index];
+		cmd_sts = desc->cmd_sts;
+
+		if (!force && (cmd_sts & ETH_BUFFER_OWNED_BY_DMA)) {
+			spin_unlock_irqrestore(&mp->lock, flags);
+			return released;
+		}
+
+		mp->tx_used_desc_q = (tx_index + 1) % mp->tx_ring_size;
+		mp->tx_desc_count--;
+
+		addr = desc->buf_ptr;
+		count = desc->byte_cnt;
+		skb = mp->tx_skb[tx_index];
+		if (skb)
+			mp->tx_skb[tx_index] = NULL;
+
+		if (cmd_sts & ETH_ERROR_SUMMARY) {
+			printk("%s: Error in TX\n", dev->name);
+			dev->stats.tx_errors++;
+		}
+
+		spin_unlock_irqrestore(&mp->lock, flags);
+
+		if (cmd_sts & ETH_TX_FIRST_DESC)
+			dma_unmap_single(NULL, addr, count, DMA_TO_DEVICE);
+		else
+			dma_unmap_page(NULL, addr, count, DMA_TO_DEVICE);
+
+		if (skb)
+			dev_kfree_skb_irq(skb);
+
+		released = 1;
+	}
+
+	return released;
+}
+
+static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	if (mv643xx_eth_free_tx_descs(dev, 0) &&
+	    mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
+		netif_wake_queue(dev);
+}
+
+static void mv643xx_eth_free_all_tx_descs(struct net_device *dev)
+{
+	mv643xx_eth_free_tx_descs(dev, 1);
+}
+
+static void mv643xx_eth_free_tx_rings(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	/* Stop Tx Queues */
+	mv643xx_eth_port_disable_tx(mp);
+
+	/* Free outstanding skb's on TX ring */
+	mv643xx_eth_free_all_tx_descs(dev);
+
+	BUG_ON(mp->tx_used_desc_q != mp->tx_curr_desc_q);
+
+	/* Free TX ring */
+	if (mp->tx_sram_size)
+		iounmap(mp->p_tx_desc_area);
+	else
+		dma_free_coherent(NULL, mp->tx_desc_area_size,
+				mp->p_tx_desc_area, mp->tx_desc_dma);
+}
+
+
+/* netdev ops and related ***************************************************/
+static void eth_port_reset(struct mv643xx_private *mp);
+
+/* Set the mv643xx port configuration register for the speed/duplex mode. */
+static void mv643xx_eth_update_pscr(struct net_device *dev,
+				    struct ethtool_cmd *ecmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int port_num = mp->port_num;
+	u32 o_pscr, n_pscr;
+	unsigned int queues;
+
+	o_pscr = rdl(mp, PORT_SERIAL_CONTROL_REG(port_num));
+	n_pscr = o_pscr;
+
+	/* clear speed, duplex and rx buffer size fields */
+	n_pscr &= ~(SET_MII_SPEED_TO_100  |
+		   SET_GMII_SPEED_TO_1000 |
+		   SET_FULL_DUPLEX_MODE   |
+		   MAX_RX_PACKET_MASK);
+
+	if (ecmd->duplex == DUPLEX_FULL)
+		n_pscr |= SET_FULL_DUPLEX_MODE;
+
+	if (ecmd->speed == SPEED_1000)
+		n_pscr |= SET_GMII_SPEED_TO_1000 |
+			  MAX_RX_PACKET_9700BYTE;
+	else {
+		if (ecmd->speed == SPEED_100)
+			n_pscr |= SET_MII_SPEED_TO_100;
+		n_pscr |= MAX_RX_PACKET_1522BYTE;
+	}
+
+	if (n_pscr != o_pscr) {
+		if ((o_pscr & SERIAL_PORT_ENABLE) == 0)
+			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), n_pscr);
+		else {
+			queues = mv643xx_eth_port_disable_tx(mp);
+
+			o_pscr &= ~SERIAL_PORT_ENABLE;
+			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), o_pscr);
+			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), n_pscr);
+			wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), n_pscr);
+			if (queues)
+				mv643xx_eth_port_enable_tx(mp, queues);
+		}
+	}
+}
+
+/*
+ * mv643xx_eth_int_handler
+ *
+ * Main interrupt handler for the gigbit ethernet ports
+ *
+ * Input :	irq	- irq number (not used)
+ *		dev_id	- a pointer to the required interface's data structure
+ *		regs	- not used
+ * Output :	N/A
+ */
+
+static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
+{
+	struct net_device *dev = (struct net_device *)dev_id;
+	struct mv643xx_private *mp = netdev_priv(dev);
+	u32 eth_int_cause, eth_int_cause_ext = 0;
+	unsigned int port_num = mp->port_num;
+
+	/* Read interrupt cause registers */
+	eth_int_cause = rdl(mp, INTERRUPT_CAUSE_REG(port_num)) &
+						ETH_INT_UNMASK_ALL;
+	if (eth_int_cause & ETH_INT_CAUSE_EXT) {
+		eth_int_cause_ext = rdl(mp,
+			INTERRUPT_CAUSE_EXTEND_REG(port_num)) &
+						ETH_INT_UNMASK_ALL_EXT;
+		wrl(mp, INTERRUPT_CAUSE_EXTEND_REG(port_num),
+							~eth_int_cause_ext);
+	}
+
+	/* PHY status changed */
+	if (eth_int_cause_ext & (ETH_INT_CAUSE_PHY | ETH_INT_CAUSE_STATE)) {
+		struct ethtool_cmd cmd;
+
+		if (mii_link_ok(&mp->mii)) {
+			mii_ethtool_gset(&mp->mii, &cmd);
+			mv643xx_eth_update_pscr(dev, &cmd);
+			mv643xx_eth_port_enable_tx(mp, ETH_TX_QUEUES_ENABLED);
+			if (!netif_carrier_ok(dev)) {
+				netif_carrier_on(dev);
+				if (mp->tx_ring_size - mp->tx_desc_count >=
+							MAX_DESCS_PER_SKB)
+					netif_wake_queue(dev);
+			}
+		} else if (netif_carrier_ok(dev)) {
+			netif_stop_queue(dev);
+			netif_carrier_off(dev);
+		}
+	}
+
+#ifdef MV643XX_NAPI
+	if (eth_int_cause & ETH_INT_CAUSE_RX) {
+		/* schedule the NAPI poll routine to maintain port */
+		wrl(mp, INTERRUPT_MASK_REG(port_num), ETH_INT_MASK_ALL);
+
+		/* wait for previous write to complete */
+		rdl(mp, INTERRUPT_MASK_REG(port_num));
+
+		netif_rx_schedule(dev, &mp->napi);
+	}
+#else
+	if (eth_int_cause & ETH_INT_CAUSE_RX)
+		mv643xx_eth_receive_queue(dev, INT_MAX);
+#endif
+	if (eth_int_cause_ext & ETH_INT_CAUSE_TX)
+		mv643xx_eth_free_completed_tx_descs(dev);
+
+	/*
+	 * If no real interrupt occured, exit.
+	 * This can happen when using gigE interrupt coalescing mechanism.
+	 */
+	if ((eth_int_cause == 0x0) && (eth_int_cause_ext == 0x0))
+		return IRQ_NONE;
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * ethernet_phy_reset - Reset Ethernet port PHY.
+ *
+ * DESCRIPTION:
+ *	This routine utilizes the SMI interface to reset the ethernet port PHY.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *
+ * OUTPUT:
+ *	The PHY is reset.
+ *
+ * RETURN:
+ *	None.
+ *
+ */
+static void ethernet_phy_reset(struct mv643xx_private *mp)
+{
+	unsigned int phy_reg_data;
+
+	/* Reset the PHY */
+	eth_port_read_smi_reg(mp, 0, &phy_reg_data);
+	phy_reg_data |= 0x8000;	/* Set bit 15 to reset the PHY */
+	eth_port_write_smi_reg(mp, 0, phy_reg_data);
+
+	/* wait for PHY to come out of reset */
+	do {
+		udelay(1);
+		eth_port_read_smi_reg(mp, 0, &phy_reg_data);
+	} while (phy_reg_data & 0x8000);
+}
+
+/*
+ * eth_port_start - Start the Ethernet port activity.
+ *
+ * DESCRIPTION:
+ *	This routine prepares the Ethernet port for Rx and Tx activity:
+ *	 1. Initialize Tx and Rx Current Descriptor Pointer for each queue that
+ *	    has been initialized a descriptor's ring (using
+ *	    ether_init_tx_desc_ring for Tx and ether_init_rx_desc_ring for Rx)
+ *	 2. Initialize and enable the Ethernet configuration port by writing to
+ *	    the port's configuration and command registers.
+ *	 3. Initialize and enable the SDMA by writing to the SDMA's
+ *	    configuration and command registers.  After completing these steps,
+ *	    the ethernet port SDMA can starts to perform Rx and Tx activities.
+ *
+ *	Note: Each Rx and Tx queue descriptor's list must be initialized prior
+ *	to calling this function (use ether_init_tx_desc_ring for Tx queues
+ *	and ether_init_rx_desc_ring for Rx queues).
+ *
+ * INPUT:
+ *	dev - a pointer to the required interface
+ *
+ * OUTPUT:
+ *	Ethernet port is ready to receive and transmit.
+ *
+ * RETURN:
+ *	None.
+ */
+static void eth_port_start(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	unsigned int port_num = mp->port_num;
+	int tx_curr_desc, rx_curr_desc;
+	u32 pscr;
+	struct ethtool_cmd ethtool_cmd;
+
+	/* Assignment of Tx CTRP of given queue */
+	tx_curr_desc = mp->tx_curr_desc_q;
+	wrl(mp, TX_CURRENT_QUEUE_DESC_PTR_0(port_num),
+		(u32)((struct eth_tx_desc *)mp->tx_desc_dma + tx_curr_desc));
+
+	/* Assignment of Rx CRDP of given queue */
+	rx_curr_desc = mp->rx_curr_desc_q;
+	wrl(mp, RX_CURRENT_QUEUE_DESC_PTR_0(port_num),
+		(u32)((struct eth_rx_desc *)mp->rx_desc_dma + rx_curr_desc));
+
+	/* Add the assigned Ethernet address to the port's address table */
+	eth_port_uc_addr_set(mp, dev->dev_addr);
+
+	/* Assign port configuration and command. */
+	wrl(mp, PORT_CONFIG_REG(port_num),
+			  PORT_CONFIG_DEFAULT_VALUE);
+
+	wrl(mp, PORT_CONFIG_EXTEND_REG(port_num),
+			  PORT_CONFIG_EXTEND_DEFAULT_VALUE);
+
+	pscr = rdl(mp, PORT_SERIAL_CONTROL_REG(port_num));
+
+	pscr &= ~(SERIAL_PORT_ENABLE | FORCE_LINK_PASS);
+	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), pscr);
+
+	pscr |= DISABLE_AUTO_NEG_FOR_FLOW_CTRL |
+		DISABLE_AUTO_NEG_SPEED_GMII    |
+		DISABLE_AUTO_NEG_FOR_DUPLX     |
+		DO_NOT_FORCE_LINK_FAIL	   |
+		SERIAL_PORT_CONTROL_RESERVED;
+
+	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), pscr);
+
+	pscr |= SERIAL_PORT_ENABLE;
+	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), pscr);
+
+	/* Assign port SDMA configuration */
+	wrl(mp, SDMA_CONFIG_REG(port_num),
+			  PORT_SDMA_CONFIG_DEFAULT_VALUE);
+
+	/* Enable port Rx. */
+	mv643xx_eth_port_enable_rx(mp, ETH_RX_QUEUES_ENABLED);
+
+	/* Disable port bandwidth limits by clearing MTU register */
+	wrl(mp, MAXIMUM_TRANSMIT_UNIT(port_num), 0);
+
+	/* save phy settings across reset */
+	mv643xx_get_settings(dev, &ethtool_cmd);
+	ethernet_phy_reset(mp);
+	mv643xx_set_settings(dev, &ethtool_cmd);
+}
+
+#ifdef MV643XX_COAL
+
+/*
+ * eth_port_set_rx_coal - Sets coalescing interrupt mechanism on RX path
+ *
+ * DESCRIPTION:
+ *	This routine sets the RX coalescing interrupt mechanism parameter.
+ *	This parameter is a timeout counter, that counts in 64 t_clk
+ *	chunks ; that when timeout event occurs a maskable interrupt
+ *	occurs.
+ *	The parameter is calculated using the tClk of the MV-643xx chip
+ *	, and the required delay of the interrupt in usec.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet port
+ *	unsigned int delay		Delay in usec
+ *
+ * OUTPUT:
+ *	Interrupt coalescing mechanism value is set in MV-643xx chip.
+ *
+ * RETURN:
+ *	The interrupt coalescing value set in the gigE port.
+ *
+ */
+static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
+					unsigned int delay)
+{
+	unsigned int port_num = mp->port_num;
+	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
+
+	/* Set RX Coalescing mechanism */
+	wrl(mp, SDMA_CONFIG_REG(port_num),
+		((coal & 0x3fff) << 8) |
+		(rdl(mp, SDMA_CONFIG_REG(port_num))
+			& 0xffc000ff));
+
+	return coal;
+}
+#endif
+
+/*
+ * eth_port_set_tx_coal - Sets coalescing interrupt mechanism on TX path
+ *
+ * DESCRIPTION:
+ *	This routine sets the TX coalescing interrupt mechanism parameter.
+ *	This parameter is a timeout counter, that counts in 64 t_clk
+ *	chunks ; that when timeout event occurs a maskable interrupt
+ *	occurs.
+ *	The parameter is calculated using the t_cLK frequency of the
+ *	MV-643xx chip and the required delay in the interrupt in uSec
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet port
+ *	unsigned int delay		Delay in uSeconds
+ *
+ * OUTPUT:
+ *	Interrupt coalescing mechanism value is set in MV-643xx chip.
+ *
+ * RETURN:
+ *	The interrupt coalescing value set in the gigE port.
+ *
+ */
+static unsigned int eth_port_set_tx_coal(struct mv643xx_private *mp,
+					unsigned int delay)
+{
+	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
+
+	/* Set TX Coalescing mechanism */
+	wrl(mp, TX_FIFO_URGENT_THRESHOLD_REG(mp->port_num), coal << 4);
+
+	return coal;
+}
+
+/*
+ * eth_port_init - Initialize the Ethernet port driver
+ *
+ * DESCRIPTION:
+ *	This function prepares the ethernet port to start its activity:
+ *	1) Completes the ethernet port driver struct initialization toward port
+ *		start routine.
+ *	2) Resets the device to a quiescent state in case of warm reboot.
+ *	3) Enable SDMA access to all four DRAM banks as well as internal SRAM.
+ *	4) Clean MAC tables. The reset status of those tables is unknown.
+ *	5) Set PHY address.
+ *	Note: Call this routine prior to eth_port_start routine and after
+ *	setting user values in the user fields of Ethernet port control
+ *	struct.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet port control struct
+ *
+ * OUTPUT:
+ *	See description.
+ *
+ * RETURN:
+ *	None.
+ */
+static void eth_port_init(struct mv643xx_private *mp)
+{
+	mp->rx_resource_err = 0;
+
+	eth_port_reset(mp);
+
+	eth_port_init_mac_tables(mp);
+}
+
+/*
+ * mv643xx_eth_open
+ *
+ * This function is called when openning the network device. The function
+ * should initialize all the hardware, initialize cyclic Rx/Tx
+ * descriptors chain and buffers and allocate an IRQ to the network
+ * device.
+ *
+ * Input :	a pointer to the network device structure
+ *
+ * Output :	zero of success , nonzero if fails.
+ */
+
+static int mv643xx_eth_open(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	unsigned int port_num = mp->port_num;
+	unsigned int size;
+	int err;
+
+	/* Clear any pending ethernet port interrupts */
+	wrl(mp, INTERRUPT_CAUSE_REG(port_num), 0);
+	wrl(mp, INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
+	/* wait for previous write to complete */
+	rdl(mp, INTERRUPT_CAUSE_EXTEND_REG(port_num));
+
+	err = request_irq(dev->irq, mv643xx_eth_int_handler,
+			IRQF_SHARED | IRQF_SAMPLE_RANDOM, dev->name, dev);
+	if (err) {
+		printk(KERN_ERR "%s: Can not assign IRQ\n", dev->name);
+		return -EAGAIN;
+	}
+
+	eth_port_init(mp);
+
+	memset(&mp->timeout, 0, sizeof(struct timer_list));
+	mp->timeout.function = mv643xx_eth_rx_refill_descs_timer_wrapper;
+	mp->timeout.data = (unsigned long)dev;
+
+	/* Allocate RX and TX skb rings */
+	mp->rx_skb = kmalloc(sizeof(*mp->rx_skb) * mp->rx_ring_size,
+								GFP_KERNEL);
+	if (!mp->rx_skb) {
+		printk(KERN_ERR "%s: Cannot allocate Rx skb ring\n", dev->name);
+		err = -ENOMEM;
+		goto out_free_irq;
+	}
+	mp->tx_skb = kmalloc(sizeof(*mp->tx_skb) * mp->tx_ring_size,
+								GFP_KERNEL);
+	if (!mp->tx_skb) {
+		printk(KERN_ERR "%s: Cannot allocate Tx skb ring\n", dev->name);
+		err = -ENOMEM;
+		goto out_free_rx_skb;
+	}
+
+	/* Allocate TX ring */
+	mp->tx_desc_count = 0;
+	size = mp->tx_ring_size * sizeof(struct eth_tx_desc);
+	mp->tx_desc_area_size = size;
+
+	if (mp->tx_sram_size) {
+		mp->p_tx_desc_area = ioremap(mp->tx_sram_addr,
+							mp->tx_sram_size);
+		mp->tx_desc_dma = mp->tx_sram_addr;
+	} else
+		mp->p_tx_desc_area = dma_alloc_coherent(NULL, size,
+							&mp->tx_desc_dma,
+							GFP_KERNEL);
+
+	if (!mp->p_tx_desc_area) {
+		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
+							dev->name, size);
+		err = -ENOMEM;
+		goto out_free_tx_skb;
+	}
+	BUG_ON((u32) mp->p_tx_desc_area & 0xf);	/* check 16-byte alignment */
+	memset((void *)mp->p_tx_desc_area, 0, mp->tx_desc_area_size);
+
+	ether_init_tx_desc_ring(mp);
+
+	/* Allocate RX ring */
+	mp->rx_desc_count = 0;
+	size = mp->rx_ring_size * sizeof(struct eth_rx_desc);
+	mp->rx_desc_area_size = size;
+
+	if (mp->rx_sram_size) {
+		mp->p_rx_desc_area = ioremap(mp->rx_sram_addr,
+							mp->rx_sram_size);
+		mp->rx_desc_dma = mp->rx_sram_addr;
+	} else
+		mp->p_rx_desc_area = dma_alloc_coherent(NULL, size,
+							&mp->rx_desc_dma,
+							GFP_KERNEL);
+
+	if (!mp->p_rx_desc_area) {
+		printk(KERN_ERR "%s: Cannot allocate Rx ring (size %d bytes)\n",
+							dev->name, size);
+		printk(KERN_ERR "%s: Freeing previously allocated TX queues...",
+							dev->name);
+		if (mp->rx_sram_size)
+			iounmap(mp->p_tx_desc_area);
+		else
+			dma_free_coherent(NULL, mp->tx_desc_area_size,
+					mp->p_tx_desc_area, mp->tx_desc_dma);
+		err = -ENOMEM;
+		goto out_free_tx_skb;
+	}
+	memset((void *)mp->p_rx_desc_area, 0, size);
+
+	ether_init_rx_desc_ring(mp);
+
+	mv643xx_eth_rx_refill_descs(dev);	/* Fill RX ring with skb's */
+
+#ifdef MV643XX_NAPI
+	napi_enable(&mp->napi);
+#endif
+
+	eth_port_start(dev);
+
+	/* Interrupt Coalescing */
+
+#ifdef MV643XX_COAL
+	mp->rx_int_coal =
+		eth_port_set_rx_coal(mp, MV643XX_RX_COAL);
+#endif
+
+	mp->tx_int_coal =
+		eth_port_set_tx_coal(mp, MV643XX_TX_COAL);
+
+	/* Unmask phy and link status changes interrupts */
+	wrl(mp, INTERRUPT_EXTEND_MASK_REG(port_num), ETH_INT_UNMASK_ALL_EXT);
+
+	/* Unmask RX buffer and TX end interrupt */
+	wrl(mp, INTERRUPT_MASK_REG(port_num), ETH_INT_UNMASK_ALL);
+
+	return 0;
+
+out_free_tx_skb:
+	kfree(mp->tx_skb);
+out_free_rx_skb:
+	kfree(mp->rx_skb);
+out_free_irq:
+	free_irq(dev->irq, dev);
+
+	return err;
+}
+
+/*
+ * eth_port_reset - Reset Ethernet port
+ *
+ * DESCRIPTION:
+ * 	This routine resets the chip by aborting any SDMA engine activity and
+ *	clearing the MIB counters. The Receiver and the Transmit unit are in
+ *	idle state after this command is performed and the port is disabled.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *
+ * OUTPUT:
+ *	Channel activity is halted.
+ *
+ * RETURN:
+ *	None.
+ *
+ */
+static void eth_port_reset(struct mv643xx_private *mp)
+{
+	unsigned int port_num = mp->port_num;
+	unsigned int reg_data;
+
+	mv643xx_eth_port_disable_tx(mp);
+	mv643xx_eth_port_disable_rx(mp);
+
+	/* Clear all MIB counters */
+	eth_clear_mib_counters(mp);
+
+	/* Reset the Enable bit in the Configuration Register */
+	reg_data = rdl(mp, PORT_SERIAL_CONTROL_REG(port_num));
+	reg_data &= ~(SERIAL_PORT_ENABLE		|
+			DO_NOT_FORCE_LINK_FAIL	|
+			FORCE_LINK_PASS);
+	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), reg_data);
+}
+
+/*
+ * mv643xx_eth_stop
+ *
+ * This function is used when closing the network device.
+ * It updates the hardware,
+ * release all memory that holds buffers and descriptors and release the IRQ.
+ * Input :	a pointer to the device structure
+ * Output :	zero if success , nonzero if fails
+ */
+
+static int mv643xx_eth_stop(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	unsigned int port_num = mp->port_num;
+
+	/* Mask all interrupts on ethernet port */
+	wrl(mp, INTERRUPT_MASK_REG(port_num), ETH_INT_MASK_ALL);
+	/* wait for previous write to complete */
+	rdl(mp, INTERRUPT_MASK_REG(port_num));
+
+#ifdef MV643XX_NAPI
+	napi_disable(&mp->napi);
+#endif
+	netif_carrier_off(dev);
+	netif_stop_queue(dev);
+
+	eth_port_reset(mp);
+
+	mv643xx_eth_free_tx_rings(dev);
+	mv643xx_eth_free_rx_rings(dev);
+
+	free_irq(dev->irq, dev);
+
+	return 0;
+}
+
+static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
+}
+
+/*
+ * Changes MTU (maximum transfer unit) of the gigabit ethenret port
+ *
+ * Input :	pointer to ethernet interface network device structure
+ *		new mtu size
+ * Output :	0 upon success, -EINVAL upon failure
+ */
+static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if ((new_mtu > 9500) || (new_mtu < 64))
+		return -EINVAL;
+
+	dev->mtu = new_mtu;
+	if (!netif_running(dev))
+		return 0;
+
+	/*
+	 * Stop and then re-open the interface. This will allocate RX
+	 * skbs of the new MTU.
+	 * There is a possible danger that the open will not succeed,
+	 * due to memory being full, which might fail the open function.
+	 */
+	mv643xx_eth_stop(dev);
+	if (mv643xx_eth_open(dev)) {
+		printk(KERN_ERR "%s: Fatal error on opening device\n",
+			dev->name);
+	}
+
+	return 0;
+}
+
+/*
+ * mv643xx_eth_tx_timeout_task
+ *
+ * Actual routine to reset the adapter when a timeout on Tx has occurred
+ */
+static void mv643xx_eth_tx_timeout_task(struct work_struct *ugly)
+{
+	struct mv643xx_private *mp = container_of(ugly, struct mv643xx_private,
+						  tx_timeout_task);
+	struct net_device *dev = mp->dev;
+
+	if (!netif_running(dev))
+		return;
+
+	netif_stop_queue(dev);
+
+	eth_port_reset(mp);
+	eth_port_start(dev);
+
+	if (mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
+		netif_wake_queue(dev);
+}
+
+/*
+ * mv643xx_eth_tx_timeout
+ *
+ * Called upon a timeout on transmitting a packet
+ *
+ * Input :	pointer to ethernet interface network device structure.
+ * Output :	N/A
+ */
+static void mv643xx_eth_tx_timeout(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	printk(KERN_INFO "%s: TX timeout  ", dev->name);
+
+	/* Do the reset outside of interrupt context */
+	schedule_work(&mp->tx_timeout_task);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void mv643xx_netpoll(struct net_device *netdev)
 {
@@ -1778,6 +2710,214 @@ static void mv643xx_netpoll(struct net_device *netdev)
 	wrl(mp, INTERRUPT_MASK_REG(port_num), ETH_INT_UNMASK_ALL);
 }
 #endif
+
+/*
+ * Wrappers for MII support library.
+ */
+static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int val;
+
+	eth_port_read_smi_reg(mp, location, &val);
+	return val;
+}
+
+static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	eth_port_write_smi_reg(mp, location, val);
+}
+
+
+/* platform glue ************************************************************/
+static void mv643xx_eth_conf_mbus_windows(struct mv643xx_shared_private *msp,
+					  struct mbus_dram_target_info *dram)
+{
+	void __iomem *base = msp->eth_base;
+	u32 win_enable;
+	u32 win_protect;
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		writel(0, base + WINDOW_BASE(i));
+		writel(0, base + WINDOW_SIZE(i));
+		if (i < 4)
+			writel(0, base + WINDOW_REMAP_HIGH(i));
+	}
+
+	win_enable = 0x3f;
+	win_protect = 0;
+
+	for (i = 0; i < dram->num_cs; i++) {
+		struct mbus_dram_window *cs = dram->cs + i;
+
+		writel((cs->base & 0xffff0000) |
+			(cs->mbus_attr << 8) |
+			dram->mbus_dram_target_id, base + WINDOW_BASE(i));
+		writel((cs->size - 1) & 0xffff0000, base + WINDOW_SIZE(i));
+
+		win_enable &= ~(1 << i);
+		win_protect |= 3 << (2 * i);
+	}
+
+	writel(win_enable, base + WINDOW_BAR_ENABLE);
+	msp->win_protect = win_protect;
+}
+
+static int mv643xx_eth_shared_probe(struct platform_device *pdev)
+{
+	static int mv643xx_version_printed = 0;
+	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
+	struct mv643xx_shared_private *msp;
+	struct resource *res;
+	int ret;
+
+	if (!mv643xx_version_printed++)
+		printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
+
+	ret = -EINVAL;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL)
+		goto out;
+
+	ret = -ENOMEM;
+	msp = kmalloc(sizeof(*msp), GFP_KERNEL);
+	if (msp == NULL)
+		goto out;
+	memset(msp, 0, sizeof(*msp));
+
+	msp->eth_base = ioremap(res->start, res->end - res->start + 1);
+	if (msp->eth_base == NULL)
+		goto out_free;
+
+	spin_lock_init(&msp->phy_lock);
+	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
+
+	platform_set_drvdata(pdev, msp);
+
+	/*
+	 * (Re-)program MBUS remapping windows if we are asked to.
+	 */
+	if (pd != NULL && pd->dram != NULL)
+		mv643xx_eth_conf_mbus_windows(msp, pd->dram);
+
+	return 0;
+
+out_free:
+	kfree(msp);
+out:
+	return ret;
+}
+
+static int mv643xx_eth_shared_remove(struct platform_device *pdev)
+{
+	struct mv643xx_shared_private *msp = platform_get_drvdata(pdev);
+
+	iounmap(msp->eth_base);
+	kfree(msp);
+
+	return 0;
+}
+
+static struct platform_driver mv643xx_eth_shared_driver = {
+	.probe = mv643xx_eth_shared_probe,
+	.remove = mv643xx_eth_shared_remove,
+	.driver = {
+		.name = MV643XX_ETH_SHARED_NAME,
+		.owner	= THIS_MODULE,
+	},
+};
+
+/*
+ * ethernet_phy_set - Set the ethernet port PHY address.
+ *
+ * DESCRIPTION:
+ *	This routine sets the given ethernet port PHY address.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *	int		phy_addr	PHY address.
+ *
+ * OUTPUT:
+ *	None.
+ *
+ * RETURN:
+ *	None.
+ *
+ */
+static void ethernet_phy_set(struct mv643xx_private *mp, int phy_addr)
+{
+	u32 reg_data;
+	int addr_shift = 5 * mp->port_num;
+
+	reg_data = rdl(mp, PHY_ADDR_REG);
+	reg_data &= ~(0x1f << addr_shift);
+	reg_data |= (phy_addr & 0x1f) << addr_shift;
+	wrl(mp, PHY_ADDR_REG, reg_data);
+}
+
+/*
+ * ethernet_phy_get - Get the ethernet port PHY address.
+ *
+ * DESCRIPTION:
+ *	This routine returns the given ethernet port PHY address.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *
+ * OUTPUT:
+ *	None.
+ *
+ * RETURN:
+ *	PHY address.
+ *
+ */
+static int ethernet_phy_get(struct mv643xx_private *mp)
+{
+	unsigned int reg_data;
+
+	reg_data = rdl(mp, PHY_ADDR_REG);
+
+	return ((reg_data >> (5 * mp->port_num)) & 0x1f);
+}
+
+/*
+ * ethernet_phy_detect - Detect whether a phy is present
+ *
+ * DESCRIPTION:
+ *	This function tests whether there is a PHY present on
+ *	the specified port.
+ *
+ * INPUT:
+ *	struct mv643xx_private *mp	Ethernet Port.
+ *
+ * OUTPUT:
+ *	None
+ *
+ * RETURN:
+ *	0 on success
+ *	-ENODEV on failure
+ *
+ */
+static int ethernet_phy_detect(struct mv643xx_private *mp)
+{
+	unsigned int phy_reg_data0;
+	int auto_neg;
+
+	eth_port_read_smi_reg(mp, 0, &phy_reg_data0);
+	auto_neg = phy_reg_data0 & 0x1000;
+	phy_reg_data0 ^= 0x1000;	/* invert auto_neg */
+	eth_port_write_smi_reg(mp, 0, phy_reg_data0);
+
+	eth_port_read_smi_reg(mp, 0, &phy_reg_data0);
+	if ((phy_reg_data0 & 0x1000) == auto_neg)
+		return -ENODEV;				/* change didn't take */
+
+	phy_reg_data0 ^= 0x1000;
+	eth_port_write_smi_reg(mp, 0, phy_reg_data0);
+	return 0;
+}
 
 static void mv643xx_init_ethtool_cmd(struct net_device *dev, int phy_address,
 				     int speed, int duplex,
@@ -2008,95 +3148,6 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void mv643xx_eth_conf_mbus_windows(struct mv643xx_shared_private *msp,
-					  struct mbus_dram_target_info *dram)
-{
-	void __iomem *base = msp->eth_base;
-	u32 win_enable;
-	u32 win_protect;
-	int i;
-
-	for (i = 0; i < 6; i++) {
-		writel(0, base + WINDOW_BASE(i));
-		writel(0, base + WINDOW_SIZE(i));
-		if (i < 4)
-			writel(0, base + WINDOW_REMAP_HIGH(i));
-	}
-
-	win_enable = 0x3f;
-	win_protect = 0;
-
-	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
-
-		writel((cs->base & 0xffff0000) |
-			(cs->mbus_attr << 8) |
-			dram->mbus_dram_target_id, base + WINDOW_BASE(i));
-		writel((cs->size - 1) & 0xffff0000, base + WINDOW_SIZE(i));
-
-		win_enable &= ~(1 << i);
-		win_protect |= 3 << (2 * i);
-	}
-
-	writel(win_enable, base + WINDOW_BAR_ENABLE);
-	msp->win_protect = win_protect;
-}
-
-static int mv643xx_eth_shared_probe(struct platform_device *pdev)
-{
-	static int mv643xx_version_printed = 0;
-	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
-	struct mv643xx_shared_private *msp;
-	struct resource *res;
-	int ret;
-
-	if (!mv643xx_version_printed++)
-		printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
-
-	ret = -EINVAL;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		goto out;
-
-	ret = -ENOMEM;
-	msp = kmalloc(sizeof(*msp), GFP_KERNEL);
-	if (msp == NULL)
-		goto out;
-	memset(msp, 0, sizeof(*msp));
-
-	msp->eth_base = ioremap(res->start, res->end - res->start + 1);
-	if (msp->eth_base == NULL)
-		goto out_free;
-
-	spin_lock_init(&msp->phy_lock);
-	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
-
-	platform_set_drvdata(pdev, msp);
-
-	/*
-	 * (Re-)program MBUS remapping windows if we are asked to.
-	 */
-	if (pd != NULL && pd->dram != NULL)
-		mv643xx_eth_conf_mbus_windows(msp, pd->dram);
-
-	return 0;
-
-out_free:
-	kfree(msp);
-out:
-	return ret;
-}
-
-static int mv643xx_eth_shared_remove(struct platform_device *pdev)
-{
-	struct mv643xx_shared_private *msp = platform_get_drvdata(pdev);
-
-	iounmap(msp->eth_base);
-	kfree(msp);
-
-	return 0;
-}
-
 static void mv643xx_eth_shutdown(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
@@ -2116,15 +3167,6 @@ static struct platform_driver mv643xx_eth_driver = {
 	.shutdown = mv643xx_eth_shutdown,
 	.driver = {
 		.name = MV643XX_ETH_NAME,
-		.owner	= THIS_MODULE,
-	},
-};
-
-static struct platform_driver mv643xx_eth_shared_driver = {
-	.probe = mv643xx_eth_shared_probe,
-	.remove = mv643xx_eth_shared_remove,
-	.driver = {
-		.name = MV643XX_ETH_SHARED_NAME,
 		.owner	= THIS_MODULE,
 	},
 };
@@ -2175,1191 +3217,3 @@ MODULE_AUTHOR(	"Rabeeh Khoury, Assaf Hoffman, Matthew Dharm, Manish Lachwani"
 MODULE_DESCRIPTION("Ethernet driver for Marvell MV643XX");
 MODULE_ALIAS("platform:" MV643XX_ETH_NAME);
 MODULE_ALIAS("platform:" MV643XX_ETH_SHARED_NAME);
-
-/*
- * The second part is the low level driver of the gigE ethernet ports.
- */
-
-/*
- * Marvell's Gigabit Ethernet controller low level driver
- *
- * DESCRIPTION:
- *	This file introduce low level API to Marvell's Gigabit Ethernet
- *		controller. This Gigabit Ethernet Controller driver API controls
- *		1) Operations (i.e. port init, start, reset etc').
- *		2) Data flow (i.e. port send, receive etc').
- *		Each Gigabit Ethernet port is controlled via
- *		struct mv643xx_private.
- *		This struct includes user configuration information as well as
- *		driver internal data needed for its operations.
- *
- *		Supported Features:
- *		- This low level driver is OS independent. Allocating memory for
- *		  the descriptor rings and buffers are not within the scope of
- *		  this driver.
- *		- The user is free from Rx/Tx queue managing.
- *		- This low level driver introduce functionality API that enable
- *		  the to operate Marvell's Gigabit Ethernet Controller in a
- *		  convenient way.
- *		- Simple Gigabit Ethernet port operation API.
- *		- Simple Gigabit Ethernet port data flow API.
- *		- Data flow and operation API support per queue functionality.
- *		- Support cached descriptors for better performance.
- *		- Enable access to all four DRAM banks and internal SRAM memory
- *		  spaces.
- *		- PHY access and control API.
- *		- Port control register configuration API.
- *		- Full control over Unicast and Multicast MAC configurations.
- *
- *		Operation flow:
- *
- *		Initialization phase
- *		This phase complete the initialization of the the
- *		mv643xx_private struct.
- *		User information regarding port configuration has to be set
- *		prior to calling the port initialization routine.
- *
- *		In this phase any port Tx/Rx activity is halted, MIB counters
- *		are cleared, PHY address is set according to user parameter and
- *		access to DRAM and internal SRAM memory spaces.
- *
- *		Driver ring initialization
- *		Allocating memory for the descriptor rings and buffers is not
- *		within the scope of this driver. Thus, the user is required to
- *		allocate memory for the descriptors ring and buffers. Those
- *		memory parameters are used by the Rx and Tx ring initialization
- *		routines in order to curve the descriptor linked list in a form
- *		of a ring.
- *		Note: Pay special attention to alignment issues when using
- *		cached descriptors/buffers. In this phase the driver store
- *		information in the mv643xx_private struct regarding each queue
- *		ring.
- *
- *		Driver start
- *		This phase prepares the Ethernet port for Rx and Tx activity.
- *		It uses the information stored in the mv643xx_private struct to
- *		initialize the various port registers.
- *
- *		Data flow:
- *		All packet references to/from the driver are done using
- *		struct pkt_info.
- *		This struct is a unified struct used with Rx and Tx operations.
- *		This way the user is not required to be familiar with neither
- *		Tx nor Rx descriptors structures.
- *		The driver's descriptors rings are management by indexes.
- *		Those indexes controls the ring resources and used to indicate
- *		a SW resource error:
- *		'current'
- *		This index points to the current available resource for use. For
- *		example in Rx process this index will point to the descriptor
- *		that will be passed to the user upon calling the receive
- *		routine.  In Tx process, this index will point to the descriptor
- *		that will be assigned with the user packet info and transmitted.
- *		'used'
- *		This index points to the descriptor that need to restore its
- *		resources. For example in Rx process, using the Rx buffer return
- *		API will attach the buffer returned in packet info to the
- *		descriptor pointed by 'used'. In Tx process, using the Tx
- *		descriptor return will merely return the user packet info with
- *		the command status of the transmitted buffer pointed by the
- *		'used' index. Nevertheless, it is essential to use this routine
- *		to update the 'used' index.
- *		'first'
- *		This index supports Tx Scatter-Gather. It points to the first
- *		descriptor of a packet assembled of multiple buffers. For
- *		example when in middle of Such packet we have a Tx resource
- *		error the 'curr' index get the value of 'first' to indicate
- *		that the ring returned to its state before trying to transmit
- *		this packet.
- *
- *		Receive operation:
- *		The eth_port_receive API set the packet information struct,
- *		passed by the caller, with received information from the
- *		'current' SDMA descriptor.
- *		It is the user responsibility to return this resource back
- *		to the Rx descriptor ring to enable the reuse of this source.
- *		Return Rx resource is done using the eth_rx_return_buff API.
- *
- *	Prior to calling the initialization routine eth_port_init() the user
- *	must set the following fields under mv643xx_private struct:
- *	port_num		User Ethernet port number.
- *	port_config		User port configuration value.
- *	port_config_extend	User port config extend value.
- *	port_sdma_config	User port SDMA config value.
- *	port_serial_control	User port serial control value.
- *
- *		This driver data flow is done using the struct pkt_info which
- *		is a unified struct for Rx and Tx operations:
- *
- *		byte_cnt	Tx/Rx descriptor buffer byte count.
- *		l4i_chk		CPU provided TCP Checksum. For Tx operation
- *				only.
- *		cmd_sts		Tx/Rx descriptor command status.
- *		buf_ptr		Tx/Rx descriptor buffer pointer.
- *		return_info	Tx/Rx user resource return information.
- */
-
-/* Ethernet Port routines */
-static void eth_port_set_filter_table_entry(struct mv643xx_private *mp,
-					    int table, unsigned char entry);
-
-/*
- * eth_port_init - Initialize the Ethernet port driver
- *
- * DESCRIPTION:
- *	This function prepares the ethernet port to start its activity:
- *	1) Completes the ethernet port driver struct initialization toward port
- *		start routine.
- *	2) Resets the device to a quiescent state in case of warm reboot.
- *	3) Enable SDMA access to all four DRAM banks as well as internal SRAM.
- *	4) Clean MAC tables. The reset status of those tables is unknown.
- *	5) Set PHY address.
- *	Note: Call this routine prior to eth_port_start routine and after
- *	setting user values in the user fields of Ethernet port control
- *	struct.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet port control struct
- *
- * OUTPUT:
- *	See description.
- *
- * RETURN:
- *	None.
- */
-static void eth_port_init(struct mv643xx_private *mp)
-{
-	mp->rx_resource_err = 0;
-
-	eth_port_reset(mp);
-
-	eth_port_init_mac_tables(mp);
-}
-
-/*
- * eth_port_start - Start the Ethernet port activity.
- *
- * DESCRIPTION:
- *	This routine prepares the Ethernet port for Rx and Tx activity:
- *	 1. Initialize Tx and Rx Current Descriptor Pointer for each queue that
- *	    has been initialized a descriptor's ring (using
- *	    ether_init_tx_desc_ring for Tx and ether_init_rx_desc_ring for Rx)
- *	 2. Initialize and enable the Ethernet configuration port by writing to
- *	    the port's configuration and command registers.
- *	 3. Initialize and enable the SDMA by writing to the SDMA's
- *	    configuration and command registers.  After completing these steps,
- *	    the ethernet port SDMA can starts to perform Rx and Tx activities.
- *
- *	Note: Each Rx and Tx queue descriptor's list must be initialized prior
- *	to calling this function (use ether_init_tx_desc_ring for Tx queues
- *	and ether_init_rx_desc_ring for Rx queues).
- *
- * INPUT:
- *	dev - a pointer to the required interface
- *
- * OUTPUT:
- *	Ethernet port is ready to receive and transmit.
- *
- * RETURN:
- *	None.
- */
-static void eth_port_start(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned int port_num = mp->port_num;
-	int tx_curr_desc, rx_curr_desc;
-	u32 pscr;
-	struct ethtool_cmd ethtool_cmd;
-
-	/* Assignment of Tx CTRP of given queue */
-	tx_curr_desc = mp->tx_curr_desc_q;
-	wrl(mp, TX_CURRENT_QUEUE_DESC_PTR_0(port_num),
-		(u32)((struct eth_tx_desc *)mp->tx_desc_dma + tx_curr_desc));
-
-	/* Assignment of Rx CRDP of given queue */
-	rx_curr_desc = mp->rx_curr_desc_q;
-	wrl(mp, RX_CURRENT_QUEUE_DESC_PTR_0(port_num),
-		(u32)((struct eth_rx_desc *)mp->rx_desc_dma + rx_curr_desc));
-
-	/* Add the assigned Ethernet address to the port's address table */
-	eth_port_uc_addr_set(mp, dev->dev_addr);
-
-	/* Assign port configuration and command. */
-	wrl(mp, PORT_CONFIG_REG(port_num),
-			  PORT_CONFIG_DEFAULT_VALUE);
-
-	wrl(mp, PORT_CONFIG_EXTEND_REG(port_num),
-			  PORT_CONFIG_EXTEND_DEFAULT_VALUE);
-
-	pscr = rdl(mp, PORT_SERIAL_CONTROL_REG(port_num));
-
-	pscr &= ~(SERIAL_PORT_ENABLE | FORCE_LINK_PASS);
-	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), pscr);
-
-	pscr |= DISABLE_AUTO_NEG_FOR_FLOW_CTRL |
-		DISABLE_AUTO_NEG_SPEED_GMII    |
-		DISABLE_AUTO_NEG_FOR_DUPLX     |
-		DO_NOT_FORCE_LINK_FAIL	   |
-		SERIAL_PORT_CONTROL_RESERVED;
-
-	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), pscr);
-
-	pscr |= SERIAL_PORT_ENABLE;
-	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), pscr);
-
-	/* Assign port SDMA configuration */
-	wrl(mp, SDMA_CONFIG_REG(port_num),
-			  PORT_SDMA_CONFIG_DEFAULT_VALUE);
-
-	/* Enable port Rx. */
-	mv643xx_eth_port_enable_rx(mp, ETH_RX_QUEUES_ENABLED);
-
-	/* Disable port bandwidth limits by clearing MTU register */
-	wrl(mp, MAXIMUM_TRANSMIT_UNIT(port_num), 0);
-
-	/* save phy settings across reset */
-	mv643xx_get_settings(dev, &ethtool_cmd);
-	ethernet_phy_reset(mp);
-	mv643xx_set_settings(dev, &ethtool_cmd);
-}
-
-/*
- * eth_port_uc_addr_set - Write a MAC address into the port's hw registers
- */
-static void eth_port_uc_addr_set(struct mv643xx_private *mp,
-				 unsigned char *p_addr)
-{
-	unsigned int port_num = mp->port_num;
-	unsigned int mac_h;
-	unsigned int mac_l;
-	int table;
-
-	mac_l = (p_addr[4] << 8) | (p_addr[5]);
-	mac_h = (p_addr[0] << 24) | (p_addr[1] << 16) | (p_addr[2] << 8) |
-							(p_addr[3] << 0);
-
-	wrl(mp, MAC_ADDR_LOW(port_num), mac_l);
-	wrl(mp, MAC_ADDR_HIGH(port_num), mac_h);
-
-	/* Accept frames with this address */
-	table = DA_FILTER_UNICAST_TABLE_BASE(port_num);
-	eth_port_set_filter_table_entry(mp, table, p_addr[5] & 0x0f);
-}
-
-/*
- * eth_port_uc_addr_get - Read the MAC address from the port's hw registers
- */
-static void eth_port_uc_addr_get(struct mv643xx_private *mp,
-				 unsigned char *p_addr)
-{
-	unsigned int port_num = mp->port_num;
-	unsigned int mac_h;
-	unsigned int mac_l;
-
-	mac_h = rdl(mp, MAC_ADDR_HIGH(port_num));
-	mac_l = rdl(mp, MAC_ADDR_LOW(port_num));
-
-	p_addr[0] = (mac_h >> 24) & 0xff;
-	p_addr[1] = (mac_h >> 16) & 0xff;
-	p_addr[2] = (mac_h >> 8) & 0xff;
-	p_addr[3] = mac_h & 0xff;
-	p_addr[4] = (mac_l >> 8) & 0xff;
-	p_addr[5] = mac_l & 0xff;
-}
-
-/*
- * The entries in each table are indexed by a hash of a packet's MAC
- * address.  One bit in each entry determines whether the packet is
- * accepted.  There are 4 entries (each 8 bits wide) in each register
- * of the table.  The bits in each entry are defined as follows:
- *	0	Accept=1, Drop=0
- *	3-1	Queue			(ETH_Q0=0)
- *	7-4	Reserved = 0;
- */
-static void eth_port_set_filter_table_entry(struct mv643xx_private *mp,
-					    int table, unsigned char entry)
-{
-	unsigned int table_reg;
-	unsigned int tbl_offset;
-	unsigned int reg_offset;
-
-	tbl_offset = (entry / 4) * 4;	/* Register offset of DA table entry */
-	reg_offset = entry % 4;		/* Entry offset within the register */
-
-	/* Set "accepts frame bit" at specified table entry */
-	table_reg = rdl(mp, table + tbl_offset);
-	table_reg |= 0x01 << (8 * reg_offset);
-	wrl(mp, table + tbl_offset, table_reg);
-}
-
-/*
- * eth_port_mc_addr - Multicast address settings.
- *
- * The MV device supports multicast using two tables:
- * 1) Special Multicast Table for MAC addresses of the form
- *    0x01-00-5E-00-00-XX (where XX is between 0x00 and 0x_FF).
- *    The MAC DA[7:0] bits are used as a pointer to the Special Multicast
- *    Table entries in the DA-Filter table.
- * 2) Other Multicast Table for multicast of another type. A CRC-8bit
- *    is used as an index to the Other Multicast Table entries in the
- *    DA-Filter table.  This function calculates the CRC-8bit value.
- * In either case, eth_port_set_filter_table_entry() is then called
- * to set to set the actual table entry.
- */
-static void eth_port_mc_addr(struct mv643xx_private *mp, unsigned char *p_addr)
-{
-	unsigned int port_num = mp->port_num;
-	unsigned int mac_h;
-	unsigned int mac_l;
-	unsigned char crc_result = 0;
-	int table;
-	int mac_array[48];
-	int crc[8];
-	int i;
-
-	if ((p_addr[0] == 0x01) && (p_addr[1] == 0x00) &&
-	    (p_addr[2] == 0x5E) && (p_addr[3] == 0x00) && (p_addr[4] == 0x00)) {
-		table = DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(port_num);
-		eth_port_set_filter_table_entry(mp, table, p_addr[5]);
-		return;
-	}
-
-	/* Calculate CRC-8 out of the given address */
-	mac_h = (p_addr[0] << 8) | (p_addr[1]);
-	mac_l = (p_addr[2] << 24) | (p_addr[3] << 16) |
-			(p_addr[4] << 8) | (p_addr[5] << 0);
-
-	for (i = 0; i < 32; i++)
-		mac_array[i] = (mac_l >> i) & 0x1;
-	for (i = 32; i < 48; i++)
-		mac_array[i] = (mac_h >> (i - 32)) & 0x1;
-
-	crc[0] = mac_array[45] ^ mac_array[43] ^ mac_array[40] ^ mac_array[39] ^
-		 mac_array[35] ^ mac_array[34] ^ mac_array[31] ^ mac_array[30] ^
-		 mac_array[28] ^ mac_array[23] ^ mac_array[21] ^ mac_array[19] ^
-		 mac_array[18] ^ mac_array[16] ^ mac_array[14] ^ mac_array[12] ^
-		 mac_array[8]  ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[0];
-
-	crc[1] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
-		 mac_array[41] ^ mac_array[39] ^ mac_array[36] ^ mac_array[34] ^
-		 mac_array[32] ^ mac_array[30] ^ mac_array[29] ^ mac_array[28] ^
-		 mac_array[24] ^ mac_array[23] ^ mac_array[22] ^ mac_array[21] ^
-		 mac_array[20] ^ mac_array[18] ^ mac_array[17] ^ mac_array[16] ^
-		 mac_array[15] ^ mac_array[14] ^ mac_array[13] ^ mac_array[12] ^
-		 mac_array[9]  ^ mac_array[6]  ^ mac_array[1]  ^ mac_array[0];
-
-	crc[2] = mac_array[47] ^ mac_array[46] ^ mac_array[44] ^ mac_array[43] ^
-		 mac_array[42] ^ mac_array[39] ^ mac_array[37] ^ mac_array[34] ^
-		 mac_array[33] ^ mac_array[29] ^ mac_array[28] ^ mac_array[25] ^
-		 mac_array[24] ^ mac_array[22] ^ mac_array[17] ^ mac_array[15] ^
-		 mac_array[13] ^ mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^
-		 mac_array[6]  ^ mac_array[2]  ^ mac_array[1]  ^ mac_array[0];
-
-	crc[3] = mac_array[47] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
-		 mac_array[40] ^ mac_array[38] ^ mac_array[35] ^ mac_array[34] ^
-		 mac_array[30] ^ mac_array[29] ^ mac_array[26] ^ mac_array[25] ^
-		 mac_array[23] ^ mac_array[18] ^ mac_array[16] ^ mac_array[14] ^
-		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[7]  ^
-		 mac_array[3]  ^ mac_array[2]  ^ mac_array[1];
-
-	crc[4] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[41] ^
-		 mac_array[39] ^ mac_array[36] ^ mac_array[35] ^ mac_array[31] ^
-		 mac_array[30] ^ mac_array[27] ^ mac_array[26] ^ mac_array[24] ^
-		 mac_array[19] ^ mac_array[17] ^ mac_array[15] ^ mac_array[14] ^
-		 mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^ mac_array[4]  ^
-		 mac_array[3]  ^ mac_array[2];
-
-	crc[5] = mac_array[47] ^ mac_array[46] ^ mac_array[45] ^ mac_array[42] ^
-		 mac_array[40] ^ mac_array[37] ^ mac_array[36] ^ mac_array[32] ^
-		 mac_array[31] ^ mac_array[28] ^ mac_array[27] ^ mac_array[25] ^
-		 mac_array[20] ^ mac_array[18] ^ mac_array[16] ^ mac_array[15] ^
-		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[5]  ^
-		 mac_array[4]  ^ mac_array[3];
-
-	crc[6] = mac_array[47] ^ mac_array[46] ^ mac_array[43] ^ mac_array[41] ^
-		 mac_array[38] ^ mac_array[37] ^ mac_array[33] ^ mac_array[32] ^
-		 mac_array[29] ^ mac_array[28] ^ mac_array[26] ^ mac_array[21] ^
-		 mac_array[19] ^ mac_array[17] ^ mac_array[16] ^ mac_array[14] ^
-		 mac_array[12] ^ mac_array[10] ^ mac_array[6]  ^ mac_array[5]  ^
-		 mac_array[4];
-
-	crc[7] = mac_array[47] ^ mac_array[44] ^ mac_array[42] ^ mac_array[39] ^
-		 mac_array[38] ^ mac_array[34] ^ mac_array[33] ^ mac_array[30] ^
-		 mac_array[29] ^ mac_array[27] ^ mac_array[22] ^ mac_array[20] ^
-		 mac_array[18] ^ mac_array[17] ^ mac_array[15] ^ mac_array[13] ^
-		 mac_array[11] ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[5];
-
-	for (i = 0; i < 8; i++)
-		crc_result = crc_result | (crc[i] << i);
-
-	table = DA_FILTER_OTHER_MULTICAST_TABLE_BASE(port_num);
-	eth_port_set_filter_table_entry(mp, table, crc_result);
-}
-
-/*
- * Set the entire multicast list based on dev->mc_list.
- */
-static void eth_port_set_multicast_list(struct net_device *dev)
-{
-
-	struct dev_mc_list	*mc_list;
-	int			i;
-	int			table_index;
-	struct mv643xx_private	*mp = netdev_priv(dev);
-	unsigned int		eth_port_num = mp->port_num;
-
-	/* If the device is in promiscuous mode or in all multicast mode,
-	 * we will fully populate both multicast tables with accept.
-	 * This is guaranteed to yield a match on all multicast addresses...
-	 */
-	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI)) {
-		for (table_index = 0; table_index <= 0xFC; table_index += 4) {
-			/* Set all entries in DA filter special multicast
-			 * table (Ex_dFSMT)
-			 * Set for ETH_Q0 for now
-			 * Bits
-			 * 0	  Accept=1, Drop=0
-			 * 3-1  Queue	 ETH_Q0=0
-			 * 7-4  Reserved = 0;
-			 */
-			wrl(mp, DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
-
-			/* Set all entries in DA filter other multicast
-			 * table (Ex_dFOMT)
-			 * Set for ETH_Q0 for now
-			 * Bits
-			 * 0	  Accept=1, Drop=0
-			 * 3-1  Queue	 ETH_Q0=0
-			 * 7-4  Reserved = 0;
-			 */
-			wrl(mp, DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
-		}
-		return;
-	}
-
-	/* We will clear out multicast tables every time we get the list.
-	 * Then add the entire new list...
-	 */
-	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
-		/* Clear DA filter special multicast table (Ex_dFSMT) */
-		wrl(mp, DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
-				(eth_port_num) + table_index, 0);
-
-		/* Clear DA filter other multicast table (Ex_dFOMT) */
-		wrl(mp, DA_FILTER_OTHER_MULTICAST_TABLE_BASE
-				(eth_port_num) + table_index, 0);
-	}
-
-	/* Get pointer to net_device multicast list and add each one... */
-	for (i = 0, mc_list = dev->mc_list;
-			(i < 256) && (mc_list != NULL) && (i < dev->mc_count);
-			i++, mc_list = mc_list->next)
-		if (mc_list->dmi_addrlen == 6)
-			eth_port_mc_addr(mp, mc_list->dmi_addr);
-}
-
-/*
- * eth_port_init_mac_tables - Clear all entrance in the UC, SMC and OMC tables
- *
- * DESCRIPTION:
- *	Go through all the DA filter tables (Unicast, Special Multicast &
- *	Other Multicast) and set each entry to 0.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *
- * OUTPUT:
- *	Multicast and Unicast packets are rejected.
- *
- * RETURN:
- *	None.
- */
-static void eth_port_init_mac_tables(struct mv643xx_private *mp)
-{
-	unsigned int port_num = mp->port_num;
-	int table_index;
-
-	/* Clear DA filter unicast table (Ex_dFUT) */
-	for (table_index = 0; table_index <= 0xC; table_index += 4)
-		wrl(mp, DA_FILTER_UNICAST_TABLE_BASE(port_num) +
-					table_index, 0);
-
-	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
-		/* Clear DA filter special multicast table (Ex_dFSMT) */
-		wrl(mp, DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(port_num) +
-					table_index, 0);
-		/* Clear DA filter other multicast table (Ex_dFOMT) */
-		wrl(mp, DA_FILTER_OTHER_MULTICAST_TABLE_BASE(port_num) +
-					table_index, 0);
-	}
-}
-
-/*
- * eth_clear_mib_counters - Clear all MIB counters
- *
- * DESCRIPTION:
- *	This function clears all MIB counters of a specific ethernet port.
- *	A read from the MIB counter will reset the counter.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *
- * OUTPUT:
- *	After reading all MIB counters, the counters resets.
- *
- * RETURN:
- *	MIB counter value.
- *
- */
-static void eth_clear_mib_counters(struct mv643xx_private *mp)
-{
-	unsigned int port_num = mp->port_num;
-	int i;
-
-	/* Perform dummy reads from MIB counters */
-	for (i = ETH_MIB_GOOD_OCTETS_RECEIVED_LOW; i < ETH_MIB_LATE_COLLISION;
-									i += 4)
-		rdl(mp, MIB_COUNTERS_BASE(port_num) + i);
-}
-
-static inline u32 read_mib(struct mv643xx_private *mp, int offset)
-{
-	return rdl(mp, MIB_COUNTERS_BASE(mp->port_num) + offset);
-}
-
-static void eth_update_mib_counters(struct mv643xx_private *mp)
-{
-	struct mv643xx_mib_counters *p = &mp->mib_counters;
-	int offset;
-
-	p->good_octets_received +=
-		read_mib(mp, ETH_MIB_GOOD_OCTETS_RECEIVED_LOW);
-	p->good_octets_received +=
-		(u64)read_mib(mp, ETH_MIB_GOOD_OCTETS_RECEIVED_HIGH) << 32;
-
-	for (offset = ETH_MIB_BAD_OCTETS_RECEIVED;
-			offset <= ETH_MIB_FRAMES_1024_TO_MAX_OCTETS;
-			offset += 4)
-		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
-
-	p->good_octets_sent += read_mib(mp, ETH_MIB_GOOD_OCTETS_SENT_LOW);
-	p->good_octets_sent +=
-		(u64)read_mib(mp, ETH_MIB_GOOD_OCTETS_SENT_HIGH) << 32;
-
-	for (offset = ETH_MIB_GOOD_FRAMES_SENT;
-			offset <= ETH_MIB_LATE_COLLISION;
-			offset += 4)
-		*(u32 *)((char *)p + offset) += read_mib(mp, offset);
-}
-
-/*
- * ethernet_phy_detect - Detect whether a phy is present
- *
- * DESCRIPTION:
- *	This function tests whether there is a PHY present on
- *	the specified port.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *
- * OUTPUT:
- *	None
- *
- * RETURN:
- *	0 on success
- *	-ENODEV on failure
- *
- */
-static int ethernet_phy_detect(struct mv643xx_private *mp)
-{
-	unsigned int phy_reg_data0;
-	int auto_neg;
-
-	eth_port_read_smi_reg(mp, 0, &phy_reg_data0);
-	auto_neg = phy_reg_data0 & 0x1000;
-	phy_reg_data0 ^= 0x1000;	/* invert auto_neg */
-	eth_port_write_smi_reg(mp, 0, phy_reg_data0);
-
-	eth_port_read_smi_reg(mp, 0, &phy_reg_data0);
-	if ((phy_reg_data0 & 0x1000) == auto_neg)
-		return -ENODEV;				/* change didn't take */
-
-	phy_reg_data0 ^= 0x1000;
-	eth_port_write_smi_reg(mp, 0, phy_reg_data0);
-	return 0;
-}
-
-/*
- * ethernet_phy_get - Get the ethernet port PHY address.
- *
- * DESCRIPTION:
- *	This routine returns the given ethernet port PHY address.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *
- * OUTPUT:
- *	None.
- *
- * RETURN:
- *	PHY address.
- *
- */
-static int ethernet_phy_get(struct mv643xx_private *mp)
-{
-	unsigned int reg_data;
-
-	reg_data = rdl(mp, PHY_ADDR_REG);
-
-	return ((reg_data >> (5 * mp->port_num)) & 0x1f);
-}
-
-/*
- * ethernet_phy_set - Set the ethernet port PHY address.
- *
- * DESCRIPTION:
- *	This routine sets the given ethernet port PHY address.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *	int		phy_addr	PHY address.
- *
- * OUTPUT:
- *	None.
- *
- * RETURN:
- *	None.
- *
- */
-static void ethernet_phy_set(struct mv643xx_private *mp, int phy_addr)
-{
-	u32 reg_data;
-	int addr_shift = 5 * mp->port_num;
-
-	reg_data = rdl(mp, PHY_ADDR_REG);
-	reg_data &= ~(0x1f << addr_shift);
-	reg_data |= (phy_addr & 0x1f) << addr_shift;
-	wrl(mp, PHY_ADDR_REG, reg_data);
-}
-
-/*
- * ethernet_phy_reset - Reset Ethernet port PHY.
- *
- * DESCRIPTION:
- *	This routine utilizes the SMI interface to reset the ethernet port PHY.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *
- * OUTPUT:
- *	The PHY is reset.
- *
- * RETURN:
- *	None.
- *
- */
-static void ethernet_phy_reset(struct mv643xx_private *mp)
-{
-	unsigned int phy_reg_data;
-
-	/* Reset the PHY */
-	eth_port_read_smi_reg(mp, 0, &phy_reg_data);
-	phy_reg_data |= 0x8000;	/* Set bit 15 to reset the PHY */
-	eth_port_write_smi_reg(mp, 0, phy_reg_data);
-
-	/* wait for PHY to come out of reset */
-	do {
-		udelay(1);
-		eth_port_read_smi_reg(mp, 0, &phy_reg_data);
-	} while (phy_reg_data & 0x8000);
-}
-
-static void mv643xx_eth_port_enable_tx(struct mv643xx_private *mp,
-					unsigned int queues)
-{
-	wrl(mp, TRANSMIT_QUEUE_COMMAND_REG(mp->port_num), queues);
-}
-
-static void mv643xx_eth_port_enable_rx(struct mv643xx_private *mp,
-					unsigned int queues)
-{
-	wrl(mp, RECEIVE_QUEUE_COMMAND_REG(mp->port_num), queues);
-}
-
-static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_private *mp)
-{
-	unsigned int port_num = mp->port_num;
-	u32 queues;
-
-	/* Stop Tx port activity. Check port Tx activity. */
-	queues = rdl(mp, TRANSMIT_QUEUE_COMMAND_REG(port_num)) & 0xFF;
-	if (queues) {
-		/* Issue stop command for active queues only */
-		wrl(mp, TRANSMIT_QUEUE_COMMAND_REG(port_num), (queues << 8));
-
-		/* Wait for all Tx activity to terminate. */
-		/* Check port cause register that all Tx queues are stopped */
-		while (rdl(mp, TRANSMIT_QUEUE_COMMAND_REG(port_num)) & 0xFF)
-			udelay(PHY_WAIT_MICRO_SECONDS);
-
-		/* Wait for Tx FIFO to empty */
-		while (rdl(mp, PORT_STATUS_REG(port_num)) &
-							ETH_PORT_TX_FIFO_EMPTY)
-			udelay(PHY_WAIT_MICRO_SECONDS);
-	}
-
-	return queues;
-}
-
-static unsigned int mv643xx_eth_port_disable_rx(struct mv643xx_private *mp)
-{
-	unsigned int port_num = mp->port_num;
-	u32 queues;
-
-	/* Stop Rx port activity. Check port Rx activity. */
-	queues = rdl(mp, RECEIVE_QUEUE_COMMAND_REG(port_num)) & 0xFF;
-	if (queues) {
-		/* Issue stop command for active queues only */
-		wrl(mp, RECEIVE_QUEUE_COMMAND_REG(port_num), (queues << 8));
-
-		/* Wait for all Rx activity to terminate. */
-		/* Check port cause register that all Rx queues are stopped */
-		while (rdl(mp, RECEIVE_QUEUE_COMMAND_REG(port_num)) & 0xFF)
-			udelay(PHY_WAIT_MICRO_SECONDS);
-	}
-
-	return queues;
-}
-
-/*
- * eth_port_reset - Reset Ethernet port
- *
- * DESCRIPTION:
- * 	This routine resets the chip by aborting any SDMA engine activity and
- *	clearing the MIB counters. The Receiver and the Transmit unit are in
- *	idle state after this command is performed and the port is disabled.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *
- * OUTPUT:
- *	Channel activity is halted.
- *
- * RETURN:
- *	None.
- *
- */
-static void eth_port_reset(struct mv643xx_private *mp)
-{
-	unsigned int port_num = mp->port_num;
-	unsigned int reg_data;
-
-	mv643xx_eth_port_disable_tx(mp);
-	mv643xx_eth_port_disable_rx(mp);
-
-	/* Clear all MIB counters */
-	eth_clear_mib_counters(mp);
-
-	/* Reset the Enable bit in the Configuration Register */
-	reg_data = rdl(mp, PORT_SERIAL_CONTROL_REG(port_num));
-	reg_data &= ~(SERIAL_PORT_ENABLE		|
-			DO_NOT_FORCE_LINK_FAIL	|
-			FORCE_LINK_PASS);
-	wrl(mp, PORT_SERIAL_CONTROL_REG(port_num), reg_data);
-}
-
-
-/*
- * eth_port_read_smi_reg - Read PHY registers
- *
- * DESCRIPTION:
- *	This routine utilize the SMI interface to interact with the PHY in
- *	order to perform PHY register read.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *	unsigned int	phy_reg		PHY register address offset.
- *	unsigned int	*value		Register value buffer.
- *
- * OUTPUT:
- *	Write the value of a specified PHY register into given buffer.
- *
- * RETURN:
- *	false if the PHY is busy or read data is not in valid state.
- *	true otherwise.
- *
- */
-static void eth_port_read_smi_reg(struct mv643xx_private *mp,
-				unsigned int phy_reg, unsigned int *value)
-{
-	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
-	int phy_addr = ethernet_phy_get(mp);
-	unsigned long flags;
-	int i;
-
-	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
-
-	/* wait for the SMI register to become available */
-	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
-		if (i == PHY_WAIT_ITERATIONS) {
-			printk("%s: PHY busy timeout\n", mp->dev->name);
-			goto out;
-		}
-		udelay(PHY_WAIT_MICRO_SECONDS);
-	}
-
-	writel((phy_addr << 16) | (phy_reg << 21) | ETH_SMI_OPCODE_READ,
-		smi_reg);
-
-	/* now wait for the data to be valid */
-	for (i = 0; !(readl(smi_reg) & ETH_SMI_READ_VALID); i++) {
-		if (i == PHY_WAIT_ITERATIONS) {
-			printk("%s: PHY read timeout\n", mp->dev->name);
-			goto out;
-		}
-		udelay(PHY_WAIT_MICRO_SECONDS);
-	}
-
-	*value = readl(smi_reg) & 0xffff;
-out:
-	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
-}
-
-/*
- * eth_port_write_smi_reg - Write to PHY registers
- *
- * DESCRIPTION:
- *	This routine utilize the SMI interface to interact with the PHY in
- *	order to perform writes to PHY registers.
- *
- * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
- *	unsigned int	phy_reg		PHY register address offset.
- *	unsigned int	value		Register value.
- *
- * OUTPUT:
- *	Write the given value to the specified PHY register.
- *
- * RETURN:
- *	false if the PHY is busy.
- *	true otherwise.
- *
- */
-static void eth_port_write_smi_reg(struct mv643xx_private *mp,
-				   unsigned int phy_reg, unsigned int value)
-{
-	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
-	int phy_addr = ethernet_phy_get(mp);
-	unsigned long flags;
-	int i;
-
-	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
-
-	/* wait for the SMI register to become available */
-	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
-		if (i == PHY_WAIT_ITERATIONS) {
-			printk("%s: PHY busy timeout\n", mp->dev->name);
-			goto out;
-		}
-		udelay(PHY_WAIT_MICRO_SECONDS);
-	}
-
-	writel((phy_addr << 16) | (phy_reg << 21) |
-		ETH_SMI_OPCODE_WRITE | (value & 0xffff), smi_reg);
-out:
-	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
-}
-
-/*
- * Wrappers for MII support library.
- */
-static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	int val;
-
-	eth_port_read_smi_reg(mp, location, &val);
-	return val;
-}
-
-static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	eth_port_write_smi_reg(mp, location, val);
-}
-
-/*
- * eth_port_receive - Get received information from Rx ring.
- *
- * DESCRIPTION:
- * 	This routine returns the received data to the caller. There is no
- *	data copying during routine operation. All information is returned
- *	using pointer to packet information struct passed from the caller.
- *	If the routine exhausts Rx ring resources then the resource error flag
- *	is set.
- *
- * INPUT:
- *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
- *	struct pkt_info		*p_pkt_info	User packet buffer.
- *
- * OUTPUT:
- *	Rx ring current and used indexes are updated.
- *
- * RETURN:
- *	ETH_ERROR in case the routine can not access Rx desc ring.
- *	ETH_QUEUE_FULL if Rx ring resources are exhausted.
- *	ETH_END_OF_JOB if there is no received data.
- *	ETH_OK otherwise.
- */
-static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
-						struct pkt_info *p_pkt_info)
-{
-	int rx_next_curr_desc, rx_curr_desc, rx_used_desc;
-	volatile struct eth_rx_desc *p_rx_desc;
-	unsigned int command_status;
-	unsigned long flags;
-
-	/* Do not process Rx ring in case of Rx ring resource error */
-	if (mp->rx_resource_err)
-		return ETH_QUEUE_FULL;
-
-	spin_lock_irqsave(&mp->lock, flags);
-
-	/* Get the Rx Desc ring 'curr and 'used' indexes */
-	rx_curr_desc = mp->rx_curr_desc_q;
-	rx_used_desc = mp->rx_used_desc_q;
-
-	p_rx_desc = &mp->p_rx_desc_area[rx_curr_desc];
-
-	/* The following parameters are used to save readings from memory */
-	command_status = p_rx_desc->cmd_sts;
-	rmb();
-
-	/* Nothing to receive... */
-	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
-		spin_unlock_irqrestore(&mp->lock, flags);
-		return ETH_END_OF_JOB;
-	}
-
-	p_pkt_info->byte_cnt = (p_rx_desc->byte_cnt) - RX_BUF_OFFSET;
-	p_pkt_info->cmd_sts = command_status;
-	p_pkt_info->buf_ptr = (p_rx_desc->buf_ptr) + RX_BUF_OFFSET;
-	p_pkt_info->return_info = mp->rx_skb[rx_curr_desc];
-	p_pkt_info->l4i_chk = p_rx_desc->buf_size;
-
-	/*
-	 * Clean the return info field to indicate that the
-	 * packet has been moved to the upper layers
-	 */
-	mp->rx_skb[rx_curr_desc] = NULL;
-
-	/* Update current index in data structure */
-	rx_next_curr_desc = (rx_curr_desc + 1) % mp->rx_ring_size;
-	mp->rx_curr_desc_q = rx_next_curr_desc;
-
-	/* Rx descriptors exhausted. Set the Rx ring resource error flag */
-	if (rx_next_curr_desc == rx_used_desc)
-		mp->rx_resource_err = 1;
-
-	spin_unlock_irqrestore(&mp->lock, flags);
-
-	return ETH_OK;
-}
-
-/*
- * eth_rx_return_buff - Returns a Rx buffer back to the Rx ring.
- *
- * DESCRIPTION:
- *	This routine returns a Rx buffer back to the Rx ring. It retrieves the
- *	next 'used' descriptor and attached the returned buffer to it.
- *	In case the Rx ring was in "resource error" condition, where there are
- *	no available Rx resources, the function resets the resource error flag.
- *
- * INPUT:
- *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
- *	struct pkt_info		*p_pkt_info	Information on returned buffer.
- *
- * OUTPUT:
- *	New available Rx resource in Rx descriptor ring.
- *
- * RETURN:
- *	ETH_ERROR in case the routine can not access Rx desc ring.
- *	ETH_OK otherwise.
- */
-static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
-						struct pkt_info *p_pkt_info)
-{
-	int used_rx_desc;	/* Where to return Rx resource */
-	volatile struct eth_rx_desc *p_used_rx_desc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-
-	/* Get 'used' Rx descriptor */
-	used_rx_desc = mp->rx_used_desc_q;
-	p_used_rx_desc = &mp->p_rx_desc_area[used_rx_desc];
-
-	p_used_rx_desc->buf_ptr = p_pkt_info->buf_ptr;
-	p_used_rx_desc->buf_size = p_pkt_info->byte_cnt;
-	mp->rx_skb[used_rx_desc] = p_pkt_info->return_info;
-
-	/* Flush the write pipe */
-
-	/* Return the descriptor to DMA ownership */
-	wmb();
-	p_used_rx_desc->cmd_sts =
-			ETH_BUFFER_OWNED_BY_DMA | ETH_RX_ENABLE_INTERRUPT;
-	wmb();
-
-	/* Move the used descriptor pointer to the next descriptor */
-	mp->rx_used_desc_q = (used_rx_desc + 1) % mp->rx_ring_size;
-
-	/* Any Rx return cancels the Rx resource error status */
-	mp->rx_resource_err = 0;
-
-	spin_unlock_irqrestore(&mp->lock, flags);
-
-	return ETH_OK;
-}
-
-/************* Begin ethtool support *************************/
-
-struct mv643xx_stats {
-	char stat_string[ETH_GSTRING_LEN];
-	int sizeof_stat;
-	int stat_offset;
-};
-
-#define MV643XX_STAT(m) FIELD_SIZEOF(struct mv643xx_private, m), \
-					offsetof(struct mv643xx_private, m)
-
-static const struct mv643xx_stats mv643xx_gstrings_stats[] = {
-	{ "rx_packets", MV643XX_STAT(stats.rx_packets) },
-	{ "tx_packets", MV643XX_STAT(stats.tx_packets) },
-	{ "rx_bytes", MV643XX_STAT(stats.rx_bytes) },
-	{ "tx_bytes", MV643XX_STAT(stats.tx_bytes) },
-	{ "rx_errors", MV643XX_STAT(stats.rx_errors) },
-	{ "tx_errors", MV643XX_STAT(stats.tx_errors) },
-	{ "rx_dropped", MV643XX_STAT(stats.rx_dropped) },
-	{ "tx_dropped", MV643XX_STAT(stats.tx_dropped) },
-	{ "good_octets_received", MV643XX_STAT(mib_counters.good_octets_received) },
-	{ "bad_octets_received", MV643XX_STAT(mib_counters.bad_octets_received) },
-	{ "internal_mac_transmit_err", MV643XX_STAT(mib_counters.internal_mac_transmit_err) },
-	{ "good_frames_received", MV643XX_STAT(mib_counters.good_frames_received) },
-	{ "bad_frames_received", MV643XX_STAT(mib_counters.bad_frames_received) },
-	{ "broadcast_frames_received", MV643XX_STAT(mib_counters.broadcast_frames_received) },
-	{ "multicast_frames_received", MV643XX_STAT(mib_counters.multicast_frames_received) },
-	{ "frames_64_octets", MV643XX_STAT(mib_counters.frames_64_octets) },
-	{ "frames_65_to_127_octets", MV643XX_STAT(mib_counters.frames_65_to_127_octets) },
-	{ "frames_128_to_255_octets", MV643XX_STAT(mib_counters.frames_128_to_255_octets) },
-	{ "frames_256_to_511_octets", MV643XX_STAT(mib_counters.frames_256_to_511_octets) },
-	{ "frames_512_to_1023_octets", MV643XX_STAT(mib_counters.frames_512_to_1023_octets) },
-	{ "frames_1024_to_max_octets", MV643XX_STAT(mib_counters.frames_1024_to_max_octets) },
-	{ "good_octets_sent", MV643XX_STAT(mib_counters.good_octets_sent) },
-	{ "good_frames_sent", MV643XX_STAT(mib_counters.good_frames_sent) },
-	{ "excessive_collision", MV643XX_STAT(mib_counters.excessive_collision) },
-	{ "multicast_frames_sent", MV643XX_STAT(mib_counters.multicast_frames_sent) },
-	{ "broadcast_frames_sent", MV643XX_STAT(mib_counters.broadcast_frames_sent) },
-	{ "unrec_mac_control_received", MV643XX_STAT(mib_counters.unrec_mac_control_received) },
-	{ "fc_sent", MV643XX_STAT(mib_counters.fc_sent) },
-	{ "good_fc_received", MV643XX_STAT(mib_counters.good_fc_received) },
-	{ "bad_fc_received", MV643XX_STAT(mib_counters.bad_fc_received) },
-	{ "undersize_received", MV643XX_STAT(mib_counters.undersize_received) },
-	{ "fragments_received", MV643XX_STAT(mib_counters.fragments_received) },
-	{ "oversize_received", MV643XX_STAT(mib_counters.oversize_received) },
-	{ "jabber_received", MV643XX_STAT(mib_counters.jabber_received) },
-	{ "mac_receive_error", MV643XX_STAT(mib_counters.mac_receive_error) },
-	{ "bad_crc_event", MV643XX_STAT(mib_counters.bad_crc_event) },
-	{ "collision", MV643XX_STAT(mib_counters.collision) },
-	{ "late_collision", MV643XX_STAT(mib_counters.late_collision) },
-};
-
-#define MV643XX_STATS_LEN	ARRAY_SIZE(mv643xx_gstrings_stats)
-
-static void mv643xx_get_drvinfo(struct net_device *netdev,
-				struct ethtool_drvinfo *drvinfo)
-{
-	strncpy(drvinfo->driver,  mv643xx_driver_name, 32);
-	strncpy(drvinfo->version, mv643xx_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
-	strncpy(drvinfo->bus_info, "mv643xx", 32);
-	drvinfo->n_stats = MV643XX_STATS_LEN;
-}
-
-static int mv643xx_get_sset_count(struct net_device *netdev, int sset)
-{
-	switch (sset) {
-	case ETH_SS_STATS:
-		return MV643XX_STATS_LEN;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static void mv643xx_get_ethtool_stats(struct net_device *netdev,
-				struct ethtool_stats *stats, uint64_t *data)
-{
-	struct mv643xx_private *mp = netdev->priv;
-	int i;
-
-	eth_update_mib_counters(mp);
-
-	for (i = 0; i < MV643XX_STATS_LEN; i++) {
-		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;
-		data[i] = (mv643xx_gstrings_stats[i].sizeof_stat ==
-			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
-	}
-}
-
-static void mv643xx_get_strings(struct net_device *netdev, uint32_t stringset,
-				uint8_t *data)
-{
-	int i;
-
-	switch(stringset) {
-	case ETH_SS_STATS:
-		for (i=0; i < MV643XX_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-					mv643xx_gstrings_stats[i].stat_string,
-					ETH_GSTRING_LEN);
-		}
-		break;
-	}
-}
-
-static u32 mv643xx_eth_get_link(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	return mii_link_ok(&mp->mii);
-}
-
-static int mv643xx_eth_nway_restart(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	return mii_nway_restart(&mp->mii);
-}
-
-static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
-}
-
-static const struct ethtool_ops mv643xx_ethtool_ops = {
-	.get_settings           = mv643xx_get_settings,
-	.set_settings           = mv643xx_set_settings,
-	.get_drvinfo            = mv643xx_get_drvinfo,
-	.get_link               = mv643xx_eth_get_link,
-	.set_sg			= ethtool_op_set_sg,
-	.get_sset_count		= mv643xx_get_sset_count,
-	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
-	.get_strings            = mv643xx_get_strings,
-	.nway_reset		= mv643xx_eth_nway_restart,
-};
-
-/************* End ethtool support *************************/
