@@ -572,7 +572,8 @@ allocate_request(struct fw_packet *p)
 		break;
 
 	default:
-		BUG();
+		fw_error("ERROR - corrupt request received - %08x %08x %08x\n",
+			 p->header[0], p->header[1], p->header[2]);
 		return NULL;
 	}
 
