@@ -101,6 +101,7 @@
  *		- unplugging fixed
  * 2008-05-07	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.8
+ *		- afc indication
  *		- more safety checks, let si470x_get_freq return errno
  *
  * ToDo:
@@ -1390,7 +1391,8 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 				* 0x0101;
 
 	/* automatic frequency control: -1: freq to low, 1 freq to high */
-	tuner->afc = 0;
+	/* AFCRL does only indicate that freq. differs, not if too low/high */
+	tuner->afc = (radio->registers[STATUSRSSI] & STATUSRSSI_AFCRL) ? 1 : 0;
 
 done:
 	if (retval < 0)
