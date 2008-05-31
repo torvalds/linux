@@ -169,9 +169,6 @@ static char mv643xx_driver_version[] = "1.0";
 #define PORT_DEFAULT_TRANSMIT_QUEUE_SIZE	800
 #define PORT_DEFAULT_RECEIVE_QUEUE_SIZE		400
 
-#define PHY_WAIT_ITERATIONS	1000	/* 1000 iterations * 10uS = 10mS max */
-#define PHY_WAIT_MICRO_SECONDS	10
-
 /* Buffer offset from buffer pointer */
 #define RX_BUF_OFFSET				0x2
 
@@ -484,7 +481,7 @@ static unsigned int mv643xx_eth_port_disable_rx(struct mv643xx_private *mp)
 		/* Wait for all Rx activity to terminate. */
 		/* Check port cause register that all Rx queues are stopped */
 		while (rdl(mp, RXQ_COMMAND(port_num)) & 0xFF)
-			udelay(PHY_WAIT_MICRO_SECONDS);
+			udelay(10);
 	}
 
 	return queues;
@@ -510,11 +507,11 @@ static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_private *mp)
 		/* Wait for all Tx activity to terminate. */
 		/* Check port cause register that all Tx queues are stopped */
 		while (rdl(mp, TXQ_COMMAND(port_num)) & 0xFF)
-			udelay(PHY_WAIT_MICRO_SECONDS);
+			udelay(10);
 
 		/* Wait for Tx FIFO to empty */
 		while (rdl(mp, PORT_STATUS(port_num)) & ETH_PORT_TX_FIFO_EMPTY)
-			udelay(PHY_WAIT_MICRO_SECONDS);
+			udelay(10);
 	}
 
 	return queues;
@@ -1067,11 +1064,11 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 
 	/* wait for the SMI register to become available */
 	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
-		if (i == PHY_WAIT_ITERATIONS) {
+		if (i == 1000) {
 			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
 		}
-		udelay(PHY_WAIT_MICRO_SECONDS);
+		udelay(10);
 	}
 
 	writel((phy_addr << 16) | (phy_reg << 21) | ETH_SMI_OPCODE_READ,
@@ -1079,11 +1076,11 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 
 	/* now wait for the data to be valid */
 	for (i = 0; !(readl(smi_reg) & ETH_SMI_READ_VALID); i++) {
-		if (i == PHY_WAIT_ITERATIONS) {
+		if (i == 1000) {
 			printk("%s: PHY read timeout\n", mp->dev->name);
 			goto out;
 		}
-		udelay(PHY_WAIT_MICRO_SECONDS);
+		udelay(10);
 	}
 
 	*value = readl(smi_reg) & 0xffff;
@@ -1124,11 +1121,11 @@ static void eth_port_write_smi_reg(struct mv643xx_private *mp,
 
 	/* wait for the SMI register to become available */
 	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
-		if (i == PHY_WAIT_ITERATIONS) {
+		if (i == 1000) {
 			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
 		}
-		udelay(PHY_WAIT_MICRO_SECONDS);
+		udelay(10);
 	}
 
 	writel((phy_addr << 16) | (phy_reg << 21) |
