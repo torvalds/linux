@@ -34,33 +34,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/in.h>
-#include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/etherdevice.h>
-
-#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/platform_device.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/mii.h>
-
 #include <linux/mv643xx_eth.h>
-
 #include <asm/io.h>
 #include <asm/types.h>
-#include <asm/pgtable.h>
 #include <asm/system.h>
-#include <asm/delay.h>
-#include <asm/dma-mapping.h>
 
 static char mv643xx_driver_name[] = "mv643xx_eth";
 static char mv643xx_driver_version[] = "1.0";
