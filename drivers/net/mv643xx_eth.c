@@ -320,8 +320,6 @@ struct mv643xx_eth_private {
 	u32 tx_sram_addr;		/* Base address of tx sram area */
 	u32 tx_sram_size;		/* Size of tx sram area		*/
 
-	int rx_resource_err;		/* Rx ring resource error flag */
-
 	/* Tx/Rx rings managment indexes fields. For driver use */
 
 	/* Next available and first returning Rx resource */
@@ -472,9 +470,6 @@ static FUNC_RET_STATUS rx_return_buff(struct mv643xx_eth_private *mp,
 	/* Move the used descriptor pointer to the next descriptor */
 	mp->rx_used_desc_q = (used_rx_desc + 1) % mp->rx_ring_size;
 
-	/* Any Rx return cancels the Rx resource error status */
-	mp->rx_resource_err = 0;
-
 	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
@@ -531,10 +526,6 @@ static FUNC_RET_STATUS port_receive(struct mv643xx_eth_private *mp,
 	unsigned int command_status;
 	unsigned long flags;
 
-	/* Do not process Rx ring in case of Rx ring resource error */
-	if (mp->rx_resource_err)
-		return ETH_QUEUE_FULL;
-
 	spin_lock_irqsave(&mp->lock, flags);
 
 	/* Get the Rx Desc ring 'curr and 'used' indexes */
@@ -568,10 +559,6 @@ static FUNC_RET_STATUS port_receive(struct mv643xx_eth_private *mp,
 	/* Update current index in data structure */
 	rx_next_curr_desc = (rx_curr_desc + 1) % mp->rx_ring_size;
 	mp->rx_curr_desc_q = rx_next_curr_desc;
-
-	/* Rx descriptors exhausted. Set the Rx ring resource error flag */
-	if (rx_next_curr_desc == rx_used_desc)
-		mp->rx_resource_err = 1;
 
 	spin_unlock_irqrestore(&mp->lock, flags);
 
@@ -1760,8 +1747,6 @@ static unsigned int set_tx_coal(struct mv643xx_eth_private *mp,
 
 static void port_init(struct mv643xx_eth_private *mp)
 {
-	mp->rx_resource_err = 0;
-
 	port_reset(mp);
 
 	init_mac_tables(mp);
