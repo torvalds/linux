@@ -54,20 +54,20 @@
 #include <asm/types.h>
 #include <asm/system.h>
 
-static char mv643xx_driver_name[] = "mv643xx_eth";
-static char mv643xx_driver_version[] = "1.0";
+static char mv643xx_eth_driver_name[] = "mv643xx_eth";
+static char mv643xx_eth_driver_version[] = "1.0";
 
-#define MV643XX_CHECKSUM_OFFLOAD_TX
-#define MV643XX_NAPI
-#define MV643XX_TX_FAST_REFILL
-#undef	MV643XX_COAL
+#define MV643XX_ETH_CHECKSUM_OFFLOAD_TX
+#define MV643XX_ETH_NAPI
+#define MV643XX_ETH_TX_FAST_REFILL
+#undef	MV643XX_ETH_COAL
 
-#define MV643XX_TX_COAL 100
-#ifdef MV643XX_COAL
-#define MV643XX_RX_COAL 100
+#define MV643XX_ETH_TX_COAL 100
+#ifdef MV643XX_ETH_COAL
+#define MV643XX_ETH_RX_COAL 100
 #endif
 
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+#ifdef MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
 #else
 #define MAX_DESCS_PER_SKB	1
@@ -263,7 +263,7 @@ struct pkt_info {
 
 
 /* global *******************************************************************/
-struct mv643xx_shared_private {
+struct mv643xx_eth_shared_private {
 	void __iomem *base;
 
 	/* used to protect SMI_REG, which is shared across ports */
@@ -276,7 +276,7 @@ struct mv643xx_shared_private {
 
 
 /* per-port *****************************************************************/
-struct mv643xx_mib_counters {
+struct mib_counters {
 	u64 good_octets_received;
 	u32 bad_octets_received;
 	u32 internal_mac_transmit_err;
@@ -309,11 +309,11 @@ struct mv643xx_mib_counters {
 	u32 late_collision;
 };
 
-struct mv643xx_private {
-	struct mv643xx_shared_private *shared;
+struct mv643xx_eth_private {
+	struct mv643xx_eth_shared_private *shared;
 	int port_num;			/* User Ethernet port number	*/
 
-	struct mv643xx_shared_private *shared_smi;
+	struct mv643xx_eth_shared_private *shared_smi;
 
 	u32 rx_sram_addr;		/* Base address of rx sram area */
 	u32 rx_sram_size;		/* Size of rx sram area		*/
@@ -330,7 +330,7 @@ struct mv643xx_private {
 	/* Next available and first returning Tx resource */
 	int tx_curr_desc_q, tx_used_desc_q;
 
-#ifdef MV643XX_TX_FAST_REFILL
+#ifdef MV643XX_ETH_TX_FAST_REFILL
 	u32 tx_clean_threshold;
 #endif
 
@@ -349,7 +349,7 @@ struct mv643xx_private {
 	struct net_device *dev;
 	struct napi_struct napi;
 	struct net_device_stats stats;
-	struct mv643xx_mib_counters mib_counters;
+	struct mib_counters mib_counters;
 	spinlock_t lock;
 	/* Size of Tx Ring per queue */
 	int tx_ring_size;
@@ -373,25 +373,25 @@ struct mv643xx_private {
 
 
 /* port register accessors **************************************************/
-static inline u32 rdl(struct mv643xx_private *mp, int offset)
+static inline u32 rdl(struct mv643xx_eth_private *mp, int offset)
 {
 	return readl(mp->shared->base + offset);
 }
 
-static inline void wrl(struct mv643xx_private *mp, int offset, u32 data)
+static inline void wrl(struct mv643xx_eth_private *mp, int offset, u32 data)
 {
 	writel(data, mp->shared->base + offset);
 }
 
 
 /* rxq/txq helper functions *************************************************/
-static void mv643xx_eth_port_enable_rx(struct mv643xx_private *mp,
+static void mv643xx_eth_port_enable_rx(struct mv643xx_eth_private *mp,
 					unsigned int queues)
 {
 	wrl(mp, RXQ_COMMAND(mp->port_num), queues);
 }
 
-static unsigned int mv643xx_eth_port_disable_rx(struct mv643xx_private *mp)
+static unsigned int mv643xx_eth_port_disable_rx(struct mv643xx_eth_private *mp)
 {
 	unsigned int port_num = mp->port_num;
 	u32 queues;
@@ -411,13 +411,13 @@ static unsigned int mv643xx_eth_port_disable_rx(struct mv643xx_private *mp)
 	return queues;
 }
 
-static void mv643xx_eth_port_enable_tx(struct mv643xx_private *mp,
+static void mv643xx_eth_port_enable_tx(struct mv643xx_eth_private *mp,
 					unsigned int queues)
 {
 	wrl(mp, TXQ_COMMAND(mp->port_num), queues);
 }
 
-static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_private *mp)
+static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_eth_private *mp)
 {
 	unsigned int port_num = mp->port_num;
 	u32 queues;
@@ -455,7 +455,7 @@ static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev);
  *	no available Rx resources, the function resets the resource error flag.
  *
  * INPUT:
- *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
+ *	struct mv643xx_eth_private	*mp		Ethernet Port Control srtuct.
  *	struct pkt_info		*p_pkt_info	Information on returned buffer.
  *
  * OUTPUT:
@@ -465,7 +465,7 @@ static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev);
  *	ETH_ERROR in case the routine can not access Rx desc ring.
  *	ETH_OK otherwise.
  */
-static FUNC_RET_STATUS rx_return_buff(struct mv643xx_private *mp,
+static FUNC_RET_STATUS rx_return_buff(struct mv643xx_eth_private *mp,
 						struct pkt_info *p_pkt_info)
 {
 	int used_rx_desc;	/* Where to return Rx resource */
@@ -510,7 +510,7 @@ static FUNC_RET_STATUS rx_return_buff(struct mv643xx_private *mp,
  */
 static void mv643xx_eth_rx_refill_descs(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	struct pkt_info pkt_info;
 	struct sk_buff *skb;
 	int unaligned;
@@ -572,7 +572,7 @@ static inline void mv643xx_eth_rx_refill_descs_timer_wrapper(unsigned long data)
  *	is set.
  *
  * INPUT:
- *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
+ *	struct mv643xx_eth_private	*mp		Ethernet Port Control srtuct.
  *	struct pkt_info		*p_pkt_info	User packet buffer.
  *
  * OUTPUT:
@@ -584,7 +584,7 @@ static inline void mv643xx_eth_rx_refill_descs_timer_wrapper(unsigned long data)
  *	ETH_END_OF_JOB if there is no received data.
  *	ETH_OK otherwise.
  */
-static FUNC_RET_STATUS port_receive(struct mv643xx_private *mp,
+static FUNC_RET_STATUS port_receive(struct mv643xx_eth_private *mp,
 						struct pkt_info *p_pkt_info)
 {
 	int rx_next_curr_desc, rx_curr_desc, rx_used_desc;
@@ -652,7 +652,7 @@ static FUNC_RET_STATUS port_receive(struct mv643xx_private *mp,
  */
 static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	unsigned int received_packets = 0;
 	struct sk_buff *skb;
@@ -705,7 +705,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 					(pkt_info.cmd_sts & 0x0007fff8) >> 3);
 			}
 			skb->protocol = eth_type_trans(skb, dev);
-#ifdef MV643XX_NAPI
+#ifdef MV643XX_ETH_NAPI
 			netif_receive_skb(skb);
 #else
 			netif_rx(skb);
@@ -718,20 +718,20 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 	return received_packets;
 }
 
-#ifdef MV643XX_NAPI
+#ifdef MV643XX_ETH_NAPI
 /*
- * mv643xx_poll
+ * mv643xx_eth_poll
  *
  * This function is used in case of NAPI
  */
-static int mv643xx_poll(struct napi_struct *napi, int budget)
+static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 {
-	struct mv643xx_private *mp = container_of(napi, struct mv643xx_private, napi);
+	struct mv643xx_eth_private *mp = container_of(napi, struct mv643xx_eth_private, napi);
 	struct net_device *dev = mp->dev;
 	unsigned int port_num = mp->port_num;
 	int work_done;
 
-#ifdef MV643XX_TX_FAST_REFILL
+#ifdef MV643XX_ETH_TX_FAST_REFILL
 	if (++mp->tx_clean_threshold > 5) {
 		mv643xx_eth_free_completed_tx_descs(dev);
 		mp->tx_clean_threshold = 0;
@@ -779,7 +779,7 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 /**
  * alloc_tx_desc_index - return the index of the next available tx desc
  */
-static int alloc_tx_desc_index(struct mv643xx_private *mp)
+static int alloc_tx_desc_index(struct mv643xx_eth_private *mp)
 {
 	int tx_desc_curr;
 
@@ -799,7 +799,7 @@ static int alloc_tx_desc_index(struct mv643xx_private *mp)
  * Ensure the data for each fragment to be transmitted is mapped properly,
  * then fill in descriptors in the tx hw queue.
  */
-static void tx_fill_frag_descs(struct mv643xx_private *mp,
+static void tx_fill_frag_descs(struct mv643xx_eth_private *mp,
 				   struct sk_buff *skb)
 {
 	int frag;
@@ -843,7 +843,7 @@ static inline __be16 sum16_as_be(__sum16 sum)
  * Ensure the data for an skb to be transmitted is mapped properly,
  * then fill in descriptors in the tx hw queue and start the hardware.
  */
-static void tx_submit_descs_for_skb(struct mv643xx_private *mp,
+static void tx_submit_descs_for_skb(struct mv643xx_eth_private *mp,
 					struct sk_buff *skb)
 {
 	int tx_index;
@@ -912,7 +912,7 @@ static void tx_submit_descs_for_skb(struct mv643xx_private *mp,
  */
 static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	unsigned long flags;
 
@@ -949,7 +949,7 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 
 /* mii management interface *************************************************/
-static int phy_addr_get(struct mv643xx_private *mp);
+static int phy_addr_get(struct mv643xx_eth_private *mp);
 
 /*
  * read_smi_reg - Read PHY registers
@@ -959,7 +959,7 @@ static int phy_addr_get(struct mv643xx_private *mp);
  *	order to perform PHY register read.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *	unsigned int	phy_reg		PHY register address offset.
  *	unsigned int	*value		Register value buffer.
  *
@@ -971,7 +971,7 @@ static int phy_addr_get(struct mv643xx_private *mp);
  *	true otherwise.
  *
  */
-static void read_smi_reg(struct mv643xx_private *mp,
+static void read_smi_reg(struct mv643xx_eth_private *mp,
 				unsigned int phy_reg, unsigned int *value)
 {
 	void __iomem *smi_reg = mp->shared_smi->base + SMI_REG;
@@ -1015,7 +1015,7 @@ out:
  *	order to perform writes to PHY registers.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *	unsigned int	phy_reg		PHY register address offset.
  *	unsigned int	value		Register value.
  *
@@ -1027,7 +1027,7 @@ out:
  *	true otherwise.
  *
  */
-static void write_smi_reg(struct mv643xx_private *mp,
+static void write_smi_reg(struct mv643xx_eth_private *mp,
 				   unsigned int phy_reg, unsigned int value)
 {
 	void __iomem *smi_reg = mp->shared_smi->base + SMI_REG;
@@ -1063,7 +1063,7 @@ out:
  *	A read from the MIB counter will reset the counter.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *
  * OUTPUT:
  *	After reading all MIB counters, the counters resets.
@@ -1072,7 +1072,7 @@ out:
  *	MIB counter value.
  *
  */
-static void clear_mib_counters(struct mv643xx_private *mp)
+static void clear_mib_counters(struct mv643xx_eth_private *mp)
 {
 	unsigned int port_num = mp->port_num;
 	int i;
@@ -1082,14 +1082,14 @@ static void clear_mib_counters(struct mv643xx_private *mp)
 		rdl(mp, MIB_COUNTERS(port_num) + i);
 }
 
-static inline u32 read_mib(struct mv643xx_private *mp, int offset)
+static inline u32 read_mib(struct mv643xx_eth_private *mp, int offset)
 {
 	return rdl(mp, MIB_COUNTERS(mp->port_num) + offset);
 }
 
-static void update_mib_counters(struct mv643xx_private *mp)
+static void update_mib_counters(struct mv643xx_eth_private *mp)
 {
-	struct mv643xx_mib_counters *p = &mp->mib_counters;
+	struct mib_counters *p = &mp->mib_counters;
 
 	p->good_octets_received += read_mib(mp, 0x00);
 	p->good_octets_received += (u64)read_mib(mp, 0x04) << 32;
@@ -1127,61 +1127,61 @@ static void update_mib_counters(struct mv643xx_private *mp)
 
 
 /* ethtool ******************************************************************/
-struct mv643xx_stats {
+struct mv643xx_eth_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int stat_offset;
 };
 
-#define MV643XX_STAT(m) FIELD_SIZEOF(struct mv643xx_private, m), \
-					offsetof(struct mv643xx_private, m)
+#define MV643XX_ETH_STAT(m) FIELD_SIZEOF(struct mv643xx_eth_private, m), \
+					offsetof(struct mv643xx_eth_private, m)
 
-static const struct mv643xx_stats mv643xx_gstrings_stats[] = {
-	{ "rx_packets", MV643XX_STAT(stats.rx_packets) },
-	{ "tx_packets", MV643XX_STAT(stats.tx_packets) },
-	{ "rx_bytes", MV643XX_STAT(stats.rx_bytes) },
-	{ "tx_bytes", MV643XX_STAT(stats.tx_bytes) },
-	{ "rx_errors", MV643XX_STAT(stats.rx_errors) },
-	{ "tx_errors", MV643XX_STAT(stats.tx_errors) },
-	{ "rx_dropped", MV643XX_STAT(stats.rx_dropped) },
-	{ "tx_dropped", MV643XX_STAT(stats.tx_dropped) },
-	{ "good_octets_received", MV643XX_STAT(mib_counters.good_octets_received) },
-	{ "bad_octets_received", MV643XX_STAT(mib_counters.bad_octets_received) },
-	{ "internal_mac_transmit_err", MV643XX_STAT(mib_counters.internal_mac_transmit_err) },
-	{ "good_frames_received", MV643XX_STAT(mib_counters.good_frames_received) },
-	{ "bad_frames_received", MV643XX_STAT(mib_counters.bad_frames_received) },
-	{ "broadcast_frames_received", MV643XX_STAT(mib_counters.broadcast_frames_received) },
-	{ "multicast_frames_received", MV643XX_STAT(mib_counters.multicast_frames_received) },
-	{ "frames_64_octets", MV643XX_STAT(mib_counters.frames_64_octets) },
-	{ "frames_65_to_127_octets", MV643XX_STAT(mib_counters.frames_65_to_127_octets) },
-	{ "frames_128_to_255_octets", MV643XX_STAT(mib_counters.frames_128_to_255_octets) },
-	{ "frames_256_to_511_octets", MV643XX_STAT(mib_counters.frames_256_to_511_octets) },
-	{ "frames_512_to_1023_octets", MV643XX_STAT(mib_counters.frames_512_to_1023_octets) },
-	{ "frames_1024_to_max_octets", MV643XX_STAT(mib_counters.frames_1024_to_max_octets) },
-	{ "good_octets_sent", MV643XX_STAT(mib_counters.good_octets_sent) },
-	{ "good_frames_sent", MV643XX_STAT(mib_counters.good_frames_sent) },
-	{ "excessive_collision", MV643XX_STAT(mib_counters.excessive_collision) },
-	{ "multicast_frames_sent", MV643XX_STAT(mib_counters.multicast_frames_sent) },
-	{ "broadcast_frames_sent", MV643XX_STAT(mib_counters.broadcast_frames_sent) },
-	{ "unrec_mac_control_received", MV643XX_STAT(mib_counters.unrec_mac_control_received) },
-	{ "fc_sent", MV643XX_STAT(mib_counters.fc_sent) },
-	{ "good_fc_received", MV643XX_STAT(mib_counters.good_fc_received) },
-	{ "bad_fc_received", MV643XX_STAT(mib_counters.bad_fc_received) },
-	{ "undersize_received", MV643XX_STAT(mib_counters.undersize_received) },
-	{ "fragments_received", MV643XX_STAT(mib_counters.fragments_received) },
-	{ "oversize_received", MV643XX_STAT(mib_counters.oversize_received) },
-	{ "jabber_received", MV643XX_STAT(mib_counters.jabber_received) },
-	{ "mac_receive_error", MV643XX_STAT(mib_counters.mac_receive_error) },
-	{ "bad_crc_event", MV643XX_STAT(mib_counters.bad_crc_event) },
-	{ "collision", MV643XX_STAT(mib_counters.collision) },
-	{ "late_collision", MV643XX_STAT(mib_counters.late_collision) },
+static const struct mv643xx_eth_stats mv643xx_eth_gstrings_stats[] = {
+	{ "rx_packets", MV643XX_ETH_STAT(stats.rx_packets) },
+	{ "tx_packets", MV643XX_ETH_STAT(stats.tx_packets) },
+	{ "rx_bytes", MV643XX_ETH_STAT(stats.rx_bytes) },
+	{ "tx_bytes", MV643XX_ETH_STAT(stats.tx_bytes) },
+	{ "rx_errors", MV643XX_ETH_STAT(stats.rx_errors) },
+	{ "tx_errors", MV643XX_ETH_STAT(stats.tx_errors) },
+	{ "rx_dropped", MV643XX_ETH_STAT(stats.rx_dropped) },
+	{ "tx_dropped", MV643XX_ETH_STAT(stats.tx_dropped) },
+	{ "good_octets_received", MV643XX_ETH_STAT(mib_counters.good_octets_received) },
+	{ "bad_octets_received", MV643XX_ETH_STAT(mib_counters.bad_octets_received) },
+	{ "internal_mac_transmit_err", MV643XX_ETH_STAT(mib_counters.internal_mac_transmit_err) },
+	{ "good_frames_received", MV643XX_ETH_STAT(mib_counters.good_frames_received) },
+	{ "bad_frames_received", MV643XX_ETH_STAT(mib_counters.bad_frames_received) },
+	{ "broadcast_frames_received", MV643XX_ETH_STAT(mib_counters.broadcast_frames_received) },
+	{ "multicast_frames_received", MV643XX_ETH_STAT(mib_counters.multicast_frames_received) },
+	{ "frames_64_octets", MV643XX_ETH_STAT(mib_counters.frames_64_octets) },
+	{ "frames_65_to_127_octets", MV643XX_ETH_STAT(mib_counters.frames_65_to_127_octets) },
+	{ "frames_128_to_255_octets", MV643XX_ETH_STAT(mib_counters.frames_128_to_255_octets) },
+	{ "frames_256_to_511_octets", MV643XX_ETH_STAT(mib_counters.frames_256_to_511_octets) },
+	{ "frames_512_to_1023_octets", MV643XX_ETH_STAT(mib_counters.frames_512_to_1023_octets) },
+	{ "frames_1024_to_max_octets", MV643XX_ETH_STAT(mib_counters.frames_1024_to_max_octets) },
+	{ "good_octets_sent", MV643XX_ETH_STAT(mib_counters.good_octets_sent) },
+	{ "good_frames_sent", MV643XX_ETH_STAT(mib_counters.good_frames_sent) },
+	{ "excessive_collision", MV643XX_ETH_STAT(mib_counters.excessive_collision) },
+	{ "multicast_frames_sent", MV643XX_ETH_STAT(mib_counters.multicast_frames_sent) },
+	{ "broadcast_frames_sent", MV643XX_ETH_STAT(mib_counters.broadcast_frames_sent) },
+	{ "unrec_mac_control_received", MV643XX_ETH_STAT(mib_counters.unrec_mac_control_received) },
+	{ "fc_sent", MV643XX_ETH_STAT(mib_counters.fc_sent) },
+	{ "good_fc_received", MV643XX_ETH_STAT(mib_counters.good_fc_received) },
+	{ "bad_fc_received", MV643XX_ETH_STAT(mib_counters.bad_fc_received) },
+	{ "undersize_received", MV643XX_ETH_STAT(mib_counters.undersize_received) },
+	{ "fragments_received", MV643XX_ETH_STAT(mib_counters.fragments_received) },
+	{ "oversize_received", MV643XX_ETH_STAT(mib_counters.oversize_received) },
+	{ "jabber_received", MV643XX_ETH_STAT(mib_counters.jabber_received) },
+	{ "mac_receive_error", MV643XX_ETH_STAT(mib_counters.mac_receive_error) },
+	{ "bad_crc_event", MV643XX_ETH_STAT(mib_counters.bad_crc_event) },
+	{ "collision", MV643XX_ETH_STAT(mib_counters.collision) },
+	{ "late_collision", MV643XX_ETH_STAT(mib_counters.late_collision) },
 };
 
-#define MV643XX_STATS_LEN	ARRAY_SIZE(mv643xx_gstrings_stats)
+#define MV643XX_ETH_STATS_LEN	ARRAY_SIZE(mv643xx_eth_gstrings_stats)
 
-static int mv643xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int err;
 
 	spin_lock_irq(&mp->lock);
@@ -1195,9 +1195,9 @@ static int mv643xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return err;
 }
 
-static int mv643xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int err;
 
 	spin_lock_irq(&mp->lock);
@@ -1207,80 +1207,80 @@ static int mv643xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return err;
 }
 
-static void mv643xx_get_drvinfo(struct net_device *netdev,
+static void mv643xx_eth_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver,  mv643xx_driver_name, 32);
-	strncpy(drvinfo->version, mv643xx_driver_version, 32);
+	strncpy(drvinfo->driver,  mv643xx_eth_driver_name, 32);
+	strncpy(drvinfo->version, mv643xx_eth_driver_version, 32);
 	strncpy(drvinfo->fw_version, "N/A", 32);
 	strncpy(drvinfo->bus_info, "mv643xx", 32);
-	drvinfo->n_stats = MV643XX_STATS_LEN;
+	drvinfo->n_stats = MV643XX_ETH_STATS_LEN;
 }
 
 static int mv643xx_eth_nway_restart(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	return mii_nway_restart(&mp->mii);
 }
 
 static u32 mv643xx_eth_get_link(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	return mii_link_ok(&mp->mii);
 }
 
-static void mv643xx_get_strings(struct net_device *netdev, uint32_t stringset,
+static void mv643xx_eth_get_strings(struct net_device *netdev, uint32_t stringset,
 				uint8_t *data)
 {
 	int i;
 
 	switch(stringset) {
 	case ETH_SS_STATS:
-		for (i=0; i < MV643XX_STATS_LEN; i++) {
+		for (i=0; i < MV643XX_ETH_STATS_LEN; i++) {
 			memcpy(data + i * ETH_GSTRING_LEN,
-					mv643xx_gstrings_stats[i].stat_string,
-					ETH_GSTRING_LEN);
+				mv643xx_eth_gstrings_stats[i].stat_string,
+				ETH_GSTRING_LEN);
 		}
 		break;
 	}
 }
 
-static void mv643xx_get_ethtool_stats(struct net_device *netdev,
+static void mv643xx_eth_get_ethtool_stats(struct net_device *netdev,
 				struct ethtool_stats *stats, uint64_t *data)
 {
-	struct mv643xx_private *mp = netdev->priv;
+	struct mv643xx_eth_private *mp = netdev->priv;
 	int i;
 
 	update_mib_counters(mp);
 
-	for (i = 0; i < MV643XX_STATS_LEN; i++) {
-		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;
-		data[i] = (mv643xx_gstrings_stats[i].sizeof_stat ==
+	for (i = 0; i < MV643XX_ETH_STATS_LEN; i++) {
+		char *p = (char *)mp+mv643xx_eth_gstrings_stats[i].stat_offset;
+		data[i] = (mv643xx_eth_gstrings_stats[i].sizeof_stat ==
 			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
 	}
 }
 
-static int mv643xx_get_sset_count(struct net_device *netdev, int sset)
+static int mv643xx_eth_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return MV643XX_STATS_LEN;
+		return MV643XX_ETH_STATS_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
-static const struct ethtool_ops mv643xx_ethtool_ops = {
-	.get_settings           = mv643xx_get_settings,
-	.set_settings           = mv643xx_set_settings,
-	.get_drvinfo            = mv643xx_get_drvinfo,
+static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
+	.get_settings           = mv643xx_eth_get_settings,
+	.set_settings           = mv643xx_eth_set_settings,
+	.get_drvinfo            = mv643xx_eth_get_drvinfo,
 	.get_link               = mv643xx_eth_get_link,
 	.set_sg			= ethtool_op_set_sg,
-	.get_sset_count		= mv643xx_get_sset_count,
-	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
-	.get_strings            = mv643xx_get_strings,
+	.get_sset_count		= mv643xx_eth_get_sset_count,
+	.get_ethtool_stats      = mv643xx_eth_get_ethtool_stats,
+	.get_strings            = mv643xx_eth_get_strings,
 	.nway_reset		= mv643xx_eth_nway_restart,
 };
 
@@ -1289,7 +1289,7 @@ static const struct ethtool_ops mv643xx_ethtool_ops = {
 /*
  * uc_addr_get - Read the MAC address from the port's hw registers
  */
-static void uc_addr_get(struct mv643xx_private *mp, unsigned char *p_addr)
+static void uc_addr_get(struct mv643xx_eth_private *mp, unsigned char *p_addr)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int mac_h;
@@ -1314,7 +1314,7 @@ static void uc_addr_get(struct mv643xx_private *mp, unsigned char *p_addr)
  *	Other Multicast) and set each entry to 0.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *
  * OUTPUT:
  *	Multicast and Unicast packets are rejected.
@@ -1322,7 +1322,7 @@ static void uc_addr_get(struct mv643xx_private *mp, unsigned char *p_addr)
  * RETURN:
  *	None.
  */
-static void init_mac_tables(struct mv643xx_private *mp)
+static void init_mac_tables(struct mv643xx_eth_private *mp)
 {
 	unsigned int port_num = mp->port_num;
 	int table_index;
@@ -1348,7 +1348,7 @@ static void init_mac_tables(struct mv643xx_private *mp)
  *	3-1	Queue			(ETH_Q0=0)
  *	7-4	Reserved = 0;
  */
-static void set_filter_table_entry(struct mv643xx_private *mp,
+static void set_filter_table_entry(struct mv643xx_eth_private *mp,
 					    int table, unsigned char entry)
 {
 	unsigned int table_reg;
@@ -1367,7 +1367,7 @@ static void set_filter_table_entry(struct mv643xx_private *mp,
 /*
  * uc_addr_set - Write a MAC address into the port's hw registers
  */
-static void uc_addr_set(struct mv643xx_private *mp, unsigned char *p_addr)
+static void uc_addr_set(struct mv643xx_eth_private *mp, unsigned char *p_addr)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int mac_h;
@@ -1396,7 +1396,7 @@ static void uc_addr_set(struct mv643xx_private *mp, unsigned char *p_addr)
  */
 static void mv643xx_eth_update_mac_address(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	init_mac_tables(mp);
 	uc_addr_set(mp, dev->dev_addr);
@@ -1438,7 +1438,7 @@ static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
  * In either case, set_filter_table_entry() is then called
  * to set to set the actual table entry.
  */
-static void mc_addr(struct mv643xx_private *mp, unsigned char *p_addr)
+static void mc_addr(struct mv643xx_eth_private *mp, unsigned char *p_addr)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int mac_h;
@@ -1537,7 +1537,7 @@ static void set_multicast_list(struct net_device *dev)
 	struct dev_mc_list	*mc_list;
 	int			i;
 	int			table_index;
-	struct mv643xx_private	*mp = netdev_priv(dev);
+	struct mv643xx_eth_private	*mp = netdev_priv(dev);
 	unsigned int		port_num = mp->port_num;
 
 	/* If the device is in promiscuous mode or in all multicast mode,
@@ -1598,7 +1598,7 @@ static void set_multicast_list(struct net_device *dev)
  */
 static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 config_reg;
 
 	config_reg = rdl(mp, PORT_CONFIG(mp->port_num));
@@ -1626,7 +1626,7 @@ static void mv643xx_eth_set_rx_mode(struct net_device *dev)
  *	with physical addresses.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port Control srtuct.
+ *	struct mv643xx_eth_private *mp	Ethernet Port Control srtuct.
  *
  * OUTPUT:
  *	The routine updates the Ethernet port control struct with information
@@ -1635,7 +1635,7 @@ static void mv643xx_eth_set_rx_mode(struct net_device *dev)
  * RETURN:
  *	None.
  */
-static void ether_init_rx_desc_ring(struct mv643xx_private *mp)
+static void ether_init_rx_desc_ring(struct mv643xx_eth_private *mp)
 {
 	volatile struct rx_desc *p_rx_desc;
 	int rx_desc_num = mp->rx_ring_size;
@@ -1657,7 +1657,7 @@ static void ether_init_rx_desc_ring(struct mv643xx_private *mp)
 
 static void mv643xx_eth_free_rx_rings(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int curr;
 
 	/* Stop RX Queues */
@@ -1697,7 +1697,7 @@ static void mv643xx_eth_free_rx_rings(struct net_device *dev)
  *	with physical addresses.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port Control srtuct.
+ *	struct mv643xx_eth_private *mp	Ethernet Port Control srtuct.
  *
  * OUTPUT:
  *	The routine updates the Ethernet port control struct with information
@@ -1706,7 +1706,7 @@ static void mv643xx_eth_free_rx_rings(struct net_device *dev)
  * RETURN:
  *	None.
  */
-static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
+static void ether_init_tx_desc_ring(struct mv643xx_eth_private *mp)
 {
 	int tx_desc_num = mp->tx_ring_size;
 	struct tx_desc *p_tx_desc;
@@ -1732,7 +1732,7 @@ static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
  */
 static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	struct tx_desc *desc;
 	u32 cmd_sts;
 	struct sk_buff *skb;
@@ -1792,7 +1792,7 @@ static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 
 static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	if (mv643xx_eth_free_tx_descs(dev, 0) &&
 	    mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
@@ -1806,7 +1806,7 @@ static void mv643xx_eth_free_all_tx_descs(struct net_device *dev)
 
 static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	/* Stop Tx Queues */
 	mv643xx_eth_port_disable_tx(mp);
@@ -1826,13 +1826,13 @@ static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 
 
 /* netdev ops and related ***************************************************/
-static void port_reset(struct mv643xx_private *mp);
+static void port_reset(struct mv643xx_eth_private *mp);
 
 /* Set the mv643xx port configuration register for the speed/duplex mode. */
 static void mv643xx_eth_update_pscr(struct net_device *dev,
 				    struct ethtool_cmd *ecmd)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int port_num = mp->port_num;
 	u32 o_pscr, n_pscr;
 	unsigned int queues;
@@ -1888,7 +1888,7 @@ static void mv643xx_eth_update_pscr(struct net_device *dev,
 static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 int_cause, int_cause_ext = 0;
 	unsigned int port_num = mp->port_num;
 
@@ -1920,7 +1920,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 		}
 	}
 
-#ifdef MV643XX_NAPI
+#ifdef MV643XX_ETH_NAPI
 	if (int_cause & INT_RX) {
 		/* schedule the NAPI poll routine to maintain port */
 		wrl(mp, INT_MASK(port_num), 0x00000000);
@@ -1954,7 +1954,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
  *	This routine utilizes the SMI interface to reset the ethernet port PHY.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *
  * OUTPUT:
  *	The PHY is reset.
@@ -1963,7 +1963,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
  *	None.
  *
  */
-static void phy_reset(struct mv643xx_private *mp)
+static void phy_reset(struct mv643xx_eth_private *mp)
 {
 	unsigned int phy_reg_data;
 
@@ -2008,7 +2008,7 @@ static void phy_reset(struct mv643xx_private *mp)
  */
 static void port_start(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	int tx_curr_desc, rx_curr_desc;
 	u32 pscr;
@@ -2064,12 +2064,12 @@ static void port_start(struct net_device *dev)
 	wrl(mp, TX_BW_MTU(port_num), 0);
 
 	/* save phy settings across reset */
-	mv643xx_get_settings(dev, &ethtool_cmd);
+	mv643xx_eth_get_settings(dev, &ethtool_cmd);
 	phy_reset(mp);
-	mv643xx_set_settings(dev, &ethtool_cmd);
+	mv643xx_eth_set_settings(dev, &ethtool_cmd);
 }
 
-#ifdef MV643XX_COAL
+#ifdef MV643XX_ETH_COAL
 
 /*
  * set_rx_coal - Sets coalescing interrupt mechanism on RX path
@@ -2083,7 +2083,7 @@ static void port_start(struct net_device *dev)
  *	, and the required delay of the interrupt in usec.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet port
+ *	struct mv643xx_eth_private *mp	Ethernet port
  *	unsigned int delay		Delay in usec
  *
  * OUTPUT:
@@ -2093,7 +2093,7 @@ static void port_start(struct net_device *dev)
  *	The interrupt coalescing value set in the gigE port.
  *
  */
-static unsigned int set_rx_coal(struct mv643xx_private *mp,
+static unsigned int set_rx_coal(struct mv643xx_eth_private *mp,
 					unsigned int delay)
 {
 	unsigned int port_num = mp->port_num;
@@ -2121,7 +2121,7 @@ static unsigned int set_rx_coal(struct mv643xx_private *mp,
  *	MV-643xx chip and the required delay in the interrupt in uSec
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet port
+ *	struct mv643xx_eth_private *mp	Ethernet port
  *	unsigned int delay		Delay in uSeconds
  *
  * OUTPUT:
@@ -2131,7 +2131,7 @@ static unsigned int set_rx_coal(struct mv643xx_private *mp,
  *	The interrupt coalescing value set in the gigE port.
  *
  */
-static unsigned int set_tx_coal(struct mv643xx_private *mp,
+static unsigned int set_tx_coal(struct mv643xx_eth_private *mp,
 					unsigned int delay)
 {
 	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
@@ -2158,7 +2158,7 @@ static unsigned int set_tx_coal(struct mv643xx_private *mp,
  *	struct.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet port control struct
+ *	struct mv643xx_eth_private *mp	Ethernet port control struct
  *
  * OUTPUT:
  *	See description.
@@ -2166,7 +2166,7 @@ static unsigned int set_tx_coal(struct mv643xx_private *mp,
  * RETURN:
  *	None.
  */
-static void port_init(struct mv643xx_private *mp)
+static void port_init(struct mv643xx_eth_private *mp)
 {
 	mp->rx_resource_err = 0;
 
@@ -2190,7 +2190,7 @@ static void port_init(struct mv643xx_private *mp)
 
 static int mv643xx_eth_open(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	unsigned int size;
 	int err;
@@ -2288,7 +2288,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	mv643xx_eth_rx_refill_descs(dev);	/* Fill RX ring with skb's */
 
-#ifdef MV643XX_NAPI
+#ifdef MV643XX_ETH_NAPI
 	napi_enable(&mp->napi);
 #endif
 
@@ -2296,11 +2296,11 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	/* Interrupt Coalescing */
 
-#ifdef MV643XX_COAL
-	mp->rx_int_coal = set_rx_coal(mp, MV643XX_RX_COAL);
+#ifdef MV643XX_ETH_COAL
+	mp->rx_int_coal = set_rx_coal(mp, MV643XX_ETH_RX_COAL);
 #endif
 
-	mp->tx_int_coal = set_tx_coal(mp, MV643XX_TX_COAL);
+	mp->tx_int_coal = set_tx_coal(mp, MV643XX_ETH_TX_COAL);
 
 	/* Unmask phy and link status changes interrupts */
 	wrl(mp, INT_MASK_EXT(port_num), INT_EXT_LINK | INT_EXT_PHY | INT_EXT_TX);
@@ -2329,7 +2329,7 @@ out_free_irq:
  *	idle state after this command is performed and the port is disabled.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *
  * OUTPUT:
  *	Channel activity is halted.
@@ -2338,7 +2338,7 @@ out_free_irq:
  *	None.
  *
  */
-static void port_reset(struct mv643xx_private *mp)
+static void port_reset(struct mv643xx_eth_private *mp)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int reg_data;
@@ -2369,7 +2369,7 @@ static void port_reset(struct mv643xx_private *mp)
 
 static int mv643xx_eth_stop(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 
 	/* Mask all interrupts on ethernet port */
@@ -2377,7 +2377,7 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	/* wait for previous write to complete */
 	rdl(mp, INT_MASK(port_num));
 
-#ifdef MV643XX_NAPI
+#ifdef MV643XX_ETH_NAPI
 	napi_disable(&mp->napi);
 #endif
 	netif_carrier_off(dev);
@@ -2395,7 +2395,7 @@ static int mv643xx_eth_stop(struct net_device *dev)
 
 static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
 }
@@ -2438,7 +2438,7 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
  */
 static void mv643xx_eth_tx_timeout_task(struct work_struct *ugly)
 {
-	struct mv643xx_private *mp = container_of(ugly, struct mv643xx_private,
+	struct mv643xx_eth_private *mp = container_of(ugly, struct mv643xx_eth_private,
 						  tx_timeout_task);
 	struct net_device *dev = mp->dev;
 
@@ -2464,7 +2464,7 @@ static void mv643xx_eth_tx_timeout_task(struct work_struct *ugly)
  */
 static void mv643xx_eth_tx_timeout(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	printk(KERN_INFO "%s: TX timeout  ", dev->name);
 
@@ -2473,9 +2473,9 @@ static void mv643xx_eth_tx_timeout(struct net_device *dev)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static void mv643xx_netpoll(struct net_device *netdev)
+static void mv643xx_eth_netpoll(struct net_device *netdev)
 {
-	struct mv643xx_private *mp = netdev_priv(netdev);
+	struct mv643xx_eth_private *mp = netdev_priv(netdev);
 	int port_num = mp->port_num;
 
 	wrl(mp, INT_MASK(port_num), 0x00000000);
@@ -2491,25 +2491,26 @@ static void mv643xx_netpoll(struct net_device *netdev)
 /*
  * Wrappers for MII support library.
  */
-static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location)
+static int mv643xx_eth_mdio_read(struct net_device *dev, int phy_id, int location)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int val;
 
 	read_smi_reg(mp, location, &val);
 	return val;
 }
 
-static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val)
+static void mv643xx_eth_mdio_write(struct net_device *dev, int phy_id, int location, int val)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	write_smi_reg(mp, location, val);
 }
 
 
 /* platform glue ************************************************************/
-static void mv643xx_eth_conf_mbus_windows(struct mv643xx_shared_private *msp,
-					  struct mbus_dram_target_info *dram)
+static void
+mv643xx_eth_conf_mbus_windows(struct mv643xx_eth_shared_private *msp,
+			      struct mbus_dram_target_info *dram)
 {
 	void __iomem *base = msp->base;
 	u32 win_enable;
@@ -2544,13 +2545,13 @@ static void mv643xx_eth_conf_mbus_windows(struct mv643xx_shared_private *msp,
 
 static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 {
-	static int mv643xx_version_printed = 0;
+	static int mv643xx_eth_version_printed = 0;
 	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
-	struct mv643xx_shared_private *msp;
+	struct mv643xx_eth_shared_private *msp;
 	struct resource *res;
 	int ret;
 
-	if (!mv643xx_version_printed++)
+	if (!mv643xx_eth_version_printed++)
 		printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
 
 	ret = -EINVAL;
@@ -2589,7 +2590,7 @@ out:
 
 static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
-	struct mv643xx_shared_private *msp = platform_get_drvdata(pdev);
+	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
 
 	iounmap(msp->base);
 	kfree(msp);
@@ -2613,7 +2614,7 @@ static struct platform_driver mv643xx_eth_shared_driver = {
  *	This routine sets the given ethernet port PHY address.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *	int		phy_addr	PHY address.
  *
  * OUTPUT:
@@ -2623,7 +2624,7 @@ static struct platform_driver mv643xx_eth_shared_driver = {
  *	None.
  *
  */
-static void phy_addr_set(struct mv643xx_private *mp, int phy_addr)
+static void phy_addr_set(struct mv643xx_eth_private *mp, int phy_addr)
 {
 	u32 reg_data;
 	int addr_shift = 5 * mp->port_num;
@@ -2641,7 +2642,7 @@ static void phy_addr_set(struct mv643xx_private *mp, int phy_addr)
  *	This routine returns the given ethernet port PHY address.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *
  * OUTPUT:
  *	None.
@@ -2650,7 +2651,7 @@ static void phy_addr_set(struct mv643xx_private *mp, int phy_addr)
  *	PHY address.
  *
  */
-static int phy_addr_get(struct mv643xx_private *mp)
+static int phy_addr_get(struct mv643xx_eth_private *mp)
 {
 	unsigned int reg_data;
 
@@ -2667,7 +2668,7 @@ static int phy_addr_get(struct mv643xx_private *mp)
  *	the specified port.
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet Port.
+ *	struct mv643xx_eth_private *mp	Ethernet Port.
  *
  * OUTPUT:
  *	None
@@ -2677,7 +2678,7 @@ static int phy_addr_get(struct mv643xx_private *mp)
  *	-ENODEV on failure
  *
  */
-static int phy_detect(struct mv643xx_private *mp)
+static int phy_detect(struct mv643xx_eth_private *mp)
 {
 	unsigned int phy_reg_data0;
 	int auto_neg;
@@ -2700,7 +2701,7 @@ static void mv643xx_init_ethtool_cmd(struct net_device *dev, int phy_address,
 				     int speed, int duplex,
 				     struct ethtool_cmd *cmd)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	memset(cmd, 0, sizeof(*cmd));
 
@@ -2740,7 +2741,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 {
 	struct mv643xx_eth_platform_data *pd;
 	int port_num;
-	struct mv643xx_private *mp;
+	struct mv643xx_eth_private *mp;
 	struct net_device *dev;
 	u8 *p;
 	struct resource *res;
@@ -2761,7 +2762,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev = alloc_etherdev(sizeof(struct mv643xx_private));
+	dev = alloc_etherdev(sizeof(struct mv643xx_eth_private));
 	if (!dev)
 		return -ENOMEM;
 
@@ -2769,8 +2770,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	mp = netdev_priv(dev);
 	mp->dev = dev;
-#ifdef MV643XX_NAPI
-	netif_napi_add(dev, &mp->napi, mv643xx_poll, 64);
+#ifdef MV643XX_ETH_NAPI
+	netif_napi_add(dev, &mp->napi, mv643xx_eth_poll, 64);
 #endif
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -2787,16 +2788,16 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->tx_timeout = mv643xx_eth_tx_timeout;
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = mv643xx_netpoll;
+	dev->poll_controller = mv643xx_eth_netpoll;
 #endif
 
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 	dev->change_mtu = mv643xx_eth_change_mtu;
 	dev->do_ioctl = mv643xx_eth_do_ioctl;
-	SET_ETHTOOL_OPS(dev, &mv643xx_ethtool_ops);
+	SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
 
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+#ifdef MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #ifdef MAX_SKB_FRAGS
 	/*
 	 * Zero copy can only work if we use Discovery II memory. Else, we will
@@ -2853,8 +2854,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	/* Hook up MII support for ethtool */
 	mp->mii.dev = dev;
-	mp->mii.mdio_read = mv643xx_mdio_read;
-	mp->mii.mdio_write = mv643xx_mdio_write;
+	mp->mii.mdio_read = mv643xx_eth_mdio_read;
+	mp->mii.mdio_write = mv643xx_eth_mdio_write;
 	mp->mii.phy_id = phy_addr_get(mp);
 	mp->mii.phy_id_mask = 0x3f;
 	mp->mii.reg_num_mask = 0x1f;
@@ -2870,7 +2871,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	mp->mii.supports_gmii = mii_check_gmii_support(&mp->mii);
 	mv643xx_init_ethtool_cmd(dev, mp->mii.phy_id, speed, duplex, &cmd);
 	mv643xx_eth_update_pscr(dev, &cmd);
-	mv643xx_set_settings(dev, &cmd);
+	mv643xx_eth_set_settings(dev, &cmd);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	err = register_netdev(dev);
@@ -2889,16 +2890,16 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		printk(KERN_NOTICE "%s: TX TCP/IP Checksumming Supported\n",
 								dev->name);
 
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+#ifdef MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 	printk(KERN_NOTICE "%s: RX TCP/UDP Checksum Offload ON \n", dev->name);
 #endif
 
-#ifdef MV643XX_COAL
+#ifdef MV643XX_ETH_COAL
 	printk(KERN_NOTICE "%s: TX and RX Interrupt Coalescing ON \n",
 								dev->name);
 #endif
 
-#ifdef MV643XX_NAPI
+#ifdef MV643XX_ETH_NAPI
 	printk(KERN_NOTICE "%s: RX NAPI Enabled \n", dev->name);
 #endif
 
@@ -2928,7 +2929,7 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 static void mv643xx_eth_shutdown(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
-	struct mv643xx_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 
 	/* Mask all interrupts on ethernet port */
@@ -2949,7 +2950,7 @@ static struct platform_driver mv643xx_eth_driver = {
 };
 
 /*
- * mv643xx_init_module
+ * mv643xx_eth_init_module
  *
  * Registers the network drivers into the Linux kernel
  *
@@ -2957,7 +2958,7 @@ static struct platform_driver mv643xx_eth_driver = {
  *
  * Output :	N/A
  */
-static int __init mv643xx_init_module(void)
+static int __init mv643xx_eth_init_module(void)
 {
 	int rc;
 
@@ -2971,7 +2972,7 @@ static int __init mv643xx_init_module(void)
 }
 
 /*
- * mv643xx_cleanup_module
+ * mv643xx_eth_cleanup_module
  *
  * Registers the network drivers into the Linux kernel
  *
@@ -2979,14 +2980,14 @@ static int __init mv643xx_init_module(void)
  *
  * Output :	N/A
  */
-static void __exit mv643xx_cleanup_module(void)
+static void __exit mv643xx_eth_cleanup_module(void)
 {
 	platform_driver_unregister(&mv643xx_eth_driver);
 	platform_driver_unregister(&mv643xx_eth_shared_driver);
 }
 
-module_init(mv643xx_init_module);
-module_exit(mv643xx_cleanup_module);
+module_init(mv643xx_eth_init_module);
+module_exit(mv643xx_eth_cleanup_module);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(	"Rabeeh Khoury, Assaf Hoffman, Matthew Dharm, Manish Lachwani"
