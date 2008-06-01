@@ -59,14 +59,14 @@ unsigned long node_end_pfn[MAX_NUMNODES] __read_mostly;
 /*
  * 4) physnode_map     - the mapping between a pfn and owning node
  * physnode_map keeps track of the physical memory layout of a generic
- * numa node on a 256Mb break (each element of the array will
- * represent 256Mb of memory and will be marked by the node id.  so,
+ * numa node on a 64Mb break (each element of the array will
+ * represent 64Mb of memory and will be marked by the node id.  so,
  * if the first gig is on node 0, and the second gig is on node 1
  * physnode_map will contain:
  *
- *     physnode_map[0-3] = 0;
- *     physnode_map[4-7] = 1;
- *     physnode_map[8- ] = -1;
+ *     physnode_map[0-15] = 0;
+ *     physnode_map[16-31] = 1;
+ *     physnode_map[32- ] = -1;
  */
 s8 physnode_map[MAX_ELEMENTS] __read_mostly = { [0 ... (MAX_ELEMENTS - 1)] = -1};
 EXPORT_SYMBOL(physnode_map);
@@ -81,9 +81,9 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 	printk(KERN_DEBUG "  ");
 	for (pfn = start; pfn < end; pfn += PAGES_PER_ELEMENT) {
 		physnode_map[pfn / PAGES_PER_ELEMENT] = nid;
-		printk("%ld ", pfn);
+		printk(KERN_CONT "%ld ", pfn);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
