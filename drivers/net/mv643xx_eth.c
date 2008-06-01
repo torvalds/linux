@@ -443,74 +443,50 @@ static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_eth_private *mp)
 /* rx ***********************************************************************/
 static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev);
 
-static FUNC_RET_STATUS rx_return_buff(struct mv643xx_eth_private *mp,
-						struct pkt_info *pkt_info)
+static void mv643xx_eth_rx_refill_descs(struct net_device *dev)
 {
-	int used_rx_desc;	/* Where to return Rx resource */
-	volatile struct rx_desc *rx_desc;
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mp->lock, flags);
 
-	/* Get 'used' Rx descriptor */
-	used_rx_desc = mp->rx_used_desc;
-	rx_desc = &mp->rx_desc_area[used_rx_desc];
-
-	rx_desc->buf_ptr = pkt_info->buf_ptr;
-	rx_desc->buf_size = pkt_info->byte_cnt;
-	mp->rx_skb[used_rx_desc] = pkt_info->return_info;
-
-	/* Flush the write pipe */
-
-	/* Return the descriptor to DMA ownership */
-	wmb();
-	rx_desc->cmd_sts = BUFFER_OWNED_BY_DMA | RX_ENABLE_INTERRUPT;
-	wmb();
-
-	/* Move the used descriptor pointer to the next descriptor */
-	mp->rx_used_desc = (used_rx_desc + 1) % mp->rx_ring_size;
-
-	spin_unlock_irqrestore(&mp->lock, flags);
-
-	return ETH_OK;
-}
-
-static void mv643xx_eth_rx_refill_descs(struct net_device *dev)
-{
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	struct pkt_info pkt_info;
-	struct sk_buff *skb;
-	int unaligned;
-
 	while (mp->rx_desc_count < mp->rx_ring_size) {
+		struct sk_buff *skb;
+		int unaligned;
+		int rx;
+
 		skb = dev_alloc_skb(ETH_RX_SKB_SIZE + dma_get_cache_alignment());
-		if (!skb)
+		if (skb == NULL)
 			break;
-		mp->rx_desc_count++;
+
 		unaligned = (u32)skb->data & (dma_get_cache_alignment() - 1);
 		if (unaligned)
 			skb_reserve(skb, dma_get_cache_alignment() - unaligned);
-		pkt_info.cmd_sts = RX_ENABLE_INTERRUPT;
-		pkt_info.byte_cnt = ETH_RX_SKB_SIZE;
-		pkt_info.buf_ptr = dma_map_single(NULL, skb->data,
-					ETH_RX_SKB_SIZE, DMA_FROM_DEVICE);
-		pkt_info.return_info = skb;
-		if (rx_return_buff(mp, &pkt_info) != ETH_OK) {
-			printk(KERN_ERR
-				"%s: Error allocating RX Ring\n", dev->name);
-			break;
-		}
+
+		mp->rx_desc_count++;
+		rx = mp->rx_used_desc;
+		mp->rx_used_desc = (rx + 1) % mp->rx_ring_size;
+
+		mp->rx_desc_area[rx].buf_ptr = dma_map_single(NULL,
+							skb->data,
+							ETH_RX_SKB_SIZE,
+							DMA_FROM_DEVICE);
+		mp->rx_desc_area[rx].buf_size = ETH_RX_SKB_SIZE;
+		mp->rx_skb[rx] = skb;
+		wmb();
+		mp->rx_desc_area[rx].cmd_sts = BUFFER_OWNED_BY_DMA |
+						RX_ENABLE_INTERRUPT;
+		wmb();
+
 		skb_reserve(skb, ETH_HW_IP_ALIGN);
 	}
-	/*
-	 * If RX ring is empty of SKB, set a timer to try allocating
-	 * again at a later time.
-	 */
+
 	if (mp->rx_desc_count == 0) {
-		printk(KERN_INFO "%s: Rx ring is empty\n", dev->name);
-		mp->timeout.expires = jiffies + (HZ / 10);	/* 100 mSec */
+		mp->timeout.expires = jiffies + (HZ / 10);
 		add_timer(&mp->timeout);
 	}
+
+	spin_unlock_irqrestore(&mp->lock, flags);
 }
 
 static inline void mv643xx_eth_rx_refill_descs_timer_wrapper(unsigned long data)
