@@ -570,6 +570,11 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	       (triggering == ACPI_LEVEL_SENSITIVE) ? "level" : "edge",
 	       (polarity == ACPI_ACTIVE_LOW) ? "low" : "high", dev->irq);
 
+#ifdef CONFIG_X86
+	mp_config_acpi_gsi(dev->bus->number, dev->devfn, dev->pin, irq,
+				 triggering, polarity);
+#endif
+
 	return 0;
 }
 

@@ -1154,6 +1154,28 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	return gsi;
 }
 
+int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
+			u32 gsi, int triggering, int polarity)
+{
+	struct mpc_config_intsrc intsrc;
+	int ioapic;
+
+	/* print the entry should happen on mptable identically */
+	intsrc.mpc_type = MP_INTSRC;
+	intsrc.mpc_irqtype = mp_INT;
+	intsrc.mpc_irqflag = (triggering == ACPI_EDGE_SENSITIVE ? 4 : 0x0c) |
+				(polarity == ACPI_ACTIVE_HIGH ? 1 : 3);
+	intsrc.mpc_srcbus = number;
+	intsrc.mpc_srcbusirq = (((devfn >> 3) & 0x1f) << 2) | ((pin - 1) & 3);
+	ioapic = mp_find_ioapic(gsi);
+	intsrc.mpc_dstapic = mp_ioapic_routing[ioapic].apic_id;
+	intsrc.mpc_dstirq = gsi - mp_ioapic_routing[ioapic].gsi_base;
+
+	MP_intsrc_info(&intsrc);
+
+	return 0;
+}
+
 /*
  * Parse IOAPIC related entries in MADT
  * returns 0 on success, < 0 on error

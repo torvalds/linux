@@ -84,6 +84,7 @@ extern u64 find_e820_area_size(u64 start, u64 *sizep, u64 align);
 extern void reserve_early(u64 start, u64 end, char *name);
 extern void free_early(u64 start, u64 end);
 extern void early_res_to_bootmem(u64 start, u64 end);
+extern u64 early_reserve_e820(u64 startt, u64 sizet, u64 align);
 
 #endif /* __ASSEMBLY__ */
 

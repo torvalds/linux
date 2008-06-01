@@ -39,6 +39,7 @@ extern unsigned long mp_lapic_addr;
 
 extern void find_smp_config(void);
 extern void get_smp_config(void);
+extern void early_reserve_e820_mpc_new(void);
 
 void __cpuinit generic_processor_info(int apicid, int version);
 #ifdef CONFIG_ACPI
@@ -47,6 +48,9 @@ extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 				   u32 gsi);
 extern void mp_config_acpi_legacy_irqs(void);
 extern int mp_register_gsi(u32 gsi, int edge_level, int active_high_low);
+extern void MP_intsrc_info(struct mpc_config_intsrc *m);
+extern int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
+				u32 gsi, int triggering, int polarity);
 #endif /* CONFIG_ACPI */
 
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_APICS)
