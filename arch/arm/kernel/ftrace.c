@@ -22,16 +22,6 @@
 static unsigned long bl_insn;
 static const unsigned long NOP = 0xe1a00000; /* mov r0, r0 */
 
-/* return true if mcount call site is already patched/no-op'ed */
-int ftrace_ip_converted(unsigned long pc)
-{
-	unsigned long save;
-
-	pc -= INSN_SIZE;
-	save = *(unsigned long *)pc;
-	return save == NOP;
-}
-
 unsigned char *ftrace_nop_replace(void)
 {
 	return (char *)&NOP;

@@ -306,13 +306,6 @@ ftrace_record_ip(unsigned long ip)
 	if (ftrace_ip_in_hash(ip, key))
 		goto out_unlock;
 
-	/*
-	 * There's a slight race that the ftraced will update the
-	 * hash and reset here. If it is already converted, skip it.
-	 */
-	if (ftrace_ip_converted(ip))
-		goto out_unlock;
-
 	node = ftrace_alloc_dyn_node(ip);
 	if (!node)
 		goto out_unlock;

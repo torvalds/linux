@@ -7,13 +7,6 @@
 
 static const u32 ftrace_nop = 0x01000000;
 
-notrace int ftrace_ip_converted(unsigned long ip)
-{
-	u32 insn = *(u32 *) ip;
-
-	return (insn == ftrace_nop);
-}
-
 notrace unsigned char *ftrace_nop_replace(void)
 {
 	return (char *)&ftrace_nop;

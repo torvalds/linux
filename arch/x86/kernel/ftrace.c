@@ -31,16 +31,6 @@ union ftrace_code_union {
 	} __attribute__((packed));
 };
 
-notrace int ftrace_ip_converted(unsigned long ip)
-{
-	unsigned long save;
-
-	ip -= CALL_BACK;
-	save = *(long *)ip;
-
-	return save == *ftrace_nop;
-}
-
 static int notrace ftrace_calc_offset(long ip, long addr)
 {
 	return (int)(addr - ip);

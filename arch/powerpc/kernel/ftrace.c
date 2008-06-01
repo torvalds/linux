@@ -27,16 +27,6 @@ static unsigned int ftrace_nop = 0x60000000;
 # define GET_ADDR(addr) *(unsigned long *)addr
 #endif
 
-notrace int ftrace_ip_converted(unsigned long ip)
-{
-	unsigned int save;
-
-	ip -= CALL_BACK;
-	save = *(unsigned int *)ip;
-
-	return save == ftrace_nop;
-}
-
 static unsigned int notrace ftrace_calc_offset(long ip, long addr)
 {
 	return (int)((addr + CALL_BACK) - ip);
