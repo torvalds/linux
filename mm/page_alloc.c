@@ -3486,6 +3486,11 @@ void __paginginit free_area_init_node(int nid, struct pglist_data *pgdat,
 	calculate_node_totalpages(pgdat, zones_size, zholes_size);
 
 	alloc_node_mem_map(pgdat);
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
+	printk(KERN_DEBUG "free_area_init_node: node %d, pgdat %08lx, node_mem_map %08lx\n",
+		nid, (unsigned long)pgdat,
+		(unsigned long)pgdat->node_mem_map);
+#endif
 
 	free_area_init_core(pgdat, zones_size, zholes_size);
 }

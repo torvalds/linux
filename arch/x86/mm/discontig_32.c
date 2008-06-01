@@ -168,6 +168,8 @@ static void __init allocate_pgdat(int nid)
 		reserve_early(pgdat_phys, pgdat_phys + sizeof(pg_data_t),
 			      "NODE_DATA");
 	}
+	printk(KERN_DEBUG "allocate_pgdat: node %d NODE_DATA %08lx\n",
+		nid, (unsigned long)NODE_DATA(nid));
 }
 
 #ifdef CONFIG_DISCONTIGMEM
@@ -208,8 +210,12 @@ void __init remap_numa_kva(void)
 	int node;
 
 	for_each_online_node(node) {
+		printk(KERN_DEBUG "remap_numa_kva: node %d\n", node);
 		for (pfn=0; pfn < node_remap_size[node]; pfn += PTRS_PER_PTE) {
 			vaddr = node_remap_start_vaddr[node]+(pfn<<PAGE_SHIFT);
+			printk(KERN_DEBUG "remap_numa_kva: %08lx to pfn %08lx\n",
+				(unsigned long)vaddr,
+				node_remap_start_pfn[node] + pfn);
 			set_pmd_pfn((ulong) vaddr, 
 				node_remap_start_pfn[node] + pfn, 
 				PAGE_KERNEL_LARGE);
@@ -293,8 +299,7 @@ static void init_remap_allocator(int nid)
 
 	printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
 		(ulong) node_remap_start_vaddr[nid],
-		(ulong) pfn_to_kaddr(highstart_pfn
-		   + node_remap_offset[nid] + node_remap_size[nid]));
+		(ulong) node_remap_end_vaddr[nid]);
 }
 #else
 void *alloc_remap(int nid, unsigned long size)
