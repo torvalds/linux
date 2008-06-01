@@ -44,7 +44,7 @@ format_by_fourcc(struct soc_camera_device *icd, unsigned int fourcc)
 	return NULL;
 }
 
-static int soc_camera_try_fmt_cap(struct file *file, void *priv,
+static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -342,7 +342,7 @@ static struct file_operations soc_camera_fops = {
 };
 
 
-static int soc_camera_s_fmt_cap(struct file *file, void *priv,
+static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -362,7 +362,7 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 	/* buswidth may be further adjusted by the ici */
 	icd->buswidth = data_fmt->depth;
 
-	ret = soc_camera_try_fmt_cap(file, icf, f);
+	ret = soc_camera_try_fmt_vid_cap(file, icf, f);
 	if (ret < 0)
 		return ret;
 
@@ -389,7 +389,7 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 	return ici->ops->set_bus_param(icd, f->fmt.pix.pixelformat);
 }
 
-static int soc_camera_enum_fmt_cap(struct file *file, void  *priv,
+static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 				   struct v4l2_fmtdesc *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -408,7 +408,7 @@ static int soc_camera_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int soc_camera_g_fmt_cap(struct file *file, void *priv,
+static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct soc_camera_file *icf = file->private_data;
@@ -925,15 +925,15 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	vdev->minor		= -1;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN,
 	vdev->vidioc_querycap	= soc_camera_querycap;
-	vdev->vidioc_g_fmt_cap	= soc_camera_g_fmt_cap;
-	vdev->vidioc_enum_fmt_cap = soc_camera_enum_fmt_cap;
-	vdev->vidioc_s_fmt_cap	= soc_camera_s_fmt_cap;
+	vdev->vidioc_g_fmt_vid_cap = soc_camera_g_fmt_vid_cap;
+	vdev->vidioc_enum_fmt_vid_cap = soc_camera_enum_fmt_vid_cap;
+	vdev->vidioc_s_fmt_vid_cap = soc_camera_s_fmt_vid_cap;
 	vdev->vidioc_enum_input	= soc_camera_enum_input;
 	vdev->vidioc_g_input	= soc_camera_g_input;
 	vdev->vidioc_s_input	= soc_camera_s_input;
 	vdev->vidioc_s_std	= soc_camera_s_std;
 	vdev->vidioc_reqbufs	= soc_camera_reqbufs;
-	vdev->vidioc_try_fmt_cap = soc_camera_try_fmt_cap;
+	vdev->vidioc_try_fmt_vid_cap = soc_camera_try_fmt_vid_cap;
 	vdev->vidioc_querybuf	= soc_camera_querybuf;
 	vdev->vidioc_qbuf	= soc_camera_qbuf;
 	vdev->vidioc_dqbuf	= soc_camera_dqbuf;
