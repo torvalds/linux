@@ -216,6 +216,12 @@ ftrace_add_hash(struct dyn_ftrace *node, unsigned long key)
 	hlist_add_head_rcu(&node->node, &ftrace_hash[key]);
 }
 
+/* called from kstop_machine */
+static inline void ftrace_del_hash(struct dyn_ftrace *node)
+{
+	hlist_del(&node->node);
+}
+
 static void ftrace_free_rec(struct dyn_ftrace *rec)
 {
 	/* no locking, only called from kstop_machine */
@@ -332,12 +338,11 @@ ftrace_record_ip(unsigned long ip)
 #define FTRACE_ADDR ((long)(ftrace_caller))
 #define MCOUNT_ADDR ((long)(mcount))
 
-static void
+static int
 __ftrace_replace_code(struct dyn_ftrace *rec,
 		      unsigned char *old, unsigned char *new, int enable)
 {
 	unsigned long ip, fl;
-	int failed;
 
 	ip = rec->ip;
 
@@ -364,7 +369,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 
 		if ((fl ==  (FTRACE_FL_FILTER | FTRACE_FL_ENABLED)) ||
 		    (fl == 0) || (rec->flags & FTRACE_FL_NOTRACE))
-			return;
+			return 0;
 
 		/*
 		 * If it is enabled disable it,
@@ -388,7 +393,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 			 */
 			fl = rec->flags & (FTRACE_FL_NOTRACE | FTRACE_FL_ENABLED);
 			if (fl == FTRACE_FL_NOTRACE)
-				return;
+				return 0;
 
 			new = ftrace_call_replace(ip, FTRACE_ADDR);
 		} else
@@ -396,34 +401,24 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 
 		if (enable) {
 			if (rec->flags & FTRACE_FL_ENABLED)
-				return;
+				return 0;
 			rec->flags |= FTRACE_FL_ENABLED;
 		} else {
 			if (!(rec->flags & FTRACE_FL_ENABLED))
-				return;
+				return 0;
 			rec->flags &= ~FTRACE_FL_ENABLED;
 		}
 	}
 
-	failed = ftrace_modify_code(ip, old, new);
-	if (failed) {
-		unsigned long key;
-		/* It is possible that the function hasn't been converted yet */
-		key = hash_long(ip, FTRACE_HASHBITS);
-		if (!ftrace_ip_in_hash(ip, key)) {
-			rec->flags |= FTRACE_FL_FAILED;
-			ftrace_free_rec(rec);
-		}
-
-	}
+	return ftrace_modify_code(ip, old, new);
 }
 
 static void ftrace_replace_code(int enable)
 {
+	int i, failed;
 	unsigned char *new = NULL, *old = NULL;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
-	int i;
 
 	if (enable)
 		old = ftrace_nop_replace();
@@ -438,7 +433,15 @@ static void ftrace_replace_code(int enable)
 			if (rec->flags & FTRACE_FL_FAILED)
 				continue;
 
-			__ftrace_replace_code(rec, old, new, enable);
+			failed = __ftrace_replace_code(rec, old, new, enable);
+			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
+				rec->flags |= FTRACE_FL_FAILED;
+				if ((system_state == SYSTEM_BOOTING) ||
+				    !kernel_text_address(rec->ip)) {
+					ftrace_del_hash(rec);
+					ftrace_free_rec(rec);
+				}
+			}
 		}
 	}
 }
@@ -467,7 +470,6 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 	failed = ftrace_modify_code(ip, call, nop);
 	if (failed) {
 		rec->flags |= FTRACE_FL_FAILED;
-		ftrace_free_rec(rec);
 		return 0;
 	}
 	return 1;
@@ -621,8 +623,7 @@ unsigned long		ftrace_update_tot_cnt;
 static int __ftrace_update_code(void *ignore)
 {
 	struct dyn_ftrace *p;
-	struct hlist_head head;
-	struct hlist_node *t;
+	struct hlist_node *t, *n;
 	int save_ftrace_enabled;
 	cycle_t start, stop;
 	int i;
@@ -637,18 +638,33 @@ static int __ftrace_update_code(void *ignore)
 
 	/* No locks needed, the machine is stopped! */
 	for (i = 0; i < FTRACE_HASHSIZE; i++) {
-		if (hlist_empty(&ftrace_hash[i]))
-			continue;
-
-		head = ftrace_hash[i];
-		INIT_HLIST_HEAD(&ftrace_hash[i]);
-
 		/* all CPUS are stopped, we are safe to modify code */
-		hlist_for_each_entry(p, t, &head, node) {
-			if (ftrace_code_disable(p))
-				ftrace_update_cnt++;
-		}
+		hlist_for_each_entry_safe(p, t, n, &ftrace_hash[i], node) {
+			/* Skip over failed records which have not been
+			 * freed. */
+			if (p->flags & FTRACE_FL_FAILED)
+				continue;
 
+			/* Unconverted records are always at the head of the
+			 * hash bucket. Once we encounter a converted record,
+			 * simply skip over to the next bucket. Saves ftraced
+			 * some processor cycles (ftrace does its bid for
+			 * global warming :-p ). */
+			if (p->flags & (FTRACE_FL_CONVERTED))
+				break;
+
+			if (ftrace_code_disable(p)) {
+				p->flags |= FTRACE_FL_CONVERTED;
+				ftrace_update_cnt++;
+			} else {
+				if ((system_state == SYSTEM_BOOTING) ||
+				    !kernel_text_address(p->ip)) {
+					ftrace_del_hash(p);
+					ftrace_free_rec(p);
+
+				}
+			}
+		}
 	}
 
 	stop = ftrace_now(raw_smp_processor_id());
