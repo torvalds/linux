@@ -21,7 +21,7 @@
 extern void setup_memory_map(void);
 extern void finish_e820_parsing(void);
 
-extern void propagate_e820_map(void);
+extern void find_max_pfn(void);
 extern void register_bootmem_low_pages(unsigned long max_low_pfn);
 extern void limit_regions(unsigned long long size);
 extern void init_iomem_resources(struct resource *code_resource,

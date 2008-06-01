@@ -210,7 +210,7 @@ void __init init_iomem_resources(struct resource *code_resource,
 /*
  * Find the highest page frame number we have available
  */
-void __init propagate_e820_map(void)
+void __init find_max_pfn(void)
 {
 	int i;
 
@@ -227,7 +227,6 @@ void __init propagate_e820_map(void)
 			continue;
 		if (end > max_pfn)
 			max_pfn = end;
-		memory_present(0, start, end);
 	}
 }
 
@@ -361,7 +360,7 @@ static int __init parse_memmap(char *arg)
 		 * size before original memory map is
 		 * reset.
 		 */
-		propagate_e820_map();
+		find_max_pfn();
 		saved_max_pfn = max_pfn;
 #endif
 		e820.nr_map = 0;

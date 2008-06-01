@@ -730,10 +730,10 @@ void __init setup_arch(char **cmdline_p)
 		efi_init();
 
 	/* update e820 for memory not covered by WB MTRRs */
-	propagate_e820_map();
+	find_max_pfn();
 	mtrr_bp_init();
 	if (mtrr_trim_uncached_memory(max_pfn))
-		propagate_e820_map();
+		find_max_pfn();
 
 	max_low_pfn = setup_memory();
 

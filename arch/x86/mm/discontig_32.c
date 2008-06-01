@@ -120,7 +120,7 @@ int __init get_memcfg_numa_flat(void)
 	printk("NUMA - single node, flat memory mode\n");
 
 	/* Run the memory configuration and find the top of memory. */
-	propagate_e820_map();
+	find_max_pfn();
 	node_start_pfn[0] = 0;
 	node_end_pfn[0] = max_pfn;
 	memory_present(0, 0, max_pfn);
