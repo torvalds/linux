@@ -124,6 +124,7 @@ int __init get_memcfg_numa_flat(void)
 	node_start_pfn[0] = 0;
 	node_end_pfn[0] = max_pfn;
 	memory_present(0, 0, max_pfn);
+	node_remap_size[0] = node_memmap_size_bytes(0, 0, max_pfn);
 
         /* Indicate there is one node available. */
 	nodes_clear(node_online_map);
