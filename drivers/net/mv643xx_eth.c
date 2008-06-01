@@ -323,21 +323,21 @@ struct mv643xx_eth_private {
 	/* Tx/Rx rings managment indexes fields. For driver use */
 
 	/* Next available and first returning Rx resource */
-	int rx_curr_desc_q, rx_used_desc_q;
+	int rx_curr_desc, rx_used_desc;
 
 	/* Next available and first returning Tx resource */
-	int tx_curr_desc_q, tx_used_desc_q;
+	int tx_curr_desc, tx_used_desc;
 
 #ifdef MV643XX_ETH_TX_FAST_REFILL
 	u32 tx_clean_threshold;
 #endif
 
-	struct rx_desc *p_rx_desc_area;
+	struct rx_desc *rx_desc_area;
 	dma_addr_t rx_desc_dma;
 	int rx_desc_area_size;
 	struct sk_buff **rx_skb;
 
-	struct tx_desc *p_tx_desc_area;
+	struct tx_desc *tx_desc_area;
 	dma_addr_t tx_desc_dma;
 	int tx_desc_area_size;
 	struct sk_buff **tx_skb;
@@ -444,31 +444,31 @@ static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_eth_private *mp)
 static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev);
 
 static FUNC_RET_STATUS rx_return_buff(struct mv643xx_eth_private *mp,
-						struct pkt_info *p_pkt_info)
+						struct pkt_info *pkt_info)
 {
 	int used_rx_desc;	/* Where to return Rx resource */
-	volatile struct rx_desc *p_used_rx_desc;
+	volatile struct rx_desc *rx_desc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mp->lock, flags);
 
 	/* Get 'used' Rx descriptor */
-	used_rx_desc = mp->rx_used_desc_q;
-	p_used_rx_desc = &mp->p_rx_desc_area[used_rx_desc];
+	used_rx_desc = mp->rx_used_desc;
+	rx_desc = &mp->rx_desc_area[used_rx_desc];
 
-	p_used_rx_desc->buf_ptr = p_pkt_info->buf_ptr;
-	p_used_rx_desc->buf_size = p_pkt_info->byte_cnt;
-	mp->rx_skb[used_rx_desc] = p_pkt_info->return_info;
+	rx_desc->buf_ptr = pkt_info->buf_ptr;
+	rx_desc->buf_size = pkt_info->byte_cnt;
+	mp->rx_skb[used_rx_desc] = pkt_info->return_info;
 
 	/* Flush the write pipe */
 
 	/* Return the descriptor to DMA ownership */
 	wmb();
-	p_used_rx_desc->cmd_sts = BUFFER_OWNED_BY_DMA | RX_ENABLE_INTERRUPT;
+	rx_desc->cmd_sts = BUFFER_OWNED_BY_DMA | RX_ENABLE_INTERRUPT;
 	wmb();
 
 	/* Move the used descriptor pointer to the next descriptor */
-	mp->rx_used_desc_q = (used_rx_desc + 1) % mp->rx_ring_size;
+	mp->rx_used_desc = (used_rx_desc + 1) % mp->rx_ring_size;
 
 	spin_unlock_irqrestore(&mp->lock, flags);
 
@@ -519,23 +519,23 @@ static inline void mv643xx_eth_rx_refill_descs_timer_wrapper(unsigned long data)
 }
 
 static FUNC_RET_STATUS port_receive(struct mv643xx_eth_private *mp,
-						struct pkt_info *p_pkt_info)
+						struct pkt_info *pkt_info)
 {
 	int rx_next_curr_desc, rx_curr_desc, rx_used_desc;
-	volatile struct rx_desc *p_rx_desc;
+	volatile struct rx_desc *rx_desc;
 	unsigned int command_status;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mp->lock, flags);
 
 	/* Get the Rx Desc ring 'curr and 'used' indexes */
-	rx_curr_desc = mp->rx_curr_desc_q;
-	rx_used_desc = mp->rx_used_desc_q;
+	rx_curr_desc = mp->rx_curr_desc;
+	rx_used_desc = mp->rx_used_desc;
 
-	p_rx_desc = &mp->p_rx_desc_area[rx_curr_desc];
+	rx_desc = &mp->rx_desc_area[rx_curr_desc];
 
 	/* The following parameters are used to save readings from memory */
-	command_status = p_rx_desc->cmd_sts;
+	command_status = rx_desc->cmd_sts;
 	rmb();
 
 	/* Nothing to receive... */
@@ -544,11 +544,11 @@ static FUNC_RET_STATUS port_receive(struct mv643xx_eth_private *mp,
 		return ETH_END_OF_JOB;
 	}
 
-	p_pkt_info->byte_cnt = p_rx_desc->byte_cnt - ETH_HW_IP_ALIGN;
-	p_pkt_info->cmd_sts = command_status;
-	p_pkt_info->buf_ptr = p_rx_desc->buf_ptr + ETH_HW_IP_ALIGN;
-	p_pkt_info->return_info = mp->rx_skb[rx_curr_desc];
-	p_pkt_info->l4i_chk = p_rx_desc->buf_size;
+	pkt_info->byte_cnt = rx_desc->byte_cnt - ETH_HW_IP_ALIGN;
+	pkt_info->cmd_sts = command_status;
+	pkt_info->buf_ptr = rx_desc->buf_ptr + ETH_HW_IP_ALIGN;
+	pkt_info->return_info = mp->rx_skb[rx_curr_desc];
+	pkt_info->l4i_chk = rx_desc->buf_size;
 
 	/*
 	 * Clean the return info field to indicate that the
@@ -558,7 +558,7 @@ static FUNC_RET_STATUS port_receive(struct mv643xx_eth_private *mp,
 
 	/* Update current index in data structure */
 	rx_next_curr_desc = (rx_curr_desc + 1) % mp->rx_ring_size;
-	mp->rx_curr_desc_q = rx_next_curr_desc;
+	mp->rx_curr_desc = rx_next_curr_desc;
 
 	spin_unlock_irqrestore(&mp->lock, flags);
 
@@ -650,7 +650,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 
 	work_done = 0;
 	if ((rdl(mp, RXQ_CURRENT_DESC_PTR(port_num)))
-	    != (u32) mp->rx_used_desc_q)
+	    != (u32) mp->rx_used_desc)
 		work_done = mv643xx_eth_receive_queue(dev, budget);
 
 	if (work_done < budget) {
@@ -685,10 +685,10 @@ static int alloc_tx_desc_index(struct mv643xx_eth_private *mp)
 
 	BUG_ON(mp->tx_desc_count >= mp->tx_ring_size);
 
-	tx_desc_curr = mp->tx_curr_desc_q;
-	mp->tx_curr_desc_q = (tx_desc_curr + 1) % mp->tx_ring_size;
+	tx_desc_curr = mp->tx_curr_desc;
+	mp->tx_curr_desc = (tx_desc_curr + 1) % mp->tx_ring_size;
 
-	BUG_ON(mp->tx_curr_desc_q == mp->tx_used_desc_q);
+	BUG_ON(mp->tx_curr_desc == mp->tx_used_desc);
 
 	return tx_desc_curr;
 }
@@ -704,7 +704,7 @@ static void tx_fill_frag_descs(struct mv643xx_eth_private *mp,
 		skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
 
 		tx_index = alloc_tx_desc_index(mp);
-		desc = &mp->p_tx_desc_area[tx_index];
+		desc = &mp->tx_desc_area[tx_index];
 
 		desc->cmd_sts = BUFFER_OWNED_BY_DMA;
 		/* Last Frag enables interrupt and frees the skb */
@@ -716,7 +716,7 @@ static void tx_fill_frag_descs(struct mv643xx_eth_private *mp,
 		} else
 			mp->tx_skb[tx_index] = NULL;
 
-		desc = &mp->p_tx_desc_area[tx_index];
+		desc = &mp->tx_desc_area[tx_index];
 		desc->l4i_chk = 0;
 		desc->byte_cnt = this_frag->size;
 		desc->buf_ptr = dma_map_page(NULL, this_frag->page,
@@ -743,7 +743,7 @@ static void tx_submit_descs_for_skb(struct mv643xx_eth_private *mp,
 	cmd_sts = TX_FIRST_DESC | GEN_CRC | BUFFER_OWNED_BY_DMA;
 
 	tx_index = alloc_tx_desc_index(mp);
-	desc = &mp->p_tx_desc_area[tx_index];
+	desc = &mp->tx_desc_area[tx_index];
 
 	if (nr_frags) {
 		tx_fill_frag_descs(mp, skb);
@@ -1113,7 +1113,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 
 
 /* address handling *********************************************************/
-static void uc_addr_get(struct mv643xx_eth_private *mp, unsigned char *p_addr)
+static void uc_addr_get(struct mv643xx_eth_private *mp, unsigned char *addr)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int mac_h;
@@ -1122,12 +1122,12 @@ static void uc_addr_get(struct mv643xx_eth_private *mp, unsigned char *p_addr)
 	mac_h = rdl(mp, MAC_ADDR_HIGH(port_num));
 	mac_l = rdl(mp, MAC_ADDR_LOW(port_num));
 
-	p_addr[0] = (mac_h >> 24) & 0xff;
-	p_addr[1] = (mac_h >> 16) & 0xff;
-	p_addr[2] = (mac_h >> 8) & 0xff;
-	p_addr[3] = mac_h & 0xff;
-	p_addr[4] = (mac_l >> 8) & 0xff;
-	p_addr[5] = mac_l & 0xff;
+	addr[0] = (mac_h >> 24) & 0xff;
+	addr[1] = (mac_h >> 16) & 0xff;
+	addr[2] = (mac_h >> 8) & 0xff;
+	addr[3] = mac_h & 0xff;
+	addr[4] = (mac_l >> 8) & 0xff;
+	addr[5] = mac_l & 0xff;
 }
 
 static void init_mac_tables(struct mv643xx_eth_private *mp)
@@ -1163,23 +1163,23 @@ static void set_filter_table_entry(struct mv643xx_eth_private *mp,
 	wrl(mp, table + tbl_offset, table_reg);
 }
 
-static void uc_addr_set(struct mv643xx_eth_private *mp, unsigned char *p_addr)
+static void uc_addr_set(struct mv643xx_eth_private *mp, unsigned char *addr)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int mac_h;
 	unsigned int mac_l;
 	int table;
 
-	mac_l = (p_addr[4] << 8) | (p_addr[5]);
-	mac_h = (p_addr[0] << 24) | (p_addr[1] << 16) | (p_addr[2] << 8) |
-							(p_addr[3] << 0);
+	mac_l = (addr[4] << 8) | (addr[5]);
+	mac_h = (addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) |
+							(addr[3] << 0);
 
 	wrl(mp, MAC_ADDR_LOW(port_num), mac_l);
 	wrl(mp, MAC_ADDR_HIGH(port_num), mac_h);
 
 	/* Accept frames with this address */
 	table = UNICAST_TABLE(port_num);
-	set_filter_table_entry(mp, table, p_addr[5] & 0x0f);
+	set_filter_table_entry(mp, table, addr[5] & 0x0f);
 }
 
 static void mv643xx_eth_update_mac_address(struct net_device *dev)
@@ -1201,7 +1201,7 @@ static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static void mc_addr(struct mv643xx_eth_private *mp, unsigned char *p_addr)
+static void mc_addr(struct mv643xx_eth_private *mp, unsigned char *addr)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int mac_h;
@@ -1212,17 +1212,17 @@ static void mc_addr(struct mv643xx_eth_private *mp, unsigned char *p_addr)
 	int crc[8];
 	int i;
 
-	if ((p_addr[0] == 0x01) && (p_addr[1] == 0x00) &&
-	    (p_addr[2] == 0x5E) && (p_addr[3] == 0x00) && (p_addr[4] == 0x00)) {
+	if ((addr[0] == 0x01) && (addr[1] == 0x00) &&
+	    (addr[2] == 0x5E) && (addr[3] == 0x00) && (addr[4] == 0x00)) {
 		table = SPECIAL_MCAST_TABLE(port_num);
-		set_filter_table_entry(mp, table, p_addr[5]);
+		set_filter_table_entry(mp, table, addr[5]);
 		return;
 	}
 
 	/* Calculate CRC-8 out of the given address */
-	mac_h = (p_addr[0] << 8) | (p_addr[1]);
-	mac_l = (p_addr[2] << 24) | (p_addr[3] << 16) |
-			(p_addr[4] << 8) | (p_addr[5] << 0);
+	mac_h = (addr[0] << 8) | (addr[1]);
+	mac_l = (addr[2] << 24) | (addr[3] << 16) |
+			(addr[4] << 8) | (addr[5] << 0);
 
 	for (i = 0; i < 32; i++)
 		mac_array[i] = (mac_l >> i) & 0x1;
@@ -1372,15 +1372,15 @@ static void ether_init_rx_desc_ring(struct mv643xx_eth_private *mp)
 	int i;
 
 	/* initialize the next_desc_ptr links in the Rx descriptors ring */
-	p_rx_desc = (struct rx_desc *)mp->p_rx_desc_area;
+	p_rx_desc = (struct rx_desc *)mp->rx_desc_area;
 	for (i = 0; i < rx_desc_num; i++) {
 		p_rx_desc[i].next_desc_ptr = mp->rx_desc_dma +
 			((i + 1) % rx_desc_num) * sizeof(struct rx_desc);
 	}
 
 	/* Save Rx desc pointer to driver struct. */
-	mp->rx_curr_desc_q = 0;
-	mp->rx_used_desc_q = 0;
+	mp->rx_curr_desc = 0;
+	mp->rx_used_desc = 0;
 
 	mp->rx_desc_area_size = rx_desc_num * sizeof(struct rx_desc);
 }
@@ -1408,10 +1408,10 @@ static void mv643xx_eth_free_rx_rings(struct net_device *dev)
 			mp->rx_desc_count);
 	/* Free RX ring */
 	if (mp->rx_sram_size)
-		iounmap(mp->p_rx_desc_area);
+		iounmap(mp->rx_desc_area);
 	else
 		dma_free_coherent(NULL, mp->rx_desc_area_size,
-				mp->p_rx_desc_area, mp->rx_desc_dma);
+				mp->rx_desc_area, mp->rx_desc_dma);
 }
 
 static void ether_init_tx_desc_ring(struct mv643xx_eth_private *mp)
@@ -1421,14 +1421,14 @@ static void ether_init_tx_desc_ring(struct mv643xx_eth_private *mp)
 	int i;
 
 	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
-	p_tx_desc = (struct tx_desc *)mp->p_tx_desc_area;
+	p_tx_desc = (struct tx_desc *)mp->tx_desc_area;
 	for (i = 0; i < tx_desc_num; i++) {
 		p_tx_desc[i].next_desc_ptr = mp->tx_desc_dma +
 			((i + 1) % tx_desc_num) * sizeof(struct tx_desc);
 	}
 
-	mp->tx_curr_desc_q = 0;
-	mp->tx_used_desc_q = 0;
+	mp->tx_curr_desc = 0;
+	mp->tx_used_desc = 0;
 
 	mp->tx_desc_area_size = tx_desc_num * sizeof(struct tx_desc);
 }
@@ -1454,8 +1454,8 @@ static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 			return released;
 		}
 
-		tx_index = mp->tx_used_desc_q;
-		desc = &mp->p_tx_desc_area[tx_index];
+		tx_index = mp->tx_used_desc;
+		desc = &mp->tx_desc_area[tx_index];
 		cmd_sts = desc->cmd_sts;
 
 		if (!force && (cmd_sts & BUFFER_OWNED_BY_DMA)) {
@@ -1463,7 +1463,7 @@ static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 			return released;
 		}
 
-		mp->tx_used_desc_q = (tx_index + 1) % mp->tx_ring_size;
+		mp->tx_used_desc = (tx_index + 1) % mp->tx_ring_size;
 		mp->tx_desc_count--;
 
 		addr = desc->buf_ptr;
@@ -1517,14 +1517,14 @@ static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 	/* Free outstanding skb's on TX ring */
 	mv643xx_eth_free_all_tx_descs(dev);
 
-	BUG_ON(mp->tx_used_desc_q != mp->tx_curr_desc_q);
+	BUG_ON(mp->tx_used_desc != mp->tx_curr_desc);
 
 	/* Free TX ring */
 	if (mp->tx_sram_size)
-		iounmap(mp->p_tx_desc_area);
+		iounmap(mp->tx_desc_area);
 	else
 		dma_free_coherent(NULL, mp->tx_desc_area_size,
-				mp->p_tx_desc_area, mp->tx_desc_dma);
+				mp->tx_desc_area, mp->tx_desc_dma);
 }
 
 
@@ -1663,12 +1663,12 @@ static void port_start(struct net_device *dev)
 	struct ethtool_cmd ethtool_cmd;
 
 	/* Assignment of Tx CTRP of given queue */
-	tx_curr_desc = mp->tx_curr_desc_q;
+	tx_curr_desc = mp->tx_curr_desc;
 	wrl(mp, TXQ_CURRENT_DESC_PTR(port_num),
 		(u32)((struct tx_desc *)mp->tx_desc_dma + tx_curr_desc));
 
 	/* Assignment of Rx CRDP of given queue */
-	rx_curr_desc = mp->rx_curr_desc_q;
+	rx_curr_desc = mp->rx_curr_desc;
 	wrl(mp, RXQ_CURRENT_DESC_PTR(port_num),
 		(u32)((struct rx_desc *)mp->rx_desc_dma + rx_curr_desc));
 
@@ -1800,22 +1800,22 @@ static int mv643xx_eth_open(struct net_device *dev)
 	mp->tx_desc_area_size = size;
 
 	if (mp->tx_sram_size) {
-		mp->p_tx_desc_area = ioremap(mp->tx_sram_addr,
+		mp->tx_desc_area = ioremap(mp->tx_sram_addr,
 							mp->tx_sram_size);
 		mp->tx_desc_dma = mp->tx_sram_addr;
 	} else
-		mp->p_tx_desc_area = dma_alloc_coherent(NULL, size,
+		mp->tx_desc_area = dma_alloc_coherent(NULL, size,
 							&mp->tx_desc_dma,
 							GFP_KERNEL);
 
-	if (!mp->p_tx_desc_area) {
+	if (!mp->tx_desc_area) {
 		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
 							dev->name, size);
 		err = -ENOMEM;
 		goto out_free_tx_skb;
 	}
-	BUG_ON((u32) mp->p_tx_desc_area & 0xf);	/* check 16-byte alignment */
-	memset((void *)mp->p_tx_desc_area, 0, mp->tx_desc_area_size);
+	BUG_ON((u32) mp->tx_desc_area & 0xf);	/* check 16-byte alignment */
+	memset((void *)mp->tx_desc_area, 0, mp->tx_desc_area_size);
 
 	ether_init_tx_desc_ring(mp);
 
@@ -1825,28 +1825,28 @@ static int mv643xx_eth_open(struct net_device *dev)
 	mp->rx_desc_area_size = size;
 
 	if (mp->rx_sram_size) {
-		mp->p_rx_desc_area = ioremap(mp->rx_sram_addr,
+		mp->rx_desc_area = ioremap(mp->rx_sram_addr,
 							mp->rx_sram_size);
 		mp->rx_desc_dma = mp->rx_sram_addr;
 	} else
-		mp->p_rx_desc_area = dma_alloc_coherent(NULL, size,
+		mp->rx_desc_area = dma_alloc_coherent(NULL, size,
 							&mp->rx_desc_dma,
 							GFP_KERNEL);
 
-	if (!mp->p_rx_desc_area) {
+	if (!mp->rx_desc_area) {
 		printk(KERN_ERR "%s: Cannot allocate Rx ring (size %d bytes)\n",
 							dev->name, size);
 		printk(KERN_ERR "%s: Freeing previously allocated TX queues...",
 							dev->name);
 		if (mp->rx_sram_size)
-			iounmap(mp->p_tx_desc_area);
+			iounmap(mp->tx_desc_area);
 		else
 			dma_free_coherent(NULL, mp->tx_desc_area_size,
-					mp->p_tx_desc_area, mp->tx_desc_dma);
+					mp->tx_desc_area, mp->tx_desc_dma);
 		err = -ENOMEM;
 		goto out_free_tx_skb;
 	}
-	memset((void *)mp->p_rx_desc_area, 0, size);
+	memset((void *)mp->rx_desc_area, 0, size);
 
 	ether_init_rx_desc_ring(mp);
 
