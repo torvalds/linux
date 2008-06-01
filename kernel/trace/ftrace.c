@@ -768,6 +768,7 @@ enum {
 	FTRACE_ITER_FILTER	= (1 << 0),
 	FTRACE_ITER_CONT	= (1 << 1),
 	FTRACE_ITER_NOTRACE	= (1 << 2),
+	FTRACE_ITER_FAILURES	= (1 << 3),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
@@ -799,9 +800,16 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	} else {
 		rec = &iter->pg->records[iter->idx++];
-		if ((rec->flags & FTRACE_FL_FAILED) ||
+		if ((!(iter->flags & FTRACE_ITER_FAILURES) &&
+		     (rec->flags & FTRACE_FL_FAILED)) ||
+
+		    ((iter->flags & FTRACE_ITER_FAILURES) &&
+		     (!(rec->flags & FTRACE_FL_FAILED) ||
+		      (rec->flags & FTRACE_FL_FREE))) ||
+
 		    ((iter->flags & FTRACE_ITER_FILTER) &&
 		     !(rec->flags & FTRACE_FL_FILTER)) ||
+
 		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
 		     !(rec->flags & FTRACE_FL_NOTRACE))) {
 			rec = NULL;
@@ -895,6 +903,24 @@ int ftrace_avail_release(struct inode *inode, struct file *file)
 
 	return 0;
 }
+
+static int
+ftrace_failures_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct seq_file *m;
+	struct ftrace_iterator *iter;
+
+	ret = ftrace_avail_open(inode, file);
+	if (!ret) {
+		m = (struct seq_file *)file->private_data;
+		iter = (struct ftrace_iterator *)m->private;
+		iter->flags = FTRACE_ITER_FAILURES;
+	}
+
+	return ret;
+}
+
 
 static void ftrace_filter_reset(int enable)
 {
@@ -1309,6 +1335,13 @@ static struct file_operations ftrace_avail_fops = {
 	.release = ftrace_avail_release,
 };
 
+static struct file_operations ftrace_failures_fops = {
+	.open = ftrace_failures_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = ftrace_avail_release,
+};
+
 static struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = ftrace_regex_read,
@@ -1385,6 +1418,11 @@ static __init int ftrace_init_debugfs(void)
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'available_filter_functions' entry\n");
+
+	entry = debugfs_create_file("failures", 0444,
+				    d_tracer, NULL, &ftrace_failures_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs 'failures' entry\n");
 
 	entry = debugfs_create_file("set_ftrace_filter", 0644, d_tracer,
 				    NULL, &ftrace_filter_fops);
