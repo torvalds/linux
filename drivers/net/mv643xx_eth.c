@@ -176,16 +176,6 @@ static char mv643xx_eth_driver_version[] = "1.0";
 #define SMI_OPCODE_WRITE	0		/* Completion of Read	*/
 #define SMI_OPCODE_READ		0x04000000	/* Operation is in progress */
 
-/* typedefs */
-
-typedef enum _func_ret_status {
-	ETH_OK,			/* Returned as expected.		*/
-	ETH_ERROR,		/* Fundamental error.			*/
-	ETH_RETRY,		/* Could not process request. Try later.*/
-	ETH_END_OF_JOB,		/* Ring has nothing to process.		*/
-	ETH_QUEUE_FULL,		/* Ring resource error.			*/
-	ETH_QUEUE_LAST_RESOURCE	/* Ring resources about to exhaust.	*/
-} FUNC_RET_STATUS;
 
 /*
  * RX/TX descriptors.
@@ -249,17 +239,6 @@ struct tx_desc {
 #define UDP_FRAME			0x00010000
 
 #define TX_IHL_SHIFT			11
-
-
-/* Unified struct for Rx and Tx operations. The user is not required to	*/
-/* be familier with neither Tx nor Rx descriptors.			*/
-struct pkt_info {
-	unsigned short byte_cnt;	/* Descriptor buffer byte count	*/
-	unsigned short l4i_chk;		/* Tx CPU provided TCP Checksum	*/
-	unsigned int cmd_sts;		/* Descriptor command status	*/
-	dma_addr_t buf_ptr;		/* Descriptor buffer pointer	*/
-	struct sk_buff *return_info;	/* User resource return information */
-};
 
 
 /* global *******************************************************************/
