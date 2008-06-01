@@ -96,7 +96,7 @@ static char mv643xx_eth_driver_version[] = "1.0";
 #define TX_BW_MTU(p)			(0x0458 + ((p) << 10))
 #define TX_BW_BURST(p)			(0x045c + ((p) << 10))
 #define INT_CAUSE(p)			(0x0460 + ((p) << 10))
-#define  INT_RX				0x00000804
+#define  INT_RX				0x0007fbfc
 #define  INT_EXT			0x00000002
 #define INT_CAUSE_EXT(p)		(0x0464 + ((p) << 10))
 #define  INT_EXT_LINK			0x00100000
@@ -107,7 +107,7 @@ static char mv643xx_eth_driver_version[] = "1.0";
 #define INT_MASK(p)			(0x0468 + ((p) << 10))
 #define INT_MASK_EXT(p)			(0x046c + ((p) << 10))
 #define TX_FIFO_URGENT_THRESHOLD(p)	(0x0474 + ((p) << 10))
-#define RXQ_CURRENT_DESC_PTR(p)		(0x060c + ((p) << 10))
+#define RXQ_CURRENT_DESC_PTR(p, q)	(0x060c + ((p) << 10) + ((q) << 4))
 #define RXQ_COMMAND(p)			(0x0680 + ((p) << 10))
 #define TXQ_CURRENT_DESC_PTR(p)		(0x06c0 + ((p) << 10))
 #define TXQ_BW_TOKENS(p)		(0x0700 + ((p) << 10))
@@ -286,6 +286,8 @@ struct mib_counters {
 };
 
 struct rx_queue {
+	int index;
+
 	int rx_ring_size;
 
 	int rx_desc_count;
@@ -334,8 +336,10 @@ struct mv643xx_eth_private {
 	int default_rx_ring_size;
 	unsigned long rx_desc_sram_addr;
 	int rx_desc_sram_size;
+	u8 rxq_mask;
+	int rxq_primary;
 	struct napi_struct napi;
-	struct rx_queue rxq[1];
+	struct rx_queue rxq[8];
 
 	/*
 	 * TX state.
@@ -365,7 +369,7 @@ static inline void wrl(struct mv643xx_eth_private *mp, int offset, u32 data)
 /* rxq/txq helper functions *************************************************/
 static struct mv643xx_eth_private *rxq_to_mp(struct rx_queue *rxq)
 {
-	return container_of(rxq, struct mv643xx_eth_private, rxq[0]);
+	return container_of(rxq, struct mv643xx_eth_private, rxq[rxq->index]);
 }
 
 static struct mv643xx_eth_private *txq_to_mp(struct tx_queue *txq)
@@ -376,13 +380,13 @@ static struct mv643xx_eth_private *txq_to_mp(struct tx_queue *txq)
 static void rxq_enable(struct rx_queue *rxq)
 {
 	struct mv643xx_eth_private *mp = rxq_to_mp(rxq);
-	wrl(mp, RXQ_COMMAND(mp->port_num), 1);
+	wrl(mp, RXQ_COMMAND(mp->port_num), 1 << rxq->index);
 }
 
 static void rxq_disable(struct rx_queue *rxq)
 {
 	struct mv643xx_eth_private *mp = rxq_to_mp(rxq);
-	u8 mask = 1;
+	u8 mask = 1 << rxq->index;
 
 	wrl(mp, RXQ_COMMAND(mp->port_num), mask << 8);
 	while (rdl(mp, RXQ_COMMAND(mp->port_num)) & mask)
@@ -583,6 +587,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 {
 	struct mv643xx_eth_private *mp;
 	int rx;
+	int i;
 
 	mp = container_of(napi, struct mv643xx_eth_private, napi);
 
@@ -593,7 +598,10 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 	}
 #endif
 
-	rx = rxq_process(mp->rxq, budget);
+	rx = 0;
+	for (i = 7; rx < budget && i >= 0; i--)
+		if (mp->rxq_mask & (1 << i))
+			rx += rxq_process(mp->rxq + i, budget - rx);
 
 	if (rx < budget) {
 		netif_rx_complete(mp->dev, napi);
@@ -1306,12 +1314,14 @@ static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 
 
 /* rx/tx queue initialisation ***********************************************/
-static int rxq_init(struct mv643xx_eth_private *mp)
+static int rxq_init(struct mv643xx_eth_private *mp, int index)
 {
-	struct rx_queue *rxq = mp->rxq;
+	struct rx_queue *rxq = mp->rxq + index;
 	struct rx_desc *rx_desc;
 	int size;
 	int i;
+
+	rxq->index = index;
 
 	rxq->rx_ring_size = mp->default_rx_ring_size;
 
@@ -1321,7 +1331,7 @@ static int rxq_init(struct mv643xx_eth_private *mp)
 
 	size = rxq->rx_ring_size * sizeof(struct rx_desc);
 
-	if (size <= mp->rx_desc_sram_size) {
+	if (index == mp->rxq_primary && size <= mp->rx_desc_sram_size) {
 		rxq->rx_desc_area = ioremap(mp->rx_desc_sram_addr,
 						mp->rx_desc_sram_size);
 		rxq->rx_desc_dma = mp->rx_desc_sram_addr;
@@ -1362,7 +1372,7 @@ static int rxq_init(struct mv643xx_eth_private *mp)
 
 
 out_free:
-	if (size <= mp->rx_desc_sram_size)
+	if (index == mp->rxq_primary && size <= mp->rx_desc_sram_size)
 		iounmap(rxq->rx_desc_area);
 	else
 		dma_free_coherent(NULL, size,
@@ -1395,7 +1405,8 @@ static void rxq_deinit(struct rx_queue *rxq)
 			   rxq->rx_desc_count);
 	}
 
-	if (rxq->rx_desc_area_size <= mp->rx_desc_sram_size)
+	if (rxq->index == mp->rxq_primary &&
+	    rxq->rx_desc_area_size <= mp->rx_desc_sram_size)
 		iounmap(rxq->rx_desc_area);
 	else
 		dma_free_coherent(NULL, rxq->rx_desc_area_size,
@@ -1612,6 +1623,9 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		}
 	}
 
+	/*
+	 * RxBuffer or RxError set for any of the 8 queues?
+	 */
 #ifdef MV643XX_ETH_NAPI
 	if (int_cause & INT_RX) {
 		wrl(mp, INT_MASK(mp->port_num), 0x00000000);
@@ -1620,8 +1634,13 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		netif_rx_schedule(dev, &mp->napi);
 	}
 #else
-	if (int_cause & INT_RX)
-		rxq_process(mp->rxq, INT_MAX);
+	if (int_cause & INT_RX) {
+		int i;
+
+		for (i = 7; i >= 0; i--)
+			if (mp->rxq_mask & (1 << i))
+				rxq_process(mp->rxq + i, INT_MAX);
+	}
 #endif
 
 	if (int_cause_ext & INT_EXT_TX) {
@@ -1707,12 +1726,15 @@ static void port_start(struct mv643xx_eth_private *mp)
 	wrl(mp, PORT_CONFIG_EXT(mp->port_num), 0x00000000);
 
 	/*
-	 * Enable the receive queue.
+	 * Enable the receive queues.
 	 */
-	for (i = 0; i < 1; i++) {
-		struct rx_queue *rxq = mp->rxq;
-		int off = RXQ_CURRENT_DESC_PTR(mp->port_num);
+	for (i = 0; i < 8; i++) {
+		struct rx_queue *rxq = mp->rxq + i;
+		int off = RXQ_CURRENT_DESC_PTR(mp->port_num, i);
 		u32 addr;
+
+		if ((mp->rxq_mask & (1 << i)) == 0)
+			continue;
 
 		addr = (u32)rxq->rx_desc_dma;
 		addr += rxq->rx_curr_desc * sizeof(struct rx_desc);
@@ -1748,6 +1770,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int err;
+	int i;
 
 	wrl(mp, INT_CAUSE(mp->port_num), 0);
 	wrl(mp, INT_CAUSE_EXT(mp->port_num), 0);
@@ -1763,10 +1786,20 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	init_mac_tables(mp);
 
-	err = rxq_init(mp);
-	if (err)
-		goto out;
-	rxq_refill(mp->rxq);
+	for (i = 0; i < 8; i++) {
+		if ((mp->rxq_mask & (1 << i)) == 0)
+			continue;
+
+		err = rxq_init(mp, i);
+		if (err) {
+			while (--i >= 0)
+				if (mp->rxq_mask & (1 << i))
+					rxq_deinit(mp->rxq + i);
+			goto out;
+		}
+
+		rxq_refill(mp->rxq + i);
+	}
 
 	err = txq_init(mp);
 	if (err)
@@ -1790,7 +1823,9 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 
 out_free:
-	rxq_deinit(mp->rxq);
+	for (i = 0; i < 8; i++)
+		if (mp->rxq_mask & (1 << i))
+			rxq_deinit(mp->rxq + i);
 out:
 	free_irq(dev->irq, dev);
 
@@ -1800,9 +1835,13 @@ out:
 static void port_reset(struct mv643xx_eth_private *mp)
 {
 	unsigned int data;
+	int i;
 
+	for (i = 0; i < 8; i++) {
+		if (mp->rxq_mask & (1 << i))
+			rxq_disable(mp->rxq + i);
+	}
 	txq_disable(mp->txq);
-	rxq_disable(mp->rxq);
 	while (!(rdl(mp, PORT_STATUS(mp->port_num)) & TX_FIFO_EMPTY))
 		udelay(10);
 
@@ -1817,6 +1856,7 @@ static void port_reset(struct mv643xx_eth_private *mp)
 static int mv643xx_eth_stop(struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	int i;
 
 	wrl(mp, INT_MASK(mp->port_num), 0x00000000);
 	rdl(mp, INT_MASK(mp->port_num));
@@ -1832,8 +1872,11 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	port_reset(mp);
 	mib_counters_update(mp);
 
+	for (i = 0; i < 8; i++) {
+		if (mp->rxq_mask & (1 << i))
+			rxq_deinit(mp->rxq + i);
+	}
 	txq_deinit(mp->txq);
-	rxq_deinit(mp->rxq);
 
 	return 0;
 }
@@ -2084,6 +2127,12 @@ static void set_params(struct mv643xx_eth_private *mp,
 		mp->default_rx_ring_size = pd->rx_queue_size;
 	mp->rx_desc_sram_addr = pd->rx_sram_addr;
 	mp->rx_desc_sram_size = pd->rx_sram_size;
+
+	if (pd->rx_queue_mask)
+		mp->rxq_mask = pd->rx_queue_mask;
+	else
+		mp->rxq_mask = 0x01;
+	mp->rxq_primary = fls(mp->rxq_mask) - 1;
 
 	mp->default_tx_ring_size = DEFAULT_TX_QUEUE_SIZE;
 	if (pd->tx_queue_size)
