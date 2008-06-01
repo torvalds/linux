@@ -108,6 +108,10 @@ static char mv643xx_eth_driver_version[] = "1.0";
 #define INT_MASK(p)			(0x0468 + ((p) << 10))
 #define INT_MASK_EXT(p)			(0x046c + ((p) << 10))
 #define TX_FIFO_URGENT_THRESHOLD(p)	(0x0474 + ((p) << 10))
+#define TXQ_FIX_PRIO_CONF_MOVED(p)	(0x04dc + ((p) << 10))
+#define TX_BW_RATE_MOVED(p)		(0x04e0 + ((p) << 10))
+#define TX_BW_MTU_MOVED(p)		(0x04e8 + ((p) << 10))
+#define TX_BW_BURST_MOVED(p)		(0x04ec + ((p) << 10))
 #define RXQ_CURRENT_DESC_PTR(p, q)	(0x060c + ((p) << 10) + ((q) << 4))
 #define RXQ_COMMAND(p)			(0x0680 + ((p) << 10))
 #define TXQ_CURRENT_DESC_PTR(p, q)	(0x06c0 + ((p) << 10) + ((q) << 2))
@@ -250,6 +254,7 @@ struct mv643xx_eth_shared_private {
 	 */
 	unsigned int t_clk;
 	int extended_rx_coal_limit;
+	int tx_bw_control_moved;
 };
 
 
@@ -831,9 +836,15 @@ static void tx_set_rate(struct mv643xx_eth_private *mp, int rate, int burst)
 	if (bucket_size > 65535)
 		bucket_size = 65535;
 
-	wrl(mp, TX_BW_RATE(mp->port_num), token_rate);
-	wrl(mp, TX_BW_MTU(mp->port_num), mtu);
-	wrl(mp, TX_BW_BURST(mp->port_num), bucket_size);
+	if (mp->shared->tx_bw_control_moved) {
+		wrl(mp, TX_BW_RATE_MOVED(mp->port_num), token_rate);
+		wrl(mp, TX_BW_MTU_MOVED(mp->port_num), mtu);
+		wrl(mp, TX_BW_BURST_MOVED(mp->port_num), bucket_size);
+	} else {
+		wrl(mp, TX_BW_RATE(mp->port_num), token_rate);
+		wrl(mp, TX_BW_MTU(mp->port_num), mtu);
+		wrl(mp, TX_BW_BURST(mp->port_num), bucket_size);
+	}
 }
 
 static void txq_set_rate(struct tx_queue *txq, int rate, int burst)
@@ -864,7 +875,10 @@ static void txq_set_fixed_prio_mode(struct tx_queue *txq)
 	/*
 	 * Turn on fixed priority mode.
 	 */
-	off = TXQ_FIX_PRIO_CONF(mp->port_num);
+	if (mp->shared->tx_bw_control_moved)
+		off = TXQ_FIX_PRIO_CONF_MOVED(mp->port_num);
+	else
+		off = TXQ_FIX_PRIO_CONF(mp->port_num);
 
 	val = rdl(mp, off);
 	val |= 1 << txq->index;
@@ -880,7 +894,10 @@ static void txq_set_wrr(struct tx_queue *txq, int weight)
 	/*
 	 * Turn off fixed priority mode.
 	 */
-	off = TXQ_FIX_PRIO_CONF(mp->port_num);
+	if (mp->shared->tx_bw_control_moved)
+		off = TXQ_FIX_PRIO_CONF_MOVED(mp->port_num);
+	else
+		off = TXQ_FIX_PRIO_CONF(mp->port_num);
 
 	val = rdl(mp, off);
 	val &= ~(1 << txq->index);
@@ -2108,6 +2125,16 @@ static void infer_hw_params(struct mv643xx_eth_shared_private *msp)
 		msp->extended_rx_coal_limit = 1;
 	else
 		msp->extended_rx_coal_limit = 0;
+
+	/*
+	 * Check whether the TX rate control registers are in the
+	 * old or the new place.
+	 */
+	writel(1, msp->base + TX_BW_MTU_MOVED(0));
+	if (readl(msp->base + TX_BW_MTU_MOVED(0)) & 1)
+		msp->tx_bw_control_moved = 1;
+	else
+		msp->tx_bw_control_moved = 0;
 }
 
 static int mv643xx_eth_shared_probe(struct platform_device *pdev)
