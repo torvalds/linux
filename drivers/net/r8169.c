@@ -197,9 +197,6 @@ enum rtl_registers {
 	Config5		= 0x56,
 	MultiIntr	= 0x5c,
 	PHYAR		= 0x60,
-	TBICSR		= 0x64,
-	TBI_ANAR	= 0x68,
-	TBI_LPAR	= 0x6a,
 	PHYstatus	= 0x6c,
 	RxMaxSize	= 0xda,
 	CPlusCmd	= 0xe0,
@@ -211,6 +208,32 @@ enum rtl_registers {
 	FuncEventMask	= 0xf4,
 	FuncPresetState	= 0xf8,
 	FuncForceEvent	= 0xfc,
+};
+
+enum rtl8110_registers {
+	TBICSR			= 0x64,
+	TBI_ANAR		= 0x68,
+	TBI_LPAR		= 0x6a,
+};
+
+enum rtl8168_8101_registers {
+	CSIDR			= 0x64,
+	CSIAR			= 0x68,
+#define	CSIAR_FLAG			0x80000000
+#define	CSIAR_WRITE_CMD			0x80000000
+#define	CSIAR_BYTE_ENABLE		0x0f
+#define	CSIAR_BYTE_ENABLE_SHIFT		12
+#define	CSIAR_ADDR_MASK			0x0fff
+
+	EPHYAR			= 0x80,
+#define	EPHYAR_FLAG			0x80000000
+#define	EPHYAR_WRITE_CMD		0x80000000
+#define	EPHYAR_REG_MASK			0x1f
+#define	EPHYAR_REG_SHIFT		16
+#define	EPHYAR_DATA_MASK		0xffff
+	DBG_REG			= 0xd1,
+#define	FIX_NAK_1			(1 << 4)
+#define	FIX_NAK_2			(1 << 3)
 };
 
 enum rtl_register_content {
@@ -266,7 +289,13 @@ enum rtl_register_content {
 	TxDMAShift = 8,	/* DMA burst value (0-7) is shift this many bits */
 
 	/* Config1 register p.24 */
+	LEDS1		= (1 << 7),
+	LEDS0		= (1 << 6),
 	MSIEnable	= (1 << 5),	/* Enable Message Signaled Interrupt */
+	Speed_down	= (1 << 4),
+	MEMMAP		= (1 << 3),
+	IOMAP		= (1 << 2),
+	VPD		= (1 << 1),
 	PMEnable	= (1 << 0),	/* Power Management Enable */
 
 	/* Config2 register p. 25 */
@@ -276,6 +305,7 @@ enum rtl_register_content {
 	/* Config3 register p.25 */
 	MagicPacket	= (1 << 5),	/* Wake up when receives a Magic Packet */
 	LinkUp		= (1 << 4),	/* Wake up when the cable connection is re-established */
+	Beacon_en	= (1 << 0),	/* 8168 only. Reserved in the 8168b */
 
 	/* Config5 register p.27 */
 	BWF		= (1 << 6),	/* Accept Broadcast wakeup frame */
@@ -293,7 +323,16 @@ enum rtl_register_content {
 	TBINwComplete	= 0x01000000,
 
 	/* CPlusCmd p.31 */
-	PktCntrDisable	= (1 << 7),	// 8168
+	EnableBist	= (1 << 15),	// 8168 8101
+	Mac_dbgo_oe	= (1 << 14),	// 8168 8101
+	Normal_mode	= (1 << 13),	// unused
+	Force_half_dup	= (1 << 12),	// 8168 8101
+	Force_rxflow_en	= (1 << 11),	// 8168 8101
+	Force_txflow_en	= (1 << 10),	// 8168 8101
+	Cxpl_dbg_sel	= (1 << 9),	// 8168 8101
+	ASF		= (1 << 8),	// 8168 8101
+	PktCntrDisable	= (1 << 7),	// 8168 8101
+	Mac_dbgo_sel	= 0x001c,	// 8168
 	RxVlan		= (1 << 6),
 	RxChkSum	= (1 << 5),
 	PCIDAC		= (1 << 4),
