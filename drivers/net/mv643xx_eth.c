@@ -249,6 +249,7 @@ struct mv643xx_eth_shared_private {
 	 * Hardware-specific parameters.
 	 */
 	unsigned int t_clk;
+	int extended_rx_coal_limit;
 };
 
 
@@ -1815,14 +1816,22 @@ static void port_start(struct mv643xx_eth_private *mp)
 static void set_rx_coal(struct mv643xx_eth_private *mp, unsigned int delay)
 {
 	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
+	u32 val;
 
-	if (coal > 0x3fff)
-		coal = 0x3fff;
-
-	wrl(mp, SDMA_CONFIG(mp->port_num),
-		((coal & 0x3fff) << 8) |
-		(rdl(mp, SDMA_CONFIG(mp->port_num))
-			& 0xffc000ff));
+	val = rdl(mp, SDMA_CONFIG(mp->port_num));
+	if (mp->shared->extended_rx_coal_limit) {
+		if (coal > 0xffff)
+			coal = 0xffff;
+		val &= ~0x023fff80;
+		val |= (coal & 0x8000) << 10;
+		val |= (coal & 0x7fff) << 7;
+	} else {
+		if (coal > 0x3fff)
+			coal = 0x3fff;
+		val &= ~0x003fff00;
+		val |= (coal & 0x3fff) << 8;
+	}
+	wrl(mp, SDMA_CONFIG(mp->port_num), val);
 }
 
 static void set_tx_coal(struct mv643xx_eth_private *mp, unsigned int delay)
@@ -2087,6 +2096,20 @@ mv643xx_eth_conf_mbus_windows(struct mv643xx_eth_shared_private *msp,
 	msp->win_protect = win_protect;
 }
 
+static void infer_hw_params(struct mv643xx_eth_shared_private *msp)
+{
+	/*
+	 * Check whether we have a 14-bit coal limit field in bits
+	 * [21:8], or a 16-bit coal limit in bits [25,21:7] of the
+	 * SDMA config register.
+	 */
+	writel(0x02000000, msp->base + SDMA_CONFIG(0));
+	if (readl(msp->base + SDMA_CONFIG(0)) & 0x02000000)
+		msp->extended_rx_coal_limit = 1;
+	else
+		msp->extended_rx_coal_limit = 0;
+}
+
 static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 {
 	static int mv643xx_eth_version_printed = 0;
@@ -2125,6 +2148,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	 * Detect hardware parameters.
 	 */
 	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
+	infer_hw_params(msp);
 
 	platform_set_drvdata(pdev, msp);
 
