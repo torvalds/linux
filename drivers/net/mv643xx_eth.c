@@ -60,12 +60,6 @@ static char mv643xx_eth_driver_version[] = "1.0";
 #define MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #define MV643XX_ETH_NAPI
 #define MV643XX_ETH_TX_FAST_REFILL
-#undef	MV643XX_ETH_COAL
-
-#define MV643XX_ETH_TX_COAL 100
-#ifdef MV643XX_ETH_COAL
-#define MV643XX_ETH_RX_COAL 100
-#endif
 
 #ifdef MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
@@ -322,8 +316,6 @@ struct mv643xx_eth_private {
 	struct mib_counters mib_counters;
 	spinlock_t lock;
 
-	u32 rx_int_coal;
-	u32 tx_int_coal;
 	struct mii_if_info mii;
 
 	/*
@@ -1681,9 +1673,7 @@ static void port_start(struct net_device *dev)
 	}
 }
 
-#ifdef MV643XX_ETH_COAL
-static unsigned int set_rx_coal(struct mv643xx_eth_private *mp,
-					unsigned int delay)
+static void set_rx_coal(struct mv643xx_eth_private *mp, unsigned int delay)
 {
 	unsigned int port_num = mp->port_num;
 	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
@@ -1693,20 +1683,14 @@ static unsigned int set_rx_coal(struct mv643xx_eth_private *mp,
 		((coal & 0x3fff) << 8) |
 		(rdl(mp, SDMA_CONFIG(port_num))
 			& 0xffc000ff));
-
-	return coal;
 }
-#endif
 
-static unsigned int set_tx_coal(struct mv643xx_eth_private *mp,
-					unsigned int delay)
+static void set_tx_coal(struct mv643xx_eth_private *mp, unsigned int delay)
 {
 	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
 
 	/* Set TX Coalescing mechanism */
 	wrl(mp, TX_FIFO_URGENT_THRESHOLD(mp->port_num), coal << 4);
-
-	return coal;
 }
 
 static void port_init(struct mv643xx_eth_private *mp)
@@ -1752,13 +1736,8 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	port_start(dev);
 
-	/* Interrupt Coalescing */
-
-#ifdef MV643XX_ETH_COAL
-	mp->rx_int_coal = set_rx_coal(mp, MV643XX_ETH_RX_COAL);
-#endif
-
-	mp->tx_int_coal = set_tx_coal(mp, MV643XX_ETH_TX_COAL);
+	set_rx_coal(mp, 0);
+	set_tx_coal(mp, 0);
 
 	/* Unmask phy and link status changes interrupts */
 	wrl(mp, INT_MASK_EXT(port_num), INT_EXT_LINK | INT_EXT_PHY | INT_EXT_TX);
