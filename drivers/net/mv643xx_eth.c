@@ -518,64 +518,38 @@ static inline void mv643xx_eth_rx_refill_descs_timer_wrapper(unsigned long data)
 	mv643xx_eth_rx_refill_descs((struct net_device *)data);
 }
 
-static FUNC_RET_STATUS port_receive(struct mv643xx_eth_private *mp,
-						struct pkt_info *pkt_info)
-{
-	int rx_next_curr_desc, rx_curr_desc, rx_used_desc;
-	volatile struct rx_desc *rx_desc;
-	unsigned int command_status;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-
-	/* Get the Rx Desc ring 'curr and 'used' indexes */
-	rx_curr_desc = mp->rx_curr_desc;
-	rx_used_desc = mp->rx_used_desc;
-
-	rx_desc = &mp->rx_desc_area[rx_curr_desc];
-
-	/* The following parameters are used to save readings from memory */
-	command_status = rx_desc->cmd_sts;
-	rmb();
-
-	/* Nothing to receive... */
-	if (command_status & BUFFER_OWNED_BY_DMA) {
-		spin_unlock_irqrestore(&mp->lock, flags);
-		return ETH_END_OF_JOB;
-	}
-
-	pkt_info->byte_cnt = rx_desc->byte_cnt - ETH_HW_IP_ALIGN;
-	pkt_info->cmd_sts = command_status;
-	pkt_info->buf_ptr = rx_desc->buf_ptr + ETH_HW_IP_ALIGN;
-	pkt_info->return_info = mp->rx_skb[rx_curr_desc];
-	pkt_info->l4i_chk = rx_desc->buf_size;
-
-	/*
-	 * Clean the return info field to indicate that the
-	 * packet has been moved to the upper layers
-	 */
-	mp->rx_skb[rx_curr_desc] = NULL;
-
-	/* Update current index in data structure */
-	rx_next_curr_desc = (rx_curr_desc + 1) % mp->rx_ring_size;
-	mp->rx_curr_desc = rx_next_curr_desc;
-
-	spin_unlock_irqrestore(&mp->lock, flags);
-
-	return ETH_OK;
-}
-
 static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	unsigned int received_packets = 0;
-	struct sk_buff *skb;
-	struct pkt_info pkt_info;
 
-	while (budget-- > 0 && port_receive(mp, &pkt_info) == ETH_OK) {
-		dma_unmap_single(NULL, pkt_info.buf_ptr, ETH_RX_SKB_SIZE,
-							DMA_FROM_DEVICE);
+	while (budget-- > 0) {
+		struct sk_buff *skb;
+		volatile struct rx_desc *rx_desc;
+		unsigned int cmd_sts;
+		unsigned long flags;
+
+		spin_lock_irqsave(&mp->lock, flags);
+
+		rx_desc = &mp->rx_desc_area[mp->rx_curr_desc];
+
+		cmd_sts = rx_desc->cmd_sts;
+		if (cmd_sts & BUFFER_OWNED_BY_DMA) {
+			spin_unlock_irqrestore(&mp->lock, flags);
+			break;
+		}
+		rmb();
+
+		skb = mp->rx_skb[mp->rx_curr_desc];
+		mp->rx_skb[mp->rx_curr_desc] = NULL;
+
+		mp->rx_curr_desc = (mp->rx_curr_desc + 1) % mp->rx_ring_size;
+
+		spin_unlock_irqrestore(&mp->lock, flags);
+
+		dma_unmap_single(NULL, rx_desc->buf_ptr + ETH_HW_IP_ALIGN,
+					ETH_RX_SKB_SIZE, DMA_FROM_DEVICE);
 		mp->rx_desc_count--;
 		received_packets++;
 
@@ -584,18 +558,17 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 		 * Note byte count includes 4 byte CRC count
 		 */
 		stats->rx_packets++;
-		stats->rx_bytes += pkt_info.byte_cnt;
-		skb = pkt_info.return_info;
+		stats->rx_bytes += rx_desc->byte_cnt - ETH_HW_IP_ALIGN;
+
 		/*
 		 * In case received a packet without first / last bits on OR
 		 * the error summary bit is on, the packets needs to be dropeed.
 		 */
-		if (((pkt_info.cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC)) !=
+		if (((cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC)) !=
 					(RX_FIRST_DESC | RX_LAST_DESC))
-				|| (pkt_info.cmd_sts & ERROR_SUMMARY)) {
+				|| (cmd_sts & ERROR_SUMMARY)) {
 			stats->rx_dropped++;
-			if ((pkt_info.cmd_sts & (RX_FIRST_DESC |
-							RX_LAST_DESC)) !=
+			if ((cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC)) !=
 				(RX_FIRST_DESC | RX_LAST_DESC)) {
 				if (net_ratelimit())
 					printk(KERN_ERR
@@ -603,7 +576,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 						"on multiple descriptors\n",
 						dev->name);
 			}
-			if (pkt_info.cmd_sts & ERROR_SUMMARY)
+			if (cmd_sts & ERROR_SUMMARY)
 				stats->rx_errors++;
 
 			dev_kfree_skb_irq(skb);
@@ -612,12 +585,12 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 			 * The -4 is for the CRC in the trailer of the
 			 * received packet
 			 */
-			skb_put(skb, pkt_info.byte_cnt - 4);
+			skb_put(skb, rx_desc->byte_cnt - ETH_HW_IP_ALIGN - 4);
 
-			if (pkt_info.cmd_sts & LAYER_4_CHECKSUM_OK) {
+			if (cmd_sts & LAYER_4_CHECKSUM_OK) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 				skb->csum = htons(
-					(pkt_info.cmd_sts & 0x0007fff8) >> 3);
+					(cmd_sts & 0x0007fff8) >> 3);
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 #ifdef MV643XX_ETH_NAPI
