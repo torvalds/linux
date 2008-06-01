@@ -489,7 +489,7 @@ static void rxq_refill(struct rx_queue *rxq)
 		skb_reserve(skb, 2);
 	}
 
-	if (rxq->rx_desc_count == 0) {
+	if (rxq->rx_desc_count != rxq->rx_ring_size) {
 		rxq->rx_oom.expires = jiffies + (HZ / 10);
 		add_timer(&rxq->rx_oom);
 	}
