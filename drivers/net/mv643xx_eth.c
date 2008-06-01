@@ -169,9 +169,6 @@ static char mv643xx_driver_version[] = "1.0";
 #define PORT_DEFAULT_TRANSMIT_QUEUE_SIZE	800
 #define PORT_DEFAULT_RECEIVE_QUEUE_SIZE		400
 
-/* Buffer offset from buffer pointer */
-#define RX_BUF_OFFSET				0x2
-
 /* Gigabit Ethernet Unit Global Registers */
 
 /* MIB Counters register definitions */
@@ -691,9 +688,9 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 		return ETH_END_OF_JOB;
 	}
 
-	p_pkt_info->byte_cnt = (p_rx_desc->byte_cnt) - RX_BUF_OFFSET;
+	p_pkt_info->byte_cnt = p_rx_desc->byte_cnt - ETH_HW_IP_ALIGN;
 	p_pkt_info->cmd_sts = command_status;
-	p_pkt_info->buf_ptr = (p_rx_desc->buf_ptr) + RX_BUF_OFFSET;
+	p_pkt_info->buf_ptr = p_rx_desc->buf_ptr + ETH_HW_IP_ALIGN;
 	p_pkt_info->return_info = mp->rx_skb[rx_curr_desc];
 	p_pkt_info->l4i_chk = p_rx_desc->buf_size;
 
