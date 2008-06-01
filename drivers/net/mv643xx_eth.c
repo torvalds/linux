@@ -297,38 +297,30 @@ struct rx_queue {
 	struct timer_list rx_oom;
 };
 
+struct tx_queue {
+	int tx_ring_size;
+
+	int tx_desc_count;
+	int tx_curr_desc;
+	int tx_used_desc;
+
+	struct tx_desc *tx_desc_area;
+	dma_addr_t tx_desc_dma;
+	int tx_desc_area_size;
+	struct sk_buff **tx_skb;
+};
+
 struct mv643xx_eth_private {
 	struct mv643xx_eth_shared_private *shared;
 	int port_num;			/* User Ethernet port number	*/
 
 	struct mv643xx_eth_shared_private *shared_smi;
 
-	u32 tx_sram_addr;		/* Base address of tx sram area */
-	u32 tx_sram_size;		/* Size of tx sram area		*/
-
-	/* Tx/Rx rings managment indexes fields. For driver use */
-
-	/* Next available and first returning Tx resource */
-	int tx_curr_desc, tx_used_desc;
-
-#ifdef MV643XX_ETH_TX_FAST_REFILL
-	u32 tx_clean_threshold;
-#endif
-
-	struct tx_desc *tx_desc_area;
-	dma_addr_t tx_desc_dma;
-	int tx_desc_area_size;
-	struct sk_buff **tx_skb;
-
 	struct work_struct tx_timeout_task;
 
 	struct net_device *dev;
 	struct mib_counters mib_counters;
 	spinlock_t lock;
-	/* Size of Tx Ring per queue */
-	int tx_ring_size;
-	/* Number of tx descriptors in use */
-	int tx_desc_count;
 
 	u32 rx_int_coal;
 	u32 tx_int_coal;
@@ -342,6 +334,17 @@ struct mv643xx_eth_private {
 	int rx_desc_sram_size;
 	struct napi_struct napi;
 	struct rx_queue rxq[1];
+
+	/*
+	 * TX state.
+	 */
+	int default_tx_ring_size;
+	unsigned long tx_desc_sram_addr;
+	int tx_desc_sram_size;
+	struct tx_queue txq[1];
+#ifdef MV643XX_ETH_TX_FAST_REFILL
+	int tx_clean_threshold;
+#endif
 };
 
 
@@ -363,6 +366,11 @@ static struct mv643xx_eth_private *rxq_to_mp(struct rx_queue *rxq)
 	return container_of(rxq, struct mv643xx_eth_private, rxq[0]);
 }
 
+static struct mv643xx_eth_private *txq_to_mp(struct tx_queue *txq)
+{
+	return container_of(txq, struct mv643xx_eth_private, txq[0]);
+}
+
 static void rxq_enable(struct rx_queue *rxq)
 {
 	struct mv643xx_eth_private *mp = rxq_to_mp(rxq);
@@ -379,39 +387,33 @@ static void rxq_disable(struct rx_queue *rxq)
 		udelay(10);
 }
 
-static void mv643xx_eth_port_enable_tx(struct mv643xx_eth_private *mp,
-					unsigned int queues)
+static void txq_enable(struct tx_queue *txq)
 {
-	wrl(mp, TXQ_COMMAND(mp->port_num), queues);
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
+	wrl(mp, TXQ_COMMAND(mp->port_num), 1);
 }
 
-static unsigned int mv643xx_eth_port_disable_tx(struct mv643xx_eth_private *mp)
+static void txq_disable(struct tx_queue *txq)
 {
-	unsigned int port_num = mp->port_num;
-	u32 queues;
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
+	u8 mask = 1;
 
-	/* Stop Tx port activity. Check port Tx activity. */
-	queues = rdl(mp, TXQ_COMMAND(port_num)) & 0xFF;
-	if (queues) {
-		/* Issue stop command for active queues only */
-		wrl(mp, TXQ_COMMAND(port_num), (queues << 8));
+	wrl(mp, TXQ_COMMAND(mp->port_num), mask << 8);
+	while (rdl(mp, TXQ_COMMAND(mp->port_num)) & mask)
+		udelay(10);
+}
 
-		/* Wait for all Tx activity to terminate. */
-		/* Check port cause register that all Tx queues are stopped */
-		while (rdl(mp, TXQ_COMMAND(port_num)) & 0xFF)
-			udelay(10);
+static void __txq_maybe_wake(struct tx_queue *txq)
+{
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 
-		/* Wait for Tx FIFO to empty */
-		while (rdl(mp, PORT_STATUS(port_num)) & TX_FIFO_EMPTY)
-			udelay(10);
-	}
-
-	return queues;
+	if (txq->tx_ring_size - txq->tx_desc_count >= MAX_DESCS_PER_SKB)
+		netif_wake_queue(mp->dev);
 }
 
 
 /* rx ***********************************************************************/
-static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev);
+static void txq_reclaim(struct tx_queue *txq, int force);
 
 static void rxq_refill(struct rx_queue *rxq)
 {
@@ -571,7 +573,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 
 #ifdef MV643XX_ETH_TX_FAST_REFILL
 	if (++mp->tx_clean_threshold > 5) {
-		mv643xx_eth_free_completed_tx_descs(mp->dev);
+		txq_reclaim(mp->txq, 0);
 		mp->tx_clean_threshold = 0;
 	}
 #endif
@@ -593,55 +595,59 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 /* tx ***********************************************************************/
 static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 {
-	unsigned int frag;
-	skb_frag_t *fragp;
+	int frag;
 
 	for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-		fragp = &skb_shinfo(skb)->frags[frag];
-		if (fragp->size <= 8 && fragp->page_offset & 0x7)
+		skb_frag_t *fragp = &skb_shinfo(skb)->frags[frag];
+		if (fragp->size <= 8 && fragp->page_offset & 7)
 			return 1;
 	}
+
 	return 0;
 }
 
-static int alloc_tx_desc_index(struct mv643xx_eth_private *mp)
+static int txq_alloc_desc_index(struct tx_queue *txq)
 {
 	int tx_desc_curr;
 
-	BUG_ON(mp->tx_desc_count >= mp->tx_ring_size);
+	BUG_ON(txq->tx_desc_count >= txq->tx_ring_size);
 
-	tx_desc_curr = mp->tx_curr_desc;
-	mp->tx_curr_desc = (tx_desc_curr + 1) % mp->tx_ring_size;
+	tx_desc_curr = txq->tx_curr_desc;
+	txq->tx_curr_desc = (tx_desc_curr + 1) % txq->tx_ring_size;
 
-	BUG_ON(mp->tx_curr_desc == mp->tx_used_desc);
+	BUG_ON(txq->tx_curr_desc == txq->tx_used_desc);
 
 	return tx_desc_curr;
 }
 
-static void tx_fill_frag_descs(struct mv643xx_eth_private *mp,
-				   struct sk_buff *skb)
+static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
+	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int frag;
-	int tx_index;
-	struct tx_desc *desc;
 
-	for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-		skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
+	for (frag = 0; frag < nr_frags; frag++) {
+		skb_frag_t *this_frag;
+		int tx_index;
+		struct tx_desc *desc;
 
-		tx_index = alloc_tx_desc_index(mp);
-		desc = &mp->tx_desc_area[tx_index];
+		this_frag = &skb_shinfo(skb)->frags[frag];
+		tx_index = txq_alloc_desc_index(txq);
+		desc = &txq->tx_desc_area[tx_index];
 
-		desc->cmd_sts = BUFFER_OWNED_BY_DMA;
-		/* Last Frag enables interrupt and frees the skb */
-		if (frag == (skb_shinfo(skb)->nr_frags - 1)) {
-			desc->cmd_sts |= ZERO_PADDING |
-					 TX_LAST_DESC |
-					 TX_ENABLE_INTERRUPT;
-			mp->tx_skb[tx_index] = skb;
-		} else
-			mp->tx_skb[tx_index] = NULL;
+		/*
+		 * The last fragment will generate an interrupt
+		 * which will free the skb on TX completion.
+		 */
+		if (frag == nr_frags - 1) {
+			desc->cmd_sts = BUFFER_OWNED_BY_DMA |
+					ZERO_PADDING | TX_LAST_DESC |
+					TX_ENABLE_INTERRUPT;
+			txq->tx_skb[tx_index] = skb;
+		} else {
+			desc->cmd_sts = BUFFER_OWNED_BY_DMA;
+			txq->tx_skb[tx_index] = NULL;
+		}
 
-		desc = &mp->tx_desc_area[tx_index];
 		desc->l4i_chk = 0;
 		desc->byte_cnt = this_frag->size;
 		desc->buf_ptr = dma_map_page(NULL, this_frag->page,
@@ -656,29 +662,28 @@ static inline __be16 sum16_as_be(__sum16 sum)
 	return (__force __be16)sum;
 }
 
-static void tx_submit_descs_for_skb(struct mv643xx_eth_private *mp,
-					struct sk_buff *skb)
+static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
+	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int tx_index;
 	struct tx_desc *desc;
 	u32 cmd_sts;
 	int length;
-	int nr_frags = skb_shinfo(skb)->nr_frags;
 
 	cmd_sts = TX_FIRST_DESC | GEN_CRC | BUFFER_OWNED_BY_DMA;
 
-	tx_index = alloc_tx_desc_index(mp);
-	desc = &mp->tx_desc_area[tx_index];
+	tx_index = txq_alloc_desc_index(txq);
+	desc = &txq->tx_desc_area[tx_index];
 
 	if (nr_frags) {
-		tx_fill_frag_descs(mp, skb);
+		txq_submit_frag_skb(txq, skb);
 
 		length = skb_headlen(skb);
-		mp->tx_skb[tx_index] = NULL;
+		txq->tx_skb[tx_index] = NULL;
 	} else {
 		cmd_sts |= ZERO_PADDING | TX_LAST_DESC | TX_ENABLE_INTERRUPT;
 		length = skb->len;
-		mp->tx_skb[tx_index] = skb;
+		txq->tx_skb[tx_index] = skb;
 	}
 
 	desc->byte_cnt = length;
@@ -714,15 +719,16 @@ static void tx_submit_descs_for_skb(struct mv643xx_eth_private *mp,
 
 	/* ensure all descriptors are written before poking hardware */
 	wmb();
-	mv643xx_eth_port_enable_tx(mp, 1);
+	txq_enable(txq);
 
-	mp->tx_desc_count += nr_frags + 1;
+	txq->tx_desc_count += nr_frags + 1;
 }
 
 static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
+	struct tx_queue *txq;
 	unsigned long flags;
 
 	BUG_ON(netif_queue_stopped(dev));
@@ -736,19 +742,21 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&mp->lock, flags);
 
-	if (mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB) {
+	txq = mp->txq;
+
+	if (txq->tx_ring_size - txq->tx_desc_count < MAX_DESCS_PER_SKB) {
 		printk(KERN_ERR "%s: transmit with queue full\n", dev->name);
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&mp->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
-	tx_submit_descs_for_skb(mp, skb);
+	txq_submit_skb(txq, skb);
 	stats->tx_bytes += skb->len;
 	stats->tx_packets++;
 	dev->trans_start = jiffies;
 
-	if (mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB)
+	if (txq->tx_ring_size - txq->tx_desc_count < MAX_DESCS_PER_SKB)
 		netif_stop_queue(dev);
 
 	spin_unlock_irqrestore(&mp->lock, flags);
@@ -1348,69 +1356,106 @@ static void rxq_deinit(struct rx_queue *rxq)
 	kfree(rxq->rx_skb);
 }
 
-static void ether_init_tx_desc_ring(struct mv643xx_eth_private *mp)
+static int txq_init(struct mv643xx_eth_private *mp)
 {
-	int tx_desc_num = mp->tx_ring_size;
-	struct tx_desc *p_tx_desc;
+	struct tx_queue *txq = mp->txq;
+	struct tx_desc *tx_desc;
+	int size;
 	int i;
 
-	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
-	p_tx_desc = (struct tx_desc *)mp->tx_desc_area;
-	for (i = 0; i < tx_desc_num; i++) {
-		p_tx_desc[i].next_desc_ptr = mp->tx_desc_dma +
-			((i + 1) % tx_desc_num) * sizeof(struct tx_desc);
+	txq->tx_ring_size = mp->default_tx_ring_size;
+
+	txq->tx_desc_count = 0;
+	txq->tx_curr_desc = 0;
+	txq->tx_used_desc = 0;
+
+	size = txq->tx_ring_size * sizeof(struct tx_desc);
+
+	if (size <= mp->tx_desc_sram_size) {
+		txq->tx_desc_area = ioremap(mp->tx_desc_sram_addr,
+						mp->tx_desc_sram_size);
+		txq->tx_desc_dma = mp->tx_desc_sram_addr;
+	} else {
+		txq->tx_desc_area = dma_alloc_coherent(NULL, size,
+							&txq->tx_desc_dma,
+							GFP_KERNEL);
 	}
 
-	mp->tx_curr_desc = 0;
-	mp->tx_used_desc = 0;
+	if (txq->tx_desc_area == NULL) {
+		dev_printk(KERN_ERR, &mp->dev->dev,
+			   "can't allocate tx ring (%d bytes)\n", size);
+		goto out;
+	}
+	memset(txq->tx_desc_area, 0, size);
 
-	mp->tx_desc_area_size = tx_desc_num * sizeof(struct tx_desc);
+	txq->tx_desc_area_size = size;
+	txq->tx_skb = kmalloc(txq->tx_ring_size * sizeof(*txq->tx_skb),
+								GFP_KERNEL);
+	if (txq->tx_skb == NULL) {
+		dev_printk(KERN_ERR, &mp->dev->dev,
+			   "can't allocate tx skb ring\n");
+		goto out_free;
+	}
+
+	tx_desc = (struct tx_desc *)txq->tx_desc_area;
+	for (i = 0; i < txq->tx_ring_size; i++) {
+		int nexti = (i + 1) % txq->tx_ring_size;
+		tx_desc[i].next_desc_ptr = txq->tx_desc_dma +
+					nexti * sizeof(struct tx_desc);
+	}
+
+	return 0;
+
+
+out_free:
+	if (size <= mp->tx_desc_sram_size)
+		iounmap(txq->tx_desc_area);
+	else
+		dma_free_coherent(NULL, size,
+				  txq->tx_desc_area,
+				  txq->tx_desc_dma);
+
+out:
+	return -ENOMEM;
 }
 
-static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
+static void txq_reclaim(struct tx_queue *txq, int force)
 {
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	struct tx_desc *desc;
-	u32 cmd_sts;
-	struct sk_buff *skb;
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 	unsigned long flags;
-	int tx_index;
-	dma_addr_t addr;
-	int count;
-	int released = 0;
 
-	while (mp->tx_desc_count > 0) {
-		spin_lock_irqsave(&mp->lock, flags);
+	spin_lock_irqsave(&mp->lock, flags);
+	while (txq->tx_desc_count > 0) {
+		int tx_index;
+		struct tx_desc *desc;
+		u32 cmd_sts;
+		struct sk_buff *skb;
+		dma_addr_t addr;
+		int count;
 
-		/* tx_desc_count might have changed before acquiring the lock */
-		if (mp->tx_desc_count <= 0) {
-			spin_unlock_irqrestore(&mp->lock, flags);
-			return released;
-		}
-
-		tx_index = mp->tx_used_desc;
-		desc = &mp->tx_desc_area[tx_index];
+		tx_index = txq->tx_used_desc;
+		desc = &txq->tx_desc_area[tx_index];
 		cmd_sts = desc->cmd_sts;
 
-		if (!force && (cmd_sts & BUFFER_OWNED_BY_DMA)) {
-			spin_unlock_irqrestore(&mp->lock, flags);
-			return released;
-		}
+		if (!force && (cmd_sts & BUFFER_OWNED_BY_DMA))
+			break;
 
-		mp->tx_used_desc = (tx_index + 1) % mp->tx_ring_size;
-		mp->tx_desc_count--;
+		txq->tx_used_desc = (tx_index + 1) % txq->tx_ring_size;
+		txq->tx_desc_count--;
 
 		addr = desc->buf_ptr;
 		count = desc->byte_cnt;
-		skb = mp->tx_skb[tx_index];
-		if (skb)
-			mp->tx_skb[tx_index] = NULL;
+		skb = txq->tx_skb[tx_index];
+		txq->tx_skb[tx_index] = NULL;
 
 		if (cmd_sts & ERROR_SUMMARY) {
-			printk("%s: Error in TX\n", dev->name);
-			dev->stats.tx_errors++;
+			dev_printk(KERN_INFO, &mp->dev->dev, "tx error\n");
+			mp->dev->stats.tx_errors++;
 		}
 
+		/*
+		 * Drop mp->lock while we free the skb.
+		 */
 		spin_unlock_irqrestore(&mp->lock, flags);
 
 		if (cmd_sts & TX_FIRST_DESC)
@@ -1421,91 +1466,68 @@ static int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 		if (skb)
 			dev_kfree_skb_irq(skb);
 
-		released = 1;
+		spin_lock_irqsave(&mp->lock, flags);
 	}
-
-	return released;
+	spin_unlock_irqrestore(&mp->lock, flags);
 }
 
-static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev)
+static void txq_deinit(struct tx_queue *txq)
 {
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 
-	if (mv643xx_eth_free_tx_descs(dev, 0) &&
-	    mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
-		netif_wake_queue(dev);
-}
+	txq_disable(txq);
+	txq_reclaim(txq, 1);
 
-static void mv643xx_eth_free_all_tx_descs(struct net_device *dev)
-{
-	mv643xx_eth_free_tx_descs(dev, 1);
-}
+	BUG_ON(txq->tx_used_desc != txq->tx_curr_desc);
 
-static void mv643xx_eth_free_tx_rings(struct net_device *dev)
-{
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-
-	/* Stop Tx Queues */
-	mv643xx_eth_port_disable_tx(mp);
-
-	/* Free outstanding skb's on TX ring */
-	mv643xx_eth_free_all_tx_descs(dev);
-
-	BUG_ON(mp->tx_used_desc != mp->tx_curr_desc);
-
-	/* Free TX ring */
-	if (mp->tx_sram_size)
-		iounmap(mp->tx_desc_area);
+	if (txq->tx_desc_area_size <= mp->tx_desc_sram_size)
+		iounmap(txq->tx_desc_area);
 	else
-		dma_free_coherent(NULL, mp->tx_desc_area_size,
-				mp->tx_desc_area, mp->tx_desc_dma);
+		dma_free_coherent(NULL, txq->tx_desc_area_size,
+				  txq->tx_desc_area, txq->tx_desc_dma);
+
+	kfree(txq->tx_skb);
 }
 
 
 /* netdev ops and related ***************************************************/
 static void port_reset(struct mv643xx_eth_private *mp);
 
-static void mv643xx_eth_update_pscr(struct net_device *dev,
+static void mv643xx_eth_update_pscr(struct mv643xx_eth_private *mp,
 				    struct ethtool_cmd *ecmd)
 {
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	int port_num = mp->port_num;
-	u32 o_pscr, n_pscr;
-	unsigned int queues;
+	u32 pscr_o;
+	u32 pscr_n;
 
-	o_pscr = rdl(mp, PORT_SERIAL_CONTROL(port_num));
-	n_pscr = o_pscr;
+	pscr_o = rdl(mp, PORT_SERIAL_CONTROL(mp->port_num));
 
 	/* clear speed, duplex and rx buffer size fields */
-	n_pscr &= ~(SET_MII_SPEED_TO_100  |
-		   SET_GMII_SPEED_TO_1000 |
-		   SET_FULL_DUPLEX_MODE   |
-		   MAX_RX_PACKET_MASK);
+	pscr_n = pscr_o & ~(SET_MII_SPEED_TO_100   |
+			    SET_GMII_SPEED_TO_1000 |
+			    SET_FULL_DUPLEX_MODE   |
+			    MAX_RX_PACKET_MASK);
 
-	if (ecmd->duplex == DUPLEX_FULL)
-		n_pscr |= SET_FULL_DUPLEX_MODE;
-
-	if (ecmd->speed == SPEED_1000)
-		n_pscr |= SET_GMII_SPEED_TO_1000 |
-			  MAX_RX_PACKET_9700BYTE;
-	else {
+	if (ecmd->speed == SPEED_1000) {
+		pscr_n |= SET_GMII_SPEED_TO_1000 | MAX_RX_PACKET_9700BYTE;
+	} else {
 		if (ecmd->speed == SPEED_100)
-			n_pscr |= SET_MII_SPEED_TO_100;
-		n_pscr |= MAX_RX_PACKET_1522BYTE;
+			pscr_n |= SET_MII_SPEED_TO_100;
+		pscr_n |= MAX_RX_PACKET_1522BYTE;
 	}
 
-	if (n_pscr != o_pscr) {
-		if ((o_pscr & SERIAL_PORT_ENABLE) == 0)
-			wrl(mp, PORT_SERIAL_CONTROL(port_num), n_pscr);
-		else {
-			queues = mv643xx_eth_port_disable_tx(mp);
+	if (ecmd->duplex == DUPLEX_FULL)
+		pscr_n |= SET_FULL_DUPLEX_MODE;
 
-			o_pscr &= ~SERIAL_PORT_ENABLE;
-			wrl(mp, PORT_SERIAL_CONTROL(port_num), o_pscr);
-			wrl(mp, PORT_SERIAL_CONTROL(port_num), n_pscr);
-			wrl(mp, PORT_SERIAL_CONTROL(port_num), n_pscr);
-			if (queues)
-				mv643xx_eth_port_enable_tx(mp, queues);
+	if (pscr_n != pscr_o) {
+		if ((pscr_o & SERIAL_PORT_ENABLE) == 0)
+			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
+		else {
+			txq_disable(mp->txq);
+			pscr_o &= ~SERIAL_PORT_ENABLE;
+			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_o);
+			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
+			wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr_n);
+			txq_enable(mp->txq);
 		}
 	}
 }
@@ -1515,29 +1537,26 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 int_cause, int_cause_ext = 0;
-	unsigned int port_num = mp->port_num;
 
 	/* Read interrupt cause registers */
-	int_cause = rdl(mp, INT_CAUSE(port_num)) & (INT_RX | INT_EXT);
+	int_cause = rdl(mp, INT_CAUSE(mp->port_num)) & (INT_RX | INT_EXT);
 	if (int_cause & INT_EXT) {
-		int_cause_ext = rdl(mp, INT_CAUSE_EXT(port_num))
+		int_cause_ext = rdl(mp, INT_CAUSE_EXT(mp->port_num))
 				& (INT_EXT_LINK | INT_EXT_PHY | INT_EXT_TX);
-		wrl(mp, INT_CAUSE_EXT(port_num), ~int_cause_ext);
+		wrl(mp, INT_CAUSE_EXT(mp->port_num), ~int_cause_ext);
 	}
 
 	/* PHY status changed */
 	if (int_cause_ext & (INT_EXT_LINK | INT_EXT_PHY)) {
-		struct ethtool_cmd cmd;
-
 		if (mii_link_ok(&mp->mii)) {
+			struct ethtool_cmd cmd;
+
 			mii_ethtool_gset(&mp->mii, &cmd);
-			mv643xx_eth_update_pscr(dev, &cmd);
-			mv643xx_eth_port_enable_tx(mp, 1);
+			mv643xx_eth_update_pscr(mp, &cmd);
+			txq_enable(mp->txq);
 			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
-				if (mp->tx_ring_size - mp->tx_desc_count >=
-							MAX_DESCS_PER_SKB)
-					netif_wake_queue(dev);
+				__txq_maybe_wake(mp->txq);
 			}
 		} else if (netif_carrier_ok(dev)) {
 			netif_stop_queue(dev);
@@ -1548,10 +1567,10 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 #ifdef MV643XX_ETH_NAPI
 	if (int_cause & INT_RX) {
 		/* schedule the NAPI poll routine to maintain port */
-		wrl(mp, INT_MASK(port_num), 0x00000000);
+		wrl(mp, INT_MASK(mp->port_num), 0x00000000);
 
 		/* wait for previous write to complete */
-		rdl(mp, INT_MASK(port_num));
+		rdl(mp, INT_MASK(mp->port_num));
 
 		netif_rx_schedule(dev, &mp->napi);
 	}
@@ -1559,8 +1578,10 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 	if (int_cause & INT_RX)
 		rxq_process(mp->rxq, INT_MAX);
 #endif
-	if (int_cause_ext & INT_EXT_TX)
-		mv643xx_eth_free_completed_tx_descs(dev);
+	if (int_cause_ext & INT_EXT_TX) {
+		txq_reclaim(mp->txq, 0);
+		__txq_maybe_wake(mp->txq);
+	}
 
 	/*
 	 * If no real interrupt occured, exit.
@@ -1616,6 +1637,20 @@ static void port_start(struct net_device *dev)
 	phy_reset(mp);
 	mv643xx_eth_set_settings(dev, &ethtool_cmd);
 
+	/*
+	 * Configure TX path and queues.
+	 */
+	wrl(mp, TX_BW_MTU(mp->port_num), 0);
+	for (i = 0; i < 1; i++) {
+		struct tx_queue *txq = mp->txq;
+		int off = TXQ_CURRENT_DESC_PTR(mp->port_num);
+		u32 addr;
+
+		addr = (u32)txq->tx_desc_dma;
+		addr += txq->tx_curr_desc * sizeof(struct tx_desc);
+		wrl(mp, off, addr);
+	}
+
 	/* Add the assigned Ethernet address to the port's address table */
 	uc_addr_set(mp, dev->dev_addr);
 
@@ -1644,13 +1679,6 @@ static void port_start(struct net_device *dev)
 
 		rxq_enable(rxq);
 	}
-
-
-	wrl(mp, TXQ_CURRENT_DESC_PTR(mp->port_num),
-		(u32)((struct tx_desc *)mp->tx_desc_dma + mp->tx_curr_desc));
-
-	/* Disable port bandwidth limits by clearing MTU register */
-	wrl(mp, TX_BW_MTU(mp->port_num), 0);
 }
 
 #ifdef MV643XX_ETH_COAL
@@ -1692,7 +1720,6 @@ static int mv643xx_eth_open(struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
-	unsigned int size;
 	int err;
 
 	/* Clear any pending ethernet port interrupts */
@@ -1715,38 +1742,9 @@ static int mv643xx_eth_open(struct net_device *dev)
 		goto out_free_irq;
 	rxq_refill(mp->rxq);
 
-	mp->tx_skb = kmalloc(sizeof(*mp->tx_skb) * mp->tx_ring_size,
-								GFP_KERNEL);
-	if (!mp->tx_skb) {
-		printk(KERN_ERR "%s: Cannot allocate Tx skb ring\n", dev->name);
-		err = -ENOMEM;
+	err = txq_init(mp);
+	if (err)
 		goto out_free_rx_skb;
-	}
-
-	/* Allocate TX ring */
-	mp->tx_desc_count = 0;
-	size = mp->tx_ring_size * sizeof(struct tx_desc);
-	mp->tx_desc_area_size = size;
-
-	if (mp->tx_sram_size) {
-		mp->tx_desc_area = ioremap(mp->tx_sram_addr,
-							mp->tx_sram_size);
-		mp->tx_desc_dma = mp->tx_sram_addr;
-	} else
-		mp->tx_desc_area = dma_alloc_coherent(NULL, size,
-							&mp->tx_desc_dma,
-							GFP_KERNEL);
-
-	if (!mp->tx_desc_area) {
-		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
-							dev->name, size);
-		err = -ENOMEM;
-		goto out_free_tx_skb;
-	}
-	BUG_ON((u32) mp->tx_desc_area & 0xf);	/* check 16-byte alignment */
-	memset((void *)mp->tx_desc_area, 0, mp->tx_desc_area_size);
-
-	ether_init_tx_desc_ring(mp);
 
 #ifdef MV643XX_ETH_NAPI
 	napi_enable(&mp->napi);
@@ -1770,8 +1768,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	return 0;
 
-out_free_tx_skb:
-	kfree(mp->tx_skb);
+
 out_free_rx_skb:
 	rxq_deinit(mp->rxq);
 out_free_irq:
@@ -1785,8 +1782,10 @@ static void port_reset(struct mv643xx_eth_private *mp)
 	unsigned int port_num = mp->port_num;
 	unsigned int reg_data;
 
-	mv643xx_eth_port_disable_tx(mp);
+	txq_disable(mp->txq);
 	rxq_disable(mp->rxq);
+	while (!(rdl(mp, PORT_STATUS(mp->port_num)) & TX_FIFO_EMPTY))
+		udelay(10);
 
 	/* Clear all MIB counters */
 	clear_mib_counters(mp);
@@ -1817,7 +1816,7 @@ static int mv643xx_eth_stop(struct net_device *dev)
 
 	port_reset(mp);
 
-	mv643xx_eth_free_tx_rings(dev);
+	txq_deinit(mp->txq);
 	rxq_deinit(mp->rxq);
 
 	free_irq(dev->irq, dev);
@@ -1870,8 +1869,7 @@ static void mv643xx_eth_tx_timeout_task(struct work_struct *ugly)
 	port_reset(mp);
 	port_start(dev);
 
-	if (mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
-		netif_wake_queue(dev);
+	__txq_maybe_wake(mp->txq);
 }
 
 static void mv643xx_eth_tx_timeout(struct net_device *dev)
@@ -2171,7 +2169,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	/* set default config values */
 	uc_addr_get(mp, dev->dev_addr);
-	mp->tx_ring_size = DEFAULT_TX_QUEUE_SIZE;
 
 	if (is_valid_ether_addr(pd->mac_addr))
 		memcpy(dev->dev_addr, pd->mac_addr, 6);
@@ -2183,12 +2180,13 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (pd->rx_queue_size)
 		mp->default_rx_ring_size = pd->rx_queue_size;
 
+	mp->default_tx_ring_size = DEFAULT_TX_QUEUE_SIZE;
 	if (pd->tx_queue_size)
-		mp->tx_ring_size = pd->tx_queue_size;
+		mp->default_tx_ring_size = pd->tx_queue_size;
 
 	if (pd->tx_sram_size) {
-		mp->tx_sram_size = pd->tx_sram_size;
-		mp->tx_sram_addr = pd->tx_sram_addr;
+		mp->tx_desc_sram_size = pd->tx_sram_size;
+		mp->tx_desc_sram_addr = pd->tx_sram_addr;
 	}
 
 	if (pd->rx_sram_size) {
@@ -2217,7 +2215,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	phy_reset(mp);
 	mp->mii.supports_gmii = mii_check_gmii_support(&mp->mii);
 	mv643xx_init_ethtool_cmd(dev, mp->mii.phy_id, speed, duplex, &cmd);
-	mv643xx_eth_update_pscr(dev, &cmd);
+	mv643xx_eth_update_pscr(mp, &cmd);
 	mv643xx_eth_set_settings(dev, &cmd);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -2250,7 +2248,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	printk(KERN_NOTICE "%s: RX NAPI Enabled \n", dev->name);
 #endif
 
-	if (mp->tx_sram_size > 0)
+	if (mp->tx_desc_sram_size > 0)
 		printk(KERN_NOTICE "%s: Using SRAM\n", dev->name);
 
 	return 0;
