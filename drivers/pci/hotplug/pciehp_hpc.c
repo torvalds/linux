@@ -1086,7 +1086,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	dbg("  Comamnd Completed    : %3s\n", NO_CMD_CMPL(ctrl)? "no" : "yes");
 	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
 	dbg("Slot Status            : 0x%04x\n", reg16);
-	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
+	pciehp_readw(ctrl, SLOTCTRL, &reg16);
 	dbg("Slot Control           : 0x%04x\n", reg16);
 }
 
