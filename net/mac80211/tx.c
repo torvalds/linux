@@ -947,6 +947,8 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 	tx->local = local;
 	tx->sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	tx->channel = local->hw.conf.channel;
+	tx->rate_idx = -1;
+	tx->last_frag_rate_idx = -1;
 	/*
 	 * Set this flag (used below to indicate "automatic fragmentation"),
 	 * it will be cleared/left by radiotap as desired.
