@@ -496,6 +496,8 @@ static int __init fsl_i2c_of_init(void)
 		struct resource r[2];
 		struct fsl_i2c_platform_data i2c_data;
 		const unsigned char *flags = NULL;
+		int idx;
+		const u32 *iprop;
 
 		memset(&r, 0, sizeof(r));
 		memset(&i2c_data, 0, sizeof(i2c_data));
@@ -506,7 +508,10 @@ static int __init fsl_i2c_of_init(void)
 
 		of_irq_to_resource(np, 0, &r[1]);
 
-		i2c_dev = platform_device_register_simple("fsl-i2c", i, r, 2);
+		iprop = of_get_property(np, "cell-index", NULL);
+		idx = iprop ? *iprop : i;
+
+		i2c_dev = platform_device_register_simple("fsl-i2c", idx, r, 2);
 		if (IS_ERR(i2c_dev)) {
 			ret = PTR_ERR(i2c_dev);
 			goto err;
@@ -528,7 +533,8 @@ static int __init fsl_i2c_of_init(void)
 		if (ret)
 			goto unreg;
 
-		of_register_i2c_devices(np, i++);
+		of_register_i2c_devices(np, idx);
+		i++;
 	}
 
 	return 0;
