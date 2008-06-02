@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h> /* for __pxa_set_cken */
 
 #include "generic.h"
 
@@ -59,23 +58,6 @@ unsigned int get_memclk_frequency_10khz(void)
 		return pxa3xx_get_memclk_frequency_10khz();
 }
 EXPORT_SYMBOL(get_memclk_frequency_10khz);
-
-/*
- * Routine to safely enable or disable a clock in the CKEN
- */
-void __pxa_set_cken(int clock, int enable)
-{
-	unsigned long flags;
-	local_irq_save(flags);
-
-	if (enable)
-		CKEN |= (1 << clock);
-	else
-		CKEN &= ~(1 << clock);
-
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(__pxa_set_cken);
 
 /*
  * Intel PXA2xx internal register mapping.
