@@ -647,10 +647,10 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	{
 		.modalias		= "ad7877",
 		.platform_data		= &bfin_ad7877_ts_info,
-		.irq			= IRQ_PF6,
+		.irq			= IRQ_PF8,
 		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num	= 0,
-		.chip_select  = 1,
+		.chip_select  = 2,
 		.controller_data = &spi_ad7877_chip_info,
 	},
 #endif
