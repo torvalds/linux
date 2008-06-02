@@ -87,6 +87,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 #ifdef CONFIG_ALTIVEC
 	elf_vrreg_t __user *v_regs = (elf_vrreg_t __user *)(((unsigned long)sc->vmx_reserve + 15) & ~0xful);
 #endif
+	unsigned long msr = regs->msr;
 	long err = 0;
 
 	flush_fp_to_thread(current);
@@ -102,7 +103,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 		/* set MSR_VEC in the MSR value in the frame to indicate that sc->v_reg)
 		 * contains valid data.
 		 */
-		regs->msr |= MSR_VEC;
+		msr |= MSR_VEC;
 	}
 	/* We always copy to/from vrsave, it's 0 if we don't have or don't
 	 * use altivec.
@@ -114,6 +115,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= __put_user(&sc->gp_regs, &sc->regs);
 	WARN_ON(!FULL_REGS(regs));
 	err |= __copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE);
+	err |= __put_user(msr, &sc->gp_regs[PT_MSR]);
 	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
 	err |= __put_user(signr, &sc->signal);
 	err |= __put_user(handler, &sc->handler);
