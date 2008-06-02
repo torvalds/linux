@@ -89,6 +89,9 @@ static int cts_cbc_encrypt(struct crypto_cts_ctx *ctx,
 	if (lastn < 0)
 		return -EINVAL;
 
+	sg_init_table(sgsrc, 1);
+	sg_init_table(sgdst, 1);
+
 	memset(s, 0, sizeof(s));
 	scatterwalk_map_and_copy(s, src, offset, nbytes, 0);
 
@@ -171,6 +174,9 @@ static int cts_cbc_decrypt(struct crypto_cts_ctx *ctx,
 
 	if (lastn < 0)
 		return -EINVAL;
+
+	sg_init_table(sgsrc, 1);
+	sg_init_table(sgdst, 1);
 
 	scatterwalk_map_and_copy(s, src, offset, nbytes, 0);
 
