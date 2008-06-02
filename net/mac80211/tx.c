@@ -2011,7 +2011,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	}
 
 	if (WARN_ON(tx.skb != skb))
-		return NULL;
+		res = TX_DROP;
 
 	if (res == TX_DROP) {
 		I802_DEBUG_INC(local->tx_handlers_drop);
