@@ -586,7 +586,7 @@ void __init setup_bootmem_allocator(void)
 	 */
 	bootmap_size = bootmem_bootmap_pages(max_low_pfn)<<PAGE_SHIFT;
 	bootmap = find_e820_area(min_low_pfn<<PAGE_SHIFT,
-				 max_low_pfn<<PAGE_SHIFT, bootmap_size,
+				 max_pfn_mapped<<PAGE_SHIFT, bootmap_size,
 				 PAGE_SIZE);
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
@@ -595,6 +595,8 @@ void __init setup_bootmem_allocator(void)
 	reserve_initrd();
 #endif
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
+	printk(KERN_INFO "  mapped low ram: 0 - %08lx\n",
+		 max_pfn_mapped<<PAGE_SHIFT);
 	printk(KERN_INFO "  low ram: %08lx - %08lx\n",
 		 min_low_pfn<<PAGE_SHIFT, max_low_pfn<<PAGE_SHIFT);
 	printk(KERN_INFO "  bootmap %08lx - %08lx\n",

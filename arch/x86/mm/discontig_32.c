@@ -163,7 +163,8 @@ static void __init allocate_pgdat(int nid)
 	else {
 		unsigned long pgdat_phys;
 		pgdat_phys = find_e820_area(min_low_pfn<<PAGE_SHIFT,
-				 max_low_pfn<<PAGE_SHIFT, sizeof(pg_data_t),
+				 (nid ? max_low_pfn:max_pfn_mapped)<<PAGE_SHIFT,
+				 sizeof(pg_data_t),
 				 PAGE_SIZE);
 		NODE_DATA(nid) = (pg_data_t *)(pfn_to_kaddr(pgdat_phys>>PAGE_SHIFT));
 		reserve_early(pgdat_phys, pgdat_phys + sizeof(pg_data_t),
