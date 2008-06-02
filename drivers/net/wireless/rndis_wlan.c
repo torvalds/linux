@@ -2272,6 +2272,9 @@ static void rndis_wext_set_multicast_list(struct net_device *dev)
 	struct usbnet *usbdev = dev->priv;
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
 
+	if (test_bit(WORK_SET_MULTICAST_LIST, &priv->work_pending))
+		return;
+
 	set_bit(WORK_SET_MULTICAST_LIST, &priv->work_pending);
 	queue_work(priv->workqueue, &priv->work);
 }
