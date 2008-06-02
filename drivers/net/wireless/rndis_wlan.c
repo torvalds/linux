@@ -310,8 +310,9 @@ enum wpa_key_mgmt { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
 #define CAP_MODE_MASK		7
 #define CAP_SUPPORT_TXPOWER	8
 
-#define WORK_CONNECTION_EVENT	(1<<0)
-#define WORK_SET_MULTICAST_LIST	(1<<1)
+#define WORK_LINK_UP		(1<<0)
+#define WORK_LINK_DOWN		(1<<1)
+#define WORK_SET_MULTICAST_LIST	(1<<2)
 
 /* RNDIS device private data */
 struct rndis_wext_private {
@@ -2213,7 +2214,7 @@ static void rndis_wext_worker(struct work_struct *work)
 	int assoc_size = sizeof(*info) + IW_CUSTOM_MAX + 32;
 	int ret, offset;
 
-	if (test_and_clear_bit(WORK_CONNECTION_EVENT, &priv->work_pending)) {
+	if (test_and_clear_bit(WORK_LINK_UP, &priv->work_pending)) {
 		info = kzalloc(assoc_size, GFP_KERNEL);
 		if (!info)
 			goto get_bssid;
@@ -2251,6 +2252,13 @@ get_bssid:
 		}
 	}
 
+	if (test_and_clear_bit(WORK_LINK_DOWN, &priv->work_pending)) {
+		evt.data.flags = 0;
+		evt.data.length = 0;
+		memset(evt.ap_addr.sa_data, 0, ETH_ALEN);
+		wireless_send_event(usbdev->net, SIOCGIWAP, &evt, NULL);
+	}
+
 	if (test_and_clear_bit(WORK_SET_MULTICAST_LIST, &priv->work_pending))
 		set_multicast_list(usbdev);
 }
@@ -2267,18 +2275,10 @@ static void rndis_wext_set_multicast_list(struct net_device *dev)
 static void rndis_wext_link_change(struct usbnet *dev, int state)
 {
 	struct rndis_wext_private *priv = get_rndis_wext_priv(dev);
-	union iwreq_data evt;
 
-	if (state) {
-		/* queue work to avoid recursive calls into rndis_command */
-		set_bit(WORK_CONNECTION_EVENT, &priv->work_pending);
-		queue_work(priv->workqueue, &priv->work);
-	} else {
-		evt.data.flags = 0;
-		evt.data.length = 0;
-		memset(evt.ap_addr.sa_data, 0, ETH_ALEN);
-		wireless_send_event(dev->net, SIOCGIWAP, &evt, NULL);
-	}
+	/* queue work to avoid recursive calls into rndis_command */
+	set_bit(state ? WORK_LINK_UP : WORK_LINK_DOWN, &priv->work_pending);
+	queue_work(priv->workqueue, &priv->work);
 }
 
 
