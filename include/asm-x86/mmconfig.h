@@ -9,4 +9,6 @@ static inline void fam10h_check_enable_mmcfg(void) { }
 static inline void check_enable_amd_mmconf_dmi(void) { }
 #endif
 
+extern void __cpuinit amd_enable_pci_ext_cfg(struct cpuinfo_x86 *c);
+
 #endif
