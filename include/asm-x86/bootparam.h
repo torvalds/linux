@@ -106,4 +106,7 @@ struct boot_params {
 	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
 
+void reserve_setup_data(void);
+void parse_setup_data(void);
+
 #endif /* _ASM_BOOTPARAM_H */
