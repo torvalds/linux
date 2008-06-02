@@ -67,6 +67,7 @@
 #include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
+#include <asm/efi.h>
 
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
@@ -683,8 +684,10 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_EFI
 	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
-		     "EL32", 4))
+		     "EL32", 4)) {
 		efi_enabled = 1;
+		efi_reserve_early();
+	}
 #endif
 
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);

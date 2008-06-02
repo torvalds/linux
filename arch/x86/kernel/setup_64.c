@@ -330,8 +330,10 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #ifdef CONFIG_EFI
 	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
-		     "EL64", 4))
+		     "EL64", 4)) {
 		efi_enabled = 1;
+		efi_reserve_early();
+	}
 #endif
 
 	ARCH_SETUP
@@ -456,9 +458,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
        acpi_reserve_bootmem();
 #endif
-
-	if (efi_enabled)
-		efi_reserve_bootmem();
 
 #ifdef CONFIG_X86_MPPARSE
        /*

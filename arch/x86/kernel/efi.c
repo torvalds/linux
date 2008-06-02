@@ -238,6 +238,23 @@ static void __init add_efi_memmap(void)
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }
 
+void __init efi_reserve_early(void)
+{
+	unsigned long pmap;
+
+	pmap = boot_params.efi_info.efi_memmap;
+#ifdef CONFIG_X86_64
+	pmap += (__u64)boot_params.efi_info.efi_memmap_hi << 32;
+#endif
+	memmap.phys_map = (void *)pmap;
+	memmap.nr_map = boot_params.efi_info.efi_memmap_size /
+		boot_params.efi_info.efi_memdesc_size;
+	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
+	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
+	reserve_early(pmap, pmap + memmap.nr_map * memmap.desc_size,
+		      "EFI memmap");
+}
+
 #if EFI_DEBUG
 static void __init print_efi_memmap(void)
 {
@@ -267,21 +284,11 @@ void __init efi_init(void)
 	int i = 0;
 	void *tmp;
 
-#ifdef CONFIG_X86_32
 	efi_phys.systab = (efi_system_table_t *)boot_params.efi_info.efi_systab;
-	memmap.phys_map = (void *)boot_params.efi_info.efi_memmap;
-#else
-	efi_phys.systab = (efi_system_table_t *)
-		(boot_params.efi_info.efi_systab |
-		 ((__u64)boot_params.efi_info.efi_systab_hi<<32));
-	memmap.phys_map = (void *)
-		(boot_params.efi_info.efi_memmap |
-		 ((__u64)boot_params.efi_info.efi_memmap_hi<<32));
+#ifdef CONFIG_X86_64
+	efi_phys.systab = (void *)efi_phys.systab +
+		((__u64)boot_params.efi_info.efi_systab_hi<<32);
 #endif
-	memmap.nr_map = boot_params.efi_info.efi_memmap_size /
-		boot_params.efi_info.efi_memdesc_size;
-	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
-	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
 
 	efi.systab = early_ioremap((unsigned long)efi_phys.systab,
 				   sizeof(efi_system_table_t));
