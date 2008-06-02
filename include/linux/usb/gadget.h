@@ -33,7 +33,8 @@ struct usb_ep;
  * @short_not_ok: When reading data, makes short packets be
  *     treated as errors (queue stops advancing till cleanup).
  * @complete: Function called when request completes, so this request and
- *	its buffer may be re-used.
+ *	its buffer may be re-used.  The function will always be called with
+ *	interrupts disabled, and it must not sleep.
  *	Reads terminate with a short packet, or when the buffer fills,
  *	whichever comes first.  When writes terminate, some data bytes
  *	will usually still be in flight (often in a hardware fifo).
@@ -271,7 +272,10 @@ static inline void usb_ep_free_request(struct usb_ep *ep,
  * (Note that some USB device controllers disallow protocol stall responses
  * in some cases.)  When control responses are deferred (the response is
  * written after the setup callback returns), then usb_ep_set_halt() may be
- * used on ep0 to trigger protocol stalls.
+ * used on ep0 to trigger protocol stalls.  Depending on the controller,
+ * it may not be possible to trigger a status-stage protocol stall when the
+ * data stage is over, that is, from within the response's completion
+ * routine.
  *
  * For periodic endpoints, like interrupt or isochronous ones, the usb host
  * arranges to poll once per interval, and the gadget driver usually will
