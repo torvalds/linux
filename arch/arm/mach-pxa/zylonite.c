@@ -259,7 +259,7 @@ static void __init zylonite_init_mmc(void)
 static inline void zylonite_init_mmc(void) {}
 #endif
 
-#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULES)
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
 static unsigned int zylonite_matrix_key_map[] = {
 	/* KEY(row, col, key_code) */
 	KEY(0, 0, KEY_A), KEY(0, 1, KEY_B), KEY(0, 2, KEY_C), KEY(0, 5, KEY_D),

@@ -112,7 +112,7 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULES)
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 /* use bit 30, 31 as the indicator of command parameter number */
 #define CMD0(x)		((0x00000000) | ((x) << 9))
 #define CMD1(x, x1)	((0x40000000) | ((x) << 9) | 0x100 | (x1))
@@ -311,9 +311,9 @@ static void littleton_init_lcd(void)
 }
 #else
 static inline void littleton_init_lcd(void) {};
-#endif /* CONFIG_FB_PXA || CONFIG_FB_PXA_MODULES */
+#endif /* CONFIG_FB_PXA || CONFIG_FB_PXA_MODULE */
 
-#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULES)
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
 static unsigned int littleton_matrix_key_map[] = {
 	/* KEY(row, col, key_code) */
 	KEY(1, 3, KEY_0), KEY(0, 0, KEY_1), KEY(1, 0, KEY_2), KEY(2, 0, KEY_3),
