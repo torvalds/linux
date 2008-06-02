@@ -136,6 +136,7 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 	idx = p2m_index(pfn);
 	return p2m_top[topidx][idx];
 }
+EXPORT_SYMBOL_GPL(get_phys_to_machine);
 
 static void alloc_p2m(unsigned long **pp, unsigned long *mfnp)
 {
