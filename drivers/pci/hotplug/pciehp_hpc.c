@@ -777,7 +777,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		intr_loc |= detected;
 		if (!intr_loc)
 			return IRQ_NONE;
-		if (pciehp_writew(ctrl, SLOTSTATUS, detected)) {
+		if (detected && pciehp_writew(ctrl, SLOTSTATUS, detected)) {
 			err("%s: Cannot write to SLOTSTATUS\n", __func__);
 			return IRQ_NONE;
 		}
