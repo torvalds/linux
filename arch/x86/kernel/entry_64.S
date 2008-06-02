@@ -720,6 +720,10 @@ ENTRY(apic_timer_interrupt)
 	apicinterrupt LOCAL_TIMER_VECTOR,smp_apic_timer_interrupt
 END(apic_timer_interrupt)
 
+ENTRY(uv_bau_message_intr1)
+	apicinterrupt 220,uv_bau_message_interrupt
+END(uv_bau_message_intr1)
+
 ENTRY(error_interrupt)
 	apicinterrupt ERROR_APIC_VECTOR,smp_error_interrupt
 END(error_interrupt)
