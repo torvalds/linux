@@ -38,6 +38,7 @@
 #include <asm/setup.h>
 #include <asm/mmzone.h>
 #include <asm/bios_ebda.h>
+#include <asm/proto.h>
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
@@ -326,7 +327,6 @@ unsigned long __init setup_memory(void)
 {
 	int nid;
 	unsigned long system_start_pfn, system_max_low_pfn;
-	unsigned long wasted_pages;
 
 	/*
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
@@ -337,29 +337,18 @@ unsigned long __init setup_memory(void)
 	 */
 	get_memcfg_numa();
 
-	kva_pages = calculate_numa_remap_pages();
+	kva_pages = round_up(calculate_numa_remap_pages(), PTRS_PER_PTE);
 
 	/* partially used pages are not usable - thus round upwards */
 	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
 
-	kva_start_pfn = find_max_low_pfn() - kva_pages;
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	/* Numa kva area is below the initrd */
-	if (initrd_start)
-		kva_start_pfn = PFN_DOWN(initrd_start - PAGE_OFFSET)
-			- kva_pages;
-#endif
-
-	/*
-	 * We waste pages past at the end of the KVA for no good reason other
-	 * than how it is located. This is bad.
-	 */
-	wasted_pages = kva_start_pfn & (PTRS_PER_PTE-1);
-	kva_start_pfn -= wasted_pages;
-	kva_pages += wasted_pages;
-
 	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
+	kva_start_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
+	kva_start_pfn = find_e820_area(kva_start_pfn<<PAGE_SHIFT,
+				max_low_pfn<<PAGE_SHIFT,
+				kva_pages<<PAGE_SHIFT,
+				PTRS_PER_PTE<<PAGE_SHIFT) >> PAGE_SHIFT;
+
 	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
 		kva_start_pfn, max_low_pfn);
 	printk("max_pfn = %ld\n", max_pfn);
