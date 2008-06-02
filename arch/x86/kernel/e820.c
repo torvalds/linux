@@ -558,20 +558,34 @@ static struct early_res early_res[MAX_EARLY_RES] __initdata = {
 	{}
 };
 
+static int __init find_overlapped_early(u64 start, u64 end)
+{
+	int i;
+	struct early_res *r;
+
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		r = &early_res[i];
+		if (end > r->start && start < r->end)
+			break;
+	}
+
+	return i;
+}
+
 void __init reserve_early(u64 start, u64 end, char *name)
 {
 	int i;
 	struct early_res *r;
-	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
-		r = &early_res[i];
-		if (end > r->start && start < r->end)
-			panic("Overlapping early reservations %llx-%llx %s to %llx-%llx %s\n",
-			      start, end - 1, name?name:"", r->start,
-			      r->end - 1, r->name);
-	}
+
+	i = find_overlapped_early(start, end);
 	if (i >= MAX_EARLY_RES)
 		panic("Too many early reservations");
 	r = &early_res[i];
+	if (r->end)
+		panic("Overlapping early reservations "
+		      "%llx-%llx %s to %llx-%llx %s\n",
+		      start, end - 1, name?name:"", r->start,
+		      r->end - 1, r->name);
 	r->start = start;
 	r->end = end;
 	if (name)
@@ -583,14 +597,11 @@ void __init free_early(u64 start, u64 end)
 	struct early_res *r;
 	int i, j;
 
-	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
-		r = &early_res[i];
-		if (start == r->start && end == r->end)
-			break;
-	}
-	if (i >= MAX_EARLY_RES || !early_res[i].end)
+	i = find_overlapped_early(start, end);
+	r = &early_res[i];
+	if (i >= MAX_EARLY_RES || r->end != end || r->start != start)
 		panic("free_early on not reserved area: %llx-%llx!",
-			 start, end);
+			 start, end - 1);
 
 	for (j = i + 1; j < MAX_EARLY_RES && early_res[j].end; j++)
 		;
@@ -626,17 +637,16 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 static inline int __init bad_addr(u64 *addrp, u64 size, u64 align)
 {
 	int i;
-	u64 addr = *addrp, last;
+	u64 addr = *addrp;
 	int changed = 0;
+	struct early_res *r;
 again:
-	last = addr + size;
-	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
-		struct early_res *r = &early_res[i];
-		if (last >= r->start && addr < r->end) {
-			*addrp = addr = round_up(r->end, align);
-			changed = 1;
-			goto again;
-		}
+	i = find_overlapped_early(addr, addr + size);
+	r = &early_res[i];
+	if (i < MAX_EARLY_RES && r->end) {
+		*addrp = addr = round_up(r->end, align);
+		changed = 1;
+		goto again;
 	}
 	return changed;
 }
