@@ -1110,6 +1110,22 @@ static int mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *
 	return err;
 }
 
+static int mv643xx_eth_get_settings_phyless(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	cmd->supported = SUPPORTED_MII;
+	cmd->advertising = ADVERTISED_MII;
+	cmd->speed = SPEED_1000;
+	cmd->duplex = DUPLEX_FULL;
+	cmd->port = PORT_MII;
+	cmd->phy_address = 0;
+	cmd->transceiver = XCVR_INTERNAL;
+	cmd->autoneg = AUTONEG_DISABLE;
+	cmd->maxtxpkt = 1;
+	cmd->maxrxpkt = 1;
+
+	return 0;
+}
+
 static int mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
@@ -1125,6 +1141,11 @@ static int mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *
 	spin_unlock_irq(&mp->lock);
 
 	return err;
+}
+
+static int mv643xx_eth_set_settings_phyless(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	return -EINVAL;
 }
 
 static void mv643xx_eth_get_drvinfo(struct net_device *dev,
@@ -1144,11 +1165,21 @@ static int mv643xx_eth_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&mp->mii);
 }
 
+static int mv643xx_eth_nway_reset_phyless(struct net_device *dev)
+{
+	return -EINVAL;
+}
+
 static u32 mv643xx_eth_get_link(struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	return mii_link_ok(&mp->mii);
+}
+
+static u32 mv643xx_eth_get_link_phyless(struct net_device *dev)
+{
+	return 1;
 }
 
 static void mv643xx_eth_get_strings(struct net_device *dev,
@@ -1204,6 +1235,18 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
 	.nway_reset		= mv643xx_eth_nway_reset,
 	.get_link		= mv643xx_eth_get_link,
+	.set_sg			= ethtool_op_set_sg,
+	.get_strings		= mv643xx_eth_get_strings,
+	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
+	.get_sset_count		= mv643xx_eth_get_sset_count,
+};
+
+static const struct ethtool_ops mv643xx_eth_ethtool_ops_phyless = {
+	.get_settings		= mv643xx_eth_get_settings_phyless,
+	.set_settings		= mv643xx_eth_set_settings_phyless,
+	.get_drvinfo		= mv643xx_eth_get_drvinfo,
+	.nway_reset		= mv643xx_eth_nway_reset_phyless,
+	.get_link		= mv643xx_eth_get_link_phyless,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
@@ -1656,12 +1699,16 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	}
 
 	if (int_cause_ext & (INT_EXT_PHY | INT_EXT_LINK)) {
-		if (mii_link_ok(&mp->mii)) {
-			struct ethtool_cmd cmd;
+		if (mp->phy_addr == -1 || mii_link_ok(&mp->mii)) {
 			int i;
 
-			mii_ethtool_gset(&mp->mii, &cmd);
-			update_pscr(mp, cmd.speed, cmd.duplex);
+			if (mp->phy_addr != -1) {
+				struct ethtool_cmd cmd;
+
+				mii_ethtool_gset(&mp->mii, &cmd);
+				update_pscr(mp, cmd.speed, cmd.duplex);
+			}
+
 			for (i = 0; i < 8; i++)
 				if (mp->txq_mask & (1 << i))
 					txq_enable(mp->txq + i);
@@ -1751,7 +1798,6 @@ static void phy_reset(struct mv643xx_eth_private *mp)
 static void port_start(struct mv643xx_eth_private *mp)
 {
 	u32 pscr;
-	struct ethtool_cmd ethtool_cmd;
 	int i;
 
 	/*
@@ -1771,9 +1817,16 @@ static void port_start(struct mv643xx_eth_private *mp)
 
 	wrl(mp, SDMA_CONFIG(mp->port_num), PORT_SDMA_CONFIG_DEFAULT_VALUE);
 
-	mv643xx_eth_get_settings(mp->dev, &ethtool_cmd);
-	phy_reset(mp);
-	mv643xx_eth_set_settings(mp->dev, &ethtool_cmd);
+	/*
+	 * Perform PHY reset, if there is a PHY.
+	 */
+	if (mp->phy_addr != -1) {
+		struct ethtool_cmd cmd;
+
+		mv643xx_eth_get_settings(mp->dev, &cmd);
+		phy_reset(mp);
+		mv643xx_eth_set_settings(mp->dev, &cmd);
+	}
 
 	/*
 	 * Configure TX path and queues.
@@ -1990,7 +2043,10 @@ static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
-	return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
+	if (mp->phy_addr != -1)
+		return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
+
+	return -EOPNOTSUPP;
 }
 
 static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
@@ -2387,10 +2443,15 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	mib_counters_clear(mp);
 	INIT_WORK(&mp->tx_timeout_task, tx_timeout_task);
 
-	err = phy_init(mp, pd);
-	if (err)
-		goto out;
-	SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
+	if (mp->phy_addr != -1) {
+		err = phy_init(mp, pd);
+		if (err)
+			goto out;
+
+		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
+	} else {
+		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops_phyless);
+	}
 
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
