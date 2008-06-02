@@ -45,7 +45,8 @@
 #include "ps3_gelic_wireless.h"
 
 
-static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan);
+static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan,
+			       u8 *essid, size_t essid_len);
 static int gelic_wl_try_associate(struct net_device *netdev);
 
 /*
@@ -105,6 +106,7 @@ static const struct eurus_cmd_arg_info cmd_info[GELIC_EURUS_CMD_MAX_INDEX] = {
 	[GELIC_EURUS_CMD_GET_WEP_CFG]    = { .post_arg = 1},
 	[GELIC_EURUS_CMD_GET_WPA_CFG]    = { .post_arg = 1},
 	[GELIC_EURUS_CMD_GET_RSSI_CFG]   = { .post_arg = 1},
+	[GELIC_EURUS_CMD_START_SCAN]     = { .pre_arg = 1},
 	[GELIC_EURUS_CMD_GET_SCAN]       = { .post_arg = 1},
 };
 
@@ -163,7 +165,9 @@ static void gelic_eurus_sync_cmd_worker(struct work_struct *work)
 	card = port_to_card(wl_port(wl));
 
 	if (cmd_info[cmd->cmd].pre_arg) {
-		arg1 = ps3_mm_phys_to_lpar(__pa(cmd->buffer));
+		arg1 = (cmd->buffer) ?
+			ps3_mm_phys_to_lpar(__pa(cmd->buffer)) :
+			0;
 		arg2 = cmd->buf_size;
 	} else {
 		arg1 = 0;
@@ -360,6 +364,9 @@ static int gelic_wl_get_range(struct net_device *netdev,
 	range->num_encoding_sizes = 3;
 	range->max_encoding_tokens = GELIC_WEP_KEYS;
 
+	/* scan capability */
+	range->scan_capa = IW_SCAN_CAPA_ESSID;
+
 	pr_debug("%s: ->\n", __func__);
 	return 0;
 
@@ -371,8 +378,18 @@ static int gelic_wl_set_scan(struct net_device *netdev,
 			   union iwreq_data *wrqu, char *extra)
 {
 	struct gelic_wl_info *wl = port_wl(netdev_priv(netdev));
+	struct iw_scan_req *req;
+	u8 *essid = NULL;
+	size_t essid_len = 0;
 
-	return gelic_wl_start_scan(wl, 1);
+	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
+	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
+		req = (struct iw_scan_req*)extra;
+		essid = req->essid;
+		essid_len = req->essid_len;
+		pr_debug("%s: ESSID scan =%s\n", __func__, essid);
+	}
+	return gelic_wl_start_scan(wl, 1, essid, essid_len);
 }
 
 #define OUI_LEN 3
@@ -1534,10 +1551,13 @@ static struct iw_statistics *gelic_wl_get_wireless_stats(
 /*
  *  scanning helpers
  */
-static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan)
+static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan,
+			       u8 *essid, size_t essid_len)
 {
 	struct gelic_eurus_cmd *cmd;
 	int ret = 0;
+	void *buf = NULL;
+	size_t len;
 
 	pr_debug("%s: <- always=%d\n", __func__, always_scan);
 	if (mutex_lock_interruptible(&wl->scan_lock))
@@ -1560,12 +1580,27 @@ static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan)
 		complete(&wl->scan_done);
 		goto out;
 	}
+
+	/* ESSID scan ? */
+	if (essid_len && essid) {
+		buf = (void *)__get_free_page(GFP_KERNEL);
+		if (!buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		len = IW_ESSID_MAX_SIZE; /* hypervisor always requires 32 */
+		memset(buf, 0, len);
+		memcpy(buf, essid, essid_len);
+		pr_debug("%s: essid scan='%s'\n", __func__, (char *)buf);
+	} else
+		len = 0;
+
 	/*
 	 * issue start scan request
 	 */
 	wl->scan_stat = GELIC_WL_SCAN_STAT_SCANNING;
 	cmd = gelic_eurus_sync_cmd(wl, GELIC_EURUS_CMD_START_SCAN,
-				   NULL, 0);
+				   buf, len);
 	if (!cmd || cmd->status || cmd->cmd_status) {
 		wl->scan_stat = GELIC_WL_SCAN_STAT_INIT;
 		complete(&wl->scan_done);
@@ -1574,6 +1609,7 @@ static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan)
 	}
 	kfree(cmd);
 out:
+	free_page((unsigned long)buf);
 	mutex_unlock(&wl->scan_lock);
 	pr_debug("%s: ->\n", __func__);
 	return ret;
@@ -2261,6 +2297,9 @@ static void gelic_wl_assoc_worker(struct work_struct *work)
 
 	struct gelic_wl_scan_info *best_bss;
 	int ret;
+	unsigned long irqflag;
+	u8 *essid;
+	size_t essid_len;
 
 	wl = container_of(work, struct gelic_wl_info, assoc_work.work);
 
@@ -2269,7 +2308,19 @@ static void gelic_wl_assoc_worker(struct work_struct *work)
 	if (wl->assoc_stat != GELIC_WL_ASSOC_STAT_DISCONN)
 		goto out;
 
-	ret = gelic_wl_start_scan(wl, 0);
+	spin_lock_irqsave(&wl->lock, irqflag);
+	if (test_bit(GELIC_WL_STAT_ESSID_SET, &wl->stat)) {
+		pr_debug("%s: assoc ESSID configured %s\n", __func__,
+			 wl->essid);
+		essid = wl->essid;
+		essid_len = wl->essid_len;
+	} else {
+		essid = NULL;
+		essid_len = 0;
+	}
+	spin_unlock_irqrestore(&wl->lock, irqflag);
+
+	ret = gelic_wl_start_scan(wl, 0, essid, essid_len);
 	if (ret == -ERESTARTSYS) {
 		pr_debug("%s: scan start failed association\n", __func__);
 		schedule_delayed_work(&wl->assoc_work, HZ/10); /*FIXME*/
