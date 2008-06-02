@@ -467,8 +467,8 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	pxa_gpio_mode(TOSA_GPIO_ON_RESET | GPIO_OUT);
-	GPSR(TOSA_GPIO_ON_RESET) = GPIO_bit(TOSA_GPIO_ON_RESET);
+	gpio_direction_output(TOSA_GPIO_ON_RESET, 0);
+	gpio_set_value(TOSA_GPIO_ON_RESET, 1);
 
 	mdelay(1000);
 	arm_machine_restart('h');
