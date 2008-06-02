@@ -63,10 +63,10 @@ Installation
   - Install nfs-utils-1.1.2 or greater on the client
 
     An NFS/RDMA mount point can be obtained by using the mount.nfs command in
-    nfs-utils-1.1.2 or greater (nfs-utils-1.1.1 was the first nfs-utils version
-    with support for NFS/RDMA mounts, but for various reasons we recommend using
-    nfs-utils-1.1.2 or greater). To see which version of mount.nfs you are
-    using, type:
+    nfs-utils-1.1.2 or greater (nfs-utils-1.1.1 was the first nfs-utils
+    version with support for NFS/RDMA mounts, but for various reasons we
+    recommend using nfs-utils-1.1.2 or greater). To see which version of
+    mount.nfs you are using, type:
 
     $ /sbin/mount.nfs -V
 
@@ -91,8 +91,9 @@ Installation
 
     After building the nfs-utils package, there will be a mount.nfs binary in
     the utils/mount directory. This binary can be used to initiate NFS v2, v3,
-    or v4 mounts. To initiate a v4 mount, the binary must be called mount.nfs4.
-    The standard technique is to create a symlink called mount.nfs4 to mount.nfs.
+    or v4 mounts. To initiate a v4 mount, the binary must be called
+    mount.nfs4.  The standard technique is to create a symlink called
+    mount.nfs4 to mount.nfs.
 
     This mount.nfs binary should be installed at /sbin/mount.nfs as follows:
 
@@ -214,11 +215,11 @@ NFS/RDMA Setup
     /vol0   192.168.0.47(fsid=0,rw,async,insecure,no_root_squash)
     /vol0   192.168.0.0/255.255.255.0(fsid=0,rw,async,insecure,no_root_squash)
 
-    The IP address(es) is(are) the client's IPoIB address for an InfiniBand HCA or the
-    cleint's iWARP address(es) for an RNIC.
+    The IP address(es) is(are) the client's IPoIB address for an InfiniBand
+    HCA or the cleint's iWARP address(es) for an RNIC.
 
-    NOTE: The "insecure" option must be used because the NFS/RDMA client does not
-    use a reserved port.
+    NOTE: The "insecure" option must be used because the NFS/RDMA client does
+    not use a reserved port.
 
  Each time a machine boots:
 
@@ -234,12 +235,13 @@ NFS/RDMA Setup
 
   - Start the NFS server
 
-    If the NFS/RDMA server was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in kernel config),
-    load the RDMA transport module:
+    If the NFS/RDMA server was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in
+    kernel config), load the RDMA transport module:
 
     $ modprobe svcrdma
 
-    Regardless of how the server was built (module or built-in), start the server:
+    Regardless of how the server was built (module or built-in), start the
+    server:
 
     $ /etc/init.d/nfs start
 
@@ -253,17 +255,17 @@ NFS/RDMA Setup
 
   - On the client system
 
-    If the NFS/RDMA client was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in kernel config),
-    load the RDMA client module:
+    If the NFS/RDMA client was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in
+    kernel config), load the RDMA client module:
 
     $ modprobe xprtrdma.ko
 
-    Regardless of how the client was built (module or built-in), use this command to
-    mount the NFS/RDMA server:
+    Regardless of how the client was built (module or built-in), use this
+    command to mount the NFS/RDMA server:
 
     $ mount -o rdma,port=2050 <IPoIB-server-name-or-address>:/<export> /mnt
 
-    To verify that the mount is using RDMA, run "cat /proc/mounts" and check the
-    "proto" field for the given mount.
+    To verify that the mount is using RDMA, run "cat /proc/mounts" and check
+    the "proto" field for the given mount.
 
   Congratulations! You're using NFS/RDMA!
