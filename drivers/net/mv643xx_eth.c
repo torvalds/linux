@@ -55,7 +55,7 @@
 #include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
-static char mv643xx_eth_driver_version[] = "1.0";
+static char mv643xx_eth_driver_version[] = "1.1";
 
 #define MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #define MV643XX_ETH_NAPI
@@ -2570,8 +2570,8 @@ static void __exit mv643xx_eth_cleanup_module(void)
 }
 module_exit(mv643xx_eth_cleanup_module);
 
-MODULE_AUTHOR("Rabeeh Khoury, Assaf Hoffman, Matthew Dharm, Manish Lachwani "
-	      "and Dale Farnsworth");
+MODULE_AUTHOR("Rabeeh Khoury, Assaf Hoffman, Matthew Dharm, "
+	      "Manish Lachwani, Dale Farnsworth and Lennert Buytenhek");
 MODULE_DESCRIPTION("Ethernet driver for Marvell MV643XX");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" MV643XX_ETH_SHARED_NAME);
