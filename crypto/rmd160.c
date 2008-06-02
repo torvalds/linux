@@ -47,7 +47,7 @@ struct rmd160_ctx {
 #define F5(x, y, z) (x ^ (y | ~z))
 
 #define ROUND(a, b, c, d, e, f, k, x, s)  { \
-	(a) += f((b), (c), (d)) + le32_to_cpu(x) + (k); \
+	(a) += f((b), (c), (d)) + le32_to_cpup(&(x)) + (k); \
 	(a) = rol32((a), (s)) + (e); \
 	(c) = rol32((c), 10); \
 }
@@ -329,7 +329,7 @@ static void rmd160_final(struct crypto_tfm *tfm, u8 *out)
 
 	/* Store state in digest */
 	for (i = 0; i < 5; i++)
-		dst[i] = cpu_to_le32(rctx->state[i]);
+		dst[i] = cpu_to_le32p(&rctx->state[i]);
 
 	/* Wipe context */
 	memset(rctx, 0, sizeof(*rctx));

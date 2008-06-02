@@ -44,7 +44,7 @@ struct rmd256_ctx {
 #define F4(x, y, z) (y ^ (z & (x ^ y)))	/* z ? x : y */
 
 #define ROUND(a, b, c, d, f, k, x, s)  { \
-	(a) += f((b), (c), (d)) + le32_to_cpu(x) + (k); \
+	(a) += f((b), (c), (d)) + le32_to_cpup(&(x)) + (k); \
 	(a) = rol32((a), (s)); \
 }
 
@@ -304,7 +304,7 @@ static void rmd256_final(struct crypto_tfm *tfm, u8 *out)
 
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)
-		dst[i] = cpu_to_le32(rctx->state[i]);
+		dst[i] = cpu_to_le32p(&rctx->state[i]);
 
 	/* Wipe context */
 	memset(rctx, 0, sizeof(*rctx));
