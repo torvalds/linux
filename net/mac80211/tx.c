@@ -612,12 +612,9 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 
 	if ((info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) ||
 	    (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)) {
-		struct ieee80211_supported_band *sband;
 		struct ieee80211_rate *rate;
 		s8 baserate = -1;
 		int idx;
-
-		sband = tx->local->hw.wiphy->bands[tx->channel->band];
 
 		/* Do not use multiple retry rates when using RTS/CTS */
 		info->control.alt_retry_rate_idx = -1;
