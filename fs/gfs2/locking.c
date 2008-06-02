@@ -163,7 +163,7 @@ retry:
 	mutex_lock(&lmh_lock);
 
 	if (list_empty(&nolock_proto.lw_list))
-		list_add(&lmh_list, &nolock_proto.lw_list);
+		list_add(&nolock_proto.lw_list, &lmh_list);
 
 	found = 0;
 	list_for_each_entry(lw, &lmh_list, lw_list) {
