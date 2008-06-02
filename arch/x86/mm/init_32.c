@@ -289,7 +289,8 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 
 void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 {
-	if (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn))) {
+	if (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn)) &&
+	    !page_is_reserved_early(pfn)) {
 		ClearPageReserved(page);
 		init_page_count(page);
 		__free_page(page);

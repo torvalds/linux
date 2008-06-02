@@ -612,6 +612,17 @@ void __init free_early(u64 start, u64 end)
 	early_res[j - 1].end = 0;
 }
 
+int __init page_is_reserved_early(unsigned long pagenr)
+{
+	u64 start = (u64)pagenr << PAGE_SHIFT;
+	int i;
+	struct early_res *r;
+
+	i = find_overlapped_early(start, start + PAGE_SIZE);
+	r = &early_res[i];
+	return (i < MAX_EARLY_RES && r->end);
+}
+
 void __init early_res_to_bootmem(u64 start, u64 end)
 {
 	int i;
