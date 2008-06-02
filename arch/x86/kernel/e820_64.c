@@ -55,16 +55,12 @@ unsigned long __init e820_end_of_ram(void)
 
 	last_pfn = find_max_pfn_with_active_regions();
 
-	if (last_pfn > max_pfn_mapped)
-		max_pfn_mapped = last_pfn;
-	if (max_pfn_mapped > MAXMEM>>PAGE_SHIFT)
-		max_pfn_mapped = MAXMEM>>PAGE_SHIFT;
+	if (last_pfn > MAXMEM>>PAGE_SHIFT)
+		last_pfn = MAXMEM>>PAGE_SHIFT;
 	if (last_pfn > end_user_pfn)
 		last_pfn = end_user_pfn;
-	if (last_pfn > max_pfn_mapped)
-		last_pfn = max_pfn_mapped;
 
-	printk(KERN_INFO "max_pfn_mapped = %lu\n", max_pfn_mapped);
+	printk(KERN_INFO "last_pfn = %lu\n", last_pfn);
 	return last_pfn;
 }
 
@@ -108,10 +104,6 @@ static int __init e820_find_active_region(const struct e820entry *ei,
 	/* Skip map entries smaller than a page */
 	if (*ei_startpfn >= *ei_endpfn)
 		return 0;
-
-	/* Check if max_pfn_mapped should be updated */
-	if (ei->type != E820_RAM && *ei_endpfn > max_pfn_mapped)
-		max_pfn_mapped = *ei_endpfn;
 
 	/* Skip if map is outside the node */
 	if (ei->type != E820_RAM || *ei_endpfn <= start_pfn ||
@@ -229,7 +221,6 @@ static int __init parse_memmap_opt(char *p)
 		saved_max_pfn = e820_end_of_ram();
 		remove_all_active_ranges();
 #endif
-		max_pfn_mapped = 0;
 		e820.nr_map = 0;
 		userdef = 1;
 		return 0;
