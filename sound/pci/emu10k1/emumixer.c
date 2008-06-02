@@ -1578,6 +1578,10 @@ static int snd_emu10k1_shared_spdif_get(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[0] = inl(emu->port + A_IOCFG) & A_IOCFG_GPOUT0 ? 1 : 0;
 	else
 		ucontrol->value.integer.value[0] = inl(emu->port + HCFG) & HCFG_GPOUT0 ? 1 : 0;
+	if (emu->card_capabilities->invert_shared_spdif)
+		ucontrol->value.integer.value[0] =
+			!ucontrol->value.integer.value[0];
+		
 	return 0;
 }
 
@@ -1586,15 +1590,18 @@ static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned int reg, val;
+	unsigned int reg, val, sw;
 	int change = 0;
 
+	sw = ucontrol->value.integer.value[0];
+	if (emu->card_capabilities->invert_shared_spdif)
+		sw = !sw;
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	if ( emu->card_capabilities->i2c_adc) {
 		/* Do nothing for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {
 		reg = inl(emu->port + A_IOCFG);
-		val = ucontrol->value.integer.value[0] ? A_IOCFG_GPOUT0 : 0;
+		val = sw ? A_IOCFG_GPOUT0 : 0;
 		change = (reg & A_IOCFG_GPOUT0) != val;
 		if (change) {
 			reg &= ~A_IOCFG_GPOUT0;
@@ -1603,7 +1610,7 @@ static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
 		}
 	}
 	reg = inl(emu->port + HCFG);
-	val = ucontrol->value.integer.value[0] ? HCFG_GPOUT0 : 0;
+	val = sw ? HCFG_GPOUT0 : 0;
 	change |= (reg & HCFG_GPOUT0) != val;
 	if (change) {
 		reg &= ~HCFG_GPOUT0;
