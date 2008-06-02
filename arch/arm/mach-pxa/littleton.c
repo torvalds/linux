@@ -38,6 +38,7 @@
 #include <asm/arch/pxafb.h>
 #include <asm/arch/ssp.h>
 #include <asm/arch/pxa27x_keypad.h>
+#include <asm/arch/pxa3xx_nand.h>
 #include <asm/arch/littleton.h>
 
 #include "generic.h"
@@ -361,6 +362,57 @@ static void __init littleton_init_keypad(void)
 static inline void littleton_init_keypad(void) {}
 #endif
 
+#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+static struct mtd_partition littleton_nand_partitions[] = {
+	[0] = {
+		.name        = "Bootloader",
+		.offset      = 0,
+		.size        = 0x060000,
+		.mask_flags  = MTD_WRITEABLE, /* force read-only */
+	},
+	[1] = {
+		.name        = "Kernel",
+		.offset      = 0x060000,
+		.size        = 0x200000,
+		.mask_flags  = MTD_WRITEABLE, /* force read-only */
+	},
+	[2] = {
+		.name        = "Filesystem",
+		.offset      = 0x0260000,
+		.size        = 0x3000000,     /* 48M - rootfs */
+	},
+	[3] = {
+		.name        = "MassStorage",
+		.offset      = 0x3260000,
+		.size        = 0x3d40000,
+	},
+	[4] = {
+		.name        = "BBT",
+		.offset      = 0x6FA0000,
+		.size        = 0x80000,
+		.mask_flags  = MTD_WRITEABLE,  /* force read-only */
+	},
+	/* NOTE: we reserve some blocks at the end of the NAND flash for
+	 * bad block management, and the max number of relocation blocks
+	 * differs on different platforms. Please take care with it when
+	 * defining the partition table.
+	 */
+};
+
+static struct pxa3xx_nand_platform_data littleton_nand_info = {
+	.enable_arbiter	= 1,
+	.parts		= littleton_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(littleton_nand_partitions),
+};
+
+static void __init littleton_init_nand(void)
+{
+	pxa3xx_set_nand_info(&littleton_nand_info);
+}
+#else
+static inline void littleton_init_nand(void) {}
+#endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
+
 static void __init littleton_init(void)
 {
 	/* initialize MFP configurations */
@@ -374,6 +426,7 @@ static void __init littleton_init(void)
 
 	littleton_init_lcd();
 	littleton_init_keypad();
+	littleton_init_nand();
 }
 
 MACHINE_START(LITTLETON, "Marvell Form Factor Development Platform (aka Littleton)")
