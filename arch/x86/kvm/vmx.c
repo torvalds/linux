@@ -1036,6 +1036,7 @@ static void hardware_enable(void *garbage)
 static void hardware_disable(void *garbage)
 {
 	asm volatile (ASM_VMX_VMXOFF : : : "cc");
+	write_cr4(read_cr4() & ~X86_CR4_VMXE);
 }
 
 static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
