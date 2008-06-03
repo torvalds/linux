@@ -430,7 +430,7 @@ static void ftrace_replace_code(int enable)
 			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
 				rec->flags |= FTRACE_FL_FAILED;
 				if ((system_state == SYSTEM_BOOTING) ||
-				    !kernel_text_address(rec->ip)) {
+				    !core_kernel_text(rec->ip)) {
 					ftrace_del_hash(rec);
 					ftrace_free_rec(rec);
 				}
@@ -651,10 +651,9 @@ static int __ftrace_update_code(void *ignore)
 				ftrace_update_cnt++;
 			} else {
 				if ((system_state == SYSTEM_BOOTING) ||
-				    !kernel_text_address(p->ip)) {
+				    !core_kernel_text(p->ip)) {
 					ftrace_del_hash(p);
 					ftrace_free_rec(p);
-
 				}
 			}
 		}
