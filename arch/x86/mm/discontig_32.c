@@ -454,3 +454,12 @@ int memory_add_physaddr_to_nid(u64 addr)
 
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
+
+#ifdef CONFIG_ACPI_NUMA
+/*
+ * Dummy on 32-bit, for now:
+ */
+void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+{
+}
+#endif
