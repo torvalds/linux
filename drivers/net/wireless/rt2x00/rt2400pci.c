@@ -781,6 +781,22 @@ static int rt2400pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static int rt2400pci_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u8 value;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2400pci_bbp_read(rt2x00dev, 0, &value);
+		if ((value != 0xff) && (value != 0x00))
+			return 0;
+		udelay(REGISTER_BUSY_DELAY);
+	}
+
+	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	return -EACCES;
+}
+
 static int rt2400pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
@@ -788,18 +804,9 @@ static int rt2400pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 	u8 reg_id;
 	u8 value;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2400pci_bbp_read(rt2x00dev, 0, &value);
-		if ((value != 0xff) && (value != 0x00))
-			goto continue_csr_init;
-		NOTICE(rt2x00dev, "Waiting for BBP register.\n");
-		udelay(REGISTER_BUSY_DELAY);
-	}
+	if (unlikely(rt2400pci_wait_bbp_ready(rt2x00dev)))
+		return -EACCES;
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
-	return -EACCES;
-
-continue_csr_init:
 	rt2400pci_bbp_write(rt2x00dev, 1, 0x00);
 	rt2400pci_bbp_write(rt2x00dev, 3, 0x27);
 	rt2400pci_bbp_write(rt2x00dev, 4, 0x08);
@@ -838,7 +845,8 @@ static void rt2400pci_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00pci_register_read(rt2x00dev, RXCSR0, &reg);
 	rt2x00_set_field32(&reg, RXCSR0_DISABLE_RX,
-			   state == STATE_RADIO_RX_OFF);
+			   (state == STATE_RADIO_RX_OFF) ||
+			   (state == STATE_RADIO_RX_OFF_LINK));
 	rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
 }
 
@@ -875,17 +883,10 @@ static int rt2400pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all registers.
 	 */
-	if (rt2400pci_init_queues(rt2x00dev) ||
-	    rt2400pci_init_registers(rt2x00dev) ||
-	    rt2400pci_init_bbp(rt2x00dev)) {
-		ERROR(rt2x00dev, "Register initialization failed.\n");
+	if (unlikely(rt2400pci_init_queues(rt2x00dev) ||
+		     rt2400pci_init_registers(rt2x00dev) ||
+		     rt2400pci_init_bbp(rt2x00dev)))
 		return -EIO;
-	}
-
-	/*
-	 * Enable interrupts.
-	 */
-	rt2400pci_toggle_irq(rt2x00dev, STATE_RADIO_IRQ_ON);
 
 	return 0;
 }
@@ -907,11 +908,6 @@ static void rt2400pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
 	rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
 	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
-
-	/*
-	 * Disable interrupts.
-	 */
-	rt2400pci_toggle_irq(rt2x00dev, STATE_RADIO_IRQ_OFF);
 }
 
 static int rt2400pci_set_state(struct rt2x00_dev *rt2x00dev,
@@ -946,10 +942,6 @@ static int rt2400pci_set_state(struct rt2x00_dev *rt2x00dev,
 		msleep(10);
 	}
 
-	NOTICE(rt2x00dev, "Device failed to enter state %d, "
-	       "current device state: bbp %d and rf %d.\n",
-	       state, bbp_state, rf_state);
-
 	return -EBUSY;
 }
 
@@ -967,11 +959,13 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_RX_ON:
 	case STATE_RADIO_RX_ON_LINK:
-		rt2400pci_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
-		break;
 	case STATE_RADIO_RX_OFF:
 	case STATE_RADIO_RX_OFF_LINK:
-		rt2400pci_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+		rt2400pci_toggle_rx(rt2x00dev, state);
+		break;
+	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_OFF:
+		rt2400pci_toggle_irq(rt2x00dev, state);
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -983,6 +977,10 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		retval = -ENOTSUPP;
 		break;
 	}
+
+	if (unlikely(retval))
+		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
+		      state, retval);
 
 	return retval;
 }
