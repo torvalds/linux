@@ -1220,6 +1220,14 @@ static void do_test(void)
 		test_cipher("ecb(des3_ede)", DECRYPT, des3_ede_dec_tv_template,
 			    DES3_EDE_DEC_TEST_VECTORS);
 
+		test_cipher("cbc(des3_ede)", ENCRYPT,
+			    des3_ede_cbc_enc_tv_template,
+			    DES3_EDE_CBC_ENC_TEST_VECTORS);
+
+		test_cipher("cbc(des3_ede)", DECRYPT,
+			    des3_ede_cbc_dec_tv_template,
+			    DES3_EDE_CBC_DEC_TEST_VECTORS);
+
 		test_hash("md4", md4_tv_template, MD4_TEST_VECTORS);
 
 		test_hash("sha224", sha224_tv_template, SHA224_TEST_VECTORS);
@@ -1430,6 +1438,14 @@ static void do_test(void)
 			    DES3_EDE_ENC_TEST_VECTORS);
 		test_cipher("ecb(des3_ede)", DECRYPT, des3_ede_dec_tv_template,
 			    DES3_EDE_DEC_TEST_VECTORS);
+
+		test_cipher("cbc(des3_ede)", ENCRYPT,
+			    des3_ede_cbc_enc_tv_template,
+			    DES3_EDE_CBC_ENC_TEST_VECTORS);
+
+		test_cipher("cbc(des3_ede)", DECRYPT,
+			    des3_ede_cbc_dec_tv_template,
+			    DES3_EDE_CBC_DEC_TEST_VECTORS);
 		break;
 
 	case 5:
