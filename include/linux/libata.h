@@ -169,6 +169,7 @@ enum {
 	ATA_LFLAG_ASSUME_CLASS	= ATA_LFLAG_ASSUME_ATA | ATA_LFLAG_ASSUME_SEMB,
 	ATA_LFLAG_NO_RETRY	= (1 << 5), /* don't retry this link */
 	ATA_LFLAG_DISABLED	= (1 << 6), /* link is disabled */
+	ATA_LFLAG_SW_ACTIVITY	= (1 << 7), /* keep activity stats */
 
 	/* struct ata_port flags */
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
@@ -191,6 +192,10 @@ enum {
 	ATA_FLAG_AN		= (1 << 18), /* controller supports AN */
 	ATA_FLAG_PMP		= (1 << 19), /* controller supports PMP */
 	ATA_FLAG_IPM		= (1 << 20), /* driver can handle IPM */
+	ATA_FLAG_EM		= (1 << 21), /* driver supports enclosure
+					      * management */
+	ATA_FLAG_SW_ACTIVITY	= (1 << 22), /* driver supports sw activity
+					      * led */
 
 	/* The following flag belongs to ap->pflags but is kept in
 	 * ap->flags because it's referenced in many LLDs and will be
@@ -446,6 +451,15 @@ enum link_pm {
 	MEDIUM_POWER,
 };
 extern struct device_attribute dev_attr_link_power_management_policy;
+extern struct device_attribute dev_attr_em_message_type;
+extern struct device_attribute dev_attr_em_message;
+extern struct device_attribute dev_attr_sw_activity;
+
+enum sw_activity {
+	OFF,
+	BLINK_ON,
+	BLINK_OFF,
+};
 
 #ifdef CONFIG_ATA_SFF
 struct ata_ioports {
@@ -701,6 +715,7 @@ struct ata_port {
 	struct timer_list	fastdrain_timer;
 	unsigned long		fastdrain_cnt;
 
+	int			em_message_type;
 	void			*private_data;
 
 #ifdef CONFIG_ATA_ACPI
@@ -792,6 +807,12 @@ struct ata_port_operations {
 	u8   (*bmdma_status)(struct ata_port *ap);
 #endif /* CONFIG_ATA_SFF */
 
+	ssize_t (*em_show)(struct ata_port *ap, char *buf);
+	ssize_t (*em_store)(struct ata_port *ap, const char *message,
+			    size_t size);
+	ssize_t (*sw_activity_show)(struct ata_device *dev, char *buf);
+	ssize_t (*sw_activity_store)(struct ata_device *dev,
+				     enum sw_activity val);
 	/*
 	 * Obsolete
 	 */
