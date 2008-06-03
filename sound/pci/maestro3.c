@@ -2427,6 +2427,29 @@ snd_m3_amp_enable(struct snd_m3 *chip, int enable)
 	outw(0xffff, io + GPIO_MASK);
 }
 
+static void
+snd_m3_hv_init(struct snd_m3 *chip)
+{
+	unsigned long io = chip->iobase;
+	u16 val = GPI_VOL_DOWN | GPI_VOL_UP;
+
+	if (!chip->is_omnibook)
+		return;
+
+	/*
+	 * Volume buttons on some HP OmniBook laptops
+	 * require some GPIO magic to work correctly.
+	 */
+	outw(0xffff, io + GPIO_MASK);
+	outw(0x0000, io + GPIO_DATA);
+
+	outw(~val, io + GPIO_MASK);
+	outw(inw(io + GPIO_DIRECTION) & ~val, io + GPIO_DIRECTION);
+	outw(val, io + GPIO_MASK);
+
+	outw(0xffff, io + GPIO_MASK);
+}
+
 static int
 snd_m3_chip_init(struct snd_m3 *chip)
 {
@@ -2442,21 +2465,6 @@ snd_m3_chip_init(struct snd_m3 *chip)
 	       DISABLE_LEGACY);
 	pci_write_config_word(pcidev, PCI_LEGACY_AUDIO_CTRL, w);
 
-	if (chip->is_omnibook) {
-		/*
-		 * Volume buttons on some HP OmniBook laptops don't work
-		 * correctly. This makes them work for the most part.
-		 *
-		 * Volume up and down buttons on the laptop side work.
-		 * Fn+cursor_up (volme up) works.
-		 * Fn+cursor_down (volume down) doesn't work.
-		 * Fn+F7 (mute) works acts as volume up.
-		 */
-		outw(~(GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_MASK);
-		outw(inw(io + GPIO_DIRECTION) & ~(GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_DIRECTION);
-		outw((GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_DATA);
-		outw(0xffff, io + GPIO_MASK);
-	}
 	pci_read_config_dword(pcidev, PCI_ALLEGRO_CONFIG, &n);
 	n &= ~(HV_CTRL_ENABLE | REDUCED_DEBOUNCE | HV_BUTTON_FROM_GD);
 	n |= chip->hv_config;
@@ -2642,6 +2650,8 @@ static int m3_resume(struct pci_dev *pci)
 	snd_m3_enable_ints(chip);
 	snd_m3_amp_enable(chip, 1);
 
+	snd_m3_hv_init(chip);
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
@@ -2780,6 +2790,8 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	snd_m3_ac97_reset(chip);
 
 	snd_m3_amp_enable(chip, 1);
+
+	snd_m3_hv_init(chip);
 
 	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
 
