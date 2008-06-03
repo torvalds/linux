@@ -1714,7 +1714,8 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 	return nla_nest_end(skb, nest);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, nest);
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
 }
 
 static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
