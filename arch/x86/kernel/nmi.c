@@ -487,14 +487,16 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 		return -EIO;
 	}
 
-#ifdef CONFIG_X86_64
 	/* if nmi_watchdog is not set yet, then set it */
 	nmi_watchdog_default();
-#else
-	if (lapic_watchdog_ok())
-		nmi_watchdog = NMI_LOCAL_APIC;
-	else
-		nmi_watchdog = NMI_IO_APIC;
+
+#ifdef CONFIG_X86_32
+	if (nmi_watchdog == NMI_NONE) {
+		if (lapic_watchdog_ok())
+			nmi_watchdog = NMI_LOCAL_APIC;
+		else
+			nmi_watchdog = NMI_IO_APIC;
+	}
 #endif
 
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
