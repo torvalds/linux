@@ -181,7 +181,9 @@ void disable_lapic_nmi_watchdog(void)
 		return;
 
 	on_each_cpu(stop_apic_nmi_watchdog, NULL, 0, 1);
-	wd_ops->unreserve();
+
+	if (wd_ops)
+		wd_ops->unreserve();
 
 	BUG_ON(atomic_read(&nmi_active) != 0);
 }
