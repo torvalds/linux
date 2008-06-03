@@ -2057,9 +2057,9 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 		goto nla_put_failure;
 	}
 
-	ci.ndm_used	 = now - neigh->used;
-	ci.ndm_confirmed = now - neigh->confirmed;
-	ci.ndm_updated	 = now - neigh->updated;
+	ci.ndm_used	 = jiffies_to_clock_t(now - neigh->used);
+	ci.ndm_confirmed = jiffies_to_clock_t(now - neigh->confirmed);
+	ci.ndm_updated	 = jiffies_to_clock_t(now - neigh->updated);
 	ci.ndm_refcnt	 = atomic_read(&neigh->refcnt) - 1;
 	read_unlock_bh(&neigh->lock);
 
