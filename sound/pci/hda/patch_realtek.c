@@ -942,7 +942,6 @@ do_sku:
 			    AC_VERB_SET_UNSOLICITED_ENABLE,
 			    AC_USRSP_EN | ALC880_HP_EVENT);
 	spec->unsol_event = alc_sku_unsol_event;
-	spec->init_hook = alc_sku_automute;	
 }
 
 /*
