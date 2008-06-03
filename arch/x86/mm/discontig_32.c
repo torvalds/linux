@@ -462,4 +462,9 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 {
 }
+
+void __init
+acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
+{
+}
 #endif
