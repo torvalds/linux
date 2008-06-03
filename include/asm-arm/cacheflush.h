@@ -95,11 +95,7 @@
 #endif
 
 #if defined(CONFIG_CPU_FEROCEON)
-# ifdef _CACHE
-#  define MULTI_CACHE 1
-# else
-#  define _CACHE feroceon
-# endif
+# define MULTI_CACHE 1
 #endif
 
 #if defined(CONFIG_CPU_V6)
