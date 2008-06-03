@@ -410,6 +410,10 @@ config PARAVIRT
 	  over full virtualization.  However, when run without a hypervisor
 	  the kernel is theoretically slower and slightly larger.
 
+config PARAVIRT_CLOCK
+	bool
+	default n
+
 endif
 
 config MEMTEST_BOOTPARAM
