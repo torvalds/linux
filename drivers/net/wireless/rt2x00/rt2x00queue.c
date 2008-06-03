@@ -439,7 +439,8 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	 * TX: qid = QID_AC_BE + index
 	 * TX: cw_min: 2^5 = 32.
 	 * TX: cw_max: 2^10 = 1024.
-	 * BCN & Atim: qid = QID_MGMT
+	 * BCN: qid = QID_BEACON
+	 * ATIM: qid = QID_ATIM
 	 */
 	rt2x00queue_init(rt2x00dev, rt2x00dev->rx, QID_RX);
 
@@ -447,9 +448,9 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_init(rt2x00dev, queue, qid++);
 
-	rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[0], QID_MGMT);
+	rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[0], QID_BEACON);
 	if (req_atim)
-		rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[1], QID_MGMT);
+		rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[1], QID_ATIM);
 
 	return 0;
 }
