@@ -155,6 +155,12 @@ config PAGE_SIZE_8KB
 	help
 	  This enables 8kB pages as supported by SH-X2 and later MMUs.
 
+config PAGE_SIZE_16KB
+	bool "16kB"
+	depends on !MMU
+	help
+	  This enables 16kB pages on MMU-less SH systems.
+
 config PAGE_SIZE_64KB
 	bool "64kB"
 	depends on !MMU || CPU_SH4 || CPU_SH5
