@@ -1093,11 +1093,6 @@ static int irda_create(struct net *net, struct socket *sock, int protocol)
 
 	init_waitqueue_head(&self->query_wait);
 
-	/* Initialise networking socket struct */
-	sock_init_data(sock, sk);	/* Note : set sk->sk_refcnt to 1 */
-	sk->sk_family = PF_IRDA;
-	sk->sk_protocol = protocol;
-
 	switch (sock->type) {
 	case SOCK_STREAM:
 		sock->ops = &irda_stream_ops;
@@ -1124,12 +1119,19 @@ static int irda_create(struct net *net, struct socket *sock, int protocol)
 			self->max_sdu_size_rx = TTP_SAR_UNBOUND;
 			break;
 		default:
+			sk_free(sk);
 			return -ESOCKTNOSUPPORT;
 		}
 		break;
 	default:
+		sk_free(sk);
 		return -ESOCKTNOSUPPORT;
 	}
+
+	/* Initialise networking socket struct */
+	sock_init_data(sock, sk);	/* Note : set sk->sk_refcnt to 1 */
+	sk->sk_family = PF_IRDA;
+	sk->sk_protocol = protocol;
 
 	/* Register as a client with IrLMP */
 	self->ckey = irlmp_register_client(0, NULL, NULL, NULL);
