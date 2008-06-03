@@ -467,4 +467,8 @@ void __init
 acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 {
 }
+
+void __init acpi_numa_arch_fixup(void)
+{
+}
 #endif
