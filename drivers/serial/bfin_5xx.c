@@ -530,11 +530,7 @@ static unsigned int bfin_serial_get_mctrl(struct uart_port *port)
 	if (uart->cts_pin < 0)
 		return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 
-# ifdef BF54x
-	if (UART_GET_MSR(uart) & CTS)
-# else
-	if (gpio_get_value(uart->cts_pin))
-# endif
+	if (UART_GET_CTS(uart))
 		return TIOCM_DSR | TIOCM_CAR;
 	else
 #endif
@@ -549,17 +545,9 @@ static void bfin_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		return;
 
 	if (mctrl & TIOCM_RTS)
-# ifdef BF54x
-		UART_PUT_MCR(uart, UART_GET_MCR(uart) & ~MRTS);
-# else
-		gpio_set_value(uart->rts_pin, 0);
-# endif
+		UART_CLEAR_RTS(uart);
 	else
-# ifdef BF54x
-		UART_PUT_MCR(uart, UART_GET_MCR(uart) | MRTS);
-# else
-		gpio_set_value(uart->rts_pin, 1);
-# endif
+		UART_SET_RTS(uart);
 #endif
 }
 
@@ -752,11 +740,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* Disable UART */
 	ier = UART_GET_IER(uart);
-#ifdef CONFIG_BF54x
-	UART_CLEAR_IER(uart, 0xF);
-#else
-	UART_PUT_IER(uart, 0);
-#endif
+	UART_DISABLE_INTS(uart);
 
 	/* Set DLAB in LCR to Access DLL and DLH */
 	UART_SET_DLAB(uart);
@@ -771,11 +755,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	UART_PUT_LCR(uart, lcr);
 
 	/* Enable UART */
-#ifdef CONFIG_BF54x
-	UART_SET_IER(uart, ier);
-#else
-	UART_PUT_IER(uart, ier);
-#endif
+	UART_ENABLE_INTS(uart, ier);
 
 	val = UART_GET_GCTL(uart);
 	val |= UCEN;
