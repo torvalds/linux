@@ -28,6 +28,7 @@
 #include <asm/numa.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
+#include <asm/mpspec.h>
 
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
