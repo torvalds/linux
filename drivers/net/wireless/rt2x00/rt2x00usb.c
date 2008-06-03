@@ -130,15 +130,11 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct txdone_entry_desc txdesc;
-	__le32 *txd = (__le32 *)entry->skb->data;
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
-	u32 word;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
-
-	rt2x00_desc_read(txd, 0, &word);
 
 	/*
 	 * Remove the descriptor data from the buffer.
