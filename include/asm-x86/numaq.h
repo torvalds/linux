@@ -28,6 +28,7 @@
 
 #ifdef CONFIG_X86_NUMAQ
 
+extern int found_numaq;
 extern int get_memcfg_numaq(void);
 
 /*

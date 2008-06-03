@@ -70,7 +70,10 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 		return;
 	}
 #ifdef CONFIG_X86_NUMAQ
-	apicid = mpc_apic_id(m, translation_table[mpc_record]);
+	if (found_numaq)
+		apicid = mpc_apic_id(m, translation_table[mpc_record]);
+	else
+		apicid = m->mpc_apicid;
 #else
 	apicid = m->mpc_apicid;
 #endif
@@ -91,7 +94,8 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 	str[6] = 0;
 
 #ifdef CONFIG_X86_NUMAQ
-	mpc_oem_bus_info(m, str, translation_table[mpc_record]);
+	if (found_numaq)
+		mpc_oem_bus_info(m, str, translation_table[mpc_record]);
 #else
 	printk(KERN_INFO "Bus #%d is %s\n", m->mpc_busid, str);
 #endif
@@ -112,7 +116,8 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 #endif
 	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
 #ifdef CONFIG_X86_NUMAQ
-		mpc_oem_pci_bus(m, translation_table[mpc_record]);
+		if (found_numaq)
+			mpc_oem_pci_bus(m, translation_table[mpc_record]);
 #endif
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
 #if defined(CONFIG_EISA) || defined (CONFIG_MCA)
@@ -321,6 +326,9 @@ static inline void mps_oem_check(struct mp_config_table *mpc, char *oem,
 {
 	if (strncmp(oem, "IBM NUMA", 8))
 		printk("Warning!  May not be a NUMA-Q system!\n");
+	else
+		found_numaq = 1;
+
 	if (mpc->mpc_oemptr)
 		smp_read_mpc_oem((struct mp_config_oemtable *)mpc->mpc_oemptr,
 				 mpc->mpc_oemsize);

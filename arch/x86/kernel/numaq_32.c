@@ -31,8 +31,11 @@
 #include <asm/numaq.h>
 #include <asm/topology.h>
 #include <asm/processor.h>
+#include <asm/mpspec.h>
 
 #define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
+
+int found_numaq;
 
 /*
  * Function: smp_dump_qct()
@@ -67,13 +70,24 @@ static void __init smp_dump_qct(void)
 	}
 }
 
-/*
- * Unlike Summit, we don't really care to let the NUMA-Q
- * fall back to flat mode.  Don't compile for NUMA-Q
- * unless you really need it!
- */
+static __init void early_check_numaq(void)
+{
+	/*
+	 * Find possible boot-time SMP configuration:
+	 */
+	early_find_smp_config();
+	/*
+	 * get boot-time SMP configuration:
+	 */
+	if (smp_found_config)
+		early_get_smp_config();
+}
+
 int __init get_memcfg_numaq(void)
 {
+	early_check_numaq();
+	if (!found_numaq)
+		return 0;
 	smp_dump_qct();
 	return 1;
 }

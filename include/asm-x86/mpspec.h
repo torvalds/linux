@@ -21,10 +21,10 @@ extern int pic_mode;
 /* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
 #define MAX_IRQ_SOURCES (MAX_MP_BUSSES * 4)
 
+#endif
+
 extern void early_find_smp_config(void);
 extern void early_get_smp_config(void);
-
-#endif
 
 #if defined(CONFIG_MCA) || defined(CONFIG_EISA)
 extern int mp_bus_id_to_type[MAX_MP_BUSSES];
