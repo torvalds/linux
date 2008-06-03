@@ -330,6 +330,17 @@ static int rt61pci_blink_set(struct led_classdev *led_cdev,
 
 	return 0;
 }
+
+static void rt61pci_init_led(struct rt2x00_dev *rt2x00dev,
+			     struct rt2x00_led *led,
+			     enum led_type type)
+{
+	led->rt2x00dev = rt2x00dev;
+	led->type = type;
+	led->led_dev.brightness_set = rt61pci_brightness_set;
+	led->led_dev.blink_set = rt61pci_blink_set;
+	led->flags = LED_INITIALIZED;
+}
 #endif /* CONFIG_RT61PCI_LEDS */
 
 /*
@@ -2064,31 +2075,11 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 	value = rt2x00_get_field16(eeprom, EEPROM_LED_LED_MODE);
 
-	rt2x00dev->led_radio.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_radio.type = LED_TYPE_RADIO;
-	rt2x00dev->led_radio.led_dev.brightness_set =
-	    rt61pci_brightness_set;
-	rt2x00dev->led_radio.led_dev.blink_set =
-	    rt61pci_blink_set;
-	rt2x00dev->led_radio.flags = LED_INITIALIZED;
-
-	rt2x00dev->led_assoc.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_assoc.type = LED_TYPE_ASSOC;
-	rt2x00dev->led_assoc.led_dev.brightness_set =
-	    rt61pci_brightness_set;
-	rt2x00dev->led_assoc.led_dev.blink_set =
-	    rt61pci_blink_set;
-	rt2x00dev->led_assoc.flags = LED_INITIALIZED;
-
-	if (value == LED_MODE_SIGNAL_STRENGTH) {
-		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_qual.type = LED_TYPE_QUALITY;
-		rt2x00dev->led_qual.led_dev.brightness_set =
-		    rt61pci_brightness_set;
-		rt2x00dev->led_qual.led_dev.blink_set =
-		    rt61pci_blink_set;
-		rt2x00dev->led_qual.flags = LED_INITIALIZED;
-	}
+	rt61pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
+	rt61pci_init_led(rt2x00dev, &rt2x00dev->led_assoc, LED_TYPE_ASSOC);
+	if (value == LED_MODE_SIGNAL_STRENGTH)
+		rt61pci_init_led(rt2x00dev, &rt2x00dev->led_qual,
+				 LED_TYPE_QUALITY);
 
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_LED_MODE, value);
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_0,

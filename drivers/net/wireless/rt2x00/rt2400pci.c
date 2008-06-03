@@ -277,6 +277,17 @@ static int rt2400pci_blink_set(struct led_classdev *led_cdev,
 
 	return 0;
 }
+
+static void rt2400pci_init_led(struct rt2x00_dev *rt2x00dev,
+			       struct rt2x00_led *led,
+			       enum led_type type)
+{
+	led->rt2x00dev = rt2x00dev;
+	led->type = type;
+	led->led_dev.brightness_set = rt2400pci_brightness_set;
+	led->led_dev.blink_set = rt2400pci_blink_set;
+	led->flags = LED_INITIALIZED;
+}
 #endif /* CONFIG_RT2400PCI_LEDS */
 
 /*
@@ -1298,23 +1309,10 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 #ifdef CONFIG_RT2400PCI_LEDS
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
-	rt2x00dev->led_radio.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_radio.type = LED_TYPE_RADIO;
-	rt2x00dev->led_radio.led_dev.brightness_set =
-	    rt2400pci_brightness_set;
-	rt2x00dev->led_radio.led_dev.blink_set =
-	    rt2400pci_blink_set;
-	rt2x00dev->led_radio.flags = LED_INITIALIZED;
-
-	if (value == LED_MODE_TXRX_ACTIVITY) {
-		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_qual.type = LED_TYPE_ACTIVITY;
-		rt2x00dev->led_qual.led_dev.brightness_set =
-		    rt2400pci_brightness_set;
-		rt2x00dev->led_qual.led_dev.blink_set =
-		    rt2400pci_blink_set;
-		rt2x00dev->led_qual.flags = LED_INITIALIZED;
-	}
+	rt2400pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
+	if (value == LED_MODE_TXRX_ACTIVITY)
+		rt2400pci_init_led(rt2x00dev, &rt2x00dev->led_qual,
+				   LED_TYPE_ACTIVITY);
 #endif /* CONFIG_RT2400PCI_LEDS */
 
 	/*

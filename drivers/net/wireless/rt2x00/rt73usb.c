@@ -335,6 +335,17 @@ static int rt73usb_blink_set(struct led_classdev *led_cdev,
 
 	return 0;
 }
+
+static void rt73usb_init_led(struct rt2x00_dev *rt2x00dev,
+			     struct rt2x00_led *led,
+			     enum led_type type)
+{
+	led->rt2x00dev = rt2x00dev;
+	led->type = type;
+	led->led_dev.brightness_set = rt73usb_brightness_set;
+	led->led_dev.blink_set = rt73usb_blink_set;
+	led->flags = LED_INITIALIZED;
+}
 #endif /* CONFIG_RT73USB_LEDS */
 
 /*
@@ -1627,31 +1638,11 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 #ifdef CONFIG_RT73USB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 
-	rt2x00dev->led_radio.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_radio.type = LED_TYPE_RADIO;
-	rt2x00dev->led_radio.led_dev.brightness_set =
-	    rt73usb_brightness_set;
-	rt2x00dev->led_radio.led_dev.blink_set =
-	    rt73usb_blink_set;
-	rt2x00dev->led_radio.flags = LED_INITIALIZED;
-
-	rt2x00dev->led_assoc.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_assoc.type = LED_TYPE_ASSOC;
-	rt2x00dev->led_assoc.led_dev.brightness_set =
-	    rt73usb_brightness_set;
-	rt2x00dev->led_assoc.led_dev.blink_set =
-	    rt73usb_blink_set;
-	rt2x00dev->led_assoc.flags = LED_INITIALIZED;
-
-	if (value == LED_MODE_SIGNAL_STRENGTH) {
-		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_qual.type = LED_TYPE_QUALITY;
-		rt2x00dev->led_qual.led_dev.brightness_set =
-		    rt73usb_brightness_set;
-		rt2x00dev->led_qual.led_dev.blink_set =
-		    rt73usb_blink_set;
-		rt2x00dev->led_qual.flags = LED_INITIALIZED;
-	}
+	rt73usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
+	rt73usb_init_led(rt2x00dev, &rt2x00dev->led_assoc, LED_TYPE_ASSOC);
+	if (value == LED_MODE_SIGNAL_STRENGTH)
+		rt73usb_init_led(rt2x00dev, &rt2x00dev->led_qual,
+				 LED_TYPE_QUALITY);
 
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_LED_MODE, value);
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_0,
