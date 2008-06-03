@@ -151,6 +151,7 @@ out:
 	return ret;
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
+#endif /* CONFIG_MEMORY_HOTPLUG */
 
 /*
  * walk_memory_resource() needs to make sure there is no holes in a given
@@ -183,8 +184,6 @@ walk_memory_resource(unsigned long start_pfn, unsigned long nr_pages, void *arg,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(walk_memory_resource);
-
-#endif /* CONFIG_MEMORY_HOTPLUG */
 
 void show_mem(void)
 {
