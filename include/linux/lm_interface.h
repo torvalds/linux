@@ -122,11 +122,9 @@ typedef void (*lm_callback_t) (void *ptr, unsigned int type, void *data);
  */
 
 #define LM_OUT_ST_MASK		0x00000003
-#define LM_OUT_CACHEABLE	0x00000004
 #define LM_OUT_CANCELED		0x00000008
 #define LM_OUT_ASYNC		0x00000080
 #define LM_OUT_ERROR		0x00000100
-#define LM_OUT_CONV_DEADLK	0x00000200
 
 /*
  * lm_callback_t types

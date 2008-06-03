@@ -80,7 +80,6 @@ static void process_complete(struct gdlm_lock *lp)
 {
 	struct gdlm_ls *ls = lp->ls;
 	struct lm_async_cb acb;
-	s16 prev_mode = lp->cur;
 
 	memset(&acb, 0, sizeof(acb));
 
@@ -160,15 +159,7 @@ static void process_complete(struct gdlm_lock *lp)
 			 lp->lksb.sb_status, lp->lockname.ln_type,
 			 (unsigned long long)lp->lockname.ln_number,
 			 lp->flags);
-		if (lp->lksb.sb_status == -EDEADLOCK &&
-		    lp->ls->fsflags & LM_MFLAG_CONV_NODROP) {
-			lp->req = lp->cur;
-			acb.lc_ret |= LM_OUT_CONV_DEADLK;
-			if (lp->cur == DLM_LOCK_IV)
-				lp->lksb.sb_lkid = 0;
-			goto out;
-		} else
-			return;
+		return;
 	}
 
 	/*
@@ -267,10 +258,6 @@ out:
 
 	acb.lc_name = lp->lockname;
 	acb.lc_ret |= gdlm_make_lmstate(lp->cur);
-
-	if (!test_and_clear_bit(LFL_NOCACHE, &lp->flags) &&
-	    (lp->cur > DLM_LOCK_NL) && (prev_mode > DLM_LOCK_NL))
-		acb.lc_ret |= LM_OUT_CACHEABLE;
 
 	ls->fscb(ls->sdp, LM_CB_ASYNC, &acb);
 }
@@ -376,14 +363,6 @@ static inline unsigned int make_flags(struct gdlm_lock *lp,
 
 	if (lp->lksb.sb_lkid != 0) {
 		lkf |= DLM_LKF_CONVERT;
-
-		/* Conversion deadlock avoidance by DLM */
-
-		if (!(lp->ls->fsflags & LM_MFLAG_CONV_NODROP) &&
-		    !test_bit(LFL_FORCE_PROMOTE, &lp->flags) &&
-		    !(lkf & DLM_LKF_NOQUEUE) &&
-		    cur > DLM_LOCK_NL && req > DLM_LOCK_NL && cur != req)
-			lkf |= DLM_LKF_CONVDEADLK;
 	}
 
 	if (lp->lvb)
