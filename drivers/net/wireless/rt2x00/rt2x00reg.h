@@ -198,46 +198,35 @@ struct rt2x00_field32 {
 	};					\
 })
 
-static inline void rt2x00_set_field32(u32 *reg,
-				      const struct rt2x00_field32 field,
-				      const u32 value)
-{
-	*reg &= ~(field.bit_mask);
-	*reg |= (value << field.bit_offset) & field.bit_mask;
-}
+#define SET_FIELD(__reg, __type, __field, __value)\
+({						\
+	typecheck(__type, __field);		\
+	*(__reg) &= ~((__field).bit_mask);	\
+	*(__reg) |= ((__value) <<		\
+	    ((__field).bit_offset)) &		\
+	    ((__field).bit_mask);		\
+})
 
-static inline u32 rt2x00_get_field32(const u32 reg,
-				     const struct rt2x00_field32 field)
-{
-	return (reg & field.bit_mask) >> field.bit_offset;
-}
+#define GET_FIELD(__reg, __type, __field)	\
+({						\
+	typecheck(__type, __field);		\
+	((__reg) & ((__field).bit_mask)) >>	\
+	    ((__field).bit_offset);		\
+})
 
-static inline void rt2x00_set_field16(u16 *reg,
-				      const struct rt2x00_field16 field,
-				      const u16 value)
-{
-	*reg &= ~(field.bit_mask);
-	*reg |= (value << field.bit_offset) & field.bit_mask;
-}
+#define rt2x00_set_field32(__reg, __field, __value) \
+	SET_FIELD(__reg, struct rt2x00_field32, __field, __value)
+#define rt2x00_get_field32(__reg, __field) \
+	GET_FIELD(__reg, struct rt2x00_field32, __field)
 
-static inline u16 rt2x00_get_field16(const u16 reg,
-				     const struct rt2x00_field16 field)
-{
-	return (reg & field.bit_mask) >> field.bit_offset;
-}
+#define rt2x00_set_field16(__reg, __field, __value) \
+	SET_FIELD(__reg, struct rt2x00_field16, __field, __value)
+#define rt2x00_get_field16(__reg, __field) \
+	GET_FIELD(__reg, struct rt2x00_field16, __field)
 
-static inline void rt2x00_set_field8(u8 *reg,
-				     const struct rt2x00_field8 field,
-				     const u8 value)
-{
-	*reg &= ~(field.bit_mask);
-	*reg |= (value << field.bit_offset) & field.bit_mask;
-}
-
-static inline u8 rt2x00_get_field8(const u8 reg,
-				   const struct rt2x00_field8 field)
-{
-	return (reg & field.bit_mask) >> field.bit_offset;
-}
+#define rt2x00_set_field8(__reg, __field, __value) \
+	SET_FIELD(__reg, struct rt2x00_field8, __field, __value)
+#define rt2x00_get_field8(__reg, __field) \
+	GET_FIELD(__reg, struct rt2x00_field8, __field)
 
 #endif /* RT2X00REG_H */
