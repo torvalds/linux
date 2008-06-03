@@ -26,25 +26,6 @@
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
 
-/*
- * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
- * get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons (Data Segment Register?), these macros are misnamed.
- */
-
-#define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
-
-#define KERNEL_DS	MAKE_MM_SEG(0xFFFFFFFF)
-#define USER_DS		MAKE_MM_SEG(0x80000000)
-
-#define get_ds()	(KERNEL_DS)
-#define get_fs()        (current_thread_info()->addr_limit)
-#define set_fs(x)       (current_thread_info()->addr_limit=(x))
-
-#define segment_eq(a,b)	((a).seg == (b).seg)
-
 #define __addr_ok(addr) ((unsigned long)(addr) < (current_thread_info()->addr_limit.seg))
 
 /*
