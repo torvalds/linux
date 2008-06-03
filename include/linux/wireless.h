@@ -677,6 +677,19 @@ struct	iw_point
   __u16		flags;		/* Optional params */
 };
 
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
+
+#include <linux/compat.h>
+
+struct compat_iw_point {
+	compat_caddr_t pointer;
+	__u16 length;
+	__u16 flags;
+};
+#endif
+#endif
+
 /*
  *	A frequency
  *	For numbers lower than 10^9, we encode the number in 'm' and

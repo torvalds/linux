@@ -1757,12 +1757,6 @@ static int do_i2c_smbus_ioctl(unsigned int fd, unsigned int cmd, unsigned long a
 	return sys_ioctl(fd, cmd, (unsigned long)tdata);
 }
 
-struct compat_iw_point {
-	compat_caddr_t pointer;
-	__u16 length;
-	__u16 flags;
-};
-
 static int do_wireless_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	struct iwreq __user *iwr;
