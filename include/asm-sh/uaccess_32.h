@@ -19,26 +19,8 @@
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
 
-
-#if !defined(CONFIG_MMU)
-/* NOMMU is always true */
-#define __addr_ok(addr) (1)
-
-/*
- * __access_ok: Check if address with size is OK or not.
- *
- * If we don't have an MMU (or if its disabled) the only thing we really have
- * to look out for is if the address resides somewhere outside of what
- * available RAM we have.
- */
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	return 1;
-}
-#else /* CONFIG_MMU */
 #define __addr_ok(addr) \
-	((unsigned long)(addr) < (current_thread_info()->addr_limit.seg))
-
+	((unsigned long __force)(addr) < current_thread_info()->addr_limit.seg)
 
 /*
  * __access_ok: Check if address with size is OK or not.
@@ -48,23 +30,8 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
  * sum := addr + size;  carry? --> flag = true;
  * if (sum >= addr_limit) flag = true;
  */
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	unsigned long flag, sum;
-
-	__asm__("clrt\n\t"
-		"addc	%3, %1\n\t"
-		"movt	%0\n\t"
-		"cmp/hi	%4, %1\n\t"
-		"rotcl	%0"
-		:"=&r" (flag), "=r" (sum)
-		:"1" (addr), "r" (size),
-		 "r" (current_thread_info()->addr_limit.seg)
-		:"t");
-	return flag == 0;
-}
-#endif /* CONFIG_MMU */
-
+#define __access_ok(addr, size)		\
+	(__addr_ok((addr) + (size)))
 #define access_ok(type, addr, size)	\
 	(__chk_user_ptr(addr),		\
 	 __access_ok((unsigned long __force)(addr), (size)))
