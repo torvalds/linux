@@ -874,7 +874,7 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
-	gfs2_gl_hash_clear(sdp, WAIT);
+	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
 	while (invalidate_inodes(sb))
 		yield();

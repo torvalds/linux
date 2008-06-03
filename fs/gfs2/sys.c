@@ -110,18 +110,6 @@ static ssize_t statfs_sync_store(struct gfs2_sbd *sdp, const char *buf,
 	return len;
 }
 
-static ssize_t shrink_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
-{
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
-
-	if (simple_strtol(buf, NULL, 0) != 1)
-		return -EINVAL;
-
-	gfs2_gl_hash_clear(sdp, NO_WAIT);
-	return len;
-}
-
 static ssize_t quota_sync_store(struct gfs2_sbd *sdp, const char *buf,
 				size_t len)
 {
@@ -175,7 +163,6 @@ static struct gfs2_attr gfs2_attr_##name = __ATTR(name, mode, show, store)
 GFS2_ATTR(id,                  0444, id_show,       NULL);
 GFS2_ATTR(fsname,              0444, fsname_show,   NULL);
 GFS2_ATTR(freeze,              0644, freeze_show,   freeze_store);
-GFS2_ATTR(shrink,              0200, NULL,          shrink_store);
 GFS2_ATTR(withdraw,            0644, withdraw_show, withdraw_store);
 GFS2_ATTR(statfs_sync,         0200, NULL,          statfs_sync_store);
 GFS2_ATTR(quota_sync,          0200, NULL,          quota_sync_store);
@@ -186,7 +173,6 @@ static struct attribute *gfs2_attrs[] = {
 	&gfs2_attr_id.attr,
 	&gfs2_attr_fsname.attr,
 	&gfs2_attr_freeze.attr,
-	&gfs2_attr_shrink.attr,
 	&gfs2_attr_withdraw.attr,
 	&gfs2_attr_statfs_sync.attr,
 	&gfs2_attr_quota_sync.attr,

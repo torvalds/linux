@@ -20,19 +20,6 @@ static inline int no_work(struct gdlm_ls *ls)
 	return ret;
 }
 
-static inline int check_drop(struct gdlm_ls *ls)
-{
-	if (!ls->drop_locks_count)
-		return 0;
-
-	if (time_after(jiffies, ls->drop_time + ls->drop_locks_period * HZ)) {
-		ls->drop_time = jiffies;
-		if (ls->all_locks_count >= ls->drop_locks_count)
-			return 1;
-	}
-	return 0;
-}
-
 static int gdlm_thread(void *data)
 {
 	struct gdlm_ls *ls = (struct gdlm_ls *) data;
@@ -50,12 +37,6 @@ static int gdlm_thread(void *data)
 			list_del_init(&lp->delay_list);
 			spin_unlock(&ls->async_lock);
 			gdlm_do_lock(lp);
-			spin_lock(&ls->async_lock);
-		}
-		/* Does this ever happen these days? I hope not anyway */
-		if (check_drop(ls)) {
-			spin_unlock(&ls->async_lock);
-			ls->fscb(ls->sdp, LM_CB_DROPLOCKS, NULL);
 			spin_lock(&ls->async_lock);
 		}
 		spin_unlock(&ls->async_lock);

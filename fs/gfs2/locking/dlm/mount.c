@@ -22,8 +22,6 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
 	if (!ls)
 		return NULL;
 
-	ls->drop_locks_count = GDLM_DROP_COUNT;
-	ls->drop_locks_period = GDLM_DROP_PERIOD;
 	ls->fscb = cb;
 	ls->sdp = sdp;
 	ls->fsflags = flags;
@@ -33,7 +31,6 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
 	INIT_LIST_HEAD(&ls->all_locks);
 	init_waitqueue_head(&ls->thread_wait);
 	init_waitqueue_head(&ls->wait_control);
-	ls->drop_time = jiffies;
 	ls->jid = -1;
 
 	strncpy(buf, table_name, 256);

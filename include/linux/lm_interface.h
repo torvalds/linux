@@ -138,9 +138,6 @@ typedef void (*lm_callback_t) (void *ptr, unsigned int type, void *data);
  * LM_CB_NEED_RECOVERY
  * The given journal needs to be recovered.
  *
- * LM_CB_DROPLOCKS
- * Reduce the number of cached locks.
- *
  * LM_CB_ASYNC
  * The given lock has been granted.
  */
@@ -149,7 +146,6 @@ typedef void (*lm_callback_t) (void *ptr, unsigned int type, void *data);
 #define LM_CB_NEED_D		258
 #define LM_CB_NEED_S		259
 #define LM_CB_NEED_RECOVERY	260
-#define LM_CB_DROPLOCKS		261
 #define LM_CB_ASYNC		262
 
 /*

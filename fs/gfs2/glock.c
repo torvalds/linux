@@ -1316,11 +1316,6 @@ void gfs2_glock_cb(void *cb_data, unsigned int type, void *data)
 			wake_up_process(sdp->sd_recoverd_process);
 		return;
 
-	case LM_CB_DROPLOCKS:
-		gfs2_gl_hash_clear(sdp, NO_WAIT);
-		gfs2_quota_scan(sdp);
-		return;
-
 	default:
 		gfs2_assert_warn(sdp, 0);
 		return;
@@ -1508,11 +1503,10 @@ static void clear_glock(struct gfs2_glock *gl)
  * @sdp: the filesystem
  * @wait: wait until it's all gone
  *
- * Called when unmounting the filesystem, or when inter-node lock manager
- * requests DROPLOCKS because it is running out of capacity.
+ * Called when unmounting the filesystem.
  */
 
-void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
+void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 {
 	unsigned long t;
 	unsigned int x;
@@ -1527,7 +1521,7 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
 				cont = 1;
 		}
 
-		if (!wait || !cont)
+		if (!cont)
 			break;
 
 		if (time_after_eq(jiffies,

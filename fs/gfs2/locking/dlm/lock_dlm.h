@@ -79,9 +79,6 @@ struct gdlm_ls {
 	wait_queue_head_t	wait_control;
 	struct task_struct	*thread;
 	wait_queue_head_t	thread_wait;
-	unsigned long		drop_time;
-	int			drop_locks_count;
-	int			drop_locks_period;
 };
 
 enum {
