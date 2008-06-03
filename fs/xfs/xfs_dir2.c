@@ -214,6 +214,7 @@ xfs_dir_createname(
 		return rval;
 	XFS_STATS_INC(xs_dir_create);
 
+	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
@@ -286,8 +287,8 @@ xfs_dir_lookup(
 
 	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
 	XFS_STATS_INC(xs_dir_lookup);
-	memset(&args, 0, sizeof(xfs_da_args_t));
 
+	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
@@ -297,7 +298,6 @@ xfs_dir_lookup(
 	args.op_flags = XFS_DA_OP_OKNOENT;
 	if (ci_name)
 		args.op_flags |= XFS_DA_OP_CILOOKUP;
-	args.cmpresult = XFS_CMP_DIFFERENT;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_lookup(&args);
@@ -343,6 +343,7 @@ xfs_dir_removename(
 	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
 	XFS_STATS_INC(xs_dir_remove);
 
+	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
@@ -353,7 +354,6 @@ xfs_dir_removename(
 	args.total = total;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
-	args.op_flags = 0;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_removename(&args);
@@ -426,6 +426,7 @@ xfs_dir_replace(
 	if ((rval = xfs_dir_ino_validate(tp->t_mountp, inum)))
 		return rval;
 
+	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
@@ -436,7 +437,6 @@ xfs_dir_replace(
 	args.total = total;
 	args.whichfork = XFS_DATA_FORK;
 	args.trans = tp;
-	args.op_flags = 0;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_replace(&args);
@@ -472,8 +472,8 @@ xfs_dir_canenter(
 		return 0;
 
 	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
-	memset(&args, 0, sizeof(xfs_da_args_t));
 
+	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
