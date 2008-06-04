@@ -3853,7 +3853,7 @@ static const char * const tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
 	"tpacpi::standby",
 };
 
-static int led_get_status(unsigned int led)
+static int led_get_status(const unsigned int led)
 {
 	int status;
 	enum led_status_t led_s;
@@ -3877,41 +3877,42 @@ static int led_get_status(unsigned int led)
 	/* not reached */
 }
 
-static int led_set_status(unsigned int led, enum led_status_t ledstatus)
+static int led_set_status(const unsigned int led,
+			  const enum led_status_t ledstatus)
 {
 	/* off, on, blink. Index is led_status_t */
-	static const int led_sled_arg1[] = { 0, 1, 3 };
-	static const int led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
-	static const int led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
-	static const int led_led_arg1[] = { 0, 0x80, 0xc0 };
+	static const unsigned int led_sled_arg1[] = { 0, 1, 3 };
+	static const unsigned int led_led_arg1[] = { 0, 0x80, 0xc0 };
 
 	int rc = 0;
 
 	switch (led_supported) {
 	case TPACPI_LED_570:
-			/* 570 */
-			led = 1 << led;
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_sled_arg1[ledstatus]))
-				rc = -EIO;
-			break;
+		/* 570 */
+		if (led > 7)
+			return -EINVAL;
+		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+				(1 << led), led_sled_arg1[ledstatus]))
+			rc = -EIO;
+		break;
 	case TPACPI_LED_OLD:
-			/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
-			led = 1 << led;
-			rc = ec_write(TPACPI_LED_EC_HLMS, led);
-			if (rc >= 0)
-				rc = ec_write(TPACPI_LED_EC_HLBL,
-					      led * led_exp_hlbl[ledstatus]);
-			if (rc >= 0)
-				rc = ec_write(TPACPI_LED_EC_HLCL,
-					      led * led_exp_hlcl[ledstatus]);
-			break;
+		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
+		if (led > 7)
+			return -EINVAL;
+		rc = ec_write(TPACPI_LED_EC_HLMS, (1 << led));
+		if (rc >= 0)
+			rc = ec_write(TPACPI_LED_EC_HLBL,
+				      (ledstatus == TPACPI_LED_BLINK) << led);
+		if (rc >= 0)
+			rc = ec_write(TPACPI_LED_EC_HLCL,
+				      (ledstatus != TPACPI_LED_OFF) << led);
+		break;
 	case TPACPI_LED_NEW:
-			/* all others */
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_led_arg1[ledstatus]))
-				rc = -EIO;
-			break;
+		/* all others */
+		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+				led, led_led_arg1[ledstatus]))
+			rc = -EIO;
+		break;
 	default:
 		rc = -ENXIO;
 	}
