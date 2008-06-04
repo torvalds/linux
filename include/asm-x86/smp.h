@@ -188,7 +188,6 @@ static inline int hard_smp_processor_id(void)
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_HOTPLUG_CPU
-extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
 #endif
 
