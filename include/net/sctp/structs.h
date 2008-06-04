@@ -1051,7 +1051,7 @@ void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
 void sctp_transport_pmtu(struct sctp_transport *);
 void sctp_transport_free(struct sctp_transport *);
-void sctp_transport_reset_timers(struct sctp_transport *);
+void sctp_transport_reset_timers(struct sctp_transport *, int);
 void sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
@@ -1140,6 +1140,9 @@ struct sctp_outq {
 
 	/* How many unackd bytes do we have in-flight?	*/
 	__u32 outstanding_bytes;
+
+	/* Are we doing fast-rtx on this queue */
+	char fast_rtx;
 
 	/* Corked? */
 	char cork;
