@@ -477,7 +477,6 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		     struct ubi_vid_hdr *vid_hdr);
 int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si);
-void ubi_eba_close(const struct ubi_device *ubi);
 
 /* wl.c */
 int ubi_wl_get_peb(struct ubi_device *ubi, int dtype);

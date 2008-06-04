@@ -1233,20 +1233,3 @@ out_free:
 	}
 	return err;
 }
-
-/**
- * ubi_eba_close - close EBA unit.
- * @ubi: UBI device description object
- */
-void ubi_eba_close(const struct ubi_device *ubi)
-{
-	int i, num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
-
-	dbg_eba("close EBA unit");
-
-	for (i = 0; i < num_volumes; i++) {
-		if (!ubi->volumes[i])
-			continue;
-		kfree(ubi->volumes[i]->eba_tbl);
-	}
-}

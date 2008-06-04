@@ -840,7 +840,6 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 out_uif:
 	uif_close(ubi);
 out_detach:
-	ubi_eba_close(ubi);
 	ubi_wl_close(ubi);
 	vfree(ubi->vtbl);
 out_free:
@@ -903,7 +902,6 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 		kthread_stop(ubi->bgt_thread);
 
 	uif_close(ubi);
-	ubi_eba_close(ubi);
 	ubi_wl_close(ubi);
 	vfree(ubi->vtbl);
 	put_mtd_device(ubi->mtd);

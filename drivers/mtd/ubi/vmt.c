@@ -127,6 +127,7 @@ static void vol_release(struct device *dev)
 {
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
 
+	kfree(vol->eba_tbl);
 	kfree(vol);
 }
 
@@ -201,7 +202,7 @@ static void volume_sysfs_close(struct ubi_volume *vol)
  */
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 {
-	int i, err, vol_id = req->vol_id, dont_free = 0;
+	int i, err, vol_id = req->vol_id, do_free = 1;
 	struct ubi_volume *vol;
 	struct ubi_vtbl_record vtbl_rec;
 	uint64_t bytes;
@@ -365,14 +366,14 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 out_sysfs:
 	/*
-	 * We have registered our device, we should not free the volume*
+	 * We have registered our device, we should not free the volume
 	 * description object in this function in case of an error - it is
 	 * freed by the release function.
 	 *
 	 * Get device reference to prevent the release function from being
 	 * called just after sysfs has been closed.
 	 */
-	dont_free = 1;
+	do_free = 0;
 	get_device(&vol->dev);
 	volume_sysfs_close(vol);
 out_gluebi:
@@ -382,17 +383,18 @@ out_gluebi:
 out_cdev:
 	cdev_del(&vol->cdev);
 out_mapping:
-	kfree(vol->eba_tbl);
+	if (do_free)
+		kfree(vol->eba_tbl);
 out_acc:
 	spin_lock(&ubi->volumes_lock);
 	ubi->rsvd_pebs -= vol->reserved_pebs;
 	ubi->avail_pebs += vol->reserved_pebs;
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
-	if (dont_free)
-		put_device(&vol->dev);
-	else
+	if (do_free)
 		kfree(vol);
+	else
+		put_device(&vol->dev);
 	ubi_err("cannot create volume %d, error %d", vol_id, err);
 	return err;
 }
@@ -445,8 +447,6 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 			goto out_err;
 	}
 
-	kfree(vol->eba_tbl);
-	vol->eba_tbl = NULL;
 	cdev_del(&vol->cdev);
 	volume_sysfs_close(vol);
 
