@@ -74,7 +74,6 @@ struct gdlm_ls {
 	spinlock_t		async_lock;
 	struct list_head	delayed;
 	struct list_head	submit;
-	struct list_head	all_locks;
 	u32		all_locks_count;
 	wait_queue_head_t	wait_control;
 	struct task_struct	*thread;
@@ -112,7 +111,6 @@ struct gdlm_lock {
 	unsigned long		flags;		/* lock_dlm flags LFL_ */
 
 	struct list_head	delay_list;	/* delayed */
-	struct list_head	all_list;	/* all locks for the fs */
 	struct gdlm_lock	*hold_null;	/* NL lock for hold_lvb */
 };
 

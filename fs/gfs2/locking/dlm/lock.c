@@ -58,9 +58,6 @@ static void gdlm_delete_lp(struct gdlm_lock *lp)
 	spin_lock(&ls->async_lock);
 	if (!list_empty(&lp->delay_list))
 		list_del_init(&lp->delay_list);
-	gdlm_assert(!list_empty(&lp->all_list), "%x,%llx", lp->lockname.ln_type,
-		    (unsigned long long)lp->lockname.ln_number);
-	list_del_init(&lp->all_list);
 	ls->all_locks_count--;
 	spin_unlock(&ls->async_lock);
 
@@ -397,7 +394,6 @@ static int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
 	INIT_LIST_HEAD(&lp->delay_list);
 
 	spin_lock(&ls->async_lock);
-	list_add(&lp->all_list, &ls->all_locks);
 	ls->all_locks_count++;
 	spin_unlock(&ls->async_lock);
 
@@ -708,24 +704,5 @@ void gdlm_submit_delayed(struct gdlm_ls *ls)
 	}
 	spin_unlock(&ls->async_lock);
 	wake_up(&ls->thread_wait);
-}
-
-int gdlm_release_all_locks(struct gdlm_ls *ls)
-{
-	struct gdlm_lock *lp, *safe;
-	int count = 0;
-
-	spin_lock(&ls->async_lock);
-	list_for_each_entry_safe(lp, safe, &ls->all_locks, all_list) {
-		list_del_init(&lp->all_list);
-
-		if (lp->lvb && lp->lvb != junk_lvb)
-			kfree(lp->lvb);
-		kfree(lp);
-		count++;
-	}
-	spin_unlock(&ls->async_lock);
-
-	return count;
 }
 
