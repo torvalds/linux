@@ -1319,13 +1319,11 @@ __init void prefill_possible_map(void)
 static void __ref remove_cpu_from_maps(int cpu)
 {
 	cpu_clear(cpu, cpu_online_map);
-#ifdef CONFIG_X86_64
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
 	/* was set by cpu_init() */
 	clear_bit(cpu, (unsigned long *)&cpu_initialized);
 	numa_remove_cpu(cpu);
-#endif
 }
 
 int __cpu_disable(void)
