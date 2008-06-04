@@ -359,7 +359,12 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 
 static int scsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_device *sdev;
+
+	if (dev->type != &scsi_dev_type)
+		return 0;
+
+	sdev = to_scsi_device(dev);
 
 	add_uevent_var(env, "MODALIAS=" SCSI_DEVICE_MODALIAS_FMT, sdev->type);
 	return 0;

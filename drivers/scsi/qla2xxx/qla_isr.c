@@ -272,8 +272,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	uint32_t	rscn_entry, host_pid;
 	uint8_t		rscn_queue_index;
 	unsigned long	flags;
-	scsi_qla_host_t	*vha;
-	int		i;
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
@@ -544,18 +542,10 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_PORT_UPDATE:		/* Port database update */
-		if ((ha->flags.npiv_supported) && (ha->num_vhosts)) {
-			for_each_mapped_vp_idx(ha, i) {
-				list_for_each_entry(vha, &ha->vp_list,
-				    vp_list) {
-					if ((mb[3] & 0xff)
-					    == vha->vp_idx) {
-						ha = vha;
-						break;
-					}
-				}
-			}
-		}
+		/* Only handle SCNs for our Vport index. */
+		if (ha->parent && ha->vp_idx != (mb[3] & 0xff))
+			break;
+
 		/*
 		 * If PORT UPDATE is global (recieved LIP_OCCURED/LIP_RESET
 		 * event etc. earlier indicating loop is down) then process
@@ -590,18 +580,12 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
-		if ((ha->flags.npiv_supported) && (ha->num_vhosts)) {
-			for_each_mapped_vp_idx(ha, i) {
-				list_for_each_entry(vha, &ha->vp_list,
-				    vp_list) {
-					if ((mb[3] & 0xff)
-					    == vha->vp_idx) {
-						ha = vha;
-						break;
-					}
-				}
-			}
-		}
+		/* Check if the Vport has issued a SCR */
+		if (ha->parent && test_bit(VP_SCR_NEEDED, &ha->vp_flags))
+			break;
+		/* Only handle SCNs for our Vport index. */
+		if (ha->parent && ha->vp_idx != (mb[3] & 0xff))
+			break;
 
 		DEBUG2(printk("scsi(%ld): Asynchronous RSCR UPDATE.\n",
 		    ha->host_no));
@@ -1132,25 +1116,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 				break;
 
 			qla2x00_handle_sense(sp, sense_data, sense_len);
-
-			/*
-			 * In case of a Underrun condition, set both the lscsi
-			 * status and the completion status to appropriate
-			 * values.
-			 */
-			if (resid &&
-			    ((unsigned)(scsi_bufflen(cp) - resid) <
-			     cp->underflow)) {
-				DEBUG2(qla_printk(KERN_INFO, ha,
-				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
-				    "detected (%x of %x bytes)...returning "
-				    "error status.\n", ha->host_no,
-				    cp->device->channel, cp->device->id,
-				    cp->device->lun, resid,
-				    scsi_bufflen(cp)));
-
-				cp->result = DID_ERROR << 16 | lscsi_status;
-			}
 		} else {
 			/*
 			 * If RISC reports underrun and target does not report
@@ -1639,12 +1604,12 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	ha = dev_id;
 	reg = &ha->iobase->isp24;
 
-	spin_lock(&ha->hardware_lock);
+	spin_lock_irq(&ha->hardware_lock);
 
 	qla24xx_process_response_queue(ha);
 	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 
-	spin_unlock(&ha->hardware_lock);
+	spin_unlock_irq(&ha->hardware_lock);
 
 	return IRQ_HANDLED;
 }
@@ -1663,7 +1628,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 	reg = &ha->iobase->isp24;
 	status = 0;
 
-	spin_lock(&ha->hardware_lock);
+	spin_lock_irq(&ha->hardware_lock);
 	do {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
@@ -1716,7 +1681,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 		}
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 	} while (0);
-	spin_unlock(&ha->hardware_lock);
+	spin_unlock_irq(&ha->hardware_lock);
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
