@@ -405,11 +405,12 @@ static void __init zone_sizes_init(void)
 	max_zone_pfns[ZONE_DMA] =
 		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	remove_all_active_ranges();
 #ifdef CONFIG_HIGHMEM
 	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
-	add_active_range(0, 0, highend_pfn);
+	e820_register_active_regions(0, 0, highend_pfn);
 #else
-	add_active_range(0, 0, max_low_pfn);
+	e820_register_active_regions(0, 0, max_low_pfn);
 #endif
 
 	free_area_init_nodes(max_zone_pfns);
@@ -582,6 +583,7 @@ static void __init relocate_initrd(void)
 
 void __init setup_bootmem_allocator(void)
 {
+	int i;
 	unsigned long bootmap_size, bootmap;
 	/*
 	 * Initialize the boot-time allocator (with low memory only):
@@ -603,7 +605,8 @@ void __init setup_bootmem_allocator(void)
 		 min_low_pfn<<PAGE_SHIFT, max_low_pfn<<PAGE_SHIFT);
 	printk(KERN_INFO "  bootmap %08lx - %08lx\n",
 		 bootmap, bootmap + bootmap_size);
-	register_bootmem_low_pages(max_low_pfn);
+	for_each_online_node(i)
+		free_bootmem_with_active_regions(i, max_low_pfn);
 	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 
 #ifdef CONFIG_ACPI_SLEEP
@@ -733,11 +736,20 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_init();
 
+	e820_register_active_regions(0, 0, -1UL);
+	/*
+	 * partially used pages are not usable - thus
+	 * we are rounding upwards:
+	 */
+	max_pfn = e820_end_of_ram();
+
 	/* update e820 for memory not covered by WB MTRRs */
-	find_max_pfn();
 	mtrr_bp_init();
-	if (mtrr_trim_uncached_memory(max_pfn))
-		find_max_pfn();
+	if (mtrr_trim_uncached_memory(max_pfn)) {
+		remove_all_active_ranges();
+		e820_register_active_regions(0, 0, -1UL);
+		max_pfn = e820_end_of_ram();
+	}
 
 	max_low_pfn = setup_memory();
 

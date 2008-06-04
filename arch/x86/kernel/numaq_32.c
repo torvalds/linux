@@ -32,6 +32,7 @@
 #include <asm/topology.h>
 #include <asm/processor.h>
 #include <asm/mpspec.h>
+#include <asm/e820.h>
 
 #define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
 
@@ -61,6 +62,8 @@ static void __init smp_dump_qct(void)
 			node_end_pfn[node] = MB_TO_PAGES(
 				eq->hi_shrd_mem_start + eq->hi_shrd_mem_size);
 
+			e820_register_active_regions(node, node_start_pfn[node],
+							node_end_pfn[node]);
 			memory_present(node,
 				node_start_pfn[node], node_end_pfn[node]);
 			node_remap_size[node] = node_memmap_size_bytes(node,

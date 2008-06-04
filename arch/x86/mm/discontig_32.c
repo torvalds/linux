@@ -120,10 +120,9 @@ int __init get_memcfg_numa_flat(void)
 {
 	printk("NUMA - single node, flat memory mode\n");
 
-	/* Run the memory configuration and find the top of memory. */
-	find_max_pfn();
 	node_start_pfn[0] = 0;
 	node_end_pfn[0] = max_pfn;
+	e820_register_active_regions(0, 0, max_pfn);
 	memory_present(0, 0, max_pfn);
 	node_remap_size[0] = node_memmap_size_bytes(0, 0, max_pfn);
 
@@ -337,6 +336,11 @@ unsigned long __init setup_memory(void)
 	 * this space and use it to adjust the boundary between ZONE_NORMAL
 	 * and ZONE_HIGHMEM.
 	 */
+
+	/* call find_max_low_pfn at first, it could update max_pfn */
+	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
+
+	remove_all_active_ranges();
 	get_memcfg_numa();
 
 	kva_pages = round_up(calculate_numa_remap_pages(), PTRS_PER_PTE);
@@ -344,7 +348,6 @@ unsigned long __init setup_memory(void)
 	/* partially used pages are not usable - thus round upwards */
 	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
 
-	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
 	kva_target_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
 	do {
 		kva_start_pfn = find_e820_area(kva_target_pfn<<PAGE_SHIFT,
@@ -402,7 +405,6 @@ unsigned long __init setup_memory(void)
 
 void __init zone_sizes_init(void)
 {
-	int nid;
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] =
@@ -411,15 +413,6 @@ void __init zone_sizes_init(void)
 #ifdef CONFIG_HIGHMEM
 	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
 #endif
-
-	/* If SRAT has not registered memory, register it now */
-	if (find_max_pfn_with_active_regions() == 0) {
-		for_each_online_node(nid) {
-			if (node_has_online_mem(nid))
-				add_active_range(nid, node_start_pfn[nid],
-							node_end_pfn[nid]);
-		}
-	}
 
 	free_area_init_nodes(max_zone_pfns);
 	return;

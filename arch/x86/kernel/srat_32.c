@@ -31,6 +31,7 @@
 #include <asm/srat.h>
 #include <asm/topology.h>
 #include <asm/smp.h>
+#include <asm/e820.h>
 
 /*
  * proximity macros and definitions
@@ -244,7 +245,8 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 		printk("chunk %d nid %d start_pfn %08lx end_pfn %08lx\n",
 		       j, chunk->nid, chunk->start_pfn, chunk->end_pfn);
 		node_read_chunk(chunk->nid, chunk);
-		add_active_range(chunk->nid, chunk->start_pfn, chunk->end_pfn);
+		e820_register_active_regions(chunk->nid, chunk->start_pfn,
+					     min(chunk->end_pfn, max_pfn));
 	}
  
 	for_each_online_node(nid) {

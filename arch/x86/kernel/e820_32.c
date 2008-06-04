@@ -207,69 +207,6 @@ void __init init_iomem_resources(struct resource *code_resource,
 	}
 }
 
-/*
- * Find the highest page frame number we have available
- */
-void __init find_max_pfn(void)
-{
-	int i;
-
-	max_pfn = 0;
-
-	for (i = 0; i < e820.nr_map; i++) {
-		unsigned long start, end;
-		/* RAM? */
-		if (e820.map[i].type != E820_RAM)
-			continue;
-		start = PFN_UP(e820.map[i].addr);
-		end = PFN_DOWN(e820.map[i].addr + e820.map[i].size);
-		if (start >= end)
-			continue;
-		if (end > max_pfn)
-			max_pfn = end;
-	}
-}
-
-/*
- * Register fully available low RAM pages with the bootmem allocator.
- */
-void __init register_bootmem_low_pages(unsigned long max_low_pfn)
-{
-	int i;
-
-	for (i = 0; i < e820.nr_map; i++) {
-		unsigned long curr_pfn, last_pfn, size;
-		/*
-		 * Reserve usable low memory
-		 */
-		if (e820.map[i].type != E820_RAM)
-			continue;
-		/*
-		 * We are rounding up the start address of usable memory:
-		 */
-		curr_pfn = PFN_UP(e820.map[i].addr);
-		if (curr_pfn >= max_low_pfn)
-			continue;
-		/*
-		 * ... and at the end of the usable range downwards:
-		 */
-		last_pfn = PFN_DOWN(e820.map[i].addr + e820.map[i].size);
-
-		if (last_pfn > max_low_pfn)
-			last_pfn = max_low_pfn;
-
-		/*
-		 * .. finally, did all the rounding and playing
-		 * around just make the area go away?
-		 */
-		if (last_pfn <= curr_pfn)
-			continue;
-
-		size = last_pfn - curr_pfn;
-		free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(size));
-	}
-}
-
 void __init limit_regions(unsigned long long size)
 {
 	unsigned long long current_addr;
@@ -360,8 +297,9 @@ static int __init parse_memmap(char *arg)
 		 * size before original memory map is
 		 * reset.
 		 */
-		find_max_pfn();
-		saved_max_pfn = max_pfn;
+		e820_register_active_regions(0, 0, -1UL);
+		saved_max_pfn = e820_end_of_ram();
+		remove_all_active_ranges();
 #endif
 		e820.nr_map = 0;
 		user_defined_memmap = 1;
