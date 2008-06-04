@@ -16,16 +16,11 @@
 #ifndef __ASSEMBLY__
 extern void setup_memory_region(void);
 extern void contig_e820_setup(void);
-extern unsigned long e820_end_of_ram(void);
 extern void e820_reserve_resources(void);
 extern int e820_any_non_reserved(unsigned long start, unsigned long end);
 extern int is_memory_any_valid(unsigned long start, unsigned long end);
 extern int e820_all_non_reserved(unsigned long start, unsigned long end);
 extern int is_memory_all_valid(unsigned long start, unsigned long end);
-extern unsigned long e820_hole_size(unsigned long start, unsigned long end);
-
-extern void e820_register_active_regions(int nid, unsigned long start_pfn,
-					 unsigned long end_pfn);
 
 extern void finish_e820_parsing(void);
 
