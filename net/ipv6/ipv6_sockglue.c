@@ -161,6 +161,9 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			struct ipv6_txoptions *opt;
 			struct sk_buff *pktopt;
 
+			if (sk->sk_type == SOCK_RAW)
+				break;
+
 			if (sk->sk_protocol != IPPROTO_UDP &&
 			    sk->sk_protocol != IPPROTO_UDPLITE &&
 			    sk->sk_protocol != IPPROTO_TCP)
