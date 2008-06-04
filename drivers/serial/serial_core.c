@@ -1165,7 +1165,7 @@ out:
 	return ret;
 }
 
-static void uart_set_ldisc(struct tty_struct *tty, int ldisc)
+static void uart_set_ldisc(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->port;
