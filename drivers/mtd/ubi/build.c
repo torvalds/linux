@@ -422,6 +422,10 @@ out_unreg:
 /**
  * uif_close - close user interfaces for an UBI device.
  * @ubi: UBI device description object
+ *
+ * Note, since this function un-registers UBI volume device objects (@vol->dev),
+ * the memory allocated voe the volumes is freed as well (in the release
+ * function).
  */
 static void uif_close(struct ubi_device *ubi)
 {
@@ -429,6 +433,21 @@ static void uif_close(struct ubi_device *ubi)
 	ubi_sysfs_close(ubi);
 	cdev_del(&ubi->cdev);
 	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
+}
+
+/**
+ * free_internal_volumes - free internal volumes.
+ * @ubi: UBI device description object
+ */
+static void free_internal_volumes(struct ubi_device *ubi)
+{
+	int i;
+
+	for (i = ubi->vtbl_slots;
+	     i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
+		kfree(ubi->volumes[i]->eba_tbl);
+		kfree(ubi->volumes[i]);
+	}
 }
 
 /**
@@ -475,6 +494,7 @@ static int attach_by_scanning(struct ubi_device *ubi)
 out_wl:
 	ubi_wl_close(ubi);
 out_vtbl:
+	free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
 out_si:
 	ubi_scan_destroy_si(si);
@@ -650,7 +670,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
 
 	/*
 	 * Clear the auto-resize flag in the volume in-memory copy of the
-	 * volume table, and 'ubi_resize_volume()' will propogate this change
+	 * volume table, and 'ubi_resize_volume()' will propagate this change
 	 * to the flash.
 	 */
 	ubi->vtbl[vol_id].flags &= ~UBI_VTBL_AUTORESIZE_FLG;
@@ -659,7 +679,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
 		struct ubi_vtbl_record vtbl_rec;
 
 		/*
-		 * No avalilable PEBs to re-size the volume, clear the flag on
+		 * No available PEBs to re-size the volume, clear the flag on
 		 * flash and exit.
 		 */
 		memcpy(&vtbl_rec, &ubi->vtbl[vol_id],
@@ -692,7 +712,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
  *
  * This function attaches MTD device @mtd_dev to UBI and assign @ubi_num number
  * to the newly created UBI device, unless @ubi_num is %UBI_DEV_NUM_AUTO, in
- * which case this function finds a vacant device nubert and assings it
+ * which case this function finds a vacant device number and assigns it
  * automatically. Returns the new UBI device number in case of success and a
  * negative error code in case of failure.
  *
@@ -841,6 +861,7 @@ out_uif:
 	uif_close(ubi);
 out_detach:
 	ubi_wl_close(ubi);
+	free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
 out_free:
 	vfree(ubi->peb_buf1);
@@ -903,6 +924,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 
 	uif_close(ubi);
 	ubi_wl_close(ubi);
+	free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
 	put_mtd_device(ubi->mtd);
 	vfree(ubi->peb_buf1);
