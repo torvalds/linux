@@ -7558,8 +7558,31 @@ static int ipw_associate(void *data)
 	    priv->ieee->iw_mode == IW_MODE_ADHOC &&
 	    priv->config & CFG_ADHOC_CREATE &&
 	    priv->config & CFG_STATIC_ESSID &&
-	    priv->config & CFG_STATIC_CHANNEL &&
-	    !list_empty(&priv->ieee->network_free_list)) {
+	    priv->config & CFG_STATIC_CHANNEL) {
+		/* Use oldest network if the free list is empty */
+		if (list_empty(&priv->ieee->network_free_list)) {
+			struct ieee80211_network *oldest = NULL;
+			struct ieee80211_network *target;
+			DECLARE_MAC_BUF(mac);
+
+			list_for_each_entry(target, &priv->ieee->network_list, list) {
+				if ((oldest == NULL) ||
+				    (target->last_scanned < oldest->last_scanned))
+					oldest = target;
+			}
+
+			/* If there are no more slots, expire the oldest */
+			list_del(&oldest->list);
+			target = oldest;
+			IPW_DEBUG_ASSOC("Expired '%s' (%s) from "
+					"network list.\n",
+					escape_essid(target->ssid,
+						     target->ssid_len),
+					print_mac(mac, target->bssid));
+			list_add_tail(&target->list,
+				      &priv->ieee->network_free_list);
+		}
+
 		element = priv->ieee->network_free_list.next;
 		network = list_entry(element, struct ieee80211_network, list);
 		ipw_adhoc_create(priv, network);
