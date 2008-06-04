@@ -617,6 +617,11 @@ static void sctp_v4_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 	seq_printf(seq, "%d.%d.%d.%d ", NIPQUAD(addr->v4.sin_addr));
 }
 
+static void sctp_v4_ecn_capable(struct sock *sk)
+{
+	INET_ECN_xmit(sk);
+}
+
 /* Event handler for inet address addition/deletion events.
  * The sctp_local_addr_list needs to be protocted by a spin lock since
  * multiple notifiers (say IPv4 and IPv6) may be running at the same
@@ -935,6 +940,7 @@ static struct sctp_af sctp_af_inet = {
 	.skb_iif	   = sctp_v4_skb_iif,
 	.is_ce		   = sctp_v4_is_ce,
 	.seq_dump_addr	   = sctp_v4_seq_dump_addr,
+	.ecn_capable	   = sctp_v4_ecn_capable,
 	.net_header_len	   = sizeof(struct iphdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in),
 #ifdef CONFIG_COMPAT

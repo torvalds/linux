@@ -727,6 +727,11 @@ static void sctp_v6_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 	seq_printf(seq, NIP6_FMT " ", NIP6(addr->v6.sin6_addr));
 }
 
+static void sctp_v6_ecn_capable(struct sock *sk)
+{
+	inet6_sk(sk)->tclass |= INET_ECN_ECT_0;
+}
+
 /* Initialize a PF_INET6 socket msg_name. */
 static void sctp_inet6_msgname(char *msgname, int *addr_len)
 {
@@ -997,6 +1002,7 @@ static struct sctp_af sctp_af_inet6 = {
 	.skb_iif	   = sctp_v6_skb_iif,
 	.is_ce		   = sctp_v6_is_ce,
 	.seq_dump_addr	   = sctp_v6_seq_dump_addr,
+	.ecn_capable	   = sctp_v6_ecn_capable,
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 #ifdef CONFIG_COMPAT
