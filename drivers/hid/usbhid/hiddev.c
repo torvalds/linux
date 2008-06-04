@@ -763,7 +763,6 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_COMPAT
 static long hiddev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
 	return hiddev_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
 #endif
