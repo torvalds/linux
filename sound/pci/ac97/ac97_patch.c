@@ -1971,6 +1971,9 @@ static int snd_ac97_ad1888_lohpsel_get(struct snd_kcontrol *kcontrol, struct snd
 
 	val = ac97->regs[AC97_AD_MISC];
 	ucontrol->value.integer.value[0] = !(val & AC97_AD198X_LOSEL);
+	if (ac97->spec.ad18xx.lo_as_master)
+		ucontrol->value.integer.value[0] =
+			!ucontrol->value.integer.value[0];
 	return 0;
 }
 
@@ -1979,8 +1982,10 @@ static int snd_ac97_ad1888_lohpsel_put(struct snd_kcontrol *kcontrol, struct snd
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 
-	val = !ucontrol->value.integer.value[0]
-		? (AC97_AD198X_LOSEL | AC97_AD198X_HPSEL) : 0;
+	val = !ucontrol->value.integer.value[0];
+	if (ac97->spec.ad18xx.lo_as_master)
+		val = !val;
+	val = val ? (AC97_AD198X_LOSEL | AC97_AD198X_HPSEL) : 0;
 	return snd_ac97_update_bits(ac97, AC97_AD_MISC,
 				    AC97_AD198X_LOSEL | AC97_AD198X_HPSEL, val);
 }
@@ -2031,7 +2036,7 @@ static void ad1888_update_jacks(struct snd_ac97 *ac97)
 {
 	unsigned short val = 0;
 	/* clear LODIS if shared jack is to be used for Surround out */
-	if (is_shared_linein(ac97))
+	if (!ac97->spec.ad18xx.lo_as_master && is_shared_linein(ac97))
 		val |= (1 << 12);
 	/* clear CLDIS if shared jack is to be used for C/LFE out */
 	if (is_shared_micin(ac97))
@@ -2067,9 +2072,13 @@ static const struct snd_kcontrol_new snd_ac97_ad1888_controls[] = {
 
 static int patch_ad1888_specific(struct snd_ac97 *ac97)
 {
-	/* rename 0x04 as "Master" and 0x02 as "Master Surround" */
-	snd_ac97_rename_vol_ctl(ac97, "Master Playback", "Master Surround Playback");
-	snd_ac97_rename_vol_ctl(ac97, "Headphone Playback", "Master Playback");
+	if (!ac97->spec.ad18xx.lo_as_master) {
+		/* rename 0x04 as "Master" and 0x02 as "Master Surround" */
+		snd_ac97_rename_vol_ctl(ac97, "Master Playback",
+					"Master Surround Playback");
+		snd_ac97_rename_vol_ctl(ac97, "Headphone Playback",
+					"Master Playback");
+	}
 	return patch_build_controls(ac97, snd_ac97_ad1888_controls, ARRAY_SIZE(snd_ac97_ad1888_controls));
 }
 
@@ -2088,16 +2097,27 @@ static int patch_ad1888(struct snd_ac97 * ac97)
 	
 	patch_ad1881(ac97);
 	ac97->build_ops = &patch_ad1888_build_ops;
-	/* Switch FRONT/SURROUND LINE-OUT/HP-OUT default connection */
-	/* it seems that most vendors connect line-out connector to headphone out of AC'97 */
+
+	/*
+	 * LO can be used as a real line-out on some devices,
+	 * and we need to revert the front/surround mixer switches
+	 */
+	if (ac97->subsystem_vendor == 0x1043 &&
+	    ac97->subsystem_device == 0x1193) /* ASUS A9T laptop */
+		ac97->spec.ad18xx.lo_as_master = 1;
+
+	misc = snd_ac97_read(ac97, AC97_AD_MISC);
 	/* AD-compatible mode */
 	/* Stereo mutes enabled */
-	misc = snd_ac97_read(ac97, AC97_AD_MISC);
-	snd_ac97_write_cache(ac97, AC97_AD_MISC, misc |
-			     AC97_AD198X_LOSEL |
-			     AC97_AD198X_HPSEL |
-			     AC97_AD198X_MSPLT |
-			     AC97_AD198X_AC97NC);
+	misc |= AC97_AD198X_MSPLT | AC97_AD198X_AC97NC;
+	if (!ac97->spec.ad18xx.lo_as_master)
+		/* Switch FRONT/SURROUND LINE-OUT/HP-OUT default connection */
+		/* it seems that most vendors connect line-out connector to
+		 * headphone out of AC'97
+		 */
+		misc |= AC97_AD198X_LOSEL | AC97_AD198X_HPSEL;
+
+	snd_ac97_write_cache(ac97, AC97_AD_MISC, misc);
 	ac97->flags |= AC97_STEREO_MUTES;
 	return 0;
 }
