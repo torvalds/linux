@@ -1293,7 +1293,7 @@ static void tpacpi_input_send_radiosw(void)
 		mutex_lock(&tpacpi_inputdev_send_mutex);
 
 		input_report_switch(tpacpi_inputdev,
-				    SW_RADIO, !!wlsw);
+				    SW_RFKILL_ALL, !!wlsw);
 		input_sync(tpacpi_inputdev);
 
 		mutex_unlock(&tpacpi_inputdev_send_mutex);
@@ -2199,7 +2199,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 		if (tp_features.hotkey_wlsw) {
 			set_bit(EV_SW, tpacpi_inputdev->evbit);
-			set_bit(SW_RADIO, tpacpi_inputdev->swbit);
+			set_bit(SW_RFKILL_ALL, tpacpi_inputdev->swbit);
 		}
 		if (tp_features.hotkey_tablet) {
 			set_bit(EV_SW, tpacpi_inputdev->evbit);
