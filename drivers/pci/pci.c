@@ -508,7 +508,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return 0;
 }
 
-pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
+pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev);
  
 /**
  * pci_choose_state - Choose the power state of a PCI device
@@ -528,7 +528,7 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 		return PCI_D0;
 
 	if (platform_pci_choose_state) {
-		ret = platform_pci_choose_state(dev, state);
+		ret = platform_pci_choose_state(dev);
 		if (ret != PCI_POWER_ERROR)
 			return ret;
 	}
