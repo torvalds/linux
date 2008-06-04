@@ -1392,9 +1392,9 @@ static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
 
 	if (before(next_dup->start_seq, skip_to_seq)) {
 		skb = tcp_sacktag_skip(skb, sk, next_dup->start_seq, fack_count);
-		tcp_sacktag_walk(skb, sk, NULL,
-				 next_dup->start_seq, next_dup->end_seq,
-				 1, fack_count, reord, flag);
+		skb = tcp_sacktag_walk(skb, sk, NULL,
+				     next_dup->start_seq, next_dup->end_seq,
+				     1, fack_count, reord, flag);
 	}
 
 	return skb;
