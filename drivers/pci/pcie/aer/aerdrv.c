@@ -26,6 +26,7 @@
 #include <linux/pcieport_if.h>
 
 #include "aerdrv.h"
+#include "../../pci.h"
 
 /*
  * Version Information
