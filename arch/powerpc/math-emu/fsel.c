@@ -2,19 +2,21 @@
 #include <linux/errno.h>
 #include <asm/uaccess.h>
 
-#include "soft-fp.h"
-#include "double.h"
+#include <asm/sfp-machine.h>
+#include <math-emu/soft-fp.h>
+#include <math-emu/double.h>
 
 int
 fsel(u32 *frD, void *frA, u32 *frB, u32 *frC)
 {
 	FP_DECL_D(A);
+	FP_DECL_EX;
 
 #ifdef DEBUG
 	printk("%s: %p %p %p %p\n", __func__, frD, frA, frB, frC);
 #endif
 
-	__FP_UNPACK_D(A, frA);
+	FP_UNPACK_DP(A, frA);
 
 #ifdef DEBUG
 	printk("A: %ld %lu %lu %ld (%ld)\n", A_s, A_f1, A_f0, A_e, A_c);

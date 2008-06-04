@@ -8,8 +8,8 @@
 #include <asm/uaccess.h>
 #include <asm/reg.h>
 
-#include "sfp-machine.h"
-#include "double.h"
+#include <asm/sfp-machine.h>
+#include <math-emu/double.h>
 
 #define FLOATFUNC(x)	extern int x(void *, void *, void *, void *)
 
@@ -168,6 +168,8 @@ record_exception(struct pt_regs *regs, int eflag)
 			fpscr |= FPSCR_ZX;
 		if (eflag & EFLAG_INEXACT)
 			fpscr |= FPSCR_XX;
+		if (eflag & EFLAG_INVALID)
+			fpscr |= FPSCR_VX;
 		if (eflag & EFLAG_VXSNAN)
 			fpscr |= FPSCR_VXSNAN;
 		if (eflag & EFLAG_VXISI)
@@ -188,7 +190,7 @@ record_exception(struct pt_regs *regs, int eflag)
 			fpscr |= FPSCR_VXCVI;
 	}
 
-	fpscr &= ~(FPSCR_VX);
+//	fpscr &= ~(FPSCR_VX);
 	if (fpscr & (FPSCR_VXSNAN | FPSCR_VXISI | FPSCR_VXIDI |
 		     FPSCR_VXZDZ | FPSCR_VXIMZ | FPSCR_VXVC |
 		     FPSCR_VXSOFT | FPSCR_VXSQRT | FPSCR_VXCVI))
