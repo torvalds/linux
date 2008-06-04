@@ -903,8 +903,8 @@ struct sched_class {
 	void (*set_cpus_allowed)(struct task_struct *p,
 				 const cpumask_t *newmask);
 
-	void (*join_domain)(struct rq *rq);
-	void (*leave_domain)(struct rq *rq);
+	void (*rq_online)(struct rq *rq);
+	void (*rq_offline)(struct rq *rq);
 
 	void (*switched_from) (struct rq *this_rq, struct task_struct *task,
 			       int running);
