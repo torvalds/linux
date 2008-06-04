@@ -496,7 +496,8 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 	return 0;
 }
 
-int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
+int datagram_send_ctl(struct net *net,
+		      struct msghdr *msg, struct flowi *fl,
 		      struct ipv6_txoptions *opt,
 		      int *hlimit, int *tclass)
 {
@@ -540,7 +541,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 			addr_type = __ipv6_addr_type(&src_info->ipi6_addr);
 
 			if (fl->oif) {
-				dev = dev_get_by_index(&init_net, fl->oif);
+				dev = dev_get_by_index(net, fl->oif);
 				if (!dev)
 					return -ENODEV;
 			} else if (addr_type & IPV6_ADDR_LINKLOCAL)
@@ -548,7 +549,7 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 			if (addr_type != IPV6_ADDR_ANY) {
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
-				if (!ipv6_chk_addr(&init_net, &src_info->ipi6_addr,
+				if (!ipv6_chk_addr(net, &src_info->ipi6_addr,
 						   strict ? dev : NULL, 0))
 					err = -EINVAL;
 				else
