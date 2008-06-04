@@ -285,6 +285,10 @@ struct alc_spec {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
 #endif
+
+	/* for PLL fix */
+	hda_nid_t pll_nid;
+	unsigned int pll_coef_idx, pll_coef_bit;
 };
 
 /*
@@ -751,6 +755,38 @@ static struct hda_verb alc_gpio3_init_verbs[] = {
 	{0x01, AC_VERB_SET_GPIO_DATA, 0x03},
 	{ }
 };
+
+/*
+ * Fix hardware PLL issue
+ * On some codecs, the analog PLL gating control must be off while
+ * the default value is 1.
+ */
+static void alc_fix_pll(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int val;
+
+	if (!spec->pll_nid)
+		return;
+	snd_hda_codec_write(codec, spec->pll_nid, 0, AC_VERB_SET_COEF_INDEX,
+			    spec->pll_coef_idx);
+	val = snd_hda_codec_read(codec, spec->pll_nid, 0,
+				 AC_VERB_GET_PROC_COEF, 0);
+	snd_hda_codec_write(codec, spec->pll_nid, 0, AC_VERB_SET_COEF_INDEX,
+			    spec->pll_coef_idx);
+	snd_hda_codec_write(codec, spec->pll_nid, 0, AC_VERB_SET_PROC_COEF,
+			    val & ~(1 << spec->pll_coef_bit));
+}
+
+static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
+			     unsigned int coef_idx, unsigned int coef_bit)
+{
+	struct alc_spec *spec = codec->spec;
+	spec->pll_nid = nid;
+	spec->pll_coef_idx = coef_idx;
+	spec->pll_coef_bit = coef_bit;
+	alc_fix_pll(codec);
+}
 
 static void alc_sku_automute(struct hda_codec *codec)
 {
@@ -2399,6 +2435,8 @@ static int alc_init(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	unsigned int i;
+
+	alc_fix_pll(codec);
 
 	for (i = 0; i < spec->num_init_verbs; i++)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
@@ -8286,6 +8324,8 @@ static int patch_alc883(struct hda_codec *codec)
 
 	codec->spec = spec;
 
+	alc_fix_pll_init(codec, 0x20, 0x0a, 10);
+
 	board_config = snd_hda_check_board_config(codec, ALC883_MODEL_LAST,
 						  alc883_models,
 						  alc883_cfg_tbl);
@@ -9886,6 +9926,8 @@ static int patch_alc262(struct hda_codec *codec)
 	}
 #endif
 
+	alc_fix_pll_init(codec, 0x20, 0x0a, 10);
+
 	board_config = snd_hda_check_board_config(codec, ALC262_MODEL_LAST,
 						  alc262_models,
 						  alc262_cfg_tbl);
@@ -11195,6 +11237,8 @@ static int patch_alc269(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+
+	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
 	board_config = snd_hda_check_board_config(codec, ALC269_MODEL_LAST,
 						  alc269_models,
@@ -14530,6 +14574,8 @@ static int patch_alc662(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+
+	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
 	board_config = snd_hda_check_board_config(codec, ALC662_MODEL_LAST,
 						  alc662_models,
