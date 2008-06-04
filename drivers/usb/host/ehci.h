@@ -97,6 +97,8 @@ struct ehci_hcd {			/* one per controller */
 			dedicated to the companion controller */
 	unsigned long		owned_ports;		/* which ports are
 			owned by the companion during a bus suspend */
+	unsigned long		port_c_suspend;		/* which ports have
+			the change-suspend feature turned on */
 
 	/* per-HC memory pools (could be per-bus, but ...) */
 	struct dma_pool		*qh_pool;	/* qh per active urb */
@@ -112,7 +114,6 @@ struct ehci_hcd {			/* one per controller */
 	u32			command;
 
 	/* SILICON QUIRKS */
-	unsigned		is_tdi_rh_tt:1;	/* TDI roothub with TT */
 	unsigned		no_selective_suspend:1;
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
 	unsigned		big_endian_mmio:1;
@@ -678,7 +679,7 @@ struct ehci_fstn {
  * needed (mostly in root hub code).
  */
 
-#define	ehci_is_TDI(e)			((e)->is_tdi_rh_tt)
+#define	ehci_is_TDI(e)			(ehci_to_hcd(e)->has_tt)
 
 /* Returns the speed of a device attached to a port on the root hub. */
 static inline unsigned int

@@ -853,6 +853,7 @@ do_sku:
 		case 0x10ec0269:
 		case 0x10ec0862:
 		case 0x10ec0662:	
+		case 0x10ec0889:
 			snd_hda_codec_write(codec, 0x14, 0,
 					    AC_VERB_SET_EAPD_BTLENABLE, 2);
 			snd_hda_codec_write(codec, 0x15, 0,
@@ -877,6 +878,7 @@ do_sku:
 		case 0x10ec0883:
 		case 0x10ec0885:
 		case 0x10ec0888:
+		case 0x10ec0889:
 			snd_hda_codec_write(codec, 0x20, 0,
 					    AC_VERB_SET_COEF_INDEX, 7);
 			tmp = snd_hda_codec_read(codec, 0x20, 0,
@@ -2981,7 +2983,7 @@ static struct snd_pci_quirk alc880_cfg_tbl[] = {
 	/* SND_PCI_QUIRK(0x1043, 0x1964, "ASUS", ALC880_ASUS_DIG), */
 	SND_PCI_QUIRK(0x1043, 0x1973, "ASUS", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x19b3, "ASUS", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x814e, "ASUS", ALC880_ASUS),
+	SND_PCI_QUIRK(0x1043, 0x814e, "ASUS P5GD1 w/SPDIF", ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8181, "ASUS P4GPL", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8196, "ASUS P5GD1", ALC880_6ST),
 	SND_PCI_QUIRK(0x1043, 0x81b4, "ASUS", ALC880_6ST),
@@ -7743,6 +7745,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2a60, "HP Lucknow", ALC888_3ST_HP),
 	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8249, "Asus M2A-VM HDMI", ALC883_3ST_6ch_DIG),
+	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1071, 0x8253, "Mitac 8252d", ALC883_MITAC),
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC883_LAPTOP_EAPD),
@@ -8757,35 +8760,39 @@ static struct hda_input_mux alc262_HP_D7000_capture_source = {
 	},
 };
 
-/* mute/unmute internal speaker according to the hp jack and mute state */
+/* mute/unmute internal speaker according to the hp jacks and mute state */
 static void alc262_fujitsu_automute(struct hda_codec *codec, int force)
 {
 	struct alc_spec *spec = codec->spec;
 	unsigned int mute;
 
 	if (force || !spec->sense_updated) {
-		unsigned int present_int_hp, present_dock_hp;
+		unsigned int present;
 		/* need to execute and sync at first */
 		snd_hda_codec_read(codec, 0x14, 0, AC_VERB_SET_PIN_SENSE, 0);
-		present_int_hp = snd_hda_codec_read(codec, 0x14, 0,
-					AC_VERB_GET_PIN_SENSE, 0);
-		snd_hda_codec_read(codec, 0x1B, 0, AC_VERB_SET_PIN_SENSE, 0);
-		present_dock_hp = snd_hda_codec_read(codec, 0x1b, 0,
-					AC_VERB_GET_PIN_SENSE, 0);
-		spec->jack_present = (present_int_hp & 0x80000000) != 0;
-		spec->jack_present |= (present_dock_hp & 0x80000000) != 0;
+		/* check laptop HP jack */
+		present = snd_hda_codec_read(codec, 0x14, 0,
+					     AC_VERB_GET_PIN_SENSE, 0);
+		/* need to execute and sync at first */
+		snd_hda_codec_read(codec, 0x1b, 0, AC_VERB_SET_PIN_SENSE, 0);
+		/* check docking HP jack */
+		present |= snd_hda_codec_read(codec, 0x1b, 0,
+					      AC_VERB_GET_PIN_SENSE, 0);
+		if (present & AC_PINSENSE_PRESENCE)
+			spec->jack_present = 1;
+		else
+			spec->jack_present = 0;
 		spec->sense_updated = 1;
 	}
-	if (spec->jack_present) {
-		/* mute internal speaker */
-		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
-					 HDA_AMP_MUTE, HDA_AMP_MUTE);
-	} else {
-		/* unmute internal speaker if necessary */
+	/* unmute internal speaker only if both HPs are unplugged and
+	 * master switch is on
+	 */
+	if (spec->jack_present)
+		mute = HDA_AMP_MUTE;
+	else
 		mute = snd_hda_codec_amp_read(codec, 0x14, 0, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
-					 HDA_AMP_MUTE, mute);
-	}
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, mute);
 }
 
 /* unsolicited event for HP jack sensing */
@@ -8794,6 +8801,11 @@ static void alc262_fujitsu_unsol_event(struct hda_codec *codec,
 {
 	if ((res >> 26) != ALC_HP_EVENT)
 		return;
+	alc262_fujitsu_automute(codec, 1);
+}
+
+static void alc262_fujitsu_init_hook(struct hda_codec *codec)
+{
 	alc262_fujitsu_automute(codec, 1);
 }
 
@@ -9570,6 +9582,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_fujitsu_capture_source,
 		.unsol_event = alc262_fujitsu_unsol_event,
+		.init_hook = alc262_fujitsu_init_hook,
 	},
 	[ALC262_HP_BPC] = {
 		.mixers = { alc262_HP_BPC_mixer },

@@ -1,4 +1,4 @@
-/* $Id: io-unit.c,v 1.24 2001/12/17 07:05:09 davem Exp $
+/*
  * io-unit.c:  IO-UNIT specific routines for memory management.
  *
  * Copyright (C) 1997,1998 Jakub Jelinek    (jj@sunsite.mff.cuni.cz)

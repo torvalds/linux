@@ -128,23 +128,23 @@ void o2net_debug_del_nst(struct o2net_send_tracking *nst);
 void o2net_debug_add_sc(struct o2net_sock_container *sc);
 void o2net_debug_del_sc(struct o2net_sock_container *sc);
 #else
-static int o2net_debugfs_init(void)
+static inline int o2net_debugfs_init(void)
 {
 	return 0;
 }
-static void o2net_debugfs_exit(void)
+static inline void o2net_debugfs_exit(void)
 {
 }
-static void o2net_debug_add_nst(struct o2net_send_tracking *nst)
+static inline void o2net_debug_add_nst(struct o2net_send_tracking *nst)
 {
 }
-static void o2net_debug_del_nst(struct o2net_send_tracking *nst)
+static inline void o2net_debug_del_nst(struct o2net_send_tracking *nst)
 {
 }
-static void o2net_debug_add_sc(struct o2net_sock_container *sc)
+static inline void o2net_debug_add_sc(struct o2net_sock_container *sc)
 {
 }
-static void o2net_debug_del_sc(struct o2net_sock_container *sc)
+static inline void o2net_debug_del_sc(struct o2net_sock_container *sc)
 {
 }
 #endif	/* CONFIG_DEBUG_FS */

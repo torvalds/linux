@@ -730,7 +730,17 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		if (bss->wmm_ie) {
 			wmm = 1;
 		}
+
+		/* get all rates supported by the device and the AP as
+		 * some APs don't like getting a superset of their rates
+		 * in the association request (e.g. D-Link DAP 1353 in
+		 * b-only mode) */
+		rates_len = ieee80211_compatible_rates(bss, sband, &rates);
+
 		ieee80211_rx_bss_put(dev, bss);
+	} else {
+		rates = ~0;
+		rates_len = sband->n_bitrates;
 	}
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
@@ -761,10 +771,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 	*pos++ = ifsta->ssid_len;
 	memcpy(pos, ifsta->ssid, ifsta->ssid_len);
 
-	/* all supported rates should be added here but some APs
-	 * (e.g. D-Link DAP 1353 in b-only mode) don't like that
-	 * Therefore only add rates the AP supports */
-	rates_len = ieee80211_compatible_rates(bss, sband, &rates);
+	/* add all rates which were marked to be used above */
 	supp_rates_len = rates_len;
 	if (supp_rates_len > 8)
 		supp_rates_len = 8;
@@ -1318,7 +1325,7 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
-		kmalloc(buf_size * sizeof(struct sk_buf *), GFP_ATOMIC);
+		kmalloc(buf_size * sizeof(struct sk_buff *), GFP_ATOMIC);
 	if (!tid_agg_rx->reorder_buf) {
 		if (net_ratelimit())
 			printk(KERN_ERR "can not allocate reordering buffer "
@@ -1327,7 +1334,7 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 		goto end;
 	}
 	memset(tid_agg_rx->reorder_buf, 0,
-		buf_size * sizeof(struct sk_buf *));
+		buf_size * sizeof(struct sk_buff *));
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_RX_START,
@@ -1607,7 +1614,7 @@ void sta_addba_resp_timer_expired(unsigned long data)
 	 * only one argument, and both sta_info and TID are needed, so init
 	 * flow in sta_info_create gives the TID as data, while the timer_to_id
 	 * array gives the sta through container_of */
-	u16 tid = *(int *)data;
+	u16 tid = *(u8 *)data;
 	struct sta_info *temp_sta = container_of((void *)data,
 		struct sta_info, timer_to_tid[tid]);
 
@@ -1655,7 +1662,7 @@ timer_expired_exit:
 void sta_rx_agg_session_timer_expired(unsigned long data)
 {
 	/* not an elegant detour, but there is no choice as the timer passes
-	 * only one argument, and verious sta_info are needed here, so init
+	 * only one argument, and various sta_info are needed here, so init
 	 * flow in sta_info_create gives the TID as data, while the timer_to_id
 	 * array gives the sta through container_of */
 	u8 *ptid = (u8 *)data;
@@ -2471,8 +2478,6 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 
 	ifsta->state = IEEE80211_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
-
-	ieee80211_rx_bss_put(dev, bss);
 
 	return res;
 }
@@ -3446,21 +3451,17 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 	struct ieee80211_sta_bss *bss, *selected = NULL;
 	int top_rssi = 0, freq;
 
-	if (!(ifsta->flags & (IEEE80211_STA_AUTO_SSID_SEL |
-	    IEEE80211_STA_AUTO_BSSID_SEL | IEEE80211_STA_AUTO_CHANNEL_SEL))) {
-		ifsta->state = IEEE80211_AUTHENTICATE;
-		ieee80211_sta_reset_auth(dev, ifsta);
-		return 0;
-	}
-
 	spin_lock_bh(&local->sta_bss_lock);
 	freq = local->oper_channel->center_freq;
 	list_for_each_entry(bss, &local->sta_bss_list, list) {
 		if (!(bss->capability & WLAN_CAPABILITY_ESS))
 			continue;
 
-		if (!!(bss->capability & WLAN_CAPABILITY_PRIVACY) ^
-		    !!sdata->default_key)
+		if ((ifsta->flags & (IEEE80211_STA_AUTO_SSID_SEL |
+			IEEE80211_STA_AUTO_BSSID_SEL |
+			IEEE80211_STA_AUTO_CHANNEL_SEL)) &&
+		    (!!(bss->capability & WLAN_CAPABILITY_PRIVACY) ^
+		     !!sdata->default_key))
 			continue;
 
 		if (!(ifsta->flags & IEEE80211_STA_AUTO_CHANNEL_SEL) &&
@@ -3520,6 +3521,7 @@ static int ieee80211_sta_create_ibss(struct net_device *dev,
 	struct ieee80211_supported_band *sband;
 	u8 bssid[ETH_ALEN], *pos;
 	int i;
+	int ret;
 	DECLARE_MAC_BUF(mac);
 
 #if 0
@@ -3564,7 +3566,9 @@ static int ieee80211_sta_create_ibss(struct net_device *dev,
 		*pos++ = (u8) (rate / 5);
 	}
 
-	return ieee80211_sta_join_ibss(dev, ifsta, bss);
+	ret = ieee80211_sta_join_ibss(dev, ifsta, bss);
+	ieee80211_rx_bss_put(dev, bss);
+	return ret;
 }
 
 
@@ -3612,10 +3616,13 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 	    (bss = ieee80211_rx_bss_get(dev, bssid,
 					local->hw.conf.channel->center_freq,
 					ifsta->ssid, ifsta->ssid_len))) {
+		int ret;
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %s"
 		       " based on configured SSID\n",
 		       dev->name, print_mac(mac, bssid));
-		return ieee80211_sta_join_ibss(dev, ifsta, bss);
+		ret = ieee80211_sta_join_ibss(dev, ifsta, bss);
+		ieee80211_rx_bss_put(dev, bss);
+		return ret;
 	}
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "   did not try to join ibss\n");
@@ -4092,18 +4099,17 @@ ieee80211_sta_scan_result(struct net_device *dev,
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = SIOCGIWFREQ;
-	iwe.u.freq.m = bss->freq;
-	iwe.u.freq.e = 6;
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-					  IW_EV_FREQ_LEN);
-
-	memset(&iwe, 0, sizeof(iwe));
-	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = ieee80211_frequency_to_channel(bss->freq);
 	iwe.u.freq.e = 0;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
 					  IW_EV_FREQ_LEN);
 
+	memset(&iwe, 0, sizeof(iwe));
+	iwe.cmd = SIOCGIWFREQ;
+	iwe.u.freq.m = bss->freq;
+	iwe.u.freq.e = 6;
+	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+					  IW_EV_FREQ_LEN);
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.qual = bss->signal;

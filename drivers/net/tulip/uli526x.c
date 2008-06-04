@@ -225,6 +225,9 @@ static void uli526x_set_filter_mode(struct net_device *);
 static const struct ethtool_ops netdev_ethtool_ops;
 static u16 read_srom_word(long, int);
 static irqreturn_t uli526x_interrupt(int, void *);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void uli526x_poll(struct net_device *dev);
+#endif
 static void uli526x_descriptor_init(struct uli526x_board_info *, unsigned long);
 static void allocate_rx_buffer(struct uli526x_board_info *);
 static void update_cr6(u32, unsigned long);
@@ -339,6 +342,9 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	dev->get_stats = &uli526x_get_stats;
 	dev->set_multicast_list = &uli526x_set_filter_mode;
 	dev->ethtool_ops = &netdev_ethtool_ops;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = &uli526x_poll;
+#endif
 	spin_lock_init(&db->lock);
 
 
@@ -681,8 +687,9 @@ static irqreturn_t uli526x_interrupt(int irq, void *dev_id)
 	db->cr5_data = inl(ioaddr + DCR5);
 	outl(db->cr5_data, ioaddr + DCR5);
 	if ( !(db->cr5_data & 0x180c1) ) {
-		spin_unlock_irqrestore(&db->lock, flags);
+		/* Restore CR7 to enable interrupt mask */
 		outl(db->cr7_data, ioaddr + DCR7);
+		spin_unlock_irqrestore(&db->lock, flags);
 		return IRQ_HANDLED;
 	}
 
@@ -715,6 +722,13 @@ static irqreturn_t uli526x_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void uli526x_poll(struct net_device *dev)
+{
+	/* ISR grabs the irqsave lock, so this should be safe */
+	uli526x_interrupt(dev->irq, dev);
+}
+#endif
 
 /*
  *	Free TX resource after TX complete

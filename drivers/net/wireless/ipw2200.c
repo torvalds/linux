@@ -11584,6 +11584,7 @@ static int ipw_prom_alloc(struct ipw_priv *priv)
 	priv->prom_net_dev->hard_start_xmit = ipw_prom_hard_start_xmit;
 
 	priv->prom_priv->ieee->iw_mode = IW_MODE_MONITOR;
+	SET_NETDEV_DEV(priv->prom_net_dev, &priv->pci_dev->dev);
 
 	rc = register_netdev(priv->prom_net_dev);
 	if (rc) {

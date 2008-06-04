@@ -18,8 +18,12 @@
 #include "rpadlpar.h"
 
 #define DLPAR_KOBJ_NAME       "control"
-#define ADD_SLOT_ATTR_NAME    "add_slot"
-#define REMOVE_SLOT_ATTR_NAME "remove_slot"
+
+/* Those two have no quotes because they are passed to __ATTR() which
+ * stringifies the argument (yuck !)
+ */
+#define ADD_SLOT_ATTR_NAME    add_slot
+#define REMOVE_SLOT_ATTR_NAME remove_slot
 
 #define MAX_DRC_NAME_LEN 64
 

@@ -953,9 +953,6 @@ static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned entry;
 	u32 tx_status;
 
-	if (skb_padto(skb, ETH_ZLEN))
-		return NETDEV_TX_OK;
-
 	if (unlikely(skb->len > TX_BUF_SIZE)) {
 		dev->stats.tx_dropped++;
 		goto out;
@@ -975,6 +972,11 @@ static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_copy_and_csum_dev(skb, priv->tx_bufs + entry * TX_BUF_SIZE);
 
 	len = skb->len;
+	if (unlikely(len < ETH_ZLEN)) {
+		memset(priv->tx_bufs + entry * TX_BUF_SIZE + len,
+				0, ETH_ZLEN - len);
+		len = ETH_ZLEN;
+	}
 
 	wmb();
 

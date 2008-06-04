@@ -3821,7 +3821,7 @@ TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
 #define TPACPI_LED_NUMLEDS 8
 static struct tpacpi_led_classdev *tpacpi_leds;
 static enum led_status_t tpacpi_led_state_cache[TPACPI_LED_NUMLEDS];
-static const char const *tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
+static const char * const tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
 	/* there's a limit of 19 chars + NULL before 2.6.26 */
 	"tpacpi::power",
 	"tpacpi:orange:batt",
@@ -3860,10 +3860,10 @@ static int led_get_status(unsigned int led)
 static int led_set_status(unsigned int led, enum led_status_t ledstatus)
 {
 	/* off, on, blink. Index is led_status_t */
-	static const int const led_sled_arg1[] = { 0, 1, 3 };
-	static const int const led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
-	static const int const led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
-	static const int const led_led_arg1[] = { 0, 0x80, 0xc0 };
+	static const int led_sled_arg1[] = { 0, 1, 3 };
+	static const int led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
+	static const int led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
+	static const int led_led_arg1[] = { 0, 0x80, 0xc0 };
 
 	int rc = 0;
 

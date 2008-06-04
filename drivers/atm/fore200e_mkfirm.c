@@ -1,6 +1,4 @@
 /*
-  $Id: fore200e_mkfirm.c,v 1.1 2000/02/21 16:04:32 davem Exp $
-
   mkfirm.c: generates a C readable file from a binary firmware image
 
   Christophe Lizzi (lizzi@{csti.fr, cnam.fr}), June 1999.

@@ -469,8 +469,9 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 			return ZERO_SIZE_PTR;
 
 		m = slob_alloc(size + align, gfp, align, node);
-		if (m)
-			*m = size;
+		if (!m)
+			return NULL;
+		*m = size;
 		return (void *)m + align;
 	} else {
 		void *ret;

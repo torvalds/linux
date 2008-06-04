@@ -1313,7 +1313,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	/*
 	 * Clear the TX filter mask for this STA when sending the next
 	 * packet. If the STA went to power save mode, this will happen
-	 * happen when it wakes up for the next time.
+	 * when it wakes up for the next time.
 	 */
 	sta->flags |= WLAN_STA_CLEAR_PS_FILT;
 

@@ -117,11 +117,11 @@
 struct irda_class_desc {
 	__u8  bLength;
 	__u8  bDescriptorType;
-	__u16 bcdSpecRevision;
+	__le16 bcdSpecRevision;
 	__u8  bmDataSize;
 	__u8  bmWindowSize;
 	__u8  bmMinTurnaroundTime;
-	__u16 wBaudRate;
+	__le16 wBaudRate;
 	__u8  bmAdditionalBOFs;
 	__u8  bIrdaRateSniff;
 	__u8  bMaxUnicastList;

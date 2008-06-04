@@ -93,6 +93,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags)) {
 		ieee80211_stop_queues(hw);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

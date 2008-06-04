@@ -982,13 +982,6 @@ L:	bonding-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported
 
-BROADBAND PROCESSOR ARCHITECTURE
-P:	Arnd Bergmann
-M:	arnd@arndb.de
-L:	linuxppc-dev@ozlabs.org
-W:	http://www.penguinppc.org/ppc64/
-S:	Supported
-
 BROADCOM B44 10/100 ETHERNET DRIVER
 P:	Gary Zambrano
 M:	zambrano@broadcom.com
@@ -1051,6 +1044,14 @@ M:	jdmason@kudzu.us
 L:	linux-kernel@vger.kernel.org
 L:	discuss@x86-64.org
 S:	Maintained
+
+CELL BROADBAND ENGINE ARCHITECTURE
+P:	Arnd Bergmann
+M:	arnd@arndb.de
+L:	linuxppc-dev@ozlabs.org
+L:	cbe-oss-dev@ozlabs.org
+W:	http://www.ibm.com/developerworks/power/cell/
+S:	Supported
 
 CFAG12864B LCD DRIVER
 P:	Miguel Ojeda Sandonis
@@ -1238,6 +1239,20 @@ L:	ivtv-users@ivtvdriver.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 S:	Maintained
+
+CXGB3 ETHERNET DRIVER (CXGB3)
+P:	Divy Le Ray
+M:	divy@chelsio.com
+L:	netdev@vger.kernel.org
+W:	http://www.chelsio.com
+S:	Supported
+
+CXGB3 IWARP RNIC DRIVER (IW_CXGB3)
+P:	Steve Wise
+M:	swise@chelsio.com
+L:	general@lists.openfabrics.org
+W:	http://www.openfabrics.org
+S:	Supported
 
 CYBERPRO FB DRIVER
 P:	Russell King
@@ -1645,8 +1660,10 @@ W:	http://linux-fbdev.sourceforge.net/
 S:	Maintained
 
 FREESCALE DMA DRIVER
-P;	Zhang Wei
-M:	wei.zhang@freescale.com
+P:	Li Yang
+M:	leoli@freescale.com
+P:	Zhang Wei
+M:	zw@zh-kernel.org
 L:	linuxppc-embedded@ozlabs.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -3142,7 +3159,7 @@ PCI ERROR RECOVERY
 P:	Linas Vepstas
 M:	linas@austin.ibm.com
 L:	linux-kernel@vger.kernel.org
-L:	linux-pci@atrey.karlin.mff.cuni.cz
+L:	linux-pci@vger.kernel.org
 S:	Supported
 
 PCI SUBSYSTEM
@@ -3776,6 +3793,14 @@ M:	dbrownell@users.sourceforge.net
 L:	spi-devel-general@lists.sourceforge.net
 S:	Maintained
 
+SPU FILE SYSTEM
+P:	Jeremy Kerr
+M:	jk@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
+L:	cbe-oss-dev@ozlabs.org
+W:	http://www.ibm.com/developerworks/power/cell/
+S:	Supported
+
 STABLE BRANCH:
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
@@ -4348,6 +4373,14 @@ M:	hjk@linutronix.de
 P:	Greg Kroah-Hartman
 M:	gregkh@suse.de
 L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+UTIL-LINUX-NG PACKAGE
+P:	Karel Zak
+M:	kzak@redhat.com
+L:	util-linux-ng@vger.kernel.org
+W:	http://kernel.org/~kzak/util-linux-ng/
+T:	git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git
 S:	Maintained
 
 VFAT/FAT/MSDOS FILESYSTEM:

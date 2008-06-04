@@ -227,14 +227,14 @@ void __init tsc_calibrate(void)
 	/* hpet or pmtimer available ? */
 	if (!hpet && !pm1 && !pm2) {
 		printk(KERN_INFO "TSC calibrated against PIT\n");
-		return;
+		goto out;
 	}
 
 	/* Check, whether the sampling was disturbed by an SMI */
 	if (tsc1 == ULONG_MAX || tsc2 == ULONG_MAX) {
 		printk(KERN_WARNING "TSC calibration disturbed by SMI, "
 		       "using PIT calibration result\n");
-		return;
+		goto out;
 	}
 
 	tsc2 = (tsc2 - tsc1) * 1000000L;
@@ -255,6 +255,7 @@ void __init tsc_calibrate(void)
 
 	tsc_khz = tsc2 / tsc1;
 
+out:
 	for_each_possible_cpu(cpu)
 		set_cyc2ns_scale(tsc_khz, cpu);
 }

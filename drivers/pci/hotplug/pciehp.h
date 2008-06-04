@@ -97,6 +97,7 @@ struct controller {
 	u8 cap_base;
 	struct timer_list poll_timer;
 	volatile int cmd_busy;
+	unsigned int no_cmd_complete:1;
 };
 
 #define INT_BUTTON_IGNORE		0
@@ -135,6 +136,7 @@ struct controller {
 #define PWR_LED_PRSN	0x00000010
 #define HP_SUPR_RM_SUP	0x00000020
 #define EMI_PRSN	0x00020000
+#define NO_CMD_CMPL_SUP	0x00040000
 
 #define ATTN_BUTTN(ctrl)	((ctrl)->slot_cap & ATTN_BUTTN_PRSN)
 #define POWER_CTRL(ctrl)	((ctrl)->slot_cap & PWR_CTRL_PRSN)
@@ -143,13 +145,14 @@ struct controller {
 #define PWR_LED(ctrl)		((ctrl)->slot_cap & PWR_LED_PRSN)
 #define HP_SUPR_RM(ctrl)	((ctrl)->slot_cap & HP_SUPR_RM_SUP)
 #define EMI(ctrl)		((ctrl)->slot_cap & EMI_PRSN)
+#define NO_CMD_CMPL(ctrl)	((ctrl)->slot_cap & NO_CMD_CMPL_SUP)
 
 extern int pciehp_sysfs_enable_slot(struct slot *slot);
 extern int pciehp_sysfs_disable_slot(struct slot *slot);
-extern u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl);
-extern u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl);
-extern u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl);
-extern u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl);
+extern u8 pciehp_handle_attention_button(struct slot *p_slot);
+  extern u8 pciehp_handle_switch_change(struct slot *p_slot);
+extern u8 pciehp_handle_presence_change(struct slot *p_slot);
+extern u8 pciehp_handle_power_fault(struct slot *p_slot);
 extern int pciehp_configure_device(struct slot *p_slot);
 extern int pciehp_unconfigure_device(struct slot *p_slot);
 extern void pciehp_queue_pushbutton_work(struct work_struct *work);

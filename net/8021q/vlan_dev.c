@@ -663,6 +663,8 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
+	dev->features |= real_dev->features & real_dev->vlan_features;
+
 	/* ipv6 shared card related stuff */
 	dev->dev_id = real_dev->dev_id;
 

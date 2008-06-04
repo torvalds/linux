@@ -24,7 +24,7 @@
 
 MODULE_AUTHOR("Kristoffer Ericson <kristoffer.ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 710/720/728 touchscreen driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
 
 struct jornada_ts {
 	struct input_dev *dev;

@@ -444,7 +444,7 @@ static void __iomem *hptiop_map_pci_bar(struct hptiop_hba *hba, int index)
 	if (!(pci_resource_flags(pcidev, index) & IORESOURCE_MEM)) {
 		printk(KERN_ERR "scsi%d: pci resource invalid\n",
 				hba->host->host_no);
-		return 0;
+		return NULL;
 	}
 
 	mem_base_phy = pci_resource_start(pcidev, index);
@@ -454,7 +454,7 @@ static void __iomem *hptiop_map_pci_bar(struct hptiop_hba *hba, int index)
 	if (!mem_base_virt) {
 		printk(KERN_ERR "scsi%d: Fail to ioremap memory space\n",
 				hba->host->host_no);
-		return 0;
+		return NULL;
 	}
 	return mem_base_virt;
 }
@@ -476,11 +476,11 @@ static void hptiop_unmap_pci_bar_itl(struct hptiop_hba *hba)
 static int hptiop_map_pci_bar_mv(struct hptiop_hba *hba)
 {
 	hba->u.mv.regs = hptiop_map_pci_bar(hba, 0);
-	if (hba->u.mv.regs == 0)
+	if (hba->u.mv.regs == NULL)
 		return -1;
 
 	hba->u.mv.mu = hptiop_map_pci_bar(hba, 2);
-	if (hba->u.mv.mu == 0) {
+	if (hba->u.mv.mu == NULL) {
 		iounmap(hba->u.mv.regs);
 		return -1;
 	}
@@ -1210,8 +1210,8 @@ static void hptiop_remove(struct pci_dev *pcidev)
 
 static struct hptiop_adapter_ops hptiop_itl_ops = {
 	.iop_wait_ready    = iop_wait_ready_itl,
-	.internal_memalloc = 0,
-	.internal_memfree  = 0,
+	.internal_memalloc = NULL,
+	.internal_memfree  = NULL,
 	.map_pci_bar       = hptiop_map_pci_bar_itl,
 	.unmap_pci_bar     = hptiop_unmap_pci_bar_itl,
 	.enable_intr       = hptiop_enable_intr_itl,

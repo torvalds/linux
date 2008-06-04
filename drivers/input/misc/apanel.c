@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/input-polldev.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>

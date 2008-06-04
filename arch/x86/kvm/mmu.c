@@ -1996,7 +1996,7 @@ static struct shrinker mmu_shrinker = {
 	.seeks = DEFAULT_SEEKS * 10,
 };
 
-void mmu_destroy_caches(void)
+static void mmu_destroy_caches(void)
 {
 	if (pte_chain_cache)
 		kmem_cache_destroy(pte_chain_cache);

@@ -116,6 +116,7 @@ MODULE_PARM_DESC(workaround_interval,
 #define OID_802_11_ENCRYPTION_STATUS		ccpu2(0x0d01011b)
 #define OID_802_11_ADD_KEY			ccpu2(0x0d01011d)
 #define OID_802_11_REMOVE_KEY			ccpu2(0x0d01011e)
+#define OID_802_11_ASSOCIATION_INFORMATION	ccpu2(0x0d01011f)
 #define OID_802_11_PMKID			ccpu2(0x0d010123)
 #define OID_802_11_NETWORK_TYPES_SUPPORTED	ccpu2(0x0d010203)
 #define OID_802_11_NETWORK_TYPE_IN_USE		ccpu2(0x0d010204)
@@ -269,6 +270,26 @@ struct ndis_config_param {
 	__le32 type;
 	__le32 value_offs;
 	__le32 value_length;
+} __attribute__((packed));
+
+struct ndis_80211_assoc_info {
+	__le32 length;
+	__le16 req_ies;
+	struct req_ie {
+		__le16 capa;
+		__le16 listen_interval;
+		u8 cur_ap_address[6];
+	} req_ie;
+	__le32 req_ie_length;
+	__le32 offset_req_ies;
+	__le16 resp_ies;
+	struct resp_ie {
+		__le16 capa;
+		__le16 status_code;
+		__le16 assoc_id;
+	} resp_ie;
+	__le32 resp_ie_length;
+	__le32 offset_resp_ies;
 } __attribute__((packed));
 
 /* these have to match what is in wpa_supplicant */
@@ -674,6 +695,12 @@ static int get_bssid(struct usbnet *usbdev, u8 bssid[ETH_ALEN])
 	return ret;
 }
 
+static int get_association_info(struct usbnet *usbdev,
+			struct ndis_80211_assoc_info *info, int len)
+{
+	return rndis_query_oid(usbdev, OID_802_11_ASSOCIATION_INFORMATION,
+				info, &len);
+}
 
 static int is_associated(struct usbnet *usbdev)
 {
@@ -2182,11 +2209,40 @@ static void rndis_wext_worker(struct work_struct *work)
 	struct usbnet *usbdev = priv->usbdev;
 	union iwreq_data evt;
 	unsigned char bssid[ETH_ALEN];
-	int ret;
+	struct ndis_80211_assoc_info *info;
+	int assoc_size = sizeof(*info) + IW_CUSTOM_MAX + 32;
+	int ret, offset;
 
 	if (test_and_clear_bit(WORK_CONNECTION_EVENT, &priv->work_pending)) {
-		ret = get_bssid(usbdev, bssid);
+		info = kzalloc(assoc_size, GFP_KERNEL);
+		if (!info)
+			goto get_bssid;
 
+		/* Get association info IEs from device and send them back to
+		 * userspace. */
+		ret = get_association_info(usbdev, info, assoc_size);
+		if (!ret) {
+			evt.data.length = le32_to_cpu(info->req_ie_length);
+			if (evt.data.length > 0) {
+				offset = le32_to_cpu(info->offset_req_ies);
+				wireless_send_event(usbdev->net,
+					IWEVASSOCREQIE, &evt,
+					(char *)info + offset);
+			}
+
+			evt.data.length = le32_to_cpu(info->resp_ie_length);
+			if (evt.data.length > 0) {
+				offset = le32_to_cpu(info->offset_resp_ies);
+				wireless_send_event(usbdev->net,
+					IWEVASSOCRESPIE, &evt,
+					(char *)info + offset);
+			}
+		}
+
+		kfree(info);
+
+get_bssid:
+		ret = get_bssid(usbdev, bssid);
 		if (!ret) {
 			evt.data.flags = 0;
 			evt.data.length = 0;
@@ -2413,6 +2469,11 @@ static int bcm4320_early_init(struct usbnet *dev)
 		priv->param_power_save = 0;
 	else if (priv->param_power_save > 2)
 		priv->param_power_save = 2;
+
+	if (priv->param_power_output < 0)
+		priv->param_power_output = 0;
+	else if (priv->param_power_output > 3)
+		priv->param_power_output = 3;
 
 	if (priv->param_roamtrigger < -80)
 		priv->param_roamtrigger = -80;

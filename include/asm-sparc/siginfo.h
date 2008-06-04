@@ -1,7 +1,3 @@
-/* $Id: siginfo.h,v 1.9 2002/02/08 03:57:18 davem Exp $
- * siginfo.c:
- */
-
 #ifndef _SPARC_SIGINFO_H
 #define _SPARC_SIGINFO_H
 
