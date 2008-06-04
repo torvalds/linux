@@ -902,7 +902,10 @@ struct sctp_transport {
 	 *		calculation completes (i.e. the DATA chunk
 	 *		is SACK'd) clear this flag.
 	 */
-	int rto_pending;
+	__u8 rto_pending;
+
+	/* Flag to track the current fast recovery state */
+	__u8 fast_recovery;
 
 	/*
 	 * These are the congestion stats.
@@ -920,6 +923,9 @@ struct sctp_transport {
 
 	/* Data that has been sent, but not acknowledged. */
 	__u32 flight_size;
+
+	/* TSN marking the fast recovery exit point */
+	__u32 fast_recovery_exit;
 
 	/* Destination */
 	struct dst_entry *dst;
