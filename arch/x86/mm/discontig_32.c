@@ -328,6 +328,7 @@ unsigned long __init setup_memory(void)
 {
 	int nid;
 	unsigned long system_start_pfn, system_max_low_pfn;
+	long kva_target_pfn;
 
 	/*
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
@@ -344,11 +345,17 @@ unsigned long __init setup_memory(void)
 	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
 
 	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
-	kva_start_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
-	kva_start_pfn = find_e820_area(kva_start_pfn<<PAGE_SHIFT,
-				max_low_pfn<<PAGE_SHIFT,
-				kva_pages<<PAGE_SHIFT,
-				PTRS_PER_PTE<<PAGE_SHIFT) >> PAGE_SHIFT;
+	kva_target_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
+	do {
+		kva_start_pfn = find_e820_area(kva_target_pfn<<PAGE_SHIFT,
+					max_low_pfn<<PAGE_SHIFT,
+					kva_pages<<PAGE_SHIFT,
+					PTRS_PER_PTE<<PAGE_SHIFT) >> PAGE_SHIFT;
+		kva_target_pfn -= PTRS_PER_PTE;
+	} while (kva_start_pfn == -1UL && kva_target_pfn > min_low_pfn);
+
+	if (kva_start_pfn == -1UL)
+		panic("Can not get kva space\n");
 
 	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
 		kva_start_pfn, max_low_pfn);
