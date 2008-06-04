@@ -82,7 +82,7 @@
 
 
 struct dataflash {
-	u8			command[4];
+	uint8_t			command[4];
 	char			name[24];
 
 	unsigned		partitioned:1;
@@ -150,7 +150,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct spi_transfer	x = { .tx_dma = 0, };
 	struct spi_message	msg;
 	unsigned		blocksize = priv->page_size << 3;
-	u8			*command;
+	uint8_t			*command;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: erase addr=0x%x len 0x%x\n",
 			spi->dev.bus_id,
@@ -182,8 +182,8 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 		pageaddr = pageaddr << priv->page_offset;
 
 		command[0] = do_block ? OP_ERASE_BLOCK : OP_ERASE_PAGE;
-		command[1] = (u8)(pageaddr >> 16);
-		command[2] = (u8)(pageaddr >> 8);
+		command[1] = (uint8_t)(pageaddr >> 16);
+		command[2] = (uint8_t)(pageaddr >> 8);
 		command[3] = 0;
 
 		DEBUG(MTD_DEBUG_LEVEL3, "ERASE %s: (%x) %x %x %x [%i]\n",
@@ -234,7 +234,7 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct spi_transfer	x[2] = { { .tx_dma = 0, }, };
 	struct spi_message	msg;
 	unsigned int		addr;
-	u8			*command;
+	uint8_t			*command;
 	int			status;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: read 0x%x..0x%x\n",
@@ -274,9 +274,9 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	 * fewer "don't care" bytes.  Both buffers stay unchanged.
 	 */
 	command[0] = OP_READ_CONTINUOUS;
-	command[1] = (u8)(addr >> 16);
-	command[2] = (u8)(addr >> 8);
-	command[3] = (u8)(addr >> 0);
+	command[1] = (uint8_t)(addr >> 16);
+	command[2] = (uint8_t)(addr >> 8);
+	command[3] = (uint8_t)(addr >> 0);
 	/* plus 4 "don't care" bytes */
 
 	status = spi_sync(priv->spi, &msg);
@@ -311,7 +311,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t			remaining = len;
 	u_char			*writebuf = (u_char *) buf;
 	int			status = -EINVAL;
-	u8			*command;
+	uint8_t			*command;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: write 0x%x..0x%x\n",
 		spi->dev.bus_id, (unsigned)to, (unsigned)(to + len));
@@ -539,16 +539,16 @@ struct flash_info {
 	 * a high byte of zero plus three data bytes: the manufacturer id,
 	 * then a two byte device id.
 	 */
-	u32		jedec_id;
+	uint32_t	jedec_id;
 
 	/* The size listed here is what works with OPCODE_SE, which isn't
 	 * necessarily called a "sector" by the vendor.
 	 */
 	unsigned	nr_pages;
-	u16		pagesize;
-	u16		pageoffset;
+	uint16_t	pagesize;
+	uint16_t	pageoffset;
 
-	u16		flags;
+	uint16_t	flags;
 #define	SUP_POW2PS	0x02
 #define	IS_POW2PS	0x01
 };
@@ -582,9 +582,9 @@ static struct flash_info __devinitdata dataflash_data [] = {
 static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
 {
 	int			tmp;
-	u8			code = OP_READ_ID;
-	u8			id[3];
-	u32			jedec;
+	uint8_t			code = OP_READ_ID;
+	uint8_t			id[3];
+	uint32_t		jedec;
 	struct flash_info	*info;
 	int status;
 
