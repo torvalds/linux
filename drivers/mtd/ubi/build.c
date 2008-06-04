@@ -355,15 +355,34 @@ static void kill_volumes(struct ubi_device *ubi)
 }
 
 /**
+ * free_user_volumes - free all user volumes.
+ * @ubi: UBI device description object
+ *
+ * Normally the volumes are freed at the release function of the volume device
+ * objects. However, on error paths the volumes have to be freed before the
+ * device objects have been initialized.
+ */
+static void free_user_volumes(struct ubi_device *ubi)
+{
+	int i;
+
+	for (i = 0; i < ubi->vtbl_slots; i++)
+		if (ubi->volumes[i]) {
+			kfree(ubi->volumes[i]->eba_tbl);
+			kfree(ubi->volumes[i]);
+		}
+}
+
+/**
  * uif_init - initialize user interfaces for an UBI device.
  * @ubi: UBI device description object
  *
  * This function returns zero in case of success and a negative error code in
- * case of failure.
+ * case of failure. Note, this function destroys all volumes if it failes.
  */
 static int uif_init(struct ubi_device *ubi)
 {
-	int i, err;
+	int i, err, do_free = 0;
 	dev_t dev;
 
 	sprintf(ubi->ubi_name, UBI_NAME_STR "%d", ubi->ubi_num);
@@ -410,10 +429,13 @@ static int uif_init(struct ubi_device *ubi)
 
 out_volumes:
 	kill_volumes(ubi);
+	do_free = 0;
 out_sysfs:
 	ubi_sysfs_close(ubi);
 	cdev_del(&ubi->cdev);
 out_unreg:
+	if (do_free)
+		free_user_volumes(ubi);
 	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
 	ubi_err("cannot initialize UBI %s, error %d", ubi->ubi_name, err);
 	return err;
@@ -722,7 +744,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
 int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 {
 	struct ubi_device *ubi;
-	int i, err;
+	int i, err, do_free = 1;
 
 	/*
 	 * Check if we already have the same MTD device attached.
@@ -822,7 +844,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 
 	err = uif_init(ubi);
 	if (err)
-		goto out_detach;
+		goto out_nofree;
 
 	ubi->bgt_thread = kthread_create(ubi_thread, ubi, ubi->bgt_name);
 	if (IS_ERR(ubi->bgt_thread)) {
@@ -859,8 +881,12 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 
 out_uif:
 	uif_close(ubi);
+out_nofree:
+	do_free = 0;
 out_detach:
 	ubi_wl_close(ubi);
+	if (do_free)
+		free_user_volumes(ubi);
 	free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
 out_free:
