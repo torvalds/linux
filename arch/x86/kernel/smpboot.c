@@ -181,13 +181,12 @@ static void map_cpu_to_logical_apicid(void)
 	map_cpu_to_node(cpu, node);
 }
 
-static void unmap_cpu_to_logical_apicid(int cpu)
+static void numa_remove_cpu(int cpu)
 {
 	cpu_2_logical_apicid[cpu] = BAD_APICID;
 	unmap_cpu_to_node(cpu);
 }
 #else
-#define unmap_cpu_to_logical_apicid(cpu) do {} while (0)
 #define map_cpu_to_logical_apicid()  do {} while (0)
 #endif
 
@@ -946,10 +945,7 @@ restore_state:
 
 	if (boot_error) {
 		/* Try to put things back the way they were before ... */
-		unmap_cpu_to_logical_apicid(cpu);
-#ifdef CONFIG_X86_64
 		numa_remove_cpu(cpu); /* was set by numa_add_cpu */
-#endif
 		cpu_clear(cpu, cpu_callout_map); /* was set by do_boot_cpu() */
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
 		cpu_clear(cpu, cpu_present_map);
@@ -1244,7 +1240,7 @@ void cpu_exit_clear(void)
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
 
-	unmap_cpu_to_logical_apicid(cpu);
+	numa_remove_cpu(cpu);
 }
 #  endif /* CONFIG_X86_32 */
 
