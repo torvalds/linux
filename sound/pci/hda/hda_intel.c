@@ -1104,7 +1104,7 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
  */
 
 static unsigned int azx_max_codecs[] __devinitdata = {
-	[AZX_DRIVER_ICH] = 3,
+	[AZX_DRIVER_ICH] = 4,		/* Some ICH9 boards use SD3 */
 	[AZX_DRIVER_SCH] = 3,
 	[AZX_DRIVER_ATI] = 4,
 	[AZX_DRIVER_ATIHDMI] = 4,
