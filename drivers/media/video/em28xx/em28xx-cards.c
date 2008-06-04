@@ -196,6 +196,29 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		} },
 	},
+	[EM2880_BOARD_PINNACLE_PCTV_HD_PRO] = {
+		.name           = "Pinnacle PCTV HD Pro Stick",
+		.vchannels      = 3,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.tuner_type     = TUNER_XC2028,
+		.mts_firmware   = 1,
+		.has_12mhz_i2s  = 1,
+		.has_dvb        = 1,
+		.decoder        = EM28XX_TVP5150,
+		.input          = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = 0,
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = 1,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = 1,
+		} },
+	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS",
 		.vchannels    = 3,
@@ -417,6 +440,8 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x2304, 0x021a),
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
+	{ USB_DEVICE(0x2304, 0x0227),
+			.driver_info = EM2880_BOARD_PINNACLE_PCTV_HD_PRO },
 	{ USB_DEVICE(0x2040, 0x6500),
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
 	{ USB_DEVICE(0x2040, 0x6502),
@@ -544,6 +569,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
 		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
 		msleep(50);
@@ -577,6 +603,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 		/* FIXME: Better to specify the needed IF */
 		ctl->demod = XC3028_FE_DEFAULT;
 		break;

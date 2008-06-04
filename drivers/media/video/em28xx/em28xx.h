@@ -55,6 +55,7 @@
 #define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
 #define EM2800_BOARD_VGEAR_POCKETTV             15
 #define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
+#define EM2880_BOARD_PINNACLE_PCTV_HD_PRO	17
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

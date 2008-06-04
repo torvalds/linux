@@ -5,6 +5,7 @@
 
  (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
 	- Fixes for the driver to properly work with HVR-950
+	- Fixes for the driver to properly work with Pinnacle PCTV HD Pro Stick
 
  (c) 2008 Aidan Thornton <makosoft@googlemail.com>
 
@@ -399,6 +400,7 @@ static int dvb_init(struct em28xx *dev)
 	/* init frontend */
 	switch (dev->model) {
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 		dvb->frontend = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
 					   &dev->i2c_adap);
