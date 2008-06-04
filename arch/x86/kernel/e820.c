@@ -771,7 +771,7 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 #  define MAX_ARCH_PFN		(1ULL<<(32-PAGE_SHIFT))
 # endif
 #else /* CONFIG_X86_32 */
-# define MAX_ARCH_PFN MAXMEM<<PAGE_SHIFT
+# define MAX_ARCH_PFN MAXMEM>>PAGE_SHIFT
 #endif
 
 /*
