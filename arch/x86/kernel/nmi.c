@@ -88,7 +88,6 @@ static inline unsigned int get_timer_irqs(int cpu)
 #endif
 }
 
-#ifdef CONFIG_X86_64
 /* Run after command line and cpu_init init, but before all other checks */
 void nmi_watchdog_default(void)
 {
@@ -96,7 +95,6 @@ void nmi_watchdog_default(void)
 		return;
 	nmi_watchdog = NMI_NONE;
 }
-#endif
 
 #ifdef CONFIG_SMP
 /*
