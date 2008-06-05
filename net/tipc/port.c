@@ -244,11 +244,8 @@ u32 tipc_createport_raw(void *usr_handle,
 	p_ptr->publ.max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->publ.ref = ref;
 	msg = &p_ptr->publ.phdr;
-	msg_init(msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG, LONG_H_SIZE, 0);
-	msg_set_orignode(msg, tipc_own_addr);
-	msg_set_prevnode(msg, tipc_own_addr);
+	msg_init(msg, importance, TIPC_NAMED_MSG, LONG_H_SIZE, 0);
 	msg_set_origport(msg, ref);
-	msg_set_importance(msg,importance);
 	p_ptr->last_in_seqno = 41;
 	p_ptr->sent = 1;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
@@ -407,7 +404,6 @@ static struct sk_buff *port_build_proto_msg(u32 destport, u32 destnode,
 		msg_set_errcode(msg, err);
 		msg_set_destport(msg, destport);
 		msg_set_origport(msg, origport);
-		msg_set_destnode(msg, destnode);
 		msg_set_orignode(msg, orignode);
 		msg_set_transp_seqno(msg, seqno);
 		msg_set_msgcnt(msg, ack);
@@ -451,7 +447,6 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	msg_init(rmsg, imp, msg_type(msg), hdr_sz, msg_orignode(msg));
 	msg_set_errcode(rmsg, err);
 	msg_set_destport(rmsg, msg_origport(msg));
-	msg_set_prevnode(rmsg, tipc_own_addr);
 	msg_set_origport(rmsg, msg_destport(msg));
 	if (msg_short(msg))
 		msg_set_orignode(rmsg, tipc_own_addr);
