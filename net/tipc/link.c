@@ -2674,10 +2674,12 @@ int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 	u32 pack_sz = link_max_pkt(l_ptr);
 	u32 fragm_sz = pack_sz - INT_H_SIZE;
 	u32 fragm_no = 1;
-	u32 destaddr = msg_destnode(inmsg);
+	u32 destaddr;
 
 	if (msg_short(inmsg))
 		destaddr = l_ptr->addr;
+	else
+		destaddr = msg_destnode(inmsg);
 
 	if (msg_routed(inmsg))
 		msg_set_prevnode(inmsg, tipc_own_addr);
