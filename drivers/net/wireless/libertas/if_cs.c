@@ -205,8 +205,8 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 /*
  * Used to send or receive data packets:
  */
-#define IF_CS_HOST_WRITE		0x00000016
-#define IF_CS_HOST_WRITE_LEN		0x00000014
+#define IF_CS_WRITE			0x00000016
+#define IF_CS_WRITE_LEN			0x00000014
 #define IF_CS_READ			0x00000010
 #define IF_CS_READ_LEN			0x00000024
 
@@ -214,10 +214,10 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
  * Used to send commands (and to send firmware block) and to
  * receive command responses:
  */
-#define IF_CS_HOST_CMD			0x0000001A
-#define IF_CS_HOST_CMD_LEN		0x00000018
-#define IF_CS_CARD_CMD			0x00000012
-#define IF_CS_CARD_CMD_LEN		0x00000030
+#define IF_CS_CMD			0x0000001A
+#define IF_CS_CMD_LEN			0x00000018
+#define IF_CS_RESP			0x00000012
+#define IF_CS_RESP_LEN			0x00000030
 
 /*
  * The card status registers shows what the card/firmware actually
@@ -255,8 +255,8 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
  * This is used to for handshaking with the card's bootloader/helper image
  * to synchronize downloading of firmware blocks.
  */
-#define IF_CS_CARD_SQ_READ_LOW		0x00000028
-#define IF_CS_CARD_SQ_HELPER_OK		0x10
+#define IF_CS_SQ_READ_LOW		0x00000028
+#define IF_CS_SQ_HELPER_OK		0x10
 
 /*
  * The scratch register tells us ...
@@ -305,8 +305,8 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 
 	/* Is hardware ready? */
 	while (1) {
-		u16 val = if_cs_read16(card, IF_CS_CARD_STATUS);
-		if (val & IF_CS_BIT_COMMAND)
+		u16 status = if_cs_read16(card, IF_CS_CARD_STATUS);
+		if (status & IF_CS_BIT_COMMAND)
 			break;
 		if (++loops > 100) {
 			lbs_pr_err("card not ready for commands\n");
@@ -315,12 +315,12 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 		mdelay(1);
 	}
 
-	if_cs_write16(card, IF_CS_HOST_CMD_LEN, nb);
+	if_cs_write16(card, IF_CS_CMD_LEN, nb);
 
-	if_cs_write16_rep(card, IF_CS_HOST_CMD, buf, nb / 2);
+	if_cs_write16_rep(card, IF_CS_CMD, buf, nb / 2);
 	/* Are we supposed to transfer an odd amount of bytes? */
 	if (nb & 1)
-		if_cs_write8(card, IF_CS_HOST_CMD, buf[nb-1]);
+		if_cs_write8(card, IF_CS_CMD, buf[nb-1]);
 
 	/* "Assert the download over interrupt command in the Host
 	 * status register" */
@@ -351,12 +351,12 @@ static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 	status = if_cs_read16(card, IF_CS_CARD_STATUS);
 	BUG_ON((status & IF_CS_BIT_TX) == 0);
 
-	if_cs_write16(card, IF_CS_HOST_WRITE_LEN, nb);
+	if_cs_write16(card, IF_CS_WRITE_LEN, nb);
 
 	/* write even number of bytes, then odd byte if necessary */
-	if_cs_write16_rep(card, IF_CS_HOST_WRITE, buf, nb / 2);
+	if_cs_write16_rep(card, IF_CS_WRITE, buf, nb / 2);
 	if (nb & 1)
-		if_cs_write8(card, IF_CS_HOST_WRITE, buf[nb-1]);
+		if_cs_write8(card, IF_CS_WRITE, buf[nb-1]);
 
 	if_cs_write16(card, IF_CS_HOST_STATUS, IF_CS_BIT_TX);
 	if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_TX);
@@ -384,16 +384,16 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 		goto out;
 	}
 
-	*len = if_cs_read16(priv->card, IF_CS_CARD_CMD_LEN);
+	*len = if_cs_read16(priv->card, IF_CS_RESP_LEN);
 	if ((*len == 0) || (*len > LBS_CMD_BUFFER_SIZE)) {
 		lbs_pr_err("card cmd buffer has invalid # of bytes (%d)\n", *len);
 		goto out;
 	}
 
 	/* read even number of bytes, then odd byte if necessary */
-	if_cs_read16_rep(priv->card, IF_CS_CARD_CMD, data, *len/sizeof(u16));
+	if_cs_read16_rep(priv->card, IF_CS_RESP, data, *len/sizeof(u16));
 	if (*len & 1)
-		data[*len-1] = if_cs_read8(priv->card, IF_CS_CARD_CMD);
+		data[*len-1] = if_cs_read8(priv->card, IF_CS_RESP);
 
 	/* This is a workaround for a firmware that reports too much
 	 * bytes */
@@ -501,12 +501,10 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 	}
 
 	if (cause & IF_CS_BIT_EVENT) {
-		u16 event = if_cs_read16(priv->card, IF_CS_CARD_STATUS)
-			& IF_CS_CARD_STATUS_MASK;
+		u16 status = if_cs_read16(priv->card, IF_CS_CARD_STATUS);
 		if_cs_write16(priv->card, IF_CS_HOST_INT_CAUSE,
 			IF_CS_BIT_EVENT);
-		lbs_deb_cs("host event 0x%04x\n", event);
-		lbs_queue_event(priv, event >> 8 & 0xff);
+		lbs_queue_event(priv, (status & IF_CS_CARD_STATUS_MASK) >> 8);
 	}
 
 	/* Clear interrupt cause */
@@ -574,11 +572,11 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 
 		/* "write the number of bytes to be sent to the I/O Command
 		 * write length register" */
-		if_cs_write16(card, IF_CS_HOST_CMD_LEN, count);
+		if_cs_write16(card, IF_CS_CMD_LEN, count);
 
 		/* "write this to I/O Command port register as 16 bit writes */
 		if (count)
-			if_cs_write16_rep(card, IF_CS_HOST_CMD,
+			if_cs_write16_rep(card, IF_CS_CMD,
 				&fw->data[sent],
 				count >> 1);
 
@@ -635,15 +633,15 @@ static int if_cs_prog_real(struct if_cs_card *card)
 	}
 	lbs_deb_cs("fw size %td\n", fw->size);
 
-	ret = if_cs_poll_while_fw_download(card, IF_CS_CARD_SQ_READ_LOW,
-		IF_CS_CARD_SQ_HELPER_OK);
+	ret = if_cs_poll_while_fw_download(card, IF_CS_SQ_READ_LOW,
+		IF_CS_SQ_HELPER_OK);
 	if (ret < 0) {
 		lbs_pr_err("helper firmware doesn't answer\n");
 		goto err_release;
 	}
 
 	for (sent = 0; sent < fw->size; sent += len) {
-		len = if_cs_read16(card, IF_CS_CARD_SQ_READ_LOW);
+		len = if_cs_read16(card, IF_CS_SQ_READ_LOW);
 		if (len & 1) {
 			retry++;
 			lbs_pr_info("odd, need to retry this firmware block\n");
@@ -661,9 +659,9 @@ static int if_cs_prog_real(struct if_cs_card *card)
 		}
 
 
-		if_cs_write16(card, IF_CS_HOST_CMD_LEN, len);
+		if_cs_write16(card, IF_CS_CMD_LEN, len);
 
-		if_cs_write16_rep(card, IF_CS_HOST_CMD,
+		if_cs_write16_rep(card, IF_CS_CMD,
 			&fw->data[sent],
 			(len+1) >> 1);
 		if_cs_write8(card, IF_CS_HOST_STATUS, IF_CS_BIT_COMMAND);
