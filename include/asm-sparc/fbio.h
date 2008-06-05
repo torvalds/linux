@@ -1,6 +1,9 @@
 #ifndef __LINUX_FBIO_H
 #define __LINUX_FBIO_H
 
+#include <linux/compiler.h>
+#include <linux/types.h>
+
 /* Constants used for fbio SunOS compatibility */
 /* (C) 1996 Miguel de Icaza */
 
@@ -37,6 +40,9 @@
 #define FBTYPE_CREATOR          22
 #define FBTYPE_PCI_IGA1682	23
 #define FBTYPE_P9100COLOR	24
+
+#define FBTYPE_PCI_GENERIC	1000
+#define FBTYPE_PCI_MACH64	1001
 
 /* fbio ioctls */
 /* Returned by FBIOGTYPE */
@@ -97,8 +103,8 @@ struct fbcursor {
         struct fbcurpos hot;    /* cursor hot spot */
         struct fbcmap cmap;     /* color map info */
         struct fbcurpos size;   /* cursor bit map size */
-        char *image;            /* cursor image bits */
-        char *mask;             /* cursor mask bits */
+        char __user *image;     /* cursor image bits */
+        char __user *mask;      /* cursor mask bits */
 };
 
 /* set/get cursor attributes/shape */
@@ -293,5 +299,32 @@ struct fb_clut32 {
 #define LEO_LC_SS1_KRN_MAP     0x01008000
 #define LEO_LD_GBL_MAP         0x01009000
 #define LEO_UNK2_MAP           0x0100a000
+
+#ifdef __KERNEL__
+struct  fbcmap32 {
+	int             index;          /* first element (0 origin) */
+	int             count;
+	u32		red;
+	u32		green;
+	u32		blue;
+};
+
+#define FBIOPUTCMAP32	_IOW('F', 3, struct fbcmap32)
+#define FBIOGETCMAP32	_IOW('F', 4, struct fbcmap32)
+
+struct fbcursor32 {
+	short set;		/* what to set, choose from the list above */
+	short enable;		/* cursor on/off */
+	struct fbcurpos pos;	/* cursor position */
+	struct fbcurpos hot;	/* cursor hot spot */
+	struct fbcmap32 cmap;	/* color map info */
+	struct fbcurpos size;	/* cursor bit map size */
+	u32	image;		/* cursor image bits */
+	u32	mask;		/* cursor mask bits */
+};
+
+#define FBIOSCURSOR32	_IOW('F', 24, struct fbcursor32)
+#define FBIOGCURSOR32	_IOW('F', 25, struct fbcursor32)
+#endif
 
 #endif /* __LINUX_FBIO_H */
