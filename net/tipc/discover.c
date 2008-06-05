@@ -120,8 +120,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 
 	if (buf) {
 		msg = buf_msg(buf);
-		msg_init(msg, LINK_CONFIG, type, TIPC_OK, DSC_H_SIZE,
-			 dest_domain);
+		msg_init(msg, LINK_CONFIG, type, DSC_H_SIZE, dest_domain);
 		msg_set_non_seq(msg);
 		msg_set_req_links(msg, req_links);
 		msg_set_dest_domain(msg, dest_domain);

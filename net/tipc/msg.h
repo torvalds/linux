@@ -696,7 +696,7 @@ static inline u32 msg_tot_importance(struct tipc_msg *m)
 
 
 static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
-			    u32 err, u32 hsize, u32 destnode)
+			    u32 hsize, u32 destnode)
 {
 	memset(m, 0, hsize);
 	msg_set_version(m);
@@ -705,7 +705,6 @@ static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
 	msg_set_size(m, hsize);
 	msg_set_prevnode(m, tipc_own_addr);
 	msg_set_type(m, type);
-	msg_set_errcode(m, err);
 	if (!msg_short(m)) {
 		msg_set_orignode(m, tipc_own_addr);
 		msg_set_destnode(m, destnode);

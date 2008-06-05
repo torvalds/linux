@@ -468,7 +468,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 	l_ptr->pmsg = (struct tipc_msg *)&l_ptr->proto_msg;
 	msg = l_ptr->pmsg;
-	msg_init(msg, LINK_PROTOCOL, RESET_MSG, TIPC_OK, INT_H_SIZE, l_ptr->addr);
+	msg_init(msg, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_size(msg, sizeof(l_ptr->proto_msg));
 	msg_set_session(msg, (tipc_random & 0xffff));
 	msg_set_bearer_id(msg, b_ptr->identity);
@@ -1128,7 +1128,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 
 			if (bundler) {
 				msg_init(&bundler_hdr, MSG_BUNDLER, OPEN_MSG,
-					 TIPC_OK, INT_H_SIZE, l_ptr->addr);
+					 INT_H_SIZE, l_ptr->addr);
 				skb_copy_to_linear_data(bundler, &bundler_hdr,
 							INT_H_SIZE);
 				skb_trim(bundler, INT_H_SIZE);
@@ -1392,7 +1392,7 @@ again:
 
 	msg_dbg(hdr, ">FRAGMENTING>");
 	msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
-		 TIPC_OK, INT_H_SIZE, msg_destnode(hdr));
+		 INT_H_SIZE, msg_destnode(hdr));
 	msg_set_link_selector(&fragm_hdr, sender->publ.ref);
 	msg_set_size(&fragm_hdr, max_pkt);
 	msg_set_fragm_no(&fragm_hdr, 1);
@@ -2426,7 +2426,7 @@ void tipc_link_changeover(struct link *l_ptr)
 	}
 
 	msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
-		 ORIGINAL_MSG, TIPC_OK, INT_H_SIZE, l_ptr->addr);
+		 ORIGINAL_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
 	msg_set_msgcnt(&tunnel_hdr, msgcount);
 	dbg("Link changeover requires %u tunnel messages\n", msgcount);
@@ -2481,7 +2481,7 @@ void tipc_link_send_duplicate(struct link *l_ptr, struct link *tunnel)
 	struct tipc_msg tunnel_hdr;
 
 	msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
-		 DUPLICATE_MSG, TIPC_OK, INT_H_SIZE, l_ptr->addr);
+		 DUPLICATE_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_msgcnt(&tunnel_hdr, l_ptr->out_queue_size);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
 	iter = l_ptr->first_out;
@@ -2687,7 +2687,7 @@ int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 	/* Prepare reusable fragment header: */
 
 	msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
-		 TIPC_OK, INT_H_SIZE, destaddr);
+		 INT_H_SIZE, destaddr);
 	msg_set_link_selector(&fragm_hdr, msg_link_selector(inmsg));
 	msg_set_long_msgno(&fragm_hdr, mod(l_ptr->long_msg_seq_no++));
 	msg_set_fragm_no(&fragm_hdr, fragm_no);
