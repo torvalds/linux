@@ -297,3 +297,5 @@ static void __exit pwm_exit(void)
 	platform_driver_unregister(&pxa27x_pwm_driver);
 }
 module_exit(pwm_exit);
+
+MODULE_LICENSE("GPL v2");
