@@ -842,13 +842,10 @@ static void port_dispatcher_sigh(void *dummy)
 
 				tipc_port_unlock(p_ptr);
 				if (unlikely(!connected)) {
-					if (unlikely(published))
+					if (tipc_connect2port(dref, &orig))
 						goto reject;
-					tipc_connect2port(dref,&orig);
-				}
-				if (unlikely(msg_origport(msg) != peer_port))
-					goto reject;
-				if (unlikely(msg_orignode(msg) != peer_node))
+				} else if ((msg_origport(msg) != peer_port) ||
+					   (msg_orignode(msg) != peer_node))
 					goto reject;
 				if (unlikely(!cb))
 					goto reject;
