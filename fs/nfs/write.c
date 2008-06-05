@@ -584,13 +584,6 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 		/* Loop over all inode entries and see if we find
 		 * A request for the page we wish to update
 		 */
-		if (new) {
-			if (radix_tree_preload(GFP_NOFS)) {
-				nfs_release_request(new);
-				return ERR_PTR(-ENOMEM);
-			}
-		}
-
 		spin_lock(&inode->i_lock);
 		req = nfs_page_find_request_locked(page);
 		if (req) {
@@ -630,6 +623,10 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 		new = nfs_create_request(ctx, inode, page, offset, bytes);
 		if (IS_ERR(new))
 			return new;
+		if (radix_tree_preload(GFP_NOFS)) {
+			nfs_release_request(new);
+			return ERR_PTR(-ENOMEM);
+		}
 	}
 
 	/* We have a request for our page.
