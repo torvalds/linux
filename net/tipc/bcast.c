@@ -571,7 +571,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		assert(tipc_cltr_bcast_nodes.count != 0);
 		bcbuf_set_acks(buf, tipc_cltr_bcast_nodes.count);
 		msg = buf_msg(buf);
-		msg_set_non_seq(msg);
+		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tipc_net_id);
 	}
 
