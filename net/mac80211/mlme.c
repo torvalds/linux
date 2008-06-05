@@ -2359,13 +2359,10 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	sdata->drop_unencrypted = bss->capability &
 		WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	res = ieee80211_set_freq(local, bss->freq);
+	res = ieee80211_set_freq(dev, bss->freq);
 
-	if (local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS) {
-		printk(KERN_DEBUG "%s: IBSS not allowed on frequency "
-		       "%d MHz\n", dev->name, local->oper_channel->center_freq);
-		return -1;
-	}
+	if (res)
+		return res;
 
 	/* Set beacon template */
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
@@ -3491,7 +3488,7 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 	spin_unlock_bh(&local->sta_bss_lock);
 
 	if (selected) {
-		ieee80211_set_freq(local, selected->freq);
+		ieee80211_set_freq(dev, selected->freq);
 		if (!(ifsta->flags & IEEE80211_STA_SSID_SET))
 			ieee80211_sta_set_ssid(dev, selected->ssid,
 					       selected->ssid_len);
