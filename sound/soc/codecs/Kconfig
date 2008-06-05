@@ -17,6 +17,9 @@ config SND_SOC_WM8750
 config SND_SOC_WM8753
 	tristate
 
+config SND_SOC_WM8990
+	tristate
+
 config SND_SOC_WM9712
 	tristate
 
