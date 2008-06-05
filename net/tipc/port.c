@@ -841,13 +841,13 @@ static void port_dispatcher_sigh(void *dummy)
 				u32 peer_node = port_peernode(p_ptr);
 
 				tipc_port_unlock(p_ptr);
+				if (unlikely(!cb))
+					goto reject;
 				if (unlikely(!connected)) {
 					if (tipc_connect2port(dref, &orig))
 						goto reject;
 				} else if ((msg_origport(msg) != peer_port) ||
 					   (msg_orignode(msg) != peer_node))
-					goto reject;
-				if (unlikely(!cb))
 					goto reject;
 				if (unlikely(++p_ptr->publ.conn_unacked >=
 					     TIPC_FLOW_CONTROL_WIN))
@@ -862,9 +862,7 @@ static void port_dispatcher_sigh(void *dummy)
 				tipc_msg_event cb = up_ptr->msg_cb;
 
 				tipc_port_unlock(p_ptr);
-				if (unlikely(connected))
-					goto reject;
-				if (unlikely(!cb))
+				if (unlikely(!cb || connected))
 					goto reject;
 				skb_pull(buf, msg_hdr_sz(msg));
 				cb(usr_handle, dref, &buf, msg_data(msg),
@@ -877,11 +875,7 @@ static void port_dispatcher_sigh(void *dummy)
 				tipc_named_msg_event cb = up_ptr->named_msg_cb;
 
 				tipc_port_unlock(p_ptr);
-				if (unlikely(connected))
-					goto reject;
-				if (unlikely(!cb))
-					goto reject;
-				if (unlikely(!published))
+				if (unlikely(!cb || connected || !published))
 					goto reject;
 				dseq.type =  msg_nametype(msg);
 				dseq.lower = msg_nameinst(msg);
@@ -908,11 +902,10 @@ err:
 				u32 peer_node = port_peernode(p_ptr);
 
 				tipc_port_unlock(p_ptr);
-				if (!connected || !cb)
+				if (!cb || !connected)
 					break;
-				if (msg_origport(msg) != peer_port)
-					break;
-				if (msg_orignode(msg) != peer_node)
+				if ((msg_origport(msg) != peer_port) ||
+				    (msg_orignode(msg) != peer_node))
 					break;
 				tipc_disconnect(dref);
 				skb_pull(buf, msg_hdr_sz(msg));
@@ -924,7 +917,7 @@ err:
 				tipc_msg_err_event cb = up_ptr->err_cb;
 
 				tipc_port_unlock(p_ptr);
-				if (connected || !cb)
+				if (!cb || connected)
 					break;
 				skb_pull(buf, msg_hdr_sz(msg));
 				cb(usr_handle, dref, &buf, msg_data(msg),
@@ -937,7 +930,7 @@ err:
 					up_ptr->named_err_cb;
 
 				tipc_port_unlock(p_ptr);
-				if (connected || !cb)
+				if (!cb || connected)
 					break;
 				dseq.type =  msg_nametype(msg);
 				dseq.lower = msg_nameinst(msg);
