@@ -202,14 +202,10 @@ config SND_SC6000
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sc6000.
 
-config SND_GUS_SYNTH
-	tristate
-
 config SND_GUSCLASSIC
 	tristate "Gravis UltraSound Classic"
 	select SND_RAWMIDI
 	select SND_PCM
-	select SND_GUS_SYNTH
 	help
 	  Say Y here to include support for Gravis UltraSound Classic
 	  soundcards.
@@ -222,7 +218,6 @@ config SND_GUSEXTREME
 	select SND_HWDEP
 	select SND_MPU401_UART
 	select SND_PCM
-	select SND_GUS_SYNTH
 	help
 	  Say Y here to include support for Gravis UltraSound Extreme
 	  soundcards.
@@ -234,7 +229,6 @@ config SND_GUSMAX
 	tristate "Gravis UltraSound MAX"
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
-	select SND_GUS_SYNTH
 	help
 	  Say Y here to include support for Gravis UltraSound MAX
 	  soundcards.
@@ -247,7 +241,6 @@ config SND_INTERWAVE
 	depends on PNP
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
-	select SND_GUS_SYNTH
 	help
 	  Say Y here to include support for AMD InterWave based
 	  soundcards (Gravis UltraSound Plug & Play, STB SoundRage32,
@@ -261,7 +254,6 @@ config SND_INTERWAVE_STB
 	depends on PNP
 	select SND_RAWMIDI
 	select SND_CS4231_LIB
-	select SND_GUS_SYNTH
 	help
 	  Say Y here to include support for AMD InterWave based
 	  soundcards with a TEA6330T bass and treble regulator
