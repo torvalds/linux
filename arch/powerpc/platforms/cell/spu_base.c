@@ -324,14 +324,12 @@ spu_irq_class_0(int irq, void *data)
 	stat = spu_int_stat_get(spu, 0) & mask;
 
 	spu->class_0_pending |= stat;
-	spu->class_0_dsisr = spu_mfc_dsisr_get(spu);
 	spu->class_0_dar = spu_mfc_dar_get(spu);
 	spin_unlock(&spu->register_lock);
 
 	spu->stop_callback(spu, 0);
 
 	spu->class_0_pending = 0;
-	spu->class_0_dsisr = 0;
 	spu->class_0_dar = 0;
 
 	spu_int_stat_clear(spu, 0, stat);

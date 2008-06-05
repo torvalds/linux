@@ -27,7 +27,6 @@ void spufs_stop_callback(struct spu *spu, int irq)
 		switch(irq) {
 		case 0 :
 			ctx->csa.class_0_pending = spu->class_0_pending;
-			ctx->csa.class_0_dsisr = spu->class_0_dsisr;
 			ctx->csa.class_0_dar = spu->class_0_dar;
 			break;
 		case 1 :
@@ -67,10 +66,6 @@ top:
 	}
 
 	if (test_bit(SPU_SCHED_NOTIFY_ACTIVE, &ctx->sched_flags))
-		return 1;
-
-	dsisr = ctx->csa.class_0_dsisr;
-	if (dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED))
 		return 1;
 
 	dsisr = ctx->csa.class_1_dsisr;
