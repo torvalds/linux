@@ -496,7 +496,8 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 	return 0;
 }
 
-int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
+int datagram_send_ctl(struct net *net,
+		      struct msghdr *msg, struct flowi *fl,
 		      struct ipv6_txoptions *opt,
 		      int *hlimit, int *tclass)
 {
@@ -509,7 +510,6 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 	for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
 		int addr_type;
-		struct net_device *dev = NULL;
 
 		if (!CMSG_OK(msg, cmsg)) {
 			err = -EINVAL;
@@ -522,6 +522,9 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 		switch (cmsg->cmsg_type) {
 		case IPV6_PKTINFO:
 		case IPV6_2292PKTINFO:
+		    {
+			struct net_device *dev = NULL;
+
 			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct in6_pktinfo))) {
 				err = -EINVAL;
 				goto exit_f;
@@ -535,32 +538,32 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 				fl->oif = src_info->ipi6_ifindex;
 			}
 
-			addr_type = ipv6_addr_type(&src_info->ipi6_addr);
+			addr_type = __ipv6_addr_type(&src_info->ipi6_addr);
 
-			if (addr_type == IPV6_ADDR_ANY)
-				break;
+			if (fl->oif) {
+				dev = dev_get_by_index(net, fl->oif);
+				if (!dev)
+					return -ENODEV;
+			} else if (addr_type & IPV6_ADDR_LINKLOCAL)
+				return -EINVAL;
 
-			if (addr_type & IPV6_ADDR_LINKLOCAL) {
-				if (!src_info->ipi6_ifindex)
-					return -EINVAL;
-				else {
-					dev = dev_get_by_index(&init_net, src_info->ipi6_ifindex);
-					if (!dev)
-						return -ENODEV;
-				}
+			if (addr_type != IPV6_ADDR_ANY) {
+				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
+				if (!ipv6_chk_addr(net, &src_info->ipi6_addr,
+						   strict ? dev : NULL, 0))
+					err = -EINVAL;
+				else
+					ipv6_addr_copy(&fl->fl6_src, &src_info->ipi6_addr);
 			}
-			if (!ipv6_chk_addr(&init_net, &src_info->ipi6_addr,
-					   dev, 0)) {
-				if (dev)
-					dev_put(dev);
-				err = -EINVAL;
-				goto exit_f;
-			}
+
 			if (dev)
 				dev_put(dev);
 
-			ipv6_addr_copy(&fl->fl6_src, &src_info->ipi6_addr);
+			if (err)
+				goto exit_f;
+
 			break;
+		    }
 
 		case IPV6_FLOWINFO:
 			if (cmsg->cmsg_len < CMSG_LEN(4)) {

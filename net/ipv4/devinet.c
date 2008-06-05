@@ -90,7 +90,6 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_LOCAL]     	= { .type = NLA_U32 },
 	[IFA_ADDRESS]   	= { .type = NLA_U32 },
 	[IFA_BROADCAST] 	= { .type = NLA_U32 },
-	[IFA_ANYCAST]   	= { .type = NLA_U32 },
 	[IFA_LABEL]     	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
 };
 
@@ -536,9 +535,6 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh)
 	if (tb[IFA_BROADCAST])
 		ifa->ifa_broadcast = nla_get_be32(tb[IFA_BROADCAST]);
 
-	if (tb[IFA_ANYCAST])
-		ifa->ifa_anycast = nla_get_be32(tb[IFA_ANYCAST]);
-
 	if (tb[IFA_LABEL])
 		nla_strlcpy(ifa->ifa_label, tb[IFA_LABEL], IFNAMSIZ);
 	else
@@ -745,7 +741,6 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 				break;
 			inet_del_ifa(in_dev, ifap, 0);
 			ifa->ifa_broadcast = 0;
-			ifa->ifa_anycast = 0;
 			ifa->ifa_scope = 0;
 		}
 
@@ -1113,7 +1108,6 @@ static inline size_t inet_nlmsg_size(void)
 	       + nla_total_size(4) /* IFA_ADDRESS */
 	       + nla_total_size(4) /* IFA_LOCAL */
 	       + nla_total_size(4) /* IFA_BROADCAST */
-	       + nla_total_size(4) /* IFA_ANYCAST */
 	       + nla_total_size(IFNAMSIZ); /* IFA_LABEL */
 }
 
@@ -1142,9 +1136,6 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 
 	if (ifa->ifa_broadcast)
 		NLA_PUT_BE32(skb, IFA_BROADCAST, ifa->ifa_broadcast);
-
-	if (ifa->ifa_anycast)
-		NLA_PUT_BE32(skb, IFA_ANYCAST, ifa->ifa_anycast);
 
 	if (ifa->ifa_label[0])
 		NLA_PUT_STRING(skb, IFA_LABEL, ifa->ifa_label);

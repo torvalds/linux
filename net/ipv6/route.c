@@ -446,7 +446,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	struct route_info *rinfo = (struct route_info *) opt;
 	struct in6_addr prefix_buf, *prefix;
 	unsigned int pref;
-	u32 lifetime;
+	unsigned long lifetime;
 	struct rt6_info *rt;
 
 	if (len < sizeof(struct route_info)) {
@@ -472,13 +472,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	if (pref == ICMPV6_ROUTER_PREF_INVALID)
 		pref = ICMPV6_ROUTER_PREF_MEDIUM;
 
-	lifetime = ntohl(rinfo->lifetime);
-	if (lifetime == 0xffffffff) {
-		/* infinity */
-	} else if (lifetime > 0x7fffffff/HZ - 1) {
-		/* Avoid arithmetic overflow */
-		lifetime = 0x7fffffff/HZ - 1;
-	}
+	lifetime = addrconf_timeout_fixup(ntohl(rinfo->lifetime), HZ);
 
 	if (rinfo->length == 3)
 		prefix = (struct in6_addr *)rinfo->prefix;
@@ -506,7 +500,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 				 (rt->rt6i_flags & ~RTF_PREF_MASK) | RTF_PREF(pref);
 
 	if (rt) {
-		if (lifetime == 0xffffffff) {
+		if (!addrconf_finite_timeout(lifetime)) {
 			rt->rt6i_flags &= ~RTF_EXPIRES;
 		} else {
 			rt->rt6i_expires = jiffies + HZ * lifetime;

@@ -1392,9 +1392,9 @@ static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
 
 	if (before(next_dup->start_seq, skip_to_seq)) {
 		skb = tcp_sacktag_skip(skb, sk, next_dup->start_seq, fack_count);
-		tcp_sacktag_walk(skb, sk, NULL,
-				 next_dup->start_seq, next_dup->end_seq,
-				 1, fack_count, reord, flag);
+		skb = tcp_sacktag_walk(skb, sk, NULL,
+				     next_dup->start_seq, next_dup->end_seq,
+				     1, fack_count, reord, flag);
 	}
 
 	return skb;
@@ -2483,6 +2483,20 @@ static inline void tcp_complete_cwr(struct sock *sk)
 	tcp_ca_event(sk, CA_EVENT_COMPLETE_CWR);
 }
 
+static void tcp_try_keep_open(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int state = TCP_CA_Open;
+
+	if (tcp_left_out(tp) || tp->retrans_out || tp->undo_marker)
+		state = TCP_CA_Disorder;
+
+	if (inet_csk(sk)->icsk_ca_state != state) {
+		tcp_set_ca_state(sk, state);
+		tp->high_seq = tp->snd_nxt;
+	}
+}
+
 static void tcp_try_to_open(struct sock *sk, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -2496,15 +2510,7 @@ static void tcp_try_to_open(struct sock *sk, int flag)
 		tcp_enter_cwr(sk, 1);
 
 	if (inet_csk(sk)->icsk_ca_state != TCP_CA_CWR) {
-		int state = TCP_CA_Open;
-
-		if (tcp_left_out(tp) || tp->retrans_out || tp->undo_marker)
-			state = TCP_CA_Disorder;
-
-		if (inet_csk(sk)->icsk_ca_state != state) {
-			tcp_set_ca_state(sk, state);
-			tp->high_seq = tp->snd_nxt;
-		}
+		tcp_try_keep_open(sk);
 		tcp_moderate_cwnd(tp);
 	} else {
 		tcp_cwnd_down(sk, flag);
@@ -3310,8 +3316,11 @@ no_queue:
 	return 1;
 
 old_ack:
-	if (TCP_SKB_CB(skb)->sacked)
+	if (TCP_SKB_CB(skb)->sacked) {
 		tcp_sacktag_write_queue(sk, skb, prior_snd_una);
+		if (icsk->icsk_ca_state == TCP_CA_Open)
+			tcp_try_keep_open(sk);
+	}
 
 uninteresting_ack:
 	SOCK_DEBUG(sk, "Ack %u out of %u:%u\n", ack, tp->snd_una, tp->snd_nxt);

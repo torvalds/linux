@@ -111,7 +111,7 @@ static __inline__ void tx_add_log(struct happy_meal *hp, unsigned int a, unsigne
 	struct hme_tx_logent *tlp;
 	unsigned long flags;
 
-	save_and_cli(flags);
+	local_irq_save(flags);
 	tlp = &tx_log[txlog_cur_entry];
 	tlp->tstamp = (unsigned int)jiffies;
 	tlp->tx_new = hp->tx_new;
@@ -119,7 +119,7 @@ static __inline__ void tx_add_log(struct happy_meal *hp, unsigned int a, unsigne
 	tlp->action = a;
 	tlp->status = s;
 	txlog_cur_entry = (txlog_cur_entry + 1) & (TX_LOG_LEN - 1);
-	restore_flags(flags);
+	local_irq_restore(flags);
 }
 static __inline__ void tx_dump_log(void)
 {
