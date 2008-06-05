@@ -100,7 +100,7 @@ extern char * nvram_get(const char *name);
 /* Get the device MAC address */
 static inline void ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
 {
-#ifdef CONFIG_BCM947XX
+#ifdef CONFIG_BCM47XX
 	char *res = nvram_get("et0macaddr");
 	if (res)
 		memcpy(macaddr, res, 6);
