@@ -59,16 +59,14 @@ static ssize_t show_cpumap(int type, cpumask_t *mask, char *buf)
 static inline ssize_t show_##name(struct sys_device *dev, char *buf)	\
 {									\
 	unsigned int cpu = dev->id;					\
-	cpumask_t siblings = topology_##name(cpu);			\
-	return show_cpumap(0, &siblings, buf);				\
+	return show_cpumap(0, &(topology_##name(cpu)), buf);		\
 }
 
 #define define_siblings_show_list(name)					\
 static inline ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
 {									\
 	unsigned int cpu = dev->id;					\
-	cpumask_t siblings = topology_##name(cpu);			\
-	return show_cpumap(1, &siblings, buf);				\
+	return show_cpumap(1, &(topology_##name(cpu)), buf);		\
 }
 
 #define define_siblings_show_func(name)		\
