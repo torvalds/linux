@@ -51,6 +51,12 @@
 
 
 /*
+ * Out-of-range value for link session numbers
+ */
+
+#define INVALID_SESSION 0x10000
+
+/*
  * Limit for deferred reception queue:
  */
 
@@ -464,7 +470,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 	msg = l_ptr->pmsg;
 	msg_init(msg, LINK_PROTOCOL, RESET_MSG, TIPC_OK, INT_H_SIZE, l_ptr->addr);
 	msg_set_size(msg, sizeof(l_ptr->proto_msg));
-	msg_set_session(msg, tipc_random);
+	msg_set_session(msg, (tipc_random & 0xffff));
 	msg_set_bearer_id(msg, b_ptr->identity);
 	strcpy((char *)msg_data(msg), if_name);
 
@@ -705,10 +711,10 @@ void tipc_link_reset(struct link *l_ptr)
 	u32 checkpoint = l_ptr->next_in_no;
 	int was_active_link = tipc_link_is_active(l_ptr);
 
-	msg_set_session(l_ptr->pmsg, msg_session(l_ptr->pmsg) + 1);
+	msg_set_session(l_ptr->pmsg, ((msg_session(l_ptr->pmsg) + 1) & 0xffff));
 
-	/* Link is down, accept any session: */
-	l_ptr->peer_session = 0;
+	/* Link is down, accept any session */
+	l_ptr->peer_session = INVALID_SESSION;
 
 	/* Prepare for max packet size negotiation */
 	link_init_max_pkt(l_ptr);
@@ -2275,7 +2281,8 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 	switch (msg_type(msg)) {
 
 	case RESET_MSG:
-		if (!link_working_unknown(l_ptr) && l_ptr->peer_session) {
+		if (!link_working_unknown(l_ptr) &&
+		    (l_ptr->peer_session != INVALID_SESSION)) {
 			if (msg_session(msg) == l_ptr->peer_session) {
 				dbg("Duplicate RESET: %u<->%u\n",
 				    msg_session(msg), l_ptr->peer_session);
