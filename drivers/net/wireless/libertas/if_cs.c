@@ -268,6 +268,12 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 #define IF_CS_SCRATCH_BOOT_OK		0x00
 #define IF_CS_SCRATCH_HELPER_OK		0x5a
 
+/*
+ * Used to detect ancient chips:
+ */
+#define IF_CS_PRODUCT_ID		0x0000001C
+#define IF_CS_CF8385_B1_REV		0x12
+
 
 /********************************************************************/
 /* I/O and interrupt handling                                       */
@@ -861,6 +867,12 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	       p_dev->irq.AssignedIRQ, p_dev->io.BasePort1,
 	       p_dev->io.BasePort1 + p_dev->io.NumPorts1 - 1);
 
+	/* Check if we have a current silicon */
+	if (if_cs_read8(card, IF_CS_PRODUCT_ID) < IF_CS_CF8385_B1_REV) {
+		lbs_pr_err("old chips like 8385 rev B1 aren't supported\n");
+		ret = -ENODEV;
+		goto out2;
+	}
 
 	/* Load the firmware early, before calling into libertas.ko */
 	ret = if_cs_prog_helper(card);
