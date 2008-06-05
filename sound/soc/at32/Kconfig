@@ -1,0 +1,34 @@
+config SND_AT32_SOC
+        tristate "SoC Audio for the Atmel AT32 System-on-a-Chip"
+        depends on AVR32 && SND_SOC
+        help
+          Say Y or M if you want to add support for codecs attached to 
+          the AT32 SSC interface.  You will also need to
+          to select the audio interfaces to support below.
+
+
+config SND_AT32_SOC_SSC
+        tristate
+
+
+
+config SND_AT32_SOC_PLAYPAQ
+        tristate "SoC Audio support for PlayPaq with WM8510"
+        depends on SND_AT32_SOC && BOARD_PLAYPAQ
+        select SND_AT32_SOC_SSC
+        select SND_SOC_WM8510
+        help
+          Say Y or M here if you want to add support for SoC audio
+          on the LRS PlayPaq.
+
+
+
+config SND_AT32_SOC_PLAYPAQ_SLAVE
+        bool "Run CODEC on PlayPaq in slave mode"
+        depends on SND_AT32_SOC_PLAYPAQ
+        default n
+        help
+          Say Y if you want to run with the AT32 SSC generating the BCLK
+          and FRAME signals on the PlayPaq.  Unless you want to play
+          with the AT32 as the SSC master, you probably want to say N here,
+          as this will give you better sound quality.
