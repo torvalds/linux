@@ -54,6 +54,7 @@ static struct orion_nand_data rd88f6281_nand_data = {
 	.cle		= 0,
 	.ale		= 1,
 	.width		= 8,
+	.chip_delay	= 25,
 };
 
 static struct platform_device rd88f6281_nand_flash = {
