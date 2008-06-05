@@ -16,8 +16,8 @@
 #include <asm/fhc.h>
 #include <asm/starfire.h>
 
-struct linux_central *central_bus = NULL;
-struct linux_fhc *fhc_list = NULL;
+static struct linux_central *central_bus = NULL;
+static struct linux_fhc *fhc_list = NULL;
 
 #define IS_CENTRAL_FHC(__fhc)	((__fhc) == central_bus->child)
 
@@ -79,9 +79,9 @@ static void adjust_regs(struct linux_prom_registers *regp, int nregs,
 }
 
 /* Apply probed fhc ranges to registers passed, if no ranges return. */
-void apply_fhc_ranges(struct linux_fhc *fhc,
-		      struct linux_prom_registers *regs,
-		      int nregs)
+static void apply_fhc_ranges(struct linux_fhc *fhc,
+			     struct linux_prom_registers *regs,
+			     int nregs)
 {
 	if (fhc->num_fhc_ranges)
 		adjust_regs(regs, nregs, fhc->fhc_ranges,
@@ -89,8 +89,8 @@ void apply_fhc_ranges(struct linux_fhc *fhc,
 }
 
 /* Apply probed central ranges to registers passed, if no ranges return. */
-void apply_central_ranges(struct linux_central *central,
-			  struct linux_prom_registers *regs, int nregs)
+static void apply_central_ranges(struct linux_central *central,
+				 struct linux_prom_registers *regs, int nregs)
 {
 	if (central->num_central_ranges)
 		adjust_regs(regs, nregs, central->central_ranges,

@@ -359,7 +359,8 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 	return err;
 }
 
-int cp_compat_stat64(struct kstat *stat, struct compat_stat64 __user *statbuf)
+static int cp_compat_stat64(struct kstat *stat,
+			    struct compat_stat64 __user *statbuf)
 {
 	int err;
 

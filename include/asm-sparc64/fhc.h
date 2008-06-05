@@ -118,14 +118,4 @@ struct linux_fhc {
 	int				num_fhc_ranges;
 };
 
-extern struct linux_central *central_bus;
-
-extern void apply_central_ranges(struct linux_central *central, 
-				 struct linux_prom_registers *regs,
-				 int nregs);
-
-extern void apply_fhc_ranges(struct linux_fhc *fhc, 
-			     struct linux_prom_registers *regs,
-			     int nregs);
-
 #endif /* !(_SPARC64_FHC_H) */
