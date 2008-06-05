@@ -230,13 +230,10 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 
 	switch (usr) {
 	case CONN_MANAGER:
-	case NAME_DISTRIBUTOR:
 	case TIPC_LOW_IMPORTANCE:
 	case TIPC_MEDIUM_IMPORTANCE:
 	case TIPC_HIGH_IMPORTANCE:
 	case TIPC_CRITICAL_IMPORTANCE:
-		if (msg_short(msg))
-			break;	/* No error */
 		switch (msg_errcode(msg)) {
 		case TIPC_OK:
 			break;
