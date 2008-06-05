@@ -1766,21 +1766,6 @@ void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf,
 	l_ptr->retransm_queue_head = l_ptr->retransm_queue_size = 0;
 }
 
-/*
- * link_recv_non_seq: Receive packets which are outside
- *                    the link sequence flow
- */
-
-static void link_recv_non_seq(struct sk_buff *buf)
-{
-	struct tipc_msg *msg = buf_msg(buf);
-
-	if (msg_user(msg) ==  LINK_CONFIG)
-		tipc_disc_recv_msg(buf);
-	else
-		tipc_bclink_recv_pkt(buf);
-}
-
 /**
  * link_insert_deferred_queue - insert deferred messages back into receive chain
  */
@@ -1857,7 +1842,7 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 {
 	read_lock_bh(&tipc_net_lock);
 	while (head) {
-		struct bearer *b_ptr;
+		struct bearer *b_ptr = (struct bearer *)tb_ptr;
 		struct node *n_ptr;
 		struct link *l_ptr;
 		struct sk_buff *crs;
@@ -1867,9 +1852,6 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 		u32 ackd;
 		u32 released = 0;
 		int type;
-
-		b_ptr = (struct bearer *)tb_ptr;
-		TIPC_SKB_CB(buf)->handle = b_ptr;
 
 		head = head->next;
 
@@ -1889,7 +1871,10 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 		msg = buf_msg(buf);
 
 		if (unlikely(msg_non_seq(msg))) {
-			link_recv_non_seq(buf);
+			if (msg_user(msg) ==  LINK_CONFIG)
+				tipc_disc_recv_msg(buf, b_ptr);
+			else
+				tipc_bclink_recv_pkt(buf);
 			continue;
 		}
 
@@ -1996,8 +1981,6 @@ deliver:
 						if (link_recv_changeover_msg(&l_ptr, &buf)) {
 							msg = buf_msg(buf);
 							seq_no = msg_seqno(msg);
-							TIPC_SKB_CB(buf)->handle
-								= b_ptr;
 							if (type == ORIGINAL_MSG)
 								goto deliver;
 							goto protocol_check;

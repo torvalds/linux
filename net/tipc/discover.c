@@ -156,11 +156,11 @@ static void disc_dupl_alert(struct bearer *b_ptr, u32 node_addr,
 /**
  * tipc_disc_recv_msg - handle incoming link setup message (request or response)
  * @buf: buffer containing message
+ * @b_ptr: bearer that message arrived on
  */
 
-void tipc_disc_recv_msg(struct sk_buff *buf)
+void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 {
-	struct bearer *b_ptr = (struct bearer *)TIPC_SKB_CB(buf)->handle;
 	struct link *link;
 	struct tipc_media_addr media_addr;
 	struct tipc_msg *msg = buf_msg(buf);
