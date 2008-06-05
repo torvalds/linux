@@ -278,7 +278,7 @@ static u8 ata_sff_irq_status(struct ata_port *ap)
 		    	return status;
 	}
 	/* Clear INTRQ latch */
-	status = ata_sff_check_status(ap);
+	status = ap->ops->sff_check_status(ap);
 	return status;
 }
 
