@@ -448,13 +448,15 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	msg_set_errcode(rmsg, err);
 	msg_set_destport(rmsg, msg_origport(msg));
 	msg_set_origport(rmsg, msg_destport(msg));
-	if (msg_short(msg))
+	if (msg_short(msg)) {
 		msg_set_orignode(rmsg, tipc_own_addr);
-	else
+		/* leave name type & instance as zeroes */
+	} else {
 		msg_set_orignode(rmsg, msg_destnode(msg));
+		msg_set_nametype(rmsg, msg_nametype(msg));
+		msg_set_nameinst(rmsg, msg_nameinst(msg));
+	}
 	msg_set_size(rmsg, data_sz + hdr_sz);
-	msg_set_nametype(rmsg, msg_nametype(msg));
-	msg_set_nameinst(rmsg, msg_nameinst(msg));
 	skb_copy_to_linear_data_offset(rbuf, hdr_sz, msg_data(msg), data_sz);
 
 	/* send self-abort message when rejecting on a connected port */
