@@ -379,6 +379,8 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 
 	/* Ask card interrupt cause register if there is something for us */
 	cause = if_cs_read16(card, IF_CS_CARD_INT_CAUSE);
+	lbs_deb_cs("cause 0x%04x\n", cause);
+
 	if (cause == 0) {
 		/* Not for us */
 		return IRQ_NONE;
@@ -389,10 +391,6 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		card->priv->surpriseremoved = 1;
 		return IRQ_HANDLED;
 	}
-
-	/* Clear interrupt cause */
-	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, cause & IF_CS_BIT_MASK);
-	lbs_deb_cs("cause 0x%04x\n", cause);
 
 	if (cause & IF_CS_BIT_RX) {
 		struct sk_buff *skb;
@@ -433,6 +431,9 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		lbs_deb_cs("host event 0x%04x\n", event);
 		lbs_queue_event(priv, event >> 8 & 0xff);
 	}
+
+	/* Clear interrupt cause */
+	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, cause & IF_CS_BIT_MASK);
 
 	lbs_deb_leave(LBS_DEB_CS);
 	return IRQ_HANDLED;
