@@ -378,6 +378,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	struct page *page;
 	unsigned long dma_mask = 0;
 	dma_addr_t bus;
+	int noretry = 0;
 
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
@@ -397,19 +398,25 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (dev->dma_mask == NULL)
 		return NULL;
 
+	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
+	if (gfp & __GFP_DMA)
+		noretry = 1;
+
 #ifdef CONFIG_X86_64
 	/* Why <=? Even when the mask is smaller than 4GB it is often
 	   larger than 16MB and in this case we have a chance of
 	   finding fitting memory in the next higher zone first. If
 	   not retry with true GFP_DMA. -AK */
-	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA))
+	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA)) {
 		gfp |= GFP_DMA32;
+		if (dma_mask < DMA_32BIT_MASK)
+			noretry = 1;
+	}
 #endif
 
  again:
-	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
 	page = dma_alloc_pages(dev,
-		(gfp & GFP_DMA) ? gfp | __GFP_NORETRY : gfp, get_order(size));
+		noretry ? gfp | __GFP_NORETRY : gfp, get_order(size));
 	if (page == NULL)
 		return NULL;
 
