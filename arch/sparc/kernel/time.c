@@ -46,7 +46,7 @@
 #include "irq.h"
 
 DEFINE_SPINLOCK(rtc_lock);
-enum sparc_clock_type sp_clock_typ;
+static enum sparc_clock_type sp_clock_typ;
 DEFINE_SPINLOCK(mostek_lock);
 void __iomem *mstk48t02_regs = NULL;
 static struct mostek48t08 __iomem *mstk48t08_regs = NULL;
@@ -366,7 +366,7 @@ static int __init clock_init(void)
 fs_initcall(clock_init);
 #endif /* !CONFIG_SUN4 */
 
-void __init sbus_time_init(void)
+static void __init sbus_time_init(void)
 {
 
 	BTFIXUPSET_CALL(bus_do_settimeofday, sbus_do_settimeofday, BTFIXUPCALL_NORM);

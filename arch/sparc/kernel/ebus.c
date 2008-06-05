@@ -69,7 +69,7 @@ static inline unsigned long ebus_alloc(size_t size)
 
 /*
  */
-int __init ebus_blacklist_irq(const char *name)
+static int __init ebus_blacklist_irq(const char *name)
 {
 	struct ebus_device_irq *dp;
 
@@ -83,8 +83,8 @@ int __init ebus_blacklist_irq(const char *name)
 	return 0;
 }
 
-void __init fill_ebus_child(struct device_node *dp,
-			    struct linux_ebus_child *dev)
+static void __init fill_ebus_child(struct device_node *dp,
+				   struct linux_ebus_child *dev)
 {
 	const int *regs;
 	const int *irqs;
@@ -144,7 +144,8 @@ void __init fill_ebus_child(struct device_node *dp,
 	}
 }
 
-void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *dev)
+static void __init fill_ebus_device(struct device_node *dp,
+				    struct linux_ebus_device *dev)
 {
 	const struct linux_prom_registers *regs;
 	struct linux_ebus_child *child;

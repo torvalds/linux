@@ -84,8 +84,6 @@ struct sun4m_timer_regs {
 	volatile unsigned int cfg;     /* equals zero at boot time... */
 };
 
-extern struct sun4m_timer_regs *sun4m_timers;
-
 #define SUN4D_PRM_CNT_L       0x80000000
 #define SUN4D_PRM_CNT_LVALUE  0x7FFFFC00
 

@@ -177,6 +177,8 @@ void machine_power_off(void)
 	machine_halt();
 }
 
+#if 0
+
 static DEFINE_SPINLOCK(sparc_backtrace_lock);
 
 void __show_backtrace(unsigned long fp)
@@ -228,7 +230,6 @@ void smp_show_backtrace_all_cpus(void)
 }
 #endif
 
-#if 0
 void show_stackframe(struct sparc_stackf *sf)
 {
 	unsigned long size;

@@ -33,9 +33,6 @@ struct trap_trace_entry {
 	unsigned long type;
 };
 
-int trap_curbuf = 0;
-struct trap_trace_entry trapbuf[1024];
-
 void syscall_trace_entry(struct pt_regs *regs)
 {
 	printk("%s[%d]: ", current->comm, task_pid_nr(current));
@@ -72,7 +69,7 @@ void sun4d_nmi(struct pt_regs *regs)
 	prom_halt();
 }
 
-void instruction_dump (unsigned long *pc)
+static void instruction_dump(unsigned long *pc)
 {
 	int i;
 	
@@ -478,10 +475,6 @@ void do_BUG(const char *file, int line)
  */
 
 extern void sparc_cpu_startup(void);
-
-int linux_smp_still_initting;
-unsigned int thiscpus_tbr;
-int thiscpus_mid;
 
 void trap_init(void)
 {

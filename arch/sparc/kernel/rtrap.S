@@ -224,8 +224,6 @@ ret_trap_user_stack_is_bolixed:
 	b	signal_p
 	 ld	[%curptr + TI_FLAGS], %g2
 
-
-	.globl	sun4c_rett_stackchk
 sun4c_rett_stackchk:
 	be	1f
 	 and	%fp, 0xfff, %g1		! delay slot

@@ -128,8 +128,6 @@ struct mostek48t08 {
 	struct mostek48t02 regs;     /* Here is what we are interested in.   */
 };
 
-extern enum sparc_clock_type sp_clock_typ;
-
 #ifdef CONFIG_SUN4
 enum sparc_clock_type {	MSTK48T02, MSTK48T08, \
 INTERSIL, MSTK_INVALID };

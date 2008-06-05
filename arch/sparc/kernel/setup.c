@@ -67,7 +67,7 @@ struct screen_info screen_info = {
 extern unsigned long trapbase;
 
 /* Pretty sick eh? */
-void prom_sync_me(void)
+static void prom_sync_me(void)
 {
 	unsigned long prom_tbr, flags;
 
@@ -97,7 +97,7 @@ void prom_sync_me(void)
 	return;
 }
 
-unsigned int boot_flags __initdata = 0;
+static unsigned int boot_flags __initdata = 0;
 #define BOOTME_DEBUG  0x1
 
 /* Exported for mm/init.c:paging_init. */

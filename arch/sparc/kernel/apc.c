@@ -56,7 +56,7 @@ __setup("apc=", apc_setup);
  * CPU idle callback function
  * See .../arch/sparc/kernel/process.c
  */
-void apc_swift_idle(void)
+static void apc_swift_idle(void)
 {
 #ifdef APC_DEBUG_LED
 	set_auxio(0x00, AUXIO_LED); 
