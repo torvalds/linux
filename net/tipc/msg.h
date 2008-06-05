@@ -2,7 +2,7 @@
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
  * Copyright (c) 2000-2007, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2008, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -325,7 +325,7 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    w0:|vers |msg usr|hdr sz |n|resrv|            packet size          |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   w1:|m typ|rsv=0|   sequence gap    |       broadcast ack no        |
+   w1:|m typ|      sequence gap       |       broadcast ack no        |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    w2:| link level ack no/bc_gap_from |     seq no / bcast_gap_to     |
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -388,12 +388,12 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 
 static inline u32 msg_seq_gap(struct tipc_msg *m)
 {
-	return msg_bits(m, 1, 16, 0xff);
+	return msg_bits(m, 1, 16, 0x1fff);
 }
 
 static inline void msg_set_seq_gap(struct tipc_msg *m, u32 n)
 {
-	msg_set_bits(m, 1, 16, 0xff, n);
+	msg_set_bits(m, 1, 16, 0x1fff, n);
 }
 
 static inline u32 msg_req_links(struct tipc_msg *m)
