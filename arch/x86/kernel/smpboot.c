@@ -864,7 +864,6 @@ do_rest:
 	irq_ctx_init(cpu);
 #else
 	cpu_pda(cpu)->pcurrent = c_idle.idle;
-	load_sp0(&per_cpu(init_tss, cpu), &c_idle.idle->thread);
 	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
 #endif
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
