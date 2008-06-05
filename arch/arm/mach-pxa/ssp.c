@@ -330,7 +330,7 @@ struct ssp_device *ssp_request(int port, const char *label)
 
 	mutex_unlock(&ssp_lock);
 
-	if (ssp->port_id != port)
+	if (&ssp->node == &ssp_list)
 		return NULL;
 
 	return ssp;
