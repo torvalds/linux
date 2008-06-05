@@ -5,6 +5,9 @@ config SND_SOC_AC97_CODEC
 config SND_SOC_UDA1380
         tristate
 
+config SND_SOC_WM8510
+	tristate
+
 config SND_SOC_WM8731
 	tristate
 
