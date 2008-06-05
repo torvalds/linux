@@ -310,8 +310,8 @@ void __cpuinit build_clear_page(void)
 	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
 		uasm_i_lui(&buf, AT, 0xa000);
 
-	off = min(8, pref_bias_clear_store / cache_line_size) *
-	      cache_line_size;
+	off = cache_line_size ? min(8, pref_bias_clear_store / cache_line_size)
+	                        * cache_line_size : 0;
 	while (off) {
 		build_clear_pref(&buf, -off);
 		off -= cache_line_size;
@@ -454,12 +454,14 @@ void __cpuinit build_copy_page(void)
 	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
 		uasm_i_lui(&buf, AT, 0xa000);
 
-	off = min(8, pref_bias_copy_load / cache_line_size) * cache_line_size;
+	off = cache_line_size ? min(8, pref_bias_copy_load / cache_line_size) *
+	                        cache_line_size : 0;
 	while (off) {
 		build_copy_load_pref(&buf, -off);
 		off -= cache_line_size;
 	}
-	off = min(8, pref_bias_copy_store / cache_line_size) * cache_line_size;
+	off = cache_line_size ? min(8, pref_bias_copy_load / cache_line_size) *
+	                        cache_line_size : 0;
 	while (off) {
 		build_copy_store_pref(&buf, -off);
 		off -= cache_line_size;
