@@ -7513,21 +7513,28 @@ int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
 static int update_sched_domains(struct notifier_block *nfb,
 				unsigned long action, void *hcpu)
 {
+	int cpu = (int)(long)hcpu;
+
 	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
+		disable_runtime(cpu_rq(cpu));
+		/* fall-through */
+	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		detach_destroy_domains(&cpu_online_map);
 		free_sched_domains();
 		return NOTIFY_OK;
 
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
+
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
+		enable_runtime(cpu_rq(cpu));
+		/* fall-through */
+	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		/*

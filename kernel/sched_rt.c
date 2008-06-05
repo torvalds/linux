@@ -286,6 +286,9 @@ static int balance_runtime(struct rt_rq *rt_rq)
 			continue;
 
 		spin_lock(&iter->rt_runtime_lock);
+		if (iter->rt_runtime == RUNTIME_INF)
+			goto next;
+
 		diff = iter->rt_runtime - iter->rt_time;
 		if (diff > 0) {
 			do_div(diff, weight);
@@ -299,12 +302,105 @@ static int balance_runtime(struct rt_rq *rt_rq)
 				break;
 			}
 		}
+next:
 		spin_unlock(&iter->rt_runtime_lock);
 	}
 	spin_unlock(&rt_b->rt_runtime_lock);
 
 	return more;
 }
+
+static void __disable_runtime(struct rq *rq)
+{
+	struct root_domain *rd = rq->rd;
+	struct rt_rq *rt_rq;
+
+	if (unlikely(!scheduler_running))
+		return;
+
+	for_each_leaf_rt_rq(rt_rq, rq) {
+		struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
+		s64 want;
+		int i;
+
+		spin_lock(&rt_b->rt_runtime_lock);
+		spin_lock(&rt_rq->rt_runtime_lock);
+		if (rt_rq->rt_runtime == RUNTIME_INF ||
+				rt_rq->rt_runtime == rt_b->rt_runtime)
+			goto balanced;
+		spin_unlock(&rt_rq->rt_runtime_lock);
+
+		want = rt_b->rt_runtime - rt_rq->rt_runtime;
+
+		for_each_cpu_mask(i, rd->span) {
+			struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
+			s64 diff;
+
+			if (iter == rt_rq)
+				continue;
+
+			spin_lock(&iter->rt_runtime_lock);
+			if (want > 0) {
+				diff = min_t(s64, iter->rt_runtime, want);
+				iter->rt_runtime -= diff;
+				want -= diff;
+			} else {
+				iter->rt_runtime -= want;
+				want -= want;
+			}
+			spin_unlock(&iter->rt_runtime_lock);
+
+			if (!want)
+				break;
+		}
+
+		spin_lock(&rt_rq->rt_runtime_lock);
+		BUG_ON(want);
+balanced:
+		rt_rq->rt_runtime = RUNTIME_INF;
+		spin_unlock(&rt_rq->rt_runtime_lock);
+		spin_unlock(&rt_b->rt_runtime_lock);
+	}
+}
+
+static void disable_runtime(struct rq *rq)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rq->lock, flags);
+	__disable_runtime(rq);
+	spin_unlock_irqrestore(&rq->lock, flags);
+}
+
+static void __enable_runtime(struct rq *rq)
+{
+	struct root_domain *rd = rq->rd;
+	struct rt_rq *rt_rq;
+
+	if (unlikely(!scheduler_running))
+		return;
+
+	for_each_leaf_rt_rq(rt_rq, rq) {
+		struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
+
+		spin_lock(&rt_b->rt_runtime_lock);
+		spin_lock(&rt_rq->rt_runtime_lock);
+		rt_rq->rt_runtime = rt_b->rt_runtime;
+		rt_rq->rt_time = 0;
+		spin_unlock(&rt_rq->rt_runtime_lock);
+		spin_unlock(&rt_b->rt_runtime_lock);
+	}
+}
+
+static void enable_runtime(struct rq *rq)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rq->lock, flags);
+	__enable_runtime(rq);
+	spin_unlock_irqrestore(&rq->lock, flags);
+}
+
 #endif
 
 static inline int rt_se_prio(struct sched_rt_entity *rt_se)
@@ -334,14 +430,13 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 
 #ifdef CONFIG_SMP
 	if (rt_rq->rt_time > runtime) {
-		int more;
-
 		spin_unlock(&rt_rq->rt_runtime_lock);
-		more = balance_runtime(rt_rq);
+		balance_runtime(rt_rq);
 		spin_lock(&rt_rq->rt_runtime_lock);
 
-		if (more)
-			runtime = sched_rt_runtime(rt_rq);
+		runtime = sched_rt_runtime(rt_rq);
+		if (runtime == RUNTIME_INF)
+			return 0;
 	}
 #endif
 
@@ -1174,6 +1269,8 @@ static void rq_online_rt(struct rq *rq)
 	if (rq->rt.overloaded)
 		rt_set_overload(rq);
 
+	__enable_runtime(rq);
+
 	cpupri_set(&rq->rd->cpupri, rq->cpu, rq->rt.highest_prio);
 }
 
@@ -1182,6 +1279,8 @@ static void rq_offline_rt(struct rq *rq)
 {
 	if (rq->rt.overloaded)
 		rt_clear_overload(rq);
+
+	__disable_runtime(rq);
 
 	cpupri_set(&rq->rd->cpupri, rq->cpu, CPUPRI_INVALID);
 }
