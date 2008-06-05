@@ -1508,12 +1508,12 @@ config PCI_GOMMCONFIG
 config PCI_GODIRECT
 	bool "Direct"
 
-config PCI_GOANY
-	bool "Any"
-
 config PCI_GOOLPC
 	bool "OLPC"
 	depends on OLPC
+
+config PCI_GOANY
+	bool "Any"
 
 endchoice
 
@@ -1531,9 +1531,8 @@ config PCI_MMCONFIG
 	depends on X86_32 && PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
 
 config PCI_OLPC
-	bool
-	depends on PCI && PCI_GOOLPC
-	default y
+	def_bool y
+	depends on PCI && OLPC && (PCI_GOOLPC || PCI_GOANY)
 
 config PCI_DOMAINS
 	def_bool y
