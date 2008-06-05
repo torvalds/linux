@@ -74,7 +74,7 @@ struct sub_seq {
  * @first_free: array index of first unused sub-sequence entry
  * @ns_list: links to adjacent name sequences in hash chain
  * @subscriptions: list of subscriptions for this 'type'
- * @lock: spinlock controlling access to name sequence structure
+ * @lock: spinlock controlling access to publication lists of all sub-sequences
  */
 
 struct name_seq {
@@ -918,7 +918,9 @@ static void nameseq_list(struct name_seq *seq, struct print_buf *buf, u32 depth,
 	for (sseq = seq->sseqs; sseq != &seq->sseqs[seq->first_free]; sseq++) {
 		if ((lowbound <= sseq->upper) && (upbound >= sseq->lower)) {
 			tipc_printf(buf, "%s ", typearea);
+			spin_lock_bh(&seq->lock);
 			subseq_list(sseq, buf, depth, index);
+			spin_unlock_bh(&seq->lock);
 			sprintf(typearea, "%10s", " ");
 		}
 	}
