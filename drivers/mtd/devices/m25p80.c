@@ -346,8 +346,10 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	mutex_lock(&flash->lock);
 
 	/* Wait until finished previous write command. */
-	if (wait_till_ready(flash))
+	if (wait_till_ready(flash)) {
+		mutex_unlock(&flash->lock);
 		return 1;
+	}
 
 	write_enable(flash);
 
