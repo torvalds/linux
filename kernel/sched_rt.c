@@ -399,16 +399,19 @@ void inc_rt_tasks(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
 	if (rt_se_prio(rt_se) < rt_rq->highest_prio) {
 		struct rq *rq = rq_of_rt_rq(rt_rq);
-		rt_rq->highest_prio = rt_se_prio(rt_se);
 
+		rt_rq->highest_prio = rt_se_prio(rt_se);
+#ifdef CONFIG_SMP
 		if (rq->online)
 			cpupri_set(&rq->rd->cpupri, rq->cpu,
 				   rt_se_prio(rt_se));
+#endif
 	}
 #endif
 #ifdef CONFIG_SMP
 	if (rt_se->nr_cpus_allowed > 1) {
 		struct rq *rq = rq_of_rt_rq(rt_rq);
+
 		rq->rt.rt_nr_migratory++;
 	}
 
