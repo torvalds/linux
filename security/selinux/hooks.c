@@ -42,9 +42,7 @@
 #include <linux/fdtable.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
-#include <linux/ext2_fs.h>
 #include <linux/proc_fs.h>
-#include <linux/kd.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <linux/tty.h>
@@ -2903,46 +2901,16 @@ static void selinux_file_free_security(struct file *file)
 static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
-	int error = 0;
+	u32 av = 0;
 
-	switch (cmd) {
-	case FIONREAD:
-	/* fall through */
-	case FIBMAP:
-	/* fall through */
-	case FIGETBSZ:
-	/* fall through */
-	case EXT2_IOC_GETFLAGS:
-	/* fall through */
-	case EXT2_IOC_GETVERSION:
-		error = file_has_perm(current, file, FILE__GETATTR);
-		break;
+	if (_IOC_DIR(cmd) & _IOC_WRITE)
+		av |= FILE__WRITE;
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		av |= FILE__READ;
+	if (!av)
+		av = FILE__IOCTL;
 
-	case EXT2_IOC_SETFLAGS:
-	/* fall through */
-	case EXT2_IOC_SETVERSION:
-		error = file_has_perm(current, file, FILE__SETATTR);
-		break;
-
-	/* sys_ioctl() checks */
-	case FIONBIO:
-	/* fall through */
-	case FIOASYNC:
-		error = file_has_perm(current, file, 0);
-		break;
-
-	case KDSKBENT:
-	case KDSKBSENT:
-		error = task_has_capability(current, CAP_SYS_TTY_CONFIG);
-		break;
-
-	/* default case assumes that the command will go
-	 * to the file's ioctl() function.
-	 */
-	default:
-		error = file_has_perm(current, file, FILE__IOCTL);
-	}
-	return error;
+	return file_has_perm(current, file, av);
 }
 
 static int file_map_prot_check(struct file *file, unsigned long prot, int shared)
