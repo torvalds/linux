@@ -58,8 +58,6 @@ struct cache_palias {
 	int context;
 };
 
-extern struct cache_palias *sparc_aliases;
-
 /* passing structs on the Sparc slow us down tremendously... */
 
 /* #define STRICT_MM_TYPECHECKS */

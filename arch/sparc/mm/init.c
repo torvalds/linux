@@ -128,7 +128,7 @@ unsigned long calc_highpages(void)
 	return nr;
 }
 
-unsigned long calc_max_low_pfn(void)
+static unsigned long calc_max_low_pfn(void)
 {
 	int i;
 	unsigned long tmp = pfn_base + (SRMMU_MAXMEM >> PAGE_SHIFT);
@@ -292,7 +292,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
  *
  * We simply copy the 2.4 implementation for now.
  */
-int pgt_cache_water[2] = { 25, 50 };
+static int pgt_cache_water[2] = { 25, 50 };
 
 void check_pgt_cache(void)
 {
@@ -356,8 +356,6 @@ void __init paging_init(void)
 	device_scan();
 }
 
-struct cache_palias *sparc_aliases;
-
 static void __init taint_real_pages(void)
 {
 	int i;
@@ -375,7 +373,7 @@ static void __init taint_real_pages(void)
 	}
 }
 
-void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
+static void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long tmp;
 
