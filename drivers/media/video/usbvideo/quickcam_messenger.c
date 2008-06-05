@@ -210,7 +210,7 @@ static int qcm_stv_setb(struct usb_device *dev, u16 reg, u8 val)
 	return ret;
 }
 
-static int qcm_stv_setw(struct usb_device *dev, u16 reg, u16 val)
+static int qcm_stv_setw(struct usb_device *dev, u16 reg, __le16 val)
 {
 	int ret;
 

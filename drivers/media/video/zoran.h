@@ -285,7 +285,7 @@ struct zoran_mapping {
 
 struct zoran_jpg_buffer {
 	struct zoran_mapping *map;
-	u32 *frag_tab;		/* addresses of frag table */
+	__le32 *frag_tab;		/* addresses of frag table */
 	u32 frag_tab_bus;	/* same value cached to save time in ISR */
 	enum zoran_buffer_state state;	/* non-zero if corresponding buffer is in use in grab queue */
 	struct zoran_sync bs;	/* DONE: info to return to application */
@@ -450,7 +450,7 @@ struct zoran {
 	unsigned long jpg_queued_num;	/* count of frames queued since grab/play started */
 
 	/* zr36057's code buffer table */
-	u32 *stat_com;		/* stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM */
+	__le32 *stat_com;		/* stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM */
 
 	/* (value & BUZ_MASK_FRAME) corresponds to index in pend[] queue */
 	int jpg_pend[BUZ_MAX_FRAME];

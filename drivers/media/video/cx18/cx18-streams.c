@@ -36,12 +36,13 @@
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
 static struct file_operations cx18_v4l2_enc_fops = {
-      .owner = THIS_MODULE,
-      .read = cx18_v4l2_read,
-      .open = cx18_v4l2_open,
-      .ioctl = cx18_v4l2_ioctl,
-      .release = cx18_v4l2_close,
-      .poll = cx18_v4l2_enc_poll,
+	.owner = THIS_MODULE,
+	.read = cx18_v4l2_read,
+	.open = cx18_v4l2_open,
+	.ioctl = cx18_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = cx18_v4l2_close,
+	.poll = cx18_v4l2_enc_poll,
 };
 
 /* offset from 0 to register ts v4l2 minors on */
@@ -443,7 +444,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	s->handle = data[0];
 	cx18_vapi(cx, CX18_CPU_SET_CHANNEL_TYPE, 2, s->handle, captype);
 
-	if (atomic_read(&cx->capturing) == 0 && !ts) {
+	if (atomic_read(&cx->ana_capturing) == 0 && !ts) {
 		/* Stuff from Windows, we don't know what it is */
 		cx18_vapi(cx, CX18_CPU_SET_VER_CROP_LINE, 2, s->handle, 0);
 		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 3, s->handle, 3, 1);
@@ -466,14 +467,14 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		cx2341x_update(cx, cx18_api_func, NULL, &cx->params);
 	}
 
-	if (atomic_read(&cx->capturing) == 0) {
+	if (atomic_read(&cx->tot_capturing) == 0) {
 		clear_bit(CX18_F_I_EOS, &cx->i_flags);
 		write_reg(7, CX18_DSP0_INTERRUPT_MASK);
 	}
 
 	cx18_vapi(cx, CX18_CPU_DE_SET_MDL_ACK, 3, s->handle,
-		(void *)&cx->scb->cpu_mdl_ack[s->type][0] - cx->enc_mem,
-		(void *)&cx->scb->cpu_mdl_ack[s->type][1] - cx->enc_mem);
+		(void __iomem *)&cx->scb->cpu_mdl_ack[s->type][0] - cx->enc_mem,
+		(void __iomem *)&cx->scb->cpu_mdl_ack[s->type][1] - cx->enc_mem);
 
 	list_for_each(p, &s->q_free.list) {
 		struct cx18_buffer *buf = list_entry(p, struct cx18_buffer, list);
@@ -481,8 +482,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		writel(buf->dma_handle, &cx->scb->cpu_mdl[buf->id].paddr);
 		writel(s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
 		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-			(void *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem, 1,
-			buf->id, s->buf_size);
+			(void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+			1, buf->id, s->buf_size);
 	}
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {
@@ -492,7 +493,9 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	}
 
 	/* you're live! sit back and await interrupts :) */
-	atomic_inc(&cx->capturing);
+	if (!ts)
+		atomic_inc(&cx->ana_capturing);
+	atomic_inc(&cx->tot_capturing);
 	return 0;
 }
 
@@ -523,7 +526,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 
 	CX18_DEBUG_INFO("Stop Capture\n");
 
-	if (atomic_read(&cx->capturing) == 0)
+	if (atomic_read(&cx->tot_capturing) == 0)
 		return 0;
 
 	if (s->type == CX18_ENC_STREAM_TYPE_MPG)
@@ -537,7 +540,9 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 		CX18_INFO("ignoring gop_end: not (yet?) supported by the firmware\n");
 	}
 
-	atomic_dec(&cx->capturing);
+	if (s->type != CX18_ENC_STREAM_TYPE_TS)
+		atomic_dec(&cx->ana_capturing);
+	atomic_dec(&cx->tot_capturing);
 
 	/* Clear capture and no-read bits */
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
@@ -545,7 +550,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
 	s->handle = 0xffffffff;
 
-	if (atomic_read(&cx->capturing) > 0)
+	if (atomic_read(&cx->tot_capturing) > 0)
 		return 0;
 
 	write_reg(5, CX18_DSP0_INTERRUPT_MASK);

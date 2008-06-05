@@ -259,6 +259,12 @@ struct ivtv_mailbox_data {
 
 /* Scatter-Gather array element, used in DMA transfers */
 struct ivtv_sg_element {
+	__le32 src;
+	__le32 dst;
+	__le32 size;
+};
+
+struct ivtv_sg_host_element {
 	u32 src;
 	u32 dst;
 	u32 size;
@@ -349,8 +355,8 @@ struct ivtv_stream {
 	u16 dma_xfer_cnt;
 
 	/* Base Dev SG Array for cx23415/6 */
-	struct ivtv_sg_element *sg_pending;
-	struct ivtv_sg_element *sg_processing;
+	struct ivtv_sg_host_element *sg_pending;
+	struct ivtv_sg_host_element *sg_processing;
 	struct ivtv_sg_element *sg_dma;
 	dma_addr_t sg_handle;
 	int sg_pending_size;

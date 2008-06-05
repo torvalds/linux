@@ -86,7 +86,7 @@ static int ttusbdecfe_dvbt_set_frontend(struct dvb_frontend* fe, struct dvb_fron
 		   0x00, 0x00, 0x00, 0xff,
 		   0x00, 0x00, 0x00, 0xff };
 
-	u32 freq = htonl(p->frequency / 1000);
+	__be32 freq = htonl(p->frequency / 1000);
 	memcpy(&b[4], &freq, sizeof (u32));
 	state->config->send_command(fe, 0x71, sizeof(b), b, NULL, NULL);
 
@@ -117,10 +117,10 @@ static int ttusbdecfe_dvbs_set_frontend(struct dvb_frontend* fe, struct dvb_fron
 		   0x00, 0x00, 0x00, 0x00,
 		   0x00, 0x00, 0x00, 0x00,
 		   0x00, 0x00, 0x00, 0x00 };
-	u32 freq;
-	u32 sym_rate;
-	u32 band;
-	u32 lnb_voltage;
+	__be32 freq;
+	__be32 sym_rate;
+	__be32 band;
+	__be32 lnb_voltage;
 
 	freq = htonl(p->frequency +
 	       (state->hi_band ? LOF_HI : LOF_LO));

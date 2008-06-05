@@ -94,10 +94,10 @@ static const struct cx18_api_info *find_api_info(u32 cmd)
 	return NULL;
 }
 
-static struct cx18_mailbox *cx18_mb_is_complete(struct cx18 *cx, int rpu,
+static struct cx18_mailbox __iomem *cx18_mb_is_complete(struct cx18 *cx, int rpu,
 		u32 *state, u32 *irq, u32 *req)
 {
-	struct cx18_mailbox *mb = NULL;
+	struct cx18_mailbox __iomem *mb = NULL;
 	int wait_count = 0;
 	u32 ack;
 
@@ -142,7 +142,7 @@ static struct cx18_mailbox *cx18_mb_is_complete(struct cx18 *cx, int rpu,
 long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb)
 {
 	const struct cx18_api_info *info = find_api_info(mb->cmd);
-	struct cx18_mailbox *ack_mb;
+	struct cx18_mailbox __iomem *ack_mb;
 	u32 ack_irq;
 	u8 rpu = CPU;
 
@@ -182,7 +182,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 {
 	const struct cx18_api_info *info = find_api_info(cmd);
 	u32 state = 0, irq = 0, req, oldreq, err;
-	struct cx18_mailbox *mb;
+	struct cx18_mailbox __iomem *mb;
 	wait_queue_head_t *waitq;
 	int timeout = 100;
 	int cnt = 0;

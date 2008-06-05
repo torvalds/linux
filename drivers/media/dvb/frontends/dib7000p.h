@@ -37,7 +37,20 @@ struct dib7000p_config {
 
 #define DEFAULT_DIB7000P_I2C_ADDRESS 18
 
-extern struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg);
+#if defined(CONFIG_DVB_DIB7000P) || (defined(CONFIG_DVB_DIB7000P_MODULE) && defined(MODULE))
+extern struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap,
+					    u8 i2c_addr,
+					    struct dib7000p_config *cfg);
+#else
+static inline struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap,
+						   u8 i2c_addr,
+						   struct dib7000p_config *cfg)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+#endif
+
 extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[]);
 
 extern struct i2c_adapter * dib7000p_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);

@@ -34,6 +34,7 @@
 #include <linux/firmware.h>
 #include <net/checksum.h>
 
+#include <asm/unaligned.h>
 #include <asm/io.h>
 
 #include "bttvp.h"
@@ -3858,7 +3859,7 @@ static void __devinit osprey_eeprom(struct bttv *btv, const u8 ee[256])
 		ee += i;
 
 		/* found a valid descriptor */
-		type = be16_to_cpup((u16*)(ee+4));
+		type = get_unaligned_be16((__be16 *)(ee+4));
 
 		switch(type) {
 		/* 848 based */
@@ -3918,7 +3919,7 @@ static void __devinit osprey_eeprom(struct bttv *btv, const u8 ee[256])
 			       btv->c.nr, type);
 			break;
 		}
-		serial = be32_to_cpup((u32*)(ee+6));
+		serial = get_unaligned_be32((__be32 *)(ee+6));
 	}
 
 	printk(KERN_INFO "bttv%d: osprey eeprom: card=%d '%s' serial=%u\n",
