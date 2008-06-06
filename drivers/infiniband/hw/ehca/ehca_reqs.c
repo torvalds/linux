@@ -421,8 +421,10 @@ int ehca_post_send(struct ib_qp *qp,
 	int ret = 0;
 	unsigned long flags;
 
-	if (unlikely(my_qp->state != IB_QPS_RTS)) {
-		ehca_err(qp->device, "QP not in RTS state  qpn=%x", qp->qp_num);
+	/* Reject WR if QP is in RESET, INIT or RTR state */
+	if (unlikely(my_qp->state < IB_QPS_RTS)) {
+		ehca_err(qp->device, "Invalid QP state  qp_state=%d qpn=%x",
+			 my_qp->state, qp->qp_num);
 		return -EINVAL;
 	}
 
