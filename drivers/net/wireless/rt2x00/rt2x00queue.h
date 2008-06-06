@@ -105,11 +105,8 @@ enum data_queue_qid {
 struct skb_frame_desc {
 	unsigned int flags;
 
-	unsigned short data_len;
-	unsigned short desc_len;
-
-	void *data;
 	void *desc;
+	unsigned int desc_len;
 
 	struct queue_entry *entry;
 };

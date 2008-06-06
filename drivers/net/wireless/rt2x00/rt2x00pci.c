@@ -61,8 +61,6 @@ int rt2x00pci_write_tx_data(struct queue_entry *entry)
 	 */
 	skbdesc = get_skb_frame_desc(entry->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->data = entry->skb->data;
-	skbdesc->data_len = entry->skb->len;
 	skbdesc->desc = entry_priv->desc;
 	skbdesc->desc_len = entry->queue->desc_size;
 	skbdesc->entry = entry;
@@ -126,8 +124,6 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		 */
 		skbdesc = get_skb_frame_desc(entry->skb);
 		memset(skbdesc, 0, sizeof(*skbdesc));
-		skbdesc->data = entry->skb->data;
-		skbdesc->data_len = entry->skb->len;
 		skbdesc->desc = entry_priv->desc;
 		skbdesc->desc_len = queue->desc_size;
 		skbdesc->entry = entry;

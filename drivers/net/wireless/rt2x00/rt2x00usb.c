@@ -192,8 +192,6 @@ int rt2x00usb_write_tx_data(struct queue_entry *entry)
 	 */
 	skbdesc = get_skb_frame_desc(entry->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->data = entry->skb->data + entry->queue->desc_size;
-	skbdesc->data_len = entry->skb->len - entry->queue->desc_size;
 	skbdesc->desc = entry->skb->data;
 	skbdesc->desc_len = entry->queue->desc_size;
 	skbdesc->entry = entry;
@@ -352,7 +350,6 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	}
 
 	/* Update data pointers, trim buffer to correct size */
-	skbdesc->data = entry->skb->data;
 	skb_trim(entry->skb, rxdesc.size);
 
 	/*
