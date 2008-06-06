@@ -726,7 +726,7 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 		if (!ppage)
 			pcount = 0;
 		else
-			pcount = atomic_read(&ppage->_count);
+			pcount = page_mapcount(ppage);
 
 		if (put_user(pcount, out++)) {
 			ret = -EFAULT;
