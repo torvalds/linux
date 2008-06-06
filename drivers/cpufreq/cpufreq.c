@@ -625,7 +625,7 @@ static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
 	unsigned int freq = 0;
 	unsigned int ret;
 
-	if (!policy->governor->store_setspeed)
+	if (!policy->governor || !policy->governor->store_setspeed)
 		return -EINVAL;
 
 	ret = sscanf(buf, "%u", &freq);
@@ -639,7 +639,7 @@ static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
 
 static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 {
-	if (!policy->governor->show_setspeed)
+	if (!policy->governor || !policy->governor->show_setspeed)
 		return sprintf(buf, "<unsupported>\n");
 
 	return policy->governor->show_setspeed(policy, buf);
