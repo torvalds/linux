@@ -2189,6 +2189,29 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL)) {
 		if (ext4_load_journal(sb, es, journal_devnum))
 			goto failed_mount3;
+		if (!(sb->s_flags & MS_RDONLY) &&
+		    EXT4_SB(sb)->s_journal->j_failed_commit) {
+			printk(KERN_CRIT "EXT4-fs error (device %s): "
+			       "ext4_fill_super: Journal transaction "
+			       "%u is corrupt\n", sb->s_id, 
+			       EXT4_SB(sb)->s_journal->j_failed_commit);
+			if (test_opt (sb, ERRORS_RO)) {
+				printk (KERN_CRIT
+					"Mounting filesystem read-only\n");
+				sb->s_flags |= MS_RDONLY;
+				EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
+				es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
+			}
+			if (test_opt(sb, ERRORS_PANIC)) {
+				EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
+				es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
+				ext4_commit_super(sb, es, 1);
+				printk(KERN_CRIT
+				       "EXT4-fs (device %s): mount failed\n",
+				      sb->s_id);
+				goto failed_mount4;
+			}
+		}
 	} else if (journal_inum) {
 		if (ext4_create_journal(sb, es, journal_inum))
 			goto failed_mount3;
