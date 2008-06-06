@@ -31,12 +31,10 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/sizes.h>
 
-#include <asm/hardware.h>
 #include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
 
 #ifdef CONFIG_MTD_NAND_AT91_ECC_HW
 #define hard_ecc	1
@@ -99,7 +97,7 @@ struct at91_nand_host {
 static void at91_nand_enable(struct at91_nand_host *host)
 {
 	if (host->board->enable_pin)
-		at91_set_gpio_value(host->board->enable_pin, 0);
+		gpio_set_value(host->board->enable_pin, 0);
 }
 
 /*
@@ -108,7 +106,7 @@ static void at91_nand_enable(struct at91_nand_host *host)
 static void at91_nand_disable(struct at91_nand_host *host)
 {
 	if (host->board->enable_pin)
-		at91_set_gpio_value(host->board->enable_pin, 1);
+		gpio_set_value(host->board->enable_pin, 1);
 }
 
 /*
@@ -142,7 +140,7 @@ static int at91_nand_device_ready(struct mtd_info *mtd)
 	struct nand_chip *nand_chip = mtd->priv;
 	struct at91_nand_host *host = nand_chip->priv;
 
-	return at91_get_gpio_value(host->board->rdy_pin);
+	return gpio_get_value(host->board->rdy_pin);
 }
 
 /*
@@ -447,7 +445,7 @@ static int __init at91_nand_probe(struct platform_device *pdev)
 	at91_nand_enable(host);
 
 	if (host->board->det_pin) {
-		if (at91_get_gpio_value(host->board->det_pin)) {
+		if (gpio_get_value(host->board->det_pin)) {
 			printk ("No SmartMedia card inserted.\n");
 			res = ENXIO;
 			goto out;
