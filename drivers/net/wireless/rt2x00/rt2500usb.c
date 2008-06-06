@@ -1116,8 +1116,10 @@ static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 {
 	u16 reg;
 
-	if (queue != QID_BEACON)
+	if (queue != QID_BEACON) {
+		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
 		return;
+	}
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
 	if (!rt2x00_get_field16(reg, TXRX_CSR19_BEACON_GEN)) {

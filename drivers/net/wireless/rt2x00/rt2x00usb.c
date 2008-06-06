@@ -232,15 +232,61 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * Initialize URB and send the frame to the device.
 	 */
 	__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+	__set_bit(ENTRY_DATA_PENDING, &entry->flags);
+
 	usb_fill_bulk_urb(entry_priv->urb, usb_dev, usb_sndbulkpipe(usb_dev, 1),
 			  skb->data, length, rt2x00usb_interrupt_txdone, entry);
-	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 
 	rt2x00queue_index_inc(queue, Q_INDEX);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_write_tx_data);
+
+static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
+{
+	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
+
+	if (__test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
+		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+}
+
+void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
+			     const enum data_queue_qid qid)
+{
+	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, qid);
+	unsigned long irqflags;
+	unsigned int index;
+	unsigned int index_done;
+	unsigned int i;
+
+	/*
+	 * Only protect the range we are going to loop over,
+	 * if during our loop a extra entry is set to pending
+	 * it should not be kicked during this run, since it
+	 * is part of another TX operation.
+	 */
+	spin_lock_irqsave(&queue->lock, irqflags);
+	index = queue->index[Q_INDEX];
+	index_done = queue->index[Q_INDEX_DONE];
+	spin_unlock_irqrestore(&queue->lock, irqflags);
+
+	/*
+	 * Start from the TX done pointer, this guarentees that we will
+	 * send out all frames in the correct order.
+	 */
+	if (index_done < index) {
+		for (i = index_done; i < index; i++)
+			rt2x00usb_kick_tx_entry(&queue->entries[i]);
+	} else {
+		for (i = index_done; i < queue->limit; i++)
+			rt2x00usb_kick_tx_entry(&queue->entries[i]);
+
+		for (i = 0; i < index; i++)
+			rt2x00usb_kick_tx_entry(&queue->entries[i]);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_kick_tx_queue);
 
 /*
  * RX data handlers.

@@ -260,11 +260,14 @@ struct txentry_desc {
  * @ENTRY_OWNER_DEVICE_CRYPTO: This entry is owned by the device for data
  *	encryption or decryption. The entry should only be touched after
  *	the device has signaled it is done with it.
+ * @ENTRY_DATA_PENDING: This entry contains a valid frame and is waiting
+ *	for the signal to start sending.
  */
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
 	ENTRY_OWNER_DEVICE_CRYPTO,
+	ENTRY_DATA_PENDING,
 };
 
 /**
