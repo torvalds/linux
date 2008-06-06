@@ -53,7 +53,7 @@
 #define	FEC_MAX_PORTS	1
 #endif
 
-#if defined(CONFIG_FADS) || defined(CONFIG_RPXCLASSIC) || defined(CONFIG_M5272)
+#if defined(CONFIG_M5272)
 #define HAVE_mii_link_interrupt
 #endif
 
