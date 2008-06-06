@@ -163,8 +163,8 @@ EXPORT_SYMBOL_GPL(rt2x00queue_create_tx_descriptor);
 void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 				     struct txentry_desc *txdesc)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct data_queue *queue = entry->queue;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 
 	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, entry->skb, txdesc);
 
@@ -175,16 +175,21 @@ void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, entry->skb);
 
 	/*
-	 * We are done writing the frame to the queue entry,
-	 * also kick the queue in case the correct flags are set,
-	 * note that this will automatically filter beacons and
-	 * RTS/CTS frames since those frames don't have this flag
-	 * set.
+	 * Check if we need to kick the queue, there are however a few rules
+	 *	1) Don't kick beacon queue
+	 *	2) Don't kick unless this is the last in frame in a burst.
+	 *	   When the burst flag is set, this frame is always followed
+	 *	   by another frame which in some way are related to eachother.
+	 *	   This is true for fragments, RTS or CTS-to-self frames.
+	 *	3) Rule 2 can be broken when the available entries
+	 *	   in the queue are less then a certain threshold.
 	 */
-	if (rt2x00dev->ops->lib->kick_tx_queue &&
-	    !(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))
-		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev,
-						   entry->queue->qid);
+	if (entry->queue->qid == QID_BEACON)
+		return;
+
+	if (rt2x00queue_threshold(queue) ||
+	    !test_bit(ENTRY_TXD_BURST, &txdesc->flags))
+		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, queue->qid);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_write_tx_descriptor);
 
@@ -349,6 +354,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	rt2x00queue_reset(queue);
 
 	queue->limit = qdesc->entry_num;
+	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
 	queue->data_size = qdesc->data_size;
 	queue->desc_size = qdesc->desc_size;
 

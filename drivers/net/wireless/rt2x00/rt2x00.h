@@ -826,7 +826,7 @@ struct rt2x00_dev {
 	 * The Beacon array also contains the Atim queue
 	 * if that is supported by the device.
 	 */
-	int data_queues;
+	unsigned int data_queues;
 	struct data_queue *rx;
 	struct data_queue *tx;
 	struct data_queue *bcn;

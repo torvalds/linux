@@ -165,11 +165,11 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
 
 	/*
-	 * If the data queue was full before the txdone handler
-	 * we must make sure the packet queue in the mac80211 stack
+	 * If the data queue was below the threshold before the txdone
+	 * handler we must make sure the packet queue in the mac80211 stack
 	 * is reenabled when the txdone handler has finished.
 	 */
-	if (!rt2x00queue_full(entry->queue))
+	if (!rt2x00queue_threshold(entry->queue))
 		ieee80211_wake_queue(rt2x00dev->hw, qid);
 }
 

@@ -82,12 +82,10 @@ enum data_queue_qid {
 /**
  * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
  *
- * @FRAME_DESC_DRIVER_GENERATED: Frame was generated inside driver
- *	and should not be reported back to mac80211 during txdone.
  */
-enum skb_frame_desc_flags {
-	FRAME_DESC_DRIVER_GENERATED = 1 << 0,
-};
+//enum skb_frame_desc_flags {
+//	TEMPORARILY EMPTY
+//};
 
 /**
  * struct skb_frame_desc: Descriptor information for the skb buffer
@@ -325,6 +323,7 @@ enum queue_index {
  *	index corruption due to concurrency.
  * @count: Number of frames handled in the queue.
  * @limit: Maximum number of entries in the queue.
+ * @threshold: Minimum number of free entries before queue is kicked by force.
  * @length: Number of frames in queue.
  * @index: Index pointers to entry positions in the queue,
  *	use &enum queue_index to get a specific index field.
@@ -343,6 +342,7 @@ struct data_queue {
 	spinlock_t lock;
 	unsigned int count;
 	unsigned short limit;
+	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
 
@@ -464,6 +464,15 @@ static inline int rt2x00queue_full(struct data_queue *queue)
 static inline int rt2x00queue_available(struct data_queue *queue)
 {
 	return queue->limit - queue->length;
+}
+
+/**
+ * rt2x00queue_threshold - Check if the queue is below threshold
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_threshold(struct data_queue *queue)
+{
+	return rt2x00queue_available(queue) < queue->threshold;
 }
 
 /**

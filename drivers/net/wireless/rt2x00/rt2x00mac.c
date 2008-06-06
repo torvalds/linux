@@ -34,7 +34,6 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				struct sk_buff *frag_skb)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(frag_skb);
-	struct skb_frame_desc *skbdesc;
 	struct ieee80211_tx_info *rts_info;
 	struct sk_buff *skb;
 	int size;
@@ -81,13 +80,6 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 		ieee80211_rts_get(rt2x00dev->hw, tx_info->control.vif,
 				  frag_skb->data, size, tx_info,
 				  (struct ieee80211_rts *)(skb->data));
-
-	/*
-	 * Initialize skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
 
 	if (rt2x00queue_write_tx_frame(queue, skb)) {
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
@@ -163,7 +155,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (rt2x00queue_full(queue))
+	if (rt2x00queue_threshold(queue))
 		ieee80211_stop_queue(rt2x00dev->hw, qid);
 
 	return NETDEV_TX_OK;
