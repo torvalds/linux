@@ -506,7 +506,6 @@ struct cgroup_subsys devices_subsys = {
 
 int devcgroup_inode_permission(struct inode *inode, int mask)
 {
-	struct cgroup *cgroup;
 	struct dev_cgroup *dev_cgroup;
 	struct dev_whitelist_item *wh;
 
@@ -515,8 +514,8 @@ int devcgroup_inode_permission(struct inode *inode, int mask)
 		return 0;
 	if (!S_ISBLK(inode->i_mode) && !S_ISCHR(inode->i_mode))
 		return 0;
-	cgroup = task_cgroup(current, devices_subsys.subsys_id);
-	dev_cgroup = cgroup_to_devcgroup(cgroup);
+	dev_cgroup = css_to_devcgroup(task_subsys_state(current,
+				devices_subsys_id));
 	if (!dev_cgroup)
 		return 0;
 
@@ -547,12 +546,11 @@ acc_check:
 
 int devcgroup_inode_mknod(int mode, dev_t dev)
 {
-	struct cgroup *cgroup;
 	struct dev_cgroup *dev_cgroup;
 	struct dev_whitelist_item *wh;
 
-	cgroup = task_cgroup(current, devices_subsys.subsys_id);
-	dev_cgroup = cgroup_to_devcgroup(cgroup);
+	dev_cgroup = css_to_devcgroup(task_subsys_state(current,
+				devices_subsys_id));
 	if (!dev_cgroup)
 		return 0;
 
