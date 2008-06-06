@@ -148,7 +148,7 @@ static inline void gameport_unpin_driver(struct gameport *gameport)
 
 int __gameport_register_driver(struct gameport_driver *drv,
 				struct module *owner, const char *mod_name);
-static inline int gameport_register_driver(struct gameport_driver *drv)
+static inline int __must_check gameport_register_driver(struct gameport_driver *drv)
 {
 	return __gameport_register_driver(drv, THIS_MODULE, KBUILD_MODNAME);
 }
