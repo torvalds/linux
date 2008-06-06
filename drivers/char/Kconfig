@@ -118,8 +118,8 @@ config COMPUTONE
 	  order to become a dial-in server. If you have a card like that, say
 	  Y here and read <file:Documentation/computone.txt>.
 
-	  To compile this driver as modules, choose M here: the
-	  modules will be called ip2 and ip2main.
+	  To compile this driver as module, choose M here: the
+	  module will be called ip2.
 
 config ROCKETPORT
 	tristate "Comtrol RocketPort support"
