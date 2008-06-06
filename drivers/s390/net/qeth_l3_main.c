@@ -2070,7 +2070,7 @@ static struct qeth_card *qeth_l3_get_card_from_dev(struct net_device *dev)
 		card = netdev_priv(dev);
 	else if (rc == QETH_VLAN_CARD)
 		card = netdev_priv(vlan_dev_info(dev)->real_dev);
-	if (card->options.layer2)
+	if (card && card->options.layer2)
 		card = NULL;
 	QETH_DBF_TEXT_(TRACE, 4, "%d", rc);
 	return card ;
