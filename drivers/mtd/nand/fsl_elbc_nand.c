@@ -917,7 +917,7 @@ static int __devinit fsl_elbc_ctrl_init(struct fsl_elbc_ctrl *ctrl)
 	return 0;
 }
 
-static int __devexit fsl_elbc_ctrl_remove(struct of_device *ofdev)
+static int fsl_elbc_ctrl_remove(struct of_device *ofdev)
 {
 	struct fsl_elbc_ctrl *ctrl = dev_get_drvdata(&ofdev->dev);
 	int i;
@@ -1041,7 +1041,7 @@ static struct of_platform_driver fsl_elbc_ctrl_driver = {
 	},
 	.match_table = fsl_elbc_match,
 	.probe = fsl_elbc_ctrl_probe,
-	.remove = __devexit_p(fsl_elbc_ctrl_remove),
+	.remove = fsl_elbc_ctrl_remove,
 };
 
 static int __init fsl_elbc_init(void)
