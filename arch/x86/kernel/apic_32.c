@@ -1154,9 +1154,6 @@ static int __init detect_init_APIC(void)
 	if (l & MSR_IA32_APICBASE_ENABLE)
 		mp_lapic_addr = l & MSR_IA32_APICBASE_BASE;
 
-	if (nmi_watchdog != NMI_NONE && nmi_watchdog != NMI_DISABLED)
-		nmi_watchdog = NMI_LOCAL_APIC;
-
 	printk(KERN_INFO "Found and enabled local APIC!\n");
 
 	apic_pm_activate();
