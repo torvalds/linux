@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2006  Paul Mundt
  *  Copyright (C) 2007  Yoshihiro Shimoda
+ *  Copyright (C) 2008  Nobuhiro Iwamatsu
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -55,6 +56,11 @@ static struct plat_sci_port sci_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 76, 77, 79, 78 },
+	}, {
+		.mapbase	= 0xffe10000,
+		.flags		= UPF_BOOT_AUTOCONF,
+		.type		= PORT_SCIF,
+		.irqs		= { 104, 105, 107, 106 },
 	}, {
 		.flags = 0,
 	}
@@ -208,8 +214,8 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(TMU5, 0xe40), INTC_VECT(ADC, 0xe60),
 	INTC_VECT(SSI0, 0xe80), INTC_VECT(SSI1, 0xea0),
 	INTC_VECT(SSI2, 0xec0), INTC_VECT(SSI3, 0xee0),
-	INTC_VECT(SCIF1_ERI, 0xf00), INTC_VECT(SCIF1_RXI, 0xf20),
-	INTC_VECT(SCIF1_BRI, 0xf40), INTC_VECT(SCIF1_TXI, 0xf60),
+	INTC_VECT(SCIF2_ERI, 0xf00), INTC_VECT(SCIF2_RXI, 0xf20),
+	INTC_VECT(SCIF2_BRI, 0xf40), INTC_VECT(SCIF2_TXI, 0xf60),
 	INTC_VECT(GPIO_CH0, 0xf80), INTC_VECT(GPIO_CH1, 0xfa0),
 	INTC_VECT(GPIO_CH2, 0xfc0), INTC_VECT(GPIO_CH3, 0xfe0),
 };
