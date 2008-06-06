@@ -1,6 +1,4 @@
 /*
- * include/asm-arm/arch-at91/at91_ecc.h
- *
  * Error Corrected Code Controller (ECC) - System peripherals regsters.
  * Based on AT91SAM9260 datasheet revision B.
  *
@@ -10,8 +8,8 @@
  * option) any later version.
  */
 
-#ifndef AT91_ECC_H
-#define AT91_ECC_H
+#ifndef ATMEL_NAND_ECC_H
+#define ATMEL_NAND_ECC_H
 
 #define AT91_ECC_CR		0x00			/* Control register */
 #define		AT91_ECC_RST		(1 << 0)		/* Reset parity */

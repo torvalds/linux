@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/at91_nand.c
- *
  *  Copyright (C) 2003 Rick Bronson
  *
  *  Derived from drivers/mtd/nand/autcpu12.c
@@ -36,13 +34,13 @@
 
 #include <asm/arch/board.h>
 
-#ifdef CONFIG_MTD_NAND_AT91_ECC_HW
+#ifdef CONFIG_MTD_NAND_ATMEL_ECC_HW
 #define hard_ecc	1
 #else
 #define hard_ecc	0
 #endif
 
-#ifdef CONFIG_MTD_NAND_AT91_ECC_NONE
+#ifdef CONFIG_MTD_NAND_ATMEL_ECC_NONE
 #define no_ecc		1
 #else
 #define no_ecc		0
@@ -54,7 +52,7 @@
 #define ecc_writel(add, reg, value)			\
 	__raw_writel((value), add + AT91_ECC_##reg)
 
-#include <asm/arch/at91_ecc.h> /* AT91SAM9260/3 ECC registers */
+#include "atmel_nand_ecc.h"	/* Hardware ECC registers */
 
 /* oob layout for large page size
  * bad block info is on bytes 0 and 1
@@ -588,5 +586,5 @@ module_exit(at91_nand_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rick Bronson");
-MODULE_DESCRIPTION("NAND/SmartMedia driver for AT91RM9200 / AT91SAM9");
+MODULE_DESCRIPTION("NAND/SmartMedia driver for AT91 / AVR32");
 MODULE_ALIAS("platform:at91_nand");
