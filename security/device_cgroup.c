@@ -106,7 +106,7 @@ free_and_exit:
 static int dev_whitelist_add(struct dev_cgroup *dev_cgroup,
 			struct dev_whitelist_item *wh)
 {
-	struct dev_whitelist_item *whcopy;
+	struct dev_whitelist_item *whcopy, *walk;
 
 	whcopy = kmalloc(sizeof(*whcopy), GFP_KERNEL);
 	if (!whcopy)
@@ -114,7 +114,21 @@ static int dev_whitelist_add(struct dev_cgroup *dev_cgroup,
 
 	memcpy(whcopy, wh, sizeof(*whcopy));
 	spin_lock(&dev_cgroup->lock);
-	list_add_tail(&whcopy->list, &dev_cgroup->whitelist);
+	list_for_each_entry(walk, &dev_cgroup->whitelist, list) {
+		if (walk->type != wh->type)
+			continue;
+		if (walk->major != wh->major)
+			continue;
+		if (walk->minor != wh->minor)
+			continue;
+
+		walk->access |= wh->access;
+		kfree(whcopy);
+		whcopy = NULL;
+	}
+
+	if (whcopy != NULL)
+		list_add_tail(&whcopy->list, &dev_cgroup->whitelist);
 	spin_unlock(&dev_cgroup->lock);
 	return 0;
 }
