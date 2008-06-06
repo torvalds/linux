@@ -76,7 +76,7 @@ async_memset(struct page *dest, int val, unsigned int offset,
 			/* if ack is already set then we cannot be sure
 			 * we are referring to the correct operation
 			 */
-			BUG_ON(depend_tx->ack);
+			BUG_ON(async_tx_test_ack(depend_tx));
 			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
 				panic("%s: DMA_ERROR waiting for depend_tx\n",
 					__func__);
