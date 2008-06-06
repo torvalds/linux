@@ -1,6 +1,8 @@
 #ifndef __ASM_ARCH_PXA2XX_GPIO_H
 #define __ASM_ARCH_PXA2XX_GPIO_H
 
+#warning Please use mfp-pxa2[57]x.h instead of pxa2xx-gpio.h
+
 /* GPIO alternate function assignments */
 
 #define GPIO1_RST		1	/* reset */
