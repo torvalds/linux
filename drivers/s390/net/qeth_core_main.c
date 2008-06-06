@@ -1407,12 +1407,6 @@ static void qeth_init_func_level(struct qeth_card *card)
 	}
 }
 
-static inline __u16 qeth_raw_devno_from_bus_id(char *id)
-{
-	id += (strlen(id) - 4);
-	return (__u16) simple_strtoul(id, &id, 16);
-}
-
 static int qeth_idx_activate_get_answer(struct qeth_channel *channel,
 		void (*idx_reply_cb)(struct qeth_channel *,
 			struct qeth_cmd_buffer *))
@@ -1468,6 +1462,7 @@ static int qeth_idx_activate_channel(struct qeth_channel *channel,
 	__u16 temp;
 	__u8 tmp;
 	int rc;
+	struct ccw_dev_id temp_devid;
 
 	card = CARD_FROM_CDEV(channel->ccwdev);
 
@@ -1494,8 +1489,8 @@ static int qeth_idx_activate_channel(struct qeth_channel *channel,
 	       &card->token.issuer_rm_w, QETH_MPC_TOKEN_LENGTH);
 	memcpy(QETH_IDX_ACT_FUNC_LEVEL(iob->data),
 	       &card->info.func_level, sizeof(__u16));
-	temp = qeth_raw_devno_from_bus_id(CARD_DDEV_ID(card));
-	memcpy(QETH_IDX_ACT_QDIO_DEV_CUA(iob->data), &temp, 2);
+	ccw_device_get_id(CARD_DDEV(card), &temp_devid);
+	memcpy(QETH_IDX_ACT_QDIO_DEV_CUA(iob->data), &temp_devid.devno, 2);
 	temp = (card->info.cula << 8) + card->info.unit_addr2;
 	memcpy(QETH_IDX_ACT_QDIO_DEV_REALADDR(iob->data), &temp, 2);
 

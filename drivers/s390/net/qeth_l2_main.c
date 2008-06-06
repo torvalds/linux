@@ -101,19 +101,16 @@ static struct net_device *qeth_l2_netdev_by_devno(unsigned char *read_dev_no)
 {
 	struct qeth_card *card;
 	struct net_device *ndev;
-	unsigned char *readno;
-	__u16 temp_dev_no, card_dev_no;
-	char *endp;
+	__u16 temp_dev_no;
 	unsigned long flags;
+	struct ccw_dev_id read_devid;
 
 	ndev = NULL;
 	memcpy(&temp_dev_no, read_dev_no, 2);
 	read_lock_irqsave(&qeth_core_card_list.rwlock, flags);
 	list_for_each_entry(card, &qeth_core_card_list.list, list) {
-		readno = CARD_RDEV_ID(card);
-		readno += (strlen(readno) - 4);
-		card_dev_no = simple_strtoul(readno, &endp, 16);
-		if (card_dev_no == temp_dev_no) {
+		ccw_device_get_id(CARD_RDEV(card), &read_devid);
+		if (read_devid.devno == temp_dev_no) {
 			ndev = card->dev;
 			break;
 		}
