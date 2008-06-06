@@ -2774,6 +2774,7 @@ again:
 		}
 	}
 
+	clear_bit(KVM_REQ_PENDING_TIMER, &vcpu->requests);
 	kvm_inject_pending_timer_irqs(vcpu);
 
 	preempt_disable();
