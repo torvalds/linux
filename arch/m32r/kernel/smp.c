@@ -212,7 +212,7 @@ void smp_flush_tlb_all(void)
 	local_irq_save(flags);
 	__flush_tlb_all();
 	local_irq_restore(flags);
-	smp_call_function(flush_tlb_all_ipi, NULL, 1, 1);
+	smp_call_function(flush_tlb_all_ipi, NULL, 1);
 	preempt_enable();
 }
 
@@ -505,7 +505,7 @@ void smp_invalidate_interrupt(void)
  *==========================================================================*/
 void smp_send_stop(void)
 {
-	smp_call_function(stop_this_cpu, NULL, 1, 0);
+	smp_call_function(stop_this_cpu, NULL, 0);
 }
 
 /*==========================================================================*

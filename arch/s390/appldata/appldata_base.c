@@ -209,7 +209,7 @@ __appldata_vtimer_setup(int cmd)
 			per_cpu(appldata_timer, i).expires = per_cpu_interval;
 			smp_call_function_single(i, add_virt_timer_periodic,
 						 &per_cpu(appldata_timer, i),
-						 0, 1);
+						 1);
 		}
 		appldata_timer_active = 1;
 		P_INFO("Monitoring timer started.\n");
@@ -236,7 +236,7 @@ __appldata_vtimer_setup(int cmd)
 			args.timer = &per_cpu(appldata_timer, i);
 			args.expires = per_cpu_interval;
 			smp_call_function_single(i, __appldata_mod_vtimer_wrap,
-						 &args, 0, 1);
+						 &args, 1);
 		}
 	}
 }

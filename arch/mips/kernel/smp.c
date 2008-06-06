@@ -167,7 +167,7 @@ static void stop_this_cpu(void *dummy)
 
 void smp_send_stop(void)
 {
-	smp_call_function(stop_this_cpu, NULL, 1, 0);
+	smp_call_function(stop_this_cpu, NULL, 0);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -266,7 +266,7 @@ static void flush_tlb_mm_ipi(void *mm)
 static inline void smp_on_other_tlbs(void (*func) (void *info), void *info)
 {
 #ifndef CONFIG_MIPS_MT_SMTC
-	smp_call_function(func, info, 1, 1);
+	smp_call_function(func, info, 1);
 #endif
 }
 

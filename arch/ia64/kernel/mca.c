@@ -1881,7 +1881,7 @@ static int __cpuinit mca_cpu_callback(struct notifier_block *nfb,
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		smp_call_function_single(hotcpu, ia64_mca_cmc_vector_adjust,
-					 NULL, 1, 0);
+					 NULL, 0);
 		break;
 	}
 	return NOTIFY_OK;

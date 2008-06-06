@@ -62,11 +62,11 @@ extern void smp_cpus_done(unsigned int max_cpus);
 /*
  * Call a function on all other processors
  */
-int smp_call_function(void(*func)(void *info), void *info, int retry, int wait);
+int smp_call_function(void(*func)(void *info), void *info, int wait);
 int smp_call_function_mask(cpumask_t mask, void(*func)(void *info), void *info,
 				int wait);
 int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
-				int retry, int wait);
+				int wait);
 void __smp_call_function_single(int cpuid, struct call_single_data *data);
 
 /*
@@ -119,7 +119,7 @@ static inline int up_smp_call_function(void (*func)(void *), void *info)
 {
 	return 0;
 }
-#define smp_call_function(func, info, retry, wait) \
+#define smp_call_function(func, info, wait) \
 			(up_smp_call_function(func, info))
 #define on_each_cpu(func,info,retry,wait)	\
 	({					\
@@ -131,7 +131,7 @@ static inline int up_smp_call_function(void (*func)(void *), void *info)
 static inline void smp_send_reschedule(int cpu) { }
 #define num_booting_cpus()			1
 #define smp_prepare_boot_cpu()			do {} while (0)
-#define smp_call_function_single(cpuid, func, info, retry, wait) \
+#define smp_call_function_single(cpuid, func, info, wait) \
 ({ \
 	WARN_ON(cpuid != 0);	\
 	local_irq_disable();	\

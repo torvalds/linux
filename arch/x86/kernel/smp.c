@@ -164,7 +164,7 @@ static void native_smp_send_stop(void)
 	if (reboot_force)
 		return;
 
-	smp_call_function(stop_this_cpu, NULL, 0, 0);
+	smp_call_function(stop_this_cpu, NULL, 0);
 	local_irq_save(flags);
 	disable_local_APIC();
 	local_irq_restore(flags);

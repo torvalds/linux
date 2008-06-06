@@ -168,7 +168,7 @@ static void stop_this_cpu(void *dummy)
 
 void smp_send_stop(void)
 {
-	smp_call_function(stop_this_cpu, NULL, 0, 0);
+	smp_call_function(stop_this_cpu, NULL, 0);
 }
 
 extern struct gettimeofday_struct do_gtod;

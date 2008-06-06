@@ -195,7 +195,6 @@ void generic_smp_call_function_single_interrupt(void)
  * smp_call_function_single - Run a function on a specific CPU
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
- * @retry: Unused
  * @wait: If true, wait until function has completed on other CPUs.
  *
  * Returns 0 on success, else a negative status code. Note that @wait
@@ -203,7 +202,7 @@ void generic_smp_call_function_single_interrupt(void)
  * we fall back to on-stack allocation.
  */
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
-			     int retry, int wait)
+			     int wait)
 {
 	struct call_single_data d;
 	unsigned long flags;
@@ -339,7 +338,6 @@ EXPORT_SYMBOL(smp_call_function_mask);
  * smp_call_function(): Run a function on all other CPUs.
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
- * @natomic: Unused
  * @wait: If true, wait (atomically) until function has completed on other CPUs.
  *
  * Returns 0 on success, else a negative status code.
@@ -351,7 +349,7 @@ EXPORT_SYMBOL(smp_call_function_mask);
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-int smp_call_function(void (*func)(void *), void *info, int natomic, int wait)
+int smp_call_function(void (*func)(void *), void *info, int wait)
 {
 	int ret;
 

@@ -690,7 +690,7 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 	 */
 	memset(&etr_sync, 0, sizeof(etr_sync));
 	preempt_disable();
-	smp_call_function(etr_sync_cpu_start, NULL, 0, 0);
+	smp_call_function(etr_sync_cpu_start, NULL, 0);
 	local_irq_disable();
 	etr_enable_sync_clock();
 
@@ -729,7 +729,7 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 		rc = -EAGAIN;
 	}
 	local_irq_enable();
-	smp_call_function(etr_sync_cpu_end,NULL,0,0);
+	smp_call_function(etr_sync_cpu_end,NULL,0);
 	preempt_enable();
 	return rc;
 }

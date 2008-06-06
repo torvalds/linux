@@ -807,7 +807,6 @@ extern unsigned long xcall_call_function;
  * smp_call_function(): Run a function on all other CPUs.
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
- * @nonatomic: currently unused.
  * @wait: If true, wait (atomically) until function has completed on other CPUs.
  *
  * Returns 0 on success, else a negative status code. Does not return until
@@ -817,8 +816,7 @@ extern unsigned long xcall_call_function;
  * hardware interrupt handler or from a bottom half handler.
  */
 static int sparc64_smp_call_function_mask(void (*func)(void *info), void *info,
-					  int nonatomic, int wait,
-					  cpumask_t mask)
+					  int wait, cpumask_t mask)
 {
 	struct call_data_struct data;
 	int cpus;
@@ -853,11 +851,9 @@ out_unlock:
 	return 0;
 }
 
-int smp_call_function(void (*func)(void *info), void *info,
-		      int nonatomic, int wait)
+int smp_call_function(void (*func)(void *info), void *info, int wait)
 {
-	return sparc64_smp_call_function_mask(func, info, nonatomic, wait,
-						cpu_online_map);
+	return sparc64_smp_call_function_mask(func, info, wait, cpu_online_map);
 }
 
 void smp_call_function_client(int irq, struct pt_regs *regs)
@@ -894,7 +890,7 @@ static void tsb_sync(void *info)
 
 void smp_tsb_sync(struct mm_struct *mm)
 {
-	sparc64_smp_call_function_mask(tsb_sync, mm, 0, 1, mm->cpu_vm_mask);
+	sparc64_smp_call_function_mask(tsb_sync, mm, 1, mm->cpu_vm_mask);
 }
 
 extern unsigned long xcall_flush_tlb_mm;

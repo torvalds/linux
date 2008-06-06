@@ -331,7 +331,7 @@ static void stop_self(void *v)
 
 void xen_smp_send_stop(void)
 {
-	smp_call_function(stop_self, NULL, 0, 0);
+	smp_call_function(stop_self, NULL, 0);
 }
 
 void xen_smp_send_reschedule(int cpu)
