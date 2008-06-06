@@ -1818,13 +1818,6 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	}
 	emu->port = pci_resource_start(pci, 0);
 
-	if (request_irq(pci->irq, snd_emu10k1_interrupt, IRQF_SHARED,
-			"EMU10K1", emu)) {
-		err = -EBUSY;
-		goto error;
-	}
-	emu->irq = pci->irq;
-
 	emu->max_cache_pages = max_cache_bytes >> PAGE_SHIFT;
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				32 * 1024, &emu->ptb_pages) < 0) {
@@ -1886,6 +1879,14 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	emu->fx8010.itram_size = (16 * 1024)/2;
 	emu->fx8010.etram_pages.area = NULL;
 	emu->fx8010.etram_pages.bytes = 0;
+
+	/* irq handler must be registered after I/O ports are activated */
+	if (request_irq(pci->irq, snd_emu10k1_interrupt, IRQF_SHARED,
+			"EMU10K1", emu)) {
+		err = -EBUSY;
+		goto error;
+	}
+	emu->irq = pci->irq;
 
 	/*
 	 *  Init to 0x02109204 :
