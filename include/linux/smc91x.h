@@ -7,7 +7,6 @@
 
 struct smc91x_platdata {
 	unsigned long flags;
-	unsigned long irq_flags; /* IRQF_... */
 };
 
 #endif /* __SMC91X_H__ */

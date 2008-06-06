@@ -2123,6 +2123,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct resource *res, *ires;
 	unsigned int __iomem *addr;
+	unsigned long irq_flags = SMC_IRQ_FLAGS;
 	int ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
@@ -2152,7 +2153,6 @@ static int smc_drv_probe(struct platform_device *pdev)
 	 */
 
 	lp = netdev_priv(ndev);
-	lp->cfg.irq_flags = SMC_IRQ_FLAGS;
 
 #ifdef SMC_DYNAMIC_BUS_CONFIG
 	if (pd)
@@ -2177,8 +2177,9 @@ static int smc_drv_probe(struct platform_device *pdev)
 	}
 
 	ndev->irq = ires->start;
-	if (SMC_IRQ_FLAGS == -1)
-		lp->cfg.irq_flags = ires->flags & IRQF_TRIGGER_MASK;
+
+	if (ires->flags & IRQF_TRIGGER_MASK)
+		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev);
 	if (ret)
@@ -2205,7 +2206,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 	}
 #endif
 
-	ret = smc_probe(ndev, addr, lp->cfg.irq_flags);
+	ret = smc_probe(ndev, addr, irq_flags);
 	if (ret != 0)
 		goto out_iounmap;
 
