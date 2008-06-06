@@ -188,6 +188,43 @@ void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_write_tx_descriptor);
 
+int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
+{
+	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
+	struct txentry_desc txdesc;
+
+	if (unlikely(rt2x00queue_full(queue)))
+		return -EINVAL;
+
+	if (__test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
+		ERROR(queue->rt2x00dev,
+		      "Arrived at non-free entry in the non-full queue %d.\n"
+		      "Please file bug report to %s.\n",
+		      queue->qid, DRV_PROJECT);
+		return -EINVAL;
+	}
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	entry->skb = skb;
+	rt2x00queue_create_tx_descriptor(entry, &txdesc);
+
+	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
+		__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+		return -EIO;
+	}
+
+	__set_bit(ENTRY_DATA_PENDING, &entry->flags);
+
+	rt2x00queue_index_inc(queue, Q_INDEX);
+	rt2x00queue_write_tx_descriptor(entry, &txdesc);
+
+	return 0;
+}
+
 struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 					 const enum data_queue_qid queue)
 {

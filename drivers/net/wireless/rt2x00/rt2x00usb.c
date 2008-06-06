@@ -173,71 +173,42 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 		ieee80211_wake_queue(rt2x00dev->hw, qid);
 }
 
-int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_queue *queue, struct sk_buff *skb)
+int rt2x00usb_write_tx_data(struct queue_entry *entry)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
-	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
-	struct txentry_desc txdesc;
 	u32 length;
-
-	if (rt2x00queue_full(queue))
-		return -EINVAL;
-
-	if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
-		ERROR(rt2x00dev,
-		      "Arrived at non-free entry in the non-full queue %d.\n"
-		      "Please file bug report to %s.\n",
-		      entry->queue->qid, DRV_PROJECT);
-		return -EINVAL;
-	}
-
-	/*
-	 * Copy all TX descriptor information into txdesc,
-	 * after that we are free to use the skb->cb array
-	 * for our information.
-	 */
-	entry->skb = skb;
-	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
 	/*
 	 * Add the descriptor in front of the skb.
 	 */
-	skb_push(skb, queue->desc_size);
-	memset(skb->data, 0, queue->desc_size);
+	skb_push(entry->skb, entry->queue->desc_size);
+	memset(entry->skb->data, 0, entry->queue->desc_size);
 
 	/*
 	 * Fill in skb descriptor
 	 */
-	skbdesc = get_skb_frame_desc(skb);
+	skbdesc = get_skb_frame_desc(entry->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->data = skb->data + queue->desc_size;
-	skbdesc->data_len = skb->len - queue->desc_size;
-	skbdesc->desc = skb->data;
-	skbdesc->desc_len = queue->desc_size;
+	skbdesc->data = entry->skb->data + entry->queue->desc_size;
+	skbdesc->data_len = entry->skb->len - entry->queue->desc_size;
+	skbdesc->desc = entry->skb->data;
+	skbdesc->desc_len = entry->queue->desc_size;
 	skbdesc->entry = entry;
-
-	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
 	 * length of the data to usb_fill_bulk_urb. Pass the skb
 	 * to the driver to determine what the length should be.
 	 */
-	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev, skb);
+	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev, entry->skb);
 
-	/*
-	 * Initialize URB and send the frame to the device.
-	 */
-	__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	__set_bit(ENTRY_DATA_PENDING, &entry->flags);
-
-	usb_fill_bulk_urb(entry_priv->urb, usb_dev, usb_sndbulkpipe(usb_dev, 1),
-			  skb->data, length, rt2x00usb_interrupt_txdone, entry);
-
-	rt2x00queue_index_inc(queue, Q_INDEX);
+	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
+			  usb_sndbulkpipe(usb_dev, 1),
+			  entry->skb->data, length,
+			  rt2x00usb_interrupt_txdone, entry);
 
 	return 0;
 }

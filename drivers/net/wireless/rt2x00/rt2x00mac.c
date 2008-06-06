@@ -89,7 +89,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb)) {
+	if (rt2x00queue_write_tx_frame(queue, skb)) {
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -158,16 +158,13 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb)) {
+	if (rt2x00queue_write_tx_frame(queue, skb)) {
 		ieee80211_stop_queue(rt2x00dev->hw, qid);
 		return NETDEV_TX_BUSY;
 	}
 
 	if (rt2x00queue_full(queue))
 		ieee80211_stop_queue(rt2x00dev->hw, qid);
-
-	if (rt2x00dev->ops->lib->kick_tx_queue)
-		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, qid);
 
 	return NETDEV_TX_OK;
 }
