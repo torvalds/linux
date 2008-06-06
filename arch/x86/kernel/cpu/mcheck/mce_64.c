@@ -445,9 +445,9 @@ static void mce_init(void *dummy)
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	banks = cap & 0xff;
 	if (banks > MCE_EXTENDED_BANK) {
+		banks = MCE_EXTENDED_BANK;
 		printk(KERN_INFO "MCE: warning: using only %d banks\n",
 		       MCE_EXTENDED_BANK);
-		banks = MCE_EXTENDED_BANK;
 	}
 	/* Use accurate RIP reporting if available. */
 	if ((cap & (1<<9)) && ((cap >> 16) & 0xff) >= 9)
