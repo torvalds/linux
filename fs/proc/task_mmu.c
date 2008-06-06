@@ -496,7 +496,7 @@ const struct file_operations proc_clear_refs_operations = {
 };
 
 struct pagemapread {
-	char __user *out, *end;
+	u64 __user *out, *end;
 };
 
 #define PM_ENTRY_BYTES      sizeof(u64)
@@ -519,21 +519,11 @@ struct pagemapread {
 static int add_to_pagemap(unsigned long addr, u64 pfn,
 			  struct pagemapread *pm)
 {
-	/*
-	 * Make sure there's room in the buffer for an
-	 * entire entry.  Otherwise, only copy part of
-	 * the pfn.
-	 */
-	if (pm->out + PM_ENTRY_BYTES >= pm->end) {
-		if (copy_to_user(pm->out, &pfn, pm->end - pm->out))
-			return -EFAULT;
-		pm->out = pm->end;
-		return PM_END_OF_BUFFER;
-	}
-
 	if (put_user(pfn, pm->out))
 		return -EFAULT;
-	pm->out += PM_ENTRY_BYTES;
+	pm->out++;
+	if (pm->out >= pm->end)
+		return PM_END_OF_BUFFER;
 	return 0;
 }
 
@@ -634,7 +624,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 
 	ret = -EINVAL;
 	/* file position must be aligned */
-	if (*ppos % PM_ENTRY_BYTES)
+	if ((*ppos % PM_ENTRY_BYTES) || (count % PM_ENTRY_BYTES))
 		goto out_task;
 
 	ret = 0;
@@ -664,8 +654,8 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		goto out_pages;
 	}
 
-	pm.out = buf;
-	pm.end = buf + count;
+	pm.out = (u64 *)buf;
+	pm.end = (u64 *)(buf + count);
 
 	if (!ptrace_may_attach(task)) {
 		ret = -EIO;
@@ -690,9 +680,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		if (ret == PM_END_OF_BUFFER)
 			ret = 0;
 		/* don't need mmap_sem for these, but this looks cleaner */
-		*ppos += pm.out - buf;
+		*ppos += (char *)pm.out - buf;
 		if (!ret)
-			ret = pm.out - buf;
+			ret = (char *)pm.out - buf;
 	}
 
 out_pages:
