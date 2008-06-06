@@ -1159,6 +1159,9 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	if (!max_cpus) {
 		printk(KERN_INFO "SMP mode deactivated.\n");
 		smpboot_clear_io_apic();
+
+		localise_nmi_watchdog();
+
 #ifdef CONFIG_X86_32
 		connect_bsp_APIC();
 #endif
