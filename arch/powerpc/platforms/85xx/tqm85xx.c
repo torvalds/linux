@@ -165,10 +165,10 @@ static int __init tqm85xx_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if ((of_flat_dt_is_compatible(root, "tqm,8540")) ||
-	    (of_flat_dt_is_compatible(root, "tqm,8541")) ||
-	    (of_flat_dt_is_compatible(root, "tqm,8555")) ||
-	    (of_flat_dt_is_compatible(root, "tqm,8560")))
+	if ((of_flat_dt_is_compatible(root, "tqc,tqm8540")) ||
+	    (of_flat_dt_is_compatible(root, "tqc,tqm8541")) ||
+	    (of_flat_dt_is_compatible(root, "tqc,tqm8555")) ||
+	    (of_flat_dt_is_compatible(root, "tqc,tqm8560")))
 		return 1;
 
 	return 0;

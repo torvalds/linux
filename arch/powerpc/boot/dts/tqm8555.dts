@@ -12,8 +12,8 @@
 /dts-v1/;
 
 / {
-	model = "tqm,8555";
-	compatible = "tqm,8555", "tqm,85xx";
+	model = "tqc,tqm8555";
+	compatible = "tqc,tqm8555";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
