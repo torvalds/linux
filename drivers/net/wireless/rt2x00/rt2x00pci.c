@@ -79,11 +79,8 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue = rt2x00dev->rx;
 	struct queue_entry *entry;
 	struct queue_entry_priv_pci *entry_priv;
-	struct ieee80211_hdr *hdr;
 	struct skb_frame_desc *skbdesc;
 	struct rxdone_entry_desc rxdesc;
-	int header_size;
-	int align;
 	u32 word;
 
 	while (1) {
@@ -97,27 +94,15 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		memset(&rxdesc, 0, sizeof(rxdesc));
 		rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
-		hdr = (struct ieee80211_hdr *)entry_priv->data;
-		header_size =
-		    ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
-
 		/*
-		 * The data behind the ieee80211 header must be
-		 * aligned on a 4 byte boundary.
+		 * Allocate the sk_buffer and copy all data into it.
 		 */
-		align = header_size % 4;
-
-		/*
-		 * Allocate the sk_buffer, initialize it and copy
-		 * all data into it.
-		 */
-		entry->skb = dev_alloc_skb(rxdesc.size + align);
+		entry->skb = rt2x00queue_alloc_rxskb(queue);
 		if (!entry->skb)
 			return;
 
-		skb_reserve(entry->skb, align);
-		memcpy(skb_put(entry->skb, rxdesc.size),
-		       entry_priv->data, rxdesc.size);
+		memcpy(entry->skb->data, entry_priv->data, rxdesc.size);
+		skb_trim(entry->skb, rxdesc.size);
 
 		/*
 		 * Fill in skb descriptor

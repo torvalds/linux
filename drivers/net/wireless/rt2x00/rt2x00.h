@@ -930,6 +930,12 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
 }
 
 /**
+ * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
+ * @queue: The queue for which the skb will be applicable.
+ */
+struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue);
+
+/**
  * rt2x00queue_create_tx_descriptor - Create TX descriptor from mac80211 input
  * @entry: The entry which will be used to transfer the TX frame.
  * @txdesc: rt2x00 TX descriptor which will be initialized by this function.

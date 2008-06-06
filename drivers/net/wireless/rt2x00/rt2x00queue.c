@@ -29,6 +29,45 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
+struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue)
+{
+	struct sk_buff *skb;
+	unsigned int frame_size;
+	unsigned int reserved_size;
+
+	/*
+	 * The frame size includes descriptor size, because the
+	 * hardware directly receive the frame into the skbuffer.
+	 */
+	frame_size = queue->data_size + queue->desc_size;
+
+	/*
+	 * For the allocation we should keep a few things in mind:
+	 * 1) 4byte alignment of 802.11 payload
+	 *
+	 * For (1) we need at most 4 bytes to guarentee the correct
+	 * alignment. We are going to optimize the fact that the chance
+	 * that the 802.11 header_size % 4 == 2 is much bigger then
+	 * anything else. However since we need to move the frame up
+	 * to 3 bytes to the front, which means we need to preallocate
+	 * 6 bytes.
+	 */
+	reserved_size = 6;
+
+	/*
+	 * Allocate skbuffer.
+	 */
+	skb = dev_alloc_skb(frame_size + reserved_size);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, reserved_size);
+	skb_put(skb, frame_size);
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_alloc_rxskb);
+
 void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 				      struct txentry_desc *txdesc)
 {

@@ -554,12 +554,34 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
+	unsigned int header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
 	const struct rt2x00_rate *rate;
+	unsigned int align;
 	unsigned int i;
 	int idx = -1;
 	u16 fc;
+
+	/*
+	 * The data behind the ieee80211 header must be
+	 * aligned on a 4 byte boundary. We already reserved
+	 * 2 bytes for header_size % 4 == 2 optimization.
+	 * To determine the number of bytes which the data
+	 * should be moved to the left, we must add these
+	 * 2 bytes to the header_size.
+	 */
+	align = (header_size + 2) % 4;
+
+	if (align) {
+		skb_push(entry->skb, align);
+		/* Move entire frame in 1 command */
+		memmove(entry->skb->data, entry->skb->data + align,
+			rxdesc->size);
+	}
+
+	/* Update data pointers, trim buffer to correct size */
+	skb_trim(entry->skb, rxdesc->size);
 
 	/*
 	 * Update RX statistics.
