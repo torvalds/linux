@@ -71,10 +71,7 @@ int selinux_policycap_openperm;
 extern const struct selinux_class_perm selinux_class_perm;
 
 static DEFINE_RWLOCK(policy_rwlock);
-
 static DEFINE_MUTEX(load_mutex);
-#define LOAD_LOCK mutex_lock(&load_mutex)
-#define LOAD_UNLOCK mutex_unlock(&load_mutex)
 
 static struct sidtab sidtab;
 struct policydb policydb;
@@ -1456,17 +1453,17 @@ int security_load_policy(void *data, size_t len)
 	int rc = 0;
 	struct policy_file file = { data, len }, *fp = &file;
 
-	LOAD_LOCK;
+	mutex_lock(&load_mutex);
 
 	if (!ss_initialized) {
 		avtab_cache_init();
 		if (policydb_read(&policydb, fp)) {
-			LOAD_UNLOCK;
+			mutex_unlock(&load_mutex);
 			avtab_cache_destroy();
 			return -EINVAL;
 		}
 		if (policydb_load_isids(&policydb, &sidtab)) {
-			LOAD_UNLOCK;
+			mutex_unlock(&load_mutex);
 			policydb_destroy(&policydb);
 			avtab_cache_destroy();
 			return -EINVAL;
@@ -1475,7 +1472,7 @@ int security_load_policy(void *data, size_t len)
 		if (validate_classes(&policydb)) {
 			printk(KERN_ERR
 			       "SELinux:  the definition of a class is incorrect\n");
-			LOAD_UNLOCK;
+			mutex_unlock(&load_mutex);
 			sidtab_destroy(&sidtab);
 			policydb_destroy(&policydb);
 			avtab_cache_destroy();
@@ -1485,7 +1482,7 @@ int security_load_policy(void *data, size_t len)
 		policydb_loaded_version = policydb.policyvers;
 		ss_initialized = 1;
 		seqno = ++latest_granting;
-		LOAD_UNLOCK;
+		mutex_unlock(&load_mutex);
 		selinux_complete_init();
 		avc_ss_reset(seqno);
 		selnl_notify_policyload(seqno);
@@ -1499,12 +1496,12 @@ int security_load_policy(void *data, size_t len)
 #endif
 
 	if (policydb_read(&newpolicydb, fp)) {
-		LOAD_UNLOCK;
+		mutex_unlock(&load_mutex);
 		return -EINVAL;
 	}
 
 	if (sidtab_init(&newsidtab)) {
-		LOAD_UNLOCK;
+		mutex_unlock(&load_mutex);
 		policydb_destroy(&newpolicydb);
 		return -ENOMEM;
 	}
@@ -1552,7 +1549,7 @@ int security_load_policy(void *data, size_t len)
 	seqno = ++latest_granting;
 	policydb_loaded_version = policydb.policyvers;
 	write_unlock_irq(&policy_rwlock);
-	LOAD_UNLOCK;
+	mutex_unlock(&load_mutex);
 
 	/* Free the old policydb and SID table. */
 	policydb_destroy(&oldpolicydb);
@@ -1566,7 +1563,7 @@ int security_load_policy(void *data, size_t len)
 	return 0;
 
 err:
-	LOAD_UNLOCK;
+	mutex_unlock(&load_mutex);
 	sidtab_destroy(&newsidtab);
 	policydb_destroy(&newpolicydb);
 	return rc;
