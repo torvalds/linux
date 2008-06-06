@@ -909,7 +909,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 
 	if (vc->vc_tty) {
 		struct winsize ws, *cws = &vc->vc_tty->winsize;
-		unsigned long flags;
+		struct pid *pgrp = NULL;
 
 		memset(&ws, 0, sizeof(ws));
 		ws.ws_row = vc->vc_rows;
@@ -917,11 +917,14 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 		ws.ws_ypixel = vc->vc_scan_lines;
 
 		mutex_lock(&vc->vc_tty->termios_mutex);
-		spin_lock_irqsave(&vc->vc_tty->ctrl_lock, flags);
-		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col) &&
-		    vc->vc_tty->pgrp)
+		spin_lock_irq(&vc->vc_tty->ctrl_lock);
+		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col))
+			pgrp = get_pid(vc->vc_tty->pgrp);
+		spin_unlock_irq(&vc->vc_tty->ctrl_lock);
+		if (pgrp) {
 			kill_pgrp(vc->vc_tty->pgrp, SIGWINCH, 1);
-		spin_unlock_irqrestore(&vc->vc_tty->ctrl_lock, flags);
+			put_pid(pgrp);
+		}
 		*cws = ws;
 		mutex_unlock(&vc->vc_tty->termios_mutex);
 	}
