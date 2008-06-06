@@ -954,6 +954,8 @@ int __init APIC_init_uniprocessor(void)
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
 
+	if (!smp_found_config || skip_ioapic_setup || !nr_ioapics)
+		localise_nmi_watchdog();
 	end_local_APIC_setup();
 
 	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
