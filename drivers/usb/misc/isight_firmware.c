@@ -39,9 +39,12 @@ static int isight_firmware_load(struct usb_interface *intf,
 	struct usb_device *dev = interface_to_usbdev(intf);
 	int llen, len, req, ret = 0;
 	const struct firmware *firmware;
-	unsigned char *buf;
+	unsigned char *buf = kmalloc(50, GFP_KERNEL);
 	unsigned char data[4];
-	char *ptr;
+	u8 *ptr;
+
+	if (!buf)
+		return -ENOMEM;
 
 	if (request_firmware(&firmware, "isight.fw", &dev->dev) != 0) {
 		printk(KERN_ERR "Unable to load isight firmware\n");
@@ -59,7 +62,7 @@ static int isight_firmware_load(struct usb_interface *intf,
 		goto out;
 	}
 
-	while (1) {
+	while (ptr+4 <= firmware->data+firmware->size) {
 		memcpy(data, ptr, 4);
 		len = (data[0] << 8 | data[1]);
 		req = (data[2] << 8 | data[3]);
@@ -71,10 +74,14 @@ static int isight_firmware_load(struct usb_interface *intf,
 			continue;
 
 		for (; len > 0; req += 50) {
-			llen = len > 50 ? 50 : len;
+			llen = min(len, 50);
 			len -= llen;
-
-			buf = kmalloc(llen, GFP_KERNEL);
+			if (ptr+llen > firmware->data+firmware->size) {
+				printk(KERN_ERR
+				       "Malformed isight firmware");
+				ret = -ENODEV;
+				goto out;
+			}
 			memcpy(buf, ptr, llen);
 
 			ptr += llen;
@@ -89,16 +96,18 @@ static int isight_firmware_load(struct usb_interface *intf,
 				goto out;
 			}
 
-			kfree(buf);
 		}
 	}
+
 	if (usb_control_msg
 	    (dev, usb_sndctrlpipe(dev, 0), 0xa0, 0x40, 0xe600, 0, "\0", 1,
 	     300) != 1) {
 		printk(KERN_ERR "isight firmware loading completion failed\n");
 		ret = -ENODEV;
 	}
+
 out:
+	kfree(buf);
 	release_firmware(firmware);
 	return ret;
 }
