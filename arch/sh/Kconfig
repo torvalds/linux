@@ -502,6 +502,13 @@ config SH_MIGOR
 	  Select Migo-R if configuring for the SH7722 Migo-R platform
           by Renesas System Solutions Asia Pte. Ltd.
 
+config SH_AP325RXA
+	bool "AP-325RXA"
+	select CPU_SUBTYPE_SH7723
+	help
+	  Renesas "AP-325RXA" support.
+	  Compatible with ALGO SYSTEM CO.,LTD. "AP-320A"
+
 config SH_EDOSK7705
 	bool "EDOSK7705"
 	depends on CPU_SUBTYPE_SH7705
