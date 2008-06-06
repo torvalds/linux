@@ -2645,6 +2645,7 @@ static void handle_stripe5(struct stripe_head *sh)
 	struct r5dev *dev;
 	unsigned long pending = 0;
 	mdk_rdev_t *blocked_rdev = NULL;
+	int prexor;
 
 	memset(&s, 0, sizeof(s));
 	pr_debug("handling stripe %llu, state=%#lx cnt=%d, pd_idx=%d "
@@ -2774,9 +2775,11 @@ static void handle_stripe5(struct stripe_head *sh)
 	/* leave prexor set until postxor is done, allows us to distinguish
 	 * a rmw from a rcw during biodrain
 	 */
+	prexor = 0;
 	if (test_bit(STRIPE_OP_PREXOR, &sh->ops.complete) &&
 		test_bit(STRIPE_OP_POSTXOR, &sh->ops.complete)) {
 
+		prexor = 1;
 		clear_bit(STRIPE_OP_PREXOR, &sh->ops.complete);
 		clear_bit(STRIPE_OP_PREXOR, &sh->ops.ack);
 		clear_bit(STRIPE_OP_PREXOR, &sh->ops.pending);
@@ -2810,6 +2813,8 @@ static void handle_stripe5(struct stripe_head *sh)
 				if (!test_and_set_bit(
 				    STRIPE_OP_IO, &sh->ops.pending))
 					sh->ops.count++;
+				if (prexor)
+					continue;
 				if (!test_bit(R5_Insync, &dev->flags) ||
 				    (i == sh->pd_idx && s.failed == 0))
 					set_bit(STRIPE_INSYNC, &sh->state);
