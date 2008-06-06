@@ -131,8 +131,6 @@ static int __init kurobox_pro_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	/*
 	 * PCI isn't used on the Kuro
 	 */
-	printk(KERN_ERR "kurobox_pro_pci_map_irq failed, unknown bus\n");
-
 	return -1;
 }
 

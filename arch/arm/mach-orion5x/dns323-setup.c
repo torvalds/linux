@@ -53,8 +53,6 @@ static int __init dns323_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	if (irq != -1)
 		return irq;
 
-	pr_err("%s: requested mapping for unknown device\n", __func__);
-
 	return -1;
 }
 
