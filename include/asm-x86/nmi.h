@@ -78,6 +78,11 @@ extern int unknown_nmi_panic;
 void __trigger_all_cpu_backtrace(void);
 #define trigger_all_cpu_backtrace() __trigger_all_cpu_backtrace()
 
+static inline void localise_nmi_watchdog(void)
+{
+	if (nmi_watchdog == NMI_IO_APIC)
+		nmi_watchdog = NMI_LOCAL_APIC;
+}
 #endif
 
 void lapic_watchdog_stop(void);
