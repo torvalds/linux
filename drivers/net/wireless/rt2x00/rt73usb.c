@@ -1428,14 +1428,10 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	u32 word1;
 
 	/*
-	 * Copy descriptor to the skb->cb array, this has 2 benefits:
-	 * 1) Each descriptor word is 4 byte aligned.
-	 * 2) Descriptor is safe  from moving of frame data in rt2x00usb.
+	 * Copy descriptor to the skbdesc->desc buffer, making it safe from moving of
+	 * frame data in rt2x00usb.
 	 */
-	skbdesc->desc_len =
-	    min_t(u16, entry->queue->desc_size, sizeof(entry->skb->cb));
-	memcpy(entry->skb->cb, rxd, skbdesc->desc_len);
-	skbdesc->desc = entry->skb->cb;
+	memcpy(skbdesc->desc, rxd, skbdesc->desc_len);
 	rxd = (__le32 *)skbdesc->desc;
 
 	/*

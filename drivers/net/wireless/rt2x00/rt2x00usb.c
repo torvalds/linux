@@ -267,6 +267,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	struct rxdone_entry_desc rxdesc;
+	u8 rxd[32];
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
@@ -286,14 +287,11 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	skbdesc = get_skb_frame_desc(entry->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = entry;
+	skbdesc->desc = rxd;
+	skbdesc->desc_len = entry->queue->desc_size;
 
 	memset(&rxdesc, 0, sizeof(rxdesc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
-
-	/*
-	 * Trim the skb to the correct size.
-	 */
-	skb_trim(entry->skb, rxdesc.size);
 
 	/*
 	 * Allocate a new sk buffer to replace the current one.
