@@ -240,6 +240,7 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 	for (i = 0; i < MAX_APICID; i++)
 		apicid_2_node[i] = pxm_to_node(apicid_to_pxm[i]);
 
+	remove_all_active_ranges();
 	for (j = 0; j < num_memory_chunks; j++){
 		struct node_memory_chunk_s * chunk = &node_memory_chunk[j];
 		printk("chunk %d nid %d start_pfn %08lx end_pfn %08lx\n",
@@ -247,14 +248,8 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 		node_read_chunk(chunk->nid, chunk);
 		e820_register_active_regions(chunk->nid, chunk->start_pfn,
 					     min(chunk->end_pfn, max_pfn));
-	}
- 
-	for_each_online_node(nid) {
-		unsigned long start = node_start_pfn[nid];
-		unsigned long end = node_end_pfn[nid];
-
-		memory_present(nid, start, end);
-		node_remap_size[nid] = node_memmap_size_bytes(nid, start, end);
+		memory_present(chunk->nid, chunk->start_pfn,
+			       min(chunk->end_pfn, max_pfn));
 	}
 	return 1;
 out_fail:
