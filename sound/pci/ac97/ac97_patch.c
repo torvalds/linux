@@ -669,6 +669,7 @@ AC97_SINGLE("Mic 1 Volume", AC97_MIC, 8, 31, 1),
 AC97_SINGLE("Mic 2 Volume", AC97_MIC, 0, 31, 1),
 AC97_SINGLE("Mic 20dB Boost Switch", AC97_MIC, 7, 1, 0),
 
+AC97_SINGLE("Master Left Inv Switch", AC97_MASTER, 6, 1, 0),
 AC97_SINGLE("Master ZC Switch", AC97_MASTER, 7, 1, 0),
 AC97_SINGLE("Headphone ZC Switch", AC97_HEADPHONE, 7, 1, 0),
 AC97_SINGLE("Mono ZC Switch", AC97_MASTER_MONO, 7, 1, 0),
