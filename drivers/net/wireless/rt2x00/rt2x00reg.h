@@ -145,23 +145,27 @@ struct rt2x00_field32 {
  * compile-time rather then run-time.
  */
 #define compile_ffs2(__x) \
-	( ((__x) & 0x1) ? 0 : 1 )
+	__builtin_choose_expr(((__x) & 0x1), 0, 1)
 
 #define compile_ffs4(__x) \
-	( ((__x) & 0x3) ? \
-	    compile_ffs2(__x) : (compile_ffs2((__x) >> 2) + 2) )
+	__builtin_choose_expr(((__x) & 0x3), \
+			      (compile_ffs2((__x))), \
+			      (compile_ffs2((__x) >> 2) + 2))
 
 #define compile_ffs8(__x) \
-	( ((__x) & 0xf) ? \
-	    compile_ffs4(__x) : (compile_ffs4((__x) >> 4) + 4) )
+	__builtin_choose_expr(((__x) & 0xf), \
+			      (compile_ffs4((__x))), \
+			      (compile_ffs4((__x) >> 4) + 4))
 
 #define compile_ffs16(__x) \
-	( ((__x) & 0xff) ? \
-	    compile_ffs8(__x) : (compile_ffs8((__x) >> 8) + 8) )
+	__builtin_choose_expr(((__x) & 0xff), \
+			      (compile_ffs8((__x))), \
+			      (compile_ffs8((__x) >> 8) + 8))
 
 #define compile_ffs32(__x) \
-	( ((__x) & 0xffff) ? \
-	    compile_ffs16(__x) : (compile_ffs16((__x) >> 16) + 16) )
+	__builtin_choose_expr(((__x) & 0xffff), \
+			      (compile_ffs16((__x))), \
+			      (compile_ffs16((__x) >> 16) + 16))
 
 /*
  * This macro will check the requirements for the FIELD{8,16,32} macros
