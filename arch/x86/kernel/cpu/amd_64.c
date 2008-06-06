@@ -6,6 +6,7 @@
 #include <asm/cacheflush.h>
 
 #include <mach_apic.h>
+#include "cpu.h"
 
 extern int __cpuinit get_model_name(struct cpuinfo_x86 *c);
 extern void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c);

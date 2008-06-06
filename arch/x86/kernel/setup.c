@@ -136,6 +136,7 @@ void __init setup_per_cpu_areas(void)
 	setup_cpumask_of_cpu();
 }
 
+#endif
 #define ENABLE_CF8_EXT_CFG      (1ULL << 46)
 
 void __cpuinit amd_enable_pci_ext_cfg(struct cpuinfo_x86 *c)
@@ -149,4 +150,3 @@ void __cpuinit amd_enable_pci_ext_cfg(struct cpuinfo_x86 *c)
 	set_cpu_cap(c, X86_FEATURE_PCI_EXT_CFG);
 }
 
-#endif

@@ -73,8 +73,6 @@
 #include <asm/pat.h>
 #include <asm/mmconfig.h>
 
-#include "setup.h"
-
 #include <mach_apic.h>
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
