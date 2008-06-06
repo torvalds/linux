@@ -742,3 +742,11 @@ config CACHE_L2X0
 	select OUTER_CACHE
 	help
 	  This option enables the L2x0 PrimeCell.
+
+config CACHE_XSC3L2
+	bool "Enable the L2 cache on XScale3"
+	depends on CPU_XSC3
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the L2 cache on XScale3.
