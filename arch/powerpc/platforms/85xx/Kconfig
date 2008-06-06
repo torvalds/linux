@@ -74,6 +74,14 @@ config TQM8541
 	select TQM85xx
 	select CPM2
 
+config TQM8548
+	bool "TQ Components TQM8548"
+	help
+	  This option enables support for the TQ Components TQM8548 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+
 config TQM8555
 	bool "TQ Components TQM8555"
 	help
