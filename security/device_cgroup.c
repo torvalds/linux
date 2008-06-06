@@ -49,10 +49,14 @@ struct dev_cgroup {
 	spinlock_t lock;
 };
 
+static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
+{
+	return container_of(s, struct dev_cgroup, css);
+}
+
 static inline struct dev_cgroup *cgroup_to_devcgroup(struct cgroup *cgroup)
 {
-	return container_of(cgroup_subsys_state(cgroup, devices_subsys_id),
-			    struct dev_cgroup, css);
+	return css_to_devcgroup(cgroup_subsys_state(cgroup, devices_subsys_id));
 }
 
 struct cgroup_subsys devices_subsys;
