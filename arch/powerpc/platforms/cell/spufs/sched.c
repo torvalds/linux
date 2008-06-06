@@ -899,7 +899,8 @@ static noinline void spusched_tick(struct spu_context *ctx)
 			spu_add_to_rq(ctx);
 	} else {
 		spu_context_nospu_trace(spusched_tick__newslice, ctx);
-		ctx->time_slice++;
+		if (!ctx->time_slice)
+			ctx->time_slice++;
 	}
 out:
 	spu_release(ctx);
