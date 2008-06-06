@@ -274,7 +274,7 @@ S:      Maintained
 
 AD1889 ALSA SOUND DRIVER
 P:     Kyle McMartin
-M:     kyle@parisc-linux.org
+M:     kyle@mcmartin.ca
 P:     Thibaut Varene
 M:     T-Bone@parisc-linux.org
 W:     http://wiki.parisc-linux.org/AD1889
@@ -1827,7 +1827,7 @@ S:	Maintained
 
 HARMONY SOUND DRIVER
 P:	Kyle McMartin
-M:	kyle@parisc-linux.org
+M:	kyle@mcmartin.ca
 L:	linux-parisc@vger.kernel.org
 S:	Maintained
 
@@ -3120,7 +3120,7 @@ S:	Maintained
 
 PARISC ARCHITECTURE
 P:	Kyle McMartin
-M:	kyle@parisc-linux.org
+M:	kyle@mcmartin.ca
 P:	Matthew Wilcox
 M:	matthew@wil.cx
 P:	Grant Grundler
@@ -4023,7 +4023,7 @@ TULIP NETWORK DRIVERS
 P:	Grant Grundler
 M:	grundler@parisc-linux.org
 P:	Kyle McMartin
-M:	kyle@parisc-linux.org
+M:	kyle@mcmartin.ca
 L:	netdev@vger.kernel.org
 S:	Maintained
 
