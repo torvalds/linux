@@ -228,16 +228,20 @@ static unsigned long calculate_numa_remap_pages(void)
 {
 	int nid;
 	unsigned long size, reserve_pages = 0;
-	unsigned long pfn;
 
 	for_each_online_node(nid) {
-		unsigned old_end_pfn = node_end_pfn[nid];
+		u64 node_end_target;
+		u64 node_end_final;
 
 		/*
 		 * The acpi/srat node info can show hot-add memroy zones
 		 * where memory could be added but not currently present.
 		 */
+		printk("node %d pfn: [%lx - %lx]\n",
+			nid, node_start_pfn[nid], node_end_pfn[nid]);
 		if (node_start_pfn[nid] > max_pfn)
+			continue;
+		if (!node_end_pfn[nid])
 			continue;
 		if (node_end_pfn[nid] > max_pfn)
 			node_end_pfn[nid] = max_pfn;
@@ -250,37 +254,40 @@ static unsigned long calculate_numa_remap_pages(void)
 		/* now the roundup is correct, convert to PAGE_SIZE pages */
 		size = size * PTRS_PER_PTE;
 
-		/*
-		 * Validate the region we are allocating only contains valid
-		 * pages.
-		 */
-		for (pfn = node_end_pfn[nid] - size;
-		     pfn < node_end_pfn[nid]; pfn++)
-			if (!page_is_ram(pfn))
-				break;
+		node_end_target = round_down(node_end_pfn[nid] - size,
+						 PTRS_PER_PTE);
+		node_end_target <<= PAGE_SHIFT;
+		do {
+			node_end_final = find_e820_area(node_end_target,
+					((u64)node_end_pfn[nid])<<PAGE_SHIFT,
+						((u64)size)<<PAGE_SHIFT,
+						LARGE_PAGE_BYTES);
+			node_end_target -= LARGE_PAGE_BYTES;
+		} while (node_end_final == -1ULL &&
+			 (node_end_target>>PAGE_SHIFT) > (node_start_pfn[nid]));
 
-		if (pfn != node_end_pfn[nid])
-			size = 0;
+		if (node_end_final == -1ULL)
+			panic("Can not get kva ram\n");
 
 		printk("Reserving %ld pages of KVA for lmem_map of node %d\n",
 				size, nid);
 		node_remap_size[nid] = size;
 		node_remap_offset[nid] = reserve_pages;
 		reserve_pages += size;
-		printk("Shrinking node %d from %ld pages to %ld pages\n",
-			nid, node_end_pfn[nid], node_end_pfn[nid] - size);
+		printk("Shrinking node %d from %ld pages to %lld pages\n",
+			nid, node_end_pfn[nid], node_end_final>>PAGE_SHIFT);
 
-		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
-			/*
-			 * Align node_end_pfn[] and node_remap_start_pfn[] to
-			 * pmd boundary. remap_numa_kva will barf otherwise.
-			 */
-			printk("Shrinking node %d further by %ld pages for proper alignment\n",
-				nid, node_end_pfn[nid] & (PTRS_PER_PTE-1));
-			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
-		}
+		/*
+		 *  prevent kva address below max_low_pfn want it on system
+		 *  with less memory later.
+		 *  layout will be: KVA address , KVA RAM
+		 */
+		if ((node_end_final>>PAGE_SHIFT) < max_low_pfn)
+			reserve_early(node_end_final,
+				      node_end_final+(((u64)size)<<PAGE_SHIFT),
+				      "KVA RAM");
 
-		node_end_pfn[nid] -= size;
+		node_end_pfn[nid] = node_end_final>>PAGE_SHIFT;
 		node_remap_start_pfn[nid] = node_end_pfn[nid];
 		shrink_active_range(nid, node_end_pfn[nid]);
 	}
