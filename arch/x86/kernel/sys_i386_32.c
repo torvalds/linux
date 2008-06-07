@@ -19,8 +19,8 @@
 #include <linux/utsname.h>
 #include <linux/ipc.h>
 
-#include <asm/uaccess.h>
-#include <asm/unistd.h>
+#include <linux/uaccess.h>
+#include <linux/unistd.h>
 
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			  unsigned long prot, unsigned long flags,
@@ -103,7 +103,7 @@ asmlinkage int old_select(struct sel_arg_struct __user *arg)
  *
  * This is really horribly ugly.
  */
-asmlinkage int sys_ipc (uint call, int first, int second,
+asmlinkage int sys_ipc(uint call, int first, int second,
 			int third, void __user *ptr, long fifth)
 {
 	int version, ret;
@@ -113,24 +113,24 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 
 	switch (call) {
 	case SEMOP:
-		return sys_semtimedop (first, (struct sembuf __user *)ptr, second, NULL);
+		return sys_semtimedop(first, (struct sembuf __user *)ptr, second, NULL);
 	case SEMTIMEDOP:
 		return sys_semtimedop(first, (struct sembuf __user *)ptr, second,
 					(const struct timespec __user *)fifth);
 
 	case SEMGET:
-		return sys_semget (first, second, third);
+		return sys_semget(first, second, third);
 	case SEMCTL: {
 		union semun fourth;
 		if (!ptr)
 			return -EINVAL;
 		if (get_user(fourth.__pad, (void __user * __user *) ptr))
 			return -EFAULT;
-		return sys_semctl (first, second, third, fourth);
+		return sys_semctl(first, second, third, fourth);
 	}
 
 	case MSGSND:
-		return sys_msgsnd (first, (struct msgbuf __user *) ptr, 
+		return sys_msgsnd(first, (struct msgbuf __user *) ptr,
 				   second, third);
 	case MSGRCV:
 		switch (version) {
@@ -138,45 +138,45 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 			struct ipc_kludge tmp;
 			if (!ptr)
 				return -EINVAL;
-			
+
 			if (copy_from_user(&tmp,
-					   (struct ipc_kludge __user *) ptr, 
-					   sizeof (tmp)))
+					   (struct ipc_kludge __user *) ptr,
+					   sizeof(tmp)))
 				return -EFAULT;
-			return sys_msgrcv (first, tmp.msgp, second,
+			return sys_msgrcv(first, tmp.msgp, second,
 					   tmp.msgtyp, third);
 		}
 		default:
-			return sys_msgrcv (first,
+			return sys_msgrcv(first,
 					   (struct msgbuf __user *) ptr,
 					   second, fifth, third);
 		}
 	case MSGGET:
-		return sys_msgget ((key_t) first, second);
+		return sys_msgget((key_t) first, second);
 	case MSGCTL:
-		return sys_msgctl (first, second, (struct msqid_ds __user *) ptr);
+		return sys_msgctl(first, second, (struct msqid_ds __user *) ptr);
 
 	case SHMAT:
 		switch (version) {
 		default: {
 			ulong raddr;
-			ret = do_shmat (first, (char __user *) ptr, second, &raddr);
+			ret = do_shmat(first, (char __user *) ptr, second, &raddr);
 			if (ret)
 				return ret;
-			return put_user (raddr, (ulong __user *) third);
+			return put_user(raddr, (ulong __user *) third);
 		}
 		case 1:	/* iBCS2 emulator entry point */
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
 			/* The "(ulong *) third" is valid _only_ because of the kernel segment thing */
-			return do_shmat (first, (char __user *) ptr, second, (ulong *) third);
+			return do_shmat(first, (char __user *) ptr, second, (ulong *) third);
 		}
-	case SHMDT: 
-		return sys_shmdt ((char __user *)ptr);
+	case SHMDT:
+		return sys_shmdt((char __user *)ptr);
 	case SHMGET:
-		return sys_shmget (first, second, third);
+		return sys_shmget(first, second, third);
 	case SHMCTL:
-		return sys_shmctl (first, second,
+		return sys_shmctl(first, second,
 				   (struct shmid_ds __user *) ptr);
 	default:
 		return -ENOSYS;
@@ -186,28 +186,28 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 /*
  * Old cruft
  */
-asmlinkage int sys_uname(struct old_utsname __user * name)
+asmlinkage int sys_uname(struct old_utsname __user *name)
 {
 	int err;
 	if (!name)
 		return -EFAULT;
 	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof (*name));
+	err = copy_to_user(name, utsname(), sizeof(*name));
 	up_read(&uts_sem);
-	return err?-EFAULT:0;
+	return err? -EFAULT:0;
 }
 
-asmlinkage int sys_olduname(struct oldold_utsname __user * name)
+asmlinkage int sys_olduname(struct oldold_utsname __user *name)
 {
 	int error;
 
 	if (!name)
 		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE,name,sizeof(struct oldold_utsname)))
+	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
 		return -EFAULT;
-  
-  	down_read(&uts_sem);
-	
+
+	down_read(&uts_sem);
+
 	error = __copy_to_user(&name->sysname, &utsname()->sysname,
 			       __OLD_UTS_LEN);
 	error |= __put_user(0, name->sysname + __OLD_UTS_LEN);
@@ -223,9 +223,9 @@ asmlinkage int sys_olduname(struct oldold_utsname __user * name)
 	error |= __copy_to_user(&name->machine, &utsname()->machine,
 				__OLD_UTS_LEN);
 	error |= __put_user(0, name->machine + __OLD_UTS_LEN);
-	
+
 	up_read(&uts_sem);
-	
+
 	error = error ? -EFAULT : 0;
 
 	return error;
@@ -241,6 +241,6 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 	long __res;
 	asm volatile ("push %%ebx ; movl %2,%%ebx ; int $0x80 ; pop %%ebx"
 	: "=a" (__res)
-	: "0" (__NR_execve),"ri" (filename),"c" (argv), "d" (envp) : "memory");
+	: "0" (__NR_execve), "ri" (filename), "c" (argv), "d" (envp) : "memory");
 	return __res;
 }
