@@ -228,7 +228,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 		if ((vid_input & ~0xff0) ||
 		    luma < CX18_AV_SVIDEO_LUMA1 ||
-		    luma > CX18_AV_SVIDEO_LUMA4 ||
+		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
 			CX18_ERR("0x%04x is not a valid video input!\n",
