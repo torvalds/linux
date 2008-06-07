@@ -11,6 +11,15 @@
  * Copyright (C) 1997, 1998, 1999, 2000 Ingo Molnar
  */
 
+/* I/O Unit Redirection Table */
+#define IO_APIC_REDIR_VECTOR_MASK	0x000FF
+#define IO_APIC_REDIR_DEST_LOGICAL	0x00800
+#define IO_APIC_REDIR_DEST_PHYSICAL	0x00000
+#define IO_APIC_REDIR_SEND_PENDING	(1 << 12)
+#define IO_APIC_REDIR_REMOTE_IRR	(1 << 14)
+#define IO_APIC_REDIR_LEVEL_TRIGGER	(1 << 15)
+#define IO_APIC_REDIR_MASKED		(1 << 16)
+
 /*
  * The structure of the IO-APIC:
  */
