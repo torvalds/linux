@@ -251,7 +251,7 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
  
 	for_each_online_node(nid) {
 		unsigned long start = node_start_pfn[nid];
-		unsigned long end = node_end_pfn[nid];
+		unsigned long end = min(node_end_pfn[nid], max_pfn);
 
 		memory_present(nid, start, end);
 		node_remap_size[nid] = node_memmap_size_bytes(nid, start, end);
