@@ -412,7 +412,7 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 				int ret;
 
 				mutex_unlock(&cpufreq_governor_mutex);
-				ret = request_module(name);
+				ret = request_module("%s", name);
 				mutex_lock(&cpufreq_governor_mutex);
 
 				if (ret == 0)
