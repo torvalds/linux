@@ -813,15 +813,15 @@ bfin_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
  * Enable the IrDA function if tty->ldisc.num is N_IRDA.
  * In other cases, disable IrDA function.
  */
-static void bfin_set_ldisc(struct tty_struct *tty)
+static void bfin_serial_set_ldisc(struct uart_port *port)
 {
-	int line = tty->index;
+	int line = port->line;
 	unsigned short val;
 
-	if (line >= tty->driver->num)
+	if (line >= port->info->tty->driver->num)
 		return;
 
-	switch (tty->ldisc.num) {
+	switch (port->info->tty->ldisc.num) {
 	case N_IRDA:
 		val = UART_GET_GCTL(&bfin_serial_ports[line]);
 		val |= (IREN | RPOLC);
@@ -846,6 +846,7 @@ static struct uart_ops bfin_serial_pops = {
 	.startup	= bfin_serial_startup,
 	.shutdown	= bfin_serial_shutdown,
 	.set_termios	= bfin_serial_set_termios,
+	.set_ldisc	= bfin_serial_set_ldisc,
 	.type		= bfin_serial_type,
 	.release_port	= bfin_serial_release_port,
 	.request_port	= bfin_serial_request_port,
@@ -1186,7 +1187,6 @@ static int __init bfin_serial_init(void)
 
 	ret = uart_register_driver(&bfin_serial_reg);
 	if (ret == 0) {
-		bfin_serial_reg.tty_driver->set_ldisc = bfin_set_ldisc;
 		ret = platform_driver_register(&bfin_serial_driver);
 		if (ret) {
 			pr_debug("uart register failed\n");
