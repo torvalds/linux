@@ -261,25 +261,27 @@ static void __modify_IO_APIC_irq (unsigned int irq, unsigned long enable, unsign
 /* mask = 1 */
 static void __mask_IO_APIC_irq (unsigned int irq)
 {
-	__modify_IO_APIC_irq(irq, 0x00010000, 0);
+	__modify_IO_APIC_irq(irq, IO_APIC_REDIR_MASKED, 0);
 }
 
 /* mask = 0 */
 static void __unmask_IO_APIC_irq (unsigned int irq)
 {
-	__modify_IO_APIC_irq(irq, 0, 0x00010000);
+	__modify_IO_APIC_irq(irq, 0, IO_APIC_REDIR_MASKED);
 }
 
 /* mask = 1, trigger = 0 */
 static void __mask_and_edge_IO_APIC_irq (unsigned int irq)
 {
-	__modify_IO_APIC_irq(irq, 0x00010000, 0x00008000);
+	__modify_IO_APIC_irq(irq, IO_APIC_REDIR_MASKED,
+				IO_APIC_REDIR_LEVEL_TRIGGER);
 }
 
 /* mask = 0, trigger = 1 */
 static void __unmask_and_level_IO_APIC_irq (unsigned int irq)
 {
-	__modify_IO_APIC_irq(irq, 0x00008000, 0x00010000);
+	__modify_IO_APIC_irq(irq, IO_APIC_REDIR_LEVEL_TRIGGER,
+				IO_APIC_REDIR_MASKED);
 }
 
 static void mask_IO_APIC_irq (unsigned int irq)

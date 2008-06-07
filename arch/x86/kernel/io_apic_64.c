@@ -183,7 +183,7 @@ static bool io_apic_level_ack_pending(unsigned int irq)
 			break;
 		reg = io_apic_read(entry->apic, 0x10 + pin*2);
 		/* Is the remote IRR bit set? */
-		if ((reg >> 14) & 1) {
+		if (reg & IO_APIC_REDIR_REMOTE_IRR) {
 			spin_unlock_irqrestore(&ioapic_lock, flags);
 			return true;
 		}
@@ -298,7 +298,7 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 			break;
 		io_apic_write(apic, 0x11 + pin*2, dest);
 		reg = io_apic_read(apic, 0x10 + pin*2);
-		reg &= ~0x000000ff;
+		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
 		reg |= vector;
 		io_apic_modify(apic, reg);
 		if (!entry->next)
@@ -366,10 +366,11 @@ static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 	static void name##_IO_APIC_irq (unsigned int irq)		\
 	__DO_ACTION(R, ACTION, FINAL)
 
-DO_ACTION( __mask,             0, |= 0x00010000, io_apic_sync(entry->apic) )
-						/* mask = 1 */
-DO_ACTION( __unmask,           0, &= 0xfffeffff, )
-						/* mask = 0 */
+/* mask = 1 */
+DO_ACTION(__mask,	0, |= IO_APIC_REDIR_MASKED, io_apic_sync(entry->apic))
+
+/* mask = 0 */
+DO_ACTION(__unmask,	0, &= ~IO_APIC_REDIR_MASKED, )
 
 static void mask_IO_APIC_irq (unsigned int irq)
 {
