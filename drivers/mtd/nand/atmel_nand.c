@@ -29,8 +29,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/gpio.h>
-#include <asm/io.h>
+#include <linux/gpio.h>
+#include <linux/io.h>
 
 #include <asm/arch/board.h>
 
@@ -444,7 +444,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 
 	if (host->board->det_pin) {
 		if (gpio_get_value(host->board->det_pin)) {
-			printk ("No SmartMedia card inserted.\n");
+			printk("No SmartMedia card inserted.\n");
 			res = ENXIO;
 			goto err_no_card;
 		}
