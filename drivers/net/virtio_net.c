@@ -44,6 +44,8 @@ struct virtnet_info
 	/* The skb we couldn't send because buffers were full. */
 	struct sk_buff *last_xmit_skb;
 
+	struct timer_list xmit_free_timer;
+
 	/* Number of input buffers, and max we've ever had. */
 	unsigned int num, max;
 
@@ -240,9 +242,23 @@ static void free_old_xmit_skbs(struct virtnet_info *vi)
 	}
 }
 
+static void xmit_free(unsigned long data)
+{
+	struct virtnet_info *vi = (void *)data;
+
+	netif_tx_lock(vi->dev);
+
+	free_old_xmit_skbs(vi);
+
+	if (!skb_queue_empty(&vi->send))
+		mod_timer(&vi->xmit_free_timer, jiffies + (HZ/10));
+
+	netif_tx_unlock(vi->dev);
+}
+
 static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 {
-	int num;
+	int num, err;
 	struct scatterlist sg[2+MAX_SKB_FRAGS];
 	struct virtio_net_hdr *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
@@ -285,7 +301,11 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	vnet_hdr_to_sg(sg, skb);
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
 
-	return vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
+	err = vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
+	if (!err)
+		mod_timer(&vi->xmit_free_timer, jiffies + (HZ/10));
+
+	return err;
 }
 
 static void xmit_tasklet(unsigned long data)
@@ -456,6 +476,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	tasklet_init(&vi->tasklet, xmit_tasklet, (unsigned long)vi);
 
+	setup_timer(&vi->xmit_free_timer, xmit_free, (unsigned long)vi);
+
 	err = register_netdev(dev);
 	if (err) {
 		pr_debug("virtio_net: registering device failed\n");
@@ -492,6 +514,8 @@ static void virtnet_remove(struct virtio_device *vdev)
 
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
+
+	del_timer_sync(&vi->xmit_free_timer);
 
 	/* Free our skbs in send and recv queues, if any. */
 	while ((skb = __skb_dequeue(&vi->recv)) != NULL) {
