@@ -44,6 +44,7 @@ struct virtnet_info
 	/* The skb we couldn't send because buffers were full. */
 	struct sk_buff *last_xmit_skb;
 
+	/* If we need to free in a timer, this is it. */
 	struct timer_list xmit_free_timer;
 
 	/* Number of input buffers, and max we've ever had. */
@@ -51,6 +52,7 @@ struct virtnet_info
 
 	/* For cleaning up after transmission. */
 	struct tasklet_struct tasklet;
+	bool free_in_tasklet;
 
 	/* Receive & send queues. */
 	struct sk_buff_head recv;
@@ -74,7 +76,7 @@ static void skb_xmit_done(struct virtqueue *svq)
 	/* Suppress further interrupts. */
 	svq->vq_ops->disable_cb(svq);
 
-	/* We were waiting for more output buffers. */
+	/* We were probably waiting for more output buffers. */
 	netif_wake_queue(vi->dev);
 
 	/* Make sure we re-xmit last_xmit_skb: if there are no more packets
@@ -242,6 +244,8 @@ static void free_old_xmit_skbs(struct virtnet_info *vi)
 	}
 }
 
+/* If the virtio transport doesn't always notify us when all in-flight packets
+ * are consumed, we fall back to using this function on a timer to free them. */
 static void xmit_free(unsigned long data)
 {
 	struct virtnet_info *vi = (void *)data;
@@ -302,7 +306,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
 
 	err = vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
-	if (!err)
+	if (!err && !vi->free_in_tasklet)
 		mod_timer(&vi->xmit_free_timer, jiffies + (HZ/10));
 
 	return err;
@@ -317,6 +321,8 @@ static void xmit_tasklet(unsigned long data)
 		vi->svq->vq_ops->kick(vi->svq);
 		vi->last_xmit_skb = NULL;
 	}
+	if (vi->free_in_tasklet)
+		free_old_xmit_skbs(vi);
 	netif_tx_unlock_bh(vi->dev);
 }
 
@@ -457,6 +463,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 	vi->vdev = vdev;
 	vdev->priv = vi;
 
+	/* If they give us a callback when all buffers are done, we don't need
+	 * the timer. */
+	vi->free_in_tasklet = virtio_has_feature(vdev,VIRTIO_F_NOTIFY_ON_EMPTY);
+
 	/* We expect two virtqueues, receive then send. */
 	vi->rvq = vdev->config->find_vq(vdev, 0, skb_recv_done);
 	if (IS_ERR(vi->rvq)) {
@@ -476,7 +486,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	tasklet_init(&vi->tasklet, xmit_tasklet, (unsigned long)vi);
 
-	setup_timer(&vi->xmit_free_timer, xmit_free, (unsigned long)vi);
+	if (!vi->free_in_tasklet)
+		setup_timer(&vi->xmit_free_timer, xmit_free, (unsigned long)vi);
 
 	err = register_netdev(dev);
 	if (err) {
@@ -515,7 +526,8 @@ static void virtnet_remove(struct virtio_device *vdev)
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
 
-	del_timer_sync(&vi->xmit_free_timer);
+	if (!vi->free_in_tasklet)
+		del_timer_sync(&vi->xmit_free_timer);
 
 	/* Free our skbs in send and recv queues, if any. */
 	while ((skb = __skb_dequeue(&vi->recv)) != NULL) {
@@ -540,7 +552,7 @@ static struct virtio_device_id id_table[] = {
 static unsigned int features[] = {
 	VIRTIO_NET_F_CSUM, VIRTIO_NET_F_GSO, VIRTIO_NET_F_MAC,
 	VIRTIO_NET_F_HOST_TSO4, VIRTIO_NET_F_HOST_UFO, VIRTIO_NET_F_HOST_TSO6,
-	VIRTIO_NET_F_HOST_ECN,
+	VIRTIO_NET_F_HOST_ECN, VIRTIO_F_NOTIFY_ON_EMPTY,
 };
 
 static struct virtio_driver virtio_net = {
