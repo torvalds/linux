@@ -118,7 +118,8 @@ void __init early_res_to_bootmem(unsigned long start, unsigned long end)
 			continue;
 		printk(KERN_INFO "  early res: %d [%lx-%lx] %s\n", i,
 			final_start, final_end - 1, r->name);
-		reserve_bootmem_generic(final_start, final_end - final_start);
+		reserve_bootmem_generic(final_start, final_end - final_start,
+				BOOTMEM_DEFAULT);
 	}
 }
 

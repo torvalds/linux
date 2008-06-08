@@ -100,7 +100,8 @@ void __init efi_call_phys_epilog(void)
 void __init efi_reserve_bootmem(void)
 {
 	reserve_bootmem_generic((unsigned long)memmap.phys_map,
-				memmap.nr_map * memmap.desc_size);
+				memmap.nr_map * memmap.desc_size,
+				BOOTMEM_DEFAULT);
 }
 
 void __iomem * __init efi_ioremap(unsigned long phys_addr, unsigned long size)
