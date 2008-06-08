@@ -243,7 +243,7 @@ static void __init reserve_crashkernel(void)
 			return;
 		}
 
-		if (reserve_bootmem(crash_base, crash_size,
+		if (reserve_bootmem_generic(crash_base, crash_size,
 					BOOTMEM_EXCLUSIVE) < 0) {
 			printk(KERN_INFO "crashkernel reservation failed - "
 					"memory is in use\n");
