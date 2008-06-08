@@ -1026,8 +1026,9 @@ __headers: include/linux/version.h scripts_basic FORCE
 
 PHONY += headers_install_all
 headers_install_all: __headers
-	$(Q)for arch in $(hdr-archs); do \
-	 $(MAKE) ARCH=$$arch $(hdr-inst)=include BIASMDIR=-bi-$$arch ;\
+	$(Q)set -e; for arch in $(hdr-archs); do \
+	 $(MAKE) ARCH=$$arch SRCARCH=$$arch $(hdr-inst)=include \
+	         BIASMDIR=-bi-$$arch ;\
 	 done
 
 PHONY += headers_install
@@ -1040,8 +1041,9 @@ headers_install: __headers
 
 PHONY += headers_check_all
 headers_check_all: headers_install_all
-	$(Q)for arch in $(hdr-archs); do \
-	 $(MAKE) ARCH=$$arch $(hdr-inst)=include BIASMDIR=-bi-$$arch HDRCHECK=1 ;\
+	$(Q)set -e; for arch in $(hdr-archs); do \
+	 $(MAKE) ARCH=$$arch SRCARCH=$$arch $(hdr-inst)=include \
+	         BIASMDIR=-bi-$$arch HDRCHECK=1 ;\
 	 done
 
 PHONY += headers_check
