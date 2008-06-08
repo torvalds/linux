@@ -94,9 +94,7 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 	BUG_ON(len > MAX_PACKET_LEN);
 
 	skb_trim(skb, len);
-	skb->protocol = eth_type_trans(skb, dev);
-	pr_debug("Receiving skb proto 0x%04x len %i type %i\n",
-		 ntohs(skb->protocol), skb->len, skb->pkt_type);
+
 	dev->stats.rx_bytes += skb->len;
 	dev->stats.rx_packets++;
 
@@ -105,6 +103,10 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 		if (!skb_partial_csum_set(skb,hdr->csum_start,hdr->csum_offset))
 			goto frame_err;
 	}
+
+	skb->protocol = eth_type_trans(skb, dev);
+	pr_debug("Receiving skb proto 0x%04x len %i type %i\n",
+		 ntohs(skb->protocol), skb->len, skb->pkt_type);
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		pr_debug("GSO!\n");
