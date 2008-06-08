@@ -173,6 +173,27 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		} },
 	},
+	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2] = {
+		.name         = "Hauppauge WinTV HVR 900 (R2)",
+		.vchannels    = 3,
+		.tda9887_conf = TDA9887_PRESENT,
+		.tuner_type   = TUNER_XC2028,
+		.mts_firmware = 1,
+		.decoder      = EM28XX_TVP5150,
+		.input          = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = 0,
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = 1,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = 1,
+		} },
+	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
 		.name           = "Hauppauge WinTV HVR 950",
 		.vchannels      = 3,
@@ -445,7 +466,7 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0x2040, 0x6500),
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
 	{ USB_DEVICE(0x2040, 0x6502),
-			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2 },
 	{ USB_DEVICE(0x2040, 0x6513), /* HCW HVR-980 */
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x2040, 0x6517), /* HP  HVR-950 */
@@ -567,6 +588,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	switch (dev->model) {
 	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
@@ -601,6 +623,10 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	switch (dev->model) {
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 		ctl->demod = XC3028_FE_ZARLINK456;
+		break;
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+		/* djh - Not sure which demod we need here */
+		ctl->demod = XC3028_FE_DEFAULT;
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
@@ -781,6 +807,7 @@ void em28xx_card_setup(struct em28xx *dev)
 	switch (dev->model) {
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	{
 		struct tveeprom tv;
