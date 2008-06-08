@@ -45,6 +45,21 @@ static inline int charge_pump_source(struct dvb_frontend *fe, int force)
 					   TDA18271_MAIN_PLL, force);
 }
 
+static inline void tda18271_set_if_notch(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	switch (priv->mode) {
+	case TDA18271_ANALOG:
+		regs[R_MPD]  &= ~0x80; /* IF notch = 0 */
+		break;
+	case TDA18271_DIGITAL:
+		regs[R_MPD]  |= 0x80; /* IF notch = 1 */
+		break;
+	}
+}
+
 static int tda18271_channel_configuration(struct dvb_frontend *fe,
 					  struct tda18271_std_map_item *map,
 					  u32 freq, u32 bw)
@@ -66,18 +81,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	/* set cal mode to normal */
 	regs[R_EP4]  &= ~0x03;
 
-	/* update IF output level & IF notch frequency */
+	/* update IF output level */
 	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
 	regs[R_EP4]  |= (map->if_lvl << 2);
-
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_MPD]  &= ~0x80; /* IF notch = 0 */
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_MPD]  |= 0x80; /* IF notch = 1 */
-		break;
-	}
 
 	/* update FM_RFn */
 	regs[R_EP4]  &= ~0x80;
@@ -135,6 +141,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	switch (priv->role) {
 	case TDA18271_MASTER:
 		tda18271_calc_main_pll(fe, N);
+		tda18271_set_if_notch(fe);
 		tda18271_write_regs(fe, R_MPD, 4);
 		break;
 	case TDA18271_SLAVE:
@@ -142,6 +149,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		tda18271_write_regs(fe, R_CPD, 4);
 
 		regs[R_MPD] = regs[R_CPD] & 0x7f;
+		tda18271_set_if_notch(fe);
 		tda18271_write_regs(fe, R_MPD, 1);
 		break;
 	}
@@ -507,7 +515,7 @@ static int tda18271_powerscan_init(struct dvb_frontend *fe)
 	/* set cal mode to normal */
 	regs[R_EP4]  &= ~0x03;
 
-	/* update IF output level & IF notch frequency */
+	/* update IF output level */
 	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
 
 	ret = tda18271_write_regs(fe, R_EP3, 2);
