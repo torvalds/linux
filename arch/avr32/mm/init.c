@@ -11,6 +11,7 @@
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/mmzone.h>
+#include <linux/module.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
 #include <linux/nodemask.h>
@@ -28,6 +29,7 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 struct page *empty_zero_page;
+EXPORT_SYMBOL(empty_zero_page);
 
 /*
  * Cache of MMU context last used.
