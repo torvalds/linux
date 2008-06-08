@@ -491,16 +491,9 @@ static int __devinit snd_opti9xx_configure(struct snd_opti9xx *chip)
 		break;
 
 #else	/* OPTi93X */
-	case OPTi9XX_HW_82C930:
 	case OPTi9XX_HW_82C931:
 	case OPTi9XX_HW_82C933:
-		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(6), 0x02, 0x03);
-		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(3), 0x00, 0xff);
-		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(4), 0x10 |
-			(chip->hardware == OPTi9XX_HW_82C930 ? 0x00 : 0x04),
-			0x34);
-		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(5), 0x20, 0xbf);
-		/* 
+		/*
 		 * The BTC 1817DW has QS1000 wavetable which is connected
 		 * to the serial digital input of the OPTI931.
 		 */
@@ -510,6 +503,13 @@ static int __devinit snd_opti9xx_configure(struct snd_opti9xx *chip)
 		 * or digital input signal.
 		 */
 		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(26), 0x01, 0x01);
+	case OPTi9XX_HW_82C930: /* FALL THROUGH */
+		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(6), 0x02, 0x03);
+		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(3), 0x00, 0xff);
+		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(4), 0x10 |
+			(chip->hardware == OPTi9XX_HW_82C930 ? 0x00 : 0x04),
+			0x34);
+		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(5), 0x20, 0xbf);
 		break;
 #endif	/* OPTi93X */
 
