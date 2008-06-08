@@ -880,10 +880,11 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 			if (!reserve)
 				return 1;
 
-			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE);
+			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
+				BOOTMEM_DEFAULT);
 			if (mpf->mpf_physptr)
 				reserve_bootmem_generic(mpf->mpf_physptr,
-							PAGE_SIZE);
+					PAGE_SIZE, BOOTMEM_DEFAULT);
 #endif
 		return 1;
 		}
