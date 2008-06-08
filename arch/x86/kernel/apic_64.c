@@ -413,13 +413,11 @@ void __init setup_boot_APIC_clock(void)
 	 * PIT/HPET going.  Otherwise register lapic as a dummy
 	 * device.
 	 */
-	if (nmi_watchdog != NMI_IO_APIC) {
+	if (nmi_watchdog != NMI_IO_APIC)
 		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
-	} else {
+	else
 		printk(KERN_WARNING "APIC timer registered as dummy,"
 		       " due to nmi_watchdog=1!\n");
-		timer_through_8259 = 1;
-	}
 
 	setup_APIC_timer();
 }
