@@ -223,7 +223,24 @@ static inline void nf_ct_refresh(struct nf_conn *ct,
 	__nf_ct_refresh_acct(ct, 0, skb, extra_jiffies, 0);
 }
 
-extern void nf_ct_kill(struct nf_conn *ct);
+extern void __nf_ct_kill_acct(struct nf_conn *ct,
+				enum ip_conntrack_info ctinfo,
+				const struct sk_buff *skb,
+				int do_acct);
+
+/* kill conntrack and do accounting */
+static inline void nf_ct_kill_acct(struct nf_conn *ct,
+				enum ip_conntrack_info ctinfo,
+				const struct sk_buff *skb)
+{
+	__nf_ct_kill_acct(ct, ctinfo, skb, 1);
+}
+
+/* kill conntrack without accounting */
+static inline void nf_ct_kill(struct nf_conn *ct)
+{
+	__nf_ct_kill_acct(ct, 0, NULL, 0);
+}
 
 /* These are for NAT.  Icky. */
 /* Update TCP window tracking data when NAT mangles the packet */

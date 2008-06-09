@@ -959,7 +959,7 @@ static int tcp_packet(struct nf_conn *ct,
 		   problem case, so we can delete the conntrack
 		   immediately.  --RR */
 		if (th->rst) {
-			nf_ct_kill(ct);
+			nf_ct_kill_acct(ct, ctinfo, skb);
 			return NF_ACCEPT;
 		}
 	} else if (!test_bit(IPS_ASSURED_BIT, &ct->status)

@@ -475,7 +475,7 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 	if (type == DCCP_PKT_RESET &&
 	    !test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
 		/* Tear down connection immediately if only reply is a RESET */
-		nf_ct_kill(ct);
+		nf_ct_kill_acct(ct, ctinfo, skb);
 		return NF_ACCEPT;
 	}
 
