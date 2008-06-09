@@ -520,11 +520,19 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 
 	if (data) {
 
-		if ( cpu_is_at91rm9200() && (data->blksz & 0x3) ) {
-			pr_debug("Unsupported block size\n");
-			cmd->error = -EINVAL;
-			mmc_request_done(host->mmc, host->request);
-			return;
+		if (cpu_is_at91rm9200() || cpu_is_at91sam9261()) {
+			if (data->blksz & 0x3) {
+				pr_debug("Unsupported block size\n");
+				cmd->error = -EINVAL;
+				mmc_request_done(host->mmc, host->request);
+				return;
+			}
+			if (data->flags & MMC_DATA_STREAM) {
+				pr_debug("Stream commands not supported\n");
+				cmd->error = -EINVAL;
+				mmc_request_done(host->mmc, host->request);
+				return;
+			}
 		}
 
 		block_length = data->blksz;
@@ -577,7 +585,7 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 		mr |= AT91_MCI_PDCMODE;
 		at91_mci_write(host, AT91_MCI_MR, mr);
 
-		if (!cpu_is_at91rm9200())
+		if (!(cpu_is_at91rm9200() || cpu_is_at91sam9261()))
 			at91_mci_write(host, AT91_MCI_BLKR,
 				AT91_MCI_BLKR_BCNT(blocks) |
 				AT91_MCI_BLKR_BLKLEN(block_length));
