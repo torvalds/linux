@@ -348,7 +348,9 @@ W:	http://www.linux-usb.org/SpeedTouch/
 S:	Maintained
 
 ALCHEMY AU1XX0 MMC DRIVER
-S:	Orphan
+P:	Manuel Lauss
+M:	manuel.lauss@gmail.com
+S:	Maintained
 
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
