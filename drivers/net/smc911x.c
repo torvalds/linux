@@ -1819,6 +1819,7 @@ static int __init smc911x_probe(struct net_device *dev)
 	int i, retval;
 	unsigned int val, chip_id, revision;
 	const char *version_string;
+	unsigned long irq_flags;
 
 	DBG(SMC_DEBUG_FUNC, "%s: --> %s\n", dev->name, __FUNCTION__);
 
@@ -1985,9 +1986,15 @@ static int __init smc911x_probe(struct net_device *dev)
 	lp->ctl_rfduplx = 1;
 	lp->ctl_rspeed = 100;
 
+#ifdef SMC_DYNAMIC_BUS_CONFIG
+	irq_flags = lp->cfg.irq_flags;
+#else
+	irq_flags = IRQF_SHARED | SMC_IRQ_SENSE;
+#endif
+
 	/* Grab the IRQ */
 	retval = request_irq(dev->irq, &smc911x_interrupt,
-			IRQF_SHARED | SMC_IRQ_SENSE, dev->name, dev);
+			     irq_flags, dev->name, dev);
 	if (retval)
 		goto err_out;
 
@@ -2057,6 +2064,7 @@ err_out:
  */
 static int smc911x_drv_probe(struct platform_device *pdev)
 {
+	struct smc91x_platdata *pd = pdev->dev.platform_data;
 	struct net_device *ndev;
 	struct resource *res;
 	struct smc911x_local *lp;
@@ -2090,6 +2098,13 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 	ndev->irq = platform_get_irq(pdev, 0);
 	lp = netdev_priv(ndev);
 	lp->netdev = ndev;
+#ifdef SMC_DYNAMIC_BUS_CONFIG
+	if (!pd) {
+		ret = -EINVAL;
+		goto release_both;
+	}
+	memcpy(&lp->cfg, pd, sizeof(lp->cfg));
+#endif
 
 	addr = ioremap(res->start, SMC911X_IO_EXTENT);
 	if (!addr) {
