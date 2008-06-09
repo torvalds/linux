@@ -282,7 +282,7 @@ static unsigned long calculate_numa_remap_pages(void)
 
 		node_end_pfn[nid] -= size;
 		node_remap_start_pfn[nid] = node_end_pfn[nid];
-		shrink_active_range(nid, old_end_pfn, node_end_pfn[nid]);
+		shrink_active_range(nid, node_end_pfn[nid]);
 	}
 	printk("Reserving total of %ld pages for numa KVA remap\n",
 			reserve_pages);

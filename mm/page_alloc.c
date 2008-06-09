@@ -3579,25 +3579,49 @@ void __init add_active_range(unsigned int nid, unsigned long start_pfn,
 /**
  * shrink_active_range - Shrink an existing registered range of PFNs
  * @nid: The node id the range is on that should be shrunk
- * @old_end_pfn: The old end PFN of the range
  * @new_end_pfn: The new PFN of the range
  *
  * i386 with NUMA use alloc_remap() to store a node_mem_map on a local node.
- * The map is kept at the end physical page range that has already been
- * registered with add_active_range(). This function allows an arch to shrink
- * an existing registered range.
+ * The map is kept near the end physical page range that has already been
+ * registered. This function allows an arch to shrink an existing registered
+ * range.
  */
-void __init shrink_active_range(unsigned int nid, unsigned long old_end_pfn,
-						unsigned long new_end_pfn)
+void __init shrink_active_range(unsigned int nid, unsigned long new_end_pfn)
 {
-	int i;
+	int i, j;
+	int removed = 0;
 
 	/* Find the old active region end and shrink */
-	for_each_active_range_index_in_nid(i, nid)
-		if (early_node_map[i].end_pfn == old_end_pfn) {
-			early_node_map[i].end_pfn = new_end_pfn;
-			break;
+	for_each_active_range_index_in_nid(i, nid) {
+		if (early_node_map[i].start_pfn >= new_end_pfn) {
+			/* clear it */
+			early_node_map[i].end_pfn = 0;
+			removed = 1;
+			continue;
 		}
+		if (early_node_map[i].end_pfn > new_end_pfn) {
+			early_node_map[i].end_pfn = new_end_pfn;
+			continue;
+		}
+	}
+
+	if (!removed)
+		return;
+
+	/* remove the blank ones */
+	for (i = nr_nodemap_entries - 1; i > 0; i--) {
+		if (early_node_map[i].nid != nid)
+			continue;
+		if (early_node_map[i].end_pfn)
+			continue;
+		/* we found it, get rid of it */
+		for (j = i; j < nr_nodemap_entries - 1; j++)
+			memcpy(&early_node_map[j], &early_node_map[j+1],
+				sizeof(early_node_map[j]));
+		j = nr_nodemap_entries - 1;
+		memset(&early_node_map[j], 0, sizeof(early_node_map[j]));
+		nr_nodemap_entries--;
+	}
 }
 
 /**
