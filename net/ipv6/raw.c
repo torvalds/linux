@@ -813,7 +813,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
-		err = datagram_send_ctl(msg, &fl, opt, &hlimit, &tclass);
+		err = datagram_send_ctl(sock_net(sk), msg, &fl, opt, &hlimit, &tclass);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -1164,6 +1164,14 @@ static void rawv6_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
+static int raw6_destroy(struct sock *sk)
+{
+	lock_sock(sk);
+	ip6_flush_pending_frames(sk);
+	release_sock(sk);
+	return 0;
+}
+
 static int rawv6_init_sk(struct sock *sk)
 {
 	struct raw6_sock *rp = raw6_sk(sk);
@@ -1187,6 +1195,7 @@ struct proto rawv6_prot = {
 	.name		   = "RAWv6",
 	.owner		   = THIS_MODULE,
 	.close		   = rawv6_close,
+	.destroy	   = raw6_destroy,
 	.connect	   = ip6_datagram_connect,
 	.disconnect	   = udp_disconnect,
 	.ioctl		   = rawv6_ioctl,

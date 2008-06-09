@@ -43,7 +43,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/serial.h>
 
 #include "8250.h"
 
@@ -93,6 +92,7 @@ static unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
  */
 #define CONFIG_HUB6 1
 
+#include <asm/serial.h>
 /*
  * SERIAL_PORT_DFNS tells us about built-in ports that have no
  * standard enumeration mechanism.   Platforms that can find all
@@ -1546,8 +1546,6 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 		INIT_LIST_HEAD(&up->list);
 		i->head = &up->list;
 		spin_unlock_irq(&i->lock);
-
-		irq_flags |= SERIAL_EXTRA_IRQ_FLAGS;
 
 		ret = request_irq(up->port.irq, serial8250_interrupt,
 				  irq_flags, "serial", i);

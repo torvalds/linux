@@ -418,13 +418,13 @@ static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
 	unsigned char buf[] = {0x22, 0x01};
 	int arg;
 	int gp_func;
-	struct i2c_msg msg = { .addr = priv->cfg->switch_addr, .flags = 0,
-			       .buf = buf, .len = sizeof(buf) };
+	struct i2c_msg msg = { .flags = 0, .buf = buf, .len = sizeof(buf) };
 
 	if (NULL == priv->cfg) {
 		dprintk("tda827x_config not defined, cannot set LNA gain!\n");
 		return;
 	}
+	msg.addr = priv->cfg->switch_addr;
 	if (priv->cfg->config) {
 		if (high)
 			dprintk("setting LNA to high gain\n");

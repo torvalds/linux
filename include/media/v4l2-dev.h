@@ -40,7 +40,6 @@
 #define VFL_TYPE_VTX		3
 
 /*  Video standard functions  */
-extern unsigned int v4l2_video_std_fps(struct v4l2_standard *vs);
 extern char *v4l2_norm_to_name(v4l2_std_id id);
 extern int v4l2_video_std_construct(struct v4l2_standard *vs,
 				    int id, char *name);

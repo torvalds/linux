@@ -534,4 +534,12 @@ config RTC_DRV_RS5C313
 	help
 	  If you say yes here you get support for the Ricoh RS5C313 RTC chips.
 
+config RTC_DRV_PPC
+       tristate "PowerPC machine dependent RTC support"
+       depends on PPC_MERGE
+       help
+	 The PowerPC kernel has machine-specific functions for accessing
+	 the RTC. This exposes that functionality through the generic RTC
+	 class.
+
 endif # RTC_CLASS

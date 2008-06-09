@@ -72,7 +72,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.21"
+#define DRV_VERSION	"1.24"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -122,8 +122,6 @@ enum {
 	/* Host Flags */
 	MV_FLAG_DUAL_HC		= (1 << 30),  /* two SATA Host Controllers */
 	MV_FLAG_IRQ_COALESCE	= (1 << 29),  /* IRQ coalescing capability */
-	/* SoC integrated controllers, no PCI interface */
-	MV_FLAG_SOC		= (1 << 28),
 
 	MV_COMMON_FLAGS		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_NO_ATAPI |
@@ -226,6 +224,11 @@ enum {
 
 	PHY_MODE3		= 0x310,
 	PHY_MODE4		= 0x314,
+	PHY_MODE4_CFG_MASK	= 0x00000003,	/* phy internal config field */
+	PHY_MODE4_CFG_VALUE	= 0x00000001,	/* phy internal config field */
+	PHY_MODE4_RSVD_ZEROS	= 0x5de3fffa,	/* Gen2e always write zeros */
+	PHY_MODE4_RSVD_ONES	= 0x00000005,	/* Gen2e always write ones */
+
 	PHY_MODE2		= 0x330,
 	SATA_IFCTL_OFS		= 0x344,
 	SATA_TESTCTL_OFS	= 0x348,
@@ -356,12 +359,12 @@ enum {
 	MV_HP_ERRATA_50XXB2	= (1 << 2),
 	MV_HP_ERRATA_60X1B2	= (1 << 3),
 	MV_HP_ERRATA_60X1C0	= (1 << 4),
-	MV_HP_ERRATA_XX42A0	= (1 << 5),
 	MV_HP_GEN_I		= (1 << 6),	/* Generation I: 50xx */
 	MV_HP_GEN_II		= (1 << 7),	/* Generation II: 60xx */
 	MV_HP_GEN_IIE		= (1 << 8),	/* Generation IIE: 6042/7042 */
 	MV_HP_PCIE		= (1 << 9),	/* PCIe bus/regs: 7042 */
 	MV_HP_CUT_THROUGH	= (1 << 10),	/* can use EDMA cut-through */
+	MV_HP_FLAG_SOC		= (1 << 11),	/* SystemOnChip, no PCI */
 
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),	/* is EDMA engine enabled? */
@@ -374,7 +377,7 @@ enum {
 #define IS_GEN_II(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_II)
 #define IS_GEN_IIE(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_IIE)
 #define IS_PCIE(hpriv) ((hpriv)->hp_flags & MV_HP_PCIE)
-#define HAS_PCI(host) (!((host)->ports[0]->flags & MV_FLAG_SOC))
+#define IS_SOC(hpriv) ((hpriv)->hp_flags & MV_HP_FLAG_SOC)
 
 #define WINDOW_CTRL(i)		(0x20030 + ((i) << 4))
 #define WINDOW_BASE(i)		(0x20034 + ((i) << 4))
@@ -652,7 +655,7 @@ static const struct ata_port_info mv_port_info[] = {
 		.port_ops	= &mv_iie_ops,
 	},
 	{  /* chip_soc */
-		.flags		= MV_GENIIE_FLAGS | MV_FLAG_SOC,
+		.flags		= MV_GENIIE_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv_iie_ops,
@@ -812,12 +815,7 @@ static void mv_set_edma_ptrs(void __iomem *port_mmio,
 	writel((pp->crqb_dma >> 16) >> 16, port_mmio + EDMA_REQ_Q_BASE_HI_OFS);
 	writelfl((pp->crqb_dma & EDMA_REQ_Q_BASE_LO_MASK) | index,
 		 port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
-		writelfl((pp->crqb_dma & 0xffffffff) | index,
-			 port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
-	else
-		writelfl(index, port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
+	writelfl(index, port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
 
 	/*
 	 * initialize response queue
@@ -827,13 +825,7 @@ static void mv_set_edma_ptrs(void __iomem *port_mmio,
 
 	WARN_ON(pp->crpb_dma & 0xff);
 	writel((pp->crpb_dma >> 16) >> 16, port_mmio + EDMA_RSP_Q_BASE_HI_OFS);
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_XX42A0)
-		writelfl((pp->crpb_dma & 0xffffffff) | index,
-			 port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
-	else
-		writelfl(index, port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
-
+	writelfl(index, port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
 	writelfl((pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK) | index,
 		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 }
@@ -1254,7 +1246,7 @@ static void mv_edma_cfg(struct ata_port *ap, int want_ncq)
 
 		cfg |= (1 << 23);	/* do not mask PM field in rx'd FIS */
 		cfg |= (1 << 22);	/* enab 4-entry host queue cache */
-		if (HAS_PCI(ap->host))
+		if (!IS_SOC(hpriv))
 			cfg |= (1 << 18);	/* enab early completion */
 		if (hpriv->hp_flags & MV_HP_CUT_THROUGH)
 			cfg |= (1 << 17); /* enab cut-thru (dis stor&forwrd) */
@@ -2225,7 +2217,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	 * a bogus register value which can indicate HW removal or PCI fault.
 	 */
 	if (pending_irqs && main_irq_cause != 0xffffffffU) {
-		if (unlikely((pending_irqs & PCI_ERR) && HAS_PCI(host)))
+		if (unlikely((pending_irqs & PCI_ERR) && !IS_SOC(hpriv)))
 			handled = mv_pci_error(host, hpriv->base);
 		else
 			handled = mv_host_intr(host, pending_irqs);
@@ -2547,7 +2539,7 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
 	int fix_phy_mode4 =
 		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
-	u32 m2, tmp;
+	u32 m2, m3;
 
 	if (fix_phy_mode2) {
 		m2 = readl(port_mmio + PHY_MODE2);
@@ -2564,28 +2556,36 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		udelay(200);
 	}
 
-	/* who knows what this magic does */
-	tmp = readl(port_mmio + PHY_MODE3);
-	tmp &= ~0x7F800000;
-	tmp |= 0x2A800000;
-	writel(tmp, port_mmio + PHY_MODE3);
+	/*
+	 * Gen-II/IIe PHY_MODE3 errata RM#2:
+	 * Achieves better receiver noise performance than the h/w default:
+	 */
+	m3 = readl(port_mmio + PHY_MODE3);
+	m3 = (m3 & 0x1f) | (0x5555601 << 5);
+
+	/* Guideline 88F5182 (GL# SATA-S11) */
+	if (IS_SOC(hpriv))
+		m3 &= ~0x1c;
 
 	if (fix_phy_mode4) {
-		u32 m4;
-
-		m4 = readl(port_mmio + PHY_MODE4);
-
-		if (hp_flags & MV_HP_ERRATA_60X1B2)
-			tmp = readl(port_mmio + PHY_MODE3);
-
-		/* workaround for errata FEr SATA#10 (part 1) */
-		m4 = (m4 & ~(1 << 1)) | (1 << 0);
-
+		u32 m4 = readl(port_mmio + PHY_MODE4);
+		/*
+		 * Enforce reserved-bit restrictions on GenIIe devices only.
+		 * For earlier chipsets, force only the internal config field
+		 *  (workaround for errata FEr SATA#10 part 1).
+		 */
+		if (IS_GEN_IIE(hpriv))
+			m4 = (m4 & ~PHY_MODE4_RSVD_ZEROS) | PHY_MODE4_RSVD_ONES;
+		else
+			m4 = (m4 & ~PHY_MODE4_CFG_MASK) | PHY_MODE4_CFG_VALUE;
 		writel(m4, port_mmio + PHY_MODE4);
-
-		if (hp_flags & MV_HP_ERRATA_60X1B2)
-			writel(tmp, port_mmio + PHY_MODE3);
 	}
+	/*
+	 * Workaround for 60x1-B2 errata SATA#13:
+	 * Any write to PHY_MODE4 (above) may corrupt PHY_MODE3,
+	 * so we must always rewrite PHY_MODE3 after PHY_MODE4.
+	 */
+	writel(m3, port_mmio + PHY_MODE3);
 
 	/* Revert values of pre-emphasis and signal amps to the saved ones */
 	m2 = readl(port_mmio + PHY_MODE2);
@@ -2876,7 +2876,7 @@ static unsigned int mv_in_pcix_mode(struct ata_host *host)
 	void __iomem *mmio = hpriv->base;
 	u32 reg;
 
-	if (!HAS_PCI(host) || !IS_PCIE(hpriv))
+	if (IS_SOC(hpriv) || !IS_PCIE(hpriv))
 		return 0;	/* not PCI-X capable */
 	reg = readl(mmio + MV_PCI_MODE_OFS);
 	if ((reg & MV_PCI_MODE_MASK) == 0)
@@ -3003,10 +3003,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			hp_flags |= MV_HP_CUT_THROUGH;
 
 		switch (pdev->revision) {
-		case 0x0:
-			hp_flags |= MV_HP_ERRATA_XX42A0;
-			break;
-		case 0x1:
+		case 0x2: /* Rev.B0: the first/only public release */
 			hp_flags |= MV_HP_ERRATA_60X1C0;
 			break;
 		default:
@@ -3018,7 +3015,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		break;
 	case chip_soc:
 		hpriv->ops = &mv_soc_ops;
-		hp_flags |= MV_HP_ERRATA_60X1C0;
+		hp_flags |= MV_HP_FLAG_SOC | MV_HP_ERRATA_60X1C0;
 		break;
 
 	default:
@@ -3062,12 +3059,12 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	if (rc)
 		goto done;
 
-	if (HAS_PCI(host)) {
-		hpriv->main_irq_cause_addr = mmio + PCI_HC_MAIN_IRQ_CAUSE_OFS;
-		hpriv->main_irq_mask_addr  = mmio + PCI_HC_MAIN_IRQ_MASK_OFS;
-	} else {
+	if (IS_SOC(hpriv)) {
 		hpriv->main_irq_cause_addr = mmio + SOC_HC_MAIN_IRQ_CAUSE_OFS;
 		hpriv->main_irq_mask_addr  = mmio + SOC_HC_MAIN_IRQ_MASK_OFS;
+	} else {
+		hpriv->main_irq_cause_addr = mmio + PCI_HC_MAIN_IRQ_CAUSE_OFS;
+		hpriv->main_irq_mask_addr  = mmio + PCI_HC_MAIN_IRQ_MASK_OFS;
 	}
 
 	/* global interrupt mask: 0 == mask everything */
@@ -3093,7 +3090,7 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		mv_port_init(&ap->ioaddr, port_mmio);
 
 #ifdef CONFIG_PCI
-		if (HAS_PCI(host)) {
+		if (!IS_SOC(hpriv)) {
 			unsigned int offset = port_mmio - mmio;
 			ata_port_pbar_desc(ap, MV_PRIMARY_BAR, -1, "mmio");
 			ata_port_pbar_desc(ap, MV_PRIMARY_BAR, offset, "port");
@@ -3113,7 +3110,7 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		writelfl(0, hc_mmio + HC_IRQ_CAUSE_OFS);
 	}
 
-	if (HAS_PCI(host)) {
+	if (!IS_SOC(hpriv)) {
 		/* Clear any currently outstanding host interrupt conditions */
 		writelfl(0, mmio + hpriv->irq_cause_ofs);
 

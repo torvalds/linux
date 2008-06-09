@@ -163,8 +163,7 @@ ts_mmap(struct file *file, struct vm_area_struct * vma)
 static int empress_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
-	struct saa7134_fh *fh = priv;
-	struct saa7134_dev *dev = fh->dev;
+	struct saa7134_dev *dev = file->private_data;
 
 	strcpy(cap->driver, "saa7134");
 	strlcpy(cap->card, saa7134_boards[dev->board].name,

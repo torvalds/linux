@@ -1240,6 +1240,20 @@ L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 S:	Maintained
 
+CXGB3 ETHERNET DRIVER (CXGB3)
+P:	Divy Le Ray
+M:	divy@chelsio.com
+L:	netdev@vger.kernel.org
+W:	http://www.chelsio.com
+S:	Supported
+
+CXGB3 IWARP RNIC DRIVER (IW_CXGB3)
+P:	Steve Wise
+M:	swise@chelsio.com
+L:	general@lists.openfabrics.org
+W:	http://www.openfabrics.org
+S:	Supported
+
 CYBERPRO FB DRIVER
 P:	Russell King
 M:	rmk@arm.linux.org.uk
@@ -1597,7 +1611,7 @@ ETHERNET BRIDGE
 P:	Stephen Hemminger
 M:	shemminger@linux-foundation.org
 L:	bridge@lists.linux-foundation.org
-W:	http://bridge.sourceforge.net/
+W:	http://www.linux-foundation.org/en/Net:Bridge
 S:	Maintained
 
 ETHERTEAM 16I DRIVER
@@ -2551,7 +2565,6 @@ LINUX SECURITY MODULE (LSM) FRAMEWORK
 P:	Chris Wright
 M:	chrisw@sous-sol.org
 L:	linux-security-module@vger.kernel.org
-W:	http://lsm.immunix.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/chrisw/lsm-2.6.git
 S:	Supported
 
@@ -2852,8 +2865,8 @@ S:	Maintained
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 P:	Faisal Latif
 M:	flatif@neteffect.com
-P:	Nishi Gupta
-M:	ngupta@neteffect.com
+P:	Chien Tung
+M:	ctung@neteffect.com
 P:	Glenn Streiff
 M:	gstreiff@neteffect.com
 L:	general@lists.openfabrics.org
@@ -3425,10 +3438,7 @@ L:	rtc-linux@googlegroups.com
 S:	Maintained
 
 REISERFS FILE SYSTEM
-P:	Hans Reiser
-M:	reiserfs-dev@namesys.com
 L:	reiserfs-devel@vger.kernel.org
-W:	http://www.namesys.com
 S:	Supported
 
 RFKILL
@@ -4359,6 +4369,14 @@ M:	hjk@linutronix.de
 P:	Greg Kroah-Hartman
 M:	gregkh@suse.de
 L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+UTIL-LINUX-NG PACKAGE
+P:	Karel Zak
+M:	kzak@redhat.com
+L:	util-linux-ng@vger.kernel.org
+W:	http://kernel.org/~kzak/util-linux-ng/
+T:	git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git
 S:	Maintained
 
 VFAT/FAT/MSDOS FILESYSTEM:

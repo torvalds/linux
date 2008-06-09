@@ -34,7 +34,11 @@ qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 static inline void
 qla2x00_poll(scsi_qla_host_t *ha)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	ha->isp_ops->intr_handler(0, ha);
+	local_irq_restore(flags);
 }
 
 static __inline__ scsi_qla_host_t *

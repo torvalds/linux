@@ -739,8 +739,8 @@ int dccp_invalid_packet(struct sk_buff *skb)
 	 * If P.type is not Data, Ack, or DataAck and P.X == 0 (the packet
 	 * has short sequence numbers), drop packet and return
 	 */
-	if (dh->dccph_type >= DCCP_PKT_DATA    &&
-	    dh->dccph_type <= DCCP_PKT_DATAACK && dh->dccph_x == 0)  {
+	if ((dh->dccph_type < DCCP_PKT_DATA    ||
+	    dh->dccph_type > DCCP_PKT_DATAACK) && dh->dccph_x == 0)  {
 		DCCP_WARN("P.type (%s) not Data || [Data]Ack, while P.X == 0\n",
 			  dccp_packet_name(dh->dccph_type));
 		return 1;

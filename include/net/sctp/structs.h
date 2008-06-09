@@ -548,7 +548,8 @@ struct sctp_af {
 	struct dst_entry *(*get_dst)	(struct sctp_association *asoc,
 					 union sctp_addr *daddr,
 					 union sctp_addr *saddr);
-	void		(*get_saddr)	(struct sctp_association *asoc,
+	void		(*get_saddr)	(struct sctp_sock *sk,
+					 struct sctp_association *asoc,
 					 struct dst_entry *dst,
 					 union sctp_addr *daddr,
 					 union sctp_addr *saddr);
@@ -587,6 +588,7 @@ struct sctp_af {
 	int		(*is_ce)	(const struct sk_buff *sk);
 	void		(*seq_dump_addr)(struct seq_file *seq,
 					 union sctp_addr *addr);
+	void		(*ecn_capable)(struct sock *sk);
 	__u16		net_header_len;
 	int		sockaddr_len;
 	sa_family_t	sa_family;
@@ -901,7 +903,10 @@ struct sctp_transport {
 	 *		calculation completes (i.e. the DATA chunk
 	 *		is SACK'd) clear this flag.
 	 */
-	int rto_pending;
+	__u8 rto_pending;
+
+	/* Flag to track the current fast recovery state */
+	__u8 fast_recovery;
 
 	/*
 	 * These are the congestion stats.
@@ -919,6 +924,9 @@ struct sctp_transport {
 
 	/* Data that has been sent, but not acknowledged. */
 	__u32 flight_size;
+
+	/* TSN marking the fast recovery exit point */
+	__u32 fast_recovery_exit;
 
 	/* Destination */
 	struct dst_entry *dst;
@@ -1044,7 +1052,7 @@ void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
 void sctp_transport_pmtu(struct sctp_transport *);
 void sctp_transport_free(struct sctp_transport *);
-void sctp_transport_reset_timers(struct sctp_transport *);
+void sctp_transport_reset_timers(struct sctp_transport *, int);
 void sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
@@ -1133,6 +1141,9 @@ struct sctp_outq {
 
 	/* How many unackd bytes do we have in-flight?	*/
 	__u32 outstanding_bytes;
+
+	/* Are we doing fast-rtx on this queue */
+	char fast_rtx;
 
 	/* Corked? */
 	char cork;

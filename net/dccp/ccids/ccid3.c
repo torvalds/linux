@@ -193,22 +193,17 @@ static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
 
 /*
  *	Update Window Counter using the algorithm from [RFC 4342, 8.1].
- *	The algorithm is not applicable if RTT < 4 microseconds.
+ *	As elsewhere, RTT > 0 is assumed by using dccp_sample_rtt().
  */
 static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hctx,
 						ktime_t now)
 {
-	u32 quarter_rtts;
-
-	if (unlikely(hctx->ccid3hctx_rtt < 4))	/* avoid divide-by-zero */
-		return;
-
-	quarter_rtts = ktime_us_delta(now, hctx->ccid3hctx_t_last_win_count);
-	quarter_rtts /= hctx->ccid3hctx_rtt / 4;
+	u32 delta = ktime_us_delta(now, hctx->ccid3hctx_t_last_win_count),
+	    quarter_rtts = (4 * delta) / hctx->ccid3hctx_rtt;
 
 	if (quarter_rtts > 0) {
 		hctx->ccid3hctx_t_last_win_count = now;
-		hctx->ccid3hctx_last_win_count	+= min_t(u32, quarter_rtts, 5);
+		hctx->ccid3hctx_last_win_count  += min(quarter_rtts, 5U);
 		hctx->ccid3hctx_last_win_count	&= 0xF;		/* mod 16 */
 	}
 }

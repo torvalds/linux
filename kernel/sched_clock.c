@@ -59,22 +59,26 @@ static inline struct sched_clock_data *cpu_sdc(int cpu)
 	return &per_cpu(sched_clock_data, cpu);
 }
 
+static __read_mostly int sched_clock_running;
+
 void sched_clock_init(void)
 {
 	u64 ktime_now = ktime_to_ns(ktime_get());
-	u64 now = 0;
+	unsigned long now_jiffies = jiffies;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
 		struct sched_clock_data *scd = cpu_sdc(cpu);
 
 		scd->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
-		scd->prev_jiffies = jiffies;
-		scd->prev_raw = now;
-		scd->tick_raw = now;
+		scd->prev_jiffies = now_jiffies;
+		scd->prev_raw = 0;
+		scd->tick_raw = 0;
 		scd->tick_gtod = ktime_now;
 		scd->clock = ktime_now;
 	}
+
+	sched_clock_running = 1;
 }
 
 /*
@@ -136,6 +140,9 @@ u64 sched_clock_cpu(int cpu)
 	struct sched_clock_data *scd = cpu_sdc(cpu);
 	u64 now, clock;
 
+	if (unlikely(!sched_clock_running))
+		return 0ull;
+
 	WARN_ON_ONCE(!irqs_disabled());
 	now = sched_clock();
 
@@ -173,6 +180,9 @@ void sched_clock_tick(void)
 {
 	struct sched_clock_data *scd = this_scd();
 	u64 now, now_gtod;
+
+	if (unlikely(!sched_clock_running))
+		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
 

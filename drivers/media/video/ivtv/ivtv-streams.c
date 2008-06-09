@@ -44,23 +44,25 @@
 #include "ivtv-streams.h"
 
 static const struct file_operations ivtv_v4l2_enc_fops = {
-      .owner = THIS_MODULE,
-      .read = ivtv_v4l2_read,
-      .write = ivtv_v4l2_write,
-      .open = ivtv_v4l2_open,
-      .ioctl = ivtv_v4l2_ioctl,
-      .release = ivtv_v4l2_close,
-      .poll = ivtv_v4l2_enc_poll,
+	.owner = THIS_MODULE,
+	.read = ivtv_v4l2_read,
+	.write = ivtv_v4l2_write,
+	.open = ivtv_v4l2_open,
+	.ioctl = ivtv_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = ivtv_v4l2_close,
+	.poll = ivtv_v4l2_enc_poll,
 };
 
 static const struct file_operations ivtv_v4l2_dec_fops = {
-      .owner = THIS_MODULE,
-      .read = ivtv_v4l2_read,
-      .write = ivtv_v4l2_write,
-      .open = ivtv_v4l2_open,
-      .ioctl = ivtv_v4l2_ioctl,
-      .release = ivtv_v4l2_close,
-      .poll = ivtv_v4l2_dec_poll,
+	.owner = THIS_MODULE,
+	.read = ivtv_v4l2_read,
+	.write = ivtv_v4l2_write,
+	.open = ivtv_v4l2_open,
+	.ioctl = ivtv_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = ivtv_v4l2_close,
+	.poll = ivtv_v4l2_dec_poll,
 };
 
 #define IVTV_V4L2_DEC_MPG_OFFSET  16	/* offset from 0 to register decoder mpg v4l2 minors on */

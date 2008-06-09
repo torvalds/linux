@@ -385,6 +385,9 @@ static inline const char *dev_name(struct device *dev)
 	return dev->bus_id;
 }
 
+extern int dev_set_name(struct device *dev, const char *name, ...)
+			__attribute__((format(printf, 2, 3)));
+
 #ifdef CONFIG_NUMA
 static inline int dev_to_node(struct device *dev)
 {

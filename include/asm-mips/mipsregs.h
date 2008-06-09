@@ -765,6 +765,9 @@ do {									\
 #define read_c0_index()		__read_32bit_c0_register($0, 0)
 #define write_c0_index(val)	__write_32bit_c0_register($0, 0, val)
 
+#define read_c0_random()	__read_32bit_c0_register($1, 0)
+#define write_c0_random(val)	__write_32bit_c0_register($1, 0, val)
+
 #define read_c0_entrylo0()	__read_ulong_c0_register($2, 0)
 #define write_c0_entrylo0(val)	__write_ulong_c0_register($2, 0, val)
 

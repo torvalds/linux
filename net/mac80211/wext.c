@@ -489,9 +489,14 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
-		ap_addr->sa_family = ARPHRD_ETHER;
-		memcpy(&ap_addr->sa_data, sdata->u.sta.bssid, ETH_ALEN);
-		return 0;
+		if (sdata->u.sta.state == IEEE80211_ASSOCIATED) {
+			ap_addr->sa_family = ARPHRD_ETHER;
+			memcpy(&ap_addr->sa_data, sdata->u.sta.bssid, ETH_ALEN);
+			return 0;
+		} else {
+			memset(&ap_addr->sa_data, 0, ETH_ALEN);
+			return 0;
+		}
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_WDS) {
 		ap_addr->sa_family = ARPHRD_ETHER;
 		memcpy(&ap_addr->sa_data, sdata->u.wds.remote_addr, ETH_ALEN);

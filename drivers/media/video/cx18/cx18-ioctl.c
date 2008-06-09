@@ -247,7 +247,7 @@ static int cx18_try_or_set_fmt(struct cx18 *cx, int streamtype,
 
 		if (!set_fmt || (cx->params.width == w && cx->params.height == h))
 			return 0;
-		if (atomic_read(&cx->capturing) > 0)
+		if (atomic_read(&cx->ana_capturing) > 0)
 			return -EBUSY;
 
 		cx->params.width = w;
@@ -264,7 +264,7 @@ static int cx18_try_or_set_fmt(struct cx18 *cx, int streamtype,
 	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		if (set_fmt && streamtype == CX18_ENC_STREAM_TYPE_VBI &&
 		    cx->vbi.sliced_in->service_set &&
-		    atomic_read(&cx->capturing) > 0)
+		    atomic_read(&cx->ana_capturing) > 0)
 			return -EBUSY;
 		if (set_fmt) {
 			cx->vbi.sliced_in->service_set = 0;
@@ -293,7 +293,7 @@ static int cx18_try_or_set_fmt(struct cx18 *cx, int streamtype,
 		return 0;
 	if (set == 0)
 		return -EINVAL;
-	if (atomic_read(&cx->capturing) > 0 && cx->vbi.sliced_in->service_set == 0)
+	if (atomic_read(&cx->ana_capturing) > 0 && cx->vbi.sliced_in->service_set == 0)
 		return -EBUSY;
 	cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
 	memcpy(cx->vbi.sliced_in, vbifmt, sizeof(*cx->vbi.sliced_in));
@@ -581,7 +581,7 @@ int cx18_v4l2_ioctls(struct cx18 *cx, struct file *filp, unsigned cmd, void *arg
 			break;
 
 		if (test_bit(CX18_F_I_RADIO_USER, &cx->i_flags) ||
-		    atomic_read(&cx->capturing) > 0) {
+		    atomic_read(&cx->ana_capturing) > 0) {
 			/* Switching standard would turn off the radio or mess
 			   with already running streams, prevent that by
 			   returning EBUSY. */
@@ -677,7 +677,7 @@ int cx18_v4l2_ioctls(struct cx18 *cx, struct file *filp, unsigned cmd, void *arg
 			enc->flags = 0;
 			if (try)
 				return 0;
-			if (!atomic_read(&cx->capturing))
+			if (!atomic_read(&cx->ana_capturing))
 				return -EPERM;
 			if (test_and_set_bit(CX18_F_I_ENC_PAUSED, &cx->i_flags))
 				return 0;
@@ -689,7 +689,7 @@ int cx18_v4l2_ioctls(struct cx18 *cx, struct file *filp, unsigned cmd, void *arg
 			enc->flags = 0;
 			if (try)
 				return 0;
-			if (!atomic_read(&cx->capturing))
+			if (!atomic_read(&cx->ana_capturing))
 				return -EPERM;
 			if (!test_and_clear_bit(CX18_F_I_ENC_PAUSED, &cx->i_flags))
 				return 0;

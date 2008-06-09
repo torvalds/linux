@@ -127,6 +127,25 @@ struct pid_entry {
 		NULL, &proc_single_file_operations,	\
 		{ .proc_show = &proc_##OTYPE } )
 
+/*
+ * Count the number of hardlinks for the pid_entry table, excluding the .
+ * and .. links.
+ */
+static unsigned int pid_entry_count_dirs(const struct pid_entry *entries,
+	unsigned int n)
+{
+	unsigned int i;
+	unsigned int count;
+
+	count = 0;
+	for (i = 0; i < n; ++i) {
+		if (S_ISDIR(entries[i].mode))
+			++count;
+	}
+
+	return count;
+}
+
 int maps_protect;
 EXPORT_SYMBOL(maps_protect);
 
@@ -2585,10 +2604,9 @@ static struct dentry *proc_pid_instantiate(struct inode *dir,
 	inode->i_op = &proc_tgid_base_inode_operations;
 	inode->i_fop = &proc_tgid_base_operations;
 	inode->i_flags|=S_IMMUTABLE;
-	inode->i_nlink = 5;
-#ifdef CONFIG_SECURITY
-	inode->i_nlink += 1;
-#endif
+
+	inode->i_nlink = 2 + pid_entry_count_dirs(tgid_base_stuff,
+		ARRAY_SIZE(tgid_base_stuff));
 
 	dentry->d_op = &pid_dentry_operations;
 
@@ -2816,10 +2834,9 @@ static struct dentry *proc_task_instantiate(struct inode *dir,
 	inode->i_op = &proc_tid_base_inode_operations;
 	inode->i_fop = &proc_tid_base_operations;
 	inode->i_flags|=S_IMMUTABLE;
-	inode->i_nlink = 4;
-#ifdef CONFIG_SECURITY
-	inode->i_nlink += 1;
-#endif
+
+	inode->i_nlink = 2 + pid_entry_count_dirs(tid_base_stuff,
+		ARRAY_SIZE(tid_base_stuff));
 
 	dentry->d_op = &pid_dentry_operations;
 

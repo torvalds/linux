@@ -31,11 +31,6 @@
  */
 static void *kvm_devices;
 
-/*
- * Unique numbering for kvm devices.
- */
-static unsigned int dev_index;
-
 struct kvm_device {
 	struct virtio_device vdev;
 	struct kvm_device_desc *desc;
@@ -250,26 +245,25 @@ static struct device kvm_root = {
  * adds a new device and register it with virtio
  * appropriate drivers are loaded by the device model
  */
-static void add_kvm_device(struct kvm_device_desc *d)
+static void add_kvm_device(struct kvm_device_desc *d, unsigned int offset)
 {
 	struct kvm_device *kdev;
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev) {
-		printk(KERN_EMERG "Cannot allocate kvm dev %u\n",
-		       dev_index++);
+		printk(KERN_EMERG "Cannot allocate kvm dev %u type %u\n",
+		       offset, d->type);
 		return;
 	}
 
 	kdev->vdev.dev.parent = &kvm_root;
-	kdev->vdev.index = dev_index++;
 	kdev->vdev.id.device = d->type;
 	kdev->vdev.config = &kvm_vq_configspace_ops;
 	kdev->desc = d;
 
 	if (register_virtio_device(&kdev->vdev) != 0) {
-		printk(KERN_ERR "Failed to register kvm device %u\n",
-		       kdev->vdev.index);
+		printk(KERN_ERR "Failed to register kvm device %u type %u\n",
+		       offset, d->type);
 		kfree(kdev);
 	}
 }
@@ -289,7 +283,7 @@ static void scan_devices(void)
 		if (d->type == 0)
 			break;
 
-		add_kvm_device(d);
+		add_kvm_device(d, i);
 	}
 }
 

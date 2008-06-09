@@ -92,6 +92,7 @@ struct tuner {
 	unsigned int        type; /* chip type id */
 	unsigned int        config;
 	int (*tuner_callback) (void *dev, int command, int arg);
+	const char          *name;
 };
 
 /* standard i2c insmod options */
@@ -330,13 +331,13 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("Support for tuners in i2c address range 0x64 thru 0x6f\n");
 	tuner_warn("will soon be dropped. This message indicates that your\n");
 	tuner_warn("hardware has a %s tuner at i2c address 0x%02x.\n",
-		   t->i2c->name, t->i2c->addr);
+		   t->name, t->i2c->addr);
 	tuner_warn("To ensure continued support for your device, please\n");
 	tuner_warn("send a copy of this message, along with full dmesg\n");
 	tuner_warn("output to v4l-dvb-maintainer@linuxtv.org\n");
 	tuner_warn("Please use subject line: \"obsolete tuner i2c address.\"\n");
 	tuner_warn("driver: %s, addr: 0x%02x, type: %d (%s)\n",
-		   t->i2c->adapter->name, t->i2c->addr, t->type, t->i2c->name);
+		   t->i2c->adapter->name, t->i2c->addr, t->type, t->name);
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
@@ -470,19 +471,17 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	if ((NULL == analog_ops->set_params) &&
 	    (fe_tuner_ops->set_analog_params)) {
 
-		strlcpy(t->i2c->name, fe_tuner_ops->info.name,
-			sizeof(t->i2c->name));
+		t->name = fe_tuner_ops->info.name;
 
 		t->fe.analog_demod_priv = t;
 		memcpy(analog_ops, &tuner_core_ops,
 		       sizeof(struct analog_demod_ops));
 
 	} else {
-		strlcpy(t->i2c->name, analog_ops->info.name,
-			sizeof(t->i2c->name));
+		t->name = analog_ops->info.name;
 	}
 
-	tuner_dbg("type set to %s\n", t->i2c->name);
+	tuner_dbg("type set to %s\n", t->name);
 
 	if (t->mode_mask == T_UNINITIALIZED)
 		t->mode_mask = new_mode_mask;
@@ -537,7 +536,7 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 static inline int check_mode(struct tuner *t, char *cmd)
 {
 	if ((1 << t->mode & t->mode_mask) == 0) {
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	switch (t->mode) {
@@ -731,11 +730,11 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 
 	t->mode = mode;
 
-	if (check_mode(t, cmd) == EINVAL) {
+	if (check_mode(t, cmd) == -EINVAL) {
 		t->mode = T_STANDBY;
 		if (analog_ops->standby)
 			analog_ops->standby(&t->fe);
-		return EINVAL;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -777,13 +776,13 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	case AUDC_SET_RADIO:
 		if (set_mode(client, t, V4L2_TUNER_RADIO, "AUDC_SET_RADIO")
-				== EINVAL)
+				== -EINVAL)
 			return 0;
 		if (t->radio_freq)
 			set_freq(client, t->radio_freq);
 		break;
 	case TUNER_SET_STANDBY:
-		if (check_mode(t, "TUNER_SET_STANDBY") == EINVAL)
+		if (check_mode(t, "TUNER_SET_STANDBY") == -EINVAL)
 			return 0;
 		t->mode = T_STANDBY;
 		if (analog_ops->standby)
@@ -791,9 +790,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 #ifdef CONFIG_VIDEO_ALLOW_V4L1
 	case VIDIOCSAUDIO:
-		if (check_mode(t, "VIDIOCSAUDIO") == EINVAL)
+		if (check_mode(t, "VIDIOCSAUDIO") == -EINVAL)
 			return 0;
-		if (check_v4l2(t) == EINVAL)
+		if (check_v4l2(t) == -EINVAL)
 			return 0;
 
 		/* Should be implemented, since bttv calls it */
@@ -811,10 +810,10 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			};
 			struct video_channel *vc = arg;
 
-			if (check_v4l2(t) == EINVAL)
+			if (check_v4l2(t) == -EINVAL)
 				return 0;
 
-			if (set_mode(client,t,V4L2_TUNER_ANALOG_TV, "VIDIOCSCHAN")==EINVAL)
+			if (set_mode(client,t,V4L2_TUNER_ANALOG_TV, "VIDIOCSCHAN")==-EINVAL)
 				return 0;
 
 			if (vc->norm < ARRAY_SIZE(map))
@@ -828,9 +827,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		{
 			unsigned long *v = arg;
 
-			if (check_mode(t, "VIDIOCSFREQ") == EINVAL)
+			if (check_mode(t, "VIDIOCSFREQ") == -EINVAL)
 				return 0;
-			if (check_v4l2(t) == EINVAL)
+			if (check_v4l2(t) == -EINVAL)
 				return 0;
 
 			set_freq(client, *v);
@@ -840,9 +839,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		{
 			struct video_tuner *vt = arg;
 
-			if (check_mode(t, "VIDIOCGTUNER") == EINVAL)
+			if (check_mode(t, "VIDIOCGTUNER") == -EINVAL)
 				return 0;
-			if (check_v4l2(t) == EINVAL)
+			if (check_v4l2(t) == -EINVAL)
 				return 0;
 
 			if (V4L2_TUNER_RADIO == t->mode) {
@@ -884,9 +883,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		{
 			struct video_audio *va = arg;
 
-			if (check_mode(t, "VIDIOCGAUDIO") == EINVAL)
+			if (check_mode(t, "VIDIOCGAUDIO") == -EINVAL)
 				return 0;
-			if (check_v4l2(t) == EINVAL)
+			if (check_v4l2(t) == -EINVAL)
 				return 0;
 
 			if (V4L2_TUNER_RADIO == t->mode) {
@@ -926,7 +925,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			v4l2_std_id *id = arg;
 
 			if (set_mode (client, t, V4L2_TUNER_ANALOG_TV, "VIDIOC_S_STD")
-					== EINVAL)
+					== -EINVAL)
 				return 0;
 
 			switch_v4l2();
@@ -942,7 +941,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			struct v4l2_frequency *f = arg;
 
 			if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
-					== EINVAL)
+					== -EINVAL)
 				return 0;
 			switch_v4l2();
 			set_freq(client,f->frequency);
@@ -953,7 +952,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		{
 			struct v4l2_frequency *f = arg;
 
-			if (check_mode(t, "VIDIOC_G_FREQUENCY") == EINVAL)
+			if (check_mode(t, "VIDIOC_G_FREQUENCY") == -EINVAL)
 				return 0;
 			switch_v4l2();
 			f->type = t->mode;
@@ -974,7 +973,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		{
 			struct v4l2_tuner *tuner = arg;
 
-			if (check_mode(t, "VIDIOC_G_TUNER") == EINVAL)
+			if (check_mode(t, "VIDIOC_G_TUNER") == -EINVAL)
 				return 0;
 			switch_v4l2();
 
@@ -1021,7 +1020,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		{
 			struct v4l2_tuner *tuner = arg;
 
-			if (check_mode(t, "VIDIOC_S_TUNER") == EINVAL)
+			if (check_mode(t, "VIDIOC_S_TUNER") == -EINVAL)
 				return 0;
 
 			switch_v4l2();
@@ -1115,6 +1114,7 @@ static int tuner_probe(struct i2c_client *client,
 	if (NULL == t)
 		return -ENOMEM;
 	t->i2c = client;
+	t->name = "(tuner unset)";
 	i2c_set_clientdata(client, t);
 	t->type = UNSET;
 	t->audmode = V4L2_TUNER_MODE_STEREO;
@@ -1272,12 +1272,6 @@ static int tuner_remove(struct i2c_client *client)
 
 	list_del(&t->list);
 	kfree(t);
-
-	/* The probing code has overwritten the device name, restore it so
-	   that reloading the driver will work. Ideally the device name
-	   should not be overwritten in the first place, but for now that
-	   will do. */
-	strlcpy(client->name, "tuner", I2C_NAME_SIZE);
 	return 0;
 }
 

@@ -548,7 +548,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * Note: The works for IPv6 layer checks this bit too later
 	 * in transmission.  See IP6_ECN_flow_xmit().
 	 */
-	INET_ECN_xmit(nskb->sk);
+	(*tp->af_specific->ecn_capable)(nskb->sk);
 
 	/* Set up the IP options.  */
 	/* BUG: not implemented

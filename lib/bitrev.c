@@ -42,10 +42,11 @@ const u8 byte_rev_table[256] = {
 };
 EXPORT_SYMBOL_GPL(byte_rev_table);
 
-static __always_inline u16 bitrev16(u16 x)
+u16 bitrev16(u16 x)
 {
 	return (bitrev8(x & 0xff) << 8) | bitrev8(x >> 8);
 }
+EXPORT_SYMBOL(bitrev16);
 
 /**
  * bitrev32 - reverse the order of bits in a u32 value

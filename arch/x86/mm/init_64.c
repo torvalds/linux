@@ -206,7 +206,7 @@ void __init cleanup_highmap(void)
 	pmd_t *last_pmd = pmd + PTRS_PER_PMD;
 
 	for (; pmd < last_pmd; pmd++, vaddr += PMD_SIZE) {
-		if (!pmd_present(*pmd))
+		if (pmd_none(*pmd))
 			continue;
 		if (vaddr < (unsigned long) _text || vaddr > end)
 			set_pmd(pmd, __pmd(0));
@@ -506,7 +506,7 @@ early_param("memtest", parse_memtest);
 
 static void __init early_memtest(unsigned long start, unsigned long end)
 {
-	unsigned long t_start, t_size;
+	u64 t_start, t_size;
 	unsigned pattern;
 
 	if (!memtest_pattern)
@@ -525,7 +525,7 @@ static void __init early_memtest(unsigned long start, unsigned long end)
 			if (t_start + t_size > end)
 				t_size = end - t_start;
 
-			printk(KERN_CONT "\n  %016lx - %016lx pattern %d",
+			printk(KERN_CONT "\n  %016llx - %016llx pattern %d",
 				t_start, t_start + t_size, pattern);
 
 			memtest(t_start, t_size, pattern);

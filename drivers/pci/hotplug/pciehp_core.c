@@ -254,7 +254,11 @@ static int init_slots(struct controller *ctrl)
 		    slot->hp_slot, slot->number, ctrl->slot_device_offset);
 		retval = pci_hp_register(hotplug_slot);
 		if (retval) {
-			err ("pci_hp_register failed with error %d\n", retval);
+			err("pci_hp_register failed with error %d\n", retval);
+			if (retval == -EEXIST)
+				err("Failed to register slot because of name "
+				    "collision. Try \'pciehp_slot_with_bus\' "
+				    "module option.\n");
 			goto error_info;
 		}
 		/* create additional sysfs entries */

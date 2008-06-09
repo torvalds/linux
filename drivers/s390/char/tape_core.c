@@ -449,6 +449,7 @@ tape_alloc_device(void)
 	INIT_LIST_HEAD(&device->req_queue);
 	INIT_LIST_HEAD(&device->node);
 	init_waitqueue_head(&device->state_change_wq);
+	init_waitqueue_head(&device->wait_queue);
 	device->tape_state = TS_INIT;
 	device->medium_state = MS_UNKNOWN;
 	*device->modeset_byte = 0;
@@ -954,21 +955,19 @@ __tape_wake_up(struct tape_request *request, void *data)
 int
 tape_do_io(struct tape_device *device, struct tape_request *request)
 {
-	wait_queue_head_t wq;
 	int rc;
 
-	init_waitqueue_head(&wq);
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	/* Setup callback */
 	request->callback = __tape_wake_up;
-	request->callback_data = &wq;
+	request->callback_data = &device->wait_queue;
 	/* Add request to request queue and try to start it. */
 	rc = __tape_start_request(device, request);
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	if (rc)
 		return rc;
 	/* Request added to the queue. Wait for its completion. */
-	wait_event(wq, (request->callback == NULL));
+	wait_event(device->wait_queue, (request->callback == NULL));
 	/* Get rc from request */
 	return request->rc;
 }
@@ -989,20 +988,19 @@ int
 tape_do_io_interruptible(struct tape_device *device,
 			 struct tape_request *request)
 {
-	wait_queue_head_t wq;
 	int rc;
 
-	init_waitqueue_head(&wq);
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	/* Setup callback */
 	request->callback = __tape_wake_up_interruptible;
-	request->callback_data = &wq;
+	request->callback_data = &device->wait_queue;
 	rc = __tape_start_request(device, request);
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	if (rc)
 		return rc;
 	/* Request added to the queue. Wait for its completion. */
-	rc = wait_event_interruptible(wq, (request->callback == NULL));
+	rc = wait_event_interruptible(device->wait_queue,
+				      (request->callback == NULL));
 	if (rc != -ERESTARTSYS)
 		/* Request finished normally. */
 		return request->rc;
@@ -1015,7 +1013,7 @@ tape_do_io_interruptible(struct tape_device *device,
 		/* Wait for the interrupt that acknowledges the halt. */
 		do {
 			rc = wait_event_interruptible(
-				wq,
+				device->wait_queue,
 				(request->callback == NULL)
 			);
 		} while (rc == -ERESTARTSYS);

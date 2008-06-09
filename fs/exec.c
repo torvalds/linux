@@ -860,6 +860,7 @@ static int de_thread(struct task_struct *tsk)
 
 no_thread_group:
 	exit_itimers(sig);
+	flush_itimer_signals();
 	if (leader)
 		release_task(leader);
 

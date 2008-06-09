@@ -3927,9 +3927,9 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	}
 
 	ref = (struct dfs_referral_level_3 *) &(pSMBr->referrals);
-	if (ref->VersionNumber != 3) {
+	if (ref->VersionNumber != cpu_to_le16(3)) {
 		cERROR(1, ("Referrals of V%d version are not supported,"
-			"should be V3", ref->VersionNumber));
+			"should be V3", le16_to_cpu(ref->VersionNumber)));
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
 	}
@@ -3977,7 +3977,7 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		if (rc)
 			goto parse_DFS_referrals_exit;
 
-		ref += ref->Size;
+		ref += le16_to_cpu(ref->Size);
 	}
 
 parse_DFS_referrals_exit:

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.26-rc2
-# Sun May 18 14:44:45 2008
+# Linux kernel version: 2.6.26-rc4
+# Wed May 28 22:47:35 2008
 #
 CONFIG_M68K=y
 CONFIG_MMU=y
@@ -59,7 +59,7 @@ CONFIG_HOTPLUG=y
 CONFIG_PRINTK=y
 CONFIG_BUG=y
 CONFIG_ELF_CORE=y
-# CONFIG_COMPAT_BRK is not set
+CONFIG_COMPAT_BRK=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
 CONFIG_ANON_INODES=y

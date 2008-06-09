@@ -281,7 +281,6 @@ config CPU_SUBTYPE_SH7723
 	select CPU_SH4A
 	select CPU_SHX2
 	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
 
