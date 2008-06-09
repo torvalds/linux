@@ -122,19 +122,31 @@ static void poll_idle(void)
  *
  * idle=mwait overrides this decision and forces the usage of mwait.
  */
+
+#define MWAIT_INFO			0x05
+#define MWAIT_ECX_EXTENDED_INFO		0x01
+#define MWAIT_EDX_C1			0xf0
+
 static int __cpuinit mwait_usable(const struct cpuinfo_x86 *c)
 {
+	u32 eax, ebx, ecx, edx;
+
 	if (force_mwait)
 		return 1;
 
-	if (c->x86_vendor == X86_VENDOR_AMD) {
-		switch(c->x86) {
-		case 0x10:
-		case 0x11:
-			return 0;
-		}
-	}
-	return 1;
+	if (c->cpuid_level < MWAIT_INFO)
+		return 0;
+
+	cpuid(MWAIT_INFO, &eax, &ebx, &ecx, &edx);
+	/* Check, whether EDX has extended info about MWAIT */
+	if (!(ecx & MWAIT_ECX_EXTENDED_INFO))
+		return 1;
+
+	/*
+	 * edx enumeratios MONITOR/MWAIT extensions. Check, whether
+	 * C1  supports MWAIT
+	 */
+	return (edx & MWAIT_EDX_C1);
 }
 
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
