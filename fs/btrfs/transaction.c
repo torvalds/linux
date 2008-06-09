@@ -56,7 +56,6 @@ static noinline int join_transaction(struct btrfs_root *root)
 		total_trans++;
 		BUG_ON(!cur_trans);
 		root->fs_info->generation++;
-		root->fs_info->running_transaction = cur_trans;
 		root->fs_info->last_alloc = 0;
 		root->fs_info->last_data_alloc = 0;
 		cur_trans->num_writers = 1;
@@ -74,6 +73,9 @@ static noinline int join_transaction(struct btrfs_root *root)
 		extent_io_tree_init(&cur_trans->dirty_pages,
 				     root->fs_info->btree_inode->i_mapping,
 				     GFP_NOFS);
+		spin_lock(&root->fs_info->new_trans_lock);
+		root->fs_info->running_transaction = cur_trans;
+		spin_unlock(&root->fs_info->new_trans_lock);
 	} else {
 		cur_trans->num_writers++;
 		cur_trans->num_joined++;
