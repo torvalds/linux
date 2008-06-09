@@ -889,7 +889,7 @@ unsigned long long notrace cpu_clock(int cpu)
 	unsigned long long prev_cpu_time, time, delta_time;
 	unsigned long flags;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	prev_cpu_time = per_cpu(prev_cpu_time, cpu);
 	time = __cpu_clock(cpu) + per_cpu(time_offset, cpu);
 	delta_time = time-prev_cpu_time;
@@ -898,7 +898,7 @@ unsigned long long notrace cpu_clock(int cpu)
 		time = __sync_cpu_clock(time, cpu);
 		per_cpu(prev_cpu_time, cpu) = time;
 	}
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	return time;
 }
