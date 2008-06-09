@@ -579,7 +579,7 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 		ier = AT91_MCI_CMDRDY;
 	} else {
 		/* zero block length and PDC mode */
-		mr = at91_mci_read(host, AT91_MCI_MR) & 0x7fff;
+		mr = at91_mci_read(host, AT91_MCI_MR) & 0x5fff;
 		mr |= (data->blksz & 0x3) ? AT91_MCI_PDCFBYTE : 0;
 		mr |= (block_length << 16);
 		mr |= AT91_MCI_PDCMODE;
