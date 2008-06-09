@@ -291,8 +291,9 @@ static struct intc_sense_reg irq_sense_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_irq_desc, "sh7763-irq", irq_vectors,
-			 NULL, NULL, irq_mask_registers, irq_prio_registers,
-			 irq_sense_registers);
+			NULL, irq_mask_registers, irq_prio_registers,
+			irq_sense_registers);
+
 
 /* External interrupt pins in IRL mode */
 static struct intc_vect irl_vectors[] __initdata = {
@@ -324,10 +325,10 @@ static struct intc_mask_reg irl7654_mask_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_irl7654_desc, "sh7763-irl7654", irl_vectors,
-			 NULL, NULL, irl7654_mask_registers, NULL, NULL);
+			NULL, irl7654_mask_registers, NULL, NULL);
 
 static DECLARE_INTC_DESC(intc_irl3210_desc, "sh7763-irl3210", irl_vectors,
-			 NULL, NULL, irl3210_mask_registers, NULL, NULL);
+			NULL, irl3210_mask_registers, NULL, NULL);
 
 #define INTC_ICR0	0xffd00000
 #define INTC_INTMSK0	0xffd00044
