@@ -710,7 +710,7 @@ static MACHINE machAmiga = {
 /*** Config & Setup **********************************************************/
 
 
-int __init dmasound_paula_init(void)
+static int __init dmasound_paula_init(void)
 {
 	int err;
 
