@@ -157,6 +157,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
 		.mts_firmware = 1,
+		.has_dvb        = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
