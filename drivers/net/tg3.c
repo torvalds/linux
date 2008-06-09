@@ -1295,6 +1295,21 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 				     GRC_LCLCTRL_GPIO_OUTPUT0 |
 				     GRC_LCLCTRL_GPIO_OUTPUT1),
 				    100);
+		} else if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761) {
+			/* The 5761 non-e device swaps GPIO 0 and GPIO 2. */
+			u32 grc_local_ctrl = GRC_LCLCTRL_GPIO_OE0 |
+					     GRC_LCLCTRL_GPIO_OE1 |
+					     GRC_LCLCTRL_GPIO_OE2 |
+					     GRC_LCLCTRL_GPIO_OUTPUT0 |
+					     GRC_LCLCTRL_GPIO_OUTPUT1 |
+					     tp->grc_local_ctrl;
+			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
+
+			grc_local_ctrl |= GRC_LCLCTRL_GPIO_OUTPUT2;
+			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
+
+			grc_local_ctrl &= ~GRC_LCLCTRL_GPIO_OUTPUT0;
+			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
 		} else {
 			u32 no_gpio2;
 			u32 grc_local_ctrl = 0;
@@ -11766,6 +11781,15 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
 		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_UART_SEL;
+
+	if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761) {
+		/* Turn off the debug UART. */
+		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_UART_SEL;
+		if (tp->tg3_flags2 & TG3_FLG2_IS_NIC)
+			/* Keep VMain power. */
+			tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE0 |
+					      GRC_LCLCTRL_GPIO_OUTPUT0;
+	}
 
 	/* Force the chip into D0. */
 	err = tg3_set_power_state(tp, PCI_D0);
