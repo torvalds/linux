@@ -62,7 +62,7 @@ static struct {
 	volatile int		running;
 	struct task_struct	*poll_task;
 	
-	struct semaphore 	lock;
+	struct mutex	 	lock;
 	struct of_device	*of_dev;
 	
 	struct i2c_client	*thermostat;
@@ -286,23 +286,23 @@ restore_regs( void )
 
 static int control_loop(void *dummy)
 {
-	down(&x.lock);
+	mutex_lock(&x.lock);
 	setup_hardware();
-	up(&x.lock);
+	mutex_unlock(&x.lock);
 
 	for (;;) {
 		msleep_interruptible(8000);
 		if (kthread_should_stop())
 			break;
 
-		down(&x.lock);
+		mutex_lock(&x.lock);
 		poll_temp();
-		up(&x.lock);
+		mutex_unlock(&x.lock);
 	}
 
-	down(&x.lock);
+	mutex_lock(&x.lock);
 	restore_regs();
-	up(&x.lock);
+	mutex_unlock(&x.lock);
 
 	return 0;
 }
@@ -489,7 +489,7 @@ g4fan_init( void )
 	const struct apple_thermal_info *info;
 	struct device_node *np;
 
-	init_MUTEX( &x.lock );
+	mutex_init(&x.lock);
 
 	if( !(np=of_find_node_by_name(NULL, "power-mgt")) )
 		return -ENODEV;
