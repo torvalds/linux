@@ -87,7 +87,7 @@ static unsigned long tosa_pin_config[] = {
 	GPIO6_MMC_CLK,
 	GPIO8_MMC_CS0,
 	GPIO9_GPIO, /* Detect */
-	// GPIO10 nSD_INT
+	GPIO10_GPIO, /* nSD_INT */
 
 	/* CF */
 	GPIO13_GPIO, /* CD_IRQ */
@@ -250,6 +250,15 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 
 	tosa_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
+	err = gpio_request(TOSA_GPIO_nSD_DETECT, "MMC/SD card detect");
+	if (err) {
+		printk(KERN_ERR "tosa_mci_init: can't request nSD_DETECT gpio\n");
+		goto err_gpio_detect;
+	}
+	err = gpio_direction_input(TOSA_GPIO_nSD_DETECT);
+	if (err)
+		goto err_gpio_detect_dir;
+
 	err = request_irq(TOSA_IRQ_GPIO_nSD_DETECT, tosa_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"MMC/SD card detect", data);
@@ -258,7 +267,7 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 		goto err_irq;
 	}
 
-	err = gpio_request(TOSA_GPIO_SD_WP, "sd_wp");
+	err = gpio_request(TOSA_GPIO_SD_WP, "SD Write Protect");
 	if (err) {
 		printk(KERN_ERR "tosa_mci_init: can't request SD_WP gpio\n");
 		goto err_gpio_wp;
@@ -267,7 +276,7 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 	if (err)
 		goto err_gpio_wp_dir;
 
-	err = gpio_request(TOSA_GPIO_PWR_ON, "sd_pwr");
+	err = gpio_request(TOSA_GPIO_PWR_ON, "SD Power");
 	if (err) {
 		printk(KERN_ERR "tosa_mci_init: can't request SD_PWR gpio\n");
 		goto err_gpio_pwr;
@@ -276,8 +285,20 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 	if (err)
 		goto err_gpio_pwr_dir;
 
+	err = gpio_request(TOSA_GPIO_nSD_INT, "SD Int");
+	if (err) {
+		printk(KERN_ERR "tosa_mci_init: can't request SD_PWR gpio\n");
+		goto err_gpio_int;
+	}
+	err = gpio_direction_input(TOSA_GPIO_nSD_INT);
+	if (err)
+		goto err_gpio_int_dir;
+
 	return 0;
 
+err_gpio_int_dir:
+	gpio_free(TOSA_GPIO_nSD_INT);
+err_gpio_int:
 err_gpio_pwr_dir:
 	gpio_free(TOSA_GPIO_PWR_ON);
 err_gpio_pwr:
@@ -286,6 +307,9 @@ err_gpio_wp_dir:
 err_gpio_wp:
 	free_irq(TOSA_IRQ_GPIO_nSD_DETECT, data);
 err_irq:
+err_gpio_detect_dir:
+	gpio_free(TOSA_GPIO_nSD_DETECT);
+err_gpio_detect:
 	return err;
 }
 
@@ -307,9 +331,11 @@ static int tosa_mci_get_ro(struct device *dev)
 
 static void tosa_mci_exit(struct device *dev, void *data)
 {
+	gpio_free(TOSA_GPIO_nSD_INT);
 	gpio_free(TOSA_GPIO_PWR_ON);
 	gpio_free(TOSA_GPIO_SD_WP);
 	free_irq(TOSA_IRQ_GPIO_nSD_DETECT, data);
+	gpio_free(TOSA_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data tosa_mci_platform_data = {
