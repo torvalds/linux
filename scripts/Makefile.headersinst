@@ -28,15 +28,6 @@ include $(kbuild-file)
 
 include scripts/Kbuild.include
 
-# If this is include/asm-$(ARCH) then override $(_dst) so that
-# we install to include/asm directly.
-# Unless $(BIASMDIR) is set, in which case we're probably doing
-# a 'headers_install_all' build and we should keep the -$(ARCH)
-# in the directory name.
-ifeq ($(obj),include/asm-$(ARCH)$(BIASMDIR))
-     _dst := include/asm
-endif
-
 install := $(INSTALL_HDR_PATH)/$(_dst)
 
 header-y	:= $(sort $(header-y) $(unifdef-y))

@@ -1014,7 +1014,7 @@ firmware_install: FORCE
 #Default location for installed headers
 export INSTALL_HDR_PATH = $(objtree)/usr
 
-hdr-filter := generic um ppc
+hdr-filter := generic um ppc sparc64 cris
 hdr-archs  := $(filter-out $(hdr-filter),                           \
                   $(patsubst $(srctree)/include/asm-%/Kbuild,%,     \
                       $(wildcard $(srctree)/include/asm-*/Kbuild)))
@@ -1026,29 +1026,31 @@ __headers: include/linux/version.h scripts_basic FORCE
 
 PHONY += headers_install_all
 headers_install_all: __headers
+	$(Q)$(MAKE) $(hdr-inst)=include
 	$(Q)set -e; for arch in $(hdr-archs); do \
-	 $(MAKE) ARCH=$$arch SRCARCH=$$arch $(hdr-inst)=include \
-	         BIASMDIR=-bi-$$arch ;\
+	 $(MAKE) $(hdr-inst)=include/asm-$$arch   \
+	         SRCARCH=$$arch dst=include/asm-$$arch;  \
 	 done
 
 PHONY += headers_install
 headers_install: __headers
-	$(Q)if [ ! -r $(srctree)/include/asm-$(SRCARCH)/Kbuild ]; then \
-	  echo '*** Error: Headers not exportable for this architecture ($(SRCARCH))'; \
-	  exit 1 ; \
-	fi
-	$(Q)$(MAKE) $(hdr-inst)=include ARCH=$(SRCARCH)
+	$(if $(wildcard $(srctree)/include/asm-$(SRCARCH)/Kbuild),, \
+	$(error Headers not exportable for this architecture ($(SRCARCH))))
+	$(Q)$(MAKE) $(hdr-inst)=include
+	$(Q)$(MAKE) $(hdr-inst)=include/asm-$(SRCARCH) dst=include/asm
 
 PHONY += headers_check_all
 headers_check_all: headers_install_all
+	$(Q)$(MAKE) $(hdr-inst)=include HDRCHECK=1
 	$(Q)set -e; for arch in $(hdr-archs); do \
-	 $(MAKE) ARCH=$$arch SRCARCH=$$arch $(hdr-inst)=include \
-	         BIASMDIR=-bi-$$arch HDRCHECK=1 ;\
+	 $(MAKE) SRCARCH=$$arch $(hdr-inst)=include/asm-$$arch HDRCHECK=1 ;\
 	 done
 
 PHONY += headers_check
 headers_check: headers_install
-	$(Q)$(MAKE) $(hdr-inst)=include ARCH=$(SRCARCH) HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=include HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=include/asm-$(SRCARCH) \
+	            dst=include/asm HDRCHECK=1
 
 # ---------------------------------------------------------------------------
 # Modules
