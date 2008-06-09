@@ -496,4 +496,6 @@ out:
 			write_pci_config(bus, slot, 3, AMD64_GARTAPERTUREBASE, aper_alloc >> 25);
 		}
 	}
+
+	set_up_gart_resume(aper_order, aper_alloc);
 }
