@@ -168,24 +168,19 @@ void cpu_idle(void)
 	while (1) {
 		tick_nohz_stop_sched_tick();
 		while (!need_resched()) {
-			void (*idle)(void);
 
 			check_pgt_cache();
 			rmb();
-			idle = pm_idle;
 
 			if (rcu_pending(cpu))
 				rcu_check_callbacks(cpu, 0);
-
-			if (!idle)
-				idle = default_idle;
 
 			if (cpu_is_offline(cpu))
 				play_dead();
 
 			local_irq_disable();
 			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
-			idle();
+			pm_idle();
 		}
 		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();

@@ -139,27 +139,23 @@ static int __cpuinit mwait_usable(const struct cpuinfo_x86 *c)
 
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
-	static int selected;
-
-	if (selected)
-		return;
 #ifdef CONFIG_X86_SMP
 	if (pm_idle == poll_idle && smp_num_siblings > 1) {
 		printk(KERN_WARNING "WARNING: polling idle and HT enabled,"
 			" performance may degrade.\n");
 	}
 #endif
+	if (pm_idle)
+		return;
+
 	if (cpu_has(c, X86_FEATURE_MWAIT) && mwait_usable(c)) {
 		/*
-		 * Skip, if setup has overridden idle.
 		 * One CPU supports mwait => All CPUs supports mwait
 		 */
-		if (!pm_idle) {
-			printk(KERN_INFO "using mwait in idle threads.\n");
-			pm_idle = mwait_idle;
-		}
-	}
-	selected = 1;
+		printk(KERN_INFO "using mwait in idle threads.\n");
+		pm_idle = mwait_idle;
+	} else
+		pm_idle = default_idle;
 }
 
 static int __init idle_setup(char *str)
