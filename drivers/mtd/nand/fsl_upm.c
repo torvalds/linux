@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
@@ -36,6 +37,7 @@ struct fsl_upm_nand {
 	uint8_t upm_cmd_offset;
 	void __iomem *io_base;
 	int rnb_gpio;
+	int chip_delay;
 };
 
 #define to_fsl_upm_nand(mtd) container_of(mtd, struct fsl_upm_nand, mtd)
@@ -58,10 +60,11 @@ static void fun_wait_rnb(struct fsl_upm_nand *fun)
 	if (fun->rnb_gpio >= 0) {
 		while (--cnt && !fun_chip_ready(&fun->mtd))
 			cpu_relax();
+		if (!cnt)
+			dev_err(fun->dev, "tired waiting for RNB\n");
+	} else {
+		ndelay(100);
 	}
-
-	if (!cnt)
-		dev_err(fun->dev, "tired waiting for RNB\n");
 }
 
 static void fun_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
@@ -129,7 +132,7 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 	fun->chip.IO_ADDR_R = fun->io_base;
 	fun->chip.IO_ADDR_W = fun->io_base;
 	fun->chip.cmd_ctrl = fun_cmd_ctrl;
-	fun->chip.chip_delay = 50;
+	fun->chip.chip_delay = fun->chip_delay;
 	fun->chip.read_byte = fun_read_byte;
 	fun->chip.read_buf = fun_read_buf;
 	fun->chip.write_buf = fun_write_buf;
@@ -227,6 +230,12 @@ static int __devinit fun_probe(struct of_device *ofdev,
 		dev_err(&ofdev->dev, "specified RNB gpio is invalid\n");
 		goto err2;
 	}
+
+	prop = of_get_property(ofdev->node, "chip-delay", NULL);
+	if (prop)
+		fun->chip_delay = *prop;
+	else
+		fun->chip_delay = 50;
 
 	fun->io_base = devm_ioremap_nocache(&ofdev->dev, io_res.start,
 					  io_res.end - io_res.start + 1);
