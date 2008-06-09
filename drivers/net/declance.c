@@ -773,16 +773,12 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct net_device *last_dev = 0;
-
 static int lance_open(struct net_device *dev)
 {
 	volatile u16 *ib = (volatile u16 *)dev->mem_start;
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	int status = 0;
-
-	last_dev = dev;
 
 	/* Stop the Lance */
 	writereg(&ll->rap, LE_CSR0);
