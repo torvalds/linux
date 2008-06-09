@@ -325,7 +325,7 @@ static int context_struct_compute_av(struct context *scontext,
 		goto inval_class;
 	if (unlikely(tclass > policydb.p_classes.nprim))
 		if (tclass > kdefs->cts_len ||
-		    !kdefs->class_to_string[tclass - 1] ||
+		    !kdefs->class_to_string[tclass] ||
 		    !policydb.allow_unknown)
 			goto inval_class;
 
