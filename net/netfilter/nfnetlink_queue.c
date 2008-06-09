@@ -243,7 +243,6 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	switch ((enum nfqnl_config_mode)queue->copy_mode) {
 	case NFQNL_COPY_META:
 	case NFQNL_COPY_NONE:
-		data_len = 0;
 		break;
 
 	case NFQNL_COPY_PACKET:
