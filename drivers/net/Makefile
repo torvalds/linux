@@ -80,6 +80,7 @@ obj-$(CONFIG_VIA_RHINE) += via-rhine.o
 obj-$(CONFIG_VIA_VELOCITY) += via-velocity.o
 obj-$(CONFIG_ADAPTEC_STARFIRE) += starfire.o
 obj-$(CONFIG_RIONET) += rionet.o
+obj-$(CONFIG_SH_ETH) += sh_eth.o
 
 #
 # end link order section
