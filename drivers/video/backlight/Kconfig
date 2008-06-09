@@ -119,3 +119,12 @@ config BACKLIGHT_PWM
 	help
 	  If you have a LCD backlight adjustable by PWM, say Y to enable
 	  this driver.
+
+config BACKLIGHT_MBP_NVIDIA
+       tristate "MacBook Pro Nvidia Backlight Driver"
+       depends on BACKLIGHT_CLASS_DEVICE && X86
+       default n
+       help
+         If you have an Apple Macbook Pro with Nvidia graphics hardware say Y
+	 to enable a driver for its backlight
+
