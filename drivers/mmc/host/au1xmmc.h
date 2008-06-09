@@ -49,8 +49,6 @@ struct au1xmmc_host {
   struct mmc_host *mmc;
   struct mmc_request *mrq;
 
-  u32 id;
-
   u32 flags;
   u32 iobase;
   u32 clock;
@@ -73,11 +71,14 @@ struct au1xmmc_host {
   u32 tx_chan;
   u32 rx_chan;
 
+  int irq;
+
   struct timer_list timer;
   struct tasklet_struct finish_task;
   struct tasklet_struct data_task;
-
-  spinlock_t lock;
+  struct au1xmmc_platform_data *platdata;
+  struct platform_device *pdev;
+  struct resource *ioarea;
 };
 
 /* Status flags used by the host structure */
