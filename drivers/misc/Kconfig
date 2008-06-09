@@ -219,6 +219,23 @@ config MSI_LAPTOP
 
 	  If you have an MSI S270 laptop, say Y or M here.
 
+config COMPAL_LAPTOP
+	tristate "Compal Laptop Extras"
+	depends on X86
+	depends on ACPI_EC
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is a driver for laptops built by Compal:
+
+	  Compal FL90/IFL90
+	  Compal FL91/IFL91
+	  Compal FL92/JFL92
+	  Compal FT00/IFT00
+
+	  It adds support for Bluetooth, WLAN and LCD brightness control.
+
+	  If you have an Compal FL9x/IFL9x/FT00 laptop, say Y or M here.
+
 config SONY_LAPTOP
 	tristate "Sony Laptop Extras"
 	depends on X86 && ACPI
