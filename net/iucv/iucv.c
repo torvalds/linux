@@ -474,14 +474,14 @@ static void iucv_setmask_mp(void)
 {
 	int cpu;
 
-	preempt_disable();
+	get_online_cpus();
 	for_each_online_cpu(cpu)
 		/* Enable all cpus with a declared buffer. */
 		if (cpu_isset(cpu, iucv_buffer_cpumask) &&
 		    !cpu_isset(cpu, iucv_irq_cpumask))
 			smp_call_function_single(cpu, iucv_allow_cpu,
 						 NULL, 0, 1);
-	preempt_enable();
+	put_online_cpus();
 }
 
 /**
@@ -521,16 +521,17 @@ static int iucv_enable(void)
 		goto out;
 	/* Declare per cpu buffers. */
 	rc = -EIO;
-	preempt_disable();
+	get_online_cpus();
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
-	preempt_enable();
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
 		goto out_path;
+	put_online_cpus();
 	return 0;
 
 out_path:
+	put_online_cpus();
 	kfree(iucv_path_table);
 out:
 	return rc;
@@ -545,7 +546,9 @@ out:
  */
 static void iucv_disable(void)
 {
+	get_online_cpus();
 	on_each_cpu(iucv_retrieve_cpu, NULL, 0, 1);
+	put_online_cpus();
 	kfree(iucv_path_table);
 }
 
