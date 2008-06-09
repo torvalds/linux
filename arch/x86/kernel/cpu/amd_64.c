@@ -110,7 +110,6 @@ static void __cpuinit early_init_amd_mc(struct cpuinfo_x86 *c)
 #endif
 }
 
-#define ENABLE_C1E_MASK		0x18000000
 #define CPUID_PROCESSOR_SIGNATURE	1
 #define CPUID_XFAM		0x0ff00000
 #define CPUID_XFAM_K8		0x00000000
@@ -130,8 +129,8 @@ static __cpuinit int amd_apic_timer_broken(void)
 			break;
 	case CPUID_XFAM_10H:
 	case CPUID_XFAM_11H:
-		rdmsr(MSR_K8_ENABLE_C1E, lo, hi);
-		if (lo & ENABLE_C1E_MASK)
+		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
+		if (lo & K8_INTP_C1E_ACTIVE_MASK)
 			return 1;
 		break;
 	default:

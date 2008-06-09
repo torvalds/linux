@@ -25,7 +25,6 @@ extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
 #ifdef CONFIG_X86_LOCAL_APIC
-#define ENABLE_C1E_MASK         0x18000000
 #define CPUID_PROCESSOR_SIGNATURE       1
 #define CPUID_XFAM              0x0ff00000
 #define CPUID_XFAM_K8           0x00000000
@@ -45,8 +44,8 @@ static __cpuinit int amd_apic_timer_broken(void)
 			break;
 	case CPUID_XFAM_10H:
 	case CPUID_XFAM_11H:
-		rdmsr(MSR_K8_ENABLE_C1E, lo, hi);
-		if (lo & ENABLE_C1E_MASK) {
+		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
+		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
 			if (smp_processor_id() != boot_cpu_physical_apicid)
 				printk(KERN_INFO "AMD C1E detected late. "
 				       "	Force timer broadcast.\n");
