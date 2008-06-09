@@ -1847,7 +1847,7 @@ Elong:
  *
  * "buflen" should be positive. Caller holds the dcache_lock.
  */
-char *d_path(struct path *path, char *buf, int buflen)
+char *d_path(const struct path *path, char *buf, int buflen)
 {
 	char *res;
 	struct path root;
