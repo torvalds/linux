@@ -257,6 +257,8 @@ static void old_ich_force_enable_hpet_user(struct pci_dev *dev)
 		old_ich_force_enable_hpet(dev);
 }
 
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_1,
+			 old_ich_force_enable_hpet_user);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_0,
 			 old_ich_force_enable_hpet_user);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_12,
