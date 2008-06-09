@@ -1171,6 +1171,7 @@ static int validate_classes(struct policydb *p)
 	const struct selinux_class_perm *kdefs = &selinux_class_perm;
 	const char *def_class, *def_perm, *pol_class;
 	struct symtab *perms;
+	bool print_unknown_handle = 0;
 
 	if (p->allow_unknown) {
 		u32 num_classes = kdefs->cts_len;
@@ -1191,6 +1192,7 @@ static int validate_classes(struct policydb *p)
 				return -EINVAL;
 			if (p->allow_unknown)
 				p->undefined_perms[i-1] = ~0U;
+			print_unknown_handle = 1;
 			continue;
 		}
 		pol_class = p->p_class_val_to_name[i-1];
@@ -1220,6 +1222,7 @@ static int validate_classes(struct policydb *p)
 				return -EINVAL;
 			if (p->allow_unknown)
 				p->undefined_perms[class_val-1] |= perm_val;
+			print_unknown_handle = 1;
 			continue;
 		}
 		perdatum = hashtab_search(perms->table, def_perm);
@@ -1267,6 +1270,7 @@ static int validate_classes(struct policydb *p)
 					return -EINVAL;
 				if (p->allow_unknown)
 					p->undefined_perms[class_val-1] |= (1 << j);
+				print_unknown_handle = 1;
 				continue;
 			}
 			perdatum = hashtab_search(perms->table, def_perm);
@@ -1284,6 +1288,9 @@ static int validate_classes(struct policydb *p)
 			}
 		}
 	}
+	if (print_unknown_handle)
+		printk(KERN_INFO "SELinux: the above unknown classes and permissions will be %s\n",
+			(security_get_allow_unknown() ? "allowed" : "denied"));
 	return 0;
 }
 

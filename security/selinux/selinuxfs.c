@@ -356,11 +356,6 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 		length = count;
 
 out1:
-
-	printk(KERN_INFO "SELinux: policy loaded with handle_unknown=%s\n",
-	       (security_get_reject_unknown() ? "reject" :
-		(security_get_allow_unknown() ? "allow" : "deny")));
-
 	audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
 		"policy loaded auid=%u ses=%u",
 		audit_get_loginuid(current),
