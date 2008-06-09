@@ -272,7 +272,7 @@ __gss_find_upcall(struct rpc_inode *rpci, uid_t uid)
 	return NULL;
 }
 
-/* Try to add a upcall to the pipefs queue.
+/* Try to add an upcall to the pipefs queue.
  * If an upcall owned by our uid already exists, then we return a reference
  * to that upcall instead of adding the new upcall.
  */
@@ -493,7 +493,6 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
 	const void *p, *end;
 	void *buf;
-	struct rpc_clnt *clnt;
 	struct gss_upcall_msg *gss_msg;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct gss_cl_ctx *ctx;
@@ -507,7 +506,6 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	if (!buf)
 		goto out;
 
-	clnt = RPC_I(inode)->private;
 	err = -EFAULT;
 	if (copy_from_user(buf, src, mlen))
 		goto err;
