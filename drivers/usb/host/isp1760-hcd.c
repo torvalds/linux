@@ -1592,7 +1592,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	struct inter_packet_info *ints;
 	u32 i;
 	u32 reg_base, or_reg, skip_reg;
-	int flags;
+	unsigned long flags;
 	struct ptd ptd;
 
 	switch (usb_pipetype(urb->pipe)) {
@@ -2061,7 +2061,7 @@ static void isp1760_endpoint_disable(struct usb_hcd *usb_hcd,
 	struct isp1760_hcd *priv = hcd_to_priv(usb_hcd);
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
-	u32 flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	qh = ep->hcpriv;
