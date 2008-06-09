@@ -87,14 +87,3 @@ static int __init numaq_tsc_disable(void)
 	return 0;
 }
 arch_initcall(numaq_tsc_disable);
-
-#ifdef CONFIG_ACPI
-/*
- * Dummy implementation:
- */
-struct pci_bus * __devinit
-pci_acpi_scan_root(struct acpi_device *device, int domain, int busnum)
-{
-	return NULL;
-}
-#endif
