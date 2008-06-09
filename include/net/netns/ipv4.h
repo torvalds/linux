@@ -36,6 +36,7 @@ struct netns_ipv4 {
 	struct xt_table		*iptable_mangle;
 	struct xt_table		*iptable_raw;
 	struct xt_table		*arptable_filter;
+	struct xt_table		*iptable_security;
 #endif
 
 	int sysctl_icmp_echo_ignore_all;
