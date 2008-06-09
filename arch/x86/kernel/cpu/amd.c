@@ -24,31 +24,6 @@
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
-#ifdef CONFIG_X86_LOCAL_APIC
-
-/* AMD systems with C1E don't have a working lAPIC timer. Check for that. */
-static __cpuinit int amd_apic_timer_broken(struct cpuinfo_x86 *c)
-{
-	u32 lo, hi;
-
-	if (c->x86 < 0x0F)
-		return 0;
-
-	/* Family 0x0f models < rev F do not have this MSR */
-	if (c->x86 == 0x0f && c->x86_model < 0x40)
-		return 0;
-
-	rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
-	if (lo & K8_INTP_C1E_ACTIVE_MASK) {
-		if (smp_processor_id() != boot_cpu_physical_apicid)
-			printk(KERN_INFO "AMD C1E detected late. "
-			       "Force timer broadcast.\n");
-		return 1;
-	}
-	return 0;
-}
-#endif
-
 int force_mwait __cpuinitdata;
 
 static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
@@ -284,11 +259,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		else
 			num_cache_leaves = 3;
 	}
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	if (amd_apic_timer_broken(c))
-		local_apic_timer_disabled = 1;
-#endif
 
 	/* K6s reports MCEs but don't actually have all the MSRs */
 	if (c->x86 < 6)

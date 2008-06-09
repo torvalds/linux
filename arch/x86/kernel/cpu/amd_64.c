@@ -110,28 +110,6 @@ static void __cpuinit early_init_amd_mc(struct cpuinfo_x86 *c)
 #endif
 }
 
-/* AMD systems with C1E don't have a working lAPIC timer. Check for that. */
-static __cpuinit int amd_apic_timer_broken(struct cpuinfo_x86 *c)
-{
-	u32 lo, hi;
-
-	if (c->x86 < 0x0F)
-		return 0;
-
-	/* Family 0x0f models < rev F do not have this MSR */
-	if (c->x86 == 0x0f && c->x86_model < 0x40)
-		return 0;
-
-	rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
-	if (lo & K8_INTP_C1E_ACTIVE_MASK) {
-		if (smp_processor_id() != boot_cpu_physical_apicid)
-			printk(KERN_INFO "AMD C1E detected late. "
-			       "Force timer broadcast.\n");
-		return 1;
-	}
-	return 0;
-}
-
 void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 {
 	early_init_amd_mc(c);
@@ -211,9 +189,6 @@ void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	if (c->x86 == 0x10)
 		amd_enable_pci_ext_cfg(c);
-
-	if (amd_apic_timer_broken(c))
-		disable_apic_timer = 1;
 
 	if (c == &boot_cpu_data && c->x86 >= 0xf && c->x86 <= 0x11) {
 		unsigned long long tseg;

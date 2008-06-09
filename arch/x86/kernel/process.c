@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/pm.h>
+#include <linux/clockchips.h>
 
 struct kmem_cache *task_xstate_cachep;
 
@@ -219,6 +220,68 @@ static int __cpuinit mwait_usable(const struct cpuinfo_x86 *c)
 	return (edx & MWAIT_EDX_C1);
 }
 
+/*
+ * Check for AMD CPUs, which have potentially C1E support
+ */
+static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
+{
+	if (c->x86_vendor != X86_VENDOR_AMD)
+		return 0;
+
+	if (c->x86 < 0x0F)
+		return 0;
+
+	/* Family 0x0f models < rev F do not have C1E */
+	if (c->x86 == 0x0f && c->x86_model < 0x40)
+		return 0;
+
+	return 1;
+}
+
+/*
+ * C1E aware idle routine. We check for C1E active in the interrupt
+ * pending message MSR. If we detect C1E, then we handle it the same
+ * way as C3 power states (local apic timer and TSC stop)
+ */
+static void c1e_idle(void)
+{
+	static cpumask_t c1e_mask = CPU_MASK_NONE;
+	static int c1e_detected;
+
+	if (need_resched())
+		return;
+
+	if (!c1e_detected) {
+		u32 lo, hi;
+
+		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
+		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
+			c1e_detected = 1;
+			mark_tsc_unstable("TSC halt in C1E");
+			printk(KERN_INFO "System has C1E enabled\n");
+		}
+	}
+
+	if (c1e_detected) {
+		int cpu = smp_processor_id();
+
+		if (!cpu_isset(cpu, c1e_mask)) {
+			cpu_set(cpu, c1e_mask);
+			/* Force broadcast so ACPI can not interfere */
+			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
+					   &cpu);
+			printk(KERN_INFO "Switch to broadcast mode on CPU%d\n",
+			       cpu);
+		}
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
+		default_idle();
+		local_irq_disable();
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+		local_irq_enable();
+	} else
+		default_idle();
+}
+
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_SMP
@@ -236,6 +299,9 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 		 */
 		printk(KERN_INFO "using mwait in idle threads.\n");
 		pm_idle = mwait_idle;
+	} else if (check_c1e_idle(c)) {
+		printk(KERN_INFO "using C1E aware idle routine\n");
+		pm_idle = c1e_idle;
 	} else
 		pm_idle = default_idle;
 }
