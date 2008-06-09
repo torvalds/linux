@@ -697,6 +697,13 @@ static void au1xmmc_request(struct mmc_host* mmc, struct mmc_request* mrq)
 	host->mrq = mrq;
 	host->status = HOST_S_CMD;
 
+	/* fail request immediately if no card is present */
+	if (0 == au1xmmc_card_inserted(host)) {
+		mrq->cmd->error = -ENOMEDIUM;
+		au1xmmc_finish_request(host);
+		return;
+	}
+
 	if (mrq->data) {
 		FLUSH_FIFO(host);
 		ret = au1xmmc_prepare_data(host, mrq->data);
