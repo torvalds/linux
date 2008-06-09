@@ -17,6 +17,7 @@ unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
+unsigned int max_physical_apicid;
 EXPORT_SYMBOL(boot_cpu_physical_apicid);
 
 DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;

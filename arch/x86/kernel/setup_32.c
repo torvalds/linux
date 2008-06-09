@@ -838,17 +838,16 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_ACPI
 	acpi_boot_init();
-
+#endif
+#if defined(CONFIG_X86_MPPARSE) || defined(CONFIG_X86_VISWS)
+	if (smp_found_config)
+		get_smp_config();
+#endif
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_PC)
 	if (def_to_bigsmp)
 		printk(KERN_WARNING "More than 8 CPUs detected and "
 			"CONFIG_X86_PC cannot handle it.\nUse "
 			"CONFIG_X86_GENERICARCH or CONFIG_X86_BIGSMP.\n");
-#endif
-#endif
-#if defined(CONFIG_X86_MPPARSE) || defined(CONFIG_X86_VISWS)
-	if (smp_found_config)
-		get_smp_config();
 #endif
 
 	e820_setup_gap();

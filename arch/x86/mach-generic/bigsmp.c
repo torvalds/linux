@@ -48,7 +48,7 @@ static const struct dmi_system_id bigsmp_dmi_table[] = {
 static int probe_bigsmp(void)
 {
 	if (def_to_bigsmp)
-	dmi_bigsmp = 1;
+		dmi_bigsmp = 1;
 	else
 		dmi_check_system(bigsmp_dmi_table);
 	return dmi_bigsmp;

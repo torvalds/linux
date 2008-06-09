@@ -1093,6 +1093,9 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		 */
 		cpu = 0;
 	}
+	if (apicid > max_physical_apicid)
+		max_physical_apicid = apicid;
+
 	/* are we being called early in kernel startup? */
 	if (x86_cpu_to_apicid_early_ptr) {
 		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;

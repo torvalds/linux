@@ -473,6 +473,11 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 		++mpc_record;
 #endif
 	}
+
+#ifdef CONFIG_X86_GENERICARCH
+       generic_bigsmp_probe();
+#endif
+
 	setup_apic_routing();
 	if (!num_processors)
 		printk(KERN_ERR "MPTABLE: no processors registered!\n");
