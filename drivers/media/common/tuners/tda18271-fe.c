@@ -75,8 +75,10 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	regs[R_EP3]  &= ~0x1f; /* clear std bits */
 	regs[R_EP3]  |= (map->agc_mode << 3) | map->std;
 
-	/* set rfagc to high speed mode */
-	regs[R_EP3] &= ~0x04;
+	if (priv->id == TDA18271HDC2) {
+		/* set rfagc to high speed mode */
+		regs[R_EP3] &= ~0x04;
+	}
 
 	/* set cal mode to normal */
 	regs[R_EP4]  &= ~0x03;
@@ -168,12 +170,14 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	msleep(20);
 
-	/* set rfagc to normal speed mode */
-	if (map->fm_rfn)
-		regs[R_EP3] &= ~0x04;
-	else
-		regs[R_EP3] |= 0x04;
-	ret = tda18271_write_regs(fe, R_EP3, 1);
+	if (priv->id == TDA18271HDC2) {
+		/* set rfagc to normal speed mode */
+		if (map->fm_rfn)
+			regs[R_EP3] &= ~0x04;
+		else
+			regs[R_EP3] |= 0x04;
+		ret = tda18271_write_regs(fe, R_EP3, 1);
+	}
 fail:
 	return ret;
 }
