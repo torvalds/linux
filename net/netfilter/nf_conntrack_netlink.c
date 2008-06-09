@@ -812,9 +812,8 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 		}
 	}
-	if (del_timer(&ct->timeout))
-		ct->timeout.function((unsigned long)ct);
 
+	nf_ct_kill(ct);
 	nf_ct_put(ct);
 
 	return 0;

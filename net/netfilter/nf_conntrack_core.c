@@ -848,6 +848,13 @@ acct:
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
+void nf_ct_kill(struct nf_conn *ct)
+{
+	if (del_timer(&ct->timeout))
+		ct->timeout.function((unsigned long)ct);
+}
+EXPORT_SYMBOL_GPL(nf_ct_kill);
+
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
 #include <linux/netfilter/nfnetlink.h>
