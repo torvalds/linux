@@ -8598,7 +8598,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		   (cmd->speed == SPEED_1000))
 		return -EINVAL;
 	else if ((cmd->speed == SPEED_1000) &&
-		 (tp->tg3_flags2 & TG3_FLAG_10_100_ONLY))
+		 (tp->tg3_flags & TG3_FLAG_10_100_ONLY))
 		return -EINVAL;
 
 	tg3_full_lock(tp, 0);
