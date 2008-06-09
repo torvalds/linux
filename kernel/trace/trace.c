@@ -43,11 +43,6 @@ static cpumask_t __read_mostly		tracing_buffer_mask;
 #define for_each_tracing_cpu(cpu)	\
 	for_each_cpu_mask(cpu, tracing_buffer_mask)
 
-/* dummy trace to disable tracing */
-static struct tracer no_tracer __read_mostly = {
-	.name		= "none",
-};
-
 static int trace_alloc_page(void);
 static int trace_free_page(void);
 
@@ -134,6 +129,23 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
 /* trace_flags holds iter_ctrl options */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT;
+
+static notrace void no_trace_init(struct trace_array *tr)
+{
+	int cpu;
+
+	if(tr->ctrl)
+		for_each_online_cpu(cpu)
+			tracing_reset(tr->data[cpu]);
+	tracer_enabled = 0;
+}
+
+/* dummy trace to disable tracing */
+static struct tracer no_tracer __read_mostly = {
+	.name		= "none",
+	.init		= no_trace_init
+};
+
 
 /**
  * trace_wake_up - wake up tasks waiting for trace input
