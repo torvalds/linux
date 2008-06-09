@@ -157,9 +157,10 @@ struct sys_cfg_data {
 	struct		eachquadmem eq[MAX_NUMNODES];	/* indexed by quad id */
 };
 
-static inline unsigned long *get_zholes_size(int nid)
+#else
+static inline int get_memcfg_numaq(void)
 {
-	return NULL;
+	return 0;
 }
 #endif /* CONFIG_X86_NUMAQ */
 #endif /* NUMAQ_H */

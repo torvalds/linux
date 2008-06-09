@@ -36,8 +36,6 @@
 
 #define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
 
-int found_numaq;
-
 /*
  * Function: smp_dump_qct()
  *

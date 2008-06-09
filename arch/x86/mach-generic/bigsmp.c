@@ -23,10 +23,8 @@ static int dmi_bigsmp; /* can be set by dmi scanners */
 
 static int hp_ht_bigsmp(const struct dmi_system_id *d)
 {
-#ifdef CONFIG_X86_GENERICARCH
 	printk(KERN_NOTICE "%s detected: force use of apic=bigsmp\n", d->ident);
 	dmi_bigsmp = 1;
-#endif
 	return 0;
 }
 

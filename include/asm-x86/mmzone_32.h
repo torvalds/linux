@@ -12,11 +12,9 @@
 extern struct pglist_data *node_data[];
 #define NODE_DATA(nid)	(node_data[nid])
 
-#ifdef CONFIG_X86_NUMAQ
-	#include <asm/numaq.h>
-#elif defined(CONFIG_ACPI_SRAT)/* summit or generic arch */
-	#include <asm/srat.h>
-#endif
+#include <asm/numaq.h>
+/* summit or generic arch */
+#include <asm/srat.h>
 
 extern int get_memcfg_numa_flat(void);
 /*
@@ -26,14 +24,11 @@ extern int get_memcfg_numa_flat(void);
  */
 static inline void get_memcfg_numa(void)
 {
-#ifdef CONFIG_X86_NUMAQ
+
 	if (get_memcfg_numaq())
 		return;
-#elif defined(CONFIG_ACPI_SRAT)
 	if (get_memcfg_from_srat())
 		return;
-#endif
-
 	get_memcfg_numa_flat();
 }
 
@@ -42,7 +37,6 @@ extern int early_pfn_to_nid(unsigned long pfn);
 #else /* !CONFIG_NUMA */
 
 #define get_memcfg_numa get_memcfg_numa_flat
-#define get_zholes_size(n) (0)
 
 #endif /* CONFIG_NUMA */
 
@@ -83,9 +77,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
 })
 
-#ifdef CONFIG_X86_NUMAQ            /* we have contiguous memory on NUMA-Q */
-#define pfn_valid(pfn)          ((pfn) < num_physpages)
-#else
 static inline int pfn_valid(int pfn)
 {
 	int nid = pfn_to_nid(pfn);
@@ -94,7 +85,6 @@ static inline int pfn_valid(int pfn)
 		return (pfn < node_end_pfn(nid));
 	return 0;
 }
-#endif /* CONFIG_X86_NUMAQ */
 
 #endif /* CONFIG_DISCONTIGMEM */
 

@@ -221,10 +221,6 @@ static char *vidmem;
 static int vidport;
 static int lines, cols;
 
-#ifdef CONFIG_X86_NUMAQ
-void *xquad_portio;
-#endif
-
 #include "../../../../lib/inflate.c"
 
 static void *malloc(int size)

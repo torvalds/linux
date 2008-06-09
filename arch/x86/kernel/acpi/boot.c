@@ -848,7 +848,7 @@ static int __init acpi_parse_madt_lapic_entries(void)
 #ifdef	CONFIG_X86_IO_APIC
 #define MP_ISA_BUS		0
 
-#if defined(CONFIG_X86_ES7000) || defined(CONFIG_X86_GENERICARCH)
+#ifdef CONFIG_X86_ES7000
 extern int es7000_plat;
 #endif
 
@@ -997,7 +997,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 	set_bit(MP_ISA_BUS, mp_bus_not_pci);
 	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
 
-#if defined(CONFIG_X86_ES7000) || defined(CONFIG_X86_GENERICARCH)
+#ifdef CONFIG_X86_ES7000
 	/*
 	 * Older generations of ES7000 have no legacy identity mappings
 	 */

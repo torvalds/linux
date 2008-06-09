@@ -49,15 +49,73 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 }
 
 #ifdef CONFIG_X86_NUMAQ
+int found_numaq;
 /*
  * Have to match translation table entries to main table entries by counter
  * hence the mpc_record variable .... can't see a less disgusting way of
  * doing this ....
  */
+struct mpc_config_translation {
+	unsigned char mpc_type;
+	unsigned char trans_len;
+	unsigned char trans_type;
+	unsigned char trans_quad;
+	unsigned char trans_global;
+	unsigned char trans_local;
+	unsigned short trans_reserved;
+};
+
 
 static int mpc_record;
 static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY]
     __cpuinitdata;
+
+static inline int generate_logical_apicid(int quad, int phys_apicid)
+{
+	return (quad << 4) + (phys_apicid ? phys_apicid << 1 : 1);
+}
+
+
+static inline int mpc_apic_id(struct mpc_config_processor *m,
+			struct mpc_config_translation *translation_record)
+{
+	int quad = translation_record->trans_quad;
+	int logical_apicid = generate_logical_apicid(quad, m->mpc_apicid);
+
+	printk(KERN_DEBUG "Processor #%d %u:%u APIC version %d (quad %d, apic %d)\n",
+	       m->mpc_apicid,
+	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
+	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
+	       m->mpc_apicver, quad, logical_apicid);
+	return logical_apicid;
+}
+
+int mp_bus_id_to_node[MAX_MP_BUSSES];
+
+int mp_bus_id_to_local[MAX_MP_BUSSES];
+
+static void mpc_oem_bus_info(struct mpc_config_bus *m, char *name,
+	struct mpc_config_translation *translation)
+{
+	int quad = translation->trans_quad;
+	int local = translation->trans_local;
+
+	mp_bus_id_to_node[m->mpc_busid] = quad;
+	mp_bus_id_to_local[m->mpc_busid] = local;
+	printk(KERN_INFO "Bus #%d is %s (node %d)\n",
+	       m->mpc_busid, name, quad);
+}
+
+int quad_local_to_mp_bus_id [NR_CPUS/4][4];
+static void mpc_oem_pci_bus(struct mpc_config_bus *m,
+	struct mpc_config_translation *translation)
+{
+	int quad = translation->trans_quad;
+	int local = translation->trans_local;
+
+	quad_local_to_mp_bus_id[quad][local] = m->mpc_busid;
+}
+
 #endif
 
 static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
@@ -321,11 +379,11 @@ static void __init smp_read_mpc_oem(struct mp_config_oemtable *oemtable,
 	}
 }
 
-static inline void mps_oem_check(struct mp_config_table *mpc, char *oem,
+void numaq_mps_oem_check(struct mp_config_table *mpc, char *oem,
 				 char *productid)
 {
 	if (strncmp(oem, "IBM NUMA", 8))
-		printk("Warning!  May not be a NUMA-Q system!\n");
+		printk("Warning!  Not a NUMA-Q system!\n");
 	else
 		found_numaq = 1;
 
@@ -388,7 +446,16 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 		return 0;
 
 #ifdef CONFIG_X86_32
-	mps_oem_check(mpc, oem, str);
+	/*
+	 * need to make sure summit and es7000's mps_oem_check is safe to be
+	 * called early via genericarch 's mps_oem_check
+	 */
+	if (early) {
+#ifdef CONFIG_X86_NUMAQ
+		numaq_mps_oem_check(mpc, oem, str);
+#endif
+	} else
+		mps_oem_check(mpc, oem, str);
 #endif
 
 	/* save the local APIC address, it might be non-default */

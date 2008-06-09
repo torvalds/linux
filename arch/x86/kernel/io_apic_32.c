@@ -1722,7 +1722,6 @@ void disable_IO_APIC(void)
  * by Matt Domsch <Matt_Domsch@dell.com>  Tue Dec 21 12:25:05 CST 1999
  */
 
-#ifndef CONFIG_X86_NUMAQ
 static void __init setup_ioapic_ids_from_mpc(void)
 {
 	union IO_APIC_reg_00 reg_00;
@@ -1731,6 +1730,11 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	int i;
 	unsigned char old_id;
 	unsigned long flags;
+
+#ifdef CONFIG_X86_NUMAQ
+	if (found_numaq)
+		return;
+#endif
 
 	/*
 	 * Don't check I/O APIC IDs for xAPIC systems.  They have
@@ -1828,9 +1832,6 @@ static void __init setup_ioapic_ids_from_mpc(void)
 			apic_printk(APIC_VERBOSE, " ok.\n");
 	}
 }
-#else
-static void __init setup_ioapic_ids_from_mpc(void) { }
-#endif
 
 int no_timer_check __initdata;
 

@@ -16,6 +16,7 @@
 #include <asm/apicdef.h>
 #include <asm/genapic.h>
 
+extern struct genapic apic_numaq;
 extern struct genapic apic_summit;
 extern struct genapic apic_bigsmp;
 extern struct genapic apic_es7000;
@@ -24,9 +25,18 @@ extern struct genapic apic_default;
 struct genapic *genapic = &apic_default;
 
 static struct genapic *apic_probe[] __initdata = {
+#ifdef CONFIG_X86_NUMAQ
+	&apic_numaq,
+#endif
+#ifdef CONFIG_X86_SUMMIT
 	&apic_summit,
+#endif
+#ifdef CONFIG_X86_BIGSMP
 	&apic_bigsmp,
+#endif
+#ifdef CONFIG_X86_ES7000
 	&apic_es7000,
+#endif
 	&apic_default,	/* must be last */
 	NULL,
 };
@@ -54,6 +64,7 @@ early_param("apic", parse_apic);
 
 void __init generic_bigsmp_probe(void)
 {
+#if CONFIG_X86_BIGSMP
 	/*
 	 * This routine is used to switch to bigsmp mode when
 	 * - There is no apic= option specified by the user
@@ -67,6 +78,7 @@ void __init generic_bigsmp_probe(void)
 			printk(KERN_INFO "Overriding APIC driver with %s\n",
 			       genapic->name);
 		}
+#endif
 }
 
 void __init generic_apic_probe(void)
@@ -88,7 +100,8 @@ void __init generic_apic_probe(void)
 
 /* These functions can switch the APIC even after the initial ->probe() */
 
-int __init mps_oem_check(struct mp_config_table *mpc, char *oem, char *productid)
+int __init mps_oem_check(struct mp_config_table *mpc, char *oem,
+				 char *productid)
 {
 	int i;
 	for (i = 0; apic_probe[i]; ++i) {

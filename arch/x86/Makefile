@@ -117,28 +117,10 @@ mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager/
 mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-x86/mach-visws
 mcore-$(CONFIG_X86_VISWS)	:= arch/x86/mach-visws/
 
-# NUMAQ subarch support
-mflags-$(CONFIG_X86_NUMAQ)	:= -Iinclude/asm-x86/mach-numaq
-mcore-$(CONFIG_X86_NUMAQ)	:= arch/x86/mach-default/
-
-# BIGSMP subarch support
-mflags-$(CONFIG_X86_BIGSMP)	:= -Iinclude/asm-x86/mach-bigsmp
-mcore-$(CONFIG_X86_BIGSMP)	:= arch/x86/mach-default/
-
-#Summit subarch support
-mflags-$(CONFIG_X86_SUMMIT)	:= -Iinclude/asm-x86/mach-summit
-mcore-$(CONFIG_X86_SUMMIT)	:= arch/x86/mach-default/
-
 # generic subarchitecture
 mflags-$(CONFIG_X86_GENERICARCH):= -Iinclude/asm-x86/mach-generic
 fcore-$(CONFIG_X86_GENERICARCH)	+= arch/x86/mach-generic/
 mcore-$(CONFIG_X86_GENERICARCH)	:= arch/x86/mach-default/
-
-
-# ES7000 subarch support
-mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-x86/mach-es7000
-fcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-es7000/
-mcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-default/
 
 # RDC R-321x subarch support
 mflags-$(CONFIG_X86_RDC321X)	:= -Iinclude/asm-x86/mach-rdc321x
