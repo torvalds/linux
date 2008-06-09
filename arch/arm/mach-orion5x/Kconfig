@@ -68,6 +68,12 @@ config MACH_MV2120
 	  Say 'Y' here if you want your kernel to support the
 	  HP Media Vault mv2120 or mv5100.
 
+config MACH_MSS2
+	bool "Maxtor Shared Storage II"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Maxtor Shared Storage II platform.
+
 endmenu
 
 endif
