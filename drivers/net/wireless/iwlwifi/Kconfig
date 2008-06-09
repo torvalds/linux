@@ -54,14 +54,6 @@ config IWL4965
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl4965.ko.
 
-config IWL4965_HT
-	bool "Enable 802.11n HT features in iwl4965 driver"
-	depends on EXPERIMENTAL
-	depends on IWL4965
-	---help---
-	  This option enables IEEE 802.11n High Throughput features
-	  for the iwl4965 driver.
-
 config IWL4965_LEDS
 	bool "Enable LEDS features in iwl4965 driver"
 	depends on IWL4965

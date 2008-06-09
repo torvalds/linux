@@ -321,7 +321,6 @@ void iwl_reset_qos(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_reset_qos);
 
-#ifdef CONFIG_IWL4965_HT
 #define MAX_BIT_RATE_40_MHZ 0x96; /* 150 Mbps */
 #define MAX_BIT_RATE_20_MHZ 0x48; /* 72 Mbps */
 static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
@@ -374,13 +373,6 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 		ht_info->supp_mcs_set[12] |= ((tx_chains_num - 1) << 2);
 	}
 }
-#else
-static inline void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
-			      struct ieee80211_ht_info *ht_info,
-			      enum ieee80211_band band)
-{
-}
-#endif /* CONFIG_IWL4965_HT */
 
 static void iwlcore_init_hw_rates(struct iwl_priv *priv,
 			      struct ieee80211_rate *rates)
@@ -553,7 +545,6 @@ static void iwlcore_free_geos(struct iwl_priv *priv)
 	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
-#ifdef CONFIG_IWL4965_HT
 static u8 is_single_rx_stream(struct iwl_priv *priv)
 {
 	return !priv->current_ht_config.is_ht ||
@@ -659,13 +650,6 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 	return;
 }
 EXPORT_SYMBOL(iwl_set_rxon_ht);
-
-#else
-static inline u8 is_single_rx_stream(struct iwl_priv *priv)
-{
-	return 1;
-}
-#endif	/*CONFIG_IWL4965_HT */
 
 /*
  * Determine how many receiver/antenna chains to use.
@@ -791,10 +775,8 @@ int iwl_setup_mac(struct iwl_priv *priv)
 		    IEEE80211_HW_NOISE_DBM;
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
-#ifdef CONFIG_IWL4965_HT
 	/* Enhanced value; more queues, to support 11n aggregation */
 	hw->ampdu_queues = 12;
-#endif /* CONFIG_IWL4965_HT */
 
 	hw->conf.beacon_int = 100;
 

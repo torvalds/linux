@@ -401,7 +401,6 @@ struct iwl_rx_queue {
 #define IWL_INVALID_RATE     0xFF
 #define IWL_INVALID_VALUE    -1
 
-#ifdef CONFIG_IWL4965_HT
 /**
  * struct iwl_ht_agg -- aggregation status while waiting for block-ack
  * @txq_id: Tx queue used for Tx attempt
@@ -430,14 +429,11 @@ struct iwl_ht_agg {
 	u8 state;
 };
 
-#endif /* CONFIG_IWL4965_HT */
 
 struct iwl_tid_data {
 	u16 seq_number;
 	u16 tfds_in_queue;
-#ifdef CONFIG_IWL4965_HT
 	struct iwl_ht_agg agg;
-#endif /* CONFIG_IWL4965_HT */
 };
 
 struct iwl_hw_key {
@@ -752,7 +748,6 @@ extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 					 u32 rate_n_flags,
 					 struct ieee80211_tx_info *info);
 
-#ifdef CONFIG_IWL4965_HT
 extern void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
 				struct ieee80211_ht_info *ht_info,
 				enum ieee80211_band band);
@@ -763,12 +758,7 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    const u8 *addr, u16 tid, u16 *ssn);
 int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 					u8 tid, int txq_id);
-#else
-static inline void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
-					    struct ieee80211_ht_info *ht_info,
-					    enum ieee80211_band band) {}
 
-#endif /*CONFIG_IWL4965_HT */
 /* Structures, enum, and defines specific to the 4965 */
 
 #define IWL_KW_SIZE 0x1000	/*4k */
@@ -1073,9 +1063,7 @@ struct iwl_priv {
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 #endif /*CONFIG_IWLWIFI_RUN_TIME_CALIB*/
 
-#ifdef CONFIG_IWL4965_HT
 	struct iwl_ht_info current_ht_config;
-#endif
 	u8 last_phy_res[100];
 
 	/* Rate scaling data */
@@ -1250,7 +1238,6 @@ static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 
 
-#ifdef CONFIG_IWL4965_HT
 static inline int iwl_get_ra_sta_id(struct iwl_priv *priv,
 				    struct ieee80211_hdr *hdr)
 {
@@ -1270,7 +1257,6 @@ static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
 				txb[idx].skb[0]->data;
 	return NULL;
 }
-#endif
 
 
 static inline int iwl_is_associated(struct iwl_priv *priv)

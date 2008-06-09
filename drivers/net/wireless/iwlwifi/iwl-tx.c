@@ -36,8 +36,6 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 
-#ifdef CONFIG_IWL4965_HT
-
 static const u16 default_tid_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC1,
 	IWL_TX_FIFO_AC0,
@@ -57,9 +55,6 @@ static const u16 default_tid_to_tx_fifo[] = {
 	IWL_TX_FIFO_NONE,
 	IWL_TX_FIFO_AC3
 };
-
-#endif	/*CONFIG_IWL4965_HT */
-
 
 
 /**
@@ -848,12 +843,10 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			(hdr->seq_ctrl &
 				__constant_cpu_to_le16(IEEE80211_SCTL_FRAG));
 		seq_number += 0x10;
-#ifdef CONFIG_IWL4965_HT
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
 		priv->stations[sta_id].tid[tid].tfds_in_queue++;
-#endif /* CONFIG_IWL4965_HT */
 	}
 
 	/* Descriptor for chosen Tx queue */
@@ -1196,8 +1189,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 }
 EXPORT_SYMBOL(iwl_tx_cmd_complete);
 
-
-#ifdef CONFIG_IWL4965_HT
 /*
  * Find first available (lowest unused) Tx Queue, mark it "active".
  * Called only when finding queue for aggregation.
@@ -1359,7 +1350,6 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 	return 0;
 }
 EXPORT_SYMBOL(iwl_txq_check_empty);
-#endif /* CONFIG_IWL4965_HT */
 
 #ifdef CONFIG_IWLWIF_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x

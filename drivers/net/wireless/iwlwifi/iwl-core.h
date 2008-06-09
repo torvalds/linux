@@ -111,13 +111,11 @@ struct iwl_lib_ops {
 	void (*txq_inval_byte_cnt_tbl)(struct iwl_priv *priv,
 				       struct iwl_tx_queue *txq);
 	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
-#ifdef CONFIG_IWL4965_HT
 	/* aggregations */
 	int (*txq_agg_enable)(struct iwl_priv *priv, int txq_id, int tx_fifo,
 			      int sta_id, int tid, u16 ssn_idx);
 	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id, u16 ssn_idx,
 			       u8 tx_fifo);
-#endif /* CONFIG_IWL4965_HT */
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* alive notification after init uCode load */
@@ -233,11 +231,9 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
 int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
 					dma_addr_t addr, u16 len);
 int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-#ifdef CONFIG_IWL4965_HT
 int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn);
 int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
 int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
-#endif
 
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *

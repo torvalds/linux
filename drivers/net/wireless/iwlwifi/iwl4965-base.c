@@ -634,7 +634,6 @@ static u16 iwl4965_supported_rate_to_ie(u8 *ie, u16 supported_rate,
 	return ret_rates;
 }
 
-#ifdef CONFIG_IWL4965_HT
 static void iwl4965_ht_conf(struct iwl_priv *priv,
 			    struct ieee80211_bss_conf *bss_conf)
 {
@@ -707,17 +706,6 @@ static void iwl_ht_cap_to_ie(const struct ieee80211_supported_band *sband,
 			IEEE80211_HT_CAP_AMPDU_DENSITY);
 	*left -= sizeof(struct ieee80211_ht_cap);
 }
-#else
-static inline void iwl4965_ht_conf(struct iwl_priv *priv,
-				   struct ieee80211_bss_conf *bss_conf)
-{
-}
-static void iwl_ht_cap_to_ie(const struct ieee80211_supported_band *sband,
-			u8 *pos, int *left)
-{
-}
-#endif
-
 
 /**
  * iwl4965_fill_probe_req - fill in all required fields and IE for probe request
@@ -862,10 +850,8 @@ static void iwl4965_activate_qos(struct iwl_priv *priv, u8 force)
 		priv->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
 
-#ifdef CONFIG_IWL4965_HT
 	if (priv->current_ht_config.is_ht)
 		priv->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
-#endif /* CONFIG_IWL4965_HT */
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -3515,10 +3501,9 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 	priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-#ifdef CONFIG_IWL4965_HT
 	if (priv->current_ht_config.is_ht)
 		iwl_set_rxon_ht(priv, &priv->current_ht_config);
-#endif /* CONFIG_IWL4965_HT*/
+
 	iwl_set_rxon_chain(priv);
 	priv->staging_rxon.assoc_id = cpu_to_le16(priv->assoc_id);
 
@@ -3854,7 +3839,6 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-#ifdef CONFIG_IWL4965_HT
 	/* if we are switching from ht to 2.4 clear flags
 	 * from any ht related info since 2.4 does not
 	 * support ht */
@@ -3864,7 +3848,6 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 #endif
 	)
 		priv->staging_rxon.flags = 0;
-#endif /* CONFIG_IWL4965_HT */
 
 	iwl_set_rxon_channel(priv, conf->channel->band, channel);
 
@@ -4489,11 +4472,9 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211("enter\n");
 
 	priv->lq_mngr.lq_ready = 0;
-#ifdef CONFIG_IWL4965_HT
 	spin_lock_irqsave(&priv->lock, flags);
 	memset(&priv->current_ht_config, 0, sizeof(struct iwl_ht_info));
 	spin_unlock_irqrestore(&priv->lock, flags);
-#endif /* CONFIG_IWL4965_HT */
 
 	iwl_reset_qos(priv);
 
@@ -5100,9 +5081,7 @@ static struct ieee80211_ops iwl4965_hw_ops = {
 	.reset_tsf = iwl4965_mac_reset_tsf,
 	.beacon_update = iwl4965_mac_beacon_update,
 	.bss_info_changed = iwl4965_bss_info_changed,
-#ifdef CONFIG_IWL4965_HT
 	.ampdu_action = iwl4965_mac_ampdu_action,
-#endif  /* CONFIG_IWL4965_HT */
 	.hw_scan = iwl4965_mac_hw_scan
 };
 

@@ -255,21 +255,18 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 			pos += scnprintf(buf + pos, bufsz - pos, "tid data:\n");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"seq_num\t\ttxq_id");
-#ifdef CONFIG_IWL4965_HT
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"\tframe_count\twait_for_ba\t");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"start_idx\tbitmap0\t");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"bitmap1\trate_n_flags");
-#endif
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");
 
 			for (j = 0; j < MAX_TID_COUNT; j++) {
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"[%d]:\t\t%u", j,
 						station->tid[j].seq_number);
-#ifdef CONFIG_IWL4965_HT
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"\t%u\t\t%u\t\t%u\t\t",
 						station->tid[j].agg.txq_id,
@@ -280,7 +277,6 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 						station->tid[j].agg.start_idx,
 						(unsigned long long)station->tid[j].agg.bitmap,
 						station->tid[j].agg.rate_n_flags);
-#endif
 				pos += scnprintf(buf + pos, bufsz - pos, "\n");
 			}
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");
