@@ -79,7 +79,6 @@ void __init plat_mem_setup(void)
 	if (mips_machtype == MACH_MIPS_MAGNUM_4000)
 		EISA_bus = 1;
 #endif
-	isa_slot_offset = 0xe3000000;
 
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < ARRAY_SIZE(jazz_io_resources); i++)

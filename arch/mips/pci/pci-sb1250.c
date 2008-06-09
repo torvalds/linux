@@ -254,9 +254,6 @@ static int __init sb1250_pcibios_init(void)
 	 * works correctly with most of Linux's drivers.
 	 * XXX ehs: Should this happen in PCI Device mode?
 	 */
-	isa_slot_offset = (unsigned long)
-	    ioremap(A_PHYS_LDTPCI_IO_MATCH_BYTES_32, 1024 * 1024);
-
 	io_map_base = ioremap(A_PHYS_LDTPCI_IO_MATCH_BYTES, 1024 * 1024);
 	sb1250_controller.io_map_base = io_map_base;
 	set_io_port_base((unsigned long)io_map_base);
