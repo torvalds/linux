@@ -148,14 +148,9 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
 			goto mnt_drop_write_and_out;
 
 		if (!is_owner_or_cap(inode)) {
-			if (f) {
-				if (!(f->f_mode & FMODE_WRITE))
-					goto mnt_drop_write_and_out;
-			} else {
-				error = vfs_permission(&nd, MAY_WRITE);
-				if (error)
-					goto mnt_drop_write_and_out;
-			}
+			error = permission(inode, MAY_WRITE, NULL);
+			if (error)
+				goto mnt_drop_write_and_out;
 		}
 	}
 	mutex_lock(&inode->i_mutex);
