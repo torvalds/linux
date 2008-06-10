@@ -269,7 +269,8 @@ static int tda10023_init (struct dvb_frontend *fe)
 /* 084 */ 0x02, 0xff, 0x93,  /* AGCCONF1  IFS=1 KAGCIF=2 KAGCTUN=3 */
 /* 087 */ 0x2d, 0xff, 0xf6,  /* SWEEP SWPOS=1 SWDYN=7 SWSTEP=1 SWLEN=2 */
 /* 090 */ 0x04, 0x10, 0x00,  /* SWRAMP=1 */
-/* 093 */ 0x12, 0xff, 0xa1,  /* INTP1 POCLKP=1 FEL=1 MFS=0 */
+/* 093 */ 0x12, 0xff, TDA10023_OUTPUT_MODE_PARALLEL_B, /*
+				INTP1 POCLKP=1 FEL=1 MFS=0 */
 /* 096 */ 0x2b, 0x01, 0xa1,  /* INTS1 */
 /* 099 */ 0x20, 0xff, 0x04,  /* INTP2 SWAPP=? MSBFIRSTP=? INTPSEL=? */
 /* 102 */ 0x2c, 0xff, 0x0d,  /* INTP/S TRIP=0 TRIS=0 */
@@ -288,6 +289,9 @@ static int tda10023_init (struct dvb_frontend *fe)
 		tda10023_inittab[80] = (state->config->deltaf & 0xff);
 		tda10023_inittab[83] = (state->config->deltaf >> 8);
 	}
+
+	if (state->config->output_mode)
+		tda10023_inittab[95] = state->config->output_mode;
 
 	tda10023_writetab(state, tda10023_inittab);
 

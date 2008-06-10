@@ -32,6 +32,13 @@ struct tda1002x_config {
 	u8 invert;
 };
 
+enum tda10023_output_mode {
+	TDA10023_OUTPUT_MODE_PARALLEL_A = 0xe0,
+	TDA10023_OUTPUT_MODE_PARALLEL_B = 0xa1,
+	TDA10023_OUTPUT_MODE_PARALLEL_C = 0xa0,
+	TDA10023_OUTPUT_MODE_SERIAL, /* TODO: not implemented */
+};
+
 struct tda10023_config {
 	/* the demodulator's i2c address */
 	u8 demod_address;
@@ -42,6 +49,9 @@ struct tda10023_config {
 	u8 pll_m; /* defaults: 8 */
 	u8 pll_p; /* defaults: 4 */
 	u8 pll_n; /* defaults: 1 */
+
+	/* MPEG2 TS output mode */
+	u8 output_mode;
 
 	/* input freq offset + baseband conversion type */
 	u16 deltaf;
