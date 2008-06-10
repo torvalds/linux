@@ -101,19 +101,16 @@ static struct net_device *qeth_l2_netdev_by_devno(unsigned char *read_dev_no)
 {
 	struct qeth_card *card;
 	struct net_device *ndev;
-	unsigned char *readno;
-	__u16 temp_dev_no, card_dev_no;
-	char *endp;
+	__u16 temp_dev_no;
 	unsigned long flags;
+	struct ccw_dev_id read_devid;
 
 	ndev = NULL;
 	memcpy(&temp_dev_no, read_dev_no, 2);
 	read_lock_irqsave(&qeth_core_card_list.rwlock, flags);
 	list_for_each_entry(card, &qeth_core_card_list.list, list) {
-		readno = CARD_RDEV_ID(card);
-		readno += (strlen(readno) - 4);
-		card_dev_no = simple_strtoul(readno, &endp, 16);
-		if (card_dev_no == temp_dev_no) {
+		ccw_device_get_id(CARD_RDEV(card), &read_devid);
+		if (read_devid.devno == temp_dev_no) {
 			ndev = card->dev;
 			break;
 		}
@@ -134,14 +131,14 @@ static int qeth_l2_send_setgroupmac_cb(struct qeth_card *card,
 	mac = &cmd->data.setdelmac.mac[0];
 	/* MAC already registered, needed in couple/uncouple case */
 	if (cmd->hdr.return_code == 0x2005) {
-		PRINT_WARN("Group MAC %02x:%02x:%02x:%02x:%02x:%02x " \
+		QETH_DBF_MESSAGE(2, "Group MAC %02x:%02x:%02x:%02x:%02x:%02x "
 			  "already existing on %s \n",
 			  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
 			  QETH_CARD_IFNAME(card));
 		cmd->hdr.return_code = 0;
 	}
 	if (cmd->hdr.return_code)
-		PRINT_ERR("Could not set group MAC " \
+		QETH_DBF_MESSAGE(2, "Could not set group MAC "
 			  "%02x:%02x:%02x:%02x:%02x:%02x on %s: %x\n",
 			  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
 			  QETH_CARD_IFNAME(card), cmd->hdr.return_code);
@@ -166,7 +163,7 @@ static int qeth_l2_send_delgroupmac_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	mac = &cmd->data.setdelmac.mac[0];
 	if (cmd->hdr.return_code)
-		PRINT_ERR("Could not delete group MAC " \
+		QETH_DBF_MESSAGE(2, "Could not delete group MAC "
 			  "%02x:%02x:%02x:%02x:%02x:%02x on %s: %x\n",
 			  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
 			  QETH_CARD_IFNAME(card), cmd->hdr.return_code);
@@ -186,10 +183,8 @@ static void qeth_l2_add_mc(struct qeth_card *card, __u8 *mac)
 
 	mc = kmalloc(sizeof(struct qeth_mc_mac), GFP_ATOMIC);
 
-	if (!mc) {
-		PRINT_ERR("no mem vor mc mac address\n");
+	if (!mc)
 		return;
-	}
 
 	memcpy(mc->mc_addr, mac, OSA_ADDR_LEN);
 	mc->mc_addrlen = OSA_ADDR_LEN;
@@ -280,7 +275,7 @@ static int qeth_l2_send_setdelvlan_cb(struct qeth_card *card,
 	QETH_DBF_TEXT(TRACE, 2, "L2sdvcb");
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (cmd->hdr.return_code) {
-		PRINT_ERR("Error in processing VLAN %i on %s: 0x%x. "
+		QETH_DBF_MESSAGE(2, "Error in processing VLAN %i on %s: 0x%x. "
 			  "Continuing\n", cmd->data.setdelvlan.vlan_id,
 			  QETH_CARD_IFNAME(card), cmd->hdr.return_code);
 		QETH_DBF_TEXT_(TRACE, 2, "L2VL%4x", cmd->hdr.command);
@@ -333,8 +328,6 @@ static void qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 		spin_lock_bh(&card->vlanlock);
 		list_add_tail(&id->list, &card->vid_list);
 		spin_unlock_bh(&card->vlanlock);
-	} else {
-		PRINT_ERR("no memory for vid\n");
 	}
 }
 
@@ -550,16 +543,15 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 
 	rc = qeth_query_setadapterparms(card);
 	if (rc) {
-		PRINT_WARN("could not query adapter parameters on device %s: "
-			   "x%x\n", CARD_BUS_ID(card), rc);
+		QETH_DBF_MESSAGE(2, "could not query adapter parameters on "
+			"device %s: x%x\n", CARD_BUS_ID(card), rc);
 	}
 
 	if (card->info.guestlan) {
 		rc = qeth_setadpparms_change_macaddr(card);
 		if (rc) {
-			PRINT_WARN("couldn't get MAC address on "
-			   "device %s: x%x\n",
-			   CARD_BUS_ID(card), rc);
+			QETH_DBF_MESSAGE(2, "couldn't get MAC address on "
+				"device %s: x%x\n", CARD_BUS_ID(card), rc);
 			QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
 			return rc;
 		}
@@ -585,8 +577,6 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSN) {
-		PRINT_WARN("Setting MAC address on %s is not supported.\n",
-			   dev->name);
 		QETH_DBF_TEXT(TRACE, 3, "setmcOSN");
 		return -EOPNOTSUPP;
 	}
@@ -666,7 +656,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		ctx = qeth_eddp_create_context(card, new_skb, hdr,
 						skb->sk->sk_protocol);
 		if (ctx == NULL) {
-			PRINT_WARN("could not create eddp context\n");
+			QETH_DBF_MESSAGE(2, "could not create eddp context\n");
 			goto tx_drop;
 		}
 	} else {
@@ -731,6 +721,7 @@ tx_drop:
 	if ((new_skb != skb) && new_skb)
 		dev_kfree_skb_any(new_skb);
 	dev_kfree_skb_any(skb);
+	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
 }
 
@@ -1155,7 +1146,7 @@ static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 			      (addr_t) iob, 0, 0);
 	spin_unlock_irqrestore(get_ccwdev_lock(card->write.ccwdev), flags);
 	if (rc) {
-		PRINT_WARN("qeth_osn_send_control_data: "
+		QETH_DBF_MESSAGE(2, "qeth_osn_send_control_data: "
 			   "ccw_device_start rc = %i\n", rc);
 		QETH_DBF_TEXT_(TRACE, 2, " err%d", rc);
 		qeth_release_buffer(iob->channel, iob);
