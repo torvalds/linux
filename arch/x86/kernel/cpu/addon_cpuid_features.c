@@ -54,14 +54,11 @@ void __cpuinit init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 void __cpuinit validate_pat_support(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		if (c->x86 >= 0xf && c->x86 <= 0x11)
-			return;
-		break;
 	case X86_VENDOR_INTEL:
 		if (c->x86 == 0xF || (c->x86 == 6 && c->x86_model >= 15))
 			return;
 		break;
+	case X86_VENDOR_AMD:
 	case X86_VENDOR_CENTAUR:
 	case X86_VENDOR_TRANSMETA:
 		return;
