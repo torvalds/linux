@@ -135,14 +135,12 @@ static struct pci_driver driver = {
 	.remove		= delkin_cb_remove,
 };
 
-static int
-delkin_cb_init (void)
+static int __init delkin_cb_init(void)
 {
 	return pci_register_driver(&driver);
 }
 
-static void
-delkin_cb_exit (void)
+static void __exit delkin_cb_exit(void)
 {
 	pci_unregister_driver(&driver);
 }
