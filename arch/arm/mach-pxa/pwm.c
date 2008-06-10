@@ -36,6 +36,7 @@ struct pwm_device {
 
 	const char	*label;
 	struct clk	*clk;
+	int		clk_enabled;
 	void __iomem	*mmio_base;
 
 	unsigned int	use_count;
@@ -87,13 +88,23 @@ EXPORT_SYMBOL(pwm_config);
 
 int pwm_enable(struct pwm_device *pwm)
 {
-	return clk_enable(pwm->clk);
+	int rc = 0;
+
+	if (!pwm->clk_enabled) {
+		rc = clk_enable(pwm->clk);
+		if (!rc)
+			pwm->clk_enabled = 1;
+	}
+	return rc;
 }
 EXPORT_SYMBOL(pwm_enable);
 
 void pwm_disable(struct pwm_device *pwm)
 {
-	clk_disable(pwm->clk);
+	if (pwm->clk_enabled) {
+		clk_disable(pwm->clk);
+		pwm->clk_enabled = 0;
+	}
 }
 EXPORT_SYMBOL(pwm_disable);
 
@@ -161,6 +172,7 @@ static struct pwm_device *pwm_probe(struct platform_device *pdev,
 		ret = PTR_ERR(pwm->clk);
 		goto err_free;
 	}
+	pwm->clk_enabled = 0;
 
 	pwm->use_count = 0;
 	pwm->pwm_id = pwm_id;
