@@ -704,6 +704,23 @@ zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
 	}
 }
 
+static void zfcp_get_host_port_state(struct Scsi_Host *shost)
+{
+	struct zfcp_adapter *adapter =
+		(struct zfcp_adapter *)shost->hostdata[0];
+	int status = atomic_read(&adapter->status);
+
+	if ((status & ZFCP_STATUS_COMMON_RUNNING) &&
+	    !(status & ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED))
+		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+	else if (status & ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED)
+		fc_host_port_state(shost) = FC_PORTSTATE_LINKDOWN;
+	else if (status & ZFCP_STATUS_COMMON_ERP_FAILED)
+		fc_host_port_state(shost) = FC_PORTSTATE_ERROR;
+	else
+		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
+}
+
 static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
 {
 	rport->dev_loss_tmo = timeout;
@@ -726,6 +743,8 @@ struct fc_function_template zfcp_transport_functions = {
 	.get_fc_host_stats = zfcp_get_fc_host_stats,
 	.reset_fc_host_stats = zfcp_reset_fc_host_stats,
 	.set_rport_dev_loss_tmo = zfcp_set_rport_dev_loss_tmo,
+	.get_host_port_state = zfcp_get_host_port_state,
+	.show_host_port_state = 1,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,
