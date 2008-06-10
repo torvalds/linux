@@ -2642,6 +2642,31 @@ static void btrfs_truncate(struct inode *inode)
 	btrfs_throttle(root);
 }
 
+/*
+ * Invalidate a single dcache entry at the root of the filesystem.
+ * Needed after creation of snapshot or subvolume.
+ */
+void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
+				  int namelen)
+{
+	struct dentry *alias, *entry;
+	struct qstr qstr;
+
+	alias = d_find_alias(root->fs_info->sb->s_root->d_inode);
+	if (alias) {
+		qstr.name = name;
+		qstr.len = namelen;
+		/* change me if btrfs ever gets a d_hash operation */
+		qstr.hash = full_name_hash(qstr.name, qstr.len);
+		entry = d_lookup(alias, &qstr);
+		dput(alias);
+		if (entry) {
+			d_invalidate(entry);
+			dput(entry);
+		}
+	}
+}
+
 static int noinline create_subvol(struct btrfs_root *root, char *name,
 				  int namelen)
 {
@@ -2761,6 +2786,10 @@ static int noinline create_subvol(struct btrfs_root *root, char *name,
 	ret = btrfs_update_inode(trans, new_root, inode);
 	if (ret)
 		goto fail;
+
+	/* Invalidate existing dcache entry for new subvolume. */
+	btrfs_invalidate_dcache_root(root, name, namelen);
+
 fail:
 	nr = trans->blocks_used;
 	err = btrfs_commit_transaction(trans, new_root);

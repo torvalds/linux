@@ -1544,6 +1544,9 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
+				  int namelen);
+
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio);
 

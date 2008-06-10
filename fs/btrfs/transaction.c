@@ -560,6 +560,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = pending->root;
 	struct extent_buffer *tmp;
 	int ret;
+	int namelen;
 	u64 objectid;
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
@@ -595,8 +596,9 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * insert the directory item
 	 */
 	key.offset = (u64)-1;
+	namelen = strlen(pending->name);
 	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
-				    pending->name, strlen(pending->name),
+				    pending->name, namelen,
 				    root->fs_info->sb->s_root->d_inode->i_ino,
 				    &key, BTRFS_FT_DIR);
 
@@ -606,6 +608,10 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
 			     pending->name, strlen(pending->name), objectid,
 			     root->fs_info->sb->s_root->d_inode->i_ino);
+
+	/* Invalidate existing dcache entry for new snapshot. */
+	btrfs_invalidate_dcache_root(root, pending->name, namelen);
+
 fail:
 	kfree(new_root_item);
 	return ret;
