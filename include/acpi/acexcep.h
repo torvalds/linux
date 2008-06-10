@@ -226,6 +226,7 @@ char const *acpi_gbl_exception_names_env[] = {
 };
 
 char const *acpi_gbl_exception_names_pgm[] = {
+	NULL,
 	"AE_BAD_PARAMETER",
 	"AE_BAD_CHARACTER",
 	"AE_BAD_PATHNAME",
@@ -239,6 +240,7 @@ char const *acpi_gbl_exception_names_pgm[] = {
 };
 
 char const *acpi_gbl_exception_names_tbl[] = {
+	NULL,
 	"AE_BAD_SIGNATURE",
 	"AE_BAD_HEADER",
 	"AE_BAD_CHECKSUM",
@@ -248,6 +250,7 @@ char const *acpi_gbl_exception_names_tbl[] = {
 };
 
 char const *acpi_gbl_exception_names_aml[] = {
+	NULL,
 	"AE_AML_ERROR",
 	"AE_AML_PARSE",
 	"AE_AML_BAD_OPCODE",
@@ -285,6 +288,7 @@ char const *acpi_gbl_exception_names_aml[] = {
 };
 
 char const *acpi_gbl_exception_names_ctrl[] = {
+	NULL,
 	"AE_CTRL_RETURN_VALUE",
 	"AE_CTRL_PENDING",
 	"AE_CTRL_TERMINATE",

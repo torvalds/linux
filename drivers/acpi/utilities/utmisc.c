@@ -64,7 +64,7 @@ ACPI_MODULE_NAME("utmisc")
  ******************************************************************************/
 const char *acpi_ut_validate_exception(acpi_status status)
 {
-	acpi_status sub_status;
+	u32 sub_status;
 	const char *exception = NULL;
 
 	ACPI_FUNCTION_ENTRY();
@@ -85,32 +85,28 @@ const char *acpi_ut_validate_exception(acpi_status status)
 	case AE_CODE_PROGRAMMER:
 
 		if (sub_status <= AE_CODE_PGM_MAX) {
-			exception =
-			    acpi_gbl_exception_names_pgm[sub_status - 1];
+			exception = acpi_gbl_exception_names_pgm[sub_status];
 		}
 		break;
 
 	case AE_CODE_ACPI_TABLES:
 
 		if (sub_status <= AE_CODE_TBL_MAX) {
-			exception =
-			    acpi_gbl_exception_names_tbl[sub_status - 1];
+			exception = acpi_gbl_exception_names_tbl[sub_status];
 		}
 		break;
 
 	case AE_CODE_AML:
 
 		if (sub_status <= AE_CODE_AML_MAX) {
-			exception =
-			    acpi_gbl_exception_names_aml[sub_status - 1];
+			exception = acpi_gbl_exception_names_aml[sub_status];
 		}
 		break;
 
 	case AE_CODE_CONTROL:
 
 		if (sub_status <= AE_CODE_CTRL_MAX) {
-			exception =
-			    acpi_gbl_exception_names_ctrl[sub_status - 1];
+			exception = acpi_gbl_exception_names_ctrl[sub_status];
 		}
 		break;
 
