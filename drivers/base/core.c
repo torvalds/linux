@@ -1345,8 +1345,9 @@ int device_rename(struct device *dev, char *new_name)
 	if (old_class_name) {
 		new_class_name = make_class_name(dev->class->name, &dev->kobj);
 		if (new_class_name) {
-			error = sysfs_create_link(&dev->parent->kobj,
-						  &dev->kobj, new_class_name);
+			error = sysfs_create_link_nowarn(&dev->parent->kobj,
+							 &dev->kobj,
+							 new_class_name);
 			if (error)
 				goto out;
 			sysfs_remove_link(&dev->parent->kobj, old_class_name);
@@ -1354,8 +1355,8 @@ int device_rename(struct device *dev, char *new_name)
 	}
 #else
 	if (dev->class) {
-		error = sysfs_create_link(&dev->class->p->class_subsys.kobj,
-					  &dev->kobj, dev->bus_id);
+		error = sysfs_create_link_nowarn(&dev->class->p->class_subsys.kobj,
+						 &dev->kobj, dev->bus_id);
 		if (error)
 			goto out;
 		sysfs_remove_link(&dev->class->p->class_subsys.kobj,
