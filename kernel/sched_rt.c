@@ -576,16 +576,15 @@ static void enqueue_rt_entity(struct sched_rt_entity *rt_se)
 	struct rt_rq *rt_rq = rt_rq_of_se(rt_se);
 	struct rt_prio_array *array = &rt_rq->active;
 	struct rt_rq *group_rq = group_rt_rq(rt_se);
+	struct list_head *queue = array->queue + rt_se_prio(rt_se);
 
 	if (group_rq && rt_rq_throttled(group_rq))
 		return;
 
 	if (rt_se->nr_cpus_allowed == 1)
-		list_add_tail(&rt_se->run_list,
-			      array->xqueue + rt_se_prio(rt_se));
+		list_add(&rt_se->run_list, queue);
 	else
-		list_add_tail(&rt_se->run_list,
-			      array->squeue + rt_se_prio(rt_se));
+		list_add_tail(&rt_se->run_list, queue);
 
 	__set_bit(rt_se_prio(rt_se), array->bitmap);
 
@@ -598,8 +597,7 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se)
 	struct rt_prio_array *array = &rt_rq->active;
 
 	list_del_init(&rt_se->run_list);
-	if (list_empty(array->squeue + rt_se_prio(rt_se))
-	    && list_empty(array->xqueue + rt_se_prio(rt_se)))
+	if (list_empty(array->queue + rt_se_prio(rt_se)))
 		__clear_bit(rt_se_prio(rt_se), array->bitmap);
 
 	dec_rt_tasks(rt_se, rt_rq);
@@ -666,11 +664,6 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 /*
  * Put task to the end of the run list without the overhead of dequeue
  * followed by enqueue.
- *
- * Note: We always enqueue the task to the shared-queue, regardless of its
- * previous position w.r.t. exclusive vs shared.  This is so that exclusive RR
- * tasks fairly round-robin with all tasks on the runqueue, not just other
- * exclusive tasks.
  */
 static
 void requeue_rt_entity(struct rt_rq *rt_rq, struct sched_rt_entity *rt_se)
@@ -678,7 +671,7 @@ void requeue_rt_entity(struct rt_rq *rt_rq, struct sched_rt_entity *rt_se)
 	struct rt_prio_array *array = &rt_rq->active;
 
 	list_del_init(&rt_se->run_list);
-	list_add_tail(&rt_se->run_list, array->squeue + rt_se_prio(rt_se));
+	list_add_tail(&rt_se->run_list, array->queue + rt_se_prio(rt_se));
 }
 
 static void requeue_task_rt(struct rq *rq, struct task_struct *p)
@@ -736,9 +729,6 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 }
 #endif /* CONFIG_SMP */
 
-static struct sched_rt_entity *pick_next_rt_entity(struct rq *rq,
-						   struct rt_rq *rt_rq);
-
 /*
  * Preempt the current task with a newly woken task if needed:
  */
@@ -764,8 +754,7 @@ static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p)
 	 */
 	if((p->prio == rq->curr->prio)
 	   && p->rt.nr_cpus_allowed == 1
-	   && rq->curr->rt.nr_cpus_allowed != 1
-	   && pick_next_rt_entity(rq, &rq->rt) != &rq->curr->rt) {
+	   && rq->curr->rt.nr_cpus_allowed != 1) {
 		cpumask_t mask;
 
 		if (cpupri_find(&rq->rd->cpupri, rq->curr, &mask))
@@ -789,15 +778,8 @@ static struct sched_rt_entity *pick_next_rt_entity(struct rq *rq,
 	idx = sched_find_first_bit(array->bitmap);
 	BUG_ON(idx >= MAX_RT_PRIO);
 
-	queue = array->xqueue + idx;
-	if (!list_empty(queue))
-		next = list_entry(queue->next, struct sched_rt_entity,
-				  run_list);
-	else {
-		queue = array->squeue + idx;
-		next = list_entry(queue->next, struct sched_rt_entity,
-				  run_list);
-	}
+	queue = array->queue + idx;
+	next = list_entry(queue->next, struct sched_rt_entity, run_list);
 
 	return next;
 }
@@ -867,7 +849,7 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu)
 			continue;
 		if (next && next->prio < idx)
 			continue;
-		list_for_each_entry(rt_se, array->squeue + idx, run_list) {
+		list_for_each_entry(rt_se, array->queue + idx, run_list) {
 			struct task_struct *p = rt_task_of(rt_se);
 			if (pick_rt_task(rq, p, cpu)) {
 				next = p;
@@ -1249,14 +1231,6 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 		}
 
 		update_rt_migration(rq);
-
-		if (unlikely(weight == 1 || p->rt.nr_cpus_allowed == 1))
-			/*
-			 * If either the new or old weight is a "1", we need
-			 * to requeue to properly move between shared and
-			 * exclusive queues.
-			 */
-			requeue_task_rt(rq, p);
 	}
 
 	p->cpus_allowed    = *new_mask;
