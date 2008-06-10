@@ -23,6 +23,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware.h>
+#include <asm/arch/audio.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/zylonite.h>
@@ -337,6 +338,7 @@ static void __init zylonite_init(void)
 	smc91x_resources[1].end   = gpio_to_irq(gpio_eth_irq);
 	platform_device_register(&smc91x_device);
 
+	pxa_set_ac97_info(NULL);
 	zylonite_init_lcd();
 	zylonite_init_mmc();
 	zylonite_init_keypad();
