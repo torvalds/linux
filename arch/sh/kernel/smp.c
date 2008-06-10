@@ -36,13 +36,6 @@ EXPORT_SYMBOL(cpu_possible_map);
 cpumask_t cpu_online_map;
 EXPORT_SYMBOL(cpu_online_map);
 
-static atomic_t cpus_booted = ATOMIC_INIT(0);
-
-/*
- * Run specified function on a particular processor.
- */
-void __smp_call_function(unsigned int cpu);
-
 static inline void __init smp_store_cpu_info(unsigned int cpu)
 {
 	struct sh_cpuinfo *c = cpu_data + cpu;
@@ -178,42 +171,17 @@ void smp_send_stop(void)
 	smp_call_function(stop_this_cpu, 0, 1, 0);
 }
 
-struct smp_fn_call_struct smp_fn_call = {
-	.lock		= __SPIN_LOCK_UNLOCKED(smp_fn_call.lock),
-	.finished	= ATOMIC_INIT(0),
-};
-
-/*
- * The caller of this wants the passed function to run on every cpu.  If wait
- * is set, wait until all cpus have finished the function before returning.
- * The lock is here to protect the call structure.
- * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler or from a bottom half handler.
- */
-int smp_call_function(void (*func)(void *info), void *info, int retry, int wait)
+void arch_send_call_function_ipi(cpumask_t mask)
 {
-	unsigned int nr_cpus = atomic_read(&cpus_booted);
-	int i;
+	int cpu;
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
+	for_each_cpu_mask(cpu, mask)
+		plat_send_ipi(cpu, SMP_MSG_FUNCTION);
+}
 
-	spin_lock(&smp_fn_call.lock);
-
-	atomic_set(&smp_fn_call.finished, 0);
-	smp_fn_call.fn = func;
-	smp_fn_call.data = info;
-
-	for (i = 0; i < nr_cpus; i++)
-		if (i != smp_processor_id())
-			plat_send_ipi(i, SMP_MSG_FUNCTION);
-
-	if (wait)
-		while (atomic_read(&smp_fn_call.finished) != (nr_cpus - 1));
-
-	spin_unlock(&smp_fn_call.lock);
-
-	return 0;
+void arch_send_call_function_single_ipi(int cpu)
+{
+	plat_send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
 }
 
 /* Not really SMP stuff ... */
