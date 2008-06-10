@@ -182,7 +182,6 @@ acpi_evaluate_object(acpi_handle handle,
 	}
 
 	info->pathname = pathname;
-	info->parameter_type = ACPI_PARAM_ARGS;
 
 	/* Convert and validate the device handle */
 

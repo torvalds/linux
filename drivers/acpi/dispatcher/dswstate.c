@@ -615,14 +615,8 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 	walk_state->pass_number = pass_number;
 
 	if (info) {
-		if (info->parameter_type == ACPI_PARAM_GPE) {
-			walk_state->gpe_event_info =
-			    ACPI_CAST_PTR(struct acpi_gpe_event_info,
-					  info->parameters);
-		} else {
-			walk_state->params = info->parameters;
-			walk_state->caller_return_desc = &info->return_object;
-		}
+		walk_state->params = info->parameters;
+		walk_state->caller_return_desc = &info->return_object;
 	}
 
 	status = acpi_ps_init_scope(&walk_state->parser_state, op);

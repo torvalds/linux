@@ -335,7 +335,7 @@ acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action)
 {
 	acpi_native_uint i;
 
-	if ((info->parameter_type == ACPI_PARAM_ARGS) && (info->parameters)) {
+	if (info->parameters) {
 
 		/* Update reference count for each parameter */
 

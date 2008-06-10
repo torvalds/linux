@@ -217,7 +217,6 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 
 	info->prefix_node = prefix_node;
 	info->pathname = path;
-	info->parameter_type = ACPI_PARAM_ARGS;
 
 	/* Evaluate the object/method */
 

@@ -679,7 +679,6 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 	info->prefix_node = node;
 	info->pathname = METHOD_NAME__SRS;
 	info->parameters = args;
-	info->parameter_type = ACPI_PARAM_ARGS;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 	/*

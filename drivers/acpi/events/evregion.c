@@ -219,7 +219,6 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	info->prefix_node = region_obj2->extra.method_REG;
 	info->pathname = NULL;
 	info->parameters = args;
-	info->parameter_type = ACPI_PARAM_ARGS;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 	/*

@@ -565,10 +565,6 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 			 */
 			info->prefix_node =
 			    local_gpe_event_info.dispatch.method_node;
-			info->parameters =
-			    ACPI_CAST_PTR(union acpi_operand_object *,
-					  gpe_event_info);
-			info->parameter_type = ACPI_PARAM_GPE;
 			info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 			status = acpi_ns_evaluate(info);
