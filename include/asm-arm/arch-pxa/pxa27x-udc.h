@@ -82,6 +82,7 @@
 					   Interrupt Enable */
 
 #define UP2OCR		  __REG(0x40600020)  /* USB Port 2 Output Control register */
+#define UP3OCR		  __REG(0x40600024)  /* USB Port 2 Output Control register */
 
 #define UP2OCR_CPVEN	(1 << 0)	/* Charge Pump Vbus Enable */
 #define UP2OCR_CPVPE	(1 << 1)	/* Charge Pump Vbus Pulse Enable */
