@@ -597,7 +597,7 @@ struct acpi_integer_overlay {
 /* Stack and buffer dumping */
 
 #define ACPI_DUMP_STACK_ENTRY(a)        acpi_ex_dump_operand((a),0)
-#define ACPI_DUMP_OPERANDS(a,b,c,d,e)   acpi_ex_dump_operands(a,b,c,d,e,_acpi_module_name,__LINE__)
+#define ACPI_DUMP_OPERANDS(a,b,c)	acpi_ex_dump_operands(a,b,c)
 
 #define ACPI_DUMP_ENTRY(a,b)            acpi_ns_dump_entry (a,b)
 #define ACPI_DUMP_PATHNAME(a,b,c,d)     acpi_ns_dump_pathname(a,b,c,d)
@@ -633,7 +633,7 @@ struct acpi_integer_overlay {
 #define ACPI_FUNCTION_VALUE_EXIT(s)	do { } while(0)
 #define ACPI_FUNCTION_ENTRY()		do { } while(0)
 #define ACPI_DUMP_STACK_ENTRY(a)	do { } while(0)
-#define ACPI_DUMP_OPERANDS(a,b,c,d,e)	do { } while(0)
+#define ACPI_DUMP_OPERANDS(a,b,c)      do { } while(0)
 #define ACPI_DUMP_ENTRY(a,b)		do { } while(0)
 #define ACPI_DUMP_TABLES(a,b)		do { } while(0)
 #define ACPI_DUMP_PATHNAME(a,b,c,d)	do { } while(0)

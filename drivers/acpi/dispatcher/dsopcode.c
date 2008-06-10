@@ -691,12 +691,6 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 
 	status = acpi_ex_resolve_operands(op->common.aml_opcode,
 					  ACPI_WALK_OPERANDS, walk_state);
-
-	ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS, ACPI_IMODE_EXECUTE,
-			   acpi_ps_get_opcode_name(op->common.aml_opcode),
-			   walk_state->num_operands,
-			   "after AcpiExResolveOperands");
-
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO, "(%s) bad operand(s) (%X)",
 			    acpi_ps_get_opcode_name(op->common.aml_opcode),
@@ -784,10 +778,6 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
-
-	ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS, ACPI_IMODE_EXECUTE,
-			   acpi_ps_get_opcode_name(op->common.aml_opcode),
-			   1, "after AcpiExResolveOperands");
 
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (!obj_desc) {
@@ -881,10 +871,6 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
-
-	ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS, ACPI_IMODE_EXECUTE,
-			   acpi_ps_get_opcode_name(op->common.aml_opcode),
-			   1, "after AcpiExResolveOperands");
 
 	operand = &walk_state->operands[0];
 
@@ -1091,10 +1077,8 @@ acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS, ACPI_IMODE_EXECUTE,
-			   acpi_ps_get_opcode_name(op->common.aml_opcode),
-			   1, "after AcpiExResolveOperands");
-
+	ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS,
+			   acpi_ps_get_opcode_name(op->common.aml_opcode), 1);
 	/*
 	 * Get the bank_value operand and save it
 	 * (at Top of stack)
