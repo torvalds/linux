@@ -507,7 +507,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	rt2x00dev->link.qual.tx_success +=
 	    test_bit(TXDONE_SUCCESS, &txdesc->flags);
 	rt2x00dev->link.qual.tx_failed +=
-	    txdesc->retry + !!test_bit(TXDONE_FAILURE, &txdesc->flags);
+	    test_bit(TXDONE_FAILURE, &txdesc->flags);
 
 	/*
 	 * Initialize TX status
