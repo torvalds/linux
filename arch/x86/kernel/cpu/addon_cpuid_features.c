@@ -1,9 +1,7 @@
-
 /*
  *	Routines to indentify additional cpu features that are scattered in
  *	cpuid space.
  */
-
 #include <linux/cpu.h>
 
 #include <asm/pat.h>

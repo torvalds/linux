@@ -66,7 +66,7 @@ enum {
 	PAT_UC_MINUS = 7,	/* UC, but can be overriden by MTRR */
 };
 
-#define PAT(x,y)	((u64)PAT_ ## y << ((x)*8))
+#define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
 
 void pat_init(void)
 {
@@ -100,8 +100,8 @@ void pat_init(void)
 	 *      011 UC		_PAGE_CACHE_UC
 	 * PAT bit unused
 	 */
-	pat = PAT(0,WB) | PAT(1,WC) | PAT(2,UC_MINUS) | PAT(3,UC) |
-	      PAT(4,WB) | PAT(5,WC) | PAT(6,UC_MINUS) | PAT(7,UC);
+	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
 
 	/* Boot CPU check */
 	if (!boot_pat_state)
@@ -117,11 +117,11 @@ void pat_init(void)
 static char *cattr_name(unsigned long flags)
 {
 	switch (flags & _PAGE_CACHE_MASK) {
-		case _PAGE_CACHE_UC:		return "uncached";
-		case _PAGE_CACHE_UC_MINUS:	return "uncached-minus";
-		case _PAGE_CACHE_WB:		return "write-back";
-		case _PAGE_CACHE_WC:		return "write-combining";
-		default:			return "broken";
+	case _PAGE_CACHE_UC:		return "uncached";
+	case _PAGE_CACHE_UC_MINUS:	return "uncached-minus";
+	case _PAGE_CACHE_WB:		return "write-back";
+	case _PAGE_CACHE_WC:		return "write-combining";
+	default:			return "broken";
 	}
 }
 
@@ -536,11 +536,11 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	 * we maintain the tradition of paranoia in this code.
 	 */
 	if (!pat_wc_enabled &&
-	    ! ( boot_cpu_has(X86_FEATURE_MTRR) ||
-		boot_cpu_has(X86_FEATURE_K6_MTRR) ||
-		boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
-		boot_cpu_has(X86_FEATURE_CENTAUR_MCR)) &&
-	   (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
+	    !(boot_cpu_has(X86_FEATURE_MTRR) ||
+	      boot_cpu_has(X86_FEATURE_K6_MTRR) ||
+	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
+	      boot_cpu_has(X86_FEATURE_CENTAUR_MCR)) &&
+	    (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
 		flags = _PAGE_CACHE_UC;
 	}
 #endif
@@ -562,7 +562,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 		return 0;
 
 	if (pfn <= max_pfn_mapped &&
-            ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
+	    ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
 		free_memtype(offset, offset + size);
 		printk(KERN_INFO
 		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
@@ -600,4 +600,3 @@ void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 
 	free_memtype(addr, addr + size);
 }
-
