@@ -54,6 +54,7 @@ typedef int (*nfsd_dirop_t)(struct inode *, struct dentry *, int, int);
 extern struct svc_program	nfsd_program;
 extern struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
+extern struct mutex		nfsd_mutex;
 extern struct svc_serv		*nfsd_serv;
 
 extern struct seq_operations nfs_exports_op;

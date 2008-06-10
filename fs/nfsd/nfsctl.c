@@ -450,22 +450,26 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 	int i;
 	int rv;
 	int len;
-    	int npools = nfsd_nrpools();
+	int npools;
 	int *nthreads;
 
+	mutex_lock(&nfsd_mutex);
+	npools = nfsd_nrpools();
 	if (npools == 0) {
 		/*
 		 * NFS is shut down.  The admin can start it by
 		 * writing to the threads file but NOT the pool_threads
 		 * file, sorry.  Report zero threads.
 		 */
+		mutex_unlock(&nfsd_mutex);
 		strcpy(buf, "0\n");
 		return strlen(buf);
 	}
 
 	nthreads = kcalloc(npools, sizeof(int), GFP_KERNEL);
+	rv = -ENOMEM;
 	if (nthreads == NULL)
-		return -ENOMEM;
+		goto out_free;
 
 	if (size > 0) {
 		for (i = 0; i < npools; i++) {
@@ -496,10 +500,12 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 		mesg += len;
 	}
 
+	mutex_unlock(&nfsd_mutex);
 	return (mesg-buf);
 
 out_free:
 	kfree(nthreads);
+	mutex_unlock(&nfsd_mutex);
 	return rv;
 }
 
@@ -566,14 +572,13 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 	return len;
 }
 
-static ssize_t write_ports(struct file *file, char *buf, size_t size)
+static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 {
 	if (size == 0) {
 		int len = 0;
-		lock_kernel();
+
 		if (nfsd_serv)
 			len = svc_xprt_names(nfsd_serv, buf, 0);
-		unlock_kernel();
 		return len;
 	}
 	/* Either a single 'fd' number is written, in which
@@ -603,9 +608,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 			/* Decrease the count, but don't shutdown the
 			 * the service
 			 */
-			lock_kernel();
 			nfsd_serv->sv_nrthreads--;
-			unlock_kernel();
 		}
 		return err < 0 ? err : 0;
 	}
@@ -614,10 +617,8 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		int len = 0;
 		if (!toclose)
 			return -ENOMEM;
-		lock_kernel();
 		if (nfsd_serv)
 			len = svc_sock_names(buf, nfsd_serv, toclose);
-		unlock_kernel();
 		if (len >= 0)
 			lockd_down();
 		kfree(toclose);
@@ -655,7 +656,6 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		if (sscanf(&buf[1], "%15s %4d", transport, &port) == 2) {
 			if (port == 0)
 				return -EINVAL;
-			lock_kernel();
 			if (nfsd_serv) {
 				xprt = svc_find_xprt(nfsd_serv, transport,
 						     AF_UNSPEC, port);
@@ -666,12 +666,21 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 				} else
 					err = -ENOTCONN;
 			}
-			unlock_kernel();
 			return err < 0 ? err : 0;
 		}
 	}
 	return -EINVAL;
 }
+
+static ssize_t write_ports(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+	mutex_lock(&nfsd_mutex);
+	rv = __write_ports(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
+}
+
 
 int nfsd_max_blksize;
 
@@ -691,13 +700,13 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 		if (bsize > NFSSVC_MAXBLKSIZE)
 			bsize = NFSSVC_MAXBLKSIZE;
 		bsize &= ~(1024-1);
-		lock_kernel();
+		mutex_lock(&nfsd_mutex);
 		if (nfsd_serv && nfsd_serv->sv_nrthreads) {
-			unlock_kernel();
+			mutex_unlock(&nfsd_mutex);
 			return -EBUSY;
 		}
 		nfsd_max_blksize = bsize;
-		unlock_kernel();
+		mutex_unlock(&nfsd_mutex);
 	}
 	return sprintf(buf, "%d\n", nfsd_max_blksize);
 }

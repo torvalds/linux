@@ -461,7 +461,8 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 EXPORT_SYMBOL(svc_create_pooled);
 
 /*
- * Destroy an RPC service.  Should be called with the BKL held
+ * Destroy an RPC service. Should be called with appropriate locking to
+ * protect the sv_nrthreads, sv_permsocks and sv_tempsocks.
  */
 void
 svc_destroy(struct svc_serv *serv)
@@ -578,9 +579,10 @@ out_enomem:
 EXPORT_SYMBOL(svc_prepare_thread);
 
 /*
- * Create a thread in the given pool.  Caller must hold BKL.
- * On a NUMA or SMP machine, with a multi-pool serv, the thread
- * will be restricted to run on the cpus belonging to the pool.
+ * Create a thread in the given pool.  Caller must hold BKL or another lock to
+ * serialize access to the svc_serv struct. On a NUMA or SMP machine, with a
+ * multi-pool serv, the thread will be restricted to run on the cpus belonging
+ * to the pool.
  */
 static int
 __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
@@ -674,7 +676,7 @@ found_pool:
  * of threads the given number.  If `pool' is non-NULL, applies
  * only to threads in that pool, otherwise round-robins between
  * all pools.  Must be called with a svc_get() reference and
- * the BKL held.
+ * the BKL or another lock to protect access to svc_serv fields.
  *
  * Destroying threads relies on the service threads filling in
  * rqstp->rq_task, which only the nfs ones do.  Assumes the serv
@@ -722,7 +724,8 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 EXPORT_SYMBOL(svc_set_num_threads);
 
 /*
- * Called from a server thread as it's exiting.  Caller must hold BKL.
+ * Called from a server thread as it's exiting. Caller must hold the BKL or
+ * the "service mutex", whichever is appropriate for the service.
  */
 void
 svc_exit_thread(struct svc_rqst *rqstp)
