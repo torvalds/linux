@@ -1013,7 +1013,7 @@ static void inetdev_changename(struct net_device *dev, struct in_device *in_dev)
 		memcpy(old, ifa->ifa_label, IFNAMSIZ);
 		memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
 		if (named++ == 0)
-			continue;
+			goto skip;
 		dot = strchr(old, ':');
 		if (dot == NULL) {
 			sprintf(old, ":%d", named);
@@ -1024,6 +1024,8 @@ static void inetdev_changename(struct net_device *dev, struct in_device *in_dev)
 		} else {
 			strcpy(ifa->ifa_label + (IFNAMSIZ - strlen(dot) - 1), dot);
 		}
+skip:
+		rtmsg_ifa(RTM_NEWADDR, ifa, NULL, 0);
 	}
 }
 
