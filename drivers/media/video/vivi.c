@@ -39,7 +39,7 @@
 #include <linux/highmem.h>
 #include <linux/freezer.h>
 
-#define MODULE_NAME "vivi"
+#define VIVI_MODULE_NAME "vivi"
 
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
@@ -1022,11 +1022,11 @@ static int vivi_release(void)
 		if (-1 != dev->vfd->minor) {
 			video_unregister_device(dev->vfd);
 			printk(KERN_INFO "%s: /dev/video%d unregistered.\n",
-				MODULE_NAME, dev->vfd->minor);
+				VIVI_MODULE_NAME, dev->vfd->minor);
 		} else {
 			video_device_release(dev->vfd);
 			printk(KERN_INFO "%s: /dev/video%d released.\n",
-				MODULE_NAME, dev->vfd->minor);
+				VIVI_MODULE_NAME, dev->vfd->minor);
 		}
 
 		kfree(dev);
@@ -1139,7 +1139,7 @@ static int __init vivi_init(void)
 
 		dev->vfd = vfd;
 		printk(KERN_INFO "%s: V4L2 device registered as /dev/video%d\n",
-			MODULE_NAME, vfd->minor);
+			VIVI_MODULE_NAME, vfd->minor);
 	}
 
 	if (ret < 0) {
