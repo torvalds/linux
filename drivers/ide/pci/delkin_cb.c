@@ -47,13 +47,18 @@ static const struct ide_port_ops delkin_cb_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
+static const struct ide_port_info delkin_cb_port_info = {
+	.port_ops		= &delkin_cb_port_ops,
+	.host_flags		= IDE_HFLAG_IO_32BIT | IDE_HFLAG_UNMASK_IRQS |
+				  IDE_HFLAG_NO_DMA,
+};
+
 static int __devinit
 delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 {
 	unsigned long base;
 	hw_regs_t hw;
 	ide_hwif_t *hwif = NULL;
-	ide_drive_t *drive;
 	int i, rc;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
@@ -90,22 +95,16 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 	ide_init_port_data(hwif, i);
 	ide_init_port_hw(hwif, &hw);
-	hwif->port_ops = &delkin_cb_port_ops;
 
 	idx[0] = i;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, &delkin_cb_port_info);
 
 	if (!hwif->present)
 		goto out_disable;
 
 	pci_set_drvdata(dev, hwif);
 
-	drive = &hwif->drives[0];
-	if (drive->present) {
-		drive->io_32bit = 1;
-		drive->unmask   = 1;
-	}
 	return 0;
 
 out_disable:
