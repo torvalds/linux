@@ -653,6 +653,7 @@ multi_t2_fnd:
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
 	spin_unlock(&GlobalMid_Lock);
+	wake_up_all(&server->response_q);
 
 	/* don't exit until kthread_stop is called */
 	set_current_state(TASK_UNINTERRUPTIBLE);
