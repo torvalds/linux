@@ -602,7 +602,8 @@ static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 	 * This makes locking act as a cache coherency point.
 	 */
 	nfs_sync_mapping(filp->f_mapping);
-	nfs_zap_caches(inode);
+	if (!nfs_have_delegation(inode, FMODE_READ))
+		nfs_zap_caches(inode);
 out:
 	return status;
 }
