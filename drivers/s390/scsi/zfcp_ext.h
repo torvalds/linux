@@ -103,7 +103,6 @@ extern int  zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *,
 					   struct zfcp_unit *,
 					   struct scsi_cmnd *, int, int);
 extern int  zfcp_fsf_req_complete(struct zfcp_fsf_req *);
-extern void zfcp_fsf_incoming_els(struct zfcp_fsf_req *);
 extern void zfcp_fsf_req_free(struct zfcp_fsf_req *);
 extern struct zfcp_fsf_req *zfcp_fsf_send_fcp_command_task_management(
 	struct zfcp_adapter *, struct zfcp_unit *, u8, int);
@@ -111,11 +110,12 @@ extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(
 	unsigned long, struct zfcp_adapter *, struct zfcp_unit *, int);
 
 /******************************* FC/FCP **************************************/
+extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
+extern int  zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *);
+extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
+extern void  zfcp_test_link(struct zfcp_port *);
+
 extern int  zfcp_nameserver_enqueue(struct zfcp_adapter *);
-extern int  zfcp_ns_gid_pn_request(struct zfcp_erp_action *);
-extern int  zfcp_check_ct_response(struct ct_hdr *);
-extern int  zfcp_handle_els_rjt(u32, struct zfcp_ls_rjt_par *);
-extern void zfcp_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 
 /******************************* SCSI ****************************************/
 extern int  zfcp_adapter_scsi_register(struct zfcp_adapter *);
@@ -157,8 +157,6 @@ extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern int  zfcp_erp_thread_kill(struct zfcp_adapter *);
 extern int  zfcp_erp_wait(struct zfcp_adapter *);
 extern void zfcp_erp_async_handler(struct zfcp_erp_action *, unsigned long);
-
-extern int  zfcp_test_link(struct zfcp_port *);
 
 extern void zfcp_erp_port_boxed(struct zfcp_port *, u8 id, void *ref);
 extern void zfcp_erp_unit_boxed(struct zfcp_unit *, u8 id, void *ref);

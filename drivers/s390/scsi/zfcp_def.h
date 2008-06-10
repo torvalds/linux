@@ -223,9 +223,9 @@ struct fcp_rsp_iu {
 #define RSP_CODE_TASKMAN_FAILED	 5
 
 /* see fc-fs */
-#define LS_RSCN  0x61040000
-#define LS_LOGO  0x05000000
-#define LS_PLOGI 0x03000000
+#define LS_RSCN  0x61
+#define LS_LOGO  0x05
+#define LS_PLOGI 0x03
 
 struct fcp_rscn_head {
         u8  command;
@@ -622,7 +622,6 @@ typedef void (*zfcp_send_ct_handler_t)(unsigned long);
  * @resp_count: number of elements in response scatter-gather list
  * @handler: handler function (called for response to the request)
  * @handler_data: data passed to handler function
- * @pool: pointer to memory pool for ct request structure
  * @timeout: FSF timeout for this request
  * @completion: completion for synchronization purposes
  * @status: used to pass error status to calling function
@@ -635,7 +634,6 @@ struct zfcp_send_ct {
 	unsigned int resp_count;
 	zfcp_send_ct_handler_t handler;
 	unsigned long handler_data;
-	mempool_t *pool;
 	int timeout;
 	struct completion *completion;
 	int status;

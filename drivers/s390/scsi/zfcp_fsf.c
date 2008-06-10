@@ -848,7 +848,7 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
 	case FSF_STATUS_READ_INCOMING_ELS:
-		zfcp_fsf_incoming_els(fsf_req);
+		zfcp_fc_incoming_els(fsf_req);
 		break;
 
 	case FSF_STATUS_READ_SENSE_DATA_AVAIL:
@@ -1742,10 +1742,6 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 			break;
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 			fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-			retval =
-			  zfcp_handle_els_rjt(header->fsf_status_qual.word[1],
-					      (struct zfcp_ls_rjt_par *)
-					      &header->fsf_status_qual.word[2]);
 			break;
 		case FSF_SQ_RETRY_IF_POSSIBLE:
 			fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -2534,7 +2530,7 @@ zfcp_fsf_open_port_handler(struct zfcp_fsf_req *fsf_req)
 						&port->status);
 				} else {
 					port->wwnn = plogi->serv_param.wwnn;
-					zfcp_plogi_evaluate(port, plogi);
+					zfcp_fc_plogi_evaluate(port, plogi);
 				}
 			}
 		}

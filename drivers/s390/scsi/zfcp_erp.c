@@ -23,9 +23,6 @@
 
 #include "zfcp_ext.h"
 
-static int zfcp_erp_adisc(struct zfcp_port *);
-static void zfcp_erp_adisc_handler(unsigned long);
-
 static int zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *, int, u8,
 					    void *);
 static int zfcp_erp_port_forced_reopen_internal(struct zfcp_port *, int, u8,
@@ -291,189 +288,6 @@ int zfcp_erp_unit_shutdown(struct zfcp_unit *unit, int clear_mask, u8 id,
 
 	return retval;
 }
-
-
-/**
- * zfcp_erp_adisc - send ADISC ELS command
- * @port: port structure
- */
-static int
-zfcp_erp_adisc(struct zfcp_port *port)
-{
-	struct zfcp_adapter *adapter = port->adapter;
-	struct zfcp_send_els *send_els;
-	struct zfcp_ls_adisc *adisc;
-	void *address = NULL;
-	int retval = 0;
-
-	send_els = kzalloc(sizeof(struct zfcp_send_els), GFP_ATOMIC);
-	if (send_els == NULL)
-		goto nomem;
-
-	send_els->req = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
-	if (send_els->req == NULL)
-		goto nomem;
-	sg_init_table(send_els->req, 1);
-
-	send_els->resp = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
-	if (send_els->resp == NULL)
-		goto nomem;
-	sg_init_table(send_els->resp, 1);
-
-	address = (void *) get_zeroed_page(GFP_ATOMIC);
-	if (address == NULL)
-		goto nomem;
-
-	zfcp_address_to_sg(address, send_els->req, sizeof(struct zfcp_ls_adisc));
-	address += PAGE_SIZE >> 1;
-	zfcp_address_to_sg(address, send_els->resp, sizeof(struct zfcp_ls_adisc_acc));
-	send_els->req_count = send_els->resp_count = 1;
-
-	send_els->adapter = adapter;
-	send_els->port = port;
-	send_els->d_id = port->d_id;
-	send_els->handler = zfcp_erp_adisc_handler;
-	send_els->handler_data = (unsigned long) send_els;
-
-	adisc = zfcp_sg_to_address(send_els->req);
-	send_els->ls_code = adisc->code = ZFCP_LS_ADISC;
-
-	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
-	   without FC-AL-2 capability, so we don't set it */
-	adisc->wwpn = fc_host_port_name(adapter->scsi_host);
-	adisc->wwnn = fc_host_node_name(adapter->scsi_host);
-	adisc->nport_id = fc_host_port_id(adapter->scsi_host);
-	ZFCP_LOG_INFO("ADISC request from s_id 0x%06x to d_id 0x%06x "
-		      "(wwpn=0x%016Lx, wwnn=0x%016Lx, "
-		      "hard_nport_id=0x%06x, nport_id=0x%06x)\n",
-		      adisc->nport_id, send_els->d_id, (wwn_t) adisc->wwpn,
-		      (wwn_t) adisc->wwnn, adisc->hard_nport_id,
-		      adisc->nport_id);
-
-	retval = zfcp_fsf_send_els(send_els);
-	if (retval != 0) {
-		ZFCP_LOG_NORMAL("error: initiation of Send ELS failed for port "
-				"0x%06x on adapter %s\n", send_els->d_id,
-				zfcp_get_busid_by_adapter(adapter));
-		goto freemem;
-	}
-
-	goto out;
-
- nomem:
-	retval = -ENOMEM;
- freemem:
-	if (address != NULL)
-		__free_pages(sg_page(send_els->req), 0);
-	if (send_els != NULL) {
-		kfree(send_els->req);
-		kfree(send_els->resp);
-		kfree(send_els);
-	}
- out:
-	return retval;
-}
-
-
-/**
- * zfcp_erp_adisc_handler - handler for ADISC ELS command
- * @data: pointer to struct zfcp_send_els
- *
- * If ADISC failed (LS_RJT or timed out) forced reopen of the port is triggered.
- */
-static void
-zfcp_erp_adisc_handler(unsigned long data)
-{
-	struct zfcp_send_els *send_els;
-	struct zfcp_port *port;
-	struct zfcp_adapter *adapter;
-	u32 d_id;
-	struct zfcp_ls_adisc_acc *adisc;
-
-	send_els = (struct zfcp_send_els *) data;
-	adapter = send_els->adapter;
-	port = send_els->port;
-	d_id = send_els->d_id;
-
-	/* request rejected or timed out */
-	if (send_els->status != 0) {
-		ZFCP_LOG_NORMAL("ELS request rejected/timed out, "
-				"force physical port reopen "
-				"(adapter %s, port d_id=0x%06x)\n",
-				zfcp_get_busid_by_adapter(adapter), d_id);
-		if (zfcp_erp_port_forced_reopen(port, 0, 63, NULL))
-			ZFCP_LOG_NORMAL("failed reopen of port "
-					"(adapter %s, wwpn=0x%016Lx)\n",
-					zfcp_get_busid_by_port(port),
-					port->wwpn);
-		goto out;
-	}
-
-	adisc = zfcp_sg_to_address(send_els->resp);
-
-	ZFCP_LOG_INFO("ADISC response from d_id 0x%06x to s_id "
-		      "0x%06x (wwpn=0x%016Lx, wwnn=0x%016Lx, "
-		      "hard_nport_id=0x%06x, nport_id=0x%06x)\n",
-		      d_id, fc_host_port_id(adapter->scsi_host),
-		      (wwn_t) adisc->wwpn, (wwn_t) adisc->wwnn,
-		      adisc->hard_nport_id, adisc->nport_id);
-
-	/* set wwnn for port */
-	if (port->wwnn == 0)
-		port->wwnn = adisc->wwnn;
-
-	if (port->wwpn != adisc->wwpn) {
-		ZFCP_LOG_NORMAL("d_id assignment changed, reopening "
-				"port (adapter %s, wwpn=0x%016Lx, "
-				"adisc_resp_wwpn=0x%016Lx)\n",
-				zfcp_get_busid_by_port(port),
-				port->wwpn, (wwn_t) adisc->wwpn);
-		if (zfcp_erp_port_reopen(port, 0, 64, NULL))
-			ZFCP_LOG_NORMAL("failed reopen of port "
-					"(adapter %s, wwpn=0x%016Lx)\n",
-					zfcp_get_busid_by_port(port),
-					port->wwpn);
-	}
-
- out:
-	zfcp_port_put(port);
-	__free_pages(sg_page(send_els->req), 0);
-	kfree(send_els->req);
-	kfree(send_els->resp);
-	kfree(send_els);
-}
-
-
-/**
- * zfcp_test_link - lightweight link test procedure
- * @port: port to be tested
- *
- * Test status of a link to a remote port using the ELS command ADISC.
- */
-int
-zfcp_test_link(struct zfcp_port *port)
-{
-	int retval;
-
-	zfcp_port_get(port);
-	retval = zfcp_erp_adisc(port);
-	if (retval != 0 && retval != -EBUSY) {
-		zfcp_port_put(port);
-		ZFCP_LOG_NORMAL("reopen needed for port 0x%016Lx "
-				"on adapter %s\n ", port->wwpn,
-				zfcp_get_busid_by_port(port));
-		retval = zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
-		if (retval != 0) {
-			ZFCP_LOG_NORMAL("reopen of remote port 0x%016Lx "
-					"on adapter %s failed\n", port->wwpn,
-					zfcp_get_busid_by_port(port));
-			retval = -EPERM;
-		}
-	}
-
-	return retval;
-}
-
 
 /*
  * function:
@@ -2564,7 +2378,7 @@ zfcp_erp_port_strategy_open_common_lookup(struct zfcp_erp_action *erp_action)
 {
 	int retval;
 
-	retval = zfcp_ns_gid_pn_request(erp_action);
+	retval = zfcp_fc_ns_gid_pn_request(erp_action);
 	if (retval == -ENOMEM) {
 		retval = ZFCP_ERP_NOMEM;
 		goto out;
