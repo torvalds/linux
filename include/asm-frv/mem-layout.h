@@ -31,6 +31,13 @@
 
 #define PAGE_MASK			(~(PAGE_SIZE-1))
 
+/*
+ * the slab must be aligned such that load- and store-double instructions don't
+ * fault if used
+ */
+#define	ARCH_KMALLOC_MINALIGN		8
+#define	ARCH_SLAB_MINALIGN		8
+
 /*****************************************************************************/
 /*
  * virtual memory layout from kernel's point of view

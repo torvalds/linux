@@ -459,7 +459,7 @@ static int falcon_check_xaui_link_up(struct efx_nic *efx)
 		tries--;
 	}
 
-	EFX_ERR(efx, "Failed to bring XAUI link back up in %d tries!\n",
+	EFX_LOG(efx, "Failed to bring XAUI link back up in %d tries!\n",
 		max_tries);
 	return 0;
 }

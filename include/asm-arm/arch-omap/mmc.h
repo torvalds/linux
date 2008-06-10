@@ -15,21 +15,16 @@
 #include <linux/device.h>
 #include <linux/mmc/host.h>
 
+#include <asm/arch/board.h>
+
 #define OMAP_MMC_MAX_SLOTS	2
 
 struct omap_mmc_platform_data {
 	struct omap_mmc_conf	conf;
 
-	unsigned enabled:1;
 	/* number of slots on board */
 	unsigned nr_slots:2;
-	/* nomux means "standard" muxing is wrong on this board, and that
-	 * board-specific code handled it before common init logic.
-	 */
-	unsigned nomux:1;
-	/* 4 wire signaling is optional, and is only used for SD/SDIO and
-	 * MMCv4 */
-	unsigned wire4:1;
+
 	/* set if your board has components or wiring that limits the
 	 * maximum frequency on the MMC bus */
 	unsigned int max_freq;
@@ -40,6 +35,11 @@ struct omap_mmc_platform_data {
 	 * not supported */
 	int (* init)(struct device *dev);
 	void (* cleanup)(struct device *dev);
+	void (* shutdown)(struct device *dev);
+
+	/* To handle board related suspend/resume functionality for MMC */
+	int (*suspend)(struct device *dev, int slot);
+	int (*resume)(struct device *dev, int slot);
 
 	struct omap_mmc_slot_data {
 		int (* set_bus_mode)(struct device *dev, int slot, int bus_mode);
@@ -56,13 +56,19 @@ struct omap_mmc_platform_data {
 
 		const char *name;
 		u32 ocr_mask;
+
+		/* Card detection IRQs */
+		int card_detect_irq;
+		int (* card_detect)(int irq);
+
+		unsigned int ban_openended:1;
+
 	} slots[OMAP_MMC_MAX_SLOTS];
 };
 
 extern void omap_set_mmc_info(int host, const struct omap_mmc_platform_data *info);
 
 /* called from board-specific card detection service routine */
-extern void omap_mmc_notify_card_detect(struct device *dev, int slot, int detected);
 extern void omap_mmc_notify_cover_event(struct device *dev, int slot, int is_closed);
 
 #endif

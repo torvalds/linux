@@ -19,7 +19,6 @@
 
 #include <asm/cio.h>
 #include <asm/uaccess.h>
-#include <asm/cio.h>
 
 #include "blacklist.h"
 #include "cio.h"

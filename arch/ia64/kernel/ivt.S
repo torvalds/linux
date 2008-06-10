@@ -1076,48 +1076,6 @@ END(ia64_syscall_setup)
 	DBG_FAULT(15)
 	FAULT(15)
 
-	/*
-	 * Squatting in this space ...
-	 *
-	 * This special case dispatcher for illegal operation faults allows preserved
-	 * registers to be modified through a callback function (asm only) that is handed
-	 * back from the fault handler in r8. Up to three arguments can be passed to the
-	 * callback function by returning an aggregate with the callback as its first
-	 * element, followed by the arguments.
-	 */
-ENTRY(dispatch_illegal_op_fault)
-	.prologue
-	.body
-	SAVE_MIN_WITH_COVER
-	ssm psr.ic | PSR_DEFAULT_BITS
-	;;
-	srlz.i		// guarantee that interruption collection is on
-	;;
-(p15)	ssm psr.i	// restore psr.i
-	adds r3=8,r2	// set up second base pointer for SAVE_REST
-	;;
-	alloc r14=ar.pfs,0,0,1,0	// must be first in insn group
-	mov out0=ar.ec
-	;;
-	SAVE_REST
-	PT_REGS_UNWIND_INFO(0)
-	;;
-	br.call.sptk.many rp=ia64_illegal_op_fault
-.ret0:	;;
-	alloc r14=ar.pfs,0,0,3,0	// must be first in insn group
-	mov out0=r9
-	mov out1=r10
-	mov out2=r11
-	movl r15=ia64_leave_kernel
-	;;
-	mov rp=r15
-	mov b6=r8
-	;;
-	cmp.ne p6,p0=0,r8
-(p6)	br.call.dpnt.many b6=b6		// call returns to ia64_leave_kernel
-	br.sptk.many ia64_leave_kernel
-END(dispatch_illegal_op_fault)
-
 	.org ia64_ivt+0x4000
 /////////////////////////////////////////////////////////////////////////////////////////
 // 0x4000 Entry 16 (size 64 bundles) Reserved
@@ -1714,6 +1672,48 @@ END(ia32_interrupt)
 // 0x7f00 Entry 67 (size 16 bundles) Reserved
 	DBG_FAULT(67)
 	FAULT(67)
+
+	/*
+	 * Squatting in this space ...
+	 *
+	 * This special case dispatcher for illegal operation faults allows preserved
+	 * registers to be modified through a callback function (asm only) that is handed
+	 * back from the fault handler in r8. Up to three arguments can be passed to the
+	 * callback function by returning an aggregate with the callback as its first
+	 * element, followed by the arguments.
+	 */
+ENTRY(dispatch_illegal_op_fault)
+	.prologue
+	.body
+	SAVE_MIN_WITH_COVER
+	ssm psr.ic | PSR_DEFAULT_BITS
+	;;
+	srlz.i		// guarantee that interruption collection is on
+	;;
+(p15)	ssm psr.i	// restore psr.i
+	adds r3=8,r2	// set up second base pointer for SAVE_REST
+	;;
+	alloc r14=ar.pfs,0,0,1,0	// must be first in insn group
+	mov out0=ar.ec
+	;;
+	SAVE_REST
+	PT_REGS_UNWIND_INFO(0)
+	;;
+	br.call.sptk.many rp=ia64_illegal_op_fault
+.ret0:	;;
+	alloc r14=ar.pfs,0,0,3,0	// must be first in insn group
+	mov out0=r9
+	mov out1=r10
+	mov out2=r11
+	movl r15=ia64_leave_kernel
+	;;
+	mov rp=r15
+	mov b6=r8
+	;;
+	cmp.ne p6,p0=0,r8
+(p6)	br.call.dpnt.many b6=b6		// call returns to ia64_leave_kernel
+	br.sptk.many ia64_leave_kernel
+END(dispatch_illegal_op_fault)
 
 #ifdef CONFIG_IA32_SUPPORT
 

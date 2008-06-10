@@ -672,8 +672,6 @@ static int saa7127_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	snprintf(client->name, sizeof(client->name) - 1, "saa7127");
-
 	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n",
 			client->addr << 1);
 
@@ -741,11 +739,18 @@ static int saa7127_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+static struct i2c_device_id saa7127_id[] = {
+	{ "saa7127", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, saa7127_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7127",
 	.driverid = I2C_DRIVERID_SAA7127,
 	.command = saa7127_command,
 	.probe = saa7127_probe,
 	.remove = saa7127_remove,
+	.id_table = saa7127_id,
 };
 

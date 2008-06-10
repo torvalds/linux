@@ -420,7 +420,7 @@ void udp_err(struct sk_buff *skb, u32 info)
 /*
  * Throw away all pending data and cancel the corking. Socket is locked.
  */
-static void udp_flush_pending_frames(struct sock *sk)
+void udp_flush_pending_frames(struct sock *sk)
 {
 	struct udp_sock *up = udp_sk(sk);
 
@@ -430,6 +430,7 @@ static void udp_flush_pending_frames(struct sock *sk)
 		ip_flush_pending_frames(sk);
 	}
 }
+EXPORT_SYMBOL(udp_flush_pending_frames);
 
 /**
  * 	udp4_hwcsum_outgoing  -  handle outgoing HW checksumming

@@ -588,35 +588,33 @@ read_descriptors(struct kobject *kobj, struct bin_attribute *attr,
 			container_of(kobj, struct device, kobj));
 	size_t nleft = count;
 	size_t srclen, n;
+	int cfgno;
+	void *src;
 
-	usb_lock_device(udev);
-
-	/* The binary attribute begins with the device descriptor */
-	srclen = sizeof(struct usb_device_descriptor);
-	if (off < srclen) {
-		n = min_t(size_t, nleft, srclen - off);
-		memcpy(buf, off + (char *) &udev->descriptor, n);
-		nleft -= n;
-		buf += n;
-		off = 0;
-	} else {
-		off -= srclen;
-	}
-
-	/* Then follows the raw descriptor entry for the current
-	 * configuration (config plus subsidiary descriptors).
+	/* The binary attribute begins with the device descriptor.
+	 * Following that are the raw descriptor entries for all the
+	 * configurations (config plus subsidiary descriptors).
 	 */
-	if (udev->actconfig) {
-		int cfgno = udev->actconfig - udev->config;
-
-		srclen = __le16_to_cpu(udev->actconfig->desc.wTotalLength);
+	for (cfgno = -1; cfgno < udev->descriptor.bNumConfigurations &&
+			nleft > 0; ++cfgno) {
+		if (cfgno < 0) {
+			src = &udev->descriptor;
+			srclen = sizeof(struct usb_device_descriptor);
+		} else {
+			src = udev->rawdescriptors[cfgno];
+			srclen = __le16_to_cpu(udev->config[cfgno].desc.
+					wTotalLength);
+		}
 		if (off < srclen) {
-			n = min_t(size_t, nleft, srclen - off);
-			memcpy(buf, off + udev->rawdescriptors[cfgno], n);
+			n = min(nleft, srclen - (size_t) off);
+			memcpy(buf, src + off, n);
 			nleft -= n;
+			buf += n;
+			off = 0;
+		} else {
+			off -= srclen;
 		}
 	}
-	usb_unlock_device(udev);
 	return count - nleft;
 }
 

@@ -3582,7 +3582,7 @@ static int checksetup(struct aha152x_setup *setup)
 	if (i == ARRAY_SIZE(ports))
 		return 0;
 
-	if ( request_region(setup->io_port, IO_RANGE, "aha152x")==0 ) {
+	if (!request_region(setup->io_port, IO_RANGE, "aha152x")) {
 		printk(KERN_ERR "aha152x: io port 0x%x busy.\n", setup->io_port);
 		return 0;
 	}
@@ -3842,7 +3842,7 @@ static int __init aha152x_init(void)
 			if ((setup_count == 1) && (setup[0].io_port == ports[i]))
 				continue;
 
-			if ( request_region(ports[i], IO_RANGE, "aha152x")==0 ) {
+			if (!request_region(ports[i], IO_RANGE, "aha152x")) {
 				printk(KERN_ERR "aha152x: io port 0x%x busy.\n", ports[i]);
 				continue;
 			}

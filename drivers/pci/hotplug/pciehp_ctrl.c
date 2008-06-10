@@ -55,15 +55,12 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 	return 0;
 }
 
-u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
+u8 pciehp_handle_attention_button(struct slot *p_slot)
 {
-	struct slot *p_slot;
 	u32 event_type;
 
 	/* Attention Button Change */
 	dbg("pciehp:  Attention button interrupt received.\n");
-
-	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	/*
 	 *  Button pressed - See if need to TAKE ACTION!!!
@@ -76,18 +73,15 @@ u8 pciehp_handle_attention_button(u8 hp_slot, struct controller *ctrl)
 	return 0;
 }
 
-u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
+u8 pciehp_handle_switch_change(struct slot *p_slot)
 {
-	struct slot *p_slot;
 	u8 getstatus;
 	u32 event_type;
 
 	/* Switch Change */
 	dbg("pciehp:  Switch interrupt received.\n");
 
-	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
-
 	if (getstatus) {
 		/*
 		 * Switch opened
@@ -107,16 +101,13 @@ u8 pciehp_handle_switch_change(u8 hp_slot, struct controller *ctrl)
 	return 1;
 }
 
-u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
+u8 pciehp_handle_presence_change(struct slot *p_slot)
 {
-	struct slot *p_slot;
 	u32 event_type;
 	u8 presence_save;
 
 	/* Presence Change */
 	dbg("pciehp:  Presence/Notify input change.\n");
-
-	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	/* Switch is open, assume a presence change
 	 * Save the presence state
@@ -141,15 +132,12 @@ u8 pciehp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 	return 1;
 }
 
-u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
+u8 pciehp_handle_power_fault(struct slot *p_slot)
 {
-	struct slot *p_slot;
 	u32 event_type;
 
 	/* power fault */
 	dbg("pciehp:  Power fault interrupt received.\n");
-
-	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	if ( !(p_slot->hpc_ops->query_power_fault(p_slot))) {
 		/*
@@ -163,7 +151,7 @@ u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 		 */
 		info("Power fault on Slot(%s)\n", p_slot->name);
 		event_type = INT_POWER_FAULT;
-		info("power fault bit %x set\n", hp_slot);
+		info("power fault bit %x set\n", 0);
 	}
 
 	queue_interrupt_event(p_slot, event_type);
@@ -185,6 +173,13 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 			return;
 		}
 	}
+
+	/*
+	 * After turning power off, we must wait for at least 1 second
+	 * before taking any action that relies on power having been
+	 * removed from the slot/adapter.
+	 */
+	msleep(1000);
 
 	if (PWR_LED(ctrl))
 		pslot->hpc_ops->green_led_off(pslot);
@@ -288,6 +283,13 @@ static int remove_board(struct slot *p_slot)
 			return retval;
 		}
 	}
+
+	/*
+	 * After turning power off, we must wait for at least 1 second
+	 * before taking any action that relies on power having been
+	 * removed from the slot/adapter.
+	 */
+	msleep(1000);
 
 	if (PWR_LED(ctrl))
 		/* turn off Green LED */

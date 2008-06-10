@@ -15,12 +15,16 @@
 
 /* Multi-Issue Instruction with dsp32shiftimm in slot1 and P-reg Store in slot2 Not Supported */
 #define ANOMALY_05000074 (1)
+/* DMA_RUN Bit Is Not Valid after a Peripheral Receive Channel DMA Stops */
+#define ANOMALY_05000119 (1)
 /* Rx.H Cannot Be Used to Access 16-bit System MMR Registers */
 #define ANOMALY_05000122 (1)
 /* Spurious Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (1)
 /* Sensitivity To Noise with Slow Input Edge Rates on External SPORT TX and RX Clocks */
 #define ANOMALY_05000265 (1)
+/* Errors when SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
+#define ANOMALY_05000312 (1)
 /* Incorrect Access of OTP_STATUS During otp_write() Function */
 #define ANOMALY_05000328 (1)
 /* Disallowed Configuration Prevents Subsequent Allowed Configuration on Host DMA Port */
@@ -92,7 +96,6 @@
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000273 (0)
 #define ANOMALY_05000311 (0)
-#define ANOMALY_05000312 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000363 (0)
 

@@ -1145,7 +1145,6 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 
 			/* Higher rate not available, use the original */
 			} else {
-				new_rate = rate;
 				break;
 			}
 		}
@@ -1977,7 +1976,7 @@ lq_update:
 	 * 2)  Not just finishing up a search
 	 * 3)  Allowing a new search
 	 */
-	if (!update_lq && !done_search && !lq_sta->stay_in_tbl) {
+	if (!update_lq && !done_search && !lq_sta->stay_in_tbl && window->counter) {
 		/* Save current throughput to compare with "search" throughput*/
 		lq_sta->last_tpt = current_tpt;
 

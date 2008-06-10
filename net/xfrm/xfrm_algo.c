@@ -200,8 +200,8 @@ static struct xfrm_algo_desc aalg_list[] = {
 	}
 },
 {
-	.name = "hmac(ripemd160)",
-	.compat = "ripemd160",
+	.name = "hmac(rmd160)",
+	.compat = "rmd160",
 
 	.uinfo = {
 		.auth = {

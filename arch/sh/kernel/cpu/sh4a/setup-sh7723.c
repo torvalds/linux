@@ -153,7 +153,7 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(VIO_VOUI,0x8E0),
 
 	INTC_VECT(SCIFA_SCIFA0,0x900),
-	INTC_VECT(VPU_VPUI,0x920),
+	INTC_VECT(VPU_VPUI,0x980),
 	INTC_VECT(TPU_TPUI,0x9A0),
 	INTC_VECT(ADC_ADI,0x9E0),
 	INTC_VECT(USB_USI0,0xA20),
@@ -291,10 +291,4 @@ static DECLARE_INTC_DESC(intc_desc, "sh7723", vectors, groups,
 void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
-}
-
-void __init plat_mem_setup(void)
-{
-	/* Register the URAM space as Node 1 */
-	setup_bootmem_node(1, 0x055f0000, 0x05610000);
 }

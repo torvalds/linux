@@ -187,7 +187,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
-	return genlmsg_cancel(msg, hdr);
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
 }
 
 static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
@@ -273,7 +274,8 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
-	return genlmsg_cancel(msg, hdr);
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
 }
 
 static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *cb)
@@ -928,7 +930,8 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
-	return genlmsg_cancel(msg, hdr);
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
 }
 
 static int nl80211_dump_station(struct sk_buff *skb,
@@ -1267,7 +1270,8 @@ static int nl80211_send_mpath(struct sk_buff *msg, u32 pid, u32 seq,
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
-	return genlmsg_cancel(msg, hdr);
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
 }
 
 static int nl80211_dump_mpath(struct sk_buff *skb,

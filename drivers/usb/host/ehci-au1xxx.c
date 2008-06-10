@@ -223,6 +223,7 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 	.bus_suspend = ehci_bus_suspend,
 	.bus_resume = ehci_bus_resume,
 	.relinquish_port = ehci_relinquish_port,
+	.port_handed_over = ehci_port_handed_over,
 };
 
 /*-------------------------------------------------------------------------*/

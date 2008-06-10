@@ -60,7 +60,7 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 		switch (status) {
 			default:
 				printk(KERN_ERR "%s: unhandled error %d.\n",
-						__FUNCTION__, status);
+						__func__, status);
 			case -NFS4ERR_EXPIRED:
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 			case -NFS4ERR_STALE_CLIENTID:
@@ -186,7 +186,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 		 */
 		dfprintk(FILE, "%s: server %s handed out "
 				"a duplicate delegation!\n",
-				__FUNCTION__, clp->cl_hostname);
+				__func__, clp->cl_hostname);
 		if (delegation->type <= nfsi->delegation->type) {
 			freeme = delegation;
 			delegation = NULL;

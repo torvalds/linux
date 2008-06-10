@@ -30,7 +30,7 @@
 
 /*
  * Architecture-specific global PRM registers
- * Use prm_{read,write}_reg() with these registers.
+ * Use __raw_{read,write}l() with these registers.
  *
  * With a few exceptions, these are the register names beginning with
  * PRCM_* on 24xx, and PRM_* on 34xx.  (The exceptions are the

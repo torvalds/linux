@@ -129,14 +129,6 @@ to its default value of '80' it means that between the checking
 intervals the CPU needs to be on average more than 80% in use to then
 decide that the CPU frequency needs to be increased.  
 
-sampling_down_factor: this parameter controls the rate that the CPU
-makes a decision on when to decrease the frequency.  When set to its
-default value of '5' it means that at 1/5 the sampling_rate the kernel
-makes a decision to lower the frequency.  Five "lower rate" decisions
-have to be made in a row before the CPU frequency is actually lower.
-If set to '1' then the frequency decreases as quickly as it increases,
-if set to '2' it decreases at half the rate of the increase.
-
 ignore_nice_load: this parameter takes a value of '0' or '1'. When
 set to '0' (its default), all processes are counted towards the
 'cpu utilisation' value.  When set to '1', the processes that are

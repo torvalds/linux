@@ -541,8 +541,7 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int wait)
 	}
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
-	dput(ctx->path.dentry);
-	mntput(ctx->path.mnt);
+	path_put(&ctx->path);
 	kfree(ctx);
 }
 
@@ -707,6 +706,13 @@ int nfs_attribute_timeout(struct inode *inode)
 
 	if (nfs_have_delegation(inode, FMODE_READ))
 		return 0;
+	/*
+	 * Special case: if the attribute timeout is set to 0, then always
+	 * 		 treat the cache as having expired (unless holding
+	 * 		 a delegation).
+	 */
+	if (nfsi->attrtimeo == 0)
+		return 1;
 	return !time_in_range(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }
 
@@ -995,7 +1001,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	unsigned long now = jiffies;
 
 	dfprintk(VFS, "NFS: %s(%s/%ld ct=%d info=0x%x)\n",
-			__FUNCTION__, inode->i_sb->s_id, inode->i_ino,
+			__func__, inode->i_sb->s_id, inode->i_ino,
 			atomic_read(&inode->i_count), fattr->valid);
 
 	if (nfsi->fileid != fattr->fileid)
@@ -1119,7 +1125,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	 * Big trouble! The inode has become a different object.
 	 */
 	printk(KERN_DEBUG "%s: inode %ld mode changed, %07o to %07o\n",
-			__FUNCTION__, inode->i_ino, inode->i_mode, fattr->mode);
+			__func__, inode->i_ino, inode->i_mode, fattr->mode);
  out_err:
 	/*
 	 * No need to worry about unhashing the dentry, as the

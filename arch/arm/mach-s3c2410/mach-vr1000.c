@@ -263,7 +263,7 @@ static struct resource vr1000_dm9k0_resource[] = {
 	[2] = {
 		.start = IRQ_VR1000_DM9000A,
 		.end   = IRQ_VR1000_DM9000A,
-		.flags = IORESOURCE_IRQ
+		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
 	}
 
 };
@@ -282,7 +282,7 @@ static struct resource vr1000_dm9k1_resource[] = {
 	[2] = {
 		.start = IRQ_VR1000_DM9000N,
 		.end   = IRQ_VR1000_DM9000N,
-		.flags = IORESOURCE_IRQ
+		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
 	}
 };
 

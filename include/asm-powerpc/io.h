@@ -100,7 +100,7 @@ static inline type name(const volatile type __iomem *addr)		\
 {									\
 	type ret;							\
 	__asm__ __volatile__("sync;" insn ";twi 0,%0,0;isync"		\
- 		: "=r" (ret) : "r" (addr), "m" (*addr));		\
+		: "=r" (ret) : "r" (addr), "m" (*addr) : "memory");	\
 	return ret;							\
 }
 
@@ -108,8 +108,8 @@ static inline type name(const volatile type __iomem *addr)		\
 static inline void name(volatile type __iomem *addr, type val)		\
 {									\
 	__asm__ __volatile__("sync;" insn				\
- 		: "=m" (*addr) : "r" (val), "r" (addr));		\
-	IO_SET_SYNC_FLAG();					\
+		: "=m" (*addr) : "r" (val), "r" (addr) : "memory");	\
+	IO_SET_SYNC_FLAG();						\
 }
 
 
@@ -333,7 +333,8 @@ static inline unsigned int name(unsigned int port)	\
 		"	.long	3b,5b\n"		\
 		".previous"				\
 		: "=&r" (x)				\
-		: "r" (port + _IO_BASE));		\
+		: "r" (port + _IO_BASE)			\
+		: "memory");  				\
 	return x;					\
 }
 
@@ -350,7 +351,8 @@ static inline void name(unsigned int val, unsigned int port) \
 		"	.long	0b,2b\n"		\
 		"	.long	1b,2b\n"		\
 		".previous"				\
-		: : "r" (val), "r" (port + _IO_BASE));	\
+		: : "r" (val), "r" (port + _IO_BASE)	\
+		: "memory");   	   	   		\
 }
 
 __do_in_asm(_rec_inb, "lbzx")

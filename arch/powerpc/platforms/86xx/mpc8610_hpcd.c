@@ -43,6 +43,7 @@ static unsigned char *pixis_bdcfg0, *pixis_arch;
 
 static struct of_device_id __initdata mpc8610_ids[] = {
 	{ .compatible = "fsl,mpc8610-immr", },
+	{ .compatible = "simple-bus", },
 	{}
 };
 
@@ -216,11 +217,21 @@ void mpc8610hpcd_set_gamma_table(int monitor_port, char *gamma_table_base)
 	}
 }
 
+#define PX_BRDCFG0_DVISEL	(1 << 3)
+#define PX_BRDCFG0_DLINK	(1 << 4)
+#define PX_BRDCFG0_DIU_MASK	(PX_BRDCFG0_DVISEL | PX_BRDCFG0_DLINK)
+
 void mpc8610hpcd_set_monitor_port(int monitor_port)
 {
-	static const u8 bdcfg[] = {0xBD, 0xB5, 0xA5};
+	static const u8 bdcfg[] = {
+		PX_BRDCFG0_DVISEL | PX_BRDCFG0_DLINK,
+		PX_BRDCFG0_DLINK,
+		0,
+	};
+
 	if (monitor_port < 3)
-		*pixis_bdcfg0 = bdcfg[monitor_port];
+		clrsetbits_8(pixis_bdcfg0, PX_BRDCFG0_DIU_MASK,
+			     bdcfg[monitor_port]);
 }
 
 void mpc8610hpcd_set_pixel_clock(unsigned int pixclock)

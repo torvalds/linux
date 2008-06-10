@@ -1110,6 +1110,8 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
 	spin_unlock_irq(q->queue_lock);
 
+	blk_add_trace_msg(q, "elv switch: %s", e->elevator_type->elevator_name);
+
 	return 1;
 
 fail_register:

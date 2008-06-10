@@ -95,6 +95,9 @@ static int __init macide_init(void)
 	int irq;
 	hw_regs_t hw;
 
+	if (!MACH_IS_MAC)
+		return -ENODEV;
+
 	switch (macintosh_config->ide_type) {
 	case MAC_IDE_QUADRA:
 		base = IDE_BASE;

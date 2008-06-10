@@ -120,10 +120,10 @@ debug_entry_t* debug_exception_common(debug_info_t* id, int level,
 
 /* Debug Feature API: */
 
-debug_info_t* debug_register(char* name, int pages, int nr_areas,
+debug_info_t *debug_register(const char *name, int pages, int nr_areas,
                              int buf_size);
 
-debug_info_t *debug_register_mode(char *name, int pages, int nr_areas,
+debug_info_t *debug_register_mode(const char *name, int pages, int nr_areas,
 				  int buf_size, mode_t mode, uid_t uid,
 				  gid_t gid);
 

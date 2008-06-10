@@ -1227,7 +1227,14 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 				copied += used;
 				offset += used;
 			}
-			if (offset != skb->len)
+			/*
+			 * If recv_actor drops the lock (e.g. TCP splice
+			 * receive) the skb pointer might be invalid when
+			 * getting here: tcp_collapse might have deleted it
+			 * while aggregating skbs from the socket queue.
+			 */
+			skb = tcp_recv_skb(sk, seq-1, &offset);
+			if (!skb || (offset+1 != skb->len))
 				break;
 		}
 		if (tcp_hdr(skb)->fin) {

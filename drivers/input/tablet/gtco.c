@@ -830,7 +830,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	struct gtco             *gtco;
 	struct input_dev        *input_dev;
 	struct hid_descriptor   *hid_desc;
-	char                    *report = NULL;
+	char                    *report;
 	int                     result = 0, retry;
 	int			error;
 	struct usb_endpoint_descriptor *endpoint;
@@ -916,24 +916,22 @@ static int gtco_probe(struct usb_interface *usbinterface,
 					 le16_to_cpu(hid_desc->wDescriptorLength),
 					 5000); /* 5 secs */
 
-		if (result == le16_to_cpu(hid_desc->wDescriptorLength))
+		dbg("usb_control_msg result: %d", result);
+		if (result == le16_to_cpu(hid_desc->wDescriptorLength)) {
+			parse_hid_report_descriptor(gtco, report, result);
 			break;
+		}
 	}
 
+	kfree(report);
+
 	/* If we didn't get the report, fail */
-	dbg("usb_control_msg result: :%d", result);
 	if (result != le16_to_cpu(hid_desc->wDescriptorLength)) {
 		err("Failed to get HID Report Descriptor of size: %d",
 		    hid_desc->wDescriptorLength);
 		error = -EIO;
 		goto err_free_urb;
 	}
-
-	/* Now we parse the report */
-	parse_hid_report_descriptor(gtco, report, result);
-
-	/* Now we delete it */
-	kfree(report);
 
 	/* Create a device file node */
 	usb_make_path(gtco->usbdev, gtco->usbpath, sizeof(gtco->usbpath));
@@ -988,7 +986,6 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	usb_buffer_free(gtco->usbdev, REPORT_MAX_SIZE,
 			gtco->buffer, gtco->buf_dma);
  err_free_devs:
-	kfree(report);
 	input_free_device(input_dev);
 	kfree(gtco);
 	return error;

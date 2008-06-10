@@ -180,7 +180,7 @@ static int dino_cfg_read(struct pci_bus *bus, unsigned int devfn, int where,
 	void __iomem *base_addr = d->hba.base_addr;
 	unsigned long flags;
 
-	DBG("%s: %p, %d, %d, %d\n", __FUNCTION__, base_addr, devfn, where,
+	DBG("%s: %p, %d, %d, %d\n", __func__, base_addr, devfn, where,
 									size);
 	spin_lock_irqsave(&d->dinosaur_pen, flags);
 
@@ -215,7 +215,7 @@ static int dino_cfg_write(struct pci_bus *bus, unsigned int devfn, int where,
 	void __iomem *base_addr = d->hba.base_addr;
 	unsigned long flags;
 
-	DBG("%s: %p, %d, %d, %d\n", __FUNCTION__, base_addr, devfn, where,
+	DBG("%s: %p, %d, %d, %d\n", __func__, base_addr, devfn, where,
 									size);
 	spin_lock_irqsave(&d->dinosaur_pen, flags);
 
@@ -301,7 +301,7 @@ static void dino_disable_irq(unsigned int irq)
 	struct dino_device *dino_dev = irq_desc[irq].chip_data;
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 
-	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
+	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, irq);
 
 	/* Clear the matching bit in the IMR register */
 	dino_dev->imr &= ~(DINO_MASK_IRQ(local_irq));
@@ -314,7 +314,7 @@ static void dino_enable_irq(unsigned int irq)
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 	u32 tmp;
 
-	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
+	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, irq);
 
 	/*
 	** clear pending IRQ bits
@@ -340,7 +340,7 @@ static void dino_enable_irq(unsigned int irq)
 	tmp = __raw_readl(dino_dev->hba.base_addr+DINO_ILR);
 	if (tmp & DINO_MASK_IRQ(local_irq)) {
 		DBG(KERN_WARNING "%s(): IRQ asserted! (ILR 0x%x)\n",
-				__FUNCTION__, tmp);
+				__func__, tmp);
 		gsc_writel(dino_dev->txn_data, dino_dev->txn_addr);
 	}
 }
@@ -388,7 +388,7 @@ ilr_again:
 		int local_irq = __ffs(mask);
 		int irq = dino_dev->global_irq[local_irq];
 		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
-			__FUNCTION__, irq, intr_dev, mask);
+			__func__, irq, intr_dev, mask);
 		__do_IRQ(irq);
 		mask &= ~(1 << local_irq);
 	} while (mask);
@@ -566,7 +566,7 @@ dino_fixup_bus(struct pci_bus *bus)
 	int port_base = HBA_PORT_BASE(dino_dev->hba.hba_num);
 
 	DBG(KERN_WARNING "%s(0x%p) bus %d platform_data 0x%p\n",
-	    __FUNCTION__, bus, bus->secondary, 
+	    __func__, bus, bus->secondary,
 	    bus->bridge->platform_data);
 
 	/* Firmware doesn't set up card-mode dino, so we have to */
