@@ -223,15 +223,17 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 		break;
 	}
 
-	/* Set the system indicators to show the desired sleep state. */
-
+	/*
+	 * Set the system indicators to show the desired sleep state.
+	 * _SST is an optional method (return no error if not found)
+	 */
 	status = acpi_evaluate_object(NULL, METHOD_NAME__SST, &arg_list, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While executing method _SST"));
 	}
 
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
