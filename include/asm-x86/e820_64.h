@@ -22,8 +22,6 @@ extern int is_memory_any_valid(unsigned long start, unsigned long end);
 extern int e820_all_non_reserved(unsigned long start, unsigned long end);
 extern int is_memory_all_valid(unsigned long start, unsigned long end);
 
-extern void finish_e820_parsing(void);
-
 #endif/*!__ASSEMBLY__*/
 
 #endif/*__E820_HEADER*/

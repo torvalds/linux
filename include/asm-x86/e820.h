@@ -98,6 +98,8 @@ extern int e820_find_active_region(const struct e820entry *ei,
 extern void e820_register_active_regions(int nid, unsigned long start_pfn,
 					 unsigned long end_pfn);
 extern u64 e820_hole_size(u64 start, u64 end);
+extern void finish_e820_parsing(void);
+
 #endif /* __ASSEMBLY__ */
 
 #define ISA_START_ADDRESS	0xa0000

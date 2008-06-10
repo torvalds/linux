@@ -19,9 +19,7 @@
 #ifndef __ASSEMBLY__
 
 extern void setup_memory_map(void);
-extern void finish_e820_parsing(void);
 
-extern void limit_regions(unsigned long long size);
 extern void init_iomem_resources(struct resource *code_resource,
 				 struct resource *data_resource,
 				 struct resource *bss_resource);

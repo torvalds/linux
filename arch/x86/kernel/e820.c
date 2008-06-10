@@ -890,3 +890,89 @@ u64 __init e820_hole_size(u64 start, u64 end)
 	}
 	return end - start - ((u64)ram << PAGE_SHIFT);
 }
+
+static void early_panic(char *msg)
+{
+	early_printk(msg);
+	panic(msg);
+}
+
+/* "mem=nopentium" disables the 4MB page tables. */
+static int __init parse_memopt(char *p)
+{
+	u64 mem_size;
+
+	if (!p)
+		return -EINVAL;
+
+#ifdef CONFIG_X86_32
+	if (!strcmp(p, "nopentium")) {
+		setup_clear_cpu_cap(X86_FEATURE_PSE);
+		return 0;
+	}
+#endif
+
+	mem_size = memparse(p, &p);
+	end_user_pfn = mem_size>>PAGE_SHIFT;
+	return 0;
+}
+early_param("mem", parse_memopt);
+
+static int userdef __initdata;
+
+static int __init parse_memmap_opt(char *p)
+{
+	char *oldp;
+	u64 start_at, mem_size;
+
+	if (!strcmp(p, "exactmap")) {
+#ifdef CONFIG_CRASH_DUMP
+		/*
+		 * If we are doing a crash dump, we still need to know
+		 * the real mem size before original memory map is
+		 * reset.
+		 */
+		e820_register_active_regions(0, 0, -1UL);
+		saved_max_pfn = e820_end_of_ram();
+		remove_all_active_ranges();
+#endif
+		e820.nr_map = 0;
+		userdef = 1;
+		return 0;
+	}
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
+
+	userdef = 1;
+	if (*p == '@') {
+		start_at = memparse(p+1, &p);
+		add_memory_region(start_at, mem_size, E820_RAM);
+	} else if (*p == '#') {
+		start_at = memparse(p+1, &p);
+		add_memory_region(start_at, mem_size, E820_ACPI);
+	} else if (*p == '$') {
+		start_at = memparse(p+1, &p);
+		add_memory_region(start_at, mem_size, E820_RESERVED);
+	} else {
+		end_user_pfn = (mem_size >> PAGE_SHIFT);
+	}
+	return *p == '\0' ? 0 : -EINVAL;
+}
+early_param("memmap", parse_memmap_opt);
+
+void __init finish_e820_parsing(void)
+{
+	if (userdef) {
+		int nr = e820.nr_map;
+
+		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr) < 0)
+			early_panic("Invalid user supplied memory map");
+		e820.nr_map = nr;
+
+		printk(KERN_INFO "user-defined physical RAM map:\n");
+		e820_print_map("user");
+	}
+}
