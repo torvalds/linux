@@ -227,7 +227,8 @@ static struct tda10023_config anysee_tda10023_config = {
 	.pll_m  = 11,
 	.pll_p  = 3,
 	.pll_n  = 1,
-	.deltaf = 0xfed6,
+	.output_mode = TDA10023_OUTPUT_MODE_PARALLEL_C,
+	.deltaf = 0xfeeb,
 };
 
 static struct mt352_config anysee_mt352_config = {
@@ -272,8 +273,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	   1. E30        MT352     02  0.2.1
 	   2. E30        ZL10353   02  0.2.1
 	   3. E30 Plus   ZL10353   06  0.1.0
-	   4. E30C Plus  TDA10023  0a  0.1.0
-	      E30C Plus  TDA10023  0f  0.1.2 (not working)
+	   4. E30C Plus  TDA10023  0a  0.1.0    rev 0.2
+	   4. E30C Plus  TDA10023  0f  0.1.2    rev 0.4
 	*/
 
 	/* Zarlink MT352 DVB-T demod inside of Samsung DNOS404ZH102A NIM */
@@ -305,13 +306,10 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		return 0;
 	}
 
-	/* known not working (E30C Plus v0.1.2) */
-	if (hw_info[0] == 0x0f) {
-		info("this version of Anysee is not supported yet");
-		/* return IO port D to init value for safe */
-		ret = anysee_write_reg(adap->dev, 0xb0, io_d);
-		return -ENODEV;
-	}
+	/* IO port E - E30C rev 0.4 board requires this */
+	ret = anysee_write_reg(adap->dev, 0xb1, 0xa7);
+	if (ret)
+		return ret;
 
 	/* Philips TDA10023 DVB-C demod */
 	adap->fe = dvb_attach(tda10023_attach, &anysee_tda10023_config,
