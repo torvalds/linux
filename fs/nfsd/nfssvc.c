@@ -44,11 +44,6 @@
  * when not handling a request. i.e. when waiting
  */
 #define SHUTDOWN_SIGS	(sigmask(SIGKILL) | sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT))
-/* if the last thread dies with SIGHUP, then the exports table is
- * left unchanged ( like 2.4-{0-9} ).  Any other signal will clear
- * the exports table (like 2.2).
- */
-#define	SIG_NOCLEAN	SIGHUP
 
 extern struct svc_program	nfsd_program;
 static void			nfsd(struct svc_rqst *rqstp);
@@ -175,7 +170,6 @@ int nfsd_nrthreads(void)
 		return nfsd_serv->sv_nrthreads;
 }
 
-static int killsig;	/* signal that was used to kill last nfsd */
 static void nfsd_last_thread(struct svc_serv *serv)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
@@ -186,11 +180,9 @@ static void nfsd_last_thread(struct svc_serv *serv)
 	nfsd_racache_shutdown();
 	nfs4_state_shutdown();
 
-	printk(KERN_WARNING "nfsd: last server has exited\n");
-	if (killsig != SIG_NOCLEAN) {
-		printk(KERN_WARNING "nfsd: unexporting all filesystems\n");
-		nfsd_export_flush();
-	}
+	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
+			    "cache\n");
+	nfsd_export_flush();
 }
 
 void nfsd_reset_versions(void)
@@ -242,10 +234,9 @@ int nfsd_create_serv(void)
 	}
 
 	atomic_set(&nfsd_busy, 0);
-	nfsd_serv = svc_create_pooled(&nfsd_program,
-				      nfsd_max_blksize,
-				      nfsd_last_thread,
-				      nfsd, SIG_NOCLEAN, THIS_MODULE);
+	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
+				      nfsd_last_thread, nfsd, SIGINT,
+				      THIS_MODULE);
 	if (nfsd_serv == NULL)
 		err = -ENOMEM;
 
@@ -490,17 +481,9 @@ nfsd(struct svc_rqst *rqstp)
 		atomic_dec(&nfsd_busy);
 	}
 
-	if (err != -EINTR) {
+	if (err != -EINTR)
 		printk(KERN_WARNING "nfsd: terminating on error %d\n", -err);
-	} else {
-		unsigned int	signo;
 
-		for (signo = 1; signo <= _NSIG; signo++)
-			if (sigismember(&current->pending.signal, signo) &&
-			    !sigismember(&current->blocked, signo))
-				break;
-		killsig = signo;
-	}
 	/* Clear signals before calling svc_exit_thread() */
 	flush_signals(current);
 
