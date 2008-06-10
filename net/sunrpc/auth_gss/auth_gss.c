@@ -146,7 +146,7 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *dest)
 	q = (const void *)((const char *)p + len);
 	if (unlikely(q > end || q < p))
 		return ERR_PTR(-EFAULT);
-	dest->data = kmemdup(p, len, GFP_KERNEL);
+	dest->data = kmemdup(p, len, GFP_NOFS);
 	if (unlikely(dest->data == NULL))
 		return ERR_PTR(-ENOMEM);
 	dest->len = len;
@@ -171,7 +171,7 @@ gss_alloc_context(void)
 {
 	struct gss_cl_ctx *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_NOFS);
 	if (ctx != NULL) {
 		ctx->gc_proc = RPC_GSS_PROC_DATA;
 		ctx->gc_seq = 1;	/* NetApp 6.4R1 doesn't accept seq. no. 0 */
@@ -341,7 +341,7 @@ gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid)
 {
 	struct gss_upcall_msg *gss_msg;
 
-	gss_msg = kzalloc(sizeof(*gss_msg), GFP_KERNEL);
+	gss_msg = kzalloc(sizeof(*gss_msg), GFP_NOFS);
 	if (gss_msg != NULL) {
 		INIT_LIST_HEAD(&gss_msg->list);
 		rpc_init_wait_queue(&gss_msg->rpc_waitqueue, "RPCSEC_GSS upcall waitq");
@@ -503,7 +503,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	if (mlen > MSG_BUF_MAXSIZE)
 		goto out;
 	err = -ENOMEM;
-	buf = kmalloc(mlen, GFP_KERNEL);
+	buf = kmalloc(mlen, GFP_NOFS);
 	if (!buf)
 		goto out;
 
@@ -806,7 +806,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	dprintk("RPC:       gss_create_cred for uid %d, flavor %d\n",
 		acred->uid, auth->au_flavor);
 
-	if (!(cred = kzalloc(sizeof(*cred), GFP_KERNEL)))
+	if (!(cred = kzalloc(sizeof(*cred), GFP_NOFS)))
 		goto out_err;
 
 	rpcauth_init_cred(&cred->gc_base, acred, auth, &gss_credops);
