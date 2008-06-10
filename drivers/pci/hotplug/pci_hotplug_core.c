@@ -572,6 +572,11 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 	if (tmp)
 		return -EEXIST;
 
+	/*
+	 * No problems if we call this interface from both ACPI_PCI_SLOT
+	 * driver and call it here again. If we've already created the
+	 * pci_slot, the interface will simply bump the refcount.
+	 */
 	pci_slot = pci_create_slot(bus, slot_nr, slot->name);
 	if (IS_ERR(pci_slot))
 		return PTR_ERR(pci_slot);
@@ -584,6 +589,17 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 
 	slot->pci_slot = pci_slot;
 	pci_slot->hotplug = slot;
+
+	/*
+	 * Allow pcihp drivers to override the ACPI_PCI_SLOT name.
+	 */
+	if (strcmp(kobject_name(&pci_slot->kobj), slot->name)) {
+		result = kobject_rename(&pci_slot->kobj, slot->name);
+		if (result) {
+			pci_destroy_slot(pci_slot);
+			return result;
+		}
+	}
 
 	spin_lock(&pci_hotplug_slot_list_lock);
 	list_add(&slot->slot_list, &pci_hotplug_slot_list);

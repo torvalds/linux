@@ -668,7 +668,7 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 
 register_err:
 	dev_dbg(&pci_bus->self->dev, "bus failed to register with err = %d\n",
-	        rc);
+		rc);
 
 alloc_err:
 	if (rc == -ENOMEM)
