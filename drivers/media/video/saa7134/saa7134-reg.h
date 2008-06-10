@@ -353,7 +353,6 @@
 
 /* I2S output */
 #define SAA7134_I2S_AUDIO_OUTPUT                0x1c0
-#define SAA7134_I2S_AUDIO_CONTROL               0x591
 
 /* test modes */
 #define SAA7134_SPECIAL_MODE                    0x1d0
@@ -369,6 +368,7 @@
 #define SAA7135_DSP_RWCLEAR			0x586
 #define SAA7135_DSP_RWCLEAR_RERR		    1
 
+#define SAA7133_I2S_AUDIO_CONTROL               0x591
 /* ------------------------------------------------------------------ */
 /*
  * Local variables:

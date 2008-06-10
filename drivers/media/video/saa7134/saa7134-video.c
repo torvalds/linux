@@ -2458,13 +2458,14 @@ int saa7134_videoport_init(struct saa7134_dev *dev)
 	int vo = saa7134_boards[dev->board].video_out;
 	int video_reg;
 	unsigned int vid_port_opts = saa7134_boards[dev->board].vid_port_opts;
+
+	/* Configure videoport */
 	saa_writeb(SAA7134_VIDEO_PORT_CTRL0, video_out[vo][0]);
 	video_reg = video_out[vo][1];
 	if (vid_port_opts & SET_T_CODE_POLARITY_NON_INVERTED)
 		video_reg &= ~VP_T_CODE_P_INVERTED;
 	saa_writeb(SAA7134_VIDEO_PORT_CTRL1, video_reg);
 	saa_writeb(SAA7134_VIDEO_PORT_CTRL2, video_out[vo][2]);
-	saa_writeb(SAA7134_VIDEO_PORT_CTRL3, video_out[vo][3]);
 	saa_writeb(SAA7134_VIDEO_PORT_CTRL4, video_out[vo][4]);
 	video_reg = video_out[vo][5];
 	if (vid_port_opts & SET_CLOCK_NOT_DELAYED)
@@ -2480,6 +2481,9 @@ int saa7134_videoport_init(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_VIDEO_PORT_CTRL6, video_reg);
 	saa_writeb(SAA7134_VIDEO_PORT_CTRL7, video_out[vo][7]);
 	saa_writeb(SAA7134_VIDEO_PORT_CTRL8, video_out[vo][8]);
+
+	/* Start videoport */
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL3, video_out[vo][3]);
 
 	return 0;
 }

@@ -874,23 +874,32 @@ void saa7134_enable_i2s(struct saa7134_dev *dev)
 	if (!card_is_empress(dev))
 		return;
 
-	switch (dev->board) {
-	case SAA7134_BOARD_BEHOLD_M6:
-	    /* configure GPIO for out audio */
-	    saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x0E000000, 0x00000000);
-	    /* Set I2S format  */
-	    saa_writeb(SAA7134_I2S_AUDIO_CONTROL,  0x00);
+	if (dev->pci->device == PCI_DEVICE_ID_PHILIPS_SAA7130)
+		return;
+
+	/* configure GPIO for out */
+	saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x0E000000, 0x00000000);
+
+	switch (dev->pci->device) {
+	case PCI_DEVICE_ID_PHILIPS_SAA7133:
+	case PCI_DEVICE_ID_PHILIPS_SAA7135:
+	    /* Set I2S format (SONY)  */
+	    saa_writeb(SAA7133_I2S_AUDIO_CONTROL, 0x00);
 	    /* Start I2S */
-	    saa_writeb(SAA7134_I2S_AUDIO_OUTPUT,   0x11);
+	    saa_writeb(SAA7134_I2S_AUDIO_OUTPUT, 0x11);
 	    break;
-	default:
+
+	case PCI_DEVICE_ID_PHILIPS_SAA7134:
 	    i2s_format = (dev->input->amux == TV) ? 0x00 : 0x01;
 
 	    /* enable I2S audio output for the mpeg encoder */
-	    saa_writeb(SAA7134_I2S_OUTPUT_SELECT,  0x80);
-	    saa_writeb(SAA7134_I2S_OUTPUT_FORMAT,  i2s_format);
-	    saa_writeb(SAA7134_I2S_OUTPUT_LEVEL,   0x0F);
-	    saa_writeb(SAA7134_I2S_AUDIO_OUTPUT,   0x01);
+	    saa_writeb(SAA7134_I2S_OUTPUT_SELECT, 0x80);
+	    saa_writeb(SAA7134_I2S_OUTPUT_FORMAT, i2s_format);
+	    saa_writeb(SAA7134_I2S_OUTPUT_LEVEL,  0x0F);
+	    saa_writeb(SAA7134_I2S_AUDIO_OUTPUT,  0x01);
+
+	default:
+	    break;
 	}
 }
 
