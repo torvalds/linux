@@ -231,7 +231,13 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 {
 	struct extent_map *em;
 	struct rb_node *rb_node;
-	struct rb_node *prev = NULL; struct rb_node *next = NULL; u64 end = range_end(start, len); em = tree->last; if (em && end > em->start && start < extent_map_end(em)) goto found;
+	struct rb_node *prev = NULL;
+	struct rb_node *next = NULL;
+	u64 end = range_end(start, len);
+
+	em = tree->last;
+	if (em && end > em->start && start < extent_map_end(em))
+		goto found;
 
 	rb_node = __tree_search(&tree->map, start, &prev, &next);
 	if (!rb_node && prev) {
