@@ -888,10 +888,6 @@ call_encode(struct rpc_task *task)
 
 	task->tk_status = rpcauth_wrap_req(task, encode, req, p,
 			task->tk_msg.rpc_argp);
-	if (task->tk_status == -ENOMEM) {
-		/* XXX: Is this sane? */
-		task->tk_status = -EAGAIN;
-	}
 }
 
 /*
