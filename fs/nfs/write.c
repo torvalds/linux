@@ -616,7 +616,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 			spin_unlock(&inode->i_lock);
 			radix_tree_preload_end();
 			req = new;
-			goto zero_page;
+			goto out;
 		}
 		spin_unlock(&inode->i_lock);
 
@@ -649,19 +649,13 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 		req->wb_offset = offset;
 		req->wb_pgbase = offset;
 		req->wb_bytes = max(end, rqend) - req->wb_offset;
-		goto zero_page;
+		goto out;
 	}
 
 	if (end > rqend)
 		req->wb_bytes = end - req->wb_offset;
 
-	return req;
-zero_page:
-	/* If this page might potentially be marked as up to date,
-	 * then we need to zero any uninitalised data. */
-	if (req->wb_pgbase == 0 && req->wb_bytes != PAGE_CACHE_SIZE
-			&& !PageUptodate(req->wb_page))
-		zero_user_segment(req->wb_page, req->wb_bytes, PAGE_CACHE_SIZE);
+out:
 	return req;
 }
 

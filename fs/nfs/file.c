@@ -344,6 +344,26 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
 	int status;
 
+	/*
+	 * Zero any uninitialised parts of the page, and then mark the page
+	 * as up to date if it turns out that we're extending the file.
+	 */
+	if (!PageUptodate(page)) {
+		unsigned pglen = nfs_page_length(page);
+		unsigned end = offset + len;
+
+		if (pglen == 0) {
+			zero_user_segments(page, 0, offset,
+					end, PAGE_CACHE_SIZE);
+			SetPageUptodate(page);
+		} else if (end >= pglen) {
+			zero_user_segment(page, end, PAGE_CACHE_SIZE);
+			if (offset == 0)
+				SetPageUptodate(page);
+		} else
+			zero_user_segment(page, pglen, PAGE_CACHE_SIZE);
+	}
+
 	lock_kernel();
 	status = nfs_updatepage(file, page, offset, copied);
 	unlock_kernel();
