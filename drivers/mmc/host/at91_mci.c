@@ -663,6 +663,7 @@ static void at91_mci_process_next(struct at91mci_host *host)
 static void at91_mci_completed_command(struct at91mci_host *host, unsigned int status)
 {
 	struct mmc_command *cmd = host->cmd;
+	struct mmc_data *data = cmd->data;
 
 	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff & ~(AT91_MCI_SDIOIRQA | AT91_MCI_SDIOIRQB));
 
@@ -685,15 +686,25 @@ static void at91_mci_completed_command(struct at91mci_host *host, unsigned int s
 			cmd->error = 0;
 		}
 		else {
-			if (status & (AT91_MCI_RTOE | AT91_MCI_DTOE))
-				cmd->error = -ETIMEDOUT;
-			else if (status & (AT91_MCI_RCRCE | AT91_MCI_DCRCE))
-				cmd->error = -EILSEQ;
-			else
-				cmd->error = -EIO;
+			if (status & (AT91_MCI_DTOE | AT91_MCI_DCRCE)) {
+				if (data) {
+					if (status & AT91_MCI_DTOE)
+						data->error = -ETIMEDOUT;
+					else if (status & AT91_MCI_DCRCE)
+						data->error = -EILSEQ;
+				}
+			} else {
+				if (status & AT91_MCI_RTOE)
+					cmd->error = -ETIMEDOUT;
+				else if (status & AT91_MCI_RCRCE)
+					cmd->error = -EILSEQ;
+				else
+					cmd->error = -EIO;
+			}
 
-			pr_debug("Error detected and set to %d (cmd = %d, retries = %d)\n",
-				 cmd->error, cmd->opcode, cmd->retries);
+			pr_debug("Error detected and set to %d/%d (cmd = %d, retries = %d)\n",
+				cmd->error, data ? data->error : 0,
+				 cmd->opcode, cmd->retries);
 		}
 	}
 	else
