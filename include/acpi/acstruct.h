@@ -189,6 +189,7 @@ struct acpi_evaluate_info {
 	union acpi_operand_object **parameters;
 	struct acpi_namespace_node *resolved_node;
 	union acpi_operand_object *return_object;
+	u8 param_count;
 	u8 pass_number;
 	u8 parameter_type;
 	u8 return_object_type;
