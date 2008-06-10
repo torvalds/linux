@@ -1360,6 +1360,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	atapi_eh_request_sense - perform ATAPI REQUEST_SENSE
  *	@dev: device to perform REQUEST_SENSE to
  *	@sense_buf: result sense data buffer (SCSI_SENSE_BUFFERSIZE bytes long)
+ *	@dfl_sense_key: default sense key to use
  *
  *	Perform ATAPI REQUEST_SENSE after the device reported CHECK
  *	SENSE.  This function is EH helper.
@@ -1370,13 +1371,13 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	RETURNS:
  *	0 on success, AC_ERR_* mask on failure
  */
-static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
+static unsigned int atapi_eh_request_sense(struct ata_device *dev,
+					   u8 *sense_buf, u8 dfl_sense_key)
 {
-	struct ata_device *dev = qc->dev;
-	unsigned char *sense_buf = qc->scsicmd->sense_buffer;
+	u8 cdb[ATAPI_CDB_LEN] =
+		{ REQUEST_SENSE, 0, 0, 0, SCSI_SENSE_BUFFERSIZE, 0 };
 	struct ata_port *ap = dev->link->ap;
 	struct ata_taskfile tf;
-	u8 cdb[ATAPI_CDB_LEN];
 
 	DPRINTK("ATAPI request sense\n");
 
@@ -1387,14 +1388,10 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 	 * for the case where they are -not- overwritten
 	 */
 	sense_buf[0] = 0x70;
-	sense_buf[2] = qc->result_tf.feature >> 4;
+	sense_buf[2] = dfl_sense_key;
 
 	/* some devices time out if garbage left in tf */
 	ata_tf_init(dev, &tf);
-
-	memset(cdb, 0, ATAPI_CDB_LEN);
-	cdb[0] = REQUEST_SENSE;
-	cdb[4] = SCSI_SENSE_BUFFERSIZE;
 
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.command = ATA_CMD_PACKET;
@@ -1567,7 +1564,9 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 
 	case ATA_DEV_ATAPI:
 		if (!(qc->ap->pflags & ATA_PFLAG_FROZEN)) {
-			tmp = atapi_eh_request_sense(qc);
+			tmp = atapi_eh_request_sense(qc->dev,
+						qc->scsicmd->sense_buffer,
+						qc->result_tf.feature >> 4);
 			if (!tmp) {
 				/* ATA_QCFLAG_SENSE_VALID is used to
 				 * tell atapi_qc_complete() that sense
