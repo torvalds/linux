@@ -1028,6 +1028,7 @@ endif
 
 config BLK_DEV_HD_ONLY
 	bool "Old hard disk (MFM/RLL/IDE) driver"
+	depends on !ARM || ARCH_RPC || ARCH_SHARK || BROKEN
 	help
 	  There are two drivers for MFM/RLL/IDE hard disks. Most people use
 	  the newer enhanced driver, but this old one is still around for two
