@@ -984,7 +984,7 @@ void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 
 static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 	bdi_init(bdi);
 #endif
 	bdi->ra_pages	= default_backing_dev_info.ra_pages;
@@ -1378,7 +1378,7 @@ fail:
 
 	kfree(extent_root);
 	kfree(tree_root);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 	bdi_destroy(&fs_info->bdi);
 #endif
 	kfree(fs_info);
@@ -1645,7 +1645,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 	bdi_destroy(&fs_info->bdi);
 #endif
 
