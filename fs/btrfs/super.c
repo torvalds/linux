@@ -108,15 +108,18 @@ u64 btrfs_parse_size(char *str)
 	return res;
 }
 
-int btrfs_parse_options(char *options, struct btrfs_root *root,
-			char **subvol_name)
+/*
+ * Regular mount options parser.  Everything that is needed only when
+ * reading in a new superblock is parsed here.
+ */
+int btrfs_parse_options(struct btrfs_root *root, char *options)
 {
-	char * p;
-	struct btrfs_fs_info *info = NULL;
+	struct btrfs_fs_info *info = root->fs_info;
 	substring_t args[MAX_OPT_ARGS];
+	char *p, *num;
 
 	if (!options)
-		return 1;
+		return 0;
 
 	/*
 	 * strsep changes the string, duplicate it because parse_options
@@ -126,10 +129,8 @@ int btrfs_parse_options(char *options, struct btrfs_root *root,
 	if (!options)
 		return -ENOMEM;
 
-	if (root)
-		info = root->fs_info;
 
-	while ((p = strsep (&options, ",")) != NULL) {
+	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
 		if (!*p)
 			continue;
@@ -137,83 +138,64 @@ int btrfs_parse_options(char *options, struct btrfs_root *root,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_degraded:
-			if (info) {
-				printk("btrfs: allowing degraded mounts\n");
-				btrfs_set_opt(info->mount_opt, DEGRADED);
-			}
+			printk(KERN_INFO "btrfs: allowing degraded mounts\n");
+			btrfs_set_opt(info->mount_opt, DEGRADED);
 			break;
 		case Opt_subvol:
-			if (subvol_name) {
-				*subvol_name = match_strdup(&args[0]);
-			}
+			/*
+			 * This one is parsed by btrfs_parse_early_options
+			 * and can be happily ignored here.
+			 */
 			break;
 		case Opt_nodatasum:
-			if (info) {
-				printk("btrfs: setting nodatacsum\n");
-				btrfs_set_opt(info->mount_opt, NODATASUM);
-			}
+			printk(KERN_INFO "btrfs: setting nodatacsum\n");
+			btrfs_set_opt(info->mount_opt, NODATASUM);
 			break;
 		case Opt_nodatacow:
-			if (info) {
-				printk("btrfs: setting nodatacow\n");
-				btrfs_set_opt(info->mount_opt, NODATACOW);
-				btrfs_set_opt(info->mount_opt, NODATASUM);
-			}
+			printk(KERN_INFO "btrfs: setting nodatacow\n");
+			btrfs_set_opt(info->mount_opt, NODATACOW);
+			btrfs_set_opt(info->mount_opt, NODATASUM);
 			break;
 		case Opt_ssd:
-			if (info) {
-				printk("btrfs: use ssd allocation scheme\n");
-				btrfs_set_opt(info->mount_opt, SSD);
-			}
+			printk(KERN_INFO "btrfs: use ssd allocation scheme\n");
+			btrfs_set_opt(info->mount_opt, SSD);
 			break;
 		case Opt_nobarrier:
-			if (info) {
-				printk("btrfs: turning off barriers\n");
-				btrfs_set_opt(info->mount_opt, NOBARRIER);
-			}
+			printk(KERN_INFO "btrfs: turning off barriers\n");
+			btrfs_set_opt(info->mount_opt, NOBARRIER);
 			break;
 		case Opt_max_extent:
-			if (info) {
-				char *num = match_strdup(&args[0]);
-				if (num) {
-					info->max_extent =
-						btrfs_parse_size(num);
-					kfree(num);
+			num = match_strdup(&args[0]);
+			if (num) {
+				info->max_extent = btrfs_parse_size(num);
+				kfree(num);
 
-					info->max_extent = max_t(u64,
-							 info->max_extent,
-							 root->sectorsize);
-					printk("btrfs: max_extent at %Lu\n",
-					       info->max_extent);
-				}
+				info->max_extent = max_t(u64,
+					info->max_extent, root->sectorsize);
+				printk(KERN_INFO "btrfs: max_extent at %llu\n",
+				       info->max_extent);
 			}
 			break;
 		case Opt_max_inline:
-			if (info) {
-				char *num = match_strdup(&args[0]);
-				if (num) {
-					info->max_inline =
-						btrfs_parse_size(num);
-					kfree(num);
+			num = match_strdup(&args[0]);
+			if (num) {
+				info->max_inline = btrfs_parse_size(num);
+				kfree(num);
 
-					info->max_inline = max_t(u64,
-							 info->max_inline,
-							 root->sectorsize);
-					printk("btrfs: max_inline at %Lu\n",
-					       info->max_inline);
-				}
+				info->max_inline = max_t(u64,
+					info->max_inline, root->sectorsize);
+				printk(KERN_INFO "btrfs: max_inline at %llu\n",
+					info->max_inline);
 			}
 			break;
 		case Opt_alloc_start:
-			if (info) {
-				char *num = match_strdup(&args[0]);
-				if (num) {
-					info->alloc_start =
-						btrfs_parse_size(num);
-					kfree(num);
-					printk("btrfs: allocations start at "
-					       "%Lu\n", info->alloc_start);
-				}
+			num = match_strdup(&args[0]);
+			if (num) {
+				info->alloc_start = btrfs_parse_size(num);
+				kfree(num);
+				printk(KERN_INFO
+					"btrfs: allocations start at %llu\n",
+					info->alloc_start);
 			}
 			break;
 		default:
@@ -221,7 +203,61 @@ int btrfs_parse_options(char *options, struct btrfs_root *root,
 		}
 	}
 	kfree(options);
-	return 1;
+	return 0;
+}
+
+/*
+ * Parse mount options that are required early in the mount process.
+ *
+ * All other options will be parsed on much later in the mount process and
+ * only when we need to allocate a new super block.
+ */
+static int btrfs_parse_early_options(const char *options,
+			char **subvol_name)
+{
+	substring_t args[MAX_OPT_ARGS];
+	char *opts, *p;
+	int error = 0;
+
+	if (!options)
+		goto out;
+
+	/*
+	 * strsep changes the string, duplicate it because parse_options
+	 * gets called twice
+	 */
+	opts = kstrdup(options, GFP_KERNEL);
+	if (!opts)
+		return -ENOMEM;
+
+	while ((p = strsep(&opts, ",")) != NULL) {
+		int token;
+		if (!*p)
+			continue;
+
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case Opt_subvol:
+			*subvol_name = match_strdup(&args[0]);
+			break;
+		default:
+			break;
+		}
+	}
+
+	kfree(opts);
+ out:
+	/*
+	 * If no subvolume name is specified we use the default one.  Allocate
+	 * a copy of the string "default" here so that code later in the
+	 * mount path doesn't care if it's the default volume or another one.
+	 */
+	if (!*subvol_name) {
+		*subvol_name = kstrdup("default", GFP_KERNEL);
+		if (!*subvol_name)
+			return -ENOMEM;
+	}
+	return error;
 }
 
 static int btrfs_fill_super(struct super_block * sb,
@@ -328,23 +364,33 @@ static int btrfs_test_super(struct super_block *s, void *data)
 	return root->fs_info->fs_devices == test_fs_devices;
 }
 
-int btrfs_get_sb_bdev(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data,
-	struct vfsmount *mnt, const char *subvol)
+/*
+ * Find a superblock for the given device / mount point.
+ *
+ * Note:  This is based on get_sb_bdev from fs/super.c with a few additions
+ *	  for multiple device setup.  Make sure to keep it in sync.
+ */
+static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *data, struct vfsmount *mnt)
 {
+	char *subvol_name = NULL;
 	struct block_device *bdev = NULL;
 	struct super_block *s;
 	struct dentry *root;
 	struct btrfs_fs_devices *fs_devices = NULL;
 	int error = 0;
 
+	error = btrfs_parse_early_options(data, &subvol_name);
+	if (error)
+		goto error;
+
 	error = btrfs_scan_one_device(dev_name, flags, fs_type, &fs_devices);
 	if (error)
-		return error;
+		goto error_free_subvol_name;
 
 	error = btrfs_open_devices(fs_devices, flags, fs_type);
 	if (error)
-		return error;
+		goto error_free_subvol_name;
 
 	bdev = fs_devices->latest_bdev;
 	btrfs_lock_volumes();
@@ -378,50 +424,35 @@ int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 		s->s_flags |= MS_ACTIVE;
 	}
 
-	if (subvol) {
-		root = lookup_one_len(subvol, s->s_root, strlen(subvol));
-		if (IS_ERR(root)) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
-			error = PTR_ERR(root);
-			goto error;
-		}
-		if (!root->d_inode) {
-			dput(root);
-			up_write(&s->s_umount);
-			deactivate_super(s);
-			error = -ENXIO;
-			goto error;
-		}
-	} else {
-		root = dget(s->s_root);
+	root = lookup_one_len(subvol_name, s->s_root, strlen(subvol_name));
+	if (IS_ERR(root)) {
+		up_write(&s->s_umount);
+		deactivate_super(s);
+		error = PTR_ERR(root);
+		goto error;
+	}
+	if (!root->d_inode) {
+		dput(root);
+		up_write(&s->s_umount);
+		deactivate_super(s);
+		error = -ENXIO;
+		goto error;
 	}
 
 	mnt->mnt_sb = s;
 	mnt->mnt_root = root;
+
+	kfree(subvol_name);
 	return 0;
 
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
 	btrfs_close_devices(fs_devices);
+error_free_subvol_name:
+	kfree(subvol_name);
 error:
 	return error;
-}
-/* end copy & paste */
-
-static int btrfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
-{
-	int ret;
-	char *subvol_name = NULL;
-
-	btrfs_parse_options((char *)data, NULL, &subvol_name);
-	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data, mnt,
-			subvol_name ? subvol_name : "default");
-	if (subvol_name)
-		kfree(subvol_name);
-	return ret;
 }
 
 static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)

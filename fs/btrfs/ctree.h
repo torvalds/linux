@@ -1616,7 +1616,6 @@ int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct inode *inode);
 /* super.c */
 u64 btrfs_parse_size(char *str);
-int btrfs_parse_options(char *options, struct btrfs_root *root,
-			char **subvol_name);
+int btrfs_parse_options(struct btrfs_root *root, char *options);
 int btrfs_sync_fs(struct super_block *sb, int wait);
 #endif

@@ -1266,8 +1266,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
 
-	btrfs_parse_options(options, tree_root, NULL);
+	err = btrfs_parse_options(tree_root, options);
+	if (err)
+		goto fail_sb_buffer;
 
+	err = -EINVAL;
 	if (btrfs_super_num_devices(disk_super) > fs_devices->open_devices) {
 		printk("Btrfs: wanted %llu devices, but found %llu\n",
 		       (unsigned long long)btrfs_super_num_devices(disk_super),
