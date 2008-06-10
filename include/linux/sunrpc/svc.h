@@ -22,7 +22,7 @@
 /*
  * This is the RPC server thread function prototype
  */
-typedef void		(*svc_thread_fn)(struct svc_rqst *);
+typedef int		(*svc_thread_fn)(void *);
 
 /*
  *

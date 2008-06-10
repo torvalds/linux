@@ -21,6 +21,7 @@
 #include <linux/smp_lock.h>
 #include <linux/freezer.h>
 #include <linux/fs_struct.h>
+#include <linux/kthread.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
@@ -46,7 +47,7 @@
 #define SHUTDOWN_SIGS	(sigmask(SIGKILL) | sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT))
 
 extern struct svc_program	nfsd_program;
-static void			nfsd(struct svc_rqst *rqstp);
+static int			nfsd(void *vrqstp);
 struct timeval			nfssvc_boot;
 static atomic_t			nfsd_busy;
 static unsigned long		nfsd_last_call;
@@ -407,18 +408,19 @@ update_thread_usage(int busy_threads)
 /*
  * This is the NFS server kernel thread
  */
-static void
-nfsd(struct svc_rqst *rqstp)
+static int
+nfsd(void *vrqstp)
 {
+	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
 	struct fs_struct *fsp;
-	int		err;
 	sigset_t shutdown_mask, allowed_mask;
+	int err, preverr = 0;
+	unsigned int signo;
 
 	/* Lock module and set up kernel thread */
 	mutex_lock(&nfsd_mutex);
-	daemonize("nfsd");
 
-	/* After daemonize() this kernel thread shares current->fs
+	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with a
 	 * umask of 0 instead of init's umask. */
 	fsp = copy_fs_struct(current->fs);
@@ -433,13 +435,17 @@ nfsd(struct svc_rqst *rqstp)
 	siginitsetinv(&shutdown_mask, SHUTDOWN_SIGS);
 	siginitsetinv(&allowed_mask, ALLOWED_SIGS);
 
+	/*
+	 * thread is spawned with all signals set to SIG_IGN, re-enable
+	 * the ones that matter
+	 */
+	for (signo = 1; signo <= _NSIG; signo++) {
+		if (!sigismember(&shutdown_mask, signo))
+			allow_signal(signo);
+	}
 
 	nfsdstats.th_cnt++;
-
-	rqstp->rq_task = current;
-
 	mutex_unlock(&nfsd_mutex);
-
 
 	/*
 	 * We want less throttling in balance_dirty_pages() so that nfs to
@@ -462,15 +468,25 @@ nfsd(struct svc_rqst *rqstp)
 		 */
 		while ((err = svc_recv(rqstp, 60*60*HZ)) == -EAGAIN)
 			;
-		if (err < 0)
+		if (err == -EINTR)
 			break;
+		else if (err < 0) {
+			if (err != preverr) {
+				printk(KERN_WARNING "%s: unexpected error "
+					"from svc_recv (%d)\n", __func__, -err);
+				preverr = err;
+			}
+			schedule_timeout_uninterruptible(HZ);
+			continue;
+		}
+
 		update_thread_usage(atomic_read(&nfsd_busy));
 		atomic_inc(&nfsd_busy);
 
 		/* Lock the export hash tables for reading. */
 		exp_readlock();
 
-		/* Process request with signals blocked.  */
+		/* Process request with signals blocked. */
 		sigprocmask(SIG_SETMASK, &allowed_mask, NULL);
 
 		svc_process(rqstp);
@@ -481,14 +497,10 @@ nfsd(struct svc_rqst *rqstp)
 		atomic_dec(&nfsd_busy);
 	}
 
-	if (err != -EINTR)
-		printk(KERN_WARNING "nfsd: terminating on error %d\n", -err);
-
 	/* Clear signals before calling svc_exit_thread() */
 	flush_signals(current);
 
 	mutex_lock(&nfsd_mutex);
-
 	nfsdstats.th_cnt --;
 
 out:
@@ -498,6 +510,7 @@ out:
 	/* Release module */
 	mutex_unlock(&nfsd_mutex);
 	module_put_and_exit(0);
+	return 0;
 }
 
 static __be32 map_new_errors(u32 vers, __be32 nfserr)
