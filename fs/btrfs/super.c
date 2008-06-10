@@ -453,7 +453,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 {
 	struct btrfs_ioctl_vol_args *vol;
 	struct btrfs_fs_devices *fs_devices;
-	int ret;
+	int ret = 0;
 	int len;
 
 	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
@@ -470,7 +470,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	}
 out:
 	kfree(vol);
-	return 0;
+	return ret;
 }
 
 static void btrfs_write_super_lockfs(struct super_block *sb)
