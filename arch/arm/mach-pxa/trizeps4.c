@@ -176,19 +176,10 @@ static struct platform_device uart_devices = {
 	.resource	= NULL,
 };
 
-/********************************************************************************************
- * PXA270 ac97 sound codec
- ********************************************************************************************/
-static struct platform_device ac97_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
-};
-
 static struct platform_device * trizeps4_devices[] __initdata = {
 	&flash_device,
 	&uart_devices,
 	&dm9000_device,
-	&ac97_audio_device,
 };
 
 #ifdef CONFIG_MACH_TRIZEPS4_CONXS
@@ -439,6 +430,7 @@ static void __init trizeps4_init(void)
 	pxa_set_mci_info(&trizeps4_mci_platform_data);
 	pxa_set_ficp_info(&trizeps4_ficp_platform_data);
 	pxa_set_ohci_info(&trizeps4_ohci_platform_data);
+	pxa_set_ac97_info(NULL);
 }
 
 static void __init trizeps4_map_io(void)

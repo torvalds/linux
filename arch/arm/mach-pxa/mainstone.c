@@ -280,12 +280,6 @@ static pxa2xx_audio_ops_t mst_audio_ops = {
 	.resume		= mst_audio_resume,
 };
 
-static struct platform_device mst_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
-	.dev		= { .platform_data = &mst_audio_ops },
-};
-
 static struct resource flash_resources[] = {
 	[0] = {
 		.start	= PXA_CS0_PHYS,
@@ -499,7 +493,6 @@ static struct platform_device mst_gpio_keys_device = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&smc91x_device,
-	&mst_audio_device,
 	&mst_flash_device[0],
 	&mst_flash_device[1],
 	&mst_gpio_keys_device,
@@ -609,6 +602,7 @@ static void __init mainstone_init(void)
 	pxa_set_ficp_info(&mainstone_ficp_platform_data);
 	pxa_set_ohci_info(&mainstone_ohci_platform_data);
 	pxa_set_i2c_info(NULL);
+	pxa_set_ac97_info(&mst_audio_ops);
 
 	mainstone_init_keypad();
 }

@@ -14,6 +14,7 @@
 #include <asm/arch/ohci.h>
 #include <asm/arch/pxa27x_keypad.h>
 #include <asm/arch/camera.h>
+#include <asm/arch/audio.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -297,6 +298,37 @@ struct platform_device pxa_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
 };
+
+static struct resource pxa_ac97_resources[] = {
+	[0] = {
+		.start  = 0x40500000,
+		.end	= 0x40500000 + 0xfff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_AC97,
+		.end    = IRQ_AC97,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static u64 pxa_ac97_dmamask = 0xffffffffUL;
+
+struct platform_device pxa_device_ac97 = {
+	.name           = "pxa2xx-ac97",
+	.id             = -1,
+	.dev            = {
+		.dma_mask = &pxa_ac97_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources  = ARRAY_SIZE(pxa_ac97_resources),
+	.resource       = pxa_ac97_resources,
+};
+
+void __init pxa_set_ac97_info(pxa2xx_audio_ops_t *ops)
+{
+	pxa_register_device(&pxa_device_ac97, ops);
+}
 
 #ifdef CONFIG_PXA25x
 

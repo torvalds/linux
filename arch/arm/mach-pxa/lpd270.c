@@ -168,11 +168,6 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-static struct platform_device lpd270_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
-};
-
 static struct resource lpd270_flash_resources[] = {
 	[0] = {
 		.start	= PXA_CS0_PHYS,
@@ -412,7 +407,6 @@ __setup("lcd=", lpd270_set_lcd);
 static struct platform_device *platform_devices[] __initdata = {
 	&smc91x_device,
 	&lpd270_backlight_device,
-	&lpd270_audio_device,
 	&lpd270_flash_device[0],
 	&lpd270_flash_device[1],
 };
@@ -455,6 +449,8 @@ static void __init lpd270_init(void)
 	pxa_gpio_mode(GPIO16_PWM0_MD);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+
+	pxa_set_ac97_info(NULL);
 
 	if (lpd270_lcd_to_use != NULL)
 		set_pxa_fb_info(lpd270_lcd_to_use);
