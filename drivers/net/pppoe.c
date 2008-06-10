@@ -432,11 +432,11 @@ static int pppoe_disc_rcv(struct sk_buff *skb,
 	if (dev_net(dev) != &init_net)
 		goto abort;
 
-	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
-		goto abort;
-
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
+
+	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
+		goto abort;
 
 	ph = pppoe_hdr(skb);
 	if (ph->code != PADT_CODE)
