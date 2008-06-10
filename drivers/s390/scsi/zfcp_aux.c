@@ -33,6 +33,7 @@
  *            Ralph Wuerthner
  */
 
+#include <linux/miscdevice.h>
 #include "zfcp_ext.h"
 
 /* accumulated log level (module parameter) */
@@ -42,33 +43,6 @@ static char *device;
 
 /* written against the module interface */
 static int __init  zfcp_module_init(void);
-
-/* miscellaneous */
-static int zfcp_sg_list_alloc(struct zfcp_sg_list *, size_t);
-static void zfcp_sg_list_free(struct zfcp_sg_list *);
-static int zfcp_sg_list_copy_from_user(struct zfcp_sg_list *,
-				       void __user *, size_t);
-static int zfcp_sg_list_copy_to_user(void __user *,
-				     struct zfcp_sg_list *, size_t);
-static long zfcp_cfdc_dev_ioctl(struct file *, unsigned int, unsigned long);
-
-#define ZFCP_CFDC_IOC_MAGIC                     0xDD
-#define ZFCP_CFDC_IOC \
-	_IOWR(ZFCP_CFDC_IOC_MAGIC, 0, struct zfcp_cfdc_sense_data)
-
-
-static const struct file_operations zfcp_cfdc_fops = {
-	.unlocked_ioctl = zfcp_cfdc_dev_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = zfcp_cfdc_dev_ioctl
-#endif
-};
-
-static struct miscdevice zfcp_cfdc_misc = {
-	.minor = ZFCP_CFDC_DEV_MINOR,
-	.name = ZFCP_CFDC_DEV_NAME,
-	.fops = &zfcp_cfdc_fops
-};
 
 /*********************** KERNEL/MODULE PARAMETERS  ***************************/
 
@@ -294,9 +268,6 @@ zfcp_module_init(void)
 		goto out_misc;
 	}
 
-	ZFCP_LOG_TRACE("major/minor for zfcp_cfdc: %d/%d\n",
-		       ZFCP_CFDC_DEV_MAJOR, zfcp_cfdc_misc.minor);
-
 	/* Initialise proc semaphores */
 	sema_init(&zfcp_data.config_sema, 1);
 
@@ -328,372 +299,6 @@ zfcp_module_init(void)
  out:
 	return retval;
 }
-
-/*
- * function:    zfcp_cfdc_dev_ioctl
- *
- * purpose:     Handle control file upload/download transaction via IOCTL
- *		interface
- *
- * returns:     0           - Operation completed successfuly
- *              -ENOTTY     - Unknown IOCTL command
- *              -EINVAL     - Invalid sense data record
- *              -ENXIO      - The FCP adapter is not available
- *              -EOPNOTSUPP - The FCP adapter does not have CFDC support
- *              -ENOMEM     - Insufficient memory
- *              -EFAULT     - User space memory I/O operation fault
- *              -EPERM      - Cannot create or queue FSF request or create SBALs
- *              -ERESTARTSYS- Received signal (is mapped to EAGAIN by VFS)
- */
-static long
-zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
-		    unsigned long buffer)
-{
-	struct zfcp_cfdc_sense_data *sense_data, __user *sense_data_user;
-	struct zfcp_adapter *adapter = NULL;
-	struct zfcp_fsf_req *fsf_req = NULL;
-	struct zfcp_sg_list *sg_list = NULL;
-	u32 fsf_command, option;
-	char *bus_id = NULL;
-	int retval = 0;
-
-	sense_data = kmalloc(sizeof(struct zfcp_cfdc_sense_data), GFP_KERNEL);
-	if (sense_data == NULL) {
-		retval = -ENOMEM;
-		goto out;
-	}
-
-	sg_list = kzalloc(sizeof(struct zfcp_sg_list), GFP_KERNEL);
-	if (sg_list == NULL) {
-		retval = -ENOMEM;
-		goto out;
-	}
-
-	if (command != ZFCP_CFDC_IOC) {
-		ZFCP_LOG_INFO("IOC request code 0x%x invalid\n", command);
-		retval = -ENOTTY;
-		goto out;
-	}
-
-	if ((sense_data_user = (void __user *) buffer) == NULL) {
-		ZFCP_LOG_INFO("sense data record is required\n");
-		retval = -EINVAL;
-		goto out;
-	}
-
-	retval = copy_from_user(sense_data, sense_data_user,
-				sizeof(struct zfcp_cfdc_sense_data));
-	if (retval) {
-		retval = -EFAULT;
-		goto out;
-	}
-
-	if (sense_data->signature != ZFCP_CFDC_SIGNATURE) {
-		ZFCP_LOG_INFO("invalid sense data request signature 0x%08x\n",
-			      ZFCP_CFDC_SIGNATURE);
-		retval = -EINVAL;
-		goto out;
-	}
-
-	switch (sense_data->command) {
-
-	case ZFCP_CFDC_CMND_DOWNLOAD_NORMAL:
-		fsf_command = FSF_QTCB_DOWNLOAD_CONTROL_FILE;
-		option = FSF_CFDC_OPTION_NORMAL_MODE;
-		break;
-
-	case ZFCP_CFDC_CMND_DOWNLOAD_FORCE:
-		fsf_command = FSF_QTCB_DOWNLOAD_CONTROL_FILE;
-		option = FSF_CFDC_OPTION_FORCE;
-		break;
-
-	case ZFCP_CFDC_CMND_FULL_ACCESS:
-		fsf_command = FSF_QTCB_DOWNLOAD_CONTROL_FILE;
-		option = FSF_CFDC_OPTION_FULL_ACCESS;
-		break;
-
-	case ZFCP_CFDC_CMND_RESTRICTED_ACCESS:
-		fsf_command = FSF_QTCB_DOWNLOAD_CONTROL_FILE;
-		option = FSF_CFDC_OPTION_RESTRICTED_ACCESS;
-		break;
-
-	case ZFCP_CFDC_CMND_UPLOAD:
-		fsf_command = FSF_QTCB_UPLOAD_CONTROL_FILE;
-		option = 0;
-		break;
-
-	default:
-		ZFCP_LOG_INFO("invalid command code 0x%08x\n",
-			      sense_data->command);
-		retval = -EINVAL;
-		goto out;
-	}
-
-	bus_id = kmalloc(BUS_ID_SIZE, GFP_KERNEL);
-	if (bus_id == NULL) {
-		retval = -ENOMEM;
-		goto out;
-	}
-	snprintf(bus_id, BUS_ID_SIZE, "%d.%d.%04x",
-		(sense_data->devno >> 24),
-		(sense_data->devno >> 16) & 0xFF,
-		(sense_data->devno & 0xFFFF));
-
-	read_lock_irq(&zfcp_data.config_lock);
-	adapter = zfcp_get_adapter_by_busid(bus_id);
-	if (adapter)
-		zfcp_adapter_get(adapter);
-	read_unlock_irq(&zfcp_data.config_lock);
-
-	kfree(bus_id);
-
-	if (adapter == NULL) {
-		ZFCP_LOG_INFO("invalid adapter\n");
-		retval = -ENXIO;
-		goto out;
-	}
-
-	if (sense_data->command & ZFCP_CFDC_WITH_CONTROL_FILE) {
-		retval = zfcp_sg_list_alloc(sg_list,
-					    ZFCP_CFDC_MAX_CONTROL_FILE_SIZE);
-		if (retval) {
-			retval = -ENOMEM;
-			goto out;
-		}
-	}
-
-	if ((sense_data->command & ZFCP_CFDC_DOWNLOAD) &&
-	    (sense_data->command & ZFCP_CFDC_WITH_CONTROL_FILE)) {
-		retval = zfcp_sg_list_copy_from_user(
-			sg_list, &sense_data_user->control_file,
-			ZFCP_CFDC_MAX_CONTROL_FILE_SIZE);
-		if (retval) {
-			retval = -EFAULT;
-			goto out;
-		}
-	}
-
-	retval = zfcp_fsf_control_file(adapter, &fsf_req, fsf_command,
-				       option, sg_list);
-	if (retval)
-		goto out;
-
-	if ((fsf_req->qtcb->prefix.prot_status != FSF_PROT_GOOD) &&
-	    (fsf_req->qtcb->prefix.prot_status != FSF_PROT_FSF_STATUS_PRESENTED)) {
-		retval = -ENXIO;
-		goto out;
-	}
-
-	sense_data->fsf_status = fsf_req->qtcb->header.fsf_status;
-	memcpy(&sense_data->fsf_status_qual,
-	       &fsf_req->qtcb->header.fsf_status_qual,
-	       sizeof(union fsf_status_qual));
-	memcpy(&sense_data->payloads, &fsf_req->qtcb->bottom.support.els, 256);
-
-	retval = copy_to_user(sense_data_user, sense_data,
-		sizeof(struct zfcp_cfdc_sense_data));
-	if (retval) {
-		retval = -EFAULT;
-		goto out;
-	}
-
-	if (sense_data->command & ZFCP_CFDC_UPLOAD) {
-		retval = zfcp_sg_list_copy_to_user(
-			&sense_data_user->control_file, sg_list,
-			ZFCP_CFDC_MAX_CONTROL_FILE_SIZE);
-		if (retval) {
-			retval = -EFAULT;
-			goto out;
-		}
-	}
-
- out:
-	if (fsf_req != NULL)
-		zfcp_fsf_req_free(fsf_req);
-
-	if ((adapter != NULL) && (retval != -ENXIO))
-		zfcp_adapter_put(adapter);
-
-	if (sg_list != NULL) {
-		zfcp_sg_list_free(sg_list);
-		kfree(sg_list);
-	}
-
-	kfree(sense_data);
-
-	return retval;
-}
-
-
-/**
- * zfcp_sg_list_alloc - create a scatter-gather list of the specified size
- * @sg_list: structure describing a scatter gather list
- * @size: size of scatter-gather list
- * Return: 0 on success, else -ENOMEM
- *
- * In sg_list->sg a pointer to the created scatter-gather list is returned,
- * or NULL if we run out of memory. sg_list->count specifies the number of
- * elements of the scatter-gather list. The maximum size of a single element
- * in the scatter-gather list is PAGE_SIZE.
- */
-static int
-zfcp_sg_list_alloc(struct zfcp_sg_list *sg_list, size_t size)
-{
-	struct scatterlist *sg;
-	unsigned int i;
-	int retval = 0;
-	void *address;
-
-	BUG_ON(sg_list == NULL);
-
-	sg_list->count = size >> PAGE_SHIFT;
-	if (size & ~PAGE_MASK)
-		sg_list->count++;
-	sg_list->sg = kcalloc(sg_list->count, sizeof(struct scatterlist),
-			      GFP_KERNEL);
-	if (sg_list->sg == NULL) {
-		sg_list->count = 0;
-		retval = -ENOMEM;
-		goto out;
-	}
-	sg_init_table(sg_list->sg, sg_list->count);
-
-	for (i = 0, sg = sg_list->sg; i < sg_list->count; i++, sg++) {
-		address = (void *) get_zeroed_page(GFP_KERNEL);
-		if (address == NULL) {
-			sg_list->count = i;
-			zfcp_sg_list_free(sg_list);
-			retval = -ENOMEM;
-			goto out;
-		}
-		zfcp_address_to_sg(address, sg, min(size, PAGE_SIZE));
-		size -= sg->length;
-	}
-
- out:
-	return retval;
-}
-
-
-/**
- * zfcp_sg_list_free - free memory of a scatter-gather list
- * @sg_list: structure describing a scatter-gather list
- *
- * Memory for each element in the scatter-gather list is freed.
- * Finally sg_list->sg is freed itself and sg_list->count is reset.
- */
-static void
-zfcp_sg_list_free(struct zfcp_sg_list *sg_list)
-{
-	struct scatterlist *sg;
-	unsigned int i;
-
-	BUG_ON(sg_list == NULL);
-
-	for (i = 0, sg = sg_list->sg; i < sg_list->count; i++, sg++)
-		free_page((unsigned long) zfcp_sg_to_address(sg));
-
-	sg_list->count = 0;
-	kfree(sg_list->sg);
-}
-
-/**
- * zfcp_sg_size - determine size of a scatter-gather list
- * @sg: array of (struct scatterlist)
- * @sg_count: elements in array
- * Return: size of entire scatter-gather list
- */
-static size_t zfcp_sg_size(struct scatterlist *sg, unsigned int sg_count)
-{
-	unsigned int i;
-	struct scatterlist *p;
-	size_t size;
-
-	size = 0;
-	for (i = 0, p = sg; i < sg_count; i++, p++) {
-		BUG_ON(p == NULL);
-		size += p->length;
-	}
-
-	return size;
-}
-
-
-/**
- * zfcp_sg_list_copy_from_user -copy data from user space to scatter-gather list
- * @sg_list: structure describing a scatter-gather list
- * @user_buffer: pointer to buffer in user space
- * @size: number of bytes to be copied
- * Return: 0 on success, -EFAULT if copy_from_user fails.
- */
-static int
-zfcp_sg_list_copy_from_user(struct zfcp_sg_list *sg_list,
-			    void __user *user_buffer,
-                            size_t size)
-{
-	struct scatterlist *sg;
-	unsigned int length;
-	void *zfcp_buffer;
-	int retval = 0;
-
-	BUG_ON(sg_list == NULL);
-
-	if (zfcp_sg_size(sg_list->sg, sg_list->count) < size)
-		return -EFAULT;
-
-	for (sg = sg_list->sg; size > 0; sg++) {
-		length = min((unsigned int)size, sg->length);
-		zfcp_buffer = zfcp_sg_to_address(sg);
-		if (copy_from_user(zfcp_buffer, user_buffer, length)) {
-			retval = -EFAULT;
-			goto out;
-		}
-		user_buffer += length;
-		size -= length;
-	}
-
- out:
-	return retval;
-}
-
-
-/**
- * zfcp_sg_list_copy_to_user - copy data from scatter-gather list to user space
- * @user_buffer: pointer to buffer in user space
- * @sg_list: structure describing a scatter-gather list
- * @size: number of bytes to be copied
- * Return: 0 on success, -EFAULT if copy_to_user fails
- */
-static int
-zfcp_sg_list_copy_to_user(void __user  *user_buffer,
-			  struct zfcp_sg_list *sg_list,
-                          size_t size)
-{
-	struct scatterlist *sg;
-	unsigned int length;
-	void *zfcp_buffer;
-	int retval = 0;
-
-	BUG_ON(sg_list == NULL);
-
-	if (zfcp_sg_size(sg_list->sg, sg_list->count) < size)
-		return -EFAULT;
-
-	for (sg = sg_list->sg; size > 0; sg++) {
-		length = min((unsigned int) size, sg->length);
-		zfcp_buffer = zfcp_sg_to_address(sg);
-		if (copy_to_user(user_buffer, zfcp_buffer, length)) {
-			retval = -EFAULT;
-			goto out;
-		}
-		user_buffer += length;
-		size -= length;
-	}
-
- out:
-	return retval;
-}
-
 
 #undef ZFCP_LOG_AREA
 
@@ -1342,6 +947,34 @@ zfcp_nameserver_enqueue(struct zfcp_adapter *adapter)
 	}
 	zfcp_port_put(port);
 
+	return 0;
+}
+
+void zfcp_sg_free_table(struct scatterlist *sg, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++, sg++)
+		if (sg)
+			free_page((unsigned long) sg_virt(sg));
+		else
+			break;
+}
+
+int zfcp_sg_setup_table(struct scatterlist *sg, int count)
+{
+	void *addr;
+	int i;
+
+	sg_init_table(sg, count);
+	for (i = 0; i < count; i++, sg++) {
+		addr = (void *) get_zeroed_page(GFP_KERNEL);
+		if (!addr) {
+			zfcp_sg_free_table(sg, i);
+			return -ENOMEM;
+		}
+		sg_set_buf(sg, addr, PAGE_SIZE);
+	}
 	return 0;
 }
 

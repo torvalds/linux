@@ -36,7 +36,7 @@ static int zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *);
 static int zfcp_fsf_status_read_handler(struct zfcp_fsf_req *);
 static int zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *);
 static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *);
-static int zfcp_fsf_control_file_handler(struct zfcp_fsf_req *);
+static void zfcp_fsf_control_file_handler(struct zfcp_fsf_req *);
 static inline int zfcp_fsf_req_sbal_check(
 	unsigned long *, struct zfcp_qdio_queue *, int);
 static inline int zfcp_use_one_sbal(
@@ -4183,53 +4183,35 @@ zfcp_fsf_send_fcp_command_task_management_handler(struct zfcp_fsf_req *fsf_req)
  *              -ENOMEM     - Insufficient memory
  *              -EPERM      - Cannot create FSF request or place it in QDIO queue
  */
-int
-zfcp_fsf_control_file(struct zfcp_adapter *adapter,
-                      struct zfcp_fsf_req **fsf_req_ptr,
-                      u32 fsf_command,
-                      u32 option,
-                      struct zfcp_sg_list *sg_list)
+struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
+					   struct zfcp_fsf_cfdc *fsf_cfdc)
 {
 	struct zfcp_fsf_req *fsf_req;
 	struct fsf_qtcb_bottom_support *bottom;
 	volatile struct qdio_buffer_element *sbale;
 	unsigned long lock_flags;
-	int req_flags = 0;
 	int direction;
-	int retval = 0;
+	int retval;
+	int bytes;
 
-	if (!(adapter->adapter_features & FSF_FEATURE_CFDC)) {
-		ZFCP_LOG_INFO("cfdc not supported (adapter %s)\n",
-			      zfcp_get_busid_by_adapter(adapter));
-		retval = -EOPNOTSUPP;
-		goto out;
-	}
+	if (!(adapter->adapter_features & FSF_FEATURE_CFDC))
+		return ERR_PTR(-EOPNOTSUPP);
 
-	switch (fsf_command) {
-
+	switch (fsf_cfdc->command) {
 	case FSF_QTCB_DOWNLOAD_CONTROL_FILE:
 		direction = SBAL_FLAGS0_TYPE_WRITE;
-		if ((option != FSF_CFDC_OPTION_FULL_ACCESS) &&
-		    (option != FSF_CFDC_OPTION_RESTRICTED_ACCESS))
-			req_flags = ZFCP_WAIT_FOR_SBAL;
 		break;
-
 	case FSF_QTCB_UPLOAD_CONTROL_FILE:
 		direction = SBAL_FLAGS0_TYPE_READ;
 		break;
-
 	default:
-		ZFCP_LOG_INFO("Invalid FSF command code 0x%08x\n", fsf_command);
-		retval = -EINVAL;
-		goto out;
+		return ERR_PTR(-EINVAL);
 	}
 
-	retval = zfcp_fsf_req_create(adapter, fsf_command, req_flags,
+	retval = zfcp_fsf_req_create(adapter, fsf_cfdc->command,
+				     ZFCP_WAIT_FOR_SBAL,
 				     NULL, &lock_flags, &fsf_req);
 	if (retval < 0) {
-		ZFCP_LOG_INFO("error: Could not create FSF request for the "
-			      "adapter %s\n",
-			zfcp_get_busid_by_adapter(adapter));
 		retval = -EPERM;
 		goto unlock_queue_lock;
 	}
@@ -4239,220 +4221,40 @@ zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 
 	bottom = &fsf_req->qtcb->bottom.support;
 	bottom->operation_subtype = FSF_CFDC_OPERATION_SUBTYPE;
-	bottom->option = option;
+	bottom->option = fsf_cfdc->option;
 
-	if (sg_list->count > 0) {
-		int bytes;
-
-		bytes = zfcp_qdio_sbals_from_sg(fsf_req, direction,
-						sg_list->sg, sg_list->count,
-						ZFCP_MAX_SBALS_PER_REQ);
-                if (bytes != ZFCP_CFDC_MAX_CONTROL_FILE_SIZE) {
-			ZFCP_LOG_INFO(
-				"error: Could not create sufficient number of "
-				"SBALS for an FSF request to the adapter %s\n",
-				zfcp_get_busid_by_adapter(adapter));
-			retval = -ENOMEM;
-			goto free_fsf_req;
-		}
-	} else
-		sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	bytes = zfcp_qdio_sbals_from_sg(fsf_req, direction,
+					fsf_cfdc->sg, ZFCP_CFDC_PAGES,
+					ZFCP_MAX_SBALS_PER_REQ);
+	if (bytes != ZFCP_CFDC_MAX_SIZE) {
+		retval = -ENOMEM;
+		goto free_fsf_req;
+	}
 
 	zfcp_fsf_start_timer(fsf_req, ZFCP_FSF_REQUEST_TIMEOUT);
 	retval = zfcp_fsf_req_send(fsf_req);
 	if (retval < 0) {
-		ZFCP_LOG_INFO("initiation of cfdc up/download failed"
-			      "(adapter %s)\n",
-			      zfcp_get_busid_by_adapter(adapter));
 		retval = -EPERM;
 		goto free_fsf_req;
 	}
 	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
 
-	ZFCP_LOG_NORMAL("Control file %s FSF request has been sent to the "
-			"adapter %s\n",
-			fsf_command == FSF_QTCB_DOWNLOAD_CONTROL_FILE ?
-			"download" : "upload",
-			zfcp_get_busid_by_adapter(adapter));
-
 	wait_event(fsf_req->completion_wq,
 	           fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 
-	*fsf_req_ptr = fsf_req;
-	goto out;
+	return fsf_req;
 
  free_fsf_req:
 	zfcp_fsf_req_free(fsf_req);
  unlock_queue_lock:
 	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
- out:
-	return retval;
+	return ERR_PTR(retval);
 }
 
-
-/*
- * function:    zfcp_fsf_control_file_handler
- *
- * purpose:     Handler of the control file upload/download FSF requests
- *
- * returns:     0       - FSF request successfuly processed
- *              -EAGAIN - Operation has to be repeated because of a temporary problem
- *              -EACCES - There is no permission to execute an operation
- *              -EPERM  - The control file is not in a right format
- *              -EIO    - There is a problem with the FCP adapter
- *              -EINVAL - Invalid operation
- *              -EFAULT - User space memory I/O operation fault
- */
-static int
-zfcp_fsf_control_file_handler(struct zfcp_fsf_req *fsf_req)
+static void zfcp_fsf_control_file_handler(struct zfcp_fsf_req *fsf_req)
 {
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-	struct fsf_qtcb_header *header = &fsf_req->qtcb->header;
-	struct fsf_qtcb_bottom_support *bottom = &fsf_req->qtcb->bottom.support;
-	int retval = 0;
-
-	if (fsf_req->status & ZFCP_STATUS_FSFREQ_ERROR) {
-		retval = -EINVAL;
-		goto skip_fsfstatus;
-	}
-
-	switch (header->fsf_status) {
-
-	case FSF_GOOD:
-		ZFCP_LOG_NORMAL(
-			"The FSF request has been successfully completed "
-			"on the adapter %s\n",
-			zfcp_get_busid_by_adapter(adapter));
-		break;
-
-	case FSF_OPERATION_PARTIALLY_SUCCESSFUL:
-		if (bottom->operation_subtype == FSF_CFDC_OPERATION_SUBTYPE) {
-			switch (header->fsf_status_qual.word[0]) {
-
-			case FSF_SQ_CFDC_HARDENED_ON_SE:
-				ZFCP_LOG_NORMAL(
-					"CFDC on the adapter %s has being "
-					"hardened on primary and secondary SE\n",
-					zfcp_get_busid_by_adapter(adapter));
-				break;
-
-			case FSF_SQ_CFDC_COULD_NOT_HARDEN_ON_SE:
-				ZFCP_LOG_NORMAL(
-					"CFDC of the adapter %s could not "
-					"be saved on the SE\n",
-					zfcp_get_busid_by_adapter(adapter));
-				break;
-
-			case FSF_SQ_CFDC_COULD_NOT_HARDEN_ON_SE2:
-				ZFCP_LOG_NORMAL(
-					"CFDC of the adapter %s could not "
-					"be copied to the secondary SE\n",
-					zfcp_get_busid_by_adapter(adapter));
-				break;
-
-			default:
-				ZFCP_LOG_NORMAL(
-					"CFDC could not be hardened "
-					"on the adapter %s\n",
-					zfcp_get_busid_by_adapter(adapter));
-			}
-		}
+	if (fsf_req->qtcb->header.fsf_status != FSF_GOOD)
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EAGAIN;
-		break;
-
-	case FSF_AUTHORIZATION_FAILURE:
-		ZFCP_LOG_NORMAL(
-			"Adapter %s does not accept privileged commands\n",
-			zfcp_get_busid_by_adapter(adapter));
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EACCES;
-		break;
-
-	case FSF_CFDC_ERROR_DETECTED:
-		ZFCP_LOG_NORMAL(
-			"Error at position %d in the CFDC, "
-			"CFDC is discarded by the adapter %s\n",
-			header->fsf_status_qual.word[0],
-			zfcp_get_busid_by_adapter(adapter));
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EPERM;
-		break;
-
-	case FSF_CONTROL_FILE_UPDATE_ERROR:
-		ZFCP_LOG_NORMAL(
-			"Adapter %s cannot harden the control file, "
-			"file is discarded\n",
-			zfcp_get_busid_by_adapter(adapter));
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EIO;
-		break;
-
-	case FSF_CONTROL_FILE_TOO_LARGE:
-		ZFCP_LOG_NORMAL(
-			"Control file is too large, file is discarded "
-			"by the adapter %s\n",
-			zfcp_get_busid_by_adapter(adapter));
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EIO;
-		break;
-
-	case FSF_ACCESS_CONFLICT_DETECTED:
-		if (bottom->operation_subtype == FSF_CFDC_OPERATION_SUBTYPE)
-			ZFCP_LOG_NORMAL(
-				"CFDC has been discarded by the adapter %s, "
-				"because activation would impact "
-				"%d active connection(s)\n",
-				zfcp_get_busid_by_adapter(adapter),
-				header->fsf_status_qual.word[0]);
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EIO;
-		break;
-
-	case FSF_CONFLICTS_OVERRULED:
-		if (bottom->operation_subtype == FSF_CFDC_OPERATION_SUBTYPE)
-			ZFCP_LOG_NORMAL(
-				"CFDC has been activated on the adapter %s, "
-				"but activation has impacted "
-				"%d active connection(s)\n",
-				zfcp_get_busid_by_adapter(adapter),
-				header->fsf_status_qual.word[0]);
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EIO;
-		break;
-
-	case FSF_UNKNOWN_OP_SUBTYPE:
-		ZFCP_LOG_NORMAL("unknown operation subtype (adapter: %s, "
-				"op_subtype=0x%x)\n",
-				zfcp_get_busid_by_adapter(adapter),
-				bottom->operation_subtype);
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EINVAL;
-		break;
-
-	case FSF_INVALID_COMMAND_OPTION:
-		ZFCP_LOG_NORMAL(
-			"Invalid option 0x%x has been specified "
-			"in QTCB bottom sent to the adapter %s\n",
-			bottom->option,
-			zfcp_get_busid_by_adapter(adapter));
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EINVAL;
-		break;
-
-	default:
-		ZFCP_LOG_NORMAL(
-			"bug: An unknown/unexpected FSF status 0x%08x "
-			"was presented on the adapter %s\n",
-			header->fsf_status,
-			zfcp_get_busid_by_adapter(adapter));
-		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
-		retval = -EINVAL;
-		break;
-	}
-
-skip_fsfstatus:
-	return retval;
 }
 
 static inline int

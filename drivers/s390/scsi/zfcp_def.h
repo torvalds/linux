@@ -26,7 +26,6 @@
 
 #include <linux/init.h>
 #include <linux/moduleparam.h>
-#include <linux/miscdevice.h>
 #include <linux/major.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -534,38 +533,6 @@ do { \
 #define ZFCP_ERP_DISMISSED	0x4
 #define ZFCP_ERP_NOMEM		0x5
 
-
-/******************** CFDC SPECIFIC STUFF *****************************/
-
-/* Firewall data channel sense data record */
-struct zfcp_cfdc_sense_data {
-	u32 signature;           /* Request signature */
-	u32 devno;               /* FCP adapter device number */
-	u32 command;             /* Command code */
-	u32 fsf_status;          /* FSF request status and status qualifier */
-	u8  fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
-	u8  payloads[256];       /* Access conflicts list */
-	u8  control_file[0];     /* Access control table */
-};
-
-#define ZFCP_CFDC_SIGNATURE			0xCFDCACDF
-
-#define ZFCP_CFDC_CMND_DOWNLOAD_NORMAL		0x00010001
-#define ZFCP_CFDC_CMND_DOWNLOAD_FORCE		0x00010101
-#define ZFCP_CFDC_CMND_FULL_ACCESS		0x00000201
-#define ZFCP_CFDC_CMND_RESTRICTED_ACCESS	0x00000401
-#define ZFCP_CFDC_CMND_UPLOAD			0x00010002
-
-#define ZFCP_CFDC_DOWNLOAD			0x00000001
-#define ZFCP_CFDC_UPLOAD			0x00000002
-#define ZFCP_CFDC_WITH_CONTROL_FILE		0x00010000
-
-#define ZFCP_CFDC_DEV_NAME			"zfcp_cfdc"
-#define ZFCP_CFDC_DEV_MAJOR			MISC_MAJOR
-#define ZFCP_CFDC_DEV_MINOR			MISC_DYNAMIC_MINOR
-
-#define ZFCP_CFDC_MAX_CONTROL_FILE_SIZE		127 * 1024
-
 /************************* STRUCTURE DEFINITIONS *****************************/
 
 struct zfcp_fsf_req;
@@ -895,16 +862,6 @@ struct zfcp_data {
 	struct kmem_cache		*fsf_req_qtcb_cache;
 	struct kmem_cache		*sr_buffer_cache;
 	struct kmem_cache		*gid_pn_cache;
-};
-
-/**
- * struct zfcp_sg_list - struct describing a scatter-gather list
- * @sg: pointer to array of (struct scatterlist)
- * @count: number of elements in scatter-gather list
- */
-struct zfcp_sg_list {
-	struct scatterlist *sg;
-	unsigned int count;
 };
 
 /* number of elements for various memory pools */

@@ -86,8 +86,8 @@ extern int  zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *,
 extern int  zfcp_fsf_exchange_port_data(struct zfcp_erp_action *);
 extern int  zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *,
                                              struct fsf_qtcb_bottom_port *);
-extern int  zfcp_fsf_control_file(struct zfcp_adapter *, struct zfcp_fsf_req **,
-				  u32, u32, struct zfcp_sg_list *);
+extern struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
+					   struct zfcp_fsf_cfdc *fsf_cfdc);
 extern void zfcp_fsf_start_timer(struct zfcp_fsf_req *, unsigned long);
 extern void zfcp_erp_start_timer(struct zfcp_fsf_req *);
 extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
@@ -167,6 +167,8 @@ extern void zfcp_erp_port_access_changed(struct zfcp_port *, u8, void *);
 extern void zfcp_erp_unit_access_changed(struct zfcp_unit *, u8, void *);
 
 /******************************** AUX ****************************************/
+extern void zfcp_sg_free_table(struct scatterlist *sg, int count);
+extern int  zfcp_sg_setup_table(struct scatterlist *sg, int count);
 extern void zfcp_rec_dbf_event_thread(u8 id, struct zfcp_adapter *adapter);
 extern void zfcp_rec_dbf_event_thread_lock(u8 id, struct zfcp_adapter *adapter);
 extern void zfcp_rec_dbf_event_adapter(u8 id, void *ref, struct zfcp_adapter *);
@@ -199,5 +201,7 @@ extern void zfcp_scsi_dbf_event_abort(const char *, struct zfcp_adapter *,
 extern void zfcp_scsi_dbf_event_devreset(const char *, u8, struct zfcp_unit *,
 					 struct scsi_cmnd *);
 extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
+
+extern struct miscdevice zfcp_cfdc_misc;
 
 #endif	/* ZFCP_EXT_H */

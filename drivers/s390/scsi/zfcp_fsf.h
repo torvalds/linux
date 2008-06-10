@@ -22,6 +22,8 @@
 #ifndef FSF_H
 #define FSF_H
 
+#include <linux/pfn.h>
+
 #define FSF_QTCB_CURRENT_VERSION		0x00000001
 
 /* FSF commands */
@@ -257,6 +259,16 @@
 #define FSF_UNIT_ACCESS_OPEN_LUN_ALLOWED	0x01000000
 #define FSF_UNIT_ACCESS_EXCLUSIVE		0x02000000
 #define FSF_UNIT_ACCESS_OUTBOUND_TRANSFER	0x10000000
+
+/* FSF interface for CFDC */
+#define ZFCP_CFDC_MAX_SIZE		127 * 1024
+#define ZFCP_CFDC_PAGES 		PFN_UP(ZFCP_CFDC_MAX_SIZE)
+
+struct zfcp_fsf_cfdc {
+	struct scatterlist sg[ZFCP_CFDC_PAGES];
+	u32 command;
+	u32 option;
+};
 
 struct fsf_queue_designator {
 	u8  cssid;
