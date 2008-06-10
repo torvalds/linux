@@ -36,7 +36,7 @@ struct uio_mem {
 	struct uio_map		*map;
 };
 
-#define MAX_UIO_MAPS 	5
+#define MAX_UIO_MAPS	5
 
 struct uio_device;
 
@@ -82,11 +82,11 @@ static inline int __must_check
 extern void uio_unregister_device(struct uio_info *info);
 extern void uio_event_notify(struct uio_info *info);
 
-/* defines for uio_device->irq */
+/* defines for uio_info->irq */
 #define UIO_IRQ_CUSTOM	-1
 #define UIO_IRQ_NONE	-2
 
-/* defines for uio_device->memtype */
+/* defines for uio_mem->memtype */
 #define UIO_MEM_NONE	0
 #define UIO_MEM_PHYS	1
 #define UIO_MEM_LOGICAL	2
