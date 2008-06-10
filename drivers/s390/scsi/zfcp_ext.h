@@ -37,6 +37,8 @@ extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, wwn_t,
 extern void   zfcp_port_dequeue(struct zfcp_port *);
 extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, fcp_lun_t);
 extern void   zfcp_unit_dequeue(struct zfcp_unit *);
+extern int zfcp_scan_ports(struct zfcp_adapter *);
+extern void _zfcp_scan_ports_later(struct work_struct *work);
 
 /******************************* S/390 IO ************************************/
 extern int  zfcp_ccw_register(void);
@@ -96,8 +98,6 @@ extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
 extern int  zfcp_fc_ns_gid_pn_request(struct zfcp_erp_action *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void  zfcp_test_link(struct zfcp_port *);
-
-extern int  zfcp_nameserver_enqueue(struct zfcp_adapter *);
 
 /******************************* SCSI ****************************************/
 extern int  zfcp_adapter_scsi_register(struct zfcp_adapter *);

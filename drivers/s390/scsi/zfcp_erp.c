@@ -1199,6 +1199,10 @@ zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 		zfcp_erp_port_unblock(port);
 		break;
 	case ZFCP_ERP_FAILED :
+		if (atomic_test_mask(ZFCP_STATUS_COMMON_NOESC, &port->status)) {
+			zfcp_erp_port_block(port, 0);
+			result = ZFCP_ERP_EXIT;
+		}
 		atomic_inc(&port->erp_counter);
 		if (atomic_read(&port->erp_counter) > ZFCP_MAX_ERPS)
 			zfcp_erp_port_failed(port, 22, NULL);
@@ -1607,6 +1611,7 @@ zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *erp_action, int close)
 		goto failed_openfcp;
 
 	atomic_set_mask(ZFCP_STATUS_COMMON_OPEN, &erp_action->adapter->status);
+	schedule_work(&erp_action->adapter->scan_work);
 	goto out;
 
  close_only:
@@ -1665,10 +1670,19 @@ zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *erp_action)
 	return zfcp_erp_adapter_strategy_open_fsf_statusread(erp_action);
 }
 
+static void zfcp_erp_open_ptp_port(struct zfcp_adapter *adapter)
+{
+	struct zfcp_port *port;
+	port = zfcp_port_enqueue(adapter, adapter->peer_wwpn, 0,
+				 adapter->peer_d_id);
+	if (!port) /* error or port already attached */
+		return;
+	zfcp_erp_port_reopen_internal(port, 0, 150, NULL);
+}
+
 static int
 zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 {
-	int retval = ZFCP_ERP_SUCCEEDED;
 	int retries;
 	int sleep = ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP;
 	struct zfcp_adapter *adapter = erp_action->adapter;
@@ -1682,8 +1696,9 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		zfcp_erp_action_to_running(erp_action);
 		write_unlock_irq(&adapter->erp_lock);
 		if (zfcp_fsf_exchange_config_data(erp_action)) {
-			retval = ZFCP_ERP_FAILED;
-			break;
+			atomic_clear_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
+					  &adapter->status);
+			return ZFCP_ERP_FAILED;
 		}
 
 		/*
@@ -1719,9 +1734,12 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 
 	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK,
 			      &adapter->status))
-		retval = ZFCP_ERP_FAILED;
+		return ZFCP_ERP_FAILED;
 
-	return retval;
+	if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_PTP)
+		zfcp_erp_open_ptp_port(adapter);
+
+	return ZFCP_ERP_SUCCEEDED;
 }
 
 static int
@@ -1899,14 +1917,12 @@ zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 			retval = zfcp_erp_port_strategy_open_port(erp_action);
 			break;
 		}
-		if (!(adapter->nameserver_port)) {
-			retval = zfcp_nameserver_enqueue(adapter);
-			if (retval != 0) {
-				dev_err(&adapter->ccw_device->dev,
-					"Nameserver port unavailable.\n");
-				retval = ZFCP_ERP_FAILED;
-				break;
-			}
+
+		if (!adapter->nameserver_port) {
+			dev_err(&adapter->ccw_device->dev,
+				"Nameserver port unavailable.\n");
+			retval = ZFCP_ERP_FAILED;
+			break;
 		}
 		if (!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
 				      &adapter->nameserver_port->status)) {

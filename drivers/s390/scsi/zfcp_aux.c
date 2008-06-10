@@ -568,6 +568,19 @@ static void _zfcp_status_read_scheduler(struct work_struct *work)
 					     stat_work));
 }
 
+static int zfcp_nameserver_enqueue(struct zfcp_adapter *adapter)
+{
+	struct zfcp_port *port;
+
+	port = zfcp_port_enqueue(adapter, 0, ZFCP_STATUS_PORT_WKA,
+				 ZFCP_DID_DIRECTORY_SERVICE);
+	if (!port)
+		return -ENXIO;
+	zfcp_port_put(port);
+
+	return 0;
+}
+
 /*
  * Enqueues an adapter at the end of the adapter list in the driver data.
  * All adapter internal structures are set up.
@@ -648,6 +661,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	/* initialize lock of associated request queue */
 	rwlock_init(&adapter->req_q.lock);
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
+	INIT_WORK(&adapter->scan_work, _zfcp_scan_ports_later);
 
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
@@ -672,6 +686,8 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	write_unlock_irq(&zfcp_data.config_lock);
 
 	zfcp_data.adapters++;
+
+	zfcp_nameserver_enqueue(adapter);
 
 	goto out;
 
@@ -704,6 +720,7 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	int retval = 0;
 	unsigned long flags;
 
+	cancel_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
 	zfcp_adapter_scsi_unregister(adapter);
 	device_unregister(&adapter->generic_services);
@@ -816,13 +833,15 @@ zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn, u32 status,
 			kfree(port);
 			return NULL;
 		}
-		port->d_id = d_id;
 		port->sysfs_device.parent = &adapter->generic_services;
 	} else {
 		snprintf(port->sysfs_device.bus_id,
 			 BUS_ID_SIZE, "0x%016llx", wwpn);
 		port->sysfs_device.parent = &adapter->ccw_device->dev;
 	}
+
+	port->d_id = d_id;
+
 	port->sysfs_device.release = zfcp_sysfs_port_release;
 	dev_set_drvdata(&port->sysfs_device, port);
 
@@ -871,21 +890,6 @@ zfcp_port_dequeue(struct zfcp_port *port)
 	zfcp_sysfs_port_remove_files(&port->sysfs_device,
 				     atomic_read(&port->status));
 	device_unregister(&port->sysfs_device);
-}
-
-/* Enqueues a nameserver port */
-int
-zfcp_nameserver_enqueue(struct zfcp_adapter *adapter)
-{
-	struct zfcp_port *port;
-
-	port = zfcp_port_enqueue(adapter, 0, ZFCP_STATUS_PORT_WKA,
-				 ZFCP_DID_DIRECTORY_SERVICE);
-	if (!port)
-		return -ENXIO;
-	zfcp_port_put(port);
-
-	return 0;
 }
 
 void zfcp_sg_free_table(struct scatterlist *sg, int count)

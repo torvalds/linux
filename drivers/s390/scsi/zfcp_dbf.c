@@ -596,6 +596,10 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[145]	= "recovery action being processed",
 	[146]	= "recovery action ready for next step",
 	[147]	= "qdio error inbound",
+	[148]   = "nameserver needed for port scan",
+	[149]   = "port scan",
+	[150]	= "ptp attach",
+	[151]   = "port validation failed",
 };
 
 static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,

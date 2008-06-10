@@ -85,6 +85,30 @@ zfcp_sysfs_port_add_store(struct device *dev, struct device_attribute *attr, con
 static DEVICE_ATTR(port_add, S_IWUSR, NULL, zfcp_sysfs_port_add_store);
 
 /**
+ * zfcp_sysfs_port_rescan - trigger manual port rescan
+ * @dev: pointer to belonging device
+ * @attr: pointer to struct device_attribute
+ * @buf: pointer to input buffer
+ * @count: number of bytes in buffer
+ */
+static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct zfcp_adapter *adapter;
+	int ret;
+
+	adapter = dev_get_drvdata(dev);
+	if (atomic_test_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status))
+		return -EBUSY;
+
+	ret = zfcp_scan_ports(adapter);
+
+	return ret ? ret : (ssize_t) count;
+}
+static DEVICE_ATTR(port_rescan, S_IWUSR, NULL, zfcp_sysfs_port_rescan_store);
+
+/**
  * zfcp_sysfs_port_remove_store - remove a port from sysfs tree
  * @dev: pointer to belonging device
  * @buf: pointer to input buffer
@@ -214,6 +238,7 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	&dev_attr_in_recovery.attr,
 	&dev_attr_port_remove.attr,
 	&dev_attr_port_add.attr,
+	&dev_attr_port_rescan.attr,
 	&dev_attr_peer_wwnn.attr,
 	&dev_attr_peer_wwpn.attr,
 	&dev_attr_peer_d_id.attr,

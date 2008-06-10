@@ -282,7 +282,10 @@ struct zfcp_rc_entry {
 #define ZFCP_CT_DIRECTORY_SERVICE	0xFC
 #define ZFCP_CT_NAME_SERVER		0x02
 #define ZFCP_CT_SYNCHRONOUS		0x00
+#define ZFCP_CT_SCSI_FCP		0x08
+#define ZFCP_CT_UNABLE_TO_PERFORM_CMD	0x09
 #define ZFCP_CT_GID_PN			0x0121
+#define ZFCP_CT_GPN_FT			0x0172
 #define ZFCP_CT_MAX_SIZE		0x1020
 #define ZFCP_CT_ACCEPT			0x8002
 #define ZFCP_CT_REJECT			0x8001
@@ -311,6 +314,7 @@ struct zfcp_rc_entry {
 #define ZFCP_STATUS_COMMON_ERP_INUSE		0x01000000
 #define ZFCP_STATUS_COMMON_ACCESS_DENIED	0x00800000
 #define ZFCP_STATUS_COMMON_ACCESS_BOXED		0x00400000
+#define ZFCP_STATUS_COMMON_NOESC		0x00200000
 
 /* adapter status */
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
@@ -629,6 +633,7 @@ struct zfcp_adapter {
 	struct fc_host_statistics *fc_stats;
 	struct fsf_qtcb_bottom_port *stats_reset_data;
 	unsigned long		stats_reset;
+	struct work_struct	scan_work;
 };
 
 /*

@@ -874,6 +874,9 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 		if (status_buffer->status_subtype &
 		    FSF_STATUS_READ_SUB_ACT_UPDATED)
 			zfcp_erp_adapter_access_changed(adapter, 135, fsf_req);
+		if (status_buffer->status_subtype &
+		    FSF_STATUS_READ_SUB_INCOMING_ELS)
+			schedule_work(&adapter->scan_work);
 		break;
 
 	case FSF_STATUS_READ_CFDC_UPDATED:
