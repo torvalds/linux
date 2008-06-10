@@ -1,22 +1,9 @@
 /*
- * This file is part of the zfcp device driver for
- * FCP adapters for IBM System z9 and zSeries.
+ * zfcp device driver
  *
- * (C) Copyright IBM Corp. 2002, 2006
+ * External function declarations.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright IBM Corporation 2002, 2008
  */
 
 #ifndef ZFCP_EXT_H
@@ -27,7 +14,6 @@
 extern struct zfcp_data zfcp_data;
 
 /******************************** SYSFS  *************************************/
-extern struct attribute_group *zfcp_driver_attr_groups[];
 extern int  zfcp_sysfs_adapter_create_files(struct device *);
 extern void zfcp_sysfs_adapter_remove_files(struct device *);
 extern int  zfcp_sysfs_port_create_files(struct device *, u32);

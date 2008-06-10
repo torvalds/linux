@@ -1,22 +1,9 @@
 /*
- * This file is part of the zfcp device driver for
- * FCP adapters for IBM System z9 and zSeries.
+ * zfcp device driver
  *
- * (C) Copyright IBM Corp. 2002, 2006
+ * Global definitions for the zfcp device driver.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright IBM Corporation 2002, 2008
  */
 
 #ifndef ZFCP_DEF_H
@@ -51,9 +38,6 @@
 
 
 /********************* GENERAL DEFINES *********************************/
-
-/* zfcp version number, it consists of major, minor, and patch-level number */
-#define ZFCP_VERSION		"4.8.0"
 
 /**
  * zfcp_sg_to_address - determine kernel address from struct scatterlist
@@ -307,107 +291,6 @@ struct zfcp_rc_entry {
  * FC-GS-4 stuff
  */
 #define ZFCP_CT_TIMEOUT			(3 * R_A_TOV)
-
-/******************** LOGGING MACROS AND DEFINES *****************************/
-
-/*
- * Logging may be applied on certain kinds of driver operations
- * independently. Additionally, different log-levels are supported for
- * each of these areas.
- */
-
-#define ZFCP_NAME               "zfcp"
-
-/* independent log areas */
-#define ZFCP_LOG_AREA_OTHER	0
-#define ZFCP_LOG_AREA_SCSI	1
-#define ZFCP_LOG_AREA_FSF	2
-#define ZFCP_LOG_AREA_CONFIG	3
-#define ZFCP_LOG_AREA_CIO	4
-#define ZFCP_LOG_AREA_QDIO	5
-#define ZFCP_LOG_AREA_ERP	6
-#define ZFCP_LOG_AREA_FC	7
-
-/* log level values*/
-#define ZFCP_LOG_LEVEL_NORMAL	0
-#define ZFCP_LOG_LEVEL_INFO	1
-#define ZFCP_LOG_LEVEL_DEBUG	2
-#define ZFCP_LOG_LEVEL_TRACE	3
-
-/*
- * this allows removal of logging code by the preprocessor
- * (the most detailed log level still to be compiled in is specified,
- * higher log levels are removed)
- */
-#define ZFCP_LOG_LEVEL_LIMIT	ZFCP_LOG_LEVEL_TRACE
-
-/* get "loglevel" nibble assignment */
-#define ZFCP_GET_LOG_VALUE(zfcp_lognibble) \
-	       ((atomic_read(&zfcp_data.loglevel) >> (zfcp_lognibble<<2)) & 0xF)
-
-/* set "loglevel" nibble */
-#define ZFCP_SET_LOG_NIBBLE(value, zfcp_lognibble) \
-	       (value << (zfcp_lognibble << 2))
-
-/* all log-level defaults are combined to generate initial log-level */
-#define ZFCP_LOG_LEVEL_DEFAULTS \
-	(ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_OTHER) | \
-	 ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_SCSI) | \
-	 ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_FSF) | \
-	 ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_CONFIG) | \
-	 ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_CIO) | \
-	 ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_QDIO) | \
-	 ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_ERP) | \
-	 ZFCP_SET_LOG_NIBBLE(ZFCP_LOG_LEVEL_NORMAL, ZFCP_LOG_AREA_FC))
-
-/* check whether we have the right level for logging */
-#define ZFCP_LOG_CHECK(level) \
-	((ZFCP_GET_LOG_VALUE(ZFCP_LOG_AREA)) >= level)
-
-/* logging routine for zfcp */
-#define _ZFCP_LOG(fmt, args...) \
-	printk(KERN_ERR ZFCP_NAME": %s(%d): " fmt, __func__, \
-	       __LINE__ , ##args)
-
-#define ZFCP_LOG(level, fmt, args...) \
-do { \
-	if (ZFCP_LOG_CHECK(level)) \
-		_ZFCP_LOG(fmt, ##args); \
-} while (0)
-
-#if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_NORMAL
-# define ZFCP_LOG_NORMAL(fmt, args...)	do { } while (0)
-#else
-# define ZFCP_LOG_NORMAL(fmt, args...) \
-do { \
-	if (ZFCP_LOG_CHECK(ZFCP_LOG_LEVEL_NORMAL)) \
-		printk(KERN_ERR ZFCP_NAME": " fmt, ##args); \
-} while (0)
-#endif
-
-#if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_INFO
-# define ZFCP_LOG_INFO(fmt, args...)	do { } while (0)
-#else
-# define ZFCP_LOG_INFO(fmt, args...) \
-do { \
-	if (ZFCP_LOG_CHECK(ZFCP_LOG_LEVEL_INFO)) \
-		printk(KERN_ERR ZFCP_NAME": " fmt, ##args); \
-} while (0)
-#endif
-
-#if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_DEBUG
-# define ZFCP_LOG_DEBUG(fmt, args...)	do { } while (0)
-#else
-# define ZFCP_LOG_DEBUG(fmt, args...) \
-	ZFCP_LOG(ZFCP_LOG_LEVEL_DEBUG, fmt , ##args)
-#endif
-
-#if ZFCP_LOG_LEVEL_LIMIT < ZFCP_LOG_LEVEL_TRACE
-# define ZFCP_LOG_TRACE(fmt, args...)	do { } while (0)
-#else
-# define ZFCP_LOG_TRACE(fmt, args...) \
-	ZFCP_LOG(ZFCP_LOG_LEVEL_TRACE, fmt , ##args)
-#endif
 
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
@@ -846,7 +729,6 @@ struct zfcp_data {
 	char                    init_busid[BUS_ID_SIZE];
 	wwn_t                   init_wwpn;
 	fcp_lun_t               init_fcp_lun;
-	char 			*driver_version;
 	struct kmem_cache		*fsf_req_qtcb_cache;
 	struct kmem_cache		*sr_buffer_cache;
 	struct kmem_cache		*gid_pn_cache;

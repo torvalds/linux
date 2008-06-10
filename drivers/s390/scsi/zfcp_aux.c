@@ -1,22 +1,9 @@
 /*
- * This file is part of the zfcp device driver for
- * FCP adapters for IBM System z9 and zSeries.
+ * zfcp device driver
  *
- * (C) Copyright IBM Corp. 2002, 2006
+ * Module interface and handling of zfcp data structures.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright IBM Corporation 2002, 2008
  */
 
 /*
@@ -31,13 +18,16 @@
  *            Maxim Shchetynin
  *            Volker Sameske
  *            Ralph Wuerthner
+ *            Michael Loehr
+ *            Swen Schillig
+ *            Christof Schmitt
+ *            Martin Petermann
+ *            Sven Schuetz
  */
 
 #include <linux/miscdevice.h>
 #include "zfcp_ext.h"
 
-/* accumulated log level (module parameter) */
-static u32 loglevel = ZFCP_LOG_LEVEL_DEFAULTS;
 static char *device;
 /*********************** FUNCTION PROTOTYPES *********************************/
 
@@ -56,12 +46,6 @@ MODULE_LICENSE("GPL");
 
 module_param(device, charp, 0400);
 MODULE_PARM_DESC(device, "specify initial device");
-
-module_param(loglevel, uint, 0400);
-MODULE_PARM_DESC(loglevel,
-		 "log levels, 8 nibbles: "
-		 "FC ERP QDIO CIO Config FSF SCSI Other, "
-		 "levels: 0=none 1=normal 2=devel 3=trace");
 
 /****************************************************************/
 /************** Functions without logging ***********************/
@@ -86,8 +70,6 @@ _zfcp_hex_dump(char *addr, int count)
 /****************************************************************/
 /****** Functions to handle the request ID hash table    ********/
 /****************************************************************/
-
-#define ZFCP_LOG_AREA			ZFCP_LOG_AREA_FSF
 
 static int zfcp_reqlist_alloc(struct zfcp_adapter *adapter)
 {
@@ -118,13 +100,9 @@ int zfcp_reqlist_isempty(struct zfcp_adapter *adapter)
 	return 1;
 }
 
-#undef ZFCP_LOG_AREA
-
 /****************************************************************/
 /************** Uncategorised Functions *************************/
 /****************************************************************/
-
-#define ZFCP_LOG_AREA			ZFCP_LOG_AREA_OTHER
 
 /**
  * zfcp_device_setup - setup function
@@ -143,8 +121,11 @@ zfcp_device_setup(char *devstr)
 
 	len = strlen(devstr) + 1;
 	str = kmalloc(len, GFP_KERNEL);
-	if (!str)
-		goto err_out;
+	if (!str) {
+		pr_err("zfcp: Could not allocate memory for "
+		       "device parameter string, device not attached.\n");
+		return 0;
+	}
 	memcpy(str, devstr, len);
 
 	tmp = strchr(str, ',');
@@ -167,7 +148,8 @@ zfcp_device_setup(char *devstr)
 	return 1;
 
  err_out:
-	ZFCP_LOG_NORMAL("Parse error for device parameter string %s\n", str);
+	pr_err("zfcp: Parse error for device parameter string %s, "
+	       "device not attached.\n", str);
 	kfree(str);
 	return 0;
 }
@@ -248,8 +230,6 @@ zfcp_module_init(void)
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
-	atomic_set(&zfcp_data.loglevel, loglevel);
-
 	/* initialize adapter list */
 	INIT_LIST_HEAD(&zfcp_data.adapter_list_head);
 
@@ -263,8 +243,7 @@ zfcp_module_init(void)
 
 	retval = misc_register(&zfcp_cfdc_misc);
 	if (retval != 0) {
-		ZFCP_LOG_INFO("registration of misc device "
-			      "zfcp_cfdc failed\n");
+		pr_err("zfcp: registration of misc device zfcp_cfdc failed\n");
 		goto out_misc;
 	}
 
@@ -277,7 +256,7 @@ zfcp_module_init(void)
 	/* setup dynamic I/O */
 	retval = zfcp_ccw_register();
 	if (retval) {
-		ZFCP_LOG_NORMAL("registration with common I/O layer failed\n");
+		pr_err("zfcp: Registration with common I/O layer failed.\n");
 		goto out_ccw_register;
 	}
 
@@ -300,13 +279,9 @@ zfcp_module_init(void)
 	return retval;
 }
 
-#undef ZFCP_LOG_AREA
-
 /****************************************************************/
 /****** Functions for configuration/set-up of structures ********/
 /****************************************************************/
-
-#define ZFCP_LOG_AREA			ZFCP_LOG_AREA_CONFIG
 
 /**
  * zfcp_get_unit_by_lun - find unit in unit list of port by FCP LUN
@@ -598,6 +573,8 @@ static void _zfcp_status_read_scheduler(struct work_struct *work)
  * All adapter internal structures are set up.
  * Proc-fs entries are also created.
  *
+ * FIXME: Use -ENOMEM as return code for allocation failures
+ *
  * returns:	0             if a new adapter was successfully enqueued
  *              ZFCP_KNOWN    if an adapter with this devno was already present
  *		-ENOMEM       if alloc failed
@@ -615,11 +592,8 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	/* try to allocate new adapter data structure (zeroed) */
 	adapter = kzalloc(sizeof (struct zfcp_adapter), GFP_KERNEL);
-	if (!adapter) {
-		ZFCP_LOG_INFO("error: allocation of base adapter "
-			      "structure failed\n");
+	if (!adapter)
 		goto out;
-	}
 
 	ccw_device->handler = NULL;
 
@@ -760,7 +734,6 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	zfcp_reqlist_free(adapter);
 	kfree(adapter->fc_stats);
 	kfree(adapter->stats_reset_data);
-	ZFCP_LOG_TRACE("freeing adapter structure\n");
 	kfree(adapter);
  out:
 	return;
@@ -908,12 +881,8 @@ zfcp_nameserver_enqueue(struct zfcp_adapter *adapter)
 
 	port = zfcp_port_enqueue(adapter, 0, ZFCP_STATUS_PORT_WKA,
 				 ZFCP_DID_DIRECTORY_SERVICE);
-	if (!port) {
-		ZFCP_LOG_INFO("error: enqueue of nameserver port for "
-			      "adapter %s failed\n",
-			      zfcp_get_busid_by_adapter(adapter));
+	if (!port)
 		return -ENXIO;
-	}
 	zfcp_port_put(port);
 
 	return 0;
@@ -946,5 +915,3 @@ int zfcp_sg_setup_table(struct scatterlist *sg, int count)
 	}
 	return 0;
 }
-
-#undef ZFCP_LOG_AREA

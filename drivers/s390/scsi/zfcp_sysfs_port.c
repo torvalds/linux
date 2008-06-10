@@ -1,27 +1,12 @@
 /*
- * This file is part of the zfcp device driver for
- * FCP adapters for IBM System z9 and zSeries.
+ * zfcp device driver
  *
- * (C) Copyright IBM Corp. 2002, 2006
+ * sysfs attributes for zfcp port.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright IBM Corporation 2002, 2008
  */
 
 #include "zfcp_ext.h"
-
-#define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
 
 /**
  * zfcp_sysfs_port_release - gets called when a struct device port is released
@@ -291,5 +276,3 @@ zfcp_sysfs_port_remove_files(struct device *dev, u32 flags)
 	if (!(flags & ZFCP_STATUS_PORT_WKA))
 		sysfs_remove_group(&dev->kobj, &zfcp_port_no_ns_attr_group);
 }
-
-#undef ZFCP_LOG_AREA

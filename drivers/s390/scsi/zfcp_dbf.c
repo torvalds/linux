@@ -1,22 +1,9 @@
 /*
- * This file is part of the zfcp device driver for
- * FCP adapters for IBM System z9 and zSeries.
+ * zfcp device driver
  *
- * (C) Copyright IBM Corp. 2002, 2006
+ * Debug traces for zfcp.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright IBM Corporation 2002, 2008
  */
 
 #include <linux/ctype.h>
@@ -28,8 +15,6 @@ static u32 dbfsize = 4;
 module_param(dbfsize, uint, 0400);
 MODULE_PARM_DESC(dbfsize,
 		 "number of pages for each debug feature area (default 4)");
-
-#define ZFCP_LOG_AREA			ZFCP_LOG_AREA_OTHER
 
 static void zfcp_dbf_hexdump(debug_info_t *dbf, void *to, int to_len,
 			     int level, char *from, int from_len)
@@ -515,13 +500,13 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[52]	= "port boxed close unit",
 	[53]	= "port boxed fcp",
 	[54]	= "unit boxed fcp",
-	[55]	= "port access denied ct",
-	[56]	= "port access denied els",
-	[57]	= "port access denied open port",
-	[58]	= "port access denied close physical",
-	[59]	= "unit access denied open unit",
+	[55]	= "port access denied",
+	[56]	= "",
+	[57]	= "",
+	[58]	= "",
+	[59]	= "unit access denied",
 	[60]	= "shared unit access denied open unit",
-	[61]	= "unit access denied fcp",
+	[61]	= "",
 	[62]	= "request timeout",
 	[63]	= "adisc link test reject or timeout",
 	[64]	= "adisc link test d_id changed",
@@ -586,8 +571,8 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[120]	= "unknown fsf command",
 	[121]	= "no recommendation for status qualifier",
 	[122]	= "status read physical port closed in error",
-	[123]	= "fc service class not supported ct",
-	[124]	= "fc service class not supported els",
+	[123]	= "fc service class not supported",
+	[124]	= "",
 	[125]	= "need newer zfcp",
 	[126]	= "need newer microcode",
 	[127]	= "arbitrated loop not supported",
@@ -595,7 +580,7 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[129]	= "qtcb size mismatch",
 	[130]	= "unknown fsf status ecd",
 	[131]	= "fcp request too big",
-	[132]	= "fc service class not supported fcp",
+	[132]	= "",
 	[133]	= "data direction not valid fcp",
 	[134]	= "command length not valid fcp",
 	[135]	= "status read act update",
@@ -1291,5 +1276,3 @@ void zfcp_adapter_debug_unregister(struct zfcp_adapter *adapter)
 	adapter->hba_dbf = NULL;
 	adapter->rec_dbf = NULL;
 }
-
-#undef ZFCP_LOG_AREA
