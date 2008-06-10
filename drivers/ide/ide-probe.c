@@ -1664,6 +1664,7 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
 
 	ide_std_init_ports(hw, base, ctl);
 	hw->irq = irq;
+	hw->chipset = d->chipset;
 
 	hwif = ide_find_port_slot(d);
 	if (hwif) {

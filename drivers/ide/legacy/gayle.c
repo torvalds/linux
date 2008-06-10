@@ -112,6 +112,8 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = IRQ_AMIGA_PORTS;
 	hw->ack_intr = ack_intr;
+
+	hw->chipset = ide_generic;
 }
 
     /*
