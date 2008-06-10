@@ -603,13 +603,14 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[137]	= "hbaapi port open",
 	[138]	= "hbaapi unit open",
 	[139]	= "hbaapi unit shutdown",
-	[140]	= "qdio error",
+	[140]	= "qdio error outbound",
 	[141]	= "scsi host reset",
 	[142]	= "dismissing fsf request for recovery action",
 	[143]	= "recovery action timed out",
 	[144]	= "recovery action gone",
 	[145]	= "recovery action being processed",
 	[146]	= "recovery action ready for next step",
+	[147]	= "qdio error inbound",
 };
 
 static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,

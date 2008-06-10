@@ -606,7 +606,6 @@ static void _zfcp_status_read_scheduler(struct work_struct *work)
 struct zfcp_adapter *
 zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 {
-	int retval = 0;
 	struct zfcp_adapter *adapter;
 
 	/*
@@ -627,19 +626,11 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	/* save ccw_device pointer */
 	adapter->ccw_device = ccw_device;
 
-	retval = zfcp_qdio_allocate_queues(adapter);
-	if (retval)
-		goto queues_alloc_failed;
-
-	retval = zfcp_qdio_allocate(adapter);
-	if (retval)
+	if (zfcp_qdio_allocate(adapter))
 		goto qdio_allocate_failed;
 
-	retval = zfcp_allocate_low_mem_buffers(adapter);
-	if (retval) {
-		ZFCP_LOG_INFO("error: pool allocation failed\n");
+	if (zfcp_allocate_low_mem_buffers(adapter))
 		goto failed_low_mem_buffers;
-	}
 
 	/* initialise reference count stuff */
 	atomic_set(&adapter->refcount, 0);
@@ -653,11 +644,8 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	/* initialize list of fsf requests */
 	spin_lock_init(&adapter->req_list_lock);
-	retval = zfcp_reqlist_alloc(adapter);
-	if (retval) {
-		ZFCP_LOG_INFO("request list initialization failed\n");
+	if (zfcp_reqlist_alloc(adapter))
 		goto failed_low_mem_buffers;
-	}
 
 	/* initialize debug locks */
 
@@ -666,8 +654,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	spin_lock_init(&adapter->scsi_dbf_lock);
 	spin_lock_init(&adapter->rec_dbf_lock);
 
-	retval = zfcp_adapter_debug_register(adapter);
-	if (retval)
+	if (zfcp_adapter_debug_register(adapter))
 		goto debug_register_failed;
 
 	/* initialize error recovery stuff */
@@ -685,7 +672,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	init_waitqueue_head(&adapter->erp_done_wqh);
 
 	/* initialize lock of associated request queue */
-	rwlock_init(&adapter->request_queue.queue_lock);
+	rwlock_init(&adapter->req_q.lock);
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
 
 	/* mark adapter unusable as long as sysfs registration is not complete */
@@ -723,12 +710,8 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	zfcp_reqlist_free(adapter);
  failed_low_mem_buffers:
 	zfcp_free_low_mem_buffers(adapter);
-	if (qdio_free(ccw_device) != 0)
-		ZFCP_LOG_NORMAL("bug: qdio_free for adapter %s failed\n",
-				zfcp_get_busid_by_adapter(adapter));
  qdio_allocate_failed:
-	zfcp_qdio_free_queues(adapter);
- queues_alloc_failed:
+	zfcp_qdio_free(adapter);
 	kfree(adapter);
 	adapter = NULL;
  out:
@@ -757,10 +740,6 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	retval = zfcp_reqlist_isempty(adapter);
 	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 	if (!retval) {
-		ZFCP_LOG_NORMAL("bug: adapter %s (%p) still in use, "
-				"%i requests outstanding\n",
-				zfcp_get_busid_by_adapter(adapter), adapter,
-				atomic_read(&adapter->reqs_active));
 		retval = -EBUSY;
 		goto out;
 	}
@@ -775,19 +754,9 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	/* decrease number of adapters in list */
 	zfcp_data.adapters--;
 
-	ZFCP_LOG_TRACE("adapter %s (%p) removed from list, "
-		       "%i adapters still in list\n",
-		       zfcp_get_busid_by_adapter(adapter),
-		       adapter, zfcp_data.adapters);
-
-	retval = qdio_free(adapter->ccw_device);
-	if (retval)
-		ZFCP_LOG_NORMAL("bug: qdio_free for adapter %s failed\n",
-				zfcp_get_busid_by_adapter(adapter));
+	zfcp_qdio_free(adapter);
 
 	zfcp_free_low_mem_buffers(adapter);
-	/* free memory of adapter data structure and queues */
-	zfcp_qdio_free_queues(adapter);
 	zfcp_reqlist_free(adapter);
 	kfree(adapter->fc_stats);
 	kfree(adapter->stats_reset_data);

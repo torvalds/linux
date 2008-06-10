@@ -114,41 +114,6 @@ static void zfcp_erp_action_to_running(struct zfcp_erp_action *);
 static void zfcp_erp_memwait_handler(unsigned long);
 
 /**
- * zfcp_close_qdio - close qdio queues for an adapter
- */
-static void zfcp_close_qdio(struct zfcp_adapter *adapter)
-{
-	struct zfcp_qdio_queue *req_queue;
-	int first, count;
-
-	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status))
-		return;
-
-	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
-	req_queue = &adapter->request_queue;
-	write_lock_irq(&req_queue->queue_lock);
-	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
-	write_unlock_irq(&req_queue->queue_lock);
-
-	while (qdio_shutdown(adapter->ccw_device,
-			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
-		ssleep(1);
-
-	/* cleanup used outbound sbals */
-	count = atomic_read(&req_queue->free_count);
-	if (count < QDIO_MAX_BUFFERS_PER_Q) {
-		first = (req_queue->free_index+count) % QDIO_MAX_BUFFERS_PER_Q;
-		count = QDIO_MAX_BUFFERS_PER_Q - count;
-		zfcp_qdio_zero_sbals(req_queue->buffer, first, count);
-	}
-	req_queue->free_index = 0;
-	atomic_set(&req_queue->free_count, 0);
-	req_queue->distance_from_int = 0;
-	adapter->response_queue.free_index = 0;
-	atomic_set(&adapter->response_queue.free_count, 0);
-}
-
-/**
  * zfcp_close_fsf - stop FSF operations for an adapter
  *
  * Dismiss and cleanup all pending fsf_reqs (this wakes up all initiators of
@@ -158,7 +123,7 @@ static void zfcp_close_qdio(struct zfcp_adapter *adapter)
 static void zfcp_close_fsf(struct zfcp_adapter *adapter)
 {
 	/* close queues to ensure that buffers are not accessed by adapter */
-	zfcp_close_qdio(adapter);
+	zfcp_qdio_close(adapter);
 	zfcp_fsf_req_dismiss_all(adapter);
 	/* reset FSF request sequence number */
 	adapter->fsf_req_seq_no = 0;
@@ -1735,88 +1700,17 @@ zfcp_erp_adapter_strategy_generic(struct zfcp_erp_action *erp_action, int close)
 static int
 zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 {
-	int retval;
-	int i;
-	volatile struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
-	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status)) {
-		ZFCP_LOG_NORMAL("bug: second attempt to set up QDIO on "
-				"adapter %s\n",
-				zfcp_get_busid_by_adapter(adapter));
-		goto failed_sanity;
-	}
-
-	if (qdio_establish(&adapter->qdio_init_data) != 0) {
-		ZFCP_LOG_INFO("error: establishment of QDIO queues failed "
-			      "on adapter %s\n",
-			      zfcp_get_busid_by_adapter(adapter));
-		goto failed_qdio_establish;
-	}
-
-	if (qdio_activate(adapter->ccw_device, 0) != 0) {
-		ZFCP_LOG_INFO("error: activation of QDIO queues failed "
-			      "on adapter %s\n",
-			      zfcp_get_busid_by_adapter(adapter));
-		goto failed_qdio_activate;
-	}
-
-	/*
-	 * put buffers into response queue,
-	 */
-	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++) {
-		sbale = &(adapter->response_queue.buffer[i]->element[0]);
-		sbale->length = 0;
-		sbale->flags = SBAL_FLAGS_LAST_ENTRY;
-		sbale->addr = NULL;
-	}
-
-	ZFCP_LOG_TRACE("calling do_QDIO on adapter %s (flags=0x%x, "
-		       "queue_no=%i, index_in_queue=%i, count=%i)\n",
-		       zfcp_get_busid_by_adapter(adapter),
-		       QDIO_FLAG_SYNC_INPUT, 0, 0, QDIO_MAX_BUFFERS_PER_Q);
-
-	retval = do_QDIO(adapter->ccw_device,
-			 QDIO_FLAG_SYNC_INPUT,
-			 0, 0, QDIO_MAX_BUFFERS_PER_Q, NULL);
-
-	if (retval) {
-		ZFCP_LOG_NORMAL("bug: setup of QDIO failed (retval=%d)\n",
-				retval);
-		goto failed_do_qdio;
-	} else {
-		adapter->response_queue.free_index = 0;
-		atomic_set(&adapter->response_queue.free_count, 0);
-		ZFCP_LOG_DEBUG("%i buffers successfully enqueued to "
-			       "response queue\n", QDIO_MAX_BUFFERS_PER_Q);
-	}
-	/* set index of first avalable SBALS / number of available SBALS */
-	adapter->request_queue.free_index = 0;
-	atomic_set(&adapter->request_queue.free_count, QDIO_MAX_BUFFERS_PER_Q);
-	adapter->request_queue.distance_from_int = 0;
+	if (zfcp_qdio_open(adapter))
+		return ZFCP_ERP_FAILED;
 
 	/* initialize waitqueue used to wait for free SBALs in requests queue */
 	init_waitqueue_head(&adapter->request_wq);
 
 	/* ok, we did it - skip all cleanups for different failures */
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
-	retval = ZFCP_ERP_SUCCEEDED;
-	goto out;
-
- failed_do_qdio:
-	/* NOP */
-
- failed_qdio_activate:
-	while (qdio_shutdown(adapter->ccw_device,
-			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
-		ssleep(1);
-
- failed_qdio_establish:
- failed_sanity:
-	retval = ZFCP_ERP_FAILED;
-
- out:
-	return retval;
+	return ZFCP_ERP_SUCCEEDED;
 }
 
 

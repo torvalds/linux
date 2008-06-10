@@ -57,21 +57,17 @@ extern int  zfcp_ccw_register(void);
 
 extern void zfcp_qdio_zero_sbals(struct qdio_buffer **, int, int);
 extern int  zfcp_qdio_allocate(struct zfcp_adapter *);
-extern int  zfcp_qdio_allocate_queues(struct zfcp_adapter *);
-extern void zfcp_qdio_free_queues(struct zfcp_adapter *);
-extern int  zfcp_qdio_determine_pci(struct zfcp_qdio_queue *,
-				    struct zfcp_fsf_req *);
+extern void zfcp_qdio_free(struct zfcp_adapter *);
+extern int  zfcp_qdio_send(struct zfcp_fsf_req *fsf_req);
 
 extern volatile struct qdio_buffer_element *zfcp_qdio_sbale_req
-	(struct zfcp_fsf_req *, int, int);
+	(struct zfcp_fsf_req *);
 extern volatile struct qdio_buffer_element *zfcp_qdio_sbale_curr
 	(struct zfcp_fsf_req *);
 extern int zfcp_qdio_sbals_from_sg
-	(struct zfcp_fsf_req *, unsigned long, struct scatterlist *, int, int);
-extern int zfcp_qdio_sbals_from_scsicmnd
-	(struct zfcp_fsf_req *, unsigned long, struct scsi_cmnd *);
-
-
+	(struct zfcp_fsf_req *, unsigned long, struct scatterlist *, int);
+extern int zfcp_qdio_open(struct zfcp_adapter *adapter);
+extern void zfcp_qdio_close(struct zfcp_adapter *adapter);
 /******************************** FSF ****************************************/
 extern int  zfcp_fsf_open_port(struct zfcp_erp_action *);
 extern int  zfcp_fsf_close_port(struct zfcp_erp_action *);
@@ -95,7 +91,7 @@ extern int  zfcp_fsf_status_read(struct zfcp_adapter *, int);
 extern int zfcp_status_read_refill(struct zfcp_adapter *adapter);
 extern int zfcp_fsf_req_create(struct zfcp_adapter *, u32, int, mempool_t *,
 			       unsigned long *, struct zfcp_fsf_req **)
-	__acquires(adapter->request_queue.queue_lock);
+	__acquires(adapter->req_q.lock);
 extern int zfcp_fsf_send_ct(struct zfcp_send_ct *, mempool_t *,
 			    struct zfcp_erp_action *);
 extern int zfcp_fsf_send_els(struct zfcp_send_els *);

@@ -112,21 +112,10 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
         /* max. number of (data buffer) SBALEs in largest SBAL chain
            multiplied with number of sectors per 4k block */
 
-/* FIXME(tune): free space should be one max. SBAL chain plus what? */
-#define ZFCP_QDIO_PCI_INTERVAL		(QDIO_MAX_BUFFERS_PER_Q \
-                                         - (ZFCP_MAX_SBALS_PER_REQ + 4))
-
 #define ZFCP_SBAL_TIMEOUT               (5*HZ)
 
 #define ZFCP_TYPE2_RECOVERY_TIME        8	/* seconds */
 
-/* queue polling (values in microseconds) */
-#define ZFCP_MAX_INPUT_THRESHOLD 	5000	/* FIXME: tune */
-#define ZFCP_MAX_OUTPUT_THRESHOLD 	1000	/* FIXME: tune */
-#define ZFCP_MIN_INPUT_THRESHOLD 	1	/* ignored by QDIO layer */
-#define ZFCP_MIN_OUTPUT_THRESHOLD 	1	/* ignored by QDIO layer */
-
-#define QDIO_SCSI_QFMT			1	/* 1 for FSF */
 #define QBUFF_PER_PAGE			(PAGE_SIZE / sizeof(struct qdio_buffer))
 
 /********************* FSF SPECIFIC DEFINES *********************************/
@@ -649,13 +638,13 @@ struct zfcp_send_els {
 };
 
 struct zfcp_qdio_queue {
-	struct qdio_buffer *buffer[QDIO_MAX_BUFFERS_PER_Q]; /* SBALs */
-	u8		   free_index;	      /* index of next free bfr
+	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q]; /* SBALs */
+	u8		   first;	      /* index of next free bfr
 						 in queue (free_count>0) */
-	atomic_t           free_count;	      /* number of free buffers
+	atomic_t           count;	      /* number of free buffers
 						 in queue */
-	rwlock_t	   queue_lock;	      /* lock for operations on queue */
-        int                distance_from_int; /* SBALs used since PCI indication
+	rwlock_t	   lock;	      /* lock for operations on queue */
+	int                pci_batch;	      /* SBALs since PCI indication
 						 was last set */
 };
 
@@ -711,15 +700,14 @@ struct zfcp_adapter {
 	struct list_head        port_remove_lh;    /* head of ports to be
 						      removed */
 	u32			ports;	           /* number of remote ports */
-	atomic_t		reqs_active;	   /* # active FSF reqs */
 	unsigned long		req_no;		   /* unique FSF req number */
 	struct list_head	*req_list;	   /* list of pending reqs */
 	spinlock_t		req_list_lock;	   /* request list lock */
-	struct zfcp_qdio_queue	request_queue;	   /* request queue */
+	struct zfcp_qdio_queue	req_q;		   /* request queue */
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	wait_queue_head_t	request_wq;	   /* can be used to wait for
 						      more avaliable SBALs */
-	struct zfcp_qdio_queue	response_queue;	   /* response queue */
+	struct zfcp_qdio_queue	resp_q;	   /* response queue */
 	rwlock_t		abort_lock;        /* Protects against SCSI
 						      stack abort/command
 						      completion races */
