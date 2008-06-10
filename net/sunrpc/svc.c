@@ -434,7 +434,7 @@ EXPORT_SYMBOL(svc_create);
 struct svc_serv *
 svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 		void (*shutdown)(struct svc_serv *serv),
-		  svc_thread_fn func, int sig, struct module *mod)
+		  svc_thread_fn func, struct module *mod)
 {
 	struct svc_serv *serv;
 	unsigned int npools = svc_pool_map_get();
@@ -443,7 +443,6 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 
 	if (serv != NULL) {
 		serv->sv_function = func;
-		serv->sv_kill_signal = sig;
 		serv->sv_module = mod;
 	}
 
@@ -683,7 +682,7 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	/* destroy old threads */
 	while (nrservs < 0 &&
 	       (task = choose_victim(serv, pool, &state)) != NULL) {
-		send_sig(serv->sv_kill_signal, task, 1);
+		send_sig(SIGINT, task, 1);
 		nrservs++;
 	}
 
