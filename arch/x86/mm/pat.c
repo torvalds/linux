@@ -76,14 +76,15 @@ void pat_init(void)
 		return;
 
 	/* Paranoia check. */
-	if (!cpu_has_pat) {
-		printk(KERN_ERR "PAT enabled, but CPU feature cleared\n");
+	if (!cpu_has_pat && boot_pat_state) {
 		/*
-		 * Panic if this happens on the secondary CPU, and we
+		 * If this happens we are on a secondary CPU, but
 		 * switched to PAT on the boot CPU. We have no way to
 		 * undo PAT.
-		*/
-		BUG_ON(boot_pat_state);
+		 */
+		printk(KERN_ERR "PAT enabled, "
+		       "but not supported by secondary CPU\n");
+		BUG();
 	}
 
 	/* Set PWT to Write-Combining. All other bits stay the same */
