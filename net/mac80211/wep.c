@@ -93,13 +93,9 @@ static u8 *ieee80211_wep_add_iv(struct ieee80211_local *local,
 	fc |= IEEE80211_FCTL_PROTECTED;
 	hdr->frame_control = cpu_to_le16(fc);
 
-	if ((skb_headroom(skb) < WEP_IV_LEN ||
-	     skb_tailroom(skb) < WEP_ICV_LEN)) {
-		I802_DEBUG_INC(local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, WEP_IV_LEN, WEP_ICV_LEN,
-					      GFP_ATOMIC)))
-			return NULL;
-	}
+	if (WARN_ON(skb_tailroom(skb) < WEP_ICV_LEN ||
+		    skb_headroom(skb) < WEP_IV_LEN))
+		return NULL;
 
 	hdrlen = ieee80211_get_hdrlen(fc);
 	newhdr = skb_push(skb, WEP_IV_LEN);
@@ -333,11 +329,16 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 
 static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	info->control.iv_len = WEP_IV_LEN;
+	info->control.icv_len = WEP_ICV_LEN;
+
 	if (!(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
 		if (ieee80211_wep_encrypt(tx->local, skb, tx->key))
 			return -1;
 	} else {
-		tx->control->hw_key = &tx->key->conf;
+		info->control.hw_key = &tx->key->conf;
 		if (tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) {
 			if (!ieee80211_wep_add_iv(tx->local, skb, tx->key))
 				return -1;
@@ -349,8 +350,6 @@ static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 ieee80211_tx_result
 ieee80211_crypto_wep_encrypt(struct ieee80211_tx_data *tx)
 {
-	tx->control->iv_len = WEP_IV_LEN;
-	tx->control->icv_len = WEP_ICV_LEN;
 	ieee80211_tx_set_protected(tx);
 
 	if (wep_encrypt_skb(tx, tx->skb) < 0) {

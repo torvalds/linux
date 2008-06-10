@@ -324,7 +324,7 @@ static void adm8211_interrupt_tci(struct ieee80211_hw *dev)
 	for (dirty_tx = priv->dirty_tx; priv->cur_tx - dirty_tx; dirty_tx++) {
 		unsigned int entry = dirty_tx % priv->tx_ring_size;
 		u32 status = le32_to_cpu(priv->tx_ring[entry].status);
-		struct ieee80211_tx_status tx_status;
+		struct ieee80211_tx_info *txi;
 		struct adm8211_tx_ring_info *info;
 		struct sk_buff *skb;
 
@@ -334,24 +334,23 @@ static void adm8211_interrupt_tci(struct ieee80211_hw *dev)
 
 		info = &priv->tx_buffers[entry];
 		skb = info->skb;
+		txi = IEEE80211_SKB_CB(skb);
 
 		/* TODO: check TDES0_STATUS_TUF and TDES0_STATUS_TRO */
 
 		pci_unmap_single(priv->pdev, info->mapping,
 				 info->skb->len, PCI_DMA_TODEVICE);
 
-		memset(&tx_status, 0, sizeof(tx_status));
+		memset(&txi->status, 0, sizeof(txi->status));
 		skb_pull(skb, sizeof(struct adm8211_tx_hdr));
 		memcpy(skb_push(skb, info->hdrlen), skb->cb, info->hdrlen);
-		memcpy(&tx_status.control, &info->tx_control,
-		       sizeof(tx_status.control));
-		if (!(tx_status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
+		if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK)) {
 			if (status & TDES0_STATUS_ES)
-				tx_status.excessive_retries = 1;
+				txi->status.excessive_retries = 1;
 			else
-				tx_status.flags |= IEEE80211_TX_STATUS_ACK;
+				txi->flags |= IEEE80211_TX_STAT_ACK;
 		}
-		ieee80211_tx_status_irqsafe(dev, skb, &tx_status);
+		ieee80211_tx_status_irqsafe(dev, skb);
 
 		info->skb = NULL;
 	}
@@ -1638,7 +1637,6 @@ static void adm8211_calc_durations(int *dur, int *plcp, size_t payload_len, int 
 /* Transmit skb w/adm8211_tx_hdr (802.11 header created by hardware) */
 static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 			   u16 plcp_signal,
-			   struct ieee80211_tx_control *control,
 			   size_t hdrlen)
 {
 	struct adm8211_priv *priv = dev->priv;
@@ -1664,7 +1662,6 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	priv->tx_buffers[entry].skb = skb;
 	priv->tx_buffers[entry].mapping = mapping;
-	memcpy(&priv->tx_buffers[entry].tx_control, control, sizeof(*control));
 	priv->tx_buffers[entry].hdrlen = hdrlen;
 	priv->tx_ring[entry].buffer1 = cpu_to_le32(mapping);
 
@@ -1685,18 +1682,18 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 }
 
 /* Put adm8211_tx_hdr on skb and transmit */
-static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
-		      struct ieee80211_tx_control *control)
+static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct adm8211_tx_hdr *txhdr;
 	u16 fc;
 	size_t payload_len, hdrlen;
 	int plcp, dur, len, plcp_signal, short_preamble;
 	struct ieee80211_hdr *hdr;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(dev, info);
 
-	short_preamble = !!(control->tx_rate->flags &
-					IEEE80211_TXCTL_SHORT_PREAMBLE);
-	plcp_signal = control->tx_rate->bitrate;
+	short_preamble = !!(txrate->flags & IEEE80211_TX_CTL_SHORT_PREAMBLE);
+	plcp_signal = txrate->bitrate;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control) & ~IEEE80211_FCTL_PROTECTED;
@@ -1730,15 +1727,15 @@ static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (short_preamble)
 		txhdr->header_control |= cpu_to_le16(ADM8211_TXHDRCTL_SHORT_PREAMBLE);
 
-	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)
+	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS)
 		txhdr->header_control |= cpu_to_le16(ADM8211_TXHDRCTL_ENABLE_RTS);
 
 	if (fc & IEEE80211_FCTL_PROTECTED)
 		txhdr->header_control |= cpu_to_le16(ADM8211_TXHDRCTL_ENABLE_WEP_ENGINE);
 
-	txhdr->retry_limit = control->retry_limit;
+	txhdr->retry_limit = info->control.retry_limit;
 
-	adm8211_tx_raw(dev, skb, plcp_signal, control, hdrlen);
+	adm8211_tx_raw(dev, skb, plcp_signal, hdrlen);
 
 	return NETDEV_TX_OK;
 }
@@ -2015,7 +2012,7 @@ static int adm8211_resume(struct pci_dev *pdev)
 
 	if (priv->mode != IEEE80211_IF_TYPE_INVALID) {
 		adm8211_start(dev);
-		ieee80211_start_queues(dev);
+		ieee80211_wake_queues(dev);
 	}
 
 	return 0;

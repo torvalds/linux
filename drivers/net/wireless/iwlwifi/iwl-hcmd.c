@@ -56,6 +56,7 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(REPLY_RATE_SCALE);
 		IWL_CMD(REPLY_LEDS_CMD);
 		IWL_CMD(REPLY_TX_LINK_QUALITY_CMD);
+		IWL_CMD(COEX_PRIORITY_TABLE_CMD);
 		IWL_CMD(RADAR_NOTIFICATION);
 		IWL_CMD(REPLY_QUIET_CMD);
 		IWL_CMD(REPLY_CHANNEL_SWITCH);
@@ -89,6 +90,9 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(REPLY_RX_MPDU_CMD);
 		IWL_CMD(REPLY_RX);
 		IWL_CMD(REPLY_COMPRESSED_BA);
+		IWL_CMD(CALIBRATION_CFG_CMD);
+		IWL_CMD(CALIBRATION_RES_NOTIFICATION);
+		IWL_CMD(CALIBRATION_COMPLETE_NOTIFICATION);
 	default:
 		return "UNKNOWN";
 
@@ -139,7 +143,7 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EBUSY;
 
-	ret = priv->cfg->ops->utils->enqueue_hcmd(priv, cmd);
+	ret = iwl_enqueue_hcmd(priv, cmd);
 	if (ret < 0) {
 		IWL_ERROR("Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
@@ -170,7 +174,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (cmd->meta.flags & CMD_WANT_SKB)
 		cmd->meta.source = &cmd->meta;
 
-	cmd_idx = priv->cfg->ops->utils->enqueue_hcmd(priv, cmd);
+	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
 		IWL_ERROR("Error sending %s: enqueue_hcmd failed: %d\n",

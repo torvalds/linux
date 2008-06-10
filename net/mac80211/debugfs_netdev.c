@@ -155,7 +155,6 @@ static const struct file_operations name##_ops = {			\
 		__IEEE80211_IF_WFILE(name)
 
 /* common attributes */
-IEEE80211_IF_FILE(channel_use, channel_use, DEC);
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
 
 /* STA/IBSS attributes */
@@ -248,7 +247,6 @@ IEEE80211_IF_WFILE(min_discovery_timeout,
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, sta);
 	DEBUGFS_ADD(drop_unencrypted, sta);
 	DEBUGFS_ADD(state, sta);
 	DEBUGFS_ADD(bssid, sta);
@@ -269,7 +267,6 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, ap);
 	DEBUGFS_ADD(drop_unencrypted, ap);
 	DEBUGFS_ADD(num_sta_ps, ap);
 	DEBUGFS_ADD(dtim_count, ap);
@@ -281,14 +278,12 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, wds);
 	DEBUGFS_ADD(drop_unencrypted, wds);
 	DEBUGFS_ADD(peer, wds);
 }
 
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, vlan);
 	DEBUGFS_ADD(drop_unencrypted, vlan);
 }
 
@@ -376,7 +371,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 
 static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, sta);
 	DEBUGFS_DEL(drop_unencrypted, sta);
 	DEBUGFS_DEL(state, sta);
 	DEBUGFS_DEL(bssid, sta);
@@ -397,7 +391,6 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 
 static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, ap);
 	DEBUGFS_DEL(drop_unencrypted, ap);
 	DEBUGFS_DEL(num_sta_ps, ap);
 	DEBUGFS_DEL(dtim_count, ap);
@@ -409,14 +402,12 @@ static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 
 static void del_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, wds);
 	DEBUGFS_DEL(drop_unencrypted, wds);
 	DEBUGFS_DEL(peer, wds);
 }
 
 static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, vlan);
 	DEBUGFS_DEL(drop_unencrypted, vlan);
 }
 

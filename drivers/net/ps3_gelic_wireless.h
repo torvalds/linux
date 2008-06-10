@@ -288,9 +288,6 @@ struct gelic_wl_info {
 	u8 active_bssid[ETH_ALEN]; /* associated bssid */
 	unsigned int essid_len;
 
-	/* buffer for hypervisor IO */
-	void *buf;
-
 	struct iw_public_data wireless_data;
 	struct iw_statistics iwstat;
 };

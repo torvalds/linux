@@ -665,7 +665,7 @@ static int p54p_resume(struct pci_dev *pdev)
 
 	if (priv->common.mode != IEEE80211_IF_TYPE_INVALID) {
 		p54p_open(dev);
-		ieee80211_start_queues(dev);
+		ieee80211_wake_queues(dev);
 	}
 
 	return 0;

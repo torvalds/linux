@@ -1002,7 +1002,7 @@ static int lbs_mesh_set_freq(struct net_device *dev,
 		else if (priv->mode == IW_MODE_ADHOC)
 			lbs_stop_adhoc_network(priv);
 	}
-	lbs_mesh_config(priv, 1, fwrq->m);
+	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START, fwrq->m);
 	lbs_update_channel(priv);
 	ret = 0;
 
@@ -1021,29 +1021,38 @@ static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 	lbs_deb_wext("vwrq->value %d\n", vwrq->value);
+	lbs_deb_wext("vwrq->fixed %d\n", vwrq->fixed);
+
+	if (vwrq->fixed && vwrq->value == -1)
+		goto out;
 
 	/* Auto rate? */
-	if (vwrq->value == -1) {
-		priv->auto_rate = 1;
+	priv->enablehwauto = !vwrq->fixed;
+
+	if (vwrq->value == -1)
 		priv->cur_rate = 0;
-	} else {
+	else {
 		if (vwrq->value % 100000)
 			goto out;
 
+		new_rate = vwrq->value / 500000;
+		priv->cur_rate = new_rate;
+		/* the rest is only needed for lbs_set_data_rate() */
 		memset(rates, 0, sizeof(rates));
 		copy_active_data_rates(priv, rates);
-		new_rate = vwrq->value / 500000;
 		if (!memchr(rates, new_rate, sizeof(rates))) {
 			lbs_pr_alert("fixed data rate 0x%X out of range\n",
 				new_rate);
 			goto out;
 		}
-
-		priv->cur_rate = new_rate;
-		priv->auto_rate = 0;
 	}
 
-	ret = lbs_set_data_rate(priv, new_rate);
+	/* Try the newer command first (Firmware Spec 5.1 and above) */
+	ret = lbs_cmd_802_11_rate_adapt_rateset(priv, CMD_ACT_SET);
+
+	/* Fallback to older version */
+	if (ret)
+		ret = lbs_set_data_rate(priv, new_rate);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -1060,7 +1069,7 @@ static int lbs_get_rate(struct net_device *dev, struct iw_request_info *info,
 	if (priv->connect_status == LBS_CONNECTED) {
 		vwrq->value = priv->cur_rate * 500000;
 
-		if (priv->auto_rate)
+		if (priv->enablehwauto)
 			vwrq->fixed = 0;
 		else
 			vwrq->fixed = 1;
@@ -2011,7 +2020,8 @@ static int lbs_mesh_set_essid(struct net_device *dev,
 		priv->mesh_ssid_len = dwrq->length;
 	}
 
-	lbs_mesh_config(priv, 1, priv->curbssparams.channel);
+	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
+			priv->curbssparams.channel);
  out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;

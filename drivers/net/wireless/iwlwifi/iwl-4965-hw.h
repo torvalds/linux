@@ -100,9 +100,14 @@
 
 #include "iwl-commands.h"
 
-#define PCI_LINK_CTRL      0x0F0
+/* PCI registers */
+#define PCI_LINK_CTRL      0x0F0	/* 1 byte */
 #define PCI_POWER_SOURCE   0x0C8
 #define PCI_REG_WUM8       0x0E8
+
+/* PCI register values */
+#define PCI_LINK_VAL_L0S_EN	0x01
+#define PCI_LINK_VAL_L1_EN	0x02
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
 
 #define TFD_QUEUE_SIZE_MAX      (256)

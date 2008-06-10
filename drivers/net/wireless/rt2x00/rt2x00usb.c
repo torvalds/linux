@@ -129,9 +129,9 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 {
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct queue_entry_priv_usb_tx *priv_tx = entry->priv_data;
 	struct txdone_entry_desc txdesc;
 	__le32 *txd = (__le32 *)entry->skb->data;
+	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	u32 word;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
@@ -147,10 +147,18 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 
 	/*
 	 * Obtain the status about this packet.
+	 * Note that when the status is 0 it does not mean the
+	 * frame was send out correctly. It only means the frame
+	 * was succesfully pushed to the hardware, we have no
+	 * way to determine the transmission status right now.
+	 * (Only indirectly by looking at the failed TX counters
+	 * in the register).
 	 */
-	txdesc.status = !urb->status ? TX_SUCCESS : TX_FAIL_RETRY;
+	if (!urb->status)
+		__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
+	else
+		__set_bit(TXDONE_FAILURE, &txdesc.flags);
 	txdesc.retry = 0;
-	txdesc.control = &priv_tx->control;
 
 	rt2x00lib_txdone(entry, &txdesc);
 
@@ -166,17 +174,17 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * is reenabled when the txdone handler has finished.
 	 */
 	if (!rt2x00queue_full(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, priv_tx->control.queue);
+		ieee80211_wake_queue(rt2x00dev->hw, qid);
 }
 
 int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_queue *queue, struct sk_buff *skb,
-			    struct ieee80211_tx_control *control)
+			    struct data_queue *queue, struct sk_buff *skb)
 {
 	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	struct queue_entry_priv_usb_tx *priv_tx = entry->priv_data;
+	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
 	u32 length;
 
 	if (rt2x00queue_full(queue))
@@ -191,6 +199,14 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	entry->skb = skb;
+	rt2x00queue_create_tx_descriptor(entry, &txdesc);
+
+	/*
 	 * Add the descriptor in front of the skb.
 	 */
 	skb_push(skb, queue->desc_size);
@@ -200,14 +216,14 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->data = skb->data + queue->desc_size;
 	skbdesc->data_len = skb->len - queue->desc_size;
 	skbdesc->desc = skb->data;
 	skbdesc->desc_len = queue->desc_size;
 	skbdesc->entry = entry;
 
-	memcpy(&priv_tx->control, control, sizeof(priv_tx->control));
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
+	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -220,9 +236,9 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * Initialize URB and send the frame to the device.
 	 */
 	__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	usb_fill_bulk_urb(priv_tx->urb, usb_dev, usb_sndbulkpipe(usb_dev, 1),
+	usb_fill_bulk_urb(entry_priv->urb, usb_dev, usb_sndbulkpipe(usb_dev, 1),
 			  skb->data, length, rt2x00usb_interrupt_txdone, entry);
-	usb_submit_urb(priv_tx->urb, GFP_ATOMIC);
+	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 
 	rt2x00queue_index_inc(queue, Q_INDEX);
 
@@ -237,22 +253,35 @@ static struct sk_buff* rt2x00usb_alloc_rxskb(struct data_queue *queue)
 {
 	struct sk_buff *skb;
 	unsigned int frame_size;
+	unsigned int reserved_size;
 
 	/*
-	 * As alignment we use 2 and not NET_IP_ALIGN because we need
-	 * to be sure we have 2 bytes room in the head. (NET_IP_ALIGN
-	 * can be 0 on some hardware). We use these 2 bytes for frame
-	 * alignment later, we assume that the chance that
-	 * header_size % 4 == 2 is bigger then header_size % 2 == 0
-	 * and thus optimize alignment by reserving the 2 bytes in
-	 * advance.
+	 * The frame size includes descriptor size, because the
+	 * hardware directly receive the frame into the skbuffer.
 	 */
 	frame_size = queue->data_size + queue->desc_size;
-	skb = dev_alloc_skb(queue->desc_size + frame_size + 2);
+
+	/*
+	 * For the allocation we should keep a few things in mind:
+	 * 1) 4byte alignment of 802.11 payload
+	 *
+	 * For (1) we need at most 4 bytes to guarentee the correct
+	 * alignment. We are going to optimize the fact that the chance
+	 * that the 802.11 header_size % 4 == 2 is much bigger then
+	 * anything else. However since we need to move the frame up
+	 * to 3 bytes to the front, which means we need to preallocate
+	 * 6 bytes.
+	 */
+	reserved_size = 6;
+
+	/*
+	 * Allocate skbuffer.
+	 */
+	skb = dev_alloc_skb(frame_size + reserved_size);
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, queue->desc_size + 2);
+	skb_reserve(skb, reserved_size);
 	skb_put(skb, frame_size);
 
 	return skb;
@@ -265,7 +294,8 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	struct rxdone_entry_desc rxdesc;
-	int header_size;
+	unsigned int header_size;
+	unsigned int align;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
@@ -289,18 +319,28 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	memset(&rxdesc, 0, sizeof(rxdesc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
+	header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
+
 	/*
 	 * The data behind the ieee80211 header must be
-	 * aligned on a 4 byte boundary.
+	 * aligned on a 4 byte boundary. We already reserved
+	 * 2 bytes for header_size % 4 == 2 optimization.
+	 * To determine the number of bytes which the data
+	 * should be moved to the left, we must add these
+	 * 2 bytes to the header_size.
 	 */
-	header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
-	if (header_size % 4 == 0) {
-		skb_push(entry->skb, 2);
-		memmove(entry->skb->data, entry->skb->data + 2,
-			entry->skb->len - 2);
-		skbdesc->data = entry->skb->data;
-		skb_trim(entry->skb,entry->skb->len - 2);
+	align = (header_size + 2) % 4;
+
+	if (align) {
+		skb_push(entry->skb, align);
+		/* Move entire frame in 1 command */
+		memmove(entry->skb->data, entry->skb->data + align,
+			rxdesc.size);
 	}
+
+	/* Update data pointers, trim buffer to correct size */
+	skbdesc->data = entry->skb->data;
+	skb_trim(entry->skb, rxdesc.size);
 
 	/*
 	 * Allocate a new sk buffer to replace the current one.
@@ -338,10 +378,8 @@ skip_entry:
  */
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	struct queue_entry_priv_usb_rx *priv_rx;
-	struct queue_entry_priv_usb_tx *priv_tx;
-	struct queue_entry_priv_usb_bcn *priv_bcn;
-	struct data_queue *queue;
+	struct queue_entry_priv_usb *entry_priv;
+	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
 
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0, 0,
@@ -351,31 +389,17 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Cancel all queues.
 	 */
 	for (i = 0; i < rt2x00dev->rx->limit; i++) {
-		priv_rx = rt2x00dev->rx->entries[i].priv_data;
-		usb_kill_urb(priv_rx->urb);
+		entry_priv = rt2x00dev->rx->entries[i].priv_data;
+		usb_kill_urb(entry_priv->urb);
 	}
 
-	tx_queue_for_each(rt2x00dev, queue) {
-		for (i = 0; i < queue->limit; i++) {
-			priv_tx = queue->entries[i].priv_data;
-			usb_kill_urb(priv_tx->urb);
-		}
-	}
-
+	/*
+	 * Kill guardian urb.
+	 */
 	for (i = 0; i < rt2x00dev->bcn->limit; i++) {
-		priv_bcn = rt2x00dev->bcn->entries[i].priv_data;
-		usb_kill_urb(priv_bcn->urb);
-
-		if (priv_bcn->guardian_urb)
-			usb_kill_urb(priv_bcn->guardian_urb);
-	}
-
-	if (!test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
-		return;
-
-	for (i = 0; i < rt2x00dev->bcn[1].limit; i++) {
-		priv_tx = rt2x00dev->bcn[1].entries[i].priv_data;
-		usb_kill_urb(priv_tx->urb);
+		bcn_priv = rt2x00dev->bcn->entries[i].priv_data;
+		if (bcn_priv->guardian_urb)
+			usb_kill_urb(bcn_priv->guardian_urb);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
@@ -387,15 +411,15 @@ void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
 			    struct queue_entry *entry)
 {
 	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
-	struct queue_entry_priv_usb_rx *priv_rx = entry->priv_data;
+	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 
-	usb_fill_bulk_urb(priv_rx->urb, usb_dev,
+	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
 			  usb_rcvbulkpipe(usb_dev, 1),
 			  entry->skb->data, entry->skb->len,
 			  rt2x00usb_interrupt_rxdone, entry);
 
 	__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	usb_submit_urb(priv_rx->urb, GFP_ATOMIC);
+	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_init_rxentry);
 
@@ -409,38 +433,31 @@ EXPORT_SYMBOL_GPL(rt2x00usb_init_txentry);
 static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 			       struct data_queue *queue)
 {
-	struct queue_entry_priv_usb_rx *priv_rx;
-	struct queue_entry_priv_usb_tx *priv_tx;
-	struct queue_entry_priv_usb_bcn *priv_bcn;
-	struct urb *urb;
-	unsigned int guardian =
-	    test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
+	struct queue_entry_priv_usb *entry_priv;
+	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
 
-	/*
-	 * Allocate the URB's
-	 */
 	for (i = 0; i < queue->limit; i++) {
-		urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!urb)
+		entry_priv = queue->entries[i].priv_data;
+		entry_priv->urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!entry_priv->urb)
 			return -ENOMEM;
+	}
 
-		if (queue->qid == QID_RX) {
-			priv_rx = queue->entries[i].priv_data;
-			priv_rx->urb = urb;
-		} else if (queue->qid == QID_MGMT && guardian) {
-			priv_bcn = queue->entries[i].priv_data;
-			priv_bcn->urb = urb;
+	/*
+	 * If this is not the beacon queue or
+	 * no guardian byte was required for the beacon,
+	 * then we are done.
+	 */
+	if (rt2x00dev->bcn != queue ||
+	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
+		return 0;
 
-			urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!urb)
-				return -ENOMEM;
-
-			priv_bcn->guardian_urb = urb;
-		} else {
-			priv_tx = queue->entries[i].priv_data;
-			priv_tx->urb = urb;
-		}
+	for (i = 0; i < queue->limit; i++) {
+		bcn_priv = queue->entries[i].priv_data;
+		bcn_priv->guardian_urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!bcn_priv->guardian_urb)
+			return -ENOMEM;
 	}
 
 	return 0;
@@ -449,37 +466,34 @@ static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
 			       struct data_queue *queue)
 {
-	struct queue_entry_priv_usb_rx *priv_rx;
-	struct queue_entry_priv_usb_tx *priv_tx;
-	struct queue_entry_priv_usb_bcn *priv_bcn;
-	struct urb *urb;
-	unsigned int guardian =
-	    test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
+	struct queue_entry_priv_usb *entry_priv;
+	struct queue_entry_priv_usb_bcn *bcn_priv;
 	unsigned int i;
 
 	if (!queue->entries)
 		return;
 
 	for (i = 0; i < queue->limit; i++) {
-		if (queue->qid == QID_RX) {
-			priv_rx = queue->entries[i].priv_data;
-			urb = priv_rx->urb;
-		} else if (queue->qid == QID_MGMT && guardian) {
-			priv_bcn = queue->entries[i].priv_data;
-
-			usb_kill_urb(priv_bcn->guardian_urb);
-			usb_free_urb(priv_bcn->guardian_urb);
-
-			urb = priv_bcn->urb;
-		} else {
-			priv_tx = queue->entries[i].priv_data;
-			urb = priv_tx->urb;
-		}
-
-		usb_kill_urb(urb);
-		usb_free_urb(urb);
+		entry_priv = queue->entries[i].priv_data;
+		usb_kill_urb(entry_priv->urb);
+		usb_free_urb(entry_priv->urb);
 		if (queue->entries[i].skb)
 			kfree_skb(queue->entries[i].skb);
+	}
+
+	/*
+	 * If this is not the beacon queue or
+	 * no guardian byte was required for the beacon,
+	 * then we are done.
+	 */
+	if (rt2x00dev->bcn != queue ||
+	    !test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
+		return;
+
+	for (i = 0; i < queue->limit; i++) {
+		bcn_priv = queue->entries[i].priv_data;
+		usb_kill_urb(bcn_priv->guardian_urb);
+		usb_free_urb(bcn_priv->guardian_urb);
 	}
 }
 

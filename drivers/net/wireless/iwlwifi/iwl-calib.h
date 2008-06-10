@@ -78,10 +78,12 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 				struct iwl4965_notif_statistics *resp);
 
 void iwl_init_sensitivity(struct iwl_priv *priv);
-
+void iwl_reset_run_time_calib(struct iwl_priv *priv);
 static inline void iwl_chain_noise_reset(struct iwl_priv *priv)
 {
-	if (priv->cfg->ops->utils->chain_noise_reset)
+
+	if (!priv->disable_chain_noise_cal &&
+	    priv->cfg->ops->utils->chain_noise_reset)
 		priv->cfg->ops->utils->chain_noise_reset(priv);
 }
 #else
@@ -97,6 +99,9 @@ static inline void iwl_init_sensitivity(struct iwl_priv *priv)
 {
 }
 static inline void iwl_chain_noise_reset(struct iwl_priv *priv)
+{
+}
+static inline void iwl_reset_run_time_calib(struct iwl_priv *priv)
 {
 }
 #endif

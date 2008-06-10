@@ -79,6 +79,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	struct sk_buff *skb = tx->skb;
 	int authenticator;
 	int wpa_test = 0;
+	int tail;
 
 	fc = tx->fc;
 
@@ -98,16 +99,13 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 	}
 
-	if (skb_tailroom(skb) < MICHAEL_MIC_LEN) {
-		I802_DEBUG_INC(tx->local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, TKIP_IV_LEN,
-					      MICHAEL_MIC_LEN + TKIP_ICV_LEN,
-					      GFP_ATOMIC))) {
-			printk(KERN_DEBUG "%s: failed to allocate more memory "
-			       "for Michael MIC\n", tx->dev->name);
-			return TX_DROP;
-		}
-	}
+	tail = MICHAEL_MIC_LEN;
+	if (!(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+		tail += TKIP_ICV_LEN;
+
+	if (WARN_ON(skb_tailroom(skb) < tail ||
+		    skb_headroom(skb) < TKIP_IV_LEN))
+		return TX_DROP;
 
 #if 0
 	authenticator = fc & IEEE80211_FCTL_FROMDS; /* FIX */
@@ -176,59 +174,65 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 	skb_trim(skb, skb->len - MICHAEL_MIC_LEN);
 
 	/* update IV in key information to be able to detect replays */
-	rx->key->u.tkip.iv32_rx[rx->queue] = rx->tkip_iv32;
-	rx->key->u.tkip.iv16_rx[rx->queue] = rx->tkip_iv16;
+	rx->key->u.tkip.rx[rx->queue].iv32 = rx->tkip_iv32;
+	rx->key->u.tkip.rx[rx->queue].iv16 = rx->tkip_iv16;
 
 	return RX_CONTINUE;
 }
 
 
-static int tkip_encrypt_skb(struct ieee80211_tx_data *tx,
-			    struct sk_buff *skb, int test)
+static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
-	int hdrlen, len, tailneed;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int hdrlen, len, tail;
 	u16 fc;
 	u8 *pos;
+
+	info->control.icv_len = TKIP_ICV_LEN;
+	info->control.iv_len = TKIP_IV_LEN;
+
+	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+		/* hwaccel - with no need for preallocated room for IV/ICV */
+		info->control.hw_key = &tx->key->conf;
+		return 0;
+	}
 
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
 	len = skb->len - hdrlen;
 
 	if (tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
-		tailneed = 0;
+		tail = 0;
 	else
-		tailneed = TKIP_ICV_LEN;
+		tail = TKIP_ICV_LEN;
 
-	if ((skb_headroom(skb) < TKIP_IV_LEN ||
-	     skb_tailroom(skb) < tailneed)) {
-		I802_DEBUG_INC(tx->local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, TKIP_IV_LEN, tailneed,
-					      GFP_ATOMIC)))
-			return -1;
-	}
+	if (WARN_ON(skb_tailroom(skb) < tail ||
+		    skb_headroom(skb) < TKIP_IV_LEN))
+		return -1;
 
 	pos = skb_push(skb, TKIP_IV_LEN);
 	memmove(pos, pos + TKIP_IV_LEN, hdrlen);
 	pos += hdrlen;
 
 	/* Increase IV for the frame */
-	key->u.tkip.iv16++;
-	if (key->u.tkip.iv16 == 0)
-		key->u.tkip.iv32++;
+	key->u.tkip.tx.iv16++;
+	if (key->u.tkip.tx.iv16 == 0)
+		key->u.tkip.tx.iv32++;
 
 	if (tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 		hdr = (struct ieee80211_hdr *)skb->data;
 
 		/* hwaccel - with preallocated room for IV */
 		ieee80211_tkip_add_iv(pos, key,
-				      (u8) (key->u.tkip.iv16 >> 8),
-				      (u8) (((key->u.tkip.iv16 >> 8) | 0x20) &
+				      (u8) (key->u.tkip.tx.iv16 >> 8),
+				      (u8) (((key->u.tkip.tx.iv16 >> 8) | 0x20) &
 					    0x7f),
-				      (u8) key->u.tkip.iv16);
+				      (u8) key->u.tkip.tx.iv16);
 
-		tx->control->hw_key = &tx->key->conf;
+		info->control.hw_key = &tx->key->conf;
 		return 0;
 	}
 
@@ -246,28 +250,16 @@ ieee80211_tx_result
 ieee80211_crypto_tkip_encrypt(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
-	int wpa_test = 0, test = 0;
 
-	tx->control->icv_len = TKIP_ICV_LEN;
-	tx->control->iv_len = TKIP_IV_LEN;
 	ieee80211_tx_set_protected(tx);
 
-	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
-	    !wpa_test) {
-		/* hwaccel - with no need for preallocated room for IV/ICV */
-		tx->control->hw_key = &tx->key->conf;
-		return TX_CONTINUE;
-	}
-
-	if (tkip_encrypt_skb(tx, skb, test) < 0)
+	if (tkip_encrypt_skb(tx, skb) < 0)
 		return TX_DROP;
 
 	if (tx->extra_frag) {
 		int i;
 		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (tkip_encrypt_skb(tx, tx->extra_frag[i], test)
-			    < 0)
+			if (tkip_encrypt_skb(tx, tx->extra_frag[i]) < 0)
 				return TX_DROP;
 		}
 	}
@@ -429,15 +421,26 @@ static inline int ccmp_hdr2pn(u8 *pn, u8 *hdr)
 }
 
 
-static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx,
-			    struct sk_buff *skb, int test)
+static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
-	int hdrlen, len, tailneed;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int hdrlen, len, tail;
 	u16 fc;
 	u8 *pos, *pn, *b_0, *aad, *scratch;
 	int i;
+
+	info->control.icv_len = CCMP_MIC_LEN;
+	info->control.iv_len = CCMP_HDR_LEN;
+
+	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+		/* hwaccel - with no need for preallocated room for CCMP "
+		 * header or MIC fields */
+		info->control.hw_key = &tx->key->conf;
+		return 0;
+	}
 
 	scratch = key->u.ccmp.tx_crypto_buf;
 	b_0 = scratch + 3 * AES_BLOCK_LEN;
@@ -448,17 +451,13 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx,
 	len = skb->len - hdrlen;
 
 	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
-		tailneed = 0;
+		tail = 0;
 	else
-		tailneed = CCMP_MIC_LEN;
+		tail = CCMP_MIC_LEN;
 
-	if ((skb_headroom(skb) < CCMP_HDR_LEN ||
-	     skb_tailroom(skb) < tailneed)) {
-		I802_DEBUG_INC(tx->local->tx_expand_skb_head);
-		if (unlikely(pskb_expand_head(skb, CCMP_HDR_LEN, tailneed,
-					      GFP_ATOMIC)))
-			return -1;
-	}
+	if (WARN_ON(skb_tailroom(skb) < tail ||
+		    skb_headroom(skb) < CCMP_HDR_LEN))
+		return -1;
 
 	pos = skb_push(skb, CCMP_HDR_LEN);
 	memmove(pos, pos + CCMP_HDR_LEN, hdrlen);
@@ -478,7 +477,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx,
 
 	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 		/* hwaccel - with preallocated room for CCMP header */
-		tx->control->hw_key = &tx->key->conf;
+		info->control.hw_key = &tx->key->conf;
 		return 0;
 	}
 
@@ -495,28 +494,16 @@ ieee80211_tx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
-	int test = 0;
 
-	tx->control->icv_len = CCMP_MIC_LEN;
-	tx->control->iv_len = CCMP_HDR_LEN;
 	ieee80211_tx_set_protected(tx);
 
-	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
-		/* hwaccel - with no need for preallocated room for CCMP "
-		 * header or MIC fields */
-		tx->control->hw_key = &tx->key->conf;
-		return TX_CONTINUE;
-	}
-
-	if (ccmp_encrypt_skb(tx, skb, test) < 0)
+	if (ccmp_encrypt_skb(tx, skb) < 0)
 		return TX_DROP;
 
 	if (tx->extra_frag) {
 		int i;
 		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (ccmp_encrypt_skb(tx, tx->extra_frag[i], test)
-			    < 0)
+			if (ccmp_encrypt_skb(tx, tx->extra_frag[i]) < 0)
 				return TX_DROP;
 		}
 	}

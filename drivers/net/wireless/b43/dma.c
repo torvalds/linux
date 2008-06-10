@@ -1131,10 +1131,10 @@ struct b43_dmaring *parse_cookie(struct b43_wldev *dev, u16 cookie, int *slot)
 }
 
 static int dma_tx_fragment(struct b43_dmaring *ring,
-			   struct sk_buff *skb,
-			   struct ieee80211_tx_control *ctl)
+			   struct sk_buff *skb)
 {
 	const struct b43_dma_ops *ops = ring->ops;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u8 *header;
 	int slot, old_top_slot, old_used_slots;
 	int err;
@@ -1158,7 +1158,7 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	header = &(ring->txhdr_cache[slot * hdrsize]);
 	cookie = generate_cookie(ring, slot);
 	err = b43_generate_txhdr(ring->dev, header,
-				 skb->data, skb->len, ctl, cookie);
+				 skb->data, skb->len, info, cookie);
 	if (unlikely(err)) {
 		ring->current_slot = old_top_slot;
 		ring->used_slots = old_used_slots;
@@ -1180,7 +1180,6 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	desc = ops->idx2desc(ring, slot, &meta);
 	memset(meta, 0, sizeof(*meta));
 
-	memcpy(&meta->txstat.control, ctl, sizeof(*ctl));
 	meta->skb = skb;
 	meta->is_last_fragment = 1;
 
@@ -1210,7 +1209,7 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 
 	ops->fill_descriptor(ring, desc, meta->dmaaddr, skb->len, 0, 1, 1);
 
-	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 		/* Tell the firmware about the cookie of the last
 		 * mcast frame, so it can clear the more-data bit in it. */
 		b43_shm_write16(ring->dev, B43_SHM_SHARED,
@@ -1281,16 +1280,16 @@ static struct b43_dmaring * select_ring_by_priority(struct b43_wldev *dev,
 	return ring;
 }
 
-int b43_dma_tx(struct b43_wldev *dev,
-	       struct sk_buff *skb, struct ieee80211_tx_control *ctl)
+int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 {
 	struct b43_dmaring *ring;
 	struct ieee80211_hdr *hdr;
 	int err = 0;
 	unsigned long flags;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 		/* The multicast ring will be sent after the DTIM */
 		ring = dev->dma.tx_ring_mcast;
 		/* Set the more-data bit. Ucode will clear it on
@@ -1298,7 +1297,8 @@ int b43_dma_tx(struct b43_wldev *dev,
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 	} else {
 		/* Decide by priority where to put this frame. */
-		ring = select_ring_by_priority(dev, ctl->queue);
+		ring = select_ring_by_priority(
+			dev, skb_get_queue_mapping(skb));
 	}
 
 	spin_lock_irqsave(&ring->lock, flags);
@@ -1316,9 +1316,9 @@ int b43_dma_tx(struct b43_wldev *dev,
 	/* Assign the queue number to the ring (if not already done before)
 	 * so TX status handling can use it. The queue to ring mapping is
 	 * static, so we don't need to store it per frame. */
-	ring->queue_prio = ctl->queue;
+	ring->queue_prio = skb_get_queue_mapping(skb);
 
-	err = dma_tx_fragment(ring, skb, ctl);
+	err = dma_tx_fragment(ring, skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */
@@ -1334,7 +1334,7 @@ int b43_dma_tx(struct b43_wldev *dev,
 	if ((free_slots(ring) < SLOTS_PER_PACKET) ||
 	    should_inject_overflow(ring)) {
 		/* This TX ring is full. */
-		ieee80211_stop_queue(dev->wl->hw, ctl->queue);
+		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
 		ring->stopped = 1;
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE)) {
 			b43dbg(dev->wl, "Stopped TX ring %d\n", ring->index);
@@ -1377,13 +1377,19 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 					 b43_txhdr_size(dev), 1);
 
 		if (meta->is_last_fragment) {
-			B43_WARN_ON(!meta->skb);
-			/* Call back to inform the ieee80211 subsystem about the
-			 * status of the transmission.
-			 * Some fields of txstat are already filled in dma_tx().
+			struct ieee80211_tx_info *info;
+
+			BUG_ON(!meta->skb);
+
+			info = IEEE80211_SKB_CB(meta->skb);
+
+			memset(&info->status, 0, sizeof(info->status));
+
+			/*
+			 * Call back to inform the ieee80211 subsystem about
+			 * the status of the transmission.
 			 */
-			frame_succeed = b43_fill_txstatus_report(
-						&(meta->txstat), status);
+			frame_succeed = b43_fill_txstatus_report(info, status);
 #ifdef CONFIG_B43_DEBUG
 			if (frame_succeed)
 				ring->nr_succeed_tx_packets++;
@@ -1391,8 +1397,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 				ring->nr_failed_tx_packets++;
 			ring->nr_total_packet_tries += status->frame_count;
 #endif /* DEBUG */
-			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb,
-						    &(meta->txstat));
+			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb);
+
 			/* skb is freed by ieee80211_tx_status_irqsafe() */
 			meta->skb = NULL;
 		} else {

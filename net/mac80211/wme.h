@@ -31,7 +31,7 @@ static inline int WLAN_FC_IS_QOS_DATA(u16 fc)
 	return (fc & 0x8C) == 0x88;
 }
 
-#ifdef CONFIG_NET_SCHED
+#ifdef CONFIG_MAC80211_QOS
 void ieee80211_install_qdisc(struct net_device *dev);
 int ieee80211_qdisc_installed(struct net_device *dev);
 int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,

@@ -60,7 +60,6 @@ struct ath5k_buf {
 	dma_addr_t		daddr;	/* physical addr of desc */
 	struct sk_buff		*skb;	/* skbuff for buf */
 	dma_addr_t		skbaddr;/* physical addr of skb data */
-	struct ieee80211_tx_control ctl;
 };
 
 /*

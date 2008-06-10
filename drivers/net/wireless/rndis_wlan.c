@@ -1108,7 +1108,7 @@ static int rndis_iw_get_range(struct net_device *dev,
 	/* fill in 802.11g rates */
 	if (has_80211g_rates) {
 		num = range->num_bitrates;
-		for (i = 0; i < sizeof(rates_80211g); i++) {
+		for (i = 0; i < ARRAY_SIZE(rates_80211g); i++) {
 			for (j = 0; j < num; j++) {
 				if (range->bitrate[j] ==
 					rates_80211g[i] * 1000000)

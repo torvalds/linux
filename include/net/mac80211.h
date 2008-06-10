@@ -201,101 +201,127 @@ struct ieee80211_bss_conf {
 };
 
 /**
- * enum mac80211_tx_control_flags - flags to describe Tx configuration for
- * 				    the Tx frame
+ * enum mac80211_tx_flags - flags to transmission information/status
  *
- * These flags are used with the @flags member of &ieee80211_tx_control
+ * These flags are used with the @flags member of &ieee80211_tx_info
  *
- * @IEEE80211_TXCTL_REQ_TX_STATUS: request TX status callback for this frame.
- * @IEEE80211_TXCTL_DO_NOT_ENCRYPT: send this frame without encryption;
- * 				    e.g., for EAPOL frame
- * @IEEE80211_TXCTL_USE_RTS_CTS: use RTS-CTS before sending frame
- * @IEEE80211_TXCTL_USE_CTS_PROTECT: use CTS protection for the frame (e.g.,
- * 				     for combined 802.11g / 802.11b networks)
- * @IEEE80211_TXCTL_NO_ACK: tell the low level not to wait for an ack
- * @IEEE80211_TXCTL_RATE_CTRL_PROBE
- * @EEE80211_TXCTL_CLEAR_PS_FILT: clear powersave filter
- *                                 for destination station
- * @IEEE80211_TXCTL_REQUEUE:
- * @IEEE80211_TXCTL_FIRST_FRAGMENT: this is a first fragment of the frame
- * @IEEE80211_TXCTL_LONG_RETRY_LIMIT: this frame should be send using the
- * 				      through set_retry_limit configured long
- * 				      retry value
- * @IEEE80211_TXCTL_EAPOL_FRAME: internal to mac80211
- * @IEEE80211_TXCTL_SEND_AFTER_DTIM: send this frame after DTIM beacon
- * @IEEE80211_TXCTL_AMPDU: this frame should be sent as part of an A-MPDU
- * @IEEE80211_TXCTL_OFDM_HT: this frame can be sent in HT OFDM rates. number
- * 			     of streams when this flag is on can be extracted
- *			     from antenna_sel_tx, so if 1 antenna is marked
- *			     use SISO, 2 antennas marked use MIMO, n antennas
- *			     marked use MIMO_n.
- * @IEEE80211_TXCTL_GREEN_FIELD: use green field protection for this frame
- * @IEEE80211_TXCTL_40_MHZ_WIDTH: send this frame using 40 Mhz channel width
- * @IEEE80211_TXCTL_DUP_DATA: duplicate data frame on both 20 Mhz channels
- * @IEEE80211_TXCTL_SHORT_GI: send this frame using short guard interval
+ * @IEEE80211_TX_CTL_REQ_TX_STATUS: request TX status callback for this frame.
+ * @IEEE80211_TX_CTL_DO_NOT_ENCRYPT: send this frame without encryption;
+ *	e.g., for EAPOL frame
+ * @IEEE80211_TX_CTL_USE_RTS_CTS: use RTS-CTS before sending frame
+ * @IEEE80211_TX_CTL_USE_CTS_PROTECT: use CTS protection for the frame (e.g.,
+ *	for combined 802.11g / 802.11b networks)
+ * @IEEE80211_TX_CTL_NO_ACK: tell the low level not to wait for an ack
+ * @IEEE80211_TX_CTL_RATE_CTRL_PROBE
+ * @IEEE80211_TX_CTL_CLEAR_PS_FILT: clear powersave filter for destination
+ *	station
+ * @IEEE80211_TX_CTL_REQUEUE:
+ * @IEEE80211_TX_CTL_FIRST_FRAGMENT: this is a first fragment of the frame
+ * @IEEE80211_TX_CTL_LONG_RETRY_LIMIT: this frame should be send using the
+ *	through set_retry_limit configured long retry value
+ * @IEEE80211_TX_CTL_EAPOL_FRAME: internal to mac80211
+ * @IEEE80211_TX_CTL_SEND_AFTER_DTIM: send this frame after DTIM beacon
+ * @IEEE80211_TX_CTL_AMPDU: this frame should be sent as part of an A-MPDU
+ * @IEEE80211_TX_CTL_OFDM_HT: this frame can be sent in HT OFDM rates. number
+ *	of streams when this flag is on can be extracted from antenna_sel_tx,
+ *	so if 1 antenna is marked use SISO, 2 antennas marked use MIMO, n
+ *	antennas marked use MIMO_n.
+ * @IEEE80211_TX_CTL_GREEN_FIELD: use green field protection for this frame
+ * @IEEE80211_TX_CTL_40_MHZ_WIDTH: send this frame using 40 Mhz channel width
+ * @IEEE80211_TX_CTL_DUP_DATA: duplicate data frame on both 20 Mhz channels
+ * @IEEE80211_TX_CTL_SHORT_GI: send this frame using short guard interval
+ * @IEEE80211_TX_STAT_TX_FILTERED: The frame was not transmitted
+ *	because the destination STA was in powersave mode.
+ * @IEEE80211_TX_STAT_ACK: Frame was acknowledged
+ * @IEEE80211_TX_STAT_AMPDU: The frame was aggregated, so status
+ * 	is for the whole aggregation.
  */
 enum mac80211_tx_control_flags {
-	IEEE80211_TXCTL_REQ_TX_STATUS		= (1<<0),
-	IEEE80211_TXCTL_DO_NOT_ENCRYPT		= (1<<1),
-	IEEE80211_TXCTL_USE_RTS_CTS		= (1<<2),
-	IEEE80211_TXCTL_USE_CTS_PROTECT		= (1<<3),
-	IEEE80211_TXCTL_NO_ACK			= (1<<4),
-	IEEE80211_TXCTL_RATE_CTRL_PROBE		= (1<<5),
-	IEEE80211_TXCTL_CLEAR_PS_FILT		= (1<<6),
-	IEEE80211_TXCTL_REQUEUE			= (1<<7),
-	IEEE80211_TXCTL_FIRST_FRAGMENT		= (1<<8),
-	IEEE80211_TXCTL_SHORT_PREAMBLE		= (1<<9),
-	IEEE80211_TXCTL_LONG_RETRY_LIMIT	= (1<<10),
-	IEEE80211_TXCTL_EAPOL_FRAME		= (1<<11),
-	IEEE80211_TXCTL_SEND_AFTER_DTIM		= (1<<12),
-	IEEE80211_TXCTL_AMPDU			= (1<<13),
-	IEEE80211_TXCTL_OFDM_HT			= (1<<14),
-	IEEE80211_TXCTL_GREEN_FIELD		= (1<<15),
-	IEEE80211_TXCTL_40_MHZ_WIDTH		= (1<<16),
-	IEEE80211_TXCTL_DUP_DATA		= (1<<17),
-	IEEE80211_TXCTL_SHORT_GI		= (1<<18),
+	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
+	IEEE80211_TX_CTL_DO_NOT_ENCRYPT		= BIT(1),
+	IEEE80211_TX_CTL_USE_RTS_CTS		= BIT(2),
+	IEEE80211_TX_CTL_USE_CTS_PROTECT	= BIT(3),
+	IEEE80211_TX_CTL_NO_ACK			= BIT(4),
+	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(5),
+	IEEE80211_TX_CTL_CLEAR_PS_FILT		= BIT(6),
+	IEEE80211_TX_CTL_REQUEUE		= BIT(7),
+	IEEE80211_TX_CTL_FIRST_FRAGMENT		= BIT(8),
+	IEEE80211_TX_CTL_SHORT_PREAMBLE		= BIT(9),
+	IEEE80211_TX_CTL_LONG_RETRY_LIMIT	= BIT(10),
+	IEEE80211_TX_CTL_EAPOL_FRAME		= BIT(11),
+	IEEE80211_TX_CTL_SEND_AFTER_DTIM	= BIT(12),
+	IEEE80211_TX_CTL_AMPDU			= BIT(13),
+	IEEE80211_TX_CTL_OFDM_HT		= BIT(14),
+	IEEE80211_TX_CTL_GREEN_FIELD		= BIT(15),
+	IEEE80211_TX_CTL_40_MHZ_WIDTH		= BIT(16),
+	IEEE80211_TX_CTL_DUP_DATA		= BIT(17),
+	IEEE80211_TX_CTL_SHORT_GI		= BIT(18),
+	IEEE80211_TX_CTL_INJECTED		= BIT(19),
+	IEEE80211_TX_STAT_TX_FILTERED		= BIT(20),
+	IEEE80211_TX_STAT_ACK			= BIT(21),
+	IEEE80211_TX_STAT_AMPDU			= BIT(22),
 };
 
-/* Transmit control fields. This data structure is passed to low-level driver
- * with each TX frame. The low-level driver is responsible for configuring
- * the hardware to use given values (depending on what is supported).
+
+#define IEEE80211_TX_INFO_DRIVER_DATA_SIZE \
+	(sizeof(((struct sk_buff *)0)->cb) - 8)
+#define IEEE80211_TX_INFO_DRIVER_DATA_PTRS \
+	(IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *))
+
+/**
+ * struct ieee80211_tx_info - skb transmit information
  *
- * NOTE: Be careful with using the pointers outside of the ieee80211_ops->tx()
- * context (i.e. when defering the work to a workqueue).
- * The vif pointer is valid until the it has been removed with the
- * ieee80211_ops->remove_interface() callback funtion.
- * The hw_key pointer is valid until it has been removed with the
- * ieee80211_ops->set_key() callback function.
- * The tx_rate and alt_retry_rate pointers are valid until the phy is
- * deregistered.
+ * This structure is placed in skb->cb for three uses:
+ *  (1) mac80211 TX control - mac80211 tells the driver what to do
+ *  (2) driver internal use (if applicable)
+ *  (3) TX status information - driver tells mac80211 what happened
+ *
+ * @flags: transmit info flags, defined above
+ * @retry_count: number of retries
+ * @excessive_retries: set to 1 if the frame was retried many times
+ *	but not acknowledged
+ * @ampdu_ack_len: number of aggregated frames.
+ * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * @ampdu_ack_map: block ack bit map for the aggregation.
+ * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * @ack_signal: signal strength of the ACK frame
  */
-struct ieee80211_tx_control {
-	struct ieee80211_vif *vif;
-	struct ieee80211_rate *tx_rate;
+struct ieee80211_tx_info {
+	/* common information */
+	u32 flags;
+	u8 band;
+	s8 tx_rate_idx;
+	u8 antenna_sel_tx;
 
-	/* Transmit rate for RTS/CTS frame */
-	struct ieee80211_rate *rts_cts_rate;
+	/* 1 byte hole */
 
-	/* retry rate for the last retries */
-	struct ieee80211_rate *alt_retry_rate;
-
-	/* Key used for hardware encryption
-	 * NULL if IEEE80211_TXCTL_DO_NOT_ENCRYPT is set */
-	struct ieee80211_key_conf *hw_key;
-
-	u32 flags;		/* tx control flags defined above */
-	u8 retry_limit;		/* 1 = only first attempt, 2 = one retry, ..
-				 * This could be used when set_retry_limit
-				 * is not implemented by the driver */
-	u8 antenna_sel_tx; 	/* 0 = default/diversity, otherwise bit
-				 * position represents antenna number used */
-	u8 icv_len;		/* length of the ICV/MIC field in octets */
-	u8 iv_len;		/* length of the IV field in octets */
-	u16 queue;		/* hardware queue to use for this frame;
-				 * 0 = highest, hw->queues-1 = lowest */
-	u16 aid;		/* Station AID */
-	int type;	/* internal */
+	union {
+		struct {
+			struct ieee80211_vif *vif;
+			struct ieee80211_key_conf *hw_key;
+			unsigned long jiffies;
+			int ifindex;
+			u16 aid;
+			s8 rts_cts_rate_idx, alt_retry_rate_idx;
+			u8 retry_limit;
+			u8 icv_len;
+			u8 iv_len;
+		} control;
+		struct {
+			u64 ampdu_ack_map;
+			int ack_signal;
+			u8 retry_count;
+			bool excessive_retries;
+			u8 ampdu_ack_len;
+		} status;
+		void *driver_data[IEEE80211_TX_INFO_DRIVER_DATA_PTRS];
+	};
 };
+
+static inline struct ieee80211_tx_info *IEEE80211_SKB_CB(struct sk_buff *skb)
+{
+	return (struct ieee80211_tx_info *)skb->cb;
+}
 
 
 /**
@@ -360,52 +386,6 @@ struct ieee80211_rx_status {
 	int antenna;
 	int rate_idx;
 	int flag;
-};
-
-/**
- * enum ieee80211_tx_status_flags - transmit status flags
- *
- * Status flags to indicate various transmit conditions.
- *
- * @IEEE80211_TX_STATUS_TX_FILTERED: The frame was not transmitted
- *	because the destination STA was in powersave mode.
- * @IEEE80211_TX_STATUS_ACK: Frame was acknowledged
- * @IEEE80211_TX_STATUS_AMPDU: The frame was aggregated, so status
- * 	is for the whole aggregation.
- */
-enum ieee80211_tx_status_flags {
-	IEEE80211_TX_STATUS_TX_FILTERED	= 1<<0,
-	IEEE80211_TX_STATUS_ACK		= 1<<1,
-	IEEE80211_TX_STATUS_AMPDU	= 1<<2,
-};
-
-/**
- * struct ieee80211_tx_status - transmit status
- *
- * As much information as possible should be provided for each transmitted
- * frame with ieee80211_tx_status().
- *
- * @control: a copy of the &struct ieee80211_tx_control passed to the driver
- *	in the tx() callback.
- * @flags: transmit status flags, defined above
- * @retry_count: number of retries
- * @excessive_retries: set to 1 if the frame was retried many times
- *	but not acknowledged
- * @ampdu_ack_len: number of aggregated frames.
- * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
- * @ampdu_ack_map: block ack bit map for the aggregation.
- * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
- * @ack_signal: signal strength of the ACK frame either in dBm, dB or unspec
- *	depending on hardware capabilites flags @IEEE80211_HW_SIGNAL_*
- */
-struct ieee80211_tx_status {
-	struct ieee80211_tx_control control;
-	u8 flags;
-	u8 retry_count;
-	bool excessive_retries;
-	u8 ampdu_ack_len;
-	u64 ampdu_ack_map;
-	int ack_signal;
 };
 
 /**
@@ -563,7 +543,6 @@ struct ieee80211_if_conf {
 	u8 *ssid;
 	size_t ssid_len;
 	struct sk_buff *beacon;
-	struct ieee80211_tx_control *beacon_control;
 };
 
 /**
@@ -823,6 +802,51 @@ static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
 	memcpy(hw->wiphy->perm_addr, addr, ETH_ALEN);
 }
 
+static inline int ieee80211_num_regular_queues(struct ieee80211_hw *hw)
+{
+#ifdef CONFIG_MAC80211_QOS
+	return hw->queues;
+#else
+	return 1;
+#endif
+}
+
+static inline int ieee80211_num_queues(struct ieee80211_hw *hw)
+{
+#ifdef CONFIG_MAC80211_QOS
+	return hw->queues + hw->ampdu_queues;
+#else
+	return 1;
+#endif
+}
+
+static inline struct ieee80211_rate *
+ieee80211_get_tx_rate(const struct ieee80211_hw *hw,
+		      const struct ieee80211_tx_info *c)
+{
+	if (WARN_ON(c->tx_rate_idx < 0))
+		return NULL;
+	return &hw->wiphy->bands[c->band]->bitrates[c->tx_rate_idx];
+}
+
+static inline struct ieee80211_rate *
+ieee80211_get_rts_cts_rate(const struct ieee80211_hw *hw,
+			   const struct ieee80211_tx_info *c)
+{
+	if (c->control.rts_cts_rate_idx < 0)
+		return NULL;
+	return &hw->wiphy->bands[c->band]->bitrates[c->control.rts_cts_rate_idx];
+}
+
+static inline struct ieee80211_rate *
+ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
+			     const struct ieee80211_tx_info *c)
+{
+	if (c->control.alt_retry_rate_idx < 0)
+		return NULL;
+	return &hw->wiphy->bands[c->band]->bitrates[c->control.alt_retry_rate_idx];
+}
+
 /**
  * DOC: Hardware crypto acceleration
  *
@@ -980,8 +1004,10 @@ enum ieee80211_ampdu_mlme_action {
  * @tx: Handler that 802.11 module calls for each transmitted frame.
  *	skb contains the buffer starting from the IEEE 802.11 header.
  *	The low-level driver should send the frame out based on
- *	configuration in the TX control data. Must be implemented and
- *	atomic.
+ *	configuration in the TX control data. This handler should,
+ *	preferably, never fail and stop queues appropriately, more
+ *	importantly, however, it must never fail for A-MPDU-queues.
+ *	Must be implemented and atomic.
  *
  * @start: Called before the first netdevice attached to the hardware
  *	is enabled. This should turn on the hardware and must turn on
@@ -1115,8 +1141,7 @@ enum ieee80211_ampdu_mlme_action {
  * 	that TX/RX_STOP can pass NULL for this parameter.
  */
 struct ieee80211_ops {
-	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb,
-		  struct ieee80211_tx_control *control);
+	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 	int (*add_interface)(struct ieee80211_hw *hw,
@@ -1160,8 +1185,7 @@ struct ieee80211_ops {
 	u64 (*get_tsf)(struct ieee80211_hw *hw);
 	void (*reset_tsf)(struct ieee80211_hw *hw);
 	int (*beacon_update)(struct ieee80211_hw *hw,
-			     struct sk_buff *skb,
-			     struct ieee80211_tx_control *control);
+			     struct sk_buff *skb);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    enum ieee80211_ampdu_mlme_action action,
@@ -1357,13 +1381,9 @@ void ieee80211_rx_irqsafe(struct ieee80211_hw *hw,
  *
  * @hw: the hardware the frame was transmitted by
  * @skb: the frame that was transmitted, owned by mac80211 after this call
- * @status: status information for this frame; the status pointer need not
- *	be valid after this function returns and is not freed by mac80211,
- *	it is recommended that it points to a stack area
  */
 void ieee80211_tx_status(struct ieee80211_hw *hw,
-			 struct sk_buff *skb,
-			 struct ieee80211_tx_status *status);
+			 struct sk_buff *skb);
 
 /**
  * ieee80211_tx_status_irqsafe - irq-safe transmit status callback
@@ -1376,13 +1396,9 @@ void ieee80211_tx_status(struct ieee80211_hw *hw,
  *
  * @hw: the hardware the frame was transmitted by
  * @skb: the frame that was transmitted, owned by mac80211 after this call
- * @status: status information for this frame; the status pointer need not
- *	be valid after this function returns and is not freed by mac80211,
- *	it is recommended that it points to a stack area
  */
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
-				 struct sk_buff *skb,
-				 struct ieee80211_tx_status *status);
+				 struct sk_buff *skb);
 
 /**
  * ieee80211_beacon_get - beacon generation function
@@ -1398,8 +1414,7 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
  * is responsible of freeing it.
  */
 struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_tx_control *control);
+				     struct ieee80211_vif *vif);
 
 /**
  * ieee80211_rts_get - RTS frame generation function
@@ -1407,7 +1422,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
  * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame: pointer to the frame that is going to be protected by the RTS.
  * @frame_len: the frame length (in octets).
- * @frame_txctl: &struct ieee80211_tx_control of the frame.
+ * @frame_txctl: &struct ieee80211_tx_info of the frame.
  * @rts: The buffer where to store the RTS frame.
  *
  * If the RTS frames are generated by the host system (i.e., not in
@@ -1417,7 +1432,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
  */
 void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const void *frame, size_t frame_len,
-		       const struct ieee80211_tx_control *frame_txctl,
+		       const struct ieee80211_tx_info *frame_txctl,
 		       struct ieee80211_rts *rts);
 
 /**
@@ -1425,7 +1440,7 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame_len: the length of the frame that is going to be protected by the RTS.
- * @frame_txctl: &struct ieee80211_tx_control of the frame.
+ * @frame_txctl: &struct ieee80211_tx_info of the frame.
  *
  * If the RTS is generated in firmware, but the host system must provide
  * the duration field, the low-level driver uses this function to receive
@@ -1433,7 +1448,7 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  */
 __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif, size_t frame_len,
-			      const struct ieee80211_tx_control *frame_txctl);
+			      const struct ieee80211_tx_info *frame_txctl);
 
 /**
  * ieee80211_ctstoself_get - CTS-to-self frame generation function
@@ -1441,7 +1456,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
  * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame: pointer to the frame that is going to be protected by the CTS-to-self.
  * @frame_len: the frame length (in octets).
- * @frame_txctl: &struct ieee80211_tx_control of the frame.
+ * @frame_txctl: &struct ieee80211_tx_info of the frame.
  * @cts: The buffer where to store the CTS-to-self frame.
  *
  * If the CTS-to-self frames are generated by the host system (i.e., not in
@@ -1452,7 +1467,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     const void *frame, size_t frame_len,
-			     const struct ieee80211_tx_control *frame_txctl,
+			     const struct ieee80211_tx_info *frame_txctl,
 			     struct ieee80211_cts *cts);
 
 /**
@@ -1460,7 +1475,7 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame_len: the length of the frame that is going to be protected by the CTS-to-self.
- * @frame_txctl: &struct ieee80211_tx_control of the frame.
+ * @frame_txctl: &struct ieee80211_tx_info of the frame.
  *
  * If the CTS-to-self is generated in firmware, but the host system must provide
  * the duration field, the low-level driver uses this function to receive
@@ -1469,7 +1484,7 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
 __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    size_t frame_len,
-				    const struct ieee80211_tx_control *frame_txctl);
+				    const struct ieee80211_tx_info *frame_txctl);
 
 /**
  * ieee80211_generic_frame_duration - Calculate the duration field for a frame
@@ -1508,8 +1523,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
  * use common code for all beacons.
  */
 struct sk_buff *
-ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			  struct ieee80211_tx_control *control);
+ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 
 /**
  * ieee80211_get_hdrlen_from_skb - get header length from data
@@ -1565,14 +1579,6 @@ void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue);
  * Drivers should use this function instead of netif_stop_queue.
  */
 void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue);
-
-/**
- * ieee80211_start_queues - start all queues
- * @hw: pointer to as obtained from ieee80211_alloc_hw().
- *
- * Drivers should use this function instead of netif_start_queue.
- */
-void ieee80211_start_queues(struct ieee80211_hw *hw);
 
 /**
  * ieee80211_stop_queues - stop all queues

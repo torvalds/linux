@@ -1368,18 +1368,18 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 	unsigned int rate;
 	u16 ctl;
 	int antenna;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(dev->wl->current_beacon);
 
 	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
 	len = min((size_t) dev->wl->current_beacon->len,
 		  0x200 - sizeof(struct b43_plcp_hdr6));
-	rate = dev->wl->beacon_txctl.tx_rate->hw_value;
+	rate = ieee80211_get_tx_rate(dev->wl->hw, info)->hw_value;
 
 	b43_write_template_common(dev, (const u8 *)bcn,
 				  len, ram_offset, shm_size_offset, rate);
 
 	/* Write the PHY TX control parameters. */
-	antenna = b43_antenna_from_ieee80211(dev,
-			dev->wl->beacon_txctl.antenna_sel_tx);
+	antenna = b43_antenna_from_ieee80211(dev, info->antenna_sel_tx);
 	antenna = b43_antenna_to_phyctl(antenna);
 	ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
 	/* We can't send beacons with short preamble. Would get PHY errors. */
@@ -1430,11 +1430,17 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 		i += ie_len + 2;
 	}
 	if (!tim_found) {
-		b43warn(dev->wl, "Did not find a valid TIM IE in "
-			"the beacon template packet. AP or IBSS operation "
-			"may be broken.\n");
-	} else
-		b43dbg(dev->wl, "Updated beacon template\n");
+		/*
+		 * If ucode wants to modify TIM do it behind the beacon, this
+		 * will happen, for example, when doing mesh networking.
+		 */
+		b43_shm_write16(dev, B43_SHM_SHARED,
+				B43_SHM_SH_TIMBPOS,
+				len + sizeof(struct b43_plcp_hdr6));
+		b43_shm_write16(dev, B43_SHM_SHARED,
+				B43_SHM_SH_DTIMPER, 0);
+	}
+	b43dbg(dev->wl, "Updated beacon template at 0x%x\n", ram_offset);
 }
 
 static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
@@ -1549,7 +1555,8 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	struct b43_wl *wl = dev->wl;
 	u32 cmd, beacon0_valid, beacon1_valid;
 
-	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP) &&
+	    !b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT))
 		return;
 
 	/* This is the bottom half of the asynchronous beacon update. */
@@ -1613,8 +1620,7 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 
 /* Asynchronously update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
-static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon,
-				 const struct ieee80211_tx_control *txctl)
+static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
 {
 	/* This is the top half of the ansynchronous beacon update.
 	 * The bottom half is the beacon IRQ.
@@ -1625,7 +1631,6 @@ static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon,
 	if (wl->current_beacon)
 		dev_kfree_skb_any(wl->current_beacon);
 	wl->current_beacon = beacon;
-	memcpy(&wl->beacon_txctl, txctl, sizeof(wl->beacon_txctl));
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
 	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
@@ -1664,9 +1669,100 @@ static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
 	b43dbg(dev->wl, "Set beacon interval to %u\n", beacon_int);
 }
 
+static void b43_handle_firmware_panic(struct b43_wldev *dev)
+{
+	u16 reason;
+
+	/* Read the register that contains the reason code for the panic. */
+	reason = b43_shm_read16(dev, B43_SHM_SCRATCH, B43_FWPANIC_REASON_REG);
+	b43err(dev->wl, "Whoopsy, firmware panic! Reason: %u\n", reason);
+
+	switch (reason) {
+	default:
+		b43dbg(dev->wl, "The panic reason is unknown.\n");
+		/* fallthrough */
+	case B43_FWPANIC_DIE:
+		/* Do not restart the controller or firmware.
+		 * The device is nonfunctional from now on.
+		 * Restarting would result in this panic to trigger again,
+		 * so we avoid that recursion. */
+		break;
+	case B43_FWPANIC_RESTART:
+		b43_controller_restart(dev, "Microcode panic");
+		break;
+	}
+}
+
 static void handle_irq_ucode_debug(struct b43_wldev *dev)
 {
-	//TODO
+	unsigned int i, cnt;
+	u16 reason, marker_id, marker_line;
+	__le16 *buf;
+
+	/* The proprietary firmware doesn't have this IRQ. */
+	if (!dev->fw.opensource)
+		return;
+
+	/* Read the register that contains the reason code for this IRQ. */
+	reason = b43_shm_read16(dev, B43_SHM_SCRATCH, B43_DEBUGIRQ_REASON_REG);
+
+	switch (reason) {
+	case B43_DEBUGIRQ_PANIC:
+		b43_handle_firmware_panic(dev);
+		break;
+	case B43_DEBUGIRQ_DUMP_SHM:
+		if (!B43_DEBUG)
+			break; /* Only with driver debugging enabled. */
+		buf = kmalloc(4096, GFP_ATOMIC);
+		if (!buf) {
+			b43dbg(dev->wl, "SHM-dump: Failed to allocate memory\n");
+			goto out;
+		}
+		for (i = 0; i < 4096; i += 2) {
+			u16 tmp = b43_shm_read16(dev, B43_SHM_SHARED, i);
+			buf[i / 2] = cpu_to_le16(tmp);
+		}
+		b43info(dev->wl, "Shared memory dump:\n");
+		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET,
+			       16, 2, buf, 4096, 1);
+		kfree(buf);
+		break;
+	case B43_DEBUGIRQ_DUMP_REGS:
+		if (!B43_DEBUG)
+			break; /* Only with driver debugging enabled. */
+		b43info(dev->wl, "Microcode register dump:\n");
+		for (i = 0, cnt = 0; i < 64; i++) {
+			u16 tmp = b43_shm_read16(dev, B43_SHM_SCRATCH, i);
+			if (cnt == 0)
+				printk(KERN_INFO);
+			printk("r%02u: 0x%04X  ", i, tmp);
+			cnt++;
+			if (cnt == 6) {
+				printk("\n");
+				cnt = 0;
+			}
+		}
+		printk("\n");
+		break;
+	case B43_DEBUGIRQ_MARKER:
+		if (!B43_DEBUG)
+			break; /* Only with driver debugging enabled. */
+		marker_id = b43_shm_read16(dev, B43_SHM_SCRATCH,
+					   B43_MARKER_ID_REG);
+		marker_line = b43_shm_read16(dev, B43_SHM_SCRATCH,
+					     B43_MARKER_LINE_REG);
+		b43info(dev->wl, "The firmware just executed the MARKER(%u) "
+			"at line number %u\n",
+			marker_id, marker_line);
+		break;
+	default:
+		b43dbg(dev->wl, "Debug-IRQ triggered for unknown reason: %u\n",
+		       reason);
+	}
+out:
+	/* Acknowledge the debug-IRQ, so the firmware can continue. */
+	b43_shm_write16(dev, B43_SHM_SCRATCH,
+			B43_DEBUGIRQ_REASON_REG, B43_DEBUGIRQ_ACK);
 }
 
 /* Interrupt handler bottom-half */
@@ -1853,7 +1949,8 @@ static void b43_print_fw_helptext(struct b43_wl *wl, bool error)
 
 static int do_request_fw(struct b43_wldev *dev,
 			 const char *name,
-			 struct b43_firmware_file *fw)
+			 struct b43_firmware_file *fw,
+			 bool silent)
 {
 	char path[sizeof(modparam_fwpostfix) + 32];
 	const struct firmware *blob;
@@ -1877,9 +1974,15 @@ static int do_request_fw(struct b43_wldev *dev,
 		 "b43%s/%s.fw",
 		 modparam_fwpostfix, name);
 	err = request_firmware(&blob, path, dev->dev->dev);
-	if (err) {
-		b43err(dev->wl, "Firmware file \"%s\" not found "
-		       "or load failed.\n", path);
+	if (err == -ENOENT) {
+		if (!silent) {
+			b43err(dev->wl, "Firmware file \"%s\" not found\n",
+			       path);
+		}
+		return err;
+	} else if (err) {
+		b43err(dev->wl, "Firmware file \"%s\" request failed (err=%d)\n",
+		       path, err);
 		return err;
 	}
 	if (blob->size < sizeof(struct b43_fw_header))
@@ -1930,7 +2033,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 		filename = "ucode13";
 	else
 		goto err_no_ucode;
-	err = do_request_fw(dev, filename, &fw->ucode);
+	err = do_request_fw(dev, filename, &fw->ucode, 0);
 	if (err)
 		goto err_load;
 
@@ -1941,8 +2044,13 @@ static int b43_request_firmware(struct b43_wldev *dev)
 		filename = NULL;
 	else
 		goto err_no_pcm;
-	err = do_request_fw(dev, filename, &fw->pcm);
-	if (err)
+	fw->pcm_request_failed = 0;
+	err = do_request_fw(dev, filename, &fw->pcm, 1);
+	if (err == -ENOENT) {
+		/* We did not find a PCM file? Not fatal, but
+		 * core rev <= 10 must do without hwcrypto then. */
+		fw->pcm_request_failed = 1;
+	} else if (err)
 		goto err_load;
 
 	/* Get initvals */
@@ -1960,7 +2068,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 		if ((rev >= 5) && (rev <= 10))
 			filename = "b0g0initvals5";
 		else if (rev >= 13)
-			filename = "lp0initvals13";
+			filename = "b0g0initvals13";
 		else
 			goto err_no_initvals;
 		break;
@@ -1973,7 +2081,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 	default:
 		goto err_no_initvals;
 	}
-	err = do_request_fw(dev, filename, &fw->initvals);
+	err = do_request_fw(dev, filename, &fw->initvals, 0);
 	if (err)
 		goto err_load;
 
@@ -2007,7 +2115,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 	default:
 		goto err_no_initvals;
 	}
-	err = do_request_fw(dev, filename, &fw->initvals_band);
+	err = do_request_fw(dev, filename, &fw->initvals_band, 0);
 	if (err)
 		goto err_load;
 
@@ -2124,14 +2232,28 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		err = -EOPNOTSUPP;
 		goto error;
 	}
-	b43info(dev->wl, "Loading firmware version %u.%u "
-		"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
-		fwrev, fwpatch,
-		(fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
-		(fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
-
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
+	dev->fw.opensource = (fwdate == 0xFFFF);
+
+	if (dev->fw.opensource) {
+		/* Patchlevel info is encoded in the "time" field. */
+		dev->fw.patch = fwtime;
+		b43info(dev->wl, "Loading OpenSource firmware version %u.%u%s\n",
+			dev->fw.rev, dev->fw.patch,
+			dev->fw.pcm_request_failed ? " (Hardware crypto not supported)" : "");
+	} else {
+		b43info(dev->wl, "Loading firmware version %u.%u "
+			"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
+			fwrev, fwpatch,
+			(fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
+			(fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
+		if (dev->fw.pcm_request_failed) {
+			b43warn(dev->wl, "No \"pcm5.fw\" firmware file found. "
+				"Hardware accelerated cryptography is disabled.\n");
+			b43_print_fw_helptext(dev->wl, 0);
+		}
+	}
 
 	if (b43_is_old_txhdr_format(dev)) {
 		b43warn(dev->wl, "You are using an old firmware image. "
@@ -2376,7 +2498,8 @@ static void b43_adjust_opmode(struct b43_wldev *dev)
 	ctl &= ~B43_MACCTL_BEACPROMISC;
 	ctl |= B43_MACCTL_INFRA;
 
-	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
+	    b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT))
 		ctl |= B43_MACCTL_AP;
 	else if (b43_is_mode(wl, IEEE80211_IF_TYPE_IBSS))
 		ctl &= ~B43_MACCTL_INFRA;
@@ -2813,8 +2936,7 @@ static int b43_rng_init(struct b43_wl *wl)
 }
 
 static int b43_op_tx(struct ieee80211_hw *hw,
-		     struct sk_buff *skb,
-		     struct ieee80211_tx_control *ctl)
+		     struct sk_buff *skb)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
@@ -2836,9 +2958,9 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	err = -ENODEV;
 	if (likely(b43_status(dev) >= B43_STAT_STARTED)) {
 		if (b43_using_pio_transfers(dev))
-			err = b43_pio_tx(dev, skb, ctl);
+			err = b43_pio_tx(dev, skb);
 		else
-			err = b43_dma_tx(dev, skb, ctl);
+			err = b43_dma_tx(dev, skb);
 	}
 
 	read_unlock_irqrestore(&wl->tx_lock, flags);
@@ -3244,8 +3366,9 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	antenna = b43_antenna_from_ieee80211(dev, conf->antenna_sel_rx);
 	b43_set_rx_antenna(dev, antenna);
 
-	/* Update templates for AP mode. */
-	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	/* Update templates for AP/mesh mode. */
+	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
+	    b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT))
 		b43_set_beacon_int(dev, conf->beacon_int);
 
 	if (!!conf->radio_enabled != phy->radio_on) {
@@ -3295,6 +3418,13 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	err = -ENODEV;
 	if (!dev || b43_status(dev) < B43_STAT_INITIALIZED)
 		goto out_unlock;
+
+	if (dev->fw.pcm_request_failed) {
+		/* We don't have firmware for the crypto engine.
+		 * Must use software-crypto. */
+		err = -EOPNOTSUPP;
+		goto out_unlock;
+	}
 
 	err = -EINVAL;
 	switch (key->alg) {
@@ -3426,13 +3556,12 @@ static int b43_op_config_interface(struct ieee80211_hw *hw,
 	else
 		memset(wl->bssid, 0, ETH_ALEN);
 	if (b43_status(dev) >= B43_STAT_INITIALIZED) {
-		if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP)) {
-			B43_WARN_ON(conf->type != IEEE80211_IF_TYPE_AP);
+		if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
+		    b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT)) {
+			B43_WARN_ON(conf->type != wl->if_type);
 			b43_set_ssid(dev, conf->ssid, conf->ssid_len);
-			if (conf->beacon) {
-				b43_update_templates(wl, conf->beacon,
-						     conf->beacon_control);
-			}
+			if (conf->beacon)
+				b43_update_templates(wl, conf->beacon);
 		}
 		b43_write_mac_bssid_templates(dev);
 	}
@@ -3497,7 +3626,6 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	/* Start data flow (TX/RX). */
 	b43_mac_enable(dev);
 	b43_interrupt_enable(dev, dev->irq_savedstate);
-	ieee80211_start_queues(dev->wl->hw);
 
 	/* Start maintainance work */
 	b43_periodic_tasks_setup(dev);
@@ -3970,6 +4098,7 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 	/* TODO: allow WDS/AP devices to coexist */
 
 	if (conf->type != IEEE80211_IF_TYPE_AP &&
+	    conf->type != IEEE80211_IF_TYPE_MESH_POINT &&
 	    conf->type != IEEE80211_IF_TYPE_STA &&
 	    conf->type != IEEE80211_IF_TYPE_WDS &&
 	    conf->type != IEEE80211_IF_TYPE_IBSS)
@@ -4119,31 +4248,29 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct sk_buff *beacon;
 	unsigned long flags;
-	struct ieee80211_tx_control txctl;
 
 	/* We could modify the existing beacon and set the aid bit in
 	 * the TIM field, but that would probably require resizing and
 	 * moving of data within the beacon template.
 	 * Simply request a new beacon and let mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(hw, wl->vif, &txctl);
+	beacon = ieee80211_beacon_get(hw, wl->vif);
 	if (unlikely(!beacon))
 		return -ENOMEM;
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon, &txctl);
+	b43_update_templates(wl, beacon);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
 }
 
 static int b43_op_ibss_beacon_update(struct ieee80211_hw *hw,
-				     struct sk_buff *beacon,
-				     struct ieee80211_tx_control *ctl)
+				     struct sk_buff *beacon)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon, ctl);
+	b43_update_templates(wl, beacon);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;

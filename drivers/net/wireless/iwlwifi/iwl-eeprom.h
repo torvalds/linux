@@ -146,6 +146,7 @@ struct iwl_eeprom_channel {
 
 /*5000 calibrations */
 #define EEPROM_5000_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
+#define EEPROM_5000_XTAL	((2*0x128) | EEPROM_5000_CALIB_ALL)
 
 /* 5000 links */
 #define EEPROM_5000_LINK_HOST             (2*0x64)

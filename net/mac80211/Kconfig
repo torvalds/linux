@@ -7,10 +7,22 @@ config MAC80211
 	select CRC32
 	select WIRELESS_EXT
 	select CFG80211
-	select NET_SCH_FIFO
 	---help---
 	  This option enables the hardware independent IEEE 802.11
 	  networking stack.
+
+config MAC80211_QOS
+	def_bool y
+	depends on MAC80211
+	depends on NET_SCHED
+	depends on NETDEVICES_MULTIQUEUE
+
+comment "QoS/HT support disabled"
+	depends on MAC80211 && !MAC80211_QOS
+comment "QoS/HT support needs CONFIG_NET_SCHED"
+	depends on MAC80211 && !NET_SCHED
+comment "QoS/HT support needs CONFIG_NETDEVICES_MULTIQUEUE"
+	depends on MAC80211 && !NETDEVICES_MULTIQUEUE
 
 menu "Rate control algorithm selection"
 	depends on MAC80211 != n

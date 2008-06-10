@@ -44,12 +44,6 @@ struct rtl8187_rx_hdr {
 	__le64 mac_time;
 } __attribute__((packed));
 
-struct rtl8187_tx_info {
-	struct ieee80211_tx_control *control;
-	struct urb *urb;
-	struct ieee80211_hw *dev;
-};
-
 struct rtl8187_tx_hdr {
 	__le32 flags;
 #define RTL8187_TX_FLAG_NO_ENCRYPT	(1 << 15)

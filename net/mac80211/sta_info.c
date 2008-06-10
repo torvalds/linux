@@ -255,7 +255,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
 		/* tid to tx queue: initialize according to HW (0 is valid) */
-		sta->tid_to_tx_q[i] = local->hw.queues + local->hw.ampdu_queues;
+		sta->tid_to_tx_q[i] = ieee80211_num_queues(&local->hw);
 		/* rx */
 		sta->ampdu_mlme.tid_state_rx[i] = HT_AGG_STATE_IDLE;
 		sta->ampdu_mlme.tid_rx[i] = NULL;
@@ -511,20 +511,20 @@ static inline int sta_info_buffer_expired(struct ieee80211_local *local,
 					  struct sta_info *sta,
 					  struct sk_buff *skb)
 {
-	struct ieee80211_tx_packet_data *pkt_data;
+	struct ieee80211_tx_info *info;
 	int timeout;
 
 	if (!skb)
 		return 0;
 
-	pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
+	info = IEEE80211_SKB_CB(skb);
 
 	/* Timeout: (2 * listen_interval * beacon_int * 1024 / 1000000) sec */
 	timeout = (sta->listen_interval * local->hw.conf.beacon_int * 32 /
 		   15625) * HZ;
 	if (timeout < STA_TX_BUFFER_EXPIRE)
 		timeout = STA_TX_BUFFER_EXPIRE;
-	return time_after(jiffies, pkt_data->jiffies + timeout);
+	return time_after(jiffies, info->control.jiffies + timeout);
 }
 
 

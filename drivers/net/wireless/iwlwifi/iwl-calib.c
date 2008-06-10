@@ -426,6 +426,9 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	struct iwl_sensitivity_data *data = NULL;
 	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
 
+	if (priv->disable_sens_cal)
+		return;
+
 	IWL_DEBUG_CALIB("Start iwl_init_sensitivity\n");
 
 	/* Clear driver's sensitivity algo data */
@@ -485,6 +488,9 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	struct statistics_rx *statistics = &(resp->rx);
 	unsigned long flags;
 	struct statistics_general_data statis;
+
+	if (priv->disable_sens_cal)
+		return;
 
 	data = &(priv->sensitivity_data);
 
@@ -607,6 +613,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	u8 num_tx_chains;
 	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info = &(stat_resp->rx.general);
+
+	if (priv->disable_chain_noise_cal)
+		return;
 
 	data = &(priv->chain_noise_data);
 
@@ -776,4 +785,22 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 		min_average_noise_antenna_i, min_average_noise);
 }
 EXPORT_SYMBOL(iwl_chain_noise_calibration);
+
+
+void iwl_reset_run_time_calib(struct iwl_priv *priv)
+{
+	int i;
+	memset(&(priv->sensitivity_data), 0,
+	       sizeof(struct iwl_sensitivity_data));
+	memset(&(priv->chain_noise_data), 0,
+	       sizeof(struct iwl_chain_noise_data));
+	for (i = 0; i < NUM_RX_CHAINS; i++)
+		priv->chain_noise_data.delta_gain_code[i] =
+				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
+
+	/* Ask for statistics now, the uCode will send notification
+	 * periodically after association */
+	iwl_send_statistics_request(priv, CMD_ASYNC);
+}
+EXPORT_SYMBOL(iwl_reset_run_time_calib);
 

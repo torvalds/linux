@@ -32,7 +32,7 @@
  * @WLAN_STA_WDS: Station is one of our WDS peers.
  * @WLAN_STA_PSPOLL: Station has just PS-polled us.
  * @WLAN_STA_CLEAR_PS_FILT: Clear PS filter in hardware (using the
- *	IEEE80211_TXCTL_CLEAR_PS_FILT control flag) when the next
+ *	IEEE80211_TX_CTL_CLEAR_PS_FILT control flag) when the next
  *	frame to this station is transmitted.
  */
 enum ieee80211_sta_info_flags {
@@ -244,10 +244,6 @@ struct sta_info {
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];
 #endif
-
-	/* Debug counters, no locking doesn't matter */
-	int channel_use;
-	int channel_use_raw;
 
 	/*
 	 * Aggregation information, locked with lock.

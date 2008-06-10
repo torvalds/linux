@@ -148,75 +148,71 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 {
 	int i;
 
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 100000; i++) {
 		u8 val = if_cs_read8(card, addr);
 		if (val == reg)
 			return i;
-		udelay(500);
+		udelay(5);
 	}
 	return -ETIME;
 }
 
 
 
-/* Host control registers and their bit definitions */
+/* First the bitmasks for the host/card interrupt/status registers: */
+#define IF_CS_BIT_TX			0x0001
+#define IF_CS_BIT_RX			0x0002
+#define IF_CS_BIT_COMMAND		0x0004
+#define IF_CS_BIT_RESP			0x0008
+#define IF_CS_BIT_EVENT			0x0010
+#define	IF_CS_BIT_MASK			0x001f
 
-#define IF_CS_H_STATUS			0x00000000
-#define IF_CS_H_STATUS_TX_OVER		0x0001
-#define IF_CS_H_STATUS_RX_OVER		0x0002
-#define IF_CS_H_STATUS_DNLD_OVER	0x0004
+/* And now the individual registers and assorted masks */
+#define IF_CS_HOST_STATUS		0x00000000
 
-#define IF_CS_H_INT_CAUSE		0x00000002
-#define IF_CS_H_IC_TX_OVER		0x0001
-#define IF_CS_H_IC_RX_OVER		0x0002
-#define IF_CS_H_IC_DNLD_OVER		0x0004
-#define IF_CS_H_IC_POWER_DOWN		0x0008
-#define IF_CS_H_IC_HOST_EVENT		0x0010
-#define IF_CS_H_IC_MASK			0x001f
+#define IF_CS_HOST_INT_CAUSE		0x00000002
 
-#define IF_CS_H_INT_MASK		0x00000004
-#define	IF_CS_H_IM_MASK			0x001f
+#define IF_CS_HOST_INT_MASK		0x00000004
 
-#define IF_CS_H_WRITE_LEN		0x00000014
+#define IF_CS_HOST_WRITE		0x00000016
+#define IF_CS_HOST_WRITE_LEN		0x00000014
 
-#define IF_CS_H_WRITE			0x00000016
+#define IF_CS_HOST_CMD			0x0000001A
+#define IF_CS_HOST_CMD_LEN		0x00000018
 
-#define IF_CS_H_CMD_LEN			0x00000018
+#define IF_CS_READ			0x00000010
+#define IF_CS_READ_LEN			0x00000024
 
-#define IF_CS_H_CMD			0x0000001A
+#define IF_CS_CARD_CMD			0x00000012
+#define IF_CS_CARD_CMD_LEN		0x00000030
 
-#define IF_CS_C_READ_LEN		0x00000024
+#define IF_CS_CARD_STATUS		0x00000020
+#define IF_CS_CARD_STATUS_MASK		0x7f00
 
-#define IF_CS_H_READ			0x00000010
+#define IF_CS_CARD_INT_CAUSE		0x00000022
 
-/* Card control registers and their bit definitions */
-
-#define IF_CS_C_STATUS			0x00000020
-#define IF_CS_C_S_TX_DNLD_RDY		0x0001
-#define IF_CS_C_S_RX_UPLD_RDY		0x0002
-#define IF_CS_C_S_CMD_DNLD_RDY		0x0004
-#define IF_CS_C_S_CMD_UPLD_RDY		0x0008
-#define IF_CS_C_S_CARDEVENT		0x0010
-#define IF_CS_C_S_MASK			0x001f
-#define IF_CS_C_S_STATUS_MASK		0x7f00
-
-#define IF_CS_C_INT_CAUSE		0x00000022
-#define	IF_CS_C_IC_MASK			0x001f
-
-#define IF_CS_C_SQ_READ_LOW		0x00000028
-#define IF_CS_C_SQ_HELPER_OK		0x10
-
-#define IF_CS_C_CMD_LEN			0x00000030
-
-#define IF_CS_C_CMD			0x00000012
+#define IF_CS_CARD_SQ_READ_LOW		0x00000028
+#define IF_CS_CARD_SQ_HELPER_OK		0x10
 
 #define IF_CS_SCRATCH			0x0000003F
 
 
 
 /********************************************************************/
-/* I/O                                                              */
+/* I/O and interrupt handling                                       */
 /********************************************************************/
+
+static inline void if_cs_enable_ints(struct if_cs_card *card)
+{
+	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_write16(card, IF_CS_HOST_INT_MASK, 0);
+}
+
+static inline void if_cs_disable_ints(struct if_cs_card *card)
+{
+	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_write16(card, IF_CS_HOST_INT_MASK, IF_CS_BIT_MASK);
+}
 
 /*
  * Called from if_cs_host_to_card to send a command to the hardware
@@ -228,11 +224,12 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 	int loops = 0;
 
 	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_disable_ints(card);
 
 	/* Is hardware ready? */
 	while (1) {
-		u16 val = if_cs_read16(card, IF_CS_C_STATUS);
-		if (val & IF_CS_C_S_CMD_DNLD_RDY)
+		u16 val = if_cs_read16(card, IF_CS_CARD_STATUS);
+		if (val & IF_CS_BIT_COMMAND)
 			break;
 		if (++loops > 100) {
 			lbs_pr_err("card not ready for commands\n");
@@ -241,27 +238,27 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 		mdelay(1);
 	}
 
-	if_cs_write16(card, IF_CS_H_CMD_LEN, nb);
+	if_cs_write16(card, IF_CS_HOST_CMD_LEN, nb);
 
-	if_cs_write16_rep(card, IF_CS_H_CMD, buf, nb / 2);
+	if_cs_write16_rep(card, IF_CS_HOST_CMD, buf, nb / 2);
 	/* Are we supposed to transfer an odd amount of bytes? */
 	if (nb & 1)
-		if_cs_write8(card, IF_CS_H_CMD, buf[nb-1]);
+		if_cs_write8(card, IF_CS_HOST_CMD, buf[nb-1]);
 
 	/* "Assert the download over interrupt command in the Host
 	 * status register" */
-	if_cs_write16(card, IF_CS_H_STATUS, IF_CS_H_STATUS_DNLD_OVER);
+	if_cs_write16(card, IF_CS_HOST_STATUS, IF_CS_BIT_COMMAND);
 
 	/* "Assert the download over interrupt command in the Card
 	 * interrupt case register" */
-	if_cs_write16(card, IF_CS_H_INT_CAUSE, IF_CS_H_IC_DNLD_OVER);
+	if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_COMMAND);
 	ret = 0;
 
 done:
+	if_cs_enable_ints(card);
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
-
 
 /*
  * Called from if_cs_host_to_card to send a data to the hardware
@@ -269,22 +266,27 @@ done:
 static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
+	u16 status;
 
 	lbs_deb_enter(LBS_DEB_CS);
+	if_cs_disable_ints(card);
 
-	if_cs_write16(card, IF_CS_H_WRITE_LEN, nb);
+	status = if_cs_read16(card, IF_CS_CARD_STATUS);
+	BUG_ON((status & IF_CS_BIT_TX) == 0);
+
+	if_cs_write16(card, IF_CS_HOST_WRITE_LEN, nb);
 
 	/* write even number of bytes, then odd byte if necessary */
-	if_cs_write16_rep(card, IF_CS_H_WRITE, buf, nb / 2);
+	if_cs_write16_rep(card, IF_CS_HOST_WRITE, buf, nb / 2);
 	if (nb & 1)
-		if_cs_write8(card, IF_CS_H_WRITE, buf[nb-1]);
+		if_cs_write8(card, IF_CS_HOST_WRITE, buf[nb-1]);
 
-	if_cs_write16(card, IF_CS_H_STATUS, IF_CS_H_STATUS_TX_OVER);
-	if_cs_write16(card, IF_CS_H_INT_CAUSE, IF_CS_H_STATUS_TX_OVER);
+	if_cs_write16(card, IF_CS_HOST_STATUS, IF_CS_BIT_TX);
+	if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_TX);
+	if_cs_enable_ints(card);
 
 	lbs_deb_leave(LBS_DEB_CS);
 }
-
 
 /*
  * Get the command result out of the card.
@@ -293,27 +295,28 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 {
 	unsigned long flags;
 	int ret = -1;
-	u16 val;
+	u16 status;
 
 	lbs_deb_enter(LBS_DEB_CS);
 
 	/* is hardware ready? */
-	val = if_cs_read16(priv->card, IF_CS_C_STATUS);
-	if ((val & IF_CS_C_S_CMD_UPLD_RDY) == 0) {
-		lbs_pr_err("card not ready for CMD\n");
+	status = if_cs_read16(priv->card, IF_CS_CARD_STATUS);
+	if ((status & IF_CS_BIT_RESP) == 0) {
+		lbs_pr_err("no cmd response in card\n");
+		*len = 0;
 		goto out;
 	}
 
-	*len = if_cs_read16(priv->card, IF_CS_C_CMD_LEN);
+	*len = if_cs_read16(priv->card, IF_CS_CARD_CMD_LEN);
 	if ((*len == 0) || (*len > LBS_CMD_BUFFER_SIZE)) {
 		lbs_pr_err("card cmd buffer has invalid # of bytes (%d)\n", *len);
 		goto out;
 	}
 
 	/* read even number of bytes, then odd byte if necessary */
-	if_cs_read16_rep(priv->card, IF_CS_C_CMD, data, *len/sizeof(u16));
+	if_cs_read16_rep(priv->card, IF_CS_CARD_CMD, data, *len/sizeof(u16));
 	if (*len & 1)
-		data[*len-1] = if_cs_read8(priv->card, IF_CS_C_CMD);
+		data[*len-1] = if_cs_read8(priv->card, IF_CS_CARD_CMD);
 
 	/* This is a workaround for a firmware that reports too much
 	 * bytes */
@@ -330,7 +333,6 @@ out:
 	return ret;
 }
 
-
 static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 {
 	struct sk_buff *skb = NULL;
@@ -339,7 +341,7 @@ static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	len = if_cs_read16(priv->card, IF_CS_C_READ_LEN);
+	len = if_cs_read16(priv->card, IF_CS_READ_LEN);
 	if (len == 0 || len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
 		lbs_pr_err("card data buffer has invalid # of bytes (%d)\n", len);
 		priv->stats.rx_dropped++;
@@ -354,37 +356,18 @@ static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 	data = skb->data;
 
 	/* read even number of bytes, then odd byte if necessary */
-	if_cs_read16_rep(priv->card, IF_CS_H_READ, data, len/sizeof(u16));
+	if_cs_read16_rep(priv->card, IF_CS_READ, data, len/sizeof(u16));
 	if (len & 1)
-		data[len-1] = if_cs_read8(priv->card, IF_CS_H_READ);
+		data[len-1] = if_cs_read8(priv->card, IF_CS_READ);
 
 dat_err:
-	if_cs_write16(priv->card, IF_CS_H_STATUS, IF_CS_H_STATUS_RX_OVER);
-	if_cs_write16(priv->card, IF_CS_H_INT_CAUSE, IF_CS_H_IC_RX_OVER);
+	if_cs_write16(priv->card, IF_CS_HOST_STATUS, IF_CS_BIT_RX);
+	if_cs_write16(priv->card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_RX);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %p", skb);
 	return skb;
 }
-
-
-
-/********************************************************************/
-/* Interrupts                                                       */
-/********************************************************************/
-
-static inline void if_cs_enable_ints(struct if_cs_card *card)
-{
-	lbs_deb_enter(LBS_DEB_CS);
-	if_cs_write16(card, IF_CS_H_INT_MASK, 0);
-}
-
-static inline void if_cs_disable_ints(struct if_cs_card *card)
-{
-	lbs_deb_enter(LBS_DEB_CS);
-	if_cs_write16(card, IF_CS_H_INT_MASK, IF_CS_H_IM_MASK);
-}
-
 
 static irqreturn_t if_cs_interrupt(int irq, void *data)
 {
@@ -394,10 +377,8 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	cause = if_cs_read16(card, IF_CS_C_INT_CAUSE);
-	if_cs_write16(card, IF_CS_C_INT_CAUSE, cause & IF_CS_C_IC_MASK);
-
-	lbs_deb_cs("cause 0x%04x\n", cause);
+	/* Ask card interrupt cause register if there is something for us */
+	cause = if_cs_read16(card, IF_CS_CARD_INT_CAUSE);
 	if (cause == 0) {
 		/* Not for us */
 		return IRQ_NONE;
@@ -409,11 +390,11 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	/* TODO: I'm not sure what the best ordering is */
+	/* Clear interrupt cause */
+	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, cause & IF_CS_BIT_MASK);
+	lbs_deb_cs("cause 0x%04x\n", cause);
 
-	cause = if_cs_read16(card, IF_CS_C_STATUS) & IF_CS_C_S_MASK;
-
-	if (cause & IF_CS_C_S_RX_UPLD_RDY) {
+	if (cause & IF_CS_BIT_RX) {
 		struct sk_buff *skb;
 		lbs_deb_cs("rx packet\n");
 		skb = if_cs_receive_data(priv);
@@ -421,16 +402,16 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 			lbs_process_rxed_packet(priv, skb);
 	}
 
-	if (cause & IF_CS_H_IC_TX_OVER) {
-		lbs_deb_cs("tx over\n");
+	if (cause & IF_CS_BIT_TX) {
+		lbs_deb_cs("tx done\n");
 		lbs_host_to_card_done(priv);
 	}
 
-	if (cause & IF_CS_C_S_CMD_UPLD_RDY) {
+	if (cause & IF_CS_BIT_RESP) {
 		unsigned long flags;
 		u8 i;
 
-		lbs_deb_cs("cmd upload ready\n");
+		lbs_deb_cs("cmd resp\n");
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		i = (priv->resp_idx == 0) ? 1 : 0;
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -444,15 +425,16 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 	}
 
-	if (cause & IF_CS_H_IC_HOST_EVENT) {
-		u16 event = if_cs_read16(priv->card, IF_CS_C_STATUS)
-			& IF_CS_C_S_STATUS_MASK;
-		if_cs_write16(priv->card, IF_CS_H_INT_CAUSE,
-			IF_CS_H_IC_HOST_EVENT);
-		lbs_deb_cs("eventcause 0x%04x\n", event);
+	if (cause & IF_CS_BIT_EVENT) {
+		u16 event = if_cs_read16(priv->card, IF_CS_CARD_STATUS)
+			& IF_CS_CARD_STATUS_MASK;
+		if_cs_write16(priv->card, IF_CS_HOST_INT_CAUSE,
+			IF_CS_BIT_EVENT);
+		lbs_deb_cs("host event 0x%04x\n", event);
 		lbs_queue_event(priv, event >> 8 & 0xff);
 	}
 
+	lbs_deb_leave(LBS_DEB_CS);
 	return IRQ_HANDLED;
 }
 
@@ -514,26 +496,26 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 
 		/* "write the number of bytes to be sent to the I/O Command
 		 * write length register" */
-		if_cs_write16(card, IF_CS_H_CMD_LEN, count);
+		if_cs_write16(card, IF_CS_HOST_CMD_LEN, count);
 
 		/* "write this to I/O Command port register as 16 bit writes */
 		if (count)
-			if_cs_write16_rep(card, IF_CS_H_CMD,
+			if_cs_write16_rep(card, IF_CS_HOST_CMD,
 				&fw->data[sent],
 				count >> 1);
 
 		/* "Assert the download over interrupt command in the Host
 		 * status register" */
-		if_cs_write8(card, IF_CS_H_STATUS, IF_CS_H_STATUS_DNLD_OVER);
+		if_cs_write8(card, IF_CS_HOST_STATUS, IF_CS_BIT_COMMAND);
 
 		/* "Assert the download over interrupt command in the Card
 		 * interrupt case register" */
-		if_cs_write16(card, IF_CS_H_INT_CAUSE, IF_CS_H_IC_DNLD_OVER);
+		if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_COMMAND);
 
 		/* "The host polls the Card Status register ... for 50 ms before
 		   declaring a failure */
-		ret = if_cs_poll_while_fw_download(card, IF_CS_C_STATUS,
-			IF_CS_C_S_CMD_DNLD_RDY);
+		ret = if_cs_poll_while_fw_download(card, IF_CS_CARD_STATUS,
+			IF_CS_BIT_COMMAND);
 		if (ret < 0) {
 			lbs_pr_err("can't download helper at 0x%x, ret %d\n",
 				sent, ret);
@@ -575,14 +557,15 @@ static int if_cs_prog_real(struct if_cs_card *card)
 	}
 	lbs_deb_cs("fw size %td\n", fw->size);
 
-	ret = if_cs_poll_while_fw_download(card, IF_CS_C_SQ_READ_LOW, IF_CS_C_SQ_HELPER_OK);
+	ret = if_cs_poll_while_fw_download(card, IF_CS_CARD_SQ_READ_LOW,
+		IF_CS_CARD_SQ_HELPER_OK);
 	if (ret < 0) {
 		lbs_pr_err("helper firmware doesn't answer\n");
 		goto err_release;
 	}
 
 	for (sent = 0; sent < fw->size; sent += len) {
-		len = if_cs_read16(card, IF_CS_C_SQ_READ_LOW);
+		len = if_cs_read16(card, IF_CS_CARD_SQ_READ_LOW);
 		if (len & 1) {
 			retry++;
 			lbs_pr_info("odd, need to retry this firmware block\n");
@@ -600,16 +583,16 @@ static int if_cs_prog_real(struct if_cs_card *card)
 		}
 
 
-		if_cs_write16(card, IF_CS_H_CMD_LEN, len);
+		if_cs_write16(card, IF_CS_HOST_CMD_LEN, len);
 
-		if_cs_write16_rep(card, IF_CS_H_CMD,
+		if_cs_write16_rep(card, IF_CS_HOST_CMD,
 			&fw->data[sent],
 			(len+1) >> 1);
-		if_cs_write8(card, IF_CS_H_STATUS, IF_CS_H_STATUS_DNLD_OVER);
-		if_cs_write16(card, IF_CS_H_INT_CAUSE, IF_CS_H_IC_DNLD_OVER);
+		if_cs_write8(card, IF_CS_HOST_STATUS, IF_CS_BIT_COMMAND);
+		if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_COMMAND);
 
-		ret = if_cs_poll_while_fw_download(card, IF_CS_C_STATUS,
-			IF_CS_C_S_CMD_DNLD_RDY);
+		ret = if_cs_poll_while_fw_download(card, IF_CS_CARD_STATUS,
+			IF_CS_BIT_COMMAND);
 		if (ret < 0) {
 			lbs_pr_err("can't download firmware at 0x%x\n", sent);
 			goto err_release;
@@ -837,7 +820,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 
 	/* Clear any interrupt cause that happend while sending
 	 * firmware/initializing card */
-	if_cs_write16(card, IF_CS_C_INT_CAUSE, IF_CS_C_IC_MASK);
+	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, IF_CS_BIT_MASK);
 	if_cs_enable_ints(card);
 
 	/* And finally bring the card up */

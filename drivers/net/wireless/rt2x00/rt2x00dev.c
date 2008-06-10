@@ -28,7 +28,6 @@
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
-#include "rt2x00dump.h"
 
 /*
  * Link tuning handlers
@@ -126,7 +125,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Start the TX queues.
 	 */
-	ieee80211_start_queues(rt2x00dev->hw);
+	ieee80211_wake_queues(rt2x00dev->hw);
 
 	return 0;
 }
@@ -416,7 +415,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct sk_buff *skb;
-	struct ieee80211_tx_control control;
 	struct ieee80211_bss_conf conf;
 	int delayed_flags;
 
@@ -434,9 +432,9 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	spin_unlock(&intf->lock);
 
 	if (delayed_flags & DELAYED_UPDATE_BEACON) {
-		skb = ieee80211_beacon_get(rt2x00dev->hw, vif, &control);
-		if (skb && rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw,
-							     skb, &control))
+		skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
+		if (skb &&
+		    rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, skb))
 			dev_kfree_skb(skb);
 	}
 
@@ -495,61 +493,55 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc;
-	struct ieee80211_tx_status tx_status;
-	int success = !!(txdesc->status == TX_SUCCESS ||
-			 txdesc->status == TX_SUCCESS_RETRY);
-	int fail = !!(txdesc->status == TX_FAIL_RETRY ||
-		      txdesc->status == TX_FAIL_INVALID ||
-		      txdesc->status == TX_FAIL_OTHER);
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+
+	/*
+	 * Send frame to debugfs immediately, after this call is completed
+	 * we are going to overwrite the skb->cb array.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
 
 	/*
 	 * Update TX statistics.
 	 */
-	rt2x00dev->link.qual.tx_success += success;
-	rt2x00dev->link.qual.tx_failed += txdesc->retry + fail;
+	rt2x00dev->link.qual.tx_success +=
+	    test_bit(TXDONE_SUCCESS, &txdesc->flags);
+	rt2x00dev->link.qual.tx_failed +=
+	    txdesc->retry + !!test_bit(TXDONE_FAILURE, &txdesc->flags);
 
 	/*
 	 * Initialize TX status
 	 */
-	tx_status.flags = 0;
-	tx_status.ack_signal = 0;
-	tx_status.excessive_retries = (txdesc->status == TX_FAIL_RETRY);
-	tx_status.retry_count = txdesc->retry;
-	memcpy(&tx_status.control, txdesc->control, sizeof(*txdesc->control));
+	memset(&tx_info->status, 0, sizeof(tx_info->status));
+	tx_info->status.ack_signal = 0;
+	tx_info->status.excessive_retries =
+	    test_bit(TXDONE_EXCESSIVE_RETRY, &txdesc->flags);
+	tx_info->status.retry_count = txdesc->retry;
 
-	if (!(tx_status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
-		if (success)
-			tx_status.flags |= IEEE80211_TX_STATUS_ACK;
-		else
+	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+		if (test_bit(TXDONE_SUCCESS, &txdesc->flags))
+			tx_info->flags |= IEEE80211_TX_STAT_ACK;
+		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
 	}
 
-	if (tx_status.control.flags & IEEE80211_TXCTL_USE_RTS_CTS) {
-		if (success)
+	if (tx_info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
+		if (test_bit(TXDONE_SUCCESS, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
-		else
+		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
 			rt2x00dev->low_level_stats.dot11RTSFailureCount++;
 	}
 
 	/*
-	 * Send the tx_status to debugfs. Only send the status report
-	 * to mac80211 when the frame originated from there. If this was
-	 * a extra frame coming through a mac80211 library call (RTS/CTS)
-	 * then we should not send the status report back.
-	 * If send to mac80211, mac80211 will clean up the skb structure,
-	 * otherwise we have to do it ourself.
+	 * Only send the status report to mac80211 when TX status was
+	 * requested by it. If this was a extra frame coming through
+	 * a mac80211 library call (RTS/CTS) then we should not send the
+	 * status report back.
 	 */
-	skbdesc = get_skb_frame_desc(entry->skb);
-	skbdesc->frame_type = DUMP_FRAME_TXDONE;
-
-	rt2x00debug_dump_frame(rt2x00dev, entry->skb);
-
-	if (!(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))
-		ieee80211_tx_status_irqsafe(rt2x00dev->hw,
-					    entry->skb, &tx_status);
+	if (tx_info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)
+		ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
 	else
-		dev_kfree_skb(entry->skb);
+		dev_kfree_skb_irq(entry->skb);
 	entry->skb = NULL;
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
@@ -610,152 +602,11 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	 * Send frame to mac80211 & debugfs.
 	 * mac80211 will clean up the skb structure.
 	 */
-	get_skb_frame_desc(entry->skb)->frame_type = DUMP_FRAME_RXDONE;
-	rt2x00debug_dump_frame(rt2x00dev, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
 	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb, rx_status);
 	entry->skb = NULL;
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
-
-/*
- * TX descriptor initializer
- */
-void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-			     struct sk_buff *skb,
-			     struct ieee80211_tx_control *control)
-{
-	struct txentry_desc txdesc;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skbdesc->data;
-	const struct rt2x00_rate *rate;
-	int tx_rate;
-	int length;
-	int duration;
-	int residual;
-	u16 frame_control;
-	u16 seq_ctrl;
-
-	memset(&txdesc, 0, sizeof(txdesc));
-
-	txdesc.queue = skbdesc->entry->queue->qid;
-	txdesc.cw_min = skbdesc->entry->queue->cw_min;
-	txdesc.cw_max = skbdesc->entry->queue->cw_max;
-	txdesc.aifs = skbdesc->entry->queue->aifs;
-
-	/*
-	 * Read required fields from ieee80211 header.
-	 */
-	frame_control = le16_to_cpu(hdr->frame_control);
-	seq_ctrl = le16_to_cpu(hdr->seq_ctrl);
-
-	tx_rate = control->tx_rate->hw_value;
-
-	/*
-	 * Check whether this frame is to be acked
-	 */
-	if (!(control->flags & IEEE80211_TXCTL_NO_ACK))
-		__set_bit(ENTRY_TXD_ACK, &txdesc.flags);
-
-	/*
-	 * Check if this is a RTS/CTS frame
-	 */
-	if (is_rts_frame(frame_control) || is_cts_frame(frame_control)) {
-		__set_bit(ENTRY_TXD_BURST, &txdesc.flags);
-		if (is_rts_frame(frame_control)) {
-			__set_bit(ENTRY_TXD_RTS_FRAME, &txdesc.flags);
-			__set_bit(ENTRY_TXD_ACK, &txdesc.flags);
-		} else
-			__clear_bit(ENTRY_TXD_ACK, &txdesc.flags);
-		if (control->rts_cts_rate)
-			tx_rate = control->rts_cts_rate->hw_value;
-	}
-
-	rate = rt2x00_get_rate(tx_rate);
-
-	/*
-	 * Check if more fragments are pending
-	 */
-	if (ieee80211_get_morefrag(hdr)) {
-		__set_bit(ENTRY_TXD_BURST, &txdesc.flags);
-		__set_bit(ENTRY_TXD_MORE_FRAG, &txdesc.flags);
-	}
-
-	/*
-	 * Beacons and probe responses require the tsf timestamp
-	 * to be inserted into the frame.
-	 */
-	if (txdesc.queue == QID_BEACON || is_probe_resp(frame_control))
-		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc.flags);
-
-	/*
-	 * Determine with what IFS priority this frame should be send.
-	 * Set ifs to IFS_SIFS when the this is not the first fragment,
-	 * or this fragment came after RTS/CTS.
-	 */
-	if ((seq_ctrl & IEEE80211_SCTL_FRAG) > 0 ||
-	    test_bit(ENTRY_TXD_RTS_FRAME, &txdesc.flags))
-		txdesc.ifs = IFS_SIFS;
-	else
-		txdesc.ifs = IFS_BACKOFF;
-
-	/*
-	 * PLCP setup
-	 * Length calculation depends on OFDM/CCK rate.
-	 */
-	txdesc.signal = rate->plcp;
-	txdesc.service = 0x04;
-
-	length = skbdesc->data_len + FCS_LEN;
-	if (rate->flags & DEV_RATE_OFDM) {
-		__set_bit(ENTRY_TXD_OFDM_RATE, &txdesc.flags);
-
-		txdesc.length_high = (length >> 6) & 0x3f;
-		txdesc.length_low = length & 0x3f;
-	} else {
-		/*
-		 * Convert length to microseconds.
-		 */
-		residual = get_duration_res(length, rate->bitrate);
-		duration = get_duration(length, rate->bitrate);
-
-		if (residual != 0) {
-			duration++;
-
-			/*
-			 * Check if we need to set the Length Extension
-			 */
-			if (rate->bitrate == 110 && residual <= 30)
-				txdesc.service |= 0x80;
-		}
-
-		txdesc.length_high = (duration >> 8) & 0xff;
-		txdesc.length_low = duration & 0xff;
-
-		/*
-		 * When preamble is enabled we should set the
-		 * preamble bit for the signal.
-		 */
-		if (rt2x00_get_rate_preamble(tx_rate))
-			txdesc.signal |= 0x08;
-	}
-
-	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, skb, &txdesc, control);
-
-	/*
-	 * Update queue entry.
-	 */
-	skbdesc->entry->skb = skb;
-
-	/*
-	 * The frame has been completely initialized and ready
-	 * for sending to the device. The caller will push the
-	 * frame to the device, but we are going to push the
-	 * frame to debugfs here.
-	 */
-	skbdesc->frame_type = DUMP_FRAME_TX;
-	rt2x00debug_dump_frame(rt2x00dev, skb);
-}
-EXPORT_SYMBOL_GPL(rt2x00lib_write_tx_desc);
 
 /*
  * Driver initialization handlers.
@@ -971,6 +822,11 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	status = rt2x00lib_probe_hw_modes(rt2x00dev, spec);
 	if (status)
 		return status;
+
+	/*
+	 * Initialize HW fields.
+	 */
+	rt2x00dev->hw->queues = rt2x00dev->ops->tx_queues;
 
 	/*
 	 * Register HW.
@@ -1327,7 +1183,7 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	 * In that case we have disabled the TX queue and should
 	 * now enable it again
 	 */
-	ieee80211_start_queues(rt2x00dev->hw);
+	ieee80211_wake_queues(rt2x00dev->hw);
 
 	/*
 	 * During interface iteration we might have changed the

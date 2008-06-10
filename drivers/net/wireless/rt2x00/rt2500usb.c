@@ -1033,8 +1033,7 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
  */
 static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct sk_buff *skb,
-				    struct txentry_desc *txdesc,
-				    struct ieee80211_tx_control *control)
+				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txd = skbdesc->desc;
@@ -1058,7 +1057,7 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 0, &word);
-	rt2x00_set_field32(&word, TXD_W0_RETRY_LIMIT, control->retry_limit);
+	rt2x00_set_field32(&word, TXD_W0_RETRY_LIMIT, txdesc->retry_limit);
 	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
 			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_ACK,
@@ -1068,7 +1067,7 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
 			   test_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
-			   !!(control->flags & IEEE80211_TXCTL_FIRST_FRAGMENT));
+			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
 	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skbdesc->data_len);
 	rt2x00_set_field32(&word, TXD_W0_CIPHER, CIPHER_NONE);
@@ -1125,30 +1124,32 @@ static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 				  struct rxdone_entry_desc *rxdesc)
 {
-	struct queue_entry_priv_usb_rx *priv_rx = entry->priv_data;
+	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	__le32 *rxd =
 	    (__le32 *)(entry->skb->data +
-		       (priv_rx->urb->actual_length - entry->queue->desc_size));
-	unsigned int offset = entry->queue->desc_size + 2;
+		       (entry_priv->urb->actual_length -
+			entry->queue->desc_size));
 	u32 word0;
 	u32 word1;
 
 	/*
-	 * Copy descriptor to the available headroom inside the skbuffer.
+	 * Copy descriptor to the skb->cb array, this has 2 benefits:
+	 * 1) Each descriptor word is 4 byte aligned.
+	 * 2) Descriptor is safe  from moving of frame data in rt2x00usb.
 	 */
-	skb_push(entry->skb, offset);
-	memcpy(entry->skb->data, rxd, entry->queue->desc_size);
-	rxd = (__le32 *)entry->skb->data;
+	skbdesc->desc_len =
+	    min_t(u16, entry->queue->desc_size, sizeof(entry->skb->cb));
+	memcpy(entry->skb->cb, rxd, skbdesc->desc_len);
+	skbdesc->desc = entry->skb->cb;
+	rxd = (__le32 *)skbdesc->desc;
 
 	/*
-	 * The descriptor is now aligned to 4 bytes and thus it is
-	 * now safe to read it on all architectures.
+	 * It is now safe to read the descriptor on all architectures.
 	 */
 	rt2x00_desc_read(rxd, 0, &word0);
 	rt2x00_desc_read(rxd, 1, &word1);
 
-	rxdesc->flags = 0;
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 	if (rt2x00_get_field32(word0, RXD_W0_PHYSICAL_ERROR))
@@ -1165,7 +1166,6 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	    entry->queue->rt2x00dev->rssi_offset;
 	rxdesc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
 
-	rxdesc->dev_flags = 0;
 	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
 		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
 	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
@@ -1174,16 +1174,9 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * Adjust the skb memory window to the frame boundaries.
 	 */
-	skb_pull(entry->skb, offset);
 	skb_trim(entry->skb, rxdesc->size);
-
-	/*
-	 * Set descriptor and data pointer.
-	 */
 	skbdesc->data = entry->skb->data;
 	skbdesc->data_len = rxdesc->size;
-	skbdesc->desc = rxd;
-	skbdesc->desc_len = entry->queue->desc_size;
 }
 
 /*
@@ -1192,7 +1185,7 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 static void rt2500usb_beacondone(struct urb *urb)
 {
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
-	struct queue_entry_priv_usb_bcn *priv_bcn = entry->priv_data;
+	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags))
 		return;
@@ -1203,9 +1196,9 @@ static void rt2500usb_beacondone(struct urb *urb)
 	 * Otherwise we should free the sk_buffer, the device
 	 * should be doing the rest of the work now.
 	 */
-	if (priv_bcn->guardian_urb == urb) {
-		usb_submit_urb(priv_bcn->urb, GFP_ATOMIC);
-	} else if (priv_bcn->urb == urb) {
+	if (bcn_priv->guardian_urb == urb) {
+		usb_submit_urb(bcn_priv->urb, GFP_ATOMIC);
+	} else if (bcn_priv->urb == urb) {
 		dev_kfree_skb(entry->skb);
 		entry->skb = NULL;
 	}
@@ -1591,7 +1584,6 @@ static void rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SIGNAL_DBM;
 
 	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;
-	rt2x00dev->hw->queues = 2;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, &rt2x00dev_usb(rt2x00dev)->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -1674,15 +1666,15 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 /*
  * IEEE80211 stack callback functions.
  */
-static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
-				   struct sk_buff *skb,
-				   struct ieee80211_tx_control *control)
+static int rt2500usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
-	struct rt2x00_intf *intf = vif_to_intf(control->vif);
-	struct queue_entry_priv_usb_bcn *priv_bcn;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
+	struct queue_entry_priv_usb_bcn *bcn_priv;
 	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
 	int pipe = usb_sndbulkpipe(usb_dev, 1);
 	int length;
 	u16 reg;
@@ -1690,7 +1682,15 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 
-	priv_bcn = intf->beacon->priv_data;
+	bcn_priv = intf->beacon->priv_data;
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	intf->beacon->skb = skb;
+	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc);
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1720,7 +1720,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
+	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -1729,7 +1729,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	 */
 	length = rt2500usb_get_tx_data_len(rt2x00dev, skb);
 
-	usb_fill_bulk_urb(priv_bcn->urb, usb_dev, pipe,
+	usb_fill_bulk_urb(bcn_priv->urb, usb_dev, pipe,
 			  skb->data, length, rt2500usb_beacondone,
 			  intf->beacon);
 
@@ -1738,15 +1738,15 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	 * We only need a single byte, so lets recycle
 	 * the 'flags' field we are not using for beacons.
 	 */
-	priv_bcn->guardian_data = 0;
-	usb_fill_bulk_urb(priv_bcn->guardian_urb, usb_dev, pipe,
-			  &priv_bcn->guardian_data, 1, rt2500usb_beacondone,
+	bcn_priv->guardian_data = 0;
+	usb_fill_bulk_urb(bcn_priv->guardian_urb, usb_dev, pipe,
+			  &bcn_priv->guardian_data, 1, rt2500usb_beacondone,
 			  intf->beacon);
 
 	/*
 	 * Send out the guardian byte.
 	 */
-	usb_submit_urb(priv_bcn->guardian_urb, GFP_ATOMIC);
+	usb_submit_urb(bcn_priv->guardian_urb, GFP_ATOMIC);
 
 	/*
 	 * Enable beacon generation.
@@ -1797,14 +1797,14 @@ static const struct data_queue_desc rt2500usb_queue_rx = {
 	.entry_num		= RX_ENTRIES,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb_rx),
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2500usb_queue_tx = {
 	.entry_num		= TX_ENTRIES,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb_tx),
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2500usb_queue_bcn = {
@@ -1818,7 +1818,7 @@ static const struct data_queue_desc rt2500usb_queue_atim = {
 	.entry_num		= ATIM_ENTRIES,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb_tx),
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct rt2x00_ops rt2500usb_ops = {
@@ -1827,6 +1827,7 @@ static const struct rt2x00_ops rt2500usb_ops = {
 	.max_ap_intf	= 1,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
+	.tx_queues	= NUM_TX_QUEUES,
 	.rx		= &rt2500usb_queue_rx,
 	.tx		= &rt2500usb_queue_tx,
 	.bcn		= &rt2500usb_queue_bcn,

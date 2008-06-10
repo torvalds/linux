@@ -45,13 +45,21 @@ struct iwl_debugfs {
 	const char *name;
 	struct dentry *dir_drv;
 	struct dentry *dir_data;
-	struct dir_data_files{
+	struct dentry *dir_rf;
+	struct dir_data_files {
 		struct dentry *file_sram;
 		struct dentry *file_eeprom;
 		struct dentry *file_stations;
 		struct dentry *file_rx_statistics;
 		struct dentry *file_tx_statistics;
+		struct dentry *file_log_event;
 	} dbgfs_data_files;
+	struct dir_rf_files {
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+		struct dentry *file_disable_sensitivity;
+		struct dentry *file_disable_chain_noise;
+#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
+	} dbgfs_rf_files;
 	u32 sram_offset;
 	u32 sram_len;
 };

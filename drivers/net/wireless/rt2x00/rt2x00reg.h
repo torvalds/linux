@@ -27,17 +27,6 @@
 #define RT2X00REG_H
 
 /*
- * TX result flags.
- */
-enum tx_status {
-	TX_SUCCESS = 0,
-	TX_SUCCESS_RETRY = 1,
-	TX_FAIL_RETRY = 2,
-	TX_FAIL_INVALID = 3,
-	TX_FAIL_OTHER = 4,
-};
-
-/*
  * Antenna values
  */
 enum antenna {

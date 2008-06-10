@@ -578,7 +578,7 @@ void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 		      int encrypt)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_tx_packet_data *pkt_data;
+	struct ieee80211_tx_info *info;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	skb->dev = sdata->local->mdev;
@@ -586,11 +586,11 @@ void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, 0);
 
-	pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
-	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
-	pkt_data->ifindex = sdata->dev->ifindex;
+	info = IEEE80211_SKB_CB(skb);
+	memset(info, 0, sizeof(struct ieee80211_tx_info));
+	info->control.ifindex = sdata->dev->ifindex;
 	if (!encrypt)
-		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
+		info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
 
 	dev_queue_xmit(skb);
 }
@@ -815,8 +815,29 @@ static void ieee80211_send_assoc(struct net_device *dev,
 
 	/* wmm support is a must to HT */
 	if (wmm && (ifsta->flags & IEEE80211_STA_WMM_ENABLED) &&
-	    sband->ht_info.ht_supported) {
-		__le16 tmp = cpu_to_le16(sband->ht_info.cap);
+	    sband->ht_info.ht_supported && bss->ht_add_ie) {
+		struct ieee80211_ht_addt_info *ht_add_info =
+			(struct ieee80211_ht_addt_info *)bss->ht_add_ie;
+		u16 cap = sband->ht_info.cap;
+		__le16 tmp;
+		u32 flags = local->hw.conf.channel->flags;
+
+		switch (ht_add_info->ht_param & IEEE80211_HT_IE_CHA_SEC_OFFSET) {
+		case IEEE80211_HT_IE_CHA_SEC_ABOVE:
+			if (flags & IEEE80211_CHAN_NO_FAT_ABOVE) {
+				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH;
+				cap &= ~IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		case IEEE80211_HT_IE_CHA_SEC_BELOW:
+			if (flags & IEEE80211_CHAN_NO_FAT_BELOW) {
+				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH;
+				cap &= ~IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		}
+
+		tmp = cpu_to_le16(cap);
 		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap)+2);
 		*pos++ = WLAN_EID_HT_CAPABILITY;
 		*pos++ = sizeof(struct ieee80211_ht_cap);
@@ -2271,6 +2292,7 @@ static void ieee80211_rx_bss_free(struct ieee80211_sta_bss *bss)
 	kfree(bss->rsn_ie);
 	kfree(bss->wmm_ie);
 	kfree(bss->ht_ie);
+	kfree(bss->ht_add_ie);
 	kfree(bss_mesh_id(bss));
 	kfree(bss_mesh_cfg(bss));
 	kfree(bss);
@@ -2321,7 +2343,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	int res, rates, i, j;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_tx_control control;
+	struct ieee80211_tx_info *control;
 	struct rate_selection ratesel;
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
@@ -2411,21 +2433,22 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			memcpy(pos, &bss->supp_rates[8], rates);
 		}
 
-		memset(&control, 0, sizeof(control));
+		control = IEEE80211_SKB_CB(skb);
+
 		rate_control_get_rate(dev, sband, skb, &ratesel);
-		if (!ratesel.rate) {
+		if (ratesel.rate_idx < 0) {
 			printk(KERN_DEBUG "%s: Failed to determine TX rate "
 			       "for IBSS beacon\n", dev->name);
 			break;
 		}
-		control.vif = &sdata->vif;
-		control.tx_rate = ratesel.rate;
+		control->control.vif = &sdata->vif;
+		control->tx_rate_idx = ratesel.rate_idx;
 		if (sdata->bss_conf.use_short_preamble &&
-		    ratesel.rate->flags & IEEE80211_RATE_SHORT_PREAMBLE)
-			control.flags |= IEEE80211_TXCTL_SHORT_PREAMBLE;
-		control.antenna_sel_tx = local->hw.conf.antenna_sel_tx;
-		control.flags |= IEEE80211_TXCTL_NO_ACK;
-		control.retry_limit = 1;
+		    sband->bitrates[ratesel.rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE)
+			control->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
+		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
+		control->flags |= IEEE80211_TX_CTL_NO_ACK;
+		control->control.retry_limit = 1;
 
 		ifsta->probe_resp = skb_copy(skb, GFP_ATOMIC);
 		if (ifsta->probe_resp) {
@@ -2440,8 +2463,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 		}
 
 		if (local->ops->beacon_update &&
-		    local->ops->beacon_update(local_to_hw(local),
-					     skb, &control) == 0) {
+		    local->ops->beacon_update(local_to_hw(local), skb) == 0) {
 			printk(KERN_DEBUG "%s: Configured IBSS beacon "
 			       "template\n", dev->name);
 			skb = NULL;
@@ -2645,6 +2667,26 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		kfree(bss->ht_ie);
 		bss->ht_ie = NULL;
 		bss->ht_ie_len = 0;
+	}
+
+	if (elems.ht_info_elem &&
+	     (!bss->ht_add_ie ||
+	     bss->ht_add_ie_len != elems.ht_info_elem_len ||
+	     memcmp(bss->ht_add_ie, elems.ht_info_elem,
+			elems.ht_info_elem_len))) {
+		kfree(bss->ht_add_ie);
+		bss->ht_add_ie =
+			kmalloc(elems.ht_info_elem_len + 2, GFP_ATOMIC);
+		if (bss->ht_add_ie) {
+			memcpy(bss->ht_add_ie, elems.ht_info_elem - 2,
+				elems.ht_info_elem_len + 2);
+			bss->ht_add_ie_len = elems.ht_info_elem_len + 2;
+		} else
+			bss->ht_add_ie_len = 0;
+	} else if (!elems.ht_info_elem && bss->ht_add_ie) {
+		kfree(bss->ht_add_ie);
+		bss->ht_add_ie = NULL;
+		bss->ht_add_ie_len = 0;
 	}
 
 	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);
@@ -4129,6 +4171,14 @@ ieee80211_sta_scan_result(struct net_device *dev,
 		iwe.u.data.length = bss->rsn_ie_len;
 		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
 						  bss->rsn_ie);
+	}
+
+	if (bss && bss->ht_ie) {
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = IWEVGENIE;
+		iwe.u.data.length = bss->ht_ie_len;
+		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
+						  bss->ht_ie);
 	}
 
 	if (bss && bss->supp_rates_len > 0) {

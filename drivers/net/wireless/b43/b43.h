@@ -422,6 +422,26 @@ enum {
 					 B43_IRQ_RFKILL | \
 					 B43_IRQ_TX_OK)
 
+/* The firmware register to fetch the debug-IRQ reason from. */
+#define B43_DEBUGIRQ_REASON_REG		63
+/* Debug-IRQ reasons. */
+#define B43_DEBUGIRQ_PANIC		0	/* The firmware panic'ed */
+#define B43_DEBUGIRQ_DUMP_SHM		1	/* Dump shared SHM */
+#define B43_DEBUGIRQ_DUMP_REGS		2	/* Dump the microcode registers */
+#define B43_DEBUGIRQ_MARKER		3	/* A "marker" was thrown by the firmware. */
+#define B43_DEBUGIRQ_ACK		0xFFFF	/* The host writes that to ACK the IRQ */
+
+/* The firmware register that contains the "marker" line. */
+#define B43_MARKER_ID_REG		2
+#define B43_MARKER_LINE_REG		3
+
+/* The firmware register to fetch the panic reason from. */
+#define B43_FWPANIC_REASON_REG		3
+/* Firmware panic reason codes */
+#define B43_FWPANIC_DIE			0 /* Firmware died. Don't auto-restart it. */
+#define B43_FWPANIC_RESTART		1 /* Firmware died. Schedule a controller reset. */
+
+
 /* Device specific rate values.
  * The actual values defined here are (rate_in_mbps * 2).
  * Some code depends on this. Don't change it. */
@@ -733,7 +753,6 @@ struct b43_wl {
 	/* The beacon we are currently using (AP or IBSS mode).
 	 * This beacon stuff is protected by the irq_lock. */
 	struct sk_buff *current_beacon;
-	struct ieee80211_tx_control beacon_txctl;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
 	struct work_struct beacon_update_trigger;
@@ -766,6 +785,13 @@ struct b43_firmware {
 	u16 rev;
 	/* Firmware patchlevel */
 	u16 patch;
+
+	/* Set to true, if we are using an opensource firmware. */
+	bool opensource;
+	/* Set to true, if the core needs a PCM firmware, but
+	 * we failed to load one. This is always false for
+	 * core rev > 10, as these don't need PCM firmware. */
+	bool pcm_request_failed;
 };
 
 /* Device (802.11 core) initialization status. */

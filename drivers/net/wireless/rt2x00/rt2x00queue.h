@@ -80,19 +80,6 @@ enum data_queue_qid {
 };
 
 /**
- * mac80211_queue_to_qid - Convert mac80211 queue to rt2x00 qid
- * @queue: mac80211 queue.
- */
-static inline enum data_queue_qid mac80211_queue_to_qid(unsigned int queue)
-{
-	/* Regular TX queues are mapped directly */
-	if (queue < 4)
-		return queue;
-	WARN_ON(1);
-	return QID_OTHER;
-}
-
-/**
  * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
  *
  * @FRAME_DESC_DRIVER_GENERATED: Frame was generated inside driver
@@ -105,11 +92,10 @@ enum skb_frame_desc_flags {
 /**
  * struct skb_frame_desc: Descriptor information for the skb buffer
  *
- * This structure is placed over the skb->cb array, this means that
- * this structure should not exceed the size of that array (48 bytes).
+ * This structure is placed over the driver_data array, this means that
+ * this structure should not exceed the size of that array (40 bytes).
  *
  * @flags: Frame flags, see &enum skb_frame_desc_flags.
- * @frame_type: Frame type, see &enum rt2x00_dump_type.
  * @data: Pointer to data part of frame (Start of ieee80211 header).
  * @desc: Pointer to descriptor part of the frame.
  *	Note that this pointer could point to something outside
@@ -121,21 +107,24 @@ enum skb_frame_desc_flags {
 struct skb_frame_desc {
 	unsigned int flags;
 
-	unsigned int frame_type;
+	unsigned short data_len;
+	unsigned short desc_len;
 
 	void *data;
 	void *desc;
 
-	unsigned int data_len;
-	unsigned int desc_len;
-
 	struct queue_entry *entry;
 };
 
+/**
+ * get_skb_frame_desc - Obtain the rt2x00 frame descriptor from a sk_buff.
+ * @skb: &struct sk_buff from where we obtain the &struct skb_frame_desc
+ */
 static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct skb_frame_desc) > sizeof(skb->cb));
-	return (struct skb_frame_desc *)&skb->cb[0];
+	BUILD_BUG_ON(sizeof(struct skb_frame_desc) >
+		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
+	return (struct skb_frame_desc *)&IEEE80211_SKB_CB(skb)->driver_data;
 }
 
 /**
@@ -171,18 +160,32 @@ struct rxdone_entry_desc {
 };
 
 /**
+ * enum txdone_entry_desc_flags: Flags for &struct txdone_entry_desc
+ *
+ * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
+ * @TXDONE_SUCCESS: Frame was successfully send
+ * @TXDONE_FAILURE: Frame was not successfully send
+ * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
+ *	frame transmission failed due to excessive retries.
+ */
+enum txdone_entry_desc_flags {
+	TXDONE_UNKNOWN = 1 << 0,
+	TXDONE_SUCCESS = 1 << 1,
+	TXDONE_FAILURE = 1 << 2,
+	TXDONE_EXCESSIVE_RETRY = 1 << 3,
+};
+
+/**
  * struct txdone_entry_desc: TX done entry descriptor
  *
  * Summary of information that has been read from the TX frame descriptor
  * after the device is done with transmission.
  *
- * @control: Control structure which was used to transmit the frame.
- * @status: TX status (See &enum tx_status).
+ * @flags: TX done flags (See &enum txdone_entry_desc_flags).
  * @retry: Retry count.
  */
 struct txdone_entry_desc {
-	struct ieee80211_tx_control *control;
-	int status;
+	unsigned long flags;
 	int retry;
 };
 
@@ -190,19 +193,25 @@ struct txdone_entry_desc {
  * enum txentry_desc_flags: Status flags for TX entry descriptor
  *
  * @ENTRY_TXD_RTS_FRAME: This frame is a RTS frame.
+ * @ENTRY_TXD_CTS_FRAME: This frame is a CTS-to-self frame.
  * @ENTRY_TXD_OFDM_RATE: This frame is send out with an OFDM rate.
+ * @ENTRY_TXD_FIRST_FRAGMENT: This is the first frame.
  * @ENTRY_TXD_MORE_FRAG: This frame is followed by another fragment.
  * @ENTRY_TXD_REQ_TIMESTAMP: Require timestamp to be inserted.
  * @ENTRY_TXD_BURST: This frame belongs to the same burst event.
  * @ENTRY_TXD_ACK: An ACK is required for this frame.
+ * @ENTRY_TXD_RETRY_MODE: When set, the long retry count is used.
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
+	ENTRY_TXD_CTS_FRAME,
 	ENTRY_TXD_OFDM_RATE,
+	ENTRY_TXD_FIRST_FRAGMENT,
 	ENTRY_TXD_MORE_FRAG,
 	ENTRY_TXD_REQ_TIMESTAMP,
 	ENTRY_TXD_BURST,
 	ENTRY_TXD_ACK,
+	ENTRY_TXD_RETRY_MODE,
 };
 
 /**
@@ -216,6 +225,7 @@ enum txentry_desc_flags {
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
  * @service: PLCP service.
+ * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
  * @cw_min: cwmin value.
@@ -231,10 +241,11 @@ struct txentry_desc {
 	u16 signal;
 	u16 service;
 
-	int aifs;
-	int ifs;
-	int cw_min;
-	int cw_max;
+	short retry_limit;
+	short aifs;
+	short ifs;
+	short cw_min;
+	short cw_max;
 };
 
 /**
@@ -378,7 +389,7 @@ struct data_queue_desc {
  * the end of the TX queue array.
  */
 #define tx_queue_end(__dev) \
-	&(__dev)->tx[(__dev)->hw->queues]
+	&(__dev)->tx[(__dev)->ops->tx_queues]
 
 /**
  * queue_loop - Loop through the queues within a specific range (HELPER MACRO).

@@ -1205,10 +1205,10 @@ struct b43legacy_dmaring *parse_cookie(struct b43legacy_wldev *dev,
 }
 
 static int dma_tx_fragment(struct b43legacy_dmaring *ring,
-			    struct sk_buff *skb,
-			    struct ieee80211_tx_control *ctl)
+			    struct sk_buff *skb)
 {
 	const struct b43legacy_dma_ops *ops = ring->ops;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u8 *header;
 	int slot, old_top_slot, old_used_slots;
 	int err;
@@ -1231,7 +1231,7 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 	header = &(ring->txhdr_cache[slot * sizeof(
 			       struct b43legacy_txhdr_fw3)]);
 	err = b43legacy_generate_txhdr(ring->dev, header,
-				 skb->data, skb->len, ctl,
+				 skb->data, skb->len, info,
 				 generate_cookie(ring, slot));
 	if (unlikely(err)) {
 		ring->current_slot = old_top_slot;
@@ -1255,7 +1255,6 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 	desc = ops->idx2desc(ring, slot, &meta);
 	memset(meta, 0, sizeof(*meta));
 
-	memcpy(&meta->txstat.control, ctl, sizeof(*ctl));
 	meta->skb = skb;
 	meta->is_last_fragment = 1;
 
@@ -1323,14 +1322,13 @@ int should_inject_overflow(struct b43legacy_dmaring *ring)
 }
 
 int b43legacy_dma_tx(struct b43legacy_wldev *dev,
-		     struct sk_buff *skb,
-		     struct ieee80211_tx_control *ctl)
+		     struct sk_buff *skb)
 {
 	struct b43legacy_dmaring *ring;
 	int err = 0;
 	unsigned long flags;
 
-	ring = priority_to_txring(dev, ctl->queue);
+	ring = priority_to_txring(dev, skb_get_queue_mapping(skb));
 	spin_lock_irqsave(&ring->lock, flags);
 	B43legacy_WARN_ON(!ring->tx);
 	if (unlikely(free_slots(ring) < SLOTS_PER_PACKET)) {
@@ -1343,7 +1341,7 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 	 * That would be a mac80211 bug. */
 	B43legacy_BUG_ON(ring->stopped);
 
-	err = dma_tx_fragment(ring, skb, ctl);
+	err = dma_tx_fragment(ring, skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */
@@ -1401,26 +1399,29 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 					 1);
 
 		if (meta->is_last_fragment) {
-			B43legacy_WARN_ON(!meta->skb);
+			struct ieee80211_tx_info *info;
+			BUG_ON(!meta->skb);
+			info = IEEE80211_SKB_CB(meta->skb);
 			/* Call back to inform the ieee80211 subsystem about the
 			 * status of the transmission.
 			 * Some fields of txstat are already filled in dma_tx().
 			 */
+
+			memset(&info->status, 0, sizeof(info->status));
+
 			if (status->acked) {
-				meta->txstat.flags |= IEEE80211_TX_STATUS_ACK;
+				info->flags |= IEEE80211_TX_STAT_ACK;
 			} else {
-				if (!(meta->txstat.control.flags
-				      & IEEE80211_TXCTL_NO_ACK))
-					 meta->txstat.excessive_retries = 1;
+				if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+					 info->status.excessive_retries = 1;
 			}
 			if (status->frame_count == 0) {
 				/* The frame was not transmitted at all. */
-				meta->txstat.retry_count = 0;
+				info->status.retry_count = 0;
 			} else
-				meta->txstat.retry_count = status->frame_count
+				info->status.retry_count = status->frame_count
 							   - 1;
-			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb,
-						    &(meta->txstat));
+			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb);
 			/* skb is freed by ieee80211_tx_status_irqsafe() */
 			meta->skb = NULL;
 		} else {

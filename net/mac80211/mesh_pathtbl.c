@@ -158,19 +158,14 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 	if (atomic_add_unless(&sdata->u.sta.mpaths, 1, MESH_MAX_MPATHS) == 0)
 		return -ENOSPC;
 
+	err = -ENOMEM;
 	new_mpath = kzalloc(sizeof(struct mesh_path), GFP_KERNEL);
-	if (!new_mpath) {
-		atomic_dec(&sdata->u.sta.mpaths);
-		err = -ENOMEM;
-		goto endadd2;
-	}
+	if (!new_mpath)
+		goto err_path_alloc;
+
 	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
-	if (!new_node) {
-		kfree(new_mpath);
-		atomic_dec(&sdata->u.sta.mpaths);
-		err = -ENOMEM;
-		goto endadd2;
-	}
+	if (!new_node)
+		goto err_node_alloc;
 
 	read_lock(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
@@ -189,16 +184,11 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 
 	spin_lock(&mesh_paths->hashwlock[hash_idx]);
 
+	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
-		if (mpath->dev == dev && memcmp(dst, mpath->dst, ETH_ALEN)
-				== 0) {
-			err = -EEXIST;
-			atomic_dec(&sdata->u.sta.mpaths);
-			kfree(new_node);
-			kfree(new_mpath);
-			goto endadd;
-		}
+		if (mpath->dev == dev && memcmp(dst, mpath->dst, ETH_ALEN) == 0)
+			goto err_exists;
 	}
 
 	hlist_add_head_rcu(&new_node->list, bucket);
@@ -206,10 +196,9 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 		mesh_paths->mean_chain_len * (mesh_paths->hash_mask + 1))
 		grow = 1;
 
-endadd:
 	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
 	read_unlock(&pathtbl_resize_lock);
-	if (!err && grow) {
+	if (grow) {
 		struct mesh_table *oldtbl, *newtbl;
 
 		write_lock(&pathtbl_resize_lock);
@@ -217,7 +206,7 @@ endadd:
 		newtbl = mesh_table_grow(mesh_paths);
 		if (!newtbl) {
 			write_unlock(&pathtbl_resize_lock);
-			return -ENOMEM;
+			return 0;
 		}
 		rcu_assign_pointer(mesh_paths, newtbl);
 		write_unlock(&pathtbl_resize_lock);
@@ -225,7 +214,16 @@ endadd:
 		synchronize_rcu();
 		mesh_table_free(oldtbl, false);
 	}
-endadd2:
+	return 0;
+
+err_exists:
+	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
+	read_unlock(&pathtbl_resize_lock);
+	kfree(new_node);
+err_node_alloc:
+	kfree(new_mpath);
+err_path_alloc:
+	atomic_dec(&sdata->u.sta.mpaths);
 	return err;
 }
 
@@ -460,25 +458,28 @@ static void mesh_path_node_free(struct hlist_node *p, bool free_leafs)
 	struct mpath_node *node = hlist_entry(p, struct mpath_node, list);
 	mpath = node->mpath;
 	hlist_del_rcu(p);
-	synchronize_rcu();
 	if (free_leafs)
 		kfree(mpath);
 	kfree(node);
 }
 
-static void mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
+static int mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 {
 	struct mesh_path *mpath;
 	struct mpath_node *node, *new_node;
 	u32 hash_idx;
 
+	new_node = kmalloc(sizeof(struct mpath_node), GFP_ATOMIC);
+	if (new_node == NULL)
+		return -ENOMEM;
+
 	node = hlist_entry(p, struct mpath_node, list);
 	mpath = node->mpath;
-	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
 	new_node->mpath = mpath;
 	hash_idx = mesh_table_hash(mpath->dst, mpath->dev, newtbl);
 	hlist_add_head(&new_node->list,
 			&newtbl->hash_buckets[hash_idx]);
+	return 0;
 }
 
 int mesh_pathtbl_init(void)

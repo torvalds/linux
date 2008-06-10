@@ -29,6 +29,9 @@
 #ifndef __iwl_sta_h__
 #define __iwl_sta_h__
 
+#define HW_KEY_DYNAMIC 0
+#define HW_KEY_DEFAULT 1
+
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty);
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
@@ -39,4 +42,8 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *key, u8 sta_id);
 int iwl_remove_dynamic_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *key, u8 sta_id);
+int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
+u8 iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
+int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
+void iwl_sta_modify_enable_tid_tx(struct iwl_priv *priv, int sta_id, int tid);
 #endif /* __iwl_sta_h__ */

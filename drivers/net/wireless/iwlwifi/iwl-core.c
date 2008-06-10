@@ -67,7 +67,7 @@ MODULE_LICENSE("GPL");
  * maps to IWL_RATE_INVALID
  *
  */
-const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT] = {
+const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(1, INV, INV, 2, INV, 2, INV, 2),    /*  1mbps */
 	IWL_DECLARE_RATE_INFO(2, INV, 1, 5, 1, 5, 1, 5),          /*  2mbps */
 	IWL_DECLARE_RATE_INFO(5, INV, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
@@ -83,7 +83,12 @@ const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(60, 60, 48, INV, 48, INV, 48, INV),/* 60mbps */
 	/* FIXME:RS:          ^^    should be INV (legacy) */
 };
-EXPORT_SYMBOL(iwl4965_rates);
+EXPORT_SYMBOL(iwl_rates);
+
+
+const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+EXPORT_SYMBOL(iwl_bcast_addr);
+
 
 /* This function both allocates and initializes hw and priv. */
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
@@ -317,24 +322,33 @@ void iwl_reset_qos(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwl_reset_qos);
 
 #ifdef CONFIG_IWL4965_HT
+#define MAX_BIT_RATE_40_MHZ 0x96; /* 150 Mbps */
+#define MAX_BIT_RATE_20_MHZ 0x48; /* 72 Mbps */
 static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band)
 {
+	u16 max_bit_rate = 0;
+	u8 rx_chains_num = priv->hw_params.rx_chains_num;
+	u8 tx_chains_num = priv->hw_params.tx_chains_num;
+
 	ht_info->cap = 0;
 	memset(ht_info->supp_mcs_set, 0, 16);
 
 	ht_info->ht_supported = 1;
 
-	if (priv->hw_params.fat_channel & BIT(band)) {
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
-		ht_info->supp_mcs_set[4] = 0x01;
-	}
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
 	ht_info->cap |= (u16)(IEEE80211_HT_CAP_MIMO_PS &
 			     (IWL_MIMO_PS_NONE << 2));
+
+	max_bit_rate = MAX_BIT_RATE_20_MHZ;
+	if (priv->hw_params.fat_channel & BIT(band)) {
+		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
+		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
+		ht_info->supp_mcs_set[4] = 0x01;
+		max_bit_rate = MAX_BIT_RATE_40_MHZ;
+	}
 
 	if (priv->cfg->mod_params->amsdu_size_8K)
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_MAX_AMSDU;
@@ -343,10 +357,22 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
 
 	ht_info->supp_mcs_set[0] = 0xFF;
-	if (priv->hw_params.tx_chains_num >= 2)
+	if (rx_chains_num >= 2)
 		ht_info->supp_mcs_set[1] = 0xFF;
-	if (priv->hw_params.tx_chains_num >= 3)
+	if (rx_chains_num >= 3)
 		ht_info->supp_mcs_set[2] = 0xFF;
+
+	/* Highest supported Rx data rate */
+	max_bit_rate *= rx_chains_num;
+	ht_info->supp_mcs_set[10] = (u8)(max_bit_rate & 0x00FF);
+	ht_info->supp_mcs_set[11] = (u8)((max_bit_rate & 0xFF00) >> 8);
+
+	/* Tx MCS capabilities */
+	ht_info->supp_mcs_set[12] = IEEE80211_HT_CAP_MCS_TX_DEFINED;
+	if (tx_chains_num != rx_chains_num) {
+		ht_info->supp_mcs_set[12] |= IEEE80211_HT_CAP_MCS_TX_RX_DIFF;
+		ht_info->supp_mcs_set[12] |= ((tx_chains_num - 1) << 2);
+	}
 }
 #else
 static inline void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
@@ -362,7 +388,7 @@ static void iwlcore_init_hw_rates(struct iwl_priv *priv,
 	int i;
 
 	for (i = 0; i < IWL_RATE_COUNT; i++) {
-		rates[i].bitrate = iwl4965_rates[i].ieee * 5;
+		rates[i].bitrate = iwl_rates[i].ieee * 5;
 		rates[i].hw_value = i; /* Rate scaling will work on indexes */
 		rates[i].hw_value_short = i;
 		rates[i].flags = 0;
@@ -371,7 +397,7 @@ static void iwlcore_init_hw_rates(struct iwl_priv *priv,
 			 * If CCK != 1M then set short preamble rate flag.
 			 */
 			rates[i].flags |=
-				(iwl4965_rates[i].plcp == IWL_RATE_1M_PLCP) ?
+				(iwl_rates[i].plcp == IWL_RATE_1M_PLCP) ?
 					0 : IEEE80211_RATE_SHORT_PREAMBLE;
 		}
 	}
@@ -460,6 +486,25 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
 				geo_ch->flags |= IEEE80211_CHAN_RADAR;
 
+			switch (ch->fat_extension_channel) {
+			case HT_IE_EXT_CHANNEL_ABOVE:
+				/* only above is allowed, disable below */
+				geo_ch->flags |= IEEE80211_CHAN_NO_FAT_BELOW;
+				break;
+			case HT_IE_EXT_CHANNEL_BELOW:
+				/* only below is allowed, disable above */
+				geo_ch->flags |= IEEE80211_CHAN_NO_FAT_ABOVE;
+				break;
+			case HT_IE_EXT_CHANNEL_NONE:
+				/* fat not allowed: disable both*/
+				geo_ch->flags |= (IEEE80211_CHAN_NO_FAT_ABOVE |
+						  IEEE80211_CHAN_NO_FAT_BELOW);
+				break;
+			case HT_IE_EXT_CHANNEL_MAX:
+				/* both above and below are permitted */
+				break;
+			}
+
 			if (ch->max_power_avg > priv->max_channel_txpower_limit)
 				priv->max_channel_txpower_limit =
 				    ch->max_power_avg;
@@ -492,12 +537,6 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 	       priv->bands[IEEE80211_BAND_2GHZ].n_channels,
 	       priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
-	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
-		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-			&priv->bands[IEEE80211_BAND_2GHZ];
-	if (priv->bands[IEEE80211_BAND_5GHZ].n_channels)
-		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			&priv->bands[IEEE80211_BAND_5GHZ];
 
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
@@ -507,13 +546,12 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 /*
  * iwlcore_free_geos - undo allocations in iwlcore_init_geos
  */
-void iwlcore_free_geos(struct iwl_priv *priv)
+static void iwlcore_free_geos(struct iwl_priv *priv)
 {
 	kfree(priv->ieee_channels);
 	kfree(priv->ieee_rates);
 	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
-EXPORT_SYMBOL(iwlcore_free_geos);
 
 #ifdef CONFIG_IWL4965_HT
 static u8 is_single_rx_stream(struct iwl_priv *priv)
@@ -567,7 +605,7 @@ EXPORT_SYMBOL(iwl_is_fat_tx_allowed);
 
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 {
-	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
+	struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
 	u32 val;
 
 	if (!ht_info->is_ht)
@@ -741,8 +779,9 @@ int iwl_set_rxon_channel(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_set_rxon_channel);
 
-static void iwlcore_init_hw(struct iwl_priv *priv)
+int iwl_setup_mac(struct iwl_priv *priv)
 {
+	int ret;
 	struct ieee80211_hw *hw = priv->hw;
 	hw->rate_control_algorithm = "iwl-4965-rs";
 
@@ -756,9 +795,29 @@ static void iwlcore_init_hw(struct iwl_priv *priv)
 	/* Enhanced value; more queues, to support 11n aggregation */
 	hw->ampdu_queues = 12;
 #endif /* CONFIG_IWL4965_HT */
-}
 
-static int iwlcore_init_drv(struct iwl_priv *priv)
+	hw->conf.beacon_int = 100;
+
+	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
+		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+			&priv->bands[IEEE80211_BAND_2GHZ];
+	if (priv->bands[IEEE80211_BAND_5GHZ].n_channels)
+		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+			&priv->bands[IEEE80211_BAND_5GHZ];
+
+	ret = ieee80211_register_hw(priv->hw);
+	if (ret) {
+		IWL_ERROR("Failed to register hw (error %d)\n", ret);
+		return ret;
+	}
+	priv->mac80211_registered = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_setup_mac);
+
+
+int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 	int i;
@@ -795,6 +854,9 @@ static int iwlcore_init_drv(struct iwl_priv *priv)
 	/* Choose which receivers/antennas to use */
 	iwl_set_rxon_chain(priv);
 
+	if (priv->cfg->mod_params->enable_qos)
+		priv->qos_data.qos_enable = 1;
+
 	iwl_reset_qos(priv);
 
 	priv->qos_data.qos_active = 0;
@@ -819,34 +881,39 @@ static int iwlcore_init_drv(struct iwl_priv *priv)
 		goto err_free_channel_map;
 	}
 
-	ret = ieee80211_register_hw(priv->hw);
-	if (ret) {
-		IWL_ERROR("Failed to register network device (error %d)\n",
-				ret);
-		goto err_free_geos;
-	}
-
-	priv->hw->conf.beacon_int = 100;
-	priv->mac80211_registered = 1;
-
 	return 0;
 
-err_free_geos:
-	iwlcore_free_geos(priv);
 err_free_channel_map:
 	iwl_free_channel_map(priv);
 err:
 	return ret;
 }
+EXPORT_SYMBOL(iwl_init_drv);
 
-int iwl_setup(struct iwl_priv *priv)
+void iwl_free_calib_results(struct iwl_priv *priv)
 {
-	int ret = 0;
-	iwlcore_init_hw(priv);
-	ret = iwlcore_init_drv(priv);
-	return ret;
+	kfree(priv->calib_results.lo_res);
+	priv->calib_results.lo_res = NULL;
+	priv->calib_results.lo_res_len = 0;
+
+	kfree(priv->calib_results.tx_iq_res);
+	priv->calib_results.tx_iq_res = NULL;
+	priv->calib_results.tx_iq_res_len = 0;
+
+	kfree(priv->calib_results.tx_iq_perd_res);
+	priv->calib_results.tx_iq_perd_res = NULL;
+	priv->calib_results.tx_iq_perd_res_len = 0;
 }
-EXPORT_SYMBOL(iwl_setup);
+EXPORT_SYMBOL(iwl_free_calib_results);
+
+void iwl_uninit_drv(struct iwl_priv *priv)
+{
+	iwl_free_calib_results(priv);
+	iwlcore_free_geos(priv);
+	iwl_free_channel_map(priv);
+	kfree(priv->scan);
+}
+EXPORT_SYMBOL(iwl_uninit_drv);
 
 /* Low level driver call this function to update iwlcore with
  * driver status.
@@ -1023,4 +1090,186 @@ int iwl_verify_ucode(struct iwl_priv *priv)
 	return ret;
 }
 EXPORT_SYMBOL(iwl_verify_ucode);
+
+
+static const char *desc_lookup(int i)
+{
+	switch (i) {
+	case 1:
+		return "FAIL";
+	case 2:
+		return "BAD_PARAM";
+	case 3:
+		return "BAD_CHECKSUM";
+	case 4:
+		return "NMI_INTERRUPT";
+	case 5:
+		return "SYSASSERT";
+	case 6:
+		return "FATAL_ERROR";
+	}
+
+	return "UNKNOWN";
+}
+
+#define ERROR_START_OFFSET  (1 * sizeof(u32))
+#define ERROR_ELEM_SIZE     (7 * sizeof(u32))
+
+void iwl_dump_nic_error_log(struct iwl_priv *priv)
+{
+	u32 data2, line;
+	u32 desc, time, count, base, data1;
+	u32 blink1, blink2, ilink1, ilink2;
+	int ret;
+
+	if (priv->ucode_type == UCODE_INIT)
+		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
+	else
+		base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
+
+	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
+		IWL_ERROR("Not valid error log pointer 0x%08X\n", base);
+		return;
+	}
+
+	ret = iwl_grab_nic_access(priv);
+	if (ret) {
+		IWL_WARNING("Can not read from adapter at this time.\n");
+		return;
+	}
+
+	count = iwl_read_targ_mem(priv, base);
+
+	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
+		IWL_ERROR("Start IWL Error Log Dump:\n");
+		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
+	}
+
+	desc = iwl_read_targ_mem(priv, base + 1 * sizeof(u32));
+	blink1 = iwl_read_targ_mem(priv, base + 3 * sizeof(u32));
+	blink2 = iwl_read_targ_mem(priv, base + 4 * sizeof(u32));
+	ilink1 = iwl_read_targ_mem(priv, base + 5 * sizeof(u32));
+	ilink2 = iwl_read_targ_mem(priv, base + 6 * sizeof(u32));
+	data1 = iwl_read_targ_mem(priv, base + 7 * sizeof(u32));
+	data2 = iwl_read_targ_mem(priv, base + 8 * sizeof(u32));
+	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
+	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
+
+	IWL_ERROR("Desc        Time       "
+		"data1      data2      line\n");
+	IWL_ERROR("%-13s (#%d) %010u 0x%08X 0x%08X %u\n",
+		desc_lookup(desc), desc, time, data1, data2, line);
+	IWL_ERROR("blink1  blink2  ilink1  ilink2\n");
+	IWL_ERROR("0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
+		ilink1, ilink2);
+
+	iwl_release_nic_access(priv);
+}
+EXPORT_SYMBOL(iwl_dump_nic_error_log);
+
+#define EVENT_START_OFFSET  (4 * sizeof(u32))
+
+/**
+ * iwl_print_event_log - Dump error event log to syslog
+ *
+ * NOTE: Must be called with iwl4965_grab_nic_access() already obtained!
+ */
+void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
+				u32 num_events, u32 mode)
+{
+	u32 i;
+	u32 base;       /* SRAM byte address of event log header */
+	u32 event_size; /* 2 u32s, or 3 u32s if timestamp recorded */
+	u32 ptr;        /* SRAM byte address of log data */
+	u32 ev, time, data; /* event log data */
+
+	if (num_events == 0)
+		return;
+	if (priv->ucode_type == UCODE_INIT)
+		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
+	else
+		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
+
+	if (mode == 0)
+		event_size = 2 * sizeof(u32);
+	else
+		event_size = 3 * sizeof(u32);
+
+	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
+
+	/* "time" is actually "data" for mode 0 (no timestamp).
+	* place event id # at far right for easier visual parsing. */
+	for (i = 0; i < num_events; i++) {
+		ev = iwl_read_targ_mem(priv, ptr);
+		ptr += sizeof(u32);
+		time = iwl_read_targ_mem(priv, ptr);
+		ptr += sizeof(u32);
+		if (mode == 0)
+			IWL_ERROR("0x%08x\t%04u\n", time, ev); /* data, ev */
+		else {
+			data = iwl_read_targ_mem(priv, ptr);
+			ptr += sizeof(u32);
+			IWL_ERROR("%010u\t0x%08x\t%04u\n", time, data, ev);
+		}
+	}
+}
+EXPORT_SYMBOL(iwl_print_event_log);
+
+
+void iwl_dump_nic_event_log(struct iwl_priv *priv)
+{
+	int ret;
+	u32 base;       /* SRAM byte address of event log header */
+	u32 capacity;   /* event log capacity in # entries */
+	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
+	u32 num_wraps;  /* # times uCode wrapped to top of log */
+	u32 next_entry; /* index of next entry to be written by uCode */
+	u32 size;       /* # entries that we'll print */
+
+	if (priv->ucode_type == UCODE_INIT)
+		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
+	else
+		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
+
+	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
+		IWL_ERROR("Invalid event log pointer 0x%08X\n", base);
+		return;
+	}
+
+	ret = iwl_grab_nic_access(priv);
+	if (ret) {
+		IWL_WARNING("Can not read from adapter at this time.\n");
+		return;
+	}
+
+	/* event log header */
+	capacity = iwl_read_targ_mem(priv, base);
+	mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
+	num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
+	next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
+
+	size = num_wraps ? capacity : next_entry;
+
+	/* bail out if nothing in log */
+	if (size == 0) {
+		IWL_ERROR("Start IWL Event Log Dump: nothing in log\n");
+		iwl_release_nic_access(priv);
+		return;
+	}
+
+	IWL_ERROR("Start IWL Event Log Dump: display count %d, wraps %d\n",
+			size, num_wraps);
+
+	/* if uCode has wrapped back to top of log, start at the oldest entry,
+	 * i.e the next one that uCode would fill. */
+	if (num_wraps)
+		iwl_print_event_log(priv, next_entry,
+					capacity - next_entry, mode);
+	/* (then/else) start at top of log */
+	iwl_print_event_log(priv, 0, next_entry, mode);
+
+	iwl_release_nic_access(priv);
+}
+EXPORT_SYMBOL(iwl_dump_nic_event_log);
+
 

@@ -365,11 +365,11 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
 			    ? # x " " : "")
 
 /**
- * iwl4965_set_fat_chan_info - Copy fat channel info into driver's priv.
+ * iwl_set_fat_chan_info - Copy fat channel info into driver's priv.
  *
  * Does not set up a command, or touch hardware.
  */
-static int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
+static int iwl_set_fat_chan_info(struct iwl_priv *priv,
 			      enum ieee80211_band band, u16 channel,
 			      const struct iwl_eeprom_channel *eeprom_ch,
 			      u8 fat_extension_channel)
@@ -542,16 +542,16 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 				fat_extension_chan = HT_IE_EXT_CHANNEL_ABOVE;
 
 			/* Set up driver's info for lower half */
-			iwl4965_set_fat_chan_info(priv, ieeeband,
-						  eeprom_ch_index[ch],
-						  &(eeprom_ch_info[ch]),
-						  fat_extension_chan);
+			iwl_set_fat_chan_info(priv, ieeeband,
+						eeprom_ch_index[ch],
+						&(eeprom_ch_info[ch]),
+						fat_extension_chan);
 
 			/* Set up driver's info for upper half */
-			iwl4965_set_fat_chan_info(priv, ieeeband,
-						  (eeprom_ch_index[ch] + 4),
-						  &(eeprom_ch_info[ch]),
-						  HT_IE_EXT_CHANNEL_BELOW);
+			iwl_set_fat_chan_info(priv, ieeeband,
+						(eeprom_ch_index[ch] + 4),
+						&(eeprom_ch_info[ch]),
+						HT_IE_EXT_CHANNEL_BELOW);
 		}
 	}
 
@@ -560,23 +560,21 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwl_init_channel_map);
 
 /*
- * iwl_free_channel_map - undo allocations in iwl4965_init_channel_map
+ * iwl_free_channel_map - undo allocations in iwl_init_channel_map
  */
 void iwl_free_channel_map(struct iwl_priv *priv)
 {
 	kfree(priv->channel_info);
 	priv->channel_count = 0;
 }
-EXPORT_SYMBOL(iwl_free_channel_map);
 
 /**
  * iwl_get_channel_info - Find driver's private channel info
  *
  * Based on band and channel number.
  */
-const struct iwl_channel_info *iwl_get_channel_info(
-		const struct iwl_priv *priv,
-		enum ieee80211_band band, u16 channel)
+const struct iwl_channel_info *iwl_get_channel_info(const struct iwl_priv *priv,
+					enum ieee80211_band band, u16 channel)
 {
 	int i;
 

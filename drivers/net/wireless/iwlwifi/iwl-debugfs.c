@@ -55,6 +55,13 @@
 		goto err;                                               \
 } while (0)
 
+#define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
+	dbgfs->dbgfs_##parent##_files.file_##name =                     \
+	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
+	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name))          \
+		goto err;                                               \
+} while (0)
+
 #define DEBUGFS_REMOVE(name)  do {              \
 	debugfs_remove(name);                   \
 	name = NULL;                            \
@@ -84,6 +91,14 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.read = iwl_dbgfs_##name##_read,                       		\
 	.open = iwl_dbgfs_open_file_generic,                    	\
 };
+
+#define DEBUGFS_WRITE_FILE_OPS(name)                                    \
+	DEBUGFS_WRITE_FUNC(name);                                       \
+static const struct file_operations iwl_dbgfs_##name##_ops = {          \
+	.write = iwl_dbgfs_##name##_write,                              \
+	.open = iwl_dbgfs_open_file_generic,                    	\
+};
+
 
 #define DEBUGFS_READ_WRITE_FILE_OPS(name)                               \
 	DEBUGFS_READ_FUNC(name);                                        \
@@ -317,7 +332,29 @@ static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_log_event_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	u32 event_log_flag;
+	char buf[8];
+	int buf_size;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &event_log_flag) != 1)
+		return -EFAULT;
+	if (event_log_flag == 1)
+		iwl_dump_nic_event_log(priv);
+
+	return count;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
+DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(eeprom);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(rx_statistics);
@@ -330,6 +367,7 @@ DEBUGFS_READ_FILE_OPS(tx_statistics);
 int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {
 	struct iwl_debugfs *dbgfs;
+	struct dentry *phyd = priv->hw->wiphy->debugfsdir;
 
 	dbgfs = kzalloc(sizeof(struct iwl_debugfs), GFP_KERNEL);
 	if (!dbgfs) {
@@ -338,18 +376,24 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	priv->dbgfs = dbgfs;
 	dbgfs->name = name;
-	dbgfs->dir_drv = debugfs_create_dir(name, NULL);
+	dbgfs->dir_drv = debugfs_create_dir(name, phyd);
 	if (!dbgfs->dir_drv || IS_ERR(dbgfs->dir_drv)){
 		goto err;
 	}
 
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
+	DEBUGFS_ADD_DIR(rf, dbgfs->dir_drv);
 	DEBUGFS_ADD_FILE(eeprom, data);
 	DEBUGFS_ADD_FILE(sram, data);
+	DEBUGFS_ADD_FILE(log_event, data);
 	DEBUGFS_ADD_FILE(stations, data);
 	DEBUGFS_ADD_FILE(rx_statistics, data);
 	DEBUGFS_ADD_FILE(tx_statistics, data);
-
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
+	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
+			 &priv->disable_chain_noise_cal);
+#endif  /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
 	return 0;
 
 err:
@@ -372,12 +416,19 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_rx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_log_event);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_stations);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
+#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
+	DEBUGFS_REMOVE(priv->dbgfs->dir_rf);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_drv);
 	kfree(priv->dbgfs);
 	priv->dbgfs = NULL;
 }
 EXPORT_SYMBOL(iwl_dbgfs_unregister);
+
 
 

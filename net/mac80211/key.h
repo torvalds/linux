@@ -69,6 +69,13 @@ enum ieee80211_internal_key_flags {
 	KEY_FLAG_TODO_ADD_DEBUGFS	= BIT(5),
 };
 
+struct tkip_ctx {
+	u32 iv32;
+	u16 iv16;
+	u16 p1k[5];
+	int initialized;
+};
+
 struct ieee80211_key {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -85,16 +92,10 @@ struct ieee80211_key {
 	union {
 		struct {
 			/* last used TSC */
-			u32 iv32;
-			u16 iv16;
-			u16 p1k[5];
-			int tx_initialized;
+			struct tkip_ctx tx;
 
 			/* last received RSC */
-			u32 iv32_rx[NUM_RX_DATA_QUEUES];
-			u16 iv16_rx[NUM_RX_DATA_QUEUES];
-			u16 p1k_rx[NUM_RX_DATA_QUEUES][5];
-			int rx_initialized[NUM_RX_DATA_QUEUES];
+			struct tkip_ctx rx[NUM_RX_DATA_QUEUES];
 		} tkip;
 		struct {
 			u8 tx_pn[6];

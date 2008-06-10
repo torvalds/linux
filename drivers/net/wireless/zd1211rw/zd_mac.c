@@ -224,36 +224,6 @@ out:
 	return r;
 }
 
-/**
- * clear_tx_skb_control_block - clears the control block of tx skbuffs
- * @skb: a &struct sk_buff pointer
- *
- * This clears the control block of skbuff buffers, which were transmitted to
- * the device. Notify that the function is not thread-safe, so prevent
- * multiple calls.
- */
-static void clear_tx_skb_control_block(struct sk_buff *skb)
-{
-	struct zd_tx_skb_control_block *cb =
-		(struct zd_tx_skb_control_block *)skb->cb;
-
-	kfree(cb->control);
-	cb->control = NULL;
-}
-
-/**
- * kfree_tx_skb - frees a tx skbuff
- * @skb: a &struct sk_buff pointer
- *
- * Frees the tx skbuff. Frees also the allocated control structure in the
- * control block if necessary.
- */
-static void kfree_tx_skb(struct sk_buff *skb)
-{
-	clear_tx_skb_control_block(skb);
-	dev_kfree_skb_any(skb);
-}
-
 static void zd_op_stop(struct ieee80211_hw *hw)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
@@ -276,40 +246,15 @@ static void zd_op_stop(struct ieee80211_hw *hw)
 
 
 	while ((skb = skb_dequeue(ack_wait_queue)))
-		kfree_tx_skb(skb);
-}
-
-/**
- * init_tx_skb_control_block - initializes skb control block
- * @skb: a &sk_buff pointer
- * @dev: pointer to the mac80221 device
- * @control: mac80211 tx control applying for the frame in @skb
- *
- * Initializes the control block of the skbuff to be transmitted.
- */
-static int init_tx_skb_control_block(struct sk_buff *skb,
-				     struct ieee80211_hw *hw,
-	                             struct ieee80211_tx_control *control)
-{
-	struct zd_tx_skb_control_block *cb =
-		(struct zd_tx_skb_control_block *)skb->cb;
-
-	ZD_ASSERT(sizeof(*cb) <= sizeof(skb->cb));
-	memset(cb, 0, sizeof(*cb));
-	cb->hw= hw;
-	cb->control = kmalloc(sizeof(*control), GFP_ATOMIC);
-	if (cb->control == NULL)
-		return -ENOMEM;
-	memcpy(cb->control, control, sizeof(*control));
-
-	return 0;
+		dev_kfree_skb_any(skb);
 }
 
 /**
  * tx_status - reports tx status of a packet if required
  * @hw - a &struct ieee80211_hw pointer
  * @skb - a sk-buffer
- * @status - the tx status of the packet without control information
+ * @flags: extra flags to set in the TX status info
+ * @ackssi: ACK signal strength
  * @success - True for successfull transmission of the frame
  *
  * This information calls ieee80211_tx_status_irqsafe() if required by the
@@ -319,18 +264,17 @@ static int init_tx_skb_control_block(struct sk_buff *skb,
  * If no status information has been requested, the skb is freed.
  */
 static void tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
-	              struct ieee80211_tx_status *status,
-		      bool success)
+		      u32 flags, int ackssi, bool success)
 {
-	struct zd_tx_skb_control_block *cb = (struct zd_tx_skb_control_block *)
-		skb->cb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	ZD_ASSERT(cb->control != NULL);
-	memcpy(&status->control, cb->control, sizeof(status->control));
+	memset(&info->status, 0, sizeof(info->status));
+
 	if (!success)
-		status->excessive_retries = 1;
-	clear_tx_skb_control_block(skb);
-	ieee80211_tx_status_irqsafe(hw, skb, status);
+		info->status.excessive_retries = 1;
+	info->flags |= flags;
+	info->status.ack_signal = ackssi;
+	ieee80211_tx_status_irqsafe(hw, skb);
 }
 
 /**
@@ -345,15 +289,12 @@ void zd_mac_tx_failed(struct ieee80211_hw *hw)
 {
 	struct sk_buff_head *q = &zd_hw_mac(hw)->ack_wait_queue;
 	struct sk_buff *skb;
-	struct ieee80211_tx_status status;
 
 	skb = skb_dequeue(q);
 	if (skb == NULL)
 		return;
 
-	memset(&status, 0, sizeof(status));
-
-	tx_status(hw, skb, &status, 0);
+	tx_status(hw, skb, 0, 0, 0);
 }
 
 /**
@@ -368,28 +309,20 @@ void zd_mac_tx_failed(struct ieee80211_hw *hw)
  */
 void zd_mac_tx_to_dev(struct sk_buff *skb, int error)
 {
-	struct zd_tx_skb_control_block *cb =
-		(struct zd_tx_skb_control_block *)skb->cb;
-	struct ieee80211_hw *hw = cb->hw;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hw *hw = info->driver_data[0];
 
-	if (likely(cb->control)) {
-		skb_pull(skb, sizeof(struct zd_ctrlset));
-		if (unlikely(error ||
-		    (cb->control->flags & IEEE80211_TXCTL_NO_ACK)))
-		{
-			struct ieee80211_tx_status status;
-			memset(&status, 0, sizeof(status));
-			tx_status(hw, skb, &status, !error);
-		} else {
-			struct sk_buff_head *q =
-				&zd_hw_mac(hw)->ack_wait_queue;
-
-			skb_queue_tail(q, skb);
-			while (skb_queue_len(q) > ZD_MAC_MAX_ACK_WAITERS)
-				zd_mac_tx_failed(hw);
-		}
+	skb_pull(skb, sizeof(struct zd_ctrlset));
+	if (unlikely(error ||
+	    (info->flags & IEEE80211_TX_CTL_NO_ACK))) {
+		tx_status(hw, skb, 0, 0, !error);
 	} else {
-		kfree_tx_skb(skb);
+		struct sk_buff_head *q =
+			&zd_hw_mac(hw)->ack_wait_queue;
+
+		skb_queue_tail(q, skb);
+		while (skb_queue_len(q) > ZD_MAC_MAX_ACK_WAITERS)
+			zd_mac_tx_failed(hw);
 	}
 }
 
@@ -454,7 +387,7 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	cs->control = 0;
 
 	/* First fragment */
-	if (flags & IEEE80211_TXCTL_FIRST_FRAGMENT)
+	if (flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		cs->control |= ZD_CS_NEED_RANDOM_BACKOFF;
 
 	/* Multicast */
@@ -466,10 +399,10 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	    (IEEE80211_FTYPE_CTL|IEEE80211_STYPE_PSPOLL))
 		cs->control |= ZD_CS_PS_POLL_FRAME;
 
-	if (flags & IEEE80211_TXCTL_USE_RTS_CTS)
+	if (flags & IEEE80211_TX_CTL_USE_RTS_CTS)
 		cs->control |= ZD_CS_RTS;
 
-	if (flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
+	if (flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
 		cs->control |= ZD_CS_SELF_CTS;
 
 	/* FIXME: Management frame? */
@@ -516,25 +449,28 @@ void zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
 }
 
 static int fill_ctrlset(struct zd_mac *mac,
-			struct sk_buff *skb,
-			struct ieee80211_tx_control *control)
+			struct sk_buff *skb)
 {
 	int r;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	unsigned int frag_len = skb->len + FCS_LEN;
 	unsigned int packet_length;
+	struct ieee80211_rate *txrate;
 	struct zd_ctrlset *cs = (struct zd_ctrlset *)
 		skb_push(skb, sizeof(struct zd_ctrlset));
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	ZD_ASSERT(frag_len <= 0xffff);
 
-	cs->modulation = control->tx_rate->hw_value;
-	if (control->flags & IEEE80211_TXCTL_SHORT_PREAMBLE)
-		cs->modulation = control->tx_rate->hw_value_short;
+	txrate = ieee80211_get_tx_rate(mac->hw, info);
+
+	cs->modulation = txrate->hw_value;
+	if (info->flags & IEEE80211_TX_CTL_SHORT_PREAMBLE)
+		cs->modulation = txrate->hw_value_short;
 
 	cs->tx_length = cpu_to_le16(frag_len);
 
-	cs_set_control(mac, cs, hdr, control->flags);
+	cs_set_control(mac, cs, hdr, info->flags);
 
 	packet_length = frag_len + sizeof(struct zd_ctrlset) + 10;
 	ZD_ASSERT(packet_length <= 0xffff);
@@ -579,24 +515,21 @@ static int fill_ctrlset(struct zd_mac *mac,
  * control block of the skbuff will be initialized. If necessary the incoming
  * mac80211 queues will be stopped.
  */
-static int zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		     struct ieee80211_tx_control *control)
+static int zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int r;
 
-	r = fill_ctrlset(mac, skb, control);
+	r = fill_ctrlset(mac, skb);
 	if (r)
 		return r;
 
-	r = init_tx_skb_control_block(skb, hw, control);
+	info->driver_data[0] = hw;
+
+	r = zd_usb_tx(&mac->chip.usb, skb);
 	if (r)
 		return r;
-	r = zd_usb_tx(&mac->chip.usb, skb);
-	if (r) {
-		clear_tx_skb_control_block(skb);
-		return r;
-	}
 	return 0;
 }
 
@@ -634,13 +567,8 @@ static int filter_ack(struct ieee80211_hw *hw, struct ieee80211_hdr *rx_hdr,
 		tx_hdr = (struct ieee80211_hdr *)skb->data;
 		if (likely(!compare_ether_addr(tx_hdr->addr2, rx_hdr->addr1)))
 		{
-			struct ieee80211_tx_status status;
-
-			memset(&status, 0, sizeof(status));
-			status.flags = IEEE80211_TX_STATUS_ACK;
-			status.ack_signal = stats->signal;
 			__skb_unlink(skb, q);
-			tx_status(hw, skb, &status, 1);
+			tx_status(hw, skb, IEEE80211_TX_STAT_ACK, stats->signal, 1);
 			goto out;
 		}
 	}
@@ -944,8 +872,7 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static int zd_op_beacon_update(struct ieee80211_hw *hw,
-			       struct sk_buff *skb,
-			       struct ieee80211_tx_control *ctl)
+			       struct sk_buff *skb)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	zd_mac_config_beacon(hw, skb);

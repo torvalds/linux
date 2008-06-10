@@ -283,8 +283,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
-		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0],
-					    &tx_info->status);
+		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0]);
 		tx_info->skb[0] = NULL;
 		iwl3945_hw_txq_free_tfd(priv, txq);
 	}
@@ -306,7 +305,7 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
 	struct iwl3945_tx_queue *txq = &priv->txq[txq_id];
-	struct ieee80211_tx_status *tx_status;
+	struct ieee80211_tx_info *info;
 	struct iwl3945_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->status);
 	int rate_idx;
@@ -319,19 +318,22 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 		return;
 	}
 
-	tx_status = &(txq->txb[txq->q.read_ptr].status);
+	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb[0]);
+	memset(&info->status, 0, sizeof(info->status));
 
-	tx_status->retry_count = tx_resp->failure_frame;
+	info->status.retry_count = tx_resp->failure_frame;
 	/* tx_status->rts_retry_count = tx_resp->failure_rts; */
-	tx_status->flags = ((status & TX_STATUS_MSK) == TX_STATUS_SUCCESS) ?
-				IEEE80211_TX_STATUS_ACK : 0;
+	info->flags |= ((status & TX_STATUS_MSK) == TX_STATUS_SUCCESS) ?
+				IEEE80211_TX_STAT_ACK : 0;
 
 	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) plcp rate %d retries %d\n",
 			txq_id, iwl3945_get_tx_fail_reason(status), status,
 			tx_resp->rate, tx_resp->failure_frame);
 
 	rate_idx = iwl3945_hwrate_to_plcp_idx(tx_resp->rate);
-	tx_status->control.tx_rate = &priv->ieee_rates[rate_idx];
+	if (info->band == IEEE80211_BAND_5GHZ)
+		rate_idx -= IWL_FIRST_OFDM_RATE;
+	info->tx_rate_idx = rate_idx;
 	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
 	iwl3945_tx_queue_reclaim(priv, txq_id, index);
 
@@ -958,11 +960,12 @@ u8 iwl3945_hw_find_station(struct iwl3945_priv *priv, const u8 *addr)
 */
 void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 			      struct iwl3945_cmd *cmd,
-			      struct ieee80211_tx_control *ctrl,
+			      struct ieee80211_tx_info *info,
 			      struct ieee80211_hdr *hdr, int sta_id, int tx_id)
 {
 	unsigned long flags;
-	u16 rate_index = min(ctrl->tx_rate->hw_value & 0xffff, IWL_RATE_COUNT - 1);
+	u16 hw_value = ieee80211_get_tx_rate(priv->hw, info)->hw_value;
+	u16 rate_index = min(hw_value & 0xffff, IWL_RATE_COUNT - 1);
 	u16 rate_mask;
 	int rate;
 	u8 rts_retry_limit;
@@ -974,7 +977,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 	tx_flags = cmd->cmd.tx.tx_flags;
 
 	/* We need to figure out how to get the sta->supp_rates while
-	 * in this running context; perhaps encoding into ctrl->tx_rate? */
+	 * in this running context */
 	rate_mask = IWL_RATES_MASK;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);

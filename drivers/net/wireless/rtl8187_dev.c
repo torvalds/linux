@@ -150,27 +150,22 @@ void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 
 static void rtl8187_tx_cb(struct urb *urb)
 {
-	struct ieee80211_tx_status status;
 	struct sk_buff *skb = (struct sk_buff *)urb->context;
-	struct rtl8187_tx_info *info = (struct rtl8187_tx_info *)skb->cb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hw *hw = info->driver_data[0];
 
-	memset(&status, 0, sizeof(status));
-
-	usb_free_urb(info->urb);
-	if (info->control)
-		memcpy(&status.control, info->control, sizeof(status.control));
-	kfree(info->control);
+	usb_free_urb(info->driver_data[1]);
 	skb_pull(skb, sizeof(struct rtl8187_tx_hdr));
-	status.flags |= IEEE80211_TX_STATUS_ACK;
-	ieee80211_tx_status_irqsafe(info->dev, skb, &status);
+	memset(&info->status, 0, sizeof(info->status));
+	info->flags |= IEEE80211_TX_STAT_ACK;
+	ieee80211_tx_status_irqsafe(hw, skb);
 }
 
-static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
-		      struct ieee80211_tx_control *control)
+static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct rtl8187_priv *priv = dev->priv;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtl8187_tx_hdr *hdr;
-	struct rtl8187_tx_info *info;
 	struct urb *urb;
 	__le16 rts_dur = 0;
 	u32 flags;
@@ -185,33 +180,27 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	flags = skb->len;
 	flags |= RTL8187_TX_FLAG_NO_ENCRYPT;
 
-	BUG_ON(!control->tx_rate);
-
-	flags |= control->tx_rate->hw_value << 24;
+	flags |= ieee80211_get_tx_rate(dev, info)->hw_value << 24;
 	if (ieee80211_get_morefrag((struct ieee80211_hdr *)skb->data))
 		flags |= RTL8187_TX_FLAG_MORE_FRAG;
-	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
-		BUG_ON(!control->rts_cts_rate);
+	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
 		flags |= RTL8187_TX_FLAG_RTS;
-		flags |= control->rts_cts_rate->hw_value << 19;
+		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 		rts_dur = ieee80211_rts_duration(dev, priv->vif,
-						 skb->len, control);
-	} else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
-		BUG_ON(!control->rts_cts_rate);
+						 skb->len, info);
+	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
 		flags |= RTL8187_TX_FLAG_CTS;
-		flags |= control->rts_cts_rate->hw_value << 19;
+		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 	}
 
 	hdr = (struct rtl8187_tx_hdr *)skb_push(skb, sizeof(*hdr));
 	hdr->flags = cpu_to_le32(flags);
 	hdr->len = 0;
 	hdr->rts_duration = rts_dur;
-	hdr->retry = cpu_to_le32(control->retry_limit << 8);
+	hdr->retry = cpu_to_le32(info->control.retry_limit << 8);
 
-	info = (struct rtl8187_tx_info *)skb->cb;
-	info->control = kmemdup(control, sizeof(*control), GFP_ATOMIC);
-	info->urb = urb;
-	info->dev = dev;
+	info->driver_data[0] = dev;
+	info->driver_data[1] = urb;
 	usb_fill_bulk_urb(urb, priv->udev, usb_sndbulkpipe(priv->udev, 2),
 			  hdr, skb->len, rtl8187_tx_cb, skb);
 	rc = usb_submit_urb(urb, GFP_ATOMIC);

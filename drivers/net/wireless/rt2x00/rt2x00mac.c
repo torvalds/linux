@@ -31,14 +31,15 @@
 
 static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				struct data_queue *queue,
-				struct sk_buff *frag_skb,
-				struct ieee80211_tx_control *control)
+				struct sk_buff *frag_skb)
 {
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(frag_skb);
 	struct skb_frame_desc *skbdesc;
+	struct ieee80211_tx_info *rts_info;
 	struct sk_buff *skb;
 	int size;
 
-	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
+	if (tx_info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
 		size = sizeof(struct ieee80211_cts);
 	else
 		size = sizeof(struct ieee80211_rts);
@@ -52,13 +53,33 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	skb_reserve(skb, rt2x00dev->hw->extra_tx_headroom);
 	skb_put(skb, size);
 
-	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
-		ieee80211_ctstoself_get(rt2x00dev->hw, control->vif,
-					frag_skb->data, frag_skb->len, control,
+	/*
+	 * Copy TX information over from original frame to
+	 * RTS/CTS frame. Note that we set the no encryption flag
+	 * since we don't want this frame to be encrypted.
+	 * RTS frames should be acked, while CTS-to-self frames
+	 * should not. The ready for TX flag is cleared to prevent
+	 * it being automatically send when the descriptor is
+	 * written to the hardware.
+	 */
+	memcpy(skb->cb, frag_skb->cb, sizeof(skb->cb));
+	rts_info = IEEE80211_SKB_CB(skb);
+	rts_info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
+	rts_info->flags &= ~IEEE80211_TX_CTL_USE_CTS_PROTECT;
+	rts_info->flags &= ~IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	if (tx_info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
+		rts_info->flags |= IEEE80211_TX_CTL_NO_ACK;
+	else
+		rts_info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
+
+	if (tx_info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
+		ieee80211_ctstoself_get(rt2x00dev->hw, tx_info->control.vif,
+					frag_skb->data, size, tx_info,
 					(struct ieee80211_cts *)(skb->data));
 	else
-		ieee80211_rts_get(rt2x00dev->hw, control->vif,
-				  frag_skb->data, frag_skb->len, control,
+		ieee80211_rts_get(rt2x00dev->hw, tx_info->control.vif,
+				  frag_skb->data, size, tx_info,
 				  (struct ieee80211_rts *)(skb->data));
 
 	/*
@@ -68,7 +89,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb)) {
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -76,14 +97,13 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	return NETDEV_TX_OK;
 }
 
-int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		 struct ieee80211_tx_control *control)
+int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
-	enum data_queue_qid qid = mac80211_queue_to_qid(control->queue);
+	enum data_queue_qid qid = skb_get_queue_mapping(skb);
 	struct data_queue *queue;
-	struct skb_frame_desc *skbdesc;
 	u16 frame_control;
 
 	/*
@@ -100,7 +120,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	/*
 	 * Determine which queue to put packet on.
 	 */
-	if (control->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM &&
+	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM &&
 	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
 		queue = rt2x00queue_get_queue(rt2x00dev, QID_ATIM);
 	else
@@ -125,33 +145,27 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 	frame_control = le16_to_cpu(ieee80211hdr->frame_control);
 	if (!is_rts_frame(frame_control) && !is_cts_frame(frame_control) &&
-	    (control->flags & (IEEE80211_TXCTL_USE_RTS_CTS |
-			       IEEE80211_TXCTL_USE_CTS_PROTECT)) &&
+	    (tx_info->flags & (IEEE80211_TX_CTL_USE_RTS_CTS |
+			       IEEE80211_TX_CTL_USE_CTS_PROTECT)) &&
 	    !rt2x00dev->ops->hw->set_rts_threshold) {
 		if (rt2x00queue_available(queue) <= 1) {
-			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
+			ieee80211_stop_queue(rt2x00dev->hw, qid);
 			return NETDEV_TX_BUSY;
 		}
 
-		if (rt2x00mac_tx_rts_cts(rt2x00dev, queue, skb, control)) {
-			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
+		if (rt2x00mac_tx_rts_cts(rt2x00dev, queue, skb)) {
+			ieee80211_stop_queue(rt2x00dev->hw, qid);
 			return NETDEV_TX_BUSY;
 		}
 	}
 
-	/*
-	 * Initialize skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb)) {
+		ieee80211_stop_queue(rt2x00dev->hw, qid);
 		return NETDEV_TX_BUSY;
 	}
 
 	if (rt2x00queue_full(queue))
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
+		ieee80211_stop_queue(rt2x00dev->hw, qid);
 
 	if (rt2x00dev->ops->lib->kick_tx_queue)
 		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, qid);
@@ -380,9 +394,7 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	if (conf->type != IEEE80211_IF_TYPE_AP || !conf->beacon)
 		return 0;
 
-	status = rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw,
-						   conf->beacon,
-						   conf->beacon_control);
+	status = rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, conf->beacon);
 	if (status)
 		dev_kfree_skb(conf->beacon);
 
@@ -456,7 +468,7 @@ int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	unsigned int i;
 
-	for (i = 0; i < hw->queues; i++) {
+	for (i = 0; i < rt2x00dev->ops->tx_queues; i++) {
 		stats[i].len = rt2x00dev->tx[i].length;
 		stats[i].limit = rt2x00dev->tx[i].limit;
 		stats[i].count = rt2x00dev->tx[i].count;

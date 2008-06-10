@@ -188,11 +188,11 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			       struct b43legacy_txhdr_fw3 *txhdr,
 			       const unsigned char *fragment_data,
 			       unsigned int fragment_len,
-			       const struct ieee80211_tx_control *txctl,
+			       const struct ieee80211_tx_info *info,
 			       u16 cookie)
 {
 	const struct ieee80211_hdr *wlhdr;
-	int use_encryption = (!(txctl->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT));
+	int use_encryption = (!(info->flags & IEEE80211_TX_CTL_DO_NOT_ENCRYPT));
 	u16 fctl;
 	u8 rate;
 	struct ieee80211_rate *rate_fb;
@@ -201,15 +201,18 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	unsigned int plcp_fragment_len;
 	u32 mac_ctl = 0;
 	u16 phy_ctl = 0;
+	struct ieee80211_rate *tx_rate;
 
 	wlhdr = (const struct ieee80211_hdr *)fragment_data;
 	fctl = le16_to_cpu(wlhdr->frame_control);
 
 	memset(txhdr, 0, sizeof(*txhdr));
 
-	rate = txctl->tx_rate->hw_value;
+	tx_rate = ieee80211_get_tx_rate(dev->wl->hw, info);
+
+	rate = tx_rate->hw_value;
 	rate_ofdm = b43legacy_is_ofdm_rate(rate);
-	rate_fb = txctl->alt_retry_rate ? : txctl->tx_rate;
+	rate_fb = ieee80211_get_alt_retry_rate(dev->wl->hw, info) ? : tx_rate;
 	rate_fb_ofdm = b43legacy_is_ofdm_rate(rate_fb->hw_value);
 
 	txhdr->mac_frame_ctl = wlhdr->frame_control;
@@ -225,14 +228,14 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		txhdr->dur_fb = wlhdr->duration_id;
 	} else {
 		txhdr->dur_fb = ieee80211_generic_frame_duration(dev->wl->hw,
-							 txctl->vif,
+							 info->control.vif,
 							 fragment_len,
 							 rate_fb);
 	}
 
 	plcp_fragment_len = fragment_len + FCS_LEN;
 	if (use_encryption) {
-		u8 key_idx = txctl->hw_key->hw_key_idx;
+		u8 key_idx = info->control.hw_key->hw_key_idx;
 		struct b43legacy_key *key;
 		int wlhdr_len;
 		size_t iv_len;
@@ -242,7 +245,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 
 		if (key->enabled) {
 			/* Hardware appends ICV. */
-			plcp_fragment_len += txctl->icv_len;
+			plcp_fragment_len += info->control.icv_len;
 
 			key_idx = b43legacy_kidx_to_fw(dev, key_idx);
 			mac_ctl |= (key_idx << B43legacy_TX4_MAC_KEYIDX_SHIFT) &
@@ -251,7 +254,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 				   B43legacy_TX4_MAC_KEYALG_SHIFT) &
 				   B43legacy_TX4_MAC_KEYALG;
 			wlhdr_len = ieee80211_get_hdrlen(fctl);
-			iv_len = min((size_t)txctl->iv_len,
+			iv_len = min((size_t)info->control.iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *)wlhdr) + wlhdr_len, iv_len);
 		} else {
@@ -275,7 +278,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		phy_ctl |= B43legacy_TX4_PHY_OFDM;
 	if (dev->short_preamble)
 		phy_ctl |= B43legacy_TX4_PHY_SHORTPRMBL;
-	switch (txctl->antenna_sel_tx) {
+	switch (info->antenna_sel_tx) {
 	case 0:
 		phy_ctl |= B43legacy_TX4_PHY_ANTLAST;
 		break;
@@ -290,21 +293,21 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	}
 
 	/* MAC control */
-	if (!(txctl->flags & IEEE80211_TXCTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		mac_ctl |= B43legacy_TX4_MAC_ACK;
 	if (!(((fctl & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
 	      ((fctl & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)))
 		mac_ctl |= B43legacy_TX4_MAC_HWSEQ;
-	if (txctl->flags & IEEE80211_TXCTL_FIRST_FRAGMENT)
+	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		mac_ctl |= B43legacy_TX4_MAC_STMSDU;
 	if (rate_fb_ofdm)
 		mac_ctl |= B43legacy_TX4_MAC_FALLBACKOFDM;
-	if (txctl->flags & IEEE80211_TXCTL_LONG_RETRY_LIMIT)
+	if (info->flags & IEEE80211_TX_CTL_LONG_RETRY_LIMIT)
 		mac_ctl |= B43legacy_TX4_MAC_LONGFRAME;
 
 	/* Generate the RTS or CTS-to-self frame */
-	if ((txctl->flags & IEEE80211_TXCTL_USE_RTS_CTS) ||
-	    (txctl->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)) {
+	if ((info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) ||
+	    (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)) {
 		unsigned int len;
 		struct ieee80211_hdr *hdr;
 		int rts_rate;
@@ -312,26 +315,26 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		int rts_rate_ofdm;
 		int rts_rate_fb_ofdm;
 
-		rts_rate = txctl->rts_cts_rate->hw_value;
+		rts_rate = ieee80211_get_rts_cts_rate(dev->wl->hw, info)->hw_value;
 		rts_rate_ofdm = b43legacy_is_ofdm_rate(rts_rate);
 		rts_rate_fb = b43legacy_calc_fallback_rate(rts_rate);
 		rts_rate_fb_ofdm = b43legacy_is_ofdm_rate(rts_rate_fb);
 		if (rts_rate_fb_ofdm)
 			mac_ctl |= B43legacy_TX4_MAC_CTSFALLBACKOFDM;
 
-		if (txctl->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+		if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
 			ieee80211_ctstoself_get(dev->wl->hw,
-						txctl->vif,
+						info->control.vif,
 						fragment_data,
-						fragment_len, txctl,
+						fragment_len, info,
 						(struct ieee80211_cts *)
 						(txhdr->rts_frame));
 			mac_ctl |= B43legacy_TX4_MAC_SENDCTS;
 			len = sizeof(struct ieee80211_cts);
 		} else {
 			ieee80211_rts_get(dev->wl->hw,
-					  txctl->vif,
-					  fragment_data, fragment_len, txctl,
+					  info->control.vif,
+					  fragment_data, fragment_len, info,
 					  (struct ieee80211_rts *)
 					  (txhdr->rts_frame));
 			mac_ctl |= B43legacy_TX4_MAC_SENDRTS;
@@ -362,12 +365,12 @@ int b43legacy_generate_txhdr(struct b43legacy_wldev *dev,
 			      u8 *txhdr,
 			      const unsigned char *fragment_data,
 			      unsigned int fragment_len,
-			      const struct ieee80211_tx_control *txctl,
+			      const struct ieee80211_tx_info *info,
 			      u16 cookie)
 {
 	return generate_txhdr_fw3(dev, (struct b43legacy_txhdr_fw3 *)txhdr,
 			   fragment_data, fragment_len,
-			   txctl, cookie);
+			   info, cookie);
 }
 
 static s8 b43legacy_rssi_postprocess(struct b43legacy_wldev *dev,
