@@ -753,7 +753,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     [Multiple options for each card instance]
     model	- force the model name
-    position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
+    position_fix - Fix DMA pointer (0 = auto, 1 = use LPIB, 2 = POSBUF)
     probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
     
     [Single (global) options]

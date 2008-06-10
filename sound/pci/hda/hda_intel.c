@@ -70,7 +70,7 @@ module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer "
-		 "(0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size).");
+		 "(0 = auto, 1 = none, 2 = POSBUF).");
 module_param_array(probe_mask, int, NULL, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
 module_param(single_cmd, bool, 0444);
@@ -266,9 +266,8 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 /* position fix mode */
 enum {
 	POS_FIX_AUTO,
-	POS_FIX_NONE,
+	POS_FIX_LPIB,
 	POS_FIX_POSBUF,
-	POS_FIX_FIFO,
 };
 
 /* Defines for ATI HD Audio support in SB450 south bridge */
@@ -1506,8 +1505,6 @@ static unsigned int azx_get_position(struct azx *chip,
 	} else {
 		/* read LPIB */
 		pos = azx_sd_readl(azx_dev, SD_LPIB);
-		if (chip->position_fix == POS_FIX_FIFO)
-			pos += azx_dev->fifo_size;
 	}
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
@@ -1542,7 +1539,7 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 			printk(KERN_WARNING
 			       "hda-intel: Invalid position buffer, "
 			       "using LPIB read method instead.\n");
-			chip->position_fix = POS_FIX_NONE;
+			chip->position_fix = POS_FIX_LPIB;
 			pos = azx_get_position(chip, azx_dev);
 		} else
 			chip->position_fix = POS_FIX_POSBUF;
@@ -1917,9 +1914,9 @@ static int azx_dev_free(struct snd_device *device)
  * white/black-listing for position_fix
  */
 static struct snd_pci_quirk position_fix_list[] __devinitdata = {
-	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_NONE),
-	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_NONE),
-	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_NONE),
+	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
 	{}
 };
 
