@@ -26,11 +26,11 @@
 #include <asm/io.h>
 
 #ifdef CONFIG_X86_PAT
-int __read_mostly pat_wc_enabled = 1;
+int __read_mostly pat_enabled = 1;
 
 void __cpuinit pat_disable(char *reason)
 {
-	pat_wc_enabled = 0;
+	pat_enabled = 0;
 	printk(KERN_INFO "%s\n", reason);
 }
 
@@ -72,7 +72,7 @@ void pat_init(void)
 {
 	u64 pat;
 
-	if (!pat_wc_enabled)
+	if (!pat_enabled)
 		return;
 
 	/* Paranoia check. */
@@ -225,8 +225,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	unsigned long actual_type;
 	int err = 0;
 
-	/* Only track when pat_wc_enabled */
-	if (!pat_wc_enabled) {
+	/* Only track when pat_enabled */
+	if (!pat_enabled) {
 		/* This is identical to page table setting without PAT */
 		if (ret_type) {
 			if (req_type == -1) {
@@ -440,8 +440,8 @@ int free_memtype(u64 start, u64 end)
 	struct memtype *ml;
 	int err = -EINVAL;
 
-	/* Only track when pat_wc_enabled */
-	if (!pat_wc_enabled) {
+	/* Only track when pat_enabled */
+	if (!pat_enabled) {
 		return 0;
 	}
 
@@ -535,7 +535,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	 * caching for the high addresses through the KEN pin, but
 	 * we maintain the tradition of paranoia in this code.
 	 */
-	if (!pat_wc_enabled &&
+	if (!pat_enabled &&
 	    !(boot_cpu_has(X86_FEATURE_MTRR) ||
 	      boot_cpu_has(X86_FEATURE_K6_MTRR) ||
 	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||

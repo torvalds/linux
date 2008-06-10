@@ -4,10 +4,10 @@
 #include <linux/types.h>
 
 #ifdef CONFIG_X86_PAT
-extern int pat_wc_enabled;
+extern int pat_enabled;
 extern void validate_pat_support(struct cpuinfo_x86 *c);
 #else
-static const int pat_wc_enabled;
+static const int pat_enabled;
 static inline void validate_pat_support(struct cpuinfo_x86 *c) { }
 #endif
 

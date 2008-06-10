@@ -805,7 +805,7 @@ int _set_memory_wc(unsigned long addr, int numpages)
 
 int set_memory_wc(unsigned long addr, int numpages)
 {
-	if (!pat_wc_enabled)
+	if (!pat_enabled)
 		return set_memory_uc(addr, numpages);
 
 	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
