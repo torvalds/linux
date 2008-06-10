@@ -161,9 +161,9 @@ u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 {
-	acpi_native_uint i;
-	acpi_native_uint j;
-	acpi_native_uint k;
+	u32 i;
+	u32 j;
+	u32 k;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ut_allocate_owner_id);
@@ -269,7 +269,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 {
 	acpi_owner_id owner_id = *owner_id_ptr;
 	acpi_status status;
-	acpi_native_uint index;
+	u32 index;
 	u32 bit;
 
 	ACPI_FUNCTION_TRACE_U32(ut_release_owner_id, owner_id);
@@ -589,7 +589,7 @@ acpi_ut_display_init_pathname(u8 type,
  *
  ******************************************************************************/
 
-u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position)
+u8 acpi_ut_valid_acpi_char(char character, u32 position)
 {
 
 	if (!((character >= 'A' && character <= 'Z') ||
@@ -624,7 +624,7 @@ u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position)
 
 u8 acpi_ut_valid_acpi_name(u32 name)
 {
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -653,7 +653,7 @@ u8 acpi_ut_valid_acpi_name(u32 name)
 
 acpi_name acpi_ut_repair_name(char *name)
 {
-	acpi_native_uint i;
+       u32 i;
 	char new_name[ACPI_NAME_SIZE];
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {

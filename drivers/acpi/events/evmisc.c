@@ -575,7 +575,7 @@ acpi_status acpi_ev_release_global_lock(void)
 
 void acpi_ev_terminate(void)
 {
-	acpi_native_uint i;
+	u32 i;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_terminate);
@@ -589,7 +589,7 @@ void acpi_ev_terminate(void)
 		/* Disable all fixed events */
 
 		for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
-			status = acpi_disable_event((u32) i, 0);
+			status = acpi_disable_event(i, 0);
 			if (ACPI_FAILURE(status)) {
 				ACPI_ERROR((AE_INFO,
 					    "Could not disable fixed event %d",

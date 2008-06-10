@@ -142,7 +142,7 @@ struct acpi_init_walk_info {
 	u16 package_init;
 	u16 object_count;
 	acpi_owner_id owner_id;
-	acpi_native_uint table_index;
+	u32 table_index;
 };
 
 struct acpi_get_devices_info {

@@ -73,7 +73,7 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 
 void acpi_ns_print_pathname(u32 num_segments, char *pathname)
 {
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_NAME(ns_print_pathname);
 

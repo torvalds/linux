@@ -333,7 +333,7 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 static void
 acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action)
 {
-	acpi_native_uint i;
+	u32 i;
 
 	if (info->parameters) {
 

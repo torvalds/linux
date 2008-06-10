@@ -365,7 +365,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 	char *internal_name = info->internal_name;
 	char *external_name = info->next_external_char;
 	char *result = NULL;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(ns_build_internal_name);
 
@@ -400,12 +400,11 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 			result = &internal_name[i];
 		} else if (num_segments == 2) {
 			internal_name[i] = AML_DUAL_NAME_PREFIX;
-			result = &internal_name[(acpi_native_uint) (i + 1)];
+			result = &internal_name[(acpi_size) i + 1];
 		} else {
 			internal_name[i] = AML_MULTI_NAME_PREFIX_OP;
-			internal_name[(acpi_native_uint) (i + 1)] =
-			    (char)num_segments;
-			result = &internal_name[(acpi_native_uint) (i + 2)];
+			internal_name[(acpi_size) i + 1] = (char)num_segments;
+			result = &internal_name[(acpi_size) i + 2];
 		}
 	}
 
@@ -531,12 +530,12 @@ acpi_ns_externalize_name(u32 internal_name_length,
 			 char *internal_name,
 			 u32 * converted_name_length, char **converted_name)
 {
-	acpi_native_uint names_index = 0;
-	acpi_native_uint num_segments = 0;
-	acpi_native_uint required_length;
-	acpi_native_uint prefix_length = 0;
-	acpi_native_uint i = 0;
-	acpi_native_uint j = 0;
+	u32 names_index = 0;
+	u32 num_segments = 0;
+	u32 required_length;
+	u32 prefix_length = 0;
+	u32 i = 0;
+	u32 j = 0;
 
 	ACPI_FUNCTION_TRACE(ns_externalize_name);
 
@@ -582,9 +581,8 @@ acpi_ns_externalize_name(u32 internal_name_length,
 			/* <count> 4-byte names */
 
 			names_index = prefix_length + 2;
-			num_segments = (acpi_native_uint) (u8)
-			    internal_name[(acpi_native_uint)
-					  (prefix_length + 1)];
+			num_segments = (u8)
+			    internal_name[(acpi_size) prefix_length + 1];
 			break;
 
 		case AML_DUAL_NAME_PREFIX:

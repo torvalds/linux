@@ -775,7 +775,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 		      u32 num_levels,
 		      char *note, char *module_name, u32 line_number)
 {
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_NAME(ex_dump_operands);
 

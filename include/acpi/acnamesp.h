@@ -86,8 +86,7 @@ acpi_status acpi_ns_initialize_devices(void);
 acpi_status acpi_ns_load_namespace(void);
 
 acpi_status
-acpi_ns_load_table(acpi_native_uint table_index,
-		   struct acpi_namespace_node *node);
+acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node);
 
 /*
  * nswalk - walk the namespace
@@ -108,12 +107,11 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type, struct 
  * nsparse - table parsing
  */
 acpi_status
-acpi_ns_parse_table(acpi_native_uint table_index,
-		    struct acpi_namespace_node *start_node);
+acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node);
 
 acpi_status
-acpi_ns_one_complete_parse(acpi_native_uint pass_number,
-			   acpi_native_uint table_index,
+acpi_ns_one_complete_parse(u32 pass_number,
+			   u32 table_index,
 			   struct acpi_namespace_node *start_node);
 
 /*

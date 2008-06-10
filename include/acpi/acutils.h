@@ -172,7 +172,7 @@ char *acpi_ut_strstr(char *string1, char *string2);
 
 void *acpi_ut_memcpy(void *dest, const void *src, acpi_size count);
 
-void *acpi_ut_memset(void *dest, acpi_native_uint value, acpi_size count);
+void *acpi_ut_memset(void *dest, u8 value, acpi_size count);
 
 int acpi_ut_to_upper(int c);
 
@@ -476,7 +476,7 @@ u8 acpi_ut_valid_acpi_name(u32 name);
 
 acpi_name acpi_ut_repair_name(char *name);
 
-u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position);
+u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 acpi_status
 acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);

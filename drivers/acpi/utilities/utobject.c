@@ -175,8 +175,8 @@ union acpi_operand_object *acpi_ut_create_package_object(u32 count)
 	 * Create the element array. Count+1 allows the array to be null
 	 * terminated.
 	 */
-	package_elements = ACPI_ALLOCATE_ZEROED((acpi_size)
-						(count + 1) * sizeof(void *));
+	package_elements = ACPI_ALLOCATE_ZEROED(((acpi_size) count +
+						 1) * sizeof(void *));
 	if (!package_elements) {
 		acpi_ut_remove_reference(package_desc);
 		return_PTR(NULL);

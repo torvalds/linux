@@ -848,7 +848,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	union acpi_operand_object **operand;
 	struct acpi_namespace_node *node;
 	union acpi_parse_object *next_op;
-	acpi_native_uint table_index;
+	u32 table_index;
 	struct acpi_table_header *table;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_eval_table_region_operands, op);

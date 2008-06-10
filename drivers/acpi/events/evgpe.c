@@ -315,7 +315,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 {
 	union acpi_operand_object *obj_desc;
 	struct acpi_gpe_block_info *gpe_block;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -389,8 +389,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 	u32 status_reg;
 	u32 enable_reg;
 	acpi_cpu_flags flags;
-	acpi_native_uint i;
-	acpi_native_uint j;
+	u32 i;
+	u32 j;
 
 	ACPI_FUNCTION_NAME(ev_gpe_detect);
 
@@ -472,13 +472,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 					 */
 					int_status |=
 					    acpi_ev_gpe_dispatch(&gpe_block->
-								 event_info[(i *
-									     ACPI_GPE_REGISTER_WIDTH)
-									    +
-									    j],
-								 (u32) j +
-								 gpe_register_info->
-								 base_gpe_number);
+						event_info[((acpi_size) i * ACPI_GPE_REGISTER_WIDTH) + j], j + gpe_register_info->base_gpe_number);
 				}
 			}
 		}

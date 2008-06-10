@@ -155,7 +155,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
  *
  ******************************************************************************/
 
-void acpi_tb_parse_fadt(acpi_native_uint table_index, u8 flags)
+void acpi_tb_parse_fadt(u32 table_index, u8 flags)
 {
 	u32 length;
 	struct acpi_table_header *table;
@@ -280,7 +280,7 @@ static void acpi_tb_convert_fadt(void)
 {
 	u8 pm1_register_length;
 	struct acpi_generic_address *target;
-	acpi_native_uint i;
+	u32 i;
 
 	/* Update the local FADT table header length */
 
@@ -396,7 +396,7 @@ static void acpi_tb_validate_fadt(void)
 	u32 *address32;
 	struct acpi_generic_address *address64;
 	u8 length;
-	acpi_native_uint i;
+	u32 i;
 
 	/* Examine all of the 64-bit extended address fields (X fields) */
 

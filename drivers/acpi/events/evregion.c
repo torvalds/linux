@@ -81,7 +81,7 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 acpi_status acpi_ev_install_region_handlers(void)
 {
 	acpi_status status;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(ev_install_region_handlers);
 
@@ -151,7 +151,7 @@ acpi_status acpi_ev_install_region_handlers(void)
 acpi_status acpi_ev_initialize_op_regions(void)
 {
 	acpi_status status;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(ev_initialize_op_regions);
 

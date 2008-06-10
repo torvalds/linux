@@ -441,7 +441,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	u32 flags;
 	struct acpica_device_id hid;
 	struct acpi_compatible_id_list *cid;
-	acpi_native_uint i;
+	u32 i;
 	int found;
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);

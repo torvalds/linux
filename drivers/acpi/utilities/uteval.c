@@ -97,7 +97,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 	acpi_status status;
 	union acpi_operand_object *string_desc;
 	union acpi_operand_object *return_desc;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(ut_osi_implementation);
 
@@ -513,7 +513,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node * device_node,
 	u32 count;
 	u32 size;
 	struct acpi_compatible_id_list *cid_list;
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(ut_execute_CID);
 
