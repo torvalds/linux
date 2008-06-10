@@ -853,9 +853,13 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 			smp_found_config = 1;
 #endif
 			mpf_found = mpf;
-#ifdef CONFIG_X86_32
+
 			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
 			       mpf, virt_to_phys(mpf));
+
+			if (!reserve)
+				return 1;
+#ifdef CONFIG_X86_32
 			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE,
 					BOOTMEM_DEFAULT);
 			if (mpf->mpf_physptr) {
@@ -877,9 +881,6 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 			}
 
 #else
-			if (!reserve)
-				return 1;
-
 			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
 				BOOTMEM_DEFAULT);
 			if (mpf->mpf_physptr)
