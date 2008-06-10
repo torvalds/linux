@@ -285,6 +285,23 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		}
 
 		/*
+		 * If the BIOS has erroneously reversed the _PRT source_name (index 2)
+		 * and the source_index (index 3), fix it. _PRT is important enough to
+		 * workaround this BIOS error. This also provides compatibility with
+		 * other ACPI implementations.
+		 */
+		obj_desc = sub_object_list[3];
+		if (!obj_desc
+		    || (ACPI_GET_OBJECT_TYPE(obj_desc) != ACPI_TYPE_INTEGER)) {
+			sub_object_list[3] = sub_object_list[2];
+			sub_object_list[2] = obj_desc;
+
+			ACPI_WARNING((AE_INFO,
+				      "(PRT[%X].Source) SourceName and SourceIndex are reversed, fixed",
+				      index));
+		}
+
+		/*
 		 * 3) Third subobject: Dereference the PRT.source_name
 		 * The name may be unresolved (slack mode), so allow a null object
 		 */
