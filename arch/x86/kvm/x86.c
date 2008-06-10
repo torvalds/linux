@@ -2081,10 +2081,10 @@ void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
 	unsigned long rip = vcpu->arch.rip;
 	unsigned long rip_linear;
 
-	rip_linear = rip + get_segment_base(vcpu, VCPU_SREG_CS);
-
 	if (reported)
 		return;
+
+	rip_linear = rip + get_segment_base(vcpu, VCPU_SREG_CS);
 
 	emulator_read_std(rip_linear, (void *)opcodes, 4, vcpu);
 
