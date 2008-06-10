@@ -2456,10 +2456,8 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 						if ((page_count!=0)&&(page_count<<12)-(region->offset&(4096-1))>=region->length)
 							goto enough_pages;
 						if ((page_count&0x01FF) == 0) {
-							if (page_count>(1024*512)) {
+							if (page_count >= 1024 * 512) {
 								ib_umem_release(region);
-								pci_free_consistent(nesdev->pcidev, 4096, vpbl.pbl_vbase,
-										vpbl.pbl_pbase);
 								nes_free_resource(nesadapter,
 										nesadapter->allocated_mrs, stag_index);
 								kfree(nesmr);
