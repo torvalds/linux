@@ -311,6 +311,10 @@ struct acpi_table_dmar {
 	u8 reserved[10];
 };
 
+/* Flags */
+
+#define ACPI_DMAR_INTR_REMAP	    (1)
+
 /* DMAR subtable header */
 
 struct acpi_dmar_header {
