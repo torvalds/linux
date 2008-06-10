@@ -112,7 +112,6 @@ static int ts_release(struct inode *inode, struct file *file)
 
 	videobuf_stop(&dev->empress_tsq);
 	videobuf_mmap_free(&dev->empress_tsq);
-	dev->empress_users--;
 
 	/* stop the encoder */
 	ts_reset_encoder(dev);
@@ -120,6 +119,8 @@ static int ts_release(struct inode *inode, struct file *file)
 	/* Mute audio */
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
 		saa_readb(SAA7134_AUDIO_MUTE_CTRL) | (1 << 6));
+
+	dev->empress_users--;
 
 	return 0;
 }
