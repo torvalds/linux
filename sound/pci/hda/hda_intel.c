@@ -55,10 +55,10 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static char *model[SNDRV_CARDS];
 static int position_fix[SNDRV_CARDS];
+static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int single_cmd;
 static int enable_msi;
-static int bdl_pos_adj = 1;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -71,6 +71,8 @@ MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer "
 		 "(0 = auto, 1 = none, 2 = POSBUF).");
+module_param_array(bdl_pos_adj, int, NULL, 0644);
+MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
 module_param(single_cmd, bool, 0444);
@@ -78,8 +80,6 @@ MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
 module_param(enable_msi, int, 0444);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
-module_param(bdl_pos_adj, int, 0644);
-MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset");
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 /* power_save option is defined in hda_codec.c */
@@ -330,6 +330,7 @@ struct azx_rb {
 struct azx {
 	struct snd_card *card;
 	struct pci_dev *pci;
+	int dev_index;
 
 	/* chip type specific */
 	int driver_type;
@@ -1026,12 +1027,13 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 /*
  * set up BDL entries
  */
-static int azx_setup_periods(struct snd_pcm_substream *substream,
+static int azx_setup_periods(struct azx *chip,
+			     struct snd_pcm_substream *substream,
 			     struct azx_dev *azx_dev)
 {
 	u32 *bdl;
 	int i, ofs, periods, period_bytes;
-	int pos_adj = 0;
+	int pos_adj;
 
 	/* reset BDL address */
 	azx_sd_writel(azx_dev, SD_BDLPL, 0);
@@ -1046,15 +1048,16 @@ static int azx_setup_periods(struct snd_pcm_substream *substream,
 	ofs = 0;
 	azx_dev->frags = 0;
 	azx_dev->irq_ignore = 0;
-	if (bdl_pos_adj > 0) {
+	pos_adj = bdl_pos_adj[chip->dev_index];
+	if (pos_adj > 0) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
-		pos_adj = (bdl_pos_adj * runtime->rate + 47999) / 48000;
+		pos_adj = (pos_adj * runtime->rate + 47999) / 48000;
 		if (!pos_adj)
 			pos_adj = 1;
 		pos_adj = frames_to_bytes(runtime, pos_adj);
 		if (pos_adj >= period_bytes) {
 			snd_printk(KERN_WARNING "Too big adjustment %d\n",
-				   bdl_pos_adj);
+				   bdl_pos_adj[chip->dev_index]);
 			pos_adj = 0;
 		} else {
 			ofs = setup_bdle(substream, azx_dev,
@@ -1063,7 +1066,8 @@ static int azx_setup_periods(struct snd_pcm_substream *substream,
 				goto error;
 			azx_dev->irq_ignore = 1;
 		}
-	}
+	} else
+		pos_adj = 0;
 	for (i = 0; i < periods; i++) {
 		if (i == periods - 1 && pos_adj)
 			ofs = setup_bdle(substream, azx_dev, &bdl, ofs,
@@ -1388,7 +1392,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 
 	snd_printdd("azx_pcm_prepare: bufsize=0x%x, format=0x%x\n",
 		    azx_dev->bufsize, azx_dev->format_val);
-	if (azx_setup_periods(substream, azx_dev) < 0)
+	if (azx_setup_periods(chip, substream, azx_dev) < 0)
 		return -EINVAL;
 	azx_setup_controller(chip, azx_dev);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -2001,6 +2005,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = -1;
 	chip->driver_type = driver_type;
 	chip->msi = enable_msi;
+	chip->dev_index = dev;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 
 	chip->position_fix = check_position_fix(chip, position_fix[dev]);
