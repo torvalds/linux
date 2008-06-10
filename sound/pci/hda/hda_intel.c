@@ -58,6 +58,7 @@ static int position_fix[SNDRV_CARDS];
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int single_cmd;
 static int enable_msi;
+static int bdl_pos_adj = 1;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -77,6 +78,8 @@ MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
 module_param(enable_msi, int, 0444);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
+module_param(bdl_pos_adj, int, 0644);
+MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset");
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 /* power_save option is defined in hda_codec.c */
@@ -309,7 +312,8 @@ struct azx_dev {
 
 	unsigned int opened :1;
 	unsigned int running :1;
-	unsigned int irq_pending: 1;
+	unsigned int irq_pending :1;
+	unsigned int irq_ignore :1;
 };
 
 /* CORB/RIRB */
@@ -943,6 +947,11 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 			azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
 			if (!azx_dev->substream || !azx_dev->running)
 				continue;
+			/* ignore the first dummy IRQ (due to pos_adj) */
+			if (azx_dev->irq_ignore) {
+				azx_dev->irq_ignore = 0;
+				continue;
+			}
 			/* check whether this IRQ is really acceptable */
 			if (azx_position_ok(chip, azx_dev)) {
 				azx_dev->irq_pending = 0;
@@ -977,14 +986,53 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 
 
 /*
+ * set up a BDL entry
+ */
+static int setup_bdle(struct snd_pcm_substream *substream,
+		      struct azx_dev *azx_dev, u32 **bdlp,
+		      int ofs, int size, int with_ioc)
+{
+	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
+	u32 *bdl = *bdlp;
+
+	while (size > 0) {
+		dma_addr_t addr;
+		int chunk;
+
+		if (azx_dev->frags >= AZX_MAX_BDL_ENTRIES)
+			return -EINVAL;
+
+		addr = snd_pcm_sgbuf_get_addr(sgbuf, ofs);
+		/* program the address field of the BDL entry */
+		bdl[0] = cpu_to_le32((u32)addr);
+		bdl[1] = cpu_to_le32(upper_32bit(addr));
+		/* program the size field of the BDL entry */
+		chunk = PAGE_SIZE - (ofs % PAGE_SIZE);
+		if (size < chunk)
+			chunk = size;
+		bdl[2] = cpu_to_le32(chunk);
+		/* program the IOC to enable interrupt
+		 * only when the whole fragment is processed
+		 */
+		size -= chunk;
+		bdl[3] = (size || !with_ioc) ? 0 : cpu_to_le32(0x01);
+		bdl += 4;
+		azx_dev->frags++;
+		ofs += chunk;
+	}
+	*bdlp = bdl;
+	return ofs;
+}
+
+/*
  * set up BDL entries
  */
 static int azx_setup_periods(struct snd_pcm_substream *substream,
 			     struct azx_dev *azx_dev)
 {
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 	u32 *bdl;
 	int i, ofs, periods, period_bytes;
+	int pos_adj = 0;
 
 	/* reset BDL address */
 	azx_sd_writel(azx_dev, SD_BDLPL, 0);
@@ -998,39 +1046,44 @@ static int azx_setup_periods(struct snd_pcm_substream *substream,
 	bdl = (u32 *)azx_dev->bdl.area;
 	ofs = 0;
 	azx_dev->frags = 0;
-	for (i = 0; i < periods; i++) {
-		int size, rest;
-		if (i >= AZX_MAX_BDL_ENTRIES) {
-			snd_printk(KERN_ERR "Too many BDL entries: "
-				   "buffer=%d, period=%d\n",
-				   azx_dev->bufsize, period_bytes);
-			/* reset */
-			azx_sd_writel(azx_dev, SD_BDLPL, 0);
-			azx_sd_writel(azx_dev, SD_BDLPU, 0);
-			return -EINVAL;
+	azx_dev->irq_ignore = 0;
+	if (bdl_pos_adj > 0) {
+		struct snd_pcm_runtime *runtime = substream->runtime;
+		pos_adj = (bdl_pos_adj * runtime->rate + 47999) / 48000;
+		if (!pos_adj)
+			pos_adj = 1;
+		pos_adj = frames_to_bytes(runtime, pos_adj);
+		if (pos_adj >= period_bytes) {
+			snd_printk(KERN_WARNING "Too big adjustment %d\n",
+				   bdl_pos_adj);
+			pos_adj = 0;
+		} else {
+			ofs = setup_bdle(substream, azx_dev,
+					 &bdl, ofs, pos_adj, 1);
+			if (ofs < 0)
+				goto error;
+			azx_dev->irq_ignore = 1;
 		}
-		rest = period_bytes;
-		do {
-			dma_addr_t addr = snd_pcm_sgbuf_get_addr(sgbuf, ofs);
-			/* program the address field of the BDL entry */
-			bdl[0] = cpu_to_le32((u32)addr);
-			bdl[1] = cpu_to_le32(upper_32bit(addr));
-			/* program the size field of the BDL entry */
-			size = PAGE_SIZE - (ofs % PAGE_SIZE);
-			if (rest < size)
-				size = rest;
-			bdl[2] = cpu_to_le32(size);
-			/* program the IOC to enable interrupt
-			 * only when the whole fragment is processed
-			 */
-			rest -= size;
-			bdl[3] = rest ? 0 : cpu_to_le32(0x01);
-			bdl += 4;
-			azx_dev->frags++;
-			ofs += size;
-		} while (rest > 0);
+	}
+	for (i = 0; i < periods; i++) {
+		if (i == periods - 1 && pos_adj)
+			ofs = setup_bdle(substream, azx_dev, &bdl, ofs,
+					 period_bytes - pos_adj, 0);
+		else
+			ofs = setup_bdle(substream, azx_dev, &bdl, ofs,
+					 period_bytes, 1);
+		if (ofs < 0)
+			goto error;
 	}
 	return 0;
+
+ error:
+	snd_printk(KERN_ERR "Too many BDL entries: buffer=%d, period=%d\n",
+		   azx_dev->bufsize, period_bytes);
+	/* reset */
+	azx_sd_writel(azx_dev, SD_BDLPL, 0);
+	azx_sd_writel(azx_dev, SD_BDLPU, 0);
+	return -EINVAL;
 }
 
 /*
