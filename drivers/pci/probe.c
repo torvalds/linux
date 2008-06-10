@@ -414,6 +414,7 @@ static struct pci_bus * pci_alloc_bus(void)
 		INIT_LIST_HEAD(&b->node);
 		INIT_LIST_HEAD(&b->children);
 		INIT_LIST_HEAD(&b->devices);
+		INIT_LIST_HEAD(&b->slots);
 	}
 	return b;
 }
