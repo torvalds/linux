@@ -315,14 +315,14 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 	asm volatile(						\
 		"	lctlg	%1,%2,0(%0)\n"			\
 		: : "a" (&array), "i" (low), "i" (high),	\
-		    "m" (*(addrtype *)(array)));		\
+		    "m" (*(addrtype *)(&array)));		\
 	})
 
 #define __ctl_store(array, low, high) ({			\
 	typedef struct { char _[sizeof(array)]; } addrtype;	\
 	asm volatile(						\
 		"	stctg	%2,%3,0(%1)\n"			\
-		: "=m" (*(addrtype *)(array))			\
+		: "=m" (*(addrtype *)(&array))			\
 		: "a" (&array), "i" (low), "i" (high));		\
 	})
 
@@ -333,14 +333,14 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 	asm volatile(						\
 		"	lctl	%1,%2,0(%0)\n"			\
 		: : "a" (&array), "i" (low), "i" (high),	\
-		    "m" (*(addrtype *)(array)));		\
+		    "m" (*(addrtype *)(&array)));		\
 })
 
 #define __ctl_store(array, low, high) ({			\
 	typedef struct { char _[sizeof(array)]; } addrtype;	\
 	asm volatile(						\
 		"	stctl	%2,%3,0(%1)\n"			\
-		: "=m" (*(addrtype *)(array))			\
+		: "=m" (*(addrtype *)(&array))			\
 		: "a" (&array), "i" (low), "i" (high));		\
 	})
 
