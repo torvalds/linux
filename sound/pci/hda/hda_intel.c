@@ -374,6 +374,7 @@ struct azx {
 	unsigned int single_cmd :1;
 	unsigned int polling_mode :1;
 	unsigned int msi :1;
+	unsigned int irq_pending_warned :1;
 
 	/* for debugging */
 	unsigned int last_cmd;	/* last issued command (to sync) */
@@ -1561,6 +1562,14 @@ static void azx_irq_pending_work(struct work_struct *work)
 {
 	struct azx *chip = container_of(work, struct azx, irq_pending_work);
 	int i, pending;
+
+	if (!chip->irq_pending_warned) {
+		printk(KERN_WARNING
+		       "hda-intel: IRQ timing workaround is activated "
+		       "for card #%d. Suggest a bigger bdl_pos_adj.\n",
+		       chip->card->number);
+		chip->irq_pending_warned = 1;
+	}
 
 	for (;;) {
 		pending = 0;
