@@ -55,7 +55,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static char *model[SNDRV_CARDS];
 static int position_fix[SNDRV_CARDS];
-static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
+static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int single_cmd;
 static int enable_msi;
@@ -2012,6 +2012,18 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	check_probe_mask(chip, dev);
 
 	chip->single_cmd = single_cmd;
+
+	if (bdl_pos_adj[dev] < 0) {
+		switch (chip->driver_type) {
+		case AZX_DRIVER_ATI:
+		case AZX_DRIVER_ATIHDMI:
+			bdl_pos_adj[dev] = 32;
+			break;
+		default:
+			bdl_pos_adj[dev] = 1;
+			break;
+		}
+	}
 
 #if BITS_PER_LONG != 64
 	/* Fix up base address on ULI M5461 */
