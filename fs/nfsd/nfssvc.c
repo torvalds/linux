@@ -70,6 +70,14 @@ static DEFINE_SPINLOCK(nfsd_call_lock);
  * Transitions of the thread count between zero and non-zero are of particular
  * interest since the svc_serv needs to be created and initialized at that
  * point, or freed.
+ *
+ * Finally, the nfsd_mutex also protects some of the global variables that are
+ * accessed when nfsd starts and that are settable via the write_* routines in
+ * nfsctl.c. In particular:
+ *
+ *	user_recovery_dirname
+ *	user_lease_time
+ *	nfsd_versions
  */
 DEFINE_MUTEX(nfsd_mutex);
 struct svc_serv 		*nfsd_serv;

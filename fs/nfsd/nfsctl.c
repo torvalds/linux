@@ -509,7 +509,7 @@ out_free:
 	return rv;
 }
 
-static ssize_t write_versions(struct file *file, char *buf, size_t size)
+static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 {
 	/*
 	 * Format:
@@ -570,6 +570,16 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 		}
 	len += sprintf(buf+len, "\n");
 	return len;
+}
+
+static ssize_t write_versions(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __write_versions(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
 }
 
 static ssize_t __write_ports(struct file *file, char *buf, size_t size)
@@ -675,6 +685,7 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 static ssize_t write_ports(struct file *file, char *buf, size_t size)
 {
 	ssize_t rv;
+
 	mutex_lock(&nfsd_mutex);
 	rv = __write_ports(file, buf, size);
 	mutex_unlock(&nfsd_mutex);
@@ -714,16 +725,17 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 #ifdef CONFIG_NFSD_V4
 extern time_t nfs4_leasetime(void);
 
-static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
+static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
 {
 	/* if size > 10 seconds, call
 	 * nfs4_reset_lease() then write out the new lease (seconds) as reply
 	 */
 	char *mesg = buf;
-	int rv;
+	int rv, lease;
 
 	if (size > 0) {
-		int lease;
+		if (nfsd_serv)
+			return -EBUSY;
 		rv = get_int(&mesg, &lease);
 		if (rv)
 			return rv;
@@ -735,24 +747,52 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 	return strlen(buf);
 }
 
-static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
+static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __write_leasetime(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
+}
+
+extern char *nfs4_recoverydir(void);
+
+static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
 	char *recdir;
 	int len, status;
 
-	if (size == 0 || size > PATH_MAX || buf[size-1] != '\n')
-		return -EINVAL;
-	buf[size-1] = 0;
+	if (size > 0) {
+		if (nfsd_serv)
+			return -EBUSY;
+		if (size > PATH_MAX || buf[size-1] != '\n')
+			return -EINVAL;
+		buf[size-1] = 0;
 
-	recdir = mesg;
-	len = qword_get(&mesg, recdir, size);
-	if (len <= 0)
-		return -EINVAL;
+		recdir = mesg;
+		len = qword_get(&mesg, recdir, size);
+		if (len <= 0)
+			return -EINVAL;
 
-	status = nfs4_reset_recoverydir(recdir);
+		status = nfs4_reset_recoverydir(recdir);
+	}
+	sprintf(buf, "%s\n", nfs4_recoverydir());
 	return strlen(buf);
 }
+
+static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __write_recoverydir(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
+}
+
 #endif
 
 /*----------------------------------------------------------------------------*/
