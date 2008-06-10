@@ -16,6 +16,7 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 #include <linux/zorro.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 #include <asm/amigahw.h>
@@ -62,7 +63,10 @@
 					       GAYLE_NUM_HWIFS-1)
 #define GAYLE_HAS_CONTROL_REG	(!ide_doubler)
 #define GAYLE_IDEREG_SIZE	(ide_doubler ? 0x1000 : 0x2000)
+
 int ide_doubler = 0;	/* support IDE doublers? */
+EXPORT_SYMBOL_GPL(ide_doubler);
+
 module_param_named(doubler, ide_doubler, bool, 0);
 MODULE_PARM_DESC(doubler, "enable support for IDE doublers");
 #endif /* CONFIG_BLK_DEV_IDEDOUBLER */
