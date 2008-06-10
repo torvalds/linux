@@ -3336,6 +3336,61 @@ out_fput:
 	return ret;
 }
 
+/*
+ * there are many ways the trans_start and trans_end ioctls can lead
+ * to deadlocks.  They should only be used by applications that
+ * basically own the machine, and have a very in depth understanding
+ * of all the possible deadlocks and enospc problems.
+ */
+long btrfs_ioctl_trans_start(struct file *file)
+{
+	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
+	int ret = 0;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	if (file->private_data) {
+		ret = -EINPROGRESS;
+		goto out;
+	}
+	trans = btrfs_start_transaction(root, 0);
+	if (trans)
+		file->private_data = trans;
+	else
+		ret = -ENOMEM;
+	/*printk(KERN_INFO "btrfs_ioctl_trans_start on %p\n", file);*/
+out:
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+}
+
+/*
+ * there are many ways the trans_start and trans_end ioctls can lead
+ * to deadlocks.  They should only be used by applications that
+ * basically own the machine, and have a very in depth understanding
+ * of all the possible deadlocks and enospc problems.
+ */
+long btrfs_ioctl_trans_end(struct file *file)
+{
+	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
+	int ret = 0;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = file->private_data;
+	if (!trans) {
+		ret = -EINVAL;
+		goto out;
+	}
+	btrfs_end_transaction(trans, root);
+	file->private_data = 0;
+out:
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -3356,6 +3411,13 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_balance(root->fs_info->dev_root);
 	case BTRFS_IOC_CLONE:
 		return btrfs_ioctl_clone(file, arg);
+	case BTRFS_IOC_TRANS_START:
+		return btrfs_ioctl_trans_start(file);
+	case BTRFS_IOC_TRANS_END:
+		return btrfs_ioctl_trans_end(file);
+	case BTRFS_IOC_SYNC:
+		btrfs_sync_fs(file->f_dentry->d_sb, 1);
+		return 0;
 	}
 
 	return -ENOTTY;
@@ -3679,6 +3741,7 @@ static struct file_operations btrfs_dir_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_ioctl,
 #endif
+	.release        = btrfs_release_file,
 };
 
 static struct extent_io_ops btrfs_extent_io_ops = {

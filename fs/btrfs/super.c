@@ -293,7 +293,7 @@ fail_close:
 	return err;
 }
 
-static int btrfs_sync_fs(struct super_block *sb, int wait)
+int btrfs_sync_fs(struct super_block *sb, int wait)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;

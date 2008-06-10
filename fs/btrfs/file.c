@@ -978,9 +978,11 @@ out_nolock:
 	return num_written ? num_written : err;
 }
 
-static int btrfs_release_file (struct inode * inode, struct file * filp)
+int btrfs_release_file(struct inode * inode, struct file * filp)
 {
 	btrfs_del_ordered_inode(inode);
+	if (filp->private_data)
+		btrfs_ioctl_trans_end(filp);
 	return 0;
 }
 
@@ -1011,6 +1013,9 @@ static int btrfs_sync_file(struct file *file,
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
+	if (file->private_data)
+		btrfs_ioctl_trans_end(file);
+
 	trans = btrfs_start_transaction(root, 1);
 	if (!trans) {
 		ret = -ENOMEM;

@@ -1575,6 +1575,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb);
 void btrfs_destroy_inode(struct inode *inode);
 int btrfs_init_cachep(void);
 void btrfs_destroy_cachep(void);
+long btrfs_ioctl_trans_end(struct file *file);
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 				struct btrfs_root *root);
@@ -1595,6 +1596,8 @@ extern struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 inline_limit, u64 *hint_block);
+int btrfs_release_file(struct inode *inode, struct file *file);
+
 /* tree-defrag.c */
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, int cache_only);
@@ -1615,4 +1618,5 @@ int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
 u64 btrfs_parse_size(char *str);
 int btrfs_parse_options(char *options, struct btrfs_root *root,
 			char **subvol_name);
+int btrfs_sync_fs(struct super_block *sb, int wait);
 #endif
