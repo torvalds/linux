@@ -79,6 +79,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base + 0x10, base + 0x1e);
 	hw.irq = dev->irq;
+	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;		/* this enables IRQ sharing */
 
 	hwif = ide_find_port();
@@ -99,7 +100,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		goto out_disable;
 
 	pci_set_drvdata(dev, hwif);
-	hwif->dev = &dev->dev;
+
 	drive = &hwif->drives[0];
 	if (drive->present) {
 		drive->io_32bit = 1;
