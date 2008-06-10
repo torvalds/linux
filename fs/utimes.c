@@ -102,6 +102,10 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
 	if (error)
 		goto dput_and_out;
 
+	if (times && times[0].tv_nsec == UTIME_NOW &&
+		     times[1].tv_nsec == UTIME_NOW)
+		times = NULL;
+
 	/* Don't worry, the checks are done in inode_change_ok() */
 	newattrs.ia_valid = ATTR_CTIME | ATTR_MTIME | ATTR_ATIME;
 	if (times) {
