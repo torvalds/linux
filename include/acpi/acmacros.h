@@ -414,7 +414,7 @@ struct acpi_integer_overlay {
  * error messages. The __FILE__ macro is not very useful for this, because it
  * often includes the entire pathname to the module
  */
-#define ACPI_MODULE_NAME(name)		static char ACPI_UNUSED_VAR _acpi_module_name[] = name;
+#define ACPI_MODULE_NAME(name)		static const char ACPI_UNUSED_VAR _acpi_module_name[] = name;
 #else
 #define ACPI_MODULE_NAME(name)
 #endif

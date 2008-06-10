@@ -367,9 +367,10 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth);
 void
 acpi_ex_dump_operands(union acpi_operand_object **operands,
 		      acpi_interpreter_mode interpreter_mode,
-		      char *ident,
+		      const char *ident,
 		      u32 num_levels,
-		      char *note, char *module_name, u32 line_number);
+		      const char *note,
+		      const char *module_name, u32 line_number);
 
 #ifdef	ACPI_FUTURE_USAGE
 void

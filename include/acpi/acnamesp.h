@@ -199,7 +199,7 @@ acpi_ns_pattern_match(struct acpi_namespace_node *obj_node, char *search_for);
 
 acpi_status
 acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
-		 char *external_pathname,
+		 const char *external_pathname,
 		 u32 flags, struct acpi_namespace_node **out_node);
 
 acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node);
@@ -263,28 +263,30 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node *node);
 u32 acpi_ns_local(acpi_object_type type);
 
 void
-acpi_ns_report_error(char *module_name,
+acpi_ns_report_error(const char *module_name,
 		     u32 line_number,
-		     char *internal_name, acpi_status lookup_status);
+		     const char *internal_name, acpi_status lookup_status);
 
 void
-acpi_ns_report_method_error(char *module_name,
+acpi_ns_report_method_error(const char *module_name,
 			    u32 line_number,
-			    char *message,
+			    const char *message,
 			    struct acpi_namespace_node *node,
-			    char *path, acpi_status lookup_status);
+			    const char *path, acpi_status lookup_status);
 
-void acpi_ns_print_node_pathname(struct acpi_namespace_node *node, char *msg);
+void
+acpi_ns_print_node_pathname(struct acpi_namespace_node *node, const char *msg);
 
 acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info);
 
 void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info);
 
-acpi_status acpi_ns_internalize_name(char *dotted_name, char **converted_name);
+acpi_status
+acpi_ns_internalize_name(const char *dotted_name, char **converted_name);
 
 acpi_status
 acpi_ns_externalize_name(u32 internal_name_length,
-			 char *internal_name,
+			 const char *internal_name,
 			 u32 * converted_name_length, char **converted_name);
 
 struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle);

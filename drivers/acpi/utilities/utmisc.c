@@ -1020,7 +1020,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
  ******************************************************************************/
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_error(char *module_name, u32 line_number, char *format, ...)
+acpi_ut_error(const char *module_name, u32 line_number, const char *format, ...)
 {
 	va_list args;
 
@@ -1033,8 +1033,8 @@ acpi_ut_error(char *module_name, u32 line_number, char *format, ...)
 }
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_exception(char *module_name,
-		  u32 line_number, acpi_status status, char *format, ...)
+acpi_ut_exception(const char *module_name,
+		  u32 line_number, acpi_status status, const char *format, ...)
 {
 	va_list args;
 
@@ -1050,7 +1050,8 @@ acpi_ut_exception(char *module_name,
 EXPORT_SYMBOL(acpi_ut_exception);
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_warning(char *module_name, u32 line_number, char *format, ...)
+acpi_ut_warning(const char *module_name,
+		u32 line_number, const char *format, ...)
 {
 	va_list args;
 
@@ -1063,7 +1064,7 @@ acpi_ut_warning(char *module_name, u32 line_number, char *format, ...)
 }
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_info(char *module_name, u32 line_number, char *format, ...)
+acpi_ut_info(const char *module_name, u32 line_number, const char *format, ...)
 {
 	va_list args;
 

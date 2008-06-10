@@ -282,8 +282,8 @@ struct acpi_predefined_names {
 /* Info structure used to convert external<->internal namestrings */
 
 struct acpi_namestring_info {
-	char *external_name;
-	char *next_external_char;
+	const char *external_name;
+	const char *next_external_char;
 	char *internal_name;
 	u32 length;
 	u32 num_segments;
