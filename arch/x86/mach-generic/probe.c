@@ -64,7 +64,7 @@ early_param("apic", parse_apic);
 
 void __init generic_bigsmp_probe(void)
 {
-#if CONFIG_X86_BIGSMP
+#ifdef CONFIG_X86_BIGSMP
 	/*
 	 * This routine is used to switch to bigsmp mode when
 	 * - There is no apic= option specified by the user
