@@ -100,15 +100,11 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 	ide_device_add(idx, &delkin_cb_port_info);
 
-	if (!hwif->present)
-		goto out_disable;
-
 	pci_set_drvdata(dev, hwif);
 
 	return 0;
 
 out_disable:
-	printk(KERN_ERR "delkin_cb: no IDE devices found\n");
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 	return -ENODEV;
