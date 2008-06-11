@@ -876,7 +876,7 @@ static int wm9713_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
 		gpio |= 0x0018;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		reg |= 0x0200;
+		reg |= 0x2000;
 		gpio |= 0x001a;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFM:
