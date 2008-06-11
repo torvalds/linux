@@ -4,8 +4,6 @@
  *	Authors:	Alan Cox <iiitac@pyr.swan.ac.uk>
  *			Florian La Roche <rzsfl@rz.uni-sb.de>
  *
- *	Version:	$Id: skbuff.c,v 1.90 2001/11/07 05:56:19 davem Exp $
- *
  *	Fixes:
  *		Alan Cox	:	Fixed the worst of the load
  *					balancer bugs.

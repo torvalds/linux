@@ -24,8 +24,6 @@
  *		Jiri Fojtasek
  *			fixed requeue routine
  *		and many others. thanks.
- *
- * $Id: sch_htb.c,v 1.25 2003/12/07 11:08:25 devik Exp devik $
  */
 #include <linux/module.h>
 #include <linux/types.h>

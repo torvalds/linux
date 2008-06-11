@@ -7,8 +7,6 @@
  *
  *	Adapted from linux/net/ipv4/af_inet.c
  *
- *	$Id: af_inet6.c,v 1.66 2002/02/01 22:01:04 davem Exp $
- *
  * 	Fixes:
  *	piggy, Karl Knutson	:	Socket protocol table
  * 	Hideaki YOSHIFUJI	:	sin6_scope_id support

@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: reassembly.c,v 1.26 2001/03/07 22:00:57 davem Exp $
- *
  *	Based on: net/ipv4/ip_fragment.c
  *
  *	This program is free software; you can redistribute it and/or

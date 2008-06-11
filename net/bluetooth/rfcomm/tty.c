@@ -23,8 +23,6 @@
 
 /*
  * RFCOMM TTY.
- *
- * $Id: tty.c,v 1.24 2002/10/03 01:54:38 holtmann Exp $
  */
 
 #include <linux/module.h>

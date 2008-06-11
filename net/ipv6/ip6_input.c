@@ -6,8 +6,6 @@
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Ian P. Morris		<I.P.Morris@soton.ac.uk>
  *
- *	$Id: ip6_input.c,v 1.19 2000/12/13 18:31:50 davem Exp $
- *
  *	Based in linux/net/ipv4/ip_input.c
  *
  *	This program is free software; you can redistribute it and/or

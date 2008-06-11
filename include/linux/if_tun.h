@@ -11,8 +11,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *
- *  $Id: if_tun.h,v 1.2 2001/06/01 18:39:47 davem Exp $
  */
 
 #ifndef __IF_TUN_H

@@ -1,6 +1,4 @@
 /*
- *  $Id: ipconfig.h,v 1.4 2001/04/30 04:51:46 davem Exp $
- *
  *  Copyright (C) 1997 Martin Mares
  *
  *  Automatic IP Layer Configuration

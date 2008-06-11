@@ -6,8 +6,6 @@
  *	Ville Nuorvala		<vnuorval@tcs.hut.fi>
  *	Yasuyuki Kozakai	<kozakai@linux-ipv6.org>
  *
- *	$Id$
- *
  *      Based on:
  *      linux/net/ipv6/sit.c and linux/net/ipv4/ipip.c
  *

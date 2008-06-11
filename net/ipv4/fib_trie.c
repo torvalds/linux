@@ -22,8 +22,6 @@
  * IP-address lookup using LC-tries. Stefan Nilsson and Gunnar Karlsson
  * IEEE Journal on Selected Areas in Communications, 17(6):1083-1092, June 1999
  *
- * Version:	$Id: fib_trie.c,v 1.3 2005/06/08 14:20:01 robert Exp $
- *
  *
  * Code from fib_hash has been reused which includes the following header:
  *

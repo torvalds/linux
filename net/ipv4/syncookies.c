@@ -8,8 +8,6 @@
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
- *
- *  $Id: syncookies.c,v 1.18 2002/02/01 22:01:04 davem Exp $
  */
 
 #include <linux/tcp.h>

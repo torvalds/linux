@@ -1,7 +1,3 @@
-/*
- * $Id$
- */
-
 #ifndef _NET_IP6_TUNNEL_H
 #define _NET_IP6_TUNNEL_H
 
