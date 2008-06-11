@@ -159,8 +159,8 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 	} else if (ktime_us_delta(now, hctx->ccid3hctx_t_ld)
 				- (s64)hctx->ccid3hctx_rtt >= 0) {
 
-		hctx->ccid3hctx_x =
-			max(min(2 * hctx->ccid3hctx_x, min_rate),
+		hctx->ccid3hctx_x = min(2 * hctx->ccid3hctx_x, min_rate);
+		hctx->ccid3hctx_x = max(hctx->ccid3hctx_x,
 			    scaled_div(((__u64)hctx->ccid3hctx_s) << 6,
 				       hctx->ccid3hctx_rtt));
 		hctx->ccid3hctx_t_ld = now;

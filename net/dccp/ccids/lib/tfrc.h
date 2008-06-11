@@ -58,7 +58,14 @@ static inline u32 tfrc_ewma(const u32 avg, const u32 newval, const u8 weight)
 	return avg ? (weight * avg + (10 - weight) * newval) / 10 : newval;
 }
 
-extern u32 tfrc_calc_x(u16 s, u32 R, u32 p);
-extern u32 tfrc_calc_x_reverse_lookup(u32 fvalue);
+extern u32  tfrc_calc_x(u16 s, u32 R, u32 p);
+extern u32  tfrc_calc_x_reverse_lookup(u32 fvalue);
 
+extern int  tfrc_tx_packet_history_init(void);
+extern void tfrc_tx_packet_history_exit(void);
+extern int  tfrc_rx_packet_history_init(void);
+extern void tfrc_rx_packet_history_exit(void);
+
+extern int  tfrc_li_init(void);
+extern void tfrc_li_exit(void);
 #endif /* _TFRC_H_ */
