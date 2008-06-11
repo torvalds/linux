@@ -105,7 +105,6 @@ int nfs_callback_up(void)
 	struct svc_rqst *rqstp;
 	int ret = 0;
 
-	lock_kernel();
 	mutex_lock(&nfs_callback_mutex);
 	if (nfs_callback_info.users++ || nfs_callback_info.task != NULL)
 		goto out;
@@ -149,7 +148,6 @@ out:
 	if (serv)
 		svc_destroy(serv);
 	mutex_unlock(&nfs_callback_mutex);
-	unlock_kernel();
 	return ret;
 out_err:
 	dprintk("Couldn't create callback socket or server thread; err = %d\n",
@@ -163,13 +161,11 @@ out_err:
  */
 void nfs_callback_down(void)
 {
-	lock_kernel();
 	mutex_lock(&nfs_callback_mutex);
 	nfs_callback_info.users--;
 	if (nfs_callback_info.users == 0 && nfs_callback_info.task != NULL)
 		kthread_stop(nfs_callback_info.task);
 	mutex_unlock(&nfs_callback_mutex);
-	unlock_kernel();
 }
 
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
