@@ -64,6 +64,15 @@ static u16 tkipS(u16 val)
 	return tkip_sbox[val & 0xff] ^ swab16(tkip_sbox[val >> 8]);
 }
 
+static u8 *write_tkip_iv(u8 *pos, u16 iv16)
+{
+	*pos++ = iv16 >> 8;
+	*pos++ = ((iv16 >> 8) | 0x20) & 0x7f;
+	*pos++ = iv16 & 0xFF;
+	return pos;
+}
+
+
 /*
  * P1K := Phase1(TA, TK, TSC)
  * TA = transmitter address (48 bits)
@@ -123,12 +132,9 @@ static void tkip_mixing_phase2(struct ieee80211_key *key, struct tkip_ctx *ctx,
 	ppk[4] += ror16(ppk[3], 1);
 	ppk[5] += ror16(ppk[4], 1);
 
-	rc4key[0] = tsc_IV16 >> 8;
-	rc4key[1] = ((tsc_IV16 >> 8) | 0x20) & 0x7f;
-	rc4key[2] = tsc_IV16 & 0xFF;
-	rc4key[3] = ((ppk[5] ^ get_unaligned_le16(tk)) >> 1) & 0xFF;
+	rc4key = write_tkip_iv(rc4key, tsc_IV16);
+	*rc4key++ = ((ppk[5] ^ get_unaligned_le16(tk)) >> 1) & 0xFF;
 
-	rc4key += 4;
 	for (i = 0; i < 6; i++)
 		put_unaligned_le16(ppk[i], rc4key + 2 * i);
 }
@@ -136,12 +142,9 @@ static void tkip_mixing_phase2(struct ieee80211_key *key, struct tkip_ctx *ctx,
 /* Add TKIP IV and Ext. IV at @pos. @iv0, @iv1, and @iv2 are the first octets
  * of the IV. Returns pointer to the octet following IVs (i.e., beginning of
  * the packet payload). */
-u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key,
-			   u8 iv0, u8 iv1, u8 iv2)
+u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key, u16 iv16)
 {
-	*pos++ = iv0;
-	*pos++ = iv1;
-	*pos++ = iv2;
+	pos = write_tkip_iv(pos, iv16);
 	*pos++ = (key->conf.keyidx << 6) | (1 << 5) /* Ext IV */;
 	put_unaligned_le32(key->u.tkip.tx.iv32, pos);
 	return pos + 4;
@@ -213,7 +216,7 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 	u8 rc4key[16];
 
 	ieee80211_tkip_gen_rc4key(key, ta, rc4key);
-	pos = ieee80211_tkip_add_iv(pos, key, rc4key[0], rc4key[1], rc4key[2]);
+	pos = ieee80211_tkip_add_iv(pos, key, key->u.tkip.tx.iv16);
 	ieee80211_wep_encrypt_data(tfm, rc4key, 16, pos, payload_len);
 }
 

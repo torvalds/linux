@@ -198,14 +198,8 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 		key->u.tkip.tx.iv32++;
 
 	if (tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
-		hdr = (struct ieee80211_hdr *)skb->data;
-
 		/* hwaccel - with preallocated room for IV */
-		ieee80211_tkip_add_iv(pos, key,
-				      (u8) (key->u.tkip.tx.iv16 >> 8),
-				      (u8) (((key->u.tkip.tx.iv16 >> 8) | 0x20) &
-					    0x7f),
-				      (u8) key->u.tkip.tx.iv16);
+		ieee80211_tkip_add_iv(pos, key, key->u.tkip.tx.iv16);
 
 		info->control.hw_key = &tx->key->conf;
 		return 0;
