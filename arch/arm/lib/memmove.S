@@ -60,6 +60,7 @@ ENTRY(memmove)
 	CALGN(	bcs	2f			)
 	CALGN(	adr	r4, 6f			)
 	CALGN(	subs	r2, r2, ip		)  @ C is set here
+	CALGN(	rsb	ip, ip, #32		)
 	CALGN(	add	pc, r4, ip		)
 
 	PLD(	pld	[r1, #-4]		)
@@ -139,7 +140,6 @@ ENTRY(memmove)
 		blt	14f
 
 	CALGN(	ands	ip, r1, #31		)
-	CALGN(	rsb	ip, ip, #32		)
 	CALGN(	sbcnes	r4, ip, r2		)  @ C is always set here
 	CALGN(	subcc	r2, r2, ip		)
 	CALGN(	bcc	15f			)
