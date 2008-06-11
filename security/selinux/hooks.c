@@ -5196,12 +5196,12 @@ static int selinux_setprocattr(struct task_struct *p,
 			struct task_struct *g, *t;
 			struct mm_struct *mm = p->mm;
 			read_lock(&tasklist_lock);
-			do_each_thread(g, t)
+			do_each_thread(g, t) {
 				if (t->mm == mm && t != p) {
 					read_unlock(&tasklist_lock);
 					return -EPERM;
 				}
-			while_each_thread(g, t);
+			} while_each_thread(g, t);
 			read_unlock(&tasklist_lock);
 		}
 
