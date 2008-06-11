@@ -1581,11 +1581,13 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 				  u64 *spte,
 				  const void *new)
 {
-	if ((sp->role.level != PT_PAGE_TABLE_LEVEL)
-	    && !vcpu->arch.update_pte.largepage) {
-		++vcpu->kvm->stat.mmu_pde_zapped;
-		return;
-	}
+	if (sp->role.level != PT_PAGE_TABLE_LEVEL) {
+		if (!vcpu->arch.update_pte.largepage ||
+		    sp->role.glevels == PT32_ROOT_LEVEL) {
+			++vcpu->kvm->stat.mmu_pde_zapped;
+			return;
+		}
+        }
 
 	++vcpu->kvm->stat.mmu_pte_updated;
 	if (sp->role.glevels == PT32_ROOT_LEVEL)
