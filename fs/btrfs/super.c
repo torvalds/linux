@@ -184,8 +184,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				info->max_inline = btrfs_parse_size(num);
 				kfree(num);
 
-				info->max_inline = max_t(u64,
-					info->max_inline, root->sectorsize);
+				if (info->max_inline) {
+					info->max_inline = max_t(u64,
+						info->max_inline,
+						root->sectorsize);
+				}
 				printk(KERN_INFO "btrfs: max_inline at %llu\n",
 					info->max_inline);
 			}
