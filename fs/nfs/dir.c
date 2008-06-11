@@ -884,10 +884,8 @@ static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_DATA;
 
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
-		lock_kernel();
 		drop_nlink(inode);
 		nfs_complete_unlink(dentry, inode);
-		unlock_kernel();
 	}
 	iput(inode);
 }
@@ -1434,9 +1432,7 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 		spin_unlock(&dcache_lock);
 		/* Start asynchronous writeout of the inode */
 		write_inode_now(dentry->d_inode, 0);
-		lock_kernel();
 		error = nfs_sillyrename(dir, dentry);
-		unlock_kernel();
 		return error;
 	}
 	if (!d_unhashed(dentry)) {
@@ -1617,9 +1613,7 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out;
 
 		/* silly-rename the existing target ... */
-		lock_kernel();
 		err = nfs_sillyrename(new_dir, new_dentry);
-		unlock_kernel();
 		if (!err) {
 			new_dentry = rehash = dentry;
 			new_inode = NULL;
