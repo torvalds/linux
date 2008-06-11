@@ -777,7 +777,6 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	struct nfs_fattr fattr;
 
 	parent = dget_parent(dentry);
-	lock_kernel();
 	dir = parent->d_inode;
 	nfs_inc_stats(dir, NFSIOS_DENTRYREVALIDATE);
 	inode = dentry->d_inode;
@@ -815,7 +814,6 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
  out_valid:
-	unlock_kernel();
 	dput(parent);
 	dfprintk(LOOKUPCACHE, "NFS: %s(%s/%s) is valid\n",
 			__func__, dentry->d_parent->d_name.name,
@@ -834,7 +832,6 @@ out_zap_parent:
 		shrink_dcache_parent(dentry);
 	}
 	d_drop(dentry);
-	unlock_kernel();
 	dput(parent);
 	dfprintk(LOOKUPCACHE, "NFS: %s(%s/%s) is invalid\n",
 			__func__, dentry->d_parent->d_name.name,
@@ -921,8 +918,6 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	res = ERR_PTR(-ENOMEM);
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 
-	lock_kernel();
-
 	/*
 	 * If we're doing an exclusive create, optimize away the lookup
 	 * but don't hash the dentry.
@@ -930,7 +925,7 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	if (nfs_is_exclusive_create(dir, nd)) {
 		d_instantiate(dentry, NULL);
 		res = NULL;
-		goto out_unlock;
+		goto out;
 	}
 
 	parent = dentry->d_parent;
@@ -958,8 +953,6 @@ no_entry:
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 out_unblock_sillyrename:
 	nfs_unblock_sillyrename(parent);
-out_unlock:
-	unlock_kernel();
 out:
 	return res;
 }
