@@ -3669,7 +3669,7 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		struct sockaddr_in6 *addr6 = NULL;
 		unsigned short snum;
 		struct sock *sk = sock->sk;
-		u32 sid, node_perm, addrlen;
+		u32 sid, node_perm;
 
 		tsec = current->security;
 		isec = SOCK_INODE(sock)->i_security;
@@ -3677,12 +3677,10 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		if (family == PF_INET) {
 			addr4 = (struct sockaddr_in *)address;
 			snum = ntohs(addr4->sin_port);
-			addrlen = sizeof(addr4->sin_addr.s_addr);
 			addrp = (char *)&addr4->sin_addr.s_addr;
 		} else {
 			addr6 = (struct sockaddr_in6 *)address;
 			snum = ntohs(addr6->sin6_port);
-			addrlen = sizeof(addr6->sin6_addr.s6_addr);
 			addrp = (char *)&addr6->sin6_addr.s6_addr;
 		}
 
