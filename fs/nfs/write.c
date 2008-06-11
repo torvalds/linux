@@ -133,16 +133,21 @@ static struct nfs_page *nfs_page_find_request(struct page *page)
 static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
 {
 	struct inode *inode = page->mapping->host;
-	loff_t end, i_size = i_size_read(inode);
-	pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+	loff_t end, i_size;
+	pgoff_t end_index;
 
+	spin_lock(&inode->i_lock);
+	i_size = i_size_read(inode);
+	end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
 	if (i_size > 0 && page->index < end_index)
-		return;
+		goto out;
 	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
 	if (i_size >= end)
-		return;
-	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
+		goto out;
 	i_size_write(inode, end);
+	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
+out:
+	spin_unlock(&inode->i_lock);
 }
 
 /* A writeback failed: mark the page as bad, and invalidate the page cache */
