@@ -24,15 +24,9 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
-#include <linux/reboot.h>
 
 #include <asm/setup.h>
-#include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
-#include <asm/irq.h>
-#include <asm/system.h>
-#include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mfp-pxa25x.h>
 #include <asm/arch/irda.h>
@@ -41,8 +35,6 @@
 #include <asm/arch/udc.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/irq.h>
 #include <asm/arch/tosa.h>
 
 #include <asm/hardware/scoop.h>
