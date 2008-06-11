@@ -32,6 +32,7 @@ config RT2X00_LIB_FIRMWARE
 config RT2X00_LIB_RFKILL
 	boolean
 	depends on RT2X00_LIB
+	depends on INPUT
 	select RFKILL
 	select INPUT_POLLDEV
 
@@ -51,7 +52,7 @@ config RT2400PCI
 
 config RT2400PCI_RFKILL
 	bool "RT2400 rfkill support"
-	depends on RT2400PCI
+	depends on RT2400PCI && INPUT
 	select RT2X00_LIB_RFKILL
 	---help---
 	  This adds support for integrated rt2400 devices that feature a
@@ -78,7 +79,7 @@ config RT2500PCI
 
 config RT2500PCI_RFKILL
 	bool "RT2500 rfkill support"
-	depends on RT2500PCI
+	depends on RT2500PCI && INPUT
 	select RT2X00_LIB_RFKILL
 	---help---
 	  This adds support for integrated rt2500 devices that feature a
@@ -107,7 +108,7 @@ config RT61PCI
 
 config RT61PCI_RFKILL
 	bool "RT61 rfkill support"
-	depends on RT61PCI
+	depends on RT61PCI && INPUT
 	select RT2X00_LIB_RFKILL
 	---help---
 	  This adds support for integrated rt61 devices that feature a
