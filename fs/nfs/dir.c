@@ -1297,14 +1297,12 @@ static int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 	dfprintk(VFS, "NFS: rmdir(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
 
-	lock_kernel();
 	error = NFS_PROTO(dir)->rmdir(dir, &dentry->d_name);
 	/* Ensure the VFS deletes this inode */
 	if (error == 0 && dentry->d_inode != NULL)
 		clear_nlink(dentry->d_inode);
 	else if (error == -ENOENT)
 		nfs_dentry_handle_enoent(dentry);
-	unlock_kernel();
 
 	return error;
 }
@@ -1429,7 +1427,6 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 	dfprintk(VFS, "NFS: unlink(%s/%ld, %s)\n", dir->i_sb->s_id,
 		dir->i_ino, dentry->d_name.name);
 
-	lock_kernel();
 	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
 	if (atomic_read(&dentry->d_count) > 1) {
@@ -1437,6 +1434,7 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 		spin_unlock(&dcache_lock);
 		/* Start asynchronous writeout of the inode */
 		write_inode_now(dentry->d_inode, 0);
+		lock_kernel();
 		error = nfs_sillyrename(dir, dentry);
 		unlock_kernel();
 		return error;
@@ -1452,7 +1450,6 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	} else if (need_rehash)
 		d_rehash(dentry);
-	unlock_kernel();
 	return error;
 }
 
@@ -1587,7 +1584,6 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * To prevent any new references to the target during the rename,
 	 * we unhash the dentry and free the inode in advance.
 	 */
-	lock_kernel();
 	if (!d_unhashed(new_dentry)) {
 		d_drop(new_dentry);
 		rehash = new_dentry;
@@ -1621,7 +1617,9 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out;
 
 		/* silly-rename the existing target ... */
+		lock_kernel();
 		err = nfs_sillyrename(new_dir, new_dentry);
+		unlock_kernel();
 		if (!err) {
 			new_dentry = rehash = dentry;
 			new_inode = NULL;
@@ -1665,7 +1663,6 @@ out:
 	/* new dentry created? */
 	if (dentry)
 		dput(dentry);
-	unlock_kernel();
 	return error;
 }
 
