@@ -12,6 +12,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -102,7 +103,7 @@ static int qe_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	return 0;
 }
 
-void __init qe_add_gpiochips(void)
+static int __init qe_add_gpiochips(void)
 {
 	struct device_node *np;
 
@@ -143,4 +144,6 @@ err:
 		kfree(qe_gc);
 		/* try others anyway */
 	}
+	return 0;
 }
+arch_initcall(qe_add_gpiochips);
