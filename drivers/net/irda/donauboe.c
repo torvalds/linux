@@ -49,10 +49,6 @@
 /* Look at toshoboe.h (currently in include/net/irda) for details of */
 /* Where to get documentation on the chip         */
 
-
-static char *rcsid =
-  "$Id: donauboe.c V2.18 ven jan 10 03:14:16 2003$";
-
 /* See below for a description of the logic in this driver */
 
 /* User servicable parts */
@@ -1677,7 +1673,7 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
 
   pci_set_drvdata(pci_dev,self);
 
-  printk (KERN_INFO DRIVER_NAME ": Using multiple tasks, version %s\n", rcsid);
+  printk (KERN_INFO DRIVER_NAME ": Using multiple tasks\n");
 
   return 0;
 
