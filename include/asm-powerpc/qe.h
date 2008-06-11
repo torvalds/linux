@@ -84,7 +84,7 @@ static inline bool qe_clock_is_brg(enum qe_clock clk)
 extern spinlock_t cmxgcr_lock;
 
 /* Export QE common operations */
-extern void qe_reset(void);
+extern void __init qe_reset(void);
 
 /* QE PIO */
 #define QE_PIO_PINS 32

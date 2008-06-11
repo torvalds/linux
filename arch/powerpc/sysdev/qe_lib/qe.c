@@ -87,7 +87,7 @@ phys_addr_t get_qe_base(void)
 
 EXPORT_SYMBOL(get_qe_base);
 
-void qe_reset(void)
+void __init qe_reset(void)
 {
 	if (qe_immr == NULL)
 		qe_immr = ioremap(get_qe_base(), QE_IMMAP_SIZE);
