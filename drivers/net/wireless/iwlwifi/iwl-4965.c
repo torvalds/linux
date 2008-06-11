@@ -2388,7 +2388,7 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 	u32 print_dump = 0;	/* set to 1 to dump all frames' contents */
 	u32 hundred = 0;
 	u32 dataframe = 0;
-	u16 fc;
+	__le16 fc;
 	u16 seq_ctl;
 	u16 channel;
 	u16 phy_flags;
@@ -2411,7 +2411,7 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 		return;
 
 	/* MAC header */
-	fc = le16_to_cpu(header->frame_control);
+	fc = header->frame_control;
 	seq_ctl = le16_to_cpu(header->seq_ctrl);
 
 	/* metadata */
@@ -2436,8 +2436,8 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 
 	/* if data frame is to us and all is good,
 	 *   (optionally) print summary for only 1 out of every 100 */
-	if (to_us && (fc & ~IEEE80211_FCTL_PROTECTED) ==
-	    (IEEE80211_FCTL_FROMDS | IEEE80211_FTYPE_DATA)) {
+	if (to_us && (fc & ~cpu_to_le16(IEEE80211_FCTL_PROTECTED)) ==
+	    cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FTYPE_DATA)) {
 		dataframe = 1;
 		if (!group100)
 			print_summary = 1;	/* print each frame */
@@ -2461,13 +2461,13 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 
 		if (hundred)
 			title = "100Frames";
-		else if (fc & IEEE80211_FCTL_RETRY)
+		else if (ieee80211_has_retry(fc))
 			title = "Retry";
-		else if (ieee80211_is_assoc_response(fc))
+		else if (ieee80211_is_assoc_resp(fc))
 			title = "AscRsp";
-		else if (ieee80211_is_reassoc_response(fc))
+		else if (ieee80211_is_reassoc_resp(fc))
 			title = "RasRsp";
-		else if (ieee80211_is_probe_response(fc)) {
+		else if (ieee80211_is_probe_resp(fc)) {
 			title = "PrbRsp";
 			print_dump = 1;	/* dump frame contents */
 		} else if (ieee80211_is_beacon(fc)) {
@@ -2496,14 +2496,14 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 		if (dataframe)
 			IWL_DEBUG_RX("%s: mhd=0x%04x, dst=0x%02x, "
 				     "len=%u, rssi=%d, chnl=%d, rate=%u, \n",
-				     title, fc, header->addr1[5],
+				     title, le16_to_cpu(fc), header->addr1[5],
 				     length, rssi, channel, bitrate);
 		else {
 			/* src/dst addresses assume managed mode */
 			IWL_DEBUG_RX("%s: 0x%04x, dst=0x%02x, "
 				     "src=0x%02x, rssi=%u, tim=%lu usec, "
 				     "phy=0x%02x, chnl=%d\n",
-				     title, fc, header->addr1[5],
+				     title, le16_to_cpu(fc), header->addr1[5],
 				     header->addr3[5], rssi,
 				     tsf_low - priv->scan_start_tsf,
 				     phy_flags, channel);
@@ -3219,7 +3219,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	struct iwl4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->u.status);
 	int tid = MAX_TID_COUNT, sta_id = IWL_INVALID_STATION;
-	u16 fc;
+	__le16 fc;
 	struct ieee80211_hdr *hdr;
 	u8 *qc = NULL;
 
@@ -3235,9 +3235,9 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	memset(&info->status, 0, sizeof(info->status));
 
 	hdr = iwl_tx_queue_get_hdr(priv, txq_id, index);
-	fc = le16_to_cpu(hdr->frame_control);
-	if (ieee80211_is_qos_data(fc)) {
-		qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+	fc = hdr->frame_control;
+	if (ieee80211_is_data_qos(fc)) {
+		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	}
 

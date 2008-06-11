@@ -1252,7 +1252,6 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 	struct iwl5000_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le16_to_cpu(tx_resp->status.status);
 	int tid = MAX_TID_COUNT, sta_id = IWL_INVALID_STATION;
-	u16 fc;
 	struct ieee80211_hdr *hdr;
 	u8 *qc = NULL;
 
@@ -1268,9 +1267,8 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 	memset(&info->status, 0, sizeof(info->status));
 
 	hdr = iwl_tx_queue_get_hdr(priv, txq_id, index);
-	fc = le16_to_cpu(hdr->frame_control);
-	if (ieee80211_is_qos_data(fc)) {
-		qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	}
 

@@ -388,7 +388,7 @@ static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 	u32 print_dump = 0;	/* set to 1 to dump all frames' contents */
 	u32 hundred = 0;
 	u32 dataframe = 0;
-	u16 fc;
+	__le16 fc;
 	u16 seq_ctl;
 	u16 channel;
 	u16 phy_flags;
@@ -407,7 +407,7 @@ static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 	u8 *data = IWL_RX_DATA(pkt);
 
 	/* MAC header */
-	fc = le16_to_cpu(header->frame_control);
+	fc = header->frame_control;
 	seq_ctl = le16_to_cpu(header->seq_ctrl);
 
 	/* metadata */
@@ -431,8 +431,8 @@ static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 
 	/* if data frame is to us and all is good,
 	 *   (optionally) print summary for only 1 out of every 100 */
-	if (to_us && (fc & ~IEEE80211_FCTL_PROTECTED) ==
-	    (IEEE80211_FCTL_FROMDS | IEEE80211_FTYPE_DATA)) {
+	if (to_us && (fc & ~cpu_to_le16(IEEE80211_FCTL_PROTECTED)) ==
+	    cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FTYPE_DATA)) {
 		dataframe = 1;
 		if (!group100)
 			print_summary = 1;	/* print each frame */
@@ -455,13 +455,13 @@ static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 
 		if (hundred)
 			title = "100Frames";
-		else if (fc & IEEE80211_FCTL_RETRY)
+		else if (ieee80211_has_retry(fc))
 			title = "Retry";
-		else if (ieee80211_is_assoc_response(fc))
+		else if (ieee80211_is_assoc_resp(fc))
 			title = "AscRsp";
-		else if (ieee80211_is_reassoc_response(fc))
+		else if (ieee80211_is_reassoc_resp(fc))
 			title = "RasRsp";
-		else if (ieee80211_is_probe_response(fc)) {
+		else if (ieee80211_is_probe_resp(fc)) {
 			title = "PrbRsp";
 			print_dump = 1;	/* dump frame contents */
 		} else if (ieee80211_is_beacon(fc)) {
@@ -490,14 +490,14 @@ static void iwl3945_dbg_report_frame(struct iwl3945_priv *priv,
 		if (dataframe)
 			IWL_DEBUG_RX("%s: mhd=0x%04x, dst=0x%02x, "
 				     "len=%u, rssi=%d, chnl=%d, rate=%u, \n",
-				     title, fc, header->addr1[5],
+				     title, le16_to_cpu(fc), header->addr1[5],
 				     length, rssi, channel, rate);
 		else {
 			/* src/dst addresses assume managed mode */
 			IWL_DEBUG_RX("%s: 0x%04x, dst=0x%02x, "
 				     "src=0x%02x, rssi=%u, tim=%lu usec, "
 				     "phy=0x%02x, chnl=%d\n",
-				     title, fc, header->addr1[5],
+				     title, le16_to_cpu(fc), header->addr1[5],
 				     header->addr3[5], rssi,
 				     tsf_low - priv->scan_start_tsf,
 				     phy_flags, channel);
@@ -971,7 +971,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 	u8 rts_retry_limit;
 	u8 data_retry_limit;
 	__le32 tx_flags;
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 
 	rate = iwl3945_rates[rate_index].plcp;
 	tx_flags = cmd->cmd.tx.tx_flags;
@@ -996,7 +996,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 	else
 		rts_retry_limit = 7;
 
-	if (ieee80211_is_probe_response(fc)) {
+	if (ieee80211_is_probe_resp(fc)) {
 		data_retry_limit = 3;
 		if (data_retry_limit < rts_retry_limit)
 			rts_retry_limit = data_retry_limit;
@@ -1006,12 +1006,12 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 	if (priv->data_retry_limit != -1)
 		data_retry_limit = priv->data_retry_limit;
 
-	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
-		switch (fc & IEEE80211_FCTL_STYPE) {
-		case IEEE80211_STYPE_AUTH:
-		case IEEE80211_STYPE_DEAUTH:
-		case IEEE80211_STYPE_ASSOC_REQ:
-		case IEEE80211_STYPE_REASSOC_REQ:
+	if (ieee80211_is_mgmt(fc)) {
+		switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
+		case cpu_to_le16(IEEE80211_STYPE_AUTH):
+		case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
+		case cpu_to_le16(IEEE80211_STYPE_ASSOC_REQ):
+		case cpu_to_le16(IEEE80211_STYPE_REASSOC_REQ):
 			if (tx_flags & TX_CMD_FLG_RTS_MSK) {
 				tx_flags &= ~TX_CMD_FLG_RTS_MSK;
 				tx_flags |= TX_CMD_FLG_CTS_MSK;
