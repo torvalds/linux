@@ -129,7 +129,7 @@ nfs_file_open(struct inode *inode, struct file *filp)
 
 	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 	lock_kernel();
-	res = NFS_PROTO(inode)->file_open(inode, filp);
+	res = nfs_open(inode, filp);
 	unlock_kernel();
 	return res;
 }
@@ -147,7 +147,7 @@ nfs_file_release(struct inode *inode, struct file *filp)
 	if (filp->f_mode & FMODE_WRITE)
 		nfs_wb_all(dentry->d_inode);
 	nfs_inc_stats(inode, NFSIOS_VFSRELEASE);
-	return NFS_PROTO(inode)->file_release(inode, filp);
+	return nfs_release(inode, filp);
 }
 
 /**

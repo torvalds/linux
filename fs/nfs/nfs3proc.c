@@ -816,8 +816,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.write_done	= nfs3_write_done,
 	.commit_setup	= nfs3_proc_commit_setup,
 	.commit_done	= nfs3_commit_done,
-	.file_open	= nfs_open,
-	.file_release	= nfs_release,
 	.lock		= nfs3_proc_lock,
 	.clear_acl_cache = nfs3_forget_cached_acls,
 };

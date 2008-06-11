@@ -655,8 +655,6 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.write_setup	= nfs_proc_write_setup,
 	.write_done	= nfs_write_done,
 	.commit_setup	= nfs_proc_commit_setup,
-	.file_open	= nfs_open,
-	.file_release	= nfs_release,
 	.lock		= nfs_proc_lock,
 	.lock_check_bounds = nfs_lock_check_bounds,
 };

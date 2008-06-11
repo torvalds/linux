@@ -3714,8 +3714,6 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.write_done	= nfs4_write_done,
 	.commit_setup	= nfs4_proc_commit_setup,
 	.commit_done	= nfs4_commit_done,
-	.file_open      = nfs_open,
-	.file_release   = nfs_release,
 	.lock		= nfs4_proc_lock,
 	.clear_acl_cache = nfs4_zap_acl_attr,
 };
