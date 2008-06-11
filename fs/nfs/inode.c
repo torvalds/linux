@@ -370,7 +370,6 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if ((attr->ia_valid & ~ATTR_FILE) == 0)
 		return 0;
 
-	lock_kernel();
 	/* Write all dirty data */
 	if (S_ISREG(inode->i_mode)) {
 		filemap_write_and_wait(inode->i_mapping);
@@ -384,7 +383,6 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	error = NFS_PROTO(inode)->setattr(dentry, &fattr, attr);
 	if (error == 0)
 		nfs_refresh_inode(inode, &fattr);
-	unlock_kernel();
 	return error;
 }
 
@@ -700,7 +698,6 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		inode->i_sb->s_id, (long long)NFS_FILEID(inode));
 
 	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
-	lock_kernel();
 	if (is_bad_inode(inode))
  		goto out_nowait;
 	if (NFS_STALE(inode))
@@ -749,7 +746,6 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	nfs_wake_up_inode(inode);
 
  out_nowait:
-	unlock_kernel();
 	return status;
 }
 

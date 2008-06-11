@@ -374,8 +374,6 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	};
 	int error;
 
-	lock_kernel();
-
 	error = server->nfs_client->rpc_ops->statfs(server, fh, &res);
 	if (error < 0)
 		goto out_err;
@@ -407,12 +405,10 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	buf->f_namelen = server->namelen;
 
-	unlock_kernel();
 	return 0;
 
  out_err:
 	dprintk("%s: statfs error = %d\n", __func__, -error);
-	unlock_kernel();
 	return error;
 }
 
