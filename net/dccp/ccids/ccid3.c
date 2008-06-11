@@ -329,8 +329,14 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
 			hctx->ccid3hctx_t_ld = now;
 		} else {
-			/* Sender does not have RTT sample: X_pps = 1 pkt/sec */
-			hctx->ccid3hctx_x = hctx->ccid3hctx_s;
+			/*
+			 * Sender does not have RTT sample:
+			 * - set fallback RTT (RFC 4340, 3.4) since a RTT value
+			 *   is needed in several parts (e.g.  window counter);
+			 * - set sending rate X_pps = 1pps as per RFC 3448, 4.2.
+			 */
+			hctx->ccid3hctx_rtt = DCCP_FALLBACK_RTT;
+			hctx->ccid3hctx_x   = hctx->ccid3hctx_s;
 			hctx->ccid3hctx_x <<= 6;
 		}
 		ccid3_update_send_interval(hctx);
