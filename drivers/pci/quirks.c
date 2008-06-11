@@ -1365,6 +1365,34 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260b, quirk_intel_pcie_pm);
 
 #ifdef CONFIG_X86_IO_APIC
 /*
+ * Boot interrupts on some chipsets cannot be turned off. For these chipsets,
+ * remap the original interrupt in the linux kernel to the boot interrupt, so
+ * that a PCI device's interrupt handler is installed on the boot interrupt
+ * line instead.
+ */
+static void quirk_reroute_to_boot_interrupts_intel(struct pci_dev *dev)
+{
+	int i;
+
+	if (noioapicquirk)
+		return;
+
+	dev->irq_reroute_variant = INTEL_IRQ_REROUTE_VARIANT;
+
+	printk(KERN_INFO "PCI quirk: reroute interrupts for 0x%04x:0x%04x\n",
+			dev->vendor, dev->device);
+	return;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_80333_0,	quirk_reroute_to_boot_interrupts_intel);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_80333_1,	quirk_reroute_to_boot_interrupts_intel);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ESB2_0,	quirk_reroute_to_boot_interrupts_intel);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_PXH_0,	quirk_reroute_to_boot_interrupts_intel);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_PXH_1,	quirk_reroute_to_boot_interrupts_intel);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_PXHV,	quirk_reroute_to_boot_interrupts_intel);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_80332_0,	quirk_reroute_to_boot_interrupts_intel);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_80332_1,	quirk_reroute_to_boot_interrupts_intel);
+
+/*
  * On some chipsets we can disable the generation of legacy INTx boot
  * interrupts.
  */
