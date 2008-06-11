@@ -1792,6 +1792,12 @@ P:	David Howells
 M:	dhowells@redhat.com
 S:	Maintained
 
+FUJITSU LAPTOP EXTRAS
+P:	Jonathan Woithe
+M:	jwoithe@physics.adelaide.edu.au
+L:	linux-acpi@vger.kernel.org
+S:	Maintained
+
 FUSE: FILESYSTEM IN USERSPACE
 P:	Miklos Szeredi
 M:	miklos@szeredi.hu
