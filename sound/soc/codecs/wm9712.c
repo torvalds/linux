@@ -22,6 +22,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include "wm9712.h"
 
 #define WM9712_VERSION "0.4"
 

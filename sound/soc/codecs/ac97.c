@@ -21,6 +21,7 @@
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include "ac97.h"
 
 #define AC97_VERSION "0.6"
 
