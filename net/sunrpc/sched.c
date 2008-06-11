@@ -576,9 +576,7 @@ EXPORT_SYMBOL_GPL(rpc_delay);
  */
 static void rpc_prepare_task(struct rpc_task *task)
 {
-	lock_kernel();
 	task->tk_ops->rpc_call_prepare(task, task->tk_calldata);
-	unlock_kernel();
 }
 
 /*
@@ -588,9 +586,7 @@ void rpc_exit_task(struct rpc_task *task)
 {
 	task->tk_action = NULL;
 	if (task->tk_ops->rpc_call_done != NULL) {
-		lock_kernel();
 		task->tk_ops->rpc_call_done(task, task->tk_calldata);
-		unlock_kernel();
 		if (task->tk_action != NULL) {
 			WARN_ON(RPC_ASSASSINATED(task));
 			/* Always release the RPC slot and buffer memory */
@@ -602,11 +598,8 @@ EXPORT_SYMBOL_GPL(rpc_exit_task);
 
 void rpc_release_calldata(const struct rpc_call_ops *ops, void *calldata)
 {
-	if (ops->rpc_release != NULL) {
-		lock_kernel();
+	if (ops->rpc_release != NULL)
 		ops->rpc_release(calldata);
-		unlock_kernel();
-	}
 }
 
 /*
