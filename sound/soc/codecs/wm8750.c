@@ -798,7 +798,7 @@ static int wm8750_init(struct snd_soc_device *socdev)
 	codec->set_bias_level = wm8750_set_bias_level;
 	codec->dai = &wm8750_dai;
 	codec->num_dai = 1;
-	codec->reg_cache_size = sizeof(wm8750_reg);
+	codec->reg_cache_size = ARRAY_SIZE(wm8750_reg);
 	codec->reg_cache = kmemdup(wm8750_reg, sizeof(wm8750_reg), GFP_KERNEL);
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;

@@ -1557,7 +1557,7 @@ static int wm8753_init(struct snd_soc_device *socdev)
 	codec->set_bias_level = wm8753_set_bias_level;
 	codec->dai = wm8753_dai;
 	codec->num_dai = 2;
-	codec->reg_cache_size = sizeof(wm8753_reg);
+	codec->reg_cache_size = ARRAY_SIZE(wm8753_reg);
 	codec->reg_cache = kmemdup(wm8753_reg, sizeof(wm8753_reg), GFP_KERNEL);
 
 	if (codec->reg_cache == NULL)
