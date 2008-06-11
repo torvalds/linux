@@ -870,6 +870,14 @@ static int nfs_dentry_delete(struct dentry *dentry)
 
 }
 
+static void nfs_drop_nlink(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	if (inode->i_nlink > 0)
+		drop_nlink(inode);
+	spin_unlock(&inode->i_lock);
+}
+
 /*
  * Called when the dentry loses inode.
  * We use it to clean up silly-renamed files.
@@ -1420,7 +1428,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 		/* The VFS may want to delete this inode */
 		if (error == 0)
-			drop_nlink(inode);
+			nfs_drop_nlink(inode);
 		nfs_mark_for_revalidate(inode);
 	} else
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
@@ -1647,7 +1655,7 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			/* dentry still busy? */
 			goto out;
 	} else
-		drop_nlink(new_inode);
+		nfs_drop_nlink(new_inode);
 
 go_ahead:
 	/*
