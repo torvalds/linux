@@ -295,7 +295,8 @@ static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static int davinci_i2s_probe(struct platform_device *pdev)
+static int davinci_i2s_probe(struct platform_device *pdev,
+			     struct snd_soc_cpu_dai *dai)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_machine *machine = socdev->machine;
@@ -356,7 +357,8 @@ err_release_region:
 	return ret;
 }
 
-static void davinci_i2s_remove(struct platform_device *pdev)
+static void davinci_i2s_remove(struct platform_device *pdev,
+			       struct snd_soc_cpu_dai *dai)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_machine *machine = socdev->machine;

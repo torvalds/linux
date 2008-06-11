@@ -358,8 +358,10 @@ struct snd_soc_cpu_dai {
 	unsigned char type;
 
 	/* DAI callbacks */
-	int (*probe)(struct platform_device *pdev);
-	void (*remove)(struct platform_device *pdev);
+	int (*probe)(struct platform_device *pdev,
+		     struct snd_soc_cpu_dai *dai);
+	void (*remove)(struct platform_device *pdev,
+		       struct snd_soc_cpu_dai *dai);
 	int (*suspend)(struct platform_device *pdev,
 		struct snd_soc_cpu_dai *cpu_dai);
 	int (*resume)(struct platform_device *pdev,

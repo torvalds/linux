@@ -209,7 +209,8 @@ static struct s3c24xx_pcm_dma_params s3c2443_ac97_mic_mono_in = {
 	.dma_size	= 4,
 };
 
-static int s3c2443_ac97_probe(struct platform_device *pdev)
+static int s3c2443_ac97_probe(struct platform_device *pdev,
+			      struct snd_soc_cpu_dai *dai)
 {
 	int ret;
 	u32 ac_glbctrl;
@@ -260,7 +261,8 @@ static int s3c2443_ac97_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static void s3c2443_ac97_remove(struct platform_device *pdev)
+static void s3c2443_ac97_remove(struct platform_device *pdev,
+				struct snd_soc_cpu_dai *dai)
 {
 	free_irq(IRQ_S3C244x_AC97, NULL);
 	clk_disable(s3c24xx_ac97.ac97_clk);

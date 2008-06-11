@@ -377,7 +377,8 @@ u32 s3c24xx_i2s_get_clockrate(void)
 }
 EXPORT_SYMBOL_GPL(s3c24xx_i2s_get_clockrate);
 
-static int s3c24xx_i2s_probe(struct platform_device *pdev)
+static int s3c24xx_i2s_probe(struct platform_device *pdev,
+			     struct snd_soc_cpu_dai *dai)
 {
 	DBG("Entered %s\n", __func__);
 

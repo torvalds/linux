@@ -768,7 +768,7 @@ static int soc_probe(struct platform_device *pdev)
 	for (i = 0; i < machine->num_links; i++) {
 		struct snd_soc_cpu_dai *cpu_dai = machine->dai_link[i].cpu_dai;
 		if (cpu_dai->probe) {
-			ret = cpu_dai->probe(pdev);
+			ret = cpu_dai->probe(pdev, cpu_dai);
 			if (ret < 0)
 				goto cpu_dai_err;
 		}
@@ -798,7 +798,7 @@ cpu_dai_err:
 	for (i--; i >= 0; i--) {
 		struct snd_soc_cpu_dai *cpu_dai = machine->dai_link[i].cpu_dai;
 		if (cpu_dai->remove)
-			cpu_dai->remove(pdev);
+			cpu_dai->remove(pdev, cpu_dai);
 	}
 
 	if (machine->remove)
@@ -827,7 +827,7 @@ static int soc_remove(struct platform_device *pdev)
 	for (i = 0; i < machine->num_links; i++) {
 		struct snd_soc_cpu_dai *cpu_dai = machine->dai_link[i].cpu_dai;
 		if (cpu_dai->remove)
-			cpu_dai->remove(pdev);
+			cpu_dai->remove(pdev, cpu_dai);
 	}
 
 	if (machine->remove)

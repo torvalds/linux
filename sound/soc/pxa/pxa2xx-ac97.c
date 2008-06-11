@@ -310,7 +310,8 @@ static int pxa2xx_ac97_resume(struct platform_device *pdev,
 #define pxa2xx_ac97_resume	NULL
 #endif
 
-static int pxa2xx_ac97_probe(struct platform_device *pdev)
+static int pxa2xx_ac97_probe(struct platform_device *pdev,
+			     struct snd_soc_cpu_dai *dai)
 {
 	int ret;
 
