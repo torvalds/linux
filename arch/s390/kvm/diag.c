@@ -20,7 +20,7 @@ static int __diag_time_slice_end(struct kvm_vcpu *vcpu)
 	VCPU_EVENT(vcpu, 5, "%s", "diag time slice end");
 	vcpu->stat.diagnose_44++;
 	vcpu_put(vcpu);
-	schedule();
+	yield();
 	vcpu_load(vcpu);
 	return 0;
 }
