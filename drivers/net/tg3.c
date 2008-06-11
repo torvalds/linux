@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.92"
-#define DRV_MODULE_RELDATE	"May 2, 2008"
+#define DRV_MODULE_VERSION	"3.92.1"
+#define DRV_MODULE_RELDATE	"June 9, 2008"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -1295,6 +1295,21 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 				     GRC_LCLCTRL_GPIO_OUTPUT0 |
 				     GRC_LCLCTRL_GPIO_OUTPUT1),
 				    100);
+		} else if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761) {
+			/* The 5761 non-e device swaps GPIO 0 and GPIO 2. */
+			u32 grc_local_ctrl = GRC_LCLCTRL_GPIO_OE0 |
+					     GRC_LCLCTRL_GPIO_OE1 |
+					     GRC_LCLCTRL_GPIO_OE2 |
+					     GRC_LCLCTRL_GPIO_OUTPUT0 |
+					     GRC_LCLCTRL_GPIO_OUTPUT1 |
+					     tp->grc_local_ctrl;
+			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
+
+			grc_local_ctrl |= GRC_LCLCTRL_GPIO_OUTPUT2;
+			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
+
+			grc_local_ctrl &= ~GRC_LCLCTRL_GPIO_OUTPUT0;
+			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
 		} else {
 			u32 no_gpio2;
 			u32 grc_local_ctrl = 0;
@@ -3168,8 +3183,7 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 	err |= tg3_readphy(tp, MII_BMCR, &bmcr);
 
 	if ((tp->link_config.autoneg == AUTONEG_ENABLE) && !force_reset &&
-	    (tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT) &&
-	     tp->link_config.flowctrl == tp->link_config.active_flowctrl) {
+	    (tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT)) {
 		/* do nothing, just check for link up at the end */
 	} else if (tp->link_config.autoneg == AUTONEG_ENABLE) {
 		u32 adv, new_adv;
@@ -8599,7 +8613,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		   (cmd->speed == SPEED_1000))
 		return -EINVAL;
 	else if ((cmd->speed == SPEED_1000) &&
-		 (tp->tg3_flags2 & TG3_FLAG_10_100_ONLY))
+		 (tp->tg3_flags & TG3_FLAG_10_100_ONLY))
 		return -EINVAL;
 
 	tg3_full_lock(tp, 0);
@@ -11767,6 +11781,15 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
 		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_UART_SEL;
+
+	if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761) {
+		/* Turn off the debug UART. */
+		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_UART_SEL;
+		if (tp->tg3_flags2 & TG3_FLG2_IS_NIC)
+			/* Keep VMain power. */
+			tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE0 |
+					      GRC_LCLCTRL_GPIO_OUTPUT0;
+	}
 
 	/* Force the chip into D0. */
 	err = tg3_set_power_state(tp, PCI_D0);

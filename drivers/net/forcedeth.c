@@ -3273,6 +3273,20 @@ static void nv_link_irq(struct net_device *dev)
 	dprintk(KERN_DEBUG "%s: link change notification done.\n", dev->name);
 }
 
+static void nv_msi_workaround(struct fe_priv *np)
+{
+
+	/* Need to toggle the msi irq mask within the ethernet device,
+	 * otherwise, future interrupts will not be detected.
+	 */
+	if (np->msi_flags & NV_MSI_ENABLED) {
+		u8 __iomem *base = np->base;
+
+		writel(0, base + NvRegMSIIrqMask);
+		writel(NVREG_MSI_VECTOR_0_ENABLED, base + NvRegMSIIrqMask);
+	}
+}
+
 static irqreturn_t nv_nic_irq(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
@@ -3294,6 +3308,8 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
+
+		nv_msi_workaround(np);
 
 		spin_lock(&np->lock);
 		nv_tx_done(dev);
@@ -3409,6 +3425,8 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
+
+		nv_msi_workaround(np);
 
 		spin_lock(&np->lock);
 		nv_tx_done_optimized(dev, TX_WORK_PER_LOOP);
@@ -3749,6 +3767,8 @@ static irqreturn_t nv_nic_irq_test(int foo, void *data)
 	dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 	if (!(events & NVREG_IRQ_TIMER))
 		return IRQ_RETVAL(0);
+
+	nv_msi_workaround(np);
 
 	spin_lock(&np->lock);
 	np->intr_test = 1;

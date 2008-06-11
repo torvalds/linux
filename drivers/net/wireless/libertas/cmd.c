@@ -1842,6 +1842,9 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
+	/* We don't get a response on the sleep-confirmation */
+	priv->dnld_sent = DNLD_RES_RECEIVED;
+
 	/* If nothing to do, go back to sleep (?) */
 	if (!__kfifo_len(priv->event_fifo) && !priv->resp_len[priv->resp_idx])
 		priv->psstate = PS_STATE_SLEEP;
@@ -1904,12 +1907,12 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
+	spin_lock_irqsave(&priv->driver_lock, flags);
 	if (priv->dnld_sent) {
 		allowed = 0;
 		lbs_deb_host("dnld_sent was set\n");
 	}
 
-	spin_lock_irqsave(&priv->driver_lock, flags);
 	/* In-progress command? */
 	if (priv->cur_cmd) {
 		allowed = 0;

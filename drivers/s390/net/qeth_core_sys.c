@@ -129,7 +129,6 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 
 	portno = simple_strtoul(buf, &tmp, 16);
 	if (portno > QETH_MAX_PORTNO) {
-		PRINT_WARN("portno 0x%X is out of range\n", portno);
 		return -EINVAL;
 	}
 
@@ -223,8 +222,6 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 	 * if though we have to permit priority queueing
 	 */
 	if (card->qdio.no_out_queues == 1) {
-		PRINT_WARN("Priority queueing disabled due "
-			   "to hardware limitations!\n");
 		card->qdio.do_prio_queueing = QETH_PRIOQ_DEFAULT;
 		return -EPERM;
 	}
@@ -250,7 +247,6 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
 	} else {
-		PRINT_WARN("Unknown queueing type '%s'\n", tmp);
 		return -EINVAL;
 	}
 	return count;
@@ -291,9 +287,6 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 		((cnt > QETH_IN_BUF_COUNT_MAX) ? QETH_IN_BUF_COUNT_MAX : cnt);
 	if (old_cnt != cnt) {
 		rc = qeth_realloc_buffer_pool(card, cnt);
-		if (rc)
-			PRINT_WARN("Error (%d) while setting "
-				   "buffer count.\n", rc);
 	}
 	return count;
 }
@@ -355,7 +348,6 @@ static ssize_t qeth_dev_performance_stats_store(struct device *dev,
 		card->perf_stats.initial_rx_packets = card->stats.rx_packets;
 		card->perf_stats.initial_tx_packets = card->stats.tx_packets;
 	} else {
-		PRINT_WARN("performance_stats: write 0 or 1 to this file!\n");
 		return -EINVAL;
 	}
 	return count;
@@ -399,7 +391,6 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		newdis = QETH_DISCIPLINE_LAYER2;
 		break;
 	default:
-		PRINT_WARN("layer2: write 0 or 1 to this file!\n");
 		return -EINVAL;
 	}
 
@@ -463,7 +454,6 @@ static ssize_t qeth_dev_large_send_store(struct device *dev,
 	} else if (!strcmp(tmp, "TSO")) {
 		type = QETH_LARGE_SEND_TSO;
 	} else {
-		PRINT_WARN("large_send: invalid mode %s!\n", tmp);
 		return -EINVAL;
 	}
 	if (card->options.large_send == type)
@@ -503,8 +493,6 @@ static ssize_t qeth_dev_blkt_store(struct qeth_card *card,
 	if (i <= max_value) {
 		*value = i;
 	} else {
-		PRINT_WARN("blkt total time: write values between"
-			   " 0 and %d to this file!\n", max_value);
 		return -EINVAL;
 	}
 	return count;

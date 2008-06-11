@@ -637,22 +637,6 @@ static s32 atl1_phy_leave_power_saving(struct atl1_hw *hw)
 }
 
 /*
- * Force the PHY into power saving mode using vendor magic.
- */
-#ifdef CONFIG_PM
-static void atl1_phy_enter_power_saving(struct atl1_hw *hw)
-{
-	atl1_write_phy_reg(hw, MII_DBG_ADDR, 0);
-	atl1_write_phy_reg(hw, MII_DBG_DATA, 0x124E);
-	atl1_write_phy_reg(hw, MII_DBG_ADDR, 2);
-	atl1_write_phy_reg(hw, MII_DBG_DATA, 0x3000);
-	atl1_write_phy_reg(hw, MII_DBG_ADDR, 3);
-	atl1_write_phy_reg(hw, MII_DBG_DATA, 0);
-
-}
-#endif
-
-/*
  * Resets the PHY and make all config validate
  * hw - Struct containing variables accessed by shared code
  *
@@ -2860,7 +2844,6 @@ disable_wol:
 	ctrl |= PCIE_PHYMISC_FORCE_RCV_DET;
 	iowrite32(ctrl, hw->hw_addr + REG_PCIE_PHYMISC);
 	ioread32(hw->hw_addr + REG_PCIE_PHYMISC);
-	atl1_phy_enter_power_saving(hw);
 	hw->phy_configured = false;
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
 exit:

@@ -433,7 +433,6 @@ extern struct sk_buff *		tcp_make_synack(struct sock *sk,
 
 extern int			tcp_disconnect(struct sock *sk, int flags);
 
-extern void			tcp_unhash(struct sock *sk);
 
 /* From syncookies.c */
 extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
