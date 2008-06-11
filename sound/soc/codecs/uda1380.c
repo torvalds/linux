@@ -655,8 +655,8 @@ static int uda1380_init(struct snd_soc_device *socdev, int dac_clk)
 				   GFP_KERNEL);
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
-	codec->reg_cache_size = sizeof(uda1380_reg);
-	codec->reg_cache_step = 2;
+	codec->reg_cache_size = ARRAY_SIZE(uda1380_reg);
+	codec->reg_cache_step = 1;
 	uda1380_reset(codec);
 
 	/* register pcms */
