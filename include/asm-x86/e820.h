@@ -69,6 +69,8 @@ extern u64 e820_update_range(u64 start, u64 size, unsigned old_type,
 			       unsigned new_type);
 extern void update_e820(void);
 extern void e820_setup_gap(void);
+struct setup_data;
+extern void parse_e820_ext(struct setup_data *data, unsigned long pa_data);
 
 #if defined(CONFIG_X86_64) || \
 	(defined(CONFIG_X86_32) && defined(CONFIG_HIBERNATION))

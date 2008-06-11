@@ -359,6 +359,26 @@ static struct e820entry new_bios[E820_X_MAX] __initdata;
 	return 0;
 }
 
+static int __init __copy_e820_map(struct e820entry *biosmap, int nr_map)
+{
+	while (nr_map) {
+		u64 start = biosmap->addr;
+		u64 size = biosmap->size;
+		u64 end = start + size;
+		u32 type = biosmap->type;
+
+		/* Overflow in 64 bits? Ignore the memory map. */
+		if (start > end)
+			return -1;
+
+		e820_add_region(start, size, type);
+
+		biosmap++;
+		nr_map--;
+	}
+	return 0;
+}
+
 /*
  * Copy the BIOS e820 map into a safe place.
  *
@@ -374,19 +394,7 @@ int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 	if (nr_map < 2)
 		return -1;
 
-	do {
-		u64 start = biosmap->addr;
-		u64 size = biosmap->size;
-		u64 end = start + size;
-		u32 type = biosmap->type;
-
-		/* Overflow in 64 bits? Ignore the memory map. */
-		if (start > end)
-			return -1;
-
-		e820_add_region(start, size, type);
-	} while (biosmap++, --nr_map);
-	return 0;
+	return __copy_e820_map(biosmap, nr_map);
 }
 
 u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
@@ -494,6 +502,31 @@ __init void e820_setup_gap(void)
 	printk(KERN_INFO
 	       "Allocating PCI resources starting at %lx (gap: %lx:%lx)\n",
 	       pci_mem_start, gapstart, gapsize);
+}
+
+/**
+ * Because of the size limitation of struct boot_params, only first
+ * 128 E820 memory entries are passed to kernel via
+ * boot_params.e820_map, others are passed via SETUP_E820_EXT node of
+ * linked list of struct setup_data, which is parsed here.
+ */
+void __init parse_e820_ext(struct setup_data *sdata, unsigned long pa_data)
+{
+	u32 map_len;
+	int entries;
+	struct e820entry *extmap;
+
+	entries = sdata->len / sizeof(struct e820entry);
+	map_len = sdata->len + sizeof(struct setup_data);
+	if (map_len > PAGE_SIZE)
+		sdata = early_ioremap(pa_data, map_len);
+	extmap = (struct e820entry *)(sdata->data);
+	__copy_e820_map(extmap, entries);
+	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	if (map_len > PAGE_SIZE)
+		early_iounmap(sdata, map_len);
+	printk(KERN_INFO "extended physical RAM map:\n");
+	e820_print_map("extended");
 }
 
 #if defined(CONFIG_X86_64) || \

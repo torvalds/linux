@@ -150,6 +150,9 @@ void __init parse_setup_data(void)
 	while (pa_data) {
 		data = early_ioremap(pa_data, PAGE_SIZE);
 		switch (data->type) {
+		case SETUP_E820_EXT:
+			parse_e820_ext(data, pa_data);
+			break;
 		default:
 			break;
 		}
