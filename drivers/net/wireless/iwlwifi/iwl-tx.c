@@ -590,7 +590,7 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 
 
 	tx_cmd->sta_id = std_id;
-	if (ieee80211_get_morefrag(hdr))
+	if (ieee80211_has_morefrags(fc))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG_MSK;
 
 	if (ieee80211_is_data_qos(fc)) {
@@ -944,7 +944,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
 
-	if (!ieee80211_get_morefrag(hdr)) {
+	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
 		if (qc)
 			priv->stations[sta_id].tid[tid].seq_number = seq_number;

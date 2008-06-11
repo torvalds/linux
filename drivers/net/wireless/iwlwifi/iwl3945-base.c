@@ -2448,7 +2448,7 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 	}
 
 	cmd->cmd.tx.sta_id = std_id;
-	if (ieee80211_get_morefrag(hdr))
+	if (ieee80211_has_morefrags(fc))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG_MSK;
 
 	if (ieee80211_is_data_qos(fc)) {
@@ -2731,7 +2731,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 	out_cmd->cmd.tx.tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	out_cmd->cmd.tx.tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
 
-	if (!ieee80211_get_morefrag(hdr)) {
+	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
 		if (qc) {
 			priv->stations[sta_id].tid[tid].seq_number = seq_number;

@@ -181,7 +181,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	flags |= RTL8187_TX_FLAG_NO_ENCRYPT;
 
 	flags |= ieee80211_get_tx_rate(dev, info)->hw_value << 24;
-	if (ieee80211_get_morefrag((struct ieee80211_hdr *)skb->data))
+	if (ieee80211_has_morefrags(((struct ieee80211_hdr *)skb->data)->frame_control))
 		flags |= RTL8187_TX_FLAG_MORE_FRAG;
 	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
 		flags |= RTL8187_TX_FLAG_RTS;

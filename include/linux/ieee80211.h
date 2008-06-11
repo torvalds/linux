@@ -956,18 +956,4 @@ static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
 		return hdr->addr1;
 }
 
-/**
- * ieee80211_get_morefrag - determine whether the MOREFRAGS bit is set
- *
- * This function determines whether the "more fragments" bit is set
- * in the frame.
- *
- * @hdr: the frame
- */
-static inline int ieee80211_get_morefrag(struct ieee80211_hdr *hdr)
-{
-	__le16 fc = hdr->frame_control;
-	return !!(fc & cpu_to_le16(IEEE80211_FCTL_MOREFRAGS));
-}
-
 #endif /* IEEE80211_H */
