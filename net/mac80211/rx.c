@@ -67,12 +67,9 @@ static inline int should_drop_frame(struct ieee80211_rx_status *status,
 		return 1;
 	if (unlikely(skb->len < 16 + present_fcs_len + radiotap_len))
 		return 1;
-	if (((hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
-			cpu_to_le16(IEEE80211_FTYPE_CTL)) &&
-	    ((hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_STYPE)) !=
-			cpu_to_le16(IEEE80211_STYPE_PSPOLL)) &&
-	    ((hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_STYPE)) !=
-			cpu_to_le16(IEEE80211_STYPE_BACK_REQ)))
+	if (ieee80211_is_ctl(hdr->frame_control) &&
+	    !ieee80211_is_pspoll(hdr->frame_control) &&
+	    !ieee80211_is_back_req(hdr->frame_control))
 		return 1;
 	return 0;
 }
@@ -2118,7 +2115,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct sta_info *sta;
 	struct tid_ampdu_rx *tid_agg_rx;
-	u16 fc, sc;
+	u16 sc;
 	u16 mpdu_seq_num;
 	u8 ret = 0, *qc;
 	int tid;
@@ -2127,14 +2124,12 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	if (!sta)
 		return ret;
 
-	fc = le16_to_cpu(hdr->frame_control);
-
 	/* filter the QoS data rx stream according to
 	 * STA/TID and check if this STA/TID is on aggregation */
-	if (!WLAN_FC_IS_QOS_DATA(fc))
+	if (!ieee80211_is_data_qos(hdr->frame_control))
 		goto end_reorder;
 
-	qc = skb->data + ieee80211_get_hdrlen(fc) - QOS_CONTROL_LEN;
+	qc = ieee80211_get_qos_ctl(hdr);
 	tid = qc[0] & QOS_CONTROL_TID_MASK;
 
 	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_OPERATIONAL)
@@ -2143,7 +2138,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	tid_agg_rx = sta->ampdu_mlme.tid_rx[tid];
 
 	/* null data frames are excluded */
-	if (unlikely(fc & IEEE80211_STYPE_NULLFUNC))
+	if (unlikely(ieee80211_is_nullfunc(hdr->frame_control)))
 		goto end_reorder;
 
 	/* new un-ordered ampdu frame - process it */
