@@ -16,10 +16,17 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/version.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/freezer.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+# include <linux/freezer.h>
+#else
+# include <linux/sched.h>
+#endif
+
 #include "async-thread.h"
 
 /*
