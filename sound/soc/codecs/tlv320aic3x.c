@@ -1021,7 +1021,7 @@ static int aic3x_init(struct snd_soc_device *socdev)
 	codec->set_bias_level = aic3x_set_bias_level;
 	codec->dai = &aic3x_dai;
 	codec->num_dai = 1;
-	codec->reg_cache_size = sizeof(aic3x_reg);
+	codec->reg_cache_size = ARRAY_SIZE(aic3x_reg);
 	codec->reg_cache = kmemdup(aic3x_reg, sizeof(aic3x_reg), GFP_KERNEL);
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
