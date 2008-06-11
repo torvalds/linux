@@ -1482,13 +1482,9 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 	attr.ia_mode = S_IFLNK | S_IRWXUGO;
 	attr.ia_valid = ATTR_MODE;
 
-	lock_kernel();
-
 	page = alloc_page(GFP_HIGHUSER);
-	if (!page) {
-		unlock_kernel();
+	if (!page)
 		return -ENOMEM;
-	}
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	memcpy(kaddr, symname, pathlen);
@@ -1503,7 +1499,6 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 			dentry->d_name.name, symname, error);
 		d_drop(dentry);
 		__free_page(page);
-		unlock_kernel();
 		return error;
 	}
 
@@ -1521,7 +1516,6 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 	} else
 		__free_page(page);
 
-	unlock_kernel();
 	return 0;
 }
 
