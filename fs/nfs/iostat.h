@@ -19,7 +19,7 @@ struct nfs_iostats {
 	unsigned long		events[__NFSIOS_COUNTSMAX];
 } ____cacheline_aligned;
 
-static inline void nfs_inc_server_stats(struct nfs_server *server,
+static inline void nfs_inc_server_stats(const struct nfs_server *server,
 					enum nfs_stat_eventcounters stat)
 {
 	struct nfs_iostats *iostats;
@@ -31,13 +31,13 @@ static inline void nfs_inc_server_stats(struct nfs_server *server,
 	put_cpu_no_resched();
 }
 
-static inline void nfs_inc_stats(struct inode *inode,
+static inline void nfs_inc_stats(const struct inode *inode,
 				 enum nfs_stat_eventcounters stat)
 {
 	nfs_inc_server_stats(NFS_SERVER(inode), stat);
 }
 
-static inline void nfs_add_server_stats(struct nfs_server *server,
+static inline void nfs_add_server_stats(const struct nfs_server *server,
 					enum nfs_stat_bytecounters stat,
 					unsigned long addend)
 {
@@ -50,7 +50,7 @@ static inline void nfs_add_server_stats(struct nfs_server *server,
 	put_cpu_no_resched();
 }
 
-static inline void nfs_add_stats(struct inode *inode,
+static inline void nfs_add_stats(const struct inode *inode,
 				 enum nfs_stat_bytecounters stat,
 				 unsigned long addend)
 {
