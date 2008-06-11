@@ -1232,14 +1232,11 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	if ((nd->flags & LOOKUP_CREATE) != 0)
 		open_flags = nd->intent.open.flags;
 
-	lock_kernel();
 	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, nd);
 	if (error != 0)
 		goto out_err;
-	unlock_kernel();
 	return 0;
 out_err:
-	unlock_kernel();
 	d_drop(dentry);
 	return error;
 }
@@ -1262,14 +1259,11 @@ nfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	attr.ia_mode = mode;
 	attr.ia_valid = ATTR_MODE;
 
-	lock_kernel();
 	status = NFS_PROTO(dir)->mknod(dir, dentry, &attr, rdev);
 	if (status != 0)
 		goto out_err;
-	unlock_kernel();
 	return 0;
 out_err:
-	unlock_kernel();
 	d_drop(dentry);
 	return status;
 }
@@ -1288,15 +1282,12 @@ static int nfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	attr.ia_valid = ATTR_MODE;
 	attr.ia_mode = mode | S_IFDIR;
 
-	lock_kernel();
 	error = NFS_PROTO(dir)->mkdir(dir, dentry, &attr);
 	if (error != 0)
 		goto out_err;
-	unlock_kernel();
 	return 0;
 out_err:
 	d_drop(dentry);
-	unlock_kernel();
 	return error;
 }
 
