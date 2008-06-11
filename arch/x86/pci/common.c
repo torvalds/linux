@@ -22,6 +22,7 @@ unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 
 static int pci_bf_sort;
 int pci_routeirq;
+int noioapicquirk;
 int pcibios_last_bus = -1;
 unsigned long pirq_table_addr;
 struct pci_bus *pci_root_bus;
@@ -494,6 +495,9 @@ char * __devinit  pcibios_setup(char *str)
 		return NULL;
 	} else if (!strcmp(str, "skip_isa_align")) {
 		pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
+		return NULL;
+	} else if (!strcmp(str, "noioapicquirk")) {
+		noioapicquirk = 1;
 		return NULL;
 	}
 	return str;
