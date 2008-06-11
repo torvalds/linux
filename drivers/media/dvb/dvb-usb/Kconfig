@@ -244,6 +244,7 @@ config DVB_USB_AF9005_REMOTE
 config DVB_USB_ANYSEE
 	tristate "Anysee DVB-T/C USB2.0 support"
 	depends on DVB_USB
+	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select DVB_TDA10023 if !DVB_FE_CUSTOMISE

@@ -23,8 +23,8 @@
  * Card reader in Anysee is nothing more than ISO 7816 card reader.
  * There is no hardware CAM in any Anysee device sold.
  * In my understanding it should be implemented by making own module
- * for ISO 7816 card reader, like dvb_ca_en50221 is implented. This
- * module registers serial interface that can be used to comminicate
+ * for ISO 7816 card reader, like dvb_ca_en50221 is implemented. This
+ * module registers serial interface that can be used to communicate
  * with any ISO 7816 smart card.
  *
  * Any help according to implement serial smart card reader support
