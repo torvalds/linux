@@ -359,7 +359,7 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 
 	kfree(sums);
 
-	return btrfs_map_bio(root, rw, bio, mirror_num);
+	return btrfs_map_bio(root, rw, bio, mirror_num, 1);
 }
 
 int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
@@ -383,7 +383,7 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				   inode, rw, bio, mirror_num,
 				   __btrfs_submit_bio_hook);
 mapit:
-	return btrfs_map_bio(root, rw, bio, mirror_num);
+	return btrfs_map_bio(root, rw, bio, mirror_num, 0);
 }
 
 int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)

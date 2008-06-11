@@ -30,6 +30,7 @@
 #include "bit-radix.h"
 #include "extent_io.h"
 #include "extent_map.h"
+#include "async-thread.h"
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
@@ -518,12 +519,19 @@ struct btrfs_fs_info {
 	struct list_head hashers;
 	struct list_head dead_roots;
 	struct list_head end_io_work_list;
-	struct list_head async_submit_work_list;
 	struct work_struct end_io_work;
-	struct work_struct async_submit_work;
 	spinlock_t end_io_work_lock;
-	spinlock_t async_submit_work_lock;
 	atomic_t nr_async_submits;
+
+	/*
+	 * there is a pool of worker threads for checksumming during writes
+	 * and a pool for checksumming after reads.  This is because readers
+	 * can run with FS locks held, and the writers may be waiting for
+	 * those locks.  We don't want ordering in the pending list to cause
+	 * deadlocks, and so the two are serviced separately.
+	 */
+	struct btrfs_workers workers;
+	struct btrfs_workers endio_workers;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	struct work_struct trans_work;

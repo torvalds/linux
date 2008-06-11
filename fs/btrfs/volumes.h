@@ -20,6 +20,7 @@
 #define __BTRFS_VOLUMES_
 
 #include <linux/bio.h>
+#include "async-thread.h"
 
 struct buffer_head;
 struct btrfs_device {
@@ -27,6 +28,9 @@ struct btrfs_device {
 	struct list_head dev_alloc_list;
 	struct btrfs_root *dev_root;
 	struct buffer_head *pending_io;
+	struct bio *pending_bios;
+	struct bio *pending_bio_tail;
+	int running_pending;
 	u64 generation;
 
 	int barriers;
@@ -35,8 +39,6 @@ struct btrfs_device {
 	spinlock_t io_lock;
 
 	struct block_device *bdev;
-
-	u64 total_ios;
 
 	char *name;
 
@@ -63,6 +65,8 @@ struct btrfs_device {
 
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
+
+	struct btrfs_work work;
 };
 
 struct btrfs_fs_devices {
@@ -117,7 +121,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
-		  int mirror_num);
+		  int mirror_num, int async_submit);
 int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       int flags, void *holder);

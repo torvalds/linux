@@ -27,6 +27,7 @@
 #include "transaction.h"
 #include "print-tree.h"
 #include "volumes.h"
+#include "async-thread.h"
 
 struct map_lookup {
 	u64 type;
@@ -110,6 +111,101 @@ static struct btrfs_fs_devices *find_fsid(u8 *fsid)
 	return NULL;
 }
 
+/*
+ * we try to collect pending bios for a device so we don't get a large
+ * number of procs sending bios down to the same device.  This greatly
+ * improves the schedulers ability to collect and merge the bios.
+ *
+ * But, it also turns into a long list of bios to process and that is sure
+ * to eventually make the worker thread block.  The solution here is to
+ * make some progress and then put this work struct back at the end of
+ * the list if the block device is congested.  This way, multiple devices
+ * can make progress from a single worker thread.
+ */
+int run_scheduled_bios(struct btrfs_device *device)
+{
+	struct bio *pending;
+	struct backing_dev_info *bdi;
+	struct bio *tail;
+	struct bio *cur;
+	int again = 0;
+	unsigned long num_run = 0;
+
+	bdi = device->bdev->bd_inode->i_mapping->backing_dev_info;
+loop:
+	spin_lock(&device->io_lock);
+
+	/* take all the bios off the list at once and process them
+	 * later on (without the lock held).  But, remember the
+	 * tail and other pointers so the bios can be properly reinserted
+	 * into the list if we hit congestion
+	 */
+	pending = device->pending_bios;
+	tail = device->pending_bio_tail;
+	WARN_ON(pending && !tail);
+	device->pending_bios = NULL;
+	device->pending_bio_tail = NULL;
+
+	/*
+	 * if pending was null this time around, no bios need processing
+	 * at all and we can stop.  Otherwise it'll loop back up again
+	 * and do an additional check so no bios are missed.
+	 *
+	 * device->running_pending is used to synchronize with the
+	 * schedule_bio code.
+	 */
+	if (pending) {
+		again = 1;
+		device->running_pending = 1;
+	} else {
+		again = 0;
+		device->running_pending = 0;
+	}
+	spin_unlock(&device->io_lock);
+
+	while(pending) {
+		cur = pending;
+		pending = pending->bi_next;
+		cur->bi_next = NULL;
+		atomic_dec(&device->dev_root->fs_info->nr_async_submits);
+		submit_bio(cur->bi_rw, cur);
+		num_run++;
+
+		/*
+		 * we made progress, there is more work to do and the bdi
+		 * is now congested.  Back off and let other work structs
+		 * run instead
+		 */
+		if (pending && num_run && bdi_write_congested(bdi)) {
+			struct bio *old_head;
+
+			spin_lock(&device->io_lock);
+			old_head = device->pending_bios;
+			device->pending_bios = pending;
+			if (device->pending_bio_tail)
+				tail->bi_next = old_head;
+			else
+				device->pending_bio_tail = tail;
+
+			spin_unlock(&device->io_lock);
+			btrfs_requeue_work(&device->work);
+			goto done;
+		}
+	}
+	if (again)
+		goto loop;
+done:
+	return 0;
+}
+
+void pending_bios_fn(struct btrfs_work *work)
+{
+	struct btrfs_device *device;
+
+	device = container_of(work, struct btrfs_device, work);
+	run_scheduled_bios(device);
+}
+
 static int device_list_add(const char *path,
 			   struct btrfs_super_block *disk_super,
 			   u64 devid, struct btrfs_fs_devices **fs_devices_ret)
@@ -141,6 +237,7 @@ static int device_list_add(const char *path,
 			return -ENOMEM;
 		}
 		device->devid = devid;
+		device->work.func = pending_bios_fn;
 		memcpy(device->uuid, disk_super->dev_item.uuid,
 		       BTRFS_UUID_SIZE);
 		device->barriers = 1;
@@ -925,6 +1022,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	}
 
 	device->barriers = 1;
+	device->work.func = pending_bios_fn;
 	generate_random_uuid(device->uuid);
 	spin_lock_init(&device->io_lock);
 	device->name = kstrdup(device_path, GFP_NOFS);
@@ -1965,8 +2063,61 @@ static int end_bio_multi_stripe(struct bio *bio,
 #endif
 }
 
+struct async_sched {
+	struct bio *bio;
+	int rw;
+	struct btrfs_fs_info *info;
+	struct btrfs_work work;
+};
+
+/*
+ * see run_scheduled_bios for a description of why bios are collected for
+ * async submit.
+ *
+ * This will add one bio to the pending list for a device and make sure
+ * the work struct is scheduled.
+ */
+int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
+		 int rw, struct bio *bio)
+{
+	int should_queue = 1;
+
+	/* don't bother with additional async steps for reads, right now */
+	if (!(rw & (1 << BIO_RW))) {
+		submit_bio(rw, bio);
+		return 0;
+	}
+
+	/*
+	 * nr_async_sumbits allows us to reliably return congestion to the
+	 * higher layers.  Otherwise, the async bio makes it appear we have
+	 * made progress against dirty pages when we've really just put it
+	 * on a queue for later
+	 */
+	atomic_inc(&root->fs_info->nr_async_submits);
+	bio->bi_next = NULL;
+	bio->bi_rw |= rw;
+
+	spin_lock(&device->io_lock);
+
+	if (device->pending_bio_tail)
+		device->pending_bio_tail->bi_next = bio;
+
+	device->pending_bio_tail = bio;
+	if (!device->pending_bios)
+		device->pending_bios = bio;
+	if (device->running_pending)
+		should_queue = 0;
+
+	spin_unlock(&device->io_lock);
+
+	if (should_queue)
+		btrfs_queue_worker(&root->fs_info->workers, &device->work);
+	return 0;
+}
+
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
-		  int mirror_num)
+		  int mirror_num, int async_submit)
 {
 	struct btrfs_mapping_tree *map_tree;
 	struct btrfs_device *dev;
@@ -2012,10 +2163,10 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		dev = multi->stripes[dev_nr].dev;
 		if (dev && dev->bdev) {
 			bio->bi_bdev = dev->bdev;
-			spin_lock(&dev->io_lock);
-			dev->total_ios++;
-			spin_unlock(&dev->io_lock);
-			submit_bio(rw, bio);
+			if (async_submit)
+				schedule_bio(root, dev, rw, bio);
+			else
+				submit_bio(rw, bio);
 		} else {
 			bio->bi_bdev = root->fs_info->fs_devices->latest_bdev;
 			bio->bi_sector = logical >> 9;
@@ -2054,6 +2205,7 @@ static struct btrfs_device *add_missing_dev(struct btrfs_root *root,
 	device->barriers = 1;
 	device->dev_root = root->fs_info->dev_root;
 	device->devid = devid;
+	device->work.func = pending_bios_fn;
 	fs_devices->num_devices++;
 	spin_lock_init(&device->io_lock);
 	memcpy(device->uuid, dev_uuid, BTRFS_UUID_SIZE);
