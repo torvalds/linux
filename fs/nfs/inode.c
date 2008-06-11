@@ -57,8 +57,6 @@ static int enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
 static void nfs_invalidate_inode(struct inode *);
 static int nfs_update_inode(struct inode *, struct nfs_fattr *);
 
-static void nfs_zap_acl_cache(struct inode *);
-
 static struct kmem_cache * nfs_inode_cachep;
 
 static inline unsigned long
@@ -167,7 +165,7 @@ void nfs_zap_mapping(struct inode *inode, struct address_space *mapping)
 	}
 }
 
-static void nfs_zap_acl_cache(struct inode *inode)
+void nfs_zap_acl_cache(struct inode *inode)
 {
 	void (*clear_acl_cache)(struct inode *);
 
