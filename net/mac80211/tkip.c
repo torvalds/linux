@@ -153,25 +153,27 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 {
 	struct ieee80211_key *key = (struct ieee80211_key *)
 			container_of(keyconf, struct ieee80211_key, conf);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *data = (u8 *) hdr;
-	u16 fc = le16_to_cpu(hdr->frame_control);
-	int hdr_len = ieee80211_get_hdrlen(fc);
-	u8 *tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
-	u8 *ta = hdr->addr2;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	u8 *data;
+	const u8 *tk;
+	struct tkip_ctx *ctx;
 	u16 iv16;
 	u32 iv32;
 
-	iv16 = data[hdr_len + 2] | (data[hdr_len] << 8);
-	iv32 = get_unaligned_le32(data + hdr_len + 4);
+	data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
+	iv16 = data[2] | (data[0] << 8);
+	iv32 = get_unaligned_le32(&data[4]);
+
+	tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
+	ctx = &key->u.tkip.tx;
 
 #ifdef CONFIG_TKIP_DEBUG
 	printk(KERN_DEBUG "TKIP encrypt: iv16 = 0x%04x, iv32 = 0x%08x\n",
 			iv16, iv32);
 
-	if (iv32 != key->u.tkip.tx.iv32) {
+	if (iv32 != ctx->iv32) {
 		printk(KERN_DEBUG "skb: iv32 = 0x%08x key: iv32 = 0x%08x\n",
-			iv32, key->u.tkip.tx.iv32);
+			iv32, ctx->iv32);
 		printk(KERN_DEBUG "Wrap around of iv16 in the middle of a "
 			"fragmented packet\n");
 	}
@@ -180,15 +182,15 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 	/* Update the p1k only when the iv16 in the packet wraps around, this
 	 * might occur after the wrap around of iv16 in the key in case of
 	 * fragmented packets. */
-	if (iv16 == 0 || !key->u.tkip.tx.initialized)
-		tkip_mixing_phase1(tk, &key->u.tkip.tx, ta, iv32);
+	if (iv16 == 0 || !ctx->initialized)
+		tkip_mixing_phase1(tk, ctx, hdr->addr2, iv32);
 
 	if (type == IEEE80211_TKIP_P1_KEY) {
-		memcpy(outkey, key->u.tkip.tx.p1k, sizeof(u16) * 5);
+		memcpy(outkey, ctx->p1k, sizeof(u16) * 5);
 		return;
 	}
 
-	tkip_mixing_phase2(tk, &key->u.tkip.tx, iv16, outkey);
+	tkip_mixing_phase2(tk, ctx, iv16, outkey);
 }
 EXPORT_SYMBOL(ieee80211_get_tkip_key);
 
