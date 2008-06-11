@@ -1982,8 +1982,6 @@ int nfs_permission(struct inode *inode, int mask, struct nameidata *nd)
 	}
 
 force_lookup:
-	lock_kernel();
-
 	if (!NFS_PROTO(inode)->access)
 		goto out_notsup;
 
@@ -1993,7 +1991,6 @@ force_lookup:
 		put_rpccred(cred);
 	} else
 		res = PTR_ERR(cred);
-	unlock_kernel();
 out:
 	dfprintk(VFS, "NFS: permission(%s/%ld), mask=0x%x, res=%d\n",
 		inode->i_sb->s_id, inode->i_ino, mask, res);
@@ -2002,7 +1999,6 @@ out_notsup:
 	res = nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	if (res == 0)
 		res = generic_permission(inode, mask, NULL);
-	unlock_kernel();
 	goto out;
 }
 
