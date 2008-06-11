@@ -534,8 +534,6 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			(long long)filp->f_pos);
 	nfs_inc_stats(inode, NFSIOS_VFSGETDENTS);
 
-	lock_kernel();
-
 	/*
 	 * filp->f_pos points to the dirent entry number.
 	 * *desc->dir_cookie has the cookie for the next entry. We have
@@ -593,7 +591,6 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	}
 out:
 	nfs_unblock_sillyrename(dentry);
-	unlock_kernel();
 	if (res > 0)
 		res = 0;
 	dfprintk(FILE, "NFS: readdir(%s/%s) returns %ld\n",
