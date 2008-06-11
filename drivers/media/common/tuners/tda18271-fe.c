@@ -103,6 +103,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	/* disable Power Level Indicator */
 	regs[R_EP1]  |= 0x40;
 
+	/* make sure thermometer is off */
+	regs[R_TM]   &= ~0x10;
+
 	/* frequency dependent parameters */
 
 	tda18271_calc_ir_measure(fe, &freq);
