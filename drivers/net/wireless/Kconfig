@@ -673,6 +673,19 @@ config ADM8211
 
 	  Thanks to Infineon-ADMtek for their support of this driver.
 
+config MAC80211_HWSIM
+	tristate "Simulated radio testing tool for mac80211"
+	depends on MAC80211 && WLAN_80211
+	---help---
+	  This driver is a developer testing tool that can be used to test
+	  IEEE 802.11 networking stack (mac80211) functionality. This is not
+	  needed for normal wireless LAN usage and is only for testing. See
+	  Documentation/networking/mac80211_hwsim for more information on how
+	  to use this tool.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mac80211_hwsim.  If unsure, say N.
+
 source "drivers/net/wireless/p54/Kconfig"
 source "drivers/net/wireless/ath5k/Kconfig"
 source "drivers/net/wireless/iwlwifi/Kconfig"
