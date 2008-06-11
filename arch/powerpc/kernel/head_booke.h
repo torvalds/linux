@@ -240,7 +240,7 @@ label:
 	 * the code where the exception occurred (since exception entry	      \
 	 * doesn't turn off DE automatically).  We simulate the effect	      \
 	 * of turning off DE on entry to an exception handler by turning      \
-	 * off DE in the CSRR1 value and clearing the debug status.	      \
+	 * off DE in the DSRR1 value and clearing the debug status.	      \
 	 */								      \
 	mfspr	r10,SPRN_DBSR;		/* check single-step/branch taken */  \
 	andis.	r10,r10,DBSR_IC@h;					      \
@@ -278,7 +278,7 @@ label:
 	RFDI;								      \
 	b	.;							      \
 									      \
-	/* continue normal handling for a critical exception... */	      \
+	/* continue normal handling for a debug exception... */		      \
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_TEMPLATE(DebugException, 0x2008, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, debug_transfer_to_handler, ret_from_debug_exc)
