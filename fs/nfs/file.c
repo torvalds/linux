@@ -393,9 +393,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 			zero_user_segment(page, pglen, PAGE_CACHE_SIZE);
 	}
 
-	lock_kernel();
 	status = nfs_updatepage(file, page, offset, copied);
-	unlock_kernel();
 
 	unlock_page(page);
 	page_cache_release(page);
