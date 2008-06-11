@@ -519,8 +519,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 			pnotify = (struct file_notify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
 			cFYI(1, ("dnotify on %s Action: 0x%x",
-				 pnotify->FileName,
-				pnotify->Action));  /* BB removeme BB */
+				 pnotify->FileName, pnotify->Action));
 			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
 			return true;
