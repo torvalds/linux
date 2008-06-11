@@ -133,8 +133,11 @@ nfs_opendir(struct inode *inode, struct file *filp)
 {
 	int res;
 
-	dfprintk(VFS, "NFS: opendir(%s/%ld)\n",
-			inode->i_sb->s_id, inode->i_ino);
+	dfprintk(VFS, "NFS: open dir(%s/%s)\n",
+			filp->f_path.dentry->d_parent->d_name.name,
+			filp->f_path.dentry->d_name.name);
+
+	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 
 	lock_kernel();
 	/* Call generic open code in order to cache credentials */

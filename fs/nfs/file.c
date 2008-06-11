@@ -119,6 +119,10 @@ nfs_file_open(struct inode *inode, struct file *filp)
 {
 	int res;
 
+	dfprintk(VFS, "NFS: open file(%s/%s)\n",
+			filp->f_path.dentry->d_parent->d_name.name,
+			filp->f_path.dentry->d_name.name);
+
 	res = nfs_check_flags(filp->f_flags);
 	if (res)
 		return res;
