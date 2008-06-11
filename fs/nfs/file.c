@@ -128,9 +128,7 @@ nfs_file_open(struct inode *inode, struct file *filp)
 		return res;
 
 	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
-	lock_kernel();
 	res = nfs_open(inode, filp);
-	unlock_kernel();
 	return res;
 }
 

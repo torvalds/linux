@@ -139,10 +139,8 @@ nfs_opendir(struct inode *inode, struct file *filp)
 
 	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 
-	lock_kernel();
 	/* Call generic open code in order to cache credentials */
 	res = nfs_open(inode, filp);
-	unlock_kernel();
 	return res;
 }
 
@@ -1019,9 +1017,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	}
 
 	/* Open the file on the server */
-	lock_kernel();
 	res = nfs4_atomic_open(dir, dentry, nd);
-	unlock_kernel();
 	if (IS_ERR(res)) {
 		error = PTR_ERR(res);
 		switch (error) {
@@ -1083,9 +1079,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 * operations that change the directory. We therefore save the
 	 * change attribute *before* we do the RPC call.
 	 */
-	lock_kernel();
 	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
-	unlock_kernel();
 out:
 	dput(parent);
 	if (!ret)
