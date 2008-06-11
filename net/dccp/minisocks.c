@@ -165,11 +165,11 @@ out_free:
 		/* See dccp_v4_conn_request */
 		newdmsk->dccpms_sequence_window = req->rcv_wnd;
 
-		newdp->dccps_gar = newdp->dccps_isr = dreq->dreq_isr;
-		dccp_update_gsr(newsk, dreq->dreq_isr);
-
-		newdp->dccps_iss = dreq->dreq_iss;
+		newdp->dccps_gar = newdp->dccps_iss = dreq->dreq_iss;
 		dccp_update_gss(newsk, dreq->dreq_iss);
+
+		newdp->dccps_isr = dreq->dreq_isr;
+		dccp_update_gsr(newsk, dreq->dreq_isr);
 
 		/*
 		 * SWL and AWL are initially adjusted so that they are not less than
