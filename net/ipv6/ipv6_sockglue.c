@@ -458,6 +458,8 @@ done:
 	case IPV6_MULTICAST_LOOP:
 		if (optlen < sizeof(int))
 			goto e_inval;
+		if (val != valbool)
+			goto e_inval;
 		np->mc_loop = valbool;
 		retv = 0;
 		break;
