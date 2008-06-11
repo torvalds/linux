@@ -21,6 +21,7 @@ fw-external-y := $(subst ",,$(CONFIG_EXTRA_FIRMWARE))
 # But be aware that the config file might not be included at all.
 
 fw-shipped-$(CONFIG_ATM_AMBASSADOR) += atmsar11.fw
+fw-shipped-$(CONFIG_COMPUTONE) += intelliport2.bin
 fw-shipped-$(CONFIG_DVB_TTUSB_BUDGET) += ttusb-budget/dspbootcode.bin
 fw-shipped-$(CONFIG_SMCTR) += tr_smctr.bin
 fw-shipped-$(CONFIG_SND_KORG1212) += korg/k1212.dsp

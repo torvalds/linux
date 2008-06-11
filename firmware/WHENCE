@@ -226,3 +226,13 @@ Debug loader claims the following behaviour:
 Converted from Intel HEX files, used in our binary representation of ihex.
 
 --------------------------------------------------------------------------
+
+Driver: ip2 -- Computone IntelliPort Plus serial device
+
+File: intelliport2.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
