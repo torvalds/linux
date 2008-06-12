@@ -1,7 +1,7 @@
 /*
  * Syntek DV4000 (STK014) subdriver
  *
- * Copyright (C) Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2008 Jean-Francois Moine (http://moinejf.free.fr)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #define MODULE_NAME "stk014"
@@ -24,8 +23,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 1, 0)
-static const char version[] = "0.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 2, 7)
+static const char version[] = "0.2.7";
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
@@ -389,64 +388,32 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			unsigned char *data,		/* isoc packet */
 			int len)			/* iso packet length */
 {
-	int l;
 	static unsigned char ffd9[] = {0xff, 0xd9};
 
 	/* a frame starts with:
 	 *	- 0xff 0xfe
-	 *	- 0x08 0x00	// length (little endian ?!)
-	 *	- 4 bytes = size of whole frame (big endian - including header)
+	 *	- 0x08 0x00	- length (little endian ?!)
+	 *	- 4 bytes = size of whole frame (BE - including header)
 	 *	- 0x00 0x0c
 	 *	- 0xff 0xd8
 	 *	- ..	JPEG image with escape sequences (ff 00)
+	 *		(without ending - ff d9)
 	 */
 	if (data[0] == 0xff && data[1] == 0xfe) {
-		if (gspca_dev->last_packet_type == INTER_PACKET) {
-			PDEBUG(D_ERR|D_FRAM, "sof actual l: %d init l: %d",
-				frame->data_end - frame->data,
-				frame->v4l2_buf.bytesused);
-		}
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+					ffd9, 2);
 
-		/* put the JPEG headaer */
+		/* put the JPEG 411 header */
 		jpeg_put_header(gspca_dev, frame, sd_quant, 0x22);
 
 		/* beginning of the frame */
 #define STKHDRSZ 12
-		l = (data[4] << 24)		/* frame size */
-			+ (data[5] << 16)
-			+ (data[6] << 8)
-			+ data[7]
-			- STKHDRSZ
-			+ (frame->data_end - frame->data)
-			+ 2;			/* EOF (ff d9) */
 		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 				data + STKHDRSZ, len - STKHDRSZ);
 #undef STKHDRSZ
-		frame->v4l2_buf.bytesused = l;
 		return;
 	}
-	if (gspca_dev->last_packet_type != INTER_PACKET) {
-		if (gspca_dev->last_packet_type == LAST_PACKET) {
-			PDEBUG(D_ERR|D_PACK, "mof actual l: %d init l: %d",
-				frame->data_end - frame->data,
-				frame->v4l2_buf.bytesused);
-		}
-		return;
-	}
-
-	/* intermediate packet */
-	l = frame->data_end - frame->data;
-	if (len < frame->v4l2_buf.bytesused - 2 - l) {
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-				data, len);
-		return;
-	}
-
-	/* last packet */
-	if (len > frame->v4l2_buf.bytesused - 2 - l)
-		len = frame->v4l2_buf.bytesused - 2 - l;
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
-	gspca_frame_add(gspca_dev, LAST_PACKET, frame, ffd9, 2);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -529,8 +496,8 @@ MODULE_DEVICE_TABLE(usb, device_table);
 static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
-	PDEBUG(D_PROBE, "camera probe");
-	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd));
+	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),
+				THIS_MODULE);
 }
 
 static struct usb_driver sd_driver = {

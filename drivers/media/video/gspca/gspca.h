@@ -25,6 +25,7 @@ extern int gspca_debug;
 #define D_PACK 0x20
 #define D_USBI 0x40
 #define D_USBO 0x80
+#define D_V4L2 0x0100
 #else
 #define PDEBUG(level, fmt, args...)
 #endif
@@ -46,9 +47,9 @@ extern int gspca_debug;
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* ISOC transfers */
-#define NURBS 4			/* number of URBs */
+#define MAX_NURBS 32		/* max number of URBs (read & userptr) */
 #define ISO_MAX_PKT 32		/* max number of packets in an ISOC transfer */
-#define ISO_MAX_SIZE 0x10000	/* max size of one URB buffer (64 Kb) */
+#define ISO_MAX_SIZE 0x8000	/* max size of one URB buffer (32 Kb) */
 
 /* device information - set at probe time */
 struct cam_mode {
@@ -123,13 +124,14 @@ struct gspca_frame {
 
 struct gspca_dev {
 	struct video_device vdev;	/* !! must be the first item */
+	struct file_operations fops;
 	struct usb_device *dev;
 	struct file *capt_file;		/* file doing video capture */
 
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
 
-	struct urb *urb[NURBS];
+	struct urb *urb[MAX_NURBS];
 
 	__u8 *frbuf;				/* buffer for nframes */
 	struct gspca_frame frame[GSPCA_MAX_FRAMES];
@@ -155,15 +157,21 @@ struct gspca_dev {
 	struct mutex queue_lock;	/* ISOC queue protection */
 	__u32 sequence;			/* frame sequence number */
 	char streaming;
-	char users;			/* # open */
+	char users;			/* number of opens */
 	char present;			/* device connected */
 	char nbufread;			/* number of buffers for read() */
+	char nurbs;			/* number of allocated URBs */
+	char memory;			/* memory type (V4L2_MEMORY_xxx) */
+	__u8 urb_in;			/* URB pointers - used when !mmap */
+	__u8 urb_out;
+	__u8 nbalt;			/* number of USB alternate settings */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,
 		const struct usb_device_id *id,
 		const struct sd_desc *sd_desc,
-		int dev_size);
+		int dev_size,
+		struct module *module);
 void gspca_disconnect(struct usb_interface *intf);
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    int packet_type,

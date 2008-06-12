@@ -27,8 +27,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 1, 1)
-static const char version[] = "0.1.1";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 2, 15)
+static const char version[] = "0.2.15";
 
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
@@ -188,7 +188,8 @@ static const __u8 pac207_sensor_init[][8] = {
 			/* 48 reg_72 Rate Control end BalSize_4a =0x36 */
 static const __u8 PacReg72[] = { 0x00, 0x00, 0x36, 0x00 };
 
-static const char pac207_sof_marker[5] = { 0xff, 0xff, 0x00, 0xff, 0x96 };
+static const unsigned char pac207_sof_marker[5] =
+		{ 0xff, 0xff, 0x00, 0xff, 0x96 };
 
 int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
@@ -327,11 +328,12 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	pac207_write_reg(gspca_dev, 0x02, sd->exposure); /* PXCK = 12MHz /n */
 
 	mode = 0x02; /* Image Format (Bit 0), LED (1), Compr. test mode (2) */
-	if (gspca_dev->width == 176) { /* 176x144 */
+	if (gspca_dev->width == 176) {	/* 176x144 */
 		mode |= 0x01;
 		PDEBUG(D_STREAM, "pac207_start mode 176x144");
-	} else/* 352x288 */
+	} else {				/* 352x288 */
 		PDEBUG(D_STREAM, "pac207_start mode 352x288");
+	}
 	pac207_write_reg(gspca_dev, 0x41, mode);
 
 	pac207_write_reg(gspca_dev, 0x13, 0x01); /* Bit 0, auto clear */
@@ -425,7 +427,7 @@ void init_pixart_decoder(void)
 }
 
 /* auto gain and exposure algorithm based on the knee algorithm described here:
-   http://ytse.tricolour.net/docs/LowLightOptimization.html */
+ * <http://ytse.tricolour.net/docs/LowLightOptimization.html> */
 static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -508,8 +510,9 @@ static unsigned char *pac207_find_sof(struct gspca_dev *gspca_dev,
 				sd->sof_read = 0;
 				return m + i + 1;
 			}
-		} else
+		} else {
 			sd->sof_read = 0;
+		}
 	}
 
 	return NULL;
@@ -556,9 +559,9 @@ static int pac207_decompress_row(struct gspca_dev *gspca_dev,
 			decoder_state->line_read++;
 			decoder_state->get_abs = 0;
 		} else {
-			if (table[code].is_abs)
+			if (table[code].is_abs) {
 				decoder_state->get_abs = 1;
-			else {
+			} else {
 				/* relative to left pixel */
 				val = outp[-2] +
 					table[code].val;
@@ -894,13 +897,13 @@ static struct sd_desc sd_desc = {
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4028), DVNM("Creative Webcam Vista Plus")},
-	{USB_DEVICE(0x093a, 0x2460), DVNM("PAC207 Qtec Webcam 100")},
+	{USB_DEVICE(0x093a, 0x2460), DVNM("Q-Tec Webcam 100")},
 	{USB_DEVICE(0x093a, 0x2463), DVNM("Philips spc200nc pac207")},
 	{USB_DEVICE(0x093a, 0x2464), DVNM("Labtec Webcam 1200")},
 	{USB_DEVICE(0x093a, 0x2468), DVNM("PAC207")},
 	{USB_DEVICE(0x093a, 0x2470), DVNM("Genius GF112")},
-	{USB_DEVICE(0x093a, 0x2471), DVNM("PAC207 Genius VideoCam ge111")},
-	{USB_DEVICE(0x093a, 0x2472), DVNM("PAC207 Genius VideoCam ge110")},
+	{USB_DEVICE(0x093a, 0x2471), DVNM("Genius VideoCam GE111")},
+	{USB_DEVICE(0x093a, 0x2472), DVNM("Genius VideoCam GE110")},
 	{USB_DEVICE(0x2001, 0xf115), DVNM("D-Link DSB-C120")},
 	{}
 };
@@ -910,8 +913,8 @@ MODULE_DEVICE_TABLE(usb, device_table);
 static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
-	PDEBUG(D_PROBE, "camera probe");
-	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd));
+	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),
+				THIS_MODULE);
 }
 
 static struct usb_driver sd_driver = {
