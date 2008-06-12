@@ -1083,10 +1083,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		struct kvm_mmu_page *shadow;
 
 		spte |= PT_WRITABLE_MASK;
-		if (user_fault) {
-			mmu_unshadow(vcpu->kvm, gfn);
-			goto unshadowed;
-		}
 
 		shadow = kvm_mmu_lookup_page(vcpu->kvm, gfn);
 		if (shadow ||
@@ -1102,8 +1098,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 				*ptwrite = 1;
 		}
 	}
-
-unshadowed:
 
 	if (pte_access & ACC_WRITE_MASK)
 		mark_page_dirty(vcpu->kvm, gfn);
