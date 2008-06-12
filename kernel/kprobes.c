@@ -699,8 +699,9 @@ static int __register_kprobes(struct kprobe **kps, int num,
 		return -EINVAL;
 	for (i = 0; i < num; i++) {
 		ret = __register_kprobe(kps[i], called_from);
-		if (ret < 0 && i > 0) {
-			unregister_kprobes(kps, i);
+		if (ret < 0) {
+			if (i > 0)
+				unregister_kprobes(kps, i);
 			break;
 		}
 	}
@@ -776,8 +777,9 @@ static int __register_jprobes(struct jprobe **jps, int num,
 			jp->kp.break_handler = longjmp_break_handler;
 			ret = __register_kprobe(&jp->kp, called_from);
 		}
-		if (ret < 0 && i > 0) {
-			unregister_jprobes(jps, i);
+		if (ret < 0) {
+			if (i > 0)
+				unregister_jprobes(jps, i);
 			break;
 		}
 	}
@@ -920,8 +922,9 @@ static int __register_kretprobes(struct kretprobe **rps, int num,
 		return -EINVAL;
 	for (i = 0; i < num; i++) {
 		ret = __register_kretprobe(rps[i], called_from);
-		if (ret < 0 && i > 0) {
-			unregister_kretprobes(rps, i);
+		if (ret < 0) {
+			if (i > 0)
+				unregister_kretprobes(rps, i);
 			break;
 		}
 	}
