@@ -1233,8 +1233,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 * cannot dynamically grow.
 	 */
 	btrfs_init_workers(&fs_info->workers, fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->submit_workers, fs_info->thread_pool_size);
 	btrfs_init_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
 	btrfs_start_workers(&fs_info->workers, 1);
+	btrfs_start_workers(&fs_info->submit_workers, 1);
 	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
 
 
@@ -1343,6 +1345,7 @@ fail_sb_buffer:
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
+	btrfs_stop_workers(&fs_info->submit_workers);
 fail_iput:
 	iput(fs_info->btree_inode);
 fail:
@@ -1597,6 +1600,7 @@ int close_ctree(struct btrfs_root *root)
 
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
+	btrfs_stop_workers(&fs_info->submit_workers);
 
 	iput(fs_info->btree_inode);
 #if 0

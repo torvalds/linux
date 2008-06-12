@@ -2112,7 +2112,8 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 	spin_unlock(&device->io_lock);
 
 	if (should_queue)
-		btrfs_queue_worker(&root->fs_info->workers, &device->work);
+		btrfs_queue_worker(&root->fs_info->submit_workers,
+				   &device->work);
 	return 0;
 }
 

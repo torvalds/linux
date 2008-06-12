@@ -529,9 +529,13 @@ struct btrfs_fs_info {
 	 * can run with FS locks held, and the writers may be waiting for
 	 * those locks.  We don't want ordering in the pending list to cause
 	 * deadlocks, and so the two are serviced separately.
+	 *
+	 * A third pool does submit_bio to avoid deadlocking with the other
+	 * two
 	 */
 	struct btrfs_workers workers;
 	struct btrfs_workers endio_workers;
+	struct btrfs_workers submit_workers;
 	int thread_pool_size;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
