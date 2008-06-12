@@ -269,11 +269,11 @@ int suspend_devices_and_enter(suspend_state_t state)
 	error = device_suspend(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to suspend\n");
-		goto Resume_console;
+		goto Recover_platform;
 	}
 
 	if (suspend_test(TEST_DEVICES))
-		goto Resume_devices;
+		goto Recover_platform;
 
 	if (suspend_ops->prepare) {
 		error = suspend_ops->prepare();
@@ -294,12 +294,16 @@ int suspend_devices_and_enter(suspend_state_t state)
 		suspend_ops->finish();
  Resume_devices:
 	device_resume(PMSG_RESUME);
- Resume_console:
 	resume_console();
  Close:
 	if (suspend_ops->end)
 		suspend_ops->end();
 	return error;
+
+ Recover_platform:
+	if (suspend_ops->recover)
+		suspend_ops->recover();
+	goto Resume_devices;
 }
 
 /**

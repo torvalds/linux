@@ -180,6 +180,17 @@ static void platform_restore_cleanup(int platform_mode)
 }
 
 /**
+ *	platform_recover - recover the platform from a failure to suspend
+ *	devices.
+ */
+
+static void platform_recover(int platform_mode)
+{
+	if (platform_mode && hibernation_ops && hibernation_ops->recover)
+		hibernation_ops->recover();
+}
+
+/**
  *	create_image - freeze devices that need to be frozen with interrupts
  *	off, create the hibernation image and thaw those devices.  Control
  *	reappears in this routine after a restore.
@@ -258,10 +269,10 @@ int hibernation_snapshot(int platform_mode)
 	suspend_console();
 	error = device_suspend(PMSG_FREEZE);
 	if (error)
-		goto Resume_console;
+		goto Recover_platform;
 
 	if (hibernation_test(TEST_DEVICES))
-		goto Resume_devices;
+		goto Recover_platform;
 
 	error = platform_pre_snapshot(platform_mode);
 	if (error || hibernation_test(TEST_PLATFORM))
@@ -285,11 +296,14 @@ int hibernation_snapshot(int platform_mode)
  Resume_devices:
 	device_resume(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
- Resume_console:
 	resume_console();
  Close:
 	platform_end(platform_mode);
 	return error;
+
+ Recover_platform:
+	platform_recover(platform_mode);
+	goto Resume_devices;
 }
 
 /**
@@ -398,8 +412,11 @@ int hibernation_platform_enter(void)
 
 	suspend_console();
 	error = device_suspend(PMSG_HIBERNATE);
-	if (error)
-		goto Resume_console;
+	if (error) {
+		if (hibernation_ops->recover)
+			hibernation_ops->recover();
+		goto Resume_devices;
+	}
 
 	error = hibernation_ops->prepare();
 	if (error)
@@ -428,7 +445,6 @@ int hibernation_platform_enter(void)
 	hibernation_ops->finish();
  Resume_devices:
 	device_resume(PMSG_RESTORE);
- Resume_console:
 	resume_console();
  Close:
 	hibernation_ops->end();

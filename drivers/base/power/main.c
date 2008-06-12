@@ -781,8 +781,6 @@ int device_suspend(pm_message_t state)
 	error = dpm_prepare(state);
 	if (!error)
 		error = dpm_suspend(state);
-	if (error)
-		device_resume(resume_event(state));
 	return error;
 }
 EXPORT_SYMBOL_GPL(device_suspend);
