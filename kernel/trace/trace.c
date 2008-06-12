@@ -3051,9 +3051,8 @@ __init static int tracer_alloc_buffers(void)
 	}
 	max_tr.entries = global_trace.entries;
 
-	pr_info("tracer: %d pages allocated for %ld",
-		pages, trace_nr_entries);
-	pr_info(" entries of %ld bytes\n", (long)TRACE_ENTRY_SIZE);
+	pr_info("tracer: %d pages allocated for %ld entries of %ld bytes\n",
+		pages, trace_nr_entries, (long)TRACE_ENTRY_SIZE);
 	pr_info("   actual entries %ld\n", global_trace.entries);
 
 	tracer_init_debugfs();
