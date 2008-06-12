@@ -640,8 +640,7 @@ static void dsconfig_to_freq(unsigned int dsconfig, struct iw_freq *freq)
 static int freq_to_dsconfig(struct iw_freq *freq, unsigned int *dsconfig)
 {
 	if (freq->m < 1000 && freq->e == 0) {
-		if (freq->m >= 1 &&
-			freq->m <= (sizeof(freq_chan) / sizeof(freq_chan[0])))
+		if (freq->m >= 1 && freq->m <= ARRAY_SIZE(freq_chan))
 			*dsconfig = freq_chan[freq->m - 1] * 1000;
 		else
 			return -1;
@@ -1179,10 +1178,9 @@ static int rndis_iw_get_range(struct net_device *dev,
 		range->throughput = 11 * 1000 * 1000 / 2;
 	}
 
-	range->num_channels = (sizeof(freq_chan)/sizeof(freq_chan[0]));
+	range->num_channels = ARRAY_SIZE(freq_chan);
 
-	for (i = 0; i < (sizeof(freq_chan)/sizeof(freq_chan[0])) &&
-			i < IW_MAX_FREQUENCIES; i++) {
+	for (i = 0; i < ARRAY_SIZE(freq_chan) && i < IW_MAX_FREQUENCIES; i++) {
 		range->freq[i].i = i + 1;
 		range->freq[i].m = freq_chan[i] * 100000;
 		range->freq[i].e = 1;
