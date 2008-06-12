@@ -51,6 +51,7 @@ static inline int phys_addr_valid(unsigned long addr)
 	return 1;
 }
 
+#ifdef CONFIG_DEBUG_VIRTUAL
 unsigned long __phys_addr(unsigned long x)
 {
 	/* VMALLOC_* aren't constants; not available at the boot time */
@@ -59,6 +60,7 @@ unsigned long __phys_addr(unsigned long x)
 	return x - PAGE_OFFSET;
 }
 EXPORT_SYMBOL(__phys_addr);
+#endif
 
 #endif
 
