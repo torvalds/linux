@@ -5,11 +5,11 @@
  *
  *  Maintainer: Kumar Gala (galak@kernel.crashing.org) (CPM2)
  *              Pantelis Antoniou (panto@intracom.gr) (CPM1)
- * 
+ *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
  *            (C) 2004 Intracom, S.A.
  *            (C) 2006 MontaVista Software, Inc.
- * 		Vitaly Bordug <vbordug@ru.mvista.com>
+ *		Vitaly Bordug <vbordug@ru.mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -273,7 +273,7 @@ void scc4_lineif(struct uart_cpm_port *pinfo)
 #endif
 
 /*
- * Allocate DP-Ram and memory buffers. We need to allocate a transmit and 
+ * Allocate DP-Ram and memory buffers. We need to allocate a transmit and
  * receive buffer descriptors from dual port ram, and a character
  * buffer area from host mem. If we are allocating for the console we need
  * to do it from bootmem

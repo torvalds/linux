@@ -13,7 +13,7 @@
  *  Copyright (C) 2004, 2007 Freescale Semiconductor, Inc.
  *            (C) 2004 Intracom, S.A.
  *            (C) 2005-2006 MontaVista Software, Inc.
- * 		Vitaly Bordug <vbordug@ru.mvista.com>
+ *		Vitaly Bordug <vbordug@ru.mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1305,7 +1305,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 		pdata = pdev->dev.platform_data;
 		if (pdata)
 			if (pdata->init_ioports)
-    	                	pdata->init_ioports(pdata);
+				pdata->init_ioports(pdata);
 
 		cpm_uart_drv_get_platform_data(pdev, 1);
 	}
