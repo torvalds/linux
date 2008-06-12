@@ -60,11 +60,12 @@ struct btrfs_workers {
 	/* max number of workers allowed.  changed by btrfs_start_workers */
 	int max_workers;
 
+	/* once a worker has this many requests or fewer, it is idle */
+	int idle_thresh;
+
 	/* list with all the work threads */
 	struct list_head worker_list;
-
-	/* the last worker thread to have something queued */
-	struct btrfs_worker_thread *last;
+	struct list_head idle_list;
 
 	/* lock for finding the next worker thread to queue on */
 	spinlock_t lock;
