@@ -1190,7 +1190,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	if (status == 0)
 		return 0;
 
-	dfprintk(MOUNT, "NFS: unable to mount server %s, error %d",
+	dfprintk(MOUNT, "NFS: unable to mount server %s, error %d\n",
 			hostname, status);
 	return status;
 }
