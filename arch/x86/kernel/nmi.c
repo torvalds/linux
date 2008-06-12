@@ -354,7 +354,8 @@ static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
 {
-	if (nmi_watchdog > 0) {
+	if (nmi_watchdog == NMI_LOCAL_APIC ||
+		nmi_watchdog == NMI_IO_APIC) {
 		unsigned cpu;
 
 		/*
