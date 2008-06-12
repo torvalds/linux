@@ -2522,7 +2522,7 @@ static int rndis_wext_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	__le32 tmp;
 
 	/* allocate rndis private data */
-	priv = kmalloc(sizeof(struct rndis_wext_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct rndis_wext_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2530,8 +2530,6 @@ static int rndis_wext_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	 * Otherwise we'll be in big trouble in rndis_wext_early_init().
 	 */
 	usbdev->driver_priv = priv;
-	memset(priv, 0, sizeof(*priv));
-	memset(priv->name, 0, sizeof(priv->name));
 	strcpy(priv->name, "IEEE802.11");
 	usbdev->net->wireless_handlers = &rndis_iw_handlers;
 	priv->usbdev = usbdev;
