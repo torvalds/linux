@@ -145,8 +145,8 @@ MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
 #define HPWDT_ARCH	32
 
-static void asminline_call(struct cmn_registers *pi86Regs,
-			   unsigned long *pRomEntry)
+asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
+			       unsigned long *pRomEntry)
 {
 	asm("pushl       %ebp               \n\t"
 	    "movl        %esp, %ebp         \n\t"
@@ -333,8 +333,8 @@ static int __devinit detect_cru_service(void)
 
 #define HPWDT_ARCH	64
 
-static void asminline_call(struct cmn_registers *pi86Regs,
-			   unsigned long *pRomEntry)
+asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
+			       unsigned long *pRomEntry)
 {
 	asm("pushq      %rbp            \n\t"
 	    "movq       %rsp, %rbp      \n\t"
