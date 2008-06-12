@@ -1320,7 +1320,7 @@ static void free_irq_local(int irq)
  * Power management hooks. Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int fsl_diu_suspend(struct of_device *dev, pm_message_t state)
+static int fsl_diu_suspend(struct of_device *ofdev, pm_message_t state)
 {
 	struct fsl_diu_data *machine_data;
 
@@ -1330,7 +1330,7 @@ static int fsl_diu_suspend(struct of_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int fsl_diu_resume(struct of_device *dev)
+static int fsl_diu_resume(struct of_device *ofdev)
 {
 	struct fsl_diu_data *machine_data;
 
