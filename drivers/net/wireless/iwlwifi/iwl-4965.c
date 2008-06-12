@@ -46,6 +46,8 @@
 #include "iwl-calib.h"
 #include "iwl-sta.h"
 
+static int iwl4965_send_tx_power(struct iwl_priv *priv);
+
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
 	.num_of_queues = IWL49_NUM_QUEUES,
@@ -737,7 +739,7 @@ static void iwl4965_bg_txpower_work(struct work_struct *work)
 	/* Regardless of if we are assocaited, we must reconfigure the
 	 * TX power since frames can be sent on non-radar channels while
 	 * not associated */
-	iwl4965_hw_reg_send_txpower(priv);
+	iwl4965_send_tx_power(priv);
 
 	/* Update last_temperature to keep is_calib_needed from running
 	 * when it isn't needed... */
@@ -952,11 +954,6 @@ static int iwl4965_set_power(struct iwl_priv *priv,
 				    cmd, NULL);
 	return ret;
 }
-int iwl4965_hw_reg_set_txpower(struct iwl_priv *priv, s8 power)
-{
-	IWL_ERROR("TODO: Implement iwl4965_hw_reg_set_txpower!\n");
-	return -EINVAL;
-}
 
 static s32 iwl4965_math_div_round(s32 num, s32 denom, s32 *res)
 {
@@ -1005,20 +1002,6 @@ static s32 iwl4965_get_voltage_compensation(s32 eeprom_voltage,
 		comp = 0;
 
 	return comp;
-}
-
-static const struct iwl_channel_info *
-iwl4965_get_channel_txpower_info(struct iwl_priv *priv,
-				 enum ieee80211_band band, u16 channel)
-{
-	const struct iwl_channel_info *ch_info;
-
-	ch_info = iwl_get_channel_info(priv, band, channel);
-
-	if (!is_channel_valid(ch_info))
-		return NULL;
-
-	return ch_info;
 }
 
 static s32 iwl4965_get_tx_atten_grp(u16 channel)
@@ -1444,30 +1427,17 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	s32 factory_actual_pwr[2];
 	s32 power_index;
 
-	/* Sanity check requested level (dBm) */
-	if (priv->user_txpower_limit < IWL_TX_POWER_TARGET_POWER_MIN) {
-		IWL_WARNING("Requested user TXPOWER %d below limit.\n",
-			    priv->user_txpower_limit);
-		return -EINVAL;
-	}
-	if (priv->user_txpower_limit > IWL_TX_POWER_TARGET_POWER_MAX) {
-		IWL_WARNING("Requested user TXPOWER %d above limit.\n",
-			    priv->user_txpower_limit);
-		return -EINVAL;
-	}
-
 	/* user_txpower_limit is in dBm, convert to half-dBm (half-dB units
 	 *   are used for indexing into txpower table) */
-	user_target_power = 2 * priv->user_txpower_limit;
+	user_target_power = 2 * priv->tx_power_user_lmt;
 
 	/* Get current (RXON) channel, band, width */
-	ch_info =
-		iwl4965_get_channel_txpower_info(priv, priv->band, channel);
-
 	IWL_DEBUG_TXPOWER("chan %d band %d is_fat %d\n", channel, band,
 			  is_fat);
 
-	if (!ch_info)
+	ch_info = iwl_get_channel_info(priv, priv->band, channel);
+
+	if (!is_channel_valid(ch_info))
 		return -EINVAL;
 
 	/* get txatten group, used to select 1) thermal txpower adjustment
@@ -1668,12 +1638,12 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 }
 
 /**
- * iwl4965_hw_reg_send_txpower - Configure the TXPOWER level user limit
+ * iwl4965_send_tx_power - Configure the TXPOWER level user limit
  *
  * Uses the active RXON for channel, band, and characteristics (fat, high)
- * The power limit is taken from priv->user_txpower_limit.
+ * The power limit is taken from priv->tx_power_user_lmt.
  */
-int iwl4965_hw_reg_send_txpower(struct iwl_priv *priv)
+static int iwl4965_send_tx_power(struct iwl_priv *priv)
 {
 	struct iwl4965_txpowertable_cmd cmd = { 0 };
 	int ret;
@@ -3507,6 +3477,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	},
 	.radio_kill_sw = iwl4965_radio_kill_sw,
 	.set_power = iwl4965_set_power,
+	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl4965_update_chain_flags,
 };
 

@@ -683,8 +683,6 @@ extern void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 				     struct ieee80211_tx_info *info,
 				     struct ieee80211_hdr *hdr,
 				     int sta_id, int tx_id);
-extern int iwl4965_hw_reg_send_txpower(struct iwl_priv *priv);
-extern int iwl4965_hw_reg_set_txpower(struct iwl_priv *priv, s8 power);
 extern void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl4965_disable_events(struct iwl_priv *priv);
@@ -1167,10 +1165,9 @@ struct iwl_priv {
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
 	struct delayed_work post_associate;
-
-#define IWL_DEFAULT_TX_POWER 0x0F
-	s8 user_txpower_limit;
-	s8 max_channel_txpower_limit;
+	/* TX Power */
+	s8 tx_power_user_lmt;
+	s8 tx_power_channel_lmt;
 
 #ifdef CONFIG_PM
 	u32 pm_state[16];

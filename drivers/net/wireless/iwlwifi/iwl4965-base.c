@@ -367,9 +367,9 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	rc = iwl4965_hw_reg_send_txpower(priv);
+	rc = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
 	if (rc) {
-		IWL_ERROR("Error setting Tx power (%d).\n", rc);
+		IWL_ERROR("Error sending TX power (%d).\n", rc);
 		return rc;
 	}
 
@@ -3637,7 +3637,7 @@ static void iwl4965_bg_scan_completed(struct work_struct *work)
 	struct iwl_priv *priv =
 	    container_of(work, struct iwl_priv, scan_completed);
 
-	IWL_DEBUG(IWL_DL_SCAN, "SCAN complete scan\n");
+	IWL_DEBUG_SCAN("SCAN complete scan\n");
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -3650,7 +3650,7 @@ static void iwl4965_bg_scan_completed(struct work_struct *work)
 	/* Since setting the TXPOWER may have been deferred while
 	 * performing the scan, fire one off */
 	mutex_lock(&priv->mutex);
-	iwl4965_hw_reg_send_txpower(priv);
+	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -3929,6 +3929,11 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		ret = -EIO;
 		goto out;
 	}
+
+	IWL_DEBUG_MAC80211("TX Power old=%d new=%d\n",
+			   priv->tx_power_user_lmt, conf->power_level);
+
+	iwl_set_tx_power(priv, conf->power_level, false);
 
 	iwl4965_set_rate(priv);
 
@@ -4713,7 +4718,7 @@ static ssize_t show_tx_power(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-	return sprintf(buf, "%d\n", priv->user_txpower_limit);
+	return sprintf(buf, "%d\n", priv->tx_power_user_lmt);
 }
 
 static ssize_t store_tx_power(struct device *d,
@@ -4729,7 +4734,7 @@ static ssize_t store_tx_power(struct device *d,
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in decimal form.\n", buf);
 	else
-		iwl4965_hw_reg_set_txpower(priv, val);
+		iwl_set_tx_power(priv, val, false);
 
 	return count;
 }

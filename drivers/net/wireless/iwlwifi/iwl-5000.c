@@ -1424,6 +1424,19 @@ static int iwl5000_send_rxon_assoc(struct iwl_priv *priv)
 
 	return ret;
 }
+static int  iwl5000_send_tx_power(struct iwl_priv *priv)
+{
+	struct iwl5000_tx_power_dbm_cmd tx_power_cmd;
+
+	/* half dBm need to multiply */
+	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
+	tx_power_cmd.flags = 0;
+	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
+	return  iwl_send_cmd_pdu_async(priv, REPLY_TX_POWER_DBM_CMD,
+				       sizeof(tx_power_cmd), &tx_power_cmd,
+				       NULL);
+}
+
 
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
@@ -1452,6 +1465,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.load_ucode = iwl5000_load_ucode,
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
+	.send_tx_power = iwl5000_send_tx_power,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,

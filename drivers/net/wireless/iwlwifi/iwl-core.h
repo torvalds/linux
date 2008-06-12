@@ -140,6 +140,7 @@ struct iwl_lib_ops {
 	} apm_ops;
 	/* power */
 	int (*set_power)(struct iwl_priv *priv, void *cmd);
+	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
@@ -236,6 +237,11 @@ int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn);
 int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
 int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
+
+/*****************************************************
+ * TX power
+ ****************************************************/
+int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *

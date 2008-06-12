@@ -126,6 +126,7 @@ enum {
 	/* Miscellaneous commands */
 	QUIET_NOTIFICATION = 0x96,		/* not used */
 	REPLY_TX_PWR_TABLE_CMD = 0x97,
+	REPLY_TX_POWER_DBM_CMD = 0x98,
 	MEASURE_ABORT_NOTIFICATION = 0x99,	/* not used */
 
 	/* Bluetooth device coexistance config command */
@@ -339,6 +340,17 @@ struct iwl4965_tx_power_db {
 	struct tx_power_dual_stream power_tbl[POWER_TABLE_NUM_ENTRIES];
 } __attribute__ ((packed));
 
+/**
+ * Commad REPLY_TX_POWER_DBM_CMD = 0x98
+ * struct iwl5000_tx_power_dbm_cmd
+ */
+#define IWL50_TX_POWER_AUTO 0x7f
+struct iwl5000_tx_power_dbm_cmd {
+	s8 global_lmt; /*in half-dBm (e.g. 30 = 15 dBm) */
+	u8 flags;
+	s8 srv_chan_lmt; /*in half-dBm (e.g. 30 = 15 dBm) */
+	u8 reserved;
+} __attribute__ ((packed));
 
 /******************************************************************************
  * (0a)

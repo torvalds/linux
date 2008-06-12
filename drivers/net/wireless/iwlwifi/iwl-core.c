@@ -480,9 +480,8 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 
 			geo_ch->flags |= ch->fat_extension_channel;
 
-			if (ch->max_power_avg > priv->max_channel_txpower_limit)
-				priv->max_channel_txpower_limit =
-				    ch->max_power_avg;
+			if (ch->max_power_avg > priv->tx_power_channel_lmt)
+				priv->tx_power_channel_lmt = ch->max_power_avg;
 		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
@@ -832,7 +831,7 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->rates_mask = IWL_RATES_MASK;
 	/* If power management is turned on, default to AC mode */
 	priv->power_mode = IWL_POWER_AC;
-	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
+	priv->tx_power_user_lmt = IWL_TX_POWER_TARGET_POWER_MAX;
 
 	ret = iwl_init_channel_map(priv);
 	if (ret) {
@@ -871,6 +870,34 @@ void iwl_free_calib_results(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_free_calib_results);
 
+int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
+{
+	int ret = 0;
+	if (tx_power < IWL_TX_POWER_TARGET_POWER_MIN) {
+		IWL_WARNING("Requested user TXPOWER %d below limit.\n",
+			    priv->tx_power_user_lmt);
+		return -EINVAL;
+	}
+
+	if (tx_power > IWL_TX_POWER_TARGET_POWER_MAX) {
+		IWL_WARNING("Requested user TXPOWER %d above limit.\n",
+			    priv->tx_power_user_lmt);
+		return -EINVAL;
+	}
+
+	if (priv->tx_power_user_lmt != tx_power)
+		force = true;
+
+	priv->tx_power_user_lmt = tx_power;
+
+	if (force && priv->cfg->ops->lib->send_tx_power)
+		ret = priv->cfg->ops->lib->send_tx_power(priv);
+
+	return ret;
+}
+EXPORT_SYMBOL(iwl_set_tx_power);
+
+
 void iwl_uninit_drv(struct iwl_priv *priv)
 {
 	iwl_free_calib_results(priv);
@@ -879,6 +906,8 @@ void iwl_uninit_drv(struct iwl_priv *priv)
 	kfree(priv->scan);
 }
 EXPORT_SYMBOL(iwl_uninit_drv);
+
+
 
 /* Low level driver call this function to update iwlcore with
  * driver status.
