@@ -527,7 +527,7 @@ void __init arch_init_irq(void)
 				.call =  GIC_IPI_EXT_INTR_CALLFNC_VPE3
 			}
 		};
-#define NIPI (sizeof(ipiirq)/sizeof(ipiirq[0]))
+#define NIPI ARRAY_SIZE(ipiirq)
 		fill_ipi_map();
 		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map, ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
 		if (!gcmp_present) {
