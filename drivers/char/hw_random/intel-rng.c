@@ -273,7 +273,7 @@ static int __init intel_rng_hw_init(void *_intel_rng_hw)
 	if (mfc != INTEL_FWH_MANUFACTURER_CODE ||
 	    (dvc != INTEL_FWH_DEVICE_CODE_8M &&
 	     dvc != INTEL_FWH_DEVICE_CODE_4M)) {
-		printk(KERN_ERR PFX "FWH not detected\n");
+		printk(KERN_NOTICE PFX "FWH not detected\n");
 		return -ENODEV;
 	}
 
