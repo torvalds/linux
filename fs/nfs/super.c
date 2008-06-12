@@ -65,7 +65,6 @@
 enum {
 	/* Mount options that take no arguments */
 	Opt_soft, Opt_hard,
-	Opt_intr, Opt_nointr,
 	Opt_posix, Opt_noposix,
 	Opt_cto, Opt_nocto,
 	Opt_ac, Opt_noac,
@@ -105,8 +104,8 @@ static match_table_t nfs_mount_option_tokens = {
 
 	{ Opt_soft, "soft" },
 	{ Opt_hard, "hard" },
-	{ Opt_intr, "intr" },
-	{ Opt_nointr, "nointr" },
+	{ Opt_deprecated, "intr" },
+	{ Opt_deprecated, "nointr" },
 	{ Opt_posix, "posix" },
 	{ Opt_noposix, "noposix" },
 	{ Opt_cto, "cto" },
@@ -787,9 +786,6 @@ static int nfs_parse_mount_options(char *raw,
 		case Opt_hard:
 			mnt->flags &= ~NFS_MOUNT_SOFT;
 			break;
-		case Opt_intr:
-		case Opt_nointr:
-			break;
 		case Opt_posix:
 			mnt->flags |= NFS_MOUNT_POSIX;
 			break;
@@ -1105,6 +1101,8 @@ static int nfs_parse_mount_options(char *raw,
 
 		case Opt_userspace:
 		case Opt_deprecated:
+			dfprintk(MOUNT, "NFS:   ignoring mount option "
+					"'%s'\n", p);
 			break;
 
 		default:
