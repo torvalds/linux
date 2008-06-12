@@ -1051,6 +1051,12 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	desc = intf->cur_altsetting;
 	hdev = interface_to_usbdev(intf);
 
+	if (hdev->level == MAX_TOPO_LEVEL) {
+		dev_err(&intf->dev, "Unsupported bus topology: "
+				"hub nested too deep\n");
+		return -E2BIG;
+	}
+
 #ifdef	CONFIG_USB_OTG_BLACKLIST_HUB
 	if (hdev->parent) {
 		dev_warn(&intf->dev, "ignoring external hub\n");

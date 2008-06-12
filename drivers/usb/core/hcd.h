@@ -21,6 +21,8 @@
 
 #include <linux/rwsem.h>
 
+#define MAX_TOPO_LEVEL		6
+
 /* This file contains declarations of usbcore internals that are mostly
  * used or exposed by Host Controller Drivers.
  */
