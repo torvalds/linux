@@ -99,6 +99,7 @@
 #define TOSA_GPIO_TP_INT		(32)	/* Touch Panel pen down interrupt */
 #define TOSA_GPIO_JC_CF_IRQ		(36)	/* CF slot1 Ready */
 #define TOSA_GPIO_BAT_LOCKED		(38)	/* Battery locked */
+#define TOSA_GPIO_IRDA_TX		(47)
 #define TOSA_GPIO_TG_SPI_SCLK		(81)
 #define TOSA_GPIO_TG_SPI_CS		(82)
 #define TOSA_GPIO_TG_SPI_MOSI		(83)

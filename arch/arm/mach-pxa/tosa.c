@@ -117,10 +117,6 @@ static unsigned long tosa_pin_config[] = {
 	GPIO44_BTUART_CTS,
 	GPIO45_BTUART_RTS,
 
-	/* IrDA */
-	GPIO46_STUART_RXD,
-	GPIO47_STUART_TXD,
-
 	/* Keybd */
 	GPIO58_GPIO | MFP_LPM_DRIVE_LOW,
 	GPIO59_GPIO | MFP_LPM_DRIVE_LOW,
@@ -146,6 +142,17 @@ static unsigned long tosa_pin_config[] = {
 	GPIO82_SSP2_FRM_OUT,
 	GPIO83_SSP2_TXD,
 };
+
+static unsigned long tosa_pin_irda_off[] = {
+	GPIO46_STUART_RXD,
+	GPIO47_GPIO | MFP_LPM_DRIVE_LOW,
+};
+
+static unsigned long tosa_pin_irda_on[] = {
+	GPIO46_STUART_RXD,
+	GPIO47_STUART_TXD,
+};
+
 
 /*
  * SCOOP Device
@@ -341,29 +348,55 @@ static struct pxamci_platform_data tosa_mci_platform_data = {
 /*
  * Irda
  */
+static void tosa_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF) {
+		gpio_set_value(TOSA_GPIO_IR_POWERDWN, 0);
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_irda_off));
+		gpio_direction_output(TOSA_GPIO_IRDA_TX, 0);
+	} else {
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_irda_on));
+		gpio_set_value(TOSA_GPIO_IR_POWERDWN, 1);
+	}
+}
+
 static int tosa_irda_startup(struct device *dev)
 {
 	int ret;
 
+	ret = gpio_request(TOSA_GPIO_IRDA_TX, "IrDA TX");
+	if (ret)
+		goto err_tx;
+	ret = gpio_direction_output(TOSA_GPIO_IRDA_TX, 0);
+	if (ret)
+		goto err_tx_dir;
+
 	ret = gpio_request(TOSA_GPIO_IR_POWERDWN, "IrDA powerdown");
 	if (ret)
-		return ret;
+		goto err_pwr;
 
 	ret = gpio_direction_output(TOSA_GPIO_IR_POWERDWN, 0);
 	if (ret)
-		gpio_free(TOSA_GPIO_IR_POWERDWN);
+		goto err_pwr_dir;
 
+	tosa_irda_transceiver_mode(dev, IR_SIRMODE | IR_OFF);
+
+	return 0;
+
+err_pwr_dir:
+	gpio_free(TOSA_GPIO_IR_POWERDWN);
+err_pwr:
+err_tx_dir:
+	gpio_free(TOSA_GPIO_IRDA_TX);
+err_tx:
 	return ret;
-	}
+}
 
 static void tosa_irda_shutdown(struct device *dev)
 {
+	tosa_irda_transceiver_mode(dev, IR_SIRMODE | IR_OFF);
 	gpio_free(TOSA_GPIO_IR_POWERDWN);
-}
-
-static void tosa_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(TOSA_GPIO_IR_POWERDWN, !(mode & IR_OFF));
+	gpio_free(TOSA_GPIO_IRDA_TX);
 }
 
 static struct pxaficp_platform_data tosa_ficp_platform_data = {
@@ -501,6 +534,7 @@ static void tosa_restart(char mode)
 static void __init tosa_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_config));
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_irda_off));
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
 
