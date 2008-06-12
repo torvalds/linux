@@ -3448,6 +3448,43 @@ static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
 	return 1;
 }
 
+#ifdef CONFIG_TCP_MD5SIG
+/*
+ * Parse MD5 Signature option
+ */
+u8 *tcp_parse_md5sig_option(struct tcphdr *th)
+{
+	int length = (th->doff << 2) - sizeof (*th);
+	u8 *ptr = (u8*)(th + 1);
+
+	/* If the TCP option is too short, we can short cut */
+	if (length < TCPOLEN_MD5SIG)
+		return NULL;
+
+	while (length > 0) {
+		int opcode = *ptr++;
+		int opsize;
+
+		switch(opcode) {
+		case TCPOPT_EOL:
+			return NULL;
+		case TCPOPT_NOP:
+			length--;
+			continue;
+		default:
+			opsize = *ptr++;
+			if (opsize < 2 || opsize > length)
+				return NULL;
+			if (opcode == TCPOPT_MD5SIG)
+				return ptr;
+		}
+		ptr += opsize - 2;
+		length -= opsize;
+	}
+	return NULL;
+}
+#endif
+
 static inline void tcp_store_ts_recent(struct tcp_sock *tp)
 {
 	tp->rx_opt.ts_recent = tp->rx_opt.rcv_tsval;
@@ -5465,6 +5502,9 @@ EXPORT_SYMBOL(sysctl_tcp_ecn);
 EXPORT_SYMBOL(sysctl_tcp_reordering);
 EXPORT_SYMBOL(sysctl_tcp_adv_win_scale);
 EXPORT_SYMBOL(tcp_parse_options);
+#ifdef CONFIG_TCP_MD5SIG
+EXPORT_SYMBOL(tcp_parse_md5sig_option);
+#endif
 EXPORT_SYMBOL(tcp_rcv_established);
 EXPORT_SYMBOL(tcp_rcv_state_process);
 EXPORT_SYMBOL(tcp_initialize_rcv_mss);

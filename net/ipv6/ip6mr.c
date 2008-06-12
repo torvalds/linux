@@ -1240,7 +1240,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 
 #endif
 	/*
-	 *	Spurious command, or MRT_VERSION which you cannot
+	 *	Spurious command, or MRT6_VERSION which you cannot
 	 *	set.
 	 */
 	default:

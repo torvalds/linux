@@ -93,8 +93,13 @@ static struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk,
 						   __be32 addr);
 static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				   __be32 saddr, __be32 daddr,
-				   struct tcphdr *th, int protocol,
-				   unsigned int tcplen);
+				   struct tcphdr *th, unsigned int tcplen);
+#else
+static inline
+struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk, __be32 addr)
+{
+	return NULL;
+}
 #endif
 
 struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
@@ -584,8 +589,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 					key,
 					ip_hdr(skb)->daddr,
 					ip_hdr(skb)->saddr,
-					&rep.th, IPPROTO_TCP,
-					arg.iov[0].iov_len);
+					&rep.th, arg.iov[0].iov_len);
 	}
 #endif
 	arg.csum = csum_tcpudp_nofold(ip_hdr(skb)->daddr,
@@ -604,9 +608,9 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
    outside socket context is ugly, certainly. What can I do?
  */
 
-static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
-			    struct sk_buff *skb, u32 seq, u32 ack,
-			    u32 win, u32 ts)
+static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
+			    u32 win, u32 ts, int oif,
+			    struct tcp_md5sig_key *key)
 {
 	struct tcphdr *th = tcp_hdr(skb);
 	struct {
@@ -618,10 +622,6 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 			];
 	} rep;
 	struct ip_reply_arg arg;
-#ifdef CONFIG_TCP_MD5SIG
-	struct tcp_md5sig_key *key;
-	struct tcp_md5sig_key tw_key;
-#endif
 
 	memset(&rep.th, 0, sizeof(struct tcphdr));
 	memset(&arg, 0, sizeof(arg));
@@ -647,23 +647,6 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 	rep.th.window  = htons(win);
 
 #ifdef CONFIG_TCP_MD5SIG
-	/*
-	 * The SKB holds an imcoming packet, but may not have a valid ->sk
-	 * pointer. This is especially the case when we're dealing with a
-	 * TIME_WAIT ack, because the sk structure is long gone, and only
-	 * the tcp_timewait_sock remains. So the md5 key is stashed in that
-	 * structure, and we use it in preference.  I believe that (twsk ||
-	 * skb->sk) holds true, but we program defensively.
-	 */
-	if (!twsk && skb->sk) {
-		key = tcp_v4_md5_do_lookup(skb->sk, ip_hdr(skb)->daddr);
-	} else if (twsk && twsk->tw_md5_keylen) {
-		tw_key.key = twsk->tw_md5_key;
-		tw_key.keylen = twsk->tw_md5_keylen;
-		key = &tw_key;
-	} else
-		key = NULL;
-
 	if (key) {
 		int offset = (ts) ? 3 : 0;
 
@@ -678,16 +661,15 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 					key,
 					ip_hdr(skb)->daddr,
 					ip_hdr(skb)->saddr,
-					&rep.th, IPPROTO_TCP,
-					arg.iov[0].iov_len);
+					&rep.th, arg.iov[0].iov_len);
 	}
 #endif
 	arg.csum = csum_tcpudp_nofold(ip_hdr(skb)->daddr,
 				      ip_hdr(skb)->saddr, /* XXX */
 				      arg.iov[0].iov_len, IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
-	if (twsk)
-		arg.bound_dev_if = twsk->tw_sk.tw_bound_dev_if;
+	if (oif)
+		arg.bound_dev_if = oif;
 
 	ip_send_reply(dev_net(skb->dev)->ipv4.tcp_sock, skb,
 		      &arg, arg.iov[0].iov_len);
@@ -700,9 +682,12 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	struct inet_timewait_sock *tw = inet_twsk(sk);
 	struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
 
-	tcp_v4_send_ack(tcptw, skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
+	tcp_v4_send_ack(skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
-			tcptw->tw_ts_recent);
+			tcptw->tw_ts_recent,
+			tw->tw_bound_dev_if,
+			tcp_twsk_md5_key(tcptw)
+			);
 
 	inet_twsk_put(tw);
 }
@@ -710,9 +695,11 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 static void tcp_v4_reqsk_send_ack(struct sk_buff *skb,
 				  struct request_sock *req)
 {
-	tcp_v4_send_ack(NULL, skb, tcp_rsk(req)->snt_isn + 1,
+	tcp_v4_send_ack(skb, tcp_rsk(req)->snt_isn + 1,
 			tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd,
-			req->ts_recent);
+			req->ts_recent,
+			0,
+			tcp_v4_md5_do_lookup(skb->sk, ip_hdr(skb)->daddr));
 }
 
 /*
@@ -1004,18 +991,12 @@ static int tcp_v4_parse_md5_keys(struct sock *sk, char __user *optval,
 
 static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				   __be32 saddr, __be32 daddr,
-				   struct tcphdr *th, int protocol,
+				   struct tcphdr *th,
 				   unsigned int tcplen)
 {
-	struct scatterlist sg[4];
-	__u16 data_len;
-	int block = 0;
-	__sum16 old_checksum;
 	struct tcp_md5sig_pool *hp;
 	struct tcp4_pseudohdr *bp;
-	struct hash_desc *desc;
 	int err;
-	unsigned int nbytes = 0;
 
 	/*
 	 * Okay, so RFC2385 is turned on for this connection,
@@ -1027,63 +1008,25 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 		goto clear_hash_noput;
 
 	bp = &hp->md5_blk.ip4;
-	desc = &hp->md5_desc;
 
 	/*
-	 * 1. the TCP pseudo-header (in the order: source IP address,
+	 * The TCP pseudo-header (in the order: source IP address,
 	 * destination IP address, zero-padded protocol number, and
 	 * segment length)
 	 */
 	bp->saddr = saddr;
 	bp->daddr = daddr;
 	bp->pad = 0;
-	bp->protocol = protocol;
+	bp->protocol = IPPROTO_TCP;
 	bp->len = htons(tcplen);
 
-	sg_init_table(sg, 4);
-
-	sg_set_buf(&sg[block++], bp, sizeof(*bp));
-	nbytes += sizeof(*bp);
-
-	/* 2. the TCP header, excluding options, and assuming a
-	 * checksum of zero/
-	 */
-	old_checksum = th->check;
-	th->check = 0;
-	sg_set_buf(&sg[block++], th, sizeof(struct tcphdr));
-	nbytes += sizeof(struct tcphdr);
-
-	/* 3. the TCP segment data (if any) */
-	data_len = tcplen - (th->doff << 2);
-	if (data_len > 0) {
-		unsigned char *data = (unsigned char *)th + (th->doff << 2);
-		sg_set_buf(&sg[block++], data, data_len);
-		nbytes += data_len;
-	}
-
-	/* 4. an independently-specified key or password, known to both
-	 * TCPs and presumably connection-specific
-	 */
-	sg_set_buf(&sg[block++], key->key, key->keylen);
-	nbytes += key->keylen;
-
-	sg_mark_end(&sg[block - 1]);
-
-	/* Now store the Hash into the packet */
-	err = crypto_hash_init(desc);
-	if (err)
-		goto clear_hash;
-	err = crypto_hash_update(desc, sg, nbytes);
-	if (err)
-		goto clear_hash;
-	err = crypto_hash_final(desc, md5_hash);
+	err = tcp_calc_md5_hash(md5_hash, key, sizeof(*bp),
+				th, tcplen, hp);
 	if (err)
 		goto clear_hash;
 
-	/* Reset header, and free up the crypto */
+	/* Free up the crypto pool */
 	tcp_put_md5sig_pool();
-	th->check = old_checksum;
-
 out:
 	return 0;
 clear_hash:
@@ -1097,7 +1040,7 @@ int tcp_v4_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 			 struct sock *sk,
 			 struct dst_entry *dst,
 			 struct request_sock *req,
-			 struct tcphdr *th, int protocol,
+			 struct tcphdr *th,
 			 unsigned int tcplen)
 {
 	__be32 saddr, daddr;
@@ -1113,7 +1056,7 @@ int tcp_v4_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	}
 	return tcp_v4_do_calc_md5_hash(md5_hash, key,
 				       saddr, daddr,
-				       th, protocol, tcplen);
+				       th, tcplen);
 }
 
 EXPORT_SYMBOL(tcp_v4_calc_md5_hash);
@@ -1132,52 +1075,12 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 	struct tcp_md5sig_key *hash_expected;
 	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);
-	int length = (th->doff << 2) - sizeof(struct tcphdr);
 	int genhash;
-	unsigned char *ptr;
 	unsigned char newhash[16];
 
 	hash_expected = tcp_v4_md5_do_lookup(sk, iph->saddr);
+	hash_location = tcp_parse_md5sig_option(th);
 
-	/*
-	 * If the TCP option length is less than the TCP_MD5SIG
-	 * option length, then we can shortcut
-	 */
-	if (length < TCPOLEN_MD5SIG) {
-		if (hash_expected)
-			return 1;
-		else
-			return 0;
-	}
-
-	/* Okay, we can't shortcut - we have to grub through the options */
-	ptr = (unsigned char *)(th + 1);
-	while (length > 0) {
-		int opcode = *ptr++;
-		int opsize;
-
-		switch (opcode) {
-		case TCPOPT_EOL:
-			goto done_opts;
-		case TCPOPT_NOP:
-			length--;
-			continue;
-		default:
-			opsize = *ptr++;
-			if (opsize < 2)
-				goto done_opts;
-			if (opsize > length)
-				goto done_opts;
-
-			if (opcode == TCPOPT_MD5SIG) {
-				hash_location = ptr;
-				goto done_opts;
-			}
-		}
-		ptr += opsize-2;
-		length -= opsize;
-	}
-done_opts:
 	/* We've parsed the options - do we have a hash? */
 	if (!hash_expected && !hash_location)
 		return 0;
@@ -1204,8 +1107,7 @@ done_opts:
 	genhash = tcp_v4_do_calc_md5_hash(newhash,
 					  hash_expected,
 					  iph->saddr, iph->daddr,
-					  th, sk->sk_protocol,
-					  skb->len);
+					  th, skb->len);
 
 	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
 		if (net_ratelimit()) {

@@ -2457,6 +2457,76 @@ static unsigned long tcp_md5sig_users;
 static struct tcp_md5sig_pool **tcp_md5sig_pool;
 static DEFINE_SPINLOCK(tcp_md5sig_pool_lock);
 
+int tcp_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
+		      int bplen,
+		      struct tcphdr *th, unsigned int tcplen,
+		      struct tcp_md5sig_pool *hp)
+{
+	struct scatterlist sg[4];
+	__u16 data_len;
+	int block = 0;
+	__sum16 cksum;
+	struct hash_desc *desc = &hp->md5_desc;
+	int err;
+	unsigned int nbytes = 0;
+
+	sg_init_table(sg, 4);
+
+	/* 1. The TCP pseudo-header */
+	sg_set_buf(&sg[block++], &hp->md5_blk, bplen);
+	nbytes += bplen;
+
+	/* 2. The TCP header, excluding options, and assuming a
+	 * checksum of zero
+	 */
+	cksum = th->check;
+	th->check = 0;
+	sg_set_buf(&sg[block++], th, sizeof(*th));
+	nbytes += sizeof(*th);
+
+	/* 3. The TCP segment data (if any) */
+	data_len = tcplen - (th->doff << 2);
+	if (data_len > 0) {
+		u8 *data = (u8 *)th + (th->doff << 2);
+		sg_set_buf(&sg[block++], data, data_len);
+		nbytes += data_len;
+	}
+
+	/* 4. an independently-specified key or password, known to both
+	 * TCPs and presumably connection-specific
+	 */
+	sg_set_buf(&sg[block++], key->key, key->keylen);
+	nbytes += key->keylen;
+
+	sg_mark_end(&sg[block - 1]);
+
+	/* Now store the hash into the packet */
+	err = crypto_hash_init(desc);
+	if (err) {
+		if (net_ratelimit())
+			printk(KERN_WARNING "%s(): hash_init failed\n", __func__);
+		return -1;
+	}
+	err = crypto_hash_update(desc, sg, nbytes);
+	if (err) {
+		if (net_ratelimit())
+			printk(KERN_WARNING "%s(): hash_update failed\n", __func__);
+		return -1;
+	}
+	err = crypto_hash_final(desc, md5_hash);
+	if (err) {
+		if (net_ratelimit())
+			printk(KERN_WARNING "%s(): hash_final failed\n", __func__);
+		return -1;
+	}
+
+	/* Reset header */
+	th->check = cksum;
+
+	return 0;
+}
+EXPORT_SYMBOL(tcp_calc_md5_hash);
+
 static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool **pool)
 {
 	int cpu;

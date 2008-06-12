@@ -399,6 +399,8 @@ extern void			tcp_parse_options(struct sk_buff *skb,
 						  struct tcp_options_received *opt_rx,
 						  int estab);
 
+extern u8			*tcp_parse_md5sig_option(struct tcphdr *th);
+
 /*
  *	TCP v4 functions exported for the inet6 API
  */
@@ -1115,13 +1117,19 @@ struct tcp_md5sig_pool {
 #define TCP_MD5SIG_MAXKEYS	(~(u32)0)	/* really?! */
 
 /* - functions */
+extern int			tcp_calc_md5_hash(char *md5_hash,
+						  struct tcp_md5sig_key *key,
+						  int bplen,
+						  struct tcphdr *th,
+						  unsigned int tcplen,
+						  struct tcp_md5sig_pool *hp);
+
 extern int			tcp_v4_calc_md5_hash(char *md5_hash,
 						     struct tcp_md5sig_key *key,
 						     struct sock *sk,
 						     struct dst_entry *dst,
 						     struct request_sock *req,
 						     struct tcphdr *th,
-						     int protocol,
 						     unsigned int tcplen);
 extern struct tcp_md5sig_key	*tcp_v4_md5_lookup(struct sock *sk,
 						   struct sock *addr_sk);
@@ -1133,6 +1141,16 @@ extern int			tcp_v4_md5_do_add(struct sock *sk,
 
 extern int			tcp_v4_md5_do_del(struct sock *sk,
 						  __be32 addr);
+
+#ifdef CONFIG_TCP_MD5SIG
+#define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_keylen ? 		 \
+				 &(struct tcp_md5sig_key) {		 \
+					.key = (twsk)->tw_md5_key,	 \
+					.keylen = (twsk)->tw_md5_keylen, \
+				} : NULL)
+#else
+#define tcp_twsk_md5_key(twsk)	NULL
+#endif
 
 extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(void);
 extern void			tcp_free_md5sig_pool(void);
@@ -1371,7 +1389,6 @@ struct tcp_sock_af_ops {
 						  struct dst_entry *dst,
 						  struct request_sock *req,
 						  struct tcphdr *th,
-						  int protocol,
 						  unsigned int len);
 	int			(*md5_add) (struct sock *sk,
 					    struct sock *addr_sk,
