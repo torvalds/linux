@@ -265,14 +265,16 @@ void __init pci_direct_init(int type)
 		 type);
 	if (type == 1) {
 		raw_pci_ops = &pci_direct_conf1;
-		if (!raw_pci_ext_ops && cpu_has_pci_ext_cfg) {
-			printk(KERN_INFO "PCI: Using configuration type 1 "
-			       "for extended access\n");
-			raw_pci_ext_ops = &pci_direct_conf1;
-		}
-	} else {
-		raw_pci_ops = &pci_direct_conf2;
+		if (raw_pci_ext_ops)
+			return;
+		if (!(pci_probe & PCI_HAS_IO_ECS))
+			return;
+		printk(KERN_INFO "PCI: Using configuration type 1 "
+		       "for extended access\n");
+		raw_pci_ext_ops = &pci_direct_conf1;
+		return;
 	}
+	raw_pci_ops = &pci_direct_conf2;
 }
 
 int __init pci_direct_probe(void)

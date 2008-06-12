@@ -6,7 +6,6 @@
 #include <asm/cacheflush.h>
 
 #include <mach_apic.h>
-#include "cpu.h"
 
 extern int __cpuinit get_model_name(struct cpuinfo_x86 *c);
 extern void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c);
@@ -186,9 +185,6 @@ void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	if (c->x86 == 0x10)
 		fam10h_check_enable_mmcfg();
-
-	if (c->x86 == 0x10)
-		amd_enable_pci_ext_cfg(c);
 
 	if (c == &boot_cpu_data && c->x86 >= 0xf && c->x86 <= 0x11) {
 		unsigned long long tseg;

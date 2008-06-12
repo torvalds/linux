@@ -1,5 +1,9 @@
 #include <linux/init.h>
 #include <linux/pci.h>
+#include "pci.h"
+
+#ifdef CONFIG_X86_64
+
 #include <asm/pci-direct.h>
 #include <asm/mpspec.h>
 #include <linux/cpumask.h>
@@ -526,3 +530,31 @@ static int __init early_fill_mp_bus_info(void)
 }
 
 postcore_initcall(early_fill_mp_bus_info);
+
+#endif
+
+/* common 32/64 bit code */
+
+#define ENABLE_CF8_EXT_CFG      (1ULL << 46)
+
+static void enable_pci_io_ecs_per_cpu(void *unused)
+{
+	u64 reg;
+	rdmsrl(MSR_AMD64_NB_CFG, reg);
+	if (!(reg & ENABLE_CF8_EXT_CFG)) {
+		reg |= ENABLE_CF8_EXT_CFG;
+		wrmsrl(MSR_AMD64_NB_CFG, reg);
+	}
+}
+
+static int __init enable_pci_io_ecs(void)
+{
+	/* assume all cpus from fam10h have IO ECS */
+        if (boot_cpu_data.x86 < 0x10)
+		return 0;
+	on_each_cpu(enable_pci_io_ecs_per_cpu, NULL, 1, 1);
+	pci_probe |= PCI_HAS_IO_ECS;
+	return 0;
+}
+
+postcore_initcall(enable_pci_io_ecs);
