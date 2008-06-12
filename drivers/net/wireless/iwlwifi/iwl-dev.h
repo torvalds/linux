@@ -742,8 +742,6 @@ extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 extern void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
 				struct ieee80211_ht_info *ht_info,
 				enum ieee80211_band band);
-void iwl4965_set_rxon_ht(struct iwl_priv *priv,
-			 struct iwl_ht_info *ht_info);
 int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    enum ieee80211_ampdu_mlme_action action,
 				    const u8 *addr, u16 tid, u16 *ssn);

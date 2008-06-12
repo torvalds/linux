@@ -597,7 +597,6 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 		IWL_DEBUG_ASSOC("control diff than current %d %d\n",
 				le16_to_cpu(rxon->channel),
 				ht_info->control_channel);
-		rxon->channel = cpu_to_le16(ht_info->control_channel);
 		return;
 	}
 
