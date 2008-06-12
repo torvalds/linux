@@ -130,8 +130,8 @@ static struct kset *system_kset;
 
 int sysdev_class_register(struct sysdev_class * cls)
 {
-	pr_debug("Registering sysdev class '%s'\n",
-		 kobject_name(&cls->kset.kobj));
+	pr_debug("Registering sysdev class '%s'\n", cls->name);
+
 	INIT_LIST_HEAD(&cls->drivers);
 	memset(&cls->kset.kobj, 0x00, sizeof(struct kobject));
 	cls->kset.kobj.parent = &system_kset->kobj;
@@ -241,7 +241,8 @@ int sysdev_register(struct sys_device * sysdev)
 	if (!cls)
 		return -EINVAL;
 
-	pr_debug("Registering sys device '%s'\n", kobject_name(&sysdev->kobj));
+	pr_debug("Registering sys device of class '%s'\n",
+		 kobject_name(&cls->kset.kobj));
 
 	/* initialize the kobject to 0, in case it had previously been used */
 	memset(&sysdev->kobj, 0x00, sizeof(struct kobject));
@@ -257,6 +258,9 @@ int sysdev_register(struct sys_device * sysdev)
 	if (!error) {
 		struct sysdev_driver * drv;
 
+		pr_debug("Registering sys device '%s'\n",
+			 kobject_name(&sysdev->kobj));
+
 		mutex_lock(&sysdev_drivers_lock);
 		/* Generic notification is implicit, because it's that
 		 * code that should have called us.
@@ -269,6 +273,7 @@ int sysdev_register(struct sys_device * sysdev)
 		}
 		mutex_unlock(&sysdev_drivers_lock);
 	}
+
 	kobject_uevent(&sysdev->kobj, KOBJ_ADD);
 	return error;
 }
