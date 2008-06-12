@@ -1553,6 +1553,10 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+int btrfs_create_subvol_root(struct btrfs_root *new_root,
+		struct btrfs_trans_handle *trans, u64 new_dirid,
+		struct btrfs_block_group_cache *block_group);
+
 void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
 				  int namelen);
 
@@ -1585,7 +1589,6 @@ void btrfs_destroy_inode(struct inode *inode);
 int btrfs_init_cachep(void);
 void btrfs_destroy_cachep(void);
 long btrfs_ioctl_trans_end(struct file *file);
-long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 				struct btrfs_root *root);
 struct inode *btrfs_ilookup(struct super_block *s, u64 objectid,
@@ -1598,6 +1601,10 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *inode);
+
+/* ioctl.c */
+long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+
 /* file.c */
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end);
 int btrfs_check_file(struct btrfs_root *root, struct inode *inode);
