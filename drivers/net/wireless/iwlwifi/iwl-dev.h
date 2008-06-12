@@ -976,7 +976,7 @@ struct iwl_priv {
 	int one_direct_scan;
 	u8 direct_ssid_len;
 	u8 direct_ssid[IW_ESSID_MAX_SIZE];
-	struct iwl4965_scan_cmd *scan;
+	struct iwl_scan_cmd *scan;
 
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */

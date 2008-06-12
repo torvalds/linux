@@ -2100,7 +2100,7 @@ struct iwl4965_ct_kill_config {
  *****************************************************************************/
 
 /**
- * struct iwl4965_scan_channel - entry in REPLY_SCAN_CMD channel table
+ * struct iwl_scan_channel - entry in REPLY_SCAN_CMD channel table
  *
  * One for each channel in the scan list.
  * Each channel can independently select:
@@ -2110,7 +2110,7 @@ struct iwl4965_ct_kill_config {
  *     quiet_plcp_th, good_CRC_th)
  *
  * To avoid uCode errors, make sure the following are true (see comments
- * under struct iwl4965_scan_cmd about max_out_time and quiet_time):
+ * under struct iwl_scan_cmd about max_out_time and quiet_time):
  * 1)  If using passive_dwell (i.e. passive_dwell != 0):
  *     active_dwell <= passive_dwell (< max_out_time if max_out_time != 0)
  * 2)  quiet_time <= active_dwell
@@ -2118,7 +2118,7 @@ struct iwl4965_ct_kill_config {
  *     passive_dwell < max_out_time
  *     active_dwell < max_out_time
  */
-struct iwl4965_scan_channel {
+struct iwl_scan_channel {
 	/*
 	 * type is defined as:
 	 * 0:0 1 = active, 0 = passive
@@ -2134,13 +2134,13 @@ struct iwl4965_scan_channel {
 } __attribute__ ((packed));
 
 /**
- * struct iwl4965_ssid_ie - directed scan network information element
+ * struct iwl_ssid_ie - directed scan network information element
  *
  * Up to 4 of these may appear in REPLY_SCAN_CMD, selected by "type" field
  * in struct iwl4965_scan_channel; each channel may select different ssids from
  * among the 4 entries.  SSID IEs get transmitted in reverse order of entry.
  */
-struct iwl4965_ssid_ie {
+struct iwl_ssid_ie {
 	u8 id;
 	u8 len;
 	u8 ssid[32];
@@ -2201,9 +2201,9 @@ struct iwl4965_ssid_ie {
  * Driver must use separate scan commands for 2.4 vs. 5 GHz bands.
  *
  * To avoid uCode errors, see timing restrictions described under
- * struct iwl4965_scan_channel.
+ * struct iwl_scan_channel.
  */
-struct iwl4965_scan_cmd {
+struct iwl_scan_cmd {
 	__le16 len;
 	u8 reserved0;
 	u8 channel_count;	/* # channels in channel list */
@@ -2227,7 +2227,7 @@ struct iwl4965_scan_cmd {
 	struct iwl_tx_cmd tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
-	struct iwl4965_ssid_ie direct_scan[PROBE_OPTION_MAX];
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
 
 	/*
 	 * Probe request frame, followed by channel list.
@@ -2255,14 +2255,14 @@ struct iwl4965_scan_cmd {
 /*
  * REPLY_SCAN_CMD = 0x80 (response)
  */
-struct iwl4965_scanreq_notification {
+struct iwl_scanreq_notification {
 	__le32 status;		/* 1: okay, 2: cannot fulfill request */
 } __attribute__ ((packed));
 
 /*
  * SCAN_START_NOTIFICATION = 0x82 (notification only, not a command)
  */
-struct iwl4965_scanstart_notification {
+struct iwl_scanstart_notification {
 	__le32 tsf_low;
 	__le32 tsf_high;
 	__le32 beacon_timer;
@@ -2279,7 +2279,7 @@ struct iwl4965_scanstart_notification {
 /*
  * SCAN_RESULTS_NOTIFICATION = 0x83 (notification only, not a command)
  */
-struct iwl4965_scanresults_notification {
+struct iwl_scanresults_notification {
 	u8 channel;
 	u8 band;
 	u8 reserved[2];
@@ -2291,7 +2291,7 @@ struct iwl4965_scanresults_notification {
 /*
  * SCAN_COMPLETE_NOTIFICATION = 0x84 (notification only, not a command)
  */
-struct iwl4965_scancomplete_notification {
+struct iwl_scancomplete_notification {
 	u8 scanned_channels;
 	u8 status;
 	u8 reserved;

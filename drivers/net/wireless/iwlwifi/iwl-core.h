@@ -243,6 +243,16 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
  ****************************************************/
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 
+/*******************************************************************************
+ * Scanning
+ ******************************************************************************/
+int iwl_scan_cancel(struct iwl_priv *priv);
+int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
+const char *iwl_escape_essid(const char *essid, u8 essid_len);
+int iwl_scan_initiate(struct iwl_priv *priv);
+void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
+void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
+
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
