@@ -7,6 +7,7 @@
 
 #include <linux/gfp.h>
 #include <linux/list.h>
+#include <linux/mmdebug.h>
 #include <linux/mmzone.h>
 #include <linux/rbtree.h>
 #include <linux/prio_tree.h>
@@ -209,12 +210,6 @@ struct inode;
  * files which need it (119 of them)
  */
 #include <linux/page-flags.h>
-
-#ifdef CONFIG_DEBUG_VM
-#define VM_BUG_ON(cond) BUG_ON(cond)
-#else
-#define VM_BUG_ON(condition) do { } while(0)
-#endif
 
 /*
  * Methods to modify the page usage count.

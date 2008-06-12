@@ -23,18 +23,26 @@
 
 #ifdef CONFIG_X86_64
 
-unsigned long __phys_addr(unsigned long x)
-{
-	if (x >= __START_KERNEL_map)
-		return x - __START_KERNEL_map + phys_base;
-	return x - PAGE_OFFSET;
-}
-EXPORT_SYMBOL(__phys_addr);
-
 static inline int phys_addr_valid(unsigned long addr)
 {
 	return addr < (1UL << boot_cpu_data.x86_phys_bits);
 }
+
+unsigned long __phys_addr(unsigned long x)
+{
+	if (x >= __START_KERNEL_map) {
+		x -= __START_KERNEL_map;
+		VIRTUAL_BUG_ON(x >= KERNEL_IMAGE_SIZE);
+		x += phys_base;
+	} else {
+		VIRTUAL_BUG_ON(x < PAGE_OFFSET);
+		x -= PAGE_OFFSET;
+		VIRTUAL_BUG_ON(system_state == SYSTEM_BOOTING ? x > MAXMEM :
+					!phys_addr_valid(x));
+	}
+	return x;
+}
+EXPORT_SYMBOL(__phys_addr);
 
 #else
 
@@ -42,6 +50,15 @@ static inline int phys_addr_valid(unsigned long addr)
 {
 	return 1;
 }
+
+unsigned long __phys_addr(unsigned long x)
+{
+	/* VMALLOC_* aren't constants; not available at the boot time */
+	VIRTUAL_BUG_ON(x < PAGE_OFFSET || (system_state != SYSTEM_BOOTING &&
+					is_vmalloc_addr((void *)x)));
+	return x - PAGE_OFFSET;
+}
+EXPORT_SYMBOL(__phys_addr);
 
 #endif
 

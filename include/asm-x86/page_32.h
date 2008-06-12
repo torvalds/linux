@@ -64,7 +64,8 @@ typedef struct page *pgtable_t;
 #endif
 
 #ifndef __ASSEMBLY__
-#define __phys_addr(x)		((x) - PAGE_OFFSET)
+#define __phys_addr_const(x)	((x) - PAGE_OFFSET)
+extern unsigned long __phys_addr(unsigned long);
 #define __phys_reloc_hide(x)	RELOC_HIDE((x), 0)
 
 #ifdef CONFIG_FLATMEM
