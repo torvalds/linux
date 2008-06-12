@@ -2875,7 +2875,8 @@ static void iwl3945_radio_kill_sw(struct iwl3945_priv *priv, int disable_radio)
 		return;
 	}
 
-	queue_work(priv->workqueue, &priv->restart);
+	if (priv->is_open)
+		queue_work(priv->workqueue, &priv->restart);
 	return;
 }
 

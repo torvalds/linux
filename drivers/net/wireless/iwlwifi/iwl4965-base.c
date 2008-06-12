@@ -970,7 +970,8 @@ int iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 		return 0;
 	}
 
-	queue_work(priv->workqueue, &priv->restart);
+	if (priv->is_open)
+		queue_work(priv->workqueue, &priv->restart);
 	return 1;
 }
 
