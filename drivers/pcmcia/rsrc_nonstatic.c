@@ -1008,41 +1008,34 @@ static ssize_t store_mem_db(struct device *dev,
 }
 static DEVICE_ATTR(available_resources_mem, 0600, show_mem_db, store_mem_db);
 
-static struct device_attribute *pccard_rsrc_attributes[] = {
-	&dev_attr_available_resources_io,
-	&dev_attr_available_resources_mem,
+static struct attribute *pccard_rsrc_attributes[] = {
+	&dev_attr_available_resources_io.attr,
+	&dev_attr_available_resources_mem.attr,
 	NULL,
+};
+
+static const struct attribute_group rsrc_attributes = {
+	.attrs = pccard_rsrc_attributes,
 };
 
 static int __devinit pccard_sysfs_add_rsrc(struct device *dev,
 					   struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
-	struct device_attribute **attr;
-	int ret = 0;
+
 	if (s->resource_ops != &pccard_nonstatic_ops)
 		return 0;
-
-	for (attr = pccard_rsrc_attributes; *attr; attr++) {
-		ret = device_create_file(dev, *attr);
-		if (ret)
-			break;
-	}
-
-	return ret;
+	return sysfs_create_group(&dev->kobj, &rsrc_attributes);
 }
 
 static void __devexit pccard_sysfs_remove_rsrc(struct device *dev,
 					       struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
-	struct device_attribute **attr;
 
 	if (s->resource_ops != &pccard_nonstatic_ops)
 		return;
-
-	for (attr = pccard_rsrc_attributes; *attr; attr++)
-		device_remove_file(dev, *attr);
+	sysfs_remove_group(&dev->kobj, &rsrc_attributes);
 }
 
 static struct class_interface pccard_rsrc_interface __refdata = {
