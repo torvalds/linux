@@ -84,9 +84,6 @@ struct uart_cpm_port {
 	u32			command;
 };
 
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-extern int cpm_uart_port_map[UART_NR];
-#endif
 extern int cpm_uart_nr;
 extern struct uart_cpm_port cpm_uart_ports[UART_NR];
 
