@@ -273,8 +273,8 @@ static void rs_tl_rm_old_stats(struct iwl4965_traffic_load *tl, u32 curr_time)
  *	increment traffic load value for tid and also remove
  *	any old values if passed the certain time period
  */
-static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
-			     struct ieee80211_hdr *hdr)
+static u8 rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
+			   struct ieee80211_hdr *hdr)
 {
 	u32 curr_time = jiffies_to_msecs(jiffies);
 	u32 time_diff;
@@ -287,7 +287,7 @@ static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
 		u8 *qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
 		tid = qc[0] & 0xf;
 	} else
-		return;
+		return MAX_TID_COUNT;
 
 	tl = &lq_data->load[tid];
 
@@ -300,7 +300,7 @@ static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
 		tl->queue_count = 1;
 		tl->head = 0;
 		tl->packet_count[0] = 1;
-		return;
+		return MAX_TID_COUNT;
 	}
 
 	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
@@ -317,6 +317,8 @@ static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
 
 	if ((index + 1) > tl->queue_count)
 		tl->queue_count = index + 1;
+
+	return tid;
 }
 
 /*
@@ -1680,7 +1682,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	}
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
 
-	rs_tl_add_packet(lq_sta, hdr);
+	tid = rs_tl_add_packet(lq_sta, hdr);
+
 	/*
 	 * Select rate-scale / modulation-mode table to work with in
 	 * the rest of this function:  "search" if searching for better
