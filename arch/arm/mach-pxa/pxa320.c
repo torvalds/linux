@@ -74,16 +74,12 @@ static struct pxa3xx_mfp_addr_map pxa320_mfp_addr_map[] __initdata = {
 	MFP_ADDR_END,
 };
 
-static void __init pxa320_init_mfp(void)
-{
-	pxa3xx_init_mfp();
-	pxa3xx_mfp_init_addr(pxa320_mfp_addr_map);
-}
-
 static int __init pxa320_init(void)
 {
-	if (cpu_is_pxa320())
-		pxa320_init_mfp();
+	if (cpu_is_pxa320()) {
+		pxa3xx_init_mfp();
+		pxa3xx_mfp_init_addr(pxa320_mfp_addr_map);
+	}
 
 	return 0;
 }
