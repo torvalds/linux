@@ -165,10 +165,12 @@ int nfsd_vers(int vers, enum vers_op change)
 
 int nfsd_nrthreads(void)
 {
-	if (nfsd_serv == NULL)
-		return 0;
-	else
-		return nfsd_serv->sv_nrthreads;
+	int rv = 0;
+	mutex_lock(&nfsd_mutex);
+	if (nfsd_serv)
+		rv = nfsd_serv->sv_nrthreads;
+	mutex_unlock(&nfsd_mutex);
+	return rv;
 }
 
 static void nfsd_last_thread(struct svc_serv *serv)
