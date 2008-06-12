@@ -314,6 +314,8 @@ enum wpa_key_mgmt { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
 #define WORK_LINK_DOWN		(1<<1)
 #define WORK_SET_MULTICAST_LIST	(1<<2)
 
+#define COMMAND_BUFFER_SIZE	(CONTROL_BUFFER_SIZE + sizeof(struct rndis_set))
+
 /* RNDIS device private data */
 struct rndis_wext_private {
 	char name[32];
@@ -362,6 +364,8 @@ struct rndis_wext_private {
 	u8  *wpa_ie;
 	int  wpa_cipher_pair;
 	int  wpa_cipher_group;
+
+	u8 command_buffer[COMMAND_BUFFER_SIZE];
 };
 
 
@@ -428,18 +432,23 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 	buflen = *len + sizeof(*u.get);
 	if (buflen < CONTROL_BUFFER_SIZE)
 		buflen = CONTROL_BUFFER_SIZE;
-	u.buf = kmalloc(buflen, GFP_KERNEL);
-	if (!u.buf)
-		return -ENOMEM;
+
+	if (buflen > COMMAND_BUFFER_SIZE) {
+		u.buf = kmalloc(buflen, GFP_KERNEL);
+		if (!u.buf)
+			return -ENOMEM;
+	} else {
+		u.buf = priv->command_buffer;
+	}
+
+	mutex_lock(&priv->command_lock);
+
 	memset(u.get, 0, sizeof *u.get);
 	u.get->msg_type = RNDIS_MSG_QUERY;
 	u.get->msg_len = ccpu2(sizeof *u.get);
 	u.get->oid = oid;
 
-	mutex_lock(&priv->command_lock);
 	ret = rndis_command(dev, u.header);
-	mutex_unlock(&priv->command_lock);
-
 	if (ret == 0) {
 		ret = le32_to_cpu(u.get_c->len);
 		*len = (*len > ret) ? ret : *len;
@@ -447,7 +456,10 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 		ret = rndis_error_status(u.get_c->status);
 	}
 
-	kfree(u.buf);
+	mutex_unlock(&priv->command_lock);
+
+	if (u.buf != priv->command_buffer)
+		kfree(u.buf);
 	return ret;
 }
 
@@ -466,9 +478,16 @@ static int rndis_set_oid(struct usbnet *dev, __le32 oid, void *data, int len)
 	buflen = len + sizeof(*u.set);
 	if (buflen < CONTROL_BUFFER_SIZE)
 		buflen = CONTROL_BUFFER_SIZE;
-	u.buf = kmalloc(buflen, GFP_KERNEL);
-	if (!u.buf)
-		return -ENOMEM;
+
+	if (buflen > COMMAND_BUFFER_SIZE) {
+		u.buf = kmalloc(buflen, GFP_KERNEL);
+		if (!u.buf)
+			return -ENOMEM;
+	} else {
+		u.buf = priv->command_buffer;
+	}
+
+	mutex_lock(&priv->command_lock);
 
 	memset(u.set, 0, sizeof *u.set);
 	u.set->msg_type = RNDIS_MSG_SET;
@@ -479,14 +498,14 @@ static int rndis_set_oid(struct usbnet *dev, __le32 oid, void *data, int len)
 	u.set->handle = ccpu2(0);
 	memcpy(u.buf + sizeof(*u.set), data, len);
 
-	mutex_lock(&priv->command_lock);
 	ret = rndis_command(dev, u.header);
-	mutex_unlock(&priv->command_lock);
-
 	if (ret == 0)
 		ret = rndis_error_status(u.set_c->status);
 
-	kfree(u.buf);
+	mutex_unlock(&priv->command_lock);
+
+	if (u.buf != priv->command_buffer)
+		kfree(u.buf);
 	return ret;
 }
 
