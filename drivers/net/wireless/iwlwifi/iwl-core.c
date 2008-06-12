@@ -478,24 +478,7 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
 				geo_ch->flags |= IEEE80211_CHAN_RADAR;
 
-			switch (ch->fat_extension_channel) {
-			case HT_IE_EXT_CHANNEL_ABOVE:
-				/* only above is allowed, disable below */
-				geo_ch->flags |= IEEE80211_CHAN_NO_FAT_BELOW;
-				break;
-			case HT_IE_EXT_CHANNEL_BELOW:
-				/* only below is allowed, disable above */
-				geo_ch->flags |= IEEE80211_CHAN_NO_FAT_ABOVE;
-				break;
-			case HT_IE_EXT_CHANNEL_NONE:
-				/* fat not allowed: disable both*/
-				geo_ch->flags |= (IEEE80211_CHAN_NO_FAT_ABOVE |
-						  IEEE80211_CHAN_NO_FAT_BELOW);
-				break;
-			case HT_IE_EXT_CHANNEL_MAX:
-				/* both above and below are permitted */
-				break;
-			}
+			geo_ch->flags |= ch->fat_extension_channel;
 
 			if (ch->max_power_avg > priv->max_channel_txpower_limit)
 				priv->max_channel_txpower_limit =
@@ -507,7 +490,7 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 		/* Save flags for reg domain usage */
 		geo_ch->orig_flags = geo_ch->flags;
 
-		IWL_DEBUG_INFO("Channel %d Freq=%d[%sGHz] %s flag=0%X\n",
+		IWL_DEBUG_INFO("Channel %d Freq=%d[%sGHz] %s flag=0x%X\n",
 				ch->channel, geo_ch->center_freq,
 				is_channel_a_band(ch) ?  "5.2" : "2.4",
 				geo_ch->flags & IEEE80211_CHAN_DISABLED ?
@@ -552,6 +535,7 @@ static u8 is_single_rx_stream(struct iwl_priv *priv)
 		(priv->current_ht_config.supp_mcs_set[2] == 0)) ||
 	       priv->ps_mode == IWL_MIMO_PS_STATIC;
 }
+
 static u8 iwl_is_channel_extension(struct iwl_priv *priv,
 				   enum ieee80211_band band,
 				   u16 channel, u8 extension_chan_offset)
@@ -562,12 +546,12 @@ static u8 iwl_is_channel_extension(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return 0;
 
-	if (extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE)
-		return 0;
-
-	if ((ch_info->fat_extension_channel == extension_chan_offset) ||
-	    (ch_info->fat_extension_channel == HT_IE_EXT_CHANNEL_MAX))
-		return 1;
+	if (extension_chan_offset == IEEE80211_HT_IE_CHA_SEC_ABOVE)
+		return !(ch_info->fat_extension_channel &
+					IEEE80211_CHAN_NO_FAT_ABOVE);
+	else if (extension_chan_offset == IEEE80211_HT_IE_CHA_SEC_BELOW)
+		return !(ch_info->fat_extension_channel &
+					IEEE80211_CHAN_NO_FAT_BELOW);
 
 	return 0;
 }
@@ -579,7 +563,7 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 
 	if ((!iwl_ht_conf->is_ht) ||
 	   (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ) ||
-	   (iwl_ht_conf->extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE))
+	   (iwl_ht_conf->extension_chan_offset == IEEE80211_HT_IE_CHA_SEC_NONE))
 		return 0;
 
 	if (sta_ht_inf) {
@@ -619,13 +603,13 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 
 	/* Note: control channel is opposite of extension channel */
 	switch (ht_info->extension_chan_offset) {
-	case IWL_EXT_CHANNEL_OFFSET_ABOVE:
+	case IEEE80211_HT_IE_CHA_SEC_ABOVE:
 		rxon->flags &= ~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
 		break;
-	case IWL_EXT_CHANNEL_OFFSET_BELOW:
+	case IEEE80211_HT_IE_CHA_SEC_BELOW:
 		rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
 		break;
-	case IWL_EXT_CHANNEL_OFFSET_NONE:
+	case IEEE80211_HT_IE_CHA_SEC_NONE:
 	default:
 		rxon->flags &= ~RXON_FLG_CHANNEL_MODE_MIXED_MSK;
 		break;

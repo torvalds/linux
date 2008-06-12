@@ -179,15 +179,6 @@ struct iwl4965_scan_power_info {
 	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
 };
 
-/* For fat_extension_channel */
-enum {
-	HT_IE_EXT_CHANNEL_NONE = 0,
-	HT_IE_EXT_CHANNEL_ABOVE,
-	HT_IE_EXT_CHANNEL_INVALID,
-	HT_IE_EXT_CHANNEL_BELOW,
-	HT_IE_EXT_CHANNEL_MAX
-};
-
 /*
  * One for each channel, holds all channel setup data
  * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
@@ -781,11 +772,6 @@ struct iwl_kw {
 #define IWL_OPERATION_MODE_HT_ONLY  1
 #define IWL_OPERATION_MODE_MIXED    2
 #define IWL_OPERATION_MODE_20MHZ    3
-
-#define IWL_EXT_CHANNEL_OFFSET_NONE      0
-#define IWL_EXT_CHANNEL_OFFSET_ABOVE     1
-#define IWL_EXT_CHANNEL_OFFSET_RESERVE1  2
-#define IWL_EXT_CHANNEL_OFFSET_BELOW     3
 
 #define IWL_TX_CRC_SIZE 4
 #define IWL_TX_DELIMITER_SIZE 4

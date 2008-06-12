@@ -664,9 +664,11 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 	iwl_conf->extension_chan_offset =
 		ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_SEC_OFFSET;
 	/* If no above or below channel supplied disable FAT channel */
-	if (iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_ABOVE &&
-	    iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_BELOW)
+	if (iwl_conf->extension_chan_offset != IEEE80211_HT_IE_CHA_SEC_ABOVE &&
+	    iwl_conf->extension_chan_offset != IEEE80211_HT_IE_CHA_SEC_BELOW) {
+		iwl_conf->extension_chan_offset = IEEE80211_HT_IE_CHA_SEC_NONE;
 		iwl_conf->supported_chan_width = 0;
+	}
 
 	iwl_conf->tx_mimo_ps_mode =
 		(u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
