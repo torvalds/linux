@@ -312,12 +312,15 @@ static DEFINE_SPINLOCK(task_group_lock);
 #endif
 
 /*
- * A weight of 0, 1 or ULONG_MAX can cause arithmetics problems.
+ * A weight of 0 or 1 can cause arithmetics problems.
+ * A weight of a cfs_rq is the sum of weights of which entities
+ * are queued on this cfs_rq, so a weight of a entity should not be
+ * too large, so as the shares value of a task group.
  * (The default weight is 1024 - so there's no practical
  *  limitation from this.)
  */
 #define MIN_SHARES	2
-#define MAX_SHARES	(ULONG_MAX - 1)
+#define MAX_SHARES	(1UL << 18)
 
 static int init_task_group_load = INIT_TASK_GROUP_LOAD;
 #endif
