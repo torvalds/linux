@@ -1326,4 +1326,27 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_dump_nic_event_log);
 
+void iwl_rf_kill_ct_config(struct iwl_priv *priv)
+{
+	struct iwl_ct_kill_config cmd;
+	unsigned long flags;
+	int ret = 0;
 
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	cmd.critical_temperature_R =
+		cpu_to_le32(priv->hw_params.ct_kill_threshold);
+
+	ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
+			       sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERROR("REPLY_CT_KILL_CONFIG_CMD failed\n");
+	else
+		IWL_DEBUG_INFO("REPLY_CT_KILL_CONFIG_CMD succeeded, "
+			"critical temperature is %d\n",
+			cmd.critical_temperature_R);
+}
+EXPORT_SYMBOL(iwl_rf_kill_ct_config);

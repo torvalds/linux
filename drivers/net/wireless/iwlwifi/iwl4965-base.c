@@ -2295,7 +2295,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	iwl4965_commit_rxon(priv);
 
 	/* At this point, the NIC is initialized and operational */
-	iwl4965_rf_kill_ct_config(priv);
+	iwl_rf_kill_ct_config(priv);
 
 	iwl_leds_register(priv);
 

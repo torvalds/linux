@@ -2078,7 +2078,7 @@ struct iwl4965_card_state_notif {
 #define RF_CARD_DISABLED   0x04
 #define RXON_CARD_DISABLED 0x10
 
-struct iwl4965_ct_kill_config {
+struct iwl_ct_kill_config {
 	__le32   reserved;
 	__le32   critical_temperature_M;
 	__le32   critical_temperature_R;
