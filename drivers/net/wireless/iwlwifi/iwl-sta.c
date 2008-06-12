@@ -30,11 +30,9 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 
-#include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-sta.h"
-#include "iwl-io.h"
 #include "iwl-helpers.h"
 
 
@@ -74,6 +72,17 @@ u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 }
 EXPORT_SYMBOL(iwl_find_station);
 
+int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
+{
+	if (priv->iw_mode == IEEE80211_IF_TYPE_STA) {
+		return IWL_AP_ID;
+	} else {
+		u8 *da = ieee80211_get_DA(hdr);
+		return iwl_find_station(priv, da);
+	}
+}
+EXPORT_SYMBOL(iwl_get_ra_sta_id);
+
 static int iwl_add_sta_callback(struct iwl_priv *priv,
 				   struct iwl_cmd *cmd, struct sk_buff *skb)
 {
@@ -104,8 +113,6 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 	/* We didn't cache the SKB; let the caller free it */
 	return 1;
 }
-
-
 
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
@@ -272,7 +279,6 @@ u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 }
 EXPORT_SYMBOL(iwl_add_station_flags);
 
-
 static int iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
 {
 	unsigned long flags;
@@ -376,9 +382,9 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 
 	return ret;
 }
+
 /**
  * iwl_remove_station - Remove driver's knowledge of station.
- *
  */
 u8 iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 {
@@ -418,7 +424,7 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL(iwl_remove_station);
-int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
+static int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
 	int i;
 
@@ -869,7 +875,6 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 }
 EXPORT_SYMBOL(iwl_rxon_add_station);
 
-
 /**
  * iwl_get_sta_id - Find station's index within station table
  *
@@ -927,7 +932,6 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 }
 EXPORT_SYMBOL(iwl_get_sta_id);
 
-
 /**
  * iwl_sta_modify_enable_tid_tx - Enable Tx for this TID in station table
  */
@@ -945,5 +949,4 @@ void iwl_sta_modify_enable_tid_tx(struct iwl_priv *priv, int sta_id, int tid)
 	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
 EXPORT_SYMBOL(iwl_sta_modify_enable_tid_tx);
-
 

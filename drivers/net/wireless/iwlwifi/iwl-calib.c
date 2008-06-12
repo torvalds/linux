@@ -60,13 +60,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#include <linux/kernel.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-calib.h"
-#include "iwl-eeprom.h"
 
 /* "false alarms" are signals that our DSP tries to lock onto,
  *   but then determines that they are either noise, or transmissions

@@ -29,8 +29,8 @@
  * Please use iwl-4965-hw.h for hardware-related definitions.
  */
 
-#ifndef __iwl_4965_h__
-#define __iwl_4965_h__
+#ifndef __iwl_dev_h__
+#define __iwl_dev_h__
 
 #include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
@@ -593,15 +593,8 @@ u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 			 u8 flags, struct ieee80211_ht_info *ht_info);
 extern int iwl4965_is_network_packet(struct iwl_priv *priv,
 				 struct ieee80211_hdr *header);
-extern int iwl4965_power_init_handle(struct iwl_priv *priv);
-extern void iwl4965_handle_data_packet_monitor(struct iwl_priv *priv,
-					   struct iwl_rx_mem_buffer *rxb,
-					   void *data, short len,
-					   struct ieee80211_rx_status *stats,
-					   u16 phy_flags);
 extern int iwl4965_is_duplicate_packet(struct iwl_priv *priv,
 				       struct ieee80211_hdr *header);
-extern int iwl4965_calc_db_from_ratio(int sig_ratio);
 extern int iwl4965_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,
@@ -609,18 +602,7 @@ extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
 int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 
-int iwl4965_init_geos(struct iwl_priv *priv);
-void iwl4965_free_geos(struct iwl_priv *priv);
-
 extern const u8 iwl_bcast_addr[ETH_ALEN];
-int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-
-/*
- * Currently used by iwl-3945-rs... look at restructuring so that it doesn't
- * call this... todo... fix that.
-*/
-extern u8 iwl4965_sync_station(struct iwl_priv *priv, int sta_id,
-			   u16 tx_rate, u8 flags);
 
 /******************************************************************************
  *
@@ -638,34 +620,15 @@ extern u8 iwl4965_sync_station(struct iwl_priv *priv, int sta_id,
  * iwl4965_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
-extern void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv);
-extern void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv);
-extern int iwl4965_hw_set_hw_params(struct iwl_priv *priv);
 extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl_frame *frame, u8 rate);
-extern void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
-				     struct iwl_cmd *cmd,
-				     struct ieee80211_tx_info *info,
-				     struct ieee80211_hdr *hdr,
-				     int sta_id, int tx_id);
 extern void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl4965_disable_events(struct iwl_priv *priv);
-extern int iwl4965_get_temperature(const struct iwl_priv *priv);
 extern void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb);
-
-/**
- * iwl_find_station - Find station id for a given BSSID
- * @bssid: MAC address of station ID to find
- *
- * NOTE:  This should not be hardware specific but the code has
- * not yet been merged into a single common layer for managing the
- * station tables.
- */
-extern u8 iwl_find_station(struct iwl_priv *priv, const u8 *bssid);
 
 extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 extern int iwl_queue_space(const struct iwl_queue *q);
@@ -694,16 +657,8 @@ extern int iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);
 /*
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
-extern int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
-					  struct iwl_tx_queue *txq,
-					  u16 byte_cnt);
-extern int iwl4965_alive_notify(struct iwl_priv *priv);
-extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
 
-extern void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
-				struct ieee80211_ht_info *ht_info,
-				enum ieee80211_band band);
 int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    enum ieee80211_ampdu_mlme_action action,
 				    const u8 *addr, u16 tid, u16 *ssn);
@@ -1174,17 +1129,6 @@ static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 
 
-static inline int iwl_get_ra_sta_id(struct iwl_priv *priv,
-				    struct ieee80211_hdr *hdr)
-{
-	if (priv->iw_mode == IEEE80211_IF_TYPE_STA) {
-		return IWL_AP_ID;
-	} else {
-		u8 *da = ieee80211_get_DA(hdr);
-		return iwl_find_station(priv, da);
-	}
-}
-
 static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
 							 int txq_id, int idx)
 {
@@ -1254,4 +1198,4 @@ extern const struct iwl_channel_info *iwl_get_channel_info(
 
 /* Requires full declaration of iwl_priv before including */
 
-#endif				/* __iwl4965_4965_h__ */
+#endif				/* __iwl_dev_h__ */

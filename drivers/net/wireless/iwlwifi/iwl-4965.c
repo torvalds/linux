@@ -722,7 +722,7 @@ static const u16 default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_HCCA_2
 };
 
-int iwl4965_alive_notify(struct iwl_priv *priv)
+static int iwl4965_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
 	int i = 0;
@@ -827,7 +827,7 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
  *
  * Called when initializing driver
  */
-int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
+static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 {
 
 	if ((priv->cfg->mod_params->num_of_queues > IWL49_NUM_QUEUES) ||
