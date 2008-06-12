@@ -569,6 +569,11 @@ static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_devi
 {
 	struct ide_port_info d = sis5513_chipset;
 	u8 udma_rates[] = { 0x00, 0x00, 0x07, 0x1f, 0x3f, 0x3f, 0x7f, 0x7f };
+	int rc;
+
+	rc = pci_enable_device(dev);
+	if (rc)
+		return rc;
 
 	if (sis_find_family(dev) == 0)
 		return -ENOTSUPP;
