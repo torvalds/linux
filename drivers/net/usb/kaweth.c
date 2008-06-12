@@ -706,7 +706,7 @@ static void kaweth_kill_urbs(struct kaweth_device *kaweth)
 	usb_kill_urb(kaweth->rx_urb);
 	usb_kill_urb(kaweth->tx_urb);
 
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&kaweth->lowmem_work);
 
 	/* a scheduled work may have resubmitted,
 	   we hit them again */
