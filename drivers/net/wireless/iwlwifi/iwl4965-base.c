@@ -3423,6 +3423,29 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
+static void iwl_bg_run_time_calib_work(struct work_struct *work)
+{
+	struct iwl_priv *priv = container_of(work, struct iwl_priv,
+			run_time_calib_work);
+
+	mutex_lock(&priv->mutex);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
+	    test_bit(STATUS_SCANNING, &priv->status)) {
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
+	if (priv->start_calib) {
+		iwl_chain_noise_calibration(priv, &priv->statistics);
+
+		iwl_sensitivity_calibration(priv, &priv->statistics);
+	}
+
+	mutex_unlock(&priv->mutex);
+	return;
+}
+
 static void iwl4965_bg_up(struct work_struct *data)
 {
 	struct iwl_priv *priv = container_of(data, struct iwl_priv, up);
@@ -5014,6 +5037,7 @@ static void iwl4965_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->rf_kill, iwl4965_bg_rf_kill);
 	INIT_WORK(&priv->beacon_update, iwl4965_bg_beacon_update);
 	INIT_WORK(&priv->set_monitor, iwl4965_bg_set_monitor);
+	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
 	INIT_DELAYED_WORK(&priv->post_associate, iwl4965_bg_post_associate);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);

@@ -71,7 +71,6 @@
 #include "iwl-core.h"
 #include "iwl-dev.h"
 
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 void iwl_chain_noise_calibration(struct iwl_priv *priv,
 				struct iwl4965_notif_statistics *stat_resp);
 void iwl_sensitivity_calibration(struct iwl_priv *priv,
@@ -86,24 +85,5 @@ static inline void iwl_chain_noise_reset(struct iwl_priv *priv)
 	    priv->cfg->ops->utils->chain_noise_reset)
 		priv->cfg->ops->utils->chain_noise_reset(priv);
 }
-#else
-static inline void iwl_chain_noise_calibration(struct iwl_priv *priv,
-				struct iwl4965_notif_statistics *stat_resp)
-{
-}
-static inline void iwl_sensitivity_calibration(struct iwl_priv *priv,
-				struct iwl4965_notif_statistics *resp)
-{
-}
-static inline void iwl_init_sensitivity(struct iwl_priv *priv)
-{
-}
-static inline void iwl_chain_noise_reset(struct iwl_priv *priv)
-{
-}
-static inline void iwl_reset_run_time_calib(struct iwl_priv *priv)
-{
-}
-#endif
 
 #endif /* __iwl_calib_h__ */

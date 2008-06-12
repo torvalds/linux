@@ -652,8 +652,6 @@ void iwl4965_rf_kill_ct_config(struct iwl_priv *priv)
 			cmd.critical_temperature_R);
 }
 
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
-
 /* Reset differential Rx gains in NIC to prepare for chain noise calibration.
  * Called after every association, but this runs only once!
  *  ... once chain noise is calibrated the first time, it's good forever.  */
@@ -740,30 +738,6 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 	data->chain_signal_c = 0;
 	data->beacon_count = 0;
 }
-
-static void iwl4965_bg_sensitivity_work(struct work_struct *work)
-{
-	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-			sensitivity_work);
-
-	mutex_lock(&priv->mutex);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
-	    test_bit(STATUS_SCANNING, &priv->status)) {
-		mutex_unlock(&priv->mutex);
-		return;
-	}
-
-	if (priv->start_calib) {
-		iwl_chain_noise_calibration(priv, &priv->statistics);
-
-		iwl_sensitivity_calibration(priv, &priv->statistics);
-	}
-
-	mutex_unlock(&priv->mutex);
-	return;
-}
-#endif /*CONFIG_IWL4965_RUN_TIME_CALIB*/
 
 static void iwl4965_bg_txpower_work(struct work_struct *work)
 {
@@ -920,7 +894,6 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	return ret;
 }
 
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
 static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 	.min_nrg_cck = 97,
 	.max_nrg_cck = 0,
@@ -943,7 +916,6 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 	.nrg_th_cck = 100,
 	.nrg_th_ofdm = 100,
 };
-#endif
 
 /**
  * iwl4965_hw_set_hw_params
@@ -983,9 +955,7 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.valid_rx_ant = ANT_A | ANT_B;
 	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
 
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
 	priv->hw_params.sens = &iwl4965_sensitivity;
-#endif
 
 	return 0;
 }
@@ -2123,9 +2093,7 @@ void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
 		iwl4965_rx_calc_noise(priv);
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
-		queue_work(priv->workqueue, &priv->sensitivity_work);
-#endif
+		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
 
 	iwl_leds_background(priv);
@@ -3504,9 +3472,6 @@ static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
 void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv)
 {
 	INIT_WORK(&priv->txpower_work, iwl4965_bg_txpower_work);
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
-	INIT_WORK(&priv->sensitivity_work, iwl4965_bg_sensitivity_work);
-#endif
 	init_timer(&priv->statistics_periodic);
 	priv->statistics_periodic.data = (unsigned long)priv;
 	priv->statistics_periodic.function = iwl4965_bg_statistics_periodic;
@@ -3527,10 +3492,8 @@ static struct iwl_hcmd_ops iwl4965_hcmd = {
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.get_hcmd_size = iwl4965_get_hcmd_size,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
 	.chain_noise_reset = iwl4965_chain_noise_reset,
 	.gain_computation = iwl4965_gain_computation,
-#endif
 };
 
 static struct iwl_lib_ops iwl4965_lib = {

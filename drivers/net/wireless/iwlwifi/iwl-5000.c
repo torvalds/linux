@@ -300,8 +300,6 @@ err:
 
 }
 
-#ifdef CONFIG_IWL5000_RUN_TIME_CALIB
-
 static void iwl5000_gain_computation(struct iwl_priv *priv,
 		u32 average_noise[NUM_RX_CHAINS],
 		u16 min_average_noise_antenna_i,
@@ -354,7 +352,6 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 	data->beacon_count = 0;
 }
 
-
 static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
@@ -392,10 +389,6 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.nrg_th_cck = 95,
 	.nrg_th_ofdm = 95,
 };
-
-#endif /* CONFIG_IWL5000_RUN_TIME_CALIB */
-
-
 
 static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 					   size_t offset)
@@ -847,9 +840,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
 	priv->hw_params.fat_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-#ifdef CONFIG_IWL5000_RUN_TIME_CALIB
 	priv->hw_params.sens = &iwl5000_sensitivity;
-#endif
 
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_5100:
@@ -1309,10 +1300,8 @@ static struct iwl_hcmd_ops iwl5000_hcmd = {
 static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 	.get_hcmd_size = iwl5000_get_hcmd_size,
 	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
-#ifdef CONFIG_IWL5000_RUN_TIME_CALIB
 	.gain_computation = iwl5000_gain_computation,
 	.chain_noise_reset = iwl5000_chain_noise_reset,
-#endif
 };
 
 static struct iwl_lib_ops iwl5000_lib = {

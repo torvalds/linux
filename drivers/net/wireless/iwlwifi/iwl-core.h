@@ -88,13 +88,11 @@ struct iwl_hcmd_ops {
 struct iwl_hcmd_utils_ops {
 	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	void (*gain_computation)(struct iwl_priv *priv,
 			u32 *average_noise,
 			u16 min_average_noise_antennat_i,
 			u32 min_average_noise);
 	void (*chain_noise_reset)(struct iwl_priv *priv);
-#endif
 };
 
 struct iwl_lib_ops {

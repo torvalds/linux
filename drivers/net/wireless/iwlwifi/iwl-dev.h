@@ -602,9 +602,7 @@ struct iwl_hw_params {
 	u32 max_data_size;
 	u32 max_bsm_size;
 	u32 ct_kill_threshold; /* value in hw-dependent units */
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	const struct iwl_sensitivity_ranges *sens;
-#endif
 };
 
 #define HT_SHORT_GI_20MHZ	(1 << 0)
@@ -882,7 +880,6 @@ enum ucode_type {
 	UCODE_RT
 };
 
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 /* Sensitivity calib data */
 struct iwl_sensitivity_data {
 	u32 auto_corr_ofdm;
@@ -924,7 +921,6 @@ struct iwl_chain_noise_data {
 	u8 delta_gain_code[NUM_RX_CHAINS];
 	u8 radio_write;
 };
-#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
 
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
@@ -1057,11 +1053,9 @@ struct iwl_priv {
 	u8 assoc_station_added;
 	u8 use_ant_b_for_management_frame;	/* Tx antenna selection */
 	u8 start_calib;
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
-#endif /*CONFIG_IWLWIFI_RUN_TIME_CALIB*/
 
 	struct iwl_ht_info current_ht_config;
 	u8 last_phy_res[100];
@@ -1211,13 +1205,9 @@ struct iwl_priv {
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
 	struct work_struct txpower_work;
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	u32 disable_sens_cal;
 	u32 disable_chain_noise_cal;
-#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
-#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
-	struct work_struct sensitivity_work;
-#endif /* CONFIG_IWL4965_RUN_TIME_CALIB */
+	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 }; /*iwl_priv */
 
