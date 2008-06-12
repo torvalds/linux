@@ -267,6 +267,7 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 /*******************************************************************************
  * Scanning
  ******************************************************************************/
+void iwl_init_scan_params(struct iwl_priv *priv);
 int iwl_scan_cancel(struct iwl_priv *priv);
 int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 const char *iwl_escape_essid(const char *essid, u8 essid_len);

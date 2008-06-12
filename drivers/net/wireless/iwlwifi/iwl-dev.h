@@ -157,35 +157,11 @@ struct iwl4965_channel_tgh_info {
 	s64 last_radar_time;
 };
 
-/* current Tx power values to use, one for each rate for each channel.
- * requested power is limited by:
- * -- regulatory EEPROM limits for this channel
- * -- hardware capabilities (clip-powers)
- * -- spectrum management
- * -- user preference (e.g. iwconfig)
- * when requested power is set, base power index must also be set. */
-struct iwl4965_channel_power_info {
-	struct iwl4965_tx_power tpc;	/* actual radio and DSP gain settings */
-	s8 power_table_index;	/* actual (compenst'd) index into gain table */
-	s8 base_power_index;	/* gain index for power at factory temp. */
-	s8 requested_power;	/* power (dBm) requested for this chnl/rate */
-};
-
-/* current scan Tx power values to use, one for each scan rate for each
- * channel. */
-struct iwl4965_scan_power_info {
-	struct iwl4965_tx_power tpc;	/* actual radio and DSP gain settings */
-	s8 power_table_index;	/* actual (compenst'd) index into gain table */
-	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
-};
-
 /*
  * One for each channel, holds all channel setup data
  * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
  *     with one another!
  */
-#define IWL4965_MAX_RATE (33)
-
 struct iwl_channel_info {
 	struct iwl4965_channel_tgd_info tgd;
 	struct iwl4965_channel_tgh_info tgh;
@@ -204,11 +180,6 @@ struct iwl_channel_info {
 	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
 	enum ieee80211_band band;
 
-	/* Radio/DSP gain settings for each "normal" data Tx rate.
-	 * These include, in addition to RF and DSP gain, a few fields for
-	 *   remembering/modifying gain settings (indexes). */
-	struct iwl4965_channel_power_info power_info[IWL4965_MAX_RATE];
-
 	/* FAT channel info */
 	s8 fat_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
 	s8 fat_curr_txpow;	/* (dBm) regulatory/spectrum/user (not h/w) */
@@ -216,9 +187,6 @@ struct iwl_channel_info {
 	s8 fat_scan_power;	/* (dBm) eeprom, direct scans, any rate */
 	u8 fat_flags;		/* flags copied from EEPROM */
 	u8 fat_extension_channel; /* HT_IE_EXT_CHANNEL_* */
-
-	/* Radio/DSP gain settings for each scan rate, for directed scans. */
-	struct iwl4965_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
 struct iwl4965_clip_group {
@@ -974,6 +942,7 @@ struct iwl_priv {
 	u8 direct_ssid_len;
 	u8 direct_ssid[IW_ESSID_MAX_SIZE];
 	struct iwl_scan_cmd *scan;
+	u32 scan_tx_ant[IEEE80211_NUM_BANDS];
 
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */
