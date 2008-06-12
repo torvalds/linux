@@ -47,6 +47,7 @@
 #include "iwl-sta.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
+static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
 
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
@@ -283,7 +284,7 @@ static void iwl4965_init_alive_start(struct iwl_priv *priv)
 	}
 
 	/* Calculate temperature */
-	priv->temperature = iwl4965_get_temperature(priv);
+	priv->temperature = iwl4965_hw_get_temperature(priv);
 
 	/* Send pointers to protocol/runtime uCode image ... init code will
 	 * load and launch runtime uCode, which will send us another "Alive"
@@ -1691,11 +1692,6 @@ static int iwl4965_shared_mem_rx_idx(struct iwl_priv *priv)
 	return le32_to_cpu(s->rb_closed) & 0xFFF;
 }
 
-int iwl4965_hw_get_temperature(struct iwl_priv *priv)
-{
-	return priv->temperature;
-}
-
 unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 			  struct iwl_frame *frame, u8 rate)
 {
@@ -1793,12 +1789,12 @@ static s32 sign_extend(u32 oper, int index)
 }
 
 /**
- * iwl4965_get_temperature - return the calibrated temperature (in Kelvin)
+ * iwl4965_hw_get_temperature - return the calibrated temperature (in Kelvin)
  * @statistics: Provides the temperature reading from the uCode
  *
  * A return of <0 indicates bogus data in the statistics
  */
-int iwl4965_get_temperature(const struct iwl_priv *priv)
+static int iwl4965_hw_get_temperature(const struct iwl_priv *priv)
 {
 	s32 temperature;
 	s32 vt;
@@ -1833,8 +1829,7 @@ int iwl4965_get_temperature(const struct iwl_priv *priv)
 		vt = sign_extend(
 			le32_to_cpu(priv->statistics.general.temperature), 23);
 
-	IWL_DEBUG_TEMP("Calib values R[1-3]: %d %d %d R4: %d\n",
-		       R1, R2, R3, vt);
+	IWL_DEBUG_TEMP("Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
 	if (R3 == R1) {
 		IWL_ERROR("Calibration conflict R1 == R3\n");
@@ -1845,11 +1840,10 @@ int iwl4965_get_temperature(const struct iwl_priv *priv)
 	 * Add offset to center the adjustment around 0 degrees Centigrade. */
 	temperature = TEMPERATURE_CALIB_A_VAL * (vt - R2);
 	temperature /= (R3 - R1);
-	temperature = (temperature * 97) / 100 +
-	    TEMPERATURE_CALIB_KELVIN_OFFSET;
+	temperature = (temperature * 97) / 100 + TEMPERATURE_CALIB_KELVIN_OFFSET;
 
-	IWL_DEBUG_TEMP("Calibrated temperature: %dK, %dC\n", temperature,
-	    KELVIN_TO_CELSIUS(temperature));
+	IWL_DEBUG_TEMP("Calibrated temperature: %dK, %dC\n",
+			temperature, KELVIN_TO_CELSIUS(temperature));
 
 	return temperature;
 }
@@ -1977,7 +1971,7 @@ void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 	if (!change)
 		return;
 
-	temp = iwl4965_get_temperature(priv);
+	temp = iwl4965_hw_get_temperature(priv);
 	if (temp < 0)
 		return;
 

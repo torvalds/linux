@@ -359,7 +359,6 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 	return iwl_is_ready(priv);
 }
 
-
 enum iwlcore_card_notify {
 	IWLCORE_INIT_EVT = 0,
 	IWLCORE_START_EVT = 1,

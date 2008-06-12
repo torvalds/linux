@@ -3867,7 +3867,7 @@ static ssize_t show_temperature(struct device *d,
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
-	return sprintf(buf, "%d\n", iwl4965_hw_get_temperature(priv));
+	return sprintf(buf, "%d\n", priv->temperature);
 }
 
 static DEVICE_ATTR(temperature, S_IRUGO, show_temperature, NULL);
