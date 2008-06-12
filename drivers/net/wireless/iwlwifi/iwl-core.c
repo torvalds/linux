@@ -965,37 +965,6 @@ void iwl_uninit_drv(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_uninit_drv);
 
-
-
-/* Low level driver call this function to update iwlcore with
- * driver status.
- */
-int iwlcore_low_level_notify(struct iwl_priv *priv,
-			      enum iwlcore_card_notify notify)
-{
-	int ret;
-	switch (notify) {
-	case IWLCORE_INIT_EVT:
-		ret = iwl_rfkill_init(priv);
-		if (ret)
-			IWL_ERROR("Unable to initialize RFKILL system. "
-				  "Ignoring error: %d\n", ret);
-		iwl_power_initialize(priv);
-		break;
-	case IWLCORE_START_EVT:
-		iwl_power_update_mode(priv, 1);
-		break;
-	case IWLCORE_STOP_EVT:
-		break;
-	case IWLCORE_REMOVE_EVT:
-		iwl_rfkill_unregister(priv);
-		break;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(iwlcore_low_level_notify);
-
 int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags)
 {
 	u32 stat_flags = 0;

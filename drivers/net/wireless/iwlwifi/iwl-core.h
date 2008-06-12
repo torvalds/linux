@@ -359,15 +359,6 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 	return iwl_is_ready(priv);
 }
 
-enum iwlcore_card_notify {
-	IWLCORE_INIT_EVT = 0,
-	IWLCORE_START_EVT = 1,
-	IWLCORE_STOP_EVT = 2,
-	IWLCORE_REMOVE_EVT = 3,
-};
-
-int iwlcore_low_level_notify(struct iwl_priv *priv,
-			     enum iwlcore_card_notify notify);
 extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);

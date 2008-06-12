@@ -2271,7 +2271,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	if (priv->error_recovering)
 		iwl4965_error_recovery(priv);
 
-	iwlcore_low_level_notify(priv, IWLCORE_START_EVT);
+	iwl_power_update_mode(priv, 1);
 	ieee80211_notify_mac(priv->hw, IEEE80211_NOTIFY_RE_ASSOC);
 
 	if (test_and_clear_bit(STATUS_MODE_PENDING, &priv->status))
@@ -2296,8 +2296,6 @@ static void __iwl4965_down(struct iwl_priv *priv)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	iwl_leds_unregister(priv);
-
-	iwlcore_low_level_notify(priv, IWLCORE_STOP_EVT);
 
 	iwlcore_clear_stations_table(priv);
 
@@ -4460,8 +4458,11 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	if (err)
 		IWL_ERROR("failed to create debugfs files\n");
 
-	/* notify iwlcore to init */
-	iwlcore_low_level_notify(priv, IWLCORE_INIT_EVT);
+	err = iwl_rfkill_init(priv);
+	if (err)
+		IWL_ERROR("Unable to initialize RFKILL system. "
+				  "Ignoring error: %d\n", err);
+	iwl_power_initialize(priv);
 	return 0;
 
  out_remove_sysfs:
@@ -4524,8 +4525,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 		}
 	}
 
-	iwlcore_low_level_notify(priv, IWLCORE_REMOVE_EVT);
-
+	iwl_rfkill_unregister(priv);
 	iwl4965_dealloc_ucode_pci(priv);
 
 	if (priv->rxq.bd)
