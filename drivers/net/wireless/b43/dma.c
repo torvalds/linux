@@ -795,66 +795,23 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 {
 	struct b43_dmaring *ring;
 	int err;
-	int nr_slots;
 	dma_addr_t dma_test;
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
 		goto out;
-	ring->type = type;
 
-	nr_slots = B43_RXRING_SLOTS;
+	ring->nr_slots = B43_RXRING_SLOTS;
 	if (for_tx)
-		nr_slots = B43_TXRING_SLOTS;
+		ring->nr_slots = B43_TXRING_SLOTS;
 
-	ring->meta = kcalloc(nr_slots, sizeof(struct b43_dmadesc_meta),
+	ring->meta = kcalloc(ring->nr_slots, sizeof(struct b43_dmadesc_meta),
 			     GFP_KERNEL);
 	if (!ring->meta)
 		goto err_kfree_ring;
-	if (for_tx) {
-		ring->txhdr_cache = kcalloc(nr_slots,
-					    b43_txhdr_size(dev),
-					    GFP_KERNEL);
-		if (!ring->txhdr_cache)
-			goto err_kfree_meta;
 
-		/* test for ability to dma to txhdr_cache */
-		dma_test = dma_map_single(dev->dev->dma_dev,
-					  ring->txhdr_cache,
-					  b43_txhdr_size(dev),
-					  DMA_TO_DEVICE);
-
-		if (b43_dma_mapping_error(ring, dma_test,
-					  b43_txhdr_size(dev), 1)) {
-			/* ugh realloc */
-			kfree(ring->txhdr_cache);
-			ring->txhdr_cache = kcalloc(nr_slots,
-						    b43_txhdr_size(dev),
-						    GFP_KERNEL | GFP_DMA);
-			if (!ring->txhdr_cache)
-				goto err_kfree_meta;
-
-			dma_test = dma_map_single(dev->dev->dma_dev,
-						  ring->txhdr_cache,
-						  b43_txhdr_size(dev),
-						  DMA_TO_DEVICE);
-
-			if (b43_dma_mapping_error(ring, dma_test,
-						  b43_txhdr_size(dev), 1)) {
-
-				b43err(dev->wl,
-				       "TXHDR DMA allocation failed\n");
-				goto err_kfree_txhdr_cache;
-			}
-		}
-
-		dma_unmap_single(dev->dev->dma_dev,
-				 dma_test, b43_txhdr_size(dev),
-				 DMA_TO_DEVICE);
-	}
-
+	ring->type = type;
 	ring->dev = dev;
-	ring->nr_slots = nr_slots;
 	ring->mmio_base = b43_dmacontroller_base(type, controller_index);
 	ring->index = controller_index;
 	if (type == B43_DMA_64BIT)
@@ -878,6 +835,48 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 #ifdef CONFIG_B43_DEBUG
 	ring->last_injected_overflow = jiffies;
 #endif
+
+	if (for_tx) {
+		ring->txhdr_cache = kcalloc(ring->nr_slots,
+					    b43_txhdr_size(dev),
+					    GFP_KERNEL);
+		if (!ring->txhdr_cache)
+			goto err_kfree_meta;
+
+		/* test for ability to dma to txhdr_cache */
+		dma_test = dma_map_single(dev->dev->dma_dev,
+					  ring->txhdr_cache,
+					  b43_txhdr_size(dev),
+					  DMA_TO_DEVICE);
+
+		if (b43_dma_mapping_error(ring, dma_test,
+					  b43_txhdr_size(dev), 1)) {
+			/* ugh realloc */
+			kfree(ring->txhdr_cache);
+			ring->txhdr_cache = kcalloc(ring->nr_slots,
+						    b43_txhdr_size(dev),
+						    GFP_KERNEL | GFP_DMA);
+			if (!ring->txhdr_cache)
+				goto err_kfree_meta;
+
+			dma_test = dma_map_single(dev->dev->dma_dev,
+						  ring->txhdr_cache,
+						  b43_txhdr_size(dev),
+						  DMA_TO_DEVICE);
+
+			if (b43_dma_mapping_error(ring, dma_test,
+						  b43_txhdr_size(dev), 1)) {
+
+				b43err(dev->wl,
+				       "TXHDR DMA allocation failed\n");
+				goto err_kfree_txhdr_cache;
+			}
+		}
+
+		dma_unmap_single(dev->dev->dma_dev,
+				 dma_test, b43_txhdr_size(dev),
+				 DMA_TO_DEVICE);
+	}
 
 	err = alloc_ringmemory(ring);
 	if (err)
