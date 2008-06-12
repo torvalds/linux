@@ -2103,8 +2103,9 @@ void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 	priv->temperature = temp;
 	set_bit(STATUS_TEMPERATURE, &priv->status);
 
-	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
-		     iwl4965_is_temp_calib_needed(priv))
+	if (!priv->disable_tx_power_cal &&
+	     unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
+	     iwl4965_is_temp_calib_needed(priv))
 		queue_work(priv->workqueue, &priv->txpower_work);
 }
 

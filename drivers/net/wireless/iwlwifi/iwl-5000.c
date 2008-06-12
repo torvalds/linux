@@ -1229,6 +1229,12 @@ static u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
 	return len;
 }
 
+static void iwl5000_setup_deferred_work(struct iwl_priv *priv)
+{
+	/* in 5000 the tx power calibration is done in uCode */
+	priv->disable_tx_power_cal = 1;
+}
+
 static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 {
 	/* init calibration handlers */
@@ -1313,6 +1319,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwl5000_txq_set_sched,
 	.rx_handler_setup = iwl5000_rx_handler_setup,
+	.setup_deferred_work = iwl5000_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
 	.load_ucode = iwl5000_load_ucode,
 	.init_alive_start = iwl5000_init_alive_start,
