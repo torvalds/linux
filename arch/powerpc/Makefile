@@ -96,6 +96,8 @@ endif
 else
 	KBUILD_CFLAGS += $(call cc-option,-mtune=power4)
 endif
+else
+LDFLAGS_MODULE	+= arch/powerpc/lib/crtsavres.o
 endif
 
 ifeq ($(CONFIG_TUNE_CELL),y)
