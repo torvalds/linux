@@ -1117,6 +1117,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					      GFP_NOFS);
 	int ret;
 	int err = -EINVAL;
+
 	struct btrfs_super_block *disk_super;
 
 	if (!extent_root || !tree_root || !fs_info) {
@@ -1148,6 +1149,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
+	fs_info->thread_pool_size = min(num_online_cpus() + 2, 8);
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
@@ -1195,19 +1197,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
 
-	/* we need to start all the end_io workers up front because the
-	 * queue work function gets called at interrupt time.  The endio
-	 * workers don't normally start IO, so some number of them <= the
-	 * number of cpus is fine.  They handle checksumming after a read.
-	 *
-	 * The other worker threads do start IO, so the max is larger than
-	 * the number of CPUs.  FIXME, tune this for huge machines
-	 */
-	btrfs_init_workers(&fs_info->workers, num_online_cpus() * 2);
-	btrfs_init_workers(&fs_info->endio_workers, num_online_cpus());
-	btrfs_start_workers(&fs_info->workers, 1);
-	btrfs_start_workers(&fs_info->endio_workers, num_online_cpus());
-
 #if 0
 	ret = add_hasher(fs_info, "crc32c");
 	if (ret) {
@@ -1237,6 +1226,17 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	err = btrfs_parse_options(tree_root, options);
 	if (err)
 		goto fail_sb_buffer;
+
+	/*
+	 * we need to start all the end_io workers up front because the
+	 * queue work function gets called at interrupt time, and so it
+	 * cannot dynamically grow.
+	 */
+	btrfs_init_workers(&fs_info->workers, fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
+	btrfs_start_workers(&fs_info->workers, 1);
+	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
+
 
 	err = -EINVAL;
 	if (btrfs_super_num_devices(disk_super) > fs_devices->open_devices) {
@@ -1341,10 +1341,10 @@ fail_sys_array:
 	mutex_unlock(&fs_info->fs_mutex);
 fail_sb_buffer:
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
-fail_iput:
-	iput(fs_info->btree_inode);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
+fail_iput:
+	iput(fs_info->btree_inode);
 fail:
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);

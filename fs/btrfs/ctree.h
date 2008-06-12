@@ -532,6 +532,7 @@ struct btrfs_fs_info {
 	 */
 	struct btrfs_workers workers;
 	struct btrfs_workers endio_workers;
+	int thread_pool_size;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	struct work_struct trans_work;

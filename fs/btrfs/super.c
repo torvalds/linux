@@ -67,7 +67,7 @@ static void btrfs_put_super (struct super_block * sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_err,
+	Opt_ssd, Opt_thread_pool, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -80,6 +80,7 @@ static match_table_t tokens = {
 	{Opt_max_extent, "max_extent=%s"},
 	{Opt_max_inline, "max_inline=%s"},
 	{Opt_alloc_start, "alloc_start=%s"},
+	{Opt_thread_pool, "thread_pool=%d"},
 	{Opt_ssd, "ssd"},
 	{Opt_err, NULL}
 };
@@ -118,6 +119,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 	struct btrfs_fs_info *info = root->fs_info;
 	substring_t args[MAX_OPT_ARGS];
 	char *p, *num;
+	int intarg;
 
 	if (!options)
 		return 0;
@@ -165,6 +167,15 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_nobarrier:
 			printk(KERN_INFO "btrfs: turning off barriers\n");
 			btrfs_set_opt(info->mount_opt, NOBARRIER);
+			break;
+		case Opt_thread_pool:
+			intarg = 0;
+			match_int(&args[0], &intarg);
+			if (intarg) {
+				info->thread_pool_size = intarg;
+				printk(KERN_INFO "btrfs: thread pool %d\n",
+				       info->thread_pool_size);
+			}
 			break;
 		case Opt_max_extent:
 			num = match_strdup(&args[0]);
