@@ -1226,6 +1226,28 @@ void au1x00_fixup_config_od(void)
 	}
 }
 
+/* CP0 hazard avoidance. */
+#define NXP_BARRIER()							\
+	 __asm__ __volatile__(						\
+	".set noreorder\n\t"						\
+	"nop; nop; nop; nop; nop; nop;\n\t"				\
+	".set reorder\n\t")
+
+static void nxp_pr4450_fixup_config(void)
+{
+	unsigned long config0;
+
+	config0 = read_c0_config();
+
+	/* clear all three cache coherency fields */
+	config0 &= ~(0x7 | (7 << 25) | (7 << 28));
+	config0 |= (((_page_cachable_default >> _CACHE_SHIFT) <<  0) |
+		    ((_page_cachable_default >> _CACHE_SHIFT) << 25) |
+		    ((_page_cachable_default >> _CACHE_SHIFT) << 28));
+	write_c0_config(config0);
+	NXP_BARRIER();
+}
+
 static int __cpuinitdata cca = -1;
 
 static int __init cca_setup(char *str)
@@ -1270,6 +1292,10 @@ static void __cpuinit coherency_setup(void)
 	case CPU_AU1100: /* rev. AB, BA, BC ?? */
 	case CPU_AU1500: /* rev. AB */
 		au1x00_fixup_config_od();
+		break;
+
+	case PRID_IMP_PR4450:
+		nxp_pr4450_fixup_config();
 		break;
 	}
 }
