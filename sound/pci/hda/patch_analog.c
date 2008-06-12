@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
-#include <linux/mutex.h>
 
 #include <sound/core.h>
 #include "hda_codec.h"
@@ -64,7 +63,6 @@ struct ad198x_spec {
 	/* PCM information */
 	struct hda_pcm pcm_rec[3];	/* used in alc_build_pcms() */
 
-	struct mutex amp_mutex;	/* PCM volume/mute control mutex */
 	unsigned int spdif_route;
 
 	/* dynamic controls, init_verbs and input_mux */
@@ -3177,7 +3175,6 @@ static int patch_ad1884(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	spec->multiout.max_channels = 2;
@@ -3847,7 +3844,6 @@ static int patch_ad1884a(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	spec->multiout.max_channels = 2;
@@ -4152,7 +4148,6 @@ static int patch_ad1882(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	spec->multiout.max_channels = 6;

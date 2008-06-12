@@ -82,7 +82,6 @@ struct conexant_spec {
 	/* PCM information */
 	struct hda_pcm pcm_rec[2];	/* used in build_pcms() */
 
-	struct mutex amp_mutex;	/* PCM volume/mute control mutex */
 	unsigned int spdif_route;
 
 	/* dynamic controls, init_verbs and input_mux */
@@ -928,7 +927,6 @@ static int patch_cxt5045(struct hda_codec *codec)
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	spec->multiout.max_channels = 2;
@@ -1477,7 +1475,6 @@ static int patch_cxt5047(struct hda_codec *codec)
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	spec->multiout.max_channels = 2;
@@ -1736,7 +1733,6 @@ static int patch_cxt5051(struct hda_codec *codec)
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	codec->patch_ops = conexant_patch_ops;
