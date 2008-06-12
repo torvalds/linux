@@ -1668,7 +1668,7 @@ static void iwl4965_rx_beacon_notif(struct iwl_priv *priv,
 
 	IWL_DEBUG_RX("beacon status %x retries %d iss %d "
 		"tsf %d %d rate %d\n",
-		le32_to_cpu(beacon->beacon_notify_hdr.status) & TX_STATUS_MSK,
+		le32_to_cpu(beacon->beacon_notify_hdr.u.status) & TX_STATUS_MSK,
 		beacon->beacon_notify_hdr.failure_frame,
 		le32_to_cpu(beacon->ibss_mgr_status),
 		le32_to_cpu(beacon->high_tsf),

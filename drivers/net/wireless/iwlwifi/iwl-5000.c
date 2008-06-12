@@ -1126,23 +1126,20 @@ static void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask)
 
 static inline u32 iwl5000_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
 {
-	__le32 *scd_ssn = (__le32 *)((u32 *)&tx_resp->status +
-				tx_resp->frame_count);
-	return le32_to_cpu(*scd_ssn) & MAX_SN;
-
+	return le32_to_cpup((__le32*)&tx_resp->status +
+			    tx_resp->frame_count) & MAX_SN;
 }
 
 static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 				      struct iwl_ht_agg *agg,
 				      struct iwl5000_tx_resp *tx_resp,
-				      u16 start_idx)
+				      int txq_id, u16 start_idx)
 {
 	u16 status;
 	struct agg_tx_status *frame_status = &tx_resp->status;
 	struct ieee80211_tx_info *info = NULL;
 	struct ieee80211_hdr *hdr = NULL;
-	int i, sh;
-	int txq_id, idx;
+	int i, sh, idx;
 	u16 seq;
 
 	if (agg->wait_for_ba)
@@ -1157,9 +1154,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 	if (agg->frame_count == 1) {
 		/* Only one frame was attempted; no block-ack will arrive */
 		status = le16_to_cpu(frame_status[0].status);
-		seq  = le16_to_cpu(frame_status[0].sequence);
-		idx = SEQ_TO_INDEX(seq);
-		txq_id = SEQ_TO_QUEUE(seq);
+		idx = start_idx;
 
 		/* FIXME: code repetition */
 		IWL_DEBUG_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
@@ -1296,7 +1291,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
 
-		iwl5000_tx_status_reply_tx(priv, agg, tx_resp, index);
+		iwl5000_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
 
 		if ((tx_resp->frame_count == 1) && !iwl_is_tx_success(status)) {
 			/* TODO: send BAR */

@@ -1481,21 +1481,10 @@ struct iwl4965_tx_resp {
 	 *                   table entry used for all frames in the new agg.
 	 *           31-16:  Sequence # for this frame's Tx cmd (not SSN!)
 	 */
-	__le32 status;	/* TX status (for aggregation status of 1st frame) */
-} __attribute__ ((packed));
-
-struct iwl4965_tx_resp_agg {
-	u8 frame_count;         /* 1 no aggregation, >1 aggregation */
-	u8 reserved1;
-	u8 failure_rts;
-	u8 failure_frame;
-	__le32 rate_n_flags;
-	__le16 wireless_media_time;
-	__le16 reserved3;
-	__le32 pa_power1;
-	__le32 pa_power2;
-	struct agg_tx_status status;    /* TX status (for aggregation status */
-					/* of 1st frame) */
+	union {
+		__le32 status;
+		struct agg_tx_status agg_status[0]; /* for each agg frame */
+	} u;
 } __attribute__ ((packed));
 
 struct iwl5000_tx_resp {
