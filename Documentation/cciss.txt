@@ -21,6 +21,11 @@ This driver is known to work with the following cards:
 	* SA E200
 	* SA E200i
 	* SA E500
+	* SA P212
+	* SA P410
+	* SA P410i
+	* SA P411
+	* SA P812
 
 Detecting drive failures:
 -------------------------
