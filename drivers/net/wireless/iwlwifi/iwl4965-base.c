@@ -1260,12 +1260,12 @@ static void iwl4965_set_rate(struct iwl_priv *priv)
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 }
 
-void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
+int iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 {
 	unsigned long flags;
 
 	if (!!disable_radio == test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return;
+		return 0;
 
 	IWL_DEBUG_RF_KILL("Manual SW RF KILL set to: RADIO %s\n",
 			  disable_radio ? "OFF" : "ON");
@@ -1290,7 +1290,7 @@ void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 			if (priv->mac80211_registered)
 				ieee80211_stop_queues(priv->hw);
 		}
-		return;
+		return 0;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1311,11 +1311,11 @@ void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
 		IWL_DEBUG_RF_KILL("Can not turn radio back on - "
 				  "disabled by HW switch\n");
-		return;
+		return 0;
 	}
 
 	queue_work(priv->workqueue, &priv->restart);
-	return;
+	return 1;
 }
 
 #define IWL_PACKET_RETRY_TIME HZ
@@ -3028,13 +3028,6 @@ static int __iwl4965_up(struct iwl_priv *priv)
 		return -EIO;
 	}
 
-	if (test_bit(STATUS_RF_KILL_SW, &priv->status)) {
-		IWL_WARNING("Radio disabled by SW RF kill (module "
-			    "parameter)\n");
-		iwl_rfkill_set_hw_state(priv);
-		return -ENODEV;
-	}
-
 	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
 		IWL_ERROR("ucode not available for device bringup\n");
 		return -EIO;
@@ -3088,7 +3081,8 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	       priv->ucode_data.len);
 
 	/* We return success when we resume from suspend and rf_kill is on. */
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status))
+	if (test_bit(STATUS_RF_KILL_HW, &priv->status) ||
+	    test_bit(STATUS_RF_KILL_SW, &priv->status))
 		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
@@ -3115,6 +3109,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
 
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
 	__iwl4965_down(priv);
+	clear_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	/* tried to restart and config the device for as long as our
 	 * patience could withstand */
@@ -3860,6 +3855,13 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	priv->add_radiotap = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
 
+
+	if (priv->cfg->ops->lib->radio_kill_sw &&
+	    priv->cfg->ops->lib->radio_kill_sw(priv, !conf->radio_enabled)) {
+		IWL_DEBUG_MAC80211("leave - RF-KILL - waiting for uCode\n");
+		mutex_unlock(&priv->mutex);
+	}
+
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211("leave - not ready\n");
 		ret = -EIO;
@@ -3911,9 +3913,6 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		goto out;
 	}
 #endif
-
-	if (priv->cfg->ops->lib->radio_kill_sw)
-		priv->cfg->ops->lib->radio_kill_sw(priv, !conf->radio_enabled);
 
 	if (!conf->radio_enabled) {
 		IWL_DEBUG_MAC80211("leave - radio disabled\n");

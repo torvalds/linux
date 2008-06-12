@@ -129,7 +129,7 @@ struct iwl_lib_ops {
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
 	/* rfkill */
-	void (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
+	int (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
 	 /* power management */
 	struct {
 		int (*init)(struct iwl_priv *priv);

@@ -725,7 +725,7 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 
 struct iwl_priv;
 
-extern void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);
+extern int iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);
 /*
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
