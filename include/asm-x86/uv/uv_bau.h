@@ -14,9 +14,9 @@
 #include <linux/bitmap.h>
 #define BITSPERBYTE 8
 
-/* Broadcast Assist Unit messaging structures */
-
 /*
+ * Broadcast Assist Unit messaging structures
+ *
  * Selective Broadcast activations are induced by software action
  * specifying a particular 8-descriptor "set" via a 6-bit index written
  * to an MMR.
@@ -33,54 +33,73 @@
  * Each of the descriptors is 64 bytes in size (8*64 = 512 bytes in a set).
  */
 
-#define UV_ITEMS_PER_DESCRIPTOR 8
-#define UV_CPUS_PER_ACT_STATUS 32
-#define UV_ACT_STATUS_MASK 0x3
-#define UV_ACT_STATUS_SIZE 2
-#define UV_ACTIVATION_DESCRIPTOR_SIZE 32
-#define UV_DISTRIBUTION_SIZE 256
-#define UV_SW_ACK_NPENDING 8
-#define UV_BAU_MESSAGE 200	/* Messaging irq; see irq_64.h */
-				/* and include/asm-x86/hw_irq_64.h */
-				/* To be dynamically allocated in the future */
-#define UV_NET_ENDPOINT_INTD 0x38
-#define UV_DESC_BASE_PNODE_SHIFT 49 /* position of pnode (nasid>>1) in MMR */
-#define UV_PAYLOADQ_PNODE_SHIFT 49
+#define UV_ITEMS_PER_DESCRIPTOR		8
+#define UV_CPUS_PER_ACT_STATUS		32
+#define UV_ACT_STATUS_MASK		0x3
+#define UV_ACT_STATUS_SIZE		2
+#define UV_ACTIVATION_DESCRIPTOR_SIZE	32
+#define UV_DISTRIBUTION_SIZE		256
+#define UV_SW_ACK_NPENDING		8
+#define UV_BAU_MESSAGE			200
+/*
+ * Messaging irq; see irq_64.h and include/asm-x86/hw_irq_64.h
+ * To be dynamically allocated in the future
+ */
+#define UV_NET_ENDPOINT_INTD		0x38
+#define UV_DESC_BASE_PNODE_SHIFT	49
+#define UV_PAYLOADQ_PNODE_SHIFT		49
+#define UV_PTC_BASENAME			"sgi_uv/ptc_statistics"
+#define uv_physnodeaddr(x)		((__pa((unsigned long)(x)) & uv_mmask))
 
-#define UV_PTC_BASENAME "sgi_uv/ptc_statistics"
-#define uv_physnodeaddr(x) ((__pa((unsigned long)(x)) & uv_mmask))
-
-/* bits in UVH_LB_BAU_SB_ACTIVATION_STATUS_0/1 */
+/*
+ * bits in UVH_LB_BAU_SB_ACTIVATION_STATUS_0/1
+ */
 #define DESC_STATUS_IDLE                0
 #define DESC_STATUS_ACTIVE              1
 #define DESC_STATUS_DESTINATION_TIMEOUT 2
 #define DESC_STATUS_SOURCE_TIMEOUT      3
 
-/* source side threshholds at which message retries print a warning */
+/*
+ * source side threshholds at which message retries print a warning
+ */
 #define SOURCE_TIMEOUT_LIMIT            20
 #define DESTINATION_TIMEOUT_LIMIT       20
 
-/* number of entries in the destination side payload queue */
+/*
+ * number of entries in the destination side payload queue
+ */
 #define DESTINATION_PAYLOAD_QUEUE_SIZE  17
-/* number of destination side software ack resources */
+/*
+ * number of destination side software ack resources
+ */
 #define DESTINATION_NUM_RESOURCES       8
 #define MAX_CPUS_PER_NODE		32
+/*
+ * completion statuses for sending a TLB flush message
+ */
+#define	FLUSH_RETRY			1
+#define	FLUSH_GIVEUP			2
+#define	FLUSH_COMPLETE			3
 
-/* Distribution: 32 bytes (256 bits) (bytes 0-0x1f of descriptor) */
-/* If the 'multilevel' flag in the header portion of the descriptor
+/*
+ * Distribution: 32 bytes (256 bits) (bytes 0-0x1f of descriptor)
+ * If the 'multilevel' flag in the header portion of the descriptor
  * has been set to 0, then endpoint multi-unicast mode is selected.
  * The distribution specification (32 bytes) is interpreted as a 256-bit
  * distribution vector. Adjacent bits correspond to consecutive even numbered
  * nodeIDs. The result of adding the index of a given bit to the 15-bit
  * 'base_dest_nodeid' field of the header corresponds to the
- * destination nodeID associated with that specified bit.  */
+ * destination nodeID associated with that specified bit.
+ */
 struct bau_target_nodemask {
 	unsigned long bits[BITS_TO_LONGS(256)];
 };
 
-/* mask of cpu's on a node */
-/* (during initialization we need to check that unsigned long has
-    enough bits for max. cpu's per node) */
+/*
+ * mask of cpu's on a node
+ * (during initialization we need to check that unsigned long has
+ *  enough bits for max. cpu's per node)
+ */
 struct bau_local_cpumask {
 	unsigned long bits;
 };
@@ -99,7 +118,9 @@ struct bau_local_cpumask {
  *   the s/w ack bit vector  ]
  */
 
-/* The payload is software-defined for INTD transactions */
+/*
+ * The payload is software-defined for INTD transactions
+ */
 struct bau_msg_payload {
 	unsigned long address;		/* signifies a page or all TLB's
 						of the cpu */
@@ -112,8 +133,10 @@ struct bau_msg_payload {
 };
 
 
-/* Message header:  16 bytes (128 bits) (bytes 0x30-0x3f of descriptor) */
-/* see table 4.2.3.0.1 in broacast_assist spec. */
+/*
+ * Message header:  16 bytes (128 bits) (bytes 0x30-0x3f of descriptor)
+ * see table 4.2.3.0.1 in broacast_assist spec.
+ */
 struct bau_msg_header {
 	int dest_subnodeid:6;	/* must be zero */
 	/* bits 5:0 */
@@ -173,11 +196,15 @@ struct bau_msg_header {
 	/* bits 127:107 */
 };
 
-/* The format of the message to send, plus all accompanying control */
-/* Should be 64 bytes */
+/*
+ * The format of the message to send, plus all accompanying control
+ * Should be 64 bytes
+ */
 struct bau_activation_descriptor {
 	struct bau_target_nodemask distribution;
-	/* message template, consisting of header and payload: */
+	/*
+	 * message template, consisting of header and payload:
+	 */
 	struct bau_msg_header header;
 	struct bau_msg_payload payload;
 };
@@ -235,18 +262,24 @@ struct bau_payload_queue_entry {
 	/* bytes 24-31 */
 };
 
-/* one for every slot in the destination payload queue */
+/*
+ * one for every slot in the destination payload queue
+ */
 struct bau_msg_status {
 	struct bau_local_cpumask seen_by;	/* map of cpu's */
 };
 
-/* one for every slot in the destination software ack resources */
+/*
+ * one for every slot in the destination software ack resources
+ */
 struct bau_sw_ack_status {
 	struct bau_payload_queue_entry *msg;	/* associated message */
 	int watcher;				/* cpu monitoring, or -1 */
 };
 
-/* one on every node and per-cpu; to locate the software tables */
+/*
+ * one on every node and per-cpu; to locate the software tables
+ */
 struct bau_control {
 	struct bau_activation_descriptor *descriptor_base;
 	struct bau_payload_queue_entry *bau_msg_head;
@@ -267,8 +300,8 @@ struct ptc_stats {
 	unsigned long onetlb;	/* times just one tlb on this cpu was flushed */
 	unsigned long s_retry;	/* retries on source side timeouts */
 	unsigned long d_retry;	/* retries on destination side timeouts */
-	unsigned long sflush_ns;/* nanoseconds spent in uv_flush_tlb_others */
-	unsigned long dflush_ns;/* nanoseconds spent destination side */
+	unsigned long sflush;	/* cycles spent in uv_flush_tlb_others */
+	unsigned long dflush;	/* cycles spent on destination side */
 	unsigned long retriesok; /* successes on retries */
 	unsigned long nomsg;	/* interrupts with no message */
 	unsigned long multmsg;	/* interrupts with multiple messages */
@@ -293,39 +326,11 @@ static inline void bau_cpubits_clear(struct bau_local_cpumask *dstp, int nbits)
 	bitmap_zero(&dstp->bits, nbits);
 }
 
-/*
- * atomic increment of a short integer
- * (rather than using the __sync_add_and_fetch() intrinsic)
- *
- * returns the new value of the variable
- */
-static inline short int atomic_inc_short(short int *v)
-{
-	asm volatile("movw $1, %%cx\n"
-			"lock ; xaddw %%cx, %0\n"
-			: "+m" (*v)		/* outputs */
-			: : "%cx", "memory");	/* inputs : clobbereds */
-	return *v;
-}
-
-/*
- * atomic OR of two long integers
- * (rather than using the __sync_or_and_fetch() intrinsic)
- */
-static inline void atomic_or_long(unsigned long *v1, unsigned long v2)
-{
-	asm volatile("movq %0, %%rax; lea %1, %%rdx\n"
-			"lock ; orq %%rax, %%rdx\n"
-			: "+m" (*v1)		/* outputs */
-			: "m" (v1), "m" (v2)	/* inputs */
-			: "memory");		/* clobbereds */
-}
-
 #define cpubit_isset(cpu, bau_local_cpumask) \
 	test_bit((cpu), (bau_local_cpumask).bits)
 
-int uv_flush_tlb_others(cpumask_t *, struct mm_struct *, unsigned long);
-void uv_bau_message_intr1(void);
-void uv_bau_timeout_intr1(void);
+extern int uv_flush_tlb_others(cpumask_t *, struct mm_struct *, unsigned long);
+extern void uv_bau_message_intr1(void);
+extern void uv_bau_timeout_intr1(void);
 
 #endif /* __ASM_X86_UV_BAU__ */

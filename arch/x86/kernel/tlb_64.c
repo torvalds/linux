@@ -165,7 +165,7 @@ void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
 	cpumask_t cpumask = *cpumaskp;
 
 	if (is_uv_system() && uv_flush_tlb_others(&cpumask, mm, va))
-			return;
+		return;
 
 	/* Caller has disabled preemption */
 	sender = smp_processor_id() % NUM_INVALIDATE_TLB_VECTORS;
