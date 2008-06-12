@@ -272,6 +272,7 @@ config USB_TEST
 config USB_ISIGHTFW
 	tristate "iSight firmware loading support"
 	depends on USB
+	select FW_LOADER
 	help
 	  This driver loads firmware for USB Apple iSight cameras, allowing
 	  them to be driven by the USB video class driver available at
