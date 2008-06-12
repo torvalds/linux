@@ -139,8 +139,6 @@ static inline void iwl_set_bits16(__le16 *dst, u8 pos, u8 len, int val)
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
 
-#define IEEE80211_CHAN_W_RADAR_DETECT 0x00000010
-
 static inline struct ieee80211_conf *ieee80211_get_hw_conf(
 	struct ieee80211_hw *hw)
 {
