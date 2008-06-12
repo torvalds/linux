@@ -307,60 +307,6 @@ static int is_fat_channel(__le32 rxon_flags)
 		(rxon_flags & RXON_FLG_CHANNEL_MODE_MIXED_MSK);
 }
 
-int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags)
-{
-	int idx = 0;
-
-	/* 4965 HT rate format */
-	if (rate_n_flags & RATE_MCS_HT_MSK) {
-		idx = (rate_n_flags & 0xff);
-
-		if (idx >= IWL_RATE_MIMO2_6M_PLCP)
-			idx = idx - IWL_RATE_MIMO2_6M_PLCP;
-
-		idx += IWL_FIRST_OFDM_RATE;
-		/* skip 9M not supported in ht*/
-		if (idx >= IWL_RATE_9M_INDEX)
-			idx += 1;
-		if ((idx >= IWL_FIRST_OFDM_RATE) && (idx <= IWL_LAST_OFDM_RATE))
-			return idx;
-
-	/* 4965 legacy rate format, search for match in table */
-	} else {
-		for (idx = 0; idx < ARRAY_SIZE(iwl_rates); idx++)
-			if (iwl_rates[idx].plcp == (rate_n_flags & 0xFF))
-				return idx;
-	}
-
-	return -1;
-}
-
-/**
- * translate ucode response to mac80211 tx status control values
- */
-void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
-				  struct ieee80211_tx_info *control)
-{
-	int rate_index;
-
-	control->antenna_sel_tx =
-		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
-	if (rate_n_flags & RATE_MCS_HT_MSK)
-		control->flags |= IEEE80211_TX_CTL_OFDM_HT;
-	if (rate_n_flags & RATE_MCS_GF_MSK)
-		control->flags |= IEEE80211_TX_CTL_GREEN_FIELD;
-	if (rate_n_flags & RATE_MCS_FAT_MSK)
-		control->flags |= IEEE80211_TX_CTL_40_MHZ_WIDTH;
-	if (rate_n_flags & RATE_MCS_DUP_MSK)
-		control->flags |= IEEE80211_TX_CTL_DUP_DATA;
-	if (rate_n_flags & RATE_MCS_SGI_MSK)
-		control->flags |= IEEE80211_TX_CTL_SHORT_GI;
-	rate_index = iwl4965_hwrate_to_plcp_idx(rate_n_flags);
-	if (control->band == IEEE80211_BAND_5GHZ)
-		rate_index -= IWL_FIRST_OFDM_RATE;
-	control->tx_rate_idx = rate_index;
-}
-
 /*
  * EEPROM handlers
  */
@@ -1796,10 +1742,10 @@ unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 
 	if ((rate == IWL_RATE_1M_PLCP) || (rate >= IWL_RATE_2M_PLCP))
 		tx_beacon_cmd->tx.rate_n_flags =
-			iwl4965_hw_set_rate_n_flags(rate, RATE_MCS_CCK_MSK);
+			iwl_hw_set_rate_n_flags(rate, RATE_MCS_CCK_MSK);
 	else
 		tx_beacon_cmd->tx.rate_n_flags =
-			iwl4965_hw_set_rate_n_flags(rate, 0);
+			iwl_hw_set_rate_n_flags(rate, 0);
 
 	tx_beacon_cmd->tx.tx_flags = (TX_CMD_FLG_SEQ_CTL_MSK |
 				TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK);
@@ -2568,7 +2514,7 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 		else
 			title = "Frame";
 
-		rate_idx = iwl4965_hwrate_to_plcp_idx(rate_sym);
+		rate_idx = iwl_hwrate_to_plcp_idx(rate_sym);
 		if (unlikely(rate_idx == -1))
 			bitrate = 0;
 		else
@@ -2633,7 +2579,7 @@ void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	rx_status.band = (rx_start->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
 				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 	rx_status.rate_idx =
-		iwl4965_hwrate_to_plcp_idx(le32_to_cpu(rx_start->rate_n_flags));
+		iwl_hwrate_to_plcp_idx(le32_to_cpu(rx_start->rate_n_flags));
 	if (rx_status.band == IEEE80211_BAND_5GHZ)
 		rx_status.rate_idx -= IWL_FIRST_OFDM_RATE;
 
@@ -2842,7 +2788,7 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
 	info->status.ampdu_ack_map = successes;
 	info->status.ampdu_ack_len = agg->frame_count;
-	iwl4965_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
+	iwl_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", (unsigned long long)bitmap);
 
@@ -3189,15 +3135,15 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 	struct agg_tx_status *frame_status = tx_resp->u.agg_status;
 	struct ieee80211_tx_info *info = NULL;
 	struct ieee80211_hdr *hdr = NULL;
+	u32 rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
 	int i, sh, idx;
 	u16 seq;
-
 	if (agg->wait_for_ba)
 		IWL_DEBUG_TX_REPLY("got tx response w/o block-ack\n");
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
-	agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
+	agg->rate_n_flags = rate_n_flags;
 	agg->bitmap = 0;
 
 	/* # frames attempted by Tx command */
@@ -3215,15 +3161,12 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_is_tx_success(status)?
 			IEEE80211_TX_STAT_ACK : 0;
-		iwl4965_hwrate_to_tx_control(priv,
-					     le32_to_cpu(tx_resp->rate_n_flags),
-					     info);
+		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
 				    status & 0xff, tx_resp->failure_frame);
-		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n",
-			iwl4965_hw_get_rate_n_flags(tx_resp->rate_n_flags));
+		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n", rate_n_flags);
 
 		agg->wait_for_ba = 0;
 	} else {
@@ -3281,7 +3224,6 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
-		agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
 		IWL_DEBUG_TX_REPLY("Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
 				   (unsigned long long)agg->bitmap);
@@ -3375,7 +3317,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		info->status.retry_count = tx_resp->failure_frame;
 		info->flags |=
 			iwl_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
-		iwl4965_hwrate_to_tx_control(priv,
+		iwl_hwrate_to_tx_control(priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
@@ -3386,6 +3328,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 				tx_resp->failure_frame);
 
 		IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
+
 		if (index != -1) {
 		    int freed = iwl_tx_queue_reclaim(priv, txq_id, index);
 		    if (tid != MAX_TID_COUNT)

@@ -793,19 +793,6 @@ enum {
 
 /********************* END TXPOWER *****************************************/
 
-static inline u8 iwl4965_hw_get_rate(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0xFF;
-}
-static inline u32 iwl4965_hw_get_rate_n_flags(__le32 rate_n_flags)
-{
-	return le32_to_cpu(rate_n_flags) & 0x1FFFF;
-}
-static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
-{
-	return cpu_to_le32(flags|(u16)rate);
-}
-
 
 /**
  * Tx/Rx Queues

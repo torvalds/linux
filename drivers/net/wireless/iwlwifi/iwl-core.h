@@ -244,6 +244,27 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 
 /*******************************************************************************
+ * Rate
+ ******************************************************************************/
+
+void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
+			      struct ieee80211_tx_info *info);
+int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
+
+static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
+{
+	return le32_to_cpu(rate_n_flags) & 0xFF;
+}
+static inline u32 iwl_hw_get_rate_n_flags(__le32 rate_n_flags)
+{
+	return le32_to_cpu(rate_n_flags) & 0x1FFFF;
+}
+static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
+{
+	return cpu_to_le32(flags|(u32)rate);
+}
+
+/*******************************************************************************
  * Scanning
  ******************************************************************************/
 int iwl_scan_cancel(struct iwl_priv *priv);

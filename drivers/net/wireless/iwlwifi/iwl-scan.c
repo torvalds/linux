@@ -792,8 +792,9 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	case 2:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate_n_flags =
-				iwl4965_hw_set_rate_n_flags(IWL_RATE_1M_PLCP,
-				RATE_MCS_ANT_B_MSK|RATE_MCS_CCK_MSK);
+				iwl_hw_set_rate_n_flags(IWL_RATE_1M_PLCP,
+							RATE_MCS_ANT_B_MSK|
+							RATE_MCS_CCK_MSK);
 
 		scan->good_CRC_th = 0;
 		band = IEEE80211_BAND_2GHZ;
@@ -801,8 +802,8 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 	case 1:
 		scan->tx_cmd.rate_n_flags =
-				iwl4965_hw_set_rate_n_flags(IWL_RATE_6M_PLCP,
-				RATE_MCS_ANT_B_MSK);
+				iwl_hw_set_rate_n_flags(IWL_RATE_6M_PLCP,
+							RATE_MCS_ANT_B_MSK);
 		scan->good_CRC_th = IWL_GOOD_CRC_TH;
 		band = IEEE80211_BAND_5GHZ;
 		break;

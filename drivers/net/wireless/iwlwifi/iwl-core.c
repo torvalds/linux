@@ -85,6 +85,63 @@ const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
 };
 EXPORT_SYMBOL(iwl_rates);
 
+/**
+ * translate ucode response to mac80211 tx status control values
+ */
+void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
+				  struct ieee80211_tx_info *control)
+{
+	int rate_index;
+
+	control->antenna_sel_tx =
+		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
+	if (rate_n_flags & RATE_MCS_HT_MSK)
+		control->flags |= IEEE80211_TX_CTL_OFDM_HT;
+	if (rate_n_flags & RATE_MCS_GF_MSK)
+		control->flags |= IEEE80211_TX_CTL_GREEN_FIELD;
+	if (rate_n_flags & RATE_MCS_FAT_MSK)
+		control->flags |= IEEE80211_TX_CTL_40_MHZ_WIDTH;
+	if (rate_n_flags & RATE_MCS_DUP_MSK)
+		control->flags |= IEEE80211_TX_CTL_DUP_DATA;
+	if (rate_n_flags & RATE_MCS_SGI_MSK)
+		control->flags |= IEEE80211_TX_CTL_SHORT_GI;
+	rate_index = iwl_hwrate_to_plcp_idx(rate_n_flags);
+	if (control->band == IEEE80211_BAND_5GHZ)
+		rate_index -= IWL_FIRST_OFDM_RATE;
+	control->tx_rate_idx = rate_index;
+}
+EXPORT_SYMBOL(iwl_hwrate_to_tx_control);
+
+int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
+{
+	int idx = 0;
+
+	/* HT rate format */
+	if (rate_n_flags & RATE_MCS_HT_MSK) {
+		idx = (rate_n_flags & 0xff);
+
+		if (idx >= IWL_RATE_MIMO2_6M_PLCP)
+			idx = idx - IWL_RATE_MIMO2_6M_PLCP;
+
+		idx += IWL_FIRST_OFDM_RATE;
+		/* skip 9M not supported in ht*/
+		if (idx >= IWL_RATE_9M_INDEX)
+			idx += 1;
+		if ((idx >= IWL_FIRST_OFDM_RATE) && (idx <= IWL_LAST_OFDM_RATE))
+			return idx;
+
+	/* legacy rate format, search for match in table */
+	} else {
+		for (idx = 0; idx < ARRAY_SIZE(iwl_rates); idx++)
+			if (iwl_rates[idx].plcp == (rate_n_flags & 0xFF))
+				return idx;
+	}
+
+	return -1;
+}
+EXPORT_SYMBOL(iwl_hwrate_to_plcp_idx);
+
+
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 EXPORT_SYMBOL(iwl_bcast_addr);

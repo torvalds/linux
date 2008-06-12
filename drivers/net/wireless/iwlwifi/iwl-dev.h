@@ -733,9 +733,6 @@ extern int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
 extern int iwl4965_alive_notify(struct iwl_priv *priv);
 extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
-extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
-					 u32 rate_n_flags,
-					 struct ieee80211_tx_info *info);
 
 extern void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
 				struct ieee80211_ht_info *ht_info,

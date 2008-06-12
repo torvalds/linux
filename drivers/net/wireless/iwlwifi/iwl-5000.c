@@ -1139,6 +1139,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 	struct agg_tx_status *frame_status = &tx_resp->status;
 	struct ieee80211_tx_info *info = NULL;
 	struct ieee80211_hdr *hdr = NULL;
+	u32 rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
 	int i, sh, idx;
 	u16 seq;
 
@@ -1147,7 +1148,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
-	agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
+	agg->rate_n_flags = rate_n_flags;
 	agg->bitmap = 0;
 
 	/* # frames attempted by Tx command */
@@ -1165,15 +1166,13 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_is_tx_success(status)?
 			IEEE80211_TX_STAT_ACK : 0;
-		iwl4965_hwrate_to_tx_control(priv,
-					     le32_to_cpu(tx_resp->rate_n_flags),
-					     info);
+		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
+
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
 				    status & 0xff, tx_resp->failure_frame);
-		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n",
-			iwl4965_hw_get_rate_n_flags(tx_resp->rate_n_flags));
+		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n", rate_n_flags);
 
 		agg->wait_for_ba = 0;
 	} else {
@@ -1231,7 +1230,6 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
-		agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
 		IWL_DEBUG_TX_REPLY("Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
 				   (unsigned long long)agg->bitmap);
@@ -1322,7 +1320,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 		info->status.retry_count = tx_resp->failure_frame;
 		info->flags =
 			iwl_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
-		iwl4965_hwrate_to_tx_control(priv,
+		iwl_hwrate_to_tx_control(priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 

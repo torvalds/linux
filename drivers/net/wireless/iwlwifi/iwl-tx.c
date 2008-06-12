@@ -696,7 +696,7 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 
 	tx_cmd->rts_retry_limit = rts_retry_limit;
 	tx_cmd->data_retry_limit = data_retry_limit;
-	tx_cmd->rate_n_flags = iwl4965_hw_set_rate_n_flags(rate_plcp, rate_flags);
+	tx_cmd->rate_n_flags = iwl_hw_set_rate_n_flags(rate_plcp, rate_flags);
 }
 
 static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
