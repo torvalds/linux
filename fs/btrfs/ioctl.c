@@ -706,6 +706,9 @@ long btrfs_ioctl_trans_start(struct file *file)
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	mutex_lock(&root->fs_info->fs_mutex);
 	if (file->private_data) {
 		ret = -EINPROGRESS;
