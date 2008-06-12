@@ -762,6 +762,7 @@ static void device_remove_class_symlinks(struct device *dev)
 /**
  * dev_set_name - set a device name
  * @dev: device
+ * @fmt: format string for the device's name
  */
 int dev_set_name(struct device *dev, const char *fmt, ...)
 {
