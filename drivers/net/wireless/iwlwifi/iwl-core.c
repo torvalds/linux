@@ -1169,12 +1169,14 @@ void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		ptr += sizeof(u32);
 		time = iwl_read_targ_mem(priv, ptr);
 		ptr += sizeof(u32);
-		if (mode == 0)
-			IWL_ERROR("0x%08x\t%04u\n", time, ev); /* data, ev */
-		else {
+		if (mode == 0) {
+			/* data, ev */
+			IWL_ERROR("EVT_LOG:0x%08x:%04u\n", time, ev);
+		} else {
 			data = iwl_read_targ_mem(priv, ptr);
 			ptr += sizeof(u32);
-			IWL_ERROR("%010u\t0x%08x\t%04u\n", time, data, ev);
+			IWL_ERROR("EVT_LOGT:%010u:0x%08x:%04u\n",
+					time, data, ev);
 		}
 	}
 }
