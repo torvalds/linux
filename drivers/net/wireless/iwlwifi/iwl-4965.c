@@ -608,26 +608,6 @@ out:
 
 #define REG_RECALIB_PERIOD (60)
 
-/**
- * iwl4965_bg_statistics_periodic - Timer callback to queue statistics
- *
- * This callback is provided in order to send a statistics request.
- *
- * This timer function is continually reset to execute within
- * REG_RECALIB_PERIOD seconds since the last STATISTICS_NOTIFICATION
- * was received.  We need to ensure we receive the statistics in order
- * to update the temperature used for calibrating the TXPOWER.
- */
-static void iwl4965_bg_statistics_periodic(unsigned long data)
-{
-	struct iwl_priv *priv = (struct iwl_priv *)data;
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	iwl_send_statistics_request(priv, CMD_ASYNC);
-}
-
 void iwl4965_rf_kill_ct_config(struct iwl_priv *priv)
 {
 	struct iwl4965_ct_kill_config cmd;
@@ -3469,19 +3449,14 @@ static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwl4965_rx_reply_compressed_ba;
 }
 
-void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv)
+static void iwl4965_setup_deferred_work(struct iwl_priv *priv)
 {
 	INIT_WORK(&priv->txpower_work, iwl4965_bg_txpower_work);
-	init_timer(&priv->statistics_periodic);
-	priv->statistics_periodic.data = (unsigned long)priv;
-	priv->statistics_periodic.function = iwl4965_bg_statistics_periodic;
 }
 
-void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv)
+static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 {
-	del_timer_sync(&priv->statistics_periodic);
-
-	cancel_delayed_work(&priv->init_alive_start);
+	cancel_work_sync(&priv->txpower_work);
 }
 
 
@@ -3506,6 +3481,8 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.txq_agg_enable = iwl4965_txq_agg_enable,
 	.txq_agg_disable = iwl4965_txq_agg_disable,
 	.rx_handler_setup = iwl4965_rx_handler_setup,
+	.setup_deferred_work = iwl4965_setup_deferred_work,
+	.cancel_deferred_work = iwl4965_cancel_deferred_work,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
 	.alive_notify = iwl4965_alive_notify,
 	.init_alive_start = iwl4965_init_alive_start,

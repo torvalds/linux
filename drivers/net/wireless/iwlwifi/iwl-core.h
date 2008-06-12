@@ -116,6 +116,10 @@ struct iwl_lib_ops {
 			       u8 tx_fifo);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
+	/* setup deferred work */
+	void (*setup_deferred_work)(struct iwl_priv *priv);
+	/* cancel deferred work */
+	void (*cancel_deferred_work)(struct iwl_priv *priv);
 	/* alive notification after init uCode load */
 	void (*init_alive_start)(struct iwl_priv *priv);
 	/* alive notification */

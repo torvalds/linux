@@ -1179,9 +1179,6 @@ struct iwl_priv {
 
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
-	struct delayed_work activity_timer;
-	struct delayed_work thermal_periodic;
-	struct delayed_work gather_stats;
 	struct delayed_work scan_check;
 	struct delayed_work post_associate;
 

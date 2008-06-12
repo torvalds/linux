@@ -1647,6 +1647,26 @@ static void iwl4965_bg_beacon_update(struct work_struct *work)
 	iwl4965_send_beacon_cmd(priv);
 }
 
+/**
+ * iwl4965_bg_statistics_periodic - Timer callback to queue statistics
+ *
+ * This callback is provided in order to send a statistics request.
+ *
+ * This timer function is continually reset to execute within
+ * REG_RECALIB_PERIOD seconds since the last STATISTICS_NOTIFICATION
+ * was received.  We need to ensure we receive the statistics in order
+ * to update the temperature used for calibrating the TXPOWER.
+ */
+static void iwl4965_bg_statistics_periodic(unsigned long data)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)data;
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	iwl_send_statistics_request(priv, CMD_ASYNC);
+}
+
 static void iwl4965_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
@@ -2887,7 +2907,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	queue_work(priv->workqueue, &priv->restart);
 }
 
-static void iwl4965_cancel_deferred_work(struct iwl_priv *priv);
+static void iwl_cancel_deferred_work(struct iwl_priv *priv);
 
 static void __iwl4965_down(struct iwl_priv *priv)
 {
@@ -2991,7 +3011,7 @@ static void iwl4965_down(struct iwl_priv *priv)
 	__iwl4965_down(priv);
 	mutex_unlock(&priv->mutex);
 
-	iwl4965_cancel_deferred_work(priv);
+	iwl_cancel_deferred_work(priv);
 }
 
 #define MAX_HW_RESTARTS 5
@@ -5022,7 +5042,7 @@ static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
  *
  *****************************************************************************/
 
-static void iwl4965_setup_deferred_work(struct iwl_priv *priv)
+static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
 	priv->workqueue = create_workqueue(DRV_NAME);
 
@@ -5043,21 +5063,28 @@ static void iwl4965_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl4965_bg_scan_check);
 
-	iwl4965_hw_setup_deferred_work(priv);
+	if (priv->cfg->ops->lib->setup_deferred_work)
+		priv->cfg->ops->lib->setup_deferred_work(priv);
+
+	init_timer(&priv->statistics_periodic);
+	priv->statistics_periodic.data = (unsigned long)priv;
+	priv->statistics_periodic.function = iwl4965_bg_statistics_periodic;
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		     iwl4965_irq_tasklet, (unsigned long)priv);
 }
 
-static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
+static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
-	iwl4965_hw_cancel_deferred_work(priv);
+	if (priv->cfg->ops->lib->cancel_deferred_work)
+		priv->cfg->ops->lib->cancel_deferred_work(priv);
 
 	cancel_delayed_work_sync(&priv->init_alive_start);
 	cancel_delayed_work(&priv->scan_check);
 	cancel_delayed_work(&priv->alive_start);
 	cancel_delayed_work(&priv->post_associate);
 	cancel_work_sync(&priv->beacon_update);
+	del_timer_sync(&priv->statistics_periodic);
 }
 
 static struct attribute *iwl4965_sysfs_entries[] = {
@@ -5269,7 +5296,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	}
 
 
-	iwl4965_setup_deferred_work(priv);
+	iwl_setup_deferred_work(priv);
 	iwl4965_setup_rx_handlers(priv);
 
 	/********************
