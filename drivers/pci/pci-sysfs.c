@@ -492,7 +492,6 @@ pci_mmap_legacy_mem(struct kobject *kobj, struct bin_attribute *attr,
  * @write_combine: 1 for write_combine mapping
  *
  * Use the regular PCI mapping routines to map a PCI resource into userspace.
- * FIXME: write combining?  maybe automatic for prefetchable regions?
  */
 static int
 pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
