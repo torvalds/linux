@@ -1,5 +1,8 @@
 #ifndef __ASM_ARCH_REGS_LCD_H
 #define __ASM_ARCH_REGS_LCD_H
+
+#include <asm/arch/bitfield.h>
+
 /*
  * LCD Controller Registers and Bits Definitions
  */
@@ -69,7 +72,7 @@
 #define LCCR0_QDM	(1 << 11)	/* LCD Quick Disable mask */
 #define LCCR0_PDD	(0xff << 12)	/* Palette DMA request delay */
 #define LCCR0_PDD_S	12
-#define LCCR0_BM	(1 << 20) 	/* Branch mask */
+#define LCCR0_BM	(1 << 20)	/* Branch mask */
 #define LCCR0_OUM	(1 << 21)	/* Output FIFO underrun mask */
 #define LCCR0_LCDT	(1 << 22)	/* LCD panel type */
 #define LCCR0_RDSTM	(1 << 23)	/* Read status interrupt mask */
