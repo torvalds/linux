@@ -2857,9 +2857,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	/* After the ALIVE response, we can send host commands to 4965 uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
 
-	/* Clear out the uCode error bit if it is set */
-	clear_bit(STATUS_FW_ERROR, &priv->status);
-
 	if (iwl_is_rfkill(priv))
 		return;
 
@@ -3098,6 +3095,9 @@ static int __iwl4965_up(struct iwl_priv *priv)
 			IWL_ERROR("Unable to set up bootstrap uCode: %d\n", ret);
 			continue;
 		}
+
+		/* Clear out the uCode error bit if it is set */
+		clear_bit(STATUS_FW_ERROR, &priv->status);
 
 		/* start card; "initialize" will load runtime ucode */
 		iwl4965_nic_start(priv);
