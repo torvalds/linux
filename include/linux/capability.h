@@ -31,11 +31,11 @@ struct task_struct;
 #define _LINUX_CAPABILITY_VERSION_1  0x19980330
 #define _LINUX_CAPABILITY_U32S_1     1
 
-#define _LINUX_CAPABILITY_VERSION_2  0x20071026
+#define _LINUX_CAPABILITY_VERSION_2  0x20071026  /* deprecated - use v3 */
 #define _LINUX_CAPABILITY_U32S_2     2
 
-#define _LINUX_CAPABILITY_VERSION    _LINUX_CAPABILITY_VERSION_2
-#define _LINUX_CAPABILITY_U32S       _LINUX_CAPABILITY_U32S_2
+#define _LINUX_CAPABILITY_VERSION_3  0x20080522
+#define _LINUX_CAPABILITY_U32S_3     2
 
 typedef struct __user_cap_header_struct {
 	__u32 version;
@@ -77,10 +77,23 @@ struct vfs_cap_data {
 	} data[VFS_CAP_U32];
 };
 
-#ifdef __KERNEL__
+#ifndef __KERNEL__
+
+/*
+ * Backwardly compatible definition for source code - trapped in a
+ * 32-bit world. If you find you need this, please consider using
+ * libcap to untrap yourself...
+ */
+#define _LINUX_CAPABILITY_VERSION  _LINUX_CAPABILITY_VERSION_1
+#define _LINUX_CAPABILITY_U32S     _LINUX_CAPABILITY_U32S_1
+
+#else
+
+#define _KERNEL_CAPABILITY_VERSION _LINUX_CAPABILITY_VERSION_3
+#define _KERNEL_CAPABILITY_U32S    _LINUX_CAPABILITY_U32S_3
 
 typedef struct kernel_cap_struct {
-	__u32 cap[_LINUX_CAPABILITY_U32S];
+	__u32 cap[_KERNEL_CAPABILITY_U32S];
 } kernel_cap_t;
 
 #define _USER_CAP_HEADER_SIZE  (sizeof(struct __user_cap_header_struct))
@@ -351,7 +364,7 @@ typedef struct kernel_cap_struct {
  */
 
 #define CAP_FOR_EACH_U32(__capi)  \
-	for (__capi = 0; __capi < _LINUX_CAPABILITY_U32S; ++__capi)
+	for (__capi = 0; __capi < _KERNEL_CAPABILITY_U32S; ++__capi)
 
 # define CAP_FS_MASK_B0     (CAP_TO_MASK(CAP_CHOWN)		\
 			    | CAP_TO_MASK(CAP_DAC_OVERRIDE)	\
@@ -361,7 +374,7 @@ typedef struct kernel_cap_struct {
 
 # define CAP_FS_MASK_B1     (CAP_TO_MASK(CAP_MAC_OVERRIDE))
 
-#if _LINUX_CAPABILITY_U32S != 2
+#if _KERNEL_CAPABILITY_U32S != 2
 # error Fix up hand-coded capability macro initializers
 #else /* HAND-CODED capability initializers */
 
@@ -372,7 +385,7 @@ typedef struct kernel_cap_struct {
 # define CAP_NFSD_SET     ((kernel_cap_t){{ CAP_FS_MASK_B0|CAP_TO_MASK(CAP_SYS_RESOURCE), \
 					CAP_FS_MASK_B1 } })
 
-#endif /* _LINUX_CAPABILITY_U32S != 2 */
+#endif /* _KERNEL_CAPABILITY_U32S != 2 */
 
 #define CAP_INIT_INH_SET    CAP_EMPTY_SET
 

@@ -1,4 +1,3 @@
-/* $Id: termios.h,v 1.32 2001/06/01 08:12:11 davem Exp $ */
 #ifndef _SPARC_TERMIOS_H
 #define _SPARC_TERMIOS_H
 

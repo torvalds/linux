@@ -22,16 +22,10 @@ extern void force_flush_all(void);
 static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 {
 	/*
-	 * This is called by fs/exec.c and fs/aio.c. In the first case, for an
-	 * exec, we don't need to do anything as we're called from userspace
-	 * and thus going to use a new host PID. In the second, we're called
-	 * from a kernel thread, and thus need to go doing the mmap's on the
-	 * host. Since they're very expensive, we want to avoid that as far as
-	 * possible.
+	 * This is called by fs/exec.c and sys_unshare()
+	 * when the new ->mm is used for the first time.
 	 */
-	if (old != new && (current->flags & PF_BORROWED_MM))
-		__switch_mm(&new->context.id);
-
+	__switch_mm(&new->context.id);
 	arch_dup_mmap(old, new);
 }
 

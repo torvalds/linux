@@ -43,7 +43,13 @@ _modpost: __modpost
 include include/config/auto.conf
 include scripts/Kbuild.include
 
+# When building external modules load the Kbuild file to retreive EXTRA_SYMBOLS info
 ifneq ($(KBUILD_EXTMOD),)
+
+# set src + obj - they may be used when building the .mod.c file
+obj := $(KBUILD_EXTMOD)
+src := $(obj)
+
 # Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
 include $(if $(wildcard $(KBUILD_EXTMOD)/Kbuild), \
              $(KBUILD_EXTMOD)/Kbuild, $(KBUILD_EXTMOD)/Makefile)

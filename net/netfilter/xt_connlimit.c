@@ -73,7 +73,8 @@ connlimit_iphash6(const union nf_inet_addr *addr,
 static inline bool already_closed(const struct nf_conn *conn)
 {
 	if (nf_ct_protonum(conn) == IPPROTO_TCP)
-		return conn->proto.tcp.state == TCP_CONNTRACK_TIME_WAIT;
+		return conn->proto.tcp.state == TCP_CONNTRACK_TIME_WAIT ||
+		       conn->proto.tcp.state == TCP_CONNTRACK_CLOSE;
 	else
 		return 0;
 }

@@ -369,7 +369,8 @@ static int impd1_probe(struct lm_device *dev)
 
 	lm_set_drvdata(dev, impd1);
 
-	printk("IM-PD1 found at 0x%08lx\n", dev->resource.start);
+	printk("IM-PD1 found at 0x%08lx\n",
+		(unsigned long)dev->resource.start);
 
 	for (i = 0; i < ARRAY_SIZE(impd1->vcos); i++) {
 		impd1->vcos[i].owner = THIS_MODULE,

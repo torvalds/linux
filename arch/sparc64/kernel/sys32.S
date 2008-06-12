@@ -1,4 +1,4 @@
-/* $Id: sys32.S,v 1.12 2000/03/24 04:17:37 davem Exp $
+/*
  * sys32.S: I-cache tricks for 32-bit compatibility layer simple
  *          conversions.
  *

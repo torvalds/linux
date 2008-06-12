@@ -318,7 +318,7 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 	size_t tot_written = 0;
 	int single_frame = 0;
 
-	if (atomic_read(&cx->capturing) == 0 && s->id == -1) {
+	if (atomic_read(&cx->ana_capturing) == 0 && s->id == -1) {
 		/* shouldn't happen */
 		CX18_DEBUG_WARN("Stream %s not initialized before read\n",
 				s->name);
@@ -361,7 +361,8 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 				cx18_enqueue(s, buf, &s->q_free);
 				cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5,
 					s->handle,
-					(void *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
+					(void __iomem *)&cx->scb->cpu_mdl[buf->id] -
+					  cx->enc_mem,
 					1, buf->id, s->buf_size);
 			} else
 				cx18_enqueue(s, buf, &s->q_io);
@@ -581,7 +582,7 @@ int cx18_v4l2_close(struct inode *inode, struct file *filp)
 		cx18_call_i2c_clients(cx, VIDIOC_S_STD, &cx->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		cx18_audio_set_io(cx);
-		if (atomic_read(&cx->capturing) > 0) {
+		if (atomic_read(&cx->ana_capturing) > 0) {
 			/* Undo video mute */
 			cx18_vapi(cx, CX18_CPU_SET_VIDEO_MUTE, 2, s->handle,
 				cx->params.video_mute |
@@ -627,7 +628,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 		}
 
 		if (!test_bit(CX18_F_I_RADIO_USER, &cx->i_flags)) {
-			if (atomic_read(&cx->capturing) > 0) {
+			if (atomic_read(&cx->ana_capturing) > 0) {
 				/* switching to radio while capture is
 				   in progress is not polite */
 				cx18_release_stream(s);
@@ -694,7 +695,7 @@ int cx18_v4l2_open(struct inode *inode, struct file *filp)
 
 void cx18_mute(struct cx18 *cx)
 {
-	if (atomic_read(&cx->capturing))
+	if (atomic_read(&cx->ana_capturing))
 		cx18_vapi(cx, CX18_CPU_SET_AUDIO_MUTE, 2,
 				cx18_find_handle(cx), 1);
 	CX18_DEBUG_INFO("Mute\n");
@@ -702,7 +703,7 @@ void cx18_mute(struct cx18 *cx)
 
 void cx18_unmute(struct cx18 *cx)
 {
-	if (atomic_read(&cx->capturing)) {
+	if (atomic_read(&cx->ana_capturing)) {
 		cx18_msleep_timeout(100, 0);
 		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 2,
 				cx18_find_handle(cx), 12);

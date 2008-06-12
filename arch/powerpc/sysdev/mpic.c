@@ -1331,6 +1331,9 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 	unsigned long flags;
 	u32 reg;
 
+	if (!mpic)
+		return;
+
 	spin_lock_irqsave(&mpic_lock, flags);
 	if (is_ipi) {
 		reg = mpic_ipi_read(src - mpic->ipi_vecs[0]) &
@@ -1344,23 +1347,6 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 			       reg | (pri << MPIC_VECPRI_PRIORITY_SHIFT));
 	}
 	spin_unlock_irqrestore(&mpic_lock, flags);
-}
-
-unsigned int mpic_irq_get_priority(unsigned int irq)
-{
-	unsigned int is_ipi;
-	struct mpic *mpic = mpic_find(irq, &is_ipi);
-	unsigned int src = mpic_irq_to_hw(irq);
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(&mpic_lock, flags);
-	if (is_ipi)
-		reg = mpic_ipi_read(src = mpic->ipi_vecs[0]);
-	else
-		reg = mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI));
-	spin_unlock_irqrestore(&mpic_lock, flags);
-	return (reg & MPIC_VECPRI_PRIORITY_MASK) >> MPIC_VECPRI_PRIORITY_SHIFT;
 }
 
 void mpic_setup_this_cpu(void)

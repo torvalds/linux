@@ -44,6 +44,7 @@
 #define WATCHDOG_NAME "w83697hf/hg WDT"
 #define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
+#define WATCHDOG_EARLY_DISABLE 1	/* Disable until userland kicks in */
 
 static unsigned long wdt_is_open;
 static char expect_close;
@@ -56,11 +57,15 @@ MODULE_PARM_DESC(wdt_io, "w83697hf/hg WDT io port (default 0x2e, 0 = autodetect)
 
 static int timeout = WATCHDOG_TIMEOUT;	/* in seconds */
 module_param(timeout, int, 0);
-MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. 1<= timeout <=255, default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ".");
+MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. 1<= timeout <=255 (default=" __MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+
+static int early_disable = WATCHDOG_EARLY_DISABLE;
+module_param(early_disable, int, 0);
+MODULE_PARM_DESC(early_disable, "Watchdog gets disabled at boot time (default=" __MODULE_STRING(WATCHDOG_EARLY_DISABLE) ")");
 
 /*
  *	Kernel methods.
@@ -140,7 +145,7 @@ w83697hf_init(void)
 	w83697hf_deselect_wdt();
 }
 
-static int
+static void
 wdt_ping(void)
 {
 	spin_lock(&io_lock);
@@ -150,10 +155,9 @@ wdt_ping(void)
 
 	w83697hf_deselect_wdt();
 	spin_unlock(&io_lock);
-	return 0;
 }
 
-static int
+static void
 wdt_enable(void)
 {
 	spin_lock(&io_lock);
@@ -164,10 +168,9 @@ wdt_enable(void)
 
 	w83697hf_deselect_wdt();
 	spin_unlock(&io_lock);
-	return 0;
 }
 
-static int
+static void
 wdt_disable(void)
 {
 	spin_lock(&io_lock);
@@ -178,7 +181,22 @@ wdt_disable(void)
 
 	w83697hf_deselect_wdt();
 	spin_unlock(&io_lock);
-	return 0;
+}
+
+static unsigned char
+wdt_running(void)
+{
+	unsigned char t;
+
+	spin_lock(&io_lock);
+	w83697hf_select_wdt();
+
+	t = w83697hf_get_reg(0xF4);	/* Read timer */
+
+	w83697hf_deselect_wdt();
+	spin_unlock(&io_lock);
+
+	return t;
 }
 
 static int
@@ -397,7 +415,11 @@ wdt_init(void)
 	}
 
 	w83697hf_init();
-	wdt_disable();	/* Disable watchdog until first use */
+	if (early_disable) {
+		if (wdt_running())
+			printk (KERN_WARNING PFX "Stopping previously enabled watchdog until userland kicks in\n");
+		wdt_disable();
+	}
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);

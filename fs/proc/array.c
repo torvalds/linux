@@ -288,7 +288,7 @@ static void render_cap_t(struct seq_file *m, const char *header,
 	seq_printf(m, "%s", header);
 	CAP_FOR_EACH_U32(__capi) {
 		seq_printf(m, "%08x",
-			   a->cap[(_LINUX_CAPABILITY_U32S-1) - __capi]);
+			   a->cap[(_KERNEL_CAPABILITY_U32S-1) - __capi]);
 	}
 	seq_printf(m, "\n");
 }

@@ -73,6 +73,8 @@ struct clk {
 #endif
 };
 
+struct cpufreq_frequency_table;
+
 struct clk_functions {
 	int		(*clk_enable)(struct clk *clk);
 	void		(*clk_disable)(struct clk *clk);
@@ -83,6 +85,9 @@ struct clk_functions {
 	void		(*clk_allow_idle)(struct clk *clk);
 	void		(*clk_deny_idle)(struct clk *clk);
 	void		(*clk_disable_unused)(struct clk *clk);
+#ifdef CONFIG_CPU_FREQ
+	void		(*clk_init_cpufreq_table)(struct cpufreq_frequency_table **);
+#endif
 };
 
 extern unsigned int mpurate;

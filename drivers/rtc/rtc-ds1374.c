@@ -42,7 +42,7 @@
 #define DS1374_REG_TCR		0x09 /* Trickle Charge */
 
 static const struct i2c_device_id ds1374_id[] = {
-	{ "rtc-ds1374", 0 },
+	{ "ds1374", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1374_id);

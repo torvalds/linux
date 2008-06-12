@@ -1089,7 +1089,7 @@ out:
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-int smp_rescan_cpus(void)
+int __ref smp_rescan_cpus(void)
 {
 	cpumask_t newcpus;
 	int cpu;

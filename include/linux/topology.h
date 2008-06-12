@@ -166,7 +166,9 @@ void arch_update_cpu_topology(void);
 	.busy_idx		= 3,			\
 	.idle_idx		= 3,			\
 	.flags			= SD_LOAD_BALANCE	\
-				| SD_SERIALIZE,	\
+				| SD_BALANCE_NEWIDLE	\
+				| SD_WAKE_AFFINE	\
+				| SD_SERIALIZE,		\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 64,			\
 }

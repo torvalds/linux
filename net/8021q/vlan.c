@@ -382,6 +382,18 @@ static void vlan_sync_address(struct net_device *dev,
 	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
 }
 
+static void vlan_transfer_features(struct net_device *dev,
+				   struct net_device *vlandev)
+{
+	unsigned long old_features = vlandev->features;
+
+	vlandev->features &= ~dev->vlan_features;
+	vlandev->features |= dev->features & dev->vlan_features;
+
+	if (old_features != vlandev->features)
+		netdev_features_change(vlandev);
+}
+
 static void __vlan_device_event(struct net_device *dev, unsigned long event)
 {
 	switch (event) {
@@ -410,10 +422,8 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	int i, flgs;
 	struct net_device *vlandev;
 
-	if (is_vlan_dev(dev)) {
+	if (is_vlan_dev(dev))
 		__vlan_device_event(dev, event);
-		goto out;
-	}
 
 	grp = __vlan_find_group(dev);
 	if (!grp)
@@ -448,6 +458,18 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 
 			vlan_sync_address(dev, vlandev);
 		}
+		break;
+
+	case NETDEV_FEAT_CHANGE:
+		/* Propagate device features to underlying device */
+		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
+			vlandev = vlan_group_get_device(grp, i);
+			if (!vlandev)
+				continue;
+
+			vlan_transfer_features(dev, vlandev);
+		}
+
 		break;
 
 	case NETDEV_DOWN:

@@ -12,6 +12,7 @@
 #include <linux/kmod.h>
 #include <linux/major.h>
 #include <linux/smp_lock.h>
+#include <linux/device_cgroup.h>
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
@@ -928,9 +929,14 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 {
 	struct module *owner = NULL;
 	struct gendisk *disk;
-	int ret = -ENXIO;
+	int ret;
 	int part;
 
+	ret = devcgroup_inode_permission(bdev->bd_inode, file->f_mode);
+	if (ret != 0)
+		return ret;
+
+	ret = -ENXIO;
 	file->f_mapping = bdev->bd_inode->i_mapping;
 	lock_kernel();
 	disk = get_gendisk(bdev->bd_dev, &part);

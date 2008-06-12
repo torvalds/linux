@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/thread_info.h>
 #include <asm/page.h>
+#include <asm/setup.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -106,7 +107,6 @@ static inline void set_fs(mm_segment_t s)
 #else
 static inline int access_ok(int type, const void *addr, unsigned long size)
 {
-	extern unsigned long memory_start, memory_end;
 	unsigned long val = (unsigned long)addr;
 
 	return ((val >= memory_start) && ((val + size) < memory_end));

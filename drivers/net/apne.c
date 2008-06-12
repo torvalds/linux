@@ -127,6 +127,9 @@ struct net_device * __init apne_probe(int unit)
 #endif
 	int err;
 
+	if (!MACH_IS_AMIGA)
+		return ERR_PTR(-ENODEV);
+
 	if (apne_owned)
 		return ERR_PTR(-ENODEV);
 

@@ -48,20 +48,6 @@
 #define CPUID_TCM	2
 #define CPUID_TLBTYPE	3
 
-#ifdef CONFIG_CPU_CP15
-#define read_cpuid(reg)							\
-	({								\
-		unsigned int __val;					\
-		asm("mrc	p15, 0, %0, c0, c0, " __stringify(reg)	\
-		    : "=r" (__val)					\
-		    :							\
-		    : "cc");						\
-		__val;							\
-	})
-#else
-#define read_cpuid(reg) (processor_id)
-#endif
-
 /*
  * This is used to ensure the compiler did actually allocate the register we
  * asked it for some inline assembly sequences.  Apparently we can't trust
@@ -77,6 +63,21 @@
 #include <linux/linkage.h>
 #include <linux/stringify.h>
 #include <linux/irqflags.h>
+
+#ifdef CONFIG_CPU_CP15
+#define read_cpuid(reg)							\
+	({								\
+		unsigned int __val;					\
+		asm("mrc	p15, 0, %0, c0, c0, " __stringify(reg)	\
+		    : "=r" (__val)					\
+		    :							\
+		    : "cc");						\
+		__val;							\
+	})
+#else
+extern unsigned int processor_id;
+#define read_cpuid(reg) (processor_id)
+#endif
 
 /*
  * The CPU ID never changes at run time, so we might as well tell the

@@ -437,7 +437,6 @@ void gpio_set_value(unsigned gpio, int arg);
 int gpio_get_value(unsigned gpio);
 
 #ifndef BF548_FAMILY
-#define gpio_get_value(gpio) 		get_gpio_data(gpio)
 #define gpio_set_value(gpio, value)	set_gpio_data(gpio, value)
 #endif
 

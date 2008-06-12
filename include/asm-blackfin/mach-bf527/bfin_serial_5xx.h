@@ -53,6 +53,12 @@
 #define UART_SET_DLAB(uart)     do { UART_PUT_LCR(uart, UART_GET_LCR(uart) | DLAB); SSYNC(); } while (0)
 #define UART_CLEAR_DLAB(uart)   do { UART_PUT_LCR(uart, UART_GET_LCR(uart) & ~DLAB); SSYNC(); } while (0)
 
+#define UART_GET_CTS(x) gpio_get_value(x->cts_pin)
+#define UART_SET_RTS(x) gpio_set_value(x->rts_pin, 1)
+#define UART_CLEAR_RTS(x) gpio_set_value(x->rts_pin, 0)
+#define UART_ENABLE_INTS(x, v) UART_PUT_IER(x, v)
+#define UART_DISABLE_INTS(x) UART_PUT_IER(x, 0)
+
 #if defined(CONFIG_BFIN_UART0_CTSRTS) || defined(CONFIG_BFIN_UART1_CTSRTS)
 # define CONFIG_SERIAL_BFIN_CTSRTS
 

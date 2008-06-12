@@ -1,4 +1,4 @@
-/* $Id: ross.h,v 1.13 1998/01/07 06:49:11 baccala Exp $
+/*
  * ross.h: Ross module specific definitions and defines.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)

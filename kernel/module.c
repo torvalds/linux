@@ -1337,7 +1337,19 @@ out_unreg:
 	kobject_put(&mod->mkobj.kobj);
 	return err;
 }
-#endif
+
+static void mod_sysfs_fini(struct module *mod)
+{
+	kobject_put(&mod->mkobj.kobj);
+}
+
+#else /* CONFIG_SYSFS */
+
+static void mod_sysfs_fini(struct module *mod)
+{
+}
+
+#endif /* CONFIG_SYSFS */
 
 static void mod_kobject_remove(struct module *mod)
 {
@@ -1345,7 +1357,7 @@ static void mod_kobject_remove(struct module *mod)
 	module_param_sysfs_remove(mod);
 	kobject_put(mod->mkobj.drivers_dir);
 	kobject_put(mod->holders_dir);
-	kobject_put(&mod->mkobj.kobj);
+	mod_sysfs_fini(mod);
 }
 
 /*
@@ -1780,7 +1792,7 @@ static struct module *load_module(void __user *umod,
 
 	/* Sanity checks against insmoding binaries or wrong arch,
            weird elf version */
-	if (memcmp(hdr->e_ident, ELFMAG, 4) != 0
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0
 	    || hdr->e_type != ET_REL
 	    || !elf_check_arch(hdr)
 	    || hdr->e_shentsize != sizeof(*sechdrs)) {

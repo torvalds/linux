@@ -670,8 +670,11 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
 		cFYI(1, ("search backing up - close and restart search"));
-		cifsFile->invalidHandle = true;
-		CIFSFindClose(xid, pTcon, cifsFile->netfid);
+		if (!cifsFile->srch_inf.endOfSearch &&
+		    !cifsFile->invalidHandle) {
+			cifsFile->invalidHandle = true;
+			CIFSFindClose(xid, pTcon, cifsFile->netfid);
+		}
 		kfree(cifsFile->search_resume_name);
 		cifsFile->search_resume_name = NULL;
 		if (cifsFile->srch_inf.ntwrk_buf_start) {

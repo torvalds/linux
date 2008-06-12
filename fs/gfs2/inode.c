@@ -47,8 +47,7 @@ static int iget_test(struct inode *inode, void *opaque)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	u64 *no_addr = opaque;
 
-	if (ip->i_no_addr == *no_addr &&
-	    inode->i_private != NULL)
+	if (ip->i_no_addr == *no_addr && test_bit(GIF_USER, &ip->i_flags))
 		return 1;
 
 	return 0;
@@ -61,6 +60,7 @@ static int iget_set(struct inode *inode, void *opaque)
 
 	inode->i_ino = (unsigned long)*no_addr;
 	ip->i_no_addr = *no_addr;
+	set_bit(GIF_USER, &ip->i_flags);
 	return 0;
 }
 
@@ -86,7 +86,7 @@ static int iget_skip_test(struct inode *inode, void *opaque)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_skip_data *data = opaque;
 
-	if (ip->i_no_addr == data->no_addr && inode->i_private != NULL){
+	if (ip->i_no_addr == data->no_addr && test_bit(GIF_USER, &ip->i_flags)){
 		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
 			data->skipped = 1;
 			return 0;
@@ -105,6 +105,7 @@ static int iget_skip_set(struct inode *inode, void *opaque)
 		return 1;
 	inode->i_ino = (unsigned long)(data->no_addr);
 	ip->i_no_addr = data->no_addr;
+	set_bit(GIF_USER, &ip->i_flags);
 	return 0;
 }
 
@@ -166,7 +167,7 @@ void gfs2_set_iop(struct inode *inode)
  * Returns: A VFS inode, or an error
  */
 
-struct inode *gfs2_inode_lookup(struct super_block *sb, 
+struct inode *gfs2_inode_lookup(struct super_block *sb,
 				unsigned int type,
 				u64 no_addr,
 				u64 no_formal_ino, int skip_freeing)
@@ -187,7 +188,6 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
-		inode->i_private = ip;
 		ip->i_no_formal_ino = no_formal_ino;
 
 		error = gfs2_glock_get(sdp, no_addr, &gfs2_inode_glops, CREATE, &ip->i_gl);

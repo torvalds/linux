@@ -2023,6 +2023,7 @@ rrd_ok:
 		/* Good Receive */
 		pci_unmap_page(adapter->pdev, buffer_info->dma,
 			       buffer_info->length, PCI_DMA_FROMDEVICE);
+		buffer_info->dma = 0;
 		skb = buffer_info->skb;
 		length = le16_to_cpu(rrd->xsz.xsum_sz.pkt_size);
 
@@ -2135,7 +2136,7 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 				return -1;
 		}
 
-		if (skb->protocol == ntohs(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
 
 			real_len = (((unsigned char *)iph - skb->data) +

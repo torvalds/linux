@@ -766,7 +766,6 @@ struct sched_domain {
 	struct sched_domain *child;	/* bottom domain must be null terminated */
 	struct sched_group *groups;	/* the balancing groups of the domain */
 	cpumask_t span;			/* span of all CPUs in this domain */
-	int first_cpu;			/* cache of the first cpu in this domain */
 	unsigned long min_interval;	/* Minimum balance interval ms */
 	unsigned long max_interval;	/* Maximum balance interval ms */
 	unsigned int busy_factor;	/* less balancing by factor if busy */
@@ -1848,7 +1847,9 @@ extern void exit_thread(void);
 extern void exit_files(struct task_struct *);
 extern void __cleanup_signal(struct signal_struct *);
 extern void __cleanup_sighand(struct sighand_struct *);
+
 extern void exit_itimers(struct signal_struct *);
+extern void flush_itimer_signals(void);
 
 extern NORET_TYPE void do_group_exit(int);
 

@@ -116,18 +116,18 @@ void sfe4001_poweroff(struct efx_nic *efx)
 
 	/* Turn off all power rails */
 	out = 0xff;
-	(void) efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
+	efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
 
 	/* Disable port 1 outputs on IO expander */
 	cfg = 0xff;
-	(void) efx_i2c_write(i2c, PCA9539, P1_CONFIG, &cfg, 1);
+	efx_i2c_write(i2c, PCA9539, P1_CONFIG, &cfg, 1);
 
 	/* Disable port 0 outputs on IO expander */
 	cfg = 0xff;
-	(void) efx_i2c_write(i2c, PCA9539, P0_CONFIG, &cfg, 1);
+	efx_i2c_write(i2c, PCA9539, P0_CONFIG, &cfg, 1);
 
 	/* Clear any over-temperature alert */
-	(void) efx_i2c_read(i2c, MAX6647, RSL, &in, 1);
+	efx_i2c_read(i2c, MAX6647, RSL, &in, 1);
 }
 
 /* The P0_EN_3V3X line on SFE4001 boards (from A2 onward) is connected
@@ -253,14 +253,14 @@ done:
 fail3:
 	/* Turn off all power rails */
 	out = 0xff;
-	(void) efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
+	efx_i2c_write(i2c, PCA9539, P0_OUT, &out, 1);
 	/* Disable port 1 outputs on IO expander */
 	out = 0xff;
-	(void) efx_i2c_write(i2c, PCA9539, P1_CONFIG, &out, 1);
+	efx_i2c_write(i2c, PCA9539, P1_CONFIG, &out, 1);
 fail2:
 	/* Disable port 0 outputs on IO expander */
 	out = 0xff;
-	(void) efx_i2c_write(i2c, PCA9539, P0_CONFIG, &out, 1);
+	efx_i2c_write(i2c, PCA9539, P0_CONFIG, &out, 1);
 fail1:
 	return rc;
 }

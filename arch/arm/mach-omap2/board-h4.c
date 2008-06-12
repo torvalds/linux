@@ -420,6 +420,7 @@ static void __init omap_h4_init(void)
 
 static void __init omap_h4_map_io(void)
 {
+	omap2_set_globals_242x();
 	omap2_map_common_io();
 }
 

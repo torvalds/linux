@@ -1003,7 +1003,7 @@ static void mmc_omap_dma_cb(int lch, u16 ch_status, void *data)
 
 static int mmc_omap_get_dma_channel(struct mmc_omap_host *host, struct mmc_data *data)
 {
-	const char *dev_name;
+	const char *dma_dev_name;
 	int sync_dev, dma_ch, is_read, r;
 
 	is_read = !(data->flags & MMC_DATA_WRITE);
@@ -1018,21 +1018,21 @@ static int mmc_omap_get_dma_channel(struct mmc_omap_host *host, struct mmc_data 
 	if (is_read) {
 		if (host->id == 1) {
 			sync_dev = OMAP_DMA_MMC_RX;
-			dev_name = "MMC1 read";
+			dma_dev_name = "MMC1 read";
 		} else {
 			sync_dev = OMAP_DMA_MMC2_RX;
-			dev_name = "MMC2 read";
+			dma_dev_name = "MMC2 read";
 		}
 	} else {
 		if (host->id == 1) {
 			sync_dev = OMAP_DMA_MMC_TX;
-			dev_name = "MMC1 write";
+			dma_dev_name = "MMC1 write";
 		} else {
 			sync_dev = OMAP_DMA_MMC2_TX;
-			dev_name = "MMC2 write";
+			dma_dev_name = "MMC2 write";
 		}
 	}
-	r = omap_request_dma(sync_dev, dev_name, mmc_omap_dma_cb,
+	r = omap_request_dma(sync_dev, dma_dev_name, mmc_omap_dma_cb,
 			     host, &dma_ch);
 	if (r != 0) {
 		dev_dbg(mmc_dev(host->mmc), "omap_request_dma() failed with %d\n", r);

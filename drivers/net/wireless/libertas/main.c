@@ -756,6 +756,7 @@ static int lbs_thread(void *data)
 				priv->nr_retries = 0;
 			} else {
 				priv->cur_cmd = NULL;
+				priv->dnld_sent = DNLD_RES_RECEIVED;
 				lbs_pr_info("requeueing command %x due to timeout (#%d)\n",
 					    le16_to_cpu(cmdnode->cmdbuf->command), priv->nr_retries);
 
@@ -1564,6 +1565,7 @@ static int lbs_add_rtap(struct lbs_private *priv)
 	rtap_dev->hard_start_xmit = lbs_rtap_hard_start_xmit;
 	rtap_dev->set_multicast_list = lbs_set_multicast_list;
 	rtap_dev->priv = priv;
+	SET_NETDEV_DEV(rtap_dev, priv->dev->dev.parent);
 
 	ret = register_netdev(rtap_dev);
 	if (ret) {

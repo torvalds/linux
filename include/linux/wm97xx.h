@@ -100,6 +100,7 @@
 #define WM9713_ADCSEL_Y		0x0004	/* Y measurement */
 #define WM9713_ADCSEL_PRES	0x0008	/* Pressure measurement */
 #define WM9713_COO		0x0001	/* enable coordinate mode */
+#define WM9713_45W		0x1000  /* set for 5 wire panel */
 #define WM9713_PDEN		0x0800	/* measure only when pen down */
 #define WM9713_ADCSEL_MASK	0x00fe	/* ADC selection mask */
 #define WM9713_WAIT		0x0200	/* coordinate wait */

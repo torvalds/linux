@@ -290,7 +290,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 
 	payload = &state->payload;
 	
-	received = (struct efx_loopback_payload *)(char *) buf_ptr;
+	received = (struct efx_loopback_payload *) buf_ptr;
 	received->ip.saddr = payload->ip.saddr;
 	received->ip.check = payload->ip.check;
 	
@@ -424,10 +424,10 @@ static int efx_tx_loopback(struct efx_tx_queue *tx_queue)
 		 * interrupt handler. */
 		smp_wmb();
 
-		if (NET_DEV_REGISTERED(efx))
+		if (efx_dev_registered(efx))
 			netif_tx_lock_bh(efx->net_dev);
 		rc = efx_xmit(efx, tx_queue, skb);
-		if (NET_DEV_REGISTERED(efx))
+		if (efx_dev_registered(efx))
 			netif_tx_unlock_bh(efx->net_dev);
 
 		if (rc != NETDEV_TX_OK) {
@@ -453,7 +453,7 @@ static int efx_rx_loopback(struct efx_tx_queue *tx_queue,
 	int tx_done = 0, rx_good, rx_bad;
 	int i, rc = 0;
 
-	if (NET_DEV_REGISTERED(efx))
+	if (efx_dev_registered(efx))
 		netif_tx_lock_bh(efx->net_dev);
 
 	/* Count the number of tx completions, and decrement the refcnt. Any
@@ -465,7 +465,7 @@ static int efx_rx_loopback(struct efx_tx_queue *tx_queue,
 		dev_kfree_skb_any(skb);
 	}
 
-	if (NET_DEV_REGISTERED(efx))
+	if (efx_dev_registered(efx))
 		netif_tx_unlock_bh(efx->net_dev);
 
 	/* Check TX completion and received packet counts */
@@ -517,6 +517,8 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 		state->packet_count = min(1 << (i << 2), state->packet_count);
 		state->skbs = kzalloc(sizeof(state->skbs[0]) *
 				      state->packet_count, GFP_KERNEL);
+		if (!state->skbs)
+			return -ENOMEM;
 		state->flush = 0;
 
 		EFX_LOG(efx, "TX queue %d testing %s loopback with %d "
@@ -700,7 +702,7 @@ int efx_offline_test(struct efx_nic *efx,
 	 * "flushing" so all inflight packets are dropped */
 	BUG_ON(efx->loopback_selftest);
 	state->flush = 1;
-	efx->loopback_selftest = (void *)state;
+	efx->loopback_selftest = state;
 
 	rc = efx_test_loopbacks(efx, tests, loopback_modes);
 

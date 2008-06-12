@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/cpufreq.h>
 
 #include <asm/io.h>
 
@@ -134,9 +135,17 @@ void clk_disable(struct clk *clk)
 		return;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	BUG_ON(clk->usecount == 0);
+	if (clk->usecount == 0) {
+		printk(KERN_ERR "Trying disable clock %s with 0 usecount\n",
+		       clk->name);
+		WARN_ON(1);
+		goto out;
+	}
+
 	if (arch_clock->clk_disable)
 		arch_clock->clk_disable(clk);
+
+out:
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);

@@ -281,7 +281,8 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, opts);
+	nla_nest_cancel(skb, opts);
+	return -EMSGSIZE;
 }
 
 static int red_dump_stats(struct Qdisc *sch, struct gnet_dump *d)

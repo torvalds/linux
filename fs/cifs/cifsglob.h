@@ -281,6 +281,7 @@ struct cifsTconInfo {
 	bool ipc:1;		/* set if connection to IPC$ eg for RPC/PIPES */
 	bool retry:1;
 	bool nocase:1;
+	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
 	/* BB add field for back pointer to sb struct(s)? */

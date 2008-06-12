@@ -151,19 +151,19 @@ static inline void native_pgd_clear(pgd_t *pgd)
 
 #ifndef __ASSEMBLY__
 
-static inline unsigned long pgd_bad(pgd_t pgd)
+static inline int pgd_bad(pgd_t pgd)
 {
-	return pgd_val(pgd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+	return (pgd_val(pgd) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
-static inline unsigned long pud_bad(pud_t pud)
+static inline int pud_bad(pud_t pud)
 {
-	return pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+	return (pud_val(pud) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
-static inline unsigned long pmd_bad(pmd_t pmd)
+static inline int pmd_bad(pmd_t pmd)
 {
-	return pmd_val(pmd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+	return (pmd_val(pmd) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
 #define pte_none(x)	(!pte_val((x)))

@@ -355,9 +355,8 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	pr_debug("pxafb: dma period = %d ps, clock = %d kHz\n",
-		 pxafb_display_dma_period(var),
-		 get_clk_frequency_khz(0));
+	pr_debug("pxafb: dma period = %d ps\n",
+		 pxafb_display_dma_period(var));
 #endif
 
 	return 0;
@@ -1352,7 +1351,6 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	struct pxafb_info *fbi;
 	void *addr;
 	struct pxafb_mach_info *inf = dev->platform_data;
-	struct pxafb_mode_info *mode = inf->modes;
 
 	/* Alloc the pxafb_info and pseudo_palette in one step */
 	fbi = kmalloc(sizeof(struct pxafb_info) + sizeof(u32) * 16, GFP_KERNEL);

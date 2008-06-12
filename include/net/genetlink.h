@@ -162,9 +162,9 @@ static inline int genlmsg_end(struct sk_buff *skb, void *hdr)
  * @skb: socket buffer the message is stored in
  * @hdr: generic netlink message header
  */
-static inline int genlmsg_cancel(struct sk_buff *skb, void *hdr)
+static inline void genlmsg_cancel(struct sk_buff *skb, void *hdr)
 {
-	return nlmsg_cancel(skb, hdr - GENL_HDRLEN - NLMSG_HDRLEN);
+	nlmsg_cancel(skb, hdr - GENL_HDRLEN - NLMSG_HDRLEN);
 }
 
 /**

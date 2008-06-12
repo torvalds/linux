@@ -7,7 +7,6 @@ offsets-file := asm-offsets.h
 always  := $(offsets-file)
 targets := $(offsets-file)
 targets += arch/ia64/kvm/asm-offsets.s
-clean-files := $(addprefix $(objtree)/,$(targets) $(obj)/memcpy.S $(obj)/memset.S)
 
 # Default sed regexp - multiline due to syntax constraints
 define sed-y
@@ -54,5 +53,5 @@ EXTRA_CFLAGS_vcpu.o += -mfixed-range=f2-f5,f12-f127
 kvm-intel-objs = vmm.o vmm_ivt.o trampoline.o vcpu.o optvfault.o mmio.o \
 	vtlb.o process.o
 #Add link memcpy and memset to avoid possible structure assignment error
-kvm-intel-objs += ../lib/memset.o ../lib/memcpy.o
+kvm-intel-objs += memcpy.o memset.o
 obj-$(CONFIG_KVM_INTEL) += kvm-intel.o

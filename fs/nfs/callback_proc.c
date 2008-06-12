@@ -57,7 +57,7 @@ out_iput:
 out_putclient:
 	nfs_put_client(clp);
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(res->status));
+	dprintk("%s: exit with status = %d\n", __func__, ntohl(res->status));
 	return res->status;
 }
 
@@ -98,6 +98,6 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 		nfs_put_client(prev);
 	} while (clp != NULL);
 out:
-	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(res));
+	dprintk("%s: exit with status = %d\n", __func__, ntohl(res));
 	return res;
 }
