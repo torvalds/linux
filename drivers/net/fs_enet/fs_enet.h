@@ -138,10 +138,6 @@ struct fs_enet_private {
 };
 
 /***************************************************************************/
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-int fs_enet_mdio_bb_init(void);
-int fs_enet_mdio_fec_init(void);
-#endif
 
 void fs_init_bds(struct net_device *dev);
 void fs_cleanup_bds(struct net_device *dev);
