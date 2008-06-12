@@ -228,21 +228,21 @@ ACPI BATTERY DRIVERS
 P:	Alexey Starikovskiy
 M:	astarikovskiy@suse.de
 L:	linux-acpi@vger.kernel.org
-W:	http://acpi.sourceforge.net/
+W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI EC DRIVER
 P:	Alexey Starikovskiy
 M:	astarikovskiy@suse.de
 L:	linux-acpi@vger.kernel.org
-W:	http://acpi.sourceforge.net/
+W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI FAN DRIVER
 P:	Len Brown
 M:	len.brown@intel.com
 L:	linux-acpi@vger.kernel.org
-W:	http://acpi.sourceforge.net/
+W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI PCI HOTPLUG DRIVER
@@ -255,14 +255,14 @@ ACPI THERMAL DRIVER
 P:	Len Brown
 M:	len.brown@intel.com
 L:	linux-acpi@vger.kernel.org
-W:	http://acpi.sourceforge.net/
+W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI VIDEO DRIVER
 P:	Rui Zhang
 M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
-W:	http://acpi.sourceforge.net/
+W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI WMI DRIVER

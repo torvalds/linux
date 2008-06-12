@@ -123,24 +123,13 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc,
 		}
 	}
 
-	/* The table must be either an SSDT or a PSDT or an OEMx */
-
-	if (!ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_PSDT)&&
-	    !ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_SSDT)&&
-	    strncmp(table_desc->pointer->signature, "OEM", 3)) {
-		/* Check for a printable name */
-		if (acpi_ut_valid_acpi_name(
-			*(u32 *) table_desc->pointer->signature)) {
-			ACPI_ERROR((AE_INFO, "Table has invalid signature "
-					"[%4.4s], must be SSDT or PSDT",
-				    table_desc->pointer->signature));
-		} else {
-			ACPI_ERROR((AE_INFO, "Table has invalid signature "
-					"(0x%8.8X), must be SSDT or PSDT",
-				    *(u32 *) table_desc->pointer->signature));
-		}
-		return_ACPI_STATUS(AE_BAD_SIGNATURE);
-	}
+	/*
+	 * Originally, we checked the table signature for "SSDT" or "PSDT" here.
+	 * Next, we added support for OEMx tables, signature "OEM".
+	 * Valid tables were encountered with a null signature, so we've just
+	 * given up on validating the signature, since it seems to be a waste
+	 * of code. The original code was removed (05/2008).
+	 */
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
