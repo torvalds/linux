@@ -1176,21 +1176,10 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 
 static int iwl4965_set_mode(struct iwl_priv *priv, int mode)
 {
-	if (mode == IEEE80211_IF_TYPE_IBSS) {
-		const struct iwl_channel_info *ch_info;
-
-		ch_info = iwl_get_channel_info(priv,
-			priv->band,
-			le16_to_cpu(priv->staging_rxon.channel));
-
-		if (!ch_info || !is_channel_ibss(ch_info)) {
-			IWL_ERROR("channel %d not IBSS channel\n",
-				  le16_to_cpu(priv->staging_rxon.channel));
-			return -EINVAL;
-		}
-	}
-
 	priv->iw_mode = mode;
+
+	/* init channel/phymode to values given at driver init */
+	iwl_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
 
 	iwl4965_connection_init_rx_config(priv);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
@@ -3888,6 +3877,14 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	ch_info = iwl_get_channel_info(priv, conf->channel->band, channel);
 	if (!is_channel_valid(ch_info)) {
 		IWL_DEBUG_MAC80211("leave - invalid channel\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS &&
+	    !is_channel_ibss(ch_info)) {
+		IWL_ERROR("channel %d in band %d not IBSS channel\n",
+			conf->channel->hw_value, conf->channel->band);
 		ret = -EINVAL;
 		goto out;
 	}
