@@ -2245,25 +2245,19 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.
 	 */
-	lq_sta->active_siso_rate =
-		priv->current_ht_config.supp_mcs_set[0] << 1;
-	lq_sta->active_siso_rate |=
-		priv->current_ht_config.supp_mcs_set[0] & 0x1;
+	lq_sta->active_siso_rate = conf->ht_conf.supp_mcs_set[0] << 1;
+	lq_sta->active_siso_rate |= conf->ht_conf.supp_mcs_set[0] & 0x1;
 	lq_sta->active_siso_rate &= ~((u16)0x2);
 	lq_sta->active_siso_rate <<= IWL_FIRST_OFDM_RATE;
 
 	/* Same here */
-	lq_sta->active_mimo2_rate =
-		priv->current_ht_config.supp_mcs_set[1] << 1;
-	lq_sta->active_mimo2_rate |=
-		priv->current_ht_config.supp_mcs_set[1] & 0x1;
+	lq_sta->active_mimo2_rate = conf->ht_conf.supp_mcs_set[1] << 1;
+	lq_sta->active_mimo2_rate |= conf->ht_conf.supp_mcs_set[1] & 0x1;
 	lq_sta->active_mimo2_rate &= ~((u16)0x2);
 	lq_sta->active_mimo2_rate <<= IWL_FIRST_OFDM_RATE;
 
-	lq_sta->active_mimo3_rate =
-		priv->current_ht_config.supp_mcs_set[2] << 1;
-	lq_sta->active_mimo3_rate |=
-		priv->current_ht_config.supp_mcs_set[2] & 0x1;
+	lq_sta->active_mimo3_rate = conf->ht_conf.supp_mcs_set[2] << 1;
+	lq_sta->active_mimo3_rate |= conf->ht_conf.supp_mcs_set[2] & 0x1;
 	lq_sta->active_mimo3_rate &= ~((u16)0x2);
 	lq_sta->active_mimo3_rate <<= IWL_FIRST_OFDM_RATE;
 
