@@ -488,6 +488,8 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	priv->default_wep_key--;
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	ret = iwl_send_static_wepkey_cmd(priv, 1);
+	IWL_DEBUG_WEP("Remove default WEP key: idx=%d ret=%d\n",
+		      keyconf->keyidx, ret);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return ret;
@@ -499,6 +501,12 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 {
 	int ret;
 	unsigned long flags;
+
+	if (keyconf->keylen != WEP_KEY_LEN_128 &&
+	    keyconf->keylen != WEP_KEY_LEN_64) {
+		IWL_DEBUG_WEP("Bad WEP key length %d\n", keyconf->keylen);
+		return -EINVAL;
+	}
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
@@ -516,6 +524,8 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 							keyconf->keylen);
 
 	ret = iwl_send_static_wepkey_cmd(priv, 0);
+	IWL_DEBUG_WEP("Set default WEP key: len=%d idx=%d ret=%d\n",
+		keyconf->keylen, keyconf->keyidx, ret);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return ret;
@@ -662,6 +672,9 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
 	keyidx = (key_flags >> STA_KEY_FLG_KEYID_POS) & 0x3;
 
+	IWL_DEBUG_WEP("Remove dynamic key: idx=%d sta=%d\n",
+		      keyconf->keyidx, sta_id);
+
 	if (keyconf->keyidx != keyidx) {
 		/* We need to remove a key with index different that the one
 		 * in the uCode. This means that the key we need to remove has
@@ -686,7 +699,6 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	IWL_DEBUG_INFO("hwcrypto: clear ucode station key info\n");
 	ret =  iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
@@ -715,6 +727,10 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 		IWL_ERROR("Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
 		ret = -EINVAL;
 	}
+
+	IWL_DEBUG_WEP("Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
+		      keyconf->alg, keyconf->keylen, keyconf->keyidx,
+		      sta_id, ret);
 
 	return ret;
 }

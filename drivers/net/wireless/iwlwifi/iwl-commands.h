@@ -1002,6 +1002,7 @@ struct iwl_wep_cmd {
 #define WEP_KEY_WEP_TYPE 1
 #define WEP_KEYS_MAX 4
 #define WEP_INVALID_OFFSET 0xff
+#define WEP_KEY_LEN_64 5
 #define WEP_KEY_LEN_128 13
 
 /******************************************************************************
