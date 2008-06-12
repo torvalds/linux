@@ -12,6 +12,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/kernel_stat.h>
+#include <linux/math64.h>
 
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
@@ -150,11 +151,7 @@ static void do_stolen_accounting(void)
 	if (stolen < 0)
 		stolen = 0;
 
-	ticks = 0;
-	while (stolen >= NS_PER_TICK) {
-		ticks++;
-		stolen -= NS_PER_TICK;
-	}
+	ticks = iter_div_u64_rem(stolen, NS_PER_TICK, &stolen);
 	__get_cpu_var(residual_stolen) = stolen;
 	account_steal_time(NULL, ticks);
 
@@ -166,11 +163,7 @@ static void do_stolen_accounting(void)
 	if (blocked < 0)
 		blocked = 0;
 
-	ticks = 0;
-	while (blocked >= NS_PER_TICK) {
-		ticks++;
-		blocked -= NS_PER_TICK;
-	}
+	ticks = iter_div_u64_rem(blocked, NS_PER_TICK, &blocked);
 	__get_cpu_var(residual_blocked) = blocked;
 	account_steal_time(idle_task(smp_processor_id()), ticks);
 }
