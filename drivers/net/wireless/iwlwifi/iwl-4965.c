@@ -913,6 +913,7 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.first_ampdu_q = IWL49_FIRST_AMPDU_QUEUE;
 	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
@@ -2893,7 +2894,7 @@ static void iwl4965_tx_queue_stop_scheduler(struct iwl_priv *priv,
 }
 
 /**
- * txq_id must be greater than IWL_BACK_QUEUE_FIRST_ID
+ * txq_id must be greater than IWL49_FIRST_AMPDU_QUEUE
  * priv->lock must be held by the caller
  */
 static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
@@ -2901,9 +2902,9 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 {
 	int ret = 0;
 
-	if (IWL_BACK_QUEUE_FIRST_ID > txq_id) {
+	if (IWL49_FIRST_AMPDU_QUEUE > txq_id) {
 		IWL_WARNING("queue number too small: %d, must be > %d\n",
-				txq_id, IWL_BACK_QUEUE_FIRST_ID);
+				txq_id, IWL49_FIRST_AMPDU_QUEUE);
 		return -EINVAL;
 	}
 
@@ -2991,7 +2992,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff)) {
 		/* calculate mac80211 ampdu sw queue to wake */
 		int ampdu_q =
-		   scd_flow - IWL_BACK_QUEUE_FIRST_ID + priv->hw->queues;
+		   scd_flow - priv->hw_params.first_ampdu_q + priv->hw->queues;
 		int freed = iwl_tx_queue_reclaim(priv, scd_flow, index);
 		priv->stations[ba_resp->sta_id].
 			tid[ba_resp->tid].tfds_in_queue -= freed;
@@ -3036,7 +3037,7 @@ static int iwl4965_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
 /**
  * iwl4965_tx_queue_agg_enable - Set up & enable aggregation for selected queue
  *
- * NOTE:  txq_id must be greater than IWL_BACK_QUEUE_FIRST_ID,
+ * NOTE:  txq_id must be greater than IWL49_FIRST_AMPDU_QUEUE,
  *        i.e. it must be one of the higher queues used for aggregation
  */
 static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
@@ -3046,9 +3047,9 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	int ret;
 	u16 ra_tid;
 
-	if (IWL_BACK_QUEUE_FIRST_ID > txq_id)
+	if (IWL49_FIRST_AMPDU_QUEUE > txq_id)
 		IWL_WARNING("queue number too small: %d, must be > %d\n",
-			txq_id, IWL_BACK_QUEUE_FIRST_ID);
+			txq_id, IWL49_FIRST_AMPDU_QUEUE);
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
@@ -3398,7 +3399,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			    txq_id >= 0 && priv->mac80211_registered &&
 			    agg->state != IWL_EMPTYING_HW_QUEUE_DELBA) {
 				/* calculate mac80211 ampdu sw queue to wake */
-				ampdu_q = txq_id - IWL_BACK_QUEUE_FIRST_ID +
+				ampdu_q = txq_id - IWL49_FIRST_AMPDU_QUEUE +
 					  priv->hw->queues;
 				if (agg->state == IWL_AGG_OFF)
 					ieee80211_wake_queue(priv->hw, txq_id);

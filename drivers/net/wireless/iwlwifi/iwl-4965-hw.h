@@ -82,7 +82,7 @@
  */
 #define IWL_CMD_QUEUE_NUM       4
 #define IWL_CMD_FIFO_NUM        4
-#define IWL_BACK_QUEUE_FIRST_ID 7
+#define IWL49_FIRST_AMPDU_QUEUE	7
 
 /* Tx rates */
 #define IWL_CCK_RATES 4

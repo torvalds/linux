@@ -583,6 +583,7 @@ struct iwl_sensitivity_ranges {
  * @max_xxx_size: for ucode uses
  * @ct_kill_threshold: temperature threshold
  * @struct iwl_sensitivity_ranges: range of sensitivity values
+ * @first_ampdu_q: first HW queue available for ampdu
  */
 struct iwl_hw_params {
 	u16 max_txq_num;
@@ -603,6 +604,7 @@ struct iwl_hw_params {
 	u32 max_bsm_size;
 	u32 ct_kill_threshold; /* value in hw-dependent units */
 	const struct iwl_sensitivity_ranges *sens;
+	u8 first_ampdu_q;
 };
 
 #define HT_SHORT_GI_20MHZ	(1 << 0)
