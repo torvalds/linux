@@ -1823,8 +1823,13 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		if (!bssid)
 			return 0;
 		if ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT &&
-		    (rx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON)
+		    (rx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON) {
+			if (!rx->sta)
+				rx->sta = ieee80211_ibss_add_sta(sdata->dev,
+						rx->skb, bssid, hdr->addr2,
+						BIT(rx->status->rate_idx));
 			return 1;
+		}
 		else if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
 			if (!(rx->flags & IEEE80211_RX_IN_SCAN))
 				return 0;
@@ -1837,7 +1842,8 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		} else if (!rx->sta)
 			rx->sta = ieee80211_ibss_add_sta(sdata->dev, rx->skb,
-							 bssid, hdr->addr2);
+						bssid, hdr->addr2,
+						BIT(rx->status->rate_idx));
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
 		if (!multicast &&
