@@ -144,31 +144,14 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 }
 
 
-static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static int mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
+				   struct sk_buff *skb)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
-	struct ieee80211_rx_status rx_status;
 	int i, ack = 0;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_info *txi;
-
-	mac80211_hwsim_monitor_rx(hw, skb);
-
-	if (skb->len < 10) {
-		/* Should not happen; just a sanity check for addr1 use */
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	if (!data->radio_enabled) {
-		printk(KERN_DEBUG "%s: dropped TX frame since radio "
-		       "disabled\n", wiphy_name(hw->wiphy));
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_rx_status rx_status;
 
 	memset(&rx_status, 0, sizeof(rx_status));
 	/* TODO: set mactime */
@@ -198,6 +181,33 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			ack = 1;
 		ieee80211_rx_irqsafe(hwsim_radios[i], nskb, &rx_status);
 	}
+
+	return ack;
+}
+
+
+static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct mac80211_hwsim_data *data = hw->priv;
+	int ack;
+	struct ieee80211_tx_info *txi;
+
+	mac80211_hwsim_monitor_rx(hw, skb);
+
+	if (skb->len < 10) {
+		/* Should not happen; just a sanity check for addr1 use */
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	if (!data->radio_enabled) {
+		printk(KERN_DEBUG "%s: dropped TX frame since radio "
+		       "disabled\n", wiphy_name(hw->wiphy));
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	ack = mac80211_hwsim_tx_frame(hw, skb);
 
 	txi = IEEE80211_SKB_CB(skb);
 	memset(&txi->status, 0, sizeof(txi->status));
@@ -254,10 +264,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_hw *hw = arg;
-	struct mac80211_hwsim_data *data = hw->priv;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status rx_status;
-	int i;
 	struct ieee80211_tx_info *info;
 
 	if (vif->type != IEEE80211_IF_TYPE_AP)
@@ -269,33 +276,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	info = IEEE80211_SKB_CB(skb);
 
 	mac80211_hwsim_monitor_rx(hw, skb);
-
-	memset(&rx_status, 0, sizeof(rx_status));
-	/* TODO: set mactime */
-	rx_status.freq = data->channel->center_freq;
-	rx_status.band = data->channel->band;
-	rx_status.rate_idx = info->tx_rate_idx;
-	/* TODO: simulate signal strength (and optional packet drop) */
-
-	/* Copy skb to all enabled radios that are on the current frequency */
-	for (i = 0; i < hwsim_radio_count; i++) {
-		struct mac80211_hwsim_data *data2;
-		struct sk_buff *nskb;
-
-		if (hwsim_radios[i] == NULL || hwsim_radios[i] == hw)
-			continue;
-		data2 = hwsim_radios[i]->priv;
-		if (!data2->started || !data2->radio_enabled ||
-		    data->channel->center_freq != data2->channel->center_freq)
-			continue;
-
-		nskb = skb_copy(skb, GFP_ATOMIC);
-		if (nskb == NULL)
-			continue;
-
-		ieee80211_rx_irqsafe(hwsim_radios[i], nskb, &rx_status);
-	}
-
+	mac80211_hwsim_tx_frame(hw, skb);
 	dev_kfree_skb(skb);
 }
 
