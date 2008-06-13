@@ -2076,12 +2076,11 @@ int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long value)
 
 void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
 {
-	static int reported;
 	u8 opcodes[4];
 	unsigned long rip = vcpu->arch.rip;
 	unsigned long rip_linear;
 
-	if (reported)
+	if (!printk_ratelimit())
 		return;
 
 	rip_linear = rip + get_segment_base(vcpu, VCPU_SREG_CS);
@@ -2090,7 +2089,6 @@ void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
 
 	printk(KERN_ERR "emulation failed (%s) rip %lx %02x %02x %02x %02x\n",
 	       context, rip, opcodes[0], opcodes[1], opcodes[2], opcodes[3]);
-	reported = 1;
 }
 EXPORT_SYMBOL_GPL(kvm_report_emulation_failure);
 
