@@ -480,7 +480,7 @@ struct fw_desc {
 };
 
 /* uCode file layout */
-struct iwl4965_ucode {
+struct iwl_ucode {
 	__le32 ver;		/* major/minor/subminor */
 	__le32 inst_size;	/* bytes of runtime instructions */
 	__le32 data_size;	/* bytes of runtime data */

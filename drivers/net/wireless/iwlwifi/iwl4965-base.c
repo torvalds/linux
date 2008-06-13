@@ -2002,7 +2002,7 @@ static void iwl4965_nic_start(struct iwl_priv *priv)
  */
 static int iwl4965_read_ucode(struct iwl_priv *priv)
 {
-	struct iwl4965_ucode *ucode;
+	struct iwl_ucode *ucode;
 	int ret;
 	const struct firmware *ucode_raw;
 	const char *name = priv->cfg->fw_name;
