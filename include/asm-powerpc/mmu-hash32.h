@@ -38,23 +38,8 @@
 #endif
 
 struct ppc_bat {
-	struct {
-		unsigned long bepi:15;	/* Effective page index (virtual address) */
-		unsigned long :4;	/* Unused */
-		unsigned long bl:11;	/* Block size mask */
-		unsigned long vs:1;	/* Supervisor valid */
-		unsigned long vp:1;	/* User valid */
-	} batu; 		/* Upper register */
-	struct {
-		unsigned long brpn:15;	/* Real page index (physical address) */
-		unsigned long :10;	/* Unused */
-		unsigned long w:1;	/* Write-thru cache */
-		unsigned long i:1;	/* Cache inhibit */
-		unsigned long m:1;	/* Memory coherence */
-		unsigned long g:1;	/* Guarded (MBZ in IBAT) */
-		unsigned long :1;	/* Unused */
-		unsigned long pp:2;	/* Page access protections */
-	} batl;			/* Lower register */
+	u32 batu;
+	u32 batl;
 };
 #endif /* !__ASSEMBLY__ */
 

@@ -38,10 +38,7 @@ struct hash_pte *Hash, *Hash_end;
 unsigned long Hash_size, Hash_mask;
 unsigned long _SDR1;
 
-union ubat {			/* BAT register values to be loaded */
-	struct ppc_bat bat;
-	u32	word[2];
-} BATS[8][2];			/* 8 pairs of IBAT, DBAT */
+struct ppc_bat BATS[8][2];	/* 8 pairs of IBAT, DBAT */
 
 struct batrange {		/* stores address ranges mapped by BATs */
 	unsigned long start;
@@ -124,7 +121,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 {
 	unsigned int bl;
 	int wimgxpp;
-	union ubat *bat = BATS[index];
+	struct ppc_bat *bat = BATS[index];
 
 	if (((flags & _PAGE_NO_CACHE) == 0) &&
 	    cpu_has_feature(CPU_FTR_NEED_COHERENT))
@@ -137,15 +134,15 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
 				   | _PAGE_COHERENT | _PAGE_GUARDED);
 		wimgxpp |= (flags & _PAGE_RW)? BPP_RW: BPP_RX;
-		bat[1].word[0] = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
-		bat[1].word[1] = BAT_PHYS_ADDR(phys) | wimgxpp;
+		bat[1].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
+		bat[1].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
 #ifndef CONFIG_KGDB /* want user access for breakpoints */
 		if (flags & _PAGE_USER)
 #endif
-			bat[1].bat.batu.vp = 1;
+			bat[1].batu |= 1; 	/* Vp = 1 */
 		if (flags & _PAGE_GUARDED) {
 			/* G bit must be zero in IBATs */
-			bat[0].word[0] = bat[0].word[1] = 0;
+			bat[0].batu = bat[0].batl = 0;
 		} else {
 			/* make IBAT same as DBAT */
 			bat[0] = bat[1];
@@ -158,8 +155,8 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 				   | _PAGE_COHERENT);
 		wimgxpp |= (flags & _PAGE_RW)?
 			((flags & _PAGE_USER)? PP_RWRW: PP_RWXX): PP_RXRX;
-		bat->word[0] = virt | wimgxpp | 4;	/* Ks=0, Ku=1 */
-		bat->word[1] = phys | bl | 0x40;	/* V=1 */
+		bat->batu = virt | wimgxpp | 4;	/* Ks=0, Ku=1 */
+		bat->batl = phys | bl | 0x40;	/* V=1 */
 	}
 
 	bat_addrs[index].start = virt;
