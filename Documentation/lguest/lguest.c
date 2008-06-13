@@ -254,6 +254,7 @@ static void *map_zeroed_pages(unsigned int num)
 		    PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, fd, 0);
 	if (addr == MAP_FAILED)
 		err(1, "Mmaping %u pages of /dev/zero", num);
+	close(fd);
 
 	return addr;
 }
