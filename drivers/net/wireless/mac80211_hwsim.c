@@ -121,10 +121,9 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	hdr->hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	hdr->hdr.it_pad = 0;
 	hdr->hdr.it_len = cpu_to_le16(sizeof(*hdr));
-	hdr->hdr.it_present = __constant_cpu_to_le32(
-	     (1 << IEEE80211_RADIOTAP_FLAGS) |
-	     (1 << IEEE80211_RADIOTAP_RATE) |
-	     (1 << IEEE80211_RADIOTAP_CHANNEL));
+	hdr->hdr.it_present = cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
+					  (1 << IEEE80211_RADIOTAP_RATE) |
+					  (1 << IEEE80211_RADIOTAP_CHANNEL));
 	hdr->rt_flags = 0;
 	hdr->rt_rate = txrate->bitrate / 5;
 	hdr->rt_channel = data->channel->center_freq;
@@ -139,7 +138,7 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->pkt_type = PACKET_OTHERHOST;
-	skb->protocol = __constant_htons(ETH_P_802_2);
+	skb->protocol = htons(ETH_P_802_2);
 	memset(skb->cb, 0, sizeof(skb->cb));
 	netif_rx(skb);
 }
@@ -309,7 +308,8 @@ static void mac80211_hwsim_beacon(unsigned long arg)
 	if (!data->started || !data->radio_enabled)
 		return;
 
-	ieee80211_iterate_active_interfaces(hw, mac80211_hwsim_beacon_tx, hw);
+	ieee80211_iterate_active_interfaces_atomic(
+		hw, mac80211_hwsim_beacon_tx, hw);
 
 	data->beacon_timer.expires = jiffies + data->beacon_int;
 	add_timer(&data->beacon_timer);
