@@ -7,8 +7,6 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */
 
-#include <asm/vaddrs.h>
-
 /* Empirical constants... */
 #define	LINUX_OPPROM_MAGIC      0x10010407
 

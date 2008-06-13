@@ -19,6 +19,7 @@
 #include <asm/vaddrs.h>
 #include <asm/memreg.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #ifdef CONFIG_SUN4
 #include <asm/pgtsun4.h>
 #else

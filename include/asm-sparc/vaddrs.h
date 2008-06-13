@@ -34,11 +34,6 @@
 #define IOBASE_VADDR		0xfe000000
 #define IOBASE_END		0xfe600000
 
-#define VMALLOC_START		0xfe600000
-
-/* XXX Alter this when I get around to fixing sun4c - Anton */
-#define VMALLOC_END		0xffc00000
-
 /*
  * On the sun4/4c we need a place
  * to reliably map locked down kernel data.  This includes the
