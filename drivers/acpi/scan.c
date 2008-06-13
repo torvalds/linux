@@ -6,7 +6,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
-#include <asm/signal.h>
+#include <linux/signal.h>
+#include <linux/kthread.h>
 
 #include <acpi/acpi_drivers.h>
 #include <acpi/acinterp.h>	/* for acpi_ex_eisa_id_to_string() */
@@ -154,6 +155,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	acpi_status status;
 	acpi_object_type type = 0;
 	struct acpi_device *acpi_device = to_acpi_device(d);
+	struct task_struct *task;
 
 	if ((!count) || (buf[0] != '1')) {
 		return -EINVAL;
@@ -171,9 +173,11 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	}
 
 	/* remove the device in another thread to fix the deadlock issue */
-	ret = kernel_thread(acpi_bus_hot_remove_device,
-				acpi_device->handle, SIGCHLD);
-      err:
+	task = kthread_run(acpi_bus_hot_remove_device,
+				acpi_device->handle, "acpi_hot_remove_device");
+	if (IS_ERR(task))
+		ret = PTR_ERR(task);
+err:
 	return ret;
 }
 
