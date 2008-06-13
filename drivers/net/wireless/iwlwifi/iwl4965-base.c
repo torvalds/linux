@@ -4122,8 +4122,62 @@ static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
 static ssize_t show_channels(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
-	/* all this shit doesn't belong into sysfs anyway */
-	return 0;
+
+	struct iwl_priv *priv = dev_get_drvdata(d);
+	struct ieee80211_channel *channels = NULL;
+	const struct ieee80211_supported_band *supp_band = NULL;
+	int len = 0, i;
+	int count = 0;
+
+	if (!test_bit(STATUS_GEO_CONFIGURED, &priv->status))
+		return -EAGAIN;
+
+	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
+	channels = supp_band->channels;
+	count = supp_band->n_channels;
+
+	len += sprintf(&buf[len],
+			"Displaying %d channels in 2.4GHz band "
+			"(802.11bg):\n", count);
+
+	for (i = 0; i < count; i++)
+		len += sprintf(&buf[len], "%d: %ddBm: BSS%s%s, %s.\n",
+				ieee80211_frequency_to_channel(
+				channels[i].center_freq),
+				channels[i].max_power,
+				channels[i].flags & IEEE80211_CHAN_RADAR ?
+				" (IEEE 802.11h required)" : "",
+				(!(channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+				|| (channels[i].flags &
+				IEEE80211_CHAN_RADAR)) ? "" :
+				", IBSS",
+				channels[i].flags &
+				IEEE80211_CHAN_PASSIVE_SCAN ?
+				"passive only" : "active/passive");
+
+	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
+	channels = supp_band->channels;
+	count = supp_band->n_channels;
+
+	len += sprintf(&buf[len], "Displaying %d channels in 5.2GHz band "
+			"(802.11a):\n", count);
+
+	for (i = 0; i < count; i++)
+		len += sprintf(&buf[len], "%d: %ddBm: BSS%s%s, %s.\n",
+				ieee80211_frequency_to_channel(
+				channels[i].center_freq),
+				channels[i].max_power,
+				channels[i].flags & IEEE80211_CHAN_RADAR ?
+				" (IEEE 802.11h required)" : "",
+				((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+				|| (channels[i].flags &
+				IEEE80211_CHAN_RADAR)) ? "" :
+				", IBSS",
+				channels[i].flags &
+				IEEE80211_CHAN_PASSIVE_SCAN ?
+				"passive only" : "active/passive");
+
+	return len;
 }
 
 static DEVICE_ATTR(channels, S_IRUSR, show_channels, NULL);
