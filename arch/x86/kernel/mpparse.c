@@ -859,10 +859,11 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 
 			if (!reserve)
 				return 1;
-#ifdef CONFIG_X86_32
-			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE,
+			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
 					BOOTMEM_DEFAULT);
 			if (mpf->mpf_physptr) {
+				unsigned long size = PAGE_SIZE;
+#ifdef CONFIG_X86_32
 				/*
 				 * We cannot access to MPC table to compute
 				 * table size yet, as only few megabytes from
@@ -872,22 +873,15 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 				 * PAGE_SIZE from mpg->mpf_physptr yields BUG()
 				 * in reserve_bootmem.
 				 */
-				unsigned long size = PAGE_SIZE;
 				unsigned long end = max_low_pfn * PAGE_SIZE;
 				if (mpf->mpf_physptr + size > end)
 					size = end - mpf->mpf_physptr;
-				reserve_bootmem(mpf->mpf_physptr, size,
+#endif
+				reserve_bootmem_generic(mpf->mpf_physptr, size,
 						BOOTMEM_DEFAULT);
 			}
 
-#else
-			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
-				BOOTMEM_DEFAULT);
-			if (mpf->mpf_physptr)
-				reserve_bootmem_generic(mpf->mpf_physptr,
-					PAGE_SIZE, BOOTMEM_DEFAULT);
-#endif
-		return 1;
+			return 1;
 		}
 		bp += 4;
 		length -= 16;

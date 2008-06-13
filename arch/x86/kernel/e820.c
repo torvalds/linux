@@ -635,7 +635,7 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 			continue;
 		printk(KERN_INFO "  early res: %d [%llx-%llx] %s\n", i,
 			final_start, final_end - 1, r->name);
-		reserve_bootmem(final_start, final_end - final_start,
+		reserve_bootmem_generic(final_start, final_end - final_start,
 				BOOTMEM_DEFAULT);
 	}
 }

@@ -799,7 +799,8 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-int __init reserve_bootmem_generic(unsigned long phys, unsigned len, int flags)
+int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
+				   int flags)
 {
 #ifdef CONFIG_NUMA
 	int nid, next_nid;
