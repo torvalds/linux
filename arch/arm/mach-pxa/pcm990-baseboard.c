@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/ide.h>
 #include <linux/i2c.h>
+#include <linux/pwm_backlight.h>
 
 #include <media/soc_camera.h>
 
@@ -36,9 +37,99 @@
 #include <asm/arch/mmc.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pcm990_baseboard.h>
+#include <asm/arch/pxafb.h>
+
+#include "devices.h"
 
 /*
- * The PCM-990 development baseboard uses PCM-027's hardeware in the
+ * pcm990_lcd_power - control power supply to the LCD
+ * @on: 0 = switch off, 1 = switch on
+ *
+ * Called by the pxafb driver
+ */
+#ifndef CONFIG_PCM990_DISPLAY_NONE
+static void pcm990_lcd_power(int on, struct fb_var_screeninfo *var)
+{
+	if (on) {
+		/* enable LCD-Latches
+		 * power on LCD
+		 */
+		__PCM990_CTRL_REG(PCM990_CTRL_PHYS + PCM990_CTRL_REG3) =
+			PCM990_CTRL_LCDPWR + PCM990_CTRL_LCDON;
+	} else {
+		/* disable LCD-Latches
+		 * power off LCD
+		 */
+		__PCM990_CTRL_REG(PCM990_CTRL_PHYS + PCM990_CTRL_REG3) = 0x00;
+	}
+}
+#endif
+
+#if defined(CONFIG_PCM990_DISPLAY_SHARP)
+static struct pxafb_mode_info fb_info_sharp_lq084v1dg21 = {
+	.pixclock		= 28000,
+	.xres			= 640,
+	.yres			= 480,
+	.bpp			= 16,
+	.hsync_len		= 20,
+	.left_margin		= 103,
+	.right_margin		= 47,
+	.vsync_len		= 6,
+	.upper_margin		= 28,
+	.lower_margin		= 5,
+	.sync			= 0,
+	.cmap_greyscale		= 0,
+};
+
+static struct pxafb_mach_info pcm990_fbinfo __initdata = {
+	.modes			= &fb_info_sharp_lq084v1dg21,
+	.num_modes		= 1,
+	.lccr0			= LCCR0_PAS,
+	.lccr3			= LCCR3_PCP,
+	.pxafb_lcd_power	= pcm990_lcd_power,
+};
+#elif defined(CONFIG_PCM990_DISPLAY_NEC)
+struct pxafb_mode_info fb_info_nec_nl6448bc20_18d = {
+	.pixclock		= 39720,
+	.xres			= 640,
+	.yres			= 480,
+	.bpp			= 16,
+	.hsync_len		= 32,
+	.left_margin		= 16,
+	.right_margin		= 48,
+	.vsync_len		= 2,
+	.upper_margin		= 12,
+	.lower_margin		= 17,
+	.sync			= 0,
+	.cmap_greyscale		= 0,
+};
+
+static struct pxafb_mach_info pcm990_fbinfo __initdata = {
+	.modes			= &fb_info_nec_nl6448bc20_18d,
+	.num_modes		= 1,
+	.lccr0			= LCCR0_Act,
+	.lccr3			= LCCR3_PixFlEdg,
+	.pxafb_lcd_power	= pcm990_lcd_power,
+};
+#endif
+
+static struct platform_pwm_backlight_data pcm990_backlight_data = {
+	.pwm_id		= 0,
+	.max_brightness	= 1023,
+	.dft_brightness	= 1023,
+	.pwm_period_ns	= 78770,
+};
+
+static struct platform_device pcm990_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent = &pxa27x_device_pwm0.dev,
+		.platform_data = &pcm990_backlight_data,
+	},
+};
+
+/*
+ * The PCM-990 development baseboard uses PCM-027's hardware in the
  * following way:
  *
  * - LCD support is in use
@@ -392,6 +483,12 @@ void __init pcm990_baseboard_init(void)
 
 	/* register CPLD's IRQ controller */
 	pcm990_init_irq();
+
+#ifndef CONFIG_PCM990_DISPLAY_NONE
+	set_pxa_fb_info(&pcm990_fbinfo);
+#endif
+	pxa_gpio_mode(GPIO16_PWM0_MD);
+	platform_device_register(&pcm990_backlight_device);
 
 	platform_device_register(&pxa27x_device_ac97);
 

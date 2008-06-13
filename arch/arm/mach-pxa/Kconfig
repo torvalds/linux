@@ -149,6 +149,22 @@ choice
 
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
+	select HAVE_PWM
+
+endchoice
+
+choice
+	prompt "display on pcm990"
+	depends on MACH_PCM990_BASEBOARD
+
+config PCM990_DISPLAY_SHARP
+	bool "sharp lq084v1dg21 stn display"
+
+config PCM990_DISPLAY_NEC
+	bool "nec nl6448bc20_18d tft display"
+
+config PCM990_DISPLAY_NONE
+	bool "no display"
 
 endchoice
 
