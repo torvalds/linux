@@ -620,8 +620,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 }
 
 /*
- * 2.6 calles this without flushing the TLB entry, this is wrong
- * for our hash-based implementation, we fix that up here
+ * 2.6 calls this without flushing the TLB entry; this is wrong
+ * for our hash-based implementation, we fix that up here.
  */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int __ptep_test_and_clear_young(unsigned int context, unsigned long addr, pte_t *ptep)
