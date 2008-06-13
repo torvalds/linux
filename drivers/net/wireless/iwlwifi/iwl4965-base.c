@@ -379,28 +379,6 @@ static int iwl4965_send_bt_config(struct iwl_priv *priv)
 				sizeof(struct iwl4965_bt_cmd), &bt_cmd);
 }
 
-/*
- * CARD_STATE_CMD
- *
- * Use: Sets the device's internal card state to enable, disable, or halt
- *
- * When in the 'enable' state the card operates as normal.
- * When in the 'disable' state, the card enters into a low power mode.
- * When in the 'halt' state, the card is shut down and must be fully
- * restarted to come back on.
- */
-static int iwl4965_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
-{
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_CARD_STATE_CMD,
-		.len = sizeof(u32),
-		.data = &flags,
-		.meta.flags = meta_flag,
-	};
-
-	return iwl_send_cmd(priv, &cmd);
-}
-
 static void iwl_clear_free_frames(struct iwl_priv *priv)
 {
 	struct list_head *element;
@@ -914,65 +892,6 @@ static void iwl4965_set_rate(struct iwl_priv *priv)
 	else
 		priv->staging_rxon.ofdm_basic_rates =
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
-}
-
-int iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
-{
-	unsigned long flags;
-
-	if (!!disable_radio == test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return 0;
-
-	IWL_DEBUG_RF_KILL("Manual SW RF KILL set to: RADIO %s\n",
-			  disable_radio ? "OFF" : "ON");
-
-	if (disable_radio) {
-		iwl_scan_cancel(priv);
-		/* FIXME: This is a workaround for AP */
-		if (priv->iw_mode != IEEE80211_IF_TYPE_AP) {
-			spin_lock_irqsave(&priv->lock, flags);
-			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
-				    CSR_UCODE_SW_BIT_RFKILL);
-			spin_unlock_irqrestore(&priv->lock, flags);
-			/* call the host command only if no hw rf-kill set */
-			if (!test_bit(STATUS_RF_KILL_HW, &priv->status) &&
-			    iwl_is_ready(priv))
-				iwl4965_send_card_state(priv,
-							CARD_STATE_CMD_DISABLE,
-							0);
-			set_bit(STATUS_RF_KILL_SW, &priv->status);
-
-			/* make sure mac80211 stop sending Tx frame */
-			if (priv->mac80211_registered)
-				ieee80211_stop_queues(priv->hw);
-		}
-		return 0;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-
-	clear_bit(STATUS_RF_KILL_SW, &priv->status);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* wake up ucode */
-	msleep(10);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_read32(priv, CSR_UCODE_DRV_GP1);
-	if (!iwl_grab_nic_access(priv))
-		iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
-		IWL_DEBUG_RF_KILL("Can not turn radio back on - "
-				  "disabled by HW switch\n");
-		return 0;
-	}
-
-	if (priv->is_open)
-		queue_work(priv->workqueue, &priv->restart);
-	return 1;
 }
 
 #define IWL_PACKET_RETRY_TIME HZ
@@ -2982,12 +2901,13 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	priv->add_radiotap = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
 
-
-	if (priv->cfg->ops->lib->radio_kill_sw &&
-	    priv->cfg->ops->lib->radio_kill_sw(priv, !conf->radio_enabled)) {
+	if (conf->radio_enabled && iwl_radio_kill_sw_enable_radio(priv)) {
 		IWL_DEBUG_MAC80211("leave - RF-KILL - waiting for uCode\n");
-		mutex_unlock(&priv->mutex);
+		goto out;
 	}
+
+	if (!conf->radio_enabled)
+		iwl_radio_kill_sw_disable_radio(priv);
 
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211("leave - not ready\n");

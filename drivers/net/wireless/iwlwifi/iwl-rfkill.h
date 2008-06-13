@@ -33,7 +33,6 @@ struct iwl_priv;
 #include <linux/rfkill.h>
 #include <linux/input.h>
 
-
 #ifdef CONFIG_IWLWIFI_RFKILL
 struct iwl_rfkill_mngr {
 	struct rfkill *rfkill;

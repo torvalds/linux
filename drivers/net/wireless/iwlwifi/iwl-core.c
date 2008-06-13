@@ -1319,3 +1319,90 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 			cmd.critical_temperature_R);
 }
 EXPORT_SYMBOL(iwl_rf_kill_ct_config);
+
+/*
+ * CARD_STATE_CMD
+ *
+ * Use: Sets the device's internal card state to enable, disable, or halt
+ *
+ * When in the 'enable' state the card operates as normal.
+ * When in the 'disable' state, the card enters into a low power mode.
+ * When in the 'halt' state, the card is shut down and must be fully
+ * restarted to come back on.
+ */
+static int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
+{
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_CARD_STATE_CMD,
+		.len = sizeof(u32),
+		.data = &flags,
+		.meta.flags = meta_flag,
+	};
+
+	return iwl_send_cmd(priv, &cmd);
+}
+
+void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	if (test_bit(STATUS_RF_KILL_SW, &priv->status))
+		return;
+
+	IWL_DEBUG_RF_KILL("Manual SW RF KILL set to: RADIO OFF\n");
+
+	iwl_scan_cancel(priv);
+	/* FIXME: This is a workaround for AP */
+	if (priv->iw_mode != IEEE80211_IF_TYPE_AP) {
+		spin_lock_irqsave(&priv->lock, flags);
+		iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
+			    CSR_UCODE_SW_BIT_RFKILL);
+		spin_unlock_irqrestore(&priv->lock, flags);
+		/* call the host command only if no hw rf-kill set */
+		if (!test_bit(STATUS_RF_KILL_HW, &priv->status) &&
+		    iwl_is_ready(priv))
+			iwl_send_card_state(priv,
+				CARD_STATE_CMD_DISABLE, 0);
+		set_bit(STATUS_RF_KILL_SW, &priv->status);
+			/* make sure mac80211 stop sending Tx frame */
+		if (priv->mac80211_registered)
+			ieee80211_stop_queues(priv->hw);
+	}
+}
+EXPORT_SYMBOL(iwl_radio_kill_sw_disable_radio);
+
+int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	if (!test_bit(STATUS_RF_KILL_SW, &priv->status))
+		return 0;
+
+	IWL_DEBUG_RF_KILL("Manual SW RF KILL set to: RADIO ON\n");
+
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+
+	clear_bit(STATUS_RF_KILL_SW, &priv->status);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* wake up ucode */
+	msleep(10);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_read32(priv, CSR_UCODE_DRV_GP1);
+	if (!iwl_grab_nic_access(priv))
+		iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
+		IWL_DEBUG_RF_KILL("Can not turn radio back on - "
+				  "disabled by HW switch\n");
+		return 0;
+	}
+
+	if (priv->is_open)
+		queue_work(priv->workqueue, &priv->restart);
+	return 1;
+}
+EXPORT_SYMBOL(iwl_radio_kill_sw_enable_radio);

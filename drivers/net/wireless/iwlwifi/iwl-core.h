@@ -128,8 +128,6 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
-	/* rfkill */
-	int (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
 	 /* power management */
 	struct {
 		int (*init)(struct iwl_priv *priv);
@@ -242,6 +240,13 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
  * TX power
  ****************************************************/
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
+
+/*****************************************************
+ * RF -Kill - here and not in iwl-rfkill.h to be available when
+ * RF-kill subsystem is not compiled.
+ ****************************************************/
+void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv);
+int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv);
 
 /*******************************************************************************
  * Rate
@@ -359,10 +364,10 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 	return iwl_is_ready(priv);
 }
 
+extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
-extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
-int iwl_send_lq_cmd(struct iwl_priv *priv,
+extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 		    struct iwl_link_quality_cmd *lq, u8 flags);
 
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)

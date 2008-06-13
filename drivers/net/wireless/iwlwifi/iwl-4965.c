@@ -3388,7 +3388,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.check_version = iwl4965_eeprom_check_version,
 		.query_addr = iwlcore_eeprom_query_addr,
 	},
-	.radio_kill_sw = iwl4965_radio_kill_sw,
 	.set_power = iwl4965_set_power,
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl4965_update_chain_flags,
