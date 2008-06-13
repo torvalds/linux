@@ -510,6 +510,7 @@ struct snd_soc_device {
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
 	struct delayed_work delayed_work;
+	struct work_struct deferred_resume_work;
 	void *codec_data;
 };
 

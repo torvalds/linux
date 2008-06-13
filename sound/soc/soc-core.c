@@ -639,6 +639,16 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_codec *codec = socdev->codec;
 	int i;
 
+	/* Due to the resume being scheduled into a workqueue we could
+	* suspend before that's finished - wait for it to complete.
+	 */
+	snd_power_lock(codec->card);
+	snd_power_wait(codec->card, SNDRV_CTL_POWER_D0);
+	snd_power_unlock(codec->card);
+
+	/* we're going to block userspace touching us until resume completes */
+	snd_power_change_state(codec->card, SNDRV_CTL_POWER_D3hot);
+
 	/* mute any active DAC's */
 	for (i = 0; i < machine->num_links; i++) {
 		struct snd_soc_codec_dai *dai = machine->dai_link[i].codec_dai;
@@ -691,15 +701,26 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-/* powers up audio subsystem after a suspend */
-static int soc_resume(struct platform_device *pdev)
+/* deferred resume work, so resume can complete before we finished
+ * setting our codec back up, which can be very slow on I2C
+ */
+static void soc_resume_deferred(struct work_struct *work)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_device *socdev = container_of(work,
+						     struct snd_soc_device,
+						     deferred_resume_work);
 	struct snd_soc_machine *machine = socdev->machine;
 	struct snd_soc_platform *platform = socdev->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
 	struct snd_soc_codec *codec = socdev->codec;
+	struct platform_device *pdev = to_platform_device(socdev->dev);
 	int i;
+
+	/* our power state is still SNDRV_CTL_POWER_D3hot from suspend time,
+	 * so userspace apps are blocked from touching us
+	 */
+
+	dev_info(socdev->dev, "starting resume work\n");
 
 	if (machine->resume_pre)
 		machine->resume_pre(pdev);
@@ -741,6 +762,22 @@ static int soc_resume(struct platform_device *pdev)
 
 	if (machine->resume_post)
 		machine->resume_post(pdev);
+
+	dev_info(socdev->dev, "resume work completed\n");
+
+	/* userspace can access us now we are back as we were before */
+	snd_power_change_state(codec->card, SNDRV_CTL_POWER_D0);
+}
+
+/* powers up audio subsystem after a suspend */
+static int soc_resume(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+
+	dev_info(socdev->dev, "scheduling resume work\n");
+
+	if (!schedule_work(&socdev->deferred_resume_work))
+		dev_err(socdev->dev, "work item may be lost\n");
 
 	return 0;
 }
@@ -788,6 +825,9 @@ static int soc_probe(struct platform_device *pdev)
 
 	/* DAPM stream work */
 	INIT_DELAYED_WORK(&socdev->delayed_work, close_delayed_work);
+	/* deferred resume work */
+	INIT_WORK(&socdev->deferred_resume_work, soc_resume_deferred);
+
 	return 0;
 
 platform_err:
