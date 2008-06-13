@@ -422,8 +422,8 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 * to sleep if we're already in a low power state
 	 */
 	if (state != PCI_D0 && dev->current_state > state) {
-		printk(KERN_ERR "%s(): %s: state=%d, current state=%d\n",
-			__func__, pci_name(dev), state, dev->current_state);
+		dev_err(&dev->dev, "invalid power transition "
+			"(from state %d to %d)\n", dev->current_state, state);
 		return -EINVAL;
 	} else if (dev->current_state == state)
 		return 0;        /* we're already there */
@@ -431,9 +431,8 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 	pci_read_config_word(dev,pm + PCI_PM_PMC,&pmc);
 	if ((pmc & PCI_PM_CAP_VER_MASK) > 3) {
-		printk(KERN_DEBUG
-		       "PCI: %s has unsupported PM cap regs version (%u)\n",
-		       pci_name(dev), pmc & PCI_PM_CAP_VER_MASK);
+		dev_printk(KERN_DEBUG, &dev->dev, "unsupported PM cap regs "
+			   "version (%u)\n", pmc & PCI_PM_CAP_VER_MASK);
 		return -EIO;
 	}
 
@@ -541,7 +540,8 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 	case PM_EVENT_HIBERNATE:
 		return PCI_D3hot;
 	default:
-		printk("Unrecognized suspend event %d\n", state.event);
+		dev_info(&dev->dev, "unrecognized suspend event %d\n",
+			 state.event);
 		BUG();
 	}
 	return PCI_D0;
@@ -566,7 +566,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	else
 		found = 1;
 	if (!save_state) {
-		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
+		dev_err(&dev->dev, "out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
 	}
 	cap = (u16 *)&save_state->data[0];
@@ -617,7 +617,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	else
 		found = 1;
 	if (!save_state) {
-		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
+		dev_err(&dev->dev, "out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
 	}
 	cap = (u16 *)&save_state->data[0];
@@ -683,10 +683,9 @@ pci_restore_state(struct pci_dev *dev)
 	for (i = 15; i >= 0; i--) {
 		pci_read_config_dword(dev, i * 4, &val);
 		if (val != dev->saved_config_space[i]) {
-			printk(KERN_DEBUG "PM: Writing back config space on "
-				"device %s at offset %x (was %x, writing %x)\n",
-				pci_name(dev), i,
-				val, (int)dev->saved_config_space[i]);
+			dev_printk(KERN_DEBUG, &dev->dev, "restoring config "
+				"space at offset %#x (was %#x, writing %#x)\n",
+				i, val, (int)dev->saved_config_space[i]);
 			pci_write_config_dword(dev,i * 4,
 				dev->saved_config_space[i]);
 		}
@@ -1114,13 +1113,11 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	return 0;
 
 err_out:
-	printk (KERN_WARNING "PCI: Unable to reserve %s region #%d:%llx@%llx "
-		"for device %s\n",
-		pci_resource_flags(pdev, bar) & IORESOURCE_IO ? "I/O" : "mem",
+	dev_warn(&pdev->dev, "BAR %d: can't reserve %s region [%#llx-%#llx]\n",
 		bar + 1, /* PCI BAR # */
-		(unsigned long long)pci_resource_len(pdev, bar),
+		pci_resource_flags(pdev, bar) & IORESOURCE_IO ? "I/O" : "mem",
 		(unsigned long long)pci_resource_start(pdev, bar),
-		pci_name(pdev));
+		(unsigned long long)pci_resource_end(pdev, bar));
 	return -EBUSY;
 }
 
@@ -1212,7 +1209,7 @@ pci_set_master(struct pci_dev *dev)
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	if (! (cmd & PCI_COMMAND_MASTER)) {
-		pr_debug("PCI: Enabling bus mastering for device %s\n", pci_name(dev));
+		dev_dbg(&dev->dev, "enabling bus mastering\n");
 		cmd |= PCI_COMMAND_MASTER;
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
@@ -1277,8 +1274,8 @@ pci_set_cacheline_size(struct pci_dev *dev)
 	if (cacheline_size == pci_cache_line_size)
 		return 0;
 
-	printk(KERN_DEBUG "PCI: cache line size of %d is not supported "
-	       "by device %s\n", pci_cache_line_size << 2, pci_name(dev));
+	dev_printk(KERN_DEBUG, &dev->dev, "cache line size of %d is not "
+		   "supported\n", pci_cache_line_size << 2);
 
 	return -EINVAL;
 }
@@ -1303,8 +1300,7 @@ pci_set_mwi(struct pci_dev *dev)
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	if (! (cmd & PCI_COMMAND_INVALIDATE)) {
-		pr_debug("PCI: Enabling Mem-Wr-Inval for device %s\n",
-			pci_name(dev));
+		dev_dbg(&dev->dev, "enabling Mem-Wr-Inval\n");
 		cmd |= PCI_COMMAND_INVALIDATE;
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}

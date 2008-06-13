@@ -565,9 +565,8 @@ int pci_enable_msi(struct pci_dev* dev)
 
 	/* Check whether driver already requested for MSI-X irqs */
 	if (dev->msix_enabled) {
-		printk(KERN_INFO "PCI: %s: Can't enable MSI.  "
-			"Device already has MSI-X enabled\n",
-			pci_name(dev));
+		dev_info(&dev->dev, "can't enable MSI "
+			 "(MSI-X already enabled)\n");
 		return -EINVAL;
 	}
 	status = msi_capability_init(dev);
@@ -690,9 +689,8 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 	/* Check whether driver already requested for MSI irq */
    	if (dev->msi_enabled) {
-		printk(KERN_INFO "PCI: %s: Can't enable MSI-X.  "
-		       "Device already has an MSI irq assigned\n",
-		       pci_name(dev));
+		dev_info(&dev->dev, "can't enable MSI-X "
+		       "(MSI IRQ already assigned)\n");
 		return -EINVAL;
 	}
 	status = msix_capability_init(dev, entries, nvec);

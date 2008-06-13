@@ -277,8 +277,8 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 			res->end = res->start + sz64;
 #else
 			if (sz64 > 0x100000000ULL) {
-				printk(KERN_ERR "PCI: Unable to handle 64-bit "
-					"BAR for device %s\n", pci_name(dev));
+				dev_err(&dev->dev, "BAR %d: can't handle 64-bit"
+					" BAR\n", pos);
 				res->start = 0;
 				res->flags = 0;
 			} else if (lhi) {
@@ -329,7 +329,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		return;
 
 	if (dev->transparent) {
-		printk(KERN_INFO "PCI: Transparent bridge - %s\n", pci_name(dev));
+		dev_info(&dev->dev, "transparent bridge\n");
 		for(i = 3; i < PCI_BUS_NUM_RESOURCES; i++)
 			child->resource[i] = child->parent->resource[i - 3];
 	}
@@ -392,7 +392,8 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 			limit |= ((long) mem_limit_hi) << 32;
 #else
 			if (mem_base_hi || mem_limit_hi) {
-				printk(KERN_ERR "PCI: Unable to handle 64-bit address space for bridge %s\n", pci_name(dev));
+				dev_err(&dev->dev, "can't handle 64-bit "
+					"address space for bridge\n");
 				return;
 			}
 #endif
@@ -512,8 +513,8 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 
 	pci_read_config_dword(dev, PCI_PRIMARY_BUS, &buses);
 
-	pr_debug("PCI: Scanning behind PCI bridge %s, config %06x, pass %d\n",
-		 pci_name(dev), buses & 0xffffff, pass);
+	dev_dbg(&dev->dev, "scanning behind bridge, config %06x, pass %d\n",
+		buses & 0xffffff, pass);
 
 	/* Disable MasterAbortMode during probing to avoid reporting
 	   of bus errors (in some architectures) */ 
@@ -536,8 +537,8 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 		 * ignore it.  This can happen with the i450NX chipset.
 		 */
 		if (pci_find_bus(pci_domain_nr(bus), busnr)) {
-			printk(KERN_INFO "PCI: Bus %04x:%02x already known\n",
-					pci_domain_nr(bus), busnr);
+			dev_info(&dev->dev, "bus %04x:%02x already known\n",
+				 pci_domain_nr(bus), busnr);
 			goto out;
 		}
 
@@ -721,7 +722,7 @@ static int pci_setup_device(struct pci_dev * dev)
 	dev->class = class;
 	class >>= 8;
 
-	pr_debug("PCI: Found %s [%04x/%04x] %06x %02x\n", pci_name(dev),
+	dev_dbg(&dev->dev, "found [%04x/%04x] class %06x header type %02x\n",
 		 dev->vendor, dev->device, class, dev->hdr_type);
 
 	/* "Unknown power state" */
@@ -789,13 +790,13 @@ static int pci_setup_device(struct pci_dev * dev)
 		break;
 
 	default:				    /* unknown header */
-		printk(KERN_ERR "PCI: device %s has unknown header type %02x, ignoring.\n",
-			pci_name(dev), dev->hdr_type);
+		dev_err(&dev->dev, "unknown header type %02x, "
+			"ignoring device\n", dev->hdr_type);
 		return -1;
 
 	bad:
-		printk(KERN_ERR "PCI: %s: class %x doesn't match header type %02x. Ignoring class.\n",
-		       pci_name(dev), class, dev->hdr_type);
+		dev_err(&dev->dev, "ignoring class %02x (doesn't match header "
+			"type %02x)\n", class, dev->hdr_type);
 		dev->class = PCI_CLASS_NOT_DEFINED;
 	}
 
@@ -971,7 +972,7 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 			return NULL;
 		/* Card hasn't responded in 60 seconds?  Must be stuck. */
 		if (delay > 60 * 1000) {
-			printk(KERN_WARNING "Device %04x:%02x:%02x.%d not "
+			printk(KERN_WARNING "pci %04x:%02x:%02x.%d: not "
 					"responding\n", pci_domain_nr(bus),
 					bus->number, PCI_SLOT(devfn),
 					PCI_FUNC(devfn));
