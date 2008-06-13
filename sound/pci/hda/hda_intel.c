@@ -2024,12 +2024,11 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	if (bdl_pos_adj[dev] < 0) {
 		switch (chip->driver_type) {
-		case AZX_DRIVER_ATI:
-		case AZX_DRIVER_ATIHDMI:
-			bdl_pos_adj[dev] = 32;
+		case AZX_DRIVER_ICH:
+			bdl_pos_adj[dev] = 1;
 			break;
 		default:
-			bdl_pos_adj[dev] = 1;
+			bdl_pos_adj[dev] = 32;
 			break;
 		}
 	}
