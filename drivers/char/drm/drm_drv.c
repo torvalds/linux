@@ -475,6 +475,8 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	else
 		goto err_i1;
 
+	/* Do not trust userspace, use our own definition */
+	cmd = ioctl->cmd;
 	func = ioctl->func;
 	/* is there a local override? */
 	if ((nr == DRM_IOCTL_NR(DRM_IOCTL_DMA)) && dev->driver->dma_ioctl)
