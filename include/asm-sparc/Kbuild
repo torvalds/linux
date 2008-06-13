@@ -3,11 +3,18 @@ include include/asm-generic/Kbuild.asm
 header-y += apc.h
 header-y += asi.h
 header-y += bpp.h
+header-y += display7seg.h
+header-y += envctrl.h
 header-y += jsflash.h
 header-y += openpromio.h
+header-y += psrcompat.h
+header-y += pstate.h
 header-y += reg.h
 header-y += traps.h
+header-y += uctx.h
+header-y += utrap.h
 header-y += vfc_ioctls.h
+header-y += watchdog.h
 
 unifdef-y += fbio.h
 unifdef-y += perfctr.h
