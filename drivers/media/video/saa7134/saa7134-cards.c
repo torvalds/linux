@@ -5615,7 +5615,8 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x80040100, 0x80040100);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x80040100, 0x00040100);
 		printk("%s: %s: hybrid analog/dvb card\n"
-		       "%s: Sorry, only the analog inputs are supported for now.\n",
+		       "%s: Sorry, only analog s-video and composite input "
+		       "are supported for now.\n",
 			dev->name, card(dev).name, dev->name);
 		break;
 	}
