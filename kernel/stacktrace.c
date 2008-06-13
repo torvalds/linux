@@ -11,17 +11,14 @@
 
 void print_stack_trace(struct stack_trace *trace, int spaces)
 {
-	int i, j;
+	int i;
 
 	if (WARN_ON(!trace->entries))
 		return;
 
 	for (i = 0; i < trace->nr_entries; i++) {
-		unsigned long ip = trace->entries[i];
-
-		for (j = 0; j < spaces + 1; j++)
-			printk(" ");
-		print_ip_sym(ip);
+		printk("%*c", 1 + spaces, ' ');
+		print_ip_sym(trace->entries[i]);
 	}
 }
 
