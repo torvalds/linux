@@ -400,6 +400,14 @@ static ssize_t disk_removable_show(struct device *dev,
 		       (disk->flags & GENHD_FL_REMOVABLE ? 1 : 0));
 }
 
+static ssize_t disk_ro_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	return sprintf(buf, "%d\n", disk->policy ? 1 : 0);
+}
+
 static ssize_t disk_size_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -472,6 +480,7 @@ static ssize_t disk_fail_store(struct device *dev,
 
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
+static DEVICE_ATTR(ro, S_IRUGO, disk_ro_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, disk_size_show, NULL);
 static DEVICE_ATTR(capability, S_IRUGO, disk_capability_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, disk_stat_show, NULL);
@@ -483,6 +492,7 @@ static struct device_attribute dev_attr_fail =
 static struct attribute *disk_attrs[] = {
 	&dev_attr_range.attr,
 	&dev_attr_removable.attr,
+	&dev_attr_ro.attr,
 	&dev_attr_size.attr,
 	&dev_attr_capability.attr,
 	&dev_attr_stat.attr,
