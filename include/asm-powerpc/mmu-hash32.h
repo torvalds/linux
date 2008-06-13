@@ -28,6 +28,15 @@
 #define BPP_RW	0x02		/* Read/write */
 
 #ifndef __ASSEMBLY__
+/* Contort a phys_addr_t into the right format/bits for a BAT */
+#ifdef CONFIG_PHYS_64BIT
+#define BAT_PHYS_ADDR(x) ((u32)((x & 0x00000000fffe0000ULL) | \
+				((x & 0x0000000e00000000ULL) >> 24) | \
+				((x & 0x0000000100000000ULL) >> 30)))
+#else
+#define BAT_PHYS_ADDR(x) (x)
+#endif
+
 struct ppc_bat {
 	struct {
 		unsigned long bepi:15;	/* Effective page index (virtual address) */

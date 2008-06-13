@@ -29,7 +29,7 @@ extern void hash_preload(struct mm_struct *mm, unsigned long ea,
 #ifdef CONFIG_PPC32
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);
-extern void setbat(int index, unsigned long virt, unsigned long phys,
+extern void setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, int flags);
 extern void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		      unsigned int size, int flags, unsigned int pid);

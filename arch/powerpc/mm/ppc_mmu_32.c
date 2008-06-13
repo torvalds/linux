@@ -46,13 +46,13 @@ union ubat {			/* BAT register values to be loaded */
 struct batrange {		/* stores address ranges mapped by BATs */
 	unsigned long start;
 	unsigned long limit;
-	unsigned long phys;
+	phys_addr_t phys;
 } bat_addrs[8];
 
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
  */
-unsigned long v_mapped_by_bats(unsigned long va)
+phys_addr_t v_mapped_by_bats(unsigned long va)
 {
 	int b;
 	for (b = 0; b < 4; ++b)
@@ -64,7 +64,7 @@ unsigned long v_mapped_by_bats(unsigned long va)
 /*
  * Return VA for a given PA or 0 if not mapped
  */
-unsigned long p_mapped_by_bats(unsigned long pa)
+unsigned long p_mapped_by_bats(phys_addr_t pa)
 {
 	int b;
 	for (b = 0; b < 4; ++b)
@@ -119,7 +119,7 @@ unsigned long __init mmu_mapin_ram(void)
  * The parameters are not checked; in particular size must be a power
  * of 2 between 128k and 256M.
  */
-void __init setbat(int index, unsigned long virt, unsigned long phys,
+void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, int flags)
 {
 	unsigned int bl;
@@ -138,7 +138,7 @@ void __init setbat(int index, unsigned long virt, unsigned long phys,
 				   | _PAGE_COHERENT | _PAGE_GUARDED);
 		wimgxpp |= (flags & _PAGE_RW)? BPP_RW: BPP_RX;
 		bat[1].word[0] = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
-		bat[1].word[1] = phys | wimgxpp;
+		bat[1].word[1] = BAT_PHYS_ADDR(phys) | wimgxpp;
 #ifndef CONFIG_KGDB /* want user access for breakpoints */
 		if (flags & _PAGE_USER)
 #endif
