@@ -65,7 +65,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 "2:\n"
 	: "=r" (sum), "=r" (iph), "=r" (ihl)
 	: "1" (iph), "2" (ihl)
-	: "r19", "r20", "r21" );
+	: "r19", "r20", "r21", "memory");
 
 	return (__force __sum16)sum;
 }
