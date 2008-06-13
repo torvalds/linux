@@ -9,87 +9,10 @@
 #include <linux/prefetch.h>
 #include <asm/page.h>
 
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
-
-/*
- * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
- * get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons, these macros are grossly misnamed.
- */
-
-#define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
-
-#define KERNEL_DS	MAKE_MM_SEG(-1UL)
-#define USER_DS		MAKE_MM_SEG(PAGE_OFFSET)
-
-#define get_ds()	(KERNEL_DS)
-#define get_fs()	(current_thread_info()->addr_limit)
-#define set_fs(x)	(current_thread_info()->addr_limit = (x))
-
-#define segment_eq(a, b)	((a).seg == (b).seg)
-
 #define __addr_ok(addr) (!((unsigned long)(addr) &			\
 			   (current_thread_info()->addr_limit.seg)))
 
-/*
- * Uhhuh, this needs 65-bit arithmetic. We have a carry..
- */
-#define __range_not_ok(addr, size)					\
-({									\
-	unsigned long flag, roksum;					\
-	__chk_user_ptr(addr);						\
-	asm("add %3,%1 ; sbb %0,%0 ; cmp %1,%4 ; sbb $0,%0"		\
-	    : "=&r" (flag), "=r" (roksum)				\
-	    : "1" (addr), "g" ((long)(size)),				\
-	      "rm" (current_thread_info()->addr_limit.seg));		\
-	flag;								\
-})
-
-#define access_ok(type, addr, size) (likely(__range_not_ok(addr, size) == 0))
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
-
-extern int fixup_exception(struct pt_regs *regs);
-
 #define ARCH_HAS_SEARCH_EXTABLE
-
-/*
- * These are the main single-value transfer routines.  They automatically
- * use the right size if we just have the right pointer type.
- *
- * This gets kind of ugly. We want to return _two_ values in "get_user()"
- * and yet we don't want to do any pointers, because that is too much
- * of a performance impact. Thus we have a few rather ugly macros here,
- * and hide all the ugliness from the user.
- *
- * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
- * with a separate "access_ok()" call (this is used when we do multiple
- * accesses to the same area of user memory).
- */
-
-#define __get_user_x(size, ret, x, ptr)		      \
-	asm volatile("call __get_user_" #size	      \
-		     : "=a" (ret),"=d" (x)	      \
-		     : "0" (ptr))		      \
 
 /* Careful: we have to cast the result to the type of the pointer
  * for sign reasons */
@@ -225,12 +148,6 @@ struct __large_struct { unsigned long buf[100]; };
 	(x) = (__force typeof(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
-
-extern int __get_user_1(void);
-extern int __get_user_2(void);
-extern int __get_user_4(void);
-extern int __get_user_8(void);
-extern int __get_user_bad(void);
 
 #define __get_user_size(x, ptr, size, retval)				\
 do {									\
