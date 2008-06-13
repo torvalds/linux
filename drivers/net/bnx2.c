@@ -5724,14 +5724,12 @@ bnx2_reset_task(struct work_struct *work)
 	if (!netif_running(bp->dev))
 		return;
 
-	bp->in_reset_task = 1;
 	bnx2_netif_stop(bp);
 
 	bnx2_init_nic(bp);
 
 	atomic_set(&bp->intr_sem, 1);
 	bnx2_netif_start(bp);
-	bp->in_reset_task = 0;
 }
 
 static void
@@ -5907,12 +5905,7 @@ bnx2_close(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 	u32 reset_code;
 
-	/* Calling flush_scheduled_work() may deadlock because
-	 * linkwatch_event() may be on the workqueue and it will try to get
-	 * the rtnl_lock which we are holding.
-	 */
-	while (bp->in_reset_task)
-		msleep(1);
+	cancel_work_sync(&bp->reset_task);
 
 	bnx2_disable_int_sync(bp);
 	bnx2_napi_disable(bp);
