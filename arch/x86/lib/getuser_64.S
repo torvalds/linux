@@ -36,10 +36,10 @@
 	.text
 ENTRY(__get_user_1)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
-	cmpq threadinfo_addr_limit(%r8),%rcx
+	GET_THREAD_INFO(%rdx)
+	cmpq threadinfo_addr_limit(%rdx),%rax
 	jae bad_get_user
-1:	movzb (%rcx),%edx
+1:	movzb (%rax),%edx
 	xorl %eax,%eax
 	ret
 	CFI_ENDPROC
@@ -47,48 +47,48 @@ ENDPROC(__get_user_1)
 
 ENTRY(__get_user_2)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
-	addq $1,%rcx
+	GET_THREAD_INFO(%rdx)
+	addq $1,%rax
 	jc 20f
-	cmpq threadinfo_addr_limit(%r8),%rcx
+	cmpq threadinfo_addr_limit(%rdx),%rax
 	jae 20f
-	decq   %rcx
-2:	movzwl (%rcx),%edx
+	decq   %rax
+2:	movzwl (%rax),%edx
 	xorl %eax,%eax
 	ret
-20:	decq    %rcx
+20:	decq    %rax
 	jmp	bad_get_user
 	CFI_ENDPROC
 ENDPROC(__get_user_2)
 
 ENTRY(__get_user_4)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
-	addq $3,%rcx
+	GET_THREAD_INFO(%rdx)
+	addq $3,%rax
 	jc 30f
-	cmpq threadinfo_addr_limit(%r8),%rcx
+	cmpq threadinfo_addr_limit(%rdx),%rax
 	jae 30f
-	subq $3,%rcx
-3:	movl (%rcx),%edx
+	subq $3,%rax
+3:	movl (%rax),%edx
 	xorl %eax,%eax
 	ret
-30:	subq $3,%rcx
+30:	subq $3,%rax
 	jmp bad_get_user
 	CFI_ENDPROC
 ENDPROC(__get_user_4)
 
 ENTRY(__get_user_8)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
-	addq $7,%rcx
+	GET_THREAD_INFO(%rdx)
+	addq $7,%rax
 	jc 40f
-	cmpq threadinfo_addr_limit(%r8),%rcx
+	cmpq threadinfo_addr_limit(%rdx),%rax
 	jae	40f
-	subq	$7,%rcx
-4:	movq (%rcx),%rdx
+	subq	$7,%rax
+4:	movq (%rax),%rdx
 	xorl %eax,%eax
 	ret
-40:	subq $7,%rcx
+40:	subq $7,%rax
 	jmp bad_get_user
 	CFI_ENDPROC
 ENDPROC(__get_user_8)

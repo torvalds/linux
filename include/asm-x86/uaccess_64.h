@@ -90,8 +90,7 @@ extern int fixup_exception(struct pt_regs *regs);
 #define __get_user_x(size, ret, x, ptr)		      \
 	asm volatile("call __get_user_" #size	      \
 		     : "=a" (ret),"=d" (x)	      \
-		     : "c" (ptr)		      \
-		     : "r8")
+		     : "0" (ptr))		      \
 
 /* Careful: we have to cast the result to the type of the pointer
  * for sign reasons */
