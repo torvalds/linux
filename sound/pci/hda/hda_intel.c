@@ -440,11 +440,6 @@ static char *driver_short_names[] __devinitdata = {
 /* for pcm support */
 #define get_azx_dev(substream) (substream->runtime->private_data)
 
-/* Get the upper 32bit of the given dma_addr_t
- * Compiler should optimize and eliminate the code if dma_addr_t is 32bit
- */
-#define upper_32bit(addr) (sizeof(addr) > 4 ? (u32)((addr) >> 32) : (u32)0)
-
 static int azx_acquire_irq(struct azx *chip, int do_disconnect);
 
 /*
@@ -475,7 +470,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	chip->corb.addr = chip->rb.addr;
 	chip->corb.buf = (u32 *)chip->rb.area;
 	azx_writel(chip, CORBLBASE, (u32)chip->corb.addr);
-	azx_writel(chip, CORBUBASE, upper_32bit(chip->corb.addr));
+	azx_writel(chip, CORBUBASE, upper_32_bits(chip->corb.addr));
 
 	/* set the corb size to 256 entries (ULI requires explicitly) */
 	azx_writeb(chip, CORBSIZE, 0x02);
@@ -490,7 +485,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	chip->rirb.addr = chip->rb.addr + 2048;
 	chip->rirb.buf = (u32 *)(chip->rb.area + 2048);
 	azx_writel(chip, RIRBLBASE, (u32)chip->rirb.addr);
-	azx_writel(chip, RIRBUBASE, upper_32bit(chip->rirb.addr));
+	azx_writel(chip, RIRBUBASE, upper_32_bits(chip->rirb.addr));
 
 	/* set the rirb size to 256 entries (ULI requires explicitly) */
 	azx_writeb(chip, RIRBSIZE, 0x02);
@@ -861,7 +856,7 @@ static void azx_init_chip(struct azx *chip)
 
 	/* program the position buffer */
 	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
-	azx_writel(chip, DPUBASE, upper_32bit(chip->posbuf.addr));
+	azx_writel(chip, DPUBASE, upper_32_bits(chip->posbuf.addr));
 
 	chip->initialized = 1;
 }
@@ -1006,7 +1001,7 @@ static int setup_bdle(struct snd_pcm_substream *substream,
 		addr = snd_pcm_sgbuf_get_addr(sgbuf, ofs);
 		/* program the address field of the BDL entry */
 		bdl[0] = cpu_to_le32((u32)addr);
-		bdl[1] = cpu_to_le32(upper_32bit(addr));
+		bdl[1] = cpu_to_le32(upper_32_bits(addr));
 		/* program the size field of the BDL entry */
 		chunk = PAGE_SIZE - (ofs % PAGE_SIZE);
 		if (size < chunk)
@@ -1138,7 +1133,7 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	/* lower BDL address */
 	azx_sd_writel(azx_dev, SD_BDLPL, (u32)azx_dev->bdl.addr);
 	/* upper BDL address */
-	azx_sd_writel(azx_dev, SD_BDLPU, upper_32bit(azx_dev->bdl.addr));
+	azx_sd_writel(azx_dev, SD_BDLPU, upper_32_bits(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
 	if (chip->position_fix == POS_FIX_POSBUF ||
