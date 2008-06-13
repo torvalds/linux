@@ -87,6 +87,8 @@ acpi_status acpi_hw_clear_acpi_status(void);
 /*
  * hwgpe - GPE support
  */
+acpi_status acpi_hw_low_disable_gpe(struct acpi_gpe_event_info *gpe_event_info);
+
 acpi_status
 acpi_hw_write_gpe_enable_reg(struct acpi_gpe_event_info *gpe_event_info);
 

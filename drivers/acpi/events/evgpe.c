@@ -256,7 +256,7 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 		return_ACPI_STATUS(status);
 	}
 
-	/* Mark wake-disabled or HW disable, or both */
+	/* Clear the appropriate enabled flags for this GPE */
 
 	switch (gpe_event_info->flags & ACPI_GPE_TYPE_MASK) {
 	case ACPI_GPE_TYPE_WAKE:
@@ -273,12 +273,22 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 		/* Disable the requested runtime GPE */
 
 		ACPI_CLEAR_BIT(gpe_event_info->flags, ACPI_GPE_RUN_ENABLED);
-
-		/* fallthrough */
+		break;
 
 	default:
-		acpi_hw_write_gpe_enable_reg(gpe_event_info);
+		break;
 	}
+
+	/*
+	 * Even if we don't know the GPE type, make sure that we always
+	 * disable it. low_disable_gpe will just clear the enable bit for this
+	 * GPE and write it. It will not write out the current GPE enable mask,
+	 * since this may inadvertently enable GPEs too early, if a rogue GPE has
+	 * come in during ACPICA initialization - possibly as a result of AML or
+	 * other code that has enabled the GPE.
+	 */
+	status = acpi_hw_low_disable_gpe(gpe_event_info);
+	return_ACPI_STATUS(status);
 
 	return_ACPI_STATUS(AE_OK);
 }
