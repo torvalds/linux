@@ -226,14 +226,6 @@ static struct pxa2xx_spi_master pxa_ssp_master_info = {
 	.num_chipselect	= 0,
 };
 
-static struct platform_device pxa_ssp = {
-	.name		= "pxa2xx-spi",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &pxa_ssp_master_info,
-	},
-};
-
 static int lubbock_ads7846_pendown_state(void)
 {
 	/* TS_BUSY is bit 8 in LUB_MISC_RD, but pendown is irq-only */
@@ -367,7 +359,6 @@ static struct platform_device *devices[] __initdata = {
 	&smc91x_device,
 	&lubbock_flash_device[0],
 	&lubbock_flash_device[1],
-	&pxa_ssp,
 };
 
 static struct pxafb_mode_info sharp_lm8v31_mode = {
@@ -501,6 +492,7 @@ static void __init lubbock_init(void)
 	lubbock_flash_data[flashboot].name = "boot-rom";
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
 
+	pxa2xx_set_spi_info(1, &pxa_ssp_master_info);
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 }
 

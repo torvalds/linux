@@ -139,6 +139,7 @@ config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
 	select PXA27x
 	select IWMMXT
+	select PXA_SSP
 
 endmenu
 
