@@ -18,7 +18,10 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
+#include <linux/fb.h>
 #include <linux/mmc/host.h>
+#include <linux/mfd/tc6393xb.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
@@ -509,9 +512,127 @@ static struct platform_device tosaled_device = {
 	},
 };
 
+/*
+ * Toshiba Mobile IO Controller
+ */
+static struct resource tc6393xb_resources[] = {
+	[0] = {
+		.start	= TOSA_LCDC_PHYS,
+		.end	= TOSA_LCDC_PHYS + 0x3ffffff,
+		.flags	= IORESOURCE_MEM,
+	},
+
+	[1] = {
+		.start	= TOSA_IRQ_GPIO_TC6393XB_INT,
+		.end	= TOSA_IRQ_GPIO_TC6393XB_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static int tosa_tc6393xb_enable(struct platform_device *dev)
+{
+	int rc;
+
+	rc = gpio_request(TOSA_GPIO_TC6393XB_REST_IN, "tc6393xb #pclr");
+	if (rc)
+		goto err_req_pclr;
+	rc = gpio_request(TOSA_GPIO_TC6393XB_SUSPEND, "tc6393xb #suspend");
+	if (rc)
+		goto err_req_suspend;
+	rc = gpio_request(TOSA_GPIO_TC6393XB_L3V_ON, "l3v");
+	if (rc)
+		goto err_req_l3v;
+	rc = gpio_direction_output(TOSA_GPIO_TC6393XB_L3V_ON, 0);
+	if (rc)
+		goto err_dir_l3v;
+	rc = gpio_direction_output(TOSA_GPIO_TC6393XB_SUSPEND, 0);
+	if (rc)
+		goto err_dir_suspend;
+	rc = gpio_direction_output(TOSA_GPIO_TC6393XB_REST_IN, 0);
+	if (rc)
+		goto err_dir_pclr;
+
+	mdelay(1);
+
+	gpio_set_value(TOSA_GPIO_TC6393XB_SUSPEND, 1);
+
+	mdelay(10);
+
+	gpio_set_value(TOSA_GPIO_TC6393XB_REST_IN, 1);
+	gpio_set_value(TOSA_GPIO_TC6393XB_L3V_ON, 1);
+
+	return 0;
+err_dir_pclr:
+err_dir_suspend:
+err_dir_l3v:
+	gpio_free(TOSA_GPIO_TC6393XB_L3V_ON);
+err_req_l3v:
+	gpio_free(TOSA_GPIO_TC6393XB_SUSPEND);
+err_req_suspend:
+	gpio_free(TOSA_GPIO_TC6393XB_REST_IN);
+err_req_pclr:
+	return rc;
+}
+
+static int tosa_tc6393xb_disable(struct platform_device *dev)
+{
+	gpio_free(TOSA_GPIO_TC6393XB_L3V_ON);
+	gpio_free(TOSA_GPIO_TC6393XB_SUSPEND);
+	gpio_free(TOSA_GPIO_TC6393XB_REST_IN);
+
+	return 0;
+}
+
+static int tosa_tc6393xb_resume(struct platform_device *dev)
+{
+	gpio_set_value(TOSA_GPIO_TC6393XB_SUSPEND, 1);
+	mdelay(10);
+	gpio_set_value(TOSA_GPIO_TC6393XB_L3V_ON, 1);
+	mdelay(10);
+
+	return 0;
+}
+
+static int tosa_tc6393xb_suspend(struct platform_device *dev)
+{
+	gpio_set_value(TOSA_GPIO_TC6393XB_L3V_ON, 0);
+	gpio_set_value(TOSA_GPIO_TC6393XB_SUSPEND, 0);
+	return 0;
+}
+
+static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
+	.scr_pll2cr	= 0x0cc1,
+	.scr_gper	= 0x3300,
+	.scr_gpo_dsr	=
+		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
+	.scr_gpo_doecr	=
+		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
+
+	.irq_base	= IRQ_BOARD_START,
+	.gpio_base	= TOSA_TC6393XB_GPIO_BASE,
+
+	.enable		= tosa_tc6393xb_enable,
+	.disable	= tosa_tc6393xb_disable,
+	.suspend	= tosa_tc6393xb_suspend,
+	.resume		= tosa_tc6393xb_resume,
+};
+
+
+static struct platform_device tc6393xb_device = {
+	.name	= "tc6393xb",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &tosa_tc6393xb_setup,
+	},
+	.num_resources	= ARRAY_SIZE(tc6393xb_resources),
+	.resource	= tc6393xb_resources,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
+	&tc6393xb_device,
 	&tosakbd_device,
 	&tosa_gpio_keys_device,
 	&tosaled_device,
@@ -533,6 +654,8 @@ static void tosa_restart(char mode)
 
 static void __init tosa_init(void)
 {
+	int dummy;
+
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_config));
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_irda_off));
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
@@ -547,6 +670,10 @@ static void __init tosa_init(void)
 
 	/* enable batt_fault */
 	PMCR = 0x01;
+
+	dummy = gpiochip_reserve(TOSA_SCOOP_GPIO_BASE, 12);
+	dummy = gpiochip_reserve(TOSA_SCOOP_JC_GPIO_BASE, 12);
+	dummy = gpiochip_reserve(TOSA_TC6393XB_GPIO_BASE, 16);
 
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_udc_info(&udc_info);
