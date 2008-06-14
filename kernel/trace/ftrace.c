@@ -355,20 +355,26 @@ __ftrace_replace_code(struct dyn_ftrace *rec,
 		 * If this record is set not to trace then
 		 * do nothing.
 		 *
+		 * If this record is set not to trace and
+		 * it is enabled then disable it.
+		 *
 		 * If this record is not set to be filtered and
 		 * it is enabled, disable it.
 		 */
-		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_ENABLED);
+
+		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_NOTRACE |
+				   FTRACE_FL_ENABLED);
 
 		if ((fl ==  (FTRACE_FL_FILTER | FTRACE_FL_ENABLED)) ||
-		    (fl == 0) || (rec->flags & FTRACE_FL_NOTRACE))
+		    (fl ==  (FTRACE_FL_FILTER | FTRACE_FL_NOTRACE)) ||
+		    !fl || (fl == FTRACE_FL_NOTRACE))
 			return 0;
 
 		/*
 		 * If it is enabled disable it,
 		 * otherwise enable it!
 		 */
-		if (fl == FTRACE_FL_ENABLED) {
+		if (fl & FTRACE_FL_ENABLED) {
 			/* swap new and old */
 			new = old;
 			old = ftrace_call_replace(ip, FTRACE_ADDR);
