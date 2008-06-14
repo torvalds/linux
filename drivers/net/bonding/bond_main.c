@@ -1203,6 +1203,14 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 				dprintk("delaying gratuitous arp on %s\n",
 					bond->curr_active_slave->dev->name);
 			}
+
+			write_unlock_bh(&bond->curr_slave_lock);
+			read_unlock(&bond->lock);
+
+			netdev_bonding_change(bond->dev);
+
+			read_lock(&bond->lock);
+			write_lock_bh(&bond->curr_slave_lock);
 		}
 	}
 }
