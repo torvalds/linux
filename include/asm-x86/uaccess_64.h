@@ -22,7 +22,7 @@
 
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
-#define KERNEL_DS	MAKE_MM_SEG(0xFFFFFFFFFFFFFFFFUL)
+#define KERNEL_DS	MAKE_MM_SEG(-1UL)
 #define USER_DS		MAKE_MM_SEG(PAGE_OFFSET)
 
 #define get_ds()	(KERNEL_DS)
