@@ -446,6 +446,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	struct page *page = pfn_to_page(fcp_args->pfn);
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
+	int map_coherent = 0;
 	pgd_t *pgdp;
 	pud_t *pudp;
 	pmd_t *pmdp;
@@ -479,7 +480,9 @@ static inline void local_r4k_flush_cache_page(void *args)
 		 * Use kmap_coherent or kmap_atomic to do flushes for
 		 * another ASID than the current one.
 		 */
-		if (cpu_has_dc_aliases)
+		map_coherent = (cpu_has_dc_aliases &&
+				page_mapped(page) && !Page_dcache_dirty(page));
+		if (map_coherent)
 			vaddr = kmap_coherent(page, addr);
 		else
 			vaddr = kmap_atomic(page, KM_USER0);
@@ -502,7 +505,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	}
 
 	if (vaddr) {
-		if (cpu_has_dc_aliases)
+		if (map_coherent)
 			kunmap_coherent();
 		else
 			kunmap_atomic(vaddr, KM_USER0);
