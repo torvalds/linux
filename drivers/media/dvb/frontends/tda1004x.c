@@ -1248,7 +1248,7 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 				     struct i2c_adapter* i2c)
 {
 	struct tda1004x_state *state;
-	u8 id;
+	int id;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
@@ -1264,6 +1264,12 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 
 	/* check if the demod is there */
 	id = tda1004x_read_byte(state, TDA1004X_CHIPID);
+	if (id < 0) {
+		printk(KERN_ERR "tda10045: chip is not answering. Giving up.\n");
+		kfree(state);
+		return NULL;
+	}
+
 	if (id != 0x25) {
 		printk(KERN_ERR "Invalid tda1004x ID = 0x%02x. Can't proceed\n", id);
 		kfree(state);
@@ -1312,7 +1318,7 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 				     struct i2c_adapter* i2c)
 {
 	struct tda1004x_state *state;
-	u8 id;
+	int id;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
@@ -1328,6 +1334,11 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 
 	/* check if the demod is there */
 	id = tda1004x_read_byte(state, TDA1004X_CHIPID);
+	if (id < 0) {
+		printk(KERN_ERR "tda10046: chip is not answering. Giving up.\n");
+		kfree(state);
+		return NULL;
+	}
 	if (id != 0x46) {
 		printk(KERN_ERR "Invalid tda1004x ID = 0x%02x. Can't proceed\n", id);
 		kfree(state);
