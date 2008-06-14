@@ -1881,6 +1881,18 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	final = sbsp->smk_default;
 
 	/*
+	 * If this is the root inode the superblock
+	 * may be in the process of initialization.
+	 * If that is the case use the root value out
+	 * of the superblock.
+	 */
+	if (opt_dentry->d_parent == opt_dentry) {
+		isp->smk_inode = sbsp->smk_root;
+		isp->smk_flags |= SMK_INODE_INSTANT;
+		goto unlockandout;
+	}
+
+	/*
 	 * This is pretty hackish.
 	 * Casey says that we shouldn't have to do
 	 * file system specific code, but it does help

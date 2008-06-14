@@ -107,9 +107,11 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		 *
 		 * CCID-specific options are ignored during connection setup, as
 		 * negotiation may still be in progress (see RFC 4340, 10.3).
+		 * The same applies to Ack Vectors, as these depend on the CCID.
 		 *
 		 */
-		if (dreq != NULL && opt >= 128)
+		if (dreq != NULL && (opt >= 128 ||
+		    opt == DCCPO_ACK_VECTOR_0 || opt == DCCPO_ACK_VECTOR_1))
 			goto ignore_option;
 
 		switch (opt) {

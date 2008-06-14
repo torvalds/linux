@@ -289,7 +289,7 @@ setup_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __
 				&sc->sc_iaoq[0], compat_reg);
 		
 		/* Store upper half */
-		compat_reg = (compat_uint_t)(regs->gr[32] >> 32);
+		compat_reg = (compat_uint_t)(regs->gr[31] >> 32);
 		err |= __put_user(compat_reg, &rf->rf_iaoq[0]);
 		DBG(2,"setup_sigcontext32: upper half iaoq[0] = %#x\n", compat_reg);
 		
@@ -299,7 +299,7 @@ setup_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __
 		DBG(2,"setup_sigcontext32: sc->sc_iaoq[1] = %p <= %#x\n",
 				&sc->sc_iaoq[1], compat_reg);
 		/* Store upper half */
-		compat_reg = (compat_uint_t)((regs->gr[32]+4) >> 32);
+		compat_reg = (compat_uint_t)((regs->gr[31]+4) >> 32);
 		err |= __put_user(compat_reg, &rf->rf_iaoq[1]);
 		DBG(2,"setup_sigcontext32: upper half iaoq[1] = %#x\n", compat_reg);
 		

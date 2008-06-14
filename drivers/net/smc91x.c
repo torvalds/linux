@@ -1016,15 +1016,8 @@ static void smc_phy_powerdown(struct net_device *dev)
 
 	/* We need to ensure that no calls to smc_phy_configure are
 	   pending.
-
-	   flush_scheduled_work() cannot be called because we are
-	   running with the netlink semaphore held (from
-	   devinet_ioctl()) and the pending work queue contains
-	   linkwatch_event() (scheduled by netif_carrier_off()
-	   above). linkwatch_event() also wants the netlink semaphore.
 	*/
-	while(lp->work_pending)
-		yield();
+	cancel_work_sync(&lp->phy_configure);
 
 	bmcr = smc_phy_read(dev, phy, MII_BMCR);
 	smc_phy_write(dev, phy, MII_BMCR, bmcr | BMCR_PDOWN);
@@ -1161,7 +1154,6 @@ static void smc_phy_configure(struct work_struct *work)
 smc_phy_configure_exit:
 	SMC_SELECT_BANK(lp, 2);
 	spin_unlock_irq(&lp->lock);
-	lp->work_pending = 0;
 }
 
 /*
@@ -1389,11 +1381,8 @@ static void smc_timeout(struct net_device *dev)
 	 * smc_phy_configure() calls msleep() which calls schedule_timeout()
 	 * which calls schedule().  Hence we use a work queue.
 	 */
-	if (lp->phy_type != 0) {
-		if (schedule_work(&lp->phy_configure)) {
-			lp->work_pending = 1;
-		}
-	}
+	if (lp->phy_type != 0)
+		schedule_work(&lp->phy_configure);
 
 	/* We can accept TX packets again */
 	dev->trans_start = jiffies;

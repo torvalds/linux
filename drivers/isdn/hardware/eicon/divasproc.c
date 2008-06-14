@@ -125,8 +125,8 @@ static const struct file_operations divas_fops = {
 
 int create_divas_proc(void)
 {
-	proc_create(divas_proc_name, S_IFREG | S_IRUGO, proc_net_eicon,
-		    &divas_fops);
+	divas_proc_entry = proc_create(divas_proc_name, S_IFREG | S_IRUGO,
+					proc_net_eicon, &divas_fops);
 	if (!divas_proc_entry)
 		return (0);
 

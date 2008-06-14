@@ -49,10 +49,14 @@ struct dev_cgroup {
 	spinlock_t lock;
 };
 
+static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
+{
+	return container_of(s, struct dev_cgroup, css);
+}
+
 static inline struct dev_cgroup *cgroup_to_devcgroup(struct cgroup *cgroup)
 {
-	return container_of(cgroup_subsys_state(cgroup, devices_subsys_id),
-			    struct dev_cgroup, css);
+	return css_to_devcgroup(cgroup_subsys_state(cgroup, devices_subsys_id));
 }
 
 struct cgroup_subsys devices_subsys;
@@ -102,7 +106,7 @@ free_and_exit:
 static int dev_whitelist_add(struct dev_cgroup *dev_cgroup,
 			struct dev_whitelist_item *wh)
 {
-	struct dev_whitelist_item *whcopy;
+	struct dev_whitelist_item *whcopy, *walk;
 
 	whcopy = kmalloc(sizeof(*whcopy), GFP_KERNEL);
 	if (!whcopy)
@@ -110,7 +114,21 @@ static int dev_whitelist_add(struct dev_cgroup *dev_cgroup,
 
 	memcpy(whcopy, wh, sizeof(*whcopy));
 	spin_lock(&dev_cgroup->lock);
-	list_add_tail(&whcopy->list, &dev_cgroup->whitelist);
+	list_for_each_entry(walk, &dev_cgroup->whitelist, list) {
+		if (walk->type != wh->type)
+			continue;
+		if (walk->major != wh->major)
+			continue;
+		if (walk->minor != wh->minor)
+			continue;
+
+		walk->access |= wh->access;
+		kfree(whcopy);
+		whcopy = NULL;
+	}
+
+	if (whcopy != NULL)
+		list_add_tail(&whcopy->list, &dev_cgroup->whitelist);
 	spin_unlock(&dev_cgroup->lock);
 	return 0;
 }
@@ -502,7 +520,6 @@ struct cgroup_subsys devices_subsys = {
 
 int devcgroup_inode_permission(struct inode *inode, int mask)
 {
-	struct cgroup *cgroup;
 	struct dev_cgroup *dev_cgroup;
 	struct dev_whitelist_item *wh;
 
@@ -511,8 +528,8 @@ int devcgroup_inode_permission(struct inode *inode, int mask)
 		return 0;
 	if (!S_ISBLK(inode->i_mode) && !S_ISCHR(inode->i_mode))
 		return 0;
-	cgroup = task_cgroup(current, devices_subsys.subsys_id);
-	dev_cgroup = cgroup_to_devcgroup(cgroup);
+	dev_cgroup = css_to_devcgroup(task_subsys_state(current,
+				devices_subsys_id));
 	if (!dev_cgroup)
 		return 0;
 
@@ -543,12 +560,11 @@ acc_check:
 
 int devcgroup_inode_mknod(int mode, dev_t dev)
 {
-	struct cgroup *cgroup;
 	struct dev_cgroup *dev_cgroup;
 	struct dev_whitelist_item *wh;
 
-	cgroup = task_cgroup(current, devices_subsys.subsys_id);
-	dev_cgroup = cgroup_to_devcgroup(cgroup);
+	dev_cgroup = css_to_devcgroup(task_subsys_state(current,
+				devices_subsys_id));
 	if (!dev_cgroup)
 		return 0;
 

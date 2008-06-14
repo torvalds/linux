@@ -268,7 +268,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
-		if (walk_state->op->common.aml_opcode == AML_UNLOAD_OP) {
+		if (walk_state->opcode == AML_UNLOAD_OP) {
 			/*
 			 * acpi_ps_get_next_namestring has increased the AML pointer,
 			 * so we need to restore the saved AML pointer for method call.
@@ -691,7 +691,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 			/* To support super_name arg of Unload */
 
-			if (walk_state->op->common.aml_opcode == AML_UNLOAD_OP) {
+			if (walk_state->opcode == AML_UNLOAD_OP) {
 				status =
 				    acpi_ps_get_next_namepath(walk_state,
 							      parser_state, arg,

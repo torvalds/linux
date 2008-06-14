@@ -142,7 +142,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 }
 
 /* write_can_lock - would write_trylock() succeed? */
-#define __raw_write_can_lock(x)		((x)->lock == 0x80000000)
+#define __raw_write_can_lock(x)		((x)->lock == 0)
 
 /*
  * Read locks are a bit more hairy:

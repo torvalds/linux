@@ -1318,7 +1318,7 @@ static void __init atmel_console_get_options(struct uart_port *port, int *baud,
 	 * If the baud rate generator isn't running, the port wasn't
 	 * initialized by the boot loader.
 	 */
-	quot = UART_GET_BRGR(port);
+	quot = UART_GET_BRGR(port) & ATMEL_US_CD;
 	if (!quot)
 		return;
 

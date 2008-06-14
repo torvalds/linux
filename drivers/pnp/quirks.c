@@ -286,7 +286,7 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 					pci_name(pdev), i,
 					(unsigned long long) pci_start,
 					(unsigned long long) pci_end);
-				res->flags = 0;
+				res->flags |= IORESOURCE_DISABLED;
 			}
 		}
 	}

@@ -38,6 +38,8 @@ static void cpuidle_kick_cpus(void)
 static void cpuidle_kick_cpus(void) {}
 #endif
 
+static int __cpuidle_register_device(struct cpuidle_device *dev);
+
 /**
  * cpuidle_idle_call - the main idle loop
  *
@@ -138,6 +140,12 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 	if (!dev->state_count)
 		return -EINVAL;
 
+	if (dev->registered == 0) {
+		ret = __cpuidle_register_device(dev);
+		if (ret)
+			return ret;
+	}
+
 	if ((ret = cpuidle_add_state_sysfs(dev)))
 		return ret;
 
@@ -232,10 +240,13 @@ static void poll_idle_init(struct cpuidle_device *dev) {}
 #endif /* CONFIG_ARCH_HAS_CPU_RELAX */
 
 /**
- * cpuidle_register_device - registers a CPU's idle PM feature
+ * __cpuidle_register_device - internal register function called before register
+ * and enable routines
  * @dev: the cpu
+ *
+ * cpuidle_lock mutex must be held before this is called
  */
-int cpuidle_register_device(struct cpuidle_device *dev)
+static int __cpuidle_register_device(struct cpuidle_device *dev)
 {
 	int ret;
 	struct sys_device *sys_dev = get_cpu_sysdev((unsigned long)dev->cpu);
@@ -247,15 +258,31 @@ int cpuidle_register_device(struct cpuidle_device *dev)
 
 	init_completion(&dev->kobj_unregister);
 
-	mutex_lock(&cpuidle_lock);
-
 	poll_idle_init(dev);
 
 	per_cpu(cpuidle_devices, dev->cpu) = dev;
 	list_add(&dev->device_list, &cpuidle_detected_devices);
 	if ((ret = cpuidle_add_sysfs(sys_dev))) {
-		mutex_unlock(&cpuidle_lock);
 		module_put(cpuidle_curr_driver->owner);
+		return ret;
+	}
+
+	dev->registered = 1;
+	return 0;
+}
+
+/**
+ * cpuidle_register_device - registers a CPU's idle PM feature
+ * @dev: the cpu
+ */
+int cpuidle_register_device(struct cpuidle_device *dev)
+{
+	int ret;
+
+	mutex_lock(&cpuidle_lock);
+
+	if ((ret = __cpuidle_register_device(dev))) {
+		mutex_unlock(&cpuidle_lock);
 		return ret;
 	}
 
@@ -277,6 +304,9 @@ EXPORT_SYMBOL_GPL(cpuidle_register_device);
 void cpuidle_unregister_device(struct cpuidle_device *dev)
 {
 	struct sys_device *sys_dev = get_cpu_sysdev((unsigned long)dev->cpu);
+
+	if (dev->registered == 0)
+		return;
 
 	cpuidle_pause_and_lock();
 

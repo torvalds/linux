@@ -79,7 +79,6 @@ struct smc911x_local {
 
 	/* work queue */
 	struct work_struct phy_configure;
-	int work_pending;
 
 	int tx_throttle;
 	spinlock_t lock;

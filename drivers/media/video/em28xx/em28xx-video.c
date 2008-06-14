@@ -1166,13 +1166,13 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 		reg->val = ret;
 	} else {
-		u64 val = 0;
+		__le64 val = 0;
 		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
 						   reg->reg, (char *)&val, 2);
 		if (ret < 0)
 			return ret;
 
-		reg->val = cpu_to_le64((__u64)val);
+		reg->val = le64_to_cpu(val);
 	}
 
 	return 0;
@@ -1183,9 +1183,9 @@ static int vidioc_s_register(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	u64 buf;
+	__le64 buf;
 
-	buf = le64_to_cpu((__u64)reg->val);
+	buf = cpu_to_le64(reg->val);
 
 	return em28xx_write_regs(dev, reg->reg, (char *)&buf,
 				 em28xx_reg_len(reg->reg));

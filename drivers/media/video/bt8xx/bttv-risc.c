@@ -48,7 +48,7 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 {
 	u32 instructions,line,todo;
 	struct scatterlist *sg;
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
@@ -128,7 +128,8 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 		 unsigned int cpadding)
 {
 	unsigned int instructions,line,todo,ylen,chroma;
-	u32 *rp,ri;
+	__le32 *rp;
+	u32 ri;
 	struct scatterlist *ysg;
 	struct scatterlist *usg;
 	struct scatterlist *vsg;
@@ -244,7 +245,8 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 {
 	int dwords,rc,line,maxy,start,end,skip,nskips;
 	struct btcx_skiplist *skips;
-	u32 *rp,ri,ra;
+	__le32 *rp;
+	u32 ri,ra;
 	u32 addr;
 
 	/* skip list for window clipping */

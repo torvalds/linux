@@ -418,6 +418,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	char *buf = NULL;
 	bool adjustTZ = false;
 	bool is_dfs_referral = false;
+	umode_t default_mode;
 
 	pTcon = cifs_sb->tcon;
 	cFYI(1, ("Getting info on %s", full_path));
@@ -530,47 +531,42 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode->i_mtime.tv_sec += pTcon->ses->server->timeAdj;
 	}
 
-	/* set default mode. will override for dirs below */
-	if (atomic_read(&cifsInfo->inUse) == 0)
-		/* new inode, can safely set these fields */
-		inode->i_mode = cifs_sb->mnt_file_mode;
-	else /* since we set the inode type below we need to mask off
-	     to avoid strange results if type changes and both
-	     get orred in */
-		inode->i_mode &= ~S_IFMT;
-/*	if (attr & ATTR_REPARSE)  */
-	/* We no longer handle these as symlinks because we could not
-	   follow them due to the absolute path with drive letter */
-	if (attr & ATTR_DIRECTORY) {
-	/* override default perms since we do not do byte range locking
-	   on dirs */
-		inode->i_mode = cifs_sb->mnt_dir_mode;
-		inode->i_mode |= S_IFDIR;
-	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
-		   (cifsInfo->cifsAttrs & ATTR_SYSTEM) &&
-		   /* No need to le64 convert size of zero */
-		   (pfindData->EndOfFile == 0)) {
-		inode->i_mode = cifs_sb->mnt_file_mode;
-		inode->i_mode |= S_IFIFO;
-/* BB Finish for SFU style symlinks and devices */
-	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
-		   (cifsInfo->cifsAttrs & ATTR_SYSTEM)) {
-		if (decode_sfu_inode(inode, le64_to_cpu(pfindData->EndOfFile),
-				     full_path, cifs_sb, xid))
-			cFYI(1, ("Unrecognized sfu inode type"));
+	/* get default inode mode */
+	if (attr & ATTR_DIRECTORY)
+		default_mode = cifs_sb->mnt_dir_mode;
+	else
+		default_mode = cifs_sb->mnt_file_mode;
 
-		cFYI(1, ("sfu mode 0%o", inode->i_mode));
+	/* set permission bits */
+	if (atomic_read(&cifsInfo->inUse) == 0 ||
+	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM) == 0)
+		inode->i_mode = default_mode;
+	else {
+		/* just reenable write bits if !ATTR_READONLY */
+		if ((inode->i_mode & S_IWUGO) == 0 &&
+		    (attr & ATTR_READONLY) == 0)
+			inode->i_mode |= (S_IWUGO & default_mode);
+			inode->i_mode &= ~S_IFMT;
+	}
+	/* clear write bits if ATTR_READONLY is set */
+	if (attr & ATTR_READONLY)
+		inode->i_mode &= ~S_IWUGO;
+
+	/* set inode type */
+	if ((attr & ATTR_SYSTEM) &&
+	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)) {
+		/* no need to fix endianness on 0 */
+		if (pfindData->EndOfFile == 0)
+			inode->i_mode |= S_IFIFO;
+		else if (decode_sfu_inode(inode,
+				le64_to_cpu(pfindData->EndOfFile),
+				full_path, cifs_sb, xid))
+			cFYI(1, ("unknown SFU file type\n"));
 	} else {
-		inode->i_mode |= S_IFREG;
-		/* treat dos attribute of read-only as read-only mode eg 555 */
-		if (cifsInfo->cifsAttrs & ATTR_READONLY)
-			inode->i_mode &= ~(S_IWUGO);
-		else if ((inode->i_mode & S_IWUGO) == 0)
-			/* the ATTR_READONLY flag may have been	*/
-			/* changed on server -- set any w bits	*/
-			/* allowed by mnt_file_mode		*/
-			inode->i_mode |= (S_IWUGO & cifs_sb->mnt_file_mode);
-	/* BB add code to validate if device or weird share or device type? */
+		if (attr & ATTR_DIRECTORY)
+			inode->i_mode |= S_IFDIR;
+		else
+			inode->i_mode |= S_IFREG;
 	}
 
 	spin_lock(&inode->i_lock);
@@ -1019,8 +1015,11 @@ mkdir_get_info:
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 			if (direntry->d_inode) {
-				direntry->d_inode->i_mode = mode;
-				direntry->d_inode->i_mode |= S_IFDIR;
+				if (cifs_sb->mnt_cifs_flags &
+				     CIFS_MOUNT_DYNPERM)
+					direntry->d_inode->i_mode =
+						(mode | S_IFDIR);
+
 				if (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid =
@@ -1547,13 +1546,26 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		} else
 			goto cifs_setattr_exit;
 	}
-	if (attrs->ia_valid & ATTR_UID) {
-		cFYI(1, ("UID changed to %d", attrs->ia_uid));
-		uid = attrs->ia_uid;
-	}
-	if (attrs->ia_valid & ATTR_GID) {
-		cFYI(1, ("GID changed to %d", attrs->ia_gid));
-		gid = attrs->ia_gid;
+
+	/*
+	 * Without unix extensions we can't send ownership changes to the
+	 * server, so silently ignore them. This is consistent with how
+	 * local DOS/Windows filesystems behave (VFAT, NTFS, etc). With
+	 * CIFSACL support + proper Windows to Unix idmapping, we may be
+	 * able to support this in the future.
+	 */
+	if (!pTcon->unix_ext &&
+	    !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)) {
+		attrs->ia_valid &= ~(ATTR_UID | ATTR_GID);
+	} else {
+		if (attrs->ia_valid & ATTR_UID) {
+			cFYI(1, ("UID changed to %d", attrs->ia_uid));
+			uid = attrs->ia_uid;
+		}
+		if (attrs->ia_valid & ATTR_GID) {
+			cFYI(1, ("GID changed to %d", attrs->ia_gid));
+			gid = attrs->ia_gid;
+		}
 	}
 
 	time_buf.Attributes = 0;
@@ -1563,7 +1575,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		attrs->ia_valid &= ~ATTR_MODE;
 
 	if (attrs->ia_valid & ATTR_MODE) {
-		cFYI(1, ("Mode changed to 0x%x", attrs->ia_mode));
+		cFYI(1, ("Mode changed to 0%o", attrs->ia_mode));
 		mode = attrs->ia_mode;
 	}
 
@@ -1578,18 +1590,18 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
 			rc = mode_to_acl(inode, full_path, mode);
-		else if ((mode & S_IWUGO) == 0) {
-#else
-		if ((mode & S_IWUGO) == 0) {
+		else
 #endif
-			/* not writeable */
-			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
-				set_dosattr = true;
-				time_buf.Attributes =
-					cpu_to_le32(cifsInode->cifsAttrs |
-						    ATTR_READONLY);
-			}
-		} else if (cifsInode->cifsAttrs & ATTR_READONLY) {
+		if (((mode & S_IWUGO) == 0) &&
+		    (cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
+			set_dosattr = true;
+			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs |
+							  ATTR_READONLY);
+			/* fix up mode if we're not using dynperm */
+			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM) == 0)
+				attrs->ia_mode = inode->i_mode & ~S_IWUGO;
+		} else if ((mode & S_IWUGO) &&
+			   (cifsInode->cifsAttrs & ATTR_READONLY)) {
 			/* If file is readonly on server, we would
 			not be able to write to it - so if any write
 			bit is enabled for user or group or other we
@@ -1600,6 +1612,20 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			/* Windows ignores set to zero */
 			if (time_buf.Attributes == 0)
 				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
+
+			/* reset local inode permissions to normal */
+			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)) {
+				attrs->ia_mode &= ~(S_IALLUGO);
+				if (S_ISDIR(inode->i_mode))
+					attrs->ia_mode |=
+						cifs_sb->mnt_dir_mode;
+				else
+					attrs->ia_mode |=
+						cifs_sb->mnt_file_mode;
+			}
+		} else if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)) {
+			/* ignore mode change - ATTR_READONLY hasn't changed */
+			attrs->ia_valid &= ~ATTR_MODE;
 		}
 	}
 

@@ -67,7 +67,7 @@ void __init trap_init(void)
 	CSYNC();
 }
 
-void *saved_icplb_fault_addr, *saved_dcplb_fault_addr;
+unsigned long saved_icplb_fault_addr, saved_dcplb_fault_addr;
 
 int kstack_depth_to_print = 48;
 
@@ -366,7 +366,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGSEGV;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
-		if (saved_dcplb_fault_addr < (void *)FIXED_CODE_START)
+		if (saved_dcplb_fault_addr < FIXED_CODE_START)
 			printk(KERN_NOTICE "NULL pointer access\n");
 		else
 #endif
@@ -421,7 +421,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGSEGV;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
-		if (saved_icplb_fault_addr < (void *)FIXED_CODE_START)
+		if (saved_icplb_fault_addr < FIXED_CODE_START)
 			printk(KERN_NOTICE "Jump to NULL address\n");
 		else
 #endif
@@ -939,8 +939,6 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 
 	oops_in_progress = 1;
 
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", saved_dcplb_fault_addr);
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", saved_icplb_fault_addr);
 	dump_bfin_process(fp);
 	dump_bfin_mem(fp);
 	show_regs(fp);

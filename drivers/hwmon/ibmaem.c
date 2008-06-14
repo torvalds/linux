@@ -189,8 +189,8 @@ static struct aem_iana_id system_x_id = {
 struct aem_find_firmware_req {
 	struct aem_iana_id	id;
 	u8			rsvd;
-	u16			index;
-	u16			module_type_id;
+	__be16			index;
+	__be16			module_type_id;
 } __packed;
 
 struct aem_find_firmware_resp {
@@ -202,7 +202,7 @@ struct aem_find_firmware_resp {
 struct aem_find_instance_req {
 	struct aem_iana_id	id;
 	u8			instance_number;
-	u16			module_type_id;
+	__be16			module_type_id;
 } __packed;
 
 struct aem_find_instance_resp {
@@ -444,17 +444,17 @@ static int aem_read_sensor(struct aem_data *data, u8 elt, u8 reg,
 	}
 	case 2: {
 		u16 *x = buf;
-		*x = be16_to_cpup((u16 *)rs_resp->bytes);
+		*x = be16_to_cpup((__be16 *)rs_resp->bytes);
 		break;
 	}
 	case 4: {
 		u32 *x = buf;
-		*x = be32_to_cpup((u32 *)rs_resp->bytes);
+		*x = be32_to_cpup((__be32 *)rs_resp->bytes);
 		break;
 	}
 	case 8: {
 		u64 *x = buf;
-		*x = be64_to_cpup((u64 *)rs_resp->bytes);
+		*x = be64_to_cpup((__be64 *)rs_resp->bytes);
 		break;
 	}
 	}

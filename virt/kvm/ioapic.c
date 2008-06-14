@@ -45,7 +45,7 @@
 #else
 #define ioapic_debug(fmt, arg...)
 #endif
-static void ioapic_deliver(struct kvm_ioapic *vioapic, int irq);
+static int ioapic_deliver(struct kvm_ioapic *vioapic, int irq);
 
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 					  unsigned long addr,
@@ -89,8 +89,8 @@ static void ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
 	pent = &ioapic->redirtbl[idx];
 
 	if (!pent->fields.mask) {
-		ioapic_deliver(ioapic, idx);
-		if (pent->fields.trig_mode == IOAPIC_LEVEL_TRIG)
+		int injected = ioapic_deliver(ioapic, idx);
+		if (injected && pent->fields.trig_mode == IOAPIC_LEVEL_TRIG)
 			pent->fields.remote_irr = 1;
 	}
 	if (!pent->fields.trig_mode)
@@ -133,7 +133,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	}
 }
 
-static void ioapic_inj_irq(struct kvm_ioapic *ioapic,
+static int ioapic_inj_irq(struct kvm_ioapic *ioapic,
 			   struct kvm_vcpu *vcpu,
 			   u8 vector, u8 trig_mode, u8 delivery_mode)
 {
@@ -143,7 +143,7 @@ static void ioapic_inj_irq(struct kvm_ioapic *ioapic,
 	ASSERT((delivery_mode == IOAPIC_FIXED) ||
 	       (delivery_mode == IOAPIC_LOWEST_PRIORITY));
 
-	kvm_apic_set_irq(vcpu, vector, trig_mode);
+	return kvm_apic_set_irq(vcpu, vector, trig_mode);
 }
 
 static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
@@ -186,7 +186,7 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 	return mask;
 }
 
-static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
+static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 {
 	u8 dest = ioapic->redirtbl[irq].fields.dest_id;
 	u8 dest_mode = ioapic->redirtbl[irq].fields.dest_mode;
@@ -195,7 +195,7 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	u8 trig_mode = ioapic->redirtbl[irq].fields.trig_mode;
 	u32 deliver_bitmask;
 	struct kvm_vcpu *vcpu;
-	int vcpu_id;
+	int vcpu_id, r = 0;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
@@ -204,7 +204,7 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	deliver_bitmask = ioapic_get_delivery_bitmask(ioapic, dest, dest_mode);
 	if (!deliver_bitmask) {
 		ioapic_debug("no target on destination\n");
-		return;
+		return 0;
 	}
 
 	switch (delivery_mode) {
@@ -216,7 +216,7 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 			vcpu = ioapic->kvm->vcpus[0];
 #endif
 		if (vcpu != NULL)
-			ioapic_inj_irq(ioapic, vcpu, vector,
+			r = ioapic_inj_irq(ioapic, vcpu, vector,
 				       trig_mode, delivery_mode);
 		else
 			ioapic_debug("null lowest prio vcpu: "
@@ -234,7 +234,7 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 			deliver_bitmask &= ~(1 << vcpu_id);
 			vcpu = ioapic->kvm->vcpus[vcpu_id];
 			if (vcpu) {
-				ioapic_inj_irq(ioapic, vcpu, vector,
+				r = ioapic_inj_irq(ioapic, vcpu, vector,
 					       trig_mode, delivery_mode);
 			}
 		}
@@ -246,6 +246,7 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 		       delivery_mode);
 		break;
 	}
+	return r;
 }
 
 void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)

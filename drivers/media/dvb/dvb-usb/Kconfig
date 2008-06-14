@@ -1,6 +1,6 @@
 config DVB_USB
 	tristate "Support for various USB DVB devices"
-	depends on DVB_CORE && USB && I2C
+	depends on DVB_CORE && USB && I2C && INPUT
 	depends on HOTPLUG	# due to FW_LOADER
 	select FW_LOADER
 	help

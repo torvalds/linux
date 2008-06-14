@@ -418,7 +418,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	/* mmio */
 	if (is_error_pfn(pfn)) {
-		pgprintk("gfn %x is mmio\n", walker.gfn);
+		pgprintk("gfn %lx is mmio\n", walker.gfn);
 		kvm_release_pfn_clean(pfn);
 		return 1;
 	}

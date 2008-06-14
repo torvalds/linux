@@ -33,6 +33,7 @@ ENTRY(boot_args)
 END(boot_args)
 
 	__HEAD
+
 	.align	4
 	.import init_thread_union,data
 	.import fault_vector_20,code    /* IVA parisc 2.0 32 bit */

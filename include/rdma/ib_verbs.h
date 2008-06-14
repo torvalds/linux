@@ -105,7 +105,6 @@ enum ib_device_cap_flags {
 	 */
 	IB_DEVICE_UD_IP_CSUM		= (1<<18),
 	IB_DEVICE_UD_TSO		= (1<<19),
-	IB_DEVICE_SEND_W_INV		= (1<<21),
 };
 
 enum ib_atomic_cap {

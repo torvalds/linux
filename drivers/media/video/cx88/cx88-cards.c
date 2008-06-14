@@ -1493,10 +1493,16 @@ static const struct cx88_board cx88_boards[] = {
 		},
 	},
 	[CX88_BOARD_POWERCOLOR_REAL_ANGEL] = {
-		.name           = "PowerColor Real Angel 330",
+		.name           = "PowerColor RA330",	/* Long names may confuse LIRC. */
 		.tuner_type     = TUNER_XC2028,
 		.tuner_addr     = 0x61,
 		.input          = { {
+			.type   = CX88_VMUX_DEBUG,
+			.vmux   = 3,		/* Due to the way the cx88 driver is written,	*/
+			.gpio0 = 0x00ff,	/* there is no way to deactivate audio pass-	*/
+			.gpio1 = 0xf39d,	/* through without this entry. Furthermore, if	*/
+			.gpio3 = 0x0000,	/* the TV mux entry is first, you get audio	*/
+		}, {				/* from the tuner on boot for a little while.	*/
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0 = 0x00ff,
@@ -2424,8 +2430,9 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 
 	switch (core->boardnr) {
 	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
-		/* Doesn't work with firmware version 2.7 */
-		ctl->fname = "xc3028-v25.fw";
+		/* Now works with firmware version 2.7 */
+		if (core->i2c_algo.udelay < 16)
+			core->i2c_algo.udelay = 16;
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 		ctl->scode_table = XC3028_FE_ZARLINK456;

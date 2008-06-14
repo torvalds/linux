@@ -59,7 +59,7 @@ static struct resource cmx270_dm9k_resource[] = {
 	[2] = {
 		.start = CMX270_ETHIRQ,
 		.end   = CMX270_ETHIRQ,
-		.flags = IORESOURCE_IRQ,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 

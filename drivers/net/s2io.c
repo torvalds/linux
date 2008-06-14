@@ -2861,7 +2861,8 @@ static int s2io_poll_msix(struct napi_struct *napi, int budget)
 	struct config_param *config;
 	struct mac_info *mac_control;
 	int pkts_processed = 0;
-	u8 *addr = NULL, val8 = 0;
+	u8 __iomem *addr = NULL;
+	u8 val8 = 0;
 	struct s2io_nic *nic = dev->priv;
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	int budget_org = budget;
@@ -2878,7 +2879,7 @@ static int s2io_poll_msix(struct napi_struct *napi, int budget)
 	if (pkts_processed < budget_org) {
 		netif_rx_complete(dev, napi);
 		/*Re Enable MSI-Rx Vector*/
-		addr = (u8 *)&bar0->xmsi_mask_reg;
+		addr = (u8 __iomem *)&bar0->xmsi_mask_reg;
 		addr += 7 - ring->ring_no;
 		val8 = (ring->ring_no == 0) ? 0x3f : 0xbf;
 		writeb(val8, addr);
@@ -4364,9 +4365,10 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	if (sp->config.napi) {
-		u8 *addr = NULL, val8 = 0;
+		u8 __iomem *addr = NULL;
+		u8 val8 = 0;
 
-		addr = (u8 *)&bar0->xmsi_mask_reg;
+		addr = (u8 __iomem *)&bar0->xmsi_mask_reg;
 		addr += (7 - ring->ring_no);
 		val8 = (ring->ring_no == 0) ? 0x7f : 0xff;
 		writeb(val8, addr);

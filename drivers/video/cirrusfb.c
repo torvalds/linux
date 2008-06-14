@@ -2432,9 +2432,9 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 	info->screen_size = board_size;
 	cinfo->unmap = cirrusfb_pci_unmap;
 
-	printk(KERN_INFO " RAM (%lu kB) at 0xx%lx, ",
-		info->screen_size >> 10, board_addr);
-	printk(KERN_INFO "Cirrus Logic chipset on PCI bus\n");
+	printk(KERN_INFO "RAM (%lu kB) at 0x%lx, Cirrus "
+			"Logic chipset on PCI bus\n",
+			info->screen_size >> 10, board_addr);
 	pci_set_drvdata(pdev, info);
 
 	ret = cirrusfb_register(info);

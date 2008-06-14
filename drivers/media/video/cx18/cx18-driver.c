@@ -670,7 +670,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	cx18_init_power(cx, 1);
 	cx18_init_memory(cx);
 
-	cx->scb = (struct cx18_scb *)(cx->enc_mem + SCB_OFFSET);
+	cx->scb = (struct cx18_scb __iomem *)(cx->enc_mem + SCB_OFFSET);
 	cx18_init_scb(cx);
 
 	cx18_gpio_init(cx);
@@ -751,17 +751,6 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	if (cx->options.radio > 0)
 		cx->v4l2_cap |= V4L2_CAP_RADIO;
 
-	retval = cx18_streams_setup(cx);
-	if (retval) {
-		CX18_ERR("Error %d setting up streams\n", retval);
-		goto free_irq;
-	}
-	retval = cx18_streams_register(cx);
-	if (retval) {
-		CX18_ERR("Error %d registering devices\n", retval);
-		goto free_streams;
-	}
-
 	if (cx->options.tuner > -1) {
 		struct tuner_setup setup;
 
@@ -788,7 +777,16 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	   are not. */
 	cx->tuner_std = cx->std;
 
-	cx18_init_on_first_open(cx);
+	retval = cx18_streams_setup(cx);
+	if (retval) {
+		CX18_ERR("Error %d setting up streams\n", retval);
+		goto free_irq;
+	}
+	retval = cx18_streams_register(cx);
+	if (retval) {
+		CX18_ERR("Error %d registering devices\n", retval);
+		goto free_streams;
+	}
 
 	CX18_INFO("Initialized card #%d: %s\n", cx->num, cx->card_name);
 
@@ -889,7 +887,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	/* Stop all captures */
 	CX18_DEBUG_INFO("Stopping all streams\n");
-	if (atomic_read(&cx->capturing) > 0)
+	if (atomic_read(&cx->tot_capturing) > 0)
 		cx18_stop_all_captures(cx);
 
 	/* Interrupts */
