@@ -198,8 +198,13 @@ static inline void at91_mci_sg_to_dma(struct at91mci_host *host, struct mmc_data
 	unsigned int len, i, size;
 	unsigned *dmabuf = host->buffer;
 
-	size = host->total_length;
+	size = data->blksz * data->blocks;
 	len = data->sg_len;
+
+	/* AT91SAM926[0/3] Data Write Operation and number of bytes erratum */
+	if (cpu_is_at91sam9260() || cpu_is_at91sam9263())
+		if (host->total_length == 12)
+			memset(dmabuf, 0, 12);
 
 	/*
 	 * Just loop through all entries. Size might not
@@ -222,9 +227,10 @@ static inline void at91_mci_sg_to_dma(struct at91mci_host *host, struct mmc_data
 
 			for (index = 0; index < (amount / 4); index++)
 				*dmabuf++ = swab32(sgbuffer[index]);
-		}
-		else
+		} else {
 			memcpy(dmabuf, sgbuffer, amount);
+			dmabuf += amount;
+		}
 
 		kunmap_atomic(sgbuffer, KM_BIO_SRC_IRQ);
 
@@ -417,7 +423,7 @@ static void at91_mci_update_bytes_xfered(struct at91mci_host *host)
 			/* card is in IDLE mode now */
 			pr_debug("-> bytes_xfered %d, total_length = %d\n",
 				data->bytes_xfered, host->total_length);
-			data->bytes_xfered = host->total_length;
+			data->bytes_xfered = data->blksz * data->blocks;
 		}
 	}
 }
@@ -600,6 +606,13 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 				 * Handle a write
 				 */
 				host->total_length = block_length * blocks;
+				/*
+				 * AT91SAM926[0/3] Data Write Operation and
+				 * number of bytes erratum
+				 */
+				if (cpu_is_at91sam9260 () || cpu_is_at91sam9263())
+					if (host->total_length < 12)
+						host->total_length = 12;
 				host->buffer = dma_alloc_coherent(NULL,
 						host->total_length,
 						&host->physical_address, GFP_KERNEL);
