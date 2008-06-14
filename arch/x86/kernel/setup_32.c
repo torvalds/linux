@@ -584,6 +584,9 @@ static void __init relocate_initrd(void)
 	printk(KERN_INFO "Copied RAMDISK from %016llx - %016llx to %08llx - %08llx\n",
 		ramdisk_image, ramdisk_image + ramdisk_size - 1,
 		ramdisk_here, ramdisk_here + ramdisk_size - 1);
+
+	/* need to free that, otherwise init highmem will reserve it again */
+	free_early(ramdisk_image, ramdisk_image+ramdisk_size);
 }
 
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -801,10 +804,6 @@ void __init setup_arch(char **cmdline_p)
 		init_ohci1394_dma_on_all_controllers();
 #endif
 
-	remapped_pgdat_init();
-	sparse_init();
-	zone_sizes_init();
-
 	/*
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
@@ -812,6 +811,10 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_BLK_DEV_INITRD
 	relocate_initrd();
 #endif
+
+	remapped_pgdat_init();
+	sparse_init();
+	zone_sizes_init();
 
 	paravirt_post_allocator_init();
 
