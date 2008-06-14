@@ -376,7 +376,8 @@ max_bonds
 	Specifies the number of bonding devices to create for this
 	instance of the bonding driver.  E.g., if max_bonds is 3, and
 	the bonding driver is not already loaded, then bond0, bond1
-	and bond2 will be created.  The default value is 1.
+	and bond2 will be created.  The default value is 1.  Specifying
+	a value of 0 will load bonding, but will not create any devices.
 
 miimon
 

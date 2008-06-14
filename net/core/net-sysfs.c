@@ -468,6 +468,19 @@ int netdev_register_kobject(struct net_device *net)
 	return device_add(dev);
 }
 
+int netdev_class_create_file(struct class_attribute *class_attr)
+{
+	return class_create_file(&net_class, class_attr);
+}
+
+void netdev_class_remove_file(struct class_attribute *class_attr)
+{
+	class_remove_file(&net_class, class_attr);
+}
+
+EXPORT_SYMBOL(netdev_class_create_file);
+EXPORT_SYMBOL(netdev_class_remove_file);
+
 void netdev_initialize_kobject(struct net_device *net)
 {
 	struct device *device = &(net->dev);
