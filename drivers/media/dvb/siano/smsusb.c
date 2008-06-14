@@ -313,13 +313,13 @@ int smsusb_init_device(struct usb_interface *intf)
 	default:
 		if (dev->udev->descriptor.idProduct == 0x200) {
 			params.device_type = SMS_NOVA_A0;
-			printk(KERN_INFO "%s nova A0 found\n", __FUNCTION__ );
+			printk(KERN_INFO "%s nova A0 found\n", __func__ );
 		} else if (dev->udev->descriptor.idProduct == 0x201) {
 			params.device_type = SMS_NOVA_B0;
-			printk(KERN_INFO "%s nova B0 found\n", __FUNCTION__);
+			printk(KERN_INFO "%s nova B0 found\n", __func__);
 		} else {
 			params.device_type = SMS_VEGA;
-			printk(KERN_INFO "%s Vega found\n", __FUNCTION__);
+			printk(KERN_INFO "%s Vega found\n", __func__);
 		}
 
 		dev->buffer_size = USB2_BUFFER_SIZE;
@@ -411,7 +411,7 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	rc = smsusb_init_device(intf);
-	printk(KERN_INFO  "%s  rc %d\n", __FUNCTION__, rc);
+	printk(KERN_INFO  "%s  rc %d\n", __func__, rc);
 	return rc;
 }
 

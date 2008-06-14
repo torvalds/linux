@@ -347,7 +347,7 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 	}
 
 	cb->p = buffer;
-	cb->offset_in_common = buffer - (u8*) common_buffer;
+	cb->offset_in_common = buffer - (u8 *) common_buffer;
 	cb->phys = common_buffer_phys + cb->offset_in_common;
 
 	return cb;
@@ -620,7 +620,7 @@ int smscore_load_firmware_from_file(smscore_device_t *coredev, char *filename, l
 	return rc;
 }
 
-int smscore_load_firmware_from_buffer(smscore_device_t *coredev, u8* buffer, int size, int new_mode)
+int smscore_load_firmware_from_buffer(smscore_device_t *coredev, u8 *buffer, int size, int new_mode)
 {
 	PERROR("Feature not implemented yet\n");
 	return -EFAULT;
@@ -888,7 +888,7 @@ smscore_client_t *smscore_find_client(smscore_device_t *coredev, int data_type, 
  */
 void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 {
-	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)((u8*) cb->p + cb->offset);
+	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)((u8 *) cb->p + cb->offset);
 	smscore_client_t *client = smscore_find_client(coredev, phdr->msgType, phdr->msgDstId);
 	int rc = -EBUSY;
 
@@ -1120,7 +1120,7 @@ void smscore_unregister_client(smscore_client_t *client)
 int smsclient_sendrequest(smscore_client_t *client, void *buffer, size_t size)
 {
 	smscore_device_t *coredev;
-	SmsMsgHdr_ST* phdr = (SmsMsgHdr_ST*) buffer;
+	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *) buffer;
 	int rc;
 
 	if ( client == NULL )

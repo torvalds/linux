@@ -515,7 +515,7 @@ extern int smscore_start_device(smscore_device_t *coredev);
 extern int smscore_load_firmware(smscore_device_t *coredev, char *filename,
 				  loadfirmware_t loadfirmware_handler);
 
-extern int smscore_load_firmware_from_buffer(smscore_device_t *coredev, u8* buffer, int size, int new_mode);
+extern int smscore_load_firmware_from_buffer(smscore_device_t *coredev, u8 *buffer, int size, int new_mode);
 
 extern int smscore_set_device_mode(smscore_device_t *coredev, int mode);
 extern int smscore_get_device_mode(smscore_device_t *coredev);
