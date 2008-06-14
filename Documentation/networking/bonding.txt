@@ -539,6 +539,17 @@ mode
 		swapped with the new curr_active_slave that was
 		chosen.
 
+num_grat_arp
+
+	Specifies the number of gratuitous ARPs to be issued after a
+	failover event.  One gratuitous ARP is issued immediately after
+	the failover, subsequent ARPs are sent at a rate of one per link
+	monitor interval (arp_interval or miimon, whichever is active).
+
+	The valid range is 0 - 255; the default value is 1.  This option
+	affects only the active-backup mode.  This option was added for
+	bonding version 3.3.0.
+
 primary
 
 	A string (eth0, eth2, etc) specifying which slave is the
