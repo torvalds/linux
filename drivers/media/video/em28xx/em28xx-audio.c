@@ -268,6 +268,12 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
+	if (!dev) {
+		printk(KERN_ERR "BUG: em28xx can't find device struct."
+				" Can't proceed with open\n");
+		return -ENODEV;
+	}
+
 	/* Sets volume, mute, etc */
 
 	dev->mute = 0;
