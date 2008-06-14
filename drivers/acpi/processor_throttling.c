@@ -1232,7 +1232,10 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 	int result = 0;
 	struct seq_file *m = file->private_data;
 	struct acpi_processor *pr = m->private;
-	char state_string[12] = { '\0' };
+	char state_string[5] = "";
+	char *charp = NULL;
+	size_t state_val = 0;
+	char tmpbuf[5] = "";
 
 	if (!pr || (count > sizeof(state_string) - 1))
 		return -EINVAL;
@@ -1241,10 +1244,23 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 		return -EFAULT;
 
 	state_string[count] = '\0';
+	if ((count > 0) && (state_string[count-1] == '\n'))
+		state_string[count-1] = '\0';
 
-	result = acpi_processor_set_throttling(pr,
-					       simple_strtoul(state_string,
-							      NULL, 0));
+	charp = state_string;
+	if ((state_string[0] == 't') || (state_string[0] == 'T'))
+		charp++;
+
+	state_val = simple_strtoul(charp, NULL, 0);
+	if (state_val >= pr->throttling.state_count)
+		return -EINVAL;
+
+	snprintf(tmpbuf, 5, "%d", state_val);
+
+	if (strcmp(tmpbuf, charp) != 0)
+		return -EINVAL;
+
+	result = acpi_processor_set_throttling(pr, state_val);
 	if (result)
 		return result;
 
