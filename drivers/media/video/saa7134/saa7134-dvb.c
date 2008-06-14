@@ -1091,7 +1091,8 @@ static int dvb_init(struct saa7134_dev *dev)
 					ads_tech_duo_config.tuner_address);
 				goto dettach_frontend;
 			}
-		}
+		} else
+			wprintk("failed to attach tda10046\n");
 		break;
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 		if (configure_tda827x_fe(dev, &tevion_dvbt220rf_config,
