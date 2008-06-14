@@ -56,6 +56,14 @@ typedef struct mutex kmutex_t;
 #define SMS_ROM_NO_RESPONSE					2
 #define SMS_DEVICE_NOT_READY				0x8000000
 
+typedef enum {
+	SMS_STELLAR= 0,
+	SMS_NOVA_A0,
+	SMS_NOVA_B0,
+	SMS_VEGA,
+	SMS_NUM_OF_DEVICE_TYPES
+} sms_device_type_st;
+
 typedef struct _smscore_device smscore_device_t;
 typedef struct _smscore_client smscore_client_t;
 typedef struct _smscore_buffer smscore_buffer_t;
@@ -102,6 +110,7 @@ typedef struct _smsdevice_params
 	postload_t		postload_handler;
 
 	void			*context;
+	sms_device_type_st device_type;
 } smsdevice_params_t;
 
 typedef struct _smsclient_params
@@ -505,6 +514,8 @@ extern void smscore_unregister_device(smscore_device_t *coredev);
 extern int smscore_start_device(smscore_device_t *coredev);
 extern int smscore_load_firmware(smscore_device_t *coredev, char *filename,
 				  loadfirmware_t loadfirmware_handler);
+
+extern int smscore_load_firmware_from_buffer(smscore_device_t *coredev, u8* buffer, int size, int new_mode);
 
 extern int smscore_set_device_mode(smscore_device_t *coredev, int mode);
 extern int smscore_get_device_mode(smscore_device_t *coredev);

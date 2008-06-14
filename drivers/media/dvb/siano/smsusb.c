@@ -301,21 +301,32 @@ int smsusb_init_device(struct usb_interface *intf)
 	usb_set_intfdata(intf, dev);
 	dev->udev = interface_to_usbdev(intf);
 
-	switch (dev->udev->descriptor.idProduct)
-	{
-		case 0x100:
-			dev->buffer_size = USB1_BUFFER_SIZE;
+	switch (dev->udev->descriptor.idProduct) {
+	case 0x100:
+		dev->buffer_size = USB1_BUFFER_SIZE;
 
-			params.setmode_handler = smsusb1_setmode;
-			params.detectmode_handler = smsusb1_detectmode;
-			break;
+		params.setmode_handler = smsusb1_setmode;
+		params.detectmode_handler = smsusb1_detectmode;
+		params.device_type = SMS_STELLAR;
+		printk(KERN_INFO "%s stellar device found\n", __func__ );
+		break;
+	default:
+		if (dev->udev->descriptor.idProduct == 0x200) {
+			params.device_type = SMS_NOVA_A0;
+			printk(KERN_INFO "%s nova A0 found\n", __FUNCTION__ );
+		} else if (dev->udev->descriptor.idProduct == 0x201) {
+			params.device_type = SMS_NOVA_B0;
+			printk(KERN_INFO "%s nova B0 found\n", __FUNCTION__);
+		} else {
+			params.device_type = SMS_VEGA;
+			printk(KERN_INFO "%s Vega found\n", __FUNCTION__);
+		}
 
-		default:
-			dev->buffer_size = USB2_BUFFER_SIZE;
-			dev->response_alignment = dev->udev->ep_in[1]->desc.wMaxPacketSize - sizeof(SmsMsgHdr_ST);
+		dev->buffer_size = USB2_BUFFER_SIZE;
+		dev->response_alignment = dev->udev->ep_in[1]->desc.wMaxPacketSize - sizeof(SmsMsgHdr_ST);
 
-			params.flags |= SMS_DEVICE_FAMILY2;
-			break;
+		params.flags |= SMS_DEVICE_FAMILY2;
+		break;
 	}
 
 	params.device = &dev->udev->dev;
@@ -341,6 +352,7 @@ int smsusb_init_device(struct usb_interface *intf)
 		usb_init_urb(&dev->surbs[i].urb);
 	}
 
+	printk(KERN_INFO "%s smsusb_start_streaming(...).\n", __func__);
 	rc = smsusb_start_streaming(dev);
 	if (rc < 0)
 	{
@@ -368,6 +380,9 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	char devpath[32];
 	int i, rc;
 
+	rc = usb_clear_halt(udev, usb_rcvbulkpipe(udev, 0x81));
+	rc = usb_clear_halt(udev, usb_rcvbulkpipe(udev, 0x02));
+
 	if (intf->num_altsetting > 0)
 	{
 		rc = usb_set_interface(udev, intf->cur_altsetting->desc.bInterfaceNumber, 0);
@@ -390,11 +405,14 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber == 1)
 	{
-		snprintf(devpath, 32, "%d:%s", udev->bus->busnum, udev->devpath);
+		snprintf(devpath, sizeof(devpath), "usb\\%d-%s", udev->bus->busnum, udev->devpath);
+		printk(KERN_INFO "stellar device was found.\n");
 		return smsusb1_load_firmware(udev, smscore_registry_getmode(devpath));
 	}
 
-	return smsusb_init_device(intf);
+	rc = smsusb_init_device(intf);
+	printk(KERN_INFO  "%s  rc %d\n", __FUNCTION__, rc);
+	return rc;
 }
 
 void smsusb_disconnect(struct usb_interface *intf)

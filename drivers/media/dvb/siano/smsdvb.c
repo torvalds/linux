@@ -300,9 +300,8 @@ int smsdvb_hotplug(smscore_device_t *coredev, struct device *device,
 
 	if (smscore_get_device_mode(coredev) != 4)
 	{
-		rc = smscore_set_device_mode(coredev, 4);
-		if (rc < 0)
-			return rc;
+		printk(KERN_ERR "%sSMS Device mode is not set for DVB operation.\n", __func__);
+		return 0;
 	}
 
 	client = kzalloc(sizeof(smsdvb_client_t), GFP_KERNEL);
@@ -356,7 +355,7 @@ int smsdvb_hotplug(smscore_device_t *coredev, struct device *device,
 		goto frontend_error;
 	}
 
-	params.initial_id = 0;
+	params.initial_id = 1;
 	params.data_type = MSG_SMS_DVBT_BDA_DATA;
 	params.onresponse_handler = smsdvb_onresponse;
 	params.onremove_handler = smsdvb_onremove;
