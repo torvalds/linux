@@ -1189,21 +1189,19 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 		if (new_active) {
 			bond_set_slave_active_flags(new_active);
-		}
 
-		if (new_active && bond->params.fail_over_mac)
-			bond_do_fail_over_mac(bond, new_active, old_active);
+			if (bond->params.fail_over_mac)
+				bond_do_fail_over_mac(bond, new_active,
+						      old_active);
 
-		bond->send_grat_arp = bond->params.num_grat_arp;
-		if (bond->curr_active_slave &&
-			test_bit(__LINK_STATE_LINKWATCH_PENDING,
+			bond->send_grat_arp = bond->params.num_grat_arp;
+			if (!test_bit(__LINK_STATE_LINKWATCH_PENDING,
 					&bond->curr_active_slave->dev->state)) {
-			dprintk("delaying gratuitous arp on %s\n",
-				bond->curr_active_slave->dev->name);
-		} else {
-			if (bond->send_grat_arp > 0) {
 				bond_send_gratuitous_arp(bond);
 				bond->send_grat_arp--;
+			} else {
+				dprintk("delaying gratuitous arp on %s\n",
+					bond->curr_active_slave->dev->name);
 			}
 		}
 	}
