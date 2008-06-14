@@ -32,6 +32,14 @@
 #define MAX_BUFFERS		50
 #define MAX_URBS		10
 
+/* TO DO: move these to a header file */
+#define USB_VID_SIANO 0x187f
+
+#define USB_PID_STELLAR 0x0100
+#define USB_PID_NOVA_A 0x0200
+#define USB_PID_NOVA_B 0x0201
+#define USB_PID_VEGA 0x0300
+
 typedef struct _smsusb_device smsusb_device_t;
 
 typedef struct _smsusb_urb
@@ -302,7 +310,8 @@ int smsusb_init_device(struct usb_interface *intf)
 	dev->udev = interface_to_usbdev(intf);
 
 	switch (dev->udev->descriptor.idProduct) {
-	case 0x100:
+
+	case USB_PID_STELLAR:
 		dev->buffer_size = USB1_BUFFER_SIZE;
 
 		params.setmode_handler = smsusb1_setmode;
@@ -311,13 +320,17 @@ int smsusb_init_device(struct usb_interface *intf)
 		printk(KERN_INFO "%s stellar device found\n", __func__ );
 		break;
 	default:
-		if (dev->udev->descriptor.idProduct == 0x200) {
+		switch (dev->udev->descriptor.idProduct) {
+		case USB_PID_NOVA_A:
 			params.device_type = SMS_NOVA_A0;
 			printk(KERN_INFO "%s nova A0 found\n", __func__ );
-		} else if (dev->udev->descriptor.idProduct == 0x201) {
+			break;
+		default:
+		case USB_PID_NOVA_B:
 			params.device_type = SMS_NOVA_B0;
 			printk(KERN_INFO "%s nova B0 found\n", __func__);
-		} else {
+			break;
+		case USB_PID_VEGA:
 			params.device_type = SMS_VEGA;
 			printk(KERN_INFO "%s Vega found\n", __func__);
 		}
@@ -421,9 +434,9 @@ void smsusb_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_device_id smsusb_id_table [] = {
-	{ USB_DEVICE(0x187F, 0x0010) },
-	{ USB_DEVICE(0x187F, 0x0100) },
-	{ USB_DEVICE(0x187F, 0x0200) },
+	{ USB_DEVICE(USB_VID_SIANO, 0x0010) },
+	{ USB_DEVICE(USB_VID_SIANO, USB_PID_STELLAR) },
+	{ USB_DEVICE(USB_VID_SIANO, USB_PID_NOVA_A) },
 	{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, smsusb_id_table);
