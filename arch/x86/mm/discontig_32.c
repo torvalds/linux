@@ -230,8 +230,8 @@ static unsigned long calculate_numa_remap_pages(void)
 	unsigned long size, reserve_pages = 0;
 
 	for_each_online_node(nid) {
-		u64 node_end_target;
-		u64 node_end_final;
+		u64 node_kva_target;
+		u64 node_kva_final;
 
 		/*
 		 * The acpi/srat node info can show hot-add memroy zones
@@ -254,42 +254,45 @@ static unsigned long calculate_numa_remap_pages(void)
 		/* now the roundup is correct, convert to PAGE_SIZE pages */
 		size = size * PTRS_PER_PTE;
 
-		node_end_target = round_down(node_end_pfn[nid] - size,
+		node_kva_target = round_down(node_end_pfn[nid] - size,
 						 PTRS_PER_PTE);
-		node_end_target <<= PAGE_SHIFT;
+		node_kva_target <<= PAGE_SHIFT;
 		do {
-			node_end_final = find_e820_area(node_end_target,
+			node_kva_final = find_e820_area(node_kva_target,
 					((u64)node_end_pfn[nid])<<PAGE_SHIFT,
 						((u64)size)<<PAGE_SHIFT,
 						LARGE_PAGE_BYTES);
-			node_end_target -= LARGE_PAGE_BYTES;
-		} while (node_end_final == -1ULL &&
-			 (node_end_target>>PAGE_SHIFT) > (node_start_pfn[nid]));
+			node_kva_target -= LARGE_PAGE_BYTES;
+		} while (node_kva_final == -1ULL &&
+			 (node_kva_target>>PAGE_SHIFT) > (node_start_pfn[nid]));
 
-		if (node_end_final == -1ULL)
+		if (node_kva_final == -1ULL)
 			panic("Can not get kva ram\n");
 
-		printk("Reserving %ld pages of KVA for lmem_map of node %d\n",
-				size, nid);
 		node_remap_size[nid] = size;
 		node_remap_offset[nid] = reserve_pages;
 		reserve_pages += size;
-		printk("Shrinking node %d from %ld pages to %lld pages\n",
-			nid, node_end_pfn[nid], node_end_final>>PAGE_SHIFT);
+		printk("Reserving %ld pages of KVA for lmem_map of node %d at %llx\n",
+				size, nid, node_kva_final>>PAGE_SHIFT);
 
 		/*
 		 *  prevent kva address below max_low_pfn want it on system
 		 *  with less memory later.
 		 *  layout will be: KVA address , KVA RAM
+		 *
+		 *  we are supposed to only record the one less then max_low_pfn
+		 *  but we could have some hole in high memory, and it will only
+		 *  check page_is_ram(pfn) && !page_is_reserved_early(pfn) to decide
+		 *  to use it as free.
+		 *  So reserve_early here, hope we don't run out of that array
 		 */
-		if ((node_end_final>>PAGE_SHIFT) < max_low_pfn)
-			reserve_early(node_end_final,
-				      node_end_final+(((u64)size)<<PAGE_SHIFT),
-				      "KVA RAM");
+		reserve_early(node_kva_final,
+			      node_kva_final+(((u64)size)<<PAGE_SHIFT),
+			      "KVA RAM");
 
-		node_end_pfn[nid] = node_end_final>>PAGE_SHIFT;
-		node_remap_start_pfn[nid] = node_end_pfn[nid];
-		shrink_active_range(nid, node_end_pfn[nid]);
+		node_remap_start_pfn[nid] = node_kva_final>>PAGE_SHIFT;
+		remove_active_range(nid, node_remap_start_pfn[nid],
+					 node_remap_start_pfn[nid] + size);
 	}
 	printk("Reserving total of %ld pages for numa KVA remap\n",
 			reserve_pages);

@@ -998,7 +998,8 @@ extern void free_area_init_node(int nid, pg_data_t *pgdat,
 extern void free_area_init_nodes(unsigned long *max_zone_pfn);
 extern void add_active_range(unsigned int nid, unsigned long start_pfn,
 					unsigned long end_pfn);
-extern void shrink_active_range(unsigned int nid, unsigned long new_end_pfn);
+extern void remove_active_range(unsigned int nid, unsigned long start_pfn,
+					unsigned long end_pfn);
 extern void push_node_boundaries(unsigned int nid, unsigned long start_pfn,
 					unsigned long end_pfn);
 extern void remove_all_active_ranges(void);

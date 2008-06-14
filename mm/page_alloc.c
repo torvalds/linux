@@ -3552,30 +3552,47 @@ void __init add_active_range(unsigned int nid, unsigned long start_pfn,
 }
 
 /**
- * shrink_active_range - Shrink an existing registered range of PFNs
+ * remove_active_range - Shrink an existing registered range of PFNs
  * @nid: The node id the range is on that should be shrunk
- * @new_end_pfn: The new PFN of the range
+ * @start_pfn: The new PFN of the range
+ * @end_pfn: The new PFN of the range
  *
  * i386 with NUMA use alloc_remap() to store a node_mem_map on a local node.
  * The map is kept near the end physical page range that has already been
  * registered. This function allows an arch to shrink an existing registered
  * range.
  */
-void __init shrink_active_range(unsigned int nid, unsigned long new_end_pfn)
+void __init remove_active_range(unsigned int nid, unsigned long start_pfn,
+				unsigned long end_pfn)
 {
 	int i, j;
 	int removed = 0;
 
+	printk(KERN_DEBUG "remove_active_range (%d, %lu, %lu)\n",
+			  nid, start_pfn, end_pfn);
+
 	/* Find the old active region end and shrink */
 	for_each_active_range_index_in_nid(i, nid) {
-		if (early_node_map[i].start_pfn >= new_end_pfn) {
+		if (early_node_map[i].start_pfn >= start_pfn &&
+		    early_node_map[i].end_pfn <= end_pfn) {
 			/* clear it */
+			early_node_map[i].start_pfn = 0;
 			early_node_map[i].end_pfn = 0;
 			removed = 1;
 			continue;
 		}
-		if (early_node_map[i].end_pfn > new_end_pfn) {
-			early_node_map[i].end_pfn = new_end_pfn;
+		if (early_node_map[i].start_pfn < start_pfn &&
+		    early_node_map[i].end_pfn > start_pfn) {
+			unsigned long temp_end_pfn = early_node_map[i].end_pfn;
+			early_node_map[i].end_pfn = start_pfn;
+			if (temp_end_pfn > end_pfn)
+				add_active_range(nid, end_pfn, temp_end_pfn);
+			continue;
+		}
+		if (early_node_map[i].start_pfn >= start_pfn &&
+		    early_node_map[i].end_pfn > end_pfn &&
+		    early_node_map[i].start_pfn < end_pfn) {
+			early_node_map[i].start_pfn = end_pfn;
 			continue;
 		}
 	}
