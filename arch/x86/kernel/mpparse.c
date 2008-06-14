@@ -34,6 +34,8 @@
 #include <mach_mpparse.h>
 #endif
 
+int enable_update_mptable;
+
 /*
  * Checksum an MP configuration block.
  */
@@ -295,10 +297,11 @@ void MP_intsrc_info(struct mpc_config_intsrc *m)
 
 	print_MP_intsrc_info(m);
 
-	for (i = 0; i < mp_irq_entries; i++) {
-		if (!mp_irq_mpc_intsrc_cmp(&mp_irqs[i], m))
-			return;
-	}
+	if (enable_update_mptable)
+		for (i = 0; i < mp_irq_entries; i++) {
+			if (!mp_irq_mpc_intsrc_cmp(&mp_irqs[i], m))
+				return;
+		}
 
 	assign_to_mp_irq(m, &mp_irqs[mp_irq_entries]);
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
@@ -1109,8 +1112,6 @@ out:
 
 	return 0;
 }
-
-int __initdata enable_update_mptable;
 
 static int __init update_mptable_setup(char *str)
 {
