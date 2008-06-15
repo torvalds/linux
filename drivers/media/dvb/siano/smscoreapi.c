@@ -489,7 +489,7 @@ int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	}
 
 	/* PAGE_SIZE buffer shall be enough and dma aligned */
-	msg = (struct SmsMsgHdr_ST *) kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	msg = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!msg)
 		return -ENOMEM;
 
