@@ -194,6 +194,16 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
     if (hwif->present)
 	return hwif;
 
+    /* retry registration in case device is still spinning up */
+    for (i = 0; i < 10; i++) {
+	msleep(100);
+	ide_port_scan(hwif);
+	if (hwif->present)
+	    return hwif;
+    }
+
+    return hwif;
+
 out_release:
     release_region(ctl, 1);
     release_region(io, 8);
@@ -222,7 +232,7 @@ static int ide_config(struct pcmcia_device *link)
 	cistpl_cftable_entry_t dflt;
     } *stk = NULL;
     cistpl_cftable_entry_t *cfg;
-    int i, pass, last_ret = 0, last_fn = 0, is_kme = 0;
+    int pass, last_ret = 0, last_fn = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
     ide_hwif_t *hwif;
 
@@ -319,30 +329,15 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-    /* retry registration in case device is still spinning up */
-    for (i = 0; i < 10; i++) {
-	hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
-	if (hwif)
-	    break;
-	if (link->io.NumPorts1 == 0x20) {
+     hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+     if (hwif == NULL && link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    hwif = idecs_register(io_base + 0x10, ctl_base + 0x10,
 				  link->irq.AssignedIRQ, link);
-	    if (hwif) {
-		io_base += 0x10;
-		ctl_base += 0x10;
-		break;
-	    }
-	}
-	msleep(100);
     }
 
-    if (hwif == NULL) {
-	printk(KERN_NOTICE "ide-cs: ide_register() at 0x%3lx & 0x%3lx"
-	       ", irq %u failed\n", io_base, ctl_base,
-	       link->irq.AssignedIRQ);
+    if (hwif == NULL)
 	goto failed;
-    }
 
     info->ndev = 1;
     sprintf(info->node.dev_name, "hd%c", 'a' + hwif->index * 2);
