@@ -472,7 +472,7 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 {
 	SmsFirmware_ST *firmware = (SmsFirmware_ST *) buffer;
 	SmsMsgHdr_ST *msg;
-	UINT32 mem_address = firmware->StartAddress;
+	u32 mem_address = firmware->StartAddress;
 	u8 *payload = firmware->Payload;
 	int rc = 0;
 
@@ -496,7 +496,7 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 		rc = smscore_sendrequest_and_wait(coredev, msg,
 						  msg->msgLength,
 						  &coredev->reload_start_done);
-		mem_address = *(UINT32*) &payload[20];
+		mem_address = *(u32 *) &payload[20];
 	}
 
 	while (size && rc >= 0)
@@ -505,8 +505,8 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 		int payload_size = min((int) size, SMS_MAX_PAYLOAD_SIZE);
 
 		SMS_INIT_MSG(msg, MSG_SMS_DATA_DOWNLOAD_REQ,
-			     (UINT16)(sizeof(SmsMsgHdr_ST) +
-				      sizeof(UINT32) + payload_size));
+			     (u16)(sizeof(SmsMsgHdr_ST) +
+				      sizeof(u32) + payload_size));
 
 		DataMsg->MemAddr = mem_address;
 		memcpy(DataMsg->Payload, payload, payload_size);
@@ -528,7 +528,7 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 
 			SMS_INIT_MSG(msg, MSG_SMS_SWDOWNLOAD_TRIGGER_REQ,
 				     sizeof(SmsMsgHdr_ST) +
-				     sizeof(UINT32) * 5);
+				     sizeof(u32) * 5);
 
 			TriggerMsg->msgData[0] = firmware->StartAddress;	// Entry point
 			TriggerMsg->msgData[1] = 5;							// Priority
