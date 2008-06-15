@@ -1,26 +1,14 @@
 # ==========================================================================
 # Installing headers
 #
-# header-y files will be installed verbatim
-# unifdef-y are the files where unifdef will be run before installing files
-# objhdr-y are generated files that will be installed verbatim
+# header-y  - list files to be installed. They are preprocessed
+#             to remove __KERNEL__ section of the file
+# unifdef-y - Same as header-y. Obsolete
+# objhdr-y  - Same as header-y but for generated files
 #
 # ==========================================================================
 
-UNIFDEF := scripts/unifdef -U__KERNEL__
-
-# Eliminate the contents of (and inclusions of) compiler.h
-HDRSED  := sed	-e "s/ inline / __inline__ /g" \
-		-e "s/[[:space:]]__user[[:space:]]\{1,\}/ /g" \
-		-e "s/(__user[[:space:]]\{1,\}/ (/g" \
-		-e "s/[[:space:]]__force[[:space:]]\{1,\}/ /g" \
-		-e "s/(__force[[:space:]]\{1,\}/ (/g" \
-		-e "s/[[:space:]]__iomem[[:space:]]\{1,\}/ /g" \
-		-e "s/(__iomem[[:space:]]\{1,\}/ (/g" \
-		-e "s/[[:space:]]__attribute_const__[[:space:]]\{1,\}/\ /g" \
-		-e "s/[[:space:]]__attribute_const__$$//" \
-		-e "/^\#include <linux\/compiler.h>/d"
-
+# called may set destination dir (when installing to asm/)
 _dst := $(if $(dst),$(dst),$(obj))
 
 kbuild-file := $(srctree)/$(obj)/Kbuild
@@ -28,89 +16,82 @@ include $(kbuild-file)
 
 include scripts/Kbuild.include
 
-install := $(INSTALL_HDR_PATH)/$(_dst)
+install       := $(INSTALL_HDR_PATH)/$(_dst)
 
-header-y	:= $(sort $(header-y) $(unifdef-y))
-subdir-y	:= $(patsubst %/,%,$(filter %/, $(header-y)))
-header-y	:= $(filter-out %/, $(header-y))
+header-y      := $(sort $(header-y) $(unifdef-y))
+subdirs       := $(patsubst %/,%,$(filter %/, $(header-y)))
+header-y      := $(filter-out %/, $(header-y))
 
-# stamp files for header checks
-check-y		:= $(patsubst %,.check.%,$(header-y) $(objhdr-y))
+# files used to track state of install/check
+install-file  := $(install)/.install
+check-file    := $(install)/.check
+
+# all headers files for this dir
+all-files     := $(header-y) $(objhdr-y)
+input-files   := $(addprefix $(srctree)/$(obj)/,$(header-y)) \
+                 $(addprefix $(objtree)/$(obj)/,$(objhdr-y))
+output-files  := $(addprefix $(install)/, $(all-files))
 
 # Work out what needs to be removed
-oldheaders      := $(patsubst $(install)/%,%,$(wildcard $(install)/*.h))
-unwanted        := $(filter-out $(header-y) $(objhdr-y),$(oldheaders))
+oldheaders    := $(patsubst $(install)/%,%,$(wildcard $(install)/*.h))
+unwanted      := $(filter-out $(all-files),$(oldheaders))
 
-oldcheckstamps  := $(patsubst $(install)/%,%,$(wildcard $(install)/.check.*.h))
-unwanted        += $(filter-out $(check-y),$(oldcheckstamps))
+# Prefix unwanted with full paths to $(INSTALL_HDR_PATH)
+unwanted-file := $(addprefix $(install)/, $(unwanted))
 
-# Prefix them all with full paths to $(INSTALL_HDR_PATH)
-header-y        := $(patsubst %,$(install)/%,$(header-y))
-objhdr-y        := $(patsubst %,$(install)/%,$(objhdr-y))
-check-y         := $(patsubst %,$(install)/%,$(check-y))
+printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
 
-quiet_cmd_o_hdr_install = INSTALL $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_o_hdr_install = cp $(patsubst $(install)/%,$(objtree)/$(obj)/%,$@) \
-                             $(install)
+quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
+                            file$(if $(word 2, $(all-files)),s))
+      cmd_install = $(PERL) $< $(srctree)/$(obj) $(install) $(header-y); \
+                    $(PERL) $< $(objtree)/$(obj) $(install) $(objhdr-y); \
+	            touch $@
 
-quiet_cmd_unifdef = UNIFDEF $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_unifdef = $(UNIFDEF) $(patsubst $(install)/%,$(srctree)/$(obj)/%,$@)\
-                               | $(HDRSED) > $@ || :
+quiet_cmd_remove = REMOVE  $(unwanted)
+      cmd_remove = rm -f $(unwanted-file)
 
-quiet_cmd_check = CHECK   $(patsubst $(install)/.check.%,$(_dst)/%,$@)
-      cmd_check = $(CONFIG_SHELL) $(srctree)/scripts/hdrcheck.sh \
-                  $(INSTALL_HDR_PATH)/include $(subst /.check.,/,$@) $@
+quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
+      cmd_check = $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH) \
+                  $(addprefix $(install)/, $(all-files));           \
+	          touch $@
 
-quiet_cmd_remove = REMOVE  $(_dst)/$@
-      cmd_remove = rm -f $(install)/$@
+PHONY += __headersinst __headerscheck
 
-quiet_cmd_mkdir  = MKDIR   $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_mkdir  = mkdir -p $@
+ifndef HDRCHECK
+# Rules for installing headers
+__headersinst: $(subdirs) $(install-file)
+	@:
 
-.PHONY: __headersinst __headerscheck
-
-ifdef HDRCHECK
-__headerscheck: $(subdir-y) $(check-y)
-	@true
-
-$(check-y) : $(install)/.check.%.h : $(install)/%.h
-	$(call cmd,check)
-
-# Other dependencies for $(check-y)
-include /dev/null $(wildcard $(check-y))
-
-# but leave $(check-y) as .PHONY for now until those
-# deps are actually correct.
-.PHONY: $(check-y)
+targets += $(install-file)
+$(install-file): scripts/headers_install.pl $(input-files) FORCE
+	$(if $(unwanted),$(call cmd,remove),)
+	$(if $(wildcard $(dir $@)),,$(shell mkdir -p $(dir $@)))
+	$(call if_changed,install)
 
 else
-# Rules for installing headers
-__headersinst: $(subdir-y) $(header-y) $(objhdr-y)
-	@true
+__headerscheck: $(subdirs) $(check-file)
+	@:
 
-$(objhdr-y) $(subdir-y) $(header-y): | $(install) $(unwanted)
-
-$(install):
-	$(call cmd,mkdir)
-
-# Rules for removing unwanted header files
-.PHONY: $(unwanted)
-$(unwanted):
-	$(call cmd,remove)
-
-# Install generated files
-$(objhdr-y): $(install)/%.h: $(objtree)/$(obj)/%.h $(kbuild-file)
-	$(call cmd,o_hdr_install)
-
-# Unifdef header files and install them
-$(header-y): $(install)/%.h: $(srctree)/$(obj)/%.h $(kbuild-file)
-	$(call cmd,unifdef)
+targets += $(check-file)
+$(check-file): scripts/headers_check.pl $(output-files) FORCE
+	$(call if_changed,check)
 
 endif
 
-hdr-inst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
-
 # Recursion
-.PHONY: $(subdir-y)
-$(subdir-y):
+hdr-inst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
+.PHONY: $(subdirs)
+$(subdirs):
 	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@
+
+targets := $(wildcard $(sort $(targets)))
+cmd_files := $(wildcard \
+             $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+
+ifneq ($(cmd_files),)
+	include $(cmd_files)
+endif
+
+.PHONY: $(PHONY)
+PHONY += FORCE
+FORCE: ;
