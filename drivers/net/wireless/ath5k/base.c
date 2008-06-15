@@ -1691,9 +1691,9 @@ ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
 	/* Apparently when a default key is used to decrypt the packet
 	   the hw does not set the index used to decrypt.  In such cases
 	   get the index from the packet. */
-	if ((le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_PROTECTED) &&
-			!(rs->rs_status & AR5K_RXERR_DECRYPT) &&
-			skb->len >= hlen + 4) {
+	if (ieee80211_has_protected(hdr->frame_control) &&
+	    !(rs->rs_status & AR5K_RXERR_DECRYPT) &&
+	    skb->len >= hlen + 4) {
 		keyix = skb->data[hlen + 3] >> 6;
 
 		if (test_bit(keyix, sc->keymap))
@@ -1712,10 +1712,7 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 	u32 hw_tu;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
-	if ((le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_FTYPE) ==
-		IEEE80211_FTYPE_MGMT &&
-	    (le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE) ==
-		IEEE80211_STYPE_BEACON &&
+	if (ieee80211_is_beacon(mgmt->frame_control) &&
 	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
 	    memcmp(mgmt->bssid, sc->ah->ah_bssid, ETH_ALEN) == 0) {
 		/*
