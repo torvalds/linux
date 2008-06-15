@@ -568,7 +568,7 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 		msleep(500);
 	}
 
-	printk("%s rc=%d, postload=%p \n", __func__, rc,
+	printk(KERN_DEBUG "%s rc=%d, postload=%p \n", __func__, rc,
 	       coredev->postload_handler);
 
 	kfree(msg);
@@ -710,8 +710,8 @@ int smscore_detect_mode(smscore_device_t *coredev)
 	rc = smscore_sendrequest_and_wait(coredev, msg, msg->msgLength,
 					  &coredev->version_ex_done);
 	if (rc == -ETIME) {
-		printk("%s: MSG_SMS_GET_VERSION_EX_REQ failed first try\n",
-		       __func__);
+		printk(KERN_ERR "%s: MSG_SMS_GET_VERSION_EX_REQ "
+		       "failed first try\n", __func__);
 
 		if (wait_for_completion_timeout(&coredev->resume_done,
 						msecs_to_jiffies(5000))) {
@@ -719,7 +719,8 @@ int smscore_detect_mode(smscore_device_t *coredev)
 				coredev, msg, msg->msgLength,
 				&coredev->version_ex_done);
 			if (rc < 0)
-				printk("%s: MSG_SMS_GET_VERSION_EX_REQ failed "
+				printk(KERN_ERR "%s: "
+				       "MSG_SMS_GET_VERSION_EX_REQ failed "
 				       "second try, rc %d\n", __func__, rc);
 		} else
 			rc = -ETIME;
@@ -921,7 +922,7 @@ void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 		last_sample_time = time_now;
 
 	if (time_now - last_sample_time > 10000) {
-		printk("\n%s data rate %d bytes/secs\n", __func__,
+		printk(KERN_DEBUG "\n%s data rate %d bytes/secs\n", __func__,
 		       (int)((data_total * 1000) /
 			     (time_now - last_sample_time)));
 
@@ -940,8 +941,8 @@ void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 		case MSG_SMS_GET_VERSION_EX_RES:
 		{
 			SmsVersionRes_ST *ver = (SmsVersionRes_ST *) phdr;
-			printk("%s: MSG_SMS_GET_VERSION_EX_RES id %d "
-			       "prots 0x%x ver %d.%d\n", __func__,
+			printk(KERN_DEBUG "%s: MSG_SMS_GET_VERSION_EX_RES "
+			       "id %d prots 0x%x ver %d.%d\n", __func__,
 			       ver->FirmwareId, ver->SupportedProtocols,
 			       ver->RomVersionMajor, ver->RomVersionMinor);
 
@@ -953,21 +954,24 @@ void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 			break;
 		}
 		case MSG_SMS_INIT_DEVICE_RES:
-			printk("%s: MSG_SMS_INIT_DEVICE_RES\n", __func__);
+			printk(KERN_DEBUG "%s: MSG_SMS_INIT_DEVICE_RES\n",
+			       __func__);
 			complete(&coredev->init_device_done);
 			break;
 		case MSG_SW_RELOAD_START_RES:
-			printk("%s: MSG_SW_RELOAD_START_RES\n", __func__);
+			printk(KERN_DEBUG "%s: MSG_SW_RELOAD_START_RES\n",
+			       __func__);
 			complete(&coredev->reload_start_done);
 			break;
 		case MSG_SMS_DATA_DOWNLOAD_RES:
 			complete(&coredev->data_download_done);
 			break;
 		case MSG_SW_RELOAD_EXEC_RES:
-			printk("%s: MSG_SW_RELOAD_EXEC_RES\n", __func__);
+			printk(KERN_DEBUG "%s: MSG_SW_RELOAD_EXEC_RES\n",
+			       __func__);
 			break;
 		case MSG_SMS_SWDOWNLOAD_TRIGGER_RES:
-			printk("%s: MSG_SMS_SWDOWNLOAD_TRIGGER_RES\n",
+			printk(KERN_DEBUG "%s: MSG_SMS_SWDOWNLOAD_TRIGGER_RES\n",
 			       __func__);
 			complete(&coredev->trigger_done);
 			break;

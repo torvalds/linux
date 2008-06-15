@@ -111,7 +111,8 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, smsdvb_client_t, demux);
 	SmsMsgData_ST PidMsg;
 
-	printk("%s add pid %d(%x)\n", __func__, feed->pid, feed->pid);
+	printk(KERN_DEBUG "%s add pid %d(%x)\n", __func__,
+	       feed->pid, feed->pid);
 
 	PidMsg.xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
 	PidMsg.xMsgHeader.msgDstId = HIF_TASK;
@@ -130,7 +131,8 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, smsdvb_client_t, demux);
 	SmsMsgData_ST PidMsg;
 
-	printk("%s remove pid %d(%x)\n", __func__, feed->pid, feed->pid);
+	printk(KERN_DEBUG "%s remove pid %d(%x)\n", __func__,
+	       feed->pid, feed->pid);
 
 	PidMsg.xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
 	PidMsg.xMsgHeader.msgDstId = HIF_TASK;
@@ -212,7 +214,7 @@ static int smsdvb_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 				    struct dvb_frontend_tune_settings *tune)
 {
-	printk("%s\n", __func__);
+	printk(KERN_DEBUG "%s\n", __func__);
 
 	tune->min_delay_ms = 400;
 	tune->step_size = 250000;
@@ -239,7 +241,7 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 	Msg.Data[0] = fep->frequency;
 	Msg.Data[2] = 12000000;
 
-	printk("%s freq %d band %d\n", __func__,
+	printk(KERN_DEBUG "%s freq %d band %d\n", __func__,
 	       fep->frequency, fep->u.ofdm.bandwidth);
 
 	switch (fep->u.ofdm.bandwidth) {
@@ -259,7 +261,7 @@ static int smsdvb_get_frontend(struct dvb_frontend *fe,
 {
 	smsdvb_client_t *client = container_of(fe, smsdvb_client_t, frontend);
 
-	printk("%s\n", __func__);
+	printk(KERN_DEBUG "%s\n", __func__);
 
 	/* todo: */
 	memcpy(fep, &client->fe_params,
@@ -328,7 +330,8 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 	rc = dvb_register_adapter(&client->adapter, "Siano Digital Receiver",
 				  THIS_MODULE, device, adapter_nr);
 	if (rc < 0) {
-		printk("%s dvb_register_adapter() failed %d\n", __func__, rc);
+		printk(KERN_ERR "%s dvb_register_adapter() failed %d\n",
+		       __func__, rc);
 		goto adapter_error;
 	}
 
@@ -341,7 +344,8 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 
 	rc = dvb_dmx_init(&client->demux);
 	if (rc < 0) {
-		printk("%s dvb_dmx_init failed %d\n\n", __func__, rc);
+		printk(KERN_ERR "%s dvb_dmx_init failed %d\n\n",
+		       __func__, rc);
 		goto dvbdmx_error;
 	}
 
@@ -352,7 +356,8 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 
 	rc = dvb_dmxdev_init(&client->dmxdev, &client->adapter);
 	if (rc < 0) {
-		printk("%s dvb_dmxdev_init failed %d\n", __func__, rc);
+		printk(KERN_ERR "%s dvb_dmxdev_init failed %d\n",
+		       __func__, rc);
 		goto dmxdev_error;
 	}
 
@@ -362,7 +367,8 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 
 	rc = dvb_register_frontend(&client->adapter, &client->frontend);
 	if (rc < 0) {
-		printk("%s frontend registration failed %d\n", __func__, rc);
+		printk(KERN_ERR "%s frontend registration failed %d\n",
+		       __func__, rc);
 		goto frontend_error;
 	}
 

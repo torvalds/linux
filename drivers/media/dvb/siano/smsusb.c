@@ -241,7 +241,7 @@ void smsusb1_detectmode(void *context, int *mode)
 
 	if (!product_string) {
 		product_string = "none";
-		printk("%s product string not found\n", __func__);
+		printk(KERN_ERR "%s product string not found\n", __func__);
 	} else if (strstr(product_string, "DVBH"))
 		*mode = 1;
 	else if (strstr(product_string, "BDA"))
@@ -251,7 +251,7 @@ void smsusb1_detectmode(void *context, int *mode)
 	else if (strstr(product_string, "TDMB"))
 		*mode = 2;
 
-	printk("%s: %d \"%s\"\n", __func__, *mode, product_string);
+	printk(KERN_INFO "%s: %d \"%s\"\n", __func__, *mode, product_string);
 }
 
 int smsusb1_setmode(void *context, int mode)
