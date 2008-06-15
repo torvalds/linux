@@ -57,19 +57,19 @@ typedef struct mutex kmutex_t;
 #define SMS_ROM_NO_RESPONSE					2
 #define SMS_DEVICE_NOT_READY				0x8000000
 
-typedef enum {
+enum sms_device_type_st {
 	SMS_STELLAR = 0,
 	SMS_NOVA_A0,
 	SMS_NOVA_B0,
 	SMS_VEGA,
 	SMS_NUM_OF_DEVICE_TYPES
-} sms_device_type_st;
+};
 
-typedef struct _smscore_device smscore_device_t;
-typedef struct _smscore_client smscore_client_t;
-typedef struct _smscore_buffer smscore_buffer_t;
+struct smscore_device_t;
+struct smscore_client_t;
+struct smscore_buffer_t;
 
-typedef int (*hotplug_t)(smscore_device_t *coredev,
+typedef int (*hotplug_t)(struct smscore_device_t *coredev,
 			 struct device *device, int arrival);
 
 typedef int (*setmode_t)(void *context, int mode);
@@ -79,11 +79,10 @@ typedef int (*loadfirmware_t)(void *context, void *buffer, size_t size);
 typedef int (*preload_t)(void *context);
 typedef int (*postload_t)(void *context);
 
-typedef int (*onresponse_t)(void *context, smscore_buffer_t *cb);
+typedef int (*onresponse_t)(void *context, struct smscore_buffer_t *cb);
 typedef void (*onremove_t)(void *context);
 
-typedef struct _smscore_buffer
-{
+struct smscore_buffer_t {
 	/* public members, once passed to clients can be changed freely */
 	struct list_head entry;
 	int				size;
@@ -93,10 +92,9 @@ typedef struct _smscore_buffer
 	void			*p;
 	dma_addr_t		phys;
 	unsigned long	offset_in_common;
-} *psmscore_buffer_t;
+};
 
-typedef struct _smsdevice_params
-{
+struct smsdevice_params_t {
 	struct device	*device;
 
 	int				buffer_size;
@@ -112,18 +110,17 @@ typedef struct _smsdevice_params
 	postload_t		postload_handler;
 
 	void			*context;
-	sms_device_type_st device_type;
-} smsdevice_params_t;
+	enum sms_device_type_st device_type;
+};
 
-typedef struct _smsclient_params
-{
+struct smsclient_params_t {
 	int				initial_id;
 	int				data_type;
 	onresponse_t	onresponse_handler;
 	onremove_t		onremove_handler;
 
 	void			*context;
-} smsclient_params_t;
+};
 
 /* GPIO definitions for antenna frequency domain control (SMS8021) */
 #define SMS_ANTENNA_GPIO_0					1
@@ -201,8 +198,7 @@ typedef struct _smsclient_params
 #define SMS_INIT_MSG(ptr, type, len) \
 	SMS_INIT_MSG_EX(ptr, type, 0, HIF_TASK, len)
 
-typedef enum
-{
+enum SMS_DEVICE_MODE {
 	DEVICE_MODE_NONE = -1,
 	DEVICE_MODE_DVBT = 0,
 	DEVICE_MODE_DVBH,
@@ -214,33 +210,29 @@ typedef enum
 	DEVICE_MODE_CMMB,
 	DEVICE_MODE_RAW_TUNER,
 	DEVICE_MODE_MAX,
-} SMS_DEVICE_MODE;
+};
 
-typedef struct SmsMsgHdr_S
-{
+struct SmsMsgHdr_ST {
 	u16	msgType;
 	u8	msgSrcId;
 	u8	msgDstId;
 	u16	msgLength; /* Length of entire message, including header */
 	u16	msgFlags;
-} SmsMsgHdr_ST;
+};
 
-typedef struct SmsMsgData_S
-{
-	SmsMsgHdr_ST	xMsgHeader;
+struct SmsMsgData_ST {
+	struct SmsMsgHdr_ST	xMsgHeader;
 	u32			msgData[1];
-} SmsMsgData_ST;
+};
 
-typedef struct SmsDataDownload_S
-{
-	SmsMsgHdr_ST	xMsgHeader;
+struct SmsDataDownload_ST {
+	struct SmsMsgHdr_ST	xMsgHeader;
 	u32			MemAddr;
 	u8			Payload[SMS_MAX_PAYLOAD_SIZE];
-} SmsDataDownload_ST;
+};
 
-typedef struct SmsVersionRes_S
-{
-	SmsMsgHdr_ST	xMsgHeader;
+struct SmsVersionRes_ST {
+	struct SmsMsgHdr_ST	xMsgHeader;
 
 	u16		ChipModel; /* e.g. 0x1102 for SMS-1102 "Nova" */
 	u8		Step; /* 0 - Step A */
@@ -263,18 +255,16 @@ typedef struct SmsVersionRes_S
 	u8		RomVersionFieldPatch;
 
 	u8		TextLabel[34];
-} SmsVersionRes_ST;
+};
 
-typedef struct SmsFirmware_S
-{
+struct SmsFirmware_ST {
 	u32			CheckSum;
 	u32			Length;
 	u32			StartAddress;
 	u8			Payload[1];
-} SmsFirmware_ST;
+};
 
-typedef struct SMSHOSTLIB_STATISTICS_S
-{
+struct SMSHOSTLIB_STATISTICS_ST {
 	u32 Reserved; /* Reserved */
 
 	/* Common parameters */
@@ -339,196 +329,25 @@ typedef struct SMSHOSTLIB_STATISTICS_S
 	u32 CellId; /* TPS Cell ID in bits 15..0, bits 31..16 zero;
 		     * if set to 0xFFFFFFFF cell_id not yet recovered */
 
-} SMSHOSTLIB_STATISTICS_ST;
+};
 
-typedef struct
-{
+struct SmsMsgStatisticsInfo_ST {
 	u32 RequestResult;
 
-	SMSHOSTLIB_STATISTICS_ST Stat;
+	struct SMSHOSTLIB_STATISTICS_ST Stat;
 
 	/* Split the calc of the SNR in DAB */
 	u32 Signal; /* dB */
 	u32 Noise; /* dB */
 
-} SmsMsgStatisticsInfo_ST;
+};
 
-typedef struct SMSHOSTLIB_ISDBT_LAYER_STAT_S
-{
-	/* Per-layer information */
-	u32 CodeRate; /* Code Rate from SMSHOSTLIB_CODE_RATE_ET,
-		       * 255 means layer does not exist */
-	u32 Constellation; /* Constellation from SMSHOSTLIB_CONSTELLATION_ET,
-			    * 255 means layer does not exist */
-	u32 BER; /* Post Viterbi BER [1E-5], 0xFFFFFFFF indicate N/A */
-	u32 BERErrorCount; /* Post Viterbi Error Bits Count */
-	u32 BERBitCount; /* Post Viterbi Total Bits Count */
-	u32 PreBER; /* Pre Viterbi BER [1E-5], 0xFFFFFFFF indicate N/A */
-	u32 TS_PER; /* Transport stream PER [%], 0xFFFFFFFF indicate N/A */
-	u32 ErrorTSPackets; /* Number of erroneous transport-stream packets */
-	u32 TotalTSPackets; /* Total number of transport-stream packets */
-	u32 TILdepthI; /* Time interleaver depth I parameter,
-			* 255 means layer does not exist */
-	u32 NumberOfSegments; /* Number of segments in layer A,
-			       * 255 means layer does not exist */
-	u32 TMCCErrors; /* TMCC errors */
-} SMSHOSTLIB_ISDBT_LAYER_STAT_ST;
 
-typedef struct SMSHOSTLIB_STATISTICS_ISDBT_S
-{
-	u32 StatisticsType; /* Enumerator identifying the type of the
-				* structure.  Values are the same as
-				* SMSHOSTLIB_DEVICE_MODES_E
-				*
-				* This field MUST always be first in any
-				* statistics structure */
-
-	u32 FullSize; /* Total size of the structure returned by the modem.
-		       * If the size requested by the host is smaller than
-		       * FullSize, the struct will be truncated */
-
-	/* Common parameters */
-	u32 IsRfLocked; /* 0 - not locked, 1 - locked */
-	u32 IsDemodLocked; /* 0 - not locked, 1 - locked */
-	u32 IsExternalLNAOn; /* 0 - external LNA off, 1 - external LNA on */
-
-	/* Reception quality */
-	s32  SNR; /* dB */
-	s32  RSSI; /* dBm */
-	s32  InBandPwr; /* In band power in dBM */
-	s32  CarrierOffset; /* Carrier Offset in Hz */
-
-	/* Transmission parameters */
-	u32 Frequency; /* Frequency in Hz */
-	u32 Bandwidth; /* Bandwidth in MHz */
-	u32 TransmissionMode; /* ISDB-T transmission mode */
-	u32 ModemState; /* 0 - Acquisition, 1 - Locked */
-	u32 GuardInterval; /* Guard Interval, 1 divided by value */
-	u32 SystemType; /* ISDB-T system type (ISDB-T / ISDB-Tsb) */
-	u32 PartialReception; /* TRUE - partial reception, FALSE otherwise */
-	u32 NumOfLayers; /* Number of ISDB-T layers in the network */
-
-	/* Per-layer information */
-	/* Layers A, B and C */
-	SMSHOSTLIB_ISDBT_LAYER_STAT_ST	LayerInfo[3]; /* Per-layer statistics,
-					see SMSHOSTLIB_ISDBT_LAYER_STAT_ST */
-
-	/* Interface information */
-	u32 SmsToHostTxErrors; /* Total number of transmission errors. */
-
-} SMSHOSTLIB_STATISTICS_ISDBT_ST;
-
-typedef struct SMSHOSTLIB_STATISTICS_DVB_S
-{
-	u32 StatisticsType; /* Enumerator identifying the type of the
-			     * structure.  Values are the same as
-			     * SMSHOSTLIB_DEVICE_MODES_E
-			     * This field MUST always first in any
-			     * statistics structure */
-
-	u32 FullSize; /* Total size of the structure returned by the modem.
-		       * If the size requested by the host is smaller than
-		       * FullSize, the struct will be truncated */
-	/* Common parameters */
-	u32 IsRfLocked; /* 0 - not locked, 1 - locked */
-	u32 IsDemodLocked; /* 0 - not locked, 1 - locked */
-	u32 IsExternalLNAOn; /* 0 - external LNA off, 1 - external LNA on */
-
-	/* Reception quality */
-	s32  SNR; /* dB */
-	u32 BER; /* Post Viterbi BER [1E-5] */
-	u32 BERErrorCount; /* Number of errornous SYNC bits. */
-	u32 BERBitCount; /* Total number of SYNC bits. */
-	u32 TS_PER; /* Transport stream PER, 0xFFFFFFFF indicate N/A */
-	u32 MFER; /* DVB-H frame error rate in percentage,
-		   * 0xFFFFFFFF indicate N/A, valid only for DVB-H */
-	s32  RSSI; /* dBm */
-	s32  InBandPwr; /* In band power in dBM */
-	s32  CarrierOffset; /* Carrier Offset in bin/1024 */
-
-	/* Transmission parameters */
-	u32 Frequency; /* Frequency in Hz */
-	u32 Bandwidth; /* Bandwidth in MHz */
-	u32 ModemState; /* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
-	u32 TransmissionMode; /* FFT mode carriers in Kilos */
-	u32 GuardInterval; /* Guard Interval, 1 divided by value */
-	u32 CodeRate; /* Code Rate from SMSHOSTLIB_CODE_RATE_ET */
-	u32 LPCodeRate; /* Low Priority Code Rate from
-			 * SMSHOSTLIB_CODE_RATE_ET */
-	u32 Hierarchy; /* Hierarchy from SMSHOSTLIB_HIERARCHY_ET */
-	u32 Constellation; /* Constellation from SMSHOSTLIB_CONSTELLATION_ET */
-
-	/* Burst parameters, valid only for DVB-H */
-	u32 BurstSize; /* Current burst size in bytes */
-	u32 BurstDuration; /* Current burst duration in mSec */
-	u32 BurstCycleTime; /* Current burst cycle time in mSec */
-	u32 CalculatedBurstCycleTime; /* Current burst cycle time in mSec,
-				       * as calculated by demodulator */
-	u32 NumOfRows; /* Number of rows in MPE table */
-	u32 NumOfPaddCols; /* Number of padding columns in MPE table */
-	u32 NumOfPunctCols; /* Number of puncturing columns in MPE table */
-
-	u32 ErrorTSPackets; /* Number of erroneous transport-stream packets */
-	u32 TotalTSPackets; /* Total number of transport-stream packets */
-
-	u32 NumOfValidMpeTlbs; /* Number of MPE tables which do not include
-				* errors after MPE RS decoding */
-	u32 NumOfInvalidMpeTlbs; /* Number of MPE tables which include
-				  * errors after MPE RS decoding */
-	u32 NumOfCorrectedMpeTlbs; /* Number of MPE tables which were
-				    * corrected by MPE RS decoding */
-
-	u32 NumMPEReceived; /* DVB-H, Num MPE section received */
-
-	/* DVB-H TPS parameters */
-	u32 CellId; /* TPS Cell ID in bits 15..0, bits 31..16 zero;
-		     * if set to 0xFFFFFFFF cell_id not yet recovered */
-	u32 DvbhSrvIndHP; /* DVB-H service indication info,
-			   * bit 1 - Time Slicing indicator,
-			   * bit 0 - MPE-FEC indicator */
-	u32 DvbhSrvIndLP; /* DVB-H service indication info,
-			   * bit 1 - Time Slicing indicator,
-			   * bit 0 - MPE-FEC indicator */
-
-	/* Interface information */
-	u32 SmsToHostTxErrors; /* Total number of transmission errors. */
-
-} SMSHOSTLIB_STATISTICS_DVB_ST;
-
-typedef struct SMSHOSTLIB_GPIO_CONFIG_S
-{
-	u8	Direction; /* GPIO direction: Input - 0, Output - 1 */
-	u8	PullUpDown; /* PullUp/PullDown: None - 0,
-			     * PullDown - 1, PullUp - 2, Keeper - 3 */
-	u8	InputCharacteristics; /* Input Characteristics: Normal - 0,
-				       * Schmitt trigger - 1 */
-	u8	OutputSlewRate; /* Output Slew Rate:
-				 * Fast slew rate - 0, Slow slew rate - 1 */
-	u8	OutputDriving; /* Output driving capability:
-				* 4mA - 0, 8mA - 1, 12mA - 2, 16mA - 3 */
-} SMSHOSTLIB_GPIO_CONFIG_ST;
-
-typedef struct SMSHOSTLIB_I2C_REQ_S
-{
-	u32	DeviceAddress; /* I2c device address */
-	u32	WriteCount; /* number of bytes to write */
-	u32	ReadCount; /* number of bytes to read */
-	u8	Data[1];
-} SMSHOSTLIB_I2C_REQ_ST;
-
-typedef struct SMSHOSTLIB_I2C_RES_S
-{
-	u32	Status; /* non-zero value in case of failure */
-	u32	ReadCount; /* number of bytes read */
-	u8	Data[1];
-} SMSHOSTLIB_I2C_RES_ST;
-
-typedef struct _smsdvb_client
-{
+struct smsdvb_client_t {
 	struct list_head entry;
 
-	smscore_device_t	*coredev;
-	smscore_client_t	*smsclient;
+	struct smscore_device_t	*coredev;
+	struct smscore_client_t	*smsclient;
 
 	struct dvb_adapter	adapter;
 	struct dvb_demux	demux;
@@ -543,7 +362,7 @@ typedef struct _smsdvb_client
 	/* todo: save freq/band instead whole struct */
 	struct dvb_frontend_parameters fe_params;
 
-} smsdvb_client_t;
+};
 
 extern void smscore_registry_setmode(char *devpath, int mode);
 extern int smscore_registry_getmode(char *devpath);
@@ -551,37 +370,39 @@ extern int smscore_registry_getmode(char *devpath);
 extern int smscore_register_hotplug(hotplug_t hotplug);
 extern void smscore_unregister_hotplug(hotplug_t hotplug);
 
-extern int smscore_register_device(smsdevice_params_t *params,
-				   smscore_device_t **coredev);
-extern void smscore_unregister_device(smscore_device_t *coredev);
+extern int smscore_register_device(struct smsdevice_params_t *params,
+				   struct smscore_device_t **coredev);
+extern void smscore_unregister_device(struct smscore_device_t *coredev);
 
-extern int smscore_start_device(smscore_device_t *coredev);
-extern int smscore_load_firmware(smscore_device_t *coredev, char *filename,
-				  loadfirmware_t loadfirmware_handler);
+extern int smscore_start_device(struct smscore_device_t *coredev);
+extern int smscore_load_firmware(struct smscore_device_t *coredev,
+				 char *filename,
+				 loadfirmware_t loadfirmware_handler);
 
-extern int smscore_load_firmware_from_buffer(smscore_device_t *coredev,
+extern int smscore_load_firmware_from_buffer(struct smscore_device_t *coredev,
 					     u8 *buffer, int size,
 					     int new_mode);
 
-extern int smscore_set_device_mode(smscore_device_t *coredev, int mode);
-extern int smscore_get_device_mode(smscore_device_t *coredev);
+extern int smscore_set_device_mode(struct smscore_device_t *coredev, int mode);
+extern int smscore_get_device_mode(struct smscore_device_t *coredev);
 
-extern int smscore_register_client(smscore_device_t *coredev,
-				    smsclient_params_t *params,
-				    smscore_client_t **client);
-extern void smscore_unregister_client(smscore_client_t *client);
+extern int smscore_register_client(struct smscore_device_t *coredev,
+				    struct smsclient_params_t *params,
+				    struct smscore_client_t **client);
+extern void smscore_unregister_client(struct smscore_client_t *client);
 
-extern int smsclient_sendrequest(smscore_client_t *client,
+extern int smsclient_sendrequest(struct smscore_client_t *client,
 				 void *buffer, size_t size);
-extern void smscore_onresponse(smscore_device_t *coredev,
-			       smscore_buffer_t *cb);
+extern void smscore_onresponse(struct smscore_device_t *coredev,
+			       struct smscore_buffer_t *cb);
 
-extern int smscore_get_common_buffer_size(smscore_device_t *coredev);
-extern int smscore_map_common_buffer(smscore_device_t *coredev,
+extern int smscore_get_common_buffer_size(struct smscore_device_t *coredev);
+extern int smscore_map_common_buffer(struct smscore_device_t *coredev,
 				      struct vm_area_struct *vma);
 
-extern smscore_buffer_t *smscore_getbuffer(smscore_device_t *coredev);
-extern void smscore_putbuffer(smscore_device_t *coredev, smscore_buffer_t *cb);
+extern struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev);
+extern void smscore_putbuffer(struct smscore_device_t *coredev,
+			      struct smscore_buffer_t *cb);
 
 /* smsdvb.c */
 int smsdvb_register(void);

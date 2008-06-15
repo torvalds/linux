@@ -29,15 +29,16 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 struct list_head g_smsdvb_clients;
 kmutex_t g_smsdvb_clientslock;
 
-int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
+int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 {
-	smsdvb_client_t *client = (smsdvb_client_t *) context;
-	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)(((u8 *) cb->p) + cb->offset);
+	struct smsdvb_client_t *client = (struct smsdvb_client_t *) context;
+	struct SmsMsgHdr_ST *phdr =
+		(struct SmsMsgHdr_ST *)(((u8 *) cb->p) + cb->offset);
 
 	switch (phdr->msgType) {
 	case MSG_SMS_DVBT_BDA_DATA:
 		dvb_dmx_swfilter(&client->demux, (u8 *)(phdr + 1),
-				 cb->size - sizeof(SmsMsgHdr_ST));
+				 cb->size - sizeof(struct SmsMsgHdr_ST));
 		break;
 
 	case MSG_SMS_RF_TUNE_RES:
@@ -46,8 +47,8 @@ int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 
 	case MSG_SMS_GET_STATISTICS_RES:
 	{
-		SmsMsgStatisticsInfo_ST *p =
-			(SmsMsgStatisticsInfo_ST *)(phdr + 1);
+		struct SmsMsgStatisticsInfo_ST *p =
+			(struct SmsMsgStatisticsInfo_ST *)(phdr + 1);
 
 		if (p->Stat.IsDemodLocked) {
 			client->fe_status = FE_HAS_SIGNAL |
@@ -82,7 +83,7 @@ int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 	return 0;
 }
 
-void smsdvb_unregister_client(smsdvb_client_t *client)
+void smsdvb_unregister_client(struct smsdvb_client_t *client)
 {
 	/* must be called under clientslock */
 
@@ -100,16 +101,16 @@ void smsdvb_onremove(void *context)
 {
 	kmutex_lock(&g_smsdvb_clientslock);
 
-	smsdvb_unregister_client((smsdvb_client_t *) context);
+	smsdvb_unregister_client((struct smsdvb_client_t *) context);
 
 	kmutex_unlock(&g_smsdvb_clientslock);
 }
 
 static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 {
-	smsdvb_client_t *client =
-		container_of(feed->demux, smsdvb_client_t, demux);
-	SmsMsgData_ST PidMsg;
+	struct smsdvb_client_t *client =
+		container_of(feed->demux, struct smsdvb_client_t, demux);
+	struct SmsMsgData_ST PidMsg;
 
 	printk(KERN_DEBUG "%s add pid %d(%x)\n", __func__,
 	       feed->pid, feed->pid);
@@ -127,9 +128,9 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 
 static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 {
-	smsdvb_client_t *client =
-		container_of(feed->demux, smsdvb_client_t, demux);
-	SmsMsgData_ST PidMsg;
+	struct smsdvb_client_t *client =
+		container_of(feed->demux, struct smsdvb_client_t, demux);
+	struct SmsMsgData_ST PidMsg;
 
 	printk(KERN_DEBUG "%s remove pid %d(%x)\n", __func__,
 	       feed->pid, feed->pid);
@@ -145,7 +146,7 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 				     &PidMsg, sizeof(PidMsg));
 }
 
-static int smsdvb_sendrequest_and_wait(smsdvb_client_t *client,
+static int smsdvb_sendrequest_and_wait(struct smsdvb_client_t *client,
 					void *buffer, size_t size,
 					struct completion *completion)
 {
@@ -158,18 +159,19 @@ static int smsdvb_sendrequest_and_wait(smsdvb_client_t *client,
 						0 : -ETIME;
 }
 
-static int smsdvb_send_statistics_request(smsdvb_client_t *client)
+static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 {
-	SmsMsgHdr_ST Msg = { MSG_SMS_GET_STATISTICS_REQ,
+	struct SmsMsgHdr_ST Msg = { MSG_SMS_GET_STATISTICS_REQ,
 			     DVBT_BDA_CONTROL_MSG_ID,
-			     HIF_TASK, sizeof(SmsMsgHdr_ST), 0 };
+			     HIF_TASK, sizeof(struct SmsMsgHdr_ST), 0 };
 	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
 					   &client->stat_done);
 }
 
 static int smsdvb_read_status(struct dvb_frontend *fe, fe_status_t *stat)
 {
-	smsdvb_client_t *client = container_of(fe, smsdvb_client_t, frontend);
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
 	int rc = smsdvb_send_statistics_request(client);
 
 	if (!rc)
@@ -180,7 +182,8 @@ static int smsdvb_read_status(struct dvb_frontend *fe, fe_status_t *stat)
 
 static int smsdvb_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	smsdvb_client_t *client = container_of(fe, smsdvb_client_t, frontend);
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
 	int rc = smsdvb_send_statistics_request(client);
 
 	if (!rc)
@@ -191,7 +194,8 @@ static int smsdvb_read_ber(struct dvb_frontend *fe, u32 *ber)
 
 static int smsdvb_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	smsdvb_client_t *client = container_of(fe, smsdvb_client_t, frontend);
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
 	int rc = smsdvb_send_statistics_request(client);
 
 	if (!rc)
@@ -202,7 +206,8 @@ static int smsdvb_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 static int smsdvb_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	smsdvb_client_t *client = container_of(fe, smsdvb_client_t, frontend);
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
 	int rc = smsdvb_send_statistics_request(client);
 
 	if (!rc)
@@ -225,11 +230,11 @@ static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 static int smsdvb_set_frontend(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *fep)
 {
-	smsdvb_client_t *client = container_of(fe, smsdvb_client_t, frontend);
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
 
-	struct
-	{
-		SmsMsgHdr_ST	Msg;
+	struct {
+		struct SmsMsgHdr_ST	Msg;
 		u32		Data[3];
 	} Msg;
 
@@ -259,7 +264,8 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 static int smsdvb_get_frontend(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *fep)
 {
-	smsdvb_client_t *client = container_of(fe, smsdvb_client_t, frontend);
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
 
 	printk(KERN_DEBUG "%s\n", __func__);
 
@@ -303,11 +309,11 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.read_snr = smsdvb_read_snr,
 };
 
-int smsdvb_hotplug(smscore_device_t *coredev,
+int smsdvb_hotplug(struct smscore_device_t *coredev,
 		   struct device *device, int arrival)
 {
-	smsclient_params_t params;
-	smsdvb_client_t *client;
+	struct smsclient_params_t params;
+	struct smsdvb_client_t *client;
 	int rc;
 
 	/* device removal handled by onremove callback */
@@ -320,7 +326,7 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 		return 0;
 	}
 
-	client = kzalloc(sizeof(smsdvb_client_t), GFP_KERNEL);
+	client = kzalloc(sizeof(struct smsdvb_client_t), GFP_KERNEL);
 	if (!client) {
 		printk(KERN_INFO "%s kmalloc() failed\n", __func__);
 		return -ENOMEM;
@@ -439,7 +445,7 @@ void smsdvb_unregister(void)
 
 	while (!list_empty(&g_smsdvb_clients))
 	       smsdvb_unregister_client(
-			(smsdvb_client_t *) g_smsdvb_clients.next);
+			(struct smsdvb_client_t *) g_smsdvb_clients.next);
 
 	kmutex_unlock(&g_smsdvb_clientslock);
 }

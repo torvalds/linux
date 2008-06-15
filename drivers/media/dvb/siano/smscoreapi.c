@@ -50,33 +50,27 @@
 #define PWARNING(fmt, args...)
 #endif
 
-typedef struct _smscore_device_notifyee
-{
+struct smscore_device_notifyee_t {
 	struct list_head entry;
 	hotplug_t hotplug;
-} smscore_device_notifyee_t;
+};
 
-typedef struct _smscore_subclient
-{
+struct smscore_idlist_t {
 	struct list_head entry;
 	int		id;
 	int		data_type;
-} smscore_idlist_t;
+};
 
-typedef struct _smscore_client
-{
+struct smscore_client_t {
 	struct list_head entry;
-	smscore_device_t *coredev;
+	struct smscore_device_t *coredev;
 	void			*context;
 	struct list_head 	idlist;
 	onresponse_t	onresponse_handler;
 	onremove_t		onremove_handler;
-} *psmscore_client_t;
+};
 
-
-
-typedef struct _smscore_device
-{
+struct smscore_device_t {
 	struct list_head entry;
 
 	struct list_head clients;
@@ -107,15 +101,14 @@ typedef struct _smscore_device
 
 	struct completion version_ex_done, data_download_done, trigger_done;
 	struct completion init_device_done, reload_start_done, resume_done;
-} *psmscore_device_t;
+};
 
-typedef struct _smscore_registry_entry
-{
+struct smscore_registry_entry_t {
 	struct list_head entry;
 	char			devpath[32];
 	int				mode;
-	sms_device_type_st	type;
-} smscore_registry_entry_t;
+	enum sms_device_type_st	type;
+};
 
 struct list_head g_smscore_notifyees;
 struct list_head g_smscore_devices;
@@ -129,23 +122,24 @@ static int default_mode = 1;
 module_param(default_mode, int, 0644);
 MODULE_PARM_DESC(default_mode, "default firmware id (device mode)");
 
-static smscore_registry_entry_t *smscore_find_registry(char *devpath)
+static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 {
-	smscore_registry_entry_t *entry;
+	struct smscore_registry_entry_t *entry;
 	struct list_head *next;
 
 	kmutex_lock(&g_smscore_registrylock);
 	for (next = g_smscore_registry.next;
 	     next != &g_smscore_registry;
 	     next = next->next) {
-		entry = (smscore_registry_entry_t *) next;
+		entry = (struct smscore_registry_entry_t *) next;
 		if (!strcmp(entry->devpath, devpath)) {
 			kmutex_unlock(&g_smscore_registrylock);
 			return entry;
 		}
 	}
-	entry = (smscore_registry_entry_t *)
-			kmalloc(sizeof(smscore_registry_entry_t), GFP_KERNEL);
+	entry = (struct smscore_registry_entry_t *)
+			kmalloc(sizeof(struct smscore_registry_entry_t),
+				GFP_KERNEL);
 	if (entry) {
 		entry->mode = default_mode;
 		strcpy(entry->devpath, devpath);
@@ -159,7 +153,7 @@ static smscore_registry_entry_t *smscore_find_registry(char *devpath)
 
 int smscore_registry_getmode(char *devpath)
 {
-	smscore_registry_entry_t *entry;
+	struct smscore_registry_entry_t *entry;
 
 	entry = smscore_find_registry(devpath);
 	if (entry)
@@ -170,9 +164,9 @@ int smscore_registry_getmode(char *devpath)
 	return default_mode;
 }
 
-sms_device_type_st smscore_registry_gettype(char *devpath)
+enum sms_device_type_st smscore_registry_gettype(char *devpath)
 {
-	smscore_registry_entry_t *entry;
+	struct smscore_registry_entry_t *entry;
 
 	entry = smscore_find_registry(devpath);
 	if (entry)
@@ -185,7 +179,7 @@ sms_device_type_st smscore_registry_gettype(char *devpath)
 
 void smscore_registry_setmode(char *devpath, int mode)
 {
-	smscore_registry_entry_t *entry;
+	struct smscore_registry_entry_t *entry;
 
 	entry = smscore_find_registry(devpath);
 	if (entry)
@@ -194,9 +188,9 @@ void smscore_registry_setmode(char *devpath, int mode)
 		printk(KERN_ERR "%s No registry found.\n", __func__);
 }
 
-void smscore_registry_settype(char *devpath, sms_device_type_st type)
+void smscore_registry_settype(char *devpath, enum sms_device_type_st type)
 {
-	smscore_registry_entry_t *entry;
+	struct smscore_registry_entry_t *entry;
 
 	entry = smscore_find_registry(devpath);
 	if (entry)
@@ -229,20 +223,22 @@ void list_add_locked(struct list_head *new, struct list_head *head,
  */
 int smscore_register_hotplug(hotplug_t hotplug)
 {
-	smscore_device_notifyee_t *notifyee;
+	struct smscore_device_notifyee_t *notifyee;
 	struct list_head *next, *first;
 	int rc = 0;
 
 	kmutex_lock(&g_smscore_deviceslock);
 
-	notifyee = kmalloc(sizeof(smscore_device_notifyee_t), GFP_KERNEL);
+	notifyee = kmalloc(sizeof(struct smscore_device_notifyee_t),
+			   GFP_KERNEL);
 	if (notifyee) {
 		/* now notify callback about existing devices */
 		first = &g_smscore_devices;
 		for (next = first->next;
 		     next != first && !rc;
 		     next = next->next) {
-			smscore_device_t *coredev = (smscore_device_t *) next;
+			struct smscore_device_t *coredev =
+				(struct smscore_device_t *) next;
 			rc = hotplug(coredev, coredev->device, 1);
 		}
 
@@ -274,8 +270,8 @@ void smscore_unregister_hotplug(hotplug_t hotplug)
 	first = &g_smscore_notifyees;
 
 	for (next = first->next; next != first;) {
-		smscore_device_notifyee_t *notifyee =
-			(smscore_device_notifyee_t *) next;
+		struct smscore_device_notifyee_t *notifyee =
+			(struct smscore_device_notifyee_t *) next;
 		next = next->next;
 
 		if (notifyee->hotplug == hotplug) {
@@ -287,19 +283,19 @@ void smscore_unregister_hotplug(hotplug_t hotplug)
 	kmutex_unlock(&g_smscore_deviceslock);
 }
 
-void smscore_notify_clients(smscore_device_t *coredev)
+void smscore_notify_clients(struct smscore_device_t *coredev)
 {
-	smscore_client_t *client;
+	struct smscore_client_t *client;
 
 	/* the client must call smscore_unregister_client from remove handler */
 	while (!list_empty(&coredev->clients)) {
-		client = (smscore_client_t *) coredev->clients.next;
+		client = (struct smscore_client_t *) coredev->clients.next;
 		client->onremove_handler(client->context);
 	}
 }
 
-int smscore_notify_callbacks(smscore_device_t *coredev, struct device *device,
-			     int arrival)
+int smscore_notify_callbacks(struct smscore_device_t *coredev,
+			     struct device *device, int arrival)
 {
 	struct list_head *next, *first;
 	int rc = 0;
@@ -309,7 +305,7 @@ int smscore_notify_callbacks(smscore_device_t *coredev, struct device *device,
 	first = &g_smscore_notifyees;
 
 	for (next = first->next; next != first; next = next->next) {
-		rc = ((smscore_device_notifyee_t *) next)->
+		rc = ((struct smscore_device_notifyee_t *) next)->
 				hotplug(coredev, device, arrival);
 		if (rc < 0)
 			break;
@@ -318,10 +314,11 @@ int smscore_notify_callbacks(smscore_device_t *coredev, struct device *device,
 	return rc;
 }
 
-smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
+struct smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 				       dma_addr_t common_buffer_phys)
 {
-	smscore_buffer_t *cb = kmalloc(sizeof(smscore_buffer_t), GFP_KERNEL);
+	struct smscore_buffer_t *cb =
+		kmalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
 	if (!cb) {
 		printk(KERN_INFO "%s kmalloc(...) failed\n", __func__);
 		return NULL;
@@ -344,13 +341,13 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_register_device(smsdevice_params_t *params,
-			    smscore_device_t **coredev)
+int smscore_register_device(struct smsdevice_params_t *params,
+			    struct smscore_device_t **coredev)
 {
-	smscore_device_t *dev;
+	struct smscore_device_t *dev;
 	u8 *buffer;
 
-	dev = kzalloc(sizeof(smscore_device_t), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct smscore_device_t), GFP_KERNEL);
 	if (!dev) {
 		printk(KERN_INFO "%s kzalloc(...) failed\n", __func__);
 		return -ENOMEM;
@@ -389,7 +386,7 @@ int smscore_register_device(smsdevice_params_t *params,
 	for (buffer = dev->common_buffer;
 	     dev->num_buffers < params->num_buffers;
 	     dev->num_buffers++, buffer += params->buffer_size) {
-		smscore_buffer_t *cb =
+		struct smscore_buffer_t *cb =
 			smscore_createbuffer(buffer, dev->common_buffer,
 					     dev->common_buffer_phys);
 		if (!cb) {
@@ -437,7 +434,7 @@ int smscore_register_device(smsdevice_params_t *params,
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_start_device(smscore_device_t *coredev)
+int smscore_start_device(struct smscore_device_t *coredev)
 {
 	int rc = smscore_set_device_mode(
 			coredev, smscore_registry_getmode(coredev->devpath));
@@ -459,7 +456,7 @@ int smscore_start_device(smscore_device_t *coredev)
 	return rc;
 }
 
-int smscore_sendrequest_and_wait(smscore_device_t *coredev, void *buffer,
+int smscore_sendrequest_and_wait(struct smscore_device_t *coredev, void *buffer,
 				 size_t size, struct completion *completion)
 {
 	int rc = coredev->sendrequest_handler(coredev->context, buffer, size);
@@ -474,11 +471,11 @@ int smscore_sendrequest_and_wait(smscore_device_t *coredev, void *buffer,
 						0 : -ETIME;
 }
 
-int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
-				  size_t size)
+int smscore_load_firmware_family2(struct smscore_device_t *coredev,
+				  void *buffer, size_t size)
 {
-	SmsFirmware_ST *firmware = (SmsFirmware_ST *) buffer;
-	SmsMsgHdr_ST *msg;
+	struct SmsFirmware_ST *firmware = (struct SmsFirmware_ST *) buffer;
+	struct SmsMsgHdr_ST *msg;
 	u32 mem_address = firmware->StartAddress;
 	u8 *payload = firmware->Payload;
 	int rc = 0;
@@ -492,14 +489,14 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 	}
 
 	/* PAGE_SIZE buffer shall be enough and dma aligned */
-	msg = (SmsMsgHdr_ST *) kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	msg = (struct SmsMsgHdr_ST *) kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!msg)
 		return -ENOMEM;
 
 	if (coredev->mode != DEVICE_MODE_NONE) {
 		PDEBUG("Sending reload command\n");
 		SMS_INIT_MSG(msg, MSG_SW_RELOAD_START_REQ,
-			     sizeof(SmsMsgHdr_ST));
+			     sizeof(struct SmsMsgHdr_ST));
 		rc = smscore_sendrequest_and_wait(coredev, msg,
 						  msg->msgLength,
 						  &coredev->reload_start_done);
@@ -507,11 +504,12 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 	}
 
 	while (size && rc >= 0) {
-		SmsDataDownload_ST *DataMsg = (SmsDataDownload_ST *) msg;
+		struct SmsDataDownload_ST *DataMsg =
+			(struct SmsDataDownload_ST *) msg;
 		int payload_size = min((int) size, SMS_MAX_PAYLOAD_SIZE);
 
 		SMS_INIT_MSG(msg, MSG_SMS_DATA_DOWNLOAD_REQ,
-			     (u16)(sizeof(SmsMsgHdr_ST) +
+			     (u16)(sizeof(struct SmsMsgHdr_ST) +
 				      sizeof(u32) + payload_size));
 
 		DataMsg->MemAddr = mem_address;
@@ -535,10 +533,11 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 
 	if (rc >= 0) {
 		if (coredev->mode == DEVICE_MODE_NONE) {
-			SmsMsgData_ST *TriggerMsg = (SmsMsgData_ST *) msg;
+			struct SmsMsgData_ST *TriggerMsg =
+				(struct SmsMsgData_ST *) msg;
 
 			SMS_INIT_MSG(msg, MSG_SMS_SWDOWNLOAD_TRIGGER_REQ,
-				     sizeof(SmsMsgHdr_ST) +
+				     sizeof(struct SmsMsgHdr_ST) +
 				     sizeof(u32) * 5);
 
 			TriggerMsg->msgData[0] = firmware->StartAddress;
@@ -560,7 +559,7 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 					&coredev->trigger_done);
 		} else {
 			SMS_INIT_MSG(msg, MSG_SW_RELOAD_EXEC_REQ,
-				     sizeof(SmsMsgHdr_ST));
+				     sizeof(struct SmsMsgHdr_ST));
 
 			rc = coredev->sendrequest_handler(coredev->context,
 							  msg, msg->msgLength);
@@ -588,7 +587,8 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_load_firmware_from_file(smscore_device_t *coredev, char *filename,
+int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
+				    char *filename,
 				    loadfirmware_t loadfirmware_handler)
 {
 	int rc = -ENOENT;
@@ -632,8 +632,8 @@ int smscore_load_firmware_from_file(smscore_device_t *coredev, char *filename,
 	return rc;
 }
 
-int smscore_load_firmware_from_buffer(smscore_device_t *coredev, u8 *buffer,
-				      int size, int new_mode)
+int smscore_load_firmware_from_buffer(struct smscore_device_t *coredev,
+				      u8 *buffer, int size, int new_mode)
 {
 	PERROR("Feature not implemented yet\n");
 	return -EFAULT;
@@ -648,9 +648,9 @@ int smscore_load_firmware_from_buffer(smscore_device_t *coredev, u8 *buffer,
  *
  * @return 0 on success, <0 on error.
  */
-void smscore_unregister_device(smscore_device_t *coredev)
+void smscore_unregister_device(struct smscore_device_t *coredev)
 {
-	smscore_buffer_t *cb;
+	struct smscore_buffer_t *cb;
 	int num_buffers = 0;
 	int retry = 0;
 
@@ -695,17 +695,19 @@ void smscore_unregister_device(smscore_device_t *coredev)
 	printk(KERN_INFO "%s device %p destroyed\n", __func__, coredev);
 }
 
-int smscore_detect_mode(smscore_device_t *coredev)
+int smscore_detect_mode(struct smscore_device_t *coredev)
 {
-	void *buffer = kmalloc(sizeof(SmsMsgHdr_ST) + SMS_DMA_ALIGNMENT,
+	void *buffer = kmalloc(sizeof(struct SmsMsgHdr_ST) + SMS_DMA_ALIGNMENT,
 			       GFP_KERNEL | GFP_DMA);
-	SmsMsgHdr_ST *msg = (SmsMsgHdr_ST *) SMS_ALIGN_ADDRESS(buffer);
+	struct SmsMsgHdr_ST *msg =
+		(struct SmsMsgHdr_ST *) SMS_ALIGN_ADDRESS(buffer);
 	int rc;
 
 	if (!buffer)
 		return -ENOMEM;
 
-	SMS_INIT_MSG(msg, MSG_SMS_GET_VERSION_EX_REQ, sizeof(SmsMsgHdr_ST));
+	SMS_INIT_MSG(msg, MSG_SMS_GET_VERSION_EX_REQ,
+		     sizeof(struct SmsMsgHdr_ST));
 
 	rc = smscore_sendrequest_and_wait(coredev, msg, msg->msgLength,
 					  &coredev->version_ex_done);
@@ -754,11 +756,11 @@ char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_set_device_mode(smscore_device_t *coredev, int mode)
+int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 {
 	void *buffer;
 	int rc = 0;
-	sms_device_type_st type;
+	enum sms_device_type_st type;
 
 	PDEBUG("set device mode to %d\n", mode);
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
@@ -798,14 +800,15 @@ int smscore_set_device_mode(smscore_device_t *coredev, int mode)
 			printk(KERN_INFO "%s mode %d supported by running "
 			       "firmware\n", __func__, mode);
 
-		buffer = kmalloc(sizeof(SmsMsgData_ST) + SMS_DMA_ALIGNMENT,
-				 GFP_KERNEL | GFP_DMA);
+		buffer = kmalloc(sizeof(struct SmsMsgData_ST) +
+				 SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
 		if (buffer) {
-			SmsMsgData_ST *msg =
-				(SmsMsgData_ST *) SMS_ALIGN_ADDRESS(buffer);
+			struct SmsMsgData_ST *msg =
+				(struct SmsMsgData_ST *)
+					SMS_ALIGN_ADDRESS(buffer);
 
 			SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_INIT_DEVICE_REQ,
-				     sizeof(SmsMsgData_ST));
+				     sizeof(struct SmsMsgData_ST));
 			msg->msgData[0] = mode;
 
 			rc = smscore_sendrequest_and_wait(
@@ -853,7 +856,7 @@ int smscore_set_device_mode(smscore_device_t *coredev, int mode)
  *
  * @return current mode
  */
-int smscore_get_device_mode(smscore_device_t *coredev)
+int smscore_get_device_mode(struct smscore_device_t *coredev)
 {
 	return coredev->mode;
 }
@@ -868,10 +871,10 @@ int smscore_get_device_mode(smscore_device_t *coredev)
  * @param id client id (SMS_DONT_CARE for all id)
  *
  */
-smscore_client_t *smscore_find_client(smscore_device_t *coredev,
+struct smscore_client_t *smscore_find_client(struct smscore_device_t *coredev,
 				      int data_type, int id)
 {
-	smscore_client_t *client = NULL;
+	struct smscore_client_t *client = NULL;
 	struct list_head *next, *first;
 	unsigned long flags;
 	struct list_head *firstid, *nextid;
@@ -882,14 +885,14 @@ smscore_client_t *smscore_find_client(smscore_device_t *coredev,
 	for (next = first->next;
 	     (next != first) && !client;
 	     next = next->next) {
-		firstid = &((smscore_client_t *)next)->idlist;
+		firstid = &((struct smscore_client_t *)next)->idlist;
 		for (nextid = firstid->next;
 		     nextid != firstid;
 		     nextid = nextid->next) {
-			if ((((smscore_idlist_t *)nextid)->id  == id) &&
-			    (((smscore_idlist_t *)nextid)->data_type  == data_type ||
-			    (((smscore_idlist_t *)nextid)->data_type  == 0))) {
-				client = (smscore_client_t *) next;
+			if ((((struct smscore_idlist_t *)nextid)->id == id) &&
+			    (((struct smscore_idlist_t *)nextid)->data_type == data_type ||
+			    (((struct smscore_idlist_t *)nextid)->data_type == 0))) {
+				client = (struct smscore_client_t *) next;
 				break;
 			}
 		}
@@ -907,10 +910,12 @@ smscore_client_t *smscore_find_client(smscore_device_t *coredev,
  * @param cb pointer to response buffer descriptor
  *
  */
-void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
+void smscore_onresponse(struct smscore_device_t *coredev,
+			struct smscore_buffer_t *cb)
 {
-	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)((u8 *) cb->p + cb->offset);
-	smscore_client_t *client =
+	struct SmsMsgHdr_ST *phdr =
+		(struct SmsMsgHdr_ST *)((u8 *) cb->p + cb->offset);
+	struct smscore_client_t *client =
 		smscore_find_client(coredev, phdr->msgType, phdr->msgDstId);
 	int rc = -EBUSY;
 
@@ -940,7 +945,8 @@ void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 		switch (phdr->msgType) {
 		case MSG_SMS_GET_VERSION_EX_RES:
 		{
-			SmsVersionRes_ST *ver = (SmsVersionRes_ST *) phdr;
+			struct SmsVersionRes_ST *ver =
+				(struct SmsVersionRes_ST *) phdr;
 			printk(KERN_DEBUG "%s: MSG_SMS_GET_VERSION_EX_RES "
 			       "id %d prots 0x%x ver %d.%d\n", __func__,
 			       ver->FirmwareId, ver->SupportedProtocols,
@@ -994,15 +1000,15 @@ void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
  *
  * @return pointer to descriptor on success, NULL on error.
  */
-smscore_buffer_t *smscore_getbuffer(smscore_device_t *coredev)
+struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev)
 {
-	smscore_buffer_t *cb = NULL;
+	struct smscore_buffer_t *cb = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&coredev->bufferslock, flags);
 
 	if (!list_empty(&coredev->buffers)) {
-		cb = (smscore_buffer_t *) coredev->buffers.next;
+		cb = (struct smscore_buffer_t *) coredev->buffers.next;
 		list_del(&cb->entry);
 	}
 
@@ -1019,16 +1025,18 @@ smscore_buffer_t *smscore_getbuffer(smscore_device_t *coredev)
  * @param cb pointer buffer descriptor
  *
  */
-void smscore_putbuffer(smscore_device_t *coredev, smscore_buffer_t *cb)
+void smscore_putbuffer(struct smscore_device_t *coredev,
+		       struct smscore_buffer_t *cb)
 {
 	list_add_locked(&cb->entry, &coredev->buffers, &coredev->bufferslock);
 }
 
-int smscore_validate_client(smscore_device_t *coredev,
-			    smscore_client_t *client, int data_type, int id)
+int smscore_validate_client(struct smscore_device_t *coredev,
+			    struct smscore_client_t *client,
+			    int data_type, int id)
 {
-	smscore_idlist_t *listentry;
-	smscore_client_t *registered_client;
+	struct smscore_idlist_t *listentry;
+	struct smscore_client_t *registered_client;
 
 	if (!client) {
 		PERROR("bad parameter.\n");
@@ -1042,7 +1050,7 @@ int smscore_validate_client(smscore_device_t *coredev,
 		PERROR("The msg ID already registered to another client.\n");
 		return -EEXIST;
 	}
-	listentry = kzalloc(sizeof(smscore_idlist_t), GFP_KERNEL);
+	listentry = kzalloc(sizeof(struct smscore_idlist_t), GFP_KERNEL);
 	if (!listentry) {
 		PERROR("Can't allocate memory for client id.\n");
 		return -ENOMEM;
@@ -1068,11 +1076,11 @@ int smscore_validate_client(smscore_device_t *coredev,
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_register_client(smscore_device_t *coredev,
-			    smsclient_params_t *params,
-			    smscore_client_t **client)
+int smscore_register_client(struct smscore_device_t *coredev,
+			    struct smsclient_params_t *params,
+			    struct smscore_client_t **client)
 {
-	smscore_client_t *newclient;
+	struct smscore_client_t *newclient;
 	/* check that no other channel with same parameters exists */
 	if (smscore_find_client(coredev, params->data_type,
 				params->initial_id)) {
@@ -1080,7 +1088,7 @@ int smscore_register_client(smscore_device_t *coredev,
 		return -EEXIST;
 	}
 
-	newclient = kzalloc(sizeof(smscore_client_t), GFP_KERNEL);
+	newclient = kzalloc(sizeof(struct smscore_client_t), GFP_KERNEL);
 	if (!newclient) {
 		PERROR("Failed to allocate memory for client.\n");
 		return -ENOMEM;
@@ -1109,17 +1117,17 @@ int smscore_register_client(smscore_device_t *coredev,
  *               smscore_register_client
  *
  */
-void smscore_unregister_client(smscore_client_t *client)
+void smscore_unregister_client(struct smscore_client_t *client)
 {
-	smscore_device_t *coredev = client->coredev;
+	struct smscore_device_t *coredev = client->coredev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&coredev->clientslock, flags);
 
 
 	while (!list_empty(&client->idlist)) {
-		smscore_idlist_t *identry =
-			(smscore_idlist_t *) client->idlist.next;
+		struct smscore_idlist_t *identry =
+			(struct smscore_idlist_t *) client->idlist.next;
 		list_del(&identry->entry);
 		kfree(identry);
 	}
@@ -1143,10 +1151,11 @@ void smscore_unregister_client(smscore_client_t *client)
  *
  * @return 0 on success, <0 on error.
  */
-int smsclient_sendrequest(smscore_client_t *client, void *buffer, size_t size)
+int smsclient_sendrequest(struct smscore_client_t *client,
+			  void *buffer, size_t size)
 {
-	smscore_device_t *coredev;
-	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *) buffer;
+	struct smscore_device_t *coredev;
+	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) buffer;
 	int rc;
 
 	if (client == NULL) {
@@ -1177,7 +1186,7 @@ int smsclient_sendrequest(smscore_client_t *client, void *buffer, size_t size)
  *
  * @return size (in bytes) of the buffer
  */
-int smscore_get_common_buffer_size(smscore_device_t *coredev)
+int smscore_get_common_buffer_size(struct smscore_device_t *coredev)
 {
 	return coredev->common_buffer_size;
 }
@@ -1190,7 +1199,7 @@ int smscore_get_common_buffer_size(smscore_device_t *coredev)
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_map_common_buffer(smscore_device_t *coredev,
+int smscore_map_common_buffer(struct smscore_device_t *coredev,
 			       struct vm_area_struct *vma)
 {
 	unsigned long end = vma->vm_end,
@@ -1247,8 +1256,9 @@ void smscore_module_exit(void)
 
 	kmutex_lock(&g_smscore_deviceslock);
 	while (!list_empty(&g_smscore_notifyees)) {
-		smscore_device_notifyee_t *notifyee =
-			(smscore_device_notifyee_t *) g_smscore_notifyees.next;
+		struct smscore_device_notifyee_t *notifyee =
+			(struct smscore_device_notifyee_t *)
+				g_smscore_notifyees.next;
 
 		list_del(&notifyee->entry);
 		kfree(notifyee);
@@ -1257,8 +1267,9 @@ void smscore_module_exit(void)
 
 	kmutex_lock(&g_smscore_registrylock);
 	while (!list_empty(&g_smscore_registry)) {
-		smscore_registry_entry_t *entry =
-			(smscore_registry_entry_t *) g_smscore_registry.next;
+		struct smscore_registry_entry_t *entry =
+			(struct smscore_registry_entry_t *)
+				g_smscore_registry.next;
 
 		list_del(&entry->entry);
 		kfree(entry);

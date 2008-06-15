@@ -40,33 +40,31 @@
 #define USB_PID_NOVA_B 0x0201
 #define USB_PID_VEGA 0x0300
 
-typedef struct _smsusb_device smsusb_device_t;
+struct smsusb_device_t;
 
-typedef struct _smsusb_urb
-{
-	smscore_buffer_t *cb;
-	smsusb_device_t	*dev;
+struct smsusb_urb_t {
+	struct smscore_buffer_t *cb;
+	struct smsusb_device_t	*dev;
 
-	struct urb		urb;
-} smsusb_urb_t;
+	struct urb urb;
+};
 
-typedef struct _smsusb_device
-{
+struct smsusb_device_t {
 	struct usb_device *udev;
-	smscore_device_t *coredev;
+	struct smscore_device_t *coredev;
 
-	smsusb_urb_t 	surbs[MAX_URBS];
+	struct smsusb_urb_t 	surbs[MAX_URBS];
 
 	int		response_alignment;
 	int		buffer_size;
-} *psmsusb_device_t;
+};
 
-int smsusb_submit_urb(smsusb_device_t *dev, smsusb_urb_t *surb);
+int smsusb_submit_urb(struct smsusb_device_t *dev, struct smsusb_urb_t *surb);
 
 void smsusb_onresponse(struct urb *urb)
 {
-	smsusb_urb_t *surb = (smsusb_urb_t *) urb->context;
-	smsusb_device_t *dev = surb->dev;
+	struct smsusb_urb_t *surb = (struct smsusb_urb_t *) urb->context;
+	struct smsusb_device_t *dev = surb->dev;
 
 	if (urb->status < 0) {
 		printk(KERN_INFO "%s error, urb status %d, %d bytes\n",
@@ -75,7 +73,7 @@ void smsusb_onresponse(struct urb *urb)
 	}
 
 	if (urb->actual_length > 0) {
-		SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *) surb->cb->p;
+		struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) surb->cb->p;
 
 		if (urb->actual_length >= phdr->msgLength) {
 			surb->cb->size = phdr->msgLength;
@@ -102,7 +100,7 @@ void smsusb_onresponse(struct urb *urb)
 				/* move buffer pointer and
 				 * copy header to its new location */
 				memcpy((char *) phdr + surb->cb->offset,
-				       phdr, sizeof(SmsMsgHdr_ST));
+				       phdr, sizeof(struct SmsMsgHdr_ST));
 			} else
 				surb->cb->offset = 0;
 
@@ -119,7 +117,7 @@ exit_and_resubmit:
 	smsusb_submit_urb(dev, surb);
 }
 
-int smsusb_submit_urb(smsusb_device_t *dev, smsusb_urb_t *surb)
+int smsusb_submit_urb(struct smsusb_device_t *dev, struct smsusb_urb_t *surb)
 {
 	if (!surb->cb) {
 		surb->cb = smscore_getbuffer(dev->coredev);
@@ -145,7 +143,7 @@ int smsusb_submit_urb(smsusb_device_t *dev, smsusb_urb_t *surb)
 	return usb_submit_urb(&surb->urb, GFP_ATOMIC);
 }
 
-void smsusb_stop_streaming(smsusb_device_t *dev)
+void smsusb_stop_streaming(struct smsusb_device_t *dev)
 {
 	int i;
 
@@ -159,7 +157,7 @@ void smsusb_stop_streaming(smsusb_device_t *dev)
 	}
 }
 
-int smsusb_start_streaming(smsusb_device_t *dev)
+int smsusb_start_streaming(struct smsusb_device_t *dev)
 {
 	int i, rc;
 
@@ -178,7 +176,7 @@ int smsusb_start_streaming(smsusb_device_t *dev)
 
 int smsusb_sendrequest(void *context, void *buffer, size_t size)
 {
-	smsusb_device_t *dev = (smsusb_device_t *) context;
+	struct smsusb_device_t *dev = (struct smsusb_device_t *) context;
 	int dummy;
 
 	return usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 2),
@@ -235,7 +233,8 @@ int smsusb1_load_firmware(struct usb_device *udev, int id)
 
 void smsusb1_detectmode(void *context, int *mode)
 {
-	char *product_string = ((smsusb_device_t *) context)->udev->product;
+	char *product_string =
+		((struct smsusb_device_t *) context)->udev->product;
 
 	*mode = DEVICE_MODE_NONE;
 
@@ -256,8 +255,8 @@ void smsusb1_detectmode(void *context, int *mode)
 
 int smsusb1_setmode(void *context, int mode)
 {
-	SmsMsgHdr_ST Msg = { MSG_SW_RELOAD_REQ, 0, HIF_TASK,
-			     sizeof(SmsMsgHdr_ST), 0 };
+	struct SmsMsgHdr_ST Msg = { MSG_SW_RELOAD_REQ, 0, HIF_TASK,
+			     sizeof(struct SmsMsgHdr_ST), 0 };
 
 	if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_DVBT_BDA) {
 		printk(KERN_INFO "%s invalid firmware id specified %d\n",
@@ -270,7 +269,8 @@ int smsusb1_setmode(void *context, int mode)
 
 void smsusb_term_device(struct usb_interface *intf)
 {
-	smsusb_device_t *dev = (smsusb_device_t *) usb_get_intfdata(intf);
+	struct smsusb_device_t *dev =
+		(struct smsusb_device_t *) usb_get_intfdata(intf);
 
 	if (dev) {
 		smsusb_stop_streaming(dev);
@@ -289,15 +289,15 @@ void smsusb_term_device(struct usb_interface *intf)
 
 int smsusb_init_device(struct usb_interface *intf)
 {
-	smsdevice_params_t params;
-	smsusb_device_t *dev;
+	struct smsdevice_params_t params;
+	struct smsusb_device_t *dev;
 	int i, rc;
 
 	/* create device object */
-	dev = kzalloc(sizeof(smsusb_device_t), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct smsusb_device_t), GFP_KERNEL);
 	if (!dev) {
-		printk(KERN_INFO "%s kzalloc(sizeof(smsusb_device_t) failed\n",
-		       __func__);
+		printk(KERN_INFO "%s kzalloc(sizeof(struct smsusb_device_t) "
+		       "failed\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -334,7 +334,7 @@ int smsusb_init_device(struct usb_interface *intf)
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment =
 			dev->udev->ep_in[1]->desc.wMaxPacketSize -
-			sizeof(SmsMsgHdr_ST);
+			sizeof(struct SmsMsgHdr_ST);
 
 		params.flags |= SMS_DEVICE_FAMILY2;
 		break;
