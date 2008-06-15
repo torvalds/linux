@@ -313,7 +313,8 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 		return 0;
 
 	if (smscore_get_device_mode(coredev) != 4) {
-		printk(KERN_ERR "%sSMS Device mode is not set for DVB operation.\n", __func__);
+		printk(KERN_ERR "%sSMS Device mode is not set for "
+		       "DVB operation.\n", __func__);
 		return 0;
 	}
 

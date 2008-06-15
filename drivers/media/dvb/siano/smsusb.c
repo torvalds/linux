@@ -395,7 +395,8 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	rc = usb_clear_halt(udev, usb_rcvbulkpipe(udev, 0x02));
 
 	if (intf->num_altsetting > 0) {
-		rc = usb_set_interface(udev, intf->cur_altsetting->desc.bInterfaceNumber, 0);
+		rc = usb_set_interface(
+			udev, intf->cur_altsetting->desc.bInterfaceNumber, 0);
 		if (rc < 0) {
 			printk(KERN_INFO "%s usb_set_interface failed, "
 			       "rc %d\n", __func__, rc);
@@ -421,7 +422,8 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		snprintf(devpath, sizeof(devpath), "usb\\%d-%s",
 			 udev->bus->busnum, udev->devpath);
 		printk(KERN_INFO "stellar device was found.\n");
-		return smsusb1_load_firmware(udev, smscore_registry_getmode(devpath));
+		return smsusb1_load_firmware(
+				udev, smscore_registry_getmode(devpath));
 	}
 
 	rc = smsusb_init_device(intf);
