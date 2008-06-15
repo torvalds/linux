@@ -791,6 +791,10 @@ struct ieee802_11_elems {
 	u8 *preq;
 	u8 *prep;
 	u8 *perr;
+	u8 *ch_switch_elem;
+	u8 *country_elem;
+	u8 *pwr_constr_elem;
+	u8 *quiet_elem; 	/* first quite element */
 
 	/* length of them, respectively */
 	u8 ssid_len;
@@ -815,6 +819,11 @@ struct ieee802_11_elems {
 	u8 preq_len;
 	u8 prep_len;
 	u8 perr_len;
+	u8 ch_switch_elem_len;
+	u8 country_elem_len;
+	u8 pwr_constr_elem_len;
+	u8 quiet_elem_len;
+	u8 num_of_quiet_elem;	/* can be more the one */
 };
 
 static inline struct ieee80211_local *hw_to_local(
