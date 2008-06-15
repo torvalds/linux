@@ -153,11 +153,11 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	 * count until this queued work is done
 	 */
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
-	evtp->evt       = LPFC_EVT_DEV_LOSS;
-	list_add_tail(&evtp->evt_listp, &phba->work_list);
-	if (phba->work_wait)
-		wake_up(phba->work_wait);
-
+	if (evtp->evt_arg1) {
+		evtp->evt = LPFC_EVT_DEV_LOSS;
+		list_add_tail(&evtp->evt_listp, &phba->work_list);
+		lpfc_worker_wake_up(phba);
+	}
 	spin_unlock_irq(&phba->hbalock);
 
 	return;
@@ -274,14 +274,6 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
 	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
-}
-
-
-void
-lpfc_worker_wake_up(struct lpfc_hba *phba)
-{
-	wake_up(phba->work_wait);
-	return;
 }
 
 static void
@@ -429,6 +421,8 @@ lpfc_work_done(struct lpfc_hba *phba)
 		|| (pring->flag & LPFC_DEFERRED_RING_EVENT)) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
+			/* Set the lpfc data pending flag */
+			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
 			pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 			lpfc_sli_handle_slow_ring_event(phba, pring,
@@ -459,69 +453,29 @@ lpfc_work_done(struct lpfc_hba *phba)
 	lpfc_work_list_done(phba);
 }
 
-static int
-check_work_wait_done(struct lpfc_hba *phba)
-{
-	struct lpfc_vport *vport;
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
-	int rc = 0;
-
-	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		if (vport->work_port_events) {
-			rc = 1;
-			break;
-		}
-	}
-	if (rc || phba->work_ha || (!list_empty(&phba->work_list)) ||
-	    kthread_should_stop() || pring->flag & LPFC_DEFERRED_RING_EVENT) {
-		rc = 1;
-		phba->work_found++;
-	} else
-		phba->work_found = 0;
-	spin_unlock_irq(&phba->hbalock);
-	return rc;
-}
-
-
 int
 lpfc_do_work(void *p)
 {
 	struct lpfc_hba *phba = p;
 	int rc;
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(work_waitq);
 
 	set_user_nice(current, -20);
-	phba->work_wait = &work_waitq;
-	phba->work_found = 0;
+	phba->data_flags = 0;
 
 	while (1) {
-
-		rc = wait_event_interruptible(work_waitq,
-					      check_work_wait_done(phba));
-
+		/* wait and check worker queue activities */
+		rc = wait_event_interruptible(phba->work_waitq,
+					(test_and_clear_bit(LPFC_DATA_READY,
+							    &phba->data_flags)
+					 || kthread_should_stop()));
 		BUG_ON(rc);
 
 		if (kthread_should_stop())
 			break;
 
+		/* Attend pending lpfc data processing */
 		lpfc_work_done(phba);
-
-		/* If there is alot of slow ring work, like during link up
-		 * check_work_wait_done() may cause this thread to not give
-		 * up the CPU for very long periods of time. This may cause
-		 * soft lockups or other problems. To avoid these situations
-		 * give up the CPU here after LPFC_MAX_WORKER_ITERATION
-		 * consecutive iterations.
-		 */
-		if (phba->work_found >= LPFC_MAX_WORKER_ITERATION) {
-			phba->work_found = 0;
-			schedule();
-		}
 	}
-	spin_lock_irq(&phba->hbalock);
-	phba->work_wait = NULL;
-	spin_unlock_irq(&phba->hbalock);
 	return 0;
 }
 
@@ -551,9 +505,9 @@ lpfc_workq_post_event(struct lpfc_hba *phba, void *arg1, void *arg2,
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	list_add_tail(&evtp->evt_listp, &phba->work_list);
-	if (phba->work_wait)
-		lpfc_worker_wake_up(phba);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
+
+	lpfc_worker_wake_up(phba);
 
 	return 1;
 }
@@ -2636,21 +2590,20 @@ lpfc_disc_timeout(unsigned long ptr)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) ptr;
 	struct lpfc_hba   *phba = vport->phba;
+	uint32_t tmo_posted;
 	unsigned long flags = 0;
 
 	if (unlikely(!phba))
 		return;
 
-	if ((vport->work_port_events & WORKER_DISC_TMO) == 0) {
-		spin_lock_irqsave(&vport->work_port_lock, flags);
+	spin_lock_irqsave(&vport->work_port_lock, flags);
+	tmo_posted = vport->work_port_events & WORKER_DISC_TMO;
+	if (!tmo_posted)
 		vport->work_port_events |= WORKER_DISC_TMO;
-		spin_unlock_irqrestore(&vport->work_port_lock, flags);
+	spin_unlock_irqrestore(&vport->work_port_lock, flags);
 
-		spin_lock_irqsave(&phba->hbalock, flags);
-		if (phba->work_wait)
-			lpfc_worker_wake_up(phba);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-	}
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
 	return;
 }
 

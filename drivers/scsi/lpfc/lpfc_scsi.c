@@ -50,6 +50,7 @@ void
 lpfc_adjust_queue_depth(struct lpfc_hba *phba)
 {
 	unsigned long flags;
+	uint32_t evt_posted;
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	atomic_inc(&phba->num_rsrc_err);
@@ -65,17 +66,13 @@ lpfc_adjust_queue_depth(struct lpfc_hba *phba)
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	spin_lock_irqsave(&phba->pport->work_port_lock, flags);
-	if ((phba->pport->work_port_events &
-		WORKER_RAMP_DOWN_QUEUE) == 0) {
+	evt_posted = phba->pport->work_port_events & WORKER_RAMP_DOWN_QUEUE;
+	if (!evt_posted)
 		phba->pport->work_port_events |= WORKER_RAMP_DOWN_QUEUE;
-	}
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, flags);
 
-	spin_lock_irqsave(&phba->hbalock, flags);
-	if (phba->work_wait)
-		wake_up(phba->work_wait);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-
+	if (!evt_posted)
+		lpfc_worker_wake_up(phba);
 	return;
 }
 
@@ -89,6 +86,7 @@ lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
 {
 	unsigned long flags;
 	struct lpfc_hba *phba = vport->phba;
+	uint32_t evt_posted;
 	atomic_inc(&phba->num_cmd_success);
 
 	if (vport->cfg_lun_queue_depth <= sdev->queue_depth)
@@ -103,16 +101,14 @@ lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	spin_lock_irqsave(&phba->pport->work_port_lock, flags);
-	if ((phba->pport->work_port_events &
-		WORKER_RAMP_UP_QUEUE) == 0) {
+	evt_posted = phba->pport->work_port_events & WORKER_RAMP_UP_QUEUE;
+	if (!evt_posted)
 		phba->pport->work_port_events |= WORKER_RAMP_UP_QUEUE;
-	}
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, flags);
 
-	spin_lock_irqsave(&phba->hbalock, flags);
-	if (phba->work_wait)
-		wake_up(phba->work_wait);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	if (!evt_posted)
+		lpfc_worker_wake_up(phba);
+	return;
 }
 
 void

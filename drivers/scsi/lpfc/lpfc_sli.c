@@ -324,9 +324,7 @@ lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 			phba->work_ha |= HA_ERATT;
 			phba->work_hs = HS_FFER3;
 
-			/* hbalock should already be held */
-			if (phba->work_wait)
-				lpfc_worker_wake_up(phba);
+			lpfc_worker_wake_up(phba);
 
 			return NULL;
 		}
@@ -1309,9 +1307,7 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	phba->work_ha |= HA_ERATT;
 	phba->work_hs = HS_FFER3;
 
-	/* hbalock should already be held */
-	if (phba->work_wait)
-		lpfc_worker_wake_up(phba);
+	lpfc_worker_wake_up(phba);
 
 	return;
 }
@@ -2611,12 +2607,9 @@ lpfc_mbox_timeout(unsigned long ptr)
 		phba->pport->work_port_events |= WORKER_MBOX_TMO;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
 
-	if (!tmo_posted) {
-		spin_lock_irqsave(&phba->hbalock, iflag);
-		if (phba->work_wait)
-			lpfc_worker_wake_up(phba);
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-	}
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
+	return;
 }
 
 void
@@ -3374,8 +3367,12 @@ lpfc_sli_host_down(struct lpfc_vport *vport)
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
 		prev_pring_flag = pring->flag;
-		if (pring->ringno == LPFC_ELS_RING) /* Only slow rings */
+		/* Only slow rings */
+		if (pring->ringno == LPFC_ELS_RING) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
+			/* Set the lpfc data pending flag */
+			set_bit(LPFC_DATA_READY, &phba->data_flags);
+		}
 		/*
 		 * Error everything on the txq since these iocbs have not been
 		 * given to the FW yet.
@@ -3434,8 +3431,12 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	spin_lock_irqsave(&phba->hbalock, flags);
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
-		if (pring->ringno == LPFC_ELS_RING) /* Only slow rings */
+		/* Only slow rings */
+		if (pring->ringno == LPFC_ELS_RING) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
+			/* Set the lpfc data pending flag */
+			set_bit(LPFC_DATA_READY, &phba->data_flags);
+		}
 
 		/*
 		 * Error everything on the txq since these iocbs have not been
@@ -4159,7 +4160,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 						"pwork:x%x hawork:x%x wait:x%x",
 						phba->work_ha, work_ha_copy,
 						(uint32_t)((unsigned long)
-						phba->work_wait));
+						&phba->work_waitq));
 
 					control &=
 					    ~(HC_R0INT_ENA << LPFC_ELS_RING);
@@ -4172,7 +4173,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 						"x%x hawork:x%x wait:x%x",
 						phba->work_ha, work_ha_copy,
 						(uint32_t)((unsigned long)
-						phba->work_wait));
+						&phba->work_waitq));
 				}
 				spin_unlock(&phba->hbalock);
 			}
@@ -4297,9 +4298,8 @@ send_current_mbox:
 
 		spin_lock(&phba->hbalock);
 		phba->work_ha |= work_ha_copy;
-		if (phba->work_wait)
-			lpfc_worker_wake_up(phba);
 		spin_unlock(&phba->hbalock);
+		lpfc_worker_wake_up(phba);
 	}
 
 	ha_copy &= ~(phba->work_ha_mask);
