@@ -140,8 +140,9 @@ static u16 opcode_table[256] = {
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
 	DstMem | SrcReg | ModRM | Mov, ModRM | DstReg,
 	DstReg | SrcMem | ModRM | Mov, Group | Group1A,
-	/* 0x90 - 0x9F */
-	0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0x90 - 0x97 */
+	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
+	/* 0x98 - 0x9F */
 	0, 0, 0, 0, ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov | MemAbs, DstReg | SrcMem | Mov | MemAbs,
@@ -1493,6 +1494,7 @@ special_insn:
 		emulate_2op_SrcV("test", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x86 ... 0x87:	/* xchg */
+	xchg:
 		/* Write back the register source. */
 		switch (c->dst.bytes) {
 		case 1:
@@ -1560,6 +1562,17 @@ special_insn:
 		if (rc != 0)
 			goto done;
 		break;
+	case 0x90: /* nop / xchg r8,rax */
+		if (!(c->rex_prefix & 1)) { /* nop */
+			c->dst.type = OP_NONE;
+			break;
+		}
+	case 0x91 ... 0x97: /* xchg reg,rax */
+		c->src.type = c->dst.type = OP_REG;
+		c->src.bytes = c->dst.bytes = c->op_bytes;
+		c->src.ptr = (unsigned long *) &c->regs[VCPU_REGS_RAX];
+		c->src.val = *(c->src.ptr);
+		goto xchg;
 	case 0x9c: /* pushf */
 		c->src.val =  (unsigned long) ctxt->eflags;
 		emulate_push(ctxt);
