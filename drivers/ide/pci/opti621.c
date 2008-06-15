@@ -324,18 +324,14 @@ static const struct ide_port_info opti621_chipsets[] __devinitdata = {
 		.name		= "OPTI621",
 		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
 		.port_ops	= &opti621_port_ops,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+		.host_flags	= IDE_HFLAG_NO_DMA,
 		.pio_mask	= ATA_PIO3,
-		.swdma_mask	= ATA_SWDMA2,
-		.mwdma_mask	= ATA_MWDMA2,
 	}, {	/* 1 */
 		.name		= "OPTI621X",
 		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
 		.port_ops	= &opti621_port_ops,
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
+		.host_flags	= IDE_HFLAG_NO_DMA,
 		.pio_mask	= ATA_PIO3,
-		.swdma_mask	= ATA_SWDMA2,
-		.mwdma_mask	= ATA_MWDMA2,
 	}
 };
 
