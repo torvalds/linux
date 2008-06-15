@@ -1172,8 +1172,7 @@ int usb_stor_port_reset(struct us_data *us)
 			result = -EIO;
 			US_DEBUGP("No reset during disconnect\n");
 		} else {
-			result = usb_reset_composite_device(
-					us->pusb_dev, us->pusb_intf);
+			result = usb_reset_composite_device(us->pusb_dev);
 			US_DEBUGP("usb_reset_composite_device returns %d\n",
 					result);
 		}

@@ -2712,7 +2712,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 #endif
 
 		} else {
-			status = usb_reset_composite_device(udev, NULL);
+			status = usb_reset_composite_device(udev);
 		}
 		usb_unlock_device(udev);
 
@@ -2940,7 +2940,7 @@ static void hub_events(void)
 			dev_dbg (hub_dev, "resetting for error %d\n",
 				hub->error);
 
-			ret = usb_reset_composite_device(hdev, intf);
+			ret = usb_reset_composite_device(hdev);
 			if (ret) {
 				dev_dbg (hub_dev,
 					"error resetting hub: %d\n", ret);
@@ -3355,7 +3355,6 @@ EXPORT_SYMBOL_GPL(usb_reset_device);
 /**
  * usb_reset_composite_device - warn interface drivers and perform a USB port reset
  * @udev: device to reset (not in SUSPENDED or NOTATTACHED state)
- * @iface: interface bound to the driver making the request (optional)
  *
  * Warns all drivers bound to registered interfaces (using their pre_reset
  * method), performs the port reset, and then lets the drivers know that
@@ -3368,8 +3367,7 @@ EXPORT_SYMBOL_GPL(usb_reset_device);
  * For calls that might not occur during probe(), drivers should lock
  * the device using usb_lock_device_for_reset().
  */
-int usb_reset_composite_device(struct usb_device *udev,
-		struct usb_interface *iface)
+int usb_reset_composite_device(struct usb_device *udev)
 {
 	int ret;
 	int i;
@@ -3384,9 +3382,6 @@ int usb_reset_composite_device(struct usb_device *udev,
 
 	/* Prevent autosuspend during the reset */
 	usb_autoresume_device(udev);
-
-	if (iface && iface->condition != USB_INTERFACE_BINDING)
-		iface = NULL;
 
 	if (config) {
 		for (i = 0; i < config->desc.bNumInterfaces; ++i) {

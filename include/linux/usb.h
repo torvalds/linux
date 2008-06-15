@@ -497,8 +497,7 @@ extern int usb_lock_device_for_reset(struct usb_device *udev,
 
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
-extern int usb_reset_composite_device(struct usb_device *dev,
-		struct usb_interface *iface);
+extern int usb_reset_composite_device(struct usb_device *dev);
 
 extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
 
