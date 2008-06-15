@@ -734,15 +734,23 @@ int smscore_detect_mode(struct smscore_device_t *coredev)
 }
 
 char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
-	/*Stellar			NOVA A0			Nova B0				VEGA*/
-	/*DVBT*/  {"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
-	/*DVBH*/  {"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
-	/*TDMB*/  {"none", "tdmb_nova_12mhz.inp", "none", "none"},
-	/*DABIP*/ {"none", "none", "none", "none"},
-	/*BDA*/	  {"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
-	/*ISDBT*/ {"none", "isdbt_nova_12mhz.inp", "dvb_nova_12mhz.inp", "none"},
-	/*ISDBTBDA*/{"none", "isdbt_nova_12mhz.inp", "isdbt_nova_12mhz_b0.inp", "none"},
-	/*CMMB*/  {"none", "none", "none", "cmmb_vega_12mhz.inp"}
+	/*Stellar		NOVA A0		Nova B0		VEGA*/
+	/*DVBT*/
+	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
+	/*DVBH*/
+	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
+	/*TDMB*/
+	{"none", "tdmb_nova_12mhz.inp", "none", "none"},
+	/*DABIP*/
+	{"none", "none", "none", "none"},
+	/*BDA*/
+	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
+	/*ISDBT*/
+	{"none", "isdbt_nova_12mhz.inp", "dvb_nova_12mhz.inp", "none"},
+	/*ISDBTBDA*/
+	{"none", "isdbt_nova_12mhz.inp", "isdbt_nova_12mhz_b0.inp", "none"},
+	/*CMMB*/
+	{"none", "none", "none", "cmmb_vega_12mhz.inp"}
 };
 
 
@@ -919,8 +927,8 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		smscore_find_client(coredev, phdr->msgType, phdr->msgDstId);
 	int rc = -EBUSY;
 
-	static unsigned long last_sample_time = 0;
-	static int data_total = 0;
+	static unsigned long last_sample_time; /* = 0; */
+	static int data_total; /* = 0; */
 	unsigned long time_now = jiffies_to_msecs(jiffies);
 
 	if (!last_sample_time)
