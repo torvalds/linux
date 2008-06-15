@@ -3857,9 +3857,6 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 		    els_command == ELS_CMD_FDISC)
 			continue;
 
-		if (vport != piocb->vport)
-			continue;
-
 		if (piocb->drvrTimeout > 0) {
 			if (piocb->drvrTimeout >= timeout)
 				piocb->drvrTimeout -= timeout;
@@ -4013,7 +4010,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	payload = ((struct lpfc_dmabuf *)elsiocb->context2)->virt;
 	cmd = *payload;
 	if ((phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) == 0)
-		lpfc_post_buffer(phba, pring, 1, 1);
+		lpfc_post_buffer(phba, pring, 1);
 
 	did = icmd->un.rcvels.remoteID;
 	if (icmd->ulpStatus) {
@@ -4322,7 +4319,7 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		phba->fc_stat.NoRcvBuf++;
 		/* Not enough posted buffers; Try posting more buffers */
 		if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
-			lpfc_post_buffer(phba, pring, 0, 1);
+			lpfc_post_buffer(phba, pring, 0);
 		return;
 	}
 

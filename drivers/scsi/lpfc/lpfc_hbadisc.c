@@ -917,6 +917,10 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	if (phba->fc_topology == TOPOLOGY_LOOP) {
 		phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
+		if (phba->cfg_enable_npiv)
+			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+				"1309 Link Up Event npiv not supported in loop "
+				"topology\n");
 				/* Get Loop Map information */
 		if (la->il)
 			vport->fc_flag |= FC_LBIT;

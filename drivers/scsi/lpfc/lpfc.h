@@ -33,6 +33,7 @@ struct lpfc_sli2_slim;
 #define LPFC_MAX_SG_SEG_CNT	256	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
+#define LPFC_VNAME_LEN		100	/* vport symbolic name length */
 
 /*
  * Following time intervals are used of adjusting SCSI device

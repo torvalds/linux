@@ -3763,7 +3763,6 @@ lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, struct lpfc_vport *vport,
 			   lpfc_ctx_cmd ctx_cmd)
 {
 	struct lpfc_scsi_buf *lpfc_cmd;
-	struct scsi_cmnd *cmnd;
 	int rc = 1;
 
 	if (!(iocbq->iocb_flag &  LPFC_IO_FCP))
@@ -3773,19 +3772,20 @@ lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, struct lpfc_vport *vport,
 		return rc;
 
 	lpfc_cmd = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
-	cmnd = lpfc_cmd->pCmd;
 
-	if (cmnd == NULL)
+	if (lpfc_cmd->pCmd == NULL)
 		return rc;
 
 	switch (ctx_cmd) {
 	case LPFC_CTX_LUN:
-		if ((cmnd->device->id == tgt_id) &&
-		    (cmnd->device->lun == lun_id))
+		if ((lpfc_cmd->rdata->pnode) &&
+		    (lpfc_cmd->rdata->pnode->nlp_sid == tgt_id) &&
+		    (scsilun_to_int(&lpfc_cmd->fcp_cmnd->fcp_lun) == lun_id))
 			rc = 0;
 		break;
 	case LPFC_CTX_TGT:
-		if (cmnd->device->id == tgt_id)
+		if ((lpfc_cmd->rdata->pnode) &&
+		    (lpfc_cmd->rdata->pnode->nlp_sid == tgt_id))
 			rc = 0;
 		break;
 	case LPFC_CTX_HOST:
@@ -3995,6 +3995,7 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 	if (pmboxq->context1)
 		return MBX_NOT_FINISHED;
 
+	pmboxq->mbox_flag &= ~LPFC_MBX_WAKE;
 	/* setup wake call as IOCB callback */
 	pmboxq->mbox_cmpl = lpfc_sli_wake_mbox_wait;
 	/* setup context field to pass wait_queue pointer to wake function  */
