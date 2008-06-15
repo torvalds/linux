@@ -34,7 +34,7 @@ int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 	smsdvb_client_t *client = (smsdvb_client_t *) context;
 	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)(((u8 *) cb->p) + cb->offset);
 
-	switch(phdr->msgType) {
+	switch (phdr->msgType) {
 	case MSG_SMS_DVBT_BDA_DATA:
 		dvb_dmx_swfilter(&client->demux, (u8 *)(phdr + 1),
 				 cb->size - sizeof(SmsMsgHdr_ST));
@@ -49,8 +49,7 @@ int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 		SmsMsgStatisticsInfo_ST *p =
 			(SmsMsgStatisticsInfo_ST *)(phdr + 1);
 
-		if (p->Stat.IsDemodLocked)
-		{
+		if (p->Stat.IsDemodLocked) {
 			client->fe_status = FE_HAS_SIGNAL |
 					    FE_HAS_CARRIER |
 					    FE_HAS_VITERBI |
@@ -85,7 +84,7 @@ int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 
 void smsdvb_unregister_client(smsdvb_client_t *client)
 {
-	// must be called under clientslock
+	/* must be called under clientslock */
 
 	list_del(&client->entry);
 
@@ -243,13 +242,12 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 	printk("%s freq %d band %d\n", __func__,
 	       fep->frequency, fep->u.ofdm.bandwidth);
 
-	switch(fep->u.ofdm.bandwidth)
-	{
-		case BANDWIDTH_8_MHZ: Msg.Data[1] = BW_8_MHZ; break;
-		case BANDWIDTH_7_MHZ: Msg.Data[1] = BW_7_MHZ; break;
-		case BANDWIDTH_6_MHZ: Msg.Data[1] = BW_6_MHZ; break;
-		case BANDWIDTH_AUTO: return -EOPNOTSUPP;
-		default: return -EINVAL;
+	switch (fep->u.ofdm.bandwidth) {
+	case BANDWIDTH_8_MHZ: Msg.Data[1] = BW_8_MHZ; break;
+	case BANDWIDTH_7_MHZ: Msg.Data[1] = BW_7_MHZ; break;
+	case BANDWIDTH_6_MHZ: Msg.Data[1] = BW_6_MHZ; break;
+	case BANDWIDTH_AUTO: return -EOPNOTSUPP;
+	default: return -EINVAL;
 	}
 
 	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
@@ -263,7 +261,7 @@ static int smsdvb_get_frontend(struct dvb_frontend *fe,
 
 	printk("%s\n", __func__);
 
-	// todo:
+	/* todo: */
 	memcpy(fep, &client->fe_params,
 	       sizeof(struct dvb_frontend_parameters));
 	return 0;
@@ -271,7 +269,7 @@ static int smsdvb_get_frontend(struct dvb_frontend *fe,
 
 static void smsdvb_release(struct dvb_frontend *fe)
 {
-	// do nothing
+	/* do nothing */
 }
 
 static struct dvb_frontend_ops smsdvb_fe_ops = {
@@ -310,7 +308,7 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 	smsdvb_client_t *client;
 	int rc;
 
-	// device removal handled by onremove callback
+	/* device removal handled by onremove callback */
 	if (!arrival)
 		return 0;
 
@@ -325,7 +323,7 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 		return -ENOMEM;
 	}
 
-	// register dvb adapter
+	/* register dvb adapter */
 	rc = dvb_register_adapter(&client->adapter, "Siano Digital Receiver",
 				  THIS_MODULE, device, adapter_nr);
 	if (rc < 0) {
@@ -333,9 +331,9 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 		goto adapter_error;
 	}
 
-	// init dvb demux
+	/* init dvb demux */
 	client->demux.dmx.capabilities = DMX_TS_FILTERING;
-	client->demux.filternum = 32; // todo: nova ???
+	client->demux.filternum = 32; /* todo: nova ??? */
 	client->demux.feednum = 32;
 	client->demux.start_feed = smsdvb_start_feed;
 	client->demux.stop_feed = smsdvb_stop_feed;
@@ -346,7 +344,7 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 		goto dvbdmx_error;
 	}
 
-	// init dmxdev
+	/* init dmxdev */
 	client->dmxdev.filternum = 32;
 	client->dmxdev.demux = &client->demux.dmx;
 	client->dmxdev.capabilities = 0;
@@ -357,7 +355,7 @@ int smsdvb_hotplug(smscore_device_t *coredev,
 		goto dmxdev_error;
 	}
 
-	// init and register frontend
+	/* init and register frontend */
 	memcpy(&client->frontend.ops, &smsdvb_fe_ops,
 	       sizeof(struct dvb_frontend_ops));
 

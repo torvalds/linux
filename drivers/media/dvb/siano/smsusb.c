@@ -149,7 +149,7 @@ void smsusb_stop_streaming(smsusb_device_t *dev)
 {
 	int i;
 
-	for (i = 0; i < MAX_URBS; i ++) {
+	for (i = 0; i < MAX_URBS; i++) {
 		usb_kill_urb(&dev->surbs[i].urb);
 
 		if (dev->surbs[i].cb) {
@@ -163,7 +163,7 @@ int smsusb_start_streaming(smsusb_device_t *dev)
 {
 	int i, rc;
 
-	for (i = 0; i < MAX_URBS; i ++) {
+	for (i = 0; i < MAX_URBS; i++) {
 		rc = smsusb_submit_urb(dev, &dev->surbs[i]);
 		if (rc < 0) {
 			printk(KERN_INFO "%s smsusb_submit_urb(...) "
@@ -275,7 +275,7 @@ void smsusb_term_device(struct usb_interface *intf)
 	if (dev) {
 		smsusb_stop_streaming(dev);
 
-		// unregister from smscore
+		/* unregister from smscore */
 		if (dev->coredev)
 			smscore_unregister_device(dev->coredev);
 
@@ -293,7 +293,7 @@ int smsusb_init_device(struct usb_interface *intf)
 	smsusb_device_t *dev;
 	int i, rc;
 
-	// create device object
+	/* create device object */
 	dev = kzalloc(sizeof(smsusb_device_t), GFP_KERNEL);
 	if (!dev) {
 		printk(KERN_INFO "%s kzalloc(sizeof(smsusb_device_t) failed\n",
@@ -313,13 +313,13 @@ int smsusb_init_device(struct usb_interface *intf)
 		params.setmode_handler = smsusb1_setmode;
 		params.detectmode_handler = smsusb1_detectmode;
 		params.device_type = SMS_STELLAR;
-		printk(KERN_INFO "%s stellar device found\n", __func__ );
+		printk(KERN_INFO "%s stellar device found\n", __func__);
 		break;
 	default:
 		switch (dev->udev->descriptor.idProduct) {
 		case USB_PID_NOVA_A:
 			params.device_type = SMS_NOVA_A0;
-			printk(KERN_INFO "%s nova A0 found\n", __func__ );
+			printk(KERN_INFO "%s nova A0 found\n", __func__);
 			break;
 		default:
 		case USB_PID_NOVA_B:
@@ -357,7 +357,7 @@ int smsusb_init_device(struct usb_interface *intf)
 		return rc;
 	}
 
-	// initialize urbs
+	/* initialize urbs */
 	for (i = 0; i < MAX_URBS; i++) {
 		dev->surbs[i].dev = dev;
 		usb_init_urb(&dev->surbs[i].urb);
@@ -405,7 +405,7 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	printk(KERN_INFO "smsusb_probe %d\n",
 	       intf->cur_altsetting->desc.bInterfaceNumber);
-	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i ++)
+	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++)
 		printk(KERN_INFO "endpoint %d %02x %02x %d\n", i,
 		       intf->cur_altsetting->endpoint[i].desc.bEndpointAddress,
 		       intf->cur_altsetting->endpoint[i].desc.bmAttributes,
@@ -440,7 +440,7 @@ static struct usb_device_id smsusb_id_table [] = {
 	{ USB_DEVICE(USB_VID_SIANO, USB_PID_NOVA_A) },
 	{ }		/* Terminating entry */
 };
-MODULE_DEVICE_TABLE (usb, smsusb_id_table);
+MODULE_DEVICE_TABLE(usb, smsusb_id_table);
 
 static struct usb_driver smsusb_driver = {
 	.name			= "smsusb",

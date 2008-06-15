@@ -45,7 +45,7 @@ typedef struct mutex kmutex_t;
 
 
 #ifndef min
-#define min(a,b) (((a) < (b)) ? (a) : (b))
+#define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
 #define SMS_ALLOC_ALIGNMENT					128
@@ -57,7 +57,7 @@ typedef struct mutex kmutex_t;
 #define SMS_DEVICE_NOT_READY				0x8000000
 
 typedef enum {
-	SMS_STELLAR= 0,
+	SMS_STELLAR = 0,
 	SMS_NOVA_A0,
 	SMS_NOVA_B0,
 	SMS_VEGA,

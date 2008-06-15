@@ -386,7 +386,7 @@ int smscore_register_device(smsdevice_params_t *params,
 	/* prepare dma buffers */
 	for (buffer = dev->common_buffer;
 	     dev->num_buffers < params->num_buffers;
-	     dev->num_buffers ++, buffer += params->buffer_size) {
+	     dev->num_buffers++, buffer += params->buffer_size) {
 		smscore_buffer_t *cb = smscore_createbuffer(buffer, dev->common_buffer, dev->common_buffer_phys);
 		if (!cb) {
 			smscore_unregister_device(dev);
@@ -499,8 +499,7 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 		mem_address = *(u32 *) &payload[20];
 	}
 
-	while (size && rc >= 0)
-	{
+	while (size && rc >= 0) {
 		SmsDataDownload_ST *DataMsg = (SmsDataDownload_ST *) msg;
 		int payload_size = min((int) size, SMS_MAX_PAYLOAD_SIZE);
 
@@ -530,11 +529,11 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer,
 				     sizeof(SmsMsgHdr_ST) +
 				     sizeof(u32) * 5);
 
-			TriggerMsg->msgData[0] = firmware->StartAddress;	// Entry point
-			TriggerMsg->msgData[1] = 5;							// Priority
-			TriggerMsg->msgData[2] = 0x200;						// Stack size
-			TriggerMsg->msgData[3] = 0;							// Parameter
-			TriggerMsg->msgData[4] = 4;							// Task ID
+			TriggerMsg->msgData[0] = firmware->StartAddress; /* Entry point */
+			TriggerMsg->msgData[1] = 5; /* Priority */
+			TriggerMsg->msgData[2] = 0x200; /* Stack size */
+			TriggerMsg->msgData[3] = 0; /* Parameter */
+			TriggerMsg->msgData[4] = 4; /* Task ID */
 
 			if (coredev->device_flags & SMS_ROM_NO_RESPONSE) {
 				rc = coredev->sendrequest_handler(coredev->context, TriggerMsg, TriggerMsg->xMsgHeader.msgLength);
@@ -642,7 +641,7 @@ void smscore_unregister_device(smscore_device_t *coredev)
 	while (1) {
 		while ((cb = smscore_getbuffer(coredev))) {
 			kfree(cb);
-			num_buffers ++;
+			num_buffers++;
 		}
 		if (num_buffers == coredev->num_buffers)
 			break;
@@ -842,14 +841,14 @@ smscore_client_t *smscore_find_client(smscore_device_t *coredev, int data_type, 
 	for (next = first->next;
 	     (next != first) && !client;
 	     next = next->next) {
-		firstid = &((smscore_client_t*)next)->idlist;
+		firstid = &((smscore_client_t *)next)->idlist;
 		for (nextid = firstid->next;
 		     nextid != firstid;
 		     nextid = nextid->next) {
-			if ((((smscore_idlist_t*)nextid)->id  == id) &&
-			    (((smscore_idlist_t*)nextid)->data_type  == data_type ||
-			    (((smscore_idlist_t*)nextid)->data_type  == 0))) {
-				client = (smscore_client_t*) next;
+			if ((((smscore_idlist_t *)nextid)->id  == id) &&
+			    (((smscore_idlist_t *)nextid)->data_type  == data_type ||
+			    (((smscore_idlist_t *)nextid)->data_type  == 0))) {
+				client = (smscore_client_t *) next;
 				break;
 			}
 		}
@@ -880,8 +879,7 @@ void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 	if (!last_sample_time)
 		last_sample_time = time_now;
 
-	if (time_now - last_sample_time > 10000)
-	{
+	if (time_now - last_sample_time > 10000) {
 		printk("\n%s data rate %d bytes/secs\n", __func__,
 		       (int)((data_total * 1000) /
 			     (time_now - last_sample_time)));
@@ -989,9 +987,9 @@ int smscore_validate_client(smscore_device_t *coredev,
 		return -EFAULT;
 	}
 	registered_client = smscore_find_client(coredev, data_type, id);
-	if (registered_client == client) {
+	if (registered_client == client)
 		return 0;
-	}
+
 	if (registered_client) {
 		PERROR("The msg ID already registered to another client.\n");
 		return -EEXIST;
@@ -1069,7 +1067,7 @@ void smscore_unregister_client(smscore_client_t *client)
 
 	while (!list_empty(&client->idlist)) {
 		smscore_idlist_t *identry =
-			(smscore_idlist_t*) client->idlist.next;
+			(smscore_idlist_t *) client->idlist.next;
 		list_del(&identry->entry);
 		kfree(identry);
 	}
