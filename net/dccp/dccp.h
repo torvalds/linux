@@ -262,7 +262,7 @@ extern int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				const struct dccp_hdr *dh, const unsigned len);
 
 extern int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
-extern int dccp_destroy_sock(struct sock *sk);
+extern void dccp_destroy_sock(struct sock *sk);
 
 extern void		dccp_close(struct sock *sk, long timeout);
 extern struct sk_buff	*dccp_make_response(struct sock *sk,

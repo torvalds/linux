@@ -1091,10 +1091,10 @@ static int dccp_v6_init_sock(struct sock *sk)
 	return err;
 }
 
-static int dccp_v6_destroy_sock(struct sock *sk)
+static void dccp_v6_destroy_sock(struct sock *sk)
 {
 	dccp_destroy_sock(sk);
-	return inet6_destroy_sock(sk);
+	inet6_destroy_sock(sk);
 }
 
 static struct timewait_sock_ops dccp6_timewait_sock_ops = {

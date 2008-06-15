@@ -606,12 +606,11 @@ static void raw_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
-static int raw_destroy(struct sock *sk)
+static void raw_destroy(struct sock *sk)
 {
 	lock_sock(sk);
 	ip_flush_pending_frames(sk);
 	release_sock(sk);
-	return 0;
 }
 
 /* This gets rid of all the nasties in af_inet. -DaveM */

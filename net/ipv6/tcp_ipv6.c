@@ -1872,7 +1872,7 @@ static int tcp_v6_init_sock(struct sock *sk)
 	return 0;
 }
 
-static int tcp_v6_destroy_sock(struct sock *sk)
+static void tcp_v6_destroy_sock(struct sock *sk)
 {
 #ifdef CONFIG_TCP_MD5SIG
 	/* Clean up the MD5 key list */
@@ -1880,7 +1880,7 @@ static int tcp_v6_destroy_sock(struct sock *sk)
 		tcp_v6_clear_md5_list(sk);
 #endif
 	tcp_v4_destroy_sock(sk);
-	return inet6_destroy_sock(sk);
+	inet6_destroy_sock(sk);
 }
 
 #ifdef CONFIG_PROC_FS
