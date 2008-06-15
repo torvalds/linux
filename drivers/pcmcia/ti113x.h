@@ -692,7 +692,7 @@ static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
 		goto out;
 
 	/* check state */
-	yenta_get_status(&socket->socket, &state);
+	yenta_get_status(&slot2->socket, &state);
 	if (state & SS_DETECT) {
 		ret = 0;
 		goto out;
