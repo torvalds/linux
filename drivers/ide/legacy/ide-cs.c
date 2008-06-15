@@ -135,13 +135,17 @@ static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
     ide_hwif_t *hwif = info->hwif;
+    unsigned long data_addr, ctl_addr;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
 
+    data_addr = hwif->io_ports.data_addr;
+    ctl_addr  = hwif->io_ports.ctl_addr;
+
     ide_release(link);
 
-    release_region(hwif->io_ports.ctl_addr, 1);
-    release_region(hwif->io_ports.data_addr, 8);
+    release_region(ctl_addr, 1);
+    release_region(data_addr, 8);
 
     kfree(info);
 } /* ide_detach */
