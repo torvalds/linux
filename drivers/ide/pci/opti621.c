@@ -90,16 +90,6 @@
 
 #include <asm/io.h>
 
-//#define OPTI621_MAX_PIO 3
-/* In fact, I do not have any PIO 4 drive
- * (address: 25 ns, data: 70 ns, recovery: 35 ns),
- * but OPTi 82C621 is programmable and it can do (minimal values):
- * on 40MHz PCI bus (pulse 25 ns):
- *  address: 25 ns, data: 25 ns, recovery: 50 ns;
- * on 20MHz PCI bus (pulse 50 ns):
- *  address: 50 ns, data: 50 ns, recovery: 100 ns.
- */
-
 #define READ_REG 0	/* index of Read cycle timing register */
 #define WRITE_REG 1	/* index of Write cycle timing register */
 #define CNTRL_REG 3	/* index of Control register */
@@ -150,13 +140,13 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	u8 tim, misc, addr_pio = pio, clk;
 
 	/* DRDY is default 2 (by OPTi Databook) */
-	static const u8 addr_timings[2][4] = {
-		{ 0x20, 0x10, 0x00, 0x00 },	/* 33 MHz */
-		{ 0x10, 0x10, 0x00, 0x00 },	/* 25 MHz */
+	static const u8 addr_timings[2][5] = {
+		{ 0x20, 0x10, 0x00, 0x00, 0x00 },	/* 33 MHz */
+		{ 0x10, 0x10, 0x00, 0x00, 0x00 },	/* 25 MHz */
 	};
-	static const u8 data_rec_timings[2][4] = {
-		{ 0x5b, 0x45, 0x32, 0x21 },	/* 33 MHz */
-		{ 0x48, 0x34, 0x21, 0x10 }	/* 25 MHz */
+	static const u8 data_rec_timings[2][5] = {
+		{ 0x5b, 0x45, 0x32, 0x21, 0x20 },	/* 33 MHz */
+		{ 0x48, 0x34, 0x21, 0x10, 0x10 }	/* 25 MHz */
 	};
 
 	drive->drive_data = XFER_PIO_0 + pio;
@@ -209,30 +199,22 @@ static const struct ide_port_ops opti621_port_ops = {
 	.set_pio_mode		= opti621_set_pio_mode,
 };
 
-static const struct ide_port_info opti621_chipsets[] __devinitdata = {
-	{	/* 0 */
-		.name		= "OPTI621",
-		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
-		.port_ops	= &opti621_port_ops,
-		.host_flags	= IDE_HFLAG_NO_DMA,
-		.pio_mask	= ATA_PIO3,
-	}, {	/* 1 */
-		.name		= "OPTI621X",
-		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
-		.port_ops	= &opti621_port_ops,
-		.host_flags	= IDE_HFLAG_NO_DMA,
-		.pio_mask	= ATA_PIO3,
-	}
+static const struct ide_port_info opti621_chipset __devinitdata = {
+	.name		= "OPTI621/X",
+	.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
+	.port_ops	= &opti621_port_ops,
+	.host_flags	= IDE_HFLAG_NO_DMA,
+	.pio_mask	= ATA_PIO4,
 };
 
 static int __devinit opti621_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &opti621_chipsets[id->driver_data]);
+	return ide_setup_pci_device(dev, &opti621_chipset);
 }
 
 static const struct pci_device_id opti621_pci_tbl[] = {
 	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C621), 0 },
-	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 1 },
+	{ PCI_VDEVICE(OPTI, PCI_DEVICE_ID_OPTI_82C825), 0 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);
