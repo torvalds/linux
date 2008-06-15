@@ -102,18 +102,6 @@
  *  address: 50 ns, data: 50 ns, recovery: 100 ns.
  */
 
-/* #define READ_PREFETCH 0 */
-/* Uncomment for disable read prefetch.
- * There is some readprefetch capatibility in hdparm,
- * but when I type hdparm -P 1 /dev/hda, I got errors
- * and till reset drive is inaccessible.
- * This (hw) read prefetch is safe on my drive.
- */
-
-#ifndef READ_PREFETCH
-#define READ_PREFETCH 0x40 /* read prefetch is enabled */
-#endif /* else read prefetch is disabled */
-
 #define READ_REG 0	/* index of Read cycle timing register */
 #define WRITE_REG 1	/* index of Write cycle timing register */
 #define CNTRL_REG 3	/* index of Control register */
@@ -264,7 +252,8 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	cycle1 = ((first.data_time-1)<<4)  | (first.recovery_time-2);
 	cycle2 = ((second.data_time-1)<<4) | (second.recovery_time-2);
-	misc = READ_PREFETCH | ((ax-1)<<4) | ((drdy-2)<<1);
+
+	misc = ((ax - 1) << 4) | ((drdy - 2) << 1);
 
 #ifdef OPTI621_DEBUG
 	printk("%s: master: address: %d, data: %d, "
