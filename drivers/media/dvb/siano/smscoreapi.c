@@ -971,7 +971,8 @@ void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 			       __func__);
 			break;
 		case MSG_SMS_SWDOWNLOAD_TRIGGER_RES:
-			printk(KERN_DEBUG "%s: MSG_SMS_SWDOWNLOAD_TRIGGER_RES\n",
+			printk(KERN_DEBUG
+			       "%s: MSG_SMS_SWDOWNLOAD_TRIGGER_RES\n",
 			       __func__);
 			complete(&coredev->trigger_done);
 			break;
@@ -1059,7 +1060,8 @@ int smscore_validate_client(smscore_device_t *coredev,
  * @param coredev pointer to a coredev object from clients hotplug
  * @param initial_id all messages with this id would be sent to this client
  * @param data_type all messages of this type would be sent to this client
- * @param onresponse_handler client handler that is called to process incoming messages
+ * @param onresponse_handler client handler that is called to
+ *                           process incoming messages
  * @param onremove_handler client handler that is called when device is removed
  * @param context client-specific context
  * @param client pointer to a value that receives created smsclient object

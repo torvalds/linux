@@ -481,7 +481,8 @@ typedef struct SMSHOSTLIB_STATISTICS_DVB_S
 	u32 NumMPEReceived; /* DVB-H, Num MPE section received */
 
 	/* DVB-H TPS parameters */
-	u32 CellId; /* TPS Cell ID in bits 15..0, bits 31..16 zero; if set to 0xFFFFFFFF cell_id not yet recovered */
+	u32 CellId; /* TPS Cell ID in bits 15..0, bits 31..16 zero;
+		     * if set to 0xFFFFFFFF cell_id not yet recovered */
 	u32 DvbhSrvIndHP; /* DVB-H service indication info,
 			   * bit 1 - Time Slicing indicator,
 			   * bit 0 - MPE-FEC indicator */
