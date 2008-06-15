@@ -200,7 +200,6 @@ void smscore_registry_settype(char *devpath, enum sms_device_type_st type)
 }
 
 
-
 void list_add_locked(struct list_head *new, struct list_head *head,
 		     spinlock_t *lock)
 {
@@ -592,7 +591,6 @@ int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 				    loadfirmware_t loadfirmware_handler)
 {
 	int rc = -ENOENT;
-
 	const struct firmware *fw;
 	u8 *fw_buffer;
 
@@ -1228,8 +1226,7 @@ int smscore_map_common_buffer(struct smscore_device_t *coredev,
 
 	if (remap_pfn_range(vma, start,
 			    coredev->common_buffer_phys >> PAGE_SHIFT,
-			    size, pgprot_noncached(vma->vm_page_prot)))
-	{
+			    size, pgprot_noncached(vma->vm_page_prot))) {
 		printk(KERN_INFO "%s remap_page_range failed\n", __func__);
 		return -EAGAIN;
 	}

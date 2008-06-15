@@ -43,7 +43,6 @@ typedef struct mutex kmutex_t;
 #define kmutex_trylock(_p_) mutex_trylock(_p_)
 #define kmutex_unlock(_p_) mutex_unlock(_p_)
 
-
 #ifndef min
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
