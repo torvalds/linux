@@ -100,7 +100,6 @@ unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
 #endif
 
 extern unsigned long find_max_low_pfn(void);
-extern void add_one_highpage_init(struct page *, int, int);
 extern unsigned long highend_pfn, highstart_pfn;
 
 #define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
@@ -432,10 +431,10 @@ void __init set_highmem_pages_init(int bad_ppro)
 {
 #ifdef CONFIG_HIGHMEM
 	struct zone *zone;
-	struct page *page;
+	int nid;
 
 	for_each_zone(zone) {
-		unsigned long node_pfn, zone_start_pfn, zone_end_pfn;
+		unsigned long zone_start_pfn, zone_end_pfn;
 
 		if (!is_highmem(zone))
 			continue;
@@ -443,16 +442,12 @@ void __init set_highmem_pages_init(int bad_ppro)
 		zone_start_pfn = zone->zone_start_pfn;
 		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
 
+		nid = zone_to_nid(zone);
 		printk("Initializing %s for node %d (%08lx:%08lx)\n",
-				zone->name, zone_to_nid(zone),
-				zone_start_pfn, zone_end_pfn);
+				zone->name, nid, zone_start_pfn, zone_end_pfn);
 
-		for (node_pfn = zone_start_pfn; node_pfn < zone_end_pfn; node_pfn++) {
-			if (!pfn_valid(node_pfn))
-				continue;
-			page = pfn_to_page(node_pfn);
-			add_one_highpage_init(page, node_pfn, bad_ppro);
-		}
+		add_highpages_with_active_regions(nid, zone_start_pfn,
+				 zone_end_pfn, bad_ppro);
 	}
 	totalram_pages += totalhigh_pages;
 #endif

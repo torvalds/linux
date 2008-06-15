@@ -2929,6 +2929,14 @@ void __init free_bootmem_with_active_regions(int nid,
 	}
 }
 
+void __init work_with_active_regions(int nid, work_fn_t work_fn, void *data)
+{
+	int i;
+
+	for_each_active_range_index_in_nid(i, nid)
+		work_fn(early_node_map[i].start_pfn, early_node_map[i].end_pfn,
+			data);
+}
 /**
  * sparse_memory_present_with_active_regions - Call memory_present for each active range
  * @nid: The node to call memory_present for. If MAX_NUMNODES, all nodes will be used.

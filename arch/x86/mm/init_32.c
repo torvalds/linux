@@ -287,10 +287,10 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 	pkmap_page_table = pte;
 }
 
-void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
+static void __init
+add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 {
-	if (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn)) &&
-	    !page_is_reserved_early(pfn)) {
+	if (!(bad_ppro && page_kills_ppro(pfn))) {
 		ClearPageReserved(page);
 		init_page_count(page);
 		__free_page(page);
@@ -299,18 +299,58 @@ void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 		SetPageReserved(page);
 }
 
+struct add_highpages_data {
+	unsigned long start_pfn;
+	unsigned long end_pfn;
+	int bad_ppro;
+};
+
+static void __init add_highpages_work_fn(unsigned long start_pfn,
+					 unsigned long end_pfn, void *datax)
+{
+	int node_pfn;
+	struct page *page;
+	unsigned long final_start_pfn, final_end_pfn;
+	struct add_highpages_data *data;
+	int bad_ppro;
+
+	data = (struct add_highpages_data *)datax;
+	bad_ppro = data->bad_ppro;
+
+	final_start_pfn = max(start_pfn, data->start_pfn);
+	final_end_pfn = min(end_pfn, data->end_pfn);
+	if (final_start_pfn >= final_end_pfn)
+		return;
+
+	for (node_pfn = final_start_pfn; node_pfn < final_end_pfn;
+	     node_pfn++) {
+		if (!pfn_valid(node_pfn))
+			continue;
+		page = pfn_to_page(node_pfn);
+		add_one_highpage_init(page, node_pfn, bad_ppro);
+	}
+
+}
+
+void __init add_highpages_with_active_regions(int nid, unsigned long start_pfn,
+					      unsigned long end_pfn,
+					      int bad_ppro)
+{
+	struct add_highpages_data data;
+
+	data.start_pfn = start_pfn;
+	data.end_pfn = end_pfn;
+	data.bad_ppro = bad_ppro;
+
+	work_with_active_regions(nid, add_highpages_work_fn, &data);
+}
+
 #ifndef CONFIG_NUMA
 static void __init set_highmem_pages_init(int bad_ppro)
 {
-	int pfn;
+	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn,
+						bad_ppro);
 
-	for (pfn = highstart_pfn; pfn < highend_pfn; pfn++) {
-		/*
-		 * Holes under sparsemem might not have no mem_map[]:
-		 */
-		if (pfn_valid(pfn))
-			add_one_highpage_init(pfn_to_page(pfn), pfn, bad_ppro);
-	}
 	totalram_pages += totalhigh_pages;
 }
 #endif /* !CONFIG_NUMA */
