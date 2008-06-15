@@ -1087,6 +1087,8 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb = &pmb->mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 
+	/* Unblock ELS traffic */
+	phba->sli.ring[LPFC_ELS_RING].flag &= ~LPFC_STOP_IOCB_EVENT;
 	/* Check for error */
 	if (mb->mbxStatus) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
@@ -1650,7 +1652,6 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_DID, old_state, state);
 
 	if (old_state == NLP_STE_NPR_NODE &&
-	    (ndlp->nlp_flag & NLP_DELAY_TMO) != 0 &&
 	    state != NLP_STE_NPR_NODE)
 		lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if (old_state == NLP_STE_UNMAPPED_NODE) {
@@ -1687,8 +1688,7 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
-	if ((ndlp->nlp_flag & NLP_DELAY_TMO) != 0)
-		lpfc_cancel_retry_delay_tmo(vport, ndlp);
+	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if (ndlp->nlp_state && !list_empty(&ndlp->nlp_listp))
 		lpfc_nlp_counters(vport, ndlp->nlp_state, -1);
 	spin_lock_irq(shost->host_lock);
@@ -1701,8 +1701,7 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 static void
 lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
-	if ((ndlp->nlp_flag & NLP_DELAY_TMO) != 0)
-		lpfc_cancel_retry_delay_tmo(vport, ndlp);
+	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if (ndlp->nlp_state && !list_empty(&ndlp->nlp_listp))
 		lpfc_nlp_counters(vport, ndlp->nlp_state, -1);
 	lpfc_nlp_state_cleanup(vport, ndlp, ndlp->nlp_state,
@@ -2121,10 +2120,8 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	ndlp->nlp_last_elscmd = 0;
 	del_timer_sync(&ndlp->nlp_delayfunc);
 
-	if (!list_empty(&ndlp->els_retry_evt.evt_listp))
-		list_del_init(&ndlp->els_retry_evt.evt_listp);
-	if (!list_empty(&ndlp->dev_loss_evt.evt_listp))
-		list_del_init(&ndlp->dev_loss_evt.evt_listp);
+	list_del_init(&ndlp->els_retry_evt.evt_listp);
+	list_del_init(&ndlp->dev_loss_evt.evt_listp);
 
 	lpfc_unreg_rpi(vport, ndlp);
 
@@ -2144,10 +2141,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	LPFC_MBOXQ_t *mbox;
 	int rc;
 
-	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
-		lpfc_cancel_retry_delay_tmo(vport, ndlp);
-	}
-
+	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if (ndlp->nlp_flag & NLP_DEFER_RM && !ndlp->nlp_rpi) {
 		/* For this case we need to cleanup the default rpi
 		 * allocated by the firmware.
@@ -2317,8 +2311,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 			/* Since this node is marked for discovery,
 			 * delay timeout is not needed.
 			 */
-			if (ndlp->nlp_flag & NLP_DELAY_TMO)
-				lpfc_cancel_retry_delay_tmo(vport, ndlp);
+			lpfc_cancel_retry_delay_tmo(vport, ndlp);
 		} else
 			ndlp = NULL;
 	} else {
