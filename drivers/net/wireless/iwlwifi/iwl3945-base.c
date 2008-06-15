@@ -2431,15 +2431,15 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 				  struct ieee80211_hdr *hdr,
 				  int is_unicast, u8 std_id)
 {
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	__le32 tx_flags = cmd->cmd.tx.tx_flags;
 
 	cmd->cmd.tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		tx_flags |= TX_CMD_FLG_ACK_MSK;
-		if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT)
+		if (ieee80211_is_mgmt(fc))
 			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
-		if (ieee80211_is_probe_response(fc) &&
+		if (ieee80211_is_probe_resp(fc) &&
 		    !(le16_to_cpu(hdr->seq_ctrl) & 0xf))
 			tx_flags |= TX_CMD_FLG_TSF_MSK;
 	} else {
@@ -2448,11 +2448,11 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 	}
 
 	cmd->cmd.tx.sta_id = std_id;
-	if (ieee80211_get_morefrag(hdr))
+	if (ieee80211_has_morefrags(fc))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG_MSK;
 
-	if (ieee80211_is_qos_data(fc)) {
-		u8 *qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+	if (ieee80211_is_data_qos(fc)) {
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		cmd->cmd.tx.tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
 	} else {
@@ -2471,9 +2471,8 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 		tx_flags |= TX_CMD_FLG_FULL_TXOP_PROT_MSK;
 
 	tx_flags &= ~(TX_CMD_FLG_ANT_SEL_MSK);
-	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
-		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_ASSOC_REQ ||
-		    (fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_REASSOC_REQ)
+	if (ieee80211_is_mgmt(fc)) {
+		if (ieee80211_is_assoc_req(fc) || ieee80211_is_reassoc_req(fc))
 			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(3);
 		else
 			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(2);
@@ -2564,7 +2563,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 	u8 sta_id;
 	u8 tid = 0;
 	u16 seq_number = 0;
-	u16 fc;
+	__le16 fc;
 	u8 wait_write_ptr = 0;
 	u8 *qc = NULL;
 	unsigned long flags;
@@ -2589,28 +2588,28 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 	unicast = !is_multicast_ether_addr(hdr->addr1);
 	id = 0;
 
-	fc = le16_to_cpu(hdr->frame_control);
+	fc = hdr->frame_control;
 
 #ifdef CONFIG_IWL3945_DEBUG
 	if (ieee80211_is_auth(fc))
 		IWL_DEBUG_TX("Sending AUTH frame\n");
-	else if (ieee80211_is_assoc_request(fc))
+	else if (ieee80211_is_assoc_req(fc))
 		IWL_DEBUG_TX("Sending ASSOC frame\n");
-	else if (ieee80211_is_reassoc_request(fc))
+	else if (ieee80211_is_reassoc_req(fc))
 		IWL_DEBUG_TX("Sending REASSOC frame\n");
 #endif
 
 	/* drop all data frame if we are not associated */
 	if ((!iwl3945_is_associated(priv) ||
 	     ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && !priv->assoc_id)) &&
-	    ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
+	    ieee80211_is_data(fc)) {
 		IWL_DEBUG_DROP("Dropping - !iwl3945_is_associated\n");
 		goto drop_unlock;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	hdr_len = ieee80211_get_hdrlen(fc);
+	hdr_len = ieee80211_get_hdrlen(le16_to_cpu(fc));
 
 	/* Find (or create) index into station table for destination station */
 	sta_id = iwl3945_get_sta_id(priv, hdr);
@@ -2624,8 +2623,8 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 
 	IWL_DEBUG_RATE("station Id %d\n", sta_id);
 
-	if (ieee80211_is_qos_data(fc)) {
-		qc = ieee80211_get_qos_ctrl(hdr, hdr_len);
+	if (ieee80211_is_data_qos(fc)) {
+		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 		seq_number = priv->stations[sta_id].tid[tid].seq_number &
 				IEEE80211_SCTL_SEQ;
@@ -2732,7 +2731,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 	out_cmd->cmd.tx.tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	out_cmd->cmd.tx.tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
 
-	if (!ieee80211_get_morefrag(hdr)) {
+	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
 		if (qc) {
 			priv->stations[sta_id].tid[tid].seq_number = seq_number;
@@ -2746,7 +2745,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv, struct sk_buff *skb)
 			   sizeof(out_cmd->cmd.tx));
 
 	iwl3945_print_hex_dump(IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
-			   ieee80211_get_hdrlen(fc));
+			   ieee80211_get_hdrlen(le16_to_cpu(fc)));
 
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
@@ -2875,7 +2874,8 @@ static void iwl3945_radio_kill_sw(struct iwl3945_priv *priv, int disable_radio)
 		return;
 	}
 
-	queue_work(priv->workqueue, &priv->restart);
+	if (priv->is_open)
+		queue_work(priv->workqueue, &priv->restart);
 	return;
 }
 

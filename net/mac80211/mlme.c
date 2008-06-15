@@ -2863,7 +2863,8 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 				       dev->name, print_mac(mac, mgmt->bssid));
 			ieee80211_sta_join_ibss(dev, &sdata->u.sta, bss);
 			ieee80211_ibss_add_sta(dev, NULL,
-					       mgmt->bssid, mgmt->sa);
+					       mgmt->bssid, mgmt->sa,
+					       BIT(rx_status->rate_idx));
 		}
 	}
 
@@ -3583,7 +3584,7 @@ static int ieee80211_sta_create_ibss(struct net_device *dev,
 	sband = local->hw.wiphy->bands[bss->band];
 
 	if (local->hw.conf.beacon_int == 0)
-		local->hw.conf.beacon_int = 10000;
+		local->hw.conf.beacon_int = 100;
 	bss->beacon_int = local->hw.conf.beacon_int;
 	bss->last_update = jiffies;
 	bss->capability = WLAN_CAPABILITY_IBSS;
@@ -4307,12 +4308,13 @@ int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len)
 
 struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
 					struct sk_buff *skb, u8 *bssid,
-					u8 *addr)
+					u8 *addr, u64 supp_rates)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	DECLARE_MAC_BUF(mac);
+	int band = local->hw.conf.channel->band;
 
 	/* TODO: Could consider removing the least recently used entry and
 	 * allow new one to be added. */
@@ -4324,6 +4326,9 @@ struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
 		return NULL;
 	}
 
+	if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid))
+		return NULL;
+
 	printk(KERN_DEBUG "%s: Adding new IBSS station %s (dev=%s)\n",
 	       wiphy_name(local->hw.wiphy), print_mac(mac, addr), dev->name);
 
@@ -4333,8 +4338,10 @@ struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
 
 	set_sta_flags(sta, WLAN_STA_AUTHORIZED);
 
-	sta->supp_rates[local->hw.conf.channel->band] =
-		sdata->u.sta.supp_rates_bits[local->hw.conf.channel->band];
+	if (supp_rates)
+		sta->supp_rates[band] = supp_rates;
+	else
+		sta->supp_rates[band] = sdata->u.sta.supp_rates_bits[band];
 
 	rate_control_rate_init(sta, local);
 

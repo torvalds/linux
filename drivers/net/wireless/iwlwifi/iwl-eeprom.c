@@ -382,8 +382,8 @@ static int iwl_set_fat_chan_info(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return -1;
 
-	IWL_DEBUG_INFO("FAT Ch. %d [%sGHz] %s%s%s%s%s(0x%02x"
-			" %ddBm): Ad-Hoc %ssupported\n",
+	IWL_DEBUG_INFO("FAT Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
+			" Ad-Hoc %ssupported\n",
 			ch_info->channel,
 			is_channel_a_band(ch_info) ?
 			"5.2" : "2.4",
@@ -470,6 +470,11 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			/* Copy the run-time flags so they are there even on
 			 * invalid channels */
 			ch_info->flags = eeprom_ch_info[ch].flags;
+			/* First write that fat is not enabled, and then enable
+			 * one by one */
+			ch_info->fat_extension_channel =
+				(IEEE80211_CHAN_NO_FAT_ABOVE |
+				 IEEE80211_CHAN_NO_FAT_BELOW);
 
 			if (!(is_channel_valid(ch_info))) {
 				IWL_DEBUG_INFO("Ch. %d Flags %x [%sGHz] - "
@@ -488,8 +493,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
-				       " %ddBm): Ad-Hoc %ssupported\n",
+			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x %ddBm):"
+				       " Ad-Hoc %ssupported\n",
 				       ch_info->channel,
 				       is_channel_a_band(ch_info) ?
 				       "5.2" : "2.4",
@@ -510,8 +515,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			/* Set the user_txpower_limit to the highest power
 			 * supported by any channel */
 			if (eeprom_ch_info[ch].max_power_avg >
-			    priv->user_txpower_limit)
-				priv->user_txpower_limit =
+						priv->tx_power_user_lmt)
+				priv->tx_power_user_lmt =
 				    eeprom_ch_info[ch].max_power_avg;
 
 			ch_info++;
@@ -534,12 +539,14 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 		for (ch = 0; ch < eeprom_ch_count; ch++) {
 
 			if ((band == 6) &&
-			    ((eeprom_ch_index[ch] == 5) ||
-			    (eeprom_ch_index[ch] == 6) ||
-			    (eeprom_ch_index[ch] == 7)))
-			       fat_extension_chan = HT_IE_EXT_CHANNEL_MAX;
+				((eeprom_ch_index[ch] == 5) ||
+				 (eeprom_ch_index[ch] == 6) ||
+				 (eeprom_ch_index[ch] == 7)))
+				/* both are allowed: above and below */
+				fat_extension_chan = 0;
 			else
-				fat_extension_chan = HT_IE_EXT_CHANNEL_ABOVE;
+				fat_extension_chan =
+					IEEE80211_CHAN_NO_FAT_BELOW;
 
 			/* Set up driver's info for lower half */
 			iwl_set_fat_chan_info(priv, ieeeband,
@@ -551,7 +558,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			iwl_set_fat_chan_info(priv, ieeeband,
 						(eeprom_ch_index[ch] + 4),
 						&(eeprom_ch_info[ch]),
-						HT_IE_EXT_CHANNEL_BELOW);
+						IEEE80211_CHAN_NO_FAT_ABOVE);
 		}
 	}
 

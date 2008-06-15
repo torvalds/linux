@@ -45,38 +45,37 @@ const unsigned char bridge_tunnel_header[] __aligned(2) =
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum ieee80211_if_types type)
 {
-	u16 fc;
+	__le16 fc = hdr->frame_control;
 
 	 /* drop ACK/CTS frames and incorrect hdr len (ctrl) */
 	if (len < 16)
 		return NULL;
 
-	fc = le16_to_cpu(hdr->frame_control);
-
-	switch (fc & IEEE80211_FCTL_FTYPE) {
-	case IEEE80211_FTYPE_DATA:
+	if (ieee80211_is_data(fc)) {
 		if (len < 24) /* drop incorrect hdr len (data) */
 			return NULL;
-		switch (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
-		case IEEE80211_FCTL_TODS:
-			return hdr->addr1;
-		case (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
+
+		if (ieee80211_has_a4(fc))
 			return NULL;
-		case IEEE80211_FCTL_FROMDS:
+		if (ieee80211_has_tods(fc))
+			return hdr->addr1;
+		if (ieee80211_has_fromds(fc))
 			return hdr->addr2;
-		case 0:
-			return hdr->addr3;
-		}
-		break;
-	case IEEE80211_FTYPE_MGMT:
+
+		return hdr->addr3;
+	}
+
+	if (ieee80211_is_mgmt(fc)) {
 		if (len < 24) /* drop incorrect hdr len (mgmt) */
 			return NULL;
 		return hdr->addr3;
-	case IEEE80211_FTYPE_CTL:
-		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)
+	}
+
+	if (ieee80211_is_ctl(fc)) {
+		if(ieee80211_is_pspoll(fc))
 			return hdr->addr1;
-		else if ((fc & IEEE80211_FCTL_STYPE) ==
-						IEEE80211_STYPE_BACK_REQ) {
+
+		if (ieee80211_is_back_req(fc)) {
 			switch (type) {
 			case IEEE80211_IF_TYPE_STA:
 				return hdr->addr2;
@@ -84,11 +83,9 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			case IEEE80211_IF_TYPE_VLAN:
 				return hdr->addr1;
 			default:
-				return NULL;
+				break; /* fall through to the return */
 			}
 		}
-		else
-			return NULL;
 	}
 
 	return NULL;
@@ -133,14 +130,46 @@ int ieee80211_get_hdrlen(u16 fc)
 }
 EXPORT_SYMBOL(ieee80211_get_hdrlen);
 
-int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
+unsigned int ieee80211_hdrlen(__le16 fc)
 {
-	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *) skb->data;
-	int hdrlen;
+	unsigned int hdrlen = 24;
+
+	if (ieee80211_is_data(fc)) {
+		if (ieee80211_has_a4(fc))
+			hdrlen = 30;
+		if (ieee80211_is_data_qos(fc))
+			hdrlen += IEEE80211_QOS_CTL_LEN;
+		goto out;
+	}
+
+	if (ieee80211_is_ctl(fc)) {
+		/*
+		 * ACK and CTS are 10 bytes, all others 16. To see how
+		 * to get this condition consider
+		 *   subtype mask:   0b0000000011110000 (0x00F0)
+		 *   ACK subtype:    0b0000000011010000 (0x00D0)
+		 *   CTS subtype:    0b0000000011000000 (0x00C0)
+		 *   bits that matter:         ^^^      (0x00E0)
+		 *   value of those: 0b0000000011000000 (0x00C0)
+		 */
+		if ((fc & cpu_to_le16(0x00E0)) == cpu_to_le16(0x00C0))
+			hdrlen = 10;
+		else
+			hdrlen = 16;
+	}
+out:
+	return hdrlen;
+}
+EXPORT_SYMBOL(ieee80211_hdrlen);
+
+unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
+{
+	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)skb->data;
+	unsigned int hdrlen;
 
 	if (unlikely(skb->len < 10))
 		return 0;
-	hdrlen = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	if (unlikely(hdrlen > skb->len))
 		return 0;
 	return hdrlen;

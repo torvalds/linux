@@ -55,13 +55,13 @@ static int iwl_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
 
 	switch (state) {
 	case RFKILL_STATE_ON:
-		priv->cfg->ops->lib->radio_kill_sw(priv, 0);
+		iwl_radio_kill_sw_enable_radio(priv);
 		/* if HW rf-kill is set dont allow ON state */
 		if (iwl_is_rfkill(priv))
 			err = -EBUSY;
 		break;
 	case RFKILL_STATE_OFF:
-		priv->cfg->ops->lib->radio_kill_sw(priv, 1);
+		iwl_radio_kill_sw_disable_radio(priv);
 		if (!iwl_is_rfkill(priv))
 			err = -EBUSY;
 		break;

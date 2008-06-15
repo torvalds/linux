@@ -101,6 +101,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 /*
  * Queue handlers.
  */
+int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb);
 void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev);
 void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev);
 int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev);

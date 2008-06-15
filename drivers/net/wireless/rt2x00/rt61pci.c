@@ -330,6 +330,17 @@ static int rt61pci_blink_set(struct led_classdev *led_cdev,
 
 	return 0;
 }
+
+static void rt61pci_init_led(struct rt2x00_dev *rt2x00dev,
+			     struct rt2x00_led *led,
+			     enum led_type type)
+{
+	led->rt2x00dev = rt2x00dev;
+	led->type = type;
+	led->led_dev.brightness_set = rt61pci_brightness_set;
+	led->led_dev.blink_set = rt61pci_blink_set;
+	led->flags = LED_INITIALIZED;
+}
 #endif /* CONFIG_RT61PCI_LEDS */
 
 /*
@@ -1270,6 +1281,22 @@ static int rt61pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static int rt61pci_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u8 value;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt61pci_bbp_read(rt2x00dev, 0, &value);
+		if ((value != 0xff) && (value != 0x00))
+			return 0;
+		udelay(REGISTER_BUSY_DELAY);
+	}
+
+	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	return -EACCES;
+}
+
 static int rt61pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
@@ -1277,18 +1304,9 @@ static int rt61pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 	u8 reg_id;
 	u8 value;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt61pci_bbp_read(rt2x00dev, 0, &value);
-		if ((value != 0xff) && (value != 0x00))
-			goto continue_csr_init;
-		NOTICE(rt2x00dev, "Waiting for BBP register.\n");
-		udelay(REGISTER_BUSY_DELAY);
-	}
+	if (unlikely(rt61pci_wait_bbp_ready(rt2x00dev)))
+		return -EACCES;
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
-	return -EACCES;
-
-continue_csr_init:
 	rt61pci_bbp_write(rt2x00dev, 3, 0x00);
 	rt61pci_bbp_write(rt2x00dev, 15, 0x30);
 	rt61pci_bbp_write(rt2x00dev, 21, 0xc8);
@@ -1337,7 +1355,8 @@ static void rt61pci_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR0, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DISABLE_RX,
-			   state == STATE_RADIO_RX_OFF);
+			   (state == STATE_RADIO_RX_OFF) ||
+			   (state == STATE_RADIO_RX_OFF_LINK));
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
 }
 
@@ -1389,17 +1408,10 @@ static int rt61pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all registers.
 	 */
-	if (rt61pci_init_queues(rt2x00dev) ||
-	    rt61pci_init_registers(rt2x00dev) ||
-	    rt61pci_init_bbp(rt2x00dev)) {
-		ERROR(rt2x00dev, "Register initialization failed.\n");
+	if (unlikely(rt61pci_init_queues(rt2x00dev) ||
+		     rt61pci_init_registers(rt2x00dev) ||
+		     rt61pci_init_bbp(rt2x00dev)))
 		return -EIO;
-	}
-
-	/*
-	 * Enable interrupts.
-	 */
-	rt61pci_toggle_irq(rt2x00dev, STATE_RADIO_IRQ_ON);
 
 	/*
 	 * Enable RX.
@@ -1431,11 +1443,6 @@ static void rt61pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC2, 1);
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC3, 1);
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
-
-	/*
-	 * Disable interrupts.
-	 */
-	rt61pci_toggle_irq(rt2x00dev, STATE_RADIO_IRQ_OFF);
 }
 
 static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
@@ -1443,7 +1450,6 @@ static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	u32 reg;
 	unsigned int i;
 	char put_to_sleep;
-	char current_state;
 
 	put_to_sleep = (state != STATE_AWAKE);
 
@@ -1459,15 +1465,11 @@ static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	 */
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt2x00pci_register_read(rt2x00dev, MAC_CSR12, &reg);
-		current_state =
-		    rt2x00_get_field32(reg, MAC_CSR12_BBP_CURRENT_STATE);
-		if (current_state == !put_to_sleep)
+		state = rt2x00_get_field32(reg, MAC_CSR12_BBP_CURRENT_STATE);
+		if (state == !put_to_sleep)
 			return 0;
 		msleep(10);
 	}
-
-	NOTICE(rt2x00dev, "Device failed to enter state %d, "
-	       "current device state %d.\n", !put_to_sleep, current_state);
 
 	return -EBUSY;
 }
@@ -1486,11 +1488,13 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_RX_ON:
 	case STATE_RADIO_RX_ON_LINK:
-		rt61pci_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
-		break;
 	case STATE_RADIO_RX_OFF:
 	case STATE_RADIO_RX_OFF_LINK:
-		rt61pci_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+		rt61pci_toggle_rx(rt2x00dev, state);
+		break;
+	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_OFF:
+		rt61pci_toggle_irq(rt2x00dev, state);
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -1502,6 +1506,10 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		retval = -ENOTSUPP;
 		break;
 	}
+
+	if (unlikely(retval))
+		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
+		      state, retval);
 
 	return retval;
 }
@@ -1554,7 +1562,7 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 
 	if (skbdesc->desc_len > TXINFO_SIZE) {
 		rt2x00_desc_read(txd, 11, &word);
-		rt2x00_set_field32(&word, TXD_W11_BUFFER_LENGTH0, skbdesc->data_len);
+		rt2x00_set_field32(&word, TXD_W11_BUFFER_LENGTH0, skb->len);
 		rt2x00_desc_write(txd, 11, word);
 	}
 
@@ -1573,7 +1581,7 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC, 0);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skbdesc->data_len);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skb->len);
 	rt2x00_set_field32(&word, TXD_W0_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, CIPHER_NONE);
@@ -2067,31 +2075,11 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 	value = rt2x00_get_field16(eeprom, EEPROM_LED_LED_MODE);
 
-	rt2x00dev->led_radio.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_radio.type = LED_TYPE_RADIO;
-	rt2x00dev->led_radio.led_dev.brightness_set =
-	    rt61pci_brightness_set;
-	rt2x00dev->led_radio.led_dev.blink_set =
-	    rt61pci_blink_set;
-	rt2x00dev->led_radio.flags = LED_INITIALIZED;
-
-	rt2x00dev->led_assoc.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_assoc.type = LED_TYPE_ASSOC;
-	rt2x00dev->led_assoc.led_dev.brightness_set =
-	    rt61pci_brightness_set;
-	rt2x00dev->led_assoc.led_dev.blink_set =
-	    rt61pci_blink_set;
-	rt2x00dev->led_assoc.flags = LED_INITIALIZED;
-
-	if (value == LED_MODE_SIGNAL_STRENGTH) {
-		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_qual.type = LED_TYPE_QUALITY;
-		rt2x00dev->led_qual.led_dev.brightness_set =
-		    rt61pci_brightness_set;
-		rt2x00dev->led_qual.led_dev.blink_set =
-		    rt61pci_blink_set;
-		rt2x00dev->led_qual.flags = LED_INITIALIZED;
-	}
+	rt61pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
+	rt61pci_init_led(rt2x00dev, &rt2x00dev->led_assoc, LED_TYPE_ASSOC);
+	if (value == LED_MODE_SIGNAL_STRENGTH)
+		rt61pci_init_led(rt2x00dev, &rt2x00dev->led_qual,
+				 LED_TYPE_QUALITY);
 
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_LED_MODE, value);
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_0,
@@ -2387,9 +2375,6 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 */
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
-	skbdesc->data = skb->data;
-	skbdesc->data_len = skb->len;
 	skbdesc->desc = entry_priv->desc;
 	skbdesc->desc_len = intf->beacon->queue->desc_size;
 	skbdesc->entry = intf->beacon;
@@ -2414,7 +2399,7 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 				      skbdesc->desc, skbdesc->desc_len);
 	rt2x00pci_register_multiwrite(rt2x00dev,
 				      beacon_base + skbdesc->desc_len,
-				      skbdesc->data, skbdesc->data_len);
+				      skb->data, skb->len);
 	rt61pci_kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	return 0;

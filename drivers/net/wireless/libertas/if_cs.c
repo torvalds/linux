@@ -159,7 +159,9 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 
 
 
-/* First the bitmasks for the host/card interrupt/status registers: */
+/*
+ * First the bitmasks for the host/card interrupt/status registers:
+ */
 #define IF_CS_BIT_TX			0x0001
 #define IF_CS_BIT_RX			0x0002
 #define IF_CS_BIT_COMMAND		0x0004
@@ -167,35 +169,110 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 #define IF_CS_BIT_EVENT			0x0010
 #define	IF_CS_BIT_MASK			0x001f
 
-/* And now the individual registers and assorted masks */
+
+
+/*
+ * It's not really clear to me what the host status register is for. It
+ * needs to be set almost in union with "host int cause". The following
+ * bits from above are used:
+ *
+ *   IF_CS_BIT_TX         driver downloaded a data packet
+ *   IF_CS_BIT_RX         driver got a data packet
+ *   IF_CS_BIT_COMMAND    driver downloaded a command
+ *   IF_CS_BIT_RESP       not used (has some meaning with powerdown)
+ *   IF_CS_BIT_EVENT      driver read a host event
+ */
 #define IF_CS_HOST_STATUS		0x00000000
 
+/*
+ * With the host int cause register can the host (that is, Linux) cause
+ * an interrupt in the firmware, to tell the firmware about those events:
+ *
+ *   IF_CS_BIT_TX         a data packet has been downloaded
+ *   IF_CS_BIT_RX         a received data packet has retrieved
+ *   IF_CS_BIT_COMMAND    a firmware block or a command has been downloaded
+ *   IF_CS_BIT_RESP       not used (has some meaning with powerdown)
+ *   IF_CS_BIT_EVENT      a host event (link lost etc) has been retrieved
+ */
 #define IF_CS_HOST_INT_CAUSE		0x00000002
 
+/*
+ * The host int mask register is used to enable/disable interrupt.  However,
+ * I have the suspicion that disabled interrupts are lost.
+ */
 #define IF_CS_HOST_INT_MASK		0x00000004
 
-#define IF_CS_HOST_WRITE		0x00000016
-#define IF_CS_HOST_WRITE_LEN		0x00000014
-
-#define IF_CS_HOST_CMD			0x0000001A
-#define IF_CS_HOST_CMD_LEN		0x00000018
-
+/*
+ * Used to send or receive data packets:
+ */
+#define IF_CS_WRITE			0x00000016
+#define IF_CS_WRITE_LEN			0x00000014
 #define IF_CS_READ			0x00000010
 #define IF_CS_READ_LEN			0x00000024
 
-#define IF_CS_CARD_CMD			0x00000012
-#define IF_CS_CARD_CMD_LEN		0x00000030
+/*
+ * Used to send commands (and to send firmware block) and to
+ * receive command responses:
+ */
+#define IF_CS_CMD			0x0000001A
+#define IF_CS_CMD_LEN			0x00000018
+#define IF_CS_RESP			0x00000012
+#define IF_CS_RESP_LEN			0x00000030
 
+/*
+ * The card status registers shows what the card/firmware actually
+ * accepts:
+ *
+ *   IF_CS_BIT_TX        you may send a data packet
+ *   IF_CS_BIT_RX        you may retrieve a data packet
+ *   IF_CS_BIT_COMMAND   you may send a command
+ *   IF_CS_BIT_RESP      you may retrieve a command response
+ *   IF_CS_BIT_EVENT     the card has a event for use (link lost, snr low etc)
+ *
+ * When reading this register several times, you will get back the same
+ * results --- with one exception: the IF_CS_BIT_EVENT clear itself
+ * automatically.
+ *
+ * Not that we don't rely on BIT_RX,_BIT_RESP or BIT_EVENT because
+ * we handle this via the card int cause register.
+ */
 #define IF_CS_CARD_STATUS		0x00000020
 #define IF_CS_CARD_STATUS_MASK		0x7f00
 
+/*
+ * The card int cause register is used by the card/firmware to notify us
+ * about the following events:
+ *
+ *   IF_CS_BIT_TX        a data packet has successfully been sentx
+ *   IF_CS_BIT_RX        a data packet has been received and can be retrieved
+ *   IF_CS_BIT_COMMAND   not used
+ *   IF_CS_BIT_RESP      the firmware has a command response for us
+ *   IF_CS_BIT_EVENT     the card has a event for use (link lost, snr low etc)
+ */
 #define IF_CS_CARD_INT_CAUSE		0x00000022
 
-#define IF_CS_CARD_SQ_READ_LOW		0x00000028
-#define IF_CS_CARD_SQ_HELPER_OK		0x10
+/*
+ * This is used to for handshaking with the card's bootloader/helper image
+ * to synchronize downloading of firmware blocks.
+ */
+#define IF_CS_SQ_READ_LOW		0x00000028
+#define IF_CS_SQ_HELPER_OK		0x10
 
+/*
+ * The scratch register tells us ...
+ *
+ * IF_CS_SCRATCH_BOOT_OK     the bootloader runs
+ * IF_CS_SCRATCH_HELPER_OK   the helper firmware already runs
+ */
 #define IF_CS_SCRATCH			0x0000003F
+#define IF_CS_SCRATCH_BOOT_OK		0x00
+#define IF_CS_SCRATCH_HELPER_OK		0x5a
 
+/*
+ * Used to detect ancient chips:
+ */
+#define IF_CS_PRODUCT_ID		0x0000001C
+#define IF_CS_CF8385_B1_REV		0x12
 
 
 /********************************************************************/
@@ -228,8 +305,8 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 
 	/* Is hardware ready? */
 	while (1) {
-		u16 val = if_cs_read16(card, IF_CS_CARD_STATUS);
-		if (val & IF_CS_BIT_COMMAND)
+		u16 status = if_cs_read16(card, IF_CS_CARD_STATUS);
+		if (status & IF_CS_BIT_COMMAND)
 			break;
 		if (++loops > 100) {
 			lbs_pr_err("card not ready for commands\n");
@@ -238,12 +315,12 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 		mdelay(1);
 	}
 
-	if_cs_write16(card, IF_CS_HOST_CMD_LEN, nb);
+	if_cs_write16(card, IF_CS_CMD_LEN, nb);
 
-	if_cs_write16_rep(card, IF_CS_HOST_CMD, buf, nb / 2);
+	if_cs_write16_rep(card, IF_CS_CMD, buf, nb / 2);
 	/* Are we supposed to transfer an odd amount of bytes? */
 	if (nb & 1)
-		if_cs_write8(card, IF_CS_HOST_CMD, buf[nb-1]);
+		if_cs_write8(card, IF_CS_CMD, buf[nb-1]);
 
 	/* "Assert the download over interrupt command in the Host
 	 * status register" */
@@ -274,12 +351,12 @@ static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 	status = if_cs_read16(card, IF_CS_CARD_STATUS);
 	BUG_ON((status & IF_CS_BIT_TX) == 0);
 
-	if_cs_write16(card, IF_CS_HOST_WRITE_LEN, nb);
+	if_cs_write16(card, IF_CS_WRITE_LEN, nb);
 
 	/* write even number of bytes, then odd byte if necessary */
-	if_cs_write16_rep(card, IF_CS_HOST_WRITE, buf, nb / 2);
+	if_cs_write16_rep(card, IF_CS_WRITE, buf, nb / 2);
 	if (nb & 1)
-		if_cs_write8(card, IF_CS_HOST_WRITE, buf[nb-1]);
+		if_cs_write8(card, IF_CS_WRITE, buf[nb-1]);
 
 	if_cs_write16(card, IF_CS_HOST_STATUS, IF_CS_BIT_TX);
 	if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_TX);
@@ -307,16 +384,16 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 		goto out;
 	}
 
-	*len = if_cs_read16(priv->card, IF_CS_CARD_CMD_LEN);
+	*len = if_cs_read16(priv->card, IF_CS_RESP_LEN);
 	if ((*len == 0) || (*len > LBS_CMD_BUFFER_SIZE)) {
 		lbs_pr_err("card cmd buffer has invalid # of bytes (%d)\n", *len);
 		goto out;
 	}
 
 	/* read even number of bytes, then odd byte if necessary */
-	if_cs_read16_rep(priv->card, IF_CS_CARD_CMD, data, *len/sizeof(u16));
+	if_cs_read16_rep(priv->card, IF_CS_RESP, data, *len/sizeof(u16));
 	if (*len & 1)
-		data[*len-1] = if_cs_read8(priv->card, IF_CS_CARD_CMD);
+		data[*len-1] = if_cs_read8(priv->card, IF_CS_RESP);
 
 	/* This is a workaround for a firmware that reports too much
 	 * bytes */
@@ -379,6 +456,8 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 
 	/* Ask card interrupt cause register if there is something for us */
 	cause = if_cs_read16(card, IF_CS_CARD_INT_CAUSE);
+	lbs_deb_cs("cause 0x%04x\n", cause);
+
 	if (cause == 0) {
 		/* Not for us */
 		return IRQ_NONE;
@@ -389,10 +468,6 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		card->priv->surpriseremoved = 1;
 		return IRQ_HANDLED;
 	}
-
-	/* Clear interrupt cause */
-	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, cause & IF_CS_BIT_MASK);
-	lbs_deb_cs("cause 0x%04x\n", cause);
 
 	if (cause & IF_CS_BIT_RX) {
 		struct sk_buff *skb;
@@ -426,13 +501,14 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 	}
 
 	if (cause & IF_CS_BIT_EVENT) {
-		u16 event = if_cs_read16(priv->card, IF_CS_CARD_STATUS)
-			& IF_CS_CARD_STATUS_MASK;
+		u16 status = if_cs_read16(priv->card, IF_CS_CARD_STATUS);
 		if_cs_write16(priv->card, IF_CS_HOST_INT_CAUSE,
 			IF_CS_BIT_EVENT);
-		lbs_deb_cs("host event 0x%04x\n", event);
-		lbs_queue_event(priv, event >> 8 & 0xff);
+		lbs_queue_event(priv, (status & IF_CS_CARD_STATUS_MASK) >> 8);
 	}
+
+	/* Clear interrupt cause */
+	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, cause & IF_CS_BIT_MASK);
 
 	lbs_deb_leave(LBS_DEB_CS);
 	return IRQ_HANDLED;
@@ -464,11 +540,11 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 	/* "If the value is 0x5a, the firmware is already
 	 * downloaded successfully"
 	 */
-	if (scratch == 0x5a)
+	if (scratch == IF_CS_SCRATCH_HELPER_OK)
 		goto done;
 
 	/* "If the value is != 00, it is invalid value of register */
-	if (scratch != 0x00) {
+	if (scratch != IF_CS_SCRATCH_BOOT_OK) {
 		ret = -ENODEV;
 		goto done;
 	}
@@ -496,11 +572,11 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 
 		/* "write the number of bytes to be sent to the I/O Command
 		 * write length register" */
-		if_cs_write16(card, IF_CS_HOST_CMD_LEN, count);
+		if_cs_write16(card, IF_CS_CMD_LEN, count);
 
 		/* "write this to I/O Command port register as 16 bit writes */
 		if (count)
-			if_cs_write16_rep(card, IF_CS_HOST_CMD,
+			if_cs_write16_rep(card, IF_CS_CMD,
 				&fw->data[sent],
 				count >> 1);
 
@@ -557,15 +633,15 @@ static int if_cs_prog_real(struct if_cs_card *card)
 	}
 	lbs_deb_cs("fw size %td\n", fw->size);
 
-	ret = if_cs_poll_while_fw_download(card, IF_CS_CARD_SQ_READ_LOW,
-		IF_CS_CARD_SQ_HELPER_OK);
+	ret = if_cs_poll_while_fw_download(card, IF_CS_SQ_READ_LOW,
+		IF_CS_SQ_HELPER_OK);
 	if (ret < 0) {
 		lbs_pr_err("helper firmware doesn't answer\n");
 		goto err_release;
 	}
 
 	for (sent = 0; sent < fw->size; sent += len) {
-		len = if_cs_read16(card, IF_CS_CARD_SQ_READ_LOW);
+		len = if_cs_read16(card, IF_CS_SQ_READ_LOW);
 		if (len & 1) {
 			retry++;
 			lbs_pr_info("odd, need to retry this firmware block\n");
@@ -583,9 +659,9 @@ static int if_cs_prog_real(struct if_cs_card *card)
 		}
 
 
-		if_cs_write16(card, IF_CS_HOST_CMD_LEN, len);
+		if_cs_write16(card, IF_CS_CMD_LEN, len);
 
-		if_cs_write16_rep(card, IF_CS_HOST_CMD,
+		if_cs_write16_rep(card, IF_CS_CMD,
 			&fw->data[sent],
 			(len+1) >> 1);
 		if_cs_write8(card, IF_CS_HOST_STATUS, IF_CS_BIT_COMMAND);
@@ -789,6 +865,12 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	       p_dev->irq.AssignedIRQ, p_dev->io.BasePort1,
 	       p_dev->io.BasePort1 + p_dev->io.NumPorts1 - 1);
 
+	/* Check if we have a current silicon */
+	if (if_cs_read8(card, IF_CS_PRODUCT_ID) < IF_CS_CF8385_B1_REV) {
+		lbs_pr_err("old chips like 8385 rev B1 aren't supported\n");
+		ret = -ENODEV;
+		goto out2;
+	}
 
 	/* Load the firmware early, before calling into libertas.ko */
 	ret = if_cs_prog_helper(card);

@@ -44,7 +44,7 @@
 /*
  * Module information.
  */
-#define DRV_VERSION	"2.1.6"
+#define DRV_VERSION	"2.1.7"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
 /*
@@ -546,8 +546,7 @@ struct rt2x00lib_ops {
 	void (*write_tx_desc) (struct rt2x00_dev *rt2x00dev,
 			       struct sk_buff *skb,
 			       struct txentry_desc *txdesc);
-	int (*write_tx_data) (struct rt2x00_dev *rt2x00dev,
-			      struct data_queue *queue, struct sk_buff *skb);
+	int (*write_tx_data) (struct queue_entry *entry);
 	int (*get_tx_data_len) (struct rt2x00_dev *rt2x00dev,
 				struct sk_buff *skb);
 	void (*kick_tx_queue) (struct rt2x00_dev *rt2x00dev,
@@ -827,7 +826,7 @@ struct rt2x00_dev {
 	 * The Beacon array also contains the Atim queue
 	 * if that is supported by the device.
 	 */
-	int data_queues;
+	unsigned int data_queues;
 	struct data_queue *rx;
 	struct data_queue *tx;
 	struct data_queue *bcn;
@@ -929,6 +928,12 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
 {
 	return ((size * 8 * 10) % rate);
 }
+
+/**
+ * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
+ * @queue: The queue for which the skb will be applicable.
+ */
+struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue);
 
 /**
  * rt2x00queue_create_tx_descriptor - Create TX descriptor from mac80211 input

@@ -60,13 +60,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#include <linux/kernel.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-calib.h"
-#include "iwl-eeprom.h"
 
 /* "false alarms" are signals that our DSP tries to lock onto,
  *   but then determines that they are either noise, or transmissions
@@ -435,8 +433,6 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	data = &(priv->sensitivity_data);
 
 	if (ranges == NULL)
-		/* can happen if IWLWIFI_RUN_TIME_CALIB is selected
-		 * but no IWLXXXX_RUN_TIME_CALIB for specific is selected */
 		return;
 
 	memset(data, 0, sizeof(struct iwl_sensitivity_data));

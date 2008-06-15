@@ -451,7 +451,6 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 
 {
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_missed_beacon_notif *missed_beacon;
 
@@ -465,6 +464,5 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 		if (!test_bit(STATUS_SCANNING, &priv->status))
 			iwl_init_sensitivity(priv);
 	}
-#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
 }
 EXPORT_SYMBOL(iwl_rx_missed_beacon_notif);

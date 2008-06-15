@@ -112,6 +112,8 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	if (status)
 		return status;
 
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_IRQ_ON);
+
 	rt2x00leds_led_radio(rt2x00dev, true);
 	rt2x00led_led_activity(rt2x00dev, true);
 
@@ -157,6 +159,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Disable radio.
 	 */
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_OFF);
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_IRQ_OFF);
 	rt2x00led_led_activity(rt2x00dev, false);
 	rt2x00leds_led_radio(rt2x00dev, false);
 }
@@ -551,12 +554,30 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
+	unsigned int header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
 	const struct rt2x00_rate *rate;
+	unsigned int align;
 	unsigned int i;
 	int idx = -1;
 	u16 fc;
+
+	/*
+	 * The data behind the ieee80211 header must be
+	 * aligned on a 4 byte boundary.
+	 */
+	align = ((unsigned long)(entry->skb->data + header_size)) & 3;
+
+	if (align) {
+		skb_push(entry->skb, align);
+		/* Move entire frame in 1 command */
+		memmove(entry->skb->data, entry->skb->data + align,
+			rxdesc->size);
+	}
+
+	/* Update data pointers, trim buffer to correct size */
+	skb_trim(entry->skb, rxdesc->size);
 
 	/*
 	 * Update RX statistics.

@@ -34,7 +34,6 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				struct sk_buff *frag_skb)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(frag_skb);
-	struct skb_frame_desc *skbdesc;
 	struct ieee80211_tx_info *rts_info;
 	struct sk_buff *skb;
 	int size;
@@ -65,6 +64,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	memcpy(skb->cb, frag_skb->cb, sizeof(skb->cb));
 	rts_info = IEEE80211_SKB_CB(skb);
 	rts_info->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
+	rts_info->flags &= ~IEEE80211_TX_CTL_USE_RTS_CTS;
 	rts_info->flags &= ~IEEE80211_TX_CTL_USE_CTS_PROTECT;
 	rts_info->flags &= ~IEEE80211_TX_CTL_REQ_TX_STATUS;
 
@@ -82,14 +82,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  frag_skb->data, size, tx_info,
 				  (struct ieee80211_rts *)(skb->data));
 
-	/*
-	 * Initialize skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
-
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb)) {
+	if (rt2x00queue_write_tx_frame(queue, skb)) {
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -135,18 +128,16 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	/*
-	 * If CTS/RTS is required. and this frame is not CTS or RTS,
-	 * create and queue that frame first. But make sure we have
-	 * at least enough entries available to send this CTS/RTS
-	 * frame as well as the data frame.
+	 * If CTS/RTS is required. create and queue that frame first.
+	 * Make sure we have at least enough entries available to send
+	 * this CTS/RTS frame as well as the data frame.
 	 * Note that when the driver has set the set_rts_threshold()
 	 * callback function it doesn't need software generation of
-	 * neither RTS or CTS-to-self frames and handles everything
+	 * either RTS or CTS-to-self frame and handles everything
 	 * inside the hardware.
 	 */
 	frame_control = le16_to_cpu(ieee80211hdr->frame_control);
-	if (!is_rts_frame(frame_control) && !is_cts_frame(frame_control) &&
-	    (tx_info->flags & (IEEE80211_TX_CTL_USE_RTS_CTS |
+	if ((tx_info->flags & (IEEE80211_TX_CTL_USE_RTS_CTS |
 			       IEEE80211_TX_CTL_USE_CTS_PROTECT)) &&
 	    !rt2x00dev->ops->hw->set_rts_threshold) {
 		if (rt2x00queue_available(queue) <= 1) {
@@ -160,16 +151,13 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb)) {
+	if (rt2x00queue_write_tx_frame(queue, skb)) {
 		ieee80211_stop_queue(rt2x00dev->hw, qid);
 		return NETDEV_TX_BUSY;
 	}
 
-	if (rt2x00queue_full(queue))
+	if (rt2x00queue_threshold(queue))
 		ieee80211_stop_queue(rt2x00dev->hw, qid);
-
-	if (rt2x00dev->ops->lib->kick_tx_queue)
-		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, qid);
 
 	return NETDEV_TX_OK;
 }

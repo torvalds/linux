@@ -316,6 +316,17 @@ static int rt2500usb_blink_set(struct led_classdev *led_cdev,
 
 	return 0;
 }
+
+static void rt2500usb_init_led(struct rt2x00_dev *rt2x00dev,
+			       struct rt2x00_led *led,
+			       enum led_type type)
+{
+	led->rt2x00dev = rt2x00dev;
+	led->type = type;
+	led->led_dev.brightness_set = rt2500usb_brightness_set;
+	led->led_dev.blink_set = rt2500usb_blink_set;
+	led->flags = LED_INITIALIZED;
+}
 #endif /* CONFIG_RT2500USB_LEDS */
 
 /*
@@ -847,6 +858,22 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static int rt2500usb_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u8 value;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2500usb_bbp_read(rt2x00dev, 0, &value);
+		if ((value != 0xff) && (value != 0x00))
+			return 0;
+		udelay(REGISTER_BUSY_DELAY);
+	}
+
+	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	return -EACCES;
+}
+
 static int rt2500usb_init_bbp(struct rt2x00_dev *rt2x00dev)
 {
 	unsigned int i;
@@ -854,18 +881,9 @@ static int rt2500usb_init_bbp(struct rt2x00_dev *rt2x00dev)
 	u8 value;
 	u8 reg_id;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2500usb_bbp_read(rt2x00dev, 0, &value);
-		if ((value != 0xff) && (value != 0x00))
-			goto continue_csr_init;
-		NOTICE(rt2x00dev, "Waiting for BBP register.\n");
-		udelay(REGISTER_BUSY_DELAY);
-	}
+	if (unlikely(rt2500usb_wait_bbp_ready(rt2x00dev)))
+		return -EACCES;
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
-	return -EACCES;
-
-continue_csr_init:
 	rt2500usb_bbp_write(rt2x00dev, 3, 0x02);
 	rt2500usb_bbp_write(rt2x00dev, 4, 0x19);
 	rt2500usb_bbp_write(rt2x00dev, 14, 0x1c);
@@ -921,7 +939,8 @@ static void rt2500usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR2, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR2_DISABLE_RX,
-			   state == STATE_RADIO_RX_OFF);
+			   (state == STATE_RADIO_RX_OFF) ||
+			   (state == STATE_RADIO_RX_OFF_LINK));
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR2, reg);
 }
 
@@ -930,11 +949,9 @@ static int rt2500usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all registers.
 	 */
-	if (rt2500usb_init_registers(rt2x00dev) ||
-	    rt2500usb_init_bbp(rt2x00dev)) {
-		ERROR(rt2x00dev, "Register initialization failed.\n");
+	if (unlikely(rt2500usb_init_registers(rt2x00dev) ||
+		     rt2500usb_init_bbp(rt2x00dev)))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -987,10 +1004,6 @@ static int rt2500usb_set_state(struct rt2x00_dev *rt2x00dev,
 		msleep(30);
 	}
 
-	NOTICE(rt2x00dev, "Device failed to enter state %d, "
-	       "current device state: bbp %d and rf %d.\n",
-	       state, bbp_state, rf_state);
-
 	return -EBUSY;
 }
 
@@ -1008,11 +1021,13 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_RX_ON:
 	case STATE_RADIO_RX_ON_LINK:
-		rt2500usb_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
-		break;
 	case STATE_RADIO_RX_OFF:
 	case STATE_RADIO_RX_OFF_LINK:
-		rt2500usb_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+		rt2500usb_toggle_rx(rt2x00dev, state);
+		break;
+	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_OFF:
+		/* No support, but no error either */
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -1024,6 +1039,10 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		retval = -ENOTSUPP;
 		break;
 	}
+
+	if (unlikely(retval))
+		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
+		      state, retval);
 
 	return retval;
 }
@@ -1069,7 +1088,8 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
 			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skbdesc->data_len);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT,
+			   skb->len - skbdesc->desc_len);
 	rt2x00_set_field32(&word, TXD_W0_CIPHER, CIPHER_NONE);
 	rt2x00_desc_write(txd, 0, word);
 }
@@ -1097,8 +1117,10 @@ static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 {
 	u16 reg;
 
-	if (queue != QID_BEACON)
+	if (queue != QID_BEACON) {
+		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
 		return;
+	}
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
 	if (!rt2x00_get_field16(reg, TXRX_CSR19_BEACON_GEN)) {
@@ -1134,14 +1156,10 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	u32 word1;
 
 	/*
-	 * Copy descriptor to the skb->cb array, this has 2 benefits:
-	 * 1) Each descriptor word is 4 byte aligned.
-	 * 2) Descriptor is safe  from moving of frame data in rt2x00usb.
+	 * Copy descriptor to the skbdesc->desc buffer, making it safe from moving of
+	 * frame data in rt2x00usb.
 	 */
-	skbdesc->desc_len =
-	    min_t(u16, entry->queue->desc_size, sizeof(entry->skb->cb));
-	memcpy(entry->skb->cb, rxd, skbdesc->desc_len);
-	skbdesc->desc = entry->skb->cb;
+	memcpy(skbdesc->desc, rxd, skbdesc->desc_len);
 	rxd = (__le32 *)skbdesc->desc;
 
 	/*
@@ -1175,8 +1193,6 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	 * Adjust the skb memory window to the frame boundaries.
 	 */
 	skb_trim(entry->skb, rxdesc->size);
-	skbdesc->data = entry->skb->data;
-	skbdesc->data_len = rxdesc->size;
 }
 
 /*
@@ -1377,23 +1393,10 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 #ifdef CONFIG_RT2500USB_LEDS
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
-	rt2x00dev->led_radio.rt2x00dev = rt2x00dev;
-	rt2x00dev->led_radio.type = LED_TYPE_RADIO;
-	rt2x00dev->led_radio.led_dev.brightness_set =
-	    rt2500usb_brightness_set;
-	rt2x00dev->led_radio.led_dev.blink_set =
-	    rt2500usb_blink_set;
-	rt2x00dev->led_radio.flags = LED_INITIALIZED;
-
-	if (value == LED_MODE_TXRX_ACTIVITY) {
-		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_qual.type = LED_TYPE_ACTIVITY;
-		rt2x00dev->led_qual.led_dev.brightness_set =
-		    rt2500usb_brightness_set;
-		rt2x00dev->led_qual.led_dev.blink_set =
-		    rt2500usb_blink_set;
-		rt2x00dev->led_qual.flags = LED_INITIALIZED;
-	}
+	rt2500usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
+	if (value == LED_MODE_TXRX_ACTIVITY)
+		rt2500usb_init_led(rt2x00dev, &rt2x00dev->led_qual,
+				   LED_TYPE_ACTIVITY);
 #endif /* CONFIG_RT2500USB_LEDS */
 
 	/*
@@ -1703,9 +1706,6 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 */
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
-	skbdesc->data = skb->data + intf->beacon->queue->desc_size;
-	skbdesc->data_len = skb->len - intf->beacon->queue->desc_size;
 	skbdesc->desc = skb->data;
 	skbdesc->desc_len = intf->beacon->queue->desc_size;
 	skbdesc->entry = intf->beacon;

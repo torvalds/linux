@@ -38,6 +38,7 @@
 #include "../net/mac80211/rate.h"
 
 #include "iwl-dev.h"
+#include "iwl-sta.h"
 #include "iwl-core.h"
 #include "iwl-helpers.h"
 
@@ -105,8 +106,6 @@ struct iwl4965_scale_tbl_info {
 	struct iwl4965_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
 };
 
-#ifdef CONFIG_IWL4965_HT
-
 struct iwl4965_traffic_load {
 	unsigned long time_stamp;	/* age of the oldest statistics */
 	u32 packet_count[TID_QUEUE_MAX_SIZE];   /* packet count in this time
@@ -117,8 +116,6 @@ struct iwl4965_traffic_load {
 					 * been used since the last cleanup */
 	u8 head;			/* start of the circular buffer */
 };
-
-#endif /* CONFIG_IWL4965_HT */
 
 /**
  * struct iwl4965_lq_sta -- driver's rate scaling private structure
@@ -157,16 +154,12 @@ struct iwl4965_lq_sta {
 
 	struct iwl_link_quality_cmd lq;
 	struct iwl4965_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
-#ifdef CONFIG_IWL4965_HT
 	struct iwl4965_traffic_load load[TID_MAX_LOAD_COUNT];
 	u8 tx_agg_tid_en;
-#endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
-#ifdef CONFIG_IWL4965_HT
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
-#endif
 	u32 dbg_fixed_rate;
 #endif
 	struct iwl_priv *drv;
@@ -256,7 +249,6 @@ static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
 	return ((ant_type & valid_antenna) == ant_type);
 }
 
-#ifdef CONFIG_IWL4965_HT
 /*
  *	removes the old data from the statistics. All data that is older than
  *	TID_MAX_TIME_DIFF, will be deleted.
@@ -282,21 +274,21 @@ static void rs_tl_rm_old_stats(struct iwl4965_traffic_load *tl, u32 curr_time)
  *	increment traffic load value for tid and also remove
  *	any old values if passed the certain time period
  */
-static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
-			     struct ieee80211_hdr *hdr)
+static u8 rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
+			   struct ieee80211_hdr *hdr)
 {
 	u32 curr_time = jiffies_to_msecs(jiffies);
 	u32 time_diff;
 	s32 index;
 	struct iwl4965_traffic_load *tl = NULL;
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u8 tid;
 
-	if (ieee80211_is_qos_data(fc)) {
-		u8 *qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+	if (ieee80211_is_data_qos(fc)) {
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	} else
-		return;
+		return MAX_TID_COUNT;
 
 	tl = &lq_data->load[tid];
 
@@ -309,7 +301,7 @@ static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
 		tl->queue_count = 1;
 		tl->head = 0;
 		tl->packet_count[0] = 1;
-		return;
+		return MAX_TID_COUNT;
 	}
 
 	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
@@ -326,6 +318,8 @@ static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data,
 
 	if ((index + 1) > tl->queue_count)
 		tl->queue_count = index + 1;
+
+	return tid;
 }
 
 /*
@@ -388,8 +382,6 @@ static void rs_tl_turn_on_agg(struct iwl_priv *priv, u8 tid,
 		for (tid = 0; tid < TID_MAX_LOAD_COUNT; tid++)
 			rs_tl_turn_on_agg_for_tid(priv, lq_data, tid, sta);
 }
-
-#endif /* CONFIG_IWLWIFI_HT */
 
 static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
 {
@@ -545,7 +537,7 @@ static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 	u8 num_of_ant = get_num_of_ant_from_rate(rate_n_flags);
 	u8 mcs;
 
-	*rate_idx = iwl4965_hwrate_to_plcp_idx(rate_n_flags);
+	*rate_idx = iwl_hwrate_to_plcp_idx(rate_n_flags);
 
 	if (*rate_idx  == IWL_RATE_INVALID) {
 		*rate_idx = -1;
@@ -626,7 +618,6 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 
 /* FIXME:RS: in 4965 we don't use greenfield at all */
 /* FIXME:RS: don't use greenfield for now in TX */
-/* #ifdef CONFIG_IWL4965_HT */
 #if 0
 static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
 {
@@ -634,12 +625,11 @@ static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf
 		priv->current_ht_config.is_green_field &&
 		!priv->current_ht_config.non_GF_STA_present);
 }
-#else
+#endif
 static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
 {
 	return 0;
 }
-#endif	/* CONFIG_IWL4965_HT */
 
 /**
  * rs_get_supported_rates - get the available rates
@@ -804,7 +794,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	struct iwl4965_scale_tbl_info tbl_type;
 	struct iwl4965_scale_tbl_info *curr_tbl, *search_tbl;
 	u8 active_index = 0;
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	s32 tpt = 0;
 
 	IWL_DEBUG_RATE_LIMIT("get frame ack response, update rate scale window\n");
@@ -1050,7 +1040,6 @@ static void rs_set_expected_tpt_table(struct iwl4965_lq_sta *lq_sta,
 		tbl->expected_tpt = expected_tpt_G;
 }
 
-#ifdef CONFIG_IWL4965_HT
 /*
  * Find starting rate for new "search" high-throughput mode of modulation.
  * Goal is to find lowest expected rate (under perfect conditions) that is
@@ -1152,12 +1141,10 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 
 	return new_rate;
 }
-#endif				/* CONFIG_IWL4965_HT */
 
 /*
  * Set up search table for MIMO
  */
-#ifdef CONFIG_IWL4965_HT
 static int rs_switch_to_mimo2(struct iwl_priv *priv,
 			     struct iwl4965_lq_sta *lq_sta,
 			     struct ieee80211_conf *conf,
@@ -1221,16 +1208,6 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 		     tbl->current_rate, is_green);
 	return 0;
 }
-#else
-static int rs_switch_to_mimo2(struct iwl_priv *priv,
-			     struct iwl4965_lq_sta *lq_sta,
-			     struct ieee80211_conf *conf,
-			     struct sta_info *sta,
-			     struct iwl4965_scale_tbl_info *tbl, int index)
-{
-	return -1;
-}
-#endif	/*CONFIG_IWL4965_HT */
 
 /*
  * Set up search table for SISO
@@ -1241,7 +1218,6 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 			     struct sta_info *sta,
 			     struct iwl4965_scale_tbl_info *tbl, int index)
 {
-#ifdef CONFIG_IWL4965_HT
 	u16 rate_mask;
 	u8 is_green = lq_sta->is_green;
 	s32 rate;
@@ -1291,9 +1267,6 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	IWL_DEBUG_RATE("LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate, is_green);
 	return 0;
-#else
-	return -1;
-#endif	/*CONFIG_IWL4965_HT */
 }
 
 /*
@@ -1678,7 +1651,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	int high_tpt = IWL_INVALID_VALUE;
 	u32 fail_count;
 	s8 scale_action = 0;
-	u16 fc, rate_mask;
+	__le16 fc;
+	u16 rate_mask;
 	u8 update_lq = 0;
 	struct iwl4965_lq_sta *lq_sta;
 	struct iwl4965_scale_tbl_info *tbl, *tbl1;
@@ -1689,13 +1663,11 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	u8 done_search = 0;
 	u16 high_low;
 	s32 sr;
-#ifdef CONFIG_IWL4965_HT
 	u8 tid = MAX_TID_COUNT;
-#endif
 
 	IWL_DEBUG_RATE("rate scale calculate new rate for skb\n");
 
-	fc = le16_to_cpu(hdr->frame_control);
+	fc = hdr->frame_control;
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1)) {
 		/* Send management frames and broadcast/multicast data using
 		 * lowest rate. */
@@ -1712,9 +1684,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	}
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
 
-#ifdef CONFIG_IWL4965_HT
-	rs_tl_add_packet(lq_sta, hdr);
-#endif
+	tid = rs_tl_add_packet(lq_sta, hdr);
+
 	/*
 	 * Select rate-scale / modulation-mode table to work with in
 	 * the rest of this function:  "search" if searching for better
@@ -1842,8 +1813,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			tbl = &(lq_sta->lq_info[active_tbl]);
 
 			/* Revert to "active" rate and throughput info */
-			index = iwl4965_hwrate_to_plcp_idx(
-							tbl->current_rate);
+			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
 			current_tpt = lq_sta->last_tpt;
 
 			/* Need to set up a new rate table in uCode */
@@ -1997,8 +1967,7 @@ lq_update:
 				rs_rate_scale_clear_window(&(tbl->win[i]));
 
 			/* Use new "search" start rate */
-			index = iwl4965_hwrate_to_plcp_idx(
-							tbl->current_rate);
+			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
 
 			IWL_DEBUG_RATE("Switch current  mcs: %X index: %d\n",
 				     tbl->current_rate, index);
@@ -2013,9 +1982,7 @@ lq_update:
 		 * before next round of mode comparisons. */
 		tbl1 = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		if (is_legacy(tbl1->lq_type) &&
-#ifdef CONFIG_IWL4965_HT
 		   (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE)) &&
-#endif
 		    (lq_sta->action_counter >= 1)) {
 			lq_sta->action_counter = 0;
 			IWL_DEBUG_RATE("LQ: STAY in legacy table\n");
@@ -2027,14 +1994,12 @@ lq_update:
 		 * mode for a while before next round of mode comparisons. */
 		if (lq_sta->enable_counter &&
 		    (lq_sta->action_counter >= IWL_ACTION_LIMIT)) {
-#ifdef CONFIG_IWL4965_HT
 			if ((lq_sta->last_tpt > IWL_AGG_TPT_THREHOLD) &&
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != MAX_TID_COUNT)) {
 				IWL_DEBUG_RATE("try to aggregate tid %d\n", tid);
 				rs_tl_turn_on_agg(priv, tid, lq_sta, sta);
 			}
-#endif /*CONFIG_IWL4965_HT */
 			lq_sta->action_counter = 0;
 			rs_set_stay_in_table(priv, 0, lq_sta);
 		}
@@ -2136,7 +2101,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	struct ieee80211_conf *conf = &local->hw.conf;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct sta_info *sta;
-	u16 fc;
+	__le16 fc;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct iwl4965_lq_sta *lq_sta;
 
@@ -2148,7 +2113,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	/* Send management frames and broadcast/multicast data using lowest
 	 * rate. */
-	fc = le16_to_cpu(hdr->frame_control);
+	fc = hdr->frame_control;
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !sta->rate_ctrl_priv) {
 		sel->rate_idx = rate_lowest_index(local, sband, sta);
@@ -2279,30 +2244,23 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
 	lq_sta->active_rate_basic = priv->active_rate_basic;
 	lq_sta->band = priv->band;
-#ifdef CONFIG_IWL4965_HT
 	/*
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.
 	 */
-	lq_sta->active_siso_rate =
-		priv->current_ht_config.supp_mcs_set[0] << 1;
-	lq_sta->active_siso_rate |=
-		priv->current_ht_config.supp_mcs_set[0] & 0x1;
+	lq_sta->active_siso_rate = conf->ht_conf.supp_mcs_set[0] << 1;
+	lq_sta->active_siso_rate |= conf->ht_conf.supp_mcs_set[0] & 0x1;
 	lq_sta->active_siso_rate &= ~((u16)0x2);
 	lq_sta->active_siso_rate <<= IWL_FIRST_OFDM_RATE;
 
 	/* Same here */
-	lq_sta->active_mimo2_rate =
-		priv->current_ht_config.supp_mcs_set[1] << 1;
-	lq_sta->active_mimo2_rate |=
-		priv->current_ht_config.supp_mcs_set[1] & 0x1;
+	lq_sta->active_mimo2_rate = conf->ht_conf.supp_mcs_set[1] << 1;
+	lq_sta->active_mimo2_rate |= conf->ht_conf.supp_mcs_set[1] & 0x1;
 	lq_sta->active_mimo2_rate &= ~((u16)0x2);
 	lq_sta->active_mimo2_rate <<= IWL_FIRST_OFDM_RATE;
 
-	lq_sta->active_mimo3_rate =
-		priv->current_ht_config.supp_mcs_set[2] << 1;
-	lq_sta->active_mimo3_rate |=
-		priv->current_ht_config.supp_mcs_set[2] & 0x1;
+	lq_sta->active_mimo3_rate = conf->ht_conf.supp_mcs_set[2] << 1;
+	lq_sta->active_mimo3_rate |= conf->ht_conf.supp_mcs_set[2] & 0x1;
 	lq_sta->active_mimo3_rate &= ~((u16)0x2);
 	lq_sta->active_mimo3_rate <<= IWL_FIRST_OFDM_RATE;
 
@@ -2317,7 +2275,6 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	/* as default allow aggregation for all tids */
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
-#endif /*CONFIG_IWL4965_HT*/
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->drv = priv;
 #endif
@@ -2635,11 +2592,9 @@ static void rs_add_debugfs(void *priv, void *priv_sta,
 	lq_sta->rs_sta_dbgfs_stats_table_file =
 		debugfs_create_file("rate_stats_table", 0600, dir,
 			lq_sta, &rs_sta_dbgfs_stats_table_ops);
-#ifdef CONFIG_IWL4965_HT
 	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
 		debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
 		&lq_sta->tx_agg_tid_en);
-#endif
 
 }
 
@@ -2648,9 +2603,7 @@ static void rs_remove_debugfs(void *priv, void *priv_sta)
 	struct iwl4965_lq_sta *lq_sta = priv_sta;
 	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
-#ifdef CONFIG_IWL4965_HT
 	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
-#endif
 }
 #endif
 

@@ -41,6 +41,7 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
+#include "iwl-sta.h"
 #include "iwl-helpers.h"
 #include "iwl-5000-hw.h"
 
@@ -300,8 +301,6 @@ err:
 
 }
 
-#ifdef CONFIG_IWL5000_RUN_TIME_CALIB
-
 static void iwl5000_gain_computation(struct iwl_priv *priv,
 		u32 average_noise[NUM_RX_CHAINS],
 		u16 min_average_noise_antenna_i,
@@ -354,7 +353,6 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 	data->beacon_count = 0;
 }
 
-
 static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
@@ -392,10 +390,6 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.nrg_th_cck = 95,
 	.nrg_th_ofdm = 95,
 };
-
-#endif /* CONFIG_IWL5000_RUN_TIME_CALIB */
-
-
 
 static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 					   size_t offset)
@@ -832,6 +826,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.first_ampdu_q = IWL50_FIRST_AMPDU_QUEUE;
 	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
@@ -847,9 +842,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
 	priv->hw_params.fat_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-#ifdef CONFIG_IWL5000_RUN_TIME_CALIB
 	priv->hw_params.sens = &iwl5000_sensitivity;
-#endif
 
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_5100:
@@ -984,6 +977,135 @@ static void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 	}
 }
 
+static int iwl5000_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
+					u16 txq_id)
+{
+	u32 tbl_dw_addr;
+	u32 tbl_dw;
+	u16 scd_q2ratid;
+
+	scd_q2ratid = ra_tid & IWL_SCD_QUEUE_RA_TID_MAP_RATID_MSK;
+
+	tbl_dw_addr = priv->scd_base_addr +
+			IWL50_SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
+
+	tbl_dw = iwl_read_targ_mem(priv, tbl_dw_addr);
+
+	if (txq_id & 0x1)
+		tbl_dw = (scd_q2ratid << 16) | (tbl_dw & 0x0000FFFF);
+	else
+		tbl_dw = scd_q2ratid | (tbl_dw & 0xFFFF0000);
+
+	iwl_write_targ_mem(priv, tbl_dw_addr, tbl_dw);
+
+	return 0;
+}
+static void iwl5000_tx_queue_stop_scheduler(struct iwl_priv *priv, u16 txq_id)
+{
+	/* Simply stop the queue, but don't change any configuration;
+	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
+	iwl_write_prph(priv,
+		IWL50_SCD_QUEUE_STATUS_BITS(txq_id),
+		(0 << IWL50_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
+		(1 << IWL50_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+}
+
+static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
+				  int tx_fifo, int sta_id, int tid, u16 ssn_idx)
+{
+	unsigned long flags;
+	int ret;
+	u16 ra_tid;
+
+	if (IWL50_FIRST_AMPDU_QUEUE > txq_id)
+		IWL_WARNING("queue number too small: %d, must be > %d\n",
+			txq_id, IWL50_FIRST_AMPDU_QUEUE);
+
+	ra_tid = BUILD_RAxTID(sta_id, tid);
+
+	/* Modify device's station table to Tx this TID */
+	iwl_sta_modify_enable_tid_tx(priv, sta_id, tid);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (ret) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	/* Stop this Tx queue before configuring it */
+	iwl5000_tx_queue_stop_scheduler(priv, txq_id);
+
+	/* Map receiver-address / traffic-ID to this queue */
+	iwl5000_tx_queue_set_q2ratid(priv, ra_tid, txq_id);
+
+	/* Set this queue as a chain-building queue */
+	iwl_set_bits_prph(priv, IWL50_SCD_QUEUECHAIN_SEL, (1<<txq_id));
+
+	/* enable aggregations for the queue */
+	iwl_set_bits_prph(priv, IWL50_SCD_AGGR_SEL, (1<<txq_id));
+
+	/* Place first TFD at index corresponding to start sequence number.
+	 * Assumes that ssn_idx is valid (!= 0xFFF) */
+	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
+	iwl5000_set_wr_ptrs(priv, txq_id, ssn_idx);
+
+	/* Set up Tx window size and frame limit for this queue */
+	iwl_write_targ_mem(priv, priv->scd_base_addr +
+			IWL50_SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
+			sizeof(u32),
+			((SCD_WIN_SIZE <<
+			IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+			IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+			((SCD_FRAME_LIMIT <<
+			IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+			IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+
+	iwl_set_bits_prph(priv, IWL50_SCD_INTERRUPT_MASK, (1 << txq_id));
+
+	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
+	iwl5000_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
+
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
+static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
+				   u16 ssn_idx, u8 tx_fifo)
+{
+	int ret;
+
+	if (IWL50_FIRST_AMPDU_QUEUE > txq_id) {
+		IWL_WARNING("queue number too small: %d, must be > %d\n",
+				txq_id, IWL50_FIRST_AMPDU_QUEUE);
+		return -EINVAL;
+	}
+
+	ret = iwl_grab_nic_access(priv);
+	if (ret)
+		return ret;
+
+	iwl5000_tx_queue_stop_scheduler(priv, txq_id);
+
+	iwl_clear_bits_prph(priv, IWL50_SCD_AGGR_SEL, (1 << txq_id));
+
+	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
+	/* supposes that ssn_idx is valid (!= 0xFFF) */
+	iwl5000_set_wr_ptrs(priv, txq_id, ssn_idx);
+
+	iwl_clear_bits_prph(priv, IWL50_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_txq_ctx_deactivate(priv, txq_id);
+	iwl5000_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
+
+	iwl_release_nic_access(priv);
+
+	return 0;
+}
+
 static u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
 	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
@@ -1004,23 +1126,21 @@ static void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask)
 
 static inline u32 iwl5000_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
 {
-	__le32 *scd_ssn = (__le32 *)((u32 *)&tx_resp->status +
-				tx_resp->frame_count);
-	return le32_to_cpu(*scd_ssn) & MAX_SN;
-
+	return le32_to_cpup((__le32*)&tx_resp->status +
+			    tx_resp->frame_count) & MAX_SN;
 }
 
 static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 				      struct iwl_ht_agg *agg,
 				      struct iwl5000_tx_resp *tx_resp,
-				      u16 start_idx)
+				      int txq_id, u16 start_idx)
 {
 	u16 status;
 	struct agg_tx_status *frame_status = &tx_resp->status;
 	struct ieee80211_tx_info *info = NULL;
 	struct ieee80211_hdr *hdr = NULL;
-	int i, sh;
-	int txq_id, idx;
+	u32 rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
+	int i, sh, idx;
 	u16 seq;
 
 	if (agg->wait_for_ba)
@@ -1028,16 +1148,14 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
-	agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
+	agg->rate_n_flags = rate_n_flags;
 	agg->bitmap = 0;
 
 	/* # frames attempted by Tx command */
 	if (agg->frame_count == 1) {
 		/* Only one frame was attempted; no block-ack will arrive */
 		status = le16_to_cpu(frame_status[0].status);
-		seq  = le16_to_cpu(frame_status[0].sequence);
-		idx = SEQ_TO_INDEX(seq);
-		txq_id = SEQ_TO_QUEUE(seq);
+		idx = start_idx;
 
 		/* FIXME: code repetition */
 		IWL_DEBUG_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
@@ -1048,15 +1166,13 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_is_tx_success(status)?
 			IEEE80211_TX_STAT_ACK : 0;
-		iwl4965_hwrate_to_tx_control(priv,
-					     le32_to_cpu(tx_resp->rate_n_flags),
-					     info);
+		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
+
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
 				    status & 0xff, tx_resp->failure_frame);
-		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n",
-			iwl4965_hw_get_rate_n_flags(tx_resp->rate_n_flags));
+		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n", rate_n_flags);
 
 		agg->wait_for_ba = 0;
 	} else {
@@ -1114,7 +1230,6 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
-		agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
 		IWL_DEBUG_TX_REPLY("Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
 				   (unsigned long long)agg->bitmap);
@@ -1136,12 +1251,9 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 	struct ieee80211_tx_info *info;
 	struct iwl5000_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le16_to_cpu(tx_resp->status.status);
-#ifdef CONFIG_IWL4965_HT
 	int tid = MAX_TID_COUNT, sta_id = IWL_INVALID_STATION;
-	u16 fc;
 	struct ieee80211_hdr *hdr;
 	u8 *qc = NULL;
-#endif
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
@@ -1154,11 +1266,9 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb[0]);
 	memset(&info->status, 0, sizeof(info->status));
 
-#ifdef CONFIG_IWL4965_HT
 	hdr = iwl_tx_queue_get_hdr(priv, txq_id, index);
-	fc = le16_to_cpu(hdr->frame_control);
-	if (ieee80211_is_qos_data(fc)) {
-		qc = ieee80211_get_qos_ctrl(hdr, ieee80211_get_hdrlen(fc));
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	}
 
@@ -1177,7 +1287,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
 
-		iwl5000_tx_status_reply_tx(priv, agg, tx_resp, index);
+		iwl5000_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
 
 		if ((tx_resp->frame_count == 1) && !iwl_is_tx_success(status)) {
 			/* TODO: send BAR */
@@ -1195,7 +1305,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 			    txq_id >= 0 && priv->mac80211_registered &&
 			    agg->state != IWL_EMPTYING_HW_QUEUE_DELBA) {
 				/* calculate mac80211 ampdu sw queue to wake */
-				ampdu_q = txq_id - IWL_BACK_QUEUE_FIRST_ID +
+				ampdu_q = txq_id - IWL50_FIRST_AMPDU_QUEUE +
 					  priv->hw->queues;
 				if (agg->state == IWL_AGG_OFF)
 					ieee80211_wake_queue(priv->hw, txq_id);
@@ -1205,32 +1315,31 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 			iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 		}
 	} else {
-#endif /* CONFIG_IWL4965_HT */
+		info->status.retry_count = tx_resp->failure_frame;
+		info->flags =
+			iwl_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
+		iwl_hwrate_to_tx_control(priv,
+					le32_to_cpu(tx_resp->rate_n_flags),
+					info);
 
-	info->status.retry_count = tx_resp->failure_frame;
-	info->flags = iwl_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
-	iwl4965_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
-				     info);
+		IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) rate_n_flags "
+			     "0x%x retries %d\n", txq_id,
+				iwl_get_tx_fail_reason(status),
+				status, le32_to_cpu(tx_resp->rate_n_flags),
+				tx_resp->failure_frame);
 
-	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) rate_n_flags 0x%x "
-		     "retries %d\n", txq_id, iwl_get_tx_fail_reason(status),
-		     status, le32_to_cpu(tx_resp->rate_n_flags),
-		     tx_resp->failure_frame);
-
-	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
-#ifdef CONFIG_IWL4965_HT
-	if (index != -1) {
-		int freed = iwl_tx_queue_reclaim(priv, txq_id, index);
-		if (tid != MAX_TID_COUNT)
+		IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
+		if (index != -1) {
+		    int freed = iwl_tx_queue_reclaim(priv, txq_id, index);
+		    if (tid != MAX_TID_COUNT)
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
-		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
+		    if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
 			(txq_id >= 0) && priv->mac80211_registered)
 			ieee80211_wake_queue(priv->hw, txq_id);
-		if (tid != MAX_TID_COUNT)
+		    if (tid != MAX_TID_COUNT)
 			iwl_txq_check_empty(priv, sta_id, tid, txq_id);
+		}
 	}
-	}
-#endif /* CONFIG_IWL4965_HT */
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
 		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
@@ -1240,6 +1349,12 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 static u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
 {
 	return len;
+}
+
+static void iwl5000_setup_deferred_work(struct iwl_priv *priv)
+{
+	/* in 5000 the tx power calibration is done in uCode */
+	priv->disable_tx_power_cal = 1;
 }
 
 static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
@@ -1305,6 +1420,19 @@ static int iwl5000_send_rxon_assoc(struct iwl_priv *priv)
 
 	return ret;
 }
+static int  iwl5000_send_tx_power(struct iwl_priv *priv)
+{
+	struct iwl5000_tx_power_dbm_cmd tx_power_cmd;
+
+	/* half dBm need to multiply */
+	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
+	tx_power_cmd.flags = 0;
+	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
+	return  iwl_send_cmd_pdu_async(priv, REPLY_TX_POWER_DBM_CMD,
+				       sizeof(tx_power_cmd), &tx_power_cmd,
+				       NULL);
+}
+
 
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
@@ -1313,10 +1441,8 @@ static struct iwl_hcmd_ops iwl5000_hcmd = {
 static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 	.get_hcmd_size = iwl5000_get_hcmd_size,
 	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
-#ifdef CONFIG_IWL5000_RUN_TIME_CALIB
 	.gain_computation = iwl5000_gain_computation,
 	.chain_noise_reset = iwl5000_chain_noise_reset,
-#endif
 };
 
 static struct iwl_lib_ops iwl5000_lib = {
@@ -1327,11 +1453,15 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwl5000_txq_set_sched,
+	.txq_agg_enable = iwl5000_txq_agg_enable,
+	.txq_agg_disable = iwl5000_txq_agg_disable,
 	.rx_handler_setup = iwl5000_rx_handler_setup,
+	.setup_deferred_work = iwl5000_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
 	.load_ucode = iwl5000_load_ucode,
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
+	.send_tx_power = iwl5000_send_tx_power,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,

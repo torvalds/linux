@@ -30,11 +30,9 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 
-#include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-sta.h"
-#include "iwl-io.h"
 #include "iwl-helpers.h"
 
 
@@ -74,6 +72,17 @@ u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 }
 EXPORT_SYMBOL(iwl_find_station);
 
+int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
+{
+	if (priv->iw_mode == IEEE80211_IF_TYPE_STA) {
+		return IWL_AP_ID;
+	} else {
+		u8 *da = ieee80211_get_DA(hdr);
+		return iwl_find_station(priv, da);
+	}
+}
+EXPORT_SYMBOL(iwl_get_ra_sta_id);
+
 static int iwl_add_sta_callback(struct iwl_priv *priv,
 				   struct iwl_cmd *cmd, struct sk_buff *skb)
 {
@@ -104,8 +113,6 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 	/* We didn't cache the SKB; let the caller free it */
 	return 1;
 }
-
-
 
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
@@ -156,8 +163,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_send_add_sta);
 
-#ifdef CONFIG_IWL4965_HT
-
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 				   struct ieee80211_ht_info *sta_ht_inf)
 {
@@ -202,12 +207,6 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
  done:
 	return;
 }
-#else
-static inline void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
-					struct ieee80211_ht_info *sta_ht_info)
-{
-}
-#endif
 
 /**
  * iwl_add_station_flags - Add station to tables in driver and device
@@ -279,7 +278,6 @@ u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 
 }
 EXPORT_SYMBOL(iwl_add_station_flags);
-
 
 static int iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
 {
@@ -384,9 +382,9 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 
 	return ret;
 }
+
 /**
  * iwl_remove_station - Remove driver's knowledge of station.
- *
  */
 u8 iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 {
@@ -426,7 +424,7 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL(iwl_remove_station);
-int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
+static int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
 	int i;
 
@@ -496,6 +494,8 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	priv->default_wep_key--;
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	ret = iwl_send_static_wepkey_cmd(priv, 1);
+	IWL_DEBUG_WEP("Remove default WEP key: idx=%d ret=%d\n",
+		      keyconf->keyidx, ret);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return ret;
@@ -507,6 +507,12 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 {
 	int ret;
 	unsigned long flags;
+
+	if (keyconf->keylen != WEP_KEY_LEN_128 &&
+	    keyconf->keylen != WEP_KEY_LEN_64) {
+		IWL_DEBUG_WEP("Bad WEP key length %d\n", keyconf->keylen);
+		return -EINVAL;
+	}
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
@@ -524,6 +530,8 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 							keyconf->keylen);
 
 	ret = iwl_send_static_wepkey_cmd(priv, 0);
+	IWL_DEBUG_WEP("Set default WEP key: len=%d idx=%d ret=%d\n",
+		keyconf->keylen, keyconf->keyidx, ret);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return ret;
@@ -670,6 +678,9 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
 	keyidx = (key_flags >> STA_KEY_FLG_KEYID_POS) & 0x3;
 
+	IWL_DEBUG_WEP("Remove dynamic key: idx=%d sta=%d\n",
+		      keyconf->keyidx, sta_id);
+
 	if (keyconf->keyidx != keyidx) {
 		/* We need to remove a key with index different that the one
 		 * in the uCode. This means that the key we need to remove has
@@ -694,7 +705,6 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	IWL_DEBUG_INFO("hwcrypto: clear ucode station key info\n");
 	ret =  iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
@@ -723,6 +733,10 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 		IWL_ERROR("Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
 		ret = -EINVAL;
 	}
+
+	IWL_DEBUG_WEP("Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
+		      keyconf->alg, keyconf->keylen, keyconf->keyidx,
+		      sta_id, ret);
 
 	return ret;
 }
@@ -816,7 +830,7 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
 		rate_flags |= RATE_MCS_ANT_B_MSK; /*FIXME:RS*/
 
 		link_cmd.rs_table[i].rate_n_flags =
-			iwl4965_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
+			iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
 		r = iwl4965_get_prev_ieee_rate(r);
 	}
 
@@ -842,7 +856,6 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 	u8 sta_id;
 
 	/* Add station to device's station table */
-#ifdef CONFIG_IWL4965_HT
 	struct ieee80211_conf *conf = &priv->hw->conf;
 	struct ieee80211_ht_info *cur_ht_config = &conf->ht_conf;
 
@@ -852,7 +865,6 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 		sta_id = iwl_add_station_flags(priv, addr, is_ap,
 						   0, cur_ht_config);
 	else
-#endif /* CONFIG_IWL4965_HT */
 		sta_id = iwl_add_station_flags(priv, addr, is_ap,
 						   0, NULL);
 
@@ -862,7 +874,6 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 	return sta_id;
 }
 EXPORT_SYMBOL(iwl_rxon_add_station);
-
 
 /**
  * iwl_get_sta_id - Find station's index within station table
@@ -921,7 +932,6 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 }
 EXPORT_SYMBOL(iwl_get_sta_id);
 
-
 /**
  * iwl_sta_modify_enable_tid_tx - Enable Tx for this TID in station table
  */
@@ -939,5 +949,4 @@ void iwl_sta_modify_enable_tid_tx(struct iwl_priv *priv, int sta_id, int tid)
 	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
 EXPORT_SYMBOL(iwl_sta_modify_enable_tid_tx);
-
 

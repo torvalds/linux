@@ -286,8 +286,6 @@ static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 	return rate;
 }
 
-extern int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags);
-
 /**
  * iwl4965_fill_rs_info - Fill an output text buffer with the rate representation
  *

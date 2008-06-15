@@ -55,10 +55,9 @@ struct iwl_debugfs {
 		struct dentry *file_log_event;
 	} dbgfs_data_files;
 	struct dir_rf_files {
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 		struct dentry *file_disable_sensitivity;
 		struct dentry *file_disable_chain_noise;
-#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
+		struct dentry *file_disable_tx_power;
 	} dbgfs_rf_files;
 	u32 sram_offset;
 	u32 sram_len;

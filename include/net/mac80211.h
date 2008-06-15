@@ -1535,7 +1535,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
  *
  * @skb: the frame
  */
-int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
+unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
 
 /**
  * ieee80211_get_hdrlen - get header length from frame control
@@ -1546,6 +1546,12 @@ int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
  * @fc: the frame control field (in CPU endianness)
  */
 int ieee80211_get_hdrlen(u16 fc);
+
+/**
+ * ieee80211_hdrlen - get header length in bytes from frame control
+ * @fc: frame control field in little-endian format
+ */
+unsigned int ieee80211_hdrlen(__le16 fc);
 
 /**
  * ieee80211_get_tkip_key - get a TKIP rc4 for skb

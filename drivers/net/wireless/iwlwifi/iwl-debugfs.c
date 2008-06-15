@@ -255,21 +255,18 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 			pos += scnprintf(buf + pos, bufsz - pos, "tid data:\n");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"seq_num\t\ttxq_id");
-#ifdef CONFIG_IWL4965_HT
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"\tframe_count\twait_for_ba\t");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"start_idx\tbitmap0\t");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"bitmap1\trate_n_flags");
-#endif
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");
 
 			for (j = 0; j < MAX_TID_COUNT; j++) {
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"[%d]:\t\t%u", j,
 						station->tid[j].seq_number);
-#ifdef CONFIG_IWL4965_HT
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"\t%u\t\t%u\t\t%u\t\t",
 						station->tid[j].agg.txq_id,
@@ -280,7 +277,6 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 						station->tid[j].agg.start_idx,
 						(unsigned long long)station->tid[j].agg.bitmap,
 						station->tid[j].agg.rate_n_flags);
-#endif
 				pos += scnprintf(buf + pos, bufsz - pos, "\n");
 			}
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");
@@ -389,11 +385,10 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(stations, data);
 	DEBUGFS_ADD_FILE(rx_statistics, data);
 	DEBUGFS_ADD_FILE(tx_statistics, data);
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
-#endif  /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
+	DEBUGFS_ADD_BOOL(disable_tx_power, rf, &priv->disable_tx_power_cal);
 	return 0;
 
 err:
@@ -419,10 +414,9 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_log_event);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_stations);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
-#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
-#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_tx_power);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_rf);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_drv);
 	kfree(priv->dbgfs);

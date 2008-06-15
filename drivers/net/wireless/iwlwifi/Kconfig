@@ -14,15 +14,6 @@ config IWLWIFI_LEDS
 	bool
 	default n
 
-config IWLWIFI_RUN_TIME_CALIB
-	bool
-	depends on IWLCORE
-	default n
-	---help---
-	  This option will enable run time calibration for the iwlwifi driver.
-	  These calibrations are Sensitivity and Chain Noise.
-
-
 config IWLWIFI_RFKILL
 	boolean "IWLWIFI RF kill support"
 	depends on IWLCORE
@@ -54,14 +45,6 @@ config IWL4965
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl4965.ko.
 
-config IWL4965_HT
-	bool "Enable 802.11n HT features in iwl4965 driver"
-	depends on EXPERIMENTAL
-	depends on IWL4965
-	---help---
-	  This option enables IEEE 802.11n High Throughput features
-	  for the iwl4965 driver.
-
 config IWL4965_LEDS
 	bool "Enable LEDS features in iwl4965 driver"
 	depends on IWL4965
@@ -75,15 +58,6 @@ config IWL4965_SPECTRUM_MEASUREMENT
 	depends on IWL4965
 	---help---
 	  This option will enable spectrum measurement for the iwl4965 driver.
-
-config IWL4965_RUN_TIME_CALIB
-	bool "Enable run time Calibration for 4965 NIC"
-	select IWLWIFI_RUN_TIME_CALIB
-	depends on IWL4965
-	default y
-	---help---
-	  This option will enable run time calibration for the iwl4965 driver.
-	  These calibrations are Sensitivity and Chain Noise. If unsure, say yes
 
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in iwl4965 driver"
@@ -117,16 +91,6 @@ config IWL5000
 	---help---
 	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
 	  Dependency on 4965 is temporary
-
-config IWL5000_RUN_TIME_CALIB
-	bool "Enable run time Calibration for 5000 NIC"
-	select IWLWIFI_RUN_TIME_CALIB
-	depends on IWL5000
-	default y
-	---help---
-	  This option will enable run time calibration for the iwl5000 driver.
-	  These calibrations are Sensitivity and Chain Noise. If unsure, say yes
-
 
 config IWLWIFI_DEBUGFS
         bool "Iwlwifi debugfs support"

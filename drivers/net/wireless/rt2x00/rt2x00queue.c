@@ -29,6 +29,45 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
+struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue)
+{
+	struct sk_buff *skb;
+	unsigned int frame_size;
+	unsigned int reserved_size;
+
+	/*
+	 * The frame size includes descriptor size, because the
+	 * hardware directly receive the frame into the skbuffer.
+	 */
+	frame_size = queue->data_size + queue->desc_size;
+
+	/*
+	 * For the allocation we should keep a few things in mind:
+	 * 1) 4byte alignment of 802.11 payload
+	 *
+	 * For (1) we need at most 4 bytes to guarentee the correct
+	 * alignment. We are going to optimize the fact that the chance
+	 * that the 802.11 header_size % 4 == 2 is much bigger then
+	 * anything else. However since we need to move the frame up
+	 * to 3 bytes to the front, which means we need to preallocate
+	 * 6 bytes.
+	 */
+	reserved_size = 6;
+
+	/*
+	 * Allocate skbuffer.
+	 */
+	skb = dev_alloc_skb(frame_size + reserved_size);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, reserved_size);
+	skb_put(skb, frame_size);
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_alloc_rxskb);
+
 void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 				      struct txentry_desc *txdesc)
 {
@@ -91,7 +130,7 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Check if more fragments are pending
 	 */
-	if (ieee80211_get_morefrag(hdr)) {
+	if (ieee80211_has_morefrags(hdr->frame_control)) {
 		__set_bit(ENTRY_TXD_BURST, &txdesc->flags);
 		__set_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags);
 	}
@@ -163,8 +202,8 @@ EXPORT_SYMBOL_GPL(rt2x00queue_create_tx_descriptor);
 void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 				     struct txentry_desc *txdesc)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct data_queue *queue = entry->queue;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 
 	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, entry->skb, txdesc);
 
@@ -175,18 +214,60 @@ void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, entry->skb);
 
 	/*
-	 * We are done writing the frame to the queue entry,
-	 * also kick the queue in case the correct flags are set,
-	 * note that this will automatically filter beacons and
-	 * RTS/CTS frames since those frames don't have this flag
-	 * set.
+	 * Check if we need to kick the queue, there are however a few rules
+	 *	1) Don't kick beacon queue
+	 *	2) Don't kick unless this is the last in frame in a burst.
+	 *	   When the burst flag is set, this frame is always followed
+	 *	   by another frame which in some way are related to eachother.
+	 *	   This is true for fragments, RTS or CTS-to-self frames.
+	 *	3) Rule 2 can be broken when the available entries
+	 *	   in the queue are less then a certain threshold.
 	 */
-	if (rt2x00dev->ops->lib->kick_tx_queue &&
-	    !(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))
-		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev,
-						   entry->queue->qid);
+	if (entry->queue->qid == QID_BEACON)
+		return;
+
+	if (rt2x00queue_threshold(queue) ||
+	    !test_bit(ENTRY_TXD_BURST, &txdesc->flags))
+		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, queue->qid);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_write_tx_descriptor);
+
+int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
+{
+	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
+	struct txentry_desc txdesc;
+
+	if (unlikely(rt2x00queue_full(queue)))
+		return -EINVAL;
+
+	if (__test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
+		ERROR(queue->rt2x00dev,
+		      "Arrived at non-free entry in the non-full queue %d.\n"
+		      "Please file bug report to %s.\n",
+		      queue->qid, DRV_PROJECT);
+		return -EINVAL;
+	}
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	entry->skb = skb;
+	rt2x00queue_create_tx_descriptor(entry, &txdesc);
+
+	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
+		__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+		return -EIO;
+	}
+
+	__set_bit(ENTRY_DATA_PENDING, &entry->flags);
+
+	rt2x00queue_index_inc(queue, Q_INDEX);
+	rt2x00queue_write_tx_descriptor(entry, &txdesc);
+
+	return 0;
+}
 
 struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 					 const enum data_queue_qid queue)
@@ -312,6 +393,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	rt2x00queue_reset(queue);
 
 	queue->limit = qdesc->entry_num;
+	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
 	queue->data_size = qdesc->data_size;
 	queue->desc_size = qdesc->desc_size;
 
@@ -439,7 +521,8 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	 * TX: qid = QID_AC_BE + index
 	 * TX: cw_min: 2^5 = 32.
 	 * TX: cw_max: 2^10 = 1024.
-	 * BCN & Atim: qid = QID_MGMT
+	 * BCN: qid = QID_BEACON
+	 * ATIM: qid = QID_ATIM
 	 */
 	rt2x00queue_init(rt2x00dev, rt2x00dev->rx, QID_RX);
 
@@ -447,9 +530,9 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_init(rt2x00dev, queue, qid++);
 
-	rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[0], QID_MGMT);
+	rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[0], QID_BEACON);
 	if (req_atim)
-		rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[1], QID_MGMT);
+		rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[1], QID_ATIM);
 
 	return 0;
 }

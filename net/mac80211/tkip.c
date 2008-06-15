@@ -64,6 +64,14 @@ static u16 tkipS(u16 val)
 	return tkip_sbox[val & 0xff] ^ swab16(tkip_sbox[val >> 8]);
 }
 
+static u8 *write_tkip_iv(u8 *pos, u16 iv16)
+{
+	*pos++ = iv16 >> 8;
+	*pos++ = ((iv16 >> 8) | 0x20) & 0x7f;
+	*pos++ = iv16 & 0xFF;
+	return pos;
+}
+
 /*
  * P1K := Phase1(TA, TK, TSC)
  * TA = transmitter address (48 bits)
@@ -71,11 +79,10 @@ static u16 tkipS(u16 val)
  * TSC = TKIP sequence counter (48 bits, only 32 msb bits used)
  * P1K: 80 bits
  */
-static void tkip_mixing_phase1(struct ieee80211_key *key, const u8 *ta,
-			       struct tkip_ctx *ctx, u32 tsc_IV32)
+static void tkip_mixing_phase1(const u8 *tk, struct tkip_ctx *ctx,
+			       const u8 *ta, u32 tsc_IV32)
 {
 	int i, j;
-	const u8 *tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
 	u16 *p1k = ctx->p1k;
 
 	p1k[0] = tsc_IV32 & 0xFFFF;
@@ -95,12 +102,11 @@ static void tkip_mixing_phase1(struct ieee80211_key *key, const u8 *ta,
 	ctx->initialized = 1;
 }
 
-static void tkip_mixing_phase2(struct ieee80211_key *key, struct tkip_ctx *ctx,
+static void tkip_mixing_phase2(const u8 *tk, struct tkip_ctx *ctx,
 			       u16 tsc_IV16, u8 *rc4key)
 {
 	u16 ppk[6];
 	const u16 *p1k = ctx->p1k;
-	const u8 *tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
 	int i;
 
 	ppk[0] = p1k[0];
@@ -123,12 +129,9 @@ static void tkip_mixing_phase2(struct ieee80211_key *key, struct tkip_ctx *ctx,
 	ppk[4] += ror16(ppk[3], 1);
 	ppk[5] += ror16(ppk[4], 1);
 
-	rc4key[0] = tsc_IV16 >> 8;
-	rc4key[1] = ((tsc_IV16 >> 8) | 0x20) & 0x7f;
-	rc4key[2] = tsc_IV16 & 0xFF;
-	rc4key[3] = ((ppk[5] ^ get_unaligned_le16(tk)) >> 1) & 0xFF;
+	rc4key = write_tkip_iv(rc4key, tsc_IV16);
+	*rc4key++ = ((ppk[5] ^ get_unaligned_le16(tk)) >> 1) & 0xFF;
 
-	rc4key += 4;
 	for (i = 0; i < 6; i++)
 		put_unaligned_le16(ppk[i], rc4key + 2 * i);
 }
@@ -136,25 +139,12 @@ static void tkip_mixing_phase2(struct ieee80211_key *key, struct tkip_ctx *ctx,
 /* Add TKIP IV and Ext. IV at @pos. @iv0, @iv1, and @iv2 are the first octets
  * of the IV. Returns pointer to the octet following IVs (i.e., beginning of
  * the packet payload). */
-u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key,
-			   u8 iv0, u8 iv1, u8 iv2)
+u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key, u16 iv16)
 {
-	*pos++ = iv0;
-	*pos++ = iv1;
-	*pos++ = iv2;
+	pos = write_tkip_iv(pos, iv16);
 	*pos++ = (key->conf.keyidx << 6) | (1 << 5) /* Ext IV */;
 	put_unaligned_le32(key->u.tkip.tx.iv32, pos);
 	return pos + 4;
-}
-
-static void ieee80211_tkip_gen_rc4key(struct ieee80211_key *key, u8 *ta,
-			       u8 *rc4key)
-{
-	/* Calculate per-packet key */
-	if (key->u.tkip.tx.iv16 == 0 || !key->u.tkip.tx.initialized)
-		tkip_mixing_phase1(key, ta, &key->u.tkip.tx, key->u.tkip.tx.iv32);
-
-	tkip_mixing_phase2(key, &key->u.tkip.tx, key->u.tkip.tx.iv16, rc4key);
 }
 
 void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
@@ -163,24 +153,27 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 {
 	struct ieee80211_key *key = (struct ieee80211_key *)
 			container_of(keyconf, struct ieee80211_key, conf);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *data = (u8 *) hdr;
-	u16 fc = le16_to_cpu(hdr->frame_control);
-	int hdr_len = ieee80211_get_hdrlen(fc);
-	u8 *ta = hdr->addr2;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	u8 *data;
+	const u8 *tk;
+	struct tkip_ctx *ctx;
 	u16 iv16;
 	u32 iv32;
 
-	iv16 = data[hdr_len + 2] | (data[hdr_len] << 8);
-	iv32 = get_unaligned_le32(data + hdr_len + 4);
+	data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
+	iv16 = data[2] | (data[0] << 8);
+	iv32 = get_unaligned_le32(&data[4]);
+
+	tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
+	ctx = &key->u.tkip.tx;
 
 #ifdef CONFIG_TKIP_DEBUG
 	printk(KERN_DEBUG "TKIP encrypt: iv16 = 0x%04x, iv32 = 0x%08x\n",
 			iv16, iv32);
 
-	if (iv32 != key->u.tkip.tx.iv32) {
+	if (iv32 != ctx->iv32) {
 		printk(KERN_DEBUG "skb: iv32 = 0x%08x key: iv32 = 0x%08x\n",
-			iv32, key->u.tkip.tx.iv32);
+			iv32, ctx->iv32);
 		printk(KERN_DEBUG "Wrap around of iv16 in the middle of a "
 			"fragmented packet\n");
 	}
@@ -189,15 +182,15 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 	/* Update the p1k only when the iv16 in the packet wraps around, this
 	 * might occur after the wrap around of iv16 in the key in case of
 	 * fragmented packets. */
-	if (iv16 == 0 || !key->u.tkip.tx.initialized)
-		tkip_mixing_phase1(key, ta, &key->u.tkip.tx, iv32);
+	if (iv16 == 0 || !ctx->initialized)
+		tkip_mixing_phase1(tk, ctx, hdr->addr2, iv32);
 
 	if (type == IEEE80211_TKIP_P1_KEY) {
-		memcpy(outkey, key->u.tkip.tx.p1k, sizeof(u16) * 5);
+		memcpy(outkey, ctx->p1k, sizeof(u16) * 5);
 		return;
 	}
 
-	tkip_mixing_phase2(key, &key->u.tkip.tx, iv16, outkey);
+	tkip_mixing_phase2(tk, ctx, iv16, outkey);
 }
 EXPORT_SYMBOL(ieee80211_get_tkip_key);
 
@@ -211,9 +204,16 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 				 u8 *pos, size_t payload_len, u8 *ta)
 {
 	u8 rc4key[16];
+	struct tkip_ctx *ctx = &key->u.tkip.tx;
+	const u8 *tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
 
-	ieee80211_tkip_gen_rc4key(key, ta, rc4key);
-	pos = ieee80211_tkip_add_iv(pos, key, rc4key[0], rc4key[1], rc4key[2]);
+	/* Calculate per-packet key */
+	if (ctx->iv16 == 0 || !ctx->initialized)
+		tkip_mixing_phase1(tk, ctx, ta, ctx->iv32);
+
+	tkip_mixing_phase2(tk, ctx, ctx->iv16, rc4key);
+
+	pos = ieee80211_tkip_add_iv(pos, key, key->u.tkip.tx.iv16);
 	ieee80211_wep_encrypt_data(tfm, rc4key, 16, pos, payload_len);
 }
 
@@ -231,6 +231,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	u32 iv16;
 	u8 rc4key[16], keyid, *pos = payload;
 	int res;
+	const u8 *tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
 
 	if (payload_len < 12)
 		return -1;
@@ -281,7 +282,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	if (!key->u.tkip.rx[queue].initialized ||
 	    key->u.tkip.rx[queue].iv32 != iv32) {
 		/* IV16 wrapped around - perform TKIP phase 1 */
-		tkip_mixing_phase1(key, ta, &key->u.tkip.rx[queue], iv32);
+		tkip_mixing_phase1(tk, &key->u.tkip.rx[queue], ta, iv32);
 #ifdef CONFIG_TKIP_DEBUG
 		{
 			int i;
@@ -314,7 +315,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 		}
 	}
 
-	tkip_mixing_phase2(key, &key->u.tkip.rx[queue], iv16, rc4key);
+	tkip_mixing_phase2(tk, &key->u.tkip.rx[queue], iv16, rc4key);
 #ifdef CONFIG_TKIP_DEBUG
 	{
 		int i;

@@ -133,7 +133,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 		return;
 	}
 
-	skbcopy = alloc_skb(sizeof(*dump_hdr) + desc->desc_len + desc->data_len,
+	skbcopy = alloc_skb(sizeof(*dump_hdr) + desc->desc_len + skb->len,
 			    GFP_ATOMIC);
 	if (!skbcopy) {
 		DEBUG(rt2x00dev, "Failed to copy skb for dump.\n");
@@ -144,7 +144,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->version = cpu_to_le32(DUMP_HEADER_VERSION);
 	dump_hdr->header_length = cpu_to_le32(sizeof(*dump_hdr));
 	dump_hdr->desc_length = cpu_to_le32(desc->desc_len);
-	dump_hdr->data_length = cpu_to_le32(desc->data_len);
+	dump_hdr->data_length = cpu_to_le32(skb->len);
 	dump_hdr->chip_rt = cpu_to_le16(rt2x00dev->chip.rt);
 	dump_hdr->chip_rf = cpu_to_le16(rt2x00dev->chip.rf);
 	dump_hdr->chip_rev = cpu_to_le32(rt2x00dev->chip.rev);
@@ -155,7 +155,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
 
 	memcpy(skb_put(skbcopy, desc->desc_len), desc->desc, desc->desc_len);
-	memcpy(skb_put(skbcopy, desc->data_len), desc->data, desc->data_len);
+	memcpy(skb_put(skbcopy, skb->len), skb->data, skb->len);
 
 	skb_queue_tail(&intf->frame_dump_skbqueue, skbcopy);
 	wake_up_interruptible(&intf->frame_dump_waitqueue);

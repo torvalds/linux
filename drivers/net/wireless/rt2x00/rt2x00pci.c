@@ -34,52 +34,38 @@
 /*
  * TX data handlers.
  */
-int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_queue *queue, struct sk_buff *skb)
+int rt2x00pci_write_tx_data(struct queue_entry *entry)
 {
-	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
-	struct txentry_desc txdesc;
 	u32 word;
-
-	if (rt2x00queue_full(queue))
-		return -EINVAL;
 
 	rt2x00_desc_read(entry_priv->desc, 0, &word);
 
-	if (rt2x00_get_field32(word, TXD_ENTRY_OWNER_NIC) ||
-	    rt2x00_get_field32(word, TXD_ENTRY_VALID)) {
-		ERROR(rt2x00dev,
-		      "Arrived at non-free entry in the non-full queue %d.\n"
+	/*
+	 * This should not happen, we already checked the entry
+	 * was ours. When the hardware disagrees there has been
+	 * a queue corruption!
+	 */
+	if (unlikely(rt2x00_get_field32(word, TXD_ENTRY_OWNER_NIC) ||
+		     rt2x00_get_field32(word, TXD_ENTRY_VALID))) {
+		ERROR(entry->queue->rt2x00dev,
+		      "Corrupt queue %d, accessing entry which is not ours.\n"
 		      "Please file bug report to %s.\n",
 		      entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
 
 	/*
-	 * Copy all TX descriptor information into txdesc,
-	 * after that we are free to use the skb->cb array
-	 * for our information.
-	 */
-	entry->skb = skb;
-	rt2x00queue_create_tx_descriptor(entry, &txdesc);
-
-	/*
 	 * Fill in skb descriptor
 	 */
-	skbdesc = get_skb_frame_desc(skb);
+	skbdesc = get_skb_frame_desc(entry->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->data = skb->data;
-	skbdesc->data_len = skb->len;
 	skbdesc->desc = entry_priv->desc;
-	skbdesc->desc_len = queue->desc_size;
+	skbdesc->desc_len = entry->queue->desc_size;
 	skbdesc->entry = entry;
 
-	memcpy(entry_priv->data, skb->data, skb->len);
-
-	rt2x00queue_write_tx_descriptor(entry, &txdesc);
-	rt2x00queue_index_inc(queue, Q_INDEX);
+	memcpy(entry_priv->data, entry->skb->data, entry->skb->len);
 
 	return 0;
 }
@@ -93,11 +79,8 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue = rt2x00dev->rx;
 	struct queue_entry *entry;
 	struct queue_entry_priv_pci *entry_priv;
-	struct ieee80211_hdr *hdr;
 	struct skb_frame_desc *skbdesc;
 	struct rxdone_entry_desc rxdesc;
-	int header_size;
-	int align;
 	u32 word;
 
 	while (1) {
@@ -111,35 +94,21 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		memset(&rxdesc, 0, sizeof(rxdesc));
 		rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
-		hdr = (struct ieee80211_hdr *)entry_priv->data;
-		header_size =
-		    ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
-
 		/*
-		 * The data behind the ieee80211 header must be
-		 * aligned on a 4 byte boundary.
+		 * Allocate the sk_buffer and copy all data into it.
 		 */
-		align = header_size % 4;
-
-		/*
-		 * Allocate the sk_buffer, initialize it and copy
-		 * all data into it.
-		 */
-		entry->skb = dev_alloc_skb(rxdesc.size + align);
+		entry->skb = rt2x00queue_alloc_rxskb(queue);
 		if (!entry->skb)
 			return;
 
-		skb_reserve(entry->skb, align);
-		memcpy(skb_put(entry->skb, rxdesc.size),
-		       entry_priv->data, rxdesc.size);
+		memcpy(entry->skb->data, entry_priv->data, rxdesc.size);
+		skb_trim(entry->skb, rxdesc.size);
 
 		/*
 		 * Fill in skb descriptor
 		 */
 		skbdesc = get_skb_frame_desc(entry->skb);
 		memset(skbdesc, 0, sizeof(*skbdesc));
-		skbdesc->data = entry->skb->data;
-		skbdesc->data_len = entry->skb->len;
 		skbdesc->desc = entry_priv->desc;
 		skbdesc->desc_len = queue->desc_size;
 		skbdesc->entry = entry;
@@ -178,14 +147,15 @@ void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXD_ENTRY_VALID, 0);
 	rt2x00_desc_write(entry_priv->desc, 0, word);
 
+	__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
 
 	/*
-	 * If the data queue was full before the txdone handler
-	 * we must make sure the packet queue in the mac80211 stack
+	 * If the data queue was below the threshold before the txdone
+	 * handler we must make sure the packet queue in the mac80211 stack
 	 * is reenabled when the txdone handler has finished.
 	 */
-	if (!rt2x00queue_full(entry->queue))
+	if (!rt2x00queue_threshold(entry->queue))
 		ieee80211_wake_queue(rt2x00dev->hw, qid);
 
 }
