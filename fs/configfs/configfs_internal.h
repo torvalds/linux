@@ -26,6 +26,7 @@
 
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/spinlock.h>
 
 struct configfs_dirent {
 	atomic_t		s_count;
@@ -48,6 +49,8 @@ struct configfs_dirent {
 #define CONFIGFS_USET_DEFAULT	0x0080
 #define CONFIGFS_USET_DROPPING	0x0100
 #define CONFIGFS_NOT_PINNED	(CONFIGFS_ITEM_ATTR)
+
+extern spinlock_t configfs_dirent_lock;
 
 extern struct vfsmount * configfs_mount;
 extern struct kmem_cache *configfs_dir_cachep;

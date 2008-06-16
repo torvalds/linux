@@ -35,6 +35,14 @@
 #include "configfs_internal.h"
 
 DECLARE_RWSEM(configfs_rename_sem);
+/*
+ * Protects mutations of configfs_dirent linkage together with proper i_mutex
+ * Mutators of configfs_dirent linkage must *both* have the proper inode locked
+ * and configfs_dirent_lock locked, in that order.
+ * This allows one to safely traverse configfs_dirent trees without having to
+ * lock inodes.
+ */
+DEFINE_SPINLOCK(configfs_dirent_lock);
 
 static void configfs_d_iput(struct dentry * dentry,
 			    struct inode * inode)
@@ -79,8 +87,10 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
 	atomic_set(&sd->s_count, 1);
 	INIT_LIST_HEAD(&sd->s_links);
 	INIT_LIST_HEAD(&sd->s_children);
-	list_add(&sd->s_sibling, &parent_sd->s_children);
 	sd->s_element = element;
+	spin_lock(&configfs_dirent_lock);
+	list_add(&sd->s_sibling, &parent_sd->s_children);
+	spin_unlock(&configfs_dirent_lock);
 
 	return sd;
 }
@@ -173,7 +183,9 @@ static int create_dir(struct config_item * k, struct dentry * p,
 		} else {
 			struct configfs_dirent *sd = d->d_fsdata;
 			if (sd) {
+				spin_lock(&configfs_dirent_lock);
 				list_del_init(&sd->s_sibling);
+				spin_unlock(&configfs_dirent_lock);
 				configfs_put(sd);
 			}
 		}
@@ -224,7 +236,9 @@ int configfs_create_link(struct configfs_symlink *sl,
 		else {
 			struct configfs_dirent *sd = dentry->d_fsdata;
 			if (sd) {
+				spin_lock(&configfs_dirent_lock);
 				list_del_init(&sd->s_sibling);
+				spin_unlock(&configfs_dirent_lock);
 				configfs_put(sd);
 			}
 		}
@@ -238,7 +252,9 @@ static void remove_dir(struct dentry * d)
 	struct configfs_dirent * sd;
 
 	sd = d->d_fsdata;
+	spin_lock(&configfs_dirent_lock);
 	list_del_init(&sd->s_sibling);
+	spin_unlock(&configfs_dirent_lock);
 	configfs_put(sd);
 	if (d->d_inode)
 		simple_rmdir(parent->d_inode,d);
@@ -410,7 +426,9 @@ static void detach_attrs(struct config_item * item)
 	list_for_each_entry_safe(sd, tmp, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element || !(sd->s_type & CONFIGFS_NOT_PINNED))
 			continue;
+		spin_lock(&configfs_dirent_lock);
 		list_del_init(&sd->s_sibling);
+		spin_unlock(&configfs_dirent_lock);
 		configfs_drop_dentry(sd, dentry);
 		configfs_put(sd);
 	}
@@ -1268,7 +1286,9 @@ static int configfs_dir_close(struct inode *inode, struct file *file)
 	struct configfs_dirent * cursor = file->private_data;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
+	spin_lock(&configfs_dirent_lock);
 	list_del_init(&cursor->s_sibling);
+	spin_unlock(&configfs_dirent_lock);
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
 	release_configfs_dirent(cursor);
@@ -1308,7 +1328,9 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 			/* fallthrough */
 		default:
 			if (filp->f_pos == 2) {
+				spin_lock(&configfs_dirent_lock);
 				list_move(q, &parent_sd->s_children);
+				spin_unlock(&configfs_dirent_lock);
 			}
 			for (p=q->next; p!= &parent_sd->s_children; p=p->next) {
 				struct configfs_dirent *next;
@@ -1331,7 +1353,9 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 						 dt_type(next)) < 0)
 					return 0;
 
+				spin_lock(&configfs_dirent_lock);
 				list_move(q, p);
+				spin_unlock(&configfs_dirent_lock);
 				p = q;
 				filp->f_pos++;
 			}
@@ -1362,6 +1386,7 @@ static loff_t configfs_dir_lseek(struct file * file, loff_t offset, int origin)
 			struct list_head *p;
 			loff_t n = file->f_pos - 2;
 
+			spin_lock(&configfs_dirent_lock);
 			list_del(&cursor->s_sibling);
 			p = sd->s_children.next;
 			while (n && p != &sd->s_children) {
@@ -1373,6 +1398,7 @@ static loff_t configfs_dir_lseek(struct file * file, loff_t offset, int origin)
 				p = p->next;
 			}
 			list_add_tail(&cursor->s_sibling, p);
+			spin_unlock(&configfs_dirent_lock);
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
