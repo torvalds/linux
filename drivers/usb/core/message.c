@@ -400,7 +400,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (usb_pipein(pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 
-	for (i = 0; i < io->entries; i++) {
+	for_each_sg(sg, sg, io->entries, i) {
 		unsigned len;
 
 		io->urbs[i] = usb_alloc_urb(0, mem_flags);
@@ -434,17 +434,17 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		 * to prevent stale pointers and to help spot bugs.
 		 */
 		if (dma) {
-			io->urbs[i]->transfer_dma = sg_dma_address(sg + i);
-			len = sg_dma_len(sg + i);
+			io->urbs[i]->transfer_dma = sg_dma_address(sg);
+			len = sg_dma_len(sg);
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_GART_IOMMU)
 			io->urbs[i]->transfer_buffer = NULL;
 #else
-			io->urbs[i]->transfer_buffer = sg_virt(&sg[i]);
+			io->urbs[i]->transfer_buffer = sg_virt(sg);
 #endif
 		} else {
 			/* hc may use _only_ transfer_buffer */
-			io->urbs[i]->transfer_buffer = sg_virt(&sg[i]);
-			len = sg[i].length;
+			io->urbs[i]->transfer_buffer = sg_virt(sg);
+			len = sg->length;
 		}
 
 		if (length) {
