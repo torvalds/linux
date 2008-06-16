@@ -70,8 +70,6 @@ static void netxen_nic_poll_controller(struct net_device *netdev);
 static irqreturn_t netxen_intr(int irq, void *data);
 static irqreturn_t netxen_msi_intr(int irq, void *data);
 
-int physical_port[] = {0, 1, 2, 3};
-
 /*  PCI Device ID Table  */
 static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(0x4040, 0x0001)},
@@ -647,7 +645,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	i = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_V2P(adapter->portnum)));
 	if (i != 0x55555555)
-		physical_port[adapter->portnum] = i;
+		adapter->physical_port = i;
 
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);

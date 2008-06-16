@@ -863,6 +863,7 @@ struct netxen_adapter {
 	unsigned char mac_addr[ETH_ALEN];
 	int mtu;
 	int portnum;
+	u8 physical_port;
 
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
@@ -1169,5 +1170,4 @@ extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 
 extern struct ethtool_ops netxen_nic_ethtool_ops;
 
-extern int physical_port[];	/* physical port # from virtual port.*/
 #endif				/* __NETXEN_NIC_H_ */

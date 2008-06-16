@@ -1032,15 +1032,15 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu)
 {
 	netxen_nic_write_w0(adapter,
-			NETXEN_NIU_GB_MAX_FRAME_SIZE(
-				physical_port[adapter->portnum]), new_mtu);
+		NETXEN_NIU_GB_MAX_FRAME_SIZE(adapter->physical_port),
+		new_mtu);
 	return 0;
 }
 
 int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 {
 	new_mtu += NETXEN_NIU_HDRSIZE + NETXEN_NIU_TLRSIZE;
-	if (physical_port[adapter->portnum] == 0)
+	if (adapter->physical_port == 0)
 		netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE,
 				new_mtu);
 	else
@@ -1051,7 +1051,7 @@ int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 
 void netxen_nic_init_niu_gb(struct netxen_adapter *adapter)
 {
-	netxen_niu_gbe_init_port(adapter, physical_port[adapter->portnum]);
+	netxen_niu_gbe_init_port(adapter, adapter->physical_port);
 }
 
 void
