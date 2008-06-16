@@ -601,6 +601,7 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_BEACON_GUARD,
 	DRIVER_REQUIRE_ATIM_QUEUE,
 	DRIVER_REQUIRE_SCHEDULED,
+	DRIVER_REQUIRE_DMA,
 
 	/*
 	 * Driver configuration
@@ -899,16 +900,33 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
 }
 
 /**
- * rt2x00queue_alloc_skb - allocate a skb.
+ * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @queue: The queue for which the skb will be applicable.
  */
-struct sk_buff *rt2x00queue_alloc_skb(struct data_queue *queue);
+struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
+					struct queue_entry *entry);
+
+/**
+ * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @skb: The skb to map.
+ */
+void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+
+/**
+ * rt2x00queue_unmap_skb - Unmap a skb from DMA.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @skb: The skb to unmap.
+ */
+void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 
 /**
  * rt2x00queue_free_skb - free a skb
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @skb: The skb to free.
  */
-void rt2x00queue_free_skb(struct sk_buff *skb);
+void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 
 /**
  * rt2x00queue_create_tx_descriptor - Create TX descriptor from mac80211 input
@@ -977,8 +995,8 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
-void rt2x00lib_rxdone(struct queue_entry *entry,
-		      struct rxdone_entry_desc *rxdesc);
+void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
+		      struct queue_entry *entry);
 
 /*
  * mac80211 handlers.

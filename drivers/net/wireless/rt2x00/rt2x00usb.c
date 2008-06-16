@@ -266,9 +266,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 {
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct sk_buff *skb;
-	struct skb_frame_desc *skbdesc;
-	struct rxdone_entry_desc rxdesc;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u8 rxd[32];
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
@@ -284,36 +282,19 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 		goto skip_entry;
 
 	/*
-	 * Fill in skb descriptor
+	 * Fill in desc fields of the skb descriptor
 	 */
-	skbdesc = get_skb_frame_desc(entry->skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->entry = entry;
 	skbdesc->desc = rxd;
 	skbdesc->desc_len = entry->queue->desc_size;
-
-	memset(&rxdesc, 0, sizeof(rxdesc));
-	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
-
-	/*
-	 * Allocate a new sk buffer to replace the current one.
-	 * If allocation fails, we should drop the current frame
-	 * so we can recycle the existing sk buffer for the new frame.
-	 */
-	skb = rt2x00queue_alloc_skb(entry->queue);
-	if (!skb)
-		goto skip_entry;
 
 	/*
 	 * Send the frame to rt2x00lib for further processing.
 	 */
-	rt2x00lib_rxdone(entry, &rxdesc);
+	rt2x00lib_rxdone(rt2x00dev, entry);
 
 	/*
-	 * Replace current entry's skb with the newly allocated one,
-	 * and reinitialize the urb.
+	 * Reinitialize the urb.
 	 */
-	entry->skb = skb;
 	urb->transfer_buffer = entry->skb->data;
 	urb->transfer_buffer_length = entry->skb->len;
 

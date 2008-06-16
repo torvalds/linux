@@ -65,7 +65,7 @@ int rt2x00pci_write_tx_data(struct queue_entry *entry)
 	skbdesc->desc_len = entry->queue->desc_size;
 	skbdesc->entry = entry;
 
-	memcpy(entry_priv->data, entry->skb->data, entry->skb->len);
+	rt2x00queue_map_txskb(entry->queue->rt2x00dev, entry->skb);
 
 	return 0;
 }
@@ -74,59 +74,12 @@ EXPORT_SYMBOL_GPL(rt2x00pci_write_tx_data);
 /*
  * TX/RX data handlers.
  */
-static void rt2x00pci_rxdone_entry(struct rt2x00_dev *rt2x00dev,
-				   struct queue_entry *entry)
-{
-	struct sk_buff *skb;
-	struct skb_frame_desc *skbdesc;
-	struct rxdone_entry_desc rxdesc;
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-
-	/*
-	 * Allocate a new sk_buffer. If no new buffer available, drop the
-	 * received frame and reuse the existing buffer.
-	 */
-	skb = rt2x00queue_alloc_skb(entry->queue);
-	if (!skb)
-		return;
-
-	/*
-	 * Extract the RXD details.
-	 */
-	memset(&rxdesc, 0, sizeof(rxdesc));
-	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
-
-	/*
-	 * Copy the received data to the entries' skb.
-	 */
-	memcpy(entry->skb->data, entry_priv->data, rxdesc.size);
-	skb_trim(entry->skb, rxdesc.size);
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(entry->skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->desc = entry_priv->desc;
-	skbdesc->desc_len = entry->queue->desc_size;
-	skbdesc->entry = entry;
-
-	/*
-	 * Send the frame to rt2x00lib for further processing.
-	 */
-	rt2x00lib_rxdone(entry, &rxdesc);
-
-	/*
-	 * Replace the entries' skb with the newly allocated one.
-	 */
-	entry->skb = skb;
-}
-
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue = rt2x00dev->rx;
 	struct queue_entry *entry;
 	struct queue_entry_priv_pci *entry_priv;
+	struct skb_frame_desc *skbdesc;
 	u32 word;
 
 	while (1) {
@@ -137,12 +90,22 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		if (rt2x00_get_field32(word, RXD_ENTRY_OWNER_NIC))
 			break;
 
-		rt2x00pci_rxdone_entry(rt2x00dev, entry);
+		/*
+		 * Fill in desc fields of the skb descriptor
+		 */
+		skbdesc = get_skb_frame_desc(entry->skb);
+		skbdesc->desc = entry_priv->desc;
+		skbdesc->desc_len = entry->queue->desc_size;
 
-		if (test_bit(DEVICE_ENABLED_RADIO, &queue->rt2x00dev->flags)) {
-			rt2x00_set_field32(&word, RXD_ENTRY_OWNER_NIC, 1);
-			rt2x00_desc_write(entry_priv->desc, 0, word);
-		}
+		/*
+		 * Send the frame to rt2x00lib for further processing.
+		 */
+		rt2x00lib_rxdone(rt2x00dev, entry);
+
+		/*
+		 * Reset the RXD for this entry.
+		 */
+		rt2x00dev->ops->lib->init_rxentry(rt2x00dev, entry);
 
 		rt2x00queue_index_inc(queue, Q_INDEX);
 	}
@@ -155,6 +118,11 @@ void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	u32 word;
+
+	/*
+	 * Unmap the skb.
+	 */
+	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
 
 	rt2x00lib_txdone(entry, txdesc);
 
@@ -185,33 +153,6 @@ EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
 /*
  * Device initialization handlers.
  */
-#define desc_size(__queue)			\
-({						\
-	 ((__queue)->limit * (__queue)->desc_size);\
-})
-
-#define data_size(__queue)			\
-({						\
-	 ((__queue)->limit * (__queue)->data_size);\
-})
-
-#define dma_size(__queue)			\
-({						\
-	data_size(__queue) + desc_size(__queue);\
-})
-
-#define desc_offset(__queue, __base, __i)	\
-({						\
-	(__base) + data_size(__queue) + 	\
-	    ((__i) * (__queue)->desc_size);	\
-})
-
-#define data_offset(__queue, __base, __i)	\
-({						\
-	(__base) +				\
-	    ((__i) * (__queue)->data_size);	\
-})
-
 static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 				     struct data_queue *queue)
 {
@@ -223,22 +164,21 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Allocate DMA memory for descriptor and buffer.
 	 */
-	addr = dma_alloc_coherent(rt2x00dev->dev, dma_size(queue), &dma,
-				  GFP_KERNEL | GFP_DMA);
+	addr = dma_alloc_coherent(rt2x00dev->dev,
+				  queue->limit * queue->desc_size,
+				  &dma, GFP_KERNEL | GFP_DMA);
 	if (!addr)
 		return -ENOMEM;
 
-	memset(addr, 0, dma_size(queue));
+	memset(addr, 0, queue->limit * queue->desc_size);
 
 	/*
 	 * Initialize all queue entries to contain valid addresses.
 	 */
 	for (i = 0; i < queue->limit; i++) {
 		entry_priv = queue->entries[i].priv_data;
-		entry_priv->desc = desc_offset(queue, addr, i);
-		entry_priv->desc_dma = desc_offset(queue, dma, i);
-		entry_priv->data = data_offset(queue, addr, i);
-		entry_priv->data_dma = data_offset(queue, dma, i);
+		entry_priv->desc = addr + i * queue->desc_size;
+		entry_priv->desc_dma = dma + i * queue->desc_size;
 	}
 
 	return 0;
@@ -250,10 +190,11 @@ static void rt2x00pci_free_queue_dma(struct rt2x00_dev *rt2x00dev,
 	struct queue_entry_priv_pci *entry_priv =
 	    queue->entries[0].priv_data;
 
-	if (entry_priv->data)
-		dma_free_coherent(rt2x00dev->dev, dma_size(queue),
-				  entry_priv->data, entry_priv->data_dma);
-	entry_priv->data = NULL;
+	if (entry_priv->desc)
+		dma_free_coherent(rt2x00dev->dev,
+				  queue->limit * queue->desc_size,
+				  entry_priv->desc, entry_priv->desc_dma);
+	entry_priv->desc = NULL;
 }
 
 int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)

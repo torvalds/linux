@@ -468,6 +468,7 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
+	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 
 	if (vif->type != IEEE80211_IF_TYPE_AP &&
@@ -477,7 +478,7 @@ static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 	/*
 	 * Clean up the beacon skb.
 	 */
-	dev_kfree_skb_irq(intf->beacon->skb);
+	rt2x00queue_free_skb(rt2x00dev, intf->beacon->skb);
 	intf->beacon->skb = NULL;
 
 	spin_lock(&intf->lock);
@@ -555,34 +556,55 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
-void rt2x00lib_rxdone(struct queue_entry *entry,
-		      struct rxdone_entry_desc *rxdesc)
+void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
+		      struct queue_entry *entry)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct rxdone_entry_desc rxdesc;
+	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
-	unsigned int header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
 	const struct rt2x00_rate *rate;
+	unsigned int header_size;
 	unsigned int align;
 	unsigned int i;
 	int idx = -1;
 
 	/*
+	 * Allocate a new sk_buffer. If no new buffer available, drop the
+	 * received frame and reuse the existing buffer.
+	 */
+	skb = rt2x00queue_alloc_rxskb(rt2x00dev, entry);
+	if (!skb)
+		return;
+
+	/*
+	 * Unmap the skb.
+	 */
+	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
+
+	/*
+	 * Extract the RXD details.
+	 */
+	memset(&rxdesc, 0, sizeof(rxdesc));
+	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
+
+	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
 	 */
+	header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
 	align = ((unsigned long)(entry->skb->data + header_size)) & 3;
 
 	if (align) {
 		skb_push(entry->skb, align);
 		/* Move entire frame in 1 command */
 		memmove(entry->skb->data, entry->skb->data + align,
-			rxdesc->size);
+			rxdesc.size);
 	}
 
 	/* Update data pointers, trim buffer to correct size */
-	skb_trim(entry->skb, rxdesc->size);
+	skb_trim(entry->skb, rxdesc.size);
 
 	/*
 	 * Update RX statistics.
@@ -591,10 +613,10 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	for (i = 0; i < sband->n_bitrates; i++) {
 		rate = rt2x00_get_rate(sband->bitrates[i].hw_value);
 
-		if (((rxdesc->dev_flags & RXDONE_SIGNAL_PLCP) &&
-		     (rate->plcp == rxdesc->signal)) ||
-		    (!(rxdesc->dev_flags & RXDONE_SIGNAL_PLCP) &&
-		      (rate->bitrate == rxdesc->signal))) {
+		if (((rxdesc.dev_flags & RXDONE_SIGNAL_PLCP) &&
+		     (rate->plcp == rxdesc.signal)) ||
+		    (!(rxdesc.dev_flags & RXDONE_SIGNAL_PLCP) &&
+		      (rate->bitrate == rxdesc.signal))) {
 			idx = i;
 			break;
 		}
@@ -602,8 +624,8 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 
 	if (idx < 0) {
 		WARNING(rt2x00dev, "Frame received with unrecognized signal,"
-			"signal=0x%.2x, plcp=%d.\n", rxdesc->signal,
-			!!(rxdesc->dev_flags & RXDONE_SIGNAL_PLCP));
+			"signal=0x%.2x, plcp=%d.\n", rxdesc.signal,
+			!!(rxdesc.dev_flags & RXDONE_SIGNAL_PLCP));
 		idx = 0;
 	}
 
@@ -612,16 +634,16 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	 */
 	hdr = (struct ieee80211_hdr *)entry->skb->data;
 	if (ieee80211_is_beacon(hdr->frame_control) &&
-	    (rxdesc->dev_flags & RXDONE_MY_BSS))
-		rt2x00lib_update_link_stats(&rt2x00dev->link, rxdesc->rssi);
+	    (rxdesc.dev_flags & RXDONE_MY_BSS))
+		rt2x00lib_update_link_stats(&rt2x00dev->link, rxdesc.rssi);
 
 	rt2x00dev->link.qual.rx_success++;
 
 	rx_status->rate_idx = idx;
 	rx_status->qual =
-	    rt2x00lib_calculate_link_signal(rt2x00dev, rxdesc->rssi);
-	rx_status->signal = rxdesc->rssi;
-	rx_status->flag = rxdesc->flags;
+	    rt2x00lib_calculate_link_signal(rt2x00dev, rxdesc.rssi);
+	rx_status->signal = rxdesc.rssi;
+	rx_status->flag = rxdesc.flags;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
 	/*
@@ -630,7 +652,11 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
 	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb, rx_status);
-	entry->skb = NULL;
+
+	/*
+	 * Replace the skb with the freshly allocated one.
+	 */
+	entry->skb = skb;
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
 

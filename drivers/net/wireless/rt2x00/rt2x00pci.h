@@ -107,9 +107,6 @@ int rt2x00pci_write_tx_data(struct queue_entry *entry);
 struct queue_entry_priv_pci {
 	__le32 *desc;
 	dma_addr_t desc_dma;
-
-	void *data;
-	dma_addr_t data_dma;
 };
 
 /**
