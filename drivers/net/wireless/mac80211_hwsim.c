@@ -430,15 +430,16 @@ static int __init init_mac80211_hwsim(void)
 		hwsim_radios[i] = hw;
 
 		data = hw->priv;
-		data->dev = device_create(hwsim_class, NULL, 0, "hwsim%d", i);
+		data->dev = device_create_drvdata(hwsim_class, NULL, 0, hw,
+						"hwsim%d", i);
 		if (IS_ERR(data->dev)) {
-			printk(KERN_DEBUG "mac80211_hwsim: device_create "
+			printk(KERN_DEBUG
+			       "mac80211_hwsim: device_create_drvdata "
 			       "failed (%ld)\n", PTR_ERR(data->dev));
 			err = -ENOMEM;
 			goto failed;
 		}
 		data->dev->driver = &mac80211_hwsim_driver;
-		dev_set_drvdata(data->dev, hw);
 
 		SET_IEEE80211_DEV(hw, data->dev);
 		addr[3] = i >> 8;
