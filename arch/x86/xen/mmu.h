@@ -52,4 +52,8 @@ void xen_set_pud_hyper(pud_t *ptr, pud_t val);
 void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
 void xen_pmd_clear(pmd_t *pmdp);
 
+pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void  xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
+				  pte_t *ptep, pte_t pte);
+
 #endif	/* _XEN_MMU_H */
