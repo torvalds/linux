@@ -76,7 +76,7 @@ static int __devinit generic_onenand_probe(struct device *dev)
 	err = parse_mtd_partitions(&info->mtd, part_probes, &info->parts, 0);
 	if (err > 0)
 		add_mtd_partitions(&info->mtd, info->parts, err);
-	else if (err < 0 && pdata->parts)
+	else if (err <= 0 && pdata->parts)
 		add_mtd_partitions(&info->mtd, pdata->parts, pdata->nr_parts);
 	else
 #endif

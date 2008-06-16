@@ -126,7 +126,7 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 
 /* ------------------------------------------------------------------------- */
 
-/* Compro VideoMate H900: not working at the moment! */
+/* Compro VideoMate H900: note that this card is analog only! */
 
 static const struct cx18_card_pci_info cx18_pci_h900[] = {
 	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_COMPRO, 0xe100 },
@@ -136,7 +136,7 @@ static const struct cx18_card_pci_info cx18_pci_h900[] = {
 static const struct cx18_card cx18_card_h900 = {
 	.type = CX18_CARD_COMPRO_H900,
 	.name = "Compro VideoMate H900",
-	.comment = "DVB & VBI are not yet supported\n",
+	.comment = "VBI is not yet supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_all = CX18_HW_TUNER,

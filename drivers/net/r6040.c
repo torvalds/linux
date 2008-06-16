@@ -733,7 +733,7 @@ static void r6040_timer(unsigned long data)
 	}
 
 	/* Timer active again */
-	mod_timer(&lp->timer, jiffies + round_jiffies(HZ));
+	mod_timer(&lp->timer, round_jiffies(jiffies + HZ));
 }
 
 /* Read/set MAC address routines */

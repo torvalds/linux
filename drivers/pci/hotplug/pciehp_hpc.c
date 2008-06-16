@@ -247,14 +247,38 @@ static inline void pciehp_free_irq(struct controller *ctrl)
 		free_irq(ctrl->pci_dev->irq, ctrl);
 }
 
-static inline int pcie_wait_cmd(struct controller *ctrl)
+static inline int pcie_poll_cmd(struct controller *ctrl)
+{
+	u16 slot_status;
+	int timeout = 1000;
+
+	if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status))
+		if (slot_status & CMD_COMPLETED)
+			goto completed;
+	for (timeout = 1000; timeout > 0; timeout -= 100) {
+		msleep(100);
+		if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status))
+			if (slot_status & CMD_COMPLETED)
+				goto completed;
+	}
+	return 0;	/* timeout */
+
+completed:
+	pciehp_writew(ctrl, SLOTSTATUS, CMD_COMPLETED);
+	return timeout;
+}
+
+static inline int pcie_wait_cmd(struct controller *ctrl, int poll)
 {
 	int retval = 0;
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
 	unsigned long timeout = msecs_to_jiffies(msecs);
 	int rc;
 
-	rc = wait_event_interruptible_timeout(ctrl->queue,
+	if (poll)
+		rc = pcie_poll_cmd(ctrl);
+	else
+		rc = wait_event_interruptible_timeout(ctrl->queue,
 					      !ctrl->cmd_busy, timeout);
 	if (!rc)
 		dbg("Command not completed in 1000 msec\n");
@@ -286,12 +310,28 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 		goto out;
 	}
 
-	if ((slot_status & CMD_COMPLETED) == CMD_COMPLETED ) {
-		/* After 1 sec and CMD_COMPLETED still not set, just
-		   proceed forward to issue the next command according
-		   to spec.  Just print out the error message */
-		dbg("%s: CMD_COMPLETED not clear after 1 sec.\n",
-		    __func__);
+	if (slot_status & CMD_COMPLETED) {
+		if (!ctrl->no_cmd_complete) {
+			/*
+			 * After 1 sec and CMD_COMPLETED still not set, just
+			 * proceed forward to issue the next command according
+			 * to spec. Just print out the error message.
+			 */
+			dbg("%s: CMD_COMPLETED not clear after 1 sec.\n",
+			    __func__);
+		} else if (!NO_CMD_CMPL(ctrl)) {
+			/*
+			 * This controller semms to notify of command completed
+			 * event even though it supports none of power
+			 * controller, attention led, power led and EMI.
+			 */
+			dbg("%s: Unexpected CMD_COMPLETED. Need to wait for "
+			    "command completed event.\n", __func__);
+			ctrl->no_cmd_complete = 0;
+		} else {
+			dbg("%s: Unexpected CMD_COMPLETED. Maybe the "
+			    "controller is broken.\n", __func__);
+		}
 	}
 
 	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
@@ -315,8 +355,18 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	/*
 	 * Wait for command completion.
 	 */
-	if (!retval)
-		retval = pcie_wait_cmd(ctrl);
+	if (!retval && !ctrl->no_cmd_complete) {
+		int poll = 0;
+		/*
+		 * if hotplug interrupt is not enabled or command
+		 * completed interrupt is not enabled, we need to poll
+		 * command completed event.
+		 */
+		if (!(slot_ctrl & HP_INTR_ENABLE) ||
+		    !(slot_ctrl & CMD_CMPL_INTR_ENABLE))
+			poll = 1;
+                retval = pcie_wait_cmd(ctrl, poll);
+	}
  out:
 	mutex_unlock(&ctrl->ctrl_lock);
 	return retval;
@@ -704,13 +754,6 @@ static int hpc_power_off_slot(struct slot * slot)
 	}
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __func__, ctrl->cap_base + SLOTCTRL, slot_cmd);
-
-	/*
-	 * After turning power off, we must wait for at least 1 second
-	 * before taking any action that relies on power having been
-	 * removed from the slot/adapter.
-	 */
-	msleep(1000);
  out:
 	if (changed)
 		pcie_unmask_bad_dllp(ctrl);
@@ -722,6 +765,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	u16 detected, intr_loc;
+	struct slot *p_slot;
 
 	/*
 	 * In order to guarantee that all interrupt events are
@@ -756,21 +800,38 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		wake_up_interruptible(&ctrl->queue);
 	}
 
+	if (!(intr_loc & ~CMD_COMPLETED))
+		return IRQ_HANDLED;
+
+	/*
+	 * Return without handling events if this handler routine is
+	 * called before controller initialization is done. This may
+	 * happen if hotplug event or another interrupt that shares
+	 * the IRQ with pciehp arrives before slot initialization is
+	 * done after interrupt handler is registered.
+	 *
+	 * FIXME - Need more structural fixes. We need to be ready to
+	 * handle the event before installing interrupt handler.
+	 */
+	p_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
+	if (!p_slot || !p_slot->hpc_ops)
+		return IRQ_HANDLED;
+
 	/* Check MRL Sensor Changed */
 	if (intr_loc & MRL_SENS_CHANGED)
-		pciehp_handle_switch_change(0, ctrl);
+		pciehp_handle_switch_change(p_slot);
 
 	/* Check Attention Button Pressed */
 	if (intr_loc & ATTN_BUTTN_PRESSED)
-		pciehp_handle_attention_button(0, ctrl);
+		pciehp_handle_attention_button(p_slot);
 
 	/* Check Presence Detect Changed */
 	if (intr_loc & PRSN_DETECT_CHANGED)
-		pciehp_handle_presence_change(0, ctrl);
+		pciehp_handle_presence_change(p_slot);
 
 	/* Check Power Fault Detected */
 	if (intr_loc & PWR_FAULT_DETECTED)
-		pciehp_handle_power_fault(0, ctrl);
+		pciehp_handle_power_fault(p_slot);
 
 	return IRQ_HANDLED;
 }
@@ -1028,6 +1089,12 @@ static int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 static int pcie_init_hardware_part1(struct controller *ctrl,
 				    struct pcie_device *dev)
 {
+	/* Clear all remaining event bits in Slot Status register */
+	if (pciehp_writew(ctrl, SLOTSTATUS, 0x1f)) {
+		err("%s: Cannot write to SLOTSTATUS register\n", __func__);
+		return -1;
+	}
+
 	/* Mask Hot-plug Interrupt Enable */
 	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE)) {
 		err("%s: Cannot mask hotplug interrupt enable\n", __func__);
@@ -1039,16 +1106,6 @@ static int pcie_init_hardware_part1(struct controller *ctrl,
 int pcie_init_hardware_part2(struct controller *ctrl, struct pcie_device *dev)
 {
 	u16 cmd, mask;
-
-	/*
-	 * We need to clear all events before enabling hotplug interrupt
-	 * notification mechanism in order for hotplug controler to
-	 * generate interrupts.
-	 */
-	if (pciehp_writew(ctrl, SLOTSTATUS, 0x1f)) {
-		err("%s: Cannot write to SLOTSTATUS register\n", __FUNCTION__);
-		return -1;
-	}
 
 	cmd = PRSN_DETECT_ENABLE;
 	if (ATTN_BUTTN(ctrl))
@@ -1116,6 +1173,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	dbg("  Power Indicator      : %3s\n", PWR_LED(ctrl)    ? "yes" : "no");
 	dbg("  Hot-Plug Surprise    : %3s\n", HP_SUPR_RM(ctrl) ? "yes" : "no");
 	dbg("  EMI Present          : %3s\n", EMI(ctrl)        ? "yes" : "no");
+	dbg("  Comamnd Completed    : %3s\n", NO_CMD_CMPL(ctrl)? "no" : "yes");
 	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
 	dbg("Slot Status            : 0x%04x\n", reg16);
 	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
@@ -1147,6 +1205,15 @@ int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
+	/*
+	 * Controller doesn't notify of command completion if the "No
+	 * Command Completed Support" bit is set in Slot Capability
+	 * register or the controller supports none of power
+	 * controller, attention led, power led and EMI.
+	 */
+	if (NO_CMD_CMPL(ctrl) ||
+	    !(POWER_CTRL(ctrl) | ATTN_LED(ctrl) | PWR_LED(ctrl) | EMI(ctrl)))
+	    ctrl->no_cmd_complete = 1;
 
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",
 	     pdev->vendor, pdev->device,
