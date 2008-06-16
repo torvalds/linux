@@ -543,14 +543,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-#ifdef CONFIG_IA64
-	if(adapter->portnum == 0) {
-		netxen_pinit_from_rom(adapter, 0);
-		udelay(500);
-		netxen_load_firmware(adapter);
-	}
-#endif
-
 	init_timer(&adapter->watchdog_timer);
 	adapter->ahw.xg_linkup = 0;
 	adapter->watchdog_timer.function = &netxen_watchdog;
@@ -622,11 +614,18 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				err = -ENODEV;
 				goto err_out_free_dev;
 		    }
+		} else {
+			writel(0, NETXEN_CRB_NORMALIZE(adapter,
+						CRB_CMDPEG_STATE));
+			netxen_pinit_from_rom(adapter, 0);
+			msleep(1);
+			netxen_load_firmware(adapter);
+			netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 		}
 
 		/* clear the register for future unloads/loads */
 		writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
-		printk(KERN_DEBUG "State: 0x%0x\n",
+		dev_info(&pdev->dev, "cmdpeg state: 0x%0x\n",
 			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
 
 		/*
@@ -757,52 +756,8 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	vfree(adapter->cmd_buf_arr);
 
-	if (adapter->portnum == 0) {
-		if (init_firmware_done) {
-			i = 100;
-			do {
-				if (dma_watchdog_shutdown_request(adapter) == 1)
-					break;
-				msleep(100);
-				if (dma_watchdog_shutdown_poll_result(adapter) == 1)
-					break;
-			} while (--i);
-
-			if (i == 0)
-				printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
-						netdev->name);
-
-			/* clear the register for future unloads/loads */
-			writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
-			/* leave the hw in the same state as reboot */
-			writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-			netxen_pinit_from_rom(adapter, 0);
-			msleep(1);
-			netxen_load_firmware(adapter);
-			netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
-		}
-
-		/* clear the register for future unloads/loads */
-		writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
-		printk(KERN_DEBUG "State: 0x%0x\n",
-			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
-
-		i = 100;
-		do {
-			if (dma_watchdog_shutdown_request(adapter) == 1)
-				break;
-			msleep(100);
-			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
-				break;
-		} while (--i);
-
-		if (i) {
-			netxen_free_adapter_offload(adapter);
-		} else {
-			printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
-					netdev->name);
-		}
-	}
+	if (adapter->portnum == 0)
+		netxen_free_adapter_offload(adapter);
 
 	if (adapter->irq)
 		free_irq(adapter->irq, adapter);

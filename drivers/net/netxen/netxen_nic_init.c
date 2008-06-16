@@ -840,10 +840,10 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 				netxen_nic_pci_change_crbwindow(adapter, 1);
 			}
 			if (init_delay == 1) {
-				msleep(2000);
+				msleep(1000);
 				init_delay = 0;
 			}
-			msleep(20);
+			msleep(1);
 		}
 		kfree(buf);
 
@@ -918,12 +918,28 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 
 void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 {
+	int i;
+
 	if (adapter->dummy_dma.addr) {
-		pci_free_consistent(adapter->ahw.pdev,
+		i = 100;
+		do {
+			if (dma_watchdog_shutdown_request(adapter) == 1)
+				break;
+			msleep(50);
+			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+				break;
+		} while (--i);
+
+		if (i) {
+			pci_free_consistent(adapter->ahw.pdev,
 				    NETXEN_HOST_DUMMY_DMA_SIZE,
 				    adapter->dummy_dma.addr,
 				    adapter->dummy_dma.phys_addr);
-		adapter->dummy_dma.addr = NULL;
+			adapter->dummy_dma.addr = NULL;
+		} else {
+			printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
+					adapter->netdev->name);
+		}
 	}
 }
 
