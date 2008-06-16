@@ -43,9 +43,10 @@ printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
 
 quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
                             file$(if $(word 2, $(all-files)),s))
-      cmd_install = $(PERL) $< $(srctree)/$(obj) $(install) $(header-y); \
-                    $(PERL) $< $(objtree)/$(obj) $(install) $(objhdr-y); \
-	            touch $@
+      cmd_install = \
+        $(PERL) $< $(srctree)/$(obj) $(install) $(SRCARCH) $(header-y); \
+        $(PERL) $< $(objtree)/$(obj) $(install) $(SRCARCH) $(objhdr-y); \
+        touch $@
 
 quiet_cmd_remove = REMOVE  $(unwanted)
       cmd_remove = rm -f $(unwanted-file)

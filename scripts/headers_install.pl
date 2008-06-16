@@ -3,10 +3,13 @@
 # headers_install prepare the listed header files for use in
 # user space and copy the files to their destination.
 #
-# Usage: headers_install.pl odir installdir [files...]
-# odir:    dir to open files
-# install: dir to install the files
-# files:   list of files to check
+# Usage: headers_install.pl readdir installdir arch [files...]
+# readdir:    dir to open files
+# installdir: dir to install the files
+# arch:       current architecture
+#             arch is used to force a reinstallation when the arch
+#             changes because kbuild then detect a command line change.
+# files:      list of files to check
 #
 # Step in preparation for users space:
 # 1) Drop all use of compiler.h definitions
@@ -16,7 +19,7 @@
 use strict;
 use warnings;
 
-my ($readdir, $installdir, @files) = @ARGV;
+my ($readdir, $installdir, $arch, @files) = @ARGV;
 
 my $unifdef = "scripts/unifdef -U__KERNEL__";
 
