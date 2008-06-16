@@ -962,8 +962,8 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 
 void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 {
-	int ioapic = -1;
-	int pin = -1;
+	int ioapic;
+	int pin;
 
 	/*
 	 * Convert 'gsi' to 'ioapic.pin'.
@@ -997,8 +997,9 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 
 void __init mp_config_acpi_legacy_irqs(void)
 {
-	int i = 0;
-	int ioapic = -1;
+	int i;
+	int ioapic;
+	unsigned int dstapic;
 
 #if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 	/*
@@ -1023,6 +1024,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 	ioapic = mp_find_ioapic(0);
 	if (ioapic < 0)
 		return;
+	dstapic = mp_ioapics[ioapic].mp_apicid;
 
 	/*
 	 * Use the default configuration for the IRQs 0-15.  Unless
@@ -1030,11 +1032,6 @@ void __init mp_config_acpi_legacy_irqs(void)
 	 */
 	for (i = 0; i < 16; i++) {
 		int idx;
-
-		mp_irqs[mp_irq_entries].mp_type = MP_INTSRC;
-		mp_irqs[mp_irq_entries].mp_irqflag = 0;	/* Conforming */
-		mp_irqs[mp_irq_entries].mp_srcbus = MP_ISA_BUS;
-		mp_irqs[mp_irq_entries].mp_dstapic = mp_ioapics[ioapic].mp_apicid;
 
 		for (idx = 0; idx < mp_irq_entries; idx++) {
 			struct mp_config_intsrc *irq = mp_irqs + idx;
@@ -1045,9 +1042,8 @@ void __init mp_config_acpi_legacy_irqs(void)
 				break;
 
 			/* Do we already have a mapping for this IOAPIC pin */
-			if ((irq->mp_dstapic ==
-				mp_irqs[mp_irq_entries].mp_dstapic) &&
-			    (irq->mp_dstirq == i))
+			if (irq->mp_dstapic == dstapic &&
+			    irq->mp_dstirq == i)
 				break;
 		}
 
@@ -1056,8 +1052,12 @@ void __init mp_config_acpi_legacy_irqs(void)
 			continue;	/* IRQ already used */
 		}
 
+		mp_irqs[mp_irq_entries].mp_type = MP_INTSRC;
+		mp_irqs[mp_irq_entries].mp_irqflag = 0;	/* Conforming */
+		mp_irqs[mp_irq_entries].mp_srcbus = MP_ISA_BUS;
+		mp_irqs[mp_irq_entries].mp_dstapic = dstapic;
 		mp_irqs[mp_irq_entries].mp_irqtype = mp_INT;
-		mp_irqs[mp_irq_entries].mp_srcbusirq = i;	/* Identity mapped */
+		mp_irqs[mp_irq_entries].mp_srcbusirq = i; /* Identity mapped */
 		mp_irqs[mp_irq_entries].mp_dstirq = i;
 
 		if (++mp_irq_entries == MAX_IRQ_SOURCES)
