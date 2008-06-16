@@ -561,7 +561,6 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	unsigned int align;
 	unsigned int i;
 	int idx = -1;
-	u16 fc;
 
 	/*
 	 * The data behind the ieee80211 header must be
@@ -606,8 +605,8 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	 * Only update link status if this is a beacon frame carrying our bssid.
 	 */
 	hdr = (struct ieee80211_hdr *)entry->skb->data;
-	fc = le16_to_cpu(hdr->frame_control);
-	if (is_beacon(fc) && (rxdesc->dev_flags & RXDONE_MY_BSS))
+	if (ieee80211_is_beacon(hdr->frame_control) &&
+	    (rxdesc->dev_flags & RXDONE_MY_BSS))
 		rt2x00lib_update_link_stats(&rt2x00dev->link, rxdesc->rssi);
 
 	rt2x00dev->link.qual.rx_success++;
