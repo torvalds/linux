@@ -40,7 +40,8 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 			     void *buffer, const u16 buffer_length,
 			     const int timeout)
 {
-	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
+	struct usb_device *usb_dev =
+		interface_to_usbdev(to_usb_interface(rt2x00dev->dev));
 	int status;
 	unsigned int i;
 	unsigned int pipe =
@@ -176,7 +177,8 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 int rt2x00usb_write_tx_data(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
+	struct usb_device *usb_dev =
+		interface_to_usbdev(to_usb_interface(rt2x00dev->dev));
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
 	u32 length;
@@ -364,7 +366,8 @@ EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
 			    struct queue_entry *entry)
 {
-	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
+	struct usb_device *usb_dev =
+		interface_to_usbdev(to_usb_interface(rt2x00dev->dev));
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 
 	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
@@ -558,7 +561,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	usb_set_intfdata(usb_intf, hw);
 
 	rt2x00dev = hw->priv;
-	rt2x00dev->dev = usb_intf;
+	rt2x00dev->dev = &usb_intf->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
 	mutex_init(&rt2x00dev->usb_cache_mutex);

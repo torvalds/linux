@@ -625,11 +625,7 @@ struct rt2x00_dev {
 	 * When accessing this variable, the rt2x00dev_{pci,usb}
 	 * macro's should be used for correct typecasting.
 	 */
-	void *dev;
-#define rt2x00dev_pci(__dev)	( (struct pci_dev *)(__dev)->dev )
-#define rt2x00dev_usb(__dev)	( (struct usb_interface *)(__dev)->dev )
-#define rt2x00dev_usb_dev(__dev)\
-	( (struct usb_device *)interface_to_usbdev(rt2x00dev_usb(__dev)) )
+	struct device *dev;
 
 	/*
 	 * Callback functions.

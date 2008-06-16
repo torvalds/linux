@@ -194,7 +194,6 @@ EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
 static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 				     struct data_queue *queue)
 {
-	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
 	struct queue_entry_priv_pci *entry_priv;
 	void *addr;
 	dma_addr_t dma;
@@ -203,7 +202,8 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Allocate DMA memory for descriptor and buffer.
 	 */
-	addr = pci_alloc_consistent(pci_dev, dma_size(queue), &dma);
+	addr = dma_alloc_coherent(rt2x00dev->dev, dma_size(queue), &dma,
+				  GFP_KERNEL | GFP_DMA);
 	if (!addr)
 		return -ENOMEM;
 
@@ -226,19 +226,18 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 static void rt2x00pci_free_queue_dma(struct rt2x00_dev *rt2x00dev,
 				     struct data_queue *queue)
 {
-	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
 	struct queue_entry_priv_pci *entry_priv =
 	    queue->entries[0].priv_data;
 
 	if (entry_priv->data)
-		pci_free_consistent(pci_dev, dma_size(queue),
-				    entry_priv->data, entry_priv->data_dma);
+		dma_free_coherent(rt2x00dev->dev, dma_size(queue),
+				  entry_priv->data, entry_priv->data_dma);
 	entry_priv->data = NULL;
 }
 
 int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
 {
-	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
+	struct pci_dev *pci_dev = to_pci_dev(rt2x00dev->dev);
 	struct data_queue *queue;
 	int status;
 
@@ -279,7 +278,7 @@ void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free irq line.
 	 */
-	free_irq(rt2x00dev_pci(rt2x00dev)->irq, rt2x00dev);
+	free_irq(to_pci_dev(rt2x00dev->dev)->irq, rt2x00dev);
 
 	/*
 	 * Free DMA
@@ -308,7 +307,7 @@ static void rt2x00pci_free_reg(struct rt2x00_dev *rt2x00dev)
 
 static int rt2x00pci_alloc_reg(struct rt2x00_dev *rt2x00dev)
 {
-	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
+	struct pci_dev *pci_dev = to_pci_dev(rt2x00dev->dev);
 
 	rt2x00dev->csr.base = ioremap(pci_resource_start(pci_dev, 0),
 				      pci_resource_len(pci_dev, 0));
@@ -357,7 +356,7 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	if (pci_set_mwi(pci_dev))
 		ERROR_PROBE("MWI not available.\n");
 
-	if (pci_set_dma_mask(pci_dev, DMA_32BIT_MASK)) {
+	if (dma_set_mask(&pci_dev->dev, DMA_32BIT_MASK)) {
 		ERROR_PROBE("PCI DMA not supported.\n");
 		retval = -EIO;
 		goto exit_disable_device;
@@ -373,7 +372,7 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	pci_set_drvdata(pci_dev, hw);
 
 	rt2x00dev = hw->priv;
-	rt2x00dev->dev = pci_dev;
+	rt2x00dev->dev = &pci_dev->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
 
