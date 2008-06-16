@@ -484,4 +484,12 @@ static inline struct pxa_udc *to_gadget_udc(struct usb_gadget *gadget)
 #define ep_warn(ep, fmt, arg...) \
 	dev_warn(ep->dev->dev, "%s:%s:" fmt, EPNAME(ep), __func__, ## arg)
 
+/*
+ * Cannot include pxa-regs.h, as register names are similar.
+ * So PSSR is redefined here. This should be removed once UDC registers will
+ * be gone from pxa-regs.h.
+ */
+#define PSSR		__REG(0x40F00004)	/* Power Manager Sleep Status */
+#define PSSR_OTGPH	(1 << 6)		/* OTG Peripheral Hold */
+
 #endif /* __LINUX_USB_GADGET_PXA27X_H */

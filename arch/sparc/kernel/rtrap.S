@@ -1,4 +1,4 @@
-/* $Id: rtrap.S,v 1.58 2002/01/31 03:30:05 davem Exp $
+/*
  * rtrap.S: Return from Sparc trap low-level code.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
@@ -139,7 +139,7 @@ ret_trap_userwins_ok:
 	LOAD_PT_PRIV(sp, t_psr, t_pc, t_npc)
 	or	%t_pc, %t_npc, %g2
 	andcc	%g2, 0x3, %g0
-	sethi	%hi(PSR_SYCALL), %g2
+	sethi	%hi(PSR_SYSCALL), %g2
 	be	1f
 	 andn	%t_psr, %g2, %t_psr
 

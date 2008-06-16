@@ -94,6 +94,9 @@ unsigned long htab_hash_mask;
 int mmu_linear_psize = MMU_PAGE_4K;
 int mmu_virtual_psize = MMU_PAGE_4K;
 int mmu_vmalloc_psize = MMU_PAGE_4K;
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+int mmu_vmemmap_psize = MMU_PAGE_4K;
+#endif
 int mmu_io_psize = MMU_PAGE_4K;
 int mmu_kernel_ssize = MMU_SEGSIZE_256M;
 int mmu_highuser_ssize = MMU_SEGSIZE_256M;
@@ -387,11 +390,32 @@ static void __init htab_init_page_sizes(void)
 	}
 #endif /* CONFIG_PPC_64K_PAGES */
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	/* We try to use 16M pages for vmemmap if that is supported
+	 * and we have at least 1G of RAM at boot
+	 */
+	if (mmu_psize_defs[MMU_PAGE_16M].shift &&
+	    lmb_phys_mem_size() >= 0x40000000)
+		mmu_vmemmap_psize = MMU_PAGE_16M;
+	else if (mmu_psize_defs[MMU_PAGE_64K].shift)
+		mmu_vmemmap_psize = MMU_PAGE_64K;
+	else
+		mmu_vmemmap_psize = MMU_PAGE_4K;
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
+
 	printk(KERN_DEBUG "Page orders: linear mapping = %d, "
-	       "virtual = %d, io = %d\n",
+	       "virtual = %d, io = %d"
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	       ", vmemmap = %d"
+#endif
+	       "\n",
 	       mmu_psize_defs[mmu_linear_psize].shift,
 	       mmu_psize_defs[mmu_virtual_psize].shift,
-	       mmu_psize_defs[mmu_io_psize].shift);
+	       mmu_psize_defs[mmu_io_psize].shift
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	       ,mmu_psize_defs[mmu_vmemmap_psize].shift
+#endif
+	       );
 
 #ifdef CONFIG_HUGETLB_PAGE
 	/* Init large page size. Currently, we pick 16M or 1M depending

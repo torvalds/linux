@@ -197,13 +197,13 @@ typedef u64 resource_size_t;
 typedef u32 resource_size_t;
 #endif
 
-#endif	/* __KERNEL__ */
-
 struct ustat {
 	__kernel_daddr_t	f_tfree;
 	__kernel_ino_t		f_tinode;
 	char			f_fname[6];
 	char			f_fpack[6];
 };
+
+#endif	/* __KERNEL__ */
 
 #endif /* _LINUX_TYPES_H */

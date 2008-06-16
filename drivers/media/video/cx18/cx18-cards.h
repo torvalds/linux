@@ -114,8 +114,8 @@ struct cx18_card_pci_info {
 /* The mask is the set of bits used by the operation */
 
 struct cx18_gpio_init { /* set initial GPIO DIR and OUT values */
-	u16 direction; 	/* DIR setting. Leave to 0 if no init is needed */
-	u16 initial_value;
+	u32 direction; 	/* DIR setting. Leave to 0 if no init is needed */
+	u32 initial_value;
 };
 
 struct cx18_card_tuner {
@@ -153,6 +153,7 @@ struct cx18_card {
 	struct cx18_card_audio_input radio_input;
 
 	/* GPIO card-specific settings */
+	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
 	struct cx18_gpio_init 		gpio_init;
 
 	struct cx18_card_tuner tuners[CX18_CARD_MAX_TUNERS];

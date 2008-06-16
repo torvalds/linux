@@ -903,7 +903,11 @@ int dev_change_name(struct net_device *dev, char *newname)
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
 rollback:
-	device_rename(&dev->dev, dev->name);
+	err = device_rename(&dev->dev, dev->name);
+	if (err) {
+		memcpy(dev->name, oldname, IFNAMSIZ);
+		return err;
+	}
 
 	write_lock_bh(&dev_base_lock);
 	hlist_del(&dev->name_hlist);
@@ -3137,7 +3141,7 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	 *	Load in the correct multicast list now the flags have changed.
 	 */
 
-	if (dev->change_rx_flags && (dev->flags ^ flags) & IFF_MULTICAST)
+	if (dev->change_rx_flags && (old_flags ^ flags) & IFF_MULTICAST)
 		dev->change_rx_flags(dev, IFF_MULTICAST);
 
 	dev_set_rx_mode(dev);

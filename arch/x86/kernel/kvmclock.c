@@ -53,7 +53,7 @@ static cycle_t kvm_clock_read(void);
  * have elapsed since the hypervisor wrote the data. So we try to account for
  * that with system time
  */
-unsigned long kvm_get_wallclock(void)
+static unsigned long kvm_get_wallclock(void)
 {
 	u32 wc_sec, wc_nsec;
 	u64 delta;
@@ -86,7 +86,7 @@ unsigned long kvm_get_wallclock(void)
 	return ts.tv_sec + 1;
 }
 
-int kvm_set_wallclock(unsigned long now)
+static int kvm_set_wallclock(unsigned long now)
 {
 	return 0;
 }

@@ -87,8 +87,8 @@ struct plat_smp_ops *mp_ops;
 
 __cpuinit void register_smp_ops(struct plat_smp_ops *ops)
 {
-	if (ops)
-		printk(KERN_WARNING "Overriding previous set SMP ops\n");
+	if (mp_ops)
+		printk(KERN_WARNING "Overriding previously set SMP ops\n");
 
 	mp_ops = ops;
 }

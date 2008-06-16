@@ -498,7 +498,8 @@ int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 	return nla_nest_end(skb, mx);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, mx);
+	nla_nest_cancel(skb, mx);
+	return -EMSGSIZE;
 }
 
 int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,

@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
-#include <linux/serial_8250.h>
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
 #include <linux/pm.h>
@@ -109,27 +108,6 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
-static struct plat_serial8250_port uart_platform_data[] = {
-	{
-		.membase	= (void __iomem *)0xb3e30000,
-		.mapbase	= 0xb3e30000,
-		.iotype		= UPIO_MEM,
-		.irq		= IRQ_VOYAGER,
-		.flags		= UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-		.regshift	= 2,
-		.uartclk	= (9600 * 16),
-	},
-	{ 0 },
-};
-
-static struct platform_device uart_device = {
-	.name		= "serial8250",
-	.id		= PLAT8250_DEV_PLATFORM,
-	.dev		= {
-		.platform_data	= uart_platform_data,
-	},
-};
-
 static struct resource sm501_resources[] = {
 	[0]	= {
 		.start	= 0x10000000,
@@ -185,11 +163,7 @@ static struct sm501_platdata_fb sm501_fb_pdata = {
 };
 
 static struct sm501_initdata sm501_initdata = {
-	.gpio_high	= {
-		.set	= 0x00001fe0,
-		.mask	= 0x0,
-	},
-	.devices	= SM501_USE_USB_HOST,
+	.devices	= SM501_USE_USB_HOST | SM501_USE_UART0,
 };
 
 static struct sm501_platdata sm501_platform_data = {
@@ -208,7 +182,6 @@ static struct platform_device sm501_device = {
 };
 
 static struct platform_device *rts7751r2d_devices[] __initdata = {
-	&uart_device,
 	&sm501_device,
 	&heartbeat_device,
 	&spi_sh_sci_device,
@@ -272,16 +245,6 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 
 	sm501_reg = (void __iomem *)0xb3e00000 + SM501_DRAM_CONTROL;
 	writel(readl(sm501_reg) | 0x00f107c0, sm501_reg);
-
-	/*
-	 * Power Mode Gate - Enable UART0
-	 */
-
-	sm501_reg = (void __iomem *)0xb3e00000 + SM501_POWER_MODE_0_GATE;
-	writel(readl(sm501_reg) | (1 << SM501_GATE_UART0), sm501_reg);
-
-	sm501_reg = (void __iomem *)0xb3e00000 + SM501_POWER_MODE_1_GATE;
-	writel(readl(sm501_reg) | (1 << SM501_GATE_UART0), sm501_reg);
 }
 
 /*

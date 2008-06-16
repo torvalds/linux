@@ -301,15 +301,13 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	prot = pgprot_val(vma->vm_page_prot);
 	if (pat_wc_enabled && write_combine)
 		prot |= _PAGE_CACHE_WC;
-	else if (pat_wc_enabled)
+	else if (pat_wc_enabled || boot_cpu_data.x86 > 3)
 		/*
 		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
 		 * To avoid attribute conflicts, request UC MINUS here
 		 * aswell.
 		 */
 		prot |= _PAGE_CACHE_UC_MINUS;
-	else if (boot_cpu_data.x86 > 3)
-		prot |= _PAGE_CACHE_UC;
 
 	vma->vm_page_prot = __pgprot(prot);
 

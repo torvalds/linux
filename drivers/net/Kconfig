@@ -1353,7 +1353,7 @@ config APRICOT
 
 config B44
 	tristate "Broadcom 440x/47xx ethernet support"
-	depends on SSB_POSSIBLE
+	depends on SSB_POSSIBLE && HAS_DMA
 	select SSB
 	select MII
 	help

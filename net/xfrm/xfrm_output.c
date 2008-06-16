@@ -25,11 +25,11 @@ static int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
 	struct dst_entry *dst = skb->dst;
 	int nhead = dst->header_len + LL_RESERVED_SPACE(dst->dev)
 		- skb_headroom(skb);
+	int ntail = dst->dev->needed_tailroom - skb_tailroom(skb);
 
-	if (nhead > 0)
-		return pskb_expand_head(skb, nhead, 0, GFP_ATOMIC);
+	if (nhead > 0 || ntail > 0)
+		return pskb_expand_head(skb, nhead, ntail, GFP_ATOMIC);
 
-	/* Check tail too... */
 	return 0;
 }
 

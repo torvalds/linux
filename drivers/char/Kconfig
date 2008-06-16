@@ -118,8 +118,8 @@ config COMPUTONE
 	  order to become a dial-in server. If you have a card like that, say
 	  Y here and read <file:Documentation/computone.txt>.
 
-	  To compile this driver as modules, choose M here: the
-	  modules will be called ip2 and ip2main.
+	  To compile this driver as module, choose M here: the
+	  module will be called ip2.
 
 config ROCKETPORT
 	tristate "Comtrol RocketPort support"
@@ -196,6 +196,7 @@ config ESPSERIAL
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
 	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
+	select FW_LOADER
 	help
 	  Say Y here if you have a Moxa Intellio multiport serial card.
 
@@ -748,7 +749,7 @@ config NVRAM
 if RTC_LIB=n
 
 config RTC
-	tristate "Enhanced Real Time Clock Support"
+	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
 	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV \
 			&& !ARM && !SUPERH && !S390 && !AVR32
 	---help---
@@ -1035,9 +1036,9 @@ config HPET
 	  non-periodic and/or periodic.
 
 config HPET_RTC_IRQ
-	bool "HPET Control RTC IRQ" if !HPET_EMULATE_RTC
-	default n
-	depends on HPET
+	bool
+	default HPET_EMULATE_RTC
+	depends on RTC && HPET
 	help
 	  If you say Y here, you will disable RTC_IRQ in drivers/char/rtc.c. It
 	  is assumed the platform called hpet_alloc with the RTC IRQ values for

@@ -37,7 +37,20 @@ struct dib0070_config {
 	u8 flip_chip;
 };
 
-extern struct dvb_frontend * dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0070_config *cfg);
+#if defined(CONFIG_DVB_TUNER_DIB0070) || (defined(CONFIG_DVB_TUNER_DIB0070_MODULE) && defined(MODULE))
+extern struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe,
+					   struct i2c_adapter *i2c,
+					   struct dib0070_config *cfg);
+#else
+static inline struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe,
+						  struct i2c_adapter *i2c,
+						  struct dib0070_config *cfg)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+#endif
+
 extern void dib0070_ctrl_agc_filter(struct dvb_frontend *, uint8_t open);
 extern u16 dib0070_wbd_offset(struct dvb_frontend *);
 

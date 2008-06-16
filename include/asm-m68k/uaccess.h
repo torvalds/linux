@@ -14,7 +14,11 @@
 #define VERIFY_WRITE	1
 
 /* We let the MMU do all checking */
-#define access_ok(type,addr,size) 1
+static inline int access_ok(int type, const void __user *addr,
+			    unsigned long size)
+{
+	return 1;
+}
 
 /*
  * The exception table consists of pairs of addresses: the first is the

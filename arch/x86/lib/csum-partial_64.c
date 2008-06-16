@@ -136,8 +136,6 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 						(__force u32)sum);
 }
 
-EXPORT_SYMBOL(csum_partial);
-
 /*
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c

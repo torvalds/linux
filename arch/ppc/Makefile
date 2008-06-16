@@ -43,7 +43,7 @@ KBUILD_AFLAGS += $(cpu-as-y)
 KBUILD_CFLAGS += $(cpu-as-y)
 
 # Default to the common case.
-KBUILD_DEFCONFIG := common_defconfig
+KBUILD_DEFCONFIG := ebony_defconfig
 
 head-y				:= arch/ppc/kernel/head.o
 head-$(CONFIG_8xx)		:= arch/ppc/kernel/head_8xx.o

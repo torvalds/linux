@@ -544,6 +544,7 @@ vm86_trap:
 #define DO_ERROR(trapnr, signr, str, name)				\
 void do_##name(struct pt_regs *regs, long error_code)			\
 {									\
+	trace_hardirqs_fixup();						\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 						== NOTIFY_STOP)		\
 		return;							\

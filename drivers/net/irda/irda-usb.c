@@ -1120,7 +1120,7 @@ static int stir421x_patch_device(struct irda_usb_cb *self)
                 }
         }
 
-        if (self->usbdev->descriptor.bcdDevice == fw_version) {
+        if (self->usbdev->descriptor.bcdDevice == cpu_to_le16(fw_version)) {
                 /*
 		 * If we're here, we've found a correct patch
                  * The actual image starts after the "STMP" keyword

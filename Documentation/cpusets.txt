@@ -199,7 +199,7 @@ using the sched_setaffinity, mbind and set_mempolicy system calls.
 The following rules apply to each cpuset:
 
  - Its CPUs and Memory Nodes must be a subset of its parents.
- - It can only be marked exclusive if its parent is.
+ - It can't be marked exclusive unless its parent is.
  - If its cpu or memory is exclusive, they may not overlap any sibling.
 
 These rules, and the natural hierarchy of cpusets, enable efficient
@@ -345,7 +345,7 @@ is modified to perform an inline check for this PF_SPREAD_PAGE task
 flag, and if set, a call to a new routine cpuset_mem_spread_node()
 returns the node to prefer for the allocation.
 
-Similarly, setting 'memory_spread_cache' turns on the flag
+Similarly, setting 'memory_spread_slab' turns on the flag
 PF_SPREAD_SLAB, and appropriately marked slab caches will allocate
 pages from the node returned by cpuset_mem_spread_node().
 
@@ -709,7 +709,10 @@ Now you want to do something with this cpuset.
 
 In this directory you can find several files:
 # ls
-cpus  cpu_exclusive  mems  mem_exclusive mem_hardwall  tasks
+cpu_exclusive  memory_migrate      mems                      tasks
+cpus           memory_pressure     notify_on_release
+mem_exclusive  memory_spread_page  sched_load_balance
+mem_hardwall   memory_spread_slab  sched_relax_domain_level
 
 Reading them will give you information about the state of this cpuset:
 the CPUs and Memory Nodes it can use, the processes that are using

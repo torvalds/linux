@@ -587,7 +587,7 @@ retry:
 	since we may get here before the stream has been fully set-up */
 	if (mode == OUT_YUV && s->q_full.length == 0 && itv->dma_data_req_size) {
 		while (count >= itv->dma_data_req_size) {
-			if (!ivtv_yuv_udma_stream_frame (itv, (void *)user_buf)) {
+			if (!ivtv_yuv_udma_stream_frame (itv, (void __user *)user_buf)) {
 				bytes_written += itv->dma_data_req_size;
 				user_buf += itv->dma_data_req_size;
 				count -= itv->dma_data_req_size;
@@ -987,6 +987,8 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	/* Find which card this open was on */
 	spin_lock(&ivtv_cards_lock);
 	for (x = 0; itv == NULL && x < ivtv_cards_active; x++) {
+		if (ivtv_cards[x] == NULL)
+			continue;
 		/* find out which stream this open was on */
 		for (y = 0; y < IVTV_MAX_STREAMS; y++) {
 			s = &ivtv_cards[x]->streams[y];
