@@ -10,6 +10,55 @@
 #ifndef EFX_ENUM_H
 #define EFX_ENUM_H
 
+/**
+ * enum efx_loopback_mode - loopback modes
+ * @LOOPBACK_NONE: no loopback
+ * @LOOPBACK_XGMII: loopback within MAC at XGMII level
+ * @LOOPBACK_XGXS: loopback within MAC at XGXS level
+ * @LOOPBACK_XAUI: loopback within MAC at XAUI level
+ * @LOOPBACK_PHYXS: loopback within PHY at PHYXS level
+ * @LOOPBACK_PCS: loopback within PHY at PCS level
+ * @LOOPBACK_PMAPMD: loopback within PHY at PMAPMD level
+ * @LOOPBACK_NETWORK: reflecting loopback (even further than furthest!)
+ */
+/* Please keep in order and up-to-date w.r.t the following two #defines */
+enum efx_loopback_mode {
+	LOOPBACK_NONE = 0,
+	LOOPBACK_MAC = 1,
+	LOOPBACK_XGMII = 2,
+	LOOPBACK_XGXS = 3,
+	LOOPBACK_XAUI = 4,
+	LOOPBACK_PHY = 5,
+	LOOPBACK_PHYXS = 6,
+	LOOPBACK_PCS = 7,
+	LOOPBACK_PMAPMD = 8,
+	LOOPBACK_NETWORK = 9,
+	LOOPBACK_MAX
+};
+
+#define LOOPBACK_TEST_MAX LOOPBACK_PMAPMD
+
+extern const char *efx_loopback_mode_names[];
+#define LOOPBACK_MODE_NAME(mode)			\
+	STRING_TABLE_LOOKUP(mode, efx_loopback_mode)
+#define LOOPBACK_MODE(efx)				\
+	LOOPBACK_MODE_NAME(efx->loopback_mode)
+
+/* These loopbacks occur within the controller */
+#define LOOPBACKS_10G_INTERNAL ((1 << LOOPBACK_XGMII)| \
+				(1 << LOOPBACK_XGXS) | \
+				(1 << LOOPBACK_XAUI))
+
+#define LOOPBACK_MASK(_efx)			\
+	(1 << (_efx)->loopback_mode)
+
+#define LOOPBACK_INTERNAL(_efx)						\
+	((LOOPBACKS_10G_INTERNAL & LOOPBACK_MASK(_efx)) ? 1 : 0)
+
+#define LOOPBACK_OUT_OF(_from, _to, _mask)		\
+	(((LOOPBACK_MASK(_from) & (_mask)) &&		\
+	  ((LOOPBACK_MASK(_to) & (_mask)) == 0)) ? 1 : 0)
+
 /*****************************************************************************/
 
 /**

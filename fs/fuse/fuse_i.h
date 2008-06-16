@@ -404,6 +404,9 @@ struct fuse_conn {
 	/** Is bmap not implemented by fs? */
 	unsigned no_bmap : 1;
 
+	/** Do multi-page cached writes */
+	unsigned big_writes : 1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 

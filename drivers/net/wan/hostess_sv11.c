@@ -75,7 +75,7 @@ static void hostess_input(struct z8530_channel *c, struct sk_buff *skb)
  
 static int hostess_open(struct net_device *d)
 {
-	struct sv11_device *sv11=d->priv;
+	struct sv11_device *sv11=d->ml_priv;
 	int err = -1;
 	
 	/*
@@ -128,7 +128,7 @@ static int hostess_open(struct net_device *d)
 
 static int hostess_close(struct net_device *d)
 {
-	struct sv11_device *sv11=d->priv;
+	struct sv11_device *sv11=d->ml_priv;
 	/*
 	 *	Discard new frames
 	 */
@@ -159,14 +159,14 @@ static int hostess_close(struct net_device *d)
 
 static int hostess_ioctl(struct net_device *d, struct ifreq *ifr, int cmd)
 {
-	/* struct sv11_device *sv11=d->priv;
+	/* struct sv11_device *sv11=d->ml_priv;
 	   z8530_ioctl(d,&sv11->sync.chanA,ifr,cmd) */
 	return sppp_do_ioctl(d, ifr,cmd);
 }
 
 static struct net_device_stats *hostess_get_stats(struct net_device *d)
 {
-	struct sv11_device *sv11=d->priv;
+	struct sv11_device *sv11=d->ml_priv;
 	if(sv11)
 		return z8530_get_stats(&sv11->sync.chanA);
 	else
@@ -179,7 +179,7 @@ static struct net_device_stats *hostess_get_stats(struct net_device *d)
  
 static int hostess_queue_xmit(struct sk_buff *skb, struct net_device *d)
 {
-	struct sv11_device *sv11=d->priv;
+	struct sv11_device *sv11=d->ml_priv;
 	return z8530_queue_xmit(&sv11->sync.chanA, skb);
 }
 
@@ -325,6 +325,7 @@ static struct sv11_device *sv11_init(int iobase, int irq)
 		/* 
 		 *	Initialise the PPP components
 		 */
+		d->ml_priv = sv;
 		sppp_attach(&sv->netdev);
 		
 		/*
@@ -333,7 +334,6 @@ static struct sv11_device *sv11_init(int iobase, int irq)
 		
 		d->base_addr = iobase;
 		d->irq = irq;
-		d->priv = sv;
 		
 		if(register_netdev(d))
 		{

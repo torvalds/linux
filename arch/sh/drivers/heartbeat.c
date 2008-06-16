@@ -154,4 +154,4 @@ module_exit(heartbeat_exit);
 
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("Paul Mundt");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

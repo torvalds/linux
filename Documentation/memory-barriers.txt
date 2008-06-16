@@ -994,7 +994,17 @@ The Linux kernel has eight basic CPU memory barriers:
 	DATA DEPENDENCY	read_barrier_depends()	smp_read_barrier_depends()
 
 
-All CPU memory barriers unconditionally imply compiler barriers.
+All memory barriers except the data dependency barriers imply a compiler
+barrier. Data dependencies do not impose any additional compiler ordering.
+
+Aside: In the case of data dependencies, the compiler would be expected to
+issue the loads in the correct order (eg. `a[b]` would have to load the value
+of b before loading a[b]), however there is no guarantee in the C specification
+that the compiler may not speculate the value of b (eg. is equal to 1) and load
+a before b (eg. tmp = a[1]; if (b != 1) tmp = a[b]; ). There is also the
+problem of a compiler reloading b after having loaded a[b], thus having a newer
+copy of b than a[b]. A consensus has not yet been reached about these problems,
+however the ACCESS_ONCE macro is a good place to start looking.
 
 SMP memory barriers are reduced to compiler barriers on uniprocessor compiled
 systems because it is assumed that a CPU will appear to be self-consistent,

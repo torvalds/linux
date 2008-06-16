@@ -89,9 +89,7 @@ static void scc_break_ctl(struct tty_struct *tty, int break_state);
 
 static struct tty_driver *scc_driver;
 
-struct scc_port scc_ports[2];
-
-int scc_initialized = 0;
+static struct scc_port scc_ports[2];
 
 /*---------------------------------------------------------------------------
  * Interface from generic_serial.c back here

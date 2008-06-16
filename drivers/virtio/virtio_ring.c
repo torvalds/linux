@@ -227,7 +227,6 @@ static bool vring_enable_cb(struct virtqueue *_vq)
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
 	START_USE(vq);
-	BUG_ON(!(vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT));
 
 	/* We optimistically turn back on interrupts, then check if there was
 	 * more to do. */
@@ -253,13 +252,6 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
 
 	if (unlikely(vq->broken))
 		return IRQ_HANDLED;
-
-	/* Other side may have missed us turning off the interrupt,
-	 * but we should preserve disable semantic for virtio users. */
-	if (unlikely(vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)) {
-		pr_debug("virtqueue interrupt after disable for %p\n", vq);
-		return IRQ_HANDLED;
-	}
 
 	pr_debug("virtqueue callback for %p (%p)\n", vq, vq->vq.callback);
 	if (vq->vq.callback)

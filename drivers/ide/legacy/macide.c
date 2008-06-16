@@ -78,6 +78,8 @@ static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
+
+	hw->chipset = ide_generic;
 }
 
 static const char *mac_ide_name[] =
@@ -94,6 +96,9 @@ static int __init macide_init(void)
 	unsigned long base;
 	int irq;
 	hw_regs_t hw;
+
+	if (!MACH_IS_MAC)
+		return -ENODEV;
 
 	switch (macintosh_config->ide_type) {
 	case MAC_IDE_QUADRA:

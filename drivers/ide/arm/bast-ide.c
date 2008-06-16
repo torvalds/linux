@@ -42,6 +42,7 @@ static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 
 	hw.io_ports.ctl_addr = aux + (6 * 0x20);
 	hw.irq = irq;
+	hw.chipset = ide_generic;
 
 	hwif = ide_find_port();
 	if (hwif == NULL)

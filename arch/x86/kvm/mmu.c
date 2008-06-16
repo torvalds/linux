@@ -658,7 +658,7 @@ static int is_empty_shadow_page(u64 *spt)
 	u64 *end;
 
 	for (pos = spt, end = pos + PAGE_SIZE / sizeof(u64); pos != end; pos++)
-		if (*pos != shadow_trap_nonpresent_pte) {
+		if (is_shadow_present_pte(*pos)) {
 			printk(KERN_ERR "%s: %p %llx\n", __func__,
 			       pos, *pos);
 			return 0;
@@ -1858,6 +1858,7 @@ static void free_mmu_pages(struct kvm_vcpu *vcpu)
 		sp = container_of(vcpu->kvm->arch.active_mmu_pages.next,
 				  struct kvm_mmu_page, link);
 		kvm_mmu_zap_page(vcpu->kvm, sp);
+		cond_resched();
 	}
 	free_page((unsigned long)vcpu->arch.mmu.pae_root);
 }
@@ -1996,7 +1997,7 @@ static struct shrinker mmu_shrinker = {
 	.seeks = DEFAULT_SEEKS * 10,
 };
 
-void mmu_destroy_caches(void)
+static void mmu_destroy_caches(void)
 {
 	if (pte_chain_cache)
 		kmem_cache_destroy(pte_chain_cache);

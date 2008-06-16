@@ -22,5 +22,7 @@ enum efx_board_type {
 extern int efx_set_board_info(struct efx_nic *efx, u16 revision_info);
 extern int sfe4001_poweron(struct efx_nic *efx);
 extern void sfe4001_poweroff(struct efx_nic *efx);
+/* Are we putting the PHY into flash config mode */
+extern unsigned int sfe4001_phy_flash_cfg;
 
 #endif

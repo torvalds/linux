@@ -45,7 +45,7 @@ static int ppp_open(struct net_device *dev)
 	int (*old_ioctl)(struct net_device *, struct ifreq *, int);
 	int result;
 
-	dev->priv = &state(hdlc)->syncppp_ptr;
+	dev->ml_priv = &state(hdlc)->syncppp_ptr;
 	state(hdlc)->syncppp_ptr = &state(hdlc)->pppdev;
 	state(hdlc)->pppdev.dev = dev;
 

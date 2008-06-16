@@ -187,7 +187,7 @@ struct sdhci_host {
 	struct mmc_request	*mrq;		/* Current request */
 	struct mmc_command	*cmd;		/* Current command */
 	struct mmc_data		*data;		/* Current data request */
-	int			data_early:1;	/* Data finished before cmd */
+	unsigned int		data_early:1;	/* Data finished before cmd */
 
 	struct scatterlist	*cur_sg;	/* We're working on this */
 	int			num_sg;		/* Entries left */

@@ -397,7 +397,7 @@ int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 	put_unaligned(cpu_to_le32(sdata->u.sta.mesh_seqnum), &meshhdr->seqnum);
 	sdata->u.sta.mesh_seqnum++;
 
-	return 5;
+	return 6;
 }
 
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)

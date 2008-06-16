@@ -9,7 +9,7 @@
 #ifndef LINUX_BEFS_ENDIAN
 #define LINUX_BEFS_ENDIAN
 
-#include <linux/byteorder/generic.h>
+#include <asm/byteorder.h>
 
 static inline u64
 fs64_to_cpu(const struct super_block *sb, fs64 n)

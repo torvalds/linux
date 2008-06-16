@@ -79,6 +79,19 @@
 #define TRANS2_GET_DFS_REFERRAL       0x10
 #define TRANS2_REPORT_DFS_INCOSISTENCY 0x11
 
+/* SMB Transact (Named Pipe) subcommand codes */
+#define TRANS_SET_NMPIPE_STATE      0x0001
+#define TRANS_RAW_READ_NMPIPE       0x0011
+#define TRANS_QUERY_NMPIPE_STATE    0x0021
+#define TRANS_QUERY_NMPIPE_INFO     0x0022
+#define TRANS_PEEK_NMPIPE           0x0023
+#define TRANS_TRANSACT_NMPIPE       0x0026
+#define TRANS_RAW_WRITE_NMPIPE      0x0031
+#define TRANS_READ_NMPIPE           0x0036
+#define TRANS_WRITE_NMPIPE          0x0037
+#define TRANS_WAIT_NMPIPE           0x0053
+#define TRANS_CALL_NMPIPE           0x0054
+
 /* NT Transact subcommand codes */
 #define NT_TRANSACT_CREATE            0x01
 #define NT_TRANSACT_IOCTL             0x02
@@ -328,18 +341,20 @@
 #define CREATE_COMPLETE_IF_OPLK 0x00000100	/* should be zero */
 #define CREATE_NO_EA_KNOWLEDGE  0x00000200
 #define CREATE_EIGHT_DOT_THREE  0x00000400	/* doc says this is obsolete
-						 open for recovery flag - should
-						 be zero */
+						 "open for recovery" flag - should
+						 be zero in any case */
+#define CREATE_OPEN_FOR_RECOVERY 0x00000400
 #define CREATE_RANDOM_ACCESS	0x00000800
 #define CREATE_DELETE_ON_CLOSE	0x00001000
 #define CREATE_OPEN_BY_ID       0x00002000
-#define CREATE_OPEN_BACKUP_INTN 0x00004000
+#define CREATE_OPEN_BACKUP_INTENT 0x00004000
 #define CREATE_NO_COMPRESSION   0x00008000
 #define CREATE_RESERVE_OPFILTER 0x00100000	/* should be zero */
 #define OPEN_REPARSE_POINT	0x00200000
 #define OPEN_NO_RECALL          0x00400000
 #define OPEN_FREE_SPACE_QUERY   0x00800000	/* should be zero */
 #define CREATE_OPTIONS_MASK     0x007FFFFF
+#define CREATE_OPTION_READONLY	0x10000000
 #define CREATE_OPTION_SPECIAL   0x20000000   /* system. NB not sent over wire */
 
 /* ImpersonationLevel flags */
@@ -721,7 +736,6 @@ typedef struct smb_com_tconx_rsp_ext {
 #define SMB_CSC_CACHE_AUTO_REINT   0x0004
 #define SMB_CSC_CACHE_VDO          0x0008
 #define SMB_CSC_NO_CACHING         0x000C
-
 #define SMB_UNIQUE_FILE_NAME    0x0010
 #define SMB_EXTENDED_SIGNATURES 0x0020
 
@@ -805,7 +819,7 @@ typedef struct smb_com_findclose_req {
 #define ICOUNT_MASK		0x00FF
 #define PIPE_READ_MODE		0x0100
 #define NAMED_PIPE_TYPE		0x0400
-#define PIPE_END_POINT		0x0800
+#define PIPE_END_POINT		0x4000
 #define BLOCKING_NAMED_PIPE	0x8000
 
 typedef struct smb_com_open_req {	/* also handles create */
@@ -1903,19 +1917,26 @@ typedef struct smb_com_transaction2_get_dfs_refer_req {
 	char RequestFileName[1];
 } __attribute__((packed)) TRANSACTION2_GET_DFS_REFER_REQ;
 
+#define DFS_VERSION cpu_to_le16(0x0003)
+
+/* DFS server target type */
+#define DFS_TYPE_LINK 0x0000  /* also for sysvol targets */
+#define DFS_TYPE_ROOT 0x0001
+ 
+/* Referral Entry Flags */
+#define DFS_NAME_LIST_REF 0x0200
+
 typedef struct dfs_referral_level_3 {
 	__le16 VersionNumber;
-	__le16 ReferralSize;
-	__le16 ServerType;	/* 0x0001 = CIFS server */
-	__le16 ReferralFlags;	/* or proximity - not clear which since it is
-				   always set to zero - SNIA spec says 0x01
-				   means strip off PathConsumed chars before
-				   submitting RequestFileName to remote node */
-	__le16 TimeToLive;
-	__le16 Proximity;
+	__le16 Size;
+	__le16 ServerType; /* 0x0001 = root targets; 0x0000 = link targets */
+	__le16 ReferralEntryFlags; /* 0x0200 bit set only for domain
+				      or DC referral responce */
+	__le32 TimeToLive;
 	__le16 DfsPathOffset;
 	__le16 DfsAlternatePathOffset;
-	__le16 NetworkAddressOffset;
+	__le16 NetworkAddressOffset; /* offset of the link target */
+	__le16 ServiceSiteGuid;
 } __attribute__((packed)) REFERRAL3;
 
 typedef struct smb_com_transaction_get_dfs_refer_rsp {

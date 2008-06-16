@@ -27,7 +27,6 @@
 #define VERSION		"0.7.8-NEWAPI"
 
 struct tridentfb_par {
-	int vclk;		/* in MHz */
 	void __iomem *io_virt;	/* iospace virtual memory address */
 };
 
@@ -669,27 +668,26 @@ static void set_screen_start(int base)
 		 (read3X4(CRTHiOrd) & 0xF8) | ((base & 0xE0000) >> 17));
 }
 
-/* Use 20.12 fixed-point for NTSC value and frequency calculation */
-#define calc_freq(n, m, k)  ( ((unsigned long)0xE517 * (n + 8) / ((m + 2) * (1 << k))) >> 12 )
-
 /* Set dotclock frequency */
-static void set_vclk(int freq)
+static void set_vclk(unsigned long freq)
 {
 	int m, n, k;
-	int f, fi, d, di;
+	unsigned long f, fi, d, di;
 	unsigned char lo = 0, hi = 0;
 
-	d = 20;
+	d = 20000;
 	for (k = 2; k >= 0; k--)
 		for (m = 0; m < 63; m++)
 			for (n = 0; n < 128; n++) {
-				fi = calc_freq(n, m, k);
+				fi = ((14318l * (n + 8)) / (m + 2)) >> k;
 				if ((di = abs(fi - freq)) < d) {
 					d = di;
 					f = fi;
 					lo = n;
 					hi = (k << 6) | m;
 				}
+				if (fi > freq)
+					break;
 			}
 	if (chip3D) {
 		write3C4(ClockHigh, hi);
@@ -888,6 +886,8 @@ static int tridentfb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	int bpp = var->bits_per_pixel;
 	unsigned char tmp;
+	unsigned long vclk;
+
 	debug("enter\n");
 	hdispend = var->xres / 8 - 1;
 	hsyncstart = (var->xres + var->right_margin) / 8;
@@ -905,7 +905,6 @@ static int tridentfb_set_par(struct fb_info *info)
 	vblankstart = var->yres;
 	vblankend = vtotal + 2;
 
-	enable_mmio();
 	crtc_unlock();
 	write3CE(CyberControl, 8);
 
@@ -1015,11 +1014,11 @@ static int tridentfb_set_par(struct fb_info *info)
 	write3X4(Performance, 0x92);
 	write3X4(PCIReg, 0x07);		/* MMIO & PCI read and write burst enable */
 
-	/* convert from picoseconds to MHz */
-	par->vclk = 1000000 / info->var.pixclock;
+	/* convert from picoseconds to kHz */
+	vclk = PICOS2KHZ(info->var.pixclock);
 	if (bpp == 32)
-		par->vclk *= 2;
-	set_vclk(par->vclk);
+		vclk *= 2;
+	set_vclk(vclk);
 
 	write3C4(0, 3);
 	write3C4(1, 1);		/* set char clock 8 dots wide */

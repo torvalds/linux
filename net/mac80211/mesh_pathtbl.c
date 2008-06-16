@@ -158,19 +158,25 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 	if (atomic_add_unless(&sdata->u.sta.mpaths, 1, MESH_MAX_MPATHS) == 0)
 		return -ENOSPC;
 
-	read_lock(&pathtbl_resize_lock);
-
 	new_mpath = kzalloc(sizeof(struct mesh_path), GFP_KERNEL);
 	if (!new_mpath) {
 		atomic_dec(&sdata->u.sta.mpaths);
 		err = -ENOMEM;
 		goto endadd2;
 	}
+	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
+	if (!new_node) {
+		kfree(new_mpath);
+		atomic_dec(&sdata->u.sta.mpaths);
+		err = -ENOMEM;
+		goto endadd2;
+	}
+
+	read_lock(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
 	new_mpath->dev = dev;
 	new_mpath->flags = 0;
 	skb_queue_head_init(&new_mpath->frame_queue);
-	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
 	new_node->mpath = new_mpath;
 	new_mpath->timer.data = (unsigned long) new_mpath;
 	new_mpath->timer.function = mesh_path_timer;
@@ -202,7 +208,6 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 
 endadd:
 	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
-endadd2:
 	read_unlock(&pathtbl_resize_lock);
 	if (!err && grow) {
 		struct mesh_table *oldtbl, *newtbl;
@@ -215,10 +220,12 @@ endadd2:
 			return -ENOMEM;
 		}
 		rcu_assign_pointer(mesh_paths, newtbl);
+		write_unlock(&pathtbl_resize_lock);
+
 		synchronize_rcu();
 		mesh_table_free(oldtbl, false);
-		write_unlock(&pathtbl_resize_lock);
 	}
+endadd2:
 	return err;
 }
 

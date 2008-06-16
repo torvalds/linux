@@ -69,7 +69,8 @@ point2: Set the pwm speed at a higher temperature bound.
 
 The ADT7473 will scale the pwm between the lower and higher pwm speed when
 the temperature is between the two temperature boundaries.  PWM values range
-from 0 (off) to 255 (full speed).
+from 0 (off) to 255 (full speed).  Fan speed will be set to maximum when the
+temperature sensor associated with the PWM control exceeds temp#_max.
 
 Notes
 -----

@@ -578,7 +578,7 @@ static inline int map_interpreter(struct elf_phdr *epp, struct elfhdr *ihp,
  * process and the system, here we map the page and fill the
  * structure
  */
-static void irix_map_prda_page(void)
+static int irix_map_prda_page(void)
 {
 	unsigned long v;
 	struct prda *pp;
@@ -587,8 +587,8 @@ static void irix_map_prda_page(void)
 	v =  do_brk(PRDA_ADDRESS, PAGE_SIZE);
 	up_write(&current->mm->mmap_sem);
 
-	if (v < 0)
-		return;
+	if (v != PRDA_ADDRESS)
+		return v;		/* v must be an error code */
 
 	pp = (struct prda *) v;
 	pp->prda_sys.t_pid  = task_pid_vnr(current);
@@ -596,6 +596,8 @@ static void irix_map_prda_page(void)
 	pp->prda_sys.t_rpid = task_pid_vnr(current);
 
 	/* We leave the rest set to zero */
+
+	return 0;
 }
 
 
@@ -781,7 +783,8 @@ static int load_irix_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	 * IRIX maps a page at 0x200000 which holds some system
 	 * information.  Programs depend on this.
 	 */
-	irix_map_prda_page();
+	if (irix_map_prda_page())
+		goto out_free_dentry;
 
 	padzero(elf_bss);
 

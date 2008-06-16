@@ -219,7 +219,7 @@ out:
 	return err;
 }
 
-int sparc_mmap_check(unsigned long addr, unsigned long len, unsigned long flags)
+int sparc_mmap_check(unsigned long addr, unsigned long len)
 {
 	if (ARCH_SUN4C_SUN4 &&
 	    (len > 0x20000000 ||
@@ -295,52 +295,14 @@ asmlinkage unsigned long sparc_mremap(unsigned long addr,
 	unsigned long old_len, unsigned long new_len,
 	unsigned long flags, unsigned long new_addr)
 {
-	struct vm_area_struct *vma;
 	unsigned long ret = -EINVAL;
-	if (ARCH_SUN4C_SUN4) {
-		if (old_len > 0x20000000 || new_len > 0x20000000)
-			goto out;
-		if (addr < 0xe0000000 && addr + old_len > 0x20000000)
-			goto out;
-	}
-	if (old_len > TASK_SIZE - PAGE_SIZE ||
-	    new_len > TASK_SIZE - PAGE_SIZE)
+
+	if (unlikely(sparc_mmap_check(addr, old_len)))
+		goto out;
+	if (unlikely(sparc_mmap_check(new_addr, new_len)))
 		goto out;
 	down_write(&current->mm->mmap_sem);
-	if (flags & MREMAP_FIXED) {
-		if (ARCH_SUN4C_SUN4 &&
-		    new_addr < 0xe0000000 &&
-		    new_addr + new_len > 0x20000000)
-			goto out_sem;
-		if (new_addr + new_len > TASK_SIZE - PAGE_SIZE)
-			goto out_sem;
-	} else if ((ARCH_SUN4C_SUN4 && addr < 0xe0000000 &&
-		    addr + new_len > 0x20000000) ||
-		   addr + new_len > TASK_SIZE - PAGE_SIZE) {
-		unsigned long map_flags = 0;
-		struct file *file = NULL;
-
-		ret = -ENOMEM;
-		if (!(flags & MREMAP_MAYMOVE))
-			goto out_sem;
-
-		vma = find_vma(current->mm, addr);
-		if (vma) {
-			if (vma->vm_flags & VM_SHARED)
-				map_flags |= MAP_SHARED;
-			file = vma->vm_file;
-		}
-
-		new_addr = get_unmapped_area(file, addr, new_len,
-				     vma ? vma->vm_pgoff : 0,
-				     map_flags);
-		ret = new_addr;
-		if (new_addr & ~PAGE_MASK)
-			goto out_sem;
-		flags |= MREMAP_FIXED;
-	}
 	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-out_sem:
 	up_write(&current->mm->mmap_sem);
 out:
 	return ret;       

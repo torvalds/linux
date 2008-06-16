@@ -2352,10 +2352,16 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 
 	info->si_type		= (enum si_type) match->data;
 	info->addr_source	= "device-tree";
-	info->io_setup		= mem_setup;
 	info->irq_setup		= std_irq_setup;
 
-	info->io.addr_type	= IPMI_MEM_ADDR_SPACE;
+	if (resource.flags & IORESOURCE_IO) {
+		info->io_setup		= port_setup;
+		info->io.addr_type	= IPMI_IO_ADDR_SPACE;
+	} else {
+		info->io_setup		= mem_setup;
+		info->io.addr_type	= IPMI_MEM_ADDR_SPACE;
+	}
+
 	info->io.addr_data	= resource.start;
 
 	info->io.regsize	= regsize ? *regsize : DEFAULT_REGSIZE;

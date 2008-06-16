@@ -85,6 +85,15 @@ module_param(delay, int, 0);
 MODULE_PARM_DESC(delay, "Set adc sample delay.");
 
 /*
+ * Set five_wire = 1 to use a 5 wire touchscreen.
+ *
+ * NOTE: Five wire mode does not allow for readback of pressure.
+ */
+static int five_wire;
+module_param(five_wire, int, 0);
+MODULE_PARM_DESC(five_wire, "Set to '1' to use 5-wire touchscreen.");
+
+/*
  * Set adc mask function.
  *
  * Sources of glitch noise, such as signals driving an LCD display, may feed
@@ -160,6 +169,19 @@ static void wm9713_phy_init(struct wm97xx *wm)
 		dig3 |= WM9712_RPU(rpu);
 		dev_info(wm->dev, "setting pen detect pull-up to %d Ohms\n",
 			 64000 / rpu);
+	}
+
+	/* Five wire panel? */
+	if (five_wire) {
+		dig3 |= WM9713_45W;
+		dev_info(wm->dev, "setting 5-wire touchscreen mode.");
+
+		if (pil) {
+			dev_warn(wm->dev,
+				 "Pressure measurement not supported in 5 "
+				 "wire mode, disabling\n");
+			pil = 0;
+		}
 	}
 
 	/* touchpanel pressure */

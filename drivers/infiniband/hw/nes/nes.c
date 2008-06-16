@@ -91,10 +91,6 @@ unsigned int nes_debug_level = 0;
 module_param_named(debug_level, nes_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug output level");
 
-unsigned int nes_lro_max_aggr = NES_LRO_MAX_AGGR;
-module_param(nes_lro_max_aggr, int, NES_LRO_MAX_AGGR);
-MODULE_PARM_DESC(nes_mro_max_aggr, " nic LRO MAX packet aggregation");
-
 LIST_HEAD(nes_adapter_list);
 static LIST_HEAD(nes_dev_list);
 

@@ -1,4 +1,3 @@
-# $Id: Makefile,v 1.10 2000/02/23 08:17:46 jj Exp $
 # Makefile for the Sparc boot stuff.
 #
 # Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)

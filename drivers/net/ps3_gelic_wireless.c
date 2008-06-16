@@ -2474,6 +2474,8 @@ static void gelic_wl_free(struct gelic_wl_info *wl)
 
 	pr_debug("%s: <-\n", __func__);
 
+	free_page((unsigned long)wl->buf);
+
 	pr_debug("%s: destroy queues\n", __func__);
 	destroy_workqueue(wl->eurus_cmd_queue);
 	destroy_workqueue(wl->event_queue);

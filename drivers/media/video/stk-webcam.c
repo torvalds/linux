@@ -30,6 +30,7 @@
 #include <linux/kref.h>
 
 #include <linux/usb.h>
+#include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
@@ -245,6 +246,8 @@ static int stk_initialise(struct stk_camera *dev)
 		return -1;
 }
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+
 /* sysfs functions */
 /*FIXME cleanup this */
 
@@ -350,6 +353,10 @@ static void stk_remove_sysfs_files(struct video_device *vdev)
 	video_device_remove_file(vdev, &dev_attr_vflip);
 }
 
+#else
+#define stk_create_sysfs_files(a)
+#define stk_remove_sysfs_files(a)
+#endif
 
 /* *********************************************** */
 /*

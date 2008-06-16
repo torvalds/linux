@@ -10,6 +10,7 @@ ifeq ($(CONFIG_PPC_MERGE),y)
 obj-y			:= string.o alloc.o \
 			   checksum_$(CONFIG_WORD_SIZE).o
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
+obj-$(CONFIG_HAS_IOMEM)	+= devres.o
 endif
 
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \
@@ -23,4 +24,3 @@ obj-$(CONFIG_SMP)	+= locks.o
 endif
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
-obj-$(CONFIG_HAS_IOMEM)	+= devres.o

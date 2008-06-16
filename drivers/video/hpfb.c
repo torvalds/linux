@@ -382,7 +382,7 @@ int __init hpfb_init(void)
 #define INTFBPADDR 0x560000
 
 	if (!MACH_IS_HP300)
-		return -ENXIO;
+		return -ENODEV;
 
 	if (fb_get_options("hpfb", NULL))
 		return -ENODEV;

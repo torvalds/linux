@@ -479,7 +479,7 @@ static void __ndisc_send(struct net_device *dev,
 
 	skb = sock_alloc_send_skb(sk,
 				  (MAX_HEADER + sizeof(struct ipv6hdr) +
-				   len + LL_RESERVED_SPACE(dev)),
+				   len + LL_ALLOCATED_SPACE(dev)),
 				  1, &err);
 	if (!skb) {
 		ND_PRINTK0(KERN_ERR
@@ -1521,7 +1521,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 
 	buff = sock_alloc_send_skb(sk,
 				   (MAX_HEADER + sizeof(struct ipv6hdr) +
-				    len + LL_RESERVED_SPACE(dev)),
+				    len + LL_ALLOCATED_SPACE(dev)),
 				   1, &err);
 	if (buff == NULL) {
 		ND_PRINTK0(KERN_ERR
@@ -1727,10 +1727,10 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, struct file * f
 	return ret;
 }
 
-static int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl, int __user *name,
-					int nlen, void __user *oldval,
-					size_t __user *oldlenp,
-					void __user *newval, size_t newlen)
+int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl, int __user *name,
+				 int nlen, void __user *oldval,
+				 size_t __user *oldlenp,
+				 void __user *newval, size_t newlen)
 {
 	struct net_device *dev = ctl->extra1;
 	struct inet6_dev *idev;

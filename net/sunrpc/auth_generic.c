@@ -17,8 +17,8 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
-#define RPC_ANONYMOUS_USERID	((uid_t)-2)
-#define RPC_ANONYMOUS_GROUPID	((gid_t)-2)
+#define RPC_MACHINE_CRED_USERID		((uid_t)0)
+#define RPC_MACHINE_CRED_GROUPID	((gid_t)0)
 
 struct generic_cred {
 	struct rpc_cred gc_base;
@@ -44,8 +44,8 @@ EXPORT_SYMBOL_GPL(rpc_lookup_cred);
 struct rpc_cred *rpc_lookup_machine_cred(void)
 {
 	struct auth_cred acred = {
-		.uid = RPC_ANONYMOUS_USERID,
-		.gid = RPC_ANONYMOUS_GROUPID,
+		.uid = RPC_MACHINE_CRED_USERID,
+		.gid = RPC_MACHINE_CRED_GROUPID,
 		.machine_cred = 1,
 	};
 

@@ -1,9 +1,6 @@
-/* $Id: entry.S,v 1.37 2004/06/11 13:02:46 doyu Exp $
- *
- *  linux/arch/sh/entry.S
- *
+/* 
  *  Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- *  Copyright (C) 2003  Paul Mundt
+ *  Copyright (C) 2003 - 2008  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -262,6 +259,7 @@ __restore_all:
 
 	.align	2
 syscall_badsys:			! Bad syscall number
+	get_current_thread_info r8, r0
 	mov	#-ENOSYS, r0
 	bra	resume_userspace
 	 mov.l	r0, @(OFF_R0,r15)	! Return value
@@ -281,7 +279,9 @@ debug_trap:
 	mov.l	1f, r8
 	add	r0, r8
 	mov.l	@r8, r8
-	jmp	@r8
+	jsr	@r8
+	 nop
+	bra	__restore_all
 	 nop
 
 	.align	2
