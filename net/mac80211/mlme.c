@@ -1837,11 +1837,12 @@ static void ieee80211_rx_mgmt_auth(struct net_device *dev,
 	       auth_transaction, status_code);
 
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
-		/* IEEE 802.11 standard does not require authentication in IBSS
+		/*
+		 * IEEE 802.11 standard does not require authentication in IBSS
 		 * networks and most implementations do not seem to use it.
 		 * However, try to reply to authentication attempts if someone
 		 * has actually implemented this.
-		 * TODO: Could implement shared key authentication. */
+		 */
 		if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1) {
 			printk(KERN_DEBUG "%s: unexpected IBSS authentication "
 			       "frame (alg=%d transaction=%d)\n",
