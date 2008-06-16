@@ -363,6 +363,7 @@ kern_rtt:	rdpr			%canrestore, %g1
 		brz,pn			%g1, kern_rtt_fill
 		 nop
 kern_rtt_restore:
+		stw			%g0, [%sp + PTREGS_OFF + PT_V9_MAGIC]
 		restore
 		retry
 

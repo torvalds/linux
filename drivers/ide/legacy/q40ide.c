@@ -70,6 +70,8 @@ static void q40_ide_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
+
+	hw->chipset = ide_generic;
 }
 
 static void q40ide_input_data(ide_drive_t *drive, struct request *rq,

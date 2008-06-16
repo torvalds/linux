@@ -1766,16 +1766,20 @@ static int ehea_set_mac_addr(struct net_device *dev, void *sa)
 	mutex_lock(&ehea_bcmc_regs.lock);
 
 	/* Deregister old MAC in pHYP */
-	ret = ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
-	if (ret)
-		goto out_upregs;
+	if (port->state == EHEA_PORT_UP) {
+		ret = ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
+		if (ret)
+			goto out_upregs;
+	}
 
 	port->mac_addr = cb0->port_mac_addr << 16;
 
 	/* Register new MAC in pHYP */
-	ret = ehea_broadcast_reg_helper(port, H_REG_BCMC);
-	if (ret)
-		goto out_upregs;
+	if (port->state == EHEA_PORT_UP) {
+		ret = ehea_broadcast_reg_helper(port, H_REG_BCMC);
+		if (ret)
+			goto out_upregs;
+	}
 
 	ret = 0;
 
@@ -2213,8 +2217,6 @@ static void ehea_vlan_rx_register(struct net_device *dev,
 		goto out;
 	}
 
-	memset(cb1->vlan_filter, 0, sizeof(cb1->vlan_filter));
-
 	hret = ehea_h_modify_ehea_port(adapter->handle, port->logical_port_id,
 				       H_PORT_CB1, H_PORT_CB1_ALL, cb1);
 	if (hret != H_SUCCESS)
@@ -2603,7 +2605,8 @@ static int ehea_stop(struct net_device *dev)
 	if (netif_msg_ifdown(port))
 		ehea_info("disabling port %s", dev->name);
 
-	flush_scheduled_work();
+	cancel_work_sync(&port->reset_task);
+
 	mutex_lock(&port->port_lock);
 	netif_stop_queue(dev);
 	port_napi_disable(port);
@@ -3178,11 +3181,12 @@ out_err:
 
 static void ehea_shutdown_single_port(struct ehea_port *port)
 {
+	struct ehea_adapter *adapter = port->adapter;
 	unregister_netdev(port->netdev);
 	ehea_unregister_port(port);
 	kfree(port->mc_list);
 	free_netdev(port->netdev);
-	port->adapter->active_ports--;
+	adapter->active_ports--;
 }
 
 static int ehea_setup_ports(struct ehea_adapter *adapter)

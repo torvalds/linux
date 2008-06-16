@@ -1,7 +1,11 @@
 #ifndef _ASM_GENERIC_GPIO_H
 #define _ASM_GENERIC_GPIO_H
 
+#include <linux/types.h>
+
 #ifdef CONFIG_HAVE_GPIO_LIB
+
+#include <linux/compiler.h>
 
 /* Platforms may implement their GPIO interface with library code,
  * at a small performance cost for non-inlined operations and some
@@ -74,7 +78,7 @@ struct gpio_chip {
 
 extern const char *gpiochip_is_requested(struct gpio_chip *chip,
 			unsigned offset);
-extern int __init __must_check gpiochip_reserve(int start, int ngpio);
+extern int __must_check gpiochip_reserve(int start, int ngpio);
 
 /* add/remove chips */
 extern int gpiochip_add(struct gpio_chip *chip);

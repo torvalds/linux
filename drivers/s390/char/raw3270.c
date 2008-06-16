@@ -549,7 +549,6 @@ raw3270_start_init(struct raw3270 *rp, struct raw3270_view *view,
 		   struct raw3270_request *rq)
 {
 	unsigned long flags;
-	wait_queue_head_t wq;
 	int rc;
 
 #ifdef CONFIG_TN3270_CONSOLE
@@ -566,20 +565,20 @@ raw3270_start_init(struct raw3270 *rp, struct raw3270_view *view,
 		return rq->rc;
 	}
 #endif
-	init_waitqueue_head(&wq);
 	rq->callback = raw3270_wake_init;
-	rq->callback_data = &wq;
+	rq->callback_data = &raw3270_wait_queue;
 	spin_lock_irqsave(get_ccwdev_lock(view->dev->cdev), flags);
 	rc = __raw3270_start(rp, view, rq);
 	spin_unlock_irqrestore(get_ccwdev_lock(view->dev->cdev), flags);
 	if (rc)
 		return rc;
 	/* Now wait for the completion. */
-	rc = wait_event_interruptible(wq, raw3270_request_final(rq));
+	rc = wait_event_interruptible(raw3270_wait_queue,
+				      raw3270_request_final(rq));
 	if (rc == -ERESTARTSYS) {	/* Interrupted by a signal. */
 		raw3270_halt_io(view->dev, rq);
 		/* No wait for the halt to complete. */
-		wait_event(wq, raw3270_request_final(rq));
+		wait_event(raw3270_wait_queue, raw3270_request_final(rq));
 		return -ERESTARTSYS;
 	}
 	return rq->rc;

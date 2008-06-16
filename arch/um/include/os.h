@@ -299,6 +299,6 @@ extern int os_arch_prctl(int pid, int code, unsigned long *addr);
 extern int get_pty(void);
 
 /* sys-$ARCH/task_size.c */
-extern unsigned long os_get_task_size(void);
+extern unsigned long os_get_top_address(void);
 
 #endif

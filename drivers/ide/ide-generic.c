@@ -22,6 +22,10 @@
 
 #define DRV_NAME	"ide_generic"
 
+static int probe_mask = 0x03;
+module_param(probe_mask, int, 0);
+MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
+
 static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 {
 	ide_hwif_t *hwif;
@@ -89,6 +93,9 @@ static int __init ide_generic_init(void)
 	u8 idx[MAX_HWIFS];
 	int i;
 
+	printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" module "
+			 "parameter for probing all legacy ISA IDE ports\n");
+
 	for (i = 0; i < MAX_HWIFS; i++) {
 		ide_hwif_t *hwif;
 		unsigned long io_addr = ide_default_io_base(i);
@@ -96,7 +103,7 @@ static int __init ide_generic_init(void)
 
 		idx[i] = 0xff;
 
-		if (io_addr) {
+		if ((probe_mask & (1 << i)) && io_addr) {
 			if (!request_region(io_addr, 8, DRV_NAME)) {
 				printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX "
 						"not free.\n",
@@ -125,6 +132,7 @@ static int __init ide_generic_init(void)
 			memset(&hw, 0, sizeof(hw));
 			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
 			hw.irq = ide_default_irq(io_addr);
+			hw.chipset = ide_generic;
 			ide_init_port_hw(hwif, &hw);
 
 			idx[i] = i;

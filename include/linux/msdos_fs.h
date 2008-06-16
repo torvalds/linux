@@ -57,12 +57,6 @@
 #define MSDOS_DOT	".          "	/* ".", padded to MSDOS_NAME chars */
 #define MSDOS_DOTDOT	"..         "	/* "..", padded to MSDOS_NAME chars */
 
-/* media of boot sector */
-static inline int fat_valid_media(u8 media)
-{
-	return 0xf8 <= media || media == 0xf0;
-}
-
 #define FAT_FIRST_ENT(s, x)	((MSDOS_SB(s)->fat_bits == 32 ? 0x0FFFFF00 : \
 	MSDOS_SB(s)->fat_bits == 16 ? 0xFF00 : 0xF00) | (x))
 
@@ -332,6 +326,12 @@ static inline void fatwchar_to16(__u8 *dst, const wchar_t *src, size_t len)
 #else
 	memcpy(dst, src, len * 2);
 #endif
+}
+
+/* media of boot sector */
+static inline int fat_valid_media(u8 media)
+{
+	return 0xf8 <= media || media == 0xf0;
 }
 
 /* fat/cache.c */

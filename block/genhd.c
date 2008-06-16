@@ -660,6 +660,8 @@ dev_t blk_lookup_devt(const char *name, int part)
 
 	mutex_lock(&block_class_lock);
 	list_for_each_entry(dev, &block_class.devices, node) {
+		if (dev->type != &disk_type)
+			continue;
 		if (strcmp(dev->bus_id, name) == 0) {
 			struct gendisk *disk = dev_to_disk(dev);
 
