@@ -998,3 +998,35 @@ void __init finish_e820_parsing(void)
 		e820_print_map("user");
 	}
 }
+
+/*
+ * Mark e820 reserved areas as busy for the resource manager.
+ */
+void __init e820_reserve_resources(void)
+{
+	int i;
+	struct resource *res;
+
+	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
+	for (i = 0; i < e820.nr_map; i++) {
+		switch (e820.map[i].type) {
+		case E820_RAM:	res->name = "System RAM"; break;
+		case E820_ACPI:	res->name = "ACPI Tables"; break;
+		case E820_NVS:	res->name = "ACPI Non-volatile Storage"; break;
+		default:	res->name = "reserved";
+		}
+		res->start = e820.map[i].addr;
+		res->end = res->start + e820.map[i].size - 1;
+#ifndef CONFIG_RESOURCES_64BIT
+		if (res->end > 0x100000000ULL) {
+			res++;
+			continue;
+		}
+#endif
+		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		insert_resource(&iomem_resource, res);
+		res++;
+	}
+}
+
+

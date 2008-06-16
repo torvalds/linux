@@ -41,30 +41,6 @@ unsigned long end_pfn;
  */
 unsigned long max_pfn_mapped;
 
-/*
- * Mark e820 reserved areas as busy for the resource manager.
- */
-void __init e820_reserve_resources(void)
-{
-	int i;
-	struct resource *res;
-
-	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
-	for (i = 0; i < e820.nr_map; i++) {
-		switch (e820.map[i].type) {
-		case E820_RAM:	res->name = "System RAM"; break;
-		case E820_ACPI:	res->name = "ACPI Tables"; break;
-		case E820_NVS:	res->name = "ACPI Non-volatile Storage"; break;
-		default:	res->name = "reserved";
-		}
-		res->start = e820.map[i].addr;
-		res->end = res->start + e820.map[i].size - 1;
-		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		insert_resource(&iomem_resource, res);
-		res++;
-	}
-}
-
 static void early_panic(char *msg)
 {
 	early_printk(msg);

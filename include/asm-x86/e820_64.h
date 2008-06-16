@@ -16,7 +16,6 @@
 #ifndef __ASSEMBLY__
 extern void setup_memory_region(void);
 extern void contig_e820_setup(void);
-extern void e820_reserve_resources(void);
 extern int e820_any_non_reserved(unsigned long start, unsigned long end);
 extern int is_memory_any_valid(unsigned long start, unsigned long end);
 extern int e820_all_non_reserved(unsigned long start, unsigned long end);

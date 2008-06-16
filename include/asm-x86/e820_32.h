@@ -20,9 +20,5 @@
 
 extern void setup_memory_map(void);
 
-extern void init_iomem_resources(struct resource *code_resource,
-				 struct resource *data_resource,
-				 struct resource *bss_resource);
-
 #endif/*!__ASSEMBLY__*/
 #endif/*__E820_HEADER*/
