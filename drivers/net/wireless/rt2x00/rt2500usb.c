@@ -1672,8 +1672,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 static int rt2500usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct usb_device *usb_dev =
-		interface_to_usbdev(to_usb_interface(rt2x00dev->dev));
+	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 	struct queue_entry_priv_usb_bcn *bcn_priv;
