@@ -115,8 +115,6 @@ static void enable_a20_fast(void)
 
 int enable_a20(void)
 {
-	int loops = A20_ENABLE_LOOPS;
-
 #if defined(CONFIG_X86_ELAN)
 	/* Elan croaks if we try to touch the KBC */
 	enable_a20_fast();
@@ -128,6 +126,7 @@ int enable_a20(void)
 	enable_a20_kbc();
 	return 0;
 #else
+       int loops = A20_ENABLE_LOOPS;
 	while (loops--) {
 		/* First, check to see if A20 is already enabled
 		   (legacy free, etc.) */

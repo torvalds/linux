@@ -1,4 +1,3 @@
-# $Id: Makefile,v 1.38 2000/12/15 00:41:22 davem Exp $
 # Makefile for the linux Sparc-specific parts of the memory manager.
 #
 

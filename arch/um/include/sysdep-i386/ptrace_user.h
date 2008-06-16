@@ -41,38 +41,10 @@
 #define PT_SP_OFFSET PT_OFFSET(UESP)
 #define PT_SP(regs) ((regs)[UESP])
 
-#define FP_SIZE ((HOST_XFP_SIZE > HOST_FP_SIZE) ? HOST_XFP_SIZE : HOST_FP_SIZE)
+#define FP_SIZE ((HOST_FPX_SIZE > HOST_FP_SIZE) ? HOST_FPX_SIZE : HOST_FP_SIZE)
 
 #ifndef FRAME_SIZE
 #define FRAME_SIZE (17)
-#endif
-#define FRAME_SIZE_OFFSET (FRAME_SIZE * sizeof(unsigned long))
-
-#define FP_FRAME_SIZE (27)
-#define FPX_FRAME_SIZE (128)
-
-#ifdef PTRACE_GETREGS
-#define UM_HAVE_GETREGS
-#endif
-
-#ifdef PTRACE_SETREGS
-#define UM_HAVE_SETREGS
-#endif
-
-#ifdef PTRACE_GETFPREGS
-#define UM_HAVE_GETFPREGS
-#endif
-
-#ifdef PTRACE_SETFPREGS
-#define UM_HAVE_SETFPREGS
-#endif
-
-#ifdef PTRACE_GETFPXREGS
-#define UM_HAVE_GETFPXREGS
-#endif
-
-#ifdef PTRACE_SETFPXREGS
-#define UM_HAVE_SETFPXREGS
 #endif
 
 #endif

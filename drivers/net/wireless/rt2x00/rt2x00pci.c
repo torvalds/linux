@@ -314,13 +314,14 @@ int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
 	if (status) {
 		ERROR(rt2x00dev, "IRQ %d allocation failed (error %d).\n",
 		      pci_dev->irq, status);
-		return status;
+		goto exit;
 	}
 
 	return 0;
 
 exit:
-	rt2x00pci_uninitialize(rt2x00dev);
+	queue_for_each(rt2x00dev, queue)
+		rt2x00pci_free_queue_dma(rt2x00dev, queue);
 
 	return status;
 }

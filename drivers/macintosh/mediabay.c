@@ -556,7 +556,8 @@ static void media_bay_step(int i)
 				printk("mediabay %d, registering IDE...\n", i);
 				pmu_suspend();
 				ide_port_scan(bay->cd_port);
-				bay->cd_index = bay->cd_port->index;
+				if (bay->cd_port->present)
+					bay->cd_index = bay->cd_port->index;
 				pmu_resume();
 			}
 			if (bay->cd_index == -1) {

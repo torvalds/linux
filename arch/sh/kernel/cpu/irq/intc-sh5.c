@@ -242,6 +242,7 @@ void __init plat_irq_setup(void)
 				reg += 8;
 			}
 		}
+	}
 #endif
 
 	/*

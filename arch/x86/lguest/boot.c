@@ -582,8 +582,9 @@ static void __init lguest_init_IRQ(void)
 		int vector = FIRST_EXTERNAL_VECTOR + i;
 		if (vector != SYSCALL_VECTOR) {
 			set_intr_gate(vector, interrupt[i]);
-			set_irq_chip_and_handler(i, &lguest_irq_controller,
-						 handle_level_irq);
+			set_irq_chip_and_handler_name(i, &lguest_irq_controller,
+						      handle_level_irq,
+						      "level");
 		}
 	}
 	/* This call is required to set up for 4k stacks, where we have

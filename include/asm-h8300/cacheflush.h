@@ -3,7 +3,7 @@
  */
 
 #ifndef _ASM_H8300_CACHEFLUSH_H
-#define _AMS_H8300_CACHEFLUSH_H
+#define _ASM_H8300_CACHEFLUSH_H
 
 /*
  * Cache handling functions

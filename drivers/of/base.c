@@ -65,6 +65,9 @@ struct property *of_find_property(const struct device_node *np,
 {
 	struct property *pp;
 
+	if (!np)
+		return NULL;
+
 	read_lock(&devtree_lock);
 	for (pp = np->properties; pp != 0; pp = pp->next) {
 		if (of_prop_cmp(pp->name, name) == 0) {

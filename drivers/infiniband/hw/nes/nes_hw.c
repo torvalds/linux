@@ -42,6 +42,10 @@
 
 #include "nes.h"
 
+static unsigned int nes_lro_max_aggr = NES_LRO_MAX_AGGR;
+module_param(nes_lro_max_aggr, uint, 0444);
+MODULE_PARM_DESC(nes_lro_max_aggr, "NIC LRO max packet aggregation");
+
 static u32 crit_err_count;
 u32 int_mod_timer_init;
 u32 int_mod_cq_depth_256;
@@ -1738,7 +1742,7 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 			jumbomode = 1;
 		nes_nic_init_timer_defaults(nesdev, jumbomode);
 	}
-	nesvnic->lro_mgr.max_aggr       = NES_LRO_MAX_AGGR;
+	nesvnic->lro_mgr.max_aggr       = nes_lro_max_aggr;
 	nesvnic->lro_mgr.max_desc       = NES_MAX_LRO_DESCRIPTORS;
 	nesvnic->lro_mgr.lro_arr        = nesvnic->lro_desc;
 	nesvnic->lro_mgr.get_skb_header = nes_lro_get_skb_hdr;

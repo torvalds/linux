@@ -281,6 +281,7 @@ struct cifsTconInfo {
 	bool ipc:1;		/* set if connection to IPC$ eg for RPC/PIPES */
 	bool retry:1;
 	bool nocase:1;
+	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
 	/* BB add field for back pointer to sb struct(s)? */
@@ -332,7 +333,6 @@ struct cifsFileInfo {
 	bool messageMode:1;	/* for pipes: message vs byte mode */
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
-	char *search_resume_name; /* BB removeme BB */
 	struct cifs_search_info srch_inf;
 };
 
@@ -625,7 +625,7 @@ GLOBAL_EXTERN atomic_t tcpSesAllocCount;
 GLOBAL_EXTERN atomic_t tcpSesReconnectCount;
 GLOBAL_EXTERN atomic_t tconInfoReconnectCount;
 
-/* Various Debug counters to remove someday (BB) */
+/* Various Debug counters */
 GLOBAL_EXTERN atomic_t bufAllocCount;    /* current number allocated  */
 #ifdef CONFIG_CIFS_STATS2
 GLOBAL_EXTERN atomic_t totBufAllocCount; /* total allocated over all time */

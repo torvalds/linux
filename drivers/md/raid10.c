@@ -1020,7 +1020,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		/*
 		 * if recovery is running, make sure it aborts.
 		 */
-		set_bit(MD_RECOVERY_ERR, &mddev->recovery);
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	}
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
@@ -1171,6 +1171,14 @@ static int raid10_remove_disk(mddev_t *mddev, int number)
 			err = -EBUSY;
 			goto abort;
 		}
+		/* Only remove faulty devices in recovery
+		 * is not possible.
+		 */
+		if (!test_bit(Faulty, &rdev->flags) &&
+		    enough(conf)) {
+			err = -EBUSY;
+			goto abort;
+		}
 		p->rdev = NULL;
 		synchronize_rcu();
 		if (atomic_read(&rdev->nr_pending)) {
@@ -1237,6 +1245,7 @@ static void end_sync_write(struct bio *bio, int error)
 
 	if (!uptodate)
 		md_error(mddev, conf->mirrors[d].rdev);
+
 	update_head_pos(i, r10_bio);
 
 	while (atomic_dec_and_test(&r10_bio->remaining)) {
@@ -1844,7 +1853,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 					if (rb2)
 						atomic_dec(&rb2->remaining);
 					r10_bio = rb2;
-					if (!test_and_set_bit(MD_RECOVERY_ERR, &mddev->recovery))
+					if (!test_and_set_bit(MD_RECOVERY_INTR,
+							      &mddev->recovery))
 						printk(KERN_INFO "raid10: %s: insufficient working devices for recovery.\n",
 						       mdname(mddev));
 					break;
@@ -2082,6 +2092,9 @@ static int run(mddev_t *mddev)
 		goto out_free_conf;
 	}
 
+	spin_lock_init(&conf->device_lock);
+	mddev->queue->queue_lock = &conf->device_lock;
+
 	rdev_for_each(rdev, tmp, mddev) {
 		disk_idx = rdev->raid_disk;
 		if (disk_idx >= mddev->raid_disks
@@ -2103,7 +2116,6 @@ static int run(mddev_t *mddev)
 
 		disk->head_position = 0;
 	}
-	spin_lock_init(&conf->device_lock);
 	INIT_LIST_HEAD(&conf->retry_list);
 
 	spin_lock_init(&conf->resync_lock);

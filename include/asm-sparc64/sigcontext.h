@@ -1,4 +1,3 @@
-/* $Id: sigcontext.h,v 1.12 1999/09/06 08:22:09 jj Exp $ */
 #ifndef __SPARC64_SIGCONTEXT_H
 #define __SPARC64_SIGCONTEXT_H
 

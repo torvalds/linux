@@ -67,6 +67,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 		preempt_enable();
 #endif
 	}
+	kfree(mask_str);
 	return 0;
 }
 

@@ -2613,7 +2613,7 @@ static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 	struct bttv_fh *fh = priv;
 
 	mutex_lock(&fh->cap.vb_lock);
-	retval = videobuf_mmap_setup(&fh->cap, gbuffers, gbufsize,
+	retval = __videobuf_mmap_setup(&fh->cap, gbuffers, gbufsize,
 				     V4L2_MEMORY_MMAP);
 	if (retval < 0) {
 		mutex_unlock(&fh->cap.vb_lock);

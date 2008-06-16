@@ -2261,7 +2261,7 @@ int __init amifb_init(void)
 	amifb_setup(option);
 #endif
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_VIDEO))
-		return -ENXIO;
+		return -ENODEV;
 
 	/*
 	 * We request all registers starting from bplpt[0]
@@ -2333,7 +2333,7 @@ default_chipset:
 			strcat(fb_info.fix.id, "Unknown");
 			goto default_chipset;
 #else /* CONFIG_FB_AMIGA_OCS */
-			err = -ENXIO;
+			err = -ENODEV;
 			goto amifb_error;
 #endif /* CONFIG_FB_AMIGA_OCS */
 			break;
