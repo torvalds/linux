@@ -530,9 +530,15 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netxen_initialize_adapter_sw(adapter);	/* initialize the buffers in adapter */
 
 	/* Mezz cards have PCI function 0,2,3 enabled */
-	if ((adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ)
-		&& (pci_func_id >= 2))
+	switch (adapter->ahw.boardcfg.board_type) {
+	case NETXEN_BRDTYPE_P2_SB31_10G_IMEZ:
+	case NETXEN_BRDTYPE_P2_SB31_10G_HMEZ:
+		if (pci_func_id >= 2)
 			adapter->portnum = pci_func_id - 2;
+		break;
+	default:
+		break;
+	}
 
 #ifdef CONFIG_IA64
 	if(adapter->portnum == 0) {
