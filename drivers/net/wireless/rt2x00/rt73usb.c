@@ -2001,6 +2001,12 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 				 REGISTER_TIMEOUT32(skb->len));
 	rt73usb_kick_tx_queue(rt2x00dev, QID_BEACON);
 
+	/*
+	 * Clean up the beacon skb.
+	 */
+	dev_kfree_skb(skb);
+	intf->beacon->skb = NULL;
+
 	return 0;
 }
 

@@ -474,6 +474,12 @@ static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 	    vif->type != IEEE80211_IF_TYPE_IBSS)
 		return;
 
+	/*
+	 * Clean up the beacon skb.
+	 */
+	dev_kfree_skb_irq(intf->beacon->skb);
+	intf->beacon->skb = NULL;
+
 	spin_lock(&intf->lock);
 	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
 	spin_unlock(&intf->lock);

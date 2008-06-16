@@ -2402,6 +2402,12 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 				      skb->data, skb->len);
 	rt61pci_kick_tx_queue(rt2x00dev, QID_BEACON);
 
+	/*
+	 * Clean up beacon skb.
+	 */
+	dev_kfree_skb_any(skb);
+	intf->beacon->skb = NULL;
+
 	return 0;
 }
 
