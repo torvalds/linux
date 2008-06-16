@@ -230,18 +230,35 @@ static bool page_pinned(void *ptr)
 	return PagePinned(page);
 }
 
-void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
+static void extend_mmu_update(const struct mmu_update *update)
 {
 	struct multicall_space mcs;
 	struct mmu_update *u;
 
+	mcs = xen_mc_extend_args(__HYPERVISOR_mmu_update, sizeof(*u));
+
+	if (mcs.mc != NULL)
+		mcs.mc->args[1]++;
+	else {
+		mcs = __xen_mc_entry(sizeof(*u));
+		MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, DOMID_SELF);
+	}
+
+	u = mcs.args;
+	*u = *update;
+}
+
+void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
+{
+	struct mmu_update u;
+
 	preempt_disable();
 
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-	u->ptr = virt_to_machine(ptr).maddr;
-	u->val = pmd_val_ma(val);
-	MULTI_mmu_update(mcs.mc, u, 1, NULL, DOMID_SELF);
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptr).maddr;
+	u.val = pmd_val_ma(val);
+	extend_mmu_update(&u);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
@@ -332,14 +349,13 @@ pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t
 void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 				 pte_t *ptep, pte_t pte)
 {
-	struct multicall_space mcs;
-	struct mmu_update *u;
+	struct mmu_update u;
 
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-	u->ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
-	u->val = pte_val_ma(pte);
-	MULTI_mmu_update(mcs.mc, u, 1, NULL, DOMID_SELF);
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
+	u.val = pte_val_ma(pte);
+	extend_mmu_update(&u);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
@@ -396,16 +412,15 @@ pmdval_t xen_pmd_val(pmd_t pmd)
 
 void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 {
-	struct multicall_space mcs;
-	struct mmu_update *u;
+	struct mmu_update u;
 
 	preempt_disable();
 
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-	u->ptr = virt_to_machine(ptr).maddr;
-	u->val = pud_val_ma(val);
-	MULTI_mmu_update(mcs.mc, u, 1, NULL, DOMID_SELF);
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptr).maddr;
+	u.val = pud_val_ma(val);
+	extend_mmu_update(&u);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
