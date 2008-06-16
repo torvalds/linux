@@ -504,6 +504,12 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
+
+	/*
+	 * Unmap the skb.
+	 */
+	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
 
 	/*
 	 * Send frame to debugfs immediately, after this call is completed
@@ -552,7 +558,25 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
 	else
 		dev_kfree_skb_irq(entry->skb);
+
+	/*
+	 * Make this entry available for reuse.
+	 */
 	entry->skb = NULL;
+	entry->flags = 0;
+
+	rt2x00dev->ops->lib->init_txentry(rt2x00dev, entry);
+
+	__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+
+	/*
+	 * If the data queue was below the threshold before the txdone
+	 * handler we must make sure the packet queue in the mac80211 stack
+	 * is reenabled when the txdone handler has finished.
+	 */
+	if (!rt2x00queue_threshold(entry->queue))
+		ieee80211_wake_queue(rt2x00dev->hw, qid);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
@@ -657,6 +681,11 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * Replace the skb with the freshly allocated one.
 	 */
 	entry->skb = skb;
+	entry->flags = 0;
+
+	rt2x00dev->ops->lib->init_rxentry(rt2x00dev, entry);
+
+	rt2x00queue_index_inc(entry->queue, Q_INDEX);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
 

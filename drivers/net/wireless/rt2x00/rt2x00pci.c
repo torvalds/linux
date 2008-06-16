@@ -60,12 +60,8 @@ int rt2x00pci_write_tx_data(struct queue_entry *entry)
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(entry->skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->desc = entry_priv->desc;
 	skbdesc->desc_len = entry->queue->desc_size;
-	skbdesc->entry = entry;
-
-	rt2x00queue_map_txskb(entry->queue->rt2x00dev, entry->skb);
 
 	return 0;
 }
@@ -101,54 +97,9 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		 * Send the frame to rt2x00lib for further processing.
 		 */
 		rt2x00lib_rxdone(rt2x00dev, entry);
-
-		/*
-		 * Reset the RXD for this entry.
-		 */
-		rt2x00dev->ops->lib->init_rxentry(rt2x00dev, entry);
-
-		rt2x00queue_index_inc(queue, Q_INDEX);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);
-
-void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
-		      struct txdone_entry_desc *txdesc)
-{
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
-	u32 word;
-
-	/*
-	 * Unmap the skb.
-	 */
-	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
-
-	rt2x00lib_txdone(entry, txdesc);
-
-	/*
-	 * Make this entry available for reuse.
-	 */
-	entry->flags = 0;
-
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, TXD_ENTRY_OWNER_NIC, 0);
-	rt2x00_set_field32(&word, TXD_ENTRY_VALID, 0);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
-
-	__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
-
-	/*
-	 * If the data queue was below the threshold before the txdone
-	 * handler we must make sure the packet queue in the mac80211 stack
-	 * is reenabled when the txdone handler has finished.
-	 */
-	if (!rt2x00queue_threshold(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, qid);
-
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
 
 /*
  * Device initialization handlers.

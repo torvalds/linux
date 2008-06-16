@@ -900,33 +900,11 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
 }
 
 /**
- * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @queue: The queue for which the skb will be applicable.
- */
-struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
-					struct queue_entry *entry);
-
-/**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @skb: The skb to map.
  */
 void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
-
-/**
- * rt2x00queue_unmap_skb - Unmap a skb from DMA.
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @skb: The skb to unmap.
- */
-void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
-
-/**
- * rt2x00queue_free_skb - free a skb
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @skb: The skb to free.
- */
-void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 
 /**
  * rt2x00queue_create_tx_descriptor - Create TX descriptor from mac80211 input
@@ -976,18 +954,6 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
  */
 struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 					  enum queue_index index);
-
-/**
- * rt2x00queue_index_inc - Index incrementation function
- * @queue: Queue (&struct data_queue) to perform the action on.
- * @index: Index type (&enum queue_index) to perform the action on.
- *
- * This function will increase the requested index on the queue,
- * it will grab the appropriate locks and handle queue overflow events by
- * resetting the index to the start of the queue.
- */
-void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
-
 
 /*
  * Interrupt context handlers.

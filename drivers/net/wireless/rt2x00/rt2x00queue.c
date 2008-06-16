@@ -77,7 +77,6 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 
 	return skb;
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_alloc_rxskb);
 
 void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
@@ -105,7 +104,6 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_TX;
 	}
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_unmap_skb);
 
 void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
@@ -123,7 +121,6 @@ void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 
 	dev_kfree_skb_any(skb);
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_free_skb);
 
 void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 				      struct txentry_desc *txdesc)
@@ -289,6 +286,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 {
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct txentry_desc txdesc;
+	struct skb_frame_desc *skbdesc;
 
 	if (unlikely(rt2x00queue_full(queue)))
 		return -EINVAL;
@@ -309,10 +307,20 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	entry->skb = skb;
 	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
+	/*
+	 * skb->cb array is now ours and we are free to use it.
+	 */
+	skbdesc = get_skb_frame_desc(entry->skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->entry = entry;
+
 	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
 		__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 		return -EIO;
 	}
+
+	if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
+		rt2x00queue_map_txskb(queue->rt2x00dev, skb);
 
 	__set_bit(ENTRY_DATA_PENDING, &entry->flags);
 
@@ -389,7 +397,6 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_index_inc);
 
 static void rt2x00queue_reset(struct data_queue *queue)
 {

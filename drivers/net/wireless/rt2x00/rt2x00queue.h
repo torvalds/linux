@@ -82,6 +82,8 @@ enum data_queue_qid {
 /**
  * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
  *
+ * @SKBDESC_DMA_MAPPED_RX: &skb_dma field has been mapped for RX
+ * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
  */
 enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = (1 << 0),

@@ -1767,7 +1767,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
 			txdesc.retry = 0;
 
-			rt2x00pci_txdone(rt2x00dev, entry_done, &txdesc);
+			rt2x00lib_txdone(entry_done, &txdesc);
 			entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 		}
 
@@ -1787,7 +1787,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 		}
 		txdesc.retry = rt2x00_get_field32(reg, STA_CSR4_RETRY_COUNT);
 
-		rt2x00pci_txdone(rt2x00dev, entry, &txdesc);
+		rt2x00lib_txdone(entry, &txdesc);
 	}
 }
 

@@ -131,10 +131,9 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct txdone_entry_desc txdesc;
-	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -158,20 +157,6 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	txdesc.retry = 0;
 
 	rt2x00lib_txdone(entry, &txdesc);
-
-	/*
-	 * Make this entry available for reuse.
-	 */
-	entry->flags = 0;
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
-
-	/*
-	 * If the data queue was below the threshold before the txdone
-	 * handler we must make sure the packet queue in the mac80211 stack
-	 * is reenabled when the txdone handler has finished.
-	 */
-	if (!rt2x00queue_threshold(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, qid);
 }
 
 int rt2x00usb_write_tx_data(struct queue_entry *entry)
@@ -193,10 +178,8 @@ int rt2x00usb_write_tx_data(struct queue_entry *entry)
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(entry->skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->desc = entry->skb->data;
 	skbdesc->desc_len = entry->queue->desc_size;
-	skbdesc->entry = entry;
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -270,7 +253,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	u8 rxd[32];
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -278,8 +261,11 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * to be actually valid, or if the urb is signaling
 	 * a problem.
 	 */
-	if (urb->actual_length < entry->queue->desc_size || urb->status)
-		goto skip_entry;
+	if (urb->actual_length < entry->queue->desc_size || urb->status) {
+		__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+		usb_submit_urb(urb, GFP_ATOMIC);
+		return;
+	}
 
 	/*
 	 * Fill in desc fields of the skb descriptor
@@ -291,20 +277,6 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Send the frame to rt2x00lib for further processing.
 	 */
 	rt2x00lib_rxdone(rt2x00dev, entry);
-
-	/*
-	 * Reinitialize the urb.
-	 */
-	urb->transfer_buffer = entry->skb->data;
-	urb->transfer_buffer_length = entry->skb->len;
-
-skip_entry:
-	if (test_bit(DEVICE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags)) {
-		__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		usb_submit_urb(urb, GFP_ATOMIC);
-	}
-
-	rt2x00queue_index_inc(entry->queue, Q_INDEX);
 }
 
 /*
