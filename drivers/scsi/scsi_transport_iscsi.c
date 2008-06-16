@@ -34,7 +34,7 @@
 #define ISCSI_CONN_ATTRS 13
 #define ISCSI_HOST_ATTRS 4
 
-#define ISCSI_TRANSPORT_VERSION "2.0-869"
+#define ISCSI_TRANSPORT_VERSION "2.0-870"
 
 struct iscsi_internal {
 	int daemon_pid;
