@@ -14,7 +14,7 @@
 
 #include "mach_timer.h"
 
-static int tsc_enabled;
+static int tsc_disabled;
 
 /*
  * On some systems the TSC frequency does not
@@ -28,8 +28,8 @@ EXPORT_SYMBOL_GPL(tsc_khz);
 static int __init tsc_setup(char *str)
 {
 	printk(KERN_WARNING "notsc: Kernel compiled with CONFIG_X86_TSC, "
-				"cannot disable TSC completely.\n");
-	mark_tsc_unstable("user disabled TSC");
+	       "cannot disable TSC completely.\n");
+	tsc_disabled = 1;
 	return 1;
 }
 #else
@@ -120,7 +120,7 @@ unsigned long long native_sched_clock(void)
 	 *   very important for it to be as fast as the platform
 	 *   can achive it. )
 	 */
-	if (unlikely(!tsc_enabled && !tsc_unstable))
+	if (unlikely(tsc_disabled))
 		/* No locking but a rare wrong value is not a big deal: */
 		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
 
@@ -322,7 +322,6 @@ void mark_tsc_unstable(char *reason)
 {
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
-		tsc_enabled = 0;
 		printk("Marking TSC unstable due to: %s.\n", reason);
 		/* Can be called before registration */
 		if (clocksource_tsc.mult)
@@ -336,7 +335,7 @@ EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 static int __init dmi_mark_tsc_unstable(const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE "%s detected: marking TSC unstable.\n",
-		       d->ident);
+	       d->ident);
 	tsc_unstable = 1;
 	return 0;
 }
@@ -403,14 +402,22 @@ void __init tsc_init(void)
 {
 	int cpu;
 
-	if (!cpu_has_tsc)
+	if (!cpu_has_tsc || tsc_disabled) {
+		/* Disable the TSC in case of !cpu_has_tsc */
+		tsc_disabled = 1;
 		return;
+	}
 
 	cpu_khz = calculate_cpu_khz();
 	tsc_khz = cpu_khz;
 
 	if (!cpu_khz) {
 		mark_tsc_unstable("could not calculate TSC khz");
+		/*
+		 * We need to disable the TSC completely in this case
+		 * to prevent sched_clock() from using it.
+		 */
+		tsc_disabled = 1;
 		return;
 	}
 
@@ -441,8 +448,6 @@ void __init tsc_init(void)
 	if (check_tsc_unstable()) {
 		clocksource_tsc.rating = 0;
 		clocksource_tsc.flags &= ~CLOCK_SOURCE_IS_CONTINUOUS;
-	} else
-		tsc_enabled = 1;
-
+	}
 	clocksource_register(&clocksource_tsc);
 }

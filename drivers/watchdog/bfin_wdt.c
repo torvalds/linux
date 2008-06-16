@@ -29,7 +29,8 @@
 
 #define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
 #define stampit() stamp("here i am")
-#define pr_init(fmt, args...) ({ static const __initdata char __fmt[] = fmt; printk(__fmt, ## args); })
+#define pr_devinit(fmt, args...) ({ static const __devinitconst char __fmt[] = fmt; printk(__fmt, ## args); })
+#define pr_init(fmt, args...) ({ static const __initconst char __fmt[] = fmt; printk(__fmt, ## args); })
 
 #define WATCHDOG_NAME "bfin-wdt"
 #define PFX WATCHDOG_NAME ": "
@@ -377,20 +378,6 @@ static int bfin_wdt_resume(struct platform_device *pdev)
 # define bfin_wdt_resume NULL
 #endif
 
-static struct platform_device bfin_wdt_device = {
-	.name          = WATCHDOG_NAME,
-	.id            = -1,
-};
-
-static struct platform_driver bfin_wdt_driver = {
-	.driver    = {
-		.name  = WATCHDOG_NAME,
-		.owner = THIS_MODULE,
-	},
-	.suspend   = bfin_wdt_suspend,
-	.resume    = bfin_wdt_resume,
-};
-
 static const struct file_operations bfin_wdt_fops = {
 	.owner    = THIS_MODULE,
 	.llseek   = no_llseek,
@@ -418,10 +405,66 @@ static struct notifier_block bfin_wdt_notifier = {
 };
 
 /**
+ *	bfin_wdt_probe - Initialize module
+ *
+ *	Registers the misc device and notifier handler.  Actual device
+ *	initialization is handled by bfin_wdt_open().
+ */
+static int __devinit bfin_wdt_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = register_reboot_notifier(&bfin_wdt_notifier);
+	if (ret) {
+		pr_devinit(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n", ret);
+		return ret;
+	}
+
+	ret = misc_register(&bfin_wdt_miscdev);
+	if (ret) {
+		pr_devinit(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+		       WATCHDOG_MINOR, ret);
+		unregister_reboot_notifier(&bfin_wdt_notifier);
+		return ret;
+	}
+
+	pr_devinit(KERN_INFO PFX "initialized: timeout=%d sec (nowayout=%d)\n",
+	       timeout, nowayout);
+
+	return 0;
+}
+
+/**
+ *	bfin_wdt_remove - Initialize module
+ *
+ *	Unregisters the misc device and notifier handler.  Actual device
+ *	deinitialization is handled by bfin_wdt_close().
+ */
+static int __devexit bfin_wdt_remove(struct platform_device *pdev)
+{
+	misc_deregister(&bfin_wdt_miscdev);
+	unregister_reboot_notifier(&bfin_wdt_notifier);
+	return 0;
+}
+
+static struct platform_device *bfin_wdt_device;
+
+static struct platform_driver bfin_wdt_driver = {
+	.probe     = bfin_wdt_probe,
+	.remove    = __devexit_p(bfin_wdt_remove),
+	.suspend   = bfin_wdt_suspend,
+	.resume    = bfin_wdt_resume,
+	.driver    = {
+		.name  = WATCHDOG_NAME,
+		.owner = THIS_MODULE,
+	},
+};
+
+/**
  *	bfin_wdt_init - Initialize module
  *
- *	Registers the device and notifier handler. Actual device
- *	initialization is handled by bfin_wdt_open().
+ *	Checks the module params and registers the platform device & driver.
+ *	Real work is in the platform probe function.
  */
 static int __init bfin_wdt_init(void)
 {
@@ -436,30 +479,18 @@ static int __init bfin_wdt_init(void)
 	/* Since this is an on-chip device and needs no board-specific
 	 * resources, we'll handle all the platform device stuff here.
 	 */
-	ret = platform_device_register(&bfin_wdt_device);
-	if (ret)
-		return ret;
-
-	ret = platform_driver_probe(&bfin_wdt_driver, NULL);
-	if (ret)
-		return ret;
-
-	ret = register_reboot_notifier(&bfin_wdt_notifier);
+	ret = platform_driver_register(&bfin_wdt_driver);
 	if (ret) {
-		pr_init(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n", ret);
+		pr_init(KERN_ERR PFX "unable to register driver\n");
 		return ret;
 	}
 
-	ret = misc_register(&bfin_wdt_miscdev);
-	if (ret) {
-		pr_init(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&bfin_wdt_notifier);
-		return ret;
+	bfin_wdt_device = platform_device_register_simple(WATCHDOG_NAME, -1, NULL, 0);
+	if (IS_ERR(bfin_wdt_device)) {
+		pr_init(KERN_ERR PFX "unable to register device\n");
+		platform_driver_unregister(&bfin_wdt_driver);
+		return PTR_ERR(bfin_wdt_device);
 	}
-
-	pr_init(KERN_INFO PFX "initialized: timeout=%d sec (nowayout=%d)\n",
-	       timeout, nowayout);
 
 	return 0;
 }
@@ -467,13 +498,13 @@ static int __init bfin_wdt_init(void)
 /**
  *	bfin_wdt_exit - Deinitialize module
  *
- *	Unregisters the device and notifier handler. Actual device
- *	deinitialization is handled by bfin_wdt_close().
+ *	Back out the platform device & driver steps.  Real work is in the
+ *	platform remove function.
  */
 static void __exit bfin_wdt_exit(void)
 {
-	misc_deregister(&bfin_wdt_miscdev);
-	unregister_reboot_notifier(&bfin_wdt_notifier);
+	platform_device_unregister(bfin_wdt_device);
+	platform_driver_unregister(&bfin_wdt_driver);
 }
 
 module_init(bfin_wdt_init);

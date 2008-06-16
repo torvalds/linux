@@ -251,14 +251,14 @@
 		dma@c300 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "fsl,mpc8610-dma", "fsl,mpc8540-dma";
+			compatible = "fsl,mpc8610-dma", "fsl,eloplus-dma";
 			cell-index = <1>;
 			reg = <0xc300 0x4>; /* DMA general status register */
 			ranges = <0x0 0xc100 0x200>;
 
 			dma-channel@0 {
 				compatible = "fsl,mpc8610-dma-channel",
-					"fsl,mpc8540-dma-channel";
+					"fsl,eloplus-dma-channel";
 				cell-index = <0>;
 				reg = <0x0 0x80>;
 				interrupt-parent = <&mpic>;
@@ -266,7 +266,7 @@
 			};
 			dma-channel@1 {
 				compatible = "fsl,mpc8610-dma-channel",
-					"fsl,mpc8540-dma-channel";
+					"fsl,eloplus-dma-channel";
 				cell-index = <1>;
 				reg = <0x80 0x80>;
 				interrupt-parent = <&mpic>;
@@ -274,7 +274,7 @@
 			};
 			dma-channel@2 {
 				compatible = "fsl,mpc8610-dma-channel",
-					"fsl,mpc8540-dma-channel";
+					"fsl,eloplus-dma-channel";
 				cell-index = <2>;
 				reg = <0x100 0x80>;
 				interrupt-parent = <&mpic>;
@@ -282,7 +282,7 @@
 			};
 			dma-channel@3 {
 				compatible = "fsl,mpc8610-dma-channel",
-					"fsl,mpc8540-dma-channel";
+					"fsl,eloplus-dma-channel";
 				cell-index = <3>;
 				reg = <0x180 0x80>;
 				interrupt-parent = <&mpic>;

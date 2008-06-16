@@ -63,7 +63,7 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 		       struct btcx_riscmem *risc,
 		       unsigned int size)
 {
-	u32 *cpu;
+	__le32 *cpu;
 	dma_addr_t dma;
 
 	if (NULL != risc->cpu && risc->size < size)

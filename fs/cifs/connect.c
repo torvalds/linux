@@ -653,6 +653,7 @@ multi_t2_fnd:
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
 	spin_unlock(&GlobalMid_Lock);
+	wake_up_all(&server->response_q);
 
 	/* don't exit until kthread_stop is called */
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -2119,6 +2120,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cFYI(1, ("mounting share using direct i/o"));
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
 		}
+
+		if ((volume_info.cifs_acl) && (volume_info.dynperm))
+			cERROR(1, ("mount option dynperm ignored if cifsacl "
+				   "mount option supported"));
 
 		tcon =
 		    find_unc(sin_server.sin_addr.s_addr, volume_info.UNC,

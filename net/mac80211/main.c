@@ -511,6 +511,7 @@ static int ieee80211_stop(struct net_device *dev)
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
+		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
 		 * When we get here, the interface is marked down.
@@ -1313,7 +1314,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	/*
 	 * Clear the TX filter mask for this STA when sending the next
 	 * packet. If the STA went to power save mode, this will happen
-	 * happen when it wakes up for the next time.
+	 * when it wakes up for the next time.
 	 */
 	sta->flags |= WLAN_STA_CLEAR_PS_FILT;
 

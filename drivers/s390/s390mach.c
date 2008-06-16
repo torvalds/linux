@@ -207,6 +207,7 @@ s390_handle_mcck(void)
 		do_exit(SIGSEGV);
 	}
 }
+EXPORT_SYMBOL_GPL(s390_handle_mcck);
 
 /*
  * returns 0 if all registers could be validated
