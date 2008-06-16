@@ -134,6 +134,7 @@ struct decode_cache {
 	u8 modrm_reg;
 	u8 modrm_rm;
 	u8 use_modrm_ea;
+	bool rip_relative;
 	unsigned long modrm_ea;
 	void *modrm_ptr;
 	unsigned long modrm_val;

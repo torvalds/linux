@@ -664,7 +664,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 {
 	struct decode_cache *c = &ctxt->decode;
 	u8 sib;
-	int index_reg = 0, base_reg = 0, scale, rip_relative = 0;
+	int index_reg = 0, base_reg = 0, scale;
 	int rc = 0;
 
 	if (c->rex_prefix) {
@@ -754,7 +754,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 				c->modrm_ea += c->regs[index_reg] << scale;
 		} else if ((c->modrm_rm & 7) == 5 && c->modrm_mod == 0) {
 			if (ctxt->mode == X86EMUL_MODE_PROT64)
-				rip_relative = 1;
+				c->rip_relative = 1;
 		} else
 			c->modrm_ea += c->regs[c->modrm_rm];
 		switch (c->modrm_mod) {
@@ -768,22 +768,6 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		case 2:
 			c->modrm_ea += insn_fetch(s32, 4, c->eip);
 			break;
-		}
-	}
-	if (rip_relative) {
-		c->modrm_ea += c->eip;
-		switch (c->d & SrcMask) {
-		case SrcImmByte:
-			c->modrm_ea += 1;
-			break;
-		case SrcImm:
-			if (c->d & ByteOp)
-				c->modrm_ea += 1;
-			else
-				if (c->op_bytes == 8)
-					c->modrm_ea += 4;
-				else
-					c->modrm_ea += c->op_bytes;
 		}
 	}
 done:
@@ -1043,6 +1027,9 @@ done_prefixes:
 		c->dst.type = OP_MEM;
 		break;
 	}
+
+	if (c->rip_relative)
+		c->modrm_ea += c->eip;
 
 done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
