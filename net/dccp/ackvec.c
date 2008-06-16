@@ -290,12 +290,12 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 
 		while (1) {
 			const u8 len = dccp_ackvec_len(av, index);
-			const u8 state = dccp_ackvec_state(av, index);
+			const u8 av_state = dccp_ackvec_state(av, index);
 			/*
 			 * valid packets not yet in av_buf have a reserved
 			 * entry, with a len equal to 0.
 			 */
-			if (state == DCCP_ACKVEC_STATE_NOT_RECEIVED &&
+			if (av_state == DCCP_ACKVEC_STATE_NOT_RECEIVED &&
 			    len == 0 && delta == 0) { /* Found our
 							 reserved seat! */
 				dccp_pr_debug("Found %llu reserved seat!\n",
@@ -324,31 +324,6 @@ out_duplicate:
 		      "packet: %llu\n", (unsigned long long)ackno);
 	return -EILSEQ;
 }
-
-#ifdef CONFIG_IP_DCCP_DEBUG
-void dccp_ackvector_print(const u64 ackno, const unsigned char *vector, int len)
-{
-	dccp_pr_debug_cat("ACK vector len=%d, ackno=%llu |", len,
-			 (unsigned long long)ackno);
-
-	while (len--) {
-		const u8 state = (*vector & DCCP_ACKVEC_STATE_MASK) >> 6;
-		const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
-
-		dccp_pr_debug_cat("%d,%d|", state, rl);
-		++vector;
-	}
-
-	dccp_pr_debug_cat("\n");
-}
-
-void dccp_ackvec_print(const struct dccp_ackvec *av)
-{
-	dccp_ackvector_print(av->av_buf_ackno,
-			     av->av_buf + av->av_buf_head,
-			     av->av_vec_len);
-}
-#endif
 
 static void dccp_ackvec_throw_record(struct dccp_ackvec *av,
 				     struct dccp_ackvec_record *avr)

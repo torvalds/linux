@@ -26,17 +26,10 @@ config X86
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
 	select HAVE_ARCH_KGDB if !X86_VOYAGER
 
-config DEFCONFIG_LIST
+config ARCH_DEFCONFIG
 	string
-	depends on X86_32
-	option defconfig_list
-	default "arch/x86/configs/i386_defconfig"
-
-config DEFCONFIG_LIST
-	string
-	depends on X86_64
-	option defconfig_list
-	default "arch/x86/configs/x86_64_defconfig"
+	default "arch/x86/configs/i386_defconfig" if X86_32
+	default "arch/x86/configs/x86_64_defconfig" if X86_64
 
 
 config GENERIC_LOCKBREAK
@@ -1515,12 +1508,12 @@ config PCI_GOMMCONFIG
 config PCI_GODIRECT
 	bool "Direct"
 
-config PCI_GOANY
-	bool "Any"
-
 config PCI_GOOLPC
 	bool "OLPC"
 	depends on OLPC
+
+config PCI_GOANY
+	bool "Any"
 
 endchoice
 
@@ -1538,9 +1531,8 @@ config PCI_MMCONFIG
 	depends on X86_32 && PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
 
 config PCI_OLPC
-	bool
-	depends on PCI && PCI_GOOLPC
-	default y
+	def_bool y
+	depends on PCI && OLPC && (PCI_GOOLPC || PCI_GOANY)
 
 config PCI_DOMAINS
 	def_bool y

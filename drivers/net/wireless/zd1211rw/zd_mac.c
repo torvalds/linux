@@ -719,7 +719,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	fc = le16_to_cpu(*((__le16 *) buffer));
 
 	is_qos = ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
-		 ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_QOS_DATA);
+		 (fc & IEEE80211_STYPE_QOS_DATA);
 	is_4addr = (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 		   (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
 	need_padding = is_qos ^ is_4addr;
