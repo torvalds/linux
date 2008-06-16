@@ -37,10 +37,11 @@
 DECLARE_RWSEM(configfs_rename_sem);
 /*
  * Protects mutations of configfs_dirent linkage together with proper i_mutex
+ * Also protects mutations of symlinks linkage to target configfs_dirent
  * Mutators of configfs_dirent linkage must *both* have the proper inode locked
  * and configfs_dirent_lock locked, in that order.
- * This allows one to safely traverse configfs_dirent trees without having to
- * lock inodes.
+ * This allows one to safely traverse configfs_dirent trees and symlinks without
+ * having to lock inodes.
  */
 DEFINE_SPINLOCK(configfs_dirent_lock);
 
