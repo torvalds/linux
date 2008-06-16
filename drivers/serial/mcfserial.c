@@ -1,3 +1,4 @@
+#warning This driver is deprecated. Check Kconfig for details.
 /*
  * mcfserial.c -- serial driver for ColdFire internal UARTS.
  *

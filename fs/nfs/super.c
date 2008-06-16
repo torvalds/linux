@@ -405,7 +405,7 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 
  out_err:
-	dprintk("%s: statfs error = %d\n", __FUNCTION__, -error);
+	dprintk("%s: statfs error = %d\n", __func__, -error);
 	unlock_kernel();
 	return error;
 }
@@ -2015,6 +2015,10 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		goto error_splat_super;
 	}
 
+	error = security_sb_set_mnt_opts(s, &data.lsm_opts);
+	if (error)
+		goto error_splat_root;
+
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
@@ -2031,6 +2035,8 @@ out_free:
 	nfs_free_server(server);
 	goto out;
 
+error_splat_root:
+	dput(mntroot);
 error_splat_super:
 	up_write(&s->s_umount);
 	deactivate_super(s);
@@ -2114,6 +2120,8 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
 
+	security_sb_clone_mnt_opts(data->sb, s);
+
 	dprintk("<-- nfs4_xdev_get_sb() = 0\n");
 	return 0;
 
@@ -2196,6 +2204,8 @@ static int nfs4_referral_get_sb(struct file_system_type *fs_type, int flags,
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
+
+	security_sb_clone_mnt_opts(data->sb, s);
 
 	dprintk("<-- nfs4_referral_get_sb() = 0\n");
 	return 0;

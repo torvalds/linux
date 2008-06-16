@@ -1831,7 +1831,7 @@ static int nfs4_xdr_enc_readdir(struct rpc_rqst *req, __be32 *p, const struct nf
 	xdr_inline_pages(&req->rq_rcv_buf, replen, args->pages,
 			 args->pgbase, args->count);
 	dprintk("%s: inlined page args = (%u, %p, %u, %u)\n",
-			__FUNCTION__, replen, args->pages,
+			__func__, replen, args->pages,
 			args->pgbase, args->count);
 
 out:
@@ -2192,9 +2192,9 @@ out:
 	p = xdr_inline_decode(xdr, nbytes); \
 	if (unlikely(!p)) { \
 		dprintk("nfs: %s: prematurely hit end of receive" \
-				" buffer\n", __FUNCTION__); \
+				" buffer\n", __func__); \
 		dprintk("nfs: %s: xdr->p=%p, bytes=%u, xdr->end=%p\n", \
-				__FUNCTION__, xdr->p, nbytes, xdr->end); \
+				__func__, xdr->p, nbytes, xdr->end); \
 		return -EIO; \
 	} \
 } while (0)
@@ -2306,12 +2306,12 @@ static int decode_attr_type(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *
 		READ_BUF(4);
 		READ32(*type);
 		if (*type < NF4REG || *type > NF4NAMEDATTR) {
-			dprintk("%s: bad type %d\n", __FUNCTION__, *type);
+			dprintk("%s: bad type %d\n", __func__, *type);
 			return -EIO;
 		}
 		bitmap[0] &= ~FATTR4_WORD0_TYPE;
 	}
-	dprintk("%s: type=0%o\n", __FUNCTION__, nfs_type2fmt[*type].nfs2type);
+	dprintk("%s: type=0%o\n", __func__, nfs_type2fmt[*type].nfs2type);
 	return 0;
 }
 
@@ -2327,7 +2327,7 @@ static int decode_attr_change(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t
 		READ64(*change);
 		bitmap[0] &= ~FATTR4_WORD0_CHANGE;
 	}
-	dprintk("%s: change attribute=%Lu\n", __FUNCTION__,
+	dprintk("%s: change attribute=%Lu\n", __func__,
 			(unsigned long long)*change);
 	return 0;
 }
@@ -2344,7 +2344,7 @@ static int decode_attr_size(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t *
 		READ64(*size);
 		bitmap[0] &= ~FATTR4_WORD0_SIZE;
 	}
-	dprintk("%s: file size=%Lu\n", __FUNCTION__, (unsigned long long)*size);
+	dprintk("%s: file size=%Lu\n", __func__, (unsigned long long)*size);
 	return 0;
 }
 
@@ -2360,7 +2360,7 @@ static int decode_attr_link_support(struct xdr_stream *xdr, uint32_t *bitmap, ui
 		READ32(*res);
 		bitmap[0] &= ~FATTR4_WORD0_LINK_SUPPORT;
 	}
-	dprintk("%s: link support=%s\n", __FUNCTION__, *res == 0 ? "false" : "true");
+	dprintk("%s: link support=%s\n", __func__, *res == 0 ? "false" : "true");
 	return 0;
 }
 
@@ -2376,7 +2376,7 @@ static int decode_attr_symlink_support(struct xdr_stream *xdr, uint32_t *bitmap,
 		READ32(*res);
 		bitmap[0] &= ~FATTR4_WORD0_SYMLINK_SUPPORT;
 	}
-	dprintk("%s: symlink support=%s\n", __FUNCTION__, *res == 0 ? "false" : "true");
+	dprintk("%s: symlink support=%s\n", __func__, *res == 0 ? "false" : "true");
 	return 0;
 }
 
@@ -2394,7 +2394,7 @@ static int decode_attr_fsid(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs
 		READ64(fsid->minor);
 		bitmap[0] &= ~FATTR4_WORD0_FSID;
 	}
-	dprintk("%s: fsid=(0x%Lx/0x%Lx)\n", __FUNCTION__,
+	dprintk("%s: fsid=(0x%Lx/0x%Lx)\n", __func__,
 			(unsigned long long)fsid->major,
 			(unsigned long long)fsid->minor);
 	return 0;
@@ -2412,7 +2412,7 @@ static int decode_attr_lease_time(struct xdr_stream *xdr, uint32_t *bitmap, uint
 		READ32(*res);
 		bitmap[0] &= ~FATTR4_WORD0_LEASE_TIME;
 	}
-	dprintk("%s: file size=%u\n", __FUNCTION__, (unsigned int)*res);
+	dprintk("%s: file size=%u\n", __func__, (unsigned int)*res);
 	return 0;
 }
 
@@ -2428,7 +2428,7 @@ static int decode_attr_aclsupport(struct xdr_stream *xdr, uint32_t *bitmap, uint
 		READ32(*res);
 		bitmap[0] &= ~FATTR4_WORD0_ACLSUPPORT;
 	}
-	dprintk("%s: ACLs supported=%u\n", __FUNCTION__, (unsigned int)*res);
+	dprintk("%s: ACLs supported=%u\n", __func__, (unsigned int)*res);
 	return 0;
 }
 
@@ -2444,7 +2444,7 @@ static int decode_attr_fileid(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t
 		READ64(*fileid);
 		bitmap[0] &= ~FATTR4_WORD0_FILEID;
 	}
-	dprintk("%s: fileid=%Lu\n", __FUNCTION__, (unsigned long long)*fileid);
+	dprintk("%s: fileid=%Lu\n", __func__, (unsigned long long)*fileid);
 	return 0;
 }
 
@@ -2460,7 +2460,7 @@ static int decode_attr_mounted_on_fileid(struct xdr_stream *xdr, uint32_t *bitma
 		READ64(*fileid);
 		bitmap[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
 	}
-	dprintk("%s: fileid=%Lu\n", __FUNCTION__, (unsigned long long)*fileid);
+	dprintk("%s: fileid=%Lu\n", __func__, (unsigned long long)*fileid);
 	return 0;
 }
 
@@ -2477,7 +2477,7 @@ static int decode_attr_files_avail(struct xdr_stream *xdr, uint32_t *bitmap, uin
 		READ64(*res);
 		bitmap[0] &= ~FATTR4_WORD0_FILES_AVAIL;
 	}
-	dprintk("%s: files avail=%Lu\n", __FUNCTION__, (unsigned long long)*res);
+	dprintk("%s: files avail=%Lu\n", __func__, (unsigned long long)*res);
 	return status;
 }
 
@@ -2494,7 +2494,7 @@ static int decode_attr_files_free(struct xdr_stream *xdr, uint32_t *bitmap, uint
 		READ64(*res);
 		bitmap[0] &= ~FATTR4_WORD0_FILES_FREE;
 	}
-	dprintk("%s: files free=%Lu\n", __FUNCTION__, (unsigned long long)*res);
+	dprintk("%s: files free=%Lu\n", __func__, (unsigned long long)*res);
 	return status;
 }
 
@@ -2511,7 +2511,7 @@ static int decode_attr_files_total(struct xdr_stream *xdr, uint32_t *bitmap, uin
 		READ64(*res);
 		bitmap[0] &= ~FATTR4_WORD0_FILES_TOTAL;
 	}
-	dprintk("%s: files total=%Lu\n", __FUNCTION__, (unsigned long long)*res);
+	dprintk("%s: files total=%Lu\n", __func__, (unsigned long long)*res);
 	return status;
 }
 
@@ -2569,7 +2569,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 	status = 0;
 	if (unlikely(!(bitmap[0] & FATTR4_WORD0_FS_LOCATIONS)))
 		goto out;
-	dprintk("%s: fsroot ", __FUNCTION__);
+	dprintk("%s: fsroot ", __func__);
 	status = decode_pathname(xdr, &res->fs_path);
 	if (unlikely(status != 0))
 		goto out;
@@ -2586,7 +2586,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 		READ32(m);
 
 		loc->nservers = 0;
-		dprintk("%s: servers ", __FUNCTION__);
+		dprintk("%s: servers ", __func__);
 		while (loc->nservers < m) {
 			struct nfs4_string *server = &loc->servers[loc->nservers];
 			status = decode_opaque_inline(xdr, &server->len, &server->data);
@@ -2599,7 +2599,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 				unsigned int i;
 				dprintk("%s: using first %u of %u servers "
 					"returned for location %u\n",
-						__FUNCTION__,
+						__func__,
 						NFS4_FS_LOCATION_MAXSERVERS,
 						m, res->nlocations);
 				for (i = loc->nservers; i < m; i++) {
@@ -2618,7 +2618,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 			res->nlocations++;
 	}
 out:
-	dprintk("%s: fs_locations done, error = %d\n", __FUNCTION__, status);
+	dprintk("%s: fs_locations done, error = %d\n", __func__, status);
 	return status;
 out_eio:
 	status = -EIO;
@@ -2638,7 +2638,7 @@ static int decode_attr_maxfilesize(struct xdr_stream *xdr, uint32_t *bitmap, uin
 		READ64(*res);
 		bitmap[0] &= ~FATTR4_WORD0_MAXFILESIZE;
 	}
-	dprintk("%s: maxfilesize=%Lu\n", __FUNCTION__, (unsigned long long)*res);
+	dprintk("%s: maxfilesize=%Lu\n", __func__, (unsigned long long)*res);
 	return status;
 }
 
@@ -2655,7 +2655,7 @@ static int decode_attr_maxlink(struct xdr_stream *xdr, uint32_t *bitmap, uint32_
 		READ32(*maxlink);
 		bitmap[0] &= ~FATTR4_WORD0_MAXLINK;
 	}
-	dprintk("%s: maxlink=%u\n", __FUNCTION__, *maxlink);
+	dprintk("%s: maxlink=%u\n", __func__, *maxlink);
 	return status;
 }
 
@@ -2672,7 +2672,7 @@ static int decode_attr_maxname(struct xdr_stream *xdr, uint32_t *bitmap, uint32_
 		READ32(*maxname);
 		bitmap[0] &= ~FATTR4_WORD0_MAXNAME;
 	}
-	dprintk("%s: maxname=%u\n", __FUNCTION__, *maxname);
+	dprintk("%s: maxname=%u\n", __func__, *maxname);
 	return status;
 }
 
@@ -2693,7 +2693,7 @@ static int decode_attr_maxread(struct xdr_stream *xdr, uint32_t *bitmap, uint32_
 		*res = (uint32_t)maxread;
 		bitmap[0] &= ~FATTR4_WORD0_MAXREAD;
 	}
-	dprintk("%s: maxread=%lu\n", __FUNCTION__, (unsigned long)*res);
+	dprintk("%s: maxread=%lu\n", __func__, (unsigned long)*res);
 	return status;
 }
 
@@ -2714,7 +2714,7 @@ static int decode_attr_maxwrite(struct xdr_stream *xdr, uint32_t *bitmap, uint32
 		*res = (uint32_t)maxwrite;
 		bitmap[0] &= ~FATTR4_WORD0_MAXWRITE;
 	}
-	dprintk("%s: maxwrite=%lu\n", __FUNCTION__, (unsigned long)*res);
+	dprintk("%s: maxwrite=%lu\n", __func__, (unsigned long)*res);
 	return status;
 }
 
@@ -2731,7 +2731,7 @@ static int decode_attr_mode(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *
 		*mode &= ~S_IFMT;
 		bitmap[1] &= ~FATTR4_WORD1_MODE;
 	}
-	dprintk("%s: file mode=0%o\n", __FUNCTION__, (unsigned int)*mode);
+	dprintk("%s: file mode=0%o\n", __func__, (unsigned int)*mode);
 	return 0;
 }
 
@@ -2747,7 +2747,7 @@ static int decode_attr_nlink(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t 
 		READ32(*nlink);
 		bitmap[1] &= ~FATTR4_WORD1_NUMLINKS;
 	}
-	dprintk("%s: nlink=%u\n", __FUNCTION__, (unsigned int)*nlink);
+	dprintk("%s: nlink=%u\n", __func__, (unsigned int)*nlink);
 	return 0;
 }
 
@@ -2766,13 +2766,13 @@ static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nf
 		if (len < XDR_MAX_NETOBJ) {
 			if (nfs_map_name_to_uid(clp, (char *)p, len, uid) != 0)
 				dprintk("%s: nfs_map_name_to_uid failed!\n",
-						__FUNCTION__);
+						__func__);
 		} else
 			dprintk("%s: name too long (%u)!\n",
-					__FUNCTION__, len);
+					__func__, len);
 		bitmap[1] &= ~FATTR4_WORD1_OWNER;
 	}
-	dprintk("%s: uid=%d\n", __FUNCTION__, (int)*uid);
+	dprintk("%s: uid=%d\n", __func__, (int)*uid);
 	return 0;
 }
 
@@ -2791,13 +2791,13 @@ static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap, struct nf
 		if (len < XDR_MAX_NETOBJ) {
 			if (nfs_map_group_to_gid(clp, (char *)p, len, gid) != 0)
 				dprintk("%s: nfs_map_group_to_gid failed!\n",
-						__FUNCTION__);
+						__func__);
 		} else
 			dprintk("%s: name too long (%u)!\n",
-					__FUNCTION__, len);
+					__func__, len);
 		bitmap[1] &= ~FATTR4_WORD1_OWNER_GROUP;
 	}
-	dprintk("%s: gid=%d\n", __FUNCTION__, (int)*gid);
+	dprintk("%s: gid=%d\n", __func__, (int)*gid);
 	return 0;
 }
 
@@ -2820,7 +2820,7 @@ static int decode_attr_rdev(struct xdr_stream *xdr, uint32_t *bitmap, dev_t *rde
 			*rdev = tmp;
 		bitmap[1] &= ~ FATTR4_WORD1_RAWDEV;
 	}
-	dprintk("%s: rdev=(0x%x:0x%x)\n", __FUNCTION__, major, minor);
+	dprintk("%s: rdev=(0x%x:0x%x)\n", __func__, major, minor);
 	return 0;
 }
 
@@ -2837,7 +2837,7 @@ static int decode_attr_space_avail(struct xdr_stream *xdr, uint32_t *bitmap, uin
 		READ64(*res);
 		bitmap[1] &= ~FATTR4_WORD1_SPACE_AVAIL;
 	}
-	dprintk("%s: space avail=%Lu\n", __FUNCTION__, (unsigned long long)*res);
+	dprintk("%s: space avail=%Lu\n", __func__, (unsigned long long)*res);
 	return status;
 }
 
@@ -2854,7 +2854,7 @@ static int decode_attr_space_free(struct xdr_stream *xdr, uint32_t *bitmap, uint
 		READ64(*res);
 		bitmap[1] &= ~FATTR4_WORD1_SPACE_FREE;
 	}
-	dprintk("%s: space free=%Lu\n", __FUNCTION__, (unsigned long long)*res);
+	dprintk("%s: space free=%Lu\n", __func__, (unsigned long long)*res);
 	return status;
 }
 
@@ -2871,7 +2871,7 @@ static int decode_attr_space_total(struct xdr_stream *xdr, uint32_t *bitmap, uin
 		READ64(*res);
 		bitmap[1] &= ~FATTR4_WORD1_SPACE_TOTAL;
 	}
-	dprintk("%s: space total=%Lu\n", __FUNCTION__, (unsigned long long)*res);
+	dprintk("%s: space total=%Lu\n", __func__, (unsigned long long)*res);
 	return status;
 }
 
@@ -2887,7 +2887,7 @@ static int decode_attr_space_used(struct xdr_stream *xdr, uint32_t *bitmap, uint
 		READ64(*used);
 		bitmap[1] &= ~FATTR4_WORD1_SPACE_USED;
 	}
-	dprintk("%s: space used=%Lu\n", __FUNCTION__,
+	dprintk("%s: space used=%Lu\n", __func__,
 			(unsigned long long)*used);
 	return 0;
 }
@@ -2918,7 +2918,7 @@ static int decode_attr_time_access(struct xdr_stream *xdr, uint32_t *bitmap, str
 		status = decode_attr_time(xdr, time);
 		bitmap[1] &= ~FATTR4_WORD1_TIME_ACCESS;
 	}
-	dprintk("%s: atime=%ld\n", __FUNCTION__, (long)time->tv_sec);
+	dprintk("%s: atime=%ld\n", __func__, (long)time->tv_sec);
 	return status;
 }
 
@@ -2934,7 +2934,7 @@ static int decode_attr_time_metadata(struct xdr_stream *xdr, uint32_t *bitmap, s
 		status = decode_attr_time(xdr, time);
 		bitmap[1] &= ~FATTR4_WORD1_TIME_METADATA;
 	}
-	dprintk("%s: ctime=%ld\n", __FUNCTION__, (long)time->tv_sec);
+	dprintk("%s: ctime=%ld\n", __func__, (long)time->tv_sec);
 	return status;
 }
 
@@ -2950,7 +2950,7 @@ static int decode_attr_time_modify(struct xdr_stream *xdr, uint32_t *bitmap, str
 		status = decode_attr_time(xdr, time);
 		bitmap[1] &= ~FATTR4_WORD1_TIME_MODIFY;
 	}
-	dprintk("%s: mtime=%ld\n", __FUNCTION__, (long)time->tv_sec);
+	dprintk("%s: mtime=%ld\n", __func__, (long)time->tv_sec);
 	return status;
 }
 
@@ -2962,7 +2962,7 @@ static int verify_attr_len(struct xdr_stream *xdr, __be32 *savep, uint32_t attrl
 	if (unlikely(attrwords != nwords)) {
 		dprintk("%s: server returned incorrect attribute length: "
 			"%u %c %u\n",
-				__FUNCTION__,
+				__func__,
 				attrwords << 2,
 				(attrwords < nwords) ? '<' : '>',
 				nwords << 2);
@@ -3067,7 +3067,7 @@ static int decode_server_caps(struct xdr_stream *xdr, struct nfs4_server_caps_re
 		goto xdr_error;
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __func__, -status);
 	return status;
 }
 	
@@ -3100,7 +3100,7 @@ static int decode_statfs(struct xdr_stream *xdr, struct nfs_fsstat *fsstat)
 
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __func__, -status);
 	return status;
 }
 
@@ -3125,7 +3125,7 @@ static int decode_pathconf(struct xdr_stream *xdr, struct nfs_pathconf *pathconf
 
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __func__, -status);
 	return status;
 }
 
@@ -3193,7 +3193,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	if ((status = verify_attr_len(xdr, savep, attrlen)) == 0)
 		fattr->valid = NFS_ATTR_FATTR | NFS_ATTR_FATTR_V3 | NFS_ATTR_FATTR_V4;
 xdr_error:
-	dprintk("%s: xdr returned %d\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d\n", __func__, -status);
 	return status;
 }
 
@@ -3226,7 +3226,7 @@ static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 
 	status = verify_attr_len(xdr, savep, attrlen);
 xdr_error:
-	dprintk("%s: xdr returned %d!\n", __FUNCTION__, -status);
+	dprintk("%s: xdr returned %d!\n", __func__, -status);
 	return status;
 }
 
@@ -3418,7 +3418,7 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
 
 	return decode_delegation(xdr, res);
 xdr_error:
-	dprintk("%s: Bitmap too large! Length = %u\n", __FUNCTION__, bmlen);
+	dprintk("%s: Bitmap too large! Length = %u\n", __func__, bmlen);
 	return -EIO;
 }
 
@@ -3575,7 +3575,7 @@ short_pkt:
 	 * the call was successful, but incomplete. The caller can retry the
 	 * readdir starting at the last cookie.
 	 */
-	dprintk("%s: short packet at entry %d\n", __FUNCTION__, nr);
+	dprintk("%s: short packet at entry %d\n", __func__, nr);
 	entry[0] = entry[1] = 0;
 	if (nr)
 		goto out;

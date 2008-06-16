@@ -634,7 +634,7 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	}
 
 	/* try the sky v2.3 (vp310/Samsung tbdu18132(tsa5059)) */
-	fc->fe = dvb_attach(vp310_mt312_attach,
+	fc->fe = dvb_attach(mt312_attach,
 		&skystar23_samsung_tbdu18132_config, i2c);
 	if (fc->fe != NULL) {
 		ops = &fc->fe->ops;

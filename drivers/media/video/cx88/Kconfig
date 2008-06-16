@@ -2,10 +2,9 @@ config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
 	depends on VIDEO_DEV && PCI && I2C && INPUT
 	select I2C_ALGOBIT
-	select FW_LOADER
 	select VIDEO_BTCX
 	select VIDEOBUF_DMA_SG
-	select MEDIA_TUNER
+	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
 	select VIDEO_WM8775 if VIDEO_HELPER_CHIPS_AUTO
@@ -34,8 +33,9 @@ config VIDEO_CX88_ALSA
 
 config VIDEO_CX88_BLACKBIRD
 	tristate "Blackbird MPEG encoder support (cx2388x + cx23416)"
-	depends on VIDEO_CX88
+	depends on VIDEO_CX88 && HOTPLUG
 	select VIDEO_CX2341X
+	select FW_LOADER
 	---help---
 	  This adds support for MPEG encoder cards based on the
 	  Blackbird reference design, using the Conexant 2388x

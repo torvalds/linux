@@ -117,7 +117,10 @@ acpi_get_sysname(void)
 	if (!strcmp(hdr->oem_id, "HP")) {
 		return "hpzx1";
 	} else if (!strcmp(hdr->oem_id, "SGI")) {
-		return "sn2";
+		if (!strcmp(hdr->oem_table_id + 4, "UV"))
+			return "uv";
+		else
+			return "sn2";
 	}
 
 	return "dig";
@@ -130,6 +133,8 @@ acpi_get_sysname(void)
 	return "hpzx1_swiotlb";
 # elif defined (CONFIG_IA64_SGI_SN2)
 	return "sn2";
+# elif defined (CONFIG_IA64_SGI_UV)
+	return "uv";
 # elif defined (CONFIG_IA64_DIG)
 	return "dig";
 # else
@@ -460,7 +465,6 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 		printk(KERN_ERR
 		       "ACPI 2.0 SLIT: size mismatch: %d expected, %d actual\n",
 		       len, slit->header.length);
-		memset(numa_slit, 10, sizeof(numa_slit));
 		return;
 	}
 	slit_table = slit;
@@ -569,8 +573,14 @@ void __init acpi_numa_arch_fixup(void)
 	printk(KERN_INFO "Number of memory chunks in system = %d\n",
 	       num_node_memblks);
 
-	if (!slit_table)
+	if (!slit_table) {
+		for (i = 0; i < MAX_NUMNODES; i++)
+			for (j = 0; j < MAX_NUMNODES; j++)
+				node_distance(i, j) = i == j ? LOCAL_DISTANCE :
+							REMOTE_DISTANCE;
 		return;
+	}
+
 	memset(numa_slit, -1, sizeof(numa_slit));
 	for (i = 0; i < slit_table->locality_count; i++) {
 		if (!pxm_bit_test(i))
@@ -620,6 +630,9 @@ int acpi_register_gsi(u32 gsi, int triggering, int polarity)
 void acpi_unregister_gsi(u32 gsi)
 {
 	if (acpi_irq_model == ACPI_IRQ_MODEL_PLATFORM)
+		return;
+
+	if (has_8259 && gsi < 16)
 		return;
 
 	iosapic_unregister_intr(gsi);

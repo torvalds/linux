@@ -93,7 +93,7 @@ wax_init_chip(struct parisc_device *dev)
 	dev->irq = gsc_claim_irq(&gsc_irq, WAX_GSC_IRQ);
 	if (dev->irq < 0) {
 		printk(KERN_ERR "%s(): cannot get GSC irq\n",
-				__FUNCTION__);
+				__func__);
 		kfree(wax);
 		return -EBUSY;
 	}

@@ -130,6 +130,7 @@ static void appldata_work_fn(struct work_struct *work)
 
 	P_DEBUG("  -= Work Queue =-\n");
 	i = 0;
+	get_online_cpus();
 	spin_lock(&appldata_ops_lock);
 	list_for_each(lh, &appldata_ops_list) {
 		ops = list_entry(lh, struct appldata_ops, list);
@@ -140,6 +141,7 @@ static void appldata_work_fn(struct work_struct *work)
 		}
 	}
 	spin_unlock(&appldata_ops_lock);
+	put_online_cpus();
 }
 
 /*
@@ -266,12 +268,14 @@ appldata_timer_handler(ctl_table *ctl, int write, struct file *filp,
 	len = *lenp;
 	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len))
 		return -EFAULT;
+	get_online_cpus();
 	spin_lock(&appldata_timer_lock);
 	if (buf[0] == '1')
 		__appldata_vtimer_setup(APPLDATA_ADD_TIMER);
 	else if (buf[0] == '0')
 		__appldata_vtimer_setup(APPLDATA_DEL_TIMER);
 	spin_unlock(&appldata_timer_lock);
+	put_online_cpus();
 out:
 	*lenp = len;
 	*ppos += len;
@@ -314,10 +318,12 @@ appldata_interval_handler(ctl_table *ctl, int write, struct file *filp,
 		return -EINVAL;
 	}
 
+	get_online_cpus();
 	spin_lock(&appldata_timer_lock);
 	appldata_interval = interval;
 	__appldata_vtimer_setup(APPLDATA_MOD_TIMER);
 	spin_unlock(&appldata_timer_lock);
+	put_online_cpus();
 
 	P_INFO("Monitoring CPU interval set to %u milliseconds.\n",
 		 interval);
@@ -556,8 +562,10 @@ static int __init appldata_init(void)
 		return -ENOMEM;
 	}
 
+	get_online_cpus();
 	for_each_online_cpu(i)
 		appldata_online_cpu(i);
+	put_online_cpus();
 
 	/* Register cpu hotplug notifier */
 	register_hotcpu_notifier(&appldata_nb);

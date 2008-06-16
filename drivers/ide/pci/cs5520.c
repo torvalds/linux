@@ -119,6 +119,7 @@ static const struct ide_dma_ops cs5520_dma_ops = {
 	.dma_timeout		= ide_dma_timeout,
 };
 
+/* FIXME: VDMA is disabled because it caused system hangs */
 #define DECLARE_CS_DEV(name_str)				\
 	{							\
 		.name		= name_str,			\
@@ -126,7 +127,6 @@ static const struct ide_dma_ops cs5520_dma_ops = {
 		.dma_ops	= &cs5520_dma_ops,		\
 		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
 				  IDE_HFLAG_CS5520 |		\
-				  IDE_HFLAG_VDMA |		\
 				  IDE_HFLAG_NO_ATAPI_DMA |	\
 				  IDE_HFLAG_ABUSE_SET_DMA_MODE, \
 		.pio_mask	= ATA_PIO4,			\

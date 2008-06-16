@@ -355,9 +355,8 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	pr_debug("pxafb: dma period = %d ps, clock = %d kHz\n",
-		 pxafb_display_dma_period(var),
-		 get_clk_frequency_khz(0));
+	pr_debug("pxafb: dma period = %d ps\n",
+		 pxafb_display_dma_period(var));
 #endif
 
 	return 0;
@@ -574,8 +573,8 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 		dma_desc->fdadr = fbi->dma_buff_phys + dma_desc_off;
 		fbi->fdadr[dma] = fbi->dma_buff_phys + dma_desc_off;
 	} else {
-		pal_desc = &fbi->dma_buff->pal_desc[dma];
-		pal_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[pal]);
+		pal_desc = &fbi->dma_buff->pal_desc[pal];
+		pal_desc_off = offsetof(struct pxafb_dma_buff, pal_desc[pal]);
 
 		pal_desc->fsadr = fbi->dma_buff_phys + pal * PALETTE_SIZE;
 		pal_desc->fidr  = 0;
@@ -1277,6 +1276,8 @@ static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->dma_buff_phys = fbi->map_dma;
 		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
 
+	        pr_debug("pxafb: palette_mem_size = 0x%08lx\n", fbi->palette_size*sizeof(u16));
+
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
 		fbi->n_smart_cmds = 0;
@@ -1352,7 +1353,6 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	struct pxafb_info *fbi;
 	void *addr;
 	struct pxafb_mach_info *inf = dev->platform_data;
-	struct pxafb_mode_info *mode = inf->modes;
 
 	/* Alloc the pxafb_info and pseudo_palette in one step */
 	fbi = kmalloc(sizeof(struct pxafb_info) + sizeof(u32) * 16, GFP_KERNEL);

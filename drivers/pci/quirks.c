@@ -1503,8 +1503,7 @@ static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_f
  		    (f->device == dev->device || f->device == (u16) PCI_ANY_ID)) {
 #ifdef DEBUG
 			dev_dbg(&dev->dev, "calling ");
-			print_fn_descriptor_symbol("%s()\n",
-				(unsigned long) f->hook);
+			print_fn_descriptor_symbol("%s\n", f->hook);
 #endif
 			f->hook(dev);
 		}
@@ -1826,6 +1825,7 @@ static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk);
 
 static void __devinit quirk_msi_intx_disable_bug(struct pci_dev *dev)
 {

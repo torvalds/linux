@@ -358,7 +358,7 @@ struct cx18 {
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags; 		/* Hardware description of the board */
 	unsigned mdl_offset;
-	struct cx18_scb *scb;   /* pointer to SCB */
+	struct cx18_scb __iomem *scb;   /* pointer to SCB */
 
 	struct cx18_av_state av_state;
 
@@ -380,7 +380,8 @@ struct cx18 {
 	int stream_buf_size[CX18_MAX_STREAMS]; /* Stream buffer size */
 	struct cx18_stream streams[CX18_MAX_STREAMS]; 	/* Stream data */
 	unsigned long i_flags;  /* global cx18 flags */
-	atomic_t capturing;	/* count number of active capture streams */
+	atomic_t ana_capturing;	/* count number of active analog capture streams */
+	atomic_t tot_capturing;	/* total count number of active capture streams */
 	spinlock_t lock;        /* lock access to this struct */
 	int search_pack_header;
 
@@ -423,6 +424,10 @@ struct cx18 {
 	struct mutex i2c_bus_lock[2];
 	struct i2c_client *i2c_clients[I2C_CLIENTS_MAX];
 
+	/* gpio */
+	u32 gpio_dir;
+	u32 gpio_val;
+
 	/* v4l2 and User settings */
 
 	/* codec settings */
@@ -443,9 +448,6 @@ extern spinlock_t cx18_cards_lock;
 
 /* Return non-zero if a signal is pending */
 int cx18_msleep_timeout(unsigned int msecs, int intr);
-
-/* Wait on queue, returns -EINTR if interrupted */
-int cx18_waitq(wait_queue_head_t *waitq);
 
 /* Read Hauppauge eeprom */
 struct tveeprom; /* forward reference */

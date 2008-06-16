@@ -57,9 +57,6 @@ typedef union {
 	__u8  byte[2];
 } __u16_host_order;
 
-/* Same purpose, different application */
-#define u16ho(array) (* ((__u16 *) array))
-
 /* Types of discovery */
 typedef enum {
 	DISCOVERY_LOG,		/* What's in our discovery log */

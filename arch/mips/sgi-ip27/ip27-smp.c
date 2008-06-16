@@ -176,11 +176,14 @@ static void ip27_send_ipi_mask(cpumask_t mask, unsigned int action)
 static void __cpuinit ip27_init_secondary(void)
 {
 	per_cpu_init();
-	local_irq_enable();
 }
 
 static void __cpuinit ip27_smp_finish(void)
 {
+	extern void hub_rt_clock_event_init(void);
+
+	hub_rt_clock_event_init();
+	local_irq_enable();
 }
 
 static void __init ip27_cpus_done(void)

@@ -38,6 +38,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/proc_fs.h>
 
 #include <asm/sections.h>
 #include <asm/mmu.h>

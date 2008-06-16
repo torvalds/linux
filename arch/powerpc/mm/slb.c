@@ -28,7 +28,7 @@
 #include <asm/udbg.h>
 
 #ifdef DEBUG
-#define DBG(fmt...) udbg_printf(fmt)
+#define DBG(fmt...) printk(fmt)
 #else
 #define DBG pr_debug
 #endif
@@ -263,13 +263,19 @@ void slb_initialize(void)
 	extern unsigned int *slb_miss_kernel_load_linear;
 	extern unsigned int *slb_miss_kernel_load_io;
 	extern unsigned int *slb_compare_rr_to_size;
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	extern unsigned int *slb_miss_kernel_load_vmemmap;
+	unsigned long vmemmap_llp;
+#endif
 
 	/* Prepare our SLB miss handler based on our page size */
 	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
 	io_llp = mmu_psize_defs[mmu_io_psize].sllp;
 	vmalloc_llp = mmu_psize_defs[mmu_vmalloc_psize].sllp;
 	get_paca()->vmalloc_sllp = SLB_VSID_KERNEL | vmalloc_llp;
-
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	vmemmap_llp = mmu_psize_defs[mmu_vmemmap_psize].sllp;
+#endif
 	if (!slb_encoding_inited) {
 		slb_encoding_inited = 1;
 		patch_slb_encoding(slb_miss_kernel_load_linear,
@@ -281,6 +287,12 @@ void slb_initialize(void)
 
 		DBG("SLB: linear  LLP = %04lx\n", linear_llp);
 		DBG("SLB: io      LLP = %04lx\n", io_llp);
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+		patch_slb_encoding(slb_miss_kernel_load_vmemmap,
+				   SLB_VSID_KERNEL | vmemmap_llp);
+		DBG("SLB: vmemmap LLP = %04lx\n", vmemmap_llp);
+#endif
 	}
 
 	get_paca()->stab_rr = SLB_NUM_BOLTED;

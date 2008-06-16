@@ -11,7 +11,7 @@
  * Written by Miles Bader <miles@gnu.org>
  */
 
-#ifndef __CLINKAGE_H__
+#ifndef __V850_CLINKAGE_H__
 #define __V850_CLINKAGE_H__
 
 #include <asm/macrology.h>
