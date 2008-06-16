@@ -4,7 +4,7 @@
 
 #include <linux/stringify.h>
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) || defined(CONFIG_PPC_E500MC)
 #define __SUBARCH_HAS_LWSYNC
 #endif
 

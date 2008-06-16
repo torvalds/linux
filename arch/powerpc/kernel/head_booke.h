@@ -68,9 +68,13 @@
 #define MCHECK_STACK_BASE	mcheckirq_ctx
 #define CRIT_STACK_BASE		critirq_ctx
 
-/* only on e200 for now */
+/* only on e500mc/e200 */
 #define DEBUG_STACK_BASE	dbgirq_ctx
+#ifdef CONFIG_PPC_E500MC
+#define DEBUG_SPRG		SPRN_SPRG9
+#else
 #define DEBUG_SPRG		SPRN_SPRG6W
+#endif
 
 #define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE - EXC_LVL_SIZE)
 

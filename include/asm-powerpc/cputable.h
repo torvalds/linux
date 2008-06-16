@@ -351,6 +351,8 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 	    CPU_FTR_NODSISRALIGN)
 #define CPU_FTRS_E500_2	(CPU_FTR_USE_TB | CPU_FTR_SPE_COMP | \
 	    CPU_FTR_BIG_PHYS | CPU_FTR_NODSISRALIGN)
+#define CPU_FTRS_E500MC	(CPU_FTR_USE_TB | CPU_FTR_BIG_PHYS | \
+	    CPU_FTR_NODSISRALIGN)
 #define CPU_FTRS_GENERIC_32	(CPU_FTR_COMMON | CPU_FTR_NODSISRALIGN)
 
 /* 64-bit CPUs */
@@ -421,7 +423,7 @@ enum {
 	    CPU_FTRS_E200 |
 #endif
 #ifdef CONFIG_E500
-	    CPU_FTRS_E500 | CPU_FTRS_E500_2 |
+	    CPU_FTRS_E500 | CPU_FTRS_E500_2 | CPU_FTRS_E500MC |
 #endif
 	    0,
 };
@@ -461,7 +463,7 @@ enum {
 	    CPU_FTRS_E200 &
 #endif
 #ifdef CONFIG_E500
-	    CPU_FTRS_E500 & CPU_FTRS_E500_2 &
+	    CPU_FTRS_E500 & CPU_FTRS_E500_2 & CPU_FTRS_E500MC &
 #endif
 	    CPU_FTRS_POSSIBLE,
 };

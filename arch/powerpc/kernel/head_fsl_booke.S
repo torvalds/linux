@@ -304,7 +304,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(13, DataTLBError);
 	SET_IVOR(14, InstructionTLBError);
 	SET_IVOR(15, DebugDebug);
-#if defined(CONFIG_E500)
+#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	SET_IVOR(15, DebugCrit);
 #endif
 	SET_IVOR(32, SPEUnavailable);
@@ -312,6 +312,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(34, SPEFloatingPointRound);
 #ifndef CONFIG_E200
 	SET_IVOR(35, PerformanceMonitor);
+#endif
+#ifdef CONFIG_PPC_E500MC
+	SET_IVOR(36, Doorbell);
 #endif
 
 	/* Establish the interrupt vector base */
@@ -750,10 +753,13 @@ interrupt_base:
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
 
+#ifdef CONFIG_PPC_E500MC
+	EXCEPTION(0x2070, Doorbell, unknown_exception, EXC_XFER_EE)
+#endif
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
-#if defined(CONFIG_E500)
+#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	DEBUG_CRIT_EXCEPTION
 #endif
 

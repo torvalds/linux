@@ -95,6 +95,11 @@ config E500
 	select FSL_EMB_PERFMON
 	bool
 
+config PPC_E500MC
+	bool "e500mc Support"
+	select PPC_FPU
+	depends on E500
+
 config PPC_FPU
 	bool
 	default y if PPC64
@@ -157,7 +162,7 @@ config ALTIVEC
 
 config SPE
 	bool "SPE Support"
-	depends on E200 || E500
+	depends on E200 || (E500 && !PPC_E500MC)
 	default y
 	---help---
 	  This option enables kernel support for the Signal Processing
