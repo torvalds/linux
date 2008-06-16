@@ -940,7 +940,7 @@ done_prefixes:
 	    c->override_base != &ctxt->gs_base)
 		c->override_base = NULL;
 
-	if (c->override_base)
+	if (c->override_base && !(!c->twobyte && c->b == 0x8d))
 		c->modrm_ea += *c->override_base;
 
 	if (c->ad_bytes != 8)
