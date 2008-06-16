@@ -111,6 +111,7 @@ struct i5k_amb_data {
 	void __iomem *amb_mmio;
 	struct i5k_device_attribute *attrs;
 	unsigned int num_attrs;
+	unsigned long chipset_id;
 };
 
 static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
@@ -382,7 +383,8 @@ err:
 	return res;
 }
 
-static int __devinit i5k_find_amb_registers(struct i5k_amb_data *data)
+static int __devinit i5k_find_amb_registers(struct i5k_amb_data *data,
+					    unsigned long devid)
 {
 	struct pci_dev *pcidev;
 	u32 val32;
@@ -390,7 +392,7 @@ static int __devinit i5k_find_amb_registers(struct i5k_amb_data *data)
 
 	/* Find AMB register memory space */
 	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				PCI_DEVICE_ID_INTEL_5000_ERR,
+				devid,
 				NULL);
 	if (!pcidev)
 		return -ENODEV;
@@ -408,6 +410,8 @@ static int __devinit i5k_find_amb_registers(struct i5k_amb_data *data)
 		dev_err(&pcidev->dev, "AMB region too small!\n");
 		goto out;
 	}
+
+	data->chipset_id = devid;
 
 	res = 0;
 out:
@@ -441,10 +445,30 @@ out:
 	return res;
 }
 
+static unsigned long i5k_channel_pci_id(struct i5k_amb_data *data,
+					unsigned long channel)
+{
+	switch (data->chipset_id) {
+	case PCI_DEVICE_ID_INTEL_5000_ERR:
+		return PCI_DEVICE_ID_INTEL_5000_FBD0 + channel;
+	case PCI_DEVICE_ID_INTEL_5400_ERR:
+		return PCI_DEVICE_ID_INTEL_5400_FBD0 + channel;
+	default:
+		BUG();
+	}
+}
+
+static unsigned long chipset_ids[] = {
+	PCI_DEVICE_ID_INTEL_5000_ERR,
+	PCI_DEVICE_ID_INTEL_5400_ERR,
+	0
+};
+
 static int __devinit i5k_amb_probe(struct platform_device *pdev)
 {
 	struct i5k_amb_data *data;
 	struct resource *reso;
+	int i;
 	int res = -ENODEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -452,19 +476,24 @@ static int __devinit i5k_amb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Figure out where the AMB registers live */
-	res = i5k_find_amb_registers(data);
+	i = 0;
+	do {
+		res = i5k_find_amb_registers(data, chipset_ids[i]);
+		i++;
+	} while (res && chipset_ids[i]);
+
 	if (res)
 		goto err;
 
 	/* Copy the DIMM presence map for the first two channels */
 	res = i5k_channel_probe(&data->amb_present[0],
-				PCI_DEVICE_ID_INTEL_5000_FBD0);
+				i5k_channel_pci_id(data, 0));
 	if (res)
 		goto err;
 
 	/* Copy the DIMM presence map for the optional second two channels */
 	i5k_channel_probe(&data->amb_present[2],
-			  PCI_DEVICE_ID_INTEL_5000_FBD1);
+			  i5k_channel_pci_id(data, 1));
 
 	/* Set up resource regions */
 	reso = request_mem_region(data->amb_base, data->amb_len, DRVNAME);

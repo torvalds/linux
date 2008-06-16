@@ -396,8 +396,10 @@ static inline struct request_sock *inet6_reqsk_alloc(struct request_sock_ops *op
 {
 	struct request_sock *req = reqsk_alloc(ops);
 
-	if (req != NULL)
+	if (req != NULL) {
 		inet_rsk(req)->inet6_rsk_offset = inet6_rsk_offset(req);
+		inet6_rsk(req)->pktopts = NULL;
+	}
 
 	return req;
 }

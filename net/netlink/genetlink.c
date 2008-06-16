@@ -554,7 +554,8 @@ static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
 	return genlmsg_end(skb, hdr);
 
 nla_put_failure:
-	return genlmsg_cancel(skb, hdr);
+	genlmsg_cancel(skb, hdr);
+	return -EMSGSIZE;
 }
 
 static int ctrl_fill_mcgrp_info(struct genl_multicast_group *grp, u32 pid,
@@ -590,7 +591,8 @@ static int ctrl_fill_mcgrp_info(struct genl_multicast_group *grp, u32 pid,
 	return genlmsg_end(skb, hdr);
 
 nla_put_failure:
-	return genlmsg_cancel(skb, hdr);
+	genlmsg_cancel(skb, hdr);
+	return -EMSGSIZE;
 }
 
 static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)

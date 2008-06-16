@@ -35,9 +35,6 @@
 #define CX18_REG_GPIO_OUT2   0xc78104
 #define CX18_REG_GPIO_DIR2   0xc7810c
 
-static u32 gpio_dir;
-static u32 gpio_val;
-
 /*
  * HVR-1600 GPIO pins, courtesy of Hauppauge:
  *
@@ -49,24 +46,29 @@ static u32 gpio_val;
 
 static void gpio_write(struct cx18 *cx)
 {
-	write_reg((gpio_dir & 0xffff) << 16, CX18_REG_GPIO_DIR1);
-	write_reg(((gpio_dir & 0xffff) << 16) | (gpio_val & 0xffff),
+	u32 dir = cx->gpio_dir;
+	u32 val = cx->gpio_val;
+
+	write_reg((dir & 0xffff) << 16, CX18_REG_GPIO_DIR1);
+	write_reg(((dir & 0xffff) << 16) | (val & 0xffff),
 			CX18_REG_GPIO_OUT1);
-	write_reg(gpio_dir & 0xffff0000, CX18_REG_GPIO_DIR2);
-	write_reg((gpio_dir & 0xffff0000) | ((gpio_val & 0xffff0000) >> 16),
+	write_reg(dir & 0xffff0000, CX18_REG_GPIO_DIR2);
+	write_reg((dir & 0xffff0000) | ((val & 0xffff0000) >> 16),
 			CX18_REG_GPIO_OUT2);
 }
 
 void cx18_gpio_init(struct cx18 *cx)
 {
-	gpio_dir = cx->card->gpio_init.direction;
-	gpio_val = cx->card->gpio_init.initial_value;
+	cx->gpio_dir = cx->card->gpio_init.direction;
+	cx->gpio_val = cx->card->gpio_init.initial_value;
 
-	if (gpio_dir == 0)
+	if (cx->card->tuners[0].tuner == TUNER_XC2028) {
+		cx->gpio_dir |= 1 << cx->card->xceive_pin;
+		cx->gpio_val |= 1 << cx->card->xceive_pin;
+	}
+
+	if (cx->gpio_dir == 0)
 		return;
-
-	gpio_dir |= 1 << cx->card->xceive_pin;
-	gpio_val |= 1 << cx->card->xceive_pin;
 
 	CX18_DEBUG_INFO("GPIO initial dir: %08x/%08x out: %08x/%08x\n",
 		   read_reg(CX18_REG_GPIO_DIR1), read_reg(CX18_REG_GPIO_DIR2),
@@ -86,13 +88,12 @@ int cx18_reset_tuner_gpio(void *dev, int cmd, int value)
 		return 0;
 	CX18_DEBUG_INFO("Resetting tuner\n");
 
-	gpio_dir |= 1 << cx->card->xceive_pin;
-	gpio_val &= ~(1 << cx->card->xceive_pin);
+	cx->gpio_val &= ~(1 << cx->card->xceive_pin);
 
 	gpio_write(cx);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
 
-	gpio_val |= 1 << cx->card->xceive_pin;
+	cx->gpio_val |= 1 << cx->card->xceive_pin;
 	gpio_write(cx);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
 	return 0;

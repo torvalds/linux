@@ -24,7 +24,8 @@ static DEFINE_SPINLOCK(i8253_lock);
 /* default timer freq for PC-Speaker: 18643 Hz */
 #define DIV_18KHZ 64
 #define MAX_DIV DIV_18KHZ
-#define CUR_DIV() (MAX_DIV >> chip->treble)
+#define CALC_DIV(d) (MAX_DIV >> (d))
+#define CUR_DIV() CALC_DIV(chip->treble)
 #define PCSP_MAX_TREBLE 1
 
 /* unfortunately, with hrtimers 37KHz does not work very well :( */
@@ -36,7 +37,8 @@ static DEFINE_SPINLOCK(i8253_lock);
 #define PCSP_DEFAULT_SDIV (DIV_18KHZ >> 1)
 #define PCSP_DEFAULT_SRATE (PIT_TICK_RATE / PCSP_DEFAULT_SDIV)
 #define PCSP_INDEX_INC() (1 << (PCSP_MAX_TREBLE - chip->treble))
-#define PCSP_RATE() (PIT_TICK_RATE / CUR_DIV())
+#define PCSP_CALC_RATE(i) (PIT_TICK_RATE / CALC_DIV(i))
+#define PCSP_RATE() PCSP_CALC_RATE(chip->treble)
 #define PCSP_MIN_RATE__1 MAX_DIV/PIT_TICK_RATE
 #define PCSP_MAX_RATE__1 MIN_DIV/PIT_TICK_RATE
 #define PCSP_MAX_PERIOD_NS (1000000000ULL * PCSP_MIN_RATE__1)

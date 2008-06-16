@@ -745,6 +745,9 @@ struct net_device
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;
 
+	/* VLAN feature mask */
+	unsigned long vlan_features;
+
 	/* for setting kernel sock attribute on TCP connection setup */
 #define GSO_MAX_SIZE		65536
 	unsigned int		gso_max_size;

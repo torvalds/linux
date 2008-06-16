@@ -142,53 +142,43 @@ static void o2net_idle_timer(unsigned long data);
 static void o2net_sc_postpone_idle(struct o2net_sock_container *sc);
 static void o2net_sc_reset_idle_timer(struct o2net_sock_container *sc);
 
-static void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
-			   u32 msgkey, struct task_struct *task, u8 node)
-{
 #ifdef CONFIG_DEBUG_FS
+void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
+		    u32 msgkey, struct task_struct *task, u8 node)
+{
 	INIT_LIST_HEAD(&nst->st_net_debug_item);
 	nst->st_task = task;
 	nst->st_msg_type = msgtype;
 	nst->st_msg_key = msgkey;
 	nst->st_node = node;
-#endif
 }
 
-static void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
+void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
 {
-#ifdef CONFIG_DEBUG_FS
 	do_gettimeofday(&nst->st_sock_time);
-#endif
 }
 
-static void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
+void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
 {
-#ifdef CONFIG_DEBUG_FS
 	do_gettimeofday(&nst->st_send_time);
-#endif
 }
 
-static void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
+void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
 {
-#ifdef CONFIG_DEBUG_FS
 	do_gettimeofday(&nst->st_status_time);
-#endif
 }
 
-static void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
+void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
 					 struct o2net_sock_container *sc)
 {
-#ifdef CONFIG_DEBUG_FS
 	nst->st_sc = sc;
-#endif
 }
 
-static void o2net_set_nst_msg_id(struct o2net_send_tracking *nst, u32 msg_id)
+void o2net_set_nst_msg_id(struct o2net_send_tracking *nst, u32 msg_id)
 {
-#ifdef CONFIG_DEBUG_FS
 	nst->st_id = msg_id;
-#endif
 }
+#endif /* CONFIG_DEBUG_FS */
 
 static inline int o2net_reconnect_delay(void)
 {

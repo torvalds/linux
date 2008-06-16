@@ -1,6 +1,4 @@
 /*
- * $Id: usbkbd.c,v 1.27 2001/12/27 10:37:41 vojtech Exp $
- *
  *  Copyright (c) 1999-2001 Vojtech Pavlik
  *
  *  USB HIDBP Keyboard support

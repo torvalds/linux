@@ -108,6 +108,9 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	/* exclude also MIPS ELF local symbols ($L123 instead of .L123) */
 	else if (str[0] == '$')
 		return -1;
+	/* exclude debugging symbols */
+	else if (stype == 'N')
+		return -1;
 
 	/* include the type field in the symbol name, so that it gets
 	 * compressed together */

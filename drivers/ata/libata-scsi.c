@@ -1082,12 +1082,6 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	if (((cdb[4] >> 4) & 0xf) != 0)
 		goto invalid_fld;       /* power conditions not supported */
 
-	if (qc->dev->horkage & ATA_HORKAGE_SKIP_PM) {
-		/* the device lacks PM support, finish without doing anything */
-		scmd->result = SAM_STAT_GOOD;
-		return 1;
-	}
-
 	if (cdb[4] & 0x1) {
 		tf->nsect = 1;	/* 1 sector, lba=0 */
 
@@ -1643,6 +1637,7 @@ defer:
 
 /**
  *	ata_scsi_rbuf_get - Map response buffer.
+ *	@cmd: SCSI command containing buffer to be mapped.
  *	@flags: unsigned long variable to store irq enable status
  *	@copy_in: copy in from user buffer
  *
@@ -1960,7 +1955,7 @@ static unsigned int ata_msense_ctl_mode(u8 *buf)
 
 /**
  *	ata_msense_rw_recovery - Simulate MODE SENSE r/w error recovery page
- *	@bufp: output buffer
+ *	@buf: output buffer
  *
  *	Generate a generic MODE SENSE r/w error recovery page.
  *

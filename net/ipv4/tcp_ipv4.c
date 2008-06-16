@@ -1285,7 +1285,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
 		goto drop;
 
-	req = reqsk_alloc(&tcp_request_sock_ops);
+	req = inet_reqsk_alloc(&tcp_request_sock_ops);
 	if (!req)
 		goto drop;
 
@@ -1916,14 +1916,6 @@ int tcp_v4_destroy_sock(struct sock *sk)
 	if (sk->sk_sndmsg_page) {
 		__free_page(sk->sk_sndmsg_page);
 		sk->sk_sndmsg_page = NULL;
-	}
-
-	if (tp->defer_tcp_accept.request) {
-		reqsk_free(tp->defer_tcp_accept.request);
-		sock_put(tp->defer_tcp_accept.listen_sk);
-		sock_put(sk);
-		tp->defer_tcp_accept.listen_sk = NULL;
-		tp->defer_tcp_accept.request = NULL;
 	}
 
 	atomic_dec(&tcp_sockets_allocated);

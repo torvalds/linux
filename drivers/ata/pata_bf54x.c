@@ -911,7 +911,10 @@ static void bfin_bmdma_start(struct ata_queued_cmd *qc)
 	/* Reset all transfer count */
 	ATAPI_SET_CONTROL(base, ATAPI_GET_CONTROL(base) | TFRCNT_RST);
 
-		/* Set transfer length to buffer len */
+	/* Set ATAPI state machine contorl in terminate sequence */
+	ATAPI_SET_CONTROL(base, ATAPI_GET_CONTROL(base) | END_ON_TERM);
+
+	/* Set transfer length to buffer len */
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		ATAPI_SET_XFER_LEN(base, (sg_dma_len(sg) >> 1));
 	}
