@@ -91,6 +91,18 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	return 0;
 }
 
+static inline int __mfp_validate(int mfp)
+{
+	int gpio = mfp_to_gpio(mfp);
+
+	if ((mfp > MFP_PIN_GPIO127) || !gpio_desc[gpio].valid) {
+		pr_warning("%s: GPIO%d is invalid pin\n", __func__, gpio);
+		return -1;
+	}
+
+	return gpio;
+}
+
 void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 {
 	unsigned long flags;
@@ -99,13 +111,9 @@ void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 
 	for (i = 0, c = mfp_cfgs; i < num; i++, c++) {
 
-		gpio = mfp_to_gpio(MFP_PIN(*c));
-
-		if (!gpio_desc[gpio].valid) {
-			pr_warning("%s: GPIO%d is invalid pin\n",
-				__func__, gpio);
+		gpio = __mfp_validate(MFP_PIN(*c));
+		if (gpio < 0)
 			continue;
-		}
 
 		local_irq_save(flags);
 
