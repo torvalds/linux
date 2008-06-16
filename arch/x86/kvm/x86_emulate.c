@@ -748,24 +748,12 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 			base_reg |= sib & 7;
 			scale = sib >> 6;
 
-			switch (base_reg) {
-			case 5:
-			case 13:
-				if (c->modrm_mod != 0)
-					c->modrm_ea += c->regs[base_reg];
-				else
-					c->modrm_ea +=
-						insn_fetch(s32, 4, c->eip);
-				break;
-			default:
+			if ((base_reg & 7) == 5 && c->modrm_mod == 0)
+				c->modrm_ea += insn_fetch(s32, 4, c->eip);
+			else
 				c->modrm_ea += c->regs[base_reg];
-			}
-			switch (index_reg) {
-			case 4:
-				break;
-			default:
+			if (index_reg != 4)
 				c->modrm_ea += c->regs[index_reg] << scale;
-			}
 			break;
 		case 5:
 		case 13:
