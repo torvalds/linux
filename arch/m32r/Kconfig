@@ -36,9 +36,6 @@ config NO_IOPORT
 config NO_DMA
 	def_bool y
 
-config ARCH_SUPPORTS_AOUT
-	def_bool y
-
 config HZ
 	int
 	default 100

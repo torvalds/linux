@@ -42,6 +42,3 @@ config ARCH_REUSE_HOST_VSYSCALL_AREA
 config GENERIC_HWEIGHT
 	bool
 	default y
-
-config ARCH_SUPPORTS_AOUT
-	def_bool y

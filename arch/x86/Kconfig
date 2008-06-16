@@ -151,9 +151,6 @@ config AUDIT_ARCH
 	bool
 	default X86_64
 
-config ARCH_SUPPORTS_AOUT
-	def_bool y
-
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
 
@@ -1759,7 +1756,7 @@ config IA32_EMULATION
 
 config IA32_AOUT
        tristate "IA32 a.out support"
-       depends on IA32_EMULATION && ARCH_SUPPORTS_AOUT
+       depends on IA32_EMULATION
        help
          Support old a.out binaries in the 32bit emulation.
 

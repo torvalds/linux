@@ -140,9 +140,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config ARCH_SUPPORTS_AOUT
-	def_bool y
-
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
