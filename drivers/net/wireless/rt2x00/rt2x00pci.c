@@ -74,13 +74,59 @@ EXPORT_SYMBOL_GPL(rt2x00pci_write_tx_data);
 /*
  * TX/RX data handlers.
  */
+static void rt2x00pci_rxdone_entry(struct rt2x00_dev *rt2x00dev,
+				   struct queue_entry *entry)
+{
+	struct sk_buff *skb;
+	struct skb_frame_desc *skbdesc;
+	struct rxdone_entry_desc rxdesc;
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+
+	/*
+	 * Allocate a new sk_buffer. If no new buffer available, drop the
+	 * received frame and reuse the existing buffer.
+	 */
+	skb = rt2x00queue_alloc_skb(entry->queue);
+	if (!skb)
+		return;
+
+	/*
+	 * Extract the RXD details.
+	 */
+	memset(&rxdesc, 0, sizeof(rxdesc));
+	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
+
+	/*
+	 * Copy the received data to the entries' skb.
+	 */
+	memcpy(entry->skb->data, entry_priv->data, rxdesc.size);
+	skb_trim(entry->skb, rxdesc.size);
+
+	/*
+	 * Fill in skb descriptor
+	 */
+	skbdesc = get_skb_frame_desc(entry->skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->desc = entry_priv->desc;
+	skbdesc->desc_len = entry->queue->desc_size;
+	skbdesc->entry = entry;
+
+	/*
+	 * Send the frame to rt2x00lib for further processing.
+	 */
+	rt2x00lib_rxdone(entry, &rxdesc);
+
+	/*
+	 * Replace the entries' skb with the newly allocated one.
+	 */
+	entry->skb = skb;
+}
+
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue = rt2x00dev->rx;
 	struct queue_entry *entry;
 	struct queue_entry_priv_pci *entry_priv;
-	struct skb_frame_desc *skbdesc;
-	struct rxdone_entry_desc rxdesc;
 	u32 word;
 
 	while (1) {
@@ -91,32 +137,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		if (rt2x00_get_field32(word, RXD_ENTRY_OWNER_NIC))
 			break;
 
-		memset(&rxdesc, 0, sizeof(rxdesc));
-		rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
-
-		/*
-		 * Allocate the sk_buffer and copy all data into it.
-		 */
-		entry->skb = rt2x00queue_alloc_rxskb(queue);
-		if (!entry->skb)
-			return;
-
-		memcpy(entry->skb->data, entry_priv->data, rxdesc.size);
-		skb_trim(entry->skb, rxdesc.size);
-
-		/*
-		 * Fill in skb descriptor
-		 */
-		skbdesc = get_skb_frame_desc(entry->skb);
-		memset(skbdesc, 0, sizeof(*skbdesc));
-		skbdesc->desc = entry_priv->desc;
-		skbdesc->desc_len = queue->desc_size;
-		skbdesc->entry = entry;
-
-		/*
-		 * Send the frame to rt2x00lib for further processing.
-		 */
-		rt2x00lib_rxdone(entry, &rxdesc);
+		rt2x00pci_rxdone_entry(rt2x00dev, entry);
 
 		if (test_bit(DEVICE_ENABLED_RADIO, &queue->rt2x00dev->flags)) {
 			rt2x00_set_field32(&word, RXD_ENTRY_OWNER_NIC, 1);

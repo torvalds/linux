@@ -29,7 +29,7 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue)
+struct sk_buff *rt2x00queue_alloc_skb(struct data_queue *queue)
 {
 	struct sk_buff *skb;
 	unsigned int frame_size;
@@ -42,17 +42,10 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue)
 	frame_size = queue->data_size + queue->desc_size;
 
 	/*
-	 * For the allocation we should keep a few things in mind:
-	 * 1) 4byte alignment of 802.11 payload
-	 *
-	 * For (1) we need at most 4 bytes to guarentee the correct
-	 * alignment. We are going to optimize the fact that the chance
-	 * that the 802.11 header_size % 4 == 2 is much bigger then
-	 * anything else. However since we need to move the frame up
-	 * to 3 bytes to the front, which means we need to preallocate
-	 * 6 bytes.
+	 * Reserve a few bytes extra headroom to allow drivers some moving
+	 * space (e.g. for alignment), while keeping the skb aligned.
 	 */
-	reserved_size = 6;
+	reserved_size = 8;
 
 	/*
 	 * Allocate skbuffer.
@@ -66,7 +59,13 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue)
 
 	return skb;
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_alloc_rxskb);
+EXPORT_SYMBOL_GPL(rt2x00queue_alloc_skb);
+
+void rt2x00queue_free_skb(struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_free_skb);
 
 void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 				      struct txentry_desc *txdesc)
@@ -422,11 +421,44 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	return 0;
 }
 
+static void rt2x00queue_free_skbs(struct data_queue *queue)
+{
+	unsigned int i;
+
+	if (!queue->entries)
+		return;
+
+	for (i = 0; i < queue->limit; i++) {
+		if (queue->entries[i].skb)
+			rt2x00queue_free_skb(queue->entries[i].skb);
+	}
+}
+
+static int rt2x00queue_alloc_skbs(struct data_queue *queue)
+{
+	unsigned int i;
+	struct sk_buff *skb;
+
+	for (i = 0; i < queue->limit; i++) {
+		skb = rt2x00queue_alloc_skb(queue);
+		if (!skb)
+			goto exit;
+
+		queue->entries[i].skb = skb;
+	}
+
+	return 0;
+
+exit:
+	rt2x00queue_free_skbs(queue);
+
+	return -ENOMEM;
+}
+
 int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	int status;
-
 
 	status = rt2x00queue_alloc_entries(rt2x00dev->rx, rt2x00dev->ops->rx);
 	if (status)
@@ -442,11 +474,14 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	if (status)
 		goto exit;
 
-	if (!test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
-		return 0;
+	if (test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags)) {
+		status = rt2x00queue_alloc_entries(&rt2x00dev->bcn[1],
+						   rt2x00dev->ops->atim);
+		if (status)
+			goto exit;
+	}
 
-	status = rt2x00queue_alloc_entries(&rt2x00dev->bcn[1],
-					   rt2x00dev->ops->atim);
+	status = rt2x00queue_alloc_skbs(rt2x00dev->rx);
 	if (status)
 		goto exit;
 
@@ -463,6 +498,8 @@ exit:
 void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
+
+	rt2x00queue_free_skbs(rt2x00dev->rx);
 
 	queue_for_each(rt2x00dev, queue) {
 		kfree(queue->entries);

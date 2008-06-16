@@ -300,7 +300,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * If allocation fails, we should drop the current frame
 	 * so we can recycle the existing sk buffer for the new frame.
 	 */
-	skb = rt2x00queue_alloc_rxskb(entry->queue);
+	skb = rt2x00queue_alloc_skb(entry->queue);
 	if (!skb)
 		goto skip_entry;
 
@@ -434,8 +434,6 @@ static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
 		entry_priv = queue->entries[i].priv_data;
 		usb_kill_urb(entry_priv->urb);
 		usb_free_urb(entry_priv->urb);
-		if (queue->entries[i].skb)
-			kfree_skb(queue->entries[i].skb);
 	}
 
 	/*
@@ -457,10 +455,7 @@ static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
 int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
-	struct sk_buff *skb;
-	unsigned int entry_size;
-	unsigned int i;
-	int uninitialized_var(status);
+	int status;
 
 	/*
 	 * Allocate DMA
@@ -469,18 +464,6 @@ int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 		status = rt2x00usb_alloc_urb(rt2x00dev, queue);
 		if (status)
 			goto exit;
-	}
-
-	/*
-	 * For the RX queue, skb's should be allocated.
-	 */
-	entry_size = rt2x00dev->rx->data_size + rt2x00dev->rx->desc_size;
-	for (i = 0; i < rt2x00dev->rx->limit; i++) {
-		skb = rt2x00queue_alloc_rxskb(rt2x00dev->rx);
-		if (!skb)
-			goto exit;
-
-		rt2x00dev->rx->entries[i].skb = skb;
 	}
 
 	return 0;
