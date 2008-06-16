@@ -159,14 +159,9 @@ static DEFINE_SPINLOCK(memtype_lock); 	/* protects memtype list */
  * The intersection is based on "Effective Memory Type" tables in IA-32
  * SDM vol 3a
  */
-static int pat_x_mtrr_type(u64 start, u64 end, unsigned long prot,
-				unsigned long *ret_prot)
+static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 {
-	unsigned long pat_type;
 	u8 mtrr_type;
-
-	pat_type = prot & _PAGE_CACHE_MASK;
-	prot &= (~_PAGE_CACHE_MASK);
 
 	/*
 	 * We return the PAT request directly for types where PAT takes
@@ -174,32 +169,21 @@ static int pat_x_mtrr_type(u64 start, u64 end, unsigned long prot,
 	 * Consistency checks with other PAT requests is done later
 	 * while going through memtype list.
 	 */
-	if (pat_type == _PAGE_CACHE_WC) {
-		*ret_prot = prot | _PAGE_CACHE_WC;
-		return 0;
-	} else if (pat_type == _PAGE_CACHE_UC_MINUS) {
-		*ret_prot = prot | _PAGE_CACHE_UC_MINUS;
-		return 0;
-	} else if (pat_type == _PAGE_CACHE_UC) {
-		*ret_prot = prot | _PAGE_CACHE_UC;
-		return 0;
-	}
+	if (req_type == _PAGE_CACHE_WC ||
+	    req_type == _PAGE_CACHE_UC_MINUS ||
+	    req_type == _PAGE_CACHE_UC)
+		return req_type;
 
 	/*
 	 * Look for MTRR hint to get the effective type in case where PAT
 	 * request is for WB.
 	 */
 	mtrr_type = mtrr_type_lookup(start, end);
-
-	if (mtrr_type == MTRR_TYPE_UNCACHABLE) {
-		*ret_prot = prot | _PAGE_CACHE_UC;
-	} else if (mtrr_type == MTRR_TYPE_WRCOMB) {
-		*ret_prot = prot | _PAGE_CACHE_WC;
-	} else {
-		*ret_prot = prot | _PAGE_CACHE_WB;
-	}
-
-	return 0;
+	if (mtrr_type == MTRR_TYPE_UNCACHABLE)
+		return _PAGE_CACHE_UC;
+	if (mtrr_type == MTRR_TYPE_WRCOMB)
+		return _PAGE_CACHE_WC;
+	return _PAGE_CACHE_WB;
 }
 
 /*
@@ -232,7 +216,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			if (req_type == -1) {
 				*ret_type = _PAGE_CACHE_WB;
 			} else {
-				*ret_type = req_type;
+				*ret_type = req_type & _PAGE_CACHE_MASK;
 			}
 		}
 		return 0;
@@ -264,14 +248,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		}
 	} else {
 		req_type &= _PAGE_CACHE_MASK;
-		err = pat_x_mtrr_type(start, end, req_type, &actual_type);
-	}
-
-	if (err) {
-		if (ret_type)
-			*ret_type = actual_type;
-
-		return -EINVAL;
+		actual_type = pat_x_mtrr_type(start, end, req_type);
 	}
 
 	new_entry  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
