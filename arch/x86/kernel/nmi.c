@@ -68,7 +68,7 @@ static inline unsigned int get_nmi_count(int cpu)
 
 static inline int mce_in_progress(void)
 {
-#if defined(CONFIX_X86_64) && defined(CONFIG_X86_MCE)
+#if defined(CONFIG_X86_64) && defined(CONFIG_X86_MCE)
 	return atomic_read(&mce_entry) > 0;
 #endif
 	return 0;
