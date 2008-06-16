@@ -71,11 +71,11 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 		return nfserr_inval;
 
 	if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
-		accmode |= MAY_READ;
+		accmode |= NFSD_MAY_READ;
 	if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-		accmode |= (MAY_WRITE | MAY_TRUNC);
+		accmode |= (NFSD_MAY_WRITE | NFSD_MAY_TRUNC);
 	if (open->op_share_deny & NFS4_SHARE_DENY_WRITE)
-		accmode |= MAY_WRITE;
+		accmode |= NFSD_MAY_WRITE;
 
 	status = fh_verify(rqstp, current_fh, S_IFREG, accmode);
 
@@ -126,7 +126,8 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 			&resfh.fh_handle.fh_base, resfh.fh_handle.fh_size);
 
 	if (!created)
-		status = do_open_permission(rqstp, current_fh, open, MAY_NOP);
+		status = do_open_permission(rqstp, current_fh, open,
+					    NFSD_MAY_NOP);
 
 out:
 	fh_put(&resfh);
@@ -157,7 +158,8 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 	open->op_truncate = (open->op_iattr.ia_valid & ATTR_SIZE) &&
 		(open->op_iattr.ia_size == 0);
 
-	status = do_open_permission(rqstp, current_fh, open, MAY_OWNER_OVERRIDE);
+	status = do_open_permission(rqstp, current_fh, open,
+				    NFSD_MAY_OWNER_OVERRIDE);
 
 	return status;
 }
@@ -186,7 +188,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		cstate->current_fh.fh_handle.fh_size = rp->rp_openfh_len;
 		memcpy(&cstate->current_fh.fh_handle.fh_base, rp->rp_openfh,
 				rp->rp_openfh_len);
-		status = fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+		status = fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 		if (status)
 			dprintk("nfsd4_open: replay failed"
 				" restoring previous filehandle\n");
@@ -285,7 +287,7 @@ nfsd4_putfh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	cstate->current_fh.fh_handle.fh_size = putfh->pf_fhlen;
 	memcpy(&cstate->current_fh.fh_handle.fh_base, putfh->pf_fhval,
 	       putfh->pf_fhlen);
-	return fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+	return fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 }
 
 static __be32
@@ -363,7 +365,8 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	fh_init(&resfh, NFS4_FHSIZE);
 
-	status = fh_verify(rqstp, &cstate->current_fh, S_IFDIR, MAY_CREATE);
+	status = fh_verify(rqstp, &cstate->current_fh, S_IFDIR,
+			   NFSD_MAY_CREATE);
 	if (status == nfserr_symlink)
 		status = nfserr_notdir;
 	if (status)
@@ -445,7 +448,7 @@ nfsd4_getattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	__be32 status;
 
-	status = fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+	status = fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 	if (status)
 		return status;
 
@@ -730,7 +733,7 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	int count;
 	__be32 status;
 
-	status = fh_verify(rqstp, &cstate->current_fh, 0, MAY_NOP);
+	status = fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
 	if (status)
 		return status;
 

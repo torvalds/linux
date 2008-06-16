@@ -63,7 +63,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 		SVCFH_fmt(&argp->fh));
 
 	fh_copy(&resp->fh, &argp->fh);
-	nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_NOP);
+	nfserr = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_NOP);
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
@@ -242,7 +242,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 	attr   = &argp->attrs;
 
 	/* Get the directory inode */
-	nfserr = fh_verify(rqstp, dirfhp, S_IFDIR, MAY_CREATE);
+	nfserr = fh_verify(rqstp, dirfhp, S_IFDIR, NFSD_MAY_CREATE);
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
@@ -558,7 +558,7 @@ nfsd3_proc_fsinfo(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 	resp->f_maxfilesize = ~(u32) 0;
 	resp->f_properties = NFS3_FSF_DEFAULT;
 
-	nfserr = fh_verify(rqstp, &argp->fh, 0, MAY_NOP);
+	nfserr = fh_verify(rqstp, &argp->fh, 0, NFSD_MAY_NOP);
 
 	/* Check special features of the file system. May request
 	 * different read/write sizes for file systems known to have
@@ -597,7 +597,7 @@ nfsd3_proc_pathconf(struct svc_rqst * rqstp, struct nfsd_fhandle      *argp,
 	resp->p_case_insensitive = 0;
 	resp->p_case_preserving = 1;
 
-	nfserr = fh_verify(rqstp, &argp->fh, 0, MAY_NOP);
+	nfserr = fh_verify(rqstp, &argp->fh, 0, NFSD_MAY_NOP);
 
 	if (nfserr == 0) {
 		struct super_block *sb = argp->fh.fh_dentry->d_inode->i_sb;
