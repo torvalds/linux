@@ -750,6 +750,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 
 			switch (base_reg) {
 			case 5:
+			case 13:
 				if (c->modrm_mod != 0)
 					c->modrm_ea += c->regs[base_reg];
 				else
@@ -767,6 +768,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 			}
 			break;
 		case 5:
+		case 13:
 			if (c->modrm_mod != 0)
 				c->modrm_ea += c->regs[c->modrm_rm];
 			else if (ctxt->mode == X86EMUL_MODE_PROT64)
