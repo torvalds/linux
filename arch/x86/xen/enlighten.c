@@ -1304,6 +1304,7 @@ asmlinkage void __init xen_start_kernel(void)
 
 	init_pg_tables_start = __pa(pgd);
 	init_pg_tables_end = __pa(pgd) + xen_start_info->nr_pt_frames*PAGE_SIZE;
+	max_pfn_mapped = (init_pg_tables_end + 512*1024) >> PAGE_SHIFT;
 
 	init_mm.pgd = pgd; /* use the Xen pagetables to start */
 
