@@ -593,10 +593,11 @@ void __init early_iounmap(void *addr, unsigned long size)
 	unsigned long offset;
 	unsigned int nrpages;
 	enum fixed_addresses idx;
-	unsigned int nesting;
+	int nesting;
 
 	nesting = --early_ioremap_nested;
-	WARN_ON(nesting < 0);
+	if (WARN_ON(nesting < 0))
+		return;
 
 	if (early_ioremap_debug) {
 		printk(KERN_INFO "early_iounmap(%p, %08lx) [%d]\n", addr,

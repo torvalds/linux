@@ -139,7 +139,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define MAX_TCP_KEEPINTVL	32767
 #define MAX_TCP_KEEPCNT		127
 #define MAX_TCP_SYNCNT		127
-#define MAX_TCP_ACCEPT_DEFERRED 65535
 
 #define TCP_SYNQ_INTERVAL	(HZ/5)	/* Period of SYNACK timer */
 
@@ -433,7 +432,6 @@ extern struct sk_buff *		tcp_make_synack(struct sock *sk,
 
 extern int			tcp_disconnect(struct sock *sk, int flags);
 
-extern void			tcp_unhash(struct sock *sk);
 
 /* From syncookies.c */
 extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];

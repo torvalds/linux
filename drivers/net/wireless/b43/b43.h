@@ -737,6 +737,7 @@ struct b43_wl {
 	struct ieee80211_tx_control beacon_txctl;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
+	bool beacon_templates_virgin; /* Never wrote the templates? */
 	struct work_struct beacon_update_trigger;
 
 	/* The current QOS parameters for the 4 queues.

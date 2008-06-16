@@ -2745,8 +2745,6 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	sbi = EXT4_SB(sb);
 	es = sbi->s_es;
 
-	ext4_debug("using block group %lu(%d)\n", ac->ac_b_ex.fe_group,
-			gdp->bg_free_blocks_count);
 
 	err = -EIO;
 	bitmap_bh = read_block_bitmap(sb, ac->ac_b_ex.fe_group);
@@ -2761,6 +2759,9 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	gdp = ext4_get_group_desc(sb, ac->ac_b_ex.fe_group, &gdp_bh);
 	if (!gdp)
 		goto out_err;
+
+	ext4_debug("using block group %lu(%d)\n", ac->ac_b_ex.fe_group,
+			gdp->bg_free_blocks_count);
 
 	err = ext4_journal_get_write_access(handle, gdp_bh);
 	if (err)
@@ -3094,8 +3095,7 @@ static void ext4_mb_use_inode_pa(struct ext4_allocation_context *ac,
 static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 				struct ext4_prealloc_space *pa)
 {
-	unsigned len = ac->ac_o_ex.fe_len;
-
+	unsigned int len = ac->ac_o_ex.fe_len;
 	ext4_get_group_no_and_offset(ac->ac_sb, pa->pa_pstart,
 					&ac->ac_b_ex.fe_group,
 					&ac->ac_b_ex.fe_start);

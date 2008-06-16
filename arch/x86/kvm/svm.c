@@ -688,7 +688,7 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		delta = vcpu->arch.host_tsc - tsc_this;
 		svm->vmcb->control.tsc_offset += delta;
 		vcpu->cpu = cpu;
-		kvm_migrate_apic_timer(vcpu);
+		kvm_migrate_timers(vcpu);
 	}
 
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)

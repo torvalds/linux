@@ -181,7 +181,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 	   any need to change it. */
 	struct mempolicy *oldpol;
 	cpumask_t oldmask = current->cpus_allowed;
-	int node = pcibus_to_node(dev->bus);
+	int node = dev_to_node(&dev->dev);
 
 	if (node >= 0) {
 		node_to_cpumask_ptr(nodecpumask, node);

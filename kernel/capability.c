@@ -53,6 +53,69 @@ static void warn_legacy_capability_use(void)
 }
 
 /*
+ * Version 2 capabilities worked fine, but the linux/capability.h file
+ * that accompanied their introduction encouraged their use without
+ * the necessary user-space source code changes. As such, we have
+ * created a version 3 with equivalent functionality to version 2, but
+ * with a header change to protect legacy source code from using
+ * version 2 when it wanted to use version 1. If your system has code
+ * that trips the following warning, it is using version 2 specific
+ * capabilities and may be doing so insecurely.
+ *
+ * The remedy is to either upgrade your version of libcap (to 2.10+,
+ * if the application is linked against it), or recompile your
+ * application with modern kernel headers and this warning will go
+ * away.
+ */
+
+static void warn_deprecated_v2(void)
+{
+	static int warned;
+
+	if (!warned) {
+		char name[sizeof(current->comm)];
+
+		printk(KERN_INFO "warning: `%s' uses deprecated v2"
+		       " capabilities in a way that may be insecure.\n",
+		       get_task_comm(name, current));
+		warned = 1;
+	}
+}
+
+/*
+ * Version check. Return the number of u32s in each capability flag
+ * array, or a negative value on error.
+ */
+static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
+{
+	__u32 version;
+
+	if (get_user(version, &header->version))
+		return -EFAULT;
+
+	switch (version) {
+	case _LINUX_CAPABILITY_VERSION_1:
+		warn_legacy_capability_use();
+		*tocopy = _LINUX_CAPABILITY_U32S_1;
+		break;
+	case _LINUX_CAPABILITY_VERSION_2:
+		warn_deprecated_v2();
+		/*
+		 * fall through - v3 is otherwise equivalent to v2.
+		 */
+	case _LINUX_CAPABILITY_VERSION_3:
+		*tocopy = _LINUX_CAPABILITY_U32S_3;
+		break;
+	default:
+		if (put_user((u32)_KERNEL_CAPABILITY_VERSION, &header->version))
+			return -EFAULT;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
  * For sys_getproccap() and sys_setproccap(), any of the three
  * capability set pointers may be NULL -- indicating that that set is
  * uninteresting and/or not to be changed.
@@ -71,27 +134,13 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
 {
 	int ret = 0;
 	pid_t pid;
-	__u32 version;
 	struct task_struct *target;
 	unsigned tocopy;
 	kernel_cap_t pE, pI, pP;
 
-	if (get_user(version, &header->version))
-		return -EFAULT;
-
-	switch (version) {
-	case _LINUX_CAPABILITY_VERSION_1:
-		warn_legacy_capability_use();
-		tocopy = _LINUX_CAPABILITY_U32S_1;
-		break;
-	case _LINUX_CAPABILITY_VERSION_2:
-		tocopy = _LINUX_CAPABILITY_U32S_2;
-		break;
-	default:
-		if (put_user(_LINUX_CAPABILITY_VERSION, &header->version))
-			return -EFAULT;
-		return -EINVAL;
-	}
+	ret = cap_validate_magic(header, &tocopy);
+	if (ret != 0)
+		return ret;
 
 	if (get_user(pid, &header->pid))
 		return -EFAULT;
@@ -118,7 +167,7 @@ out:
 	spin_unlock(&task_capability_lock);
 
 	if (!ret) {
-		struct __user_cap_data_struct kdata[_LINUX_CAPABILITY_U32S];
+		struct __user_cap_data_struct kdata[_KERNEL_CAPABILITY_U32S];
 		unsigned i;
 
 		for (i = 0; i < tocopy; i++) {
@@ -128,7 +177,7 @@ out:
 		}
 
 		/*
-		 * Note, in the case, tocopy < _LINUX_CAPABILITY_U32S,
+		 * Note, in the case, tocopy < _KERNEL_CAPABILITY_U32S,
 		 * we silently drop the upper capabilities here. This
 		 * has the effect of making older libcap
 		 * implementations implicitly drop upper capability
@@ -240,30 +289,16 @@ static inline int cap_set_all(kernel_cap_t *effective,
  */
 asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 {
-	struct __user_cap_data_struct kdata[_LINUX_CAPABILITY_U32S];
+	struct __user_cap_data_struct kdata[_KERNEL_CAPABILITY_U32S];
 	unsigned i, tocopy;
 	kernel_cap_t inheritable, permitted, effective;
-	__u32 version;
 	struct task_struct *target;
 	int ret;
 	pid_t pid;
 
-	if (get_user(version, &header->version))
-		return -EFAULT;
-
-	switch (version) {
-	case _LINUX_CAPABILITY_VERSION_1:
-		warn_legacy_capability_use();
-		tocopy = _LINUX_CAPABILITY_U32S_1;
-		break;
-	case _LINUX_CAPABILITY_VERSION_2:
-		tocopy = _LINUX_CAPABILITY_U32S_2;
-		break;
-	default:
-		if (put_user(_LINUX_CAPABILITY_VERSION, &header->version))
-			return -EFAULT;
-		return -EINVAL;
-	}
+	ret = cap_validate_magic(header, &tocopy);
+	if (ret != 0)
+		return ret;
 
 	if (get_user(pid, &header->pid))
 		return -EFAULT;
@@ -281,7 +316,7 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 		permitted.cap[i] = kdata[i].permitted;
 		inheritable.cap[i] = kdata[i].inheritable;
 	}
-	while (i < _LINUX_CAPABILITY_U32S) {
+	while (i < _KERNEL_CAPABILITY_U32S) {
 		effective.cap[i] = 0;
 		permitted.cap[i] = 0;
 		inheritable.cap[i] = 0;

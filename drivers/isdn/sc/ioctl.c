@@ -226,6 +226,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 		 */
 		if (copy_from_user(spid, data->dataptr, SCIOC_SPIDSIZE)) {
 			kfree(rcvmsg);
+			kfree(spid);
 			return -EFAULT;
 		}
 
