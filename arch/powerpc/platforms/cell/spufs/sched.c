@@ -407,6 +407,8 @@ static int has_affinity(struct spu_context *ctx)
  */
 static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 {
+	u32 status;
+
 	spu_context_trace(spu_unbind_context__enter, ctx, spu);
 
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
@@ -452,6 +454,9 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	/* This maps the underlying spu state to idle */
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 	ctx->spu = NULL;
+
+	if (spu_stopped(ctx, &status))
+		wake_up_all(&ctx->stop_wq);
 }
 
 /**
