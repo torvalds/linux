@@ -1422,8 +1422,10 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case ISCSI_UEVENT_CREATE_BOUND_SESSION:
 		ep = iscsi_lookup_endpoint(ev->u.c_bound_session.ep_handle);
-		if (!ep)
-			return -EINVAL;
+		if (!ep) {
+			err = -EINVAL;
+			break;
+		}
 
 		err = iscsi_if_create_session(priv, ep, ev,
 					ev->u.c_bound_session.initial_cmdsn,
