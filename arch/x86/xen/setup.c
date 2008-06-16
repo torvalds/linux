@@ -40,8 +40,21 @@ char * __init xen_memory_setup(void)
 	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
 
 	e820.nr_map = 0;
+
 	e820_add_region(0, LOWMEMSIZE(), E820_RAM);
 	e820_add_region(HIGH_MEMORY, PFN_PHYS(max_pfn)-HIGH_MEMORY, E820_RAM);
+
+	/*
+	 * Reserve Xen bits:
+	 *  - mfn_list
+	 *  - xen_start_info
+	 * See comment above "struct start_info" in <xen/interface/xen.h>
+	 */
+	e820_add_region(__pa(xen_start_info->mfn_list),
+			xen_start_info->pt_base - xen_start_info->mfn_list,
+			E820_RESERVED);
+
+	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
 	return "Xen";
 }
