@@ -556,14 +556,12 @@ static inline void *nlmsg_get_pos(struct sk_buff *skb)
  * @skb: socket buffer the message is stored in
  * @mark: mark to trim to
  *
- * Trims the message to the provided mark. Returns -1.
+ * Trims the message to the provided mark.
  */
-static inline int nlmsg_trim(struct sk_buff *skb, const void *mark)
+static inline void nlmsg_trim(struct sk_buff *skb, const void *mark)
 {
 	if (mark)
 		skb_trim(skb, (unsigned char *) mark - skb->data);
-
-	return -1;
 }
 
 /**
@@ -572,11 +570,11 @@ static inline int nlmsg_trim(struct sk_buff *skb, const void *mark)
  * @nlh: netlink message header
  *
  * Removes the complete netlink message including all
- * attributes from the socket buffer again. Returns -1.
+ * attributes from the socket buffer again.
  */
-static inline int nlmsg_cancel(struct sk_buff *skb, struct nlmsghdr *nlh)
+static inline void nlmsg_cancel(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	return nlmsg_trim(skb, nlh);
+	nlmsg_trim(skb, nlh);
 }
 
 /**
@@ -772,12 +770,13 @@ static inline int __nla_parse_nested_compat(struct nlattr *tb[], int maxtype,
 					    const struct nla_policy *policy,
 					    int len)
 {
-	if (nla_len(nla) < len)
-		return -1;
-	if (nla_len(nla) >= NLA_ALIGN(len) + sizeof(struct nlattr))
-		return nla_parse_nested(tb, maxtype,
-					nla_data(nla) + NLA_ALIGN(len),
-					policy);
+	int nested_len = nla_len(nla) - NLA_ALIGN(len);
+
+	if (nested_len < 0)
+		return -EINVAL;
+	if (nested_len >= nla_attr_size(0))
+		return nla_parse(tb, maxtype, nla_data(nla) + NLA_ALIGN(len),
+				 nested_len, policy);
 	memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
 	return 0;
 }
@@ -1079,11 +1078,11 @@ static inline int nla_nest_compat_end(struct sk_buff *skb, struct nlattr *start)
  * @start: container attribute
  *
  * Removes the container attribute and including all nested
- * attributes. Returns -1.
+ * attributes. Returns -EMSGSIZE
  */
-static inline int nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
+static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
 {
-	return nlmsg_trim(skb, start);
+	nlmsg_trim(skb, start);
 }
 
 /**

@@ -353,12 +353,6 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		return -1;
 	}
 
-	/* Put the analog decoder in standby to keep it quiet */
-	au0828_call_i2c_clients(dev, TUNER_SET_STANDBY, NULL);
-
-	if (dvb->frontend->ops.analog_ops.standby)
-		dvb->frontend->ops.analog_ops.standby(dvb->frontend);
-
 	/* register everything */
 	ret = dvb_register(dev);
 	if (ret < 0) {

@@ -540,7 +540,7 @@ static acpi_status acpi_tb_load_namespace(void)
 		acpi_tb_print_table_header(0, table);
 
 		if (no_auto_ssdt == 0) {
-			printk(KERN_WARNING "ACPI: DSDT override uses original SSDTs unless \"acpi_no_auto_ssdt\"");
+			printk(KERN_WARNING "ACPI: DSDT override uses original SSDTs unless \"acpi_no_auto_ssdt\"\n");
 		}
 	}
 

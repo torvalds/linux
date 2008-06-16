@@ -58,8 +58,8 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 		 */
 		wait_on_page_writeback(page);
 
-		if (PagePrivate(page))
-			try_to_release_page(page, GFP_KERNEL);
+		if (PagePrivate(page) && !try_to_release_page(page, GFP_KERNEL))
+			goto out_unlock;
 
 		/*
 		 * If we succeeded in removing the mapping, set LRU flag
@@ -75,6 +75,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 * Raced with truncate or failed to remove page from current
 	 * address space, unlock and return failure.
 	 */
+out_unlock:
 	unlock_page(page);
 	return 1;
 }
@@ -983,7 +984,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 	while (len) {
 		size_t read_len;
-		loff_t pos = sd->pos;
+		loff_t pos = sd->pos, prev_pos = pos;
 
 		ret = do_splice_to(in, &pos, pipe, len, flags);
 		if (unlikely(ret <= 0))
@@ -998,15 +999,19 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		 * could get stuck data in the internal pipe:
 		 */
 		ret = actor(pipe, sd);
-		if (unlikely(ret <= 0))
+		if (unlikely(ret <= 0)) {
+			sd->pos = prev_pos;
 			goto out_release;
+		}
 
 		bytes += ret;
 		len -= ret;
 		sd->pos = pos;
 
-		if (ret < read_len)
+		if (ret < read_len) {
+			sd->pos = prev_pos + ret;
 			goto out_release;
+		}
 	}
 
 done:
@@ -1072,7 +1077,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
 	if (ret > 0)
-		*ppos += ret;
+		*ppos = sd.pos;
 
 	return ret;
 }

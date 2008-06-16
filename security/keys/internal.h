@@ -78,7 +78,6 @@ extern unsigned key_quota_maxbytes;
 
 extern struct rb_root key_serial_tree;
 extern spinlock_t key_serial_lock;
-extern struct semaphore key_alloc_sem;
 extern struct mutex key_construction_mutex;
 extern wait_queue_head_t request_key_conswq;
 

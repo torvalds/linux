@@ -56,14 +56,27 @@
 #define FALCON_USE_QWORD_IO 1
 #endif
 
-#define _falcon_writeq(efx, value, reg) \
-	__raw_writeq((__force u64) (value), (efx)->membase + (reg))
-#define _falcon_writel(efx, value, reg) \
-	__raw_writel((__force u32) (value), (efx)->membase + (reg))
-#define _falcon_readq(efx, reg) \
-	((__force __le64) __raw_readq((efx)->membase + (reg)))
-#define _falcon_readl(efx, reg) \
-	((__force __le32) __raw_readl((efx)->membase + (reg)))
+#ifdef FALCON_USE_QWORD_IO
+static inline void _falcon_writeq(struct efx_nic *efx, __le64 value,
+				  unsigned int reg)
+{
+	__raw_writeq((__force u64)value, efx->membase + reg);
+}
+static inline __le64 _falcon_readq(struct efx_nic *efx, unsigned int reg)
+{
+	return (__force __le64)__raw_readq(efx->membase + reg);
+}
+#endif
+
+static inline void _falcon_writel(struct efx_nic *efx, __le32 value,
+				  unsigned int reg)
+{
+	__raw_writel((__force u32)value, efx->membase + reg);
+}
+static inline __le32 _falcon_readl(struct efx_nic *efx, unsigned int reg)
+{
+	return (__force __le32)__raw_readl(efx->membase + reg);
+}
 
 /* Writes to a normal 16-byte Falcon register, locking as appropriate. */
 static inline void falcon_write(struct efx_nic *efx, efx_oword_t *value,

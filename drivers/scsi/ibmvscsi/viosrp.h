@@ -65,7 +65,8 @@ enum viosrp_crq_status {
 	VIOSRP_VIOLATES_MAX_XFER = 0x2,
 	VIOSRP_PARTNER_PANIC = 0x3,
 	VIOSRP_DEVICE_BUSY = 0x8,
-	VIOSRP_ADAPTER_FAIL = 0x10
+	VIOSRP_ADAPTER_FAIL = 0x10,
+	VIOSRP_OK2 = 0x99,
 };
 
 struct viosrp_crq {

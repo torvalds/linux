@@ -60,7 +60,7 @@ xmaddr_t arbitrary_virt_to_machine(unsigned long address)
 {
 	unsigned int level;
 	pte_t *pte = lookup_address(address, &level);
-	unsigned offset = address & PAGE_MASK;
+	unsigned offset = address & ~PAGE_MASK;
 
 	BUG_ON(pte == NULL);
 

@@ -41,7 +41,6 @@
 #include <asm/types.h>
 #include <asm/arch/cpu.h>
 #endif
-#include <asm/arch/io.h>
 #include <asm/arch/serial.h>
 
 /*
