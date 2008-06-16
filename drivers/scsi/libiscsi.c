@@ -1857,6 +1857,9 @@ EXPORT_SYMBOL_GPL(iscsi_pool_free);
  */
 int iscsi_host_add(struct Scsi_Host *shost, struct device *pdev)
 {
+	if (!shost->can_queue)
+		shost->can_queue = ISCSI_DEF_XMIT_CMDS_MAX;
+
 	return scsi_add_host(shost, pdev);
 }
 EXPORT_SYMBOL_GPL(iscsi_host_add);
@@ -1942,6 +1945,9 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 	struct iscsi_session *session;
 	struct iscsi_cls_session *cls_session;
 	int cmd_i, scsi_cmds, total_cmds = cmds_max;
+
+	if (!total_cmds)
+		total_cmds = ISCSI_DEF_XMIT_CMDS_MAX;
 	/*
 	 * The iscsi layer needs some tasks for nop handling and tmfs,
 	 * so the cmds_max must at least be greater than ISCSI_MGMT_CMDS_MAX
