@@ -58,8 +58,8 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw);
 
 static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 {
-	hw->mac.num_rx_queues = IXGBE_82598_MAX_TX_QUEUES;
-	hw->mac.num_tx_queues = IXGBE_82598_MAX_RX_QUEUES;
+	hw->mac.num_rx_queues = IXGBE_82598_MAX_RX_QUEUES;
+	hw->mac.num_tx_queues = IXGBE_82598_MAX_TX_QUEUES;
 	hw->mac.num_rx_addrs = IXGBE_82598_RAR_ENTRIES;
 
 	/* PHY ops are filled in by default properly for Fiber only */

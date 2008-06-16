@@ -1894,7 +1894,7 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 	 */
 	if (dd->ipath_flags & IPATH_HAS_SEND_DMA) {
 		int skip_cancel;
-		u64 *statp = &dd->ipath_sdma_status;
+		unsigned long *statp = &dd->ipath_sdma_status;
 
 		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
 		skip_cancel =
@@ -2616,7 +2616,7 @@ int ipath_reset_device(int unit)
 				ipath_dbg("unit %u port %d is in use "
 					  "(PID %u cmd %s), can't reset\n",
 					  unit, i,
-					  dd->ipath_pd[i]->port_pid,
+					  pid_nr(dd->ipath_pd[i]->port_pid),
 					  dd->ipath_pd[i]->port_comm);
 				ret = -EBUSY;
 				goto bail;
@@ -2654,19 +2654,21 @@ bail:
 static int ipath_signal_procs(struct ipath_devdata *dd, int sig)
 {
 	int i, sub, any = 0;
-	pid_t pid;
+	struct pid *pid;
 
 	if (!dd->ipath_pd)
 		return 0;
 	for (i = 1; i < dd->ipath_cfgports; i++) {
-		if (!dd->ipath_pd[i] || !dd->ipath_pd[i]->port_cnt ||
-		    !dd->ipath_pd[i]->port_pid)
+		if (!dd->ipath_pd[i] || !dd->ipath_pd[i]->port_cnt)
 			continue;
 		pid = dd->ipath_pd[i]->port_pid;
+		if (!pid)
+			continue;
+
 		dev_info(&dd->pcidev->dev, "context %d in use "
 			  "(PID %u), sending signal %d\n",
-			  i, pid, sig);
-		kill_proc(pid, sig, 1);
+			  i, pid_nr(pid), sig);
+		kill_pid(pid, sig, 1);
 		any++;
 		for (sub = 0; sub < INFINIPATH_MAX_SUBPORT; sub++) {
 			pid = dd->ipath_pd[i]->port_subpid[sub];
@@ -2674,8 +2676,8 @@ static int ipath_signal_procs(struct ipath_devdata *dd, int sig)
 				continue;
 			dev_info(&dd->pcidev->dev, "sub-context "
 				"%d:%d in use (PID %u), sending "
-				"signal %d\n", i, sub, pid, sig);
-			kill_proc(pid, sig, 1);
+				"signal %d\n", i, sub, pid_nr(pid), sig);
+			kill_pid(pid, sig, 1);
 			any++;
 		}
 	}

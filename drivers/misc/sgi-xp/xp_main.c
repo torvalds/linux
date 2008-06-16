@@ -42,21 +42,21 @@ EXPORT_SYMBOL_GPL(xpc_registrations);
 /*
  * Initialize the XPC interface to indicate that XPC isn't loaded.
  */
-static enum xpc_retval
+static enum xp_retval
 xpc_notloaded(void)
 {
-	return xpcNotLoaded;
+	return xpNotLoaded;
 }
 
 struct xpc_interface xpc_interface = {
 	(void (*)(int))xpc_notloaded,
 	(void (*)(int))xpc_notloaded,
-	(enum xpc_retval(*)(partid_t, int, u32, void **))xpc_notloaded,
-	(enum xpc_retval(*)(partid_t, int, void *))xpc_notloaded,
-	(enum xpc_retval(*)(partid_t, int, void *, xpc_notify_func, void *))
+	(enum xp_retval(*)(short, int, u32, void **))xpc_notloaded,
+	(enum xp_retval(*)(short, int, void *))xpc_notloaded,
+	(enum xp_retval(*)(short, int, void *, xpc_notify_func, void *))
 	    xpc_notloaded,
-	(void (*)(partid_t, int, void *))xpc_notloaded,
-	(enum xpc_retval(*)(partid_t, void *))xpc_notloaded
+	(void (*)(short, int, void *))xpc_notloaded,
+	(enum xp_retval(*)(short, void *))xpc_notloaded
 };
 EXPORT_SYMBOL_GPL(xpc_interface);
 
@@ -66,12 +66,12 @@ EXPORT_SYMBOL_GPL(xpc_interface);
 void
 xpc_set_interface(void (*connect) (int),
 		  void (*disconnect) (int),
-		  enum xpc_retval (*allocate) (partid_t, int, u32, void **),
-		  enum xpc_retval (*send) (partid_t, int, void *),
-		  enum xpc_retval (*send_notify) (partid_t, int, void *,
+		  enum xp_retval (*allocate) (short, int, u32, void **),
+		  enum xp_retval (*send) (short, int, void *),
+		  enum xp_retval (*send_notify) (short, int, void *,
 						  xpc_notify_func, void *),
-		  void (*received) (partid_t, int, void *),
-		  enum xpc_retval (*partid_to_nasids) (partid_t, void *))
+		  void (*received) (short, int, void *),
+		  enum xp_retval (*partid_to_nasids) (short, void *))
 {
 	xpc_interface.connect = connect;
 	xpc_interface.disconnect = disconnect;
@@ -91,16 +91,16 @@ xpc_clear_interface(void)
 {
 	xpc_interface.connect = (void (*)(int))xpc_notloaded;
 	xpc_interface.disconnect = (void (*)(int))xpc_notloaded;
-	xpc_interface.allocate = (enum xpc_retval(*)(partid_t, int, u32,
+	xpc_interface.allocate = (enum xp_retval(*)(short, int, u32,
 						     void **))xpc_notloaded;
-	xpc_interface.send = (enum xpc_retval(*)(partid_t, int, void *))
+	xpc_interface.send = (enum xp_retval(*)(short, int, void *))
 	    xpc_notloaded;
-	xpc_interface.send_notify = (enum xpc_retval(*)(partid_t, int, void *,
+	xpc_interface.send_notify = (enum xp_retval(*)(short, int, void *,
 							xpc_notify_func,
 							void *))xpc_notloaded;
-	xpc_interface.received = (void (*)(partid_t, int, void *))
+	xpc_interface.received = (void (*)(short, int, void *))
 	    xpc_notloaded;
-	xpc_interface.partid_to_nasids = (enum xpc_retval(*)(partid_t, void *))
+	xpc_interface.partid_to_nasids = (enum xp_retval(*)(short, void *))
 	    xpc_notloaded;
 }
 EXPORT_SYMBOL_GPL(xpc_clear_interface);
@@ -123,13 +123,13 @@ EXPORT_SYMBOL_GPL(xpc_clear_interface);
  *	nentries - max #of XPC message entries a message queue can contain.
  *		   The actual number, which is determined when a connection
  * 		   is established and may be less then requested, will be
- *		   passed to the user via the xpcConnected callout.
+ *		   passed to the user via the xpConnected callout.
  *	assigned_limit - max number of kthreads allowed to be processing
  * 			 messages (per connection) at any given instant.
  *	idle_limit - max number of kthreads allowed to be idle at any given
  * 		     instant.
  */
-enum xpc_retval
+enum xp_retval
 xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 	    u16 nentries, u32 assigned_limit, u32 idle_limit)
 {
@@ -143,12 +143,12 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 	registration = &xpc_registrations[ch_number];
 
 	if (mutex_lock_interruptible(&registration->mutex) != 0)
-		return xpcInterrupted;
+		return xpInterrupted;
 
 	/* if XPC_CHANNEL_REGISTERED(ch_number) */
 	if (registration->func != NULL) {
 		mutex_unlock(&registration->mutex);
-		return xpcAlreadyRegistered;
+		return xpAlreadyRegistered;
 	}
 
 	/* register the channel for connection */
@@ -163,7 +163,7 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 
 	xpc_interface.connect(ch_number);
 
-	return xpcSuccess;
+	return xpSuccess;
 }
 EXPORT_SYMBOL_GPL(xpc_connect);
 

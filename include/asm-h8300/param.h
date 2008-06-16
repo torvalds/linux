@@ -1,14 +1,12 @@
 #ifndef _H8300_PARAM_H
 #define _H8300_PARAM_H
 
-
-#ifndef HZ
-#define HZ CONFIG_HZ
-#endif
-
 #ifdef __KERNEL__
+#define HZ		CONFIG_HZ
 #define	USER_HZ		HZ
 #define	CLOCKS_PER_SEC	(USER_HZ)
+#else
+#define HZ		100
 #endif
 
 #define EXEC_PAGESIZE	4096

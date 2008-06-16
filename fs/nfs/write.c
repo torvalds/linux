@@ -415,7 +415,7 @@ nfs_dirty_request(struct nfs_page *req)
 
 	if (page == NULL || test_bit(PG_NEED_COMMIT, &req->wb_flags))
 		return 0;
-	return !PageWriteback(req->wb_page);
+	return !PageWriteback(page);
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)

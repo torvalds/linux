@@ -44,6 +44,9 @@ static int mdio_clause45_check_mmd(struct efx_nic *efx, int mmd,
 	int status;
 	int phy_id = efx->mii.phy_id;
 
+	if (LOOPBACK_INTERNAL(efx))
+		return 0;
+
 	/* Read MMD STATUS2 to check it is responding. */
 	status = mdio_clause45_read(efx, phy_id, mmd, MDIO_MMDREG_STAT2);
 	if (((status >> MDIO_MMDREG_STAT2_PRESENT_LBN) &
@@ -164,6 +167,22 @@ int mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 	int mmd = 0;
 	int good;
 
+	/* If the port is in loopback, then we should only consider a subset
+	 * of mmd's */
+	if (LOOPBACK_INTERNAL(efx))
+		return 1;
+	else if (efx->loopback_mode == LOOPBACK_NETWORK)
+		return 0;
+	else if (efx->loopback_mode == LOOPBACK_PHYXS)
+		mmd_mask &= ~(MDIO_MMDREG_DEVS0_PHYXS |
+			      MDIO_MMDREG_DEVS0_PCS |
+			      MDIO_MMDREG_DEVS0_PMAPMD);
+	else if (efx->loopback_mode == LOOPBACK_PCS)
+		mmd_mask &= ~(MDIO_MMDREG_DEVS0_PCS |
+			      MDIO_MMDREG_DEVS0_PMAPMD);
+	else if (efx->loopback_mode == LOOPBACK_PMAPMD)
+		mmd_mask &= ~MDIO_MMDREG_DEVS0_PMAPMD;
+
 	while (mmd_mask) {
 		if (mmd_mask & 1) {
 			/* Double reads because link state is latched, and a
@@ -180,6 +199,65 @@ int mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 		mmd++;
 	}
 	return ok;
+}
+
+void mdio_clause45_transmit_disable(struct efx_nic *efx)
+{
+	int phy_id = efx->mii.phy_id;
+	int ctrl1, ctrl2;
+
+	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
+					   MDIO_MMDREG_TXDIS);
+	if (efx->tx_disabled)
+		ctrl2 |= (1 << MDIO_MMDREG_TXDIS_GLOBAL_LBN);
+	else
+		ctrl1 &= ~(1 << MDIO_MMDREG_TXDIS_GLOBAL_LBN);
+	if (ctrl1 != ctrl2)
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
+				    MDIO_MMDREG_TXDIS, ctrl2);
+}
+
+void mdio_clause45_phy_reconfigure(struct efx_nic *efx)
+{
+	int phy_id = efx->mii.phy_id;
+	int ctrl1, ctrl2;
+
+	/* Handle (with debouncing) PMA/PMD loopback */
+	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
+					   MDIO_MMDREG_CTRL1);
+
+	if (efx->loopback_mode == LOOPBACK_PMAPMD)
+		ctrl2 |= (1 << MDIO_PMAPMD_CTRL1_LBACK_LBN);
+	else
+		ctrl2 &= ~(1 << MDIO_PMAPMD_CTRL1_LBACK_LBN);
+
+	if (ctrl1 != ctrl2)
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
+				    MDIO_MMDREG_CTRL1, ctrl2);
+
+	/* Handle (with debouncing) PCS loopback */
+	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PCS,
+					   MDIO_MMDREG_CTRL1);
+	if (efx->loopback_mode == LOOPBACK_PCS)
+		ctrl2 |= (1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
+	else
+		ctrl2 &= ~(1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
+
+	if (ctrl1 != ctrl2)
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_PCS,
+				    MDIO_MMDREG_CTRL1, ctrl2);
+
+	/* Handle (with debouncing) PHYXS network loopback */
+	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PHYXS,
+					   MDIO_MMDREG_CTRL1);
+	if (efx->loopback_mode == LOOPBACK_NETWORK)
+		ctrl2 |= (1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
+	else
+		ctrl2 &= ~(1 << MDIO_MMDREG_CTRL1_LBACK_LBN);
+
+	if (ctrl1 != ctrl2)
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_PHYXS,
+				    MDIO_MMDREG_CTRL1, ctrl2);
 }
 
 /**

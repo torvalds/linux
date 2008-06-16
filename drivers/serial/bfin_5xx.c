@@ -530,11 +530,7 @@ static unsigned int bfin_serial_get_mctrl(struct uart_port *port)
 	if (uart->cts_pin < 0)
 		return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 
-# ifdef BF54x
-	if (UART_GET_MSR(uart) & CTS)
-# else
-	if (gpio_get_value(uart->cts_pin))
-# endif
+	if (UART_GET_CTS(uart))
 		return TIOCM_DSR | TIOCM_CAR;
 	else
 #endif
@@ -549,17 +545,9 @@ static void bfin_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		return;
 
 	if (mctrl & TIOCM_RTS)
-# ifdef BF54x
-		UART_PUT_MCR(uart, UART_GET_MCR(uart) & ~MRTS);
-# else
-		gpio_set_value(uart->rts_pin, 0);
-# endif
+		UART_CLEAR_RTS(uart);
 	else
-# ifdef BF54x
-		UART_PUT_MCR(uart, UART_GET_MCR(uart) | MRTS);
-# else
-		gpio_set_value(uart->rts_pin, 1);
-# endif
+		UART_SET_RTS(uart);
 #endif
 }
 
@@ -752,11 +740,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* Disable UART */
 	ier = UART_GET_IER(uart);
-#ifdef CONFIG_BF54x
-	UART_CLEAR_IER(uart, 0xF);
-#else
-	UART_PUT_IER(uart, 0);
-#endif
+	UART_DISABLE_INTS(uart);
 
 	/* Set DLAB in LCR to Access DLL and DLH */
 	UART_SET_DLAB(uart);
@@ -771,11 +755,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	UART_PUT_LCR(uart, lcr);
 
 	/* Enable UART */
-#ifdef CONFIG_BF54x
-	UART_SET_IER(uart, ier);
-#else
-	UART_PUT_IER(uart, ier);
-#endif
+	UART_ENABLE_INTS(uart, ier);
 
 	val = UART_GET_GCTL(uart);
 	val |= UCEN;
@@ -833,15 +813,15 @@ bfin_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
  * Enable the IrDA function if tty->ldisc.num is N_IRDA.
  * In other cases, disable IrDA function.
  */
-static void bfin_set_ldisc(struct tty_struct *tty)
+static void bfin_serial_set_ldisc(struct uart_port *port)
 {
-	int line = tty->index;
+	int line = port->line;
 	unsigned short val;
 
-	if (line >= tty->driver->num)
+	if (line >= port->info->tty->driver->num)
 		return;
 
-	switch (tty->ldisc.num) {
+	switch (port->info->tty->ldisc.num) {
 	case N_IRDA:
 		val = UART_GET_GCTL(&bfin_serial_ports[line]);
 		val |= (IREN | RPOLC);
@@ -866,6 +846,7 @@ static struct uart_ops bfin_serial_pops = {
 	.startup	= bfin_serial_startup,
 	.shutdown	= bfin_serial_shutdown,
 	.set_termios	= bfin_serial_set_termios,
+	.set_ldisc	= bfin_serial_set_ldisc,
 	.type		= bfin_serial_type,
 	.release_port	= bfin_serial_release_port,
 	.request_port	= bfin_serial_request_port,
@@ -1206,7 +1187,6 @@ static int __init bfin_serial_init(void)
 
 	ret = uart_register_driver(&bfin_serial_reg);
 	if (ret == 0) {
-		bfin_serial_reg.tty_driver->set_ldisc = bfin_set_ldisc;
 		ret = platform_driver_register(&bfin_serial_driver);
 		if (ret) {
 			pr_debug("uart register failed\n");

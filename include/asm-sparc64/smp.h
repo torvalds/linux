@@ -1,6 +1,6 @@
 /* smp.h: Sparc64 specific SMP stuff.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef _SPARC64_SMP_H
@@ -44,6 +44,8 @@ extern int hard_smp_processor_id(void);
 extern void smp_fill_in_sib_core_maps(void);
 extern void cpu_play_dead(void);
 
+extern void smp_fetch_global_regs(void);
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
@@ -55,6 +57,7 @@ extern void __cpu_die(unsigned int cpu);
 
 #define hard_smp_processor_id()		0
 #define smp_fill_in_sib_core_maps() do { } while (0)
+#define smp_fetch_global_regs() do { } while (0)
 
 #endif /* !(CONFIG_SMP) */
 

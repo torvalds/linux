@@ -21,9 +21,9 @@
 #ifndef IVTV_IOCTL_H
 #define IVTV_IOCTL_H
 
-u16 service2vbi(int type);
-void expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal);
-u16 get_service_set(struct v4l2_sliced_vbi_format *fmt);
+u16 ivtv_service2vbi(int type);
+void ivtv_expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal);
+u16 ivtv_get_service_set(struct v4l2_sliced_vbi_format *fmt);
 int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		    unsigned long arg);
 int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void *arg);

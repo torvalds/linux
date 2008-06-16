@@ -648,13 +648,12 @@ static int ide_register_port(ide_hwif_t *hwif)
 
 	get_device(&hwif->gendev);
 
-	hwif->portdev = device_create(ide_port_class, &hwif->gendev,
-				      MKDEV(0, 0), hwif->name);
+	hwif->portdev = device_create_drvdata(ide_port_class, &hwif->gendev,
+					      MKDEV(0, 0), hwif, hwif->name);
 	if (IS_ERR(hwif->portdev)) {
 		ret = PTR_ERR(hwif->portdev);
 		device_unregister(&hwif->gendev);
 	}
-	dev_set_drvdata(hwif->portdev, hwif);
 out:
 	return ret;
 }
@@ -1334,8 +1333,7 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 			  const struct ide_port_info *d)
 {
-	if (d->chipset != ide_etrax100)
-		hwif->channel = port;
+	hwif->channel = port;
 
 	if (d->chipset)
 		hwif->chipset = d->chipset;
@@ -1520,7 +1518,7 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			continue;
 		}
 
-		if (d->chipset != ide_etrax100 && (i & 1) && mate) {
+		if ((i & 1) && mate) {
 			hwif->mate = mate;
 			mate->mate = hwif;
 		}
@@ -1666,6 +1664,7 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
 
 	ide_std_init_ports(hw, base, ctl);
 	hw->irq = irq;
+	hw->chipset = d->chipset;
 
 	hwif = ide_find_port_slot(d);
 	if (hwif) {

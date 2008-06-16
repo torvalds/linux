@@ -1,6 +1,8 @@
 #ifndef __LINUX_SPI_MMC_SPI_H
 #define __LINUX_SPI_MMC_SPI_H
 
+#include <linux/interrupt.h>
+
 struct device;
 struct mmc_host;
 

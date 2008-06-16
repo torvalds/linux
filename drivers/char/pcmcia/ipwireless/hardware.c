@@ -251,10 +251,11 @@ struct ipw_hardware {
 	int init_loops;
 	struct timer_list setup_timer;
 
+	/* Flag if hw is ready to send next packet */
 	int tx_ready;
-	struct list_head tx_queue[NL_NUM_OF_PRIORITIES];
-	/* True if any packets are queued for transmission */
+	/* Count of pending packets to be sent */
 	int tx_queued;
+	struct list_head tx_queue[NL_NUM_OF_PRIORITIES];
 
 	int rx_bytes_queued;
 	struct list_head rx_queue;
@@ -404,6 +405,8 @@ static int do_send_fragment(struct ipw_hardware *hw, const unsigned char *data,
 
 	spin_lock_irqsave(&hw->spinlock, flags);
 
+	hw->tx_ready = 0;
+
 	if (hw->hw_version == HW_VERSION_1) {
 		outw((unsigned short) length, hw->base_port + IODWR);
 
@@ -492,6 +495,7 @@ static int do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
 
 		spin_lock_irqsave(&hw->spinlock, flags);
 		list_add(&packet->queue, &hw->tx_queue[0]);
+		hw->tx_queued++;
 		spin_unlock_irqrestore(&hw->spinlock, flags);
 	} else {
 		if (packet->packet_callback)
@@ -949,11 +953,9 @@ static int send_pending_packet(struct ipw_hardware *hw, int priority_limit)
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->spinlock, flags);
-	if (hw->tx_queued && hw->tx_ready != 0) {
+	if (hw->tx_queued && hw->tx_ready) {
 		int priority;
 		struct ipw_tx_packet *packet = NULL;
-
-		hw->tx_ready--;
 
 		/* Pick a packet */
 		for (priority = 0; priority < priority_limit; priority++) {
@@ -963,6 +965,7 @@ static int send_pending_packet(struct ipw_hardware *hw, int priority_limit)
 						struct ipw_tx_packet,
 						queue);
 
+				hw->tx_queued--;
 				list_del(&packet->queue);
 
 				break;
@@ -973,6 +976,7 @@ static int send_pending_packet(struct ipw_hardware *hw, int priority_limit)
 			spin_unlock_irqrestore(&hw->spinlock, flags);
 			return 0;
 		}
+
 		spin_unlock_irqrestore(&hw->spinlock, flags);
 
 		/* Send */
@@ -1063,7 +1067,7 @@ static irqreturn_t ipwireless_handle_v1_interrupt(int irq,
 		if (irqn & IR_TXINTR) {
 			ack |= IR_TXINTR;
 			spin_lock_irqsave(&hw->spinlock, flags);
-			hw->tx_ready++;
+			hw->tx_ready = 1;
 			spin_unlock_irqrestore(&hw->spinlock, flags);
 		}
 		/* Received data */
@@ -1170,7 +1174,7 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 	if (memrxdone & MEMRX_RX_DONE) {
 		writew(0, &hw->memory_info_regs->memreg_rx_done);
 		spin_lock_irqsave(&hw->spinlock, flags);
-		hw->tx_ready++;
+		hw->tx_ready = 1;
 		spin_unlock_irqrestore(&hw->spinlock, flags);
 		tx = 1;
 	}
@@ -1234,7 +1238,7 @@ static void send_packet(struct ipw_hardware *hw, int priority,
 
 	spin_lock_irqsave(&hw->spinlock, flags);
 	list_add_tail(&packet->queue, &hw->tx_queue[priority]);
-	hw->tx_queued = 1;
+	hw->tx_queued++;
 	spin_unlock_irqrestore(&hw->spinlock, flags);
 
 	flush_packets_to_hw(hw);

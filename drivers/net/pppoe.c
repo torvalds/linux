@@ -341,12 +341,6 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 	struct pppox_sock *relay_po;
 
 	if (sk->sk_state & PPPOX_BOUND) {
-		struct pppoe_hdr *ph = pppoe_hdr(skb);
-		int len = ntohs(ph->length);
-		skb_pull_rcsum(skb, sizeof(struct pppoe_hdr));
-		if (pskb_trim_rcsum(skb, len))
-			goto abort_kfree;
-
 		ppp_input(&po->chan, skb);
 	} else if (sk->sk_state & PPPOX_RELAY) {
 		relay_po = get_item_by_addr(&po->pppoe_relay);
@@ -357,7 +351,6 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 		if ((sk_pppox(relay_po)->sk_state & PPPOX_CONNECTED) == 0)
 			goto abort_put;
 
-		skb_pull(skb, sizeof(struct pppoe_hdr));
 		if (!__pppoe_xmit(sk_pppox(relay_po), skb))
 			goto abort_put;
 	} else {
@@ -388,6 +381,7 @@ static int pppoe_rcv(struct sk_buff *skb,
 {
 	struct pppoe_hdr *ph;
 	struct pppox_sock *po;
+	int len;
 
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
@@ -399,10 +393,21 @@ static int pppoe_rcv(struct sk_buff *skb,
 		goto drop;
 
 	ph = pppoe_hdr(skb);
+	len = ntohs(ph->length);
+
+	skb_pull_rcsum(skb, sizeof(*ph));
+	if (skb->len < len)
+		goto drop;
 
 	po = get_item(ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
-	if (po != NULL)
-		return sk_receive_skb(sk_pppox(po), skb, 0);
+	if (!po)
+		goto drop;
+
+	if (pskb_trim_rcsum(skb, len))
+		goto drop;
+
+	return sk_receive_skb(sk_pppox(po), skb, 0);
+
 drop:
 	kfree_skb(skb);
 out:
@@ -427,11 +432,11 @@ static int pppoe_disc_rcv(struct sk_buff *skb,
 	if (dev_net(dev) != &init_net)
 		goto abort;
 
-	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
-		goto abort;
-
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
+
+	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
+		goto abort;
 
 	ph = pppoe_hdr(skb);
 	if (ph->code != PADT_CODE)
@@ -937,12 +942,10 @@ static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	m->msg_namelen = 0;
 
 	if (skb) {
-		struct pppoe_hdr *ph = pppoe_hdr(skb);
-		const int len = ntohs(ph->length);
-
-		error = memcpy_toiovec(m->msg_iov, (unsigned char *) &ph->tag[0], len);
+		total_len = min(total_len, skb->len);
+		error = skb_copy_datagram_iovec(skb, 0, m->msg_iov, total_len);
 		if (error == 0)
-			error = len;
+			error = total_len;
 	}
 
 	kfree_skb(skb);

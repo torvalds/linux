@@ -38,7 +38,7 @@
 #include <linux/dvb/audio.h>
 #include <linux/i2c-id.h>
 
-u16 service2vbi(int type)
+u16 ivtv_service2vbi(int type)
 {
 	switch (type) {
 		case V4L2_SLICED_TELETEXT_B:
@@ -88,7 +88,7 @@ static u16 select_service_from_set(int field, int line, u16 set, int is_pal)
 	return 0;
 }
 
-void expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
+void ivtv_expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 {
 	u16 set = fmt->service_set;
 	int f, l;
@@ -115,7 +115,7 @@ static int check_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 	return set != 0;
 }
 
-u16 get_service_set(struct v4l2_sliced_vbi_format *fmt)
+u16 ivtv_get_service_set(struct v4l2_sliced_vbi_format *fmt)
 {
 	int f, l;
 	u16 set = 0;
@@ -466,7 +466,7 @@ static int ivtv_get_fmt(struct ivtv *itv, int streamtype, struct v4l2_format *fm
 			vbifmt->service_lines[0][23] = V4L2_SLICED_WSS_625;
 			vbifmt->service_lines[0][16] = V4L2_SLICED_VPS;
 		}
-		vbifmt->service_set = get_service_set(vbifmt);
+		vbifmt->service_set = ivtv_get_service_set(vbifmt);
 		break;
 	}
 
@@ -481,12 +481,12 @@ static int ivtv_get_fmt(struct ivtv *itv, int streamtype, struct v4l2_format *fm
 		if (streamtype == IVTV_DEC_STREAM_TYPE_VBI) {
 			vbifmt->service_set = itv->is_50hz ? V4L2_SLICED_VBI_625 :
 						 V4L2_SLICED_VBI_525;
-			expand_service_set(vbifmt, itv->is_50hz);
+			ivtv_expand_service_set(vbifmt, itv->is_50hz);
 			break;
 		}
 
 		itv->video_dec_func(itv, VIDIOC_G_FMT, fmt);
-		vbifmt->service_set = get_service_set(vbifmt);
+		vbifmt->service_set = ivtv_get_service_set(vbifmt);
 		break;
 	}
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
@@ -640,9 +640,9 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 	memset(vbifmt->reserved, 0, sizeof(vbifmt->reserved));
 
 	if (vbifmt->service_set)
-		expand_service_set(vbifmt, itv->is_50hz);
+		ivtv_expand_service_set(vbifmt, itv->is_50hz);
 	set = check_service_set(vbifmt, itv->is_50hz);
-	vbifmt->service_set = get_service_set(vbifmt);
+	vbifmt->service_set = ivtv_get_service_set(vbifmt);
 
 	if (!set_fmt)
 		return 0;

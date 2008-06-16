@@ -409,9 +409,6 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 
 	ide_device_add(idx, &palm_bk3710_port_info);
 
-	if (!hwif->present)
-		goto out;
-
 	return 0;
 out:
 	printk(KERN_WARNING "Palm Chip BK3710 IDE Register Fail\n");

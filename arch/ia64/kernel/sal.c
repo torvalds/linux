@@ -229,6 +229,14 @@ static void __init sal_desc_ap_wakeup(void *p) { }
  */
 static int sal_cache_flush_drops_interrupts;
 
+static int __init
+force_pal_cache_flush(char *str)
+{
+	sal_cache_flush_drops_interrupts = 1;
+	return 0;
+}
+early_param("force_pal_cache_flush", force_pal_cache_flush);
+
 void __init
 check_sal_cache_flush (void)
 {
@@ -236,6 +244,9 @@ check_sal_cache_flush (void)
 	int cpu;
 	u64 vector, cache_type = 3;
 	struct ia64_sal_retval isrv;
+
+	if (sal_cache_flush_drops_interrupts)
+		return;
 
 	cpu = get_cpu();
 	local_irq_save(flags);

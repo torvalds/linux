@@ -32,6 +32,7 @@
 #include <linux/fsl_devices.h>
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/phy.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -56,6 +57,95 @@
 #define DBG(fmt...)
 #endif
 
+#define MV88E1111_SCR	0x10
+#define MV88E1111_SCR_125CLK	0x0010
+static int mpc8568_fixup_125_clock(struct phy_device *phydev)
+{
+	int scr;
+	int err;
+
+	/* Workaround for the 125 CLK Toggle */
+	scr = phy_read(phydev, MV88E1111_SCR);
+
+	if (scr < 0)
+		return scr;
+
+	err = phy_write(phydev, MV88E1111_SCR, scr & ~(MV88E1111_SCR_125CLK));
+
+	if (err)
+		return err;
+
+	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
+
+	if (err)
+		return err;
+
+	scr = phy_read(phydev, MV88E1111_SCR);
+
+	if (scr < 0)
+		return err;
+
+	err = phy_write(phydev, MV88E1111_SCR, scr | 0x0008);
+
+	return err;
+}
+
+static int mpc8568_mds_phy_fixups(struct phy_device *phydev)
+{
+	int temp;
+	int err;
+
+	/* Errata */
+	err = phy_write(phydev,29, 0x0006);
+
+	if (err)
+		return err;
+
+	temp = phy_read(phydev, 30);
+
+	if (temp < 0)
+		return temp;
+
+	temp = (temp & (~0x8000)) | 0x4000;
+	err = phy_write(phydev,30, temp);
+
+	if (err)
+		return err;
+
+	err = phy_write(phydev,29, 0x000a);
+
+	if (err)
+		return err;
+
+	temp = phy_read(phydev, 30);
+
+	if (temp < 0)
+		return temp;
+
+	temp = phy_read(phydev, 30);
+
+	if (temp < 0)
+		return temp;
+
+	temp &= ~0x0020;
+
+	err = phy_write(phydev,30,temp);
+
+	if (err)
+		return err;
+
+	/* Disable automatic MDI/MDIX selection */
+	temp = phy_read(phydev, 16);
+
+	if (temp < 0)
+		return temp;
+
+	temp &= ~0x0060;
+	err = phy_write(phydev,16,temp);
+
+	return err;
+}
+
 /* ************************************************************************
  *
  * Setup the architecture
@@ -64,7 +154,7 @@
 static void __init mpc85xx_mds_setup_arch(void)
 {
 	struct device_node *np;
-	static u8 *bcsr_regs = NULL;
+	static u8 __iomem *bcsr_regs = NULL;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_mds_setup_arch()", 0);
@@ -137,6 +227,35 @@ static void __init mpc85xx_mds_setup_arch(void)
 	}
 #endif	/* CONFIG_QUICC_ENGINE */
 }
+
+
+static int __init board_fixups(void)
+{
+	char phy_id[BUS_ID_SIZE];
+	char *compstrs[2] = {"fsl,gianfar-mdio", "fsl,ucc-mdio"};
+	struct device_node *mdio;
+	struct resource res;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(compstrs); i++) {
+		mdio = of_find_compatible_node(NULL, NULL, compstrs[i]);
+
+		of_address_to_resource(mdio, 0, &res);
+		snprintf(phy_id, BUS_ID_SIZE, "%x:%02x", res.start, 1);
+
+		phy_register_fixup_for_id(phy_id, mpc8568_fixup_125_clock);
+		phy_register_fixup_for_id(phy_id, mpc8568_mds_phy_fixups);
+
+		/* Register a workaround for errata */
+		snprintf(phy_id, BUS_ID_SIZE, "%x:%02x", res.start, 7);
+		phy_register_fixup_for_id(phy_id, mpc8568_mds_phy_fixups);
+
+		of_node_put(mdio);
+	}
+
+	return 0;
+}
+machine_arch_initcall(mpc85xx_mds, board_fixups);
 
 static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "soc", },

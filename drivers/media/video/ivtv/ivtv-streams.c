@@ -44,23 +44,25 @@
 #include "ivtv-streams.h"
 
 static const struct file_operations ivtv_v4l2_enc_fops = {
-      .owner = THIS_MODULE,
-      .read = ivtv_v4l2_read,
-      .write = ivtv_v4l2_write,
-      .open = ivtv_v4l2_open,
-      .ioctl = ivtv_v4l2_ioctl,
-      .release = ivtv_v4l2_close,
-      .poll = ivtv_v4l2_enc_poll,
+	.owner = THIS_MODULE,
+	.read = ivtv_v4l2_read,
+	.write = ivtv_v4l2_write,
+	.open = ivtv_v4l2_open,
+	.ioctl = ivtv_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = ivtv_v4l2_close,
+	.poll = ivtv_v4l2_enc_poll,
 };
 
 static const struct file_operations ivtv_v4l2_dec_fops = {
-      .owner = THIS_MODULE,
-      .read = ivtv_v4l2_read,
-      .write = ivtv_v4l2_write,
-      .open = ivtv_v4l2_open,
-      .ioctl = ivtv_v4l2_ioctl,
-      .release = ivtv_v4l2_close,
-      .poll = ivtv_v4l2_dec_poll,
+	.owner = THIS_MODULE,
+	.read = ivtv_v4l2_read,
+	.write = ivtv_v4l2_write,
+	.open = ivtv_v4l2_open,
+	.ioctl = ivtv_v4l2_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
+	.release = ivtv_v4l2_close,
+	.poll = ivtv_v4l2_dec_poll,
 };
 
 #define IVTV_V4L2_DEC_MPG_OFFSET  16	/* offset from 0 to register decoder mpg v4l2 minors on */
@@ -244,7 +246,7 @@ int ivtv_streams_setup(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 0);
 	return -ENOMEM;
 }
 
@@ -304,12 +306,12 @@ int ivtv_streams_register(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 1);
 	return -ENOMEM;
 }
 
 /* Unregister v4l2 devices */
-void ivtv_streams_cleanup(struct ivtv *itv)
+void ivtv_streams_cleanup(struct ivtv *itv, int unregister)
 {
 	int type;
 
@@ -322,8 +324,11 @@ void ivtv_streams_cleanup(struct ivtv *itv)
 			continue;
 
 		ivtv_stream_free(&itv->streams[type]);
-		/* Unregister device */
-		video_unregister_device(vdev);
+		/* Unregister or release device */
+		if (unregister)
+			video_unregister_device(vdev);
+		else
+			video_device_release(vdev);
 	}
 }
 

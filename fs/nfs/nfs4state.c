@@ -282,7 +282,7 @@ nfs4_alloc_state_owner(void)
 	return sp;
 }
 
-void
+static void
 nfs4_drop_state_owner(struct nfs4_state_owner *sp)
 {
 	if (!RB_EMPTY_NODE(&sp->so_client_node)) {
@@ -828,7 +828,7 @@ static int nfs4_reclaim_locks(struct nfs4_state_recovery_ops *ops, struct nfs4_s
 		switch (status) {
 			default:
 				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
-						__FUNCTION__, status);
+						__func__, status);
 			case -NFS4ERR_EXPIRED:
 			case -NFS4ERR_NO_GRACE:
 			case -NFS4ERR_RECLAIM_BAD:
@@ -869,14 +869,14 @@ static int nfs4_reclaim_open_state(struct nfs4_state_recovery_ops *ops, struct n
 			list_for_each_entry(lock, &state->lock_states, ls_locks) {
 				if (!(lock->ls_flags & NFS_LOCK_INITIALIZED))
 					printk("%s: Lock reclaim failed!\n",
-							__FUNCTION__);
+							__func__);
 			}
 			continue;
 		}
 		switch (status) {
 			default:
 				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
-						__FUNCTION__, status);
+						__func__, status);
 			case -ENOENT:
 			case -NFS4ERR_RECLAIM_BAD:
 			case -NFS4ERR_RECLAIM_CONFLICT:

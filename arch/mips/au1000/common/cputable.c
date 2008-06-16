@@ -14,7 +14,7 @@
 
 #include <asm/mach-au1x00/au1000.h>
 
-struct cpu_spec* cur_cpu_spec[NR_CPUS];
+struct cpu_spec *cur_cpu_spec[NR_CPUS];
 
 /* With some thought, we can probably use the mask to reduce the
  * size of the table.
@@ -39,8 +39,7 @@ struct cpu_spec cpu_specs[] = {
 	{ 0x00000000, 0x00000000, "Unknown Au1xxx", 1, 0, 0 }
 };
 
-void
-set_cpuspec(void)
+void set_cpuspec(void)
 {
 	struct	cpu_spec *sp;
 	u32	prid;

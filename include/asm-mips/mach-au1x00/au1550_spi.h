@@ -1,5 +1,5 @@
 /*
- * au1550_spi.h - au1550 psc spi controller driver - platform data struct
+ * au1550_spi.h - Au1550 PSC SPI controller driver - platform data structure
  */
 
 #ifndef _AU1550_SPI_H_

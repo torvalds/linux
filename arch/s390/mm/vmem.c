@@ -60,7 +60,7 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	return pmd;
 }
 
-static pte_t __init_refok *vmem_pte_alloc(void)
+static pte_t __ref *vmem_pte_alloc(void)
 {
 	pte_t *pte;
 
@@ -221,6 +221,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 			*pt_dir = pte;
 		}
 	}
+	memset(start, 0, nr * sizeof(struct page));
 	ret = 0;
 out:
 	flush_tlb_kernel_range(start_addr, end_addr);
@@ -235,7 +236,7 @@ static int insert_memory_segment(struct memory_segment *seg)
 {
 	struct memory_segment *tmp;
 
-	if (seg->start + seg->size >= VMEM_MAX_PHYS ||
+	if (seg->start + seg->size > VMEM_MAX_PHYS ||
 	    seg->start + seg->size < seg->start)
 		return -ERANGE;
 

@@ -179,3 +179,5 @@ EXPORT_SYMBOL(_find_next_zero_bit_be);
 EXPORT_SYMBOL(_find_first_bit_be);
 EXPORT_SYMBOL(_find_next_bit_be);
 #endif
+
+EXPORT_SYMBOL(copy_page);

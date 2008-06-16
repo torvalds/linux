@@ -119,7 +119,7 @@ config MMC_TIFM_SD
 
 config MMC_SPI
 	tristate "MMC/SD over SPI"
-	depends on MMC && SPI_MASTER && !HIGHMEM
+	depends on MMC && SPI_MASTER && !HIGHMEM && HAS_DMA
 	select CRC7
 	select CRC_ITU_T
 	help

@@ -181,12 +181,12 @@ static int ivtv_setup_vbi_fmt(struct ivtv *itv, enum v4l2_mpeg_stream_vbi_fmt fm
 		return 0;
 	}
 	/* Need sliced data for mpeg insertion */
-	if (get_service_set(itv->vbi.sliced_in) == 0) {
+	if (ivtv_get_service_set(itv->vbi.sliced_in) == 0) {
 		if (itv->is_60hz)
 			itv->vbi.sliced_in->service_set = V4L2_SLICED_CAPTION_525;
 		else
 			itv->vbi.sliced_in->service_set = V4L2_SLICED_WSS_625;
-		expand_service_set(itv->vbi.sliced_in, itv->is_50hz);
+		ivtv_expand_service_set(itv->vbi.sliced_in, itv->is_50hz);
 	}
 	return 0;
 }

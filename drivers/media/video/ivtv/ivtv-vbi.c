@@ -169,7 +169,8 @@ static void copy_vbi_data(struct ivtv *itv, int lines, u32 pts_stamp)
 			linemask[0] |= (1 << l);
 		else
 			linemask[1] |= (1 << (l - 32));
-		dst[sd + 12 + line * 43] = service2vbi(itv->vbi.sliced_data[i].id);
+		dst[sd + 12 + line * 43] =
+			ivtv_service2vbi(itv->vbi.sliced_data[i].id);
 		memcpy(dst + sd + 12 + line * 43 + 1, itv->vbi.sliced_data[i].data, 42);
 		line++;
 	}

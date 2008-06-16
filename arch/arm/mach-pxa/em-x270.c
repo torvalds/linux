@@ -50,7 +50,7 @@ static struct resource em_x270_dm9k_resource[] = {
 	[2] = {
 		.start = EM_X270_ETHIRQ,
 		.end   = EM_X270_ETHIRQ,
-		.flags = IORESOURCE_IRQ,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 
