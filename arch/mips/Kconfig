@@ -261,6 +261,19 @@ config MACH_VR41XX
 	select SYS_HAS_CPU_VR41XX
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
+config NXP_STB220
+	bool "NXP STB220 board"
+	select SOC_PNX833X
+	help
+	 Support for NXP Semiconductors STB220 Development Board.
+
+config NXP_STB225
+	bool "NXP 225 board"
+	select SOC_PNX833X
+	select SOC_PNX8335
+	help
+	 Support for NXP Semiconductors STB225 Development Board.
+
 config PNX8550_JBS
 	bool "NXP PNX8550 based JBS board"
 	select PNX8550
@@ -848,6 +861,24 @@ config NO_EXCEPT_FILL
 config MIPS_RM9122
 	bool
 	select SERIAL_RM9000
+
+config SOC_PNX833X
+	bool
+	select CEVT_R4K
+	select CSRC_R4K
+	select IRQ_CPU
+	select DMA_NONCOHERENT
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GENERIC_GPIO
+	select CPU_MIPSR2_IRQ_VI
+
+config SOC_PNX8335
+	bool
+	select SOC_PNX833X
 
 config PNX8550
 	bool

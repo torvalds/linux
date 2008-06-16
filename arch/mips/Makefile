@@ -381,6 +381,14 @@ load-$(CONFIG_CASIO_E55)	+= 0xffffffff80004000
 #
 load-$(CONFIG_TANBAC_TB022X)	+= 0xffffffff80000000
 
+# NXP STB225
+core-$(CONFIG_SOC_PNX833X)		+= arch/mips/nxp/pnx833x/common/
+cflags-$(CONFIG_SOC_PNX833X)	+= -Iarch/mips/include/asm/mach-pnx833x
+libs-$(CONFIG_NXP_STB220)		+= arch/mips/nxp/pnx833x/stb22x/
+load-$(CONFIG_NXP_STB220)		+= 0xffffffff80001000
+libs-$(CONFIG_NXP_STB225)		+= arch/mips/nxp/pnx833x/stb22x/
+load-$(CONFIG_NXP_STB225)		+= 0xffffffff80001000
+
 #
 # Common NXP PNX8550
 #
