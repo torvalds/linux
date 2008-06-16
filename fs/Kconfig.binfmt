@@ -42,7 +42,7 @@ config BINFMT_ELF_FDPIC
 
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
-	depends on !MMU
+	depends on !MMU && (!FRV || BROKEN)
 	help
 	  Support uClinux FLAT format binaries.
 

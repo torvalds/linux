@@ -924,7 +924,7 @@ console_initcall(sbd_serial_console_init);
 
 static struct uart_driver sbd_reg = {
 	.owner		= THIS_MODULE,
-	.driver_name	= "serial",
+	.driver_name	= "sb1250_duart",
 	.dev_name	= "duart",
 	.major		= TTY_MAJOR,
 	.minor		= SB1250_DUART_MINOR_BASE,

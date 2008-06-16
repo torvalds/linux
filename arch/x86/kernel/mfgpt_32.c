@@ -155,6 +155,7 @@ int geode_mfgpt_toggle_event(int timer, int cmp, int event, int enable)
 	wrmsr(msr, value, dummy);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(geode_mfgpt_toggle_event);
 
 int geode_mfgpt_set_irq(int timer, int cmp, int irq, int enable)
 {
@@ -222,6 +223,7 @@ int geode_mfgpt_alloc_timer(int timer, int domain)
 	/* No timers available - too bad */
 	return -1;
 }
+EXPORT_SYMBOL_GPL(geode_mfgpt_alloc_timer);
 
 
 #ifdef CONFIG_GEODE_MFGPT_TIMER

@@ -552,7 +552,7 @@ static void ttusb_process_muxpack(struct ttusb *ttusb, const u8 * muxpack,
 	u16 csum = 0, cc;
 	int i;
 	for (i = 0; i < len; i += 2)
-		csum ^= le16_to_cpup((u16 *) (muxpack + i));
+		csum ^= le16_to_cpup((__le16 *) (muxpack + i));
 	if (csum) {
 		printk("%s: muxpack with incorrect checksum, ignoring\n",
 		       __func__);

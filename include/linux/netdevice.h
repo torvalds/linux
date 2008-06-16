@@ -514,12 +514,10 @@ struct net_device
 #define NETIF_F_NETNS_LOCAL	8192	/* Does not change network namespaces */
 #define NETIF_F_MULTI_QUEUE	16384	/* Has multiple TX/RX queues */
 #define NETIF_F_LRO		32768	/* large receive offload */
-#define NETIF_F_VLAN_TSO	65536	/* Supports TSO for VLANs */
-#define NETIF_F_VLAN_CSUM	131072	/* Supports TX checksumming for VLANs */
 
 	/* Segmentation offload features */
-#define NETIF_F_GSO_SHIFT	20
-#define NETIF_F_GSO_MASK	0xfff00000
+#define NETIF_F_GSO_SHIFT	16
+#define NETIF_F_GSO_MASK	0xffff0000
 #define NETIF_F_TSO		(SKB_GSO_TCPV4 << NETIF_F_GSO_SHIFT)
 #define NETIF_F_UFO		(SKB_GSO_UDP << NETIF_F_GSO_SHIFT)
 #define NETIF_F_GSO_ROBUST	(SKB_GSO_DODGY << NETIF_F_GSO_SHIFT)
@@ -746,6 +744,9 @@ struct net_device
 
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;
+
+	/* VLAN feature mask */
+	unsigned long vlan_features;
 
 	/* for setting kernel sock attribute on TCP connection setup */
 #define GSO_MAX_SIZE		65536

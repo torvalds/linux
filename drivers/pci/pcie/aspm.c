@@ -506,6 +506,23 @@ static void free_link_state(struct pci_dev *pdev)
 	pdev->link_state = NULL;
 }
 
+static int pcie_aspm_sanity_check(struct pci_dev *pdev)
+{
+	struct pci_dev *child_dev;
+	int child_pos;
+
+	/*
+	 * Some functions in a slot might not all be PCIE functions, very
+	 * strange. Disable ASPM for the whole slot
+	 */
+	list_for_each_entry(child_dev, &pdev->subordinate->devices, bus_list) {
+		child_pos = pci_find_capability(child_dev, PCI_CAP_ID_EXP);
+		if (!child_pos)
+			return -EINVAL;
+	}
+	return 0;
+}
+
 /*
  * pcie_aspm_init_link_state: Initiate PCI express link state.
  * It is called after the pcie and its children devices are scaned.
@@ -524,6 +541,9 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 		return;
 	down_read(&pci_bus_sem);
 	if (list_empty(&pdev->subordinate->devices))
+		goto out;
+
+	if (pcie_aspm_sanity_check(pdev))
 		goto out;
 
 	mutex_lock(&aspm_lock);

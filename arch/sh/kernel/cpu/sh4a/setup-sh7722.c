@@ -16,7 +16,7 @@
 
 static struct resource usbf_resources[] = {
 	[0] = {
-		.name	= "USBF",
+		.name	= "m66592_udc",
 		.start	= 0x04480000,
 		.end	= 0x044800FF,
 		.flags	= IORESOURCE_MEM,

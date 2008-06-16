@@ -3030,6 +3030,9 @@ static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 
 static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 {
+	if (atomic_read(&pfkey_socks_nr) == 0)
+		return 0;
+
 	switch (c->event) {
 	case XFRM_MSG_EXPIRE:
 		return key_notify_sa_expire(x, c);

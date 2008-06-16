@@ -52,6 +52,7 @@ series
 
 # cscope files
 cscope.*
+ncscope.*
 
 *.orig
 *~

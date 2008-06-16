@@ -51,6 +51,7 @@
 #include <linux/crc32.h>
 #include <linux/i2c.h>
 #include <linux/kthread.h>
+#include <asm/unaligned.h>
 
 #include <asm/system.h>
 
@@ -1461,9 +1462,9 @@ static int check_firmware(struct av7110* av7110)
 	ptr += 4;
 
 	/* check dpram file */
-	crc = ntohl(*(u32*) ptr);
+	crc = get_unaligned_be32(ptr);
 	ptr += 4;
-	len = ntohl(*(u32*) ptr);
+	len = get_unaligned_be32(ptr);
 	ptr += 4;
 	if (len >= 512) {
 		printk("dvb-ttpci: dpram file is way too big.\n");
@@ -1478,9 +1479,9 @@ static int check_firmware(struct av7110* av7110)
 	ptr += len;
 
 	/* check root file */
-	crc = ntohl(*(u32*) ptr);
+	crc = get_unaligned_be32(ptr);
 	ptr += 4;
-	len = ntohl(*(u32*) ptr);
+	len = get_unaligned_be32(ptr);
 	ptr += 4;
 
 	if (len <= 200000 || len >= 300000 ||

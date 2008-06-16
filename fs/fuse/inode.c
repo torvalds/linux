@@ -488,7 +488,12 @@ static struct fuse_conn *new_conn(struct super_block *sb)
 		err = bdi_init(&fc->bdi);
 		if (err)
 			goto error_kfree;
-		err = bdi_register_dev(&fc->bdi, fc->dev);
+		if (sb->s_bdev) {
+			err = bdi_register(&fc->bdi, NULL, "%u:%u-fuseblk",
+					   MAJOR(fc->dev), MINOR(fc->dev));
+		} else {
+			err = bdi_register_dev(&fc->bdi, fc->dev);
+		}
 		if (err)
 			goto error_bdi_destroy;
 		/*
