@@ -28,9 +28,11 @@
 #include <sound/ak4531_codec.h>
 #include <sound/tlv.h>
 
+/*
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Universal routines for AK4531 codec");
 MODULE_LICENSE("GPL");
+*/
 
 #ifdef CONFIG_PROC_FS
 static void snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak4531);
