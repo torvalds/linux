@@ -30,6 +30,7 @@
 #include <linux/mount.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"
@@ -83,7 +84,7 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
 
 	sd = kmem_cache_zalloc(configfs_dir_cachep, GFP_KERNEL);
 	if (!sd)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	atomic_set(&sd->s_count, 1);
 	INIT_LIST_HEAD(&sd->s_links);
@@ -129,8 +130,8 @@ int configfs_make_dirent(struct configfs_dirent * parent_sd,
 	struct configfs_dirent * sd;
 
 	sd = configfs_new_dirent(parent_sd, element);
-	if (!sd)
-		return -ENOMEM;
+	if (IS_ERR(sd))
+		return PTR_ERR(sd);
 
 	sd->s_mode = mode;
 	sd->s_type = type;
@@ -1277,7 +1278,7 @@ static int configfs_dir_open(struct inode *inode, struct file *file)
 	file->private_data = configfs_new_dirent(parent_sd, NULL);
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return IS_ERR(file->private_data) ? PTR_ERR(file->private_data) : 0;
 
 }
 
