@@ -396,11 +396,8 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	}
 	adapter->intr_scheme = readl(
 		NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_CAPABILITIES_FW));
-	printk(KERN_NOTICE "%s: FW capabilities:0x%x\n", netxen_nic_driver_name,
-			adapter->intr_scheme);
 	adapter->msi_mode = readl(
 		NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_MSI_MODE_FW));
-	DPRINTK(INFO, "Receive Peg ready too. starting stuff\n");
 
 	addr = netxen_alloc(adapter->ahw.pdev,
 			    sizeof(struct netxen_ring_ctx) +
@@ -408,8 +405,6 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 			    (dma_addr_t *) & adapter->ctx_desc_phys_addr,
 			    &adapter->ctx_desc_pdev);
 
-	printk(KERN_INFO "ctx_desc_phys_addr: 0x%llx\n",
-	       (unsigned long long) adapter->ctx_desc_phys_addr);
 	if (addr == NULL) {
 		DPRINTK(ERR, "bad return from pci_alloc_consistent\n");
 		err = -ENOMEM;
@@ -429,8 +424,6 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 			    adapter->max_tx_desc_count,
 			    (dma_addr_t *) & hw->cmd_desc_phys_addr,
 			    &adapter->ahw.cmd_desc_pdev);
-	printk(KERN_INFO "cmd_desc_phys_addr: 0x%llx\n",
-	       (unsigned long long) hw->cmd_desc_phys_addr);
 
 	if (addr == NULL) {
 		DPRINTK(ERR, "bad return from pci_alloc_consistent\n");
@@ -1127,7 +1120,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 
 void netxen_nic_flash_print(struct netxen_adapter *adapter)
 {
-	int valid = 1;
 	u32 fw_major = 0;
 	u32 fw_minor = 0;
 	u32 fw_build = 0;
@@ -1137,70 +1129,62 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	__le32 *ptr32;
 
 	struct netxen_board_info *board_info = &(adapter->ahw.boardcfg);
-	if (board_info->magic != NETXEN_BDINFO_MAGIC) {
-		printk
-		    ("NetXen Unknown board config, Read 0x%x expected as 0x%x\n",
-		     board_info->magic, NETXEN_BDINFO_MAGIC);
-		valid = 0;
-	}
-	if (board_info->header_version != NETXEN_BDINFO_VERSION) {
-		printk("NetXen Unknown board config version."
-		       " Read %x, expected %x\n",
-		       board_info->header_version, NETXEN_BDINFO_VERSION);
-		valid = 0;
-	}
-	if (valid) {
-		ptr32 = (u32 *)&serial_num;
-		addr = NETXEN_USER_START +
-		       offsetof(struct netxen_new_user_info, serial_num);
-		for (i = 0; i < 8; i++) {
-			if (netxen_rom_fast_read(adapter, addr, ptr32) == -1) {
-				printk("%s: ERROR reading %s board userarea.\n",
-				       netxen_nic_driver_name,
-				       netxen_nic_driver_name);
-				return;
-			}
-			ptr32++;
-			addr += sizeof(u32);
-		}
 
+	adapter->driver_mismatch = 0;
+
+	ptr32 = (u32 *)&serial_num;
+	addr = NETXEN_USER_START +
+	       offsetof(struct netxen_new_user_info, serial_num);
+	for (i = 0; i < 8; i++) {
+		if (netxen_rom_fast_read(adapter, addr, ptr32) == -1) {
+			printk("%s: ERROR reading %s board userarea.\n",
+			       netxen_nic_driver_name,
+			       netxen_nic_driver_name);
+			adapter->driver_mismatch = 1;
+			return;
+		}
+		ptr32++;
+		addr += sizeof(u32);
+	}
+
+	fw_major = readl(NETXEN_CRB_NORMALIZE(adapter,
+					      NETXEN_FW_VERSION_MAJOR));
+	fw_minor = readl(NETXEN_CRB_NORMALIZE(adapter,
+					      NETXEN_FW_VERSION_MINOR));
+	fw_build =
+	    readl(NETXEN_CRB_NORMALIZE(adapter, NETXEN_FW_VERSION_SUB));
+
+	if (adapter->portnum == 0) {
 		get_brd_name_by_type(board_info->board_type, brd_name);
 
 		printk("NetXen %s Board S/N %s  Chip id 0x%x\n",
-		       brd_name, serial_num, board_info->chip_id);
-
-		printk("NetXen %s Board #%d, Chip id 0x%x\n",
-		       board_info->board_type == 0x0b ? "XGB" : "GBE",
-		       board_info->board_num, board_info->chip_id);
-		fw_major = readl(NETXEN_CRB_NORMALIZE(adapter,
-						      NETXEN_FW_VERSION_MAJOR));
-		fw_minor = readl(NETXEN_CRB_NORMALIZE(adapter,
-						      NETXEN_FW_VERSION_MINOR));
-		fw_build =
-		    readl(NETXEN_CRB_NORMALIZE(adapter, NETXEN_FW_VERSION_SUB));
-
-		printk("NetXen Firmware version %d.%d.%d\n", fw_major, fw_minor,
-		       fw_build);
+				brd_name, serial_num, board_info->chip_id);
+		printk("NetXen Firmware version %d.%d.%d\n", fw_major,
+				fw_minor, fw_build);
 	}
+
 	if (fw_major != _NETXEN_NIC_LINUX_MAJOR) {
-		printk(KERN_ERR "The mismatch in driver version and firmware "
-		       "version major number\n"
-		       "Driver version major number = %d \t"
-		       "Firmware version major number = %d \n",
-		       _NETXEN_NIC_LINUX_MAJOR, fw_major);
 		adapter->driver_mismatch = 1;
 	}
 	if (fw_minor != _NETXEN_NIC_LINUX_MINOR &&
 			fw_minor != (_NETXEN_NIC_LINUX_MINOR + 1)) {
-		printk(KERN_ERR "The mismatch in driver version and firmware "
-		       "version minor number\n"
-		       "Driver version minor number = %d \t"
-		       "Firmware version minor number = %d \n",
-		       _NETXEN_NIC_LINUX_MINOR, fw_minor);
 		adapter->driver_mismatch = 1;
 	}
-	if (adapter->driver_mismatch)
-		printk(KERN_INFO "Use the driver with version no %d.%d.xxx\n",
-		       fw_major, fw_minor);
+	if (adapter->driver_mismatch) {
+		printk(KERN_ERR "%s: driver and firmware version mismatch\n",
+				adapter->netdev->name);
+		return;
+	}
+
+	switch (adapter->ahw.board_type) {
+	case NETXEN_NIC_GBE:
+		dev_info(&adapter->pdev->dev, "%s: GbE port initialized\n",
+				adapter->netdev->name);
+		break;
+	case NETXEN_NIC_XGBE:
+		dev_info(&adapter->pdev->dev, "%s: XGbE port initialized\n",
+				adapter->netdev->name);
+		break;
+	}
 }
 

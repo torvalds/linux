@@ -72,13 +72,13 @@ static irqreturn_t netxen_msi_intr(int irq, void *data);
 
 /*  PCI Device ID Table  */
 static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
-	{PCI_DEVICE(0x4040, 0x0001)},
-	{PCI_DEVICE(0x4040, 0x0002)},
-	{PCI_DEVICE(0x4040, 0x0003)},
-	{PCI_DEVICE(0x4040, 0x0004)},
-	{PCI_DEVICE(0x4040, 0x0005)},
-	{PCI_DEVICE(0x4040, 0x0024)},
-	{PCI_DEVICE(0x4040, 0x0025)},
+	{PCI_DEVICE(0x4040, 0x0001), PCI_DEVICE_CLASS(0x020000, ~0)},
+	{PCI_DEVICE(0x4040, 0x0002), PCI_DEVICE_CLASS(0x020000, ~0)},
+	{PCI_DEVICE(0x4040, 0x0003), PCI_DEVICE_CLASS(0x020000, ~0)},
+	{PCI_DEVICE(0x4040, 0x0004), PCI_DEVICE_CLASS(0x020000, ~0)},
+	{PCI_DEVICE(0x4040, 0x0005), PCI_DEVICE_CLASS(0x020000, ~0)},
+	{PCI_DEVICE(0x4040, 0x0024), PCI_DEVICE_CLASS(0x020000, ~0)},
+	{PCI_DEVICE(0x4040, 0x0025), PCI_DEVICE_CLASS(0x020000, ~0)},
 	{0,}
 };
 
@@ -286,10 +286,11 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	DECLARE_MAC_BUF(mac);
 
-	printk(KERN_INFO "%s \n", netxen_nic_driver_string);
+	if (pci_func_id == 0)
+		printk(KERN_INFO "%s \n", netxen_nic_driver_string);
 
 	if (pdev->class != 0x020000) {
-		printk(KERN_ERR"NetXen function %d, class %x will not "
+		printk(KERN_DEBUG "NetXen function %d, class %x will not "
 				"be enabled.\n",pci_func_id, pdev->class);
 		return -ENODEV;
 	}
@@ -448,8 +449,12 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	adapter->curr_window = 255;
 
-	/* initialize the adapter */
-	netxen_initialize_adapter_hw(adapter);
+	if (netxen_nic_get_board_info(adapter) != 0) {
+		printk("%s: Error getting board config info.\n",
+		       netxen_nic_driver_name);
+		err = -EIO;
+		goto err_out_iounmap;
+	}
 
 	/*
 	 *  Adapter in our case is quad port so initialize it before
@@ -621,7 +626,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/* clear the register for future unloads/loads */
 		writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
-		printk(KERN_INFO "State: 0x%0x\n",
+		printk(KERN_DEBUG "State: 0x%0x\n",
 			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
 
 		/*
@@ -643,6 +648,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/*
 	 * See if the firmware gave us a virtual-physical port mapping.
 	 */
+	adapter->physical_port = adapter->portnum;
 	i = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_V2P(adapter->portnum)));
 	if (i != 0x55555555)
 		adapter->physical_port = i;
@@ -658,21 +664,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_dev;
 	}
 
+	netxen_nic_flash_print(adapter);
 	pci_set_drvdata(pdev, adapter);
-
-	switch (adapter->ahw.board_type) {
-		case NETXEN_NIC_GBE:
-			printk(KERN_INFO "%s: QUAD GbE board initialized\n",
-			       netxen_nic_driver_name);
-			break;
-
-		case NETXEN_NIC_XGBE:
-			printk(KERN_INFO "%s: XGbE board initialized\n",
-					netxen_nic_driver_name);
-			break;
-	}
-
-	adapter->driver_mismatch = 0;
 
 	return 0;
 
@@ -781,9 +774,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 			/* clear the register for future unloads/loads */
 			writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
-			printk(KERN_INFO "State: 0x%0x\n",
-				readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
-
 			/* leave the hw in the same state as reboot */
 			writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
 			netxen_pinit_from_rom(adapter, 0);
@@ -794,7 +784,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 		/* clear the register for future unloads/loads */
 		writel(0, NETXEN_CRB_NORMALIZE(adapter, NETXEN_CAM_RAM(0x1fc)));
-		printk(KERN_INFO "State: 0x%0x\n",
+		printk(KERN_DEBUG "State: 0x%0x\n",
 			readl(NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE)));
 
 		i = 100;
@@ -844,13 +834,15 @@ static int netxen_nic_open(struct net_device *netdev)
 	irq_handler_t handler;
 	unsigned long flags = IRQF_SAMPLE_RANDOM;
 
+	if (adapter->driver_mismatch)
+		return -EIO;
+
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC) {
 		err = netxen_init_firmware(adapter);
 		if (err != 0) {
 			printk(KERN_ERR "Failed to init firmware\n");
 			return -EIO;
 		}
-		netxen_nic_flash_print(adapter);
 
 		/* setup all the resources for the Phantom... */
 		/* this include the descriptors for rcv, tx, and status */
@@ -899,14 +891,12 @@ static int netxen_nic_open(struct net_device *netdev)
 	if (adapter->set_mtu)
 		adapter->set_mtu(adapter, netdev->mtu);
 
-	if (!adapter->driver_mismatch)
-		mod_timer(&adapter->watchdog_timer, jiffies);
+	mod_timer(&adapter->watchdog_timer, jiffies);
 
 	napi_enable(&adapter->napi);
 	netxen_nic_enable_int(adapter);
 
-	if (!adapter->driver_mismatch)
-		netif_start_queue(netdev);
+	netif_start_queue(netdev);
 
 	return 0;
 }
