@@ -2555,6 +2555,58 @@ void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
 	wake_up(&ctx->switch_log->wait);
 }
 
+static int spufs_show_ctx(struct seq_file *s, void *private)
+{
+	struct spu_context *ctx = s->private;
+	u64 mfc_control_RW;
+
+	mutex_lock(&ctx->state_mutex);
+	if (ctx->spu) {
+		struct spu *spu = ctx->spu;
+		struct spu_priv2 __iomem *priv2 = spu->priv2;
+
+		spin_lock_irq(&spu->register_lock);
+		mfc_control_RW = in_be64(&priv2->mfc_control_RW);
+		spin_unlock_irq(&spu->register_lock);
+	} else {
+		struct spu_state *csa = &ctx->csa;
+
+		mfc_control_RW = csa->priv2.mfc_control_RW;
+	}
+
+	seq_printf(s, "%c flgs(%lx) sflgs(%lx) pri(%d) ts(%d) spu(%02d)"
+		" %c %lx %lx %lx %lx %x %x\n",
+		ctx->state == SPU_STATE_SAVED ? 'S' : 'R',
+		ctx->flags,
+		ctx->sched_flags,
+		ctx->prio,
+		ctx->time_slice,
+		ctx->spu ? ctx->spu->number : -1,
+		!list_empty(&ctx->rq) ? 'q' : ' ',
+		ctx->csa.class_0_pending,
+		ctx->csa.class_0_dar,
+		ctx->csa.class_1_dsisr,
+		mfc_control_RW,
+		ctx->ops->runcntl_read(ctx),
+		ctx->ops->status_read(ctx));
+
+	mutex_unlock(&ctx->state_mutex);
+
+	return 0;
+}
+
+static int spufs_ctx_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, spufs_show_ctx, SPUFS_I(inode)->i_ctx);
+}
+
+static const struct file_operations spufs_ctx_fops = {
+	.open           = spufs_ctx_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
 struct tree_descr spufs_dir_contents[] = {
 	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
@@ -2591,6 +2643,7 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "tid", &spufs_tid_fops, 0444, },
 	{ "stat", &spufs_stat_fops, 0444, },
 	{ "switch_log", &spufs_switch_log_fops, 0444 },
+	{ ".ctx", &spufs_ctx_fops, 0444, },
 	{},
 };
 
@@ -2616,6 +2669,7 @@ struct tree_descr spufs_dir_nosched_contents[] = {
 	{ "object-id", &spufs_object_id_ops, 0666, },
 	{ "tid", &spufs_tid_fops, 0444, },
 	{ "stat", &spufs_stat_fops, 0444, },
+	{ ".ctx", &spufs_ctx_fops, 0444, },
 	{},
 };
 
