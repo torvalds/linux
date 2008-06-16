@@ -76,4 +76,4 @@ ENTRY(_outsw_8)
 		R0 = R0 + R1;
 .Lword8_loop_e: W[P0] = R0;
 	RTS;
-ENDPROC(_outsw)
+ENDPROC(_outsw_8)

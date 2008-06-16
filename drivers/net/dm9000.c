@@ -903,7 +903,7 @@ dm9000_stop(struct net_device *ndev)
 	if (netif_msg_ifdown(db))
 		dev_dbg(db->dev, "shutting down %s\n", ndev->name);
 
-	cancel_delayed_work(&db->phy_poll);
+	cancel_delayed_work_sync(&db->phy_poll);
 
 	netif_stop_queue(ndev);
 	netif_carrier_off(ndev);

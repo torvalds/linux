@@ -405,7 +405,7 @@ UNUSUAL_DEV(  0x04a5, 0x3010, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x04b4, 0x6830, 0x0000, 0x9999,
 		"Cypress",
 		"Cypress AT2LP",
-		US_SC_CYP_ATACB, US_PR_BULK, NULL,
+		US_SC_CYP_ATACB, US_PR_DEVICE, NULL,
 		0),
 #endif
 
@@ -1522,7 +1522,7 @@ UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
+		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by Kevin Cernekee <kpc-usbdev@gelato.uiuc.edu>
  * Tested on hardware version 1.10.
@@ -1716,10 +1716,12 @@ UNUSUAL_DEV(  0x22b8, 0x3010, 0x0001, 0x0001,
 /*
  * Patch by Pete Zaitcev <zaitcev@redhat.com>
  * Report by Mark Patton. Red Hat bz#208928.
+ * Added support for rev 0x0002 (Motorola ROKR W5)
+ * by Javier Smaldone <javier@smaldone.com.ar>
  */
-UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0001,
+UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0002,
 		"Motorola",
-		"RAZR V3i",
+		"RAZR V3i/ROKR W5",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 

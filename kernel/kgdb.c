@@ -52,6 +52,7 @@
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
+#include <asm/unaligned.h>
 
 static int kgdb_break_asap;
 
@@ -227,8 +228,6 @@ void __weak kgdb_disable_hw_debug(struct pt_regs *regs)
  * GDB remote protocol parser:
  */
 
-static const char	hexchars[] = "0123456789abcdef";
-
 static int hex(char ch)
 {
 	if ((ch >= 'a') && (ch <= 'f'))
@@ -316,8 +315,8 @@ static void put_packet(char *buffer)
 		}
 
 		kgdb_io_ops->write_char('#');
-		kgdb_io_ops->write_char(hexchars[checksum >> 4]);
-		kgdb_io_ops->write_char(hexchars[checksum & 0xf]);
+		kgdb_io_ops->write_char(hex_asc_hi(checksum));
+		kgdb_io_ops->write_char(hex_asc_lo(checksum));
 		if (kgdb_io_ops->flush)
 			kgdb_io_ops->flush();
 
@@ -478,8 +477,8 @@ static void error_packet(char *pkt, int error)
 {
 	error = -error;
 	pkt[0] = 'E';
-	pkt[1] = hexchars[(error / 10)];
-	pkt[2] = hexchars[(error % 10)];
+	pkt[1] = hex_asc[(error / 10)];
+	pkt[2] = hex_asc[(error % 10)];
 	pkt[3] = '\0';
 }
 
@@ -510,10 +509,7 @@ static void int_to_threadref(unsigned char *id, int value)
 	scan = (unsigned char *)id;
 	while (i--)
 		*scan++ = 0;
-	*scan++ = (value >> 24) & 0xff;
-	*scan++ = (value >> 16) & 0xff;
-	*scan++ = (value >> 8) & 0xff;
-	*scan++ = (value & 0xff);
+	put_unaligned_be32(value, scan);
 }
 
 static struct task_struct *getthread(struct pt_regs *regs, int tid)

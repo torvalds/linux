@@ -189,7 +189,7 @@ default_entry:
 	 * this stage.
 	 */
 
-#define KPMDS ((0x100000000-__PAGE_OFFSET) >> 30) /* Number of kernel PMDs */
+#define KPMDS (((-__PAGE_OFFSET) >> 30) & 3) /* Number of kernel PMDs */
 
 	xorl %ebx,%ebx				/* %ebx is kept at zero */
 

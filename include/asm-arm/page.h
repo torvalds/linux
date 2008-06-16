@@ -179,9 +179,9 @@ typedef unsigned long pgprot_t;
 
 #endif /* STRICT_MM_TYPECHECKS */
 
-typedef struct page *pgtable_t;
-
 #endif /* CONFIG_MMU */
+
+typedef struct page *pgtable_t;
 
 #include <asm/memory.h>
 

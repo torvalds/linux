@@ -823,7 +823,7 @@ static void cx23885_dev_unregister(struct cx23885_dev *dev)
 	iounmap(dev->lmmio);
 }
 
-static u32* cx23885_risc_field(u32 *rp, struct scatterlist *sglist,
+static __le32* cx23885_risc_field(__le32 *rp, struct scatterlist *sglist,
 			       unsigned int offset, u32 sync_line,
 			       unsigned int bpl, unsigned int padding,
 			       unsigned int lines)
@@ -883,7 +883,7 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 			unsigned int padding, unsigned int lines)
 {
 	u32 instructions, fields;
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	fields = 0;
@@ -924,7 +924,7 @@ static int cx23885_risc_databuffer(struct pci_dev *pci,
 				   unsigned int lines)
 {
 	u32 instructions;
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
@@ -951,7 +951,7 @@ static int cx23885_risc_databuffer(struct pci_dev *pci,
 int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 				u32 reg, u32 mask, u32 value)
 {
-	u32 *rp;
+	__le32 *rp;
 	int rc;
 
 	if ((rc = btcx_riscmem_alloc(pci, risc, 4*16)) < 0)

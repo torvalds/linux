@@ -22,7 +22,6 @@
 #include <linux/crc32.h>
 #include <linux/device.h>
 #include <linux/spinlock.h>
-#include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>

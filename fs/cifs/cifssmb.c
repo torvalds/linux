@@ -1728,7 +1728,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 {
 	int rc = 0;
 	LOCK_REQ *pSMB = NULL;
-	LOCK_RSP *pSMBr = NULL;
+/*	LOCK_RSP *pSMBr = NULL; */ /* No response data other than rc to parse */
 	int bytes_returned;
 	int timeout = 0;
 	__u16 count;
@@ -1738,8 +1738,6 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 
 	if (rc)
 		return rc;
-
-	pSMBr = (LOCK_RSP *)pSMB; /* BB removeme BB */
 
 	if (lockType == LOCKING_ANDX_OPLOCK_RELEASE) {
 		timeout = CIFS_ASYNC_OP; /* no response expected */
@@ -1774,7 +1772,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 
 	if (waitFlag) {
 		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB,
-			(struct smb_hdr *) pSMBr, &bytes_returned);
+			(struct smb_hdr *) pSMB, &bytes_returned);
 		cifs_small_buf_release(pSMB);
 	} else {
 		rc = SendReceiveNoRsp(xid, tcon->ses, (struct smb_hdr *)pSMB,
@@ -3927,9 +3925,9 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	}
 
 	ref = (struct dfs_referral_level_3 *) &(pSMBr->referrals);
-	if (ref->VersionNumber != 3) {
+	if (ref->VersionNumber != cpu_to_le16(3)) {
 		cERROR(1, ("Referrals of V%d version are not supported,"
-			"should be V3", ref->VersionNumber));
+			"should be V3", le16_to_cpu(ref->VersionNumber)));
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
 	}
@@ -3977,7 +3975,7 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		if (rc)
 			goto parse_DFS_referrals_exit;
 
-		ref += ref->Size;
+		ref += le16_to_cpu(ref->Size);
 	}
 
 parse_DFS_referrals_exit:
