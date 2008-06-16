@@ -1782,6 +1782,7 @@ char *__d_path(const struct path *path, struct path *root,
 	char * end = buffer+buflen;
 	char * retval;
 
+	spin_lock(&vfsmount_lock);
 	prepend(&end, &buflen, "\0", 1);
 	if (!IS_ROOT(dentry) && d_unhashed(dentry) &&
 		(prepend(&end, &buflen, " (deleted)", 10) != 0))
@@ -1800,14 +1801,11 @@ char *__d_path(const struct path *path, struct path *root,
 			break;
 		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
 			/* Global root? */
-			spin_lock(&vfsmount_lock);
 			if (vfsmnt->mnt_parent == vfsmnt) {
-				spin_unlock(&vfsmount_lock);
 				goto global_root;
 			}
 			dentry = vfsmnt->mnt_mountpoint;
 			vfsmnt = vfsmnt->mnt_parent;
-			spin_unlock(&vfsmount_lock);
 			continue;
 		}
 		parent = dentry->d_parent;
@@ -1820,6 +1818,8 @@ char *__d_path(const struct path *path, struct path *root,
 		dentry = parent;
 	}
 
+out:
+	spin_unlock(&vfsmount_lock);
 	return retval;
 
 global_root:
@@ -1829,9 +1829,11 @@ global_root:
 		goto Elong;
 	root->mnt = vfsmnt;
 	root->dentry = dentry;
-	return retval;
+	goto out;
+
 Elong:
-	return ERR_PTR(-ENAMETOOLONG);
+	retval = ERR_PTR(-ENAMETOOLONG);
+	goto out;
 }
 
 /**
