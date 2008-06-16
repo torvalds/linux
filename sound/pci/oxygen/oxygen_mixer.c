@@ -936,11 +936,13 @@ static int add_controls(struct oxygen *chip,
 
 	for (i = 0; i < count; ++i) {
 		template = controls[i];
-		err = chip->model->control_filter(&template);
-		if (err < 0)
-			return err;
-		if (err == 1)
-			continue;
+		if (chip->model->control_filter) {
+			err = chip->model->control_filter(&template);
+			if (err < 0)
+				return err;
+			if (err == 1)
+				continue;
+		}
 		if (!strcmp(template.name, "Master Playback Volume") &&
 		    chip->model->dac_tlv) {
 			template.tlv.p = chip->model->dac_tlv;
