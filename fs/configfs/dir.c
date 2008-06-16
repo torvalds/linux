@@ -364,7 +364,7 @@ static struct dentry * configfs_lookup(struct inode *dir,
  * If there is an error, the caller will reset the flags via
  * configfs_detach_rollback().
  */
-static int configfs_detach_prep(struct dentry *dentry)
+static int configfs_detach_prep(struct dentry *dentry, struct mutex **wait_mutex)
 {
 	struct configfs_dirent *parent_sd = dentry->d_fsdata;
 	struct configfs_dirent *sd;
@@ -379,6 +379,12 @@ static int configfs_detach_prep(struct dentry *dentry)
 		if (sd->s_type & CONFIGFS_NOT_PINNED)
 			continue;
 		if (sd->s_type & CONFIGFS_USET_DEFAULT) {
+			/* Abort if racing with mkdir() */
+			if (sd->s_type & CONFIGFS_USET_IN_MKDIR) {
+				if (wait_mutex)
+					*wait_mutex = &sd->s_dentry->d_inode->i_mutex;
+				return -EAGAIN;
+			}
 			/* Mark that we're trying to drop the group */
 			sd->s_type |= CONFIGFS_USET_DROPPING;
 
@@ -386,7 +392,7 @@ static int configfs_detach_prep(struct dentry *dentry)
 			 * Yup, recursive.  If there's a problem, blame
 			 * deep nesting of default_groups
 			 */
-			ret = configfs_detach_prep(sd->s_dentry);
+			ret = configfs_detach_prep(sd->s_dentry, wait_mutex);
 			if (!ret)
 				continue;
 		} else
@@ -1113,10 +1119,25 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	 */
 	module_got = 1;
 
+	/*
+	 * Make racing rmdir() fail if it did not tag parent with
+	 * CONFIGFS_USET_DROPPING
+	 * Note: if CONFIGFS_USET_DROPPING is already set, attach_group() will
+	 * fail and let rmdir() terminate correctly
+	 */
+	spin_lock(&configfs_dirent_lock);
+	/* This will make configfs_detach_prep() fail */
+	sd->s_type |= CONFIGFS_USET_IN_MKDIR;
+	spin_unlock(&configfs_dirent_lock);
+
 	if (group)
 		ret = configfs_attach_group(parent_item, item, dentry);
 	else
 		ret = configfs_attach_item(parent_item, item, dentry);
+
+	spin_lock(&configfs_dirent_lock);
+	sd->s_type &= ~CONFIGFS_USET_IN_MKDIR;
+	spin_unlock(&configfs_dirent_lock);
 
 out_unlink:
 	if (ret) {
@@ -1182,13 +1203,25 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	spin_lock(&configfs_dirent_lock);
-	ret = configfs_detach_prep(dentry);
-	if (ret) {
-		configfs_detach_rollback(dentry);
-		spin_unlock(&configfs_dirent_lock);
-		config_item_put(parent_item);
-		return ret;
-	}
+	do {
+		struct mutex *wait_mutex;
+
+		ret = configfs_detach_prep(dentry, &wait_mutex);
+		if (ret) {
+			configfs_detach_rollback(dentry);
+			spin_unlock(&configfs_dirent_lock);
+			if (ret != -EAGAIN) {
+				config_item_put(parent_item);
+				return ret;
+			}
+
+			/* Wait until the racing operation terminates */
+			mutex_lock(wait_mutex);
+			mutex_unlock(wait_mutex);
+
+			spin_lock(&configfs_dirent_lock);
+		}
+	} while (ret == -EAGAIN);
 	spin_unlock(&configfs_dirent_lock);
 
 	/* Get a working ref for the duration of this function */
@@ -1480,7 +1513,7 @@ void configfs_unregister_subsystem(struct configfs_subsystem *subsys)
 			  I_MUTEX_PARENT);
 	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
 	spin_lock(&configfs_dirent_lock);
-	if (configfs_detach_prep(dentry)) {
+	if (configfs_detach_prep(dentry, NULL)) {
 		printk(KERN_ERR "configfs: Tried to unregister non-empty subsystem!\n");
 	}
 	spin_unlock(&configfs_dirent_lock);
