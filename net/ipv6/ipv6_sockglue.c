@@ -67,7 +67,7 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 
 	/* RA packet may be delivered ONLY to IPPROTO_RAW socket */
 	if (sk->sk_type != SOCK_RAW || inet_sk(sk)->num != IPPROTO_RAW)
-		return -EINVAL;
+		return -ENOPROTOOPT;
 
 	new_ra = (sel>=0) ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 
@@ -446,7 +446,7 @@ done:
 
 	case IPV6_MULTICAST_HOPS:
 		if (sk->sk_type == SOCK_STREAM)
-			goto e_inval;
+			break;
 		if (optlen < sizeof(int))
 			goto e_inval;
 		if (val > 255 || val < -1)
@@ -458,13 +458,15 @@ done:
 	case IPV6_MULTICAST_LOOP:
 		if (optlen < sizeof(int))
 			goto e_inval;
+		if (val != valbool)
+			goto e_inval;
 		np->mc_loop = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_MULTICAST_IF:
 		if (sk->sk_type == SOCK_STREAM)
-			goto e_inval;
+			break;
 		if (optlen < sizeof(int))
 			goto e_inval;
 
@@ -860,7 +862,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		if (sk->sk_protocol != IPPROTO_UDP &&
 		    sk->sk_protocol != IPPROTO_UDPLITE &&
 		    sk->sk_protocol != IPPROTO_TCP)
-			return -EINVAL;
+			return -ENOPROTOOPT;
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -ENOTCONN;
 		val = sk->sk_family;
@@ -874,6 +876,8 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		if (copy_from_user(&gsf, optval, GROUP_FILTER_SIZE(0)))
 			return -EFAULT;
+		if (gsf.gf_group.ss_family != AF_INET6)
+			return -EADDRNOTAVAIL;
 		lock_sock(sk);
 		err = ip6_mc_msfget(sk, &gsf,
 			(struct group_filter __user *)optval, optlen);

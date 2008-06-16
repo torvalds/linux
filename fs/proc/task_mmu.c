@@ -315,9 +315,9 @@ struct mem_size_stats {
 };
 
 static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-			   void *private)
+			   struct mm_walk *walk)
 {
-	struct mem_size_stats *mss = private;
+	struct mem_size_stats *mss = walk->private;
 	struct vm_area_struct *vma = mss->vma;
 	pte_t *pte, ptent;
 	spinlock_t *ptl;
@@ -365,19 +365,21 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	return 0;
 }
 
-static struct mm_walk smaps_walk = { .pmd_entry = smaps_pte_range };
-
 static int show_smap(struct seq_file *m, void *v)
 {
 	struct vm_area_struct *vma = v;
 	struct mem_size_stats mss;
 	int ret;
+	struct mm_walk smaps_walk = {
+		.pmd_entry = smaps_pte_range,
+		.mm = vma->vm_mm,
+		.private = &mss,
+	};
 
 	memset(&mss, 0, sizeof mss);
 	mss.vma = vma;
 	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
-		walk_page_range(vma->vm_mm, vma->vm_start, vma->vm_end,
-				&smaps_walk, &mss);
+		walk_page_range(vma->vm_start, vma->vm_end, &smaps_walk);
 
 	ret = show_map(m, v);
 	if (ret)
@@ -426,9 +428,9 @@ const struct file_operations proc_smaps_operations = {
 };
 
 static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
-				unsigned long end, void *private)
+				unsigned long end, struct mm_walk *walk)
 {
-	struct vm_area_struct *vma = private;
+	struct vm_area_struct *vma = walk->private;
 	pte_t *pte, ptent;
 	spinlock_t *ptl;
 	struct page *page;
@@ -452,8 +454,6 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
 	return 0;
 }
 
-static struct mm_walk clear_refs_walk = { .pmd_entry = clear_refs_pte_range };
-
 static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
@@ -476,11 +476,17 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 		return -ESRCH;
 	mm = get_task_mm(task);
 	if (mm) {
+		static struct mm_walk clear_refs_walk;
+		memset(&clear_refs_walk, 0, sizeof(clear_refs_walk));
+		clear_refs_walk.pmd_entry = clear_refs_pte_range;
+		clear_refs_walk.mm = mm;
 		down_read(&mm->mmap_sem);
-		for (vma = mm->mmap; vma; vma = vma->vm_next)
+		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+			clear_refs_walk.private = vma;
 			if (!is_vm_hugetlb_page(vma))
-				walk_page_range(mm, vma->vm_start, vma->vm_end,
-						&clear_refs_walk, vma);
+				walk_page_range(vma->vm_start, vma->vm_end,
+						&clear_refs_walk);
+		}
 		flush_tlb_mm(mm);
 		up_read(&mm->mmap_sem);
 		mmput(mm);
@@ -528,9 +534,9 @@ static int add_to_pagemap(unsigned long addr, u64 pfn,
 }
 
 static int pagemap_pte_hole(unsigned long start, unsigned long end,
-				void *private)
+				struct mm_walk *walk)
 {
-	struct pagemapread *pm = private;
+	struct pagemapread *pm = walk->private;
 	unsigned long addr;
 	int err = 0;
 	for (addr = start; addr < end; addr += PAGE_SIZE) {
@@ -547,24 +553,45 @@ static u64 swap_pte_to_pagemap_entry(pte_t pte)
 	return swp_type(e) | (swp_offset(e) << MAX_SWAPFILES_SHIFT);
 }
 
-static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-			     void *private)
+static unsigned long pte_to_pagemap_entry(pte_t pte)
 {
-	struct pagemapread *pm = private;
+	unsigned long pme = 0;
+	if (is_swap_pte(pte))
+		pme = PM_PFRAME(swap_pte_to_pagemap_entry(pte))
+			| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP;
+	else if (pte_present(pte))
+		pme = PM_PFRAME(pte_pfn(pte))
+			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
+	return pme;
+}
+
+static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+			     struct mm_walk *walk)
+{
+	struct vm_area_struct *vma;
+	struct pagemapread *pm = walk->private;
 	pte_t *pte;
 	int err = 0;
 
+	/* find the first VMA at or above 'addr' */
+	vma = find_vma(walk->mm, addr);
 	for (; addr != end; addr += PAGE_SIZE) {
 		u64 pfn = PM_NOT_PRESENT;
-		pte = pte_offset_map(pmd, addr);
-		if (is_swap_pte(*pte))
-			pfn = PM_PFRAME(swap_pte_to_pagemap_entry(*pte))
-				| PM_PSHIFT(PAGE_SHIFT) | PM_SWAP;
-		else if (pte_present(*pte))
-			pfn = PM_PFRAME(pte_pfn(*pte))
-				| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
-		/* unmap so we're not in atomic when we copy to userspace */
-		pte_unmap(pte);
+
+		/* check to see if we've left 'vma' behind
+		 * and need a new, higher one */
+		if (vma && (addr >= vma->vm_end))
+			vma = find_vma(walk->mm, addr);
+
+		/* check that 'vma' actually covers this address,
+		 * and that it isn't a huge page vma */
+		if (vma && (vma->vm_start <= addr) &&
+		    !is_vm_hugetlb_page(vma)) {
+			pte = pte_offset_map(pmd, addr);
+			pfn = pte_to_pagemap_entry(*pte);
+			/* unmap before userspace copy */
+			pte_unmap(pte);
+		}
 		err = add_to_pagemap(addr, pfn, pm);
 		if (err)
 			return err;
@@ -675,8 +702,8 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		 * user buffer is tracked in "pm", and the walk
 		 * will stop when we hit the end of the buffer.
 		 */
-		ret = walk_page_range(mm, start_vaddr, end_vaddr,
-					&pagemap_walk, &pm);
+		ret = walk_page_range(start_vaddr, end_vaddr,
+					&pagemap_walk);
 		if (ret == PM_END_OF_BUFFER)
 			ret = 0;
 		/* don't need mmap_sem for these, but this looks cleaner */

@@ -1728,7 +1728,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 {
 	int rc = 0;
 	LOCK_REQ *pSMB = NULL;
-	LOCK_RSP *pSMBr = NULL;
+/*	LOCK_RSP *pSMBr = NULL; */ /* No response data other than rc to parse */
 	int bytes_returned;
 	int timeout = 0;
 	__u16 count;
@@ -1738,8 +1738,6 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 
 	if (rc)
 		return rc;
-
-	pSMBr = (LOCK_RSP *)pSMB; /* BB removeme BB */
 
 	if (lockType == LOCKING_ANDX_OPLOCK_RELEASE) {
 		timeout = CIFS_ASYNC_OP; /* no response expected */
@@ -1774,7 +1772,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 
 	if (waitFlag) {
 		rc = SendReceiveBlockingLock(xid, tcon, (struct smb_hdr *) pSMB,
-			(struct smb_hdr *) pSMBr, &bytes_returned);
+			(struct smb_hdr *) pSMB, &bytes_returned);
 		cifs_small_buf_release(pSMB);
 	} else {
 		rc = SendReceiveNoRsp(xid, tcon->ses, (struct smb_hdr *)pSMB,

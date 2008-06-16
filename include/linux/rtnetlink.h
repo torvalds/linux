@@ -246,6 +246,7 @@ enum rt_class_t
 {
 	RT_TABLE_UNSPEC=0,
 /* User defined values */
+	RT_TABLE_COMPAT=252,
 	RT_TABLE_DEFAULT=253,
 	RT_TABLE_MAIN=254,
 	RT_TABLE_LOCAL=255,

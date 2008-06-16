@@ -773,6 +773,7 @@ sclp_vt220_con_init(void)
 {
 	int rc;
 
+	INIT_LIST_HEAD(&sclp_vt220_register.list);
 	if (!CONSOLE_IS_SCLP)
 		return 0;
 	rc = __sclp_vt220_init();

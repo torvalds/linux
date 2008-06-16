@@ -959,7 +959,7 @@ static int epp_close(struct net_device *dev)
 	unsigned char tmp[1];
 
 	bc->work_running = 0;
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&bc->run_work);
 	bc->stat = EPP_DCDBIT;
 	tmp[0] = 0;
 	pp->ops->epp_write_addr(pp, tmp, 1, 0);

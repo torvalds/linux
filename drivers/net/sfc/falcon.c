@@ -733,8 +733,10 @@ void falcon_fini_rx(struct efx_rx_queue *rx_queue)
 			continue;
 		break;
 	}
-	if (rc)
+	if (rc) {
 		EFX_ERR(efx, "failed to flush rx queue %d\n", rx_queue->queue);
+		efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
+	}
 
 	/* Remove RX descriptor ring from card */
 	EFX_ZERO_OWORD(rx_desc_ptr);

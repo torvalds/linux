@@ -44,7 +44,7 @@
 #define IEEE80211_RETRY_AUTH_INTERVAL (1 * HZ)
 #define IEEE80211_SCAN_INTERVAL (2 * HZ)
 #define IEEE80211_SCAN_INTERVAL_SLOW (15 * HZ)
-#define IEEE80211_IBSS_JOIN_TIMEOUT (20 * HZ)
+#define IEEE80211_IBSS_JOIN_TIMEOUT (7 * HZ)
 
 #define IEEE80211_PROBE_DELAY (HZ / 33)
 #define IEEE80211_CHANNEL_TIME (HZ / 33)
@@ -2336,6 +2336,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_supported_band *sband;
+	union iwreq_data wrqu;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
@@ -2358,13 +2359,10 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	sdata->drop_unencrypted = bss->capability &
 		WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	res = ieee80211_set_freq(local, bss->freq);
+	res = ieee80211_set_freq(dev, bss->freq);
 
-	if (local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS) {
-		printk(KERN_DEBUG "%s: IBSS not allowed on frequency "
-		       "%d MHz\n", dev->name, local->oper_channel->center_freq);
-		return -1;
-	}
+	if (res)
+		return res;
 
 	/* Set beacon template */
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
@@ -2478,6 +2476,10 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 
 	ifsta->state = IEEE80211_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
+
+	memset(&wrqu, 0, sizeof(wrqu));
+	memcpy(wrqu.ap_addr.sa_data, bss->bssid, ETH_ALEN);
+	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 
 	return res;
 }
@@ -3486,7 +3488,7 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 	spin_unlock_bh(&local->sta_bss_lock);
 
 	if (selected) {
-		ieee80211_set_freq(local, selected->freq);
+		ieee80211_set_freq(dev, selected->freq);
 		if (!(ifsta->flags & IEEE80211_STA_SSID_SET))
 			ieee80211_sta_set_ssid(dev, selected->ssid,
 					       selected->ssid_len);
