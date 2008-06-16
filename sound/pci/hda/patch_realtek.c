@@ -8642,6 +8642,7 @@ static struct hda_verb alc262_sony_unsol_verbs[] = {
 
 	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{}
 };
 
 /* mute/unmute internal speaker according to the hp jack and mute state */

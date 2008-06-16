@@ -124,9 +124,9 @@ static int virtio_dev_probe(struct device *_d)
 	if (err)
 		add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	else {
-		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
 		/* They should never have set feature bits beyond 32 */
 		dev->config->set_features(dev, dev->features[0]);
+		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
 	}
 	return err;
 }

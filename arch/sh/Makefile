@@ -41,6 +41,8 @@ cflags-$(CONFIG_CPU_SH5)		:= $(call cc-option,-m5-32media-nofpu,)
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
+cflags-y	+= $(call cc-option,-mno-fdpic)
+
 #
 # -Wa,-isa= tuning implies -Wa,-dsp for the versions of binutils that
 # support it, while -Wa,-dsp by itself limits the range of usable opcodes

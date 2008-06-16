@@ -1048,6 +1048,7 @@ acpi_ut_exception(char *module_name,
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
 	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
+	va_end(args);
 }
 
 EXPORT_SYMBOL(acpi_ut_exception);
@@ -1062,7 +1063,6 @@ acpi_ut_warning(char *module_name, u32 line_number, char *format, ...)
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
 	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
-	va_end(args);
 	va_end(args);
 }
 

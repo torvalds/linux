@@ -2196,8 +2196,12 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 
 	NLA_PUT_U32(skb, RTA_PRIORITY, rt->rt6i_metric);
 
-	expires = (rt->rt6i_flags & RTF_EXPIRES) ?
-			rt->rt6i_expires - jiffies : 0;
+	if (!(rt->rt6i_flags & RTF_EXPIRES))
+		expires = 0;
+	else if (rt->rt6i_expires - jiffies < INT_MAX)
+		expires = rt->rt6i_expires - jiffies;
+	else
+		expires = INT_MAX;
 
 	if (rtnl_put_cacheinfo(skb, &rt->u.dst, 0, 0, 0,
 			       expires, rt->u.dst.error) < 0)
