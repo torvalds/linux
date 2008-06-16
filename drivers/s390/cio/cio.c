@@ -576,12 +576,14 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 		err = -ENODEV;
 		goto out;
 	}
-	if (cio_is_console(sch->schid))
+	if (cio_is_console(sch->schid)) {
 		sch->opm = 0xff;
-	else
+		sch->isc = 1;
+	} else {
 		sch->opm = chp_get_sch_opm(sch);
+		sch->isc = 3;
+	}
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
-	sch->isc = 3;
 
 	CIO_MSG_EVENT(6, "Detected device %04x on subchannel 0.%x.%04X "
 		      "- PIM = %02X, PAM = %02X, POM = %02X\n",
@@ -704,9 +706,9 @@ void wait_cons_dev(void)
 	if (!console_subchannel_in_use)
 		return;
 
-	/* disable all but isc 7 (console device) */
+	/* disable all but isc 1 (console device) */
 	__ctl_store (save_cr6, 6, 6);
-	cr6 = 0x01000000;
+	cr6 = 0x40000000;
 	__ctl_load (cr6, 6, 6);
 
 	do {
@@ -788,11 +790,11 @@ cio_probe_console(void)
 	}
 
 	/*
-	 * enable console I/O-interrupt subclass 7
+	 * enable console I/O-interrupt subclass 1
 	 */
-	ctl_set_bit(6, 24);
-	console_subchannel.isc = 7;
-	console_subchannel.schib.pmcw.isc = 7;
+	ctl_set_bit(6, 30);
+	console_subchannel.isc = 1;
+	console_subchannel.schib.pmcw.isc = 1;
 	console_subchannel.schib.pmcw.intparm =
 		(u32)(addr_t)&console_subchannel;
 	ret = cio_modify(&console_subchannel);

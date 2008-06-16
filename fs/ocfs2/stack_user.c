@@ -61,7 +61,7 @@
  * negotiated by the client.  The client negotiates based on the maximum
  * version advertised in /sys/fs/ocfs2/max_locking_protocol.  The major
  * number from the "SETV" message must match
- * user_stack.sp_proto->lp_max_version.pv_major, and the minor number
+ * ocfs2_user_plugin.sp_proto->lp_max_version.pv_major, and the minor number
  * must be less than or equal to ...->lp_max_version.pv_minor.
  *
  * Once this information has been set, mounts will be allowed.  From this
@@ -153,7 +153,7 @@ union ocfs2_control_message {
 	struct ocfs2_control_message_down	u_down;
 };
 
-static struct ocfs2_stack_plugin user_stack;
+static struct ocfs2_stack_plugin ocfs2_user_plugin;
 
 static atomic_t ocfs2_control_opened;
 static int ocfs2_control_this_node = -1;
@@ -399,7 +399,7 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 	struct ocfs2_protocol_version *max =
-		&user_stack.sp_proto->lp_max_version;
+		&ocfs2_user_plugin.sp_proto->lp_max_version;
 
 	if (ocfs2_control_get_handshake_state(file) !=
 	    OCFS2_CONTROL_HANDSHAKE_PROTOCOL)
@@ -680,7 +680,7 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	struct dlm_lksb *lksb = fsdlm_astarg_to_lksb(astarg);
 	int status = lksb->sb_status;
 
-	BUG_ON(user_stack.sp_proto == NULL);
+	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
 
 	/*
 	 * For now we're punting on the issue of other non-standard errors
@@ -693,16 +693,16 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	 */
 
 	if (status == -DLM_EUNLOCK || status == -DLM_ECANCEL)
-		user_stack.sp_proto->lp_unlock_ast(astarg, 0);
+		ocfs2_user_plugin.sp_proto->lp_unlock_ast(astarg, 0);
 	else
-		user_stack.sp_proto->lp_lock_ast(astarg);
+		ocfs2_user_plugin.sp_proto->lp_lock_ast(astarg);
 }
 
 static void fsdlm_blocking_ast_wrapper(void *astarg, int level)
 {
-	BUG_ON(user_stack.sp_proto == NULL);
+	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
 
-	user_stack.sp_proto->lp_blocking_ast(astarg, level);
+	ocfs2_user_plugin.sp_proto->lp_blocking_ast(astarg, level);
 }
 
 static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
@@ -838,7 +838,7 @@ static int user_cluster_this_node(unsigned int *this_node)
 	return 0;
 }
 
-static struct ocfs2_stack_operations user_stack_ops = {
+static struct ocfs2_stack_operations ocfs2_user_plugin_ops = {
 	.connect	= user_cluster_connect,
 	.disconnect	= user_cluster_disconnect,
 	.this_node	= user_cluster_this_node,
@@ -849,20 +849,20 @@ static struct ocfs2_stack_operations user_stack_ops = {
 	.dump_lksb	= user_dlm_dump_lksb,
 };
 
-static struct ocfs2_stack_plugin user_stack = {
+static struct ocfs2_stack_plugin ocfs2_user_plugin = {
 	.sp_name	= "user",
-	.sp_ops		= &user_stack_ops,
+	.sp_ops		= &ocfs2_user_plugin_ops,
 	.sp_owner	= THIS_MODULE,
 };
 
 
-static int __init user_stack_init(void)
+static int __init ocfs2_user_plugin_init(void)
 {
 	int rc;
 
 	rc = ocfs2_control_init();
 	if (!rc) {
-		rc = ocfs2_stack_glue_register(&user_stack);
+		rc = ocfs2_stack_glue_register(&ocfs2_user_plugin);
 		if (rc)
 			ocfs2_control_exit();
 	}
@@ -870,14 +870,14 @@ static int __init user_stack_init(void)
 	return rc;
 }
 
-static void __exit user_stack_exit(void)
+static void __exit ocfs2_user_plugin_exit(void)
 {
-	ocfs2_stack_glue_unregister(&user_stack);
+	ocfs2_stack_glue_unregister(&ocfs2_user_plugin);
 	ocfs2_control_exit();
 }
 
 MODULE_AUTHOR("Oracle");
 MODULE_DESCRIPTION("ocfs2 driver for userspace cluster stacks");
 MODULE_LICENSE("GPL");
-module_init(user_stack_init);
-module_exit(user_stack_exit);
+module_init(ocfs2_user_plugin_init);
+module_exit(ocfs2_user_plugin_exit);

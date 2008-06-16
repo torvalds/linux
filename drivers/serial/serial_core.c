@@ -1165,6 +1165,15 @@ out:
 	return ret;
 }
 
+static void uart_set_ldisc(struct tty_struct *tty)
+{
+	struct uart_state *state = tty->driver_data;
+	struct uart_port *port = state->port;
+
+	if (port->ops->set_ldisc)
+		port->ops->set_ldisc(port);
+}
+
 static void uart_set_termios(struct tty_struct *tty,
 						struct ktermios *old_termios)
 {
@@ -2054,6 +2063,8 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 {
 	struct uart_state *state = drv->state + port->line;
+	struct device *tty_dev;
+	struct uart_match match = {port, drv};
 
 	mutex_lock(&state->mutex);
 
@@ -2063,7 +2074,8 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		return 0;
 	}
 
-	if (!port->suspended) {
+	tty_dev = device_find_child(port->dev, &match, serial_match_port);
+	if (!port->suspended && device_may_wakeup(tty_dev)) {
 		disable_irq_wake(port->irq);
 		mutex_unlock(&state->mutex);
 		return 0;
@@ -2285,6 +2297,7 @@ static const struct tty_operations uart_ops = {
 	.unthrottle	= uart_unthrottle,
 	.send_xchar	= uart_send_xchar,
 	.set_termios	= uart_set_termios,
+	.set_ldisc	= uart_set_ldisc,
 	.stop		= uart_stop,
 	.start		= uart_start,
 	.hangup		= uart_hangup,

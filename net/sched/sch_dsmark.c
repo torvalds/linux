@@ -444,7 +444,8 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, opts);
+	nla_nest_cancel(skb, opts);
+	return -EMSGSIZE;
 }
 
 static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -466,7 +467,8 @@ static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, opts);
+	nla_nest_cancel(skb, opts);
+	return -EMSGSIZE;
 }
 
 static const struct Qdisc_class_ops dsmark_class_ops = {

@@ -247,12 +247,99 @@ u8 ata_sff_check_status(struct ata_port *ap)
  *	LOCKING:
  *	Inherited from caller.
  */
-u8 ata_sff_altstatus(struct ata_port *ap)
+static u8 ata_sff_altstatus(struct ata_port *ap)
 {
 	if (ap->ops->sff_check_altstatus)
 		return ap->ops->sff_check_altstatus(ap);
 
 	return ioread8(ap->ioaddr.altstatus_addr);
+}
+
+/**
+ *	ata_sff_irq_status - Check if the device is busy
+ *	@ap: port where the device is
+ *
+ *	Determine if the port is currently busy. Uses altstatus
+ *	if available in order to avoid clearing shared IRQ status
+ *	when finding an IRQ source. Non ctl capable devices don't
+ *	share interrupt lines fortunately for us.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+static u8 ata_sff_irq_status(struct ata_port *ap)
+{
+	u8 status;
+
+	if (ap->ops->sff_check_altstatus || ap->ioaddr.altstatus_addr) {
+		status = ata_sff_altstatus(ap);
+		/* Not us: We are busy */
+		if (status & ATA_BUSY)
+		    	return status;
+	}
+	/* Clear INTRQ latch */
+	status = ap->ops->sff_check_status(ap);
+	return status;
+}
+
+/**
+ *	ata_sff_sync - Flush writes
+ *	@ap: Port to wait for.
+ *
+ *	CAUTION:
+ *	If we have an mmio device with no ctl and no altstatus
+ *	method this will fail. No such devices are known to exist.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
+static void ata_sff_sync(struct ata_port *ap)
+{
+	if (ap->ops->sff_check_altstatus)
+		ap->ops->sff_check_altstatus(ap);
+	else if (ap->ioaddr.altstatus_addr)
+		ioread8(ap->ioaddr.altstatus_addr);
+}
+
+/**
+ *	ata_sff_pause		-	Flush writes and wait 400nS
+ *	@ap: Port to pause for.
+ *
+ *	CAUTION:
+ *	If we have an mmio device with no ctl and no altstatus
+ *	method this will fail. No such devices are known to exist.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
+void ata_sff_pause(struct ata_port *ap)
+{
+	ata_sff_sync(ap);
+	ndelay(400);
+}
+
+/**
+ *	ata_sff_dma_pause	-	Pause before commencing DMA
+ *	@ap: Port to pause for.
+ *
+ *	Perform I/O fencing and ensure sufficient cycle delays occur
+ *	for the HDMA1:0 transition
+ */
+ 
+void ata_sff_dma_pause(struct ata_port *ap)
+{
+	if (ap->ops->sff_check_altstatus || ap->ioaddr.altstatus_addr) {
+		/* An altstatus read will cause the needed delay without
+		   messing up the IRQ status */
+		ata_sff_altstatus(ap);
+		return;
+	}
+	/* There are no DMA controllers without ctl. BUG here to ensure
+	   we never violate the HDMA1:0 transition timing and risk
+	   corruption. */
+	BUG();
 }
 
 /**
@@ -742,7 +829,7 @@ static void ata_pio_sectors(struct ata_queued_cmd *qc)
 	} else
 		ata_pio_sector(qc);
 
-	ata_sff_altstatus(qc->ap); /* flush */
+	ata_sff_sync(qc->ap); /* flush */
 }
 
 /**
@@ -763,8 +850,9 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 	WARN_ON(qc->dev->cdb_len < 12);
 
 	ap->ops->sff_data_xfer(qc->dev, qc->cdb, qc->dev->cdb_len, 1);
-	ata_sff_altstatus(ap); /* flush */
-
+	ata_sff_sync(ap);
+	/* FIXME: If the CDB is for DMA do we need to do the transition delay
+	   or is bmdma_start guaranteed to do it ? */
 	switch (qc->tf.protocol) {
 	case ATAPI_PROT_PIO:
 		ap->hsm_task_state = HSM_ST;
@@ -905,7 +993,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 
 	if (unlikely(__atapi_pio_bytes(qc, bytes)))
 		goto err_out;
-	ata_sff_altstatus(ap); /* flush */
+	ata_sff_sync(ap); /* flush */
 
 	return;
 
@@ -1489,14 +1577,10 @@ inline unsigned int ata_sff_host_intr(struct ata_port *ap,
 		goto idle_irq;
 	}
 
-	/* check altstatus */
-	status = ata_sff_altstatus(ap);
-	if (status & ATA_BUSY)
-		goto idle_irq;
 
-	/* check main status, clearing INTRQ */
-	status = ap->ops->sff_check_status(ap);
-	if (unlikely(status & ATA_BUSY))
+	/* check main status, clearing INTRQ if needed */
+	status = ata_sff_irq_status(ap);
+	if (status & ATA_BUSY)
 		goto idle_irq;
 
 	/* ack bmdma irq events */
@@ -2030,7 +2114,7 @@ void ata_sff_error_handler(struct ata_port *ap)
 		ap->ops->bmdma_stop(qc);
 	}
 
-	ata_sff_altstatus(ap);
+	ata_sff_sync(ap);		/* FIXME: We don't need this */
 	ap->ops->sff_check_status(ap);
 	ap->ops->sff_irq_clear(ap);
 
@@ -2203,7 +2287,7 @@ void ata_bmdma_stop(struct ata_queued_cmd *qc)
 		 mmio + ATA_DMA_CMD);
 
 	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
-	ata_sff_altstatus(ap);        /* dummy read */
+	ata_sff_dma_pause(ap);
 }
 
 /**
@@ -2722,7 +2806,8 @@ EXPORT_SYMBOL_GPL(ata_sff_qc_prep);
 EXPORT_SYMBOL_GPL(ata_sff_dumb_qc_prep);
 EXPORT_SYMBOL_GPL(ata_sff_dev_select);
 EXPORT_SYMBOL_GPL(ata_sff_check_status);
-EXPORT_SYMBOL_GPL(ata_sff_altstatus);
+EXPORT_SYMBOL_GPL(ata_sff_dma_pause);
+EXPORT_SYMBOL_GPL(ata_sff_pause);
 EXPORT_SYMBOL_GPL(ata_sff_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_sff_wait_ready);
 EXPORT_SYMBOL_GPL(ata_sff_tf_load);

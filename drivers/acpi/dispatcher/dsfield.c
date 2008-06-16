@@ -450,10 +450,6 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (!arg) {
-		return_ACPI_STATUS(AE_AML_NO_OPERAND);
-	}
-
 	/* Creating new namespace node(s), should not already exist */
 
 	flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
@@ -467,6 +463,7 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 
 	/*
 	 * Walk the list of entries in the field_list
+	 * Note: field_list can be of zero length. In this case, Arg will be NULL.
 	 */
 	while (arg) {
 		/*

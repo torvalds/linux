@@ -621,6 +621,13 @@ static __init int via_router_probe(struct irq_router *r,
 			 */
 			device = PCI_DEVICE_ID_VIA_8235;
 			break;
+		case PCI_DEVICE_ID_VIA_8237:
+			/**
+			 * Asus a7v600 bios wrongly reports 8237
+			 * as 586-compatible
+			 */
+			device = PCI_DEVICE_ID_VIA_8237;
+			break;
 		}
 	}
 
