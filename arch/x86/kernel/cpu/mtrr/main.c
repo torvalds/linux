@@ -1440,7 +1440,7 @@ static u64 __init real_trim_memory(unsigned long start_pfn,
 	trim_size <<= PAGE_SHIFT;
 	trim_size -= trim_start;
 
-	return update_memory_range(trim_start, trim_size, E820_RAM,
+	return e820_update_range(trim_start, trim_size, E820_RAM,
 				E820_RESERVED);
 }
 /**

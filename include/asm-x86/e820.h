@@ -60,12 +60,12 @@ extern struct e820map e820;
 
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
 extern int e820_all_mapped(u64 start, u64 end, unsigned type);
-extern void add_memory_region(u64 start, u64 size, int type);
+extern void e820_add_region(u64 start, u64 size, int type);
 extern void e820_print_map(char *who);
 extern int
 sanitize_e820_map(struct e820entry *biosmap, int max_nr_map, int *pnr_map);
 extern int copy_e820_map(struct e820entry *biosmap, int nr_map);
-extern u64 update_memory_range(u64 start, u64 size, unsigned old_type,
+extern u64 e820_update_range(u64 start, u64 size, unsigned old_type,
 			       unsigned new_type);
 extern void update_e820(void);
 extern void e820_setup_gap(void);

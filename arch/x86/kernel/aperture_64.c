@@ -292,7 +292,7 @@ void __init early_gart_iommu_check(void)
 				    E820_RAM)) {
 			/* reserved it, so we can resuse it in second kernel */
 			printk(KERN_INFO "update e820 for GART\n");
-			add_memory_region(aper_base, aper_size, E820_RESERVED);
+			e820_add_region(aper_base, aper_size, E820_RESERVED);
 			update_e820();
 		}
 		return;

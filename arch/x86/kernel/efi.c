@@ -233,7 +233,7 @@ static void __init add_efi_memmap(void)
 			e820_type = E820_RAM;
 		else
 			e820_type = E820_RESERVED;
-		add_memory_region(start, size, e820_type);
+		e820_add_region(start, size, e820_type);
 	}
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }

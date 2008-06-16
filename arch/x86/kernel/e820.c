@@ -94,7 +94,7 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
 /*
  * Add a memory region to the kernel e820 map.
  */
-void __init add_memory_region(u64 start, u64 size, int type)
+void __init e820_add_region(u64 start, u64 size, int type)
 {
 	int x = e820.nr_map;
 
@@ -384,12 +384,12 @@ int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 		if (start > end)
 			return -1;
 
-		add_memory_region(start, size, type);
+		e820_add_region(start, size, type);
 	} while (biosmap++, --nr_map);
 	return 0;
 }
 
-u64 __init update_memory_range(u64 start, u64 size, unsigned old_type,
+u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 				unsigned new_type)
 {
 	int i;
@@ -414,7 +414,7 @@ u64 __init update_memory_range(u64 start, u64 size, unsigned old_type,
 		final_end = min(start + size, ei->addr + ei->size);
 		if (final_start >= final_end)
 			continue;
-		add_memory_region(final_start, final_end - final_start,
+		e820_add_region(final_start, final_end - final_start,
 					 new_type);
 		real_updated_size += final_end - final_start;
 	}
@@ -774,7 +774,7 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 		return 0;
 
 	addr = round_down(start + size - sizet, align);
-	update_memory_range(addr, sizet, E820_RAM, E820_RESERVED);
+	e820_update_range(addr, sizet, E820_RAM, E820_RESERVED);
 	printk(KERN_INFO "update e820 for early_reserve_e820\n");
 	update_e820();
 
@@ -949,13 +949,13 @@ static int __init parse_memmap_opt(char *p)
 	userdef = 1;
 	if (*p == '@') {
 		start_at = memparse(p+1, &p);
-		add_memory_region(start_at, mem_size, E820_RAM);
+		e820_add_region(start_at, mem_size, E820_RAM);
 	} else if (*p == '#') {
 		start_at = memparse(p+1, &p);
-		add_memory_region(start_at, mem_size, E820_ACPI);
+		e820_add_region(start_at, mem_size, E820_ACPI);
 	} else if (*p == '$') {
 		start_at = memparse(p+1, &p);
-		add_memory_region(start_at, mem_size, E820_RESERVED);
+		e820_add_region(start_at, mem_size, E820_RESERVED);
 	} else {
 		end_user_pfn = (mem_size >> PAGE_SHIFT);
 	}
