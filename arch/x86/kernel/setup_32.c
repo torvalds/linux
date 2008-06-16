@@ -68,6 +68,7 @@
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/efi.h>
+#include <asm/bugs.h>
 
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
@@ -763,6 +764,14 @@ void __init setup_arch(char **cmdline_p)
 
 	if (efi_enabled)
 		efi_init();
+
+	if (ppro_with_ram_bug()) {
+		e820_update_range(0x70000000ULL, 0x40000ULL, E820_RAM,
+				  E820_RESERVED);
+		sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+		printk(KERN_INFO "fixed physical RAM map:\n");
+		e820_print_map("bad_ppro");
+	}
 
 	e820_register_active_regions(0, 0, -1UL);
 	/*

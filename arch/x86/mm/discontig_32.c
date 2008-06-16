@@ -427,7 +427,7 @@ void __init zone_sizes_init(void)
 	return;
 }
 
-void __init set_highmem_pages_init(int bad_ppro) 
+void __init set_highmem_pages_init(void)
 {
 #ifdef CONFIG_HIGHMEM
 	struct zone *zone;
@@ -447,7 +447,7 @@ void __init set_highmem_pages_init(int bad_ppro)
 				zone->name, nid, zone_start_pfn, zone_end_pfn);
 
 		add_highpages_with_active_regions(nid, zone_start_pfn,
-				 zone_end_pfn, bad_ppro);
+				 zone_end_pfn);
 	}
 	totalram_pages += totalhigh_pages;
 #endif

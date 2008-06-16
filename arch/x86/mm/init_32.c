@@ -220,13 +220,6 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	}
 }
 
-static inline int page_kills_ppro(unsigned long pagenr)
-{
-	if (pagenr >= 0x70000 && pagenr <= 0x7003F)
-		return 1;
-	return 0;
-}
-
 /*
  * devmem_is_allowed() checks to see if /dev/mem access to a certain address
  * is valid. The argument is a physical page number.
@@ -287,22 +280,17 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 	pkmap_page_table = pte;
 }
 
-static void __init
-add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
+static void __init add_one_highpage_init(struct page *page, int pfn)
 {
-	if (!(bad_ppro && page_kills_ppro(pfn))) {
-		ClearPageReserved(page);
-		init_page_count(page);
-		__free_page(page);
-		totalhigh_pages++;
-	} else
-		SetPageReserved(page);
+	ClearPageReserved(page);
+	init_page_count(page);
+	__free_page(page);
+	totalhigh_pages++;
 }
 
 struct add_highpages_data {
 	unsigned long start_pfn;
 	unsigned long end_pfn;
-	int bad_ppro;
 };
 
 static void __init add_highpages_work_fn(unsigned long start_pfn,
@@ -312,10 +300,8 @@ static void __init add_highpages_work_fn(unsigned long start_pfn,
 	struct page *page;
 	unsigned long final_start_pfn, final_end_pfn;
 	struct add_highpages_data *data;
-	int bad_ppro;
 
 	data = (struct add_highpages_data *)datax;
-	bad_ppro = data->bad_ppro;
 
 	final_start_pfn = max(start_pfn, data->start_pfn);
 	final_end_pfn = min(end_pfn, data->end_pfn);
@@ -327,29 +313,26 @@ static void __init add_highpages_work_fn(unsigned long start_pfn,
 		if (!pfn_valid(node_pfn))
 			continue;
 		page = pfn_to_page(node_pfn);
-		add_one_highpage_init(page, node_pfn, bad_ppro);
+		add_one_highpage_init(page, node_pfn);
 	}
 
 }
 
 void __init add_highpages_with_active_regions(int nid, unsigned long start_pfn,
-					      unsigned long end_pfn,
-					      int bad_ppro)
+					      unsigned long end_pfn)
 {
 	struct add_highpages_data data;
 
 	data.start_pfn = start_pfn;
 	data.end_pfn = end_pfn;
-	data.bad_ppro = bad_ppro;
 
 	work_with_active_regions(nid, add_highpages_work_fn, &data);
 }
 
 #ifndef CONFIG_NUMA
-static void __init set_highmem_pages_init(int bad_ppro)
+static void __init set_highmem_pages_init(void)
 {
-	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn,
-						bad_ppro);
+	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn);
 
 	totalram_pages += totalhigh_pages;
 }
@@ -358,7 +341,7 @@ static void __init set_highmem_pages_init(int bad_ppro)
 #else
 # define kmap_init()				do { } while (0)
 # define permanent_kmaps_init(pgd_base)		do { } while (0)
-# define set_highmem_pages_init(bad_ppro)	do { } while (0)
+# define set_highmem_pages_init()	do { } while (0)
 #endif /* CONFIG_HIGHMEM */
 
 pteval_t __PAGE_KERNEL = _PAGE_KERNEL;
@@ -605,13 +588,11 @@ static struct kcore_list kcore_mem, kcore_vmalloc;
 void __init mem_init(void)
 {
 	int codesize, reservedpages, datasize, initsize;
-	int tmp, bad_ppro;
+	int tmp;
 
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
 #endif
-	bad_ppro = ppro_with_ram_bug();
-
 #ifdef CONFIG_HIGHMEM
 	/* check that fixmap and pkmap do not overlap */
 	if (PKMAP_BASE + LAST_PKMAP*PAGE_SIZE >= FIXADDR_START) {
@@ -634,7 +615,7 @@ void __init mem_init(void)
 		if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
 			reservedpages++;
 
-	set_highmem_pages_init(bad_ppro);
+	set_highmem_pages_init();
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
