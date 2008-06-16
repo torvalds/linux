@@ -2208,6 +2208,32 @@ static int saa7134_g_parm(struct file *file, void *fh,
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int vidioc_g_register (struct file *file, void *priv,
+			      struct v4l2_register *reg)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		return -EINVAL;
+	reg->val = saa_readb(reg->reg);
+	return 0;
+}
+
+static int vidioc_s_register (struct file *file, void *priv,
+				struct v4l2_register *reg)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		return -EINVAL;
+	saa_writeb(reg->reg&0xffffff, reg->val);
+	return 0;
+}
+#endif
+
 static int radio_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
 {
@@ -2391,6 +2417,10 @@ struct video_device saa7134_video_template =
 	.vidioc_g_parm			= saa7134_g_parm,
 	.vidioc_g_frequency		= saa7134_g_frequency,
 	.vidioc_s_frequency		= saa7134_s_frequency,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register              = vidioc_g_register,
+	.vidioc_s_register              = vidioc_s_register,
+#endif
 	.tvnorms			= SAA7134_NORMS,
 	.current_norm			= V4L2_STD_PAL,
 };
