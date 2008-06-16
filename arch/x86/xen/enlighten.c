@@ -1228,6 +1228,11 @@ asmlinkage void __init xen_start_kernel(void)
 	if (xen_feature(XENFEAT_supervisor_mode_kernel))
 		pv_info.kernel_rpl = 0;
 
+	/* Prevent unwanted bits from being set in PTEs. */
+	__supported_pte_mask &= ~_PAGE_GLOBAL;
+	if (!is_initial_xendomain())
+		__supported_pte_mask &= ~(_PAGE_PWT | _PAGE_PCD);
+
 	/* set the limit of our address space */
 	xen_reserve_top();
 

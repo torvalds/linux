@@ -199,10 +199,8 @@ pgdval_t xen_pgd_val(pgd_t pgd)
 
 pte_t xen_make_pte(pteval_t pte)
 {
-	if (pte & _PAGE_PRESENT) {
+	if (pte & _PAGE_PRESENT)
 		pte = phys_to_machine(XPADDR(pte)).maddr;
-		pte &= ~(_PAGE_PCD | _PAGE_PWT);
-	}
 
 	return (pte_t){ .pte = pte };
 }
