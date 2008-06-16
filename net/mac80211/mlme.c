@@ -1720,6 +1720,71 @@ void ieee80211_sta_tear_down_BA_sessions(struct net_device *dev, u8 *addr)
 	}
 }
 
+static void ieee80211_send_refuse_measurement_request(struct net_device *dev,
+					struct ieee80211_msrment_ie *request_ie,
+					const u8 *da, const u8 *bssid,
+					u8 dialog_token)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *msr_report;
+
+	skb = dev_alloc_skb(sizeof(*msr_report) + local->hw.extra_tx_headroom +
+				sizeof(struct ieee80211_msrment_ie));
+
+	if (!skb) {
+		printk(KERN_ERR "%s: failed to allocate buffer for "
+				"measurement report frame\n", dev->name);
+		return;
+	}
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	msr_report = (struct ieee80211_mgmt *)skb_put(skb, 24);
+	memset(msr_report, 0, 24);
+	memcpy(msr_report->da, da, ETH_ALEN);
+	memcpy(msr_report->sa, dev->dev_addr, ETH_ALEN);
+	memcpy(msr_report->bssid, bssid, ETH_ALEN);
+	msr_report->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
+						IEEE80211_STYPE_ACTION);
+
+	skb_put(skb, 1 + sizeof(msr_report->u.action.u.measurement));
+	msr_report->u.action.category = WLAN_CATEGORY_SPECTRUM_MGMT;
+	msr_report->u.action.u.measurement.action_code =
+				WLAN_ACTION_SPCT_MSR_RPRT;
+	msr_report->u.action.u.measurement.dialog_token = dialog_token;
+
+	msr_report->u.action.u.measurement.element_id = WLAN_EID_MEASURE_REPORT;
+	msr_report->u.action.u.measurement.length =
+			sizeof(struct ieee80211_msrment_ie);
+
+	memset(&msr_report->u.action.u.measurement.msr_elem, 0,
+		sizeof(struct ieee80211_msrment_ie));
+	msr_report->u.action.u.measurement.msr_elem.token = request_ie->token;
+	msr_report->u.action.u.measurement.msr_elem.mode |=
+			IEEE80211_SPCT_MSR_RPRT_MODE_REFUSED;
+	msr_report->u.action.u.measurement.msr_elem.type = request_ie->type;
+
+	ieee80211_sta_tx(dev, skb, 0);
+}
+
+static void ieee80211_sta_process_measurement_req(struct net_device *dev,
+						struct ieee80211_mgmt *mgmt,
+						size_t len)
+{
+	/*
+	 * Ignoring measurement request is spec violation.
+	 * Mandatory measurements must be reported optional
+	 * measurements might be refused or reported incapable
+	 * For now just refuse
+	 * TODO: Answer basic measurement as unmeasured
+	 */
+	ieee80211_send_refuse_measurement_request(dev,
+			&mgmt->u.action.u.measurement.msr_elem,
+			mgmt->sa, mgmt->bssid,
+			mgmt->u.action.u.measurement.dialog_token);
+}
+
+
 static void ieee80211_rx_mgmt_auth(struct net_device *dev,
 				   struct ieee80211_if_sta *ifsta,
 				   struct ieee80211_mgmt *mgmt,
@@ -3044,11 +3109,24 @@ static void ieee80211_rx_mgmt_action(struct net_device *dev,
 				     struct ieee80211_rx_status *rx_status)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
 	if (len < IEEE80211_MIN_ACTION_SIZE)
 		return;
 
 	switch (mgmt->u.action.category) {
+	case WLAN_CATEGORY_SPECTRUM_MGMT:
+		if (local->hw.conf.channel->band != IEEE80211_BAND_5GHZ)
+			break;
+		switch (mgmt->u.action.u.chan_switch.action_code) {
+		case WLAN_ACTION_SPCT_MSR_REQ:
+			if (len < (IEEE80211_MIN_ACTION_SIZE +
+				   sizeof(mgmt->u.action.u.measurement)))
+				break;
+			ieee80211_sta_process_measurement_req(dev, mgmt, len);
+			break;
+		}
+		break;
 	case WLAN_CATEGORY_BACK:
 		switch (mgmt->u.action.u.addba_req.action_code) {
 		case WLAN_ACTION_ADDBA_REQ:
