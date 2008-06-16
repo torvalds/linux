@@ -339,6 +339,11 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	if (kvm_cpu_has_interrupt(vcpu))
 		return 0;
 
+	__set_cpu_idle(vcpu);
+	spin_lock_bh(&vcpu->arch.local_int.lock);
+	vcpu->arch.local_int.timer_due = 0;
+	spin_unlock_bh(&vcpu->arch.local_int.lock);
+
 	if (psw_interrupts_disabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "disabled wait");
 		__unset_cpu_idle(vcpu);
@@ -366,8 +371,6 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 no_timer:
 	spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
-	__set_cpu_idle(vcpu);
-	vcpu->arch.local_int.timer_due = 0;
 	add_wait_queue(&vcpu->arch.local_int.wq, &wait);
 	while (list_empty(&vcpu->arch.local_int.list) &&
 		list_empty(&vcpu->arch.local_int.float_int->list) &&

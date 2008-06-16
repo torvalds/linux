@@ -77,11 +77,10 @@ ntfschar *generate_default_upcase(void)
 		uc[i] = cpu_to_le16(i);
 	for (r = 0; uc_run_table[r][0]; r++)
 		for (i = uc_run_table[r][0]; i < uc_run_table[r][1]; i++)
-			uc[i] = cpu_to_le16(le16_to_cpu(uc[i]) +
-					uc_run_table[r][2]);
+			le16_add_cpu(&uc[i], uc_run_table[r][2]);
 	for (r = 0; uc_dup_table[r][0]; r++)
 		for (i = uc_dup_table[r][0]; i < uc_dup_table[r][1]; i += 2)
-			uc[i + 1] = cpu_to_le16(le16_to_cpu(uc[i + 1]) - 1);
+			le16_add_cpu(&uc[i + 1], -1);
 	for (r = 0; uc_word_table[r][0]; r++)
 		uc[uc_word_table[r][0]] = cpu_to_le16(uc_word_table[r][1]);
 	return uc;

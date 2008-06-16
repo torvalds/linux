@@ -3193,8 +3193,6 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sh->transportt = mptsas_transport_template;
 
-	sh->this_id = ioc->pfacts[0].PortSCSIID;
-
 	/* Required entry.
 	 */
 	sh->unique_id = ioc->id;

@@ -290,9 +290,6 @@ int qeth_set_large_send(struct qeth_card *card,
 			card->dev->features |= NETIF_F_TSO | NETIF_F_SG |
 						NETIF_F_HW_CSUM;
 		} else {
-			PRINT_WARN("TSO not supported on %s. "
-				   "large_send set to 'no'.\n",
-				   card->dev->name);
 			card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG |
 						NETIF_F_HW_CSUM);
 			card->options.large_send = QETH_LARGE_SEND_NO;
@@ -1407,12 +1404,6 @@ static void qeth_init_func_level(struct qeth_card *card)
 	}
 }
 
-static inline __u16 qeth_raw_devno_from_bus_id(char *id)
-{
-	id += (strlen(id) - 4);
-	return (__u16) simple_strtoul(id, &id, 16);
-}
-
 static int qeth_idx_activate_get_answer(struct qeth_channel *channel,
 		void (*idx_reply_cb)(struct qeth_channel *,
 			struct qeth_cmd_buffer *))
@@ -1439,7 +1430,7 @@ static int qeth_idx_activate_get_answer(struct qeth_channel *channel,
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 
 	if (rc) {
-		PRINT_ERR("Error2 in activating channel rc=%d\n", rc);
+		QETH_DBF_MESSAGE(2, "Error2 in activating channel rc=%d\n", rc);
 		QETH_DBF_TEXT_(SETUP, 2, "2err%d", rc);
 		atomic_set(&channel->irq_pending, 0);
 		wake_up(&card->wait_q);
@@ -1468,6 +1459,7 @@ static int qeth_idx_activate_channel(struct qeth_channel *channel,
 	__u16 temp;
 	__u8 tmp;
 	int rc;
+	struct ccw_dev_id temp_devid;
 
 	card = CARD_FROM_CDEV(channel->ccwdev);
 
@@ -1494,8 +1486,8 @@ static int qeth_idx_activate_channel(struct qeth_channel *channel,
 	       &card->token.issuer_rm_w, QETH_MPC_TOKEN_LENGTH);
 	memcpy(QETH_IDX_ACT_FUNC_LEVEL(iob->data),
 	       &card->info.func_level, sizeof(__u16));
-	temp = qeth_raw_devno_from_bus_id(CARD_DDEV_ID(card));
-	memcpy(QETH_IDX_ACT_QDIO_DEV_CUA(iob->data), &temp, 2);
+	ccw_device_get_id(CARD_DDEV(card), &temp_devid);
+	memcpy(QETH_IDX_ACT_QDIO_DEV_CUA(iob->data), &temp_devid.devno, 2);
 	temp = (card->info.cula << 8) + card->info.unit_addr2;
 	memcpy(QETH_IDX_ACT_QDIO_DEV_REALADDR(iob->data), &temp, 2);
 
@@ -1508,7 +1500,8 @@ static int qeth_idx_activate_channel(struct qeth_channel *channel,
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 
 	if (rc) {
-		PRINT_ERR("Error1 in activating channel. rc=%d\n", rc);
+		QETH_DBF_MESSAGE(2, "Error1 in activating channel. rc=%d\n",
+			rc);
 		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
 		atomic_set(&channel->irq_pending, 0);
 		wake_up(&card->wait_q);
@@ -1658,7 +1651,6 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 
 	reply = qeth_alloc_reply(card);
 	if (!reply) {
-		PRINT_WARN("Could not alloc qeth_reply!\n");
 		return -ENOMEM;
 	}
 	reply->callback = reply_cb;
@@ -2612,15 +2604,9 @@ void qeth_queue_input_buffer(struct qeth_card *card, int index)
 		if (newcount < count) {
 			/* we are in memory shortage so we switch back to
 			   traditional skb allocation and drop packages */
-			if (!atomic_read(&card->force_alloc_skb) &&
-			    net_ratelimit())
-				PRINT_WARN("Switch to alloc skb\n");
 			atomic_set(&card->force_alloc_skb, 3);
 			count = newcount;
 		} else {
-			if ((atomic_read(&card->force_alloc_skb) == 1) &&
-			    net_ratelimit())
-				PRINT_WARN("Switch to sg\n");
 			atomic_add_unless(&card->force_alloc_skb, -1, 0);
 		}
 
@@ -3034,7 +3020,7 @@ int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 		elements_needed = 1 + (((((unsigned long) hdr) % PAGE_SIZE)
 			+ skb->len) >> PAGE_SHIFT);
 	if ((elements_needed + elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
-		PRINT_ERR("Invalid size of IP packet "
+		QETH_DBF_MESSAGE(2, "Invalid size of IP packet "
 			"(Number=%d / Length=%d). Discarded.\n",
 			(elements_needed+elems), skb->len);
 		return 0;
@@ -3247,8 +3233,6 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			 * free buffers) to handle eddp context */
 			if (qeth_eddp_check_buffers_for_context(queue, ctx)
 				< 0) {
-				if (net_ratelimit())
-					PRINT_WARN("eddp tx_dropped 1\n");
 				rc = -EBUSY;
 				goto out;
 			}
@@ -3260,7 +3244,6 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		tmp = qeth_eddp_fill_buffer(queue, ctx,
 						queue->next_buf_to_fill);
 		if (tmp < 0) {
-			PRINT_ERR("eddp tx_dropped 2\n");
 			rc = -EBUSY;
 			goto out;
 		}
@@ -3602,8 +3585,6 @@ int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 
 	if ((!qeth_adp_supported(card, IPA_SETADP_SET_SNMP_CONTROL)) &&
 	    (!card->options.layer2)) {
-		PRINT_WARN("SNMP Query MIBS not supported "
-			   "on %s!\n", QETH_CARD_IFNAME(card));
 		return -EOPNOTSUPP;
 	}
 	/* skip 4 bytes (data_len struct member) to get req_len */
@@ -3634,7 +3615,7 @@ int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 	rc = qeth_send_ipa_snmp_cmd(card, iob, QETH_SETADP_BASE_LEN + req_len,
 				    qeth_snmp_command_cb, (void *)&qinfo);
 	if (rc)
-		PRINT_WARN("SNMP command failed on %s: (0x%x)\n",
+		QETH_DBF_MESSAGE(2, "SNMP command failed on %s: (0x%x)\n",
 			   QETH_CARD_IFNAME(card), rc);
 	else {
 		if (copy_to_user(udata, qinfo.udata, qinfo.udata_len))
@@ -3807,8 +3788,8 @@ retry:
 	if (mpno)
 		mpno = min(mpno - 1, QETH_MAX_PORTNO);
 	if (card->info.portno > mpno) {
-		PRINT_ERR("Device %s does not offer port number %d \n.",
-			CARD_BUS_ID(card), card->info.portno);
+		QETH_DBF_MESSAGE(2, "Device %s does not offer port number %d"
+			"\n.", CARD_BUS_ID(card), card->info.portno);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -3985,8 +3966,6 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	return skb;
 no_mem:
 	if (net_ratelimit()) {
-		PRINT_WARN("No memory for packet received on %s.\n",
-			   QETH_CARD_IFNAME(card));
 		QETH_DBF_TEXT(TRACE, 2, "noskbmem");
 		QETH_DBF_TEXT_(TRACE, 2, "%s", CARD_BUS_ID(card));
 	}
@@ -4004,15 +3983,17 @@ static void qeth_unregister_dbf_views(void)
 	}
 }
 
-void qeth_dbf_longtext(enum qeth_dbf_names dbf_nix, int level, char *text, ...)
+void qeth_dbf_longtext(enum qeth_dbf_names dbf_nix, int level, char *fmt, ...)
 {
 	char dbf_txt_buf[32];
+	va_list args;
 
 	if (level > (qeth_dbf[dbf_nix].id)->level)
 		return;
-	snprintf(dbf_txt_buf, sizeof(dbf_txt_buf), text);
+	va_start(args, fmt);
+	vsnprintf(dbf_txt_buf, sizeof(dbf_txt_buf), fmt, args);
+	va_end(args);
 	debug_text_event(qeth_dbf[dbf_nix].id, level, dbf_txt_buf);
-	
 }
 EXPORT_SYMBOL_GPL(qeth_dbf_longtext);
 

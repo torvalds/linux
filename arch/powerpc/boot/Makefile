@@ -221,8 +221,8 @@ image-$(CONFIG_WARP)			+= cuImage.warp
 image-$(CONFIG_YOSEMITE)		+= cuImage.yosemite
 
 # Board ports in arch/powerpc/platform/8xx/Kconfig
-image-$(CONFIG_PPC_MPC86XADS)		+= cuImage.mpc866ads
-image-$(CONFIG_PPC_MPC885ADS)		+= cuImage.mpc885ads
+image-$(CONFIG_MPC86XADS)		+= cuImage.mpc866ads
+image-$(CONFIG_MPC885ADS)		+= cuImage.mpc885ads
 image-$(CONFIG_PPC_EP88XC)		+= dtbImage.ep88xc
 image-$(CONFIG_PPC_ADDER875)		+= cuImage.adder875-uboot \
 					   dtbImage.adder875-redboot

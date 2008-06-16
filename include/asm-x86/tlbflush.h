@@ -22,12 +22,23 @@ static inline void __native_flush_tlb(void)
 
 static inline void __native_flush_tlb_global(void)
 {
-	unsigned long cr4 = read_cr4();
+	unsigned long flags;
+	unsigned long cr4;
 
+	/*
+	 * Read-modify-write to CR4 - protect it from preemption and
+	 * from interrupts. (Use the raw variant because this code can
+	 * be called from deep inside debugging code.)
+	 */
+	raw_local_irq_save(flags);
+
+	cr4 = read_cr4();
 	/* clear PGE */
 	write_cr4(cr4 & ~X86_CR4_PGE);
 	/* write old PGE again and flush TLBs */
 	write_cr4(cr4);
+
+	raw_local_irq_restore(flags);
 }
 
 static inline void __native_flush_tlb_single(unsigned long addr)

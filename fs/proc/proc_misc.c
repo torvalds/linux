@@ -139,7 +139,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	si_meminfo(&i);
 	si_swapinfo(&i);
-	committed = atomic_read(&vm_committed_space);
+	committed = atomic_long_read(&vm_committed_space);
 	allowed = ((totalram_pages - hugetlb_total_pages())
 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
 
@@ -725,7 +725,7 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 	pfn = src / KPMSIZE;
 	count = min_t(size_t, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
-		return -EIO;
+		return -EINVAL;
 
 	while (count > 0) {
 		ppage = NULL;
@@ -735,7 +735,7 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
 		if (!ppage)
 			pcount = 0;
 		else
-			pcount = atomic_read(&ppage->_count);
+			pcount = page_mapcount(ppage);
 
 		if (put_user(pcount, out++)) {
 			ret = -EFAULT;
@@ -791,7 +791,7 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
 	pfn = src / KPMSIZE;
 	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
 	if (src & KPMMASK || count & KPMMASK)
-		return -EIO;
+		return -EINVAL;
 
 	while (count > 0) {
 		ppage = NULL;
