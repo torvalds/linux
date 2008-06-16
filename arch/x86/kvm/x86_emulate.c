@@ -740,9 +740,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		c->modrm_ea = (u16)c->modrm_ea;
 	} else {
 		/* 32/64-bit ModR/M decode. */
-		switch (c->modrm_rm) {
-		case 4:
-		case 12:
+		if ((c->modrm_rm & 7) == 4) {
 			sib = insn_fetch(u8, 1, c->eip);
 			index_reg |= (sib >> 3) & 7;
 			base_reg |= sib & 7;
@@ -754,18 +752,11 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 				c->modrm_ea += c->regs[base_reg];
 			if (index_reg != 4)
 				c->modrm_ea += c->regs[index_reg] << scale;
-			break;
-		case 5:
-		case 13:
-			if (c->modrm_mod != 0)
-				c->modrm_ea += c->regs[c->modrm_rm];
-			else if (ctxt->mode == X86EMUL_MODE_PROT64)
+		} else if ((c->modrm_rm & 7) == 5 && c->modrm_mod == 0) {
+			if (ctxt->mode == X86EMUL_MODE_PROT64)
 				rip_relative = 1;
-			break;
-		default:
+		} else
 			c->modrm_ea += c->regs[c->modrm_rm];
-			break;
-		}
 		switch (c->modrm_mod) {
 		case 0:
 			if (c->modrm_rm == 5)
