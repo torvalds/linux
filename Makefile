@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 26
-EXTRAVERSION = -rc5
-NAME = Funky Weasel is Jiggy wit it
+EXTRAVERSION = -rc6
+NAME = Rotary Wombat
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

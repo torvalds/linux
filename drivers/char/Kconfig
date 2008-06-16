@@ -749,7 +749,7 @@ config NVRAM
 if RTC_LIB=n
 
 config RTC
-	tristate "Enhanced Real Time Clock Support"
+	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
 	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV \
 			&& !ARM && !SUPERH && !S390 && !AVR32
 	---help---
@@ -1036,9 +1036,9 @@ config HPET
 	  non-periodic and/or periodic.
 
 config HPET_RTC_IRQ
-	bool "HPET Control RTC IRQ" if !HPET_EMULATE_RTC
-	default n
-	depends on HPET
+	bool
+	default HPET_EMULATE_RTC
+	depends on RTC && HPET
 	help
 	  If you say Y here, you will disable RTC_IRQ in drivers/char/rtc.c. It
 	  is assumed the platform called hpet_alloc with the RTC IRQ values for
