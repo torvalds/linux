@@ -427,7 +427,7 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	rc = smsusb_init_device(intf);
-	printk(KERN_INFO  "%s  rc %d\n", __func__, rc);
+	printk(KERN_INFO "%s rc %d\n", __func__, rc);
 	return rc;
 }
 
@@ -437,9 +437,10 @@ void smsusb_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_device_id smsusb_id_table [] = {
-	{ USB_DEVICE(USB_VID_SIANO, 0x0010) },
 	{ USB_DEVICE(USB_VID_SIANO, USB_PID_STELLAR) },
 	{ USB_DEVICE(USB_VID_SIANO, USB_PID_NOVA_A) },
+	{ USB_DEVICE(USB_VID_SIANO, USB_PID_NOVA_B) },
+	{ USB_DEVICE(USB_VID_SIANO, USB_PID_VEGA) },
 	{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, smsusb_id_table);
@@ -464,8 +465,8 @@ int smsusb_register(void)
 
 void smsusb_unregister(void)
 {
+	printk(KERN_DEBUG "%s\n", __func__);
 	/* Regular USB Cleanup */
 	usb_deregister(&smsusb_driver);
-	printk(KERN_INFO "%s\n", __func__);
 }
 
