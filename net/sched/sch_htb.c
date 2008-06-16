@@ -53,7 +53,7 @@
 */
 
 #define HTB_HSIZE 16		/* classid hash size */
-#define HTB_HYSTERESIS 1	/* whether to use mode hysteresis for speedup */
+#define HTB_HYSTERESIS 0	/* whether to use mode hysteresis for speedup */
 #define HTB_VER 0x30011		/* major must be matched with number suplied by TC as version */
 
 #if HTB_VER >> 16 != TC_HTB_PROTOVER
