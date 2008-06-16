@@ -16,6 +16,21 @@
 
 static struct plat_sci_port sci_platform_data[] = {
 	{
+		.mapbase        = 0xffe00000,
+		.flags          = UPF_BOOT_AUTOCONF,
+		.type           = PORT_SCIF,
+		.irqs           = { 80, 80, 80, 80 },
+	},{
+		.mapbase        = 0xffe10000,
+		.flags          = UPF_BOOT_AUTOCONF,
+		.type           = PORT_SCIF,
+		.irqs           = { 81, 81, 81, 81 },
+	},{
+		.mapbase        = 0xffe20000,
+		.flags          = UPF_BOOT_AUTOCONF,
+		.type           = PORT_SCIF,
+		.irqs           = { 82, 82, 82, 82 },
+	},{
 		.mapbase	= 0xa4e30000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCI,
@@ -73,9 +88,35 @@ static struct platform_device rtc_device = {
 	.resource	= rtc_resources,
 };
 
+static struct resource sh7723_usb_host_resources[] = {
+	[0] = {
+		.name	= "r8a66597_hcd",
+		.start	= 0xa4d80000,
+		.end	= 0xa4d800ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 65,
+		.end	= 65,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sh7723_usb_host_device = {
+	.name		= "r8a66597_hcd",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= NULL,         /*  not use dma */
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(sh7723_usb_host_resources),
+	.resource	= sh7723_usb_host_resources,
+};
+
 static struct platform_device *sh7723_devices[] __initdata = {
 	&sci_device,
 	&rtc_device,
+	&sh7723_usb_host_device,
 };
 
 static int __init sh7723_devices_setup(void)
@@ -153,7 +194,7 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(VIO_VOUI,0x8E0),
 
 	INTC_VECT(SCIFA_SCIFA0,0x900),
-	INTC_VECT(VPU_VPUI,0x920),
+	INTC_VECT(VPU_VPUI,0x980),
 	INTC_VECT(TPU_TPUI,0x9A0),
 	INTC_VECT(ADC_ADI,0x9E0),
 	INTC_VECT(USB_USI0,0xA20),
@@ -291,10 +332,4 @@ static DECLARE_INTC_DESC(intc_desc, "sh7723", vectors, groups,
 void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
-}
-
-void __init plat_mem_setup(void)
-{
-	/* Register the URAM space as Node 1 */
-	setup_bootmem_node(1, 0x055f0000, 0x05610000);
 }

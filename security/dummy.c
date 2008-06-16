@@ -27,6 +27,8 @@
 #include <linux/hugetlb.h>
 #include <linux/ptrace.h>
 #include <linux/file.h>
+#include <linux/prctl.h>
+#include <linux/securebits.h>
 
 static int dummy_ptrace (struct task_struct *parent, struct task_struct *child)
 {
@@ -607,7 +609,27 @@ static int dummy_task_kill (struct task_struct *p, struct siginfo *info,
 static int dummy_task_prctl (int option, unsigned long arg2, unsigned long arg3,
 			     unsigned long arg4, unsigned long arg5, long *rc_p)
 {
-	return 0;
+	switch (option) {
+	case PR_CAPBSET_READ:
+		*rc_p = (cap_valid(arg2) ? 1 : -EINVAL);
+		break;
+	case PR_GET_KEEPCAPS:
+		*rc_p = issecure(SECURE_KEEP_CAPS);
+		break;
+	case PR_SET_KEEPCAPS:
+		if (arg2 > 1)
+			*rc_p = -EINVAL;
+		else if (arg2)
+			current->securebits |= issecure_mask(SECURE_KEEP_CAPS);
+		else
+			current->securebits &=
+				~issecure_mask(SECURE_KEEP_CAPS);
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
 }
 
 static void dummy_task_reparent_to_init (struct task_struct *p)

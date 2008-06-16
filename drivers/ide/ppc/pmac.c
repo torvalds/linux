@@ -59,7 +59,6 @@ typedef struct pmac_ide_hwif {
 	int				irq;
 	int				kind;
 	int				aapl_bus_id;
-	unsigned			cable_80 : 1;
 	unsigned			mediabay : 1;
 	unsigned			broken_dma : 1;
 	unsigned			broken_dma_warn : 1;
@@ -918,10 +917,40 @@ pmac_ide_do_resume(ide_hwif_t *hwif)
 	return 0;
 }
 
+static u8 pmac_ide_cable_detect(ide_hwif_t *hwif)
+{
+	pmac_ide_hwif_t *pmif = (pmac_ide_hwif_t *)ide_get_hwifdata(hwif);
+	struct device_node *np = pmif->node;
+	const char *cable = of_get_property(np, "cable-type", NULL);
+
+	/* Get cable type from device-tree. */
+	if (cable && !strncmp(cable, "80-", 3))
+		return ATA_CBL_PATA80;
+
+	/*
+	 * G5's seem to have incorrect cable type in device-tree.
+	 * Let's assume they have a 80 conductor cable, this seem
+	 * to be always the case unless the user mucked around.
+	 */
+	if (of_device_is_compatible(np, "K2-UATA") ||
+	    of_device_is_compatible(np, "shasta-ata"))
+		return ATA_CBL_PATA80;
+
+	return ATA_CBL_PATA40;
+}
+
 static const struct ide_port_ops pmac_ide_ata6_port_ops = {
 	.set_pio_mode		= pmac_ide_set_pio_mode,
 	.set_dma_mode		= pmac_ide_set_dma_mode,
 	.selectproc		= pmac_ide_kauai_selectproc,
+	.cable_detect		= pmac_ide_cable_detect,
+};
+
+static const struct ide_port_ops pmac_ide_ata4_port_ops = {
+	.set_pio_mode		= pmac_ide_set_pio_mode,
+	.set_dma_mode		= pmac_ide_set_dma_mode,
+	.selectproc		= pmac_ide_selectproc,
+	.cable_detect		= pmac_ide_cable_detect,
 };
 
 static const struct ide_port_ops pmac_ide_port_ops = {
@@ -949,10 +978,7 @@ static const struct ide_port_info pmac_port_info = {
 
 /*
  * Setup, register & probe an IDE channel driven by this driver, this is
- * called by one of the 2 probe functions (macio or PCI). Note that a channel
- * that ends up beeing free of any device is not kept around by this driver
- * (it is kept in 2.4). This introduce an interface numbering change on some
- * rare machines unfortunately, but it's better this way.
+ * called by one of the 2 probe functions (macio or PCI).
  */
 static int __devinit
 pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
@@ -962,7 +988,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	struct ide_port_info d = pmac_port_info;
 
-	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
 	if (of_device_is_compatible(np, "shasta-ata")) {
 		pmif->kind = controller_sh_ata6;
@@ -979,6 +1004,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	} else if (of_device_is_compatible(np, "keylargo-ata")) {
 		if (strcmp(np->name, "ata-4") == 0) {
 			pmif->kind = controller_kl_ata4;
+			d.port_ops = &pmac_ide_ata4_port_ops;
 			d.udma_mask = ATA_UDMA4;
 		} else
 			pmif->kind = controller_kl_ata3;
@@ -991,22 +1017,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 
 	bidp = of_get_property(np, "AAPL,bus-id", NULL);
 	pmif->aapl_bus_id =  bidp ? *bidp : 0;
-
-	/* Get cable type from device-tree */
-	if (pmif->kind == controller_kl_ata4 || pmif->kind == controller_un_ata6
-	    || pmif->kind == controller_k2_ata6
-	    || pmif->kind == controller_sh_ata6) {
-		const char* cable = of_get_property(np, "cable-type", NULL);
-		if (cable && !strncmp(cable, "80-", 3))
-			pmif->cable_80 = 1;
-	}
-	/* G5's seem to have incorrect cable type in device-tree. Let's assume
-	 * they have a 80 conductor cable, this seem to be always the case unless
-	 * the user mucked around
-	 */
-	if (of_device_is_compatible(np, "K2-UATA") ||
-	    of_device_is_compatible(np, "shasta-ata"))
-		pmif->cable_80 = 1;
 
 	/* On Kauai-type controllers, we make sure the FCR is correct */
 	if (pmif->kauai_fcr)
@@ -1053,7 +1063,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 
 	hwif->hwif_data = pmif;
 	ide_init_port_hw(hwif, hw);
-	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 
 	printk(KERN_INFO "ide%d: Found Apple %s controller, bus ID %d%s, irq %d\n",
 	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,
@@ -1069,11 +1078,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 			hwif->drives[1].noprobe = 1;
 		}
 	}
-
-#ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
-	if (pmif->cable_80 == 0)
-		d.udma_mask &= ATA_UDMA2;
-#endif
 
 	idx[0] = hwif->index;
 

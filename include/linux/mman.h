@@ -17,14 +17,14 @@
 
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
-extern atomic_t vm_committed_space;
+extern atomic_long_t vm_committed_space;
 
 #ifdef CONFIG_SMP
 extern void vm_acct_memory(long pages);
 #else
 static inline void vm_acct_memory(long pages)
 {
-	atomic_add(pages, &vm_committed_space);
+	atomic_long_add(pages, &vm_committed_space);
 }
 #endif
 

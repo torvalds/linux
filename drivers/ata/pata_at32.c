@@ -291,8 +291,6 @@ static int __init pata_at32_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
-	memset(info, 0, sizeof(struct at32_ide_info));
-
 	info->irq = irq;
 	info->cs  = board->cs;
 

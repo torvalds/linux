@@ -1361,7 +1361,7 @@ config SERIAL_SC26XX_CONSOLE
 
 config SERIAL_BFIN_SPORT
 	tristate "Blackfin SPORT emulate UART (EXPERIMENTAL)"
-	depends on BFIN && EXPERIMENTAL
+	depends on BLACKFIN && EXPERIMENTAL
 	select SERIAL_CORE
 	help
 	  Enble support SPORT emulate UART on Blackfin series.

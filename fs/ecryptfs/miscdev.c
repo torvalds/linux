@@ -243,7 +243,6 @@ ecryptfs_miscdev_read(struct file *file, char __user *buf, size_t count,
 	struct ecryptfs_daemon *daemon;
 	struct ecryptfs_msg_ctx *msg_ctx;
 	size_t packet_length_size;
-	u32 counter_nbo;
 	char packet_length[3];
 	size_t i;
 	size_t total_length;
@@ -328,20 +327,18 @@ check_list:
 		       "pending message\n", __func__, count, total_length);
 		goto out_unlock_msg_ctx;
 	}
-	i = 0;
-	buf[i++] = msg_ctx->type;
-	counter_nbo = cpu_to_be32(msg_ctx->counter);
-	memcpy(&buf[i], (char *)&counter_nbo, 4);
-	i += 4;
+	rc = -EFAULT;
+	if (put_user(msg_ctx->type, buf))
+		goto out_unlock_msg_ctx;
+	if (put_user(cpu_to_be32(msg_ctx->counter), (__be32 __user *)(buf + 1)))
+		goto out_unlock_msg_ctx;
+	i = 5;
 	if (msg_ctx->msg) {
-		memcpy(&buf[i], packet_length, packet_length_size);
-		i += packet_length_size;
-		rc = copy_to_user(&buf[i], msg_ctx->msg, msg_ctx->msg_size);
-		if (rc) {
-			printk(KERN_ERR "%s: copy_to_user returned error "
-			       "[%d]\n", __func__, rc);
+		if (copy_to_user(&buf[i], packet_length, packet_length_size))
 			goto out_unlock_msg_ctx;
-		}
+		i += packet_length_size;
+		if (copy_to_user(&buf[i], msg_ctx->msg, msg_ctx->msg_size))
+			goto out_unlock_msg_ctx;
 		i += msg_ctx->msg_size;
 	}
 	rc = i;
@@ -452,7 +449,8 @@ static ssize_t
 ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 		       size_t count, loff_t *ppos)
 {
-	u32 counter_nbo, seq;
+	__be32 counter_nbo;
+	u32 seq;
 	size_t packet_size, packet_size_length, i;
 	ssize_t sz = 0;
 	char *data;
@@ -485,7 +483,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 			       count);
 			goto out_free;
 		}
-		memcpy((char *)&counter_nbo, &data[i], 4);
+		memcpy(&counter_nbo, &data[i], 4);
 		seq = be32_to_cpu(counter_nbo);
 		i += 4;
 		rc = ecryptfs_parse_packet_length(&data[i], &packet_size,

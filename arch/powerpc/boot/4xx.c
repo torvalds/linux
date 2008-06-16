@@ -21,6 +21,25 @@
 #include "reg.h"
 #include "dcr.h"
 
+static unsigned long chip_11_errata(unsigned long memsize)
+{
+	unsigned long pvr;
+
+	pvr = mfpvr();
+
+	switch (pvr & 0xf0000ff0) {
+		case 0x40000850:
+		case 0x400008d0:
+		case 0x200008d0:
+			memsize -= 4096;
+			break;
+		default:
+			break;
+	}
+
+	return memsize;
+}
+
 /* Read the 4xx SDRAM controller to get size of system memory. */
 void ibm4xx_sdram_fixup_memsize(void)
 {
@@ -34,6 +53,7 @@ void ibm4xx_sdram_fixup_memsize(void)
 			memsize += SDRAM_CONFIG_BANK_SIZE(bank_config);
 	}
 
+	memsize = chip_11_errata(memsize);
 	dt_fixup_memory(0, memsize);
 }
 
@@ -199,6 +219,7 @@ void ibm4xx_denali_fixup_memsize(void)
 		bank = 4; /* 4 banks */
 
 	memsize = cs * (1 << (col+row)) * bank * dpath;
+	memsize = chip_11_errata(memsize);
 	dt_fixup_memory(0, memsize);
 }
 

@@ -14,8 +14,6 @@
 #ifndef __OMAP_BOARD_PALMTE_H
 #define __OMAP_BOARD_PALMTE_H
 
-#include <asm/arch/gpio.h>
-
 #define PALMTE_USBDETECT_GPIO	0
 #define PALMTE_USB_OR_DC_GPIO	1
 #define PALMTE_TSC_GPIO		4

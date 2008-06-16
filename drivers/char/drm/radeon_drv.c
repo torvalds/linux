@@ -59,7 +59,8 @@ static struct pci_device_id pciidlist[] = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
-	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED,
+	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED |
+	    DRIVER_IRQ_VBL | DRIVER_IRQ_VBL2,
 	.dev_priv_size = sizeof(drm_radeon_buf_priv_t),
 	.load = radeon_driver_load,
 	.firstopen = radeon_driver_firstopen,
@@ -68,9 +69,8 @@ static struct drm_driver driver = {
 	.postclose = radeon_driver_postclose,
 	.lastclose = radeon_driver_lastclose,
 	.unload = radeon_driver_unload,
-	.get_vblank_counter = radeon_get_vblank_counter,
-	.enable_vblank = radeon_enable_vblank,
-	.disable_vblank = radeon_disable_vblank,
+	.vblank_wait = radeon_driver_vblank_wait,
+	.vblank_wait2 = radeon_driver_vblank_wait2,
 	.dri_library_name = dri_library_name,
 	.irq_preinstall = radeon_driver_irq_preinstall,
 	.irq_postinstall = radeon_driver_irq_postinstall,

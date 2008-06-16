@@ -31,11 +31,6 @@
  */
 static void *kvm_devices;
 
-/*
- * Unique numbering for kvm devices.
- */
-static unsigned int dev_index;
-
 struct kvm_device {
 	struct virtio_device vdev;
 	struct kvm_device_desc *desc;
@@ -78,27 +73,32 @@ static unsigned desc_size(const struct kvm_device_desc *desc)
 		+ desc->config_len;
 }
 
-/*
- * This tests (and acknowleges) a feature bit.
- */
-static bool kvm_feature(struct virtio_device *vdev, unsigned fbit)
+/* This gets the device's feature bits. */
+static u32 kvm_get_features(struct virtio_device *vdev)
 {
+	unsigned int i;
+	u32 features = 0;
 	struct kvm_device_desc *desc = to_kvmdev(vdev)->desc;
-	u8 *features;
+	u8 *in_features = kvm_vq_features(desc);
 
-	if (fbit / 8 > desc->feature_len)
-		return false;
+	for (i = 0; i < min(desc->feature_len * 8, 32); i++)
+		if (in_features[i / 8] & (1 << (i % 8)))
+			features |= (1 << i);
+	return features;
+}
 
-	features = kvm_vq_features(desc);
-	if (!(features[fbit / 8] & (1 << (fbit % 8))))
-		return false;
+static void kvm_set_features(struct virtio_device *vdev, u32 features)
+{
+	unsigned int i;
+	struct kvm_device_desc *desc = to_kvmdev(vdev)->desc;
+	/* Second half of bitmap is features we accept. */
+	u8 *out_features = kvm_vq_features(desc) + desc->feature_len;
 
-	/*
-	 * We set the matching bit in the other half of the bitmap to tell the
-	 * Host we want to use this feature.
-	 */
-	features[desc->feature_len + fbit / 8] |= (1 << (fbit % 8));
-	return true;
+	memset(out_features, 0, desc->feature_len);
+	for (i = 0; i < min(desc->feature_len * 8, 32); i++) {
+		if (features & (1 << i))
+			out_features[i / 8] |= (1 << (i % 8));
+	}
 }
 
 /*
@@ -221,7 +221,8 @@ static void kvm_del_vq(struct virtqueue *vq)
  * The config ops structure as defined by virtio config
  */
 static struct virtio_config_ops kvm_vq_configspace_ops = {
-	.feature = kvm_feature,
+	.get_features = kvm_get_features,
+	.set_features = kvm_set_features,
 	.get = kvm_get,
 	.set = kvm_set,
 	.get_status = kvm_get_status,
@@ -244,26 +245,25 @@ static struct device kvm_root = {
  * adds a new device and register it with virtio
  * appropriate drivers are loaded by the device model
  */
-static void add_kvm_device(struct kvm_device_desc *d)
+static void add_kvm_device(struct kvm_device_desc *d, unsigned int offset)
 {
 	struct kvm_device *kdev;
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev) {
-		printk(KERN_EMERG "Cannot allocate kvm dev %u\n",
-		       dev_index++);
+		printk(KERN_EMERG "Cannot allocate kvm dev %u type %u\n",
+		       offset, d->type);
 		return;
 	}
 
 	kdev->vdev.dev.parent = &kvm_root;
-	kdev->vdev.index = dev_index++;
 	kdev->vdev.id.device = d->type;
 	kdev->vdev.config = &kvm_vq_configspace_ops;
 	kdev->desc = d;
 
 	if (register_virtio_device(&kdev->vdev) != 0) {
-		printk(KERN_ERR "Failed to register kvm device %u\n",
-		       kdev->vdev.index);
+		printk(KERN_ERR "Failed to register kvm device %u type %u\n",
+		       offset, d->type);
 		kfree(kdev);
 	}
 }
@@ -283,7 +283,7 @@ static void scan_devices(void)
 		if (d->type == 0)
 			break;
 
-		add_kvm_device(d);
+		add_kvm_device(d, i);
 	}
 }
 

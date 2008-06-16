@@ -98,3 +98,13 @@ EXPORT_SYMBOL(div64_u64);
 #endif
 
 #endif /* BITS_PER_LONG == 32 */
+
+/*
+ * Iterative div/mod for use when dividend is not expected to be much
+ * bigger than divisor.
+ */
+u32 iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder)
+{
+	return __iter_div_u64_rem(dividend, divisor, remainder);
+}
+EXPORT_SYMBOL(iter_div_u64_rem);
