@@ -295,7 +295,7 @@ struct dvb_frontend *tea5761_attach(struct dvb_frontend *fe,
 {
 	struct tea5761_priv *priv = NULL;
 
-	if (tea5761_autodetection(i2c_adap, i2c_addr) == EINVAL)
+	if (tea5761_autodetection(i2c_adap, i2c_addr) != 0)
 		return NULL;
 
 	priv = kzalloc(sizeof(struct tea5761_priv), GFP_KERNEL);

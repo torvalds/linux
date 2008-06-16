@@ -806,7 +806,6 @@ static int DIVA_INIT_FUNCTION divas_init(void)
 
 	if (!create_divas_proc()) {
 #ifdef MODULE
-		remove_divas_proc();
 		divas_unregister_chrdev();
 		divasfunc_exit();
 #endif

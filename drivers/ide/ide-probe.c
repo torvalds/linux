@@ -1333,8 +1333,7 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 			  const struct ide_port_info *d)
 {
-	if (d->chipset != ide_etrax100)
-		hwif->channel = port;
+	hwif->channel = port;
 
 	if (d->chipset)
 		hwif->chipset = d->chipset;
@@ -1519,7 +1518,7 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			continue;
 		}
 
-		if (d->chipset != ide_etrax100 && (i & 1) && mate) {
+		if ((i & 1) && mate) {
 			hwif->mate = mate;
 			mate->mate = hwif;
 		}
@@ -1665,6 +1664,7 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
 
 	ide_std_init_ports(hw, base, ctl);
 	hw->irq = irq;
+	hw->chipset = d->chipset;
 
 	hwif = ide_find_port_slot(d);
 	if (hwif) {
