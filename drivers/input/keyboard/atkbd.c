@@ -807,6 +807,8 @@ static int atkbd_activate(struct atkbd *atkbd)
 static void atkbd_cleanup(struct serio *serio)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
+
+	atkbd_disable(atkbd);
 	ps2_command(&atkbd->ps2dev, NULL, ATKBD_CMD_RESET_BAT);
 }
 
