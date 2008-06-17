@@ -536,11 +536,9 @@ static int nr_release(struct socket *sock)
 		sk->sk_state_change(sk);
 		sock_orphan(sk);
 		sock_set_flag(sk, SOCK_DESTROY);
-		sk->sk_socket   = NULL;
 		break;
 
 	default:
-		sk->sk_socket = NULL;
 		break;
 	}
 
