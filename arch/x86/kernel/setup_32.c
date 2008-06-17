@@ -623,21 +623,6 @@ void __init setup_bootmem_allocator(void)
 		free_bootmem_with_active_regions(i, max_low_pfn);
 	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 
-#ifdef CONFIG_ACPI_SLEEP
-	/*
-	 * Reserve low memory region for sleep support.
-	 */
-	acpi_reserve_bootmem();
-#endif
-#ifdef CONFIG_X86_FIND_SMP_CONFIG
-	/*
-	 * Find and reserve possible boot-time SMP configuration:
-	 */
-	find_smp_config();
-#endif
-	reserve_crashkernel();
-
-	reserve_ibft_region();
 }
 
 /*
@@ -791,6 +776,22 @@ void __init setup_arch(char **cmdline_p)
 	}
 
 	max_low_pfn = setup_memory();
+
+#ifdef CONFIG_ACPI_SLEEP
+	/*
+	 * Reserve low memory region for sleep support.
+	 */
+	acpi_reserve_bootmem();
+#endif
+#ifdef CONFIG_X86_FIND_SMP_CONFIG
+	/*
+	 * Find and reserve possible boot-time SMP configuration:
+	 */
+	find_smp_config();
+#endif
+	reserve_crashkernel();
+
+	reserve_ibft_region();
 
 #ifdef CONFIG_KVM_CLOCK
 	kvmclock_init();
