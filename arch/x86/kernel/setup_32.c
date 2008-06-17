@@ -59,6 +59,7 @@
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
 #include <asm/sections.h>
+#include <asm/dmi.h>
 #include <asm/io_apic.h>
 #include <asm/ist.h>
 #include <asm/io.h>
@@ -183,6 +184,12 @@ int bootloader_type;
 
 /* user-defined highmem size */
 static unsigned int highmem_pages = -1;
+
+/*
+ * Early DMI memory
+ */
+int dmi_alloc_index;
+char dmi_alloc_data[DMI_MAX_DATA];
 
 /*
  * Setup options
@@ -775,6 +782,24 @@ void __init setup_arch(char **cmdline_p)
 		max_pfn = e820_end_of_ram();
 	}
 
+	dmi_scan_machine();
+
+	io_delay_init();
+
+#ifdef CONFIG_ACPI
+	/*
+	 * Parse the ACPI tables for possible boot-time SMP configuration.
+	 */
+	acpi_boot_table_init();
+#endif
+
+#ifdef CONFIG_ACPI_NUMA
+        /*
+         * Parse SRAT to discover nodes.
+         */
+        acpi_numa_init();
+#endif
+
 	max_low_pfn = setup_memory();
 
 #ifdef CONFIG_ACPI_SLEEP
@@ -841,10 +866,6 @@ void __init setup_arch(char **cmdline_p)
 
 	paravirt_post_allocator_init();
 
-	dmi_scan_machine();
-
-	io_delay_init();
-
 #ifdef CONFIG_X86_SMP
 	/*
 	 * setup to use the early static init tables during kernel startup
@@ -859,13 +880,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
-#endif
-
-#ifdef CONFIG_ACPI
-	/*
-	 * Parse the ACPI tables for possible boot-time SMP configuration.
-	 */
-	acpi_boot_table_init();
 #endif
 
 	early_quirks();
