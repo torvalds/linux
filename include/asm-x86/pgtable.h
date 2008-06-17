@@ -318,6 +318,9 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
                               unsigned long size, pgprot_t *vma_prot);
 #endif
 
+/* Install a pte for a particular vaddr in kernel space. */
+void set_pte_vaddr(unsigned long vaddr, pte_t pte);
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else  /* !CONFIG_PARAVIRT */

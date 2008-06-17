@@ -285,6 +285,6 @@ void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 		BUG();
 		return;
 	}
-	set_pte_pfn(address, phys >> PAGE_SHIFT, flags);
+	set_pte_vaddr(address, pfn_pte(phys >> PAGE_SHIFT, flags));
 	fixmaps_set++;
 }

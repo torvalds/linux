@@ -71,7 +71,7 @@ void show_mem(void)
  * Associate a virtual page frame with a given physical page frame 
  * and protection flags for that frame.
  */ 
-static void set_pte_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
+void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -94,8 +94,8 @@ static void set_pte_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 		return;
 	}
 	pte = pte_offset_kernel(pmd, vaddr);
-	if (pgprot_val(flags))
-		set_pte_present(&init_mm, vaddr, pte, pfn_pte(pfn, flags));
+	if (pte_val(pteval))
+		set_pte_present(&init_mm, vaddr, pte, pteval);
 	else
 		pte_clear(&init_mm, vaddr, pte);
 
