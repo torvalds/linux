@@ -1542,7 +1542,8 @@ he_start(struct atm_dev *dev)
 	/* initialize framer */
 
 #ifdef CONFIG_ATM_HE_USE_SUNI
-	suni_init(he_dev->atm_dev);
+	if (he_isMM(he_dev))
+		suni_init(he_dev->atm_dev);
 	if (he_dev->atm_dev->phy && he_dev->atm_dev->phy->start)
 		he_dev->atm_dev->phy->start(he_dev->atm_dev);
 #endif /* CONFIG_ATM_HE_USE_SUNI */
