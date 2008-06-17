@@ -146,17 +146,6 @@ static const unsigned txqaddr[] = { Q_XA1, Q_XA2 };
 static const unsigned rxqaddr[] = { Q_R1, Q_R2 };
 static const u32 portirq_msk[] = { Y2_IS_PORT_1, Y2_IS_PORT_2 };
 
-/* This driver supports yukon2 chipset only */
-static const char *yukon2_name[] = {
-	"XL",		/* 0xb3 */
-	"EC Ultra", 	/* 0xb4 */
-	"Extreme",	/* 0xb5 */
-	"EC",		/* 0xb6 */
-	"FE",		/* 0xb7 */
-	"FE+",		/* 0xb8 */
-	"Supreme",	/* 0xb9 */
-};
-
 static void sky2_set_multicast(struct net_device *dev);
 
 /* Access to PHY via serial interconnect */
@@ -4265,12 +4254,33 @@ static int __devinit pci_wake_enabled(struct pci_dev *dev)
 	return value & PCI_PM_CTRL_PME_ENABLE;
 }
 
+/* This driver supports yukon2 chipset only */
+static const char *sky2_name(u8 chipid, char *buf, int sz)
+{
+	const char *name[] = {
+		"XL",		/* 0xb3 */
+		"EC Ultra", 	/* 0xb4 */
+		"Extreme",	/* 0xb5 */
+		"EC",		/* 0xb6 */
+		"FE",		/* 0xb7 */
+		"FE+",		/* 0xb8 */
+		"Supreme",	/* 0xb9 */
+	};
+
+	if (chipid >= CHIP_ID_YUKON_XL && chipid < CHIP_ID_YUKON_SUPR)
+		strncpy(buf, name[chipid - CHIP_ID_YUKON_XL], sz);
+	else
+		snprintf(buf, sz, "(chip %#x)", chipid);
+	return buf;
+}
+
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct sky2_hw *hw;
 	int err, using_dac = 0, wol_default;
+	char buf1[16];
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -4341,10 +4351,10 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out_iounmap;
 
-	dev_info(&pdev->dev, "v%s addr 0x%llx irq %d Yukon-%s (0x%x) rev %d\n",
-	       DRV_VERSION, (unsigned long long)pci_resource_start(pdev, 0),
-	       pdev->irq, yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
-	       hw->chip_id, hw->chip_rev);
+	dev_info(&pdev->dev, "v%s addr 0x%llx irq %d Yukon-2 %s rev %d\n",
+		 DRV_VERSION, (unsigned long long)pci_resource_start(pdev, 0),
+		 pdev->irq, sky2_name(hw->chip_id, buf1, sizeof(buf1)),
+		 hw->chip_rev);
 
 	sky2_reset(hw);
 
