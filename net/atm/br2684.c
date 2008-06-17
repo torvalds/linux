@@ -188,10 +188,13 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct br2684_dev *brdev,
 				return 0;
 			}
 		}
-	} else {
-		skb_push(skb, 2);
-		if (brdev->payload == p_bridged)
+	} else { /* e_vc */
+		if (brdev->payload == p_bridged) {
+			skb_push(skb, 2);
 			memset(skb->data, 0, 2);
+		} else { /* p_routed */
+			skb_pull(skb, ETH_HLEN);
+		}
 	}
 	skb_debug(skb);
 
@@ -377,11 +380,8 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 				 (skb->data + 6, ethertype_ipv4,
 				  sizeof(ethertype_ipv4)) == 0)
 				skb->protocol = __constant_htons(ETH_P_IP);
-			else {
-				brdev->stats.rx_errors++;
-				dev_kfree_skb(skb);
-				return;
-			}
+			else
+				goto error;
 			skb_pull(skb, sizeof(llc_oui_ipv4));
 			skb_reset_network_header(skb);
 			skb->pkt_type = PACKET_HOST;
@@ -394,44 +394,56 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			   (memcmp(skb->data, llc_oui_pid_pad, 7) == 0)) {
 			skb_pull(skb, sizeof(llc_oui_pid_pad));
 			skb->protocol = eth_type_trans(skb, net_dev);
-		} else {
-			brdev->stats.rx_errors++;
-			dev_kfree_skb(skb);
-			return;
-		}
+		} else
+			goto error;
 
-	} else {
-		/* first 2 chars should be 0 */
-		if (*((u16 *) (skb->data)) != 0) {
-			brdev->stats.rx_errors++;
-			dev_kfree_skb(skb);
-			return;
+	} else { /* e_vc */
+		if (brdev->payload == p_routed) {
+			struct iphdr *iph;
+
+			skb_reset_network_header(skb);
+			iph = ip_hdr(skb);
+			if (iph->version == 4)
+				skb->protocol = __constant_htons(ETH_P_IP);
+			else if (iph->version == 6)
+				skb->protocol = __constant_htons(ETH_P_IPV6);
+			else
+				goto error;
+			skb->pkt_type = PACKET_HOST;
+		} else { /* p_bridged */
+			/* first 2 chars should be 0 */
+			if (*((u16 *) (skb->data)) != 0)
+				goto error;
+			skb_pull(skb, BR2684_PAD_LEN);
+			skb->protocol = eth_type_trans(skb, net_dev);
 		}
-		skb_pull(skb, BR2684_PAD_LEN + ETH_HLEN);	/* pad, dstmac, srcmac, ethtype */
-		skb->protocol = eth_type_trans(skb, net_dev);
 	}
 
 #ifdef CONFIG_ATM_BR2684_IPFILTER
-	if (unlikely(packet_fails_filter(skb->protocol, brvcc, skb))) {
-		brdev->stats.rx_dropped++;
-		dev_kfree_skb(skb);
-		return;
-	}
+	if (unlikely(packet_fails_filter(skb->protocol, brvcc, skb)))
+		goto dropped;
 #endif /* CONFIG_ATM_BR2684_IPFILTER */
 	skb->dev = net_dev;
 	ATM_SKB(skb)->vcc = atmvcc;	/* needed ? */
 	pr_debug("received packet's protocol: %x\n", ntohs(skb->protocol));
 	skb_debug(skb);
-	if (unlikely(!(net_dev->flags & IFF_UP))) {
-		/* sigh, interface is down */
-		brdev->stats.rx_dropped++;
-		dev_kfree_skb(skb);
-		return;
-	}
+	/* sigh, interface is down? */
+	if (unlikely(!(net_dev->flags & IFF_UP)))
+		goto dropped;
 	brdev->stats.rx_packets++;
 	brdev->stats.rx_bytes += skb->len;
 	memset(ATM_SKB(skb), 0, sizeof(struct atm_skb_data));
 	netif_rx(skb);
+	return;
+
+dropped:
+	brdev->stats.rx_dropped++;
+	goto free_skb;
+error:
+	brdev->stats.rx_errors++;
+free_skb:
+	dev_kfree_skb(skb);
+	return;
 }
 
 /*
