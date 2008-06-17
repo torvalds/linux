@@ -584,7 +584,7 @@ static int setup_blkring(struct xenbus_device *dev,
 
 	info->ring_ref = GRANT_INVALID_REF;
 
-	sring = (struct blkif_sring *)__get_free_page(GFP_KERNEL);
+	sring = (struct blkif_sring *)__get_free_page(GFP_NOIO | __GFP_HIGH);
 	if (!sring) {
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating shared ring");
 		return -ENOMEM;
@@ -741,7 +741,8 @@ static int blkif_recover(struct blkfront_info *info)
 	int j;
 
 	/* Stage 1: Make a safe copy of the shadow state. */
-	copy = kmalloc(sizeof(info->shadow), GFP_KERNEL);
+	copy = kmalloc(sizeof(info->shadow),
+		       GFP_NOIO | __GFP_REPEAT | __GFP_HIGH);
 	if (!copy)
 		return -ENOMEM;
 	memcpy(copy, info->shadow, sizeof(info->shadow));
