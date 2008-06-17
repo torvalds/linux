@@ -1799,6 +1799,7 @@ err3:
 err2:
 	nf_conntrack_helper_unregister(&nf_conntrack_helper_q931[0]);
 err1:
+	kfree(h323_buffer);
 	return ret;
 }
 
