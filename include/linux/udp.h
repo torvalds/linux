@@ -46,6 +46,11 @@ static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 
 #define UDP_HTABLE_SIZE		128
 
+static inline int udp_hashfn(const unsigned num)
+{
+	return num & (UDP_HTABLE_SIZE - 1);
+}
+
 struct udp_sock {
 	/* inet_sock has to be the first member */
 	struct inet_sock inet;

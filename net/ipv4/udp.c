@@ -134,7 +134,7 @@ static inline int __udp_lib_lport_inuse(struct net *net, __u16 num,
 	struct sock *sk;
 	struct hlist_node *node;
 
-	sk_for_each(sk, node, &udptable[num & (UDP_HTABLE_SIZE - 1)])
+	sk_for_each(sk, node, &udptable[udp_hashfn(num)])
 		if (net_eq(sock_net(sk), net) && sk->sk_hash == num)
 			return 1;
 	return 0;
@@ -174,7 +174,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		for (i = 0; i < UDP_HTABLE_SIZE; i++) {
 			int size = 0;
 
-			head = &udptable[rover & (UDP_HTABLE_SIZE - 1)];
+			head = &udptable[udp_hashfn(rover)];
 			if (hlist_empty(head))
 				goto gotit;
 
@@ -211,7 +211,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 gotit:
 		snum = rover;
 	} else {
-		head = &udptable[snum & (UDP_HTABLE_SIZE - 1)];
+		head = &udptable[udp_hashfn(snum)];
 
 		sk_for_each(sk2, node, head)
 			if (sk2->sk_hash == snum                             &&
@@ -227,7 +227,7 @@ gotit:
 	inet_sk(sk)->num = snum;
 	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
-		head = &udptable[snum & (UDP_HTABLE_SIZE - 1)];
+		head = &udptable[udp_hashfn(snum)];
 		sk_add_node(sk, head);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
@@ -264,7 +264,7 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	int badness = -1;
 
 	read_lock(&udp_hash_lock);
-	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
+	sk_for_each(sk, node, &udptable[udp_hashfn(hnum)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
 		if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
@@ -1068,7 +1068,7 @@ static int __udp4_lib_mcast_deliver(struct sk_buff *skb,
 	int dif;
 
 	read_lock(&udp_hash_lock);
-	sk = sk_head(&udptable[ntohs(uh->dest) & (UDP_HTABLE_SIZE - 1)]);
+	sk = sk_head(&udptable[udp_hashfn(ntohs(uh->dest))]);
 	dif = skb->dev->ifindex;
 	sk = udp_v4_mcast_next(sk, uh->dest, daddr, uh->source, saddr, dif);
 	if (sk) {
