@@ -7,6 +7,8 @@
 # include "fixmap_64.h"
 #endif
 
+extern int fixmaps_set;
+
 extern void __set_fixmap(enum fixed_addresses idx,
 			 unsigned long phys, pgprot_t flags);
 #define set_fixmap(idx, phys)				\

@@ -213,18 +213,6 @@ void __init cleanup_highmap(void)
 	}
 }
 
-/* NOTE: this is meant to be run only at boot */
-void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
-{
-	unsigned long address = __fix_to_virt(idx);
-
-	if (idx >= __end_of_fixed_addresses) {
-		printk(KERN_ERR "Invalid __set_fixmap\n");
-		return;
-	}
-	set_pte_phys(address, phys, prot);
-}
-
 static unsigned long __initdata table_start;
 static unsigned long __meminitdata table_end;
 

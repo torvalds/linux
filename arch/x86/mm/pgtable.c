@@ -274,3 +274,17 @@ int ptep_clear_flush_young(struct vm_area_struct *vma,
 
 	return young;
 }
+
+int fixmaps_set;
+
+void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
+{
+	unsigned long address = __fix_to_virt(idx);
+
+	if (idx >= __end_of_fixed_addresses) {
+		BUG();
+		return;
+	}
+	set_pte_pfn(address, phys >> PAGE_SHIFT, flags);
+	fixmaps_set++;
+}

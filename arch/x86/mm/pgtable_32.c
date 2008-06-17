@@ -145,18 +145,6 @@ static int fixmaps;
 unsigned long __FIXADDR_TOP = 0xfffff000;
 EXPORT_SYMBOL(__FIXADDR_TOP);
 
-void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
-{
-	unsigned long address = __fix_to_virt(idx);
-
-	if (idx >= __end_of_fixed_addresses) {
-		BUG();
-		return;
-	}
-	set_pte_pfn(address, phys >> PAGE_SHIFT, flags);
-	fixmaps++;
-}
-
 /**
  * reserve_top_address - reserves a hole in the top of kernel address space
  * @reserve - size of hole to reserve
@@ -166,7 +154,7 @@ void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
  */
 void reserve_top_address(unsigned long reserve)
 {
-	BUG_ON(fixmaps > 0);
+	BUG_ON(fixmaps_set > 0);
 	printk(KERN_INFO "Reserving virtual address space above 0x%08x\n",
 	       (int)-reserve);
 	__FIXADDR_TOP = -reserve - PAGE_SIZE;
