@@ -75,6 +75,11 @@ static void fixup_ppc4xx_pci_bridge(struct pci_dev *dev)
 	    !of_device_is_compatible(hose->dn, "ibm,plb-pci"))
 		return;
 
+	if (of_device_is_compatible(hose->dn, "ibm,plb440epx-pci") ||
+		of_device_is_compatible(hose->dn, "ibm,plb440grx-pci")) {
+		hose->indirect_type |= PPC_INDIRECT_TYPE_BROKEN_MRM;
+	}
+
 	/* Hide the PCI host BARs from the kernel as their content doesn't
 	 * fit well in the resource management
 	 */
