@@ -16,6 +16,8 @@ struct platform_mmc_slot {
 extern struct platform_mmc_slot zylonite_mmc_slot[];
 
 extern int gpio_eth_irq;
+extern int gpio_debug_led1;
+extern int gpio_debug_led2;
 
 extern int wm9713_irq;
 

@@ -38,6 +38,8 @@
 struct platform_mmc_slot zylonite_mmc_slot[MAX_SLOTS];
 
 int gpio_eth_irq;
+int gpio_debug_led1;
+int gpio_debug_led2;
 
 int wm9713_irq;
 
@@ -63,6 +65,42 @@ static struct platform_device smc91x_device = {
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
 };
+
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+static struct gpio_led zylonite_debug_leds[] = {
+	[0] = {
+		.name			= "zylonite:yellow:1",
+		.default_trigger	= "heartbeat",
+	},
+	[1] = {
+		.name			= "zylonite:yellow:2",
+		.default_trigger	= "default-on",
+	},
+};
+
+static struct gpio_led_platform_data zylonite_debug_leds_info = {
+	.leds		= zylonite_debug_leds,
+	.num_leds	= ARRAY_SIZE(zylonite_debug_leds),
+};
+
+static struct platform_device zylonite_device_leds = {
+	.name		= "leds-gpio",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &zylonite_debug_leds_info,
+	}
+};
+
+static void __init zylonite_init_leds(void)
+{
+	zylonite_debug_leds[0].gpio = gpio_debug_led1;
+	zylonite_debug_leds[1].gpio = gpio_debug_led2;
+
+	platform_device_register(&zylonite_device_leds);
+}
+#else
+static inline void zylonite_init_leds(void) {}
+#endif
 
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static struct platform_pwm_backlight_data zylonite_backlight_data = {
@@ -395,6 +433,7 @@ static void __init zylonite_init(void)
 	zylonite_init_mmc();
 	zylonite_init_keypad();
 	zylonite_init_nand();
+	zylonite_init_leds();
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")

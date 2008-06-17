@@ -264,4 +264,8 @@ void __init zylonite_pxa300_init(void)
 		zylonite_mmc_slot[2].gpio_cd = EXT_GPIO(30);
 		zylonite_mmc_slot[2].gpio_wp = EXT_GPIO(31);
 	}
+
+	/* GPIOs for Debug LEDs */
+	gpio_debug_led1 = EXT_GPIO(25);
+	gpio_debug_led2 = EXT_GPIO(26);
 }
