@@ -194,7 +194,7 @@ struct sock *__inet_lookup_listener(struct net *net,
 	const struct hlist_head *head;
 
 	read_lock(&hashinfo->lhash_lock);
-	head = &hashinfo->listening_hash[inet_lhashfn(hnum)];
+	head = &hashinfo->listening_hash[inet_lhashfn(net, hnum)];
 	if (!hlist_empty(head)) {
 		const struct inet_sock *inet = inet_sk((sk = __sk_head(head)));
 

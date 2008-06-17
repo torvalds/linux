@@ -104,7 +104,8 @@ struct sock *inet6_lookup_listener(struct net *net,
 	int score, hiscore = 0;
 
 	read_lock(&hashinfo->lhash_lock);
-	sk_for_each(sk, node, &hashinfo->listening_hash[inet_lhashfn(hnum)]) {
+	sk_for_each(sk, node,
+			&hashinfo->listening_hash[inet_lhashfn(net, hnum)]) {
 		if (net_eq(sock_net(sk), net) && inet_sk(sk)->num == hnum &&
 				sk->sk_family == PF_INET6) {
 			const struct ipv6_pinfo *np = inet6_sk(sk);
