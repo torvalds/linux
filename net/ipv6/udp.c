@@ -353,8 +353,9 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
  * Note: called only from the BH handler context,
  * so we don't need to lock the hashes.
  */
-static int __udp6_lib_mcast_deliver(struct sk_buff *skb, struct in6_addr *saddr,
-			   struct in6_addr *daddr, struct hlist_head udptable[])
+static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
+		struct in6_addr *saddr, struct in6_addr *daddr,
+		struct hlist_head udptable[])
 {
 	struct sock *sk, *sk2;
 	const struct udphdr *uh = udp_hdr(skb);
@@ -435,6 +436,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	struct net_device *dev = skb->dev;
 	struct in6_addr *saddr, *daddr;
 	u32 ulen = 0;
+	struct net *net;
 
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 		goto short_packet;
@@ -469,11 +471,13 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (udp6_csum_init(skb, uh, proto))
 		goto discard;
 
+	net = dev_net(skb->dev);
 	/*
 	 *	Multicast receive code
 	 */
 	if (ipv6_addr_is_multicast(daddr))
-		return __udp6_lib_mcast_deliver(skb, saddr, daddr, udptable);
+		return __udp6_lib_mcast_deliver(net, skb,
+				saddr, daddr, udptable);
 
 	/* Unicast */
 
@@ -481,7 +485,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	 * check socket cache ... must talk to Alan about his plans
 	 * for sock caches... i'll skip this for now.
 	 */
-	sk = __udp6_lib_lookup(dev_net(skb->dev), saddr, uh->source,
+	sk = __udp6_lib_lookup(net, saddr, uh->source,
 			       daddr, uh->dest, inet6_iif(skb), udptable);
 
 	if (sk == NULL) {

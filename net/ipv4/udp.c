@@ -1059,7 +1059,7 @@ drop:
  *	Note: called only from the BH handler context,
  *	so we don't need to lock the hashes.
  */
-static int __udp4_lib_mcast_deliver(struct sk_buff *skb,
+static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 				    struct udphdr  *uh,
 				    __be32 saddr, __be32 daddr,
 				    struct hlist_head udptable[])
@@ -1156,6 +1156,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	struct rtable *rt = (struct rtable*)skb->dst;
 	__be32 saddr = ip_hdr(skb)->saddr;
 	__be32 daddr = ip_hdr(skb)->daddr;
+	struct net *net;
 
 	/*
 	 *  Validate the packet.
@@ -1177,10 +1178,12 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (udp4_csum_init(skb, uh, proto))
 		goto csum_error;
 
+	net = dev_net(skb->dev);
 	if (rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST))
-		return __udp4_lib_mcast_deliver(skb, uh, saddr, daddr, udptable);
+		return __udp4_lib_mcast_deliver(net, skb, uh,
+				saddr, daddr, udptable);
 
-	sk = __udp4_lib_lookup(dev_net(skb->dev), saddr, uh->source, daddr,
+	sk = __udp4_lib_lookup(net, saddr, uh->source, daddr,
 			uh->dest, inet_iif(skb), udptable);
 
 	if (sk != NULL) {
