@@ -296,6 +296,7 @@ static void __init qnap_ts209_init(void)
 	orion5x_i2c_init();
 	orion5x_sata_init(&qnap_ts209_sata_data);
 	orion5x_uart0_init();
+	orion5x_xor_init();
 
 	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
 				   QNAP_TS209_NOR_BOOT_SIZE);

@@ -356,6 +356,7 @@ static void __init kurobox_pro_init(void)
 	orion5x_sata_init(&kurobox_pro_sata_data);
 	orion5x_uart0_init();
 	orion5x_uart1_init();
+	orion5x_xor_init();
 
 	orion5x_setup_dev_boot_win(KUROBOX_PRO_NOR_BOOT_BASE,
 				   KUROBOX_PRO_NOR_BOOT_SIZE);
