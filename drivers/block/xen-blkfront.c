@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
+#include <linux/cdrom.h>
 #include <linux/module.h>
 
 #include <xen/xenbus.h>
@@ -150,6 +151,40 @@ static int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
 	hg->cylinders = cylinders;
 	if ((sector_t)(hg->cylinders + 1) * hg->heads * hg->sectors < nsect)
 		hg->cylinders = 0xffff;
+	return 0;
+}
+
+int blkif_ioctl(struct inode *inode, struct file *filep,
+		unsigned command, unsigned long argument)
+{
+	struct blkfront_info *info =
+		inode->i_bdev->bd_disk->private_data;
+	int i;
+
+	dev_dbg(&info->xbdev->dev, "command: 0x%x, argument: 0x%lx\n",
+		command, (long)argument);
+
+	switch (command) {
+	case CDROMMULTISESSION:
+		dev_dbg(&info->xbdev->dev, "FIXME: support multisession CDs later\n");
+		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
+			if (put_user(0, (char __user *)(argument + i)))
+				return -EFAULT;
+		return 0;
+
+	case CDROM_GET_CAPABILITY: {
+		struct gendisk *gd = info->gd;
+		if (gd->flags & GENHD_FL_CD)
+			return 0;
+		return -EINVAL;
+	}
+
+	default:
+		/*printk(KERN_ALERT "ioctl %08x not supported by Xen blkdev\n",
+		  command);*/
+		return -EINVAL; /* same return as native Linux */
+	}
+
 	return 0;
 }
 
@@ -974,6 +1009,7 @@ static struct block_device_operations xlvbd_block_fops =
 	.open = blkif_open,
 	.release = blkif_release,
 	.getgeo = blkif_getgeo,
+	.ioctl = blkif_ioctl,
 };
 
 
