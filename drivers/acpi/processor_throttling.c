@@ -1255,7 +1255,7 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 	if (state_val >= pr->throttling.state_count)
 		return -EINVAL;
 
-	snprintf(tmpbuf, 5, "%d", state_val);
+	snprintf(tmpbuf, 5, "%zu", state_val);
 
 	if (strcmp(tmpbuf, charp) != 0)
 		return -EINVAL;
