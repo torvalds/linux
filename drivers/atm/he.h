@@ -51,8 +51,6 @@
 #define CONFIG_IRQ_SIZE		128
 #define CONFIG_IRQ_THRESH	(CONFIG_IRQ_SIZE/2)
 
-#define CONFIG_NUMTPDS		256
-
 #define CONFIG_TPDRQ_SIZE	512
 #define TPDRQ_MASK(x)		(((unsigned long)(x))&((CONFIG_TPDRQ_SIZE<<3)-1))
 
@@ -140,12 +138,7 @@ struct he_tpd {
 	struct sk_buff *skb;
 	struct atm_vcc *vcc;
 
-#ifdef USE_TPD_POOL
 	struct list_head entry;
-#else
-	u32 inuse;
-	char padding[32 - sizeof(u32) - (2*sizeof(void*))];
-#endif
 };
 
 #define TPD_ALIGNMENT	64
@@ -291,16 +284,9 @@ struct he_dev {
 	volatile unsigned *irq_tailoffset;
 	int irq_peak;
 
-#ifdef USE_TASKLET
 	struct tasklet_struct tasklet;
-#endif
-#ifdef USE_TPD_POOL
 	struct pci_pool *tpd_pool;
 	struct list_head outstanding_tpds;
-#else
-	struct he_tpd *tpd_head, *tpd_base, *tpd_end;
-	dma_addr_t tpd_base_phys;
-#endif
 
 	dma_addr_t tpdrq_phys;
 	struct he_tpdrq *tpdrq_base, *tpdrq_tail, *tpdrq_head;
@@ -311,25 +297,13 @@ struct he_dev {
 	struct he_rbrq *rbrq_base, *rbrq_head;
 	int rbrq_peak;
 
-#ifdef USE_RBPL_POOL
 	struct pci_pool *rbpl_pool;
-#else
-	void *rbpl_pages;
-	dma_addr_t rbpl_pages_phys;
-#endif
 	dma_addr_t rbpl_phys;
 	struct he_rbp *rbpl_base, *rbpl_tail;
 	struct he_virt *rbpl_virt;
 	int rbpl_peak;
 
-#ifdef USE_RBPS
-#ifdef USE_RBPS_POOL
 	struct pci_pool *rbps_pool;
-#else
-	void *rbps_pages;
-	dma_addr_t rbps_pages_phys;
-#endif
-#endif
 	dma_addr_t rbps_phys;
 	struct he_rbp *rbps_base, *rbps_tail;
 	struct he_virt *rbps_virt;
