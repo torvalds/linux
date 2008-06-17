@@ -464,11 +464,17 @@ static int synth_alloc_pages(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk 
 		/* first try to allocate from <4GB zone */
 		struct page *p = alloc_page(GFP_KERNEL | GFP_DMA32 |
 					    __GFP_NOWARN);
-		if (!p || (page_to_pfn(p) & ~(emu->dma_mask >> PAGE_SHIFT)))
+		if (!p || (page_to_pfn(p) & ~(emu->dma_mask >> PAGE_SHIFT))) {
 			/* try to allocate from <16MB zone */
-			p = alloc_page(GFP_ATOMIC | GFP_DMA |
+			struct page *p1 =
+				alloc_page(GFP_ATOMIC | GFP_DMA |
 				       __GFP_NORETRY | /* no OOM-killer */
 				       __GFP_NOWARN);
+			/* free page outside dma_mask range */
+			if (p)
+				free_page((unsigned long)page_address(p));
+			p = p1;
+		}
 		if (!p) {
 			__synth_free_pages(emu, first_page, page - 1);
 			return -ENOMEM;
