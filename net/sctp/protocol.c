@@ -119,7 +119,7 @@ static __init int sctp_proc_init(void)
 	return 0;
 
 out_remaddr_proc_init:
-	sctp_remaddr_proc_exit();
+	sctp_assocs_proc_exit();
 out_assocs_proc_init:
 	sctp_eps_proc_exit();
 out_eps_proc_init:
