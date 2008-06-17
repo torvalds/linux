@@ -201,7 +201,8 @@ extern struct inet_bind_bucket *
 extern void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 				     struct inet_bind_bucket *tb);
 
-static inline int inet_bhashfn(const __u16 lport, const int bhash_size)
+static inline int inet_bhashfn(struct net *net,
+		const __u16 lport, const int bhash_size)
 {
 	return lport & (bhash_size - 1);
 }

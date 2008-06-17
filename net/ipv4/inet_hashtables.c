@@ -70,7 +70,8 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 static void __inet_put_port(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	const int bhash = inet_bhashfn(inet_sk(sk)->num, hashinfo->bhash_size);
+	const int bhash = inet_bhashfn(sock_net(sk), inet_sk(sk)->num,
+			hashinfo->bhash_size);
 	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
 	struct inet_bind_bucket *tb;
 
@@ -95,7 +96,8 @@ EXPORT_SYMBOL(inet_put_port);
 void __inet_inherit_port(struct sock *sk, struct sock *child)
 {
 	struct inet_hashinfo *table = sk->sk_prot->h.hashinfo;
-	const int bhash = inet_bhashfn(inet_sk(child)->num, table->bhash_size);
+	const int bhash = inet_bhashfn(sock_net(sk), inet_sk(child)->num,
+			table->bhash_size);
 	struct inet_bind_hashbucket *head = &table->bhash[bhash];
 	struct inet_bind_bucket *tb;
 
@@ -438,7 +440,8 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		local_bh_disable();
 		for (i = 1; i <= remaining; i++) {
 			port = low + (i + offset) % remaining;
-			head = &hinfo->bhash[inet_bhashfn(port, hinfo->bhash_size)];
+			head = &hinfo->bhash[inet_bhashfn(net, port,
+					hinfo->bhash_size)];
 			spin_lock(&head->lock);
 
 			/* Does not bother with rcv_saddr checks,
@@ -493,7 +496,7 @@ ok:
 		goto out;
 	}
 
-	head = &hinfo->bhash[inet_bhashfn(snum, hinfo->bhash_size)];
+	head = &hinfo->bhash[inet_bhashfn(net, snum, hinfo->bhash_size)];
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
