@@ -1428,6 +1428,7 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	struct nfs_parsed_mount_data *data;
 	struct nfs_mount_data *options = (struct nfs_mount_data *)raw_data;
 	struct nfs4_mount_data *options4 = (struct nfs4_mount_data *)raw_data;
+	u32 nfsvers = nfss->nfs_client->rpc_ops->version;
 
 	/*
 	 * Userspace mount programs that send binary options generally send
@@ -1435,8 +1436,8 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	 * ones were explicitly specified. Fall back to legacy behavior and
 	 * just return success.
 	 */
-	if ((sb->s_type == &nfs4_fs_type && options4->version == 1) ||
-	    (sb->s_type == &nfs_fs_type && options->version >= 1 &&
+	if ((nfsvers == 4 && options4->version == 1) ||
+	    (nfsvers <= 3 && options->version >= 1 &&
 	     options->version <= 6))
 		return 0;
 
