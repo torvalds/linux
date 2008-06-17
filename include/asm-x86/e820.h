@@ -101,6 +101,9 @@ extern void e820_register_active_regions(int nid, unsigned long start_pfn,
 extern u64 e820_hole_size(u64 start, u64 end);
 extern void finish_e820_parsing(void);
 extern void e820_reserve_resources(void);
+extern void setup_memory_map(void);
+extern char *machine_specific_memory_setup(void);
+extern char *memory_setup(void);
 
 #endif /* __ASSEMBLY__ */
 
@@ -111,10 +114,10 @@ extern void e820_reserve_resources(void);
 #define BIOS_END		0x00100000
 
 #ifdef __KERNEL__
+#include <linux/ioport.h>
+
 #ifdef CONFIG_X86_32
-# include "e820_32.h"
-#else
-# include "e820_64.h"
+#define HIGH_MEMORY	(1024*1024)
 #endif
 #endif /* __KERNEL__ */
 

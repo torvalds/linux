@@ -47,6 +47,18 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 
+/*
+ * PFN of last memory page.
+ */
+unsigned long end_pfn;
+
+/*
+ * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
+ * The direct mapping extends to max_pfn_mapped, so that we can directly access
+ * apertures, ACPI and other tables without having to play with fixmaps.
+ */
+unsigned long max_pfn_mapped;
+
 static unsigned long dma_reserve __initdata;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);

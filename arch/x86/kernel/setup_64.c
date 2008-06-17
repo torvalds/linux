@@ -266,12 +266,6 @@ static inline void __init reserve_crashkernel(void)
 {}
 #endif
 
-/* Overridden in paravirt.c if CONFIG_PARAVIRT */
-void __attribute__((weak)) __init memory_setup(void)
-{
-       machine_specific_memory_setup();
-}
-
 #ifdef CONFIG_PCI_MMCONFIG
 extern void __cpuinit fam10h_check_enable_mmcfg(void);
 extern void __init check_enable_amd_mmconf_dmi(void);
@@ -316,7 +310,7 @@ void __init setup_arch(char **cmdline_p)
 
 	ARCH_SETUP
 
-	memory_setup();
+	setup_memory_map();
 	copy_edd();
 
 	if (!boot_params.hdr.root_flags)

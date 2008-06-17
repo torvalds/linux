@@ -1029,4 +1029,76 @@ void __init e820_reserve_resources(void)
 	}
 }
 
+char *__init __attribute__((weak)) machine_specific_memory_setup(void)
+{
+	char *who = "BIOS-e820";
+	int new_nr;
+	/*
+	 * Try to copy the BIOS-supplied E820-map.
+	 *
+	 * Otherwise fake a memory map; one section from 0k->640k,
+	 * the next section from 1mb->appropriate_mem_k
+	 */
+	new_nr = boot_params.e820_entries;
+	sanitize_e820_map(boot_params.e820_map,
+			ARRAY_SIZE(boot_params.e820_map),
+			&new_nr);
+	boot_params.e820_entries = new_nr;
+	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries) < 0) {
+#ifdef CONFIG_X86_64
+		early_panic("Cannot find a valid memory map");
+#else
+		unsigned long mem_size;
 
+		/* compare results from other methods and take the greater */
+		if (boot_params.alt_mem_k
+		    < boot_params.screen_info.ext_mem_k) {
+			mem_size = boot_params.screen_info.ext_mem_k;
+			who = "BIOS-88";
+		} else {
+			mem_size = boot_params.alt_mem_k;
+			who = "BIOS-e801";
+		}
+
+		e820.nr_map = 0;
+		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
+		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
+#endif
+	}
+
+	/* In case someone cares... */
+	return who;
+}
+
+/* Overridden in paravirt.c if CONFIG_PARAVIRT */
+char * __init __attribute__((weak)) memory_setup(void)
+{
+	return machine_specific_memory_setup();
+}
+
+void __init setup_memory_map(void)
+{
+	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
+	e820_print_map(memory_setup());
+}
+
+#ifdef CONFIG_X86_64
+int __init arch_get_ram_range(int slot, u64 *addr, u64 *size)
+{
+	int i;
+
+	if (slot < 0 || slot >= e820.nr_map)
+		return -1;
+	for (i = slot; i < e820.nr_map; i++) {
+		if (e820.map[i].type != E820_RAM)
+			continue;
+		break;
+	}
+	if (i == e820.nr_map || e820.map[i].addr > (max_pfn << PAGE_SHIFT))
+		return -1;
+	*addr = e820.map[i].addr;
+	*size = min_t(u64, e820.map[i].size + e820.map[i].addr,
+		max_pfn << PAGE_SHIFT) - *addr;
+	return i + 1;
+}
+#endif
