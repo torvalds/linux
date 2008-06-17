@@ -28,7 +28,8 @@
 struct inet_hashinfo;
 
 /* I have no idea if this is a good hash for v6 or not. -DaveM */
-static inline unsigned int inet6_ehashfn(const struct in6_addr *laddr, const u16 lport,
+static inline unsigned int inet6_ehashfn(struct net *net,
+				const struct in6_addr *laddr, const u16 lport,
 				const struct in6_addr *faddr, const __be16 fport)
 {
 	u32 ports = (lport ^ (__force u16)fport);
@@ -46,7 +47,9 @@ static inline int inet6_sk_ehashfn(const struct sock *sk)
 	const struct in6_addr *faddr = &np->daddr;
 	const __u16 lport = inet->num;
 	const __be16 fport = inet->dport;
-	return inet6_ehashfn(laddr, lport, faddr, fport);
+	struct net *net = sock_net(sk);
+
+	return inet6_ehashfn(net, laddr, lport, faddr, fport);
 }
 
 extern void __inet6_hash(struct sock *sk);
