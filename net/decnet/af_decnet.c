@@ -1719,6 +1719,8 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 	 * See if there is data ready to read, sleep if there isn't
 	 */
 	for(;;) {
+		DEFINE_WAIT(wait);
+
 		if (sk->sk_err)
 			goto out;
 
@@ -1748,14 +1750,11 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 			goto out;
 		}
 
-		set_bit(SOCK_ASYNC_WAITDATA, &sock->flags);
-		SOCK_SLEEP_PRE(sk)
-
-		if (!dn_data_ready(sk, queue, flags, target))
-			schedule();
-
-		SOCK_SLEEP_POST(sk)
-		clear_bit(SOCK_ASYNC_WAITDATA, &sock->flags);
+		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		sk_wait_event(sk, &timeo, dn_data_ready(sk, queue, flags, target));
+		clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		finish_wait(sk->sk_sleep, &wait);
 	}
 
 	for(skb = queue->next; skb != (struct sk_buff *)queue; skb = nskb) {
@@ -2002,18 +2001,19 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 		 * size.
 		 */
 		if (dn_queue_too_long(scp, queue, flags)) {
+			DEFINE_WAIT(wait);
+
 			if (flags & MSG_DONTWAIT) {
 				err = -EWOULDBLOCK;
 				goto out;
 			}
 
-			SOCK_SLEEP_PRE(sk)
-
-			if (dn_queue_too_long(scp, queue, flags))
-				schedule();
-
-			SOCK_SLEEP_POST(sk)
-
+			prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+			set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+			sk_wait_event(sk, &timeo,
+				      !dn_queue_too_long(scp, queue, flags));
+			clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+			finish_wait(sk->sk_sleep, &wait);
 			continue;
 		}
 
