@@ -58,8 +58,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsicam.h>
-#include <scsi/sd.h>
 
+#include "sd.h"
 #include "scsi_logging.h"
 
 MODULE_AUTHOR("Eric Youngdale");
