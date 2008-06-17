@@ -345,8 +345,11 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
-	 * Kill guardian urb.
+	 * Kill guardian urb (if required by driver).
 	 */
+	if (!test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
+		return;
+
 	for (i = 0; i < rt2x00dev->bcn->limit; i++) {
 		bcn_priv = rt2x00dev->bcn->entries[i].priv_data;
 		if (bcn_priv->guardian_urb)

@@ -119,6 +119,7 @@
 #include <linux/err.h>
 #include <linux/ctype.h>
 #include <linux/if_arp.h>
+#include <linux/if_vlan.h>
 
 #include "net-sysfs.h"
 
@@ -1362,6 +1363,29 @@ void netif_device_attach(struct net_device *dev)
 }
 EXPORT_SYMBOL(netif_device_attach);
 
+static bool can_checksum_protocol(unsigned long features, __be16 protocol)
+{
+	return ((features & NETIF_F_GEN_CSUM) ||
+		((features & NETIF_F_IP_CSUM) &&
+		 protocol == htons(ETH_P_IP)) ||
+		((features & NETIF_F_IPV6_CSUM) &&
+		 protocol == htons(ETH_P_IPV6)));
+}
+
+static bool dev_can_checksum(struct net_device *dev, struct sk_buff *skb)
+{
+	if (can_checksum_protocol(dev->features, skb->protocol))
+		return true;
+
+	if (skb->protocol == htons(ETH_P_8021Q)) {
+		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
+		if (can_checksum_protocol(dev->features & dev->vlan_features,
+					  veh->h_vlan_encapsulated_proto))
+			return true;
+	}
+
+	return false;
+}
 
 /*
  * Invalidate hardware checksum when packet is to be mangled, and
@@ -1640,14 +1664,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		skb_set_transport_header(skb, skb->csum_start -
 					      skb_headroom(skb));
-
-		if (!(dev->features & NETIF_F_GEN_CSUM) &&
-		    !((dev->features & NETIF_F_IP_CSUM) &&
-		      skb->protocol == htons(ETH_P_IP)) &&
-		    !((dev->features & NETIF_F_IPV6_CSUM) &&
-		      skb->protocol == htons(ETH_P_IPV6)))
-			if (skb_checksum_help(skb))
-				goto out_kfree_skb;
+		if (!dev_can_checksum(dev, skb) && skb_checksum_help(skb))
+			goto out_kfree_skb;
 	}
 
 gso:
