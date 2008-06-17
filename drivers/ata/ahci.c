@@ -653,6 +653,14 @@ static void ahci_save_initial_config(struct pci_dev *pdev,
 		cap &= ~HOST_CAP_PMP;
 	}
 
+	if (pdev->vendor == PCI_VENDOR_ID_JMICRON && pdev->device == 0x2361 &&
+	    port_map != 1) {
+		dev_printk(KERN_INFO, &pdev->dev,
+			   "JMB361 has only one port, port_map 0x%x -> 0x%x\n",
+			   port_map, 1);
+		port_map = 1;
+	}
+
 	/*
 	 * Temporary Marvell 6145 hack: PATA port presence
 	 * is asserted through the standard AHCI port
