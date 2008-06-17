@@ -88,7 +88,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		".previous\n"
 		_ASM_EXTABLE(1b, 3b)
 		: "=r"(faulted), "=a"(replaced)
-		: "r"(ip), "r"(new), "r"(newch),
+		: "r"(ip), "r"(new), "c"(newch),
 		  "0"(faulted), "a"(old)
 		: "memory");
 	sync_core();
