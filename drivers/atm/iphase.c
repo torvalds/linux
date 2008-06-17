@@ -3198,6 +3198,8 @@ static int __devinit ia_init_one(struct pci_dev *pdev,
 	IF_INIT(printk("dev_id = 0x%x iadev->LineRate = %d \n", (u32)dev,
 		iadev->LineRate);)
 
+	pci_set_drvdata(pdev, dev);
+
 	ia_dev[iadev_count] = iadev;
 	_ia_dev[iadev_count] = dev;
 	iadev_count++;
@@ -3218,8 +3220,6 @@ static int __devinit ia_init_one(struct pci_dev *pdev,
 
 	iadev->next_board = ia_boards;  
 	ia_boards = dev;  
-
-	pci_set_drvdata(pdev, dev);
 
 	return 0;
 
