@@ -567,7 +567,7 @@ static int ieee80211_ioctl_giwscan(struct net_device *dev,
 	if (local->sta_sw_scanning || local->sta_hw_scanning)
 		return -EAGAIN;
 
-	res = ieee80211_sta_scan_results(dev, extra, data->length);
+	res = ieee80211_sta_scan_results(dev, info, extra, data->length);
 	if (res >= 0) {
 		data->length = res;
 		return 0;

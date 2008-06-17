@@ -571,6 +571,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
  * independent format
  */
 static char *gelic_wl_translate_scan(struct net_device *netdev,
+				     struct iw_request_info *info,
 				     char *ev,
 				     char *stop,
 				     struct gelic_wl_scan_info *network)
@@ -588,26 +589,26 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, &scan->bssid[2], ETH_ALEN);
-	ev = iwe_stream_add_event(ev, stop, &iwe, IW_EV_ADDR_LEN);
+	ev = iwe_stream_add_event(info, ev, stop, &iwe, IW_EV_ADDR_LEN);
 
 	/* ESSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
 	iwe.u.data.length = strnlen(scan->essid, 32);
-	ev = iwe_stream_add_point(ev, stop, &iwe, scan->essid);
+	ev = iwe_stream_add_point(info, ev, stop, &iwe, scan->essid);
 
 	/* FREQUENCY */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = be16_to_cpu(scan->channel);
 	iwe.u.freq.e = 0; /* table value in MHz */
 	iwe.u.freq.i = 0;
-	ev = iwe_stream_add_event(ev, stop, &iwe, IW_EV_FREQ_LEN);
+	ev = iwe_stream_add_event(info, ev, stop, &iwe, IW_EV_FREQ_LEN);
 
 	/* RATES */
 	iwe.cmd = SIOCGIWRATE;
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 	/* to stuff multiple values in one event */
-	tmp = ev + IW_EV_LCP_LEN;
+	tmp = ev + iwe_stream_lcp_len(info);
 	/* put them in ascendant order (older is first) */
 	i = 0;
 	j = 0;
@@ -620,16 +621,16 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 		else
 		    rate = scan->rate[i++] & 0x7f;
 		iwe.u.bitrate.value = rate * 500000; /* 500kbps unit */
-		tmp = iwe_stream_add_value(ev, tmp, stop, &iwe,
+		tmp = iwe_stream_add_value(info, ev, tmp, stop, &iwe,
 					   IW_EV_PARAM_LEN);
 	}
 	while (j < network->rate_ext_len) {
 		iwe.u.bitrate.value = (scan->ext_rate[j++] & 0x7f) * 500000;
-		tmp = iwe_stream_add_value(ev, tmp, stop, &iwe,
+		tmp = iwe_stream_add_value(info, ev, tmp, stop, &iwe,
 					   IW_EV_PARAM_LEN);
 	}
 	/* Check if we added any rate */
-	if (IW_EV_LCP_LEN < (tmp - ev))
+	if (iwe_stream_lcp_len(info) < (tmp - ev))
 		ev = tmp;
 
 	/* ENCODE */
@@ -639,7 +640,7 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	ev = iwe_stream_add_point(ev, stop, &iwe, scan->essid);
+	ev = iwe_stream_add_point(info, ev, stop, &iwe, scan->essid);
 
 	/* MODE */
 	iwe.cmd = SIOCGIWMODE;
@@ -649,7 +650,7 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
-		ev = iwe_stream_add_event(ev, stop, &iwe, IW_EV_UINT_LEN);
+		ev = iwe_stream_add_event(info, ev, stop, &iwe, IW_EV_UINT_LEN);
 	}
 
 	/* QUAL */
@@ -659,7 +660,7 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 	iwe.u.qual.level = be16_to_cpu(scan->rssi);
 	iwe.u.qual.qual = be16_to_cpu(scan->rssi);
 	iwe.u.qual.noise = 0;
-	ev  = iwe_stream_add_event(ev, stop, &iwe, IW_EV_QUAL_LEN);
+	ev  = iwe_stream_add_event(info, ev, stop, &iwe, IW_EV_QUAL_LEN);
 
 	/* RSN */
 	memset(&iwe, 0, sizeof(iwe));
@@ -669,7 +670,7 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 		if (len) {
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = len;
-			ev = iwe_stream_add_point(ev, stop, &iwe, buf);
+			ev = iwe_stream_add_point(info, ev, stop, &iwe, buf);
 		}
 	} else {
 		/* this scan info has IE data */
@@ -684,7 +685,7 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 			memcpy(buf, ie_info.wpa.data, ie_info.wpa.len);
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = ie_info.wpa.len;
-			ev = iwe_stream_add_point(ev, stop, &iwe, buf);
+			ev = iwe_stream_add_point(info, ev, stop, &iwe, buf);
 		}
 
 		if (ie_info.rsn.len && (ie_info.rsn.len <= sizeof(buf))) {
@@ -692,7 +693,7 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 			memcpy(buf, ie_info.rsn.data, ie_info.rsn.len);
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = ie_info.rsn.len;
-			ev = iwe_stream_add_point(ev, stop, &iwe, buf);
+			ev = iwe_stream_add_point(info, ev, stop, &iwe, buf);
 		}
 	}
 
@@ -737,7 +738,8 @@ static int gelic_wl_get_scan(struct net_device *netdev,
 		if (wl->scan_age == 0 ||
 		    time_after(scan_info->last_scanned + wl->scan_age,
 			       this_time))
-			ev = gelic_wl_translate_scan(netdev, ev, stop,
+			ev = gelic_wl_translate_scan(netdev, info,
+						     ev, stop,
 						     scan_info);
 		else
 			pr_debug("%s:entry too old\n", __func__);
