@@ -573,9 +573,7 @@ static int econet_release(struct socket *sock)
 
 	sk->sk_state_change(sk);	/* It is useless. Just for sanity. */
 
-	sock->sk = NULL;
-	sk->sk_socket = NULL;
-	sock_set_flag(sk, SOCK_DEAD);
+	sock_orphan(sk);
 
 	/* Purge queues */
 
