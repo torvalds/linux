@@ -38,6 +38,7 @@ struct udphdr {
 #ifdef __KERNEL__
 #include <net/inet_sock.h>
 #include <linux/skbuff.h>
+#include <net/netns/hash.h>
 
 static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 {
@@ -48,7 +49,7 @@ static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 
 static inline int udp_hashfn(struct net *net, const unsigned num)
 {
-	return num & (UDP_HTABLE_SIZE - 1);
+	return (num + net_hash_mix(net)) & (UDP_HTABLE_SIZE - 1);
 }
 
 struct udp_sock {

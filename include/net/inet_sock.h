@@ -25,6 +25,7 @@
 #include <net/sock.h>
 #include <net/request_sock.h>
 #include <net/route.h>
+#include <net/netns/hash.h>
 
 /** struct ip_options - IP Options
  *
@@ -178,7 +179,7 @@ static inline unsigned int inet_ehashfn(struct net *net,
 	return jhash_3words((__force __u32) laddr,
 			    (__force __u32) faddr,
 			    ((__u32) lport) << 16 | (__force __u32)fport,
-			    inet_ehash_secret);
+			    inet_ehash_secret + net_hash_mix(net));
 }
 
 static inline int inet_sk_ehashfn(const struct sock *sk)
