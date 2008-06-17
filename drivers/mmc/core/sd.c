@@ -326,7 +326,7 @@ static struct device_type sd_type = {
 /*
  * Handle the detection and initialisation of a card.
  *
- * In the case of a resume, "curcard" will contain the card
+ * In the case of a resume, "oldcard" will contain the card
  * we're trying to reinitialise.
  */
 static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
