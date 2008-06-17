@@ -8,7 +8,7 @@
 
 #include <linux/atmdev.h>
 #include <linux/atmioc.h>
-
+#include <linux/sonet.h>
 
 /* SUNI registers */
 
@@ -205,6 +205,13 @@
 
 
 #ifdef __KERNEL__
+struct suni_priv {
+	struct k_sonet_stats sonet_stats;	/* link diagnostics */
+	int loop_mode;				/* loopback mode */
+	struct atm_dev *dev;			/* device back-pointer */
+	struct suni_priv *next;			/* next SUNI */
+};
+
 int suni_init(struct atm_dev *dev);
 #endif
 

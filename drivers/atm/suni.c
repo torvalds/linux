@@ -29,15 +29,6 @@
 #define DPRINTK(format,args...)
 #endif
 
-
-struct suni_priv {
-	struct k_sonet_stats sonet_stats; /* link diagnostics */
-	int loop_mode;			/* loopback mode */
-	struct atm_dev *dev;		/* device back-pointer */
-	struct suni_priv *next;		/* next SUNI */
-};
-
-
 #define PRIV(dev) ((struct suni_priv *) dev->phy_data)
 
 #define PUT(val,reg) dev->ops->phy_put(dev,val,SUNI_##reg)

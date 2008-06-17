@@ -65,12 +65,7 @@
 #include "iphase.h"		  
 #include "suni.h"		  
 #define swap(x) (((x & 0xff) << 8) | ((x & 0xff00) >> 8))  
-struct suni_priv {
-        struct k_sonet_stats sonet_stats; /* link diagnostics */
-        unsigned char loop_mode;        /* loopback mode */
-        struct atm_dev *dev;            /* device back-pointer */
-        struct suni_priv *next;         /* next SUNI */
-}; 
+
 #define PRIV(dev) ((struct suni_priv *) dev->phy_data)
 
 static unsigned char ia_phy_get(struct atm_dev *dev, unsigned long addr);
