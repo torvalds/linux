@@ -9,8 +9,9 @@ config UML_X86
 	default y
 
 config X86_32
-       bool
-       default y
+	bool
+	default y
+  	select HAVE_AOUT
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y

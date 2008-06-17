@@ -5,6 +5,7 @@
 config M68K
 	bool
 	default y
+	select HAVE_AOUT
 	select HAVE_IDE
 
 config MMU

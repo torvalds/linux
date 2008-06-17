@@ -5,6 +5,7 @@
 config ALPHA
 	bool
 	default y
+	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	help
