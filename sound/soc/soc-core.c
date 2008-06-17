@@ -825,8 +825,10 @@ static int soc_probe(struct platform_device *pdev)
 
 	/* DAPM stream work */
 	INIT_DELAYED_WORK(&socdev->delayed_work, close_delayed_work);
+#ifdef CONFIG_PM
 	/* deferred resume work */
 	INIT_WORK(&socdev->deferred_resume_work, soc_resume_deferred);
+#endif
 
 	return 0;
 
