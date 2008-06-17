@@ -658,8 +658,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
 	}
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
-	    hw->chip_rev == CHIP_REV_YU_EC_U_A1) {
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
 		/* apply fixes in PHY AFE */
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 255);
 
@@ -678,7 +677,8 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		/* apply workaround for integrated resistors calibration */
 		gm_phy_write(hw, port, PHY_MARV_PAGE_ADDR, 17);
 		gm_phy_write(hw, port, PHY_MARV_PAGE_DATA, 0x3f60);
-	} else if (hw->chip_id != CHIP_ID_YUKON_EX) {
+	} else if (hw->chip_id != CHIP_ID_YUKON_EX &&
+		   hw->chip_id < CHIP_ID_YUKON_SUPR) {
 		/* no effect on Yukon-XL */
 		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
 
