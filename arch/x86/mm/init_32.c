@@ -298,7 +298,7 @@ struct add_highpages_data {
 	unsigned long end_pfn;
 };
 
-static void __init add_highpages_work_fn(unsigned long start_pfn,
+static int __init add_highpages_work_fn(unsigned long start_pfn,
 					 unsigned long end_pfn, void *datax)
 {
 	int node_pfn;
@@ -311,7 +311,7 @@ static void __init add_highpages_work_fn(unsigned long start_pfn,
 	final_start_pfn = max(start_pfn, data->start_pfn);
 	final_end_pfn = min(end_pfn, data->end_pfn);
 	if (final_start_pfn >= final_end_pfn)
-		return;
+		return 0;
 
 	for (node_pfn = final_start_pfn; node_pfn < final_end_pfn;
 	     node_pfn++) {
@@ -320,6 +320,8 @@ static void __init add_highpages_work_fn(unsigned long start_pfn,
 		page = pfn_to_page(node_pfn);
 		add_one_highpage_init(page, node_pfn);
 	}
+
+	return 0;
 
 }
 
