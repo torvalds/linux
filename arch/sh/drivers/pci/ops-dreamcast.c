@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -48,6 +49,7 @@ struct pci_channel board_pci_channels[] = {
 	  &gapspci_mem_resource, 0, 1 },
 	{ 0, }
 };
+EXPORT_SYMBOL(board_pci_channels);
 
 /*
  * The !gapspci_config_access case really shouldn't happen, ever, unless
