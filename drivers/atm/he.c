@@ -2845,10 +2845,15 @@ he_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user *arg)
 			if (copy_from_user(&reg, arg,
 					   sizeof(struct he_ioctl_reg)))
 				return -EFAULT;
-			
+
 			spin_lock_irqsave(&he_dev->global_lock, flags);
 			switch (reg.type) {
 				case HE_REGTYPE_PCI:
+					if (reg.addr < 0 || reg.addr >= HE_REGMAP_SIZE) {
+						err = -EINVAL;
+						break;
+					}
+
 					reg.val = he_readl(he_dev, reg.addr);
 					break;
 				case HE_REGTYPE_RCM:
