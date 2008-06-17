@@ -227,7 +227,7 @@ struct sock * __inet_lookup_established(struct net *net,
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	unsigned int hash = inet_ehashfn(daddr, hnum, saddr, sport);
+	unsigned int hash = inet_ehashfn(net, daddr, hnum, saddr, sport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
 	rwlock_t *lock = inet_ehash_lockp(hashinfo, hash);
 
@@ -267,13 +267,13 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	int dif = sk->sk_bound_dev_if;
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
 	const __portpair ports = INET_COMBINED_PORTS(inet->dport, lport);
-	unsigned int hash = inet_ehashfn(daddr, lport, saddr, inet->dport);
+	struct net *net = sock_net(sk);
+	unsigned int hash = inet_ehashfn(net, daddr, lport, saddr, inet->dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	rwlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
-	struct net *net = sock_net(sk);
 
 	prefetch(head->chain.first);
 	write_lock(lock);
