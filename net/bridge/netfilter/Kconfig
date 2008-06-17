@@ -85,7 +85,7 @@ config BRIDGE_EBT_IP
 
 config BRIDGE_EBT_IP6
 	tristate "ebt: IP6 filter support"
-	depends on BRIDGE_NF_EBTABLES
+	depends on BRIDGE_NF_EBTABLES && IPV6
 	help
 	  This option adds the IP6 match, which allows basic IPV6 header field
 	  filtering.

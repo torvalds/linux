@@ -123,6 +123,7 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		goto out;
 	}
 
+#if defined(CONFIG_BRIDGE_EBT_IP6) || defined(CONFIG_BRIDGE_EBT_IP6_MODULE)
 	if ((bitmask & EBT_LOG_IP6) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IPV6)) {
 		const struct ipv6hdr *ih;
@@ -146,6 +147,7 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		print_ports(skb, nexthdr, offset_ph);
 		goto out;
 	}
+#endif
 
 	if ((bitmask & EBT_LOG_ARP) &&
 	    ((eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) ||
