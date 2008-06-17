@@ -178,8 +178,9 @@ static ssize_t integrity_attr_show(struct kobject *kobj, struct attribute *attr,
 	return entry->show(bi, page);
 }
 
-static ssize_t integrity_attr_store(struct kobject *kobj, struct attribute *attr,
-				    const char *page, size_t count)
+static ssize_t integrity_attr_store(struct kobject *kobj,
+				    struct attribute *attr, const char *page,
+				    size_t count)
 {
 	struct blk_integrity *bi =
 		container_of(kobj, struct blk_integrity, kobj);
@@ -326,7 +327,8 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 	BUG_ON(template == NULL);
 
 	if (disk->integrity == NULL) {
-		bi = kmem_cache_alloc(integrity_cachep, GFP_KERNEL | __GFP_ZERO);
+		bi = kmem_cache_alloc(integrity_cachep,
+						GFP_KERNEL | __GFP_ZERO);
 		if (!bi)
 			return -1;
 

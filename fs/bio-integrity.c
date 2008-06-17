@@ -39,7 +39,10 @@ static struct workqueue_struct *kintegrityd_wq;
  * metadata.  nr_vecs specifies the maximum number of pages containing
  * integrity metadata that can be attached.
  */
-struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *bio, gfp_t gfp_mask, unsigned int nr_vecs, struct bio_set *bs)
+struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *bio,
+							 gfp_t gfp_mask,
+							 unsigned int nr_vecs,
+							 struct bio_set *bs)
 {
 	struct bio_integrity_payload *bip;
 	struct bio_vec *iv;
@@ -81,7 +84,9 @@ EXPORT_SYMBOL(bio_integrity_alloc_bioset);
  * metadata.  nr_vecs specifies the maximum number of pages containing
  * integrity metadata that can be attached.
  */
-struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio, gfp_t gfp_mask, unsigned int nr_vecs)
+struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
+						  gfp_t gfp_mask,
+						  unsigned int nr_vecs)
 {
 	return bio_integrity_alloc_bioset(bio, gfp_mask, nr_vecs, fs_bio_set);
 }
@@ -174,7 +179,8 @@ EXPORT_SYMBOL(bio_integrity_enabled);
  * sector size of the storage device.  Convert the block layer sectors
  * to physical sectors.
  */
-static inline unsigned int bio_integrity_hw_sectors(struct blk_integrity *bi, unsigned int sectors)
+static inline unsigned int bio_integrity_hw_sectors(struct blk_integrity *bi,
+						    unsigned int sectors)
 {
 	/* At this point there are only 512b or 4096b DIF/EPP devices */
 	if (bi->sector_size == 4096)
@@ -212,7 +218,8 @@ int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len, int set)
 	if (bi->tag_size == 0)
 		return -1;
 
-	nr_sectors = bio_integrity_hw_sectors(bi, DIV_ROUND_UP(len, bi->tag_size));
+	nr_sectors = bio_integrity_hw_sectors(bi,
+					DIV_ROUND_UP(len, bi->tag_size));
 
 	if (nr_sectors * bi->tuple_size > bip->bip_size) {
 		printk(KERN_ERR "%s: tag too big for bio: %u > %u\n",
@@ -456,7 +463,7 @@ static int bio_integrity_verify(struct bio *bio)
  */
 static void bio_integrity_verify_fn(struct work_struct *work)
 {
-	struct bio_integrity_payload *bip = 
+	struct bio_integrity_payload *bip =
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
 	int error = bip->bip_error;
@@ -502,7 +509,8 @@ EXPORT_SYMBOL(bio_integrity_endio);
  * @bip:	Integrity vector to advance
  * @skip:	Number of bytes to advance it
  */
-void bio_integrity_mark_head(struct bio_integrity_payload *bip, unsigned int skip)
+void bio_integrity_mark_head(struct bio_integrity_payload *bip,
+			     unsigned int skip)
 {
 	struct bio_vec *iv;
 	unsigned int i;
@@ -527,7 +535,8 @@ void bio_integrity_mark_head(struct bio_integrity_payload *bip, unsigned int ski
  * @bip:	Integrity vector to truncate
  * @len:	New length of integrity vector
  */
-void bio_integrity_mark_tail(struct bio_integrity_payload *bip, unsigned int len)
+void bio_integrity_mark_tail(struct bio_integrity_payload *bip,
+			     unsigned int len)
 {
 	struct bio_vec *iv;
 	unsigned int i;
@@ -579,7 +588,8 @@ EXPORT_SYMBOL(bio_integrity_advance);
  * and the length will be truncated corresponding to 'len' data
  * sectors.
  */
-void bio_integrity_trim(struct bio *bio, unsigned int offset, unsigned int sectors)
+void bio_integrity_trim(struct bio *bio, unsigned int offset,
+			unsigned int sectors)
 {
 	struct bio_integrity_payload *bip = bio->bi_integrity;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
@@ -648,7 +658,8 @@ EXPORT_SYMBOL(bio_integrity_split);
  *
  * Description:	Called to allocate a bip when cloning a bio
  */
-int bio_integrity_clone(struct bio *bio, struct bio *bio_src, struct bio_set *bs)
+int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
+			struct bio_set *bs)
 {
 	struct bio_integrity_payload *bip_src = bio_src->bi_integrity;
 	struct bio_integrity_payload *bip;
