@@ -9,8 +9,18 @@
 
 extern int fixmaps_set;
 
-extern void __set_fixmap(enum fixed_addresses idx,
-			 unsigned long phys, pgprot_t flags);
+void __native_set_fixmap(enum fixed_addresses idx, pte_t pte);
+void native_set_fixmap(enum fixed_addresses idx,
+		       unsigned long phys, pgprot_t flags);
+
+#ifndef CONFIG_PARAVIRT
+static inline void __set_fixmap(enum fixed_addresses idx,
+				unsigned long phys, pgprot_t flags)
+{
+	native_set_fixmap(idx, phys, flags);
+}
+#endif
+
 #define set_fixmap(idx, phys)				\
 	__set_fixmap(idx, phys, PAGE_KERNEL)
 

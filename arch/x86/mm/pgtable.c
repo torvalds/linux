@@ -277,7 +277,7 @@ int ptep_clear_flush_young(struct vm_area_struct *vma,
 
 int fixmaps_set;
 
-void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
+void __native_set_fixmap(enum fixed_addresses idx, pte_t pte)
 {
 	unsigned long address = __fix_to_virt(idx);
 
@@ -285,6 +285,11 @@ void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 		BUG();
 		return;
 	}
-	set_pte_vaddr(address, pfn_pte(phys >> PAGE_SHIFT, flags));
+	set_pte_vaddr(address, pte);
 	fixmaps_set++;
+}
+
+void native_set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
+{
+	__native_set_fixmap(idx, pfn_pte(phys >> PAGE_SHIFT, flags));
 }
