@@ -398,6 +398,7 @@ const char *get_cpu_subtype(struct sh_cpuinfo *c)
 {
 	return cpu_name[c->type];
 }
+EXPORT_SYMBOL(get_cpu_subtype);
 
 #ifdef CONFIG_PROC_FS
 /* Symbolic CPU flags, keep in sync with asm/cpu-features.h */
