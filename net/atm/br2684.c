@@ -518,9 +518,9 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 		struct sk_buff *next = skb->next;
 
 		skb->next = skb->prev = NULL;
+		br2684_push(atmvcc, skb);
 		BRPRIV(skb->dev)->stats.rx_bytes -= skb->len;
 		BRPRIV(skb->dev)->stats.rx_packets--;
-		br2684_push(atmvcc, skb);
 
 		skb = next;
 	}
