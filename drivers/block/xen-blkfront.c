@@ -324,6 +324,9 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	/* Make sure buffer addresses are sector-aligned. */
 	blk_queue_dma_alignment(rq, 511);
 
+	/* Make sure we don't use bounce buffers. */
+	blk_queue_bounce_limit(rq, BLK_BOUNCE_ANY);
+
 	gd->queue = rq;
 
 	return 0;
