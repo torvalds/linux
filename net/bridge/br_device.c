@@ -87,6 +87,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 	spin_lock_bh(&br->lock);
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 	br_stp_change_bridge_id(br, addr->sa_data);
+	br->flags |= BR_SET_MAC_ADDR;
 	spin_unlock_bh(&br->lock);
 
 	return 0;

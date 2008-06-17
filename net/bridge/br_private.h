@@ -92,6 +92,8 @@ struct net_bridge
 	struct hlist_head		hash[BR_HASH_SIZE];
 	struct list_head		age_list;
 	unsigned long			feature_mask;
+	unsigned long			flags;
+#define BR_SET_MAC_ADDR		0x00000001
 
 	/* STP */
 	bridge_id			designated_root;
