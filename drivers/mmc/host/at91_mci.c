@@ -793,19 +793,15 @@ static irqreturn_t at91_mmc_det_irq(int irq, void *_host)
 
 static int at91_mci_get_ro(struct mmc_host *mmc)
 {
-	int read_only = 0;
 	struct at91mci_host *host = mmc_priv(mmc);
 
-	if (host->board->wp_pin) {
-		read_only = gpio_get_value(host->board->wp_pin);
-		printk(KERN_WARNING "%s: card is %s\n", mmc_hostname(mmc),
-				(read_only ? "read-only" : "read-write") );
-	}
-	else {
-		printk(KERN_WARNING "%s: host does not support reading read-only "
-				"switch.  Assuming write-enable.\n", mmc_hostname(mmc));
-	}
-	return read_only;
+	if (host->board->wp_pin)
+		return !!gpio_get_value(host->board->wp_pin);
+	/*
+	 * Board doesn't support read only detection; let the mmc core
+	 * decide what to do.
+	 */
+	return -ENOSYS;
 }
 
 static const struct mmc_host_ops at91_mci_ops = {

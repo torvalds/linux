@@ -1126,9 +1126,12 @@ static int mmc_spi_get_ro(struct mmc_host *mmc)
 	struct mmc_spi_host *host = mmc_priv(mmc);
 
 	if (host->pdata && host->pdata->get_ro)
-		return host->pdata->get_ro(mmc->parent);
-	/* board doesn't support read only detection; assume writeable */
-	return 0;
+		return !!host->pdata->get_ro(mmc->parent);
+	/*
+	 * Board doesn't support read only detection; let the mmc core
+	 * decide what to do.
+	 */
+	return -ENOSYS;
 }
 
 static int mmc_spi_get_cd(struct mmc_host *mmc)

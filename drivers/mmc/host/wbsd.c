@@ -939,7 +939,7 @@ static int wbsd_get_ro(struct mmc_host *mmc)
 
 	spin_unlock_bh(&host->lock);
 
-	return csr & WBSD_WRPT;
+	return !!(csr & WBSD_WRPT);
 }
 
 static const struct mmc_host_ops wbsd_ops = {
