@@ -612,8 +612,7 @@ static int x25_release(struct socket *sock)
 			break;
 	}
 
-	sock->sk	= NULL;
-	sk->sk_socket	= NULL;	/* Not used, but we should do this */
+	sock_orphan(sk);
 out:
 	return 0;
 }
