@@ -3231,14 +3231,6 @@ L:	linux-kernel@vger.kernel.org
 T:	git git.infradead.org/battery-2.6.git
 S:	Maintained
 
-POWERPC 4xx EMAC DRIVER
-P:	Eugene Surovegin
-M:	ebs@ebshome.net
-W:	http://kernel.ebshome.net/emac/
-L:	linuxppc-dev@ozlabs.org
-L:	netdev@vger.kernel.org
-S:	Maintained
-
 PNP SUPPORT
 P:	Adam Belay
 M:	ambx1@neo.rr.com
