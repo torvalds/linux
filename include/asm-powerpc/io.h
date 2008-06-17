@@ -772,7 +772,7 @@ static inline void * bus_to_virt(unsigned long address)
 #define clrsetbits_le32(addr, clear, set) clrsetbits(le32, addr, clear, set)
 
 #define clrsetbits_be16(addr, clear, set) clrsetbits(be16, addr, clear, set)
-#define clrsetbits_le16(addr, clear, set) clrsetbits(le32, addr, clear, set)
+#define clrsetbits_le16(addr, clear, set) clrsetbits(le16, addr, clear, set)
 
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
 
