@@ -1045,7 +1045,7 @@ static int __init xlblk_init(void)
 module_init(xlblk_init);
 
 
-static void xlblk_exit(void)
+static void __exit xlblk_exit(void)
 {
 	return xenbus_unregister_driver(&blkfront);
 }
