@@ -1555,6 +1555,7 @@ he_start(struct atm_dev *dev)
 		val = he_phy_get(he_dev->atm_dev, SUNI_TPOP_APM);
 		val = (val & ~SUNI_TPOP_APM_S) | (SUNI_TPOP_S_SDH << SUNI_TPOP_APM_S_SHIFT);
 		he_phy_put(he_dev->atm_dev, val, SUNI_TPOP_APM);
+		he_phy_put(he_dev->atm_dev, SUNI_TACP_IUCHP_CLP, SUNI_TACP_IUCHP);
 	}
 
 	/* 5.1.12 enable transmit and receive */
