@@ -446,7 +446,7 @@ config MEMTEST_BOOTPARAM_VALUE
 
 config ACPI_SRAT
 	def_bool y
-	depends on X86_32 && ACPI && NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	depends on X86_32 && ACPI && NUMA && X86_GENERICARCH
 	select ACPI_NUMA
 
 config HAVE_ARCH_PARSE_SRAT
@@ -455,11 +455,11 @@ config HAVE_ARCH_PARSE_SRAT
 
 config X86_SUMMIT_NUMA
 	def_bool y
-	depends on X86_32 && NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	depends on X86_32 && NUMA && X86_GENERICARCH
 
 config X86_CYCLONE_TIMER
 	def_bool y
-	depends on X86_32 && X86_SUMMIT || X86_GENERICARCH
+	depends on X86_GENERICARCH
 
 config ES7000_CLUSTERED_APIC
 	def_bool y
@@ -909,9 +909,9 @@ config X86_PAE
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
 	depends on SMP
-	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || X86_SUMMIT && ACPI) && EXPERIMENTAL)
+	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP || X86_SUMMIT && ACPI) && EXPERIMENTAL)
 	default n if X86_PC
-	default y if (X86_NUMAQ || X86_SUMMIT || X86_GENERICARCH)
+	default y if (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP)
 	help
 	  Enable NUMA (Non Uniform Memory Access) support.
 	  The kernel will try to allocate memory used by a CPU on the
