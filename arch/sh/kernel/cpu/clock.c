@@ -88,7 +88,7 @@ static void propagate_rate(struct clk *clk)
 	}
 }
 
-int __clk_enable(struct clk *clk)
+static int __clk_enable(struct clk *clk)
 {
 	/*
 	 * See if this is the first time we're enabling the clock, some
@@ -111,7 +111,6 @@ int __clk_enable(struct clk *clk)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__clk_enable);
 
 int clk_enable(struct clk *clk)
 {
@@ -131,7 +130,7 @@ static void clk_kref_release(struct kref *kref)
 	/* Nothing to do */
 }
 
-void __clk_disable(struct clk *clk)
+static void __clk_disable(struct clk *clk)
 {
 	int count = kref_put(&clk->kref, clk_kref_release);
 
@@ -143,7 +142,6 @@ void __clk_disable(struct clk *clk)
 			clk->ops->disable(clk);
 	}
 }
-EXPORT_SYMBOL_GPL(__clk_disable);
 
 void clk_disable(struct clk *clk)
 {

@@ -41,9 +41,6 @@ void arch_init_clk_ops(struct clk_ops **, int type);
 /* arch/sh/kernel/cpu/clock.c */
 int clk_init(void);
 
-int __clk_enable(struct clk *);
-void __clk_disable(struct clk *);
-
 void clk_recalc_rate(struct clk *);
 
 int clk_register(struct clk *);
