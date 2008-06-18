@@ -117,7 +117,7 @@ kmutex_t g_smscore_deviceslock;
 struct list_head g_smscore_registry;
 kmutex_t g_smscore_registrylock;
 
-static int default_mode = 1;
+static int default_mode = 4;
 
 module_param(default_mode, int, 0644);
 MODULE_PARM_DESC(default_mode, "default firmware id (device mode)");
