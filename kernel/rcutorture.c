@@ -125,6 +125,13 @@ static struct list_head rcu_torture_removed;
 
 static int stutter_pause_test = 0;
 
+#if defined(MODULE) || defined(CONFIG_RCU_TORTURE_TEST_RUNNABLE)
+#define RCUTORTURE_RUNNABLE_INIT 1
+#else
+#define RCUTORTURE_RUNNABLE_INIT 0
+#endif
+int rcutorture_runnable = RCUTORTURE_RUNNABLE_INIT;
+
 /*
  * Allocate an element from the rcu_tortures pool.
  */
@@ -188,7 +195,7 @@ rcu_random(struct rcu_random_state *rrsp)
 static void
 rcu_stutter_wait(void)
 {
-	while (stutter_pause_test)
+	while (stutter_pause_test || !rcutorture_runnable)
 		schedule_timeout_interruptible(1);
 }
 

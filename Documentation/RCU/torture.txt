@@ -10,13 +10,20 @@ status messages via printk(), which can be examined via the dmesg
 command (perhaps grepping for "torture").  The test is started
 when the module is loaded, and stops when the module is unloaded.
 
-However, actually setting this config option to "y" results in the system
-running the test immediately upon boot, and ending only when the system
-is taken down.  Normally, one will instead want to build the system
-with CONFIG_RCU_TORTURE_TEST=m and to use modprobe and rmmod to control
-the test, perhaps using a script similar to the one shown at the end of
-this document.  Note that you will need CONFIG_MODULE_UNLOAD in order
-to be able to end the test.
+CONFIG_RCU_TORTURE_TEST_RUNNABLE
+
+It is also possible to specify CONFIG_RCU_TORTURE_TEST=y, which will
+result in the tests being loaded into the base kernel.  In this case,
+the CONFIG_RCU_TORTURE_TEST_RUNNABLE config option is used to specify
+whether the RCU torture tests are to be started immediately during
+boot or whether the /proc/sys/kernel/rcutorture_runnable file is used
+to enable them.  This /proc file can be used to repeatedly pause and
+restart the tests, regardless of the initial state specified by the
+CONFIG_RCU_TORTURE_TEST_RUNNABLE config option.
+
+You will normally -not- want to start the RCU torture tests during boot
+(and thus the default is CONFIG_RCU_TORTURE_TEST_RUNNABLE=n), but doing
+this can sometimes be useful in finding boot-time bugs.
 
 
 MODULE PARAMETERS
