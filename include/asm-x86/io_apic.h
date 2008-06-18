@@ -168,8 +168,10 @@ extern int timer_through_8259;
 
 static inline void disable_ioapic_setup(void)
 {
+#ifdef CONFIG_PCI
 	noioapicquirk = 1;
 	noioapicreroute = -1;
+#endif
 	skip_ioapic_setup = 1;
 }
 
