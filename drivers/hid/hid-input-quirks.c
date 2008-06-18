@@ -331,18 +331,10 @@ int hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struc
 		return 1;
 	}
 
-	if ((hid->quirks & HID_QUIRK_INVERT_HWHEEL) && (usage->code == REL_HWHEEL)) {
-		input_event(input, usage->type, usage->code, -value);
-		return 1;
-	}
-
 	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
 		input_event(input, usage->type, REL_HWHEEL, value);
 		return 1;
 	}
-
-	if ((hid->quirks & HID_QUIRK_APPLE_HAS_FN) && hidinput_apple_event(hid, input, usage, value))
-		return 1;
 
 	/* Handling MS keyboards special buttons */
 	if (hid->quirks & HID_QUIRK_MICROSOFT_KEYS && 

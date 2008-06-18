@@ -264,13 +264,7 @@ struct hid_item {
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_7		0x00000080
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_5		0x00000100
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x00000200
-#define HID_QUIRK_MIGHTYMOUSE			0x00000400
-#define HID_QUIRK_APPLE_HAS_FN			0x00000800
-#define HID_QUIRK_APPLE_FN_ON			0x00001000
-#define HID_QUIRK_INVERT_HWHEEL			0x00002000
-#define HID_QUIRK_APPLE_ISO_KEYBOARD		0x00004000
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
-#define HID_QUIRK_IGNORE_MOUSE			0x00020000
 #define HID_QUIRK_SONY_PS3_CONTROLLER		0x00040000
 #define HID_QUIRK_RESET_LEDS			0x00100000
 #define HID_QUIRK_HIDINPUT			0x00200000
@@ -279,7 +273,6 @@ struct hid_item {
 #define HID_QUIRK_HWHEEL_WHEEL_INVERT		0x04000000
 #define HID_QUIRK_MICROSOFT_KEYS		0x08000000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
-#define HID_QUIRK_APPLE_NUMLOCK_EMULATION	0x20000000
 
 /*
  * Separate quirks for runtime report descriptor fixup
@@ -288,7 +281,6 @@ struct hid_item {
 #define HID_QUIRK_RDESC_CYMOTION		0x00000001
 #define HID_QUIRK_RDESC_SWAPPED_MIN_MAX		0x00000004
 #define HID_QUIRK_RDESC_PETALYNX		0x00000008
-#define HID_QUIRK_RDESC_MACBOOK_JIS		0x00000010
 #define HID_QUIRK_RDESC_BUTTON_CONSUMER		0x00000020
 #define HID_QUIRK_RDESC_SAMSUNG_REMOTE		0x00000040
 #define HID_QUIRK_RDESC_MICROSOFT_RECV_1028	0x00000080
@@ -475,10 +467,6 @@ struct hid_device {							/* device report descriptor */
 
 	/* handler for raw output data, used by hidraw */
 	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t);
-#ifdef CONFIG_USB_HIDINPUT_POWERBOOK
-	unsigned long apple_pressed_fn[BITS_TO_LONGS(KEY_CNT)];
-	unsigned long pb_pressed_numlock[BITS_TO_LONGS(KEY_CNT)];
-#endif
 };
 
 static inline void *hid_get_drvdata(struct hid_device *hdev)
@@ -652,7 +640,6 @@ int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int 
 int hidinput_mapping_quirks(struct hid_usage *, struct hid_input *,
 		unsigned long **, int *);
 int hidinput_event_quirks(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
-int hidinput_apple_event(struct hid_device *, struct input_dev *, struct hid_usage *, __s32);
 void hid_output_report(struct hid_report *report, __u8 *data);
 struct hid_device *hid_allocate_device(void);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);

@@ -70,6 +70,20 @@ source "drivers/hid/usbhid/Kconfig"
 menu "Special HID drivers"
 	depends on HID
 
+config HID_APPLE
+	tristate "Apple"
+	default m
+	depends on (USB_HID || BT_HIDP)
+	---help---
+	Support for some Apple devices which less or more break
+	HID specification.
+
+	Say Y here if you want support for the special keys (Fn, Numlock) on
+	Apple iBooks, PowerBooks, MacBooks, MacBook Pros and aluminum USB
+	keyboards.
+
+	If unsure, say M.
+
 config HID_LOGITECH
 	tristate "Logitech"
 	default m

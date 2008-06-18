@@ -31,6 +31,11 @@
 #include <linux/usb/input.h>
 #include <linux/hid.h>
 
+/* for apple IDs */
+#ifdef CONFIG_USB_HID_MODULE
+#include "../hid-ids.h"
+#endif
+
 /*
  * Version Information
  */

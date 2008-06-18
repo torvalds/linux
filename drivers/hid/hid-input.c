@@ -32,11 +32,6 @@
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 
-static int hid_apple_fnmode = 1;
-module_param_named(pb_fnmode, hid_apple_fnmode, int, 0644);
-MODULE_PARM_DESC(pb_fnmode,
-		"Mode of fn key on Apple keyboards (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
-
 #define unk	KEY_UNKNOWN
 
 static const unsigned char hid_keyboard[256] = {
@@ -72,202 +67,6 @@ static const struct {
 		&max, EV_ABS, (c))
 #define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
 		&max, EV_KEY, (c))
-
-#ifdef CONFIG_USB_HIDINPUT_POWERBOOK
-
-struct hidinput_key_translation {
-	u16 from;
-	u16 to;
-	u8 flags;
-};
-
-#define APPLE_FLAG_FKEY 0x01
-
-static struct hidinput_key_translation apple_fn_keys[] = {
-	{ KEY_BACKSPACE, KEY_DELETE },
-	{ KEY_F1,       KEY_BRIGHTNESSDOWN, APPLE_FLAG_FKEY },
-	{ KEY_F2,       KEY_BRIGHTNESSUP,   APPLE_FLAG_FKEY },
-	{ KEY_F3,       KEY_FN_F5,          APPLE_FLAG_FKEY }, /* Exposé */
-	{ KEY_F4,       KEY_FN_F4,          APPLE_FLAG_FKEY }, /* Dashboard */
-	{ KEY_F5,       KEY_KBDILLUMDOWN,   APPLE_FLAG_FKEY },
-	{ KEY_F6,       KEY_KBDILLUMUP,     APPLE_FLAG_FKEY },
-	{ KEY_F7,       KEY_PREVIOUSSONG,   APPLE_FLAG_FKEY },
-	{ KEY_F8,       KEY_PLAYPAUSE,      APPLE_FLAG_FKEY },
-	{ KEY_F9,       KEY_NEXTSONG,       APPLE_FLAG_FKEY },
-	{ KEY_F10,      KEY_MUTE,           APPLE_FLAG_FKEY },
-	{ KEY_F11,      KEY_VOLUMEDOWN,     APPLE_FLAG_FKEY },
-	{ KEY_F12,      KEY_VOLUMEUP,       APPLE_FLAG_FKEY },
-	{ KEY_UP,       KEY_PAGEUP },
-	{ KEY_DOWN,     KEY_PAGEDOWN },
-	{ KEY_LEFT,     KEY_HOME },
-	{ KEY_RIGHT,    KEY_END },
-	{ }
-};
-
-static struct hidinput_key_translation powerbook_fn_keys[] = {
-	{ KEY_BACKSPACE, KEY_DELETE },
-	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
-	{ KEY_F2,       KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
-	{ KEY_F3,       KEY_MUTE,               APPLE_FLAG_FKEY },
-	{ KEY_F4,       KEY_VOLUMEDOWN,         APPLE_FLAG_FKEY },
-	{ KEY_F5,       KEY_VOLUMEUP,           APPLE_FLAG_FKEY },
-	{ KEY_F6,       KEY_NUMLOCK,            APPLE_FLAG_FKEY },
-	{ KEY_F7,       KEY_SWITCHVIDEOMODE,    APPLE_FLAG_FKEY },
-	{ KEY_F8,       KEY_KBDILLUMTOGGLE,     APPLE_FLAG_FKEY },
-	{ KEY_F9,       KEY_KBDILLUMDOWN,       APPLE_FLAG_FKEY },
-	{ KEY_F10,      KEY_KBDILLUMUP,         APPLE_FLAG_FKEY },
-	{ KEY_UP,       KEY_PAGEUP },
-	{ KEY_DOWN,     KEY_PAGEDOWN },
-	{ KEY_LEFT,     KEY_HOME },
-	{ KEY_RIGHT,    KEY_END },
-	{ }
-};
-
-static struct hidinput_key_translation powerbook_numlock_keys[] = {
-	{ KEY_J,        KEY_KP1 },
-	{ KEY_K,        KEY_KP2 },
-	{ KEY_L,        KEY_KP3 },
-	{ KEY_U,        KEY_KP4 },
-	{ KEY_I,        KEY_KP5 },
-	{ KEY_O,        KEY_KP6 },
-	{ KEY_7,        KEY_KP7 },
-	{ KEY_8,        KEY_KP8 },
-	{ KEY_9,        KEY_KP9 },
-	{ KEY_M,        KEY_KP0 },
-	{ KEY_DOT,      KEY_KPDOT },
-	{ KEY_SLASH,    KEY_KPPLUS },
-	{ KEY_SEMICOLON, KEY_KPMINUS },
-	{ KEY_P,        KEY_KPASTERISK },
-	{ KEY_MINUS,    KEY_KPEQUAL },
-	{ KEY_0,        KEY_KPSLASH },
-	{ KEY_F6,       KEY_NUMLOCK },
-	{ KEY_KPENTER,  KEY_KPENTER },
-	{ KEY_BACKSPACE, KEY_BACKSPACE },
-	{ }
-};
-
-static struct hidinput_key_translation apple_iso_keyboard[] = {
-	{ KEY_GRAVE,    KEY_102ND },
-	{ KEY_102ND,    KEY_GRAVE },
-	{ }
-};
-
-static struct hidinput_key_translation *find_translation(struct hidinput_key_translation *table, u16 from)
-{
-	struct hidinput_key_translation *trans;
-
-	/* Look for the translation */
-	for (trans = table; trans->from; trans++)
-		if (trans->from == from)
-			return trans;
-
-	return NULL;
-}
-
-int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
-		struct hid_usage *usage, __s32 value)
-{
-	struct hidinput_key_translation *trans;
-
-	if (usage->code == KEY_FN) {
-		if (value) hid->quirks |=  HID_QUIRK_APPLE_FN_ON;
-		else       hid->quirks &= ~HID_QUIRK_APPLE_FN_ON;
-
-		input_event(input, usage->type, usage->code, value);
-
-		return 1;
-	}
-
-	if (hid_apple_fnmode) {
-		int do_translate;
-
-		trans = find_translation((hid->product < 0x220 ||
-					  hid->product >= 0x300) ?
-					 powerbook_fn_keys : apple_fn_keys,
-					 usage->code);
-		if (trans) {
-			if (test_bit(usage->code, hid->apple_pressed_fn))
-				do_translate = 1;
-			else if (trans->flags & APPLE_FLAG_FKEY)
-				do_translate =
-					(hid_apple_fnmode == 2 &&  (hid->quirks & HID_QUIRK_APPLE_FN_ON)) ||
-					(hid_apple_fnmode == 1 && !(hid->quirks & HID_QUIRK_APPLE_FN_ON));
-			else
-				do_translate = (hid->quirks & HID_QUIRK_APPLE_FN_ON);
-
-			if (do_translate) {
-				if (value)
-					set_bit(usage->code, hid->apple_pressed_fn);
-				else
-					clear_bit(usage->code, hid->apple_pressed_fn);
-
-				input_event(input, usage->type, trans->to, value);
-
-				return 1;
-			}
-		}
-
-		if (hid->quirks & HID_QUIRK_APPLE_NUMLOCK_EMULATION && (
-				test_bit(usage->code, hid->pb_pressed_numlock) ||
-				test_bit(LED_NUML, input->led))) {
-			trans = find_translation(powerbook_numlock_keys, usage->code);
-
-			if (trans) {
-				if (value)
-					set_bit(usage->code, hid->pb_pressed_numlock);
-				else
-					clear_bit(usage->code, hid->pb_pressed_numlock);
-
-				input_event(input, usage->type, trans->to, value);
-			}
-
-			return 1;
-		}
-	}
-
-	if (hid->quirks & HID_QUIRK_APPLE_ISO_KEYBOARD) {
-		trans = find_translation(apple_iso_keyboard, usage->code);
-		if (trans) {
-			input_event(input, usage->type, trans->to, value);
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-static void hidinput_apple_setup(struct input_dev *input)
-{
-	struct hidinput_key_translation *trans;
-
-	set_bit(KEY_NUMLOCK, input->keybit);
-
-	/* Enable all needed keys */
-	for (trans = apple_fn_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = powerbook_fn_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = powerbook_numlock_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = apple_iso_keyboard; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-}
-#else
-inline int hidinput_apple_event(struct hid_device *hid,
-				       struct input_dev *input,
-				       struct hid_usage *usage, __s32 value)
-{
-	return 0;
-}
-
-static inline void hidinput_apple_setup(struct input_dev *input)
-{
-}
-#endif
 
 static inline int match_scancode(int code, int scancode)
 {
@@ -696,16 +495,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case HID_UP_CUSTOM: /* Reported on Logitech and Apple USB keyboards */
 
 			set_bit(EV_REP, input->evbit);
-			switch(usage->hid & HID_USAGE) {
-				case 0x003:
-					/* The fn key on Apple USB keyboards */
-					map_key_clear(KEY_FN);
-					hidinput_apple_setup(input);
-					break;
-
-				default:    goto ignore;
-			}
-			break;
+			goto ignore;
 
 		case HID_UP_LOGIVENDOR:
 
@@ -741,15 +531,6 @@ mapped:
 	if (device->driver->input_mapped && device->driver->input_mapped(device,
 				hidinput, field, usage, &bit, &max) < 0)
 		goto ignore;
-
-	if (device->quirks & HID_QUIRK_MIGHTYMOUSE) {
-		if (usage->hid == HID_GD_Z)
-			map_rel(REL_HWHEEL);
-		else if (usage->code == BTN_1)
-			map_key(BTN_2);
-		else if (usage->code == BTN_2)
-			map_key(BTN_1);
-	}
 
 	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5 |
 			HID_QUIRK_2WHEEL_MOUSE_HACK_B8)) && (usage->type == EV_REL) &&

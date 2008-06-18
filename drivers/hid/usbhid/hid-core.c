@@ -791,10 +791,6 @@ static int usbhid_parse(struct hid_device *hid)
 				quirks |= HID_QUIRK_NOGET;
 	}
 
-	if ((quirks & HID_QUIRK_IGNORE_MOUSE) &&
-		(interface->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_MOUSE))
-			return -ENODEV;
-
 	if (usb_get_extra_descriptor(interface, HID_DT_HID, &hdesc) &&
 	    (!interface->desc.bNumEndpoints ||
 	     usb_get_extra_descriptor(&interface->endpoint[0], HID_DT_HID, &hdesc))) {
