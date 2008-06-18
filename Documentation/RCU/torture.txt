@@ -46,8 +46,14 @@ stat_interval	The number of seconds between output of torture
 
 shuffle_interval
 		The number of seconds to keep the test threads affinitied
-		to a particular subset of the CPUs, defaults to 5 seconds.
+		to a particular subset of the CPUs, defaults to 3 seconds.
 		Used in conjunction with test_no_idle_hz.
+
+stutter		The length of time to run the test before pausing for this
+		same period of time.  Defaults to "stutter=5", so as
+		to run and pause for (roughly) five-second intervals.
+		Specifying "stutter=0" causes the test to run continuously
+		without pausing, which is the old default behavior.
 
 test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 		a kernel that disables the scheduling-clock interrupt to
