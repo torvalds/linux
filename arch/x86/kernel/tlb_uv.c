@@ -609,7 +609,7 @@ static struct bau_control * __init uv_table_bases_init(int blade, int node)
 
 	uv_bau_table_bases[blade] = bau_tabp;
 
-	return bau_tabsp;
+	return bau_tabp;
 }
 
 /*
