@@ -197,31 +197,31 @@ static void hid_irq_in(struct urb *urb)
 	int			status;
 
 	switch (urb->status) {
-		case 0:			/* success */
-			usbhid->retry_delay = 0;
-			hid_input_report(urb->context, HID_INPUT_REPORT,
-					 urb->transfer_buffer,
-					 urb->actual_length, 1);
-			break;
-		case -EPIPE:		/* stall */
-			clear_bit(HID_IN_RUNNING, &usbhid->iofl);
-			set_bit(HID_CLEAR_HALT, &usbhid->iofl);
-			schedule_work(&usbhid->reset_work);
-			return;
-		case -ECONNRESET:	/* unlink */
-		case -ENOENT:
-		case -ESHUTDOWN:	/* unplug */
-			clear_bit(HID_IN_RUNNING, &usbhid->iofl);
-			return;
-		case -EILSEQ:		/* protocol error or unplug */
-		case -EPROTO:		/* protocol error or unplug */
-		case -ETIME:		/* protocol error or unplug */
-		case -ETIMEDOUT:	/* Should never happen, but... */
-			clear_bit(HID_IN_RUNNING, &usbhid->iofl);
-			hid_io_error(hid);
-			return;
-		default:		/* error */
-			warn("input irq status %d received", urb->status);
+	case 0:			/* success */
+		usbhid->retry_delay = 0;
+		hid_input_report(urb->context, HID_INPUT_REPORT,
+				 urb->transfer_buffer,
+				 urb->actual_length, 1);
+		break;
+	case -EPIPE:		/* stall */
+		clear_bit(HID_IN_RUNNING, &usbhid->iofl);
+		set_bit(HID_CLEAR_HALT, &usbhid->iofl);
+		schedule_work(&usbhid->reset_work);
+		return;
+	case -ECONNRESET:	/* unlink */
+	case -ENOENT:
+	case -ESHUTDOWN:	/* unplug */
+		clear_bit(HID_IN_RUNNING, &usbhid->iofl);
+		return;
+	case -EILSEQ:		/* protocol error or unplug */
+	case -EPROTO:		/* protocol error or unplug */
+	case -ETIME:		/* protocol error or unplug */
+	case -ETIMEDOUT:	/* Should never happen, but... */
+		clear_bit(HID_IN_RUNNING, &usbhid->iofl);
+		hid_io_error(hid);
+		return;
+	default:		/* error */
+		warn("input irq status %d received", urb->status);
 	}
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -319,17 +319,17 @@ static void hid_irq_out(struct urb *urb)
 	int unplug = 0;
 
 	switch (urb->status) {
-		case 0:			/* success */
-			break;
-		case -ESHUTDOWN:	/* unplug */
-			unplug = 1;
-		case -EILSEQ:		/* protocol error or unplug */
-		case -EPROTO:		/* protocol error or unplug */
-		case -ECONNRESET:	/* unlink */
-		case -ENOENT:
-			break;
-		default:		/* error */
-			warn("output irq status %d received", urb->status);
+	case 0:			/* success */
+		break;
+	case -ESHUTDOWN:	/* unplug */
+		unplug = 1;
+	case -EILSEQ:		/* protocol error or unplug */
+	case -EPROTO:		/* protocol error or unplug */
+	case -ECONNRESET:	/* unlink */
+	case -ENOENT:
+		break;
+	default:		/* error */
+		warn("output irq status %d received", urb->status);
 	}
 
 	spin_lock_irqsave(&usbhid->outlock, flags);
@@ -367,21 +367,22 @@ static void hid_ctrl(struct urb *urb)
 	spin_lock_irqsave(&usbhid->ctrllock, flags);
 
 	switch (urb->status) {
-		case 0:			/* success */
-			if (usbhid->ctrl[usbhid->ctrltail].dir == USB_DIR_IN)
-				hid_input_report(urb->context, usbhid->ctrl[usbhid->ctrltail].report->type,
-						urb->transfer_buffer, urb->actual_length, 0);
-			break;
-		case -ESHUTDOWN:	/* unplug */
-			unplug = 1;
-		case -EILSEQ:		/* protocol error or unplug */
-		case -EPROTO:		/* protocol error or unplug */
-		case -ECONNRESET:	/* unlink */
-		case -ENOENT:
-		case -EPIPE:		/* report not available */
-			break;
-		default:		/* error */
-			warn("ctrl urb status %d received", urb->status);
+	case 0:			/* success */
+		if (usbhid->ctrl[usbhid->ctrltail].dir == USB_DIR_IN)
+			hid_input_report(urb->context,
+				usbhid->ctrl[usbhid->ctrltail].report->type,
+				urb->transfer_buffer, urb->actual_length, 0);
+		break;
+	case -ESHUTDOWN:	/* unplug */
+		unplug = 1;
+	case -EILSEQ:		/* protocol error or unplug */
+	case -EPROTO:		/* protocol error or unplug */
+	case -ECONNRESET:	/* unlink */
+	case -ENOENT:
+	case -EPIPE:		/* report not available */
+		break;
+	default:		/* error */
+		warn("ctrl urb status %d received", urb->status);
 	}
 
 	if (unplug)

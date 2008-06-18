@@ -270,9 +270,9 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 static u32 item_udata(struct hid_item *item)
 {
 	switch (item->size) {
-		case 1: return item->data.u8;
-		case 2: return item->data.u16;
-		case 4: return item->data.u32;
+	case 1: return item->data.u8;
+	case 2: return item->data.u16;
+	case 4: return item->data.u32;
 	}
 	return 0;
 }
@@ -280,9 +280,9 @@ static u32 item_udata(struct hid_item *item)
 static s32 item_sdata(struct hid_item *item)
 {
 	switch (item->size) {
-		case 1: return item->data.s8;
-		case 2: return item->data.s16;
-		case 4: return item->data.s32;
+	case 1: return item->data.s8;
+	case 2: return item->data.s16;
+	case 4: return item->data.s32;
 	}
 	return 0;
 }
@@ -294,87 +294,91 @@ static s32 item_sdata(struct hid_item *item)
 static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 {
 	switch (item->tag) {
+	case HID_GLOBAL_ITEM_TAG_PUSH:
 
-		case HID_GLOBAL_ITEM_TAG_PUSH:
-
-			if (parser->global_stack_ptr == HID_GLOBAL_STACK_SIZE) {
-				dbg_hid("global enviroment stack overflow\n");
-				return -1;
-			}
-
-			memcpy(parser->global_stack + parser->global_stack_ptr++,
-				&parser->global, sizeof(struct hid_global));
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_POP:
-
-			if (!parser->global_stack_ptr) {
-				dbg_hid("global enviroment stack underflow\n");
-				return -1;
-			}
-
-			memcpy(&parser->global, parser->global_stack + --parser->global_stack_ptr,
-				sizeof(struct hid_global));
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_USAGE_PAGE:
-			parser->global.usage_page = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_LOGICAL_MINIMUM:
-			parser->global.logical_minimum = item_sdata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_LOGICAL_MAXIMUM:
-			if (parser->global.logical_minimum < 0)
-				parser->global.logical_maximum = item_sdata(item);
-			else
-				parser->global.logical_maximum = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_PHYSICAL_MINIMUM:
-			parser->global.physical_minimum = item_sdata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_PHYSICAL_MAXIMUM:
-			if (parser->global.physical_minimum < 0)
-				parser->global.physical_maximum = item_sdata(item);
-			else
-				parser->global.physical_maximum = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_UNIT_EXPONENT:
-			parser->global.unit_exponent = item_sdata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_UNIT:
-			parser->global.unit = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_REPORT_SIZE:
-			if ((parser->global.report_size = item_udata(item)) > 32) {
-				dbg_hid("invalid report_size %d\n", parser->global.report_size);
-				return -1;
-			}
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_REPORT_COUNT:
-			if ((parser->global.report_count = item_udata(item)) > HID_MAX_USAGES) {
-				dbg_hid("invalid report_count %d\n", parser->global.report_count);
-				return -1;
-			}
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_REPORT_ID:
-			if ((parser->global.report_id = item_udata(item)) == 0) {
-				dbg_hid("report_id 0 is invalid\n");
-				return -1;
-			}
-			return 0;
-
-		default:
-			dbg_hid("unknown global tag 0x%x\n", item->tag);
+		if (parser->global_stack_ptr == HID_GLOBAL_STACK_SIZE) {
+			dbg_hid("global enviroment stack overflow\n");
 			return -1;
+		}
+
+		memcpy(parser->global_stack + parser->global_stack_ptr++,
+			&parser->global, sizeof(struct hid_global));
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_POP:
+
+		if (!parser->global_stack_ptr) {
+			dbg_hid("global enviroment stack underflow\n");
+			return -1;
+		}
+
+		memcpy(&parser->global, parser->global_stack +
+			--parser->global_stack_ptr, sizeof(struct hid_global));
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_USAGE_PAGE:
+		parser->global.usage_page = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_LOGICAL_MINIMUM:
+		parser->global.logical_minimum = item_sdata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_LOGICAL_MAXIMUM:
+		if (parser->global.logical_minimum < 0)
+			parser->global.logical_maximum = item_sdata(item);
+		else
+			parser->global.logical_maximum = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_PHYSICAL_MINIMUM:
+		parser->global.physical_minimum = item_sdata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_PHYSICAL_MAXIMUM:
+		if (parser->global.physical_minimum < 0)
+			parser->global.physical_maximum = item_sdata(item);
+		else
+			parser->global.physical_maximum = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_UNIT_EXPONENT:
+		parser->global.unit_exponent = item_sdata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_UNIT:
+		parser->global.unit = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_REPORT_SIZE:
+		parser->global.report_size = item_udata(item);
+		if (parser->global.report_size > 32) {
+			dbg_hid("invalid report_size %d\n",
+					parser->global.report_size);
+			return -1;
+		}
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_REPORT_COUNT:
+		parser->global.report_count = item_udata(item);
+		if (parser->global.report_count > HID_MAX_USAGES) {
+			dbg_hid("invalid report_count %d\n",
+					parser->global.report_count);
+			return -1;
+		}
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_REPORT_ID:
+		parser->global.report_id = item_udata(item);
+		if (parser->global.report_id == 0) {
+			dbg_hid("report_id 0 is invalid\n");
+			return -1;
+		}
+		return 0;
+
+	default:
+		dbg_hid("unknown global tag 0x%x\n", item->tag);
+		return -1;
 	}
 }
 
@@ -395,77 +399,76 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	data = item_udata(item);
 
 	switch (item->tag) {
+	case HID_LOCAL_ITEM_TAG_DELIMITER:
 
-		case HID_LOCAL_ITEM_TAG_DELIMITER:
-
-			if (data) {
-				/*
-				 * We treat items before the first delimiter
-				 * as global to all usage sets (branch 0).
-				 * In the moment we process only these global
-				 * items and the first delimiter set.
-				 */
-				if (parser->local.delimiter_depth != 0) {
-					dbg_hid("nested delimiters\n");
-					return -1;
-				}
-				parser->local.delimiter_depth++;
-				parser->local.delimiter_branch++;
-			} else {
-				if (parser->local.delimiter_depth < 1) {
-					dbg_hid("bogus close delimiter\n");
-					return -1;
-				}
-				parser->local.delimiter_depth--;
+		if (data) {
+			/*
+			 * We treat items before the first delimiter
+			 * as global to all usage sets (branch 0).
+			 * In the moment we process only these global
+			 * items and the first delimiter set.
+			 */
+			if (parser->local.delimiter_depth != 0) {
+				dbg_hid("nested delimiters\n");
+				return -1;
 			}
-			return 1;
-
-		case HID_LOCAL_ITEM_TAG_USAGE:
-
-			if (parser->local.delimiter_branch > 1) {
-				dbg_hid("alternative usage ignored\n");
-				return 0;
+			parser->local.delimiter_depth++;
+			parser->local.delimiter_branch++;
+		} else {
+			if (parser->local.delimiter_depth < 1) {
+				dbg_hid("bogus close delimiter\n");
+				return -1;
 			}
+			parser->local.delimiter_depth--;
+		}
+		return 1;
 
-			if (item->size <= 2)
-				data = (parser->global.usage_page << 16) + data;
+	case HID_LOCAL_ITEM_TAG_USAGE:
 
-			return hid_add_usage(parser, data);
-
-		case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
-
-			if (parser->local.delimiter_branch > 1) {
-				dbg_hid("alternative usage ignored\n");
-				return 0;
-			}
-
-			if (item->size <= 2)
-				data = (parser->global.usage_page << 16) + data;
-
-			parser->local.usage_minimum = data;
+		if (parser->local.delimiter_branch > 1) {
+			dbg_hid("alternative usage ignored\n");
 			return 0;
+		}
 
-		case HID_LOCAL_ITEM_TAG_USAGE_MAXIMUM:
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
 
-			if (parser->local.delimiter_branch > 1) {
-				dbg_hid("alternative usage ignored\n");
-				return 0;
+		return hid_add_usage(parser, data);
+
+	case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
+
+		if (parser->local.delimiter_branch > 1) {
+			dbg_hid("alternative usage ignored\n");
+			return 0;
+		}
+
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
+
+		parser->local.usage_minimum = data;
+		return 0;
+
+	case HID_LOCAL_ITEM_TAG_USAGE_MAXIMUM:
+
+		if (parser->local.delimiter_branch > 1) {
+			dbg_hid("alternative usage ignored\n");
+			return 0;
+		}
+
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
+
+		for (n = parser->local.usage_minimum; n <= data; n++)
+			if (hid_add_usage(parser, n)) {
+				dbg_hid("hid_add_usage failed\n");
+				return -1;
 			}
+		return 0;
 
-			if (item->size <= 2)
-				data = (parser->global.usage_page << 16) + data;
+	default:
 
-			for (n = parser->local.usage_minimum; n <= data; n++)
-				if (hid_add_usage(parser, n)) {
-					dbg_hid("hid_add_usage failed\n");
-					return -1;
-				}
-			return 0;
-
-		default:
-
-			dbg_hid("unknown local item tag 0x%x\n", item->tag);
-			return 0;
+		dbg_hid("unknown local item tag 0x%x\n", item->tag);
+		return 0;
 	}
 	return 0;
 }
@@ -482,24 +485,24 @@ static int hid_parser_main(struct hid_parser *parser, struct hid_item *item)
 	data = item_udata(item);
 
 	switch (item->tag) {
-		case HID_MAIN_ITEM_TAG_BEGIN_COLLECTION:
-			ret = open_collection(parser, data & 0xff);
-			break;
-		case HID_MAIN_ITEM_TAG_END_COLLECTION:
-			ret = close_collection(parser);
-			break;
-		case HID_MAIN_ITEM_TAG_INPUT:
-			ret = hid_add_field(parser, HID_INPUT_REPORT, data);
-			break;
-		case HID_MAIN_ITEM_TAG_OUTPUT:
-			ret = hid_add_field(parser, HID_OUTPUT_REPORT, data);
-			break;
-		case HID_MAIN_ITEM_TAG_FEATURE:
-			ret = hid_add_field(parser, HID_FEATURE_REPORT, data);
-			break;
-		default:
-			dbg_hid("unknown main item tag 0x%x\n", item->tag);
-			ret = 0;
+	case HID_MAIN_ITEM_TAG_BEGIN_COLLECTION:
+		ret = open_collection(parser, data & 0xff);
+		break;
+	case HID_MAIN_ITEM_TAG_END_COLLECTION:
+		ret = close_collection(parser);
+		break;
+	case HID_MAIN_ITEM_TAG_INPUT:
+		ret = hid_add_field(parser, HID_INPUT_REPORT, data);
+		break;
+	case HID_MAIN_ITEM_TAG_OUTPUT:
+		ret = hid_add_field(parser, HID_OUTPUT_REPORT, data);
+		break;
+	case HID_MAIN_ITEM_TAG_FEATURE:
+		ret = hid_add_field(parser, HID_FEATURE_REPORT, data);
+		break;
+	default:
+		dbg_hid("unknown main item tag 0x%x\n", item->tag);
+		ret = 0;
 	}
 
 	memset(&parser->local, 0, sizeof(parser->local));	/* Reset the local parser environment */
@@ -595,30 +598,29 @@ static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
 	item->size = b & 3;
 
 	switch (item->size) {
+	case 0:
+		return start;
 
-		case 0:
-			return start;
+	case 1:
+		if ((end - start) < 1)
+			return NULL;
+		item->data.u8 = *start++;
+		return start;
 
-		case 1:
-			if ((end - start) < 1)
-				return NULL;
-			item->data.u8 = *start++;
-			return start;
+	case 2:
+		if ((end - start) < 2)
+			return NULL;
+		item->data.u16 = get_unaligned_le16(start);
+		start = (__u8 *)((__le16 *)start + 1);
+		return start;
 
-		case 2:
-			if ((end - start) < 2)
-				return NULL;
-			item->data.u16 = get_unaligned_le16(start);
-			start = (__u8 *)((__le16 *)start + 1);
-			return start;
-
-		case 3:
-			item->size++;
-			if ((end - start) < 4)
-				return NULL;
-			item->data.u32 = get_unaligned_le32(start);
-			start = (__u8 *)((__le32 *)start + 1);
-			return start;
+	case 3:
+		item->size++;
+		if ((end - start) < 4)
+			return NULL;
+		item->data.u32 = get_unaligned_le32(start);
+		start = (__u8 *)((__le32 *)start + 1);
+		return start;
 	}
 
 	return NULL;
@@ -713,9 +715,9 @@ EXPORT_SYMBOL_GPL(hid_parse_report);
 static s32 snto32(__u32 value, unsigned n)
 {
 	switch (n) {
-		case 8:  return ((__s8)value);
-		case 16: return ((__s16)value);
-		case 32: return ((__s32)value);
+	case 8:  return ((__s8)value);
+	case 16: return ((__s16)value);
+	case 32: return ((__s32)value);
 	}
 	return value & (1 << (n - 1)) ? value | (-1 << n) : value;
 }
