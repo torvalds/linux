@@ -504,9 +504,8 @@ repeat:
 		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | _PAGE_HASHPTE;
 #endif
 		/* Add in WIMG bits */
-		/* XXX We should store these in the pte */
-		/* --BenH: I think they are ... */
-		rflags |= _PAGE_COHERENT;
+		rflags |= (new_pte & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
+				      _PAGE_COHERENT | _PAGE_GUARDED));
 
 		/* Insert into the hash table, primary slot */
 		slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags, 0,
