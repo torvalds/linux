@@ -161,29 +161,21 @@ static DEFINE_SPINLOCK(memtype_lock); 	/* protects memtype list */
  */
 static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 {
-	u8 mtrr_type;
-
-	/*
-	 * We return the PAT request directly for types where PAT takes
-	 * precedence with respect to MTRR and for UC_MINUS.
-	 * Consistency checks with other PAT requests is done later
-	 * while going through memtype list.
-	 */
-	if (req_type == _PAGE_CACHE_WC ||
-	    req_type == _PAGE_CACHE_UC_MINUS ||
-	    req_type == _PAGE_CACHE_UC)
-		return req_type;
-
 	/*
 	 * Look for MTRR hint to get the effective type in case where PAT
 	 * request is for WB.
 	 */
-	mtrr_type = mtrr_type_lookup(start, end);
-	if (mtrr_type == MTRR_TYPE_UNCACHABLE)
-		return _PAGE_CACHE_UC;
-	if (mtrr_type == MTRR_TYPE_WRCOMB)
-		return _PAGE_CACHE_WC;
-	return _PAGE_CACHE_WB;
+	if (req_type == _PAGE_CACHE_WB) {
+		u8 mtrr_type;
+
+		mtrr_type = mtrr_type_lookup(start, end);
+		if (mtrr_type == MTRR_TYPE_UNCACHABLE)
+			return _PAGE_CACHE_UC;
+		if (mtrr_type == MTRR_TYPE_WRCOMB)
+			return _PAGE_CACHE_WC;
+	}
+
+	return req_type;
 }
 
 /*
