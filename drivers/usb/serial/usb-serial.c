@@ -625,7 +625,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *bulk_out_endpoint[MAX_NUM_PORTS];
 	struct usb_serial_driver *type = NULL;
 	int retval;
-	int minor;
+	unsigned int minor;
 	int buffer_size;
 	int i;
 	int num_interrupt_in = 0;
