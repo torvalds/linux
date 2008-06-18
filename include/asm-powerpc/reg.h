@@ -240,7 +240,7 @@
 #define HID0_DAPUEN	(1<<8)		/* Debug APU enable */
 #define HID0_SGE	(1<<7)		/* Store Gathering Enable */
 #define HID0_SIED	(1<<7)		/* Serial Instr. Execution [Disable] */
-#define HID0_DFCA	(1<<6)		/* Data Cache Flush Assist */
+#define HID0_DCFA	(1<<6)		/* Data Cache Flush Assist */
 #define HID0_LRSTK	(1<<4)		/* Link register stack - 745x */
 #define HID0_BTIC	(1<<5)		/* Branch Target Instr Cache Enable */
 #define HID0_ABE	(1<<3)		/* Address Broadcast Enable */

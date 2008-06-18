@@ -61,6 +61,8 @@
 #define SPRN_SPEFSCR	0x200	/* SPE & Embedded FP Status & Control */
 #define SPRN_BBEAR	0x201	/* Branch Buffer Entry Address Register */
 #define SPRN_BBTAR	0x202	/* Branch Buffer Target Address Register */
+#define SPRN_L1CFG0	0x203	/* L1 Cache Configure Register 0 */
+#define SPRN_L1CFG1	0x204	/* L1 Cache Configure Register 1 */
 #define SPRN_ATB	0x20E	/* Alternate Time Base */
 #define SPRN_ATBL	0x20E	/* Alternate Time Base Lower */
 #define SPRN_ATBU	0x20F	/* Alternate Time Base Upper */

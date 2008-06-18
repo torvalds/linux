@@ -1491,7 +1491,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80200000,
 		.cpu_name		= "e500",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E500,
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_SPE_COMP |
@@ -1508,7 +1507,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80210000,
 		.cpu_name		= "e500v2",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E500_2,
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_SPE_COMP |
@@ -1526,7 +1524,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80230000,
 		.cpu_name		= "e500mc",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E500MC,
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
 		.icache_bsize		= 64,

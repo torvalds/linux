@@ -176,14 +176,14 @@ transfer_to_handler:
 	cmplw	r1,r9			/* if r1 <= ksp_limit */
 	ble-	stack_ovf		/* then the kernel stack overflowed */
 5:
-#ifdef CONFIG_6xx
+#if defined(CONFIG_6xx) || defined(CONFIG_E500)
 	rlwinm	r9,r1,0,0,31-THREAD_SHIFT
 	tophys(r9,r9)			/* check local flags */
 	lwz	r12,TI_LOCAL_FLAGS(r9)
 	mtcrf	0x01,r12
 	bt-	31-TLF_NAPPING,4f
 	bt-	31-TLF_SLEEPING,7f
-#endif /* CONFIG_6xx */
+#endif /* CONFIG_6xx || CONFIG_E500 */
 	.globl transfer_to_handler_cont
 transfer_to_handler_cont:
 3:
@@ -196,10 +196,10 @@ transfer_to_handler_cont:
 	SYNC
 	RFI				/* jump to handler, enable MMU */
 
-#ifdef CONFIG_6xx
+#if defined (CONFIG_6xx) || defined(CONFIG_E500)
 4:	rlwinm	r12,r12,0,~_TLF_NAPPING
 	stw	r12,TI_LOCAL_FLAGS(r9)
-	b	power_save_6xx_restore
+	b	power_save_ppc32_restore
 
 7:	rlwinm	r12,r12,0,~_TLF_SLEEPING
 	stw	r12,TI_LOCAL_FLAGS(r9)
