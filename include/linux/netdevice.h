@@ -595,8 +595,8 @@ struct net_device
 	int			uc_promisc;
 	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
 	int			mc_count;	/* Number of installed mcasts	*/
-	int			promiscuity;
-	int			allmulti;
+	unsigned int		promiscuity;
+	unsigned int		allmulti;
 
 
 	/* Protocol specific pointers */
