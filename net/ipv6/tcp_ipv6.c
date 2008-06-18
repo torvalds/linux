@@ -70,8 +70,6 @@
 
 static void	tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req);
-static void	tcp_v6_send_check(struct sock *sk, int len,
-				  struct sk_buff *skb);
 
 static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
 
