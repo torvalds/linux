@@ -687,6 +687,7 @@ rcu_torture_printk(char *page)
 	if (i > 1) {
 		cnt += sprintf(&page[cnt], "!!! ");
 		atomic_inc(&n_rcu_torture_error);
+		WARN_ON_ONCE(1);
 	}
 	cnt += sprintf(&page[cnt], "Reader Pipe: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
