@@ -458,7 +458,14 @@ static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
 #define bip_for_each_vec(bvl, bip, i)					\
 	__bip_for_each_vec(bvl, bip, i, (bip)->bip_idx)
 
-#define bio_integrity(bio)	((bio)->bi_integrity ? 1 : 0)
+static inline int bio_integrity(struct bio *bio)
+{
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+	return bio->bi_integrity != NULL;
+#else
+	return 0;
+#endif
+}
 
 extern struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *, gfp_t, unsigned int, struct bio_set *);
 extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
