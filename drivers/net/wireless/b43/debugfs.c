@@ -74,6 +74,115 @@ struct b43_dfs_file * fops_to_dfs_file(struct b43_wldev *dev,
 	} while (0)
 
 
+/* The biggest MMIO address that we allow access to from the debugfs files. */
+#define B43_MAX_MMIO_ACCESS	(0xF00 - 1)
+
+static ssize_t mmio16read__read_file(struct b43_wldev *dev,
+				     char *buf, size_t bufsize)
+{
+	ssize_t count = 0;
+	unsigned int addr;
+	u16 val;
+
+	addr = dev->dfsentry->mmio16read_next;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EDESTADDRREQ;
+
+	val = b43_read16(dev, addr);
+	fappend("0x%04X\n", val);
+
+	return count;
+}
+
+static int mmio16read__write_file(struct b43_wldev *dev,
+				  const char *buf, size_t count)
+{
+	unsigned int addr;
+	int res;
+
+	res = sscanf(buf, "0x%X", &addr);
+	if (res != 1)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+
+	dev->dfsentry->mmio16read_next = addr;
+
+	return 0;
+}
+
+static int mmio16write__write_file(struct b43_wldev *dev,
+				   const char *buf, size_t count)
+{
+	unsigned int addr, val;
+	int res;
+
+	res = sscanf(buf, "0x%X = 0x%X", &addr, &val);
+	if (res != 2)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+	if (val > 0xFFFF)
+		return -E2BIG;
+
+	b43_write16(dev, addr, val);
+
+	return 0;
+}
+
+static ssize_t mmio32read__read_file(struct b43_wldev *dev,
+				     char *buf, size_t bufsize)
+{
+	ssize_t count = 0;
+	unsigned int addr;
+	u32 val;
+
+	addr = dev->dfsentry->mmio32read_next;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EDESTADDRREQ;
+
+	val = b43_read32(dev, addr);
+	fappend("0x%08X\n", val);
+
+	return count;
+}
+
+static int mmio32read__write_file(struct b43_wldev *dev,
+				  const char *buf, size_t count)
+{
+	unsigned int addr;
+	int res;
+
+	res = sscanf(buf, "0x%X", &addr);
+	if (res != 1)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+
+	dev->dfsentry->mmio32read_next = addr;
+
+	return 0;
+}
+
+static int mmio32write__write_file(struct b43_wldev *dev,
+				   const char *buf, size_t count)
+{
+	unsigned int addr, val;
+	int res;
+
+	res = sscanf(buf, "0x%X = 0x%X", &addr, &val);
+	if (res != 2)
+		return -EINVAL;
+	if (addr > B43_MAX_MMIO_ACCESS)
+		return -EADDRNOTAVAIL;
+	if (val > 0xFFFFFFFF)
+		return -E2BIG;
+
+	b43_write32(dev, addr, val);
+
+	return 0;
+}
+
 /* wl->irq_lock is locked */
 static ssize_t tsf_read_file(struct b43_wldev *dev,
 			     char *buf, size_t bufsize)
@@ -496,6 +605,10 @@ out_unlock:
 		.take_irqlock	= _take_irqlock,		\
 	}
 
+B43_DEBUGFS_FOPS(mmio16read, mmio16read__read_file, mmio16read__write_file, 1);
+B43_DEBUGFS_FOPS(mmio16write, NULL, mmio16write__write_file, 1);
+B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file, 1);
+B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file, 1);
 B43_DEBUGFS_FOPS(tsf, tsf_read_file, tsf_write_file, 1);
 B43_DEBUGFS_FOPS(ucode_regs, ucode_regs_read_file, NULL, 1);
 B43_DEBUGFS_FOPS(shm, shm_read_file, NULL, 1);
@@ -584,6 +697,9 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 		return;
 	}
 
+	e->mmio16read_next = 0xFFFF; /* invalid address */
+	e->mmio32read_next = 0xFFFF; /* invalid address */
+
 #define ADD_FILE(name, mode)	\
 	do {							\
 		struct dentry *d;				\
@@ -596,6 +712,10 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	} while (0)
 
 
+	ADD_FILE(mmio16read, 0600);
+	ADD_FILE(mmio16write, 0200);
+	ADD_FILE(mmio32read, 0600);
+	ADD_FILE(mmio32write, 0200);
 	ADD_FILE(tsf, 0600);
 	ADD_FILE(ucode_regs, 0400);
 	ADD_FILE(shm, 0400);
@@ -620,6 +740,10 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 		return;
 	b43_remove_dynamic_debug(dev);
 
+	debugfs_remove(e->file_mmio16read.dentry);
+	debugfs_remove(e->file_mmio16write.dentry);
+	debugfs_remove(e->file_mmio32read.dentry);
+	debugfs_remove(e->file_mmio32write.dentry);
 	debugfs_remove(e->file_tsf.dentry);
 	debugfs_remove(e->file_ucode_regs.dentry);
 	debugfs_remove(e->file_shm.dentry);
