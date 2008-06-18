@@ -747,6 +747,10 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		 * b-only mode) */
 		rates_len = ieee80211_compatible_rates(bss, sband, &rates);
 
+		if ((bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT) &&
+		    (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT))
+			capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
+
 		ieee80211_rx_bss_put(dev, bss);
 	} else {
 		rates = ~0;
@@ -811,6 +815,26 @@ static void ieee80211_send_assoc(struct net_device *dev,
 				int rate = sband->bitrates[i].bitrate;
 				*pos++ = (u8) (rate / 5);
 			}
+		}
+	}
+
+	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT) {
+		/* 1. power capabilities */
+		pos = skb_put(skb, 4);
+		*pos++ = WLAN_EID_PWR_CAPABILITY;
+		*pos++ = 2;
+		*pos++ = 0; /* min tx power */
+		*pos++ = local->hw.conf.channel->max_power; /* max tx power */
+
+		/* 2. supported channels */
+		/* TODO: get this in reg domain format */
+		pos = skb_put(skb, 2 * sband->n_channels + 2);
+		*pos++ = WLAN_EID_SUPPORTED_CHANNELS;
+		*pos++ = 2 * sband->n_channels;
+		for (i = 0; i < sband->n_channels; i++) {
+			*pos++ = ieee80211_frequency_to_channel(
+					sband->channels[i].center_freq);
+			*pos++ = 1; /* one channel in the subband*/
 		}
 	}
 

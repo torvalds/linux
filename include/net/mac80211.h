@@ -710,6 +710,10 @@ enum ieee80211_tkip_key_type {
  * @IEEE80211_HW_NOISE_DBM:
  *	Hardware can provide noise (radio interference) values in units dBm,
  *      decibel difference from one milliwatt.
+ *
+ * @IEEE80211_HW_SPECTRUM_MGMT:
+ * 	Hardware supports spectrum management defined in 802.11h
+ * 	Measurement, Channel Switch, Quieting, TPC
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE		= 1<<0,
@@ -721,6 +725,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SIGNAL_DB				= 1<<6,
 	IEEE80211_HW_SIGNAL_DBM				= 1<<7,
 	IEEE80211_HW_NOISE_DBM				= 1<<8,
+	IEEE80211_HW_SPECTRUM_MGMT			= 1<<9,
 };
 
 /**
