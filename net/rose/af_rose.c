@@ -757,7 +757,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	sock->state = SS_UNCONNECTED;
 
 	rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause,
-					 &diagnostic);
+					 &diagnostic, 0);
 	if (!rose->neighbour) {
 		err = -ENETUNREACH;
 		goto out_release;
@@ -853,7 +853,7 @@ rose_try_next_neigh:
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
 	/* Try next neighbour */
-		rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause, &diagnostic);
+		rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause, &diagnostic, 0);
 		if (rose->neighbour)
 			goto rose_try_next_neigh;
 
