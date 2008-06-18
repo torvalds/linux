@@ -39,11 +39,9 @@ void ax25_std_heartbeat_expiry(ax25_cb *ax25)
 
 	switch (ax25->state) {
 	case AX25_STATE_0:
-		/* Magic here: If we listen() and a new link dies before it
-		   is accepted() it isn't 'dead' so doesn't get removed. */
-		if (!sk || sock_flag(sk, SOCK_DESTROY) ||
-		    (sk->sk_state == TCP_LISTEN &&
-		     sock_flag(sk, SOCK_DEAD))) {
+		if (!sk ||
+		    sock_flag(sk, SOCK_DESTROY) ||
+		    sock_flag(sk, SOCK_DEAD)) {
 			if (sk) {
 				sock_hold(sk);
 				ax25_destroy_socket(ax25);
