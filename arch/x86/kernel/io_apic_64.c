@@ -1715,6 +1715,7 @@ static inline void __init check_timer(void)
 		/* replace_pin_at_irq(0, apic1, pin1, apic2, pin2); */
 		setup_timer_IRQ0_pin(apic2, pin2, cfg->vector);
 		unmask_IO_APIC_irq(0);
+		clear_IO_APIC_pin(apic2, pin2);
 		enable_8259A_irq(0);
 		if (timer_irq_works()) {
 			apic_printk(APIC_VERBOSE," works.\n");
