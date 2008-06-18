@@ -91,6 +91,8 @@
 #define SH_ETH1_IRQ	81
 #define SH_TSU_IRQ	82
 
+void init_se_IRQ(void);
+
 #define __IO_PREFIX	se
 #include <asm/io_generic.h>
 

@@ -14,8 +14,6 @@
 #include <asm/smc37c93x.h>
 #include <asm/heartbeat.h>
 
-void init_se_IRQ(void);
-
 /*
  * Configure the Super I/O chip
  */
@@ -73,7 +71,7 @@ static struct resource cf_ide_resources[] = {
 	},
 	[1] = {
 		.start  = PA_MRSHPC_IO + 0x1f0 + 0x206,
-		.end    = PA_MRSHPC_IO + 0x1f0 +8 + 0x206 + 8,
+		.end    = PA_MRSHPC_IO + 0x1f0 + 8 + 0x206 + 8,
 		.flags  = IORESOURCE_MEM,
 	},
 	[2] = {
