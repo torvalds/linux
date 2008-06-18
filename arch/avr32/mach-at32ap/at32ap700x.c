@@ -1181,7 +1181,8 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 	switch (id) {
 	case 0:
 		pdev = &atmel_spi0_device;
-		select_peripheral(PA(0),  PERIPH_A, 0);	/* MISO	 */
+		/* pullup MISO so a level is always defined */
+		select_peripheral(PA(0),  PERIPH_A, AT32_GPIOF_PULLUP);
 		select_peripheral(PA(1),  PERIPH_A, 0);	/* MOSI	 */
 		select_peripheral(PA(2),  PERIPH_A, 0);	/* SCK	 */
 		at32_spi_setup_slaves(0, b, n, spi0_pins);
@@ -1189,7 +1190,8 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 
 	case 1:
 		pdev = &atmel_spi1_device;
-		select_peripheral(PB(0),  PERIPH_B, 0);	/* MISO  */
+		/* pullup MISO so a level is always defined */
+		select_peripheral(PB(0),  PERIPH_B, AT32_GPIOF_PULLUP);
 		select_peripheral(PB(1),  PERIPH_B, 0);	/* MOSI  */
 		select_peripheral(PB(5),  PERIPH_B, 0);	/* SCK   */
 		at32_spi_setup_slaves(1, b, n, spi1_pins);
