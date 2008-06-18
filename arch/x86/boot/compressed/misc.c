@@ -202,7 +202,8 @@ static void free(void *where);
 static void *memset(void *s, int c, unsigned n);
 static void *memcpy(void *dest, const void *src, unsigned n);
 
-static void putstr(const char *);
+static void __putstr(int, const char *);
+#define putstr(__x)  __putstr(0, __x)
 
 #ifdef CONFIG_X86_64
 #define memptr long
@@ -266,10 +267,15 @@ static void scroll(void)
 		vidmem[i] = ' ';
 }
 
-static void putstr(const char *s)
+static void __putstr(int error, const char *s)
 {
 	int x, y, pos;
 	char c;
+
+#ifndef CONFIG_X86_VERBOSE_BOOTUP
+	if (!error)
+		return;
+#endif
 
 #ifdef CONFIG_X86_32
 	if (real_mode->screen_info.orig_video_mode == 0 &&
@@ -363,9 +369,9 @@ static void flush_window(void)
 
 static void error(char *x)
 {
-	putstr("\n\n");
-	putstr(x);
-	putstr("\n\n -- System halted");
+	__putstr(1, "\n\n");
+	__putstr(1, x);
+	__putstr(1, "\n\n -- System halted");
 
 	while (1)
 		asm("hlt");
