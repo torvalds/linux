@@ -497,7 +497,6 @@ extern int usb_lock_device_for_reset(struct usb_device *udev,
 
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
-extern int usb_reset_composite_device(struct usb_device *dev);
 
 extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
 
@@ -957,9 +956,9 @@ struct usbdrv_wrap {
  * @resume: Called when the device is being resumed by the system.
  * @reset_resume: Called when the suspended device has been reset instead
  *	of being resumed.
- * @pre_reset: Called by usb_reset_composite_device() when the device
+ * @pre_reset: Called by usb_reset_device() when the device
  *	is about to be reset.
- * @post_reset: Called by usb_reset_composite_device() after the device
+ * @post_reset: Called by usb_reset_device() after the device
  *	has been reset
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set

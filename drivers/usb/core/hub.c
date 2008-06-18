@@ -135,6 +135,8 @@ EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
 #define HUB_DEBOUNCE_STABLE	 100
 
 
+static int usb_reset_and_verify_device(struct usb_device *udev);
+
 static inline char *portspeed(int portstatus)
 {
 	if (portstatus & (1 << USB_PORT_FEAT_HIGHSPEED))
@@ -1971,7 +1973,7 @@ static int finish_port_resume(struct usb_device *udev)
 	 * resumed.
 	 */
 	if (udev->reset_resume)
-		status = usb_reset_device(udev);
+		status = usb_reset_and_verify_device(udev);
 
  	/* 10.5.4.5 says be sure devices in the tree are still there.
  	 * For now let's assume the device didn't go crazy on resume,
@@ -2030,7 +2032,7 @@ static int finish_port_resume(struct usb_device *udev)
  * to it will be lost.  Using the USB_PERSIST facility, the device can be
  * made to appear as if it had not disconnected.
  *
- * This facility can be dangerous.  Although usb_reset_device() makes
+ * This facility can be dangerous.  Although usb_reset_and_verify_device() makes
  * every effort to insure that the same device is present after the
  * reset as before, it cannot provide a 100% guarantee.  Furthermore it's
  * quite possible for a device to remain unaltered but its media to be
@@ -2140,7 +2142,7 @@ int usb_port_resume(struct usb_device *udev)
 		hub_port_logical_disconnect(hub, port1);
 	} else if (udev->reset_resume) {
 		dev_dbg(&udev->dev, "reset-resume\n");
-		status = usb_reset_device(udev);
+		status = usb_reset_and_verify_device(udev);
 	}
 	return status;
 }
@@ -2321,7 +2323,7 @@ static int hub_set_address(struct usb_device *udev, int devnum)
  * Returns device in USB_STATE_ADDRESS, except on error.
  *
  * If this is called for an already-existing device (as part of
- * usb_reset_device), the caller must own the device lock.  For a
+ * usb_reset_and_verify_device), the caller must own the device lock.  For a
  * newly detected device that is not accessible through any global
  * pointers, it's not necessary to lock the device.
  */
@@ -2638,7 +2640,7 @@ hub_power_remaining (struct usb_hub *hub)
  * This routine is called when:
  * 	a port connection-change occurs;
  *	a port enable-change occurs (often caused by EMI);
- *	usb_reset_device() encounters changed descriptors (as from
+ *	usb_reset_and_verify_device() encounters changed descriptors (as from
  *		a firmware download)
  * caller already locked the hub
  */
@@ -2712,7 +2714,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 #endif
 
 		} else {
-			status = usb_reset_composite_device(udev);
+			status = usb_reset_device(udev);
 		}
 		usb_unlock_device(udev);
 
@@ -2940,7 +2942,7 @@ static void hub_events(void)
 			dev_dbg (hub_dev, "resetting for error %d\n",
 				hub->error);
 
-			ret = usb_reset_composite_device(hdev);
+			ret = usb_reset_device(hdev);
 			if (ret) {
 				dev_dbg (hub_dev,
 					"error resetting hub: %d\n", ret);
@@ -3233,12 +3235,12 @@ static int descriptors_changed(struct usb_device *udev,
 }
 
 /**
- * usb_reset_device - perform a USB port reset to reinitialize a device
+ * usb_reset_and_verify_device - perform a USB port reset to reinitialize a device
  * @udev: device to reset (not in SUSPENDED or NOTATTACHED state)
  *
  * WARNING - don't use this routine to reset a composite device
  * (one with multiple interfaces owned by separate drivers)!
- * Use usb_reset_composite_device() instead.
+ * Use usb_reset_device() instead.
  *
  * Do a port reset, reassign the device's address, and establish its
  * former operating configuration.  If the reset fails, or the device's
@@ -3262,7 +3264,7 @@ static int descriptors_changed(struct usb_device *udev,
  * holding the device lock because these tasks should always call
  * usb_autopm_resume_device(), thereby preventing any unwanted autoresume.
  */
-int usb_reset_device(struct usb_device *udev)
+static int usb_reset_and_verify_device(struct usb_device *udev)
 {
 	struct usb_device		*parent_hdev = udev->parent;
 	struct usb_hub			*parent_hub;
@@ -3350,24 +3352,23 @@ re_enumerate:
 	hub_port_logical_disconnect(parent_hub, port1);
 	return -ENODEV;
 }
-EXPORT_SYMBOL_GPL(usb_reset_device);
 
 /**
- * usb_reset_composite_device - warn interface drivers and perform a USB port reset
+ * usb_reset_device - warn interface drivers and perform a USB port reset
  * @udev: device to reset (not in SUSPENDED or NOTATTACHED state)
  *
  * Warns all drivers bound to registered interfaces (using their pre_reset
  * method), performs the port reset, and then lets the drivers know that
  * the reset is over (using their post_reset method).
  *
- * Return value is the same as for usb_reset_device().
+ * Return value is the same as for usb_reset_and_verify_device().
  *
  * The caller must own the device lock.  For example, it's safe to use
  * this from a driver probe() routine after downloading new firmware.
  * For calls that might not occur during probe(), drivers should lock
  * the device using usb_lock_device_for_reset().
  */
-int usb_reset_composite_device(struct usb_device *udev)
+int usb_reset_device(struct usb_device *udev)
 {
 	int ret;
 	int i;
@@ -3397,7 +3398,7 @@ int usb_reset_composite_device(struct usb_device *udev)
 		}
 	}
 
-	ret = usb_reset_device(udev);
+	ret = usb_reset_and_verify_device(udev);
 
 	if (config) {
 		for (i = config->desc.bNumInterfaces - 1; i >= 0; --i) {
@@ -3416,4 +3417,4 @@ int usb_reset_composite_device(struct usb_device *udev)
 	usb_autosuspend_device(udev);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(usb_reset_composite_device);
+EXPORT_SYMBOL_GPL(usb_reset_device);
