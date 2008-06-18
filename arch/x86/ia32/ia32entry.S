@@ -370,13 +370,11 @@ quiet_ni_syscall:
 	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn, %rdi
 	PTREGSCALL stub32_sigreturn, sys32_sigreturn, %rdi
 	PTREGSCALL stub32_sigaltstack, sys32_sigaltstack, %rdx
-	PTREGSCALL stub32_sigsuspend, sys32_sigsuspend, %rcx
 	PTREGSCALL stub32_execve, sys32_execve, %rcx
 	PTREGSCALL stub32_fork, sys_fork, %rdi
 	PTREGSCALL stub32_clone, sys32_clone, %rdx
 	PTREGSCALL stub32_vfork, sys_vfork, %rdi
 	PTREGSCALL stub32_iopl, sys_iopl, %rsi
-	PTREGSCALL stub32_rt_sigsuspend, sys_rt_sigsuspend, %rdx
 
 ENTRY(ia32_ptregs_common)
 	popq %r11
@@ -476,7 +474,7 @@ ia32_sys_call_table:
 	.quad sys_ssetmask
 	.quad sys_setreuid16	/* 70 */
 	.quad sys_setregid16
-	.quad stub32_sigsuspend
+	.quad sys32_sigsuspend
 	.quad compat_sys_sigpending
 	.quad sys_sethostname
 	.quad compat_sys_setrlimit	/* 75 */
@@ -583,7 +581,7 @@ ia32_sys_call_table:
 	.quad sys32_rt_sigpending
 	.quad compat_sys_rt_sigtimedwait
 	.quad sys32_rt_sigqueueinfo
-	.quad stub32_rt_sigsuspend
+	.quad sys_rt_sigsuspend
 	.quad sys32_pread		/* 180 */
 	.quad sys32_pwrite
 	.quad sys_chown16
