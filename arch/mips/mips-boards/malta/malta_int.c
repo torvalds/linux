@@ -363,6 +363,7 @@ static msc_irqmap_t __initdata msc_eicirqmap[] = {
 
 static int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
 
+#if defined(CONFIG_MIPS_MT_SMP)
 /*
  * This GIC specific tabular array defines the association between External
  * Interrupts and CPUs/Core Interrupts. The nature of the External
@@ -394,6 +395,7 @@ static struct gic_intr_map gic_intr_map[] = {
 	{ GIC_EXT_INTR(22), 	3,	GIC_CPU_INT1,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
 	{ GIC_EXT_INTR(23), 	3,	GIC_CPU_INT2,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
 };
+#endif
 
 /*
  * GCMP needs to be detected before any SMP initialisation
@@ -412,7 +414,8 @@ int __init gcmp_probe(unsigned long addr, unsigned long size)
 	return gcmp_present;
 }
 
-void __init fill_ipi_map(void)
+#if defined(CONFIG_MIPS_MT_SMP)
+static void __init fill_ipi_map(void)
 {
 	int i;
 
@@ -422,6 +425,7 @@ void __init fill_ipi_map(void)
 				(1 << (gic_intr_map[i].pin + 2));
 	}
 }
+#endif
 
 void __init arch_init_irq(void)
 {
@@ -527,7 +531,6 @@ void __init arch_init_irq(void)
 				.call =  GIC_IPI_EXT_INTR_CALLFNC_VPE3
 			}
 		};
-#define NIPI ARRAY_SIZE(ipiirq)
 		fill_ipi_map();
 		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map, ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
 		if (!gcmp_present) {
@@ -549,7 +552,7 @@ void __init arch_init_irq(void)
 		printk("CPU%d: status register now %08x\n", smp_processor_id(), read_c0_status());
 		write_c0_status(0x1100dc00);
 		printk("CPU%d: status register frc %08x\n", smp_processor_id(), read_c0_status());
-		for (i = 0; i < NIPI; i++) {
+		for (i = 0; i < ARRAY_SIZE(ipiirq); i++) {
 			setup_irq(MIPS_GIC_IRQ_BASE + ipiirq[i].resched, &irq_resched);
 			setup_irq(MIPS_GIC_IRQ_BASE + ipiirq[i].call, &irq_call);
 
