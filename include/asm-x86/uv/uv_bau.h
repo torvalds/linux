@@ -54,25 +54,25 @@
 /*
  * bits in UVH_LB_BAU_SB_ACTIVATION_STATUS_0/1
  */
-#define DESC_STATUS_IDLE                0
-#define DESC_STATUS_ACTIVE              1
-#define DESC_STATUS_DESTINATION_TIMEOUT 2
-#define DESC_STATUS_SOURCE_TIMEOUT      3
+#define DESC_STATUS_IDLE		0
+#define DESC_STATUS_ACTIVE		1
+#define DESC_STATUS_DESTINATION_TIMEOUT	2
+#define DESC_STATUS_SOURCE_TIMEOUT	3
 
 /*
  * source side threshholds at which message retries print a warning
  */
-#define SOURCE_TIMEOUT_LIMIT            20
-#define DESTINATION_TIMEOUT_LIMIT       20
+#define SOURCE_TIMEOUT_LIMIT		20
+#define DESTINATION_TIMEOUT_LIMIT	20
 
 /*
  * number of entries in the destination side payload queue
  */
-#define DESTINATION_PAYLOAD_QUEUE_SIZE  17
+#define DEST_Q_SIZE			17
 /*
  * number of destination side software ack resources
  */
-#define DESTINATION_NUM_RESOURCES       8
+#define DEST_NUM_RESOURCES		8
 #define MAX_CPUS_PER_NODE		32
 /*
  * completion statuses for sending a TLB flush message
@@ -197,10 +197,11 @@ struct bau_msg_header {
 };
 
 /*
+ * The activation descriptor:
  * The format of the message to send, plus all accompanying control
  * Should be 64 bytes
  */
-struct bau_activation_descriptor {
+struct bau_desc {
 	struct bau_target_nodemask distribution;
 	/*
 	 * message template, consisting of header and payload:
@@ -281,7 +282,7 @@ struct bau_sw_ack_status {
  * one on every node and per-cpu; to locate the software tables
  */
 struct bau_control {
-	struct bau_activation_descriptor *descriptor_base;
+	struct bau_desc *descriptor_base;
 	struct bau_payload_queue_entry *bau_msg_head;
 	struct bau_payload_queue_entry *va_queue_first;
 	struct bau_payload_queue_entry *va_queue_last;
