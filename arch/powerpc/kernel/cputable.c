@@ -53,6 +53,8 @@ extern void __setup_cpu_ppc970MP(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_pa6t(void);
 extern void __restore_cpu_ppc970(void);
+extern void __setup_cpu_power7(unsigned long offset, struct cpu_spec* spec);
+extern void __restore_cpu_power7(void);
 #endif /* CONFIG_PPC64 */
 
 /* This table only contains "desktop" CPUs, it need to be filled with embedded
@@ -67,6 +69,9 @@ extern void __restore_cpu_ppc970(void);
 #define COMMON_USER_POWER5_PLUS	(COMMON_USER_PPC64 | PPC_FEATURE_POWER5_PLUS|\
 				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP)
 #define COMMON_USER_POWER6	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_05 |\
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
+				 PPC_FEATURE_TRUE_LE)
+#define COMMON_USER_POWER7	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_06 |\
 				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
 				 PPC_FEATURE_TRUE_LE)
 #define COMMON_USER_PA6T	(COMMON_USER_PPC64 | PPC_FEATURE_PA6T |\
@@ -380,6 +385,26 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
 		.platform		= "power6",
+	},
+	{	/* Power7 */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x003f0000,
+		.cpu_name		= "POWER7",
+		.cpu_features		= CPU_FTRS_POWER7,
+		.cpu_user_features	= COMMON_USER_POWER7,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
+		.cpu_setup		= __setup_cpu_power7,
+		.cpu_restore		= __restore_cpu_power7,
+		.oprofile_cpu_type	= "ppc64/power7",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
+		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
+			POWER6_MMCRA_OTHER,
+		.platform		= "power7",
 	},
 	{	/* Cell Broadband Engine */
 		.pvr_mask		= 0xffff0000,
