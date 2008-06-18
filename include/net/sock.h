@@ -990,6 +990,11 @@ static inline void sock_put(struct sock *sk)
 extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 			  const int nested);
 
+static inline void sk_set_socket(struct sock *sk, struct socket *sock)
+{
+	sk->sk_socket = sock;
+}
+
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
  * Note that parent inode held reference count on this struct sock,
@@ -1001,7 +1006,7 @@ static inline void sock_orphan(struct sock *sk)
 {
 	write_lock_bh(&sk->sk_callback_lock);
 	sock_set_flag(sk, SOCK_DEAD);
-	sk->sk_socket = NULL;
+	sk_set_socket(sk, NULL);
 	sk->sk_sleep  = NULL;
 	write_unlock_bh(&sk->sk_callback_lock);
 }
@@ -1011,7 +1016,7 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	write_lock_bh(&sk->sk_callback_lock);
 	sk->sk_sleep = &parent->wait;
 	parent->sk = sk;
-	sk->sk_socket = parent;
+	sk_set_socket(sk, parent);
 	security_sock_graft(sk, parent);
 	write_unlock_bh(&sk->sk_callback_lock);
 }

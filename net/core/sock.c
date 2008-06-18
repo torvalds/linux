@@ -1066,7 +1066,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		 * to be taken into account in all callers. -acme
 		 */
 		sk_refcnt_debug_inc(newsk);
-		newsk->sk_socket = NULL;
+		sk_set_socket(newsk, NULL);
 		newsk->sk_sleep	 = NULL;
 
 		if (newsk->sk_prot->sockets_allocated)
@@ -1702,7 +1702,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_rcvbuf		=	sysctl_rmem_default;
 	sk->sk_sndbuf		=	sysctl_wmem_default;
 	sk->sk_state		=	TCP_CLOSE;
-	sk->sk_socket		=	sock;
+	sk_set_socket(sk, sock);
 
 	sock_set_flag(sk, SOCK_ZAPPED);
 
