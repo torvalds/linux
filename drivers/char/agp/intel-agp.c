@@ -418,9 +418,11 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 		if (curr->page_count == 4)
 			i8xx_destroy_pages(gart_to_virt(curr->memory[0]));
 		else {
-			agp_bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[0]),
+			void *va = gart_to_virt(curr->memory[0]);
+
+			agp_bridge->driver->agp_destroy_page(va,
 							     AGP_PAGE_DESTROY_UNMAP);
-			agp_bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[0]),
+			agp_bridge->driver->agp_destroy_page(va,
 							     AGP_PAGE_DESTROY_FREE);
 		}
 		agp_free_page_array(curr);

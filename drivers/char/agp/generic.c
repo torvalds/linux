@@ -202,10 +202,13 @@ void agp_free_memory(struct agp_memory *curr)
 	}
 	if (curr->page_count != 0) {
 		for (i = 0; i < curr->page_count; i++) {
-			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]), AGP_PAGE_DESTROY_UNMAP);
+			curr->memory[i] = (unsigned long)gart_to_virt(curr->memory[i]);
+			curr->bridge->driver->agp_destroy_page((void *)curr->memory[i],
+							       AGP_PAGE_DESTROY_UNMAP);
 		}
 		for (i = 0; i < curr->page_count; i++) {
-			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]), AGP_PAGE_DESTROY_FREE);
+			curr->bridge->driver->agp_destroy_page((void *)curr->memory[i],
+							       AGP_PAGE_DESTROY_FREE);
 		}
 	}
 	agp_free_key(curr->key);
