@@ -400,7 +400,7 @@ static struct gic_intr_map gic_intr_map[] = {
 /*
  * GCMP needs to be detected before any SMP initialisation
  */
-int __init gcmp_probe(unsigned long addr, unsigned long size)
+static int __init gcmp_probe(unsigned long addr, unsigned long size)
 {
 	if (gcmp_present >= 0)
 		return gcmp_present;
