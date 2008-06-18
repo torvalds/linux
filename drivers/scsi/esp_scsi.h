@@ -322,6 +322,7 @@ struct esp_target_data {
 	u8			nego_goal_tags;
 
 	struct scsi_target	*starget;
+	int			starget_ref;
 };
 
 struct esp_event_ent {
