@@ -302,6 +302,8 @@ typedef int __bitwise snd_pcm_hw_param_t;
 #define	SNDRV_PCM_HW_PARAM_SUBFORMAT	((__force snd_pcm_hw_param_t) 2) /* Subformat */
 #define	SNDRV_PCM_HW_PARAM_FIRST_MASK	SNDRV_PCM_HW_PARAM_ACCESS
 #define	SNDRV_PCM_HW_PARAM_LAST_MASK	SNDRV_PCM_HW_PARAM_SUBFORMAT
+#define SNDRV_PCM_HW_PARAM_MASK_INDEX(var)	\
+	((__force int)(var) - (__force int)SNDRV_PCM_HW_PARAM_FIRST_MASK)
 
 #define	SNDRV_PCM_HW_PARAM_SAMPLE_BITS	((__force snd_pcm_hw_param_t) 8) /* Bits per sample */
 #define	SNDRV_PCM_HW_PARAM_FRAME_BITS	((__force snd_pcm_hw_param_t) 9) /* Bits per frame */
@@ -317,6 +319,8 @@ typedef int __bitwise snd_pcm_hw_param_t;
 #define	SNDRV_PCM_HW_PARAM_TICK_TIME	((__force snd_pcm_hw_param_t) 19) /* Approx tick duration in us */
 #define	SNDRV_PCM_HW_PARAM_FIRST_INTERVAL	SNDRV_PCM_HW_PARAM_SAMPLE_BITS
 #define	SNDRV_PCM_HW_PARAM_LAST_INTERVAL	SNDRV_PCM_HW_PARAM_TICK_TIME
+#define SNDRV_PCM_HW_PARAM_INTERVAL_INDEX(var)	\
+	((__force int)(var) - (__force int)SNDRV_PCM_HW_PARAM_FIRST_INTERVAL)
 
 #define SNDRV_PCM_HW_PARAMS_NORESAMPLE		(1<<0)	/* avoid rate resampling */
 
@@ -336,11 +340,11 @@ struct snd_mask {
 
 struct snd_pcm_hw_params {
 	unsigned int flags;
-	struct snd_mask masks[SNDRV_PCM_HW_PARAM_LAST_MASK - 
-			       SNDRV_PCM_HW_PARAM_FIRST_MASK + 1];
+	struct snd_mask masks[
+		SNDRV_PCM_HW_PARAM_MASK_INDEX(SNDRV_PCM_HW_PARAM_LAST_MASK) + 1];
 	struct snd_mask mres[5];	/* reserved masks */
-	struct snd_interval intervals[SNDRV_PCM_HW_PARAM_LAST_INTERVAL -
-				        SNDRV_PCM_HW_PARAM_FIRST_INTERVAL + 1];
+	struct snd_interval intervals[
+		SNDRV_PCM_HW_PARAM_INTERVAL_INDEX(SNDRV_PCM_HW_PARAM_LAST_INTERVAL) + 1];
 	struct snd_interval ires[9];	/* reserved intervals */
 	unsigned int rmask;		/* W: requested masks */
 	unsigned int cmask;		/* R: changed masks */

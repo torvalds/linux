@@ -209,10 +209,10 @@ struct snd_pcm_hw_rule {
 };
 
 struct snd_pcm_hw_constraints {
-	struct snd_mask masks[SNDRV_PCM_HW_PARAM_LAST_MASK - 
-			 SNDRV_PCM_HW_PARAM_FIRST_MASK + 1];
-	struct snd_interval intervals[SNDRV_PCM_HW_PARAM_LAST_INTERVAL -
-			     SNDRV_PCM_HW_PARAM_FIRST_INTERVAL + 1];
+	struct snd_mask masks[
+		SNDRV_PCM_HW_PARAM_MASK_INDEX(SNDRV_PCM_HW_PARAM_LAST_MASK) + 1];
+	struct snd_interval intervals[
+		SNDRV_PCM_HW_PARAM_INTERVAL_INDEX(SNDRV_PCM_HW_PARAM_LAST_INTERVAL) + 1];
 	unsigned int rules_num;
 	unsigned int rules_all;
 	struct snd_pcm_hw_rule *rules;
@@ -221,13 +221,13 @@ struct snd_pcm_hw_constraints {
 static inline struct snd_mask *constrs_mask(struct snd_pcm_hw_constraints *constrs,
 					    snd_pcm_hw_param_t var)
 {
-	return &constrs->masks[var - SNDRV_PCM_HW_PARAM_FIRST_MASK];
+	return &constrs->masks[SNDRV_PCM_HW_PARAM_MASK_INDEX(var)];
 }
 
 static inline struct snd_interval *constrs_interval(struct snd_pcm_hw_constraints *constrs,
 						    snd_pcm_hw_param_t var)
 {
-	return &constrs->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
+	return &constrs->intervals[SNDRV_PCM_HW_PARAM_INTERVAL_INDEX(var)];
 }
 
 struct snd_ratnum {
@@ -761,40 +761,40 @@ static inline void snd_pcm_trigger_done(struct snd_pcm_substream *substream,
 	substream->runtime->trigger_master = master;
 }
 
-static inline int hw_is_mask(int var)
+static inline int hw_is_mask(snd_pcm_hw_param_t var)
 {
-	return var >= SNDRV_PCM_HW_PARAM_FIRST_MASK &&
-		var <= SNDRV_PCM_HW_PARAM_LAST_MASK;
+	return (__force int)var >= (__force int)SNDRV_PCM_HW_PARAM_FIRST_MASK &&
+		(__force int)var <= (__force int)SNDRV_PCM_HW_PARAM_LAST_MASK;
 }
 
-static inline int hw_is_interval(int var)
+static inline int hw_is_interval(snd_pcm_hw_param_t var)
 {
-	return var >= SNDRV_PCM_HW_PARAM_FIRST_INTERVAL &&
-		var <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL;
+	return (__force int)var >= (__force int)SNDRV_PCM_HW_PARAM_FIRST_INTERVAL &&
+		(__force int)var <= (__force int)SNDRV_PCM_HW_PARAM_LAST_INTERVAL;
 }
 
 static inline struct snd_mask *hw_param_mask(struct snd_pcm_hw_params *params,
 				     snd_pcm_hw_param_t var)
 {
-	return &params->masks[var - SNDRV_PCM_HW_PARAM_FIRST_MASK];
+	return &params->masks[SNDRV_PCM_HW_PARAM_MASK_INDEX(var)];
 }
 
 static inline struct snd_interval *hw_param_interval(struct snd_pcm_hw_params *params,
 					     snd_pcm_hw_param_t var)
 {
-	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
+	return &params->intervals[SNDRV_PCM_HW_PARAM_INTERVAL_INDEX(var)];
 }
 
 static inline const struct snd_mask *hw_param_mask_c(const struct snd_pcm_hw_params *params,
 					     snd_pcm_hw_param_t var)
 {
-	return &params->masks[var - SNDRV_PCM_HW_PARAM_FIRST_MASK];
+	return &params->masks[SNDRV_PCM_HW_PARAM_MASK_INDEX(var)];
 }
 
 static inline const struct snd_interval *hw_param_interval_c(const struct snd_pcm_hw_params *params,
 						     snd_pcm_hw_param_t var)
 {
-	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
+	return &params->intervals[SNDRV_PCM_HW_PARAM_INTERVAL_INDEX(var)];
 }
 
 #define params_access(p) snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_ACCESS))
