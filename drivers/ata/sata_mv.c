@@ -1322,6 +1322,9 @@ static int mv_port_start(struct ata_port *ap)
 		goto out_port_free_dma_mem;
 	memset(pp->crpb, 0, MV_CRPB_Q_SZ);
 
+	/* 6041/6081 Rev. "C0" (and newer) are okay with async notify */
+	if (hpriv->hp_flags & MV_HP_ERRATA_60X1C0)
+		ap->flags |= ATA_FLAG_AN;
 	/*
 	 * For GEN_I, there's no NCQ, so we only allocate a single sg_tbl.
 	 * For later hardware, we need one unique sg_tbl per NCQ tag.
