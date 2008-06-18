@@ -136,7 +136,7 @@ int security_get_allow_unknown(void);
 #define SECURITY_FS_USE_MNTPOINT	6 /* use mountpoint labeling */
 
 int security_fs_use(const char *fstype, unsigned int *behavior,
-	u32 *sid);
+	u32 *sid, bool can_xattr);
 
 int security_genfs_sid(const char *fstype, char *name, u16 sclass,
 	u32 *sid);

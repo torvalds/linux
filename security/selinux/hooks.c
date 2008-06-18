@@ -556,13 +556,15 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	struct task_security_struct *tsec = current->security;
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *name = sb->s_type->name;
-	struct inode *inode = sbsec->sb->s_root->d_inode;
-	struct inode_security_struct *root_isec = inode->i_security;
+	struct dentry *root = sb->s_root;
+	struct inode *root_inode = root->d_inode;
+	struct inode_security_struct *root_isec = root_inode->i_security;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
 	u32 defcontext_sid = 0;
 	char **mount_options = opts->mnt_opts;
 	int *flags = opts->mnt_opts_flags;
 	int num_opts = opts->num_mnt_opts;
+	bool can_xattr = false;
 
 	mutex_lock(&sbsec->lock);
 
@@ -666,14 +668,24 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		goto out;
 	}
 
-	if (strcmp(sb->s_type->name, "proc") == 0)
+	if (strcmp(name, "proc") == 0)
 		sbsec->proc = 1;
 
+	/*
+	 * test if the fs supports xattrs, fs_use might make use of this if the
+	 * fs has no definition in policy.
+	 */
+	if (root_inode->i_op->getxattr) {
+		rc = root_inode->i_op->getxattr(root, XATTR_NAME_SELINUX, NULL, 0);
+		if (rc >= 0 || rc == -ENODATA)
+			can_xattr = true;
+	}
+
 	/* Determine the labeling behavior to use for this filesystem type. */
-	rc = security_fs_use(sb->s_type->name, &sbsec->behavior, &sbsec->sid);
+	rc = security_fs_use(name, &sbsec->behavior, &sbsec->sid, can_xattr);
 	if (rc) {
 		printk(KERN_WARNING "%s: security_fs_use(%s) returned %d\n",
-		       __func__, sb->s_type->name, rc);
+		       __func__, name, rc);
 		goto out;
 	}
 
