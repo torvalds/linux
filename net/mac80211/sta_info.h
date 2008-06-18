@@ -164,6 +164,7 @@ struct sta_ampdu_mlme {
  * @aid: STA's unique AID (1..2007, 0 = not assigned yet),
  *	only used in AP (and IBSS?) mode
  * @flags: STA flags, see &enum ieee80211_sta_info_flags
+ * @flaglock: spinlock for flags accesses
  * @ps_tx_buf: buffer of frames to transmit to this station
  *	when it leaves power saving state
  * @tx_filtered: buffer of frames we already tried to transmit
@@ -186,6 +187,7 @@ struct sta_info {
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
 	spinlock_t lock;
+	spinlock_t flaglock;
 	struct ieee80211_ht_info ht_info;
 	u64 supp_rates[IEEE80211_NUM_BANDS];
 	u8 addr[ETH_ALEN];
@@ -198,7 +200,10 @@ struct sta_info {
 	 */
 	u8 pin_status;
 
-	/* frequently updated information, locked with lock spinlock */
+	/*
+	 * frequently updated, locked with own spinlock (flaglock),
+	 * use the accessors defined below
+	 */
 	u32 flags;
 
 	/*
@@ -293,34 +298,41 @@ static inline enum plink_state sta_plink_state(struct sta_info *sta)
 
 static inline void set_sta_flags(struct sta_info *sta, const u32 flags)
 {
-	spin_lock_bh(&sta->lock);
+	unsigned long irqfl;
+
+	spin_lock_irqsave(&sta->flaglock, irqfl);
 	sta->flags |= flags;
-	spin_unlock_bh(&sta->lock);
+	spin_unlock_irqrestore(&sta->flaglock, irqfl);
 }
 
 static inline void clear_sta_flags(struct sta_info *sta, const u32 flags)
 {
-	spin_lock_bh(&sta->lock);
+	unsigned long irqfl;
+
+	spin_lock_irqsave(&sta->flaglock, irqfl);
 	sta->flags &= ~flags;
-	spin_unlock_bh(&sta->lock);
+	spin_unlock_irqrestore(&sta->flaglock, irqfl);
 }
 
 static inline void set_and_clear_sta_flags(struct sta_info *sta,
 					   const u32 set, const u32 clear)
 {
-	spin_lock_bh(&sta->lock);
+	unsigned long irqfl;
+
+	spin_lock_irqsave(&sta->flaglock, irqfl);
 	sta->flags |= set;
 	sta->flags &= ~clear;
-	spin_unlock_bh(&sta->lock);
+	spin_unlock_irqrestore(&sta->flaglock, irqfl);
 }
 
 static inline u32 test_sta_flags(struct sta_info *sta, const u32 flags)
 {
 	u32 ret;
+	unsigned long irqfl;
 
-	spin_lock_bh(&sta->lock);
+	spin_lock_irqsave(&sta->flaglock, irqfl);
 	ret = sta->flags & flags;
-	spin_unlock_bh(&sta->lock);
+	spin_unlock_irqrestore(&sta->flaglock, irqfl);
 
 	return ret;
 }
@@ -329,11 +341,12 @@ static inline u32 test_and_clear_sta_flags(struct sta_info *sta,
 					   const u32 flags)
 {
 	u32 ret;
+	unsigned long irqfl;
 
-	spin_lock_bh(&sta->lock);
+	spin_lock_irqsave(&sta->flaglock, irqfl);
 	ret = sta->flags & flags;
 	sta->flags &= ~flags;
-	spin_unlock_bh(&sta->lock);
+	spin_unlock_irqrestore(&sta->flaglock, irqfl);
 
 	return ret;
 }
@@ -341,10 +354,11 @@ static inline u32 test_and_clear_sta_flags(struct sta_info *sta,
 static inline u32 get_sta_flags(struct sta_info *sta)
 {
 	u32 ret;
+	unsigned long irqfl;
 
-	spin_lock_bh(&sta->lock);
+	spin_lock_irqsave(&sta->flaglock, irqfl);
 	ret = sta->flags;
-	spin_unlock_bh(&sta->lock);
+	spin_unlock_irqrestore(&sta->flaglock, irqfl);
 
 	return ret;
 }
