@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_RESUME_TRACE_H
-#define _ASM_X86_RESUME_TRACE_H
+#ifndef ASM_X86__RESUME_TRACE_H
+#define ASM_X86__RESUME_TRACE_H
 
 #include <asm/asm.h>
 
@@ -18,4 +18,4 @@ do {								\
 	}							\
 } while (0)
 
-#endif
+#endif /* ASM_X86__RESUME_TRACE_H */

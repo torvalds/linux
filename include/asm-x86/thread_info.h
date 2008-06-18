@@ -4,8 +4,8 @@
  * - Incorporating suggestions made by Linus Torvalds and Dave Miller
  */
 
-#ifndef _ASM_X86_THREAD_INFO_H
-#define _ASM_X86_THREAD_INFO_H
+#ifndef ASM_X86__THREAD_INFO_H
+#define ASM_X86__THREAD_INFO_H
 
 #include <linux/compiler.h>
 #include <asm/page.h>
@@ -258,4 +258,4 @@ extern void free_thread_info(struct thread_info *ti);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 #define arch_task_cache_init arch_task_cache_init
 #endif
-#endif /* _ASM_X86_THREAD_INFO_H */
+#endif /* ASM_X86__THREAD_INFO_H */

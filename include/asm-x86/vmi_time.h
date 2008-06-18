@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __VMI_TIME_H
-#define __VMI_TIME_H
+#ifndef ASM_X86__VMI_TIME_H
+#define ASM_X86__VMI_TIME_H
 
 /*
  * Raw VMI call indices for timer functions
@@ -95,4 +95,4 @@ extern void __devinit vmi_time_ap_init(void);
 
 #define CONFIG_VMI_ALARM_HZ	100
 
-#endif
+#endif /* ASM_X86__VMI_TIME_H */

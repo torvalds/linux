@@ -6,8 +6,8 @@
  *  This file contains the i386 architecture specific IDE code.
  */
 
-#ifndef __ASMi386_IDE_H
-#define __ASMi386_IDE_H
+#ifndef ASM_X86__IDE_H
+#define ASM_X86__IDE_H
 
 #ifdef __KERNEL__
 
@@ -62,4 +62,4 @@ static __inline__ unsigned long ide_default_io_base(int index)
 
 #endif /* __KERNEL__ */
 
-#endif /* __ASMi386_IDE_H */
+#endif /* ASM_X86__IDE_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_EFI_H
-#define _ASM_X86_EFI_H
+#ifndef ASM_X86__EFI_H
+#define ASM_X86__EFI_H
 
 #ifdef CONFIG_X86_32
 
@@ -94,4 +94,4 @@ extern void efi_reserve_early(void);
 extern void efi_call_phys_prelog(void);
 extern void efi_call_phys_epilog(void);
 
-#endif
+#endif /* ASM_X86__EFI_H */

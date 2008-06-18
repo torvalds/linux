@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_FTRACE
-#define _ASM_X86_FTRACE
+#ifndef ASM_X86__FTRACE_H
+#define ASM_X86__FTRACE_H
 
 #ifdef CONFIG_FTRACE
 #define MCOUNT_ADDR		((long)(mcount))
@@ -11,4 +11,4 @@ extern void mcount(void);
 
 #endif /* CONFIG_FTRACE */
 
-#endif /* _ASM_X86_FTRACE */
+#endif /* ASM_X86__FTRACE_H */

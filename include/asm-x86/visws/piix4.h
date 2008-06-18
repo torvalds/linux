@@ -1,5 +1,5 @@
-#ifndef __I386_SGI_PIIX_H
-#define __I386_SGI_PIIX_H
+#ifndef ASM_X86__VISWS__PIIX4_H
+#define ASM_X86__VISWS__PIIX4_H
 
 /*
  * PIIX4 as used on SGI Visual Workstations
@@ -104,4 +104,4 @@
  */
 #define	PIIX_GPI_STPCLK		0x4	// STPCLK signal routed back in
 
-#endif
+#endif /* ASM_X86__VISWS__PIIX4_H */

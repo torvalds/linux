@@ -3,8 +3,8 @@
  * Based on code
  * Copyright 2001 Patrick Mochel <mochel@osdl.org>
  */
-#ifndef __ASM_X86_32_SUSPEND_H
-#define __ASM_X86_32_SUSPEND_H
+#ifndef ASM_X86__SUSPEND_32_H
+#define ASM_X86__SUSPEND_32_H
 
 #include <asm/desc.h>
 #include <asm/i387.h>
@@ -48,4 +48,4 @@ static inline void acpi_save_register_state(unsigned long return_point)
 extern int acpi_save_state_mem(void);
 #endif
 
-#endif /* __ASM_X86_32_SUSPEND_H */
+#endif /* ASM_X86__SUSPEND_32_H */

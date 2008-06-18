@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_NAMEI_H
-#define _ASM_X86_NAMEI_H
+#ifndef ASM_X86__NAMEI_H
+#define ASM_X86__NAMEI_H
 
 /* This dummy routine maybe changed to something useful
  * for /usr/gnemul/ emulation stuff.
@@ -8,4 +8,4 @@
 
 #define __emul_prefix() NULL
 
-#endif /* _ASM_X86_NAMEI_H */
+#endif /* ASM_X86__NAMEI_H */

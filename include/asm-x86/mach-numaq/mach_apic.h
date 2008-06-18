@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_APIC_H
-#define __ASM_MACH_APIC_H
+#ifndef ASM_X86__MACH_NUMAQ__MACH_APIC_H
+#define ASM_X86__MACH_NUMAQ__MACH_APIC_H
 
 #include <asm/io.h>
 #include <linux/mmzone.h>
@@ -135,4 +135,4 @@ static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-#endif /* __ASM_MACH_APIC_H */
+#endif /* ASM_X86__MACH_NUMAQ__MACH_APIC_H */

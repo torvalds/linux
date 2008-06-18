@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_APICDEF_H
-#define _ASM_X86_APICDEF_H
+#ifndef ASM_X86__APICDEF_H
+#define ASM_X86__APICDEF_H
 
 /*
  * Constants for various Intel APICs. (local APIC, IOAPIC, etc.)
@@ -411,4 +411,4 @@ struct local_apic {
 #else
  #define BAD_APICID 0xFFFFu
 #endif
-#endif
+#endif /* ASM_X86__APICDEF_H */

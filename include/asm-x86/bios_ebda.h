@@ -1,5 +1,5 @@
-#ifndef _MACH_BIOS_EBDA_H
-#define _MACH_BIOS_EBDA_H
+#ifndef ASM_X86__BIOS_EBDA_H
+#define ASM_X86__BIOS_EBDA_H
 
 #include <asm/io.h>
 
@@ -16,4 +16,4 @@ static inline unsigned int get_bios_ebda(void)
 
 void reserve_ebda_region(void);
 
-#endif /* _MACH_BIOS_EBDA_H */
+#endif /* ASM_X86__BIOS_EBDA_H */
