@@ -40,8 +40,6 @@
 #define PKT_BUF_SZ		1538
 
 /* Chip Base Address */
-#define SH_ETH0_BASE 0xA7000000
-#define SH_ETH1_BASE 0xA7000400
 #define SH_TSU_ADDR 0xA7000804
 
 /* Chip Registers */
@@ -462,3 +460,5 @@ static void swaps(char *src, int len)
 		*p = swab32(*p);
 #endif
 }
+
+#endif
