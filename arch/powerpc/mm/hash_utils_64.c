@@ -695,6 +695,28 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 	return pp;
 }
 
+#ifdef CONFIG_PPC_MM_SLICES
+unsigned int get_paca_psize(unsigned long addr)
+{
+	unsigned long index, slices;
+
+	if (addr < SLICE_LOW_TOP) {
+		slices = get_paca()->context.low_slices_psize;
+		index = GET_LOW_SLICE_INDEX(addr);
+	} else {
+		slices = get_paca()->context.high_slices_psize;
+		index = GET_HIGH_SLICE_INDEX(addr);
+	}
+	return (slices >> (index * 4)) & 0xF;
+}
+
+#else
+unsigned int get_paca_psize(unsigned long addr)
+{
+	return get_paca()->context.user_psize;
+}
+#endif
+
 /*
  * Demote a segment to using 4k pages.
  * For now this makes the whole process use 4k pages.
@@ -702,13 +724,13 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 #ifdef CONFIG_PPC_64K_PAGES
 void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 {
-	if (mm->context.user_psize == MMU_PAGE_4K)
+	if (get_slice_psize(mm, addr) == MMU_PAGE_4K)
 		return;
-	slice_set_user_psize(mm, MMU_PAGE_4K);
+	slice_set_range_psize(mm, addr, 1, MMU_PAGE_4K);
 #ifdef CONFIG_SPU_BASE
 	spu_flush_all_slbs(mm);
 #endif
-	if (get_paca()->context.user_psize != MMU_PAGE_4K) {
+	if (get_paca_psize(addr) != MMU_PAGE_4K) {
 		get_paca()->context = mm->context;
 		slb_flush_and_rebolt();
 	}
@@ -792,11 +814,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			DBG_LOW(" user region with no mm !\n");
 			return 1;
 		}
-#ifdef CONFIG_PPC_MM_SLICES
 		psize = get_slice_psize(mm, ea);
-#else
-		psize = mm->context.user_psize;
-#endif
 		ssize = user_segment_size(ea);
 		vsid = get_vsid(mm->context.id, ea, ssize);
 		break;
@@ -868,7 +886,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	/* Do actual hashing */
 #ifdef CONFIG_PPC_64K_PAGES
 	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
-	if (pte_val(*ptep) & _PAGE_4K_PFN) {
+	if ((pte_val(*ptep) & _PAGE_4K_PFN) && psize == MMU_PAGE_64K) {
 		demote_segment_4k(mm, ea);
 		psize = MMU_PAGE_4K;
 	}
@@ -897,7 +915,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		}
 	}
 	if (user_region) {
-		if (psize != get_paca()->context.user_psize) {
+		if (psize != get_paca_psize(ea)) {
 			get_paca()->context = mm->context;
 			slb_flush_and_rebolt();
 		}

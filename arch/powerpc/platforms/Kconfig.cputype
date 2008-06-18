@@ -187,7 +187,7 @@ config PPC_STD_MMU_32
 
 config PPC_MM_SLICES
 	bool
-	default y if HUGETLB_PAGE
+	default y if HUGETLB_PAGE || PPC_64K_PAGES
 	default n
 
 config VIRT_CPU_ACCOUNTING
