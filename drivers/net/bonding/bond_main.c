@@ -1189,22 +1189,21 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 		if (new_active) {
 			bond_set_slave_active_flags(new_active);
-		}
 
-		if (new_active && bond->params.fail_over_mac)
-			bond_do_fail_over_mac(bond, new_active, old_active);
+			if (bond->params.fail_over_mac)
+				bond_do_fail_over_mac(bond, new_active,
+						      old_active);
 
-		bond->send_grat_arp = bond->params.num_grat_arp;
-		if (bond->curr_active_slave &&
-			test_bit(__LINK_STATE_LINKWATCH_PENDING,
-					&bond->curr_active_slave->dev->state)) {
-			dprintk("delaying gratuitous arp on %s\n",
-				bond->curr_active_slave->dev->name);
-		} else {
-			if (bond->send_grat_arp > 0) {
-				bond_send_gratuitous_arp(bond);
-				bond->send_grat_arp--;
-			}
+			bond->send_grat_arp = bond->params.num_grat_arp;
+			bond_send_gratuitous_arp(bond);
+
+			write_unlock_bh(&bond->curr_slave_lock);
+			read_unlock(&bond->lock);
+
+			netdev_bonding_change(bond->dev);
+
+			read_lock(&bond->lock);
+			write_lock_bh(&bond->curr_slave_lock);
 		}
 	}
 }
@@ -2235,17 +2234,6 @@ static int __bond_mii_monitor(struct bonding *bond, int have_locks)
 	 * program could monitor the link itself if needed.
 	 */
 
-	if (bond->send_grat_arp) {
-		if (bond->curr_active_slave && test_bit(__LINK_STATE_LINKWATCH_PENDING,
-				&bond->curr_active_slave->dev->state))
-			dprintk("Needs to send gratuitous arp but not yet\n");
-		else {
-			dprintk("sending delayed gratuitous arp on on %s\n",
-				bond->curr_active_slave->dev->name);
-			bond_send_gratuitous_arp(bond);
-			bond->send_grat_arp--;
-		}
-	}
 	read_lock(&bond->curr_slave_lock);
 	oldcurrent = bond->curr_active_slave;
 	read_unlock(&bond->curr_slave_lock);
@@ -2486,6 +2474,13 @@ void bond_mii_monitor(struct work_struct *work)
 		read_unlock(&bond->lock);
 		return;
 	}
+
+	if (bond->send_grat_arp) {
+		read_lock(&bond->curr_slave_lock);
+		bond_send_gratuitous_arp(bond);
+		read_unlock(&bond->curr_slave_lock);
+	}
+
 	if (__bond_mii_monitor(bond, 0)) {
 		read_unlock(&bond->lock);
 		rtnl_lock();
@@ -2651,6 +2646,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 /*
  * Kick out a gratuitous ARP for an IP on the bonding master plus one
  * for each VLAN above us.
+ *
+ * Caller must hold curr_slave_lock for read or better
  */
 static void bond_send_gratuitous_arp(struct bonding *bond)
 {
@@ -2660,8 +2657,12 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
 
 	dprintk("bond_send_grat_arp: bond %s slave %s\n", bond->dev->name,
 				slave ? slave->dev->name : "NULL");
-	if (!slave)
+
+	if (!slave || !bond->send_grat_arp ||
+	    test_bit(__LINK_STATE_LINKWATCH_PENDING, &slave->dev->state))
 		return;
+
+	bond->send_grat_arp--;
 
 	if (bond->master_ip) {
 		bond_arp_send(slave->dev, ARPOP_REPLY, bond->master_ip,
@@ -3165,6 +3166,12 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
+
+	if (bond->send_grat_arp) {
+		read_lock(&bond->curr_slave_lock);
+		bond_send_gratuitous_arp(bond);
+		read_unlock(&bond->curr_slave_lock);
+	}
 
 	if (bond_ab_arp_inspect(bond, delta_in_ticks)) {
 		read_unlock(&bond->lock);
@@ -3840,6 +3847,7 @@ static int bond_close(struct net_device *bond_dev)
 
 	write_lock_bh(&bond->lock);
 
+	bond->send_grat_arp = 0;
 
 	/* signal timers not to re-arm */
 	bond->kill_timers = 1;
@@ -4742,11 +4750,11 @@ static int bond_check_params(struct bond_params *params)
 		}
 	}
 
-	if (max_bonds < 1 || max_bonds > INT_MAX) {
+	if (max_bonds < 0 || max_bonds > INT_MAX) {
 		printk(KERN_WARNING DRV_NAME
 		       ": Warning: max_bonds (%d) not in range %d-%d, so it "
 		       "was reset to BOND_DEFAULT_MAX_BONDS (%d)\n",
-		       max_bonds, 1, INT_MAX, BOND_DEFAULT_MAX_BONDS);
+		       max_bonds, 0, INT_MAX, BOND_DEFAULT_MAX_BONDS);
 		max_bonds = BOND_DEFAULT_MAX_BONDS;
 	}
 
@@ -4945,7 +4953,7 @@ static int bond_check_params(struct bond_params *params)
 
 		printk("\n");
 
-	} else {
+	} else if (max_bonds) {
 		/* miimon and arp_interval not set, we need one so things
 		 * work as expected, see bonding.txt for details
 		 */

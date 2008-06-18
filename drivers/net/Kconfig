@@ -1255,7 +1255,6 @@ config IBMVETH
 	  To compile this driver as a module, choose M here. The module will
 	  be called ibmveth.
 
-source "drivers/net/ibm_emac/Kconfig"
 source "drivers/net/ibm_newemac/Kconfig"
 
 config NET_PCI
