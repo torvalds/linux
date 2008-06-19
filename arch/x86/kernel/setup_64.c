@@ -664,6 +664,25 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
 }
 
+static void __init early_cpu_support_print(void)
+{
+	int i,j;
+	struct cpu_dev *cpu_devx;
+
+	printk("KERNEL supported cpus:\n");
+	for (i = 0; i < X86_VENDOR_NUM; i++) {
+		cpu_devx = cpu_devs[i];
+		if (!cpu_devx)
+			continue;
+		for (j = 0; j < 2; j++) {
+			if (!cpu_devx->c_ident[j])
+				continue;
+			printk("  %s %s\n", cpu_devx->c_vendor,
+				cpu_devx->c_ident[j]);
+		}
+	}
+}
+
 static void __init early_cpu_init(void)
 {
         struct cpu_vendor_dev *cvdev;
@@ -672,6 +691,7 @@ static void __init early_cpu_init(void)
              cvdev < __x86cpuvendor_end   ;
              cvdev++)
                 cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
+	early_cpu_support_print();
 }
 
 /* Do some early cpuid on the boot CPU to get some parameter that are
