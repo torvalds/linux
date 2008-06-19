@@ -1083,13 +1083,46 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 	return IEEE80211_TX_OK;
 }
 
+/*
+ * Invoke TX handlers, return 0 on success and non-zero if the
+ * frame was dropped or queued.
+ */
+static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_local *local = tx->local;
+	struct sk_buff *skb = tx->skb;
+	ieee80211_tx_handler *handler;
+	ieee80211_tx_result res = TX_DROP;
+	int i;
+
+	for (handler = ieee80211_tx_handlers; *handler != NULL; handler++) {
+		res = (*handler)(tx);
+		if (res != TX_CONTINUE)
+			break;
+	}
+
+	if (unlikely(res == TX_DROP)) {
+		I802_DEBUG_INC(local->tx_handlers_drop);
+		dev_kfree_skb(skb);
+		for (i = 0; i < tx->num_extra_frag; i++)
+			if (tx->extra_frag[i])
+				dev_kfree_skb(tx->extra_frag[i]);
+		kfree(tx->extra_frag);
+		return -1;
+	} else if (unlikely(res == TX_QUEUED)) {
+		I802_DEBUG_INC(local->tx_handlers_queued);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
-	ieee80211_tx_handler *handler;
 	struct ieee80211_tx_data tx;
-	ieee80211_tx_result res = TX_DROP, res_prepare;
+	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int ret, i;
 	u16 queue;
@@ -1118,26 +1151,8 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
 
-	for (handler = ieee80211_tx_handlers; *handler != NULL;
-	     handler++) {
-		res = (*handler)(&tx);
-		if (res != TX_CONTINUE)
-			break;
-	}
-
-	if (WARN_ON(tx.skb != skb))
-		goto drop;
-
-	if (unlikely(res == TX_DROP)) {
-		I802_DEBUG_INC(local->tx_handlers_drop);
-		goto drop;
-	}
-
-	if (unlikely(res == TX_QUEUED)) {
-		I802_DEBUG_INC(local->tx_handlers_queued);
-		rcu_read_unlock();
-		return 0;
-	}
+	if (invoke_tx_handlers(&tx))
+		goto out;
 
 	if (tx.extra_frag) {
 		for (i = 0; i < tx.num_extra_frag; i++) {
@@ -1198,6 +1213,7 @@ retry:
 		store->last_frag_rate_ctrl_probe =
 			!!(tx.flags & IEEE80211_TX_PROBE_LAST_FRAG);
 	}
+ out:
 	rcu_read_unlock();
 	return 0;
 
@@ -1948,9 +1964,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct sk_buff *skb = NULL;
 	struct sta_info *sta;
-	ieee80211_tx_handler *handler;
 	struct ieee80211_tx_data tx;
-	ieee80211_tx_result res = TX_DROP;
 	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_ap *bss = NULL;
@@ -2001,25 +2015,9 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
 
-	for (handler = ieee80211_tx_handlers; *handler != NULL; handler++) {
-		res = (*handler)(&tx);
-		if (res == TX_DROP || res == TX_QUEUED)
-			break;
-	}
-
-	if (WARN_ON(tx.skb != skb))
-		res = TX_DROP;
-
-	if (res == TX_DROP) {
-		I802_DEBUG_INC(local->tx_handlers_drop);
-		dev_kfree_skb(skb);
+	if (invoke_tx_handlers(&tx))
 		skb = NULL;
-	} else if (res == TX_QUEUED) {
-		I802_DEBUG_INC(local->tx_handlers_queued);
-		skb = NULL;
-	}
-
-out:
+ out:
 	rcu_read_unlock();
 
 	return skb;
