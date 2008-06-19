@@ -6569,6 +6569,21 @@ struct bnx2_irq {
 	char		name[16];
 };
 
+struct bnx2_tx_ring_info {
+	u32			tx_prod_bseq;
+	u16			tx_prod;
+	u32			tx_bidx_addr;
+	u32			tx_bseq_addr;
+
+	struct tx_bd		*tx_desc_ring;
+	struct sw_bd		*tx_buf_ring;
+
+	u16			tx_cons;
+	u16			hw_tx_cons;
+
+	dma_addr_t		tx_desc_mapping;
+};
+
 struct bnx2_napi {
 	struct napi_struct	napi		____cacheline_aligned;
 	struct bnx2		*bp;
@@ -6577,9 +6592,6 @@ struct bnx2_napi {
 	u32 			last_status_idx;
 	u32			int_num;
 
-	u16			tx_cons;
-	u16			hw_tx_cons;
-
 	u32			rx_prod_bseq;
 	u16			rx_prod;
 	u16			rx_cons;
@@ -6587,6 +6599,7 @@ struct bnx2_napi {
 	u16			rx_pg_prod;
 	u16			rx_pg_cons;
 
+	struct bnx2_tx_ring_info	tx_ring;
 };
 
 struct bnx2 {
@@ -6614,14 +6627,6 @@ struct bnx2 {
 					 BNX2_FLAG_USING_MSIX)
 #define BNX2_FLAG_JUMBO_BROKEN		0x00000800
 
-	/* Put tx producer and consumer fields in separate cache lines. */
-
-	u32		tx_prod_bseq __attribute__((aligned(L1_CACHE_BYTES)));
-	u16		tx_prod;
-	u8		tx_vec;
-	u32		tx_bidx_addr;
-	u32		tx_bseq_addr;
-
 	struct bnx2_napi	bnx2_napi[BNX2_MAX_MSIX_VEC];
 
 #ifdef BCM_VLAN
@@ -6643,8 +6648,6 @@ struct bnx2 {
 	struct rx_bd		*rx_pg_desc_ring[MAX_RX_PG_RINGS];
 
 	/* TX constants */
-	struct tx_bd	*tx_desc_ring;
-	struct sw_bd	*tx_buf_ring;
 	int		tx_ring_size;
 	u32		tx_wake_thresh;
 
@@ -6721,9 +6724,6 @@ struct bnx2 {
 
 	u16			fw_wr_seq;
 	u16			fw_drv_pulse_wr_seq;
-
-	dma_addr_t		tx_desc_mapping;
-
 
 	int			rx_max_ring;
 	int			rx_ring_size;
@@ -6812,6 +6812,8 @@ struct bnx2 {
 
 	struct bnx2_irq		irq_tbl[BNX2_MAX_MSIX_VEC];
 	int			irq_nvecs;
+
+	u8			num_tx_rings;
 };
 
 #define REG_RD(bp, offset)					\
