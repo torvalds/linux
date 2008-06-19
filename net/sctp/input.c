@@ -430,6 +430,9 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	struct sock *sk = NULL;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport = NULL;
+	struct sctp_init_chunk *chunkhdr;
+	__u32 vtag = ntohl(sctphdr->vtag);
+	int len = skb->len - ((void *)sctphdr - (void *)skb->data);
 
 	*app = NULL; *tpp = NULL;
 
@@ -451,8 +454,28 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 
 	sk = asoc->base.sk;
 
-	if (ntohl(sctphdr->vtag) != asoc->c.peer_vtag) {
-		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
+	/* RFC 4960, Appendix C. ICMP Handling
+	 *
+	 * ICMP6) An implementation MUST validate that the Verification Tag
+	 * contained in the ICMP message matches the Verification Tag of
+	 * the peer.  If the Verification Tag is not 0 and does NOT
+	 * match, discard the ICMP message.  If it is 0 and the ICMP
+	 * message contains enough bytes to verify that the chunk type is
+	 * an INIT chunk and that the Initiate Tag matches the tag of the
+	 * peer, continue with ICMP7.  If the ICMP message is too short
+	 * or the chunk type or the Initiate Tag does not match, silently
+	 * discard the packet.
+	 */
+	if (vtag == 0) {
+		chunkhdr = (struct sctp_init_chunk *)((void *)sctphdr
+				+ sizeof(struct sctphdr));
+		if (len < sizeof(struct sctphdr) + sizeof(sctp_chunkhdr_t)
+			  + sizeof(__be32) ||
+		    chunkhdr->chunk_hdr.type != SCTP_CID_INIT ||
+		    ntohl(chunkhdr->init_hdr.init_tag) != asoc->c.my_vtag) {
+			goto out;
+		}
+	} else if (vtag != asoc->c.peer_vtag) {
 		goto out;
 	}
 
