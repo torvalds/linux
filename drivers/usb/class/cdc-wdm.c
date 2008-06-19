@@ -28,8 +28,9 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.02"
+#define DRIVER_VERSION "v0.03"
 #define DRIVER_AUTHOR "Oliver Neukum"
+#define DRIVER_DESC "USB Abstract Control Model driver for USB WCM Device Management"
 
 static struct usb_device_id wdm_ids[] = {
 	{
@@ -205,7 +206,7 @@ static void wdm_int_callback(struct urb *urb)
 	req->bRequest = USB_CDC_GET_ENCAPSULATED_RESPONSE;
 	req->wValue = 0;
 	req->wIndex = desc->inum;
-	req->wLength = cpu_to_le16(desc->bMaxPacketSize0);
+	req->wLength = cpu_to_le16(desc->wMaxCommand);
 
 	usb_fill_control_urb(
 		desc->response,
@@ -214,7 +215,7 @@ static void wdm_int_callback(struct urb *urb)
 		usb_rcvctrlpipe(interface_to_usbdev(desc->intf), 0),
 		(unsigned char *)req,
 		desc->inbuf,
-		desc->bMaxPacketSize0,
+		desc->wMaxCommand,
 		wdm_in_callback,
 		desc
 	);
@@ -266,7 +267,7 @@ static void cleanup(struct wdm_device *desc)
 			desc->sbuf,
 			desc->validity->transfer_dma);
 	usb_buffer_free(interface_to_usbdev(desc->intf),
-			desc->wMaxPacketSize,
+			desc->wMaxCommand,
 			desc->inbuf,
 			desc->response->transfer_dma);
 	kfree(desc->orq);
@@ -347,6 +348,7 @@ static ssize_t wdm_write
 	if (rv < 0) {
 		kfree(buf);
 		clear_bit(WDM_IN_USE, &desc->flags);
+		err("Tx URB error: %d", rv);
 	} else {
 		dev_dbg(&desc->intf->dev, "Tx URB has been submitted index=%d",
 			req->wIndex);
@@ -418,6 +420,9 @@ retry:
 		desc->ubuf[i] = desc->ubuf[i + cntr];
 
 	desc->length -= cntr;
+	/* in case we had outstanding data */
+	if (!desc->length)
+		clear_bit(WDM_READ, &desc->flags);
 	rv = cntr;
 
 err:
@@ -735,6 +740,5 @@ module_init(wdm_init);
 module_exit(wdm_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION("USB Abstract Control Model driver for "
-		   "USB WCM Device Management");
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
