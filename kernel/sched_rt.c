@@ -250,7 +250,8 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 			if (rt_rq->rt_time || rt_rq->rt_nr_running)
 				idle = 0;
 			spin_unlock(&rt_rq->rt_runtime_lock);
-		}
+		} else if (rt_rq->rt_nr_running)
+			idle = 0;
 
 		if (enqueue)
 			sched_rt_rq_enqueue(rt_rq);
