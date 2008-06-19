@@ -522,9 +522,13 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 
 #define RV515_MC_FB_LOCATION 0x01
 #define RV515_MC_AGP_LOCATION 0x02
+#define RV515_MC_AGP_BASE     0x03
+#define RV515_MC_AGP_BASE_2   0x04
 
 #define R520_MC_FB_LOCATION 0x04
 #define R520_MC_AGP_LOCATION 0x05
+#define R520_MC_AGP_BASE     0x06
+#define R520_MC_AGP_BASE_2   0x07
 
 #define RADEON_MPP_TB_CONFIG		0x01c0
 #define RADEON_MEM_CNTL			0x0140

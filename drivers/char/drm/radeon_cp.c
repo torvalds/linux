@@ -113,6 +113,27 @@ static void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_lo
 		RADEON_WRITE(RADEON_MC_AGP_LOCATION, agp_loc);
 }
 
+static void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
+{
+	u32 agp_base_hi = upper_32_bits(agp_base);
+	u32 agp_base_lo = agp_base & 0xffffffff;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515) {
+		R500_WRITE_MCIND(RV515_MC_AGP_BASE, agp_base_lo);
+		R500_WRITE_MCIND(RV515_MC_AGP_BASE_2, agp_base_hi);
+	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) {
+		RS690_WRITE_MCIND(RS690_MC_AGP_BASE, agp_base_lo);
+		RS690_WRITE_MCIND(RS690_MC_AGP_BASE_2, agp_base_hi);
+	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515) {
+		R500_WRITE_MCIND(R520_MC_AGP_BASE, agp_base_lo);
+		R500_WRITE_MCIND(R520_MC_AGP_BASE_2, agp_base_hi);
+	} else {
+		RADEON_WRITE(RADEON_AGP_BASE, agp_base_lo);
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R200)
+			RADEON_WRITE(RADEON_AGP_BASE_2, agp_base_hi);
+	}
+}
+
 static int RADEON_READ_PLL(struct drm_device * dev, int addr)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -542,9 +563,8 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & RADEON_IS_AGP) {
-		RADEON_WRITE(RADEON_AGP_BASE, (unsigned int)dev->agp->base);
-		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R200)
-			RADEON_WRITE(RADEON_AGP_BASE_2, 0);
+		radeon_write_agp_base(dev_priv, dev->agp->base);
+
 		radeon_write_agp_location(dev_priv,
 			     (((dev_priv->gart_vm_start - 1 +
 				dev_priv->gart_size) & 0xffff0000) |
