@@ -1444,3 +1444,17 @@ static const struct sched_class rt_sched_class = {
 	.prio_changed		= prio_changed_rt,
 	.switched_to		= switched_to_rt,
 };
+
+#ifdef CONFIG_SCHED_DEBUG
+extern void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq);
+
+static void print_rt_stats(struct seq_file *m, int cpu)
+{
+	struct rt_rq *rt_rq;
+
+	rcu_read_lock();
+	for_each_leaf_rt_rq(rt_rq, cpu_rq(cpu))
+		print_rt_rq(m, cpu, rt_rq);
+	rcu_read_unlock();
+}
+#endif

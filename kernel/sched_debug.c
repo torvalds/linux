@@ -119,9 +119,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	struct sched_entity *last;
 	unsigned long flags;
 
-#if !defined(CONFIG_CGROUP_SCHED) || !defined(CONFIG_USER_SCHED)
-	SEQ_printf(m, "\ncfs_rq[%d]:\n", cpu);
-#else
+#if defined(CONFIG_CGROUP_SCHED) && defined(CONFIG_FAIR_GROUP_SCHED)
 	char path[128] = "";
 	struct cgroup *cgroup = NULL;
 	struct task_group *tg = cfs_rq->tg;
@@ -133,6 +131,8 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 		cgroup_path(cgroup, path, sizeof(path));
 
 	SEQ_printf(m, "\ncfs_rq[%d]:%s\n", cpu, path);
+#else
+	SEQ_printf(m, "\ncfs_rq[%d]:\n", cpu);
 #endif
 
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "exec_clock",
@@ -167,6 +167,39 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 #endif
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_spread_over",
 			cfs_rq->nr_spread_over);
+}
+
+void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
+{
+#if defined(CONFIG_CGROUP_SCHED) && defined(CONFIG_RT_GROUP_SCHED)
+	char path[128] = "";
+	struct cgroup *cgroup = NULL;
+	struct task_group *tg = rt_rq->tg;
+
+	if (tg)
+		cgroup = tg->css.cgroup;
+
+	if (cgroup)
+		cgroup_path(cgroup, path, sizeof(path));
+
+	SEQ_printf(m, "\nrt_rq[%d]:%s\n", cpu, path);
+#else
+	SEQ_printf(m, "\nrt_rq[%d]:\n", cpu);
+#endif
+
+
+#define P(x) \
+	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(rt_rq->x))
+#define PN(x) \
+	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", #x, SPLIT_NS(rt_rq->x))
+
+	P(rt_nr_running);
+	P(rt_throttled);
+	PN(rt_time);
+	PN(rt_runtime);
+
+#undef PN
+#undef P
 }
 
 static void print_cpu(struct seq_file *m, int cpu)
@@ -208,6 +241,7 @@ static void print_cpu(struct seq_file *m, int cpu)
 #undef PN
 
 	print_cfs_stats(m, cpu);
+	print_rt_stats(m, cpu);
 
 	print_rq(m, rq, cpu);
 }
