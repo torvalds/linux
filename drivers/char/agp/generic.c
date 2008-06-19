@@ -96,13 +96,13 @@ EXPORT_SYMBOL(agp_flush_chipset);
 void agp_alloc_page_array(size_t size, struct agp_memory *mem)
 {
 	mem->memory = NULL;
-	mem->vmalloc_flag = 0;
+	mem->vmalloc_flag = false;
 
 	if (size <= 2*PAGE_SIZE)
 		mem->memory = kmalloc(size, GFP_KERNEL | __GFP_NORETRY);
 	if (mem->memory == NULL) {
 		mem->memory = vmalloc(size);
-		mem->vmalloc_flag = 1;
+		mem->vmalloc_flag = true;
 	}
 }
 EXPORT_SYMBOL(agp_alloc_page_array);

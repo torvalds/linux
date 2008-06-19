@@ -325,7 +325,7 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 out:
 	ret = 0;
 out_err:
-	mem->is_flushed = 1;
+	mem->is_flushed = true;
 	return ret;
 }
 
@@ -795,7 +795,7 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 out:
 	ret = 0;
 out_err:
-	mem->is_flushed = 1;
+	mem->is_flushed = true;
 	return ret;
 }
 
@@ -1022,7 +1022,7 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
  out:
 	ret = 0;
  out_err:
-	mem->is_flushed = 1;
+	mem->is_flushed = true;
 	return ret;
 }
 

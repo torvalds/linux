@@ -77,7 +77,7 @@ struct agp_memory {
 	u32 physical;
 	bool is_bound;
 	bool is_flushed;
-        u8 vmalloc_flag;
+        bool vmalloc_flag;
 };
 
 #define AGP_NORMAL_MEMORY 0
