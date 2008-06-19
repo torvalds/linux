@@ -113,7 +113,7 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, struct smsdvb_client_t, demux);
 	struct SmsMsgData_ST PidMsg;
 
-	sms_debug("%s add pid %d(%x)\n", __func__,
+	sms_debug("add pid %d(%x)",
 		  feed->pid, feed->pid);
 
 	PidMsg.xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
@@ -133,7 +133,7 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 		container_of(feed->demux, struct smsdvb_client_t, demux);
 	struct SmsMsgData_ST PidMsg;
 
-	sms_debug("%s remove pid %d(%x)\n", __func__,
+	sms_debug("remove pid %d(%x)",
 		  feed->pid, feed->pid);
 
 	PidMsg.xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
@@ -220,7 +220,7 @@ static int smsdvb_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 				    struct dvb_frontend_tune_settings *tune)
 {
-	sms_debug("%s\n", __func__);
+	sms_debug("");
 
 	tune->min_delay_ms = 400;
 	tune->step_size = 250000;
@@ -247,7 +247,7 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 	Msg.Data[0] = fep->frequency;
 	Msg.Data[2] = 12000000;
 
-	sms_debug("%s freq %d band %d\n", __func__,
+	sms_debug("freq %d band %d",
 		  fep->frequency, fep->u.ofdm.bandwidth);
 
 	switch (fep->u.ofdm.bandwidth) {
@@ -268,7 +268,7 @@ static int smsdvb_get_frontend(struct dvb_frontend *fe,
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
 
-	sms_debug("%s\n", __func__);
+	sms_debug("");
 
 	/* todo: */
 	memcpy(fep, &client->fe_params,
@@ -322,14 +322,14 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 		return 0;
 
 	if (smscore_get_device_mode(coredev) != 4) {
-		sms_err("%sSMS Device mode is not set for "
-			"DVB operation.\n", __func__);
+		sms_err("SMS Device mode is not set for "
+			"DVB operation.");
 		return 0;
 	}
 
 	client = kzalloc(sizeof(struct smsdvb_client_t), GFP_KERNEL);
 	if (!client) {
-		sms_info("%s kmalloc() failed\n", __func__);
+		sms_info("kmalloc() failed");
 		return -ENOMEM;
 	}
 
@@ -339,8 +339,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 					smscore_get_board_id(coredev))->name,
 				  THIS_MODULE, device, adapter_nr);
 	if (rc < 0) {
-		sms_err("%s dvb_register_adapter() failed %d\n",
-			__func__, rc);
+		sms_err("dvb_register_adapter() failed %d", rc);
 		goto adapter_error;
 	}
 
@@ -353,8 +352,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_dmx_init(&client->demux);
 	if (rc < 0) {
-		sms_err("%s dvb_dmx_init failed %d\n\n",
-			__func__, rc);
+		sms_err("dvb_dmx_init failed %d", rc);
 		goto dvbdmx_error;
 	}
 
@@ -365,8 +363,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_dmxdev_init(&client->dmxdev, &client->adapter);
 	if (rc < 0) {
-		sms_err("%s dvb_dmxdev_init failed %d\n",
-			__func__, rc);
+		sms_err("dvb_dmxdev_init failed %d", rc);
 		goto dmxdev_error;
 	}
 
@@ -376,8 +373,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = dvb_register_frontend(&client->adapter, &client->frontend);
 	if (rc < 0) {
-		sms_err("%s frontend registration failed %d\n",
-			__func__, rc);
+		sms_err("frontend registration failed %d", rc);
 		goto frontend_error;
 	}
 
@@ -389,8 +385,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = smscore_register_client(coredev, &params, &client->smsclient);
 	if (rc < 0) {
-		sms_info("%s smscore_register_client() failed %d\n",
-			 __func__, rc);
+		sms_info("smscore_register_client() failed %d", rc);
 		goto client_error;
 	}
 
@@ -405,7 +400,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	kmutex_unlock(&g_smsdvb_clientslock);
 
-	sms_info("%s success\n", __func__);
+	sms_info("success");
 
 	return 0;
 
@@ -435,7 +430,7 @@ int smsdvb_register(void)
 
 	rc = smscore_register_hotplug(smsdvb_hotplug);
 
-	sms_info("%s\n", __func__);
+	sms_debug("");
 
 	return rc;
 }

@@ -414,9 +414,12 @@ void smsdvb_unregister(void);
 int smsusb_register(void);
 void smsusb_unregister(void);
 
-#define sms_err(fmt, arg...) printk(KERN_ERR fmt, ##arg)
-#define sms_info(fmt, arg...) printk(KERN_INFO fmt, ##arg)
-#define sms_debug(fmt, arg...) printk(KERN_DEBUG fmt, ##arg)
+#define sms_err(fmt, arg...) \
+	printk(KERN_ERR "%s " fmt "\n", __func__, ##arg)
+#define sms_info(fmt, arg...) \
+	printk(KERN_INFO "%s " fmt "\n", __func__, ##arg)
+#define sms_debug(fmt, arg...) \
+	printk(KERN_DEBUG "%s " fmt "\n", __func__, ##arg)
 
 
 #endif /* __smscoreapi_h__ */
