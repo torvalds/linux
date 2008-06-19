@@ -157,7 +157,8 @@ void sctp_packet_free(struct sctp_packet *packet)
  * packet can be sent only after receiving the COOKIE_ACK.
  */
 sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
-				       struct sctp_chunk *chunk)
+				       struct sctp_chunk *chunk,
+				       int one_packet)
 {
 	sctp_xmit_t retval;
 	int error = 0;
@@ -175,7 +176,9 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 			/* If we have an empty packet, then we can NOT ever
 			 * return PMTU_FULL.
 			 */
-			retval = sctp_packet_append_chunk(packet, chunk);
+			if (!one_packet)
+				retval = sctp_packet_append_chunk(packet,
+								  chunk);
 		}
 		break;
 

@@ -664,7 +664,7 @@ static int sctp_cmd_process_sack(sctp_cmd_seq_t *cmds,
 				 struct sctp_association *asoc,
 				 struct sctp_sackhdr *sackh)
 {
-	int err;
+	int err = 0;
 
 	if (sctp_outq_sack(&asoc->outqueue, sackh)) {
 		/* There are no more TSNs awaiting SACK.  */
@@ -672,11 +672,6 @@ static int sctp_cmd_process_sack(sctp_cmd_seq_t *cmds,
 				 SCTP_ST_OTHER(SCTP_EVENT_NO_PENDING_TSN),
 				 asoc->state, asoc->ep, asoc, NULL,
 				 GFP_ATOMIC);
-	} else {
-		/* Windows may have opened, so we need
-		 * to check if we have DATA to transmit
-		 */
-		err = sctp_outq_flush(&asoc->outqueue, 0);
 	}
 
 	return err;
@@ -1481,8 +1476,15 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			break;
 
 		case SCTP_CMD_DISCARD_PACKET:
-			/* We need to discard the whole packet.  */
+			/* We need to discard the whole packet.
+			 * Uncork the queue since there might be
+			 * responses pending
+			 */
 			chunk->pdiscard = 1;
+			if (asoc) {
+				sctp_outq_uncork(&asoc->outqueue);
+				local_cork = 0;
+			}
 			break;
 
 		case SCTP_CMD_RTO_PENDING:
@@ -1553,8 +1555,15 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 	}
 
 out:
-	if (local_cork)
-		sctp_outq_uncork(&asoc->outqueue);
+	/* If this is in response to a received chunk, wait until
+	 * we are done with the packet to open the queue so that we don't
+	 * send multiple packets in response to a single request.
+	 */
+	if (asoc && SCTP_EVENT_T_CHUNK == event_type && chunk) {
+		if (chunk->end_of_packet || chunk->singleton)
+			sctp_outq_uncork(&asoc->outqueue);
+	} else if (local_cork)
+			sctp_outq_uncork(&asoc->outqueue);
 	return error;
 nomem:
 	error = -ENOMEM;

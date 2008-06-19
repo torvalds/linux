@@ -1025,6 +1025,7 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 	struct sctp_chunk *chunk;
 	struct sock *sk;
 	struct sctp_inq *inqueue;
+	struct sctp_outq *outq;
 	int state;
 	sctp_subtype_t subtype;
 	int error = 0;

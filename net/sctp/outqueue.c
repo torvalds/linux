@@ -702,6 +702,7 @@ int sctp_outq_uncork(struct sctp_outq *q)
 	return error;
 }
 
+
 /*
  * Try to flush an outqueue.
  *
@@ -725,6 +726,7 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 	sctp_xmit_t status;
 	int error = 0;
 	int start_timer = 0;
+	int one_packet = 0;
 
 	/* These transports have chunks to send. */
 	struct list_head transport_list;
@@ -830,20 +832,33 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			if (sctp_test_T_bit(chunk)) {
 				packet->vtag = asoc->c.my_vtag;
 			}
+		/* The following chunks are "response" chunks, i.e.
+		 * they are generated in response to something we
+		 * received.  If we are sending these, then we can
+		 * send only 1 packet containing these chunks.
+		 */
+		case SCTP_CID_HEARTBEAT_ACK:
+		case SCTP_CID_SHUTDOWN_ACK:
+		case SCTP_CID_COOKIE_ACK:
+		case SCTP_CID_COOKIE_ECHO:
+		case SCTP_CID_ERROR:
+		case SCTP_CID_ECN_CWR:
+		case SCTP_CID_ASCONF_ACK:
+			one_packet = 1;
+			/* Fall throught */
+
 		case SCTP_CID_SACK:
 		case SCTP_CID_HEARTBEAT:
-		case SCTP_CID_HEARTBEAT_ACK:
 		case SCTP_CID_SHUTDOWN:
-		case SCTP_CID_SHUTDOWN_ACK:
-		case SCTP_CID_ERROR:
-		case SCTP_CID_COOKIE_ECHO:
-		case SCTP_CID_COOKIE_ACK:
 		case SCTP_CID_ECN_ECNE:
-		case SCTP_CID_ECN_CWR:
 		case SCTP_CID_ASCONF:
-		case SCTP_CID_ASCONF_ACK:
 		case SCTP_CID_FWD_TSN:
-			sctp_packet_transmit_chunk(packet, chunk);
+			status = sctp_packet_transmit_chunk(packet, chunk,
+							    one_packet);
+			if (status  != SCTP_XMIT_OK) {
+				/* put the chunk back */
+				list_add(&chunk->list, &q->control_chunk_list);
+			}
 			break;
 
 		default:
@@ -974,7 +989,7 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 					atomic_read(&chunk->skb->users) : -1);
 
 			/* Add the chunk to the packet.  */
-			status = sctp_packet_transmit_chunk(packet, chunk);
+			status = sctp_packet_transmit_chunk(packet, chunk, 0);
 
 			switch (status) {
 			case SCTP_XMIT_PMTU_FULL:
@@ -1239,7 +1254,6 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 * Make sure the empty queue handler will get run later.
 	 */
 	q->empty = (list_empty(&q->out_chunk_list) &&
-		    list_empty(&q->control_chunk_list) &&
 		    list_empty(&q->retransmit));
 	if (!q->empty)
 		goto finish;
