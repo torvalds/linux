@@ -1145,27 +1145,31 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 * on the current primary, the CHANGEOVER_ACTIVE flag SHOULD be
 	 * cleared. The CYCLING_CHANGEOVER flag SHOULD also be cleared for
 	 * all destinations.
-	 */
-	if (TSN_lte(primary->cacc.next_tsn_at_change, sack_ctsn)) {
-		primary->cacc.changeover_active = 0;
-		list_for_each_entry(transport, transport_list,
-				transports) {
-			transport->cacc.cycling_changeover = 0;
-		}
-	}
-
-	/*
-	 * SFR-CACC algorithm:
 	 * 2) If the SACK contains gap acks and the flag CHANGEOVER_ACTIVE
 	 * is set the receiver of the SACK MUST take the following actions:
 	 *
 	 * A) Initialize the cacc_saw_newack to 0 for all destination
 	 * addresses.
+	 *
+	 * Only bother if changeover_active is set. Otherwise, this is
+	 * totally suboptimal to do on every SACK.
 	 */
-	if (gap_ack_blocks &&
-	    primary->cacc.changeover_active) {
-		list_for_each_entry(transport, transport_list, transports) {
-			transport->cacc.cacc_saw_newack = 0;
+	if (primary->cacc.changeover_active) {
+		u8 clear_cycling = 0;
+
+		if (TSN_lte(primary->cacc.next_tsn_at_change, sack_ctsn)) {
+			primary->cacc.changeover_active = 0;
+			clear_cycling = 1;
+		}
+
+		if (clear_cycling || gap_ack_blocks) {
+			list_for_each_entry(transport, transport_list,
+					transports) {
+				if (clear_cycling)
+					transport->cacc.cycling_changeover = 0;
+				if (gap_ack_blocks)
+					transport->cacc.cacc_saw_newack = 0;
+			}
 		}
 	}
 
