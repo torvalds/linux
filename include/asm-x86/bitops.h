@@ -23,10 +23,21 @@
 #if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1)
 /* Technically wrong, but this avoids compilation errors on some gcc
    versions. */
-#define ADDR "=m" (*(volatile long *) addr)
+#define BITOP_ADDR(x) "=m" (*(volatile long *) (x))
 #else
-#define ADDR "+m" (*(volatile long *) addr)
+#define BITOP_ADDR(x) "+m" (*(volatile long *) (x))
 #endif
+
+#define ADDR BITOP_ADDR(addr)
+
+/*
+ * We do the locked ops that don't return the old value as
+ * a mask operation on a byte.
+ */
+#define IS_IMMEDIATE(nr) \
+	(__builtin_constant_p(nr))
+#define CONST_MASK_ADDR BITOP_ADDR(addr + (nr>>3))
+#define CONST_MASK (1 << (nr & 7))
 
 /**
  * set_bit - Atomically set a bit in memory
@@ -43,10 +54,14 @@
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void set_bit(int nr, volatile unsigned long *addr)
+static inline void set_bit(unsigned int nr, volatile unsigned long *addr)
 {
-	asm volatile(LOCK_PREFIX "bts %1,%0" : ADDR : "Ir" (nr) : "memory");
+	if (IS_IMMEDIATE(nr))
+		asm volatile(LOCK_PREFIX "orb %1,%0" : CONST_MASK_ADDR : "i" (CONST_MASK) : "memory");
+	else
+		asm volatile(LOCK_PREFIX "bts %1,%0" : ADDR : "Ir" (nr) : "memory");
 }
+
 
 /**
  * __set_bit - Set a bit in memory
@@ -74,7 +89,10 @@ static inline void __set_bit(int nr, volatile unsigned long *addr)
  */
 static inline void clear_bit(int nr, volatile unsigned long *addr)
 {
-	asm volatile(LOCK_PREFIX "btr %1,%0" : ADDR : "Ir" (nr));
+	if (IS_IMMEDIATE(nr))
+		asm volatile(LOCK_PREFIX "andb %1,%0" : CONST_MASK_ADDR : "i" (~CONST_MASK));
+	else
+		asm volatile(LOCK_PREFIX "btr %1,%0" : ADDR : "Ir" (nr));
 }
 
 /*
