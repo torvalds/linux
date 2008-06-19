@@ -1662,7 +1662,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 	u32 height;
 	int i;
 	u32 texpitch, microtile;
-	u32 offset;
+	u32 offset, byte_offset;
 	RING_LOCALS;
 
 	if (radeon_check_and_fixup_offset(dev_priv, file_priv, &tex->offset)) {
@@ -1726,6 +1726,13 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 		}
 	} else
 		microtile = 0;
+
+	/* this might fail for zero-sized uploads - are those illegal? */
+	if (!radeon_check_offset(dev_priv, tex->offset + image->height *
+				blit_width - 1)) {
+		DRM_ERROR("Invalid final destination offset\n");
+		return -EINVAL;
+	}
 
 	DRM_DEBUG("tex=%dx%d blit=%d\n", tex_width, tex->height, blit_width);
 
@@ -1840,6 +1847,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 		}
 
 #undef RADEON_COPY_MT
+		byte_offset = (image->y & ~2047) * blit_width;
 		buf->file_priv = file_priv;
 		buf->used = size;
 		offset = dev_priv->gart_buffers_offset + buf->offset;
@@ -1854,9 +1862,9 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 			 RADEON_DP_SRC_SOURCE_MEMORY |
 			 RADEON_GMC_CLR_CMP_CNTL_DIS | RADEON_GMC_WR_MSK_DIS);
 		OUT_RING((spitch << 22) | (offset >> 10));
-		OUT_RING((texpitch << 22) | (tex->offset >> 10));
+		OUT_RING((texpitch << 22) | ((tex->offset >> 10) + (byte_offset >> 10)));
 		OUT_RING(0);
-		OUT_RING((image->x << 16) | image->y);
+		OUT_RING((image->x << 16) | (image->y % 2048));
 		OUT_RING((image->width << 16) | height);
 		RADEON_WAIT_UNTIL_2D_IDLE();
 		ADVANCE_RING();
