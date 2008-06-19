@@ -285,7 +285,7 @@ int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags)
 			goto out_region;
 		dev->irq = ssp->irq;
 	} else
-		dev->irq = 0;
+		dev->irq = NO_IRQ;
 
 	/* turn on SSP port clock */
 	clk_enable(ssp->clk);
@@ -306,7 +306,8 @@ void ssp_exit(struct ssp_dev *dev)
 	struct ssp_device *ssp = dev->ssp;
 
 	ssp_disable(dev);
-	free_irq(dev->irq, dev);
+	if (dev->irq != NO_IRQ)
+		free_irq(dev->irq, dev);
 	clk_disable(ssp->clk);
 	ssp_free(ssp);
 }
