@@ -6609,8 +6609,12 @@ struct bnx2_rx_ring_info {
 struct bnx2_napi {
 	struct napi_struct	napi		____cacheline_aligned;
 	struct bnx2		*bp;
-	struct status_block	*status_blk;
-	struct status_block_msix	*status_blk_msix;
+	union {
+		struct status_block		*msi;
+		struct status_block_msix	*msix;
+	} status_blk;
+	u16			*hw_tx_cons_ptr;
+	u16			*hw_rx_cons_ptr;
 	u32 			last_status_idx;
 	u32			int_num;
 
@@ -6759,7 +6763,6 @@ struct bnx2 {
 
 	u32			stats_ticks;
 
-	struct status_block	*status_blk;
 	dma_addr_t		status_blk_mapping;
 
 	struct statistics_block	*stats_blk;
