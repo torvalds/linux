@@ -395,42 +395,6 @@ static int tsf_write_file(struct b43_wldev *dev,
 	return 0;
 }
 
-/* wl->irq_lock is locked */
-static ssize_t ucode_regs_read_file(struct b43_wldev *dev,
-				    char *buf, size_t bufsize)
-{
-	ssize_t count = 0;
-	int i;
-
-	for (i = 0; i < 64; i++) {
-		fappend("r%d = 0x%04x\n", i,
-			b43_shm_read16(dev, B43_SHM_SCRATCH, i));
-	}
-
-	return count;
-}
-
-/* wl->irq_lock is locked */
-static ssize_t shm_read_file(struct b43_wldev *dev,
-			     char *buf, size_t bufsize)
-{
-	ssize_t count = 0;
-	int i;
-	u16 tmp;
-	__le16 *le16buf = (__le16 *)buf;
-
-	for (i = 0; i < 0x1000; i++) {
-		if (bufsize < sizeof(tmp))
-			break;
-		tmp = b43_shm_read16(dev, B43_SHM_SHARED, 2 * i);
-		le16buf[i] = cpu_to_le16(tmp);
-		count += sizeof(tmp);
-		bufsize -= sizeof(tmp);
-	}
-
-	return count;
-}
-
 static ssize_t txstat_read_file(struct b43_wldev *dev,
 				char *buf, size_t bufsize)
 {
@@ -798,8 +762,6 @@ B43_DEBUGFS_FOPS(mmio16write, NULL, mmio16write__write_file, 1);
 B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file, 1);
 B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file, 1);
 B43_DEBUGFS_FOPS(tsf, tsf_read_file, tsf_write_file, 1);
-B43_DEBUGFS_FOPS(ucode_regs, ucode_regs_read_file, NULL, 1);
-B43_DEBUGFS_FOPS(shm, shm_read_file, NULL, 1);
 B43_DEBUGFS_FOPS(txstat, txstat_read_file, NULL, 0);
 B43_DEBUGFS_FOPS(txpower_g, txpower_g_read_file, txpower_g_write_file, 0);
 B43_DEBUGFS_FOPS(restart, NULL, restart_write_file, 1);
@@ -913,8 +875,6 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	ADD_FILE(mmio32read, 0600);
 	ADD_FILE(mmio32write, 0200);
 	ADD_FILE(tsf, 0600);
-	ADD_FILE(ucode_regs, 0400);
-	ADD_FILE(shm, 0400);
 	ADD_FILE(txstat, 0400);
 	ADD_FILE(txpower_g, 0600);
 	ADD_FILE(restart, 0200);
@@ -945,8 +905,6 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 	debugfs_remove(e->file_mmio32read.dentry);
 	debugfs_remove(e->file_mmio32write.dentry);
 	debugfs_remove(e->file_tsf.dentry);
-	debugfs_remove(e->file_ucode_regs.dentry);
-	debugfs_remove(e->file_shm.dentry);
 	debugfs_remove(e->file_txstat.dentry);
 	debugfs_remove(e->file_txpower_g.dentry);
 	debugfs_remove(e->file_restart.dentry);
