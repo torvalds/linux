@@ -5773,29 +5773,16 @@ bnx2_open(struct net_device *dev)
 	bnx2_setup_int_mode(bp, disable_msi);
 	bnx2_napi_enable(bp);
 	rc = bnx2_alloc_mem(bp);
-	if (rc) {
-		bnx2_napi_disable(bp);
-		bnx2_free_mem(bp);
-		return rc;
-	}
+	if (rc)
+		goto open_err;
 
 	rc = bnx2_request_irq(bp);
-
-	if (rc) {
-		bnx2_napi_disable(bp);
-		bnx2_free_mem(bp);
-		return rc;
-	}
+	if (rc)
+		goto open_err;
 
 	rc = bnx2_init_nic(bp, 1);
-
-	if (rc) {
-		bnx2_napi_disable(bp);
-		bnx2_free_irq(bp);
-		bnx2_free_skbs(bp);
-		bnx2_free_mem(bp);
-		return rc;
-	}
+	if (rc)
+		goto open_err;
 
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 
@@ -5825,11 +5812,8 @@ bnx2_open(struct net_device *dev)
 				rc = bnx2_request_irq(bp);
 
 			if (rc) {
-				bnx2_napi_disable(bp);
-				bnx2_free_skbs(bp);
-				bnx2_free_mem(bp);
 				del_timer_sync(&bp->timer);
-				return rc;
+				goto open_err;
 			}
 			bnx2_enable_int(bp);
 		}
@@ -5842,6 +5826,13 @@ bnx2_open(struct net_device *dev)
 	netif_start_queue(dev);
 
 	return 0;
+
+open_err:
+	bnx2_napi_disable(bp);
+	bnx2_free_skbs(bp);
+	bnx2_free_irq(bp);
+	bnx2_free_mem(bp);
+	return rc;
 }
 
 static void
