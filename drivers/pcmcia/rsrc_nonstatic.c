@@ -766,21 +766,6 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 }
 
 
-static int nonstatic_adjust_resource_info(struct pcmcia_socket *s, adjust_t *adj)
-{
-	unsigned long end;
-
-	switch (adj->Resource) {
-	case RES_MEMORY_RANGE:
-		end = adj->resource.memory.Base + adj->resource.memory.Size - 1;
-		return adjust_memory(s, adj->Action, adj->resource.memory.Base, end);
-	case RES_IO_RANGE:
-		end = adj->resource.io.BasePort + adj->resource.io.NumPorts - 1;
-		return adjust_io(s, adj->Action, adj->resource.io.BasePort, end);
-	}
-	return CS_UNSUPPORTED_FUNCTION;
-}
-
 #ifdef CONFIG_PCI
 static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 {
@@ -889,7 +874,8 @@ struct pccard_resource_ops pccard_nonstatic_ops = {
 	.adjust_io_region = nonstatic_adjust_io_region,
 	.find_io = nonstatic_find_io_region,
 	.find_mem = nonstatic_find_mem_region,
-	.adjust_resource = nonstatic_adjust_resource_info,
+	.add_io = adjust_io,
+	.add_mem = adjust_memory,
 	.init = nonstatic_init,
 	.exit = nonstatic_release_resource_db,
 };
