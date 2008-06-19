@@ -782,18 +782,21 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 
 	DBG(KERN_INFO "%s: tun_chr_fasync %d\n", tun->dev->name, on);
 
+	lock_kernel();
 	if ((ret = fasync_helper(fd, file, on, &tun->fasync)) < 0)
-		return ret;
+		goto out;
 
 	if (on) {
 		ret = __f_setown(file, task_pid(current), PIDTYPE_PID, 0);
 		if (ret)
-			return ret;
+			goto out;
 		tun->flags |= TUN_FASYNC;
 	} else
 		tun->flags &= ~TUN_FASYNC;
-
-	return 0;
+	ret = 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int tun_chr_open(struct inode *inode, struct file * file)
