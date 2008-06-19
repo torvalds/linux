@@ -4405,6 +4405,16 @@ do_wait_for_common(struct completion *x, long timeout, int state)
 			spin_unlock_irq(&x->wait.lock);
 			timeout = schedule_timeout(timeout);
 			spin_lock_irq(&x->wait.lock);
+
+			/*
+			 * If the completion has arrived meanwhile
+			 * then return 1 jiffy time left:
+			 */
+			if (x->done && !timeout) {
+				timeout = 1;
+				break;
+			}
+
 			if (!timeout) {
 				__remove_wait_queue(&x->wait, &wait);
 				return timeout;
