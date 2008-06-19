@@ -307,7 +307,7 @@ if X86_GENERICARCH
 
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
-	depends on SMP && X86_32
+	depends on SMP && X86_32 && X86_MPPARSE
 	select NUMA
 	help
 	  This option is used for getting Linux to run on a NUMAQ (IBM/Sequent)
