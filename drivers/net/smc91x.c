@@ -2154,19 +2154,13 @@ static int smc_drv_probe(struct platform_device *pdev)
 
 	lp = netdev_priv(ndev);
 
-#ifdef SMC_DYNAMIC_BUS_CONFIG
 	if (pd)
 		memcpy(&lp->cfg, pd, sizeof(lp->cfg));
 	else {
-		lp->cfg.flags = SMC91X_USE_8BIT;
-		lp->cfg.flags |= SMC91X_USE_16BIT;
-		lp->cfg.flags |= SMC91X_USE_32BIT;
+		lp->cfg.flags |= (SMC_CAN_USE_8BIT)  ? SMC91X_USE_8BIT  : 0;
+		lp->cfg.flags |= (SMC_CAN_USE_16BIT) ? SMC91X_USE_16BIT : 0;
+		lp->cfg.flags |= (SMC_CAN_USE_32BIT) ? SMC91X_USE_32BIT : 0;
 	}
-
-	lp->cfg.flags &= ~(SMC_CAN_USE_8BIT ? 0 : SMC91X_USE_8BIT);
-	lp->cfg.flags &= ~(SMC_CAN_USE_16BIT ? 0 : SMC91X_USE_16BIT);
-	lp->cfg.flags &= ~(SMC_CAN_USE_32BIT ? 0 : SMC91X_USE_32BIT);
-#endif
 
 	ndev->dma = (unsigned char)-1;
 

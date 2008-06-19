@@ -454,7 +454,6 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 #define RPC_LSA_DEFAULT		RPC_LED_100_10
 #define RPC_LSB_DEFAULT		RPC_LED_TX_RX
 
-#define SMC_DYNAMIC_BUS_CONFIG
 #endif
 
 
@@ -504,15 +503,9 @@ struct smc_local {
 	struct smc91x_platdata cfg;
 };
 
-#ifdef SMC_DYNAMIC_BUS_CONFIG
-#define SMC_8BIT(p) (((p)->cfg.flags & SMC91X_USE_8BIT) && SMC_CAN_USE_8BIT)
-#define SMC_16BIT(p) (((p)->cfg.flags & SMC91X_USE_16BIT) && SMC_CAN_USE_16BIT)
-#define SMC_32BIT(p) (((p)->cfg.flags & SMC91X_USE_32BIT) && SMC_CAN_USE_32BIT)
-#else
-#define SMC_8BIT(p) SMC_CAN_USE_8BIT
-#define SMC_16BIT(p) SMC_CAN_USE_16BIT
-#define SMC_32BIT(p) SMC_CAN_USE_32BIT
-#endif
+#define SMC_8BIT(p)	((p)->cfg.flags & SMC91X_USE_8BIT)
+#define SMC_16BIT(p)	((p)->cfg.flags & SMC91X_USE_16BIT)
+#define SMC_32BIT(p)	((p)->cfg.flags & SMC91X_USE_32BIT)
 
 #ifdef SMC_USE_PXA_DMA
 /*
