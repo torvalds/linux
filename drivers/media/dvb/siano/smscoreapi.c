@@ -33,6 +33,10 @@
 
 #include "smscoreapi.h"
 
+int sms_debug;
+module_param_named(debug, sms_debug, int, 0644);
+MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
+
 #define PERROR(fmt, args...)\
 	sms_err("smscore error: line %d- %s(): " fmt, \
 		__LINE__,  __func__, ## args)

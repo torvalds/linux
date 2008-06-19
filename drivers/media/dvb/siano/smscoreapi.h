@@ -414,12 +414,26 @@ void smsdvb_unregister(void);
 int smsusb_register(void);
 void smsusb_unregister(void);
 
+/* ------------------------------------------------------------------------ */
+
+extern int sms_debug;
+
+#define DBG_INFO 1
+#define DBG_ADV  2
+
+#define sms_printk(kern, fmt, arg...) \
+	printk(kern "%s: " fmt "\n", __func__, ##arg)
+
+#define dprintk(kern, lvl, fmt, arg...) do {\
+	if (sms_debug & lvl) \
+		sms_printk(kern, fmt, ##arg); } while (0)
+
 #define sms_err(fmt, arg...) \
-	printk(KERN_ERR "%s " fmt "\n", __func__, ##arg)
+	sms_printk(KERN_ERR, "%s " fmt "\n", __func__, ##arg)
 #define sms_info(fmt, arg...) \
-	printk(KERN_INFO "%s " fmt "\n", __func__, ##arg)
+	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)
 #define sms_debug(fmt, arg...) \
-	printk(KERN_DEBUG "%s " fmt "\n", __func__, ##arg)
+	dprintk(KERN_DEBUG, DBG_ADV, fmt, ##arg)
 
 
 #endif /* __smscoreapi_h__ */
