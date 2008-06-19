@@ -2909,15 +2909,16 @@ static int tty_fasync(int fd, struct file *filp, int on)
 {
 	struct tty_struct *tty;
 	unsigned long flags;
-	int retval;
+	int retval = 0;
 
+	lock_kernel();
 	tty = (struct tty_struct *)filp->private_data;
 	if (tty_paranoia_check(tty, filp->f_path.dentry->d_inode, "tty_fasync"))
-		return 0;
+		goto out;
 
 	retval = fasync_helper(fd, filp, on, &tty->fasync);
 	if (retval <= 0)
-		return retval;
+		goto out;
 
 	if (on) {
 		enum pid_type type;
@@ -2935,12 +2936,15 @@ static int tty_fasync(int fd, struct file *filp, int on)
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		retval = __f_setown(filp, pid, type, 0);
 		if (retval)
-			return retval;
+			goto out;
 	} else {
 		if (!tty->fasync && !waitqueue_active(&tty->read_wait))
 			tty->minimum_to_wake = N_TTY_BUF_SIZE;
 	}
-	return 0;
+	retval = 0;
+out:
+	unlock_kernel();
+	return retval;
 }
 
 /**
