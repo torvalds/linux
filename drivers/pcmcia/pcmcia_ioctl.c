@@ -735,7 +735,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	mutex_lock(&s->skt_mutex);
 	pcmcia_validate_mem(s);
 	mutex_unlock(&s->skt_mutex);
-	ret = pccard_validate_cis(s, BIND_FN_ALL, &buf->cisinfo);
+	ret = pccard_validate_cis(s, BIND_FN_ALL, &buf->cisinfo.Chains);
 	break;
     case DS_SUSPEND_CARD:
 	ret = pcmcia_suspend_card(s);

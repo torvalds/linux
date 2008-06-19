@@ -741,9 +741,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 
 static int pcmcia_card_add(struct pcmcia_socket *s)
 {
-	cisinfo_t cisinfo;
 	cistpl_longlink_mfc_t mfc;
-	unsigned int no_funcs, i;
+	unsigned int no_funcs, i, no_chains;
 	int ret = 0;
 
 	if (!(s->resource_setup_done)) {
@@ -757,8 +756,8 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 		return -EAGAIN; /* try again, but later... */
 	}
 
-	ret = pccard_validate_cis(s, BIND_FN_ALL, &cisinfo);
-	if (ret || !cisinfo.Chains) {
+	ret = pccard_validate_cis(s, BIND_FN_ALL, &no_chains);
+	if (ret || !no_chains) {
 		ds_dbg(0, "invalid CIS or invalid resources\n");
 		return -ENODEV;
 	}

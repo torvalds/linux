@@ -261,21 +261,22 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 ======================================================================*/
 
 /* Validation function for cards with a valid CIS */
-static int readable(struct pcmcia_socket *s, struct resource *res, cisinfo_t *info)
+static int readable(struct pcmcia_socket *s, struct resource *res,
+		    unsigned int *count)
 {
 	int ret = -1;
 
 	s->cis_mem.res = res;
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
-		ret = pccard_validate_cis(s, BIND_FN_ALL, info);
+		ret = pccard_validate_cis(s, BIND_FN_ALL, count);
 		/* invalidate mapping and CIS cache */
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
 		destroy_cis_cache(s);
 	}
 	s->cis_mem.res = NULL;
-	if ((ret != 0) || (info->Chains == 0))
+	if ((ret != 0) || (count == 0))
 		return 0;
 	return 1;
 }
@@ -316,7 +317,7 @@ static int
 cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 {
 	struct resource *res1, *res2;
-	cisinfo_t info1, info2;
+	unsigned int info1, info2;
 	int ret = 0;
 
 	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "cs memory probe");
@@ -330,7 +331,7 @@ cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 	free_region(res2);
 	free_region(res1);
 
-	return (ret == 2) && (info1.Chains == info2.Chains);
+	return (ret == 2) && (info1 == info2);
 }
 
 static int

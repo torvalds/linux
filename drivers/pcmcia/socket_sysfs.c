@@ -293,7 +293,7 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 		count = 0;
 	else {
 		struct pcmcia_socket *s;
-		cisinfo_t cisinfo;
+		unsigned int chains;
 
 		if (off + count > size)
 			count = size - off;
@@ -302,9 +302,9 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 
 		if (!(s->state & SOCKET_PRESENT))
 			return -ENODEV;
-		if (pccard_validate_cis(s, BIND_FN_ALL, &cisinfo))
+		if (pccard_validate_cis(s, BIND_FN_ALL, &chains))
 			return -EIO;
-		if (!cisinfo.Chains)
+		if (!chains)
 			return -ENODATA;
 
 		count = pccard_extract_cis(s, buf, off, count);

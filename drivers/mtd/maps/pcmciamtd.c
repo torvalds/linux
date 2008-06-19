@@ -498,17 +498,14 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	int i;
 	config_info_t t;
 	static char *probes[] = { "jedec_probe", "cfi_probe" };
-	cisinfo_t cisinfo;
 	int new_name = 0;
 
 	DEBUG(3, "link=0x%p", link);
 
 	DEBUG(2, "Validating CIS");
-	ret = pcmcia_validate_cis(link, &cisinfo);
+	ret = pcmcia_validate_cis(link, NULL);
 	if(ret != CS_SUCCESS) {
 		cs_error(link, GetTupleData, ret);
-	} else {
-		DEBUG(2, "ValidateCIS found %d chains", cisinfo.Chains);
 	}
 
 	card_settings(dev, link, &new_name);
