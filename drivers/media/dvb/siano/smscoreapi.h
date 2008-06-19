@@ -403,6 +403,9 @@ extern struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *cored
 extern void smscore_putbuffer(struct smscore_device_t *coredev,
 			      struct smscore_buffer_t *cb);
 
+void smscore_set_board_id(struct smscore_device_t *core, int id);
+int smscore_get_board_id(struct smscore_device_t *core);
+
 /* smsdvb.c */
 int smsdvb_register(void);
 void smsdvb_unregister(void);

@@ -25,20 +25,13 @@
 #include <linux/firmware.h>
 
 #include "smscoreapi.h"
+#include "sms-cards.h"
 
 #define USB1_BUFFER_SIZE		0x1000
 #define USB2_BUFFER_SIZE		0x4000
 
 #define MAX_BUFFERS		50
 #define MAX_URBS		10
-
-/* TO DO: move these to a header file */
-#define USB_VID_SIANO 0x187f
-
-#define USB_PID_STELLAR 0x0100
-#define USB_PID_NOVA_A 0x0200
-#define USB_PID_NOVA_B 0x0201
-#define USB_PID_VEGA 0x0300
 
 struct smsusb_device_t;
 
@@ -287,10 +280,11 @@ void smsusb_term_device(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 }
 
-int smsusb_init_device(struct usb_interface *intf)
+int smsusb_init_device(struct usb_interface *intf, int board_id)
 {
 	struct smsdevice_params_t params;
 	struct smsusb_device_t *dev;
+	struct sms_board *board;
 	int i, rc;
 
 	/* create device object */
@@ -305,9 +299,11 @@ int smsusb_init_device(struct usb_interface *intf)
 	usb_set_intfdata(intf, dev);
 	dev->udev = interface_to_usbdev(intf);
 
-	switch (dev->udev->descriptor.idProduct) {
+	board = sms_get_board(board_id);
 
-	case USB_PID_STELLAR:
+	switch (board->type) {
+
+	case SMS_STELLAR:
 		dev->buffer_size = USB1_BUFFER_SIZE;
 
 		params.setmode_handler = smsusb1_setmode;
@@ -316,19 +312,22 @@ int smsusb_init_device(struct usb_interface *intf)
 		printk(KERN_INFO "%s stellar device found\n", __func__);
 		break;
 	default:
-		switch (dev->udev->descriptor.idProduct) {
-		case USB_PID_NOVA_A:
+		switch (board->type) {
+		case SMS_NOVA_A0:
 			params.device_type = SMS_NOVA_A0;
 			printk(KERN_INFO "%s nova A0 found\n", __func__);
 			break;
-		default:
-		case USB_PID_NOVA_B:
+		case SMS_NOVA_B0:
 			params.device_type = SMS_NOVA_B0;
 			printk(KERN_INFO "%s nova B0 found\n", __func__);
 			break;
-		case USB_PID_VEGA:
+		case SMS_VEGA:
 			params.device_type = SMS_VEGA;
 			printk(KERN_INFO "%s Vega found\n", __func__);
+			break;
+		default:
+			printk(KERN_ERR "%s Unspecified sms device type!\n",
+			       __func__);
 		}
 
 		dev->buffer_size = USB2_BUFFER_SIZE;
@@ -356,6 +355,8 @@ int smsusb_init_device(struct usb_interface *intf)
 		smsusb_term_device(intf);
 		return rc;
 	}
+
+	smscore_set_board_id(dev->coredev, board_id);
 
 	/* initialize urbs */
 	for (i = 0; i < MAX_URBS; i++) {
@@ -426,7 +427,7 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 				udev, smscore_registry_getmode(devpath));
 	}
 
-	rc = smsusb_init_device(intf);
+	rc = smsusb_init_device(intf, id->driver_info);
 	printk(KERN_INFO "%s rc %d\n", __func__, rc);
 	return rc;
 }
@@ -435,15 +436,6 @@ void smsusb_disconnect(struct usb_interface *intf)
 {
 	smsusb_term_device(intf);
 }
-
-static struct usb_device_id smsusb_id_table [] = {
-	{ USB_DEVICE(USB_VID_SIANO, USB_PID_STELLAR) },
-	{ USB_DEVICE(USB_VID_SIANO, USB_PID_NOVA_A) },
-	{ USB_DEVICE(USB_VID_SIANO, USB_PID_NOVA_B) },
-	{ USB_DEVICE(USB_VID_SIANO, USB_PID_VEGA) },
-	{ }		/* Terminating entry */
-};
-MODULE_DEVICE_TABLE(usb, smsusb_id_table);
 
 static struct usb_driver smsusb_driver = {
 	.name			= "smsusb",

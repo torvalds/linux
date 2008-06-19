@@ -23,6 +23,7 @@
 #include <linux/init.h>
 
 #include "smscoreapi.h"
+#include "sms-cards.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -282,7 +283,7 @@ static void smsdvb_release(struct dvb_frontend *fe)
 
 static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
-		.name			= "Siano Mobile Digital SMS10xx",
+		.name			= "Siano Mobile Digital SMS1xxx",
 		.type			= FE_OFDM,
 		.frequency_min		= 44250000,
 		.frequency_max		= 867250000,
@@ -333,7 +334,9 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 	}
 
 	/* register dvb adapter */
-	rc = dvb_register_adapter(&client->adapter, "Siano Digital Receiver",
+	rc = dvb_register_adapter(&client->adapter,
+				  sms_get_board(
+					smscore_get_board_id(coredev))->name,
 				  THIS_MODULE, device, adapter_nr);
 	if (rc < 0) {
 		printk(KERN_ERR "%s dvb_register_adapter() failed %d\n",

@@ -101,7 +101,19 @@ struct smscore_device_t {
 
 	struct completion version_ex_done, data_download_done, trigger_done;
 	struct completion init_device_done, reload_start_done, resume_done;
+
+	int board_id;
 };
+
+void smscore_set_board_id(struct smscore_device_t *core, int id)
+{
+	core->board_id = id;
+}
+
+int smscore_get_board_id(struct smscore_device_t *core)
+{
+	return core->board_id;
+}
 
 struct smscore_registry_entry_t {
 	struct list_head entry;
