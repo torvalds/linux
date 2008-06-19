@@ -228,6 +228,28 @@ static inline struct rt_bandwidth *sched_rt_bandwidth(struct rt_rq *rt_rq)
 
 #endif
 
+#ifdef CONFIG_SMP
+static int do_balance_runtime(struct rt_rq *rt_rq);
+
+static int balance_runtime(struct rt_rq *rt_rq)
+{
+	int more = 0;
+
+	if (rt_rq->rt_time > rt_rq->rt_runtime) {
+		spin_unlock(&rt_rq->rt_runtime_lock);
+		more = do_balance_runtime(rt_rq);
+		spin_lock(&rt_rq->rt_runtime_lock);
+	}
+
+	return more;
+}
+#else
+static inline int balance_runtime(struct rt_rq *rt_rq)
+{
+	return 0;
+}
+#endif
+
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 {
 	int i, idle = 1;
@@ -247,6 +269,8 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 			u64 runtime;
 
 			spin_lock(&rt_rq->rt_runtime_lock);
+			if (rt_rq->rt_throttled)
+				balance_runtime(rt_rq);
 			runtime = rt_rq->rt_runtime;
 			rt_rq->rt_time -= min(rt_rq->rt_time, overrun*runtime);
 			if (rt_rq->rt_throttled && rt_rq->rt_time < runtime) {
@@ -267,7 +291,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 }
 
 #ifdef CONFIG_SMP
-static int balance_runtime(struct rt_rq *rt_rq)
+static int do_balance_runtime(struct rt_rq *rt_rq)
 {
 	struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
 	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
@@ -428,17 +452,10 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 	if (sched_rt_runtime(rt_rq) >= sched_rt_period(rt_rq))
 		return 0;
 
-#ifdef CONFIG_SMP
-	if (rt_rq->rt_time > runtime) {
-		spin_unlock(&rt_rq->rt_runtime_lock);
-		balance_runtime(rt_rq);
-		spin_lock(&rt_rq->rt_runtime_lock);
-
-		runtime = sched_rt_runtime(rt_rq);
-		if (runtime == RUNTIME_INF)
-			return 0;
-	}
-#endif
+	balance_runtime(rt_rq);
+	runtime = sched_rt_runtime(rt_rq);
+	if (runtime == RUNTIME_INF)
+		return 0;
 
 	if (rt_rq->rt_time > runtime) {
 		rt_rq->rt_throttled = 1;
