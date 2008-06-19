@@ -89,7 +89,7 @@ void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 /* called with rcu_read_lock */
 void br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 {
-	if (should_deliver(to, skb)) {
+	if (!skb_warn_if_lro(skb) && should_deliver(to, skb)) {
 		__br_forward(to, skb);
 		return;
 	}
