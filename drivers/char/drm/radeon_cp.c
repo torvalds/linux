@@ -127,6 +127,9 @@ static void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515) {
 		R500_WRITE_MCIND(R520_MC_AGP_BASE, agp_base_lo);
 		R500_WRITE_MCIND(R520_MC_AGP_BASE_2, agp_base_hi);
+	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480) {
+		RADEON_WRITE(RADEON_AGP_BASE, agp_base_lo);
+		RADEON_WRITE(RS480_AGP_BASE_2, 0);
 	} else {
 		RADEON_WRITE(RADEON_AGP_BASE, agp_base_lo);
 		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R200)
@@ -741,14 +744,7 @@ static void radeon_set_igpgart(drm_radeon_private_t * dev_priv, int on)
 		IGP_WRITE_MCIND(RS480_AGP_MODE_CNTL, ((1 << RS480_REQ_TYPE_SNOOP_SHIFT) |
 						      RS480_REQ_TYPE_SNOOP_DIS));
 
-		if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) {
-			IGP_WRITE_MCIND(RS690_MC_AGP_BASE,
-					(unsigned int)dev_priv->gart_vm_start);
-			IGP_WRITE_MCIND(RS690_MC_AGP_BASE_2, 0);
-		} else {
-			RADEON_WRITE(RADEON_AGP_BASE, (unsigned int)dev_priv->gart_vm_start);
-			RADEON_WRITE(RS480_AGP_BASE_2, 0);
-		}
+		radeon_write_agp_base(dev_priv, dev_priv->gart_vm_start);
 
 		dev_priv->gart_size = 32*1024*1024;
 		temp = (((dev_priv->gart_vm_start - 1 + dev_priv->gart_size) &
