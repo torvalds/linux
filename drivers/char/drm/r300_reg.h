@@ -702,6 +702,27 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #		define R300_RS_ROUTE_1_UNKNOWN11         (1 << 11)
 /* END: Rasterization / Interpolators - many guesses */
 
+/* Hierarchical Z Enable */
+#define R300_SC_HYPERZ                   0x43a4
+#	define R300_SC_HYPERZ_DISABLE     (0 << 0)
+#	define R300_SC_HYPERZ_ENABLE      (1 << 0)
+#	define R300_SC_HYPERZ_MIN         (0 << 1)
+#	define R300_SC_HYPERZ_MAX         (1 << 1)
+#	define R300_SC_HYPERZ_ADJ_256     (0 << 2)
+#	define R300_SC_HYPERZ_ADJ_128     (1 << 2)
+#	define R300_SC_HYPERZ_ADJ_64      (2 << 2)
+#	define R300_SC_HYPERZ_ADJ_32      (3 << 2)
+#	define R300_SC_HYPERZ_ADJ_16      (4 << 2)
+#	define R300_SC_HYPERZ_ADJ_8       (5 << 2)
+#	define R300_SC_HYPERZ_ADJ_4       (6 << 2)
+#	define R300_SC_HYPERZ_ADJ_2       (7 << 2)
+#	define R300_SC_HYPERZ_HZ_Z0MIN_NO (0 << 5)
+#	define R300_SC_HYPERZ_HZ_Z0MIN    (1 << 5)
+#	define R300_SC_HYPERZ_HZ_Z0MAX_NO (0 << 6)
+#	define R300_SC_HYPERZ_HZ_Z0MAX    (1 << 6)
+
+#define R300_SC_EDGERULE                 0x43a8
+
 /* BEGIN: Scissors and cliprects */
 
 /* There are four clipping rectangles. Their corner coordinates are inclusive.
@@ -1355,19 +1376,14 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
  * for this.
  * Bit (1<<8) is the "test" bit. so plain write is 6  - vd
  */
-#define R300_RB3D_ZSTENCIL_CNTL_0                   0x4F00
-#       define R300_RB3D_Z_DISABLED_1            0x00000010
-#       define R300_RB3D_Z_DISABLED_2            0x00000014
-#       define R300_RB3D_Z_TEST                  0x00000012
-#       define R300_RB3D_Z_TEST_AND_WRITE        0x00000016
-#       define R300_RB3D_Z_WRITE_ONLY		 0x00000006
+#define R300_ZB_CNTL                             0x4F00
+#	define R300_STENCIL_ENABLE		 (1 << 0)
+#	define R300_Z_ENABLE		         (1 << 1)
+#	define R300_Z_WRITE_ENABLE		 (1 << 2)
+#	define R300_Z_SIGNED_COMPARE		 (1 << 3)
+#	define R300_STENCIL_FRONT_BACK		 (1 << 4)
 
-#       define R300_RB3D_Z_TEST                  0x00000012
-#       define R300_RB3D_Z_TEST_AND_WRITE        0x00000016
-#       define R300_RB3D_Z_WRITE_ONLY		 0x00000006
-#	define R300_RB3D_STENCIL_ENABLE		 0x00000001
-
-#define R300_RB3D_ZSTENCIL_CNTL_1                   0x4F04
+#define R300_ZB_ZSTENCILCNTL                   0x4f04
 	/* functions */
 #	define R300_ZS_NEVER			0
 #	define R300_ZS_LESS			1
@@ -1387,52 +1403,166 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #	define R300_ZS_INVERT			5
 #	define R300_ZS_INCR_WRAP		6
 #	define R300_ZS_DECR_WRAP		7
+#	define R300_Z_FUNC_SHIFT		0
 	/* front and back refer to operations done for front
 	   and back faces, i.e. separate stencil function support */
-#	define R300_RB3D_ZS1_DEPTH_FUNC_SHIFT		0
-#	define R300_RB3D_ZS1_FRONT_FUNC_SHIFT		3
-#	define R300_RB3D_ZS1_FRONT_FAIL_OP_SHIFT	6
-#	define R300_RB3D_ZS1_FRONT_ZPASS_OP_SHIFT	9
-#	define R300_RB3D_ZS1_FRONT_ZFAIL_OP_SHIFT      12
-#	define R300_RB3D_ZS1_BACK_FUNC_SHIFT           15
-#	define R300_RB3D_ZS1_BACK_FAIL_OP_SHIFT        18
-#	define R300_RB3D_ZS1_BACK_ZPASS_OP_SHIFT       21
-#	define R300_RB3D_ZS1_BACK_ZFAIL_OP_SHIFT       24
+#	define R300_S_FRONT_FUNC_SHIFT	        3
+#	define R300_S_FRONT_SFAIL_OP_SHIFT	6
+#	define R300_S_FRONT_ZPASS_OP_SHIFT	9
+#	define R300_S_FRONT_ZFAIL_OP_SHIFT      12
+#	define R300_S_BACK_FUNC_SHIFT           15
+#	define R300_S_BACK_SFAIL_OP_SHIFT       18
+#	define R300_S_BACK_ZPASS_OP_SHIFT       21
+#	define R300_S_BACK_ZFAIL_OP_SHIFT       24
 
-#define R300_RB3D_ZSTENCIL_CNTL_2                   0x4F08
-#	define R300_RB3D_ZS2_STENCIL_REF_SHIFT		0
-#	define R300_RB3D_ZS2_STENCIL_MASK		0xFF
-#	define R300_RB3D_ZS2_STENCIL_MASK_SHIFT	        8
-#	define R300_RB3D_ZS2_STENCIL_WRITE_MASK_SHIFT	16
-
-/* gap */
-
-#define R300_RB3D_ZSTENCIL_FORMAT                   0x4F10
-#	define R300_DEPTH_FORMAT_16BIT_INT_Z     (0 << 0)
-#	define R300_DEPTH_FORMAT_24BIT_INT_Z     (2 << 0)
-	/* 16 bit format or some aditional bit ? */
-#	define R300_DEPTH_FORMAT_UNK32          (32 << 0)
-
-#define R300_RB3D_EARLY_Z                           0x4F14
-#	define R300_EARLY_Z_DISABLE              (0 << 0)
-#	define R300_EARLY_Z_ENABLE               (1 << 0)
+#define R300_ZB_STENCILREFMASK                        0x4f08
+#	define R300_STENCILREF_SHIFT       0
+#	define R300_STENCILREF_MASK        0x000000ff
+#	define R300_STENCILMASK_SHIFT      8
+#	define R300_STENCILMASK_MASK       0x0000ff00
+#	define R300_STENCILWRITEMASK_SHIFT 16
+#	define R300_STENCILWRITEMASK_MASK  0x00ff0000
 
 /* gap */
 
-#define R300_RB3D_ZCACHE_CTLSTAT            0x4F18 /* GUESS */
-#       define R300_RB3D_ZCACHE_UNKNOWN_01  0x1
-#       define R300_RB3D_ZCACHE_UNKNOWN_03  0x3
+#define R300_ZB_FORMAT                             0x4f10
+#	define R300_DEPTHFORMAT_16BIT_INT_Z   (0 << 0)
+#	define R300_DEPTHFORMAT_16BIT_13E3    (1 << 0)
+#	define R300_DEPTHFORMAT_24BIT_INT_Z_8BIT_STENCIL   (2 << 0)
+/* reserved up to (15 << 0) */
+#	define R300_INVERT_13E3_LEADING_ONES  (0 << 4)
+#	define R300_INVERT_13E3_LEADING_ZEROS (1 << 4)
+
+#define R300_ZB_ZTOP                             0x4F14
+#	define R300_ZTOP_DISABLE                 (0 << 0)
+#	define R300_ZTOP_ENABLE                  (1 << 0)
 
 /* gap */
 
-#define R300_RB3D_DEPTHOFFSET               0x4F20
-#define R300_RB3D_DEPTHPITCH                0x4F24
-#       define R300_DEPTHPITCH_MASK              0x00001FF8 /* GUESS */
-#       define R300_DEPTH_TILE_ENABLE            (1 << 16) /* GUESS */
-#       define R300_DEPTH_MICROTILE_ENABLE       (1 << 17) /* GUESS */
-#       define R300_DEPTH_ENDIAN_NO_SWAP         (0 << 18) /* GUESS */
-#       define R300_DEPTH_ENDIAN_WORD_SWAP       (1 << 18) /* GUESS */
-#       define R300_DEPTH_ENDIAN_DWORD_SWAP      (2 << 18) /* GUESS */
+#define R300_ZB_ZCACHE_CTLSTAT            0x4f18
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FLUSH_NO_EFFECT      (0 << 0)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FLUSH_FLUSH_AND_FREE (1 << 0)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_NO_EFFECT       (0 << 1)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_FREE            (1 << 1)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_BUSY_IDLE            (0 << 31)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_BUSY_BUSY            (1 << 31)
+
+#define R300_ZB_BW_CNTL                     0x4f1c
+#	define R300_HIZ_DISABLE                              (0 << 0)
+#	define R300_HIZ_ENABLE                               (1 << 0)
+#	define R300_HIZ_MIN                                  (0 << 1)
+#	define R300_HIZ_MAX                                  (1 << 1)
+#	define R300_FAST_FILL_DISABLE                        (0 << 2)
+#	define R300_FAST_FILL_ENABLE                         (1 << 2)
+#	define R300_RD_COMP_DISABLE                          (0 << 3)
+#	define R300_RD_COMP_ENABLE                           (1 << 3)
+#	define R300_WR_COMP_DISABLE                          (0 << 4)
+#	define R300_WR_COMP_ENABLE                           (1 << 4)
+#	define R300_ZB_CB_CLEAR_RMW                          (0 << 5)
+#	define R300_ZB_CB_CLEAR_CACHE_LINEAR                 (1 << 5)
+#	define R300_FORCE_COMPRESSED_STENCIL_VALUE_DISABLE   (0 << 6)
+#	define R300_FORCE_COMPRESSED_STENCIL_VALUE_ENABLE    (1 << 6)
+
+#	define R500_ZEQUAL_OPTIMIZE_ENABLE                   (0 << 7)
+#	define R500_ZEQUAL_OPTIMIZE_DISABLE                  (1 << 7)
+#	define R500_SEQUAL_OPTIMIZE_ENABLE                   (0 << 8)
+#	define R500_SEQUAL_OPTIMIZE_DISABLE                  (1 << 8)
+
+#	define R500_BMASK_ENABLE                             (0 << 10)
+#	define R500_BMASK_DISABLE                            (1 << 10)
+#	define R500_HIZ_EQUAL_REJECT_DISABLE                 (0 << 11)
+#	define R500_HIZ_EQUAL_REJECT_ENABLE                  (1 << 11)
+#	define R500_HIZ_FP_EXP_BITS_DISABLE                  (0 << 12)
+#	define R500_HIZ_FP_EXP_BITS_1                        (1 << 12)
+#	define R500_HIZ_FP_EXP_BITS_2                        (2 << 12)
+#	define R500_HIZ_FP_EXP_BITS_3                        (3 << 12)
+#	define R500_HIZ_FP_EXP_BITS_4                        (4 << 12)
+#	define R500_HIZ_FP_EXP_BITS_5                        (5 << 12)
+#	define R500_HIZ_FP_INVERT_LEADING_ONES               (0 << 15)
+#	define R500_HIZ_FP_INVERT_LEADING_ZEROS              (1 << 15)
+#	define R500_TILE_OVERWRITE_RECOMPRESSION_ENABLE      (0 << 16)
+#	define R500_TILE_OVERWRITE_RECOMPRESSION_DISABLE     (1 << 16)
+#	define R500_CONTIGUOUS_6XAA_SAMPLES_ENABLE           (0 << 17)
+#	define R500_CONTIGUOUS_6XAA_SAMPLES_DISABLE          (1 << 17)
+#	define R500_PEQ_PACKING_DISABLE                      (0 << 18)
+#	define R500_PEQ_PACKING_ENABLE                       (1 << 18)
+#	define R500_COVERED_PTR_MASKING_DISABLE              (0 << 18)
+#	define R500_COVERED_PTR_MASKING_ENABLE               (1 << 18)
+
+
+/* gap */
+
+/* Z Buffer Address Offset.
+ * Bits 31 to 5 are used for aligned Z buffer address offset for macro tiles.
+ */
+#define R300_ZB_DEPTHOFFSET               0x4f20
+
+/* Z Buffer Pitch and Endian Control */
+#define R300_ZB_DEPTHPITCH                0x4f24
+#       define R300_DEPTHPITCH_MASK              0x00003FFC
+#       define R300_DEPTHMACROTILE_DISABLE      (0 << 16)
+#       define R300_DEPTHMACROTILE_ENABLE       (1 << 16)
+#       define R300_DEPTHMICROTILE_LINEAR       (0 << 17)
+#       define R300_DEPTHMICROTILE_TILED        (1 << 17)
+#       define R300_DEPTHMICROTILE_TILED_SQUARE (2 << 17)
+#       define R300_DEPTHENDIAN_NO_SWAP         (0 << 18)
+#       define R300_DEPTHENDIAN_WORD_SWAP       (1 << 18)
+#       define R300_DEPTHENDIAN_DWORD_SWAP      (2 << 18)
+#       define R300_DEPTHENDIAN_HALF_DWORD_SWAP (3 << 18)
+
+/* Z Buffer Clear Value */
+#define R300_ZB_DEPTHCLEARVALUE                  0x4f28
+
+#define R300_ZB_ZMASK_OFFSET			 0x4f30
+#define R300_ZB_ZMASK_PITCH			 0x4f34
+#define R300_ZB_ZMASK_WRINDEX			 0x4f38
+#define R300_ZB_ZMASK_DWORD			 0x4f3c
+#define R300_ZB_ZMASK_RDINDEX			 0x4f40
+
+/* Hierarchical Z Memory Offset */
+#define R300_ZB_HIZ_OFFSET                       0x4f44
+
+/* Hierarchical Z Write Index */
+#define R300_ZB_HIZ_WRINDEX                      0x4f48
+
+/* Hierarchical Z Data */
+#define R300_ZB_HIZ_DWORD                        0x4f4c
+
+/* Hierarchical Z Read Index */
+#define R300_ZB_HIZ_RDINDEX                      0x4f50
+
+/* Hierarchical Z Pitch */
+#define R300_ZB_HIZ_PITCH                        0x4f54
+
+/* Z Buffer Z Pass Counter Data */
+#define R300_ZB_ZPASS_DATA                       0x4f58
+
+/* Z Buffer Z Pass Counter Address */
+#define R300_ZB_ZPASS_ADDR                       0x4f5c
+
+/* Depth buffer X and Y coordinate offset */
+#define R300_ZB_DEPTHXY_OFFSET                   0x4f60
+#	define R300_DEPTHX_OFFSET_SHIFT  1
+#	define R300_DEPTHX_OFFSET_MASK   0x000007FE
+#	define R300_DEPTHY_OFFSET_SHIFT  17
+#	define R300_DEPTHY_OFFSET_MASK   0x07FE0000
+
+/* Sets the fifo sizes */
+#define R500_ZB_FIFO_SIZE                        0x4fd0
+#	define R500_OP_FIFO_SIZE_FULL   (0 << 0)
+#	define R500_OP_FIFO_SIZE_HALF   (1 << 0)
+#	define R500_OP_FIFO_SIZE_QUATER (2 << 0)
+#	define R500_OP_FIFO_SIZE_EIGTHS (4 << 0)
+
+/* Stencil Reference Value and Mask for backfacing quads */
+/* R300_ZB_STENCILREFMASK handles front face */
+#define R500_ZB_STENCILREFMASK_BF                0x4fd4
+#	define R500_STENCILREF_SHIFT       0
+#	define R500_STENCILREF_MASK        0x000000ff
+#	define R500_STENCILMASK_SHIFT      8
+#	define R500_STENCILMASK_MASK       0x0000ff00
+#	define R500_STENCILWRITEMASK_SHIFT 16
+#	define R500_STENCILWRITEMASK_MASK  0x00ff0000
 
 /* BEGIN: Vertex program instruction set */
 
