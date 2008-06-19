@@ -1129,12 +1129,13 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	unsigned outstanding;
 	struct sctp_transport *primary = asoc->peer.primary_path;
 	int count_of_newacks = 0;
+	int gap_ack_blocks;
 
 	/* Grab the association's destination address list. */
 	transport_list = &asoc->peer.transport_addr_list;
 
 	sack_ctsn = ntohl(sack->cum_tsn_ack);
-
+	gap_ack_blocks = ntohs(sack->num_gap_ack_blocks);
 	/*
 	 * SFR-CACC algorithm:
 	 * On receipt of a SACK the sender SHOULD execute the
@@ -1161,7 +1162,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 * A) Initialize the cacc_saw_newack to 0 for all destination
 	 * addresses.
 	 */
-	if (sack->num_gap_ack_blocks &&
+	if (gap_ack_blocks &&
 	    primary->cacc.changeover_active) {
 		list_for_each_entry(transport, transport_list, transports) {
 			transport->cacc.cacc_saw_newack = 0;
@@ -1170,9 +1171,8 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 
 	/* Get the highest TSN in the sack. */
 	highest_tsn = sack_ctsn;
-	if (sack->num_gap_ack_blocks)
-		highest_tsn +=
-		    ntohs(frags[ntohs(sack->num_gap_ack_blocks) - 1].gab.end);
+	if (gap_ack_blocks)
+		highest_tsn += ntohs(frags[gap_ack_blocks - 1].gab.end);
 
 	if (TSN_lt(asoc->highest_sacked, highest_tsn)) {
 		highest_new_tsn = highest_tsn;
@@ -1181,11 +1181,11 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 		highest_new_tsn = sctp_highest_new_tsn(sack, asoc);
 	}
 
+
 	/* Run through the retransmit queue.  Credit bytes received
 	 * and free those chunks that we can.
 	 */
 	sctp_check_transmitted(q, &q->retransmit, NULL, sack, highest_new_tsn);
-	sctp_mark_missing(q, &q->retransmit, NULL, highest_new_tsn, 0);
 
 	/* Run through the transmitted queue.
 	 * Credit bytes received and free those chunks which we can.
@@ -1204,9 +1204,12 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 			count_of_newacks ++;
 	}
 
-	list_for_each_entry(transport, transport_list, transports) {
-		sctp_mark_missing(q, &transport->transmitted, transport,
-				  highest_new_tsn, count_of_newacks);
+	if (gap_ack_blocks) {
+		sctp_mark_missing(q, &q->retransmit, NULL, highest_new_tsn, 0);
+
+		list_for_each_entry(transport, transport_list, transports)
+			sctp_mark_missing(q, &transport->transmitted, transport,
+					  highest_new_tsn, count_of_newacks);
 	}
 
 	/* Move the Cumulative TSN Ack Point if appropriate.  */
