@@ -1084,15 +1084,17 @@ static int cfg_fasync(int fd, struct file *fp, int on)
 {
 	ulong id = (ulong) fp->private_data;
 	struct i2o_cfg_info *p;
+	int ret = -EBADF;
 
+	lock_kernel();
 	for (p = open_files; p; p = p->next)
 		if (p->q_id == id)
 			break;
 
-	if (!p)
-		return -EBADF;
-
-	return fasync_helper(fd, fp, on, &p->fasync);
+	if (p)
+		ret = fasync_helper(fd, fp, on, &p->fasync);
+	unlock_kernel();
+	return ret;
 }
 
 static int cfg_release(struct inode *inode, struct file *file)
