@@ -6479,6 +6479,7 @@ struct l2_fhdr {
 #define TX_CID		16
 #define TX_TSS_CID	32
 #define RX_CID		0
+#define RX_RSS_CID	4
 
 #define MB_TX_CID_ADDR	MB_GET_CID_ADDR(TX_CID)
 #define MB_RX_CID_ADDR	MB_GET_CID_ADDR(RX_CID)
@@ -6584,6 +6585,27 @@ struct bnx2_tx_ring_info {
 	dma_addr_t		tx_desc_mapping;
 };
 
+struct bnx2_rx_ring_info {
+	u32			rx_prod_bseq;
+	u16			rx_prod;
+	u16			rx_cons;
+
+	u32			rx_bidx_addr;
+	u32			rx_bseq_addr;
+	u32			rx_pg_bidx_addr;
+
+	u16			rx_pg_prod;
+	u16			rx_pg_cons;
+
+	struct sw_bd		*rx_buf_ring;
+	struct rx_bd		*rx_desc_ring[MAX_RX_RINGS];
+	struct sw_pg		*rx_pg_ring;
+	struct rx_bd		*rx_pg_desc_ring[MAX_RX_PG_RINGS];
+
+	dma_addr_t		rx_desc_mapping[MAX_RX_RINGS];
+	dma_addr_t		rx_pg_desc_mapping[MAX_RX_PG_RINGS];
+};
+
 struct bnx2_napi {
 	struct napi_struct	napi		____cacheline_aligned;
 	struct bnx2		*bp;
@@ -6592,13 +6614,7 @@ struct bnx2_napi {
 	u32 			last_status_idx;
 	u32			int_num;
 
-	u32			rx_prod_bseq;
-	u16			rx_prod;
-	u16			rx_cons;
-
-	u16			rx_pg_prod;
-	u16			rx_pg_cons;
-
+	struct bnx2_rx_ring_info	rx_ring;
 	struct bnx2_tx_ring_info	tx_ring;
 };
 
@@ -6641,11 +6657,6 @@ struct bnx2 {
 	u32			rx_max_pg_ring_idx;
 
 	u32			rx_csum;
-
-	struct sw_bd		*rx_buf_ring;
-	struct rx_bd		*rx_desc_ring[MAX_RX_RINGS];
-	struct sw_pg		*rx_pg_ring;
-	struct rx_bd		*rx_pg_desc_ring[MAX_RX_PG_RINGS];
 
 	/* TX constants */
 	int		tx_ring_size;
@@ -6727,11 +6738,9 @@ struct bnx2 {
 
 	int			rx_max_ring;
 	int			rx_ring_size;
-	dma_addr_t		rx_desc_mapping[MAX_RX_RINGS];
 
 	int			rx_max_pg_ring;
 	int			rx_pg_ring_size;
-	dma_addr_t		rx_pg_desc_mapping[MAX_RX_PG_RINGS];
 
 	u16			tx_quick_cons_trip;
 	u16			tx_quick_cons_trip_int;
@@ -6814,6 +6823,7 @@ struct bnx2 {
 	int			irq_nvecs;
 
 	u8			num_tx_rings;
+	u8			num_rx_rings;
 };
 
 #define REG_RD(bp, offset)					\
