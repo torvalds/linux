@@ -34,6 +34,12 @@
 #define PCI_DEVICE_ID_INTEL_Q33_IG          0x29D2
 #define PCI_DEVICE_ID_INTEL_IGD_HB          0x2A40
 #define PCI_DEVICE_ID_INTEL_IGD_IG          0x2A42
+#define PCI_DEVICE_ID_INTEL_IGD_E_HB        0x2E00
+#define PCI_DEVICE_ID_INTEL_IGD_E_IG        0x2E02
+#define PCI_DEVICE_ID_INTEL_Q45_HB          0x2E10
+#define PCI_DEVICE_ID_INTEL_Q45_IG          0x2E12
+#define PCI_DEVICE_ID_INTEL_G45_HB          0x2E20
+#define PCI_DEVICE_ID_INTEL_G45_IG          0x2E22
 
 /* cover 915 and 945 variants */
 #define IS_I915 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB || \
@@ -54,6 +60,10 @@
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q33_HB)
+
+#define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_E_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB)
 
 extern int agp_memory_reserved;
 
@@ -80,8 +90,13 @@ extern int agp_memory_reserved;
 #define I915_PTEADDR	0x1C
 #define I915_GMCH_GMS_STOLEN_48M	(0x6 << 4)
 #define I915_GMCH_GMS_STOLEN_64M	(0x7 << 4)
-#define G33_GMCH_GMS_STOLEN_128M       (0x8 << 4)
-#define G33_GMCH_GMS_STOLEN_256M       (0x9 << 4)
+#define G33_GMCH_GMS_STOLEN_128M	(0x8 << 4)
+#define G33_GMCH_GMS_STOLEN_256M	(0x9 << 4)
+#define INTEL_GMCH_GMS_STOLEN_96M	(0xa << 4)
+#define INTEL_GMCH_GMS_STOLEN_160M	(0xb << 4)
+#define INTEL_GMCH_GMS_STOLEN_224M	(0xc << 4)
+#define INTEL_GMCH_GMS_STOLEN_352M	(0xd << 4)
+
 #define I915_IFPADDR    0x60
 
 /* Intel 965G registers */
@@ -506,6 +521,10 @@ static void intel_i830_init_gtt_entries(void)
 			size = 512;
 		}
 		size += 4;
+	} else if (IS_G4X) {
+		/* On 4 series hardware, GTT stolen is separate from graphics
+		 * stolen, ignore it in stolen gtt entries counting */
+		size = 0;
 	} else {
 		/* On previous hardware, the GTT size was just what was
 		 * required to map the aperture.
@@ -554,27 +573,51 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		case I915_GMCH_GMS_STOLEN_48M:
 			/* Check it's really I915G */
-			if (IS_I915 || IS_I965 || IS_G33)
+			if (IS_I915 || IS_I965 || IS_G33 || IS_G4X)
 				gtt_entries = MB(48) - KB(size);
 			else
 				gtt_entries = 0;
 			break;
 		case I915_GMCH_GMS_STOLEN_64M:
 			/* Check it's really I915G */
-			if (IS_I915 || IS_I965 || IS_G33)
+			if (IS_I915 || IS_I965 || IS_G33 || IS_G4X)
 				gtt_entries = MB(64) - KB(size);
 			else
 				gtt_entries = 0;
 			break;
 		case G33_GMCH_GMS_STOLEN_128M:
-			if (IS_G33 || IS_I965)
+			if (IS_G33 || IS_I965 || IS_G4X)
 				gtt_entries = MB(128) - KB(size);
 			else
 				gtt_entries = 0;
 			break;
 		case G33_GMCH_GMS_STOLEN_256M:
-			if (IS_G33 || IS_I965)
+			if (IS_G33 || IS_I965 || IS_G4X)
 				gtt_entries = MB(256) - KB(size);
+			else
+				gtt_entries = 0;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_96M:
+			if (IS_I965 || IS_G4X)
+				gtt_entries = MB(96) - KB(size);
+			else
+				gtt_entries = 0;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_160M:
+			if (IS_I965 || IS_G4X)
+				gtt_entries = MB(160) - KB(size);
+			else
+				gtt_entries = 0;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_224M:
+			if (IS_I965 || IS_G4X)
+				gtt_entries = MB(224) - KB(size);
+			else
+				gtt_entries = 0;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_352M:
+			if (IS_I965 || IS_G4X)
+				gtt_entries = MB(352) - KB(size);
 			else
 				gtt_entries = 0;
 			break;
@@ -1136,6 +1179,20 @@ static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
 	return addr | bridge->driver->masks[type].mask;
 }
 
+static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
+{
+	switch (agp_bridge->dev->device) {
+	case PCI_DEVICE_ID_INTEL_IGD_HB:
+	case PCI_DEVICE_ID_INTEL_IGD_E_HB:
+	case PCI_DEVICE_ID_INTEL_Q45_HB:
+	case PCI_DEVICE_ID_INTEL_G45_HB:
+		*gtt_offset = *gtt_size = MB(2);
+		break;
+	default:
+		*gtt_offset = *gtt_size = KB(512);
+	}
+}
+
 /* The intel i965 automatically initializes the agp aperture during POST.
  * Use the memory already set aside for in the GTT.
  */
@@ -1156,10 +1213,7 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 
        temp &= 0xfff00000;
 
-       if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_HB)
-	       gtt_offset = gtt_size = MB(2);
-       else
-	       gtt_offset = gtt_size = KB(512);
+	intel_i965_get_gtt_range(&gtt_offset, &gtt_size);
 
        intel_private.gtt = ioremap((temp + gtt_offset) , gtt_size);
 
@@ -2065,6 +2119,12 @@ static const struct intel_driver_description {
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_IGD_HB, PCI_DEVICE_ID_INTEL_IGD_IG, 0,
 	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_IGD_E_HB, PCI_DEVICE_ID_INTEL_IGD_E_IG, 0,
+	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_Q45_HB, PCI_DEVICE_ID_INTEL_Q45_IG, 0,
+	    "Q45/Q43", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_G45_HB, PCI_DEVICE_ID_INTEL_G45_IG, 0,
+	    "G45/G43", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2256,6 +2316,9 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_Q35_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q33_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGD_HB),
+	ID(PCI_DEVICE_ID_INTEL_IGD_E_HB),
+	ID(PCI_DEVICE_ID_INTEL_Q45_HB),
+	ID(PCI_DEVICE_ID_INTEL_G45_HB),
 	{ }
 };
 
