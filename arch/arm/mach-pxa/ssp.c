@@ -361,6 +361,7 @@ static int __devinit ssp_probe(struct platform_device *pdev, int type)
 		dev_err(&pdev->dev, "failed to allocate memory");
 		return -ENOMEM;
 	}
+	ssp->pdev = pdev;
 
 	ssp->clk = clk_get(&pdev->dev, "SSPCLK");
 	if (IS_ERR(ssp->clk)) {
