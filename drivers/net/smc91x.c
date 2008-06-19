@@ -308,7 +308,7 @@ static void smc_reset(struct net_device *dev)
 	 * can't handle it then there will be no recovery except for
 	 * a hard reset or power cycle
 	 */
-	if (nowait)
+	if (lp->cfg.flags & SMC91X_NOWAIT)
 		cfg |= CONFIG_NO_WAIT;
 
 	/*
@@ -2160,6 +2160,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 		lp->cfg.flags |= (SMC_CAN_USE_8BIT)  ? SMC91X_USE_8BIT  : 0;
 		lp->cfg.flags |= (SMC_CAN_USE_16BIT) ? SMC91X_USE_16BIT : 0;
 		lp->cfg.flags |= (SMC_CAN_USE_32BIT) ? SMC91X_USE_32BIT : 0;
+		lp->cfg.flags |= (nowait) ? SMC91X_NOWAIT : 0;
 	}
 
 	ndev->dma = (unsigned char)-1;
