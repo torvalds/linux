@@ -567,13 +567,13 @@ static void intel_i830_init_gtt_entries(void)
 				gtt_entries = 0;
 			break;
 		case G33_GMCH_GMS_STOLEN_128M:
-			if (IS_G33)
+			if (IS_G33 || IS_I965)
 				gtt_entries = MB(128) - KB(size);
 			else
 				gtt_entries = 0;
 			break;
 		case G33_GMCH_GMS_STOLEN_256M:
-			if (IS_G33)
+			if (IS_G33 || IS_I965)
 				gtt_entries = MB(256) - KB(size);
 			else
 				gtt_entries = 0;
