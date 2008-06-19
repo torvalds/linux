@@ -1292,6 +1292,7 @@ static int radeon_do_resume_cp(struct drm_device * dev)
 	radeon_cp_init_ring_buffer(dev, dev_priv);
 
 	radeon_do_engine_reset(dev);
+	radeon_enable_interrupt(dev);
 
 	DRM_DEBUG("radeon_do_resume_cp() complete\n");
 
