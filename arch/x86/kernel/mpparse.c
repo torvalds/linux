@@ -34,8 +34,6 @@
 #include <mach_mpparse.h>
 #endif
 
-int enable_update_mptable;
-
 /*
  * Checksum an MP configuration block.
  */
@@ -246,7 +244,7 @@ static void __init print_mp_irq_info(struct mp_config_intsrc *mp_irq)
 		mp_irq->mp_srcbusirq, mp_irq->mp_dstapic, mp_irq->mp_dstirq);
 }
 
-static void assign_to_mp_irq(struct mpc_config_intsrc *m,
+static void __init assign_to_mp_irq(struct mpc_config_intsrc *m,
 				    struct mp_config_intsrc *mp_irq)
 {
 	mp_irq->mp_dstapic = m->mpc_dstapic;
@@ -270,7 +268,7 @@ static void __init assign_to_mpc_intsrc(struct mp_config_intsrc *mp_irq,
 	m->mpc_dstirq = mp_irq->mp_dstirq;
 }
 
-static int mp_irq_mpc_intsrc_cmp(struct mp_config_intsrc *mp_irq,
+static int __init mp_irq_mpc_intsrc_cmp(struct mp_config_intsrc *mp_irq,
 					struct mpc_config_intsrc *m)
 {
 	if (mp_irq->mp_dstapic != m->mpc_dstapic)
@@ -291,17 +289,16 @@ static int mp_irq_mpc_intsrc_cmp(struct mp_config_intsrc *mp_irq,
 	return 0;
 }
 
-void MP_intsrc_info(struct mpc_config_intsrc *m)
+static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
 {
 	int i;
 
 	print_MP_intsrc_info(m);
 
-	if (enable_update_mptable)
-		for (i = 0; i < mp_irq_entries; i++) {
-			if (!mp_irq_mpc_intsrc_cmp(&mp_irqs[i], m))
-				return;
-		}
+	for (i = 0; i < mp_irq_entries; i++) {
+		if (!mp_irq_mpc_intsrc_cmp(&mp_irqs[i], m))
+			return;
+	}
 
 	assign_to_mp_irq(m, &mp_irqs[mp_irq_entries]);
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
@@ -1112,6 +1109,8 @@ out:
 
 	return 0;
 }
+
+static int __initdata enable_update_mptable;
 
 static int __init update_mptable_setup(char *str)
 {
