@@ -1249,13 +1249,13 @@ static int nfs_validate_mount_data(void *options,
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
 	case 6:
-		if (data->flags & NFS_MOUNT_VER3)
+		if (data->flags & NFS_MOUNT_VER3) {
+			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)
+				goto out_invalid_fh;
 			mntfh->size = data->root.size;
-		else
+		} else
 			mntfh->size = NFS2_FHSIZE;
 
-		if (mntfh->size > sizeof(mntfh->data))
-			goto out_invalid_fh;
 
 		memcpy(mntfh->data, data->root.data, mntfh->size);
 		if (mntfh->size < sizeof(mntfh->data))
