@@ -1198,45 +1198,45 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
  */
 static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 {
-       int page_order;
-       struct aper_size_info_fixed *size;
-       int num_entries;
-       u32 temp;
-       int gtt_offset, gtt_size;
+	int page_order;
+	struct aper_size_info_fixed *size;
+	int num_entries;
+	u32 temp;
+	int gtt_offset, gtt_size;
 
-       size = agp_bridge->current_size;
-       page_order = size->page_order;
-       num_entries = size->num_entries;
-       agp_bridge->gatt_table_real = NULL;
+	size = agp_bridge->current_size;
+	page_order = size->page_order;
+	num_entries = size->num_entries;
+	agp_bridge->gatt_table_real = NULL;
 
-       pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
+	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
 
-       temp &= 0xfff00000;
+	temp &= 0xfff00000;
 
 	intel_i965_get_gtt_range(&gtt_offset, &gtt_size);
 
-       intel_private.gtt = ioremap((temp + gtt_offset) , gtt_size);
+	intel_private.gtt = ioremap((temp + gtt_offset) , gtt_size);
 
-       if (!intel_private.gtt)
-	       return -ENOMEM;
+	if (!intel_private.gtt)
+		return -ENOMEM;
 
-       intel_private.registers = ioremap(temp, 128 * 4096);
-       if (!intel_private.registers) {
+	intel_private.registers = ioremap(temp, 128 * 4096);
+	if (!intel_private.registers) {
 		iounmap(intel_private.gtt);
 		return -ENOMEM;
 	}
 
-       temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
-       global_cache_flush();   /* FIXME: ? */
+	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
+	global_cache_flush();   /* FIXME: ? */
 
-       /* we have to call this as early as possible after the MMIO base address is known */
-       intel_i830_init_gtt_entries();
+	/* we have to call this as early as possible after the MMIO base address is known */
+	intel_i830_init_gtt_entries();
 
-       agp_bridge->gatt_table = NULL;
+	agp_bridge->gatt_table = NULL;
 
-       agp_bridge->gatt_bus_addr = temp;
+	agp_bridge->gatt_bus_addr = temp;
 
-       return 0;
+	return 0;
 }
 
 
@@ -1753,7 +1753,7 @@ static const struct agp_bridge_driver intel_815_driver = {
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_destroy_page	= agp_generic_destroy_page,
-	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
+	.agp_type_to_mask_type	= agp_generic_type_to_mask_type,
 };
 
 static const struct agp_bridge_driver intel_830_driver = {
@@ -1954,28 +1954,26 @@ static const struct agp_bridge_driver intel_915_driver = {
 };
 
 static const struct agp_bridge_driver intel_i965_driver = {
-       .owner                  = THIS_MODULE,
-       .aperture_sizes         = intel_i830_sizes,
-       .size_type              = FIXED_APER_SIZE,
-       .num_aperture_sizes     = 4,
-       .needs_scratch_page     = true,
-       .configure              = intel_i915_configure,
-       .fetch_size             = intel_i9xx_fetch_size,
-       .cleanup                = intel_i915_cleanup,
-       .tlb_flush              = intel_i810_tlbflush,
-       .mask_memory            = intel_i965_mask_memory,
-       .masks                  = intel_i810_masks,
-       .agp_enable             = intel_i810_agp_enable,
-       .cache_flush            = global_cache_flush,
-       .create_gatt_table      = intel_i965_create_gatt_table,
-       .free_gatt_table        = intel_i830_free_gatt_table,
-       .insert_memory          = intel_i915_insert_entries,
-       .remove_memory          = intel_i915_remove_entries,
-       .alloc_by_type          = intel_i830_alloc_by_type,
-       .free_by_type           = intel_i810_free_by_type,
-       .agp_alloc_page         = agp_generic_alloc_page,
-       .agp_destroy_page       = agp_generic_destroy_page,
-       .agp_type_to_mask_type  = intel_i830_type_to_mask_type,
+	.owner			= THIS_MODULE,
+	.aperture_sizes		= intel_i830_sizes,
+	.size_type		= FIXED_APER_SIZE,
+	.num_aperture_sizes	= 4,
+	.needs_scratch_page	= true,
+	.cleanup		= intel_i915_cleanup,
+	.tlb_flush		= intel_i810_tlbflush,
+	.mask_memory		= intel_i965_mask_memory,
+	.masks			= intel_i810_masks,
+	.agp_enable		= intel_i810_agp_enable,
+	.cache_flush		= global_cache_flush,
+	.create_gatt_table	= intel_i965_create_gatt_table,
+	.free_gatt_table	= intel_i830_free_gatt_table,
+	.insert_memory		= intel_i915_insert_entries,
+	.remove_memory		= intel_i915_remove_entries,
+	.alloc_by_type		= intel_i830_alloc_by_type,
+	.free_by_type		= intel_i810_free_by_type,
+	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
 
@@ -2004,28 +2002,28 @@ static const struct agp_bridge_driver intel_7505_driver = {
 };
 
 static const struct agp_bridge_driver intel_g33_driver = {
-	.owner                  = THIS_MODULE,
-	.aperture_sizes         = intel_i830_sizes,
-	.size_type              = FIXED_APER_SIZE,
-	.num_aperture_sizes     = 4,
-	.needs_scratch_page     = true,
-	.configure              = intel_i915_configure,
-	.fetch_size             = intel_i9xx_fetch_size,
-	.cleanup                = intel_i915_cleanup,
-	.tlb_flush              = intel_i810_tlbflush,
-	.mask_memory            = intel_i965_mask_memory,
-	.masks                  = intel_i810_masks,
-	.agp_enable             = intel_i810_agp_enable,
-	.cache_flush            = global_cache_flush,
-	.create_gatt_table      = intel_i915_create_gatt_table,
-	.free_gatt_table        = intel_i830_free_gatt_table,
-	.insert_memory          = intel_i915_insert_entries,
-	.remove_memory          = intel_i915_remove_entries,
-	.alloc_by_type          = intel_i830_alloc_by_type,
-	.free_by_type           = intel_i810_free_by_type,
-	.agp_alloc_page         = agp_generic_alloc_page,
-	.agp_destroy_page       = agp_generic_destroy_page,
-	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
+	.owner			= THIS_MODULE,
+	.aperture_sizes		= intel_i830_sizes,
+	.size_type		= FIXED_APER_SIZE,
+	.num_aperture_sizes	= 4,
+	.needs_scratch_page	= true,
+	.configure		= intel_i915_configure,
+	.fetch_size		= intel_i9xx_fetch_size,
+	.cleanup		= intel_i915_cleanup,
+	.tlb_flush		= intel_i810_tlbflush,
+	.mask_memory		= intel_i965_mask_memory,
+	.masks			= intel_i810_masks,
+	.agp_enable		= intel_i810_agp_enable,
+	.cache_flush		= global_cache_flush,
+	.create_gatt_table	= intel_i915_create_gatt_table,
+	.free_gatt_table	= intel_i830_free_gatt_table,
+	.insert_memory		= intel_i915_insert_entries,
+	.remove_memory		= intel_i915_remove_entries,
+	.alloc_by_type		= intel_i830_alloc_by_type,
+	.free_by_type		= intel_i810_free_by_type,
+	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
 
