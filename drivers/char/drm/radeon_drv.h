@@ -662,11 +662,12 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_PP_TXFILTER_1		0x1c6c
 #define RADEON_PP_TXFILTER_2		0x1c84
 
-#define RADEON_RB2D_DSTCACHE_CTLSTAT	0x342c
-#	define RADEON_RB2D_DC_FLUSH		(3 << 0)
-#	define RADEON_RB2D_DC_FREE		(3 << 2)
-#	define RADEON_RB2D_DC_FLUSH_ALL		0xf
-#	define RADEON_RB2D_DC_BUSY		(1 << 31)
+#define R300_RB2D_DSTCACHE_CTLSTAT	0x342c /* use R300_DSTCACHE_CTLSTAT */
+#define R300_DSTCACHE_CTLSTAT		0x1714
+#	define R300_RB2D_DC_FLUSH		(3 << 0)
+#	define R300_RB2D_DC_FREE		(3 << 2)
+#	define R300_RB2D_DC_FLUSH_ALL		0xf
+#	define R300_RB2D_DC_BUSY		(1 << 31)
 #define RADEON_RB3D_CNTL		0x1c3c
 #	define RADEON_ALPHA_BLEND_ENABLE	(1 << 0)
 #	define RADEON_PLANE_MASK_ENABLE		(1 << 1)
