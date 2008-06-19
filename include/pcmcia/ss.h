@@ -21,7 +21,6 @@
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #ifdef CONFIG_CARDBUS
 #include <linux/pci.h>
 #endif

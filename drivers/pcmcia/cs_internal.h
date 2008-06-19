@@ -26,18 +26,6 @@
 #define CLIENT_WIN_REQ(i)	(0x1<<(i))
 #define CLIENT_CARDBUS		0x8000
 
-#define REGION_MAGIC	0xE3C9
-typedef struct region_t {
-    u_short		region_magic;
-    u_short		state;
-    dev_info_t		dev_info;
-    struct pcmcia_device	*mtd;
-    u_int		MediaID;
-    region_info_t	info;
-} region_t;
-
-#define REGION_STALE	0x01
-
 /* Each card function gets one of these guys */
 typedef struct config_t {
 	struct kref	ref;
