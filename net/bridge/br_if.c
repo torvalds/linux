@@ -387,6 +387,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		goto err2;
 
 	rcu_assign_pointer(dev->br_port, p);
+	dev_disable_lro(dev);
 	dev_set_promiscuity(dev, 1);
 
 	list_add_rcu(&p->list, &br->port_list);
