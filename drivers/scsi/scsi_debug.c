@@ -643,6 +643,14 @@ static int inquiry_evpd_b0(unsigned char * arr)
 	return sizeof(vpdb0_data);
 }
 
+static int inquiry_evpd_b1(unsigned char *arr)
+{
+	memset(arr, 0, 0x3c);
+	arr[0] = 0;
+	arr[1] = 1;
+
+	return 0x3c;
+}
 
 #define SDEBUG_LONG_INQ_SZ 96
 #define SDEBUG_MAX_INQ_ARR_SZ 584
@@ -698,6 +706,7 @@ static int resp_inquiry(struct scsi_cmnd * scp, int target,
 			arr[n++] = 0x88;  /* SCSI ports */
 			arr[n++] = 0x89;  /* ATA information */
 			arr[n++] = 0xb0;  /* Block limits (SBC) */
+			arr[n++] = 0xb1;  /* Block characteristics (SBC) */
 			arr[3] = n - 4;	  /* number of supported VPD pages */
 		} else if (0x80 == cmd[2]) { /* unit serial number */
 			arr[1] = cmd[2];	/*sanity */
@@ -737,6 +746,9 @@ static int resp_inquiry(struct scsi_cmnd * scp, int target,
 		} else if (0xb0 == cmd[2]) { /* Block limits (SBC) */
 			arr[1] = cmd[2];        /*sanity */
 			arr[3] = inquiry_evpd_b0(&arr[4]);
+		} else if (0xb1 == cmd[2]) { /* Block characteristics (SBC) */
+			arr[1] = cmd[2];        /*sanity */
+			arr[3] = inquiry_evpd_b1(&arr[4]);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
