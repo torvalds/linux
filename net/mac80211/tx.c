@@ -1567,7 +1567,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * make it big enough for everything we may ever need.
 	 */
 
-	if (head_need > 0 || skb_header_cloned(skb)) {
+	if (head_need > 0 || skb_cloned(skb)) {
 		head_need += IEEE80211_ENCRYPT_HEADROOM;
 		head_need += local->tx_headroom;
 		head_need = max_t(int, 0, head_need);
