@@ -229,68 +229,6 @@ static inline struct rt_bandwidth *sched_rt_bandwidth(struct rt_rq *rt_rq)
 #endif
 
 #ifdef CONFIG_SMP
-static int do_balance_runtime(struct rt_rq *rt_rq);
-
-static int balance_runtime(struct rt_rq *rt_rq)
-{
-	int more = 0;
-
-	if (rt_rq->rt_time > rt_rq->rt_runtime) {
-		spin_unlock(&rt_rq->rt_runtime_lock);
-		more = do_balance_runtime(rt_rq);
-		spin_lock(&rt_rq->rt_runtime_lock);
-	}
-
-	return more;
-}
-#else
-static inline int balance_runtime(struct rt_rq *rt_rq)
-{
-	return 0;
-}
-#endif
-
-static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
-{
-	int i, idle = 1;
-	cpumask_t span;
-
-	if (rt_b->rt_runtime == RUNTIME_INF)
-		return 1;
-
-	span = sched_rt_period_mask();
-	for_each_cpu_mask(i, span) {
-		int enqueue = 0;
-		struct rt_rq *rt_rq = sched_rt_period_rt_rq(rt_b, i);
-		struct rq *rq = rq_of_rt_rq(rt_rq);
-
-		spin_lock(&rq->lock);
-		if (rt_rq->rt_time) {
-			u64 runtime;
-
-			spin_lock(&rt_rq->rt_runtime_lock);
-			if (rt_rq->rt_throttled)
-				balance_runtime(rt_rq);
-			runtime = rt_rq->rt_runtime;
-			rt_rq->rt_time -= min(rt_rq->rt_time, overrun*runtime);
-			if (rt_rq->rt_throttled && rt_rq->rt_time < runtime) {
-				rt_rq->rt_throttled = 0;
-				enqueue = 1;
-			}
-			if (rt_rq->rt_time || rt_rq->rt_nr_running)
-				idle = 0;
-			spin_unlock(&rt_rq->rt_runtime_lock);
-		}
-
-		if (enqueue)
-			sched_rt_rq_enqueue(rt_rq);
-		spin_unlock(&rq->lock);
-	}
-
-	return idle;
-}
-
-#ifdef CONFIG_SMP
 static int do_balance_runtime(struct rt_rq *rt_rq)
 {
 	struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
@@ -425,7 +363,64 @@ static void enable_runtime(struct rq *rq)
 	spin_unlock_irqrestore(&rq->lock, flags);
 }
 
+static int balance_runtime(struct rt_rq *rt_rq)
+{
+	int more = 0;
+
+	if (rt_rq->rt_time > rt_rq->rt_runtime) {
+		spin_unlock(&rt_rq->rt_runtime_lock);
+		more = do_balance_runtime(rt_rq);
+		spin_lock(&rt_rq->rt_runtime_lock);
+	}
+
+	return more;
+}
+#else
+static inline int balance_runtime(struct rt_rq *rt_rq)
+{
+	return 0;
+}
 #endif
+
+static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
+{
+	int i, idle = 1;
+	cpumask_t span;
+
+	if (rt_b->rt_runtime == RUNTIME_INF)
+		return 1;
+
+	span = sched_rt_period_mask();
+	for_each_cpu_mask(i, span) {
+		int enqueue = 0;
+		struct rt_rq *rt_rq = sched_rt_period_rt_rq(rt_b, i);
+		struct rq *rq = rq_of_rt_rq(rt_rq);
+
+		spin_lock(&rq->lock);
+		if (rt_rq->rt_time) {
+			u64 runtime;
+
+			spin_lock(&rt_rq->rt_runtime_lock);
+			if (rt_rq->rt_throttled)
+				balance_runtime(rt_rq);
+			runtime = rt_rq->rt_runtime;
+			rt_rq->rt_time -= min(rt_rq->rt_time, overrun*runtime);
+			if (rt_rq->rt_throttled && rt_rq->rt_time < runtime) {
+				rt_rq->rt_throttled = 0;
+				enqueue = 1;
+			}
+			if (rt_rq->rt_time || rt_rq->rt_nr_running)
+				idle = 0;
+			spin_unlock(&rt_rq->rt_runtime_lock);
+		}
+
+		if (enqueue)
+			sched_rt_rq_enqueue(rt_rq);
+		spin_unlock(&rq->lock);
+	}
+
+	return idle;
+}
 
 static inline int rt_se_prio(struct sched_rt_entity *rt_se)
 {
