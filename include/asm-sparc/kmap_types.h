@@ -1,6 +1,10 @@
 #ifndef _ASM_KMAP_TYPES_H
 #define _ASM_KMAP_TYPES_H
 
+/* Dummy header just to define km_type.  None of this
+ * is actually used on sparc.  -DaveM
+ */
+
 enum km_type {
 	KM_BOUNCE_READ,
 	KM_SKB_SUNRPC_DATA,
