@@ -104,35 +104,5 @@ char *__init machine_specific_memory_setup(void)
 		return who;
 	}
 
-	who = "BIOS-e820";
-
-	/*
-	 * Try to copy the BIOS-supplied E820-map.
-	 *
-	 * Otherwise fake a memory map; one section from 0k->640k,
-	 * the next section from 1mb->appropriate_mem_k
-	 */
-	new_nr = boot_params.e820_entries;
-	sanitize_e820_map(boot_params.e820_map,
-			ARRAY_SIZE(boot_params.e820_map),
-			&new_nr);
-	boot_params.e820_entries = new_nr;
-	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries)
-	    < 0) {
-		unsigned long mem_size;
-
-		/* compare results from other methods and take the greater */
-		if (boot_params.alt_mem_k < boot_params.screen_info.ext_mem_k) {
-			mem_size = boot_params.screen_info.ext_mem_k;
-			who = "BIOS-88";
-		} else {
-			mem_size = boot_params.alt_mem_k;
-			who = "BIOS-e801";
-		}
-
-		e820.nr_map = 0;
-		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
-		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
-	}
-	return who;
+	return default_machine_specific_memory_setup();
 }

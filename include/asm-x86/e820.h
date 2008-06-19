@@ -102,6 +102,7 @@ extern u64 e820_hole_size(u64 start, u64 end);
 extern void finish_e820_parsing(void);
 extern void e820_reserve_resources(void);
 extern void setup_memory_map(void);
+extern char *default_machine_specific_memory_setup(void);
 extern char *machine_specific_memory_setup(void);
 extern char *memory_setup(void);
 
@@ -116,9 +117,7 @@ extern char *memory_setup(void);
 #ifdef __KERNEL__
 #include <linux/ioport.h>
 
-#ifdef CONFIG_X86_32
 #define HIGH_MEMORY	(1024*1024)
-#endif
 #endif /* __KERNEL__ */
 
 #endif  /* __ASM_E820_H */

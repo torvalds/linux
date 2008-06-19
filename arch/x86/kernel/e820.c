@@ -1029,7 +1029,7 @@ void __init e820_reserve_resources(void)
 	}
 }
 
-char *__init __attribute__((weak)) machine_specific_memory_setup(void)
+char *__init default_machine_specific_memory_setup(void)
 {
 	char *who = "BIOS-e820";
 	int new_nr;
@@ -1045,10 +1045,7 @@ char *__init __attribute__((weak)) machine_specific_memory_setup(void)
 			&new_nr);
 	boot_params.e820_entries = new_nr;
 	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries) < 0) {
-#ifdef CONFIG_X86_64
-		early_panic("Cannot find a valid memory map");
-#else
-		unsigned long mem_size;
+		u64 mem_size;
 
 		/* compare results from other methods and take the greater */
 		if (boot_params.alt_mem_k
@@ -1063,11 +1060,15 @@ char *__init __attribute__((weak)) machine_specific_memory_setup(void)
 		e820.nr_map = 0;
 		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
 		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
-#endif
 	}
 
 	/* In case someone cares... */
 	return who;
+}
+
+char *__init __attribute__((weak)) machine_specific_memory_setup(void)
+{
+	return default_machine_specific_memory_setup();
 }
 
 /* Overridden in paravirt.c if CONFIG_PARAVIRT */

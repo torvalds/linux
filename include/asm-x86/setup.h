@@ -42,12 +42,13 @@ void vsmp_init(void);
  */
 extern struct boot_params boot_params;
 
-#ifdef __i386__
 /*
  * Do NOT EVER look at the BIOS memory size location.
  * It does not work on many machines.
  */
 #define LOWMEMSIZE()	(0x9f000)
+
+#ifdef __i386__
 
 void __init i386_start_kernel(void);
 
