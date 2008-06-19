@@ -8419,7 +8419,7 @@ static unsigned long to_ratio(u64 period, u64 runtime)
 #ifdef CONFIG_CGROUP_SCHED
 static int __rt_schedulable(struct task_group *tg, u64 period, u64 runtime)
 {
-	struct task_group *tgi, *parent = tg ? tg->parent : NULL;
+	struct task_group *tgi, *parent = tg->parent;
 	unsigned long total = 0;
 
 	if (!parent) {
@@ -8443,7 +8443,7 @@ static int __rt_schedulable(struct task_group *tg, u64 period, u64 runtime)
 	}
 	rcu_read_unlock();
 
-	return total + to_ratio(period, runtime) <
+	return total + to_ratio(period, runtime) <=
 		to_ratio(ktime_to_ns(parent->rt_bandwidth.rt_period),
 				parent->rt_bandwidth.rt_runtime);
 }
@@ -8560,10 +8560,15 @@ long sched_group_rt_period(struct task_group *tg)
 
 static int sched_rt_global_constraints(void)
 {
+	struct task_group *tg = &root_task_group;
+	u64 rt_runtime, rt_period;
 	int ret = 0;
 
+	rt_period = ktime_to_ns(tg->rt_bandwidth.rt_period);
+	rt_runtime = tg->rt_bandwidth.rt_runtime;
+
 	mutex_lock(&rt_constraints_mutex);
-	if (!__rt_schedulable(NULL, 1, 0))
+	if (!__rt_schedulable(tg, rt_period, rt_runtime))
 		ret = -EINVAL;
 	mutex_unlock(&rt_constraints_mutex);
 
