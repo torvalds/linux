@@ -504,7 +504,7 @@ config SH_MIGOR
 
 config SH_AP325RXA
 	bool "AP-325RXA"
-	select CPU_SUBTYPE_SH7723
+	depends on CPU_SUBTYPE_SH7723
 	help
 	  Renesas "AP-325RXA" support.
 	  Compatible with ALGO SYSTEM CO.,LTD. "AP-320A"
