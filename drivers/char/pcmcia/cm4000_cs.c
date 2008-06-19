@@ -1652,16 +1652,22 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	struct cm4000_dev *dev;
 	struct pcmcia_device *link;
 	int minor = iminor(inode);
+	int ret;
 
 	if (minor >= CM4000_MAX_DEV)
 		return -ENODEV;
 
+	lock_kernel();
 	link = dev_table[minor];
-	if (link == NULL || !pcmcia_dev_present(link))
-		return -ENODEV;
+	if (link == NULL || !pcmcia_dev_present(link)) {
+		ret = -ENODEV;
+		goto out;
+	}
 
-	if (link->open)
-		return -EBUSY;
+	if (link->open) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	dev = link->priv;
 	filp->private_data = dev;
@@ -1681,8 +1687,10 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	 * vaild = block until valid (or card
 	 * inserted)
 	 */
-	if (filp->f_flags & O_NONBLOCK)
-		return -EAGAIN;
+	if (filp->f_flags & O_NONBLOCK) {
+		ret = -EAGAIN;
+		goto out;
+	}
 
 	dev->mdelay = T_50MSEC;
 
@@ -1692,7 +1700,10 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	link->open = 1;		/* only one open per device */
 
 	DEBUGP(2, dev, "<- cmm_open\n");
-	return nonseekable_open(inode, filp);
+	ret = nonseekable_open(inode, filp);
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int cmm_close(struct inode *inode, struct file *filp)
