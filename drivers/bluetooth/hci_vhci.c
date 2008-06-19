@@ -318,18 +318,21 @@ static int vhci_release(struct inode *inode, struct file *file)
 static int vhci_fasync(int fd, struct file *file, int on)
 {
 	struct vhci_data *data = file->private_data;
-	int err;
+	int err = 0;
 
+	lock_kernel();
 	err = fasync_helper(fd, file, on, &data->fasync);
 	if (err < 0)
-		return err;
+		goto out;
 
 	if (on)
 		data->flags |= VHCI_FASYNC;
 	else
 		data->flags &= ~VHCI_FASYNC;
 
-	return 0;
+out:
+	unlock_kernel();
+	return err;
 }
 
 static const struct file_operations vhci_fops = {
