@@ -99,7 +99,7 @@ struct bfin_serial_port {
 	struct work_struct	tx_dma_workqueue;
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
-	struct work_struct 	cts_workqueue;
+	struct timer_list 	cts_timer;
 	int		cts_pin;
 	int 		rts_pin;
 #endif
