@@ -67,10 +67,10 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 		{ CX18_CARD_INPUT_LINE_IN1,
 		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
 		{ CX18_CARD_INPUT_LINE_IN2,
-		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL, CS5345_IN_3 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX18_AV_AUDIO_SERIAL, 0 },
+			 CX18_AV_AUDIO_SERIAL, CS5345_IN_4 },
 	.ddr = {
 		/* ESMT M13S128324A-5B memory */
 		.chip_config = 0x003,
@@ -107,10 +107,10 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 		{ CX18_CARD_INPUT_LINE_IN1,
 		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
 		{ CX18_CARD_INPUT_LINE_IN2,
-		  CX18_AV_AUDIO_SERIAL, CS5345_IN_2 },
+		  CX18_AV_AUDIO_SERIAL, CS5345_IN_3 },
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
-			 CX18_AV_AUDIO_SERIAL, 0 },
+			 CX18_AV_AUDIO_SERIAL, CS5345_IN_4 },
 	.ddr = {
 		/* Samsung K4D263238G-VC33 memory */
 		.chip_config = 0x003,
