@@ -2079,47 +2079,81 @@ static int nfs4_proc_link(struct inode *inode, struct inode *dir, struct qstr *n
 	return err;
 }
 
+struct nfs4_createdata {
+	struct rpc_message msg;
+	struct nfs4_create_arg arg;
+	struct nfs4_create_res res;
+	struct nfs_fh fh;
+	struct nfs_fattr fattr;
+	struct nfs_fattr dir_fattr;
+};
+
+static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
+		struct qstr *name, struct iattr *sattr, u32 ftype)
+{
+	struct nfs4_createdata *data;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (data != NULL) {
+		struct nfs_server *server = NFS_SERVER(dir);
+
+		data->msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CREATE];
+		data->msg.rpc_argp = &data->arg;
+		data->msg.rpc_resp = &data->res;
+		data->arg.dir_fh = NFS_FH(dir);
+		data->arg.server = server;
+		data->arg.name = name;
+		data->arg.attrs = sattr;
+		data->arg.ftype = ftype;
+		data->arg.bitmask = server->attr_bitmask;
+		data->res.server = server;
+		data->res.fh = &data->fh;
+		data->res.fattr = &data->fattr;
+		data->res.dir_fattr = &data->dir_fattr;
+		nfs_fattr_init(data->res.fattr);
+		nfs_fattr_init(data->res.dir_fattr);
+	}
+	return data;
+}
+
+static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_createdata *data)
+{
+	int status = rpc_call_sync(NFS_CLIENT(dir), &data->msg, 0);
+	if (status == 0) {
+		update_changeattr(dir, &data->res.dir_cinfo);
+		nfs_post_op_update_inode(dir, data->res.dir_fattr);
+		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr);
+	}
+	return status;
+}
+
+static void nfs4_free_createdata(struct nfs4_createdata *data)
+{
+	kfree(data);
+}
+
 static int _nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 		struct page *page, unsigned int len, struct iattr *sattr)
 {
-	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs_fh fhandle;
-	struct nfs_fattr fattr, dir_fattr;
-	struct nfs4_create_arg arg = {
-		.dir_fh = NFS_FH(dir),
-		.server = server,
-		.name = &dentry->d_name,
-		.attrs = sattr,
-		.ftype = NF4LNK,
-		.bitmask = server->attr_bitmask,
-	};
-	struct nfs4_create_res res = {
-		.server = server,
-		.fh = &fhandle,
-		.fattr = &fattr,
-		.dir_fattr = &dir_fattr,
-	};
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SYMLINK],
-		.rpc_argp = &arg,
-		.rpc_resp = &res,
-	};
-	int			status;
+	struct nfs4_createdata *data;
+	int status = -ENAMETOOLONG;
 
 	if (len > NFS4_MAXPATHLEN)
-		return -ENAMETOOLONG;
+		goto out;
 
-	arg.u.symlink.pages = &page;
-	arg.u.symlink.len = len;
-	nfs_fattr_init(&fattr);
-	nfs_fattr_init(&dir_fattr);
+	status = -ENOMEM;
+	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4LNK);
+	if (data == NULL)
+		goto out;
+
+	data->msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SYMLINK];
+	data->arg.u.symlink.pages = &page;
+	data->arg.u.symlink.len = len;
 	
-	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	if (!status) {
-		update_changeattr(dir, &res.dir_cinfo);
-		nfs_post_op_update_inode(dir, res.dir_fattr);
-		status = nfs_instantiate(dentry, &fhandle, &fattr);
-	}
+	status = nfs4_do_create(dir, dentry, data);
+
+	nfs4_free_createdata(data);
+out:
 	return status;
 }
 
@@ -2140,39 +2174,17 @@ static int nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 static int _nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 		struct iattr *sattr)
 {
-	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs_fh fhandle;
-	struct nfs_fattr fattr, dir_fattr;
-	struct nfs4_create_arg arg = {
-		.dir_fh = NFS_FH(dir),
-		.server = server,
-		.name = &dentry->d_name,
-		.attrs = sattr,
-		.ftype = NF4DIR,
-		.bitmask = server->attr_bitmask,
-	};
-	struct nfs4_create_res res = {
-		.server = server,
-		.fh = &fhandle,
-		.fattr = &fattr,
-		.dir_fattr = &dir_fattr,
-	};
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CREATE],
-		.rpc_argp = &arg,
-		.rpc_resp = &res,
-	};
-	int			status;
+	struct nfs4_createdata *data;
+	int status = -ENOMEM;
 
-	nfs_fattr_init(&fattr);
-	nfs_fattr_init(&dir_fattr);
-	
-	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	if (!status) {
-		update_changeattr(dir, &res.dir_cinfo);
-		nfs_post_op_update_inode(dir, res.dir_fattr);
-		status = nfs_instantiate(dentry, &fhandle, &fattr);
-	}
+	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4DIR);
+	if (data == NULL)
+		goto out;
+
+	status = nfs4_do_create(dir, dentry, data);
+
+	nfs4_free_createdata(data);
+out:
 	return status;
 }
 
@@ -2242,56 +2254,34 @@ static int nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 static int _nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 		struct iattr *sattr, dev_t rdev)
 {
-	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs_fh fh;
-	struct nfs_fattr fattr, dir_fattr;
-	struct nfs4_create_arg arg = {
-		.dir_fh = NFS_FH(dir),
-		.server = server,
-		.name = &dentry->d_name,
-		.attrs = sattr,
-		.bitmask = server->attr_bitmask,
-	};
-	struct nfs4_create_res res = {
-		.server = server,
-		.fh = &fh,
-		.fattr = &fattr,
-		.dir_fattr = &dir_fattr,
-	};
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CREATE],
-		.rpc_argp = &arg,
-		.rpc_resp = &res,
-	};
-	int			status;
-	int                     mode = sattr->ia_mode;
-
-	nfs_fattr_init(&fattr);
-	nfs_fattr_init(&dir_fattr);
+	struct nfs4_createdata *data;
+	int mode = sattr->ia_mode;
+	int status = -ENOMEM;
 
 	BUG_ON(!(sattr->ia_valid & ATTR_MODE));
 	BUG_ON(!S_ISFIFO(mode) && !S_ISBLK(mode) && !S_ISCHR(mode) && !S_ISSOCK(mode));
+
+	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4SOCK);
+	if (data == NULL)
+		goto out;
+
 	if (S_ISFIFO(mode))
-		arg.ftype = NF4FIFO;
+		data->arg.ftype = NF4FIFO;
 	else if (S_ISBLK(mode)) {
-		arg.ftype = NF4BLK;
-		arg.u.device.specdata1 = MAJOR(rdev);
-		arg.u.device.specdata2 = MINOR(rdev);
+		data->arg.ftype = NF4BLK;
+		data->arg.u.device.specdata1 = MAJOR(rdev);
+		data->arg.u.device.specdata2 = MINOR(rdev);
 	}
 	else if (S_ISCHR(mode)) {
-		arg.ftype = NF4CHR;
-		arg.u.device.specdata1 = MAJOR(rdev);
-		arg.u.device.specdata2 = MINOR(rdev);
+		data->arg.ftype = NF4CHR;
+		data->arg.u.device.specdata1 = MAJOR(rdev);
+		data->arg.u.device.specdata2 = MINOR(rdev);
 	}
-	else
-		arg.ftype = NF4SOCK;
 	
-	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	if (status == 0) {
-		update_changeattr(dir, &res.dir_cinfo);
-		nfs_post_op_update_inode(dir, res.dir_fattr);
-		status = nfs_instantiate(dentry, &fh, &fattr);
-	}
+	status = nfs4_do_create(dir, dentry, data);
+
+	nfs4_free_createdata(data);
+out:
 	return status;
 }
 
