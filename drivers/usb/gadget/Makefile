@@ -35,7 +35,7 @@ g_printer-objs			:= printer.o usbstring.o config.o \
 					epautoconf.o
 
 ifeq ($(CONFIG_USB_ETH_RNDIS),y)
-	g_ether-objs		+= rndis.o
+	g_ether-objs		+= f_rndis.o rndis.o
 endif
  
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o

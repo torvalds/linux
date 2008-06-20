@@ -34,10 +34,13 @@
 /*
  * This represents the USB side of an "ethernet" link, managed by a USB
  * function which provides control and (maybe) framing.  Two functions
- * in different configurations could share the same ethernet link/netdev.
+ * in different configurations could share the same ethernet link/netdev,
+ * using different host interaction models.
  *
- * There is currently a limitation that one instance of this function
- * may be present in any given configuration.
+ * There is a current limitation that only one instance of this link may
+ * be present in any given configuration.  When that's a problem, network
+ * layer facilities can be used to package multiple logical links on this
+ * single "physical" one.
  */
 struct gether {
 	struct usb_function		func;
@@ -106,5 +109,19 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 /* each configuration may bind one instance of an ethernet link */
 int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 int ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+
+#ifdef CONFIG_USB_ETH_RNDIS
+
+int rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+
+#else
+
+static inline int
+rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+{
+	return 0;
+}
+
+#endif
 
 #endif /* __U_ETHER_H */
