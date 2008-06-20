@@ -58,7 +58,7 @@ static inline void set_bit(unsigned int nr, volatile unsigned long *addr)
 	if (IS_IMMEDIATE(nr)) {
 		asm volatile(LOCK_PREFIX "orb %1,%0"
 			: CONST_MASK_ADDR(nr, addr)
-			: "i" (CONST_MASK(nr))
+			: "iq" ((u8)CONST_MASK(nr))
 			: "memory");
 	} else {
 		asm volatile(LOCK_PREFIX "bts %1,%0"
@@ -95,7 +95,7 @@ static inline void clear_bit(int nr, volatile unsigned long *addr)
 	if (IS_IMMEDIATE(nr)) {
 		asm volatile(LOCK_PREFIX "andb %1,%0"
 			: CONST_MASK_ADDR(nr, addr)
-			: "i" (~CONST_MASK(nr)));
+			: "iq" ((u8)~CONST_MASK(nr)));
 	} else {
 		asm volatile(LOCK_PREFIX "btr %1,%0"
 			: BITOP_ADDR(addr)
