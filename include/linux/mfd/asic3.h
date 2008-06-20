@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  *
  * Copyright 2001 Compaq Computer Corporation.
- * Copyright 2007 OpendHand.
+ * Copyright 2007-2008 OpenedHand Ltd.
  */
 
 #ifndef __ASIC3_H__
@@ -17,15 +17,8 @@
 #include <linux/types.h>
 
 struct asic3_platform_data {
-	struct {
-		u32 dir;
-		u32 init;
-		u32 sleep_mask;
-		u32 sleep_out;
-		u32 batt_fault_out;
-		u32 sleep_conf;
-		u32 alt_function;
-	} gpio_a, gpio_b, gpio_c, gpio_d;
+	u16 *gpio_config;
+	unsigned int gpio_config_num;
 
 	unsigned int bus_shift;
 
@@ -85,6 +78,27 @@ struct asic3_platform_data {
 					  * enable gposlpout in sleep mode.
 					  */
 #define ASIC3_GPIO_Status        0x30    /* R   Pin status */
+
+/*
+ * ASIC3 GPIO config
+ *
+ * Bits 0..6   gpio number
+ * Bits 7..13  Alternate function
+ * Bit  14     Direction
+ * Bit  15     Initial value
+ *
+ */
+#define ASIC3_CONFIG_GPIO_PIN(config) ((config) & 0x7f)
+#define ASIC3_CONFIG_GPIO_ALT(config)  (((config) & (0x7f << 7)) >> 7)
+#define ASIC3_CONFIG_GPIO_DIR(config)  ((config & (1 << 14)) >> 14)
+#define ASIC3_CONFIG_GPIO_INIT(config) ((config & (1 << 15)) >> 15)
+#define ASIC3_CONFIG_GPIO(gpio, alt, dir, init) (((gpio) & 0x7f) \
+	| (((alt) & 0x7f) << 7) | (((dir) & 0x1) << 14) \
+	| (((init) & 0x1) << 15))
+#define ASIC3_CONFIG_GPIO_DEFAULT(gpio, dir, init) \
+	ASIC3_CONFIG_GPIO((gpio), 0, (dir), (init))
+#define ASIC3_CONFIG_GPIO_DEFAULT_OUT(gpio, init) \
+	ASIC3_CONFIG_GPIO((gpio), 0, 1, (init))
 
 #define ASIC3_SPI_Base		      0x0400
 #define ASIC3_SPI_Control               0x0000
