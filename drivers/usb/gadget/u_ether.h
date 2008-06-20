@@ -28,6 +28,9 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/cdc.h>
 
+#include "gadget_chips.h"
+
+
 /*
  * This represents the USB side of an "ethernet" link, managed by a USB
  * function which provides control and (maybe) framing.  Two functions
@@ -80,7 +83,28 @@ void gether_cleanup(void);
 struct net_device *gether_connect(struct gether *);
 void gether_disconnect(struct gether *);
 
+/* Some controllers can't support CDC Ethernet (ECM) ... */
+static inline bool can_support_ecm(struct usb_gadget *gadget)
+{
+	if (!gadget_supports_altsettings(gadget))
+		return false;
+
+	/* SA1100 can do ECM, *without* status endpoint ... but we'll
+	 * only use it in non-ECM mode for backwards compatibility
+	 * (and since we currently require a status endpoint)
+	 */
+	if (gadget_is_sa1100(gadget))
+		return false;
+
+	/* Everything else is *presumably* fine ... but this is a bit
+	 * chancy, so be **CERTAIN** there are no hardware issues with
+	 * your controller.  Add it above if it can't handle CDC.
+	 */
+	return true;
+}
+
 /* each configuration may bind one instance of an ethernet link */
 int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+int ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 
 #endif /* __U_ETHER_H */
