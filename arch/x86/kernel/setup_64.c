@@ -80,6 +80,8 @@
 #define ARCH_SETUP
 #endif
 
+#include "cpu/cpu.h"
+
 /*
  * Machine setup..
  */
@@ -163,6 +165,7 @@ static struct resource bss_resource = {
 	.flags = IORESOURCE_RAM,
 };
 
+static void __init early_cpu_init(void);
 static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c);
 
 #ifdef CONFIG_PROC_VMCORE
@@ -339,6 +342,7 @@ void __init setup_arch(char **cmdline_p)
 	bss_resource.start = virt_to_phys(&__bss_start);
 	bss_resource.end = virt_to_phys(&__bss_stop)-1;
 
+	early_cpu_init();
 	early_identify_cpu(&boot_cpu_data);
 
 	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
@@ -524,6 +528,19 @@ void __init setup_arch(char **cmdline_p)
 	check_enable_amd_mmconf_dmi();
 }
 
+struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
+
+static void __cpuinit default_init(struct cpuinfo_x86 *c)
+{
+	display_cacheinfo(c);
+}
+
+static struct cpu_dev __cpuinitdata default_cpu = {
+	.c_init	= default_init,
+	.c_vendor = "Unknown",
+};
+static struct cpu_dev *this_cpu __cpuinitdata = &default_cpu;
+
 int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
@@ -625,24 +642,37 @@ out:
 static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
+	int i;
+	static int printed;
 
-	if (!strcmp(v, "AuthenticAMD"))
-		c->x86_vendor = X86_VENDOR_AMD;
-	else if (!strcmp(v, "GenuineIntel"))
-		c->x86_vendor = X86_VENDOR_INTEL;
-	else if (!strcmp(v, "CentaurHauls"))
-		c->x86_vendor = X86_VENDOR_CENTAUR;
-	else
-		c->x86_vendor = X86_VENDOR_UNKNOWN;
+	for (i = 0; i < X86_VENDOR_NUM; i++) {
+		if (cpu_devs[i]) {
+			if (!strcmp(v, cpu_devs[i]->c_ident[0]) ||
+			    (cpu_devs[i]->c_ident[1] &&
+			    !strcmp(v, cpu_devs[i]->c_ident[1]))) {
+				c->x86_vendor = i;
+				this_cpu = cpu_devs[i];
+				return;
+			}
+		}
+	}
+	if (!printed) {
+		printed++;
+		printk(KERN_ERR "CPU: Vendor unknown, using generic init.\n");
+		printk(KERN_ERR "CPU: Your system may be unstable.\n");
+	}
+	c->x86_vendor = X86_VENDOR_UNKNOWN;
 }
 
-// FIXME: Needs to use cpu_vendor_dev_register
-extern void __cpuinit early_init_amd(struct cpuinfo_x86 *c);
-extern void __cpuinit init_amd(struct cpuinfo_x86 *c);
-extern void __cpuinit early_init_intel(struct cpuinfo_x86 *c);
-extern void __cpuinit init_intel(struct cpuinfo_x86 *c);
-extern void __cpuinit early_init_centaur(struct cpuinfo_x86 *c);
-extern void __cpuinit init_centaur(struct cpuinfo_x86 *c);
+static void __init early_cpu_init(void)
+{
+        struct cpu_vendor_dev *cvdev;
+
+        for (cvdev = __x86cpuvendor_start ;
+             cvdev < __x86cpuvendor_end   ;
+             cvdev++)
+                cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
+}
 
 /* Do some early cpuid on the boot CPU to get some parameter that are
    needed before check_bugs. Everything advanced is in identify_cpu
@@ -722,17 +752,9 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	if (c->extended_cpuid_level >= 0x80000007)
 		c->x86_power = cpuid_edx(0x80000007);
 
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		early_init_amd(c);
-		break;
-	case X86_VENDOR_INTEL:
-		early_init_intel(c);
-		break;
-	case X86_VENDOR_CENTAUR:
-		early_init_centaur(c);
-		break;
-	}
+	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
+	    cpu_devs[c->x86_vendor]->c_early_init)
+		cpu_devs[c->x86_vendor]->c_early_init(c);
 
 	validate_pat_support(c);
 }
@@ -760,24 +782,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 * At the end of this section, c->x86_capability better
 	 * indicate the features this CPU genuinely supports!
 	 */
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		init_amd(c);
-		break;
-
-	case X86_VENDOR_INTEL:
-		init_intel(c);
-		break;
-
-	case X86_VENDOR_CENTAUR:
-		init_centaur(c);
-		break;
-
-	case X86_VENDOR_UNKNOWN:
-	default:
-		display_cacheinfo(c);
-		break;
-	}
+	if (this_cpu->c_init)
+		this_cpu->c_init(c);
 
 	detect_ht(c);
 

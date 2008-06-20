@@ -7,8 +7,7 @@
 
 #include <mach_apic.h>
 
-extern int __cpuinit get_model_name(struct cpuinfo_x86 *c);
-extern void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c);
+#include "cpu.h"
 
 int force_mwait __cpuinitdata;
 
@@ -109,7 +108,7 @@ static void __cpuinit early_init_amd_mc(struct cpuinfo_x86 *c)
 #endif
 }
 
-void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 {
 	early_init_amd_mc(c);
 
@@ -118,7 +117,7 @@ void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 }
 
-void __cpuinit init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	unsigned level;
 
@@ -200,3 +199,13 @@ void __cpuinit init_amd(struct cpuinfo_x86 *c)
 			set_memory_4k((unsigned long)__va(tseg), 1);
 	}
 }
+
+static struct cpu_dev amd_cpu_dev __cpuinitdata = {
+	.c_vendor	= "AMD",
+	.c_ident	= { "AuthenticAMD" },
+	.c_early_init   = early_init_amd,
+	.c_init		= init_amd,
+};
+
+cpu_vendor_dev_register(X86_VENDOR_AMD, &amd_cpu_dev);
+

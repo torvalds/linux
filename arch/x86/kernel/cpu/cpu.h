@@ -1,4 +1,6 @@
-#ifdef CONFIG_X86_32
+#ifndef ARCH_X86_CPU_H
+
+#define ARCH_X86_CPU_H
 
 struct cpu_model_info {
 	int vendor;
@@ -38,4 +40,4 @@ extern struct cpu_vendor_dev __x86cpuvendor_start[], __x86cpuvendor_end[];
 extern int get_model_name(struct cpuinfo_x86 *c);
 extern void display_cacheinfo(struct cpuinfo_x86 *c);
 
-#endif /* CONFIG_X86_32 */
+#endif

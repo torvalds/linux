@@ -5,7 +5,9 @@
 #include <asm/topology.h>
 #include <asm/numa_64.h>
 
-void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
+#include "cpu.h"
+
+static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
 	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
@@ -48,7 +50,7 @@ static void __cpuinit srat_detect_node(void)
 #endif
 }
 
-void __cpuinit init_intel(struct cpuinfo_x86 *c)
+static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
 	unsigned n;
@@ -90,3 +92,12 @@ void __cpuinit init_intel(struct cpuinfo_x86 *c)
 
 	srat_detect_node();
 }
+
+static struct cpu_dev intel_cpu_dev __cpuinitdata = {
+	.c_vendor	= "Intel",
+	.c_ident	= { "GenuineIntel" },
+	.c_early_init   = early_init_intel,
+	.c_init		= init_intel,
+};
+cpu_vendor_dev_register(X86_VENDOR_INTEL, &intel_cpu_dev);
+

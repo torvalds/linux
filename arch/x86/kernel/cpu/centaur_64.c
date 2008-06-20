@@ -4,13 +4,15 @@
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 
-void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
+#include "cpu.h"
+
+static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
 {
 	if (c->x86 == 0x6 && c->x86_model >= 0xf)
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 }
 
-void __cpuinit init_centaur(struct cpuinfo_x86 *c)
+static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
 	unsigned n;
@@ -29,3 +31,13 @@ void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 	}
 	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 }
+
+static struct cpu_dev centaur_cpu_dev __cpuinitdata = {
+	.c_vendor	= "Centaur",
+	.c_ident	= { "CentaurHauls" },
+	.c_early_init	= early_init_centaur,
+	.c_init		= init_centaur,
+};
+
+cpu_vendor_dev_register(X86_VENDOR_CENTAUR, &centaur_cpu_dev);
+
