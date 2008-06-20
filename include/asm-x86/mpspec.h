@@ -101,12 +101,19 @@ typedef struct physid_mask physid_mask_t;
 		__physid_mask;						\
 	})
 
+/* Note: will create very large stack frames if physid_mask_t is big */
 #define physid_mask_of_physid(physid)					\
 	({								\
 		physid_mask_t __physid_mask = PHYSID_MASK_NONE;		\
 		physid_set(physid, __physid_mask);			\
 		__physid_mask;						\
 	})
+
+static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
+{
+	physids_clear(*map);
+	physid_set(physid, *map);
+}
 
 #define PHYSID_MASK_ALL		{ {[0 ... PHYSID_ARRAY_SIZE-1] = ~0UL} }
 #define PHYSID_MASK_NONE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }
