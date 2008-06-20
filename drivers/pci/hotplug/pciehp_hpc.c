@@ -252,20 +252,23 @@ static inline int pcie_poll_cmd(struct controller *ctrl)
 	u16 slot_status;
 	int timeout = 1000;
 
-	if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status))
-		if (slot_status & CMD_COMPLETED)
-			goto completed;
-	for (timeout = 1000; timeout > 0; timeout -= 100) {
+	if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status)) {
+		if (slot_status & CMD_COMPLETED) {
+			pciehp_writew(ctrl, SLOTSTATUS, CMD_COMPLETED);
+			return 1;
+		}
+	}
+	while (timeout > 1000) {
 		msleep(100);
-		if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status))
-			if (slot_status & CMD_COMPLETED)
-				goto completed;
+		timeout -= 100;
+		if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status)) {
+			if (slot_status & CMD_COMPLETED) {
+				pciehp_writew(ctrl, SLOTSTATUS, CMD_COMPLETED);
+				return 1;
+			}
+		}
 	}
 	return 0;	/* timeout */
-
-completed:
-	pciehp_writew(ctrl, SLOTSTATUS, CMD_COMPLETED);
-	return timeout;
 }
 
 static inline void pcie_wait_cmd(struct controller *ctrl, int poll)
