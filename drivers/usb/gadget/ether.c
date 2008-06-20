@@ -1106,6 +1106,8 @@ static void eth_reset_config (struct eth_dev *dev)
 
 	netif_stop_queue (dev->net);
 	netif_carrier_off (dev->net);
+
+	/* RNDIS enters RNDIS_UNINITIALIZED state */
 	rndis_uninit(dev->rndis_config);
 
 	/* disable endpoints, forcing (synchronous) completion of
@@ -1604,8 +1606,6 @@ eth_disconnect (struct usb_gadget *gadget)
 	eth_reset_config (dev);
 	spin_unlock_irqrestore (&dev->lock, flags);
 
-	/* FIXME RNDIS should enter RNDIS_UNINITIALIZED */
-
 	/* next we may get setup() calls to enumerate new connections;
 	 * or an unbind() during shutdown (including removing module).
 	 */
@@ -2067,23 +2067,23 @@ rndis_control_ack_complete (struct usb_ep *ep, struct usb_request *req)
 		eth_req_free(ep, req);
 }
 
-static int rndis_control_ack (struct net_device *net)
+static void rndis_resp_avail(void *_dev)
 {
-	struct eth_dev          *dev = netdev_priv(net);
+	struct eth_dev          *dev = _dev;
 	int                     length;
 	struct usb_request      *resp = dev->stat_req;
 
 	/* in case RNDIS calls this after disconnect */
 	if (!dev->status) {
 		DEBUG (dev, "status ENODEV\n");
-		return -ENODEV;
+		return;
 	}
 
 	/* in case queue length > 1 */
 	if (resp->context) {
 		resp = eth_req_alloc (dev->status_ep, 8, GFP_ATOMIC);
 		if (!resp)
-			return -ENOMEM;
+			return;
 	}
 
 	/* Send RNDIS RESPONSE_AVAILABLE notification;
@@ -2101,13 +2101,11 @@ static int rndis_control_ack (struct net_device *net)
 		resp->status = 0;
 		rndis_control_ack_complete (dev->status_ep, resp);
 	}
-
-	return 0;
 }
 
 #else
 
-#define	rndis_control_ack	NULL
+#define rndis_resp_avail	NULL
 
 #endif	/* RNDIS */
 
@@ -2566,18 +2564,18 @@ autoconf_fail:
 
 		/* FIXME RNDIS vendor id == "vendor NIC code" == ? */
 
-		dev->rndis_config = rndis_register (rndis_control_ack);
-		if (dev->rndis_config < 0) {
+		status = rndis_register(rndis_resp_avail, dev);
+		if (status < 0) {
 fail0:
 			unregister_netdev (dev->net);
-			status = -ENODEV;
 			goto fail;
 		}
+		dev->rndis_config = status;
 
 		/* these set up a lot of the OIDs that RNDIS needs */
 		rndis_set_host_mac (dev->rndis_config, dev->host_mac);
 		if (rndis_set_param_dev (dev->rndis_config, dev->net,
-					 &dev->stats, &dev->cdc_filter))
+					 &dev->cdc_filter))
 			goto fail0;
 		if (rndis_set_param_vendor(dev->rndis_config, vendorID,
 					manufacturer))

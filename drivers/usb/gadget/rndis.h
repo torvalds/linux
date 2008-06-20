@@ -233,20 +233,19 @@ typedef struct rndis_params
 	const u8		*host_mac;
 	u16			*filter;
 	struct net_device	*dev;
-	struct net_device_stats *stats;
 
 	u32			vendorID;
 	const char		*vendorDescr;
-	int			(*ack) (struct net_device *);
+	void			(*resp_avail)(void *v);
+	void			*v;
 	struct list_head	resp_queue;
 } rndis_params;
 
 /* RNDIS Message parser and other useless functions */
 int  rndis_msg_parser (u8 configNr, u8 *buf);
-int  rndis_register (int (*rndis_control_ack) (struct net_device *));
+int  rndis_register(void (*resp_avail)(void *v), void *v);
 void rndis_deregister (int configNr);
 int  rndis_set_param_dev (u8 configNr, struct net_device *dev,
-			 struct net_device_stats *stats,
 			 u16 *cdc_filter);
 int  rndis_set_param_vendor (u8 configNr, u32 vendorID,
 			    const char *vendorDescr);
