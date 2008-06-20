@@ -9,6 +9,7 @@
 #include <linux/usb/composite.h>
 
 /* global state */
+extern unsigned buflen;
 extern const struct usb_descriptor_header *otg_desc[];
 
 /* common utilities */
@@ -19,5 +20,6 @@ void disable_endpoints(struct usb_composite_dev *cdev,
 
 /* configuration-specific linkup */
 int sourcesink_add(struct usb_composite_dev *cdev);
+int loopback_add(struct usb_composite_dev *cdev);
 
 #endif /* __G_ZERO_H */
