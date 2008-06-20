@@ -427,6 +427,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 			if (err) {
 				printk(KERN_ERR "%s: timeout waiting on busy %s QUEUE\n",
 					__func__, type);
+				av7110->arm_errors++;
 				return -ETIMEDOUT;
 			}
 			msleep(1);
