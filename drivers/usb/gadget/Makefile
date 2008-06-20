@@ -33,6 +33,8 @@ g_file_storage-objs		:= file_storage.o usbstring.o config.o \
 					epautoconf.o
 g_printer-objs			:= printer.o usbstring.o config.o \
 					epautoconf.o
+g_cdc-objs			:= cdc2.o u_ether.o f_ecm.o \
+					u_serial.o f_acm.o $(C_UTILS)
 
 ifeq ($(CONFIG_USB_ETH_RNDIS),y)
 	g_ether-objs		+= f_rndis.o rndis.o
@@ -45,4 +47,5 @@ obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
 obj-$(CONFIG_USB_G_SERIAL)	+= g_serial.o
 obj-$(CONFIG_USB_G_PRINTER)	+= g_printer.o
 obj-$(CONFIG_USB_MIDI_GADGET)	+= g_midi.o
+obj-$(CONFIG_USB_CDC_COMPOSITE) += g_cdc.o
 
