@@ -329,7 +329,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	client = kzalloc(sizeof(struct smsdvb_client_t), GFP_KERNEL);
 	if (!client) {
-		sms_info("kmalloc() failed");
+		sms_err("kmalloc() failed");
 		return -ENOMEM;
 	}
 
@@ -385,7 +385,7 @@ int smsdvb_hotplug(struct smscore_device_t *coredev,
 
 	rc = smscore_register_client(coredev, &params, &client->smsclient);
 	if (rc < 0) {
-		sms_info("smscore_register_client() failed %d", rc);
+		sms_err("smscore_register_client() failed %d", rc);
 		goto client_error;
 	}
 

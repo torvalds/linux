@@ -777,7 +777,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	PDEBUG("set device mode to %d", mode);
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
 		if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_RAW_TUNER) {
-			sms_info("invalid mode specified %d", mode);
+			sms_err("invalid mode specified %d", mode);
 			return -EINVAL;
 		}
 
@@ -786,7 +786,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		if (!(coredev->device_flags & SMS_DEVICE_NOT_READY)) {
 			rc = smscore_detect_mode(coredev);
 			if (rc < 0) {
-				sms_info("mode detect failed %d", rc);
+				sms_err("mode detect failed %d", rc);
 				return rc;
 			}
 		}
@@ -801,8 +801,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 			rc = smscore_load_firmware_from_file(
 				coredev, smscore_fw_lkup[mode][type], NULL);
 			if (rc < 0) {
-				sms_info("load firmware "
-					 "failed %d", rc);
+				sms_err("load firmware failed %d", rc);
 				return rc;
 			}
 		} else
@@ -826,13 +825,13 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 
 			kfree(buffer);
 		} else {
-			sms_info("Could not allocate buffer for "
-				 "init device message.");
+			sms_err("Could not allocate buffer for "
+				"init device message.");
 			rc = -ENOMEM;
 		}
 	} else {
 		if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_DVBT_BDA) {
-			sms_info("invalid mode specified %d", mode);
+			sms_err("invalid mode specified %d", mode);
 			return -EINVAL;
 		}
 
@@ -852,7 +851,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	}
 
 	if (rc != 0)
-		sms_info("return error code %d.", rc);
+		sms_err("return error code %d.", rc);
 	return rc;
 }
 
@@ -1211,12 +1210,12 @@ int smscore_map_common_buffer(struct smscore_device_t *coredev,
 
 	if (!(vma->vm_flags & (VM_READ | VM_SHARED)) ||
 	     (vma->vm_flags & VM_WRITE)) {
-		sms_info("invalid vm flags");
+		sms_err("invalid vm flags");
 		return -EINVAL;
 	}
 
 	if ((end - start) != size) {
-		sms_info("invalid size %d expected %d",
+		sms_err("invalid size %d expected %d",
 			 (int)(end - start), (int) size);
 		return -EINVAL;
 	}
@@ -1224,7 +1223,7 @@ int smscore_map_common_buffer(struct smscore_device_t *coredev,
 	if (remap_pfn_range(vma, start,
 			    coredev->common_buffer_phys >> PAGE_SHIFT,
 			    size, pgprot_noncached(vma->vm_page_prot))) {
-		sms_info("remap_page_range failed");
+		sms_err("remap_page_range failed");
 		return -EAGAIN;
 	}
 
