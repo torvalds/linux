@@ -186,7 +186,6 @@ acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
  *
  ******************************************************************************/
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 		       acpi_event_status * event_status)
@@ -246,7 +245,6 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
       unlock_and_exit:
 	return (status);
 }
-#endif				/*  ACPI_FUTURE_USAGE  */
 
 /******************************************************************************
  *
