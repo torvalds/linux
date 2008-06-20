@@ -200,7 +200,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	unsigned long actual_type;
 	int err = 0;
 
-	/* Only track when pat_enabled */
+ 	BUG_ON(start >= end); /* end is exclusive */
+
 	if (!pat_enabled) {
 		/* This is identical to page table setting without PAT */
 		if (new_type) {
@@ -228,17 +229,13 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		 */
 		u8 mtrr_type = mtrr_type_lookup(start, end);
 
-		if (mtrr_type == MTRR_TYPE_WRBACK) {
-			req_type = _PAGE_CACHE_WB;
+		if (mtrr_type == MTRR_TYPE_WRBACK)
 			actual_type = _PAGE_CACHE_WB;
-		} else {
-			req_type = _PAGE_CACHE_UC_MINUS;
+		else
 			actual_type = _PAGE_CACHE_UC_MINUS;
-		}
-	} else {
-		req_type &= _PAGE_CACHE_MASK;
-		actual_type = pat_x_mtrr_type(start, end, req_type);
-	}
+	} else
+		actual_type = pat_x_mtrr_type(start, end,
+					      req_type & _PAGE_CACHE_MASK);
 
 	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
 	if (!new)
@@ -406,10 +403,8 @@ int free_memtype(u64 start, u64 end)
 	struct memtype *entry;
 	int err = -EINVAL;
 
-	/* Only track when pat_enabled */
-	if (!pat_enabled) {
+	if (!pat_enabled)
 		return 0;
-	}
 
 	/* Low ISA region is always mapped WB. No need to track */
 	if (is_ISA_range(start, end - 1))
