@@ -557,7 +557,6 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 {
 	int result;
 	struct pci_slot *pci_slot;
-	struct hotplug_slot *tmp;
 
 	if (slot == NULL)
 		return -ENODEV;
@@ -570,8 +569,7 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 	}
 
 	/* Check if we have already registered a slot with the same name. */
-	tmp = get_slot_from_name(slot->name);
-	if (tmp)
+	if (get_slot_from_name(slot->name))
 		return -EEXIST;
 
 	/*
