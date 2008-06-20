@@ -283,6 +283,10 @@ struct e1000_adapter {
 	unsigned long led_status;
 
 	unsigned int flags;
+
+	/* for ioport free */
+	int bars;
+	int need_ioport;
 };
 
 struct e1000_info {
