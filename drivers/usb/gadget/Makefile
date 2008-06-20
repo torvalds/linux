@@ -24,7 +24,7 @@ obj-$(CONFIG_USB_M66592)	+= m66592-udc.o
 #
 g_zero-objs			:= zero.o usbstring.o config.o epautoconf.o
 g_ether-objs			:= ether.o usbstring.o config.o epautoconf.o
-g_serial-objs			:= serial.o usbstring.o config.o epautoconf.o
+g_serial-objs			:= serial.o u_serial.o usbstring.o config.o epautoconf.o
 g_midi-objs			:= gmidi.o usbstring.o config.o epautoconf.o
 gadgetfs-objs			:= inode.o
 g_file_storage-objs		:= file_storage.o usbstring.o config.o \

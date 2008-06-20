@@ -1,15 +1,8 @@
 /*
- * g_serial.c -- USB gadget serial driver
+ * serial.c -- USB gadget serial driver
  *
- * Copyright 2003 (C) Al Borchers (alborchers@steinerpoint.com)
- *
- * This code is based in part on the Gadget Zero driver, which
- * is Copyright (C) 2003 by David Brownell, all rights reserved.
- *
- * This code also borrows from usbserial.c, which is
- * Copyright (C) 1999 - 2002 Greg Kroah-Hartman (greg@kroah.com)
- * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
- * Copyright (C) 2000 Al Borchers (alborchers@steinerpoint.com)
+ * Copyright (C) 2003 Al Borchers (alborchers@steinerpoint.com)
+ * Copyright (C) 2008 by David Brownell
  *
  * This software is distributed under the terms of the GNU General
  * Public License ("GPL") as published by the Free Software Foundation,
@@ -22,23 +15,20 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 
-#include <linux/usb/ch9.h>
-#include <linux/usb/cdc.h>
-#include <linux/usb/gadget.h>
-
+#include "u_serial.h"
 #include "gadget_chips.h"
 
 
 /* Defines */
 
-#define GS_VERSION_STR			"v2.2"
-#define GS_VERSION_NUM			0x2200
+#define GS_VERSION_STR			"v2.3"
+#define GS_VERSION_NUM			0x2300
 
 #define GS_LONG_NAME			"Gadget Serial"
 #define GS_SHORT_NAME			"g_serial"
 
-#define GS_MAJOR			127
-#define GS_MINOR_START			0
+#define GS_VERSION_NAME			GS_LONG_NAME " " GS_VERSION_STR
+
 
 /* REVISIT only one port is supported for now;
  * see gs_{send,recv}_packet() ... no multiplexing,
@@ -58,23 +48,8 @@
 
 #define GS_MAX_DESC_LEN			256
 
-#define GS_DEFAULT_READ_Q_SIZE		32
-#define GS_DEFAULT_WRITE_Q_SIZE		32
-
-#define GS_DEFAULT_WRITE_BUF_SIZE	8192
-#define GS_TMP_BUF_SIZE			8192
-
-#define GS_CLOSE_TIMEOUT		15
-
 #define GS_DEFAULT_USE_ACM		0
 
-/* 9600-8-N-1 ... matches init_termios.c_cflag and defaults
- * expected by "usbser.sys" on MS-Windows.
- */
-#define GS_DEFAULT_DTE_RATE		9600
-#define GS_DEFAULT_DATA_BITS		8
-#define GS_DEFAULT_PARITY		USB_CDC_NO_PARITY
-#define GS_DEFAULT_CHAR_FORMAT		USB_CDC_1_STOP_BITS
 
 /* maxpacket and other transfer characteristics vary by speed. */
 static inline struct usb_endpoint_descriptor *
@@ -85,19 +60,6 @@ choose_ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *hs,
 		return hs;
 	return fs;
 }
-
-
-/* debug settings */
-#ifdef DEBUG
-static int debug = 1;
-#else
-#define	debug 0
-#endif
-
-#define gs_debug(format, arg...) \
-	do { if (debug) pr_debug(format, ## arg); } while (0)
-#define gs_debug_level(level, format, arg...) \
-	do { if (debug >= level) pr_debug(format, ## arg); } while (0)
 
 
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -112,62 +74,18 @@ static int debug = 1;
 #define GS_LOG2_NOTIFY_INTERVAL		5	/* 1 << 5 == 32 msec */
 #define GS_NOTIFY_MAXPACKET		8
 
-
-/* circular buffer */
-struct gs_buf {
-	unsigned int		buf_size;
-	char			*buf_buf;
-	char			*buf_get;
-	char			*buf_put;
-};
-
-/* the port structure holds info for each port, one for each minor number */
-struct gs_port {
-	struct gs_dev		*port_dev;	/* pointer to device struct */
-	struct tty_struct	*port_tty;	/* pointer to tty struct */
-	spinlock_t		port_lock;
-	int			port_num;
-	int			port_open_count;
-	int			port_in_use;	/* open/close in progress */
-	wait_queue_head_t	port_write_wait;/* waiting to write */
-	struct gs_buf		*port_write_buf;
-	struct usb_cdc_line_coding port_line_coding;	/* 8-N-1 etc */
-	u16			port_handshake_bits;
-#define RS232_RTS	(1 << 1)
-#define RS232_DTE	(1 << 0)
-};
-
 /* the device structure holds info for the USB device */
 struct gs_dev {
 	struct usb_gadget	*dev_gadget;	/* gadget device pointer */
 	spinlock_t		dev_lock;	/* lock for set/reset config */
 	int			dev_config;	/* configuration number */
-	struct usb_ep		*dev_notify_ep;	/* address of notify endpoint */
-	struct usb_ep		*dev_in_ep;	/* address of in endpoint */
-	struct usb_ep		*dev_out_ep;	/* address of out endpoint */
-	struct usb_endpoint_descriptor		/* descriptor of notify ep */
-				*dev_notify_ep_desc;
-	struct usb_endpoint_descriptor		/* descriptor of in endpoint */
-				*dev_in_ep_desc;
-	struct usb_endpoint_descriptor		/* descriptor of out endpoint */
-				*dev_out_ep_desc;
 	struct usb_request	*dev_ctrl_req;	/* control request */
-	struct list_head	dev_req_list;	/* list of write requests */
-	int			dev_sched_port;	/* round robin port scheduled */
-	struct gs_port		*dev_port[GS_NUM_PORTS]; /* the ports */
+
+	struct gserial		gser;		/* serial/tty port */
 };
 
 
 /* Functions */
-
-/* tty driver internals */
-static int gs_send(struct gs_dev *dev);
-static int gs_send_packet(struct gs_dev *dev, char *packet,
-	unsigned int size);
-static int gs_recv_packet(struct gs_dev *dev, char *packet,
-	unsigned int size);
-static void gs_read_complete(struct usb_ep *ep, struct usb_request *req);
-static void gs_write_complete(struct usb_ep *ep, struct usb_request *req);
 
 /* gadget driver internals */
 static int gs_set_config(struct gs_dev *dev, unsigned config);
@@ -178,28 +96,6 @@ static int gs_build_config_buf(u8 *buf, struct usb_gadget *g,
 static struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned int len,
 	gfp_t kmalloc_flags);
 static void gs_free_req(struct usb_ep *ep, struct usb_request *req);
-
-static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags);
-static void gs_free_ports(struct gs_dev *dev);
-
-/* circular buffer */
-static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags);
-static void gs_buf_free(struct gs_buf *gb);
-static void gs_buf_clear(struct gs_buf *gb);
-static unsigned int gs_buf_data_avail(struct gs_buf *gb);
-static unsigned int gs_buf_space_avail(struct gs_buf *gb);
-static unsigned int gs_buf_put(struct gs_buf *gb, const char *buf,
-	unsigned int count);
-static unsigned int gs_buf_get(struct gs_buf *gb, char *buf,
-	unsigned int count);
-
-
-/* Globals */
-
-static struct gs_dev *gs_device;
-
-static struct mutex gs_open_close_lock[GS_NUM_PORTS];
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -217,7 +113,7 @@ static struct mutex gs_open_close_lock[GS_NUM_PORTS];
 static char manufacturer[50];
 static struct usb_string gs_strings[] = {
 	{ GS_MANUFACTURER_STR_ID, manufacturer },
-	{ GS_PRODUCT_STR_ID, GS_LONG_NAME },
+	{ GS_PRODUCT_STR_ID, GS_VERSION_NAME },
 	{ GS_BULK_CONFIG_STR_ID, "Gadget Serial Bulk" },
 	{ GS_ACM_CONFIG_STR_ID, "Gadget Serial CDC ACM" },
 	{ GS_CONTROL_STR_ID, "Gadget Serial Control" },
@@ -436,758 +332,14 @@ static const struct usb_descriptor_header *gs_acm_highspeed_function[] = {
 /*-------------------------------------------------------------------------*/
 
 /* Module */
-MODULE_DESCRIPTION(GS_LONG_NAME);
+MODULE_DESCRIPTION(GS_VERSION_NAME);
 MODULE_AUTHOR("Al Borchers");
+MODULE_AUTHOR("David Brownell");
 MODULE_LICENSE("GPL");
-
-#ifdef DEBUG
-module_param(debug, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging, 0=off, 1=on");
-#endif
-
-static unsigned int read_q_size = GS_DEFAULT_READ_Q_SIZE;
-module_param(read_q_size, uint, S_IRUGO);
-MODULE_PARM_DESC(read_q_size, "Read request queue size, default=32");
-
-static unsigned int write_q_size = GS_DEFAULT_WRITE_Q_SIZE;
-module_param(write_q_size, uint, S_IRUGO);
-MODULE_PARM_DESC(write_q_size, "Write request queue size, default=32");
-
-static unsigned int write_buf_size = GS_DEFAULT_WRITE_BUF_SIZE;
-module_param(write_buf_size, uint, S_IRUGO);
-MODULE_PARM_DESC(write_buf_size, "Write buffer size, default=8192");
 
 static unsigned int use_acm = GS_DEFAULT_USE_ACM;
 module_param(use_acm, uint, S_IRUGO);
 MODULE_PARM_DESC(use_acm, "Use CDC ACM, 0=no, 1=yes, default=no");
-
-/*-------------------------------------------------------------------------*/
-
-/* TTY Driver */
-
-/*
- * gs_open
- */
-static int gs_open(struct tty_struct *tty, struct file *file)
-{
-	int port_num;
-	unsigned long flags;
-	struct gs_port *port;
-	struct gs_dev *dev;
-	struct gs_buf *buf;
-	struct mutex *mtx;
-	int ret;
-
-	port_num = tty->index;
-
-	gs_debug("gs_open: (%d,%p,%p)\n", port_num, tty, file);
-
-	if (port_num < 0 || port_num >= GS_NUM_PORTS) {
-		pr_err("gs_open: (%d,%p,%p) invalid port number\n",
-			port_num, tty, file);
-		return -ENODEV;
-	}
-
-	dev = gs_device;
-
-	if (dev == NULL) {
-		pr_err("gs_open: (%d,%p,%p) NULL device pointer\n",
-			port_num, tty, file);
-		return -ENODEV;
-	}
-
-	mtx = &gs_open_close_lock[port_num];
-	if (mutex_lock_interruptible(mtx)) {
-		pr_err("gs_open: (%d,%p,%p) interrupted waiting for mutex\n",
-			port_num, tty, file);
-		return -ERESTARTSYS;
-	}
-
-	spin_lock_irqsave(&dev->dev_lock, flags);
-
-	if (dev->dev_config == GS_NO_CONFIG_ID) {
-		pr_err("gs_open: (%d,%p,%p) device is not connected\n",
-			port_num, tty, file);
-		ret = -ENODEV;
-		goto exit_unlock_dev;
-	}
-
-	port = dev->dev_port[port_num];
-
-	if (port == NULL) {
-		pr_err("gs_open: (%d,%p,%p) NULL port pointer\n",
-			port_num, tty, file);
-		ret = -ENODEV;
-		goto exit_unlock_dev;
-	}
-
-	spin_lock(&port->port_lock);
-	spin_unlock(&dev->dev_lock);
-
-	if (port->port_dev == NULL) {
-		pr_err("gs_open: (%d,%p,%p) port disconnected (1)\n",
-			port_num, tty, file);
-		ret = -EIO;
-		goto exit_unlock_port;
-	}
-
-	if (port->port_open_count > 0) {
-		++port->port_open_count;
-		gs_debug("gs_open: (%d,%p,%p) already open\n",
-			port_num, tty, file);
-		ret = 0;
-		goto exit_unlock_port;
-	}
-
-	tty->driver_data = NULL;
-
-	/* mark port as in use, we can drop port lock and sleep if necessary */
-	port->port_in_use = 1;
-
-	/* allocate write buffer on first open */
-	if (port->port_write_buf == NULL) {
-		spin_unlock_irqrestore(&port->port_lock, flags);
-		buf = gs_buf_alloc(write_buf_size, GFP_KERNEL);
-		spin_lock_irqsave(&port->port_lock, flags);
-
-		/* might have been disconnected while asleep, check */
-		if (port->port_dev == NULL) {
-			pr_err("gs_open: (%d,%p,%p) port disconnected (2)\n",
-				port_num, tty, file);
-			port->port_in_use = 0;
-			ret = -EIO;
-			goto exit_unlock_port;
-		}
-
-		if ((port->port_write_buf=buf) == NULL) {
-			pr_err("gs_open: (%d,%p,%p) cannot allocate "
-				"port write buffer\n",
-				port_num, tty, file);
-			port->port_in_use = 0;
-			ret = -ENOMEM;
-			goto exit_unlock_port;
-		}
-
-	}
-
-	/* wait for carrier detect (not implemented) */
-
-	/* might have been disconnected while asleep, check */
-	if (port->port_dev == NULL) {
-		pr_err("gs_open: (%d,%p,%p) port disconnected (3)\n",
-			port_num, tty, file);
-		port->port_in_use = 0;
-		ret = -EIO;
-		goto exit_unlock_port;
-	}
-
-	tty->driver_data = port;
-	port->port_tty = tty;
-	port->port_open_count = 1;
-	port->port_in_use = 0;
-
-	gs_debug("gs_open: (%d,%p,%p) completed\n", port_num, tty, file);
-
-	ret = 0;
-
-exit_unlock_port:
-	spin_unlock_irqrestore(&port->port_lock, flags);
-	mutex_unlock(mtx);
-	return ret;
-
-exit_unlock_dev:
-	spin_unlock_irqrestore(&dev->dev_lock, flags);
-	mutex_unlock(mtx);
-	return ret;
-
-}
-
-/*
- * gs_close
- */
-
-static int gs_write_finished_event_safely(struct gs_port *p)
-{
-	int cond;
-
-	spin_lock_irq(&(p)->port_lock);
-	cond = !(p)->port_dev || !gs_buf_data_avail((p)->port_write_buf);
-	spin_unlock_irq(&(p)->port_lock);
-	return cond;
-}
-
-static void gs_close(struct tty_struct *tty, struct file *file)
-{
-	struct gs_port *port = tty->driver_data;
-	struct mutex *mtx;
-
-	if (port == NULL) {
-		pr_err("gs_close: NULL port pointer\n");
-		return;
-	}
-
-	gs_debug("gs_close: (%d,%p,%p)\n", port->port_num, tty, file);
-
-	mtx = &gs_open_close_lock[port->port_num];
-	mutex_lock(mtx);
-
-	spin_lock_irq(&port->port_lock);
-
-	if (port->port_open_count == 0) {
-		pr_err("gs_close: (%d,%p,%p) port is already closed\n",
-			port->port_num, tty, file);
-		goto exit;
-	}
-
-	if (port->port_open_count > 1) {
-		--port->port_open_count;
-		goto exit;
-	}
-
-	/* free disconnected port on final close */
-	if (port->port_dev == NULL) {
-		kfree(port);
-		goto exit;
-	}
-
-	/* mark port as closed but in use, we can drop port lock */
-	/* and sleep if necessary */
-	port->port_in_use = 1;
-	port->port_open_count = 0;
-
-	/* wait for write buffer to drain, or */
-	/* at most GS_CLOSE_TIMEOUT seconds */
-	if (gs_buf_data_avail(port->port_write_buf) > 0) {
-		spin_unlock_irq(&port->port_lock);
-		wait_event_interruptible_timeout(port->port_write_wait,
-					gs_write_finished_event_safely(port),
-					GS_CLOSE_TIMEOUT * HZ);
-		spin_lock_irq(&port->port_lock);
-	}
-
-	/* free disconnected port on final close */
-	/* (might have happened during the above sleep) */
-	if (port->port_dev == NULL) {
-		kfree(port);
-		goto exit;
-	}
-
-	gs_buf_clear(port->port_write_buf);
-
-	tty->driver_data = NULL;
-	port->port_tty = NULL;
-	port->port_in_use = 0;
-
-	gs_debug("gs_close: (%d,%p,%p) completed\n",
-		port->port_num, tty, file);
-
-exit:
-	spin_unlock_irq(&port->port_lock);
-	mutex_unlock(mtx);
-}
-
-/*
- * gs_write
- */
-static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
-{
-	unsigned long flags;
-	struct gs_port *port = tty->driver_data;
-	int ret;
-
-	if (port == NULL) {
-		pr_err("gs_write: NULL port pointer\n");
-		return -EIO;
-	}
-
-	gs_debug("gs_write: (%d,%p) writing %d bytes\n", port->port_num, tty,
-		count);
-
-	if (count == 0)
-		return 0;
-
-	spin_lock_irqsave(&port->port_lock, flags);
-
-	if (port->port_dev == NULL) {
-		pr_err("gs_write: (%d,%p) port is not connected\n",
-			port->port_num, tty);
-		ret = -EIO;
-		goto exit;
-	}
-
-	if (port->port_open_count == 0) {
-		pr_err("gs_write: (%d,%p) port is closed\n",
-			port->port_num, tty);
-		ret = -EBADF;
-		goto exit;
-	}
-
-	count = gs_buf_put(port->port_write_buf, buf, count);
-
-	spin_unlock_irqrestore(&port->port_lock, flags);
-
-	gs_send(gs_device);
-
-	gs_debug("gs_write: (%d,%p) wrote %d bytes\n", port->port_num, tty,
-		count);
-
-	return count;
-
-exit:
-	spin_unlock_irqrestore(&port->port_lock, flags);
-	return ret;
-}
-
-/*
- * gs_put_char
- */
-static int gs_put_char(struct tty_struct *tty, unsigned char ch)
-{
-	unsigned long flags;
-	struct gs_port *port = tty->driver_data;
-	int ret = 0;
-
-	if (port == NULL) {
-		pr_err("gs_put_char: NULL port pointer\n");
-		return 0;
-	}
-
-	gs_debug("gs_put_char: (%d,%p) char=0x%x, called from %p\n",
-		port->port_num, tty, ch, __builtin_return_address(0));
-
-	spin_lock_irqsave(&port->port_lock, flags);
-
-	if (port->port_dev == NULL) {
-		pr_err("gs_put_char: (%d,%p) port is not connected\n",
-			port->port_num, tty);
-		goto exit;
-	}
-
-	if (port->port_open_count == 0) {
-		pr_err("gs_put_char: (%d,%p) port is closed\n",
-			port->port_num, tty);
-		goto exit;
-	}
-
-	ret = gs_buf_put(port->port_write_buf, &ch, 1);
-
-exit:
-	spin_unlock_irqrestore(&port->port_lock, flags);
-	return ret;
-}
-
-/*
- * gs_flush_chars
- */
-static void gs_flush_chars(struct tty_struct *tty)
-{
-	unsigned long flags;
-	struct gs_port *port = tty->driver_data;
-
-	if (port == NULL) {
-		pr_err("gs_flush_chars: NULL port pointer\n");
-		return;
-	}
-
-	gs_debug("gs_flush_chars: (%d,%p)\n", port->port_num, tty);
-
-	spin_lock_irqsave(&port->port_lock, flags);
-
-	if (port->port_dev == NULL) {
-		pr_err("gs_flush_chars: (%d,%p) port is not connected\n",
-			port->port_num, tty);
-		goto exit;
-	}
-
-	if (port->port_open_count == 0) {
-		pr_err("gs_flush_chars: (%d,%p) port is closed\n",
-			port->port_num, tty);
-		goto exit;
-	}
-
-	spin_unlock_irqrestore(&port->port_lock, flags);
-
-	gs_send(gs_device);
-
-	return;
-
-exit:
-	spin_unlock_irqrestore(&port->port_lock, flags);
-}
-
-/*
- * gs_write_room
- */
-static int gs_write_room(struct tty_struct *tty)
-{
-
-	int room = 0;
-	unsigned long flags;
-	struct gs_port *port = tty->driver_data;
-
-
-	if (port == NULL)
-		return 0;
-
-	spin_lock_irqsave(&port->port_lock, flags);
-
-	if (port->port_dev != NULL && port->port_open_count > 0
-	&& port->port_write_buf != NULL)
-		room = gs_buf_space_avail(port->port_write_buf);
-
-	spin_unlock_irqrestore(&port->port_lock, flags);
-
-	gs_debug("gs_write_room: (%d,%p) room=%d\n",
-		port->port_num, tty, room);
-
-	return room;
-}
-
-/*
- * gs_chars_in_buffer
- */
-static int gs_chars_in_buffer(struct tty_struct *tty)
-{
-	int chars = 0;
-	unsigned long flags;
-	struct gs_port *port = tty->driver_data;
-
-	if (port == NULL)
-		return 0;
-
-	spin_lock_irqsave(&port->port_lock, flags);
-
-	if (port->port_dev != NULL && port->port_open_count > 0
-	&& port->port_write_buf != NULL)
-		chars = gs_buf_data_avail(port->port_write_buf);
-
-	spin_unlock_irqrestore(&port->port_lock, flags);
-
-	gs_debug("gs_chars_in_buffer: (%d,%p) chars=%d\n",
-		port->port_num, tty, chars);
-
-	return chars;
-}
-
-/*
- * gs_throttle
- */
-static void gs_throttle(struct tty_struct *tty)
-{
-}
-
-/*
- * gs_unthrottle
- */
-static void gs_unthrottle(struct tty_struct *tty)
-{
-}
-
-/*
- * gs_break
- */
-static void gs_break(struct tty_struct *tty, int break_state)
-{
-}
-
-/*
- * gs_ioctl
- */
-static int gs_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
-{
-	struct gs_port *port = tty->driver_data;
-
-	if (port == NULL) {
-		pr_err("gs_ioctl: NULL port pointer\n");
-		return -EIO;
-	}
-
-	gs_debug("gs_ioctl: (%d,%p,%p) cmd=0x%4.4x, arg=%lu\n",
-		port->port_num, tty, file, cmd, arg);
-
-	/* handle ioctls */
-
-	/* could not handle ioctl */
-	return -ENOIOCTLCMD;
-}
-
-/*
- * gs_set_termios
- */
-static void gs_set_termios(struct tty_struct *tty, struct ktermios *old)
-{
-}
-
-static const struct tty_operations gs_tty_ops = {
-	.open =			gs_open,
-	.close =		gs_close,
-	.write =		gs_write,
-	.put_char =		gs_put_char,
-	.flush_chars =		gs_flush_chars,
-	.write_room =		gs_write_room,
-	.ioctl =		gs_ioctl,
-	.set_termios =		gs_set_termios,
-	.throttle =		gs_throttle,
-	.unthrottle =		gs_unthrottle,
-	.break_ctl =		gs_break,
-	.chars_in_buffer =	gs_chars_in_buffer,
-};
-
-/*-------------------------------------------------------------------------*/
-
-/*
-* gs_send
-*
-* This function finds available write requests, calls
-* gs_send_packet to fill these packets with data, and
-* continues until either there are no more write requests
-* available or no more data to send.  This function is
-* run whenever data arrives or write requests are available.
-*/
-static int gs_send(struct gs_dev *dev)
-{
-	int ret,len;
-	unsigned long flags;
-	struct usb_ep *ep;
-	struct usb_request *req;
-
-	if (dev == NULL) {
-		pr_err("gs_send: NULL device pointer\n");
-		return -ENODEV;
-	}
-
-	spin_lock_irqsave(&dev->dev_lock, flags);
-
-	ep = dev->dev_in_ep;
-
-	while(!list_empty(&dev->dev_req_list)) {
-
-		req = list_entry(dev->dev_req_list.next,
-				struct usb_request, list);
-
-		len = gs_send_packet(dev, req->buf, ep->maxpacket);
-
-		if (len > 0) {
-			gs_debug_level(3, "gs_send: len=%d, 0x%2.2x "
-					"0x%2.2x 0x%2.2x ...\n", len,
-					*((unsigned char *)req->buf),
-					*((unsigned char *)req->buf+1),
-					*((unsigned char *)req->buf+2));
-			list_del(&req->list);
-			req->length = len;
-			spin_unlock_irqrestore(&dev->dev_lock, flags);
-			if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
-				pr_err(
-				"gs_send: cannot queue read request, ret=%d\n",
-					ret);
-				spin_lock_irqsave(&dev->dev_lock, flags);
-				break;
-			}
-			spin_lock_irqsave(&dev->dev_lock, flags);
-		} else {
-			break;
-		}
-
-	}
-
-	spin_unlock_irqrestore(&dev->dev_lock, flags);
-
-	return 0;
-}
-
-/*
- * gs_send_packet
- *
- * If there is data to send, a packet is built in the given
- * buffer and the size is returned.  If there is no data to
- * send, 0 is returned.  If there is any error a negative
- * error number is returned.
- *
- * Called during USB completion routine, on interrupt time.
- *
- * We assume that disconnect will not happen until all completion
- * routines have completed, so we can assume that the dev_port
- * array does not change during the lifetime of this function.
- */
-static int gs_send_packet(struct gs_dev *dev, char *packet, unsigned int size)
-{
-	unsigned int len;
-	struct gs_port *port;
-
-	/* TEMPORARY -- only port 0 is supported right now */
-	port = dev->dev_port[0];
-
-	if (port == NULL) {
-		pr_err("gs_send_packet: port=%d, NULL port pointer\n", 0);
-		return -EIO;
-	}
-
-	spin_lock(&port->port_lock);
-
-	len = gs_buf_data_avail(port->port_write_buf);
-	if (len < size)
-		size = len;
-
-	if (size == 0)
-		goto exit;
-
-	size = gs_buf_get(port->port_write_buf, packet, size);
-
-	if (port->port_tty)
-		wake_up_interruptible(&port->port_tty->write_wait);
-
-exit:
-	spin_unlock(&port->port_lock);
-	return size;
-}
-
-/*
- * gs_recv_packet
- *
- * Called for each USB packet received.  Reads the packet
- * header and stuffs the data in the appropriate tty buffer.
- * Returns 0 if successful, or a negative error number.
- *
- * Called during USB completion routine, on interrupt time.
- *
- * We assume that disconnect will not happen until all completion
- * routines have completed, so we can assume that the dev_port
- * array does not change during the lifetime of this function.
- */
-static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
-{
-	unsigned int len;
-	struct gs_port *port;
-	int ret;
-	struct tty_struct *tty;
-
-	/* TEMPORARY -- only port 0 is supported right now */
-	port = dev->dev_port[0];
-
-	if (port == NULL) {
-		pr_err("gs_recv_packet: port=%d, NULL port pointer\n",
-			port->port_num);
-		return -EIO;
-	}
-
-	spin_lock(&port->port_lock);
-
-	if (port->port_open_count == 0) {
-		pr_err("gs_recv_packet: port=%d, port is closed\n",
-			port->port_num);
-		ret = -EIO;
-		goto exit;
-	}
-
-
-	tty = port->port_tty;
-
-	if (tty == NULL) {
-		pr_err("gs_recv_packet: port=%d, NULL tty pointer\n",
-			port->port_num);
-		ret = -EIO;
-		goto exit;
-	}
-
-	if (port->port_tty->magic != TTY_MAGIC) {
-		pr_err("gs_recv_packet: port=%d, bad tty magic\n",
-			port->port_num);
-		ret = -EIO;
-		goto exit;
-	}
-
-	len = tty_buffer_request_room(tty, size);
-	if (len > 0) {
-		tty_insert_flip_string(tty, packet, len);
-		tty_flip_buffer_push(port->port_tty);
-		wake_up_interruptible(&port->port_tty->read_wait);
-	}
-	ret = 0;
-exit:
-	spin_unlock(&port->port_lock);
-	return ret;
-}
-
-/*
-* gs_read_complete
-*/
-static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
-{
-	int ret;
-	struct gs_dev *dev = ep->driver_data;
-
-	if (dev == NULL) {
-		pr_err("gs_read_complete: NULL device pointer\n");
-		return;
-	}
-
-	switch(req->status) {
-	case 0:
-		/* normal completion */
-		gs_recv_packet(dev, req->buf, req->actual);
-requeue:
-		req->length = ep->maxpacket;
-		if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
-			pr_err(
-			"gs_read_complete: cannot queue read request, ret=%d\n",
-				ret);
-		}
-		break;
-
-	case -ESHUTDOWN:
-		/* disconnect */
-		gs_debug("gs_read_complete: shutdown\n");
-		gs_free_req(ep, req);
-		break;
-
-	default:
-		/* unexpected */
-		pr_err(
-		"gs_read_complete: unexpected status error, status=%d\n",
-			req->status);
-		goto requeue;
-		break;
-	}
-}
-
-/*
-* gs_write_complete
-*/
-static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
-{
-	struct gs_dev *dev = ep->driver_data;
-
-	if (dev == NULL) {
-		pr_err("gs_write_complete: NULL device pointer\n");
-		return;
-	}
-
-	switch(req->status) {
-	case 0:
-		/* normal completion */
-requeue:
-		spin_lock(&dev->dev_lock);
-		list_add(&req->list, &dev->dev_req_list);
-		spin_unlock(&dev->dev_lock);
-
-		gs_send(dev);
-
-		break;
-
-	case -ESHUTDOWN:
-		/* disconnect */
-		gs_debug("gs_write_complete: shutdown\n");
-		gs_free_req(ep, req);
-		break;
-
-	default:
-		pr_err(
-		"gs_write_complete: unexpected status error, status=%d\n",
-			req->status);
-		goto requeue;
-		break;
-	}
-}
 
 /*-------------------------------------------------------------------------*/
 
@@ -1199,11 +351,9 @@ requeue:
  * Called on module unload.  Frees the control request and device
  * structure.
  */
-static void /* __init_or_exit */ gs_unbind(struct usb_gadget *gadget)
+static void __exit gs_unbind(struct usb_gadget *gadget)
 {
 	struct gs_dev *dev = get_gadget_data(gadget);
-
-	gs_device = NULL;
 
 	/* read/write requests already freed, only control request remains */
 	if (dev != NULL) {
@@ -1212,13 +362,13 @@ static void /* __init_or_exit */ gs_unbind(struct usb_gadget *gadget)
 			dev->dev_ctrl_req = NULL;
 		}
 		gs_reset_config(dev);
-		gs_free_ports(dev);
 		kfree(dev);
 		set_gadget_data(gadget, NULL);
 	}
 
-	pr_info("gs_unbind: %s %s unbound\n", GS_LONG_NAME,
-		GS_VERSION_STR);
+	pr_info("gs_unbind: %s unbound\n", GS_VERSION_NAME);
+
+	gserial_cleanup();
 }
 
 /*
@@ -1233,6 +383,10 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	struct usb_ep *ep;
 	struct gs_dev *dev;
 	int gcnum;
+
+	ret = gserial_setup(gadget, GS_NUM_PORTS);
+	if (ret < 0)
+		return ret;
 
 	/* Some controllers can't support CDC ACM:
 	 * - sh doesn't support multiple interfaces or configs;
@@ -1254,21 +408,24 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	}
 
 	dev = kzalloc(sizeof(struct gs_dev), GFP_KERNEL);
-	if (dev == NULL)
-		return -ENOMEM;
+	if (dev == NULL) {
+		ret = -ENOMEM;
+		goto autoconf_fail;
+	}
 
 	usb_ep_autoconfig_reset(gadget);
+	ret = -ENXIO;
 
 	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_in_desc);
 	if (!ep)
 		goto autoconf_fail;
-	dev->dev_in_ep = ep;
+	dev->gser.in = ep;
 	ep->driver_data = dev;	/* claim the endpoint */
 
 	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_out_desc);
 	if (!ep)
 		goto autoconf_fail;
-	dev->dev_out_ep = ep;
+	dev->gser.out = ep;
 	ep->driver_data = dev;	/* claim the endpoint */
 
 	if (use_acm) {
@@ -1279,7 +436,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		}
 		gs_device_desc.idProduct = __constant_cpu_to_le16(
 						GS_CDC_PRODUCT_ID),
-		dev->dev_notify_ep = ep;
+		dev->gser.notify = ep;
 		ep->driver_data = dev;	/* claim the endpoint */
 	}
 
@@ -1310,41 +467,32 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		gs_acm_config_desc.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	gs_device = dev;
-
 	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
 		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
 	dev->dev_gadget = gadget;
 	spin_lock_init(&dev->dev_lock);
-	INIT_LIST_HEAD(&dev->dev_req_list);
 	set_gadget_data(gadget, dev);
-
-	if ((ret=gs_alloc_ports(dev, GFP_KERNEL)) != 0) {
-		pr_err("gs_bind: cannot allocate ports\n");
-		gs_unbind(gadget);
-		return ret;
-	}
 
 	/* preallocate control response and buffer */
 	dev->dev_ctrl_req = gs_alloc_req(gadget->ep0, GS_MAX_DESC_LEN,
 		GFP_KERNEL);
 	if (dev->dev_ctrl_req == NULL) {
-		gs_unbind(gadget);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto autoconf_fail;
 	}
 	gadget->ep0->driver_data = dev;
 
-	pr_info("gs_bind: %s %s bound\n",
-		GS_LONG_NAME, GS_VERSION_STR);
+	pr_info("gs_bind: %s bound\n", GS_VERSION_NAME);
 
 	return 0;
 
 autoconf_fail:
 	kfree(dev);
-	pr_err("gs_bind: cannot autoconfigure on %s\n", gadget->name);
-	return -ENODEV;
+	gserial_cleanup();
+	pr_err("gs_bind: to %s, err %d\n", gadget->name, ret);
+	return ret;
 }
 
 static int gs_setup_standard(struct usb_gadget *gadget,
@@ -1435,15 +583,14 @@ static int gs_setup_standard(struct usb_gadget *gadget,
 		}
 		if (dev->dev_config != GS_BULK_CONFIG_ID
 				&& wIndex == GS_CONTROL_INTERFACE_ID) {
-			if (dev->dev_notify_ep) {
-				usb_ep_disable(dev->dev_notify_ep);
-				usb_ep_enable(dev->dev_notify_ep, dev->dev_notify_ep_desc);
+			if (dev->gser.notify) {
+				usb_ep_disable(dev->gser.notify);
+				usb_ep_enable(dev->gser.notify,
+						dev->gser.notify_desc);
 			}
 		} else {
-			usb_ep_disable(dev->dev_in_ep);
-			usb_ep_disable(dev->dev_out_ep);
-			usb_ep_enable(dev->dev_in_ep, dev->dev_in_ep_desc);
-			usb_ep_enable(dev->dev_out_ep, dev->dev_out_ep_desc);
+			gserial_connect(&dev->gser, 0);
+			gserial_disconnect(&dev->gser);
 		}
 		ret = 0;
 set_interface_done:
@@ -1480,23 +627,22 @@ static void gs_setup_complete_set_line_coding(struct usb_ep *ep,
 		struct usb_request *req)
 {
 	struct gs_dev *dev = ep->driver_data;
-	struct gs_port *port = dev->dev_port[0]; /* ACM only has one port */
 
 	switch (req->status) {
 	case 0:
 		/* normal completion */
-		if (req->actual != sizeof(port->port_line_coding))
+		if (req->actual != sizeof(dev->gser.port_line_coding))
 			usb_ep_set_halt(ep);
-		else if (port) {
+		else {
 			struct usb_cdc_line_coding	*value = req->buf;
 
 			/* REVISIT:  we currently just remember this data.
 			 * If we change that, (a) validate it first, then
 			 * (b) update whatever hardware needs updating.
 			 */
-			spin_lock(&port->port_lock);
-			port->port_line_coding = *value;
-			spin_unlock(&port->port_lock);
+			spin_lock(&dev->dev_lock);
+			dev->gser.port_line_coding = *value;
+			spin_unlock(&dev->dev_lock);
 		}
 		break;
 
@@ -1517,7 +663,6 @@ static int gs_setup_class(struct usb_gadget *gadget,
 {
 	int ret = -EOPNOTSUPP;
 	struct gs_dev *dev = get_gadget_data(gadget);
-	struct gs_port *port = dev->dev_port[0];	/* ACM only has one port */
 	struct usb_request *req = dev->dev_ctrl_req;
 	u16 wIndex = le16_to_cpu(ctrl->wIndex);
 	u16 wValue = le16_to_cpu(ctrl->wValue);
@@ -1533,26 +678,22 @@ static int gs_setup_class(struct usb_gadget *gadget,
 
 	case USB_CDC_REQ_GET_LINE_CODING:
 		ret = min_t(int, wLength, sizeof(struct usb_cdc_line_coding));
-		if (port) {
-			spin_lock(&port->port_lock);
-			memcpy(req->buf, &port->port_line_coding, ret);
-			spin_unlock(&port->port_lock);
-		}
+		spin_lock(&dev->dev_lock);
+		memcpy(req->buf, &dev->gser.port_line_coding, ret);
+		spin_unlock(&dev->dev_lock);
 		break;
 
 	case USB_CDC_REQ_SET_CONTROL_LINE_STATE:
 		if (wLength != 0)
 			break;
 		ret = 0;
-		if (port) {
-			/* REVISIT:  we currently just remember this data.
-			 * If we change that, update whatever hardware needs
-			 * updating.
-			 */
-			spin_lock(&port->port_lock);
-			port->port_handshake_bits = wValue;
-			spin_unlock(&port->port_lock);
-		}
+		/* REVISIT:  we currently just remember this data.
+		 * If we change that, update whatever hardware needs
+		 * updating.
+		 */
+		spin_lock(&dev->dev_lock);
+		dev->gser.port_handshake_bits = wValue;
+		spin_unlock(&dev->dev_lock);
 		break;
 
 	default:
@@ -1654,17 +795,7 @@ static void gs_disconnect(struct usb_gadget *gadget)
 	struct gs_dev *dev = get_gadget_data(gadget);
 
 	spin_lock_irqsave(&dev->dev_lock, flags);
-
 	gs_reset_config(dev);
-
-	/* free closed ports and disconnect open ports */
-	/* (open ports will be freed when closed) */
-	gs_free_ports(dev);
-
-	/* re-allocate ports for the next connection */
-	if (gs_alloc_ports(dev, GFP_ATOMIC) != 0)
-		pr_err("gs_disconnect: cannot re-allocate ports\n");
-
 	spin_unlock_irqrestore(&dev->dev_lock, flags);
 
 	pr_info("gs_disconnect: %s disconnected\n", GS_LONG_NAME);
@@ -1698,17 +829,8 @@ static struct usb_gadget_driver gs_gadget_driver = {
  */
 static int gs_set_config(struct gs_dev *dev, unsigned config)
 {
-	int i;
 	int ret = 0;
 	struct usb_gadget *gadget = dev->dev_gadget;
-	struct usb_ep *ep;
-	struct usb_endpoint_descriptor *out, *in, *notify;
-	struct usb_request *req;
-
-	if (dev == NULL) {
-		pr_err("gs_set_config: NULL device pointer\n");
-		return 0;
-	}
 
 	if (config == dev->dev_config)
 		return 0;
@@ -1730,84 +852,36 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 		return -EINVAL;
 	}
 
-	in = choose_ep_desc(gadget,
+	dev->gser.in_desc = choose_ep_desc(gadget,
 			&gs_highspeed_in_desc,
 			&gs_fullspeed_in_desc);
-	out = choose_ep_desc(gadget,
+	dev->gser.out_desc = choose_ep_desc(gadget,
 			&gs_highspeed_out_desc,
 			&gs_fullspeed_out_desc);
-	notify = dev->dev_notify_ep
+	dev->gser.notify_desc = dev->gser.notify
 		? choose_ep_desc(gadget,
 				&gs_highspeed_notify_desc,
 				&gs_fullspeed_notify_desc)
 		: NULL;
 
-	ret = usb_ep_enable(dev->dev_in_ep, in);
-	if (ret == 0) {
-		dev->dev_in_ep_desc = in;
-	} else {
-		pr_debug("%s: cannot enable %s %s, ret=%d\n",
-			__func__, "IN", dev->dev_in_ep->name, ret);
-		return ret;
+	/* only support one "serial" port for now */
+	if (dev->gser.notify) {
+		ret = usb_ep_enable(dev->gser.notify, dev->gser.notify_desc);
+		if (ret < 0)
+			return ret;
+		dev->gser.notify->driver_data = dev;
 	}
 
-	ret = usb_ep_enable(dev->dev_out_ep, out);
-	if (ret == 0) {
-		dev->dev_out_ep_desc = out;
-	} else {
-		pr_debug("%s: cannot enable %s %s, ret=%d\n",
-			__func__, "OUT", dev->dev_out_ep->name, ret);
-fail0:
-		usb_ep_disable(dev->dev_in_ep);
-		return ret;
-	}
-
-	if (notify) {
-		ret = usb_ep_enable(dev->dev_notify_ep, notify);
-		if (ret == 0) {
-			dev->dev_notify_ep_desc = notify;
-		} else {
-			pr_debug("%s: cannot enable %s %s, ret=%d\n",
-				__func__, "NOTIFY",
-				dev->dev_notify_ep->name, ret);
-			usb_ep_disable(dev->dev_out_ep);
-			goto fail0;
+	ret = gserial_connect(&dev->gser, 0);
+	if (ret < 0) {
+		if (dev->gser.notify) {
+			usb_ep_disable(dev->gser.notify);
+			dev->gser.notify->driver_data = NULL;
 		}
+		return ret;
 	}
 
 	dev->dev_config = config;
-
-	/* allocate and queue read requests */
-	ep = dev->dev_out_ep;
-	for (i=0; i<read_q_size && ret == 0; i++) {
-		if ((req=gs_alloc_req(ep, ep->maxpacket, GFP_ATOMIC))) {
-			req->complete = gs_read_complete;
-			if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
-				pr_err("gs_set_config: cannot queue read "
-					"request, ret=%d\n", ret);
-			}
-		} else {
-			pr_err("gs_set_config: cannot allocate "
-					"read requests\n");
-			ret = -ENOMEM;
-			goto exit_reset_config;
-		}
-	}
-
-	/* allocate write requests, and put on free list */
-	ep = dev->dev_in_ep;
-	for (i=0; i<write_q_size; i++) {
-		req = gs_alloc_req(ep, ep->maxpacket, GFP_ATOMIC);
-		if (req) {
-			req->complete = gs_write_complete;
-			list_add(&req->list, &dev->dev_req_list);
-		} else {
-			pr_err("gs_set_config: cannot allocate "
-					"write requests\n");
-			ret = -ENOMEM;
-			goto exit_reset_config;
-		}
-	}
 
 	/* REVISIT the ACM mode should be able to actually *issue* some
 	 * notifications, for at least serial state change events if
@@ -1820,10 +894,6 @@ fail0:
 		config == GS_BULK_CONFIG_ID ? "BULK" : "CDC-ACM");
 
 	return 0;
-
-exit_reset_config:
-	gs_reset_config(dev);
-	return ret;
 }
 
 /*
@@ -1838,32 +908,16 @@ exit_reset_config:
  */
 static void gs_reset_config(struct gs_dev *dev)
 {
-	struct usb_request *req;
-
-	if (dev == NULL) {
-		pr_err("gs_reset_config: NULL device pointer\n");
-		return;
-	}
-
 	if (dev->dev_config == GS_NO_CONFIG_ID)
 		return;
 
 	dev->dev_config = GS_NO_CONFIG_ID;
 
-	/* free write requests on the free list */
-	while(!list_empty(&dev->dev_req_list)) {
-		req = list_entry(dev->dev_req_list.next,
-				struct usb_request, list);
-		list_del(&req->list);
-		gs_free_req(dev->dev_in_ep, req);
+	gserial_disconnect(&dev->gser);
+	if (dev->gser.notify) {
+		usb_ep_disable(dev->gser.notify);
+		dev->gser.notify->driver_data = NULL;
 	}
-
-	/* disable endpoints, forcing completion of pending i/o; */
-	/* completion handlers free their requests in this case */
-	if (dev->dev_notify_ep)
-		usb_ep_disable(dev->dev_notify_ep);
-	usb_ep_disable(dev->dev_in_ep);
-	usb_ep_disable(dev->dev_out_ep);
 }
 
 /*
@@ -1956,253 +1010,7 @@ static void gs_free_req(struct usb_ep *ep, struct usb_request *req)
 	}
 }
 
-/*
- * gs_alloc_ports
- *
- * Allocate all ports and set the gs_dev struct to point to them.
- * Return 0 if successful, or a negative error number.
- *
- * The device lock is normally held when calling this function.
- */
-static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags)
-{
-	int i;
-	struct gs_port *port;
-
-	if (dev == NULL)
-		return -EIO;
-
-	for (i=0; i<GS_NUM_PORTS; i++) {
-		if ((port=kzalloc(sizeof(struct gs_port), kmalloc_flags)) == NULL)
-			return -ENOMEM;
-
-		port->port_dev = dev;
-		port->port_num = i;
-		port->port_line_coding.dwDTERate = cpu_to_le32(GS_DEFAULT_DTE_RATE);
-		port->port_line_coding.bCharFormat = GS_DEFAULT_CHAR_FORMAT;
-		port->port_line_coding.bParityType = GS_DEFAULT_PARITY;
-		port->port_line_coding.bDataBits = GS_DEFAULT_DATA_BITS;
-		spin_lock_init(&port->port_lock);
-		init_waitqueue_head(&port->port_write_wait);
-
-		dev->dev_port[i] = port;
-	}
-
-	return 0;
-}
-
-/*
- * gs_free_ports
- *
- * Free all closed ports.  Open ports are disconnected by
- * freeing their write buffers, setting their device pointers
- * and the pointers to them in the device to NULL.  These
- * ports will be freed when closed.
- *
- * The device lock is normally held when calling this function.
- */
-static void gs_free_ports(struct gs_dev *dev)
-{
-	int i;
-	unsigned long flags;
-	struct gs_port *port;
-
-	if (dev == NULL)
-		return;
-
-	for (i=0; i<GS_NUM_PORTS; i++) {
-		if ((port=dev->dev_port[i]) != NULL) {
-			dev->dev_port[i] = NULL;
-
-			spin_lock_irqsave(&port->port_lock, flags);
-
-			if (port->port_write_buf != NULL) {
-				gs_buf_free(port->port_write_buf);
-				port->port_write_buf = NULL;
-			}
-
-			if (port->port_open_count > 0 || port->port_in_use) {
-				port->port_dev = NULL;
-				wake_up_interruptible(&port->port_write_wait);
-				if (port->port_tty) {
-					tty_hangup(port->port_tty);
-				}
-				spin_unlock_irqrestore(&port->port_lock, flags);
-			} else {
-				spin_unlock_irqrestore(&port->port_lock, flags);
-				kfree(port);
-			}
-
-		}
-	}
-}
-
 /*-------------------------------------------------------------------------*/
-
-/* Circular Buffer */
-
-/*
- * gs_buf_alloc
- *
- * Allocate a circular buffer and all associated memory.
- */
-static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags)
-{
-	struct gs_buf *gb;
-
-	if (size == 0)
-		return NULL;
-
-	gb = kmalloc(sizeof(struct gs_buf), kmalloc_flags);
-	if (gb == NULL)
-		return NULL;
-
-	gb->buf_buf = kmalloc(size, kmalloc_flags);
-	if (gb->buf_buf == NULL) {
-		kfree(gb);
-		return NULL;
-	}
-
-	gb->buf_size = size;
-	gb->buf_get = gb->buf_put = gb->buf_buf;
-
-	return gb;
-}
-
-/*
- * gs_buf_free
- *
- * Free the buffer and all associated memory.
- */
-static void gs_buf_free(struct gs_buf *gb)
-{
-	if (gb) {
-		kfree(gb->buf_buf);
-		kfree(gb);
-	}
-}
-
-/*
- * gs_buf_clear
- *
- * Clear out all data in the circular buffer.
- */
-static void gs_buf_clear(struct gs_buf *gb)
-{
-	if (gb != NULL)
-		gb->buf_get = gb->buf_put;
-		/* equivalent to a get of all data available */
-}
-
-/*
- * gs_buf_data_avail
- *
- * Return the number of bytes of data available in the circular
- * buffer.
- */
-static unsigned int gs_buf_data_avail(struct gs_buf *gb)
-{
-	if (gb != NULL)
-		return (gb->buf_size + gb->buf_put - gb->buf_get) % gb->buf_size;
-	else
-		return 0;
-}
-
-/*
- * gs_buf_space_avail
- *
- * Return the number of bytes of space available in the circular
- * buffer.
- */
-static unsigned int gs_buf_space_avail(struct gs_buf *gb)
-{
-	if (gb != NULL)
-		return (gb->buf_size + gb->buf_get - gb->buf_put - 1) % gb->buf_size;
-	else
-		return 0;
-}
-
-/*
- * gs_buf_put
- *
- * Copy data data from a user buffer and put it into the circular buffer.
- * Restrict to the amount of space available.
- *
- * Return the number of bytes copied.
- */
-static unsigned int
-gs_buf_put(struct gs_buf *gb, const char *buf, unsigned int count)
-{
-	unsigned int len;
-
-	if (gb == NULL)
-		return 0;
-
-	len  = gs_buf_space_avail(gb);
-	if (count > len)
-		count = len;
-
-	if (count == 0)
-		return 0;
-
-	len = gb->buf_buf + gb->buf_size - gb->buf_put;
-	if (count > len) {
-		memcpy(gb->buf_put, buf, len);
-		memcpy(gb->buf_buf, buf+len, count - len);
-		gb->buf_put = gb->buf_buf + count - len;
-	} else {
-		memcpy(gb->buf_put, buf, count);
-		if (count < len)
-			gb->buf_put += count;
-		else /* count == len */
-			gb->buf_put = gb->buf_buf;
-	}
-
-	return count;
-}
-
-/*
- * gs_buf_get
- *
- * Get data from the circular buffer and copy to the given buffer.
- * Restrict to the amount of data available.
- *
- * Return the number of bytes copied.
- */
-static unsigned int
-gs_buf_get(struct gs_buf *gb, char *buf, unsigned int count)
-{
-	unsigned int len;
-
-	if (gb == NULL)
-		return 0;
-
-	len = gs_buf_data_avail(gb);
-	if (count > len)
-		count = len;
-
-	if (count == 0)
-		return 0;
-
-	len = gb->buf_buf + gb->buf_size - gb->buf_get;
-	if (count > len) {
-		memcpy(buf, gb->buf_get, len);
-		memcpy(buf+len, gb->buf_buf, count - len);
-		gb->buf_get = gb->buf_buf + count - len;
-	} else {
-		memcpy(buf, gb->buf_get, count);
-		if (count < len)
-			gb->buf_get += count;
-		else /* count == len */
-			gb->buf_get = gb->buf_buf;
-	}
-
-	return count;
-}
-
-/*-------------------------------------------------------------------------*/
-
-static struct tty_driver *gs_tty_driver;
 
 /*
  *  gs_module_init
@@ -2211,50 +1019,7 @@ static struct tty_driver *gs_tty_driver;
  */
 static int __init gs_module_init(void)
 {
-	int i;
-	int retval;
-
-	retval = usb_gadget_register_driver(&gs_gadget_driver);
-	if (retval) {
-		pr_err("gs_module_init: cannot register gadget driver, "
-			"ret=%d\n", retval);
-		return retval;
-	}
-
-	gs_tty_driver = alloc_tty_driver(GS_NUM_PORTS);
-	if (!gs_tty_driver)
-		return -ENOMEM;
-	gs_tty_driver->owner = THIS_MODULE;
-	gs_tty_driver->driver_name = GS_SHORT_NAME;
-	gs_tty_driver->name = "ttygs";
-	gs_tty_driver->major = GS_MAJOR;
-	gs_tty_driver->minor_start = GS_MINOR_START;
-	gs_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	gs_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	gs_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
-	gs_tty_driver->init_termios = tty_std_termios;
-	/* must match GS_DEFAULT_DTE_RATE and friends */
-	gs_tty_driver->init_termios.c_cflag =
-		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	gs_tty_driver->init_termios.c_ispeed = GS_DEFAULT_DTE_RATE;
-	gs_tty_driver->init_termios.c_ospeed = GS_DEFAULT_DTE_RATE;
-	tty_set_operations(gs_tty_driver, &gs_tty_ops);
-
-	for (i = 0; i < GS_NUM_PORTS; i++)
-		mutex_init(&gs_open_close_lock[i]);
-
-	retval = tty_register_driver(gs_tty_driver);
-	if (retval) {
-		usb_gadget_unregister_driver(&gs_gadget_driver);
-		put_tty_driver(gs_tty_driver);
-		pr_err("gs_module_init: cannot register tty driver, "
-				"ret=%d\n", retval);
-		return retval;
-	}
-
-	pr_info("gs_module_init: %s %s loaded\n",
-			GS_LONG_NAME, GS_VERSION_STR);
-	return 0;
+	return usb_gadget_register_driver(&gs_gadget_driver);
 }
 module_init(gs_module_init);
 
@@ -2265,11 +1030,6 @@ module_init(gs_module_init);
  */
 static void __exit gs_module_exit(void)
 {
-	tty_unregister_driver(gs_tty_driver);
-	put_tty_driver(gs_tty_driver);
 	usb_gadget_unregister_driver(&gs_gadget_driver);
-
-	pr_info("gs_module_exit: %s %s unloaded\n",
-			GS_LONG_NAME, GS_VERSION_STR);
 }
 module_exit(gs_module_exit);
