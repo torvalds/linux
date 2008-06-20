@@ -32,6 +32,7 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
+#include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ss.h>
 
@@ -224,6 +225,66 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 	return (ret);
 }
 
+/** pccard_get_status
+ *
+ * Get the current socket state bits.  We don't support the latched
+ * SocketState yet: I haven't seen any point for it.
+ */
+
+static int pccard_get_status(struct pcmcia_socket *s,
+			     struct pcmcia_device *p_dev,
+			     cs_status_t *status)
+{
+	config_t *c;
+	int val;
+
+	s->ops->get_status(s, &val);
+	status->CardState = status->SocketState = 0;
+	status->CardState |= (val & SS_DETECT) ? CS_EVENT_CARD_DETECT : 0;
+	status->CardState |= (val & SS_CARDBUS) ? CS_EVENT_CB_DETECT : 0;
+	status->CardState |= (val & SS_3VCARD) ? CS_EVENT_3VCARD : 0;
+	status->CardState |= (val & SS_XVCARD) ? CS_EVENT_XVCARD : 0;
+	if (s->state & SOCKET_SUSPEND)
+		status->CardState |= CS_EVENT_PM_SUSPEND;
+	if (!(s->state & SOCKET_PRESENT))
+		return CS_NO_CARD;
+
+	c = (p_dev) ? p_dev->function_config : NULL;
+
+	if ((c != NULL) && (c->state & CONFIG_LOCKED) &&
+	    (c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
+		u_char reg;
+		if (c->CardValues & PRESENT_PIN_REPLACE) {
+			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
+			status->CardState |=
+				(reg & PRR_WP_STATUS) ? CS_EVENT_WRITE_PROTECT : 0;
+			status->CardState |=
+				(reg & PRR_READY_STATUS) ? CS_EVENT_READY_CHANGE : 0;
+			status->CardState |=
+				(reg & PRR_BVD2_STATUS) ? CS_EVENT_BATTERY_LOW : 0;
+			status->CardState |=
+				(reg & PRR_BVD1_STATUS) ? CS_EVENT_BATTERY_DEAD : 0;
+		} else {
+			/* No PRR?  Then assume we're always ready */
+			status->CardState |= CS_EVENT_READY_CHANGE;
+		}
+		if (c->CardValues & PRESENT_EXT_STATUS) {
+			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
+			status->CardState |=
+				(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
+		}
+		return CS_SUCCESS;
+	}
+	status->CardState |=
+		(val & SS_WRPROT) ? CS_EVENT_WRITE_PROTECT : 0;
+	status->CardState |=
+		(val & SS_BATDEAD) ? CS_EVENT_BATTERY_DEAD : 0;
+	status->CardState |=
+		(val & SS_BATWARN) ? CS_EVENT_BATTERY_LOW : 0;
+	status->CardState |=
+		(val & SS_READY) ? CS_EVENT_READY_CHANGE : 0;
+	return CS_SUCCESS;
+} /* pccard_get_status */
 
 /*======================================================================
 
