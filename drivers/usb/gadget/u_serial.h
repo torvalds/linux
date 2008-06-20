@@ -12,10 +12,7 @@
 #ifndef __U_SERIAL_H
 #define __U_SERIAL_H
 
-/* #include <linux/usb/composite.h> */
-#include <linux/usb/ch9.h>
-#include <linux/usb/gadget.h>
-
+#include <linux/usb/composite.h>
 #include <linux/usb/cdc.h>
 
 /*
@@ -32,7 +29,7 @@
  * REVISIT someday, allow multiplexing several TTYs over these endpoints.
  */
 struct gserial {
-	/* struct usb_function		func; */
+	struct usb_function		func;
 
 	/* port is managed by gserial_{connect,disconnect} */
 	struct gs_port			*ioport;
@@ -58,5 +55,8 @@ void gserial_cleanup(void);
 /* connect/disconnect is handled by individual functions */
 int gserial_connect(struct gserial *, u8 port_num);
 void gserial_disconnect(struct gserial *);
+
+/* functions are bound to configurations by a config or gadget driver */
+int acm_bind_config(struct usb_configuration *c, u8 port_num);
 
 #endif /* __U_SERIAL_H */
