@@ -269,12 +269,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			}
 
 			if (actual_type != entry->type) {
-				printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-					current->comm, current->pid,
-					start, end,
-					cattr_name(actual_type),
-					cattr_name(entry->type));
 				err = -EBUSY;
 				break;
 			}
@@ -290,12 +284,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				}
 
 				if (actual_type != entry->type) {
-					printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-						current->comm, current->pid,
-						start, end,
-						cattr_name(actual_type),
-						cattr_name(entry->type));
 					err = -EBUSY;
 					break;
 				}
@@ -321,12 +309,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			}
 
 			if (actual_type != entry->type) {
-				printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-					current->comm, current->pid,
-					start, end,
-					cattr_name(actual_type),
-					cattr_name(entry->type));
 				err = -EBUSY;
 				break;
 			}
@@ -342,12 +324,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				}
 
 				if (actual_type != entry->type) {
-					printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-						current->comm, current->pid,
-						start, end,
-						cattr_name(actual_type),
-						cattr_name(entry->type));
 					err = -EBUSY;
 					break;
 				}
@@ -367,10 +343,12 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	}
 
 	if (err) {
-		printk(KERN_INFO
-	"reserve_memtype failed 0x%Lx-0x%Lx, track %s, req %s\n",
-			start, end, cattr_name(new->type),
-			cattr_name(req_type));
+		printk(KERN_INFO "%s:%d conflicting memory types "
+		       "%Lx-%Lx %s<->%s\n", current->comm, current->pid, start,
+		       end, cattr_name(new->type), cattr_name(entry->type));
+		printk(KERN_INFO "reserve_memtype failed 0x%Lx-0x%Lx, "
+		       "track %s, req %s\n",
+		       start, end, cattr_name(new->type), cattr_name(req_type));
 		kfree(new);
 		spin_unlock(&memtype_lock);
 		return err;
@@ -382,19 +360,12 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		dprintk("New Entry\n");
 	}
 
-	if (new_type) {
-		dprintk(
-	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
-			start, end, cattr_name(actual_type),
-			cattr_name(req_type), cattr_name(*new_type));
-	} else {
-		dprintk(
-	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s\n",
-			start, end, cattr_name(actual_type),
-			cattr_name(req_type));
-	}
-
 	spin_unlock(&memtype_lock);
+
+	dprintk("reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
+		start, end, cattr_name(new->type), cattr_name(req_type),
+		new_type ? cattr_name(*new_type) : "-");
+
 	return err;
 }
 
