@@ -281,32 +281,24 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	/* Search for existing mapping that overlaps the current range */
 	where = NULL;
 	list_for_each_entry(entry, &memtype_list, nd) {
-		if (entry->start >= end) {
+		if (end <= entry->start) {
 			where = entry->nd.prev;
 			break;
-		}
-
-		if (start <= entry->start && end >= entry->start) {
+		} else if (start <= entry->start) { /* end > entry->start */
 			err = chk_conflict(new, entry, new_type);
-			if (err) {
-				break;
+			if (!err) {
+				dprintk("Overlap at 0x%Lx-0x%Lx\n",
+					entry->start, entry->end);
+				where = entry->nd.prev;
 			}
-
-			dprintk("Overlap at 0x%Lx-0x%Lx\n",
-			       entry->start, entry->end);
-			where = entry->nd.prev;
 			break;
-		}
-
-		if (start < entry->end) {
+		} else if (start < entry->end) { /* start > entry->start */
 			err = chk_conflict(new, entry, new_type);
-			if (err) {
-				break;
+			if (!err) {
+				dprintk("Overlap at 0x%Lx-0x%Lx\n",
+					entry->start, entry->end);
+				where = &entry->nd;
 			}
-
-			dprintk("Overlap at 0x%Lx-0x%Lx\n",
-				 entry->start, entry->end);
-			where = &entry->nd;
 			break;
 		}
 	}
