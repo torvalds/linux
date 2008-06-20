@@ -104,6 +104,14 @@ config HID_LOGITECH
 	Support for some Logitech devices which breaks less or more
 	HID specification.
 
+config HID_MICROSOFT
+	tristate "Microsoft"
+	default m
+	depends on USB_HID
+	---help---
+	Support for some Microsoft devices which breaks less or more
+	HID specification.
+
 endmenu
 
 endif # HID_SUPPORT

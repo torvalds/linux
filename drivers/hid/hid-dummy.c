@@ -10,6 +10,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_LOGITECH_MODULE
 	HID_COMPAT_CALL_DRIVER(logitech);
 #endif
+#ifdef CONFIG_HID_MICROSOFT_MODULE
+	HID_COMPAT_CALL_DRIVER(microsoft);
+#endif
 
 	return -EIO;
 }

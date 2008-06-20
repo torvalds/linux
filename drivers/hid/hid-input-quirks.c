@@ -102,50 +102,6 @@ static int quirk_chicony_tactical_pad(struct hid_usage *usage,
 	return 1;
 }
 
-static int quirk_microsoft_ergonomy_kb(struct hid_usage *usage,
-		struct hid_input *hidinput, unsigned long **bit, int *max)
-{
-	struct input_dev *input = hidinput->input;
-
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
-		return 0;
-
-	switch(usage->hid & HID_USAGE) {
-		case 0xfd06: map_key_clear(KEY_CHAT);		break;
-		case 0xfd07: map_key_clear(KEY_PHONE);		break;
-		case 0xff05:
-			set_bit(EV_REP, input->evbit);
-			map_key_clear(KEY_F13);
-			set_bit(KEY_F14, input->keybit);
-			set_bit(KEY_F15, input->keybit);
-			set_bit(KEY_F16, input->keybit);
-			set_bit(KEY_F17, input->keybit);
-			set_bit(KEY_F18, input->keybit);
-		default:
-			return 0;
-	}
-	return 1;
-}
-
-static int quirk_microsoft_presenter_8k(struct hid_usage *usage,
-		struct hid_input *hidinput, unsigned long **bit, int *max)
-{
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
-		return 0;
-
-	set_bit(EV_REP, hidinput->input->evbit);
-	switch(usage->hid & HID_USAGE) {
-		case 0xfd08: map_key_clear(KEY_FORWARD);	break;
-		case 0xfd09: map_key_clear(KEY_BACK);		break;
-		case 0xfd0b: map_key_clear(KEY_PLAYPAUSE);	break;
-		case 0xfd0e: map_key_clear(KEY_CLOSE);		break;
-		case 0xfd0f: map_key_clear(KEY_PLAY);		break;
-		default:
-			return 0;
-	}
-	return 1;
-}
-
 static int quirk_petalynx_remote(struct hid_usage *usage,
 		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
@@ -244,12 +200,6 @@ static int quirk_sunplus_wdesktop(struct hid_usage *usage,
 #define VENDOR_ID_GYRATION			0x0c16
 #define DEVICE_ID_GYRATION_REMOTE		0x0002
 
-#define VENDOR_ID_MICROSOFT			0x045e
-#define DEVICE_ID_MS4K				0x00db
-#define DEVICE_ID_MS6K				0x00f9
-#define DEVICE_IS_MS_PRESENTER_8K_BT		0x0701
-#define DEVICE_ID_MS_PRESENTER_8K_USB		0x0713
-
 #define VENDOR_ID_MONTEREY			0x0566
 #define DEVICE_ID_GENIUS_KB29E			0x3004
 
@@ -274,11 +224,6 @@ static const struct hid_input_blacklist {
 	{ VENDOR_ID_EZKEY, DEVICE_ID_BTC_8193, quirk_btc_8193 },
 
 	{ VENDOR_ID_GYRATION, DEVICE_ID_GYRATION_REMOTE, quirk_gyration_remote },
-
-	{ VENDOR_ID_MICROSOFT, DEVICE_ID_MS4K, quirk_microsoft_ergonomy_kb },
-	{ VENDOR_ID_MICROSOFT, DEVICE_ID_MS6K, quirk_microsoft_ergonomy_kb },
-	{ VENDOR_ID_MICROSOFT, DEVICE_IS_MS_PRESENTER_8K_BT, quirk_microsoft_presenter_8k },
-	{ VENDOR_ID_MICROSOFT, DEVICE_ID_MS_PRESENTER_8K_USB, quirk_microsoft_presenter_8k },
 
 	{ VENDOR_ID_MONTEREY, DEVICE_ID_GENIUS_KB29E, quirk_cherry_genius_29e },
 
@@ -334,27 +279,6 @@ int hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struc
 	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
 		input_event(input, usage->type, REL_HWHEEL, value);
 		return 1;
-	}
-
-	/* Handling MS keyboards special buttons */
-	if (hid->quirks & HID_QUIRK_MICROSOFT_KEYS && 
-			usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
-		int key = 0;
-		static int last_key = 0;
-		switch (value) {
-			case 0x01: key = KEY_F14; break;
-			case 0x02: key = KEY_F15; break;
-			case 0x04: key = KEY_F16; break;
-			case 0x08: key = KEY_F17; break;
-			case 0x10: key = KEY_F18; break;
-			default: break;
-		}
-		if (key) {
-			input_event(input, usage->type, key, 1);
-			last_key = key;
-		} else {
-			input_event(input, usage->type, last_key, 0);
-		}
 	}
 
 	/* handle the temporary quirky mapping to HWHEEL */

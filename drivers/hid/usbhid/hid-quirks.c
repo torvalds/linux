@@ -50,13 +50,8 @@ static const struct hid_blacklist {
 
 	{ USB_VENDOR_ID_BELKIN, USB_DEVICE_ID_FLIP_KVM, HID_QUIRK_HIDDEV },
 	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_HIDDEV | HID_QUIRK_IGNORE_HIDINPUT },
-	{ USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_SIDEWINDER_GV, HID_QUIRK_HIDINPUT },
 
 	{ USB_VENDOR_ID_EZKEY, USB_DEVICE_ID_BTC_8193, HID_QUIRK_HWHEEL_WHEEL_INVERT },
-
-
-	{ USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K, HID_QUIRK_MICROSOFT_KEYS },
-	{ USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_LK6K, HID_QUIRK_MICROSOFT_KEYS },
 
 	{ USB_VENDOR_ID_PANTHERLORD, USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK, HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
 	{ USB_VENDOR_ID_PLAYDOTCOM, USB_DEVICE_ID_PLAYDOTCOM_EMS_USBII, HID_QUIRK_MULTI_INPUT },
@@ -70,7 +65,6 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVMC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_DMI, USB_DEVICE_ID_DMI_ENC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ELO, USB_DEVICE_ID_ELO_TS2700, HID_QUIRK_NOGET },
-	{ USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_WIRELESS_OPTICAL_DESKTOP_3_0, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_SUN, USB_DEVICE_ID_RARITAN_KVM_DONGLE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
@@ -92,8 +86,6 @@ static const struct hid_rdesc_blacklist {
 } hid_rdesc_blacklist[] = {
 
 	{ USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION, HID_QUIRK_RDESC_CYMOTION },
-
-	{ USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_DESKTOP_RECV_1028, HID_QUIRK_RDESC_MICROSOFT_RECV_1028 },
 
 	{ USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E, HID_QUIRK_RDESC_BUTTON_CONSUMER },
 
@@ -436,28 +428,6 @@ static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rs
 	}
 }
 
-/*
- * Microsoft Wireless Desktop Receiver (Model 1028) has several
- * 'Usage Min/Max' where it ought to have 'Physical Min/Max'
- */
-static void usbhid_fixup_microsoft_descriptor(unsigned char *rdesc, int rsize)
-{
-	if (rsize == 571 && rdesc[284] == 0x19
-	                 && rdesc[286] == 0x2a
-	                 && rdesc[304] == 0x19
-	                 && rdesc[306] == 0x29
-	                 && rdesc[352] == 0x1a
-	                 && rdesc[355] == 0x2a
-			 && rdesc[557] == 0x19
-			 && rdesc[559] == 0x29) {
-		printk(KERN_INFO "Fixing up Microsoft Wireless Receiver Model 1028 report descriptor\n");
-		rdesc[284] = rdesc[304] = rdesc[557] = 0x35;
-		rdesc[352] = 0x36;
-		rdesc[286] = rdesc[355] = 0x46;
-		rdesc[306] = rdesc[559] = 0x45;
-	}
-}
-
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
 	if ((quirks & HID_QUIRK_RDESC_CYMOTION))
@@ -474,9 +444,6 @@ static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned
 
 	if (quirks & HID_QUIRK_RDESC_SAMSUNG_REMOTE)
 		usbhid_fixup_samsung_irda_descriptor(rdesc, rsize);
-
-	if (quirks & HID_QUIRK_RDESC_MICROSOFT_RECV_1028)
-		usbhid_fixup_microsoft_descriptor(rdesc, rsize);
 
 	if (quirks & HID_QUIRK_RDESC_SUNPLUS_WDESKTOP)
 		usbhid_fixup_sunplus_wdesktop(rdesc, rsize);
