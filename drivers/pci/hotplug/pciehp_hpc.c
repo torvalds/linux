@@ -247,7 +247,7 @@ static inline void pciehp_free_irq(struct controller *ctrl)
 		free_irq(ctrl->pci_dev->irq, ctrl);
 }
 
-static inline int pcie_poll_cmd(struct controller *ctrl)
+static int pcie_poll_cmd(struct controller *ctrl)
 {
 	u16 slot_status;
 	int timeout = 1000;
@@ -271,7 +271,7 @@ static inline int pcie_poll_cmd(struct controller *ctrl)
 	return 0;	/* timeout */
 }
 
-static inline void pcie_wait_cmd(struct controller *ctrl, int poll)
+static void pcie_wait_cmd(struct controller *ctrl, int poll)
 {
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
 	unsigned long timeout = msecs_to_jiffies(msecs);
