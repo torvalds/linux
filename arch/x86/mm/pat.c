@@ -198,6 +198,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 {
 	struct memtype *new, *entry;
 	unsigned long actual_type;
+	struct list_head *where;
 	int err = 0;
 
  	BUG_ON(start >= end); /* end is exclusive */
@@ -251,13 +252,12 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	spin_lock(&memtype_lock);
 
 	/* Search for existing mapping that overlaps the current range */
+	where = NULL;
 	list_for_each_entry(entry, &memtype_list, nd) {
 		struct memtype *saved_ptr;
 
 		if (entry->start >= end) {
-			dprintk("New Entry\n");
-			list_add(&new->nd, entry->nd.prev);
-			new = NULL;
+			where = entry->nd.prev;
 			break;
 		}
 
@@ -295,9 +295,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 			dprintk("Overlap at 0x%Lx-0x%Lx\n",
 			       saved_ptr->start, saved_ptr->end);
-			/* No conflict. Go ahead and add this new entry */
-			list_add(&new->nd, saved_ptr->nd.prev);
-			new = NULL;
+			where = saved_ptr->nd.prev;
 			break;
 		}
 
@@ -335,9 +333,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 			dprintk("Overlap at 0x%Lx-0x%Lx\n",
 				 saved_ptr->start, saved_ptr->end);
-			/* No conflict. Go ahead and add this new entry */
-			list_add(&new->nd, &saved_ptr->nd);
-			new = NULL;
+			where = &saved_ptr->nd;
 			break;
 		}
 	}
@@ -354,11 +350,10 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		return err;
 	}
 
-	if (new) {
-		/* No conflict. Not yet added to the list. Add to the tail */
+	if (where)
+		list_add(&new->nd, where);
+	else
 		list_add_tail(&new->nd, &memtype_list);
-		dprintk("New Entry\n");
-	}
 
 	spin_unlock(&memtype_lock);
 
