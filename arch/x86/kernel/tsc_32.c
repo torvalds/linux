@@ -401,6 +401,7 @@ static inline void check_geode_tsc_reliable(void) { }
 void __init tsc_init(void)
 {
 	int cpu;
+	u64 lpj;
 
 	if (!cpu_has_tsc || tsc_disabled) {
 		/* Disable the TSC in case of !cpu_has_tsc */
@@ -420,6 +421,10 @@ void __init tsc_init(void)
 		tsc_disabled = 1;
 		return;
 	}
+
+	lpj = ((u64)tsc_khz * 1000);
+	do_div(lpj, HZ);
+	lpj_tsc = lpj;
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 				(unsigned long)cpu_khz / 1000,

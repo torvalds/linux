@@ -8,7 +8,9 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/timex.h>
+#include <linux/smp.h>
 
+unsigned long lpj_tsc;
 unsigned long preset_lpj;
 static int __init lpj_setup(char *str)
 {
@@ -108,6 +110,10 @@ static unsigned long __cpuinit calibrate_delay_direct(void) {return 0;}
  * This is the number of bits of precision for the loops_per_jiffy.  Each
  * bit takes on average 1.5/HZ seconds.  This (like the original) is a little
  * better than 1%
+ * For the boot cpu we can skip the delay calibration and assign it a value
+ * calculated based on the tsc frequency.
+ * For the rest of the CPUs we cannot assume that the tsc frequency is same as
+ * the cpu frequency, hence do the calibration for those.
  */
 #define LPS_PREC 8
 
@@ -118,20 +124,20 @@ void __cpuinit calibrate_delay(void)
 
 	if (preset_lpj) {
 		loops_per_jiffy = preset_lpj;
-		printk("Calibrating delay loop (skipped)... "
-			"%lu.%02lu BogoMIPS preset\n",
-			loops_per_jiffy/(500000/HZ),
-			(loops_per_jiffy/(5000/HZ)) % 100);
+		printk(KERN_INFO
+			"Calibrating delay loop (skipped) preset value.. ");
+	} else if ((smp_processor_id() == 0) && lpj_tsc) {
+		loops_per_jiffy = lpj_tsc;
+		printk(KERN_INFO
+			"Calibrating delay loop (skipped), "
+			"using tsc calculated value.. ");
 	} else if ((loops_per_jiffy = calibrate_delay_direct()) != 0) {
-		printk("Calibrating delay using timer specific routine.. ");
-		printk("%lu.%02lu BogoMIPS (lpj=%lu)\n",
-			loops_per_jiffy/(500000/HZ),
-			(loops_per_jiffy/(5000/HZ)) % 100,
-			loops_per_jiffy);
+		printk(KERN_INFO
+			"Calibrating delay using timer specific routine.. ");
 	} else {
 		loops_per_jiffy = (1<<12);
 
-		printk(KERN_DEBUG "Calibrating delay loop... ");
+		printk(KERN_INFO "Calibrating delay loop... ");
 		while ((loops_per_jiffy <<= 1) != 0) {
 			/* wait for "start of" clock tick */
 			ticks = jiffies;
@@ -161,12 +167,8 @@ void __cpuinit calibrate_delay(void)
 			if (jiffies != ticks)	/* longer than 1 tick */
 				loops_per_jiffy &= ~loopbit;
 		}
-
-		/* Round the value and print it */
-		printk("%lu.%02lu BogoMIPS (lpj=%lu)\n",
-			loops_per_jiffy/(500000/HZ),
-			(loops_per_jiffy/(5000/HZ)) % 100,
-			loops_per_jiffy);
 	}
-
+	printk(KERN_INFO "%lu.%02lu BogoMIPS (lpj=%lu)\n",
+			loops_per_jiffy/(500000/HZ),
+			(loops_per_jiffy/(5000/HZ)) % 100, loops_per_jiffy);
 }
