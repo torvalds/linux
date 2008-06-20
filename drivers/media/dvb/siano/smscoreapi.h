@@ -429,11 +429,9 @@ extern int sms_debug;
 		sms_printk(kern, fmt, ##arg); } while (0)
 
 #define sms_err(fmt, arg...) \
-	sms_printk(KERN_ERR, "%s() line: %d: " fmt "\n", \
-		__func__, __LINE__, ##arg)
+	sms_printk(KERN_ERR, "line: %d: " fmt, __LINE__, ##arg)
 #define sms_warn(fmt, arg...) \
-	sms_printk(KERN_WARNING, "%s() line: %d: " fmt "\n", \
-		__func__, __LINE__, ##arg)
+	sms_printk(KERN_WARNING, "line: %d: " fmt, __LINE__, ##arg)
 #define sms_info(fmt, arg...) \
 	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)
 #define sms_debug(fmt, arg...) \
