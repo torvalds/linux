@@ -107,18 +107,7 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 
 void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-
-	if (skbdesc->flags & SKBDESC_DMA_MAPPED_RX) {
-		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
-				 DMA_FROM_DEVICE);
-	}
-
-	if (skbdesc->flags & SKBDESC_DMA_MAPPED_TX) {
-		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
-				 DMA_TO_DEVICE);
-	}
-
+	rt2x00queue_unmap_skb(rt2x00dev, skb);
 	dev_kfree_skb_any(skb);
 }
 
@@ -509,16 +498,11 @@ static int rt2x00queue_alloc_rxskbs(struct rt2x00_dev *rt2x00dev,
 	for (i = 0; i < queue->limit; i++) {
 		skb = rt2x00queue_alloc_rxskb(rt2x00dev, &queue->entries[i]);
 		if (!skb)
-			goto exit;
+			return -ENOMEM;
 		queue->entries[i].skb = skb;
 	}
 
 	return 0;
-
-exit:
-	rt2x00queue_free_skbs(rt2x00dev, queue);
-
-	return -ENOMEM;
 }
 
 int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
