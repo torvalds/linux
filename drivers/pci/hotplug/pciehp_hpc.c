@@ -609,23 +609,6 @@ static void hpc_set_green_led_blink(struct slot *slot)
 	    __func__, ctrl->cap_base + SLOTCTRL, slot_cmd);
 }
 
-static void hpc_release_ctlr(struct controller *ctrl)
-{
-	/* Mask Hot-plug Interrupt Enable */
-	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE))
-		err("%s: Cannot mask hotplug interrupt enable\n", __func__);
-
-	/* Free interrupt handler or interrupt polling timer */
-	pciehp_free_irq(ctrl);
-
-	/*
-	 * If this is the last controller to be released, destroy the
-	 * pciehp work queue
-	 */
-	if (atomic_dec_and_test(&pciehp_num_controllers))
-		destroy_workqueue(pciehp_wq);
-}
-
 static int hpc_power_on_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
@@ -798,19 +781,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	if (!(intr_loc & ~CMD_COMPLETED))
 		return IRQ_HANDLED;
 
-	/*
-	 * Return without handling events if this handler routine is
-	 * called before controller initialization is done. This may
-	 * happen if hotplug event or another interrupt that shares
-	 * the IRQ with pciehp arrives before slot initialization is
-	 * done after interrupt handler is registered.
-	 *
-	 * FIXME - Need more structural fixes. We need to be ready to
-	 * handle the event before installing interrupt handler.
-	 */
 	p_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
-	if (!p_slot || !p_slot->hpc_ops)
-		return IRQ_HANDLED;
 
 	/* Check MRL Sensor Changed */
 	if (intr_loc & MRL_SENS_CHANGED)
@@ -987,6 +958,7 @@ static int hpc_get_cur_lnk_width(struct slot *slot,
 	return retval;
 }
 
+static void pcie_release_ctrl(struct controller *ctrl);
 static struct hpc_ops pciehp_hpc_ops = {
 	.power_on_slot			= hpc_power_on_slot,
 	.power_off_slot			= hpc_power_off_slot,
@@ -1008,28 +980,11 @@ static struct hpc_ops pciehp_hpc_ops = {
 	.green_led_off			= hpc_set_green_led_off,
 	.green_led_blink		= hpc_set_green_led_blink,
 
-	.release_ctlr			= hpc_release_ctlr,
+	.release_ctlr			= pcie_release_ctrl,
 	.check_lnk_status		= hpc_check_lnk_status,
 };
 
-static int pcie_init_hardware_part1(struct controller *ctrl,
-				    struct pcie_device *dev)
-{
-	/* Clear all remaining event bits in Slot Status register */
-	if (pciehp_writew(ctrl, SLOTSTATUS, 0x1f)) {
-		err("%s: Cannot write to SLOTSTATUS register\n", __func__);
-		return -1;
-	}
-
-	/* Mask Hot-plug Interrupt Enable */
-	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE)) {
-		err("%s: Cannot mask hotplug interrupt enable\n", __func__);
-		return -1;
-	}
-	return 0;
-}
-
-int pcie_init_hardware_part2(struct controller *ctrl, struct pcie_device *dev)
+int pcie_enable_notification(struct controller *ctrl)
 {
 	u16 cmd, mask;
 
@@ -1050,8 +1005,74 @@ int pcie_init_hardware_part2(struct controller *ctrl, struct pcie_device *dev)
 		err("%s: Cannot enable software notification\n", __func__);
 		return -1;
 	}
-
 	return 0;
+}
+
+static void pcie_disable_notification(struct controller *ctrl)
+{
+	u16 mask;
+	mask = PRSN_DETECT_ENABLE | ATTN_BUTTN_ENABLE | MRL_DETECT_ENABLE |
+	       PWR_FAULT_DETECT_ENABLE | HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE;
+	if (pcie_write_cmd(ctrl, 0, mask))
+		warn("%s: Cannot disable software notification\n", __func__);
+}
+
+static int pcie_init_notification(struct controller *ctrl)
+{
+	if (pciehp_request_irq(ctrl))
+		return -1;
+	if (pcie_enable_notification(ctrl)) {
+		pciehp_free_irq(ctrl);
+		return -1;
+	}
+	return 0;
+}
+
+static void pcie_shutdown_notification(struct controller *ctrl)
+{
+	pcie_disable_notification(ctrl);
+	pciehp_free_irq(ctrl);
+}
+
+static void make_slot_name(struct slot *slot)
+{
+	if (pciehp_slot_with_bus)
+		snprintf(slot->name, SLOT_NAME_SIZE, "%04d_%04d",
+			 slot->bus, slot->number);
+	else
+		snprintf(slot->name, SLOT_NAME_SIZE, "%d", slot->number);
+}
+
+static int pcie_init_slot(struct controller *ctrl)
+{
+	struct slot *slot;
+
+	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+	if (!slot)
+		return -ENOMEM;
+
+	slot->hp_slot = 0;
+	slot->ctrl = ctrl;
+	slot->bus = ctrl->pci_dev->subordinate->number;
+	slot->device = ctrl->slot_device_offset + slot->hp_slot;
+	slot->hpc_ops = ctrl->hpc_ops;
+	slot->number = ctrl->first_slot;
+	make_slot_name(slot);
+	mutex_init(&slot->lock);
+	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
+	list_add(&slot->slot_list, &ctrl->slot_list);
+	return 0;
+}
+
+static void pcie_cleanup_slot(struct controller *ctrl)
+{
+	struct slot *slot;
+	slot = list_first_entry(&ctrl->slot_list, struct slot, slot_list);
+	list_del(&slot->slot_list);
+	cancel_delayed_work(&slot->work);
+	flush_scheduled_work();
+	flush_workqueue(pciehp_wq);
+	kfree(slot);
 }
 
 static inline void dbg_ctrl(struct controller *ctrl)
@@ -1093,10 +1114,18 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	dbg("Slot Control           : 0x%04x\n", reg16);
 }
 
-int pcie_init(struct controller *ctrl, struct pcie_device *dev)
+struct controller *pcie_init(struct pcie_device *dev)
 {
+	struct controller *ctrl;
 	u32 slot_cap;
 	struct pci_dev *pdev = dev->port;
+
+	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	if (!ctrl) {
+		err("%s : out of memory\n", __func__);
+		goto abort;
+	}
+	INIT_LIST_HEAD(&ctrl->slot_list);
 
 	ctrl->pci_dev = pdev;
 	ctrl->cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
@@ -1128,15 +1157,12 @@ int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 	    !(POWER_CTRL(ctrl) | ATTN_LED(ctrl) | PWR_LED(ctrl) | EMI(ctrl)))
 	    ctrl->no_cmd_complete = 1;
 
-	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",
-	     pdev->vendor, pdev->device,
-	     pdev->subsystem_vendor, pdev->subsystem_device);
+	/* Clear all remaining event bits in Slot Status register */
+	if (pciehp_writew(ctrl, SLOTSTATUS, 0x1f))
+		goto abort_ctrl;
 
-	if (pcie_init_hardware_part1(ctrl, dev))
-		goto abort;
-
-	if (pciehp_request_irq(ctrl))
-		goto abort;
+	/* Disable sotfware notification */
+	pcie_disable_notification(ctrl);
 
 	/*
 	 * If this is the first controller to be initialized,
@@ -1144,18 +1170,39 @@ int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 	 */
 	if (atomic_add_return(1, &pciehp_num_controllers) == 1) {
 		pciehp_wq = create_singlethread_workqueue("pciehpd");
-		if (!pciehp_wq) {
-			goto abort_free_irq;
-		}
+		if (!pciehp_wq)
+			goto abort_ctrl;
 	}
 
-	if (pcie_init_hardware_part2(ctrl, dev))
-		goto abort_free_irq;
+	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",
+	     pdev->vendor, pdev->device,
+	     pdev->subsystem_vendor, pdev->subsystem_device);
 
-	return 0;
+	if (pcie_init_slot(ctrl))
+		goto abort_ctrl;
 
-abort_free_irq:
-	pciehp_free_irq(ctrl);
+	if (pcie_init_notification(ctrl))
+		goto abort_slot;
+
+	return ctrl;
+
+abort_slot:
+	pcie_cleanup_slot(ctrl);
+abort_ctrl:
+	kfree(ctrl);
 abort:
-	return -1;
+	return NULL;
+}
+
+void pcie_release_ctrl(struct controller *ctrl)
+{
+	pcie_shutdown_notification(ctrl);
+	pcie_cleanup_slot(ctrl);
+	/*
+	 * If this is the last controller to be released, destroy the
+	 * pciehp work queue
+	 */
+	if (atomic_dec_and_test(&pciehp_num_controllers))
+		destroy_workqueue(pciehp_wq);
+	kfree(ctrl);
 }

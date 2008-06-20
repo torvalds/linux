@@ -43,6 +43,7 @@ extern int pciehp_poll_mode;
 extern int pciehp_poll_time;
 extern int pciehp_debug;
 extern int pciehp_force;
+extern int pciehp_slot_with_bus;
 extern struct workqueue_struct *pciehp_wq;
 
 #define dbg(format, arg...)						\
@@ -156,10 +157,10 @@ extern u8 pciehp_handle_power_fault(struct slot *p_slot);
 extern int pciehp_configure_device(struct slot *p_slot);
 extern int pciehp_unconfigure_device(struct slot *p_slot);
 extern void pciehp_queue_pushbutton_work(struct work_struct *work);
-int pcie_init(struct controller *ctrl, struct pcie_device *dev);
+struct controller *pcie_init(struct pcie_device *dev);
 int pciehp_enable_slot(struct slot *p_slot);
 int pciehp_disable_slot(struct slot *p_slot);
-int pcie_init_hardware_part2(struct controller *ctrl, struct pcie_device *dev);
+int pcie_enable_notification(struct controller *ctrl);
 
 static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 {
