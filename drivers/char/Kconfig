@@ -578,11 +578,14 @@ config HVC_DRIVER
 	  It will automatically be selected if one of the back-end console drivers
 	  is selected.
 
+config HVC_IRQ
+	bool
 
 config HVC_CONSOLE
 	bool "pSeries Hypervisor Virtual Console support"
 	depends on PPC_PSERIES
 	select HVC_DRIVER
+	select HVC_IRQ
 	help
 	  pSeries machines when partitioned support a hypervisor virtual
 	  console. This driver allows each pSeries partition to have a console
@@ -593,6 +596,7 @@ config HVC_ISERIES
 	depends on PPC_ISERIES
 	default y
 	select HVC_DRIVER
+	select HVC_IRQ
 	help
 	  iSeries machines support a hypervisor virtual console.
 
@@ -614,6 +618,7 @@ config HVC_XEN
 	bool "Xen Hypervisor Console support"
 	depends on XEN
 	select HVC_DRIVER
+	select HVC_IRQ
 	default y
 	help
 	  Xen virtual console device driver
