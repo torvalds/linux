@@ -470,18 +470,17 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END) &&
 	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls))
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
-	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE))
+	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE)) {
 		ioctl = &drm_ioctls[nr];
-	else
+		cmd = ioctl->cmd;
+	} else
 		goto err_i1;
 
 	/* Do not trust userspace, use our own definition */
-	cmd = ioctl->cmd;
 	func = ioctl->func;
 	/* is there a local override? */
 	if ((nr == DRM_IOCTL_NR(DRM_IOCTL_DMA)) && dev->driver->dma_ioctl)
 		func = dev->driver->dma_ioctl;
-
 
 	if (!func) {
 		DRM_DEBUG("no function\n");
