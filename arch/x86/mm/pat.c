@@ -188,37 +188,34 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
  * req_type will have a special case value '-1', when requester want to inherit
  * the memory type from mtrr (if WB), existing PAT, defaulting to UC_MINUS.
  *
- * If ret_type is NULL, function will return an error if it cannot reserve the
- * region with req_type. If ret_type is non-null, function will return
- * available type in ret_type in case of no error. In case of any error
+ * If new_type is NULL, function will return an error if it cannot reserve the
+ * region with req_type. If new_type is non-NULL, function will return
+ * available type in new_type in case of no error. In case of any error
  * it will return a negative return value.
  */
 int reserve_memtype(u64 start, u64 end, unsigned long req_type,
-			unsigned long *ret_type)
+			unsigned long *new_type)
 {
-	struct memtype *new_entry = NULL;
-	struct memtype *parse;
+	struct memtype *new, *entry;
 	unsigned long actual_type;
 	int err = 0;
 
 	/* Only track when pat_enabled */
 	if (!pat_enabled) {
 		/* This is identical to page table setting without PAT */
-		if (ret_type) {
-			if (req_type == -1) {
-				*ret_type = _PAGE_CACHE_WB;
-			} else {
-				*ret_type = req_type & _PAGE_CACHE_MASK;
-			}
+		if (new_type) {
+			if (req_type == -1)
+				*new_type = _PAGE_CACHE_WB;
+			else
+				*new_type = req_type & _PAGE_CACHE_MASK;
 		}
 		return 0;
 	}
 
 	/* Low ISA region is always mapped WB in page table. No need to track */
 	if (is_ISA_range(start, end - 1)) {
-		if (ret_type)
-			*ret_type = _PAGE_CACHE_WB;
-
+		if (new_type)
+			*new_type = _PAGE_CACHE_WB;
 		return 0;
 	}
 
@@ -243,65 +240,65 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		actual_type = pat_x_mtrr_type(start, end, req_type);
 	}
 
-	new_entry  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
-	if (!new_entry)
+	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
+	if (!new)
 		return -ENOMEM;
 
-	new_entry->start = start;
-	new_entry->end = end;
-	new_entry->type = actual_type;
+	new->start = start;
+	new->end = end;
+	new->type = actual_type;
 
-	if (ret_type)
-		*ret_type = actual_type;
+	if (new_type)
+		*new_type = actual_type;
 
 	spin_lock(&memtype_lock);
 
 	/* Search for existing mapping that overlaps the current range */
-	list_for_each_entry(parse, &memtype_list, nd) {
+	list_for_each_entry(entry, &memtype_list, nd) {
 		struct memtype *saved_ptr;
 
-		if (parse->start >= end) {
+		if (entry->start >= end) {
 			dprintk("New Entry\n");
-			list_add(&new_entry->nd, parse->nd.prev);
-			new_entry = NULL;
+			list_add(&new->nd, entry->nd.prev);
+			new = NULL;
 			break;
 		}
 
-		if (start <= parse->start && end >= parse->start) {
-			if (actual_type != parse->type && ret_type) {
-				actual_type = parse->type;
-				*ret_type = actual_type;
-				new_entry->type = actual_type;
+		if (start <= entry->start && end >= entry->start) {
+			if (actual_type != entry->type && new_type) {
+				actual_type = entry->type;
+				*new_type = actual_type;
+				new->type = actual_type;
 			}
 
-			if (actual_type != parse->type) {
+			if (actual_type != entry->type) {
 				printk(
 		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
 					current->comm, current->pid,
 					start, end,
 					cattr_name(actual_type),
-					cattr_name(parse->type));
+					cattr_name(entry->type));
 				err = -EBUSY;
 				break;
 			}
 
-			saved_ptr = parse;
+			saved_ptr = entry;
 			/*
 			 * Check to see whether the request overlaps more
 			 * than one entry in the list
 			 */
-			list_for_each_entry_continue(parse, &memtype_list, nd) {
-				if (end <= parse->start) {
+			list_for_each_entry_continue(entry, &memtype_list, nd) {
+				if (end <= entry->start) {
 					break;
 				}
 
-				if (actual_type != parse->type) {
+				if (actual_type != entry->type) {
 					printk(
 		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
 						current->comm, current->pid,
 						start, end,
 						cattr_name(actual_type),
-						cattr_name(parse->type));
+						cattr_name(entry->type));
 					err = -EBUSY;
 					break;
 				}
@@ -314,46 +311,46 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			dprintk("Overlap at 0x%Lx-0x%Lx\n",
 			       saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
-			list_add(&new_entry->nd, saved_ptr->nd.prev);
-			new_entry = NULL;
+			list_add(&new->nd, saved_ptr->nd.prev);
+			new = NULL;
 			break;
 		}
 
-		if (start < parse->end) {
-			if (actual_type != parse->type && ret_type) {
-				actual_type = parse->type;
-				*ret_type = actual_type;
-				new_entry->type = actual_type;
+		if (start < entry->end) {
+			if (actual_type != entry->type && new_type) {
+				actual_type = entry->type;
+				*new_type = actual_type;
+				new->type = actual_type;
 			}
 
-			if (actual_type != parse->type) {
+			if (actual_type != entry->type) {
 				printk(
 		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
 					current->comm, current->pid,
 					start, end,
 					cattr_name(actual_type),
-					cattr_name(parse->type));
+					cattr_name(entry->type));
 				err = -EBUSY;
 				break;
 			}
 
-			saved_ptr = parse;
+			saved_ptr = entry;
 			/*
 			 * Check to see whether the request overlaps more
 			 * than one entry in the list
 			 */
-			list_for_each_entry_continue(parse, &memtype_list, nd) {
-				if (end <= parse->start) {
+			list_for_each_entry_continue(entry, &memtype_list, nd) {
+				if (end <= entry->start) {
 					break;
 				}
 
-				if (actual_type != parse->type) {
+				if (actual_type != entry->type) {
 					printk(
 		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
 						current->comm, current->pid,
 						start, end,
 						cattr_name(actual_type),
-						cattr_name(parse->type));
+						cattr_name(entry->type));
 					err = -EBUSY;
 					break;
 				}
@@ -366,8 +363,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			dprintk("Overlap at 0x%Lx-0x%Lx\n",
 				 saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
-			list_add(&new_entry->nd, &saved_ptr->nd);
-			new_entry = NULL;
+			list_add(&new->nd, &saved_ptr->nd);
+			new = NULL;
 			break;
 		}
 	}
@@ -375,24 +372,24 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (err) {
 		printk(KERN_INFO
 	"reserve_memtype failed 0x%Lx-0x%Lx, track %s, req %s\n",
-			start, end, cattr_name(new_entry->type),
+			start, end, cattr_name(new->type),
 			cattr_name(req_type));
-		kfree(new_entry);
+		kfree(new);
 		spin_unlock(&memtype_lock);
 		return err;
 	}
 
-	if (new_entry) {
+	if (new) {
 		/* No conflict. Not yet added to the list. Add to the tail */
-		list_add_tail(&new_entry->nd, &memtype_list);
+		list_add_tail(&new->nd, &memtype_list);
 		dprintk("New Entry\n");
 	}
 
-	if (ret_type) {
+	if (new_type) {
 		dprintk(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
 			start, end, cattr_name(actual_type),
-			cattr_name(req_type), cattr_name(*ret_type));
+			cattr_name(req_type), cattr_name(*new_type));
 	} else {
 		dprintk(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s\n",
@@ -406,7 +403,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 int free_memtype(u64 start, u64 end)
 {
-	struct memtype *ml;
+	struct memtype *entry;
 	int err = -EINVAL;
 
 	/* Only track when pat_enabled */
@@ -419,10 +416,10 @@ int free_memtype(u64 start, u64 end)
 		return 0;
 
 	spin_lock(&memtype_lock);
-	list_for_each_entry(ml, &memtype_list, nd) {
-		if (ml->start == start && ml->end == end) {
-			list_del(&ml->nd);
-			kfree(ml);
+	list_for_each_entry(entry, &memtype_list, nd) {
+		if (entry->start == start && entry->end == end) {
+			list_del(&entry->nd);
+			kfree(entry);
 			err = 0;
 			break;
 		}
