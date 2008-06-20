@@ -610,7 +610,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 {
 	/* Mask Hot-plug Interrupt Enable */
 	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE))
-		err("%s: Cannot mask hotplut interrupt enable\n", __func__);
+		err("%s: Cannot mask hotplug interrupt enable\n", __func__);
 
 	/* Free interrupt handler or interrupt polling timer */
 	pciehp_free_irq(ctrl);
