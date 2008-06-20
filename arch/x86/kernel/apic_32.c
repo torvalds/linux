@@ -57,7 +57,7 @@ unsigned long mp_lapic_addr;
  *
  * -1=force-disable, +1=force-enable
  */
-static int enable_local_apic __initdata;
+int enable_local_apic;
 
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;

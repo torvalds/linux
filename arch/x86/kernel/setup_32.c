@@ -677,6 +677,11 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	if (acpi_mps_check()){
+		enable_local_apic = -1;
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+	}
+
 	finish_e820_parsing();
 
 	probe_roms();

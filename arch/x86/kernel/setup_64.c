@@ -302,6 +302,11 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	if (acpi_mps_check()) {
+		disable_apic = 1;
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+	}
+
 #ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
 	if (init_ohci1394_dma_early)
 		init_ohci1394_dma_on_all_controllers();
@@ -723,6 +728,10 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
 
 	validate_pat_support(c);
+
+	/* early_param could clear that, but recall get it set again */
+	if (disable_apic)
+		clear_cpu_cap(c, X86_FEATURE_APIC);
 }
 
 /*
