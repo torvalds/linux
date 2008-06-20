@@ -178,6 +178,33 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 	return req_type;
 }
 
+static int chk_conflict(struct memtype *new, struct memtype *entry,
+			unsigned long *type)
+{
+	if (new->type != entry->type) {
+		if (type) {
+			new->type = entry->type;
+			*type = entry->type;
+		} else
+			goto conflict;
+	}
+
+	 /* check overlaps with more than one entry in the list */
+	list_for_each_entry_continue(entry, &memtype_list, nd) {
+		if (new->end <= entry->start)
+			break;
+		else if (new->type != entry->type)
+			goto conflict;
+	}
+	return 0;
+
+ conflict:
+	printk(KERN_INFO "%s:%d conflicting memory types "
+	       "%Lx-%Lx %s<->%s\n", current->comm, current->pid, new->start,
+	       new->end, cattr_name(new->type), cattr_name(entry->type));
+	return -EBUSY;
+}
+
 /*
  * req_type typically has one of the:
  * - _PAGE_CACHE_WB
@@ -254,94 +281,37 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	/* Search for existing mapping that overlaps the current range */
 	where = NULL;
 	list_for_each_entry(entry, &memtype_list, nd) {
-		struct memtype *saved_ptr;
-
 		if (entry->start >= end) {
 			where = entry->nd.prev;
 			break;
 		}
 
 		if (start <= entry->start && end >= entry->start) {
-			if (actual_type != entry->type && new_type) {
-				actual_type = entry->type;
-				*new_type = actual_type;
-				new->type = actual_type;
-			}
-
-			if (actual_type != entry->type) {
-				err = -EBUSY;
-				break;
-			}
-
-			saved_ptr = entry;
-			/*
-			 * Check to see whether the request overlaps more
-			 * than one entry in the list
-			 */
-			list_for_each_entry_continue(entry, &memtype_list, nd) {
-				if (end <= entry->start) {
-					break;
-				}
-
-				if (actual_type != entry->type) {
-					err = -EBUSY;
-					break;
-				}
-			}
-
+			err = chk_conflict(new, entry, new_type);
 			if (err) {
 				break;
 			}
 
 			dprintk("Overlap at 0x%Lx-0x%Lx\n",
-			       saved_ptr->start, saved_ptr->end);
-			where = saved_ptr->nd.prev;
+			       entry->start, entry->end);
+			where = entry->nd.prev;
 			break;
 		}
 
 		if (start < entry->end) {
-			if (actual_type != entry->type && new_type) {
-				actual_type = entry->type;
-				*new_type = actual_type;
-				new->type = actual_type;
-			}
-
-			if (actual_type != entry->type) {
-				err = -EBUSY;
-				break;
-			}
-
-			saved_ptr = entry;
-			/*
-			 * Check to see whether the request overlaps more
-			 * than one entry in the list
-			 */
-			list_for_each_entry_continue(entry, &memtype_list, nd) {
-				if (end <= entry->start) {
-					break;
-				}
-
-				if (actual_type != entry->type) {
-					err = -EBUSY;
-					break;
-				}
-			}
-
+			err = chk_conflict(new, entry, new_type);
 			if (err) {
 				break;
 			}
 
 			dprintk("Overlap at 0x%Lx-0x%Lx\n",
-				 saved_ptr->start, saved_ptr->end);
-			where = &saved_ptr->nd;
+				 entry->start, entry->end);
+			where = &entry->nd;
 			break;
 		}
 	}
 
 	if (err) {
-		printk(KERN_INFO "%s:%d conflicting memory types "
-		       "%Lx-%Lx %s<->%s\n", current->comm, current->pid, start,
-		       end, cattr_name(new->type), cattr_name(entry->type));
 		printk(KERN_INFO "reserve_memtype failed 0x%Lx-0x%Lx, "
 		       "track %s, req %s\n",
 		       start, end, cattr_name(new->type), cattr_name(req_type));
