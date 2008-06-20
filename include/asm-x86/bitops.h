@@ -28,16 +28,15 @@
 #define BITOP_ADDR(x) "+m" (*(volatile long *) (x))
 #endif
 
-#define ADDR BITOP_ADDR(addr)
+#define ADDR				BITOP_ADDR(addr)
 
 /*
  * We do the locked ops that don't return the old value as
  * a mask operation on a byte.
  */
-#define IS_IMMEDIATE(nr) \
-	(__builtin_constant_p(nr))
-#define CONST_MASK_ADDR BITOP_ADDR(addr + (nr>>3))
-#define CONST_MASK (1 << (nr & 7))
+#define IS_IMMEDIATE(nr)		(__builtin_constant_p(nr))
+#define CONST_MASK_ADDR(nr, addr)	BITOP_ADDR((void *)(addr) + ((nr)>>3))
+#define CONST_MASK(nr)			(1 << ((nr) & 7))
 
 /**
  * set_bit - Atomically set a bit in memory
@@ -56,12 +55,16 @@
  */
 static inline void set_bit(unsigned int nr, volatile unsigned long *addr)
 {
-	if (IS_IMMEDIATE(nr))
-		asm volatile(LOCK_PREFIX "orb %1,%0" : CONST_MASK_ADDR : "i" (CONST_MASK) : "memory");
-	else
-		asm volatile(LOCK_PREFIX "bts %1,%0" : ADDR : "Ir" (nr) : "memory");
+	if (IS_IMMEDIATE(nr)) {
+		asm volatile(LOCK_PREFIX "orb %1,%0"
+			: CONST_MASK_ADDR(nr, addr)
+			: "i" (CONST_MASK(nr))
+			: "memory");
+	} else {
+		asm volatile(LOCK_PREFIX "bts %1,%0"
+			: BITOP_ADDR(addr) : "Ir" (nr) : "memory");
+	}
 }
-
 
 /**
  * __set_bit - Set a bit in memory
@@ -89,10 +92,15 @@ static inline void __set_bit(int nr, volatile unsigned long *addr)
  */
 static inline void clear_bit(int nr, volatile unsigned long *addr)
 {
-	if (IS_IMMEDIATE(nr))
-		asm volatile(LOCK_PREFIX "andb %1,%0" : CONST_MASK_ADDR : "i" (~CONST_MASK));
-	else
-		asm volatile(LOCK_PREFIX "btr %1,%0" : ADDR : "Ir" (nr));
+	if (IS_IMMEDIATE(nr)) {
+		asm volatile(LOCK_PREFIX "andb %1,%0"
+			: CONST_MASK_ADDR(nr, addr)
+			: "i" (~CONST_MASK(nr)));
+	} else {
+		asm volatile(LOCK_PREFIX "btr %1,%0"
+			: BITOP_ADDR(addr)
+			: "Ir" (nr));
+	}
 }
 
 /*
