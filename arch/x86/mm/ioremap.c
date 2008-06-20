@@ -142,7 +142,7 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	/*
 	 * Don't remap the low PCI/ISA area, it's always mapped..
 	 */
-	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
+	if (is_ISA_range(phys_addr, last_addr))
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
 	/*

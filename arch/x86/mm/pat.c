@@ -215,7 +215,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	}
 
 	/* Low ISA region is always mapped WB in page table. No need to track */
-	if (start >= ISA_START_ADDRESS && (end - 1) <= ISA_END_ADDRESS) {
+	if (is_ISA_range(start, end - 1)) {
 		if (ret_type)
 			*ret_type = _PAGE_CACHE_WB;
 
@@ -415,9 +415,8 @@ int free_memtype(u64 start, u64 end)
 	}
 
 	/* Low ISA region is always mapped WB. No need to track */
-	if (start >= ISA_START_ADDRESS && end <= ISA_END_ADDRESS) {
+	if (is_ISA_range(start, end - 1))
 		return 0;
-	}
 
 	spin_lock(&memtype_lock);
 	list_for_each_entry(ml, &memtype_list, nd) {
