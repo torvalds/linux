@@ -205,6 +205,9 @@ ifeq ($(ARCH),x86_64)
         SRCARCH := x86
 endif
 
+# Where to locate arch specific headers
+hdr-arch       := $(SRCARCH)
+
 KCONFIG_CONFIG	?= .config
 
 # SHELL used by kbuild
@@ -1014,43 +1017,39 @@ firmware_install: FORCE
 #Default location for installed headers
 export INSTALL_HDR_PATH = $(objtree)/usr
 
-hdr-filter := generic um ppc sparc64 cris
-hdr-archs  := $(filter-out $(hdr-filter),                           \
-                  $(patsubst $(srctree)/include/asm-%/Kbuild,%,     \
-                      $(wildcard $(srctree)/include/asm-*/Kbuild)))
 hdr-inst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
+# Find out where the Kbuild file is located to support
+# arch/$(ARCH)/include/asm
+hdr-dir = $(strip                                                         \
+          $(if $(wildcard $(srctree)/arch/$(hdr-arch)/include/asm/Kbuild), \
+               arch/$(hdr-arch)/include/asm, include/asm-$(hdr-arch)))
+
+# If we do an all arch process set dst to asm-$(hdr-arch)
+hdr-dst = $(if $(KBUILD_HEADERS), dst=include/asm-$(hdr-arch), dst=include/asm)
 
 PHONY += __headers
 __headers: include/linux/version.h scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
 
 PHONY += headers_install_all
-headers_install_all: __headers
-	$(Q)$(MAKE) $(hdr-inst)=include
-	$(Q)set -e; for arch in $(hdr-archs); do \
-	 $(MAKE) $(hdr-inst)=include/asm-$$arch   \
-	         SRCARCH=$$arch dst=include/asm-$$arch;  \
-	 done
+headers_install_all:
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/headers.sh install
 
 PHONY += headers_install
 headers_install: __headers
-	$(if $(wildcard $(srctree)/include/asm-$(SRCARCH)/Kbuild),, \
-	$(error Headers not exportable for this architecture ($(SRCARCH))))
+	$(if $(wildcard $(srctree)/$(hdr-dir)/Kbuild),, \
+	$(error Headers not exportable for the $(SRCARCH) architecture))
 	$(Q)$(MAKE) $(hdr-inst)=include
-	$(Q)$(MAKE) $(hdr-inst)=include/asm-$(SRCARCH) dst=include/asm
+	$(Q)$(MAKE) $(hdr-inst)=$(hdr-dir) $(hdr-dst)
 
 PHONY += headers_check_all
 headers_check_all: headers_install_all
-	$(Q)$(MAKE) $(hdr-inst)=include HDRCHECK=1
-	$(Q)set -e; for arch in $(hdr-archs); do \
-	 $(MAKE) SRCARCH=$$arch $(hdr-inst)=include/asm-$$arch HDRCHECK=1 ;\
-	 done
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/headers.sh check
 
 PHONY += headers_check
 headers_check: headers_install
 	$(Q)$(MAKE) $(hdr-inst)=include HDRCHECK=1
-	$(Q)$(MAKE) $(hdr-inst)=include/asm-$(SRCARCH) \
-	            dst=include/asm HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=$(hdr-dir) $(hdr-dst) HDRCHECK=1
 
 # ---------------------------------------------------------------------------
 # Modules
@@ -1234,21 +1233,17 @@ help:
 	@echo  '  cscope	  - Generate cscope index'
 	@echo  '  kernelrelease	  - Output the release version string'
 	@echo  '  kernelversion	  - Output the version stored in Makefile'
-	@if [ -r $(srctree)/include/asm-$(SRCARCH)/Kbuild ]; then \
-	 echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'; \
+	@echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'; \
 	 echo  '                    (default: $(INSTALL_HDR_PATH))'; \
-	 fi
-	@echo  ''
+	 echo  ''
 	@echo  'Static analysers'
 	@echo  '  checkstack      - Generate a list of stack hogs'
 	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
 	@echo  '  versioncheck    - Sanity check on version.h usage'
 	@echo  '  includecheck    - Check for duplicate included header files'
 	@echo  '  export_report   - List the usages of all exported symbols'
-	@if [ -r $(srctree)/include/asm-$(SRCARCH)/Kbuild ]; then \
-	 echo  '  headers_check   - Sanity check on exported headers'; \
-	 fi
-	@echo  ''
+	@echo  '  headers_check   - Sanity check on exported headers'; \
+	 echo  ''
 	@echo  'Kernel packaging:'
 	@$(MAKE) $(build)=$(package-dir) help
 	@echo  ''
