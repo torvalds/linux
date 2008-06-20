@@ -948,7 +948,7 @@ static void intel_i9xx_setup_flush(void)
 	intel_private.ifp_resource.flags = IORESOURCE_MEM;
 
 	/* Setup chipset flush for 915 */
-	if (IS_I965 || IS_G33) {
+	if (IS_I965 || IS_G33 || IS_G4X) {
 		intel_i965_g33_setup_chipset_flush();
 	} else {
 		intel_i915_setup_chipset_flush();
