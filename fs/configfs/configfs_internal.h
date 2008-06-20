@@ -51,6 +51,7 @@ struct configfs_dirent {
 #define CONFIGFS_USET_IN_MKDIR	0x0200
 #define CONFIGFS_NOT_PINNED	(CONFIGFS_ITEM_ATTR)
 
+extern struct mutex configfs_symlink_mutex;
 extern spinlock_t configfs_dirent_lock;
 
 extern struct vfsmount * configfs_mount;

@@ -31,6 +31,9 @@
 #include <linux/configfs.h>
 #include "configfs_internal.h"
 
+/* Protects attachments of new symlinks */
+DEFINE_MUTEX(configfs_symlink_mutex);
+
 static int item_depth(struct config_item * item)
 {
 	struct config_item * p = item;
@@ -147,7 +150,9 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 
 	ret = type->ct_item_ops->allow_link(parent_item, target_item);
 	if (!ret) {
+		mutex_lock(&configfs_symlink_mutex);
 		ret = create_link(parent_item, target_item, dentry);
+		mutex_unlock(&configfs_symlink_mutex);
 		if (ret && type->ct_item_ops->drop_link)
 			type->ct_item_ops->drop_link(parent_item,
 						     target_item);
