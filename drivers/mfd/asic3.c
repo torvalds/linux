@@ -145,8 +145,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 	}
 
 	if (iter >= MAX_ASIC_ISR_LOOPS)
-		printk(KERN_ERR "%s: interrupt processing overrun\n",
-		       __func__);
+		dev_err(asic->dev, "interrupt processing overrun\n");
 }
 
 static inline int asic3_irq_to_bank(struct asic3 *asic, int irq)
@@ -282,7 +281,7 @@ static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
 		 * be careful to not unmask them if mask was also called.
 		 * Probably need internal state for mask.
 		 */
-		printk(KERN_NOTICE "asic3: irq type not changed.\n");
+		dev_notice(asic->dev, "irq type not changed\n");
 	}
 	asic3_write_register(asic, bank + ASIC3_GPIO_LevelTrigger,
 			     level);
@@ -376,8 +375,8 @@ static int asic3_gpio_direction(struct gpio_chip *chip,
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
 	if (gpio_base > ASIC3_GPIO_D_Base) {
-		printk(KERN_ERR "Invalid base (0x%x) for gpio %d\n",
-		       gpio_base, offset);
+		dev_err(asic->dev, "Invalid base (0x%x) for gpio %d\n",
+			gpio_base, offset);
 		return -EINVAL;
 	}
 
@@ -422,8 +421,8 @@ static int asic3_gpio_get(struct gpio_chip *chip,
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
 	if (gpio_base > ASIC3_GPIO_D_Base) {
-		printk(KERN_ERR "Invalid base (0x%x) for gpio %d\n",
-		       gpio_base, offset);
+		dev_err(asic->dev, "Invalid base (0x%x) for gpio %d\n",
+			gpio_base, offset);
 		return -EINVAL;
 	}
 
@@ -442,8 +441,8 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
 	if (gpio_base > ASIC3_GPIO_D_Base) {
-		printk(KERN_ERR "Invalid base (0x%x) for gpio %d\n",
-		       gpio_base, offset);
+		dev_err(asic->dev, "Invalid base (0x%x) for gpio %d\n",
+			gpio_base, offset);
 		return;
 	}
 
@@ -548,7 +547,7 @@ static int asic3_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		ret = -ENOMEM;
-		printk(KERN_ERR "asic3: no MEM resource\n");
+		dev_err(asic->dev, "no MEM resource\n");
 		goto out_free;
 	}
 
@@ -556,7 +555,7 @@ static int asic3_probe(struct platform_device *pdev)
 	asic->mapping = ioremap(mem->start, PAGE_SIZE);
 	if (!asic->mapping) {
 		ret = -ENOMEM;
-		printk(KERN_ERR "asic3: couldn't ioremap\n");
+		dev_err(asic->dev, "Couldn't ioremap\n");
 		goto out_free;
 	}
 
@@ -572,7 +571,7 @@ static int asic3_probe(struct platform_device *pdev)
 
 	ret = asic3_irq_probe(pdev);
 	if (ret < 0) {
-		printk(KERN_ERR "asic3: couldn't probe IRQs\n");
+		dev_err(asic->dev, "Couldn't probe IRQs\n");
 		goto out_unmap;
 	}
 
@@ -587,11 +586,11 @@ static int asic3_probe(struct platform_device *pdev)
 			       pdata->gpio_config,
 			       pdata->gpio_config_num);
 	if (ret < 0) {
-		printk(KERN_ERR "GPIO probe failed\n");
+		dev_err(asic->dev, "GPIO probe failed\n");
 		goto out_irq;
 	}
 
-	printk(KERN_INFO "ASIC3 Core driver\n");
+	dev_info(asic->dev, "ASIC3 Core driver\n");
 
 	return 0;
 
