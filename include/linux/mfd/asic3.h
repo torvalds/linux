@@ -45,39 +45,39 @@ struct asic3_platform_data {
 /* All offsets below are specified with this address bus shift */
 #define ASIC3_DEFAULT_ADDR_SHIFT 2
 
-#define ASIC3_OFFSET(base, reg) (ASIC3_##base##_Base + ASIC3_##base##_##reg)
+#define ASIC3_OFFSET(base, reg) (ASIC3_##base##_BASE + ASIC3_##base##_##reg)
 #define ASIC3_GPIO_OFFSET(base, reg) \
-	(ASIC3_GPIO_##base##_Base + ASIC3_GPIO_##reg)
+	(ASIC3_GPIO_##base##_BASE + ASIC3_GPIO_##reg)
 
-#define ASIC3_GPIO_A_Base      0x0000
-#define ASIC3_GPIO_B_Base      0x0100
-#define ASIC3_GPIO_C_Base      0x0200
-#define ASIC3_GPIO_D_Base      0x0300
+#define ASIC3_GPIO_A_BASE      0x0000
+#define ASIC3_GPIO_B_BASE      0x0100
+#define ASIC3_GPIO_C_BASE      0x0200
+#define ASIC3_GPIO_D_BASE      0x0300
 
 #define ASIC3_GPIO_TO_BANK(gpio) ((gpio) >> 4)
 #define ASIC3_GPIO_TO_BIT(gpio)  ((gpio) - \
 				  (ASIC3_GPIOS_PER_BANK * ((gpio) >> 4)))
 #define ASIC3_GPIO_TO_MASK(gpio) (1 << ASIC3_GPIO_TO_BIT(gpio))
-#define ASIC3_GPIO_TO_BASE(gpio) (ASIC3_GPIO_A_Base + (((gpio) >> 4) * 0x0100))
-#define ASIC3_BANK_TO_BASE(bank) (ASIC3_GPIO_A_Base + ((bank) * 0x100))
+#define ASIC3_GPIO_TO_BASE(gpio) (ASIC3_GPIO_A_BASE + (((gpio) >> 4) * 0x0100))
+#define ASIC3_BANK_TO_BASE(bank) (ASIC3_GPIO_A_BASE + ((bank) * 0x100))
 
-#define ASIC3_GPIO_Mask          0x00    /* R/W 0:don't mask */
-#define ASIC3_GPIO_Direction     0x04    /* R/W 0:input */
-#define ASIC3_GPIO_Out           0x08    /* R/W 0:output low */
-#define ASIC3_GPIO_TriggerType   0x0c    /* R/W 0:level */
-#define ASIC3_GPIO_EdgeTrigger   0x10    /* R/W 0:falling */
-#define ASIC3_GPIO_LevelTrigger  0x14    /* R/W 0:low level detect */
-#define ASIC3_GPIO_SleepMask     0x18    /* R/W 0:don't mask in sleep mode */
-#define ASIC3_GPIO_SleepOut      0x1c    /* R/W level 0:low in sleep mode */
-#define ASIC3_GPIO_BattFaultOut  0x20    /* R/W level 0:low in batt_fault */
-#define ASIC3_GPIO_IntStatus     0x24    /* R/W 0:none, 1:detect */
-#define ASIC3_GPIO_AltFunction   0x28	 /* R/W 1:LED register control */
-#define ASIC3_GPIO_SleepConf     0x2c    /*
+#define ASIC3_GPIO_MASK          0x00    /* R/W 0:don't mask */
+#define ASIC3_GPIO_DIRECTION     0x04    /* R/W 0:input */
+#define ASIC3_GPIO_OUT           0x08    /* R/W 0:output low */
+#define ASIC3_GPIO_TRIGGER_TYPE  0x0c    /* R/W 0:level */
+#define ASIC3_GPIO_EDGE_TRIGGER  0x10    /* R/W 0:falling */
+#define ASIC3_GPIO_LEVEL_TRIGGER 0x14    /* R/W 0:low level detect */
+#define ASIC3_GPIO_SLEEP_MASK    0x18    /* R/W 0:don't mask in sleep mode */
+#define ASIC3_GPIO_SLEEP_OUT     0x1c    /* R/W level 0:low in sleep mode */
+#define ASIC3_GPIO_BAT_FAULT_OUT 0x20    /* R/W level 0:low in batt_fault */
+#define ASIC3_GPIO_INT_STATUS    0x24    /* R/W 0:none, 1:detect */
+#define ASIC3_GPIO_ALT_FUNCTION  0x28	 /* R/W 1:LED register control */
+#define ASIC3_GPIO_SLEEP_CONF    0x2c    /*
 					  * R/W bit 1: autosleep
 					  * 0: disable gposlpout in normal mode,
 					  * enable gposlpout in sleep mode.
 					  */
-#define ASIC3_GPIO_Status        0x30    /* R   Pin status */
+#define ASIC3_GPIO_STATUS        0x30    /* R   Pin status */
 
 /*
  * ASIC3 GPIO config
@@ -137,7 +137,7 @@ struct asic3_platform_data {
 #define LED_AUTOSTOP	(1 << 5) /* LED ON/OFF auto stop 0:disable, 1:enable */
 #define LED_ALWAYS	(1 << 6) /* LED Interrupt Mask 0:No mask, 1:mask */
 
-#define ASIC3_CLOCK_Base		0x0A00
+#define ASIC3_CLOCK_BASE	   0x0A00
 #define ASIC3_CLOCK_CDEX           0x00
 #define ASIC3_CLOCK_SEL            0x04
 
@@ -168,12 +168,12 @@ struct asic3_platform_data {
 #define CLOCK_SEL_CX            (1 << 2)
 
 
-#define ASIC3_INTR_Base		0x0B00
+#define ASIC3_INTR_BASE		0x0B00
 
-#define ASIC3_INTR_IntMask       0x00  /* Interrupt mask control */
-#define ASIC3_INTR_PIntStat      0x04  /* Peripheral interrupt status */
-#define ASIC3_INTR_IntCPS        0x08  /* Interrupt timer clock pre-scale */
-#define ASIC3_INTR_IntTBS        0x0c  /* Interrupt timer set */
+#define ASIC3_INTR_INT_MASK       0x00  /* Interrupt mask control */
+#define ASIC3_INTR_P_INT_STAT     0x04  /* Peripheral interrupt status */
+#define ASIC3_INTR_INT_CPS        0x08  /* Interrupt timer clock pre-scale */
+#define ASIC3_INTR_INT_TBS        0x0c  /* Interrupt timer set */
 
 #define ASIC3_INTMASK_GINTMASK    (1 << 0)  /* Global INTs mask 1:enable */
 #define ASIC3_INTMASK_GINTEL      (1 << 1)  /* 1: rising edge, 0: hi level */

@@ -55,8 +55,8 @@ static inline u32 asic3_read_register(struct asic3 *asic,
 
 /* IRQs */
 #define MAX_ASIC_ISR_LOOPS    20
-#define ASIC3_GPIO_Base_INCR \
-	(ASIC3_GPIO_B_Base - ASIC3_GPIO_A_Base)
+#define ASIC3_GPIO_BASE_INCR \
+	(ASIC3_GPIO_B_BASE - ASIC3_GPIO_A_BASE)
 
 static void asic3_irq_flip_edge(struct asic3 *asic,
 				u32 base, int bit)
@@ -66,10 +66,10 @@ static void asic3_irq_flip_edge(struct asic3 *asic,
 
 	spin_lock_irqsave(&asic->lock, flags);
 	edge = asic3_read_register(asic,
-				   base + ASIC3_GPIO_EdgeTrigger);
+				   base + ASIC3_GPIO_EDGE_TRIGGER);
 	edge ^= bit;
 	asic3_write_register(asic,
-			     base + ASIC3_GPIO_EdgeTrigger, edge);
+			     base + ASIC3_GPIO_EDGE_TRIGGER, edge);
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
@@ -89,7 +89,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 
 		spin_lock_irqsave(&asic->lock, flags);
 		status = asic3_read_register(asic,
-					     ASIC3_OFFSET(INTR, PIntStat));
+					     ASIC3_OFFSET(INTR, P_INT_STAT));
 		spin_unlock_irqrestore(&asic->lock, flags);
 
 		/* Check all ten register bits */
@@ -101,17 +101,17 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 			if (status & (1 << bank)) {
 				unsigned long base, istat;
 
-				base = ASIC3_GPIO_A_Base
-				       + bank * ASIC3_GPIO_Base_INCR;
+				base = ASIC3_GPIO_A_BASE
+				       + bank * ASIC3_GPIO_BASE_INCR;
 
 				spin_lock_irqsave(&asic->lock, flags);
 				istat = asic3_read_register(asic,
 							    base +
-							    ASIC3_GPIO_IntStatus);
+							    ASIC3_GPIO_INT_STATUS);
 				/* Clearing IntStatus */
 				asic3_write_register(asic,
 						     base +
-						     ASIC3_GPIO_IntStatus, 0);
+						     ASIC3_GPIO_INT_STATUS, 0);
 				spin_unlock_irqrestore(&asic->lock, flags);
 
 				for (i = 0; i < ASIC3_GPIOS_PER_BANK; i++) {
@@ -154,7 +154,7 @@ static inline int asic3_irq_to_bank(struct asic3 *asic, int irq)
 
 	n = (irq - asic->irq_base) >> 4;
 
-	return (n * (ASIC3_GPIO_B_Base - ASIC3_GPIO_A_Base));
+	return (n * (ASIC3_GPIO_B_BASE - ASIC3_GPIO_A_BASE));
 }
 
 static inline int asic3_irq_to_index(struct asic3 *asic, int irq)
@@ -172,9 +172,9 @@ static void asic3_mask_gpio_irq(unsigned int irq)
 	index = asic3_irq_to_index(asic, irq);
 
 	spin_lock_irqsave(&asic->lock, flags);
-	val = asic3_read_register(asic, bank + ASIC3_GPIO_Mask);
+	val = asic3_read_register(asic, bank + ASIC3_GPIO_MASK);
 	val |= 1 << index;
-	asic3_write_register(asic, bank + ASIC3_GPIO_Mask, val);
+	asic3_write_register(asic, bank + ASIC3_GPIO_MASK, val);
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
@@ -186,15 +186,15 @@ static void asic3_mask_irq(unsigned int irq)
 
 	spin_lock_irqsave(&asic->lock, flags);
 	regval = asic3_read_register(asic,
-				     ASIC3_INTR_Base +
-				     ASIC3_INTR_IntMask);
+				     ASIC3_INTR_BASE +
+				     ASIC3_INTR_INT_MASK);
 
 	regval &= ~(ASIC3_INTMASK_MASK0 <<
 		    (irq - (asic->irq_base + ASIC3_NUM_GPIOS)));
 
 	asic3_write_register(asic,
-			     ASIC3_INTR_Base +
-			     ASIC3_INTR_IntMask,
+			     ASIC3_INTR_BASE +
+			     ASIC3_INTR_INT_MASK,
 			     regval);
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
@@ -209,9 +209,9 @@ static void asic3_unmask_gpio_irq(unsigned int irq)
 	index = asic3_irq_to_index(asic, irq);
 
 	spin_lock_irqsave(&asic->lock, flags);
-	val = asic3_read_register(asic, bank + ASIC3_GPIO_Mask);
+	val = asic3_read_register(asic, bank + ASIC3_GPIO_MASK);
 	val &= ~(1 << index);
-	asic3_write_register(asic, bank + ASIC3_GPIO_Mask, val);
+	asic3_write_register(asic, bank + ASIC3_GPIO_MASK, val);
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
@@ -223,15 +223,15 @@ static void asic3_unmask_irq(unsigned int irq)
 
 	spin_lock_irqsave(&asic->lock, flags);
 	regval = asic3_read_register(asic,
-				     ASIC3_INTR_Base +
-				     ASIC3_INTR_IntMask);
+				     ASIC3_INTR_BASE +
+				     ASIC3_INTR_INT_MASK);
 
 	regval |= (ASIC3_INTMASK_MASK0 <<
 		   (irq - (asic->irq_base + ASIC3_NUM_GPIOS)));
 
 	asic3_write_register(asic,
-			     ASIC3_INTR_Base +
-			     ASIC3_INTR_IntMask,
+			     ASIC3_INTR_BASE +
+			     ASIC3_INTR_INT_MASK,
 			     regval);
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
@@ -249,11 +249,11 @@ static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	spin_lock_irqsave(&asic->lock, flags);
 	level = asic3_read_register(asic,
-				    bank + ASIC3_GPIO_LevelTrigger);
+				    bank + ASIC3_GPIO_LEVEL_TRIGGER);
 	edge = asic3_read_register(asic,
-				   bank + ASIC3_GPIO_EdgeTrigger);
+				   bank + ASIC3_GPIO_EDGE_TRIGGER);
 	trigger = asic3_read_register(asic,
-				      bank + ASIC3_GPIO_TriggerType);
+				      bank + ASIC3_GPIO_TRIGGER_TYPE);
 	asic->irq_bothedge[(irq - asic->irq_base) >> 4] &= ~bit;
 
 	if (type == IRQT_RISING) {
@@ -283,11 +283,11 @@ static int asic3_gpio_irq_type(unsigned int irq, unsigned int type)
 		 */
 		dev_notice(asic->dev, "irq type not changed\n");
 	}
-	asic3_write_register(asic, bank + ASIC3_GPIO_LevelTrigger,
+	asic3_write_register(asic, bank + ASIC3_GPIO_LEVEL_TRIGGER,
 			     level);
-	asic3_write_register(asic, bank + ASIC3_GPIO_EdgeTrigger,
+	asic3_write_register(asic, bank + ASIC3_GPIO_EDGE_TRIGGER,
 			     edge);
-	asic3_write_register(asic, bank + ASIC3_GPIO_TriggerType,
+	asic3_write_register(asic, bank + ASIC3_GPIO_TRIGGER_TYPE,
 			     trigger);
 	spin_unlock_irqrestore(&asic->lock, flags);
 	return 0;
@@ -336,7 +336,7 @@ static int asic3_irq_probe(struct platform_device *pdev)
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	asic3_write_register(asic, ASIC3_OFFSET(INTR, IntMask),
+	asic3_write_register(asic, ASIC3_OFFSET(INTR, INT_MASK),
 			     ASIC3_INTMASK_GINTMASK);
 
 	set_irq_chained_handler(asic->irq_nr, asic3_irq_demux);
@@ -374,7 +374,7 @@ static int asic3_gpio_direction(struct gpio_chip *chip,
 	asic = container_of(chip, struct asic3, gpio);
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
-	if (gpio_base > ASIC3_GPIO_D_Base) {
+	if (gpio_base > ASIC3_GPIO_D_BASE) {
 		dev_err(asic->dev, "Invalid base (0x%x) for gpio %d\n",
 			gpio_base, offset);
 		return -EINVAL;
@@ -382,7 +382,7 @@ static int asic3_gpio_direction(struct gpio_chip *chip,
 
 	spin_lock_irqsave(&asic->lock, flags);
 
-	out_reg = asic3_read_register(asic, gpio_base + ASIC3_GPIO_Direction);
+	out_reg = asic3_read_register(asic, gpio_base + ASIC3_GPIO_DIRECTION);
 
 	/* Input is 0, Output is 1 */
 	if (out)
@@ -390,7 +390,7 @@ static int asic3_gpio_direction(struct gpio_chip *chip,
 	else
 		out_reg &= ~mask;
 
-	asic3_write_register(asic, gpio_base + ASIC3_GPIO_Direction, out_reg);
+	asic3_write_register(asic, gpio_base + ASIC3_GPIO_DIRECTION, out_reg);
 
 	spin_unlock_irqrestore(&asic->lock, flags);
 
@@ -420,13 +420,13 @@ static int asic3_gpio_get(struct gpio_chip *chip,
 	asic = container_of(chip, struct asic3, gpio);
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
-	if (gpio_base > ASIC3_GPIO_D_Base) {
+	if (gpio_base > ASIC3_GPIO_D_BASE) {
 		dev_err(asic->dev, "Invalid base (0x%x) for gpio %d\n",
 			gpio_base, offset);
 		return -EINVAL;
 	}
 
-	return asic3_read_register(asic, gpio_base + ASIC3_GPIO_Status) & mask;
+	return asic3_read_register(asic, gpio_base + ASIC3_GPIO_STATUS) & mask;
 }
 
 static void asic3_gpio_set(struct gpio_chip *chip,
@@ -440,7 +440,7 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 	asic = container_of(chip, struct asic3, gpio);
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
-	if (gpio_base > ASIC3_GPIO_D_Base) {
+	if (gpio_base > ASIC3_GPIO_D_BASE) {
 		dev_err(asic->dev, "Invalid base (0x%x) for gpio %d\n",
 			gpio_base, offset);
 		return;
@@ -450,14 +450,14 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 
 	spin_lock_irqsave(&asic->lock, flags);
 
-	out_reg = asic3_read_register(asic, gpio_base + ASIC3_GPIO_Out);
+	out_reg = asic3_read_register(asic, gpio_base + ASIC3_GPIO_OUT);
 
 	if (value)
 		out_reg |= mask;
 	else
 		out_reg &= ~mask;
 
-	asic3_write_register(asic, gpio_base + ASIC3_GPIO_Out, out_reg);
+	asic3_write_register(asic, gpio_base + ASIC3_GPIO_OUT, out_reg);
 
 	spin_unlock_irqrestore(&asic->lock, flags);
 
@@ -478,10 +478,10 @@ static int asic3_gpio_probe(struct platform_device *pdev,
 	memset(dir_reg, 0, ASIC3_NUM_GPIO_BANKS);
 
 	/* Enable all GPIOs */
-	asic3_write_register(asic, ASIC3_GPIO_OFFSET(A, Mask), 0xffff);
-	asic3_write_register(asic, ASIC3_GPIO_OFFSET(B, Mask), 0xffff);
-	asic3_write_register(asic, ASIC3_GPIO_OFFSET(C, Mask), 0xffff);
-	asic3_write_register(asic, ASIC3_GPIO_OFFSET(D, Mask), 0xffff);
+	asic3_write_register(asic, ASIC3_GPIO_OFFSET(A, MASK), 0xffff);
+	asic3_write_register(asic, ASIC3_GPIO_OFFSET(B, MASK), 0xffff);
+	asic3_write_register(asic, ASIC3_GPIO_OFFSET(C, MASK), 0xffff);
+	asic3_write_register(asic, ASIC3_GPIO_OFFSET(D, MASK), 0xffff);
 
 	for (i = 0; i < num; i++) {
 		u8 alt, pin, dir, init, bank_num, bit_num;
@@ -503,14 +503,14 @@ static int asic3_gpio_probe(struct platform_device *pdev,
 	for (i = 0; i < ASIC3_NUM_GPIO_BANKS; i++) {
 		asic3_write_register(asic,
 				     ASIC3_BANK_TO_BASE(i) +
-				     ASIC3_GPIO_Direction,
+				     ASIC3_GPIO_DIRECTION,
 				     dir_reg[i]);
 		asic3_write_register(asic,
-				     ASIC3_BANK_TO_BASE(i) + ASIC3_GPIO_Out,
+				     ASIC3_BANK_TO_BASE(i) + ASIC3_GPIO_OUT,
 				     out_reg[i]);
 		asic3_write_register(asic,
 				     ASIC3_BANK_TO_BASE(i) +
-				     ASIC3_GPIO_AltFunction,
+				     ASIC3_GPIO_ALT_FUNCTION,
 				     alt_reg[i]);
 	}
 
