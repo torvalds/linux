@@ -8,6 +8,9 @@
 /* Interrupt control for vSMPowered x86_64 systems */
 void vsmp_init(void);
 
+/* Crashkernel reservation */
+void reserve_crashkernel(void);
+
 #ifndef CONFIG_PARAVIRT
 #define paravirt_post_allocator_init()	do {} while (0)
 #endif
