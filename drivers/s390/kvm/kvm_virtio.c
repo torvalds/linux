@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
+#include <linux/virtio_console.h>
 #include <linux/interrupt.h>
 #include <linux/virtio_ring.h>
 #include <linux/pfn.h>
@@ -331,6 +332,25 @@ static int __init kvm_devices_init(void)
 
 	scan_devices();
 	return 0;
+}
+
+/* code for early console output with virtio_console */
+static __init int early_put_chars(u32 vtermno, const char *buf, int count)
+{
+	char scratch[17];
+	unsigned int len = count;
+
+	if (len > sizeof(scratch) - 1)
+		len = sizeof(scratch) - 1;
+	scratch[len] = '\0';
+	memcpy(scratch, buf, len);
+	kvm_hypercall1(KVM_S390_VIRTIO_NOTIFY, __pa(scratch));
+	return len;
+}
+
+void s390_virtio_console_init(void)
+{
+	virtio_cons_early_init(early_put_chars);
 }
 
 /*
