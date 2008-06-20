@@ -80,4 +80,7 @@ void gether_cleanup(void);
 struct net_device *gether_connect(struct gether *);
 void gether_disconnect(struct gether *);
 
+/* each configuration may bind one instance of an ethernet link */
+int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+
 #endif /* __U_ETHER_H */
