@@ -628,7 +628,7 @@ struct drm_set_version {
 #define DRM_IOCTL_AGP_BIND		DRM_IOW( 0x36, struct drm_agp_binding)
 #define DRM_IOCTL_AGP_UNBIND		DRM_IOW( 0x37, struct drm_agp_binding)
 
-#define DRM_IOCTL_SG_ALLOC		DRM_IOW( 0x38, struct drm_scatter_gather)
+#define DRM_IOCTL_SG_ALLOC		DRM_IOWR(0x38, struct drm_scatter_gather)
 #define DRM_IOCTL_SG_FREE		DRM_IOW( 0x39, struct drm_scatter_gather)
 
 #define DRM_IOCTL_WAIT_VBLANK		DRM_IOWR(0x3a, union drm_wait_vblank)
