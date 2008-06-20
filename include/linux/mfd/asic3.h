@@ -32,9 +32,6 @@ struct asic3_platform_data {
 	unsigned int irq_base;
 
 	unsigned int gpio_base;
-
-	struct platform_device **children;
-	unsigned int n_children;
 };
 
 #define ASIC3_NUM_GPIO_BANKS	4

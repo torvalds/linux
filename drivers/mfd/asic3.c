@@ -604,14 +604,6 @@ static int asic3_probe(struct platform_device *pdev)
 		goto out_irq;
 	}
 
-	if (pdata->children) {
-		int i;
-		for (i = 0; i < pdata->n_children; i++) {
-			pdata->children[i]->dev.parent = &pdev->dev;
-			platform_device_register(pdata->children[i]);
-		}
-	}
-
 	printk(KERN_INFO "ASIC3 Core driver\n");
 
 	return 0;
