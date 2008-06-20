@@ -16,16 +16,6 @@
 
 #include <linux/types.h>
 
-struct asic3 {
-	void __iomem *mapping;
-	unsigned int bus_shift;
-	unsigned int irq_nr;
-	unsigned int irq_base;
-	spinlock_t lock;
-	u16 irq_bothedge[4];
-	struct device *dev;
-};
-
 struct asic3_platform_data {
 	struct {
 		u32 dir;
@@ -41,17 +31,18 @@ struct asic3_platform_data {
 
 	unsigned int irq_base;
 
+	unsigned int gpio_base;
+
 	struct platform_device **children;
 	unsigned int n_children;
 };
-
-int asic3_gpio_get_value(struct asic3 *asic, unsigned gpio);
-void asic3_gpio_set_value(struct asic3 *asic, unsigned gpio, int val);
 
 #define ASIC3_NUM_GPIO_BANKS	4
 #define ASIC3_GPIOS_PER_BANK	16
 #define ASIC3_NUM_GPIOS		64
 #define ASIC3_NR_IRQS		ASIC3_NUM_GPIOS + 6
+
+#define ASIC3_TO_GPIO(gpio) (NR_BUILTIN_GPIO + (gpio))
 
 #define ASIC3_GPIO_BANK_A	0
 #define ASIC3_GPIO_BANK_B	1
@@ -72,6 +63,13 @@ void asic3_gpio_set_value(struct asic3 *asic, unsigned gpio, int val);
 #define ASIC3_GPIO_B_Base      0x0100
 #define ASIC3_GPIO_C_Base      0x0200
 #define ASIC3_GPIO_D_Base      0x0300
+
+#define ASIC3_GPIO_TO_BANK(gpio) ((gpio) >> 4)
+#define ASIC3_GPIO_TO_BIT(gpio)  ((gpio) - \
+				  (ASIC3_GPIOS_PER_BANK * ((gpio) >> 4)))
+#define ASIC3_GPIO_TO_MASK(gpio) (1 << ASIC3_GPIO_TO_BIT(gpio))
+#define ASIC3_GPIO_TO_BASE(gpio) (ASIC3_GPIO_A_Base + (((gpio) >> 4) * 0x0100))
+#define ASIC3_BANK_TO_BASE(bank) (ASIC3_GPIO_A_Base + ((bank) * 0x100))
 
 #define ASIC3_GPIO_Mask          0x00    /* R/W 0:don't mask */
 #define ASIC3_GPIO_Direction     0x04    /* R/W 0:input */
