@@ -1198,7 +1198,6 @@ static int start_ts_capture(struct av7110 *budget)
 	if (budget->feeding1)
 		return ++budget->feeding1;
 	memset(budget->grabbing, 0x00, TS_HEIGHT * TS_WIDTH);
-	budget->tsf = 0xff;
 	budget->ttbp = 0;
 	SAA7146_IER_ENABLE(budget->dev, MASK_10); /* VPE */
 	saa7146_write(budget->dev, MC1, (MASK_04 | MASK_20)); /* DMA3 on */
