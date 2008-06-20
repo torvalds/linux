@@ -2487,6 +2487,19 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 /* http://bcm-specs.sipsolutions.net/EnableMac */
 void b43_mac_enable(struct b43_wldev *dev)
 {
+	if (b43_debug(dev, B43_DBG_FIRMWARE)) {
+		u16 fwstate;
+
+		fwstate = b43_shm_read16(dev, B43_SHM_SHARED,
+					 B43_SHM_SH_UCODESTAT);
+		if ((fwstate != B43_SHM_SH_UCODESTAT_SUSP) &&
+		    (fwstate != B43_SHM_SH_UCODESTAT_SLEEP)) {
+			b43err(dev->wl, "b43_mac_enable(): The firmware "
+			       "should be suspended, but current state is %u\n",
+			       fwstate);
+		}
+	}
+
 	dev->mac_suspended--;
 	B43_WARN_ON(dev->mac_suspended < 0);
 	if (dev->mac_suspended == 0) {
