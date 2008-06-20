@@ -308,7 +308,7 @@ static struct irq_chip asic3_irq_chip = {
 	.unmask		= asic3_unmask_irq,
 };
 
-static int asic3_irq_probe(struct platform_device *pdev)
+static int __init asic3_irq_probe(struct platform_device *pdev)
 {
 	struct asic3 *asic = platform_get_drvdata(pdev);
 	unsigned long clksel = 0;
@@ -464,8 +464,8 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 	return;
 }
 
-static int asic3_gpio_probe(struct platform_device *pdev,
-			    u16 *gpio_config, int num)
+static __init int asic3_gpio_probe(struct platform_device *pdev,
+				   u16 *gpio_config, int num)
 {
 	struct asic3 *asic = platform_get_drvdata(pdev);
 	u16 alt_reg[ASIC3_NUM_GPIO_BANKS];
@@ -526,7 +526,7 @@ static int asic3_gpio_remove(struct platform_device *pdev)
 
 
 /* Core */
-static int asic3_probe(struct platform_device *pdev)
+static int __init asic3_probe(struct platform_device *pdev)
 {
 	struct asic3_platform_data *pdata = pdev->dev.platform_data;
 	struct asic3 *asic;
@@ -633,7 +633,6 @@ static struct platform_driver asic3_device_driver = {
 	.driver		= {
 		.name	= "asic3",
 	},
-	.probe		= asic3_probe,
 	.remove		= __devexit_p(asic3_remove),
 	.shutdown	= asic3_shutdown,
 };
@@ -641,7 +640,7 @@ static struct platform_driver asic3_device_driver = {
 static int __init asic3_init(void)
 {
 	int retval = 0;
-	retval = platform_driver_register(&asic3_device_driver);
+	retval = platform_driver_probe(&asic3_device_driver, asic3_probe);
 	return retval;
 }
 
