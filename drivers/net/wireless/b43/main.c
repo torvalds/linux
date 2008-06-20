@@ -2807,6 +2807,21 @@ static void b43_periodic_every30sec(struct b43_wldev *dev)
 static void b43_periodic_every15sec(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
+	u16 wdr;
+
+	if (dev->fw.opensource) {
+		/* Check if the firmware is still alive.
+		 * It will reset the watchdog counter to 0 in its idle loop. */
+		wdr = b43_shm_read16(dev, B43_SHM_SCRATCH, B43_WATCHDOG_REG);
+		if (unlikely(wdr)) {
+			b43err(dev->wl, "Firmware watchdog: The firmware died!\n");
+			b43_controller_restart(dev, "Firmware watchdog");
+			return;
+		} else {
+			b43_shm_write16(dev, B43_SHM_SCRATCH,
+					B43_WATCHDOG_REG, 1);
+		}
+	}
 
 	if (phy->type == B43_PHYTYPE_G) {
 		//TODO: update_aci_moving_average
