@@ -239,7 +239,7 @@ if ACPI
 config X86_MPPARSE
 	def_bool y
 	bool "Enable MPS table"
-	depends on ((X86_32 && (X86_LOCAL_APIC && !X86_VISWS)) || X86_64)
+	depends on X86_LOCAL_APIC && !X86_VISWS
 	help
 	  For old smp systems that do not have proper acpi support. Newer systems
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
@@ -248,7 +248,7 @@ endif
 if !ACPI
 config X86_MPPARSE
 	def_bool y
-	depends on ((X86_32 && (X86_LOCAL_APIC && !X86_VISWS)) || X86_64)
+	depends on X86_LOCAL_APIC && !X86_VISWS
 endif
 
 choice
