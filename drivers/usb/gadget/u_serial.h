@@ -41,11 +41,6 @@ struct gserial {
 
 	/* REVISIT avoid this CDC-ACM support harder ... */
 	struct usb_cdc_line_coding port_line_coding;	/* 9600-8-N-1 etc */
-
-	/* FIXME remove these when we switch to acm_bind_config... */
-	struct usb_ep			*notify;
-	struct usb_endpoint_descriptor	*notify_desc;
-	u16				port_handshake_bits;
 };
 
 /* port setup/teardown is handled by gadget driver */
