@@ -2,6 +2,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
+#include <asm/fixmap.h>
 
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
