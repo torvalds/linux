@@ -98,8 +98,8 @@ union acpi_parse_object;
 
 static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
 	"ACPI_MTX_Interpreter",
-	"ACPI_MTX_Tables",
 	"ACPI_MTX_Namespace",
+	"ACPI_MTX_Tables",
 	"ACPI_MTX_Events",
 	"ACPI_MTX_Caches",
 	"ACPI_MTX_Memory",
