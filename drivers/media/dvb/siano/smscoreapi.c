@@ -37,23 +37,6 @@ int sms_debug;
 module_param_named(debug, sms_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 
-#define PERROR(fmt, args...)\
-	sms_err("smscore error: line %d- %s(): " fmt, \
-		__LINE__,  __func__, ## args)
-
-#ifdef SMSCORE_DEBUG
-#undef PWARNING
-#  define PWARNING(fmt, args...) sms_info("smscore warning: " \
-					"line %d- %s(): " fmt, \
-					__LINE__, __func__, ## args)
-#undef PDEBUG					/* undef it, just in case */
-#  define PDEBUG(fmt, args...)   sms_info("smscore - %s(): " fmt, \
-					__func__, ## args)
-#else /*SMSCORE_DEBUG*/
-#define PDEBUG(fmt, args...)
-#define PWARNING(fmt, args...)
-#endif
-
 struct smscore_device_notifyee_t {
 	struct list_head entry;
 	hotplug_t hotplug;
@@ -504,7 +487,7 @@ int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		return -ENOMEM;
 
 	if (coredev->mode != DEVICE_MODE_NONE) {
-		PDEBUG("Sending reload command");
+		sms_debug("sending reload command.");
 		SMS_INIT_MSG(msg, MSG_SW_RELOAD_START_REQ,
 			     sizeof(struct SmsMsgHdr_ST));
 		rc = smscore_sendrequest_and_wait(coredev, msg,
@@ -641,7 +624,7 @@ int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 int smscore_load_firmware_from_buffer(struct smscore_device_t *coredev,
 				      u8 *buffer, int size, int new_mode)
 {
-	PERROR("Feature not implemented yet");
+	sms_err("feature not yet implemented.");
 	return -EFAULT;
 }
 
@@ -774,7 +757,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	int rc = 0;
 	enum sms_device_type_st type;
 
-	PDEBUG("set device mode to %d", mode);
+	sms_debug("set device mode to %d", mode);
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
 		if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_RAW_TUNER) {
 			sms_err("invalid mode specified %d", mode);
@@ -1041,7 +1024,7 @@ int smscore_validate_client(struct smscore_device_t *coredev,
 	struct smscore_client_t *registered_client;
 
 	if (!client) {
-		PERROR("bad parameter.");
+		sms_err("bad parameter.");
 		return -EFAULT;
 	}
 	registered_client = smscore_find_client(coredev, data_type, id);
@@ -1049,12 +1032,12 @@ int smscore_validate_client(struct smscore_device_t *coredev,
 		return 0;
 
 	if (registered_client) {
-		PERROR("The msg ID already registered to another client.");
+		sms_err("The msg ID already registered to another client.");
 		return -EEXIST;
 	}
 	listentry = kzalloc(sizeof(struct smscore_idlist_t), GFP_KERNEL);
 	if (!listentry) {
-		PERROR("Can't allocate memory for client id.");
+		sms_err("Can't allocate memory for client id.");
 		return -ENOMEM;
 	}
 	listentry->id = id;
@@ -1086,13 +1069,13 @@ int smscore_register_client(struct smscore_device_t *coredev,
 	/* check that no other channel with same parameters exists */
 	if (smscore_find_client(coredev, params->data_type,
 				params->initial_id)) {
-		PERROR("Client already exist.");
+		sms_err("Client already exist.");
 		return -EEXIST;
 	}
 
 	newclient = kzalloc(sizeof(struct smscore_client_t), GFP_KERNEL);
 	if (!newclient) {
-		PERROR("Failed to allocate memory for client.");
+		sms_err("Failed to allocate memory for client.");
 		return -ENOMEM;
 	}
 
@@ -1106,8 +1089,8 @@ int smscore_register_client(struct smscore_device_t *coredev,
 	smscore_validate_client(coredev, newclient, params->data_type,
 				params->initial_id);
 	*client = newclient;
-	PDEBUG("%p %d %d", params->context, params->data_type,
-	       params->initial_id);
+	sms_debug("%p %d %d", params->context, params->data_type,
+		  params->initial_id);
 
 	return 0;
 }
