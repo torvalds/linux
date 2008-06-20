@@ -271,6 +271,10 @@ struct igb_adapter {
 	unsigned int msi_enabled;
 
 	u32 eeprom_wol;
+
+	/* for ioport free */
+	int bars;
+	int need_ioport;
 };
 
 enum e1000_state_t {
