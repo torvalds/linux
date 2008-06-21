@@ -94,7 +94,6 @@
 				V4L2_CAP_VIDEO_OVERLAY \
 			      )
 
-#include <asm/byteorder.h>
 
 #if defined(CONFIG_VIDEO_V4L1_COMPAT)
 #define ZFMT(pal, fcc, cs) \
