@@ -1356,7 +1356,15 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	fb->fmt.pixelformat = pixel_format[pixfmt];
 	fb->fmt.width = itv->osd_rect.width;
 	fb->fmt.height = itv->osd_rect.height;
+	fb->fmt.field = V4L2_FIELD_INTERLACED;
+	fb->fmt.bytesperline = fb->fmt.width;
+	if (fb->fmt.pixelformat != V4L2_PIX_FMT_PAL8)
+		fb->fmt.bytesperline *= 2;
+	if (fb->fmt.pixelformat == V4L2_PIX_FMT_RGB32 ||
+	    fb->fmt.pixelformat == V4L2_PIX_FMT_YUV32)
+		fb->fmt.bytesperline *= 2;
 	fb->base = (void *)itv->osd_video_pbase;
+	fb->flags = 0;
 
 	if (itv->osd_chroma_key_state)
 		fb->flags |= V4L2_FBUF_FLAG_CHROMAKEY;
@@ -1404,8 +1412,7 @@ static int ivtv_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	itv->osd_chroma_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
 	ivtv_set_osd_alpha(itv);
 	yi->track_osd = (fb->flags & V4L2_FBUF_FLAG_OVERLAY) != 0;
-
-	return 0;
+	return ivtv_g_fbuf(file, fh, fb);
 }
 
 static int ivtv_overlay(struct file *file, void *fh, unsigned int on)
