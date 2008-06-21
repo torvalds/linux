@@ -429,6 +429,41 @@ u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 	return real_updated_size;
 }
 
+/* make e820 not cover the range */
+u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
+			     int checktype)
+{
+	int i;
+	u64 real_removed_size = 0;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		u64 final_start, final_end;
+
+		if (checktype && ei->type != old_type)
+			continue;
+		/* totally covered? */
+		if (ei->addr >= start &&
+		    (ei->addr + ei->size) <= (start + size)) {
+			real_removed_size += ei->size;
+			memset(ei, 0, sizeof(struct e820entry));
+			continue;
+		}
+		/* partially covered */
+		final_start = max(start, ei->addr);
+		final_end = min(start + size, ei->addr + ei->size);
+		if (final_start >= final_end)
+			continue;
+		real_removed_size += final_end - final_start;
+
+		ei->size -= final_end - final_start;
+		if (ei->addr < final_start)
+			continue;
+		ei->addr = final_end;
+	}
+	return real_removed_size;
+}
+
 void __init update_e820(void)
 {
 	int nr_map;
