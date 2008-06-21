@@ -54,6 +54,7 @@ extern struct boot_params boot_params;
 #ifdef __i386__
 
 void __init i386_start_kernel(void);
+extern void probe_roms(void);
 
 extern unsigned long init_pg_tables_start;
 extern unsigned long init_pg_tables_end;
