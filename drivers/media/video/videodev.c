@@ -1616,26 +1616,26 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	}
 	case VIDIOC_ENCODER_CMD:
 	{
-		struct v4l2_encoder_cmd *p=arg;
+		struct v4l2_encoder_cmd *p = arg;
 
 		if (!vfd->vidioc_encoder_cmd)
 			break;
-		ret=vfd->vidioc_encoder_cmd(file, fh, p);
+		memset(&p->raw, 0, sizeof(p->raw));
+		ret = vfd->vidioc_encoder_cmd(file, fh, p);
 		if (!ret)
-			dbgarg (cmd, "cmd=%d, flags=%d\n",
-					p->cmd,p->flags);
+			dbgarg(cmd, "cmd=%d, flags=%x\n", p->cmd, p->flags);
 		break;
 	}
 	case VIDIOC_TRY_ENCODER_CMD:
 	{
-		struct v4l2_encoder_cmd *p=arg;
+		struct v4l2_encoder_cmd *p = arg;
 
 		if (!vfd->vidioc_try_encoder_cmd)
 			break;
-		ret=vfd->vidioc_try_encoder_cmd(file, fh, p);
+		memset(&p->raw, 0, sizeof(p->raw));
+		ret = vfd->vidioc_try_encoder_cmd(file, fh, p);
 		if (!ret)
-			dbgarg (cmd, "cmd=%d, flags=%d\n",
-					p->cmd,p->flags);
+			dbgarg(cmd, "cmd=%d, flags=%x\n", p->cmd, p->flags);
 		break;
 	}
 	case VIDIOC_G_PARM:
@@ -1738,12 +1738,17 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	}
 	case VIDIOC_G_SLICED_VBI_CAP:
 	{
-		struct v4l2_sliced_vbi_cap *p=arg;
+		struct v4l2_sliced_vbi_cap *p = arg;
+		__u32 type = p->type;
+
 		if (!vfd->vidioc_g_sliced_vbi_cap)
 			break;
-		ret=vfd->vidioc_g_sliced_vbi_cap(file, fh, p);
+		memset(p, 0, sizeof(*p));
+		p->type = type;
+		ret = vfd->vidioc_g_sliced_vbi_cap(file, fh, p);
 		if (!ret)
-			dbgarg (cmd, "service_set=%d\n", p->service_set);
+			dbgarg(cmd, "type=%d, service_set=%d\n",
+					p->type, p->service_set);
 		break;
 	}
 	case VIDIOC_LOG_STATUS:
