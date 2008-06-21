@@ -818,6 +818,9 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	int video_input;
 	int fw_retry_count = 3;
 	struct v4l2_frequency vf;
+	struct cx18_open_id fh;
+
+	fh.cx = cx;
 
 	if (test_bit(CX18_F_I_FAILED, &cx->i_flags))
 		return -ENXIO;
@@ -869,13 +872,13 @@ int cx18_init_on_first_open(struct cx18 *cx)
 
 	video_input = cx->active_input;
 	cx->active_input++;	/* Force update of input */
-	cx18_v4l2_ioctls(cx, NULL, VIDIOC_S_INPUT, &video_input);
+	cx18_s_input(NULL, &fh, video_input);
 
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	cx->std++;		/* Force full standard initialization */
-	cx18_v4l2_ioctls(cx, NULL, VIDIOC_S_STD, &cx->tuner_std);
-	cx18_v4l2_ioctls(cx, NULL, VIDIOC_S_FREQUENCY, &vf);
+	cx18_s_std(NULL, &fh, &cx->tuner_std);
+	cx18_s_frequency(NULL, &fh, &vf);
 	return 0;
 }
 

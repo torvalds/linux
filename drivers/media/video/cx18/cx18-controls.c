@@ -51,8 +51,9 @@ static const u32 *ctrl_classes[] = {
 	NULL
 };
 
-static int cx18_queryctrl(struct cx18 *cx, struct v4l2_queryctrl *qctrl)
+int cx18_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 {
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 	const char *name;
 
 	CX18_DEBUG_IOCTL("VIDIOC_QUERYCTRL(%08x)\n", qctrl->id);
@@ -91,18 +92,27 @@ static int cx18_queryctrl(struct cx18 *cx, struct v4l2_queryctrl *qctrl)
 	return 0;
 }
 
-static int cx18_querymenu(struct cx18 *cx, struct v4l2_querymenu *qmenu)
+int cx18_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 {
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 	struct v4l2_queryctrl qctrl;
 
+	CX18_DEBUG_IOCTL("VIDIOC_QUERYMENU\n");
 	qctrl.id = qmenu->id;
-	cx18_queryctrl(cx, &qctrl);
+	cx18_queryctrl(file, fh, &qctrl);
 	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
 }
 
-static int cx18_s_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
+int cx18_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 {
+	struct cx18_open_id *id = fh;
+	struct cx18 *cx = id->cx;
+	int ret;
 	s32 v = vctrl->value;
+
+	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	if (ret)
+		return ret;
 
 	CX18_DEBUG_IOCTL("VIDIOC_S_CTRL(%08x, %x)\n", vctrl->id, v);
 
@@ -129,8 +139,10 @@ static int cx18_s_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	return 0;
 }
 
-static int cx18_g_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
+int cx18_g_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 {
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+
 	CX18_DEBUG_IOCTL("VIDIOC_G_CTRL(%08x)\n", vctrl->id);
 
 	switch (vctrl->id) {
@@ -194,113 +206,100 @@ static int cx18_setup_vbi_fmt(struct cx18 *cx, enum v4l2_mpeg_stream_vbi_fmt fmt
 	return 0;
 }
 
-int cx18_control_ioctls(struct cx18 *cx, unsigned int cmd, void *arg)
+int cx18_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 {
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 	struct v4l2_control ctrl;
 
-	switch (cmd) {
-	case VIDIOC_QUERYMENU:
-		CX18_DEBUG_IOCTL("VIDIOC_QUERYMENU\n");
-		return cx18_querymenu(cx, arg);
+	if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
+		int i;
+		int err = 0;
 
-	case VIDIOC_QUERYCTRL:
-		return cx18_queryctrl(cx, arg);
-
-	case VIDIOC_S_CTRL:
-		return cx18_s_ctrl(cx, arg);
-
-	case VIDIOC_G_CTRL:
-		return cx18_g_ctrl(cx, arg);
-
-	case VIDIOC_S_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *c = arg;
-
-		if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
-			int i;
-			int err = 0;
-
-			for (i = 0; i < c->count; i++) {
-				ctrl.id = c->controls[i].id;
-				ctrl.value = c->controls[i].value;
-				err = cx18_s_ctrl(cx, &ctrl);
-				c->controls[i].value = ctrl.value;
-				if (err) {
-					c->error_idx = i;
-					break;
-				}
+		for (i = 0; i < c->count; i++) {
+			ctrl.id = c->controls[i].id;
+			ctrl.value = c->controls[i].value;
+			err = cx18_g_ctrl(file, fh, &ctrl);
+			c->controls[i].value = ctrl.value;
+			if (err) {
+				c->error_idx = i;
+				break;
 			}
-			return err;
 		}
-		CX18_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
-		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-			struct cx2341x_mpeg_params p = cx->params;
-			int err = cx2341x_ext_ctrls(&p, atomic_read(&cx->ana_capturing), arg, cmd);
+		return err;
+	}
+	CX18_DEBUG_IOCTL("VIDIOC_G_EXT_CTRLS\n");
+	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
+		return cx2341x_ext_ctrls(&cx->params, 0, c, VIDIOC_G_EXT_CTRLS);
+	return -EINVAL;
+}
 
-			if (err)
-				return err;
+int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
+{
+	struct cx18_open_id *id = fh;
+	struct cx18 *cx = id->cx;
+	int ret;
+	struct v4l2_control ctrl;
 
-			if (p.video_encoding != cx->params.video_encoding) {
-				int is_mpeg1 = p.video_encoding ==
+	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	if (ret)
+		return ret;
+
+	if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
+		int i;
+		int err = 0;
+
+		for (i = 0; i < c->count; i++) {
+			ctrl.id = c->controls[i].id;
+			ctrl.value = c->controls[i].value;
+			err = cx18_s_ctrl(file, fh, &ctrl);
+			c->controls[i].value = ctrl.value;
+			if (err) {
+				c->error_idx = i;
+				break;
+			}
+		}
+		return err;
+	}
+	CX18_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
+	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
+		struct cx2341x_mpeg_params p = cx->params;
+		int err = cx2341x_ext_ctrls(&p, atomic_read(&cx->ana_capturing),
+						c, VIDIOC_S_EXT_CTRLS);
+
+		if (err)
+			return err;
+
+		if (p.video_encoding != cx->params.video_encoding) {
+			int is_mpeg1 = p.video_encoding ==
 						V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-				struct v4l2_format fmt;
+			struct v4l2_format fmt;
 
-				/* fix videodecoder resolution */
-				fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-				fmt.fmt.pix.width = cx->params.width / (is_mpeg1 ? 2 : 1);
-				fmt.fmt.pix.height = cx->params.height;
-				cx18_av_cmd(cx, VIDIOC_S_FMT, &fmt);
-			}
-			err = cx2341x_update(cx, cx18_api_func, &cx->params, &p);
-			if (!err && cx->params.stream_vbi_fmt != p.stream_vbi_fmt)
-				err = cx18_setup_vbi_fmt(cx, p.stream_vbi_fmt);
-			cx->params = p;
-			cx->dualwatch_stereo_mode = p.audio_properties & 0x0300;
-			cx18_audio_set_audio_clock_freq(cx, p.audio_properties & 0x03);
-			return err;
+			/* fix videodecoder resolution */
+			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			fmt.fmt.pix.width = cx->params.width
+						/ (is_mpeg1 ? 2 : 1);
+			fmt.fmt.pix.height = cx->params.height;
+			cx18_av_cmd(cx, VIDIOC_S_FMT, &fmt);
 		}
-		return -EINVAL;
+		err = cx2341x_update(cx, cx18_api_func, &cx->params, &p);
+		if (!err && cx->params.stream_vbi_fmt != p.stream_vbi_fmt)
+			err = cx18_setup_vbi_fmt(cx, p.stream_vbi_fmt);
+		cx->params = p;
+		cx->dualwatch_stereo_mode = p.audio_properties & 0x0300;
+		cx18_audio_set_audio_clock_freq(cx, p.audio_properties & 0x03);
+		return err;
 	}
+	return -EINVAL;
+}
 
-	case VIDIOC_G_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *c = arg;
+int cx18_try_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
+{
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-		if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
-			int i;
-			int err = 0;
-
-			for (i = 0; i < c->count; i++) {
-				ctrl.id = c->controls[i].id;
-				ctrl.value = c->controls[i].value;
-				err = cx18_g_ctrl(cx, &ctrl);
-				c->controls[i].value = ctrl.value;
-				if (err) {
-					c->error_idx = i;
-					break;
-				}
-			}
-			return err;
-		}
-		CX18_DEBUG_IOCTL("VIDIOC_G_EXT_CTRLS\n");
-		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&cx->params, 0, arg, cmd);
-		return -EINVAL;
-	}
-
-	case VIDIOC_TRY_EXT_CTRLS:
-	{
-		struct v4l2_ext_controls *c = arg;
-
-		CX18_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
-		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&cx->params,
-					atomic_read(&cx->ana_capturing), arg, cmd);
-		return -EINVAL;
-	}
-
-	default:
-		return -EINVAL;
-	}
-	return 0;
+	CX18_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
+	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
+		return cx2341x_ext_ctrls(&cx->params,
+						atomic_read(&cx->ana_capturing),
+						c, VIDIOC_TRY_EXT_CTRLS);
+	return -EINVAL;
 }
