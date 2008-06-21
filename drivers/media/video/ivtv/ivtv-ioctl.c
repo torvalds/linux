@@ -378,6 +378,8 @@ static int ivtv_g_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_fo
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
 
+	vbifmt->reserved[0] = 0;
+	vbifmt->reserved[1] = 0;
 	if (!(itv->v4l2_cap & V4L2_CAP_SLICED_VBI_OUTPUT))
 		return -EINVAL;
 	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
@@ -396,21 +398,24 @@ static int ivtv_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 {
 	struct ivtv_open_id *id = fh;
 	struct ivtv *itv = id->itv;
+	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
-	fmt->fmt.pix.width = itv->params.width;
-	fmt->fmt.pix.height = itv->params.height;
-	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	fmt->fmt.pix.field = V4L2_FIELD_INTERLACED;
-	if (id->type == IVTV_ENC_STREAM_TYPE_YUV ||
-			id->type == IVTV_DEC_STREAM_TYPE_YUV) {
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_HM12;
+	pixfmt->width = itv->params.width;
+	pixfmt->height = itv->params.height;
+	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	pixfmt->field = V4L2_FIELD_INTERLACED;
+	pixfmt->priv = 0;
+	if (id->type == IVTV_ENC_STREAM_TYPE_YUV) {
+		pixfmt->pixelformat = V4L2_PIX_FMT_HM12;
 		/* YUV size is (Y=(h*w) + UV=(h*(w/2))) */
-		fmt->fmt.pix.sizeimage =
-			fmt->fmt.pix.height * fmt->fmt.pix.width +
-			fmt->fmt.pix.height * (fmt->fmt.pix.width / 2);
+		pixfmt->sizeimage =
+			pixfmt->height * pixfmt->width +
+			pixfmt->height * (pixfmt->width / 2);
+		pixfmt->bytesperline = 720;
 	} else {
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
-		fmt->fmt.pix.sizeimage = 128 * 1024;
+		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
+		pixfmt->sizeimage = 128 * 1024;
+		pixfmt->bytesperline = 0;
 	}
 	return 0;
 }
@@ -418,14 +423,18 @@ static int ivtv_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 static int ivtv_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
+	struct v4l2_vbi_format *vbifmt = &fmt->fmt.vbi;
 
-	fmt->fmt.vbi.sampling_rate = 27000000;
-	fmt->fmt.vbi.offset = 248;
-	fmt->fmt.vbi.samples_per_line = itv->vbi.raw_decoder_line_size - 4;
-	fmt->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
-	fmt->fmt.vbi.start[0] = itv->vbi.start[0];
-	fmt->fmt.vbi.start[1] = itv->vbi.start[1];
-	fmt->fmt.vbi.count[0] = fmt->fmt.vbi.count[1] = itv->vbi.count;
+	vbifmt->sampling_rate = 27000000;
+	vbifmt->offset = 248;
+	vbifmt->samples_per_line = itv->vbi.raw_decoder_line_size - 4;
+	vbifmt->sample_format = V4L2_PIX_FMT_GREY;
+	vbifmt->start[0] = itv->vbi.start[0];
+	vbifmt->start[1] = itv->vbi.start[1];
+	vbifmt->count[0] = vbifmt->count[1] = itv->vbi.count;
+	vbifmt->flags = 0;
+	vbifmt->reserved[0] = 0;
+	vbifmt->reserved[1] = 0;
 	return 0;
 }
 
@@ -435,6 +444,8 @@ static int ivtv_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 	struct ivtv_open_id *id = fh;
 	struct ivtv *itv = id->itv;
 
+	vbifmt->reserved[0] = 0;
+	vbifmt->reserved[1] = 0;
 	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
 
 	if (id->type == IVTV_DEC_STREAM_TYPE_VBI) {
@@ -453,42 +464,39 @@ static int ivtv_g_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 {
 	struct ivtv_open_id *id = fh;
 	struct ivtv *itv = id->itv;
+	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
 	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 		return -EINVAL;
-	fmt->fmt.pix.width = itv->main_rect.width;
-	fmt->fmt.pix.height = itv->main_rect.height;
-	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	fmt->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	pixfmt->width = itv->main_rect.width;
+	pixfmt->height = itv->main_rect.height;
+	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	pixfmt->field = V4L2_FIELD_INTERLACED;
+	pixfmt->priv = 0;
 	if (id->type == IVTV_DEC_STREAM_TYPE_YUV) {
 		switch (itv->yuv_info.lace_mode & IVTV_YUV_MODE_MASK) {
 		case IVTV_YUV_MODE_INTERLACED:
-			fmt->fmt.pix.field = (itv->yuv_info.lace_mode & IVTV_YUV_SYNC_MASK) ?
+			pixfmt->field = (itv->yuv_info.lace_mode & IVTV_YUV_SYNC_MASK) ?
 				V4L2_FIELD_INTERLACED_BT : V4L2_FIELD_INTERLACED_TB;
 			break;
 		case IVTV_YUV_MODE_PROGRESSIVE:
-			fmt->fmt.pix.field = V4L2_FIELD_NONE;
+			pixfmt->field = V4L2_FIELD_NONE;
 			break;
 		default:
-			fmt->fmt.pix.field = V4L2_FIELD_ANY;
+			pixfmt->field = V4L2_FIELD_ANY;
 			break;
 		}
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_HM12;
-		fmt->fmt.pix.bytesperline = 720;
-		fmt->fmt.pix.width = itv->yuv_info.v4l2_src_w;
-		fmt->fmt.pix.height = itv->yuv_info.v4l2_src_h;
+		pixfmt->pixelformat = V4L2_PIX_FMT_HM12;
+		pixfmt->bytesperline = 720;
+		pixfmt->width = itv->yuv_info.v4l2_src_w;
+		pixfmt->height = itv->yuv_info.v4l2_src_h;
 		/* YUV size is (Y=(h*w) + UV=(h*(w/2))) */
-		fmt->fmt.pix.sizeimage =
-			1080 * ((fmt->fmt.pix.height + 31) & ~31);
-	} else if (id->type == IVTV_ENC_STREAM_TYPE_YUV) {
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_HM12;
-		/* YUV size is (Y=(h*w) + UV=(h*(w/2))) */
-		fmt->fmt.pix.sizeimage =
-			fmt->fmt.pix.height * fmt->fmt.pix.width +
-			fmt->fmt.pix.height * (fmt->fmt.pix.width / 2);
+		pixfmt->sizeimage =
+			1080 * ((pixfmt->height + 31) & ~31);
 	} else {
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
-		fmt->fmt.pix.sizeimage = 128 * 1024;
+		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
+		pixfmt->sizeimage = 128 * 1024;
+		pixfmt->bytesperline = 0;
 	}
 	return 0;
 }
@@ -496,11 +504,19 @@ static int ivtv_g_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 static int ivtv_g_fmt_vid_out_overlay(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
+	struct v4l2_window *winfmt = &fmt->fmt.win;
 
 	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 		return -EINVAL;
-	fmt->fmt.win.chromakey = itv->osd_chroma_key;
-	fmt->fmt.win.global_alpha = itv->osd_global_alpha;
+	winfmt->chromakey = itv->osd_chroma_key;
+	winfmt->global_alpha = itv->osd_global_alpha;
+	winfmt->field = V4L2_FIELD_INTERLACED;
+	winfmt->clips = NULL;
+	winfmt->clipcount = 0;
+	winfmt->bitmap = NULL;
+	winfmt->w.top = winfmt->w.left = 0;
+	winfmt->w.width = itv->osd_rect.width;
+	winfmt->w.height = itv->osd_rect.height;
 	return 0;
 }
 
@@ -542,7 +558,8 @@ static int ivtv_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_
 
 	/* set sliced VBI capture format */
 	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
-	memset(vbifmt->reserved, 0, sizeof(vbifmt->reserved));
+	vbifmt->reserved[0] = 0;
+	vbifmt->reserved[1] = 0;
 
 	if (vbifmt->service_set)
 		ivtv_expand_service_set(vbifmt, itv->is_50hz);
@@ -581,9 +598,14 @@ static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format 
 static int ivtv_try_fmt_vid_out_overlay(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
+	u32 chromakey = fmt->fmt.win.chromakey;
+	u8 global_alpha = fmt->fmt.win.global_alpha;
 
 	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 		return -EINVAL;
+	ivtv_g_fmt_vid_out_overlay(file, fh, fmt);
+	fmt->fmt.win.chromakey = chromakey;
+	fmt->fmt.win.global_alpha = global_alpha;
 	return 0;
 }
 
