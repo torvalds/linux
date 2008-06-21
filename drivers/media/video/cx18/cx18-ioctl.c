@@ -679,8 +679,6 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 
 	CX18_DEBUG_IOCTL("VIDIOC_ENCODER_CMD:\n");
 
-	memset(&enc->raw, 0, sizeof(enc->raw));
-
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
 		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
@@ -729,8 +727,6 @@ static int cx18_try_encoder_cmd(struct file *file, void *fh,
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
 	CX18_DEBUG_IOCTL("VIDIOC_TRY_ENCDOER_CMD:\n");
-
-	memset(&enc->raw, 0, sizeof(enc->raw));
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:

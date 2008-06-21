@@ -508,6 +508,11 @@ static int ivtv_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	ivtv_g_fmt_vid_cap(file, fh, fmt);
 	fmt->fmt.pix.width = w;
 	fmt->fmt.pix.height = h;
+	if (itv->params.width != 720 ||
+			itv->params.height != (itv->is_50hz ? 576 : 480))
+		itv->params.video_temporal_filter = 0;
+	else
+		itv->params.video_temporal_filter = 8;
 	return 0;
 }
 
@@ -762,15 +767,11 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
-	memset(vcap, 0, sizeof(*vcap));
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	strlcpy(vcap->bus_info, pci_name(itv->dev), sizeof(vcap->bus_info));
 	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
-	/* reserved.. must set to 0! */
-	vcap->reserved[0] = vcap->reserved[1] =
-		vcap->reserved[2] = vcap->reserved[3] = 0;
 	return 0;
 }
 
@@ -1168,7 +1169,6 @@ static int ivtv_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	if (vt->index != 0)
 		return -EINVAL;
 
-	memset(vt, 0, sizeof(*vt));
 	ivtv_call_i2c_clients(itv, VIDIOC_G_TUNER, vt);
 
 	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
@@ -1187,11 +1187,8 @@ static int ivtv_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	int set = itv->is_50hz ? V4L2_SLICED_VBI_625 : V4L2_SLICED_VBI_525;
 	int f, l;
-	enum v4l2_buf_type type = cap->type;
 
-	memset(cap, 0, sizeof(*cap));
-	cap->type = type;
-	if (type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
+	if (cap->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
 		for (f = 0; f < 2; f++) {
 			for (l = 0; l < 24; l++) {
 				if (valid_service_line(f, l, itv->is_50hz))
@@ -1200,7 +1197,7 @@ static int ivtv_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced
 		}
 		return 0;
 	}
-	if (type == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
+	if (cap->type == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
 		if (!(itv->v4l2_cap & V4L2_CAP_SLICED_VBI_OUTPUT))
 			return -EINVAL;
 		if (itv->is_60hz) {
@@ -1243,7 +1240,6 @@ static int ivtv_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 	struct ivtv_open_id *id = fh;
 	struct ivtv *itv = id->itv;
 
-	memset(&enc->raw, 0, sizeof(enc->raw));
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
@@ -1294,8 +1290,6 @@ static int ivtv_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 static int ivtv_try_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd *enc)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-
-	memset(&enc->raw, 0, sizeof(enc->raw));
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
@@ -1348,8 +1342,6 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 		0,
 		0,
 	};
-
-	memset(fb, 0, sizeof(*fb));
 
 	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
 		return -EINVAL;
