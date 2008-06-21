@@ -52,9 +52,10 @@ struct smsusb_device_t {
 	int		buffer_size;
 };
 
-int smsusb_submit_urb(struct smsusb_device_t *dev, struct smsusb_urb_t *surb);
+static int smsusb_submit_urb(struct smsusb_device_t *dev,
+			     struct smsusb_urb_t *surb);
 
-void smsusb_onresponse(struct urb *urb)
+static void smsusb_onresponse(struct urb *urb)
 {
 	struct smsusb_urb_t *surb = (struct smsusb_urb_t *) urb->context;
 	struct smsusb_device_t *dev = surb->dev;
@@ -110,7 +111,8 @@ exit_and_resubmit:
 	smsusb_submit_urb(dev, surb);
 }
 
-int smsusb_submit_urb(struct smsusb_device_t *dev, struct smsusb_urb_t *surb)
+static int smsusb_submit_urb(struct smsusb_device_t *dev,
+			     struct smsusb_urb_t *surb)
 {
 	if (!surb->cb) {
 		surb->cb = smscore_getbuffer(dev->coredev);
@@ -135,7 +137,7 @@ int smsusb_submit_urb(struct smsusb_device_t *dev, struct smsusb_urb_t *surb)
 	return usb_submit_urb(&surb->urb, GFP_ATOMIC);
 }
 
-void smsusb_stop_streaming(struct smsusb_device_t *dev)
+static void smsusb_stop_streaming(struct smsusb_device_t *dev)
 {
 	int i;
 
@@ -149,7 +151,7 @@ void smsusb_stop_streaming(struct smsusb_device_t *dev)
 	}
 }
 
-int smsusb_start_streaming(struct smsusb_device_t *dev)
+static int smsusb_start_streaming(struct smsusb_device_t *dev)
 {
 	int i, rc;
 
@@ -165,7 +167,7 @@ int smsusb_start_streaming(struct smsusb_device_t *dev)
 	return rc;
 }
 
-int smsusb_sendrequest(void *context, void *buffer, size_t size)
+static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 {
 	struct smsusb_device_t *dev = (struct smsusb_device_t *) context;
 	int dummy;
@@ -174,7 +176,7 @@ int smsusb_sendrequest(void *context, void *buffer, size_t size)
 			    buffer, size, &dummy, 1000);
 }
 
-char *smsusb1_fw_lkup[] = {
+static char *smsusb1_fw_lkup[] = {
 	"dvbt_stellar_usb.inp",
 	"dvbh_stellar_usb.inp",
 	"tdmb_stellar_usb.inp",
@@ -182,7 +184,7 @@ char *smsusb1_fw_lkup[] = {
 	"dvbt_bda_stellar_usb.inp",
 };
 
-int smsusb1_load_firmware(struct usb_device *udev, int id)
+static int smsusb1_load_firmware(struct usb_device *udev, int id)
 {
 	const struct firmware *fw;
 	u8 *fw_buffer;
@@ -220,7 +222,7 @@ int smsusb1_load_firmware(struct usb_device *udev, int id)
 	return rc;
 }
 
-void smsusb1_detectmode(void *context, int *mode)
+static void smsusb1_detectmode(void *context, int *mode)
 {
 	char *product_string =
 		((struct smsusb_device_t *) context)->udev->product;
@@ -242,7 +244,7 @@ void smsusb1_detectmode(void *context, int *mode)
 	sms_info("%d \"%s\"", *mode, product_string);
 }
 
-int smsusb1_setmode(void *context, int mode)
+static int smsusb1_setmode(void *context, int mode)
 {
 	struct SmsMsgHdr_ST Msg = { MSG_SW_RELOAD_REQ, 0, HIF_TASK,
 			     sizeof(struct SmsMsgHdr_ST), 0 };
@@ -255,7 +257,7 @@ int smsusb1_setmode(void *context, int mode)
 	return smsusb_sendrequest(context, &Msg, sizeof(Msg));
 }
 
-void smsusb_term_device(struct usb_interface *intf)
+static void smsusb_term_device(struct usb_interface *intf)
 {
 	struct smsusb_device_t *dev =
 		(struct smsusb_device_t *) usb_get_intfdata(intf);
@@ -275,7 +277,7 @@ void smsusb_term_device(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 }
 
-int smsusb_init_device(struct usb_interface *intf, int board_id)
+static int smsusb_init_device(struct usb_interface *intf, int board_id)
 {
 	struct smsdevice_params_t params;
 	struct smsusb_device_t *dev;
@@ -376,7 +378,8 @@ int smsusb_init_device(struct usb_interface *intf, int board_id)
 	return rc;
 }
 
-int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int smsusb_probe(struct usb_interface *intf,
+			const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	char devpath[32];
@@ -421,7 +424,7 @@ int smsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	return rc;
 }
 
-void smsusb_disconnect(struct usb_interface *intf)
+static void smsusb_disconnect(struct usb_interface *intf)
 {
 	smsusb_term_device(intf);
 }

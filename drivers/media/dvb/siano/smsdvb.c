@@ -30,7 +30,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 struct list_head g_smsdvb_clients;
 kmutex_t g_smsdvb_clientslock;
 
-int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
+static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 {
 	struct smsdvb_client_t *client = (struct smsdvb_client_t *) context;
 	struct SmsMsgHdr_ST *phdr =
@@ -84,7 +84,7 @@ int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 	return 0;
 }
 
-void smsdvb_unregister_client(struct smsdvb_client_t *client)
+static void smsdvb_unregister_client(struct smsdvb_client_t *client)
 {
 	/* must be called under clientslock */
 
@@ -98,7 +98,7 @@ void smsdvb_unregister_client(struct smsdvb_client_t *client)
 	kfree(client);
 }
 
-void smsdvb_onremove(void *context)
+static void smsdvb_onremove(void *context)
 {
 	kmutex_lock(&g_smsdvb_clientslock);
 
@@ -310,8 +310,8 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.read_snr = smsdvb_read_snr,
 };
 
-int smsdvb_hotplug(struct smscore_device_t *coredev,
-		   struct device *device, int arrival)
+static int smsdvb_hotplug(struct smscore_device_t *coredev,
+			  struct device *device, int arrival)
 {
 	struct smsclient_params_t params;
 	struct smsdvb_client_t *client;

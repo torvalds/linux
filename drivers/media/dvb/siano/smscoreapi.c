@@ -162,7 +162,7 @@ int smscore_registry_getmode(char *devpath)
 	return default_mode;
 }
 
-enum sms_device_type_st smscore_registry_gettype(char *devpath)
+static enum sms_device_type_st smscore_registry_gettype(char *devpath)
 {
 	struct smscore_registry_entry_t *entry;
 
@@ -186,7 +186,8 @@ void smscore_registry_setmode(char *devpath, int mode)
 		sms_err("No registry found.");
 }
 
-void smscore_registry_settype(char *devpath, enum sms_device_type_st type)
+static void smscore_registry_settype(char *devpath,
+				     enum sms_device_type_st type)
 {
 	struct smscore_registry_entry_t *entry;
 
@@ -198,8 +199,8 @@ void smscore_registry_settype(char *devpath, enum sms_device_type_st type)
 }
 
 
-void list_add_locked(struct list_head *new, struct list_head *head,
-		     spinlock_t *lock)
+static void list_add_locked(struct list_head *new, struct list_head *head,
+			    spinlock_t *lock)
 {
 	unsigned long flags;
 
@@ -280,7 +281,7 @@ void smscore_unregister_hotplug(hotplug_t hotplug)
 	kmutex_unlock(&g_smscore_deviceslock);
 }
 
-void smscore_notify_clients(struct smscore_device_t *coredev)
+static void smscore_notify_clients(struct smscore_device_t *coredev)
 {
 	struct smscore_client_t *client;
 
@@ -291,8 +292,8 @@ void smscore_notify_clients(struct smscore_device_t *coredev)
 	}
 }
 
-int smscore_notify_callbacks(struct smscore_device_t *coredev,
-			     struct device *device, int arrival)
+static int smscore_notify_callbacks(struct smscore_device_t *coredev,
+				    struct device *device, int arrival)
 {
 	struct list_head *next, *first;
 	int rc = 0;
@@ -311,7 +312,8 @@ int smscore_notify_callbacks(struct smscore_device_t *coredev,
 	return rc;
 }
 
-struct smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
+static struct
+smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 				       dma_addr_t common_buffer_phys)
 {
 	struct smscore_buffer_t *cb =
@@ -450,8 +452,9 @@ int smscore_start_device(struct smscore_device_t *coredev)
 	return rc;
 }
 
-int smscore_sendrequest_and_wait(struct smscore_device_t *coredev, void *buffer,
-				 size_t size, struct completion *completion)
+static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
+					void *buffer, size_t size,
+					struct completion *completion)
 {
 	int rc = coredev->sendrequest_handler(coredev->context, buffer, size);
 	if (rc < 0) {
@@ -464,8 +467,8 @@ int smscore_sendrequest_and_wait(struct smscore_device_t *coredev, void *buffer,
 						0 : -ETIME;
 }
 
-int smscore_load_firmware_family2(struct smscore_device_t *coredev,
-				  void *buffer, size_t size)
+static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
+					 void *buffer, size_t size)
 {
 	struct SmsFirmware_ST *firmware = (struct SmsFirmware_ST *) buffer;
 	struct SmsMsgHdr_ST *msg;
@@ -580,9 +583,9 @@ int smscore_load_firmware_family2(struct smscore_device_t *coredev,
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
-				    char *filename,
-				    loadfirmware_t loadfirmware_handler)
+static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
+					   char *filename,
+					   loadfirmware_t loadfirmware_handler)
 {
 	int rc = -ENOENT;
 	const struct firmware *fw;
@@ -619,13 +622,6 @@ int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	release_firmware(fw);
 
 	return rc;
-}
-
-int smscore_load_firmware_from_buffer(struct smscore_device_t *coredev,
-				      u8 *buffer, int size, int new_mode)
-{
-	sms_err("feature not yet implemented.");
-	return -EFAULT;
 }
 
 /**
@@ -684,7 +680,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 	sms_info("device %p destroyed", coredev);
 }
 
-int smscore_detect_mode(struct smscore_device_t *coredev)
+static int smscore_detect_mode(struct smscore_device_t *coredev)
 {
 	void *buffer = kmalloc(sizeof(struct SmsMsgHdr_ST) + SMS_DMA_ALIGNMENT,
 			       GFP_KERNEL | GFP_DMA);
@@ -720,7 +716,7 @@ int smscore_detect_mode(struct smscore_device_t *coredev)
 	return rc;
 }
 
-char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
+static char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
 	/*Stellar		NOVA A0		Nova B0		VEGA*/
 	/*DVBT*/
 	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
@@ -861,7 +857,8 @@ int smscore_get_device_mode(struct smscore_device_t *coredev)
  * @param id client id (SMS_DONT_CARE for all id)
  *
  */
-struct smscore_client_t *smscore_find_client(struct smscore_device_t *coredev,
+static struct
+smscore_client_t *smscore_find_client(struct smscore_device_t *coredev,
 				      int data_type, int id)
 {
 	struct smscore_client_t *client = NULL;
@@ -1016,9 +1013,9 @@ void smscore_putbuffer(struct smscore_device_t *coredev,
 	list_add_locked(&cb->entry, &coredev->buffers, &coredev->bufferslock);
 }
 
-int smscore_validate_client(struct smscore_device_t *coredev,
-			    struct smscore_client_t *client,
-			    int data_type, int id)
+static int smscore_validate_client(struct smscore_device_t *coredev,
+				   struct smscore_client_t *client,
+				   int data_type, int id)
 {
 	struct smscore_idlist_t *listentry;
 	struct smscore_client_t *registered_client;
@@ -1164,54 +1161,6 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	return coredev->sendrequest_handler(coredev->context, buffer, size);
 }
 
-/**
- * return the size of large (common) buffer
- *
- * @param coredev pointer to a coredev object from clients hotplug
- *
- * @return size (in bytes) of the buffer
- */
-int smscore_get_common_buffer_size(struct smscore_device_t *coredev)
-{
-	return coredev->common_buffer_size;
-}
-
-/**
- * maps common buffer (if supported by platform)
- *
- * @param coredev pointer to a coredev object from clients hotplug
- * @param vma pointer to vma struct from mmap handler
- *
- * @return 0 on success, <0 on error.
- */
-int smscore_map_common_buffer(struct smscore_device_t *coredev,
-			       struct vm_area_struct *vma)
-{
-	unsigned long end = vma->vm_end,
-		      start = vma->vm_start,
-		      size = PAGE_ALIGN(coredev->common_buffer_size);
-
-	if (!(vma->vm_flags & (VM_READ | VM_SHARED)) ||
-	     (vma->vm_flags & VM_WRITE)) {
-		sms_err("invalid vm flags");
-		return -EINVAL;
-	}
-
-	if ((end - start) != size) {
-		sms_err("invalid size %d expected %d",
-			 (int)(end - start), (int) size);
-		return -EINVAL;
-	}
-
-	if (remap_pfn_range(vma, start,
-			    coredev->common_buffer_phys >> PAGE_SHIFT,
-			    size, pgprot_noncached(vma->vm_page_prot))) {
-		sms_err("remap_page_range failed");
-		return -EAGAIN;
-	}
-
-	return 0;
-}
 
 int smscore_module_init(void)
 {
