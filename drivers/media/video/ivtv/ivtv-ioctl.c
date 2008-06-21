@@ -1539,7 +1539,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			return -EINVAL;
 		if (itv->output_mode == OUT_UDMA_YUV && args->y_source == NULL)
 			return 0;
-		if (ivtv_claim_stream(id, id->type)) {
+		if (ivtv_start_decoding(id, id->type)) {
 			return -EBUSY;
 		}
 		if (ivtv_set_output_mode(itv, OUT_UDMA_YUV) != OUT_UDMA_YUV) {
