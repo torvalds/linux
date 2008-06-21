@@ -174,7 +174,7 @@ static struct wmi_interface *interface;
 struct quirk_entry {
 	u8 wireless;
 	u8 mailled;
-	u8 brightness;
+	s8 brightness;
 	u8 bluetooth;
 };
 
@@ -198,6 +198,10 @@ static int dmi_matched(const struct dmi_system_id *dmi)
 static struct quirk_entry quirk_unknown = {
 };
 
+static struct quirk_entry quirk_acer_aspire_1520 = {
+	.brightness = -1,
+};
+
 static struct quirk_entry quirk_acer_travelmate_2490 = {
 	.mailled = 1,
 };
@@ -208,6 +212,24 @@ static struct quirk_entry quirk_medion_md_98300 = {
 };
 
 static struct dmi_system_id acer_quirks[] = {
+	{
+		.callback = dmi_matched,
+		.ident = "Acer Aspire 1360",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1360"),
+		},
+		.driver_data = &quirk_acer_aspire_1520,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer Aspire 1520",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1520"),
+		},
+		.driver_data = &quirk_acer_aspire_1520,
+	},
 	{
 		.callback = dmi_matched,
 		.ident = "Acer Aspire 3100",
@@ -552,7 +574,8 @@ static acpi_status AMW0_set_capabilities(void)
 	 * appear to use the same EC register for brightness, even if they
 	 * differ for wireless, etc
 	 */
-	interface->capability |= ACER_CAP_BRIGHTNESS;
+	if (quirks->brightness >= 0)
+		interface->capability |= ACER_CAP_BRIGHTNESS;
 
 	return AE_OK;
 }
@@ -1059,6 +1082,8 @@ static int __init acer_wmi_init(void)
 	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras version %s\n",
 			ACER_WMI_VERSION);
 
+	find_quirks();
+
 	/*
 	 * Detect which ACPI-WMI interface we're using.
 	 */
@@ -1091,8 +1116,6 @@ static int __init acer_wmi_init(void)
 
 	if (wmi_has_guid(AMW0_GUID1))
 		AMW0_find_mailled();
-
-	find_quirks();
 
 	if (!interface) {
 		printk(ACER_ERR "No or unsupported WMI interface, unable to "
