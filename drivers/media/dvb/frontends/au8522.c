@@ -527,10 +527,8 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (state->current_modulation == VSB_8) {
 		dprintk("%s() Checking VSB_8\n", __func__);
 		reg = au8522_readreg(state, 0x4088);
-		if (reg & 0x01)
-			*status |= FE_HAS_VITERBI;
-		if (reg & 0x02)
-			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
+		if ((reg & 0x03) == 0x03)
+			*status |= FE_HAS_LOCK | FE_HAS_SYNC | FE_HAS_VITERBI;
 	} else {
 		dprintk("%s() Checking QAM\n", __func__);
 		reg = au8522_readreg(state, 0x4541);
