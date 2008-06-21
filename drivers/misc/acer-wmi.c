@@ -35,6 +35,7 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/i8042.h>
+#include <linux/debugfs.h>
 
 #include <acpi/acpi_drivers.h>
 
@@ -152,6 +153,12 @@ struct acer_data {
 	int brightness;
 };
 
+struct acer_debug {
+	struct dentry *root;
+	struct dentry *devices;
+	u32 wmid_devices;
+};
+
 /* Each low-level interface must define at least some of the following */
 struct wmi_interface {
 	/* The WMI device type */
@@ -162,6 +169,9 @@ struct wmi_interface {
 
 	/* Private data for the current interface */
 	struct acer_data data;
+
+	/* debugfs entries associated with this interface */
+	struct acer_debug debug;
 };
 
 /* The static interface pointer, points to the currently detected interface */
@@ -956,6 +966,28 @@ static DEVICE_ATTR(interface, S_IWUGO | S_IRUGO | S_IWUSR,
 	show_interface, NULL);
 
 /*
+ * debugfs functions
+ */
+static u32 get_wmid_devices(void)
+{
+	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *obj;
+	acpi_status status;
+
+	status = wmi_query_block(WMID_GUID2, 1, &out);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	obj = (union acpi_object *) out.pointer;
+	if (obj && obj->type == ACPI_TYPE_BUFFER &&
+		obj->buffer.length == sizeof(u32)) {
+		return *((u32 *) obj->buffer.pointer);
+	} else {
+		return 0;
+	}
+}
+
+/*
  * Platform device
  */
 static int __devinit acer_platform_probe(struct platform_device *device)
@@ -1114,6 +1146,33 @@ error_sysfs:
 	return retval;
 }
 
+static void remove_debugfs(void)
+{
+	debugfs_remove(interface->debug.devices);
+	debugfs_remove(interface->debug.root);
+}
+
+static int create_debugfs(void)
+{
+	interface->debug.root = debugfs_create_dir("acer-wmi", NULL);
+	if (!interface->debug.root) {
+		printk(ACER_ERR "Failed to create debugfs directory");
+		return -ENOMEM;
+	}
+
+	interface->debug.devices = debugfs_create_u32("devices", S_IRUGO,
+					interface->debug.root,
+					&interface->debug.wmid_devices);
+	if (!interface->debug.devices)
+		goto error_debugfs;
+
+	return 0;
+
+error_debugfs:
+		remove_debugfs();
+	return -ENOMEM;
+}
+
 static int __init acer_wmi_init(void)
 {
 	int err;
@@ -1172,6 +1231,13 @@ static int __init acer_wmi_init(void)
 	err = create_sysfs();
 	if (err)
 		return err;
+
+	if (wmi_has_guid(WMID_GUID2)) {
+		interface->debug.wmid_devices = get_wmid_devices();
+		err = create_debugfs();
+		if (err)
+			return err;
+	}
 
 	/* Override any initial settings with values from the commandline */
 	acer_commandline_init();
