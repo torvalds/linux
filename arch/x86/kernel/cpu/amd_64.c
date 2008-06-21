@@ -131,7 +131,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	 * Errata 63 for SH-B3 steppings
 	 * Errata 122 for all steppings (F+ have it disabled by default)
 	 */
-	if (c->x86 == 15) {
+	if (c->x86 == 0xf) {
 		rdmsrl(MSR_K8_HWCR, value);
 		value |= 1 << 6;
 		wrmsrl(MSR_K8_HWCR, value);
@@ -143,10 +143,11 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	clear_cpu_cap(c, 0*32+31);
 
 	/* On C+ stepping K8 rep microcode works well for copy/memset */
-	level = cpuid_eax(1);
-	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) ||
-			     level >= 0x0f58))
-		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
+	if (c->x86 == 0xf) {
+		level = cpuid_eax(1);
+		if((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58)
+			set_cpu_cap(c, X86_FEATURE_REP_GOOD);
+	}
 	if (c->x86 == 0x10 || c->x86 == 0x11)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
@@ -157,7 +158,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	level = get_model_name(c);
 	if (!level) {
 		switch (c->x86) {
-		case 15:
+		case 0xf:
 			/* Should distinguish Models here, but this is only
 			   a fallback anyways. */
 			strcpy(c->x86_model_id, "Hammer");
@@ -176,14 +177,19 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	else
 		num_cache_leaves = 3;
 
-	if (c->x86 == 0xf || c->x86 == 0x10 || c->x86 == 0x11)
+	if (c->x86 >= 0xf && c->x86 <= 0x11)
 		set_cpu_cap(c, X86_FEATURE_K8);
 
 	/* MFENCE stops RDTSC speculation */
 	set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
 
-	if (c->x86 == 0x10)
+	if (c->x86 == 0x10) {
+		/* do this for boot cpu */
+		if (c == &boot_cpu_data)
+			check_enable_amd_mmconf_dmi();
+
 		fam10h_check_enable_mmcfg();
+	}
 
 	if (c == &boot_cpu_data && c->x86 >= 0xf && c->x86 <= 0x11) {
 		unsigned long long tseg;

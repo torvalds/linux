@@ -72,7 +72,6 @@
 #include <asm/topology.h>
 #include <asm/trampoline.h>
 #include <asm/pat.h>
-#include <asm/mmconfig.h>
 
 #include <mach_apic.h>
 #ifdef CONFIG_PARAVIRT
@@ -474,9 +473,6 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
-
-	/* do this before identify_cpu for boot cpu */
-	check_enable_amd_mmconf_dmi();
 }
 
 struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
