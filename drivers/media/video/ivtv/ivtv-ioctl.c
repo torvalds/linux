@@ -508,11 +508,6 @@ static int ivtv_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	ivtv_g_fmt_vid_cap(file, fh, fmt);
 	fmt->fmt.pix.width = w;
 	fmt->fmt.pix.height = h;
-	if (itv->params.width != 720 ||
-			itv->params.height != (itv->is_50hz ? 576 : 480))
-		itv->params.video_temporal_filter = 0;
-	else
-		itv->params.video_temporal_filter = 8;
 	return 0;
 }
 
@@ -608,10 +603,6 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 
 	p->width = w;
 	p->height = h;
-	if (w != 720 || h != (itv->is_50hz ? 576 : 480))
-		p->video_temporal_filter = 0;
-	else
-		p->video_temporal_filter = 8;
 	if (p->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
 		fmt->fmt.pix.width /= 2;
 	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);

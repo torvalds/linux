@@ -244,10 +244,6 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 
 	cx->params.width = w;
 	cx->params.height = h;
-	if (w != 720 || h != (cx->is_50hz ? 576 : 480))
-		cx->params.video_temporal_filter = 0;
-	else
-		cx->params.video_temporal_filter = 8;
 	cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
 	return cx18_g_fmt_vid_cap(file, fh, fmt);
 }
