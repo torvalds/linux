@@ -128,37 +128,6 @@ u16 ivtv_get_service_set(struct v4l2_sliced_vbi_format *fmt)
 	return set;
 }
 
-static const struct {
-	v4l2_std_id  std;
-	char        *name;
-} enum_stds[] = {
-	{ V4L2_STD_PAL_BG | V4L2_STD_PAL_H, "PAL-BGH" },
-	{ V4L2_STD_PAL_DK,    "PAL-DK"    },
-	{ V4L2_STD_PAL_I,     "PAL-I"     },
-	{ V4L2_STD_PAL_M,     "PAL-M"     },
-	{ V4L2_STD_PAL_N,     "PAL-N"     },
-	{ V4L2_STD_PAL_Nc,    "PAL-Nc"    },
-	{ V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H, "SECAM-BGH" },
-	{ V4L2_STD_SECAM_DK,  "SECAM-DK"  },
-	{ V4L2_STD_SECAM_L,   "SECAM-L"   },
-	{ V4L2_STD_SECAM_LC,  "SECAM-L'"  },
-	{ V4L2_STD_NTSC_M,    "NTSC-M"    },
-	{ V4L2_STD_NTSC_M_JP, "NTSC-J"    },
-	{ V4L2_STD_NTSC_M_KR, "NTSC-K"    },
-};
-
-static const struct v4l2_standard ivtv_std_60hz =
-{
-	.frameperiod = {.numerator = 1001, .denominator = 30000},
-	.framelines = 525,
-};
-
-static const struct v4l2_standard ivtv_std_50hz =
-{
-	.frameperiod = {.numerator = 1, .denominator = 25},
-	.framelines = 625,
-};
-
 void ivtv_set_osd_alpha(struct ivtv *itv)
 {
 	ivtv_vapi(itv, CX2341X_OSD_SET_GLOBAL_ALPHA, 3,
