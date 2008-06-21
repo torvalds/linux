@@ -281,7 +281,6 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 {
 	struct smsdevice_params_t params;
 	struct smsusb_device_t *dev;
-	struct sms_board *board;
 	int i, rc;
 
 	/* create device object */
@@ -295,36 +294,21 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	usb_set_intfdata(intf, dev);
 	dev->udev = interface_to_usbdev(intf);
 
-	board = sms_get_board(board_id);
+	params.device_type = sms_get_board(board_id)->type;
 
-	switch (board->type) {
-
+	switch (params.device_type) {
 	case SMS_STELLAR:
 		dev->buffer_size = USB1_BUFFER_SIZE;
 
 		params.setmode_handler = smsusb1_setmode;
 		params.detectmode_handler = smsusb1_detectmode;
-		params.device_type = SMS_STELLAR;
-		sms_info("stellar device found");
 		break;
 	default:
-		switch (board->type) {
-		case SMS_NOVA_A0:
-			params.device_type = SMS_NOVA_A0;
-			sms_info("nova A0 found");
-			break;
-		case SMS_NOVA_B0:
-			params.device_type = SMS_NOVA_B0;
-			sms_info("nova B0 found");
-			break;
-		case SMS_VEGA:
-			params.device_type = SMS_VEGA;
-			sms_info("Vega found");
-			break;
-		default:
-			sms_err("Unspecified sms device type!");
-		}
-
+		sms_err("Unspecified sms device type!");
+		/* fall-thru */
+	case SMS_NOVA_A0:
+	case SMS_NOVA_B0:
+	case SMS_VEGA:
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment =
 			dev->udev->ep_in[1]->desc.wMaxPacketSize -
