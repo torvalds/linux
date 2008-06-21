@@ -137,22 +137,24 @@ static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
+	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
-	CX18_DEBUG_IOCTL("VIDIOC_G_FMT: V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
-
-	fmt->fmt.pix.width = cx->params.width;
-	fmt->fmt.pix.height = cx->params.height;
-	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	fmt->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	pixfmt->width = cx->params.width;
+	pixfmt->height = cx->params.height;
+	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	pixfmt->field = V4L2_FIELD_INTERLACED;
+	pixfmt->priv = 0;
 	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_HM12;
+		pixfmt->pixelformat = V4L2_PIX_FMT_HM12;
 		/* YUV size is (Y=(h*w) + UV=(h*(w/2))) */
-		fmt->fmt.pix.sizeimage =
-			fmt->fmt.pix.height * fmt->fmt.pix.width +
-			fmt->fmt.pix.height * (fmt->fmt.pix.width / 2);
+		pixfmt->sizeimage =
+			pixfmt->height * pixfmt->width +
+			pixfmt->height * (pixfmt->width / 2);
+		pixfmt->bytesperline = 720;
 	} else {
-		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
-		fmt->fmt.pix.sizeimage = 128 * 1024;
+		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
+		pixfmt->sizeimage = 128 * 1024;
+		pixfmt->bytesperline = 0;
 	}
 	return 0;
 }
@@ -161,16 +163,20 @@ static int cx18_g_fmt_vbi_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct v4l2_vbi_format *vbifmt = &fmt->fmt.vbi;
 
 	CX18_DEBUG_IOCTL("VIDIOC_G_FMT: V4L2_BUF_TYPE_VBI_CAPTURE\n");
 
-	fmt->fmt.vbi.sampling_rate = 27000000;
-	fmt->fmt.vbi.offset = 248;
-	fmt->fmt.vbi.samples_per_line = cx->vbi.raw_decoder_line_size - 4;
-	fmt->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
-	fmt->fmt.vbi.start[0] = cx->vbi.start[0];
-	fmt->fmt.vbi.start[1] = cx->vbi.start[1];
-	fmt->fmt.vbi.count[0] = fmt->fmt.vbi.count[1] = cx->vbi.count;
+	vbifmt->sampling_rate = 27000000;
+	vbifmt->offset = 248;
+	vbifmt->samples_per_line = cx->vbi.raw_decoder_line_size - 4;
+	vbifmt->sample_format = V4L2_PIX_FMT_GREY;
+	vbifmt->start[0] = cx->vbi.start[0];
+	vbifmt->start[1] = cx->vbi.start[1];
+	vbifmt->count[0] = vbifmt->count[1] = cx->vbi.count;
+	vbifmt->flags = 0;
+	vbifmt->reserved[0] = 0;
+	vbifmt->reserved[1] = 0;
 	return 0;
 }
 
