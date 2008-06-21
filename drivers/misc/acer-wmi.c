@@ -22,8 +22,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define ACER_WMI_VERSION	"0.1"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -1177,8 +1175,7 @@ static int __init acer_wmi_init(void)
 {
 	int err;
 
-	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras version %s\n",
-			ACER_WMI_VERSION);
+	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras\n");
 
 	find_quirks();
 
