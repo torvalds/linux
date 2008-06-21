@@ -372,6 +372,14 @@ EXPORT_SYMBOL(v4l_printk_ioctl);
  *	sysfs stuff
  */
 
+static ssize_t show_index(struct device *cd,
+			 struct device_attribute *attr, char *buf)
+{
+	struct video_device *vfd = container_of(cd, struct video_device,
+						class_dev);
+	return sprintf(buf, "%i\n", vfd->index);
+}
+
 static ssize_t show_name(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
@@ -410,6 +418,7 @@ static void video_release(struct device *cd)
 
 static struct device_attribute video_device_attrs[] = {
 	__ATTR(name, S_IRUGO, show_name, NULL),
+	__ATTR(index, S_IRUGO, show_index, NULL),
 	__ATTR_NULL
 };
 
@@ -1900,7 +1909,81 @@ out:
 }
 EXPORT_SYMBOL(video_ioctl2);
 
+struct index_info {
+	struct device *dev;
+	unsigned int used[VIDEO_NUM_DEVICES];
+};
+
+static int __fill_index_info(struct device *cd, void *data)
+{
+	struct index_info *info = data;
+	struct video_device *vfd = container_of(cd, struct video_device,
+						class_dev);
+
+	if (info->dev == vfd->dev)
+		info->used[vfd->index] = 1;
+
+	return 0;
+}
+
+/**
+ * assign_index - assign stream number based on parent device
+ * @vdev: video_device to assign index number to, vdev->dev should be assigned
+ * @num: -1 if auto assign, requested number otherwise
+ *
+ *
+ * returns -ENFILE if num is already in use, a free index number if
+ * successful.
+ */
+static int get_index(struct video_device *vdev, int num)
+{
+	struct index_info *info;
+	int i;
+	int ret = 0;
+
+	if (num >= VIDEO_NUM_DEVICES)
+		return -EINVAL;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->dev = vdev->dev;
+
+	ret = class_for_each_device(&video_class, info,
+					__fill_index_info);
+
+	if (ret < 0)
+		goto out;
+
+	if (num >= 0) {
+		if (!info->used[num])
+			ret = num;
+		else
+			ret = -ENFILE;
+
+		goto out;
+	}
+
+	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
+		if (info->used[i])
+			continue;
+		ret = i;
+		goto out;
+	}
+
+out:
+	kfree(info);
+	return ret;
+}
+
 static const struct file_operations video_fops;
+
+int video_register_device(struct video_device *vfd, int type, int nr)
+{
+	return video_register_device_index(vfd, type, nr, -1);
+}
+EXPORT_SYMBOL(video_register_device);
 
 /**
  *	video_register_device - register video4linux devices
@@ -1927,7 +2010,8 @@ static const struct file_operations video_fops;
  *	%VFL_TYPE_RADIO - A radio card
  */
 
-int video_register_device(struct video_device *vfd, int type, int nr)
+int video_register_device_index(struct video_device *vfd, int type, int nr,
+					int index)
 {
 	int i=0;
 	int base;
@@ -1984,6 +2068,16 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	}
 	video_device[i]=vfd;
 	vfd->minor=i;
+
+	ret = get_index(vfd, index);
+	if (ret < 0) {
+		printk(KERN_ERR "%s: get_index failed\n",
+		       __func__);
+		goto fail_minor;
+	}
+
+	vfd->index = ret;
+
 	mutex_unlock(&videodev_lock);
 	mutex_init(&vfd->lock);
 
@@ -2017,7 +2111,7 @@ fail_minor:
 	mutex_unlock(&videodev_lock);
 	return ret;
 }
-EXPORT_SYMBOL(video_register_device);
+EXPORT_SYMBOL(video_register_device_index);
 
 /**
  *	video_unregister_device - unregister a video4linux device

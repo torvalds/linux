@@ -96,6 +96,8 @@ struct video_device
 	int type;       /* v4l1 */
 	int type2;      /* v4l2 */
 	int minor;
+	/* attribute to diferentiate multiple indexs on one physical device */
+	int index;
 
 	int debug;	/* Activates debug level*/
 
@@ -347,6 +349,8 @@ void *priv;
 
 /* Version 2 functions */
 extern int video_register_device(struct video_device *vfd, int type, int nr);
+int video_register_device_index(struct video_device *vfd, int type, int nr,
+					int index);
 void video_unregister_device(struct video_device *);
 extern int video_ioctl2(struct inode *inode, struct file *file,
 			  unsigned int cmd, unsigned long arg);
