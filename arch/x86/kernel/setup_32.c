@@ -726,12 +726,10 @@ void __init setup_arch(char **cmdline_p)
 
 	io_delay_init();
 
-#ifdef CONFIG_ACPI
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
 	acpi_boot_table_init();
-#endif
 
 #ifdef CONFIG_ACPI_NUMA
         /*
@@ -812,9 +810,8 @@ void __init setup_arch(char **cmdline_p)
 
 	early_quirks();
 
-#ifdef CONFIG_ACPI
 	acpi_boot_init();
-#endif
+
 #if defined(CONFIG_X86_MPPARSE) || defined(CONFIG_X86_VISWS)
 	if (smp_found_config)
 		get_smp_config();
