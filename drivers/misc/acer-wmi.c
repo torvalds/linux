@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/dmi.h>
+#include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
@@ -830,7 +831,15 @@ static int read_brightness(struct backlight_device *bd)
 
 static int update_bl_status(struct backlight_device *bd)
 {
-	set_u32(bd->props.brightness, ACER_CAP_BRIGHTNESS);
+	int intensity = bd->props.brightness;
+
+	if (bd->props.power != FB_BLANK_UNBLANK)
+		intensity = 0;
+	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
+		intensity = 0;
+
+	set_u32(intensity, ACER_CAP_BRIGHTNESS);
+
 	return 0;
 }
 
@@ -852,8 +861,9 @@ static int __devinit acer_backlight_init(struct device *dev)
 
 	acer_backlight_device = bd;
 
+	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.brightness = max_brightness;
 	bd->props.max_brightness = max_brightness;
-	bd->props.brightness = read_brightness(NULL);
 	backlight_update_status(bd);
 	return 0;
 }
