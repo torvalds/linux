@@ -259,6 +259,10 @@ void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
 struct jprobe;
 struct kretprobe;
 
+static inline struct kprobe *get_kprobe(void *addr)
+{
+	return NULL;
+}
 static inline struct kprobe *kprobe_running(void)
 {
 	return NULL;
