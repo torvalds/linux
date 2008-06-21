@@ -88,6 +88,7 @@ struct acer_quirks {
  * Acer ACPI method GUIDs
  */
 #define AMW0_GUID1		"67C3371D-95A3-4C37-BB61-DD47B491DAAB"
+#define AMW0_GUID2		"431F16ED-0C2B-444C-B267-27DEB140CF9C"
 #define WMID_GUID1		"6AF4F258-B401-42fd-BE91-3D4AC2D7C0D3"
 #define WMID_GUID2		"95764E09-FB56-4e83-B31A-37761F60994A"
 
@@ -547,6 +548,15 @@ static acpi_status AMW0_set_capabilities(void)
 	acpi_status status = AE_OK;
 	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
+
+	/*
+	 * On laptops with this strange GUID (non Acer), normal probing doesn't
+	 * work.
+	 */
+	if (wmi_has_guid(AMW0_GUID2)) {
+		interface->capability |= ACER_CAP_WIRELESS;
+		return AE_OK;
+	}
 
 	args.eax = ACER_AMW0_WRITE;
 	args.ecx = args.edx = 0;
