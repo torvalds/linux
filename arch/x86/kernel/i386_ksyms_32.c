@@ -1,9 +1,9 @@
-#include <linux/ftrace.h>
 #include <linux/module.h>
 
 #include <asm/checksum.h>
 #include <asm/pgtable.h>
 #include <asm/desc.h>
+#include <asm/ftrace.h>
 
 #ifdef CONFIG_FTRACE
 /* mcount is defined in assembly */

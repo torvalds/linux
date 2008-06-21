@@ -30,6 +30,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/ftrace.h>
 
 #undef SHOW_SYSCALLS
 #undef SHOW_SYSCALLS_TASK
@@ -1053,6 +1054,7 @@ _GLOBAL(_mcount)
 	stw	r10,40(r1)
 	stw	r3, 44(r1)
 	stw	r5, 8(r1)
+	subi	r3, r3, MCOUNT_INSN_SIZE
 	.globl mcount_call
 mcount_call:
 	bl	ftrace_stub
@@ -1090,6 +1092,7 @@ _GLOBAL(ftrace_caller)
 	stw	r10,40(r1)
 	stw	r3, 44(r1)
 	stw	r5, 8(r1)
+	subi	r3, r3, MCOUNT_INSN_SIZE
 .globl ftrace_call
 ftrace_call:
 	bl	ftrace_stub
@@ -1128,6 +1131,7 @@ _GLOBAL(_mcount)
 	stw	r3, 44(r1)
 	stw	r5, 8(r1)
 
+	subi	r3, r3, MCOUNT_INSN_SIZE
 	LOAD_REG_ADDR(r5, ftrace_trace_function)
 	lwz	r5,0(r5)
 

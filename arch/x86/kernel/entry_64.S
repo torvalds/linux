@@ -51,6 +51,7 @@
 #include <asm/page.h>
 #include <asm/irqflags.h>
 #include <asm/paravirt.h>
+#include <asm/ftrace.h>
 
 	.code64
 
@@ -68,6 +69,7 @@ ENTRY(mcount)
 	movq %r9, 48(%rsp)
 
 	movq 0x38(%rsp), %rdi
+	subq $MCOUNT_INSN_SIZE, %rdi
 
 .globl mcount_call
 mcount_call:
@@ -99,6 +101,7 @@ ENTRY(ftrace_caller)
 
 	movq 0x38(%rsp), %rdi
 	movq 8(%rbp), %rsi
+	subq $MCOUNT_INSN_SIZE, %rdi
 
 .globl ftrace_call
 ftrace_call:
@@ -139,6 +142,7 @@ trace:
 
 	movq 0x38(%rsp), %rdi
 	movq 8(%rbp), %rsi
+	subq $MCOUNT_INSN_SIZE, %rdi
 
 	call   *ftrace_trace_function
 

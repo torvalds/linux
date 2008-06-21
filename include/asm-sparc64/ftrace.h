@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_FTRACE
-#define _ASM_POWERPC_FTRACE
+#ifndef _ASM_SPARC64_FTRACE
+#define _ASM_SPARC64_FTRACE
 
 #ifdef CONFIG_FTRACE
 #define MCOUNT_ADDR		((long)(_mcount))
@@ -11,4 +11,4 @@ extern void _mcount(void);
 
 #endif
 
-#endif /* _ASM_POWERPC_FTRACE */
+#endif /* _ASM_SPARC64_FTRACE */

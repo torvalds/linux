@@ -31,7 +31,6 @@ int unregister_ftrace_function(struct ftrace_ops *ops);
 void clear_ftrace_function(void);
 
 extern void ftrace_stub(unsigned long a0, unsigned long a1);
-extern void mcount(void);
 
 #else /* !CONFIG_FTRACE */
 # define register_ftrace_function(ops) do { } while (0)
@@ -54,7 +53,7 @@ enum {
 
 struct dyn_ftrace {
 	struct hlist_node node;
-	unsigned long	  ip;
+	unsigned long	  ip; /* address of mcount call-site */
 	unsigned long	  flags;
 };
 

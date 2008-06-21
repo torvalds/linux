@@ -1,7 +1,6 @@
 /* Exports for assembly files.
    All C exports should go in the respective C files. */
 
-#include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/smp.h>
 
@@ -11,6 +10,7 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>
+#include <asm/ftrace.h>
 
 #ifdef CONFIG_FTRACE
 /* mcount is defined in assembly */

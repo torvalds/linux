@@ -53,6 +53,7 @@
 #include <asm/ns87303.h>
 #include <asm/timer.h>
 #include <asm/cpudata.h>
+#include <asm/ftrace.h>
 
 struct poll {
 	int fd;
@@ -112,7 +113,6 @@ EXPORT_SYMBOL(smp_call_function);
 #endif /* CONFIG_SMP */
 
 #if defined(CONFIG_MCOUNT)
-extern void _mcount(void);
 EXPORT_SYMBOL(_mcount);
 #endif
 

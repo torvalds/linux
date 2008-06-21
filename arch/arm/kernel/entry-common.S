@@ -9,6 +9,7 @@
  */
 
 #include <asm/unistd.h>
+#include <asm/ftrace.h>
 #include <asm/arch/entry-macro.S>
 
 #include "entry-header.S"
@@ -104,6 +105,7 @@ ENTRY(ret_from_fork)
 ENTRY(mcount)
 	stmdb sp!, {r0-r3, lr}
 	mov r0, lr
+	sub r0, r0, #MCOUNT_INSN_SIZE
 
 	.globl mcount_call
 mcount_call:
@@ -114,6 +116,7 @@ ENTRY(ftrace_caller)
 	stmdb sp!, {r0-r3, lr}
 	ldr r1, [fp, #-4]
 	mov r0, lr
+	sub r0, r0, #MCOUNT_INSN_SIZE
 
 	.globl ftrace_call
 ftrace_call:
@@ -134,6 +137,7 @@ ENTRY(mcount)
 trace:
 	ldr r1, [fp, #-4]
 	mov r0, lr
+	sub r0, r0, #MCOUNT_INSN_SIZE
 	mov lr, pc
 	mov pc, r2
 	ldmia sp!, {r0-r3, pc}

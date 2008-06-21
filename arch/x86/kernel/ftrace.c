@@ -17,19 +17,20 @@
 #include <linux/list.h>
 
 #include <asm/alternative.h>
+#include <asm/ftrace.h>
 
-#define CALL_BACK		5
 
 /* Long is fine, even if it is only 4 bytes ;-) */
 static long *ftrace_nop;
 
 union ftrace_code_union {
-	char code[5];
+	char code[MCOUNT_INSN_SIZE];
 	struct {
 		char e8;
 		int offset;
 	} __attribute__((packed));
 };
+
 
 static int notrace ftrace_calc_offset(long ip, long addr)
 {
@@ -46,7 +47,7 @@ notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	static union ftrace_code_union calc;
 
 	calc.e8		= 0xe8;
-	calc.offset	= ftrace_calc_offset(ip, addr);
+	calc.offset	= ftrace_calc_offset(ip + MCOUNT_INSN_SIZE, addr);
 
 	/*
 	 * No locking needed, this must be called via kstop_machine
@@ -64,9 +65,6 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	unsigned new = *(unsigned *)new_code; /* 4 bytes */
 	unsigned char newch = new_code[4];
 	int faulted = 0;
-
-	/* move the IP back to the start of the call */
-	ip -= CALL_BACK;
 
 	/*
 	 * Note: Due to modules and __init, code can
@@ -102,12 +100,10 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 notrace int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
-	unsigned char old[5], *new;
+	unsigned char old[MCOUNT_INSN_SIZE], *new;
 	int ret;
 
-	ip += CALL_BACK;
-
-	memcpy(old, &ftrace_call, 5);
+	memcpy(old, &ftrace_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(ip, (unsigned long)func);
 	ret = ftrace_modify_code(ip, old, new);
 
@@ -118,16 +114,13 @@ notrace int ftrace_mcount_set(unsigned long *data)
 {
 	unsigned long ip = (long)(&mcount_call);
 	unsigned long *addr = data;
-	unsigned char old[5], *new;
-
-	/* ip is at the location, but modify code will subtact this */
-	ip += CALL_BACK;
+	unsigned char old[MCOUNT_INSN_SIZE], *new;
 
 	/*
 	 * Replace the mcount stub with a pointer to the
 	 * ip recorder function.
 	 */
-	memcpy(old, &mcount_call, 5);
+	memcpy(old, &mcount_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(ip, *addr);
 	*addr = ftrace_modify_code(ip, old, new);
 
@@ -142,8 +135,7 @@ int __init ftrace_dyn_arch_init(void *data)
 
 	ftrace_mcount_set(data);
 
-	ftrace_nop = (unsigned long *)noptable[CALL_BACK];
+	ftrace_nop = (unsigned long *)noptable[MCOUNT_INSN_SIZE];
 
 	return 0;
 }
-

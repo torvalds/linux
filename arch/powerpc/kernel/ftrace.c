@@ -15,8 +15,8 @@
 #include <linux/list.h>
 
 #include <asm/cacheflush.h>
+#include <asm/ftrace.h>
 
-#define CALL_BACK		4
 
 static unsigned int ftrace_nop = 0x60000000;
 
@@ -27,9 +27,10 @@ static unsigned int ftrace_nop = 0x60000000;
 # define GET_ADDR(addr) *(unsigned long *)addr
 #endif
 
+
 static unsigned int notrace ftrace_calc_offset(long ip, long addr)
 {
-	return (int)((addr + CALL_BACK) - ip);
+	return (int)(addr - ip);
 }
 
 notrace unsigned char *ftrace_nop_replace(void)
@@ -76,9 +77,6 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	unsigned new = *(unsigned *)new_code;
 	int faulted = 0;
 
-	/* move the IP back to the start of the call */
-	ip -= CALL_BACK;
-
 	/*
 	 * Note: Due to modules and __init, code can
 	 *  disappear and change, we need to protect against faulting
@@ -118,12 +116,10 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 notrace int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
-	unsigned char old[4], *new;
+	unsigned char old[MCOUNT_INSN_SIZE], *new;
 	int ret;
 
-	ip += CALL_BACK;
-
-	memcpy(old, &ftrace_call, 4);
+	memcpy(old, &ftrace_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(ip, (unsigned long)func);
 	ret = ftrace_modify_code(ip, old, new);
 
@@ -134,16 +130,13 @@ notrace int ftrace_mcount_set(unsigned long *data)
 {
 	unsigned long ip = (long)(&mcount_call);
 	unsigned long *addr = data;
-	unsigned char old[4], *new;
-
-	/* ip is at the location, but modify code will subtact this */
-	ip += CALL_BACK;
+	unsigned char old[MCOUNT_INSN_SIZE], *new;
 
 	/*
 	 * Replace the mcount stub with a pointer to the
 	 * ip recorder function.
 	 */
-	memcpy(old, &mcount_call, 4);
+	memcpy(old, &mcount_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(ip, *addr);
 	*addr = ftrace_modify_code(ip, old, new);
 

@@ -12,9 +12,10 @@
  */
 
 #include <linux/ftrace.h>
-#include <asm/cacheflush.h>
 
-#define INSN_SIZE      4
+#include <asm/cacheflush.h>
+#include <asm/ftrace.h>
+
 #define PC_OFFSET      8
 #define BL_OPCODE      0xeb000000
 #define BL_OFFSET_MASK 0x00ffffff
@@ -32,10 +33,10 @@ unsigned char *ftrace_call_replace(unsigned long pc, unsigned long addr)
 {
 	long offset;
 
-	offset = (long)addr - (long)(pc - INSN_SIZE + PC_OFFSET);
+	offset = (long)addr - (long)(pc + PC_OFFSET);
 	if (unlikely(offset < -33554432 || offset > 33554428)) {
 		/* Can't generate branches that far (from ARM ARM). Ftrace
-		 * doesn't generate branches outside of core kernel text.
+		 * doesn't generate branches outside of kernel text.
 		 */
 		WARN_ON_ONCE(1);
 		return NULL;
@@ -52,7 +53,6 @@ int ftrace_modify_code(unsigned long pc, unsigned char *old_code,
 
 	old = *(unsigned long *)old_code;
 	new = *(unsigned long *)new_code;
-	pc -= INSN_SIZE;
 
 	__asm__ __volatile__ (
 		"1:  ldr    %1, [%2]  \n"
@@ -77,7 +77,7 @@ int ftrace_modify_code(unsigned long pc, unsigned char *old_code,
 		: "memory");
 
 	if (!err && (replaced == old))
-		flush_icache_range(pc, pc + INSN_SIZE);
+		flush_icache_range(pc, pc + MCOUNT_INSN_SIZE);
 
 	return err;
 }
@@ -89,8 +89,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	unsigned char *new;
 
 	pc = (unsigned long)&ftrace_call;
-	pc += INSN_SIZE;
-	memcpy(&old, &ftrace_call, INSN_SIZE);
+	memcpy(&old, &ftrace_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(pc, (unsigned long)func);
 	ret = ftrace_modify_code(pc, (unsigned char *)&old, new);
 	return ret;
@@ -103,8 +102,7 @@ int ftrace_mcount_set(unsigned long *data)
 	unsigned char *new;
 
 	pc = (unsigned long)&mcount_call;
-	pc += INSN_SIZE;
-	memcpy(&old, &mcount_call, INSN_SIZE);
+	memcpy(&old, &mcount_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(pc, *addr);
 	*addr = ftrace_modify_code(pc, (unsigned char *)&old, new);
 	return 0;

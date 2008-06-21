@@ -51,6 +51,7 @@
 #include <asm/percpu.h>
 #include <asm/dwarf2.h>
 #include <asm/processor-flags.h>
+#include <asm/ftrace.h>
 #include "irq_vectors.h"
 
 /*
@@ -1118,6 +1119,7 @@ ENTRY(mcount)
 	pushl %ecx
 	pushl %edx
 	movl 0xc(%esp), %eax
+	subl $MCOUNT_INSN_SIZE, %eax
 
 .globl mcount_call
 mcount_call:
@@ -1136,6 +1138,7 @@ ENTRY(ftrace_caller)
 	pushl %edx
 	movl 0xc(%esp), %eax
 	movl 0x4(%ebp), %edx
+	subl $MCOUNT_INSN_SIZE, %eax
 
 .globl ftrace_call
 ftrace_call:
@@ -1166,6 +1169,7 @@ trace:
 	pushl %edx
 	movl 0xc(%esp), %eax
 	movl 0x4(%ebp), %edx
+	subl $MCOUNT_INSN_SIZE, %eax
 
 	call *ftrace_trace_function
 

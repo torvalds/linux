@@ -27,6 +27,8 @@
 #include <linux/hash.h>
 #include <linux/list.h>
 
+#include <asm/ftrace.h>
+
 #include "trace.h"
 
 /* ftrace_enabled is a method to turn ftrace on or off */
@@ -329,7 +331,6 @@ ftrace_record_ip(unsigned long ip)
 }
 
 #define FTRACE_ADDR ((long)(ftrace_caller))
-#define MCOUNT_ADDR ((long)(mcount))
 
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec,
