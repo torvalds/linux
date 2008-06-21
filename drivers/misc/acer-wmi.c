@@ -212,6 +212,10 @@ static struct quirk_entry quirk_medion_md_98300 = {
 	.wireless = 1,
 };
 
+static struct quirk_entry quirk_fujitsu_amilo_li_1718 = {
+	.wireless = 2,
+};
+
 static struct dmi_system_id acer_quirks[] = {
 	{
 		.callback = dmi_matched,
@@ -323,6 +327,15 @@ static struct dmi_system_id acer_quirks[] = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Fujitsu Siemens Amilo Li 1718",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Li 1718"),
+		},
+		.driver_data = &quirk_fujitsu_amilo_li_1718,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Medion MD 98300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
@@ -412,6 +425,12 @@ struct wmi_interface *iface)
 		switch (quirks->wireless) {
 		case 1:
 			err = ec_read(0x7B, &result);
+			if (err)
+				return AE_ERROR;
+			*value = result & 0x1;
+			return AE_OK;
+		case 2:
+			err = ec_read(0x71, &result);
 			if (err)
 				return AE_ERROR;
 			*value = result & 0x1;
