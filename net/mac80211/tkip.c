@@ -164,7 +164,7 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 	iv16 = data[2] | (data[0] << 8);
 	iv32 = get_unaligned_le32(&data[4]);
 
-	tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
+	tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 	ctx = &key->u.tkip.tx;
 
 #ifdef CONFIG_MAC80211_TKIP_DEBUG
@@ -205,7 +205,7 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 {
 	u8 rc4key[16];
 	struct tkip_ctx *ctx = &key->u.tkip.tx;
-	const u8 *tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
+	const u8 *tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 
 	/* Calculate per-packet key */
 	if (ctx->iv16 == 0 || !ctx->initialized)
@@ -231,7 +231,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	u32 iv16;
 	u8 rc4key[16], keyid, *pos = payload;
 	int res;
-	const u8 *tk = &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY];
+	const u8 *tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 
 	if (payload_len < 12)
 		return -1;
@@ -286,13 +286,13 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 #ifdef CONFIG_MAC80211_TKIP_DEBUG
 		{
 			int i;
+			u8 key_offset = NL80211_TKIP_DATA_OFFSET_ENCR_KEY;
 			DECLARE_MAC_BUF(mac);
 			printk(KERN_DEBUG "TKIP decrypt: Phase1 TA=%s"
 			       " TK=", print_mac(mac, ta));
 			for (i = 0; i < 16; i++)
 				printk("%02x ",
-				       key->conf.key[
-						ALG_TKIP_TEMP_ENCR_KEY + i]);
+				       key->conf.key[key_offset + i]);
 			printk("\n");
 			printk(KERN_DEBUG "TKIP decrypt: P1K=");
 			for (i = 0; i < 5; i++)
