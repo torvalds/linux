@@ -163,6 +163,8 @@ enum {
 };
 
 static int ftrace_filtered;
+static int tracing_on;
+static int frozen_record_count;
 
 static struct hlist_head ftrace_hash[FTRACE_HASHSIZE];
 
@@ -194,6 +196,71 @@ static int ftraced_stop;
 static int ftrace_record_suspend;
 
 static struct dyn_ftrace *ftrace_free_records;
+
+
+#ifdef CONFIG_KPROBES
+static inline void freeze_record(struct dyn_ftrace *rec)
+{
+	if (!(rec->flags & FTRACE_FL_FROZEN)) {
+		rec->flags |= FTRACE_FL_FROZEN;
+		frozen_record_count++;
+	}
+}
+
+static inline void unfreeze_record(struct dyn_ftrace *rec)
+{
+	if (rec->flags & FTRACE_FL_FROZEN) {
+		rec->flags &= ~FTRACE_FL_FROZEN;
+		frozen_record_count--;
+	}
+}
+
+static inline int record_frozen(struct dyn_ftrace *rec)
+{
+	return rec->flags & FTRACE_FL_FROZEN;
+}
+#else
+# define freeze_record(rec)			({ 0; })
+# define unfreeze_record(rec)			({ 0; })
+# define record_frozen(rec)			({ 0; })
+#endif /* CONFIG_KPROBES */
+
+int skip_trace(unsigned long ip)
+{
+	unsigned long fl;
+	struct dyn_ftrace *rec;
+	struct hlist_node *t;
+	struct hlist_head *head;
+
+	if (frozen_record_count == 0)
+		return 0;
+
+	head = &ftrace_hash[hash_long(ip, FTRACE_HASHBITS)];
+	hlist_for_each_entry_rcu(rec, t, head, node) {
+		if (rec->ip == ip) {
+			if (record_frozen(rec)) {
+				if (rec->flags & FTRACE_FL_FAILED)
+					return 1;
+
+				if (!(rec->flags & FTRACE_FL_CONVERTED))
+					return 1;
+
+				if (!tracing_on || !ftrace_enabled)
+					return 1;
+
+				if (ftrace_filtered) {
+					fl = rec->flags & (FTRACE_FL_FILTER |
+							   FTRACE_FL_NOTRACE);
+					if (!fl || (fl & FTRACE_FL_NOTRACE))
+						return 1;
+				}
+			}
+			break;
+		}
+	}
+
+	return 0;
+}
 
 static inline int
 ftrace_ip_in_hash(unsigned long ip, unsigned long key)
@@ -489,8 +556,11 @@ static int __ftrace_modify_code(void *data)
 		 */
 		__ftrace_update_code(NULL);
 		ftrace_replace_code(1);
-	} else if (*command & FTRACE_DISABLE_CALLS)
+		tracing_on = 1;
+	} else if (*command & FTRACE_DISABLE_CALLS) {
 		ftrace_replace_code(0);
+		tracing_on = 0;
+	}
 
 	if (*command & FTRACE_UPDATE_TRACE_FUNC)
 		ftrace_update_ftrace_func(ftrace_trace_function);

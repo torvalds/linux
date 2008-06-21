@@ -49,6 +49,7 @@ enum {
 	FTRACE_FL_ENABLED	= (1 << 3),
 	FTRACE_FL_NOTRACE	= (1 << 4),
 	FTRACE_FL_CONVERTED	= (1 << 5),
+	FTRACE_FL_FROZEN	= (1 << 6),
 };
 
 struct dyn_ftrace {
@@ -73,15 +74,18 @@ extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
 
+extern int skip_trace(unsigned long ip);
+
 void ftrace_disable_daemon(void);
 void ftrace_enable_daemon(void);
 
 #else
+# define skip_trace(ip)				({ 0; })
 # define ftrace_force_update()			({ 0; })
 # define ftrace_set_filter(buf, len, reset)	do { } while (0)
 # define ftrace_disable_daemon()		do { } while (0)
 # define ftrace_enable_daemon()			do { } while (0)
-#endif
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 /* totally disable ftrace - can not re-enable after this */
 void ftrace_kill(void);

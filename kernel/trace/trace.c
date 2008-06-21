@@ -988,6 +988,9 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	if (unlikely(!tracer_enabled))
 		return;
 
+	if (skip_trace(ip))
+		return;
+
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
