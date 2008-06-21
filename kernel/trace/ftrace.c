@@ -21,6 +21,7 @@
 #include <linux/hardirq.h>
 #include <linux/kthread.h>
 #include <linux/uaccess.h>
+#include <linux/kprobes.h>
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
@@ -500,6 +501,10 @@ static void ftrace_replace_code(int enable)
 			if (rec->flags & FTRACE_FL_FAILED)
 				continue;
 
+			/* ignore updates to this record's mcount site */
+			if (get_kprobe((void *)rec->ip))
+				continue;
+
 			failed = __ftrace_replace_code(rec, old, new, enable);
 			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
 				rec->flags |= FTRACE_FL_FAILED;
@@ -692,11 +697,11 @@ unsigned long		ftrace_update_tot_cnt;
 
 static int __ftrace_update_code(void *ignore)
 {
+	int i, save_ftrace_enabled;
+	cycle_t start, stop;
 	struct dyn_ftrace *p;
 	struct hlist_node *t, *n;
-	int save_ftrace_enabled;
-	cycle_t start, stop;
-	int i;
+	struct hlist_head *head, temp_list;
 
 	/* Don't be recording funcs now */
 	ftrace_record_suspend++;
@@ -708,8 +713,11 @@ static int __ftrace_update_code(void *ignore)
 
 	/* No locks needed, the machine is stopped! */
 	for (i = 0; i < FTRACE_HASHSIZE; i++) {
+		INIT_HLIST_HEAD(&temp_list);
+		head = &ftrace_hash[i];
+
 		/* all CPUS are stopped, we are safe to modify code */
-		hlist_for_each_entry_safe(p, t, n, &ftrace_hash[i], node) {
+		hlist_for_each_entry_safe(p, t, n, head, node) {
 			/* Skip over failed records which have not been
 			 * freed. */
 			if (p->flags & FTRACE_FL_FAILED)
@@ -723,6 +731,19 @@ static int __ftrace_update_code(void *ignore)
 			if (p->flags & (FTRACE_FL_CONVERTED))
 				break;
 
+			/* Ignore updates to this record's mcount site.
+			 * Reintroduce this record at the head of this
+			 * bucket to attempt to "convert" it again if
+			 * the kprobe on it is unregistered before the
+			 * next run. */
+			if (get_kprobe((void *)p->ip)) {
+				ftrace_del_hash(p);
+				INIT_HLIST_NODE(&p->node);
+				hlist_add_head(&p->node, &temp_list);
+				continue;
+			}
+
+			/* convert record (i.e, patch mcount-call with NOP) */
 			if (ftrace_code_disable(p)) {
 				p->flags |= FTRACE_FL_CONVERTED;
 				ftrace_update_cnt++;
@@ -733,6 +754,12 @@ static int __ftrace_update_code(void *ignore)
 					ftrace_free_rec(p);
 				}
 			}
+		}
+
+		hlist_for_each_entry_safe(p, t, n, &temp_list, node) {
+			hlist_del(&p->node);
+			INIT_HLIST_NODE(&p->node);
+			hlist_add_head(&p->node, head);
 		}
 	}
 
