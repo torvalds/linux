@@ -27,6 +27,8 @@
 #include "cx18-i2c.h"
 #include <media/cs5345.h>
 
+#define V4L2_STD_NOT_MN (V4L2_STD_PAL|V4L2_STD_SECAM)
+
 /********************** card configuration *******************************/
 
 /* usual i2c tuner addresses to probe */
@@ -232,11 +234,64 @@ static const struct cx18_card cx18_card_mpc718 = {
 	.i2c = &cx18_i2c_std,
 };
 
+/* ------------------------------------------------------------------------- */
+
+/* Conexant Raptor PAL/SECAM: note that this card is analog only! */
+
+static const struct cx18_card_pci_info cx18_pci_cnxt_raptor_pal[] = {
+	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_CONEXANT, 0x0009 },
+	{ 0, 0, 0 }
+};
+
+static const struct cx18_card cx18_card_cnxt_raptor_pal = {
+	.type = CX18_CARD_CNXT_RAPTOR_PAL,
+	.name = "Conexant Raptor PAL/SECAM",
+	.comment = "VBI is not yet supported\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
+	.hw_audio_ctrl = CX18_HW_CX23418,
+	.hw_muxer = CX18_HW_GPIO,
+	.hw_all = CX18_HW_TUNER | CX18_HW_GPIO,
+	.video_inputs = {
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1,
+			CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE1 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2,
+			CX18_AV_SVIDEO_LUMA7 | CX18_AV_SVIDEO_CHROMA8 },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE6 },
+	},
+	.audio_inputs = {
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 1 },
+		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL, 0 },
+		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL, 0 },
+	},
+	.tuners = {
+		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+	},
+	.ddr = {
+		/* MT 46V16M16 memory */
+		.chip_config = 0x50306,
+		.refresh = 0x753,
+		.timing1 = 0x33220953,
+		.timing2 = 0x09,
+		.tune_lane = 0,
+		.initial_emrs = 0,
+	},
+	.gpio_init.initial_value = 0x02,
+	.gpio_init.direction = 0x02,
+	.gpio_audio_input  = { .mask = 0x02, .tuner  = 0x02, .linein = 0x00 },
+	.pci_list = cx18_pci_cnxt_raptor_pal,
+	.i2c = &cx18_i2c_std,
+};
+
+/* ------------------------------------------------------------------------- */
+
 static const struct cx18_card *cx18_card_list[] = {
 	&cx18_card_hvr1600_esmt,
 	&cx18_card_hvr1600_samsung,
 	&cx18_card_h900,
 	&cx18_card_mpc718,
+	&cx18_card_cnxt_raptor_pal,
 };
 
 const struct cx18_card *cx18_get_card(u16 index)

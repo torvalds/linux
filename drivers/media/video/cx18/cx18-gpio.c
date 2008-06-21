@@ -122,3 +122,37 @@ int cx18_reset_tuner_gpio(void *dev, int cmd, int value)
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
 	return 0;
 }
+
+int cx18_gpio(struct cx18 *cx, unsigned int command, void *arg)
+{
+	struct v4l2_routing *route = arg;
+	u32 mask, data;
+
+	switch (command) {
+	case VIDIOC_INT_S_AUDIO_ROUTING:
+		if (route->input > 2)
+			return -EINVAL;
+		mask = cx->card->gpio_audio_input.mask;
+		switch (route->input) {
+		case 0:
+			data = cx->card->gpio_audio_input.tuner;
+			break;
+		case 1:
+			data = cx->card->gpio_audio_input.linein;
+			break;
+		case 2:
+		default:
+			data = cx->card->gpio_audio_input.radio;
+			break;
+		}
+		break;
+
+	default:
+		return -EINVAL;
+	}
+	if (mask) {
+		cx->gpio_val = (cx->gpio_val & ~mask) | (data & mask);
+		gpio_write(cx);
+	}
+	return 0;
+}

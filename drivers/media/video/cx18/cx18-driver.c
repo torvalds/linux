@@ -120,6 +120,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 2 = Hauppauge HVR 1600 (Samsung memory)\n"
 		 "\t\t\t 3 = Compro VideoMate H900\n"
 		 "\t\t\t 4 = Yuan MPC718\n"
+		 "\t\t\t 5 = Conexant Raptor PAL/SECAM\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -435,7 +436,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 		(cx->params.video_temporal_filter_mode << 1) |
 		(cx->params.video_median_filter_type << 2);
 	cx->params.port = CX2341X_PORT_MEMORY;
-	cx->params.capabilities = CX2341X_CAP_HAS_SLICED_VBI;
+	cx->params.capabilities = 0;
 	init_waitqueue_head(&cx->cap_w);
 	init_waitqueue_head(&cx->mb_apu_waitq);
 	init_waitqueue_head(&cx->mb_cpu_waitq);
