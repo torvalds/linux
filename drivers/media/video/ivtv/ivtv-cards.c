@@ -40,7 +40,7 @@
 #define MSP_MONO   MSP_INPUT(MSP_IN_MONO, MSP_IN_TUNER1, \
 				MSP_DSP_IN_SCART, MSP_DSP_IN_SCART)
 
-#define V4L2_STD_NOT_MN (V4L2_STD_PAL|V4L2_STD_SECAM)
+#define V4L2_STD_PAL_SECAM (V4L2_STD_PAL|V4L2_STD_SECAM)
 
 /* usual i2c tuner addresses to probe */
 static struct ivtv_card_tuner_i2c ivtv_i2c_std = {
@@ -300,7 +300,7 @@ static const struct ivtv_card ivtv_card_mpg600 = {
 	.gpio_audio_detect = { .mask = 0x0900, .stereo = 0x0100 },
 	.tuners = {
 		/* The PAL tuner is confirmed */
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FQ1216ME },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FQ1216ME },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_mpg600,
@@ -341,7 +341,7 @@ static const struct ivtv_card ivtv_card_mpg160 = {
 			      .lang1 = 0x0004, .lang2  = 0x0000, .both   = 0x0008 },
 	.gpio_audio_detect = { .mask = 0x0900, .stereo = 0x0100 },
 	.tuners = {
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FQ1216ME },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FQ1216ME },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_mpg160,
@@ -377,7 +377,7 @@ static const struct ivtv_card ivtv_card_pg600 = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
 	.tuners = {
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FQ1216ME },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FQ1216ME },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_pg600,
@@ -418,7 +418,7 @@ static const struct ivtv_card ivtv_card_avc2410 = {
 	   on the country/region setting of the user to decide which tuner
 	   is available. */
 	.tuners = {
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 		{ .std = V4L2_STD_ALL - V4L2_STD_NTSC_M_JP,
 			.tuner = TUNER_PHILIPS_FM1236_MK3 },
 		{ .std = V4L2_STD_NTSC_M_JP, .tuner = TUNER_PHILIPS_FQ1286 },
@@ -492,7 +492,7 @@ static const struct ivtv_card ivtv_card_tg5000tv = {
 	.gpio_video_input  = { .mask = 0x0030, .tuner  = 0x0000,
 			  .composite = 0x0010, .svideo = 0x0020 },
 	.tuners = {
-		{ .std = V4L2_STD_525_60|V4L2_STD_MN, .tuner = TUNER_PHILIPS_FQ1286 },
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_tg5000tv,
 	.i2c = &ivtv_i2c_std,
@@ -523,7 +523,7 @@ static const struct ivtv_card ivtv_card_va2000 = {
 		{ IVTV_CARD_INPUT_AUD_TUNER, MSP_TUNER },
 	},
 	.tuners = {
-		{ .std = V4L2_STD_525_60|V4L2_STD_MN, .tuner = TUNER_PHILIPS_FQ1286 },
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_va2000,
 	.i2c = &ivtv_i2c_std,
@@ -567,7 +567,7 @@ static const struct ivtv_card ivtv_card_cx23416gyc = {
 	.gpio_audio_freq   = { .mask = 0xc000, .f32000 = 0x0000,
 			     .f44100 = 0x4000, .f48000 = 0x8000 },
 	.tuners = {
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
 	.pci_list = ivtv_pci_cx23416gyc,
@@ -599,7 +599,7 @@ static const struct ivtv_card ivtv_card_cx23416gyc_nogr = {
 	.gpio_audio_freq   = { .mask = 0xc000, .f32000 = 0x0000,
 			     .f44100 = 0x4000, .f48000 = 0x8000 },
 	.tuners = {
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
 	.i2c = &ivtv_i2c_std,
@@ -629,7 +629,7 @@ static const struct ivtv_card ivtv_card_cx23416gyc_nogrycs = {
 	.gpio_audio_freq   = { .mask = 0xc000, .f32000 = 0x0000,
 			     .f44100 = 0x4000, .f48000 = 0x8000 },
 	.tuners = {
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
 	.i2c = &ivtv_i2c_std,
@@ -669,7 +669,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx = {
 	.gpio_audio_input  = { .mask = 0xffff, .tuner  = 0x0200, .linein = 0x0300 },
 	.tuners = {
 		/* This card has the Panasonic VP27 tuner */
-		{ .std = V4L2_STD_525_60|V4L2_STD_MN, .tuner = TUNER_PANASONIC_VP27 },
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PANASONIC_VP27 },
 	},
 	.pci_list = ivtv_pci_gv_mvprx,
 	.i2c = &ivtv_i2c_std,
@@ -706,7 +706,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx2e = {
 	.gpio_audio_input  = { .mask = 0xffff, .tuner  = 0x0200, .linein = 0x0300 },
 	.tuners = {
 		/* This card has the Panasonic VP27 tuner */
-		{ .std = V4L2_STD_525_60|V4L2_STD_MN, .tuner = TUNER_PANASONIC_VP27 },
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PANASONIC_VP27 },
 	},
 	.pci_list = ivtv_pci_gv_mvprx2e,
 	.i2c = &ivtv_i2c_std,
@@ -741,7 +741,7 @@ static const struct ivtv_card ivtv_card_gotview_pci_dvd = {
 	.gpio_init = { .direction = 0xf000, .initial_value = 0xA000 },
 	.tuners = {
 		/* This card has a Philips FQ1216ME MK3 tuner */
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 	},
 	.pci_list = ivtv_pci_gotview_pci_dvd,
 	.i2c = &ivtv_i2c_std,
@@ -780,7 +780,7 @@ static const struct ivtv_card ivtv_card_gotview_pci_dvd2 = {
 	.gpio_audio_input  = { .mask = 0x0800, .tuner = 0, .linein = 0, .radio = 0x0800 },
 	.tuners = {
 		/* This card has a Philips FQ1216ME MK5 tuner */
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 	},
 	.pci_list = ivtv_pci_gotview_pci_dvd2,
 	.i2c = &ivtv_i2c_std,
@@ -858,7 +858,7 @@ static const struct ivtv_card ivtv_card_dctmvtvp1 = {
 	.gpio_video_input  = { .mask = 0x0030, .tuner  = 0x0000,
 			       .composite = 0x0010, .svideo = 0x0020},
 	.tuners = {
-		{ .std = V4L2_STD_525_60|V4L2_STD_MN, .tuner = TUNER_PHILIPS_FQ1286 },
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_dctmvtvp1,
 	.i2c = &ivtv_i2c_std,
@@ -1000,7 +1000,7 @@ static const struct ivtv_card ivtv_card_aver_pvr150 = {
 	.gpio_audio_input  = { .mask = 0x0800, .tuner = 0, .linein = 0, .radio = 0x0800 },
 	.tuners = {
 		/* This card has a Partsnic PTI-5NF05 tuner */
-		{ .std = V4L2_STD_525_60|V4L2_STD_MN, .tuner = TUNER_TCL_2002N },
+		{ .std = V4L2_STD_MN, .tuner = TUNER_TCL_2002N },
 	},
 	.pci_list = ivtv_pci_aver_pvr150,
 	.i2c = &ivtv_i2c_radio,
@@ -1068,7 +1068,7 @@ static const struct ivtv_card ivtv_card_asus_falcon2 = {
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, M52790_IN_TUNER },
 	.tuners = {
-		{ .std = V4L2_STD_525_60|V4L2_STD_MN, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
 	.pci_list = ivtv_pci_asus_falcon2,
 	.i2c = &ivtv_i2c_std,

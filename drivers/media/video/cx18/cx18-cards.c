@@ -27,7 +27,7 @@
 #include "cx18-i2c.h"
 #include <media/cs5345.h>
 
-#define V4L2_STD_NOT_MN (V4L2_STD_PAL|V4L2_STD_SECAM)
+#define V4L2_STD_PAL_SECAM (V4L2_STD_PAL|V4L2_STD_SECAM)
 
 /********************** card configuration *******************************/
 
@@ -266,7 +266,7 @@ static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL, 0 },
 	},
 	.tuners = {
-		{ .std = V4L2_STD_NOT_MN, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 	},
 	.ddr = {
 		/* MT 46V16M16 memory */
