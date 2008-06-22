@@ -142,6 +142,7 @@ endif
  machine-$(CONFIG_ARCH_ORION5X)	   := orion5x
  machine-$(CONFIG_ARCH_MSM7X00A)   := msm
  machine-$(CONFIG_ARCH_LOKI)       := loki
+ machine-$(CONFIG_ARCH_MV78XX0)    := mv78xx0
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

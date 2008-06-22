@@ -365,7 +365,7 @@ config CPU_XSC3
 # Feroceon
 config CPU_FEROCEON
 	bool
-	depends on ARCH_ORION5X || ARCH_LOKI || ARCH_KIRKWOOD
+	depends on ARCH_ORION5X || ARCH_LOKI || ARCH_KIRKWOOD || ARCH_MV78XX0
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
@@ -716,7 +716,7 @@ config OUTER_CACHE
 
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
-	depends on ARCH_KIRKWOOD
+	depends on ARCH_KIRKWOOD || ARCH_MV78XX0
 	default y
 	select OUTER_CACHE
 	help
