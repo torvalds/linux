@@ -82,6 +82,11 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 	},
 	.gpio_init.initial_value = 0x3001,
 	.gpio_init.direction = 0x3001,
+	.gpio_i2c_slave_reset = {
+		.active_lo_mask = 0x3001,
+		.msecs_asserted = 10,
+		.msecs_recovery = 40,
+	},
 	.i2c = &cx18_i2c_std,
 };
 
@@ -122,6 +127,11 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 	},
 	.gpio_init.initial_value = 0x3001,
 	.gpio_init.direction = 0x3001,
+	.gpio_i2c_slave_reset = {
+		.active_lo_mask = 0x3001,
+		.msecs_asserted = 10,
+		.msecs_recovery = 40,
+	},
 	.i2c = &cx18_i2c_std,
 };
 

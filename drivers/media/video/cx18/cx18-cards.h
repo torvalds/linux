@@ -78,6 +78,13 @@ struct cx18_gpio_init { /* set initial GPIO DIR and OUT values */
 	u32 initial_value;
 };
 
+struct cx18_gpio_i2c_slave_reset {
+	u32 active_lo_mask; /* GPIO outputs that reset i2c chips when low */
+	u32 active_hi_mask; /* GPIO outputs that reset i2c chips when high */
+	int msecs_asserted; /* time period reset must remain asserted */
+	int msecs_recovery; /* time after deassert for chips to be ready */
+};
+
 struct cx18_card_tuner {
 	v4l2_std_id std; 	/* standard for which the tuner is suitable */
 	int 	    tuner; 	/* tuner ID (from tuner.h) */
@@ -114,7 +121,8 @@ struct cx18_card {
 
 	/* GPIO card-specific settings */
 	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
-	struct cx18_gpio_init 		gpio_init;
+	struct cx18_gpio_init 		 gpio_init;
+	struct cx18_gpio_i2c_slave_reset gpio_i2c_slave_reset;
 
 	struct cx18_card_tuner tuners[CX18_CARD_MAX_TUNERS];
 	struct cx18_card_tuner_i2c *i2c;
