@@ -2126,27 +2126,6 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			? X86EMUL_MODE_PROT64 :	cs_db
 			? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
 
-		if (vcpu->arch.emulate_ctxt.mode == X86EMUL_MODE_PROT64) {
-			vcpu->arch.emulate_ctxt.cs_base = 0;
-			vcpu->arch.emulate_ctxt.ds_base = 0;
-			vcpu->arch.emulate_ctxt.es_base = 0;
-			vcpu->arch.emulate_ctxt.ss_base = 0;
-		} else {
-			vcpu->arch.emulate_ctxt.cs_base =
-					get_segment_base(vcpu, VCPU_SREG_CS);
-			vcpu->arch.emulate_ctxt.ds_base =
-					get_segment_base(vcpu, VCPU_SREG_DS);
-			vcpu->arch.emulate_ctxt.es_base =
-					get_segment_base(vcpu, VCPU_SREG_ES);
-			vcpu->arch.emulate_ctxt.ss_base =
-					get_segment_base(vcpu, VCPU_SREG_SS);
-		}
-
-		vcpu->arch.emulate_ctxt.gs_base =
-					get_segment_base(vcpu, VCPU_SREG_GS);
-		vcpu->arch.emulate_ctxt.fs_base =
-					get_segment_base(vcpu, VCPU_SREG_FS);
-
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 
 		/* Reject the instructions other than VMCALL/VMMCALL when

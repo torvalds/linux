@@ -124,7 +124,8 @@ struct decode_cache {
 	u8 rex_prefix;
 	struct operand src;
 	struct operand dst;
-	unsigned long *override_base;
+	bool has_seg_override;
+	u8 seg_override;
 	unsigned int d;
 	unsigned long regs[NR_VCPU_REGS];
 	unsigned long eip;
@@ -151,12 +152,7 @@ struct x86_emulate_ctxt {
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
 
-	unsigned long cs_base;
-	unsigned long ds_base;
-	unsigned long es_base;
-	unsigned long ss_base;
-	unsigned long gs_base;
-	unsigned long fs_base;
+	u32 cs_base;
 
 	/* decode cache */
 
