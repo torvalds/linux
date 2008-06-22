@@ -199,7 +199,7 @@ rcu_stutter_wait(void)
 		if (rcutorture_runnable)
 			schedule_timeout_interruptible(1);
 		else
-			schedule_timeout_interruptible(HZ);
+			schedule_timeout_interruptible(round_jiffies_relative(HZ));
 }
 
 /*
