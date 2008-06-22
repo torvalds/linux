@@ -13,7 +13,8 @@
 enum model_type {
     FireSAT_DVB_S = 1,
     FireSAT_DVB_C = 2,
-    FireSAT_DVB_T = 3
+    FireSAT_DVB_T = 3,
+    FireSAT_DVB_S2 = 4
 };
 
 struct firesat {

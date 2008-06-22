@@ -263,6 +263,8 @@ static int firesat_probe(struct device *dev)
 	int result;
 	unsigned char subunitcount = 0xff, subunit;
 	struct firesat **firesats = kmalloc(sizeof (void*) * 2,GFP_KERNEL);
+	int kv_len;
+	char *kv_buf;
 
 	if (!firesats) {
 		printk("%s: couldn't allocate memory.\n", __func__);
@@ -328,6 +330,32 @@ static int firesat_probe(struct device *dev)
 		printk(KERN_INFO "%s: subunit count = %d\n", __func__, subunitcount);
 
 		firesat->subunit = subunit;
+
+		/* Reading device model from ROM */
+		kv_len = (ud->model_name_kv->value.leaf.len - 2) *
+			sizeof(quadlet_t);
+		kv_buf = kmalloc((sizeof(quadlet_t) * kv_len), GFP_KERNEL);
+		memcpy(kv_buf,
+			CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(ud->model_name_kv),
+			kv_len);
+		while ((kv_buf + kv_len - 1) == '\0') kv_len--;
+		kv_buf[kv_len++] = '\0';
+
+		/* Determining the device model */
+		if (strcmp(kv_buf, "FireDTV S/CI") == 0) {
+			printk(KERN_INFO "%s: found DVB/S\n", __func__);
+			firesat->type = 1;
+		} else if (strcmp(kv_buf, "FireDTV C/CI") == 0) {
+			printk(KERN_INFO "%s: found DVB/C\n", __func__);
+			firesat->type = 2;
+		} else if (strcmp(kv_buf, "FireDTV T/CI") == 0) {
+			printk(KERN_INFO "%s: found DVB/T\n", __func__);
+			firesat->type = 3;
+		} else if (strcmp(kv_buf, "FireDTV S2  ") == 0) {
+			printk(KERN_INFO "%s: found DVB/S2\n", __func__);
+			firesat->type = 4;
+		}
+		kfree(kv_buf);
 
 		if (AVCIdentifySubunit(firesat, NULL, (int*)&firesat->type, &firesat->has_ci)) {
 			printk("%s: cannot identify subunit %d\n", __func__, subunit);

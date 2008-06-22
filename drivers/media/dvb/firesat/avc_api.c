@@ -251,7 +251,7 @@ int AVCTuner_DSD(struct firesat *firesat, struct dvb_frontend_parameters *params
 
 //	printk(KERN_INFO "%s\n", __func__);
 
-	if(firesat->type == FireSAT_DVB_S)
+	if (firesat->type == FireSAT_DVB_S || firesat->type == FireSAT_DVB_S2)
 		AVCTuner_tuneQPSK(firesat, params, &CmdFrm);
 	else {
 		if(firesat->type == FireSAT_DVB_T) {
@@ -654,21 +654,6 @@ int AVCIdentifySubunit(struct firesat *firesat, unsigned char *systemId, int *tr
 	}
 	if(systemId)
 		*systemId = RspFrm.operand[7];
-	if(transport)
-		*transport = RspFrm.operand[14] & 0x7;
-	switch(RspFrm.operand[14] & 0x7) {
-		case 1:
-			printk(KERN_INFO "%s: found DVB/S\n",__func__);
-			break;
-		case 2:
-			printk(KERN_INFO "%s: found DVB/C\n",__func__);
-			break;
-		case 3:
-			printk(KERN_INFO "%s: found DVB/T\n",__func__);
-			break;
-		default:
-			printk(KERN_INFO "%s: found unknown tuner id %u\n",__func__,RspFrm.operand[14] & 0x7);
-	}
 	if(has_ci)
 		*has_ci = (RspFrm.operand[14] >> 4) & 0x1;
 	return 0;
