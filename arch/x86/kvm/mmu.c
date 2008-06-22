@@ -66,7 +66,8 @@ static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg) {}
 #endif
 
 #if defined(MMU_DEBUG) || defined(AUDIT)
-static int dbg = 1;
+static int dbg = 0;
+module_param(dbg, bool, 0644);
 #endif
 
 #ifndef MMU_DEBUG
