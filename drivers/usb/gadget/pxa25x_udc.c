@@ -1,5 +1,4 @@
 /*
- * linux/drivers/usb/gadget/pxa2xx_udc.c
  * Intel PXA25x and IXP4xx on-chip full speed USB device controllers
  *
  * Copyright (C) 2002 Intrinsyc, Inc. (Frank Becker)
@@ -97,7 +96,7 @@
 #define	DRIVER_DESC	"PXA 25x USB Device Controller driver"
 
 
-static const char driver_name [] = "pxa2xx_udc";
+static const char driver_name [] = "pxa25x_udc";
 
 static const char ep0name [] = "ep0";
 
@@ -117,10 +116,10 @@ static const char ep0name [] = "ep0";
 
 #endif
 
-#include "pxa2xx_udc.h"
+#include "pxa25x_udc.h"
 
 
-#ifdef	CONFIG_USB_PXA2XX_SMALL
+#ifdef	CONFIG_USB_PXA25X_SMALL
 #define SIZE_STR	" (small)"
 #else
 #define SIZE_STR	""
@@ -132,8 +131,8 @@ static const char ep0name [] = "ep0";
  * ---------------------------------------------------------------------------
  */
 
-static void pxa2xx_ep_fifo_flush (struct usb_ep *ep);
-static void nuke (struct pxa2xx_ep *, int status);
+static void pxa25x_ep_fifo_flush (struct usb_ep *ep);
+static void nuke (struct pxa25x_ep *, int status);
 
 /* one GPIO should be used to detect VBUS from the host */
 static int is_vbus_present(void)
@@ -218,24 +217,24 @@ static inline void udc_ack_int_UDCCR(int mask)
 /*
  * endpoint enable/disable
  *
- * we need to verify the descriptors used to enable endpoints.  since pxa2xx
+ * we need to verify the descriptors used to enable endpoints.  since pxa25x
  * endpoint configurations are fixed, and are pretty much always enabled,
  * there's not a lot to manage here.
  *
- * because pxa2xx can't selectively initialize bulk (or interrupt) endpoints,
+ * because pxa25x can't selectively initialize bulk (or interrupt) endpoints,
  * (resetting endpoint halt and toggle), SET_INTERFACE is unusable except
  * for a single interface (with only the default altsetting) and for gadget
  * drivers that don't halt endpoints (not reset by set_interface).  that also
  * means that if you use ISO, you must violate the USB spec rule that all
  * iso endpoints must be in non-default altsettings.
  */
-static int pxa2xx_ep_enable (struct usb_ep *_ep,
+static int pxa25x_ep_enable (struct usb_ep *_ep,
 		const struct usb_endpoint_descriptor *desc)
 {
-	struct pxa2xx_ep        *ep;
-	struct pxa2xx_udc       *dev;
+	struct pxa25x_ep        *ep;
+	struct pxa25x_udc       *dev;
 
-	ep = container_of (_ep, struct pxa2xx_ep, ep);
+	ep = container_of (_ep, struct pxa25x_ep, ep);
 	if (!_ep || !desc || ep->desc || _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
@@ -274,7 +273,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 	ep->ep.maxpacket = le16_to_cpu (desc->wMaxPacketSize);
 
 	/* flush fifo (mostly for OUT buffers) */
-	pxa2xx_ep_fifo_flush (_ep);
+	pxa25x_ep_fifo_flush (_ep);
 
 	/* ... reset halt state too, if we could ... */
 
@@ -282,12 +281,12 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 	return 0;
 }
 
-static int pxa2xx_ep_disable (struct usb_ep *_ep)
+static int pxa25x_ep_disable (struct usb_ep *_ep)
 {
-	struct pxa2xx_ep	*ep;
+	struct pxa25x_ep	*ep;
 	unsigned long		flags;
 
-	ep = container_of (_ep, struct pxa2xx_ep, ep);
+	ep = container_of (_ep, struct pxa25x_ep, ep);
 	if (!_ep || !ep->desc) {
 		DMSG("%s, %s not enabled\n", __func__,
 			_ep ? ep->ep.name : NULL);
@@ -298,7 +297,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
 	nuke (ep, -ESHUTDOWN);
 
 	/* flush fifo (mostly for IN buffers) */
-	pxa2xx_ep_fifo_flush (_ep);
+	pxa25x_ep_fifo_flush (_ep);
 
 	ep->desc = NULL;
 	ep->stopped = 1;
@@ -310,18 +309,18 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
 
 /*-------------------------------------------------------------------------*/
 
-/* for the pxa2xx, these can just wrap kmalloc/kfree.  gadget drivers
+/* for the pxa25x, these can just wrap kmalloc/kfree.  gadget drivers
  * must still pass correctly initialized endpoints, since other controller
  * drivers may care about how it's currently set up (dma issues etc).
  */
 
 /*
- *	pxa2xx_ep_alloc_request - allocate a request data structure
+ *	pxa25x_ep_alloc_request - allocate a request data structure
  */
 static struct usb_request *
-pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
+pxa25x_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct pxa2xx_request *req;
+	struct pxa25x_request *req;
 
 	req = kzalloc(sizeof(*req), gfp_flags);
 	if (!req)
@@ -333,14 +332,14 @@ pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 
 
 /*
- *	pxa2xx_ep_free_request - deallocate a request data structure
+ *	pxa25x_ep_free_request - deallocate a request data structure
  */
 static void
-pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
+pxa25x_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
 {
-	struct pxa2xx_request	*req;
+	struct pxa25x_request	*req;
 
-	req = container_of (_req, struct pxa2xx_request, req);
+	req = container_of (_req, struct pxa25x_request, req);
 	WARN_ON (!list_empty (&req->queue));
 	kfree(req);
 }
@@ -350,7 +349,7 @@ pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
 /*
  *	done - retire a request; caller blocked irqs
  */
-static void done(struct pxa2xx_ep *ep, struct pxa2xx_request *req, int status)
+static void done(struct pxa25x_ep *ep, struct pxa25x_request *req, int status)
 {
 	unsigned		stopped = ep->stopped;
 
@@ -373,13 +372,13 @@ static void done(struct pxa2xx_ep *ep, struct pxa2xx_request *req, int status)
 }
 
 
-static inline void ep0_idle (struct pxa2xx_udc *dev)
+static inline void ep0_idle (struct pxa25x_udc *dev)
 {
 	dev->ep0state = EP0_IDLE;
 }
 
 static int
-write_packet(volatile u32 *uddr, struct pxa2xx_request *req, unsigned max)
+write_packet(volatile u32 *uddr, struct pxa25x_request *req, unsigned max)
 {
 	u8		*buf;
 	unsigned	length, count;
@@ -404,7 +403,7 @@ write_packet(volatile u32 *uddr, struct pxa2xx_request *req, unsigned max)
  * caller guarantees at least one packet buffer is ready (or a zlp).
  */
 static int
-write_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
+write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 {
 	unsigned		max;
 
@@ -461,7 +460,7 @@ write_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
  * ep0 data stage.  these chips want very simple state transitions.
  */
 static inline
-void ep0start(struct pxa2xx_udc *dev, u32 flags, const char *tag)
+void ep0start(struct pxa25x_udc *dev, u32 flags, const char *tag)
 {
 	UDCCS0 = flags|UDCCS0_SA|UDCCS0_OPR;
 	USIR0 = USIR0_IR0;
@@ -471,7 +470,7 @@ void ep0start(struct pxa2xx_udc *dev, u32 flags, const char *tag)
 }
 
 static int
-write_ep0_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
+write_ep0_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 {
 	unsigned	count;
 	int		is_short;
@@ -531,7 +530,7 @@ write_ep0_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
  * request buffer having filled (and maybe overran till end-of-packet).
  */
 static int
-read_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
+read_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 {
 	for (;;) {
 		u32		udccs;
@@ -608,7 +607,7 @@ read_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
  * protocols do use them.
  */
 static int
-read_ep0_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
+read_ep0_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 {
 	u8		*buf, byte;
 	unsigned	bufferspace;
@@ -647,21 +646,21 @@ read_ep0_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
 /*-------------------------------------------------------------------------*/
 
 static int
-pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
+pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
-	struct pxa2xx_request	*req;
-	struct pxa2xx_ep	*ep;
-	struct pxa2xx_udc	*dev;
+	struct pxa25x_request	*req;
+	struct pxa25x_ep	*ep;
+	struct pxa25x_udc	*dev;
 	unsigned long		flags;
 
-	req = container_of(_req, struct pxa2xx_request, req);
+	req = container_of(_req, struct pxa25x_request, req);
 	if (unlikely (!_req || !_req->complete || !_req->buf
 			|| !list_empty(&req->queue))) {
 		DMSG("%s, bad params\n", __func__);
 		return -EINVAL;
 	}
 
-	ep = container_of(_ep, struct pxa2xx_ep, ep);
+	ep = container_of(_ep, struct pxa25x_ep, ep);
 	if (unlikely (!_ep || (!ep->desc && ep->ep.name != ep0name))) {
 		DMSG("%s, bad ep\n", __func__);
 		return -EINVAL;
@@ -757,14 +756,14 @@ pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 /*
  *	nuke - dequeue ALL requests
  */
-static void nuke(struct pxa2xx_ep *ep, int status)
+static void nuke(struct pxa25x_ep *ep, int status)
 {
-	struct pxa2xx_request *req;
+	struct pxa25x_request *req;
 
 	/* called with irqs blocked */
 	while (!list_empty(&ep->queue)) {
 		req = list_entry(ep->queue.next,
-				struct pxa2xx_request,
+				struct pxa25x_request,
 				queue);
 		done(ep, req, status);
 	}
@@ -774,13 +773,13 @@ static void nuke(struct pxa2xx_ep *ep, int status)
 
 
 /* dequeue JUST ONE request */
-static int pxa2xx_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
+static int pxa25x_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
-	struct pxa2xx_ep	*ep;
-	struct pxa2xx_request	*req;
+	struct pxa25x_ep	*ep;
+	struct pxa25x_request	*req;
 	unsigned long		flags;
 
-	ep = container_of(_ep, struct pxa2xx_ep, ep);
+	ep = container_of(_ep, struct pxa25x_ep, ep);
 	if (!_ep || ep->ep.name == ep0name)
 		return -EINVAL;
 
@@ -804,12 +803,12 @@ static int pxa2xx_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 
-static int pxa2xx_ep_set_halt(struct usb_ep *_ep, int value)
+static int pxa25x_ep_set_halt(struct usb_ep *_ep, int value)
 {
-	struct pxa2xx_ep	*ep;
+	struct pxa25x_ep	*ep;
 	unsigned long		flags;
 
-	ep = container_of(_ep, struct pxa2xx_ep, ep);
+	ep = container_of(_ep, struct pxa25x_ep, ep);
 	if (unlikely (!_ep
 			|| (!ep->desc && ep->ep.name != ep0name))
 			|| ep->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
@@ -859,11 +858,11 @@ static int pxa2xx_ep_set_halt(struct usb_ep *_ep, int value)
 	return 0;
 }
 
-static int pxa2xx_ep_fifo_status(struct usb_ep *_ep)
+static int pxa25x_ep_fifo_status(struct usb_ep *_ep)
 {
-	struct pxa2xx_ep        *ep;
+	struct pxa25x_ep        *ep;
 
-	ep = container_of(_ep, struct pxa2xx_ep, ep);
+	ep = container_of(_ep, struct pxa25x_ep, ep);
 	if (!_ep) {
 		DMSG("%s, bad ep\n", __func__);
 		return -ENODEV;
@@ -878,11 +877,11 @@ static int pxa2xx_ep_fifo_status(struct usb_ep *_ep)
 		return (*ep->reg_ubcr & 0xfff) + 1;
 }
 
-static void pxa2xx_ep_fifo_flush(struct usb_ep *_ep)
+static void pxa25x_ep_fifo_flush(struct usb_ep *_ep)
 {
-	struct pxa2xx_ep        *ep;
+	struct pxa25x_ep        *ep;
 
-	ep = container_of(_ep, struct pxa2xx_ep, ep);
+	ep = container_of(_ep, struct pxa25x_ep, ep);
 	if (!_ep || ep->ep.name == ep0name || !list_empty(&ep->queue)) {
 		DMSG("%s, bad ep\n", __func__);
 		return;
@@ -904,19 +903,19 @@ static void pxa2xx_ep_fifo_flush(struct usb_ep *_ep)
 }
 
 
-static struct usb_ep_ops pxa2xx_ep_ops = {
-	.enable		= pxa2xx_ep_enable,
-	.disable	= pxa2xx_ep_disable,
+static struct usb_ep_ops pxa25x_ep_ops = {
+	.enable		= pxa25x_ep_enable,
+	.disable	= pxa25x_ep_disable,
 
-	.alloc_request	= pxa2xx_ep_alloc_request,
-	.free_request	= pxa2xx_ep_free_request,
+	.alloc_request	= pxa25x_ep_alloc_request,
+	.free_request	= pxa25x_ep_free_request,
 
-	.queue		= pxa2xx_ep_queue,
-	.dequeue	= pxa2xx_ep_dequeue,
+	.queue		= pxa25x_ep_queue,
+	.dequeue	= pxa25x_ep_dequeue,
 
-	.set_halt	= pxa2xx_ep_set_halt,
-	.fifo_status	= pxa2xx_ep_fifo_status,
-	.fifo_flush	= pxa2xx_ep_fifo_flush,
+	.set_halt	= pxa25x_ep_set_halt,
+	.fifo_status	= pxa25x_ep_fifo_status,
+	.fifo_flush	= pxa25x_ep_fifo_flush,
 };
 
 
@@ -925,12 +924,12 @@ static struct usb_ep_ops pxa2xx_ep_ops = {
  * ---------------------------------------------------------------------------
  */
 
-static int pxa2xx_udc_get_frame(struct usb_gadget *_gadget)
+static int pxa25x_udc_get_frame(struct usb_gadget *_gadget)
 {
 	return ((UFNRH & 0x07) << 8) | (UFNRL & 0xff);
 }
 
-static int pxa2xx_udc_wakeup(struct usb_gadget *_gadget)
+static int pxa25x_udc_wakeup(struct usb_gadget *_gadget)
 {
 	/* host may not have enabled remote wakeup */
 	if ((UDCCS0 & UDCCS0_DRWF) == 0)
@@ -939,14 +938,14 @@ static int pxa2xx_udc_wakeup(struct usb_gadget *_gadget)
 	return 0;
 }
 
-static void stop_activity(struct pxa2xx_udc *, struct usb_gadget_driver *);
-static void udc_enable (struct pxa2xx_udc *);
-static void udc_disable(struct pxa2xx_udc *);
+static void stop_activity(struct pxa25x_udc *, struct usb_gadget_driver *);
+static void udc_enable (struct pxa25x_udc *);
+static void udc_disable(struct pxa25x_udc *);
 
 /* We disable the UDC -- and its 48 MHz clock -- whenever it's not
  * in active use.
  */
-static int pullup(struct pxa2xx_udc *udc)
+static int pullup(struct pxa25x_udc *udc)
 {
 	int is_active = udc->vbus && udc->pullup && !udc->suspended;
 	DMSG("%s\n", is_active ? "active" : "inactive");
@@ -976,11 +975,11 @@ static int pullup(struct pxa2xx_udc *udc)
 }
 
 /* VBUS reporting logically comes from a transceiver */
-static int pxa2xx_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
+static int pxa25x_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
-	struct pxa2xx_udc	*udc;
+	struct pxa25x_udc	*udc;
 
-	udc = container_of(_gadget, struct pxa2xx_udc, gadget);
+	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 	udc->vbus = (is_active != 0);
 	DMSG("vbus %s\n", is_active ? "supplied" : "inactive");
 	pullup(udc);
@@ -988,11 +987,11 @@ static int pxa2xx_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 }
 
 /* drivers may have software control over D+ pullup */
-static int pxa2xx_udc_pullup(struct usb_gadget *_gadget, int is_active)
+static int pxa25x_udc_pullup(struct usb_gadget *_gadget, int is_active)
 {
-	struct pxa2xx_udc	*udc;
+	struct pxa25x_udc	*udc;
 
-	udc = container_of(_gadget, struct pxa2xx_udc, gadget);
+	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
 	/* not all boards support pullup control */
 	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
@@ -1003,11 +1002,11 @@ static int pxa2xx_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static const struct usb_gadget_ops pxa2xx_udc_ops = {
-	.get_frame	= pxa2xx_udc_get_frame,
-	.wakeup		= pxa2xx_udc_wakeup,
-	.vbus_session	= pxa2xx_udc_vbus_session,
-	.pullup		= pxa2xx_udc_pullup,
+static const struct usb_gadget_ops pxa25x_udc_ops = {
+	.get_frame	= pxa25x_udc_get_frame,
+	.wakeup		= pxa25x_udc_wakeup,
+	.vbus_session	= pxa25x_udc_vbus_session,
+	.pullup		= pxa25x_udc_pullup,
 
 	// .vbus_draw ... boards may consume current from VBUS, up to
 	// 100-500mA based on config.  the 500uA suspend ceiling means
@@ -1021,7 +1020,7 @@ static const struct usb_gadget_ops pxa2xx_udc_ops = {
 static int
 udc_seq_show(struct seq_file *m, void *_d)
 {
-	struct pxa2xx_udc	*dev = m->private;
+	struct pxa25x_udc	*dev = m->private;
 	unsigned long		flags;
 	int			i;
 	u32			tmp;
@@ -1082,8 +1081,8 @@ udc_seq_show(struct seq_file *m, void *_d)
 
 	/* dump endpoint queues */
 	for (i = 0; i < PXA_UDC_NUM_ENDPOINTS; i++) {
-		struct pxa2xx_ep	*ep = &dev->ep [i];
-		struct pxa2xx_request	*req;
+		struct pxa25x_ep	*ep = &dev->ep [i];
+		struct pxa25x_request	*req;
 
 		if (i != 0) {
 			const struct usb_endpoint_descriptor	*desc;
@@ -1156,7 +1155,7 @@ static const struct file_operations debug_fops = {
 /*
  *	udc_disable - disable USB device controller
  */
-static void udc_disable(struct pxa2xx_udc *dev)
+static void udc_disable(struct pxa25x_udc *dev)
 {
 	/* block all irqs */
 	udc_set_mask_UDCCR(UDCCR_SRM|UDCCR_REM);
@@ -1176,7 +1175,7 @@ static void udc_disable(struct pxa2xx_udc *dev)
 /*
  *	udc_reinit - initialize software state
  */
-static void udc_reinit(struct pxa2xx_udc *dev)
+static void udc_reinit(struct pxa25x_udc *dev)
 {
 	u32	i;
 
@@ -1187,7 +1186,7 @@ static void udc_reinit(struct pxa2xx_udc *dev)
 
 	/* basic endpoint records init */
 	for (i = 0; i < PXA_UDC_NUM_ENDPOINTS; i++) {
-		struct pxa2xx_ep *ep = &dev->ep[i];
+		struct pxa25x_ep *ep = &dev->ep[i];
 
 		if (i != 0)
 			list_add_tail (&ep->ep.ep_list, &dev->gadget.ep_list);
@@ -1204,7 +1203,7 @@ static void udc_reinit(struct pxa2xx_udc *dev)
 /* until it's enabled, this UDC should be completely invisible
  * to any USB host.
  */
-static void udc_enable (struct pxa2xx_udc *dev)
+static void udc_enable (struct pxa25x_udc *dev)
 {
 	udc_clear_mask_UDCCR(UDCCR_UDE);
 
@@ -1260,7 +1259,7 @@ static void udc_enable (struct pxa2xx_udc *dev)
  */
 int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 {
-	struct pxa2xx_udc	*dev = the_controller;
+	struct pxa25x_udc	*dev = the_controller;
 	int			retval;
 
 	if (!driver
@@ -1305,7 +1304,7 @@ fail:
 EXPORT_SYMBOL(usb_gadget_register_driver);
 
 static void
-stop_activity(struct pxa2xx_udc *dev, struct usb_gadget_driver *driver)
+stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 {
 	int i;
 
@@ -1316,7 +1315,7 @@ stop_activity(struct pxa2xx_udc *dev, struct usb_gadget_driver *driver)
 
 	/* prevent new request submissions, kill any outstanding requests  */
 	for (i = 0; i < PXA_UDC_NUM_ENDPOINTS; i++) {
-		struct pxa2xx_ep *ep = &dev->ep[i];
+		struct pxa25x_ep *ep = &dev->ep[i];
 
 		ep->stopped = 1;
 		nuke(ep, -ESHUTDOWN);
@@ -1333,7 +1332,7 @@ stop_activity(struct pxa2xx_udc *dev, struct usb_gadget_driver *driver)
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
-	struct pxa2xx_udc	*dev = the_controller;
+	struct pxa25x_udc	*dev = the_controller;
 
 	if (!dev)
 		return -ENODEV;
@@ -1370,7 +1369,7 @@ EXPORT_SYMBOL(usb_gadget_unregister_driver);
 static irqreturn_t
 lubbock_vbus_irq(int irq, void *_dev)
 {
-	struct pxa2xx_udc	*dev = _dev;
+	struct pxa25x_udc	*dev = _dev;
 	int			vbus;
 
 	dev->stats.irqs++;
@@ -1389,7 +1388,7 @@ lubbock_vbus_irq(int irq, void *_dev)
 		return IRQ_NONE;
 	}
 
-	pxa2xx_udc_vbus_session(&dev->gadget, vbus);
+	pxa25x_udc_vbus_session(&dev->gadget, vbus);
 	return IRQ_HANDLED;
 }
 
@@ -1397,20 +1396,20 @@ lubbock_vbus_irq(int irq, void *_dev)
 
 static irqreturn_t udc_vbus_irq(int irq, void *_dev)
 {
-	struct pxa2xx_udc	*dev = _dev;
+	struct pxa25x_udc	*dev = _dev;
 	int			vbus = gpio_get_value(dev->mach->gpio_vbus);
 
 	if (dev->mach->gpio_vbus_inverted)
 		vbus = !vbus;
 
-	pxa2xx_udc_vbus_session(&dev->gadget, vbus);
+	pxa25x_udc_vbus_session(&dev->gadget, vbus);
 	return IRQ_HANDLED;
 }
 
 
 /*-------------------------------------------------------------------------*/
 
-static inline void clear_ep_state (struct pxa2xx_udc *dev)
+static inline void clear_ep_state (struct pxa25x_udc *dev)
 {
 	unsigned i;
 
@@ -1423,7 +1422,7 @@ static inline void clear_ep_state (struct pxa2xx_udc *dev)
 
 static void udc_watchdog(unsigned long _dev)
 {
-	struct pxa2xx_udc	*dev = (void *)_dev;
+	struct pxa25x_udc	*dev = (void *)_dev;
 
 	local_irq_disable();
 	if (dev->ep0state == EP0_STALL
@@ -1436,11 +1435,11 @@ static void udc_watchdog(unsigned long _dev)
 	local_irq_enable();
 }
 
-static void handle_ep0 (struct pxa2xx_udc *dev)
+static void handle_ep0 (struct pxa25x_udc *dev)
 {
 	u32			udccs0 = UDCCS0;
-	struct pxa2xx_ep	*ep = &dev->ep [0];
-	struct pxa2xx_request	*req;
+	struct pxa25x_ep	*ep = &dev->ep [0];
+	struct pxa25x_request	*req;
 	union {
 		struct usb_ctrlrequest	r;
 		u8			raw [8];
@@ -1450,7 +1449,7 @@ static void handle_ep0 (struct pxa2xx_udc *dev)
 	if (list_empty(&ep->queue))
 		req = NULL;
 	else
-		req = list_entry(ep->queue.next, struct pxa2xx_request, queue);
+		req = list_entry(ep->queue.next, struct pxa25x_request, queue);
 
 	/* clear stall status */
 	if (udccs0 & UDCCS0_SST) {
@@ -1660,9 +1659,9 @@ stall:
 	USIR0 = USIR0_IR0;
 }
 
-static void handle_ep(struct pxa2xx_ep *ep)
+static void handle_ep(struct pxa25x_ep *ep)
 {
-	struct pxa2xx_request	*req;
+	struct pxa25x_request	*req;
 	int			is_in = ep->bEndpointAddress & USB_DIR_IN;
 	int			completed;
 	u32			udccs, tmp;
@@ -1671,7 +1670,7 @@ static void handle_ep(struct pxa2xx_ep *ep)
 		completed = 0;
 		if (likely (!list_empty(&ep->queue)))
 			req = list_entry(ep->queue.next,
-					struct pxa2xx_request, queue);
+					struct pxa25x_request, queue);
 		else
 			req = NULL;
 
@@ -1708,16 +1707,16 @@ static void handle_ep(struct pxa2xx_ep *ep)
 }
 
 /*
- *	pxa2xx_udc_irq - interrupt handler
+ *	pxa25x_udc_irq - interrupt handler
  *
  * avoid delays in ep0 processing. the control handshaking isn't always
  * under software control (pxa250c0 and the pxa255 are better), and delays
  * could cause usb protocol errors.
  */
 static irqreturn_t
-pxa2xx_udc_irq(int irq, void *_dev)
+pxa25x_udc_irq(int irq, void *_dev)
 {
-	struct pxa2xx_udc	*dev = _dev;
+	struct pxa25x_udc	*dev = _dev;
 	int			handled;
 
 	dev->stats.irqs++;
@@ -1826,9 +1825,9 @@ static void nop_release (struct device *dev)
  * doing it at run-time) to save code, eliminate fault paths, and
  * be more obviously correct.
  */
-static struct pxa2xx_udc memory = {
+static struct pxa25x_udc memory = {
 	.gadget = {
-		.ops		= &pxa2xx_udc_ops,
+		.ops		= &pxa25x_udc_ops,
 		.ep0		= &memory.ep[0].ep,
 		.name		= driver_name,
 		.dev = {
@@ -1841,7 +1840,7 @@ static struct pxa2xx_udc memory = {
 	.ep[0] = {
 		.ep = {
 			.name		= ep0name,
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= EP0_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1853,7 +1852,7 @@ static struct pxa2xx_udc memory = {
 	.ep[1] = {
 		.ep = {
 			.name		= "ep1in-bulk",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1866,7 +1865,7 @@ static struct pxa2xx_udc memory = {
 	.ep[2] = {
 		.ep = {
 			.name		= "ep2out-bulk",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1877,11 +1876,11 @@ static struct pxa2xx_udc memory = {
 		.reg_ubcr	= &UBCR2,
 		.reg_uddr	= &UDDR2,
 	},
-#ifndef CONFIG_USB_PXA2XX_SMALL
+#ifndef CONFIG_USB_PXA25X_SMALL
 	.ep[3] = {
 		.ep = {
 			.name		= "ep3in-iso",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1894,7 +1893,7 @@ static struct pxa2xx_udc memory = {
 	.ep[4] = {
 		.ep = {
 			.name		= "ep4out-iso",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1908,7 +1907,7 @@ static struct pxa2xx_udc memory = {
 	.ep[5] = {
 		.ep = {
 			.name		= "ep5in-int",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= INT_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1923,7 +1922,7 @@ static struct pxa2xx_udc memory = {
 	.ep[6] = {
 		.ep = {
 			.name		= "ep6in-bulk",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1936,7 +1935,7 @@ static struct pxa2xx_udc memory = {
 	.ep[7] = {
 		.ep = {
 			.name		= "ep7out-bulk",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1950,7 +1949,7 @@ static struct pxa2xx_udc memory = {
 	.ep[8] = {
 		.ep = {
 			.name		= "ep8in-iso",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1963,7 +1962,7 @@ static struct pxa2xx_udc memory = {
 	.ep[9] = {
 		.ep = {
 			.name		= "ep9out-iso",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1977,7 +1976,7 @@ static struct pxa2xx_udc memory = {
 	.ep[10] = {
 		.ep = {
 			.name		= "ep10in-int",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= INT_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -1992,7 +1991,7 @@ static struct pxa2xx_udc memory = {
 	.ep[11] = {
 		.ep = {
 			.name		= "ep11in-bulk",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -2005,7 +2004,7 @@ static struct pxa2xx_udc memory = {
 	.ep[12] = {
 		.ep = {
 			.name		= "ep12out-bulk",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= BULK_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -2019,7 +2018,7 @@ static struct pxa2xx_udc memory = {
 	.ep[13] = {
 		.ep = {
 			.name		= "ep13in-iso",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -2032,7 +2031,7 @@ static struct pxa2xx_udc memory = {
 	.ep[14] = {
 		.ep = {
 			.name		= "ep14out-iso",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= ISO_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -2046,7 +2045,7 @@ static struct pxa2xx_udc memory = {
 	.ep[15] = {
 		.ep = {
 			.name		= "ep15in-int",
-			.ops		= &pxa2xx_ep_ops,
+			.ops		= &pxa25x_ep_ops,
 			.maxpacket	= INT_FIFO_SIZE,
 		},
 		.dev		= &memory,
@@ -2056,7 +2055,7 @@ static struct pxa2xx_udc memory = {
 		.reg_udccs	= &UDCCS15,
 		.reg_uddr	= &UDDR15,
 	},
-#endif /* !CONFIG_USB_PXA2XX_SMALL */
+#endif /* !CONFIG_USB_PXA25X_SMALL */
 };
 
 #define CP15R0_VENDOR_MASK	0xffffe000
@@ -2096,9 +2095,9 @@ static struct pxa2xx_udc memory = {
 /*
  *	probe - binds to the platform device
  */
-static int __init pxa2xx_udc_probe(struct platform_device *pdev)
+static int __init pxa25x_udc_probe(struct platform_device *pdev)
 {
-	struct pxa2xx_udc *dev = &memory;
+	struct pxa25x_udc *dev = &memory;
 	int retval, vbus_irq, irq;
 	u32 chiprev;
 
@@ -2161,7 +2160,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 
 	if (dev->mach->gpio_vbus) {
 		if ((retval = gpio_request(dev->mach->gpio_vbus,
-				"pxa2xx_udc GPIO VBUS"))) {
+				"pxa25x_udc GPIO VBUS"))) {
 			dev_dbg(&pdev->dev,
 				"can't get vbus gpio %d, err: %d\n",
 				dev->mach->gpio_vbus, retval);
@@ -2174,7 +2173,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 
 	if (dev->mach->gpio_pullup) {
 		if ((retval = gpio_request(dev->mach->gpio_pullup,
-				"pca2xx_udc GPIO PULLUP"))) {
+				"pca25x_udc GPIO PULLUP"))) {
 			dev_dbg(&pdev->dev,
 				"can't get pullup gpio %d, err: %d\n",
 				dev->mach->gpio_pullup, retval);
@@ -2200,7 +2199,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	dev->vbus = is_vbus_present();
 
 	/* irq setup after old hardware state is cleaned up */
-	retval = request_irq(irq, pxa2xx_udc_irq,
+	retval = request_irq(irq, pxa25x_udc_irq,
 			IRQF_DISABLED, driver_name, dev);
 	if (retval != 0) {
 		pr_err("%s: can't get irq %d, err %d\n",
@@ -2266,14 +2265,14 @@ lubbock_fail0:
 	return retval;
 }
 
-static void pxa2xx_udc_shutdown(struct platform_device *_dev)
+static void pxa25x_udc_shutdown(struct platform_device *_dev)
 {
 	pullup_off();
 }
 
-static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
+static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 {
-	struct pxa2xx_udc *dev = platform_get_drvdata(pdev);
+	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
 	if (dev->driver)
 		return -EBUSY;
@@ -2323,9 +2322,9 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
  * VBUS IRQs should probably be ignored so that the PXA device just acts
  * "dead" to USB hosts until system resume.
  */
-static int pxa2xx_udc_suspend(struct platform_device *dev, pm_message_t state)
+static int pxa25x_udc_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
+	struct pxa25x_udc	*udc = platform_get_drvdata(dev);
 	unsigned long flags;
 
 	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
@@ -2339,9 +2338,9 @@ static int pxa2xx_udc_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int pxa2xx_udc_resume(struct platform_device *dev)
+static int pxa25x_udc_resume(struct platform_device *dev)
 {
-	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
+	struct pxa25x_udc	*udc = platform_get_drvdata(dev);
 	unsigned long flags;
 
 	udc->suspended = 0;
@@ -2353,27 +2352,27 @@ static int pxa2xx_udc_resume(struct platform_device *dev)
 }
 
 #else
-#define	pxa2xx_udc_suspend	NULL
-#define	pxa2xx_udc_resume	NULL
+#define	pxa25x_udc_suspend	NULL
+#define	pxa25x_udc_resume	NULL
 #endif
 
 /*-------------------------------------------------------------------------*/
 
 static struct platform_driver udc_driver = {
-	.shutdown	= pxa2xx_udc_shutdown,
-	.remove		= __exit_p(pxa2xx_udc_remove),
-	.suspend	= pxa2xx_udc_suspend,
-	.resume		= pxa2xx_udc_resume,
+	.shutdown	= pxa25x_udc_shutdown,
+	.remove		= __exit_p(pxa25x_udc_remove),
+	.suspend	= pxa25x_udc_suspend,
+	.resume		= pxa25x_udc_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= "pxa2xx-udc",
+		.name	= "pxa25x-udc",
 	},
 };
 
 static int __init udc_init(void)
 {
 	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
-	return platform_driver_probe(&udc_driver, pxa2xx_udc_probe);
+	return platform_driver_probe(&udc_driver, pxa25x_udc_probe);
 }
 module_init(udc_init);
 
@@ -2386,4 +2385,4 @@ module_exit(udc_exit);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Frank Becker, Robert Schwebel, David Brownell");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:pxa2xx-udc");
+MODULE_ALIAS("platform:pxa25x-udc");

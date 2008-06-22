@@ -2367,11 +2367,11 @@ static int pxa_udc_resume(struct platform_device *_dev)
 #endif
 
 /* work with hotplug and coldplug */
-MODULE_ALIAS("platform:pxa2xx-udc");
+MODULE_ALIAS("platform:pxa27x-udc");
 
 static struct platform_driver udc_driver = {
 	.driver		= {
-		.name	= "pxa2xx-udc",
+		.name	= "pxa27x-udc",
 		.owner	= THIS_MODULE,
 	},
 	.remove		= __exit_p(pxa_udc_remove),

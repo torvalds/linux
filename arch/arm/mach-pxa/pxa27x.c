@@ -146,7 +146,7 @@ static struct clk pxa27x_clks[] = {
 
 	INIT_CKEN("I2SCLK",  I2S,  14682000, 0, &pxa_device_i2s.dev),
 	INIT_CKEN("I2CCLK",  I2C,  32842000, 0, &pxa_device_i2c.dev),
-	INIT_CKEN("UDCCLK",  USB,  48000000, 5, &pxa_device_udc.dev),
+	INIT_CKEN("UDCCLK",  USB,  48000000, 5, &pxa27x_device_udc.dev),
 	INIT_CKEN("MMCCLK",  MMC,  19500000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("FICPCLK", FICP, 48000000, 0, &pxa_device_ficp.dev),
 
@@ -357,7 +357,7 @@ void __init pxa_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 }
 
 static struct platform_device *devices[] __initdata = {
-/*	&pxa_device_udc,	The UDC driver is PXA25x only */
+	&pxa27x_device_udc,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,

@@ -93,8 +93,19 @@ static struct resource pxa2xx_udc_resources[] = {
 
 static u64 udc_dma_mask = ~(u32)0;
 
-struct platform_device pxa_device_udc = {
-	.name		= "pxa2xx-udc",
+struct platform_device pxa25x_device_udc = {
+	.name		= "pxa25x-udc",
+	.id		= -1,
+	.resource	= pxa2xx_udc_resources,
+	.num_resources	= ARRAY_SIZE(pxa2xx_udc_resources),
+	.dev		=  {
+		.platform_data	= &pxa_udc_info,
+		.dma_mask	= &udc_dma_mask,
+	}
+};
+
+struct platform_device pxa27x_device_udc = {
+	.name		= "pxa27x-udc",
 	.id		= -1,
 	.resource	= pxa2xx_udc_resources,
 	.num_resources	= ARRAY_SIZE(pxa2xx_udc_resources),
