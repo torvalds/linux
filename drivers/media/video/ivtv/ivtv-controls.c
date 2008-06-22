@@ -53,8 +53,6 @@ int ivtv_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	const char *name;
 
-	IVTV_DEBUG_IOCTL("VIDIOC_QUERYCTRL(%08x)\n", qctrl->id);
-
 	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
 	if (qctrl->id == 0)
 		return -EINVAL;
@@ -91,10 +89,8 @@ int ivtv_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 
 int ivtv_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 {
-	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	struct v4l2_queryctrl qctrl;
 
-	IVTV_DEBUG_IOCTL("VIDIOC_QUERYMENU\n");
 	qctrl.id = qmenu->id;
 	ivtv_queryctrl(file, fh, &qctrl);
 	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
@@ -103,9 +99,6 @@ int ivtv_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 int ivtv_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-	s32 v = vctrl->value;
-
-	IVTV_DEBUG_IOCTL("VIDIOC_S_CTRL(%08x, %x)\n", vctrl->id, v);
 
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
@@ -124,7 +117,7 @@ int ivtv_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 		return ivtv_i2c_hw(itv, itv->card->hw_audio_ctrl, VIDIOC_S_CTRL, vctrl);
 
 	default:
-		IVTV_DEBUG_IOCTL("invalid control %x\n", vctrl->id);
+		IVTV_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
 	}
 	return 0;
@@ -133,8 +126,6 @@ int ivtv_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 int ivtv_g_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-
-	IVTV_DEBUG_IOCTL("VIDIOC_G_CTRL(%08x)\n", vctrl->id);
 
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
@@ -152,7 +143,7 @@ int ivtv_g_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 	case V4L2_CID_AUDIO_LOUDNESS:
 		return ivtv_i2c_hw(itv, itv->card->hw_audio_ctrl, VIDIOC_G_CTRL, vctrl);
 	default:
-		IVTV_DEBUG_IOCTL("invalid control %x\n", vctrl->id);
+		IVTV_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
 	}
 	return 0;
@@ -219,7 +210,6 @@ int ivtv_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		}
 		return err;
 	}
-	IVTV_DEBUG_IOCTL("VIDIOC_G_EXT_CTRLS\n");
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
 		return cx2341x_ext_ctrls(&itv->params, 0, c, VIDIOC_G_EXT_CTRLS);
 	return -EINVAL;
@@ -246,7 +236,6 @@ int ivtv_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		}
 		return err;
 	}
-	IVTV_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
 		static u32 freqs[3] = { 44100, 48000, 32000 };
 		struct cx2341x_mpeg_params p = itv->params;
@@ -286,7 +275,6 @@ int ivtv_try_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
-	IVTV_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
 		return cx2341x_ext_ctrls(&itv->params, atomic_read(&itv->capturing), c, VIDIOC_TRY_EXT_CTRLS);
 	return -EINVAL;

@@ -213,8 +213,8 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		s->v4l2dev->type |= VID_TYPE_MPEG_DECODER;
 	}
-	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "ivtv%d %s",
-			itv->num, s->name);
+	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "ivtv%d",
+			itv->num);
 
 	s->v4l2dev->minor = minor;
 	s->v4l2dev->dev = &itv->dev->dev;

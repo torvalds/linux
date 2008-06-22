@@ -789,6 +789,9 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	else
 		var->pixclock = pixclock;
 
+	itv->osd_rect.width = var->xres;
+	itv->osd_rect.height = var->yres;
+
 	IVTVFB_DEBUG_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
 		      var->xres, var->yres,
 		      var->xres_virtual, var->yres_virtual,

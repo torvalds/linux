@@ -1336,6 +1336,8 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 
 	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
 		return -EINVAL;
+	if (!itv->osd_video_pbase)
+		return -EINVAL;
 
 	fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
 		V4L2_FBUF_CAP_GLOBAL_ALPHA;
@@ -1349,11 +1351,15 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	fb->fmt.height = itv->osd_rect.height;
 	fb->fmt.field = V4L2_FIELD_INTERLACED;
 	fb->fmt.bytesperline = fb->fmt.width;
+	fb->fmt.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	fb->fmt.field = V4L2_FIELD_INTERLACED;
+	fb->fmt.priv = 0;
 	if (fb->fmt.pixelformat != V4L2_PIX_FMT_PAL8)
 		fb->fmt.bytesperline *= 2;
 	if (fb->fmt.pixelformat == V4L2_PIX_FMT_RGB32 ||
 	    fb->fmt.pixelformat == V4L2_PIX_FMT_YUV32)
 		fb->fmt.bytesperline *= 2;
+	fb->fmt.sizeimage = fb->fmt.bytesperline * fb->fmt.height;
 	fb->base = (void *)itv->osd_video_pbase;
 	fb->flags = 0;
 
@@ -1395,6 +1401,8 @@ static int ivtv_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	struct yuv_playback_info *yi = &itv->yuv_info;
 
 	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
+		return -EINVAL;
+	if (!itv->osd_video_pbase)
 		return -EINVAL;
 
 	itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
@@ -1744,6 +1752,7 @@ static int ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
+	struct video_device *vfd = video_devdata(filp);
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	int ret;
 
@@ -1812,13 +1821,11 @@ static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct f
 			return ret;
 	}
 
-	if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
-		printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
-		v4l_printk_ioctl(cmd);
-		printk("\n");
-	}
-
-	return video_ioctl2(inode, filp, cmd, arg);
+	if (ivtv_debug & IVTV_DBGFLG_IOCTL)
+		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
+	ret = video_ioctl2(inode, filp, cmd, arg);
+	vfd->debug = 0;
+	return ret;
 }
 
 int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,

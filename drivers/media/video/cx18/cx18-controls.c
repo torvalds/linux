@@ -56,8 +56,6 @@ int cx18_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 	const char *name;
 
-	CX18_DEBUG_IOCTL("VIDIOC_QUERYCTRL(%08x)\n", qctrl->id);
-
 	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
 	if (qctrl->id == 0)
 		return -EINVAL;
@@ -94,10 +92,8 @@ int cx18_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 
 int cx18_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 	struct v4l2_queryctrl qctrl;
 
-	CX18_DEBUG_IOCTL("VIDIOC_QUERYMENU\n");
 	qctrl.id = qmenu->id;
 	cx18_queryctrl(file, fh, &qctrl);
 	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
@@ -108,13 +104,10 @@ int cx18_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
 	int ret;
-	s32 v = vctrl->value;
 
 	ret = v4l2_prio_check(&cx->prio, &id->prio);
 	if (ret)
 		return ret;
-
-	CX18_DEBUG_IOCTL("VIDIOC_S_CTRL(%08x, %x)\n", vctrl->id, v);
 
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
@@ -133,7 +126,7 @@ int cx18_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 		return cx18_i2c_hw(cx, cx->card->hw_audio_ctrl, VIDIOC_S_CTRL, vctrl);
 
 	default:
-		CX18_DEBUG_IOCTL("invalid control %x\n", vctrl->id);
+		CX18_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
 	}
 	return 0;
@@ -142,8 +135,6 @@ int cx18_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 int cx18_g_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_G_CTRL(%08x)\n", vctrl->id);
 
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
@@ -161,7 +152,7 @@ int cx18_g_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 	case V4L2_CID_AUDIO_LOUDNESS:
 		return cx18_i2c_hw(cx, cx->card->hw_audio_ctrl, VIDIOC_G_CTRL, vctrl);
 	default:
-		CX18_DEBUG_IOCTL("invalid control %x\n", vctrl->id);
+		CX18_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
 	}
 	return 0;
@@ -227,7 +218,6 @@ int cx18_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		}
 		return err;
 	}
-	CX18_DEBUG_IOCTL("VIDIOC_G_EXT_CTRLS\n");
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
 		return cx2341x_ext_ctrls(&cx->params, 0, c, VIDIOC_G_EXT_CTRLS);
 	return -EINVAL;
@@ -260,7 +250,6 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		}
 		return err;
 	}
-	CX18_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
 		struct cx2341x_mpeg_params p = cx->params;
 		int err = cx2341x_ext_ctrls(&p, atomic_read(&cx->ana_capturing),
@@ -296,7 +285,6 @@ int cx18_try_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
 		return cx2341x_ext_ctrls(&cx->params,
 						atomic_read(&cx->ana_capturing),

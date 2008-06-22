@@ -165,8 +165,6 @@ static int cx18_g_fmt_vbi_cap(struct file *file, void *fh,
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 	struct v4l2_vbi_format *vbifmt = &fmt->fmt.vbi;
 
-	CX18_DEBUG_IOCTL("VIDIOC_G_FMT: V4L2_BUF_TYPE_VBI_CAPTURE\n");
-
 	vbifmt->sampling_rate = 27000000;
 	vbifmt->offset = 248;
 	vbifmt->samples_per_line = cx->vbi.raw_decoder_line_size - 4;
@@ -195,8 +193,6 @@ static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
 
-	CX18_DEBUG_IOCTL("VIDIOC_TRY_FMT: V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
-
 	w = min(w, 720);
 	w = max(w, 1);
 	h = min(h, cx->is_50hz ? 576 : 480);
@@ -210,10 +206,6 @@ static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
 static int cx18_try_fmt_vbi_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_TRY_FMT: V4L2_BUF_TYPE_VBI_CAPTURE\n");
-
 	return cx18_g_fmt_vbi_cap(file, fh, fmt);
 }
 
@@ -235,8 +227,6 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	ret = v4l2_prio_check(&cx->prio, &id->prio);
 	if (ret)
 		return ret;
-
-	CX18_DEBUG_IOCTL("VIDIOC_S_FMT: V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
 
 	ret = cx18_try_fmt_vid_cap(file, fh, fmt);
 	if (ret)
@@ -265,8 +255,6 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	CX18_DEBUG_IOCTL("VIDIOC_S_FMT: V4L2_BUF_TYPE_VBI_CAPTURE\n");
-
 	if (id->type == CX18_ENC_STREAM_TYPE_VBI &&
 			cx->vbi.sliced_in->service_set &&
 			atomic_read(&cx->ana_capturing) > 0)
@@ -287,8 +275,6 @@ static int cx18_g_chip_ident(struct file *file, void *fh,
 				struct v4l2_chip_ident *chip)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_G_CHIP_IDENT\n");
 
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
@@ -311,8 +297,6 @@ static int cx18_g_register(struct file *file, void *fh,
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_DBG_G_REGISTER\n");
-
 	if (v4l2_chip_match_host(reg->match_type, reg->match_chip))
 		return cx18_cxc(cx, VIDIOC_DBG_G_REGISTER, reg);
 	if (reg->match_type == V4L2_CHIP_MATCH_I2C_DRIVER)
@@ -327,8 +311,6 @@ static int cx18_s_register(struct file *file, void *fh,
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_DBG_S_REGISTER\n");
-
 	if (v4l2_chip_match_host(reg->match_type, reg->match_chip))
 		return cx18_cxc(cx, VIDIOC_DBG_S_REGISTER, reg);
 	if (reg->match_type == V4L2_CHIP_MATCH_I2C_DRIVER)
@@ -342,8 +324,6 @@ static int cx18_g_priority(struct file *file, void *fh, enum v4l2_priority *p)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_G_PRIORITY\n");
-
 	*p = v4l2_prio_max(&cx->prio);
 	return 0;
 }
@@ -353,8 +333,6 @@ static int cx18_s_priority(struct file *file, void *fh, enum v4l2_priority prio)
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_S_PRIORITY\n");
-
 	return v4l2_prio_change(&cx->prio, &id->prio, prio);
 }
 
@@ -362,8 +340,6 @@ static int cx18_querycap(struct file *file, void *fh,
 				struct v4l2_capability *vcap)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_QUERYCAP\n");
 
 	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
@@ -377,16 +353,12 @@ static int cx18_enumaudio(struct file *file, void *fh, struct v4l2_audio *vin)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_ENUMAUDIO\n");
-
 	return cx18_get_audio_input(cx, vin->index, vin);
 }
 
 static int cx18_g_audio(struct file *file, void *fh, struct v4l2_audio *vin)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_G_AUDIO\n");
 
 	vin->index = cx->audio_input;
 	return cx18_get_audio_input(cx, vin->index, vin);
@@ -395,8 +367,6 @@ static int cx18_g_audio(struct file *file, void *fh, struct v4l2_audio *vin)
 static int cx18_s_audio(struct file *file, void *fh, struct v4l2_audio *vout)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_S_AUDIO\n");
 
 	if (vout->index >= cx->nof_audio_inputs)
 		return -EINVAL;
@@ -409,8 +379,6 @@ static int cx18_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_ENUMINPUT\n");
-
 	/* set it to defaults from our table */
 	return cx18_get_input(cx, vin->index, vin);
 }
@@ -419,8 +387,6 @@ static int cx18_cropcap(struct file *file, void *fh,
 			struct v4l2_cropcap *cropcap)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_CROPCAP\n");
 
 	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -443,8 +409,6 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 	if (ret)
 		return ret;
 
-	CX18_DEBUG_IOCTL("VIDIOC_S_CROP\n");
-
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	return cx18_av_cmd(cx, VIDIOC_S_CROP, crop);
@@ -453,8 +417,6 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 static int cx18_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_G_CROP\n");
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -473,10 +435,6 @@ static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,
 		}
 	};
 
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_ENUM_FMT: V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
-
 	if (fmt->index > 1)
 		return -EINVAL;
 	*fmt = formats[fmt->index];
@@ -486,8 +444,6 @@ static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,
 static int cx18_g_input(struct file *file, void *fh, unsigned int *i)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_G_INPUT\n");
 
 	*i = cx->active_input;
 	return 0;
@@ -502,8 +458,6 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	ret = v4l2_prio_check(&cx->prio, &id->prio);
 	if (ret)
 		return ret;
-
-	CX18_DEBUG_IOCTL("VIDIOC_S_INPUT\n");
 
 	if (inp < 0 || inp >= cx->nof_inputs)
 		return -EINVAL;
@@ -534,8 +488,6 @@ static int cx18_g_frequency(struct file *file, void *fh,
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_G_FREQUENCY\n");
-
 	if (vf->tuner != 0)
 		return -EINVAL;
 
@@ -553,8 +505,6 @@ int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 	if (ret)
 		return ret;
 
-	CX18_DEBUG_IOCTL("VIDIOC_S_FREQUENCY\n");
-
 	if (vf->tuner != 0)
 		return -EINVAL;
 
@@ -569,8 +519,6 @@ static int cx18_g_std(struct file *file, void *fh, v4l2_std_id *std)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_G_STD\n");
-
 	*std = cx->std;
 	return 0;
 }
@@ -584,8 +532,6 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	ret = v4l2_prio_check(&cx->prio, &id->prio);
 	if (ret)
 		return ret;
-
-	CX18_DEBUG_IOCTL("VIDIOC_S_STD\n");
 
 	if ((*std & V4L2_STD_ALL) == 0)
 		return -EINVAL;
@@ -628,8 +574,6 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	if (ret)
 		return ret;
 
-	CX18_DEBUG_IOCTL("VIDIOC_S_TUNER\n");
-
 	if (vt->index != 0)
 		return -EINVAL;
 
@@ -642,8 +586,6 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 static int cx18_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_G_TUNER\n");
 
 	if (vt->index != 0)
 		return -EINVAL;
@@ -678,8 +620,6 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 {
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
-
-	CX18_DEBUG_IOCTL("VIDIOC_ENCODER_CMD:\n");
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
@@ -728,8 +668,6 @@ static int cx18_try_encoder_cmd(struct file *file, void *fh,
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
-	CX18_DEBUG_IOCTL("VIDIOC_TRY_ENCDOER_CMD:\n");
-
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
 		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
@@ -765,7 +703,6 @@ static int cx18_log_status(struct file *file, void *fh)
 	struct v4l2_audio audin;
 	int i;
 
-	CX18_DEBUG_IOCTL("VIDIOC_LOG_STATUS\n");
 	CX18_INFO("=================  START STATUS CARD #%d  =================\n", cx->num);
 	if (cx->hw_flags & CX18_HW_TVEEPROM) {
 		struct tveeprom tv;
@@ -807,26 +744,13 @@ static int cx18_default(struct file *file, void *fh, int cmd, void *arg)
 	switch (cmd) {
 	case VIDIOC_INT_S_AUDIO_ROUTING: {
 		struct v4l2_routing *route = arg;
-		CX18_DEBUG_IOCTL("VIDIOC_INT_S_AUDIO_ROUTING (%d, %d)\n",
-					route->input, route->output);
+
+		CX18_DEBUG_IOCTL("VIDIOC_INT_S_AUDIO_ROUTING(%d, %d)\n",
+			route->input, route->output);
 		cx18_audio_set_route(cx, route);
 		break;
 	}
-	case VIDIOC_INT_RESET: {
-		u32 val = *(u32 *)arg;
-		CX18_DEBUG_IOCTL("VIDIOC_INT_RESET (%#10x)\n", val);
-		/* No op right now */
-		/* cx18_av_cmd(cx, cmd, arg) */
-		/* cx18_call_i2c_clients(cx, cmd, arg) */
-		break;
-	}
 	default:
-		if (cx18_debug & CX18_DBGFLG_IOCTL) {
-			printk(KERN_INFO "cx18%d ioctl: unsupported cmd: ",
-				 cx->num);
-			v4l_printk_ioctl(cmd);
-			printk("\n");
-		}
 		return -EINVAL;
 	}
 	return 0;
@@ -835,12 +759,17 @@ static int cx18_default(struct file *file, void *fh, int cmd, void *arg)
 int cx18_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		    unsigned long arg)
 {
+	struct video_device *vfd = video_devdata(filp);
 	struct cx18_open_id *id = (struct cx18_open_id *)filp->private_data;
 	struct cx18 *cx = id->cx;
 	int res;
 
 	mutex_lock(&cx->serialize_lock);
+
+	if (cx18_debug & CX18_DBGFLG_IOCTL)
+		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
 	res = video_ioctl2(inode, filp, cmd, arg);
+	vfd->debug = 0;
 	mutex_unlock(&cx->serialize_lock);
 	return res;
 }
