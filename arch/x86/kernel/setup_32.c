@@ -336,7 +336,7 @@ void __init reserve_initrd(void)
 		 * in i386_start_kernel
 		 */
 		initrd_start = ramdisk_image + PAGE_OFFSET;
-		initrd_end = initrd_start+ramdisk_size;
+		initrd_end = initrd_start + ramdisk_size;
 		return;
 	}
 
@@ -363,7 +363,7 @@ void __init reserve_initrd(void)
 
 #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
 
-static void __init relocate_initrd(void)
+static void __init post_reserve_initrd(void)
 {
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
@@ -417,7 +417,13 @@ static void __init relocate_initrd(void)
 	/* need to free that, otherwise init highmem will reserve it again */
 	free_early(ramdisk_image, ramdisk_image+ramdisk_size);
 }
-
+#else
+void __init reserve_initrd(void)
+{
+}
+static void __init post_reserve_initrd(void)
+{
+}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 /*
@@ -632,9 +638,7 @@ void __init setup_arch(char **cmdline_p)
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
 
-#ifdef CONFIG_BLK_DEV_INITRD
-	relocate_initrd();
-#endif
+	post_reserve_initrd();
 
 	remapped_pgdat_init();
 	sparse_init();

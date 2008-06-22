@@ -597,8 +597,6 @@ void __init zone_sizes_init(void)
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
-extern void reserve_initrd(void);
-
 void __init setup_bootmem_allocator(void)
 {
 	int i;
@@ -613,9 +611,9 @@ void __init setup_bootmem_allocator(void)
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
 	reserve_early(bootmap, bootmap + bootmap_size, "BOOTMAP");
-#ifdef CONFIG_BLK_DEV_INITRD
+
 	reserve_initrd();
-#endif
+
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
 	printk(KERN_INFO "  mapped low ram: 0 - %08lx\n",
 		 max_pfn_mapped<<PAGE_SHIFT);
