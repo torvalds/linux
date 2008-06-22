@@ -352,6 +352,16 @@ config ARCH_L7200
 	  If you have any questions or comments about the Linux kernel port
 	  to this board, send e-mail to <sjhill@cotw.com>.
 
+config ARCH_KIRKWOOD
+	bool "Marvell Kirkwood"
+	select PCI
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
+	help
+	  Support for the following Marvell Kirkwood series SoCs:
+	  88F6180, 88F6192 and 88F6281.
+
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
 	select GENERIC_GPIO
@@ -529,6 +539,8 @@ source "arch/arm/mach-omap1/Kconfig"
 source "arch/arm/mach-omap2/Kconfig"
 
 source "arch/arm/mach-orion5x/Kconfig"
+
+source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
