@@ -61,7 +61,7 @@ struct dvb_ringbuffer {
 **     *** read min. 1000, max. <bufsize> bytes ***
 **     avail = dvb_ringbuffer_avail(rbuf);
 **     if (avail >= 1000)
-**         count = dvb_ringbuffer_read(rbuf, buffer, min(avail, bufsize), 0);
+**         count = dvb_ringbuffer_read(rbuf, buffer, min(avail, bufsize));
 **     else
 **         ...
 **
@@ -114,8 +114,10 @@ extern void dvb_ringbuffer_flush_spinlock_wakeup(struct dvb_ringbuffer *rbuf);
 ** <usermem> specifies whether <buf> resides in user space
 ** returns number of bytes transferred or -EFAULT
 */
-extern ssize_t dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf,
-				   size_t len, int usermem);
+extern ssize_t dvb_ringbuffer_read_user(struct dvb_ringbuffer *rbuf,
+				   u8 __user *buf, size_t len);
+extern void dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf,
+				   u8 *buf, size_t len);
 
 
 /* write routines & macros */
@@ -157,8 +159,10 @@ extern ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8* buf,
  * <usermem> Set to 1 if <buf> is in userspace.
  * returns Number of bytes read, or -EFAULT.
  */
+extern ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf, size_t idx,
+				       int offset, u8 __user *buf, size_t len);
 extern ssize_t dvb_ringbuffer_pkt_read(struct dvb_ringbuffer *rbuf, size_t idx,
-				       int offset, u8* buf, size_t len, int usermem);
+				       int offset, u8 *buf, size_t len);
 
 /**
  * Dispose of a packet in the ring buffer.
