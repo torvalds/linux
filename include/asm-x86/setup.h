@@ -38,6 +38,8 @@ void reserve_crashkernel(void);
 #ifndef __ASSEMBLY__
 #include <asm/bootparam.h>
 
+void reserve_standard_io_resources(void);
+
 #ifndef _SETUP
 
 /*

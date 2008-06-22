@@ -108,58 +108,6 @@ static struct resource video_ram_resource = {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
 };
 
-static struct resource standard_io_resources[] = { {
-	.name	= "dma1",
-	.start	= 0x0000,
-	.end	= 0x001f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic1",
-	.start	= 0x0020,
-	.end	= 0x0021,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name   = "timer0",
-	.start	= 0x0040,
-	.end    = 0x0043,
-	.flags  = IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name   = "timer1",
-	.start  = 0x0050,
-	.end    = 0x0053,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "keyboard",
-	.start	= 0x0060,
-	.end	= 0x0060,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "keyboard",
-	.start	= 0x0064,
-	.end	= 0x0064,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma page reg",
-	.start	= 0x0080,
-	.end	= 0x008f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic2",
-	.start	= 0x00a0,
-	.end	= 0x00a1,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma2",
-	.start	= 0x00c0,
-	.end	= 0x00df,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "fpu",
-	.start	= 0x00f0,
-	.end	= 0x00ff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-} };
-
 /* cpu data as detected by the assembly code in head.S */
 struct cpuinfo_x86 new_cpu_data __cpuinitdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 /* common cpu data for all cpus */
@@ -614,7 +562,6 @@ static void set_mca_bus(int x) { }
  */
 void __init setup_arch(char **cmdline_p)
 {
-	int i;
 	unsigned long max_low_pfn;
 
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
@@ -824,9 +771,7 @@ void __init setup_arch(char **cmdline_p)
 	e820_mark_nosave_regions(max_low_pfn);
 
 	request_resource(&iomem_resource, &video_ram_resource);
-	/* request I/O space for devices used on all i[345]86 PCs */
-	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
-		request_resource(&ioport_resource, &standard_io_resources[i]);
+	reserve_standard_io_resources();
 
 	e820_setup_gap();
 
