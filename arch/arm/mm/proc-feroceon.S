@@ -463,8 +463,8 @@ cpu_88fr531_name:
 #ifdef CONFIG_CPU_FEROCEON_OLD_ID
 	.type	__feroceon_old_id_proc_info,#object
 __feroceon_old_id_proc_info:
-	.long	0x41069260
-	.long	0xfffffff0
+	.long	0x41009260
+	.long	0xff00fff0
 	.long	PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
