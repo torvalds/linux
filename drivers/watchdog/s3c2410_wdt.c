@@ -21,18 +21,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Changelog:
- *	05-Oct-2004	BJD	Added semaphore init to stop crashes on open
- *				Fixed tmr_count / wdt_count confusion
- *				Added configurable debug
- *
- *	11-Jan-2005	BJD	Fixed divide-by-2 in timeout code
- *
- *	25-Jan-2005	DA	Added suspend/resume support
- *				Replaced reboot notifier with .shutdown method
- *
- *	10-Mar-2005	LCVR	Changed S3C2410_VA to S3C24XX_VA
 */
 
 #include <linux/module.h>
