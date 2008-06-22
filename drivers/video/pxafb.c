@@ -1685,14 +1685,14 @@ static int __init pxafb_probe(struct platform_device *dev)
 	if (r == NULL) {
 		dev_err(&dev->dev, "no I/O memory resource defined\n");
 		ret = -ENODEV;
-		goto failed;
+		goto failed_fbi;
 	}
 
 	r = request_mem_region(r->start, r->end - r->start + 1, dev->name);
 	if (r == NULL) {
 		dev_err(&dev->dev, "failed to request I/O memory\n");
 		ret = -EBUSY;
-		goto failed;
+		goto failed_fbi;
 	}
 
 	fbi->mmio_base = ioremap(r->start, r->end - r->start + 1);
@@ -1735,8 +1735,17 @@ static int __init pxafb_probe(struct platform_device *dev)
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.
 	 */
-	pxafb_check_var(&fbi->fb.var, &fbi->fb);
-	pxafb_set_par(&fbi->fb);
+	ret = pxafb_check_var(&fbi->fb.var, &fbi->fb);
+	if (ret) {
+		dev_err(&dev->dev, "failed to get suitable mode\n");
+		goto failed_free_irq;
+	}
+
+	ret = pxafb_set_par(&fbi->fb);
+	if (ret) {
+		dev_err(&dev->dev, "Failed to set parameters\n");
+		goto failed_free_irq;
+	}
 
 	platform_set_drvdata(dev, fbi);
 
@@ -1744,7 +1753,7 @@ static int __init pxafb_probe(struct platform_device *dev)
 	if (ret < 0) {
 		dev_err(&dev->dev,
 			"Failed to register framebuffer device: %d\n", ret);
-		goto failed_free_irq;
+		goto failed_free_cmap;
 	}
 
 #ifdef CONFIG_CPU_FREQ
@@ -1763,18 +1772,23 @@ static int __init pxafb_probe(struct platform_device *dev)
 
 	return 0;
 
+failed_free_cmap:
+	if (fbi->fb.cmap.len)
+		fb_dealloc_cmap(&fbi->fb.cmap);
 failed_free_irq:
 	free_irq(irq, fbi);
-failed_free_res:
-	release_mem_region(r->start, r->end - r->start + 1);
-failed_free_io:
-	iounmap(fbi->mmio_base);
 failed_free_mem:
 	dma_free_writecombine(&dev->dev, fbi->map_size,
 			fbi->map_cpu, fbi->map_dma);
-failed:
+failed_free_io:
+	iounmap(fbi->mmio_base);
+failed_free_res:
+	release_mem_region(r->start, r->end - r->start + 1);
+failed_fbi:
+	clk_put(fbi->clk);
 	platform_set_drvdata(dev, NULL);
 	kfree(fbi);
+failed:
 	return ret;
 }
 
