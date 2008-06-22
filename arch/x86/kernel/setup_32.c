@@ -42,7 +42,6 @@
 #include <linux/iscsi_ibft.h>
 #include <linux/nodemask.h>
 #include <linux/kexec.h>
-#include <linux/crash_dump.h>
 #include <linux/dmi.h>
 #include <linux/pfn.h>
 #include <linux/pci.h>
@@ -193,21 +192,6 @@ static inline void copy_edd(void)
 {
 }
 #endif
-
-#ifdef CONFIG_PROC_VMCORE
-/* elfcorehdr= specifies the location of elf core header
- * stored by the crashed kernel.
- */
-static int __init parse_elfcorehdr(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-
-	elfcorehdr_addr = memparse(arg, &arg);
-	return 0;
-}
-early_param("elfcorehdr", parse_elfcorehdr);
-#endif /* CONFIG_PROC_VMCORE */
 
 /*
  * highmem=size forces highmem to be exactly 'size' bytes.
