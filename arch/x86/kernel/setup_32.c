@@ -206,7 +206,6 @@ struct ist_info ist_info;
 EXPORT_SYMBOL(ist_info);
 #endif
 
-extern void early_cpu_init(void);
 extern int root_mountflags;
 
 unsigned long saved_video_mode;
