@@ -300,71 +300,11 @@ unsigned long __init find_max_low_pfn(void)
 	return max_low_pfn;
 }
 
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-static void __init setup_bootmem_allocator(void);
-static unsigned long __init setup_memory(void)
-{
-	/*
-	 * partially used pages are not usable - thus
-	 * we are rounding upwards:
-	 */
-	min_low_pfn = PFN_UP(init_pg_tables_end);
-
-	max_low_pfn = find_max_low_pfn();
-
-#ifdef CONFIG_HIGHMEM
-	highstart_pfn = highend_pfn = max_pfn;
-	if (max_pfn > max_low_pfn) {
-		highstart_pfn = max_low_pfn;
-	}
-	memory_present(0, 0, highend_pfn);
-	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
-		pages_to_mb(highend_pfn - highstart_pfn));
-	num_physpages = highend_pfn;
-	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
-#else
-	memory_present(0, 0, max_low_pfn);
-	num_physpages = max_low_pfn;
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
-#endif
-#ifdef CONFIG_FLATMEM
-	max_mapnr = num_physpages;
-#endif
-	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
-			pages_to_mb(max_low_pfn));
-
-	setup_bootmem_allocator();
-
-	return max_low_pfn;
-}
-
-static void __init zone_sizes_init(void)
-{
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_DMA] =
-		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-	remove_all_active_ranges();
-#ifdef CONFIG_HIGHMEM
-	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
-	e820_register_active_regions(0, 0, highend_pfn);
-#else
-	e820_register_active_regions(0, 0, max_low_pfn);
-#endif
-
-	free_area_init_nodes(max_zone_pfns);
-}
-#else
-extern unsigned long __init setup_memory(void);
-extern void zone_sizes_init(void);
-#endif /* !CONFIG_NEED_MULTIPLE_NODES */
-
 #ifdef CONFIG_BLK_DEV_INITRD
 
 static bool do_relocate_initrd = false;
 
-static void __init reserve_initrd(void)
+void __init reserve_initrd(void)
 {
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
@@ -479,36 +419,6 @@ static void __init relocate_initrd(void)
 }
 
 #endif /* CONFIG_BLK_DEV_INITRD */
-
-void __init setup_bootmem_allocator(void)
-{
-	int i;
-	unsigned long bootmap_size, bootmap;
-	/*
-	 * Initialize the boot-time allocator (with low memory only):
-	 */
-	bootmap_size = bootmem_bootmap_pages(max_low_pfn)<<PAGE_SHIFT;
-	bootmap = find_e820_area(min_low_pfn<<PAGE_SHIFT,
-				 max_pfn_mapped<<PAGE_SHIFT, bootmap_size,
-				 PAGE_SIZE);
-	if (bootmap == -1L)
-		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
-	reserve_early(bootmap, bootmap + bootmap_size, "BOOTMAP");
-#ifdef CONFIG_BLK_DEV_INITRD
-	reserve_initrd();
-#endif
-	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
-	printk(KERN_INFO "  mapped low ram: 0 - %08lx\n",
-		 max_pfn_mapped<<PAGE_SHIFT);
-	printk(KERN_INFO "  low ram: %08lx - %08lx\n",
-		 min_low_pfn<<PAGE_SHIFT, max_low_pfn<<PAGE_SHIFT);
-	printk(KERN_INFO "  bootmap %08lx - %08lx\n",
-		 bootmap, bootmap + bootmap_size);
-	for_each_online_node(i)
-		free_bootmem_with_active_regions(i, max_low_pfn);
-	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
-
-}
 
 /*
  * The node 0 pgdat is initialized before all of these because
@@ -666,7 +576,7 @@ void __init setup_arch(char **cmdline_p)
         acpi_numa_init();
 #endif
 
-	max_low_pfn = setup_memory();
+	max_low_pfn = initmem_init(0, max_pfn);
 
 #ifdef CONFIG_ACPI_SLEEP
 	/*

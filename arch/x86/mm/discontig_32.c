@@ -309,8 +309,8 @@ static void init_remap_allocator(int nid)
 		(ulong) node_remap_end_vaddr[nid]);
 }
 
-extern void setup_bootmem_allocator(void);
-unsigned long __init setup_memory(void)
+unsigned long __init initmem_init(unsigned long start_pfn,
+				  unsigned long end_pfn)
 {
 	int nid;
 	unsigned long system_start_pfn, system_max_low_pfn;
