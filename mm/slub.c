@@ -411,7 +411,7 @@ static void set_track(struct kmem_cache *s, void *object,
 	if (addr) {
 		p->addr = addr;
 		p->cpu = smp_processor_id();
-		p->pid = current ? current->pid : -1;
+		p->pid = current->pid;
 		p->when = jiffies;
 	} else
 		memset(p, 0, sizeof(struct track));
