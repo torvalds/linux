@@ -370,6 +370,14 @@ config ARCH_NS9XXX
 
 	  <http://www.digi.com/products/microprocessors/index.jsp>
 
+config ARCH_LOKI
+	bool "Marvell Loki (88RC8480)"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
+	help
+	  Support for the Marvell Loki (88RC8480) SoC.
+
 config ARCH_MXC
 	bool "Freescale MXC/iMX-based"
 	select ARCH_MTD_XIP
@@ -507,6 +515,8 @@ source "arch/arm/mach-ixp4xx/Kconfig"
 source "arch/arm/mach-ixp2000/Kconfig"
 
 source "arch/arm/mach-ixp23xx/Kconfig"
+
+source "arch/arm/mach-loki/Kconfig"
 
 source "arch/arm/mach-pxa/Kconfig"
 

@@ -365,7 +365,7 @@ config CPU_XSC3
 # Feroceon
 config CPU_FEROCEON
 	bool
-	depends on ARCH_ORION5X
+	depends on ARCH_ORION5X || ARCH_LOKI
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
