@@ -38,6 +38,12 @@ config HTC_PASIC3
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
 
+config MFD_TC6393XB
+	bool "Support Toshiba TC6393XB"
+	depends on HAVE_GPIO_LIB
+	help
+	  Support for Toshiba Mobile IO Controller TC6393XB
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"
