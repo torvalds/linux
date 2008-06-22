@@ -89,11 +89,13 @@ int ivtv_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 
 int ivtv_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 {
+	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	struct v4l2_queryctrl qctrl;
 
 	qctrl.id = qmenu->id;
 	ivtv_queryctrl(file, fh, &qctrl);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
+	return v4l2_ctrl_query_menu(qmenu, &qctrl,
+			cx2341x_ctrl_get_menu(&itv->params, qmenu->id));
 }
 
 int ivtv_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)

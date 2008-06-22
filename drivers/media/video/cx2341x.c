@@ -80,7 +80,7 @@ EXPORT_SYMBOL(cx2341x_mpeg_ctrls);
 
 /* Map the control ID to the correct field in the cx2341x_mpeg_params
    struct. Return -EINVAL if the ID is unknown, else return 0. */
-static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
+static int cx2341x_get_ctrl(const struct cx2341x_mpeg_params *params,
 		struct v4l2_ext_control *ctrl)
 {
 	switch (ctrl->id) {
@@ -420,7 +420,7 @@ static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
 	return 0;
 }
 
-int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params,
+int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 		       struct v4l2_queryctrl *qctrl)
 {
 	int err;
@@ -580,11 +580,21 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params,
 }
 EXPORT_SYMBOL(cx2341x_ctrl_query);
 
-const char **cx2341x_ctrl_get_menu(u32 id)
+const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 {
-	static const char *mpeg_stream_type[] = {
+	static const char *mpeg_stream_type_without_ts[] = {
 		"MPEG-2 Program Stream",
 		"",
+		"MPEG-1 System Stream",
+		"MPEG-2 DVD-compatible Stream",
+		"MPEG-1 VCD-compatible Stream",
+		"MPEG-2 SVCD-compatible Stream",
+		NULL
+	};
+
+	static const char *mpeg_stream_type_with_ts[] = {
+		"MPEG-2 Program Stream",
+		"MPEG-2 Transport Stream",
 		"MPEG-1 System Stream",
 		"MPEG-2 DVD-compatible Stream",
 		"MPEG-1 VCD-compatible Stream",
@@ -630,7 +640,8 @@ const char **cx2341x_ctrl_get_menu(u32 id)
 
 	switch (id) {
 	case V4L2_CID_MPEG_STREAM_TYPE:
-		return mpeg_stream_type;
+		return (p->capabilities & CX2341X_CAP_HAS_TS) ?
+			mpeg_stream_type_with_ts : mpeg_stream_type_without_ts;
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
 		return NULL;
@@ -690,7 +701,7 @@ int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 		if (err)
 			break;
 		if (qctrl.type == V4L2_CTRL_TYPE_MENU)
-			menu_items = cx2341x_ctrl_get_menu(qctrl.id);
+			menu_items = cx2341x_ctrl_get_menu(params, qctrl.id);
 		err = v4l2_ctrl_check(ctrl, &qctrl, menu_items);
 		if (err)
 			break;
@@ -933,9 +944,9 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 }
 EXPORT_SYMBOL(cx2341x_update);
 
-static const char *cx2341x_menu_item(struct cx2341x_mpeg_params *p, u32 id)
+static const char *cx2341x_menu_item(const struct cx2341x_mpeg_params *p, u32 id)
 {
-	const char **menu = cx2341x_ctrl_get_menu(id);
+	const char **menu = cx2341x_ctrl_get_menu(p, id);
 	struct v4l2_ext_control ctrl;
 
 	if (menu == NULL)
@@ -952,7 +963,7 @@ invalid:
 	return "<invalid>";
 }
 
-void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
+void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 {
 	int is_mpeg1 = p->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
 	int temporal = p->video_temporal_filter;

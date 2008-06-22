@@ -1173,7 +1173,7 @@ static int cx23885_querymenu(struct cx23885_dev *dev,
 	qctrl.id = qmenu->id;
 	cx23885_queryctrl(dev, &qctrl);
 	return v4l2_ctrl_query_menu(qmenu, &qctrl,
-		cx2341x_ctrl_get_menu(qmenu->id));
+		cx2341x_ctrl_get_menu(&dev->mpeg_params, qmenu->id));
 }
 
 int cx23885_do_ioctl(struct inode *inode, struct file *file, int radio,

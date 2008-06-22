@@ -2013,7 +2013,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		case V4L2_CTRL_TYPE_MENU:
 			ciptr->type = pvr2_ctl_enum;
 			ciptr->def.type_enum.value_names =
-				cx2341x_ctrl_get_menu(ciptr->v4l_id);
+				cx2341x_ctrl_get_menu(&hdw->enc_ctl_state,
+								ciptr->v4l_id);
 			for (cnt1 = 0;
 			     ciptr->def.type_enum.value_names[cnt1] != NULL;
 			     cnt1++) { }

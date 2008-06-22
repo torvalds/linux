@@ -92,11 +92,13 @@ int cx18_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 
 int cx18_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 {
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 	struct v4l2_queryctrl qctrl;
 
 	qctrl.id = qmenu->id;
 	cx18_queryctrl(file, fh, &qctrl);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
+	return v4l2_ctrl_query_menu(qmenu, &qctrl,
+			cx2341x_ctrl_get_menu(&cx->params, qmenu->id));
 }
 
 int cx18_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)

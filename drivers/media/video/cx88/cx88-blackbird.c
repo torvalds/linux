@@ -715,7 +715,8 @@ static int vidioc_querymenu (struct file *file, void *priv,
 
 	qctrl.id = qmenu->id;
 	blackbird_queryctrl(dev, &qctrl);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
+	return v4l2_ctrl_query_menu(qmenu, &qctrl,
+			cx2341x_ctrl_get_menu(&dev->params, qmenu->id));
 }
 
 static int vidioc_querycap (struct file *file, void  *priv,
