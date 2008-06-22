@@ -1588,7 +1588,7 @@ static int __init pxafb_parse_options(struct device *dev, char *options)
 
 static char g_options[256] __devinitdata = "";
 
-#ifndef CONFIG_MODULES
+#ifndef MODULE
 static int __devinit pxafb_setup_options(void)
 {
 	char *options = NULL;
