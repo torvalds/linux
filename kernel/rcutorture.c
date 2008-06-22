@@ -196,7 +196,10 @@ static void
 rcu_stutter_wait(void)
 {
 	while (stutter_pause_test || !rcutorture_runnable)
-		schedule_timeout_interruptible(1);
+		if (rcutorture_runnable)
+			schedule_timeout_interruptible(1);
+		else
+			schedule_timeout_interruptible(HZ);
 }
 
 /*
