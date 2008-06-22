@@ -2794,7 +2794,7 @@ zoran_do_ioctl (struct inode *inode,
 	{
 		struct v4l2_format *fmt = arg;
 		int i, res = 0;
-		__u32 printformat;
+		__le32 printformat;
 
 		dprintk(3, KERN_DEBUG "%s: VIDIOC_S_FMT - type=%d, ",
 			ZR_DEVNAME(zr), fmt->type);
@@ -3039,7 +3039,7 @@ zoran_do_ioctl (struct inode *inode,
 	{
 		int i, res = 0;
 		struct v4l2_framebuffer *fb = arg;
-		__u32 printformat = __cpu_to_le32(fb->fmt.pixelformat);
+		__le32 printformat = __cpu_to_le32(fb->fmt.pixelformat);
 
 		dprintk(3,
 			KERN_DEBUG

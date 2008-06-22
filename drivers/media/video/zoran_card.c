@@ -1138,7 +1138,7 @@ zr36057_init (struct zoran *zr)
 		goto exit_free;
 	}
 	for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
-		zr->stat_com[j] = 1;	/* mark as unavailable to zr36057 */
+		zr->stat_com[j] = cpu_to_le32(1); /* mark as unavailable to zr36057 */
 	}
 
 	/*
