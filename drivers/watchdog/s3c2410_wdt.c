@@ -374,7 +374,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	wdt_base = ioremap(res->start, size);
-	if (wdt_base == 0) {
+	if (wdt_base == NULL) {
 		dev_err(dev, "failed to ioremap() region\n");
 		ret = -EINVAL;
 		goto err_req;
