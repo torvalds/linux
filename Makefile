@@ -925,7 +925,9 @@ ifneq ($(KBUILD_SRC),)
 		/bin/false; \
 	fi;
 	$(Q)if [ ! -d include2 ]; then mkdir -p include2; fi;
-	$(Q)ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm
+	$(Q)if [ -e $(srctree)/include/asm-$(SRCARCH)/system.h ]; then  \
+	    ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm;     \
+	    fi
 endif
 
 # prepare2 creates a makefile if using a separate output directory
@@ -951,22 +953,34 @@ export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
 # The asm symlink changes when $(ARCH) changes.
 # Detect this and ask user to run make mrproper
-
-include/asm: FORCE
-	$(Q)set -e; asmlink=`readlink include/asm | cut -d '-' -f 2`;   \
-	if [ -L include/asm ]; then                                     \
-		if [ "$$asmlink" != "$(SRCARCH)" ]; then                \
+define check-symlink
+	set -e;                                                            \
+	if [ -L include/asm ]; then                                        \
+		asmlink=`readlink include/asm | cut -d '-' -f 2`;          \
+		if [ "$$asmlink" != "$(SRCARCH)" ]; then                   \
 			echo "ERROR: the symlink $@ points to asm-$$asmlink but asm-$(SRCARCH) was expected"; \
 			echo "       set ARCH or save .config and run 'make mrproper' to fix it";             \
-			exit 1;                                         \
-		fi;                                                     \
-	else                                                            \
-		echo '  SYMLINK $@ -> include/asm-$(SRCARCH)';          \
-		if [ ! -d include ]; then                               \
-			mkdir -p include;                               \
-		fi;                                                     \
-		ln -fsn asm-$(SRCARCH) $@;                              \
+			exit 1;                                            \
+		fi;                                                        \
 	fi
+endef
+
+# We create the target directory of the symlink if it does
+# not exist so the test in chack-symlink works and we have a
+# directory for generated filesas used by some architectures.
+define create-symlink
+	if [ ! -L include/asm ]; then                                      \
+			echo '  SYMLINK $@ -> include/asm-$(SRCARCH)';     \
+			if [ ! -d include/asm-$(SRCARCH) ]; then           \
+				mkdir -p include/asm-$(SRCARCH);           \
+			fi;                                                \
+			ln -fsn asm-$(SRCARCH) $@;                         \
+	fi
+endef
+
+include/asm: FORCE
+	$(Q)$(check-symlink)
+	$(Q)$(create-symlink)
 
 # Generate some files
 # ---------------------------------------------------------------------------
