@@ -604,6 +604,7 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 struct early_res {
 	u64 start, end;
 	char name[16];
+	char overlap_ok;
 };
 static struct early_res early_res[MAX_EARLY_RES] __initdata = {
 	{ 0, PAGE_SIZE, "BIOS data page" },	/* BIOS data page */
@@ -640,7 +641,93 @@ static int __init find_overlapped_early(u64 start, u64 end)
 	return i;
 }
 
-void __init reserve_early(u64 start, u64 end, char *name)
+/*
+ * Drop the i-th range from the early reservation map,
+ * by copying any higher ranges down one over it, and
+ * clearing what had been the last slot.
+ */
+static void __init drop_range(int i)
+{
+	int j;
+
+	for (j = i + 1; j < MAX_EARLY_RES && early_res[j].end; j++)
+		;
+
+	memmove(&early_res[i], &early_res[i + 1],
+	       (j - 1 - i) * sizeof(struct early_res));
+
+	early_res[j - 1].end = 0;
+}
+
+/*
+ * Split any existing ranges that:
+ *  1) are marked 'overlap_ok', and
+ *  2) overlap with the stated range [start, end)
+ * into whatever portion (if any) of the existing range is entirely
+ * below or entirely above the stated range.  Drop the portion
+ * of the existing range that overlaps with the stated range,
+ * which will allow the caller of this routine to then add that
+ * stated range without conflicting with any existing range.
+ */
+static void __init drop_overlaps_that_are_ok(u64 start, u64 end)
+{
+	int i;
+	struct early_res *r;
+	u64 lower_start, lower_end;
+	u64 upper_start, upper_end;
+	char name[16];
+
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		r = &early_res[i];
+
+		/* Continue past non-overlapping ranges */
+		if (end <= r->start || start >= r->end)
+			continue;
+
+		/*
+		 * Leave non-ok overlaps as is; let caller
+		 * panic "Overlapping early reservations"
+		 * when it hits this overlap.
+		 */
+		if (!r->overlap_ok)
+			return;
+
+		/*
+		 * We have an ok overlap.  We will drop it from the early
+		 * reservation map, and add back in any non-overlapping
+		 * portions (lower or upper) as separate, overlap_ok,
+		 * non-overlapping ranges.
+		 */
+
+		/* 1. Note any non-overlapping (lower or upper) ranges. */
+		strncpy(name, r->name, sizeof(name) - 1);
+
+		lower_start = lower_end = 0;
+		upper_start = upper_end = 0;
+		if (r->start < start) {
+		 	lower_start = r->start;
+			lower_end = start;
+		}
+		if (r->end > end) {
+			upper_start = end;
+			upper_end = r->end;
+		}
+
+		/* 2. Drop the original ok overlapping range */
+		drop_range(i);
+
+		i--;		/* resume for-loop on copied down entry */
+
+		/* 3. Add back in any non-overlapping ranges. */
+		if (lower_end)
+			reserve_early_overlap_ok(lower_start, lower_end, name);
+		if (upper_end)
+			reserve_early_overlap_ok(upper_start, upper_end, name);
+	}
+}
+
+static void __init __reserve_early(u64 start, u64 end, char *name,
+						int overlap_ok)
 {
 	int i;
 	struct early_res *r;
@@ -656,14 +743,55 @@ void __init reserve_early(u64 start, u64 end, char *name)
 		      r->end - 1, r->name);
 	r->start = start;
 	r->end = end;
+	r->overlap_ok = overlap_ok;
 	if (name)
 		strncpy(r->name, name, sizeof(r->name) - 1);
+}
+
+/*
+ * A few early reservtations come here.
+ *
+ * The 'overlap_ok' in the name of this routine does -not- mean it
+ * is ok for these reservations to overlap an earlier reservation.
+ * Rather it means that it is ok for subsequent reservations to
+ * overlap this one.
+ *
+ * Use this entry point to reserve early ranges when you are doing
+ * so out of "Paranoia", reserving perhaps more memory than you need,
+ * just in case, and don't mind a subsequent overlapping reservation
+ * that is known to be needed.
+ *
+ * The drop_overlaps_that_are_ok() call here isn't really needed.
+ * It would be needed if we had two colliding 'overlap_ok'
+ * reservations, so that the second such would not panic on the
+ * overlap with the first.  We don't have any such as of this
+ * writing, but might as well tolerate such if it happens in
+ * the future.
+ */
+void __init reserve_early_overlap_ok(u64 start, u64 end, char *name)
+{
+	drop_overlaps_that_are_ok(start, end);
+	__reserve_early(start, end, name, 1);
+}
+
+/*
+ * Most early reservations come here.
+ *
+ * We first have drop_overlaps_that_are_ok() drop any pre-existing
+ * 'overlap_ok' ranges, so that we can then reserve this memory
+ * range without risk of panic'ing on an overlapping overlap_ok
+ * early reservation.
+ */
+void __init reserve_early(u64 start, u64 end, char *name)
+{
+	drop_overlaps_that_are_ok(start, end);
+	__reserve_early(start, end, name, 0);
 }
 
 void __init free_early(u64 start, u64 end)
 {
 	struct early_res *r;
-	int i, j;
+	int i;
 
 	i = find_overlapped_early(start, end);
 	r = &early_res[i];
@@ -671,13 +799,7 @@ void __init free_early(u64 start, u64 end)
 		panic("free_early on not reserved area: %llx-%llx!",
 			 start, end - 1);
 
-	for (j = i + 1; j < MAX_EARLY_RES && early_res[j].end; j++)
-		;
-
-	memmove(&early_res[i], &early_res[i + 1],
-	       (j - 1 - i) * sizeof(struct early_res));
-
-	early_res[j - 1].end = 0;
+	drop_range(i);
 }
 
 void __init early_res_to_bootmem(u64 start, u64 end)

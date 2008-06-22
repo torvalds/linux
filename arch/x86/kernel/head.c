@@ -51,7 +51,7 @@ void __init reserve_ebda_region(void)
 		lowmem = 0x9f000;
 
 	/* reserve all memory between lowmem and the 1MB mark */
-	reserve_early(lowmem, 0x100000, "BIOS reserved");
+	reserve_early_overlap_ok(lowmem, 0x100000, "BIOS reserved");
 }
 
 void __init reserve_setup_data(void)
