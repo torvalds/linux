@@ -373,7 +373,7 @@ config CPU_FEROCEON
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_FEROCEON if MMU
-	select CPU_TLB_V4WBI if MMU
+	select CPU_TLB_FEROCEON if MMU
 
 config CPU_FEROCEON_OLD_ID
 	bool "Accept early Feroceon cores with an ARM926 ID"
@@ -551,6 +551,11 @@ config CPU_TLB_V4WBI
 	  ARM Architecture Version 4 TLB with writeback cache and invalidate
 	  instruction cache entry.
 
+config CPU_TLB_FEROCEON
+	bool
+	help
+	  Feroceon TLB (v4wbi with non-outer-cachable page table walks).
+
 config CPU_TLB_V6
 	bool
 
@@ -708,6 +713,14 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 config OUTER_CACHE
 	bool
 	default n
+
+config CACHE_FEROCEON_L2
+	bool "Enable the Feroceon L2 cache controller"
+	depends on FOOBAR
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the Feroceon L2 cache controller.
 
 config CACHE_L2X0
 	bool "Enable the L2x0 outer cache controller"

@@ -39,6 +39,7 @@
 #define TLB_V6_D_ASID	(1 << 17)
 #define TLB_V6_I_ASID	(1 << 18)
 
+#define TLB_L2CLEAN_FR	(1 << 29)		/* Feroceon */
 #define TLB_DCLEAN	(1 << 30)
 #define TLB_WB		(1 << 31)
 
@@ -51,6 +52,7 @@
  *	  v4    - ARMv4 without write buffer
  *	  v4wb  - ARMv4 with write buffer without I TLB flush entry instruction
  *	  v4wbi - ARMv4 with write buffer with I TLB flush entry instruction
+ *	  fr    - Feroceon (v4wbi with non-outer-cacheable page table walks)
  *	  v6wbi - ARMv6 with write buffer with I TLB flush entry instruction
  */
 #undef _TLB
@@ -101,6 +103,23 @@
 #else
 # define v4wbi_possible_flags	0
 # define v4wbi_always_flags	(-1UL)
+#endif
+
+#define fr_tlb_flags	(TLB_WB | TLB_DCLEAN | TLB_L2CLEAN_FR | \
+			 TLB_V4_I_FULL | TLB_V4_D_FULL | \
+			 TLB_V4_I_PAGE | TLB_V4_D_PAGE)
+
+#ifdef CONFIG_CPU_TLB_FEROCEON
+# define fr_possible_flags	fr_tlb_flags
+# define fr_always_flags	fr_tlb_flags
+# ifdef _TLB
+#  define MULTI_TLB 1
+# else
+#  define _TLB v4wbi
+# endif
+#else
+# define fr_possible_flags	0
+# define fr_always_flags	(-1UL)
 #endif
 
 #define v4wb_tlb_flags	(TLB_WB | TLB_DCLEAN | \
@@ -245,12 +264,14 @@ extern struct cpu_tlb_fns cpu_tlb;
 #define possible_tlb_flags	(v3_possible_flags | \
 				 v4_possible_flags | \
 				 v4wbi_possible_flags | \
+				 fr_possible_flags | \
 				 v4wb_possible_flags | \
 				 v6wbi_possible_flags)
 
 #define always_tlb_flags	(v3_always_flags & \
 				 v4_always_flags & \
 				 v4wbi_always_flags & \
+				 fr_always_flags & \
 				 v4wb_always_flags & \
 				 v6wbi_always_flags)
 
@@ -417,6 +438,11 @@ static inline void flush_pmd_entry(pmd_t *pmd)
 	if (tlb_flag(TLB_DCLEAN))
 		asm("mcr	p15, 0, %0, c7, c10, 1	@ flush_pmd"
 			: : "r" (pmd) : "cc");
+
+	if (tlb_flag(TLB_L2CLEAN_FR))
+		asm("mcr	p15, 1, %0, c15, c9, 1  @ L2 flush_pmd"
+			: : "r" (pmd) : "cc");
+
 	if (tlb_flag(TLB_WB))
 		dsb();
 }
@@ -427,6 +453,10 @@ static inline void clean_pmd_entry(pmd_t *pmd)
 
 	if (tlb_flag(TLB_DCLEAN))
 		asm("mcr	p15, 0, %0, c7, c10, 1	@ flush_pmd"
+			: : "r" (pmd) : "cc");
+
+	if (tlb_flag(TLB_L2CLEAN_FR))
+		asm("mcr	p15, 1, %0, c15, c9, 1  @ L2 flush_pmd"
 			: : "r" (pmd) : "cc");
 }
 
