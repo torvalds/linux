@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <media/tuner.h>
 #include <linux/mutex.h>
+#include <asm/unaligned.h>
 #include "tuner-i2c.h"
 #include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
@@ -292,10 +293,10 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	name[sizeof(name) - 1] = 0;
 	p += sizeof(name) - 1;
 
-	priv->firm_version = le16_to_cpu(*(__u16 *) p);
+	priv->firm_version = get_unaligned_le16(p);
 	p += 2;
 
-	n_array = le16_to_cpu(*(__u16 *) p);
+	n_array = get_unaligned_le16(p);
 	p += 2;
 
 	tuner_info("Loading %d firmware images from %s, type: %s, ver %d.%d\n",
@@ -324,26 +325,26 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		}
 
 		/* Checks if there's enough bytes to read */
-		if (p + sizeof(type) + sizeof(id) + sizeof(size) > endp) {
-			tuner_err("Firmware header is incomplete!\n");
-			goto corrupt;
-		}
+		if (endp - p < sizeof(type) + sizeof(id) + sizeof(size))
+			goto header;
 
-		type = le32_to_cpu(*(__u32 *) p);
+		type = get_unaligned_le32(p);
 		p += sizeof(type);
 
-		id = le64_to_cpu(*(v4l2_std_id *) p);
+		id = get_unaligned_le64(p);
 		p += sizeof(id);
 
 		if (type & HAS_IF) {
-			int_freq = le16_to_cpu(*(__u16 *) p);
+			int_freq = get_unaligned_le16(p);
 			p += sizeof(int_freq);
+			if (endp - p < sizeof(size))
+				goto header;
 		}
 
-		size = le32_to_cpu(*(__u32 *) p);
+		size = get_unaligned_le32(p);
 		p += sizeof(size);
 
-		if ((!size) || (size + p > endp)) {
+		if (!size || size > endp - p) {
 			tuner_err("Firmware type ");
 			dump_firm_type(type);
 			printk("(%x), id %llx is corrupted "
@@ -382,6 +383,8 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 	goto done;
 
+header:
+	tuner_err("Firmware header is incomplete!\n");
 corrupt:
 	rc = -EINVAL;
 	tuner_err("Error: firmware file is corrupted!\n");
