@@ -514,7 +514,7 @@ out:
 }
 #endif /* CONFIG_NUMA_EMU */
 
-void __init numa_initmem_init(unsigned long start_pfn, unsigned long last_pfn)
+void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn)
 {
 	int i;
 

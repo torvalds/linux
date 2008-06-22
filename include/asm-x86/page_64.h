@@ -83,6 +83,7 @@ typedef struct { pteval_t pte; } pte_t;
 extern unsigned long init_memory_mapping(unsigned long start,
 					 unsigned long end);
 
+extern void initmem_init(unsigned long start_pfn, unsigned long end_pfn);
 #endif	/* !__ASSEMBLY__ */
 
 #ifdef CONFIG_FLATMEM
