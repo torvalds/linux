@@ -242,9 +242,11 @@ void __init efi_reserve_early(void)
 {
 	unsigned long pmap;
 
+#ifdef CONFIG_X86_32
 	pmap = boot_params.efi_info.efi_memmap;
-#ifdef CONFIG_X86_64
-	pmap += (__u64)boot_params.efi_info.efi_memmap_hi << 32;
+#else
+	pmap = (boot_params.efi_info.efi_memmap |
+		((__u64)boot_params.efi_info.efi_memmap_hi<<32));
 #endif
 	memmap.phys_map = (void *)pmap;
 	memmap.nr_map = boot_params.efi_info.efi_memmap_size /
@@ -284,10 +286,12 @@ void __init efi_init(void)
 	int i = 0;
 	void *tmp;
 
+#ifdef CONFIG_X86_32
 	efi_phys.systab = (efi_system_table_t *)boot_params.efi_info.efi_systab;
-#ifdef CONFIG_X86_64
-	efi_phys.systab = (void *)efi_phys.systab +
-		((__u64)boot_params.efi_info.efi_systab_hi<<32);
+#else
+	efi_phys.systab = (efi_system_table_t *)
+		(boot_params.efi_info.efi_systab |
+		 ((__u64)boot_params.efi_info.efi_systab_hi<<32));
 #endif
 
 	efi.systab = early_ioremap((unsigned long)efi_phys.systab,
