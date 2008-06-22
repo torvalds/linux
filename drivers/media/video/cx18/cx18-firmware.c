@@ -345,6 +345,11 @@ int cx18_firmware_init(struct cx18 *cx)
 		int sz = load_apu_fw_direct("v4l-cx23418-apu.fw",
 			       cx->enc_mem, cx, CX18_FW_APU_SIZE);
 
+		write_enc(0xE51FF004, 0);
+		write_enc(0xa00000, 4);  /* todo: not hardcoded */
+		write_reg(0x00010000, CX18_PROC_SOFT_RESET); /* Start APU */
+		cx18_msleep_timeout(500, 0);
+
 		sz = sz <= 0 ? sz : load_cpu_fw_direct("v4l-cx23418-cpu.fw",
 					cx->enc_mem, cx, CX18_FW_CPU_SIZE);
 

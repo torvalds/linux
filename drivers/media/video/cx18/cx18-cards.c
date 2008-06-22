@@ -268,6 +268,7 @@ static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 	.tuners = {
 		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 	},
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 0 },
 	.ddr = {
 		/* MT 46V16M16 memory */
 		.chip_config = 0x50306,
