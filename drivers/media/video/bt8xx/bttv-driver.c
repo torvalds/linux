@@ -3705,7 +3705,7 @@ static void bttv_risc_disasm(struct bttv *btv,
 	for (i = 0; i < (risc->size >> 2); i += n) {
 		printk("%s:   0x%lx: ", btv->c.name,
 		       (unsigned long)(risc->dma + (i<<2)));
-		n = bttv_risc_decode(risc->cpu[i]);
+		n = bttv_risc_decode(le32_to_cpu(risc->cpu[i]));
 		for (j = 1; j < n; j++)
 			printk("%s:   0x%lx: 0x%08x [ arg #%d ]\n",
 			       btv->c.name, (unsigned long)(risc->dma + ((i+j)<<2)),
@@ -3774,8 +3774,8 @@ static void bttv_irq_debug_low_latency(struct bttv *btv, u32 rc)
 	printk("bttv%d: irq: skipped frame [main=%lx,o_vbi=%lx,o_field=%lx,rc=%lx]\n",
 	       btv->c.nr,
 	       (unsigned long)btv->main.dma,
-	       (unsigned long)btv->main.cpu[RISC_SLOT_O_VBI+1],
-	       (unsigned long)btv->main.cpu[RISC_SLOT_O_FIELD+1],
+	       (unsigned long)le32_to_cpu(btv->main.cpu[RISC_SLOT_O_VBI+1]),
+	       (unsigned long)le32_to_cpu(btv->main.cpu[RISC_SLOT_O_FIELD+1]),
 	       (unsigned long)rc);
 
 	if (0 == (btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC)) {
