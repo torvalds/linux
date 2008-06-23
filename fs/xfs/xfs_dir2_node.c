@@ -549,7 +549,6 @@ xfs_dir2_leafn_lookup_for_entry(
 	xfs_dir2_data_entry_t	*dep;		/* data block entry */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return value */
-	int			di = -1;	/* data entry index */
 	int			index;		/* leaf entry index */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
@@ -577,7 +576,6 @@ xfs_dir2_leafn_lookup_for_entry(
 	if (state->extravalid) {
 		curbp = state->extrablk.bp;
 		curdb = state->extrablk.blkno;
-		di = state->extrablk.index;
 	}
 	/*
 	 * Loop over leaf entries with the right hash value.
@@ -602,17 +600,27 @@ xfs_dir2_leafn_lookup_for_entry(
 		 */
 		if (newdb != curdb) {
 			/*
-			 * If we had a block before, drop it.
+			 * If we had a block before that we aren't saving
+			 * for a CI name, drop it
 			 */
-			if (curbp)
+			if (curbp && (args->cmpresult == XFS_CMP_DIFFERENT ||
+						curdb != state->extrablk.blkno))
 				xfs_da_brelse(tp, curbp);
 			/*
-			 * Read the data block.
+			 * If needing the block that is saved with a CI match,
+			 * use it otherwise read in the new data block.
 			 */
-			error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp,
-					newdb), -1, &curbp, XFS_DATA_FORK);
-			if (error)
-				return error;
+			if (args->cmpresult != XFS_CMP_DIFFERENT &&
+					newdb == state->extrablk.blkno) {
+				ASSERT(state->extravalid);
+				curbp = state->extrablk.bp;
+			} else {
+				error = xfs_da_read_buf(tp, dp,
+						xfs_dir2_db_to_da(mp, newdb),
+						-1, &curbp, XFS_DATA_FORK);
+				if (error)
+					return error;
+			}
 			xfs_dir2_data_check(dp, curbp);
 			curdb = newdb;
 		}
@@ -624,38 +632,47 @@ xfs_dir2_leafn_lookup_for_entry(
 		/*
 		 * Compare the entry and if it's an exact match, return
 		 * EEXIST immediately. If it's the first case-insensitive
-		 * match, store the inode number and continue looking.
+		 * match, store the block & inode number and continue looking.
 		 */
 		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
 		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
+			/* If there is a CI match block, drop it */
+			if (args->cmpresult != XFS_CMP_DIFFERENT &&
+						curdb != state->extrablk.blkno)
+				xfs_da_brelse(tp, state->extrablk.bp);
 			args->cmpresult = cmp;
 			args->inumber = be64_to_cpu(dep->inumber);
-			di = (int)((char *)dep - (char *)curbp->data);
-			error = EEXIST;
+			*indexp = index;
+			state->extravalid = 1;
+			state->extrablk.bp = curbp;
+			state->extrablk.blkno = curdb;
+			state->extrablk.index = (int)((char *)dep -
+							(char *)curbp->data);
+			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
 			if (cmp == XFS_CMP_EXACT)
-				goto out;
+				return XFS_ERROR(EEXIST);
 		}
 	}
-	/* Didn't find an exact match. */
-	error = ENOENT;
 	ASSERT(index == be16_to_cpu(leaf->hdr.count) ||
 					(args->op_flags & XFS_DA_OP_OKNOENT));
-out:
 	if (curbp) {
-		/* Giving back a data block. */
-		state->extravalid = 1;
-		state->extrablk.bp = curbp;
-		state->extrablk.index = di;
-		state->extrablk.blkno = curdb;
-		state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
+		if (args->cmpresult == XFS_CMP_DIFFERENT) {
+			/* Giving back last used data block. */
+			state->extravalid = 1;
+			state->extrablk.bp = curbp;
+			state->extrablk.index = -1;
+			state->extrablk.blkno = curdb;
+			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
+		} else {
+			/* If the curbp is not the CI match block, drop it */
+			if (state->extrablk.bp != curbp)
+				xfs_da_brelse(tp, curbp);
+		}
 	} else {
 		state->extravalid = 0;
 	}
-	/*
-	 * Return the index, that will be the deletion point for remove/replace.
-	 */
 	*indexp = index;
-	return XFS_ERROR(error);
+	return XFS_ERROR(ENOENT);
 }
 
 /*
