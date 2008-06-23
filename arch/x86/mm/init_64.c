@@ -830,9 +830,9 @@ int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 {
 #ifdef CONFIG_NUMA
 	int nid, next_nid;
+	int ret;
 #endif
 	unsigned long pfn = phys >> PAGE_SHIFT;
-	int ret;
 
 	if (pfn >= end_pfn) {
 		/*
@@ -842,7 +842,7 @@ int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 		if (pfn < max_pfn_mapped)
 			return -EFAULT;
 
-		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %u\n",
+		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %lu\n",
 				phys, len);
 		return -EFAULT;
 	}
