@@ -412,7 +412,7 @@ int rfkill_register(struct rfkill *rfkill)
 EXPORT_SYMBOL(rfkill_register);
 
 /**
- * rfkill_unregister - Uegister a rfkill structure.
+ * rfkill_unregister - Unregister a rfkill structure.
  * @rfkill: rfkill structure to be unregistered
  *
  * This function should be called by the network driver during device
