@@ -386,12 +386,51 @@ static int rfkill_resume(struct device *dev)
 #define rfkill_resume NULL
 #endif
 
+static int rfkill_blocking_uevent_notifier(struct notifier_block *nb,
+					unsigned long eventid,
+					void *data)
+{
+	struct rfkill *rfkill = (struct rfkill *)data;
+
+	switch (eventid) {
+	case RFKILL_STATE_CHANGED:
+		kobject_uevent(&rfkill->dev.kobj, KOBJ_CHANGE);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rfkill_blocking_uevent_nb = {
+	.notifier_call	= rfkill_blocking_uevent_notifier,
+	.priority	= 0,
+};
+
+static int rfkill_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+	int error;
+
+	error = add_uevent_var(env, "RFKILL_NAME=%s", rfkill->name);
+	if (error)
+		return error;
+	error = add_uevent_var(env, "RFKILL_TYPE=%s",
+				rfkill_get_type_str(rfkill->type));
+	if (error)
+		return error;
+	error = add_uevent_var(env, "RFKILL_STATE=%d", rfkill->state);
+	return error;
+}
+
 static struct class rfkill_class = {
 	.name		= "rfkill",
 	.dev_release	= rfkill_release,
 	.dev_attrs	= rfkill_dev_attrs,
 	.suspend	= rfkill_suspend,
 	.resume		= rfkill_resume,
+	.dev_uevent	= rfkill_dev_uevent,
 };
 
 static int rfkill_add_switch(struct rfkill *rfkill)
@@ -566,11 +605,14 @@ static int __init rfkill_init(void)
 		return error;
 	}
 
+	register_rfkill_notifier(&rfkill_blocking_uevent_nb);
+
 	return 0;
 }
 
 static void __exit rfkill_exit(void)
 {
+	unregister_rfkill_notifier(&rfkill_blocking_uevent_nb);
 	class_unregister(&rfkill_class);
 }
 
