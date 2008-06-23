@@ -1045,6 +1045,26 @@ no_page_table:
 	return page;
 }
 
+/* Can we do the FOLL_ANON optimization? */
+static inline int use_zero_page(struct vm_area_struct *vma)
+{
+	/*
+	 * We don't want to optimize FOLL_ANON for make_pages_present()
+	 * when it tries to page in a VM_LOCKED region. As to VM_SHARED,
+	 * we want to get the page from the page tables to make sure
+	 * that we serialize and update with any other user of that
+	 * mapping.
+	 */
+	if (vma->vm_flags & (VM_LOCKED | VM_SHARED))
+		return 0;
+	/*
+	 * And if we have a fault or a nopfn routine, it's not an
+	 * anonymous region.
+	 */
+	return !vma->vm_ops ||
+		(!vma->vm_ops->fault && !vma->vm_ops->nopfn);
+}
+
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		unsigned long start, int len, int write, int force,
 		struct page **pages, struct vm_area_struct **vmas)
@@ -1119,8 +1139,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		foll_flags = FOLL_TOUCH;
 		if (pages)
 			foll_flags |= FOLL_GET;
-		if (!write && !(vma->vm_flags & VM_LOCKED) &&
-		    (!vma->vm_ops || !vma->vm_ops->fault))
+		if (!write && use_zero_page(vma))
 			foll_flags |= FOLL_ANON;
 
 		do {
