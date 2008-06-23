@@ -1196,6 +1196,67 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 }
 
 /*
+ * Split "dev_name" into "hostname:export_path".
+ *
+ * Note: caller frees hostname and export path, even on error.
+ */
+static int nfs_parse_devname(const char *dev_name,
+			     char **hostname, size_t maxnamlen,
+			     char **export_path, size_t maxpathlen)
+{
+	size_t len;
+	char *colon, *comma;
+
+	colon = strchr(dev_name, ':');
+	if (colon == NULL)
+		goto out_bad_devname;
+
+	len = colon - dev_name;
+	if (len > maxnamlen)
+		goto out_hostname;
+
+	/* N.B. caller will free nfs_server.hostname in all cases */
+	*hostname = kstrndup(dev_name, len, GFP_KERNEL);
+	if (!*hostname)
+		goto out_nomem;
+
+	/* kill possible hostname list: not supported */
+	comma = strchr(*hostname, ',');
+	if (comma != NULL) {
+		if (comma == *hostname)
+			goto out_bad_devname;
+		*comma = '\0';
+	}
+
+	colon++;
+	len = strlen(colon);
+	if (len > maxpathlen)
+		goto out_path;
+	*export_path = kstrndup(colon, len, GFP_KERNEL);
+	if (!*export_path)
+		goto out_nomem;
+
+	dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", *export_path);
+	return 0;
+
+out_bad_devname:
+	dfprintk(MOUNT, "NFS: device name not in host:path format\n");
+	return -EINVAL;
+
+out_nomem:
+	dfprintk(MOUNT, "NFS: not enough memory to parse device name\n");
+	return -ENOMEM;
+
+out_hostname:
+	dfprintk(MOUNT, "NFS: server hostname too long\n");
+	return -ENAMETOOLONG;
+
+out_path:
+	dfprintk(MOUNT, "NFS: export pathname too long\n");
+	return -ENAMETOOLONG;
+}
+
+/*
  * Validate the NFS2/NFS3 mount data
  * - fills in the mount root filehandle
  *
@@ -1323,8 +1384,6 @@ static int nfs_validate_mount_data(void *options,
 
 		break;
 	default: {
-		unsigned int len;
-		char *c;
 		int status;
 
 		if (nfs_parse_mount_options((char *)options, args) == 0)
@@ -1334,21 +1393,17 @@ static int nfs_validate_mount_data(void *options,
 						&args->nfs_server.address))
 			goto out_no_address;
 
-		c = strchr(dev_name, ':');
-		if (c == NULL)
-			return -EINVAL;
-		len = c - dev_name;
-		/* N.B. caller will free nfs_server.hostname in all cases */
-		args->nfs_server.hostname = kstrndup(dev_name, len, GFP_KERNEL);
-		if (!args->nfs_server.hostname)
-			goto out_nomem;
+		status = nfs_parse_devname(dev_name,
+					   &args->nfs_server.hostname,
+					   PAGE_SIZE,
+					   &args->nfs_server.export_path,
+					   NFS_MAXPATHLEN);
+		if (!status)
+			status = nfs_try_mount(args, mntfh);
 
-		c++;
-		if (strlen(c) > NFS_MAXPATHLEN)
-			return -ENAMETOOLONG;
-		args->nfs_server.export_path = c;
+		kfree(args->nfs_server.export_path);
+		args->nfs_server.export_path = NULL;
 
-		status = nfs_try_mount(args, mntfh);
 		if (status)
 			return status;
 
@@ -1958,7 +2013,7 @@ static int nfs4_validate_mount_data(void *options,
 
 		break;
 	default: {
-		unsigned int len;
+		int status;
 
 		if (nfs_parse_mount_options((char *)options, args) == 0)
 			return -EINVAL;
@@ -1977,33 +2032,16 @@ static int nfs4_validate_mount_data(void *options,
 			goto out_inval_auth;
 		}
 
-		/*
-		 * Split "dev_name" into "hostname:mntpath".
-		 */
-		c = strchr(dev_name, ':');
-		if (c == NULL)
-			return -EINVAL;
-		/* while calculating len, pretend ':' is '\0' */
-		len = c - dev_name;
-		if (len > NFS4_MAXNAMLEN)
-			return -ENAMETOOLONG;
-		/* N.B. caller will free nfs_server.hostname in all cases */
-		args->nfs_server.hostname = kstrndup(dev_name, len, GFP_KERNEL);
-		if (!args->nfs_server.hostname)
-			goto out_nomem;
-
-		c++;			/* step over the ':' */
-		len = strlen(c);
-		if (len > NFS4_MAXPATHLEN)
-			return -ENAMETOOLONG;
-		args->nfs_server.export_path = kstrndup(c, len, GFP_KERNEL);
-		if (!args->nfs_server.export_path)
-			goto out_nomem;
-
-		dprintk("NFS: MNTPATH: '%s'\n", args->nfs_server.export_path);
-
 		if (args->client_address == NULL)
 			goto out_no_client_address;
+
+		status = nfs_parse_devname(dev_name,
+					   &args->nfs_server.hostname,
+					   NFS4_MAXNAMLEN,
+					   &args->nfs_server.export_path,
+					   NFS4_MAXPATHLEN);
+		if (status < 0)
+			return status;
 
 		break;
 		}
@@ -2019,10 +2057,6 @@ out_inval_auth:
 	dfprintk(MOUNT, "NFS4: Invalid number of RPC auth flavours %d\n",
 		 data->auth_flavourlen);
 	return -EINVAL;
-
-out_nomem:
-	dfprintk(MOUNT, "NFS4: not enough memory to handle mount options\n");
-	return -ENOMEM;
 
 out_no_address:
 	dfprintk(MOUNT, "NFS4: mount program didn't pass remote address\n");
