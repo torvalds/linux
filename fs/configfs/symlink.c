@@ -78,6 +78,12 @@ static int create_link(struct config_item *parent_item,
 	if (sl) {
 		sl->sl_target = config_item_get(item);
 		spin_lock(&configfs_dirent_lock);
+		if (target_sd->s_type & CONFIGFS_USET_DROPPING) {
+			spin_unlock(&configfs_dirent_lock);
+			config_item_put(item);
+			kfree(sl);
+			return -ENOENT;
+		}
 		list_add(&sl->sl_list, &target_sd->s_links);
 		spin_unlock(&configfs_dirent_lock);
 		ret = configfs_create_link(sl, parent_item->ci_dentry,

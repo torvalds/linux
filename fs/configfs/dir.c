@@ -370,6 +370,9 @@ static int configfs_detach_prep(struct dentry *dentry, struct mutex **wait_mutex
 	struct configfs_dirent *sd;
 	int ret;
 
+	/* Mark that we're trying to drop the group */
+	parent_sd->s_type |= CONFIGFS_USET_DROPPING;
+
 	ret = -EBUSY;
 	if (!list_empty(&parent_sd->s_links))
 		goto out;
@@ -385,8 +388,6 @@ static int configfs_detach_prep(struct dentry *dentry, struct mutex **wait_mutex
 					*wait_mutex = &sd->s_dentry->d_inode->i_mutex;
 				return -EAGAIN;
 			}
-			/* Mark that we're trying to drop the group */
-			sd->s_type |= CONFIGFS_USET_DROPPING;
 
 			/*
 			 * Yup, recursive.  If there's a problem, blame
@@ -414,12 +415,11 @@ static void configfs_detach_rollback(struct dentry *dentry)
 	struct configfs_dirent *parent_sd = dentry->d_fsdata;
 	struct configfs_dirent *sd;
 
-	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
-		if (sd->s_type & CONFIGFS_USET_DEFAULT) {
+	parent_sd->s_type &= ~CONFIGFS_USET_DROPPING;
+
+	list_for_each_entry(sd, &parent_sd->s_children, s_sibling)
+		if (sd->s_type & CONFIGFS_USET_DEFAULT)
 			configfs_detach_rollback(sd->s_dentry);
-			sd->s_type &= ~CONFIGFS_USET_DROPPING;
-		}
-	}
 }
 
 static void detach_attrs(struct config_item * item)
