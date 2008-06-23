@@ -1808,7 +1808,7 @@ static int ipg_nic_open(struct net_device *dev)
 	/* initialize JUMBO Frame control variable */
 	sp->jumbo.found_start = 0;
 	sp->jumbo.current_size = 0;
-	sp->jumbo.skb = 0;
+	sp->jumbo.skb = NULL;
 	dev->mtu = IPG_TXFRAG_SIZE;
 #endif
 
