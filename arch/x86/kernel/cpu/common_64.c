@@ -421,12 +421,6 @@ static __init int setup_disablecpuid(char *arg)
 }
 __setup("clearcpuid=", setup_disablecpuid);
 
-#ifndef CONFIG_DEBUG_BOOT_PARAMS
-struct boot_params __initdata boot_params;
-#else
-struct boot_params boot_params;
-#endif
-
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
 struct x8664_pda **_cpu_pda __read_mostly;
