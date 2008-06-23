@@ -1,8 +1,6 @@
 #ifndef __ASM_POWERPC_CPUTABLE_H
 #define __ASM_POWERPC_CPUTABLE_H
 
-#include <asm/asm-compat.h>
-
 #define PPC_FEATURE_32			0x80000000
 #define PPC_FEATURE_64			0x40000000
 #define PPC_FEATURE_601_INSTR		0x20000000
@@ -32,6 +30,9 @@
 #define PPC_FEATURE_PPC_LE		0x00000001
 
 #ifdef __KERNEL__
+
+#include <asm/asm-compat.h>
+
 #ifndef __ASSEMBLY__
 
 /* This structure can grow, it's real size is used by head.S code

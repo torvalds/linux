@@ -23,7 +23,6 @@ header-y += sigcontext.h
 header-y += statfs.h
 header-y += ps3fb.h
 
-unifdef-y += asm-compat.h
 unifdef-y += bootx.h
 unifdef-y += byteorder.h
 unifdef-y += cputable.h
