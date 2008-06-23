@@ -15,6 +15,12 @@ char *strcpy(char *dest, const char *src)
 }
 EXPORT_SYMBOL(strcpy);
 
+char *strcat(char *dest, const char *src)
+{
+	return __kernel_strcpy(dest + __kernel_strlen(dest), src);
+}
+EXPORT_SYMBOL(strcat);
+
 void *memset(void *s, int c, size_t count)
 {
 	void *xs = s;

@@ -334,7 +334,7 @@ int __init adb_init(void)
 	return 0;
 }
 
-__initcall(adb_init);
+device_initcall(adb_init);
 
 static int
 do_adb_reset_bus(void)

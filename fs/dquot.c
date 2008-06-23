@@ -1491,6 +1491,16 @@ int vfs_quota_off(struct super_block *sb, int type, int remount)
 
 	/* We need to serialize quota_off() for device */
 	mutex_lock(&dqopt->dqonoff_mutex);
+
+	/*
+	 * Skip everything if there's nothing to do. We have to do this because
+	 * sometimes we are called when fill_super() failed and calling
+	 * sync_fs() in such cases does no good.
+	 */
+	if (!sb_any_quota_enabled(sb) && !sb_any_quota_suspended(sb)) {
+		mutex_unlock(&dqopt->dqonoff_mutex);
+		return 0;
+	}
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		toputinode[cnt] = NULL;
 		if (type != -1 && cnt != type)

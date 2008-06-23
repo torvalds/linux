@@ -1073,7 +1073,7 @@ static const struct file_operations virq_debug_fops = {
 static int __init irq_debugfs_init(void)
 {
 	if (debugfs_create_file("virq_mapping", S_IRUGO, powerpc_debugfs_root,
-				 NULL, &virq_debug_fops))
+				 NULL, &virq_debug_fops) == NULL)
 		return -ENOMEM;
 
 	return 0;

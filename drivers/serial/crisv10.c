@@ -3808,7 +3808,7 @@ rs_close(struct tty_struct *tty, struct file * filp)
 
 	shutdown(info);
 	rs_flush_buffer(tty);
-	tty_ldisc_flush_buffer(tty);
+	tty_ldisc_flush(tty);
 	tty->closing = 0;
 	info->event = 0;
 	info->tty = 0;

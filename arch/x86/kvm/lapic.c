@@ -957,7 +957,7 @@ int apic_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *lapic = vcpu->arch.apic;
 
-	if (lapic)
+	if (lapic && apic_enabled(lapic) && apic_lvt_enabled(lapic, APIC_LVTT))
 		return atomic_read(&lapic->timer.pending);
 
 	return 0;

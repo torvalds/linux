@@ -419,7 +419,7 @@ static void arp_reply(struct sk_buff *skb)
 		return;
 
 	size = arp_hdr_len(skb->dev);
-	send_skb = find_skb(np, size + LL_RESERVED_SPACE(np->dev),
+	send_skb = find_skb(np, size + LL_ALLOCATED_SPACE(np->dev),
 			    LL_RESERVED_SPACE(np->dev));
 
 	if (!send_skb)

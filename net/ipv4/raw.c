@@ -322,7 +322,6 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 			unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	int hh_len;
 	struct iphdr *iph;
 	struct sk_buff *skb;
 	unsigned int iphlen;
@@ -336,13 +335,12 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	if (flags&MSG_PROBE)
 		goto out;
 
-	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
-
-	skb = sock_alloc_send_skb(sk, length+hh_len+15,
-				  flags&MSG_DONTWAIT, &err);
+	skb = sock_alloc_send_skb(sk,
+				  length + LL_ALLOCATED_SPACE(rt->u.dst.dev) + 15,
+				  flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto error;
-	skb_reserve(skb, hh_len);
+	skb_reserve(skb, LL_RESERVED_SPACE(rt->u.dst.dev));
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
@@ -610,6 +608,14 @@ static void raw_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
+static int raw_destroy(struct sock *sk)
+{
+	lock_sock(sk);
+	ip_flush_pending_frames(sk);
+	release_sock(sk);
+	return 0;
+}
+
 /* This gets rid of all the nasties in af_inet. -DaveM */
 static int raw_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -822,6 +828,7 @@ struct proto raw_prot = {
 	.name		   = "RAW",
 	.owner		   = THIS_MODULE,
 	.close		   = raw_close,
+	.destroy	   = raw_destroy,
 	.connect	   = ip4_datagram_connect,
 	.disconnect	   = udp_disconnect,
 	.ioctl		   = raw_ioctl,
@@ -927,7 +934,7 @@ static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 	      srcp  = inet->num;
 
 	seq_printf(seq, "%4d: %08X:%04X %08X:%04X"
-		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d",
+		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d\n",
 		i, src, srcp, dest, destp, sp->sk_state,
 		atomic_read(&sp->sk_wmem_alloc),
 		atomic_read(&sp->sk_rmem_alloc),

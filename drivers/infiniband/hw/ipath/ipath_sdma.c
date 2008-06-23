@@ -263,14 +263,10 @@ static void sdma_abort_task(unsigned long opaque)
 		hwstatus = ipath_read_kreg64(dd,
 				dd->ipath_kregs->kr_senddmastatus);
 
-		if (/* ScoreBoardDrainInProg */
-		    test_bit(63, &hwstatus) ||
-		    /* AbortInProg */
-		    test_bit(62, &hwstatus) ||
-		    /* InternalSDmaEnable */
-		    test_bit(61, &hwstatus) ||
-		    /* ScbEmpty */
-		    !test_bit(30, &hwstatus)) {
+		if ((hwstatus & (IPATH_SDMA_STATUS_SCORE_BOARD_DRAIN_IN_PROG |
+				 IPATH_SDMA_STATUS_ABORT_IN_PROG	     |
+				 IPATH_SDMA_STATUS_INTERNAL_SDMA_ENABLE)) ||
+		    !(hwstatus & IPATH_SDMA_STATUS_SCB_EMPTY)) {
 			if (dd->ipath_sdma_reset_wait > 0) {
 				/* not done shutting down sdma */
 				--dd->ipath_sdma_reset_wait;
@@ -345,7 +341,7 @@ resched:
 	 * state change
 	 */
 	if (jiffies > dd->ipath_sdma_abort_jiffies) {
-		ipath_dbg("looping with status 0x%016llx\n",
+		ipath_dbg("looping with status 0x%08lx\n",
 			  dd->ipath_sdma_status);
 		dd->ipath_sdma_abort_jiffies = jiffies + 5 * HZ;
 	}
@@ -615,7 +611,7 @@ void ipath_restart_sdma(struct ipath_devdata *dd)
 	}
 	spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
 	if (!needed) {
-		ipath_dbg("invalid attempt to restart SDMA, status 0x%016llx\n",
+		ipath_dbg("invalid attempt to restart SDMA, status 0x%08lx\n",
 			dd->ipath_sdma_status);
 		goto bail;
 	}

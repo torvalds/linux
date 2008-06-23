@@ -1495,7 +1495,7 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 
 	al->al_alloced += *n;
 
-	gfs2_statfs_change(sdp, 0, -*n, 0);
+	gfs2_statfs_change(sdp, 0, -(s64)*n, 0);
 	gfs2_quota_change(ip, *n, ip->i_inode.i_uid, ip->i_inode.i_gid);
 
 	spin_lock(&sdp->sd_rindex_spin);

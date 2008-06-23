@@ -869,7 +869,7 @@ static void probeLptPort(unsigned idx)
       instances[idx].mode = COMPATIBILITY;
       instances[idx].run_length = 0;
       instances[idx].run_flag = 0;
-      if (!request_region(lpAddr,3, dev_name)) return;
+      if (!request_region(lpAddr,3, bpp_dev_name)) return;
 
       /*
        * First, make sure the instance exists. Do this by writing to
@@ -1021,7 +1021,7 @@ static int __init bpp_init(void)
 	if (rc == 0)
 		return -ENODEV;
 
-	rc = register_chrdev(BPP_MAJOR, dev_name, &bpp_fops);
+	rc = register_chrdev(BPP_MAJOR, bpp_dev_name, &bpp_fops);
 	if (rc < 0)
 		return rc;
 
@@ -1037,7 +1037,7 @@ static void __exit bpp_cleanup(void)
 {
 	unsigned idx;
 
-	unregister_chrdev(BPP_MAJOR, dev_name);
+	unregister_chrdev(BPP_MAJOR, bpp_dev_name);
 
 	for (idx = 0;  idx < BPP_NO; idx++) {
 		if (instances[idx].present)

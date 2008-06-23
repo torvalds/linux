@@ -287,10 +287,10 @@ static int ati_insert_memory(struct agp_memory * mem,
 		j++;
 	}
 
-	if (mem->is_flushed == FALSE) {
+	if (!mem->is_flushed) {
 		/*CACHE_FLUSH(); */
 		global_cache_flush();
-		mem->is_flushed = TRUE;
+		mem->is_flushed = true;
 	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
@@ -456,6 +456,10 @@ static struct agp_device_ids ati_agp_device_ids[] __devinitdata =
 	{
 		.device_id	= PCI_DEVICE_ID_ATI_RS300_200,
 		.chipset_name	= "IGP9100/M",
+	},
+	{
+		.device_id	= PCI_DEVICE_ID_ATI_RS350_133,
+		.chipset_name	= "IGP9000/M",
 	},
 	{
 		.device_id	= PCI_DEVICE_ID_ATI_RS350_200,

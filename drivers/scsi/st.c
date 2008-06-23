@@ -4424,17 +4424,19 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			device_create(st_sysfs_class, &STp->device->sdev_gendev,
-				      MKDEV(SCSI_TAPE_MAJOR,
-						TAPE_MINOR(dev_num, mode, rew)),
-				      "%s", name);
+			device_create_drvdata(st_sysfs_class,
+					      &STp->device->sdev_gendev,
+					      MKDEV(SCSI_TAPE_MAJOR,
+						    TAPE_MINOR(dev_num,
+							      mode, rew)),
+					      &STp->modes[mode],
+					      "%s", name);
 		if (IS_ERR(st_class_member)) {
 			printk(KERN_WARNING "st%d: device_create failed\n",
 			       dev_num);
 			error = PTR_ERR(st_class_member);
 			goto out;
 		}
-		dev_set_drvdata(st_class_member, &STp->modes[mode]);
 
 		error = device_create_file(st_class_member,
 					   &dev_attr_defined);

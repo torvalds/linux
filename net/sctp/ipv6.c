@@ -299,7 +299,8 @@ static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
 /* Fills in the source address(saddr) based on the destination address(daddr)
  * and asoc's bind address list.
  */
-static void sctp_v6_get_saddr(struct sctp_association *asoc,
+static void sctp_v6_get_saddr(struct sctp_sock *sk,
+			      struct sctp_association *asoc,
 			      struct dst_entry *dst,
 			      union sctp_addr *daddr,
 			      union sctp_addr *saddr)
@@ -318,7 +319,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	if (!asoc) {
 		ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL,
 				   &daddr->v6.sin6_addr,
-				   inet6_sk(asoc->base.sk)->srcprefs,
+				   inet6_sk(&sk->inet.sk)->srcprefs,
 				   &saddr->v6.sin6_addr);
 		SCTP_DEBUG_PRINTK("saddr from ipv6_get_saddr: " NIP6_FMT "\n",
 				  NIP6(saddr->v6.sin6_addr));
@@ -726,6 +727,11 @@ static void sctp_v6_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 	seq_printf(seq, NIP6_FMT " ", NIP6(addr->v6.sin6_addr));
 }
 
+static void sctp_v6_ecn_capable(struct sock *sk)
+{
+	inet6_sk(sk)->tclass |= INET_ECN_ECT_0;
+}
+
 /* Initialize a PF_INET6 socket msg_name. */
 static void sctp_inet6_msgname(char *msgname, int *addr_len)
 {
@@ -996,6 +1002,7 @@ static struct sctp_af sctp_af_inet6 = {
 	.skb_iif	   = sctp_v6_skb_iif,
 	.is_ce		   = sctp_v6_is_ce,
 	.seq_dump_addr	   = sctp_v6_seq_dump_addr,
+	.ecn_capable	   = sctp_v6_ecn_capable,
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 #ifdef CONFIG_COMPAT

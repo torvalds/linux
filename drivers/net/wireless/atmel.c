@@ -47,6 +47,7 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/timer.h>
+#include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -60,7 +61,6 @@
 #include <linux/delay.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
-#include <linux/byteorder/generic.h>
 #include <linux/crc32.h>
 #include <linux/proc_fs.h>
 #include <linux/device.h>

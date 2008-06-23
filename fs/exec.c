@@ -26,7 +26,6 @@
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/mman.h>
-#include <linux/a.out.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
 #include <linux/smp_lock.h>
@@ -59,6 +58,11 @@
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
+#endif
+
+#ifdef __alpha__
+/* for /sbin/loader handling in search_binary_handler() */
+#include <linux/a.out.h>
 #endif
 
 int core_uses_pid;
@@ -736,7 +740,7 @@ static int exec_mmap(struct mm_struct *mm)
 	tsk->active_mm = mm;
 	activate_mm(active_mm, mm);
 	task_unlock(tsk);
-	mm_update_next_owner(mm);
+	mm_update_next_owner(old_mm);
 	arch_pick_mmap_layout(mm);
 	if (old_mm) {
 		up_read(&old_mm->mmap_sem);
@@ -860,6 +864,7 @@ static int de_thread(struct task_struct *tsk)
 
 no_thread_group:
 	exit_itimers(sig);
+	flush_itimer_signals();
 	if (leader)
 		release_task(leader);
 
@@ -1154,7 +1159,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 {
 	int try,retval;
 	struct linux_binfmt *fmt;
-#if defined(__alpha__) && defined(CONFIG_ARCH_SUPPORTS_AOUT)
+#ifdef __alpha__
 	/* handle /sbin/loader.. */
 	{
 	    struct exec * eh = (struct exec *) bprm->buf;
@@ -1251,6 +1256,12 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 
 EXPORT_SYMBOL(search_binary_handler);
 
+void free_bprm(struct linux_binprm *bprm)
+{
+	free_arg_pages(bprm);
+	kfree(bprm);
+}
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1320,17 +1331,15 @@ int do_execve(char * filename,
 	retval = search_binary_handler(bprm,regs);
 	if (retval >= 0) {
 		/* execve success */
-		free_arg_pages(bprm);
 		security_bprm_free(bprm);
 		acct_update_integrals(current);
-		kfree(bprm);
+		free_bprm(bprm);
 		if (displaced)
 			put_files_struct(displaced);
 		return retval;
 	}
 
 out:
-	free_arg_pages(bprm);
 	if (bprm->security)
 		security_bprm_free(bprm);
 
@@ -1344,7 +1353,7 @@ out_file:
 		fput(bprm->file);
 	}
 out_kfree:
-	kfree(bprm);
+	free_bprm(bprm);
 
 out_files:
 	if (displaced)

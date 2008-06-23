@@ -281,7 +281,7 @@ static inline int n_counters(void)
 
 static void reset_counters(void *arg)
 {
-	int counters = (int)arg;
+	int counters = (int)(long)arg;
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(0);
@@ -313,7 +313,7 @@ static int __init mipsxx_init(void)
 	if (!cpu_has_mipsmt_pertccounters)
 		counters = counters_total_to_per_cpu(counters);
 #endif
-	on_each_cpu(reset_counters, (void *)counters, 0, 1);
+	on_each_cpu(reset_counters, (void *)(long)counters, 0, 1);
 
 	op_model_mipsxx_ops.num_counters = counters;
 	switch (current_cpu_type()) {
@@ -382,7 +382,7 @@ static void mipsxx_exit(void)
 	int counters = op_model_mipsxx_ops.num_counters;
 
 	counters = counters_per_cpu_to_total(counters);
-	on_each_cpu(reset_counters, (void *)counters, 0, 1);
+	on_each_cpu(reset_counters, (void *)(long)counters, 0, 1);
 
 	perf_irq = save_perf_irq;
 }

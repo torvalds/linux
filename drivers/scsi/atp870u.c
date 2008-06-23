@@ -747,7 +747,7 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 		dev->quhd[c] = 0;
 	}
 	workreq = dev->quereq[c][dev->quhd[c]];
-	if (dev->id[c][scmd_id(workreq)].curr_req == 0) {	
+	if (dev->id[c][scmd_id(workreq)].curr_req == NULL) {
 		dev->id[c][scmd_id(workreq)].curr_req = workreq;
 		dev->last_cmd[c] = scmd_id(workreq);
 		goto cmd_subp;

@@ -71,7 +71,8 @@ extern atomic_t rdma_stat_sq_prod;
  * completes.
  */
 struct svc_rdma_op_ctxt {
-	struct svc_rdma_op_ctxt *next;
+	struct svc_rdma_op_ctxt *read_hdr;
+	struct list_head free_list;
 	struct xdr_buf arg;
 	struct list_head dto_q;
 	enum ib_wr_opcode wr_op;
@@ -85,7 +86,6 @@ struct svc_rdma_op_ctxt {
 	struct page *pages[RPCSVC_MAXPAGES];
 };
 
-#define RDMACTXT_F_READ_DONE	1
 #define RDMACTXT_F_LAST_CTXT	2
 
 struct svcxprt_rdma {
@@ -104,7 +104,8 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
-	struct svc_rdma_op_ctxt  *sc_ctxt_head;
+	atomic_t	     sc_ctxt_used;
+	struct list_head     sc_ctxt_free;
 	int		     sc_ctxt_cnt;
 	int		     sc_ctxt_bump;
 	int		     sc_ctxt_max;
@@ -123,6 +124,7 @@ struct svcxprt_rdma {
 	struct list_head     sc_dto_q;		/* DTO tasklet I/O pending Q */
 	struct list_head     sc_read_complete_q;
 	spinlock_t           sc_read_complete_lock;
+	struct work_struct   sc_work;
 };
 /* sc_flags */
 #define RDMAXPRT_RQ_PENDING	1
@@ -164,8 +166,8 @@ extern int svc_rdma_sendto(struct svc_rqst *);
 
 /* svc_rdma_transport.c */
 extern int svc_rdma_send(struct svcxprt_rdma *, struct ib_send_wr *);
-extern int svc_rdma_send_error(struct svcxprt_rdma *, struct rpcrdma_msg *,
-			       enum rpcrdma_errcode);
+extern void svc_rdma_send_error(struct svcxprt_rdma *, struct rpcrdma_msg *,
+				enum rpcrdma_errcode);
 struct page *svc_rdma_get_page(void);
 extern int svc_rdma_post_recv(struct svcxprt_rdma *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);

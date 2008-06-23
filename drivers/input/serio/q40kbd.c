@@ -156,7 +156,7 @@ static int __init q40kbd_init(void)
 	int error;
 
 	if (!MACH_IS_Q40)
-		return -EIO;
+		return -ENODEV;
 
 	error = platform_driver_register(&q40kbd_driver);
 	if (error)

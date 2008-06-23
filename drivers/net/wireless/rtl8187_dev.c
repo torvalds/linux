@@ -92,6 +92,7 @@ static void rtl8187_iowrite_async(struct rtl8187_priv *priv, __le16 addr,
 		u8 data[4];
 		struct usb_ctrlrequest dr;
 	} *buf;
+	int rc;
 
 	buf = kmalloc(sizeof(*buf), GFP_ATOMIC);
 	if (!buf)
@@ -116,7 +117,11 @@ static void rtl8187_iowrite_async(struct rtl8187_priv *priv, __le16 addr,
 	usb_fill_control_urb(urb, priv->udev, usb_sndctrlpipe(priv->udev, 0),
 			     (unsigned char *)dr, buf, len,
 			     rtl8187_iowrite_async_cb, buf);
-	usb_submit_urb(urb, GFP_ATOMIC);
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
+	if (rc < 0) {
+		kfree(buf);
+		usb_free_urb(urb);
+	}
 }
 
 static inline void rtl818x_iowrite32_async(struct rtl8187_priv *priv,
@@ -169,6 +174,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	struct urb *urb;
 	__le16 rts_dur = 0;
 	u32 flags;
+	int rc;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
@@ -208,7 +214,11 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	info->dev = dev;
 	usb_fill_bulk_urb(urb, priv->udev, usb_sndbulkpipe(priv->udev, 2),
 			  hdr, skb->len, rtl8187_tx_cb, skb);
-	usb_submit_urb(urb, GFP_ATOMIC);
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
+	if (rc < 0) {
+		usb_free_urb(urb);
+		kfree_skb(skb);
+	}
 
 	return 0;
 }

@@ -109,7 +109,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	   will assume they contain their original values. */
 	: "=r" (sum), "=r" (iph), "=r" (ihl), "=&r" (__dummy0), "=&z" (__dummy1)
 	: "1" (iph), "2" (ihl)
-	: "t");
+	: "t", "memory");
 
 	return	csum_fold(sum);
 }

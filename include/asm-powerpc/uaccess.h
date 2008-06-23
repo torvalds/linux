@@ -380,7 +380,7 @@ static inline unsigned long __copy_from_user_inatomic(void *to,
 		const void __user *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
-		unsigned long ret;
+		unsigned long ret = 1;
 
 		switch (n) {
 		case 1:
@@ -406,7 +406,7 @@ static inline unsigned long __copy_to_user_inatomic(void __user *to,
 		const void *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
-		unsigned long ret;
+		unsigned long ret = 1;
 
 		switch (n) {
 		case 1:

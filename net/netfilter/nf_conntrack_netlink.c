@@ -472,6 +472,9 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		goto nla_put_failure;
 	nla_nest_end(skb, nest_parms);
 
+	if (ctnetlink_dump_id(skb, ct) < 0)
+		goto nla_put_failure;
+
 	if (events & IPCT_DESTROY) {
 		if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
 		    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)

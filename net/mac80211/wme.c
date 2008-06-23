@@ -394,7 +394,8 @@ static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 						 qd->handle);
 		if (!q->queues[i]) {
 			q->queues[i] = &noop_qdisc;
-			printk(KERN_ERR "%s child qdisc %i creation failed", dev->name, i);
+			printk(KERN_ERR "%s child qdisc %i creation failed\n",
+			       dev->name, i);
 		}
 	}
 
@@ -672,7 +673,7 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 #ifdef CONFIG_MAC80211_HT_DEBUG
 			if (net_ratelimit())
 				printk(KERN_DEBUG "allocated aggregation queue"
-					" %d tid %d addr %s pool=0x%lX",
+					" %d tid %d addr %s pool=0x%lX\n",
 					i, tid, print_mac(mac, sta->addr),
 					q->qdisc_pool[0]);
 #endif /* CONFIG_MAC80211_HT_DEBUG */

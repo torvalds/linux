@@ -210,10 +210,8 @@ static inline void mask_and_ack_either_edge_irq(unsigned int irq_nr)
 	au_sync();
 }
 
-
 static inline void mask_and_ack_level_irq(unsigned int irq_nr)
 {
-
 	local_disable_irq(irq_nr);
 	au_sync();
 #if defined(CONFIG_MIPS_PB1000)
@@ -263,14 +261,14 @@ void restore_local_and_enable(int controller, unsigned long mask)
 	unsigned long flags, new_mask;
 
 	spin_lock_irqsave(&irq_lock, flags);
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < 32; i++)
 		if (mask & (1 << i)) {
 			if (controller)
 				local_enable_irq(i + 32);
 			else
 				local_enable_irq(i);
 		}
-	}
+
 	if (controller)
 		new_mask = au_readl(IC1_MASKSET);
 	else

@@ -3356,7 +3356,7 @@ static int __devinit atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *i
 
 	info->fix.mmio_start = raddr;
 	par->ati_regbase = ioremap(info->fix.mmio_start, 0x1000);
-	if (par->ati_regbase == 0)
+	if (par->ati_regbase == NULL)
 		return -ENOMEM;
 
 	info->fix.mmio_start += par->aux_start ? 0x400 : 0xc00;

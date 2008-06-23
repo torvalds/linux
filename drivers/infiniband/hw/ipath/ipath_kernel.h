@@ -159,8 +159,8 @@ struct ipath_portdata {
 	/* saved total number of polled urgent packets for poll edge trigger */
 	u32 port_urgent_poll;
 	/* pid of process using this port */
-	pid_t port_pid;
-	pid_t port_subpid[INFINIPATH_MAX_SUBPORT];
+	struct pid *port_pid;
+	struct pid *port_subpid[INFINIPATH_MAX_SUBPORT];
 	/* same size as task_struct .comm[] */
 	char port_comm[16];
 	/* pkeys set by this use of this port */
@@ -231,6 +231,11 @@ struct ipath_sdma_desc {
 #define IPATH_SDMA_TXREQ_S_SENDERROR 1
 #define IPATH_SDMA_TXREQ_S_ABORTED   2
 #define IPATH_SDMA_TXREQ_S_SHUTDOWN  3
+
+#define IPATH_SDMA_STATUS_SCORE_BOARD_DRAIN_IN_PROG	(1ull << 63)
+#define IPATH_SDMA_STATUS_ABORT_IN_PROG			(1ull << 62)
+#define IPATH_SDMA_STATUS_INTERNAL_SDMA_ENABLE		(1ull << 61)
+#define IPATH_SDMA_STATUS_SCB_EMPTY			(1ull << 30)
 
 /* max dwords in small buffer packet */
 #define IPATH_SMALLBUF_DWORDS (dd->ipath_piosize2k >> 2)
@@ -483,7 +488,7 @@ struct ipath_devdata {
 
 	/* SendDMA related entries */
 	spinlock_t            ipath_sdma_lock;
-	u64                   ipath_sdma_status;
+	unsigned long         ipath_sdma_status;
 	unsigned long         ipath_sdma_abort_jiffies;
 	unsigned long         ipath_sdma_abort_intr_timeout;
 	unsigned long         ipath_sdma_buf_jiffies;
@@ -822,8 +827,8 @@ struct ipath_devdata {
 #define IPATH_SDMA_DISARMED  1
 #define IPATH_SDMA_DISABLED  2
 #define IPATH_SDMA_LAYERBUF  3
-#define IPATH_SDMA_RUNNING  62
-#define IPATH_SDMA_SHUTDOWN 63
+#define IPATH_SDMA_RUNNING  30
+#define IPATH_SDMA_SHUTDOWN 31
 
 /* bit combinations that correspond to abort states */
 #define IPATH_SDMA_ABORT_NONE 0

@@ -30,7 +30,7 @@ config DVB_CX24123
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_MT312
-	tristate "Zarlink VP310/MT312 based"
+	tristate "Zarlink VP310/MT312/ZL10313 based"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
@@ -97,7 +97,7 @@ comment "DVB-T (terrestrial) frontends"
 
 config DVB_SP8870
 	tristate "Spase sp8870 based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
@@ -110,7 +110,7 @@ config DVB_SP8870
 
 config DVB_SP887X
 	tristate "Spase sp887x based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
@@ -144,7 +144,7 @@ config DVB_L64781
 
 config DVB_TDA1004X
 	tristate "Philips TDA10045H/TDA10046H based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
@@ -211,7 +211,7 @@ config DVB_DIB7000P
 
 config DVB_TDA10048
 	tristate "Philips TDA10048HN based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
@@ -253,7 +253,7 @@ comment "ATSC (North American/Korean Terrestrial/Cable DTV) frontends"
 
 config DVB_NXT200X
 	tristate "NxtWave Communications NXT2002/NXT2004 based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
@@ -268,7 +268,7 @@ config DVB_NXT200X
 
 config DVB_OR51211
 	tristate "Oren OR51211 based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
@@ -281,7 +281,7 @@ config DVB_OR51211
 
 config DVB_OR51132
 	tristate "Oren OR51132 based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
@@ -297,7 +297,7 @@ config DVB_OR51132
 
 config DVB_BCM3510
 	tristate "Broadcom BCM3510"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && HOTPLUG
 	default m if DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help

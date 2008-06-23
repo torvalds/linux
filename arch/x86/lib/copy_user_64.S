@@ -217,19 +217,19 @@ ENTRY(copy_user_generic_unrolled)
 	/* table sorted by exception address */
 	.section __ex_table,"a"
 	.align 8
-	.quad .Ls1,.Ls1e
-	.quad .Ls2,.Ls2e
-	.quad .Ls3,.Ls3e
-	.quad .Ls4,.Ls4e
-	.quad .Ld1,.Ls1e
+	.quad .Ls1,.Ls1e	/* Ls1-Ls4 have copied zero bytes */
+	.quad .Ls2,.Ls1e
+	.quad .Ls3,.Ls1e
+	.quad .Ls4,.Ls1e
+	.quad .Ld1,.Ls1e	/* Ld1-Ld4 have copied 0-24 bytes */
 	.quad .Ld2,.Ls2e
 	.quad .Ld3,.Ls3e
 	.quad .Ld4,.Ls4e
-	.quad .Ls5,.Ls5e
-	.quad .Ls6,.Ls6e
-	.quad .Ls7,.Ls7e
-	.quad .Ls8,.Ls8e
-	.quad .Ld5,.Ls5e
+	.quad .Ls5,.Ls5e	/* Ls5-Ls8 have copied 32 bytes */
+	.quad .Ls6,.Ls5e
+	.quad .Ls7,.Ls5e
+	.quad .Ls8,.Ls5e
+	.quad .Ld5,.Ls5e	/* Ld5-Ld8 have copied 32-56 bytes */
 	.quad .Ld6,.Ls6e
 	.quad .Ld7,.Ls7e
 	.quad .Ld8,.Ls8e
@@ -244,11 +244,8 @@ ENTRY(copy_user_generic_unrolled)
 	.quad .Le5,.Le_zero
 	.previous
 
-	/* compute 64-offset for main loop. 8 bytes accuracy with error on the
-	   pessimistic side. this is gross. it would be better to fix the
-	   interface. */
 	/* eax: zero, ebx: 64 */
-.Ls1e: 	addl $8,%eax
+.Ls1e: 	addl $8,%eax		/* eax is bytes left uncopied within the loop (Ls1e: 64 .. Ls8e: 8) */
 .Ls2e: 	addl $8,%eax
 .Ls3e: 	addl $8,%eax
 .Ls4e: 	addl $8,%eax

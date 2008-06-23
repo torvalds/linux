@@ -539,6 +539,31 @@ static void *alloc_ring(struct pci_dev *pdev, size_t nelem, size_t elem_size,
 }
 
 /**
+ *	t3_reset_qset - reset a sge qset
+ *	@q: the queue set
+ *
+ *	Reset the qset structure.
+ *	the NAPI structure is preserved in the event of
+ *	the qset's reincarnation, for example during EEH recovery.
+ */
+static void t3_reset_qset(struct sge_qset *q)
+{
+	if (q->adap &&
+	    !(q->adap->flags & NAPI_INIT)) {
+		memset(q, 0, sizeof(*q));
+		return;
+	}
+
+	q->adap = NULL;
+	memset(&q->rspq, 0, sizeof(q->rspq));
+	memset(q->fl, 0, sizeof(struct sge_fl) * SGE_RXQ_PER_SET);
+	memset(q->txq, 0, sizeof(struct sge_txq) * SGE_TXQ_PER_SET);
+	q->txq_stopped = 0;
+	memset(&q->tx_reclaim_timer, 0, sizeof(q->tx_reclaim_timer));
+}
+
+
+/**
  *	free_qset - free the resources of an SGE queue set
  *	@adapter: the adapter owning the queue set
  *	@q: the queue set
@@ -594,7 +619,7 @@ static void t3_free_qset(struct adapter *adapter, struct sge_qset *q)
 				  q->rspq.desc, q->rspq.phys_addr);
 	}
 
-	memset(q, 0, sizeof(*q));
+	t3_reset_qset(q);
 }
 
 /**
@@ -1365,7 +1390,7 @@ static void restart_ctrlq(unsigned long data)
  */
 int t3_mgmt_tx(struct adapter *adap, struct sk_buff *skb)
 {
-	int ret; 
+	int ret;
 	local_bh_disable();
 	ret = ctrl_xmit(adap, &adap->sge.qs[0].txq[TXQ_CTRL], skb);
 	local_bh_enable();

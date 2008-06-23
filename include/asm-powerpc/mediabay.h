@@ -17,8 +17,6 @@
 #define MB_POWER	6	/* media bay contains a Power device (???) */
 #define MB_NO		7	/* media bay contains nothing */
 
-int check_media_bay(struct device_node *which_bay, int what);
-
 /* Number of bays in the machine or 0 */
 extern int media_bay_count;
 
@@ -29,6 +27,16 @@ int check_media_bay_by_base(unsigned long base, int what);
 /* called by IDE PMAC host driver to register IDE controller for media bay */
 int media_bay_set_ide_infos(struct device_node *which_bay, unsigned long base,
 			    int irq, ide_hwif_t *hwif);
+
+int check_media_bay(struct device_node *which_bay, int what);
+
+#else
+
+static inline int check_media_bay(struct device_node *which_bay, int what)
+{
+	return -ENODEV;
+}
+
 #endif
 
 #endif /* __KERNEL__ */

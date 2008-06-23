@@ -102,7 +102,6 @@
 #include <linux/nmi.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
-#include <linux/delay.h>
 
 #define v1printk(a...) do { \
 	if (verbose) \
@@ -119,7 +118,6 @@
 	} while (0)
 #define MAX_CONFIG_LEN		40
 
-static const char hexchars[] = "0123456789abcdef";
 static struct kgdb_io kgdbts_io_ops;
 static char get_buf[BUFMAX];
 static int get_buf_cnt;
@@ -131,6 +129,8 @@ static int repeat_test;
 static int test_complete;
 static int send_ack;
 static int final_ack;
+static int force_hwbrks;
+static int hwbreaks_ok;
 static int hw_break_val;
 static int hw_break_val2;
 #if defined(CONFIG_ARM) || defined(CONFIG_MIPS) || defined(CONFIG_SPARC)
@@ -234,12 +234,12 @@ static void break_helper(char *bp_type, char *arg, unsigned long vaddr)
 
 static void sw_break(char *arg)
 {
-	break_helper("Z0", arg, 0);
+	break_helper(force_hwbrks ? "Z1" : "Z0", arg, 0);
 }
 
 static void sw_rem_break(char *arg)
 {
-	break_helper("z0", arg, 0);
+	break_helper(force_hwbrks ? "z1" : "z0", arg, 0);
 }
 
 static void hw_break(char *arg)
@@ -619,8 +619,8 @@ static void fill_get_buf(char *buf)
 		count++;
 	}
 	strcat(get_buf, "#");
-	get_buf[count + 2] = hexchars[checksum >> 4];
-	get_buf[count + 3] = hexchars[checksum & 0xf];
+	get_buf[count + 2] = hex_asc_hi(checksum);
+	get_buf[count + 3] = hex_asc_lo(checksum);
 	get_buf[count + 4] = '\0';
 	v2printk("get%i: %s\n", ts.idx, get_buf);
 }
@@ -781,6 +781,8 @@ static void run_breakpoint_test(int is_hw_breakpoint)
 		return;
 
 	eprintk("kgdbts: ERROR %s test failed\n", ts.name);
+	if (is_hw_breakpoint)
+		hwbreaks_ok = 0;
 }
 
 static void run_hw_break_test(int is_write_test)
@@ -798,9 +800,11 @@ static void run_hw_break_test(int is_write_test)
 	kgdb_breakpoint();
 	hw_break_val_access();
 	if (is_write_test) {
-		if (test_complete == 2)
+		if (test_complete == 2) {
 			eprintk("kgdbts: ERROR %s broke on access\n",
 				ts.name);
+			hwbreaks_ok = 0;
+		}
 		hw_break_val_write();
 	}
 	kgdb_breakpoint();
@@ -809,6 +813,7 @@ static void run_hw_break_test(int is_write_test)
 		return;
 
 	eprintk("kgdbts: ERROR %s test failed\n", ts.name);
+	hwbreaks_ok = 0;
 }
 
 static void run_nmi_sleep_test(int nmi_sleep)
@@ -912,6 +917,7 @@ static void kgdbts_run_tests(void)
 
 	/* All HW break point tests */
 	if (arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT) {
+		hwbreaks_ok = 1;
 		v1printk("kgdbts:RUN hw breakpoint test\n");
 		run_breakpoint_test(1);
 		v1printk("kgdbts:RUN hw write breakpoint test\n");
@@ -924,6 +930,19 @@ static void kgdbts_run_tests(void)
 		v1printk("kgdbts:RUN NMI sleep %i seconds test\n", nmi_sleep);
 		run_nmi_sleep_test(nmi_sleep);
 	}
+
+#ifdef CONFIG_DEBUG_RODATA
+	/* Until there is an api to write to read-only text segments, use
+	 * HW breakpoints for the remainder of any tests, else print a
+	 * failure message if hw breakpoints do not work.
+	 */
+	if (!(arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT && hwbreaks_ok)) {
+		eprintk("kgdbts: HW breakpoints do not work,"
+			"skipping remaining tests\n");
+		return;
+	}
+	force_hwbrks = 1;
+#endif /* CONFIG_DEBUG_RODATA */
 
 	/* If the do_fork test is run it will be the last test that is
 	 * executed because a kernel thread will be spawned at the very

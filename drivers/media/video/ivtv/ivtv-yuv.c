@@ -908,7 +908,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 	}
 
 	/* We need a buffer for blanking when Y plane is offset - non-fatal if we can't get one */
-	yi->blanking_ptr = kzalloc(720 * 16, GFP_KERNEL);
+	yi->blanking_ptr = kzalloc(720 * 16, GFP_KERNEL|__GFP_NOWARN);
 	if (yi->blanking_ptr) {
 		yi->blanking_dmaptr = pci_map_single(itv->dev, yi->blanking_ptr, 720*16, PCI_DMA_TODEVICE);
 	} else {
@@ -1116,7 +1116,7 @@ void ivtv_yuv_setup_stream_frame(struct ivtv *itv)
 }
 
 /* Attempt to dma a frame from a user buffer */
-int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void *src)
+int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void __user *src)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	struct ivtv_dma_frame dma_args;

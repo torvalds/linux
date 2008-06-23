@@ -226,8 +226,17 @@ struct mm_struct {
 	rwlock_t		ioctx_list_lock;	/* aio lock */
 	struct kioctx		*ioctx_list;
 #ifdef CONFIG_MM_OWNER
-	struct task_struct *owner;	/* The thread group leader that */
-					/* owns the mm_struct.		*/
+	/*
+	 * "owner" points to a task that is regarded as the canonical
+	 * user/owner of this mm. All of the following must be true in
+	 * order for it to be changed:
+	 *
+	 * current == mm->owner
+	 * current->mm != mm
+	 * new_owner->mm == mm
+	 * new_owner->alloc_lock is held
+	 */
+	struct task_struct *owner;
 #endif
 
 #ifdef CONFIG_PROC_FS

@@ -313,6 +313,21 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
+		if (tun->flags & TUN_NO_PI) {
+			switch (skb->data[0] & 0xf0) {
+			case 0x40:
+				pi.proto = htons(ETH_P_IP);
+				break;
+			case 0x60:
+				pi.proto = htons(ETH_P_IPV6);
+				break;
+			default:
+				tun->dev->stats.rx_dropped++;
+				kfree_skb(skb);
+				return -EINVAL;
+			}
+		}
+
 		skb_reset_mac_header(skb);
 		skb->protocol = pi.proto;
 		skb->dev = tun->dev;

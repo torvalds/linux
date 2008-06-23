@@ -314,13 +314,14 @@ int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
 	if (status) {
 		ERROR(rt2x00dev, "IRQ %d allocation failed (error %d).\n",
 		      pci_dev->irq, status);
-		return status;
+		goto exit;
 	}
 
 	return 0;
 
 exit:
-	rt2x00pci_uninitialize(rt2x00dev);
+	queue_for_each(rt2x00dev, queue)
+		rt2x00pci_free_queue_dma(rt2x00dev, queue);
 
 	return status;
 }
@@ -411,8 +412,7 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	if (pci_set_mwi(pci_dev))
 		ERROR_PROBE("MWI not available.\n");
 
-	if (pci_set_dma_mask(pci_dev, DMA_64BIT_MASK) &&
-	    pci_set_dma_mask(pci_dev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pci_dev, DMA_32BIT_MASK)) {
 		ERROR_PROBE("PCI DMA not supported.\n");
 		retval = -EIO;
 		goto exit_disable_device;
