@@ -284,6 +284,7 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	struct queue_entry_priv_usb *entry_priv;
 	struct queue_entry_priv_usb_bcn *bcn_priv;
+	struct data_queue *queue;
 	unsigned int i;
 
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0, 0,
@@ -292,9 +293,11 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Cancel all queues.
 	 */
-	for (i = 0; i < rt2x00dev->rx->limit; i++) {
-		entry_priv = rt2x00dev->rx->entries[i].priv_data;
-		usb_kill_urb(entry_priv->urb);
+	queue_for_each(rt2x00dev, queue) {
+		for (i = 0; i < queue->limit; i++) {
+			entry_priv = queue->entries[i].priv_data;
+			usb_kill_urb(entry_priv->urb);
+		}
 	}
 
 	/*
