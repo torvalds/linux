@@ -234,7 +234,7 @@ int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_pr
 	return radeon_wait_irq(dev, irqwait->irq_seq);
 }
 
-static void radeon_enable_interrupt(struct drm_device *dev)
+void radeon_enable_interrupt(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = (drm_radeon_private_t *) dev->dev_private;
 

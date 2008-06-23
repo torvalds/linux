@@ -214,7 +214,7 @@ long compat_agp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret_val = -EINVAL;
 		goto ioctl_out;
 	}
-	if ((agp_fe.backend_acquired != TRUE) &&
+	if ((agp_fe.backend_acquired != true) &&
 	    (cmd != AGPIOC_ACQUIRE32)) {
 		ret_val = -EBUSY;
 		goto ioctl_out;

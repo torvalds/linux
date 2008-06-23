@@ -999,17 +999,15 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 		goto no_page_table;
 
 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-	if (!ptep)
-		goto out;
 
 	pte = *ptep;
 	if (!pte_present(pte))
-		goto unlock;
+		goto no_page;
 	if ((flags & FOLL_WRITE) && !pte_write(pte))
 		goto unlock;
 	page = vm_normal_page(vma, address, pte);
 	if (unlikely(!page))
-		goto unlock;
+		goto bad_page;
 
 	if (flags & FOLL_GET)
 		get_page(page);
@@ -1024,6 +1022,15 @@ unlock:
 out:
 	return page;
 
+bad_page:
+	pte_unmap_unlock(ptep, ptl);
+	return ERR_PTR(-EFAULT);
+
+no_page:
+	pte_unmap_unlock(ptep, ptl);
+	if (!pte_none(pte))
+		return page;
+	/* Fall through to ZERO_PAGE handling */
 no_page_table:
 	/*
 	 * When core dumping an enormous anonymous area that nobody
@@ -1159,6 +1166,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 				cond_resched();
 			}
+			if (IS_ERR(page))
+				return i ? i : PTR_ERR(page);
 			if (pages) {
 				pages[i] = page;
 

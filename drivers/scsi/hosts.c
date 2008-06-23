@@ -456,6 +456,10 @@ static int __scsi_host_match(struct device *dev, void *data)
  *
  * Return value:
  *	A pointer to located Scsi_Host or NULL.
+ *
+ *	The caller must do a scsi_host_put() to drop the reference
+ *	that scsi_host_get() took. The put_device() below dropped
+ *	the reference from class_find_device().
  **/
 struct Scsi_Host *scsi_host_lookup(unsigned short hostnum)
 {
@@ -463,9 +467,10 @@ struct Scsi_Host *scsi_host_lookup(unsigned short hostnum)
 	struct Scsi_Host *shost = ERR_PTR(-ENXIO);
 
 	cdev = class_find_device(&shost_class, &hostnum, __scsi_host_match);
-	if (cdev)
+	if (cdev) {
 		shost = scsi_host_get(class_to_shost(cdev));
-
+		put_device(cdev);
+	}
 	return shost;
 }
 EXPORT_SYMBOL(scsi_host_lookup);

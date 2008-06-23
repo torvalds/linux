@@ -471,7 +471,6 @@ static int atl1_get_permanent_address(struct atl1_hw *hw)
 			memcpy(hw->perm_mac_addr, eth_addr, ETH_ALEN);
 			return 0;
 		}
-		return 1;
 	}
 
 	/* see if SPI FLAGS exist ? */

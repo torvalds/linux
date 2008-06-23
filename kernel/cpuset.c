@@ -1037,8 +1037,8 @@ int current_cpuset_is_being_rebound(void)
 
 static int update_relax_domain_level(struct cpuset *cs, s64 val)
 {
-	if ((int)val < 0)
-		val = -1;
+	if (val < -1 || val >= SD_LV_MAX)
+		return -EINVAL;
 
 	if (val != cs->relax_domain_level) {
 		cs->relax_domain_level = val;
@@ -1889,6 +1889,12 @@ static void common_cpu_mem_hotplug_unplug(void)
 	top_cpuset.cpus_allowed = cpu_online_map;
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
 	scan_for_empty_cpusets(&top_cpuset);
+
+	/*
+	 * Scheduler destroys domains on hotplug events.
+	 * Rebuild them based on the current settings.
+	 */
+	rebuild_sched_domains();
 
 	cgroup_unlock();
 }
