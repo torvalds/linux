@@ -38,30 +38,14 @@
 struct cred;
 struct xfs_attr_list_context;
 
-typedef int (*attrset_t)(bhv_vnode_t *, char *, void *, size_t, int);
-typedef int (*attrget_t)(bhv_vnode_t *, char *, void *, size_t, int);
-typedef int (*attrremove_t)(bhv_vnode_t *, char *, int);
-typedef int (*attrexists_t)(bhv_vnode_t *);
-
 typedef struct attrnames {
 	char *		attr_name;
 	unsigned int	attr_namelen;
-	unsigned int	attr_flag;
-	attrget_t	attr_get;
-	attrset_t	attr_set;
-	attrremove_t	attr_remove;
-	attrexists_t	attr_exists;
 } attrnames_t;
 
-#define ATTR_NAMECOUNT	4
 extern struct attrnames attr_user;
 extern struct attrnames attr_secure;
-extern struct attrnames attr_system;
 extern struct attrnames attr_trusted;
-extern struct attrnames *attr_namespaces[ATTR_NAMECOUNT];
-
-extern attrnames_t *attr_lookup_namespace(char *, attrnames_t **, int);
-extern int attr_generic_list(bhv_vnode_t *, void *, size_t, int, ssize_t *);
 
 #define ATTR_DONTFOLLOW	0x0001	/* -- unused, from IRIX -- */
 #define ATTR_ROOT	0x0002	/* use attrs in root (trusted) namespace */
@@ -69,7 +53,6 @@ extern int attr_generic_list(bhv_vnode_t *, void *, size_t, int, ssize_t *);
 #define ATTR_SECURE	0x0008	/* use attrs in security namespace */
 #define ATTR_CREATE	0x0010	/* pure create: fail if attr already exists */
 #define ATTR_REPLACE	0x0020	/* pure set: fail if attr does not exist */
-#define ATTR_SYSTEM	0x0100	/* use attrs in system (pseudo) namespace */
 
 #define ATTR_KERNACCESS	0x0400	/* [kernel] iaccess, inode held io-locked */
 #define ATTR_KERNOTIME	0x1000	/* [kernel] don't update inode timestamps */

@@ -1766,6 +1766,7 @@ xfs_fs_fill_super(
 		goto out_free_mp;
 
 	sb_min_blocksize(sb, BBSIZE);
+	sb->s_xattr = xfs_xattr_handlers;
 	sb->s_export_op = &xfs_export_operations;
 	sb->s_qcop = &xfs_quotactl_operations;
 	sb->s_op = &xfs_super_operations;

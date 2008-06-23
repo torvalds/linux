@@ -275,7 +275,7 @@ xfs_vn_mknod(
 	struct xfs_inode *ip = NULL;
 	xfs_acl_t	*default_acl = NULL;
 	struct xfs_name	name;
-	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
+	int (*test_default_acl)(struct inode *) = _ACL_DEFAULT_EXISTS;
 	int		error;
 
 	/*
@@ -781,98 +781,6 @@ xfs_vn_truncate(
 	WARN_ON(error);
 }
 
-STATIC int
-xfs_vn_setxattr(
-	struct dentry	*dentry,
-	const char	*name,
-	const void	*data,
-	size_t		size,
-	int		flags)
-{
-	bhv_vnode_t	*vp = vn_from_inode(dentry->d_inode);
-	char		*attr = (char *)name;
-	attrnames_t	*namesp;
-	int		xflags = 0;
-
-	namesp = attr_lookup_namespace(attr, attr_namespaces, ATTR_NAMECOUNT);
-	if (!namesp)
-		return -EOPNOTSUPP;
-	attr += namesp->attr_namelen;
-
-	/* Convert Linux syscall to XFS internal ATTR flags */
-	if (flags & XATTR_CREATE)
-		xflags |= ATTR_CREATE;
-	if (flags & XATTR_REPLACE)
-		xflags |= ATTR_REPLACE;
-	xflags |= namesp->attr_flag;
-	return namesp->attr_set(vp, attr, (void *)data, size, xflags);
-}
-
-STATIC ssize_t
-xfs_vn_getxattr(
-	struct dentry	*dentry,
-	const char	*name,
-	void		*data,
-	size_t		size)
-{
-	bhv_vnode_t	*vp = vn_from_inode(dentry->d_inode);
-	char		*attr = (char *)name;
-	attrnames_t	*namesp;
-	int		xflags = 0;
-
-	namesp = attr_lookup_namespace(attr, attr_namespaces, ATTR_NAMECOUNT);
-	if (!namesp)
-		return -EOPNOTSUPP;
-	attr += namesp->attr_namelen;
-
-	/* Convert Linux syscall to XFS internal ATTR flags */
-	if (!size) {
-		xflags |= ATTR_KERNOVAL;
-		data = NULL;
-	}
-	xflags |= namesp->attr_flag;
-	return namesp->attr_get(vp, attr, (void *)data, size, xflags);
-}
-
-STATIC ssize_t
-xfs_vn_listxattr(
-	struct dentry		*dentry,
-	char			*data,
-	size_t			size)
-{
-	bhv_vnode_t		*vp = vn_from_inode(dentry->d_inode);
-	int			error, xflags = ATTR_KERNAMELS;
-	ssize_t			result;
-
-	if (!size)
-		xflags |= ATTR_KERNOVAL;
-	xflags |= capable(CAP_SYS_ADMIN) ? ATTR_KERNFULLS : ATTR_KERNORMALS;
-
-	error = attr_generic_list(vp, data, size, xflags, &result);
-	if (error < 0)
-		return error;
-	return result;
-}
-
-STATIC int
-xfs_vn_removexattr(
-	struct dentry	*dentry,
-	const char	*name)
-{
-	bhv_vnode_t	*vp = vn_from_inode(dentry->d_inode);
-	char		*attr = (char *)name;
-	attrnames_t	*namesp;
-	int		xflags = 0;
-
-	namesp = attr_lookup_namespace(attr, attr_namespaces, ATTR_NAMECOUNT);
-	if (!namesp)
-		return -EOPNOTSUPP;
-	attr += namesp->attr_namelen;
-
-	xflags |= namesp->attr_flag;
-	return namesp->attr_remove(vp, attr, xflags);
-}
-
 STATIC long
 xfs_vn_fallocate(
 	struct inode	*inode,
@@ -920,10 +828,10 @@ const struct inode_operations xfs_inode_operations = {
 	.truncate		= xfs_vn_truncate,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
-	.setxattr		= xfs_vn_setxattr,
-	.getxattr		= xfs_vn_getxattr,
+	.setxattr		= generic_setxattr,
+	.getxattr		= generic_getxattr,
+	.removexattr		= generic_removexattr,
 	.listxattr		= xfs_vn_listxattr,
-	.removexattr		= xfs_vn_removexattr,
 	.fallocate		= xfs_vn_fallocate,
 };
 
@@ -940,10 +848,10 @@ const struct inode_operations xfs_dir_inode_operations = {
 	.permission		= xfs_vn_permission,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
-	.setxattr		= xfs_vn_setxattr,
-	.getxattr		= xfs_vn_getxattr,
+	.setxattr		= generic_setxattr,
+	.getxattr		= generic_getxattr,
+	.removexattr		= generic_removexattr,
 	.listxattr		= xfs_vn_listxattr,
-	.removexattr		= xfs_vn_removexattr,
 };
 
 const struct inode_operations xfs_dir_ci_inode_operations = {
@@ -959,10 +867,10 @@ const struct inode_operations xfs_dir_ci_inode_operations = {
 	.permission		= xfs_vn_permission,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
-	.setxattr		= xfs_vn_setxattr,
-	.getxattr		= xfs_vn_getxattr,
+	.setxattr		= generic_setxattr,
+	.getxattr		= generic_getxattr,
+	.removexattr		= generic_removexattr,
 	.listxattr		= xfs_vn_listxattr,
-	.removexattr		= xfs_vn_removexattr,
 };
 
 const struct inode_operations xfs_symlink_inode_operations = {
@@ -972,8 +880,8 @@ const struct inode_operations xfs_symlink_inode_operations = {
 	.permission		= xfs_vn_permission,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
-	.setxattr		= xfs_vn_setxattr,
-	.getxattr		= xfs_vn_getxattr,
+	.setxattr		= generic_setxattr,
+	.getxattr		= generic_getxattr,
+	.removexattr		= generic_removexattr,
 	.listxattr		= xfs_vn_listxattr,
-	.removexattr		= xfs_vn_removexattr,
 };

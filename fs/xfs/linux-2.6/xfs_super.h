@@ -110,6 +110,7 @@ extern void xfs_flush_device(struct xfs_inode *);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
 extern const struct export_operations xfs_export_operations;
+extern struct xattr_handler *xfs_xattr_handlers[];
 
 #define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
 
