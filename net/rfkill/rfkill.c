@@ -46,6 +46,49 @@ MODULE_PARM_DESC(default_state,
 
 static enum rfkill_state rfkill_states[RFKILL_TYPE_MAX];
 
+static BLOCKING_NOTIFIER_HEAD(rfkill_notifier_list);
+
+
+/**
+ * register_rfkill_notifier - Add notifier to rfkill notifier chain
+ * @nb: pointer to the new entry to add to the chain
+ *
+ * See blocking_notifier_chain_register() for return value and further
+ * observations.
+ *
+ * Adds a notifier to the rfkill notifier chain.  The chain will be
+ * called with a pointer to the relevant rfkill structure as a parameter,
+ * refer to include/linux/rfkill.h for the possible events.
+ *
+ * Notifiers added to this chain are to always return NOTIFY_DONE.  This
+ * chain is a blocking notifier chain: notifiers can sleep.
+ *
+ * Calls to this chain may have been done through a workqueue.  One must
+ * assume unordered asynchronous behaviour, there is no way to know if
+ * actions related to the event that generated the notification have been
+ * carried out already.
+ */
+int register_rfkill_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&rfkill_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(register_rfkill_notifier);
+
+/**
+ * unregister_rfkill_notifier - remove notifier from rfkill notifier chain
+ * @nb: pointer to the entry to remove from the chain
+ *
+ * See blocking_notifier_chain_unregister() for return value and further
+ * observations.
+ *
+ * Removes a notifier from the rfkill notifier chain.
+ */
+int unregister_rfkill_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&rfkill_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_rfkill_notifier);
+
 
 static void rfkill_led_trigger(struct rfkill *rfkill,
 			       enum rfkill_state state)
@@ -62,14 +105,25 @@ static void rfkill_led_trigger(struct rfkill *rfkill,
 #endif /* CONFIG_RFKILL_LEDS */
 }
 
+static void notify_rfkill_state_change(struct rfkill *rfkill)
+{
+	blocking_notifier_call_chain(&rfkill_notifier_list,
+			RFKILL_STATE_CHANGED,
+			rfkill);
+}
+
 static void update_rfkill_state(struct rfkill *rfkill)
 {
-	enum rfkill_state newstate;
+	enum rfkill_state newstate, oldstate;
 
 	if (rfkill->get_state) {
 		mutex_lock(&rfkill->mutex);
-		if (!rfkill->get_state(rfkill->data, &newstate))
+		if (!rfkill->get_state(rfkill->data, &newstate)) {
+			oldstate = rfkill->state;
 			rfkill->state = newstate;
+			if (oldstate != newstate)
+				notify_rfkill_state_change(rfkill);
+		}
 		mutex_unlock(&rfkill->mutex);
 	}
 }
@@ -93,8 +147,10 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 			rfkill->state = state;
 	}
 
-	if (force || rfkill->state != oldstate)
+	if (force || rfkill->state != oldstate) {
 		rfkill_led_trigger(rfkill, rfkill->state);
+		notify_rfkill_state_change(rfkill);
+	}
 
 	return retval;
 }
@@ -139,12 +195,20 @@ EXPORT_SYMBOL(rfkill_switch_all);
  */
 int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
 {
+	enum rfkill_state oldstate;
+
 	if (state != RFKILL_STATE_OFF &&
 	    state != RFKILL_STATE_ON)
 		return -EINVAL;
 
 	mutex_lock(&rfkill->mutex);
+
+	oldstate = rfkill->state;
 	rfkill->state = state;
+
+	if (state != oldstate)
+		notify_rfkill_state_change(rfkill);
+
 	mutex_unlock(&rfkill->mutex);
 
 	return 0;
