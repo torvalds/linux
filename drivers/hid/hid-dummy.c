@@ -13,6 +13,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_MICROSOFT_MODULE
 	HID_COMPAT_CALL_DRIVER(microsoft);
 #endif
+#ifdef CONFIG_HID_SUNPLUS_MODULE
+	HID_COMPAT_CALL_DRIVER(sunplus);
+#endif
 
 	return -EIO;
 }

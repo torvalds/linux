@@ -112,6 +112,13 @@ config HID_MICROSOFT
 	Support for some Microsoft devices which breaks less or more
 	HID specification.
 
+config HID_SUNPLUS
+	tristate "Sunplus"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Sunplus WDesktop input device.
+
 endmenu
 
 endif # HID_SUPPORT
