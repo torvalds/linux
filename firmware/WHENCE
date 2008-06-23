@@ -236,3 +236,16 @@ Licence: Unknown
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: CPiA2 -- cameras based on Vision's CPiA2
+
+File: cpia2/stv0672_vp4.bin
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+	Copyright (C) 2001 STMicroelectronics, Inc.
+	Contact:  steve.miller@st.com
+	Description: This file contains patch data for the CPiA2 (stv0672) VP4.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
