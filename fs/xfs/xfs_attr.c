@@ -111,6 +111,17 @@ xfs_attr_name_to_xname(
 	return 0;
 }
 
+STATIC int
+xfs_inode_hasattr(
+	struct xfs_inode	*ip)
+{
+	if (!XFS_IFORK_Q(ip) ||
+	    (ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
+	     ip->i_d.di_anextents == 0))
+		return 0;
+	return 1;
+}
+
 /*========================================================================
  * Overall external interface routines.
  *========================================================================*/
@@ -122,10 +133,8 @@ xfs_attr_fetch(xfs_inode_t *ip, struct xfs_name *name,
 	xfs_da_args_t   args;
 	int             error;
 
-	if ((XFS_IFORK_Q(ip) == 0) ||
-	    (ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     ip->i_d.di_anextents == 0))
-		return(ENOATTR);
+	if (!xfs_inode_hasattr(ip))
+		return ENOATTR;
 
 	/*
 	 * Fill in the arg structure for this request.
@@ -143,11 +152,7 @@ xfs_attr_fetch(xfs_inode_t *ip, struct xfs_name *name,
 	/*
 	 * Decide on what work routines to call based on the inode size.
 	 */
-	if (XFS_IFORK_Q(ip) == 0 ||
-	    (ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     ip->i_d.di_anextents == 0)) {
-		error = XFS_ERROR(ENOATTR);
-	} else if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
+	if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
 		error = xfs_attr_shortform_getvalue(&args);
 	} else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK)) {
 		error = xfs_attr_leaf_get(&args);
@@ -523,9 +528,7 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 	/*
 	 * Decide on what work routines to call based on the inode size.
 	 */
-	if (XFS_IFORK_Q(dp) == 0 ||
-	    (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     dp->i_d.di_anextents == 0)) {
+	if (!xfs_inode_hasattr(dp)) {
 		error = XFS_ERROR(ENOATTR);
 		goto out;
 	}
@@ -595,11 +598,9 @@ xfs_attr_remove(
 		return error;
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (XFS_IFORK_Q(dp) == 0 ||
-		   (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-		    dp->i_d.di_anextents == 0)) {
+	if (!xfs_inode_hasattr(dp)) {
 		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return(XFS_ERROR(ENOATTR));
+		return XFS_ERROR(ENOATTR);
 	}
 	xfs_iunlock(dp, XFS_ILOCK_SHARED);
 
@@ -615,9 +616,7 @@ xfs_attr_list_int(xfs_attr_list_context_t *context)
 	/*
 	 * Decide on what work routines to call based on the inode size.
 	 */
-	if (XFS_IFORK_Q(dp) == 0 ||
-	    (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     dp->i_d.di_anextents == 0)) {
+	if (!xfs_inode_hasattr(dp)) {
 		error = 0;
 	} else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
 		error = xfs_attr_shortform_list(context);
@@ -810,12 +809,10 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	ASSERT(! XFS_NOT_DQATTACHED(mp, dp));
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if ((XFS_IFORK_Q(dp) == 0) ||
-	    (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) ||
-	    (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     dp->i_d.di_anextents == 0)) {
+	if (!xfs_inode_hasattr(dp) ||
+	    dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
 		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return(0);
+		return 0;
 	}
 	xfs_iunlock(dp, XFS_ILOCK_SHARED);
 
@@ -848,10 +845,8 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	/*
 	 * Decide on what work routines to call based on the inode size.
 	 */
-	if ((XFS_IFORK_Q(dp) == 0) ||
-	    (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) ||
-	    (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     dp->i_d.di_anextents == 0)) {
+	if (!xfs_inode_hasattr(dp) ||
+	    dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
 		error = 0;
 		goto out;
 	}
