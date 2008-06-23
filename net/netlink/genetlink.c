@@ -444,8 +444,11 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (ops->dumpit == NULL)
 			return -EOPNOTSUPP;
 
-		return netlink_dump_start(genl_sock, skb, nlh,
-					  ops->dumpit, ops->done);
+		genl_unlock();
+		err = netlink_dump_start(genl_sock, skb, nlh,
+					 ops->dumpit, ops->done);
+		genl_lock();
+		return err;
 	}
 
 	if (ops->doit == NULL)
@@ -603,9 +606,6 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 	int chains_to_skip = cb->args[0];
 	int fams_to_skip = cb->args[1];
 
-	if (chains_to_skip != 0)
-		genl_lock();
-
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++) {
 		if (i < chains_to_skip)
 			continue;
@@ -623,9 +623,6 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 errout:
-	if (chains_to_skip != 0)
-		genl_unlock();
-
 	cb->args[0] = i;
 	cb->args[1] = n;
 
@@ -770,7 +767,7 @@ static int __init genl_init(void)
 
 	/* we'll bump the group number right afterwards */
 	genl_sock = netlink_kernel_create(&init_net, NETLINK_GENERIC, 0,
-					  genl_rcv, NULL, THIS_MODULE);
+					  genl_rcv, &genl_mutex, THIS_MODULE);
 	if (genl_sock == NULL)
 		panic("GENL: Cannot initialize generic netlink\n");
 

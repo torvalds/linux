@@ -23,17 +23,18 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <linux/mutex.h>
 #include <asm/bootinfo.h>
 #include <asm/addrspace.h>
 #include "at93c.h"
 /* New model description table */
 #include "lasat_models.h"
 
+static DEFINE_MUTEX(lasat_eeprom_mutex);
+
 #define EEPROM_CRC(data, len) (~crc32(~0, data, len))
 
 struct lasat_info lasat_board_info;
-
-void update_bcastaddr(void);
 
 int EEPROMRead(unsigned int pos, unsigned char *data, int len)
 {
@@ -258,16 +259,14 @@ int lasat_init_board_info(void)
 			sprintf(lasat_board_info.li_typestr, "%d", 10 * c);
 	}
 
-#if defined(CONFIG_INET) && defined(CONFIG_SYSCTL)
-	update_bcastaddr();
-#endif
-
 	return 0;
 }
 
 void lasat_write_eeprom_info(void)
 {
 	unsigned long crc;
+
+	mutex_lock(&lasat_eeprom_mutex);
 
 	/* Generate the CRC */
 	crc = EEPROM_CRC((unsigned char *)(&lasat_board_info.li_eeprom_info),
@@ -277,4 +276,6 @@ void lasat_write_eeprom_info(void)
 	/* Write the EEPROM info */
 	EEPROMWrite(0, (unsigned char *)&lasat_board_info.li_eeprom_info,
 		    sizeof(struct lasat_eeprom_struct));
+
+	mutex_unlock(&lasat_eeprom_mutex);
 }

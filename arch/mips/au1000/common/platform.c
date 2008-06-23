@@ -165,12 +165,12 @@ static struct resource au1xxx_usb_gdt_resources[] = {
 static struct resource au1xxx_mmc_resources[] = {
 	[0] = {
 		.start          = SD0_PHYS_ADDR,
-		.end            = SD0_PHYS_ADDR + 0x40,
+		.end            = SD0_PHYS_ADDR + 0x7ffff,
 		.flags          = IORESOURCE_MEM,
 	},
 	[1] = {
 		.start		= SD1_PHYS_ADDR,
-		.end 		= SD1_PHYS_ADDR + 0x40,
+		.end 		= SD1_PHYS_ADDR + 0x7ffff,
 		.flags		= IORESOURCE_MEM,
 	},
 	[2] = {
