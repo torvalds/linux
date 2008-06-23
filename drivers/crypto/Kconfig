@@ -174,4 +174,20 @@ config CRYPTO_DEV_HIFN_795X_RNG
 	  Select this option if you want to enable the random number generator
 	  on the HIFN 795x crypto adapters.
 
+config CRYPTO_DEV_TALITOS
+	tristate "Talitos Freescale Security Engine (SEC)"
+	select CRYPTO_ALGAPI
+	select CRYPTO_AUTHENC
+	select HW_RANDOM
+	depends on FSL_SOC
+	help
+	  Say 'Y' here to use the Freescale Security Engine (SEC)
+	  to offload cryptographic algorithm computation.
+
+	  The Freescale SEC is present on PowerQUICC 'E' processors, such
+	  as the MPC8349E and MPC8548E.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called talitos.
+
 endif # CRYPTO_HW
