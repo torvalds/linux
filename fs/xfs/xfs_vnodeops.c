@@ -3260,7 +3260,6 @@ xfs_finish_reclaim(
 {
 	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
 	bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
-	int		error;
 
 	if (vp && VN_BAD(vp))
 		goto reclaim;
@@ -3303,29 +3302,16 @@ xfs_finish_reclaim(
 		xfs_iflock(ip);
 	}
 
-	if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		if (ip->i_update_core ||
-		    ((ip->i_itemp != NULL) &&
-		     (ip->i_itemp->ili_format.ilf_fields != 0))) {
-			error = xfs_iflush(ip, sync_mode);
-			/*
-			 * If we hit an error, typically because of filesystem
-			 * shutdown, we don't need to let vn_reclaim to know
-			 * because we're gonna reclaim the inode anyway.
-			 */
-			if (error) {
-				xfs_iunlock(ip, XFS_ILOCK_EXCL);
-				goto reclaim;
-			}
-			xfs_iflock(ip); /* synchronize with xfs_iflush_done */
-		}
-
-		ASSERT(ip->i_update_core == 0);
-		ASSERT(ip->i_itemp == NULL ||
-		       ip->i_itemp->ili_format.ilf_fields == 0);
+	/*
+	 * In the case of a forced shutdown we rely on xfs_iflush() to
+	 * wait for the inode to be unpinned before returning an error.
+	 */
+	if (xfs_iflush(ip, sync_mode) == 0) {
+		/* synchronize with xfs_iflush_done */
+		xfs_iflock(ip);
+		xfs_ifunlock(ip);
 	}
 
-	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
  reclaim:

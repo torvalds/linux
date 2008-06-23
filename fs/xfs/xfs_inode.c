@@ -3082,8 +3082,6 @@ xfs_iflush(
 	 * flush lock and do nothing.
 	 */
 	if (xfs_inode_clean(ip)) {
-		ASSERT((iip != NULL) ?
-			 !(iip->ili_item.li_flags & XFS_LI_IN_AIL) : 1);
 		xfs_ifunlock(ip);
 		return 0;
 	}
