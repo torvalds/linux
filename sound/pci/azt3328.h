@@ -1,7 +1,8 @@
 #ifndef __SOUND_AZT3328_H
 #define __SOUND_AZT3328_H
 
-/* "PU" == "power-up value", as tested on PCI168 PCI rev. 10 */
+/* "PU" == "power-up value", as tested on PCI168 PCI rev. 10
+ * "WRITE_ONLY"  == register does not indicate actual bit values */
 
 /*** main I/O area port indices ***/
 /* (only 0x70 of 0x80 bytes saved/restored by Windows driver) */
@@ -76,7 +77,7 @@
   #define SOUNDFORMAT_FLAG_2CHANNELS	0x0020
 
 /* define frequency helpers, for maximum value safety */
-enum {
+enum azf_freq_t {
 #define AZF_FREQ(rate) AZF_FREQ_##rate = rate
   AZF_FREQ(4000),
   AZF_FREQ(4800),
@@ -150,11 +151,18 @@ enum {
   #define IO_68_RANDOM_TOGGLE1	0x0100	/* toggles randomly */
   #define IO_68_RANDOM_TOGGLE2	0x0200	/* toggles randomly */
   /* umm, nope, behaviour of these bits changes depending on what we wrote
-   * to 0x6b!! */
+   * to 0x6b!!
+   * And they change upon playback/stop, too:
+   * Writing a value to 0x68 will display this exact value during playback,
+   * too but when stopped it can fall back to a rather different
+   * seemingly random value). Hmm, possibly this is a register which
+   * has a remote shadow which needs proper device supply which only exists
+   * in case playback is active? Or is this driver-induced?
+   */
 
 /* this WORD can be set to have bits 0x0028 activated (FIXME: correct??);
  * actually inhibits PCM playback!!! maybe power management??: */
-#define IDX_IO_6AH		0x6A
+#define IDX_IO_6AH		0x6A /* WRITE_ONLY! */
   /* bit 5: enabling this will activate permanent counting of bytes 2/3
    * at gameport I/O (0xb402/3) (equal values each) and cause
    * gameport legacy I/O at 0x0200 to be _DISABLED_!
