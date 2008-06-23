@@ -751,7 +751,7 @@ static int ipg_get_rxbuff(struct net_device *dev, int entry)
 		sp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 
 	/* Set the RFD fragment length. */
-	rxfragsize = IPG_RXFRAG_SIZE;
+	rxfragsize = sp->rxfrag_size;
 	rxfd->frag_info |= cpu_to_le64((rxfragsize << 48) & IPG_RFI_FRAGLEN);
 
 	return 0;
@@ -1207,8 +1207,8 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 
 	/* accept this frame and send to upper layer */
 	framelen = le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFRAMELEN;
-	if (framelen > IPG_RXFRAG_SIZE)
-		framelen = IPG_RXFRAG_SIZE;
+	if (framelen > sp->rxfrag_size)
+		framelen = sp->rxfrag_size;
 
 	skb_put(skb, framelen);
 	skb->protocol = eth_type_trans(skb, dev);
@@ -1241,10 +1241,10 @@ static void ipg_nic_rx_with_start(struct net_device *dev,
 	pci_unmap_single(pdev, le64_to_cpu(rxfd->frag_info & ~IPG_RFI_FRAGLEN),
 			 sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-	skb_put(skb, IPG_RXFRAG_SIZE);
+	skb_put(skb, sp->rxfrag_size);
 
 	jumbo->found_start = 1;
-	jumbo->current_size = IPG_RXFRAG_SIZE;
+	jumbo->current_size = sp->rxfrag_size;
 	jumbo->skb = skb;
 
 	sp->rx_buff[entry] = NULL;
@@ -1270,10 +1270,6 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 			framelen = le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFRAMELEN;
 
 			endframelen = framelen - jumbo->current_size;
-			/*
-			if (framelen > IPG_RXFRAG_SIZE)
-				framelen=IPG_RXFRAG_SIZE;
-			 */
 			if (framelen > IPG_RXSUPPORT_SIZE)
 				dev_kfree_skb_irq(jumbo->skb);
 			else {
@@ -1314,11 +1310,11 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 
 		if (skb) {
 			if (jumbo->found_start) {
-				jumbo->current_size += IPG_RXFRAG_SIZE;
+				jumbo->current_size += sp->rxfrag_size;
 				if (jumbo->current_size <= IPG_RXSUPPORT_SIZE) {
 					memcpy(skb_put(jumbo->skb,
-						       IPG_RXFRAG_SIZE),
-					       skb->data, IPG_RXFRAG_SIZE);
+						       sp->rxfrag_size),
+					       skb->data, sp->rxfrag_size);
 				}
 			}
 			dev->last_rx = jiffies;
@@ -1410,11 +1406,11 @@ static int ipg_nic_rx(struct net_device *dev)
 		/* Check for jumbo frame arrival with too small
 		 * RXFRAG_SIZE.
 		 */
-		if (framelen > IPG_RXFRAG_SIZE) {
+		if (framelen > sp->rxfrag_size) {
 			IPG_DEBUG_MSG
 			    ("RFS FrameLen > allocated fragment size.\n");
 
-			framelen = IPG_RXFRAG_SIZE;
+			framelen = sp->rxfrag_size;
 		}
 
 		if ((IPG_DROP_ON_RX_ETH_ERRORS && (le64_to_cpu(rxfd->rfs) &
@@ -2240,6 +2236,7 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 	mutex_init(&sp->mii_mutex);
 
 	sp->is_jumbo = IPG_JUMBO;
+	sp->rxfrag_size = IPG_RXFRAG_SIZE;
 
 	/* Declare IPG NIC functions for Ethernet device methods.
 	 */

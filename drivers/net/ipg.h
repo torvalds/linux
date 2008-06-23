@@ -796,6 +796,7 @@ struct ipg_nic_private {
 	unsigned int rx_dirty;
 	bool is_jumbo;
 	struct ipg_jumbo jumbo;
+	unsigned long rxfrag_size;
 	unsigned int rx_buf_sz;
 	struct pci_dev *pdev;
 	struct net_device *dev;
