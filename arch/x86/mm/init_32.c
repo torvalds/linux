@@ -565,11 +565,7 @@ void __init find_low_pfn_range(void)
 {
 	/* it could update max_pfn */
 
-	/*
-	 * partially used pages are not usable - thus
-	 * we are rounding upwards:
-	 */
-	min_low_pfn = PFN_UP(init_pg_tables_end);
+	/* max_low_pfn is 0, we already have early_res support */
 
 	max_low_pfn = max_pfn;
 	if (max_low_pfn > MAXMEM_PFN) {
@@ -694,7 +690,9 @@ void __init setup_bootmem_allocator(void)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
 	reserve_early(bootmap, bootmap + bootmap_size, "BOOTMAP");
 
-	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
+	/* don't touch min_low_pfn */
+	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap >> PAGE_SHIFT,
+					 min_low_pfn, max_low_pfn);
 	printk(KERN_INFO "  mapped low ram: 0 - %08lx\n",
 		 max_pfn_mapped<<PAGE_SHIFT);
 	printk(KERN_INFO "  low ram: %08lx - %08lx\n",

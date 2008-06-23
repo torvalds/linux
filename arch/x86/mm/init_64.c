@@ -620,7 +620,9 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 				 PAGE_SIZE);
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
-	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
+	/* don't touch min_low_pfn */
+	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap >> PAGE_SHIFT,
+					 0, end_pfn);
 	e820_register_active_regions(0, start_pfn, end_pfn);
 	free_bootmem_with_active_regions(0, end_pfn);
 	early_res_to_bootmem(0, end_pfn<<PAGE_SHIFT);
