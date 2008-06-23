@@ -219,15 +219,25 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap); //XXX
 static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 {
+	int ret;
+
 	pr_debug("%s, %lx, %lx\n", __func__, dsisr, ea);
 
-	/* Handle kernel space hash faults immediately.
-	   User hash faults need to be deferred to process context. */
-	if ((dsisr & MFC_DSISR_PTE_NOT_FOUND)
-	    && REGION_ID(ea) != USER_REGION_ID
-	    && hash_page(ea, _PAGE_PRESENT, 0x300) == 0) {
-		spu_restart_dma(spu);
-		return 0;
+	/*
+	 * Handle kernel space hash faults immediately. User hash
+	 * faults need to be deferred to process context.
+	 */
+	if ((dsisr & MFC_DSISR_PTE_NOT_FOUND) &&
+	    (REGION_ID(ea) != USER_REGION_ID)) {
+
+		spin_unlock(&spu->register_lock);
+		ret = hash_page(ea, _PAGE_PRESENT, 0x300);
+		spin_lock(&spu->register_lock);
+
+		if (!ret) {
+			spu_restart_dma(spu);
+			return 0;
+		}
 	}
 
 	spu->class_1_dar = ea;
@@ -324,17 +334,13 @@ spu_irq_class_0(int irq, void *data)
 	stat = spu_int_stat_get(spu, 0) & mask;
 
 	spu->class_0_pending |= stat;
-	spu->class_0_dsisr = spu_mfc_dsisr_get(spu);
 	spu->class_0_dar = spu_mfc_dar_get(spu);
-	spin_unlock(&spu->register_lock);
-
 	spu->stop_callback(spu, 0);
-
 	spu->class_0_pending = 0;
-	spu->class_0_dsisr = 0;
 	spu->class_0_dar = 0;
 
 	spu_int_stat_clear(spu, 0, stat);
+	spin_unlock(&spu->register_lock);
 
 	return IRQ_HANDLED;
 }
@@ -357,12 +363,11 @@ spu_irq_class_1(int irq, void *data)
 		spu_mfc_dsisr_set(spu, 0ul);
 	spu_int_stat_clear(spu, 1, stat);
 
-	if (stat & CLASS1_SEGMENT_FAULT_INTR)
-		__spu_trap_data_seg(spu, dar);
-
-	spin_unlock(&spu->register_lock);
 	pr_debug("%s: %lx %lx %lx %lx\n", __func__, mask, stat,
 			dar, dsisr);
+
+	if (stat & CLASS1_SEGMENT_FAULT_INTR)
+		__spu_trap_data_seg(spu, dar);
 
 	if (stat & CLASS1_STORAGE_FAULT_INTR)
 		__spu_trap_data_map(spu, dar, dsisr);
@@ -375,6 +380,8 @@ spu_irq_class_1(int irq, void *data)
 
 	spu->class_1_dsisr = 0;
 	spu->class_1_dar = 0;
+
+	spin_unlock(&spu->register_lock);
 
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -394,14 +401,12 @@ spu_irq_class_2(int irq, void *data)
 	mask = spu_int_mask_get(spu, 2);
 	/* ignore interrupts we're not waiting for */
 	stat &= mask;
-
 	/* mailbox interrupts are level triggered. mask them now before
 	 * acknowledging */
 	if (stat & mailbox_intrs)
 		spu_int_mask_and(spu, 2, ~(stat & mailbox_intrs));
 	/* acknowledge all interrupts before the callbacks */
 	spu_int_stat_clear(spu, 2, stat);
-	spin_unlock(&spu->register_lock);
 
 	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
 
@@ -421,6 +426,9 @@ spu_irq_class_2(int irq, void *data)
 		spu->wbox_callback(spu);
 
 	spu->stats.class2_intr++;
+
+	spin_unlock(&spu->register_lock);
+
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 

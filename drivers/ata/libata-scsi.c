@@ -2343,8 +2343,8 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *scmd = qc->scsicmd;
 	struct ata_device *dev = qc->dev;
-	int using_pio = (dev->flags & ATA_DFLAG_PIO);
 	int nodata = (scmd->sc_data_direction == DMA_NONE);
+	int using_pio = !nodata && (dev->flags & ATA_DFLAG_PIO);
 	unsigned int nbytes;
 
 	memset(qc->cdb, 0, dev->cdb_len);
@@ -2362,7 +2362,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	ata_qc_set_pc_nbytes(qc);
 
 	/* check whether ATAPI DMA is safe */
-	if (!using_pio && ata_check_atapi_dma(qc))
+	if (!nodata && !using_pio && atapi_check_dma(qc))
 		using_pio = 1;
 
 	/* Some controller variants snoop this value for Packet
@@ -2402,13 +2402,11 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	qc->tf.lbam = (nbytes & 0xFF);
 	qc->tf.lbah = (nbytes >> 8);
 
-	if (using_pio || nodata) {
-		/* no data, or PIO data xfer */
-		if (nodata)
-			qc->tf.protocol = ATAPI_PROT_NODATA;
-		else
-			qc->tf.protocol = ATAPI_PROT_PIO;
-	} else {
+	if (nodata)
+		qc->tf.protocol = ATAPI_PROT_NODATA;
+	else if (using_pio)
+		qc->tf.protocol = ATAPI_PROT_PIO;
+	else {
 		/* DMA data xfer */
 		qc->tf.protocol = ATAPI_PROT_DMA;
 		qc->tf.feature |= ATAPI_PKT_DMA;

@@ -8,7 +8,7 @@
 #ifndef _ASM_IA64_SN_SIMULATOR_H
 #define _ASM_IA64_SN_SIMULATOR_H
 
-
+#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_SGI_SN2) || defined(CONFIG_IA64_SGI_UV)
 #define SNMAGIC 0xaeeeeeee8badbeefL
 #define IS_MEDUSA()			({long sn; asm("mov %0=cpuid[%1]" : "=r"(sn) : "r"(2)); sn == SNMAGIC;})
 
@@ -16,5 +16,10 @@
 #define IS_RUNNING_ON_SIMULATOR()	(sn_prom_type)
 #define IS_RUNNING_ON_FAKE_PROM()	(sn_prom_type == 2)
 extern int sn_prom_type;		/* 0=hardware, 1=medusa/realprom, 2=medusa/fakeprom */
+#else
+#define IS_MEDUSA()			0
+#define SIMULATOR_SLEEP()
+#define IS_RUNNING_ON_SIMULATOR()	0
+#endif
 
 #endif /* _ASM_IA64_SN_SIMULATOR_H */
