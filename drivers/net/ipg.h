@@ -798,6 +798,7 @@ struct ipg_nic_private {
 	struct ipg_jumbo jumbo;
 	unsigned long rxfrag_size;
 	unsigned long rxsupport_size;
+	unsigned long max_rxframe_size;
 	unsigned int rx_buf_sz;
 	struct pci_dev *pdev;
 	struct net_device *dev;

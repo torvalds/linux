@@ -631,6 +631,7 @@ static void ipg_nic_set_multicast_list(struct net_device *dev)
 
 static int ipg_io_config(struct net_device *dev)
 {
+	struct ipg_nic_private *sp = netdev_priv(dev);
 	void __iomem *ioaddr = ipg_ioaddr(dev);
 	u32 origmacctrl;
 	u32 restoremacctrl;
@@ -670,7 +671,7 @@ static int ipg_io_config(struct net_device *dev)
 	/* Set RECEIVEMODE register. */
 	ipg_nic_set_multicast_list(dev);
 
-	ipg_w16(IPG_MAX_RXFRAME_SIZE, MAX_FRAME_SIZE);
+	ipg_w16(sp->max_rxframe_size, MAX_FRAME_SIZE);
 
 	ipg_w8(IPG_RXDMAPOLLPERIOD_VALUE,   RX_DMA_POLL_PERIOD);
 	ipg_w8(IPG_RXDMAURGENTTHRESH_VALUE, RX_DMA_URGENT_THRESH);
@@ -2114,6 +2115,8 @@ static int ipg_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static int ipg_nic_change_mtu(struct net_device *dev, int new_mtu)
 {
+	struct ipg_nic_private *sp = netdev_priv(dev);
+
 	/* Function to accomodate changes to Maximum Transfer Unit
 	 * (or MTU) of IPG NIC. Cannot use default function since
 	 * the default will not allow for MTU > 1500 bytes.
@@ -2125,7 +2128,7 @@ static int ipg_nic_change_mtu(struct net_device *dev, int new_mtu)
 	 * byte payload, 4 byte FCS) and IPG_MAX_RXFRAME_SIZE, which
 	 * corresponds to the MAXFRAMESIZE register in the IPG.
 	 */
-	if ((new_mtu < 68) || (new_mtu > IPG_MAX_RXFRAME_SIZE))
+	if ((new_mtu < 68) || (new_mtu > sp->max_rxframe_size))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
@@ -2238,6 +2241,7 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 	sp->is_jumbo = IPG_JUMBO;
 	sp->rxfrag_size = IPG_RXFRAG_SIZE;
 	sp->rxsupport_size = IPG_RXSUPPORT_SIZE;
+	sp->max_rxframe_size = IPG_MAX_RXFRAME_SIZE;
 
 	/* Declare IPG NIC functions for Ethernet device methods.
 	 */
