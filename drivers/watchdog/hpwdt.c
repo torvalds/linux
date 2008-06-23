@@ -140,49 +140,53 @@ static struct pci_device_id hpwdt_devices[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
+extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs, unsigned long *pRomEntry);
+
 #ifndef CONFIG_X86_64
 /* --32 Bit Bios------------------------------------------------------------ */
 
 #define HPWDT_ARCH	32
 
-asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
-			       unsigned long *pRomEntry)
-{
-	asm("pushl       %ebp               \n\t"
-	    "movl        %esp, %ebp         \n\t"
-	    "pusha                          \n\t"
-	    "pushf                          \n\t"
-	    "push        %es                \n\t"
-	    "push        %ds                \n\t"
-	    "pop         %es                \n\t"
-	    "movl        8(%ebp),%eax       \n\t"
-	    "movl        4(%eax),%ebx       \n\t"
-	    "movl        8(%eax),%ecx       \n\t"
-	    "movl        12(%eax),%edx      \n\t"
-	    "movl        16(%eax),%esi      \n\t"
-	    "movl        20(%eax),%edi      \n\t"
-	    "movl        (%eax),%eax        \n\t"
-	    "push        %cs                \n\t"
-	    "call        *12(%ebp)          \n\t"
-	    "pushf                          \n\t"
-	    "pushl       %eax               \n\t"
-	    "movl        8(%ebp),%eax       \n\t"
-	    "movl        %ebx,4(%eax)       \n\t"
-	    "movl        %ecx,8(%eax)       \n\t"
-	    "movl        %edx,12(%eax)      \n\t"
-	    "movl        %esi,16(%eax)      \n\t"
-	    "movl        %edi,20(%eax)      \n\t"
-	    "movw        %ds,24(%eax)       \n\t"
-	    "movw        %es,26(%eax)       \n\t"
-	    "popl        %ebx               \n\t"
-	    "movl        %ebx,(%eax)        \n\t"
-	    "popl        %ebx               \n\t"
-	    "movl        %ebx,28(%eax)      \n\t"
-	    "pop         %es                \n\t"
-	    "popf                           \n\t"
-	    "popa                           \n\t"
-	    "leave                          \n\t" "ret");
-}
+asm(".text                          \n\t"
+    ".align 4                       \n"
+    "asminline_call:                \n\t"
+    "pushl       %ebp               \n\t"
+    "movl        %esp, %ebp         \n\t"
+    "pusha                          \n\t"
+    "pushf                          \n\t"
+    "push        %es                \n\t"
+    "push        %ds                \n\t"
+    "pop         %es                \n\t"
+    "movl        8(%ebp),%eax       \n\t"
+    "movl        4(%eax),%ebx       \n\t"
+    "movl        8(%eax),%ecx       \n\t"
+    "movl        12(%eax),%edx      \n\t"
+    "movl        16(%eax),%esi      \n\t"
+    "movl        20(%eax),%edi      \n\t"
+    "movl        (%eax),%eax        \n\t"
+    "push        %cs                \n\t"
+    "call        *12(%ebp)          \n\t"
+    "pushf                          \n\t"
+    "pushl       %eax               \n\t"
+    "movl        8(%ebp),%eax       \n\t"
+    "movl        %ebx,4(%eax)       \n\t"
+    "movl        %ecx,8(%eax)       \n\t"
+    "movl        %edx,12(%eax)      \n\t"
+    "movl        %esi,16(%eax)      \n\t"
+    "movl        %edi,20(%eax)      \n\t"
+    "movw        %ds,24(%eax)       \n\t"
+    "movw        %es,26(%eax)       \n\t"
+    "popl        %ebx               \n\t"
+    "movl        %ebx,(%eax)        \n\t"
+    "popl        %ebx               \n\t"
+    "movl        %ebx,28(%eax)      \n\t"
+    "pop         %es                \n\t"
+    "popf                           \n\t"
+    "popa                           \n\t"
+    "leave                          \n\t"
+    "ret                            \n\t"
+    ".previous");
+
 
 /*
  *	cru_detect
@@ -333,43 +337,44 @@ static int __devinit detect_cru_service(void)
 
 #define HPWDT_ARCH	64
 
-asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
-			       unsigned long *pRomEntry)
-{
-	asm("pushq      %rbp            \n\t"
-	    "movq       %rsp, %rbp      \n\t"
-	    "pushq      %rax            \n\t"
-	    "pushq      %rbx            \n\t"
-	    "pushq      %rdx            \n\t"
-	    "pushq      %r12            \n\t"
-	    "pushq      %r9             \n\t"
-	    "movq       %rsi, %r12      \n\t"
-	    "movq       %rdi, %r9       \n\t"
-	    "movl       4(%r9),%ebx     \n\t"
-	    "movl       8(%r9),%ecx     \n\t"
-	    "movl       12(%r9),%edx    \n\t"
-	    "movl       16(%r9),%esi    \n\t"
-	    "movl       20(%r9),%edi    \n\t"
-	    "movl       (%r9),%eax      \n\t"
-	    "call       *%r12           \n\t"
-	    "pushfq                     \n\t"
-	    "popq        %r12           \n\t"
-	    "popfq                      \n\t"
-	    "movl       %eax, (%r9)     \n\t"
-	    "movl       %ebx, 4(%r9)    \n\t"
-	    "movl       %ecx, 8(%r9)    \n\t"
-	    "movl       %edx, 12(%r9)   \n\t"
-	    "movl       %esi, 16(%r9)   \n\t"
-	    "movl       %edi, 20(%r9)   \n\t"
-	    "movq       %r12, %rax      \n\t"
-	    "movl       %eax, 28(%r9)   \n\t"
-	    "popq       %r9             \n\t"
-	    "popq       %r12            \n\t"
-	    "popq       %rdx            \n\t"
-	    "popq       %rbx            \n\t"
-	    "popq       %rax            \n\t"
-	    "leave                      \n\t" "ret");
-}
+asm(".text                      \n\t"
+    ".align 4                   \n"
+    "asminline_call:            \n\t"
+    "pushq      %rbp            \n\t"
+    "movq       %rsp, %rbp      \n\t"
+    "pushq      %rax            \n\t"
+    "pushq      %rbx            \n\t"
+    "pushq      %rdx            \n\t"
+    "pushq      %r12            \n\t"
+    "pushq      %r9             \n\t"
+    "movq       %rsi, %r12      \n\t"
+    "movq       %rdi, %r9       \n\t"
+    "movl       4(%r9),%ebx     \n\t"
+    "movl       8(%r9),%ecx     \n\t"
+    "movl       12(%r9),%edx    \n\t"
+    "movl       16(%r9),%esi    \n\t"
+    "movl       20(%r9),%edi    \n\t"
+    "movl       (%r9),%eax      \n\t"
+    "call       *%r12           \n\t"
+    "pushfq                     \n\t"
+    "popq        %r12           \n\t"
+    "popfq                      \n\t"
+    "movl       %eax, (%r9)     \n\t"
+    "movl       %ebx, 4(%r9)    \n\t"
+    "movl       %ecx, 8(%r9)    \n\t"
+    "movl       %edx, 12(%r9)   \n\t"
+    "movl       %esi, 16(%r9)   \n\t"
+    "movl       %edi, 20(%r9)   \n\t"
+    "movq       %r12, %rax      \n\t"
+    "movl       %eax, 28(%r9)   \n\t"
+    "popq       %r9             \n\t"
+    "popq       %r12            \n\t"
+    "popq       %rdx            \n\t"
+    "popq       %rbx            \n\t"
+    "popq       %rax            \n\t"
+    "leave                      \n\t"
+    "ret                        \n\t"
+    ".previous");
 
 /*
  *	dmi_find_cru

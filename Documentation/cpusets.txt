@@ -542,7 +542,7 @@ otherwise initial value -1 that indicates the cpuset has no request.
    2  : search cores in a package.
    3  : search cpus in a node [= system wide on non-NUMA system]
  ( 4  : search nodes in a chunk of node [on NUMA system] )
- ( 5~ : search system wide [on NUMA system])
+ ( 5  : search system wide [on NUMA system] )
 
 This file is per-cpuset and affect the sched domain where the cpuset
 belongs to.  Therefore if the flag 'sched_load_balance' of a cpuset
