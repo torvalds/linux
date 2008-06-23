@@ -66,6 +66,13 @@ config AT91RM9200_WATCHDOG
 	  Watchdog timer embedded into AT91RM9200 chips. This will reboot your
 	  system when the timeout is reached.
 
+config AT91SAM9X_WATCHDOG
+	tristate "AT91SAM9X watchdog"
+	depends on WATCHDOG && (ARCH_AT91SAM9260 || ARCH_AT91SAM9261)
+	help
+	  Watchdog timer embedded into AT91SAM9X chips. This will reboot your
+	  system when the timeout is reached.
+
 config 21285_WATCHDOG
 	tristate "DC21285 watchdog"
 	depends on FOOTBRIDGE
