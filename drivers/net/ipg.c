@@ -42,7 +42,6 @@
 #define ipg_r16(reg)		ioread16(ioaddr + (reg))
 #define ipg_r8(reg)		ioread8(ioaddr + (reg))
 
-#define JUMBO_FRAME_4k_ONLY
 enum {
 	netdev_io_size = 128
 };
@@ -53,6 +52,14 @@ enum {
 MODULE_AUTHOR("IC Plus Corp. 2003");
 MODULE_DESCRIPTION("IC Plus IP1000 Gigabit Ethernet Adapter Linux Driver");
 MODULE_LICENSE("GPL");
+
+/*
+ * Defaults
+ */
+#define IPG_MAX_RXFRAME_SIZE	0x0600
+#define IPG_RXFRAG_SIZE		0x0600
+#define IPG_RXSUPPORT_SIZE	0x0600
+#define IPG_IS_JUMBO		false
 
 /*
  * Variable record -- index by leading revision/length
@@ -1805,9 +1812,6 @@ static int ipg_nic_open(struct net_device *dev)
 	sp->jumbo.current_size = 0;
 	sp->jumbo.skb = NULL;
 
-	if (IPG_TXFRAG_SIZE)
-		dev->mtu = IPG_TXFRAG_SIZE;
-
 	/* Enable transmit and receive operation of the IPG. */
 	ipg_w32((ipg_r32(MAC_CTRL) | IPG_MC_RX_ENABLE | IPG_MC_TX_ENABLE) &
 		 IPG_MC_RSVD_MASK, MAC_CTRL);
@@ -2116,6 +2120,7 @@ static int ipg_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static int ipg_nic_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
+	int err;
 
 	/* Function to accomodate changes to Maximum Transfer Unit
 	 * (or MTU) of IPG NIC. Cannot use default function since
@@ -2124,16 +2129,33 @@ static int ipg_nic_change_mtu(struct net_device *dev, int new_mtu)
 
 	IPG_DEBUG_MSG("_nic_change_mtu\n");
 
-	/* Check that the new MTU value is between 68 (14 byte header, 46
-	 * byte payload, 4 byte FCS) and IPG_MAX_RXFRAME_SIZE, which
-	 * corresponds to the MAXFRAMESIZE register in the IPG.
+	/*
+	 * Check that the new MTU value is between 68 (14 byte header, 46 byte
+	 * payload, 4 byte FCS) and 10 KB, which is the largest supported MTU.
 	 */
-	if ((new_mtu < 68) || (new_mtu > sp->max_rxframe_size))
+	if (new_mtu < 68 || new_mtu > 10240)
 		return -EINVAL;
+
+	err = ipg_nic_stop(dev);
+	if (err)
+		return err;
 
 	dev->mtu = new_mtu;
 
-	return 0;
+	sp->max_rxframe_size = new_mtu;
+
+	sp->rxfrag_size = new_mtu;
+	if (sp->rxfrag_size > 4088)
+		sp->rxfrag_size = 4088;
+
+	sp->rxsupport_size = sp->max_rxframe_size;
+
+	if (new_mtu > 0x0600)
+		sp->is_jumbo = true;
+	else
+		sp->is_jumbo = false;
+
+	return ipg_nic_open(dev);
 }
 
 static int ipg_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -2238,7 +2260,7 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 	spin_lock_init(&sp->lock);
 	mutex_init(&sp->mii_mutex);
 
-	sp->is_jumbo = IPG_JUMBO;
+	sp->is_jumbo = IPG_IS_JUMBO;
 	sp->rxfrag_size = IPG_RXFRAG_SIZE;
 	sp->rxsupport_size = IPG_RXSUPPORT_SIZE;
 	sp->max_rxframe_size = IPG_MAX_RXFRAME_SIZE;
