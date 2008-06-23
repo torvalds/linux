@@ -537,6 +537,12 @@ enum ipg_regs {
 #define		IPG_FRAMESBETWEENTXDMACOMPLETES 0x1
 
 #ifdef JUMBO_FRAME
+# define IPG_JUMBO true
+#else
+# define IPG_JUMBO false
+#endif
+
+#ifdef JUMBO_FRAME
 
 # ifdef JUMBO_FRAME_SIZE_2K
 # define JUMBO_FRAME_SIZE 2048
@@ -786,9 +792,8 @@ struct ipg_nic_private {
 	unsigned int tx_dirty;
 	unsigned int rx_current;
 	unsigned int rx_dirty;
-#ifdef JUMBO_FRAME
+	bool is_jumbo;
 	struct ipg_jumbo jumbo;
-#endif
 	unsigned int rx_buf_sz;
 	struct pci_dev *pdev;
 	struct net_device *dev;

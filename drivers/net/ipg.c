@@ -1076,8 +1076,6 @@ static int ipg_nic_rxrestore(struct net_device *dev)
 	return 0;
 }
 
-#ifdef JUMBO_FRAME
-
 /* use jumboindex and jumbosize to control jumbo frame status
  * initial status is jumboindex=-1 and jumbosize=0
  * 1. jumboindex = -1 and jumbosize=0 : previous jumbo frame has been done.
@@ -1097,7 +1095,7 @@ enum {
 	FRAME_WITH_START_WITH_END = 11
 };
 
-inline void ipg_nic_rx_free_skb(struct net_device *dev)
+static void ipg_nic_rx_free_skb(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	unsigned int entry = sp->rx_current % IPG_RFDLIST_LENGTH;
@@ -1113,7 +1111,7 @@ inline void ipg_nic_rx_free_skb(struct net_device *dev)
 	}
 }
 
-inline int ipg_nic_rx_check_frame_type(struct net_device *dev)
+static int ipg_nic_rx_check_frame_type(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	struct ipg_rx *rxfd = sp->rxd + (sp->rx_current % IPG_RFDLIST_LENGTH);
@@ -1126,7 +1124,7 @@ inline int ipg_nic_rx_check_frame_type(struct net_device *dev)
 	return type;
 }
 
-inline int ipg_nic_rx_check_error(struct net_device *dev)
+static int ipg_nic_rx_check_error(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	unsigned int entry = sp->rx_current % IPG_RFDLIST_LENGTH;
@@ -1334,7 +1332,7 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 	}
 }
 
-static int ipg_nic_rx(struct net_device *dev)
+static int ipg_nic_rx_jumbo(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	unsigned int curr = sp->rx_current;
@@ -1382,7 +1380,6 @@ static int ipg_nic_rx(struct net_device *dev)
 	return 0;
 }
 
-#else
 static int ipg_nic_rx(struct net_device *dev)
 {
 	/* Transfer received Ethernet frames to higher network layers. */
@@ -1556,7 +1553,6 @@ static int ipg_nic_rx(struct net_device *dev)
 
 	return 0;
 }
-#endif
 
 static void ipg_reset_after_host_error(struct work_struct *work)
 {
@@ -1592,9 +1588,9 @@ static irqreturn_t ipg_interrupt_handler(int irq, void *dev_inst)
 
 	IPG_DEBUG_MSG("_interrupt_handler\n");
 
-#ifdef JUMBO_FRAME
-	ipg_nic_rxrestore(dev);
-#endif
+	if (sp->is_jumbo)
+		ipg_nic_rxrestore(dev);
+
 	spin_lock(&sp->lock);
 
 	/* Get interrupt source information, and acknowledge
@@ -1650,7 +1646,10 @@ static irqreturn_t ipg_interrupt_handler(int irq, void *dev_inst)
 			sp->RFDListCheckedCount++;
 #endif
 
-		ipg_nic_rx(dev);
+		if (sp->is_jumbo)
+			ipg_nic_rx_jumbo(dev);
+		else
+			ipg_nic_rx(dev);
 	}
 
 	/* If TxDMAComplete interrupt, free used TFDs. */
@@ -1804,11 +1803,11 @@ static int ipg_nic_open(struct net_device *dev)
 	if (ipg_config_autoneg(dev) < 0)
 		printk(KERN_INFO "%s: Auto-negotiation error.\n", dev->name);
 
-#ifdef JUMBO_FRAME
 	/* initialize JUMBO Frame control variable */
 	sp->jumbo.found_start = 0;
 	sp->jumbo.current_size = 0;
 	sp->jumbo.skb = NULL;
+#ifdef JUMBO_FRAME
 	dev->mtu = IPG_TXFRAG_SIZE;
 #endif
 
@@ -2239,6 +2238,8 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 	sp = netdev_priv(dev);
 	spin_lock_init(&sp->lock);
 	mutex_init(&sp->mii_mutex);
+
+	sp->is_jumbo = IPG_JUMBO;
 
 	/* Declare IPG NIC functions for Ethernet device methods.
 	 */
