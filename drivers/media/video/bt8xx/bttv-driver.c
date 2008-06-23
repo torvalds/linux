@@ -4188,6 +4188,7 @@ static struct video_device *vdev_init(struct bttv *btv,
 	vfd->dev     = &btv->c.pci->dev;
 	vfd->release = video_device_release;
 	vfd->type    = type;
+	vfd->debug   = bttv_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
 		 type_name, bttv_tvcards[btv->c.type].name);
