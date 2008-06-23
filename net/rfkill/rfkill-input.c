@@ -84,7 +84,8 @@ static void rfkill_schedule_toggle(struct rfkill_task *task)
 	spin_lock_irqsave(&task->lock, flags);
 
 	if (time_after(jiffies, task->last + msecs_to_jiffies(200))) {
-		task->desired_state = !task->desired_state;
+		task->desired_state =
+				rfkill_state_complement(task->desired_state);
 		task->last = jiffies;
 		schedule_work(&task->work);
 	}
@@ -92,14 +93,14 @@ static void rfkill_schedule_toggle(struct rfkill_task *task)
 	spin_unlock_irqrestore(&task->lock, flags);
 }
 
-#define DEFINE_RFKILL_TASK(n, t)			\
-	struct rfkill_task n = {			\
-		.work = __WORK_INITIALIZER(n.work,	\
-				rfkill_task_handler),	\
-		.type = t,				\
-		.mutex = __MUTEX_INITIALIZER(n.mutex),	\
-		.lock = __SPIN_LOCK_UNLOCKED(n.lock),	\
-		.desired_state = RFKILL_STATE_ON,	\
+#define DEFINE_RFKILL_TASK(n, t)				\
+	struct rfkill_task n = {				\
+		.work = __WORK_INITIALIZER(n.work,		\
+				rfkill_task_handler),		\
+		.type = t,					\
+		.mutex = __MUTEX_INITIALIZER(n.mutex),		\
+		.lock = __SPIN_LOCK_UNLOCKED(n.lock),		\
+		.desired_state = RFKILL_STATE_UNBLOCKED,	\
 	}
 
 static DEFINE_RFKILL_TASK(rfkill_wlan, RFKILL_TYPE_WLAN);
@@ -135,15 +136,15 @@ static void rfkill_event(struct input_handle *handle, unsigned int type,
 			/* handle EPO (emergency power off) through shortcut */
 			if (data) {
 				rfkill_schedule_set(&rfkill_wwan,
-						    RFKILL_STATE_ON);
+						    RFKILL_STATE_UNBLOCKED);
 				rfkill_schedule_set(&rfkill_wimax,
-						    RFKILL_STATE_ON);
+						    RFKILL_STATE_UNBLOCKED);
 				rfkill_schedule_set(&rfkill_uwb,
-						    RFKILL_STATE_ON);
+						    RFKILL_STATE_UNBLOCKED);
 				rfkill_schedule_set(&rfkill_bt,
-						    RFKILL_STATE_ON);
+						    RFKILL_STATE_UNBLOCKED);
 				rfkill_schedule_set(&rfkill_wlan,
-						    RFKILL_STATE_ON);
+						    RFKILL_STATE_UNBLOCKED);
 			} else
 				rfkill_schedule_epo();
 			break;

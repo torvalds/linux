@@ -60,9 +60,20 @@ The second option provides an rfkill input handler. This handler will listen to
 all rfkill key events and will toggle the radio accordingly.  With this option
 enabled userspace could either do nothing or simply perform monitoring tasks.
 
-When a rfkill switch is in the RFKILL_STATE_ON, the wireless transmitter (radio
-TX circuit for example) is *enabled*.  When the rfkill switch is in the
-RFKILL_STATE_OFF, the wireless transmitter is to be *blocked* from operating.
+When a rfkill switch is in the RFKILL_STATE_UNBLOCKED, the wireless transmitter
+(radio TX circuit for example) is *enabled*.  When the rfkill switch is in the
+RFKILL_STATE_SOFT_BLOCKED or RFKILL_STATE_HARD_BLOCKED, the wireless
+transmitter is to be *blocked* from operating.
+
+RFKILL_STATE_SOFT_BLOCKED indicates that a call to toggle_radio() can change
+that state.  RFKILL_STATE_HARD_BLOCKED indicates that a call to toggle_radio()
+will not be able to change the state and will return with a suitable error if
+attempts are made to set the state to RFKILL_STATE_UNBLOCKED.
+
+RFKILL_STATE_HARD_BLOCKED is used by drivers to signal that the device is
+locked in the BLOCKED state by a hardwire rfkill line (typically an input pin
+that, when active, forces the transmitter to be disabled) which the driver
+CANNOT override.
 
 Full rfkill functionality requires two different subsystems to cooperate: the
 input layer and the rfkill class.  The input layer issues *commands* to the
@@ -122,10 +133,10 @@ Userspace input handlers (uevents) or kernel input handlers (rfkill-input):
 	  action).
 	* rfkill-input implements EPO by handling EV_SW SW_RFKILL_ALL 0
 	  (power off all transmitters) in a special way: it ignores any
-	  overrides and local state cache and forces all transmitters to
-	  the OFF state (including those which are already supposed to be
-	  OFF).  Note that the opposite event (power on all transmitters)
-	  is handled normally.
+	  overrides and local state cache and forces all transmitters to the
+	  RFKILL_STATE_SOFT_BLOCKED state (including those which are already
+	  supposed to be BLOCKED).  Note that the opposite event (power on all
+	  transmitters) is handled normally.
 
 Userspace uevent handler or kernel platform-specific drivers hooked to the
 rfkill notifier chain:
@@ -284,6 +295,19 @@ You should:
 	  YOU CAN ACCESS state DIRECTLY)
 	- rfkill_register()
 
+The only way to set a device to the RFKILL_STATE_HARD_BLOCKED state is through
+a suitable return of get_state() or through rfkill_force_state().
+
+When a device is in the RFKILL_STATE_HARD_BLOCKED state, the only way to switch
+it to a different state is through a suitable return of get_state() or through
+rfkill_force_state().
+
+If toggle_radio() is called to set a device to state RFKILL_STATE_SOFT_BLOCKED
+when that device is already at the RFKILL_STATE_HARD_BLOCKED state, it should
+not return an error.  Instead, it should try to double-block the transmitter,
+so that its state will change from RFKILL_STATE_HARD_BLOCKED to
+RFKILL_STATE_SOFT_BLOCKED should the hardware blocking cease.
+
 Please refer to the source for more documentation.
 
 ===============================================================================
@@ -322,13 +346,27 @@ change by writing to the "state" attribute in order for anything to happen.
 
 Take particular care to implement EV_SW SW_RFKILL_ALL properly.  When that
 switch is set to OFF, *every* rfkill device *MUST* be immediately put into the
-OFF state, no questions asked.
+RFKILL_STATE_SOFT_BLOCKED state, no questions asked.
 
 The following sysfs entries will be created:
 
 	name: Name assigned by driver to this key (interface or driver name).
 	type: Name of the key type ("wlan", "bluetooth", etc).
-	state: Current state of the key. 1: On, 0: Off.
+	state: Current state of the transmitter
+		0: RFKILL_STATE_SOFT_BLOCKED
+			transmitter is forced off, but you can override it
+			by a write to the state attribute, or through input
+			events (if rfkill-input is loaded).
+		1: RFKILL_STATE_UNBLOCKED
+			transmiter is NOT forced off, and may operate if
+			all other conditions for such operation are met
+			(such as interface is up and configured, etc).
+		2: RFKILL_STATE_HARD_BLOCKED
+			transmitter is forced off by something outside of
+			the driver's control.
+
+			You cannot set a device to this state through
+			writes to the state attribute.
 	claim: 1: Userspace handles events, 0: Kernel handles events
 
 Both the "state" and "claim" entries are also writable. For the "state" entry

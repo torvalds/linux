@@ -46,16 +46,25 @@ enum rfkill_type {
 };
 
 enum rfkill_state {
-	RFKILL_STATE_OFF	= 0,	/* Radio output blocked */
-	RFKILL_STATE_ON		= 1,	/* Radio output active */
+	RFKILL_STATE_SOFT_BLOCKED = 0,	/* Radio output blocked */
+	RFKILL_STATE_UNBLOCKED    = 1,	/* Radio output allowed */
+	RFKILL_STATE_HARD_BLOCKED = 2,	/* Output blocked, non-overrideable */
 };
+
+/*
+ * These are DEPRECATED, drivers using them should be verified to
+ * comply with the rfkill usage guidelines in Documentation/rfkill.txt
+ * and then converted to use the new names for rfkill_state
+ */
+#define RFKILL_STATE_OFF RFKILL_STATE_SOFT_BLOCKED
+#define RFKILL_STATE_ON  RFKILL_STATE_UNBLOCKED
 
 /**
  * struct rfkill - rfkill control structure.
  * @name: Name of the switch.
  * @type: Radio type which the button controls, the value stored
  *	here should be a value from enum rfkill_type.
- * @state: State of the switch, "ON" means radio can operate.
+ * @state: State of the switch, "UNBLOCKED" means radio can operate.
  * @user_claim_unsupported: Whether the hardware supports exclusive
  *	RF-kill control by userspace. Set this before registering.
  * @user_claim: Set when the switch is controlled exlusively by userspace.
@@ -63,8 +72,12 @@ enum rfkill_state {
  * @data: Pointer to the RF button drivers private data which will be
  *	passed along when toggling radio state.
  * @toggle_radio(): Mandatory handler to control state of the radio.
+ *	only RFKILL_STATE_SOFT_BLOCKED and RFKILL_STATE_UNBLOCKED are
+ *	valid parameters.
  * @get_state(): handler to read current radio state from hardware,
  *      may be called from atomic context, should return 0 on success.
+ *      Either this handler OR judicious use of rfkill_force_state() is
+ *      MANDATORY for any driver capable of RFKILL_STATE_HARD_BLOCKED.
  * @led_trigger: A LED trigger for this button's LED.
  * @dev: Device structure integrating the switch into device tree.
  * @node: Used to place switch into list of all switches known to the
@@ -101,6 +114,19 @@ int rfkill_register(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
 
 int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state);
+
+/**
+ * rfkill_state_complement - return complementar state
+ * @state: state to return the complement of
+ *
+ * Returns RFKILL_STATE_SOFT_BLOCKED if @state is RFKILL_STATE_UNBLOCKED,
+ * returns RFKILL_STATE_UNBLOCKED otherwise.
+ */
+static inline enum rfkill_state rfkill_state_complement(enum rfkill_state state)
+{
+	return (state == RFKILL_STATE_UNBLOCKED) ?
+		RFKILL_STATE_SOFT_BLOCKED : RFKILL_STATE_UNBLOCKED;
+}
 
 /**
  * rfkill_get_led_name - Get the LED trigger name for the button's LED.
