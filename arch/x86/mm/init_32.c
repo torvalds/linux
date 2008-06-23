@@ -540,8 +540,95 @@ static void __init set_nx(void)
 }
 #endif
 
+/* user-defined highmem size */
+static unsigned int highmem_pages = -1;
+
+/*
+ * highmem=size forces highmem to be exactly 'size' bytes.
+ * This works even on boxes that have no highmem otherwise.
+ * This also works to reduce highmem size on bigger boxes.
+ */
+static int __init parse_highmem(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	highmem_pages = memparse(arg, &arg) >> PAGE_SHIFT;
+	return 0;
+}
+early_param("highmem", parse_highmem);
+
+/*
+ * Determine low and high memory ranges:
+ */
+unsigned long __init find_max_low_pfn(void)
+{
+	unsigned long max_low_pfn;
+
+	max_low_pfn = max_pfn;
+	if (max_low_pfn > MAXMEM_PFN) {
+		if (highmem_pages == -1)
+			highmem_pages = max_pfn - MAXMEM_PFN;
+		if (highmem_pages + MAXMEM_PFN < max_pfn)
+			max_pfn = MAXMEM_PFN + highmem_pages;
+		if (highmem_pages + MAXMEM_PFN > max_pfn) {
+			printk(KERN_WARNING "only %luMB highmem pages "
+				"available, ignoring highmem size of %uMB.\n",
+				pages_to_mb(max_pfn - MAXMEM_PFN),
+				pages_to_mb(highmem_pages));
+			highmem_pages = 0;
+		}
+		max_low_pfn = MAXMEM_PFN;
+#ifndef CONFIG_HIGHMEM
+		/* Maximum memory usable is what is directly addressable */
+		printk(KERN_WARNING "Warning only %ldMB will be used.\n",
+					MAXMEM>>20);
+		if (max_pfn > MAX_NONPAE_PFN)
+			printk(KERN_WARNING
+				 "Use a HIGHMEM64G enabled kernel.\n");
+		else
+			printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
+		max_pfn = MAXMEM_PFN;
+#else /* !CONFIG_HIGHMEM */
+#ifndef CONFIG_HIGHMEM64G
+		if (max_pfn > MAX_NONPAE_PFN) {
+			max_pfn = MAX_NONPAE_PFN;
+			printk(KERN_WARNING "Warning only 4GB will be used."
+				"Use a HIGHMEM64G enabled kernel.\n");
+		}
+#endif /* !CONFIG_HIGHMEM64G */
+#endif /* !CONFIG_HIGHMEM */
+	} else {
+		if (highmem_pages == -1)
+			highmem_pages = 0;
+#ifdef CONFIG_HIGHMEM
+		if (highmem_pages >= max_pfn) {
+			printk(KERN_ERR "highmem size specified (%uMB) is "
+				"bigger than pages available (%luMB)!.\n",
+				pages_to_mb(highmem_pages),
+				pages_to_mb(max_pfn));
+			highmem_pages = 0;
+		}
+		if (highmem_pages) {
+			if (max_low_pfn - highmem_pages <
+			    64*1024*1024/PAGE_SIZE){
+				printk(KERN_ERR "highmem size %uMB results in "
+				"smaller than 64MB lowmem, ignoring it.\n"
+					, pages_to_mb(highmem_pages));
+				highmem_pages = 0;
+			}
+			max_low_pfn -= highmem_pages;
+		}
+#else
+		if (highmem_pages)
+			printk(KERN_ERR "ignoring highmem size on non-highmem"
+					" kernel!\n");
+#endif
+	}
+	return max_low_pfn;
+}
+
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-extern unsigned long find_max_low_pfn(void);
 unsigned long __init initmem_init(unsigned long start_pfn,
 				  unsigned long end_pfn)
 {
