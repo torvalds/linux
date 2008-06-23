@@ -275,6 +275,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 			}
 			res->start = l64 & PCI_BASE_ADDRESS_MEM_MASK;
 			res->end = res->start + sz64;
+			printk(KERN_INFO "PCI: %s reg %x 64bit mmio: [%llx, %llx]\n", pci_name(dev), reg, res->start, res->end);
 #else
 			if (sz64 > 0x100000000ULL) {
 				printk(KERN_ERR "PCI: Unable to handle 64-bit "
@@ -290,6 +291,8 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 				res->end = sz;
 			}
 #endif
+		} else {
+			printk(KERN_INFO "PCI: %s reg %x %s: [%llx, %llx]\n", pci_name(dev), reg, (res->flags & IORESOURCE_IO)? "io port":"32bit mmio", res->start, res->end);
 		}
 	}
 	if (rom) {
@@ -357,6 +360,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 			res->start = base;
 		if (!res->end)
 			res->end = limit + 0xfff;
+		printk(KERN_INFO "PCI: bridge %s io port: [%llx, %llx]\n", pci_name(dev), res->start, res->end);
 	}
 
 	res = child->resource[1];
@@ -368,6 +372,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM;
 		res->start = base;
 		res->end = limit + 0xfffff;
+		printk(KERN_INFO "PCI: bridge %s 32bit mmio: [%llx, %llx]\n", pci_name(dev), res->start, res->end);
 	}
 
 	res = child->resource[2];
@@ -402,6 +407,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM | IORESOURCE_PREFETCH;
 		res->start = base;
 		res->end = limit + 0xfffff;
+		printk(KERN_INFO "PCI: bridge %s %sbit mmio pref: [%llx, %llx]\n", pci_name(dev), (res->flags & PCI_PREF_RANGE_TYPE_64)?"64":"32",res->start, res->end);
 	}
 }
 
