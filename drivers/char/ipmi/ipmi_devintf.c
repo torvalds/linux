@@ -101,7 +101,9 @@ static int ipmi_fasync(int fd, struct file *file, int on)
 	struct ipmi_file_private *priv = file->private_data;
 	int                      result;
 
+	lock_kernel(); /* could race against open() otherwise */
 	result = fasync_helper(fd, file, on, &priv->fasync_queue);
+	unlock_kernel();
 
 	return (result);
 }
