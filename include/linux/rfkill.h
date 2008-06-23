@@ -44,8 +44,8 @@ enum rfkill_type {
 };
 
 enum rfkill_state {
-	RFKILL_STATE_OFF	= 0,
-	RFKILL_STATE_ON		= 1,
+	RFKILL_STATE_OFF	= 0,	/* Radio output blocked */
+	RFKILL_STATE_ON		= 1,	/* Radio output active */
 };
 
 /**
@@ -53,7 +53,7 @@ enum rfkill_state {
  * @name: Name of the switch.
  * @type: Radio type which the button controls, the value stored
  *	here should be a value from enum rfkill_type.
- * @state: State of the switch (on/off).
+ * @state: State of the switch, "ON" means radio can operate.
  * @user_claim_unsupported: Whether the hardware supports exclusive
  *	RF-kill control by userspace. Set this before registering.
  * @user_claim: Set when the switch is controlled exlusively by userspace.

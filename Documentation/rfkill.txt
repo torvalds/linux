@@ -8,6 +8,13 @@ rfkill - RF switch subsystem support
 ===============================================================================
 1: Implementation details
 
+The rfkill switch subsystem exists to add a generic interface to circuitry that
+can enable or disable the RF output of a radio *transmitter* of any type.
+
+When a rfkill switch is in the RFKILL_STATE_ON, the radio transmitter is
+*enabled*.  When the rfkill switch is in the RFKILL_STATE_OFF, the radio
+transmitter is *disabled*.
+
 The rfkill switch subsystem offers support for keys often found on laptops
 to enable wireless devices like WiFi and Bluetooth.
 
