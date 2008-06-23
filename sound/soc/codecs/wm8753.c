@@ -55,25 +55,6 @@
 #define AUDIO_NAME "wm8753"
 #define WM8753_VERSION "0.16"
 
-/*
- * Debug
- */
-
-#define WM8753_DEBUG 0
-
-#ifdef WM8753_DEBUG
-#define dbg(format, arg...) \
-	printk(KERN_DEBUG AUDIO_NAME ": " format "\n" , ## arg)
-#else
-#define dbg(format, arg...) do {} while (0)
-#endif
-#define err(format, arg...) \
-	printk(KERN_ERR AUDIO_NAME ": " format "\n" , ## arg)
-#define info(format, arg...) \
-	printk(KERN_INFO AUDIO_NAME ": " format "\n" , ## arg)
-#define warn(format, arg...) \
-	printk(KERN_WARNING AUDIO_NAME ": " format "\n" , ## arg)
-
 static int caps_charge = 2000;
 module_param(caps_charge, int, 0);
 MODULE_PARM_DESC(caps_charge, "WM8753 cap charge time (msecs)");
@@ -1689,13 +1670,13 @@ static int wm8753_codec_probe(struct i2c_adapter *adap, int addr, int kind)
 
 	ret = i2c_attach_client(i2c);
 	if (ret < 0) {
-		err("failed to attach codec at addr %x\n", addr);
+		pr_err("failed to attach codec at addr %x\n", addr);
 		goto err;
 	}
 
 	ret = wm8753_init(socdev);
 	if (ret < 0) {
-		err("failed to initialise WM8753\n");
+		pr_err("failed to initialise WM8753\n");
 		goto err;
 	}
 
@@ -1747,7 +1728,7 @@ static int wm8753_probe(struct platform_device *pdev)
 	struct wm8753_priv *wm8753;
 	int ret = 0;
 
-	info("WM8753 Audio Codec %s", WM8753_VERSION);
+	pr_info("WM8753 Audio Codec %s", WM8753_VERSION);
 
 	setup = socdev->codec_data;
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
