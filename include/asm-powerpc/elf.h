@@ -224,8 +224,6 @@ extern int dump_task_altivec(struct task_struct *, elf_vrregset_t *vrregs);
 #define ELF_CORE_XFPREG_TYPE NT_PPC_VMX
 #endif
 
-#endif /* __KERNEL__ */
-
 /* ELF_HWCAP yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
    but it's not easy, and we've already done it here.  */
@@ -242,8 +240,6 @@ extern int dump_task_altivec(struct task_struct *, elf_vrregset_t *vrregs);
 	_r->gpr[2] = load_addr; 		\
 } while (0)
 #endif /* __powerpc64__ */
-
-#ifdef __KERNEL__
 
 #ifdef __powerpc64__
 # define SET_PERSONALITY(ex, ibcs2)				\
@@ -272,8 +268,6 @@ do {								\
 # define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
 #endif /* __powerpc64__ */
 
-#endif /* __KERNEL__ */
-
 extern int dcache_bsize;
 extern int icache_bsize;
 extern int ucache_bsize;
@@ -284,6 +278,8 @@ struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int executable_stack);
 #define VDSO_AUX_ENT(a,b) NEW_AUX_ENT(a,b);
+
+#endif /* __KERNEL__ */
 
 /*
  * The requirements here are:
@@ -422,6 +418,8 @@ do {									\
 /* Keep this the last entry.  */
 #define R_PPC64_NUM		107
 
+#ifdef  __KERNEL__
+
 #ifdef CONFIG_SPU_BASE
 /* Notes used in ET_CORE. Note name is "SPU/<fd>/<filename>". */
 #define NT_SPU		1
@@ -429,5 +427,7 @@ do {									\
 #define ARCH_HAVE_EXTRA_ELF_NOTES
 
 #endif /* CONFIG_SPU_BASE */
+
+#endif /* __KERNEL */
 
 #endif /* _ASM_POWERPC_ELF_H */
