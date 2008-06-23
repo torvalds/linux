@@ -1209,8 +1209,6 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	}
 
 	if (gap_ack_blocks) {
-		sctp_mark_missing(q, &q->retransmit, NULL, highest_new_tsn, 0);
-
 		list_for_each_entry(transport, transport_list, transports)
 			sctp_mark_missing(q, &transport->transmitted, transport,
 					  highest_new_tsn, count_of_newacks);
