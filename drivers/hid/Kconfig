@@ -96,6 +96,13 @@ config HID_APPLE
 
 	If unsure, say M.
 
+config HID_CYPRESS
+	tristate "Cypress"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Cypress mouse and barcodes.
+
 config HID_LOGITECH
 	tristate "Logitech"
 	default m

@@ -31,7 +31,6 @@ static const struct hid_blacklist {
 
 	{ USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU, HID_QUIRK_2WHEEL_MOUSE_HACK_7 },
 	{ USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_X5_005D, HID_QUIRK_2WHEEL_MOUSE_HACK_B8 },
-	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_MOUSE, HID_QUIRK_2WHEEL_MOUSE_HACK_5 },
 
 	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_PREDATOR, HID_QUIRK_BADPAD },
@@ -92,9 +91,6 @@ static const struct hid_rdesc_blacklist {
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
 
 	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_RDESC_SAMSUNG_REMOTE },
-
-	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
-	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_2, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
 
 	{ 0, 0 }
 };
@@ -382,30 +378,6 @@ static void usbhid_fixup_petalynx_descriptor(unsigned char *rdesc, int rsize)
 	}
 }
 
-/*
- * Some USB barcode readers from cypress have usage min and usage max in
- * the wrong order
- */
-static void usbhid_fixup_cypress_descriptor(unsigned char *rdesc, int rsize)
-{
-	short fixed = 0;
-	int i;
-
-	for (i = 0; i < rsize - 4; i++) {
-		if (rdesc[i] == 0x29 && rdesc [i+2] == 0x19) {
-			unsigned char tmp;
-
-			rdesc[i] = 0x19; rdesc[i+2] = 0x29;
-			tmp = rdesc[i+3];
-			rdesc[i+3] = rdesc[i+1];
-			rdesc[i+1] = tmp;
-		}
-	}
-
-	if (fixed)
-		printk(KERN_INFO "Fixing up Cypress report descriptor\n");
-}
-
 static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rsize)
 {
 	if (rsize >= 30 && rdesc[29] == 0x05
@@ -419,9 +391,6 @@ static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned
 {
 	if ((quirks & HID_QUIRK_RDESC_CYMOTION))
 		usbhid_fixup_cymotion_descriptor(rdesc, rsize);
-
-	if (quirks & HID_QUIRK_RDESC_SWAPPED_MIN_MAX)
-		usbhid_fixup_cypress_descriptor(rdesc, rsize);
 
 	if (quirks & HID_QUIRK_RDESC_PETALYNX)
 		usbhid_fixup_petalynx_descriptor(rdesc, rsize);

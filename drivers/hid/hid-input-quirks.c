@@ -236,8 +236,8 @@ int hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struc
 
 	input = field->hidinput->input;
 
-	if (((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
-		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007))) {
+	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) &&
+			(usage->hid == 0x00090007)) {
 		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
 		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
 		return 1;
