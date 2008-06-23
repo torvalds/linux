@@ -12,6 +12,7 @@ ifdef CONFIG_HID_COMPAT
 obj-m				+= hid-dummy.o
 endif
 
+obj-$(CONFIG_HID_A4TECH)	+= hid-a4tech.o
 obj-$(CONFIG_HID_APPLE)		+= hid-apple.o
 obj-$(CONFIG_HID_CYPRESS)	+= hid-cypress.o
 obj-$(CONFIG_HID_LOGITECH)	+= hid-logitech.o

@@ -261,14 +261,11 @@ struct hid_item {
 #define HID_QUIRK_HIDDEV			0x00000010
 #define HID_QUIRK_BADPAD			0x00000020
 #define HID_QUIRK_MULTI_INPUT			0x00000040
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_7		0x00000080
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x00000200
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
 #define HID_QUIRK_SONY_PS3_CONTROLLER		0x00040000
 #define HID_QUIRK_RESET_LEDS			0x00100000
 #define HID_QUIRK_HIDINPUT			0x00200000
 #define HID_QUIRK_IGNORE_HIDINPUT		0x01000000
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_B8		0x02000000
 #define HID_QUIRK_HWHEEL_WHEEL_INVERT		0x04000000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 
@@ -452,8 +449,6 @@ struct hid_device {							/* device report descriptor */
 	char uniq[64];							/* Device unique identifier (serial #) */
 
 	void *driver_data;
-
-	__s32 delayed_value;						/* For A4 Tech mice hwheel quirk */
 
 	/* hiddev event handler */
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,

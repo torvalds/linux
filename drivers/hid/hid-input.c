@@ -515,15 +515,6 @@ mapped:
 				hidinput, field, usage, &bit, &max) < 0)
 		goto ignore;
 
-	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 |
-			HID_QUIRK_2WHEEL_MOUSE_HACK_B8)) && (usage->type == EV_REL) &&
-			(usage->code == REL_WHEEL))
-		set_bit(REL_HWHEEL, bit);
-
-	if ((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) &&
-			(usage->hid == 0x00090007))
-		goto ignore;
-
 	set_bit(usage->type, input->evbit);
 
 	while (usage->code <= max && test_and_set_bit(usage->code, bit))

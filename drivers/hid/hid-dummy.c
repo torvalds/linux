@@ -4,6 +4,9 @@
 
 static int __init hid_dummy_init(void)
 {
+#ifdef CONFIG_HID_A4TECH_MODULE
+	HID_COMPAT_CALL_DRIVER(a4tech);
+#endif
 #ifdef CONFIG_HID_APPLE_MODULE
 	HID_COMPAT_CALL_DRIVER(apple);
 #endif

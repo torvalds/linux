@@ -236,31 +236,6 @@ int hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struc
 
 	input = field->hidinput->input;
 
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) &&
-			(usage->hid == 0x00090007)) {
-		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		return 1;
-	}
-
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
-			(usage->type == EV_REL) &&
-			(usage->code == REL_WHEEL)) {
-		hid->delayed_value = value;
-		return 1;
-	}
-
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
-			(usage->hid == 0x000100b8)) {
-		input_event(input, EV_REL, value ? REL_HWHEEL : REL_WHEEL, hid->delayed_value);
-		return 1;
-	}
-
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
-		input_event(input, usage->type, REL_HWHEEL, value);
-		return 1;
-	}
-
 	/* handle the temporary quirky mapping to HWHEEL */
 	if (hid->quirks & HID_QUIRK_HWHEEL_WHEEL_INVERT &&
 			usage->type == EV_REL && usage->code == REL_HWHEEL) {
