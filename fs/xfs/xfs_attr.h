@@ -126,7 +126,7 @@ typedef struct xfs_attr_list_context {
 	struct attrlist_cursor_kern	*cursor;	/* position in list */
 	char				*alist;		/* output buffer */
 	int				seen_enough;	/* T/F: seen enough of list? */
-	int				count;		/* num used entries */
+	ssize_t				count;		/* num used entries */
 	int				dupcnt;		/* count dup hashvals seen */
 	int				bufsize;	/* total buffer size */
 	int				firstu;		/* first used byte in buffer */
