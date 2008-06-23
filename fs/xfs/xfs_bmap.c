@@ -1746,11 +1746,18 @@ xfs_bmap_add_extent_unwritten_real(
 			if ((error = xfs_bmbt_insert(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
-			if ((error = xfs_bmbt_increment(cur, 0, &i)))
+			/*
+			 * Reset the cursor to the position of the new extent
+			 * we are about to insert as we can't trust it after
+			 * the previous insert.
+			 */
+			if ((error = xfs_bmbt_lookup_eq(cur, new->br_startoff,
+					new->br_startblock, new->br_blockcount,
+					&i)))
 				goto done;
-			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
+			XFS_WANT_CORRUPTED_GOTO(i == 0, done);
 			/* new middle extent - newext */
-			cur->bc_rec.b = *new;
+			cur->bc_rec.b.br_state = new->br_state;
 			if ((error = xfs_bmbt_insert(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
