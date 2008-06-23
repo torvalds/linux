@@ -598,6 +598,8 @@ enum ipg_regs {
 #ifdef JUMBO_FRAME
 /* IPG_TXFRAG_SIZE must <= 0x2b00, or TX will crash */
 #define		IPG_TXFRAG_SIZE		JUMBO_FRAME_SIZE
+#else
+#define		IPG_TXFRAG_SIZE		0 /* use default MTU */
 #endif
 
 /* Size of allocated received buffers. Nominally 0x0600.

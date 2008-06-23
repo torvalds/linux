@@ -1807,9 +1807,9 @@ static int ipg_nic_open(struct net_device *dev)
 	sp->jumbo.found_start = 0;
 	sp->jumbo.current_size = 0;
 	sp->jumbo.skb = NULL;
-#ifdef JUMBO_FRAME
-	dev->mtu = IPG_TXFRAG_SIZE;
-#endif
+
+	if (IPG_TXFRAG_SIZE)
+		dev->mtu = IPG_TXFRAG_SIZE;
 
 	/* Enable transmit and receive operation of the IPG. */
 	ipg_w32((ipg_r32(MAC_CTRL) | IPG_MC_RX_ENABLE | IPG_MC_TX_ENABLE) &
