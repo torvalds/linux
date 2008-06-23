@@ -2116,13 +2116,6 @@ again:
 #endif
 }
 
-#ifdef	DEBUG
-#define	REMOVE_DEBUG_TRACE(x)	{remove_which_error_return = (x);}
-int remove_which_error_return = 0;
-#else /* ! DEBUG */
-#define	REMOVE_DEBUG_TRACE(x)
-#endif	/* ! DEBUG */
-
 int
 xfs_remove(
 	xfs_inode_t             *dp,
@@ -2131,6 +2124,7 @@ xfs_remove(
 {
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_trans_t             *tp = NULL;
+	int			is_dir = S_ISDIR(ip->i_d.di_mode);
 	int                     error = 0;
 	xfs_bmap_free_t         free_list;
 	xfs_fsblock_t           first_block;
@@ -2138,8 +2132,10 @@ xfs_remove(
 	int			committed;
 	int			link_zero;
 	uint			resblks;
+	uint			log_count;
 
 	xfs_itrace_entry(dp);
+	xfs_itrace_entry(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -2152,19 +2148,23 @@ xfs_remove(
 			return error;
 	}
 
-	xfs_itrace_entry(ip);
-	xfs_itrace_ref(ip);
-
 	error = XFS_QM_DQATTACH(mp, dp, 0);
-	if (!error)
-		error = XFS_QM_DQATTACH(mp, ip, 0);
-	if (error) {
-		REMOVE_DEBUG_TRACE(__LINE__);
+	if (error)
 		goto std_return;
-	}
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_REMOVE);
+	error = XFS_QM_DQATTACH(mp, ip, 0);
+	if (error)
+		goto std_return;
+
+	if (is_dir) {
+		tp = xfs_trans_alloc(mp, XFS_TRANS_RMDIR);
+		log_count = XFS_DEFAULT_LOG_COUNT;
+	} else {
+		tp = xfs_trans_alloc(mp, XFS_TRANS_REMOVE);
+		log_count = XFS_REMOVE_LOG_COUNT;
+	}
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
+
 	/*
 	 * We try to get the real space reservation first,
 	 * allowing for directory btree deletion(s) implying
@@ -2176,25 +2176,21 @@ xfs_remove(
 	 */
 	resblks = XFS_REMOVE_SPACE_RES(mp);
 	error = xfs_trans_reserve(tp, resblks, XFS_REMOVE_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_REMOVE_LOG_COUNT);
+				  XFS_TRANS_PERM_LOG_RES, log_count);
 	if (error == ENOSPC) {
 		resblks = 0;
 		error = xfs_trans_reserve(tp, 0, XFS_REMOVE_LOG_RES(mp), 0,
-				XFS_TRANS_PERM_LOG_RES, XFS_REMOVE_LOG_COUNT);
+					  XFS_TRANS_PERM_LOG_RES, log_count);
 	}
 	if (error) {
 		ASSERT(error != ENOSPC);
-		REMOVE_DEBUG_TRACE(__LINE__);
-		xfs_trans_cancel(tp, 0);
-		return error;
+		cancel_flags = 0;
+		goto out_trans_cancel;
 	}
 
 	error = xfs_lock_dir_and_entry(dp, ip);
-	if (error) {
-		REMOVE_DEBUG_TRACE(__LINE__);
-		xfs_trans_cancel(tp, cancel_flags);
-		goto std_return;
-	}
+	if (error)
+		goto out_trans_cancel;
 
 	/*
 	 * At this point, we've gotten both the directory and the entry
@@ -2207,6 +2203,21 @@ xfs_remove(
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 	/*
+	 * If we're removing a directory perform some additional validation.
+	 */
+	if (is_dir) {
+		ASSERT(ip->i_d.di_nlink >= 2);
+		if (ip->i_d.di_nlink != 2) {
+			error = XFS_ERROR(ENOTEMPTY);
+			goto out_trans_cancel;
+		}
+		if (!xfs_dir_isempty(ip)) {
+			error = XFS_ERROR(ENOTEMPTY);
+			goto out_trans_cancel;
+		}
+	}
+
+	/*
 	 * Entry must exist since we did a lookup in xfs_lock_dir_and_entry.
 	 */
 	XFS_BMAP_INIT(&free_list, &first_block);
@@ -2214,39 +2225,64 @@ xfs_remove(
 					&first_block, &free_list, resblks);
 	if (error) {
 		ASSERT(error != ENOENT);
-		REMOVE_DEBUG_TRACE(__LINE__);
-		goto error1;
+		goto out_bmap_cancel;
 	}
 	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
+	/*
+	 * Bump the in memory generation count on the parent
+	 * directory so that other can know that it has changed.
+	 */
 	dp->i_gen++;
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 
-	error = xfs_droplink(tp, ip);
-	if (error) {
-		REMOVE_DEBUG_TRACE(__LINE__);
-		goto error1;
+	if (is_dir) {
+		/*
+		 * Drop the link from ip's "..".
+		 */
+		error = xfs_droplink(tp, dp);
+		if (error)
+			goto out_bmap_cancel;
+
+		/*
+		 * Drop the link from dp to ip.
+		 */
+		error = xfs_droplink(tp, ip);
+		if (error)
+			goto out_bmap_cancel;
+	} else {
+		/*
+		 * When removing a non-directory we need to log the parent
+		 * inode here for the i_gen update.  For a directory this is
+		 * done implicitly by the xfs_droplink call for the ".." entry.
+		 */
+		xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 	}
 
-	/* Determine if this is the last link while
+	/*
+	 * Drop the "." link from ip to self.
+	 */
+	error = xfs_droplink(tp, ip);
+	if (error)
+		goto out_bmap_cancel;
+
+	/*
+	 * Determine if this is the last link while
 	 * we are in the transaction.
 	 */
-	link_zero = (ip)->i_d.di_nlink==0;
+	link_zero = (ip->i_d.di_nlink == 0);
 
 	/*
 	 * If this is a synchronous mount, make sure that the
 	 * remove transaction goes to disk before returning to
 	 * the user.
 	 */
-	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC)) {
+	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
 		xfs_trans_set_sync(tp);
-	}
 
 	error = xfs_bmap_finish(&tp, &free_list, &committed);
-	if (error) {
-		REMOVE_DEBUG_TRACE(__LINE__);
-		goto error_rele;
-	}
+	if (error)
+		goto out_bmap_cancel;
 
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	if (error)
@@ -2258,38 +2294,26 @@ xfs_remove(
 	 * will get killed on last close in xfs_close() so we don't
 	 * have to worry about that.
 	 */
-	if (link_zero && xfs_inode_is_filestream(ip))
+	if (!is_dir && link_zero && xfs_inode_is_filestream(ip))
 		xfs_filestream_deassociate(ip);
 
 	xfs_itrace_exit(ip);
+	xfs_itrace_exit(dp);
 
-/*	Fall through to std_return with error = 0 */
  std_return:
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_POSTREMOVE)) {
-		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
-				dp, DM_RIGHT_NULL,
-				NULL, DM_RIGHT_NULL,
-				name->name, NULL, ip->i_d.di_mode, error, 0);
+		XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE, dp, DM_RIGHT_NULL,
+				NULL, DM_RIGHT_NULL, name->name, NULL,
+				ip->i_d.di_mode, error, 0);
 	}
+
 	return error;
 
- error1:
+ out_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
 	cancel_flags |= XFS_TRANS_ABORT;
+ out_trans_cancel:
 	xfs_trans_cancel(tp, cancel_flags);
-	goto std_return;
-
- error_rele:
-	/*
-	 * In this case make sure to not release the inode until after
-	 * the current transaction is aborted.  Releasing it beforehand
-	 * can cause us to go to xfs_inactive and start a recursive
-	 * transaction which can easily deadlock with the current one.
-	 */
-	xfs_bmap_cancel(&free_list);
-	cancel_flags |= XFS_TRANS_ABORT;
-	xfs_trans_cancel(tp, cancel_flags);
-
 	goto std_return;
 }
 
@@ -2652,186 +2676,6 @@ std_return:
 	if (unlock_dp_on_error)
 		xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
-	goto std_return;
-}
-
-int
-xfs_rmdir(
-	xfs_inode_t             *dp,
-	struct xfs_name		*name,
-	xfs_inode_t		*cdp)
-{
-	xfs_mount_t		*mp = dp->i_mount;
-	xfs_trans_t             *tp;
-	int                     error;
-	xfs_bmap_free_t         free_list;
-	xfs_fsblock_t           first_block;
-	int			cancel_flags;
-	int			committed;
-	int			last_cdp_link;
-	uint			resblks;
-
-	xfs_itrace_entry(dp);
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
-
-	if (DM_EVENT_ENABLED(dp, DM_EVENT_REMOVE)) {
-		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE,
-					dp, DM_RIGHT_NULL,
-					NULL, DM_RIGHT_NULL, name->name,
-					NULL, cdp->i_d.di_mode, 0, 0);
-		if (error)
-			return XFS_ERROR(error);
-	}
-
-	/*
-	 * Get the dquots for the inodes.
-	 */
-	error = XFS_QM_DQATTACH(mp, dp, 0);
-	if (!error)
-		error = XFS_QM_DQATTACH(mp, cdp, 0);
-	if (error) {
-		REMOVE_DEBUG_TRACE(__LINE__);
-		goto std_return;
-	}
-
-	tp = xfs_trans_alloc(mp, XFS_TRANS_RMDIR);
-	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
-	/*
-	 * We try to get the real space reservation first,
-	 * allowing for directory btree deletion(s) implying
-	 * possible bmap insert(s).  If we can't get the space
-	 * reservation then we use 0 instead, and avoid the bmap
-	 * btree insert(s) in the directory code by, if the bmap
-	 * insert tries to happen, instead trimming the LAST
-	 * block from the directory.
-	 */
-	resblks = XFS_REMOVE_SPACE_RES(mp);
-	error = xfs_trans_reserve(tp, resblks, XFS_REMOVE_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_DEFAULT_LOG_COUNT);
-	if (error == ENOSPC) {
-		resblks = 0;
-		error = xfs_trans_reserve(tp, 0, XFS_REMOVE_LOG_RES(mp), 0,
-				XFS_TRANS_PERM_LOG_RES, XFS_DEFAULT_LOG_COUNT);
-	}
-	if (error) {
-		ASSERT(error != ENOSPC);
-		cancel_flags = 0;
-		goto error_return;
-	}
-	XFS_BMAP_INIT(&free_list, &first_block);
-
-	/*
-	 * Now lock the child directory inode and the parent directory
-	 * inode in the proper order.  This will take care of validating
-	 * that the directory entry for the child directory inode has
-	 * not changed while we were obtaining a log reservation.
-	 */
-	error = xfs_lock_dir_and_entry(dp, cdp);
-	if (error) {
-		xfs_trans_cancel(tp, cancel_flags);
-		goto std_return;
-	}
-
-	IHOLD(dp);
-	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
-
-	IHOLD(cdp);
-	xfs_trans_ijoin(tp, cdp, XFS_ILOCK_EXCL);
-
-	ASSERT(cdp->i_d.di_nlink >= 2);
-	if (cdp->i_d.di_nlink != 2) {
-		error = XFS_ERROR(ENOTEMPTY);
-		goto error_return;
-	}
-	if (!xfs_dir_isempty(cdp)) {
-		error = XFS_ERROR(ENOTEMPTY);
-		goto error_return;
-	}
-
-	error = xfs_dir_removename(tp, dp, name, cdp->i_ino,
-					&first_block, &free_list, resblks);
-	if (error)
-		goto error1;
-
-	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-
-	/*
-	 * Bump the in memory generation count on the parent
-	 * directory so that other can know that it has changed.
-	 */
-	dp->i_gen++;
-
-	/*
-	 * Drop the link from cdp's "..".
-	 */
-	error = xfs_droplink(tp, dp);
-	if (error) {
-		goto error1;
-	}
-
-	/*
-	 * Drop the link from dp to cdp.
-	 */
-	error = xfs_droplink(tp, cdp);
-	if (error) {
-		goto error1;
-	}
-
-	/*
-	 * Drop the "." link from cdp to self.
-	 */
-	error = xfs_droplink(tp, cdp);
-	if (error) {
-		goto error1;
-	}
-
-	/* Determine these before committing transaction */
-	last_cdp_link = (cdp)->i_d.di_nlink==0;
-
-	/*
-	 * If this is a synchronous mount, make sure that the
-	 * rmdir transaction goes to disk before returning to
-	 * the user.
-	 */
-	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC)) {
-		xfs_trans_set_sync(tp);
-	}
-
-	error = xfs_bmap_finish (&tp, &free_list, &committed);
-	if (error) {
-		xfs_bmap_cancel(&free_list);
-		xfs_trans_cancel(tp, (XFS_TRANS_RELEASE_LOG_RES |
-				 XFS_TRANS_ABORT));
-		goto std_return;
-	}
-
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-	if (error) {
-		goto std_return;
-	}
-
-
-	/* Fall through to std_return with error = 0 or the errno
-	 * from xfs_trans_commit. */
- std_return:
-	if (DM_EVENT_ENABLED(dp, DM_EVENT_POSTREMOVE)) {
-		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
-					dp, DM_RIGHT_NULL,
-					NULL, DM_RIGHT_NULL,
-					name->name, NULL, cdp->i_d.di_mode,
-					error, 0);
-	}
-	return error;
-
- error1:
-	xfs_bmap_cancel(&free_list);
-	cancel_flags |= XFS_TRANS_ABORT;
-	/* FALLTHROUGH */
-
- error_return:
-	xfs_trans_cancel(tp, cancel_flags);
 	goto std_return;
 }
 

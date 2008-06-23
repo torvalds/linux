@@ -245,8 +245,7 @@ STATIC void
 xfs_cleanup_inode(
 	struct inode	*dir,
 	struct inode	*inode,
-	struct dentry	*dentry,
-	int		mode)
+	struct dentry	*dentry)
 {
 	struct xfs_name	teardown;
 
@@ -257,10 +256,7 @@ xfs_cleanup_inode(
 	 */
 	xfs_dentry_to_name(&teardown, dentry);
 
-	if (S_ISDIR(mode))
-		xfs_rmdir(XFS_I(dir), &teardown, XFS_I(inode));
-	else
-		xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
+	xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
 	iput(inode);
 }
 
@@ -342,7 +338,7 @@ xfs_vn_mknod(
 	return -error;
 
  out_cleanup_inode:
-	xfs_cleanup_inode(dir, inode, dentry, mode);
+	xfs_cleanup_inode(dir, inode, dentry);
  out_free_acl:
 	if (default_acl)
 		_ACL_FREE(default_acl);
@@ -518,34 +514,8 @@ xfs_vn_symlink(
 	return 0;
 
  out_cleanup_inode:
-	xfs_cleanup_inode(dir, inode, dentry, 0);
+	xfs_cleanup_inode(dir, inode, dentry);
  out:
-	return -error;
-}
-
-STATIC int
-xfs_vn_rmdir(
-	struct inode	*dir,
-	struct dentry	*dentry)
-{
-	struct inode	*inode = dentry->d_inode;
-	struct xfs_name	name;
-	int		error;
-
-	xfs_dentry_to_name(&name, dentry);
-
-	error = xfs_rmdir(XFS_I(dir), &name, XFS_I(inode));
-	if (likely(!error)) {
-		xfs_validate_fields(inode);
-		xfs_validate_fields(dir);
-		/*
-		 * With rmdir, the VFS makes the dentry "negative": no inode,
-		 * but still hashed. This is incompatible with case-insensitive
-		 * mode, so invalidate (unhash) the dentry in CI-mode.
-		 */
-		if (xfs_sb_version_hasasciici(&XFS_M(dir->i_sb)->m_sb))
-			d_invalidate(dentry);
-	}
 	return -error;
 }
 
@@ -842,7 +812,13 @@ const struct inode_operations xfs_dir_inode_operations = {
 	.unlink			= xfs_vn_unlink,
 	.symlink		= xfs_vn_symlink,
 	.mkdir			= xfs_vn_mkdir,
-	.rmdir			= xfs_vn_rmdir,
+	/*
+	 * Yes, XFS uses the same method for rmdir and unlink.
+	 *
+	 * There are some subtile differences deeper in the code,
+	 * but we use S_ISDIR to check for those.
+	 */
+	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
 	.permission		= xfs_vn_permission,
@@ -861,7 +837,13 @@ const struct inode_operations xfs_dir_ci_inode_operations = {
 	.unlink			= xfs_vn_unlink,
 	.symlink		= xfs_vn_symlink,
 	.mkdir			= xfs_vn_mkdir,
-	.rmdir			= xfs_vn_rmdir,
+	/*
+	 * Yes, XFS uses the same method for rmdir and unlink.
+	 *
+	 * There are some subtile differences deeper in the code,
+	 * but we use S_ISDIR to check for those.
+	 */
+	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
 	.permission		= xfs_vn_permission,
