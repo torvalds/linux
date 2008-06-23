@@ -249,3 +249,19 @@ Licence: Allegedly GPLv2+, but no source visible. Marked:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: DABUSB -- Digital Audio Broadcasting (DAB) Receiver for USB and Linux
+
+File: dabusb/firmware.fw
+File: dabusb/bitstream.bin
+
+Licence: Distributable
+
+ * Copyright (C) 1999 BayCom GmbH
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that redistributions of source
+ * code retain the above copyright notice and this comment without
+ * modification.
+
+--------------------------------------------------------------------------
