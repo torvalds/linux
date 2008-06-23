@@ -406,7 +406,9 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	if (acpi_mps_check()){
+#ifdef CONFIG_X86_LOCAL_APIC
 		enable_local_apic = -1;
+#endif
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	}
 
