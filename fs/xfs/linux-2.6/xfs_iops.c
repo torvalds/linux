@@ -181,23 +181,6 @@ xfs_ichgtime_fast(
 		mark_inode_dirty_sync(inode);
 }
 
-
-/*
- * Pull the link count and size up from the xfs inode to the linux inode
- */
-STATIC void
-xfs_validate_fields(
-	struct inode		*inode)
-{
-	struct xfs_inode	*ip = XFS_I(inode);
-	loff_t size;
-
-	/* we're under i_sem so i_size can't change under us */
-	size = XFS_ISIZE(ip);
-	if (i_size_read(inode) != size)
-		i_size_write(inode, size);
-}
-
 /*
  * Hook in SELinux.  This is not quite correct yet, what we really need
  * here (as we do for default ACLs) is a mechanism by which creation of
@@ -331,10 +314,7 @@ xfs_vn_mknod(
 	}
 
 
-	if (S_ISDIR(mode))
-		xfs_validate_fields(inode);
 	d_instantiate(dentry, inode);
-	xfs_validate_fields(dir);
 	return -error;
 
  out_cleanup_inode:
@@ -450,7 +430,6 @@ xfs_vn_link(
 	}
 
 	xfs_iflags_set(XFS_I(dir), XFS_IMODIFIED);
-	xfs_validate_fields(inode);
 	d_instantiate(dentry, inode);
 	return 0;
 }
@@ -460,26 +439,23 @@ xfs_vn_unlink(
 	struct inode	*dir,
 	struct dentry	*dentry)
 {
-	struct inode	*inode;
 	struct xfs_name	name;
 	int		error;
 
-	inode = dentry->d_inode;
 	xfs_dentry_to_name(&name, dentry);
 
-	error = xfs_remove(XFS_I(dir), &name, XFS_I(inode));
-	if (likely(!error)) {
-		xfs_validate_fields(dir);	/* size needs update */
-		xfs_validate_fields(inode);
-		/*
-		 * With unlink, the VFS makes the dentry "negative": no inode,
-		 * but still hashed. This is incompatible with case-insensitive
-		 * mode, so invalidate (unhash) the dentry in CI-mode.
-		 */
-		if (xfs_sb_version_hasasciici(&XFS_M(dir->i_sb)->m_sb))
-			d_invalidate(dentry);
-	}
-	return -error;
+	error = -xfs_remove(XFS_I(dir), &name, XFS_I(dentry->d_inode));
+	if (error)
+		return error;
+
+	/*
+	 * With unlink, the VFS makes the dentry "negative": no inode,
+	 * but still hashed. This is incompatible with case-insensitive
+	 * mode, so invalidate (unhash) the dentry in CI-mode.
+	 */
+	if (xfs_sb_version_hasasciici(&XFS_M(dir->i_sb)->m_sb))
+		d_invalidate(dentry);
+	return 0;
 }
 
 STATIC int
@@ -509,8 +485,6 @@ xfs_vn_symlink(
 		goto out_cleanup_inode;
 
 	d_instantiate(dentry, inode);
-	xfs_validate_fields(dir);
-	xfs_validate_fields(inode);
 	return 0;
 
  out_cleanup_inode:
@@ -529,22 +503,13 @@ xfs_vn_rename(
 	struct inode	*new_inode = ndentry->d_inode;
 	struct xfs_name	oname;
 	struct xfs_name	nname;
-	int		error;
 
 	xfs_dentry_to_name(&oname, odentry);
 	xfs_dentry_to_name(&nname, ndentry);
 
-	error = xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
+	return -xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
 			   XFS_I(ndir), &nname, new_inode ?
 			   			XFS_I(new_inode) : NULL);
-	if (likely(!error)) {
-		if (new_inode)
-			xfs_validate_fields(new_inode);
-		xfs_validate_fields(odir);
-		if (ndir != odir)
-			xfs_validate_fields(ndir);
-	}
-	return -error;
 }
 
 /*
