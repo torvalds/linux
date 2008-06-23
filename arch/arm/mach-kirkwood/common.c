@@ -313,6 +313,11 @@ static char * __init kirkwood_id(void)
 	return "unknown 88F6000 variant";
 }
 
+static int __init is_l2_writethrough(void)
+{
+	return !!(readl(L2_CONFIG_REG) & L2_WRITETHROUGH);
+}
+
 void __init kirkwood_init(void)
 {
 	printk(KERN_INFO "Kirkwood: %s, TCLK=%d.\n",
@@ -321,6 +326,6 @@ void __init kirkwood_init(void)
 	kirkwood_setup_cpu_mbus();
 
 #ifdef CONFIG_CACHE_FEROCEON_L2
-	feroceon_l2_init(1);
+	feroceon_l2_init(is_l2_writethrough());
 #endif
 }
