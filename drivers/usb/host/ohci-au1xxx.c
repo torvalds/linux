@@ -248,27 +248,68 @@ static int ohci_hcd_au1xxx_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-	/*TBD*/
-/*static int ohci_hcd_au1xxx_drv_suspend(struct platform_device *dev)
+#ifdef CONFIG_PM
+static int ohci_hcd_au1xxx_drv_suspend(struct platform_device *pdev,
+					pm_message_t message)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
+	unsigned long flags;
+	int rc;
+
+	rc = 0;
+
+	/* Root hub was already suspended. Disable irq emission and
+	 * mark HW unaccessible, bail out if RH has been resumed. Use
+	 * the spinlock to properly synchronize with possible pending
+	 * RH suspend or resume activity.
+	 *
+	 * This is still racy as hcd->state is manipulated outside of
+	 * any locks =P But that will be a different fix.
+	 */
+	spin_lock_irqsave(&ohci->lock, flags);
+	if (hcd->state != HC_STATE_SUSPENDED) {
+		rc = -EINVAL;
+		goto bail;
+	}
+	ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
+	(void)ohci_readl(ohci, &ohci->regs->intrdisable);
+
+	/* make sure snapshot being resumed re-enumerates everything */
+	if (message.event == PM_EVENT_PRETHAW)
+		ohci_usb_reset(ohci);
+
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+
+	au1xxx_stop_ohc();
+bail:
+	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	return rc;
+}
+
+static int ohci_hcd_au1xxx_drv_resume(struct platform_device *pdev)
+{
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+
+	au1xxx_start_ohc();
+
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	ohci_finish_controller_resume(hcd);
 
 	return 0;
 }
-static int ohci_hcd_au1xxx_drv_resume(struct platform_device *dev)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(dev);
-
-	return 0;
-}
-*/
+#else
+#define ohci_hcd_au1xxx_drv_suspend NULL
+#define ohci_hcd_au1xxx_drv_resume NULL
+#endif
 
 static struct platform_driver ohci_hcd_au1xxx_driver = {
 	.probe		= ohci_hcd_au1xxx_drv_probe,
 	.remove		= ohci_hcd_au1xxx_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-	/*.suspend	= ohci_hcd_au1xxx_drv_suspend, */
-	/*.resume	= ohci_hcd_au1xxx_drv_resume, */
+	.suspend	= ohci_hcd_au1xxx_drv_suspend,
+	.resume		= ohci_hcd_au1xxx_drv_resume,
 	.driver		= {
 		.name	= "au1xxx-ohci",
 		.owner	= THIS_MODULE,
