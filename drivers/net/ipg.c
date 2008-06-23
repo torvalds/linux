@@ -730,7 +730,7 @@ static int ipg_get_rxbuff(struct net_device *dev, int entry)
 
 	IPG_DEBUG_MSG("_get_rxbuff\n");
 
-	skb = netdev_alloc_skb(dev, IPG_RXSUPPORT_SIZE + NET_IP_ALIGN);
+	skb = netdev_alloc_skb(dev, sp->rxsupport_size + NET_IP_ALIGN);
 	if (!skb) {
 		sp->rx_buff[entry] = NULL;
 		return -ENOMEM;
@@ -1270,7 +1270,7 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 			framelen = le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFRAMELEN;
 
 			endframelen = framelen - jumbo->current_size;
-			if (framelen > IPG_RXSUPPORT_SIZE)
+			if (framelen > sp->rxsupport_size)
 				dev_kfree_skb_irq(jumbo->skb);
 			else {
 				memcpy(skb_put(jumbo->skb, endframelen),
@@ -1311,7 +1311,7 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 		if (skb) {
 			if (jumbo->found_start) {
 				jumbo->current_size += sp->rxfrag_size;
-				if (jumbo->current_size <= IPG_RXSUPPORT_SIZE) {
+				if (jumbo->current_size <= sp->rxsupport_size) {
 					memcpy(skb_put(jumbo->skb,
 						       sp->rxfrag_size),
 					       skb->data, sp->rxfrag_size);
@@ -1744,7 +1744,7 @@ static int ipg_nic_open(struct net_device *dev)
 
 	IPG_DEBUG_MSG("_nic_open\n");
 
-	sp->rx_buf_sz = IPG_RXSUPPORT_SIZE;
+	sp->rx_buf_sz = sp->rxsupport_size;
 
 	/* Check for interrupt line conflicts, and request interrupt
 	 * line for IPG.
@@ -2237,6 +2237,7 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 
 	sp->is_jumbo = IPG_JUMBO;
 	sp->rxfrag_size = IPG_RXFRAG_SIZE;
+	sp->rxsupport_size = IPG_RXSUPPORT_SIZE;
 
 	/* Declare IPG NIC functions for Ethernet device methods.
 	 */
