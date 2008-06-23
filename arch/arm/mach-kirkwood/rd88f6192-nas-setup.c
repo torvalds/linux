@@ -46,6 +46,8 @@ static void __init rd88f6192_init(void)
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6192_sata_data);
 	kirkwood_uart0_init();
+	kirkwood_xor0_init();
+	kirkwood_xor1_init();
 }
 
 static int __init rd88f6192_pci_init(void)
