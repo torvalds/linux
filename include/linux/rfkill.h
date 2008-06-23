@@ -61,6 +61,8 @@ enum rfkill_state {
  * @data: Pointer to the RF button drivers private data which will be
  *	passed along when toggling radio state.
  * @toggle_radio(): Mandatory handler to control state of the radio.
+ * @get_state(): handler to read current radio state from hardware,
+ *      may be called from atomic context, should return 0 on success.
  * @led_trigger: A LED trigger for this button's LED.
  * @dev: Device structure integrating the switch into device tree.
  * @node: Used to place switch into list of all switches known to the
@@ -80,6 +82,7 @@ struct rfkill {
 
 	void *data;
 	int (*toggle_radio)(void *data, enum rfkill_state state);
+	int (*get_state)(void *data, enum rfkill_state *state);
 
 #ifdef CONFIG_RFKILL_LEDS
 	struct led_trigger led_trigger;
@@ -94,6 +97,8 @@ struct rfkill *rfkill_allocate(struct device *parent, enum rfkill_type type);
 void rfkill_free(struct rfkill *rfkill);
 int rfkill_register(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
+
+int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state);
 
 /**
  * rfkill_get_led_name - Get the LED trigger name for the button's LED.

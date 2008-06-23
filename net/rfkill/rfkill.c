@@ -62,18 +62,38 @@ static void rfkill_led_trigger(struct rfkill *rfkill,
 #endif /* CONFIG_RFKILL_LEDS */
 }
 
+static void update_rfkill_state(struct rfkill *rfkill)
+{
+	enum rfkill_state newstate;
+
+	if (rfkill->get_state) {
+		mutex_lock(&rfkill->mutex);
+		if (!rfkill->get_state(rfkill->data, &newstate))
+			rfkill->state = newstate;
+		mutex_unlock(&rfkill->mutex);
+	}
+}
+
 static int rfkill_toggle_radio(struct rfkill *rfkill,
 				enum rfkill_state state)
 {
 	int retval = 0;
+	enum rfkill_state oldstate, newstate;
+
+	oldstate = rfkill->state;
+
+	if (rfkill->get_state &&
+	    !rfkill->get_state(rfkill->data, &newstate))
+		rfkill->state = newstate;
 
 	if (state != rfkill->state) {
 		retval = rfkill->toggle_radio(rfkill->data, state);
-		if (!retval) {
+		if (!retval)
 			rfkill->state = state;
-			rfkill_led_trigger(rfkill, state);
-		}
 	}
+
+	if (rfkill->state != oldstate)
+		rfkill_led_trigger(rfkill, rfkill->state);
 
 	return retval;
 }
@@ -104,6 +124,32 @@ void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 	mutex_unlock(&rfkill_mutex);
 }
 EXPORT_SYMBOL(rfkill_switch_all);
+
+/**
+ * rfkill_force_state - Force the internal rfkill radio state
+ * @rfkill: pointer to the rfkill class to modify.
+ * @state: the current radio state the class should be forced to.
+ *
+ * This function updates the internal state of the radio cached
+ * by the rfkill class.  It should be used when the driver gets
+ * a notification by the firmware/hardware of the current *real*
+ * state of the radio rfkill switch.
+ *
+ * It may not be called from an atomic context.
+ */
+int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
+{
+	if (state != RFKILL_STATE_OFF &&
+	    state != RFKILL_STATE_ON)
+		return -EINVAL;
+
+	mutex_lock(&rfkill->mutex);
+	rfkill->state = state;
+	mutex_unlock(&rfkill->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(rfkill_force_state);
 
 static ssize_t rfkill_name_show(struct device *dev,
 				struct device_attribute *attr,
@@ -147,6 +193,7 @@ static ssize_t rfkill_state_show(struct device *dev,
 {
 	struct rfkill *rfkill = to_rfkill(dev);
 
+	update_rfkill_state(rfkill);
 	return sprintf(buf, "%d\n", rfkill->state);
 }
 
