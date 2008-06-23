@@ -184,39 +184,6 @@ static inline void copy_edd(void)
 }
 #endif
 
-/*
- * vmalloc=size forces the vmalloc area to be exactly 'size'
- * bytes. This can be used to increase (or decrease) the
- * vmalloc area - the default is 128m.
- */
-static int __init parse_vmalloc(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-
-	__VMALLOC_RESERVE = memparse(arg, &arg);
-	return 0;
-}
-early_param("vmalloc", parse_vmalloc);
-
-/*
- * reservetop=size reserves a hole at the top of the kernel address space which
- * a hypervisor can load into later.  Needed for dynamically loaded hypervisors,
- * so relocating the fixmap can be done before paging initialization.
- */
-static int __init parse_reservetop(char *arg)
-{
-	unsigned long address;
-
-	if (!arg)
-		return -EINVAL;
-
-	address = memparse(arg, &arg);
-	reserve_top_address(address);
-	return 0;
-}
-early_param("reservetop", parse_reservetop);
-
 #ifdef CONFIG_BLK_DEV_INITRD
 
 static bool do_relocate_initrd = false;
