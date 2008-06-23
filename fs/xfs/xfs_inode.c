@@ -4532,39 +4532,63 @@ xfs_iext_irec_compact_full(
 	int		nlists;			/* number of irec's (ex lists) */
 
 	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
+
 	nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
 	erp = ifp->if_u1.if_ext_irec;
 	ep = &erp->er_extbuf[erp->er_extcount];
 	erp_next = erp + 1;
 	ep_next = erp_next->er_extbuf;
+
 	while (erp_idx < nlists - 1) {
+		/*
+		 * Check how many extent records are available in this irec.
+		 * If there is none skip the whole exercise.
+		 */
 		ext_avail = XFS_LINEAR_EXTS - erp->er_extcount;
-		ext_diff = MIN(ext_avail, erp_next->er_extcount);
-		memcpy(ep, ep_next, ext_diff * sizeof(xfs_bmbt_rec_t));
-		erp->er_extcount += ext_diff;
-		erp_next->er_extcount -= ext_diff;
-		/* Remove next page */
-		if (erp_next->er_extcount == 0) {
+		if (ext_avail) {
+
 			/*
-			 * Free page before removing extent record
-			 * so er_extoffs don't get modified in
-			 * xfs_iext_irec_remove.
+			 * Copy over as many as possible extent records into
+			 * the previous page.
 			 */
-			kmem_free(erp_next->er_extbuf);
-			erp_next->er_extbuf = NULL;
-			xfs_iext_irec_remove(ifp, erp_idx + 1);
-			erp = &ifp->if_u1.if_ext_irec[erp_idx];
-			nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
-		/* Update next page */
-		} else {
-			/* Move rest of page up to become next new page */
-			memmove(erp_next->er_extbuf, ep_next,
-				erp_next->er_extcount * sizeof(xfs_bmbt_rec_t));
-			ep_next = erp_next->er_extbuf;
-			memset(&ep_next[erp_next->er_extcount], 0,
-				(XFS_LINEAR_EXTS - erp_next->er_extcount) *
-				sizeof(xfs_bmbt_rec_t));
+			ext_diff = MIN(ext_avail, erp_next->er_extcount);
+			memcpy(ep, ep_next, ext_diff * sizeof(xfs_bmbt_rec_t));
+			erp->er_extcount += ext_diff;
+			erp_next->er_extcount -= ext_diff;
+
+			/*
+			 * If the next irec is empty now we can simply
+			 * remove it.
+			 */
+			if (erp_next->er_extcount == 0) {
+				/*
+				 * Free page before removing extent record
+				 * so er_extoffs don't get modified in
+				 * xfs_iext_irec_remove.
+				 */
+				kmem_free(erp_next->er_extbuf);
+				erp_next->er_extbuf = NULL;
+				xfs_iext_irec_remove(ifp, erp_idx + 1);
+				erp = &ifp->if_u1.if_ext_irec[erp_idx];
+				nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
+
+			/*
+			 * If the next irec is not empty move up the content
+			 * that has not been copied to the previous page to
+			 * the beggining of this one.
+			 */
+			} else {
+				memmove(erp_next->er_extbuf, &ep_next[ext_diff],
+					erp_next->er_extcount *
+					sizeof(xfs_bmbt_rec_t));
+				ep_next = erp_next->er_extbuf;
+				memset(&ep_next[erp_next->er_extcount], 0,
+					(XFS_LINEAR_EXTS -
+						erp_next->er_extcount) *
+					sizeof(xfs_bmbt_rec_t));
+			}
 		}
+
 		if (erp->er_extcount == XFS_LINEAR_EXTS) {
 			erp_idx++;
 			if (erp_idx < nlists)
