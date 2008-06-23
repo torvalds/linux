@@ -43,10 +43,25 @@ static void rfkill_task_handler(struct work_struct *work)
 	mutex_unlock(&task->mutex);
 }
 
+static void rfkill_task_epo_handler(struct work_struct *work)
+{
+	rfkill_epo();
+}
+
+static DECLARE_WORK(epo_work, rfkill_task_epo_handler);
+
+static void rfkill_schedule_epo(void)
+{
+	schedule_work(&epo_work);
+}
+
 static void rfkill_schedule_set(struct rfkill_task *task,
 				enum rfkill_state desired_state)
 {
 	unsigned long flags;
+
+	if (unlikely(work_pending(&epo_work)))
+		return;
 
 	spin_lock_irqsave(&task->lock, flags);
 
@@ -62,6 +77,9 @@ static void rfkill_schedule_set(struct rfkill_task *task,
 static void rfkill_schedule_toggle(struct rfkill_task *task)
 {
 	unsigned long flags;
+
+	if (unlikely(work_pending(&epo_work)))
+		return;
 
 	spin_lock_irqsave(&task->lock, flags);
 
@@ -114,21 +132,20 @@ static void rfkill_event(struct input_handle *handle, unsigned int type,
 		switch (code) {
 		case SW_RFKILL_ALL:
 			/* EVERY radio type. data != 0 means radios ON */
-			rfkill_schedule_set(&rfkill_wwan,
-					    (data)? RFKILL_STATE_ON:
-						    RFKILL_STATE_OFF);
-			rfkill_schedule_set(&rfkill_wimax,
-					    (data)? RFKILL_STATE_ON:
-						    RFKILL_STATE_OFF);
-			rfkill_schedule_set(&rfkill_uwb,
-					    (data)? RFKILL_STATE_ON:
-						    RFKILL_STATE_OFF);
-			rfkill_schedule_set(&rfkill_bt,
-					    (data)? RFKILL_STATE_ON:
-						    RFKILL_STATE_OFF);
-			rfkill_schedule_set(&rfkill_wlan,
-					    (data)? RFKILL_STATE_ON:
-						    RFKILL_STATE_OFF);
+			/* handle EPO (emergency power off) through shortcut */
+			if (data) {
+				rfkill_schedule_set(&rfkill_wwan,
+						    RFKILL_STATE_ON);
+				rfkill_schedule_set(&rfkill_wimax,
+						    RFKILL_STATE_ON);
+				rfkill_schedule_set(&rfkill_uwb,
+						    RFKILL_STATE_ON);
+				rfkill_schedule_set(&rfkill_bt,
+						    RFKILL_STATE_ON);
+				rfkill_schedule_set(&rfkill_wlan,
+						    RFKILL_STATE_ON);
+			} else
+				rfkill_schedule_epo();
 			break;
 		default:
 			break;

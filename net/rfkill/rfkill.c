@@ -182,6 +182,24 @@ void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 EXPORT_SYMBOL(rfkill_switch_all);
 
 /**
+ * rfkill_epo - emergency power off all transmitters
+ *
+ * This kicks all rfkill devices to RFKILL_STATE_OFF, ignoring
+ * everything in its path but rfkill_mutex.
+ */
+void rfkill_epo(void)
+{
+	struct rfkill *rfkill;
+
+	mutex_lock(&rfkill_mutex);
+	list_for_each_entry(rfkill, &rfkill_list, node) {
+		rfkill_toggle_radio(rfkill, RFKILL_STATE_OFF, 1);
+	}
+	mutex_unlock(&rfkill_mutex);
+}
+EXPORT_SYMBOL_GPL(rfkill_epo);
+
+/**
  * rfkill_force_state - Force the internal rfkill radio state
  * @rfkill: pointer to the rfkill class to modify.
  * @state: the current radio state the class should be forced to.
