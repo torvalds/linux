@@ -30,27 +30,15 @@ struct rfkill_task {
 	spinlock_t lock; /* for accessing last and desired state */
 	unsigned long last; /* last schedule */
 	enum rfkill_state desired_state; /* on/off */
-	enum rfkill_state current_state; /* on/off */
 };
 
 static void rfkill_task_handler(struct work_struct *work)
 {
 	struct rfkill_task *task = container_of(work, struct rfkill_task, work);
-	enum rfkill_state state;
 
 	mutex_lock(&task->mutex);
 
-	/*
-	 * Use temp variable to fetch desired state to keep it
-	 * consistent even if rfkill_schedule_toggle() runs in
-	 * another thread or interrupts us.
-	 */
-	state = task->desired_state;
-
-	if (state != task->current_state) {
-		rfkill_switch_all(task->type, state);
-		task->current_state = state;
-	}
+	rfkill_switch_all(task->type, task->desired_state);
 
 	mutex_unlock(&task->mutex);
 }
@@ -94,7 +82,6 @@ static void rfkill_schedule_toggle(struct rfkill_task *task)
 		.mutex = __MUTEX_INITIALIZER(n.mutex),	\
 		.lock = __SPIN_LOCK_UNLOCKED(n.lock),	\
 		.desired_state = RFKILL_STATE_ON,	\
-		.current_state = RFKILL_STATE_ON,	\
 	}
 
 static DEFINE_RFKILL_TASK(rfkill_wlan, RFKILL_TYPE_WLAN);
