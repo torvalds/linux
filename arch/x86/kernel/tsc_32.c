@@ -1,6 +1,7 @@
 #include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 #include <linux/cpufreq.h>
 #include <linux/jiffies.h>
 #include <linux/init.h>
