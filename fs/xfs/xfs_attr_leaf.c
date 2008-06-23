@@ -94,13 +94,6 @@ STATIC int xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index);
  * Namespace helper routines
  *========================================================================*/
 
-STATIC_INLINE attrnames_t *
-xfs_attr_flags_namesp(int flags)
-{
-	return ((flags & XFS_ATTR_SECURE) ? &attr_secure:
-		  ((flags & XFS_ATTR_ROOT) ? &attr_trusted : &attr_user));
-}
-
 /*
  * If namespace bits don't match return 0.
  * If all match then return 1.
@@ -109,25 +102,6 @@ STATIC_INLINE int
 xfs_attr_namesp_match(int arg_flags, int ondisk_flags)
 {
 	return XFS_ATTR_NSP_ONDISK(ondisk_flags) == XFS_ATTR_NSP_ARGS_TO_ONDISK(arg_flags);
-}
-
-/*
- * If namespace bits don't match and we don't have an override for it
- * then return 0.
- * If all match or are overridable then return 1.
- */
-STATIC_INLINE int
-xfs_attr_namesp_match_overrides(int arg_flags, int ondisk_flags)
-{
-	if (((arg_flags & ATTR_SECURE) == 0) !=
-	    ((ondisk_flags & XFS_ATTR_SECURE) == 0) &&
-	    !(arg_flags & ATTR_KERNORMALS))
-		return 0;
-	if (((arg_flags & ATTR_ROOT) == 0) !=
-	    ((ondisk_flags & XFS_ATTR_ROOT) == 0) &&
-	    !(arg_flags & ATTR_KERNROOTLS))
-		return 0;
-	return 1;
 }
 
 
@@ -626,15 +600,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	    (XFS_ISRESET_CURSOR(cursor) &&
              (dp->i_afp->if_bytes + sf->hdr.count * 16) < context->bufsize)) {
 		for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
-			attrnames_t	*namesp;
-
-			if (!xfs_attr_namesp_match_overrides(context->flags, sfe->flags)) {
-				sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
-				continue;
-			}
-			namesp = xfs_attr_flags_namesp(sfe->flags);
 			error = context->put_listent(context,
-					   namesp,
+					   sfe->flags,
 					   (char *)sfe->nameval,
 					   (int)sfe->namelen,
 					   (int)sfe->valuelen,
@@ -681,10 +648,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			kmem_free(sbuf);
 			return XFS_ERROR(EFSCORRUPTED);
 		}
-		if (!xfs_attr_namesp_match_overrides(context->flags, sfe->flags)) {
-			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
-			continue;
-		}
+
 		sbp->entno = i;
 		sbp->hash = xfs_da_hashname((char *)sfe->nameval, sfe->namelen);
 		sbp->name = (char *)sfe->nameval;
@@ -728,16 +692,12 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	 * Loop putting entries into the user buffer.
 	 */
 	for ( ; i < nsbuf; i++, sbp++) {
-		attrnames_t	*namesp;
-
-		namesp = xfs_attr_flags_namesp(sbp->flags);
-
 		if (cursor->hashval != sbp->hash) {
 			cursor->hashval = sbp->hash;
 			cursor->offset = 0;
 		}
 		error = context->put_listent(context,
-					namesp,
+					sbp->flags,
 					sbp->name,
 					sbp->namelen,
 					sbp->valuelen,
@@ -2402,8 +2362,6 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 	 */
 	retval = 0;
 	for (  ; (i < be16_to_cpu(leaf->hdr.count)); entry++, i++) {
-		attrnames_t *namesp;
-
 		if (be32_to_cpu(entry->hashval) != cursor->hashval) {
 			cursor->hashval = be32_to_cpu(entry->hashval);
 			cursor->offset = 0;
@@ -2411,17 +2369,13 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 
 		if (entry->flags & XFS_ATTR_INCOMPLETE)
 			continue;		/* skip incomplete entries */
-		if (!xfs_attr_namesp_match_overrides(context->flags, entry->flags))
-			continue;
-
-		namesp = xfs_attr_flags_namesp(entry->flags);
 
 		if (entry->flags & XFS_ATTR_LOCAL) {
 			xfs_attr_leaf_name_local_t *name_loc =
 				XFS_ATTR_LEAF_NAME_LOCAL(leaf, i);
 
 			retval = context->put_listent(context,
-						namesp,
+						entry->flags,
 						(char *)name_loc->nameval,
 						(int)name_loc->namelen,
 						be16_to_cpu(name_loc->valuelen),
@@ -2448,16 +2402,15 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 				if (retval)
 					return retval;
 				retval = context->put_listent(context,
-						namesp,
+						entry->flags,
 						(char *)name_rmt->name,
 						(int)name_rmt->namelen,
 						valuelen,
 						(char*)args.value);
 				kmem_free(args.value);
-			}
-			else {
+			} else {
 				retval = context->put_listent(context,
-						namesp,
+						entry->flags,
 						(char *)name_rmt->name,
 						(int)name_rmt->namelen,
 						valuelen,

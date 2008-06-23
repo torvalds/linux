@@ -16,8 +16,6 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/capability.h>
-
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
@@ -607,11 +605,19 @@ xfs_attr_remove(
 	return xfs_attr_remove_int(dp, &xname, flags);
 }
 
-STATIC int
+int
 xfs_attr_list_int(xfs_attr_list_context_t *context)
 {
 	int error;
 	xfs_inode_t *dp = context->dp;
+
+	XFS_STATS_INC(xs_attr_list);
+
+	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
+		return EIO;
+
+	xfs_ilock(dp, XFS_ILOCK_SHARED);
+	xfs_attr_trace_l_c("syscall start", context);
 
 	/*
 	 * Decide on what work routines to call based on the inode size.
@@ -625,6 +631,10 @@ xfs_attr_list_int(xfs_attr_list_context_t *context)
 	} else {
 		error = xfs_attr_node_list(context);
 	}
+
+	xfs_iunlock(dp, XFS_ILOCK_SHARED);
+	xfs_attr_trace_l_c("syscall end", context);
+
 	return error;
 }
 
@@ -641,71 +651,47 @@ xfs_attr_list_int(xfs_attr_list_context_t *context)
  */
 /*ARGSUSED*/
 STATIC int
-xfs_attr_put_listent(xfs_attr_list_context_t *context, attrnames_t *namesp,
+xfs_attr_put_listent(xfs_attr_list_context_t *context, int flags,
 		     char *name, int namelen,
 		     int valuelen, char *value)
 {
+	struct attrlist *alist = (struct attrlist *)context->alist;
 	attrlist_ent_t *aep;
 	int arraytop;
 
 	ASSERT(!(context->flags & ATTR_KERNOVAL));
 	ASSERT(context->count >= 0);
 	ASSERT(context->count < (ATTR_MAX_VALUELEN/8));
-	ASSERT(context->firstu >= sizeof(*context->alist));
+	ASSERT(context->firstu >= sizeof(*alist));
 	ASSERT(context->firstu <= context->bufsize);
 
-	arraytop = sizeof(*context->alist) +
-			context->count * sizeof(context->alist->al_offset[0]);
+	/*
+	 * Only list entries in the right namespace.
+	 */
+	if (((context->flags & ATTR_SECURE) == 0) !=
+	    ((flags & XFS_ATTR_SECURE) == 0))
+		return 0;
+	if (((context->flags & ATTR_ROOT) == 0) !=
+	    ((flags & XFS_ATTR_ROOT) == 0))
+		return 0;
+
+	arraytop = sizeof(*alist) +
+			context->count * sizeof(alist->al_offset[0]);
 	context->firstu -= ATTR_ENTSIZE(namelen);
 	if (context->firstu < arraytop) {
 		xfs_attr_trace_l_c("buffer full", context);
-		context->alist->al_more = 1;
+		alist->al_more = 1;
 		context->seen_enough = 1;
 		return 1;
 	}
 
-	aep = (attrlist_ent_t *)&(((char *)context->alist)[ context->firstu ]);
+	aep = (attrlist_ent_t *)&context->alist[context->firstu];
 	aep->a_valuelen = valuelen;
 	memcpy(aep->a_name, name, namelen);
-	aep->a_name[ namelen ] = 0;
-	context->alist->al_offset[ context->count++ ] = context->firstu;
-	context->alist->al_count = context->count;
+	aep->a_name[namelen] = 0;
+	alist->al_offset[context->count++] = context->firstu;
+	alist->al_count = context->count;
 	xfs_attr_trace_l_c("add", context);
-	return 0;
-}
-
-STATIC int
-xfs_attr_kern_list(xfs_attr_list_context_t *context, attrnames_t *namesp,
-		     char *name, int namelen,
-		     int valuelen, char *value)
-{
-	char *offset;
-	int arraytop;
-
-	ASSERT(context->count >= 0);
-
-	arraytop = context->count + namesp->attr_namelen + namelen + 1;
-	if (arraytop > context->firstu) {
-		context->count = -1;	/* insufficient space */
-		return 1;
-	}
-	offset = (char *)context->alist + context->count;
-	strncpy(offset, namesp->attr_name, namesp->attr_namelen);
-	offset += namesp->attr_namelen;
-	strncpy(offset, name, namelen);			/* real name */
-	offset += namelen;
-	*offset = '\0';
-	context->count += namesp->attr_namelen + namelen + 1;
-	return 0;
-}
-
-/*ARGSUSED*/
-STATIC int
-xfs_attr_kern_list_sizes(xfs_attr_list_context_t *context, attrnames_t *namesp,
-		     char *name, int namelen,
-		     int valuelen, char *value)
-{
-	context->count += namesp->attr_namelen + namelen + 1;
 	return 0;
 }
 
@@ -725,9 +711,8 @@ xfs_attr_list(
 	attrlist_cursor_kern_t *cursor)
 {
 	xfs_attr_list_context_t context;
+	struct attrlist *alist;
 	int error;
-
-	XFS_STATS_INC(xs_attr_list);
 
 	/*
 	 * Validate the cursor.
@@ -749,52 +734,23 @@ xfs_attr_list(
 	/*
 	 * Initialize the output buffer.
 	 */
+	memset(&context, 0, sizeof(context));
 	context.dp = dp;
 	context.cursor = cursor;
-	context.count = 0;
-	context.dupcnt = 0;
 	context.resynch = 1;
 	context.flags = flags;
-	context.seen_enough = 0;
-	context.alist = (attrlist_t *)buffer;
-	context.put_value = 0;
+	context.alist = buffer;
+	context.bufsize = (bufsize & ~(sizeof(int)-1));  /* align */
+	context.firstu = context.bufsize;
+	context.put_listent = xfs_attr_put_listent;
 
-	if (flags & ATTR_KERNAMELS) {
-		context.bufsize = bufsize;
-		context.firstu = context.bufsize;
-		if (flags & ATTR_KERNOVAL)
-			context.put_listent = xfs_attr_kern_list_sizes;
-		else
-			context.put_listent = xfs_attr_kern_list;
-	} else {
-		context.bufsize = (bufsize & ~(sizeof(int)-1));  /* align */
-		context.firstu = context.bufsize;
-		context.alist->al_count = 0;
-		context.alist->al_more = 0;
-		context.alist->al_offset[0] = context.bufsize;
-		context.put_listent = xfs_attr_put_listent;
-	}
-
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return EIO;
-
-	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	xfs_attr_trace_l_c("syscall start", &context);
+	alist = (struct attrlist *)context.alist;
+	alist->al_count = 0;
+	alist->al_more = 0;
+	alist->al_offset[0] = context.bufsize;
 
 	error = xfs_attr_list_int(&context);
-
-	xfs_iunlock(dp, XFS_ILOCK_SHARED);
-	xfs_attr_trace_l_c("syscall end", &context);
-
-	if (context.flags & (ATTR_KERNOVAL|ATTR_KERNAMELS)) {
-		/* must return negated buffer size or the error */
-		if (context.count < 0)
-			error = XFS_ERROR(ERANGE);
-		else
-			error = -context.count;
-	} else
-		ASSERT(error >= 0);
-
+	ASSERT(error >= 0);
 	return error;
 }
 
@@ -2357,12 +2313,7 @@ xfs_attr_trace_enter(int type, char *where,
 		(void *)((__psunsigned_t)context->bufsize),
 		(void *)((__psunsigned_t)context->count),
 		(void *)((__psunsigned_t)context->firstu),
-		(void *)((__psunsigned_t)
-			(((context->count > 0) &&
-			!(context->flags & (ATTR_KERNAMELS|ATTR_KERNOVAL)))
-				? (ATTR_ENTRY(context->alist,
-					      context->count-1)->a_valuelen)
-				: 0)),
+		NULL,
 		(void *)((__psunsigned_t)context->dupcnt),
 		(void *)((__psunsigned_t)context->flags),
 		(void *)a13, (void *)a14, (void *)a15);
