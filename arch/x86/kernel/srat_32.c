@@ -93,7 +93,7 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *cpu_affinity)
 
 	apicid_to_pxm[cpu_affinity->apic_id] = cpu_affinity->proximity_domain_lo;
 
-	printk("CPU 0x%02X in proximity domain 0x%02X\n",
+	printk(KERN_DEBUG "CPU %02x in proximity domain %02x\n",
 		cpu_affinity->apic_id, cpu_affinity->proximity_domain_lo);
 }
 
@@ -134,7 +134,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *memory_affinity)
 
 
 	if (num_memory_chunks >= MAXCHUNKS) {
-		printk("Too many mem chunks in SRAT. Ignoring %lld MBytes at %llx\n",
+		printk(KERN_WARNING "Too many mem chunks in SRAT."
+			" Ignoring %lld MBytes at %llx\n",
 			size/(1024*1024), paddr);
 		return;
 	}
@@ -155,7 +156,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *memory_affinity)
 
 	num_memory_chunks++;
 
-	printk("Memory range 0x%lX to 0x%lX (type 0x%X) in proximity domain 0x%02X %s\n",
+	printk(KERN_DEBUG "Memory range %08lx to %08lx (type %x)"
+			  " in proximity domain %02x %s\n",
 		start_pfn, end_pfn,
 		memory_affinity->memory_type,
 		pxm,
@@ -186,7 +188,7 @@ static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_c
 	 * *possible* memory hotplug areas the same as normal RAM.
 	 */
 	if (memory_chunk->start_pfn >= max_pfn) {
-		printk (KERN_INFO "Ignoring SRAT pfns: 0x%08lx -> %08lx\n",
+		printk(KERN_INFO "Ignoring SRAT pfns: %08lx - %08lx\n",
 			memory_chunk->start_pfn, memory_chunk->end_pfn);
 		return;
 	}
@@ -212,7 +214,8 @@ int __init get_memcfg_from_srat(void)
 		goto out_fail;
 
 	if (num_memory_chunks == 0) {
-		printk("could not finy any ACPI SRAT memory areas.\n");
+		printk(KERN_WARNING
+			 "could not finy any ACPI SRAT memory areas.\n");
 		goto out_fail;
 	}
 
@@ -239,20 +242,23 @@ int __init get_memcfg_from_srat(void)
 	for (i = 0; i < num_memory_chunks; i++)
 		node_memory_chunk[i].nid = pxm_to_node(node_memory_chunk[i].pxm);
 
-	printk("pxm bitmap: ");
+	printk(KERN_DEBUG "pxm bitmap: ");
 	for (i = 0; i < sizeof(pxm_bitmap); i++) {
-		printk("%02X ", pxm_bitmap[i]);
+		printk(KERN_CONT "%02x ", pxm_bitmap[i]);
 	}
-	printk("\n");
-	printk("Number of logical nodes in system = %d\n", num_online_nodes());
-	printk("Number of memory chunks in system = %d\n", num_memory_chunks);
+	printk(KERN_CONT "\n");
+	printk(KERN_DEBUG "Number of logical nodes in system = %d\n",
+			 num_online_nodes());
+	printk(KERN_DEBUG "Number of memory chunks in system = %d\n",
+			 num_memory_chunks);
 
 	for (i = 0; i < MAX_APICID; i++)
 		apicid_2_node[i] = pxm_to_node(apicid_to_pxm[i]);
 
 	for (j = 0; j < num_memory_chunks; j++){
 		struct node_memory_chunk_s * chunk = &node_memory_chunk[j];
-		printk("chunk %d nid %d start_pfn %08lx end_pfn %08lx\n",
+		printk(KERN_DEBUG
+			"chunk %d nid %d start_pfn %08lx end_pfn %08lx\n",
 		       j, chunk->nid, chunk->start_pfn, chunk->end_pfn);
 		node_read_chunk(chunk->nid, chunk);
 		e820_register_active_regions(chunk->nid, chunk->start_pfn,
@@ -268,6 +274,7 @@ int __init get_memcfg_from_srat(void)
 	}
 	return 1;
 out_fail:
-	printk("failed to get NUMA memory information from SRAT table\n");
+	printk(KERN_ERR "failed to get NUMA memory information from SRAT"
+			" table\n");
 	return 0;
 }

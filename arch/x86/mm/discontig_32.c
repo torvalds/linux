@@ -76,13 +76,13 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
 
-	printk(KERN_INFO "Node: %d, start_pfn: %ld, end_pfn: %ld\n",
+	printk(KERN_INFO "Node: %d, start_pfn: %lx, end_pfn: %lx\n",
 			nid, start, end);
 	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
 	printk(KERN_DEBUG "  ");
 	for (pfn = start; pfn < end; pfn += PAGES_PER_ELEMENT) {
 		physnode_map[pfn / PAGES_PER_ELEMENT] = nid;
-		printk(KERN_CONT "%ld ", pfn);
+		printk(KERN_CONT "%lx ", pfn);
 	}
 	printk(KERN_CONT "\n");
 }
@@ -117,7 +117,7 @@ static unsigned long kva_pages;
  */
 int __init get_memcfg_numa_flat(void)
 {
-	printk("NUMA - single node, flat memory mode\n");
+	printk(KERN_DEBUG "NUMA - single node, flat memory mode\n");
 
 	node_start_pfn[0] = 0;
 	node_end_pfn[0] = max_pfn;
@@ -233,7 +233,7 @@ static unsigned long calculate_numa_remap_pages(void)
 		 * The acpi/srat node info can show hot-add memroy zones
 		 * where memory could be added but not currently present.
 		 */
-		printk("node %d pfn: [%lx - %lx]\n",
+		printk(KERN_DEBUG "node %d pfn: [%lx - %lx]\n",
 			nid, node_start_pfn[nid], node_end_pfn[nid]);
 		if (node_start_pfn[nid] > max_pfn)
 			continue;
@@ -268,7 +268,8 @@ static unsigned long calculate_numa_remap_pages(void)
 		node_remap_size[nid] = size;
 		node_remap_offset[nid] = reserve_pages;
 		reserve_pages += size;
-		printk("Reserving %ld pages of KVA for lmem_map of node %d at %llx\n",
+		printk(KERN_DEBUG "Reserving %ld pages of KVA for lmem_map of"
+				  " node %d at %llx\n",
 				size, nid, node_kva_final>>PAGE_SHIFT);
 
 		/*
@@ -290,7 +291,7 @@ static unsigned long calculate_numa_remap_pages(void)
 		remove_active_range(nid, node_remap_start_pfn[nid],
 					 node_remap_start_pfn[nid] + size);
 	}
-	printk("Reserving total of %ld pages for numa KVA remap\n",
+	printk(KERN_INFO "Reserving total of %lx pages for numa KVA remap\n",
 			reserve_pages);
 	return reserve_pages;
 }
@@ -304,7 +305,7 @@ static void init_remap_allocator(int nid)
 	node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
 		ALIGN(sizeof(pg_data_t), PAGE_SIZE);
 
-	printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
+	printk(KERN_DEBUG "node %d will remap to vaddr %08lx - %08lx\n", nid,
 		(ulong) node_remap_start_vaddr[nid],
 		(ulong) node_remap_end_vaddr[nid]);
 }
@@ -340,9 +341,9 @@ void __init initmem_init(unsigned long start_pfn,
 	if (kva_start_pfn == -1UL)
 		panic("Can not get kva space\n");
 
-	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
+	printk(KERN_INFO "kva_start_pfn ~ %lx max_low_pfn ~ %lx\n",
 		kva_start_pfn, max_low_pfn);
-	printk("max_pfn = %ld\n", max_pfn);
+	printk(KERN_INFO "max_pfn = %lx\n", max_pfn);
 
 	/* avoid clash with initrd */
 	reserve_early(kva_start_pfn<<PAGE_SHIFT,
@@ -362,17 +363,17 @@ void __init initmem_init(unsigned long start_pfn,
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
 			pages_to_mb(max_low_pfn));
-	printk("min_low_pfn = %ld, max_low_pfn = %ld, highstart_pfn = %ld\n",
-			min_low_pfn, max_low_pfn, highstart_pfn);
+	printk(KERN_DEBUG "max_low_pfn = %lx, highstart_pfn = %lx\n",
+			max_low_pfn, highstart_pfn);
 
-	printk("Low memory ends at vaddr %08lx\n",
+	printk(KERN_DEBUG "Low memory ends at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(max_low_pfn));
 	for_each_online_node(nid) {
 		init_remap_allocator(nid);
 
 		allocate_pgdat(nid);
 	}
-	printk("High memory starts at vaddr %08lx\n",
+	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 	for_each_online_node(nid)
 		propagate_e820_map_node(nid);
@@ -413,7 +414,7 @@ void __init set_highmem_pages_init(void)
 		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
 
 		nid = zone_to_nid(zone);
-		printk("Initializing %s for node %d (%08lx:%08lx)\n",
+		printk(KERN_INFO "Initializing %s for node %d (%08lx:%08lx)\n",
 				zone->name, nid, zone_start_pfn, zone_end_pfn);
 
 		add_highpages_with_active_regions(nid, zone_start_pfn,
