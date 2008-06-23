@@ -309,11 +309,10 @@ static void init_remap_allocator(int nid)
 		(ulong) node_remap_end_vaddr[nid]);
 }
 
-unsigned long __init initmem_init(unsigned long start_pfn,
+void __init initmem_init(unsigned long start_pfn,
 				  unsigned long end_pfn)
 {
 	int nid;
-	unsigned long system_start_pfn, system_max_low_pfn;
 	long kva_target_pfn;
 
 	/*
@@ -324,16 +323,10 @@ unsigned long __init initmem_init(unsigned long start_pfn,
 	 * and ZONE_HIGHMEM.
 	 */
 
-	/* call find_max_low_pfn at first, it could update max_pfn */
-	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
-
 	remove_all_active_ranges();
 	get_memcfg_numa();
 
 	kva_pages = round_up(calculate_numa_remap_pages(), PTRS_PER_PTE);
-
-	/* partially used pages are not usable - thus round upwards */
-	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
 
 	kva_target_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
 	do {
@@ -357,19 +350,19 @@ unsigned long __init initmem_init(unsigned long start_pfn,
 		     "KVA PG");
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
-	if (max_pfn > system_max_low_pfn)
-		highstart_pfn = system_max_low_pfn;
+	if (max_pfn > max_low_pfn)
+		highstart_pfn = max_low_pfn;
 	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
 	       pages_to_mb(highend_pfn - highstart_pfn));
 	num_physpages = highend_pfn;
 	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
 #else
-	num_physpages = system_max_low_pfn;
-	high_memory = (void *) __va(system_max_low_pfn * PAGE_SIZE - 1) + 1;
+	num_physpages = max_low_pfn;
+	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
-			pages_to_mb(system_max_low_pfn));
-	printk("min_low_pfn = %ld, max_low_pfn = %ld, highstart_pfn = %ld\n", 
+			pages_to_mb(max_low_pfn));
+	printk("min_low_pfn = %ld, max_low_pfn = %ld, highstart_pfn = %ld\n",
 			min_low_pfn, max_low_pfn, highstart_pfn);
 
 	printk("Low memory ends at vaddr %08lx\n",
@@ -387,7 +380,6 @@ unsigned long __init initmem_init(unsigned long start_pfn,
 	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
 	NODE_DATA(0)->bdata = &node0_bdata;
 	setup_bootmem_allocator();
-	return max_low_pfn;
 }
 
 void __init zone_sizes_init(void)

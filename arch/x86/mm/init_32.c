@@ -561,9 +561,15 @@ early_param("highmem", parse_highmem);
 /*
  * Determine low and high memory ranges:
  */
-unsigned long __init find_max_low_pfn(void)
+void __init find_low_pfn_range(void)
 {
-	unsigned long max_low_pfn;
+	/* it could update max_pfn */
+
+	/*
+	 * partially used pages are not usable - thus
+	 * we are rounding upwards:
+	 */
+	min_low_pfn = PFN_UP(init_pg_tables_end);
 
 	max_low_pfn = max_pfn;
 	if (max_low_pfn > MAXMEM_PFN) {
@@ -625,21 +631,12 @@ unsigned long __init find_max_low_pfn(void)
 					" kernel!\n");
 #endif
 	}
-	return max_low_pfn;
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-unsigned long __init initmem_init(unsigned long start_pfn,
+void __init initmem_init(unsigned long start_pfn,
 				  unsigned long end_pfn)
 {
-	/*
-	 * partially used pages are not usable - thus
-	 * we are rounding upwards:
-	 */
-	min_low_pfn = PFN_UP(init_pg_tables_end);
-
-	max_low_pfn = find_max_low_pfn();
-
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
 	if (max_pfn > max_low_pfn)
@@ -661,8 +658,6 @@ unsigned long __init initmem_init(unsigned long start_pfn,
 			pages_to_mb(max_low_pfn));
 
 	setup_bootmem_allocator();
-
-	return max_low_pfn;
 }
 
 void __init zone_sizes_init(void)
@@ -698,8 +693,6 @@ void __init setup_bootmem_allocator(void)
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
 	reserve_early(bootmap, bootmap + bootmap_size, "BOOTMAP");
-
-	reserve_initrd();
 
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, max_low_pfn);
 	printk(KERN_INFO "  mapped low ram: 0 - %08lx\n",

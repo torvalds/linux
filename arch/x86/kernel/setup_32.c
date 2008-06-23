@@ -188,13 +188,14 @@ static inline void copy_edd(void)
 
 static bool do_relocate_initrd = false;
 
-void __init reserve_initrd(void)
+static void __init reserve_initrd(void)
 {
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
 	u64 ramdisk_end   = ramdisk_image + ramdisk_size;
 	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
 	u64 ramdisk_here;
+	u64 ramdisk_target;
 
 	if (!boot_params.hdr.type_of_loader ||
 	    !ramdisk_image || !ramdisk_size)
@@ -202,7 +203,7 @@ void __init reserve_initrd(void)
 
 	initrd_start = 0;
 
-	if (ramdisk_size >= end_of_lowmem/2) {
+	if (ramdisk_size >= (end_of_lowmem>>1)) {
 		free_early(ramdisk_image, ramdisk_end);
 		printk(KERN_ERR "initrd too large to handle, "
 		       "disabling initrd\n");
@@ -225,7 +226,8 @@ void __init reserve_initrd(void)
 	}
 
 	/* We need to move the initrd down into lowmem */
-	ramdisk_here = find_e820_area(min_low_pfn<<PAGE_SHIFT,
+	ramdisk_target = max_pfn_mapped<<PAGE_SHIFT;
+	ramdisk_here = find_e820_area(min(ramdisk_target, end_of_lowmem>>1),
 				 end_of_lowmem, ramdisk_size,
 				 PAGE_SIZE);
 
@@ -346,8 +348,6 @@ static void set_mca_bus(int x) { }
  */
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long max_low_pfn;
-
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	pre_setup_arch_hook();
 	early_cpu_init();
@@ -450,6 +450,10 @@ void __init setup_arch(char **cmdline_p)
 		max_pfn = e820_end_of_ram();
 	}
 
+	find_low_pfn_range();
+
+	reserve_initrd();
+
 	dmi_scan_machine();
 
 	io_delay_init();
@@ -466,7 +470,7 @@ void __init setup_arch(char **cmdline_p)
         acpi_numa_init();
 #endif
 
-	max_low_pfn = initmem_init(0, max_pfn);
+	initmem_init(0, max_pfn);
 
 #ifdef CONFIG_ACPI_SLEEP
 	/*

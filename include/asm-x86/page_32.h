@@ -92,7 +92,8 @@ extern int sysctl_legacy_va_layout;
 #define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
 #define MAXMEM			(-__PAGE_OFFSET - __VMALLOC_RESERVE)
 
-extern unsigned long initmem_init(unsigned long, unsigned long);
+extern void find_low_pfn_range(void);
+extern void initmem_init(unsigned long, unsigned long);
 extern void zone_sizes_init(void);
 extern void setup_bootmem_allocator(void);
 

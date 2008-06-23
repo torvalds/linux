@@ -39,8 +39,6 @@ void reserve_crashkernel(void);
 #include <asm/bootparam.h>
 
 void reserve_standard_io_resources(void);
-void reserve_initrd(void);
-
 
 #ifndef _SETUP
 
