@@ -39,6 +39,11 @@ MODULE_LICENSE("GPL");
 static LIST_HEAD(rfkill_list);	/* list of registered rf switches */
 static DEFINE_MUTEX(rfkill_mutex);
 
+static unsigned int rfkill_default_state = RFKILL_STATE_ON;
+module_param_named(default_state, rfkill_default_state, uint, 0444);
+MODULE_PARM_DESC(default_state,
+		 "Default initial state for all radio types, 0 = radio off");
+
 static enum rfkill_state rfkill_states[RFKILL_TYPE_MAX];
 
 
@@ -436,8 +441,12 @@ static int __init rfkill_init(void)
 	int error;
 	int i;
 
+	if (rfkill_default_state != RFKILL_STATE_OFF &&
+	    rfkill_default_state != RFKILL_STATE_ON)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(rfkill_states); i++)
-		rfkill_states[i] = RFKILL_STATE_ON;
+		rfkill_states[i] = rfkill_default_state;
 
 	error = class_register(&rfkill_class);
 	if (error) {
