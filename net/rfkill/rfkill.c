@@ -224,34 +224,31 @@ static ssize_t rfkill_name_show(struct device *dev,
 	return sprintf(buf, "%s\n", rfkill->name);
 }
 
+static const char *rfkill_get_type_str(enum rfkill_type type)
+{
+	switch (type) {
+	case RFKILL_TYPE_WLAN:
+		return "wlan";
+	case RFKILL_TYPE_BLUETOOTH:
+		return "bluetooth";
+	case RFKILL_TYPE_UWB:
+		return "ultrawideband";
+	case RFKILL_TYPE_WIMAX:
+		return "wimax";
+	case RFKILL_TYPE_WWAN:
+		return "wwan";
+	default:
+		BUG();
+	}
+}
+
 static ssize_t rfkill_type_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
-	const char *type;
 
-	switch (rfkill->type) {
-	case RFKILL_TYPE_WLAN:
-		type = "wlan";
-		break;
-	case RFKILL_TYPE_BLUETOOTH:
-		type = "bluetooth";
-		break;
-	case RFKILL_TYPE_UWB:
-		type = "ultrawideband";
-		break;
-	case RFKILL_TYPE_WIMAX:
-		type = "wimax";
-		break;
-	case RFKILL_TYPE_WWAN:
-		type = "wwan";
-		break;
-	default:
-		BUG();
-	}
-
-	return sprintf(buf, "%s\n", type);
+	return sprintf(buf, "%s\n", rfkill_get_type_str(rfkill->type));
 }
 
 static ssize_t rfkill_state_show(struct device *dev,
