@@ -816,8 +816,7 @@ out:
 	return rc;
 }
 
-static int user_cluster_disconnect(struct ocfs2_cluster_connection *conn,
-				   int hangup_pending)
+static int user_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 {
 	dlm_release_lockspace(conn->cc_lockspace, 2);
 	conn->cc_lockspace = NULL;

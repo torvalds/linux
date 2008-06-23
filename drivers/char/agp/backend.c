@@ -188,10 +188,10 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 
 err_out:
 	if (bridge->driver->needs_scratch_page) {
-		bridge->driver->agp_destroy_page(gart_to_virt(bridge->scratch_page_real),
-						 AGP_PAGE_DESTROY_UNMAP);
-		bridge->driver->agp_destroy_page(gart_to_virt(bridge->scratch_page_real),
-						 AGP_PAGE_DESTROY_FREE);
+		void *va = gart_to_virt(bridge->scratch_page_real);
+
+		bridge->driver->agp_destroy_page(va, AGP_PAGE_DESTROY_UNMAP);
+		bridge->driver->agp_destroy_page(va, AGP_PAGE_DESTROY_FREE);
 	}
 	if (got_gatt)
 		bridge->driver->free_gatt_table(bridge);
@@ -215,10 +215,10 @@ static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 
 	if (bridge->driver->agp_destroy_page &&
 	    bridge->driver->needs_scratch_page) {
-		bridge->driver->agp_destroy_page(gart_to_virt(bridge->scratch_page_real),
-						 AGP_PAGE_DESTROY_UNMAP);
-		bridge->driver->agp_destroy_page(gart_to_virt(bridge->scratch_page_real),
-						 AGP_PAGE_DESTROY_FREE);
+		void *va = gart_to_virt(bridge->scratch_page_real);
+
+		bridge->driver->agp_destroy_page(va, AGP_PAGE_DESTROY_UNMAP);
+		bridge->driver->agp_destroy_page(va, AGP_PAGE_DESTROY_FREE);
 	}
 }
 

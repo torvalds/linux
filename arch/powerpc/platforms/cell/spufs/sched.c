@@ -230,19 +230,23 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	ctx->stats.slb_flt_base = spu->stats.slb_flt;
 	ctx->stats.class2_intr_base = spu->stats.class2_intr;
 
+	spu_associate_mm(spu, ctx->owner);
+
+	spin_lock_irq(&spu->register_lock);
 	spu->ctx = ctx;
 	spu->flags = 0;
 	ctx->spu = spu;
 	ctx->ops = &spu_hw_ops;
 	spu->pid = current->pid;
 	spu->tgid = current->tgid;
-	spu_associate_mm(spu, ctx->owner);
 	spu->ibox_callback = spufs_ibox_callback;
 	spu->wbox_callback = spufs_wbox_callback;
 	spu->stop_callback = spufs_stop_callback;
 	spu->mfc_callback = spufs_mfc_callback;
-	mb();
+	spin_unlock_irq(&spu->register_lock);
+
 	spu_unmap_mappings(ctx);
+
 	spu_switch_log_notify(spu, ctx, SWITCH_LOG_START, 0);
 	spu_restore(&ctx->csa, spu);
 	spu->timestamp = jiffies;
@@ -403,6 +407,8 @@ static int has_affinity(struct spu_context *ctx)
  */
 static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 {
+	u32 status;
+
 	spu_context_trace(spu_unbind_context__enter, ctx, spu);
 
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
@@ -423,18 +429,22 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
 	spu_switch_log_notify(spu, ctx, SWITCH_LOG_STOP, 0);
+
+	spin_lock_irq(&spu->register_lock);
 	spu->timestamp = jiffies;
 	ctx->state = SPU_STATE_SAVED;
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
 	spu->stop_callback = NULL;
 	spu->mfc_callback = NULL;
-	spu_associate_mm(spu, NULL);
 	spu->pid = 0;
 	spu->tgid = 0;
 	ctx->ops = &spu_backing_ops;
 	spu->flags = 0;
 	spu->ctx = NULL;
+	spin_unlock_irq(&spu->register_lock);
+
+	spu_associate_mm(spu, NULL);
 
 	ctx->stats.slb_flt +=
 		(spu->stats.slb_flt - ctx->stats.slb_flt_base);
@@ -444,6 +454,9 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	/* This maps the underlying spu state to idle */
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 	ctx->spu = NULL;
+
+	if (spu_stopped(ctx, &status))
+		wake_up_all(&ctx->stop_wq);
 }
 
 /**
