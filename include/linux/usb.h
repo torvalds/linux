@@ -160,6 +160,7 @@ struct usb_interface {
 	unsigned is_active:1;		/* the interface is not suspended */
 	unsigned sysfs_files_created:1;	/* the sysfs attributes exist */
 	unsigned needs_remote_wakeup:1;	/* driver requires remote wakeup */
+	unsigned needs_binding:1;	/* needs delayed unbind/rebind */
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;

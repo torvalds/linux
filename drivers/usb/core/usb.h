@@ -29,6 +29,8 @@ extern int usb_choose_configuration(struct usb_device *udev);
 extern void usb_kick_khubd(struct usb_device *dev);
 extern int usb_match_device(struct usb_device *dev,
 			    const struct usb_device_id *id);
+extern void usb_forced_unbind_intf(struct usb_interface *intf);
+extern void usb_rebind_intf(struct usb_interface *intf);
 
 extern int  usb_hub_init(void);
 extern void usb_hub_cleanup(void);

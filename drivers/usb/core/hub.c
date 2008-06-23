@@ -3367,6 +3367,11 @@ re_enumerate:
  * this from a driver probe() routine after downloading new firmware.
  * For calls that might not occur during probe(), drivers should lock
  * the device using usb_lock_device_for_reset().
+ *
+ * If an interface is currently being probed or disconnected, we assume
+ * its driver knows how to handle resets.  For all other interfaces,
+ * if the driver doesn't have pre_reset and post_reset methods then
+ * we attempt to unbind it and rebind afterward.
  */
 int usb_reset_device(struct usb_device *udev)
 {
@@ -3388,12 +3393,17 @@ int usb_reset_device(struct usb_device *udev)
 		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
 			struct usb_interface *cintf = config->interface[i];
 			struct usb_driver *drv;
+			int unbind = 0;
 
 			if (cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
-				if (drv->pre_reset)
-					(drv->pre_reset)(cintf);
-	/* FIXME: Unbind if pre_reset returns an error or isn't defined */
+				if (drv->pre_reset && drv->post_reset)
+					unbind = (drv->pre_reset)(cintf);
+				else if (cintf->condition ==
+						USB_INTERFACE_BOUND)
+					unbind = 1;
+				if (unbind)
+					usb_forced_unbind_intf(cintf);
 			}
 		}
 	}
@@ -3404,13 +3414,18 @@ int usb_reset_device(struct usb_device *udev)
 		for (i = config->desc.bNumInterfaces - 1; i >= 0; --i) {
 			struct usb_interface *cintf = config->interface[i];
 			struct usb_driver *drv;
+			int rebind = cintf->needs_binding;
 
-			if (cintf->dev.driver) {
+			if (!rebind && cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->post_reset)
-					(drv->post_reset)(cintf);
-	/* FIXME: Unbind if post_reset returns an error or isn't defined */
+					rebind = (drv->post_reset)(cintf);
+				else if (cintf->condition ==
+						USB_INTERFACE_BOUND)
+					rebind = 1;
 			}
+			if (rebind)
+				usb_rebind_intf(cintf);
 		}
 	}
 
