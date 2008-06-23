@@ -1747,8 +1747,7 @@ shouldnt_be_hashed:
 	BUG();
 }
 
-static int prepend(char **buffer, int *buflen, const char *str,
-			  int namelen)
+static int prepend(char **buffer, int *buflen, const char *str, int namelen)
 {
 	*buflen -= namelen;
 	if (*buflen < 0)
@@ -1756,6 +1755,11 @@ static int prepend(char **buffer, int *buflen, const char *str,
 	*buffer -= namelen;
 	memcpy(*buffer, str, namelen);
 	return 0;
+}
+
+static int prepend_name(char **buffer, int *buflen, struct qstr *name)
+{
+	return prepend(buffer, buflen, name->name, name->len);
 }
 
 /**
@@ -1780,8 +1784,8 @@ char *__d_path(const struct path *path, struct path *root,
 {
 	struct dentry *dentry = path->dentry;
 	struct vfsmount *vfsmnt = path->mnt;
-	char * end = buffer+buflen;
-	char * retval;
+	char *end = buffer + buflen;
+	char *retval;
 
 	spin_lock(&vfsmount_lock);
 	prepend(&end, &buflen, "\0", 1);
@@ -1811,8 +1815,7 @@ char *__d_path(const struct path *path, struct path *root,
 		}
 		parent = dentry->d_parent;
 		prefetch(parent);
-		if ((prepend(&end, &buflen, dentry->d_name.name,
-				dentry->d_name.len) != 0) ||
+		if ((prepend_name(&end, &buflen, &dentry->d_name) != 0) ||
 		    (prepend(&end, &buflen, "/", 1) != 0))
 			goto Elong;
 		retval = end;
@@ -1825,8 +1828,7 @@ out:
 
 global_root:
 	retval += 1;	/* hit the slash */
-	if (prepend(&retval, &buflen, dentry->d_name.name,
-		    dentry->d_name.len) != 0)
+	if (prepend_name(&retval, &buflen, &dentry->d_name) != 0)
 		goto Elong;
 	root->mnt = vfsmnt;
 	root->dentry = dentry;
@@ -1918,16 +1920,11 @@ char *dentry_path(struct dentry *dentry, char *buf, int buflen)
 	retval = end-1;
 	*retval = '/';
 
-	for (;;) {
-		struct dentry *parent;
-		if (IS_ROOT(dentry))
-			break;
+	while (!IS_ROOT(dentry)) {
+		struct dentry *parent = dentry->d_parent;
 
-		parent = dentry->d_parent;
 		prefetch(parent);
-
-		if ((prepend(&end, &buflen, dentry->d_name.name,
-				dentry->d_name.len) != 0) ||
+		if ((prepend_name(&end, &buflen, &dentry->d_name) != 0) ||
 		    (prepend(&end, &buflen, "/", 1) != 0))
 			goto Elong;
 
@@ -1978,7 +1975,7 @@ asmlinkage long sys_getcwd(char __user *buf, unsigned long size)
 	error = -ENOENT;
 	/* Has the current directory has been unlinked? */
 	spin_lock(&dcache_lock);
-	if (pwd.dentry->d_parent == pwd.dentry || !d_unhashed(pwd.dentry)) {
+	if (IS_ROOT(pwd.dentry) || !d_unhashed(pwd.dentry)) {
 		unsigned long len;
 		struct path tmp = root;
 		char * cwd;
