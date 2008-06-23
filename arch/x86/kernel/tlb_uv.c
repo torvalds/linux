@@ -492,7 +492,7 @@ static ssize_t uv_ptc_proc_write(struct file *file, const char __user *user,
 	long newmode;
 	char optstr[64];
 
-	if (count > 64)
+	if (count == 0 || count > sizeof(optstr))
 		return -EINVAL;
 	if (copy_from_user(optstr, user, count))
 		return -EFAULT;
