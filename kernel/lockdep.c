@@ -1459,7 +1459,7 @@ out_bug:
 
 unsigned long nr_lock_chains;
 struct lock_chain lock_chains[MAX_LOCKDEP_CHAINS];
-atomic_t nr_chain_hlocks;
+int nr_chain_hlocks;
 static u16 chain_hlocks[MAX_LOCKDEP_CHAIN_HLOCKS];
 
 struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i)
@@ -1481,7 +1481,7 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 	struct list_head *hash_head = chainhashentry(chain_key);
 	struct lock_chain *chain;
 	struct held_lock *hlock_curr, *hlock_next;
-	int i, j, n;
+	int i, j, n, cn;
 
 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 		return 0;
@@ -1540,9 +1540,15 @@ cache_hit:
 	}
 	i++;
 	chain->depth = curr->lockdep_depth + 1 - i;
-	n = atomic_add_return(chain->depth, &nr_chain_hlocks);
-	if (unlikely(n < MAX_LOCKDEP_CHAIN_HLOCKS)) {
-		chain->base = n - chain->depth;
+	cn = nr_chain_hlocks;
+	while (cn + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS) {
+		n = cmpxchg(&nr_chain_hlocks, cn, cn + chain->depth);
+		if (n == cn)
+			break;
+		cn = n;
+	}
+	if (likely(cn + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
+		chain->base = cn;
 		for (j = 0; j < chain->depth - 1; j++, i++) {
 			int lock_id = curr->held_locks[i].class - lock_classes;
 			chain_hlocks[chain->base + j] = lock_id;

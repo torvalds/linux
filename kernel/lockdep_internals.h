@@ -44,7 +44,7 @@ struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i);
 extern unsigned long nr_lock_classes;
 extern unsigned long nr_list_entries;
 extern unsigned long nr_lock_chains;
-extern atomic_t nr_chain_hlocks;
+extern int nr_chain_hlocks;
 extern unsigned long nr_stack_trace_entries;
 
 extern unsigned int nr_hardirq_chains;
