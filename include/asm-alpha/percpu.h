@@ -69,6 +69,8 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 #define __get_cpu_var(var)		per_cpu_var(var)
 #define __raw_get_cpu_var(var)		per_cpu_var(var)
 
+#define PER_CPU_ATTRIBUTES
+
 #endif /* SMP */
 
 #define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu_var(name)
