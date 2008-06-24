@@ -39,10 +39,10 @@
 	.text
 ENTRY(__put_user_1)
 	ENTER
-	cmpq TI_addr_limit(%rbx),%rcx
+	cmp TI_addr_limit(%rbx),%rcx
 	jae bad_put_user
 1:	movb %al,(%rcx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_1)
 
@@ -50,10 +50,10 @@ ENTRY(__put_user_2)
 	ENTER
 	mov TI_addr_limit(%rbx),%rbx
 	sub  $1, %rbx
-	cmpq %rbx ,%rcx
+	cmp %rbx ,%rcx
 	jae  bad_put_user
 2:	movw %ax,(%rcx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_2)
 
@@ -64,7 +64,7 @@ ENTRY(__put_user_4)
 	cmp  %rbx, %rcx
 	jae bad_put_user
 3:	movl %eax,(%rcx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_4)
 
@@ -75,13 +75,13 @@ ENTRY(__put_user_8)
 	cmp  %rbx, %rcx
 	jae bad_put_user
 4:	movq %rax,(%rcx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_8)
 
 bad_put_user:
 	CFI_STARTPROC
-	movq $(-EFAULT),%rax
+	mov $(-EFAULT),%rax
 	EXIT
 END(bad_put_user)
 

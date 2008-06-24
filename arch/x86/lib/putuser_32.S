@@ -33,44 +33,44 @@
 .text
 ENTRY(__put_user_1)
 	ENTER
-	cmpl TI_addr_limit(%ebx),%ecx
+	cmp TI_addr_limit(%ebx),%ecx
 	jae bad_put_user
 1:	movb %al,(%ecx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_1)
 
 ENTRY(__put_user_2)
 	ENTER
-	movl TI_addr_limit(%ebx),%ebx
-	subl $1,%ebx
-	cmpl %ebx,%ecx
+	mov TI_addr_limit(%ebx),%ebx
+	sub $1,%ebx
+	cmp %ebx,%ecx
 	jae bad_put_user
 2:	movw %ax,(%ecx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_2)
 
 ENTRY(__put_user_4)
 	ENTER
-	movl TI_addr_limit(%ebx),%ebx
-	subl $3,%ebx
-	cmpl %ebx,%ecx
+	mov TI_addr_limit(%ebx),%ebx
+	sub $3,%ebx
+	cmp %ebx,%ecx
 	jae bad_put_user
 3:	movl %eax,(%ecx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_4)
 
 ENTRY(__put_user_8)
 	ENTER
-	movl TI_addr_limit(%ebx),%ebx
-	subl $7,%ebx
-	cmpl %ebx,%ecx
+	mov TI_addr_limit(%ebx),%ebx
+	sub $7,%ebx
+	cmp %ebx,%ecx
 	jae bad_put_user
 4:	movl %eax,(%ecx)
 5:	movl %edx,4(%ecx)
-	xorl %eax,%eax
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_8)
 
