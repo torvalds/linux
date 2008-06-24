@@ -123,7 +123,7 @@ void __init time_init(void)
 		(boot_cpu_data.x86_vendor == X86_VENDOR_AMD))
 		cpu_khz = calculate_cpu_khz();
 
-	lpj_tsc = ((unsigned long)tsc_khz * 1000)/HZ;
+	lpj_fine = ((unsigned long)tsc_khz * 1000)/HZ;
 
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");

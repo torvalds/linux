@@ -425,7 +425,7 @@ void __init tsc_init(void)
 
 	lpj = ((u64)tsc_khz * 1000);
 	do_div(lpj, HZ);
-	lpj_tsc = lpj;
+	lpj_fine = lpj;
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 				(unsigned long)cpu_khz / 1000,
