@@ -26,12 +26,18 @@ unsigned int create_branch(const unsigned int *addr,
 			   unsigned long target, int flags)
 {
 	unsigned int instruction;
+	long offset;
 
+	offset = target;
 	if (! (flags & BRANCH_ABSOLUTE))
-		target = target - (unsigned long)addr;
+		offset = offset - (unsigned long)addr;
+
+	/* Check we can represent the target in the instruction format */
+	if (offset < -0x2000000 || offset > 0x1fffffc || offset & 0x3)
+		return 0;
 
 	/* Mask out the flags and target, so they don't step on each other. */
-	instruction = 0x48000000 | (flags & 0x3) | (target & 0x03FFFFFC);
+	instruction = 0x48000000 | (flags & 0x3) | (offset & 0x03FFFFFC);
 
 	return instruction;
 }
