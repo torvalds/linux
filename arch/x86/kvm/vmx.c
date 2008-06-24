@@ -1031,9 +1031,9 @@ static __init int vmx_disabled_by_bios(void)
 	u64 msr;
 
 	rdmsrl(MSR_IA32_FEATURE_CONTROL, msr);
-	return (msr & (MSR_IA32_FEATURE_CONTROL_LOCKED |
-		       MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED))
-	    == MSR_IA32_FEATURE_CONTROL_LOCKED;
+	return (msr & (IA32_FEATURE_CONTROL_LOCKED_BIT |
+		       IA32_FEATURE_CONTROL_VMXON_ENABLED_BIT))
+	    == IA32_FEATURE_CONTROL_LOCKED_BIT;
 	/* locked but not enabled */
 }
 
@@ -1045,14 +1045,14 @@ static void hardware_enable(void *garbage)
 
 	INIT_LIST_HEAD(&per_cpu(vcpus_on_cpu, cpu));
 	rdmsrl(MSR_IA32_FEATURE_CONTROL, old);
-	if ((old & (MSR_IA32_FEATURE_CONTROL_LOCKED |
-		    MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED))
-	    != (MSR_IA32_FEATURE_CONTROL_LOCKED |
-		MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED))
+	if ((old & (IA32_FEATURE_CONTROL_LOCKED_BIT |
+		    IA32_FEATURE_CONTROL_VMXON_ENABLED_BIT))
+	    != (IA32_FEATURE_CONTROL_LOCKED_BIT |
+		IA32_FEATURE_CONTROL_VMXON_ENABLED_BIT))
 		/* enable and lock */
 		wrmsrl(MSR_IA32_FEATURE_CONTROL, old |
-		       MSR_IA32_FEATURE_CONTROL_LOCKED |
-		       MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED);
+		       IA32_FEATURE_CONTROL_LOCKED_BIT |
+		       IA32_FEATURE_CONTROL_VMXON_ENABLED_BIT);
 	write_cr4(read_cr4() | X86_CR4_VMXE); /* FIXME: not cpu hotplug safe */
 	asm volatile (ASM_VMX_VMXON_RAX
 		      : : "a"(&phys_addr), "m"(phys_addr)
