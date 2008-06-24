@@ -721,6 +721,9 @@ static int ieee80211_ioctl_siwrts(struct net_device *dev,
 
 	if (rts->disabled)
 		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
+	else if (!rts->fixed)
+		/* if the rts value is not fixed, then take default */
+		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 	else if (rts->value < 0 || rts->value > IEEE80211_MAX_RTS_THRESHOLD)
 		return -EINVAL;
 	else
