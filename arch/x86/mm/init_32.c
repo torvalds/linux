@@ -449,7 +449,6 @@ static void __init pagetable_init(void)
 
 	paravirt_pagetable_setup_start(pgd_base);
 
-	remap_numa_kva();
 	/*
 	 * Fixed mappings, only the page table structure has to be
 	 * created - mappings will be set by set_fixmap():
@@ -724,24 +723,6 @@ void __init setup_bootmem_allocator(void)
 	after_init_bootmem = 1;
 }
 
-/*
- * The node 0 pgdat is initialized before all of these because
- * it's needed for bootmem.  node>0 pgdats have their virtual
- * space allocated before the pagetables are in place to access
- * them, so they can't be cleared then.
- *
- * This should all compile down to nothing when NUMA is off.
- */
-static void __init remapped_pgdat_init(void)
-{
-	int nid;
-
-	for_each_online_node(nid) {
-		if (nid != 0)
-			memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-	}
-}
-
 static void __init find_early_table_space(unsigned long end)
 {
 	unsigned long puds, pmds, tables, start;
@@ -831,7 +812,6 @@ void __init paging_init(void)
 	/*
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
-	remapped_pgdat_init();
 	sparse_init();
 	zone_sizes_init();
 

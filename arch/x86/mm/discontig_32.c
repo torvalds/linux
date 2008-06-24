@@ -200,7 +200,7 @@ void *alloc_remap(int nid, unsigned long size)
 	return allocation;
 }
 
-void __init remap_numa_kva(void)
+static void __init remap_numa_kva(void)
 {
 	void *vaddr;
 	unsigned long pfn;
@@ -373,12 +373,16 @@ void __init initmem_init(unsigned long start_pfn,
 
 		allocate_pgdat(nid);
 	}
+	remap_numa_kva();
+
 	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 	for_each_online_node(nid)
 		propagate_e820_map_node(nid);
 
-	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
+	for_each_online_node(nid)
+		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+
 	NODE_DATA(0)->bdata = &node0_bdata;
 	setup_bootmem_allocator();
 }
