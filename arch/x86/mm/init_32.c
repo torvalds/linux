@@ -831,9 +831,6 @@ void __init paging_init(void)
 	/*
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
-
-	post_reserve_initrd();
-
 	remapped_pgdat_init();
 	sparse_init();
 	zone_sizes_init();

@@ -186,7 +186,7 @@ static inline void copy_edd(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 
-static bool do_relocate_initrd = false;
+static void __init relocate_initrd(void);
 
 static void __init reserve_initrd(void)
 {
@@ -195,7 +195,6 @@ static void __init reserve_initrd(void)
 	u64 ramdisk_end   = ramdisk_image + ramdisk_size;
 	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
 	u64 ramdisk_here;
-	u64 ramdisk_target;
 
 	if (!boot_params.hdr.type_of_loader ||
 	    !ramdisk_image || !ramdisk_size)
@@ -242,12 +241,12 @@ static void __init reserve_initrd(void)
 	printk(KERN_INFO "Allocated new RAMDISK: %08llx - %08llx\n",
 			 ramdisk_here, ramdisk_here + ramdisk_size);
 
-	do_relocate_initrd = true;
+	relocate_initrd();
 }
 
 #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
 
-void __init post_reserve_initrd(void)
+static void __init relocate_initrd(void)
 {
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
@@ -255,9 +254,6 @@ void __init post_reserve_initrd(void)
 	u64 ramdisk_here;
 	unsigned long slop, clen, mapaddr;
 	char *p, *q;
-
-	if (!do_relocate_initrd)
-		return;
 
 	ramdisk_here = initrd_start - PAGE_OFFSET;
 
@@ -269,10 +265,6 @@ void __init post_reserve_initrd(void)
 		p = (char *)__va(ramdisk_image);
 		memcpy(q, p, clen);
 		q += clen;
-		/* need to free these low pages...*/
-		printk(KERN_INFO "Freeing old partial RAMDISK %08llx-%08llx\n",
-			 ramdisk_image, ramdisk_image + clen - 1);
-		free_bootmem(ramdisk_image, clen);
 		ramdisk_image += clen;
 		ramdisk_size  -= clen;
 	}
@@ -298,14 +290,14 @@ void __init post_reserve_initrd(void)
 		ramdisk_image, ramdisk_image + ramdisk_size - 1,
 		ramdisk_here, ramdisk_here + ramdisk_size - 1);
 
-	/* need to free that, otherwise init highmem will reserve it again */
+	/*
+	 * need to free old one, otherwise init cross max_low_pfn could be
+	 * converted to bootmem
+	 */
 	free_early(ramdisk_image, ramdisk_image+ramdisk_size);
 }
 #else
 void __init reserve_initrd(void)
-{
-}
-void __init post_reserve_initrd(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
