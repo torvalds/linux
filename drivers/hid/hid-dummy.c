@@ -10,6 +10,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_APPLE_MODULE
 	HID_COMPAT_CALL_DRIVER(apple);
 #endif
+#ifdef CONFIG_HID_CHERRY_MODULE
+	HID_COMPAT_CALL_DRIVER(cherry);
+#endif
 #ifdef CONFIG_HID_CYPRESS_MODULE
 	HID_COMPAT_CALL_DRIVER(cypress);
 #endif

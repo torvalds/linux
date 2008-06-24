@@ -79,9 +79,6 @@ static const struct hid_rdesc_blacklist {
 	__u16 idProduct;
 	__u32 quirks;
 } hid_rdesc_blacklist[] = {
-
-	{ USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION, HID_QUIRK_RDESC_CYMOTION },
-
 	{ USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E, HID_QUIRK_RDESC_BUTTON_CONSUMER },
 
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
@@ -320,19 +317,6 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 EXPORT_SYMBOL_GPL(usbhid_lookup_quirk);
 
 /*
- * Cherry Cymotion keyboard have an invalid HID report descriptor,
- * that needs fixing before we can parse it.
- */
-static void usbhid_fixup_cymotion_descriptor(char *rdesc, int rsize)
-{
-	if (rsize >= 17 && rdesc[11] == 0x3c && rdesc[12] == 0x02) {
-		printk(KERN_INFO "Fixing up Cherry Cymotion report descriptor\n");
-		rdesc[11] = rdesc[16] = 0xff;
-		rdesc[12] = rdesc[17] = 0x03;
-	}
-}
-
-/*
  * Samsung IrDA remote controller (reports as Cypress USB Mouse).
  *
  * Vendor specific report #4 has a size of 48 bit,
@@ -385,9 +369,6 @@ static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rs
 
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
-	if ((quirks & HID_QUIRK_RDESC_CYMOTION))
-		usbhid_fixup_cymotion_descriptor(rdesc, rsize);
-
 	if (quirks & HID_QUIRK_RDESC_PETALYNX)
 		usbhid_fixup_petalynx_descriptor(rdesc, rsize);
 

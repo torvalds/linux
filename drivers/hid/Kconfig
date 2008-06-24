@@ -103,6 +103,13 @@ config HID_APPLE
 
 	If unsure, say M.
 
+config HID_CHERRY
+	tristate "Cherry"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Cherry Cymotion.
+
 config HID_CYPRESS
 	tristate "Cypress"
 	default m

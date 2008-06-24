@@ -273,7 +273,6 @@ struct hid_item {
  * Separate quirks for runtime report descriptor fixup
  */
 
-#define HID_QUIRK_RDESC_CYMOTION		0x00000001
 #define HID_QUIRK_RDESC_PETALYNX		0x00000008
 #define HID_QUIRK_RDESC_BUTTON_CONSUMER		0x00000020
 #define HID_QUIRK_RDESC_SAMSUNG_REMOTE		0x00000040
