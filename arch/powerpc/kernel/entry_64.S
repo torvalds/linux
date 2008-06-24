@@ -383,16 +383,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 	ld	r8,KSP(r4)	/* new stack pointer */
 BEGIN_FTR_SECTION
-	b	2f
-END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
-BEGIN_FTR_SECTION
+  BEGIN_FTR_SECTION_NESTED(95)
 	clrrdi	r6,r8,28	/* get its ESID */
 	clrrdi	r9,r1,28	/* get current sp ESID */
-END_FTR_SECTION_IFCLR(CPU_FTR_1T_SEGMENT)
-BEGIN_FTR_SECTION
+  FTR_SECTION_ELSE_NESTED(95)
 	clrrdi	r6,r8,40	/* get its 1T ESID */
 	clrrdi	r9,r1,40	/* get current sp 1T ESID */
-END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
+  ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_1T_SEGMENT, 95)
+FTR_SECTION_ELSE
+	b	2f
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_SLB)
 	clrldi.	r0,r6,2		/* is new ESID c00000000? */
 	cmpd	cr1,r6,r9	/* or is new ESID the same as current ESID? */
 	cror	eq,4*cr1+eq,eq
