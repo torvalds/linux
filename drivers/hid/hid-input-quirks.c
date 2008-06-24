@@ -16,9 +16,6 @@
 #include <linux/input.h>
 #include <linux/hid.h>
 
-#define map_rel(c)	hid_map_usage(hidinput, usage, bit, max, EV_REL, (c))
-#define map_key(c)	hid_map_usage(hidinput, usage, bit, max, EV_KEY, (c))
-
 #define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, bit, \
 		max, EV_KEY, (c))
 
@@ -132,36 +129,11 @@ static int quirk_cherry_genius_29e(struct hid_usage *usage,
 	return 1;
 }
 
-static int quirk_btc_8193(struct hid_usage *usage, struct hid_input *hidinput,
-			      unsigned long **bit, int *max)
-{
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
-		return 0;
-
-	switch (usage->hid & HID_USAGE) {
-		case 0x230: map_key(BTN_MOUSE);			break;
-		case 0x231: map_rel(REL_WHEEL);			break;
-		/* 
-		 * this keyboard has a scrollwheel implemented in
-		 * totally broken way. We map this usage temporarily
-		 * to HWHEEL and handle it in the event quirk handler
-		 */
-		case 0x232: map_rel(REL_HWHEEL);		break;
-
-		default:
-			return 0;
-	}
-	return 1;
-}
-
 #define VENDOR_ID_BELKIN			0x1020
 #define DEVICE_ID_BELKIN_WIRELESS_KEYBOARD	0x0006
 
 #define VENDOR_ID_CHICONY			0x04f2
 #define DEVICE_ID_CHICONY_TACTICAL_PAD		0x0418
-
-#define VENDOR_ID_EZKEY				0x0518
-#define DEVICE_ID_BTC_8193			0x0002
 
 #define VENDOR_ID_GYRATION			0x0c16
 #define DEVICE_ID_GYRATION_REMOTE		0x0002
@@ -181,8 +153,6 @@ static const struct hid_input_blacklist {
 	{ VENDOR_ID_BELKIN, DEVICE_ID_BELKIN_WIRELESS_KEYBOARD, quirk_belkin_wkbd },
 
 	{ VENDOR_ID_CHICONY, DEVICE_ID_CHICONY_TACTICAL_PAD, quirk_chicony_tactical_pad },
-
-	{ VENDOR_ID_EZKEY, DEVICE_ID_BTC_8193, quirk_btc_8193 },
 
 	{ VENDOR_ID_GYRATION, DEVICE_ID_GYRATION_REMOTE, quirk_gyration_remote },
 
@@ -214,13 +184,6 @@ int hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struc
 	struct input_dev *input;
 
 	input = field->hidinput->input;
-
-	/* handle the temporary quirky mapping to HWHEEL */
-	if (hid->quirks & HID_QUIRK_HWHEEL_WHEEL_INVERT &&
-			usage->type == EV_REL && usage->code == REL_HWHEEL) {
-		input_event(input, usage->type, REL_WHEEL, -value);
-		return 1;
-	}
 
 	/* Gyration MCE remote "Sleep" key */
 	if (hid->vendor == VENDOR_ID_GYRATION &&

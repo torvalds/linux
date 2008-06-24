@@ -117,6 +117,13 @@ config HID_CYPRESS
 	---help---
 	Support for Cypress mouse and barcodes.
 
+config HID_EZKEY
+	tristate "Ezkey"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Ezkey mouse and barcodes.
+
 config HID_LOGITECH
 	tristate "Logitech"
 	default m
