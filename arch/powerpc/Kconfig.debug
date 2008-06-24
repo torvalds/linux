@@ -57,6 +57,11 @@ config KGDB
 	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
 	  Unless you are intending to debug the kernel, say N here.
 
+config CODE_PATCHING_SELFTEST
+	bool "Run self-tests of the code-patching code."
+	depends on DEBUG_KERNEL
+	default n
+
 choice
 	prompt "Serial Port"
 	depends on KGDB
