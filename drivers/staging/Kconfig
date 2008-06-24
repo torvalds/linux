@@ -85,5 +85,7 @@ source "drivers/staging/rtl8187se/Kconfig"
 
 source "drivers/staging/rspiusb/Kconfig"
 
+source "drivers/staging/mimio/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
