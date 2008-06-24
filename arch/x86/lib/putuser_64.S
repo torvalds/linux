@@ -37,7 +37,7 @@ ENTRY(__put_user_1)
 	GET_THREAD_INFO(%rbx)
 	cmpq TI_addr_limit(%rbx),%rcx
 	jae bad_put_user
-1:	movb %dl,(%rcx)
+1:	movb %al,(%rcx)
 	xorl %eax,%eax
 	ret
 	CFI_ENDPROC
@@ -51,7 +51,7 @@ ENTRY(__put_user_2)
 	cmpq TI_addr_limit(%rbx),%rcx
 	jae 20f
 	decq %rcx
-2:	movw %dx,(%rcx)
+2:	movw %ax,(%rcx)
 	xorl %eax,%eax
 	ret
 20:	decq %rcx
@@ -67,7 +67,7 @@ ENTRY(__put_user_4)
 	cmpq TI_addr_limit(%rbx),%rcx
 	jae 30f
 	subq $3,%rcx
-3:	movl %edx,(%rcx)
+3:	movl %eax,(%rcx)
 	xorl %eax,%eax
 	ret
 30:	subq $3,%rcx
@@ -83,7 +83,7 @@ ENTRY(__put_user_8)
 	cmpq TI_addr_limit(%rbx),%rcx
 	jae 40f
 	subq $7,%rcx
-4:	movq %rdx,(%rcx)
+4:	movq %rax,(%rcx)
 	xorl %eax,%eax
 	ret
 40:	subq $7,%rcx

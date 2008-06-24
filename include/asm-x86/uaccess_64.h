@@ -130,7 +130,7 @@ extern void __put_user_bad(void);
 #define __put_user_x(size, ret, x, ptr)					\
 	asm volatile("call __put_user_" #size				\
 		     :"=a" (ret)					\
-		     :"c" (ptr),"d" (x)					\
+		     :"c" (ptr),"a" (x)					\
 		     :"ebx")
 
 #define put_user(x, ptr)						\
