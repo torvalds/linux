@@ -705,6 +705,23 @@ void __init setup_bootmem_allocator(void)
 
 }
 
+/*
+ * The node 0 pgdat is initialized before all of these because
+ * it's needed for bootmem.  node>0 pgdats have their virtual
+ * space allocated before the pagetables are in place to access
+ * them, so they can't be cleared then.
+ *
+ * This should all compile down to nothing when NUMA is off.
+ */
+static void __init remapped_pgdat_init(void)
+{
+	int nid;
+
+	for_each_online_node(nid) {
+		if (nid != 0)
+			memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+	}
+}
 
 /*
  * paging_init() sets up the page tables - note that the first 8MB are
@@ -727,6 +744,18 @@ void __init paging_init(void)
 	__flush_tlb_all();
 
 	kmap_init();
+
+	/*
+	 * NOTE: at this point the bootmem allocator is fully available.
+	 */
+
+	post_reserve_initrd();
+
+	remapped_pgdat_init();
+	sparse_init();
+	zone_sizes_init();
+
+	paravirt_post_allocator_init();
 }
 
 /*

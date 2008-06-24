@@ -249,7 +249,7 @@ static void __init reserve_initrd(void)
 
 #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
 
-static void __init post_reserve_initrd(void)
+void __init post_reserve_initrd(void)
 {
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
@@ -307,28 +307,10 @@ static void __init post_reserve_initrd(void)
 void __init reserve_initrd(void)
 {
 }
-static void __init post_reserve_initrd(void)
+void __init post_reserve_initrd(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
-
-/*
- * The node 0 pgdat is initialized before all of these because
- * it's needed for bootmem.  node>0 pgdats have their virtual
- * space allocated before the pagetables are in place to access
- * them, so they can't be cleared then.
- *
- * This should all compile down to nothing when NUMA is off.
- */
-static void __init remapped_pgdat_init(void)
-{
-	int nid;
-
-	for_each_online_node(nid) {
-		if (nid != 0)
-			memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-	}
-}
 
 #ifdef CONFIG_MCA
 static void set_mca_bus(int x)
@@ -523,18 +505,6 @@ void __init setup_arch(char **cmdline_p)
 	if (init_ohci1394_dma_early)
 		init_ohci1394_dma_on_all_controllers();
 #endif
-
-	/*
-	 * NOTE: at this point the bootmem allocator is fully available.
-	 */
-
-	post_reserve_initrd();
-
-	remapped_pgdat_init();
-	sparse_init();
-	zone_sizes_init();
-
-	paravirt_post_allocator_init();
 
 #ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
