@@ -732,6 +732,8 @@
 				"	.llong %1\n"			\
 				"	.llong 97b-98b\n"		\
 				"	.llong 99b-98b\n"		\
+				"	.llong 0\n"			\
+				"	.llong 0\n"			\
 				".previous"				\
 			: "=r" (rval) : "i" (CPU_FTR_CELL_TB_BUG)); rval;})
 #else

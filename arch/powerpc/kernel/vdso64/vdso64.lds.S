@@ -24,7 +24,7 @@ SECTIONS
 
 	. = ALIGN(16);
 	.text		: {
-		*(.text .stub .text.* .gnu.linkonce.t.*)
+		*(.text .stub .text.* .gnu.linkonce.t.* __ftr_alt_*)
 		*(.sfpr .glink)
 	}						:text
 	PROVIDE(__etext = .);

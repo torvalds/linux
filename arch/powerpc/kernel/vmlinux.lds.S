@@ -35,7 +35,7 @@ SECTIONS
 		ALIGN_FUNCTION();
 		*(.text.head)
 		_text = .;
-		*(.text .fixup .text.init.refok .exit.text.refok)
+		*(.text .fixup .text.init.refok .exit.text.refok __ftr_alt_*)
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT

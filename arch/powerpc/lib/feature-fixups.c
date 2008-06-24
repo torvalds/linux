@@ -22,6 +22,8 @@ struct fixup_entry {
 	unsigned long	value;
 	long		start_off;
 	long		end_off;
+	long		alt_start_off;
+	long		alt_end_off;
 };
 
 static void patch_feature_section(unsigned long value, struct fixup_entry *fcur)
