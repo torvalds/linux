@@ -10181,13 +10181,102 @@ static int bnx2x_resume(struct pci_dev *pdev)
 	return rc;
 }
 
+/**
+ * bnx2x_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t bnx2x_io_error_detected(struct pci_dev *pdev,
+						pci_channel_state_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnx2x *bp = netdev_priv(dev);
+
+	rtnl_lock();
+
+	netif_device_detach(dev);
+
+	if (netif_running(dev))
+		bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+
+	pci_disable_device(pdev);
+
+	rtnl_unlock();
+
+	/* Request a slot reset */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * bnx2x_io_slot_reset - called after the PCI bus has been reset
+ * @pdev: Pointer to PCI device
+ *
+ * Restart the card from scratch, as if from a cold-boot.
+ */
+static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnx2x *bp = netdev_priv(dev);
+
+	rtnl_lock();
+
+	if (pci_enable_device(pdev)) {
+		dev_err(&pdev->dev,
+			"Cannot re-enable PCI device after reset\n");
+		rtnl_unlock();
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_set_master(pdev);
+	pci_restore_state(pdev);
+
+	if (netif_running(dev))
+		bnx2x_set_power_state(bp, PCI_D0);
+
+	rtnl_unlock();
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * bnx2x_io_resume - called when traffic can start flowing again
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the error recovery driver tells us that
+ * its OK to resume normal operation.
+ */
+static void bnx2x_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnx2x *bp = netdev_priv(dev);
+
+	rtnl_lock();
+
+	if (netif_running(dev))
+		bnx2x_nic_load(bp, LOAD_OPEN);
+
+	netif_device_attach(dev);
+
+	rtnl_unlock();
+}
+
+static struct pci_error_handlers bnx2x_err_handler = {
+	.error_detected = bnx2x_io_error_detected,
+	.slot_reset = bnx2x_io_slot_reset,
+	.resume = bnx2x_io_resume,
+};
+
 static struct pci_driver bnx2x_pci_driver = {
-	.name       = DRV_MODULE_NAME,
-	.id_table   = bnx2x_pci_tbl,
-	.probe      = bnx2x_init_one,
-	.remove     = __devexit_p(bnx2x_remove_one),
-	.suspend    = bnx2x_suspend,
-	.resume     = bnx2x_resume,
+	.name        = DRV_MODULE_NAME,
+	.id_table    = bnx2x_pci_tbl,
+	.probe       = bnx2x_init_one,
+	.remove      = __devexit_p(bnx2x_remove_one),
+	.suspend     = bnx2x_suspend,
+	.resume      = bnx2x_resume,
+	.err_handler = &bnx2x_err_handler,
 };
 
 static int __init bnx2x_init(void)
