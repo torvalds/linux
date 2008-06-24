@@ -425,6 +425,11 @@ u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 		e820_add_region(final_start, final_end - final_start,
 					 new_type);
 		real_updated_size += final_end - final_start;
+
+		ei->size -= final_end - final_start;
+		if (ei->addr < final_start)
+			continue;
+		ei->addr = final_end;
 	}
 	return real_updated_size;
 }
