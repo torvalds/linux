@@ -854,6 +854,82 @@ static void nfs_set_mount_transport_protocol(struct nfs_parsed_mount_data *mnt)
 }
 
 /*
+ * Parse the value of the 'sec=' option.
+ *
+ * The flags setting is for v2/v3.  The flavor_len setting is for v4.
+ * v2/v3 also need to know the difference between NULL and UNIX.
+ */
+static int nfs_parse_security_flavors(char *value,
+				      struct nfs_parsed_mount_data *mnt)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	dfprintk(MOUNT, "NFS: parsing sec=%s option\n", value);
+
+	switch (match_token(value, nfs_secflavor_tokens, args)) {
+	case Opt_sec_none:
+		mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 0;
+		mnt->auth_flavors[0] = RPC_AUTH_NULL;
+		break;
+	case Opt_sec_sys:
+		mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 0;
+		mnt->auth_flavors[0] = RPC_AUTH_UNIX;
+		break;
+	case Opt_sec_krb5:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5;
+		break;
+	case Opt_sec_krb5i:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5I;
+		break;
+	case Opt_sec_krb5p:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5P;
+		break;
+	case Opt_sec_lkey:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEY;
+		break;
+	case Opt_sec_lkeyi:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYI;
+		break;
+	case Opt_sec_lkeyp:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYP;
+		break;
+	case Opt_sec_spkm:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKM;
+		break;
+	case Opt_sec_spkmi:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMI;
+		break;
+	case Opt_sec_spkmp:
+		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMP;
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+
+/*
  * Error-check and convert a string of mount options from user space into
  * a data structure
  */
@@ -1054,73 +1130,10 @@ static int nfs_parse_mount_options(char *raw,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-			token = match_token(string, nfs_secflavor_tokens, args);
+			rc = nfs_parse_security_flavors(string, mnt);
 			kfree(string);
-
-			/*
-			 * The flags setting is for v2/v3.  The flavor_len
-			 * setting is for v4.  v2/v3 also need to know the
-			 * difference between NULL and UNIX.
-			 */
-			switch (token) {
-			case Opt_sec_none:
-				mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 0;
-				mnt->auth_flavors[0] = RPC_AUTH_NULL;
-				break;
-			case Opt_sec_sys:
-				mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 0;
-				mnt->auth_flavors[0] = RPC_AUTH_UNIX;
-				break;
-			case Opt_sec_krb5:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5;
-				break;
-			case Opt_sec_krb5i:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5I;
-				break;
-			case Opt_sec_krb5p:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5P;
-				break;
-			case Opt_sec_lkey:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEY;
-				break;
-			case Opt_sec_lkeyi:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYI;
-				break;
-			case Opt_sec_lkeyp:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYP;
-				break;
-			case Opt_sec_spkm:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKM;
-				break;
-			case Opt_sec_spkmi:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMI;
-				break;
-			case Opt_sec_spkmp:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMP;
-				break;
-			default:
+			if (!rc)
 				goto out_unrec_sec;
-			}
 			break;
 		case Opt_proto:
 			string = match_strdup(args);
