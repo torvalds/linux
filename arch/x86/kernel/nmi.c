@@ -119,10 +119,7 @@ int __init check_nmi_watchdog(void)
 	unsigned int *prev_nmi_count;
 	int cpu;
 
-	if (nmi_watchdog == NMI_NONE)
-		return 0;
-
-	if (!atomic_read(&nmi_active))
+	if (!nmi_watchdog_active() || !atomic_read(&nmi_active))
 		return 0;
 
 	prev_nmi_count = kmalloc(nr_cpu_ids * sizeof(int), GFP_KERNEL);
@@ -317,8 +314,7 @@ void setup_apic_nmi_watchdog(void *unused)
 void stop_apic_nmi_watchdog(void *unused)
 {
 	/* only support LOCAL and IO APICs for now */
-	if (nmi_watchdog != NMI_LOCAL_APIC &&
-	    nmi_watchdog != NMI_IO_APIC)
+	if (!nmi_watchdog_active())
 		return;
 	if (__get_cpu_var(wd_enabled) == 0)
 		return;
@@ -348,8 +344,7 @@ static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
 {
-	if (nmi_watchdog == NMI_LOCAL_APIC ||
-		nmi_watchdog == NMI_IO_APIC) {
+	if (nmi_watchdog_active()) {
 		unsigned cpu;
 
 		/*
@@ -474,7 +469,7 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 	if (!!old_state == !!nmi_watchdog_enabled)
 		return 0;
 
-	if (atomic_read(&nmi_active) < 0 || nmi_watchdog == NMI_NONE) {
+	if (atomic_read(&nmi_active) < 0 || !nmi_watchdog_active()) {
 		printk(KERN_WARNING
 			"NMI watchdog is permanently disabled\n");
 		return -EIO;

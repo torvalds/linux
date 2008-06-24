@@ -56,6 +56,19 @@ static inline void localise_nmi_watchdog(void)
 	if (nmi_watchdog == NMI_IO_APIC)
 		nmi_watchdog = NMI_LOCAL_APIC;
 }
+
+/* check if nmi_watchdog is active (ie was specified at boot) */
+static inline int nmi_watchdog_active(void)
+{
+	/*
+	 * actually it should be:
+	 * 	return (nmi_watchdog == NMI_LOCAL_APIC ||
+	 * 		nmi_watchdog == NMI_IO_APIC)
+	 * but since they are power of two we could use a
+	 * cheaper way --cvg
+	 */
+	return nmi_watchdog & 0x3;
+}
 #endif
 
 void lapic_watchdog_stop(void);
