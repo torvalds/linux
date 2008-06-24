@@ -161,7 +161,7 @@ static inline struct rt_bandwidth *sched_rt_bandwidth(struct rt_rq *rt_rq)
 	return &rt_rq->tg->rt_bandwidth;
 }
 
-#else
+#else /* !CONFIG_RT_GROUP_SCHED */
 
 static inline u64 sched_rt_runtime(struct rt_rq *rt_rq)
 {
@@ -226,7 +226,7 @@ static inline struct rt_bandwidth *sched_rt_bandwidth(struct rt_rq *rt_rq)
 	return &def_rt_bandwidth;
 }
 
-#endif
+#endif /* CONFIG_RT_GROUP_SCHED */
 
 #ifdef CONFIG_SMP
 static int do_balance_runtime(struct rt_rq *rt_rq)
@@ -374,12 +374,12 @@ static int balance_runtime(struct rt_rq *rt_rq)
 
 	return more;
 }
-#else
+#else /* !CONFIG_SMP */
 static inline int balance_runtime(struct rt_rq *rt_rq)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_SMP */
 
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 {
@@ -1472,4 +1472,4 @@ static void print_rt_stats(struct seq_file *m, int cpu)
 		print_rt_rq(m, cpu, rt_rq);
 	rcu_read_unlock();
 }
-#endif
+#endif /* CONFIG_SCHED_DEBUG */

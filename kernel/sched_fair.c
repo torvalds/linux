@@ -921,7 +921,7 @@ static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 		hrtick_start(rq, delta, requeue);
 	}
 }
-#else
+#else /* !CONFIG_SCHED_HRTICK */
 static inline void
 hrtick_start_fair(struct rq *rq, struct task_struct *p)
 {
@@ -1062,7 +1062,7 @@ static int wake_idle(int cpu, struct task_struct *p)
 	}
 	return cpu;
 }
-#else
+#else /* !ARCH_HAS_SCHED_WAKE_IDLE*/
 static inline int wake_idle(int cpu, struct task_struct *p)
 {
 	return cpu;
@@ -1586,7 +1586,7 @@ move_one_task_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_SMP */
 
 /*
  * scheduler tick hitting a task of our scheduling class:
