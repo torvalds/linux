@@ -13,6 +13,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_CHERRY_MODULE
 	HID_COMPAT_CALL_DRIVER(cherry);
 #endif
+#ifdef CONFIG_HID_CHICONY_MODULE
+	HID_COMPAT_CALL_DRIVER(chicony);
+#endif
 #ifdef CONFIG_HID_CYPRESS_MODULE
 	HID_COMPAT_CALL_DRIVER(cypress);
 #endif

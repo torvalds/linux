@@ -110,6 +110,13 @@ config HID_CHERRY
 	---help---
 	Support for Cherry Cymotion.
 
+config HID_CHICONY
+	tristate "Chicony"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Chicony Tactical pad.
+
 config HID_CYPRESS
 	tristate "Cypress"
 	default m

@@ -58,31 +58,6 @@ static int quirk_gyration_remote(struct hid_usage *usage,
 	return 1;
 }
 
-static int quirk_chicony_tactical_pad(struct hid_usage *usage,
-		struct hid_input *hidinput, unsigned long **bit, int *max)
-{
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
-		return 0;
-
-	set_bit(EV_REP, hidinput->input->evbit);
-	switch (usage->hid & HID_USAGE) {
-		case 0xff01: map_key_clear(BTN_1);		break;
-		case 0xff02: map_key_clear(BTN_2);		break;
-		case 0xff03: map_key_clear(BTN_3);		break;
-		case 0xff04: map_key_clear(BTN_4);		break;
-		case 0xff05: map_key_clear(BTN_5);		break;
-		case 0xff06: map_key_clear(BTN_6);		break;
-		case 0xff07: map_key_clear(BTN_7);		break;
-		case 0xff08: map_key_clear(BTN_8);		break;
-		case 0xff09: map_key_clear(BTN_9);		break;
-		case 0xff0a: map_key_clear(BTN_A);		break;
-		case 0xff0b: map_key_clear(BTN_B);		break;
-		default:
-			return 0;
-	}
-	return 1;
-}
-
 static int quirk_petalynx_remote(struct hid_usage *usage,
 		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
@@ -132,9 +107,6 @@ static int quirk_cherry_genius_29e(struct hid_usage *usage,
 #define VENDOR_ID_BELKIN			0x1020
 #define DEVICE_ID_BELKIN_WIRELESS_KEYBOARD	0x0006
 
-#define VENDOR_ID_CHICONY			0x04f2
-#define DEVICE_ID_CHICONY_TACTICAL_PAD		0x0418
-
 #define VENDOR_ID_GYRATION			0x0c16
 #define DEVICE_ID_GYRATION_REMOTE		0x0002
 
@@ -151,8 +123,6 @@ static const struct hid_input_blacklist {
 			int *);
 } hid_input_blacklist[] = {
 	{ VENDOR_ID_BELKIN, DEVICE_ID_BELKIN_WIRELESS_KEYBOARD, quirk_belkin_wkbd },
-
-	{ VENDOR_ID_CHICONY, DEVICE_ID_CHICONY_TACTICAL_PAD, quirk_chicony_tactical_pad },
 
 	{ VENDOR_ID_GYRATION, DEVICE_ID_GYRATION_REMOTE, quirk_gyration_remote },
 
