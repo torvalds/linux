@@ -952,6 +952,19 @@ static int ieee80211_ioctl_giwencode(struct net_device *dev,
 	erq->length = sdata->keys[idx]->conf.keylen;
 	erq->flags |= IW_ENCODE_ENABLED;
 
+	if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+		switch (ifsta->auth_alg) {
+		case WLAN_AUTH_OPEN:
+		case WLAN_AUTH_LEAP:
+			erq->flags |= IW_ENCODE_OPEN;
+			break;
+		case WLAN_AUTH_SHARED_KEY:
+			erq->flags |= IW_ENCODE_RESTRICTED;
+			break;
+		}
+	}
+
 	return 0;
 }
 
