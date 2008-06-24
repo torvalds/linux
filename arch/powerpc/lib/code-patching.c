@@ -11,23 +11,27 @@
 #include <asm/code-patching.h>
 
 
-void create_instruction(unsigned long addr, unsigned int instr)
+void patch_instruction(unsigned int *addr, unsigned int instr)
 {
-	unsigned int *p;
-	p  = (unsigned int *)addr;
-	*p = instr;
-	asm ("dcbst 0, %0; sync; icbi 0,%0; sync; isync" : : "r" (p));
+	*addr = instr;
+	asm ("dcbst 0, %0; sync; icbi 0,%0; sync; isync" : : "r" (addr));
 }
 
-void create_branch(unsigned long addr, unsigned long target, int flags)
+void patch_branch(unsigned int *addr, unsigned long target, int flags)
+{
+	patch_instruction(addr, create_branch(addr, target, flags));
+}
+
+unsigned int create_branch(const unsigned int *addr,
+			   unsigned long target, int flags)
 {
 	unsigned int instruction;
 
 	if (! (flags & BRANCH_ABSOLUTE))
-		target = target - addr;
+		target = target - (unsigned long)addr;
 
 	/* Mask out the flags and target, so they don't step on each other. */
 	instruction = 0x48000000 | (flags & 0x3) | (target & 0x03FFFFFC);
 
-	create_instruction(addr, instruction);
+	return instruction;
 }

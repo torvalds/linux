@@ -19,7 +19,9 @@
 #define BRANCH_SET_LINK	0x1
 #define BRANCH_ABSOLUTE	0x2
 
-extern void create_branch(unsigned long addr, unsigned long target, int flags);
-extern void create_instruction(unsigned long addr, unsigned int instr);
+unsigned int create_branch(const unsigned int *addr,
+			   unsigned long target, int flags);
+void patch_branch(unsigned int *addr, unsigned long target, int flags);
+void patch_instruction(unsigned int *addr, unsigned int instr);
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */

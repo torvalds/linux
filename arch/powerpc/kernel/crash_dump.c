@@ -34,6 +34,8 @@ void __init reserve_kdump_trampoline(void)
 
 static void __init create_trampoline(unsigned long addr)
 {
+	unsigned int *p = (unsigned int *)addr;
+
 	/* The maximum range of a single instruction branch, is the current
 	 * instruction's address + (32 MB - 4) bytes. For the trampoline we
 	 * need to branch to current address + 32 MB. So we insert a nop at
@@ -42,8 +44,8 @@ static void __init create_trampoline(unsigned long addr)
 	 * branch to "addr" we jump to ("addr" + 32 MB). Although it requires
 	 * two instructions it doesn't require any registers.
 	 */
-	create_instruction(addr, 0x60000000); /* nop */
-	create_branch(addr + 4, addr + PHYSICAL_START, 0);
+	patch_instruction(p, 0x60000000); /* nop */
+	patch_branch(++p, addr + PHYSICAL_START, 0);
 }
 
 void __init setup_kdump_trampoline(void)
