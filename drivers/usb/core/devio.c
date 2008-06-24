@@ -562,7 +562,6 @@ static struct usb_device *usbdev_lookup_by_devt(dev_t devt)
 	dev = bus_find_device(&usb_bus_type, NULL, (void *) devt, match_devt);
 	if (!dev)
 		return NULL;
-	put_device(dev);
 	return container_of(dev, struct usb_device, dev);
 }
 
@@ -591,16 +590,21 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		dev = usbdev_lookup_by_devt(inode->i_rdev);
 #ifdef CONFIG_USB_DEVICEFS
 	/* procfs file */
-	if (!dev)
+	if (!dev) {
 		dev = inode->i_private;
+		if (dev && dev->usbfs_dentry &&
+					dev->usbfs_dentry->d_inode == inode)
+			usb_get_dev(dev);
+		else
+			dev = NULL;
+	}
 #endif
-	if (!dev)
+	if (!dev || dev->state == USB_STATE_NOTATTACHED)
 		goto out;
 	ret = usb_autoresume_device(dev);
 	if (ret)
 		goto out;
 
-	usb_get_dev(dev);
 	ret = 0;
 	ps->dev = dev;
 	ps->file = file;
@@ -620,8 +624,10 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
  out:
-	if (ret)
+	if (ret) {
 		kfree(ps);
+		usb_put_dev(dev);
+	}
 	mutex_unlock(&usbfs_mutex);
 	unlock_kernel();
 	return ret;
