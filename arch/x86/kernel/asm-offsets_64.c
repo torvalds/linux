@@ -34,7 +34,7 @@ int main(void)
 	ENTRY(pid);
 	BLANK();
 #undef ENTRY
-#define ENTRY(entry) DEFINE(threadinfo_ ## entry, offsetof(struct thread_info, entry))
+#define ENTRY(entry) DEFINE(TI_ ## entry, offsetof(struct thread_info, entry))
 	ENTRY(flags);
 	ENTRY(addr_limit);
 	ENTRY(preempt_count);

@@ -37,7 +37,7 @@
 ENTRY(__get_user_1)
 	CFI_STARTPROC
 	GET_THREAD_INFO(%rdx)
-	cmpq threadinfo_addr_limit(%rdx),%rax
+	cmpq TI_addr_limit(%rdx),%rax
 	jae bad_get_user
 1:	movzb (%rax),%edx
 	xorl %eax,%eax
@@ -50,7 +50,7 @@ ENTRY(__get_user_2)
 	addq $1,%rax
 	jc bad_get_user
 	GET_THREAD_INFO(%rdx)
-	cmpq threadinfo_addr_limit(%rdx),%rax
+	cmpq TI_addr_limit(%rdx),%rax
 	jae bad_get_user
 2:	movzwl -1(%rax),%edx
 	xorl %eax,%eax
@@ -63,7 +63,7 @@ ENTRY(__get_user_4)
 	addq $3,%rax
 	jc bad_get_user
 	GET_THREAD_INFO(%rdx)
-	cmpq threadinfo_addr_limit(%rdx),%rax
+	cmpq TI_addr_limit(%rdx),%rax
 	jae bad_get_user
 3:	movl -3(%rax),%edx
 	xorl %eax,%eax
@@ -76,7 +76,7 @@ ENTRY(__get_user_8)
 	addq $7,%rax
 	jc bad_get_user
 	GET_THREAD_INFO(%rdx)
-	cmpq threadinfo_addr_limit(%rdx),%rax
+	cmpq TI_addr_limit(%rdx),%rax
 	jae	bad_get_user
 4:	movq -7(%rax),%rdx
 	xorl %eax,%eax
