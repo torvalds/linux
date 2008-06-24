@@ -492,6 +492,7 @@ tracesys:
  * Has correct top of stack, but partial stack frame.
  */
 	.globl int_ret_from_sys_call
+	.globl int_with_check
 int_ret_from_sys_call:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
