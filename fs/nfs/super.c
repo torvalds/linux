@@ -2125,6 +2125,8 @@ static int nfs4_validate_mount_data(void *options,
 	args->acdirmin		= NFS_DEF_ACDIRMIN;
 	args->acdirmax		= NFS_DEF_ACDIRMAX;
 	args->nfs_server.port	= NFS_PORT; /* 2049 unless user set port= */
+	args->auth_flavors[0]	= RPC_AUTH_UNIX;
+	args->auth_flavor_len	= 0;
 
 	switch (data->version) {
 	case 1:
@@ -2140,18 +2142,13 @@ static int nfs4_validate_mount_data(void *options,
 						&args->nfs_server.address))
 			goto out_no_address;
 
-		switch (data->auth_flavourlen) {
-		case 0:
-			args->auth_flavors[0] = RPC_AUTH_UNIX;
-			break;
-		case 1:
+		if (data->auth_flavourlen) {
+			if (data->auth_flavourlen > 1)
+				goto out_inval_auth;
 			if (copy_from_user(&args->auth_flavors[0],
 					   data->auth_flavours,
 					   sizeof(args->auth_flavors[0])))
 				return -EFAULT;
-			break;
-		default:
-			goto out_inval_auth;
 		}
 
 		c = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
@@ -2203,15 +2200,8 @@ static int nfs4_validate_mount_data(void *options,
 
 		nfs_validate_transport_protocol(args);
 
-		switch (args->auth_flavor_len) {
-		case 0:
-			args->auth_flavors[0] = RPC_AUTH_UNIX;
-			break;
-		case 1:
-			break;
-		default:
+		if (args->auth_flavor_len > 1)
 			goto out_inval_auth;
-		}
 
 		if (args->client_address == NULL)
 			goto out_no_client_address;
