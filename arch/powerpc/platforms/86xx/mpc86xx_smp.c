@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
+#include <asm/code-patching.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pci-bridge.h>

@@ -24,3 +24,5 @@ obj-$(CONFIG_SMP)	+= locks.o
 endif
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
+
+obj-y			+= code-patching.o

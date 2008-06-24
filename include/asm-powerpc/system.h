@@ -526,54 +526,6 @@ extern void reloc_got2(unsigned long);
 
 #define PTRRELOC(x)	((typeof(x)) add_reloc_offset((unsigned long)(x)))
 
-static inline void create_instruction(unsigned long addr, unsigned int instr)
-{
-	unsigned int *p;
-	p  = (unsigned int *)addr;
-	*p = instr;
-	asm ("dcbst 0, %0; sync; icbi 0,%0; sync; isync" : : "r" (p));
-}
-
-/* Flags for create_branch:
- * "b"   == create_branch(addr, target, 0);
- * "ba"  == create_branch(addr, target, BRANCH_ABSOLUTE);
- * "bl"  == create_branch(addr, target, BRANCH_SET_LINK);
- * "bla" == create_branch(addr, target, BRANCH_ABSOLUTE | BRANCH_SET_LINK);
- */
-#define BRANCH_SET_LINK	0x1
-#define BRANCH_ABSOLUTE	0x2
-
-static inline void create_branch(unsigned long addr,
-		unsigned long target, int flags)
-{
-	unsigned int instruction;
-
-	if (! (flags & BRANCH_ABSOLUTE))
-		target = target - addr;
-
-	/* Mask out the flags and target, so they don't step on each other. */
-	instruction = 0x48000000 | (flags & 0x3) | (target & 0x03FFFFFC);
-
-	create_instruction(addr, instruction);
-}
-
-static inline void create_function_call(unsigned long addr, void * func)
-{
-	unsigned long func_addr;
-
-#ifdef CONFIG_PPC64
-	/*
-	 * On PPC64 the function pointer actually points to the function's
-	 * descriptor. The first entry in the descriptor is the address
-	 * of the function text.
-	 */
-	func_addr = *(unsigned long *)func;
-#else
-	func_addr = (unsigned long)func;
-#endif
-	create_branch(addr, func_addr, BRANCH_SET_LINK);
-}
-
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_system_vtime(struct task_struct *);
 #endif
