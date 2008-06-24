@@ -346,7 +346,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 	__flush_tlb_all();
 	update_page_count(PG_LEVEL_1G, pages);
 
-	return last_map_addr >> PAGE_SHIFT;
+	return last_map_addr;
 }
 
 static void __init find_early_table_space(unsigned long end)
@@ -556,7 +556,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start, unsigned lon
 	if (!after_bootmem)
 		early_memtest(start_phys, end_phys);
 
-	return last_map_addr;
+	return last_map_addr >> PAGE_SHIFT;
 }
 
 #ifndef CONFIG_NUMA
