@@ -733,6 +733,11 @@ static void __init find_early_table_space(unsigned long end)
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
 
+	if (!cpu_has_pse) {
+		int ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		tables += PAGE_ALIGN(ptes * sizeof(pte_t));
+	}
+
 	/*
 	 * RED-PEN putting page tables only on node 0 could
 	 * cause a hotspot and fill up ZONE_DMA. The page tables
