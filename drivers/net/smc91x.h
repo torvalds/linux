@@ -48,8 +48,7 @@
 #define SMC_CAN_USE_32BIT	0
 #define SMC_NOWAIT		1
 
-/* The first two address lines aren't connected... */
-#define SMC_IO_SHIFT		2
+#define SMC_IO_SHIFT		(lp->io_shift)
 
 #define SMC_inw(a, r)		readw((a) + (r))
 #define SMC_outw(v, a, r)	writew(v, (a) + (r))
