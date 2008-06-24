@@ -1758,8 +1758,9 @@ static int __remove_suid(struct dentry *dentry, int kill)
 	return notify_change(dentry, &newattrs);
 }
 
-int remove_suid(struct dentry *dentry)
+int file_remove_suid(struct file *file)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	int killsuid = should_remove_suid(dentry);
 	int killpriv = security_inode_need_killpriv(dentry);
 	int error = 0;
@@ -1773,7 +1774,7 @@ int remove_suid(struct dentry *dentry)
 
 	return error;
 }
-EXPORT_SYMBOL(remove_suid);
+EXPORT_SYMBOL(file_remove_suid);
 
 static size_t __iovec_copy_from_user_inatomic(char *vaddr,
 			const struct iovec *iov, size_t base, size_t bytes)
@@ -2529,7 +2530,7 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 	if (count == 0)
 		goto out;
 
-	err = remove_suid(file->f_path.dentry);
+	err = file_remove_suid(file);
 	if (err)
 		goto out;
 
