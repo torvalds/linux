@@ -59,6 +59,22 @@
 /* Mutual exclusion for removal, open, and release */
 DEFINE_MUTEX(usbfs_mutex);
 
+struct dev_state {
+	struct list_head list;      /* state list */
+	struct usb_device *dev;
+	struct file *file;
+	spinlock_t lock;            /* protects the async urb lists */
+	struct list_head async_pending;
+	struct list_head async_completed;
+	wait_queue_head_t wait;     /* wake up if a request completed */
+	unsigned int discsignr;
+	struct pid *disc_pid;
+	uid_t disc_uid, disc_euid;
+	void __user *disccontext;
+	unsigned long ifclaimed;
+	u32 secid;
+};
+
 struct async {
 	struct list_head asynclist;
 	struct dev_state *ps;
@@ -1680,6 +1696,28 @@ const struct file_operations usbdev_file_operations = {
 	.release =	usbdev_release,
 };
 
+void usb_fs_classdev_common_remove(struct usb_device *udev)
+{
+	struct dev_state *ps;
+	struct siginfo sinfo;
+
+	while (!list_empty(&udev->filelist)) {
+		ps = list_entry(udev->filelist.next, struct dev_state, list);
+		destroy_all_async(ps);
+		wake_up_all(&ps->wait);
+		list_del_init(&ps->list);
+		if (ps->discsignr) {
+			sinfo.si_signo = ps->discsignr;
+			sinfo.si_errno = EPIPE;
+			sinfo.si_code = SI_ASYNCIO;
+			sinfo.si_addr = ps->disccontext;
+			kill_pid_info_as_uid(ps->discsignr, &sinfo,
+					ps->disc_pid, ps->disc_uid,
+					ps->disc_euid, ps->secid);
+		}
+	}
+}
+
 #ifdef CONFIG_USB_DEVICE_CLASS
 static struct class *usb_classdev_class;
 
@@ -1699,6 +1737,7 @@ static int usb_classdev_add(struct usb_device *dev)
 static void usb_classdev_remove(struct usb_device *dev)
 {
 	device_unregister(dev->usb_classdev);
+	usb_fs_classdev_common_remove(dev);
 }
 
 static int usb_classdev_notify(struct notifier_block *self,
