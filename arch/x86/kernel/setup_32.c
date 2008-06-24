@@ -482,8 +482,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	vmi_init();
 #endif
-	kvm_guest_init();
-
 	/*
 	 * NOTE: before this point _nobody_ is allowed to allocate
 	 * any memory using the bootmem allocator.  Although the
@@ -511,9 +509,15 @@ void __init setup_arch(char **cmdline_p)
 
 	early_quirks();
 
+	/*
+	 * Read APIC and some other early information from ACPI tables.
+	 */
 	acpi_boot_init();
 
 #if defined(CONFIG_X86_MPPARSE) || defined(CONFIG_X86_VISWS)
+	/*
+	 * get boot-time SMP configuration:
+	 */
 	if (smp_found_config)
 		get_smp_config();
 #endif
@@ -523,6 +527,7 @@ void __init setup_arch(char **cmdline_p)
 			"CONFIG_X86_PC cannot handle it.\nUse "
 			"CONFIG_X86_GENERICARCH or CONFIG_X86_BIGSMP.\n");
 #endif
+	kvm_guest_init();
 
 	e820_reserve_resources();
 	e820_mark_nosave_regions(max_low_pfn);
