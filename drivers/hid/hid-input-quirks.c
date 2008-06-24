@@ -42,34 +42,6 @@ static int quirk_gyration_remote(struct hid_usage *usage,
 	return 1;
 }
 
-static int quirk_petalynx_remote(struct hid_usage *usage,
-		struct hid_input *hidinput, unsigned long **bit, int *max)
-{
-	if (((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR) &&
-			((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER))
-		return 0;
-
-	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_LOGIVENDOR)
-		switch(usage->hid & HID_USAGE) {
-			case 0x05a: map_key_clear(KEY_TEXT);		break;
-			case 0x05b: map_key_clear(KEY_RED);		break;
-			case 0x05c: map_key_clear(KEY_GREEN);		break;
-			case 0x05d: map_key_clear(KEY_YELLOW);		break;
-			case 0x05e: map_key_clear(KEY_BLUE);		break;
-			default:
-				return 0;
-		}
-
-	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER)
-		switch(usage->hid & HID_USAGE) {
-			case 0x0f6: map_key_clear(KEY_NEXT);            break;
-			case 0x0fa: map_key_clear(KEY_BACK);            break;
-			default:
-				return 0;
-		}
-	return 1;
-}
-
 static int quirk_cherry_genius_29e(struct hid_usage *usage,
 		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
@@ -94,9 +66,6 @@ static int quirk_cherry_genius_29e(struct hid_usage *usage,
 #define VENDOR_ID_MONTEREY			0x0566
 #define DEVICE_ID_GENIUS_KB29E			0x3004
 
-#define VENDOR_ID_PETALYNX			0x18b1
-#define DEVICE_ID_PETALYNX_MAXTER_REMOTE	0x0037
-
 static const struct hid_input_blacklist {
 	__u16 idVendor;
 	__u16 idProduct;
@@ -106,8 +75,6 @@ static const struct hid_input_blacklist {
 	{ VENDOR_ID_GYRATION, DEVICE_ID_GYRATION_REMOTE, quirk_gyration_remote },
 
 	{ VENDOR_ID_MONTEREY, DEVICE_ID_GENIUS_KB29E, quirk_cherry_genius_29e },
-
-	{ VENDOR_ID_PETALYNX, DEVICE_ID_PETALYNX_MAXTER_REMOTE, quirk_petalynx_remote },
 
 	{ 0, 0, NULL }
 };

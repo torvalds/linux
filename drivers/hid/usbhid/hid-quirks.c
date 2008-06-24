@@ -57,7 +57,6 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVMC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_DMI, USB_DEVICE_ID_DMI_ENC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ELO, USB_DEVICE_ID_ELO_TS2700, HID_QUIRK_NOGET },
-	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_SUN, USB_DEVICE_ID_RARITAN_KVM_DONGLE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_DUAL_USB_JOYPAD, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
@@ -77,8 +76,6 @@ static const struct hid_rdesc_blacklist {
 	__u32 quirks;
 } hid_rdesc_blacklist[] = {
 	{ USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E, HID_QUIRK_RDESC_BUTTON_CONSUMER },
-
-	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
 
 	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_RDESC_SAMSUNG_REMOTE },
 
@@ -340,21 +337,6 @@ static void usbhid_fixup_samsung_irda_descriptor(unsigned char *rdesc,
 	}
 }
 
-/* Petalynx Maxter Remote has maximum for consumer page set too low */
-static void usbhid_fixup_petalynx_descriptor(unsigned char *rdesc, int rsize)
-{
-	if (rsize >= 60 && rdesc[39] == 0x2a
-			&& rdesc[40] == 0xf5
-			&& rdesc[41] == 0x00
-			&& rdesc[59] == 0x26
-			&& rdesc[60] == 0xf9
-			&& rdesc[61] == 0x00) {
-		printk(KERN_INFO "Fixing up Petalynx Maxter Remote report descriptor\n");
-		rdesc[60] = 0xfa;
-		rdesc[40] = 0xfa;
-	}
-}
-
 static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rsize)
 {
 	if (rsize >= 30 && rdesc[29] == 0x05
@@ -366,9 +348,6 @@ static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rs
 
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
-	if (quirks & HID_QUIRK_RDESC_PETALYNX)
-		usbhid_fixup_petalynx_descriptor(rdesc, rsize);
-
 	if (quirks & HID_QUIRK_RDESC_BUTTON_CONSUMER)
 		usbhid_fixup_button_consumer_descriptor(rdesc, rsize);
 
