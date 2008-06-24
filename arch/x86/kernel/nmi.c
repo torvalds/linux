@@ -52,7 +52,7 @@ static cpumask_t backtrace_mask = CPU_MASK_NONE;
 atomic_t nmi_active = ATOMIC_INIT(0);		/* oprofile uses this */
 EXPORT_SYMBOL(nmi_active);
 
-unsigned int nmi_watchdog = NMI_DEFAULT;
+unsigned int nmi_watchdog = NMI_NONE;
 EXPORT_SYMBOL(nmi_watchdog);
 
 static int panic_on_timeout;
@@ -92,14 +92,6 @@ static inline unsigned int get_timer_irqs(int cpu)
 #endif
 }
 
-/* Run after command line and cpu_init init, but before all other checks */
-void nmi_watchdog_default(void)
-{
-	if (nmi_watchdog != NMI_DEFAULT)
-		return;
-	nmi_watchdog = NMI_NONE;
-}
-
 #ifdef CONFIG_SMP
 /*
  * The performance counters used by NMI_LOCAL_APIC don't trigger when
@@ -127,7 +119,7 @@ int __init check_nmi_watchdog(void)
 	unsigned int *prev_nmi_count;
 	int cpu;
 
-	if (nmi_watchdog == NMI_NONE || nmi_watchdog == NMI_DISABLED)
+	if (nmi_watchdog == NMI_NONE)
 		return 0;
 
 	if (!atomic_read(&nmi_active))
@@ -482,23 +474,11 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 	if (!!old_state == !!nmi_watchdog_enabled)
 		return 0;
 
-	if (atomic_read(&nmi_active) < 0 || nmi_watchdog == NMI_DISABLED) {
+	if (atomic_read(&nmi_active) < 0 || nmi_watchdog == NMI_NONE) {
 		printk(KERN_WARNING
 			"NMI watchdog is permanently disabled\n");
 		return -EIO;
 	}
-
-	/* if nmi_watchdog is not set yet, then set it */
-	nmi_watchdog_default();
-
-#ifdef CONFIG_X86_32
-	if (nmi_watchdog == NMI_NONE) {
-		if (lapic_watchdog_ok())
-			nmi_watchdog = NMI_LOCAL_APIC;
-		else
-			nmi_watchdog = NMI_IO_APIC;
-	}
-#endif
 
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		if (nmi_watchdog_enabled)

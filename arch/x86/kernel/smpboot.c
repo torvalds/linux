@@ -1139,7 +1139,6 @@ static void __init smp_cpu_index_default(void)
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	preempt_disable();
-	nmi_watchdog_default();
 	smp_cpu_index_default();
 	current_cpu_data = boot_cpu_data;
 	cpu_callin_map = cpumask_of_cpu(0);
