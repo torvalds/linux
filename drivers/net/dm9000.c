@@ -54,9 +54,6 @@
 #define writesb	outsb
 #define writesw	outsw
 #define writesl	outsl
-#define DEFAULT_TRIGGER IRQF_TRIGGER_HIGH
-#else
-#define DEFAULT_TRIGGER (0)
 #endif
 
 /*
@@ -1014,11 +1011,9 @@ dm9000_open(struct net_device *dev)
 	/* If there is no IRQ type specified, default to something that
 	 * may work, and tell the user that this is a problem */
 
-	if (irqflags == IRQF_TRIGGER_NONE) {
+	if (irqflags == IRQF_TRIGGER_NONE)
 		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
-		irqflags = DEFAULT_TRIGGER;
-	}
-	
+
 	irqflags |= IRQF_SHARED;
 
 	if (request_irq(dev->irq, &dm9000_interrupt, irqflags, dev->name, dev))
