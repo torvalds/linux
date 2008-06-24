@@ -856,8 +856,7 @@ static void nfs_set_mount_transport_protocol(struct nfs_parsed_mount_data *mnt)
 /*
  * Parse the value of the 'sec=' option.
  *
- * The flags setting is for v2/v3.  The flavor_len setting is for v4.
- * v2/v3 also need to know the difference between NULL and UNIX.
+ * The flavor_len setting is for v4 mounts.
  */
 static int nfs_parse_security_flavors(char *value,
 				      struct nfs_parsed_mount_data *mnt)
@@ -868,57 +867,46 @@ static int nfs_parse_security_flavors(char *value,
 
 	switch (match_token(value, nfs_secflavor_tokens, args)) {
 	case Opt_sec_none:
-		mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 0;
 		mnt->auth_flavors[0] = RPC_AUTH_NULL;
 		break;
 	case Opt_sec_sys:
-		mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 0;
 		mnt->auth_flavors[0] = RPC_AUTH_UNIX;
 		break;
 	case Opt_sec_krb5:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5;
 		break;
 	case Opt_sec_krb5i:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5I;
 		break;
 	case Opt_sec_krb5p:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5P;
 		break;
 	case Opt_sec_lkey:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEY;
 		break;
 	case Opt_sec_lkeyi:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYI;
 		break;
 	case Opt_sec_lkeyp:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYP;
 		break;
 	case Opt_sec_spkm:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKM;
 		break;
 	case Opt_sec_spkmi:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMI;
 		break;
 	case Opt_sec_spkmp:
-		mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMP;
 		break;
@@ -1480,6 +1468,7 @@ static int nfs_validate_mount_data(void *options,
 	args->mount_server.port	= 0;	/* autobind unless user sets port */
 	args->nfs_server.port	= 0;	/* autobind unless user sets port */
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
+	args->auth_flavors[0]	= RPC_AUTH_UNIX;
 
 	switch (data->version) {
 	case 1:
@@ -1537,7 +1526,9 @@ static int nfs_validate_mount_data(void *options,
 		args->nfs_server.hostname = kstrdup(data->hostname, GFP_KERNEL);
 		args->namlen		= data->namlen;
 		args->bsize		= data->bsize;
-		args->auth_flavors[0]	= data->pseudoflavor;
+
+		if (data->flags & NFS_MOUNT_SECFLAVOUR)
+			args->auth_flavors[0] = data->pseudoflavor;
 		if (!args->nfs_server.hostname)
 			goto out_nomem;
 
@@ -1600,9 +1591,6 @@ static int nfs_validate_mount_data(void *options,
 		break;
 		}
 	}
-
-	if (!(args->flags & NFS_MOUNT_SECFLAVOUR))
-		args->auth_flavors[0] = RPC_AUTH_UNIX;
 
 #ifndef CONFIG_NFS_V3
 	if (args->flags & NFS_MOUNT_VER3)
