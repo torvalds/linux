@@ -62,6 +62,11 @@ config CODE_PATCHING_SELFTEST
 	depends on DEBUG_KERNEL
 	default n
 
+config FTR_FIXUP_SELFTEST
+	bool "Run self-tests of the feature-fixup code."
+	depends on DEBUG_KERNEL
+	default n
+
 choice
 	prompt "Serial Port"
 	depends on KGDB
