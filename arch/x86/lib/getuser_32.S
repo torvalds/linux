@@ -73,7 +73,7 @@ bad_get_user:
 END(bad_get_user)
 
 .section __ex_table,"a"
-	.long 1b,bad_get_user
-	.long 2b,bad_get_user
-	.long 3b,bad_get_user
+	_ASM_PTR 1b,bad_get_user
+	_ASM_PTR 2b,bad_get_user
+	_ASM_PTR 3b,bad_get_user
 .previous
