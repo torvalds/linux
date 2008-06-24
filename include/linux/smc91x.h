@@ -14,6 +14,8 @@
 #define SMC91X_IO_SHIFT_3	(3 << 4)
 #define SMC91X_IO_SHIFT(x)	(((x) >> 4) & 0x3)
 
+#define SMC91X_USE_DMA		(1 << 6)
+
 struct smc91x_platdata {
 	unsigned long flags;
 };

@@ -492,7 +492,7 @@ struct smc_local {
 
 	spinlock_t lock;
 
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 	/* DMA needs the physical address of the chip */
 	u_long physaddr;
 	struct device *device;
@@ -510,7 +510,7 @@ struct smc_local {
 #define SMC_16BIT(p)	((p)->cfg.flags & SMC91X_USE_16BIT)
 #define SMC_32BIT(p)	((p)->cfg.flags & SMC91X_USE_32BIT)
 
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 /*
  * Let's use the DMA engine on the XScale PXA2xx for RX packets. This is
  * always happening in irq context so no need to worry about races.  TX is
@@ -604,7 +604,7 @@ smc_pxa_dma_irq(int dma, void *dummy)
 {
 	DCSR(dma) = 0;
 }
-#endif  /* SMC_USE_PXA_DMA */
+#endif  /* CONFIG_ARCH_PXA */
 
 
 /*

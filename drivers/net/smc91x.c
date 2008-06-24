@@ -1939,8 +1939,11 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
       	if (retval)
       		goto err_out;
 
-#ifdef SMC_USE_PXA_DMA
-	{
+#ifdef CONFIG_ARCH_PXA
+#  ifdef SMC_USE_PXA_DMA
+	lp->cfg.flags |= SMC91X_USE_DMA;
+#  endif
+	if (lp->cfg.flags & SMC91X_USE_DMA) {
 		int dma = pxa_request_dma(dev->name, DMA_PRIO_LOW,
 					  smc_pxa_dma_irq, NULL);
 		if (dma >= 0)
@@ -1980,7 +1983,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	}
 
 err_out:
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 	if (retval && dev->dma != (unsigned char)-1)
 		pxa_free_dma(dev->dma);
 #endif
@@ -2198,7 +2201,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_release_attrib;
 	}
 
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 	{
 		struct smc_local *lp = netdev_priv(ndev);
 		lp->device = &pdev->dev;
@@ -2241,7 +2244,7 @@ static int smc_drv_remove(struct platform_device *pdev)
 
 	free_irq(ndev->irq, ndev);
 
-#ifdef SMC_USE_PXA_DMA
+#ifdef CONFIG_ARCH_PXA
 	if (ndev->dma != (unsigned char)-1)
 		pxa_free_dma(ndev->dma);
 #endif
