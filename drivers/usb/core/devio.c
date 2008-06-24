@@ -1726,20 +1726,21 @@ static struct class *usb_classdev_class;
 
 static int usb_classdev_add(struct usb_device *dev)
 {
-	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
+	struct device *cldev;
 
-	dev->usb_classdev = device_create(usb_classdev_class, &dev->dev,
-				MKDEV(USB_DEVICE_MAJOR, minor),
-				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
-	if (IS_ERR(dev->usb_classdev))
-		return PTR_ERR(dev->usb_classdev);
-
+	cldev = device_create(usb_classdev_class, &dev->dev, dev->dev.devt,
+			      "usbdev%d.%d", dev->bus->busnum,
+			      dev->devnum);
+	if (IS_ERR(cldev))
+		return PTR_ERR(cldev);
+	dev->usb_classdev = cldev;
 	return 0;
 }
 
 static void usb_classdev_remove(struct usb_device *dev)
 {
-	device_unregister(dev->usb_classdev);
+	if (dev->usb_classdev)
+		device_unregister(dev->usb_classdev);
 	usb_fs_classdev_common_remove(dev);
 }
 
