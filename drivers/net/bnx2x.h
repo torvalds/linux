@@ -132,243 +132,6 @@
 #define is_multi(bp)		(bp->num_queues > 1)
 
 
-struct regp {
-	u32 lo;
-	u32 hi;
-};
-
-struct bmac_stats {
-	struct regp tx_gtpkt;
-	struct regp tx_gtxpf;
-	struct regp tx_gtfcs;
-	struct regp tx_gtmca;
-	struct regp tx_gtgca;
-	struct regp tx_gtfrg;
-	struct regp tx_gtovr;
-	struct regp tx_gt64;
-	struct regp tx_gt127;
-	struct regp tx_gt255;   /* 10 */
-	struct regp tx_gt511;
-	struct regp tx_gt1023;
-	struct regp tx_gt1518;
-	struct regp tx_gt2047;
-	struct regp tx_gt4095;
-	struct regp tx_gt9216;
-	struct regp tx_gt16383;
-	struct regp tx_gtmax;
-	struct regp tx_gtufl;
-	struct regp tx_gterr;   /* 20 */
-	struct regp tx_gtbyt;
-
-	struct regp rx_gr64;
-	struct regp rx_gr127;
-	struct regp rx_gr255;
-	struct regp rx_gr511;
-	struct regp rx_gr1023;
-	struct regp rx_gr1518;
-	struct regp rx_gr2047;
-	struct regp rx_gr4095;
-	struct regp rx_gr9216;  /* 30 */
-	struct regp rx_gr16383;
-	struct regp rx_grmax;
-	struct regp rx_grpkt;
-	struct regp rx_grfcs;
-	struct regp rx_grmca;
-	struct regp rx_grbca;
-	struct regp rx_grxcf;
-	struct regp rx_grxpf;
-	struct regp rx_grxuo;
-	struct regp rx_grjbr;   /* 40 */
-	struct regp rx_grovr;
-	struct regp rx_grflr;
-	struct regp rx_grmeg;
-	struct regp rx_grmeb;
-	struct regp rx_grbyt;
-	struct regp rx_grund;
-	struct regp rx_grfrg;
-	struct regp rx_grerb;
-	struct regp rx_grfre;
-	struct regp rx_gripj;   /* 50 */
-};
-
-struct emac_stats {
-	u32 rx_ifhcinoctets     		   ;
-	u32 rx_ifhcinbadoctets  		   ;
-	u32 rx_etherstatsfragments      	   ;
-	u32 rx_ifhcinucastpkts  		   ;
-	u32 rx_ifhcinmulticastpkts      	   ;
-	u32 rx_ifhcinbroadcastpkts      	   ;
-	u32 rx_dot3statsfcserrors       	   ;
-	u32 rx_dot3statsalignmenterrors 	   ;
-	u32 rx_dot3statscarriersenseerrors         ;
-	u32 rx_xonpauseframesreceived   	   ;    /* 10 */
-	u32 rx_xoffpauseframesreceived  	   ;
-	u32 rx_maccontrolframesreceived 	   ;
-	u32 rx_xoffstateentered 		   ;
-	u32 rx_dot3statsframestoolong   	   ;
-	u32 rx_etherstatsjabbers		   ;
-	u32 rx_etherstatsundersizepkts  	   ;
-	u32 rx_etherstatspkts64octets   	   ;
-	u32 rx_etherstatspkts65octetsto127octets   ;
-	u32 rx_etherstatspkts128octetsto255octets  ;
-	u32 rx_etherstatspkts256octetsto511octets  ;    /* 20 */
-	u32 rx_etherstatspkts512octetsto1023octets ;
-	u32 rx_etherstatspkts1024octetsto1522octets;
-	u32 rx_etherstatspktsover1522octets        ;
-
-	u32 rx_falsecarriererrors       	   ;
-
-	u32 tx_ifhcoutoctets    		   ;
-	u32 tx_ifhcoutbadoctets 		   ;
-	u32 tx_etherstatscollisions     	   ;
-	u32 tx_outxonsent       		   ;
-	u32 tx_outxoffsent      		   ;
-	u32 tx_flowcontroldone  		   ;    /* 30 */
-	u32 tx_dot3statssinglecollisionframes      ;
-	u32 tx_dot3statsmultiplecollisionframes    ;
-	u32 tx_dot3statsdeferredtransmissions      ;
-	u32 tx_dot3statsexcessivecollisions        ;
-	u32 tx_dot3statslatecollisions  	   ;
-	u32 tx_ifhcoutucastpkts 		   ;
-	u32 tx_ifhcoutmulticastpkts     	   ;
-	u32 tx_ifhcoutbroadcastpkts     	   ;
-	u32 tx_etherstatspkts64octets   	   ;
-	u32 tx_etherstatspkts65octetsto127octets   ;    /* 40 */
-	u32 tx_etherstatspkts128octetsto255octets  ;
-	u32 tx_etherstatspkts256octetsto511octets  ;
-	u32 tx_etherstatspkts512octetsto1023octets ;
-	u32 tx_etherstatspkts1024octetsto1522octet ;
-	u32 tx_etherstatspktsover1522octets        ;
-	u32 tx_dot3statsinternalmactransmiterrors  ;    /* 46 */
-};
-
-union mac_stats {
-	struct emac_stats emac;
-	struct bmac_stats bmac;
-};
-
-struct nig_stats {
-	u32 brb_discard;
-	u32 brb_packet;
-	u32 brb_truncate;
-	u32 flow_ctrl_discard;
-	u32 flow_ctrl_octets;
-	u32 flow_ctrl_packet;
-	u32 mng_discard;
-	u32 mng_octet_inp;
-	u32 mng_octet_out;
-	u32 mng_packet_inp;
-	u32 mng_packet_out;
-	u32 pbf_octets;
-	u32 pbf_packet;
-	u32 safc_inp;
-	u32 done;
-	u32 pad;
-};
-
-struct bnx2x_eth_stats {
-	u32 pad;	/* to make long counters u64 aligned */
-	u32 mac_stx_start;
-	u32 total_bytes_received_hi;
-	u32 total_bytes_received_lo;
-	u32 total_bytes_transmitted_hi;
-	u32 total_bytes_transmitted_lo;
-	u32 total_unicast_packets_received_hi;
-	u32 total_unicast_packets_received_lo;
-	u32 total_multicast_packets_received_hi;
-	u32 total_multicast_packets_received_lo;
-	u32 total_broadcast_packets_received_hi;
-	u32 total_broadcast_packets_received_lo;
-	u32 total_unicast_packets_transmitted_hi;
-	u32 total_unicast_packets_transmitted_lo;
-	u32 total_multicast_packets_transmitted_hi;
-	u32 total_multicast_packets_transmitted_lo;
-	u32 total_broadcast_packets_transmitted_hi;
-	u32 total_broadcast_packets_transmitted_lo;
-	u32 crc_receive_errors;
-	u32 alignment_errors;
-	u32 false_carrier_detections;
-	u32 runt_packets_received;
-	u32 jabber_packets_received;
-	u32 pause_xon_frames_received;
-	u32 pause_xoff_frames_received;
-	u32 pause_xon_frames_transmitted;
-	u32 pause_xoff_frames_transmitted;
-	u32 single_collision_transmit_frames;
-	u32 multiple_collision_transmit_frames;
-	u32 late_collision_frames;
-	u32 excessive_collision_frames;
-	u32 control_frames_received;
-	u32 frames_received_64_bytes;
-	u32 frames_received_65_127_bytes;
-	u32 frames_received_128_255_bytes;
-	u32 frames_received_256_511_bytes;
-	u32 frames_received_512_1023_bytes;
-	u32 frames_received_1024_1522_bytes;
-	u32 frames_received_1523_9022_bytes;
-	u32 frames_transmitted_64_bytes;
-	u32 frames_transmitted_65_127_bytes;
-	u32 frames_transmitted_128_255_bytes;
-	u32 frames_transmitted_256_511_bytes;
-	u32 frames_transmitted_512_1023_bytes;
-	u32 frames_transmitted_1024_1522_bytes;
-	u32 frames_transmitted_1523_9022_bytes;
-	u32 valid_bytes_received_hi;
-	u32 valid_bytes_received_lo;
-	u32 error_runt_packets_received;
-	u32 error_jabber_packets_received;
-	u32 mac_stx_end;
-
-	u32 pad2;
-	u32 stat_IfHCInBadOctets_hi;
-	u32 stat_IfHCInBadOctets_lo;
-	u32 stat_IfHCOutBadOctets_hi;
-	u32 stat_IfHCOutBadOctets_lo;
-	u32 stat_Dot3statsFramesTooLong;
-	u32 stat_Dot3statsInternalMacTransmitErrors;
-	u32 stat_Dot3StatsCarrierSenseErrors;
-	u32 stat_Dot3StatsDeferredTransmissions;
-	u32 stat_FlowControlDone;
-	u32 stat_XoffStateEntered;
-
-	u32 x_total_sent_bytes_hi;
-	u32 x_total_sent_bytes_lo;
-	u32 x_total_sent_pkts;
-
-	u32 t_rcv_unicast_bytes_hi;
-	u32 t_rcv_unicast_bytes_lo;
-	u32 t_rcv_broadcast_bytes_hi;
-	u32 t_rcv_broadcast_bytes_lo;
-	u32 t_rcv_multicast_bytes_hi;
-	u32 t_rcv_multicast_bytes_lo;
-	u32 t_total_rcv_pkt;
-
-	u32 checksum_discard;
-	u32 packets_too_big_discard;
-	u32 no_buff_discard;
-	u32 ttl0_discard;
-	u32 mac_discard;
-	u32 mac_filter_discard;
-	u32 xxoverflow_discard;
-	u32 brb_truncate_discard;
-
-	u32 brb_discard;
-	u32 brb_packet;
-	u32 brb_truncate;
-	u32 flow_ctrl_discard;
-	u32 flow_ctrl_octets;
-	u32 flow_ctrl_packet;
-	u32 mng_discard;
-	u32 mng_octet_inp;
-	u32 mng_octet_out;
-	u32 mng_packet_inp;
-	u32 mng_packet_out;
-	u32 pbf_octets;
-	u32 pbf_packet;
-	u32 safc_inp;
-	u32 driver_xoff;
-	u32 number_of_bugs_found_in_stats_spec; /* just kidding */
-};
 
 #define bnx2x_sp_check(bp, var) ((bp->slowpath) ? (&bp->slowpath->var) : NULL)
 struct sw_rx_bd {
@@ -447,6 +210,10 @@ struct bnx2x_fastpath {
 /* This is needed for determening of last_max */
 #define SUB_S16(a, b)			(s16)((s16)(a) - (s16)(b))
 
+#define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr_hi), \
+						 le32_to_cpu((bd)->addr_lo))
+#define BD_UNMAP_LEN(bd)		(le16_to_cpu((bd)->nbytes))
+
 /* stuff added to make the code fit 80Col */
 
 #define CQE_TYPE(cqe_fp_flags)	((cqe_fp_flags) & ETH_FAST_PATH_RX_CQE_TYPE)
@@ -455,6 +222,9 @@ struct bnx2x_fastpath {
 				 ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG | \
 				 ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG)
 
+
+#define FP_USB_FUNC_OFF			(2 + 2*HC_USTORM_SB_NUM_INDICES)
+#define FP_CSB_FUNC_OFF			(2 + 2*HC_CSTORM_SB_NUM_INDICES)
 
 #define U_SB_ETH_RX_CQ_INDEX		HC_INDEX_U_ETH_RX_CQ_CONS
 #define U_SB_ETH_RX_BD_INDEX		HC_INDEX_U_ETH_RX_BD_CONS
@@ -533,6 +303,27 @@ struct bnx2x_common {
 
 /* port */
 
+struct nig_stats {
+	u32 brb_discard;
+	u32 brb_packet;
+	u32 brb_truncate;
+	u32 flow_ctrl_discard;
+	u32 flow_ctrl_octets;
+	u32 flow_ctrl_packet;
+	u32 mng_discard;
+	u32 mng_octet_inp;
+	u32 mng_octet_out;
+	u32 mng_packet_inp;
+	u32 mng_packet_out;
+	u32 pbf_octets;
+	u32 pbf_packet;
+	u32 safc_inp;
+	u32 egress_mac_pkt0_lo;
+	u32 egress_mac_pkt0_hi;
+	u32 egress_mac_pkt1_lo;
+	u32 egress_mac_pkt1_hi;
+};
+
 struct bnx2x_port {
 	u32			pmf;
 
@@ -558,7 +349,144 @@ struct bnx2x_port {
 
 /* end of port */
 
-#define MAC_STX_NA      		0xffffffff
+
+enum bnx2x_stats_event {
+	STATS_EVENT_PMF = 0,
+	STATS_EVENT_LINK_UP,
+	STATS_EVENT_UPDATE,
+	STATS_EVENT_STOP,
+	STATS_EVENT_MAX
+};
+
+enum bnx2x_stats_state {
+	STATS_STATE_DISABLED = 0,
+	STATS_STATE_ENABLED,
+	STATS_STATE_MAX
+};
+
+struct bnx2x_eth_stats {
+	u32 total_bytes_received_hi;
+	u32 total_bytes_received_lo;
+	u32 total_bytes_transmitted_hi;
+	u32 total_bytes_transmitted_lo;
+	u32 total_unicast_packets_received_hi;
+	u32 total_unicast_packets_received_lo;
+	u32 total_multicast_packets_received_hi;
+	u32 total_multicast_packets_received_lo;
+	u32 total_broadcast_packets_received_hi;
+	u32 total_broadcast_packets_received_lo;
+	u32 total_unicast_packets_transmitted_hi;
+	u32 total_unicast_packets_transmitted_lo;
+	u32 total_multicast_packets_transmitted_hi;
+	u32 total_multicast_packets_transmitted_lo;
+	u32 total_broadcast_packets_transmitted_hi;
+	u32 total_broadcast_packets_transmitted_lo;
+	u32 valid_bytes_received_hi;
+	u32 valid_bytes_received_lo;
+
+	u32 error_bytes_received_hi;
+	u32 error_bytes_received_lo;
+
+	u32 rx_stat_ifhcinbadoctets_hi;
+	u32 rx_stat_ifhcinbadoctets_lo;
+	u32 tx_stat_ifhcoutbadoctets_hi;
+	u32 tx_stat_ifhcoutbadoctets_lo;
+	u32 rx_stat_dot3statsfcserrors_hi;
+	u32 rx_stat_dot3statsfcserrors_lo;
+	u32 rx_stat_dot3statsalignmenterrors_hi;
+	u32 rx_stat_dot3statsalignmenterrors_lo;
+	u32 rx_stat_dot3statscarriersenseerrors_hi;
+	u32 rx_stat_dot3statscarriersenseerrors_lo;
+	u32 rx_stat_falsecarriererrors_hi;
+	u32 rx_stat_falsecarriererrors_lo;
+	u32 rx_stat_etherstatsundersizepkts_hi;
+	u32 rx_stat_etherstatsundersizepkts_lo;
+	u32 rx_stat_dot3statsframestoolong_hi;
+	u32 rx_stat_dot3statsframestoolong_lo;
+	u32 rx_stat_etherstatsfragments_hi;
+	u32 rx_stat_etherstatsfragments_lo;
+	u32 rx_stat_etherstatsjabbers_hi;
+	u32 rx_stat_etherstatsjabbers_lo;
+	u32 rx_stat_maccontrolframesreceived_hi;
+	u32 rx_stat_maccontrolframesreceived_lo;
+	u32 rx_stat_bmac_xpf_hi;
+	u32 rx_stat_bmac_xpf_lo;
+	u32 rx_stat_bmac_xcf_hi;
+	u32 rx_stat_bmac_xcf_lo;
+	u32 rx_stat_xoffstateentered_hi;
+	u32 rx_stat_xoffstateentered_lo;
+	u32 rx_stat_xonpauseframesreceived_hi;
+	u32 rx_stat_xonpauseframesreceived_lo;
+	u32 rx_stat_xoffpauseframesreceived_hi;
+	u32 rx_stat_xoffpauseframesreceived_lo;
+	u32 tx_stat_outxonsent_hi;
+	u32 tx_stat_outxonsent_lo;
+	u32 tx_stat_outxoffsent_hi;
+	u32 tx_stat_outxoffsent_lo;
+	u32 tx_stat_flowcontroldone_hi;
+	u32 tx_stat_flowcontroldone_lo;
+	u32 tx_stat_etherstatscollisions_hi;
+	u32 tx_stat_etherstatscollisions_lo;
+	u32 tx_stat_dot3statssinglecollisionframes_hi;
+	u32 tx_stat_dot3statssinglecollisionframes_lo;
+	u32 tx_stat_dot3statsmultiplecollisionframes_hi;
+	u32 tx_stat_dot3statsmultiplecollisionframes_lo;
+	u32 tx_stat_dot3statsdeferredtransmissions_hi;
+	u32 tx_stat_dot3statsdeferredtransmissions_lo;
+	u32 tx_stat_dot3statsexcessivecollisions_hi;
+	u32 tx_stat_dot3statsexcessivecollisions_lo;
+	u32 tx_stat_dot3statslatecollisions_hi;
+	u32 tx_stat_dot3statslatecollisions_lo;
+	u32 tx_stat_etherstatspkts64octets_hi;
+	u32 tx_stat_etherstatspkts64octets_lo;
+	u32 tx_stat_etherstatspkts65octetsto127octets_hi;
+	u32 tx_stat_etherstatspkts65octetsto127octets_lo;
+	u32 tx_stat_etherstatspkts128octetsto255octets_hi;
+	u32 tx_stat_etherstatspkts128octetsto255octets_lo;
+	u32 tx_stat_etherstatspkts256octetsto511octets_hi;
+	u32 tx_stat_etherstatspkts256octetsto511octets_lo;
+	u32 tx_stat_etherstatspkts512octetsto1023octets_hi;
+	u32 tx_stat_etherstatspkts512octetsto1023octets_lo;
+	u32 tx_stat_etherstatspkts1024octetsto1522octets_hi;
+	u32 tx_stat_etherstatspkts1024octetsto1522octets_lo;
+	u32 tx_stat_etherstatspktsover1522octets_hi;
+	u32 tx_stat_etherstatspktsover1522octets_lo;
+	u32 tx_stat_bmac_2047_hi;
+	u32 tx_stat_bmac_2047_lo;
+	u32 tx_stat_bmac_4095_hi;
+	u32 tx_stat_bmac_4095_lo;
+	u32 tx_stat_bmac_9216_hi;
+	u32 tx_stat_bmac_9216_lo;
+	u32 tx_stat_bmac_16383_hi;
+	u32 tx_stat_bmac_16383_lo;
+	u32 tx_stat_dot3statsinternalmactransmiterrors_hi;
+	u32 tx_stat_dot3statsinternalmactransmiterrors_lo;
+	u32 tx_stat_bmac_ufl_hi;
+	u32 tx_stat_bmac_ufl_lo;
+
+	u32 brb_drop_hi;
+	u32 brb_drop_lo;
+
+	u32 jabber_packets_received;
+
+	u32 etherstatspkts1024octetsto1522octets_hi;
+	u32 etherstatspkts1024octetsto1522octets_lo;
+	u32 etherstatspktsover1522octets_hi;
+	u32 etherstatspktsover1522octets_lo;
+
+	u32 no_buff_discard;
+
+	u32 mac_filter_discard;
+	u32 xxoverflow_discard;
+	u32 brb_truncate_discard;
+	u32 mac_discard;
+
+	u32 driver_xoff;
+};
+
+#define STATS_OFFSET32(stat_name) \
+			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
+
 
 #ifdef BNX2X_MULTI
 #define MAX_CONTEXT			16
@@ -571,7 +499,7 @@ union cdu_context {
 	char pad[1024];
 };
 
-#define MAX_DMAE_C			6
+#define MAX_DMAE_C			8
 
 /* DMA memory not used in fastpath */
 struct bnx2x_slowpath {
@@ -583,12 +511,13 @@ struct bnx2x_slowpath {
 	/* used by dmae command executer */
 	struct dmae_command		dmae[MAX_DMAE_C];
 
-	union mac_stats 		mac_stats;
-	struct nig_stats		nig;
-	struct bnx2x_eth_stats  	eth_stats;
+	u32				stats_comp;
+	union mac_stats			mac_stats;
+	struct nig_stats		nig_stats;
+	struct host_port_stats		port_stats;
+	struct host_func_stats		func_stats;
 
 	u32				wb_comp;
-#define BNX2X_WB_COMP_VAL       	0xe0d0d0ae
 	u32				wb_data[4];
 };
 
@@ -657,10 +586,10 @@ struct bnx2x {
 	/* used to synchronize spq accesses */
 	spinlock_t		spq_lock;
 
-	/* Flag for marking that there is either
-	 * STAT_QUERY or CFC DELETE ramrod pending
-	 */
-	u8      		stat_pending;
+	/* Flags for marking that there is a STAT_QUERY or
+	   SET_MAC ramrod pending */
+	u8			stats_pending;
+	u8			set_mac_pending;
 
 	/* End of fileds used in the performance code paths */
 
@@ -766,61 +695,30 @@ struct bnx2x {
 	dma_addr_t      	qm_mapping;
 #endif
 
-	char    		*name;
-
-	/* used to synchronize stats collecting */
-	int     		stats_state;
-#define STATS_STATE_DISABLE     	0
-#define STATS_STATE_ENABLE      	1
-#define STATS_STATE_STOP		2 /* stop stats on next iteration */
-
-	/* used by dmae command loader */
-	struct dmae_command     dmae;
-	int     		executer_idx;
-
 	int			dmae_ready;
 	/* used to synchronize dmae accesses */
 	struct mutex		dmae_mutex;
 	struct dmae_command	init_dmae;
 
+	/* used to synchronize stats collecting */
+	int			stats_state;
+	/* used by dmae command loader */
+	struct dmae_command	stats_dmae;
+	int			executer_idx;
 
-
-	u32     		old_brb_discard;
-	struct bmac_stats       old_bmac;
+	u16			stats_counter;
 	struct tstorm_per_client_stats old_tclient;
-	struct z_stream_s       *strm;
-	void    		*gunzip_buf;
-	dma_addr_t      	gunzip_mapping;
-	int     		gunzip_outlen;
+	struct xstorm_per_client_stats old_xclient;
+	struct bnx2x_eth_stats	eth_stats;
+
+	struct z_stream_s	*strm;
+	void			*gunzip_buf;
+	dma_addr_t		gunzip_mapping;
+	int			gunzip_outlen;
 #define FW_BUF_SIZE			0x8000
 
 };
 
-
-/* DMAE command defines */
-#define DMAE_CMD_SRC_PCI		0
-#define DMAE_CMD_SRC_GRC		DMAE_COMMAND_SRC
-
-#define DMAE_CMD_DST_PCI		(1 << DMAE_COMMAND_DST_SHIFT)
-#define DMAE_CMD_DST_GRC		(2 << DMAE_COMMAND_DST_SHIFT)
-
-#define DMAE_CMD_C_DST_PCI      	0
-#define DMAE_CMD_C_DST_GRC      	(1 << DMAE_COMMAND_C_DST_SHIFT)
-
-#define DMAE_CMD_C_ENABLE       	DMAE_COMMAND_C_TYPE_ENABLE
-
-#define DMAE_CMD_ENDIANITY_NO_SWAP      (0 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_B_SWAP       (1 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_DW_SWAP      (2 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_B_DW_SWAP    (3 << DMAE_COMMAND_ENDIANITY_SHIFT)
-
-#define DMAE_CMD_PORT_0 		0
-#define DMAE_CMD_PORT_1 		DMAE_COMMAND_PORT
-
-#define DMAE_CMD_SRC_RESET      	DMAE_COMMAND_SRC_RESET
-#define DMAE_CMD_DST_RESET      	DMAE_COMMAND_DST_RESET
-
-#define DMAE_LEN32_MAX  		0x400
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
 void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
@@ -875,11 +773,6 @@ int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode);
 #define CQE_CMD(x)      		(le32_to_cpu(x) >> \
 					COMMON_RAMROD_ETH_RX_CQE_CMD_ID_SHIFT)
 
-#define BD_UNMAP_ADDR(bd)       	HILO_U64(le32_to_cpu((bd)->addr_hi), \
-						 le32_to_cpu((bd)->addr_lo))
-#define BD_UNMAP_LEN(bd)		(le16_to_cpu((bd)->nbytes))
-
-
 #define STROM_ASSERT_ARRAY_SIZE 	50
 
 
@@ -893,10 +786,6 @@ int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode);
 
 #define BNX2X_BTR       		3
 #define MAX_SPQ_PENDING 		8
-
-
-#define BNX2X_NUM_STATS			34
-#define BNX2X_NUM_TESTS			1
 
 
 #define DPM_TRIGER_TYPE 		0x40
@@ -930,6 +819,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define LOAD_DIAG			2
 #define UNLOAD_NORMAL			0
 #define UNLOAD_CLOSE			1
+
 
 /* DMAE command defines */
 #define DMAE_CMD_SRC_PCI		0
@@ -973,7 +863,16 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED		0xf0000
 #define PCICFG_LINK_SPEED_SHIFT		16
 
-#define BMAC_CONTROL_RX_ENABLE		2
+
+#define BNX2X_NUM_STATS			39
+#define BNX2X_NUM_TESTS			8
+
+#define BNX2X_MAC_LOOPBACK		0
+#define BNX2X_PHY_LOOPBACK		1
+#define BNX2X_MAC_LOOPBACK_FAILED	1
+#define BNX2X_PHY_LOOPBACK_FAILED	2
+#define BNX2X_LOOPBACK_FAILED		(BNX2X_MAC_LOOPBACK_FAILED | \
+					 BNX2X_PHY_LOOPBACK_FAILED)
 
 #define pbd_tcp_flags(skb)  	(ntohl(tcp_flag_word(tcp_hdr(skb)))>>16 & 0xff)
 

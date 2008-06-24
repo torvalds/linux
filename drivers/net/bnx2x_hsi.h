@@ -878,6 +878,337 @@ struct shmem_region {			       /*   SharedMem Offset (size) */
 };						       /* 0x6dc */
 
 
+struct emac_stats {
+    u32     rx_stat_ifhcinoctets;
+    u32     rx_stat_ifhcinbadoctets;
+    u32     rx_stat_etherstatsfragments;
+    u32     rx_stat_ifhcinucastpkts;
+    u32     rx_stat_ifhcinmulticastpkts;
+    u32     rx_stat_ifhcinbroadcastpkts;
+    u32     rx_stat_dot3statsfcserrors;
+    u32     rx_stat_dot3statsalignmenterrors;
+    u32     rx_stat_dot3statscarriersenseerrors;
+    u32     rx_stat_xonpauseframesreceived;
+    u32     rx_stat_xoffpauseframesreceived;
+    u32     rx_stat_maccontrolframesreceived;
+    u32     rx_stat_xoffstateentered;
+    u32     rx_stat_dot3statsframestoolong;
+    u32     rx_stat_etherstatsjabbers;
+    u32     rx_stat_etherstatsundersizepkts;
+    u32     rx_stat_etherstatspkts64octets;
+    u32     rx_stat_etherstatspkts65octetsto127octets;
+    u32     rx_stat_etherstatspkts128octetsto255octets;
+    u32     rx_stat_etherstatspkts256octetsto511octets;
+    u32     rx_stat_etherstatspkts512octetsto1023octets;
+    u32     rx_stat_etherstatspkts1024octetsto1522octets;
+    u32     rx_stat_etherstatspktsover1522octets;
+
+    u32     rx_stat_falsecarriererrors;
+
+    u32     tx_stat_ifhcoutoctets;
+    u32     tx_stat_ifhcoutbadoctets;
+    u32     tx_stat_etherstatscollisions;
+    u32     tx_stat_outxonsent;
+    u32     tx_stat_outxoffsent;
+    u32     tx_stat_flowcontroldone;
+    u32     tx_stat_dot3statssinglecollisionframes;
+    u32     tx_stat_dot3statsmultiplecollisionframes;
+    u32     tx_stat_dot3statsdeferredtransmissions;
+    u32     tx_stat_dot3statsexcessivecollisions;
+    u32     tx_stat_dot3statslatecollisions;
+    u32     tx_stat_ifhcoutucastpkts;
+    u32     tx_stat_ifhcoutmulticastpkts;
+    u32     tx_stat_ifhcoutbroadcastpkts;
+    u32     tx_stat_etherstatspkts64octets;
+    u32     tx_stat_etherstatspkts65octetsto127octets;
+    u32     tx_stat_etherstatspkts128octetsto255octets;
+    u32     tx_stat_etherstatspkts256octetsto511octets;
+    u32     tx_stat_etherstatspkts512octetsto1023octets;
+    u32     tx_stat_etherstatspkts1024octetsto1522octets;
+    u32     tx_stat_etherstatspktsover1522octets;
+    u32     tx_stat_dot3statsinternalmactransmiterrors;
+};
+
+
+struct bmac_stats {
+    u32     tx_stat_gtpkt_lo;
+    u32     tx_stat_gtpkt_hi;
+    u32     tx_stat_gtxpf_lo;
+    u32     tx_stat_gtxpf_hi;
+    u32     tx_stat_gtfcs_lo;
+    u32     tx_stat_gtfcs_hi;
+    u32     tx_stat_gtmca_lo;
+    u32     tx_stat_gtmca_hi;
+    u32     tx_stat_gtbca_lo;
+    u32     tx_stat_gtbca_hi;
+    u32     tx_stat_gtfrg_lo;
+    u32     tx_stat_gtfrg_hi;
+    u32     tx_stat_gtovr_lo;
+    u32     tx_stat_gtovr_hi;
+    u32     tx_stat_gt64_lo;
+    u32     tx_stat_gt64_hi;
+    u32     tx_stat_gt127_lo;
+    u32     tx_stat_gt127_hi;
+    u32     tx_stat_gt255_lo;
+    u32     tx_stat_gt255_hi;
+    u32     tx_stat_gt511_lo;
+    u32     tx_stat_gt511_hi;
+    u32     tx_stat_gt1023_lo;
+    u32     tx_stat_gt1023_hi;
+    u32     tx_stat_gt1518_lo;
+    u32     tx_stat_gt1518_hi;
+    u32     tx_stat_gt2047_lo;
+    u32     tx_stat_gt2047_hi;
+    u32     tx_stat_gt4095_lo;
+    u32     tx_stat_gt4095_hi;
+    u32     tx_stat_gt9216_lo;
+    u32     tx_stat_gt9216_hi;
+    u32     tx_stat_gt16383_lo;
+    u32     tx_stat_gt16383_hi;
+    u32     tx_stat_gtmax_lo;
+    u32     tx_stat_gtmax_hi;
+    u32     tx_stat_gtufl_lo;
+    u32     tx_stat_gtufl_hi;
+    u32     tx_stat_gterr_lo;
+    u32     tx_stat_gterr_hi;
+    u32     tx_stat_gtbyt_lo;
+    u32     tx_stat_gtbyt_hi;
+
+    u32     rx_stat_gr64_lo;
+    u32     rx_stat_gr64_hi;
+    u32     rx_stat_gr127_lo;
+    u32     rx_stat_gr127_hi;
+    u32     rx_stat_gr255_lo;
+    u32     rx_stat_gr255_hi;
+    u32     rx_stat_gr511_lo;
+    u32     rx_stat_gr511_hi;
+    u32     rx_stat_gr1023_lo;
+    u32     rx_stat_gr1023_hi;
+    u32     rx_stat_gr1518_lo;
+    u32     rx_stat_gr1518_hi;
+    u32     rx_stat_gr2047_lo;
+    u32     rx_stat_gr2047_hi;
+    u32     rx_stat_gr4095_lo;
+    u32     rx_stat_gr4095_hi;
+    u32     rx_stat_gr9216_lo;
+    u32     rx_stat_gr9216_hi;
+    u32     rx_stat_gr16383_lo;
+    u32     rx_stat_gr16383_hi;
+    u32     rx_stat_grmax_lo;
+    u32     rx_stat_grmax_hi;
+    u32     rx_stat_grpkt_lo;
+    u32     rx_stat_grpkt_hi;
+    u32     rx_stat_grfcs_lo;
+    u32     rx_stat_grfcs_hi;
+    u32     rx_stat_grmca_lo;
+    u32     rx_stat_grmca_hi;
+    u32     rx_stat_grbca_lo;
+    u32     rx_stat_grbca_hi;
+    u32     rx_stat_grxcf_lo;
+    u32     rx_stat_grxcf_hi;
+    u32     rx_stat_grxpf_lo;
+    u32     rx_stat_grxpf_hi;
+    u32     rx_stat_grxuo_lo;
+    u32     rx_stat_grxuo_hi;
+    u32     rx_stat_grjbr_lo;
+    u32     rx_stat_grjbr_hi;
+    u32     rx_stat_grovr_lo;
+    u32     rx_stat_grovr_hi;
+    u32     rx_stat_grflr_lo;
+    u32     rx_stat_grflr_hi;
+    u32     rx_stat_grmeg_lo;
+    u32     rx_stat_grmeg_hi;
+    u32     rx_stat_grmeb_lo;
+    u32     rx_stat_grmeb_hi;
+    u32     rx_stat_grbyt_lo;
+    u32     rx_stat_grbyt_hi;
+    u32     rx_stat_grund_lo;
+    u32     rx_stat_grund_hi;
+    u32     rx_stat_grfrg_lo;
+    u32     rx_stat_grfrg_hi;
+    u32     rx_stat_grerb_lo;
+    u32     rx_stat_grerb_hi;
+    u32     rx_stat_grfre_lo;
+    u32     rx_stat_grfre_hi;
+    u32     rx_stat_gripj_lo;
+    u32     rx_stat_gripj_hi;
+};
+
+
+union mac_stats {
+    struct emac_stats	emac_stats;
+    struct bmac_stats	bmac_stats;
+};
+
+
+struct mac_stx {
+    /* in_bad_octets */
+    u32     rx_stat_ifhcinbadoctets_hi;
+    u32     rx_stat_ifhcinbadoctets_lo;
+
+    /* out_bad_octets */
+    u32     tx_stat_ifhcoutbadoctets_hi;
+    u32     tx_stat_ifhcoutbadoctets_lo;
+
+    /* crc_receive_errors */
+    u32     rx_stat_dot3statsfcserrors_hi;
+    u32     rx_stat_dot3statsfcserrors_lo;
+    /* alignment_errors */
+    u32     rx_stat_dot3statsalignmenterrors_hi;
+    u32     rx_stat_dot3statsalignmenterrors_lo;
+    /* carrier_sense_errors */
+    u32     rx_stat_dot3statscarriersenseerrors_hi;
+    u32     rx_stat_dot3statscarriersenseerrors_lo;
+    /* false_carrier_detections */
+    u32     rx_stat_falsecarriererrors_hi;
+    u32     rx_stat_falsecarriererrors_lo;
+
+    /* runt_packets_received */
+    u32     rx_stat_etherstatsundersizepkts_hi;
+    u32     rx_stat_etherstatsundersizepkts_lo;
+    /* jabber_packets_received */
+    u32     rx_stat_dot3statsframestoolong_hi;
+    u32     rx_stat_dot3statsframestoolong_lo;
+
+    /* error_runt_packets_received */
+    u32     rx_stat_etherstatsfragments_hi;
+    u32     rx_stat_etherstatsfragments_lo;
+    /* error_jabber_packets_received */
+    u32     rx_stat_etherstatsjabbers_hi;
+    u32     rx_stat_etherstatsjabbers_lo;
+
+    /* control_frames_received */
+    u32     rx_stat_maccontrolframesreceived_hi;
+    u32     rx_stat_maccontrolframesreceived_lo;
+    u32     rx_stat_bmac_xpf_hi;
+    u32     rx_stat_bmac_xpf_lo;
+    u32     rx_stat_bmac_xcf_hi;
+    u32     rx_stat_bmac_xcf_lo;
+
+    /* xoff_state_entered */
+    u32     rx_stat_xoffstateentered_hi;
+    u32     rx_stat_xoffstateentered_lo;
+    /* pause_xon_frames_received */
+    u32     rx_stat_xonpauseframesreceived_hi;
+    u32     rx_stat_xonpauseframesreceived_lo;
+    /* pause_xoff_frames_received */
+    u32     rx_stat_xoffpauseframesreceived_hi;
+    u32     rx_stat_xoffpauseframesreceived_lo;
+    /* pause_xon_frames_transmitted */
+    u32     tx_stat_outxonsent_hi;
+    u32     tx_stat_outxonsent_lo;
+    /* pause_xoff_frames_transmitted */
+    u32     tx_stat_outxoffsent_hi;
+    u32     tx_stat_outxoffsent_lo;
+    /* flow_control_done */
+    u32     tx_stat_flowcontroldone_hi;
+    u32     tx_stat_flowcontroldone_lo;
+
+    /* ether_stats_collisions */
+    u32     tx_stat_etherstatscollisions_hi;
+    u32     tx_stat_etherstatscollisions_lo;
+    /* single_collision_transmit_frames */
+    u32     tx_stat_dot3statssinglecollisionframes_hi;
+    u32     tx_stat_dot3statssinglecollisionframes_lo;
+    /* multiple_collision_transmit_frames */
+    u32     tx_stat_dot3statsmultiplecollisionframes_hi;
+    u32     tx_stat_dot3statsmultiplecollisionframes_lo;
+    /* deferred_transmissions */
+    u32     tx_stat_dot3statsdeferredtransmissions_hi;
+    u32     tx_stat_dot3statsdeferredtransmissions_lo;
+    /* excessive_collision_frames */
+    u32     tx_stat_dot3statsexcessivecollisions_hi;
+    u32     tx_stat_dot3statsexcessivecollisions_lo;
+    /* late_collision_frames */
+    u32     tx_stat_dot3statslatecollisions_hi;
+    u32     tx_stat_dot3statslatecollisions_lo;
+
+    /* frames_transmitted_64_bytes */
+    u32     tx_stat_etherstatspkts64octets_hi;
+    u32     tx_stat_etherstatspkts64octets_lo;
+    /* frames_transmitted_65_127_bytes */
+    u32     tx_stat_etherstatspkts65octetsto127octets_hi;
+    u32     tx_stat_etherstatspkts65octetsto127octets_lo;
+    /* frames_transmitted_128_255_bytes */
+    u32     tx_stat_etherstatspkts128octetsto255octets_hi;
+    u32     tx_stat_etherstatspkts128octetsto255octets_lo;
+    /* frames_transmitted_256_511_bytes */
+    u32     tx_stat_etherstatspkts256octetsto511octets_hi;
+    u32     tx_stat_etherstatspkts256octetsto511octets_lo;
+    /* frames_transmitted_512_1023_bytes */
+    u32     tx_stat_etherstatspkts512octetsto1023octets_hi;
+    u32     tx_stat_etherstatspkts512octetsto1023octets_lo;
+    /* frames_transmitted_1024_1522_bytes */
+    u32     tx_stat_etherstatspkts1024octetsto1522octets_hi;
+    u32     tx_stat_etherstatspkts1024octetsto1522octets_lo;
+    /* frames_transmitted_1523_9022_bytes */
+    u32     tx_stat_etherstatspktsover1522octets_hi;
+    u32     tx_stat_etherstatspktsover1522octets_lo;
+    u32     tx_stat_bmac_2047_hi;
+    u32     tx_stat_bmac_2047_lo;
+    u32     tx_stat_bmac_4095_hi;
+    u32     tx_stat_bmac_4095_lo;
+    u32     tx_stat_bmac_9216_hi;
+    u32     tx_stat_bmac_9216_lo;
+    u32     tx_stat_bmac_16383_hi;
+    u32     tx_stat_bmac_16383_lo;
+
+    /* internal_mac_transmit_errors */
+    u32     tx_stat_dot3statsinternalmactransmiterrors_hi;
+    u32     tx_stat_dot3statsinternalmactransmiterrors_lo;
+
+    /* if_out_discards */
+    u32     tx_stat_bmac_ufl_hi;
+    u32     tx_stat_bmac_ufl_lo;
+};
+
+
+#define MAC_STX_IDX_MAX 		    2
+
+struct host_port_stats {
+    u32 	   host_port_stats_start;
+
+    struct mac_stx mac_stx[MAC_STX_IDX_MAX];
+
+    u32 	   brb_drop_hi;
+    u32 	   brb_drop_lo;
+
+    u32 	   host_port_stats_end;
+};
+
+
+struct host_func_stats {
+    u32     host_func_stats_start;
+
+    u32     total_bytes_received_hi;
+    u32     total_bytes_received_lo;
+
+    u32     total_bytes_transmitted_hi;
+    u32     total_bytes_transmitted_lo;
+
+    u32     total_unicast_packets_received_hi;
+    u32     total_unicast_packets_received_lo;
+
+    u32     total_multicast_packets_received_hi;
+    u32     total_multicast_packets_received_lo;
+
+    u32     total_broadcast_packets_received_hi;
+    u32     total_broadcast_packets_received_lo;
+
+    u32     total_unicast_packets_transmitted_hi;
+    u32     total_unicast_packets_transmitted_lo;
+
+    u32     total_multicast_packets_transmitted_hi;
+    u32     total_multicast_packets_transmitted_lo;
+
+    u32     total_broadcast_packets_transmitted_hi;
+    u32     total_broadcast_packets_transmitted_lo;
+
+    u32     valid_bytes_received_hi;
+    u32     valid_bytes_received_lo;
+
+    u32     host_func_stats_end;
+};
 
 
 #define BCM_5710_FW_MAJOR_VERSION			4
@@ -2367,9 +2698,9 @@ struct cmng_struct_per_port {
 
 
 /*
- * Common statistics collected by the Xstorm (per port)
+ * Protocol-common statistics collected by the Xstorm (per client)
  */
-struct xstorm_common_stats {
+struct xstorm_per_client_stats {
 	struct regpair total_sent_bytes;
 	u32 total_sent_pkts;
 	u32 unicast_pkts_sent;
@@ -2378,8 +2709,30 @@ struct xstorm_common_stats {
 	u32 multicast_pkts_sent;
 	u32 broadcast_pkts_sent;
 	struct regpair broadcast_bytes_sent;
-	struct regpair done;
+	u16 stats_counter;
+	u16 reserved0;
+	u32 reserved1;
 };
+
+
+/*
+ * Common statistics collected by the Xstorm (per port)
+ */
+struct xstorm_common_stats {
+ struct xstorm_per_client_stats client_statistics[MAX_X_STAT_COUNTER_ID];
+};
+
+
+/*
+ * Protocol-common statistics collected by the Tstorm (per port)
+ */
+struct tstorm_per_port_stats {
+	u32 mac_filter_discard;
+	u32 xxoverflow_discard;
+	u32 brb_truncate_discard;
+	u32 mac_discard;
+};
+
 
 /*
  * Protocol-common statistics collected by the Tstorm (per client)
@@ -2398,20 +2751,17 @@ struct tstorm_per_client_stats {
 	u32 rcv_multicast_pkts;
 	u32 no_buff_discard;
 	u32 ttl0_discard;
-	u32 mac_discard;
-	u32 reserved;
+	u16 stats_counter;
+	u16 reserved0;
+	u32 reserved1;
 };
 
 /*
- * Protocol-common statistics collected by the Tstorm (per port)
+ * Protocol-common statistics collected by the Tstorm
  */
 struct tstorm_common_stats {
-	struct tstorm_per_client_stats client_statistics[MAX_T_STAT_COUNTER_ID];
-	u32 mac_filter_discard;
-	u32 xxoverflow_discard;
-	u32 brb_truncate_discard;
-	u32 reserved;
-	struct regpair done;
+	struct tstorm_per_port_stats port_statistics;
+ struct tstorm_per_client_stats client_statistics[MAX_T_STAT_COUNTER_ID];
 };
 
 /*
