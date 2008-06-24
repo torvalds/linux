@@ -31,62 +31,58 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
+#define ENTER   CFI_STARTPROC ; \
+                GET_THREAD_INFO(%rbx)
+#define EXIT    ret ; \
+                CFI_ENDPROC
+
 	.text
 ENTRY(__put_user_1)
-	CFI_STARTPROC
-	GET_THREAD_INFO(%rbx)
+	ENTER
 	cmpq TI_addr_limit(%rbx),%rcx
 	jae bad_put_user
 1:	movb %al,(%rcx)
 	xorl %eax,%eax
-	ret
-	CFI_ENDPROC
+	EXIT
 ENDPROC(__put_user_1)
 
 ENTRY(__put_user_2)
-	CFI_STARTPROC
-	GET_THREAD_INFO(%rbx)
+	ENTER
 	mov TI_addr_limit(%rbx),%rbx
 	sub  $1, %rbx
 	cmpq %rbx ,%rcx
 	jae  bad_put_user
 2:	movw %ax,(%rcx)
 	xorl %eax,%eax
-	ret
-	CFI_ENDPROC
+	EXIT
 ENDPROC(__put_user_2)
 
 ENTRY(__put_user_4)
-	CFI_STARTPROC
-	GET_THREAD_INFO(%rbx)
+	ENTER
 	mov TI_addr_limit(%rbx),%rbx
 	sub  $3, %rbx
 	cmp  %rbx, %rcx
 	jae bad_put_user
 3:	movl %eax,(%rcx)
 	xorl %eax,%eax
-	ret
-	CFI_ENDPROC
+	EXIT
 ENDPROC(__put_user_4)
 
 ENTRY(__put_user_8)
-	CFI_STARTPROC
-	GET_THREAD_INFO(%rbx)
+	ENTER
 	mov TI_addr_limit(%rbx),%rbx
 	sub  $7, %rbx
 	cmp  %rbx, %rcx
 	jae bad_put_user
 4:	movq %rax,(%rcx)
 	xorl %eax,%eax
-	ret
-	CFI_ENDPROC
+	EXIT
 ENDPROC(__put_user_8)
 
 bad_put_user:
 	CFI_STARTPROC
 	movq $(-EFAULT),%rax
-	ret
-	CFI_ENDPROC
+	EXIT
 END(bad_put_user)
 
 .section __ex_table,"a"
