@@ -187,7 +187,7 @@ error:
 
 static int __init setup_nmi_watchdog(char *str)
 {
-	int nmi;
+	unsigned int nmi;
 
 	if (!strncmp(str, "panic", 5)) {
 		panic_on_timeout = 1;
@@ -199,7 +199,7 @@ static int __init setup_nmi_watchdog(char *str)
 
 	get_option(&str, &nmi);
 
-	if (nmi >= NMI_INVALID || nmi < NMI_NONE)
+	if (nmi >= NMI_INVALID)
 		return 0;
 
 	nmi_watchdog = nmi;
