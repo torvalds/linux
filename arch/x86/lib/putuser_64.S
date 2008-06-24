@@ -46,48 +46,39 @@ ENDPROC(__put_user_1)
 ENTRY(__put_user_2)
 	CFI_STARTPROC
 	GET_THREAD_INFO(%rbx)
-	addq $1,%rcx
-	jc 20f
-	cmpq TI_addr_limit(%rbx),%rcx
-	jae 20f
-	decq %rcx
+	mov TI_addr_limit(%rbx),%rbx
+	sub  $1, %rbx
+	cmpq %rbx ,%rcx
+	jae  bad_put_user
 2:	movw %ax,(%rcx)
 	xorl %eax,%eax
 	ret
-20:	decq %rcx
-	jmp bad_put_user
 	CFI_ENDPROC
 ENDPROC(__put_user_2)
 
 ENTRY(__put_user_4)
 	CFI_STARTPROC
 	GET_THREAD_INFO(%rbx)
-	addq $3,%rcx
-	jc 30f
-	cmpq TI_addr_limit(%rbx),%rcx
-	jae 30f
-	subq $3,%rcx
+	mov TI_addr_limit(%rbx),%rbx
+	sub  $3, %rbx
+	cmp  %rbx, %rcx
+	jae bad_put_user
 3:	movl %eax,(%rcx)
 	xorl %eax,%eax
 	ret
-30:	subq $3,%rcx
-	jmp bad_put_user
 	CFI_ENDPROC
 ENDPROC(__put_user_4)
 
 ENTRY(__put_user_8)
 	CFI_STARTPROC
 	GET_THREAD_INFO(%rbx)
-	addq $7,%rcx
-	jc 40f
-	cmpq TI_addr_limit(%rbx),%rcx
-	jae 40f
-	subq $7,%rcx
+	mov TI_addr_limit(%rbx),%rbx
+	sub  $7, %rbx
+	cmp  %rbx, %rcx
+	jae bad_put_user
 4:	movq %rax,(%rcx)
 	xorl %eax,%eax
 	ret
-40:	subq $7,%rcx
-	jmp bad_put_user
 	CFI_ENDPROC
 ENDPROC(__put_user_8)
 
