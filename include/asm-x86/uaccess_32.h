@@ -188,23 +188,23 @@ extern void __put_user_8(void);
 
 #define __put_user_1(x, ptr)					\
 	asm volatile("call __put_user_1" : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr))
+		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
 #define __put_user_2(x, ptr)					\
 	asm volatile("call __put_user_2" : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr))
+		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
 #define __put_user_4(x, ptr)					\
 	asm volatile("call __put_user_4" : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr))
+		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
 #define __put_user_8(x, ptr)					\
 	asm volatile("call __put_user_8" : "=a" (__ret_pu)	\
-		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr))
+		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
 #define __put_user_X(x, ptr)					\
 	asm volatile("call __put_user_X" : "=a" (__ret_pu)	\
-		     : "c" (ptr))
+		     : "c" (ptr): "ebx")
 
 /**
  * put_user: - Write a simple value into user space.

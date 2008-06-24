@@ -26,14 +26,8 @@
  */
 
 #define ENTER	CFI_STARTPROC ; \
-		pushl %ebx ; \
-		CFI_ADJUST_CFA_OFFSET 4 ; \
-		CFI_REL_OFFSET ebx, 0 ; \
 		GET_THREAD_INFO(%ebx)
-#define EXIT	popl %ebx ; \
-		CFI_ADJUST_CFA_OFFSET -4 ; \
-		CFI_RESTORE ebx ; \
-		ret ; \
+#define EXIT	ret ; \
 		CFI_ENDPROC
 
 .text
@@ -81,10 +75,7 @@ ENTRY(__put_user_8)
 ENDPROC(__put_user_8)
 
 bad_put_user:
-	CFI_STARTPROC simple
-	CFI_DEF_CFA esp, 2*4
-	CFI_OFFSET eip, -1*4
-	CFI_OFFSET ebx, -2*4
+	CFI_STARTPROC
 	movl $-14,%eax
 	EXIT
 END(bad_put_user)
