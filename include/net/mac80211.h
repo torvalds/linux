@@ -738,8 +738,11 @@ enum ieee80211_hw_flags {
  * @conf: &struct ieee80211_conf, device configuration, don't use.
  *
  * @workqueue: single threaded workqueue available for driver use,
- *	allocated by mac80211 on registration and flushed on
- *	unregistration.
+ *	allocated by mac80211 on registration and flushed when an
+ *	interface is removed.
+ *	NOTICE: All work performed on this workqueue should NEVER
+ *	acquire the RTNL lock (i.e. Don't use the function
+ *	ieee80211_iterate_active_interfaces())
  *
  * @priv: pointer to private area that was allocated for driver use
  *	along with this structure.
