@@ -19,55 +19,27 @@
  * that values will be negative, that is, the fixup table has to be
  * located after the code it fixes up.
  */
-#ifdef CONFIG_PPC64
-
-#ifdef __powerpc64__
-
-/* 64 bits kernel, 64 bits code */
-#define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)	\
-99:							\
-	.section sect,"a";				\
-	.align 3;					\
-98:						       	\
-	.llong msk;					\
-	.llong val;					\
-	.llong label##b-98b;				\
-	.llong 99b-98b;		 			\
-	.previous
-
-#else /* __powerpc64__ */
-
+#if defined(CONFIG_PPC64) && !defined(__powerpc64__)
 /* 64 bits kernel, 32 bits code (ie. vdso32) */
+#define FTR_ENTRY_LONG		.llong
+#define FTR_ENTRY_OFFSET	.long 0xffffffff; .long
+#else
+/* 64 bit kernel 64 bit code, or 32 bit kernel 32 bit code */
+#define FTR_ENTRY_LONG		PPC_LONG
+#define FTR_ENTRY_OFFSET	PPC_LONG
+#endif
+
 #define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)	\
 99:							\
 	.section sect,"a";				\
 	.align 3;					\
 98:						       	\
-	.llong msk;					\
-	.llong val;					\
-	.long 0xffffffff;      				\
-	.long label##b-98b;				\
-	.long 0xffffffff;	       			\
-	.long 99b-98b;		 			\
+	FTR_ENTRY_LONG msk;				\
+	FTR_ENTRY_LONG val;				\
+	FTR_ENTRY_OFFSET label##b-98b;			\
+	FTR_ENTRY_OFFSET 99b-98b;		 	\
 	.previous
 
-#endif /* !__powerpc64__ */
-
-#else /* CONFIG_PPC64 */
-
-/* 32 bits kernel, 32 bits code */
-#define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)	\
-99:						       	\
-	.section sect,"a";			       	\
-	.align 2;				       	\
-98:						       	\
-	.long msk;				       	\
-	.long val;				       	\
-	.long label##b-98b;			       	\
-	.long 99b-98b;				       	\
-	.previous
-
-#endif /* !CONFIG_PPC64 */
 
 
 /* CPU feature dependent sections */
