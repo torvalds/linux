@@ -513,6 +513,7 @@ void __init tsc_init(void)
 	 */
 	for_each_possible_cpu(cpu)
 		set_cyc2ns_scale(cpu_khz, cpu);
+	use_tsc_delay();
 
 	if (tsc_disabled > 0)
 		return;

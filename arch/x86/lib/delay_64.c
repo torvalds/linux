@@ -22,13 +22,28 @@
 #include <asm/smp.h>
 #endif
 
-int __devinit read_current_timer(unsigned long *timer_value)
+/* simple loop based delay: */
+static void delay_loop(unsigned long loops)
 {
-	rdtscll(*timer_value);
-	return 0;
+	asm volatile(
+		"	test %0,%0	\n"
+		"	jz 3f		\n"
+		"	jmp 1f		\n"
+
+		".align 16		\n"
+		"1:	jmp 2f		\n"
+
+		".align 16		\n"
+		"2:	dec %0		\n"
+		"	jnz 2b		\n"
+		"3:	dec %0		\n"
+
+		: /* we don't need output */
+		:"a" (loops)
+	);
 }
 
-void __delay(unsigned long loops)
+static void delay_tsc(unsigned long loops)
 {
 	unsigned bclock, now;
 	int cpu;
@@ -62,6 +77,27 @@ void __delay(unsigned long loops)
 		}
 	}
 	preempt_enable();
+}
+
+static void (*delay_fn)(unsigned long) = delay_loop;
+
+void use_tsc_delay(void)
+{
+	delay_fn = delay_tsc;
+}
+
+int __devinit read_current_timer(unsigned long *timer_value)
+{
+	if (delay_fn == delay_tsc) {
+		rdtscll(*timer_value);
+		return 0;
+	}
+	return -1;
+}
+
+void __delay(unsigned long loops)
+{
+	delay_fn(loops);
 }
 EXPORT_SYMBOL(__delay);
 
