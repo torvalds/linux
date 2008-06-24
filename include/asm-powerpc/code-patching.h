@@ -10,6 +10,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <asm/types.h>
+
 /* Flags for create_branch:
  * "b"   == create_branch(addr, target, 0);
  * "ba"  == create_branch(addr, target, BRANCH_ABSOLUTE);
@@ -23,5 +25,19 @@ unsigned int create_branch(const unsigned int *addr,
 			   unsigned long target, int flags);
 void patch_branch(unsigned int *addr, unsigned long target, int flags);
 void patch_instruction(unsigned int *addr, unsigned int instr);
+
+static inline unsigned long ppc_function_entry(void *func)
+{
+#ifdef CONFIG_PPC64
+	/*
+	 * On PPC64 the function pointer actually points to the function's
+	 * descriptor. The first entry in the descriptor is the address
+	 * of the function text.
+	 */
+	return ((func_descr_t *)func)->entry;
+#else
+	return (unsigned long)func;
+#endif
+}
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */
