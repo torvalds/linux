@@ -1499,7 +1499,8 @@ int kgdb_nmicallback(int cpu, void *regs)
 	return 1;
 }
 
-void kgdb_console_write(struct console *co, const char *s, unsigned count)
+static void kgdb_console_write(struct console *co, const char *s,
+   unsigned count)
 {
 	unsigned long flags;
 
