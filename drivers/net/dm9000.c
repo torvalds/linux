@@ -528,7 +528,6 @@ dm9000_probe(struct platform_device *pdev)
 	struct board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
 	const unsigned char *mac_src;
-	unsigned long base;
 	int ret = 0;
 	int iosize;
 	int i;
@@ -558,81 +557,64 @@ dm9000_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&db->phy_poll, dm9000_poll_work);
 
 
-	if (pdev->num_resources < 2) {
+	if (pdev->num_resources < 3) {
 		ret = -ENODEV;
 		goto out;
-	} else if (pdev->num_resources == 2) {
-		base = pdev->resource[0].start;
-
-		if (!request_mem_region(base, 4, ndev->name)) {
-			ret = -EBUSY;
-			goto out;
-		}
-
-		ndev->base_addr = base;
-		ndev->irq = pdev->resource[1].start;
-		db->io_addr = (void __iomem *)base;
-		db->io_data = (void __iomem *)(base + 4);
-
-		/* ensure at least we have a default set of IO routines */
-		dm9000_set_io(db, 2);
-
-	} else {
-		db->addr_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		db->data_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		db->irq_res  = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-
-		if (db->addr_res == NULL || db->data_res == NULL ||
-		    db->irq_res == NULL) {
-			dev_err(db->dev, "insufficient resources\n");
-			ret = -ENOENT;
-			goto out;
-		}
-
-		i = res_size(db->addr_res);
-		db->addr_req = request_mem_region(db->addr_res->start, i,
-						  pdev->name);
-
-		if (db->addr_req == NULL) {
-			dev_err(db->dev, "cannot claim address reg area\n");
-			ret = -EIO;
-			goto out;
-		}
-
-		db->io_addr = ioremap(db->addr_res->start, i);
-
-		if (db->io_addr == NULL) {
-			dev_err(db->dev, "failed to ioremap address reg\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		iosize = res_size(db->data_res);
-		db->data_req = request_mem_region(db->data_res->start, iosize,
-						  pdev->name);
-
-		if (db->data_req == NULL) {
-			dev_err(db->dev, "cannot claim data reg area\n");
-			ret = -EIO;
-			goto out;
-		}
-
-		db->io_data = ioremap(db->data_res->start, iosize);
-
-		if (db->io_data == NULL) {
-			dev_err(db->dev,"failed to ioremap data reg\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		/* fill in parameters for net-dev structure */
-
-		ndev->base_addr = (unsigned long)db->io_addr;
-		ndev->irq	= db->irq_res->start;
-
-		/* ensure at least we have a default set of IO routines */
-		dm9000_set_io(db, iosize);
 	}
+
+	db->addr_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	db->data_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	db->irq_res  = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+
+	if (db->addr_res == NULL || db->data_res == NULL ||
+	    db->irq_res == NULL) {
+		dev_err(db->dev, "insufficient resources\n");
+		ret = -ENOENT;
+		goto out;
+	}
+
+	iosize = res_size(db->addr_res);
+	db->addr_req = request_mem_region(db->addr_res->start, iosize,
+					  pdev->name);
+
+	if (db->addr_req == NULL) {
+		dev_err(db->dev, "cannot claim address reg area\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	db->io_addr = ioremap(db->addr_res->start, iosize);
+
+	if (db->io_addr == NULL) {
+		dev_err(db->dev, "failed to ioremap address reg\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	iosize = res_size(db->data_res);
+	db->data_req = request_mem_region(db->data_res->start, iosize,
+					  pdev->name);
+
+	if (db->data_req == NULL) {
+		dev_err(db->dev, "cannot claim data reg area\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	db->io_data = ioremap(db->data_res->start, iosize);
+
+	if (db->io_data == NULL) {
+		dev_err(db->dev, "failed to ioremap data reg\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* fill in parameters for net-dev structure */
+	ndev->base_addr = (unsigned long)db->io_addr;
+	ndev->irq	= db->irq_res->start;
+
+	/* ensure at least we have a default set of IO routines */
+	dm9000_set_io(db, iosize);
 
 	/* check to see if anything is being over-ridden */
 	if (pdata != NULL) {
