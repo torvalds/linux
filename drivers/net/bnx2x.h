@@ -90,6 +90,12 @@
 #define REG_RD_IND(bp, offset)  	bnx2x_reg_rd_ind(bp, offset)
 #define REG_WR_IND(bp, offset, val)     bnx2x_reg_wr_ind(bp, offset, val)
 
+#define REG_RD_DMAE(bp, offset, valp, len32) \
+	do { \
+		bnx2x_read_dmae(bp, offset, len32);\
+		memcpy(valp, bnx2x_sp(bp, wb_data[0]), len32 * 4); \
+	} while (0)
+
 #define REG_WR_DMAE(bp, offset, val, len32) \
 	do { \
 		memcpy(bnx2x_sp(bp, wb_data[0]), val, len32 * 4); \
@@ -542,11 +548,8 @@ struct bnx2x {
 	int     		pm_cap;
 	int     		pcie_cap;
 
-	/* Used to synchronize phy accesses */
-	spinlock_t      	phy_lock;
-
-	struct work_struct      reset_task;
-	struct work_struct      sp_task;
+	struct work_struct	sp_task;
+	struct work_struct	reset_task;
 
 	struct timer_list       timer;
 	int     		timer_interval;
@@ -568,6 +571,8 @@ struct bnx2x {
 #define CHIP_REV_FPGA   		0x0000f000
 #define CHIP_REV_IS_SLOW(bp)    	((CHIP_REV(bp) == CHIP_REV_EMUL) || \
 					 (CHIP_REV(bp) == CHIP_REV_FPGA))
+#define CHIP_REV_IS_EMUL(bp)		(CHIP_REV(bp) == CHIP_REV_EMUL)
+#define CHIP_REV_IS_FPGA(bp)		(CHIP_REV(bp) == CHIP_REV_FPGA)
 
 #define CHIP_METAL(bp)  		(((bp)->chip_id) & 0x00000ff0)
 #define CHIP_BOND_ID(bp)		(((bp)->chip_id) & 0x0000000f)
@@ -578,84 +583,29 @@ struct bnx2x {
 
 	u32     		hw_config;
 	u32			board;
-	u32			serdes_config;
-	u32     		lane_config;
-	u32     		ext_phy_config;
-#define XGXS_EXT_PHY_TYPE(bp)   	(bp->ext_phy_config & \
-					 PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK)
-#define SERDES_EXT_PHY_TYPE(bp) 	(bp->ext_phy_config & \
-					 PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK)
 
-	u32     		speed_cap_mask;
-	u32     		link_config;
-#define SWITCH_CFG_1G   		PORT_FEATURE_CON_SWITCH_1G_SWITCH
-#define SWITCH_CFG_10G  		PORT_FEATURE_CON_SWITCH_10G_SWITCH
-#define SWITCH_CFG_AUTO_DETECT  	PORT_FEATURE_CON_SWITCH_AUTO_DETECT
-#define SWITCH_CFG_ONE_TIME_DETECT      \
-				PORT_FEATURE_CON_SWITCH_ONE_TIME_DETECT
+	struct link_params	link_params;
 
-	u8      		ser_lane;
-	u8      		rx_lane_swap;
-	u8      		tx_lane_swap;
+	struct link_vars	link_vars;
 
-	u8      		link_up;
-	u8			phy_link_up;
+	u32			link_config;
 
 	u32     		supported;
 /* link settings - missing defines */
 #define SUPPORTED_2500baseT_Full	(1 << 15)
 
-	u32     		phy_flags;
-/*#define PHY_SERDES_FLAG       		0x1*/
-#define PHY_BMAC_FLAG   		0x2
-#define PHY_EMAC_FLAG   		0x4
-#define PHY_XGXS_FLAG   		0x8
-#define PHY_SGMII_FLAG  		0x10
-#define PHY_INT_MODE_MASK_FLAG  	0x300
-#define PHY_INT_MODE_AUTO_POLLING_FLAG  0x100
-#define PHY_INT_MODE_LINK_READY_FLAG    0x200
-
 	u32     		phy_addr;
+
+	/* used to synchronize phy accesses */
+	struct mutex		phy_mutex;
+
 	u32     		phy_id;
 
-	u32     		autoneg;
-#define AUTONEG_CL37    		SHARED_HW_CFG_AN_ENABLE_CL37
-#define AUTONEG_CL73    		SHARED_HW_CFG_AN_ENABLE_CL73
-#define AUTONEG_BAM     		SHARED_HW_CFG_AN_ENABLE_BAM
-#define AUTONEG_PARALLEL		\
-				SHARED_HW_CFG_AN_ENABLE_PARALLEL_DETECTION
-#define AUTONEG_SGMII_FIBER_AUTODET     \
-				SHARED_HW_CFG_AN_EN_SGMII_FIBER_AUTO_DETECT
-#define AUTONEG_REMOTE_PHY      	SHARED_HW_CFG_AN_ENABLE_REMOTE_PHY
-
-	u32     		req_autoneg;
-#define AUTONEG_SPEED   		0x1
-#define AUTONEG_FLOW_CTRL       	0x2
-
-	u32     		req_line_speed;
-/* link settings - missing defines */
-#define SPEED_12000     		12000
-#define SPEED_12500     		12500
-#define SPEED_13000     		13000
-#define SPEED_15000     		15000
-#define SPEED_16000     		16000
-
-	u32     		req_duplex;
-	u32     		req_flow_ctrl;
-#define FLOW_CTRL_AUTO  		PORT_FEATURE_FLOW_CONTROL_AUTO
-#define FLOW_CTRL_TX    		PORT_FEATURE_FLOW_CONTROL_TX
-#define FLOW_CTRL_RX    		PORT_FEATURE_FLOW_CONTROL_RX
-#define FLOW_CTRL_BOTH  		PORT_FEATURE_FLOW_CONTROL_BOTH
-#define FLOW_CTRL_NONE  		PORT_FEATURE_FLOW_CONTROL_NONE
 
 	u32     		advertising;
 /* link settings - missing defines */
 #define ADVERTISED_2500baseT_Full       (1 << 15)
 
-	u32     		link_status;
-	u32     		line_speed;
-	u32     		duplex;
-	u32     		flow_ctrl;
 
 	u32     		bc_ver;
 
@@ -764,6 +714,11 @@ struct bnx2x {
 #define DMAE_CMD_DST_RESET      	DMAE_COMMAND_DST_RESET
 
 #define DMAE_LEN32_MAX  		0x400
+
+void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
+void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
+		      u32 len32);
+int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode);
 
 
 /* MC hsi */
@@ -888,91 +843,6 @@ struct bnx2x {
 			((le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) & \
 			  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) == \
 			 (1 << PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT))
-
-
-#define MDIO_AN_CL73_OR_37_COMPLETE \
-		(MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_AUTONEG_COMPLETE | \
-		 MDIO_GP_STATUS_TOP_AN_STATUS1_CL37_AUTONEG_COMPLETE)
-
-#define GP_STATUS_PAUSE_RSOLUTION_TXSIDE \
-			MDIO_GP_STATUS_TOP_AN_STATUS1_PAUSE_RSOLUTION_TXSIDE
-#define GP_STATUS_PAUSE_RSOLUTION_RXSIDE \
-			MDIO_GP_STATUS_TOP_AN_STATUS1_PAUSE_RSOLUTION_RXSIDE
-#define GP_STATUS_SPEED_MASK \
-			MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_MASK
-#define GP_STATUS_10M   MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10M
-#define GP_STATUS_100M  MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_100M
-#define GP_STATUS_1G    MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_1G
-#define GP_STATUS_2_5G  MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_2_5G
-#define GP_STATUS_5G    MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_5G
-#define GP_STATUS_6G    MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_6G
-#define GP_STATUS_10G_HIG \
-			MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_HIG
-#define GP_STATUS_10G_CX4 \
-			MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_CX4
-#define GP_STATUS_12G_HIG \
-			MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_12G_HIG
-#define GP_STATUS_12_5G MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_12_5G
-#define GP_STATUS_13G   MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_13G
-#define GP_STATUS_15G   MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_15G
-#define GP_STATUS_16G   MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_16G
-#define GP_STATUS_1G_KX MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_1G_KX
-#define GP_STATUS_10G_KX4 \
-			MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_KX4
-
-#define LINK_10THD      		LINK_STATUS_SPEED_AND_DUPLEX_10THD
-#define LINK_10TFD      		LINK_STATUS_SPEED_AND_DUPLEX_10TFD
-#define LINK_100TXHD    		LINK_STATUS_SPEED_AND_DUPLEX_100TXHD
-#define LINK_100T4      		LINK_STATUS_SPEED_AND_DUPLEX_100T4
-#define LINK_100TXFD    		LINK_STATUS_SPEED_AND_DUPLEX_100TXFD
-#define LINK_1000THD    		LINK_STATUS_SPEED_AND_DUPLEX_1000THD
-#define LINK_1000TFD    		LINK_STATUS_SPEED_AND_DUPLEX_1000TFD
-#define LINK_1000XFD    		LINK_STATUS_SPEED_AND_DUPLEX_1000XFD
-#define LINK_2500THD    		LINK_STATUS_SPEED_AND_DUPLEX_2500THD
-#define LINK_2500TFD    		LINK_STATUS_SPEED_AND_DUPLEX_2500TFD
-#define LINK_2500XFD    		LINK_STATUS_SPEED_AND_DUPLEX_2500XFD
-#define LINK_10GTFD     		LINK_STATUS_SPEED_AND_DUPLEX_10GTFD
-#define LINK_10GXFD     		LINK_STATUS_SPEED_AND_DUPLEX_10GXFD
-#define LINK_12GTFD     		LINK_STATUS_SPEED_AND_DUPLEX_12GTFD
-#define LINK_12GXFD     		LINK_STATUS_SPEED_AND_DUPLEX_12GXFD
-#define LINK_12_5GTFD   		LINK_STATUS_SPEED_AND_DUPLEX_12_5GTFD
-#define LINK_12_5GXFD   		LINK_STATUS_SPEED_AND_DUPLEX_12_5GXFD
-#define LINK_13GTFD     		LINK_STATUS_SPEED_AND_DUPLEX_13GTFD
-#define LINK_13GXFD     		LINK_STATUS_SPEED_AND_DUPLEX_13GXFD
-#define LINK_15GTFD     		LINK_STATUS_SPEED_AND_DUPLEX_15GTFD
-#define LINK_15GXFD     		LINK_STATUS_SPEED_AND_DUPLEX_15GXFD
-#define LINK_16GTFD     		LINK_STATUS_SPEED_AND_DUPLEX_16GTFD
-#define LINK_16GXFD     		LINK_STATUS_SPEED_AND_DUPLEX_16GXFD
-
-#define NIG_STATUS_XGXS0_LINK10G \
-		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK10G
-#define NIG_STATUS_XGXS0_LINK_STATUS \
-		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS
-#define NIG_STATUS_XGXS0_LINK_STATUS_SIZE \
-		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS_SIZE
-#define NIG_STATUS_SERDES0_LINK_STATUS \
-		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_SERDES0_LINK_STATUS
-#define NIG_MASK_MI_INT \
-		NIG_MASK_INTERRUPT_PORT0_REG_MASK_EMAC0_MISC_MI_INT
-#define NIG_MASK_XGXS0_LINK10G \
-		NIG_MASK_INTERRUPT_PORT0_REG_MASK_XGXS0_LINK10G
-#define NIG_MASK_XGXS0_LINK_STATUS \
-		NIG_MASK_INTERRUPT_PORT0_REG_MASK_XGXS0_LINK_STATUS
-#define NIG_MASK_SERDES0_LINK_STATUS \
-		NIG_MASK_INTERRUPT_PORT0_REG_MASK_SERDES0_LINK_STATUS
-
-#define XGXS_RESET_BITS \
-	(MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_XGXS0_RSTB_HW |   \
-	 MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_XGXS0_IDDQ |      \
-	 MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_XGXS0_PWRDWN |    \
-	 MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_XGXS0_PWRDWN_SD | \
-	 MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_XGXS0_TXD_FIFO_RSTB)
-
-#define SERDES_RESET_BITS \
-	(MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_RSTB_HW | \
-	 MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_IDDQ |    \
-	 MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_PWRDWN |  \
-	 MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_PWRDWN_SD)
 
 
 #define BNX2X_MC_ASSERT_BITS \

@@ -87,10 +87,6 @@ union init_op {
 #include "bnx2x_init_values.h"
 
 static void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
-
-static void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr,
-			     u32 dst_addr, u32 len32);
-
 static int bnx2x_gunzip(struct bnx2x *bp, u8 *zbuf, int len);
 
 static void bnx2x_init_str_wr(struct bnx2x *bp, u32 addr, const u32 *data,
@@ -106,9 +102,6 @@ static void bnx2x_init_str_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 		}
 	}
 }
-
-#define INIT_MEM_WR(reg, data, reg_off, len) \
-	bnx2x_init_str_wr(bp, reg + reg_off*4, data, len)
 
 static void bnx2x_init_ind_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 			      u16 len)
