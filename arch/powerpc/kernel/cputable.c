@@ -17,7 +17,6 @@
 #include <linux/module.h>
 
 #include <asm/oprofile_impl.h>
-#include <asm/code-patching.h>
 #include <asm/cputable.h>
 #include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
 
@@ -1637,39 +1636,4 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 		}
 	BUG();
 	return NULL;
-}
-
-void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
-{
-	struct fixup_entry {
-		unsigned long	mask;
-		unsigned long	value;
-		long		start_off;
-		long		end_off;
-	} *fcur, *fend;
-
-	fcur = fixup_start;
-	fend = fixup_end;
-
-	for (; fcur < fend; fcur++) {
-		unsigned int *pstart, *pend, *p;
-
-		if ((value & fcur->mask) == fcur->value)
-			continue;
-
-		/* These PTRRELOCs will disappear once the new scheme for
-		 * modules and vdso is implemented
-		 */
-		pstart = ((unsigned int *)fcur) + (fcur->start_off / 4);
-		pend = ((unsigned int *)fcur) + (fcur->end_off / 4);
-
-		for (p = pstart; p < pend; p++) {
-			*p = PPC_NOP_INSTR;
-			asm volatile ("dcbst 0, %0" : : "r" (p));
-		}
-		asm volatile ("sync" : : : "memory");
-		for (p = pstart; p < pend; p++)
-			asm volatile ("icbi 0,%0" : : "r" (p));
-		asm volatile ("sync; isync" : : : "memory");
-	}
 }

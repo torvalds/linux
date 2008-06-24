@@ -26,3 +26,4 @@ endif
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
 
 obj-y			+= code-patching.o
+obj-y			+= feature-fixups.o
