@@ -500,6 +500,9 @@ struct smc_local {
 	void __iomem *base;
 	void __iomem *datacs;
 
+	/* the low address lines on some platforms aren't connected... */
+	int	io_shift;
+
 	struct smc91x_platdata cfg;
 };
 

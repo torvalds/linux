@@ -7,6 +7,13 @@
 
 #define SMC91X_NOWAIT		(1 << 3)
 
+/* two bits for IO_SHIFT, let's hope later designs will keep this sane */
+#define SMC91X_IO_SHIFT_0	(0 << 4)
+#define SMC91X_IO_SHIFT_1	(1 << 4)
+#define SMC91X_IO_SHIFT_2	(2 << 4)
+#define SMC91X_IO_SHIFT_3	(3 << 4)
+#define SMC91X_IO_SHIFT(x)	(((x) >> 4) & 0x3)
+
 struct smc91x_platdata {
 	unsigned long flags;
 };
