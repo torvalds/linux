@@ -3,8 +3,10 @@
 
 #ifdef __ASSEMBLY__
 # define __ASM_FORM(x)	x
+# define __ASM_EX_SEC	.section __ex_table
 #else
 # define __ASM_FORM(x)	" " #x " "
+# define __ASM_EX_SEC	" .section __ex_table,\"a\"\n"
 #endif
 
 #ifdef CONFIG_X86_32
@@ -30,7 +32,7 @@
 
 /* Exception table entry */
 # define _ASM_EXTABLE(from,to) \
-	" .section __ex_table,\"a\"\n" \
+	__ASM_EX_SEC	\
 	_ASM_ALIGN "\n" \
 	_ASM_PTR #from "," #to "\n" \
 	" .previous\n"
