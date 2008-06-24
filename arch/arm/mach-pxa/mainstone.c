@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/pwm_backlight.h>
+#include <linux/smc91x.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -240,11 +241,19 @@ static struct resource smc91x_resources[] = {
 	}
 };
 
+static struct smc91x_platdata mainstone_smc91x_info = {
+	.flags	= SMC91X_USE_8BIT | SMC91X_USE_16BIT | SMC91X_USE_32BIT |
+		  SMC91X_NOWAIT | SMC91X_USE_DMA,
+};
+
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
+	.dev		= {
+		.platform_data = &mainstone_smc91x_info,
+	},
 };
 
 static int mst_audio_startup(struct snd_pcm_substream *substream, void *priv)
