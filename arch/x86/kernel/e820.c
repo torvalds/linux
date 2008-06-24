@@ -405,6 +405,9 @@ u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 
 	BUG_ON(old_type == new_type);
 
+	if (size > (ULLONG_MAX - start))
+		size = ULLONG_MAX - start;
+
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
 		u64 final_start, final_end;
@@ -440,6 +443,9 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 {
 	int i;
 	u64 real_removed_size = 0;
+
+	if (size > (ULLONG_MAX - start))
+		size = ULLONG_MAX - start;
 
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
