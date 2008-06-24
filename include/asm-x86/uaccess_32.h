@@ -186,25 +186,14 @@ extern void __put_user_2(void);
 extern void __put_user_4(void);
 extern void __put_user_8(void);
 
-#define __put_user_1(x, ptr)					\
-	asm volatile("call __put_user_1" : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
-
-#define __put_user_2(x, ptr)					\
-	asm volatile("call __put_user_2" : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
-
-#define __put_user_4(x, ptr)					\
-	asm volatile("call __put_user_4" : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+#define __put_user_x(size, x, ptr)				\
+	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
+		     :"0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
 #define __put_user_8(x, ptr)					\
 	asm volatile("call __put_user_8" : "=a" (__ret_pu)	\
 		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
-#define __put_user_X(x, ptr)					\
-	asm volatile("call __put_user_X" : "=a" (__ret_pu)	\
-		     : "c" (ptr): "ebx")
 
 /**
  * put_user: - Write a simple value into user space.
@@ -232,19 +221,19 @@ extern void __put_user_8(void);
 	__pu_val = x;						\
 	switch (sizeof(*(ptr))) {				\
 	case 1:							\
-		__put_user_1(__pu_val, ptr);			\
+		__put_user_x(1, __pu_val, ptr);			\
 		break;						\
 	case 2:							\
-		__put_user_2(__pu_val, ptr);			\
+		__put_user_x(2, __pu_val, ptr);			\
 		break;						\
 	case 4:							\
-		__put_user_4(__pu_val, ptr);			\
+		__put_user_x(4, __pu_val, ptr);			\
 		break;						\
 	case 8:							\
 		__put_user_8(__pu_val, ptr);			\
 		break;						\
 	default:						\
-		__put_user_X(__pu_val, ptr);			\
+		__put_user_x(X, __pu_val, ptr);			\
 		break;						\
 	}							\
 	__ret_pu;						\
