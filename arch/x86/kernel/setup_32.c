@@ -226,10 +226,8 @@ static void __init reserve_initrd(void)
 	}
 
 	/* We need to move the initrd down into lowmem */
-	ramdisk_target = max_pfn_mapped<<PAGE_SHIFT;
-	ramdisk_here = find_e820_area(min(ramdisk_target, end_of_lowmem>>1),
-				 end_of_lowmem, ramdisk_size,
-				 PAGE_SIZE);
+	ramdisk_here = find_e820_area(0, end_of_lowmem, ramdisk_size,
+					 PAGE_SIZE);
 
 	if (ramdisk_here == -1ULL)
 		panic("Cannot find place for new RAMDISK of size %lld\n",
@@ -433,7 +431,11 @@ void __init setup_arch(char **cmdline_p)
 		max_pfn = e820_end_of_ram();
 	}
 
+	/* max_low_pfn get updated here */
 	find_low_pfn_range();
+
+	/* max_pfn_mapped is updated here */
+	init_memory_mapping(0, (max_low_pfn << PAGE_SHIFT));
 
 	reserve_initrd();
 

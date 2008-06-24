@@ -57,6 +57,27 @@ unsigned long highstart_pfn, highend_pfn;
 
 static noinline int do_test_wp_bit(void);
 
+
+static unsigned long __initdata table_start;
+static unsigned long __meminitdata table_end;
+static unsigned long __meminitdata table_top;
+
+static int __initdata after_init_bootmem;
+
+static __init void *alloc_low_page(unsigned long *phys)
+{
+	unsigned long pfn = table_end++;
+	void *adr;
+
+	if (pfn >= table_top)
+		panic("alloc_low_page: ran out of memory");
+
+	adr = __va(pfn * PAGE_SIZE);
+	memset(adr, 0, PAGE_SIZE);
+	*phys  = pfn * PAGE_SIZE;
+	return adr;
+}
+
 /*
  * Creates a middle page table and puts a pointer to it in the
  * given global directory entry. This only returns the gd entry
@@ -68,9 +89,12 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 	pmd_t *pmd_table;
 
 #ifdef CONFIG_X86_PAE
+	unsigned long phys;
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
-		pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-
+		if (after_init_bootmem)
+			pmd_table = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+		else
+			pmd_table = (pmd_t *)alloc_low_page(&phys);
 		paravirt_alloc_pmd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
@@ -92,12 +116,16 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 	if (!(pmd_val(*pmd) & _PAGE_PRESENT)) {
 		pte_t *page_table = NULL;
 
+		if (after_init_bootmem) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
-		page_table = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
+			page_table = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
 #endif
-		if (!page_table) {
-			page_table =
+			if (!page_table)
+				page_table =
 				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+		} else {
+			unsigned long phys;
+			page_table = (pte_t *)alloc_low_page(&phys);
 		}
 
 		paravirt_alloc_pte(&init_mm, __pa(page_table) >> PAGE_SHIFT);
@@ -155,7 +183,9 @@ static inline int is_kernel_text(unsigned long addr)
  * of max_low_pfn pages, by creating page tables starting from address
  * PAGE_OFFSET:
  */
-static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
+static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
+						unsigned long start,
+						unsigned long end)
 {
 	int pgd_idx, pmd_idx, pte_ofs;
 	unsigned long pfn;
@@ -163,18 +193,19 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned pages_2m = 0, pages_4k = 0;
+	unsigned limit_pfn = end >> PAGE_SHIFT;
 
 	pgd_idx = pgd_index(PAGE_OFFSET);
 	pgd = pgd_base + pgd_idx;
-	pfn = 0;
+	pfn = start >> PAGE_SHIFT;
 
 	for (; pgd_idx < PTRS_PER_PGD; pgd++, pgd_idx++) {
 		pmd = one_md_table_init(pgd);
-		if (pfn >= max_low_pfn)
+		if (pfn >= limit_pfn)
 			continue;
 
 		for (pmd_idx = 0;
-		     pmd_idx < PTRS_PER_PMD && pfn < max_low_pfn;
+		     pmd_idx < PTRS_PER_PMD && pfn < limit_pfn;
 		     pmd++, pmd_idx++) {
 			unsigned int addr = pfn * PAGE_SIZE + PAGE_OFFSET;
 
@@ -418,20 +449,7 @@ static void __init pagetable_init(void)
 
 	paravirt_pagetable_setup_start(pgd_base);
 
-	/* Enable PSE if available */
-	if (cpu_has_pse)
-		set_in_cr4(X86_CR4_PSE);
-
-	/* Enable PGE if available */
-	if (cpu_has_pge) {
-		set_in_cr4(X86_CR4_PGE);
-		__PAGE_KERNEL |= _PAGE_GLOBAL;
-		__PAGE_KERNEL_EXEC |= _PAGE_GLOBAL;
-	}
-
-	kernel_physical_mapping_init(pgd_base);
 	remap_numa_kva();
-
 	/*
 	 * Fixed mappings, only the page table structure has to be
 	 * created - mappings will be set by set_fixmap():
@@ -703,6 +721,7 @@ void __init setup_bootmem_allocator(void)
 		free_bootmem_with_active_regions(i, max_low_pfn);
 	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 
+	after_init_bootmem = 1;
 }
 
 /*
@@ -723,6 +742,77 @@ static void __init remapped_pgdat_init(void)
 	}
 }
 
+static void __init find_early_table_space(unsigned long end)
+{
+	unsigned long puds, pmds, tables, start;
+
+	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
+	tables = PAGE_ALIGN(puds * sizeof(pud_t));
+
+	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
+	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
+
+	/*
+	 * RED-PEN putting page tables only on node 0 could
+	 * cause a hotspot and fill up ZONE_DMA. The page tables
+	 * need roughly 0.5KB per GB.
+	 */
+	start = 0x7000;
+	table_start = find_e820_area(start, max_pfn_mapped<<PAGE_SHIFT,
+					tables, PAGE_SIZE);
+	if (table_start == -1UL)
+		panic("Cannot find space for the kernel page tables");
+
+	table_start >>= PAGE_SHIFT;
+	table_end = table_start;
+	table_top = table_start + (tables>>PAGE_SHIFT);
+
+	printk(KERN_DEBUG "kernel direct mapping tables up to %lx @ %lx-%lx\n",
+		end, table_start << PAGE_SHIFT,
+		(table_start << PAGE_SHIFT) + tables);
+}
+
+unsigned long __init_refok init_memory_mapping(unsigned long start,
+						unsigned long end)
+{
+	pgd_t *pgd_base = swapper_pg_dir;
+
+	/*
+	 * Find space for the kernel direct mapping tables.
+	 */
+	if (!after_init_bootmem)
+		find_early_table_space(end);
+
+#ifdef CONFIG_X86_PAE
+	set_nx();
+	if (nx_enabled)
+		printk(KERN_INFO "NX (Execute Disable) protection: active\n");
+#endif
+
+	/* Enable PSE if available */
+	if (cpu_has_pse)
+		set_in_cr4(X86_CR4_PSE);
+
+	/* Enable PGE if available */
+	if (cpu_has_pge) {
+		set_in_cr4(X86_CR4_PGE);
+		__PAGE_KERNEL |= _PAGE_GLOBAL;
+		__PAGE_KERNEL_EXEC |= _PAGE_GLOBAL;
+	}
+
+	kernel_physical_mapping_init(pgd_base, start, end);
+
+	load_cr3(swapper_pg_dir);
+
+	__flush_tlb_all();
+
+	if (!after_init_bootmem)
+		reserve_early(table_start << PAGE_SHIFT,
+				 table_end << PAGE_SHIFT, "PGTABLE");
+
+	return end >> PAGE_SHIFT;
+}
+
 /*
  * paging_init() sets up the page tables - note that the first 8MB are
  * already mapped by head.S.
@@ -732,14 +822,7 @@ static void __init remapped_pgdat_init(void)
  */
 void __init paging_init(void)
 {
-#ifdef CONFIG_X86_PAE
-	set_nx();
-	if (nx_enabled)
-		printk(KERN_INFO "NX (Execute Disable) protection: active\n");
-#endif
 	pagetable_init();
-
-	load_cr3(swapper_pg_dir);
 
 	__flush_tlb_all();
 
