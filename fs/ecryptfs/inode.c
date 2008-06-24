@@ -465,7 +465,6 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 	int rc;
 	struct dentry *lower_dentry;
 	struct dentry *lower_dir_dentry;
-	umode_t mode;
 	char *encoded_symname;
 	int encoded_symlen;
 	struct ecryptfs_crypt_stat *crypt_stat = NULL;
@@ -473,7 +472,6 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	dget(lower_dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
-	mode = S_IALLUGO;
 	encoded_symlen = ecryptfs_encode_filename(crypt_stat, symname,
 						  strlen(symname),
 						  &encoded_symname);
@@ -482,7 +480,7 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 		goto out_lock;
 	}
 	rc = vfs_symlink(lower_dir_dentry->d_inode, lower_dentry,
-			 encoded_symname, mode);
+			 encoded_symname);
 	kfree(encoded_symname);
 	if (rc || !lower_dentry->d_inode)
 		goto out_lock;

@@ -2434,7 +2434,7 @@ asmlinkage long sys_unlink(const char __user *pathname)
 	return do_unlinkat(AT_FDCWD, pathname);
 }
 
-int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname, int mode)
+int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname)
 {
 	int error = may_create(dir, dentry, NULL);
 
@@ -2483,7 +2483,7 @@ asmlinkage long sys_symlinkat(const char __user *oldname,
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
-	error = vfs_symlink(nd.path.dentry->d_inode, dentry, from, S_IALLUGO);
+	error = vfs_symlink(nd.path.dentry->d_inode, dentry, from);
 	mnt_drop_write(nd.path.mnt);
 out_dput:
 	dput(dentry);
