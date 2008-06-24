@@ -2924,7 +2924,7 @@ static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cre
 
 int nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cred *cred)
 {
-	long timeout;
+	long timeout = 0;
 	int err;
 	do {
 		err = _nfs4_proc_setclientid_confirm(clp, cred);
