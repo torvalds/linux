@@ -103,9 +103,16 @@ EXPORT_SYMBOL(__delay);
 
 inline void __const_udelay(unsigned long xloops)
 {
-	__delay(((xloops * HZ *
-		cpu_data(raw_smp_processor_id()).loops_per_jiffy) >> 32) + 1);
+	int d0;
+	xloops *= 4;
+	__asm__("mull %%edx"
+		:"=d" (xloops), "=&a" (d0)
+		:"1" (xloops), "0"
+		(cpu_data(raw_smp_processor_id()).loops_per_jiffy * (HZ/4)));
+
+	__delay(++xloops);
 }
+
 EXPORT_SYMBOL(__const_udelay);
 
 void __udelay(unsigned long usecs)
