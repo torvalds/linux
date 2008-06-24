@@ -37,57 +37,57 @@
 ENTRY(__get_user_1)
 	CFI_STARTPROC
 	GET_THREAD_INFO(%rdx)
-	cmpq TI_addr_limit(%rdx),%rax
+	cmp TI_addr_limit(%rdx),%rax
 	jae bad_get_user
 1:	movzb (%rax),%edx
-	xorl %eax,%eax
+	xor %eax,%eax
 	ret
 	CFI_ENDPROC
 ENDPROC(__get_user_1)
 
 ENTRY(__get_user_2)
 	CFI_STARTPROC
-	addq $1,%rax
+	add $1,%rax
 	jc bad_get_user
 	GET_THREAD_INFO(%rdx)
-	cmpq TI_addr_limit(%rdx),%rax
+	cmp TI_addr_limit(%rdx),%rax
 	jae bad_get_user
 2:	movzwl -1(%rax),%edx
-	xorl %eax,%eax
+	xor %eax,%eax
 	ret
 	CFI_ENDPROC
 ENDPROC(__get_user_2)
 
 ENTRY(__get_user_4)
 	CFI_STARTPROC
-	addq $3,%rax
+	add $3,%rax
 	jc bad_get_user
 	GET_THREAD_INFO(%rdx)
-	cmpq TI_addr_limit(%rdx),%rax
+	cmp TI_addr_limit(%rdx),%rax
 	jae bad_get_user
-3:	movl -3(%rax),%edx
-	xorl %eax,%eax
+3:	mov -3(%rax),%edx
+	xor %eax,%eax
 	ret
 	CFI_ENDPROC
 ENDPROC(__get_user_4)
 
 ENTRY(__get_user_8)
 	CFI_STARTPROC
-	addq $7,%rax
+	add $7,%rax
 	jc bad_get_user
 	GET_THREAD_INFO(%rdx)
-	cmpq TI_addr_limit(%rdx),%rax
+	cmp TI_addr_limit(%rdx),%rax
 	jae	bad_get_user
 4:	movq -7(%rax),%rdx
-	xorl %eax,%eax
+	xor %eax,%eax
 	ret
 	CFI_ENDPROC
 ENDPROC(__get_user_8)
 
 bad_get_user:
 	CFI_STARTPROC
-	xorl %edx,%edx
-	movq $(-EFAULT),%rax
+	xor %edx,%edx
+	mov $(-EFAULT),%rax
 	ret
 	CFI_ENDPROC
 END(bad_get_user)
