@@ -550,20 +550,16 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 	return ret;
 }
 
-static int __match_minor(struct device *dev, void *data)
+static int match_devt(struct device *dev, void *data)
 {
-	int minor = *((int *)data);
-
-	if (dev->devt == MKDEV(USB_DEVICE_MAJOR, minor))
-		return 1;
-	return 0;
+	return (dev->devt == (dev_t) data);
 }
 
-static struct usb_device *usbdev_lookup_by_minor(int minor)
+static struct usb_device *usbdev_lookup_by_devt(dev_t devt)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&usb_bus_type, NULL, &minor, __match_minor);
+	dev = bus_find_device(&usb_bus_type, NULL, (void *) devt, match_devt);
 	if (!dev)
 		return NULL;
 	put_device(dev);
@@ -589,9 +585,10 @@ static int usbdev_open(struct inode *inode, struct file *file)
 		goto out;
 
 	ret = -ENOENT;
+
 	/* usbdev device-node */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
-		dev = usbdev_lookup_by_minor(iminor(inode));
+		dev = usbdev_lookup_by_devt(inode->i_rdev);
 #ifdef CONFIG_USB_DEVICEFS
 	/* procfs file */
 	if (!dev)
