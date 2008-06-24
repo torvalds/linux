@@ -586,7 +586,7 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 
 	spin_lock(&q->lock); /* IRQs are already disabled. */
 
-	info = (void *)pack->skb;
+	info = IEEE80211_SKB_CB(pack->skb);
 	memset(&info->status, 0, sizeof(info->status));
 
 	b43_fill_txstatus_report(info, status);
