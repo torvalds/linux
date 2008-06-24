@@ -488,25 +488,21 @@ void __init update_e820(void)
 }
 
 /*
- * Search for the biggest gap in the low 32 bits of the e820
- * memory space.  We pass this space to PCI to assign MMIO resources
- * for hotplug or unconfigured devices in.
- * Hopefully the BIOS let enough space left.
+ * Search for a gap in the e820 memory space from start_addr to 2^32.
  */
-__init void e820_setup_gap(void)
+__init int e820_search_gap(unsigned long *gapstart, unsigned long *gapsize,
+		unsigned long start_addr)
 {
-	unsigned long gapstart, gapsize, round;
-	unsigned long long last;
-	int i;
+	unsigned long long last = 0x100000000ull;
+	int i = e820.nr_map;
 	int found = 0;
 
-	last = 0x100000000ull;
-	gapstart = 0x10000000;
-	gapsize = 0x400000;
-	i = e820.nr_map;
 	while (--i >= 0) {
 		unsigned long long start = e820.map[i].addr;
 		unsigned long long end = start + e820.map[i].size;
+
+		if (end < start_addr)
+			continue;
 
 		/*
 		 * Since "last" is at most 4GB, we know we'll
@@ -515,15 +511,32 @@ __init void e820_setup_gap(void)
 		if (last > end) {
 			unsigned long gap = last - end;
 
-			if (gap > gapsize) {
-				gapsize = gap;
-				gapstart = end;
+			if (gap >= *gapsize) {
+				*gapsize = gap;
+				*gapstart = end;
 				found = 1;
 			}
 		}
 		if (start < last)
 			last = start;
 	}
+	return found;
+}
+
+/*
+ * Search for the biggest gap in the low 32 bits of the e820
+ * memory space.  We pass this space to PCI to assign MMIO resources
+ * for hotplug or unconfigured devices in.
+ * Hopefully the BIOS let enough space left.
+ */
+__init void e820_setup_gap(void)
+{
+	unsigned long gapstart, gapsize, round;
+	int found;
+
+	gapstart = 0x10000000;
+	gapsize = 0x400000;
+	found  = e820_search_gap(&gapstart, &gapsize, 0);
 
 #ifdef CONFIG_X86_64
 	if (!found) {
