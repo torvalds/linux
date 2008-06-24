@@ -4340,6 +4340,13 @@ ieee80211_sta_scan_result(struct net_device *dev,
 			current_ev = iwe_stream_add_point(info, current_ev,
 							  end_buf,
 							  &iwe, buf);
+			memset(&iwe, 0, sizeof(iwe));
+			iwe.cmd = IWEVCUSTOM;
+			sprintf(buf, " Last beacon: %dms ago",
+				jiffies_to_msecs(jiffies - bss->last_update));
+			iwe.u.data.length = strlen(buf);
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf, &iwe, buf);
 			kfree(buf);
 		}
 	}
