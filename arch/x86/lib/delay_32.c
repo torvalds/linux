@@ -38,9 +38,9 @@ static void delay_loop(unsigned long loops)
 		"1:	jmp 2f		\n"
 
 		".align 16		\n"
-		"2:	decl %0		\n"
+		"2:	dec %0		\n"
 		"	jnz 2b		\n"
-		"3:	decl %0		\n"
+		"3:	dec %0		\n"
 
 		: /* we don't need output */
 		:"a" (loops)
