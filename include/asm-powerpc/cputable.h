@@ -32,6 +32,7 @@
 #ifdef __KERNEL__
 
 #include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 #ifndef __ASSEMBLY__
 
@@ -488,19 +489,6 @@ static inline int cpu_has_feature(unsigned long feature)
 }
 
 #endif /* !__ASSEMBLY__ */
-
-#ifdef __ASSEMBLY__
-
-#define BEGIN_FTR_SECTION_NESTED(label)	label:
-#define BEGIN_FTR_SECTION		BEGIN_FTR_SECTION_NESTED(97)
-#define END_FTR_SECTION_NESTED(msk, val, label) \
-	MAKE_FTR_SECTION_ENTRY(msk, val, label, __ftr_fixup)
-#define END_FTR_SECTION(msk, val)		\
-	END_FTR_SECTION_NESTED(msk, val, 97)
-
-#define END_FTR_SECTION_IFSET(msk)	END_FTR_SECTION((msk), (msk))
-#define END_FTR_SECTION_IFCLR(msk)	END_FTR_SECTION((msk), 0)
-#endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_CPUTABLE_H */
