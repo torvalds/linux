@@ -818,7 +818,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/ide/ide.txt.
 
 	idle=		[X86]
-			Format: idle=poll or idle=mwait, idle=halt
+			Format: idle=poll or idle=mwait, idle=halt, idle=nomwait
 			Poll forces a polling idle loop that can slightly improves the performance
 			of waking up a idle CPU, but will use a lot of power and make the system
 			run hot. Not recommended.
@@ -828,6 +828,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			as idle=poll.
 			idle=halt. Halt is forced to be used for CPU idle.
 			In such case C2/C3 won't be used again.
+			idle=nomwait. Disable mwait for CPU C-states
 
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
 			Claim all unknown PCI IDE storage controllers.

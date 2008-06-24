@@ -957,13 +957,17 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 			} else {
 				continue;
 			}
-			if (cx.type == ACPI_STATE_C1 && idle_halt) {
+			if (cx.type == ACPI_STATE_C1 &&
+					(idle_halt || idle_nomwait)) {
 				/*
 				 * In most cases the C1 space_id obtained from
 				 * _CST object is FIXED_HARDWARE access mode.
 				 * But when the option of idle=halt is added,
 				 * the entry_method type should be changed from
 				 * CSTATE_FFH to CSTATE_HALT.
+				 * When the option of idle=nomwait is added,
+				 * the C1 entry_method type should be
+				 * CSTATE_HALT.
 				 */
 				cx.entry_method = ACPI_CSTATE_HALT;
 				snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
