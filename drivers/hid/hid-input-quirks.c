@@ -19,22 +19,6 @@
 #define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, bit, \
 		max, EV_KEY, (c))
 
-static int quirk_belkin_wkbd(struct hid_usage *usage,
-		struct hid_input *hidinput, unsigned long **bit, int *max)
-{
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
-		return 0;
-
-	switch (usage->hid & HID_USAGE) {
-		case 0x03a: map_key_clear(KEY_SOUND);		break;
-		case 0x03b: map_key_clear(KEY_CAMERA);		break;
-		case 0x03c: map_key_clear(KEY_DOCUMENTS);	break;
-		default:
-			return 0;
-	}
-	return 1;
-}
-
 static int quirk_gyration_remote(struct hid_usage *usage,
 		struct hid_input *hidinput, unsigned long **bit, int *max)
 {
@@ -104,9 +88,6 @@ static int quirk_cherry_genius_29e(struct hid_usage *usage,
 	return 1;
 }
 
-#define VENDOR_ID_BELKIN			0x1020
-#define DEVICE_ID_BELKIN_WIRELESS_KEYBOARD	0x0006
-
 #define VENDOR_ID_GYRATION			0x0c16
 #define DEVICE_ID_GYRATION_REMOTE		0x0002
 
@@ -122,8 +103,6 @@ static const struct hid_input_blacklist {
 	int (*quirk)(struct hid_usage *, struct hid_input *, unsigned long **,
 			int *);
 } hid_input_blacklist[] = {
-	{ VENDOR_ID_BELKIN, DEVICE_ID_BELKIN_WIRELESS_KEYBOARD, quirk_belkin_wkbd },
-
 	{ VENDOR_ID_GYRATION, DEVICE_ID_GYRATION_REMOTE, quirk_gyration_remote },
 
 	{ VENDOR_ID_MONTEREY, DEVICE_ID_GENIUS_KB29E, quirk_cherry_genius_29e },
