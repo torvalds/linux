@@ -132,8 +132,8 @@
 #define is_multi(bp)		(bp->num_queues > 1)
 
 
+/* fast path */
 
-#define bnx2x_sp_check(bp, var) ((bp->slowpath) ? (&bp->slowpath->var) : NULL)
 struct sw_rx_bd {
 	struct sk_buff	*skb;
 	DECLARE_PCI_UNMAP_ADDR(mapping)
@@ -143,6 +143,52 @@ struct sw_tx_bd {
 	struct sk_buff	*skb;
 	u16		first_bd;
 };
+
+struct sw_rx_page {
+	struct page	*page;
+	DECLARE_PCI_UNMAP_ADDR(mapping)
+};
+
+
+/* MC hsi */
+#define BCM_PAGE_SHIFT			12
+#define BCM_PAGE_SIZE			(1 << BCM_PAGE_SHIFT)
+#define BCM_PAGE_MASK			(~(BCM_PAGE_SIZE - 1))
+#define BCM_PAGE_ALIGN(addr)	(((addr) + BCM_PAGE_SIZE - 1) & BCM_PAGE_MASK)
+
+#define PAGES_PER_SGE_SHIFT		0
+#define PAGES_PER_SGE			(1 << PAGES_PER_SGE_SHIFT)
+
+/* SGE ring related macros */
+#define NUM_RX_SGE_PAGES		2
+#define RX_SGE_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_sge))
+#define MAX_RX_SGE_CNT			(RX_SGE_CNT - 2)
+/* RX_SGE_CNT is promissed to be a power of 2 */
+#define RX_SGE_MASK			(RX_SGE_CNT - 1)
+#define NUM_RX_SGE			(RX_SGE_CNT * NUM_RX_SGE_PAGES)
+#define MAX_RX_SGE			(NUM_RX_SGE - 1)
+#define NEXT_SGE_IDX(x)		((((x) & RX_SGE_MASK) == \
+				  (MAX_RX_SGE_CNT - 1)) ? (x) + 3 : (x) + 1)
+#define RX_SGE(x)			((x) & MAX_RX_SGE)
+
+/* SGE producer mask related macros */
+/* Number of bits in one sge_mask array element */
+#define RX_SGE_MASK_ELEM_SZ		64
+#define RX_SGE_MASK_ELEM_SHIFT		6
+#define RX_SGE_MASK_ELEM_MASK		((u64)RX_SGE_MASK_ELEM_SZ - 1)
+
+/* Creates a bitmask of all ones in less significant bits.
+   idx - index of the most significant bit in the created mask */
+#define RX_SGE_ONES_MASK(idx) \
+		(((u64)0x1 << (((idx) & RX_SGE_MASK_ELEM_MASK) + 1)) - 1)
+#define RX_SGE_MASK_ELEM_ONE_MASK	((u64)(~0))
+
+/* Number of u64 elements in SGE mask array */
+#define RX_SGE_MASK_LEN			((NUM_RX_SGE_PAGES * RX_SGE_CNT) / \
+					 RX_SGE_MASK_ELEM_SZ)
+#define RX_SGE_MASK_LEN_MASK		(RX_SGE_MASK_LEN - 1)
+#define NEXT_SGE_MASK_ELEM(el)		(((el) + 1) & RX_SGE_MASK_LEN_MASK)
+
 
 struct bnx2x_fastpath {
 
@@ -159,13 +205,20 @@ struct bnx2x_fastpath {
 	struct eth_tx_bd	*tx_desc_ring;
 	dma_addr_t		tx_desc_mapping;
 
-	struct sw_rx_bd 	*rx_buf_ring;
+	struct sw_rx_bd		*rx_buf_ring;	/* BDs mappings ring */
+	struct sw_rx_page	*rx_page_ring;	/* SGE pages mappings ring */
 
 	struct eth_rx_bd	*rx_desc_ring;
 	dma_addr_t		rx_desc_mapping;
 
 	union eth_rx_cqe	*rx_comp_ring;
 	dma_addr_t		rx_comp_mapping;
+
+	/* SGE ring */
+	struct eth_rx_sge	*rx_sge_ring;
+	dma_addr_t		rx_sge_mapping;
+
+	u64			sge_mask[RX_SGE_MASK_LEN];
 
 	int			state;
 #define BNX2X_FP_STATE_CLOSED		0
@@ -197,26 +250,151 @@ struct bnx2x_fastpath {
 	u16			rx_bd_cons;
 	u16			rx_comp_prod;
 	u16			rx_comp_cons;
+	u16			rx_sge_prod;
+	/* The last maximal completed SGE */
+	u16			last_max_sge;
 	u16			*rx_cons_sb;
+	u16			*rx_bd_cons_sb;
 
 	unsigned long		tx_pkt,
 				rx_pkt,
-				rx_calls;
+				rx_calls,
+				rx_alloc_failed;
+	/* TPA related */
+	struct sw_rx_bd		tpa_pool[ETH_MAX_AGGREGATION_QUEUES_E1H];
+	u8			tpa_state[ETH_MAX_AGGREGATION_QUEUES_E1H];
+#define BNX2X_TPA_START			1
+#define BNX2X_TPA_STOP			2
+	u8			disable_tpa;
+#ifdef BNX2X_STOP_ON_ERROR
+	u64			tpa_queue_used;
+#endif
 
 	struct bnx2x		*bp; /* parent */
 };
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
+
+
+/* MC hsi */
+#define MAX_FETCH_BD			13	/* HW max BDs per packet */
+#define RX_COPY_THRESH			92
+
+#define NUM_TX_RINGS			16
+#define TX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_tx_bd))
+#define MAX_TX_DESC_CNT			(TX_DESC_CNT - 1)
+#define NUM_TX_BD			(TX_DESC_CNT * NUM_TX_RINGS)
+#define MAX_TX_BD			(NUM_TX_BD - 1)
+#define MAX_TX_AVAIL			(MAX_TX_DESC_CNT * NUM_TX_RINGS - 2)
+#define NEXT_TX_IDX(x)		((((x) & MAX_TX_DESC_CNT) == \
+				  (MAX_TX_DESC_CNT - 1)) ? (x) + 2 : (x) + 1)
+#define TX_BD(x)			((x) & MAX_TX_BD)
+#define TX_BD_POFF(x)			((x) & MAX_TX_DESC_CNT)
+
+/* The RX BD ring is special, each bd is 8 bytes but the last one is 16 */
+#define NUM_RX_RINGS			8
+#define RX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
+#define MAX_RX_DESC_CNT			(RX_DESC_CNT - 2)
+#define RX_DESC_MASK			(RX_DESC_CNT - 1)
+#define NUM_RX_BD			(RX_DESC_CNT * NUM_RX_RINGS)
+#define MAX_RX_BD			(NUM_RX_BD - 1)
+#define MAX_RX_AVAIL			(MAX_RX_DESC_CNT * NUM_RX_RINGS - 2)
+#define NEXT_RX_IDX(x)		((((x) & RX_DESC_MASK) == \
+				  (MAX_RX_DESC_CNT - 1)) ? (x) + 3 : (x) + 1)
+#define RX_BD(x)			((x) & MAX_RX_BD)
+
+/* As long as CQE is 4 times bigger than BD entry we have to allocate
+   4 times more pages for CQ ring in order to keep it balanced with
+   BD ring */
+#define NUM_RCQ_RINGS			(NUM_RX_RINGS * 4)
+#define RCQ_DESC_CNT		(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
+#define MAX_RCQ_DESC_CNT		(RCQ_DESC_CNT - 1)
+#define NUM_RCQ_BD			(RCQ_DESC_CNT * NUM_RCQ_RINGS)
+#define MAX_RCQ_BD			(NUM_RCQ_BD - 1)
+#define MAX_RCQ_AVAIL			(MAX_RCQ_DESC_CNT * NUM_RCQ_RINGS - 2)
+#define NEXT_RCQ_IDX(x)		((((x) & MAX_RCQ_DESC_CNT) == \
+				  (MAX_RCQ_DESC_CNT - 1)) ? (x) + 2 : (x) + 1)
+#define RCQ_BD(x)			((x) & MAX_RCQ_BD)
+
+
 /* This is needed for determening of last_max */
 #define SUB_S16(a, b)			(s16)((s16)(a) - (s16)(b))
+
+#define __SGE_MASK_SET_BIT(el, bit) \
+	do { \
+		el = ((el) | ((u64)0x1 << (bit))); \
+	} while (0)
+
+#define __SGE_MASK_CLEAR_BIT(el, bit) \
+	do { \
+		el = ((el) & (~((u64)0x1 << (bit)))); \
+	} while (0)
+
+#define SGE_MASK_SET_BIT(fp, idx) \
+	__SGE_MASK_SET_BIT(fp->sge_mask[(idx) >> RX_SGE_MASK_ELEM_SHIFT], \
+			   ((idx) & RX_SGE_MASK_ELEM_MASK))
+
+#define SGE_MASK_CLEAR_BIT(fp, idx) \
+	__SGE_MASK_CLEAR_BIT(fp->sge_mask[(idx) >> RX_SGE_MASK_ELEM_SHIFT], \
+			     ((idx) & RX_SGE_MASK_ELEM_MASK))
+
+
+/* used on a CID received from the HW */
+#define SW_CID(x)			(le32_to_cpu(x) & \
+					 (COMMON_RAMROD_ETH_RX_CQE_CID >> 7))
+#define CQE_CMD(x)			(le32_to_cpu(x) >> \
+					COMMON_RAMROD_ETH_RX_CQE_CMD_ID_SHIFT)
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr_hi), \
 						 le32_to_cpu((bd)->addr_lo))
 #define BD_UNMAP_LEN(bd)		(le16_to_cpu((bd)->nbytes))
 
+
+#define DPM_TRIGER_TYPE			0x40
+#define DOORBELL(bp, cid, val) \
+	do { \
+		writel((u32)val, (bp)->doorbells + (BCM_PAGE_SIZE * cid) + \
+		       DPM_TRIGER_TYPE); \
+	} while (0)
+
+
+/* TX CSUM helpers */
+#define SKB_CS_OFF(skb)		(offsetof(struct tcphdr, check) - \
+				 skb->csum_offset)
+#define SKB_CS(skb)		(*(u16 *)(skb_transport_header(skb) + \
+					  skb->csum_offset))
+
+#define pbd_tcp_flags(skb)	(ntohl(tcp_flag_word(tcp_hdr(skb)))>>16 & 0xff)
+
+#define XMIT_PLAIN			0
+#define XMIT_CSUM_V4			0x1
+#define XMIT_CSUM_V6			0x2
+#define XMIT_CSUM_TCP			0x4
+#define XMIT_GSO_V4			0x8
+#define XMIT_GSO_V6			0x10
+
+#define XMIT_CSUM			(XMIT_CSUM_V4 | XMIT_CSUM_V6)
+#define XMIT_GSO			(XMIT_GSO_V4 | XMIT_GSO_V6)
+
+
 /* stuff added to make the code fit 80Col */
 
 #define CQE_TYPE(cqe_fp_flags)	((cqe_fp_flags) & ETH_FAST_PATH_RX_CQE_TYPE)
+
+#define TPA_TYPE_START			ETH_FAST_PATH_RX_CQE_START_FLG
+#define TPA_TYPE_END			ETH_FAST_PATH_RX_CQE_END_FLG
+#define TPA_TYPE(cqe_fp_flags)		((cqe_fp_flags) & \
+					 (TPA_TYPE_START | TPA_TYPE_END))
+
+#define BNX2X_RX_SUM_OK(cqe) \
+			(!(cqe->fast_path_cqe.status_flags & \
+			 (ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG | \
+			  ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG)))
+
+#define BNX2X_RX_SUM_FIX(cqe) \
+			((le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) & \
+			  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) == \
+			 (1 << PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT))
 
 #define ETH_RX_ERROR_FALGS	(ETH_FAST_PATH_RX_CQE_PHY_DECODE_ERR_FLG | \
 				 ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG | \
@@ -246,6 +424,9 @@ struct bnx2x_fastpath {
 
 #define BNX2X_TX_SB_INDEX \
 	(&fp->status_blk->c_status_block.index_values[C_SB_ETH_TX_CQ_INDEX])
+
+
+/* end of fast path */
 
 /* common */
 
@@ -546,7 +727,7 @@ struct bnx2x {
 	struct pci_dev		*pdev;
 
 	atomic_t		intr_sem;
-	struct msix_entry       msix_table[MAX_CONTEXT+1];
+	struct msix_entry	msix_table[MAX_CONTEXT+1];
 
 	int			tx_ring_size;
 
@@ -604,6 +785,7 @@ struct bnx2x {
 #define USING_DAC_FLAG			0x10
 #define USING_MSIX_FLAG			0x20
 #define ASF_ENABLE_FLAG			0x40
+#define TPA_ENABLE_FLAG			0x80
 #define NO_MCP_FLAG			0x100
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
 
@@ -725,76 +907,6 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		      u32 len32);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode);
 
-
-/* MC hsi */
-#define RX_COPY_THRESH  		92
-#define BCM_PAGE_SHIFT			12
-#define BCM_PAGE_SIZE			(1 << BCM_PAGE_SHIFT)
-#define BCM_PAGE_MASK			(~(BCM_PAGE_SIZE - 1))
-#define BCM_PAGE_ALIGN(addr)	(((addr) + BCM_PAGE_SIZE - 1) & BCM_PAGE_MASK)
-
-#define NUM_TX_RINGS    		16
-#define TX_DESC_CNT     	(BCM_PAGE_SIZE / sizeof(struct eth_tx_bd))
-#define MAX_TX_DESC_CNT 		(TX_DESC_CNT - 1)
-#define NUM_TX_BD       		(TX_DESC_CNT * NUM_TX_RINGS)
-#define MAX_TX_BD       		(NUM_TX_BD - 1)
-#define MAX_TX_AVAIL    		(MAX_TX_DESC_CNT * NUM_TX_RINGS - 2)
-#define NEXT_TX_IDX(x)  	((((x) & MAX_TX_DESC_CNT) == \
-				 (MAX_TX_DESC_CNT - 1)) ? (x) + 2 : (x) + 1)
-#define TX_BD(x)			((x) & MAX_TX_BD)
-#define TX_BD_POFF(x)   		((x) & MAX_TX_DESC_CNT)
-
-/* The RX BD ring is special, each bd is 8 bytes but the last one is 16 */
-#define NUM_RX_RINGS    		8
-#define RX_DESC_CNT     	(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
-#define MAX_RX_DESC_CNT 		(RX_DESC_CNT - 2)
-#define RX_DESC_MASK    		(RX_DESC_CNT - 1)
-#define NUM_RX_BD       		(RX_DESC_CNT * NUM_RX_RINGS)
-#define MAX_RX_BD       		(NUM_RX_BD - 1)
-#define MAX_RX_AVAIL    		(MAX_RX_DESC_CNT * NUM_RX_RINGS - 2)
-#define NEXT_RX_IDX(x)  	((((x) & RX_DESC_MASK) == \
-				 (MAX_RX_DESC_CNT - 1)) ? (x) + 3 : (x) + 1)
-#define RX_BD(x)			((x) & MAX_RX_BD)
-
-#define NUM_RCQ_RINGS   		(NUM_RX_RINGS * 2)
-#define RCQ_DESC_CNT    	(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
-#define MAX_RCQ_DESC_CNT		(RCQ_DESC_CNT - 1)
-#define NUM_RCQ_BD      		(RCQ_DESC_CNT * NUM_RCQ_RINGS)
-#define MAX_RCQ_BD      		(NUM_RCQ_BD - 1)
-#define MAX_RCQ_AVAIL   		(MAX_RCQ_DESC_CNT * NUM_RCQ_RINGS - 2)
-#define NEXT_RCQ_IDX(x) 	((((x) & MAX_RCQ_DESC_CNT) == \
-				 (MAX_RCQ_DESC_CNT - 1)) ? (x) + 2 : (x) + 1)
-#define RCQ_BD(x)       		((x) & MAX_RCQ_BD)
-
-
-/* used on a CID received from the HW */
-#define SW_CID(x)       		(le32_to_cpu(x) & \
-					 (COMMON_RAMROD_ETH_RX_CQE_CID >> 1))
-#define CQE_CMD(x)      		(le32_to_cpu(x) >> \
-					COMMON_RAMROD_ETH_RX_CQE_CMD_ID_SHIFT)
-
-#define STROM_ASSERT_ARRAY_SIZE 	50
-
-
-
-/* must be used on a CID before placing it on a HW ring */
-#define HW_CID(bp, x)		((BP_PORT(bp) << 23) | (BP_E1HVN(bp) << 17) | x)
-
-#define SP_DESC_CNT     	(BCM_PAGE_SIZE / sizeof(struct eth_spe))
-#define MAX_SP_DESC_CNT 		(SP_DESC_CNT - 1)
-
-
-#define BNX2X_BTR       		3
-#define MAX_SPQ_PENDING 		8
-
-
-#define DPM_TRIGER_TYPE 		0x40
-#define DOORBELL(bp, cid, val) \
-	do { \
-		writel((u32)val, (bp)->doorbells + (BCM_PAGE_SIZE * cid) + \
-		       DPM_TRIGER_TYPE); \
-	} while (0)
-
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
 {
@@ -874,14 +986,20 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_LOOPBACK_FAILED		(BNX2X_MAC_LOOPBACK_FAILED | \
 					 BNX2X_PHY_LOOPBACK_FAILED)
 
-#define pbd_tcp_flags(skb)  	(ntohl(tcp_flag_word(tcp_hdr(skb)))>>16 & 0xff)
+
+#define STROM_ASSERT_ARRAY_SIZE		50
+
 
 /* must be used on a CID before placing it on a HW ring */
+#define HW_CID(bp, x)		((BP_PORT(bp) << 23) | (BP_E1HVN(bp) << 17) | x)
 
-#define BNX2X_RX_SUM_OK(cqe) \
-			(!(cqe->fast_path_cqe.status_flags & \
-			 (ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG | \
-			  ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG)))
+#define SP_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_spe))
+#define MAX_SP_DESC_CNT			(SP_DESC_CNT - 1)
+
+
+#define BNX2X_BTR			3
+#define MAX_SPQ_PENDING			8
+
 
 /* CMNG constants
    derived from lab experiments, and not from system spec calculations !!! */
