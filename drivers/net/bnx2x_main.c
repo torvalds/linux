@@ -137,7 +137,6 @@ static void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val)
 			       PCICFG_VENDOR_ID_OFFSET);
 }
 
-#ifdef BNX2X_IND_RD
 static u32 bnx2x_reg_rd_ind(struct bnx2x *bp, u32 addr)
 {
 	u32 val;
@@ -149,7 +148,6 @@ static u32 bnx2x_reg_rd_ind(struct bnx2x *bp, u32 addr)
 
 	return val;
 }
-#endif
 
 static const u32 dmae_reg_go_c[] = {
 	DMAE_REG_GO_C0, DMAE_REG_GO_C1, DMAE_REG_GO_C2, DMAE_REG_GO_C3,
@@ -169,19 +167,29 @@ static void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae,
 	for (i = 0; i < (sizeof(struct dmae_command)/4); i++) {
 		REG_WR(bp, cmd_offset + i*4, *(((u32 *)dmae) + i));
 
-/*      	DP(NETIF_MSG_DMAE, "DMAE cmd[%d].%d (0x%08x) : 0x%08x\n",
-		   idx, i, cmd_offset + i*4, *(((u32 *)dmae) + i)); */
+		DP(BNX2X_MSG_OFF, "DMAE cmd[%d].%d (0x%08x) : 0x%08x\n",
+		   idx, i, cmd_offset + i*4, *(((u32 *)dmae) + i));
 	}
 	REG_WR(bp, dmae_reg_go_c[idx], 1);
 }
 
-void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr,
-			     u32 dst_addr, u32 len32)
+void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
+		      u32 len32)
 {
-	struct dmae_command *dmae = &bp->dmae;
-	int port = bp->port;
+	struct dmae_command *dmae = &bp->init_dmae;
 	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
-	int timeout = 200;
+	int cnt = 200;
+
+	if (!bp->dmae_ready) {
+		u32 *data = bnx2x_sp(bp, wb_data[0]);
+
+		DP(BNX2X_MSG_OFF, "DMAE is not ready (dst_addr %08x  len32 %d)"
+		   "  using indirect\n", dst_addr, len32);
+		bnx2x_init_ind_wr(bp, dst_addr, data, len32);
+		return;
+	}
+
+	mutex_lock(&bp->dmae_mutex);
 
 	memset(dmae, 0, sizeof(struct dmae_command));
 
@@ -193,7 +201,7 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr,
 #else
 			DMAE_CMD_ENDIANITY_DW_SWAP |
 #endif
-			(port ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0));
+			(bp->port ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0));
 	dmae->src_addr_lo = U64_LO(dma_addr);
 	dmae->src_addr_hi = U64_HI(dma_addr);
 	dmae->dst_addr_lo = dst_addr >> 2;
@@ -201,48 +209,62 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr,
 	dmae->len = len32;
 	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_comp));
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
-	dmae->comp_val = BNX2X_WB_COMP_VAL;
+	dmae->comp_val = DMAE_COMP_VAL;
 
-/*
-	DP(NETIF_MSG_DMAE, "dmae: opcode 0x%08x\n"
+	DP(BNX2X_MSG_OFF, "dmae: opcode 0x%08x\n"
 	   DP_LEVEL "src_addr  [%x:%08x]  len [%d *4]  "
 		    "dst_addr [%x:%08x (%08x)]\n"
 	   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
 	   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
 	   dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo, dst_addr,
 	   dmae->comp_addr_hi, dmae->comp_addr_lo, dmae->comp_val);
-*/
-/*
-	DP(NETIF_MSG_DMAE, "data [0x%08x 0x%08x 0x%08x 0x%08x]\n",
+	DP(BNX2X_MSG_OFF, "data [0x%08x 0x%08x 0x%08x 0x%08x]\n",
 	   bp->slowpath->wb_data[0], bp->slowpath->wb_data[1],
 	   bp->slowpath->wb_data[2], bp->slowpath->wb_data[3]);
-*/
 
 	*wb_comp = 0;
 
-	bnx2x_post_dmae(bp, dmae, port * 8);
+	bnx2x_post_dmae(bp, dmae, (bp->port)*MAX_DMAE_C_PER_PORT);
 
 	udelay(5);
-	/* adjust timeout for emulation/FPGA */
-	if (CHIP_REV_IS_SLOW(bp))
-		timeout *= 100;
-	while (*wb_comp != BNX2X_WB_COMP_VAL) {
-/*      	DP(NETIF_MSG_DMAE, "wb_comp 0x%08x\n", *wb_comp); */
-		udelay(5);
-		if (!timeout) {
+
+	while (*wb_comp != DMAE_COMP_VAL) {
+		DP(BNX2X_MSG_OFF, "wb_comp 0x%08x\n", *wb_comp);
+
+		/* adjust delay for emulation/FPGA */
+		if (CHIP_REV_IS_SLOW(bp))
+			msleep(100);
+		else
+			udelay(5);
+
+		if (!cnt) {
 			BNX2X_ERR("dmae timeout!\n");
 			break;
 		}
-		timeout--;
+		cnt--;
 	}
+
+	mutex_unlock(&bp->dmae_mutex);
 }
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 {
-	struct dmae_command *dmae = &bp->dmae;
-	int port = bp->port;
+	struct dmae_command *dmae = &bp->init_dmae;
 	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
-	int timeout = 200;
+	int cnt = 200;
+
+	if (!bp->dmae_ready) {
+		u32 *data = bnx2x_sp(bp, wb_data[0]);
+		int i;
+
+		DP(BNX2X_MSG_OFF, "DMAE is not ready (src_addr %08x  len32 %d)"
+		   "  using indirect\n", src_addr, len32);
+		for (i = 0; i < len32; i++)
+			data[i] = bnx2x_reg_rd_ind(bp, src_addr + i*4);
+		return;
+	}
+
+	mutex_lock(&bp->dmae_mutex);
 
 	memset(bnx2x_sp(bp, wb_data[0]), 0, sizeof(u32) * 4);
 	memset(dmae, 0, sizeof(struct dmae_command));
@@ -255,7 +277,7 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 #else
 			DMAE_CMD_ENDIANITY_DW_SWAP |
 #endif
-			(port ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0));
+			(bp->port ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0));
 	dmae->src_addr_lo = src_addr >> 2;
 	dmae->src_addr_hi = 0;
 	dmae->dst_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_data));
@@ -263,37 +285,63 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	dmae->len = len32;
 	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_comp));
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
-	dmae->comp_val = BNX2X_WB_COMP_VAL;
+	dmae->comp_val = DMAE_COMP_VAL;
 
-/*
-	DP(NETIF_MSG_DMAE, "dmae: opcode 0x%08x\n"
+	DP(BNX2X_MSG_OFF, "dmae: opcode 0x%08x\n"
 	   DP_LEVEL "src_addr  [%x:%08x]  len [%d *4]  "
 		    "dst_addr [%x:%08x (%08x)]\n"
 	   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
 	   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
 	   dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo, src_addr,
 	   dmae->comp_addr_hi, dmae->comp_addr_lo, dmae->comp_val);
-*/
 
 	*wb_comp = 0;
 
-	bnx2x_post_dmae(bp, dmae, port * 8);
+	bnx2x_post_dmae(bp, dmae, (bp->port)*MAX_DMAE_C_PER_PORT);
 
 	udelay(5);
-	while (*wb_comp != BNX2X_WB_COMP_VAL) {
-		udelay(5);
-		if (!timeout) {
+
+	while (*wb_comp != DMAE_COMP_VAL) {
+
+		/* adjust delay for emulation/FPGA */
+		if (CHIP_REV_IS_SLOW(bp))
+			msleep(100);
+		else
+			udelay(5);
+
+		if (!cnt) {
 			BNX2X_ERR("dmae timeout!\n");
 			break;
 		}
-		timeout--;
+		cnt--;
 	}
-/*
-	DP(NETIF_MSG_DMAE, "data [0x%08x 0x%08x 0x%08x 0x%08x]\n",
+	DP(BNX2X_MSG_OFF, "data [0x%08x 0x%08x 0x%08x 0x%08x]\n",
 	   bp->slowpath->wb_data[0], bp->slowpath->wb_data[1],
 	   bp->slowpath->wb_data[2], bp->slowpath->wb_data[3]);
-*/
+
+	mutex_unlock(&bp->dmae_mutex);
 }
+
+/* used only for slowpath so not inlined */
+static void bnx2x_wb_wr(struct bnx2x *bp, int reg, u32 val_hi, u32 val_lo)
+{
+	u32 wb_write[2];
+
+	wb_write[0] = val_hi;
+	wb_write[1] = val_lo;
+	REG_WR_DMAE(bp, reg, wb_write, 2);
+}
+
+#ifdef USE_WB_RD
+static u64 bnx2x_wb_rd(struct bnx2x *bp, int reg)
+{
+	u32 wb_data[2];
+
+	REG_RD_DMAE(bp, reg, wb_data, 2);
+
+	return HILO_U64(wb_data[0], wb_data[1]);
+}
+#endif
 
 static int bnx2x_mc_assert(struct bnx2x *bp)
 {
@@ -3438,17 +3486,12 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	int count, i;
 	u32 val = 0;
 
-	switch (CHIP_REV(bp)) {
-	case CHIP_REV_EMUL:
-		factor = 200;
-		break;
-	case CHIP_REV_FPGA:
+	if (CHIP_REV_IS_FPGA(bp))
 		factor = 120;
-		break;
-	default:
+	else if (CHIP_REV_IS_EMUL(bp))
+		factor = 200;
+	else
 		factor = 1;
-		break;
-	}
 
 	DP(NETIF_MSG_HW, "start part1\n");
 
@@ -3777,10 +3820,14 @@ static int bnx2x_function_init(struct bnx2x *bp, int mode)
 		bnx2x_init_block(bp, USDM_COMMON_START, USDM_COMMON_END);
 		bnx2x_init_block(bp, XSDM_COMMON_START, XSDM_COMMON_END);
 
-		bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE);
-		bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE);
-		bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE);
-		bnx2x_init_fill(bp, USTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE);
+		bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR, 0,
+				STORM_INTMEM_SIZE_E1);
+		bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR, 0,
+				STORM_INTMEM_SIZE_E1);
+		bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR, 0,
+				STORM_INTMEM_SIZE_E1);
+		bnx2x_init_fill(bp, USTORM_INTMEM_ADDR, 0,
+				STORM_INTMEM_SIZE_E1);
 
 		bnx2x_init_block(bp, TSEM_COMMON_START, TSEM_COMMON_END);
 		bnx2x_init_block(bp, USEM_COMMON_START, USEM_COMMON_END);
@@ -3990,8 +4037,7 @@ static int bnx2x_function_init(struct bnx2x *bp, int mode)
 #endif
 	/* Port DQ comes here */
 	/* Port BRB1 comes here */
-	bnx2x_init_block(bp, func ? PRS_PORT1_START : PRS_PORT0_START,
-			     func ? PRS_PORT1_END : PRS_PORT0_END);
+	/* Port PRS comes here */
 	/* Port TSDM comes here */
 	/* Port CSDM comes here */
 	/* Port USDM comes here */
@@ -7264,12 +7310,6 @@ static int __devinit bnx2x_init_board(struct pci_dev *pdev,
 
 	bnx2x_get_hwinfo(bp);
 
-	if (CHIP_REV(bp) == CHIP_REV_FPGA) {
-		printk(KERN_ERR PFX "FPGA detected. MCP disabled,"
-		       " will only init first device\n");
-		onefunc = 1;
-		nomcp = 1;
-	}
 
 	if (nomcp) {
 		printk(KERN_ERR PFX "MCP disabled, will only"

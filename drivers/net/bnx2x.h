@@ -557,25 +557,37 @@ struct bnx2x {
 
 	u32     		shmem_base;
 
-	u32     		chip_id;
+	u32			chip_id;
 /* chip num:16-31, rev:12-15, metal:4-11, bond_id:0-3 */
-#define CHIP_ID(bp)     		(((bp)->chip_id) & 0xfffffff0)
+#define CHIP_ID(bp)			(bp->chip_id & 0xfffffff0)
 
-#define CHIP_NUM(bp)    		(((bp)->chip_id) & 0xffff0000)
+#define CHIP_NUM(bp)			(bp->chip_id >> 16)
+#define CHIP_NUM_57710			0x164e
+#define CHIP_NUM_57711			0x164f
+#define CHIP_NUM_57711E			0x1650
+#define CHIP_IS_E1(bp)			(CHIP_NUM(bp) == CHIP_NUM_57710)
+#define CHIP_IS_57711(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711)
+#define CHIP_IS_57711E(bp)		(CHIP_NUM(bp) == CHIP_NUM_57711E)
+#define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
+					 CHIP_IS_57711E(bp))
+#define IS_E1H_OFFSET			CHIP_IS_E1H(bp)
 
-#define CHIP_REV(bp)    		(((bp)->chip_id) & 0x0000f000)
-#define CHIP_REV_Ax     		0x00000000
-#define CHIP_REV_Bx     		0x00001000
-#define CHIP_REV_Cx     		0x00002000
-#define CHIP_REV_EMUL   		0x0000e000
-#define CHIP_REV_FPGA   		0x0000f000
-#define CHIP_REV_IS_SLOW(bp)    	((CHIP_REV(bp) == CHIP_REV_EMUL) || \
-					 (CHIP_REV(bp) == CHIP_REV_FPGA))
-#define CHIP_REV_IS_EMUL(bp)		(CHIP_REV(bp) == CHIP_REV_EMUL)
-#define CHIP_REV_IS_FPGA(bp)		(CHIP_REV(bp) == CHIP_REV_FPGA)
+#define CHIP_REV(bp)			(bp->chip_id & 0x0000f000)
+#define CHIP_REV_Ax			0x00000000
+/* assume maximum 5 revisions */
+#define CHIP_REV_IS_SLOW(bp)		(CHIP_REV(bp) > 0x00005000)
+/* Emul versions are A=>0xe, B=>0xc, C=>0xa, D=>8, E=>6 */
+#define CHIP_REV_IS_EMUL(bp)		((CHIP_REV_IS_SLOW(bp)) && \
+					 !(CHIP_REV(bp) & 0x00001000))
+/* FPGA versions are A=>0xf, B=>0xd, C=>0xb, D=>9, E=>7 */
+#define CHIP_REV_IS_FPGA(bp)		((CHIP_REV_IS_SLOW(bp)) && \
+					 (CHIP_REV(bp) & 0x00001000))
 
-#define CHIP_METAL(bp)  		(((bp)->chip_id) & 0x00000ff0)
-#define CHIP_BOND_ID(bp)		(((bp)->chip_id) & 0x0000000f)
+#define CHIP_TIME(bp)			((CHIP_REV_IS_EMUL(bp)) ? 2000 : \
+					((CHIP_REV_IS_FPGA(bp)) ? 200 : 1))
+
+#define CHIP_METAL(bp)			(bp->chip_id & 0x00000ff0)
+#define CHIP_BOND_ID(bp)		(bp->chip_id & 0x0000000f)
 
 	u16     		fw_seq;
 	u16     		fw_drv_pulse_wr_seq;
@@ -678,6 +690,13 @@ struct bnx2x {
 	struct dmae_command     dmae;
 	int     		executer_idx;
 
+	int			dmae_ready;
+	/* used to synchronize dmae accesses */
+	struct mutex		dmae_mutex;
+	struct dmae_command	init_dmae;
+
+
+
 	u32     		old_brb_discard;
 	struct bmac_stats       old_bmac;
 	struct tstorm_per_client_stats old_tclient;
@@ -685,7 +704,7 @@ struct bnx2x {
 	void    		*gunzip_buf;
 	dma_addr_t      	gunzip_mapping;
 	int     		gunzip_outlen;
-#define FW_BUF_SIZE     		0x8000
+#define FW_BUF_SIZE			0x8000
 
 };
 
@@ -774,12 +793,6 @@ int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode);
 #define STROM_ASSERT_ARRAY_SIZE 	50
 
 
-#define MDIO_INDIRECT_REG_ADDR  	0x1f
-#define MDIO_SET_REG_BANK(bp, reg_bank) \
-		bnx2x_mdio22_write(bp, MDIO_INDIRECT_REG_ADDR, reg_bank)
-
-#define MDIO_ACCESS_TIMEOUT     	1000
-
 
 /* must be used on a CID before placing it on a HW ring */
 #define HW_CID(bp, x)   		(x | (bp->port << 23))
@@ -817,6 +830,42 @@ int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode);
 		writel((u32)val, (bp)->doorbells + (BCM_PAGE_SIZE * cid) + \
 		       DPM_TRIGER_TYPE); \
 	} while (0)
+
+/* DMAE command defines */
+#define DMAE_CMD_SRC_PCI		0
+#define DMAE_CMD_SRC_GRC		DMAE_COMMAND_SRC
+
+#define DMAE_CMD_DST_PCI		(1 << DMAE_COMMAND_DST_SHIFT)
+#define DMAE_CMD_DST_GRC		(2 << DMAE_COMMAND_DST_SHIFT)
+
+#define DMAE_CMD_C_DST_PCI		0
+#define DMAE_CMD_C_DST_GRC		(1 << DMAE_COMMAND_C_DST_SHIFT)
+
+#define DMAE_CMD_C_ENABLE		DMAE_COMMAND_C_TYPE_ENABLE
+
+#define DMAE_CMD_ENDIANITY_NO_SWAP	(0 << DMAE_COMMAND_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_B_SWAP	(1 << DMAE_COMMAND_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_DW_SWAP	(2 << DMAE_COMMAND_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_B_DW_SWAP	(3 << DMAE_COMMAND_ENDIANITY_SHIFT)
+
+#define DMAE_CMD_PORT_0			0
+#define DMAE_CMD_PORT_1			DMAE_COMMAND_PORT
+
+#define DMAE_CMD_SRC_RESET		DMAE_COMMAND_SRC_RESET
+#define DMAE_CMD_DST_RESET		DMAE_COMMAND_DST_RESET
+#define DMAE_CMD_E1HVN_SHIFT		DMAE_COMMAND_E1HVN_SHIFT
+
+#define DMAE_LEN32_RD_MAX		0x80
+#define DMAE_LEN32_WR_MAX		0x400
+
+#define DMAE_COMP_VAL			0xe0d0d0ae
+
+#define MAX_DMAE_C_PER_PORT		8
+#define INIT_DMAE_C(bp)			(BP_PORT(bp)*MAX_DMAE_C_PER_PORT + \
+					 BP_E1HVN(bp))
+#define PMF_DMAE_C(bp)			(BP_PORT(bp)*MAX_DMAE_C_PER_PORT + \
+					 E1HVN_MAX)
+
 
 /* PCIE link and speed */
 #define PCICFG_LINK_WIDTH		0x1f00000

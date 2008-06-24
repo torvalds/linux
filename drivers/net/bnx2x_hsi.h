@@ -522,8 +522,21 @@ struct dev_info {						     /* size */
 
 #define FUNC_0				0
 #define FUNC_1				1
+#define FUNC_2				2
+#define FUNC_3				3
+#define FUNC_4				4
+#define FUNC_5				5
+#define FUNC_6				6
+#define FUNC_7				7
 #define E1_FUNC_MAX			2
-#define FUNC_MAX			E1_FUNC_MAX
+#define E1H_FUNC_MAX			8
+
+#define VN_0				0
+#define VN_1				1
+#define VN_2				2
+#define VN_3				3
+#define E1VN_MAX			1
+#define E1HVN_MAX			4
 
 
 /* This value (in milliseconds) determines the frequency of the driver
@@ -747,7 +760,11 @@ struct shmem_region {			       /*   SharedMem Offset (size) */
 	struct mgmtfw_state	mgmtfw_state;	       /* 0x4ac     (0x1b8) */
 
 	struct drv_port_mb	port_mb[PORT_MAX];     /* 0x664 (16*2=0x20) */
-	struct drv_func_mb	func_mb[FUNC_MAX];     /* 0x684 (44*2=0x58) */
+#if defined(b710)
+	struct drv_func_mb	func_mb[E1_FUNC_MAX];  /* 0x684 (44*2=0x58) */
+#else
+	struct drv_func_mb	func_mb[E1H_FUNC_MAX];
+#endif
 
 };						       /* 0x6dc */
 
@@ -901,8 +918,10 @@ struct dmae_command {
 #define DMAE_COMMAND_SRC_RESET_SHIFT 13
 #define DMAE_COMMAND_DST_RESET (0x1<<14)
 #define DMAE_COMMAND_DST_RESET_SHIFT 14
-#define DMAE_COMMAND_RESERVED0 (0x1FFFF<<15)
-#define DMAE_COMMAND_RESERVED0_SHIFT 15
+#define DMAE_COMMAND_E1HVN (0x3<<15)
+#define DMAE_COMMAND_E1HVN_SHIFT 15
+#define DMAE_COMMAND_RESERVED0 (0x7FFF<<17)
+#define DMAE_COMMAND_RESERVED0_SHIFT 17
 	u32 src_addr_lo;
 	u32 src_addr_hi;
 	u32 dst_addr_lo;
