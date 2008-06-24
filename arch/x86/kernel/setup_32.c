@@ -336,14 +336,6 @@ void __init setup_arch(char **cmdline_p)
 	early_ioremap_init();
 	reserve_setup_data();
 
-#ifdef CONFIG_EFI
-	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
-		     "EL32", 4)) {
-		efi_enabled = 1;
-		efi_reserve_early();
-	}
-#endif
-
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
 	screen_info = boot_params.screen_info;
 	edid_info = boot_params.edid_info;
@@ -363,10 +355,17 @@ void __init setup_arch(char **cmdline_p)
 	rd_prompt = ((boot_params.hdr.ram_size & RAMDISK_PROMPT_FLAG) != 0);
 	rd_doload = ((boot_params.hdr.ram_size & RAMDISK_LOAD_FLAG) != 0);
 #endif
+#ifdef CONFIG_EFI
+	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
+		     "EL32", 4)) {
+		efi_enabled = 1;
+		efi_reserve_early();
+	}
+#endif
+
 	ARCH_SETUP
 
 	setup_memory_map();
-
 	copy_edd();
 
 	if (!boot_params.hdr.root_flags)
