@@ -14,6 +14,7 @@
 #endif
 
 #define __ASM_SIZE(inst)	__ASM_SEL(inst##l, inst##q)
+#define __ASM_REG(reg)		__ASM_SEL(e##reg, r##reg)
 
 #define _ASM_PTR	__ASM_SEL(.long, .quad)
 #define _ASM_ALIGN	__ASM_SEL(.balign 4, .balign 8)
@@ -24,6 +25,8 @@
 #define _ASM_ADD	__ASM_SIZE(add)
 #define _ASM_SUB	__ASM_SIZE(sub)
 #define _ASM_XADD	__ASM_SIZE(xadd)
+#define _ASM_AX		__ASM_REG(ax)
+#define _ASM_DX		__ASM_REG(dx)
 
 /* Exception table entry */
 # define _ASM_EXTABLE(from,to) \

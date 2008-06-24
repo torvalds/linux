@@ -13,14 +13,13 @@
 /*
  * __get_user_X
  *
- * Inputs:	%rcx contains the address.
+ * Inputs:	%rax contains the address.
  *		The register is modified, but all changes are undone
  *		before returning because the C code doesn't know about it.
  *
  * Outputs:	%rax is error code (0 or -EFAULT)
  *		%rdx contains zero-extended value
  * 
- * %r8 is destroyed.
  *
  * These functions should not modify any other registers,
  * as they get called from within inline assembly.
@@ -32,14 +31,15 @@
 #include <asm/errno.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
+#include <asm/asm.h>
 
 	.text
 ENTRY(__get_user_1)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%rdx)
-	cmp TI_addr_limit(%rdx),%rax
+	GET_THREAD_INFO(%_ASM_DX)
+	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
-1:	movzb (%rax),%edx
+1:	movzb (%_ASM_AX),%edx
 	xor %eax,%eax
 	ret
 	CFI_ENDPROC
@@ -47,12 +47,12 @@ ENDPROC(__get_user_1)
 
 ENTRY(__get_user_2)
 	CFI_STARTPROC
-	add $1,%rax
+	add $1,%_ASM_AX
 	jc bad_get_user
-	GET_THREAD_INFO(%rdx)
-	cmp TI_addr_limit(%rdx),%rax
+	GET_THREAD_INFO(%_ASM_DX)
+	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
-2:	movzwl -1(%rax),%edx
+2:	movzwl -1(%_ASM_AX),%edx
 	xor %eax,%eax
 	ret
 	CFI_ENDPROC
@@ -60,12 +60,12 @@ ENDPROC(__get_user_2)
 
 ENTRY(__get_user_4)
 	CFI_STARTPROC
-	add $3,%rax
+	add $3,%_ASM_AX
 	jc bad_get_user
-	GET_THREAD_INFO(%rdx)
-	cmp TI_addr_limit(%rdx),%rax
+	GET_THREAD_INFO(%_ASM_DX)
+	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
-3:	mov -3(%rax),%edx
+3:	mov -3(%_ASM_AX),%edx
 	xor %eax,%eax
 	ret
 	CFI_ENDPROC
@@ -73,12 +73,12 @@ ENDPROC(__get_user_4)
 
 ENTRY(__get_user_8)
 	CFI_STARTPROC
-	add $7,%rax
+	add $7,%_ASM_AX
 	jc bad_get_user
-	GET_THREAD_INFO(%rdx)
-	cmp TI_addr_limit(%rdx),%rax
+	GET_THREAD_INFO(%_ASM_DX)
+	cmp TI_addr_limit(%_ASM_DX),%_ASM_AX
 	jae	bad_get_user
-4:	movq -7(%rax),%rdx
+4:	movq -7(%_ASM_AX),%_ASM_DX
 	xor %eax,%eax
 	ret
 	CFI_ENDPROC
@@ -87,7 +87,7 @@ ENDPROC(__get_user_8)
 bad_get_user:
 	CFI_STARTPROC
 	xor %edx,%edx
-	mov $(-EFAULT),%rax
+	mov $(-EFAULT),%_ASM_AX
 	ret
 	CFI_ENDPROC
 END(bad_get_user)
