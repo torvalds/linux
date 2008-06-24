@@ -343,6 +343,8 @@ static int dm9000_wait_eeprom(board_info_t *db)
 		if ((status & EPCR_ERRE) == 0)
 			break;
 
+		msleep(1);
+
 		if (timeout-- < 0) {
 			dev_dbg(db->dev, "timeout waiting EEPROM\n");
 			break;
