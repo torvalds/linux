@@ -42,29 +42,8 @@ static int quirk_gyration_remote(struct hid_usage *usage,
 	return 1;
 }
 
-static int quirk_cherry_genius_29e(struct hid_usage *usage,
-		struct hid_input *hidinput, unsigned long **bit, int *max)
-{
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
-		return 0;
-
-	switch (usage->hid & HID_USAGE) {
-		case 0x156: map_key_clear(KEY_WORDPROCESSOR);	break;
-		case 0x157: map_key_clear(KEY_SPREADSHEET);	break;
-		case 0x158: map_key_clear(KEY_PRESENTATION);	break;
-		case 0x15c: map_key_clear(KEY_STOP);		break;
-
-		default:
-			return 0;
-	}
-	return 1;
-}
-
 #define VENDOR_ID_GYRATION			0x0c16
 #define DEVICE_ID_GYRATION_REMOTE		0x0002
-
-#define VENDOR_ID_MONTEREY			0x0566
-#define DEVICE_ID_GENIUS_KB29E			0x3004
 
 static const struct hid_input_blacklist {
 	__u16 idVendor;
@@ -73,8 +52,6 @@ static const struct hid_input_blacklist {
 			int *);
 } hid_input_blacklist[] = {
 	{ VENDOR_ID_GYRATION, DEVICE_ID_GYRATION_REMOTE, quirk_gyration_remote },
-
-	{ VENDOR_ID_MONTEREY, DEVICE_ID_GENIUS_KB29E, quirk_cherry_genius_29e },
 
 	{ 0, 0, NULL }
 };

@@ -75,8 +75,6 @@ static const struct hid_rdesc_blacklist {
 	__u16 idProduct;
 	__u32 quirks;
 } hid_rdesc_blacklist[] = {
-	{ USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E, HID_QUIRK_RDESC_BUTTON_CONSUMER },
-
 	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_RDESC_SAMSUNG_REMOTE },
 
 	{ 0, 0 }
@@ -337,20 +335,8 @@ static void usbhid_fixup_samsung_irda_descriptor(unsigned char *rdesc,
 	}
 }
 
-static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rsize)
-{
-	if (rsize >= 30 && rdesc[29] == 0x05
-			&& rdesc[30] == 0x09) {
-		printk(KERN_INFO "Fixing up button/consumer in HID report descriptor\n");
-		rdesc[30] = 0x0c;
-	}
-}
-
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
-	if (quirks & HID_QUIRK_RDESC_BUTTON_CONSUMER)
-		usbhid_fixup_button_consumer_descriptor(rdesc, rsize);
-
 	if (quirks & HID_QUIRK_RDESC_SAMSUNG_REMOTE)
 		usbhid_fixup_samsung_irda_descriptor(rdesc, rsize);
 }
