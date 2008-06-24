@@ -55,6 +55,8 @@ void (*ia64_mark_idle)(int);
 
 unsigned long boot_option_idle_override = 0;
 EXPORT_SYMBOL(boot_option_idle_override);
+unsigned long idle_halt;
+EXPORT_SYMBOL(idle_halt);
 
 void
 ia64_do_show_stack (struct unw_frame_info *info, void *arg)

@@ -7,6 +7,10 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/clockchips.h>
+#include <asm/system.h>
+
+unsigned long idle_halt;
+EXPORT_SYMBOL(idle_halt);
 
 struct kmem_cache *task_xstate_cachep;
 
@@ -325,7 +329,18 @@ static int __init idle_setup(char *str)
 		pm_idle = poll_idle;
 	} else if (!strcmp(str, "mwait"))
 		force_mwait = 1;
-	else
+	else if (!strcmp(str, "halt")) {
+		/*
+		 * When the boot option of idle=halt is added, halt is
+		 * forced to be used for CPU idle. In such case CPU C2/C3
+		 * won't be used again.
+		 * To continue to load the CPU idle driver, don't touch
+		 * the boot_option_idle_override.
+		 */
+		pm_idle = default_idle;
+		idle_halt = 1;
+		return 0;
+	} else
 		return -1;
 
 	boot_option_idle_override = 1;
