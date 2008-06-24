@@ -131,7 +131,7 @@ extern void __put_user_bad(void);
 	asm volatile("call __put_user_" #size				\
 		     :"=a" (ret)					\
 		     :"c" (ptr),"d" (x)					\
-		     :"r8")
+		     :"ebx")
 
 #define put_user(x, ptr)						\
 	__put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))

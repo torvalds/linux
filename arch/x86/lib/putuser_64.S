@@ -18,7 +18,7 @@
  *
  * Outputs:	%rax is error code (0 or -EFAULT)
  *
- * %r8 is destroyed.
+ * %rbx is destroyed.
  *
  * These functions should not modify any other registers,
  * as they get called from within inline assembly.
@@ -34,8 +34,8 @@
 	.text
 ENTRY(__put_user_1)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
-	cmpq TI_addr_limit(%r8),%rcx
+	GET_THREAD_INFO(%rbx)
+	cmpq TI_addr_limit(%rbx),%rcx
 	jae bad_put_user
 1:	movb %dl,(%rcx)
 	xorl %eax,%eax
@@ -45,10 +45,10 @@ ENDPROC(__put_user_1)
 
 ENTRY(__put_user_2)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
+	GET_THREAD_INFO(%rbx)
 	addq $1,%rcx
 	jc 20f
-	cmpq TI_addr_limit(%r8),%rcx
+	cmpq TI_addr_limit(%rbx),%rcx
 	jae 20f
 	decq %rcx
 2:	movw %dx,(%rcx)
@@ -61,10 +61,10 @@ ENDPROC(__put_user_2)
 
 ENTRY(__put_user_4)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
+	GET_THREAD_INFO(%rbx)
 	addq $3,%rcx
 	jc 30f
-	cmpq TI_addr_limit(%r8),%rcx
+	cmpq TI_addr_limit(%rbx),%rcx
 	jae 30f
 	subq $3,%rcx
 3:	movl %edx,(%rcx)
@@ -77,10 +77,10 @@ ENDPROC(__put_user_4)
 
 ENTRY(__put_user_8)
 	CFI_STARTPROC
-	GET_THREAD_INFO(%r8)
+	GET_THREAD_INFO(%rbx)
 	addq $7,%rcx
 	jc 40f
-	cmpq TI_addr_limit(%r8),%rcx
+	cmpq TI_addr_limit(%rbx),%rcx
 	jae 40f
 	subq $7,%rcx
 4:	movq %rdx,(%rcx)
