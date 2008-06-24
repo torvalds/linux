@@ -3572,7 +3572,8 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 			   LED_BLINK_RATE_VAL);
 		REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_ENA_P0 +
 			   port*4, 1);
-		if (((speed == SPEED_2500) ||
+		if (!CHIP_IS_E1H(bp) &&
+		    ((speed == SPEED_2500) ||
 		     (speed == SPEED_1000) ||
 		     (speed == SPEED_100) ||
 		     (speed == SPEED_10))) {
@@ -3753,6 +3754,14 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 		vars->duplex = DUPLEX_FULL;
 		vars->flow_ctrl = FLOW_CTRL_NONE;
 		vars->link_status = (LINK_STATUS_LINK_UP | LINK_10GTFD);
+		/* enable on E1.5 FPGA */
+		if (CHIP_IS_E1H(bp)) {
+			vars->flow_ctrl |=
+				(FLOW_CTRL_TX | FLOW_CTRL_RX);
+			vars->link_status |=
+					(LINK_STATUS_TX_FLOW_CONTROL_ENABLED |
+					 LINK_STATUS_RX_FLOW_CONTROL_ENABLED);
+		}
 
 		bnx2x_emac_enable(params, vars, 0);
 		bnx2x_pbf_update(params, vars->flow_ctrl, vars->line_speed);

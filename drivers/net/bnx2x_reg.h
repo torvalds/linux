@@ -38,21 +38,19 @@
    was asserted. */
 #define BRB1_REG_NUM_OF_FULL_CYCLES_0				 0x600c8
 #define BRB1_REG_NUM_OF_FULL_CYCLES_1				 0x600cc
-#define BRB1_REG_NUM_OF_FULL_CYCLES_2				 0x600d0
-#define BRB1_REG_NUM_OF_FULL_CYCLES_3				 0x600d4
 #define BRB1_REG_NUM_OF_FULL_CYCLES_4				 0x600d8
 /* [ST 32] The number of cycles that the pause signal towards MAC #0 was
    asserted. */
 #define BRB1_REG_NUM_OF_PAUSE_CYCLES_0				 0x600b8
 #define BRB1_REG_NUM_OF_PAUSE_CYCLES_1				 0x600bc
-#define BRB1_REG_NUM_OF_PAUSE_CYCLES_2				 0x600c0
-#define BRB1_REG_NUM_OF_PAUSE_CYCLES_3				 0x600c4
 /* [RW 10] Write client 0: De-assert pause threshold. */
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_0 			 0x60078
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_1 			 0x6007c
 /* [RW 10] Write client 0: Assert pause threshold. */
 #define BRB1_REG_PAUSE_LOW_THRESHOLD_0				 0x60068
 #define BRB1_REG_PAUSE_LOW_THRESHOLD_1				 0x6006c
+/* [R 24] The number of full blocks occpied by port. */
+#define BRB1_REG_PORT_NUM_OCC_BLOCKS_0				 0x60094
 /* [RW 1] Reset the design by software. */
 #define BRB1_REG_SOFT_RESET					 0x600dc
 /* [R 5] Used to read the value of the XX protection CAM occupancy counter. */
@@ -513,7 +511,6 @@
 /* [RW 15] Interrupt table Read and write access to it is not possible in
    the middle of the work */
 #define CSEM_REG_INT_TABLE					 0x200400
-#define CSEM_REG_INT_TABLE_SIZE 				 256
 /* [ST 24] Statistics register. The number of messages that entered through
    FIC0 */
 #define CSEM_REG_MSG_NUM_FIC0					 0x200000
@@ -587,13 +584,10 @@
 #define DBG_REG_DBG_PRTY_MASK					 0xc0a8
 /* [R 1] Parity register #0 read */
 #define DBG_REG_DBG_PRTY_STS					 0xc09c
-/* [RW 2] debug only: These bits indicate the credit for PCI request type 4
-   interface; MUST be configured AFTER pci_ext_buffer_strt_addr_lsb/msb are
-   configured */
-#define DBG_REG_PCI_REQ_CREDIT					 0xc120
 /* [RW 32] Commands memory. The address to command X; row Y is to calculated
    as 14*X+Y. */
 #define DMAE_REG_CMD_MEM					 0x102400
+#define DMAE_REG_CMD_MEM_SIZE					 224
 /* [RW 1] If 0 - the CRC-16c initial value is all zeroes; if 1 - the CRC-16c
    initial value is all ones. */
 #define DMAE_REG_CRC16C_INIT					 0x10201c
@@ -1626,7 +1620,7 @@
    is reset to 0x080; giving a default blink period of approximately 8Hz. */
 #define NIG_REG_LED_CONTROL_BLINK_RATE_P0			 0x10310
 /* [RW 1] Port0: If set along with the
-   nig_registers_led_control_override_traffic_p0.led_control_override_traffic_p0
+ ~nig_registers_led_control_override_traffic_p0.led_control_override_traffic_p0
    bit and ~nig_registers_led_control_traffic_p0.led_control_traffic_p0 LED
    bit; the Traffic LED will blink with the blink rate specified in
    ~nig_registers_led_control_blink_rate_p0.led_control_blink_rate_p0 and
@@ -1733,9 +1727,21 @@
 /* [R 32] Rx statistics : In user packets discarded due to BRB backpressure
    for port0 */
 #define NIG_REG_STAT0_BRB_DISCARD				 0x105f0
+/* [WB_R 36] Tx statistics : Number of packets from emac0 or bmac0 that
+   between 1024 and 1522 bytes for port0 */
+#define NIG_REG_STAT0_EGRESS_MAC_PKT0				 0x10750
+/* [WB_R 36] Tx statistics : Number of packets from emac0 or bmac0 that
+   between 1523 bytes and above for port0 */
+#define NIG_REG_STAT0_EGRESS_MAC_PKT1				 0x10760
 /* [R 32] Rx statistics : In user packets discarded due to BRB backpressure
    for port1 */
 #define NIG_REG_STAT1_BRB_DISCARD				 0x10628
+/* [WB_R 36] Tx statistics : Number of packets from emac1 or bmac1 that
+   between 1024 and 1522 bytes for port1 */
+#define NIG_REG_STAT1_EGRESS_MAC_PKT0				 0x107a0
+/* [WB_R 36] Tx statistics : Number of packets from emac1 or bmac1 that
+   between 1523 bytes and above for port1 */
+#define NIG_REG_STAT1_EGRESS_MAC_PKT1				 0x107b0
 /* [WB_R 64] Rx statistics : User octets received for LP */
 #define NIG_REG_STAT2_BRB_OCTET 				 0x107e0
 #define NIG_REG_STATUS_INTERRUPT_PORT0				 0x10328
@@ -1849,7 +1855,6 @@
 #define PRS_REG_CFC_SEARCH_INITIAL_CREDIT			 0x4011c
 /* [RW 24] CID for port 0 if no match */
 #define PRS_REG_CID_PORT_0					 0x400fc
-#define PRS_REG_CID_PORT_1					 0x40100
 /* [RW 32] The CM header for flush message where 'load existed' bit in CFC
    load response is reset and packet type is 0. Used in packet start message
    to TCM. */
@@ -1957,6 +1962,10 @@
 #define PXP2_REG_HST_DATA_FIFO_STATUS				 0x12047c
 /* [R 7] Debug only: Number of used entries in the header FIFO */
 #define PXP2_REG_HST_HEADER_FIFO_STATUS 			 0x120478
+#define PXP2_REG_PGL_ADDR_88_F0 				 0x120534
+#define PXP2_REG_PGL_ADDR_8C_F0 				 0x120538
+#define PXP2_REG_PGL_ADDR_90_F0 				 0x12053c
+#define PXP2_REG_PGL_ADDR_94_F0 				 0x120540
 #define PXP2_REG_PGL_CONTROL0					 0x120490
 #define PXP2_REG_PGL_CONTROL1					 0x120514
 /* [RW 32] third dword data of expansion rom request. this register is
@@ -2060,12 +2069,13 @@
 #define PXP2_REG_PSWRQ_SRC0_L2P 				 0x120054
 #define PXP2_REG_PSWRQ_TM0_L2P					 0x12001c
 #define PXP2_REG_PSWRQ_TSDM0_L2P				 0x1200e0
-/* [RW 25] Interrupt mask register #0 read/write */
-#define PXP2_REG_PXP2_INT_MASK					 0x120578
-/* [R 25] Interrupt register #0 read */
-#define PXP2_REG_PXP2_INT_STS					 0x12056c
-/* [RC 25] Interrupt register #0 read clear */
-#define PXP2_REG_PXP2_INT_STS_CLR				 0x120570
+/* [RW 32] Interrupt mask register #0 read/write */
+#define PXP2_REG_PXP2_INT_MASK_0				 0x120578
+/* [R 32] Interrupt register #0 read */
+#define PXP2_REG_PXP2_INT_STS_0 				 0x12056c
+#define PXP2_REG_PXP2_INT_STS_1 				 0x120608
+/* [RC 32] Interrupt register #0 read clear */
+#define PXP2_REG_PXP2_INT_STS_CLR_0				 0x120570
 /* [RW 32] Parity mask register #0 read/write */
 #define PXP2_REG_PXP2_PRTY_MASK_0				 0x120588
 #define PXP2_REG_PXP2_PRTY_MASK_1				 0x120598
@@ -2811,22 +2821,6 @@
 #define QM_REG_QVOQIDX_97					 0x16e490
 #define QM_REG_QVOQIDX_98					 0x16e494
 #define QM_REG_QVOQIDX_99					 0x16e498
-/* [R 24] Remaining pause timeout for queues 15-0 */
-#define QM_REG_REMAINPAUSETM0					 0x168418
-/* [R 24] Remaining pause timeout for queues 31-16 */
-#define QM_REG_REMAINPAUSETM1					 0x16841c
-/* [R 24] Remaining pause timeout for queues 47-32 */
-#define QM_REG_REMAINPAUSETM2					 0x16e69c
-/* [R 24] Remaining pause timeout for queues 63-48 */
-#define QM_REG_REMAINPAUSETM3					 0x16e6a0
-/* [R 24] Remaining pause timeout for queues 79-64 */
-#define QM_REG_REMAINPAUSETM4					 0x16e6a4
-/* [R 24] Remaining pause timeout for queues 95-80 */
-#define QM_REG_REMAINPAUSETM5					 0x16e6a8
-/* [R 24] Remaining pause timeout for queues 111-96 */
-#define QM_REG_REMAINPAUSETM6					 0x16e6ac
-/* [R 24] Remaining pause timeout for queues 127-112 */
-#define QM_REG_REMAINPAUSETM7					 0x16e6b0
 /* [RW 1] Initialization bit command */
 #define QM_REG_SOFT_RESET					 0x168428
 /* [RW 8] The credit cost per every task in the QM. A value per each VOQ */
@@ -3826,7 +3820,6 @@
 /* [RW 15] Interrupt table Read and write access to it is not possible in
    the middle of the work */
 #define TSEM_REG_INT_TABLE					 0x180400
-#define TSEM_REG_INT_TABLE_SIZE 				 256
 /* [ST 24] Statistics register. The number of messages that entered through
    FIC0 */
 #define TSEM_REG_MSG_NUM_FIC0					 0x180000
@@ -4283,7 +4276,6 @@
 /* [RW 15] Interrupt table Read and write access to it is not possible in
    the middle of the work */
 #define USEM_REG_INT_TABLE					 0x300400
-#define USEM_REG_INT_TABLE_SIZE 				 256
 /* [ST 24] Statistics register. The number of messages that entered through
    FIC0 */
 #define USEM_REG_MSG_NUM_FIC0					 0x300000
@@ -4802,7 +4794,6 @@
 /* [RW 15] Interrupt table Read and write access to it is not possible in
    the middle of the work */
 #define XSEM_REG_INT_TABLE					 0x280400
-#define XSEM_REG_INT_TABLE_SIZE 				 256
 /* [ST 24] Statistics register. The number of messages that entered through
    FIC0 */
 #define XSEM_REG_MSG_NUM_FIC0					 0x280000
@@ -4930,10 +4921,7 @@
 #define EMAC_MDIO_MODE_CLOCK_CNT				 (0x3fL<<16)
 #define EMAC_MDIO_MODE_CLOCK_CNT_BITSHIFT			 16
 #define EMAC_MODE_25G_MODE					 (1L<<5)
-#define EMAC_MODE_ACPI_RCVD					 (1L<<20)
 #define EMAC_MODE_HALF_DUPLEX					 (1L<<1)
-#define EMAC_MODE_MPKT						 (1L<<18)
-#define EMAC_MODE_MPKT_RCVD					 (1L<<19)
 #define EMAC_MODE_PORT_GMII					 (2L<<2)
 #define EMAC_MODE_PORT_MII					 (1L<<2)
 #define EMAC_MODE_PORT_MII_10M					 (3L<<2)

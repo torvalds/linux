@@ -226,28 +226,28 @@ static const u32 *bnx2x_sel_blob(u32 addr, const u32 *data, int is_e1)
 			       tsem_int_table_data_e1h;
 	else
 		IF_IS_INT_TABLE_ADDR(CSEM_REG_INT_TABLE, addr)
-		data = is_e1 ? csem_int_table_data_e1 :
-			       csem_int_table_data_e1h;
+			data = is_e1 ? csem_int_table_data_e1 :
+				       csem_int_table_data_e1h;
 	else
 		IF_IS_INT_TABLE_ADDR(USEM_REG_INT_TABLE, addr)
-		data = is_e1 ? usem_int_table_data_e1 :
-			       usem_int_table_data_e1h;
+			data = is_e1 ? usem_int_table_data_e1 :
+				       usem_int_table_data_e1h;
 	else
 		IF_IS_INT_TABLE_ADDR(XSEM_REG_INT_TABLE, addr)
-		data = is_e1 ? xsem_int_table_data_e1 :
-			       xsem_int_table_data_e1h;
+			data = is_e1 ? xsem_int_table_data_e1 :
+				       xsem_int_table_data_e1h;
 	else
 		IF_IS_PRAM_ADDR(TSEM_REG_PRAM, addr)
-		data = is_e1 ? tsem_pram_data_e1 : tsem_pram_data_e1h;
+			data = is_e1 ? tsem_pram_data_e1 : tsem_pram_data_e1h;
 	else
 		IF_IS_PRAM_ADDR(CSEM_REG_PRAM, addr)
-		data = is_e1 ? csem_pram_data_e1 : csem_pram_data_e1h;
+			data = is_e1 ? csem_pram_data_e1 : csem_pram_data_e1h;
 	else
 		IF_IS_PRAM_ADDR(USEM_REG_PRAM, addr)
-		data = is_e1 ? usem_pram_data_e1 : usem_pram_data_e1h;
+			data = is_e1 ? usem_pram_data_e1 : usem_pram_data_e1h;
 	else
 		IF_IS_PRAM_ADDR(XSEM_REG_PRAM, addr)
-		data = is_e1 ? xsem_pram_data_e1 : xsem_pram_data_e1h;
+			data = is_e1 ? xsem_pram_data_e1 : xsem_pram_data_e1h;
 
 	return data;
 }

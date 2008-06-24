@@ -2600,6 +2600,7 @@ config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
 	select ZLIB_INFLATE
+	select LIBCRC32C
 	help
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
