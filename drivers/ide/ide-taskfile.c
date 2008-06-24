@@ -225,10 +225,10 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	u8 stat;
 
 	/*
-	 * Last sector was transfered, wait until drive is ready.
-	 * This can take up to 10 usec, but we will wait max 1 ms.
+	 * Last sector was transfered, wait until device is ready.  This can
+	 * take up to 6 ms on some ATAPI devices, so we will wait max 10 ms.
 	 */
-	for (retries = 0; retries < 100; retries++) {
+	for (retries = 0; retries < 1000; retries++) {
 		stat = ide_read_status(drive);
 
 		if (stat & BUSY_STAT)

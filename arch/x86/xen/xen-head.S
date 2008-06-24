@@ -17,7 +17,7 @@ ENTRY(startup_xen)
 
 	__FINIT
 
-.pushsection .bss.page_aligned
+.pushsection .text
 	.align PAGE_SIZE_asm
 ENTRY(hypercall_page)
 	.skip 0x1000

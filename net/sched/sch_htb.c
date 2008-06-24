@@ -28,6 +28,7 @@
  * $Id: sch_htb.c,v 1.25 2003/12/07 11:08:25 devik Exp devik $
  */
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -53,12 +54,16 @@
 */
 
 #define HTB_HSIZE 16		/* classid hash size */
-#define HTB_HYSTERESIS 1	/* whether to use mode hysteresis for speedup */
+static int htb_hysteresis __read_mostly = 0; /* whether to use mode hysteresis for speedup */
 #define HTB_VER 0x30011		/* major must be matched with number suplied by TC as version */
 
 #if HTB_VER >> 16 != TC_HTB_PROTOVER
 #error "Mismatched sch_htb.c and pkt_sch.h"
 #endif
+
+/* Module parameter and sysfs export */
+module_param    (htb_hysteresis, int, 0640);
+MODULE_PARM_DESC(htb_hysteresis, "Hysteresis mode, less CPU load, less accurate");
 
 /* used internaly to keep status of single class */
 enum htb_cmode {
@@ -462,19 +467,21 @@ static void htb_deactivate_prios(struct htb_sched *q, struct htb_class *cl)
 		htb_remove_class_from_row(q, cl, mask);
 }
 
-#if HTB_HYSTERESIS
 static inline long htb_lowater(const struct htb_class *cl)
 {
-	return cl->cmode != HTB_CANT_SEND ? -cl->cbuffer : 0;
+	if (htb_hysteresis)
+		return cl->cmode != HTB_CANT_SEND ? -cl->cbuffer : 0;
+	else
+		return 0;
 }
 static inline long htb_hiwater(const struct htb_class *cl)
 {
-	return cl->cmode == HTB_CAN_SEND ? -cl->buffer : 0;
+	if (htb_hysteresis)
+		return cl->cmode == HTB_CAN_SEND ? -cl->buffer : 0;
+	else
+		return 0;
 }
-#else
-#define htb_lowater(cl)	(0)
-#define htb_hiwater(cl)	(0)
-#endif
+
 
 /**
  * htb_class_mode - computes and returns current class mode
