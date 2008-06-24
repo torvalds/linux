@@ -17,6 +17,7 @@
 #include <linux/module.h>
 
 #include <asm/oprofile_impl.h>
+#include <asm/code-patching.h>
 #include <asm/cputable.h>
 #include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
 
@@ -1663,7 +1664,7 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 		pend = ((unsigned int *)fcur) + (fcur->end_off / 4);
 
 		for (p = pstart; p < pend; p++) {
-			*p = 0x60000000u;
+			*p = PPC_NOP_INSTR;
 			asm volatile ("dcbst 0, %0" : : "r" (p));
 		}
 		asm volatile ("sync" : : : "memory");

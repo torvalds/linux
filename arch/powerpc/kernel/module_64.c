@@ -24,6 +24,7 @@
 #include <asm/module.h>
 #include <asm/uaccess.h>
 #include <asm/firmware.h>
+#include <asm/code-patching.h>
 #include <linux/sort.h>
 
 #include "setup.h"
@@ -330,7 +331,7 @@ static unsigned long stub_for_addr(Elf64_Shdr *sechdrs,
    restore r2. */
 static int restore_r2(u32 *instruction, struct module *me)
 {
-	if (*instruction != 0x60000000) {
+	if (*instruction != PPC_NOP_INSTR) {
 		printk("%s: Expect noop after relocate, got %08x\n",
 		       me->name, *instruction);
 		return 0;
