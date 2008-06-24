@@ -938,6 +938,14 @@ config DM9000
 	  To compile this driver as a module, choose M here.  The module
 	  will be called dm9000.
 
+config DM9000_DEBUGLEVEL
+	int "DM9000 maximum debug level"
+	depends on DM9000
+	default 4
+	help
+	  The maximum level of debugging code compiled into the DM9000
+	  driver.
+
 config DM9000_FORCE_SIMPLE_PHY_POLL
 	bool "Force simple NSR based PHY polling"
 	depends on DM9000
@@ -963,14 +971,6 @@ config ENC28J60_WRITEVERIFY
 	---help---
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
-
-config DM9000_DEBUGLEVEL
-	int "DM9000 maximum debug level"
-	depends on DM9000
-	default 4
-	help
-	  The maximum level of debugging code compiled into the DM9000
-	  driver.
 
 config SMC911X
 	tristate "SMSC LAN911[5678] support"
