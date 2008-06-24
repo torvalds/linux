@@ -26,24 +26,66 @@ struct fixup_entry {
 	long		alt_end_off;
 };
 
-static void patch_feature_section(unsigned long value, struct fixup_entry *fcur)
+static unsigned int *calc_addr(struct fixup_entry *fcur, long offset)
 {
-	unsigned int *pstart, *pend, *p;
+	/*
+	 * We store the offset to the code as a negative offset from
+	 * the start of the alt_entry, to support the VDSO. This
+	 * routine converts that back into an actual address.
+	 */
+	return (unsigned int *)((unsigned long)fcur + offset);
+}
+
+static int patch_alt_instruction(unsigned int *src, unsigned int *dest,
+				 unsigned int *alt_start, unsigned int *alt_end)
+{
+	unsigned int instr;
+
+	instr = *src;
+
+	if (instr_is_relative_branch(*src)) {
+		unsigned int *target = (unsigned int *)branch_target(src);
+
+		/* Branch within the section doesn't need translating */
+		if (target < alt_start || target >= alt_end) {
+			instr = translate_branch(dest, src);
+			if (!instr)
+				return 1;
+		}
+	}
+
+	patch_instruction(dest, instr);
+
+	return 0;
+}
+
+static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
+{
+	unsigned int *start, *end, *alt_start, *alt_end, *src, *dest;
+
+	start = calc_addr(fcur, fcur->start_off);
+	end = calc_addr(fcur, fcur->end_off);
+	alt_start = calc_addr(fcur, fcur->alt_start_off);
+	alt_end = calc_addr(fcur, fcur->alt_end_off);
+
+	if ((alt_end - alt_start) > (end - start))
+		return 1;
 
 	if ((value & fcur->mask) == fcur->value)
-		return;
+		return 0;
 
-	pstart = ((unsigned int *)fcur) + (fcur->start_off / 4);
-	pend = ((unsigned int *)fcur) + (fcur->end_off / 4);
+	src = alt_start;
+	dest = start;
 
-	for (p = pstart; p < pend; p++) {
-		*p = PPC_NOP_INSTR;
-		asm volatile ("dcbst 0, %0" : : "r" (p));
+	for (; src < alt_end; src++, dest++) {
+		if (patch_alt_instruction(src, dest, alt_start, alt_end))
+			return 1;
 	}
-	asm volatile ("sync" : : : "memory");
-	for (p = pstart; p < pend; p++)
-		asm volatile ("icbi 0,%0" : : "r" (p));
-	asm volatile ("sync; isync" : : : "memory");
+
+	for (; dest < end; dest++)
+		patch_instruction(dest, PPC_NOP_INSTR);
+
+	return 0;
 }
 
 void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
@@ -53,6 +95,15 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	fcur = fixup_start;
 	fend = fixup_end;
 
-	for (; fcur < fend; fcur++)
-		patch_feature_section(value, fcur);
+	for (; fcur < fend; fcur++) {
+		if (patch_feature_section(value, fcur)) {
+			__WARN();
+			printk("Unable to patch feature section at %p - %p" \
+				" with %p - %p\n",
+				calc_addr(fcur, fcur->start_off),
+				calc_addr(fcur, fcur->end_off),
+				calc_addr(fcur, fcur->alt_start_off),
+				calc_addr(fcur, fcur->alt_end_off));
+		}
+	}
 }
