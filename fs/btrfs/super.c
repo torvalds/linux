@@ -340,7 +340,6 @@ static int btrfs_fill_super(struct super_block * sb,
 		goto fail_close;
 
 	sb->s_root = root_dentry;
-	btrfs_transaction_queue_work(tree_root, HZ * 30);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
 	save_mount_options(sb, data);
@@ -416,9 +415,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		goto error_free_subvol_name;
 
 	bdev = fs_devices->latest_bdev;
-	btrfs_lock_volumes();
 	s = sget(fs_type, btrfs_test_super, set_anon_super, fs_devices);
-	btrfs_unlock_volumes();
 	if (IS_ERR(s))
 		goto error_s;
 
@@ -530,13 +527,15 @@ out:
 static void btrfs_write_super_lockfs(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
-	btrfs_transaction_flush_work(root);
+	mutex_lock(&root->fs_info->transaction_kthread_mutex);
+	mutex_lock(&root->fs_info->cleaner_mutex);
 }
 
 static void btrfs_unlockfs(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
-	btrfs_transaction_queue_work(root, HZ * 30);
+	mutex_unlock(&root->fs_info->cleaner_mutex);
+	mutex_unlock(&root->fs_info->transaction_kthread_mutex);
 }
 
 static struct super_operations btrfs_super_ops = {
@@ -589,10 +588,9 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		return err;
 
-	btrfs_init_transaction_sys();
 	err = btrfs_init_cachep();
 	if (err)
-		goto free_transaction_sys;
+		goto free_sysfs;
 
 	err = extent_io_init();
 	if (err)
@@ -618,15 +616,13 @@ free_extent_io:
 	extent_io_exit();
 free_cachep:
 	btrfs_destroy_cachep();
-free_transaction_sys:
-	btrfs_exit_transaction_sys();
+free_sysfs:
 	btrfs_exit_sysfs();
 	return err;
 }
 
 static void __exit exit_btrfs_fs(void)
 {
-	btrfs_exit_transaction_sys();
 	btrfs_destroy_cachep();
 	extent_map_exit();
 	extent_io_exit();

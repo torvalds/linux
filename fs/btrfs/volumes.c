@@ -271,13 +271,17 @@ again:
 	list_for_each(cur, head) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
 		if (!device->in_fs_metadata) {
-			if (device->bdev) {
-				close_bdev_excl(device->bdev);
-				fs_devices->open_devices--;
-			}
+			struct block_device *bdev;
 			list_del(&device->dev_list);
 			list_del(&device->dev_alloc_list);
 			fs_devices->num_devices--;
+			if (device->bdev) {
+				bdev = device->bdev;
+				fs_devices->open_devices--;
+				mutex_unlock(&uuid_mutex);
+				close_bdev_excl(bdev);
+				mutex_lock(&uuid_mutex);
+			}
 			kfree(device->name);
 			kfree(device);
 			goto again;

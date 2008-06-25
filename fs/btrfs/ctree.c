@@ -1352,6 +1352,8 @@ again:
 						free_extent_buffer(tmp);
 					goto again;
 				} else {
+					if (tmp)
+						free_extent_buffer(tmp);
 					b = read_node_slot(root, b, slot);
 				}
 			}
@@ -3048,7 +3050,8 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		free_extent_buffer(c);
 		path->nodes[level] = next;
 		path->slots[level] = 0;
-		path->locks[level] = 1;
+		if (!path->skip_locking)
+			path->locks[level] = 1;
 		if (!level)
 			break;
 		if (level == 1 && path->locks[1] && path->reada)

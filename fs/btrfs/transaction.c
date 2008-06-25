@@ -29,8 +29,6 @@ static int total_trans = 0;
 extern struct kmem_cache *btrfs_trans_handle_cachep;
 extern struct kmem_cache *btrfs_transaction_cachep;
 
-static struct workqueue_struct *trans_wq;
-
 #define BTRFS_ROOT_TRANS_TAG 0
 #define BTRFS_ROOT_DEFRAG_TAG 1
 
@@ -807,81 +805,15 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 {
 	struct list_head dirty_roots;
 	INIT_LIST_HEAD(&dirty_roots);
-
+again:
 	mutex_lock(&root->fs_info->trans_mutex);
 	list_splice_init(&root->fs_info->dead_roots, &dirty_roots);
 	mutex_unlock(&root->fs_info->trans_mutex);
 
 	if (!list_empty(&dirty_roots)) {
 		drop_dirty_roots(root, &dirty_roots);
+		goto again;
 	}
 	return 0;
-}
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-void btrfs_transaction_cleaner(void *p)
-#else
-void btrfs_transaction_cleaner(struct work_struct *work)
-#endif
-{
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-	struct btrfs_fs_info *fs_info = p;
-#else
-	struct btrfs_fs_info *fs_info = container_of(work,
-						     struct btrfs_fs_info,
-						     trans_work.work);
-
-#endif
-	struct btrfs_root *root = fs_info->tree_root;
-	struct btrfs_transaction *cur;
-	struct btrfs_trans_handle *trans;
-	unsigned long now;
-	unsigned long delay = HZ * 30;
-	int ret;
-
-	smp_mb();
-	if (root->fs_info->closing)
-		goto out;
-
-	mutex_lock(&root->fs_info->trans_mutex);
-	cur = root->fs_info->running_transaction;
-	if (!cur) {
-		mutex_unlock(&root->fs_info->trans_mutex);
-		goto out;
-	}
-	now = get_seconds();
-	if (now < cur->start_time || now - cur->start_time < 30) {
-		mutex_unlock(&root->fs_info->trans_mutex);
-		delay = HZ * 5;
-		goto out;
-	}
-	mutex_unlock(&root->fs_info->trans_mutex);
-	btrfs_defrag_dirty_roots(root->fs_info);
-	trans = btrfs_start_transaction(root, 1);
-	ret = btrfs_commit_transaction(trans, root);
-out:
-	btrfs_clean_old_snapshots(root);
-	btrfs_transaction_queue_work(root, delay);
-}
-
-void btrfs_transaction_queue_work(struct btrfs_root *root, int delay)
-{
-	if (!root->fs_info->closing)
-		queue_delayed_work(trans_wq, &root->fs_info->trans_work, delay);
-}
-
-void btrfs_transaction_flush_work(struct btrfs_root *root)
-{
-	cancel_delayed_work(&root->fs_info->trans_work);
-	flush_workqueue(trans_wq);
-}
-
-void __init btrfs_init_transaction_sys(void)
-{
-	trans_wq = create_workqueue("btrfs-transaction");
-}
-
-void btrfs_exit_transaction_sys(void)
-{
-	destroy_workqueue(trans_wq);
 }
 

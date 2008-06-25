@@ -1216,15 +1216,16 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	if (ret == -ENOSPC) {
 printk("space info full %Lu\n", flags);
 		space_info->full = 1;
-		goto out;
+		goto out_unlock;
 	}
 	BUG_ON(ret);
 
 	ret = btrfs_make_block_group(trans, extent_root, 0, flags,
 		     BTRFS_FIRST_CHUNK_TREE_OBJECTID, start, num_bytes);
 	BUG_ON(ret);
-out:
+out_unlock:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
+out:
 	return 0;
 }
 
@@ -2274,7 +2275,8 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 			free_extent_buffer(next);
 			mutex_unlock(&root->fs_info->alloc_mutex);
 
-			reada_walk_down(root, cur, path->slots[*level]);
+			if (path->slots[*level] == 0)
+				reada_walk_down(root, cur, path->slots[*level]);
 
 			next = read_tree_block(root, bytenr, blocksize,
 					       ptr_gen);
@@ -2446,8 +2448,6 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		if (wret < 0)
 			ret = wret;
-		ret = -EAGAIN;
-		break;
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {

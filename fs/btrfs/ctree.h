@@ -23,7 +23,6 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/fs.h>
-#include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/backing-dev.h>
 #include <asm/kmap_types.h>
@@ -519,15 +518,14 @@ struct btrfs_fs_info {
 	struct backing_dev_info bdi;
 	spinlock_t hash_lock;
 	struct mutex trans_mutex;
+	struct mutex transaction_kthread_mutex;
+	struct mutex cleaner_mutex;
 	struct mutex alloc_mutex;
 	struct mutex chunk_mutex;
 	struct mutex drop_mutex;
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
-	struct list_head end_io_work_list;
-	struct work_struct end_io_work;
-	spinlock_t end_io_work_lock;
 	atomic_t nr_async_submits;
 
 	/*
@@ -543,13 +541,10 @@ struct btrfs_fs_info {
 	struct btrfs_workers workers;
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers submit_workers;
+	struct task_struct *transaction_kthread;
+	struct task_struct *cleaner_kthread;
 	int thread_pool_size;
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-	struct work_struct trans_work;
-#else
-	struct delayed_work trans_work;
-#endif
 	struct kobject super_kobj;
 	struct completion kobj_unregister;
 	int do_barriers;

@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
@@ -24,6 +25,12 @@
 #include <linux/writeback.h>
 #include <linux/buffer_head.h> // for block_sync_page
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+# include <linux/freezer.h>
+#else
+# include <linux/sched.h>
+#endif
 #include "crc32c.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -1100,6 +1107,87 @@ static void end_workqueue_fn(struct btrfs_work *work)
 #endif
 }
 
+static int cleaner_kthread(void *arg)
+{
+	struct btrfs_root *root = arg;
+
+	do {
+		smp_mb();
+		if (root->fs_info->closing)
+			break;
+
+		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
+		mutex_lock(&root->fs_info->cleaner_mutex);
+printk("cleaner awake\n");
+		btrfs_clean_old_snapshots(root);
+printk("cleaner done\n");
+		mutex_unlock(&root->fs_info->cleaner_mutex);
+
+		if (freezing(current)) {
+			refrigerator();
+		} else {
+			smp_mb();
+			if (root->fs_info->closing)
+				break;
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule();
+			__set_current_state(TASK_RUNNING);
+		}
+	} while (!kthread_should_stop());
+	return 0;
+}
+
+static int transaction_kthread(void *arg)
+{
+	struct btrfs_root *root = arg;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_transaction *cur;
+	unsigned long now;
+	unsigned long delay;
+	int ret;
+
+	do {
+		smp_mb();
+		if (root->fs_info->closing)
+			break;
+
+		delay = HZ * 30;
+		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
+		mutex_lock(&root->fs_info->transaction_kthread_mutex);
+
+		mutex_lock(&root->fs_info->trans_mutex);
+		cur = root->fs_info->running_transaction;
+		if (!cur) {
+			mutex_unlock(&root->fs_info->trans_mutex);
+			goto sleep;
+		}
+		now = get_seconds();
+		if (now < cur->start_time || now - cur->start_time < 30) {
+			mutex_unlock(&root->fs_info->trans_mutex);
+			delay = HZ * 5;
+			goto sleep;
+		}
+		mutex_unlock(&root->fs_info->trans_mutex);
+		btrfs_defrag_dirty_roots(root->fs_info);
+		trans = btrfs_start_transaction(root, 1);
+		ret = btrfs_commit_transaction(trans, root);
+sleep:
+		wake_up_process(root->fs_info->cleaner_kthread);
+		mutex_unlock(&root->fs_info->transaction_kthread_mutex);
+
+		if (freezing(current)) {
+			refrigerator();
+		} else {
+			if (root->fs_info->closing)
+				break;
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(delay);
+			__set_current_state(TASK_RUNNING);
+		}
+	} while (!kthread_should_stop());
+	return 0;
+}
+
 struct btrfs_root *open_ctree(struct super_block *sb,
 			      struct btrfs_fs_devices *fs_devices,
 			      char *options)
@@ -1189,11 +1277,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-	INIT_WORK(&fs_info->trans_work, btrfs_transaction_cleaner, fs_info);
-#else
-	INIT_DELAYED_WORK(&fs_info->trans_work, btrfs_transaction_cleaner);
-#endif
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
 	       sizeof(struct btrfs_key));
@@ -1204,6 +1287,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->drop_mutex);
 	mutex_init(&fs_info->alloc_mutex);
 	mutex_init(&fs_info->chunk_mutex);
+	mutex_init(&fs_info->transaction_kthread_mutex);
+	mutex_init(&fs_info->cleaner_mutex);
 
 #if 0
 	ret = add_hasher(fs_info, "crc32c");
@@ -1246,7 +1331,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
 	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
-
 
 	err = -EINVAL;
 	if (btrfs_super_num_devices(disk_super) > fs_devices->open_devices) {
@@ -1341,9 +1425,22 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->data_alloc_profile = (u64)-1;
 	fs_info->metadata_alloc_profile = (u64)-1;
 	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
+	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
+					       "btrfs-cleaner");
+	if (!fs_info->cleaner_kthread)
+		goto fail_extent_root;
+
+	fs_info->transaction_kthread = kthread_run(transaction_kthread,
+						   tree_root,
+						   "btrfs-transaction");
+	if (!fs_info->transaction_kthread)
+		goto fail_trans_kthread;
+
 
 	return tree_root;
 
+fail_trans_kthread:
+	kthread_stop(fs_info->cleaner_kthread);
 fail_extent_root:
 	free_extent_buffer(extent_root->node);
 fail_tree_root:
@@ -1562,8 +1659,11 @@ int close_ctree(struct btrfs_root *root)
 	fs_info->closing = 1;
 	smp_mb();
 
-	btrfs_transaction_flush_work(root);
+	kthread_stop(root->fs_info->transaction_kthread);
+	kthread_stop(root->fs_info->cleaner_kthread);
+
 	btrfs_defrag_dirty_roots(root->fs_info);
+	btrfs_clean_old_snapshots(root);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	/* run commit again to  drop the original snapshot */
@@ -1573,8 +1673,6 @@ int close_ctree(struct btrfs_root *root)
 	BUG_ON(ret);
 
 	write_ctree_super(NULL, root);
-
-	btrfs_transaction_flush_work(root);
 
 	if (fs_info->delalloc_bytes) {
 		printk("btrfs: at unmount delalloc count %Lu\n",
