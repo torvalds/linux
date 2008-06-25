@@ -175,6 +175,13 @@ config HID_PETALYNX
 	---help---
 	Support for Petalynx Maxter remote.
 
+config HID_SAMSUNG
+	tristate "Samsung"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Samsung IR remote.
+
 config HID_SUNPLUS
 	tristate "Sunplus"
 	default m

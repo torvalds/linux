@@ -43,8 +43,6 @@ static const struct hid_blacklist {
 
 	{ USB_VENDOR_ID_AFATECH, USB_DEVICE_ID_AFATECH_AF9016, HID_QUIRK_FULLSPEED_INTERVAL },
 
-	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_HIDDEV | HID_QUIRK_IGNORE_HIDINPUT },
-
 	{ USB_VENDOR_ID_PANTHERLORD, USB_DEVICE_ID_PANTHERLORD_TWIN_USB_JOYSTICK, HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
 	{ USB_VENDOR_ID_PLAYDOTCOM, USB_DEVICE_ID_PLAYDOTCOM_EMS_USBII, HID_QUIRK_MULTI_INPUT },
 
@@ -75,8 +73,6 @@ static const struct hid_rdesc_blacklist {
 	__u16 idProduct;
 	__u32 quirks;
 } hid_rdesc_blacklist[] = {
-	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_RDESC_SAMSUNG_REMOTE },
-
 	{ 0, 0 }
 };
 
@@ -308,37 +304,8 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 
 EXPORT_SYMBOL_GPL(usbhid_lookup_quirk);
 
-/*
- * Samsung IrDA remote controller (reports as Cypress USB Mouse).
- *
- * Vendor specific report #4 has a size of 48 bit,
- * and therefore is not accepted when inspecting the descriptors.
- * As a workaround we reinterpret the report as:
- *   Variable type, count 6, size 8 bit, log. maximum 255
- * The burden to reconstruct the data is moved into user space.
- */
-static void usbhid_fixup_samsung_irda_descriptor(unsigned char *rdesc,
-						  int rsize)
-{
-	if (rsize >= 182 && rdesc[175] == 0x25
-			 && rdesc[176] == 0x40
-			 && rdesc[177] == 0x75
-			 && rdesc[178] == 0x30
-			 && rdesc[179] == 0x95
-			 && rdesc[180] == 0x01
-			 && rdesc[182] == 0x40) {
-		printk(KERN_INFO "Fixing up Samsung IrDA report descriptor\n");
-		rdesc[176] = 0xff;
-		rdesc[178] = 0x08;
-		rdesc[180] = 0x06;
-		rdesc[182] = 0x42;
-	}
-}
-
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
-	if (quirks & HID_QUIRK_RDESC_SAMSUNG_REMOTE)
-		usbhid_fixup_samsung_irda_descriptor(rdesc, rsize);
 }
 
 /**

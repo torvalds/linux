@@ -40,6 +40,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_PETALYNX_MODULE
 	HID_COMPAT_CALL_DRIVER(petalynx);
 #endif
+#ifdef CONFIG_HID_SAMSUNG_MODULE
+	HID_COMPAT_CALL_DRIVER(samsung);
+#endif
 #ifdef CONFIG_HID_SUNPLUS_MODULE
 	HID_COMPAT_CALL_DRIVER(sunplus);
 #endif
