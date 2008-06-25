@@ -838,7 +838,7 @@ static void acm_tty_set_termios(struct tty_struct *tty, struct ktermios *termios
  * USB probe and disconnect routines.
  */
 
-/* Little helper: write buffers free */
+/* Little helpers: write/read buffers free */
 static void acm_write_buffers_free(struct acm *acm)
 {
 	int i;
@@ -847,6 +847,15 @@ static void acm_write_buffers_free(struct acm *acm)
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++) {
 		usb_buffer_free(acm->dev, acm->writesize, wb->buf, wb->dmah);
 	}
+}
+
+static void acm_read_buffers_free(struct acm *acm)
+{
+	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
+	int i, n = acm->rx_buflimit;
+
+	for (i = 0; i < n; i++)
+		usb_buffer_free(usb_dev, acm->readsize, acm->rb[i].base, acm->rb[i].dma);
 }
 
 /* Little helper: write buffers allocate */
@@ -1171,8 +1180,7 @@ alloc_fail8:
 	for (i = 0; i < ACM_NW; i++)
 		usb_free_urb(acm->wb[i].urb);
 alloc_fail7:
-	for (i = 0; i < num_rx_buf; i++)
-		usb_buffer_free(usb_dev, acm->readsize, acm->rb[i].base, acm->rb[i].dma);
+	acm_read_buffers_free(acm);
 	for (i = 0; i < num_rx_buf; i++)
 		usb_free_urb(acm->ru[i].urb);
 	usb_free_urb(acm->ctrlurb);
@@ -1209,15 +1217,9 @@ static void acm_disconnect(struct usb_interface *intf)
 {
 	struct acm *acm = usb_get_intfdata(intf);
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
-	int i;
-
-	if (!acm || !acm->dev) {
-		dbg("disconnect on nonexisting interface");
-		return;
-	}
 
 	mutex_lock(&open_mutex);
-	if (!usb_get_intfdata(intf)) {
+	if (!acm || !acm->dev) {
 		mutex_unlock(&open_mutex);
 		return;
 	}
@@ -1236,10 +1238,10 @@ static void acm_disconnect(struct usb_interface *intf)
 
 	acm_write_buffers_free(acm);
 	usb_buffer_free(usb_dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
-	for (i = 0; i < acm->rx_buflimit; i++)
-		usb_buffer_free(usb_dev, acm->readsize, acm->rb[i].base, acm->rb[i].dma);
+	acm_read_buffers_free(acm);
 
-	usb_driver_release_interface(&acm_driver, intf == acm->control ? acm->data : intf);
+	usb_driver_release_interface(&acm_driver, intf == acm->control ?
+					acm->data : acm->control);
 
 	if (!acm->used) {
 		acm_tty_unregister(acm);
