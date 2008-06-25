@@ -2999,7 +2999,14 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		return ret;
 
 	nritems = btrfs_header_nritems(path->nodes[0]);
+	/*
+	 * by releasing the path above we dropped all our locks.  A balance
+	 * could have added more items next to the key that used to be
+	 * at the very end of the block.  So, check again here and
+	 * advance the path if there are now more items available.
+	 */
 	if (nritems > 0 && path->slots[0] < nritems - 1) {
+		path->slots[0]++;
 		goto done;
 	}
 
