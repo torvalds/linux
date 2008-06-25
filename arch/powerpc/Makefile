@@ -96,6 +96,8 @@ endif
 else
 	KBUILD_CFLAGS += $(call cc-option,-mtune=power4)
 endif
+else
+LDFLAGS_MODULE	+= arch/powerpc/lib/crtsavres.o
 endif
 
 ifeq ($(CONFIG_TUNE_CELL),y)
@@ -154,7 +156,7 @@ all: zImage
 
 CPPFLAGS_vmlinux.lds	:= -Upowerpc
 
-BOOT_TARGETS = zImage zImage.initrd uImage zImage% dtbImage% treeImage.% cuImage.%
+BOOT_TARGETS = zImage zImage.initrd uImage zImage% dtbImage% treeImage.% cuImage.% simpleImage.%
 
 PHONY += $(BOOT_TARGETS)
 

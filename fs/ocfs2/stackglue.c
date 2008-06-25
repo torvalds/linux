@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/sysctl.h>
 
 #include "ocfs2_fs.h"
 
@@ -33,11 +34,13 @@
 
 #define OCFS2_STACK_PLUGIN_O2CB		"o2cb"
 #define OCFS2_STACK_PLUGIN_USER		"user"
+#define OCFS2_MAX_HB_CTL_PATH		256
 
 static struct ocfs2_locking_protocol *lproto;
 static DEFINE_SPINLOCK(ocfs2_stack_lock);
 static LIST_HEAD(ocfs2_stack_list);
 static char cluster_stack_name[OCFS2_STACK_LABEL_LEN + 1];
+static char ocfs2_hb_ctl_path[OCFS2_MAX_HB_CTL_PATH] = "/sbin/ocfs2_hb_ctl";
 
 /*
  * The stack currently in use.  If not null, active_stack->sp_count > 0,
@@ -349,7 +352,7 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 
 	BUG_ON(conn == NULL);
 
-	ret = active_stack->sp_ops->disconnect(conn, hangup_pending);
+	ret = active_stack->sp_ops->disconnect(conn);
 
 	/* XXX Should we free it anyway? */
 	if (!ret) {
@@ -362,13 +365,48 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 }
 EXPORT_SYMBOL_GPL(ocfs2_cluster_disconnect);
 
+/*
+ * Leave the group for this filesystem.  This is executed by a userspace
+ * program (stored in ocfs2_hb_ctl_path).
+ */
+static void ocfs2_leave_group(const char *group)
+{
+	int ret;
+	char *argv[5], *envp[3];
+
+	argv[0] = ocfs2_hb_ctl_path;
+	argv[1] = "-K";
+	argv[2] = "-u";
+	argv[3] = (char *)group;
+	argv[4] = NULL;
+
+	/* minimal command environment taken from cpu_run_sbin_hotplug */
+	envp[0] = "HOME=/";
+	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
+	envp[2] = NULL;
+
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "ocfs2: Error %d running user helper "
+		       "\"%s %s %s %s\"\n",
+		       ret, argv[0], argv[1], argv[2], argv[3]);
+	}
+}
+
+/*
+ * Hangup is a required post-umount.  ocfs2-tools software expects the
+ * filesystem to call "ocfs2_hb_ctl" during unmount.  This happens
+ * regardless of whether the DLM got started, so we can't do it
+ * in ocfs2_cluster_disconnect().  The ocfs2_leave_group() function does
+ * the actual work.
+ */
 void ocfs2_cluster_hangup(const char *group, int grouplen)
 {
 	BUG_ON(group == NULL);
 	BUG_ON(group[grouplen] != '\0');
 
-	if (active_stack->sp_ops->hangup)
-		active_stack->sp_ops->hangup(group, grouplen);
+	ocfs2_leave_group(group);
 
 	/* cluster_disconnect() was called with hangup_pending==1 */
 	ocfs2_stack_driver_put();
@@ -548,9 +586,82 @@ error:
 	return ret;
 }
 
+/*
+ * Sysctl bits
+ *
+ * The sysctl lives at /proc/sys/fs/ocfs2/nm/hb_ctl_path.  The 'nm' doesn't
+ * make as much sense in a multiple cluster stack world, but it's safer
+ * and easier to preserve the name.
+ */
+
+#define FS_OCFS2_NM		1
+
+static ctl_table ocfs2_nm_table[] = {
+	{
+		.ctl_name	= 1,
+		.procname	= "hb_ctl_path",
+		.data		= ocfs2_hb_ctl_path,
+		.maxlen		= OCFS2_MAX_HB_CTL_PATH,
+		.mode		= 0644,
+		.proc_handler	= &proc_dostring,
+		.strategy	= &sysctl_string,
+	},
+	{ .ctl_name = 0 }
+};
+
+static ctl_table ocfs2_mod_table[] = {
+	{
+		.ctl_name	= FS_OCFS2_NM,
+		.procname	= "nm",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0555,
+		.child		= ocfs2_nm_table
+	},
+	{ .ctl_name = 0}
+};
+
+static ctl_table ocfs2_kern_table[] = {
+	{
+		.ctl_name	= FS_OCFS2,
+		.procname	= "ocfs2",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0555,
+		.child		= ocfs2_mod_table
+	},
+	{ .ctl_name = 0}
+};
+
+static ctl_table ocfs2_root_table[] = {
+	{
+		.ctl_name	= CTL_FS,
+		.procname	= "fs",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0555,
+		.child		= ocfs2_kern_table
+	},
+	{ .ctl_name = 0 }
+};
+
+static struct ctl_table_header *ocfs2_table_header = NULL;
+
+
+/*
+ * Initialization
+ */
+
 static int __init ocfs2_stack_glue_init(void)
 {
 	strcpy(cluster_stack_name, OCFS2_STACK_PLUGIN_O2CB);
+
+	ocfs2_table_header = register_sysctl_table(ocfs2_root_table);
+	if (!ocfs2_table_header) {
+		printk(KERN_ERR
+		       "ocfs2 stack glue: unable to register sysctl\n");
+		return -ENOMEM; /* or something. */
+	}
 
 	return ocfs2_sysfs_init();
 }
@@ -559,6 +670,8 @@ static void __exit ocfs2_stack_glue_exit(void)
 {
 	lproto = NULL;
 	ocfs2_sysfs_exit();
+	if (ocfs2_table_header)
+		unregister_sysctl_table(ocfs2_table_header);
 }
 
 MODULE_AUTHOR("Oracle");
