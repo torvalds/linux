@@ -140,7 +140,8 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
 		/* If the operation is a nop, then nop the callsite */
 		ret = paravirt_patch_nop();
 	else if (type == PARAVIRT_PATCH(pv_cpu_ops.iret) ||
-		 type == PARAVIRT_PATCH(pv_cpu_ops.irq_enable_syscall_ret))
+		 type == PARAVIRT_PATCH(pv_cpu_ops.irq_enable_sysexit) ||
+		 type == PARAVIRT_PATCH(pv_cpu_ops.usersp_sysret))
 		/* If operation requires a jmp, then jmp */
 		ret = paravirt_patch_jmp(insnbuf, opfunc, addr, len);
 	else
@@ -191,7 +192,8 @@ static void native_flush_tlb_single(unsigned long addr)
 
 /* These are in entry.S */
 extern void native_iret(void);
-extern void native_irq_enable_syscall_ret(void);
+extern void native_irq_enable_sysexit(void);
+extern void native_usersp_sysret(void);
 
 static int __init print_banner(void)
 {
@@ -327,7 +329,11 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.write_idt_entry = native_write_idt_entry,
 	.load_sp0 = native_load_sp0,
 
-	.irq_enable_syscall_ret = native_irq_enable_syscall_ret,
+#ifdef CONFIG_X86_32
+	.irq_enable_sysexit = native_irq_enable_sysexit,
+#else
+	.usersp_sysret = native_usersp_sysret,
+#endif
 	.iret = native_iret,
 	.swapgs = native_swapgs,
 

@@ -141,8 +141,9 @@ struct pv_cpu_ops {
 	u64 (*read_pmc)(int counter);
 	unsigned long long (*read_tscp)(unsigned int *aux);
 
-	/* These two are jmp to, not actually called. */
-	void (*irq_enable_syscall_ret)(void);
+	/* These three are jmp to, not actually called. */
+	void (*irq_enable_sysexit)(void);
+	void (*usersp_sysret)(void);
 	void (*iret)(void);
 
 	void (*swapgs)(void);
@@ -1480,10 +1481,10 @@ static inline unsigned long __raw_local_irq_save(void)
 		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_irq_enable);	\
 		  PV_RESTORE_REGS;)
 
-#define ENABLE_INTERRUPTS_SYSCALL_RET					\
-	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_syscall_ret),\
+#define ENABLE_INTERRUPTS_SYSEXIT					\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_sysexit),	\
 		  CLBR_NONE,						\
-		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_irq_enable_syscall_ret))
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_irq_enable_sysexit))
 
 
 #ifdef CONFIG_X86_32
@@ -1504,6 +1505,10 @@ static inline unsigned long __raw_local_irq_save(void)
 	movq %rax, %rcx;				\
 	xorq %rax, %rax;
 
+#define USERSP_SYSRET							\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usersp_sysret),		\
+		  CLBR_NONE,						\
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usersp_sysret))
 #endif
 
 #endif /* __ASSEMBLY__ */

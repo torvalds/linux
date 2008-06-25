@@ -112,13 +112,13 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #ifdef CONFIG_X86_64
 #define INTERRUPT_RETURN	iretq
-#define ENABLE_INTERRUPTS_SYSCALL_RET			\
+#define USERSP_SYSRET					\
 			movq	%gs:pda_oldrsp, %rsp;	\
 			swapgs;				\
 			sysretq;
 #else
 #define INTERRUPT_RETURN		iret
-#define ENABLE_INTERRUPTS_SYSCALL_RET	sti; sysexit
+#define ENABLE_INTERRUPTS_SYSEXIT	sti; sysexit
 #define GET_CR0_INTO_EAX		movl %cr0, %eax
 #endif
 

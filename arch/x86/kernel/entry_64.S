@@ -59,7 +59,7 @@
 #endif	
 
 #ifdef CONFIG_PARAVIRT
-ENTRY(native_irq_enable_syscall_ret)
+ENTRY(native_usersp_sysret)
 	movq	%gs:pda_oldrsp,%rsp
 	swapgs
 	sysretq
@@ -275,7 +275,7 @@ sysret_check:
 	CFI_REGISTER	rip,rcx
 	RESTORE_ARGS 0,-ARG_SKIP,1
 	/*CFI_REGISTER	rflags,r11*/
-	ENABLE_INTERRUPTS_SYSCALL_RET
+	USERSP_SYSRET
 
 	CFI_RESTORE_STATE
 	/* Handle reschedules */

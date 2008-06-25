@@ -62,7 +62,7 @@ int main(void)
 	OFFSET(PV_IRQ_irq_disable, pv_irq_ops, irq_disable);
 	OFFSET(PV_IRQ_irq_enable, pv_irq_ops, irq_enable);
 	OFFSET(PV_CPU_iret, pv_cpu_ops, iret);
-	OFFSET(PV_CPU_irq_enable_syscall_ret, pv_cpu_ops, irq_enable_syscall_ret);
+	OFFSET(PV_CPU_usersp_sysret, pv_cpu_ops, usersp_sysret);
 	OFFSET(PV_CPU_swapgs, pv_cpu_ops, swapgs);
 	OFFSET(PV_MMU_read_cr2, pv_mmu_ops, read_cr2);
 #endif
