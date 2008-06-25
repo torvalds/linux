@@ -11,15 +11,6 @@
 #include <asm/asm.h>
 #include <asm/page.h>
 
-/*
- * movsl can be slow when source and dest are not both 8-byte aligned
- */
-#ifdef CONFIG_X86_INTEL_USERCOPY
-extern struct movsl_mask {
-	int mask;
-} ____cacheline_aligned_in_smp movsl_mask;
-#endif
-
 unsigned long __must_check __copy_to_user_ll
 		(void __user *to, const void *from, unsigned long n);
 unsigned long __must_check __copy_from_user_ll

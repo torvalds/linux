@@ -432,6 +432,15 @@ struct __large_struct { unsigned long buf[100]; };
 #define __get_user_unaligned __get_user
 #define __put_user_unaligned __put_user
 
+/*
+ * movsl can be slow when source and dest are not both 8-byte aligned
+ */
+#ifdef CONFIG_X86_INTEL_USERCOPY
+extern struct movsl_mask {
+	int mask;
+} ____cacheline_aligned_in_smp movsl_mask;
+#endif
+
 #ifdef CONFIG_X86_32
 # include "uaccess_32.h"
 #else
