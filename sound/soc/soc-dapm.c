@@ -443,6 +443,25 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 }
 
 /*
+ * Handler for generic register modifier widget.
+ */
+int dapm_reg_event(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol, int event)
+{
+	unsigned int val;
+
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		val = w->on_val;
+	else
+		val = w->off_val;
+
+	snd_soc_update_bits(w->codec, -(w->reg + 1),
+			    w->mask << w->shift, val << w->shift);
+
+	return 0;
+}
+
+/*
  * Scan each dapm widget for complete audio path.
  * A complete path is a route that has valid endpoints i.e.:-
  *
