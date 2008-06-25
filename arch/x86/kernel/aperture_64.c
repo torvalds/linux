@@ -407,7 +407,9 @@ void __init gart_iommu_hole_init(void)
 				    agp_aper_base == aper_base &&
 				    agp_aper_order == aper_order) {
 					/* the same between two setting from NB and agp */
-					if (!no_iommu && end_pfn > MAX_DMA32_PFN && !printed_gart_size_msg) {
+					if (!no_iommu &&
+					    max_pfn > MAX_DMA32_PFN &&
+					    !printed_gart_size_msg) {
 						printk(KERN_ERR "you are using iommu with agp, but GART size is less than 64M\n");
 						printk(KERN_ERR "please increase GART size in your BIOS setup\n");
 						printk(KERN_ERR "if BIOS doesn't have that option, contact your HW vendor!\n");
@@ -448,7 +450,7 @@ out:
 		/* Got the aperture from the AGP bridge */
 	} else if (swiotlb && !valid_agp) {
 		/* Do nothing */
-	} else if ((!no_iommu && end_pfn > MAX_DMA32_PFN) ||
+	} else if ((!no_iommu && max_pfn > MAX_DMA32_PFN) ||
 		   force_iommu ||
 		   valid_agp ||
 		   fallback_aper_force) {

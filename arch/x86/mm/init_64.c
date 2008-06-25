@@ -49,11 +49,6 @@
 #include <asm/cacheflush.h>
 
 /*
- * PFN of last memory page.
- */
-unsigned long end_pfn;
-
-/*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
  * The direct mapping extends to max_pfn_mapped, so that we can directly access
  * apertures, ACPI and other tables without having to play with fixmaps.
@@ -586,9 +581,9 @@ void __init paging_init(void)
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
-	max_zone_pfns[ZONE_NORMAL] = end_pfn;
+	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 
-	memory_present(0, 0, end_pfn);
+	memory_present(0, 0, max_pfn);
 	sparse_init();
 	free_area_init_nodes(max_zone_pfns);
 }
@@ -670,8 +665,8 @@ void __init mem_init(void)
 #else
 	totalram_pages = free_all_bootmem();
 #endif
-	reservedpages = end_pfn - totalram_pages -
-					absent_pages_in_range(0, end_pfn);
+	reservedpages = max_pfn - totalram_pages -
+					absent_pages_in_range(0, max_pfn);
 	after_bootmem = 1;
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
@@ -690,7 +685,7 @@ void __init mem_init(void)
 	printk(KERN_INFO "Memory: %luk/%luk available (%ldk kernel code, "
 				"%ldk reserved, %ldk data, %ldk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		end_pfn << (PAGE_SHIFT-10),
+		max_pfn << (PAGE_SHIFT-10),
 		codesize >> 10,
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
@@ -784,7 +779,7 @@ int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 #endif
 	unsigned long pfn = phys >> PAGE_SHIFT;
 
-	if (pfn >= end_pfn) {
+	if (pfn >= max_pfn) {
 		/*
 		 * This can happen with kdump kernels when accessing
 		 * firmware tables:

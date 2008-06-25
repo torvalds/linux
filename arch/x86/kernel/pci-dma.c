@@ -75,7 +75,7 @@ early_param("dma32_size", parse_dma32_size_opt);
 void __init dma32_reserve_bootmem(void)
 {
 	unsigned long size, align;
-	if (end_pfn <= MAX_DMA32_PFN)
+	if (max_pfn <= MAX_DMA32_PFN)
 		return;
 
 	/*
@@ -94,7 +94,7 @@ void __init dma32_reserve_bootmem(void)
 static void __init dma32_free_bootmem(void)
 {
 
-	if (end_pfn <= MAX_DMA32_PFN)
+	if (max_pfn <= MAX_DMA32_PFN)
 		return;
 
 	if (!dma32_bootmem_ptr)

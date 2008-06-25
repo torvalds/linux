@@ -299,7 +299,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 			pxmram = 0;
 	}
 
-	e820ram = end_pfn - absent_pages_in_range(0, end_pfn);
+	e820ram = max_pfn - absent_pages_in_range(0, max_pfn);
 	/* We seem to lose 3 pages somewhere. Allow a bit of slack. */
 	if ((long)(e820ram - pxmram) >= 1*1024*1024) {
 		printk(KERN_ERR

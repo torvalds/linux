@@ -58,7 +58,8 @@
 void clear_page(void *page);
 void copy_page(void *to, void *from);
 
-extern unsigned long end_pfn;
+/* duplicated to the one in bootmem.h */
+extern unsigned long max_pfn;
 extern unsigned long phys_base;
 
 extern unsigned long __phys_addr(unsigned long);
@@ -87,7 +88,7 @@ extern void initmem_init(unsigned long start_pfn, unsigned long end_pfn);
 #endif	/* !__ASSEMBLY__ */
 
 #ifdef CONFIG_FLATMEM
-#define pfn_valid(pfn)          ((pfn) < end_pfn)
+#define pfn_valid(pfn)          ((pfn) < max_pfn)
 #endif
 
 

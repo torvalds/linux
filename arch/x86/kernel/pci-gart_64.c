@@ -751,10 +751,10 @@ void __init gart_iommu_init(void)
 		return;
 
 	if (no_iommu ||
-	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
+	    (!force_iommu && max_pfn <= MAX_DMA32_PFN) ||
 	    !gart_iommu_aperture ||
 	    (no_agp && init_k8_gatt(&info) < 0)) {
-		if (end_pfn > MAX_DMA32_PFN) {
+		if (max_pfn > MAX_DMA32_PFN) {
 			printk(KERN_WARNING "More than 4GB of memory "
 			       	          "but GART IOMMU not available.\n"
 			       KERN_WARNING "falling back to iommu=soft.\n");
