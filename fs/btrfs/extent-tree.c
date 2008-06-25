@@ -2201,6 +2201,7 @@ int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
 {
 	mutex_unlock(&root->fs_info->alloc_mutex);
 	lookup_extent_ref(NULL, root, start, len, refs);
+	cond_resched();
 	mutex_lock(&root->fs_info->alloc_mutex);
 	return lookup_extent_ref(NULL, root, start, len, refs);
 }
@@ -2280,6 +2281,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 
 			next = read_tree_block(root, bytenr, blocksize,
 					       ptr_gen);
+			cond_resched();
 			mutex_lock(&root->fs_info->alloc_mutex);
 
 			/* we've dropped the lock, double check */
@@ -2329,6 +2331,7 @@ out:
 	*level += 1;
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->alloc_mutex);
+	cond_resched();
 	return 0;
 }
 
@@ -2448,6 +2451,10 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			break;
 		if (wret < 0)
 			ret = wret;
+		if (trans->transaction->in_commit) {
+			ret = -EAGAIN;
+			break;
+		}
 	}
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {

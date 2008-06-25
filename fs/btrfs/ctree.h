@@ -1411,6 +1411,8 @@ int btrfs_previous_item(struct btrfs_root *root,
 
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
 struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
+int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
+			struct btrfs_key *key, int lowest_level);
 
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,

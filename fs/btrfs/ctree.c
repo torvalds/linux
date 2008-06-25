@@ -354,7 +354,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_key *progress)
 {
 	struct extent_buffer *cur;
-	struct extent_buffer *tmp;
 	u64 blocknr;
 	u64 gen;
 	u64 search_start = *last_ret;
@@ -369,9 +368,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	u32 blocksize;
 	int progress_passed = 0;
 	struct btrfs_disk_key disk_key;
-
-	/* FIXME this code needs locking */
-	return 0;
 
 	parent_level = btrfs_header_level(parent);
 	if (cache_only && parent_level != 1)
@@ -454,20 +450,23 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		if (search_start == 0)
 			search_start = last_block;
 
+		btrfs_tree_lock(cur);
 		err = __btrfs_cow_block(trans, root, cur, parent, i,
-					&tmp, search_start,
+					&cur, search_start,
 					min(16 * blocksize,
 					    (end_slot - i) * blocksize));
 		if (err) {
+			btrfs_tree_unlock(cur);
 			free_extent_buffer(cur);
 			break;
 		}
-		search_start = tmp->start;
-		last_block = tmp->start;
+		search_start = cur->start;
+		last_block = cur->start;
 		*last_ret = search_start;
 		if (parent_level == 1)
-			btrfs_clear_buffer_defrag(tmp);
-		free_extent_buffer(tmp);
+			btrfs_clear_buffer_defrag(cur);
+		btrfs_tree_unlock(cur);
+		free_extent_buffer(cur);
 	}
 	if (parent->map_token) {
 		unmap_extent_buffer(parent, parent->map_token,
@@ -2967,6 +2966,35 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 	ret = comp_keys(&found_key, &key);
 	if (ret < 0)
 		return 0;
+	return 1;
+}
+
+int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
+			struct btrfs_key *key, int lowest_level)
+{
+	int level = lowest_level;
+	int slot;
+	struct extent_buffer *c;
+
+	while(level < BTRFS_MAX_LEVEL) {
+		if (!path->nodes[level])
+			return 1;
+
+		slot = path->slots[level] + 1;
+		c = path->nodes[level];
+		if (slot >= btrfs_header_nritems(c)) {
+			level++;
+			if (level == BTRFS_MAX_LEVEL) {
+				return 1;
+			}
+			continue;
+		}
+		if (level == 0)
+			btrfs_item_key_to_cpu(c, key, slot);
+		else
+			btrfs_node_key_to_cpu(c, key, slot);
+		return 0;
+	}
 	return 1;
 }
 
