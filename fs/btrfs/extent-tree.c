@@ -88,7 +88,6 @@ static int cache_block_group(struct btrfs_root *root,
 		return -ENOMEM;
 
 	path->reada = 2;
-	path->skip_locking = 1;
 	first_free = block_group->key.objectid;
 	key.objectid = block_group->key.objectid;
 	key.offset = 0;

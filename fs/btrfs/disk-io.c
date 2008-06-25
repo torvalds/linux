@@ -1684,6 +1684,7 @@ void btrfs_throttle(struct btrfs_root *root)
 #else
 		blk_congestion_wait(WRITE, HZ/20);
 #endif
+
 	}
 }
 
