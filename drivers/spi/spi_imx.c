@@ -1526,24 +1526,24 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	drv_data->rx_channel = -1;
 	if (platform_info->enable_dma) {
 		/* Get rx DMA channel */
-		status = imx_dma_request_by_prio(&drv_data->rx_channel,
-			"spi_imx_rx", DMA_PRIO_HIGH);
-		if (status < 0) {
+		drv_data->rx_channel = imx_dma_request_by_prio("spi_imx_rx",
+							       DMA_PRIO_HIGH);
+		if (drv_data->rx_channel < 0) {
 			dev_err(dev,
 				"probe - problem (%d) requesting rx channel\n",
-				status);
+				drv_data->rx_channel);
 			goto err_no_rxdma;
 		} else
 			imx_dma_setup_handlers(drv_data->rx_channel, NULL,
 						dma_err_handler, drv_data);
 
 		/* Get tx DMA channel */
-		status = imx_dma_request_by_prio(&drv_data->tx_channel,
-						"spi_imx_tx", DMA_PRIO_MEDIUM);
-		if (status < 0) {
+		drv_data->tx_channel = imx_dma_request_by_prio("spi_imx_tx",
+							       DMA_PRIO_MEDIUM);
+		if (drv_data->tx_channel < 0) {
 			dev_err(dev,
 				"probe - problem (%d) requesting tx channel\n",
-				status);
+				drv_data->tx_channel);
 			imx_dma_free(drv_data->rx_channel);
 			goto err_no_txdma;
 		} else
