@@ -108,6 +108,11 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	early_printk("Kernel really alive\n");
 
+	x86_64_start_reservations(real_mode_data);
+}
+
+void __init x86_64_start_reservations(char *real_mode_data)
+{
 	copy_bootdata(__va(real_mode_data));
 
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
