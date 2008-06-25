@@ -283,7 +283,10 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 	}
 
 	if (port->open_count == 0) {
-		usb_autopm_put_interface(port->serial->interface);
+		mutex_lock(&port->serial->disc_mutex);
+		if (!port->serial->disconnected)
+			usb_autopm_put_interface(port->serial->interface);
+		mutex_unlock(&port->serial->disc_mutex);
 		module_put(port->serial->type->driver.owner);
 	}
 
