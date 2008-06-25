@@ -446,6 +446,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	struct page *page = pfn_to_page(fcp_args->pfn);
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
+	int map_coherent = 0;
 	pgd_t *pgdp;
 	pud_t *pudp;
 	pmd_t *pmdp;
@@ -479,7 +480,9 @@ static inline void local_r4k_flush_cache_page(void *args)
 		 * Use kmap_coherent or kmap_atomic to do flushes for
 		 * another ASID than the current one.
 		 */
-		if (cpu_has_dc_aliases)
+		map_coherent = (cpu_has_dc_aliases &&
+				page_mapped(page) && !Page_dcache_dirty(page));
+		if (map_coherent)
 			vaddr = kmap_coherent(page, addr);
 		else
 			vaddr = kmap_atomic(page, KM_USER0);
@@ -502,7 +505,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	}
 
 	if (vaddr) {
-		if (cpu_has_dc_aliases)
+		if (map_coherent)
 			kunmap_coherent();
 		else
 			kunmap_atomic(vaddr, KM_USER0);
@@ -1226,6 +1229,28 @@ void au1x00_fixup_config_od(void)
 	}
 }
 
+/* CP0 hazard avoidance. */
+#define NXP_BARRIER()							\
+	 __asm__ __volatile__(						\
+	".set noreorder\n\t"						\
+	"nop; nop; nop; nop; nop; nop;\n\t"				\
+	".set reorder\n\t")
+
+static void nxp_pr4450_fixup_config(void)
+{
+	unsigned long config0;
+
+	config0 = read_c0_config();
+
+	/* clear all three cache coherency fields */
+	config0 &= ~(0x7 | (7 << 25) | (7 << 28));
+	config0 |= (((_page_cachable_default >> _CACHE_SHIFT) <<  0) |
+		    ((_page_cachable_default >> _CACHE_SHIFT) << 25) |
+		    ((_page_cachable_default >> _CACHE_SHIFT) << 28));
+	write_c0_config(config0);
+	NXP_BARRIER();
+}
+
 static int __cpuinitdata cca = -1;
 
 static int __init cca_setup(char *str)
@@ -1270,6 +1295,10 @@ static void __cpuinit coherency_setup(void)
 	case CPU_AU1100: /* rev. AB, BA, BC ?? */
 	case CPU_AU1500: /* rev. AB */
 		au1x00_fixup_config_od();
+		break;
+
+	case PRID_IMP_PR4450:
+		nxp_pr4450_fixup_config();
 		break;
 	}
 }

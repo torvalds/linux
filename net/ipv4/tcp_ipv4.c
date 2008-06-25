@@ -85,10 +85,6 @@
 int sysctl_tcp_tw_reuse __read_mostly;
 int sysctl_tcp_low_latency __read_mostly;
 
-/* Check TCP sequence numbers in ICMP packets. */
-#define ICMP_MIN_LENGTH 8
-
-void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
 #ifdef CONFIG_TCP_MD5SIG
 static struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk,
