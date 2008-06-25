@@ -189,6 +189,10 @@ struct pv_irq_ops {
 	void (*irq_enable)(void);
 	void (*safe_halt)(void);
 	void (*halt)(void);
+
+#ifdef CONFIG_X86_64
+	void (*adjust_exception_frame)(void);
+#endif
 };
 
 struct pv_apic_ops {
@@ -1543,6 +1547,11 @@ static inline unsigned long __raw_local_irq_save(void)
 	call PARA_INDIRECT(pv_mmu_ops+PV_MMU_read_cr2);	\
 	movq %rax, %rcx;				\
 	xorq %rax, %rax;
+
+#define PARAVIRT_ADJUST_EXCEPTION_FRAME					\
+	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_adjust_exception_frame), \
+		  CLBR_NONE,						\
+		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_adjust_exception_frame))
 
 #define USERGS_SYSRET64							\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret64),	\

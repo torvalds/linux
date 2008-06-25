@@ -1123,6 +1123,9 @@ static const struct pv_irq_ops xen_irq_ops __initdata = {
 	.irq_enable = xen_irq_enable,
 	.safe_halt = xen_safe_halt,
 	.halt = xen_halt,
+#ifdef CONFIG_X86_64
+	.adjust_exception_frame = paravirt_nop,
+#endif
 };
 
 static const struct pv_apic_ops xen_apic_ops __initdata = {
