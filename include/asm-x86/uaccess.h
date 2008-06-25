@@ -441,9 +441,12 @@ extern struct movsl_mask {
 } ____cacheline_aligned_in_smp movsl_mask;
 #endif
 
+#define ARCH_HAS_NOCACHE_UACCESS 1
+
 #ifdef CONFIG_X86_32
 # include "uaccess_32.h"
 #else
+# define ARCH_HAS_SEARCH_EXTABLE
 # include "uaccess_64.h"
 #endif
 

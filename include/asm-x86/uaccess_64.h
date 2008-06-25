@@ -9,8 +9,6 @@
 #include <linux/prefetch.h>
 #include <asm/page.h>
 
-#define ARCH_HAS_SEARCH_EXTABLE
-
 /*
  * Copy To/From Userspace
  */
@@ -180,7 +178,6 @@ __copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
 	return copy_user_generic((__force void *)dst, src, size);
 }
 
-#define ARCH_HAS_NOCACHE_UACCESS 1
 extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
 
