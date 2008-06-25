@@ -85,8 +85,8 @@ static inline void ieee80211_dump_frame(const char *ifname, const char *title,
 }
 #endif /* CONFIG_MAC80211_LOWTX_FRAME_DUMP */
 
-static u16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
-			      int next_frag_len)
+static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
+				 int next_frag_len)
 {
 	int rate, mrate, erp, dur, i;
 	struct ieee80211_rate *txrate;
@@ -138,7 +138,7 @@ static u16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 
 	/* data/mgmt */
 	if (0 /* FIX: data/mgmt during CFP */)
-		return 32768;
+		return cpu_to_le16(32768);
 
 	if (group_addr) /* Group address as the destination - no ACK */
 		return 0;
@@ -208,7 +208,7 @@ static u16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 				tx->sdata->bss_conf.use_short_preamble);
 	}
 
-	return dur;
+	return cpu_to_le16(dur);
 }
 
 static int inline is_ieee80211_device(struct net_device *dev,
@@ -541,7 +541,6 @@ static ieee80211_tx_result
 ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
-	u16 dur;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_supported_band *sband;
 
@@ -598,14 +597,6 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 	    (!tx->sta || test_sta_flags(tx->sta, WLAN_STA_SHORT_PREAMBLE))) {
 		info->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
 	}
-
-	/* Setup duration field for the first fragment of the frame. Duration
-	 * for remaining fragments will be updated when they are being sent
-	 * to low-level driver in ieee80211_tx(). */
-	dur = ieee80211_duration(tx, is_multicast_ether_addr(hdr->addr1),
-				 (tx->flags & IEEE80211_TX_FRAGMENTED) ?
-				 tx->extra_frag[0]->len : 0);
-	hdr->duration_id = cpu_to_le16(dur);
 
 	if ((info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) ||
 	    (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)) {
@@ -708,6 +699,8 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 		fhdr->seq_ctrl = cpu_to_le16(seq | ((i + 1) & IEEE80211_SCTL_FRAG));
 		copylen = left > per_fragm ? per_fragm : left;
 		memcpy(skb_put(frag, copylen), pos, copylen);
+		memcpy(frag->cb, first->cb, sizeof(frag->cb));
+		skb_copy_queue_mapping(frag, first);
 
 		pos += copylen;
 		left -= copylen;
@@ -752,6 +745,36 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result
+ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	int next_len, i;
+	int group_addr = is_multicast_ether_addr(hdr->addr1);
+
+	if (!(tx->flags & IEEE80211_TX_FRAGMENTED)) {
+		hdr->duration_id = ieee80211_duration(tx, group_addr, 0);
+		return TX_CONTINUE;
+	}
+
+	hdr->duration_id = ieee80211_duration(tx, group_addr,
+					      tx->extra_frag[0]->len);
+
+	for (i = 0; i < tx->num_extra_frag; i++) {
+		if (i + 1 < tx->num_extra_frag) {
+			next_len = tx->extra_frag[i + 1]->len;
+		} else {
+			next_len = 0;
+			tx->rate_idx = tx->last_frag_rate_idx;
+		}
+
+		hdr = (struct ieee80211_hdr *)tx->extra_frag[i]->data;
+		hdr->duration_id = ieee80211_duration(tx, 0, next_len);
+	}
+
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
 	int i;
@@ -785,6 +808,7 @@ static ieee80211_tx_handler ieee80211_tx_handlers[] =
 	ieee80211_tx_h_fragment,
 	/* handlers after fragment must be aware of tx info fragmentation! */
 	ieee80211_tx_h_encrypt,
+	ieee80211_tx_h_calculate_duration,
 	ieee80211_tx_h_stats,
 	NULL
 };
@@ -1150,24 +1174,6 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 
 	if (invoke_tx_handlers(&tx))
 		goto out;
-
-	if (tx.extra_frag) {
-		for (i = 0; i < tx.num_extra_frag; i++) {
-			int next_len, dur;
-			struct ieee80211_hdr *hdr =
-				(struct ieee80211_hdr *)
-				tx.extra_frag[i]->data;
-
-			if (i + 1 < tx.num_extra_frag) {
-				next_len = tx.extra_frag[i + 1]->len;
-			} else {
-				next_len = 0;
-				tx.rate_idx = tx.last_frag_rate_idx;
-			}
-			dur = ieee80211_duration(&tx, 0, next_len);
-			hdr->duration_id = cpu_to_le16(dur);
-		}
-	}
 
 retry:
 	ret = __ieee80211_tx(local, skb, &tx);
