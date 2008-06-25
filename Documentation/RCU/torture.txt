@@ -30,10 +30,10 @@ MODULE PARAMETERS
 
 This module has the following parameters:
 
-nreaders	This is the number of RCU reading threads supported.
-		The default is twice the number of CPUs.  Why twice?
-		To properly exercise RCU implementations with preemptible
-		read-side critical sections.
+irqreaders	Says to invoke RCU readers from irq level.  This is currently
+		done via timers.  Defaults to "1" for variants of RCU that
+		permit this.  (Or, more accurately, variants of RCU that do
+		-not- permit this know to ignore this variable.)
 
 nfakewriters	This is the number of RCU fake writer threads to run.  Fake
 		writer threads repeatedly use the synchronous "wait for
@@ -44,17 +44,22 @@ nfakewriters	This is the number of RCU fake writer threads to run.  Fake
 		to trigger special cases caused by multiple writers, such as
 		the synchronize_srcu() early return optimization.
 
+nreaders	This is the number of RCU reading threads supported.
+		The default is twice the number of CPUs.  Why twice?
+		To properly exercise RCU implementations with preemptible
+		read-side critical sections.
+
+shuffle_interval
+		The number of seconds to keep the test threads affinitied
+		to a particular subset of the CPUs, defaults to 3 seconds.
+		Used in conjunction with test_no_idle_hz.
+
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,
 		statistics are printed when the module is unloaded.
 		Setting the interval to zero causes the statistics to
 		be printed -only- when the module is unloaded, and this
 		is the default.
-
-shuffle_interval
-		The number of seconds to keep the test threads affinitied
-		to a particular subset of the CPUs, defaults to 3 seconds.
-		Used in conjunction with test_no_idle_hz.
 
 stutter		The length of time to run the test before pausing for this
 		same period of time.  Defaults to "stutter=5", so as

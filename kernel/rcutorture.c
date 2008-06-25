@@ -59,6 +59,7 @@ static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 3; /* Interval between shuffles (in sec)*/
 static int stutter = 5;		/* Start/stop testing interval (in sec) */
+static int irqreader = 1;	/* RCU readers from irq (timers). */
 static char *torture_type = "rcu"; /* What RCU implementation to torture. */
 
 module_param(nreaders, int, 0444);
@@ -75,6 +76,8 @@ module_param(shuffle_interval, int, 0444);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
 module_param(stutter, int, 0444);
 MODULE_PARM_DESC(stutter, "Number of seconds to run/halt test");
+module_param(irqreader, int, 0444);
+MODULE_PARM_DESC(irqreader, "Allow RCU readers from irq handlers");
 module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, srcu)");
 
@@ -121,6 +124,7 @@ static atomic_t n_rcu_torture_alloc_fail;
 static atomic_t n_rcu_torture_free;
 static atomic_t n_rcu_torture_mberror;
 static atomic_t n_rcu_torture_error;
+static long n_rcu_torture_timers = 0;
 static struct list_head rcu_torture_removed;
 
 static int stutter_pause_test = 0;
@@ -217,6 +221,7 @@ struct rcu_torture_ops {
 	void (*sync)(void);
 	void (*cb_barrier)(void);
 	int (*stats)(char *page);
+	int irqcapable;
 	char *name;
 };
 static struct rcu_torture_ops *cur_ops = NULL;
@@ -291,6 +296,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.sync = synchronize_rcu,
 	.cb_barrier = rcu_barrier,
 	.stats = NULL,
+	.irqcapable = 1,
 	.name = "rcu"
 };
 
@@ -331,6 +337,7 @@ static struct rcu_torture_ops rcu_sync_ops = {
 	.sync = synchronize_rcu,
 	.cb_barrier = NULL,
 	.stats = NULL,
+	.irqcapable = 1,
 	.name = "rcu_sync"
 };
 
@@ -392,6 +399,7 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.sync = rcu_bh_torture_synchronize,
 	.cb_barrier = rcu_barrier_bh,
 	.stats = NULL,
+	.irqcapable = 1,
 	.name = "rcu_bh"
 };
 
@@ -406,6 +414,7 @@ static struct rcu_torture_ops rcu_bh_sync_ops = {
 	.sync = rcu_bh_torture_synchronize,
 	.cb_barrier = NULL,
 	.stats = NULL,
+	.irqcapable = 1,
 	.name = "rcu_bh_sync"
 };
 
@@ -532,6 +541,7 @@ static struct rcu_torture_ops sched_ops = {
 	.sync = sched_torture_synchronize,
 	.cb_barrier = rcu_barrier_sched,
 	.stats = NULL,
+	.irqcapable = 1,
 	.name = "sched"
 };
 
@@ -620,6 +630,52 @@ rcu_torture_fakewriter(void *arg)
 }
 
 /*
+ * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
+ * incrementing the corresponding element of the pipeline array.  The
+ * counter in the element should never be greater than 1, otherwise, the
+ * RCU implementation is broken.
+ */
+static void rcu_torture_timer(unsigned long unused)
+{
+	int idx;
+	int completed;
+	static DEFINE_RCU_RANDOM(rand);
+	static DEFINE_SPINLOCK(rand_lock);
+	struct rcu_torture *p;
+	int pipe_count;
+
+	idx = cur_ops->readlock();
+	completed = cur_ops->completed();
+	p = rcu_dereference(rcu_torture_current);
+	if (p == NULL) {
+		/* Leave because rcu_torture_writer is not yet underway */
+		cur_ops->readunlock(idx);
+		return;
+	}
+	if (p->rtort_mbtest == 0)
+		atomic_inc(&n_rcu_torture_mberror);
+	spin_lock(&rand_lock);
+	cur_ops->readdelay(&rand);
+	n_rcu_torture_timers++;
+	spin_unlock(&rand_lock);
+	preempt_disable();
+	pipe_count = p->rtort_pipe_count;
+	if (pipe_count > RCU_TORTURE_PIPE_LEN) {
+		/* Should not happen, but... */
+		pipe_count = RCU_TORTURE_PIPE_LEN;
+	}
+	++__get_cpu_var(rcu_torture_count)[pipe_count];
+	completed = cur_ops->completed() - completed;
+	if (completed > RCU_TORTURE_PIPE_LEN) {
+		/* Should not happen, but... */
+		completed = RCU_TORTURE_PIPE_LEN;
+	}
+	++__get_cpu_var(rcu_torture_batch)[completed];
+	preempt_enable();
+	cur_ops->readunlock(idx);
+}
+
+/*
  * RCU torture reader kthread.  Repeatedly dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
  * counter in the element should never be greater than 1, otherwise, the
@@ -633,11 +689,18 @@ rcu_torture_reader(void *arg)
 	DEFINE_RCU_RANDOM(rand);
 	struct rcu_torture *p;
 	int pipe_count;
+	struct timer_list t;
 
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task started");
 	set_user_nice(current, 19);
+	if (irqreader && cur_ops->irqcapable)
+		setup_timer_on_stack(&t, rcu_torture_timer, 0);
 
 	do {
+		if (irqreader && cur_ops->irqcapable) {
+			if (!timer_pending(&t))
+				mod_timer(&t, 1);
+		}
 		idx = cur_ops->readlock();
 		completed = cur_ops->completed();
 		p = rcu_dereference(rcu_torture_current);
@@ -669,6 +732,8 @@ rcu_torture_reader(void *arg)
 		rcu_stutter_wait();
 	} while (!kthread_should_stop() && !fullstop);
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task stopping");
+	if (irqreader && cur_ops->irqcapable)
+		del_timer_sync(&t);
 	while (!kthread_should_stop())
 		schedule_timeout_uninterruptible(1);
 	return 0;
@@ -699,14 +764,15 @@ rcu_torture_printk(char *page)
 	cnt += sprintf(&page[cnt], "%s%s ", torture_type, TORTURE_FLAG);
 	cnt += sprintf(&page[cnt],
 		       "rtc: %p ver: %ld tfle: %d rta: %d rtaf: %d rtf: %d "
-		       "rtmbe: %d",
+		       "rtmbe: %d nt: %ld",
 		       rcu_torture_current,
 		       rcu_torture_current_version,
 		       list_empty(&rcu_torture_freelist),
 		       atomic_read(&n_rcu_torture_alloc),
 		       atomic_read(&n_rcu_torture_alloc_fail),
 		       atomic_read(&n_rcu_torture_free),
-		       atomic_read(&n_rcu_torture_mberror));
+		       atomic_read(&n_rcu_torture_mberror),
+		       n_rcu_torture_timers);
 	if (atomic_read(&n_rcu_torture_mberror) != 0)
 		cnt += sprintf(&page[cnt], " !!!");
 	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
@@ -862,10 +928,10 @@ rcu_torture_print_module_parms(char *tag)
 	printk(KERN_ALERT "%s" TORTURE_FLAG
 		"--- %s: nreaders=%d nfakewriters=%d "
 		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
-		"shuffle_interval=%d stutter=%d\n",
+		"shuffle_interval=%d stutter=%d irqreader=%d\n",
 		torture_type, tag, nrealreaders, nfakewriters,
 		stat_interval, verbose, test_no_idle_hz, shuffle_interval,
-		stutter);
+		stutter, irqreader);
 }
 
 static void
