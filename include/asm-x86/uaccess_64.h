@@ -23,9 +23,6 @@ extern void __put_user_bad(void);
 		     :"c" (ptr),"a" (x)					\
 		     :"ebx")
 
-#define put_user(x, ptr)						\
-	__put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
-
 #define __get_user(x, ptr)						\
 	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 #define __put_user(x, ptr)						\
@@ -34,11 +31,12 @@ extern void __put_user_bad(void);
 #define __get_user_unaligned __get_user
 #define __put_user_unaligned __put_user
 
-#define __put_user_check(x, ptr, size)				\
+#define put_user(x, ptr)					\
 ({								\
 	int __pu_err;						\
 	typeof(*(ptr)) __user *__pu_addr = (ptr);		\
-	switch (size) {						\
+	__chk_user_ptr(ptr);					\
+	switch (sizeof(*(ptr))) {				\
 	case 1:							\
 		__put_user_x(1, __pu_err, x, __pu_addr);	\
 		break;						\
