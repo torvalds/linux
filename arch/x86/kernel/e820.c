@@ -1117,6 +1117,9 @@ static int __init parse_memopt(char *p)
 
 	mem_size = memparse(p, &p);
 	end_user_pfn = mem_size>>PAGE_SHIFT;
+	e820_update_range(mem_size, ULLONG_MAX - mem_size,
+		E820_RAM, E820_RESERVED);
+
 	return 0;
 }
 early_param("mem", parse_memopt);
@@ -1161,6 +1164,8 @@ static int __init parse_memmap_opt(char *p)
 		e820_add_region(start_at, mem_size, E820_RESERVED);
 	} else {
 		end_user_pfn = (mem_size >> PAGE_SHIFT);
+		e820_update_range(mem_size, ULLONG_MAX - mem_size,
+			E820_RAM, E820_RESERVED);
 	}
 	return *p == '\0' ? 0 : -EINVAL;
 }
