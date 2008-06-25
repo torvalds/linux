@@ -34,14 +34,6 @@ extern void __put_user_bad(void);
 #define __get_user_unaligned __get_user
 #define __put_user_unaligned __put_user
 
-#define __put_user_nocheck(x, ptr, size)		\
-({							\
-	int __pu_err;					\
-	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
-	__pu_err;					\
-})
-
-
 #define __put_user_check(x, ptr, size)				\
 ({								\
 	int __pu_err;						\
@@ -64,49 +56,6 @@ extern void __put_user_bad(void);
 	}							\
 	__pu_err;						\
 })
-
-#define __put_user_size(x, ptr, size, retval, errret)			\
-do {									\
-	retval = 0;							\
-	__chk_user_ptr(ptr);						\
-	switch (size) {							\
-	case 1:								\
-		__put_user_asm(x, ptr, retval, "b", "b", "iq", errret);\
-		break;							\
-	case 2:								\
-		__put_user_asm(x, ptr, retval, "w", "w", "ir", errret);\
-		break;							\
-	case 4:								\
-		__put_user_asm(x, ptr, retval, "l", "k", "ir", errret);\
-		break;							\
-	case 8:								\
-		__put_user_asm(x, ptr, retval, "q", "", "Zr", errret);	\
-		break;							\
-	default:							\
-		__put_user_bad();					\
-	}								\
-} while (0)
-
-/* FIXME: this hack is definitely wrong -AK */
-struct __large_struct { unsigned long buf[100]; };
-#define __m(x) (*(struct __large_struct __user *)(x))
-
-/*
- * Tell gcc we read from memory instead of writing: this is because
- * we do not write to any memory gcc knows about, so there are no
- * aliasing issues.
- */
-#define __put_user_asm(x, addr, err, itype, rtype, ltype, errno)	\
-	asm volatile("1:	mov"itype" %"rtype"1,%2\n"		\
-		     "2:\n"						\
-		     ".section .fixup, \"ax\"\n"			\
-		     "3:	mov %3,%0\n"				\
-		     "	jmp 2b\n"					\
-		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 3b)				\
-		     : "=r"(err)					\
-		     : ltype (x), "m" (__m(addr)), "i" (errno), "0" (err))
-
 
 #define __get_user_nocheck(x, ptr, size)			\
 ({								\

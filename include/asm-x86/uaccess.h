@@ -178,6 +178,90 @@ extern int __get_user_bad(void);
 	__ret_gu;							\
 })
 
+#ifdef CONFIG_X86_32
+#define __put_user_u64(x, addr, err)					\
+	asm volatile("1:	movl %%eax,0(%2)\n"			\
+		     "2:	movl %%edx,4(%2)\n"			\
+		     "3:\n"						\
+		     ".section .fixup,\"ax\"\n"				\
+		     "4:	movl %3,%0\n"				\
+		     "	jmp 3b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE(1b, 4b)				\
+		     _ASM_EXTABLE(2b, 4b)				\
+		     : "=r" (err)					\
+		     : "A" (x), "r" (addr), "i" (-EFAULT), "0" (err))
+#else
+#define __put_user_u64(x, ptr, retval) \
+	__put_user_asm(x, ptr, retval, "q", "", "Zr", -EFAULT)
+#endif
+
+#ifdef CONFIG_X86_WP_WORKS_OK
+
+#define __put_user_size(x, ptr, size, retval, errret)			\
+do {									\
+	retval = 0;							\
+	__chk_user_ptr(ptr);						\
+	switch (size) {							\
+	case 1:								\
+		__put_user_asm(x, ptr, retval, "b", "b", "iq", errret);	\
+		break;							\
+	case 2:								\
+		__put_user_asm(x, ptr, retval, "w", "w", "ir", errret);	\
+		break;							\
+	case 4:								\
+		__put_user_asm(x, ptr, retval, "l", "k",  "ir", errret);\
+		break;							\
+	case 8:								\
+		__put_user_u64((__typeof__(*ptr))(x), ptr, retval);	\
+		break;							\
+	default:							\
+		__put_user_bad();					\
+	}								\
+} while (0)
+
+#else
+
+#define __put_user_size(x, ptr, size, retval, errret)			\
+do {									\
+	__typeof__(*(ptr))__pus_tmp = x;				\
+	retval = 0;							\
+									\
+	if (unlikely(__copy_to_user_ll(ptr, &__pus_tmp, size) != 0))	\
+		retval = errret;					\
+} while (0)
+
+#endif
+
+#define __put_user_nocheck(x, ptr, size)			\
+({								\
+	long __pu_err;						\
+	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
+	__pu_err;						\
+})
+
+
+
+/* FIXME: this hack is definitely wrong -AK */
+struct __large_struct { unsigned long buf[100]; };
+#define __m(x) (*(struct __large_struct __user *)(x))
+
+/*
+ * Tell gcc we read from memory instead of writing: this is because
+ * we do not write to any memory gcc knows about, so there are no
+ * aliasing issues.
+ */
+#define __put_user_asm(x, addr, err, itype, rtype, ltype, errret)	\
+	asm volatile("1:	mov"itype" %"rtype"1,%2\n"		\
+		     "2:\n"						\
+		     ".section .fixup,\"ax\"\n"				\
+		     "3:	mov %3,%0\n"				\
+		     "	jmp 2b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE(1b, 3b)				\
+		     : "=r"(err)					\
+		     : ltype(x), "m" (__m(addr)), "i" (errret), "0" (err))
+
 
 #ifdef CONFIG_X86_32
 # include "uaccess_32.h"
