@@ -23,6 +23,7 @@ struct pxa2xx_udc_mach_info {
 	 */
 	bool	gpio_vbus_inverted;
 	u16	gpio_vbus;			/* high == vbus present */
+	bool	gpio_pullup_inverted;
 	u16	gpio_pullup;			/* high == pullup activated */
 };
 
