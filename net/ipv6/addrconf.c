@@ -578,6 +578,13 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	struct rt6_info *rt;
 	int hash;
 	int err = 0;
+	int addr_type = ipv6_addr_type(addr);
+
+	if (addr_type == IPV6_ADDR_ANY ||
+	    addr_type & IPV6_ADDR_MULTICAST ||
+	    (!(idev->dev->flags & IFF_LOOPBACK) &&
+	     addr_type & IPV6_ADDR_LOOPBACK))
+		return ERR_PTR(-EADDRNOTAVAIL);
 
 	rcu_read_lock_bh();
 	if (idev->dead) {
