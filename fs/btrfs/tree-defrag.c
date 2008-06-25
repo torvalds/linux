@@ -38,8 +38,15 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	u64 last_ret = 0;
 
 	if (root->fs_info->extent_root == root) {
+		/*
+		 * there's recursion here right now in the tree locking,
+		 * we can't defrag the extent root without deadlock
+		 */
+		goto out;
+#if 0
 		mutex_lock(&root->fs_info->alloc_mutex);
 		is_extent = 1;
+#endif
 	}
 
 	if (root->ref_cows == 0 && !is_extent)

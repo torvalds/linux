@@ -30,6 +30,7 @@ struct btrfs_inode {
 	struct extent_map_tree extent_tree;
 	struct extent_io_tree io_tree;
 	struct extent_io_tree io_failure_tree;
+	struct mutex csum_mutex;
 	struct inode vfs_inode;
 	atomic_t ordered_writeback;
 

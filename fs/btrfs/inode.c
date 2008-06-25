@@ -351,7 +351,9 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	trans = btrfs_start_transaction(root, 1);
 
 	btrfs_set_trans_block_group(trans, inode);
+	mutex_lock(&BTRFS_I(inode)->csum_mutex);
 	btrfs_csum_file_blocks(trans, root, inode, bio, sums);
+	mutex_unlock(&BTRFS_I(inode)->csum_mutex);
 
 	ret = btrfs_end_transaction(trans, root);
 	BUG_ON(ret);
@@ -1400,6 +1402,7 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 			     inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
+	mutex_init(&BTRFS_I(inode)->csum_mutex);
 	atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 	return 0;
 }
@@ -1701,6 +1704,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 			     inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
+	mutex_init(&BTRFS_I(inode)->csum_mutex);
 	atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 	BTRFS_I(inode)->delalloc_bytes = 0;
 	BTRFS_I(inode)->root = root;
@@ -1924,6 +1928,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 				     inode->i_mapping, GFP_NOFS);
 		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 				     inode->i_mapping, GFP_NOFS);
+		mutex_init(&BTRFS_I(inode)->csum_mutex);
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
@@ -2862,6 +2867,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 				     inode->i_mapping, GFP_NOFS);
 		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 				     inode->i_mapping, GFP_NOFS);
+		mutex_init(&BTRFS_I(inode)->csum_mutex);
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;

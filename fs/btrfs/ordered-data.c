@@ -152,12 +152,13 @@ int btrfs_add_ordered_inode(struct inode *inode)
 			   inode->i_ino, &entry->rb_node);
 
 	BTRFS_I(inode)->ordered_trans = transid;
+	if (!node)
+		igrab(inode);
 
 	write_unlock(&tree->lock);
+
 	if (node)
 		kfree(entry);
-	else
-		igrab(inode);
 	return 0;
 }
 

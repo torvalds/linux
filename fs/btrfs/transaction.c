@@ -477,7 +477,7 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 			if (err)
 				ret = err;
 			nr = trans->blocks_used;
-			ret = btrfs_end_transaction(trans, tree_root);
+			ret = btrfs_end_transaction_throttle(trans, tree_root);
 			BUG_ON(ret);
 
 			mutex_unlock(&root->fs_info->drop_mutex);
