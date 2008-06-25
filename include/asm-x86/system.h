@@ -136,7 +136,7 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 #define set_base(ldt, base) _set_base(((char *)&(ldt)) , (base))
 #define set_limit(ldt, limit) _set_limit(((char *)&(ldt)) , ((limit)-1))
 
-extern void load_gs_index(unsigned);
+extern void native_load_gs_index(unsigned);
 
 /*
  * Load a segment. Fall back on loading the zero
@@ -282,6 +282,7 @@ static inline void native_wbinvd(void)
 #ifdef CONFIG_X86_64
 #define read_cr8()	(native_read_cr8())
 #define write_cr8(x)	(native_write_cr8(x))
+#define load_gs_index   native_load_gs_index
 #endif
 
 /* Clear the 'TS' bit */

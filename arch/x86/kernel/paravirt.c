@@ -329,6 +329,9 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.store_idt = native_store_idt,
 	.store_tr = native_store_tr,
 	.load_tls = native_load_tls,
+#ifdef CONFIG_X86_64
+	.load_gs_index = native_load_gs_index,
+#endif
 	.write_ldt_entry = native_write_ldt_entry,
 	.write_gdt_entry = native_write_gdt_entry,
 	.write_idt_entry = native_write_idt_entry,

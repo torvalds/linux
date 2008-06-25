@@ -944,7 +944,7 @@ KPROBE_END(error_entry)
 	
        /* Reload gs selector with exception handling */
        /* edi:  new selector */ 
-ENTRY(load_gs_index)
+ENTRY(native_load_gs_index)
 	CFI_STARTPROC
 	pushf
 	CFI_ADJUST_CFA_OFFSET 8
@@ -958,7 +958,7 @@ gs_change:
 	CFI_ADJUST_CFA_OFFSET -8
         ret
 	CFI_ENDPROC
-ENDPROC(load_gs_index)
+ENDPROC(native_load_gs_index)
        
         .section __ex_table,"a"
         .align 8

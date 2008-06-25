@@ -115,6 +115,9 @@ struct pv_cpu_ops {
 	void (*set_ldt)(const void *desc, unsigned entries);
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
+#ifdef CONFIG_X86_64
+	void (*load_gs_index)(unsigned int idx);
+#endif
 	void (*write_ldt_entry)(struct desc_struct *ldt, int entrynum,
 				const void *desc);
 	void (*write_gdt_entry)(struct desc_struct *,
@@ -844,6 +847,13 @@ static inline void load_TLS(struct thread_struct *t, unsigned cpu)
 {
 	PVOP_VCALL2(pv_cpu_ops.load_tls, t, cpu);
 }
+
+#ifdef CONFIG_X86_64
+static inline void load_gs_index(unsigned int gs)
+{
+	PVOP_VCALL1(pv_cpu_ops.load_gs_index, gs);
+}
+#endif
 
 static inline void write_ldt_entry(struct desc_struct *dt, int entry,
 				   const void *desc)
