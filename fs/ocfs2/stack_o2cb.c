@@ -317,8 +317,7 @@ out:
 	return rc;
 }
 
-static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn,
-				   int hangup_pending)
+static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 {
 	struct dlm_ctxt *dlm = conn->cc_lockspace;
 	struct o2dlm_private *priv = conn->cc_private;
@@ -331,43 +330,6 @@ static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 	conn->cc_lockspace = NULL;
 
 	return 0;
-}
-
-static void o2hb_stop(const char *group)
-{
-	int ret;
-	char *argv[5], *envp[3];
-
-	argv[0] = (char *)o2nm_get_hb_ctl_path();
-	argv[1] = "-K";
-	argv[2] = "-u";
-	argv[3] = (char *)group;
-	argv[4] = NULL;
-
-	mlog(0, "Run: %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3]);
-
-	/* minimal command environment taken from cpu_run_sbin_hotplug */
-	envp[0] = "HOME=/";
-	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
-	envp[2] = NULL;
-
-	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
-	if (ret < 0)
-		mlog_errno(ret);
-}
-
-/*
- * Hangup is a hack for tools compatibility.  Older ocfs2-tools software
- * expects the filesystem to call "ocfs2_hb_ctl" during unmount.  This
- * happens regardless of whether the DLM got started, so we can't do it
- * in ocfs2_cluster_disconnect().  We bring the o2hb_stop() function into
- * the glue and provide a "hangup" API for super.c to call.
- *
- * Other stacks will eventually provide a NULL ->hangup() pointer.
- */
-static void o2cb_cluster_hangup(const char *group, int grouplen)
-{
-	o2hb_stop(group);
 }
 
 static int o2cb_cluster_this_node(unsigned int *node)
@@ -388,7 +350,6 @@ static int o2cb_cluster_this_node(unsigned int *node)
 static struct ocfs2_stack_operations o2cb_stack_ops = {
 	.connect	= o2cb_cluster_connect,
 	.disconnect	= o2cb_cluster_disconnect,
-	.hangup		= o2cb_cluster_hangup,
 	.this_node	= o2cb_cluster_this_node,
 	.dlm_lock	= o2cb_dlm_lock,
 	.dlm_unlock	= o2cb_dlm_unlock,
