@@ -1394,6 +1394,7 @@ tc35815_open(struct net_device *dev)
 	tc35815_chip_init(dev);
 	spin_unlock_irq(&lp->lock);
 
+	netif_carrier_off(dev);
 	/* schedule a link state check */
 	phy_start(lp->phy_dev);
 
@@ -2453,6 +2454,7 @@ static int tc35815_resume(struct pci_dev *pdev)
 		return 0;
 	pci_set_power_state(pdev, PCI_D0);
 	tc35815_restart(dev);
+	netif_carrier_off(dev);
 	if (lp->phy_dev)
 		phy_start(lp->phy_dev);
 	netif_device_attach(dev);
