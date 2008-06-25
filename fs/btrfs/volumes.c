@@ -866,7 +866,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	u64 devid;
 	int ret = 0;
 
-	mutex_lock(&root->fs_info->fs_mutex);
+	mutex_lock(&root->fs_info->alloc_mutex);
+	mutex_lock(&root->fs_info->chunk_mutex);
 	mutex_lock(&uuid_mutex);
 
 	all_avail = root->fs_info->avail_data_alloc_bits |
@@ -984,7 +985,8 @@ error_close:
 		close_bdev_excl(bdev);
 out:
 	mutex_unlock(&uuid_mutex);
-	mutex_unlock(&root->fs_info->fs_mutex);
+	mutex_unlock(&root->fs_info->chunk_mutex);
+	mutex_unlock(&root->fs_info->alloc_mutex);
 	return ret;
 }
 
@@ -1003,7 +1005,10 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if (!bdev) {
 		return -EIO;
 	}
-	mutex_lock(&root->fs_info->fs_mutex);
+
+	mutex_lock(&root->fs_info->alloc_mutex);
+	mutex_lock(&root->fs_info->chunk_mutex);
+
 	trans = btrfs_start_transaction(root, 1);
 	devices = &root->fs_info->fs_devices->devices;
 	list_for_each(cur, devices) {
@@ -1057,7 +1062,9 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	root->fs_info->fs_devices->open_devices++;
 out:
 	btrfs_end_transaction(trans, root);
-	mutex_unlock(&root->fs_info->fs_mutex);
+	mutex_unlock(&root->fs_info->chunk_mutex);
+	mutex_unlock(&root->fs_info->alloc_mutex);
+
 	return ret;
 
 out_close_bdev:
@@ -1297,9 +1304,10 @@ int btrfs_balance(struct btrfs_root *dev_root)
 	struct btrfs_key found_key;
 
 
+	BUG(); /* FIXME, needs locking */
+
 	dev_root = dev_root->fs_info->dev_root;
 
-	mutex_lock(&dev_root->fs_info->fs_mutex);
 	/* step one make some room on all the devices */
 	list_for_each(cur, devices) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
@@ -1368,7 +1376,6 @@ int btrfs_balance(struct btrfs_root *dev_root)
 	ret = 0;
 error:
 	btrfs_free_path(path);
-	mutex_unlock(&dev_root->fs_info->fs_mutex);
 	return ret;
 }
 

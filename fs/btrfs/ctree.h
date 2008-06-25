@@ -519,9 +519,9 @@ struct btrfs_fs_info {
 	struct backing_dev_info bdi;
 	spinlock_t hash_lock;
 	struct mutex trans_mutex;
-	struct mutex fs_mutex;
 	struct mutex alloc_mutex;
 	struct mutex chunk_mutex;
+	struct mutex drop_mutex;
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
@@ -554,7 +554,7 @@ struct btrfs_fs_info {
 	struct completion kobj_unregister;
 	int do_barriers;
 	int closing;
-	unsigned long throttles;
+	atomic_t throttles;
 
 	u64 total_pinned;
 	struct list_head dirty_cowonly_roots;
@@ -594,6 +594,7 @@ struct btrfs_root {
 	struct inode *inode;
 	struct kobject root_kobj;
 	struct completion kobj_unregister;
+	struct mutex objectid_mutex;
 	u64 objectid;
 	u64 last_trans;
 

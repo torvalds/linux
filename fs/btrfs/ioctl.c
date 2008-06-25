@@ -63,7 +63,6 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	u64 new_dirid = BTRFS_FIRST_FREE_OBJECTID;
 	unsigned long nr = 1;
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_check_free_space(root, 1, 0);
 	if (ret)
 		goto fail_commit;
@@ -164,7 +163,6 @@ fail:
 	if (err && !ret)
 		ret = err;
 fail_commit:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
 	btrfs_throttle(root);
 	return ret;
@@ -181,7 +179,6 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	if (!root->ref_cows)
 		return -EINVAL;
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_check_free_space(root, 1, 0);
 	if (ret)
 		goto fail_unlock;
@@ -208,7 +205,6 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	err = btrfs_commit_transaction(trans, root);
 
 fail_unlock:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
 	btrfs_throttle(root);
 	return ret;
@@ -228,9 +224,7 @@ int btrfs_defrag_file(struct file *file)
 	unsigned long i;
 	int ret;
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_check_free_space(root, inode->i_size, 0);
-	mutex_unlock(&root->fs_info->fs_mutex);
 	if (ret)
 		return -ENOSPC;
 
@@ -315,7 +309,8 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		goto out;
 	}
 
-	mutex_lock(&root->fs_info->fs_mutex);
+	mutex_lock(&root->fs_info->alloc_mutex);
+	mutex_lock(&root->fs_info->chunk_mutex);
 	sizestr = vol_args->name;
 	devstr = strchr(sizestr, ':');
 	if (devstr) {
@@ -385,7 +380,8 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 	}
 
 out_unlock:
-	mutex_unlock(&root->fs_info->fs_mutex);
+	mutex_lock(&root->fs_info->alloc_mutex);
+	mutex_lock(&root->fs_info->chunk_mutex);
 out:
 	kfree(vol_args);
 	return ret;
@@ -428,11 +424,9 @@ static noinline int btrfs_ioctl_snap_create(struct btrfs_root *root,
 	}
 
 	root_dirid = root->fs_info->sb->s_root->d_inode->i_ino,
-	mutex_lock(&root->fs_info->fs_mutex);
 	di = btrfs_lookup_dir_item(NULL, root->fs_info->tree_root,
 			    path, root_dirid,
 			    vol_args->name, namelen, 0);
-	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_free_path(path);
 
 	if (di && !IS_ERR(di)) {
@@ -445,10 +439,12 @@ static noinline int btrfs_ioctl_snap_create(struct btrfs_root *root,
 		goto out;
 	}
 
+	mutex_lock(&root->fs_info->drop_mutex);
 	if (root == root->fs_info->tree_root)
 		ret = create_subvol(root, vol_args->name, namelen);
 	else
 		ret = create_snapshot(root, vol_args->name, namelen);
+	mutex_unlock(&root->fs_info->drop_mutex);
 out:
 	kfree(vol_args);
 	return ret;
@@ -461,10 +457,8 @@ static int btrfs_ioctl_defrag(struct file *file)
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFDIR:
-		mutex_lock(&root->fs_info->fs_mutex);
 		btrfs_defrag_root(root, 0);
 		btrfs_defrag_root(root->fs_info->extent_root, 0);
-		mutex_unlock(&root->fs_info->fs_mutex);
 		break;
 	case S_IFREG:
 		btrfs_defrag_file(file);
@@ -588,7 +582,6 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 		unlock_extent(&BTRFS_I(src)->io_tree, 0, (u64)-1, GFP_NOFS);
 	}
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 0);
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -685,7 +678,6 @@ out:
 	unlock_extent(&BTRFS_I(src)->io_tree, 0, (u64)-1, GFP_NOFS);
 
 	btrfs_end_transaction(trans, root);
-	mutex_unlock(&root->fs_info->fs_mutex);
 
 out_unlock:
 	mutex_unlock(&src->i_mutex);
@@ -711,7 +703,6 @@ long btrfs_ioctl_trans_start(struct file *file)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	if (file->private_data) {
 		ret = -EINPROGRESS;
 		goto out;
@@ -723,7 +714,6 @@ long btrfs_ioctl_trans_start(struct file *file)
 		ret = -ENOMEM;
 	/*printk(KERN_INFO "btrfs_ioctl_trans_start on %p\n", file);*/
 out:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
 
@@ -740,7 +730,6 @@ long btrfs_ioctl_trans_end(struct file *file)
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	trans = file->private_data;
 	if (!trans) {
 		ret = -EINVAL;
@@ -749,7 +738,6 @@ long btrfs_ioctl_trans_end(struct file *file)
 	btrfs_end_transaction(trans, root);
 	file->private_data = 0;
 out:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
 

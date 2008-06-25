@@ -724,6 +724,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	spin_lock_init(&root->node_lock);
+	mutex_init(&root->objectid_mutex);
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
@@ -1146,6 +1147,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	atomic_set(&fs_info->nr_async_submits, 0);
+	atomic_set(&fs_info->throttles, 0);
 	fs_info->sb = sb;
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
@@ -1199,7 +1201,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	mutex_init(&fs_info->trans_mutex);
-	mutex_init(&fs_info->fs_mutex);
+	mutex_init(&fs_info->drop_mutex);
 	mutex_init(&fs_info->alloc_mutex);
 	mutex_init(&fs_info->chunk_mutex);
 
@@ -1278,8 +1280,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
-	mutex_lock(&fs_info->fs_mutex);
-
 	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
@@ -1342,7 +1342,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->metadata_alloc_profile = (u64)-1;
 	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
 
-	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 
 fail_extent_root:
@@ -1350,7 +1349,6 @@ fail_extent_root:
 fail_tree_root:
 	free_extent_buffer(tree_root->node);
 fail_sys_array:
-	mutex_unlock(&fs_info->fs_mutex);
 fail_sb_buffer:
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 	btrfs_stop_workers(&fs_info->workers);
@@ -1562,8 +1560,9 @@ int close_ctree(struct btrfs_root *root)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	fs_info->closing = 1;
+	smp_mb();
+
 	btrfs_transaction_flush_work(root);
-	mutex_lock(&fs_info->fs_mutex);
 	btrfs_defrag_dirty_roots(root->fs_info);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
@@ -1574,7 +1573,6 @@ int close_ctree(struct btrfs_root *root)
 	BUG_ON(ret);
 
 	write_ctree_super(NULL, root);
-	mutex_unlock(&fs_info->fs_mutex);
 
 	btrfs_transaction_flush_work(root);
 
@@ -1679,7 +1677,8 @@ void btrfs_throttle(struct btrfs_root *root)
 	struct backing_dev_info *bdi;
 
 	bdi = &root->fs_info->bdi;
-	if (root->fs_info->throttles && bdi_write_congested(bdi)) {
+	if (atomic_read(&root->fs_info->throttles) &&
+	    bdi_write_congested(bdi)) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18)
 		congestion_wait(WRITE, HZ/20);
 #else

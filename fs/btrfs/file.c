@@ -252,7 +252,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	end_of_last_block = start_pos + num_bytes - 1;
 
 	lock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
-	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	if (!trans) {
 		err = -ENOMEM;
@@ -341,7 +340,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 failed:
 	err = btrfs_end_transaction(trans, root);
 out_unlock:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	unlock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 	return err;
 }
@@ -905,9 +903,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		WARN_ON(num_pages > nrptrs);
 		memset(pages, 0, sizeof(pages));
 
-		mutex_lock(&root->fs_info->fs_mutex);
 		ret = btrfs_check_free_space(root, write_bytes, 0);
-		mutex_unlock(&root->fs_info->fs_mutex);
 		if (ret)
 			goto out;
 
@@ -998,9 +994,9 @@ static int btrfs_sync_file(struct file *file,
 	 * check the transaction that last modified this inode
 	 * and see if its already been committed
 	 */
-	mutex_lock(&root->fs_info->fs_mutex);
 	if (!BTRFS_I(inode)->last_trans)
 		goto out;
+
 	mutex_lock(&root->fs_info->trans_mutex);
 	if (BTRFS_I(inode)->last_trans <=
 	    root->fs_info->last_trans_committed) {
@@ -1023,7 +1019,6 @@ static int btrfs_sync_file(struct file *file,
 	}
 	ret = btrfs_commit_transaction(trans, root);
 out:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret > 0 ? EIO : ret;
 }
 

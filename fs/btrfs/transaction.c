@@ -370,6 +370,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 	struct btrfs_trans_handle *trans;
 	unsigned long nr;
 
+	smp_mb();
 	if (root->defrag_running)
 		return 0;
 	trans = btrfs_start_transaction(root, 1);
@@ -378,16 +379,15 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 		ret = btrfs_defrag_leaves(trans, root, cacheonly);
 		nr = trans->blocks_used;
 		btrfs_end_transaction(trans, root);
-		mutex_unlock(&info->fs_mutex);
 		btrfs_btree_balance_dirty(info->tree_root, nr);
 		cond_resched();
 
-		mutex_lock(&info->fs_mutex);
 		trans = btrfs_start_transaction(root, 1);
 		if (ret != -EAGAIN)
 			break;
 	}
 	root->defrag_running = 0;
+	smp_mb();
 	radix_tree_tag_clear(&info->fs_roots_radix,
 		     (unsigned long)root->root_key.objectid,
 		     BTRFS_ROOT_DEFRAG_TAG);
@@ -435,14 +435,14 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 	while(!list_empty(list)) {
 		struct btrfs_root *root;
 
-		mutex_lock(&tree_root->fs_info->fs_mutex);
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
 
 		num_bytes = btrfs_root_used(&dirty->root->root_item);
 		root = dirty->latest_root;
-		root->fs_info->throttles++;
+		atomic_inc(&root->fs_info->throttles);
 
+		mutex_lock(&root->fs_info->drop_mutex);
 		while(1) {
 			trans = btrfs_start_transaction(tree_root, 1);
 			ret = btrfs_drop_snapshot(trans, dirty->root);
@@ -459,14 +459,16 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 			nr = trans->blocks_used;
 			ret = btrfs_end_transaction(trans, tree_root);
 			BUG_ON(ret);
-			mutex_unlock(&tree_root->fs_info->fs_mutex);
+
+			mutex_unlock(&root->fs_info->drop_mutex);
 			btrfs_btree_balance_dirty(tree_root, nr);
 			cond_resched();
-			mutex_lock(&tree_root->fs_info->fs_mutex);
+			mutex_lock(&root->fs_info->drop_mutex);
 		}
 		BUG_ON(ret);
-		root->fs_info->throttles--;
+		atomic_dec(&root->fs_info->throttles);
 
+		mutex_lock(&root->fs_info->alloc_mutex);
 		num_bytes -= btrfs_root_used(&dirty->root->root_item);
 		bytes_used = btrfs_root_used(&root->root_item);
 		if (num_bytes) {
@@ -474,11 +476,15 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 			btrfs_set_root_used(&root->root_item,
 					    bytes_used - num_bytes);
 		}
+		mutex_unlock(&root->fs_info->alloc_mutex);
+
 		ret = btrfs_del_root(trans, tree_root, &dirty->root->root_key);
 		if (ret) {
 			BUG();
 			break;
 		}
+		mutex_unlock(&root->fs_info->drop_mutex);
+
 		nr = trans->blocks_used;
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
@@ -486,7 +492,6 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		free_extent_buffer(dirty->root->node);
 		kfree(dirty->root);
 		kfree(dirty);
-		mutex_unlock(&tree_root->fs_info->fs_mutex);
 
 		btrfs_btree_balance_dirty(tree_root, nr);
 		cond_resched();
@@ -503,7 +508,7 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 	u64 objectid = 0;
 	int ret;
 
-	root->fs_info->throttles++;
+	atomic_inc(&root->fs_info->throttles);
 	while(1) {
 		ret = btrfs_find_first_ordered_inode(
 				&cur_trans->ordered_inode_tree,
@@ -512,7 +517,6 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 			break;
 
 		mutex_unlock(&root->fs_info->trans_mutex);
-		mutex_unlock(&root->fs_info->fs_mutex);
 
 		if (S_ISREG(inode->i_mode)) {
 			atomic_inc(&BTRFS_I(inode)->ordered_writeback);
@@ -521,7 +525,6 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		}
 		iput(inode);
 
-		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 	}
 	while(1) {
@@ -533,7 +536,6 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		if (!ret)
 			break;
 		mutex_unlock(&root->fs_info->trans_mutex);
-		mutex_unlock(&root->fs_info->fs_mutex);
 
 		if (S_ISREG(inode->i_mode)) {
 			atomic_inc(&BTRFS_I(inode)->ordered_writeback);
@@ -543,10 +545,9 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		atomic_dec(&inode->i_count);
 		iput(inode);
 
-		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 	}
-	root->fs_info->throttles--;
+	atomic_dec(&root->fs_info->throttles);
 	return 0;
 }
 
@@ -661,7 +662,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		mutex_unlock(&root->fs_info->trans_mutex);
 		btrfs_end_transaction(trans, root);
 
-		mutex_unlock(&root->fs_info->fs_mutex);
 		ret = wait_for_commit(root, cur_trans);
 		BUG_ON(ret);
 
@@ -669,7 +669,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		put_transaction(cur_trans);
 		mutex_unlock(&root->fs_info->trans_mutex);
 
-		mutex_lock(&root->fs_info->fs_mutex);
 		return 0;
 	}
 
@@ -687,12 +686,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 					struct btrfs_transaction, list);
 		if (!prev_trans->commit_done) {
 			prev_trans->use_count++;
-			mutex_unlock(&root->fs_info->fs_mutex);
 			mutex_unlock(&root->fs_info->trans_mutex);
 
 			wait_for_commit(root, prev_trans);
 
-			mutex_lock(&root->fs_info->fs_mutex);
 			mutex_lock(&root->fs_info->trans_mutex);
 			put_transaction(prev_trans);
 		}
@@ -709,12 +706,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		else
 			timeout = 1;
 
-		mutex_unlock(&root->fs_info->fs_mutex);
 		mutex_unlock(&root->fs_info->trans_mutex);
 
 		schedule_timeout(timeout);
 
-		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 		finish_wait(&cur_trans->writer_wait, &wait);
 		ret = btrfs_write_ordered_inodes(trans, root);
@@ -755,12 +750,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_copy_pinned(root, pinned_copy);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
-	mutex_unlock(&root->fs_info->fs_mutex);
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	BUG_ON(ret);
 	write_ctree_super(trans, root);
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	btrfs_finish_extent_commit(trans, root, pinned_copy);
 	mutex_lock(&root->fs_info->trans_mutex);
 
@@ -781,9 +774,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
 	if (root->fs_info->closing) {
-		mutex_unlock(&root->fs_info->fs_mutex);
 		drop_dirty_roots(root->fs_info->tree_root, &dirty_fs_roots);
-		mutex_lock(&root->fs_info->fs_mutex);
 	}
 	return ret;
 }
@@ -823,7 +814,7 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	unsigned long delay = HZ * 30;
 	int ret;
 
-	mutex_lock(&root->fs_info->fs_mutex);
+	smp_mb();
 	if (root->fs_info->closing)
 		goto out;
 
@@ -844,7 +835,6 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 out:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_clean_old_snapshots(root);
 	btrfs_transaction_queue_work(root, delay);
 }

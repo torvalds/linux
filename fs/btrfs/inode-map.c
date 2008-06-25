@@ -69,6 +69,12 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	struct btrfs_key search_key;
 	u64 search_start = dirid;
 
+	mutex_lock(&root->objectid_mutex);
+	if (root->last_inode_alloc) {
+		*objectid = ++root->last_inode_alloc;
+		mutex_unlock(&root->objectid_mutex);
+		return 0;
+	}
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	search_start = root->last_inode_alloc;
@@ -124,9 +130,11 @@ found:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	BUG_ON(*objectid < search_start);
+	mutex_unlock(&root->objectid_mutex);
 	return 0;
 error:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
+	mutex_unlock(&root->objectid_mutex);
 	return ret;
 }

@@ -63,6 +63,9 @@ void btrfs_free_path(struct btrfs_path *p)
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 {
 	int i;
+	int skip = p->skip_locking;
+	int keep = p->keep_locks;
+
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
 		if (!p->nodes[i])
 			continue;
@@ -73,6 +76,8 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 		free_extent_buffer(p->nodes[i]);
 	}
 	memset(p, 0, sizeof(*p));
+	p->skip_locking = skip;
+	p->keep_locks = keep;
 }
 
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
@@ -1202,13 +1207,19 @@ static void unlock_up(struct btrfs_path *path, int level, int lowest_unlock)
 			u32 nritems;
 			t = path->nodes[i];
 			nritems = btrfs_header_nritems(t);
-			if (path->slots[i] >= nritems - 1) {
+			if (nritems < 2 || path->slots[i] >= nritems - 2) {
+if (path->keep_locks) {
+//printk("path %p skip level now %d\n", path, skip_level);
+}
 				skip_level = i + 1;
 				continue;
 			}
 		}
 		t = path->nodes[i];
 		if (i >= lowest_unlock && i > skip_level && path->locks[i]) {
+if (path->keep_locks) {
+//printk("path %p unlocking level %d slot %d nritems %d skip_level %d\n", path, i, path->slots[i], btrfs_header_nritems(t), skip_level);
+}
 			btrfs_tree_unlock(t);
 			path->locks[i] = 0;
 		}
@@ -1243,7 +1254,6 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	lowest_level = p->lowest_level;
 	WARN_ON(lowest_level && ins_len);
 	WARN_ON(p->nodes[0] != NULL);
-	// WARN_ON(!mutex_is_locked(&root->fs_info->fs_mutex));
 	WARN_ON(root == root->fs_info->extent_root &&
 		!mutex_is_locked(&root->fs_info->alloc_mutex));
 	WARN_ON(root == root->fs_info->chunk_root &&
@@ -1321,7 +1331,7 @@ again:
 			b = read_node_slot(root, b, slot);
 			if (!p->skip_locking)
 				btrfs_tree_lock(b);
-			unlock_up(p, level, lowest_unlock);
+			unlock_up(p, level + 1, lowest_unlock);
 		} else {
 			p->slots[level] = slot;
 			if (ins_len > 0 && btrfs_leaf_free_space(root, b) <
@@ -1804,6 +1814,8 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (slot >= btrfs_header_nritems(upper) - 1)
 		return 1;
 
+	WARN_ON(!btrfs_tree_locked(path->nodes[1]));
+
 	right = read_node_slot(root, upper, slot + 1);
 	btrfs_tree_lock(right);
 	free_space = btrfs_leaf_free_space(root, right);
@@ -1980,6 +1992,8 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (right_nritems == 0) {
 		return 1;
 	}
+
+	WARN_ON(!btrfs_tree_locked(path->nodes[1]));
 
 	left = read_node_slot(root, path->nodes[1], slot - 1);
 	btrfs_tree_lock(left);
@@ -2957,15 +2971,16 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, nritems - 1);
 
-	path->keep_locks = 1;
 	btrfs_release_path(root, path);
+	path->keep_locks = 1;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	path->keep_locks = 0;
 
 	if (ret < 0)
 		return ret;
 
-	if (path->slots[0] < nritems - 1) {
+	nritems = btrfs_header_nritems(path->nodes[0]);
+	if (nritems > 0 && path->slots[0] < nritems - 1) {
 		goto done;
 	}
 
@@ -2992,8 +3007,17 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 			reada_for_search(root, path, level, slot, 0);
 
 		next = read_node_slot(root, c, slot);
-		if (!path->skip_locking)
+		if (!path->skip_locking) {
+			if (!btrfs_tree_locked(c)) {
+				int i;
+				WARN_ON(1);
+printk("path %p no lock on level %d\n", path, level);
+for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
+printk("path %p level %d slot %d nritems %d\n", path, i, path->slots[i], btrfs_header_nritems(path->nodes[i]));
+}
+			}
 			btrfs_tree_lock(next);
+		}
 		break;
 	}
 	path->slots[level] = slot;
@@ -3011,8 +3035,10 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		if (level == 1 && path->locks[1] && path->reada)
 			reada_for_search(root, path, level, slot, 0);
 		next = read_node_slot(root, next, 0);
-		if (!path->skip_locking)
+		if (!path->skip_locking) {
+			WARN_ON(!btrfs_tree_locked(path->nodes[level]));
 			btrfs_tree_lock(next);
+		}
 	}
 done:
 	unlock_up(path, 0, 1);

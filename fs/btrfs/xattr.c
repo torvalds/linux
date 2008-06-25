@@ -153,7 +153,6 @@ ssize_t btrfs_xattr_get(struct inode *inode, int name_index,
 		return -ENOMEM;
 	}
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	/* lookup the xattr by name */
 	di = btrfs_lookup_xattr(NULL, root, path, inode->i_ino, name,
 				strlen(name), 0);
@@ -181,7 +180,6 @@ ssize_t btrfs_xattr_get(struct inode *inode, int name_index,
 	ret = btrfs_dir_data_len(leaf, di);
 
 out:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	kfree(name);
 	btrfs_free_path(path);
 	return ret;
@@ -210,7 +208,6 @@ int btrfs_xattr_set(struct inode *inode, int name_index,
 		return -ENOMEM;
 	}
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
 
@@ -260,7 +257,6 @@ out:
 	}
 
 	btrfs_end_transaction(trans, root);
-	mutex_unlock(&root->fs_info->fs_mutex);
 	kfree(name);
 	btrfs_free_path(path);
 
@@ -296,8 +292,6 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	if (!path)
 		return -ENOMEM;
 	path->reada = 2;
-
-	mutex_lock(&root->fs_info->fs_mutex);
 
 	/* search for our xattrs */
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -379,15 +373,13 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	ret = total_size;
 
 err:
-	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_free_path(path);
 
 	return ret;
 }
 
 /*
- * delete all the xattrs associated with the inode.  fs_mutex should be
- * held when we come into here
+ * delete all the xattrs associated with the inode.
  */
 int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct inode *inode)

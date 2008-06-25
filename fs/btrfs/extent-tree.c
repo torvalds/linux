@@ -1577,9 +1577,11 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		}
 
 		/* block accounting for super block */
+		spin_lock_irq(&info->delalloc_lock);
 		super_used = btrfs_super_bytes_used(&info->super_copy);
 		btrfs_set_super_bytes_used(&info->super_copy,
 					   super_used - num_bytes);
+		spin_unlock_irq(&info->delalloc_lock);
 
 		/* block accounting for root item */
 		root_used = btrfs_root_used(&root->root_item);
@@ -1968,8 +1970,10 @@ again:
 	}
 
 	/* block accounting for super block */
+	spin_lock_irq(&info->delalloc_lock);
 	super_used = btrfs_super_bytes_used(&info->super_copy);
 	btrfs_set_super_bytes_used(&info->super_copy, super_used + num_bytes);
+	spin_unlock_irq(&info->delalloc_lock);
 
 	/* block accounting for root item */
 	root_used = btrfs_root_used(&root->root_item);
@@ -2172,12 +2176,12 @@ static void noinline reada_walk_down(struct btrfs_root *root,
 				continue;
 			}
 		}
-		mutex_unlock(&root->fs_info->fs_mutex);
+		mutex_unlock(&root->fs_info->alloc_mutex);
 		ret = readahead_tree_block(root, bytenr, blocksize,
 					   btrfs_node_ptr_generation(node, i));
 		last = bytenr + blocksize;
 		cond_resched();
-		mutex_lock(&root->fs_info->fs_mutex);
+		mutex_lock(&root->fs_info->alloc_mutex);
 		if (ret)
 			break;
 	}
@@ -2254,11 +2258,9 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 			free_extent_buffer(next);
 			reada_walk_down(root, cur, path->slots[*level]);
 
-			mutex_unlock(&root->fs_info->fs_mutex);
 			mutex_unlock(&root->fs_info->alloc_mutex);
 			next = read_tree_block(root, bytenr, blocksize,
 					       ptr_gen);
-			mutex_lock(&root->fs_info->fs_mutex);
 			mutex_lock(&root->fs_info->alloc_mutex);
 
 			/* we've dropped the lock, double check */
@@ -2381,6 +2383,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 	int orig_level;
 	struct btrfs_root_item *root_item = &root->root_item;
 
+	WARN_ON(!mutex_is_locked(&root->fs_info->drop_mutex));
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
@@ -2710,7 +2713,6 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 		    *last_file_root == ref_root)
 			goto out;
 
-		mutex_unlock(&extent_root->fs_info->fs_mutex);
 		inode = btrfs_iget_locked(extent_root->fs_info->sb,
 					  ref_objectid, found_root);
 		if (inode->i_state & I_NEW) {
@@ -2727,7 +2729,6 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 		 * the latest version of the tree root
 		 */
 		if (is_bad_inode(inode)) {
-			mutex_lock(&extent_root->fs_info->fs_mutex);
 			goto out;
 		}
 		*last_file_objectid = inode->i_ino;
@@ -2736,7 +2737,6 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 
 		relocate_inode_pages(inode, ref_offset, extent_key->offset);
 		iput(inode);
-		mutex_lock(&extent_root->fs_info->fs_mutex);
 	} else {
 		struct btrfs_trans_handle *trans;
 		struct extent_buffer *eb;
@@ -3033,9 +3033,7 @@ next:
 
 		if (progress && need_resched()) {
 			memcpy(&key, &found_key, sizeof(key));
-			mutex_unlock(&root->fs_info->fs_mutex);
 			cond_resched();
-			mutex_lock(&root->fs_info->fs_mutex);
 			btrfs_release_path(root, path);
 			btrfs_search_slot(NULL, root, &key, path, 0, 0);
 			progress = 0;
@@ -3068,9 +3066,7 @@ next:
 		trans = btrfs_start_transaction(tree_root, 1);
 		btrfs_commit_transaction(trans, tree_root);
 
-		mutex_unlock(&root->fs_info->fs_mutex);
 		btrfs_clean_old_snapshots(tree_root);
-		mutex_lock(&root->fs_info->fs_mutex);
 
 		trans = btrfs_start_transaction(tree_root, 1);
 		btrfs_commit_transaction(trans, tree_root);
