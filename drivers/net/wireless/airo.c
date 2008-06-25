@@ -7156,6 +7156,7 @@ out:
  * format that the Wireless Tools will understand - Jean II
  */
 static inline char *airo_translate_scan(struct net_device *dev,
+					struct iw_request_info *info,
 					char *current_ev,
 					char *end_buf,
 					BSSListRid *bss)
@@ -7172,7 +7173,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, bss->bssid, ETH_ALEN);
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_ADDR_LEN);
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_ADDR_LEN);
 
 	/* Other entries will be displayed in the order we give them */
 
@@ -7182,7 +7184,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 		iwe.u.data.length = 32;
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, bss->ssid);
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, bss->ssid);
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
@@ -7192,7 +7195,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_UINT_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_UINT_LEN);
 	}
 
 	/* Add frequency */
@@ -7203,7 +7207,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	 */
 	iwe.u.freq.m = frequency_list[iwe.u.freq.m - 1] * 100000;
 	iwe.u.freq.e = 1;
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_FREQ_LEN);
 
 	dBm = le16_to_cpu(bss->dBm);
 
@@ -7223,7 +7228,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 				| IW_QUAL_DBM;
 	}
 	iwe.u.qual.noise = ai->wstats.qual.noise;
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_QUAL_LEN);
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
@@ -7232,11 +7238,12 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, bss->ssid);
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, bss->ssid);
 
 	/* Rate : stuffing multiple values in a single event require a bit
 	 * more of magic - Jean II */
-	current_val = current_ev + IW_EV_LCP_LEN;
+	current_val = current_ev + iwe_stream_lcp_len(info);
 
 	iwe.cmd = SIOCGIWRATE;
 	/* Those two flags are ignored... */
@@ -7249,10 +7256,12 @@ static inline char *airo_translate_scan(struct net_device *dev,
 		/* Bit rate given in 500 kb/s units (+ 0x80) */
 		iwe.u.bitrate.value = ((bss->rates[i] & 0x7f) * 500000);
 		/* Add new value to event */
-		current_val = iwe_stream_add_value(current_ev, current_val, end_buf, &iwe, IW_EV_PARAM_LEN);
+		current_val = iwe_stream_add_value(info, current_ev,
+						   current_val, end_buf,
+						   &iwe, IW_EV_PARAM_LEN);
 	}
 	/* Check if we added any event */
-	if((current_val - current_ev) > IW_EV_LCP_LEN)
+	if ((current_val - current_ev) > iwe_stream_lcp_len(info))
 		current_ev = current_val;
 
 	/* Beacon interval */
@@ -7261,7 +7270,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 		iwe.cmd = IWEVCUSTOM;
 		sprintf(buf, "bcn_int=%d", bss->beaconInterval);
 		iwe.u.data.length = strlen(buf);
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, buf);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, buf);
 		kfree(buf);
 	}
 
@@ -7295,8 +7305,10 @@ static inline char *airo_translate_scan(struct net_device *dev,
 					iwe.cmd = IWEVGENIE;
 					iwe.u.data.length = min(info_element->len + 2,
 								  MAX_WPA_IE_LEN);
-					current_ev = iwe_stream_add_point(current_ev, end_buf,
-							&iwe, (char *) info_element);
+					current_ev = iwe_stream_add_point(
+							info, current_ev,
+							end_buf, &iwe,
+							(char *) info_element);
 				}
 				break;
 
@@ -7304,8 +7316,9 @@ static inline char *airo_translate_scan(struct net_device *dev,
 				iwe.cmd = IWEVGENIE;
 				iwe.u.data.length = min(info_element->len + 2,
 							  MAX_WPA_IE_LEN);
-				current_ev = iwe_stream_add_point(current_ev, end_buf,
-						&iwe, (char *) info_element);
+				current_ev = iwe_stream_add_point(
+					info, current_ev, end_buf,
+					&iwe, (char *) info_element);
 				break;
 
 			default:
@@ -7344,7 +7357,7 @@ static int airo_get_scan(struct net_device *dev,
 
 	list_for_each_entry (net, &ai->network_list, list) {
 		/* Translate to WE format this entry */
-		current_ev = airo_translate_scan(dev, current_ev,
+		current_ev = airo_translate_scan(dev, info, current_ev,
 						 extra + dwrq->length,
 						 &net->bss);
 

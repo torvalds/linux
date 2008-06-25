@@ -4087,6 +4087,7 @@ int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len)
 
 static char *
 ieee80211_sta_scan_result(struct net_device *dev,
+			  struct iw_request_info *info,
 			  struct ieee80211_sta_bss *bss,
 			  char *current_ev, char *end_buf)
 {
@@ -4101,7 +4102,7 @@ ieee80211_sta_scan_result(struct net_device *dev,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, bss->bssid, ETH_ALEN);
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
 					  IW_EV_ADDR_LEN);
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -4109,13 +4110,13 @@ ieee80211_sta_scan_result(struct net_device *dev,
 	if (bss_mesh_cfg(bss)) {
 		iwe.u.data.length = bss_mesh_id_len(bss);
 		iwe.u.data.flags = 1;
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  bss_mesh_id(bss));
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, bss_mesh_id(bss));
 	} else {
 		iwe.u.data.length = bss->ssid_len;
 		iwe.u.data.flags = 1;
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  bss->ssid);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, bss->ssid);
 	}
 
 	if (bss->capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)
@@ -4128,22 +4129,22 @@ ieee80211_sta_scan_result(struct net_device *dev,
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
-		current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
-						  IW_EV_UINT_LEN);
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_UINT_LEN);
 	}
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = ieee80211_frequency_to_channel(bss->freq);
 	iwe.u.freq.e = 0;
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
 					  IW_EV_FREQ_LEN);
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = bss->freq;
 	iwe.u.freq.e = 6;
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
 					  IW_EV_FREQ_LEN);
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = IWEVQUAL;
@@ -4151,7 +4152,7 @@ ieee80211_sta_scan_result(struct net_device *dev,
 	iwe.u.qual.level = bss->signal;
 	iwe.u.qual.noise = bss->noise;
 	iwe.u.qual.updated = local->wstats_flags;
-	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
 					  IW_EV_QUAL_LEN);
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -4161,35 +4162,36 @@ ieee80211_sta_scan_result(struct net_device *dev,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, "");
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, "");
 
 	if (bss && bss->wpa_ie) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->wpa_ie_len;
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  bss->wpa_ie);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, bss->wpa_ie);
 	}
 
 	if (bss && bss->rsn_ie) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->rsn_ie_len;
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  bss->rsn_ie);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, bss->rsn_ie);
 	}
 
 	if (bss && bss->ht_ie) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->ht_ie_len;
-		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  bss->ht_ie);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, bss->ht_ie);
 	}
 
 	if (bss && bss->supp_rates_len > 0) {
 		/* display all supported rates in readable format */
-		char *p = current_ev + IW_EV_LCP_LEN;
+		char *p = current_ev + iwe_stream_lcp_len(info);
 		int i;
 
 		memset(&iwe, 0, sizeof(iwe));
@@ -4200,7 +4202,7 @@ ieee80211_sta_scan_result(struct net_device *dev,
 		for (i = 0; i < bss->supp_rates_len; i++) {
 			iwe.u.bitrate.value = ((bss->supp_rates[i] &
 							0x7f) * 500000);
-			p = iwe_stream_add_value(current_ev, p,
+			p = iwe_stream_add_value(info, current_ev, p,
 					end_buf, &iwe, IW_EV_PARAM_LEN);
 		}
 		current_ev = p;
@@ -4214,7 +4216,8 @@ ieee80211_sta_scan_result(struct net_device *dev,
 			iwe.cmd = IWEVCUSTOM;
 			sprintf(buf, "tsf=%016llx", (unsigned long long)(bss->timestamp));
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
 							  &iwe, buf);
 			kfree(buf);
 		}
@@ -4229,31 +4232,36 @@ ieee80211_sta_scan_result(struct net_device *dev,
 			iwe.cmd = IWEVCUSTOM;
 			sprintf(buf, "Mesh network (version %d)", cfg[0]);
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Path Selection Protocol ID: "
 				"0x%02X%02X%02X%02X", cfg[1], cfg[2], cfg[3],
 							cfg[4]);
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Path Selection Metric ID: "
 				"0x%02X%02X%02X%02X", cfg[5], cfg[6], cfg[7],
 							cfg[8]);
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Congestion Control Mode ID: "
 				"0x%02X%02X%02X%02X", cfg[9], cfg[10],
 							cfg[11], cfg[12]);
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Channel Precedence: "
 				"0x%02X%02X%02X%02X", cfg[13], cfg[14],
 							cfg[15], cfg[16]);
 			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(current_ev, end_buf,
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
 							  &iwe, buf);
 			kfree(buf);
 		}
@@ -4263,7 +4271,9 @@ ieee80211_sta_scan_result(struct net_device *dev,
 }
 
 
-int ieee80211_sta_scan_results(struct net_device *dev, char *buf, size_t len)
+int ieee80211_sta_scan_results(struct net_device *dev,
+			       struct iw_request_info *info,
+			       char *buf, size_t len)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	char *current_ev = buf;
@@ -4276,8 +4286,8 @@ int ieee80211_sta_scan_results(struct net_device *dev, char *buf, size_t len)
 			spin_unlock_bh(&local->sta_bss_lock);
 			return -E2BIG;
 		}
-		current_ev = ieee80211_sta_scan_result(dev, bss, current_ev,
-						       end_buf);
+		current_ev = ieee80211_sta_scan_result(dev, info, bss,
+						       current_ev, end_buf);
 	}
 	spin_unlock_bh(&local->sta_bss_lock);
 	return current_ev - buf;

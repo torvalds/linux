@@ -677,6 +677,19 @@ struct	iw_point
   __u16		flags;		/* Optional params */
 };
 
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
+
+#include <linux/compat.h>
+
+struct compat_iw_point {
+	compat_caddr_t pointer;
+	__u16 length;
+	__u16 flags;
+};
+#endif
+#endif
+
 /*
  *	A frequency
  *	For numbers lower than 10^9, we encode the number in 'm' and
@@ -1099,6 +1112,21 @@ struct iw_event
 			  (char *) NULL)
 #define IW_EV_POINT_LEN	(IW_EV_LCP_LEN + sizeof(struct iw_point) - \
 			 IW_EV_POINT_OFF)
+
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
+struct __compat_iw_event {
+	__u16		len;			/* Real length of this stuff */
+	__u16		cmd;			/* Wireless IOCTL */
+	compat_caddr_t	pointer;
+};
+#define IW_EV_COMPAT_LCP_LEN offsetof(struct __compat_iw_event, pointer)
+#define IW_EV_COMPAT_POINT_OFF offsetof(struct compat_iw_point, length)
+#define IW_EV_COMPAT_POINT_LEN	\
+	(IW_EV_COMPAT_LCP_LEN + sizeof(struct compat_iw_point) - \
+	 IW_EV_COMPAT_POINT_OFF)
+#endif
+#endif
 
 /* Size of the Event prefix when packed in stream */
 #define IW_EV_LCP_PK_LEN	(4)
