@@ -101,16 +101,24 @@ int cx18_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 			cx2341x_ctrl_get_menu(&cx->params, qmenu->id));
 }
 
-int cx18_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
+static int cx18_try_ctrl(struct file *file, void *fh,
+					struct v4l2_ext_control *vctrl)
 {
-	struct cx18_open_id *id = fh;
-	struct cx18 *cx = id->cx;
-	int ret;
+	struct v4l2_queryctrl qctrl;
+	const char **menu_items = NULL;
+	int err;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
-	if (ret)
-		return ret;
+	qctrl.id = vctrl->id;
+	err = cx18_queryctrl(file, fh, &qctrl);
+	if (err)
+		return err;
+	if (qctrl.type == V4L2_CTRL_TYPE_MENU)
+		menu_items = v4l2_ctrl_get_menu(qctrl.id);
+	return v4l2_ctrl_check(vctrl, &qctrl, menu_items);
+}
 
+static int cx18_s_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
+{
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
 	case V4L2_CID_BRIGHTNESS:
@@ -134,10 +142,8 @@ int cx18_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 	return 0;
 }
 
-int cx18_g_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
+static int cx18_g_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
-
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
 	case V4L2_CID_BRIGHTNESS:
@@ -211,7 +217,7 @@ int cx18_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		for (i = 0; i < c->count; i++) {
 			ctrl.id = c->controls[i].id;
 			ctrl.value = c->controls[i].value;
-			err = cx18_g_ctrl(file, fh, &ctrl);
+			err = cx18_g_ctrl(cx, &ctrl);
 			c->controls[i].value = ctrl.value;
 			if (err) {
 				c->error_idx = i;
@@ -243,7 +249,7 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		for (i = 0; i < c->count; i++) {
 			ctrl.id = c->controls[i].id;
 			ctrl.value = c->controls[i].value;
-			err = cx18_s_ctrl(file, fh, &ctrl);
+			err = cx18_s_ctrl(cx, &ctrl);
 			c->controls[i].value = ctrl.value;
 			if (err) {
 				c->error_idx = i;
@@ -287,6 +293,19 @@ int cx18_try_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
+	if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
+		int i;
+		int err = 0;
+
+		for (i = 0; i < c->count; i++) {
+			err = cx18_try_ctrl(file, fh, &c->controls[i]);
+			if (err) {
+				c->error_idx = i;
+				break;
+			}
+		}
+		return err;
+	}
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
 		return cx2341x_ext_ctrls(&cx->params,
 						atomic_read(&cx->ana_capturing),

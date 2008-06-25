@@ -692,7 +692,7 @@ static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
 {
 	struct v4l2_register *regs = arg;
 	unsigned long flags;
-	u8 __iomem *reg_start;
+	volatile u8 __iomem *reg_start;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1904,8 +1904,6 @@ void ivtv_set_funcs(struct video_device *vdev)
 	vdev->vidioc_default 		    = ivtv_default;
 	vdev->vidioc_queryctrl 		    = ivtv_queryctrl;
 	vdev->vidioc_querymenu 		    = ivtv_querymenu;
-	vdev->vidioc_g_ctrl 		    = ivtv_g_ctrl;
-	vdev->vidioc_s_ctrl 		    = ivtv_s_ctrl;
 	vdev->vidioc_g_ext_ctrls    	    = ivtv_g_ext_ctrls;
 	vdev->vidioc_s_ext_ctrls    	    = ivtv_s_ext_ctrls;
 	vdev->vidioc_try_ext_ctrls    	    = ivtv_try_ext_ctrls;

@@ -819,8 +819,6 @@ void cx18_set_funcs(struct video_device *vdev)
 	vdev->vidioc_default                 = cx18_default;
 	vdev->vidioc_queryctrl               = cx18_queryctrl;
 	vdev->vidioc_querymenu               = cx18_querymenu;
-	vdev->vidioc_g_ctrl                  = cx18_g_ctrl;
-	vdev->vidioc_s_ctrl                  = cx18_s_ctrl;
 	vdev->vidioc_g_ext_ctrls             = cx18_g_ext_ctrls;
 	vdev->vidioc_s_ext_ctrls             = cx18_s_ext_ctrls;
 	vdev->vidioc_try_ext_ctrls           = cx18_try_ext_ctrls;

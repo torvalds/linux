@@ -98,10 +98,24 @@ int ivtv_querymenu(struct file *file, void *fh, struct v4l2_querymenu *qmenu)
 			cx2341x_ctrl_get_menu(&itv->params, qmenu->id));
 }
 
-int ivtv_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
+static int ivtv_try_ctrl(struct file *file, void *fh,
+					struct v4l2_ext_control *vctrl)
 {
-	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
+	struct v4l2_queryctrl qctrl;
+	const char **menu_items = NULL;
+	int err;
 
+	qctrl.id = vctrl->id;
+	err = ivtv_queryctrl(file, fh, &qctrl);
+	if (err)
+		return err;
+	if (qctrl.type == V4L2_CTRL_TYPE_MENU)
+		menu_items = v4l2_ctrl_get_menu(qctrl.id);
+	return v4l2_ctrl_check(vctrl, &qctrl, menu_items);
+}
+
+static int ivtv_s_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
+{
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
 	case V4L2_CID_BRIGHTNESS:
@@ -125,10 +139,8 @@ int ivtv_s_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
 	return 0;
 }
 
-int ivtv_g_ctrl(struct file *file, void *fh, struct v4l2_control *vctrl)
+static int ivtv_g_ctrl(struct ivtv *itv, struct v4l2_control *vctrl)
 {
-	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-
 	switch (vctrl->id) {
 		/* Standard V4L2 controls */
 	case V4L2_CID_BRIGHTNESS:
@@ -203,7 +215,7 @@ int ivtv_g_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		for (i = 0; i < c->count; i++) {
 			ctrl.id = c->controls[i].id;
 			ctrl.value = c->controls[i].value;
-			err = ivtv_g_ctrl(file, fh, &ctrl);
+			err = ivtv_g_ctrl(itv, &ctrl);
 			c->controls[i].value = ctrl.value;
 			if (err) {
 				c->error_idx = i;
@@ -229,7 +241,7 @@ int ivtv_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		for (i = 0; i < c->count; i++) {
 			ctrl.id = c->controls[i].id;
 			ctrl.value = c->controls[i].value;
-			err = ivtv_s_ctrl(file, fh, &ctrl);
+			err = ivtv_s_ctrl(itv, &ctrl);
 			c->controls[i].value = ctrl.value;
 			if (err) {
 				c->error_idx = i;
@@ -277,6 +289,19 @@ int ivtv_try_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
+	if (c->ctrl_class == V4L2_CTRL_CLASS_USER) {
+		int i;
+		int err = 0;
+
+		for (i = 0; i < c->count; i++) {
+			err = ivtv_try_ctrl(file, fh, &c->controls[i]);
+			if (err) {
+				c->error_idx = i;
+				break;
+			}
+		}
+		return err;
+	}
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
 		return cx2341x_ext_ctrls(&itv->params, atomic_read(&itv->capturing), c, VIDIOC_TRY_EXT_CTRLS);
 	return -EINVAL;
