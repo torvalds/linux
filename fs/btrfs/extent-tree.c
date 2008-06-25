@@ -1438,7 +1438,6 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 	int err = 0;
 
 	if (!pending) {
-#if 0
 		struct extent_buffer *buf;
 		buf = btrfs_find_tree_block(root, bytenr, num_bytes);
 		if (buf) {
@@ -1460,7 +1459,6 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 			}
 			free_extent_buffer(buf);
 		}
-#endif
 		update_pinned_extents(root, bytenr, num_bytes, 1);
 	} else {
 		set_extent_bits(&root->fs_info->pending_del,

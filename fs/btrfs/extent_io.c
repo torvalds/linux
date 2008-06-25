@@ -2808,10 +2808,15 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 		goto lru_add;
 
 	for (i = 0; i < num_pages; i++, index++) {
-		p = find_lock_page(mapping, index);
+		p = find_get_page(mapping, index);
 		if (!p) {
 			goto fail;
 		}
+		if (TestSetPageLocked(p)) {
+			page_cache_release(p);
+			goto fail;
+		}
+
 		set_page_extent_mapped(p);
 		mark_page_accessed(p);
 
