@@ -11,14 +11,6 @@
 
 #define ARCH_HAS_SEARCH_EXTABLE
 
-#define __get_user(x, ptr)						\
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
-#define __put_user(x, ptr)						\
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
-
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-
 /*
  * Copy To/From Userspace
  */
