@@ -43,6 +43,7 @@
 #include "ioctl.h"
 #include "print-tree.h"
 #include "volumes.h"
+#include "locking.h"
 
 
 
@@ -75,9 +76,9 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	if (ret)
 		goto fail;
 
-	leaf = __btrfs_alloc_free_block(trans, root, root->leafsize,
-					objectid, trans->transid, 0, 0,
-					0, 0);
+	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
+				      objectid, trans->transid, 0, 0,
+				      0, 0);
 	if (IS_ERR(leaf))
 		return PTR_ERR(leaf);
 
@@ -108,6 +109,7 @@ static noinline int create_subvol(struct btrfs_root *root, char *name,
 	memset(&root_item.drop_progress, 0, sizeof(root_item.drop_progress));
 	root_item.drop_level = 0;
 
+	btrfs_tree_unlock(leaf);
 	free_extent_buffer(leaf);
 	leaf = NULL;
 

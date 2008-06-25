@@ -23,6 +23,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "locking.h"
 
 static int total_trans = 0;
 extern struct kmem_cache *btrfs_trans_handle_cachep;
@@ -96,8 +97,7 @@ static noinline int record_root_in_trans(struct btrfs_root *root)
 			radix_tree_tag_set(&root->fs_info->fs_roots_radix,
 				   (unsigned long)root->root_key.objectid,
 				   BTRFS_ROOT_DEFRAG_TAG);
-			root->commit_root = root->node;
-			extent_buffer_get(root->node);
+			root->commit_root = btrfs_root_node(root);
 		} else {
 			WARN_ON(1);
 		}
@@ -559,6 +559,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *root = pending->root;
 	struct extent_buffer *tmp;
+	struct extent_buffer *old;
 	int ret;
 	int namelen;
 	u64 objectid;
@@ -578,16 +579,18 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	key.offset = 1;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 
-	extent_buffer_get(root->node);
-	btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
-	free_extent_buffer(tmp);
+	old = btrfs_lock_root_node(root);
+	btrfs_cow_block(trans, root, old, NULL, 0, &old);
 
-	btrfs_copy_root(trans, root, root->node, &tmp, objectid);
+	btrfs_copy_root(trans, root, old, &tmp, objectid);
+	btrfs_tree_unlock(old);
+	free_extent_buffer(old);
 
 	btrfs_set_root_bytenr(new_root_item, tmp->start);
 	btrfs_set_root_level(new_root_item, btrfs_header_level(tmp));
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				new_root_item);
+	btrfs_tree_unlock(tmp);
 	free_extent_buffer(tmp);
 	if (ret)
 		goto fail;

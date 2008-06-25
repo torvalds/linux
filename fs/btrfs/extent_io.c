@@ -2889,7 +2889,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-		lock_page(page);
 		if (i == 0)
 			set_page_extent_head(page, eb->len);
 		else
@@ -2907,7 +2906,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			end  = start + PAGE_CACHE_SIZE - 1;
 			if (test_range_bit(tree, start, end,
 					   EXTENT_DIRTY, 0)) {
-				unlock_page(page);
 				continue;
 			}
 		}
@@ -2919,7 +2917,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 						PAGECACHE_TAG_DIRTY);
 		}
 		read_unlock_irq(&page->mapping->tree_lock);
-		unlock_page(page);
 	}
 	return 0;
 }
@@ -2948,17 +2945,12 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 		 * on us if the page isn't already dirty.
 		 */
 		if (i == 0) {
-			lock_page(page);
 			set_page_extent_head(page, eb->len);
 		} else if (PagePrivate(page) &&
 			   page->private != EXTENT_PAGE_PRIVATE) {
-			lock_page(page);
 			set_page_extent_mapped(page);
-			unlock_page(page);
 		}
 		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
-		if (i == 0)
-			unlock_page(page);
 	}
 	return set_extent_dirty(tree, eb->start,
 				eb->start + eb->len - 1, GFP_NOFS);

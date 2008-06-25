@@ -115,6 +115,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
 	btrfs_set_trans_block_group(trans, inode);
+	mutex_unlock(&root->fs_info->fs_mutex);
 
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
 	num_bytes = max(blocksize,  num_bytes);
@@ -159,6 +160,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	btrfs_add_ordered_inode(inode);
 	btrfs_update_inode(trans, root, inode);
 out:
+	mutex_lock(&root->fs_info->fs_mutex);
 	btrfs_end_transaction(trans, root);
 	return ret;
 }
@@ -349,10 +351,12 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
+	mutex_unlock(&root->fs_info->fs_mutex);
 
 	btrfs_set_trans_block_group(trans, inode);
 	btrfs_csum_file_blocks(trans, root, inode, bio, sums);
 
+	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_end_transaction(trans, root);
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
@@ -807,6 +811,7 @@ static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
 		goto err;
 	}
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
+	btrfs_release_path(root, path);
 
 	dentry->d_inode->i_ctime = dir->i_ctime;
 	ret = btrfs_del_inode_ref(trans, root, name, name_len,
@@ -881,8 +886,9 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct btrfs_trans_handle *trans;
 	unsigned long nr = 0;
 
-	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE)
+	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE) {
 		return -ENOTEMPTY;
+	}
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_check_free_space(root, 1, 1);

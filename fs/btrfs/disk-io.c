@@ -32,6 +32,7 @@
 #include "volumes.h"
 #include "print-tree.h"
 #include "async-thread.h"
+#include "locking.h"
 
 #if 0
 static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
@@ -681,9 +682,11 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	if (btrfs_header_generation(buf) ==
-	    root->fs_info->running_transaction->transid)
+	    root->fs_info->running_transaction->transid) {
+		WARN_ON(!btrfs_tree_locked(buf));
 		clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree,
 					  buf);
+	}
 	return 0;
 }
 
@@ -720,6 +723,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->in_sysfs = 0;
 
 	INIT_LIST_HEAD(&root->dirty_list);
+	spin_lock_init(&root->node_lock);
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
@@ -1196,6 +1200,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->fs_mutex);
+	mutex_init(&fs_info->alloc_mutex);
+	mutex_init(&fs_info->chunk_mutex);
 
 #if 0
 	ret = add_hasher(fs_info, "crc32c");
@@ -1274,7 +1280,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	mutex_lock(&fs_info->fs_mutex);
 
+	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_sys_array(tree_root);
+	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
 		printk("btrfs: failed to read the system array on %s\n",
 		       sb->s_id);
@@ -1296,7 +1304,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	         (unsigned long)btrfs_header_chunk_tree_uuid(chunk_root->node),
 		 BTRFS_UUID_SIZE);
 
+	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_chunk_tree(chunk_root);
+	mutex_unlock(&fs_info->chunk_mutex);
 	BUG_ON(ret);
 
 	btrfs_close_extra_devices(fs_devices);
@@ -1654,6 +1664,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	u64 transid = btrfs_header_generation(buf);
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
+	WARN_ON(!btrfs_tree_locked(buf));
 	if (transid != root->fs_info->generation) {
 		printk(KERN_CRIT "transid mismatch buffer %llu, found %Lu running %Lu\n",
 			(unsigned long long)buf->start,

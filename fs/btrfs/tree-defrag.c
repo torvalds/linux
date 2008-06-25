@@ -181,6 +181,8 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (root->fs_info->extent_root == root)
 		is_extent = 1;
 
+	goto out;
+
 	if (root->ref_cows == 0 && !is_extent)
 		goto out;
 

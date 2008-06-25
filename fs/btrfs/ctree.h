@@ -330,8 +330,13 @@ struct btrfs_node {
 struct btrfs_path {
 	struct extent_buffer *nodes[BTRFS_MAX_LEVEL];
 	int slots[BTRFS_MAX_LEVEL];
+	/* if there is real range locking, this locks field will change */
+	int locks[BTRFS_MAX_LEVEL];
 	int reada;
+	/* keep some upper locks as we walk down */
+	int keep_locks;
 	int lowest_level;
+	int skip_locking;
 };
 
 /*
@@ -515,6 +520,8 @@ struct btrfs_fs_info {
 	spinlock_t hash_lock;
 	struct mutex trans_mutex;
 	struct mutex fs_mutex;
+	struct mutex alloc_mutex;
+	struct mutex chunk_mutex;
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
@@ -576,6 +583,10 @@ struct btrfs_fs_info {
  */
 struct btrfs_root {
 	struct extent_buffer *node;
+
+	/* the node lock is held while changing the node pointer */
+	spinlock_t node_lock;
+
 	struct extent_buffer *commit_root;
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
@@ -1353,13 +1364,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 						 struct btrfs_block_group_cache
 						 *hint, u64 search_start,
 						 int data, int owner);
-int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *root, u64 owner_objectid);
 struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
-					    struct btrfs_root *root, u32 size,
-					    u64 root_objectid,
-					    u64 hint, u64 empty_size);
-struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					     struct btrfs_root *root,
 					     u32 blocksize,
 					     u64 root_objectid,
@@ -1368,8 +1373,6 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					     int level,
 					     u64 hint,
 					     u64 empty_size);
-int btrfs_grow_extent_tree(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, u64 new_size);
 int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size);
 int btrfs_insert_extent_backref(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
@@ -1409,6 +1412,10 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 int btrfs_previous_item(struct btrfs_root *root,
 			struct btrfs_path *path, u64 min_objectid,
 			int type);
+
+struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
+struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
+
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
