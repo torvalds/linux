@@ -383,6 +383,7 @@ config VMI
 config KVM_CLOCK
 	bool "KVM paravirtualized clock"
 	select PARAVIRT
+	select PARAVIRT_CLOCK
 	depends on !(X86_VISWS || X86_VOYAGER)
 	help
 	  Turning on this option will allow you to run a paravirtualized clock
@@ -409,6 +410,10 @@ config PARAVIRT
 	  under a hypervisor, potentially improving performance significantly
 	  over full virtualization.  However, when run without a hypervisor
 	  the kernel is theoretically slower and slightly larger.
+
+config PARAVIRT_CLOCK
+	bool
+	default n
 
 endif
 

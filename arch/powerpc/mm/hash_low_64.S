@@ -568,6 +568,10 @@ htab_inval_old_hpte:
 	ld	r7,STK_PARM(r9)(r1)	/* ssize */
 	ld	r8,STK_PARM(r8)(r1)	/* local */
 	bl	.flush_hash_page
+	/* Clear out _PAGE_HPTE_SUB bits in the new linux PTE */
+	lis	r0,_PAGE_HPTE_SUB@h
+	ori	r0,r0,_PAGE_HPTE_SUB@l
+	andc	r30,r30,r0
 	b	htab_insert_pte
 	
 htab_bail_ok:

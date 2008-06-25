@@ -176,7 +176,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * we set it now, so we can trap and pass that trap to the Guest if it
 	 * uses the FPU. */
 	if (cpu->ts)
-		lguest_set_ts();
+		unlazy_fpu(current);
 
 	/* SYSENTER is an optimized way of doing system calls.  We can't allow
 	 * it because it always jumps to privilege level 0.  A normal Guest
@@ -196,6 +196,10 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * trap made the switcher code come back, and an error code which some
 	 * traps set.  */
 
+	 /* Restore SYSENTER if it's supposed to be on. */
+	 if (boot_cpu_has(X86_FEATURE_SEP))
+		wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
+
 	/* If the Guest page faulted, then the cr2 register will tell us the
 	 * bad virtual address.  We have to grab this now, because once we
 	 * re-enable interrupts an interrupt could fault and thus overwrite
@@ -203,13 +207,12 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	if (cpu->regs->trapnum == 14)
 		cpu->arch.last_pagefault = read_cr2();
 	/* Similarly, if we took a trap because the Guest used the FPU,
-	 * we have to restore the FPU it expects to see. */
+	 * we have to restore the FPU it expects to see.
+	 * math_state_restore() may sleep and we may even move off to
+	 * a different CPU. So all the critical stuff should be done
+	 * before this.  */
 	else if (cpu->regs->trapnum == 7)
 		math_state_restore();
-
-	/* Restore SYSENTER if it's supposed to be on. */
-	if (boot_cpu_has(X86_FEATURE_SEP))
-		wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
 }
 
 /*H:130 Now we've examined the hypercall code; our Guest can make requests.

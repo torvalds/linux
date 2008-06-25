@@ -99,7 +99,7 @@ struct bfin_serial_port {
 	struct work_struct	tx_dma_workqueue;
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
-	struct work_struct 	cts_workqueue;
+	struct timer_list 	cts_timer;
 	int		cts_pin;
 	int 		rts_pin;
 #endif
@@ -187,7 +187,7 @@ static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 
 #ifdef CONFIG_BFIN_UART1_CTSRTS
 	peripheral_request(P_UART1_RTS, DRIVER_NAME);
-	peripheral_request(P_UART1_CTS DRIVER_NAME);
+	peripheral_request(P_UART1_CTS, DRIVER_NAME);
 #endif
 #endif
 
@@ -202,7 +202,7 @@ static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 
 #ifdef CONFIG_BFIN_UART3_CTSRTS
 	peripheral_request(P_UART3_RTS, DRIVER_NAME);
-	peripheral_request(P_UART3_CTS DRIVER_NAME);
+	peripheral_request(P_UART3_CTS, DRIVER_NAME);
 #endif
 #endif
 	SSYNC();
