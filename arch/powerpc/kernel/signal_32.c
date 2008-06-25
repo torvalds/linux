@@ -336,6 +336,8 @@ struct rt_sigframe {
 static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 		int sigret)
 {
+	unsigned long msr = regs->msr;
+
 	/* Make sure floating point registers are stored in regs */
 	flush_fp_to_thread(current);
 
@@ -354,8 +356,7 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 			return 1;
 		/* set MSR_VEC in the saved MSR value to indicate that
 		   frame->mc_vregs contains valid data */
-		if (__put_user(regs->msr | MSR_VEC, &frame->mc_gregs[PT_MSR]))
-			return 1;
+		msr |= MSR_VEC;
 	}
 	/* else assert((regs->msr & MSR_VEC) == 0) */
 
@@ -377,8 +378,7 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 			return 1;
 		/* set MSR_SPE in the saved MSR value to indicate that
 		   frame->mc_vregs contains valid data */
-		if (__put_user(regs->msr | MSR_SPE, &frame->mc_gregs[PT_MSR]))
-			return 1;
+		msr |= MSR_SPE;
 	}
 	/* else assert((regs->msr & MSR_SPE) == 0) */
 
@@ -387,6 +387,8 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 		return 1;
 #endif /* CONFIG_SPE */
 
+	if (__put_user(msr, &frame->mc_gregs[PT_MSR]))
+		return 1;
 	if (sigret) {
 		/* Set up the sigreturn trampoline: li r0,sigret; sc */
 		if (__put_user(0x38000000UL + sigret, &frame->tramp[0])
