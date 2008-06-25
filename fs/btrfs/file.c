@@ -976,7 +976,7 @@ out_nolock:
 
 int btrfs_release_file(struct inode * inode, struct file * filp)
 {
-	btrfs_del_ordered_inode(inode);
+	btrfs_del_ordered_inode(inode, 0);
 	if (filp->private_data)
 		btrfs_ioctl_trans_end(filp);
 	return 0;

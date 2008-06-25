@@ -852,7 +852,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 		 * we don't need to worry about
 		 * data=ordered
 		 */
-		btrfs_del_ordered_inode(inode);
+		btrfs_del_ordered_inode(inode, 1);
 	}
 
 	btrfs_end_transaction(trans, root);
@@ -1276,14 +1276,12 @@ void btrfs_delete_inode(struct inode *inode)
 
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root, nr);
-	btrfs_throttle(root);
 	return;
 
 no_delete_lock:
 	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root, nr);
-	btrfs_throttle(root);
 no_delete:
 	clear_inode(inode);
 }

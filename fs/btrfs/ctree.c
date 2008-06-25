@@ -1245,7 +1245,10 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	int level;
 	int should_reada = p->reada;
 	int lowest_unlock = 1;
+	int blocksize;
 	u8 lowest_level = 0;
+	u64 blocknr;
+	u64 gen;
 
 	lowest_level = p->lowest_level;
 	WARN_ON(lowest_level && ins_len);
@@ -1320,11 +1323,12 @@ again:
 				reada_for_search(root, p, level, slot,
 						 key->objectid);
 
-			tmp = btrfs_find_tree_block(root,
-					  btrfs_node_blockptr(b, slot),
-					  btrfs_level_size(root, level - 1));
-			if (tmp && btrfs_buffer_uptodate(tmp,
-				   btrfs_node_ptr_generation(b, slot))) {
+			blocknr = btrfs_node_blockptr(b, slot);
+			gen = btrfs_node_ptr_generation(b, slot);
+			blocksize = btrfs_level_size(root, level - 1);
+
+			tmp = btrfs_find_tree_block(root, blocknr, blocksize);
+			if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
 				b = tmp;
 			} else {
 				/*
@@ -1334,6 +1338,10 @@ again:
 				 */
 				if (level > 1) {
 					btrfs_release_path(NULL, p);
+					if (tmp)
+						free_extent_buffer(tmp);
+					tmp = read_tree_block(root, blocknr,
+							 blocksize, gen);
 					if (tmp)
 						free_extent_buffer(tmp);
 					goto again;

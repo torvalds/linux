@@ -254,7 +254,7 @@ static void __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 	return;
 }
 
-void btrfs_del_ordered_inode(struct inode *inode)
+void btrfs_del_ordered_inode(struct inode *inode, int force)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 root_objectid = root->root_key.objectid;
@@ -263,8 +263,8 @@ void btrfs_del_ordered_inode(struct inode *inode)
 		return;
 	}
 
-	if (mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY) ||
-	    mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK))
+	if (!force && (mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY) ||
+	    mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK)))
 		return;
 
 	spin_lock(&root->fs_info->new_trans_lock);
