@@ -89,6 +89,10 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 #endif
 	unsigned long msr = regs->msr;
 	long err = 0;
+#ifdef CONFIG_VSX
+	double buf[FP_REGS_SIZE];
+	int i;
+#endif
 
 	flush_fp_to_thread(current);
 
@@ -112,11 +116,21 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 #else /* CONFIG_ALTIVEC */
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */
+	flush_fp_to_thread(current);
+#ifdef CONFIG_VSX
+	/* Copy FP to local buffer then write that out */
+	for (i = 0; i < 32 ; i++)
+		buf[i] = current->thread.TS_FPR(i);
+	memcpy(&buf[i], &current->thread.fpscr, sizeof(double));
+	err |= __copy_to_user(&sc->fp_regs, buf, FP_REGS_SIZE);
+#else /* CONFIG_VSX */
+	/* copy fpr regs and fpscr */
+	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
+#endif /* CONFIG_VSX */
 	err |= __put_user(&sc->gp_regs, &sc->regs);
 	WARN_ON(!FULL_REGS(regs));
 	err |= __copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE);
 	err |= __put_user(msr, &sc->gp_regs[PT_MSR]);
-	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
 	err |= __put_user(signr, &sc->signal);
 	err |= __put_user(handler, &sc->handler);
 	if (set != NULL)
@@ -134,6 +148,9 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 {
 #ifdef CONFIG_ALTIVEC
 	elf_vrreg_t __user *v_regs;
+#endif
+#ifdef CONFIG_VSX
+	double buf[FP_REGS_SIZE];
 #endif
 	unsigned long err = 0;
 	unsigned long save_r13 = 0;
@@ -182,8 +199,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	 */
 	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC);
 
-	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
-
 #ifdef CONFIG_ALTIVEC
 	err |= __get_user(v_regs, &sc->v_regs);
 	if (err)
@@ -202,7 +217,18 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	else
 		current->thread.vrsave = 0;
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+	/* restore floating point */
+	err |= __copy_from_user(buf, &sc->fp_regs, FP_REGS_SIZE);
+	if (err)
+		return err;
+	for (i = 0; i < 32 ; i++)
+		current->thread.TS_FPR(i) = buf[i];
+	memcpy(&current->thread.fpscr, &buf[i], sizeof(double));
 
+#else
+	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
+#endif
 	return err;
 }
 

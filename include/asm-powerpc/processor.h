@@ -12,7 +12,11 @@
 
 #include <asm/reg.h>
 
+#ifdef CONFIG_VSX
+#define TS_FPRWIDTH 2
+#else
 #define TS_FPRWIDTH 1
+#endif
 
 #ifndef __ASSEMBLY__
 #include <linux/compiler.h>
@@ -80,6 +84,7 @@ extern long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 /* Lazy FPU handling on uni-processor */
 extern struct task_struct *last_task_used_math;
 extern struct task_struct *last_task_used_altivec;
+extern struct task_struct *last_task_used_vsx;
 extern struct task_struct *last_task_used_spe;
 
 #ifdef CONFIG_PPC32
@@ -142,7 +147,9 @@ typedef struct {
 	unsigned long seg;
 } mm_segment_t;
 
-#define TS_FPR(i) fpr[i]
+#define TS_FPROFFSET 0
+#define TS_VSRLOWOFFSET 1
+#define TS_FPR(i) fpr[i][TS_FPROFFSET]
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
@@ -160,8 +167,9 @@ struct thread_struct {
 	unsigned long	dbcr0;		/* debug control register values */
 	unsigned long	dbcr1;
 #endif
-	double		fpr[32];	/* Complete floating point set */
-	struct {			/* fpr ... fpscr must be contiguous */
+	/* FP and VSX 0-31 register set */
+	double		fpr[32][TS_FPRWIDTH];
+	struct {
 
 		unsigned int pad;
 		unsigned int val;	/* Floating point status */
@@ -181,6 +189,10 @@ struct thread_struct {
 	unsigned long	vrsave;
 	int		used_vr;	/* set if process has used altivec */
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_VSX
+	/* VSR status */
+	int		used_vsr;	/* set if process has used altivec */
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	unsigned long	evr[32];	/* upper 32-bits of SPE regs */
 	u64		acc;		/* Accumulator */
