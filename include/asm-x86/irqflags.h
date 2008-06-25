@@ -112,8 +112,7 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #ifdef CONFIG_X86_64
 #define INTERRUPT_RETURN	iretq
-#define USERSP_SYSRET					\
-			movq	%gs:pda_oldrsp, %rsp;	\
+#define USERGS_SYSRET					\
 			swapgs;				\
 			sysretq;
 #else

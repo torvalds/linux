@@ -143,7 +143,7 @@ struct pv_cpu_ops {
 
 	/* These three are jmp to, not actually called. */
 	void (*irq_enable_sysexit)(void);
-	void (*usersp_sysret)(void);
+	void (*usergs_sysret)(void);
 	void (*iret)(void);
 
 	void (*swapgs)(void);
@@ -1505,10 +1505,10 @@ static inline unsigned long __raw_local_irq_save(void)
 	movq %rax, %rcx;				\
 	xorq %rax, %rax;
 
-#define USERSP_SYSRET							\
-	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usersp_sysret),		\
+#define USERGS_SYSRET							\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret),		\
 		  CLBR_NONE,						\
-		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usersp_sysret))
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usergs_sysret))
 #endif
 
 #endif /* __ASSEMBLY__ */
