@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/lockdep.h>
 #include <linux/notifier.h>
 #include <linux/module.h>
 
@@ -144,6 +145,7 @@ void softlockup_tick(void)
 			this_cpu, now - touch_timestamp,
 			current->comm, task_pid_nr(current));
 	print_modules();
+	print_irqtrace_events(current);
 	if (regs)
 		show_regs(regs);
 	else
