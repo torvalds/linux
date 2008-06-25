@@ -1672,24 +1672,6 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree, buf);
 }
 
-void btrfs_throttle(struct btrfs_root *root)
-{
-#if 0
-	struct backing_dev_info *bdi;
-
-	bdi = &root->fs_info->bdi;
-	if (atomic_read(&root->fs_info->throttles) &&
-	    bdi_write_congested(bdi)) {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18)
-		congestion_wait(WRITE, HZ/20);
-#else
-		blk_congestion_wait(WRITE, HZ/20);
-#endif
-
-	}
-#endif
-}
-
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 {
 	/*

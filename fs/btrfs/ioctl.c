@@ -164,7 +164,6 @@ fail:
 		ret = err;
 fail_commit:
 	btrfs_btree_balance_dirty(root, nr);
-	btrfs_throttle(root);
 	return ret;
 }
 
@@ -206,7 +205,6 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 
 fail_unlock:
 	btrfs_btree_balance_dirty(root, nr);
-	btrfs_throttle(root);
 	return ret;
 }
 

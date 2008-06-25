@@ -101,4 +101,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root);
 int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root);
+int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root);
 #endif

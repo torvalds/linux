@@ -130,8 +130,27 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 	return h;
 }
 
-int btrfs_end_transaction(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root)
+static noinline int wait_for_commit(struct btrfs_root *root,
+				    struct btrfs_transaction *commit)
+{
+	DEFINE_WAIT(wait);
+	mutex_lock(&root->fs_info->trans_mutex);
+	while(!commit->commit_done) {
+		prepare_to_wait(&commit->commit_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (commit->commit_done)
+			break;
+		mutex_unlock(&root->fs_info->trans_mutex);
+		schedule();
+		mutex_lock(&root->fs_info->trans_mutex);
+	}
+	mutex_unlock(&root->fs_info->trans_mutex);
+	finish_wait(&commit->commit_wait, &wait);
+	return 0;
+}
+
+static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root, int throttle)
 {
 	struct btrfs_transaction *cur_trans;
 
@@ -140,13 +159,35 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	WARN_ON(cur_trans != trans->transaction);
 	WARN_ON(cur_trans->num_writers < 1);
 	cur_trans->num_writers--;
+
 	if (waitqueue_active(&cur_trans->writer_wait))
 		wake_up(&cur_trans->writer_wait);
+
+	if (cur_trans->in_commit && throttle) {
+		int ret;
+		mutex_unlock(&root->fs_info->trans_mutex);
+		ret = wait_for_commit(root, cur_trans);
+		BUG_ON(ret);
+		mutex_lock(&root->fs_info->trans_mutex);
+	}
+
 	put_transaction(cur_trans);
 	mutex_unlock(&root->fs_info->trans_mutex);
 	memset(trans, 0, sizeof(*trans));
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 	return 0;
+}
+
+int btrfs_end_transaction(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root)
+{
+	return __btrfs_end_transaction(trans, root, 0);
+}
+
+int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root)
+{
+	return __btrfs_end_transaction(trans, root, 1);
 }
 
 
@@ -237,25 +278,6 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 		root = list_entry(next, struct btrfs_root, dirty_list);
 		update_cowonly_root(trans, root);
 	}
-	return 0;
-}
-
-static noinline int wait_for_commit(struct btrfs_root *root,
-				    struct btrfs_transaction *commit)
-{
-	DEFINE_WAIT(wait);
-	mutex_lock(&root->fs_info->trans_mutex);
-	while(!commit->commit_done) {
-		prepare_to_wait(&commit->commit_wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-		if (commit->commit_done)
-			break;
-		mutex_unlock(&root->fs_info->trans_mutex);
-		schedule();
-		mutex_lock(&root->fs_info->trans_mutex);
-	}
-	mutex_unlock(&root->fs_info->trans_mutex);
-	finish_wait(&commit->commit_wait, &wait);
 	return 0;
 }
 
@@ -680,6 +702,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	trans->transaction->in_commit = 1;
+printk("trans %Lu in commit\n", trans->transid);
 	cur_trans = trans->transaction;
 	if (cur_trans->list.prev != &root->fs_info->trans_list) {
 		prev_trans = list_entry(cur_trans->list.prev,
@@ -760,6 +783,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	kfree(pinned_copy);
 
 	cur_trans->commit_done = 1;
+printk("trans %Lu done in commit\n", cur_trans->transid);
 	root->fs_info->last_trans_committed = cur_trans->transid;
 	wake_up(&cur_trans->commit_wait);
 	put_transaction(cur_trans);
