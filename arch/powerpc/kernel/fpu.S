@@ -24,6 +24,29 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 
+#ifdef CONFIG_VSX
+#define REST_32FPVSRS(n,c,base)						\
+BEGIN_FTR_SECTION							\
+	b	2f;							\
+END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
+	REST_32FPRS(n,base);						\
+	b	3f;							\
+2:	REST_32VSRS(n,c,base);						\
+3:
+
+#define SAVE_32FPVSRS(n,c,base)						\
+BEGIN_FTR_SECTION							\
+	b	2f;							\
+END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
+	SAVE_32FPRS(n,base);						\
+	b	3f;							\
+2:	SAVE_32VSRS(n,c,base);						\
+3:
+#else
+#define REST_32FPVSRS(n,b,base)	REST_32FPRS(n, base)
+#define SAVE_32FPVSRS(n,b,base)	SAVE_32FPRS(n, base)
+#endif
+
 /*
  * This task wants to use the FPU now.
  * On UP, disable FP for the task which had the FPU previously,
