@@ -335,10 +335,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	p->thread.fs = me->thread.fs;
 	p->thread.gs = me->thread.gs;
 
-	asm("mov %%gs,%0" : "=m" (p->thread.gsindex));
-	asm("mov %%fs,%0" : "=m" (p->thread.fsindex));
-	asm("mov %%es,%0" : "=m" (p->thread.es));
-	asm("mov %%ds,%0" : "=m" (p->thread.ds));
+	savesegment(gs, p->thread.gsindex);
+	savesegment(fs, p->thread.fsindex);
+	savesegment(es, p->thread.es);
+	savesegment(ds, p->thread.ds);
 
 	if (unlikely(test_tsk_thread_flag(me, TIF_IO_BITMAP))) {
 		p->thread.io_bitmap_ptr = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
@@ -377,7 +377,9 @@ out:
 void
 start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 {
-	asm volatile("movl %0, %%fs; movl %0, %%es; movl %0, %%ds" :: "r"(0));
+	loadsegment(fs, 0);
+	loadsegment(es, 0);
+	loadsegment(ds, 0);
 	load_gs_index(0);
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
@@ -550,11 +552,11 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Switch DS and ES.
 	 * This won't pick up thread selector changes, but I guess that is ok.
 	 */
-	asm volatile("mov %%es,%0" : "=m" (prev->es));
+	savesegment(es, prev->es);
 	if (unlikely(next->es | prev->es))
 		loadsegment(es, next->es); 
-	
-	asm volatile ("mov %%ds,%0" : "=m" (prev->ds));
+
+	savesegment(ds, prev->ds);
 	if (unlikely(next->ds | prev->ds))
 		loadsegment(ds, next->ds);
 
@@ -565,7 +567,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	{ 
 		unsigned fsindex;
-		asm volatile("movl %%fs,%0" : "=r" (fsindex)); 
+		savesegment(fs, fsindex);
 		/* segment register != 0 always requires a reload. 
 		   also reload when it has changed. 
 		   when prev process used 64bit base always reload
@@ -586,7 +588,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	}
 	{ 
 		unsigned gsindex;
-		asm volatile("movl %%gs,%0" : "=r" (gsindex)); 
+		savesegment(gs, gsindex);
 		if (unlikely(gsindex | next->gsindex | prev->gs)) {
 			load_gs_index(next->gsindex);
 			if (gsindex)
@@ -767,7 +769,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			set_32bit_tls(task, FS_TLS, addr);
 			if (doit) {
 				load_TLS(&task->thread, cpu);
-				asm volatile("movl %0,%%fs" :: "r"(FS_TLS_SEL));
+				loadsegment(fs, FS_TLS_SEL);
 			}
 			task->thread.fsindex = FS_TLS_SEL;
 			task->thread.fs = 0;
@@ -777,7 +779,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			if (doit) {
 				/* set the selector to 0 to not confuse
 				   __switch_to */
-				asm volatile("movl %0,%%fs" :: "r" (0));
+				loadsegment(fs, 0);
 				ret = checking_wrmsrl(MSR_FS_BASE, addr);
 			}
 		}
@@ -800,7 +802,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		if (task->thread.gsindex == GS_TLS_SEL)
 			base = read_32bit_tls(task, GS_TLS);
 		else if (doit) {
-			asm("movl %%gs,%0" : "=r" (gsindex));
+			savesegment(gs, gsindex);
 			if (gsindex)
 				rdmsrl(MSR_KERNEL_GS_BASE, base);
 			else
