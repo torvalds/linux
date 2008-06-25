@@ -378,6 +378,21 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	memcpy(&buf[i], &current->thread.fpscr, sizeof(double));
 	if (__copy_to_user(&frame->mc_fregs, buf, ELF_NFPREG * sizeof(double)))
 		return 1;
+	/*
+	 * Copy VSR 0-31 upper half from thread_struct to local
+	 * buffer, then write that to userspace.  Also set MSR_VSX in
+	 * the saved MSR value to indicate that frame->mc_vregs
+	 * contains valid data
+	 */
+	if (current->thread.used_vsr) {
+		flush_vsx_to_thread(current);
+		for (i = 0; i < 32 ; i++)
+			buf[i] = current->thread.fpr[i][TS_VSRLOWOFFSET];
+		if (__copy_to_user(&frame->mc_vsregs, buf,
+				   ELF_NVSRHALFREG  * sizeof(double)))
+			return 1;
+		msr |= MSR_VSX;
+	}
 #else
 	/* save floating-point registers */
 	if (__copy_to_user(&frame->mc_fregs, current->thread.fpr,
@@ -482,6 +497,24 @@ static long restore_user_regs(struct pt_regs *regs,
 	for (i = 0; i < 32 ; i++)
 		current->thread.TS_FPR(i) = buf[i];
 	memcpy(&current->thread.fpscr, &buf[i], sizeof(double));
+	/*
+	 * Force the process to reload the VSX registers from
+	 * current->thread when it next does VSX instruction.
+	 */
+	regs->msr &= ~MSR_VSX;
+	if (msr & MSR_VSX) {
+		/*
+		 * Restore altivec registers from the stack to a local
+		 * buffer, then write this out to the thread_struct
+		 */
+		if (__copy_from_user(buf, &sr->mc_vsregs,
+				     sizeof(sr->mc_vsregs)))
+			return 1;
+		for (i = 0; i < 32 ; i++)
+			current->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
+	} else if (current->thread.used_vsr)
+		for (i = 0; i < 32 ; i++)
+			current->thread.fpr[i][TS_VSRLOWOFFSET] = 0;
 #else
 	if (__copy_from_user(current->thread.fpr, &sr->mc_fregs,
 			     sizeof(sr->mc_fregs)))

@@ -30,6 +30,7 @@
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
 #define MSR_HV_LG 	60              /* Hypervisor state */
 #define MSR_VEC_LG	25	        /* Enable AltiVec */
+#define MSR_VSX_LG	23		/* Enable VSX */
 #define MSR_POW_LG	18		/* Enable Power Management */
 #define MSR_WE_LG	18		/* Wait State Enable */
 #define MSR_TGPR_LG	17		/* TLB Update registers in use */
@@ -71,6 +72,7 @@
 #endif
 
 #define MSR_VEC		__MASK(MSR_VEC_LG)	/* Enable AltiVec */
+#define MSR_VSX		__MASK(MSR_VSX_LG)	/* Enable VSX */
 #define MSR_POW		__MASK(MSR_POW_LG)	/* Enable Power Management */
 #define MSR_WE		__MASK(MSR_WE_LG)	/* Wait State Enable */
 #define MSR_TGPR	__MASK(MSR_TGPR_LG)	/* TLB Update registers in use */

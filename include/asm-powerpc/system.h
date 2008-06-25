@@ -139,6 +139,7 @@ extern void enable_kernel_altivec(void);
 extern void giveup_altivec(struct task_struct *);
 extern void load_up_altivec(struct task_struct *);
 extern int emulate_altivec(struct pt_regs *);
+extern void giveup_vsx(struct task_struct *);
 extern void enable_kernel_spe(void);
 extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
@@ -158,6 +159,14 @@ static inline void discard_lazy_cpu_state(void)
 extern void flush_altivec_to_thread(struct task_struct *);
 #else
 static inline void flush_altivec_to_thread(struct task_struct *t)
+{
+}
+#endif
+
+#ifdef CONFIG_VSX
+extern void flush_vsx_to_thread(struct task_struct *);
+#else
+static inline void flush_vsx_to_thread(struct task_struct *t)
 {
 }
 #endif

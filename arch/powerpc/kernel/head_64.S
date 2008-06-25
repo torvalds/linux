@@ -278,6 +278,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	. = 0xf20
 	b	altivec_unavailable_pSeries
 
+	. = 0xf40
+	b	vsx_unavailable_pSeries
+
 #ifdef CONFIG_CBE_RAS
 	HSTD_EXCEPTION_PSERIES(0x1200, cbe_system_error)
 #endif /* CONFIG_CBE_RAS */
@@ -297,6 +300,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	/* moved from 0xf00 */
 	STD_EXCEPTION_PSERIES(., performance_monitor)
 	STD_EXCEPTION_PSERIES(., altivec_unavailable)
+	STD_EXCEPTION_PSERIES(., vsx_unavailable)
 
 /*
  * An interrupt came in while soft-disabled; clear EE in SRR1,
@@ -835,6 +839,67 @@ _STATIC(load_up_altivec)
 	/* restore registers and return */
 	blr
 #endif /* CONFIG_ALTIVEC */
+
+	.align	7
+	.globl vsx_unavailable_common
+vsx_unavailable_common:
+	EXCEPTION_PROLOG_COMMON(0xf40, PACA_EXGEN)
+#ifdef CONFIG_VSX
+BEGIN_FTR_SECTION
+	bne	.load_up_vsx
+1:
+END_FTR_SECTION_IFSET(CPU_FTR_VSX)
+#endif
+	bl	.save_nvgprs
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	ENABLE_INTS
+	bl	.vsx_unavailable_exception
+	b	.ret_from_except
+
+#ifdef CONFIG_VSX
+/*
+ * load_up_vsx(unused, unused, tsk)
+ * Disable VSX for the task which had it previously,
+ * and save its vector registers in its thread_struct.
+ * Reuse the fp and vsx saves, but first check to see if they have
+ * been saved already.
+ * On entry: r13 == 'current' && last_task_used_vsx != 'current'
+ */
+_STATIC(load_up_vsx)
+/* Load FP and VSX registers if they haven't been done yet */
+	andi.	r5,r12,MSR_FP
+	beql+	load_up_fpu		/* skip if already loaded */
+	andis.	r5,r12,MSR_VEC@h
+	beql+	load_up_altivec		/* skip if already loaded */
+
+#ifndef CONFIG_SMP
+	ld	r3,last_task_used_vsx@got(r2)
+	ld	r4,0(r3)
+	cmpdi	0,r4,0
+	beq	1f
+	/* Disable VSX for last_task_used_vsx */
+	addi	r4,r4,THREAD
+	ld	r5,PT_REGS(r4)
+	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	lis	r6,MSR_VSX@h
+	andc	r6,r4,r6
+	std	r6,_MSR-STACK_FRAME_OVERHEAD(r5)
+1:
+#endif /* CONFIG_SMP */
+	ld	r4,PACACURRENT(r13)
+	addi	r4,r4,THREAD		/* Get THREAD */
+	li	r6,1
+	stw	r6,THREAD_USED_VSR(r4) /* ... also set thread used vsr */
+	/* enable use of VSX after return */
+	oris	r12,r12,MSR_VSX@h
+	std	r12,_MSR(r1)
+#ifndef CONFIG_SMP
+	/* Update last_task_used_math to 'current' */
+	ld	r4,PACACURRENT(r13)
+	std	r4,0(r3)
+#endif /* CONFIG_SMP */
+	b	fast_exception_return
+#endif /* CONFIG_VSX */
 
 /*
  * Hash table stuff

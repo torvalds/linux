@@ -109,6 +109,7 @@ typedef elf_gregset_t32 compat_elf_gregset_t;
 #ifdef __powerpc64__
 # define ELF_NVRREG32	33	/* includes vscr & vrsave stuffed together */
 # define ELF_NVRREG	34	/* includes vscr & vrsave in split vectors */
+# define ELF_NVSRHALFREG 32	/* Half the vsx registers */
 # define ELF_GREG_TYPE	elf_greg_t64
 #else
 # define ELF_NEVRREG	34	/* includes acc (as 2) */
@@ -158,6 +159,7 @@ typedef __vector128 elf_vrreg_t;
 typedef elf_vrreg_t elf_vrregset_t[ELF_NVRREG];
 #ifdef __powerpc64__
 typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
+typedef elf_fpreg_t elf_vsrreghalf_t32[ELF_NVSRHALFREG];
 #endif
 
 #ifdef __KERNEL__
@@ -219,8 +221,8 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 typedef elf_vrregset_t elf_fpxregset_t;
 
 #ifdef CONFIG_ALTIVEC
-extern int dump_task_altivec(struct task_struct *, elf_vrregset_t *vrregs);
-#define ELF_CORE_COPY_XFPREGS(tsk, regs) dump_task_altivec(tsk, regs)
+extern int dump_task_vector(struct task_struct *, elf_vrregset_t *vrregs);
+#define ELF_CORE_COPY_XFPREGS(tsk, regs) dump_task_vector(tsk, regs)
 #define ELF_CORE_XFPREG_TYPE NT_PPC_VMX
 #endif
 

@@ -353,6 +353,11 @@ _GLOBAL(_switch)
 	mflr	r20		/* Return to switch caller */
 	mfmsr	r22
 	li	r0, MSR_FP
+#ifdef CONFIG_VSX
+BEGIN_FTR_SECTION
+	oris	r0,r0,MSR_VSX@h	/* Disable VSX */
+END_FTR_SECTION_IFSET(CPU_FTR_VSX)
+#endif /* CONFIG_VSX */
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
 	oris	r0,r0,MSR_VEC@h	/* Disable altivec */

@@ -123,6 +123,22 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 		buf[i] = current->thread.TS_FPR(i);
 	memcpy(&buf[i], &current->thread.fpscr, sizeof(double));
 	err |= __copy_to_user(&sc->fp_regs, buf, FP_REGS_SIZE);
+	/*
+	 * Copy VSX low doubleword to local buffer for formatting,
+	 * then out to userspace.  Update v_regs to point after the
+	 * VMX data.
+	 */
+	if (current->thread.used_vsr) {
+		flush_vsx_to_thread(current);
+		v_regs += ELF_NVRREG;
+		for (i = 0; i < 32 ; i++)
+			buf[i] = current->thread.fpr[i][TS_VSRLOWOFFSET];
+		err |= __copy_to_user(v_regs, buf, 32 * sizeof(double));
+		/* set MSR_VSX in the MSR value in the frame to
+		 * indicate that sc->vs_reg) contains valid data.
+		 */
+		msr |= MSR_VSX;
+	}
 #else /* CONFIG_VSX */
 	/* copy fpr regs and fpscr */
 	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
@@ -197,7 +213,7 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	 * This has to be done before copying stuff into current->thread.fpr/vr
 	 * for the reasons explained in the previous comment.
 	 */
-	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC);
+	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX);
 
 #ifdef CONFIG_ALTIVEC
 	err |= __get_user(v_regs, &sc->v_regs);
@@ -226,6 +242,19 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 		current->thread.TS_FPR(i) = buf[i];
 	memcpy(&current->thread.fpscr, &buf[i], sizeof(double));
 
+	/*
+	 * Get additional VSX data. Update v_regs to point after the
+	 * VMX data.  Copy VSX low doubleword from userspace to local
+	 * buffer for formatting, then into the taskstruct.
+	 */
+	v_regs += ELF_NVRREG;
+	if ((msr & MSR_VSX) != 0)
+		err |= __copy_from_user(buf, v_regs, 32 * sizeof(double));
+	else
+		memset(buf, 0, 32 * sizeof(double));
+
+	for (i = 0; i < 32 ; i++)
+		current->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
 #else
 	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
 #endif

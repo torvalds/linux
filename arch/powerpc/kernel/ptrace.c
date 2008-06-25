@@ -350,6 +350,51 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 }
 #endif /* CONFIG_ALTIVEC */
 
+#ifdef CONFIG_VSX
+/*
+ * Currently to set and and get all the vsx state, you need to call
+ * the fp and VMX calls aswell.  This only get/sets the lower 32
+ * 128bit VSX registers.
+ */
+
+static int vsr_active(struct task_struct *target,
+		      const struct user_regset *regset)
+{
+	flush_vsx_to_thread(target);
+	return target->thread.used_vsr ? regset->n : 0;
+}
+
+static int vsr_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	int ret;
+
+	flush_vsx_to_thread(target);
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  target->thread.fpr, 0,
+				  32 * sizeof(vector128));
+
+	return ret;
+}
+
+static int vsr_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+
+	flush_vsx_to_thread(target);
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 target->thread.fpr, 0,
+				 32 * sizeof(vector128));
+
+	return ret;
+}
+#endif /* CONFIG_VSX */
+
 #ifdef CONFIG_SPE
 
 /*
@@ -426,6 +471,9 @@ enum powerpc_regset {
 #ifdef CONFIG_ALTIVEC
 	REGSET_VMX,
 #endif
+#ifdef CONFIG_VSX
+	REGSET_VSX,
+#endif
 #ifdef CONFIG_SPE
 	REGSET_SPE,
 #endif
@@ -447,6 +495,13 @@ static const struct user_regset native_regsets[] = {
 		.core_note_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = vr_active, .get = vr_get, .set = vr_set
+	},
+#endif
+#ifdef CONFIG_VSX
+	[REGSET_VSX] = {
+		.n = 32,
+		.size = sizeof(vector128), .align = sizeof(vector128),
+		.active = vsr_active, .get = vsr_get, .set = vsr_set
 	},
 #endif
 #ifdef CONFIG_SPE
@@ -846,6 +901,21 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_VMX,
 					     0, (33 * sizeof(vector128) +
+						 sizeof(u32)),
+					     (const void __user *) data);
+#endif
+#ifdef CONFIG_VSX
+	case PTRACE_GETVSRREGS:
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_VSX,
+					   0, (32 * sizeof(vector128) +
+					       sizeof(u32)),
+					   (void __user *) data);
+
+	case PTRACE_SETVSRREGS:
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_VSX,
+					     0, (32 * sizeof(vector128) +
 						 sizeof(u32)),
 					     (const void __user *) data);
 #endif
