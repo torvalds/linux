@@ -37,7 +37,7 @@ extern void __put_user_bad(void);
 #define __put_user_nocheck(x, ptr, size)		\
 ({							\
 	int __pu_err;					\
-	__put_user_size((x), (ptr), (size), __pu_err);	\
+	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
 	__pu_err;					\
 })
 
@@ -65,22 +65,22 @@ extern void __put_user_bad(void);
 	__pu_err;						\
 })
 
-#define __put_user_size(x, ptr, size, retval)				\
+#define __put_user_size(x, ptr, size, retval, errret)			\
 do {									\
 	retval = 0;							\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__put_user_asm(x, ptr, retval, "b", "b", "iq", -EFAULT);\
+		__put_user_asm(x, ptr, retval, "b", "b", "iq", errret);\
 		break;							\
 	case 2:								\
-		__put_user_asm(x, ptr, retval, "w", "w", "ir", -EFAULT);\
+		__put_user_asm(x, ptr, retval, "w", "w", "ir", errret);\
 		break;							\
 	case 4:								\
-		__put_user_asm(x, ptr, retval, "l", "k", "ir", -EFAULT);\
+		__put_user_asm(x, ptr, retval, "l", "k", "ir", errret);\
 		break;							\
 	case 8:								\
-		__put_user_asm(x, ptr, retval, "q", "", "Zr", -EFAULT);	\
+		__put_user_asm(x, ptr, retval, "q", "", "Zr", errret);	\
 		break;							\
 	default:							\
 		__put_user_bad();					\
