@@ -483,12 +483,15 @@ int __init smu_init (void)
 
 	if (smu_cmdbuf_abs == 0) {
 		printk(KERN_ERR "SMU: Command buffer not allocated !\n");
+		of_node_put(np);
 		return -EINVAL;
 	}
 
 	smu = alloc_bootmem(sizeof(struct smu_device));
-	if (smu == NULL)
+	if (smu == NULL) {
+		of_node_put(np);
 		return -ENOMEM;
+	}
 	memset(smu, 0, sizeof(*smu));
 
 	spin_lock_init(&smu->lock);
