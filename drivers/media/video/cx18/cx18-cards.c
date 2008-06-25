@@ -261,14 +261,14 @@ static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE6 },
 	},
 	.audio_inputs = {
-		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 1 },
-		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL, 0 },
-		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL, 0 },
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 0 },
+		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL, 1 },
+		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL, 1 },
 	},
 	.tuners = {
 		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 	},
-	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 0 },
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO_SERIAL, 2 },
 	.ddr = {
 		/* MT 46V16M16 memory */
 		.chip_config = 0x50306,
@@ -278,9 +278,12 @@ static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 		.tune_lane = 0,
 		.initial_emrs = 0,
 	},
-	.gpio_init.initial_value = 0x02,
-	.gpio_init.direction = 0x02,
-	.gpio_audio_input  = { .mask = 0x02, .tuner  = 0x02, .linein = 0x00 },
+	.gpio_init.initial_value = 0x1002,
+	.gpio_init.direction = 0xf002,
+	.gpio_audio_input = { .mask   = 0xf002,
+			      .tuner  = 0x1002,   /* LED D1  Tuner AF  */
+			      .linein = 0x2000,   /* LED D2  Line In 1 */
+			      .radio  = 0x4002 }, /* LED D3  Tuner AF  */
 	.pci_list = cx18_pci_cnxt_raptor_pal,
 	.i2c = &cx18_i2c_std,
 };
