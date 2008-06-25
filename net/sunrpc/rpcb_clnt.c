@@ -575,7 +575,7 @@ out_err:
 static struct rpc_procinfo rpcb_procedures2[] = {
 	PROC(SET,		mapping,	set),
 	PROC(UNSET,		mapping,	set),
-	PROC(GETADDR,		mapping,	getport),
+	PROC(GETPORT,		mapping,	getport),
 };
 
 static struct rpc_procinfo rpcb_procedures3[] = {
