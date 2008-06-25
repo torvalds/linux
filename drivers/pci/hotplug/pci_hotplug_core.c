@@ -544,7 +544,9 @@ out:
 
 /**
  * pci_hp_register - register a hotplug_slot with the PCI hotplug subsystem
+ * @bus: bus this slot is on
  * @slot: pointer to the &struct hotplug_slot to register
+ * @slot_nr: slot number
  *
  * Registers a hotplug slot with the pci hotplug subsystem, which will allow
  * userspace interaction to the slot.
@@ -615,7 +617,7 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 
 /**
  * pci_hp_deregister - deregister a hotplug_slot with the PCI hotplug subsystem
- * @slot: pointer to the &struct hotplug_slot to deregister
+ * @hotplug: pointer to the &struct hotplug_slot to deregister
  *
  * The @slot must have been registered with the pci hotplug subsystem
  * previously with a call to pci_hp_register().
@@ -651,7 +653,7 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 
 /**
  * pci_hp_change_slot_info - changes the slot's information structure in the core
- * @slot: pointer to the slot whose info has changed
+ * @hotplug: pointer to the slot whose info has changed
  * @info: pointer to the info copy into the slot's info structure
  *
  * @slot must have been registered with the pci 
