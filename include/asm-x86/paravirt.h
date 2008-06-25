@@ -1522,6 +1522,16 @@ static inline unsigned long __raw_local_irq_save(void)
 
 
 #else	/* !CONFIG_X86_32 */
+
+/*
+ * If swapgs is used while the userspace stack is still current,
+ * there's no way to call a pvop.  The PV replacement *must* be
+ * inlined, or the swapgs instruction must be trapped and emulated.
+ */
+#define SWAPGS_UNSAFE_STACK						\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_swapgs), CLBR_NONE,	\
+		  swapgs)
+
 #define SWAPGS								\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_swapgs), CLBR_NONE,	\
 		  PV_SAVE_REGS;						\

@@ -111,6 +111,7 @@ static inline unsigned long __raw_local_irq_save(void)
 #define DISABLE_INTERRUPTS(x)	cli
 
 #ifdef CONFIG_X86_64
+#define SWAPGS_UNSAFE_STACK	swapgs
 #define INTERRUPT_RETURN	iretq
 #define USERGS_SYSRET64				\
 	swapgs;					\
@@ -185,7 +186,6 @@ static inline void trace_hardirqs_fixup(void)
  * Either way, this is a good way to document that we don't
  * have a reliable stack. x86_64 only.
  */
-#define SWAPGS_UNSAFE_STACK	swapgs
 #define ARCH_TRACE_IRQS_ON		call trace_hardirqs_on_thunk
 #define ARCH_TRACE_IRQS_OFF		call trace_hardirqs_off_thunk
 #define ARCH_LOCKDEP_SYS_EXIT		call lockdep_sys_exit_thunk
