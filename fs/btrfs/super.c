@@ -365,7 +365,6 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 		return 0;
 	}
 	btrfs_clean_old_snapshots(root);
-	btrfs_defrag_dirty_roots(root->fs_info);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	sb->s_dirt = 0;

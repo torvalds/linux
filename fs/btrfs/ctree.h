@@ -609,6 +609,7 @@ struct btrfs_root {
 	u64 last_inode_alloc;
 	int ref_cows;
 	int track_dirty;
+	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
 	struct btrfs_key defrag_max;
 	int defrag_running;
@@ -1412,7 +1413,11 @@ int btrfs_previous_item(struct btrfs_root *root,
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
 struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
-			struct btrfs_key *key, int lowest_level);
+			struct btrfs_key *key, int lowest_level,
+			int cache_only, u64 min_trans);
+int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
+			 struct btrfs_path *path, int cache_only,
+			 u64 min_trans);
 
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,

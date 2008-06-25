@@ -63,10 +63,9 @@ void btrfs_free_path(struct btrfs_path *p)
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 {
 	int i;
-	int keep = p->keep_locks;
-	int skip = p->skip_locking;
 
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
+		p->slots[i] = 0;
 		if (!p->nodes[i])
 			continue;
 		if (p->locks[i]) {
@@ -74,10 +73,8 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 			p->locks[i] = 0;
 		}
 		free_extent_buffer(p->nodes[i]);
+		p->nodes[i] = NULL;
 	}
-	memset(p, 0, sizeof(*p));
-	p->keep_locks = keep;
-	p->skip_locking = skip;
 }
 
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
@@ -463,8 +460,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		search_start = cur->start;
 		last_block = cur->start;
 		*last_ret = search_start;
-		if (parent_level == 1)
-			btrfs_clear_buffer_defrag(cur);
 		btrfs_tree_unlock(cur);
 		free_extent_buffer(cur);
 	}
@@ -2969,8 +2964,138 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 	return 1;
 }
 
+/*
+ * A helper function to walk down the tree starting at min_key, and looking
+ * for nodes or leaves that are either in cache or have a minimum
+ * transaction id.  This is used by the btree defrag code, but could
+ * also be used to search for blocks that have changed since a given
+ * transaction id.
+ *
+ * This does not cow, but it does stuff the starting key it finds back
+ * into min_key, so you can call btrfs_search_slot with cow=1 on the
+ * key and get a writable path.
+ *
+ * This does lock as it descends, and path->keep_locks should be set
+ * to 1 by the caller.
+ *
+ * This honors path->lowest_level to prevent descent past a given level
+ * of the tree.
+ *
+ * returns zero if something useful was found, < 0 on error and 1 if there
+ * was nothing in the tree that matched the search criteria.
+ */
+int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
+			 struct btrfs_path *path, int cache_only,
+			 u64 min_trans)
+{
+	struct extent_buffer *cur;
+	struct btrfs_key found_key;
+	int slot;
+	u32 nritems;
+	int level;
+	int ret = 1;
+
+again:
+	cur = btrfs_lock_root_node(root);
+	level = btrfs_header_level(cur);
+	path->nodes[level] = cur;
+	path->locks[level] = 1;
+
+	if (btrfs_header_generation(cur) < min_trans) {
+		ret = 1;
+		goto out;
+	}
+	while(1) {
+		nritems = btrfs_header_nritems(cur);
+		level = btrfs_header_level(cur);
+		bin_search(cur, min_key, level, &slot);
+
+		/* at level = 0, we're done, setup the path and exit */
+		if (level == 0) {
+			ret = 0;
+			path->slots[level] = slot;
+			btrfs_item_key_to_cpu(cur, &found_key, slot);
+			goto out;
+		}
+		/*
+		 * check this node pointer against the cache_only and
+		 * min_trans parameters.  If it isn't in cache or is too
+		 * old, skip to the next one.
+		 */
+		while(slot < nritems) {
+			u64 blockptr;
+			u64 gen;
+			struct extent_buffer *tmp;
+			blockptr = btrfs_node_blockptr(cur, slot);
+			gen = btrfs_node_ptr_generation(cur, slot);
+			if (gen < min_trans) {
+				slot++;
+				continue;
+			}
+			if (!cache_only)
+				break;
+
+			tmp = btrfs_find_tree_block(root, blockptr,
+					    btrfs_level_size(root, level - 1));
+
+			if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
+				free_extent_buffer(tmp);
+				break;
+			}
+			if (tmp)
+				free_extent_buffer(tmp);
+			slot++;
+		}
+		/*
+		 * we didn't find a candidate key in this node, walk forward
+		 * and find another one
+		 */
+		if (slot >= nritems) {
+			ret = btrfs_find_next_key(root, path, min_key, level,
+						  cache_only, min_trans);
+			if (ret == 0) {
+				btrfs_release_path(root, path);
+				goto again;
+			} else {
+				goto out;
+			}
+		}
+		/* save our key for returning back */
+		btrfs_node_key_to_cpu(cur, &found_key, slot);
+		path->slots[level] = slot;
+		if (level == path->lowest_level) {
+			ret = 0;
+			unlock_up(path, level, 1);
+			goto out;
+		}
+		cur = read_node_slot(root, cur, slot);
+
+		btrfs_tree_lock(cur);
+		path->locks[level - 1] = 1;
+		path->nodes[level - 1] = cur;
+		unlock_up(path, level, 1);
+	}
+out:
+	if (ret == 0)
+		memcpy(min_key, &found_key, sizeof(found_key));
+	return ret;
+}
+
+/*
+ * this is similar to btrfs_next_leaf, but does not try to preserve
+ * and fixup the path.  It looks for and returns the next key in the
+ * tree based on the current path and the cache_only and min_trans
+ * parameters.
+ *
+ * 0 is returned if another key is found, < 0 if there are any errors
+ * and 1 is returned if there are no higher keys in the tree
+ *
+ * path->keep_locks should be set to 1 on the search made before
+ * calling this function.
+ */
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
-			struct btrfs_key *key, int lowest_level)
+			struct btrfs_key *key, int lowest_level,
+			int cache_only, u64 min_trans)
 {
 	int level = lowest_level;
 	int slot;
@@ -2982,6 +3107,7 @@ int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 
 		slot = path->slots[level] + 1;
 		c = path->nodes[level];
+next:
 		if (slot >= btrfs_header_nritems(c)) {
 			level++;
 			if (level == BTRFS_MAX_LEVEL) {
@@ -2991,8 +3117,28 @@ int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 		}
 		if (level == 0)
 			btrfs_item_key_to_cpu(c, key, slot);
-		else
+		else {
+			u64 blockptr = btrfs_node_blockptr(c, slot);
+			u64 gen = btrfs_node_ptr_generation(c, slot);
+
+			if (cache_only) {
+				struct extent_buffer *cur;
+				cur = btrfs_find_tree_block(root, blockptr,
+					    btrfs_level_size(root, level - 1));
+				if (!cur || !btrfs_buffer_uptodate(cur, gen)) {
+					slot++;
+					if (cur)
+						free_extent_buffer(cur);
+					goto next;
+				}
+				free_extent_buffer(cur);
+			}
+			if (gen < min_trans) {
+				slot++;
+				goto next;
+			}
 			btrfs_node_key_to_cpu(c, key, slot);
+		}
 		return 0;
 	}
 	return 1;
@@ -3095,6 +3241,12 @@ done:
 	return 0;
 }
 
+/*
+ * this uses btrfs_prev_leaf to walk backwards in the tree, and keeps
+ * searching until it gets past min_objectid or finds an item of 'type'
+ *
+ * returns 0 if something is found, 1 if nothing was found and < 0 on error
+ */
 int btrfs_previous_item(struct btrfs_root *root,
 			struct btrfs_path *path, u64 min_objectid,
 			int type)

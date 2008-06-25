@@ -295,7 +295,6 @@ int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	ret = btree_read_extent_buffer_pages(root, eb, start + PAGE_CACHE_SIZE,
 					     btrfs_header_generation(eb));
 	BUG_ON(ret);
-	btrfs_clear_buffer_defrag(eb);
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
 		printk("warning: eb start incorrect %Lu buffer %Lu len %lu\n",
@@ -355,7 +354,6 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	}
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
 
-	btrfs_clear_buffer_defrag(eb);
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
 		ret = -EIO;
@@ -736,6 +734,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
 	memset(&root->root_kobj, 0, sizeof(root->root_kobj));
+	root->defrag_trans_start = fs_info->generation;
 	init_completion(&root->kobj_unregister);
 	root->defrag_running = 0;
 	root->defrag_level = 0;
@@ -1168,7 +1167,6 @@ static int transaction_kthread(void *arg)
 			goto sleep;
 		}
 		mutex_unlock(&root->fs_info->trans_mutex);
-		btrfs_defrag_dirty_roots(root->fs_info);
 		trans = btrfs_start_transaction(root, 1);
 		ret = btrfs_commit_transaction(trans, root);
 sleep:
@@ -1434,12 +1432,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						   tree_root,
 						   "btrfs-transaction");
 	if (!fs_info->transaction_kthread)
-		goto fail_trans_kthread;
+		goto fail_cleaner;
 
 
 	return tree_root;
 
-fail_trans_kthread:
+fail_cleaner:
 	kthread_stop(fs_info->cleaner_kthread);
 fail_extent_root:
 	free_extent_buffer(extent_root->node);
@@ -1662,7 +1660,6 @@ int close_ctree(struct btrfs_root *root)
 	kthread_stop(root->fs_info->transaction_kthread);
 	kthread_stop(root->fs_info->cleaner_kthread);
 
-	btrfs_defrag_dirty_roots(root->fs_info);
 	btrfs_clean_old_snapshots(root);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
@@ -1792,58 +1789,6 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 				   root->fs_info->btree_inode->i_mapping, 1);
 	}
 	return;
-}
-
-void btrfs_set_buffer_defrag(struct extent_buffer *buf)
-{
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	set_extent_bits(&BTRFS_I(btree_inode)->io_tree, buf->start,
-			buf->start + buf->len - 1, EXTENT_DEFRAG, GFP_NOFS);
-}
-
-void btrfs_set_buffer_defrag_done(struct extent_buffer *buf)
-{
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	set_extent_bits(&BTRFS_I(btree_inode)->io_tree, buf->start,
-			buf->start + buf->len - 1, EXTENT_DEFRAG_DONE,
-			GFP_NOFS);
-}
-
-int btrfs_buffer_defrag(struct extent_buffer *buf)
-{
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	return test_range_bit(&BTRFS_I(btree_inode)->io_tree,
-		     buf->start, buf->start + buf->len - 1, EXTENT_DEFRAG, 0);
-}
-
-int btrfs_buffer_defrag_done(struct extent_buffer *buf)
-{
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	return test_range_bit(&BTRFS_I(btree_inode)->io_tree,
-		     buf->start, buf->start + buf->len - 1,
-		     EXTENT_DEFRAG_DONE, 0);
-}
-
-int btrfs_clear_buffer_defrag_done(struct extent_buffer *buf)
-{
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	return clear_extent_bits(&BTRFS_I(btree_inode)->io_tree,
-		     buf->start, buf->start + buf->len - 1,
-		     EXTENT_DEFRAG_DONE, GFP_NOFS);
-}
-
-int btrfs_clear_buffer_defrag(struct extent_buffer *buf)
-{
-	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	return clear_extent_bits(&BTRFS_I(btree_inode)->io_tree,
-		     buf->start, buf->start + buf->len - 1,
-		     EXTENT_DEFRAG, GFP_NOFS);
 }
 
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)

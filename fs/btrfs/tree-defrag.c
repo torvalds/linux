@@ -32,10 +32,13 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	int wret;
 	int level;
 	int orig_level;
-	int i;
 	int is_extent = 0;
 	int next_key_ret = 0;
 	u64 last_ret = 0;
+	u64 min_trans = 0;
+
+	if (cache_only)
+		goto out;
 
 	if (root->fs_info->extent_root == root) {
 		/*
@@ -43,10 +46,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		 * we can't defrag the extent root without deadlock
 		 */
 		goto out;
-#if 0
-		mutex_lock(&root->fs_info->alloc_mutex);
-		is_extent = 1;
-#endif
 	}
 
 	if (root->ref_cows == 0 && !is_extent)
@@ -84,6 +83,17 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 	path->lowest_level = 1;
 	path->keep_locks = 1;
+	if (cache_only)
+		min_trans = root->defrag_trans_start;
+
+	ret = btrfs_search_forward(root, &key, path, cache_only, min_trans);
+	if (ret < 0)
+		goto out;
+	if (ret > 0) {
+		ret = 0;
+		goto out;
+	}
+	btrfs_release_path(root, path);
 	wret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 
 	if (wret < 0) {
@@ -95,7 +105,8 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 	path->slots[1] = btrfs_header_nritems(path->nodes[1]);
-	next_key_ret = btrfs_find_next_key(root, path, &key, 1);
+	next_key_ret = btrfs_find_next_key(root, path, &key, 1, cache_only,
+					   min_trans);
 	ret = btrfs_realloc_node(trans, root,
 				 path->nodes[1], 0,
 				 cache_only, &last_ret,
@@ -106,19 +117,9 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		ret = -EAGAIN;
 	}
 
-	for (i = 1; i < BTRFS_MAX_LEVEL; i++) {
-		if (path->locks[i]) {
-			btrfs_tree_unlock(path->nodes[i]);
-			path->locks[i] = 0;
-		}
-		if (path->nodes[i]) {
-			free_extent_buffer(path->nodes[i]);
-			path->nodes[i] = NULL;
-		}
-	}
+	btrfs_release_path(root, path);
 	if (is_extent)
 		btrfs_extent_post_op(trans, root);
-
 out:
 	if (is_extent)
 		mutex_unlock(&root->fs_info->alloc_mutex);
@@ -138,6 +139,7 @@ done:
 	if (ret != -EAGAIN) {
 		memset(&root->defrag_progress, 0,
 		       sizeof(root->defrag_progress));
+		root->defrag_trans_start = trans->transid;
 	}
 	return ret;
 }

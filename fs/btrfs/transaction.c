@@ -30,7 +30,6 @@ extern struct kmem_cache *btrfs_trans_handle_cachep;
 extern struct kmem_cache *btrfs_transaction_cachep;
 
 #define BTRFS_ROOT_TRANS_TAG 0
-#define BTRFS_ROOT_DEFRAG_TAG 1
 
 static noinline void put_transaction(struct btrfs_transaction *transaction)
 {
@@ -92,9 +91,6 @@ static noinline int record_root_in_trans(struct btrfs_root *root)
 			radix_tree_tag_set(&root->fs_info->fs_roots_radix,
 				   (unsigned long)root->root_key.objectid,
 				   BTRFS_ROOT_TRANS_TAG);
-			radix_tree_tag_set(&root->fs_info->fs_roots_radix,
-				   (unsigned long)root->root_key.objectid,
-				   BTRFS_ROOT_DEFRAG_TAG);
 			root->commit_root = btrfs_root_node(root);
 		} else {
 			WARN_ON(1);
@@ -403,42 +399,13 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 		cond_resched();
 
 		trans = btrfs_start_transaction(root, 1);
-		if (ret != -EAGAIN)
+		if (root->fs_info->closing || ret != -EAGAIN)
 			break;
 	}
 	root->defrag_running = 0;
 	smp_mb();
-	radix_tree_tag_clear(&info->fs_roots_radix,
-		     (unsigned long)root->root_key.objectid,
-		     BTRFS_ROOT_DEFRAG_TAG);
 	btrfs_end_transaction(trans, root);
 	return 0;
-}
-
-int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
-{
-	struct btrfs_root *gang[1];
-	struct btrfs_root *root;
-	int i;
-	int ret;
-	int err = 0;
-	u64 last = 0;
-
-	while(1) {
-		ret = radix_tree_gang_lookup_tag(&info->fs_roots_radix,
-						 (void **)gang, last,
-						 ARRAY_SIZE(gang),
-						 BTRFS_ROOT_DEFRAG_TAG);
-		if (ret == 0)
-			break;
-		for (i = 0; i < ret; i++) {
-			root = gang[i];
-			last = root->root_key.objectid + 1;
-			btrfs_defrag_root(root, 1);
-		}
-	}
-	btrfs_defrag_root(info->extent_root, 1);
-	return err;
 }
 
 static noinline int drop_dirty_roots(struct btrfs_root *tree_root,

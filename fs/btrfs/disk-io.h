@@ -61,12 +61,6 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid);
 int btrfs_set_buffer_uptodate(struct extent_buffer *buf);
 int wait_on_tree_block_writeback(struct btrfs_root *root,
 				 struct extent_buffer *buf);
-void btrfs_set_buffer_defrag(struct extent_buffer *buf);
-void btrfs_set_buffer_defrag_done(struct extent_buffer *buf);
-int btrfs_buffer_defrag(struct extent_buffer *buf);
-int btrfs_buffer_defrag_done(struct extent_buffer *buf);
-int btrfs_clear_buffer_defrag(struct extent_buffer *buf);
-int btrfs_clear_buffer_defrag_done(struct extent_buffer *buf);
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
 u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len);
 void btrfs_csum_final(u32 crc, char *result);
