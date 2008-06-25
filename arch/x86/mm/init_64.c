@@ -167,7 +167,7 @@ set_pte_vaddr(unsigned long vaddr, pte_t new_pte)
 	pud = pud_offset(pgd, vaddr);
 	if (pud_none(*pud)) {
 		pmd = (pmd_t *) spp_getpage();
-		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE | _PAGE_USER));
+		pud_populate(&init_mm, pud, pmd);
 		if (pmd != pmd_offset(pud, 0)) {
 			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
 				pmd, pmd_offset(pud, 0));
@@ -177,7 +177,7 @@ set_pte_vaddr(unsigned long vaddr, pte_t new_pte)
 	pmd = pmd_offset(pud, vaddr);
 	if (pmd_none(*pmd)) {
 		pte = (pte_t *) spp_getpage();
-		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
+		pmd_populate_kernel(&init_mm, pmd, pte);
 		if (pte != pte_offset_kernel(pmd, 0)) {
 			printk(KERN_ERR "PAGETABLE BUG #02!\n");
 			return;
@@ -389,7 +389,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 		pmd = alloc_low_page(&pmd_phys);
 
 		spin_lock(&init_mm.page_table_lock);
-		set_pud(pud, __pud(pmd_phys | _KERNPG_TABLE));
+		pud_populate(&init_mm, pud, __va(pmd_phys));
 		last_map_addr = phys_pmd_init(pmd, addr, end);
 		spin_unlock(&init_mm.page_table_lock);
 
@@ -592,7 +592,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start, unsigned lon
 			next = end;
 		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next));
 		if (!after_bootmem)
-			set_pgd(pgd_offset_k(start), mk_kernel_pgd(pud_phys));
+			pgd_populate(&init_mm, pgd_offset_k(start),
+				     __va(pud_phys));
 		unmap_low_page(pud);
 	}
 
