@@ -182,6 +182,13 @@ config HID_SAMSUNG
 	---help---
 	Support for Samsung IR remote.
 
+config HID_SONY
+	tristate "Sony"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Sony PS3 controller.
+
 config HID_SUNPLUS
 	tristate "Sunplus"
 	default m

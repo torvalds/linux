@@ -670,32 +670,6 @@ static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 	usb_buffer_free(dev, usbhid->bufsize, usbhid->ctrlbuf, usbhid->ctrlbuf_dma);
 }
 
-/*
- * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
- * to "operational".  Without this, the ps3 controller will not report any
- * events.
- */
-static void hid_fixup_sony_ps3_controller(struct usb_device *dev, int ifnum)
-{
-	int result;
-	char *buf = kmalloc(18, GFP_KERNEL);
-
-	if (!buf)
-		return;
-
-	result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-				 HID_REQ_GET_REPORT,
-				 USB_DIR_IN | USB_TYPE_CLASS |
-				 USB_RECIP_INTERFACE,
-				 (3 << 8) | 0xf2, ifnum, buf, 17,
-				 USB_CTRL_GET_TIMEOUT);
-
-	if (result < 0)
-		err_hid("%s failed: %d\n", __func__, result);
-
-	kfree(buf);
-}
-
 static int usbhid_start_finish(struct hid_device *hid)
 {
 	struct usb_interface *intf = to_usb_interface(hid->dev.parent);
@@ -722,10 +696,6 @@ static int usbhid_start_finish(struct hid_device *hid)
 
 	if ((hid->claimed & HID_CLAIMED_INPUT))
 		hid_ff_init(hid);
-
-	if (hid->quirks & HID_QUIRK_SONY_PS3_CONTROLLER)
-		hid_fixup_sony_ps3_controller(interface_to_usbdev(intf),
-			intf->cur_altsetting->desc.bInterfaceNumber);
 
 	printk(KERN_INFO);
 
