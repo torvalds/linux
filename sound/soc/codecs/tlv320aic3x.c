@@ -456,10 +456,12 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 			 &aic3x_right_line2_mux_controls),
 
 	/* Mic Bias */
-	SND_SOC_DAPM_MICBIAS("Mic Bias 2V", MICBIAS_CTRL, 6, 0),
-	SND_SOC_DAPM_MICBIAS("Mic Bias 2.5V", MICBIAS_CTRL, 7, 0),
-	SND_SOC_DAPM_MICBIAS("Mic Bias AVDD", MICBIAS_CTRL, 6, 0),
-	SND_SOC_DAPM_MICBIAS("Mic Bias AVDD", MICBIAS_CTRL, 7, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias 2V",
+			 MICBIAS_CTRL, 6, 3, 1, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias 2.5V",
+			 MICBIAS_CTRL, 6, 3, 2, 0),
+	SND_SOC_DAPM_REG(snd_soc_dapm_micbias, "Mic Bias AVDD",
+			 MICBIAS_CTRL, 6, 3, 3, 0),
 
 	/* Left PGA to Left Output bypass */
 	SND_SOC_DAPM_MIXER("Left PGA Bypass Mixer", SND_SOC_NOPM, 0, 0,
