@@ -809,8 +809,10 @@ static int aic3x_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct aic3x_priv *aic3x = codec->private_data;
-	u8 iface_areg = 0;
-	u8 iface_breg = 0;
+	u8 iface_areg, iface_breg;
+
+	iface_areg = aic3x_read_reg_cache(codec, AIC3X_ASD_INTF_CTRLA) & 0x3f;
+	iface_breg = aic3x_read_reg_cache(codec, AIC3X_ASD_INTF_CTRLB) & 0x3f;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
