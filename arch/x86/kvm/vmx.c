@@ -566,7 +566,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	load_transition_efer(vmx);
 }
 
-static void vmx_load_host_state(struct vcpu_vmx *vmx)
+static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 {
 	unsigned long flags;
 
@@ -594,6 +594,13 @@ static void vmx_load_host_state(struct vcpu_vmx *vmx)
 	save_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 	load_msrs(vmx->host_msrs, vmx->save_nmsrs);
 	reload_host_efer(vmx);
+}
+
+static void vmx_load_host_state(struct vcpu_vmx *vmx)
+{
+	preempt_disable();
+	__vmx_load_host_state(vmx);
+	preempt_enable();
 }
 
 /*
@@ -654,7 +661,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	vmx_load_host_state(to_vmx(vcpu));
+	__vmx_load_host_state(to_vmx(vcpu));
 }
 
 static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
@@ -884,11 +891,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 	switch (msr_index) {
 #ifdef CONFIG_X86_64
 	case MSR_EFER:
+		vmx_load_host_state(vmx);
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
-		if (vmx->host_state.loaded) {
-			reload_host_efer(vmx);
-			load_transition_efer(vmx);
-		}
 		break;
 	case MSR_FS_BASE:
 		vmcs_writel(GUEST_FS_BASE, data);
@@ -910,11 +914,10 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		guest_write_tsc(data);
 		break;
 	default:
+		vmx_load_host_state(vmx);
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
 			msr->data = data;
-			if (vmx->host_state.loaded)
-				load_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 			break;
 		}
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
