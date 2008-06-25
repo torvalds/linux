@@ -4398,22 +4398,20 @@ do_wait_for_common(struct completion *x, long timeout, int state)
 			     signal_pending(current)) ||
 			    (state == TASK_KILLABLE &&
 			     fatal_signal_pending(current))) {
-				__remove_wait_queue(&x->wait, &wait);
-				return -ERESTARTSYS;
+				timeout = -ERESTARTSYS;
+				break;
 			}
 			__set_current_state(state);
 			spin_unlock_irq(&x->wait.lock);
 			timeout = schedule_timeout(timeout);
 			spin_lock_irq(&x->wait.lock);
-			if (!timeout) {
-				__remove_wait_queue(&x->wait, &wait);
-				return timeout;
-			}
-		} while (!x->done);
+		} while (!x->done && timeout);
 		__remove_wait_queue(&x->wait, &wait);
+		if (!x->done)
+			return timeout;
 	}
 	x->done--;
-	return timeout;
+	return timeout ?: 1;
 }
 
 static long __sched

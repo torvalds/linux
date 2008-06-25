@@ -512,7 +512,7 @@ static ssize_t sn2_ptc_proc_write(struct file *file, const char __user *user, si
 	int cpu;
 	char optstr[64];
 
-	if (count > sizeof(optstr))
+	if (count == 0 || count > sizeof(optstr))
 		return -EINVAL;
 	if (copy_from_user(optstr, user, count))
 		return -EFAULT;
