@@ -538,6 +538,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 				 *next = &next_p->thread;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+	unsigned fsindex, gsindex;
 
 	/* we're going to use this soon, after a few expensive things */
 	if (next_p->fpu_counter>5)
@@ -560,6 +561,15 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (unlikely(next->ds | prev->ds))
 		loadsegment(ds, next->ds);
 
+
+	/* We must save %fs and %gs before load_TLS() because
+	 * %fs and %gs may be cleared by load_TLS().
+	 *
+	 * (e.g. xen_load_tls())
+	 */
+	savesegment(fs, fsindex);
+	savesegment(gs, gsindex);
+
 	load_TLS(next, cpu);
 
 	/*
@@ -575,8 +585,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Switch FS and GS.
 	 */
 	{ 
-		unsigned fsindex;
-		savesegment(fs, fsindex);
 		/* segment register != 0 always requires a reload. 
 		   also reload when it has changed. 
 		   when prev process used 64bit base always reload
@@ -594,10 +602,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		if (next->fs) 
 			wrmsrl(MSR_FS_BASE, next->fs); 
 		prev->fsindex = fsindex;
-	}
-	{ 
-		unsigned gsindex;
-		savesegment(gs, gsindex);
+
 		if (unlikely(gsindex | next->gsindex | prev->gs)) {
 			load_gs_index(next->gsindex);
 			if (gsindex)
