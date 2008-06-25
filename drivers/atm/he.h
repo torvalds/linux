@@ -267,13 +267,7 @@ struct he_dev {
 
 	char prod_id[30];
 	char mac_addr[6];
-	int media;			/*  
-					 *  0x26 = HE155 MM 
-					 *  0x27 = HE622 MM 
-					 *  0x46 = HE155 SM 
-					 *  0x47 = HE622 SM 
-					 */
-
+	int media;
 
 	unsigned int vcibits, vpibits;
 	unsigned int cells_per_row;
@@ -392,6 +386,7 @@ struct he_vcc
 #define HE_DEV(dev) ((struct he_dev *) (dev)->dev_data)
 
 #define he_is622(dev)	((dev)->media & 0x1)
+#define he_isMM(dev)	((dev)->media & 0x20)
 
 #define HE_REGMAP_SIZE	0x100000
 
@@ -876,8 +871,8 @@ struct he_vcc
 #define M_SN		0x3a	/* integer */
 #define MEDIA		0x3e	/* integer */
 #define  HE155MM	0x26
-#define  HE155SM	0x27
-#define  HE622MM	0x46
+#define  HE622MM	0x27
+#define  HE155SM	0x46
 #define  HE622SM	0x47
 #define MAC_ADDR	0x42	/* char[] */
 

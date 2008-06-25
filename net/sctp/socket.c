@@ -4401,7 +4401,9 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 	if (copy_from_user(&getaddrs, optval, len))
 		return -EFAULT;
 
-	if (getaddrs.addr_num <= 0) return -EINVAL;
+	if (getaddrs.addr_num <= 0 ||
+	    getaddrs.addr_num >= (INT_MAX / sizeof(union sctp_addr)))
+		return -EINVAL;
 	/*
 	 *  For UDP-style sockets, id specifies the association to query.
 	 *  If the id field is set to the value '0' then the locally bound
