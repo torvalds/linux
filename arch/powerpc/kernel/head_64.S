@@ -275,7 +275,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	. = 0xf00
 	b	performance_monitor_pSeries
 
-	STD_EXCEPTION_PSERIES(0xf20, altivec_unavailable)
+	. = 0xf20
+	b	altivec_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
 	HSTD_EXCEPTION_PSERIES(0x1200, cbe_system_error)
@@ -295,6 +296,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 
 	/* moved from 0xf00 */
 	STD_EXCEPTION_PSERIES(., performance_monitor)
+	STD_EXCEPTION_PSERIES(., altivec_unavailable)
 
 /*
  * An interrupt came in while soft-disabled; clear EE in SRR1,
