@@ -425,6 +425,8 @@ static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
  * race with other CPU's that might be updating the dirty
  * bit at the same time.
  */
+struct vm_area_struct;
+
 #define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 extern int ptep_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pte_t *ptep,
