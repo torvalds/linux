@@ -1799,27 +1799,6 @@ config SUNRPC_XPRT_RDMA
 
 	  If unsure, say N.
 
-config SUNRPC_BIND34
-	bool "Support for rpcbind versions 3 & 4 (EXPERIMENTAL)"
-	depends on SUNRPC && EXPERIMENTAL
-	default n
-	help
-	  RPC requests over IPv6 networks require support for larger
-	  addresses when performing an RPC bind.  Sun added support for
-	  IPv6 addressing by creating two new versions of the rpcbind
-	  protocol (RFC 1833).
-
-	  This option enables support in the kernel RPC client for
-	  querying rpcbind servers via versions 3 and 4 of the rpcbind
-	  protocol.  The kernel automatically falls back to version 2
-	  if a remote rpcbind service does not support versions 3 or 4.
-	  By themselves, these new versions do not provide support for
-	  RPC over IPv6, but the new protocol versions are necessary to
-	  support it.
-
-	  If unsure, say N to get traditional behavior (version 2 rpcbind
-	  requests only).
-
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
 	depends on SUNRPC && EXPERIMENTAL
