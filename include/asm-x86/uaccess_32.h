@@ -180,7 +180,7 @@ do {									\
 		__put_user_asm(x, ptr, retval, "w", "w", "ir", errret);	\
 		break;							\
 	case 4:								\
-		__put_user_asm(x, ptr, retval, "l", "",  "ir", errret);	\
+		__put_user_asm(x, ptr, retval, "l", "k",  "ir", errret);\
 		break;							\
 	case 8:								\
 		__put_user_u64((__typeof__(*ptr))(x), ptr, retval);	\
