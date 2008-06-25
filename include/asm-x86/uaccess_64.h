@@ -9,9 +9,6 @@
 #include <linux/prefetch.h>
 #include <asm/page.h>
 
-#define __addr_ok(addr) (!((unsigned long)(addr) &			\
-			   (current_thread_info()->addr_limit.seg)))
-
 #define ARCH_HAS_SEARCH_EXTABLE
 
 extern void __put_user_1(void);

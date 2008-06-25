@@ -33,6 +33,10 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
+#define __addr_ok(addr)					\
+	((unsigned long __force)(addr) <		\
+	 (current_thread_info()->addr_limit.seg))
+
 /*
  * Test whether a block of memory is a valid user space address.
  * Returns 0 if the range is valid, nonzero otherwise.
