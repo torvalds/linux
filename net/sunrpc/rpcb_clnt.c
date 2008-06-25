@@ -438,7 +438,7 @@ static int rpcb_decode_getport(struct rpc_rqst *req, __be32 *p,
 			       unsigned short *portp)
 {
 	*portp = (unsigned short) ntohl(*p++);
-	dprintk("RPC:      rpcb_decode_getport result %u\n",
+	dprintk("RPC:       rpcb_decode_getport result %u\n",
 			*portp);
 	return 0;
 }
@@ -447,8 +447,8 @@ static int rpcb_decode_set(struct rpc_rqst *req, __be32 *p,
 			   unsigned int *boolp)
 {
 	*boolp = (unsigned int) ntohl(*p++);
-	dprintk("RPC:      rpcb_decode_set result %u\n",
-			*boolp);
+	dprintk("RPC:       rpcb_decode_set: call %s\n",
+			(*boolp ? "succeeded" : "failed"));
 	return 0;
 }
 
