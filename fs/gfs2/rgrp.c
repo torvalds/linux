@@ -195,7 +195,7 @@ ulong_aligned:
 	   depending on architecture.  I've experimented with several ways
 	   of writing this section such as using an else before the goto
 	   but this one seems to be the fastest. */
-	while ((unsigned char *)plong < end - 1) {
+	while ((unsigned char *)plong < end - sizeof(unsigned long)) {
 		prefetch(plong + 1);
 		if (((*plong) & LBITMASK) != lskipval)
 			break;
