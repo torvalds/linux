@@ -17,7 +17,7 @@
 #include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 
-#include <generic.h>
+#include "generic.h"
 
 /* Only e800 has 128MB RAM */
 static void __init eseries_fixup(struct machine_desc *desc,
