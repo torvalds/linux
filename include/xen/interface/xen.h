@@ -10,6 +10,7 @@
 #define __XEN_PUBLIC_XEN_H__
 
 #include <asm/xen/interface.h>
+#include <asm/pvclock-abi.h>
 
 /*
  * XEN "SYSTEM CALLS" (a.k.a. HYPERCALLS).
@@ -336,7 +337,7 @@ struct vcpu_info {
 	uint8_t evtchn_upcall_mask;
 	unsigned long evtchn_pending_sel;
 	struct arch_vcpu_info arch;
-	struct vcpu_time_info time;
+	struct pvclock_vcpu_time_info time;
 }; /* 64 bytes (x86) */
 
 /*
@@ -384,9 +385,7 @@ struct shared_info {
 	 * Wallclock time: updated only by control software. Guests should base
 	 * their gettimeofday() syscall on this wallclock-base value.
 	 */
-	uint32_t wc_version;      /* Version counter: see vcpu_time_info_t. */
-	uint32_t wc_sec;          /* Secs  00:00:00 UTC, Jan 1, 1970.  */
-	uint32_t wc_nsec;         /* Nsecs 00:00:00 UTC, Jan 1, 1970.  */
+	struct pvclock_wall_clock wc;
 
 	struct arch_shared_info arch;
 
