@@ -15,7 +15,10 @@
 
 #include "mach_timer.h"
 
-static int tsc_disabled;
+/* native_sched_clock() is called before tsc_init(), so
+   we must start with the TSC soft disabled to prevent
+   erroneous rdtsc usage on !cpu_has_tsc processors */
+static int tsc_disabled = -1;
 
 /*
  * On some systems the TSC frequency does not
@@ -404,28 +407,23 @@ void __init tsc_init(void)
 	int cpu;
 	u64 lpj;
 
-	if (!cpu_has_tsc || tsc_disabled) {
-		/* Disable the TSC in case of !cpu_has_tsc */
-		tsc_disabled = 1;
+	if (!cpu_has_tsc || tsc_disabled > 0)
 		return;
-	}
 
 	cpu_khz = calculate_cpu_khz();
 	tsc_khz = cpu_khz;
 
 	if (!cpu_khz) {
 		mark_tsc_unstable("could not calculate TSC khz");
-		/*
-		 * We need to disable the TSC completely in this case
-		 * to prevent sched_clock() from using it.
-		 */
-		tsc_disabled = 1;
 		return;
 	}
 
 	lpj = ((u64)tsc_khz * 1000);
 	do_div(lpj, HZ);
 	lpj_fine = lpj;
+
+	/* now allow native_sched_clock() to use rdtsc */
+	tsc_disabled = 0;
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 				(unsigned long)cpu_khz / 1000,

@@ -182,9 +182,9 @@ static int sgi_tioca_insert_memory(struct agp_memory *mem, off_t pg_start,
 		j++;
 	}
 
-	if (mem->is_flushed == FALSE) {
+	if (!mem->is_flushed) {
 		bridge->driver->cache_flush();
-		mem->is_flushed = TRUE;
+		mem->is_flushed = true;
 	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
@@ -264,8 +264,8 @@ const struct agp_bridge_driver sgi_tioca_driver = {
 	.agp_alloc_page = sgi_tioca_alloc_page,
 	.agp_destroy_page = agp_generic_destroy_page,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
-	.cant_use_aperture = 1,
-	.needs_scratch_page = 0,
+	.cant_use_aperture = true,
+	.needs_scratch_page = false,
 	.num_aperture_sizes = 1,
 };
 

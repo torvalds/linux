@@ -353,8 +353,8 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	struct clk *clkp;
 	struct resource *mem, *irq;
 	ide_hwif_t *hwif;
-	void __iomem *base;
-	int pribase, i;
+	unsigned long base;
+	int i;
 	hw_regs_t hw;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
@@ -374,22 +374,27 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 		printk(KERN_ERR "failed to get memory region resource\n");
 		return -ENODEV;
 	}
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq == NULL) {
 		printk(KERN_ERR "failed to get IRQ resource\n");
 		return -ENODEV;
 	}
 
-	base = (void *)mem->start;
+	if (request_mem_region(mem->start, mem->end - mem->start + 1,
+			       "palm_bk3710") == NULL) {
+		printk(KERN_ERR "failed to request memory region\n");
+		return -EBUSY;
+	}
+
+	base = IO_ADDRESS(mem->start);
 
 	/* Configure the Palm Chip controller */
-	palm_bk3710_chipinit(base);
+	palm_bk3710_chipinit((void __iomem *)base);
 
-	pribase = mem->start + IDE_PALM_ATA_PRI_REG_OFFSET;
 	for (i = 0; i < IDE_NR_PORTS - 2; i++)
-		hw.io_ports_array[i] = pribase + i;
-	hw.io_ports.ctl_addr = mem->start +
-			IDE_PALM_ATA_PRI_CTL_OFFSET;
+		hw.io_ports_array[i] = base + IDE_PALM_ATA_PRI_REG_OFFSET + i;
+	hw.io_ports.ctl_addr = base + IDE_PALM_ATA_PRI_CTL_OFFSET;
 	hw.irq = irq->start;
 	hw.chipset = ide_palm3710;
 
@@ -434,4 +439,3 @@ static int __init palm_bk3710_init(void)
 
 module_init(palm_bk3710_init);
 MODULE_LICENSE("GPL");
-
