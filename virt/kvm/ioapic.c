@@ -269,28 +269,9 @@ void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 	}
 }
 
-static int get_eoi_gsi(struct kvm_ioapic *ioapic, int vector)
+static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int gsi)
 {
-	int i;
-
-	for (i = 0; i < IOAPIC_NUM_PINS; i++)
-		if (ioapic->redirtbl[i].fields.vector == vector)
-			return i;
-	return -1;
-}
-
-void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
-{
-	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
 	union ioapic_redir_entry *ent;
-	int gsi;
-
-	gsi = get_eoi_gsi(ioapic, vector);
-	if (gsi == -1) {
-		printk(KERN_WARNING "Can't find redir item for %d EOI\n",
-		       vector);
-		return;
-	}
 
 	ent = &ioapic->redirtbl[gsi];
 	ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
@@ -298,6 +279,16 @@ void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
 	ent->fields.remote_irr = 0;
 	if (!ent->fields.mask && (ioapic->irr & (1 << gsi)))
 		ioapic_deliver(ioapic, gsi);
+}
+
+void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
+{
+	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
+	int i;
+
+	for (i = 0; i < IOAPIC_NUM_PINS; i++)
+		if (ioapic->redirtbl[i].fields.vector == vector)
+			__kvm_ioapic_update_eoi(ioapic, i);
 }
 
 static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr)
