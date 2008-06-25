@@ -55,11 +55,7 @@ static inline int notify_page_fault(struct pt_regs *regs)
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
-#ifdef CONFIG_X86_32
 	if (!user_mode_vm(regs)) {
-#else
-	if (!user_mode(regs)) {
-#endif
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 14))
 			ret = 1;
