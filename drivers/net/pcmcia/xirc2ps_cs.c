@@ -1461,22 +1461,25 @@ static void
 set_multicast_list(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
+    unsigned value;
 
     SelectPage(0x42);
+    value = GetByte(XIRCREG42_SWC1) & 0xC0;
+
     if (dev->flags & IFF_PROMISC) { /* snoop */
-	PutByte(XIRCREG42_SWC1, 0x06); /* set MPE and PME */
+	PutByte(XIRCREG42_SWC1, value | 0x06); /* set MPE and PME */
     } else if (dev->mc_count > 9 || (dev->flags & IFF_ALLMULTI)) {
-	PutByte(XIRCREG42_SWC1, 0x02); /* set MPE */
+	PutByte(XIRCREG42_SWC1, value | 0x02); /* set MPE */
     } else if (dev->mc_count) {
 	/* the chip can filter 9 addresses perfectly */
-	PutByte(XIRCREG42_SWC1, 0x01);
+	PutByte(XIRCREG42_SWC1, value | 0x01);
 	SelectPage(0x40);
 	PutByte(XIRCREG40_CMD0, Offline);
 	set_addresses(dev);
 	SelectPage(0x40);
 	PutByte(XIRCREG40_CMD0, EnableRecv | Online);
     } else { /* standard usage */
-	PutByte(XIRCREG42_SWC1, 0x00);
+	PutByte(XIRCREG42_SWC1, value | 0x00);
     }
     SelectPage(0);
 }
@@ -1722,6 +1725,7 @@ do_reset(struct net_device *dev, int full)
 
     /* enable receiver and put the mac online */
     if (full) {
+	set_multicast_list(dev);
 	SelectPage(0x40);
 	PutByte(XIRCREG40_CMD0, EnableRecv | Online);
     }

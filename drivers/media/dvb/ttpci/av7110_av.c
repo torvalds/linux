@@ -965,8 +965,9 @@ static u8 iframe_header[] = { 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x80, 0x00, 0x
 
 static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len, int nonblock)
 {
-	int i, n;
+	unsigned i, n;
 	int progressive = 0;
+	int match = 0;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
@@ -975,12 +976,31 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 			return -EBUSY;
 	}
 
-	for (i = 0; i < len - 5; i++) {
-		/* get progressive flag from picture extension */
-		if (buf[i] == 0x00 && buf[i+1] == 0x00 &&
-		    buf[i+2] == 0x01 && (unsigned char)buf[i+3] == 0xb5 &&
-		    (buf[i+4] & 0xf0) == 0x10)
-			progressive = buf[i+5] & 0x08;
+	/* search in buf for instances of 00 00 01 b5 1? */
+	for (i = 0; i < len; i++) {
+		unsigned char c;
+		if (get_user(c, buf + i))
+			return -EFAULT;
+		if (match == 5) {
+			progressive = c & 0x08;
+			match = 0;
+		}
+		if (c == 0x00) {
+			match = (match == 1 || match == 2) ? 2 : 1;
+			continue;
+		}
+		switch (match++) {
+		case 2: if (c == 0x01)
+				continue;
+			break;
+		case 3: if (c == 0xb5)
+				continue;
+			break;
+		case 4: if ((c & 0xf0) == 0x10)
+				continue;
+			break;
+		}
+		match = 0;
 	}
 
 	/* setting n always > 1, fixes problems when playing stillframes

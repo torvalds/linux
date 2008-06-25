@@ -108,14 +108,23 @@ static __init int sctp_proc_init(void)
 	}
 
 	if (sctp_snmp_proc_init())
-		goto out_nomem;
+		goto out_snmp_proc_init;
 	if (sctp_eps_proc_init())
-		goto out_nomem;
+		goto out_eps_proc_init;
 	if (sctp_assocs_proc_init())
-		goto out_nomem;
+		goto out_assocs_proc_init;
 
 	return 0;
 
+out_assocs_proc_init:
+	sctp_eps_proc_exit();
+out_eps_proc_init:
+	sctp_snmp_proc_exit();
+out_snmp_proc_init:
+	if (proc_net_sctp) {
+		proc_net_sctp = NULL;
+		remove_proc_entry("sctp", init_net.proc_net);
+	}
 out_nomem:
 	return -ENOMEM;
 }
@@ -470,11 +479,11 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		/* Walk through the bind address list and look for a bind
 		 * address that matches the source address of the returned dst.
 		 */
+		sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
 		rcu_read_lock();
 		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
 			if (!laddr->valid || (laddr->state != SCTP_ADDR_SRC))
 				continue;
-			sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
 			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
 				goto out_unlock;
 		}
@@ -519,7 +528,8 @@ out:
 /* For v4, the source address is cached in the route entry(dst). So no need
  * to cache it separately and hence this is an empty routine.
  */
-static void sctp_v4_get_saddr(struct sctp_association *asoc,
+static void sctp_v4_get_saddr(struct sctp_sock *sk,
+			      struct sctp_association *asoc,
 			      struct dst_entry *dst,
 			      union sctp_addr *daddr,
 			      union sctp_addr *saddr)
@@ -614,6 +624,11 @@ static void sctp_v4_addr_v4map(struct sctp_sock *sp, union sctp_addr *addr)
 static void sctp_v4_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 {
 	seq_printf(seq, "%d.%d.%d.%d ", NIPQUAD(addr->v4.sin_addr));
+}
+
+static void sctp_v4_ecn_capable(struct sock *sk)
+{
+	INET_ECN_xmit(sk);
 }
 
 /* Event handler for inet address addition/deletion events.
@@ -934,6 +949,7 @@ static struct sctp_af sctp_af_inet = {
 	.skb_iif	   = sctp_v4_skb_iif,
 	.is_ce		   = sctp_v4_is_ce,
 	.seq_dump_addr	   = sctp_v4_seq_dump_addr,
+	.ecn_capable	   = sctp_v4_ecn_capable,
 	.net_header_len	   = sizeof(struct iphdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in),
 #ifdef CONFIG_COMPAT

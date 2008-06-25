@@ -88,15 +88,17 @@ static void show_raw_backtrace(unsigned long reg29)
 #ifdef CONFIG_KALLSYMS
 	printk("\n");
 #endif
-#define IS_KVA01(a) ((((unsigned int)a) & 0xc0000000) == 0x80000000)
-	if (IS_KVA01(sp)) {
-		while (!kstack_end(sp)) {
-			addr = *sp++;
-			if (__kernel_text_address(addr))
-				print_ip_sym(addr);
+	while (!kstack_end(sp)) {
+		unsigned long __user *p =
+			(unsigned long __user *)(unsigned long)sp++;
+		if (__get_user(addr, p)) {
+			printk(" (Bad stack address)");
+			break;
 		}
-		printk("\n");
+		if (__kernel_text_address(addr))
+			print_ip_sym(addr);
 	}
+	printk("\n");
 }
 
 #ifdef CONFIG_KALLSYMS

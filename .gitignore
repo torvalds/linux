@@ -26,6 +26,7 @@ tags
 TAGS
 vmlinux*
 !vmlinux.lds.S
+!vmlinux.lds.h
 System.map
 Module.markers
 Module.symvers
@@ -52,6 +53,7 @@ series
 
 # cscope files
 cscope.*
+ncscope.*
 
 *.orig
 *~

@@ -661,7 +661,7 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 
 EXPORT_SYMBOL_GPL(tfrc_calc_x);
 
-/*
+/**
  *  tfrc_calc_x_reverse_lookup  -  try to find p given f(p)
  *
  *  @fvalue: function value to match, scaled by 1000000
@@ -676,11 +676,11 @@ u32 tfrc_calc_x_reverse_lookup(u32 fvalue)
 
 	/* Error cases. */
 	if (fvalue < tfrc_calc_x_lookup[0][1]) {
-		DCCP_WARN("fvalue %d smaller than resolution\n", fvalue);
-		return tfrc_calc_x_lookup[0][1];
+		DCCP_WARN("fvalue %u smaller than resolution\n", fvalue);
+		return TFRC_SMALLEST_P;
 	}
 	if (fvalue > tfrc_calc_x_lookup[TFRC_CALC_X_ARRSIZE - 1][0]) {
-		DCCP_WARN("fvalue %d exceeds bounds!\n", fvalue);
+		DCCP_WARN("fvalue %u exceeds bounds!\n", fvalue);
 		return 1000000;
 	}
 

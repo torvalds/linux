@@ -74,6 +74,8 @@ static DEFINE_SPINLOCK(pers_lock);
 
 static void md_print_devices(void);
 
+static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
+
 #define MD_BUG(x...) { printk("md: bug in file %s, line %d\n", __FILE__, __LINE__); md_print_devices(); }
 
 /*
@@ -274,6 +276,7 @@ static mddev_t * mddev_find(dev_t unit)
 	atomic_set(&new->active, 1);
 	spin_lock_init(&new->write_lock);
 	init_waitqueue_head(&new->sb_wait);
+	init_waitqueue_head(&new->recovery_wait);
 	new->reshape_position = MaxSector;
 	new->resync_max = MaxSector;
 	new->level = LEVEL_NONE;
@@ -3013,6 +3016,36 @@ degraded_show(mddev_t *mddev, char *page)
 static struct md_sysfs_entry md_degraded = __ATTR_RO(degraded);
 
 static ssize_t
+sync_force_parallel_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%d\n", mddev->parallel_resync);
+}
+
+static ssize_t
+sync_force_parallel_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	long n;
+
+	if (strict_strtol(buf, 10, &n))
+		return -EINVAL;
+
+	if (n != 0 && n != 1)
+		return -EINVAL;
+
+	mddev->parallel_resync = n;
+
+	if (mddev->sync_thread)
+		wake_up(&resync_wait);
+
+	return len;
+}
+
+/* force parallel resync, even with shared block devices */
+static struct md_sysfs_entry md_sync_force_parallel =
+__ATTR(sync_force_parallel, S_IRUGO|S_IWUSR,
+       sync_force_parallel_show, sync_force_parallel_store);
+
+static ssize_t
 sync_speed_show(mddev_t *mddev, char *page)
 {
 	unsigned long resync, dt, db;
@@ -3187,6 +3220,7 @@ static struct attribute *md_redundancy_attrs[] = {
 	&md_sync_min.attr,
 	&md_sync_max.attr,
 	&md_sync_speed.attr,
+	&md_sync_force_parallel.attr,
 	&md_sync_completed.attr,
 	&md_max_sync.attr,
 	&md_suspend_lo.attr,
@@ -3691,6 +3725,8 @@ static int do_md_stop(mddev_t * mddev, int mode)
 
 			module_put(mddev->pers->owner);
 			mddev->pers = NULL;
+			/* tell userspace to handle 'inactive' */
+			sysfs_notify(&mddev->kobj, NULL, "array_state");
 
 			set_capacity(disk, 0);
 			mddev->changed = 1;
@@ -3987,8 +4023,8 @@ static int get_bitmap_file(mddev_t * mddev, void __user * arg)
 	if (!buf)
 		goto out;
 
-	ptr = file_path(mddev->bitmap->file, buf, sizeof(file->pathname));
-	if (!ptr)
+	ptr = d_path(&mddev->bitmap->file->f_path, buf, sizeof(file->pathname));
+	if (IS_ERR(ptr))
 		goto out;
 
 	strcpy(file->pathname, ptr);
@@ -5399,7 +5435,7 @@ void md_done_sync(mddev_t *mddev, int blocks, int ok)
 	atomic_sub(blocks, &mddev->recovery_active);
 	wake_up(&mddev->recovery_wait);
 	if (!ok) {
-		set_bit(MD_RECOVERY_ERR, &mddev->recovery);
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 		// stop recovery, signal do_sync ....
 	}
@@ -5435,8 +5471,11 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 			md_wakeup_thread(mddev->thread);
 		}
 		spin_unlock_irq(&mddev->write_lock);
+		sysfs_notify(&mddev->kobj, NULL, "array_state");
 	}
-	wait_event(mddev->sb_wait, mddev->flags==0);
+	wait_event(mddev->sb_wait,
+		   !test_bit(MD_CHANGE_CLEAN, &mddev->flags) &&
+		   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
 }
 
 void md_write_end(mddev_t *mddev)
@@ -5471,12 +5510,16 @@ void md_allow_write(mddev_t *mddev)
 			mddev->safemode = 1;
 		spin_unlock_irq(&mddev->write_lock);
 		md_update_sb(mddev, 0);
+
+		sysfs_notify(&mddev->kobj, NULL, "array_state");
+		/* wait for the dirty state to be recorded in the metadata */
+		wait_event(mddev->sb_wait,
+			   !test_bit(MD_CHANGE_CLEAN, &mddev->flags) &&
+			   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
 	} else
 		spin_unlock_irq(&mddev->write_lock);
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
-
-static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
@@ -5541,8 +5584,9 @@ void md_do_sync(mddev_t *mddev)
 		for_each_mddev(mddev2, tmp) {
 			if (mddev2 == mddev)
 				continue;
-			if (mddev2->curr_resync && 
-			    match_mddev_units(mddev,mddev2)) {
+			if (!mddev->parallel_resync
+			&&  mddev2->curr_resync
+			&&  match_mddev_units(mddev, mddev2)) {
 				DEFINE_WAIT(wq);
 				if (mddev < mddev2 && mddev->curr_resync == 2) {
 					/* arbitrarily yield */
@@ -5622,7 +5666,6 @@ void md_do_sync(mddev_t *mddev)
 		window/2,(unsigned long long) max_sectors/2);
 
 	atomic_set(&mddev->recovery_active, 0);
-	init_waitqueue_head(&mddev->recovery_wait);
 	last_check = 0;
 
 	if (j>2) {
@@ -5647,7 +5690,7 @@ void md_do_sync(mddev_t *mddev)
 		sectors = mddev->pers->sync_request(mddev, j, &skipped,
 						  currspeed < speed_min(mddev));
 		if (sectors == 0) {
-			set_bit(MD_RECOVERY_ERR, &mddev->recovery);
+			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			goto out;
 		}
 
@@ -5670,8 +5713,7 @@ void md_do_sync(mddev_t *mddev)
 
 		last_check = io_sectors;
 
-		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery) ||
-		    test_bit(MD_RECOVERY_ERR, &mddev->recovery))
+		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery))
 			break;
 
 	repeat:
@@ -5725,8 +5767,7 @@ void md_do_sync(mddev_t *mddev)
 	/* tell personality that we are finished */
 	mddev->pers->sync_request(mddev, max_sectors, &skipped, 1);
 
-	if (!test_bit(MD_RECOVERY_ERR, &mddev->recovery) &&
-	    !test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
+	if (!test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
 	    mddev->curr_resync > 2) {
 		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 			if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
@@ -5795,7 +5836,10 @@ static int remove_and_add_spares(mddev_t *mddev)
 		}
 
 	if (mddev->degraded) {
-		rdev_for_each(rdev, rtmp, mddev)
+		rdev_for_each(rdev, rtmp, mddev) {
+			if (rdev->raid_disk >= 0 &&
+			    !test_bit(In_sync, &rdev->flags))
+				spares++;
 			if (rdev->raid_disk < 0
 			    && !test_bit(Faulty, &rdev->flags)) {
 				rdev->recovery_offset = 0;
@@ -5813,6 +5857,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 				} else
 					break;
 			}
+		}
 	}
 	return spares;
 }
@@ -5826,7 +5871,7 @@ static int remove_and_add_spares(mddev_t *mddev)
  * to do that as needed.
  * When it is determined that resync is needed, we set MD_RECOVERY_RUNNING in
  * "->recovery" and create a thread at ->sync_thread.
- * When the thread finishes it sets MD_RECOVERY_DONE (and might set MD_RECOVERY_ERR)
+ * When the thread finishes it sets MD_RECOVERY_DONE
  * and wakeups up this thread which will reap the thread and finish up.
  * This thread also removes any faulty devices (with nr_pending == 0).
  *
@@ -5901,8 +5946,7 @@ void md_check_recovery(mddev_t *mddev)
 			/* resync has finished, collect result */
 			md_unregister_thread(mddev->sync_thread);
 			mddev->sync_thread = NULL;
-			if (!test_bit(MD_RECOVERY_ERR, &mddev->recovery) &&
-			    !test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 				/* success...*/
 				/* activate any spares */
 				mddev->pers->spare_active(mddev);
@@ -5926,7 +5970,6 @@ void md_check_recovery(mddev_t *mddev)
 		 * might be left set
 		 */
 		clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-		clear_bit(MD_RECOVERY_ERR, &mddev->recovery);
 		clear_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 

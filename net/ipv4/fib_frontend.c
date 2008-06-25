@@ -506,7 +506,6 @@ const struct nla_policy rtm_ipv4_policy[RTA_MAX+1] = {
 	[RTA_PREFSRC]		= { .type = NLA_U32 },
 	[RTA_METRICS]		= { .type = NLA_NESTED },
 	[RTA_MULTIPATH]		= { .len = sizeof(struct rtnexthop) },
-	[RTA_PROTOINFO]		= { .type = NLA_U32 },
 	[RTA_FLOW]		= { .type = NLA_U32 },
 };
 

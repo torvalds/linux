@@ -62,8 +62,7 @@ static int stopmachine(void *cpu)
 		 * help our sisters onto their CPUs. */
 		if (!prepared && !irqs_disabled)
 			yield();
-		else
-			cpu_relax();
+		cpu_relax();
 	}
 
 	/* Ack: we are exiting. */
@@ -106,8 +105,10 @@ static int stop_machine(void)
 	}
 
 	/* Wait for them all to come to life. */
-	while (atomic_read(&stopmachine_thread_ack) != stopmachine_num_threads)
+	while (atomic_read(&stopmachine_thread_ack) != stopmachine_num_threads) {
 		yield();
+		cpu_relax();
+	}
 
 	/* If some failed, kill them all. */
 	if (ret < 0) {
