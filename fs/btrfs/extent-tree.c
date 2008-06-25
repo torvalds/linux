@@ -1223,8 +1223,8 @@ printk("space info full %Lu\n", flags);
 	ret = btrfs_make_block_group(trans, extent_root, 0, flags,
 		     BTRFS_FIRST_CHUNK_TREE_OBJECTID, start, num_bytes);
 	BUG_ON(ret);
-	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 out:
+	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return 0;
 }
 
@@ -2181,15 +2181,27 @@ static void noinline reada_walk_down(struct btrfs_root *root,
 				continue;
 			}
 		}
-		mutex_unlock(&root->fs_info->alloc_mutex);
 		ret = readahead_tree_block(root, bytenr, blocksize,
 					   btrfs_node_ptr_generation(node, i));
 		last = bytenr + blocksize;
 		cond_resched();
-		mutex_lock(&root->fs_info->alloc_mutex);
 		if (ret)
 			break;
 	}
+}
+
+/*
+ * we want to avoid as much random IO as we can with the alloc mutex
+ * held, so drop the lock and do the lookup, then do it again with the
+ * lock held.
+ */
+int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
+			      u32 *refs)
+{
+	mutex_unlock(&root->fs_info->alloc_mutex);
+	lookup_extent_ref(NULL, root, start, len, refs);
+	mutex_lock(&root->fs_info->alloc_mutex);
+	return lookup_extent_ref(NULL, root, start, len, refs);
 }
 
 /*
@@ -2215,8 +2227,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
-	ret = lookup_extent_ref(trans, root,
-				path->nodes[*level]->start,
+	ret = drop_snap_lookup_refcount(root, path->nodes[*level]->start,
 				path->nodes[*level]->len, &refs);
 	BUG_ON(ret);
 	if (refs > 1)
@@ -2245,7 +2256,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		ptr_gen = btrfs_node_ptr_generation(cur, path->slots[*level]);
 		blocksize = btrfs_level_size(root, *level - 1);
 
-		ret = lookup_extent_ref(trans, root, bytenr, blocksize, &refs);
+		ret = drop_snap_lookup_refcount(root, bytenr, blocksize, &refs);
 		BUG_ON(ret);
 		if (refs != 1) {
 			parent = path->nodes[*level];
@@ -2261,15 +2272,16 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		next = btrfs_find_tree_block(root, bytenr, blocksize);
 		if (!next || !btrfs_buffer_uptodate(next, ptr_gen)) {
 			free_extent_buffer(next);
+			mutex_unlock(&root->fs_info->alloc_mutex);
+
 			reada_walk_down(root, cur, path->slots[*level]);
 
-			mutex_unlock(&root->fs_info->alloc_mutex);
 			next = read_tree_block(root, bytenr, blocksize,
 					       ptr_gen);
 			mutex_lock(&root->fs_info->alloc_mutex);
 
 			/* we've dropped the lock, double check */
-			ret = lookup_extent_ref(trans, root, bytenr,
+			ret = drop_snap_lookup_refcount(root, bytenr,
 						blocksize, &refs);
 			BUG_ON(ret);
 			if (refs != 1) {

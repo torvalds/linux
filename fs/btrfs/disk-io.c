@@ -1674,6 +1674,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 
 void btrfs_throttle(struct btrfs_root *root)
 {
+#if 0
 	struct backing_dev_info *bdi;
 
 	bdi = &root->fs_info->bdi;
@@ -1686,6 +1687,7 @@ void btrfs_throttle(struct btrfs_root *root)
 #endif
 
 	}
+#endif
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
