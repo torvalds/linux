@@ -4431,10 +4431,10 @@ M:	johnpol@2ka.mipt.ru
 S:	Maintained
 
 W83791D HARDWARE MONITORING DRIVER
-P:	Charles Spirakis
-M:	bezaur@gmail.com
+P:	Marc Hulsman
+M:	m.hulsman@tudelft.nl
 L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
+S:	Maintained
 
 W83793 HARDWARE MONITORING DRIVER
 P:	Rudolf Marek

@@ -578,8 +578,6 @@ setup_arch (char **cmdline_p)
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
 
-	check_sal_cache_flush();
-
 #ifdef CONFIG_ACPI
 	acpi_boot_init();
 #endif
@@ -607,6 +605,7 @@ setup_arch (char **cmdline_p)
 		ia64_mca_init();
 
 	platform_setup(cmdline_p);
+	check_sal_cache_flush();
 	paging_init();
 }
 

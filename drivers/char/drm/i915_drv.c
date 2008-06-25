@@ -389,6 +389,7 @@ static int i915_resume(struct drm_device *dev)
 	pci_restore_state(dev->pdev);
 	if (pci_enable_device(dev->pdev))
 		return -1;
+	pci_set_master(dev->pdev);
 
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
 

@@ -356,13 +356,13 @@ struct el_t2_frame_corrected {
 #define vip	volatile int *
 #define vuip	volatile unsigned int *
 
-static inline u8 t2_inb(unsigned long addr)
+extern inline u8 t2_inb(unsigned long addr)
 {
 	long result = *(vip) ((addr << 5) + T2_IO + 0x00);
 	return __kernel_extbl(result, addr & 3);
 }
 
-static inline void t2_outb(u8 b, unsigned long addr)
+extern inline void t2_outb(u8 b, unsigned long addr)
 {
 	unsigned long w;
 
@@ -371,13 +371,13 @@ static inline void t2_outb(u8 b, unsigned long addr)
 	mb();
 }
 
-static inline u16 t2_inw(unsigned long addr)
+extern inline u16 t2_inw(unsigned long addr)
 {
 	long result = *(vip) ((addr << 5) + T2_IO + 0x08);
 	return __kernel_extwl(result, addr & 3);
 }
 
-static inline void t2_outw(u16 b, unsigned long addr)
+extern inline void t2_outw(u16 b, unsigned long addr)
 {
 	unsigned long w;
 
@@ -386,12 +386,12 @@ static inline void t2_outw(u16 b, unsigned long addr)
 	mb();
 }
 
-static inline u32 t2_inl(unsigned long addr)
+extern inline u32 t2_inl(unsigned long addr)
 {
 	return *(vuip) ((addr << 5) + T2_IO + 0x18);
 }
 
-static inline void t2_outl(u32 b, unsigned long addr)
+extern inline void t2_outl(u32 b, unsigned long addr)
 {
 	*(vuip) ((addr << 5) + T2_IO + 0x18) = b;
 	mb();
@@ -435,7 +435,7 @@ static inline void t2_outl(u32 b, unsigned long addr)
 	set_hae(msb); \
 }
 
-static DEFINE_SPINLOCK(t2_hae_lock);
+extern spinlock_t t2_hae_lock;
 
 /*
  * NOTE: take T2_DENSE_MEM off in each readX/writeX routine, since

@@ -345,17 +345,20 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	case IPV6_DSTOPTS:
 	{
 		struct ipv6_txoptions *opt;
+
+		/* remove any sticky options header with a zero option
+		 * length, per RFC3542.
+		 */
 		if (optlen == 0)
 			optval = NULL;
+		else if (optlen < sizeof(struct ipv6_opt_hdr) ||
+			 optlen & 0x7 || optlen > 8 * 255)
+			goto e_inval;
 
 		/* hop-by-hop / destination options are privileged option */
 		retv = -EPERM;
 		if (optname != IPV6_RTHDR && !capable(CAP_NET_RAW))
 			break;
-
-		if (optlen < sizeof(struct ipv6_opt_hdr) ||
-		    optlen & 0x7 || optlen > 8 * 255)
-			goto e_inval;
 
 		opt = ipv6_renew_options(sk, np->opt, optname,
 					 (struct ipv6_opt_hdr __user *)optval,
