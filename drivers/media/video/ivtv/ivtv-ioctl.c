@@ -314,34 +314,6 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 	return 0;
 }
 
-static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
-{
-	struct v4l2_register *regs = arg;
-	unsigned long flags;
-	volatile u8 __iomem *reg_start;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (regs->reg >= IVTV_REG_OFFSET && regs->reg < IVTV_REG_OFFSET + IVTV_REG_SIZE)
-		reg_start = itv->reg_mem - IVTV_REG_OFFSET;
-	else if (itv->has_cx23415 && regs->reg >= IVTV_DECODER_OFFSET &&
-			regs->reg < IVTV_DECODER_OFFSET + IVTV_DECODER_SIZE)
-		reg_start = itv->dec_mem - IVTV_DECODER_OFFSET;
-	else if (regs->reg >= 0 && regs->reg < IVTV_ENCODER_SIZE)
-		reg_start = itv->enc_mem;
-	else
-		return -EINVAL;
-
-	spin_lock_irqsave(&ivtv_cards_lock, flags);
-	if (cmd == VIDIOC_DBG_G_REGISTER) {
-		regs->val = readl(regs->reg + reg_start);
-	} else {
-		writel(regs->val, regs->reg + reg_start);
-	}
-	spin_unlock_irqrestore(&ivtv_cards_lock, flags);
-	return 0;
-}
-
 static int ivtv_g_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
@@ -715,6 +687,34 @@ static int ivtv_g_chip_ident(struct file *file, void *fh, struct v4l2_chip_ident
 	return -EINVAL;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
+{
+	struct v4l2_register *regs = arg;
+	unsigned long flags;
+	u8 __iomem *reg_start;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (regs->reg >= IVTV_REG_OFFSET && regs->reg < IVTV_REG_OFFSET + IVTV_REG_SIZE)
+		reg_start = itv->reg_mem - IVTV_REG_OFFSET;
+	else if (itv->has_cx23415 && regs->reg >= IVTV_DECODER_OFFSET &&
+			regs->reg < IVTV_DECODER_OFFSET + IVTV_DECODER_SIZE)
+		reg_start = itv->dec_mem - IVTV_DECODER_OFFSET;
+	else if (regs->reg >= 0 && regs->reg < IVTV_ENCODER_SIZE)
+		reg_start = itv->enc_mem;
+	else
+		return -EINVAL;
+
+	spin_lock_irqsave(&ivtv_cards_lock, flags);
+	if (cmd == VIDIOC_DBG_G_REGISTER)
+		regs->val = readl(regs->reg + reg_start);
+	else
+		writel(regs->val, regs->reg + reg_start);
+	spin_unlock_irqrestore(&ivtv_cards_lock, flags);
+	return 0;
+}
+
 static int ivtv_g_register(struct file *file, void *fh, struct v4l2_register *reg)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
@@ -736,6 +736,7 @@ static int ivtv_s_register(struct file *file, void *fh, struct v4l2_register *re
 		return ivtv_i2c_id(itv, reg->match_chip, VIDIOC_DBG_S_REGISTER, reg);
 	return ivtv_call_i2c_client(itv, reg->match_chip, VIDIOC_DBG_S_REGISTER, reg);
 }
+#endif
 
 static int ivtv_g_priority(struct file *file, void *fh, enum v4l2_priority *p)
 {
@@ -1896,8 +1897,10 @@ void ivtv_set_funcs(struct video_device *vdev)
 	vdev->vidioc_try_fmt_sliced_vbi_out = ivtv_try_fmt_sliced_vbi_out;
 	vdev->vidioc_g_sliced_vbi_cap 	    = ivtv_g_sliced_vbi_cap;
 	vdev->vidioc_g_chip_ident 	    = ivtv_g_chip_ident;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	vdev->vidioc_g_register 	    = ivtv_g_register;
 	vdev->vidioc_s_register 	    = ivtv_s_register;
+#endif
 	vdev->vidioc_default 		    = ivtv_default;
 	vdev->vidioc_queryctrl 		    = ivtv_queryctrl;
 	vdev->vidioc_querymenu 		    = ivtv_querymenu;

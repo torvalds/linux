@@ -113,25 +113,6 @@ u16 cx18_get_service_set(struct v4l2_sliced_vbi_format *fmt)
 	return set;
 }
 
-static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
-{
-	struct v4l2_register *regs = arg;
-	unsigned long flags;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (regs->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
-		return -EINVAL;
-
-	spin_lock_irqsave(&cx18_cards_lock, flags);
-	if (cmd == VIDIOC_DBG_G_REGISTER)
-		regs->val = read_enc(regs->reg);
-	else
-		write_enc(regs->val, regs->reg);
-	spin_unlock_irqrestore(&cx18_cards_lock, flags);
-	return 0;
-}
-
 static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
@@ -292,6 +273,26 @@ static int cx18_g_chip_ident(struct file *file, void *fh,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
+{
+	struct v4l2_register *regs = arg;
+	unsigned long flags;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (regs->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
+		return -EINVAL;
+
+	spin_lock_irqsave(&cx18_cards_lock, flags);
+	if (cmd == VIDIOC_DBG_G_REGISTER)
+		regs->val = read_enc(regs->reg);
+	else
+		write_enc(regs->val, regs->reg);
+	spin_unlock_irqrestore(&cx18_cards_lock, flags);
+	return 0;
+}
+
 static int cx18_g_register(struct file *file, void *fh,
 				struct v4l2_register *reg)
 {
@@ -319,6 +320,7 @@ static int cx18_s_register(struct file *file, void *fh,
 	return cx18_call_i2c_client(cx, reg->match_chip, VIDIOC_DBG_S_REGISTER,
 					reg);
 }
+#endif
 
 static int cx18_g_priority(struct file *file, void *fh, enum v4l2_priority *p)
 {
@@ -810,8 +812,10 @@ void cx18_set_funcs(struct video_device *vdev)
 	vdev->vidioc_try_fmt_sliced_vbi_cap  = cx18_try_fmt_sliced_vbi_cap;
 	vdev->vidioc_g_sliced_vbi_cap        = cx18_g_sliced_vbi_cap;
 	vdev->vidioc_g_chip_ident            = cx18_g_chip_ident;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	vdev->vidioc_g_register              = cx18_g_register;
 	vdev->vidioc_s_register              = cx18_s_register;
+#endif
 	vdev->vidioc_default                 = cx18_default;
 	vdev->vidioc_queryctrl               = cx18_queryctrl;
 	vdev->vidioc_querymenu               = cx18_querymenu;
