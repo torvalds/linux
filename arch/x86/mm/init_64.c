@@ -144,22 +144,13 @@ static __init void *spp_getpage(void)
 }
 
 void
-set_pte_vaddr(unsigned long vaddr, pte_t new_pte)
+set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
 {
-	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
-	pr_debug("set_pte_vaddr %lx to %lx\n", vaddr, native_pte_val(new_pte));
-
-	pgd = pgd_offset_k(vaddr);
-	if (pgd_none(*pgd)) {
-		printk(KERN_ERR
-			"PGD FIXMAP MISSING, it should be setup in head.S!\n");
-		return;
-	}
-	pud = pud_offset(pgd, vaddr);
+	pud = pud_page + pud_index(vaddr);
 	if (pud_none(*pud)) {
 		pmd = (pmd_t *) spp_getpage();
 		pud_populate(&init_mm, pud, pmd);
@@ -190,6 +181,24 @@ set_pte_vaddr(unsigned long vaddr, pte_t new_pte)
 	 * (PGE mappings get flushed as well)
 	 */
 	__flush_tlb_one(vaddr);
+}
+
+void
+set_pte_vaddr(unsigned long vaddr, pte_t pteval)
+{
+	pgd_t *pgd;
+	pud_t *pud_page;
+
+	pr_debug("set_pte_vaddr %lx to %lx\n", vaddr, native_pte_val(pteval));
+
+	pgd = pgd_offset_k(vaddr);
+	if (pgd_none(*pgd)) {
+		printk(KERN_ERR
+			"PGD FIXMAP MISSING, it should be setup in head.S!\n");
+		return;
+	}
+	pud_page = (pud_t*)pgd_page_vaddr(*pgd);
+	set_pte_vaddr_pud(pud_page, vaddr, pteval);
 }
 
 /*

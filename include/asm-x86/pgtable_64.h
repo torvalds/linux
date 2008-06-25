@@ -70,6 +70,9 @@ extern void paging_init(void);
 
 struct mm_struct;
 
+void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
+
+
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 				    pte_t *ptep)
 {
