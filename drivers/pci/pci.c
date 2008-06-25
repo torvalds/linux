@@ -1114,10 +1114,10 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 
 err_out:
 	dev_warn(&pdev->dev, "BAR %d: can't reserve %s region [%#llx-%#llx]\n",
-		bar + 1, /* PCI BAR # */
-		pci_resource_flags(pdev, bar) & IORESOURCE_IO ? "I/O" : "mem",
-		(unsigned long long)pci_resource_start(pdev, bar),
-		(unsigned long long)pci_resource_end(pdev, bar));
+		 bar,
+		 pci_resource_flags(pdev, bar) & IORESOURCE_IO ? "I/O" : "mem",
+		 (unsigned long long)pci_resource_start(pdev, bar),
+		 (unsigned long long)pci_resource_end(pdev, bar));
 	return -EBUSY;
 }
 
