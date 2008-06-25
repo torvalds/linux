@@ -11,18 +11,6 @@
 
 #define ARCH_HAS_SEARCH_EXTABLE
 
-extern void __put_user_1(void);
-extern void __put_user_2(void);
-extern void __put_user_4(void);
-extern void __put_user_8(void);
-extern void __put_user_bad(void);
-
-#define __put_user_x(size, ret, x, ptr)					\
-	asm volatile("call __put_user_" #size				\
-		     :"=a" (ret)					\
-		     :"c" (ptr),"a" (x)					\
-		     :"ebx")
-
 #define __get_user(x, ptr)						\
 	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 #define __put_user(x, ptr)						\
@@ -30,30 +18,6 @@ extern void __put_user_bad(void);
 
 #define __get_user_unaligned __get_user
 #define __put_user_unaligned __put_user
-
-#define put_user(x, ptr)					\
-({								\
-	int __pu_err;						\
-	typeof(*(ptr)) __user *__pu_addr = (ptr);		\
-	__chk_user_ptr(ptr);					\
-	switch (sizeof(*(ptr))) {				\
-	case 1:							\
-		__put_user_x(1, __pu_err, x, __pu_addr);	\
-		break;						\
-	case 2:							\
-		__put_user_x(2, __pu_err, x, __pu_addr);	\
-		break;						\
-	case 4:							\
-		__put_user_x(4, __pu_err, x, __pu_addr);	\
-		break;						\
-	case 8:							\
-		__put_user_x(8, __pu_err, x, __pu_addr);	\
-		break;						\
-	default:						\
-		__put_user_bad();				\
-	}							\
-	__pu_err;						\
-})
 
 /*
  * Copy To/From Userspace

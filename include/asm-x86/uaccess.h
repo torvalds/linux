@@ -178,6 +178,12 @@ extern int __get_user_bad(void);
 	__ret_gu;							\
 })
 
+#define __put_user_x(size, x, ptr, __ret_pu)			\
+	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
+		     :"0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+
+
+
 #ifdef CONFIG_X86_32
 #define __put_user_u64(x, addr, err)					\
 	asm volatile("1:	movl %%eax,0(%2)\n"			\
@@ -191,12 +197,70 @@ extern int __get_user_bad(void);
 		     _ASM_EXTABLE(2b, 4b)				\
 		     : "=r" (err)					\
 		     : "A" (x), "r" (addr), "i" (-EFAULT), "0" (err))
+
+#define __put_user_x8(x, ptr, __ret_pu)				\
+	asm volatile("call __put_user_8" : "=a" (__ret_pu)	\
+		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 #else
 #define __put_user_u64(x, ptr, retval) \
 	__put_user_asm(x, ptr, retval, "q", "", "Zr", -EFAULT)
+#define __put_user_x8(x, ptr, __ret_pu) __put_user_x(8, x, ptr, __ret_pu)
 #endif
 
+extern void __put_user_bad(void);
+
+/*
+ * Strange magic calling convention: pointer in %ecx,
+ * value in %eax(:%edx), return value in %eax. clobbers %rbx
+ */
+extern void __put_user_1(void);
+extern void __put_user_2(void);
+extern void __put_user_4(void);
+extern void __put_user_8(void);
+
 #ifdef CONFIG_X86_WP_WORKS_OK
+
+/**
+ * put_user: - Write a simple value into user space.
+ * @x:   Value to copy to user space.
+ * @ptr: Destination address, in user space.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * This macro copies a single simple value from kernel space to user
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and @x must be assignable
+ * to the result of dereferencing @ptr.
+ *
+ * Returns zero on success, or -EFAULT on error.
+ */
+#define put_user(x, ptr)					\
+({								\
+	int __ret_pu;						\
+	__typeof__(*(ptr)) __pu_val;				\
+	__chk_user_ptr(ptr);					\
+	__pu_val = x;						\
+	switch (sizeof(*(ptr))) {				\
+	case 1:							\
+		__put_user_x(1, __pu_val, ptr, __ret_pu);	\
+		break;						\
+	case 2:							\
+		__put_user_x(2, __pu_val, ptr, __ret_pu);	\
+		break;						\
+	case 4:							\
+		__put_user_x(4, __pu_val, ptr, __ret_pu);	\
+		break;						\
+	case 8:							\
+		__put_user_x8(__pu_val, ptr, __ret_pu);		\
+		break;						\
+	default:						\
+		__put_user_x(X, __pu_val, ptr, __ret_pu);	\
+		break;						\
+	}							\
+	__ret_pu;						\
+})
 
 #define __put_user_size(x, ptr, size, retval, errret)			\
 do {									\
@@ -231,6 +295,16 @@ do {									\
 		retval = errret;					\
 } while (0)
 
+#define put_user(x, ptr)					\
+({								\
+	int __ret_pu;						\
+	__typeof__(*(ptr))__pus_tmp = x;			\
+	__ret_pu = 0;						\
+	if (unlikely(__copy_to_user_ll(ptr, &__pus_tmp,		\
+				       sizeof(*(ptr))) != 0))	\
+		__ret_pu = -EFAULT;				\
+	__ret_pu;						\
+})
 #endif
 
 #ifdef CONFIG_X86_32
