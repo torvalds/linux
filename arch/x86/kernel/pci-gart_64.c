@@ -824,10 +824,10 @@ void __init gart_iommu_init(void)
 	wbinvd();
 
 	/*
-	 * Try to workaround a bug (thanks to BenH)
+	 * Try to workaround a bug (thanks to BenH):
 	 * Set unmapped entries to a scratch page instead of 0.
 	 * Any prefetches that hit unmapped entries won't get an bus abort
-	 * then.
+	 * then. (P2P bridge may be prefetching on DMA reads).
 	 */
 	scratch = get_zeroed_page(GFP_KERNEL);
 	if (!scratch)
