@@ -30,6 +30,7 @@
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
 #include <asm/time.h>
+#include <asm/pgalloc.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
 #include <asm/fixmap.h>
@@ -365,6 +366,9 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.flush_tlb_kernel = native_flush_tlb_global,
 	.flush_tlb_single = native_flush_tlb_single,
 	.flush_tlb_others = native_flush_tlb_others,
+
+	.pgd_alloc = __paravirt_pgd_alloc,
+	.pgd_free = paravirt_nop,
 
 	.alloc_pte = paravirt_nop,
 	.alloc_pmd = paravirt_nop,

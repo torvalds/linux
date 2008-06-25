@@ -45,6 +45,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/reboot.h>
+#include <asm/pgalloc.h>
 
 #include "xen-ops.h"
 #include "mmu.h"
@@ -1152,6 +1153,9 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 	.pte_update = paravirt_nop,
 	.pte_update_defer = paravirt_nop,
+
+	.pgd_alloc = __paravirt_pgd_alloc,
+	.pgd_free = paravirt_nop,
 
 	.alloc_pte = xen_alloc_pte_init,
 	.release_pte = xen_release_pte_init,

@@ -215,13 +215,15 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	/* so that alloc_pmd can use it */
 	mm->pgd = pgd;
-	if (pgd)
+	if (pgd) {
 		pgd_ctor(pgd);
 
-	if (pgd && !pgd_prepopulate_pmd(mm, pgd)) {
-		pgd_dtor(pgd);
-		free_page((unsigned long)pgd);
-		pgd = NULL;
+		if (paravirt_pgd_alloc(mm) != 0 ||
+		    !pgd_prepopulate_pmd(mm, pgd)) {
+			pgd_dtor(pgd);
+			free_page((unsigned long)pgd);
+			pgd = NULL;
+		}
 	}
 
 	return pgd;
@@ -231,6 +233,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	pgd_mop_up_pmds(mm, pgd);
 	pgd_dtor(pgd);
+	paravirt_pgd_free(mm, pgd);
 	free_page((unsigned long)pgd);
 }
 

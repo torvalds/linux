@@ -219,7 +219,14 @@ struct pv_mmu_ops {
 	void (*flush_tlb_others)(const cpumask_t *cpus, struct mm_struct *mm,
 				 unsigned long va);
 
-	/* Hooks for allocating/releasing pagetable pages */
+	/* Hooks for allocating and freeing a pagetable top-level */
+	int  (*pgd_alloc)(struct mm_struct *mm);
+	void (*pgd_free)(struct mm_struct *mm, pgd_t *pgd);
+
+	/*
+	 * Hooks for allocating/releasing pagetable pages when they're
+	 * attached to a pagetable
+	 */
 	void (*alloc_pte)(struct mm_struct *mm, u32 pfn);
 	void (*alloc_pmd)(struct mm_struct *mm, u32 pfn);
 	void (*alloc_pmd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
@@ -923,6 +930,16 @@ static inline void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 				    unsigned long va)
 {
 	PVOP_VCALL3(pv_mmu_ops.flush_tlb_others, &cpumask, mm, va);
+}
+
+static inline int paravirt_pgd_alloc(struct mm_struct *mm)
+{
+	return PVOP_CALL1(int, pv_mmu_ops.pgd_alloc, mm);
+}
+
+static inline void paravirt_pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+	PVOP_VCALL2(pv_mmu_ops.pgd_free, mm, pgd);
 }
 
 static inline void paravirt_alloc_pte(struct mm_struct *mm, unsigned pfn)
