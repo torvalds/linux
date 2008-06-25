@@ -47,6 +47,19 @@ MACHINE_START(E330, "Toshiba e330")
 MACHINE_END
 #endif
 
+#ifdef CONFIG_MACH_E350
+MACHINE_START(E350, "Toshiba e350")
+	/* Maintainer: Ian Molton (spyro@f2s.com) */
+	.phys_io        = 0x40000000,
+	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.boot_params    = 0xa0000100,
+	.map_io         = pxa_map_io,
+	.init_irq       = pxa25x_init_irq,
+	.fixup          = eseries_fixup,
+	.timer = &pxa_timer,
+MACHINE_END
+#endif
+
 #ifdef CONFIG_MACH_E740
 MACHINE_START(E740, "Toshiba e740")
         /* Maintainer: Ian Molton (spyro@f2s.com) */
