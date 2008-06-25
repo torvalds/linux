@@ -587,6 +587,7 @@ static struct rpc_procinfo rpcb_procedures3[] = {
 static struct rpc_procinfo rpcb_procedures4[] = {
 	PROC(SET,		mapping,	set),
 	PROC(UNSET,		mapping,	set),
+	PROC(GETADDR,		getaddr,	getaddr),
 	PROC(GETVERSADDR,	getaddr,	getaddr),
 };
 
@@ -594,7 +595,7 @@ static struct rpcb_info rpcb_next_version[] = {
 #ifdef CONFIG_SUNRPC_BIND34
 	{
 		.rpc_vers	= RPCBVERS_4,
-		.rpc_proc	= &rpcb_procedures4[RPCBPROC_GETVERSADDR],
+		.rpc_proc	= &rpcb_procedures4[RPCBPROC_GETADDR],
 	},
 	{
 		.rpc_vers	= RPCBVERS_3,
@@ -614,7 +615,7 @@ static struct rpcb_info rpcb_next_version6[] = {
 #ifdef CONFIG_SUNRPC_BIND34
 	{
 		.rpc_vers	= RPCBVERS_4,
-		.rpc_proc	= &rpcb_procedures4[RPCBPROC_GETVERSADDR],
+		.rpc_proc	= &rpcb_procedures4[RPCBPROC_GETADDR],
 	},
 	{
 		.rpc_vers	= RPCBVERS_3,
