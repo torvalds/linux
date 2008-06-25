@@ -67,15 +67,6 @@ static const struct hid_blacklist {
 	{ 0, 0 }
 };
 
-/* Quirks for devices which require report descriptor fixup go here */
-static const struct hid_rdesc_blacklist {
-	__u16 idVendor;
-	__u16 idProduct;
-	__u32 quirks;
-} hid_rdesc_blacklist[] = {
-	{ 0, 0 }
-};
-
 /* Dynamic HID quirks list - specified at runtime */
 struct quirks_list_struct {
 	struct hid_blacklist hid_bl_item;
@@ -303,45 +294,3 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 }
 
 EXPORT_SYMBOL_GPL(usbhid_lookup_quirk);
-
-static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
-{
-}
-
-/**
- * usbhid_fixup_report_descriptor: check if report descriptor needs fixup
- *
- * Description:
- *	Walks the hid_rdesc_blacklist[] array and checks whether the device
- *	is known to have broken report descriptor that needs to be fixed up
- *	prior to entering the HID parser
- *
- * Returns: nothing
- */
-void usbhid_fixup_report_descriptor(const u16 idVendor, const u16 idProduct,
-				    char *rdesc, unsigned rsize, char **quirks_param)
-{
-	int n, m;
-	u16 paramVendor, paramProduct;
-	u32 quirks;
-
-	/* static rdesc quirk entries */
-	for (n = 0; hid_rdesc_blacklist[n].idVendor; n++)
-		if (hid_rdesc_blacklist[n].idVendor == idVendor &&
-				hid_rdesc_blacklist[n].idProduct == idProduct)
-			__usbhid_fixup_report_descriptor(hid_rdesc_blacklist[n].quirks,
-					rdesc, rsize);
-
-	/* runtime rdesc quirk entries handling */
-	for (n = 0; quirks_param[n] && n < MAX_USBHID_BOOT_QUIRKS; n++) {
-		m = sscanf(quirks_param[n], "0x%hx:0x%hx:0x%x",
-				&paramVendor, &paramProduct, &quirks);
-
-		if (m != 3)
-			printk(KERN_WARNING
-				"Could not parse HID quirk module param %s\n",
-				quirks_param[n]);
-		else if (paramVendor == idVendor && paramProduct == idProduct)
-			__usbhid_fixup_report_descriptor(quirks, rdesc, rsize);
-	}
-}

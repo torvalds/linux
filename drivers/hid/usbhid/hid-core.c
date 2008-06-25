@@ -61,12 +61,6 @@ MODULE_PARM_DESC(quirks, "Add/modify USB HID quirks by specifying "
 		" quirks=vendorID:productID:quirks"
 		" where vendorID, productID, and quirks are all in"
 		" 0x-prefixed hex");
-static char *rdesc_quirks_param[MAX_USBHID_BOOT_QUIRKS] = { [ 0 ... (MAX_USBHID_BOOT_QUIRKS - 1) ] = NULL };
-module_param_array_named(rdesc_quirks, rdesc_quirks_param, charp, NULL, 0444);
-MODULE_PARM_DESC(rdesc_quirks, "Add/modify report descriptor quirks by specifying "
-		" rdesc_quirks=vendorID:productID:rdesc_quirks"
-		" where vendorID, productID, and rdesc_quirks are all in"
-		" 0x-prefixed hex");
 /*
  * Input submission and I/O error handler.
  */
@@ -825,10 +819,6 @@ static int usbhid_parse(struct hid_device *hid)
 		kfree(rdesc);
 		goto err;
 	}
-
-	usbhid_fixup_report_descriptor(le16_to_cpu(dev->descriptor.idVendor),
-			le16_to_cpu(dev->descriptor.idProduct), rdesc,
-			rsize, rdesc_quirks_param);
 
 	dbg_hid("report descriptor (size %u, read %d) = ", rsize, n);
 	for (n = 0; n < rsize; n++)

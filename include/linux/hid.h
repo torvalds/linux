@@ -734,7 +734,6 @@ extern void hid_generic_exit(void);
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
 int usbhid_quirks_init(char **quirks_param);
 void usbhid_quirks_exit(void);
-void usbhid_fixup_report_descriptor(const u16, const u16, char *, unsigned, char **);
 
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);
