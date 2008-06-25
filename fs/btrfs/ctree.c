@@ -1313,15 +1313,12 @@ again:
 				slot = p->slots[level];
 				BUG_ON(btrfs_header_nritems(b) == 1);
 			}
+			unlock_up(p, level, lowest_unlock);
+
 			/* this is only true while dropping a snapshot */
 			if (level == lowest_level) {
-				unlock_up(p, level, lowest_unlock);
 				break;
 			}
-
-			if (should_reada)
-				reada_for_search(root, p, level, slot,
-						 key->objectid);
 
 			blocknr = btrfs_node_blockptr(b, slot);
 			gen = btrfs_node_ptr_generation(b, slot);
@@ -1340,6 +1337,11 @@ again:
 					btrfs_release_path(NULL, p);
 					if (tmp)
 						free_extent_buffer(tmp);
+					if (should_reada)
+						reada_for_search(root, p,
+								 level, slot,
+								 key->objectid);
+
 					tmp = read_tree_block(root, blocknr,
 							 blocksize, gen);
 					if (tmp)
@@ -1348,12 +1350,15 @@ again:
 				} else {
 					if (tmp)
 						free_extent_buffer(tmp);
+					if (should_reada)
+						reada_for_search(root, p,
+								 level, slot,
+								 key->objectid);
 					b = read_node_slot(root, b, slot);
 				}
 			}
 			if (!p->skip_locking)
 				btrfs_tree_lock(b);
-			unlock_up(p, level, lowest_unlock);
 		} else {
 			p->slots[level] = slot;
 			if (ins_len > 0 && btrfs_leaf_free_space(root, b) <

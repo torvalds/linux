@@ -27,6 +27,16 @@
 
 int btrfs_tree_lock(struct extent_buffer *eb)
 {
+	int i;
+
+	if (!TestSetPageLocked(eb->first_page))
+		return 0;
+	for (i = 0; i < 512; i++) {
+		cpu_relax();
+		if (!TestSetPageLocked(eb->first_page))
+			return 0;
+	}
+	cpu_relax();
 	lock_page(eb->first_page);
 	return 0;
 }
