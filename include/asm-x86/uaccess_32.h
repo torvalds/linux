@@ -56,11 +56,11 @@ extern struct movsl_mask {
  *
  * This needs 33-bit arithmetic. We have a carry...
  */
-#define __range_ok(addr, size)						\
+#define __range_not_ok(addr, size)					\
 ({									\
 	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
-	asm("addl %3,%1 ; sbbl %0,%0; cmpl %1,%4; sbbl $0,%0"		\
+	asm("add %3,%1 ; sbb %0,%0; cmp %1,%4; sbb $0,%0"		\
 	    :"=&r" (flag), "=r" (roksum)				\
 	    :"1" (addr), "g" ((int)(size)),				\
 	    "rm" (current_thread_info()->addr_limit.seg));		\
@@ -86,7 +86,7 @@ extern struct movsl_mask {
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  */
-#define access_ok(type, addr, size) (likely(__range_ok(addr, size) == 0))
+#define access_ok(type, addr, size) (likely(__range_not_ok(addr, size) == 0))
 
 /*
  * The exception table consists of pairs of addresses: the first is the
