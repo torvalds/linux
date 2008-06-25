@@ -640,6 +640,7 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 			rmap_remove(kvm, spte);
 			--kvm->stat.lpages;
 			set_shadow_pte(spte, shadow_trap_nonpresent_pte);
+			spte = NULL;
 			write_protected = 1;
 		}
 		spte = rmap_next(kvm, rmapp, spte);
@@ -1082,10 +1083,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		struct kvm_mmu_page *shadow;
 
 		spte |= PT_WRITABLE_MASK;
-		if (user_fault) {
-			mmu_unshadow(vcpu->kvm, gfn);
-			goto unshadowed;
-		}
 
 		shadow = kvm_mmu_lookup_page(vcpu->kvm, gfn);
 		if (shadow ||
@@ -1101,8 +1098,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 				*ptwrite = 1;
 		}
 	}
-
-unshadowed:
 
 	if (pte_access & ACC_WRITE_MASK)
 		mark_page_dirty(vcpu->kvm, gfn);
@@ -1580,11 +1575,13 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 				  u64 *spte,
 				  const void *new)
 {
-	if ((sp->role.level != PT_PAGE_TABLE_LEVEL)
-	    && !vcpu->arch.update_pte.largepage) {
-		++vcpu->kvm->stat.mmu_pde_zapped;
-		return;
-	}
+	if (sp->role.level != PT_PAGE_TABLE_LEVEL) {
+		if (!vcpu->arch.update_pte.largepage ||
+		    sp->role.glevels == PT32_ROOT_LEVEL) {
+			++vcpu->kvm->stat.mmu_pde_zapped;
+			return;
+		}
+        }
 
 	++vcpu->kvm->stat.mmu_pte_updated;
 	if (sp->role.glevels == PT32_ROOT_LEVEL)

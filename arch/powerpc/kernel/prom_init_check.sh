@@ -48,6 +48,20 @@ do
 		fi
 	done
 
+	# ignore register save/restore funcitons
+	if [ "${UNDEF:0:9}" = "_restgpr_" ]; then
+		OK=1
+	fi
+	if [ "${UNDEF:0:11}" = "_rest32gpr_" ]; then
+		OK=1
+	fi
+	if [ "${UNDEF:0:9}" = "_savegpr_" ]; then
+		OK=1
+	fi
+	if [ "${UNDEF:0:11}" = "_save32gpr_" ]; then
+		OK=1
+	fi
+
 	if [ $OK -eq 0 ]; then
 		ERROR=1
 		echo "Error: External symbol '$UNDEF' referenced" \

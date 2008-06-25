@@ -85,7 +85,7 @@ typedef unsigned int sigINT;
 /* ------------------------------------------------------------------ */
 /* What type of processor the file is meant to run on. */
 /* This will let us know whether to read sigWORDs as high/low or low/high. */
-#define PROC_INTEL      0x00    /* Intel 80x86 */
+#define PROC_INTEL      0x00    /* Intel 80x86/ia64 */
 #define PROC_MOTOROLA   0x01    /* Motorola 68K */
 #define PROC_MIPS4000   0x02    /* MIPS RISC 4000 */
 #define PROC_ALPHA      0x03    /* DEC Alpha */
@@ -104,6 +104,7 @@ typedef unsigned int sigINT;
 #define PROC_486        0x08    /* Intel 80486 */
 #define PROC_PENTIUM    0x10    /* Intel 586 aka P5 aka Pentium */
 #define PROC_SEXIUM	0x20	/* Intel 686 aka P6 aka Pentium Pro or MMX */
+#define PROC_IA64	0x40	/* Intel IA64 processor */
 
 /* PROC_i960: */
 #define PROC_960RX      0x01    /* Intel 80960RC/RD */
