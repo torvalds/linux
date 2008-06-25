@@ -85,10 +85,10 @@ static struct pci_driver airo_driver = {
 
 /* Include Wireless Extension definition and check version - Jean II */
 #include <linux/wireless.h>
-#define WIRELESS_SPY		// enable iwspy support
-#include <net/iw_handler.h>	// New driver API
+#define WIRELESS_SPY		/* enable iwspy support */
+#include <net/iw_handler.h>	/* New driver API */
 
-#define CISCO_EXT		// enable Cisco extensions
+#define CISCO_EXT		/* enable Cisco extensions */
 #ifdef CISCO_EXT
 #include <linux/delay.h>
 #endif
@@ -281,7 +281,7 @@ MODULE_PARM_DESC(proc_perm, "The permission bits of the files in /proc");
 /* This is a kind of sloppy hack to get this information to OUT4500 and
    IN4500.  I would be extremely interested in the situation where this
    doesn't work though!!! */
-static int do8bitIO = 0;
+static int do8bitIO /* = 0 */;
 
 /* Return codes */
 #define SUCCESS 0
@@ -398,8 +398,8 @@ static int do8bitIO = 0;
 #define MAXTXQ 64
 
 /* BAP selectors */
-#define BAP0 0 // Used for receiving packets
-#define BAP1 2 // Used for xmiting packets and working with RIDS
+#define BAP0 0 /* Used for receiving packets */
+#define BAP1 2 /* Used for xmiting packets and working with RIDS */
 
 /* Flags */
 #define COMMAND_BUSY 0x8000
@@ -5522,11 +5522,13 @@ static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	Cmd cmd;
 	Resp rsp;
 
-	if ((ai->APList == NULL) &&
-		(ai->APList = kmalloc(sizeof(APListRid), GFP_KERNEL)) == NULL)
+	if (!ai->APList)
+		ai->APList = kmalloc(sizeof(APListRid), GFP_KERNEL);
+	if (!ai->APList)
 		return -ENOMEM;
-	if ((ai->SSID == NULL) &&
-		(ai->SSID = kmalloc(sizeof(SsidRid), GFP_KERNEL)) == NULL)
+	if (!ai->SSID)
+		ai->SSID = kmalloc(sizeof(SsidRid), GFP_KERNEL);
+	if (!ai->SSID)
 		return -ENOMEM;
 	readAPListRid(ai, ai->APList);
 	readSsidRid(ai, ai->SSID);
@@ -5537,7 +5539,7 @@ static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	disable_MAC(ai, 0);
 	netif_device_detach(dev);
 	ai->power = state;
-	cmd.cmd=HOSTSLEEP;
+	cmd.cmd = HOSTSLEEP;
 	issuecommand(ai, &cmd, &rsp);
 
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), 1);
@@ -5567,7 +5569,7 @@ static int airo_pci_resume(struct pci_dev *pdev)
 		msleep(100);
 	}
 
-	set_bit (FLAG_COMMIT, &ai->flags);
+	set_bit(FLAG_COMMIT, &ai->flags);
 	disable_MAC(ai, 0);
         msleep(200);
 	if (ai->SSID) {
@@ -5594,9 +5596,6 @@ static int airo_pci_resume(struct pci_dev *pdev)
 static int __init airo_init_module( void )
 {
 	int i;
-#if 0
-	int have_isa_dev = 0;
-#endif
 
 	airo_entry = create_proc_entry("driver/aironet",
 				       S_IFDIR | airo_perm,
@@ -5607,15 +5606,11 @@ static int __init airo_init_module( void )
 		airo_entry->gid = proc_gid;
 	}
 
-	for( i = 0; i < 4 && io[i] && irq[i]; i++ ) {
+	for (i = 0; i < 4 && io[i] && irq[i]; i++) {
 		airo_print_info("", "Trying to configure ISA adapter at irq=%d "
 			"io=0x%x", irq[i], io[i] );
 		if (init_airo_card( irq[i], io[i], 0, NULL ))
-#if 0
-			have_isa_dev = 1;
-#else
 			/* do nothing */ ;
-#endif
 	}
 
 #ifdef CONFIG_PCI
@@ -5661,7 +5656,7 @@ static void __exit airo_cleanup_module( void )
 
 static u8 airo_rssi_to_dbm (tdsRssiEntry *rssi_rid, u8 rssi)
 {
-	if( !rssi_rid )
+	if (!rssi_rid)
 		return 0;
 
 	return (0x100 - rssi_rid[rssi].rssidBm);
@@ -5671,10 +5666,10 @@ static u8 airo_dbm_to_pct (tdsRssiEntry *rssi_rid, u8 dbm)
 {
 	int i;
 
-	if( !rssi_rid )
+	if (!rssi_rid)
 		return 0;
 
-	for( i = 0; i < 256; i++ )
+	for (i = 0; i < 256; i++)
 		if (rssi_rid[i].rssidBm == dbm)
 			return rssi_rid[i].rssipct;
 
