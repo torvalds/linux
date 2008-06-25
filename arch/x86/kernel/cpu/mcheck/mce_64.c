@@ -463,7 +463,11 @@ static void mce_init(void *dummy)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 
 	for (i = 0; i < banks; i++) {
-		wrmsrl(MSR_IA32_MC0_CTL+4*i, ~0UL);
+		if (i < NR_SYSFS_BANKS)
+			wrmsrl(MSR_IA32_MC0_CTL+4*i, bank[i]);
+		else
+			wrmsrl(MSR_IA32_MC0_CTL+4*i, ~0UL);
+
 		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	}
 }
