@@ -195,7 +195,7 @@ static inline int pmd_bad(pmd_t pmd)
 #define pgd_offset_k(address) (init_level4_pgt + pgd_index((address)))
 #define pgd_present(pgd) (pgd_val(pgd) & _PAGE_PRESENT)
 static inline int pgd_large(pgd_t pgd) { return 0; }
-#define mk_kernel_pgd(address) ((pgd_t){ (address) | _KERNPG_TABLE })
+#define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
 
 /* PUD - Level3 access */
 /* to find an entry in a page-table-directory. */
