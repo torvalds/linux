@@ -153,14 +153,14 @@ extern void load_gs_index(unsigned);
 		     "jmp 2b\n"			\
 		     ".previous\n"		\
 		     _ASM_EXTABLE(1b,3b)	\
-		     : :"r" (value), "r" (0))
+		     : :"r" (value), "r" (0) : "memory")
 
 
 /*
  * Save a segment register away
  */
 #define savesegment(seg, value)				\
-	asm volatile("mov %%" #seg ",%0":"=rm" (value))
+	asm("mov %%" #seg ",%0":"=rm" (value) : : "memory")
 
 static inline unsigned long get_limit(unsigned long segment)
 {
