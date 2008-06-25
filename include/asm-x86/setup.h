@@ -56,6 +56,8 @@ extern void probe_roms(void);
 extern unsigned long init_pg_tables_start;
 extern unsigned long init_pg_tables_end;
 
+#else
+void __init x86_64_start_kernel(char *real_mode);
 #endif /* __i386__ */
 #endif /* _SETUP */
 #endif /* __ASSEMBLY__ */
