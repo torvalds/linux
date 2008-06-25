@@ -57,49 +57,6 @@ extern void __put_user_bad(void);
 	__pu_err;						\
 })
 
-#define __get_user_nocheck(x, ptr, size)			\
-({								\
-	int __gu_err;						\
-	unsigned long __gu_val;					\
-	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);\
-	(x) = (__force typeof(*(ptr)))__gu_val;			\
-	__gu_err;						\
-})
-
-#define __get_user_size(x, ptr, size, retval, errret)			\
-do {									\
-	retval = 0;							\
-	__chk_user_ptr(ptr);						\
-	switch (size) {							\
-	case 1:								\
-		__get_user_asm(x, ptr, retval, "b", "b", "=q", errret);\
-		break;							\
-	case 2:								\
-		__get_user_asm(x, ptr, retval, "w", "w", "=r", errret);\
-		break;							\
-	case 4:								\
-		__get_user_asm(x, ptr, retval, "l", "k", "=r", errret);\
-		break;							\
-	case 8:								\
-		__get_user_asm(x, ptr, retval, "q", "", "=r", errret);	\
-		break;							\
-	default:							\
-		(x) = __get_user_bad();					\
-	}								\
-} while (0)
-
-#define __get_user_asm(x, addr, err, itype, rtype, ltype, errno)	\
-	asm volatile("1:	mov"itype" %2,%"rtype"1\n"		\
-		     "2:\n"						\
-		     ".section .fixup, \"ax\"\n"			\
-		     "3:	mov %3,%0\n"				\
-		     "	xor"itype" %"rtype"1,%"rtype"1\n"		\
-		     "	jmp 2b\n"					\
-		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 3b)				\
-		     : "=r" (err), ltype (x)				\
-		     : "m" (__m(addr)), "i"(errno), "0"(err))
-
 /*
  * Copy To/From Userspace
  */
