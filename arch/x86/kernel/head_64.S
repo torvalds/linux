@@ -32,6 +32,13 @@
  *
  */
 
+#define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+
+L4_PAGE_OFFSET = pgd_index(__PAGE_OFFSET)
+L3_PAGE_OFFSET = pud_index(__PAGE_OFFSET)
+L4_START_KERNEL = pgd_index(__START_KERNEL_map)
+L3_START_KERNEL = pud_index(__START_KERNEL_map)
+
 	.text
 	.section .text.head
 	.code64
@@ -77,8 +84,8 @@ startup_64:
 	/* Fixup the physical addresses in the page table
 	 */
 	addq	%rbp, init_level4_pgt + 0(%rip)
-	addq	%rbp, init_level4_pgt + (258*8)(%rip)
-	addq	%rbp, init_level4_pgt + (511*8)(%rip)
+	addq	%rbp, init_level4_pgt + (L4_PAGE_OFFSET*8)(%rip)
+	addq	%rbp, init_level4_pgt + (L4_START_KERNEL*8)(%rip)
 
 	addq	%rbp, level3_ident_pgt + 0(%rip)
 
@@ -338,9 +345,9 @@ ENTRY(name)
 	 */
 NEXT_PAGE(init_level4_pgt)
 	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.fill	257,8,0
+	.org	init_level4_pgt + L4_PAGE_OFFSET*8, 0
 	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.fill	252,8,0
+	.org	init_level4_pgt + L4_START_KERNEL*8, 0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
 	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
 
@@ -349,7 +356,7 @@ NEXT_PAGE(level3_ident_pgt)
 	.fill	511,8,0
 
 NEXT_PAGE(level3_kernel_pgt)
-	.fill	510,8,0
+	.fill	L3_START_KERNEL,8,0
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
 	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
 	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
