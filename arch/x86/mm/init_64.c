@@ -988,7 +988,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 	pmd_t *pmd;
 
 	for (; addr < end; addr = next) {
-		next = pmd_addr_end(addr, end);
+		void *p = NULL;
 
 		pgd = vmemmap_pgd_populate(addr, node);
 		if (!pgd)
@@ -998,33 +998,51 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 		if (!pud)
 			return -ENOMEM;
 
-		pmd = pmd_offset(pud, addr);
-		if (pmd_none(*pmd)) {
-			pte_t entry;
-			void *p;
+		if (!cpu_has_pse) {
+			next = (addr + PAGE_SIZE) & PAGE_MASK;
+			pmd = vmemmap_pmd_populate(pud, addr, node);
 
-			p = vmemmap_alloc_block(PMD_SIZE, node);
+			if (!pmd)
+				return -ENOMEM;
+
+			p = vmemmap_pte_populate(pmd, addr, node);
+
 			if (!p)
 				return -ENOMEM;
 
-			entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
-							PAGE_KERNEL_LARGE);
-			set_pmd(pmd, __pmd(pte_val(entry)));
-
-			/* check to see if we have contiguous blocks */
-			if (p_end != p || node_start != node) {
-				if (p_start)
-					printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
-						addr_start, addr_end-1, p_start, p_end-1, node_start);
-				addr_start = addr;
-				node_start = node;
-				p_start = p;
-			}
-			addr_end = addr + PMD_SIZE;
-			p_end = p + PMD_SIZE;
+			addr_end = addr + PAGE_SIZE;
+			p_end = p + PAGE_SIZE;
 		} else {
-			vmemmap_verify((pte_t *)pmd, node, addr, next);
+			next = pmd_addr_end(addr, end);
+
+			pmd = pmd_offset(pud, addr);
+			if (pmd_none(*pmd)) {
+				pte_t entry;
+
+				p = vmemmap_alloc_block(PMD_SIZE, node);
+				if (!p)
+					return -ENOMEM;
+
+				entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
+						PAGE_KERNEL_LARGE);
+				set_pmd(pmd, __pmd(pte_val(entry)));
+
+				addr_end = addr + PMD_SIZE;
+				p_end = p + PMD_SIZE;
+
+				/* check to see if we have contiguous blocks */
+				if (p_end != p || node_start != node) {
+					if (p_start)
+						printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
+						       addr_start, addr_end-1, p_start, p_end-1, node_start);
+					addr_start = addr;
+					node_start = node;
+					p_start = p;
+				}
+			} else
+				vmemmap_verify((pte_t *)pmd, node, addr, next);
 		}
+
 	}
 	return 0;
 }
