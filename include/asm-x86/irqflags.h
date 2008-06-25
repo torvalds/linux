@@ -112,9 +112,17 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #ifdef CONFIG_X86_64
 #define INTERRUPT_RETURN	iretq
-#define USERGS_SYSRET					\
-			swapgs;				\
-			sysretq;
+#define USERGS_SYSRET64				\
+	swapgs;					\
+	sysretq;
+#define USERGS_SYSRET32				\
+	swapgs;					\
+	sysretl
+#define ENABLE_INTERRUPTS_SYSEXIT32		\
+	swapgs;					\
+	sti;					\
+	sysexit
+
 #else
 #define INTERRUPT_RETURN		iret
 #define ENABLE_INTERRUPTS_SYSEXIT	sti; sysexit

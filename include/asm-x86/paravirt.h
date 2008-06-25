@@ -141,9 +141,32 @@ struct pv_cpu_ops {
 	u64 (*read_pmc)(int counter);
 	unsigned long long (*read_tscp)(unsigned int *aux);
 
-	/* These three are jmp to, not actually called. */
+	/*
+	 * Atomically enable interrupts and return to userspace.  This
+	 * is only ever used to return to 32-bit processes; in a
+	 * 64-bit kernel, it's used for 32-on-64 compat processes, but
+	 * never native 64-bit processes.  (Jump, not call.)
+	 */
 	void (*irq_enable_sysexit)(void);
-	void (*usergs_sysret)(void);
+
+	/*
+	 * Switch to usermode gs and return to 64-bit usermode using
+	 * sysret.  Only used in 64-bit kernels to return to 64-bit
+	 * processes.  Usermode register state, including %rsp, must
+	 * already be restored.
+	 */
+	void (*usergs_sysret64)(void);
+
+	/*
+	 * Switch to usermode gs and return to 32-bit usermode using
+	 * sysret.  Used to return to 32-on-64 compat processes.
+	 * Other usermode register state, including %esp, must already
+	 * be restored.
+	 */
+	void (*usergs_sysret32)(void);
+
+	/* Normal iret.  Jump to this with the standard iret stack
+	   frame set up. */
 	void (*iret)(void);
 
 	void (*swapgs)(void);
@@ -1481,18 +1504,24 @@ static inline unsigned long __raw_local_irq_save(void)
 		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_irq_enable);	\
 		  PV_RESTORE_REGS;)
 
-#define ENABLE_INTERRUPTS_SYSEXIT					\
-	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_sysexit),	\
+#define USERGS_SYSRET32							\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret32),	\
 		  CLBR_NONE,						\
-		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_irq_enable_sysexit))
-
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usergs_sysret32))
 
 #ifdef CONFIG_X86_32
 #define GET_CR0_INTO_EAX				\
 	push %ecx; push %edx;				\
 	call PARA_INDIRECT(pv_cpu_ops+PV_CPU_read_cr0);	\
 	pop %edx; pop %ecx
-#else
+
+#define ENABLE_INTERRUPTS_SYSEXIT					\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_sysexit),	\
+		  CLBR_NONE,						\
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_irq_enable_sysexit))
+
+
+#else	/* !CONFIG_X86_32 */
 #define SWAPGS								\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_swapgs), CLBR_NONE,	\
 		  PV_SAVE_REGS;						\
@@ -1505,11 +1534,16 @@ static inline unsigned long __raw_local_irq_save(void)
 	movq %rax, %rcx;				\
 	xorq %rax, %rax;
 
-#define USERGS_SYSRET							\
-	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret),		\
+#define USERGS_SYSRET64							\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret64),	\
 		  CLBR_NONE,						\
-		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usergs_sysret))
-#endif
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usergs_sysret64))
+
+#define ENABLE_INTERRUPTS_SYSEXIT32					\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_sysexit),	\
+		  CLBR_NONE,						\
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_irq_enable_sysexit))
+#endif	/* CONFIG_X86_32 */
 
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_PARAVIRT */

@@ -14,8 +14,9 @@ DEF_NATIVE(pv_mmu_ops, flush_tlb_single, "invlpg (%rdi)");
 DEF_NATIVE(pv_cpu_ops, clts, "clts");
 DEF_NATIVE(pv_cpu_ops, wbinvd, "wbinvd");
 
-/* the three commands give us more control to how to return from a syscall */
-DEF_NATIVE(pv_cpu_ops, usergs_sysret, "swapgs; sysretq;");
+DEF_NATIVE(pv_cpu_ops, irq_enable_sysexit, "swapgs; sti; sysexit");
+DEF_NATIVE(pv_cpu_ops, usergs_sysret64, "swapgs; sysretq");
+DEF_NATIVE(pv_cpu_ops, usergs_sysret32, "swapgs; sysretl");
 DEF_NATIVE(pv_cpu_ops, swapgs, "swapgs");
 
 unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
@@ -35,7 +36,9 @@ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 		PATCH_SITE(pv_irq_ops, irq_enable);
 		PATCH_SITE(pv_irq_ops, irq_disable);
 		PATCH_SITE(pv_cpu_ops, iret);
-		PATCH_SITE(pv_cpu_ops, usergs_sysret);
+		PATCH_SITE(pv_cpu_ops, irq_enable_sysexit);
+		PATCH_SITE(pv_cpu_ops, usergs_sysret32);
+		PATCH_SITE(pv_cpu_ops, usergs_sysret64);
 		PATCH_SITE(pv_cpu_ops, swapgs);
 		PATCH_SITE(pv_mmu_ops, read_cr2);
 		PATCH_SITE(pv_mmu_ops, read_cr3);
