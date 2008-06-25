@@ -582,7 +582,8 @@ append_opt:
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:
-	return nla_nest_cancel(skb, opts);
+	nla_nest_cancel(skb, opts);
+	return -EMSGSIZE;
 }
 
 static void gred_destroy(struct Qdisc *sch)

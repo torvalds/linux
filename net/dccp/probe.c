@@ -42,7 +42,7 @@ static int bufsize = 64 * 1024;
 
 static const char procname[] = "dccpprobe";
 
-struct {
+static struct {
 	struct kfifo	  *fifo;
 	spinlock_t	  lock;
 	wait_queue_head_t wait;

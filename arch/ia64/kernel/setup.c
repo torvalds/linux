@@ -560,14 +560,23 @@ setup_arch (char **cmdline_p)
 	/* process SAL system table: */
 	ia64_sal_init(__va(efi.sal_systab));
 
+#ifdef CONFIG_ITANIUM
+	ia64_patch_rse((u64) __start___rse_patchlist, (u64) __end___rse_patchlist);
+#else
+	{
+		u64 num_phys_stacked;
+
+		if (ia64_pal_rse_info(&num_phys_stacked, 0) == 0 && num_phys_stacked > 96)
+			ia64_patch_rse((u64) __start___rse_patchlist, (u64) __end___rse_patchlist);
+	}
+#endif
+
 #ifdef CONFIG_SMP
 	cpu_physical_id(0) = hard_smp_processor_id();
 #endif
 
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
-
-	check_sal_cache_flush();
 
 #ifdef CONFIG_ACPI
 	acpi_boot_init();
@@ -596,6 +605,7 @@ setup_arch (char **cmdline_p)
 		ia64_mca_init();
 
 	platform_setup(cmdline_p);
+	check_sal_cache_flush();
 	paging_init();
 }
 

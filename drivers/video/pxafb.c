@@ -573,8 +573,8 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 		dma_desc->fdadr = fbi->dma_buff_phys + dma_desc_off;
 		fbi->fdadr[dma] = fbi->dma_buff_phys + dma_desc_off;
 	} else {
-		pal_desc = &fbi->dma_buff->pal_desc[dma];
-		pal_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[pal]);
+		pal_desc = &fbi->dma_buff->pal_desc[pal];
+		pal_desc_off = offsetof(struct pxafb_dma_buff, pal_desc[pal]);
 
 		pal_desc->fsadr = fbi->dma_buff_phys + pal * PALETTE_SIZE;
 		pal_desc->fidr  = 0;
@@ -1275,6 +1275,8 @@ static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->dma_buff = (void *) fbi->map_cpu;
 		fbi->dma_buff_phys = fbi->map_dma;
 		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
+
+	        pr_debug("pxafb: palette_mem_size = 0x%08lx\n", fbi->palette_size*sizeof(u16));
 
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;

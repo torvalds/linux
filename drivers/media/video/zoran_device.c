@@ -1320,7 +1320,7 @@ error_handler (struct zoran *zr,
 			if (i) {
 				/* Rotate stat_comm entries to make current entry first */
 				int j;
-				u32 bus_addr[BUZ_NUM_STAT_COM];
+				__le32 bus_addr[BUZ_NUM_STAT_COM];
 
 				/* Here we are copying the stat_com array, which
 				 * is already in little endian format, so

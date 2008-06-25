@@ -303,6 +303,8 @@ static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 	pcmp->pcmc_per = 0x100000 >> (16 * _slot_);
 #endif	/* CONFIG_IDE_8xx_PCCARD */
 
+	hw->chipset = ide_generic;
+
 	return 0;
 }
 #endif /* CONFIG_IDE_8xx_PCCARD || CONFIG_IDE_8xx_DIRECT */
@@ -376,6 +378,8 @@ static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 	/* (11-18) Set edge detect for irq, no wakeup from low power mode */
 	((immap_t *) IMAP_ADDR)->im_siu_conf.sc_siel |=
 			(0x80000000 >> ioport_dsc[data_port].irq);
+
+	hw->chipset = ide_generic;
 
 	return 0;
 }

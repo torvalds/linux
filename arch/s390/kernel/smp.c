@@ -711,7 +711,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	memset(sf, 0, sizeof(struct stack_frame));
 	sf->gprs[9] = (unsigned long) sf;
 	cpu_lowcore->save_area[15] = (unsigned long) sf;
-	__ctl_store(cpu_lowcore->cregs_save_area[0], 0, 15);
+	__ctl_store(cpu_lowcore->cregs_save_area, 0, 15);
 	asm volatile(
 		"	stam	0,15,0(%0)"
 		: : "a" (&cpu_lowcore->access_regs_save_area) : "memory");
@@ -1089,7 +1089,7 @@ out:
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-int smp_rescan_cpus(void)
+int __ref smp_rescan_cpus(void)
 {
 	cpumask_t newcpus;
 	int cpu;

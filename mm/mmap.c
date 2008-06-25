@@ -245,10 +245,16 @@ asmlinkage unsigned long sys_brk(unsigned long brk)
 	unsigned long rlim, retval;
 	unsigned long newbrk, oldbrk;
 	struct mm_struct *mm = current->mm;
+	unsigned long min_brk;
 
 	down_write(&mm->mmap_sem);
 
-	if (brk < mm->start_brk)
+#ifdef CONFIG_COMPAT_BRK
+	min_brk = mm->end_code;
+#else
+	min_brk = mm->start_brk;
+#endif
+	if (brk < min_brk)
 		goto out;
 
 	/*
