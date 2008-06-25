@@ -120,6 +120,61 @@ extern int __get_user_bad(void);
 		     : "=a" (ret),"=d" (x)	      \
 		     : "0" (ptr))		      \
 
+/* Careful: we have to cast the result to the type of the pointer
+ * for sign reasons */
+
+/**
+ * get_user: - Get a simple variable from user space.
+ * @x:   Variable to store result.
+ * @ptr: Source address, in user space.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * This macro copies a single simple variable from user space to kernel
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and the result of
+ * dereferencing @ptr must be assignable to @x without a cast.
+ *
+ * Returns zero on success, or -EFAULT on error.
+ * On error, the variable @x is set to zero.
+ */
+#ifdef CONFIG_X86_32
+#define __get_user_8(__ret_gu, __val_gu, ptr)				\
+		__get_user_x(X, __ret_gu, __val_gu, ptr)
+#else
+#define __get_user_8(__ret_gu, __val_gu, ptr)				\
+		__get_user_x(8, __ret_gu, __val_gu, ptr)
+#endif
+
+#define get_user(x, ptr)						\
+({									\
+	int __ret_gu;							\
+	unsigned long __val_gu;						\
+	__chk_user_ptr(ptr);						\
+	switch (sizeof(*(ptr))) {					\
+	case 1:								\
+		__get_user_x(1, __ret_gu, __val_gu, ptr);		\
+		break;							\
+	case 2:								\
+		__get_user_x(2, __ret_gu, __val_gu, ptr);		\
+		break;							\
+	case 4:								\
+		__get_user_x(4, __ret_gu, __val_gu, ptr);		\
+		break;							\
+	case 8:								\
+		__get_user_8(__ret_gu, __val_gu, ptr);			\
+		break;							\
+	default:							\
+		__get_user_x(X, __ret_gu, __val_gu, ptr);		\
+		break;							\
+	}								\
+	(x) = (__typeof__(*(ptr)))__val_gu;				\
+	__ret_gu;							\
+})
+
+
 #ifdef CONFIG_X86_32
 # include "uaccess_32.h"
 #else

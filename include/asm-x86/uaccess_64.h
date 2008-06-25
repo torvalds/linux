@@ -14,35 +14,6 @@
 
 #define ARCH_HAS_SEARCH_EXTABLE
 
-/* Careful: we have to cast the result to the type of the pointer
- * for sign reasons */
-
-#define get_user(x, ptr)						\
-({									\
-	unsigned long __val_gu;						\
-	int __ret_gu;							\
-	__chk_user_ptr(ptr);						\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		__get_user_x(1, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	case 2:								\
-		__get_user_x(2, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	case 4:								\
-		__get_user_x(4, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	case 8:								\
-		__get_user_x(8, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	default:							\
-		__get_user_bad();					\
-		break;							\
-	}								\
-	(x) = (__force typeof(*(ptr)))__val_gu;				\
-	__ret_gu;							\
-})
-
 extern void __put_user_1(void);
 extern void __put_user_2(void);
 extern void __put_user_4(void);
