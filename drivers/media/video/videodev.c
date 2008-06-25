@@ -710,6 +710,29 @@ static inline void v4l_print_ext_ctrls(unsigned int cmd,
 	printk(KERN_CONT "\n");
 };
 
+static inline int check_ext_ctrls(struct v4l2_ext_controls *c)
+{
+	__u32 i;
+
+	/* zero the reserved fields */
+	c->reserved[0] = c->reserved[1] = 0;
+	for (i = 0; i < c->count; i++) {
+		c->controls[i].reserved2[0] = 0;
+		c->controls[i].reserved2[1] = 0;
+	}
+	/* V4L2_CID_PRIVATE_BASE cannot be used as control class
+	 * when using extended controls. */
+	if (c->ctrl_class == V4L2_CID_PRIVATE_BASE)
+		return 0;
+	/* Check that all controls are from the same control class. */
+	for (i = 0; i < c->count; i++) {
+		if (V4L2_CTRL_ID2CLASS(c->controls[i].id) != c->ctrl_class) {
+			c->error_idx = i;
+			return 0;
+		}
+	}
+	return 1;
+}
 
 static int check_fmt (struct video_device *vfd, enum v4l2_buf_type type)
 {
@@ -1392,10 +1415,24 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_control *p = arg;
 
-		if (!vfd->vidioc_g_ctrl)
-			break;
+		if (vfd->vidioc_g_ctrl)
+			ret = vfd->vidioc_g_ctrl(file, fh, p);
+		else if (vfd->vidioc_g_ext_ctrls) {
+			struct v4l2_ext_controls ctrls;
+			struct v4l2_ext_control ctrl;
 
-		ret = vfd->vidioc_g_ctrl(file, fh, p);
+			ctrls.ctrl_class = V4L2_CTRL_ID2CLASS(p->id);
+			ctrls.count = 1;
+			ctrls.controls = &ctrl;
+			ctrl.id = p->id;
+			ctrl.value = p->value;
+			if (check_ext_ctrls(&ctrls)) {
+				ret = vfd->vidioc_g_ext_ctrls(file, fh, &ctrls);
+				if (ret == 0)
+					p->value = ctrl.value;
+			}
+		} else
+			break;
 		if (!ret)
 			dbgarg(cmd, "id=0x%x, value=%d\n", p->id, p->value);
 		else
@@ -1405,21 +1442,39 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_S_CTRL:
 	{
 		struct v4l2_control *p = arg;
+		struct v4l2_ext_controls ctrls;
+		struct v4l2_ext_control ctrl;
 
-		if (!vfd->vidioc_s_ctrl)
+		if (!vfd->vidioc_s_ctrl && !vfd->vidioc_s_ext_ctrls)
 			break;
+
 		dbgarg(cmd, "id=0x%x, value=%d\n", p->id, p->value);
 
-		ret = vfd->vidioc_s_ctrl(file, fh, p);
+		if (vfd->vidioc_s_ctrl) {
+			ret = vfd->vidioc_s_ctrl(file, fh, p);
+			break;
+		}
+		if (!vfd->vidioc_s_ext_ctrls)
+			break;
+
+		ctrls.ctrl_class = V4L2_CTRL_ID2CLASS(p->id);
+		ctrls.count = 1;
+		ctrls.controls = &ctrl;
+		ctrl.id = p->id;
+		ctrl.value = p->value;
+		if (check_ext_ctrls(&ctrls))
+			ret = vfd->vidioc_s_ext_ctrls(file, fh, &ctrls);
 		break;
 	}
 	case VIDIOC_G_EXT_CTRLS:
 	{
 		struct v4l2_ext_controls *p = arg;
 
+		p->error_idx = p->count;
 		if (!vfd->vidioc_g_ext_ctrls)
 			break;
-		ret = vfd->vidioc_g_ext_ctrls(file, fh, p);
+		if (check_ext_ctrls(p))
+			ret = vfd->vidioc_g_ext_ctrls(file, fh, p);
 		v4l_print_ext_ctrls(cmd, vfd, p, !ret);
 		break;
 	}
@@ -1427,22 +1482,24 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_ext_controls *p = arg;
 
-		if (vfd->vidioc_s_ext_ctrls) {
-			v4l_print_ext_ctrls(cmd, vfd, p, 1);
-
+		p->error_idx = p->count;
+		if (!vfd->vidioc_s_ext_ctrls)
+			break;
+		v4l_print_ext_ctrls(cmd, vfd, p, 1);
+		if (check_ext_ctrls(p))
 			ret = vfd->vidioc_s_ext_ctrls(file, fh, p);
-		}
 		break;
 	}
 	case VIDIOC_TRY_EXT_CTRLS:
 	{
 		struct v4l2_ext_controls *p = arg;
 
-		if (vfd->vidioc_try_ext_ctrls) {
-			v4l_print_ext_ctrls(cmd, vfd, p, 1);
-
+		p->error_idx = p->count;
+		if (!vfd->vidioc_try_ext_ctrls)
+			break;
+		v4l_print_ext_ctrls(cmd, vfd, p, 1);
+		if (check_ext_ctrls(p))
 			ret = vfd->vidioc_try_ext_ctrls(file, fh, p);
-		}
 		break;
 	}
 	case VIDIOC_QUERYMENU:
