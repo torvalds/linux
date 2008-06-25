@@ -145,19 +145,19 @@ ENTRY(__copy_user_nocache)
 	/* table sorted by exception address */
 	.section __ex_table,"a"
 	.align 8
-	.quad .Ls1,.Ls1e
-	.quad .Ls2,.Ls2e
-	.quad .Ls3,.Ls3e
-	.quad .Ls4,.Ls4e
-	.quad .Ld1,.Ls1e
+	.quad .Ls1,.Ls1e	/* .Ls[1-4] - 0 bytes copied */
+	.quad .Ls2,.Ls1e
+	.quad .Ls3,.Ls1e
+	.quad .Ls4,.Ls1e
+	.quad .Ld1,.Ls1e	/* .Ld[1-4] - 0..24 bytes coped */
 	.quad .Ld2,.Ls2e
 	.quad .Ld3,.Ls3e
 	.quad .Ld4,.Ls4e
-	.quad .Ls5,.Ls5e
-	.quad .Ls6,.Ls6e
-	.quad .Ls7,.Ls7e
-	.quad .Ls8,.Ls8e
-	.quad .Ld5,.Ls5e
+	.quad .Ls5,.Ls5e	/* .Ls[5-8] - 32 bytes copied */
+	.quad .Ls6,.Ls5e
+	.quad .Ls7,.Ls5e
+	.quad .Ls8,.Ls5e
+	.quad .Ld5,.Ls5e	/* .Ld[5-8] - 32..56 bytes copied */
 	.quad .Ld6,.Ls6e
 	.quad .Ld7,.Ls7e
 	.quad .Ld8,.Ls8e
@@ -172,11 +172,8 @@ ENTRY(__copy_user_nocache)
 	.quad .Le5,.Le_zero
 	.previous
 
-	/* compute 64-offset for main loop. 8 bytes accuracy with error on the
-	   pessimistic side. this is gross. it would be better to fix the
-	   interface. */
 	/* eax: zero, ebx: 64 */
-.Ls1e: 	addl $8,%eax
+.Ls1e: 	addl $8,%eax	/* eax: bytes left uncopied: Ls1e: 64 .. Ls8e: 8 */
 .Ls2e: 	addl $8,%eax
 .Ls3e: 	addl $8,%eax
 .Ls4e: 	addl $8,%eax

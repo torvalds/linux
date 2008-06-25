@@ -16,7 +16,7 @@
 #define UDF_PREALLOCATE
 #define UDF_DEFAULT_PREALLOC_BLOCKS	8
 
-#define UDFFS_DEBUG
+#undef UDFFS_DEBUG
 
 #ifdef UDFFS_DEBUG
 #define udf_debug(f, a...) \

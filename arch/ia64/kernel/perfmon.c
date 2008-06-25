@@ -1864,11 +1864,6 @@ pfm_flush(struct file *filp, fl_owner_t id)
 	 * invoked after, it will find an empty queue and no
 	 * signal will be sent. In both case, we are safe
 	 */
-	if (filp->f_flags & FASYNC) {
-		DPRINT(("cleaning up async_queue=%p\n", ctx->ctx_async_queue));
-		pfm_do_fasync (-1, filp, ctx, 0);
-	}
-
 	PROTECT_CTX(ctx, flags);
 
 	state     = ctx->ctx_state;
@@ -1997,6 +1992,11 @@ pfm_close(struct inode *inode, struct file *filp)
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_close: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
+	}
+
+	if (filp->f_flags & FASYNC) {
+		DPRINT(("cleaning up async_queue=%p\n", ctx->ctx_async_queue));
+		pfm_do_fasync(-1, filp, ctx, 0);
 	}
 
 	PROTECT_CTX(ctx, flags);
