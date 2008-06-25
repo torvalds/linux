@@ -741,7 +741,8 @@ fp_unavailable_common:
 	ENABLE_INTS
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
-1:	b	.load_up_fpu
+1:	bl	.load_up_fpu
+	b	fast_exception_return
 
 	.align	7
 	.globl altivec_unavailable_common
@@ -749,7 +750,10 @@ altivec_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0xf20, PACA_EXGEN)
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
-	bne	.load_up_altivec	/* if from user, just load it up */
+	beq	1f
+	bl	.load_up_altivec
+	b	fast_exception_return
+1:
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 	bl	.save_nvgprs
@@ -829,7 +833,7 @@ _STATIC(load_up_altivec)
 	std	r4,0(r3)
 #endif /* CONFIG_SMP */
 	/* restore registers and return */
-	b	fast_exception_return
+	blr
 #endif /* CONFIG_ALTIVEC */
 
 /*

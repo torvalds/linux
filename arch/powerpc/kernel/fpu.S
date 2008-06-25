@@ -85,7 +85,7 @@ _GLOBAL(load_up_fpu)
 #endif /* CONFIG_SMP */
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
-	b	fast_exception_return
+	blr
 
 /*
  * giveup_fpu(tsk)
