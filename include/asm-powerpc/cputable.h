@@ -25,6 +25,7 @@
 #define PPC_FEATURE_HAS_DFP		0x00000400
 #define PPC_FEATURE_POWER6_EXT		0x00000200
 #define PPC_FEATURE_ARCH_2_06		0x00000100
+#define PPC_FEATURE_HAS_VSX		0x00000080
 
 #define PPC_FEATURE_TRUE_LE		0x00000002
 #define PPC_FEATURE_PPC_LE		0x00000001
@@ -183,6 +184,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTR_DSCR			LONG_ASM_CONST(0x0002000000000000)
 #define CPU_FTR_1T_SEGMENT		LONG_ASM_CONST(0x0004000000000000)
 #define CPU_FTR_NO_SLBIE_B		LONG_ASM_CONST(0x0008000000000000)
+#define CPU_FTR_VSX			LONG_ASM_CONST(0x0010000000000000)
 
 #ifndef __ASSEMBLY__
 
@@ -199,6 +201,17 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #else
 #define CPU_FTR_ALTIVEC_COMP	0
 #define PPC_FEATURE_HAS_ALTIVEC_COMP    0
+#endif
+
+/* We only set the VSX features if the kernel was compiled with VSX
+ * support
+ */
+#ifdef CONFIG_VSX
+#define CPU_FTR_VSX_COMP	CPU_FTR_VSX
+#define PPC_FEATURE_HAS_VSX_COMP PPC_FEATURE_HAS_VSX
+#else
+#define CPU_FTR_VSX_COMP	0
+#define PPC_FEATURE_HAS_VSX_COMP    0
 #endif
 
 /* We only set the spe features if the kernel was compiled with spe
@@ -404,7 +417,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 	    (CPU_FTRS_POWER3 | CPU_FTRS_RS64 | CPU_FTRS_POWER4 |	\
 	    CPU_FTRS_PPC970 | CPU_FTRS_POWER5 | CPU_FTRS_POWER6 |	\
 	    CPU_FTRS_POWER7 | CPU_FTRS_CELL | CPU_FTRS_PA6T |		\
-	    CPU_FTR_1T_SEGMENT)
+	    CPU_FTR_1T_SEGMENT | CPU_FTR_VSX)
 #else
 enum {
 	CPU_FTRS_POSSIBLE =
