@@ -104,7 +104,7 @@ ENTRY(native_irq_enable_syscall_ret)
 	.macro FAKE_STACK_FRAME child_rip
 	/* push in order ss, rsp, eflags, cs, rip */
 	xorl %eax, %eax
-	pushq %rax /* ss */
+	pushq $__KERNEL_DS /* ss */
 	CFI_ADJUST_CFA_OFFSET	8
 	/*CFI_REL_OFFSET	ss,0*/
 	pushq %rax /* rsp */
