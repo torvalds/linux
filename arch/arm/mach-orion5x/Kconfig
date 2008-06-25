@@ -74,6 +74,12 @@ config MACH_MSS2
 	  Say 'Y' here if you want your kernel to support the
 	  Maxtor Shared Storage II platform.
 
+config MACH_WNR854T
+	bool "Netgear WNR854T"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Netgear WNR854T platform.
+
 endmenu
 
 endif
