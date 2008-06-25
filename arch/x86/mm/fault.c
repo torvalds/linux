@@ -903,14 +903,7 @@ LIST_HEAD(pgd_list);
 void vmalloc_sync_all(void)
 {
 #ifdef CONFIG_X86_32
-	/*
-	 * Note that races in the updates of insync and start aren't
-	 * problematic: insync can only get set bits added, and updates to
-	 * start are only improving performance (without affecting correctness
-	 * if undone).
-	 */
-	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
-	static unsigned long start = TASK_SIZE;
+	unsigned long start = VMALLOC_START & PGDIR_MASK;
 	unsigned long address;
 
 	if (SHARED_KERNEL_PMD)
@@ -918,56 +911,38 @@ void vmalloc_sync_all(void)
 
 	BUILD_BUG_ON(TASK_SIZE & ~PGDIR_MASK);
 	for (address = start; address >= TASK_SIZE; address += PGDIR_SIZE) {
-		if (!test_bit(pgd_index(address), insync)) {
-			unsigned long flags;
-			struct page *page;
+		unsigned long flags;
+		struct page *page;
 
-			spin_lock_irqsave(&pgd_lock, flags);
-			list_for_each_entry(page, &pgd_list, lru) {
-				if (!vmalloc_sync_one(page_address(page),
-						      address))
-					break;
-			}
-			spin_unlock_irqrestore(&pgd_lock, flags);
-			if (!page)
-				set_bit(pgd_index(address), insync);
+		spin_lock_irqsave(&pgd_lock, flags);
+		list_for_each_entry(page, &pgd_list, lru) {
+			if (!vmalloc_sync_one(page_address(page),
+					      address))
+				break;
 		}
-		if (address == start && test_bit(pgd_index(address), insync))
-			start = address + PGDIR_SIZE;
+		spin_unlock_irqrestore(&pgd_lock, flags);
 	}
 #else /* CONFIG_X86_64 */
-	/*
-	 * Note that races in the updates of insync and start aren't
-	 * problematic: insync can only get set bits added, and updates to
-	 * start are only improving performance (without affecting correctness
-	 * if undone).
-	 */
-	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
-	static unsigned long start = VMALLOC_START & PGDIR_MASK;
+	unsigned long start = VMALLOC_START & PGDIR_MASK;
 	unsigned long address;
 
 	for (address = start; address <= VMALLOC_END; address += PGDIR_SIZE) {
-		if (!test_bit(pgd_index(address), insync)) {
-			const pgd_t *pgd_ref = pgd_offset_k(address);
-			unsigned long flags;
-			struct page *page;
+		const pgd_t *pgd_ref = pgd_offset_k(address);
+		unsigned long flags;
+		struct page *page;
 
-			if (pgd_none(*pgd_ref))
-				continue;
-			spin_lock_irqsave(&pgd_lock, flags);
-			list_for_each_entry(page, &pgd_list, lru) {
-				pgd_t *pgd;
-				pgd = (pgd_t *)page_address(page) + pgd_index(address);
-				if (pgd_none(*pgd))
-					set_pgd(pgd, *pgd_ref);
-				else
-					BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-			}
-			spin_unlock_irqrestore(&pgd_lock, flags);
-			set_bit(pgd_index(address), insync);
+		if (pgd_none(*pgd_ref))
+			continue;
+		spin_lock_irqsave(&pgd_lock, flags);
+		list_for_each_entry(page, &pgd_list, lru) {
+			pgd_t *pgd;
+			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+			if (pgd_none(*pgd))
+				set_pgd(pgd, *pgd_ref);
+			else
+				BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
 		}
-		if (address == start)
-			start = address + PGDIR_SIZE;
+		spin_unlock_irqrestore(&pgd_lock, flags);
 	}
 #endif
 }
