@@ -64,6 +64,17 @@ static int __init setup_noefi(char *arg)
 }
 early_param("noefi", setup_noefi);
 
+int add_efi_memmap;
+EXPORT_SYMBOL(add_efi_memmap);
+
+static int __init setup_add_efi_memmap(char *arg)
+{
+	add_efi_memmap = 1;
+	return 0;
+}
+early_param("add_efi_memmap", setup_add_efi_memmap);
+
+
 static efi_status_t virt_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 {
 	return efi_call_virt2(get_time, tm, tc);
@@ -219,7 +230,7 @@ unsigned long efi_get_time(void)
  * (zeropage) memory map.
  */
 
-static void __init add_efi_memmap(void)
+static void __init do_add_efi_memmap(void)
 {
 	void *p;
 
@@ -406,7 +417,8 @@ void __init efi_init(void)
 	if (memmap.desc_size != sizeof(efi_memory_desc_t))
 		printk(KERN_WARNING "Kernel-defined memdesc"
 		       "doesn't match the one from EFI!\n");
-	add_efi_memmap();
+	if (add_efi_memmap)
+		do_add_efi_memmap();
 
 	/* Setup for EFI runtime service */
 	reboot_type = BOOT_EFI;

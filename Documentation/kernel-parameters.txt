@@ -2150,6 +2150,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
+	add_efi_memmap	[EFI; x86-32,X86-64] Include EFI memory map in
+			kernel's map of available physical RAM.
+
 	vdso=		[X86-32,SH,x86-64]
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
