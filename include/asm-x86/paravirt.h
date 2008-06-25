@@ -1455,51 +1455,53 @@ static inline unsigned long __raw_local_irq_save(void)
 #define PV_RESTORE_REGS popq %rdx; popq %rcx; popq %rdi; popq %rax
 #define PARA_PATCH(struct, off)        ((PARAVIRT_PATCH_##struct + (off)) / 8)
 #define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .quad, 8)
+#define PARA_INDIRECT(addr)	*addr(%rip)
 #else
 #define PV_SAVE_REGS   pushl %eax; pushl %edi; pushl %ecx; pushl %edx
 #define PV_RESTORE_REGS popl %edx; popl %ecx; popl %edi; popl %eax
 #define PARA_PATCH(struct, off)        ((PARAVIRT_PATCH_##struct + (off)) / 4)
 #define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .long, 4)
+#define PARA_INDIRECT(addr)	*%cs:addr
 #endif
 
 #define INTERRUPT_RETURN						\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_iret), CLBR_NONE,	\
-		  jmp *%cs:pv_cpu_ops+PV_CPU_iret)
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_iret))
 
 #define DISABLE_INTERRUPTS(clobbers)					\
 	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_irq_disable), clobbers, \
-		  PV_SAVE_REGS;			\
-		  call *%cs:pv_irq_ops+PV_IRQ_irq_disable;		\
+		  PV_SAVE_REGS;						\
+		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_irq_disable);	\
 		  PV_RESTORE_REGS;)			\
 
 #define ENABLE_INTERRUPTS(clobbers)					\
 	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_irq_enable), clobbers,	\
-		  PV_SAVE_REGS;			\
-		  call *%cs:pv_irq_ops+PV_IRQ_irq_enable;		\
+		  PV_SAVE_REGS;						\
+		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_irq_enable);	\
 		  PV_RESTORE_REGS;)
 
 #define ENABLE_INTERRUPTS_SYSCALL_RET					\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_syscall_ret),\
 		  CLBR_NONE,						\
-		  jmp *%cs:pv_cpu_ops+PV_CPU_irq_enable_syscall_ret)
+		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_irq_enable_syscall_ret))
 
 
 #ifdef CONFIG_X86_32
-#define GET_CR0_INTO_EAX			\
-	push %ecx; push %edx;			\
-	call *pv_cpu_ops+PV_CPU_read_cr0;	\
+#define GET_CR0_INTO_EAX				\
+	push %ecx; push %edx;				\
+	call PARA_INDIRECT(pv_cpu_ops+PV_CPU_read_cr0);	\
 	pop %edx; pop %ecx
 #else
 #define SWAPGS								\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_swapgs), CLBR_NONE,	\
 		  PV_SAVE_REGS;						\
-		  call *pv_cpu_ops+PV_CPU_swapgs;			\
+		  call PARA_INDIRECT(pv_cpu_ops+PV_CPU_swapgs);		\
 		  PV_RESTORE_REGS					\
 		 )
 
-#define GET_CR2_INTO_RCX			\
-	call *pv_mmu_ops+PV_MMU_read_cr2;	\
-	movq %rax, %rcx;			\
+#define GET_CR2_INTO_RCX				\
+	call PARA_INDIRECT(pv_mmu_ops+PV_MMU_read_cr2);	\
+	movq %rax, %rcx;				\
 	xorq %rax, %rax;
 
 #endif
