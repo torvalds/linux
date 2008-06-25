@@ -459,10 +459,17 @@ int paravirt_disable_iospace(void);
 #define VEXTRA_CLOBBERS	 , "rax", "r8", "r9", "r10", "r11"
 #endif
 
+#ifdef CONFIG_PARAVIRT_DEBUG
+#define PVOP_TEST_NULL(op)	BUG_ON(op == NULL)
+#else
+#define PVOP_TEST_NULL(op)	((void)op)
+#endif
+
 #define __PVOP_CALL(rettype, op, pre, post, ...)			\
 	({								\
 		rettype __ret;						\
 		PVOP_CALL_ARGS;					\
+		PVOP_TEST_NULL(op);					\
 		/* This is 32-bit specific, but is okay in 64-bit */	\
 		/* since this condition will never hold */		\
 		if (sizeof(rettype) > sizeof(unsigned long)) {		\
@@ -491,6 +498,7 @@ int paravirt_disable_iospace(void);
 #define __PVOP_VCALL(op, pre, post, ...)				\
 	({								\
 		PVOP_VCALL_ARGS;					\
+		PVOP_TEST_NULL(op);					\
 		asm volatile(pre					\
 			     paravirt_alt(PARAVIRT_CALL)		\
 			     post					\
