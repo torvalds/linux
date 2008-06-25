@@ -1014,7 +1014,7 @@ unsigned long __init e820_end_of_ram(void)
 	if (last_pfn > end_user_pfn)
 		last_pfn = end_user_pfn;
 
-	printk(KERN_INFO "last_pfn = 0x%lx max_arch_pfn = 0x%lx\n",
+	printk(KERN_INFO "last_pfn = %#lx max_arch_pfn = %#lx\n",
 			 last_pfn, max_arch_pfn);
 	return last_pfn;
 }

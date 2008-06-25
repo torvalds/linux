@@ -3520,7 +3520,7 @@ void __init add_active_range(unsigned int nid, unsigned long start_pfn,
 {
 	int i;
 
-	printk(KERN_DEBUG "Entering add_active_range(%d, 0x%lx, 0x%lx) "
+	printk(KERN_DEBUG "Entering add_active_range(%d, %#lx, %#lx) "
 			  "%d entries of %d used\n",
 			  nid, start_pfn, end_pfn,
 			  nr_nodemap_entries, MAX_ACTIVE_REGIONS);
@@ -3936,7 +3936,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		if (i == ZONE_MOVABLE)
 			continue;
-		printk("  %-8s 0x%8lx -> 0x%8lx\n",
+		printk("  %-8s %0#10lx -> %0#10lx\n",
 				zone_names[i],
 				arch_zone_lowest_possible_pfn[i],
 				arch_zone_highest_possible_pfn[i]);
@@ -3952,7 +3952,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	/* Print out the early_node_map[] */
 	printk("early_node_map[%d] active PFN ranges\n", nr_nodemap_entries);
 	for (i = 0; i < nr_nodemap_entries; i++)
-		printk("  %3d: 0x%8lx -> 0x%8lx\n", early_node_map[i].nid,
+		printk("  %3d: %0#10lx -> %0#10lx\n", early_node_map[i].nid,
 						early_node_map[i].start_pfn,
 						early_node_map[i].end_pfn);
 
