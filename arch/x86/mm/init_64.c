@@ -257,58 +257,6 @@ static __meminit void unmap_low_page(void *adr)
 	early_iounmap(adr, PAGE_SIZE);
 }
 
-/* Must run before zap_low_mappings */
-__meminit void *early_ioremap(unsigned long addr, unsigned long size)
-{
-	pmd_t *pmd, *last_pmd;
-	unsigned long vaddr;
-	int i, pmds;
-
-	pmds = ((addr & ~PMD_MASK) + size + ~PMD_MASK) / PMD_SIZE;
-	vaddr = __START_KERNEL_map;
-	pmd = level2_kernel_pgt;
-	last_pmd = level2_kernel_pgt + PTRS_PER_PMD - 1;
-
-	for (; pmd <= last_pmd; pmd++, vaddr += PMD_SIZE) {
-		for (i = 0; i < pmds; i++) {
-			if (pmd_present(pmd[i]))
-				goto continue_outer_loop;
-		}
-		vaddr += addr & ~PMD_MASK;
-		addr &= PMD_MASK;
-
-		for (i = 0; i < pmds; i++, addr += PMD_SIZE)
-			set_pmd(pmd+i, __pmd(addr | __PAGE_KERNEL_LARGE_EXEC));
-		__flush_tlb_all();
-
-		return (void *)vaddr;
-continue_outer_loop:
-		;
-	}
-	printk(KERN_ERR "early_ioremap(0x%lx, %lu) failed\n", addr, size);
-
-	return NULL;
-}
-
-/*
- * To avoid virtual aliases later:
- */
-__meminit void early_iounmap(void *addr, unsigned long size)
-{
-	unsigned long vaddr;
-	pmd_t *pmd;
-	int i, pmds;
-
-	vaddr = (unsigned long)addr;
-	pmds = ((vaddr & ~PMD_MASK) + size + ~PMD_MASK) / PMD_SIZE;
-	pmd = level2_kernel_pgt + pmd_index(vaddr);
-
-	for (i = 0; i < pmds; i++)
-		pmd_clear(pmd + i);
-
-	__flush_tlb_all();
-}
-
 static unsigned long __meminit
 phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 {

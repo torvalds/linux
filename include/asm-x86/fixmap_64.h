@@ -49,6 +49,19 @@ enum fixed_addresses {
 #ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
 	FIX_OHCI1394_BASE,
 #endif
+	__end_of_permanent_fixed_addresses,
+	/*
+	 * 256 temporary boot-time mappings, used by early_ioremap(),
+	 * before ioremap() is functional.
+	 *
+	 * We round it up to the next 512 pages boundary so that we
+	 * can have a single pgd entry and a single pte table:
+	 */
+#define NR_FIX_BTMAPS		64
+#define FIX_BTMAPS_NESTING	4
+	FIX_BTMAP_END = __end_of_permanent_fixed_addresses + 512 -
+			(__end_of_permanent_fixed_addresses & 511),
+	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_NESTING - 1,
 	__end_of_fixed_addresses
 };
 

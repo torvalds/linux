@@ -72,4 +72,17 @@ extern int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 				unsigned long prot_val);
 extern void __iomem *ioremap_wc(unsigned long offset, unsigned long size);
 
+/*
+ * early_ioremap() and early_iounmap() are for temporary early boot-time
+ * mappings, before the real ioremap() is functional.
+ * A boot-time mapping is currently limited to at most 16 pages.
+ */
+extern void early_ioremap_init(void);
+extern void early_ioremap_clear(void);
+extern void early_ioremap_reset(void);
+extern void *early_ioremap(unsigned long offset, unsigned long size);
+extern void early_iounmap(void *addr, unsigned long size);
+extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
+
+
 #endif /* _ASM_X86_IO_H */
