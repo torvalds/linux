@@ -74,10 +74,7 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 	if (driver->id_table)
 		return i2c_match_id(driver->id_table, client) != NULL;
 
-	/* new style drivers use the same kind of driver matching policy
-	 * as platform devices or SPI:  compare device and driver IDs.
-	 */
-	return strcmp(client->driver_name, drv->name) == 0;
+	return 0;
 }
 
 #ifdef	CONFIG_HOTPLUG
@@ -91,14 +88,9 @@ static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (dev->driver)
 		return 0;
 
-	if (client->driver_name[0]) {
-		if (add_uevent_var(env, "MODALIAS=%s", client->driver_name))
-			return -ENOMEM;
-	} else {
-		if (add_uevent_var(env, "MODALIAS=%s%s",
-				   I2C_MODULE_PREFIX, client->name))
-			return -ENOMEM;
-	}
+	if (add_uevent_var(env, "MODALIAS=%s%s",
+			   I2C_MODULE_PREFIX, client->name))
+		return -ENOMEM;
 	dev_dbg(dev, "uevent\n");
 	return 0;
 }
@@ -206,9 +198,7 @@ static ssize_t show_client_name(struct device *dev, struct device_attribute *att
 static ssize_t show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	return client->driver_name[0]
-		? sprintf(buf, "%s\n", client->driver_name)
-		: sprintf(buf, "%s%s\n", I2C_MODULE_PREFIX, client->name);
+	return sprintf(buf, "%s%s\n", I2C_MODULE_PREFIX, client->name);
 }
 
 static struct device_attribute i2c_dev_attrs[] = {
@@ -282,8 +272,6 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->addr = info->addr;
 	client->irq = info->irq;
 
-	strlcpy(client->driver_name, info->driver_name,
-		sizeof(client->driver_name));
 	strlcpy(client->name, info->type, sizeof(client->name));
 
 	/* a new style driver may be bound to this device when we

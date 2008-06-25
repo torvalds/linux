@@ -719,7 +719,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	fc = le16_to_cpu(*((__le16 *) buffer));
 
 	is_qos = ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
-		 ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_QOS_DATA);
+		 (fc & IEEE80211_STYPE_QOS_DATA);
 	is_4addr = (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 		   (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
 	need_padding = is_qos ^ is_4addr;
@@ -805,7 +805,7 @@ void zd_process_intr(struct work_struct *work)
 	u16 int_status;
 	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
 
-	int_status = le16_to_cpu(*(u16 *)(mac->intr_buffer+4));
+	int_status = le16_to_cpu(*(__le16 *)(mac->intr_buffer+4));
 	if (int_status & INT_CFG_NEXT_BCN) {
 		if (net_ratelimit())
 			dev_dbg_f(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");

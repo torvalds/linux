@@ -136,7 +136,7 @@ static const u8 hw_addrs[] = {
 };
 
 /* This array should match the IVTV_HW_ defines */
-static const char * const hw_drivernames[] = {
+static const char * const hw_devicenames[] = {
 	"cx25840",
 	"saa7115",
 	"saa7127",
@@ -145,7 +145,7 @@ static const char * const hw_drivernames[] = {
 	"wm8775",
 	"cs53l32a",
 	"tveeprom",
-	"saa7115",
+	"saa7114",
 	"upd64031a",
 	"upd64083",
 	"saa717x",
@@ -167,8 +167,7 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 		return -1;
 	id = hw_driverids[idx];
 	memset(&info, 0, sizeof(info));
-	strlcpy(info.driver_name, hw_drivernames[idx],
-			sizeof(info.driver_name));
+	strlcpy(info.type, hw_devicenames[idx], sizeof(info.type));
 	info.addr = hw_addrs[idx];
 	for (i = 0; itv->i2c_clients[i] && i < I2C_CLIENTS_MAX; i++) {}
 
@@ -657,7 +656,7 @@ static const char *ivtv_i2c_id_name(u32 id)
 
 	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
 		if (hw_driverids[i] == id)
-			return hw_drivernames[i];
+			return hw_devicenames[i];
 	return "unknown device";
 }
 
@@ -668,7 +667,7 @@ static const char *ivtv_i2c_hw_name(u32 hw)
 
 	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
 		if (1 << i == hw)
-			return hw_drivernames[i];
+			return hw_devicenames[i];
 	return "unknown device";
 }
 
@@ -770,7 +769,7 @@ int init_ivtv_i2c(struct ivtv *itv)
 	 * same size and GPIO must be the last entry.
 	 */
 	if (ARRAY_SIZE(hw_driverids) != ARRAY_SIZE(hw_addrs) ||
-	    ARRAY_SIZE(hw_drivernames) != ARRAY_SIZE(hw_addrs) ||
+	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs) ||
 	    IVTV_HW_GPIO != (1 << (ARRAY_SIZE(hw_addrs) - 1)) ||
 	    hw_driverids[ARRAY_SIZE(hw_addrs) - 1]) {
 		IVTV_ERR("Mismatched I2C hardware arrays\n");

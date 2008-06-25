@@ -405,7 +405,7 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 
  out_err:
-	dprintk("%s: statfs error = %d\n", __FUNCTION__, -error);
+	dprintk("%s: statfs error = %d\n", __func__, -error);
 	unlock_kernel();
 	return error;
 }
@@ -1216,8 +1216,6 @@ static int nfs_validate_mount_data(void *options,
 {
 	struct nfs_mount_data *data = (struct nfs_mount_data *)options;
 
-	memset(args, 0, sizeof(*args));
-
 	if (data == NULL)
 		goto out_no_data;
 
@@ -1251,13 +1249,13 @@ static int nfs_validate_mount_data(void *options,
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
 	case 6:
-		if (data->flags & NFS_MOUNT_VER3)
+		if (data->flags & NFS_MOUNT_VER3) {
+			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)
+				goto out_invalid_fh;
 			mntfh->size = data->root.size;
-		else
+		} else
 			mntfh->size = NFS2_FHSIZE;
 
-		if (mntfh->size > sizeof(mntfh->data))
-			goto out_invalid_fh;
 
 		memcpy(mntfh->data, data->root.data, mntfh->size);
 		if (mntfh->size < sizeof(mntfh->data))
@@ -1585,24 +1583,29 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 {
 	struct nfs_server *server = NULL;
 	struct super_block *s;
-	struct nfs_fh mntfh;
-	struct nfs_parsed_mount_data data;
+	struct nfs_parsed_mount_data *data;
+	struct nfs_fh *mntfh;
 	struct dentry *mntroot;
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	struct nfs_sb_mountdata sb_mntdata = {
 		.mntflags = flags,
 	};
-	int error;
+	int error = -ENOMEM;
 
-	security_init_mnt_opts(&data.lsm_opts);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	mntfh = kzalloc(sizeof(*mntfh), GFP_KERNEL);
+	if (data == NULL || mntfh == NULL)
+		goto out_free_fh;
+
+	security_init_mnt_opts(&data->lsm_opts);
 
 	/* Validate the mount data */
-	error = nfs_validate_mount_data(raw_data, &data, &mntfh, dev_name);
+	error = nfs_validate_mount_data(raw_data, data, mntfh, dev_name);
 	if (error < 0)
 		goto out;
 
 	/* Get a volume representation */
-	server = nfs_create_server(&data, &mntfh);
+	server = nfs_create_server(data, mntfh);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out;
@@ -1630,16 +1633,16 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 
 	if (!s->s_root) {
 		/* initial superblock/root creation */
-		nfs_fill_super(s, &data);
+		nfs_fill_super(s, data);
 	}
 
-	mntroot = nfs_get_root(s, &mntfh);
+	mntroot = nfs_get_root(s, mntfh);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
 	}
 
-	error = security_sb_set_mnt_opts(s, &data.lsm_opts);
+	error = security_sb_set_mnt_opts(s, &data->lsm_opts);
 	if (error)
 		goto error_splat_root;
 
@@ -1649,9 +1652,12 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	error = 0;
 
 out:
-	kfree(data.nfs_server.hostname);
-	kfree(data.mount_server.hostname);
-	security_free_mnt_opts(&data.lsm_opts);
+	kfree(data->nfs_server.hostname);
+	kfree(data->mount_server.hostname);
+	security_free_mnt_opts(&data->lsm_opts);
+out_free_fh:
+	kfree(mntfh);
+	kfree(data);
 	return error;
 
 out_err_nosb:
@@ -1799,8 +1805,6 @@ static int nfs4_validate_mount_data(void *options,
 	struct sockaddr_in *ap;
 	struct nfs4_mount_data *data = (struct nfs4_mount_data *)options;
 	char *c;
-
-	memset(args, 0, sizeof(*args));
 
 	if (data == NULL)
 		goto out_no_data;
@@ -1959,26 +1963,31 @@ out_no_client_address:
 static int nfs4_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
 {
-	struct nfs_parsed_mount_data data;
+	struct nfs_parsed_mount_data *data;
 	struct super_block *s;
 	struct nfs_server *server;
-	struct nfs_fh mntfh;
+	struct nfs_fh *mntfh;
 	struct dentry *mntroot;
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	struct nfs_sb_mountdata sb_mntdata = {
 		.mntflags = flags,
 	};
-	int error;
+	int error = -ENOMEM;
 
-	security_init_mnt_opts(&data.lsm_opts);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	mntfh = kzalloc(sizeof(*mntfh), GFP_KERNEL);
+	if (data == NULL || mntfh == NULL)
+		goto out_free_fh;
+
+	security_init_mnt_opts(&data->lsm_opts);
 
 	/* Validate the mount data */
-	error = nfs4_validate_mount_data(raw_data, &data, dev_name);
+	error = nfs4_validate_mount_data(raw_data, data, dev_name);
 	if (error < 0)
 		goto out;
 
 	/* Get a volume representation */
-	server = nfs4_create_server(&data, &mntfh);
+	server = nfs4_create_server(data, mntfh);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out;
@@ -2009,11 +2018,15 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 		nfs4_fill_super(s);
 	}
 
-	mntroot = nfs4_get_root(s, &mntfh);
+	mntroot = nfs4_get_root(s, mntfh);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
 	}
+
+	error = security_sb_set_mnt_opts(s, &data->lsm_opts);
+	if (error)
+		goto error_splat_root;
 
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
@@ -2021,16 +2034,21 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	error = 0;
 
 out:
-	kfree(data.client_address);
-	kfree(data.nfs_server.export_path);
-	kfree(data.nfs_server.hostname);
-	security_free_mnt_opts(&data.lsm_opts);
+	kfree(data->client_address);
+	kfree(data->nfs_server.export_path);
+	kfree(data->nfs_server.hostname);
+	security_free_mnt_opts(&data->lsm_opts);
+out_free_fh:
+	kfree(mntfh);
+	kfree(data);
 	return error;
 
 out_free:
 	nfs_free_server(server);
 	goto out;
 
+error_splat_root:
+	dput(mntroot);
 error_splat_super:
 	up_write(&s->s_umount);
 	deactivate_super(s);
@@ -2114,6 +2132,8 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
 
+	security_sb_clone_mnt_opts(data->sb, s);
+
 	dprintk("<-- nfs4_xdev_get_sb() = 0\n");
 	return 0;
 
@@ -2196,6 +2216,8 @@ static int nfs4_referral_get_sb(struct file_system_type *fs_type, int flags,
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
+
+	security_sb_clone_mnt_opts(data->sb, s);
 
 	dprintk("<-- nfs4_referral_get_sb() = 0\n");
 	return 0;

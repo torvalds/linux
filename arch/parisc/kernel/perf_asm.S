@@ -43,7 +43,7 @@
 ; The coprocessor only needs to be enabled when
 ; starting/stopping the coprocessor with the pmenb/pmdis.
 ;
-	__HEAD
+	.text
 
 ENTRY(perf_intrigue_enable_perf_counters)
 	.proc

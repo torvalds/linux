@@ -195,7 +195,7 @@ ulong_aligned:
 	   depending on architecture.  I've experimented with several ways
 	   of writing this section such as using an else before the goto
 	   but this one seems to be the fastest. */
-	while ((unsigned char *)plong < end - 1) {
+	while ((unsigned char *)plong < end - sizeof(unsigned long)) {
 		prefetch(plong + 1);
 		if (((*plong) & LBITMASK) != lskipval)
 			break;
@@ -1495,7 +1495,7 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 
 	al->al_alloced += *n;
 
-	gfs2_statfs_change(sdp, 0, -*n, 0);
+	gfs2_statfs_change(sdp, 0, -(s64)*n, 0);
 	gfs2_quota_change(ip, *n, ip->i_inode.i_uid, ip->i_inode.i_gid);
 
 	spin_lock(&sdp->sd_rindex_spin);

@@ -4,6 +4,7 @@
 #include <linux/kdebug.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/uaccess.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_BUG
@@ -21,7 +22,14 @@ static void handle_BUG(struct pt_regs *regs)
 
 int is_valid_bugaddr(unsigned long addr)
 {
-	return addr >= PAGE_OFFSET;
+	unsigned short opcode;
+
+	if (addr < PAGE_OFFSET)
+		return 0;
+	if (probe_kernel_address((u16 *)addr, opcode))
+		return 0;
+
+	return opcode == TRAPA_BUG_OPCODE;
 }
 #endif
 

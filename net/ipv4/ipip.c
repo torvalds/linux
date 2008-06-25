@@ -278,9 +278,8 @@ static void ipip_tunnel_uninit(struct net_device *dev)
 
 static int ipip_err(struct sk_buff *skb, u32 info)
 {
-#ifndef I_WISH_WORLD_WERE_PERFECT
 
-/* It is not :-( All the routers (except for Linux) return only
+/* All the routers (except for Linux) return only
    8 bytes of packet payload. It means, that precise relaying of
    ICMP in the real Internet is absolutely infeasible.
  */
@@ -337,133 +336,6 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 out:
 	read_unlock(&ipip_lock);
 	return err;
-#else
-	struct iphdr *iph = (struct iphdr*)dp;
-	int hlen = iph->ihl<<2;
-	struct iphdr *eiph;
-	const int type = icmp_hdr(skb)->type;
-	const int code = icmp_hdr(skb)->code;
-	int rel_type = 0;
-	int rel_code = 0;
-	__be32 rel_info = 0;
-	__u32 n = 0;
-	struct sk_buff *skb2;
-	struct flowi fl;
-	struct rtable *rt;
-
-	if (len < hlen + sizeof(struct iphdr))
-		return 0;
-	eiph = (struct iphdr*)(dp + hlen);
-
-	switch (type) {
-	default:
-		return 0;
-	case ICMP_PARAMETERPROB:
-		n = ntohl(icmp_hdr(skb)->un.gateway) >> 24;
-		if (n < hlen)
-			return 0;
-
-		/* So... This guy found something strange INSIDE encapsulated
-		   packet. Well, he is fool, but what can we do ?
-		 */
-		rel_type = ICMP_PARAMETERPROB;
-		rel_info = htonl((n - hlen) << 24);
-		break;
-
-	case ICMP_DEST_UNREACH:
-		switch (code) {
-		case ICMP_SR_FAILED:
-		case ICMP_PORT_UNREACH:
-			/* Impossible event. */
-			return 0;
-		case ICMP_FRAG_NEEDED:
-			/* And it is the only really necessary thing :-) */
-			n = ntohs(icmp_hdr(skb)->un.frag.mtu);
-			if (n < hlen+68)
-				return 0;
-			n -= hlen;
-			/* BSD 4.2 MORE DOES NOT EXIST IN NATURE. */
-			if (n > ntohs(eiph->tot_len))
-				return 0;
-			rel_info = htonl(n);
-			break;
-		default:
-			/* All others are translated to HOST_UNREACH.
-			   rfc2003 contains "deep thoughts" about NET_UNREACH,
-			   I believe, it is just ether pollution. --ANK
-			 */
-			rel_type = ICMP_DEST_UNREACH;
-			rel_code = ICMP_HOST_UNREACH;
-			break;
-		}
-		break;
-	case ICMP_TIME_EXCEEDED:
-		if (code != ICMP_EXC_TTL)
-			return 0;
-		break;
-	}
-
-	/* Prepare fake skb to feed it to icmp_send */
-	skb2 = skb_clone(skb, GFP_ATOMIC);
-	if (skb2 == NULL)
-		return 0;
-	dst_release(skb2->dst);
-	skb2->dst = NULL;
-	skb_pull(skb2, skb->data - (u8*)eiph);
-	skb_reset_network_header(skb2);
-
-	/* Try to guess incoming interface */
-	memset(&fl, 0, sizeof(fl));
-	fl.fl4_daddr = eiph->saddr;
-	fl.fl4_tos = RT_TOS(eiph->tos);
-	fl.proto = IPPROTO_IPIP;
-	if (ip_route_output_key(dev_net(skb->dev), &rt, &key)) {
-		kfree_skb(skb2);
-		return 0;
-	}
-	skb2->dev = rt->u.dst.dev;
-
-	/* route "incoming" packet */
-	if (rt->rt_flags&RTCF_LOCAL) {
-		ip_rt_put(rt);
-		rt = NULL;
-		fl.fl4_daddr = eiph->daddr;
-		fl.fl4_src = eiph->saddr;
-		fl.fl4_tos = eiph->tos;
-		if (ip_route_output_key(dev_net(skb->dev), &rt, &fl) ||
-		    rt->u.dst.dev->type != ARPHRD_TUNNEL) {
-			ip_rt_put(rt);
-			kfree_skb(skb2);
-			return 0;
-		}
-	} else {
-		ip_rt_put(rt);
-		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos, skb2->dev) ||
-		    skb2->dst->dev->type != ARPHRD_TUNNEL) {
-			kfree_skb(skb2);
-			return 0;
-		}
-	}
-
-	/* change mtu on this route */
-	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		if (n > dst_mtu(skb2->dst)) {
-			kfree_skb(skb2);
-			return 0;
-		}
-		skb2->dst->ops->update_pmtu(skb2->dst, n);
-	} else if (type == ICMP_TIME_EXCEEDED) {
-		struct ip_tunnel *t = netdev_priv(skb2->dev);
-		if (t->parms.iph.ttl) {
-			rel_type = ICMP_DEST_UNREACH;
-			rel_code = ICMP_HOST_UNREACH;
-		}
-	}
-
-	icmp_send(skb2, rel_type, rel_code, rel_info);
-	kfree_skb(skb2);
-	return 0;
-#endif
 }
 
 static inline void ipip_ecn_decapsulate(const struct iphdr *outer_iph,

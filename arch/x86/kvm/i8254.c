@@ -200,10 +200,12 @@ int __pit_timer_fn(struct kvm_kpit_state *ps)
 
 	atomic_inc(&pt->pending);
 	smp_mb__after_atomic_inc();
-	/* FIXME: handle case where the guest is in guest mode */
-	if (vcpu0 && waitqueue_active(&vcpu0->wq)) {
-		vcpu0->arch.mp_state = KVM_MP_STATE_RUNNABLE;
-		wake_up_interruptible(&vcpu0->wq);
+	if (vcpu0) {
+		set_bit(KVM_REQ_PENDING_TIMER, &vcpu0->requests);
+		if (waitqueue_active(&vcpu0->wq)) {
+			vcpu0->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+			wake_up_interruptible(&vcpu0->wq);
+		}
 	}
 
 	pt->timer.expires = ktime_add_ns(pt->timer.expires, pt->period);
@@ -216,7 +218,7 @@ int pit_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
 
-	if (pit && vcpu->vcpu_id == 0)
+	if (pit && vcpu->vcpu_id == 0 && pit->pit_state.inject_pending)
 		return atomic_read(&pit->pit_state.pit_timer.pending);
 
 	return 0;
@@ -235,6 +237,19 @@ static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 		return HRTIMER_RESTART;
 	else
 		return HRTIMER_NORESTART;
+}
+
+void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
+	struct hrtimer *timer;
+
+	if (vcpu->vcpu_id != 0 || !pit)
+		return;
+
+	timer = &pit->pit_state.pit_timer.timer;
+	if (hrtimer_cancel(timer))
+		hrtimer_start(timer, timer->expires, HRTIMER_MODE_ABS);
 }
 
 static void destroy_pit_timer(struct kvm_kpit_timer *pt)

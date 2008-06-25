@@ -1,6 +1,7 @@
 config IBM_NEW_EMAC
 	tristate "IBM EMAC Ethernet support"
 	depends on PPC_DCR && PPC_MERGE
+	select CRC32
 	help
 	  This driver supports the IBM EMAC family of Ethernet controllers
 	  typically found on 4xx embedded PowerPC chips, but also on the

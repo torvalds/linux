@@ -7,7 +7,7 @@
 #ifndef CONFIG_SUN3
 #define BUG() do { \
 	printk("kernel BUG at %s:%d!\n", __FILE__, __LINE__); \
-	asm volatile("illegal"); \
+	__builtin_trap(); \
 } while (0)
 #else
 #define BUG() do { \
@@ -17,7 +17,7 @@
 #endif
 #else
 #define BUG() do { \
-	asm volatile("illegal"); \
+	__builtin_trap(); \
 } while (0)
 #endif
 

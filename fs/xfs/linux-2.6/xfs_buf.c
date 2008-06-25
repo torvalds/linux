@@ -387,6 +387,8 @@ _xfs_buf_lookup_pages(
 		if (unlikely(page == NULL)) {
 			if (flags & XBF_READ_AHEAD) {
 				bp->b_page_count = i;
+				for (i = 0; i < bp->b_page_count; i++)
+					unlock_page(bp->b_pages[i]);
 				return -ENOMEM;
 			}
 
@@ -416,15 +418,22 @@ _xfs_buf_lookup_pages(
 		ASSERT(!PagePrivate(page));
 		if (!PageUptodate(page)) {
 			page_count--;
-			if (blocksize < PAGE_CACHE_SIZE && !PagePrivate(page)) {
+			if (blocksize >= PAGE_CACHE_SIZE) {
+				if (flags & XBF_READ)
+					bp->b_flags |= _XBF_PAGE_LOCKED;
+			} else if (!PagePrivate(page)) {
 				if (test_page_region(page, offset, nbytes))
 					page_count++;
 			}
 		}
 
-		unlock_page(page);
 		bp->b_pages[i] = page;
 		offset = 0;
+	}
+
+	if (!(bp->b_flags & _XBF_PAGE_LOCKED)) {
+		for (i = 0; i < bp->b_page_count; i++)
+			unlock_page(bp->b_pages[i]);
 	}
 
 	if (page_count == bp->b_page_count)
@@ -746,6 +755,7 @@ xfs_buf_associate_memory(
 	bp->b_count_desired = len;
 	bp->b_buffer_length = buflen;
 	bp->b_flags |= XBF_MAPPED;
+	bp->b_flags &= ~_XBF_PAGE_LOCKED;
 
 	return 0;
 }
@@ -1093,8 +1103,10 @@ _xfs_buf_ioend(
 	xfs_buf_t		*bp,
 	int			schedule)
 {
-	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
+		bp->b_flags &= ~_XBF_PAGE_LOCKED;
 		xfs_buf_ioend(bp, schedule);
+	}
 }
 
 STATIC void
@@ -1125,6 +1137,9 @@ xfs_buf_bio_end_io(
 
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
+
+		if (bp->b_flags & _XBF_PAGE_LOCKED)
+			unlock_page(page);
 	} while (bvec >= bio->bi_io_vec);
 
 	_xfs_buf_ioend(bp, 1);
@@ -1163,7 +1178,8 @@ _xfs_buf_ioapply(
 	 * filesystem block size is not smaller than the page size.
 	 */
 	if ((bp->b_buffer_length < PAGE_CACHE_SIZE) &&
-	    (bp->b_flags & XBF_READ) &&
+	    ((bp->b_flags & (XBF_READ|_XBF_PAGE_LOCKED)) ==
+	      (XBF_READ|_XBF_PAGE_LOCKED)) &&
 	    (blocksize >= PAGE_CACHE_SIZE)) {
 		bio = bio_alloc(GFP_NOIO, 1);
 

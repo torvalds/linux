@@ -773,7 +773,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	r1bio_t *r1_bio;
 	struct bio *read_bio;
 	int i, targets = 0, disks;
-	struct bitmap *bitmap = mddev->bitmap;
+	struct bitmap *bitmap;
 	unsigned long flags;
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
@@ -801,6 +801,8 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	}
 
 	wait_barrier(conf);
+
+	bitmap = mddev->bitmap;
 
 	disk_stat_inc(mddev->gendisk, ios[rw]);
 	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
@@ -1025,7 +1027,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		/*
 		 * if recovery is running, make sure it aborts.
 		 */
-		set_bit(MD_RECOVERY_ERR, &mddev->recovery);
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	} else
 		set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
@@ -1143,6 +1145,14 @@ static int raid1_remove_disk(mddev_t *mddev, int number)
 	if (rdev) {
 		if (test_bit(In_sync, &rdev->flags) ||
 		    atomic_read(&rdev->nr_pending)) {
+			err = -EBUSY;
+			goto abort;
+		}
+		/* Only remove non-faulty devices is recovery
+		 * is not possible.
+		 */
+		if (!test_bit(Faulty, &rdev->flags) &&
+		    mddev->degraded < conf->raid_disks) {
 			err = -EBUSY;
 			goto abort;
 		}
@@ -1282,6 +1292,7 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					rdev_dec_pending(conf->mirrors[i].rdev, mddev);
 				} else {
 					/* fixup the bio for reuse */
+					int size;
 					sbio->bi_vcnt = vcnt;
 					sbio->bi_size = r1_bio->sectors << 9;
 					sbio->bi_idx = 0;
@@ -1295,10 +1306,20 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					sbio->bi_sector = r1_bio->sector +
 						conf->mirrors[i].rdev->data_offset;
 					sbio->bi_bdev = conf->mirrors[i].rdev->bdev;
-					for (j = 0; j < vcnt ; j++)
-						memcpy(page_address(sbio->bi_io_vec[j].bv_page),
+					size = sbio->bi_size;
+					for (j = 0; j < vcnt ; j++) {
+						struct bio_vec *bi;
+						bi = &sbio->bi_io_vec[j];
+						bi->bv_offset = 0;
+						if (size > PAGE_SIZE)
+							bi->bv_len = PAGE_SIZE;
+						else
+							bi->bv_len = size;
+						size -= PAGE_SIZE;
+						memcpy(page_address(bi->bv_page),
 						       page_address(pbio->bi_io_vec[j].bv_page),
 						       PAGE_SIZE);
+					}
 
 				}
 			}
