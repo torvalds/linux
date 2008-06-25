@@ -2011,25 +2011,8 @@ out:
 }
 EXPORT_SYMBOL(video_ioctl2);
 
-struct index_info {
-	struct device *dev;
-	unsigned int used[VIDEO_NUM_DEVICES];
-};
-
-static int __fill_index_info(struct device *cd, void *data)
-{
-	struct index_info *info = data;
-	struct video_device *vfd = container_of(cd, struct video_device,
-						class_dev);
-
-	if (info->dev == vfd->dev)
-		info->used[vfd->index] = 1;
-
-	return 0;
-}
-
 /**
- * assign_index - assign stream number based on parent device
+ * get_index - assign stream number based on parent device
  * @vdev: video_device to assign index number to, vdev->dev should be assigned
  * @num: -1 if auto assign, requested number otherwise
  *
@@ -2039,44 +2022,30 @@ static int __fill_index_info(struct device *cd, void *data)
  */
 static int get_index(struct video_device *vdev, int num)
 {
-	struct index_info *info;
+	u32 used = 0;
 	int i;
-	int ret = 0;
 
-	if (num >= VIDEO_NUM_DEVICES)
+	if (num >= 32) {
+		printk(KERN_ERR "videodev: %s num is too large\n", __func__);
 		return -EINVAL;
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	info->dev = vdev->dev;
-
-	ret = class_for_each_device(&video_class, info,
-					__fill_index_info);
-
-	if (ret < 0)
-		goto out;
-
-	if (num >= 0) {
-		if (!info->used[num])
-			ret = num;
-		else
-			ret = -ENFILE;
-
-		goto out;
 	}
 
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
-		if (info->used[i])
-			continue;
-		ret = i;
-		goto out;
+		if (video_device[i] != NULL &&
+		    video_device[i] != vdev &&
+		    video_device[i]->dev == vdev->dev) {
+			used |= 1 << video_device[i]->index;
+		}
 	}
 
-out:
-	kfree(info);
-	return ret;
+	if (num >= 0) {
+		if (used & (1 << num))
+			return -ENFILE;
+		return num;
+	}
+
+	i = ffz(used);
+	return i >= 32 ? -ENFILE : i;
 }
 
 static const struct file_operations video_fops;
