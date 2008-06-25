@@ -34,6 +34,31 @@ config FW_LOADER
 	  require userspace firmware loading support, but a module built outside
 	  the kernel tree does.
 
+config FIRMWARE_IN_KERNEL
+	bool "Include in-kernel firmware blobs in kernel binary"
+	depends on FW_LOADER
+	default y
+	help
+	  The kernel source tree includes a number of firmware 'blobs'
+	  which are used by various drivers. The recommended way to
+	  use these is to run "make firmware_install" and to copy the
+	  resulting binary files created in usr/lib/firmware directory
+	  of the kernel tree to the /lib/firmware on your system so
+	  that they can be loaded by userspace helpers on request.
+
+	  Enabling this option will build each required firmware blob
+	  into the kernel directly, where request_firmware() will find
+	  them without having to call out to userspace. This may be
+	  useful if your root file system requires a device which uses
+	  such firmware, and do not wish to use an initrd.
+
+	  This single option controls the inclusion of firmware for
+	  every driver which usees request_firmare() and ships its
+	  firmware in the kernel source tree, to avoid a proliferation
+	  of 'Include firmware for xxx device' options.
+
+	  Say 'N' and let firmware be loaded from userspace.
+
 config EXTRA_FIRMWARE
 	string "External firmware blobs to build into the kernel binary"
 	depends on FW_LOADER

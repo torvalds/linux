@@ -9,6 +9,11 @@ fwabs := $(addprefix $(srctree)/,$(filter-out /%,$(fwdir)))$(filter /%,$(fwdir))
 
 fw-external-y := $(subst ",,$(CONFIG_EXTRA_FIRMWARE))
 
+# If CONFIG_FIRMWARE_IN_KERNEL is not set, then don't include any firmware
+ifneq ($(CONFIG_FIRMWARE_IN_KERNEL),y)
+fw-shipped-y :=
+endif
+
 firmware-y    := $(fw-external-y) $(fw-shipped-y)
 firmware-dirs := $(sort $(patsubst %,$(objtree)/$(obj)/%/,$(dir $(firmware-y) $(fw-shipped-))))
 
