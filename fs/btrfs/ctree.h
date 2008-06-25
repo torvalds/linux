@@ -335,6 +335,7 @@ struct btrfs_path {
 	int reada;
 	/* keep some upper locks as we walk down */
 	int keep_locks;
+	int skip_locking;
 	int lowest_level;
 };
 

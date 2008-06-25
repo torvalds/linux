@@ -64,6 +64,7 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 {
 	int i;
 	int keep = p->keep_locks;
+	int skip = p->skip_locking;
 
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
 		if (!p->nodes[i])
@@ -76,6 +77,7 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 	}
 	memset(p, 0, sizeof(*p));
 	p->keep_locks = keep;
+	p->skip_locking = skip;
 }
 
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
@@ -1262,7 +1264,10 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (ins_len < 0)
 		lowest_unlock = 2;
 again:
-	b = btrfs_lock_root_node(root);
+	if (p->skip_locking)
+		b = btrfs_root_node(root);
+	else
+		b = btrfs_lock_root_node(root);
 
 	while (b) {
 		level = btrfs_header_level(b);
@@ -1282,7 +1287,8 @@ again:
 			WARN_ON(1);
 		level = btrfs_header_level(b);
 		p->nodes[level] = b;
-		p->locks[level] = 1;
+		if (!p->skip_locking)
+			p->locks[level] = 1;
 		ret = check_block(root, p, level);
 		if (ret)
 			return -1;
@@ -1349,7 +1355,8 @@ again:
 					b = read_node_slot(root, b, slot);
 				}
 			}
-			btrfs_tree_lock(b);
+			if (!p->skip_locking)
+				btrfs_tree_lock(b);
 			unlock_up(p, level, lowest_unlock);
 		} else {
 			p->slots[level] = slot;
@@ -1392,13 +1399,6 @@ static int fixup_low_keys(struct btrfs_trans_handle *trans,
 			break;
 		t = path->nodes[i];
 		btrfs_set_node_key(t, key, tslot);
-		if (!btrfs_tree_locked(path->nodes[i])) {
-			int ii;
-printk("fixup without lock on level %d\n", btrfs_header_level(path->nodes[i]));
-			for (ii = 0; ii < BTRFS_MAX_LEVEL; ii++) {
-printk("level %d slot %d\n", ii, path->slots[ii]);
-			}
-		}
 		btrfs_mark_buffer_dirty(path->nodes[i]);
 		if (tslot != 0)
 			break;
@@ -3033,8 +3033,10 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 			reada_for_search(root, path, level, slot, 0);
 
 		next = read_node_slot(root, c, slot);
-		WARN_ON(!btrfs_tree_locked(c));
-		btrfs_tree_lock(next);
+		if (!path->skip_locking) {
+			WARN_ON(!btrfs_tree_locked(c));
+			btrfs_tree_lock(next);
+		}
 		break;
 	}
 	path->slots[level] = slot;
@@ -3052,8 +3054,10 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		if (level == 1 && path->locks[1] && path->reada)
 			reada_for_search(root, path, level, slot, 0);
 		next = read_node_slot(root, next, 0);
-		WARN_ON(!btrfs_tree_locked(path->nodes[level]));
-		btrfs_tree_lock(next);
+		if (!path->skip_locking) {
+			WARN_ON(!btrfs_tree_locked(path->nodes[level]));
+			btrfs_tree_lock(next);
+		}
 	}
 done:
 	unlock_up(path, 0, 1);

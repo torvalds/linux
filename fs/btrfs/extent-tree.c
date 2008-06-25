@@ -88,6 +88,12 @@ static int cache_block_group(struct btrfs_root *root,
 		return -ENOMEM;
 
 	path->reada = 2;
+	/*
+	 * we get into deadlocks with paths held by callers of this function.
+	 * since the alloc_mutex is protecting things right now, just
+	 * skip the locking here
+	 */
+	path->skip_locking = 1;
 	first_free = block_group->key.objectid;
 	key.objectid = block_group->key.objectid;
 	key.offset = 0;
