@@ -518,13 +518,13 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	if (nfss->bsize != 0)
 		seq_printf(m, ",bsize=%u", nfss->bsize);
 	seq_printf(m, ",namlen=%u", nfss->namelen);
-	if (nfss->acregmin != 3*HZ || showdefaults)
+	if (nfss->acregmin != NFS_DEF_ACREGMIN*HZ || showdefaults)
 		seq_printf(m, ",acregmin=%u", nfss->acregmin/HZ);
-	if (nfss->acregmax != 60*HZ || showdefaults)
+	if (nfss->acregmax != NFS_DEF_ACREGMAX*HZ || showdefaults)
 		seq_printf(m, ",acregmax=%u", nfss->acregmax/HZ);
-	if (nfss->acdirmin != 30*HZ || showdefaults)
+	if (nfss->acdirmin != NFS_DEF_ACDIRMIN*HZ || showdefaults)
 		seq_printf(m, ",acdirmin=%u", nfss->acdirmin/HZ);
-	if (nfss->acdirmax != 60*HZ || showdefaults)
+	if (nfss->acdirmax != NFS_DEF_ACDIRMAX*HZ || showdefaults)
 		seq_printf(m, ",acdirmax=%u", nfss->acdirmax/HZ);
 	for (nfs_infop = nfs_info; nfs_infop->flag; nfs_infop++) {
 		if (nfss->flags & nfs_infop->flag)
@@ -1460,10 +1460,10 @@ static int nfs_validate_mount_data(void *options,
 	args->flags		= (NFS_MOUNT_VER3 | NFS_MOUNT_TCP);
 	args->rsize		= NFS_MAX_FILE_IO_SIZE;
 	args->wsize		= NFS_MAX_FILE_IO_SIZE;
-	args->acregmin		= 3;
-	args->acregmax		= 60;
-	args->acdirmin		= 30;
-	args->acdirmax		= 60;
+	args->acregmin		= NFS_DEF_ACREGMIN;
+	args->acregmax		= NFS_DEF_ACREGMAX;
+	args->acdirmin		= NFS_DEF_ACDIRMIN;
+	args->acdirmax		= NFS_DEF_ACDIRMAX;
 	args->mount_server.port	= 0;	/* autobind unless user sets port */
 	args->nfs_server.port	= 0;	/* autobind unless user sets port */
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
@@ -2119,10 +2119,10 @@ static int nfs4_validate_mount_data(void *options,
 
 	args->rsize		= NFS_MAX_FILE_IO_SIZE;
 	args->wsize		= NFS_MAX_FILE_IO_SIZE;
-	args->acregmin		= 3;
-	args->acregmax		= 60;
-	args->acdirmin		= 30;
-	args->acdirmax		= 60;
+	args->acregmin		= NFS_DEF_ACREGMIN;
+	args->acregmax		= NFS_DEF_ACREGMAX;
+	args->acdirmin		= NFS_DEF_ACDIRMIN;
+	args->acdirmax		= NFS_DEF_ACDIRMAX;
 	args->nfs_server.port	= NFS_PORT; /* 2049 unless user set port= */
 
 	switch (data->version) {
