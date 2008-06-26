@@ -44,11 +44,12 @@ struct bsg_device {
 	char name[BUS_ID_SIZE];
 	int max_queue;
 	unsigned long flags;
+	struct blk_scsi_cmd_filter *cmd_filter;
+	mode_t *f_mode;
 };
 
 enum {
 	BSG_F_BLOCK		= 1,
-	BSG_F_WRITE_PERM	= 2,
 };
 
 #define BSG_DEFAULT_CMDS	64
@@ -172,7 +173,7 @@ unlock:
 }
 
 static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
-				struct sg_io_v4 *hdr, int has_write_perm)
+				struct sg_io_v4 *hdr, struct bsg_device *bd)
 {
 	if (hdr->request_len > BLK_MAX_CDB) {
 		rq->cmd = kzalloc(hdr->request_len, GFP_KERNEL);
@@ -185,7 +186,8 @@ static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 		return -EFAULT;
 
 	if (hdr->subprotocol == BSG_SUB_PROTOCOL_SCSI_CMD) {
-		if (blk_verify_command(rq->cmd, has_write_perm))
+		if (blk_cmd_filter_verify_command(bd->cmd_filter, rq->cmd,
+						 bd->f_mode))
 			return -EPERM;
 	} else if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
@@ -263,8 +265,7 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 	rq = blk_get_request(q, rw, GFP_KERNEL);
 	if (!rq)
 		return ERR_PTR(-ENOMEM);
-	ret = blk_fill_sgv4_hdr_rq(q, rq, hdr, test_bit(BSG_F_WRITE_PERM,
-						       &bd->flags));
+	ret = blk_fill_sgv4_hdr_rq(q, rq, hdr, bd);
 	if (ret)
 		goto out;
 
@@ -566,12 +567,23 @@ static inline void bsg_set_block(struct bsg_device *bd, struct file *file)
 		set_bit(BSG_F_BLOCK, &bd->flags);
 }
 
-static inline void bsg_set_write_perm(struct bsg_device *bd, struct file *file)
+static void bsg_set_cmd_filter(struct bsg_device *bd,
+			   struct file *file)
 {
-	if (file->f_mode & FMODE_WRITE)
-		set_bit(BSG_F_WRITE_PERM, &bd->flags);
-	else
-		clear_bit(BSG_F_WRITE_PERM, &bd->flags);
+	struct inode *inode;
+	struct gendisk *disk;
+
+	if (!file)
+		return;
+
+	inode = file->f_dentry->d_inode;
+	if (!inode)
+		return;
+
+	disk = inode->i_bdev->bd_disk;
+
+	bd->cmd_filter = &disk->cmd_filter;
+	bd->f_mode = &file->f_mode;
 }
 
 /*
@@ -595,6 +607,8 @@ bsg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	dprintk("%s: read %Zd bytes\n", bd->name, count);
 
 	bsg_set_block(bd, file);
+	bsg_set_cmd_filter(bd, file);
+
 	bytes_read = 0;
 	ret = __bsg_read(buf, count, bd, NULL, &bytes_read);
 	*ppos = bytes_read;
@@ -668,7 +682,7 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	dprintk("%s: write %Zd bytes\n", bd->name, count);
 
 	bsg_set_block(bd, file);
-	bsg_set_write_perm(bd, file);
+	bsg_set_cmd_filter(bd, file);
 
 	bytes_written = 0;
 	ret = __bsg_write(bd, buf, count, &bytes_written);
@@ -771,7 +785,9 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	}
 
 	bd->queue = rq;
+
 	bsg_set_block(bd, file);
+	bsg_set_cmd_filter(bd, file);
 
 	atomic_set(&bd->ref_count, 1);
 	mutex_lock(&bsg_mutex);
