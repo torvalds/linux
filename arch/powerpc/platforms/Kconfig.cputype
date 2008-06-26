@@ -42,12 +42,14 @@ config 40x
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
 
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
 
 config E200
 	bool "Freescale e200"
