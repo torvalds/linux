@@ -266,3 +266,51 @@ static int init_unity_mappings_for_device(struct dma_ops_domain *dma_dom,
 	return 0;
 }
 
+static unsigned long dma_mask_to_pages(unsigned long mask)
+{
+	return (mask >> PAGE_SHIFT) +
+		(PAGE_ALIGN(mask & ~PAGE_MASK) >> PAGE_SHIFT);
+}
+
+static unsigned long dma_ops_alloc_addresses(struct device *dev,
+					     struct dma_ops_domain *dom,
+					     unsigned int pages)
+{
+	unsigned long limit = dma_mask_to_pages(*dev->dma_mask);
+	unsigned long address;
+	unsigned long size = dom->aperture_size >> PAGE_SHIFT;
+	unsigned long boundary_size;
+
+	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
+			PAGE_SIZE) >> PAGE_SHIFT;
+	limit = limit < size ? limit : size;
+
+	if (dom->next_bit >= limit)
+		dom->next_bit = 0;
+
+	address = iommu_area_alloc(dom->bitmap, limit, dom->next_bit, pages,
+			0 , boundary_size, 0);
+	if (address == -1)
+		address = iommu_area_alloc(dom->bitmap, limit, 0, pages,
+				0, boundary_size, 0);
+
+	if (likely(address != -1)) {
+		set_bit_string(dom->bitmap, address, pages);
+		dom->next_bit = address + pages;
+		address <<= PAGE_SHIFT;
+	} else
+		address = bad_dma_address;
+
+	WARN_ON((address + (PAGE_SIZE*pages)) > dom->aperture_size);
+
+	return address;
+}
+
+static void dma_ops_free_addresses(struct dma_ops_domain *dom,
+				   unsigned long address,
+				   unsigned int pages)
+{
+	address >>= PAGE_SHIFT;
+	iommu_area_free(dom->bitmap, address, pages);
+}
+
