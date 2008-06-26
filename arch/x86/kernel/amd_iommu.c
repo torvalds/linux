@@ -536,3 +536,108 @@ static int get_device_resources(struct device *dev,
 	return 1;
 }
 
+static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
+				     struct dma_ops_domain *dom,
+				     unsigned long address,
+				     phys_addr_t paddr,
+				     int direction)
+{
+	u64 *pte, __pte;
+
+	WARN_ON(address > dom->aperture_size);
+
+	paddr &= PAGE_MASK;
+
+	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
+	pte += IOMMU_PTE_L0_INDEX(address);
+
+	__pte = paddr | IOMMU_PTE_P | IOMMU_PTE_FC;
+
+	if (direction == DMA_TO_DEVICE)
+		__pte |= IOMMU_PTE_IR;
+	else if (direction == DMA_FROM_DEVICE)
+		__pte |= IOMMU_PTE_IW;
+	else if (direction == DMA_BIDIRECTIONAL)
+		__pte |= IOMMU_PTE_IR | IOMMU_PTE_IW;
+
+	WARN_ON(*pte);
+
+	*pte = __pte;
+
+	return (dma_addr_t)address;
+}
+
+static void dma_ops_domain_unmap(struct amd_iommu *iommu,
+				 struct dma_ops_domain *dom,
+				 unsigned long address)
+{
+	u64 *pte;
+
+	if (address >= dom->aperture_size)
+		return;
+
+	WARN_ON(address & 0xfffULL || address > dom->aperture_size);
+
+	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
+	pte += IOMMU_PTE_L0_INDEX(address);
+
+	WARN_ON(!*pte);
+
+	*pte = 0ULL;
+}
+
+static dma_addr_t __map_single(struct device *dev,
+			       struct amd_iommu *iommu,
+			       struct dma_ops_domain *dma_dom,
+			       phys_addr_t paddr,
+			       size_t size,
+			       int dir)
+{
+	dma_addr_t offset = paddr & ~PAGE_MASK;
+	dma_addr_t address, start;
+	unsigned int pages;
+	int i;
+
+	pages = to_pages(paddr, size);
+	paddr &= PAGE_MASK;
+
+	address = dma_ops_alloc_addresses(dev, dma_dom, pages);
+	if (unlikely(address == bad_dma_address))
+		goto out;
+
+	start = address;
+	for (i = 0; i < pages; ++i) {
+		dma_ops_domain_map(iommu, dma_dom, start, paddr, dir);
+		paddr += PAGE_SIZE;
+		start += PAGE_SIZE;
+	}
+	address += offset;
+
+out:
+	return address;
+}
+
+static void __unmap_single(struct amd_iommu *iommu,
+			   struct dma_ops_domain *dma_dom,
+			   dma_addr_t dma_addr,
+			   size_t size,
+			   int dir)
+{
+	dma_addr_t i, start;
+	unsigned int pages;
+
+	if ((dma_addr == 0) || (dma_addr + size > dma_dom->aperture_size))
+		return;
+
+	pages = to_pages(dma_addr, size);
+	dma_addr &= PAGE_MASK;
+	start = dma_addr;
+
+	for (i = 0; i < pages; ++i) {
+		dma_ops_domain_unmap(iommu, dma_dom, start);
+		start += PAGE_SIZE;
+	}
+
+	dma_ops_free_addresses(dma_dom, dma_addr, pages);
+}
+
