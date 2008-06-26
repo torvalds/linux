@@ -278,3 +278,33 @@ static int __init find_last_devid_acpi(struct acpi_table_header *table)
 	return 0;
 }
 
+static u8 * __init alloc_command_buffer(struct amd_iommu *iommu)
+{
+	u8 *cmd_buf = (u8 *)__get_free_pages(GFP_KERNEL,
+			get_order(CMD_BUFFER_SIZE));
+	u64 entry = 0;
+
+	if (cmd_buf == NULL)
+		return NULL;
+
+	iommu->cmd_buf_size = CMD_BUFFER_SIZE;
+
+	memset(cmd_buf, 0, CMD_BUFFER_SIZE);
+
+	entry = (u64)virt_to_phys(cmd_buf);
+	entry |= MMIO_CMD_SIZE_512;
+	memcpy_toio(iommu->mmio_base + MMIO_CMD_BUF_OFFSET,
+			&entry, sizeof(entry));
+
+	iommu_feature_enable(iommu, CONTROL_CMDBUF_EN);
+
+	return cmd_buf;
+}
+
+static void __init free_command_buffer(struct amd_iommu *iommu)
+{
+	if (iommu->cmd_buf)
+		free_pages((unsigned long)iommu->cmd_buf,
+				get_order(CMD_BUFFER_SIZE));
+}
+
