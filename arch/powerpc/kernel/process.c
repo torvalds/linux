@@ -110,7 +110,7 @@ int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 		return 0;
 	flush_fp_to_thread(current);
 
-	memcpy(fpregs, &tsk->thread.fpr[0], sizeof(*fpregs));
+	memcpy(fpregs, &tsk->thread.TS_FPR(0), sizeof(*fpregs));
 
 	return 1;
 }

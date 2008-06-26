@@ -218,7 +218,7 @@ static int fpr_get(struct task_struct *target, const struct user_regset *regset,
 	flush_fp_to_thread(target);
 
 	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
-		     offsetof(struct thread_struct, fpr[32]));
+		     offsetof(struct thread_struct, TS_FPR(32)));
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.fpr, 0, -1);
@@ -231,7 +231,7 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 	flush_fp_to_thread(target);
 
 	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
-		     offsetof(struct thread_struct, fpr[32]));
+		     offsetof(struct thread_struct, TS_FPR(32)));
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  &target->thread.fpr, 0, -1);
@@ -728,7 +728,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			tmp = ptrace_get_reg(child, (int) index);
 		} else {
 			flush_fp_to_thread(child);
-			tmp = ((unsigned long *)child->thread.fpr)[index - PT_FPR0];
+			tmp = ((unsigned long *)child->thread.fpr)
+				[TS_FPRWIDTH * (index - PT_FPR0)];
 		}
 		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
@@ -755,7 +756,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = ptrace_put_reg(child, index, data);
 		} else {
 			flush_fp_to_thread(child);
-			((unsigned long *)child->thread.fpr)[index - PT_FPR0] = data;
+			((unsigned long *)child->thread.fpr)
+				[TS_FPRWIDTH * (index - PT_FPR0)] = data;
 			ret = 0;
 		}
 		break;

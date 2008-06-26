@@ -12,6 +12,8 @@
 
 #include <asm/reg.h>
 
+#define TS_FPRWIDTH 1
+
 #ifndef __ASSEMBLY__
 #include <linux/compiler.h>
 #include <asm/ptrace.h>
@@ -139,6 +141,8 @@ extern struct task_struct *last_task_used_spe;
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
+
+#define TS_FPR(i) fpr[i]
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
