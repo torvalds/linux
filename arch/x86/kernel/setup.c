@@ -714,8 +714,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_reserve_bootmem();
 #endif
-#if defined(CONFIG_X86_FIND_SMP_CONFIG) && defined(CONFIG_X86_32) || \
-    defined(CONFIG_X86_MPPARSE) && defined(CONFIG_X86_64)
+#ifdef CONFIG_X86_FIND_SMP_CONFIG
 	/*
 	 * Find and reserve possible boot-time SMP configuration:
 	 */

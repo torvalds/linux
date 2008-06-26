@@ -233,7 +233,6 @@ config SMP
 config X86_FIND_SMP_CONFIG
 	def_bool y
 	depends on X86_MPPARSE || X86_VOYAGER || X86_VISWS
-	depends on X86_32
 
 if ACPI
 config X86_MPPARSE
