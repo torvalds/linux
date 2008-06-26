@@ -116,3 +116,82 @@ unsigned long *amd_iommu_pd_alloc_bitmap;
 static u32 dev_table_size;
 static u32 alias_table_size;
 static u32 rlookup_table_size;
+
+static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
+{
+	u32 cap;
+
+	cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
+	UPDATE_LAST_BDF(DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
+
+	return 0;
+}
+
+static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
+{
+	u8 *p = (void *)h, *end = (void *)h;
+	struct ivhd_entry *dev;
+
+	p += sizeof(*h);
+	end += h->length;
+
+	find_last_devid_on_pci(PCI_BUS(h->devid),
+			PCI_SLOT(h->devid),
+			PCI_FUNC(h->devid),
+			h->cap_ptr);
+
+	while (p < end) {
+		dev = (struct ivhd_entry *)p;
+		switch (dev->type) {
+		case IVHD_DEV_SELECT:
+		case IVHD_DEV_RANGE_END:
+		case IVHD_DEV_ALIAS:
+		case IVHD_DEV_EXT_SELECT:
+			UPDATE_LAST_BDF(dev->devid);
+			break;
+		default:
+			break;
+		}
+		p += 0x04 << (*p >> 6);
+	}
+
+	WARN_ON(p != end);
+
+	return 0;
+}
+
+static int __init find_last_devid_acpi(struct acpi_table_header *table)
+{
+	int i;
+	u8 checksum = 0, *p = (u8 *)table, *end = (u8 *)table;
+	struct ivhd_header *h;
+
+	/*
+	 * Validate checksum here so we don't need to do it when
+	 * we actually parse the table
+	 */
+	for (i = 0; i < table->length; ++i)
+		checksum += p[i];
+	if (checksum != 0)
+		/* ACPI table corrupt */
+		return -ENODEV;
+
+	p += IVRS_HEADER_LENGTH;
+
+	end += table->length;
+	while (p < end) {
+		h = (struct ivhd_header *)p;
+		switch (h->type) {
+		case ACPI_IVHD_TYPE:
+			find_last_devid_from_ivhd(h);
+			break;
+		default:
+			break;
+		}
+		p += h->length;
+	}
+	WARN_ON(p != end);
+
+	return 0;
+}
+
