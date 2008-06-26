@@ -110,6 +110,7 @@ void ir_rc5_timer_keyup(unsigned long data);
 extern IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_avermedia_m135a[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pixelview_new[IR_KEYTAB_SIZE];

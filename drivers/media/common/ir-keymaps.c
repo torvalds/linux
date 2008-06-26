@@ -103,6 +103,56 @@ IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_avermedia_dvbt);
 
+/* Mauro Carvalho Chehab <mchehab@infradead.org> */
+IR_KEYTAB_TYPE ir_codes_avermedia_m135a[IR_KEYTAB_SIZE] = {
+	[0x00] = KEY_POWER2,
+	[0x2e] = KEY_DOT,		/* '.' */
+	[0x01] = KEY_MODE,		/* TV/FM */
+
+	[0x05] = KEY_1,
+	[0x06] = KEY_2,
+	[0x07] = KEY_3,
+	[0x09] = KEY_4,
+	[0x0a] = KEY_5,
+	[0x0b] = KEY_6,
+	[0x0d] = KEY_7,
+	[0x0e] = KEY_8,
+	[0x0f] = KEY_9,
+	[0x11] = KEY_0,
+
+	[0x13] = KEY_RIGHT,		/* -> */
+	[0x12] = KEY_LEFT,		/* <- */
+
+	[0x17] = KEY_SLEEP,		/* Capturar Imagem */
+	[0x10] = KEY_SHUFFLE,		/* Amostra */
+
+	/* FIXME: The keys bellow aren't ok */
+
+	[0x43] = KEY_CHANNELUP,
+	[0x42] = KEY_CHANNELDOWN,
+	[0x1f] = KEY_VOLUMEUP,
+	[0x1e] = KEY_VOLUMEDOWN,
+	[0x0c] = KEY_ENTER,
+
+	[0x14] = KEY_MUTE,
+	[0x08] = KEY_AUDIO,
+
+	[0x03] = KEY_TEXT,
+	[0x04] = KEY_EPG,
+	[0x2b] = KEY_TV2,		/* TV2 */
+
+	[0x1d] = KEY_RED,
+	[0x1c] = KEY_YELLOW,
+	[0x41] = KEY_GREEN,
+	[0x40] = KEY_BLUE,
+
+	[0x1a] = KEY_PLAYPAUSE,
+	[0x19] = KEY_RECORD,
+	[0x18] = KEY_PLAY,
+	[0x1b] = KEY_STOP,
+};
+EXPORT_SYMBOL_GPL(ir_codes_avermedia_m135a);
+
 /* Attila Kondoros <attila.kondoros@chello.hu> */
 IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE] = {
 

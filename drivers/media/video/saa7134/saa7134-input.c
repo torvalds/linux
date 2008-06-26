@@ -401,6 +401,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPMODE0, 0x4);
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
 		break;
+	case SAA7134_BOARD_AVERMEDIA_M135A:
+		ir_codes     = ir_codes_avermedia_m135a;
+		mask_keydown = 0x0040000;
+		mask_keycode = 0x00013f;
+		nec_gpio     = 1;
+		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
 		ir_codes     = ir_codes_avermedia;
