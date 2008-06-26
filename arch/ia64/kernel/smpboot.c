@@ -395,14 +395,14 @@ smp_callin (void)
 
 	fix_b0_for_bsp();
 
-	lock_ipi_calllock();
+	ipi_call_lock_irq();
 	spin_lock(&vector_lock);
 	/* Setup the per cpu irq handling data structures */
 	__setup_vector_irq(cpuid);
 	cpu_set(cpuid, cpu_online_map);
 	per_cpu(cpu_state, cpuid) = CPU_ONLINE;
 	spin_unlock(&vector_lock);
-	unlock_ipi_calllock();
+	ipi_call_unlock_irq();
 
 	smp_setup_percpu_timer();
 
