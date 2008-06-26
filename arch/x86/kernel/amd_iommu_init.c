@@ -478,3 +478,81 @@ static int __init init_iommu_devices(struct amd_iommu *iommu)
 	return 0;
 }
 
+static void __init free_iommu_one(struct amd_iommu *iommu)
+{
+	free_command_buffer(iommu);
+	iommu_unmap_mmio_space(iommu);
+}
+
+static void __init free_iommu_all(void)
+{
+	struct amd_iommu *iommu, *next;
+
+	list_for_each_entry_safe(iommu, next, &amd_iommu_list, list) {
+		list_del(&iommu->list);
+		free_iommu_one(iommu);
+		kfree(iommu);
+	}
+}
+
+static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
+{
+	spin_lock_init(&iommu->lock);
+	list_add_tail(&iommu->list, &amd_iommu_list);
+
+	/*
+	 * Copy data from ACPI table entry to the iommu struct
+	 */
+	iommu->devid = h->devid;
+	iommu->cap_ptr = h->cap_ptr;
+	iommu->mmio_phys = h->mmio_phys;
+	iommu->mmio_base = iommu_map_mmio_space(h->mmio_phys);
+	if (!iommu->mmio_base)
+		return -ENOMEM;
+
+	iommu_set_device_table(iommu);
+	iommu->cmd_buf = alloc_command_buffer(iommu);
+	if (!iommu->cmd_buf)
+		return -ENOMEM;
+
+	init_iommu_from_pci(iommu);
+	init_iommu_from_acpi(iommu, h);
+	init_iommu_devices(iommu);
+
+	return 0;
+}
+
+static int __init init_iommu_all(struct acpi_table_header *table)
+{
+	u8 *p = (u8 *)table, *end = (u8 *)table;
+	struct ivhd_header *h;
+	struct amd_iommu *iommu;
+	int ret;
+
+	INIT_LIST_HEAD(&amd_iommu_list);
+
+	end += table->length;
+	p += IVRS_HEADER_LENGTH;
+
+	while (p < end) {
+		h = (struct ivhd_header *)p;
+		switch (*p) {
+		case ACPI_IVHD_TYPE:
+			iommu = kzalloc(sizeof(struct amd_iommu), GFP_KERNEL);
+			if (iommu == NULL)
+				return -ENOMEM;
+			ret = init_iommu_one(iommu, h);
+			if (ret)
+				return ret;
+			break;
+		default:
+			break;
+		}
+		p += h->length;
+
+	}
+	WARN_ON(p != end);
+
+	return 0;
+}
+
