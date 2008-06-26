@@ -20,6 +20,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#define _GNU_SOURCE
+#include <getopt.h>
+
 
 struct ihex_binrec {
 	struct ihex_binrec *next; /* not part of the real data structure */
@@ -51,34 +54,49 @@ static void file_record(struct ihex_binrec *record);
 static int output_records(int outfd);
 
 static int sort_records = 0;
+static int wide_records = 0;
+
+int usage(void)
+{
+	fprintf(stderr, "ihex2fw: Convert ihex files into binary "
+		"representation for use by Linux kernel\n");
+	fprintf(stderr, "usage: ihex2fw [<options>] <src.HEX> <dst.fw>\n");
+	fprintf(stderr, "       -w: wide records (16-bit length)\n");
+	fprintf(stderr, "       -s: sort records by address\n");
+	return 1;
+}
 
 int main(int argc, char **argv)
 {
 	int infd, outfd;
 	struct stat st;
 	uint8_t *data;
+	int opt;
 
-	if (argc == 4 && !strcmp(argv[1], "-s")) {
-		sort_records = 1;
-		argc--;
-		argv++;
+	while ((opt = getopt(argc, argv, "ws")) != -1) {
+		switch (opt) {
+		case 'w':
+			wide_records = 1;
+			break;
+		case 's':
+			sort_records = 1;
+			break;
+		default:
+			return usage();
+		}
 	}
-	if (argc != 3) {
-	usage:
-		fprintf(stderr, "ihex2fw: Convert ihex files into binary "
-				"representation for use by Linux kernel\n");
-		fprintf(stderr, "usage: ihex2fw [-s] <src.HEX> <dst.fw>\n");
-		fprintf(stderr, "       -s: sort records by address\n");
-		return 1;
-	}
-	if (!strcmp(argv[1], "-"))
+
+	if (optind + 2 != argc)
+		return usage();
+
+	if (!strcmp(argv[optind], "-"))
 	    infd = 0;
 	else
-		infd = open(argv[1], O_RDONLY);
+		infd = open(argv[optind], O_RDONLY);
 	if (infd == -1) {
 		fprintf(stderr, "Failed to open source file: %s",
 			strerror(errno));
-		goto usage;
+		return usage();
 	}
 	if (fstat(infd, &st)) {
 		perror("stat");
@@ -90,14 +108,14 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (!strcmp(argv[2], "-"))
+	if (!strcmp(argv[optind+1], "-"))
 	    outfd = 1;
 	else
-		outfd = open(argv[2], O_TRUNC|O_CREAT|O_WRONLY, 0644);
+		outfd = open(argv[optind+1], O_TRUNC|O_CREAT|O_WRONLY, 0644);
 	if (outfd == -1) {
 		fprintf(stderr, "Failed to open destination file: %s",
 			strerror(errno));
-		goto usage;
+		return usage();
 	}
 	if (process_ihex(data, st.st_size))
 		return 1;
@@ -130,7 +148,10 @@ next_record:
 	}
 
 	len = hex(data + i, &crc); i += 2;
-
+	if (wide_records) {
+		len <<= 8;
+		len += hex(data + i, &crc); i += 2;
+	}
 	record = malloc((sizeof (*record) + len + 3) & ~3);
 	if (!record) {
 		fprintf(stderr, "out of memory for records\n");
