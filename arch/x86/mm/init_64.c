@@ -320,7 +320,8 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 		}
 
 		if (pmd_val(*pmd)) {
-			phys_pte_update(pmd, address, end);
+			if (!pmd_large(*pmd))
+				phys_pte_update(pmd, address, end);
 			continue;
 		}
 
