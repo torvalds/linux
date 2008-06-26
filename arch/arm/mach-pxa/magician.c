@@ -22,8 +22,6 @@
 #include <linux/input.h>
 #include <linux/mfd/htc-egpio.h>
 #include <linux/mfd/htc-pasic3.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
