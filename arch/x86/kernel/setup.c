@@ -79,6 +79,7 @@
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
+#include <asm/efi.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
 #include <asm/io_apic.h>
@@ -110,6 +111,9 @@
 #include <asm/sections.h>
 #include <asm/topology.h>
 #include <asm/apicdef.h>
+#ifdef CONFIG_X86_64
+#include <asm/numa_64.h>
+#endif
 #ifdef CONFIG_X86_32
 #include <asm/highmem.h>
 #endif
@@ -531,9 +535,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* max_pfn_mapped is updated here */
-#ifdef CONFIG_X86_64
-	max_pfn_mapped =
-#endif
 	max_pfn_mapped = init_memory_mapping(0, (max_low_pfn << PAGE_SHIFT));
 
 	reserve_initrd();
