@@ -44,8 +44,6 @@
 #define DRIVER_DESC "USB HID core driver"
 #define DRIVER_LICENSE "GPL"
 
-static char *hid_types[] = {"Device", "Pointer", "Mouse", "Device", "Joystick",
-				"Gamepad", "Keyboard", "Keypad", "Multi-Axis Controller"};
 /*
  * Module parameters.
  */
@@ -670,70 +668,6 @@ static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 	usb_buffer_free(dev, usbhid->bufsize, usbhid->ctrlbuf, usbhid->ctrlbuf_dma);
 }
 
-static int usbhid_start_finish(struct hid_device *hid)
-{
-	struct usb_interface *intf = to_usb_interface(hid->dev.parent);
-	char path[64], *type;
-	unsigned int i;
-
-	usbhid_init_reports(hid);
-	hid_dump_device(hid);
-	if (hid->quirks & HID_QUIRK_RESET_LEDS)
-		usbhid_set_leds(hid);
-
-	if (!hidinput_connect(hid))
-		hid->claimed |= HID_CLAIMED_INPUT;
-	if (!hiddev_connect(hid))
-		hid->claimed |= HID_CLAIMED_HIDDEV;
-	if (!hidraw_connect(hid))
-		hid->claimed |= HID_CLAIMED_HIDRAW;
-
-	if (!hid->claimed) {
-		printk(KERN_ERR "HID device claimed by neither input, hiddev "
-				"nor hidraw\n");
-		return -ENODEV;
-	}
-
-	if ((hid->claimed & HID_CLAIMED_INPUT))
-		hid_ff_init(hid);
-
-	printk(KERN_INFO);
-
-	if (hid->claimed & HID_CLAIMED_INPUT)
-		printk("input");
-	if ((hid->claimed & HID_CLAIMED_INPUT) &&
-			((hid->claimed & HID_CLAIMED_HIDDEV) ||
-				hid->claimed & HID_CLAIMED_HIDRAW))
-		printk(",");
-	if (hid->claimed & HID_CLAIMED_HIDDEV)
-		printk("hiddev%d", hid->minor);
-	if ((hid->claimed & HID_CLAIMED_INPUT) &&
-			(hid->claimed & HID_CLAIMED_HIDDEV) &&
-			(hid->claimed & HID_CLAIMED_HIDRAW))
-		printk(",");
-	if (hid->claimed & HID_CLAIMED_HIDRAW)
-		printk("hidraw%d", ((struct hidraw *)hid->hidraw)->minor);
-
-	type = "Device";
-	for (i = 0; i < hid->maxcollection; i++) {
-		if (hid->collection[i].type == HID_COLLECTION_APPLICATION &&
-		    (hid->collection[i].usage & HID_USAGE_PAGE) ==
-						HID_UP_GENDESK &&
-		    (hid->collection[i].usage & 0xffff) <
-						ARRAY_SIZE(hid_types)) {
-			type = hid_types[hid->collection[i].usage & 0xffff];
-			break;
-		}
-	}
-
-	usb_make_path(interface_to_usbdev(intf), path, 63);
-
-	printk(": USB HID v%x.%02x %s [%s] on %s\n",
-		hid->version >> 8, hid->version & 0xff, type, hid->name, path);
-
-	return 0;
-}
-
 static int usbhid_parse(struct hid_device *hid)
 {
 	struct usb_interface *intf = to_usb_interface(hid->dev.parent);
@@ -923,9 +857,11 @@ static int usbhid_start(struct hid_device *hid)
 	usbhid->urbctrl->transfer_dma = usbhid->ctrlbuf_dma;
 	usbhid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
-	ret = usbhid_start_finish(hid);
-	if (ret)
-		goto fail;
+	usbhid_init_reports(hid);
+	hid_dump_device(hid);
+
+	if (hid->quirks & HID_QUIRK_RESET_LEDS)
+		usbhid_set_leds(hid);
 
 	return 0;
 
@@ -1000,7 +936,9 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_set_intfdata(intf, hid);
 	hid->ll_driver = &usb_hid_driver;
 	hid->hid_output_raw_report = usbhid_output_raw_report;
+	hid->ff_init = hid_ff_init;
 #ifdef CONFIG_USB_HIDDEV
+	hid->hiddev_connect = hiddev_connect;
 	hid->hiddev_hid_event = hiddev_hid_event;
 	hid->hiddev_report_event = hiddev_report_event;
 #endif

@@ -247,6 +247,19 @@ struct hid_item {
 #define HID_FEATURE_REPORT	2
 
 /*
+ * HID connect requests
+ */
+
+#define HID_CONNECT_HIDINPUT		0x01
+#define HID_CONNECT_HIDINPUT_FORCE	0x02
+#define HID_CONNECT_HIDRAW		0x04
+#define HID_CONNECT_HIDDEV		0x08
+#define HID_CONNECT_HIDDEV_FORCE	0x10
+#define HID_CONNECT_FF			0x20
+#define HID_CONNECT_DEFAULT	(HID_CONNECT_HIDINPUT|HID_CONNECT_HIDRAW| \
+		HID_CONNECT_HIDDEV|HID_CONNECT_FF)
+
+/*
  * HID device quirks.
  */
 
@@ -258,13 +271,10 @@ struct hid_item {
 #define HID_QUIRK_INVERT			0x00000001
 #define HID_QUIRK_NOTOUCH			0x00000002
 #define HID_QUIRK_NOGET				0x00000008
-#define HID_QUIRK_HIDDEV			0x00000010
 #define HID_QUIRK_BADPAD			0x00000020
 #define HID_QUIRK_MULTI_INPUT			0x00000040
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
 #define HID_QUIRK_RESET_LEDS			0x00100000
-#define HID_QUIRK_HIDINPUT			0x00200000
-#define HID_QUIRK_IGNORE_HIDINPUT		0x01000000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 
 /*
@@ -439,7 +449,11 @@ struct hid_device {							/* device report descriptor */
 
 	void *driver_data;
 
+	/* temporary hid_ff handling (until moved to the drivers) */
+	int (*ff_init)(struct hid_device *);
+
 	/* hiddev event handler */
+	int (*hiddev_connect)(struct hid_device *, unsigned int);
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
@@ -610,7 +624,7 @@ extern void hid_unregister_driver(struct hid_driver *);
 
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
-extern int hidinput_connect(struct hid_device *);
+extern int hidinput_connect(struct hid_device *hid, unsigned int force);
 extern void hidinput_disconnect(struct hid_device *);
 
 int hid_set_field(struct hid_field *, unsigned, __s32);
@@ -619,6 +633,7 @@ int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int 
 void hid_output_report(struct hid_report *report, __u8 *data);
 struct hid_device *hid_allocate_device(void);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
+int hid_connect(struct hid_device *hid, unsigned int connect_mask);
 
 /**
  * hid_map_usage - map usage input bits
@@ -700,14 +715,22 @@ static inline int __must_check hid_parse(struct hid_device *hdev)
  * hid_hw_start - start underlaying HW
  *
  * @hdev: hid device
+ * @connect_mask: which outputs to connect, see HID_CONNECT_*
  *
  * Call this in probe function *after* hid_parse. This will setup HW buffers
  * and start the device (if not deffered to device open). hid_hw_stop must be
  * called if this was successfull.
  */
-static inline int __must_check hid_hw_start(struct hid_device *hdev)
+static inline int __must_check hid_hw_start(struct hid_device *hdev,
+		unsigned int connect_mask)
 {
-	return hdev->ll_driver->start(hdev);
+	int ret = hdev->ll_driver->start(hdev);
+	if (ret || !connect_mask)
+		return ret;
+	ret = hid_connect(hdev, connect_mask);
+	if (ret)
+		hdev->ll_driver->stop(hdev);
+	return ret;
 }
 
 /**
@@ -749,7 +772,7 @@ static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
 #endif
 
 #else
-static inline int hid_ff_init(struct hid_device *hid) { return -1; }
+#define hid_ff_init	NULL
 #endif
 
 #ifdef CONFIG_HID_DEBUG

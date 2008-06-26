@@ -54,16 +54,14 @@ static int belkin_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	hid_set_drvdata(hdev, (void *)quirks);
 
-	if (quirks & BELKIN_HIDDEV)
-		hdev->quirks |= HID_QUIRK_HIDDEV;
-
 	ret = hid_parse(hdev);
 	if (ret) {
 		dev_err(&hdev->dev, "parse failed\n");
 		goto err_free;
 	}
 
-	ret = hid_hw_start(hdev);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT |
+		((quirks & BELKIN_HIDDEV) ? HID_CONNECT_HIDDEV_FORCE : 0));
 	if (ret) {
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;

@@ -724,9 +724,6 @@ static int hidp_start(struct hid_device *hid)
 			report_list, list)
 		hidp_send_report(session, report);
 
-	if (hidinput_connect(hid) == 0)
-		hid->claimed |= HID_CLAIMED_INPUT;
-
 	return 0;
 }
 

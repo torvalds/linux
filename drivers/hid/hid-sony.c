@@ -57,15 +57,14 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 
-	hdev->quirks |= HID_QUIRK_HIDDEV;
-
 	ret = hid_parse(hdev);
 	if (ret) {
 		dev_err(&hdev->dev, "parse failed\n");
 		goto err_free;
 	}
 
-	ret = hid_hw_start(hdev);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT |
+			HID_CONNECT_HIDDEV_FORCE);
 	if (ret) {
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;

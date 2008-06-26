@@ -52,15 +52,14 @@ static int samsung_probe(struct hid_device *hdev,
 {
 	int ret;
 
-	hdev->quirks |= HID_QUIRK_HIDDEV | HID_QUIRK_IGNORE_HIDINPUT;
-
 	ret = hid_parse(hdev);
 	if (ret) {
 		dev_err(&hdev->dev, "parse failed\n");
 		goto err_free;
 	}
 
-	ret = hid_hw_start(hdev);
+	ret = hid_hw_start(hdev, (HID_CONNECT_DEFAULT & ~HID_CONNECT_HIDINPUT) |
+			HID_CONNECT_HIDDEV_FORCE);
 	if (ret) {
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;

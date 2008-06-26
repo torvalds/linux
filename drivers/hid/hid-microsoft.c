@@ -154,8 +154,6 @@ static int ms_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	hid_set_drvdata(hdev, (void *)quirks);
 
-	if (quirks & MS_HIDINPUT)
-		hdev->quirks |= HID_QUIRK_HIDINPUT;
 	if (quirks & MS_NOGET)
 		hdev->quirks |= HID_QUIRK_NOGET;
 
@@ -165,7 +163,8 @@ static int ms_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_free;
 	}
 
-	ret = hid_hw_start(hdev);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT | ((quirks & MS_HIDINPUT) ?
+				HID_CONNECT_HIDINPUT_FORCE : 0));
 	if (ret) {
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;

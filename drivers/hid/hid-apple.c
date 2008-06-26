@@ -309,6 +309,7 @@ static int apple_probe(struct hid_device *hdev,
 {
 	unsigned long quirks = id->driver_data;
 	struct apple_sc *asc;
+	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 	int ret;
 
 	/* return something else or move to hid layer? device will reside
@@ -328,18 +329,18 @@ static int apple_probe(struct hid_device *hdev,
 
 	hid_set_drvdata(hdev, asc);
 
-	if (quirks & APPLE_HIDDEV)
-		hdev->quirks |= HID_QUIRK_HIDDEV;
-	if (quirks & APPLE_IGNORE_HIDINPUT)
-		hdev->quirks |= HID_QUIRK_IGNORE_HIDINPUT;
-
 	ret = hid_parse(hdev);
 	if (ret) {
 		dev_err(&hdev->dev, "parse failed\n");
 		goto err_free;
 	}
 
-	ret = hid_hw_start(hdev);
+	if (quirks & APPLE_HIDDEV)
+		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
+	if (quirks & APPLE_IGNORE_HIDINPUT)
+		connect_mask &= ~HID_CONNECT_HIDINPUT;
+
+	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;

@@ -700,7 +700,7 @@ static void hidinput_close(struct input_dev *dev)
  * Read all reports and initialize the absolute field values.
  */
 
-int hidinput_connect(struct hid_device *hid)
+int hidinput_connect(struct hid_device *hid, unsigned int force)
 {
 	struct hid_report *report;
 	struct hid_input *hidinput = NULL;
@@ -708,19 +708,20 @@ int hidinput_connect(struct hid_device *hid)
 	int i, j, k;
 	int max_report_type = HID_OUTPUT_REPORT;
 
-	if (hid->quirks & HID_QUIRK_IGNORE_HIDINPUT)
-		return -1;
-
 	INIT_LIST_HEAD(&hid->inputs);
 
-	for (i = 0; i < hid->maxcollection; i++)
-		if (hid->collection[i].type == HID_COLLECTION_APPLICATION ||
-		    hid->collection[i].type == HID_COLLECTION_PHYSICAL)
-			if (IS_INPUT_APPLICATION(hid->collection[i].usage))
-				break;
+	if (!force) {
+		for (i = 0; i < hid->maxcollection; i++) {
+			struct hid_collection *col = &hid->collection[i];
+			if (col->type == HID_COLLECTION_APPLICATION ||
+					col->type == HID_COLLECTION_PHYSICAL)
+				if (IS_INPUT_APPLICATION(col->usage))
+					break;
+		}
 
-	if (i == hid->maxcollection && (hid->quirks & HID_QUIRK_HIDINPUT) == 0)
-		return -1;
+		if (i == hid->maxcollection)
+			return -1;
+	}
 
 	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
 		max_report_type = HID_INPUT_REPORT;
