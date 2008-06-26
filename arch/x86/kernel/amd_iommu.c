@@ -40,6 +40,11 @@ struct command {
 static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
 
+static int iommu_has_npcache(struct amd_iommu *iommu)
+{
+	return iommu->cap & IOMMU_CAP_NPCACHE;
+}
+
 static int __iommu_queue_command(struct amd_iommu *iommu, struct command *cmd)
 {
 	u32 tail, head;
@@ -639,5 +644,59 @@ static void __unmap_single(struct amd_iommu *iommu,
 	}
 
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
+}
+
+static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
+			     size_t size, int dir)
+{
+	unsigned long flags;
+	struct amd_iommu *iommu;
+	struct protection_domain *domain;
+	u16 devid;
+	dma_addr_t addr;
+
+	get_device_resources(dev, &iommu, &domain, &devid);
+
+	if (iommu == NULL || domain == NULL)
+		return (dma_addr_t)paddr;
+
+	spin_lock_irqsave(&domain->lock, flags);
+	addr = __map_single(dev, iommu, domain->priv, paddr, size, dir);
+	if (addr == bad_dma_address)
+		goto out;
+
+	if (iommu_has_npcache(iommu))
+		iommu_flush_pages(iommu, domain->id, addr, size);
+
+	if (iommu->need_sync)
+		iommu_completion_wait(iommu);
+
+out:
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return addr;
+}
+
+static void unmap_single(struct device *dev, dma_addr_t dma_addr,
+			 size_t size, int dir)
+{
+	unsigned long flags;
+	struct amd_iommu *iommu;
+	struct protection_domain *domain;
+	u16 devid;
+
+	if (!get_device_resources(dev, &iommu, &domain, &devid))
+		return;
+
+	spin_lock_irqsave(&domain->lock, flags);
+
+	__unmap_single(iommu, domain->priv, dma_addr, size, dir);
+
+	iommu_flush_pages(iommu, domain->id, dma_addr, size);
+
+	if (iommu->need_sync)
+		iommu_completion_wait(iommu);
+
+	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
