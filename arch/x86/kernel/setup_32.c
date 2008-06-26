@@ -45,8 +45,31 @@
 #include <linux/dmi.h>
 #include <linux/pfn.h>
 #include <linux/pci.h>
+#include <asm/pci-direct.h>
 #include <linux/init_ohci1394_dma.h>
 #include <linux/kvm_para.h>
+
+#include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/stddef.h>
+#include <linux/unistd.h>
+#include <linux/ptrace.h>
+#include <linux/slab.h>
+#include <linux/user.h>
+#include <linux/delay.h>
+#include <linux/highmem.h>
+
+#include <linux/kallsyms.h>
+#include <linux/edd.h>
+#include <linux/iscsi_ibft.h>
+#include <linux/kexec.h>
+#include <linux/cpufreq.h>
+#include <linux/dma-mapping.h>
+#include <linux/ctype.h>
+#include <linux/uaccess.h>
+
+#include <linux/percpu.h>
+#include <linux/crash_dump.h>
 
 #include <video/edid.h>
 
@@ -54,21 +77,42 @@
 #include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
-#include <asm/mmzone.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
 #include <asm/io_apic.h>
 #include <asm/ist.h>
-#include <asm/io.h>
 #include <asm/vmi.h>
 #include <setup_arch.h>
 #include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
-#include <asm/efi.h>
 #include <asm/bugs.h>
+
+#include <asm/system.h>
+#include <asm/vsyscall.h>
+#include <asm/smp.h>
+#include <asm/desc.h>
+#include <asm/dma.h>
+#include <asm/gart.h>
+#include <asm/mmu_context.h>
+#include <asm/proto.h>
+
+#include <mach_apic.h>
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define ARCH_SETUP
+#endif
+
+#include <asm/percpu.h>
+#include <asm/sections.h>
+#include <asm/topology.h>
+#include <asm/apicdef.h>
+#ifdef CONFIG_X86_32
+#include <asm/highmem.h>
+#endif
 
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
