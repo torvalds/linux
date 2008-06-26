@@ -652,6 +652,12 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 {
 	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), 0);
 }
+static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+					   unsigned long addr, pte_t *ptep)
+{
+	ptep_set_wrprotect(mm, addr, ptep);
+}
+
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
