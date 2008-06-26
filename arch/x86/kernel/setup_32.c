@@ -186,43 +186,18 @@ static inline void copy_edd(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 
-static void __init relocate_initrd(void);
+#ifdef CONFIG_X86_32
 
-static void __init reserve_initrd(void)
+#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
+static void __init relocate_initrd(void)
 {
+
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
-	u64 ramdisk_end   = ramdisk_image + ramdisk_size;
 	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
 	u64 ramdisk_here;
-
-	if (!boot_params.hdr.type_of_loader ||
-	    !ramdisk_image || !ramdisk_size)
-		return;		/* No initrd provided by bootloader */
-
-	initrd_start = 0;
-
-	if (ramdisk_size >= (end_of_lowmem>>1)) {
-		free_early(ramdisk_image, ramdisk_end);
-		printk(KERN_ERR "initrd too large to handle, "
-		       "disabling initrd\n");
-		return;
-	}
-
-	printk(KERN_INFO "old RAMDISK: %08llx - %08llx\n", ramdisk_image,
-			ramdisk_end);
-
-
-	if (ramdisk_end <= end_of_lowmem) {
-		/* All in lowmem, easy case */
-		/*
-		 * don't need to reserve again, already reserved early
-		 * in i386_start_kernel
-		 */
-		initrd_start = ramdisk_image + PAGE_OFFSET;
-		initrd_end = initrd_start + ramdisk_size;
-		return;
-	}
+	unsigned long slop, clen, mapaddr;
+	char *p, *q;
 
 	/* We need to move the initrd down into lowmem */
 	ramdisk_here = find_e820_area(0, end_of_lowmem, ramdisk_size,
@@ -240,22 +215,6 @@ static void __init reserve_initrd(void)
 	initrd_end   = initrd_start + ramdisk_size;
 	printk(KERN_INFO "Allocated new RAMDISK: %08llx - %08llx\n",
 			 ramdisk_here, ramdisk_here + ramdisk_size);
-
-	relocate_initrd();
-}
-
-#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
-
-static void __init relocate_initrd(void)
-{
-	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
-	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
-	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
-	u64 ramdisk_here;
-	unsigned long slop, clen, mapaddr;
-	char *p, *q;
-
-	ramdisk_here = initrd_start - PAGE_OFFSET;
 
 	q = (char *)initrd_start;
 
@@ -286,18 +245,60 @@ static void __init relocate_initrd(void)
 	/* high pages is not converted by early_res_to_bootmem */
 	ramdisk_image = boot_params.hdr.ramdisk_image;
 	ramdisk_size  = boot_params.hdr.ramdisk_size;
-	printk(KERN_INFO "Copied RAMDISK from %016llx - %016llx to %08llx - %08llx\n",
+	printk(KERN_INFO "Move RAMDISK from %016llx - %016llx to"
+		" %08llx - %08llx\n",
 		ramdisk_image, ramdisk_image + ramdisk_size - 1,
 		ramdisk_here, ramdisk_here + ramdisk_size - 1);
+}
+#endif
 
-	/*
-	 * need to free old one, otherwise init cross max_low_pfn could be
-	 * converted to bootmem
-	 */
-	free_early(ramdisk_image, ramdisk_image+ramdisk_size);
+static void __init reserve_initrd(void)
+{
+	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
+	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
+	u64 ramdisk_end   = ramdisk_image + ramdisk_size;
+	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+
+	if (!boot_params.hdr.type_of_loader ||
+	    !ramdisk_image || !ramdisk_size)
+		return;		/* No initrd provided by bootloader */
+
+	initrd_start = 0;
+
+	if (ramdisk_size >= (end_of_lowmem>>1)) {
+		free_early(ramdisk_image, ramdisk_end);
+		printk(KERN_ERR "initrd too large to handle, "
+		       "disabling initrd\n");
+		return;
+	}
+
+	printk(KERN_INFO "RAMDISK: %08llx - %08llx\n", ramdisk_image,
+			ramdisk_end);
+
+
+	if (ramdisk_end <= end_of_lowmem) {
+		/* All in lowmem, easy case */
+		/*
+		 * don't need to reserve again, already reserved early
+		 * in i386_start_kernel
+		 */
+		initrd_start = ramdisk_image + PAGE_OFFSET;
+		initrd_end = initrd_start + ramdisk_size;
+		return;
+	}
+
+#ifdef CONFIG_X86_32
+	relocate_initrd();
+#else
+	printk(KERN_ERR "initrd extends beyond end of memory "
+	       "(0x%08llx > 0x%08llx)\ndisabling initrd\n",
+	       ramdisk_end, end_of_lowmem);
+	initrd_start = 0;
+#endif
+	free_early(ramdisk_image, ramdisk_end);
 }
 #else
-void __init reserve_initrd(void)
+static void __init reserve_initrd(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
