@@ -872,3 +872,37 @@ free_mem:
 	free_pages((unsigned long)virt_addr, get_order(size));
 }
 
+/*
+ * If the driver core informs the DMA layer if a driver grabs a device
+ * we don't need to preallocate the protection domains anymore.
+ * For now we have to.
+ */
+void prealloc_protection_domains(void)
+{
+	struct pci_dev *dev = NULL;
+	struct dma_ops_domain *dma_dom;
+	struct amd_iommu *iommu;
+	int order = amd_iommu_aperture_order;
+	u16 devid;
+
+	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+		devid = (dev->bus->number << 8) | dev->devfn;
+		if (devid >= amd_iommu_last_bdf)
+			continue;
+		devid = amd_iommu_alias_table[devid];
+		if (domain_for_device(devid))
+			continue;
+		iommu = amd_iommu_rlookup_table[devid];
+		if (!iommu)
+			continue;
+		dma_dom = dma_ops_domain_alloc(iommu, order);
+		if (!dma_dom)
+			continue;
+		init_unity_mappings_for_device(dma_dom, devid);
+		set_device_domain(iommu, &dma_dom->domain, devid);
+		printk(KERN_INFO "AMD IOMMU: Allocated domain %d for device ",
+		       dma_dom->domain.id);
+		print_devid(devid, 1);
+	}
+}
+
