@@ -7,6 +7,7 @@
 #include <asm/dma.h>
 #include <asm/gart.h>
 #include <asm/calgary.h>
+#include <asm/amd_iommu.h>
 
 int forbid_dac __read_mostly;
 EXPORT_SYMBOL(forbid_dac);
@@ -121,6 +122,8 @@ void __init pci_iommu_alloc(void)
 #endif
 
 	detect_intel_iommu();
+
+	amd_iommu_detect();
 
 #ifdef CONFIG_SWIOTLB
 	pci_swiotlb_init();
@@ -501,6 +504,8 @@ static int __init pci_iommu_init(void)
 #endif
 
 	intel_iommu_init();
+
+	amd_iommu_init();
 
 #ifdef CONFIG_GART_IOMMU
 	gart_iommu_init();
