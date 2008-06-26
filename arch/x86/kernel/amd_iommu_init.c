@@ -556,3 +556,90 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 	return 0;
 }
 
+static void __init free_unity_maps(void)
+{
+	struct unity_map_entry *entry, *next;
+
+	list_for_each_entry_safe(entry, next, &amd_iommu_unity_map, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+}
+
+static int __init init_exclusion_range(struct ivmd_header *m)
+{
+	int i;
+
+	switch (m->type) {
+	case ACPI_IVMD_TYPE:
+		set_device_exclusion_range(m->devid, m);
+		break;
+	case ACPI_IVMD_TYPE_ALL:
+		for (i = 0; i < amd_iommu_last_bdf; ++i)
+			set_device_exclusion_range(i, m);
+		break;
+	case ACPI_IVMD_TYPE_RANGE:
+		for (i = m->devid; i <= m->aux; ++i)
+			set_device_exclusion_range(i, m);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int __init init_unity_map_range(struct ivmd_header *m)
+{
+	struct unity_map_entry *e = 0;
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (e == NULL)
+		return -ENOMEM;
+
+	switch (m->type) {
+	default:
+	case ACPI_IVMD_TYPE:
+		e->devid_start = e->devid_end = m->devid;
+		break;
+	case ACPI_IVMD_TYPE_ALL:
+		e->devid_start = 0;
+		e->devid_end = amd_iommu_last_bdf;
+		break;
+	case ACPI_IVMD_TYPE_RANGE:
+		e->devid_start = m->devid;
+		e->devid_end = m->aux;
+		break;
+	}
+	e->address_start = PAGE_ALIGN(m->range_start);
+	e->address_end = e->address_start + PAGE_ALIGN(m->range_length);
+	e->prot = m->flags >> 1;
+
+	list_add_tail(&e->list, &amd_iommu_unity_map);
+
+	return 0;
+}
+
+static int __init init_memory_definitions(struct acpi_table_header *table)
+{
+	u8 *p = (u8 *)table, *end = (u8 *)table;
+	struct ivmd_header *m;
+
+	INIT_LIST_HEAD(&amd_iommu_unity_map);
+
+	end += table->length;
+	p += IVRS_HEADER_LENGTH;
+
+	while (p < end) {
+		m = (struct ivmd_header *)p;
+		if (m->flags & IVMD_FLAG_EXCL_RANGE)
+			init_exclusion_range(m);
+		else if (m->flags & IVMD_FLAG_UNITY_MAP)
+			init_unity_map_range(m);
+
+		p += m->length;
+	}
+
+	return 0;
+}
+
