@@ -55,7 +55,6 @@
  * mpc83xx_* files. Mostly for use by mpc83xx_setup
  */
 
-extern int mpc83xx_add_bridge(struct device_node *dev);
 extern void mpc83xx_restart(char *cmd);
 extern long mpc83xx_time_init(void);
 extern int mpc834x_usb_cfg(void);
