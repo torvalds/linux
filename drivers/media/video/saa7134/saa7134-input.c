@@ -509,6 +509,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x040000;
 		polling      = 50; // ms
 		break;
+	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
+		ir_codes     = ir_codes_encore_enltv_fm53;
+		mask_keydown = 0x0040000;
+		mask_keycode = 0x00007f;
+		nec_gpio = 1;
+		break;
 	case SAA7134_BOARD_10MOONSTVMASTER3:
 		ir_codes     = ir_codes_encore_enltv;
 		mask_keycode = 0x5f80000;

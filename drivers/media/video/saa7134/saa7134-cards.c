@@ -3392,6 +3392,42 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = 0,
 		},
 	},
+	[SAA7134_BOARD_ENCORE_ENLTV_FM53] = {
+		.name           = "Encore ENLTV-FM v5.3",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_TNF_5335MF,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask	= 0x7000,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 1,
+			.amux = 1,
+			.tv   = 1,
+			.gpio = 0x50000,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = 2,
+			.gpio = 0x2000,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = 2,
+			.gpio = 0x2000,
+		} },
+		.radio = {
+			.name = name_radio,
+			.vmux = 1,
+			.amux = 1,
+		},
+		.mute = {
+			.name = name_mute,
+			.gpio = 0xf000,
+			.amux = 0,
+		},
+	},
 	[SAA7134_BOARD_CINERGY_HT_PCI] = {
 		.name           = "Terratec Cinergy HT PCI",
 		.audio_clock    = 0x00187de7,
@@ -5191,6 +5227,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x1a7f,
+		.subdevice    = 0x2008,
+		.driver_data  = SAA7134_BOARD_ENCORE_ENLTV_FM53,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1175,
@@ -5684,6 +5726,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
 	case SAA7134_BOARD_ENCORE_ENLTV:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
 	case SAA7134_BOARD_10MOONSTVMASTER3:
 	case SAA7134_BOARD_BEHOLD_401:
 	case SAA7134_BOARD_BEHOLD_403:
