@@ -387,6 +387,10 @@ static void __rcu_offline_cpu(struct rcu_data *this_rdp,
 	rcu_move_batch(this_rdp, rdp->donelist, rdp->donetail);
 	rcu_move_batch(this_rdp, rdp->curlist, rdp->curtail);
 	rcu_move_batch(this_rdp, rdp->nxtlist, rdp->nxttail);
+
+	local_irq_disable();
+	this_rdp->qlen += rdp->qlen;
+	local_irq_enable();
 }
 
 static void rcu_offline_cpu(int cpu)
