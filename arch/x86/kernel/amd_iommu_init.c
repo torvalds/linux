@@ -789,3 +789,37 @@ void __init amd_iommu_detect(void)
 	}
 }
 
+static int __init parse_amd_iommu_options(char *str)
+{
+	for (; *str; ++str) {
+		if (strcmp(str, "off") == 0)
+			amd_iommu_disable = 1;
+		if (strcmp(str, "isolate") == 0)
+			amd_iommu_isolate = 1;
+	}
+
+	return 1;
+}
+
+static int __init parse_amd_iommu_size_options(char *str)
+{
+	for (; *str; ++str) {
+		if (strcmp(str, "32M") == 0)
+			amd_iommu_aperture_order = 25;
+		if (strcmp(str, "64M") == 0)
+			amd_iommu_aperture_order = 26;
+		if (strcmp(str, "128M") == 0)
+			amd_iommu_aperture_order = 27;
+		if (strcmp(str, "256M") == 0)
+			amd_iommu_aperture_order = 28;
+		if (strcmp(str, "512M") == 0)
+			amd_iommu_aperture_order = 29;
+		if (strcmp(str, "1G") == 0)
+			amd_iommu_aperture_order = 30;
+	}
+
+	return 1;
+}
+
+__setup("amd_iommu=", parse_amd_iommu_options);
+__setup("amd_iommu_size=", parse_amd_iommu_size_options);
