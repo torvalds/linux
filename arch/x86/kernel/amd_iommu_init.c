@@ -643,3 +643,129 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 	return 0;
 }
 
+int __init amd_iommu_init(void)
+{
+	int i, ret = 0;
+
+
+	if (amd_iommu_disable) {
+		printk(KERN_INFO "AMD IOMMU disabled by kernel command line\n");
+		return 0;
+	}
+
+	/*
+	 * First parse ACPI tables to find the largest Bus/Dev/Func
+	 * we need to handle. Upon this information the shared data
+	 * structures for the IOMMUs in the system will be allocated
+	 */
+	if (acpi_table_parse("IVRS", find_last_devid_acpi) != 0)
+		return -ENODEV;
+
+	dev_table_size     = TBL_SIZE(DEV_TABLE_ENTRY_SIZE);
+	alias_table_size   = TBL_SIZE(ALIAS_TABLE_ENTRY_SIZE);
+	rlookup_table_size = TBL_SIZE(RLOOKUP_TABLE_ENTRY_SIZE);
+
+	ret = -ENOMEM;
+
+	/* Device table - directly used by all IOMMUs */
+	amd_iommu_dev_table = (void *)__get_free_pages(GFP_KERNEL,
+				      get_order(dev_table_size));
+	if (amd_iommu_dev_table == NULL)
+		goto out;
+
+	/*
+	 * Alias table - map PCI Bus/Dev/Func to Bus/Dev/Func the
+	 * IOMMU see for that device
+	 */
+	amd_iommu_alias_table = (void *)__get_free_pages(GFP_KERNEL,
+			get_order(alias_table_size));
+	if (amd_iommu_alias_table == NULL)
+		goto free;
+
+	/* IOMMU rlookup table - find the IOMMU for a specific device */
+	amd_iommu_rlookup_table = (void *)__get_free_pages(GFP_KERNEL,
+			get_order(rlookup_table_size));
+	if (amd_iommu_rlookup_table == NULL)
+		goto free;
+
+	/*
+	 * Protection Domain table - maps devices to protection domains
+	 * This table has the same size as the rlookup_table
+	 */
+	amd_iommu_pd_table = (void *)__get_free_pages(GFP_KERNEL,
+				     get_order(rlookup_table_size));
+	if (amd_iommu_pd_table == NULL)
+		goto free;
+
+	amd_iommu_pd_alloc_bitmap = (void *)__get_free_pages(GFP_KERNEL,
+					    get_order(MAX_DOMAIN_ID/8));
+	if (amd_iommu_pd_alloc_bitmap == NULL)
+		goto free;
+
+	/*
+	 * memory is allocated now; initialize the device table with all zeroes
+	 * and let all alias entries point to itself
+	 */
+	memset(amd_iommu_dev_table, 0, dev_table_size);
+	for (i = 0; i < amd_iommu_last_bdf; ++i)
+		amd_iommu_alias_table[i] = i;
+
+	memset(amd_iommu_pd_table, 0, rlookup_table_size);
+	memset(amd_iommu_pd_alloc_bitmap, 0, MAX_DOMAIN_ID / 8);
+
+	/*
+	 * never allocate domain 0 because its used as the non-allocated and
+	 * error value placeholder
+	 */
+	amd_iommu_pd_alloc_bitmap[0] = 1;
+
+	/*
+	 * now the data structures are allocated and basically initialized
+	 * start the real acpi table scan
+	 */
+	ret = -ENODEV;
+	if (acpi_table_parse("IVRS", init_iommu_all) != 0)
+		goto free;
+
+	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)
+		goto free;
+
+	printk(KERN_INFO "AMD IOMMU: aperture size is %d MB\n",
+			(1 << (amd_iommu_aperture_order-20)));
+
+	printk(KERN_INFO "AMD IOMMU: device isolation ");
+	if (amd_iommu_isolate)
+		printk("enabled\n");
+	else
+		printk("disabled\n");
+
+out:
+	return ret;
+
+free:
+	if (amd_iommu_pd_alloc_bitmap)
+		free_pages((unsigned long)amd_iommu_pd_alloc_bitmap, 1);
+
+	if (amd_iommu_pd_table)
+		free_pages((unsigned long)amd_iommu_pd_table,
+				get_order(rlookup_table_size));
+
+	if (amd_iommu_rlookup_table)
+		free_pages((unsigned long)amd_iommu_rlookup_table,
+				get_order(rlookup_table_size));
+
+	if (amd_iommu_alias_table)
+		free_pages((unsigned long)amd_iommu_alias_table,
+				get_order(alias_table_size));
+
+	if (amd_iommu_dev_table)
+		free_pages((unsigned long)amd_iommu_dev_table,
+				get_order(dev_table_size));
+
+	free_iommu_all();
+
+	free_unity_maps();
+
+	goto out;
+}
+
