@@ -117,6 +117,29 @@ static u32 dev_table_size;
 static u32 alias_table_size;
 static u32 rlookup_table_size;
 
+static u8 * __init iommu_map_mmio_space(u64 address)
+{
+	u8 *ret;
+
+	if (!request_mem_region(address, MMIO_REGION_LENGTH, "amd_iommu"))
+		return NULL;
+
+	ret = ioremap_nocache(address, MMIO_REGION_LENGTH);
+	if (ret != NULL)
+		return ret;
+
+	release_mem_region(address, MMIO_REGION_LENGTH);
+
+	return NULL;
+}
+
+static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)
+{
+	if (iommu->mmio_base)
+		iounmap(iommu->mmio_base);
+	release_mem_region(iommu->mmio_phys, MMIO_REGION_LENGTH);
+}
+
 static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
 {
 	u32 cap;
