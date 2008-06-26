@@ -611,11 +611,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_X86_32
 	probe_roms();
-#else
-# ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
-	if (init_ohci1394_dma_early)
-		init_ohci1394_dma_on_all_controllers();
-# endif
 #endif
 
 	/* after parse_early_param, so could debug it */
@@ -671,6 +666,15 @@ void __init setup_arch(char **cmdline_p)
 
 	/* max_pfn_mapped is updated here */
 	max_pfn_mapped = init_memory_mapping(0, (max_low_pfn << PAGE_SHIFT));
+
+	/*
+	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
+	 */
+
+#ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
+	if (init_ohci1394_dma_early)
+		init_ohci1394_dma_on_all_controllers();
+#endif
 
 	reserve_initrd();
 
@@ -737,15 +741,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_X86_64
 	map_vsyscall();
-#endif
-
-	/*
-	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
-	 */
-
-#if defined(CONFIG_PROVIDE_OHCI1394_DMA_INIT) && defined(CONFIG_X86_32)
-	if (init_ohci1394_dma_early)
-		init_ohci1394_dma_on_all_controllers();
 #endif
 
 #ifdef CONFIG_X86_GENERICARCH

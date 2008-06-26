@@ -442,12 +442,9 @@ void __init native_pagetable_setup_done(pgd_t *base)
  * be partially populated, and so it avoids stomping on any existing
  * mappings.
  */
-static void __init pagetable_init(void)
+static void __init early_ioremap_page_table_range_init(pgd_t *pgd_base)
 {
-	pgd_t *pgd_base = swapper_pg_dir;
 	unsigned long vaddr, end;
-
-	paravirt_pagetable_setup_start(pgd_base);
 
 	/*
 	 * Fixed mappings, only the page table structure has to be
@@ -458,6 +455,13 @@ static void __init pagetable_init(void)
 	end = (FIXADDR_TOP + PMD_SIZE - 1) & PMD_MASK;
 	page_table_range_init(vaddr, end, pgd_base);
 	early_ioremap_reset();
+}
+
+static void __init pagetable_init(void)
+{
+	pgd_t *pgd_base = swapper_pg_dir;
+
+	paravirt_pagetable_setup_start(pgd_base);
 
 	permanent_kmaps_init(pgd_base);
 
@@ -788,6 +792,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	kernel_physical_mapping_init(pgd_base, start, end);
 
+	early_ioremap_page_table_range_init(pgd_base);
+
 	load_cr3(swapper_pg_dir);
 
 	__flush_tlb_all();
@@ -798,6 +804,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	return end >> PAGE_SHIFT;
 }
+
 
 /*
  * paging_init() sets up the page tables - note that the first 8MB are
