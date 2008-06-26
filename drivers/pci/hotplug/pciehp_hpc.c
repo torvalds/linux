@@ -337,10 +337,6 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 
 	slot_ctrl &= ~mask;
 	slot_ctrl |= (cmd & mask);
-	/* Don't enable command completed if caller is changing it. */
-	if (!(mask & CMD_CMPL_INTR_ENABLE))
-		slot_ctrl |= CMD_CMPL_INTR_ENABLE;
-
 	ctrl->cmd_busy = 1;
 	smp_mb();
 	retval = pciehp_writew(ctrl, SLOTCTRL, slot_ctrl);
@@ -996,10 +992,10 @@ int pcie_enable_notification(struct controller *ctrl)
 	if (MRL_SENS(ctrl))
 		cmd |= MRL_DETECT_ENABLE;
 	if (!pciehp_poll_mode)
-		cmd |= HP_INTR_ENABLE;
+		cmd |= HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE;
 
-	mask = PRSN_DETECT_ENABLE | ATTN_BUTTN_ENABLE |
-		PWR_FAULT_DETECT_ENABLE | MRL_DETECT_ENABLE | HP_INTR_ENABLE;
+	mask = PRSN_DETECT_ENABLE | ATTN_BUTTN_ENABLE | MRL_DETECT_ENABLE |
+	       PWR_FAULT_DETECT_ENABLE | HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE;
 
 	if (pcie_write_cmd(ctrl, cmd, mask)) {
 		err("%s: Cannot enable software notification\n", __func__);
