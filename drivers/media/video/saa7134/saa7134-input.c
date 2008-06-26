@@ -533,6 +533,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keydown = 0xf00000;
 		polling = 50; /* ms */
 		break;
+	case SAA7134_BOARD_REAL_ANGEL_220:
+		ir_codes     = ir_codes_real_audio_220_32_keys;
+		mask_keycode = 0x3f00;
+		mask_keyup   = 0x4000;
+		polling = 50; /* ms */
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",

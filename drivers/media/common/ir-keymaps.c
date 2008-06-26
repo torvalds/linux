@@ -2381,3 +2381,43 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv_fm53[IR_KEYTAB_SIZE] = {
 	[0x47] = KEY_SLEEP,		/* shutdown */
 };
 EXPORT_SYMBOL_GPL(ir_codes_encore_enltv_fm53);
+
+/* Zogis Real Audio 220 - 32 keys IR */
+IR_KEYTAB_TYPE ir_codes_real_audio_220_32_keys[IR_KEYTAB_SIZE] = {
+	[0x1c] = KEY_RADIO,
+	[0x12] = KEY_POWER2,
+
+	[0x01] = KEY_1,
+	[0x02] = KEY_2,
+	[0x03] = KEY_3,
+	[0x04] = KEY_4,
+	[0x05] = KEY_5,
+	[0x06] = KEY_6,
+	[0x07] = KEY_7,
+	[0x08] = KEY_8,
+	[0x09] = KEY_9,
+	[0x00] = KEY_0,
+
+	[0x0c] = KEY_VOLUMEUP,
+	[0x18] = KEY_VOLUMEDOWN,
+	[0x0b] = KEY_CHANNELUP,
+	[0x15] = KEY_CHANNELDOWN,
+	[0x16] = KEY_ENTER,
+
+	[0x11] = KEY_LIST,		/* Source */
+	[0x0d] = KEY_AUDIO,		/* stereo */
+
+	[0x0f] = KEY_PREVIOUS,		/* Prev */
+	[0x1b] = KEY_PAUSE,		/* Timeshift */
+	[0x1a] = KEY_NEXT,		/* Next */
+
+	[0x0e] = KEY_STOP,
+	[0x1f] = KEY_PLAY,
+	[0x1e] = KEY_PLAYPAUSE,		/* Pause */
+
+	[0x1d] = KEY_RECORD,
+	[0x13] = KEY_MUTE,
+	[0x19] = KEY_SHUFFLE,		/* Snapshot */
+
+};
+EXPORT_SYMBOL_GPL(ir_codes_real_audio_220_32_keys);

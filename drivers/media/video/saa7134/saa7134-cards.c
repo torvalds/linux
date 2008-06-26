@@ -4513,6 +4513,41 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_REAL_ANGEL_220] = {
+		.name           = "Zogis Real Angel 220",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_TNF_5335MF,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 0x801a8087,
+		.inputs = { {
+			.name   = name_tv,
+			.vmux   = 3,
+			.amux   = LINE2,
+			.tv     = 1,
+			.gpio   = 0x624000,
+	}, {
+			.name   = name_comp1,
+			.vmux   = 1,
+			.amux   = LINE1,
+			.gpio   = 0x624000,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 1,
+			.amux   = LINE1,
+			.gpio   = 0x624000,
+		} },
+		.radio = {
+			.name   = name_radio,
+			.amux   = LINE2,
+			.gpio   = 0x624001,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5780,6 +5815,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_505FM:
 	case SAA7134_BOARD_BEHOLD_507_9FM:
 	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
+	case SAA7134_BOARD_REAL_ANGEL_220:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
