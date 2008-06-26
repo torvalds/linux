@@ -353,3 +353,128 @@ static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
 	}
 }
 
+static void __init init_iommu_from_pci(struct amd_iommu *iommu)
+{
+	int bus = PCI_BUS(iommu->devid);
+	int dev = PCI_SLOT(iommu->devid);
+	int fn  = PCI_FUNC(iommu->devid);
+	int cap_ptr = iommu->cap_ptr;
+	u32 range;
+
+	iommu->cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_CAP_HDR_OFFSET);
+
+	range = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
+	iommu->first_device = DEVID(MMIO_GET_BUS(range), MMIO_GET_FD(range));
+	iommu->last_device = DEVID(MMIO_GET_BUS(range), MMIO_GET_LD(range));
+}
+
+static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
+					struct ivhd_header *h)
+{
+	u8 *p = (u8 *)h;
+	u8 *end = p, flags = 0;
+	u16 dev_i, devid = 0, devid_start = 0, devid_to = 0;
+	u32 ext_flags = 0;
+	bool alias = 0;
+	struct ivhd_entry *e;
+
+	/*
+	 * First set the recommended feature enable bits from ACPI
+	 * into the IOMMU control registers
+	 */
+	h->flags & IVHD_FLAG_HT_TUN_EN ?
+		iommu_feature_enable(iommu, CONTROL_HT_TUN_EN) :
+		iommu_feature_disable(iommu, CONTROL_HT_TUN_EN);
+
+	h->flags & IVHD_FLAG_PASSPW_EN ?
+		iommu_feature_enable(iommu, CONTROL_PASSPW_EN) :
+		iommu_feature_disable(iommu, CONTROL_PASSPW_EN);
+
+	h->flags & IVHD_FLAG_RESPASSPW_EN ?
+		iommu_feature_enable(iommu, CONTROL_RESPASSPW_EN) :
+		iommu_feature_disable(iommu, CONTROL_RESPASSPW_EN);
+
+	h->flags & IVHD_FLAG_ISOC_EN ?
+		iommu_feature_enable(iommu, CONTROL_ISOC_EN) :
+		iommu_feature_disable(iommu, CONTROL_ISOC_EN);
+
+	/*
+	 * make IOMMU memory accesses cache coherent
+	 */
+	iommu_feature_enable(iommu, CONTROL_COHERENT_EN);
+
+	/*
+	 * Done. Now parse the device entries
+	 */
+	p += sizeof(struct ivhd_header);
+	end += h->length;
+
+	while (p < end) {
+		e = (struct ivhd_entry *)p;
+		switch (e->type) {
+		case IVHD_DEV_ALL:
+			for (dev_i = iommu->first_device;
+					dev_i <= iommu->last_device; ++dev_i)
+				set_dev_entry_from_acpi(dev_i, e->flags, 0);
+			break;
+		case IVHD_DEV_SELECT:
+			devid = e->devid;
+			set_dev_entry_from_acpi(devid, e->flags, 0);
+			break;
+		case IVHD_DEV_SELECT_RANGE_START:
+			devid_start = e->devid;
+			flags = e->flags;
+			ext_flags = 0;
+			alias = 0;
+			break;
+		case IVHD_DEV_ALIAS:
+			devid = e->devid;
+			devid_to = e->ext >> 8;
+			set_dev_entry_from_acpi(devid, e->flags, 0);
+			amd_iommu_alias_table[devid] = devid_to;
+			break;
+		case IVHD_DEV_ALIAS_RANGE:
+			devid_start = e->devid;
+			flags = e->flags;
+			devid_to = e->ext >> 8;
+			ext_flags = 0;
+			alias = 1;
+			break;
+		case IVHD_DEV_EXT_SELECT:
+			devid = e->devid;
+			set_dev_entry_from_acpi(devid, e->flags, e->ext);
+			break;
+		case IVHD_DEV_EXT_SELECT_RANGE:
+			devid_start = e->devid;
+			flags = e->flags;
+			ext_flags = e->ext;
+			alias = 0;
+			break;
+		case IVHD_DEV_RANGE_END:
+			devid = e->devid;
+			for (dev_i = devid_start; dev_i <= devid; ++dev_i) {
+				if (alias)
+					amd_iommu_alias_table[dev_i] = devid_to;
+				set_dev_entry_from_acpi(
+						amd_iommu_alias_table[dev_i],
+						flags, ext_flags);
+			}
+			break;
+		default:
+			break;
+		}
+
+		p += 0x04 << (e->type >> 6);
+	}
+}
+
+static int __init init_iommu_devices(struct amd_iommu *iommu)
+{
+	u16 i;
+
+	for (i = iommu->first_device; i <= iommu->last_device; ++i)
+		set_iommu_for_device(iommu, i);
+
+	return 0;
+}
+
