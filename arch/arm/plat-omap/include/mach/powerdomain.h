@@ -38,6 +38,10 @@
 #define PWRSTS_OFF_RET_ON	(PWRSTS_OFF_RET | (1 << PWRDM_POWER_ON))
 
 
+/* Powerdomain flags */
+#define PWRDM_HAS_HDWR_SAR	(1 << 0) /* hardware save-and-restore support */
+
+
 /*
  * Number of memory banks that are power-controllable.	On OMAP3430, the
  * maximum is 4.
@@ -96,6 +100,9 @@ struct powerdomain {
 	/* Possible logic power states when pwrdm in RETENTION */
 	const u8 pwrsts_logic_ret;
 
+	/* Powerdomain flags */
+	const u8 flags;
+
 	/* Number of software-controllable memory banks in this powerdomain */
 	const u8 banks;
 
@@ -149,6 +156,10 @@ int pwrdm_read_logic_pwrst(struct powerdomain *pwrdm);
 int pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm);
 int pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank);
 int pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank);
+
+int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm);
+int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm);
+bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm);
 
 int pwrdm_wait_transition(struct powerdomain *pwrdm);
 

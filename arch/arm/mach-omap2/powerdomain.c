@@ -1003,6 +1003,74 @@ int pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
 }
 
 /**
+ * pwrdm_enable_hdwr_sar - enable automatic hardware SAR for a pwrdm
+ * @pwrdm: struct powerdomain *
+ *
+ * Enable automatic context save-and-restore upon power state change
+ * for some devices in a powerdomain.  Warning: this only affects a
+ * subset of devices in a powerdomain; check the TRM closely.  Returns
+ * -EINVAL if the powerdomain pointer is null or if the powerdomain
+ * does not support automatic save-and-restore, or returns 0 upon
+ * success.
+ */
+int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm)
+{
+	if (!pwrdm)
+		return -EINVAL;
+
+	if (!(pwrdm->flags & PWRDM_HAS_HDWR_SAR))
+		return -EINVAL;
+
+	pr_debug("powerdomain: %s: setting SAVEANDRESTORE bit\n",
+		 pwrdm->name);
+
+	prm_rmw_mod_reg_bits(0, 1 << OMAP3430ES2_SAVEANDRESTORE_SHIFT,
+			     pwrdm->prcm_offs, PM_PWSTCTRL);
+
+	return 0;
+}
+
+/**
+ * pwrdm_disable_hdwr_sar - disable automatic hardware SAR for a pwrdm
+ * @pwrdm: struct powerdomain *
+ *
+ * Disable automatic context save-and-restore upon power state change
+ * for some devices in a powerdomain.  Warning: this only affects a
+ * subset of devices in a powerdomain; check the TRM closely.  Returns
+ * -EINVAL if the powerdomain pointer is null or if the powerdomain
+ * does not support automatic save-and-restore, or returns 0 upon
+ * success.
+ */
+int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
+{
+	if (!pwrdm)
+		return -EINVAL;
+
+	if (!(pwrdm->flags & PWRDM_HAS_HDWR_SAR))
+		return -EINVAL;
+
+	pr_debug("powerdomain: %s: clearing SAVEANDRESTORE bit\n",
+		 pwrdm->name);
+
+	prm_rmw_mod_reg_bits(1 << OMAP3430ES2_SAVEANDRESTORE_SHIFT, 0,
+			     pwrdm->prcm_offs, PM_PWSTCTRL);
+
+	return 0;
+}
+
+/**
+ * pwrdm_has_hdwr_sar - test whether powerdomain supports hardware SAR
+ * @pwrdm: struct powerdomain *
+ *
+ * Returns 1 if powerdomain 'pwrdm' supports hardware save-and-restore
+ * for some devices, or 0 if it does not.
+ */
+bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm)
+{
+	return (pwrdm && pwrdm->flags & PWRDM_HAS_HDWR_SAR) ? 1 : 0;
+}
+
+/**
  * pwrdm_wait_transition - wait for powerdomain power transition to finish
  * @pwrdm: struct powerdomain * to wait for
  *
