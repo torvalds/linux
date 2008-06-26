@@ -679,7 +679,7 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 		sg_remove_request(sfp, srp);
 		return -EFAULT;
 	}
-	if (read_only && (!blk_verify_command(file, cmnd))) {
+	if (read_only && !blk_verify_command(file, cmnd)) {
 		sg_remove_request(sfp, srp);
 		return -EPERM;
 	}
