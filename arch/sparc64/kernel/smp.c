@@ -816,8 +816,9 @@ extern unsigned long xcall_call_function;
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-static int smp_call_function_mask(void (*func)(void *info), void *info,
-				  int nonatomic, int wait, cpumask_t mask)
+static int sparc64_smp_call_function_mask(void (*func)(void *info), void *info,
+					  int nonatomic, int wait,
+					  cpumask_t mask)
 {
 	struct call_data_struct data;
 	int cpus;
@@ -855,8 +856,8 @@ out_unlock:
 int smp_call_function(void (*func)(void *info), void *info,
 		      int nonatomic, int wait)
 {
-	return smp_call_function_mask(func, info, nonatomic, wait,
-				      cpu_online_map);
+	return sparc64_smp_call_function_mask(func, info, nonatomic, wait,
+						cpu_online_map);
 }
 
 void smp_call_function_client(int irq, struct pt_regs *regs)
@@ -893,7 +894,7 @@ static void tsb_sync(void *info)
 
 void smp_tsb_sync(struct mm_struct *mm)
 {
-	smp_call_function_mask(tsb_sync, mm, 0, 1, mm->cpu_vm_mask);
+	sparc64_smp_call_function_mask(tsb_sync, mm, 0, 1, mm->cpu_vm_mask);
 }
 
 extern unsigned long xcall_flush_tlb_mm;
