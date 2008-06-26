@@ -851,6 +851,23 @@ static void atkbd_latitude_keymap_fixup(struct atkbd *atkbd)
 }
 
 /*
+ * Perform fixup for HP system that doesn't generate release
+ * for its video switch
+ */
+static void atkbd_hp_keymap_fixup(struct atkbd *atkbd)
+{
+	const unsigned int forced_release_keys[] = {
+		0x94,
+	};
+	int i;
+
+	if (atkbd->set == 2)
+		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
+			__set_bit(forced_release_keys[i],
+					atkbd->force_release_mask);
+}
+
+/*
  * atkbd_set_keycode_table() initializes keyboard's keycode table
  * according to the selected scancode set
  */
@@ -1451,6 +1468,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_fixup,
 		.driver_data = atkbd_latitude_keymap_fixup,
+	},
+	{
+		.ident = "HP 2133",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP 2133"),
+		},
+		.callback = atkbd_setup_fixup,
+		.driver_data = atkbd_hp_keymap_fixup,
 	},
 	{ }
 };
