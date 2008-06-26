@@ -308,3 +308,48 @@ static void __init free_command_buffer(struct amd_iommu *iommu)
 				get_order(CMD_BUFFER_SIZE));
 }
 
+static void set_dev_entry_bit(u16 devid, u8 bit)
+{
+	int i = (bit >> 5) & 0x07;
+	int _bit = bit & 0x1f;
+
+	amd_iommu_dev_table[devid].data[i] |= (1 << _bit);
+}
+
+static void __init set_dev_entry_from_acpi(u16 devid, u32 flags, u32 ext_flags)
+{
+	if (flags & ACPI_DEVFLAG_INITPASS)
+		set_dev_entry_bit(devid, DEV_ENTRY_INIT_PASS);
+	if (flags & ACPI_DEVFLAG_EXTINT)
+		set_dev_entry_bit(devid, DEV_ENTRY_EINT_PASS);
+	if (flags & ACPI_DEVFLAG_NMI)
+		set_dev_entry_bit(devid, DEV_ENTRY_NMI_PASS);
+	if (flags & ACPI_DEVFLAG_SYSMGT1)
+		set_dev_entry_bit(devid, DEV_ENTRY_SYSMGT1);
+	if (flags & ACPI_DEVFLAG_SYSMGT2)
+		set_dev_entry_bit(devid, DEV_ENTRY_SYSMGT2);
+	if (flags & ACPI_DEVFLAG_LINT0)
+		set_dev_entry_bit(devid, DEV_ENTRY_LINT0_PASS);
+	if (flags & ACPI_DEVFLAG_LINT1)
+		set_dev_entry_bit(devid, DEV_ENTRY_LINT1_PASS);
+}
+
+static void __init set_iommu_for_device(struct amd_iommu *iommu, u16 devid)
+{
+	amd_iommu_rlookup_table[devid] = iommu;
+}
+
+static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
+{
+	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
+
+	if (!(m->flags & IVMD_FLAG_EXCL_RANGE))
+		return;
+
+	if (iommu) {
+		set_dev_entry_bit(m->devid, DEV_ENTRY_EX);
+		iommu->exclusion_start = m->range_start;
+		iommu->exclusion_length = m->range_length;
+	}
+}
+
