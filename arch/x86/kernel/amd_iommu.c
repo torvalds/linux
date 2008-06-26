@@ -25,6 +25,7 @@
 #include <asm/proto.h>
 #include <asm/gart.h>
 #include <asm/amd_iommu_types.h>
+#include <asm/amd_iommu.h>
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 

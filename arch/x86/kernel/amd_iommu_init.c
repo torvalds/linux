@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <asm/pci-direct.h>
 #include <asm/amd_iommu_types.h>
+#include <asm/amd_iommu.h>
 #include <asm/gart.h>
 
 /*
