@@ -118,6 +118,12 @@
 #include <asm/highmem.h>
 #endif
 
+#ifndef CONFIG_DEBUG_BOOT_PARAMS
+struct boot_params __initdata boot_params;
+#else
+struct boot_params boot_params;
+#endif
+
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
    address, and must not be in the .bss segment! */
