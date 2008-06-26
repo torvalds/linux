@@ -476,15 +476,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	vmi_init();
 #endif
-	/*
-	 * NOTE: before this point _nobody_ is allowed to allocate
-	 * any memory using the bootmem allocator.  Although the
-	 * allocator is now initialised only the first 8Mb of the kernel
-	 * virtual address space has been mapped.  All allocations before
-	 * paging_init() has completed must use the alloc_bootmem_low_pages()
-	 * variant (which allocates DMA'able memory) and care must be taken
-	 * not to exceed the 8Mb limit.
-	 */
 
 	paging_init();
 
