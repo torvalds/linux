@@ -117,6 +117,66 @@ static u32 dev_table_size;
 static u32 alias_table_size;
 static u32 rlookup_table_size;
 
+static void __init iommu_set_exclusion_range(struct amd_iommu *iommu)
+{
+	u64 start = iommu->exclusion_start & PAGE_MASK;
+	u64 limit = (start + iommu->exclusion_length) & PAGE_MASK;
+	u64 entry;
+
+	if (!iommu->exclusion_start)
+		return;
+
+	entry = start | MMIO_EXCL_ENABLE_MASK;
+	memcpy_toio(iommu->mmio_base + MMIO_EXCL_BASE_OFFSET,
+			&entry, sizeof(entry));
+
+	entry = limit;
+	memcpy_toio(iommu->mmio_base + MMIO_EXCL_LIMIT_OFFSET,
+			&entry, sizeof(entry));
+}
+
+static void __init iommu_set_device_table(struct amd_iommu *iommu)
+{
+	u32 entry;
+
+	BUG_ON(iommu->mmio_base == NULL);
+
+	entry = virt_to_phys(amd_iommu_dev_table);
+	entry |= (dev_table_size >> 12) - 1;
+	memcpy_toio(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET,
+			&entry, sizeof(entry));
+}
+
+static void __init iommu_feature_enable(struct amd_iommu *iommu, u8 bit)
+{
+	u32 ctrl;
+
+	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
+	ctrl |= (1 << bit);
+	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
+}
+
+static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
+{
+	u32 ctrl;
+
+	ctrl = (u64)readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
+	ctrl &= ~(1 << bit);
+	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
+}
+
+void __init iommu_enable(struct amd_iommu *iommu)
+{
+	u32 ctrl;
+
+	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU at ");
+	print_devid(iommu->devid, 0);
+	printk(" cap 0x%hx\n", iommu->cap_ptr);
+
+	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
+	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
+}
+
 static u8 * __init iommu_map_mmio_space(u64 address)
 {
 	u8 *ret;
