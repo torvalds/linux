@@ -162,9 +162,7 @@ void rate_control_deinitialize(struct ieee80211_local *local);
 
 
 /* Rate control algorithms */
-#if defined(RC80211_PID_COMPILE) || \
-	(defined(CONFIG_MAC80211_RC_PID) && \
-	 !defined(CONFIG_MAC80211_RC_PID_MODULE))
+#ifdef CONFIG_MAC80211_RC_PID
 extern int rc80211_pid_init(void);
 extern void rc80211_pid_exit(void);
 #else

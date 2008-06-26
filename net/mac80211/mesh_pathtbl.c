@@ -262,7 +262,6 @@ void mesh_plink_broken(struct sta_info *sta)
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(mesh_plink_broken);
 
 /**
  * mesh_path_flush_by_nexthop - Deletes mesh paths if their next hop matches

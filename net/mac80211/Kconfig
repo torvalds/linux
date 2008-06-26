@@ -27,6 +27,14 @@ comment "QoS/HT support needs CONFIG_NETDEVICES_MULTIQUEUE"
 menu "Rate control algorithm selection"
 	depends on MAC80211 != n
 
+config MAC80211_RC_PID
+	bool "PID controller based rate control algorithm" if EMBEDDED
+	default y
+	---help---
+	  This option enables a TX rate control algorithm for
+	  mac80211 that uses a PID controller to select the TX
+	  rate.
+
 choice
 	prompt "Default rate control algorithm"
 	default MAC80211_RC_DEFAULT_PID
@@ -38,39 +46,18 @@ choice
 
 config MAC80211_RC_DEFAULT_PID
 	bool "PID controller based rate control algorithm"
-	select MAC80211_RC_PID
+	depends on MAC80211_RC_PID
 	---help---
 	  Select the PID controller based rate control as the
 	  default rate control algorithm. You should choose
 	  this unless you know what you are doing.
 
-config MAC80211_RC_DEFAULT_NONE
-	bool "No default algorithm"
-	depends on EMBEDDED
-	help
-	  Selecting this option will select no default algorithm
-	  and allow you to not build any. Do not choose this
-	  option unless you know your driver comes with another
-	  suitable algorithm.
 endchoice
-
-comment "Selecting 'y' for an algorithm will"
-comment "build the algorithm into mac80211."
 
 config MAC80211_RC_DEFAULT
 	string
 	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""
-
-config MAC80211_RC_PID
-	tristate "PID controller based rate control algorithm"
-	---help---
-	  This option enables a TX rate control algorithm for
-	  mac80211 that uses a PID controller to select the TX
-	  rate.
-
-	  Say Y or M unless you're sure you want to use a
-	  different rate control algorithm.
 
 endmenu
 
