@@ -22,6 +22,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_CYPRESS_MODULE
 	HID_COMPAT_CALL_DRIVER(cypress);
 #endif
+#ifdef CONFIG_HID_DELL_MODULE
+	HID_COMPAT_CALL_DRIVER(dell);
+#endif
 #ifdef CONFIG_HID_EZKEY_MODULE
 	HID_COMPAT_CALL_DRIVER(ezkey);
 #endif

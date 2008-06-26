@@ -131,6 +131,13 @@ config HID_CYPRESS
 	---help---
 	Support for Cypress mouse and barcodes.
 
+config HID_DELL
+	tristate "Dell"
+	default m
+	depends on USB_HID
+	---help---
+	Support for Dell W7658.
+
 config HID_EZKEY
 	tristate "Ezkey"
 	default m
