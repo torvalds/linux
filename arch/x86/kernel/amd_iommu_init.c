@@ -769,3 +769,23 @@ free:
 	goto out;
 }
 
+static int __init early_amd_iommu_detect(struct acpi_table_header *table)
+{
+	return 0;
+}
+
+void __init amd_iommu_detect(void)
+{
+	if (swiotlb || no_iommu || iommu_detected)
+		return;
+
+	if (amd_iommu_disable)
+		return;
+
+	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
+		iommu_detected = 1;
+		gart_iommu_aperture_disabled = 1;
+		gart_iommu_aperture = 0;
+	}
+}
+
