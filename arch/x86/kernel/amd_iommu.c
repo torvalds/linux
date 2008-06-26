@@ -700,3 +700,101 @@ static void unmap_single(struct device *dev, dma_addr_t dma_addr,
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
+static int map_sg_no_iommu(struct device *dev, struct scatterlist *sglist,
+			   int nelems, int dir)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sglist, s, nelems, i) {
+		s->dma_address = (dma_addr_t)sg_phys(s);
+		s->dma_length  = s->length;
+	}
+
+	return nelems;
+}
+
+static int map_sg(struct device *dev, struct scatterlist *sglist,
+		  int nelems, int dir)
+{
+	unsigned long flags;
+	struct amd_iommu *iommu;
+	struct protection_domain *domain;
+	u16 devid;
+	int i;
+	struct scatterlist *s;
+	phys_addr_t paddr;
+	int mapped_elems = 0;
+
+	get_device_resources(dev, &iommu, &domain, &devid);
+
+	if (!iommu || !domain)
+		return map_sg_no_iommu(dev, sglist, nelems, dir);
+
+	spin_lock_irqsave(&domain->lock, flags);
+
+	for_each_sg(sglist, s, nelems, i) {
+		paddr = sg_phys(s);
+
+		s->dma_address = __map_single(dev, iommu, domain->priv,
+					      paddr, s->length, dir);
+
+		if (s->dma_address) {
+			s->dma_length = s->length;
+			mapped_elems++;
+		} else
+			goto unmap;
+		if (iommu_has_npcache(iommu))
+			iommu_flush_pages(iommu, domain->id, s->dma_address,
+					  s->dma_length);
+	}
+
+	if (iommu->need_sync)
+		iommu_completion_wait(iommu);
+
+out:
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return mapped_elems;
+unmap:
+	for_each_sg(sglist, s, mapped_elems, i) {
+		if (s->dma_address)
+			__unmap_single(iommu, domain->priv, s->dma_address,
+				       s->dma_length, dir);
+		s->dma_address = s->dma_length = 0;
+	}
+
+	mapped_elems = 0;
+
+	goto out;
+}
+
+static void unmap_sg(struct device *dev, struct scatterlist *sglist,
+		     int nelems, int dir)
+{
+	unsigned long flags;
+	struct amd_iommu *iommu;
+	struct protection_domain *domain;
+	struct scatterlist *s;
+	u16 devid;
+	int i;
+
+	if (!get_device_resources(dev, &iommu, &domain, &devid))
+		return;
+
+	spin_lock_irqsave(&domain->lock, flags);
+
+	for_each_sg(sglist, s, nelems, i) {
+		__unmap_single(iommu, domain->priv, s->dma_address,
+			       s->dma_length, dir);
+		iommu_flush_pages(iommu, domain->id, s->dma_address,
+				  s->dma_length);
+		s->dma_address = s->dma_length = 0;
+	}
+
+	if (iommu->need_sync)
+		iommu_completion_wait(iommu);
+
+	spin_unlock_irqrestore(&domain->lock, flags);
+}
+
