@@ -210,6 +210,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	if (!bio_flagged(bio, BIO_USER_MAPPED))
 		rq->cmd_flags |= REQ_COPY_USER;
 
+	blk_queue_bounce(q, &bio);
 	bio_get(bio);
 	blk_rq_bio_prep(q, rq, bio);
 	rq->buffer = rq->data = NULL;
