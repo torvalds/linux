@@ -95,6 +95,11 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
+	/* We turn off async exceptions to ensure that the single step will
+	 * be for the instruction we have the kprobe on, if we dont its
+	 * possible we'd get the single step reported for an exception handler
+	 * like Decrementer or External Interrupt */
+	regs->msr &= ~MSR_EE;
 	regs->msr |= MSR_SE;
 
 	/*
@@ -374,6 +379,10 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
 	if (!cur)
+		return 0;
+
+	/* make sure we got here for instruction we have a kprobe on */
+	if (((unsigned long)cur->ainsn.insn + 4) != regs->nip)
 		return 0;
 
 	if ((kcb->kprobe_status != KPROBE_REENTER) && cur->post_handler) {
