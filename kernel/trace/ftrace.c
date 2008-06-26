@@ -502,8 +502,12 @@ static void ftrace_replace_code(int enable)
 				continue;
 
 			/* ignore updates to this record's mcount site */
-			if (get_kprobe((void *)rec->ip))
+			if (get_kprobe((void *)rec->ip)) {
+				freeze_record(rec);
 				continue;
+			} else {
+				unfreeze_record(rec);
+			}
 
 			failed = __ftrace_replace_code(rec, old, new, enable);
 			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
@@ -740,7 +744,10 @@ static int __ftrace_update_code(void *ignore)
 				ftrace_del_hash(p);
 				INIT_HLIST_NODE(&p->node);
 				hlist_add_head(&p->node, &temp_list);
+				freeze_record(p);
 				continue;
+			} else {
+				unfreeze_record(p);
 			}
 
 			/* convert record (i.e, patch mcount-call with NOP) */
