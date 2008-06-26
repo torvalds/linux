@@ -99,3 +99,20 @@ struct ivmd_header {
 	u64 range_length;
 } __attribute__((packed));
 
+static int __initdata amd_iommu_disable;
+
+u16 amd_iommu_last_bdf;
+struct list_head amd_iommu_unity_map;
+unsigned amd_iommu_aperture_order = 26;
+int amd_iommu_isolate;
+
+struct list_head amd_iommu_list;
+struct dev_table_entry *amd_iommu_dev_table;
+u16 *amd_iommu_alias_table;
+struct amd_iommu **amd_iommu_rlookup_table;
+struct protection_domain **amd_iommu_pd_table;
+unsigned long *amd_iommu_pd_alloc_bitmap;
+
+static u32 dev_table_size;
+static u32 alias_table_size;
+static u32 rlookup_table_size;
