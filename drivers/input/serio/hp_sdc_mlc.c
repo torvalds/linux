@@ -50,7 +50,7 @@ MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
 MODULE_DESCRIPTION("Glue for onboard HIL MLC in HP-PARISC machines");
 MODULE_LICENSE("Dual BSD/GPL");
 
-struct hp_sdc_mlc_priv_s {
+static struct hp_sdc_mlc_priv_s {
 	int emtestmode;
 	hp_sdc_transaction trans;
 	u8 tseq[16];
