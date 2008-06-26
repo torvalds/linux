@@ -494,6 +494,10 @@ void __init native_init_IRQ(void)
 	/* IPI for generic function call */
 	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 
+	/* IPI for generic single function call */
+	set_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
+				call_function_single_interrupt);
+
 	/* Low priority IPI to cleanup after moving an irq */
 	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
 #endif

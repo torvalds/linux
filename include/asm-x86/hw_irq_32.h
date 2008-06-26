@@ -32,6 +32,7 @@ extern void (*const interrupt[NR_IRQS])(void);
 void reschedule_interrupt(void);
 void invalidate_interrupt(void);
 void call_function_interrupt(void);
+void call_function_single_interrupt(void);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC

@@ -68,6 +68,7 @@
 #define ERROR_APIC_VECTOR	0xfe
 #define RESCHEDULE_VECTOR	0xfd
 #define CALL_FUNCTION_VECTOR	0xfc
+#define	CALL_FUNCTION_SINGLE_VECTOR	0xfb
 /* fb free - please don't readd KDB here because it's useless
    (hint - think what a NMI bit does to a vector) */
 #define THERMAL_APIC_VECTOR	0xfa
@@ -102,6 +103,7 @@ void spurious_interrupt(void);
 void error_interrupt(void);
 void reschedule_interrupt(void);
 void call_function_interrupt(void);
+void call_function_single_interrupt(void);
 void irq_move_cleanup_interrupt(void);
 void invalidate_interrupt0(void);
 void invalidate_interrupt1(void);

@@ -46,13 +46,8 @@ void xen_smp_cpus_done(unsigned int max_cpus);
 
 void xen_smp_send_stop(void);
 void xen_smp_send_reschedule(int cpu);
-int xen_smp_call_function (void (*func) (void *info), void *info, int nonatomic,
-			   int wait);
-int xen_smp_call_function_single(int cpu, void (*func) (void *info), void *info,
-				 int nonatomic, int wait);
-
-int xen_smp_call_function_mask(cpumask_t mask, void (*func)(void *),
-			       void *info, int wait);
+void xen_smp_send_call_function_ipi(cpumask_t mask);
+void xen_smp_send_call_function_single_ipi(int cpu);
 
 
 /* Declare an asm function, along with symbols needed to make it

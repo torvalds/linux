@@ -345,7 +345,7 @@ static void __cpuinit start_secondary(void *unused)
 	 * lock helps us to not include this cpu in a currently in progress
 	 * smp_call_function().
 	 */
-	lock_ipi_call_lock();
+	ipi_call_lock_irq();
 #ifdef CONFIG_X86_64
 	spin_lock(&vector_lock);
 
@@ -357,7 +357,7 @@ static void __cpuinit start_secondary(void *unused)
 	spin_unlock(&vector_lock);
 #endif
 	cpu_set(smp_processor_id(), cpu_online_map);
-	unlock_ipi_call_lock();
+	ipi_call_unlock_irq();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 
 	setup_secondary_clock();
