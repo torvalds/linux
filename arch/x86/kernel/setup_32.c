@@ -557,10 +557,10 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_ACPI_NUMA
-        /*
-         * Parse SRAT to discover nodes.
-         */
-        acpi_numa_init();
+	/*
+	 * Parse SRAT to discover nodes.
+	 */
+	acpi_numa_init();
 #endif
 
 	initmem_init(0, max_pfn);
