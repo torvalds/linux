@@ -375,7 +375,7 @@ static void __init reserve_initrd(void)
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
 
-void __init parse_setup_data(void)
+static void __init parse_setup_data(void)
 {
 	struct setup_data *data;
 	u64 pa_data;
@@ -417,7 +417,7 @@ static inline unsigned long long get_total_mem(void)
 	return total << PAGE_SHIFT;
 }
 
-void __init reserve_crashkernel(void)
+static void __init reserve_crashkernel(void)
 {
 	unsigned long long total_mem;
 	unsigned long long crash_size, crash_base;
@@ -453,7 +453,7 @@ void __init reserve_crashkernel(void)
 	}
 }
 #else
-void __init reserve_crashkernel(void)
+static void __init reserve_crashkernel(void)
 {
 }
 #endif
@@ -481,7 +481,7 @@ static struct resource standard_io_resources[] = {
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO }
 };
 
-void __init reserve_standard_io_resources(void)
+static void __init reserve_standard_io_resources(void)
 {
 	int i;
 
