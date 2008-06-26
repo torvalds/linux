@@ -224,6 +224,15 @@ config DAVINCI_WATCHDOG
 	  NOTE: once enabled, this timer cannot be disabled.
 	  Say N if you are unsure.
 
+config ORION5X_WATCHDOG
+	tristate "Orion5x watchdog"
+	depends on ARCH_ORION5X
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in the Orion5x ARM SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called orion5x_wdt.
+
 # ARM26 Architecture
 
 # AVR32 Architecture
