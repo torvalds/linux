@@ -100,6 +100,8 @@ static struct resource bss_resource = {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
 };
 
+
+#ifdef CONFIG_X86_32
 static struct resource video_ram_resource = {
 	.name	= "Video RAM area",
 	.start	= 0xa0000,
@@ -108,23 +110,46 @@ static struct resource video_ram_resource = {
 };
 
 /* cpu data as detected by the assembly code in head.S */
-struct cpuinfo_x86 new_cpu_data __cpuinitdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
+struct cpuinfo_x86 new_cpu_data __cpuinitdata = {0, 0, 0, 0, -1, 1, 0, 0, -1};
 /* common cpu data for all cpus */
-struct cpuinfo_x86 boot_cpu_data __read_mostly = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
+struct cpuinfo_x86 boot_cpu_data __read_mostly = {0, 0, 0, 0, -1, 1, 0, 0, -1};
 EXPORT_SYMBOL(boot_cpu_data);
+static void set_mca_bus(int x)
+{
+#ifdef CONFIG_MCA
+	MCA_bus = x;
+#endif
+}
 
 unsigned int def_to_bigsmp;
-
-#ifndef CONFIG_X86_PAE
-unsigned long mmu_cr4_features;
-#else
-unsigned long mmu_cr4_features = X86_CR4_PAE;
-#endif
 
 /* for MCA, but anyone else can use it if they want */
 unsigned int machine_id;
 unsigned int machine_submodel_id;
 unsigned int BIOS_revision;
+
+struct apm_info apm_info;
+EXPORT_SYMBOL(apm_info);
+
+#if defined(CONFIG_X86_SPEEDSTEP_SMI) || \
+	defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)
+struct ist_info ist_info;
+EXPORT_SYMBOL(ist_info);
+#else
+struct ist_info ist_info;
+#endif
+
+#else
+struct cpuinfo_x86 boot_cpu_data __read_mostly;
+EXPORT_SYMBOL(boot_cpu_data);
+#endif
+
+
+#if !defined(CONFIG_X86_PAE) || defined(CONFIG_X86_64)
+unsigned long mmu_cr4_features;
+#else
+unsigned long mmu_cr4_features = X86_CR4_PAE;
+#endif
 
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
 int bootloader_type;
@@ -140,15 +165,8 @@ char dmi_alloc_data[DMI_MAX_DATA];
  */
 struct screen_info screen_info;
 EXPORT_SYMBOL(screen_info);
-struct apm_info apm_info;
-EXPORT_SYMBOL(apm_info);
 struct edid_info edid_info;
 EXPORT_SYMBOL_GPL(edid_info);
-struct ist_info ist_info;
-#if defined(CONFIG_X86_SPEEDSTEP_SMI) || \
-	defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)
-EXPORT_SYMBOL(ist_info);
-#endif
 
 extern int root_mountflags;
 
@@ -302,15 +320,6 @@ static void __init reserve_initrd(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
-
-#ifdef CONFIG_MCA
-static void set_mca_bus(int x)
-{
-	MCA_bus = x;
-}
-#else
-static void set_mca_bus(int x) { }
-#endif
 
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
