@@ -461,3 +461,78 @@ free_dma_dom:
 	return NULL;
 }
 
+static struct protection_domain *domain_for_device(u16 devid)
+{
+	struct protection_domain *dom;
+	unsigned long flags;
+
+	read_lock_irqsave(&amd_iommu_devtable_lock, flags);
+	dom = amd_iommu_pd_table[devid];
+	read_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+
+	return dom;
+}
+
+static void set_device_domain(struct amd_iommu *iommu,
+			      struct protection_domain *domain,
+			      u16 devid)
+{
+	unsigned long flags;
+
+	u64 pte_root = virt_to_phys(domain->pt_root);
+
+	pte_root |= (domain->mode & 0x07) << 9;
+	pte_root |= IOMMU_PTE_IR | IOMMU_PTE_IW | IOMMU_PTE_P | 2;
+
+	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
+	amd_iommu_dev_table[devid].data[0] = pte_root;
+	amd_iommu_dev_table[devid].data[1] = pte_root >> 32;
+	amd_iommu_dev_table[devid].data[2] = domain->id;
+
+	amd_iommu_pd_table[devid] = domain;
+	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+
+	iommu_queue_inv_dev_entry(iommu, devid);
+
+	iommu->need_sync = 1;
+}
+
+static int get_device_resources(struct device *dev,
+				struct amd_iommu **iommu,
+				struct protection_domain **domain,
+				u16 *bdf)
+{
+	struct dma_ops_domain *dma_dom;
+	struct pci_dev *pcidev;
+	u16 _bdf;
+
+	BUG_ON(!dev || dev->bus != &pci_bus_type || !dev->dma_mask);
+
+	pcidev = to_pci_dev(dev);
+	_bdf = (pcidev->bus->number << 8) | pcidev->devfn;
+
+	if (_bdf >= amd_iommu_last_bdf) {
+		*iommu = NULL;
+		*domain = NULL;
+		*bdf = 0xffff;
+		return 0;
+	}
+
+	*bdf = amd_iommu_alias_table[_bdf];
+
+	*iommu = amd_iommu_rlookup_table[*bdf];
+	if (*iommu == NULL)
+		return 0;
+	dma_dom = (*iommu)->default_dom;
+	*domain = domain_for_device(*bdf);
+	if (*domain == NULL) {
+		*domain = &dma_dom->domain;
+		set_device_domain(*iommu, *domain, *bdf);
+		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
+				"device ", (*domain)->id);
+		print_devid(_bdf, 1);
+	}
+
+	return 1;
+}
+
