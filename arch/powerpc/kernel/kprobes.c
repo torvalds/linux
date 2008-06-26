@@ -34,6 +34,13 @@
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/uaccess.h>
+#include <asm/system.h>
+
+#ifdef CONFIG_BOOKE
+#define MSR_SINGLESTEP	(MSR_DE)
+#else
+#define MSR_SINGLESTEP	(MSR_SE)
+#endif
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -53,7 +60,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		ret = -EINVAL;
 	}
 
-	/* insn must be on a special executable page on ppc64 */
+	/* insn must be on a special executable page on ppc64.  This is
+	 * not explicitly required on ppc32 (right now), but it doesn't hurt */
 	if (!ret) {
 		p->ainsn.insn = get_insn_slot();
 		if (!p->ainsn.insn)
@@ -100,7 +108,11 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	 * possible we'd get the single step reported for an exception handler
 	 * like Decrementer or External Interrupt */
 	regs->msr &= ~MSR_EE;
-	regs->msr |= MSR_SE;
+	regs->msr |= MSR_SINGLESTEP;
+#ifdef CONFIG_BOOKE
+	regs->msr &= ~MSR_CE;
+	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
+#endif
 
 	/*
 	 * On powerpc we should single step on the original
@@ -163,7 +175,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			kprobe_opcode_t insn = *p->ainsn.insn;
 			if (kcb->kprobe_status == KPROBE_HIT_SS &&
 					is_trap(insn)) {
-				regs->msr &= ~MSR_SE;
+				/* Turn off 'trace' bits */
+				regs->msr &= ~MSR_SINGLESTEP;
 				regs->msr |= kcb->kprobe_saved_msr;
 				goto no_kprobe;
 			}
@@ -404,10 +417,10 @@ out:
 
 	/*
 	 * if somebody else is singlestepping across a probe point, msr
-	 * will have SE set, in which case, continue the remaining processing
+	 * will have DE/SE set, in which case, continue the remaining processing
 	 * of do_debug, as if this is not a probe hit.
 	 */
-	if (regs->msr & MSR_SE)
+	if (regs->msr & MSR_SINGLESTEP)
 		return 0;
 
 	return 1;
@@ -430,7 +443,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * normal page fault.
 		 */
 		regs->nip = (unsigned long)cur->addr;
-		regs->msr &= ~MSR_SE;
+		regs->msr &= ~MSR_SINGLESTEP; /* Turn off 'trace' bits */
 		regs->msr |= kcb->kprobe_saved_msr;
 		if (kcb->kprobe_status == KPROBE_REENTER)
 			restore_previous_kprobe(kcb);
