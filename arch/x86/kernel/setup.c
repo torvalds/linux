@@ -101,11 +101,7 @@
 #include <asm/proto.h>
 
 #include <mach_apic.h>
-#ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
-#else
-#define ARCH_SETUP
-#endif
 
 #include <asm/percpu.h>
 #include <asm/sections.h>
@@ -113,6 +109,10 @@
 #include <asm/apicdef.h>
 #ifdef CONFIG_X86_64
 #include <asm/numa_64.h>
+#endif
+
+#ifndef ARCH_SETUP
+#define ARCH_SETUP
 #endif
 
 #ifndef CONFIG_DEBUG_BOOT_PARAMS
