@@ -44,7 +44,7 @@
 #include "devices.h"
 #include "generic.h"
 
-static unsigned long magician_pin_config[] = {
+static unsigned long magician_pin_config[] __initdata = {
 
 	/* SDRAM and Static Memory I/O Signals */
 	GPIO20_nSDCS_2,
