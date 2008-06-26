@@ -644,6 +644,16 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 	return 0;
 }
 
+static void __init enable_iommus(void)
+{
+	struct amd_iommu *iommu;
+
+	list_for_each_entry(iommu, &amd_iommu_list, list) {
+		iommu_set_exclusion_range(iommu);
+		iommu_enable(iommu);
+	}
+}
+
 int __init amd_iommu_init(void)
 {
 	int i, ret = 0;
@@ -730,6 +740,12 @@ int __init amd_iommu_init(void)
 
 	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)
 		goto free;
+
+	ret = amd_iommu_init_dma_ops();
+	if (ret)
+		goto free;
+
+	enable_iommus();
 
 	printk(KERN_INFO "AMD IOMMU: aperture size is %d MB\n",
 			(1 << (amd_iommu_aperture_order-20)));
