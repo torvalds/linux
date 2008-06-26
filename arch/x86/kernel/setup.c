@@ -114,9 +114,6 @@
 #ifdef CONFIG_X86_64
 #include <asm/numa_64.h>
 #endif
-#ifdef CONFIG_X86_32
-#include <asm/highmem.h>
-#endif
 
 #ifndef CONFIG_DEBUG_BOOT_PARAMS
 struct boot_params __initdata boot_params;
