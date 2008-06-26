@@ -32,6 +32,7 @@
 #include <linux/firmware.h>
 
 #include "smscoreapi.h"
+#include "sms-cards.h"
 
 int sms_debug;
 module_param_named(debug, sms_debug, int, 0644);
@@ -600,7 +601,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 		sms_info("failed to open \"%s\"", filename);
 		return rc;
 	}
-	sms_info("read FW %s, size=%d\"", filename, fw->size);
+	sms_info("read FW %s, size=%d", filename, fw->size);
 	fw_buffer = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
 			    GFP_KERNEL | GFP_DMA);
 	if (fw_buffer) {
@@ -736,6 +737,12 @@ static char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
 	{"none", "none", "none", "cmmb_vega_12mhz.inp"}
 };
 
+static inline char *sms_get_fw_name(struct smscore_device_t *coredev,
+				    int mode, enum sms_device_type_st type)
+{
+	char **fw = sms_get_board(smscore_get_board_id(coredev))->fw;
+	return (fw && fw[mode]) ? fw[mode] : smscore_fw_lkup[mode][type];
+}
 
 /**
  * calls device handler to change mode of operation
@@ -776,12 +783,26 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		}
 
 		if (!(coredev->modes_supported & (1 << mode))) {
+			char *fw_filename;
+
 			type = smscore_registry_gettype(coredev->devpath);
-			rc = smscore_load_firmware_from_file(
-				coredev, smscore_fw_lkup[mode][type], NULL);
+			fw_filename = sms_get_fw_name(coredev, mode, type);
+
+			rc = smscore_load_firmware_from_file(coredev,
+							     fw_filename, NULL);
 			if (rc < 0) {
-				sms_err("load firmware failed %d", rc);
-				return rc;
+				sms_err("error %d loading firmware: %s, "
+					"trying again with default firmware",
+					rc, fw_filename);
+
+				/* try again with the default firmware */
+				rc = smscore_load_firmware_from_file(coredev,
+					smscore_fw_lkup[mode][type], NULL);
+
+				if (rc < 0) {
+					sms_err("load firmware failed %d", rc);
+					return rc;
+				}
 			}
 		} else
 			sms_info("mode %d supported by running "

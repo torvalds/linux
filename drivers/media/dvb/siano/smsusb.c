@@ -216,6 +216,7 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id)
 		sms_err("failed to allocate firmware buffer");
 		rc = -ENOMEM;
 	}
+	sms_info("read FW %s, size=%d", smsusb1_fw_lkup[id], fw->size);
 
 	release_firmware(fw);
 
