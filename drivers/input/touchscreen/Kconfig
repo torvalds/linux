@@ -103,6 +103,18 @@ config TOUCHSCREEN_MTOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtouch.
 
+config TOUCHSCREEN_INEXIO
+	tristate "iNexio serial touchscreens"
+	select SERIO
+	help
+	  Say Y here if you have an iNexio serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called inexio.
+
 config TOUCHSCREEN_MK712
 	tristate "ICS MicroClock MK712 touchscreen"
 	help
