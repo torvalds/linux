@@ -549,6 +549,13 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
 
+config AMD_IOMMU
+	bool "AMD IOMMU support"
+	select SWIOTL
+	depends on X86_64 && PCI
+	help
+	  Select this to get support for AMD IOMMU hardware in your system.
+
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	bool
