@@ -405,7 +405,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		dbg("%s: controller initialization failed\n", PCIE_MODULE_NAME);
 		goto err_out_none;
 	}
-	pci_set_drvdata(pdev, ctrl);
+	set_service_data(dev, ctrl);
 
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
@@ -445,8 +445,7 @@ err_out_none:
 
 static void pciehp_remove (struct pcie_device *dev)
 {
-	struct pci_dev *pdev = dev->port;
-	struct controller *ctrl = pci_get_drvdata(pdev);
+	struct controller *ctrl = get_service_data(dev);
 
 	cleanup_slots(ctrl);
 	ctrl->hpc_ops->release_ctlr(ctrl);
@@ -463,8 +462,7 @@ static int pciehp_resume (struct pcie_device *dev)
 {
 	printk("%s ENTRY\n", __func__);
 	if (pciehp_force) {
-		struct pci_dev *pdev = dev->port;
-		struct controller *ctrl = pci_get_drvdata(pdev);
+		struct controller *ctrl = get_service_data(dev);
 		struct slot *t_slot;
 		u8 status;
 
