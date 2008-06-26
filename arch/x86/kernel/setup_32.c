@@ -427,7 +427,7 @@ void __init setup_arch(char **cmdline_p)
 	find_low_pfn_range();
 
 	/* max_pfn_mapped is updated here */
-	init_memory_mapping(0, (max_low_pfn << PAGE_SHIFT));
+	max_pfn_mapped = init_memory_mapping(0, (max_low_pfn << PAGE_SHIFT));
 
 	reserve_initrd();
 
