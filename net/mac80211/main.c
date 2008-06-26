@@ -1691,7 +1691,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	list_add_tail(&sdata->list, &local->interfaces);
 
 	name = wiphy_dev(local->hw.wiphy)->driver->name;
-	local->hw.workqueue = create_singlethread_workqueue(name);
+	local->hw.workqueue = create_freezeable_workqueue(name);
 	if (!local->hw.workqueue) {
 		result = -ENOMEM;
 		goto fail_workqueue;
