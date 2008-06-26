@@ -906,3 +906,49 @@ void prealloc_protection_domains(void)
 	}
 }
 
+static struct dma_mapping_ops amd_iommu_dma_ops = {
+	.alloc_coherent = alloc_coherent,
+	.free_coherent = free_coherent,
+	.map_single = map_single,
+	.unmap_single = unmap_single,
+	.map_sg = map_sg,
+	.unmap_sg = unmap_sg,
+};
+
+int __init amd_iommu_init_dma_ops(void)
+{
+	struct amd_iommu *iommu;
+	int order = amd_iommu_aperture_order;
+	int ret;
+
+	list_for_each_entry(iommu, &amd_iommu_list, list) {
+		iommu->default_dom = dma_ops_domain_alloc(iommu, order);
+		if (iommu->default_dom == NULL)
+			return -ENOMEM;
+		ret = iommu_init_unity_mappings(iommu);
+		if (ret)
+			goto free_domains;
+	}
+
+	if (amd_iommu_isolate)
+		prealloc_protection_domains();
+
+	iommu_detected = 1;
+	force_iommu = 1;
+	bad_dma_address = 0;
+	gart_iommu_aperture_disabled = 1;
+	gart_iommu_aperture = 0;
+
+	dma_ops = &amd_iommu_dma_ops;
+
+	return 0;
+
+free_domains:
+
+	list_for_each_entry(iommu, &amd_iommu_list, list) {
+		if (iommu->default_dom)
+			dma_ops_domain_free(iommu->default_dom);
+	}
+
+	return ret;
+}
