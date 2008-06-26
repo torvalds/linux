@@ -154,6 +154,7 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 	struct btrfs_item *item;
 	struct btrfs_root_item *ri;
 	struct btrfs_key key;
+	struct btrfs_key found_key;
 	struct btrfs_path *path;
 	int ret;
 	u32 nritems;
@@ -166,6 +167,8 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+
+again:
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
@@ -196,7 +199,11 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 		if (btrfs_disk_root_refs(leaf, ri) != 0)
 			goto next;
 
-		dead_root = btrfs_read_fs_root_no_radix(root->fs_info, &key);
+		memcpy(&found_key, &key, sizeof(key));
+		key.offset++;
+		btrfs_release_path(root, path);
+		dead_root = btrfs_read_fs_root_no_radix(root->fs_info,
+							&found_key);
 		if (IS_ERR(dead_root)) {
 			ret = PTR_ERR(dead_root);
 			goto err;
@@ -206,6 +213,7 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 					  &root->fs_info->dead_roots);
 		if (ret)
 			goto err;
+		goto again;
 next:
 		slot++;
 		path->slots[0]++;
