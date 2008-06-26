@@ -266,6 +266,8 @@ static int __init pcie_setup(struct pci_sys_data *sys)
  */
 static DEFINE_SPINLOCK(orion5x_pci_lock);
 
+static int orion5x_pci_cardbus_mode;
+
 static int orion5x_pci_local_bus_nr(void)
 {
 	u32 conf = readl(PCI_P2P_CONF);
@@ -321,14 +323,30 @@ static int orion5x_pci_hw_wr_conf(int bus, int dev, u32 func,
 	return ret;
 }
 
+static int orion5x_pci_valid_config(int bus, u32 devfn)
+{
+	if (bus == orion5x_pci_local_bus_nr()) {
+		/*
+		 * Don't go out for local device
+		 */
+		if (PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0)
+			return 0;
+
+		/*
+		 * When the PCI signals are directly connected to a
+		 * Cardbus slot, ignore all but device IDs 0 and 1.
+		 */
+		if (orion5x_pci_cardbus_mode && PCI_SLOT(devfn) > 1)
+			return 0;
+	}
+
+	return 1;
+}
+
 static int orion5x_pci_rd_conf(struct pci_bus *bus, u32 devfn,
 				int where, int size, u32 *val)
 {
-	/*
-	 * Don't go out for local device
-	 */
-	if (bus->number == orion5x_pci_local_bus_nr() &&
-	    PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0) {
+	if (!orion5x_pci_valid_config(bus->number, devfn)) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
@@ -340,8 +358,7 @@ static int orion5x_pci_rd_conf(struct pci_bus *bus, u32 devfn,
 static int orion5x_pci_wr_conf(struct pci_bus *bus, u32 devfn,
 				int where, int size, u32 val)
 {
-	if (bus->number == orion5x_pci_local_bus_nr() &&
-	    PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0)
+	if (!orion5x_pci_valid_config(bus->number, devfn))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return orion5x_pci_hw_wr_conf(bus->number, PCI_SLOT(devfn),
@@ -523,6 +540,11 @@ static void __devinit rc_pci_fixup(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_ANY_ID, rc_pci_fixup);
+
+void __init orion5x_pci_set_cardbus_mode(void)
+{
+	orion5x_pci_cardbus_mode = 1;
+}
 
 int __init orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {
