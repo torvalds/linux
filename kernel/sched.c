@@ -2128,6 +2128,9 @@ static int sched_balance_self(int cpu, int flag)
 			sd = tmp;
 	}
 
+	if (sd)
+		update_shares(sd);
+
 	while (sd) {
 		cpumask_t span, tmpmask;
 		struct sched_group *group;
