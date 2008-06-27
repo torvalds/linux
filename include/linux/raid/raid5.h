@@ -267,10 +267,8 @@ struct r6_state {
 
 /* modifiers to the base operations
  * STRIPE_OP_MOD_REPAIR_PD - compute the parity block and write it back
- * STRIPE_OP_MOD_DMA_CHECK - parity is not corrupted by the check
  */
 #define STRIPE_OP_MOD_REPAIR_PD 7
-#define STRIPE_OP_MOD_DMA_CHECK 8
 
 /*
  * Plugging:

@@ -837,14 +837,9 @@ ops_run_postxor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx,
 static void ops_complete_check(void *stripe_head_ref)
 {
 	struct stripe_head *sh = stripe_head_ref;
-	int pd_idx = sh->pd_idx;
 
 	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
-
-	if (test_and_clear_bit(STRIPE_OP_MOD_DMA_CHECK, &sh->ops.pending) &&
-		sh->ops.zero_sum_result == 0)
-		set_bit(R5_UPTODATE, &sh->dev[pd_idx].flags);
 
 	set_bit(STRIPE_OP_CHECK, &sh->ops.complete);
 	set_bit(STRIPE_HANDLE, &sh->state);
@@ -872,11 +867,6 @@ static void ops_run_check(struct stripe_head *sh)
 
 	tx = async_xor_zero_sum(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
 		&sh->ops.zero_sum_result, 0, NULL, NULL, NULL);
-
-	if (tx)
-		set_bit(STRIPE_OP_MOD_DMA_CHECK, &sh->ops.pending);
-	else
-		clear_bit(STRIPE_OP_MOD_DMA_CHECK, &sh->ops.pending);
 
 	atomic_inc(&sh->count);
 	tx = async_trigger_callback(ASYNC_TX_DEP_ACK | ASYNC_TX_ACK, tx,
