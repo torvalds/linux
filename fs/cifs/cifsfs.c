@@ -581,7 +581,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		if (retval < 0)
 			return (loff_t)retval;
 	}
-	return remote_llseek(file, offset, origin);
+	return generic_file_llseek_unlocked(file, offset, origin);
 }
 
 struct file_system_type cifs_fs_type = {
