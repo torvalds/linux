@@ -346,6 +346,10 @@ int early_cpu_to_node(int cpu)
 	return per_cpu(x86_cpu_to_node_map, cpu);
 }
 
+
+/* empty cpumask */
+static const cpumask_t cpu_mask_none;
+
 /*
  * Returns a pointer to the bitmask of CPUs on Node 'node'.
  */
@@ -358,13 +362,23 @@ cpumask_t *_node_to_cpumask_ptr(int node)
 		dump_stack();
 		return &cpu_online_map;
 	}
-	BUG_ON(node >= nr_node_ids);
-	return &node_to_cpumask_map[node];
+	if (node >= nr_node_ids) {
+		printk(KERN_WARNING
+			"_node_to_cpumask_ptr(%d): node > nr_node_ids(%d)\n",
+			node, nr_node_ids);
+		dump_stack();
+		return (cpumask_t *)&cpu_mask_none;
+	}
+	return (cpumask_t *)&node_to_cpumask_map[node];
 }
 EXPORT_SYMBOL(_node_to_cpumask_ptr);
 
 /*
  * Returns a bitmask of CPUs on Node 'node'.
+ *
+ * Side note: this function creates the returned cpumask on the stack
+ * so with a high NR_CPUS count, excessive stack space is used.  The
+ * node_to_cpumask_ptr function should be used whenever possible.
  */
 cpumask_t node_to_cpumask(int node)
 {
@@ -374,7 +388,13 @@ cpumask_t node_to_cpumask(int node)
 		dump_stack();
 		return cpu_online_map;
 	}
-	BUG_ON(node >= nr_node_ids);
+	if (node >= nr_node_ids) {
+		printk(KERN_WARNING
+			"node_to_cpumask(%d): node > nr_node_ids(%d)\n",
+			node, nr_node_ids);
+		dump_stack();
+		return cpu_mask_none;
+	}
 	return node_to_cpumask_map[node];
 }
 EXPORT_SYMBOL(node_to_cpumask);

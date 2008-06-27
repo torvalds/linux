@@ -57,7 +57,12 @@ static inline int cpu_to_node(int cpu)
 }
 #define early_cpu_to_node(cpu)	cpu_to_node(cpu)
 
-/* Returns a bitmask of CPUs on Node 'node'. */
+/* Returns a bitmask of CPUs on Node 'node'.
+ *
+ * Side note: this function creates the returned cpumask on the stack
+ * so with a high NR_CPUS count, excessive stack space is used.  The
+ * node_to_cpumask_ptr function should be used whenever possible.
+ */
 static inline cpumask_t node_to_cpumask(int node)
 {
 	return node_to_cpumask_map[node];
