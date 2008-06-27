@@ -37,6 +37,8 @@
 #define AIC3X_ASD_INTF_CTRLB		9
 /* Audio overflow status and PLL R value programming register */
 #define AIC3X_OVRF_STATUS_AND_PLLR_REG	11
+/* Audio codec digital filter control register */
+#define AIC3X_CODEC_DFILT_CTRL		12
 
 /* ADC PGA Gain control registers */
 #define LADC_VOL			15

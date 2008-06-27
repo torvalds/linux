@@ -223,6 +223,8 @@ static const char *aic3x_right_hpcom_mux[] =
     { "differential of HPROUT", "constant VCM", "single-ended",
       "differential of HPLCOM", "external feedback" };
 static const char *aic3x_linein_mode_mux[] = { "single-ended", "differential" };
+static const char *aic3x_adc_hpf[] =
+    { "Disabled", "0.0045xFs", "0.0125xFs", "0.025xFs" };
 
 #define LDAC_ENUM	0
 #define RDAC_ENUM	1
@@ -232,6 +234,7 @@ static const char *aic3x_linein_mode_mux[] = { "single-ended", "differential" };
 #define LINE1R_ENUM	5
 #define LINE2L_ENUM	6
 #define LINE2R_ENUM	7
+#define ADC_HPF_ENUM	8
 
 static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(DAC_LINE_MUX, 6, 3, aic3x_left_dac_mux),
@@ -242,6 +245,7 @@ static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(LINE1R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2L_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
+	SOC_ENUM_DOUBLE(AIC3X_CODEC_DFILT_CTRL, 6, 4, 4, aic3x_adc_hpf),
 };
 
 static const struct snd_kcontrol_new aic3x_snd_controls[] = {
@@ -292,6 +296,8 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	/* Input */
 	SOC_DOUBLE_R("PGA Capture Volume", LADC_VOL, RADC_VOL, 0, 0x7f, 0),
 	SOC_DOUBLE_R("PGA Capture Switch", LADC_VOL, RADC_VOL, 7, 0x01, 1),
+
+	SOC_ENUM("ADC HPF Cut-off", aic3x_enum[ADC_HPF_ENUM]),
 };
 
 /* add non dapm controls */
