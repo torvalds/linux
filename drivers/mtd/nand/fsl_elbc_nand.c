@@ -89,7 +89,6 @@ static struct nand_ecclayout fsl_elbc_oob_sp_eccm0 = {
 	.eccbytes = 3,
 	.eccpos = {6, 7, 8},
 	.oobfree = { {0, 5}, {9, 7} },
-	.oobavail = 12,
 };
 
 /* Small Page FLASH with FMR[ECCM] = 1 */
@@ -97,7 +96,6 @@ static struct nand_ecclayout fsl_elbc_oob_sp_eccm1 = {
 	.eccbytes = 3,
 	.eccpos = {8, 9, 10},
 	.oobfree = { {0, 5}, {6, 2}, {11, 5} },
-	.oobavail = 12,
 };
 
 /* Large Page FLASH with FMR[ECCM] = 0 */
@@ -105,7 +103,6 @@ static struct nand_ecclayout fsl_elbc_oob_lp_eccm0 = {
 	.eccbytes = 12,
 	.eccpos = {6, 7, 8, 22, 23, 24, 38, 39, 40, 54, 55, 56},
 	.oobfree = { {1, 5}, {9, 13}, {25, 13}, {41, 13}, {57, 7} },
-	.oobavail = 48,
 };
 
 /* Large Page FLASH with FMR[ECCM] = 1 */
@@ -113,7 +110,6 @@ static struct nand_ecclayout fsl_elbc_oob_lp_eccm1 = {
 	.eccbytes = 12,
 	.eccpos = {8, 9, 10, 24, 25, 26, 40, 41, 42, 56, 57, 58},
 	.oobfree = { {1, 7}, {11, 13}, {27, 13}, {43, 13}, {59, 5} },
-	.oobavail = 48,
 };
 
 /*
@@ -730,8 +726,6 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 			                   &fsl_elbc_oob_lp_eccm1 :
 			                   &fsl_elbc_oob_lp_eccm0;
 			chip->badblock_pattern = &largepage_memorybased;
-			mtd->ecclayout = chip->ecc.layout;
-			mtd->oobavail = chip->ecc.layout->oobavail;
 		}
 	} else {
 		dev_err(ctrl->dev,
