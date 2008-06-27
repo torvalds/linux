@@ -1509,7 +1509,9 @@ xfs_bmbt_split(
 		 * block allocation here and corrupt the filesystem.
 		 */
 		args.minleft = xfs_trans_get_block_res(args.tp);
-	} else
+	} else if (cur->bc_private.b.flist->xbf_low)
+		args.type = XFS_ALLOCTYPE_START_BNO;
+	else
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	args.mod = args.alignment = args.total = args.isfl =
 		args.userdata = args.minalignslop = 0;
@@ -2237,7 +2239,9 @@ xfs_bmbt_newroot(
 #endif
 		args.fsbno = be64_to_cpu(*pp);
 		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else
+	} else if (cur->bc_private.b.flist->xbf_low)
+		args.type = XFS_ALLOCTYPE_START_BNO;
+	else
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	if ((error = xfs_alloc_vextent(&args))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
