@@ -39,7 +39,7 @@ static s32 igb_set_fc_watermarks(struct e1000_hw *hw);
 static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr);
 
 /**
- *  e1000_remove_device - Free device specific structure
+ *  igb_remove_device - Free device specific structure
  *  @hw: pointer to the HW structure
  *
  *  If a device specific structure was allocated, this function will
@@ -73,7 +73,7 @@ static s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 }
 
 /**
- *  e1000_get_bus_info_pcie - Get PCIe bus information
+ *  igb_get_bus_info_pcie - Get PCIe bus information
  *  @hw: pointer to the HW structure
  *
  *  Determines and stores the system bus information for a particular
@@ -113,7 +113,7 @@ s32 igb_get_bus_info_pcie(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_clear_vfta - Clear VLAN filter table
+ *  igb_clear_vfta - Clear VLAN filter table
  *  @hw: pointer to the HW structure
  *
  *  Clears the register array which contains the VLAN filter table by
@@ -130,7 +130,7 @@ void igb_clear_vfta(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_write_vfta - Write value to VLAN filter table
+ *  igb_write_vfta - Write value to VLAN filter table
  *  @hw: pointer to the HW structure
  *  @offset: register offset in VLAN filter table
  *  @value: register value written to VLAN filter table
@@ -145,7 +145,7 @@ void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 }
 
 /**
- *  e1000_init_rx_addrs - Initialize receive address's
+ *  igb_init_rx_addrs - Initialize receive address's
  *  @hw: pointer to the HW structure
  *  @rar_count: receive address registers
  *
@@ -173,7 +173,7 @@ void igb_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 }
 
 /**
- *  e1000_check_alt_mac_addr - Check for alternate MAC addr
+ *  igb_check_alt_mac_addr - Check for alternate MAC addr
  *  @hw: pointer to the HW structure
  *
  *  Checks the nvm for an alternate MAC address.  An alternate MAC address
@@ -233,7 +233,7 @@ out:
 }
 
 /**
- *  e1000_rar_set - Set receive address register
+ *  igb_rar_set - Set receive address register
  *  @hw: pointer to the HW structure
  *  @addr: pointer to the receive address
  *  @index: receive address array register
@@ -263,7 +263,7 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 }
 
 /**
- *  e1000_mta_set - Set multicast filter table address
+ *  igb_mta_set - Set multicast filter table address
  *  @hw: pointer to the HW structure
  *  @hash_value: determines the MTA register and bit to set
  *
@@ -298,7 +298,7 @@ static void igb_mta_set(struct e1000_hw *hw, u32 hash_value)
 }
 
 /**
- *  e1000_update_mc_addr_list - Update Multicast addresses
+ *  igb_update_mc_addr_list - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
@@ -352,7 +352,7 @@ void igb_update_mc_addr_list(struct e1000_hw *hw,
 }
 
 /**
- *  e1000_hash_mc_addr - Generate a multicast hash value
+ *  igb_hash_mc_addr - Generate a multicast hash value
  *  @hw: pointer to the HW structure
  *  @mc_addr: pointer to a multicast address
  *
@@ -423,7 +423,7 @@ static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 }
 
 /**
- *  e1000_clear_hw_cntrs_base - Clear base hardware counters
+ *  igb_clear_hw_cntrs_base - Clear base hardware counters
  *  @hw: pointer to the HW structure
  *
  *  Clears the base hardware counters by reading the counter registers.
@@ -472,7 +472,7 @@ void igb_clear_hw_cntrs_base(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_check_for_copper_link - Check for link (Copper)
+ *  igb_check_for_copper_link - Check for link (Copper)
  *  @hw: pointer to the HW structure
  *
  *  Checks to see of the link status of the hardware has changed.  If a
@@ -547,7 +547,7 @@ out:
 }
 
 /**
- *  e1000_setup_link - Setup flow control and link settings
+ *  igb_setup_link - Setup flow control and link settings
  *  @hw: pointer to the HW structure
  *
  *  Determines which flow control settings to use, then configures flow
@@ -606,7 +606,7 @@ out:
 }
 
 /**
- *  e1000_config_collision_dist - Configure collision distance
+ *  igb_config_collision_dist - Configure collision distance
  *  @hw: pointer to the HW structure
  *
  *  Configures the collision distance to the default value and is used
@@ -627,7 +627,7 @@ void igb_config_collision_dist(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_fc_watermarks - Set flow control high/low watermarks
+ *  igb_set_fc_watermarks - Set flow control high/low watermarks
  *  @hw: pointer to the HW structure
  *
  *  Sets the flow control high/low threshold (watermark) registers.  If
@@ -665,7 +665,7 @@ static s32 igb_set_fc_watermarks(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_default_fc - Set flow control default values
+ *  igb_set_default_fc - Set flow control default values
  *  @hw: pointer to the HW structure
  *
  *  Read the EEPROM for the default values for flow control and store the
@@ -706,7 +706,7 @@ out:
 }
 
 /**
- *  e1000_force_mac_fc - Force the MAC's flow control settings
+ *  igb_force_mac_fc - Force the MAC's flow control settings
  *  @hw: pointer to the HW structure
  *
  *  Force the MAC's flow control settings.  Sets the TFCE and RFCE bits in the
@@ -770,7 +770,7 @@ out:
 }
 
 /**
- *  e1000_config_fc_after_link_up - Configures flow control after link
+ *  igb_config_fc_after_link_up - Configures flow control after link
  *  @hw: pointer to the HW structure
  *
  *  Checks the status of auto-negotiation after link up to ensure that the
@@ -991,7 +991,7 @@ out:
 }
 
 /**
- *  e1000_get_speed_and_duplex_copper - Retreive current speed/duplex
+ *  igb_get_speed_and_duplex_copper - Retreive current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex
@@ -1028,7 +1028,7 @@ s32 igb_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
 }
 
 /**
- *  e1000_get_hw_semaphore - Acquire hardware semaphore
+ *  igb_get_hw_semaphore - Acquire hardware semaphore
  *  @hw: pointer to the HW structure
  *
  *  Acquire the HW semaphore to access the PHY or NVM
@@ -1081,7 +1081,7 @@ out:
 }
 
 /**
- *  e1000_put_hw_semaphore - Release hardware semaphore
+ *  igb_put_hw_semaphore - Release hardware semaphore
  *  @hw: pointer to the HW structure
  *
  *  Release hardware semaphore used to access the PHY or NVM
@@ -1098,7 +1098,7 @@ void igb_put_hw_semaphore(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_auto_rd_done - Check for auto read completion
+ *  igb_get_auto_rd_done - Check for auto read completion
  *  @hw: pointer to the HW structure
  *
  *  Check EEPROM for Auto Read done bit.
@@ -1127,7 +1127,7 @@ out:
 }
 
 /**
- *  e1000_valid_led_default - Verify a valid default LED config
+ *  igb_valid_led_default - Verify a valid default LED config
  *  @hw: pointer to the HW structure
  *  @data: pointer to the NVM (EEPROM)
  *
@@ -1152,7 +1152,7 @@ out:
 }
 
 /**
- *  e1000_id_led_init -
+ *  igb_id_led_init -
  *  @hw: pointer to the HW structure
  *
  **/
@@ -1217,7 +1217,7 @@ out:
 }
 
 /**
- *  e1000_cleanup_led - Set LED config to default operation
+ *  igb_cleanup_led - Set LED config to default operation
  *  @hw: pointer to the HW structure
  *
  *  Remove the current LED configuration and set the LED configuration
@@ -1230,7 +1230,7 @@ s32 igb_cleanup_led(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_blink_led - Blink LED
+ *  igb_blink_led - Blink LED
  *  @hw: pointer to the HW structure
  *
  *  Blink the led's which are set to be on.
@@ -1263,7 +1263,7 @@ s32 igb_blink_led(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_led_off - Turn LED off
+ *  igb_led_off - Turn LED off
  *  @hw: pointer to the HW structure
  *
  *  Turn LED off.
@@ -1290,7 +1290,7 @@ s32 igb_led_off(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_disable_pcie_master - Disables PCI-express master access
+ *  igb_disable_pcie_master - Disables PCI-express master access
  *  @hw: pointer to the HW structure
  *
  *  Returns 0 (0) if successful, else returns -10
@@ -1332,7 +1332,7 @@ out:
 }
 
 /**
- *  e1000_reset_adaptive - Reset Adaptive Interframe Spacing
+ *  igb_reset_adaptive - Reset Adaptive Interframe Spacing
  *  @hw: pointer to the HW structure
  *
  *  Reset the Adaptive Interframe Spacing throttle to default values.
@@ -1361,7 +1361,7 @@ out:
 }
 
 /**
- *  e1000_update_adaptive - Update Adaptive Interframe Spacing
+ *  igb_update_adaptive - Update Adaptive Interframe Spacing
  *  @hw: pointer to the HW structure
  *
  *  Update the Adaptive Interframe Spacing Throttle value based on the
@@ -1402,7 +1402,7 @@ out:
 }
 
 /**
- *  e1000_validate_mdi_setting - Verify MDI/MDIx settings
+ *  igb_validate_mdi_setting - Verify MDI/MDIx settings
  *  @hw: pointer to the HW structure
  *
  *  Verify that when not using auto-negotitation that MDI/MDIx is correctly
@@ -1424,7 +1424,7 @@ out:
 }
 
 /**
- *  e1000_write_8bit_ctrl_reg - Write a 8bit CTRL register
+ *  igb_write_8bit_ctrl_reg - Write a 8bit CTRL register
  *  @hw: pointer to the HW structure
  *  @reg: 32bit register offset such as E1000_SCTL
  *  @offset: register offset to write to
@@ -1462,7 +1462,7 @@ out:
 }
 
 /**
- *  e1000_enable_mng_pass_thru - Enable processing of ARP's
+ *  igb_enable_mng_pass_thru - Enable processing of ARP's
  *  @hw: pointer to the HW structure
  *
  *  Verifies the hardware needs to allow ARPs to be processed by the host.

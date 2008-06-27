@@ -61,7 +61,7 @@ static const u16 e1000_igp_2_cable_length_table[] =
 		 sizeof(e1000_igp_2_cable_length_table[0]))
 
 /**
- *  e1000_check_reset_block - Check if PHY reset is blocked
+ *  igb_check_reset_block - Check if PHY reset is blocked
  *  @hw: pointer to the HW structure
  *
  *  Read the PHY management control register and check whether a PHY reset
@@ -79,7 +79,7 @@ s32 igb_check_reset_block(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_phy_id - Retrieve the PHY ID and revision
+ *  igb_get_phy_id - Retrieve the PHY ID and revision
  *  @hw: pointer to the HW structure
  *
  *  Reads the PHY registers and stores the PHY ID and possibly the PHY
@@ -109,7 +109,7 @@ out:
 }
 
 /**
- *  e1000_phy_reset_dsp - Reset PHY DSP
+ *  igb_phy_reset_dsp - Reset PHY DSP
  *  @hw: pointer to the HW structure
  *
  *  Reset the digital signal processor.
@@ -129,7 +129,7 @@ out:
 }
 
 /**
- *  e1000_read_phy_reg_mdic - Read MDI control register
+ *  igb_read_phy_reg_mdic - Read MDI control register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
  *  @data: pointer to the read data
@@ -188,7 +188,7 @@ out:
 }
 
 /**
- *  e1000_write_phy_reg_mdic - Write MDI control register
+ *  igb_write_phy_reg_mdic - Write MDI control register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to write to
  *  @data: data to write to register at offset
@@ -246,7 +246,7 @@ out:
 }
 
 /**
- *  e1000_read_phy_reg_igp - Read igp PHY register
+ *  igb_read_phy_reg_igp - Read igp PHY register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
  *  @data: pointer to the read data
@@ -284,7 +284,7 @@ out:
 }
 
 /**
- *  e1000_write_phy_reg_igp - Write igp PHY register
+ *  igb_write_phy_reg_igp - Write igp PHY register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to write to
  *  @data: data to write at register offset
@@ -321,7 +321,7 @@ out:
 }
 
 /**
- *  e1000_copper_link_setup_m88 - Setup m88 PHY's for copper link
+ *  igb_copper_link_setup_m88 - Setup m88 PHY's for copper link
  *  @hw: pointer to the HW structure
  *
  *  Sets up MDI/MDI-X and polarity for m88 PHY's.  If necessary, transmit clock
@@ -432,7 +432,7 @@ out:
 }
 
 /**
- *  e1000_copper_link_setup_igp - Setup igp PHY's for copper link
+ *  igb_copper_link_setup_igp - Setup igp PHY's for copper link
  *  @hw: pointer to the HW structure
  *
  *  Sets up LPLU, MDI/MDI-X, polarity, Smartspeed and Master/Slave config for
@@ -570,7 +570,7 @@ out:
 }
 
 /**
- *  e1000_copper_link_autoneg - Setup/Enable autoneg for copper link
+ *  igb_copper_link_autoneg - Setup/Enable autoneg for copper link
  *  @hw: pointer to the HW structure
  *
  *  Performs initial bounds checking on autoneg advertisement parameter, then
@@ -638,7 +638,7 @@ out:
 }
 
 /**
- *  e1000_phy_setup_autoneg - Configure PHY for auto-negotiation
+ *  igb_phy_setup_autoneg - Configure PHY for auto-negotiation
  *  @hw: pointer to the HW structure
  *
  *  Reads the MII auto-neg advertisement register and/or the 1000T control
@@ -805,7 +805,7 @@ out:
 }
 
 /**
- *  e1000_phy_force_speed_duplex_igp - Force speed/duplex for igp PHY
+ *  igb_phy_force_speed_duplex_igp - Force speed/duplex for igp PHY
  *  @hw: pointer to the HW structure
  *
  *  Calls the PHY setup function to force speed and duplex.  Clears the
@@ -878,7 +878,7 @@ out:
 }
 
 /**
- *  e1000_phy_force_speed_duplex_m88 - Force speed/duplex for m88 PHY
+ *  igb_phy_force_speed_duplex_m88 - Force speed/duplex for m88 PHY
  *  @hw: pointer to the HW structure
  *
  *  Calls the PHY setup function to force speed and duplex.  Clears the
@@ -993,7 +993,7 @@ out:
 }
 
 /**
- *  e1000_phy_force_speed_duplex_setup - Configure forced PHY speed/duplex
+ *  igb_phy_force_speed_duplex_setup - Configure forced PHY speed/duplex
  *  @hw: pointer to the HW structure
  *  @phy_ctrl: pointer to current value of PHY_CONTROL
  *
@@ -1054,7 +1054,7 @@ static void igb_phy_force_speed_duplex_setup(struct e1000_hw *hw,
 }
 
 /**
- *  e1000_set_d3_lplu_state - Sets low power link up state for D3
+ *  igb_set_d3_lplu_state - Sets low power link up state for D3
  *  @hw: pointer to the HW structure
  *  @active: boolean used to enable/disable lplu
  *
@@ -1146,7 +1146,7 @@ out:
 }
 
 /**
- *  e1000_check_downshift - Checks whether a downshift in speed occured
+ *  igb_check_downshift - Checks whether a downshift in speed occured
  *  @hw: pointer to the HW structure
  *
  *  Success returns 0, Failure returns 1
@@ -1188,7 +1188,7 @@ out:
 }
 
 /**
- *  e1000_check_polarity_m88 - Checks the polarity.
+ *  igb_check_polarity_m88 - Checks the polarity.
  *  @hw: pointer to the HW structure
  *
  *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
@@ -1212,7 +1212,7 @@ static s32 igb_check_polarity_m88(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_check_polarity_igp - Checks the polarity.
+ *  igb_check_polarity_igp - Checks the polarity.
  *  @hw: pointer to the HW structure
  *
  *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
@@ -1260,7 +1260,7 @@ out:
 }
 
 /**
- *  e1000_wait_autoneg - Wait for auto-neg compeletion
+ *  igb_wait_autoneg - Wait for auto-neg compeletion
  *  @hw: pointer to the HW structure
  *
  *  Waits for auto-negotiation to complete or for the auto-negotiation time
@@ -1292,7 +1292,7 @@ static s32 igb_wait_autoneg(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_phy_has_link - Polls PHY for link
+ *  igb_phy_has_link - Polls PHY for link
  *  @hw: pointer to the HW structure
  *  @iterations: number of times to poll for link
  *  @usec_interval: delay between polling attempts
@@ -1332,7 +1332,7 @@ s32 igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 }
 
 /**
- *  e1000_get_cable_length_m88 - Determine cable length for m88 PHY
+ *  igb_get_cable_length_m88 - Determine cable length for m88 PHY
  *  @hw: pointer to the HW structure
  *
  *  Reads the PHY specific status register to retrieve the cable length
@@ -1369,7 +1369,7 @@ out:
 }
 
 /**
- *  e1000_get_cable_length_igp_2 - Determine cable length for igp2 PHY
+ *  igb_get_cable_length_igp_2 - Determine cable length for igp2 PHY
  *  @hw: pointer to the HW structure
  *
  *  The automatic gain control (agc) normalizes the amplitude of the
@@ -1442,7 +1442,7 @@ out:
 }
 
 /**
- *  e1000_get_phy_info_m88 - Retrieve PHY information
+ *  igb_get_phy_info_m88 - Retrieve PHY information
  *  @hw: pointer to the HW structure
  *
  *  Valid for only copper links.  Read the PHY status register (sticky read)
@@ -1523,7 +1523,7 @@ out:
 }
 
 /**
- *  e1000_get_phy_info_igp - Retrieve igp PHY information
+ *  igb_get_phy_info_igp - Retrieve igp PHY information
  *  @hw: pointer to the HW structure
  *
  *  Read PHY status to determine if link is up.  If link is up, then
@@ -1590,7 +1590,7 @@ out:
 }
 
 /**
- *  e1000_phy_sw_reset - PHY software reset
+ *  igb_phy_sw_reset - PHY software reset
  *  @hw: pointer to the HW structure
  *
  *  Does a software reset of the PHY by reading the PHY control register and
@@ -1617,7 +1617,7 @@ out:
 }
 
 /**
- *  e1000_phy_hw_reset - PHY hardware reset
+ *  igb_phy_hw_reset - PHY hardware reset
  *  @hw: pointer to the HW structure
  *
  *  Verify the reset block is not blocking us from resetting.  Acquire
@@ -1663,7 +1663,7 @@ out:
 /* Internal function pointers */
 
 /**
- *  e1000_get_phy_cfg_done - Generic PHY configuration done
+ *  igb_get_phy_cfg_done - Generic PHY configuration done
  *  @hw: pointer to the HW structure
  *
  *  Return success if silicon family did not implement a family specific
@@ -1678,7 +1678,7 @@ static s32 igb_get_phy_cfg_done(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_release_phy - Generic release PHY
+ *  igb_release_phy - Generic release PHY
  *  @hw: pointer to the HW structure
  *
  *  Return if silicon family does not require a semaphore when accessing the
@@ -1691,7 +1691,7 @@ static void igb_release_phy(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_acquire_phy - Generic acquire PHY
+ *  igb_acquire_phy - Generic acquire PHY
  *  @hw: pointer to the HW structure
  *
  *  Return success if silicon family does not require a semaphore when
@@ -1706,7 +1706,7 @@ static s32 igb_acquire_phy(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_phy_force_speed_duplex - Generic force PHY speed/duplex
+ *  igb_phy_force_speed_duplex - Generic force PHY speed/duplex
  *  @hw: pointer to the HW structure
  *
  *  When the silicon family has not implemented a forced speed/duplex
@@ -1721,7 +1721,7 @@ s32 igb_phy_force_speed_duplex(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_phy_init_script_igp3 - Inits the IGP3 PHY
+ *  igb_phy_init_script_igp3 - Inits the IGP3 PHY
  *  @hw: pointer to the HW structure
  *
  *  Initializes a Intel Gigabit PHY3 when an EEPROM is not present.

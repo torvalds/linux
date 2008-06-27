@@ -226,7 +226,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_acquire_phy_82575 - Acquire rights to access PHY
+ *  igb_acquire_phy_82575 - Acquire rights to access PHY
  *  @hw: pointer to the HW structure
  *
  *  Acquire access rights to the correct PHY.  This is a
@@ -242,7 +242,7 @@ static s32 igb_acquire_phy_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_release_phy_82575 - Release rights to access PHY
+ *  igb_release_phy_82575 - Release rights to access PHY
  *  @hw: pointer to the HW structure
  *
  *  A wrapper to release access rights to the correct PHY.  This is a
@@ -257,7 +257,7 @@ static void igb_release_phy_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_read_phy_reg_sgmii_82575 - Read PHY register using sgmii
+ *  igb_read_phy_reg_sgmii_82575 - Read PHY register using sgmii
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
  *  @data: pointer to the read data
@@ -310,7 +310,7 @@ static s32 igb_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 }
 
 /**
- *  e1000_write_phy_reg_sgmii_82575 - Write PHY register using sgmii
+ *  igb_write_phy_reg_sgmii_82575 - Write PHY register using sgmii
  *  @hw: pointer to the HW structure
  *  @offset: register offset to write to
  *  @data: data to write at register offset
@@ -365,7 +365,7 @@ static s32 igb_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 }
 
 /**
- *  e1000_get_phy_id_82575 - Retreive PHY addr and id
+ *  igb_get_phy_id_82575 - Retrieve PHY addr and id
  *  @hw: pointer to the HW structure
  *
  *  Retreives the PHY address and ID for both PHY's which do and do not use
@@ -426,7 +426,7 @@ out:
 }
 
 /**
- *  e1000_phy_hw_reset_sgmii_82575 - Performs a PHY reset
+ *  igb_phy_hw_reset_sgmii_82575 - Performs a PHY reset
  *  @hw: pointer to the HW structure
  *
  *  Resets the PHY using the serial gigabit media independent interface.
@@ -457,7 +457,7 @@ out:
 }
 
 /**
- *  e1000_set_d0_lplu_state_82575 - Set Low Power Linkup D0 state
+ *  igb_set_d0_lplu_state_82575 - Set Low Power Linkup D0 state
  *  @hw: pointer to the HW structure
  *  @active: true to enable LPLU, false to disable
  *
@@ -543,7 +543,7 @@ out:
 }
 
 /**
- *  e1000_acquire_nvm_82575 - Request for access to EEPROM
+ *  igb_acquire_nvm_82575 - Request for access to EEPROM
  *  @hw: pointer to the HW structure
  *
  *  Acquire the necessary semaphores for exclussive access to the EEPROM.
@@ -569,7 +569,7 @@ out:
 }
 
 /**
- *  e1000_release_nvm_82575 - Release exclusive access to EEPROM
+ *  igb_release_nvm_82575 - Release exclusive access to EEPROM
  *  @hw: pointer to the HW structure
  *
  *  Stop any current commands to the EEPROM and clear the EEPROM request bit,
@@ -582,7 +582,7 @@ static void igb_release_nvm_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_acquire_swfw_sync_82575 - Acquire SW/FW semaphore
+ *  igb_acquire_swfw_sync_82575 - Acquire SW/FW semaphore
  *  @hw: pointer to the HW structure
  *  @mask: specifies which semaphore to acquire
  *
@@ -632,7 +632,7 @@ out:
 }
 
 /**
- *  e1000_release_swfw_sync_82575 - Release SW/FW semaphore
+ *  igb_release_swfw_sync_82575 - Release SW/FW semaphore
  *  @hw: pointer to the HW structure
  *  @mask: specifies which semaphore to acquire
  *
@@ -654,7 +654,7 @@ static void igb_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 }
 
 /**
- *  e1000_get_cfg_done_82575 - Read config done bit
+ *  igb_get_cfg_done_82575 - Read config done bit
  *  @hw: pointer to the HW structure
  *
  *  Read the management control register for the config done bit for
@@ -690,7 +690,7 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_check_for_link_82575 - Check for link
+ *  igb_check_for_link_82575 - Check for link
  *  @hw: pointer to the HW structure
  *
  *  If sgmii is enabled, then use the pcs register to determine link, otherwise
@@ -713,7 +713,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
+ *  igb_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex
@@ -768,7 +768,7 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 }
 
 /**
- *  e1000_rar_set_82575 - Set receive address register
+ *  igb_rar_set_82575 - Set receive address register
  *  @hw: pointer to the HW structure
  *  @addr: pointer to the receive address
  *  @index: receive address array register
@@ -785,7 +785,7 @@ static void igb_rar_set_82575(struct e1000_hw *hw, u8 *addr, u32 index)
 }
 
 /**
- *  e1000_reset_hw_82575 - Reset hardware
+ *  igb_reset_hw_82575 - Reset hardware
  *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
@@ -842,7 +842,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_init_hw_82575 - Initialize hardware
+ *  igb_init_hw_82575 - Initialize hardware
  *  @hw: pointer to the HW structure
  *
  *  This inits the hardware readying it for operation.
@@ -886,7 +886,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_setup_copper_link_82575 - Configure copper link settings
+ *  igb_setup_copper_link_82575 - Configure copper link settings
  *  @hw: pointer to the HW structure
  *
  *  Configures the link for auto-neg or forced speed and duplex.  Then we check
@@ -974,7 +974,7 @@ out:
 }
 
 /**
- *  e1000_setup_fiber_serdes_link_82575 - Setup link for fiber/serdes
+ *  igb_setup_fiber_serdes_link_82575 - Setup link for fiber/serdes
  *  @hw: pointer to the HW structure
  *
  *  Configures speed and duplex for fiber and serdes links.
@@ -1038,7 +1038,7 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_configure_pcs_link_82575 - Configure PCS link
+ *  igb_configure_pcs_link_82575 - Configure PCS link
  *  @hw: pointer to the HW structure
  *
  *  Configure the physical coding sub-layer (PCS) link.  The PCS link is
@@ -1103,7 +1103,7 @@ out:
 }
 
 /**
- *  e1000_sgmii_active_82575 - Return sgmii state
+ *  igb_sgmii_active_82575 - Return sgmii state
  *  @hw: pointer to the HW structure
  *
  *  82575 silicon has a serialized gigabit media independent interface (sgmii)
@@ -1129,7 +1129,7 @@ out:
 }
 
 /**
- *  e1000_reset_init_script_82575 - Inits HW defaults after reset
+ *  igb_reset_init_script_82575 - Inits HW defaults after reset
  *  @hw: pointer to the HW structure
  *
  *  Inits recommended HW defaults after a reset when there is no EEPROM
@@ -1165,7 +1165,7 @@ static s32 igb_reset_init_script_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_read_mac_addr_82575 - Read device MAC address
+ *  igb_read_mac_addr_82575 - Read device MAC address
  *  @hw: pointer to the HW structure
  **/
 static s32 igb_read_mac_addr_82575(struct e1000_hw *hw)
@@ -1179,7 +1179,7 @@ static s32 igb_read_mac_addr_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_clear_hw_cntrs_82575 - Clear device specific hardware counters
+ *  igb_clear_hw_cntrs_82575 - Clear device specific hardware counters
  *  @hw: pointer to the HW structure
  *
  *  Clears the hardware counters by reading the counter registers.
