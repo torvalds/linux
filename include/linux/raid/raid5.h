@@ -263,7 +263,6 @@ struct r6_state {
 #define STRIPE_OP_BIODRAIN	3
 #define STRIPE_OP_POSTXOR	4
 #define STRIPE_OP_CHECK	5
-#define STRIPE_OP_IO		6
 
 /* modifiers to the base operations
  * STRIPE_OP_MOD_REPAIR_PD - compute the parity block and write it back

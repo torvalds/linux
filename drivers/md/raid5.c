@@ -373,8 +373,6 @@ static unsigned long get_stripe_work(struct stripe_head *sh)
 	test_and_ack_op(STRIPE_OP_BIODRAIN, pending);
 	test_and_ack_op(STRIPE_OP_POSTXOR, pending);
 	test_and_ack_op(STRIPE_OP_CHECK, pending);
-	if (test_and_clear_bit(STRIPE_OP_IO, &sh->ops.pending))
-		ack++;
 
 	sh->ops.count -= ack;
 	if (unlikely(sh->ops.count < 0)) {
@@ -399,7 +397,6 @@ static void ops_run_io(struct stripe_head *sh)
 
 	might_sleep();
 
-	set_bit(STRIPE_IO_STARTED, &sh->state);
 	for (i = disks; i--; ) {
 		int rw;
 		struct bio *bi;
@@ -432,6 +429,8 @@ static void ops_run_io(struct stripe_head *sh)
 				test_bit(STRIPE_EXPAND_SOURCE, &sh->state) ||
 				test_bit(STRIPE_EXPAND_READY, &sh->state))
 				md_sync_acct(rdev->bdev, STRIPE_SECTORS);
+
+			set_bit(STRIPE_IO_STARTED, &sh->state);
 
 			bi->bi_bdev = rdev->bdev;
 			pr_debug("%s: for %llu schedule op %ld on disc %d\n",
@@ -899,9 +898,6 @@ static void raid5_run_ops(struct stripe_head *sh, unsigned long pending)
 
 	if (test_bit(STRIPE_OP_CHECK, &pending))
 		ops_run_check(sh);
-
-	if (test_bit(STRIPE_OP_IO, &pending))
-		ops_run_io(sh);
 
 	if (overlap_clear)
 		for (i = disks; i--; ) {
@@ -2013,8 +2009,6 @@ static int __handle_issuing_new_read_requests5(struct stripe_head *sh,
 			 */
 			set_bit(R5_LOCKED, &dev->flags);
 			set_bit(R5_Wantread, &dev->flags);
-			if (!test_and_set_bit(STRIPE_OP_IO, &sh->ops.pending))
-				sh->ops.count++;
 			s->locked++;
 			pr_debug("Reading block %d (sync=%d)\n", disk_idx,
 				s->syncing);
@@ -2208,9 +2202,6 @@ static void handle_issuing_new_write_requests5(raid5_conf_t *conf,
 						"%d for r-m-w\n", i);
 					set_bit(R5_LOCKED, &dev->flags);
 					set_bit(R5_Wantread, &dev->flags);
-					if (!test_and_set_bit(
-						STRIPE_OP_IO, &sh->ops.pending))
-						sh->ops.count++;
 					s->locked++;
 				} else {
 					set_bit(STRIPE_DELAYED, &sh->state);
@@ -2234,9 +2225,6 @@ static void handle_issuing_new_write_requests5(raid5_conf_t *conf,
 						"%d for Reconstruct\n", i);
 					set_bit(R5_LOCKED, &dev->flags);
 					set_bit(R5_Wantread, &dev->flags);
-					if (!test_and_set_bit(
-						STRIPE_OP_IO, &sh->ops.pending))
-						sh->ops.count++;
 					s->locked++;
 				} else {
 					set_bit(STRIPE_DELAYED, &sh->state);
@@ -2444,8 +2432,6 @@ static void handle_parity_checks5(raid5_conf_t *conf, struct stripe_head *sh,
 
 		set_bit(R5_LOCKED, &dev->flags);
 		set_bit(R5_Wantwrite, &dev->flags);
-		if (!test_and_set_bit(STRIPE_OP_IO, &sh->ops.pending))
-			sh->ops.count++;
 
 		clear_bit(STRIPE_DEGRADED, &sh->state);
 		s->locked++;
@@ -2801,9 +2787,6 @@ static void handle_stripe5(struct stripe_head *sh)
 				(i == sh->pd_idx || dev->written)) {
 				pr_debug("Writing block %d\n", i);
 				set_bit(R5_Wantwrite, &dev->flags);
-				if (!test_and_set_bit(
-				    STRIPE_OP_IO, &sh->ops.pending))
-					sh->ops.count++;
 				if (prexor)
 					continue;
 				if (!test_bit(R5_Insync, &dev->flags) ||
@@ -2857,16 +2840,12 @@ static void handle_stripe5(struct stripe_head *sh)
 		dev = &sh->dev[s.failed_num];
 		if (!test_bit(R5_ReWrite, &dev->flags)) {
 			set_bit(R5_Wantwrite, &dev->flags);
-			if (!test_and_set_bit(STRIPE_OP_IO, &sh->ops.pending))
-				sh->ops.count++;
 			set_bit(R5_ReWrite, &dev->flags);
 			set_bit(R5_LOCKED, &dev->flags);
 			s.locked++;
 		} else {
 			/* let's read it back */
 			set_bit(R5_Wantread, &dev->flags);
-			if (!test_and_set_bit(STRIPE_OP_IO, &sh->ops.pending))
-				sh->ops.count++;
 			set_bit(R5_LOCKED, &dev->flags);
 			s.locked++;
 		}
@@ -2884,13 +2863,10 @@ static void handle_stripe5(struct stripe_head *sh)
 		clear_bit(STRIPE_OP_POSTXOR, &sh->ops.ack);
 		clear_bit(STRIPE_OP_POSTXOR, &sh->ops.complete);
 
-		for (i = conf->raid_disks; i--; ) {
+		for (i = conf->raid_disks; i--; )
 			set_bit(R5_Wantwrite, &sh->dev[i].flags);
 			set_bit(R5_LOCKED, &dev->flags);
 			s.locked++;
-			if (!test_and_set_bit(STRIPE_OP_IO, &sh->ops.pending))
-				sh->ops.count++;
-		}
 	}
 
 	if (s.expanded && test_bit(STRIPE_EXPANDING, &sh->state) &&
@@ -2925,6 +2901,8 @@ static void handle_stripe5(struct stripe_head *sh)
 
 	if (pending)
 		raid5_run_ops(sh, pending);
+
+	ops_run_io(sh);
 
 	return_io(return_bi);
 
