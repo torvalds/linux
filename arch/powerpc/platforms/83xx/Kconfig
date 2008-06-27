@@ -1,10 +1,12 @@
-menuconfig MPC83xx
-	bool "83xx Board Type"
-	depends on PPC_83xx
+menuconfig PPC_83xx
+	bool "83xx-based boards"
+	depends on 6xx && PPC_MULTIPLATFORM
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
+	select FSL_SOC
+	select IPIC
 
-if MPC83xx
+if PPC_83xx
 
 config MPC831x_RDB
 	bool "Freescale MPC831x RDB"
