@@ -1073,6 +1073,25 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 
 static const struct sched_class fair_sched_class;
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static unsigned long task_h_load(struct task_struct *p)
+{
+	unsigned long h_load = p->se.load.weight;
+	struct cfs_rq *cfs_rq = cfs_rq_of(&p->se);
+
+	update_h_load(task_cpu(p));
+
+	h_load = calc_delta_mine(h_load, cfs_rq->h_load, &cfs_rq->load);
+
+	return h_load;
+}
+#else
+static unsigned long task_h_load(struct task_struct *p)
+{
+	return p->se.load.weight;
+}
+#endif
+
 static int
 wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	    struct task_struct *p, int prev_cpu, int this_cpu, int sync,
@@ -1093,9 +1112,9 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	 * of the current CPU:
 	 */
 	if (sync)
-		tl -= current->se.load.weight;
+		tl -= task_h_load(current);
 
-	balanced = 100*(tl + p->se.load.weight) <= imbalance*load;
+	balanced = 100*(tl + task_h_load(p)) <= imbalance*load;
 
 	/*
 	 * If the currently running task will sleep within
