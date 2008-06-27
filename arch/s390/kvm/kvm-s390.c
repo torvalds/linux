@@ -194,6 +194,7 @@ out_nokvm:
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	debug_unregister(kvm->arch.dbf);
+	kvm_free_physmem(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
 	kfree(kvm);
 	module_put(THIS_MODULE);
