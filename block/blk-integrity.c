@@ -217,17 +217,16 @@ static ssize_t integrity_read_store(struct blk_integrity *bi,
 	unsigned long val = simple_strtoul(p, &p, 10);
 
 	if (val)
-		set_bit(INTEGRITY_FLAG_READ, &bi->flags);
+		bi->flags |= INTEGRITY_FLAG_READ;
 	else
-		clear_bit(INTEGRITY_FLAG_READ, &bi->flags);
+		bi->flags &= ~INTEGRITY_FLAG_READ;
 
 	return count;
 }
 
 static ssize_t integrity_read_show(struct blk_integrity *bi, char *page)
 {
-	return sprintf(page, "%d\n",
-		       test_bit(INTEGRITY_FLAG_READ, &bi->flags) ? 1 : 0);
+	return sprintf(page, "%d\n", (bi->flags & INTEGRITY_FLAG_READ) != 0);
 }
 
 static ssize_t integrity_write_store(struct blk_integrity *bi,
@@ -237,17 +236,16 @@ static ssize_t integrity_write_store(struct blk_integrity *bi,
 	unsigned long val = simple_strtoul(p, &p, 10);
 
 	if (val)
-		set_bit(INTEGRITY_FLAG_WRITE, &bi->flags);
+		bi->flags |= INTEGRITY_FLAG_WRITE;
 	else
-		clear_bit(INTEGRITY_FLAG_WRITE, &bi->flags);
+		bi->flags &= ~INTEGRITY_FLAG_WRITE;
 
 	return count;
 }
 
 static ssize_t integrity_write_show(struct blk_integrity *bi, char *page)
 {
-	return sprintf(page, "%d\n",
-		       test_bit(INTEGRITY_FLAG_WRITE, &bi->flags) ? 1 : 0);
+	return sprintf(page, "%d\n", (bi->flags & INTEGRITY_FLAG_WRITE) != 0);
 }
 
 static struct integrity_sysfs_entry integrity_format_entry = {
@@ -340,8 +338,7 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 
 		kobject_uevent(&bi->kobj, KOBJ_ADD);
 
-		set_bit(INTEGRITY_FLAG_READ, &bi->flags);
-		set_bit(INTEGRITY_FLAG_WRITE, &bi->flags);
+		bi->flags |= INTEGRITY_FLAG_READ | INTEGRITY_FLAG_WRITE;
 		bi->sector_size = disk->queue->hardsect_size;
 		disk->integrity = bi;
 	} else

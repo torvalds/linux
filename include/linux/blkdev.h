@@ -870,8 +870,8 @@ void kblockd_flush_work(struct work_struct *work);
 
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
-#define INTEGRITY_FLAG_READ	1	/* verify data integrity on read */
-#define INTEGRITY_FLAG_WRITE	2	/* generate data integrity on write */
+#define INTEGRITY_FLAG_READ	2	/* verify data integrity on read */
+#define INTEGRITY_FLAG_WRITE	4	/* generate data integrity on write */
 
 struct blk_integrity_exchg {
 	void			*prot_buf;
@@ -940,11 +940,11 @@ static inline int bdev_integrity_enabled(struct block_device *bdev, int rw)
 		return 0;
 
 	if (rw == READ && bi->verify_fn != NULL &&
-	    test_bit(INTEGRITY_FLAG_READ, &bi->flags))
+	    (bi->flags & INTEGRITY_FLAG_READ))
 		return 1;
 
 	if (rw == WRITE && bi->generate_fn != NULL &&
-	    test_bit(INTEGRITY_FLAG_WRITE, &bi->flags))
+	    (bi->flags & INTEGRITY_FLAG_WRITE))
 		return 1;
 
 	return 0;
