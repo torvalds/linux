@@ -227,6 +227,8 @@ struct mddev_s
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
 	sector_t			recovery_cp;
+	sector_t			resync_min;	/* user requested sync
+							 * starts here */
 	sector_t			resync_max;	/* resync should pause
 							 * when it gets here */
 
