@@ -4604,7 +4604,7 @@ abort:
 static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	raid5_conf_t *conf = mddev->private;
-	int found = 0;
+	int err = -EEXIST;
 	int disk;
 	struct disk_info *p;
 	int first = 0;
@@ -4612,7 +4612,7 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (mddev->degraded > conf->max_degraded)
 		/* no point adding a device */
-		return 0;
+		return -EINVAL;
 
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
@@ -4631,14 +4631,14 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		if ((p=conf->disks + disk)->rdev == NULL) {
 			clear_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = disk;
-			found = 1;
+			err = 0;
 			if (rdev->saved_raid_disk != disk)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
 			break;
 		}
 	print_raid5_conf(conf);
-	return found;
+	return err;
 }
 
 static int raid5_resize(mddev_t *mddev, sector_t sectors)
@@ -4739,7 +4739,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 	rdev_for_each(rdev, rtmp, mddev)
 		if (rdev->raid_disk < 0 &&
 		    !test_bit(Faulty, &rdev->flags)) {
-			if (raid5_add_disk(mddev, rdev)) {
+			if (raid5_add_disk(mddev, rdev) == 0) {
 				char nm[20];
 				set_bit(In_sync, &rdev->flags);
 				added_devices++;

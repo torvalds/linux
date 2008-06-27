@@ -1113,7 +1113,7 @@ static int raid10_spare_active(mddev_t *mddev)
 static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	conf_t *conf = mddev->private;
-	int found = 0;
+	int err = -EEXIST;
 	int mirror;
 	mirror_info_t *p;
 	int first = 0;
@@ -1123,9 +1123,9 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		/* only hot-add to in-sync arrays, as recovery is
 		 * very different from resync
 		 */
-		return 0;
+		return -EBUSY;
 	if (!enough(conf))
-		return 0;
+		return -EINVAL;
 
 	if (rdev->raid_disk)
 		first = last = rdev->raid_disk;
@@ -1151,7 +1151,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
-			found = 1;
+			err = 0;
 			if (rdev->saved_raid_disk != mirror)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
@@ -1159,7 +1159,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 
 	print_conf(conf);
-	return found;
+	return err;
 }
 
 static int raid10_remove_disk(mddev_t *mddev, int number)

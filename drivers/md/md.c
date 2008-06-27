@@ -1977,10 +1977,8 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			rdev->saved_raid_disk = -1;
 		err = rdev->mddev->pers->
 			hot_add_disk(rdev->mddev, rdev);
-		if (err != 1) {
+		if (err) {
 			rdev->raid_disk = -1;
-			if (err == 0)
-				return -EEXIST;
 			return err;
 		}
 		sprintf(nm, "rd%d", rdev->raid_disk);
@@ -5920,7 +5918,8 @@ static int remove_and_add_spares(mddev_t *mddev)
 			if (rdev->raid_disk < 0
 			    && !test_bit(Faulty, &rdev->flags)) {
 				rdev->recovery_offset = 0;
-				if (mddev->pers->hot_add_disk(mddev,rdev)) {
+				if (mddev->pers->
+				    hot_add_disk(mddev, rdev) == 0) {
 					char nm[20];
 					sprintf(nm, "rd%d", rdev->raid_disk);
 					if (sysfs_create_link(&mddev->kobj,

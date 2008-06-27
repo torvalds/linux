@@ -281,7 +281,7 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	multipath_conf_t *conf = mddev->private;
 	struct request_queue *q;
-	int found = 0;
+	int err = -EEXIST;
 	int path;
 	struct multipath_info *p;
 	int first = 0;
@@ -312,11 +312,13 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			rdev->raid_disk = path;
 			set_bit(In_sync, &rdev->flags);
 			rcu_assign_pointer(p->rdev, rdev);
-			found = 1;
+			err = 0;
+			break;
 		}
 
 	print_multipath_conf(conf);
-	return found;
+
+	return err;
 }
 
 static int multipath_remove_disk(mddev_t *mddev, int number)

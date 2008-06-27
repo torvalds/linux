@@ -1100,7 +1100,7 @@ static int raid1_spare_active(mddev_t *mddev)
 static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	conf_t *conf = mddev->private;
-	int found = 0;
+	int err = -EEXIST;
 	int mirror = 0;
 	mirror_info_t *p;
 	int first = 0;
@@ -1124,7 +1124,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
-			found = 1;
+			err = 0;
 			/* As all devices are equivalent, we don't need a full recovery
 			 * if this was recently any drive of the array
 			 */
@@ -1135,7 +1135,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 
 	print_conf(conf);
-	return found;
+	return err;
 }
 
 static int raid1_remove_disk(mddev_t *mddev, int number)
