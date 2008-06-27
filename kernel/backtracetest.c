@@ -10,9 +10,10 @@
  * of the License.
  */
 
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/delay.h>
+#include <linux/stacktrace.h>
 
 static struct timer_list backtrace_timer;
 
@@ -22,12 +23,39 @@ static void backtrace_test_timer(unsigned long data)
 	printk("The following trace is a kernel self test and not a bug!\n");
 	dump_stack();
 }
+
+#ifdef CONFIG_STACKTRACE
+static void backtrace_test_saved(void)
+{
+	struct stack_trace trace;
+	unsigned long entries[8];
+
+	printk("Testing a saved backtrace.\n");
+	printk("The following trace is a kernel self test and not a bug!\n");
+
+	trace.nr_entries = 0;
+	trace.max_entries = ARRAY_SIZE(entries);
+	trace.entries = entries;
+	trace.skip = 0;
+
+	save_stack_trace(&trace);
+	print_stack_trace(&trace, 0);
+}
+#else
+static void backtrace_test_saved(void)
+{
+	printk("Saved backtrace test skipped.\n");
+}
+#endif
+
 static int backtrace_regression_test(void)
 {
 	printk("====[ backtrace testing ]===========\n");
 	printk("Testing a backtrace from process context.\n");
 	printk("The following trace is a kernel self test and not a bug!\n");
 	dump_stack();
+
+	backtrace_test_saved();
 
 	init_timer(&backtrace_timer);
 	backtrace_timer.function = backtrace_test_timer;
