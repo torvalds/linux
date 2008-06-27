@@ -286,6 +286,61 @@ static irqreturn_t pnp_test_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_PCI
+static int pci_dev_uses_irq(struct pnp_dev *pnp, struct pci_dev *pci,
+			    unsigned int irq)
+{
+	u32 class;
+	u8 progif;
+
+	if (pci->irq == irq) {
+		dev_dbg(&pnp->dev, "device %s using irq %d\n",
+			pci_name(pci), irq);
+		return 1;
+	}
+
+	/*
+	 * See pci_setup_device() and ata_pci_sff_activate_host() for
+	 * similar IDE legacy detection.
+	 */
+	pci_read_config_dword(pci, PCI_CLASS_REVISION, &class);
+	class >>= 8;		/* discard revision ID */
+	progif = class & 0xff;
+	class >>= 8;
+
+	if (class == PCI_CLASS_STORAGE_IDE) {
+		/*
+		 * Unless both channels are native-PCI mode only,
+		 * treat the compatibility IRQs as busy.
+		 */
+		if ((progif & 0x5) != 0x5)
+			if (pci_get_legacy_ide_irq(pci, 0) == irq ||
+			    pci_get_legacy_ide_irq(pci, 1) == irq) {
+				dev_dbg(&pnp->dev, "legacy IDE device %s "
+					"using irq %d\n", pci_name(pci), irq);
+				return 1;
+			}
+	}
+
+	return 0;
+}
+#endif
+
+static int pci_uses_irq(struct pnp_dev *pnp, unsigned int irq)
+{
+#ifdef CONFIG_PCI
+	struct pci_dev *pci = NULL;
+
+	for_each_pci_dev(pci) {
+		if (pci_dev_uses_irq(pnp, pci, irq)) {
+			pci_dev_put(pci);
+			return 1;
+		}
+	}
+#endif
+	return 0;
+}
+
 int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 {
 	int i;
@@ -317,18 +372,9 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 		}
 	}
 
-#ifdef CONFIG_PCI
 	/* check if the resource is being used by a pci device */
-	{
-		struct pci_dev *pci = NULL;
-		for_each_pci_dev(pci) {
-			if (pci->irq == *irq) {
-				pci_dev_put(pci);
-				return 0;
-			}
-		}
-	}
-#endif
+	if (pci_uses_irq(dev, *irq))
+		return 0;
 
 	/* check if the resource is already in use, skip if the
 	 * device is active because it itself may be in use */
