@@ -15,7 +15,6 @@
 
 struct pnp_protocol;
 struct pnp_dev;
-struct pnp_resource_table;
 
 /*
  * Resource Management
@@ -24,7 +23,14 @@ struct resource *pnp_get_resource(struct pnp_dev *, unsigned int, unsigned int);
 
 static inline int pnp_resource_valid(struct resource *res)
 {
-	if (res && !(res->flags & IORESOURCE_UNSET))
+	if (res)
+		return 1;
+	return 0;
+}
+
+static inline int pnp_resource_enabled(struct resource *res)
+{
+	if (res && !(res->flags & IORESOURCE_DISABLED))
 		return 1;
 	return 0;
 }
@@ -64,7 +70,7 @@ static inline unsigned long pnp_port_flags(struct pnp_dev *dev,
 
 	if (pnp_resource_valid(res))
 		return res->flags;
-	return IORESOURCE_IO | IORESOURCE_AUTO | IORESOURCE_UNSET;
+	return IORESOURCE_IO | IORESOURCE_AUTO;
 }
 
 static inline int pnp_port_valid(struct pnp_dev *dev, unsigned int bar)
@@ -109,7 +115,7 @@ static inline unsigned long pnp_mem_flags(struct pnp_dev *dev, unsigned int bar)
 
 	if (pnp_resource_valid(res))
 		return res->flags;
-	return IORESOURCE_MEM | IORESOURCE_AUTO | IORESOURCE_UNSET;
+	return IORESOURCE_MEM | IORESOURCE_AUTO;
 }
 
 static inline int pnp_mem_valid(struct pnp_dev *dev, unsigned int bar)
@@ -143,7 +149,7 @@ static inline unsigned long pnp_irq_flags(struct pnp_dev *dev, unsigned int bar)
 
 	if (pnp_resource_valid(res))
 		return res->flags;
-	return IORESOURCE_IRQ | IORESOURCE_AUTO | IORESOURCE_UNSET;
+	return IORESOURCE_IRQ | IORESOURCE_AUTO;
 }
 
 static inline int pnp_irq_valid(struct pnp_dev *dev, unsigned int bar)
@@ -167,7 +173,7 @@ static inline unsigned long pnp_dma_flags(struct pnp_dev *dev, unsigned int bar)
 
 	if (pnp_resource_valid(res))
 		return res->flags;
-	return IORESOURCE_DMA | IORESOURCE_AUTO | IORESOURCE_UNSET;
+	return IORESOURCE_DMA | IORESOURCE_AUTO;
 }
 
 static inline int pnp_dma_valid(struct pnp_dev *dev, unsigned int bar)
@@ -296,7 +302,7 @@ struct pnp_dev {
 	int capabilities;
 	struct pnp_option *independent;
 	struct pnp_option *dependent;
-	struct pnp_resource_table *res;
+	struct list_head resources;
 
 	char name[PNP_NAME_LEN];	/* contains a human-readable name */
 	int flags;			/* used by protocols */

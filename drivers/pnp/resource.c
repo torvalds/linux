@@ -237,7 +237,7 @@ void pnp_free_option(struct pnp_option *option)
 	!((*(enda) < *(startb)) || (*(endb) < *(starta)))
 
 #define cannot_compare(flags) \
-((flags) & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
+((flags) & IORESOURCE_DISABLED)
 
 int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 {
@@ -505,81 +505,31 @@ int pnp_resource_type(struct resource *res)
 			     IORESOURCE_IRQ | IORESOURCE_DMA);
 }
 
-struct pnp_resource *pnp_get_pnp_resource(struct pnp_dev *dev,
-					  unsigned int type, unsigned int num)
-{
-	struct pnp_resource_table *res = dev->res;
-
-	switch (type) {
-	case IORESOURCE_IO:
-		if (num >= PNP_MAX_PORT)
-			return NULL;
-		return &res->port[num];
-	case IORESOURCE_MEM:
-		if (num >= PNP_MAX_MEM)
-			return NULL;
-		return &res->mem[num];
-	case IORESOURCE_IRQ:
-		if (num >= PNP_MAX_IRQ)
-			return NULL;
-		return &res->irq[num];
-	case IORESOURCE_DMA:
-		if (num >= PNP_MAX_DMA)
-			return NULL;
-		return &res->dma[num];
-	}
-	return NULL;
-}
-
 struct resource *pnp_get_resource(struct pnp_dev *dev,
 				  unsigned int type, unsigned int num)
 {
 	struct pnp_resource *pnp_res;
+	struct resource *res;
 
-	pnp_res = pnp_get_pnp_resource(dev, type, num);
-	if (pnp_res)
-		return &pnp_res->res;
-
+	list_for_each_entry(pnp_res, &dev->resources, list) {
+		res = &pnp_res->res;
+		if (pnp_resource_type(res) == type && num-- == 0)
+			return res;
+	}
 	return NULL;
 }
 EXPORT_SYMBOL(pnp_get_resource);
 
-static struct pnp_resource *pnp_new_resource(struct pnp_dev *dev, int type)
+static struct pnp_resource *pnp_new_resource(struct pnp_dev *dev)
 {
 	struct pnp_resource *pnp_res;
-	int i;
 
-	switch (type) {
-	case IORESOURCE_IO:
-		for (i = 0; i < PNP_MAX_PORT; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IO, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	case IORESOURCE_MEM:
-		for (i = 0; i < PNP_MAX_MEM; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_MEM, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	case IORESOURCE_IRQ:
-		for (i = 0; i < PNP_MAX_IRQ; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IRQ, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	case IORESOURCE_DMA:
-		for (i = 0; i < PNP_MAX_DMA; i++) {
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_DMA, i);
-			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
-				return pnp_res;
-		}
-		break;
-	}
-	return NULL;
+	pnp_res = kzalloc(sizeof(struct pnp_resource), GFP_KERNEL);
+	if (!pnp_res)
+		return NULL;
+
+	list_add_tail(&pnp_res->list, &dev->resources);
+	return pnp_res;
 }
 
 struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
@@ -589,7 +539,7 @@ struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 	struct resource *res;
 	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_IRQ);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
 		if (!warned) {
 			dev_err(&dev->dev, "can't add resource for IRQ %d\n",
@@ -615,7 +565,7 @@ struct pnp_resource *pnp_add_dma_resource(struct pnp_dev *dev, int dma,
 	struct resource *res;
 	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_DMA);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
 		if (!warned) {
 			dev_err(&dev->dev, "can't add resource for DMA %d\n",
@@ -642,7 +592,7 @@ struct pnp_resource *pnp_add_io_resource(struct pnp_dev *dev,
 	struct resource *res;
 	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_IO);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
 		if (!warned) {
 			dev_err(&dev->dev, "can't add resource for IO "
@@ -671,7 +621,7 @@ struct pnp_resource *pnp_add_mem_resource(struct pnp_dev *dev,
 	struct resource *res;
 	static unsigned char warned;
 
-	pnp_res = pnp_new_resource(dev, IORESOURCE_MEM);
+	pnp_res = pnp_new_resource(dev);
 	if (!pnp_res) {
 		if (!warned) {
 			dev_err(&dev->dev, "can't add resource for MEM "

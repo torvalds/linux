@@ -46,27 +46,15 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res);
 char *pnp_resource_type_name(struct resource *res);
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc);
 
-void pnp_init_resource(struct resource *res);
+void pnp_free_resources(struct pnp_dev *dev);
 int pnp_resource_type(struct resource *res);
 
-struct pnp_resource *pnp_get_pnp_resource(struct pnp_dev *dev,
-					  unsigned int type, unsigned int num);
-
-#define PNP_MAX_PORT		40
-#define PNP_MAX_MEM		24
-#define PNP_MAX_IRQ		 2
-#define PNP_MAX_DMA		 2
-
 struct pnp_resource {
+	struct list_head list;
 	struct resource res;
 };
 
-struct pnp_resource_table {
-	struct pnp_resource port[PNP_MAX_PORT];
-	struct pnp_resource mem[PNP_MAX_MEM];
-	struct pnp_resource dma[PNP_MAX_DMA];
-	struct pnp_resource irq[PNP_MAX_IRQ];
-};
+void pnp_free_resource(struct pnp_resource *pnp_res);
 
 struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 					  int flags);

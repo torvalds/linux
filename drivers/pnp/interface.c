@@ -269,46 +269,38 @@ static ssize_t pnp_show_current_resources(struct device *dmdev,
 		pnp_printf(buffer, "disabled\n");
 
 	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_IO, i)); i++) {
-		if (pnp_resource_valid(res)) {
-			pnp_printf(buffer, "io");
-			if (res->flags & IORESOURCE_DISABLED)
-				pnp_printf(buffer, " disabled\n");
-			else
-				pnp_printf(buffer, " 0x%llx-0x%llx\n",
-					   (unsigned long long) res->start,
-					   (unsigned long long) res->end);
-		}
+		pnp_printf(buffer, "io");
+		if (res->flags & IORESOURCE_DISABLED)
+			pnp_printf(buffer, " disabled\n");
+		else
+			pnp_printf(buffer, " 0x%llx-0x%llx\n",
+				   (unsigned long long) res->start,
+				   (unsigned long long) res->end);
 	}
 	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_MEM, i)); i++) {
-		if (pnp_resource_valid(res)) {
-			pnp_printf(buffer, "mem");
-			if (res->flags & IORESOURCE_DISABLED)
-				pnp_printf(buffer, " disabled\n");
-			else
-				pnp_printf(buffer, " 0x%llx-0x%llx\n",
-					   (unsigned long long) res->start,
-					   (unsigned long long) res->end);
-		}
+		pnp_printf(buffer, "mem");
+		if (res->flags & IORESOURCE_DISABLED)
+			pnp_printf(buffer, " disabled\n");
+		else
+			pnp_printf(buffer, " 0x%llx-0x%llx\n",
+				   (unsigned long long) res->start,
+				   (unsigned long long) res->end);
 	}
 	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_IRQ, i)); i++) {
-		if (pnp_resource_valid(res)) {
-			pnp_printf(buffer, "irq");
-			if (res->flags & IORESOURCE_DISABLED)
-				pnp_printf(buffer, " disabled\n");
-			else
-				pnp_printf(buffer, " %lld\n",
-					   (unsigned long long) res->start);
-		}
+		pnp_printf(buffer, "irq");
+		if (res->flags & IORESOURCE_DISABLED)
+			pnp_printf(buffer, " disabled\n");
+		else
+			pnp_printf(buffer, " %lld\n",
+				   (unsigned long long) res->start);
 	}
 	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_DMA, i)); i++) {
-		if (pnp_resource_valid(res)) {
-			pnp_printf(buffer, "dma");
-			if (res->flags & IORESOURCE_DISABLED)
-				pnp_printf(buffer, " disabled\n");
-			else
-				pnp_printf(buffer, " %lld\n",
-					   (unsigned long long) res->start);
-		}
+		pnp_printf(buffer, "dma");
+		if (res->flags & IORESOURCE_DISABLED)
+			pnp_printf(buffer, " disabled\n");
+		else
+			pnp_printf(buffer, " %lld\n",
+				   (unsigned long long) res->start);
 	}
 	ret = (buffer->curr - buf);
 	kfree(buffer);

@@ -806,6 +806,13 @@ static void pnpacpi_encode_irq(struct pnp_dev *dev,
 	struct acpi_resource_irq *irq = &resource->data.irq;
 	int triggering, polarity, shareable;
 
+	if (!pnp_resource_enabled(p)) {
+		irq->interrupt_count = 0;
+		dev_dbg(&dev->dev, "  encode irq (%s)\n",
+			p ? "disabled" : "missing");
+		return;
+	}
+
 	decode_irq_flags(dev, p->flags, &triggering, &polarity, &shareable);
 	irq->triggering = triggering;
 	irq->polarity = polarity;
@@ -828,6 +835,13 @@ static void pnpacpi_encode_ext_irq(struct pnp_dev *dev,
 	struct acpi_resource_extended_irq *extended_irq = &resource->data.extended_irq;
 	int triggering, polarity, shareable;
 
+	if (!pnp_resource_enabled(p)) {
+		extended_irq->interrupt_count = 0;
+		dev_dbg(&dev->dev, "  encode extended irq (%s)\n",
+			p ? "disabled" : "missing");
+		return;
+	}
+
 	decode_irq_flags(dev, p->flags, &triggering, &polarity, &shareable);
 	extended_irq->producer_consumer = ACPI_CONSUMER;
 	extended_irq->triggering = triggering;
@@ -847,6 +861,13 @@ static void pnpacpi_encode_dma(struct pnp_dev *dev,
 			       struct resource *p)
 {
 	struct acpi_resource_dma *dma = &resource->data.dma;
+
+	if (!pnp_resource_enabled(p)) {
+		dma->channel_count = 0;
+		dev_dbg(&dev->dev, "  encode dma (%s)\n",
+			p ? "disabled" : "missing");
+		return;
+	}
 
 	/* Note: pnp_assign_dma will copy pnp_dma->flags into p->flags */
 	switch (p->flags & IORESOURCE_DMA_SPEED_MASK) {
@@ -889,17 +910,21 @@ static void pnpacpi_encode_io(struct pnp_dev *dev,
 {
 	struct acpi_resource_io *io = &resource->data.io;
 
-	/* Note: pnp_assign_port will copy pnp_port->flags into p->flags */
-	io->io_decode = (p->flags & PNP_PORT_FLAG_16BITADDR) ?
-	    ACPI_DECODE_16 : ACPI_DECODE_10;
-	io->minimum = p->start;
-	io->maximum = p->end;
-	io->alignment = 0;	/* Correct? */
-	io->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		/* Note: pnp_assign_port copies pnp_port->flags into p->flags */
+		io->io_decode = (p->flags & PNP_PORT_FLAG_16BITADDR) ?
+		    ACPI_DECODE_16 : ACPI_DECODE_10;
+		io->minimum = p->start;
+		io->maximum = p->end;
+		io->alignment = 0;	/* Correct? */
+		io->address_length = p->end - p->start + 1;
+	} else {
+		io->minimum = 0;
+		io->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode io %#llx-%#llx decode %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
-		io->io_decode);
+	dev_dbg(&dev->dev, "  encode io %#x-%#x decode %#x\n", io->minimum,
+		io->minimum + io->address_length - 1, io->io_decode);
 }
 
 static void pnpacpi_encode_fixed_io(struct pnp_dev *dev,
@@ -908,11 +933,16 @@ static void pnpacpi_encode_fixed_io(struct pnp_dev *dev,
 {
 	struct acpi_resource_fixed_io *fixed_io = &resource->data.fixed_io;
 
-	fixed_io->address = p->start;
-	fixed_io->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		fixed_io->address = p->start;
+		fixed_io->address_length = p->end - p->start + 1;
+	} else {
+		fixed_io->address = 0;
+		fixed_io->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode fixed_io %#llx-%#llx\n",
-		(unsigned long long) p->start, (unsigned long long) p->end);
+	dev_dbg(&dev->dev, "  encode fixed_io %#x-%#x\n", fixed_io->address,
+		fixed_io->address + fixed_io->address_length - 1);
 }
 
 static void pnpacpi_encode_mem24(struct pnp_dev *dev,
@@ -921,17 +951,22 @@ static void pnpacpi_encode_mem24(struct pnp_dev *dev,
 {
 	struct acpi_resource_memory24 *memory24 = &resource->data.memory24;
 
-	/* Note: pnp_assign_mem will copy pnp_mem->flags into p->flags */
-	memory24->write_protect =
-	    (p->flags & IORESOURCE_MEM_WRITEABLE) ?
-	    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
-	memory24->minimum = p->start;
-	memory24->maximum = p->end;
-	memory24->alignment = 0;
-	memory24->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		/* Note: pnp_assign_mem copies pnp_mem->flags into p->flags */
+		memory24->write_protect = p->flags & IORESOURCE_MEM_WRITEABLE ?
+		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
+		memory24->minimum = p->start;
+		memory24->maximum = p->end;
+		memory24->alignment = 0;
+		memory24->address_length = p->end - p->start + 1;
+	} else {
+		memory24->minimum = 0;
+		memory24->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode mem24 %#llx-%#llx write_protect %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
+	dev_dbg(&dev->dev, "  encode mem24 %#x-%#x write_protect %#x\n",
+		memory24->minimum,
+		memory24->minimum + memory24->address_length - 1,
 		memory24->write_protect);
 }
 
@@ -941,16 +976,21 @@ static void pnpacpi_encode_mem32(struct pnp_dev *dev,
 {
 	struct acpi_resource_memory32 *memory32 = &resource->data.memory32;
 
-	memory32->write_protect =
-	    (p->flags & IORESOURCE_MEM_WRITEABLE) ?
-	    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
-	memory32->minimum = p->start;
-	memory32->maximum = p->end;
-	memory32->alignment = 0;
-	memory32->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		memory32->write_protect = p->flags & IORESOURCE_MEM_WRITEABLE ?
+		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
+		memory32->minimum = p->start;
+		memory32->maximum = p->end;
+		memory32->alignment = 0;
+		memory32->address_length = p->end - p->start + 1;
+	} else {
+		memory32->minimum = 0;
+		memory32->alignment = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode mem32 %#llx-%#llx write_protect %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
+	dev_dbg(&dev->dev, "  encode mem32 %#x-%#x write_protect %#x\n",
+		memory32->minimum,
+		memory32->minimum + memory32->address_length - 1,
 		memory32->write_protect);
 }
 
@@ -960,15 +1000,20 @@ static void pnpacpi_encode_fixed_mem32(struct pnp_dev *dev,
 {
 	struct acpi_resource_fixed_memory32 *fixed_memory32 = &resource->data.fixed_memory32;
 
-	fixed_memory32->write_protect =
-	    (p->flags & IORESOURCE_MEM_WRITEABLE) ?
-	    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
-	fixed_memory32->address = p->start;
-	fixed_memory32->address_length = p->end - p->start + 1;
+	if (pnp_resource_enabled(p)) {
+		fixed_memory32->write_protect =
+		    p->flags & IORESOURCE_MEM_WRITEABLE ?
+		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
+		fixed_memory32->address = p->start;
+		fixed_memory32->address_length = p->end - p->start + 1;
+	} else {
+		fixed_memory32->address = 0;
+		fixed_memory32->address_length = 0;
+	}
 
-	dev_dbg(&dev->dev, "  encode fixed_mem32 %#llx-%#llx "
-		"write_protect %#x\n",
-		(unsigned long long) p->start, (unsigned long long) p->end,
+	dev_dbg(&dev->dev, "  encode fixed_mem32 %#x-%#x write_protect %#x\n",
+		fixed_memory32->address,
+		fixed_memory32->address + fixed_memory32->address_length - 1,
 		fixed_memory32->write_protect);
 }
 

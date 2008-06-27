@@ -248,8 +248,7 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 			for (j = 0;
 			     (res = pnp_get_resource(dev, IORESOURCE_MEM, j));
 			     j++) {
-				if (res->flags & IORESOURCE_UNSET ||
-				    (res->start == 0 && res->end == 0))
+				if (res->start == 0 && res->end == 0)
 					continue;
 
 				pnp_start = res->start;

@@ -973,8 +973,7 @@ static int isapnp_set_resources(struct pnp_dev *dev)
 	dev->active = 1;
 	for (tmp = 0; tmp < ISAPNP_MAX_PORT; tmp++) {
 		res = pnp_get_resource(dev, IORESOURCE_IO, tmp);
-		if (res && pnp_resource_valid(res) &&
-		    !(res->flags & IORESOURCE_DISABLED)) {
+		if (pnp_resource_enabled(res)) {
 			dev_dbg(&dev->dev, "  set io  %d to %#llx\n",
 				tmp, (unsigned long long) res->start);
 			isapnp_write_word(ISAPNP_CFG_PORT + (tmp << 1),
@@ -983,8 +982,7 @@ static int isapnp_set_resources(struct pnp_dev *dev)
 	}
 	for (tmp = 0; tmp < ISAPNP_MAX_IRQ; tmp++) {
 		res = pnp_get_resource(dev, IORESOURCE_IRQ, tmp);
-		if (res && pnp_resource_valid(res) &&
-		    !(res->flags & IORESOURCE_DISABLED)) {
+		if (pnp_resource_enabled(res)) {
 			int irq = res->start;
 			if (irq == 2)
 				irq = 9;
@@ -994,8 +992,7 @@ static int isapnp_set_resources(struct pnp_dev *dev)
 	}
 	for (tmp = 0; tmp < ISAPNP_MAX_DMA; tmp++) {
 		res = pnp_get_resource(dev, IORESOURCE_DMA, tmp);
-		if (res && pnp_resource_valid(res) &&
-		    !(res->flags & IORESOURCE_DISABLED)) {
+		if (pnp_resource_enabled(res)) {
 			dev_dbg(&dev->dev, "  set dma %d to %lld\n",
 				tmp, (unsigned long long) res->start);
 			isapnp_write_byte(ISAPNP_CFG_DMA + tmp, res->start);
@@ -1003,8 +1000,7 @@ static int isapnp_set_resources(struct pnp_dev *dev)
 	}
 	for (tmp = 0; tmp < ISAPNP_MAX_MEM; tmp++) {
 		res = pnp_get_resource(dev, IORESOURCE_MEM, tmp);
-		if (res && pnp_resource_valid(res) &&
-		    !(res->flags & IORESOURCE_DISABLED)) {
+		if (pnp_resource_enabled(res)) {
 			dev_dbg(&dev->dev, "  set mem %d to %#llx\n",
 				tmp, (unsigned long long) res->start);
 			isapnp_write_word(ISAPNP_CFG_MEM + (tmp << 3),
