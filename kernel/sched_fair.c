@@ -1074,22 +1074,53 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 static const struct sched_class fair_sched_class;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-static unsigned long task_h_load(struct task_struct *p)
+static unsigned long effective_load(struct task_group *tg, long wl, int cpu)
 {
-	unsigned long h_load = p->se.load.weight;
-	struct cfs_rq *cfs_rq = cfs_rq_of(&p->se);
+	struct sched_entity *se = tg->se[cpu];
+	long wg = wl;
 
-	update_h_load(task_cpu(p));
+	for_each_sched_entity(se) {
+#define D(n) (likely(n) ? (n) : 1)
 
-	h_load = calc_delta_mine(h_load, cfs_rq->h_load, &cfs_rq->load);
+		long S, Srw, rw, s, sn;
 
-	return h_load;
+		S = se->my_q->tg->shares;
+		s = se->my_q->shares;
+		rw = se->my_q->load.weight;
+
+		Srw = S * rw / D(s);
+		sn = S * (rw + wl) / D(Srw + wg);
+
+		wl = sn - s;
+		wg = 0;
+#undef D
+	}
+
+	return wl;
 }
+
+static unsigned long task_load_sub(struct task_struct *p)
+{
+	return effective_load(task_group(p), -(long)p->se.load.weight, task_cpu(p));
+}
+
+static unsigned long task_load_add(struct task_struct *p, int cpu)
+{
+	return effective_load(task_group(p), p->se.load.weight, cpu);
+}
+
 #else
-static unsigned long task_h_load(struct task_struct *p)
+
+static unsigned long task_load_sub(struct task_struct *p)
+{
+	return -p->se.load.weight;
+}
+
+static unsigned long task_load_add(struct task_struct *p, int cpu)
 {
 	return p->se.load.weight;
 }
+
 #endif
 
 static int
@@ -1112,9 +1143,9 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	 * of the current CPU:
 	 */
 	if (sync)
-		tl -= task_h_load(current);
+		tl += task_load_sub(current);
 
-	balanced = 100*(tl + task_h_load(p)) <= imbalance*load;
+	balanced = 100*(tl + task_load_add(p, this_cpu)) <= imbalance*load;
 
 	/*
 	 * If the currently running task will sleep within
