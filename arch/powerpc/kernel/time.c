@@ -742,10 +742,6 @@ void __init generic_calibrate_decr(void)
 	}
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	/* Set the time base to zero */
-	mtspr(SPRN_TBWL, 0);
-	mtspr(SPRN_TBWU, 0);
-
 	/* Clear any pending timer interrupts */
 	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
 
