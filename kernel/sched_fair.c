@@ -429,6 +429,7 @@ calc_delta_asym(unsigned long delta, struct sched_entity *se)
 
 	for_each_sched_entity(se) {
 		struct load_weight *se_lw = &se->load;
+		unsigned long rw = cfs_rq_of(se)->load.weight;
 
 #ifdef CONFIG_FAIR_SCHED_GROUP
 		struct cfs_rq *cfs_rq = se->my_q;
@@ -450,14 +451,16 @@ calc_delta_asym(unsigned long delta, struct sched_entity *se)
 			lw.inv_weight = 0;
 
 			se_lw = &lw;
+			rw += lw.weight - se->load.weight;
 		} else
 #endif
 
-		if (se->load.weight < NICE_0_LOAD)
+		if (se->load.weight < NICE_0_LOAD) {
 			se_lw = &lw;
+			rw += NICE_0_LOAD - se->load.weight;
+		}
 
-		delta = calc_delta_mine(delta,
-				cfs_rq_of(se)->load.weight, se_lw);
+		delta = calc_delta_mine(delta, rw, se_lw);
 	}
 
 	return delta;
