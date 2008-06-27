@@ -216,8 +216,8 @@ W:	http://code.google.com/p/aceracpi
 S:	Maintained
 
 ACPI
-P:	Len Brown
-M:	len.brown@intel.com
+P:	Andi Kleen
+M:	ak@linux.intel.com
 M:	lenb@kernel.org
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
