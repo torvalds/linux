@@ -390,7 +390,7 @@ raid5_end_read_request(struct bio *bi, int error);
 static void
 raid5_end_write_request(struct bio *bi, int error);
 
-static void ops_run_io(struct stripe_head *sh)
+static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int i, disks = sh->disks;
@@ -425,9 +425,7 @@ static void ops_run_io(struct stripe_head *sh)
 		rcu_read_unlock();
 
 		if (rdev) {
-			if (test_bit(STRIPE_SYNCING, &sh->state) ||
-				test_bit(STRIPE_EXPAND_SOURCE, &sh->state) ||
-				test_bit(STRIPE_EXPAND_READY, &sh->state))
+			if (s->syncing || s->expanding || s->expanded)
 				md_sync_acct(rdev->bdev, STRIPE_SECTORS);
 
 			set_bit(STRIPE_IO_STARTED, &sh->state);
@@ -2902,10 +2900,9 @@ static void handle_stripe5(struct stripe_head *sh)
 	if (pending)
 		raid5_run_ops(sh, pending);
 
-	ops_run_io(sh);
+	ops_run_io(sh, &s);
 
 	return_io(return_bi);
-
 }
 
 static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
