@@ -2,6 +2,8 @@
  * support.c - standard functions for the use of pnp protocol drivers
  *
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
+ * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
 #include <linux/module.h>
@@ -115,5 +117,95 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 		}
 		dev_dbg(&dev->dev, "%s\n", buf);
 	}
+#endif
+}
+
+char *pnp_option_priority_name(struct pnp_option *option)
+{
+	switch (pnp_option_priority(option)) {
+	case PNP_RES_PRIORITY_PREFERRED:
+		return "preferred";
+	case PNP_RES_PRIORITY_ACCEPTABLE:
+		return "acceptable";
+	case PNP_RES_PRIORITY_FUNCTIONAL:
+		return "functional";
+	}
+	return "invalid";
+}
+
+void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
+{
+#ifdef DEBUG
+	char buf[128];
+	int len = 0, i;
+	struct pnp_port *port;
+	struct pnp_mem *mem;
+	struct pnp_irq *irq;
+	struct pnp_dma *dma;
+
+	if (pnp_option_is_dependent(option))
+		len += snprintf(buf + len, sizeof(buf) - len,
+				"  dependent set %d (%s) ",
+				pnp_option_set(option),
+				pnp_option_priority_name(option));
+	else
+		len += snprintf(buf + len, sizeof(buf) - len, "  independent ");
+
+	switch (option->type) {
+	case IORESOURCE_IO:
+		port = &option->u.port;
+		len += snprintf(buf + len, sizeof(buf) - len, "io  min %#llx "
+				"max %#llx align %lld size %lld flags %#x",
+				(unsigned long long) port->min,
+				(unsigned long long) port->max,
+				(unsigned long long) port->align,
+				(unsigned long long) port->size, port->flags);
+		break;
+	case IORESOURCE_MEM:
+		mem = &option->u.mem;
+		len += snprintf(buf + len, sizeof(buf) - len, "mem min %#llx "
+				"max %#llx align %lld size %lld flags %#x",
+				(unsigned long long) mem->min,
+				(unsigned long long) mem->max,
+				(unsigned long long) mem->align,
+				(unsigned long long) mem->size, mem->flags);
+		break;
+	case IORESOURCE_IRQ:
+		irq = &option->u.irq;
+		len += snprintf(buf + len, sizeof(buf) - len, "irq");
+		if (bitmap_empty(irq->map.bits, PNP_IRQ_NR))
+			len += snprintf(buf + len, sizeof(buf) - len,
+					" <none>");
+		else {
+			for (i = 0; i < PNP_IRQ_NR; i++)
+				if (test_bit(i, irq->map.bits))
+					len += snprintf(buf + len,
+							sizeof(buf) - len,
+							" %d", i);
+		}
+		len += snprintf(buf + len, sizeof(buf) - len, " flags %#x",
+				irq->flags);
+		if (irq->flags & IORESOURCE_IRQ_OPTIONAL)
+			len += snprintf(buf + len, sizeof(buf) - len,
+					" (optional)");
+		break;
+	case IORESOURCE_DMA:
+		dma = &option->u.dma;
+		len += snprintf(buf + len, sizeof(buf) - len, "dma");
+		if (!dma->map)
+			len += snprintf(buf + len, sizeof(buf) - len,
+					" <none>");
+		else {
+			for (i = 0; i < 8; i++)
+				if (dma->map & (1 << i))
+					len += snprintf(buf + len,
+							sizeof(buf) - len,
+							" %d", i);
+		}
+		len += snprintf(buf + len, sizeof(buf) - len, " (bitmask %#x) "
+				"flags %#x", dma->map, dma->flags);
+		break;
+	}
+	dev_dbg(&dev->dev, "%s\n", buf);
 #endif
 }

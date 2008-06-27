@@ -216,7 +216,7 @@ len_err:
 
 static __init void pnpbios_parse_mem_option(struct pnp_dev *dev,
 					    unsigned char *p, int size,
-					    struct pnp_option *option)
+					    unsigned int option_flags)
 {
 	resource_size_t min, max, align, len;
 	unsigned char flags;
@@ -226,12 +226,13 @@ static __init void pnpbios_parse_mem_option(struct pnp_dev *dev,
 	align = (p[9] << 8) | p[8];
 	len = ((p[11] << 8) | p[10]) << 8;
 	flags = p[3];
-	pnp_register_mem_resource(dev, option, min, max, align, len, flags);
+	pnp_register_mem_resource(dev, option_flags, min, max, align, len,
+				  flags);
 }
 
 static __init void pnpbios_parse_mem32_option(struct pnp_dev *dev,
 					      unsigned char *p, int size,
-					      struct pnp_option *option)
+					      unsigned int option_flags)
 {
 	resource_size_t min, max, align, len;
 	unsigned char flags;
@@ -241,12 +242,13 @@ static __init void pnpbios_parse_mem32_option(struct pnp_dev *dev,
 	align = (p[15] << 24) | (p[14] << 16) | (p[13] << 8) | p[12];
 	len = (p[19] << 24) | (p[18] << 16) | (p[17] << 8) | p[16];
 	flags = p[3];
-	pnp_register_mem_resource(dev, option, min, max, align, len, flags);
+	pnp_register_mem_resource(dev, option_flags, min, max, align, len,
+				  flags);
 }
 
 static __init void pnpbios_parse_fixed_mem32_option(struct pnp_dev *dev,
 						    unsigned char *p, int size,
-						    struct pnp_option *option)
+						    unsigned int option_flags)
 {
 	resource_size_t base, len;
 	unsigned char flags;
@@ -254,12 +256,12 @@ static __init void pnpbios_parse_fixed_mem32_option(struct pnp_dev *dev,
 	base = (p[7] << 24) | (p[6] << 16) | (p[5] << 8) | p[4];
 	len = (p[11] << 24) | (p[10] << 16) | (p[9] << 8) | p[8];
 	flags = p[3];
-	pnp_register_mem_resource(dev, option, base, base, 0, len, flags);
+	pnp_register_mem_resource(dev, option_flags, base, base, 0, len, flags);
 }
 
 static __init void pnpbios_parse_irq_option(struct pnp_dev *dev,
 					    unsigned char *p, int size,
-					    struct pnp_option *option)
+					    unsigned int option_flags)
 {
 	unsigned long bits;
 	pnp_irq_mask_t map;
@@ -273,19 +275,19 @@ static __init void pnpbios_parse_irq_option(struct pnp_dev *dev,
 	if (size > 2)
 		flags = p[3];
 
-	pnp_register_irq_resource(dev, option, &map, flags);
+	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
 static __init void pnpbios_parse_dma_option(struct pnp_dev *dev,
 					    unsigned char *p, int size,
-					    struct pnp_option *option)
+					    unsigned int option_flags)
 {
-	pnp_register_dma_resource(dev, option, p[1], p[2]);
+	pnp_register_dma_resource(dev, option_flags, p[1], p[2]);
 }
 
 static __init void pnpbios_parse_port_option(struct pnp_dev *dev,
 					     unsigned char *p, int size,
-					     struct pnp_option *option)
+					     unsigned int option_flags)
 {
 	resource_size_t min, max, align, len;
 	unsigned char flags;
@@ -295,38 +297,35 @@ static __init void pnpbios_parse_port_option(struct pnp_dev *dev,
 	align = p[6];
 	len = p[7];
 	flags = p[1] ? IORESOURCE_IO_16BIT_ADDR : 0;
-	pnp_register_port_resource(dev, option, min, max, align, len, flags);
+	pnp_register_port_resource(dev, option_flags, min, max, align, len,
+				   flags);
 }
 
 static __init void pnpbios_parse_fixed_port_option(struct pnp_dev *dev,
 						   unsigned char *p, int size,
-						   struct pnp_option *option)
+						   unsigned int option_flags)
 {
 	resource_size_t base, len;
 
 	base = (p[2] << 8) | p[1];
 	len = p[3];
-	pnp_register_port_resource(dev, option, base, base, 0, len,
+	pnp_register_port_resource(dev, option_flags, base, base, 0, len,
 				   IORESOURCE_IO_FIXED);
 }
 
 static __init unsigned char *
 pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
-					struct pnp_dev *dev)
+				   struct pnp_dev *dev)
 {
 	unsigned int len, tag;
 	int priority;
-	struct pnp_option *option, *option_independent;
+	unsigned int option_flags;
 
 	if (!p)
 		return NULL;
 
 	dev_dbg(&dev->dev, "parse resource options\n");
-
-	option_independent = option = pnp_register_independent_option(dev);
-	if (!option)
-		return NULL;
-
+	option_flags = 0;
 	while ((char *)p < (char *)end) {
 
 		/* determine the type of tag */
@@ -343,37 +342,38 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 		case LARGE_TAG_MEM:
 			if (len != 9)
 				goto len_err;
-			pnpbios_parse_mem_option(dev, p, len, option);
+			pnpbios_parse_mem_option(dev, p, len, option_flags);
 			break;
 
 		case LARGE_TAG_MEM32:
 			if (len != 17)
 				goto len_err;
-			pnpbios_parse_mem32_option(dev, p, len, option);
+			pnpbios_parse_mem32_option(dev, p, len, option_flags);
 			break;
 
 		case LARGE_TAG_FIXEDMEM32:
 			if (len != 9)
 				goto len_err;
-			pnpbios_parse_fixed_mem32_option(dev, p, len, option);
+			pnpbios_parse_fixed_mem32_option(dev, p, len,
+							 option_flags);
 			break;
 
 		case SMALL_TAG_IRQ:
 			if (len < 2 || len > 3)
 				goto len_err;
-			pnpbios_parse_irq_option(dev, p, len, option);
+			pnpbios_parse_irq_option(dev, p, len, option_flags);
 			break;
 
 		case SMALL_TAG_DMA:
 			if (len != 2)
 				goto len_err;
-			pnpbios_parse_dma_option(dev, p, len, option);
+			pnpbios_parse_dma_option(dev, p, len, option_flags);
 			break;
 
 		case SMALL_TAG_PORT:
 			if (len != 7)
 				goto len_err;
-			pnpbios_parse_port_option(dev, p, len, option);
+			pnpbios_parse_port_option(dev, p, len, option_flags);
 			break;
 
 		case SMALL_TAG_VENDOR:
@@ -383,7 +383,8 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 		case SMALL_TAG_FIXEDPORT:
 			if (len != 3)
 				goto len_err;
-			pnpbios_parse_fixed_port_option(dev, p, len, option);
+			pnpbios_parse_fixed_port_option(dev, p, len,
+							option_flags);
 			break;
 
 		case SMALL_TAG_STARTDEP:
@@ -392,19 +393,13 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 			priority = PNP_RES_PRIORITY_ACCEPTABLE;
 			if (len > 0)
 				priority = p[1];
-			option = pnp_register_dependent_option(dev, priority);
-			if (!option)
-				return NULL;
+			option_flags = pnp_new_dependent_set(dev, priority);
 			break;
 
 		case SMALL_TAG_ENDDEP:
 			if (len != 0)
 				goto len_err;
-			if (option_independent == option)
-				dev_warn(&dev->dev, "missing "
-					 "SMALL_TAG_STARTDEP tag\n");
-			option = option_independent;
-			dev_dbg(&dev->dev, "end dependent options\n");
+			option_flags = 0;
 			break;
 
 		case SMALL_TAG_END:

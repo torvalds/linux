@@ -1,6 +1,8 @@
 /*
  * Linux Plug and Play Support
  * Copyright by Adam Belay <ambx1@neo.rr.com>
+ * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
 #ifndef _LINUX_PNP_H
@@ -249,9 +251,9 @@ struct pnp_dev {
 
 	int active;
 	int capabilities;
-	struct pnp_option *independent;
-	struct pnp_option *dependent;
+	unsigned int num_dependent_sets;
 	struct list_head resources;
+	struct list_head options;
 
 	char name[PNP_NAME_LEN];	/* contains a human-readable name */
 	int flags;			/* used by protocols */

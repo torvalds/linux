@@ -3,6 +3,8 @@
  *
  * Some code, especially possible resource dumping is based on isapnp_proc.c (c) Jaroslav Kysela <perex@perex.cz>
  * Copyright 2002 Adam Belay <ambx1@neo.rr.com>
+ * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
 #include <linux/pnp.h>
@@ -184,39 +186,22 @@ static void pnp_print_mem(pnp_info_buffer_t * buffer, char *space,
 }
 
 static void pnp_print_option(pnp_info_buffer_t * buffer, char *space,
-			     struct pnp_option *option, int dep)
+			     struct pnp_option *option)
 {
-	char *s;
-	struct pnp_port *port;
-	struct pnp_irq *irq;
-	struct pnp_dma *dma;
-	struct pnp_mem *mem;
-
-	if (dep) {
-		switch (option->priority) {
-		case PNP_RES_PRIORITY_PREFERRED:
-			s = "preferred";
-			break;
-		case PNP_RES_PRIORITY_ACCEPTABLE:
-			s = "acceptable";
-			break;
-		case PNP_RES_PRIORITY_FUNCTIONAL:
-			s = "functional";
-			break;
-		default:
-			s = "invalid";
-		}
-		pnp_printf(buffer, "Dependent: %02i - Priority %s\n", dep, s);
+	switch (option->type) {
+	case IORESOURCE_IO:
+		pnp_print_port(buffer, space, &option->u.port);
+		break;
+	case IORESOURCE_MEM:
+		pnp_print_mem(buffer, space, &option->u.mem);
+		break;
+	case IORESOURCE_IRQ:
+		pnp_print_irq(buffer, space, &option->u.irq);
+		break;
+	case IORESOURCE_DMA:
+		pnp_print_dma(buffer, space, &option->u.dma);
+		break;
 	}
-
-	for (port = option->port; port; port = port->next)
-		pnp_print_port(buffer, space, port);
-	for (irq = option->irq; irq; irq = irq->next)
-		pnp_print_irq(buffer, space, irq);
-	for (dma = option->dma; dma; dma = dma->next)
-		pnp_print_dma(buffer, space, dma);
-	for (mem = option->mem; mem; mem = mem->next)
-		pnp_print_mem(buffer, space, mem);
 }
 
 static ssize_t pnp_show_options(struct device *dmdev,
@@ -224,9 +209,9 @@ static ssize_t pnp_show_options(struct device *dmdev,
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	pnp_info_buffer_t *buffer;
-	struct pnp_option *independent = dev->independent;
-	struct pnp_option *dependent = dev->dependent;
-	int ret, dep = 1;
+	struct pnp_option *option;
+	int ret, dep = 0, set = 0;
+	char *indent;
 
 	buffer = pnp_alloc(sizeof(pnp_info_buffer_t));
 	if (!buffer)
@@ -235,14 +220,24 @@ static ssize_t pnp_show_options(struct device *dmdev,
 	buffer->len = PAGE_SIZE;
 	buffer->buffer = buf;
 	buffer->curr = buffer->buffer;
-	if (independent)
-		pnp_print_option(buffer, "", independent, 0);
 
-	while (dependent) {
-		pnp_print_option(buffer, "   ", dependent, dep);
-		dependent = dependent->next;
-		dep++;
+	list_for_each_entry(option, &dev->options, list) {
+		if (pnp_option_is_dependent(option)) {
+			indent = "  ";
+			if (!dep || pnp_option_set(option) != set) {
+				set = pnp_option_set(option);
+				dep = 1;
+				pnp_printf(buffer, "Dependent: %02i - "
+					   "Priority %s\n", set,
+					   pnp_option_priority_name(option));
+			}
+		} else {
+			dep = 0;
+			indent = "";
+		}
+		pnp_print_option(buffer, indent, option);
 	}
+
 	ret = (buffer->curr - buf);
 	kfree(buffer);
 	return ret;

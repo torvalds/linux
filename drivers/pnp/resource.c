@@ -3,6 +3,8 @@
  *
  * based on isapnp.c resource management (c) Jaroslav Kysela <perex@perex.cz>
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
+ * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
 #include <linux/module.h>
@@ -28,77 +30,35 @@ static int pnp_reserve_mem[16] = {[0 ... 15] = -1 };	/* reserve (don't use) some
  * option registration
  */
 
-struct pnp_option *pnp_build_option(int priority)
+struct pnp_option *pnp_build_option(struct pnp_dev *dev, unsigned long type,
+				    unsigned int option_flags)
 {
-	struct pnp_option *option = pnp_alloc(sizeof(struct pnp_option));
+	struct pnp_option *option;
 
+	option = kzalloc(sizeof(struct pnp_option), GFP_KERNEL);
 	if (!option)
 		return NULL;
 
-	option->priority = priority & 0xff;
-	/* make sure the priority is valid */
-	if (option->priority > PNP_RES_PRIORITY_FUNCTIONAL)
-		option->priority = PNP_RES_PRIORITY_INVALID;
+	option->flags = option_flags;
+	option->type = type;
 
+	list_add_tail(&option->list, &dev->options);
 	return option;
 }
 
-struct pnp_option *pnp_register_independent_option(struct pnp_dev *dev)
-{
-	struct pnp_option *option;
-
-	option = pnp_build_option(PNP_RES_PRIORITY_PREFERRED);
-
-	/* this should never happen but if it does we'll try to continue */
-	if (dev->independent)
-		dev_err(&dev->dev, "independent resource already registered\n");
-	dev->independent = option;
-
-	dev_dbg(&dev->dev, "new independent option\n");
-	return option;
-}
-
-struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
-						 int priority)
-{
-	struct pnp_option *option;
-
-	option = pnp_build_option(priority);
-
-	if (dev->dependent) {
-		struct pnp_option *parent = dev->dependent;
-		while (parent->next)
-			parent = parent->next;
-		parent->next = option;
-	} else
-		dev->dependent = option;
-
-	dev_dbg(&dev->dev, "new dependent option (priority %#x)\n", priority);
-	return option;
-}
-
-int pnp_register_irq_resource(struct pnp_dev *dev, struct pnp_option *option,
+int pnp_register_irq_resource(struct pnp_dev *dev, unsigned int option_flags,
 			      pnp_irq_mask_t *map, unsigned char flags)
 {
-	struct pnp_irq *irq, *ptr;
-#ifdef DEBUG
-	char buf[PNP_IRQ_NR];   /* hex-encoded, so this is overkill but safe */
-#endif
+	struct pnp_option *option;
+	struct pnp_irq *irq;
 
-	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
-	if (!irq)
+	option = pnp_build_option(dev, IORESOURCE_IRQ, option_flags);
+	if (!option)
 		return -ENOMEM;
 
+	irq = &option->u.irq;
 	irq->map = *map;
 	irq->flags = flags;
-
-	ptr = option->irq;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = irq;
-	else
-		option->irq = irq;
 
 #ifdef CONFIG_PCI
 	{
@@ -110,163 +70,81 @@ int pnp_register_irq_resource(struct pnp_dev *dev, struct pnp_option *option,
 	}
 #endif
 
-#ifdef DEBUG
-	bitmap_scnprintf(buf, sizeof(buf), irq->map.bits, PNP_IRQ_NR);
-	dev_dbg(&dev->dev, "  irq bitmask %s flags %#x\n", buf,
-		irq->flags);
-#endif
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-int pnp_register_dma_resource(struct pnp_dev *dev, struct pnp_option *option,
+int pnp_register_dma_resource(struct pnp_dev *dev, unsigned int option_flags,
 			      unsigned char map, unsigned char flags)
 {
-	struct pnp_dma *dma, *ptr;
+	struct pnp_option *option;
+	struct pnp_dma *dma;
 
-	dma = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
-	if (!dma)
+	option = pnp_build_option(dev, IORESOURCE_DMA, option_flags);
+	if (!option)
 		return -ENOMEM;
 
+	dma = &option->u.dma;
 	dma->map = map;
 	dma->flags = flags;
 
-	ptr = option->dma;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = dma;
-	else
-		option->dma = dma;
-
-	dev_dbg(&dev->dev, "  dma bitmask %#x flags %#x\n", dma->map,
-		dma->flags);
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-int pnp_register_port_resource(struct pnp_dev *dev, struct pnp_option *option,
+int pnp_register_port_resource(struct pnp_dev *dev, unsigned int option_flags,
 			       resource_size_t min, resource_size_t max,
 			       resource_size_t align, resource_size_t size,
 			       unsigned char flags)
 {
-	struct pnp_port *port, *ptr;
+	struct pnp_option *option;
+	struct pnp_port *port;
 
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
+	option = pnp_build_option(dev, IORESOURCE_IO, option_flags);
+	if (!option)
 		return -ENOMEM;
 
+	port = &option->u.port;
 	port->min = min;
 	port->max = max;
 	port->align = align;
 	port->size = size;
 	port->flags = flags;
 
-	ptr = option->port;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = port;
-	else
-		option->port = port;
-
-	dev_dbg(&dev->dev, "  io  "
-		"min %#llx max %#llx align %lld size %lld flags %#x\n",
-		(unsigned long long) port->min,
-		(unsigned long long) port->max,
-		(unsigned long long) port->align,
-		(unsigned long long) port->size, port->flags);
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-int pnp_register_mem_resource(struct pnp_dev *dev, struct pnp_option *option,
+int pnp_register_mem_resource(struct pnp_dev *dev, unsigned int option_flags,
 			      resource_size_t min, resource_size_t max,
 			      resource_size_t align, resource_size_t size,
 			      unsigned char flags)
 {
-	struct pnp_mem *mem, *ptr;
+	struct pnp_option *option;
+	struct pnp_mem *mem;
 
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
+	option = pnp_build_option(dev, IORESOURCE_MEM, option_flags);
+	if (!option)
 		return -ENOMEM;
 
+	mem = &option->u.mem;
 	mem->min = min;
 	mem->max = max;
 	mem->align = align;
 	mem->size = size;
 	mem->flags = flags;
 
-	ptr = option->mem;
-	while (ptr && ptr->next)
-		ptr = ptr->next;
-	if (ptr)
-		ptr->next = mem;
-	else
-		option->mem = mem;
-
-	dev_dbg(&dev->dev, "  mem "
-		"min %#llx max %#llx align %lld size %lld flags %#x\n",
-		(unsigned long long) mem->min,
-		(unsigned long long) mem->max,
-		(unsigned long long) mem->align,
-		(unsigned long long) mem->size, mem->flags);
+	dbg_pnp_show_option(dev, option);
 	return 0;
 }
 
-static void pnp_free_port(struct pnp_port *port)
+void pnp_free_options(struct pnp_dev *dev)
 {
-	struct pnp_port *next;
+	struct pnp_option *option, *tmp;
 
-	while (port) {
-		next = port->next;
-		kfree(port);
-		port = next;
-	}
-}
-
-static void pnp_free_irq(struct pnp_irq *irq)
-{
-	struct pnp_irq *next;
-
-	while (irq) {
-		next = irq->next;
-		kfree(irq);
-		irq = next;
-	}
-}
-
-static void pnp_free_dma(struct pnp_dma *dma)
-{
-	struct pnp_dma *next;
-
-	while (dma) {
-		next = dma->next;
-		kfree(dma);
-		dma = next;
-	}
-}
-
-static void pnp_free_mem(struct pnp_mem *mem)
-{
-	struct pnp_mem *next;
-
-	while (mem) {
-		next = mem->next;
-		kfree(mem);
-		mem = next;
-	}
-}
-
-void pnp_free_option(struct pnp_option *option)
-{
-	struct pnp_option *next;
-
-	while (option) {
-		next = option->next;
-		pnp_free_port(option->port);
-		pnp_free_irq(option->irq);
-		pnp_free_dma(option->dma);
-		pnp_free_mem(option->mem);
+	list_for_each_entry_safe(option, tmp, &dev->options, list) {
+		list_del(&option->list);
 		kfree(option);
-		option = next;
 	}
 }
 
@@ -668,51 +546,6 @@ struct pnp_resource *pnp_add_mem_resource(struct pnp_dev *dev,
 	return pnp_res;
 }
 
-static int pnp_possible_option(struct pnp_option *option, int type,
-			       resource_size_t start, resource_size_t size)
-{
-	struct pnp_option *tmp;
-	struct pnp_port *port;
-	struct pnp_mem *mem;
-	struct pnp_irq *irq;
-	struct pnp_dma *dma;
-
-	if (!option)
-		return 0;
-
-	for (tmp = option; tmp; tmp = tmp->next) {
-		switch (type) {
-		case IORESOURCE_IO:
-			for (port = tmp->port; port; port = port->next) {
-				if (port->min == start && port->size == size)
-					return 1;
-			}
-			break;
-		case IORESOURCE_MEM:
-			for (mem = tmp->mem; mem; mem = mem->next) {
-				if (mem->min == start && mem->size == size)
-					return 1;
-			}
-			break;
-		case IORESOURCE_IRQ:
-			for (irq = tmp->irq; irq; irq = irq->next) {
-				if (start < PNP_IRQ_NR &&
-				    test_bit(start, irq->map.bits))
-					return 1;
-			}
-			break;
-		case IORESOURCE_DMA:
-			for (dma = tmp->dma; dma; dma = dma->next) {
-				if (dma->map & (1 << start))
-					return 1;
-			}
-			break;
-		}
-	}
-
-	return 0;
-}
-
 /*
  * Determine whether the specified resource is a possible configuration
  * for this device.
@@ -720,11 +553,40 @@ static int pnp_possible_option(struct pnp_option *option, int type,
 int pnp_possible_config(struct pnp_dev *dev, int type, resource_size_t start,
 			resource_size_t size)
 {
-	if (pnp_possible_option(dev->independent, type, start, size))
-		return 1;
+	struct pnp_option *option;
+	struct pnp_port *port;
+	struct pnp_mem *mem;
+	struct pnp_irq *irq;
+	struct pnp_dma *dma;
 
-	if (pnp_possible_option(dev->dependent, type, start, size))
-		return 1;
+	list_for_each_entry(option, &dev->options, list) {
+		if (option->type != type)
+			continue;
+
+		switch (option->type) {
+		case IORESOURCE_IO:
+			port = &option->u.port;
+			if (port->min == start && port->size == size)
+				return 1;
+			break;
+		case IORESOURCE_MEM:
+			mem = &option->u.mem;
+			if (mem->min == start && mem->size == size)
+				return 1;
+			break;
+		case IORESOURCE_IRQ:
+			irq = &option->u.irq;
+			if (start < PNP_IRQ_NR &&
+			    test_bit(start, irq->map.bits))
+				return 1;
+			break;
+		case IORESOURCE_DMA:
+			dma = &option->u.dma;
+			if (dma->map & (1 << start))
+				return 1;
+			break;
+		}
+	}
 
 	return 0;
 }

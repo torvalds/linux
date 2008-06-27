@@ -3,6 +3,8 @@
  *
  * based on isapnp.c resource management (c) Jaroslav Kysela <perex@perex.cz>
  * Copyright 2003 Adam Belay <ambx1@neo.rr.com>
+ * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
 #include <linux/errno.h>
@@ -228,102 +230,51 @@ static void pnp_clean_resource_table(struct pnp_dev *dev)
 /**
  * pnp_assign_resources - assigns resources to the device based on the specified dependent number
  * @dev: pointer to the desired device
- * @depnum: the dependent function number
- *
- * Only set depnum to 0 if the device does not have dependent options.
+ * @set: the dependent function number
  */
-static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
+static int pnp_assign_resources(struct pnp_dev *dev, int set)
 {
-	struct pnp_port *port;
-	struct pnp_mem *mem;
-	struct pnp_irq *irq;
-	struct pnp_dma *dma;
+	struct pnp_option *option;
 	int nport = 0, nmem = 0, nirq = 0, ndma = 0;
+	int ret = 0;
 
-	dbg_pnp_show_resources(dev, "before pnp_assign_resources");
+	dev_dbg(&dev->dev, "pnp_assign_resources, try dependent set %d\n", set);
 	mutex_lock(&pnp_res_mutex);
 	pnp_clean_resource_table(dev);
-	if (dev->independent) {
-		dev_dbg(&dev->dev, "assigning independent options\n");
-		port = dev->independent->port;
-		mem = dev->independent->mem;
-		irq = dev->independent->irq;
-		dma = dev->independent->dma;
-		while (port) {
-			if (pnp_assign_port(dev, port, nport) < 0)
-				goto fail;
-			nport++;
-			port = port->next;
+
+	list_for_each_entry(option, &dev->options, list) {
+		if (pnp_option_is_dependent(option) &&
+		    pnp_option_set(option) != set)
+				continue;
+
+		switch (option->type) {
+		case IORESOURCE_IO:
+			ret = pnp_assign_port(dev, &option->u.port, nport++);
+			break;
+		case IORESOURCE_MEM:
+			ret = pnp_assign_mem(dev, &option->u.mem, nmem++);
+			break;
+		case IORESOURCE_IRQ:
+			ret = pnp_assign_irq(dev, &option->u.irq, nirq++);
+			break;
+		case IORESOURCE_DMA:
+			ret = pnp_assign_dma(dev, &option->u.dma, ndma++);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
 		}
-		while (mem) {
-			if (pnp_assign_mem(dev, mem, nmem) < 0)
-				goto fail;
-			nmem++;
-			mem = mem->next;
-		}
-		while (irq) {
-			if (pnp_assign_irq(dev, irq, nirq) < 0)
-				goto fail;
-			nirq++;
-			irq = irq->next;
-		}
-		while (dma) {
-			if (pnp_assign_dma(dev, dma, ndma) < 0)
-				goto fail;
-			ndma++;
-			dma = dma->next;
-		}
+		if (ret < 0)
+			break;
 	}
 
-	if (depnum) {
-		struct pnp_option *dep;
-		int i;
-
-		dev_dbg(&dev->dev, "assigning dependent option %d\n", depnum);
-		for (i = 1, dep = dev->dependent; i < depnum;
-		     i++, dep = dep->next)
-			if (!dep)
-				goto fail;
-		port = dep->port;
-		mem = dep->mem;
-		irq = dep->irq;
-		dma = dep->dma;
-		while (port) {
-			if (pnp_assign_port(dev, port, nport) < 0)
-				goto fail;
-			nport++;
-			port = port->next;
-		}
-		while (mem) {
-			if (pnp_assign_mem(dev, mem, nmem) < 0)
-				goto fail;
-			nmem++;
-			mem = mem->next;
-		}
-		while (irq) {
-			if (pnp_assign_irq(dev, irq, nirq) < 0)
-				goto fail;
-			nirq++;
-			irq = irq->next;
-		}
-		while (dma) {
-			if (pnp_assign_dma(dev, dma, ndma) < 0)
-				goto fail;
-			ndma++;
-			dma = dma->next;
-		}
-	} else if (dev->dependent)
-		goto fail;
-
 	mutex_unlock(&pnp_res_mutex);
-	dbg_pnp_show_resources(dev, "after pnp_assign_resources");
-	return 1;
-
-fail:
-	pnp_clean_resource_table(dev);
-	mutex_unlock(&pnp_res_mutex);
-	dbg_pnp_show_resources(dev, "after pnp_assign_resources (failed)");
-	return 0;
+	if (ret < 0) {
+		dev_dbg(&dev->dev, "pnp_assign_resources failed (%d)\n", ret);
+		pnp_clean_resource_table(dev);
+	} else
+		dbg_pnp_show_resources(dev, "pnp_assign_resources succeeded");
+	return ret;
 }
 
 /**
@@ -332,29 +283,25 @@ fail:
  */
 int pnp_auto_config_dev(struct pnp_dev *dev)
 {
-	struct pnp_option *dep;
-	int i = 1;
+	int i, ret;
 
 	if (!pnp_can_configure(dev)) {
 		dev_dbg(&dev->dev, "configuration not supported\n");
 		return -ENODEV;
 	}
 
-	if (!dev->dependent) {
-		if (pnp_assign_resources(dev, 0))
+	ret = pnp_assign_resources(dev, 0);
+	if (ret == 0)
+		return 0;
+
+	for (i = 1; i < dev->num_dependent_sets; i++) {
+		ret = pnp_assign_resources(dev, i);
+		if (ret == 0)
 			return 0;
-	} else {
-		dep = dev->dependent;
-		do {
-			if (pnp_assign_resources(dev, i))
-				return 0;
-			dep = dep->next;
-			i++;
-		} while (dep);
 	}
 
 	dev_err(&dev->dev, "unable to assign resources\n");
-	return -EBUSY;
+	return ret;
 }
 
 /**

@@ -118,10 +118,9 @@ static void pnp_release_device(struct device *dmdev)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 
-	pnp_free_option(dev->independent);
-	pnp_free_option(dev->dependent);
 	pnp_free_ids(dev);
 	pnp_free_resources(dev);
+	pnp_free_options(dev);
 	kfree(dev);
 }
 
@@ -135,6 +134,7 @@ struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id, char *pnpid
 		return NULL;
 
 	INIT_LIST_HEAD(&dev->resources);
+	INIT_LIST_HEAD(&dev->options);
 	dev->protocol = protocol;
 	dev->number = id;
 	dev->dma_mask = DMA_24BIT_MASK;

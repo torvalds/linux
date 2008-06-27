@@ -407,7 +407,7 @@ int pnpacpi_parse_allocated_resource(struct pnp_dev *dev)
 }
 
 static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
-					    struct pnp_option *option,
+					    unsigned int option_flags,
 					    struct acpi_resource_dma *p)
 {
 	int i;
@@ -420,11 +420,11 @@ static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
 		map |= 1 << p->channels[i];
 
 	flags = dma_flags(p->type, p->bus_master, p->transfer);
-	pnp_register_dma_resource(dev, option, map, flags);
+	pnp_register_dma_resource(dev, option_flags, map, flags);
 }
 
 static __init void pnpacpi_parse_irq_option(struct pnp_dev *dev,
-					    struct pnp_option *option,
+					    unsigned int option_flags,
 					    struct acpi_resource_irq *p)
 {
 	int i;
@@ -440,11 +440,11 @@ static __init void pnpacpi_parse_irq_option(struct pnp_dev *dev,
 			__set_bit(p->interrupts[i], map.bits);
 
 	flags = irq_flags(p->triggering, p->polarity, p->sharable);
-	pnp_register_irq_resource(dev, option, &map, flags);
+	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
 static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
-						struct pnp_option *option,
+					unsigned int option_flags,
 					struct acpi_resource_extended_irq *p)
 {
 	int i;
@@ -467,11 +467,11 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 	}
 
 	flags = irq_flags(p->triggering, p->polarity, p->sharable);
-	pnp_register_irq_resource(dev, option, &map, flags);
+	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
 static __init void pnpacpi_parse_port_option(struct pnp_dev *dev,
-					     struct pnp_option *option,
+					     unsigned int option_flags,
 					     struct acpi_resource_io *io)
 {
 	unsigned char flags = 0;
@@ -481,23 +481,23 @@ static __init void pnpacpi_parse_port_option(struct pnp_dev *dev,
 
 	if (io->io_decode == ACPI_DECODE_16)
 		flags = IORESOURCE_IO_16BIT_ADDR;
-	pnp_register_port_resource(dev, option, io->minimum, io->maximum,
+	pnp_register_port_resource(dev, option_flags, io->minimum, io->maximum,
 				   io->alignment, io->address_length, flags);
 }
 
 static __init void pnpacpi_parse_fixed_port_option(struct pnp_dev *dev,
-						   struct pnp_option *option,
+					unsigned int option_flags,
 					struct acpi_resource_fixed_io *io)
 {
 	if (io->address_length == 0)
 		return;
 
-	pnp_register_port_resource(dev, option, io->address, io->address, 0,
-				   io->address_length, IORESOURCE_IO_FIXED);
+	pnp_register_port_resource(dev, option_flags, io->address, io->address,
+				   0, io->address_length, IORESOURCE_IO_FIXED);
 }
 
 static __init void pnpacpi_parse_mem24_option(struct pnp_dev *dev,
-					      struct pnp_option *option,
+					      unsigned int option_flags,
 					      struct acpi_resource_memory24 *p)
 {
 	unsigned char flags = 0;
@@ -507,12 +507,12 @@ static __init void pnpacpi_parse_mem24_option(struct pnp_dev *dev,
 
 	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
 		flags = IORESOURCE_MEM_WRITEABLE;
-	pnp_register_mem_resource(dev, option, p->minimum, p->maximum,
+	pnp_register_mem_resource(dev, option_flags, p->minimum, p->maximum,
 				  p->alignment, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_mem32_option(struct pnp_dev *dev,
-					      struct pnp_option *option,
+					      unsigned int option_flags,
 					      struct acpi_resource_memory32 *p)
 {
 	unsigned char flags = 0;
@@ -522,12 +522,12 @@ static __init void pnpacpi_parse_mem32_option(struct pnp_dev *dev,
 
 	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
 		flags = IORESOURCE_MEM_WRITEABLE;
-	pnp_register_mem_resource(dev, option, p->minimum, p->maximum,
+	pnp_register_mem_resource(dev, option_flags, p->minimum, p->maximum,
 				  p->alignment, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_fixed_mem32_option(struct pnp_dev *dev,
-						    struct pnp_option *option,
+					unsigned int option_flags,
 					struct acpi_resource_fixed_memory32 *p)
 {
 	unsigned char flags = 0;
@@ -537,12 +537,12 @@ static __init void pnpacpi_parse_fixed_mem32_option(struct pnp_dev *dev,
 
 	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
 		flags = IORESOURCE_MEM_WRITEABLE;
-	pnp_register_mem_resource(dev, option, p->address, p->address,
+	pnp_register_mem_resource(dev, option_flags, p->address, p->address,
 				  0, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
-						struct pnp_option *option,
+						unsigned int option_flags,
 						struct acpi_resource *r)
 {
 	struct acpi_resource_address64 addr, *p = &addr;
@@ -562,18 +562,18 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
 		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
 			flags = IORESOURCE_MEM_WRITEABLE;
-		pnp_register_mem_resource(dev, option, p->minimum, p->minimum,
-					  0, p->address_length, flags);
+		pnp_register_mem_resource(dev, option_flags, p->minimum,
+					  p->minimum, 0, p->address_length,
+					  flags);
 	} else if (p->resource_type == ACPI_IO_RANGE)
-		pnp_register_port_resource(dev, option, p->minimum, p->minimum,
-					   0, p->address_length,
+		pnp_register_port_resource(dev, option_flags, p->minimum,
+					   p->minimum, 0, p->address_length,
 					   IORESOURCE_IO_FIXED);
 }
 
 struct acpipnp_parse_option_s {
-	struct pnp_option *option;
-	struct pnp_option *option_independent;
 	struct pnp_dev *dev;
+	unsigned int option_flags;
 };
 
 static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
@@ -582,15 +582,15 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 	int priority;
 	struct acpipnp_parse_option_s *parse_data = data;
 	struct pnp_dev *dev = parse_data->dev;
-	struct pnp_option *option = parse_data->option;
+	unsigned int option_flags = parse_data->option_flags;
 
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
-		pnpacpi_parse_irq_option(dev, option, &res->data.irq);
+		pnpacpi_parse_irq_option(dev, option_flags, &res->data.irq);
 		break;
 
 	case ACPI_RESOURCE_TYPE_DMA:
-		pnpacpi_parse_dma_option(dev, option, &res->data.dma);
+		pnpacpi_parse_dma_option(dev, option_flags, &res->data.dma);
 		break;
 
 	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
@@ -610,31 +610,19 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 			priority = PNP_RES_PRIORITY_INVALID;
 			break;
 		}
-		/* TBD: Consider performance/robustness bits */
-		option = pnp_register_dependent_option(dev, priority);
-		if (!option)
-			return AE_ERROR;
-		parse_data->option = option;
+		parse_data->option_flags = pnp_new_dependent_set(dev, priority);
 		break;
 
 	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
-		/*only one EndDependentFn is allowed */
-		if (!parse_data->option_independent) {
-			dev_warn(&dev->dev, "more than one EndDependentFn "
-				 "in _PRS\n");
-			return AE_ERROR;
-		}
-		parse_data->option = parse_data->option_independent;
-		parse_data->option_independent = NULL;
-		dev_dbg(&dev->dev, "end dependent options\n");
+		parse_data->option_flags = 0;
 		break;
 
 	case ACPI_RESOURCE_TYPE_IO:
-		pnpacpi_parse_port_option(dev, option, &res->data.io);
+		pnpacpi_parse_port_option(dev, option_flags, &res->data.io);
 		break;
 
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
-		pnpacpi_parse_fixed_port_option(dev, option,
+		pnpacpi_parse_fixed_port_option(dev, option_flags,
 					        &res->data.fixed_io);
 		break;
 
@@ -643,29 +631,31 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_MEMORY24:
-		pnpacpi_parse_mem24_option(dev, option, &res->data.memory24);
+		pnpacpi_parse_mem24_option(dev, option_flags,
+					   &res->data.memory24);
 		break;
 
 	case ACPI_RESOURCE_TYPE_MEMORY32:
-		pnpacpi_parse_mem32_option(dev, option, &res->data.memory32);
+		pnpacpi_parse_mem32_option(dev, option_flags,
+					   &res->data.memory32);
 		break;
 
 	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
-		pnpacpi_parse_fixed_mem32_option(dev, option,
+		pnpacpi_parse_fixed_mem32_option(dev, option_flags,
 						 &res->data.fixed_memory32);
 		break;
 
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		pnpacpi_parse_address_option(dev, option, res);
+		pnpacpi_parse_address_option(dev, option_flags, res);
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-		pnpacpi_parse_ext_irq_option(dev, option,
+		pnpacpi_parse_ext_irq_option(dev, option_flags,
 					     &res->data.extended_irq);
 		break;
 
@@ -689,12 +679,9 @@ int __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
 
 	dev_dbg(&dev->dev, "parse resource options\n");
 
-	parse_data.option = pnp_register_independent_option(dev);
-	if (!parse_data.option)
-		return -ENOMEM;
-
-	parse_data.option_independent = parse_data.option;
 	parse_data.dev = dev;
+	parse_data.option_flags = 0;
+
 	status = acpi_walk_resources(handle, METHOD_NAME__PRS,
 				     pnpacpi_option_resource, &parse_data);
 
