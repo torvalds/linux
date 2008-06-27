@@ -187,8 +187,10 @@ enum check_states {
  */
 enum reconstruct_states {
 	reconstruct_state_idle = 0,
+	reconstruct_state_prexor_drain_run,	/* prexor-write */
 	reconstruct_state_drain_run,		/* write */
 	reconstruct_state_run,			/* expand */
+	reconstruct_state_prexor_drain_result,
 	reconstruct_state_drain_result,
 	reconstruct_state_result,
 };
@@ -258,9 +260,7 @@ struct r6_state {
 #define	R5_Wantfill	12 /* dev->toread contains a bio that needs
 				    * filling
 				    */
-#define	R5_Wantprexor	13 /* distinguish blocks ready for rmw from
-				    * other "towrites"
-				    */
+#define R5_Wantdrain	13 /* dev->towrite needs to be drained */
 /*
  * Write method
  */
