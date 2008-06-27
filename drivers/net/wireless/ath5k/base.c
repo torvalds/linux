@@ -2595,7 +2595,6 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_buf *bf;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	unsigned long flags;
 	int hdrlen;
 	int pad;
