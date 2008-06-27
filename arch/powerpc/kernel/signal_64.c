@@ -170,29 +170,29 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 #endif
 	unsigned long err = 0;
 	unsigned long save_r13 = 0;
-	elf_greg_t *gregs = (elf_greg_t *)regs;
 	unsigned long msr;
-	int i;
 
 	/* If this is not a signal return, we preserve the TLS in r13 */
 	if (!sig)
 		save_r13 = regs->gpr[13];
 
-	/* copy everything before MSR */
-	err |= __copy_from_user(regs, &sc->gp_regs,
-				PT_MSR*sizeof(unsigned long));
-
+	/* copy the GPRs */
+	err |= __copy_from_user(regs->gpr, sc->gp_regs, sizeof(regs->gpr));
+	err |= __get_user(regs->nip, &sc->gp_regs[PT_NIP]);
 	/* get MSR separately, transfer the LE bit if doing signal return */
 	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
 	if (sig)
 		regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
-
+	err |= __get_user(regs->orig_gpr3, &sc->gp_regs[PT_ORIG_R3]);
+	err |= __get_user(regs->ctr, &sc->gp_regs[PT_CTR]);
+	err |= __get_user(regs->link, &sc->gp_regs[PT_LNK]);
+	err |= __get_user(regs->xer, &sc->gp_regs[PT_XER]);
+	err |= __get_user(regs->ccr, &sc->gp_regs[PT_CCR]);
 	/* skip SOFTE */
-	for (i = PT_MSR+1; i <= PT_RESULT; i++) {
-		if (i == PT_SOFTE)
-			continue;
-		err |= __get_user(gregs[i], &sc->gp_regs[i]);
-	}
+	err |= __get_user(regs->trap, &sc->gp_regs[PT_TRAP]);
+	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
+	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
+	err |= __get_user(regs->result, &sc->gp_regs[PT_RESULT]);
 
 	if (!sig)
 		regs->gpr[13] = save_r13;
