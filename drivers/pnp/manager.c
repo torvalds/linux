@@ -40,7 +40,6 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 	}
 
 	/* set the initial values */
-	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_IO;
 	res->flags &= ~IORESOURCE_UNSET;
 
@@ -90,7 +89,6 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 	}
 
 	/* set the initial values */
-	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_MEM;
 	res->flags &= ~IORESOURCE_UNSET;
 
@@ -155,7 +153,6 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 	}
 
 	/* set the initial values */
-	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_IRQ;
 	res->flags &= ~IORESOURCE_UNSET;
 
@@ -214,7 +211,6 @@ static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	}
 
 	/* set the initial values */
-	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_DMA;
 	res->flags &= ~IORESOURCE_UNSET;
 

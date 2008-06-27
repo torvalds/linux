@@ -320,7 +320,6 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 			  const char *ubuf, size_t count)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
-	struct pnp_resource *pnp_res;
 	char *buf = (void *)ubuf;
 	int retval = 0;
 	resource_size_t start, end;
@@ -368,7 +367,6 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 		goto done;
 	}
 	if (!strnicmp(buf, "set", 3)) {
-		int nport = 0, nmem = 0, nirq = 0, ndma = 0;
 		if (dev->active)
 			goto done;
 		buf += 3;
@@ -391,10 +389,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 					end = simple_strtoul(buf, &buf, 0);
 				} else
 					end = start;
-				pnp_res = pnp_add_io_resource(dev, start, end,
-							      0);
-				if (pnp_res)
-					pnp_res->index = nport++;
+				pnp_add_io_resource(dev, start, end, 0);
 				continue;
 			}
 			if (!strnicmp(buf, "mem", 3)) {
@@ -411,10 +406,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 					end = simple_strtoul(buf, &buf, 0);
 				} else
 					end = start;
-				pnp_res = pnp_add_mem_resource(dev, start, end,
-							       0);
-				if (pnp_res)
-					pnp_res->index = nmem++;
+				pnp_add_mem_resource(dev, start, end, 0);
 				continue;
 			}
 			if (!strnicmp(buf, "irq", 3)) {
@@ -422,9 +414,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				while (isspace(*buf))
 					++buf;
 				start = simple_strtoul(buf, &buf, 0);
-				pnp_res = pnp_add_irq_resource(dev, start, 0);
-				if (pnp_res)
-					pnp_res->index = nirq++;
+				pnp_add_irq_resource(dev, start, 0);
 				continue;
 			}
 			if (!strnicmp(buf, "dma", 3)) {
@@ -432,9 +422,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				while (isspace(*buf))
 					++buf;
 				start = simple_strtoul(buf, &buf, 0);
-				pnp_res = pnp_add_dma_resource(dev, start, 0);
-				if (pnp_res)
-					pnp_res->index = ndma++;
+				pnp_add_dma_resource(dev, start, 0);
 				continue;
 			}
 			break;
