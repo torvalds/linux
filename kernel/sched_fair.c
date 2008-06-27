@@ -1444,6 +1444,8 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 	list_for_each_entry(tg, &task_groups, list) {
 		struct cfs_rq *busiest_cfs_rq = tg->cfs_rq[busiest_cpu];
+		unsigned long busiest_h_load = busiest_cfs_rq->h_load;
+		unsigned long busiest_weight = busiest_cfs_rq->load.weight;
 		long rem_load, moved_load;
 
 		/*
@@ -1452,8 +1454,8 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		if (!busiest_cfs_rq->task_weight)
 			continue;
 
-		rem_load = rem_load_move * busiest_cfs_rq->load.weight;
-		rem_load /= busiest_cfs_rq->h_load + 1;
+		rem_load = rem_load_move * busiest_weight;
+		rem_load /= busiest_h_load + 1;
 
 		moved_load = __load_balance_fair(this_rq, this_cpu, busiest,
 				rem_load, sd, idle, all_pinned, this_best_prio,
@@ -1462,8 +1464,8 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		if (!moved_load)
 			continue;
 
-		moved_load *= busiest_cfs_rq->h_load;
-		moved_load /= busiest_cfs_rq->load.weight + 1;
+		moved_load *= busiest_h_load;
+		moved_load /= busiest_weight + 1;
 
 		rem_load_move -= moved_load;
 		if (rem_load_move < 0)
