@@ -567,10 +567,27 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Scheduling class queueing methods:
  */
 
+#if defined CONFIG_SMP && defined CONFIG_FAIR_GROUP_SCHED
+static void
+add_cfs_task_weight(struct cfs_rq *cfs_rq, unsigned long weight)
+{
+	cfs_rq->task_weight += weight;
+}
+#else
+static inline void
+add_cfs_task_weight(struct cfs_rq *cfs_rq, unsigned long weight)
+{
+}
+#endif
+
 static void
 account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	update_load_add(&cfs_rq->load, se->load.weight);
+	if (!parent_entity(se))
+		inc_cpu_load(rq_of(cfs_rq), se->load.weight);
+	if (entity_is_task(se))
+		add_cfs_task_weight(cfs_rq, se->load.weight);
 	cfs_rq->nr_running++;
 	se->on_rq = 1;
 	list_add(&se->group_node, &cfs_rq->tasks);
@@ -580,6 +597,10 @@ static void
 account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	update_load_sub(&cfs_rq->load, se->load.weight);
+	if (!parent_entity(se))
+		dec_cpu_load(rq_of(cfs_rq), se->load.weight);
+	if (entity_is_task(se))
+		add_cfs_task_weight(cfs_rq, -se->load.weight);
 	cfs_rq->nr_running--;
 	se->on_rq = 0;
 	list_del_init(&se->group_node);
@@ -1372,75 +1393,90 @@ static struct task_struct *load_balance_next_fair(void *arg)
 	return __load_balance_iterator(cfs_rq, cfs_rq->balance_iterator);
 }
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
-static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
+static unsigned long
+__load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		unsigned long max_load_move, struct sched_domain *sd,
+		enum cpu_idle_type idle, int *all_pinned, int *this_best_prio,
+		struct cfs_rq *cfs_rq)
 {
-	struct sched_entity *curr;
-	struct task_struct *p;
+	struct rq_iterator cfs_rq_iterator;
 
-	if (!cfs_rq->nr_running || !first_fair(cfs_rq))
-		return MAX_PRIO;
+	cfs_rq_iterator.start = load_balance_start_fair;
+	cfs_rq_iterator.next = load_balance_next_fair;
+	cfs_rq_iterator.arg = cfs_rq;
 
-	curr = cfs_rq->curr;
-	if (!curr)
-		curr = __pick_next_entity(cfs_rq);
-
-	p = task_of(curr);
-
-	return p->prio;
+	return balance_tasks(this_rq, this_cpu, busiest,
+			max_load_move, sd, idle, all_pinned,
+			this_best_prio, &cfs_rq_iterator);
 }
-#endif
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
 static unsigned long
 load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		  unsigned long max_load_move,
 		  struct sched_domain *sd, enum cpu_idle_type idle,
 		  int *all_pinned, int *this_best_prio)
 {
-	struct cfs_rq *busy_cfs_rq;
 	long rem_load_move = max_load_move;
-	struct rq_iterator cfs_rq_iterator;
+	int busiest_cpu = cpu_of(busiest);
+	struct task_group *tg;
 
-	cfs_rq_iterator.start = load_balance_start_fair;
-	cfs_rq_iterator.next = load_balance_next_fair;
-
-	for_each_leaf_cfs_rq(busiest, busy_cfs_rq) {
-#ifdef CONFIG_FAIR_GROUP_SCHED
-		struct cfs_rq *this_cfs_rq;
+	rcu_read_lock();
+	list_for_each_entry(tg, &task_groups, list) {
 		long imbalance;
-		unsigned long maxload;
+		unsigned long this_weight, busiest_weight;
+		long rem_load, max_load, moved_load;
 
-		this_cfs_rq = cpu_cfs_rq(busy_cfs_rq, this_cpu);
-
-		imbalance = busy_cfs_rq->load.weight - this_cfs_rq->load.weight;
-		/* Don't pull if this_cfs_rq has more load than busy_cfs_rq */
-		if (imbalance <= 0)
+		/*
+		 * empty group
+		 */
+		if (!aggregate(tg, sd)->task_weight)
 			continue;
 
-		/* Don't pull more than imbalance/2 */
-		imbalance /= 2;
-		maxload = min(rem_load_move, imbalance);
+		rem_load = rem_load_move * aggregate(tg, sd)->rq_weight;
+		rem_load /= aggregate(tg, sd)->load + 1;
 
-		*this_best_prio = cfs_rq_best_prio(this_cfs_rq);
-#else
-# define maxload rem_load_move
-#endif
-		/*
-		 * pass busy_cfs_rq argument into
-		 * load_balance_[start|next]_fair iterators
-		 */
-		cfs_rq_iterator.arg = busy_cfs_rq;
-		rem_load_move -= balance_tasks(this_rq, this_cpu, busiest,
-					       maxload, sd, idle, all_pinned,
-					       this_best_prio,
-					       &cfs_rq_iterator);
+		this_weight = tg->cfs_rq[this_cpu]->task_weight;
+		busiest_weight = tg->cfs_rq[busiest_cpu]->task_weight;
 
-		if (rem_load_move <= 0)
+		imbalance = (busiest_weight - this_weight) / 2;
+
+		if (imbalance < 0)
+			imbalance = busiest_weight;
+
+		max_load = max(rem_load, imbalance);
+		moved_load = __load_balance_fair(this_rq, this_cpu, busiest,
+				max_load, sd, idle, all_pinned, this_best_prio,
+				tg->cfs_rq[busiest_cpu]);
+
+		if (!moved_load)
+			continue;
+
+		move_group_shares(tg, sd, busiest_cpu, this_cpu);
+
+		moved_load *= aggregate(tg, sd)->load;
+		moved_load /= aggregate(tg, sd)->rq_weight + 1;
+
+		rem_load_move -= moved_load;
+		if (rem_load_move < 0)
 			break;
 	}
+	rcu_read_unlock();
 
 	return max_load_move - rem_load_move;
 }
+#else
+static unsigned long
+load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		  unsigned long max_load_move,
+		  struct sched_domain *sd, enum cpu_idle_type idle,
+		  int *all_pinned, int *this_best_prio)
+{
+	return __load_balance_fair(this_rq, this_cpu, busiest,
+			max_load_move, sd, idle, all_pinned,
+			this_best_prio, &busiest->cfs);
+}
+#endif
 
 static int
 move_one_task_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
