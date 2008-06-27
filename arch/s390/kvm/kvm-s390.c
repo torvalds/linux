@@ -247,11 +247,16 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->gbea = 1;
 }
 
+/* The current code can have up to 256 pages for virtio */
+#define VIRTIODESCSPACE (256ul * 4096ul)
+
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH);
-	vcpu->arch.sie_block->gmslm = 0xffffffffffUL;
-	vcpu->arch.sie_block->gmsor = 0x000000000000;
+	vcpu->arch.sie_block->gmslm = vcpu->kvm->arch.guest_memsize +
+				      vcpu->kvm->arch.guest_origin +
+				      VIRTIODESCSPACE - 1ul;
+	vcpu->arch.sie_block->gmsor = vcpu->kvm->arch.guest_origin;
 	vcpu->arch.sie_block->ecb   = 2;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	setup_timer(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup,
