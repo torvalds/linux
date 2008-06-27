@@ -171,6 +171,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 * for setting word_size.
 	 */
 	size += NVM_WORD_SIZE_BASE_SHIFT;
+
+	/* EEPROM access above 16k is unsupported */
+	if (size > 14)
+		size = 14;
 	nvm->word_size = 1 << size;
 
 	/* setup PHY parameters */
