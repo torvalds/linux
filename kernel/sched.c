@@ -1551,6 +1551,9 @@ aggregate_group_shares(struct task_group *tg, int cpu, struct sched_domain *sd)
 	if ((!shares && aggregate(tg, cpu)->rq_weight) || shares > tg->shares)
 		shares = tg->shares;
 
+	if (!sd->parent || !(sd->parent->flags & SD_LOAD_BALANCE))
+		shares = tg->shares;
+
 	aggregate(tg, cpu)->shares = shares;
 }
 
@@ -1642,20 +1645,8 @@ static void
 __move_group_shares(struct task_group *tg, int cpu, struct sched_domain *sd,
 		    int scpu, int dcpu)
 {
-	unsigned long shares;
-
-	shares = tg->cfs_rq[scpu]->shares + tg->cfs_rq[dcpu]->shares;
-
 	__update_group_shares_cpu(tg, cpu, sd, scpu);
 	__update_group_shares_cpu(tg, cpu, sd, dcpu);
-
-	/*
-	 * ensure we never loose shares due to rounding errors in the
-	 * above redistribution.
-	 */
-	shares -= tg->cfs_rq[scpu]->shares + tg->cfs_rq[dcpu]->shares;
-	if (shares)
-		tg->cfs_rq[dcpu]->shares += shares;
 }
 
 /*
@@ -1675,7 +1666,6 @@ move_group_shares(struct task_group *tg, int cpu, struct sched_domain *sd,
 static void
 aggregate_group_set_shares(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
-	unsigned long shares = aggregate(tg, cpu)->shares;
 	int i;
 
 	for_each_cpu_mask(i, sd->span) {
@@ -1688,16 +1678,6 @@ aggregate_group_set_shares(struct task_group *tg, int cpu, struct sched_domain *
 	}
 
 	aggregate_group_shares(tg, cpu, sd);
-
-	/*
-	 * ensure we never loose shares due to rounding errors in the
-	 * above redistribution.
-	 */
-	shares -= aggregate(tg, cpu)->shares;
-	if (shares) {
-		tg->cfs_rq[cpu]->shares += shares;
-		aggregate(tg, cpu)->shares += shares;
-	}
 }
 
 /*
