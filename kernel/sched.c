@@ -3050,6 +3050,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	max_load = this_load = total_load = total_pwr = 0;
 	busiest_load_per_task = busiest_nr_running = 0;
 	this_load_per_task = this_nr_running = 0;
+
 	if (idle == CPU_NOT_IDLE)
 		load_idx = sd->busy_idx;
 	else if (idle == CPU_NEWLY_IDLE)
@@ -3064,6 +3065,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		int __group_imb = 0;
 		unsigned int balance_cpu = -1, first_idle_cpu = 0;
 		unsigned long sum_nr_running, sum_weighted_load;
+		unsigned long sum_avg_load_per_task;
+		unsigned long avg_load_per_task;
 
 		local_group = cpu_isset(this_cpu, group->cpumask);
 
@@ -3072,6 +3075,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 
 		/* Tally up the load of all CPUs in the group */
 		sum_weighted_load = sum_nr_running = avg_load = 0;
+		sum_avg_load_per_task = avg_load_per_task = 0;
+
 		max_cpu_load = 0;
 		min_cpu_load = ~0UL;
 
@@ -3105,6 +3110,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 			avg_load += load;
 			sum_nr_running += rq->nr_running;
 			sum_weighted_load += weighted_cpuload(i);
+
+			sum_avg_load_per_task += cpu_avg_load_per_task(i);
 		}
 
 		/*
@@ -3126,7 +3133,20 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		avg_load = sg_div_cpu_power(group,
 				avg_load * SCHED_LOAD_SCALE);
 
-		if ((max_cpu_load - min_cpu_load) > SCHED_LOAD_SCALE)
+
+		/*
+		 * Consider the group unbalanced when the imbalance is larger
+		 * than the average weight of two tasks.
+		 *
+		 * APZ: with cgroup the avg task weight can vary wildly and
+		 *      might not be a suitable number - should we keep a
+		 *      normalized nr_running number somewhere that negates
+		 *      the hierarchy?
+		 */
+		avg_load_per_task = sg_div_cpu_power(group,
+				sum_avg_load_per_task * SCHED_LOAD_SCALE);
+
+		if ((max_cpu_load - min_cpu_load) > 2*avg_load_per_task)
 			__group_imb = 1;
 
 		group_capacity = group->__cpu_power / SCHED_LOAD_SCALE;
@@ -3267,9 +3287,9 @@ small_imbalance:
 			if (busiest_load_per_task > this_load_per_task)
 				imbn = 1;
 		} else
-			this_load_per_task = SCHED_LOAD_SCALE;
+			this_load_per_task = cpu_avg_load_per_task(this_cpu);
 
-		if (max_load - this_load + SCHED_LOAD_SCALE_FUZZ >=
+		if (max_load - this_load + 2*busiest_load_per_task >=
 					busiest_load_per_task * imbn) {
 			*imbalance = busiest_load_per_task;
 			return busiest;
