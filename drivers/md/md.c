@@ -1984,7 +1984,7 @@ offset_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	unsigned long long offset = simple_strtoull(buf, &e, 10);
 	if (e==buf || (*e && *e != '\n'))
 		return -EINVAL;
-	if (rdev->mddev->pers)
+	if (rdev->mddev->pers && rdev->raid_disk >= 0)
 		return -EBUSY;
 	if (rdev->size && rdev->mddev->external)
 		/* Must set offset before size, so overlap checks
@@ -2023,7 +2023,7 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 
 	if (e==buf || (*e && *e != '\n'))
 		return -EINVAL;
-	if (my_mddev->pers)
+	if (my_mddev->pers && rdev->raid_disk >= 0)
 		return -EBUSY;
 	rdev->size = size;
 	if (size > oldsize && rdev->mddev->external) {
