@@ -28,6 +28,8 @@
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
+extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
+
 #define E1000_RAR_ENTRIES_82575   16
 
 /* SRRCTL bit definitions */

@@ -630,6 +630,9 @@ static void igb_configure(struct igb_adapter *adapter)
 	igb_configure_tx(adapter);
 	igb_setup_rctl(adapter);
 	igb_configure_rx(adapter);
+
+	igb_rx_fifo_flush_82575(&adapter->hw);
+
 	/* call IGB_DESC_UNUSED which always leaves
 	 * at least 1 descriptor unused to make sure
 	 * next_to_use != next_to_clean */
