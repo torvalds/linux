@@ -435,7 +435,8 @@ static int configfs_detach_prep(struct dentry *dentry, struct mutex **wait_mutex
 
 	ret = 0;
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
-		if (sd->s_type & CONFIGFS_NOT_PINNED)
+		if (!sd->s_element ||
+		    (sd->s_type & CONFIGFS_NOT_PINNED))
 			continue;
 		if (sd->s_type & CONFIGFS_USET_DEFAULT) {
 			/* Abort if racing with mkdir() */
