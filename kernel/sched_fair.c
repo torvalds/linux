@@ -1074,6 +1074,27 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 static const struct sched_class fair_sched_class;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
+/*
+ * effective_load() calculates the load change as seen from the root_task_group
+ *
+ * Adding load to a group doesn't make a group heavier, but can cause movement
+ * of group shares between cpus. Assuming the shares were perfectly aligned one
+ * can calculate the shift in shares.
+ *
+ * The problem is that perfectly aligning the shares is rather expensive, hence
+ * we try to avoid doing that too often - see update_shares(), which ratelimits
+ * this change.
+ *
+ * We compensate this by not only taking the current delta into account, but
+ * also considering the delta between when the shares were last adjusted and
+ * now.
+ *
+ * We still saw a performance dip, some tracing learned us that between
+ * cgroup:/ and cgroup:/foo balancing the number of affine wakeups increased
+ * significantly. Therefore try to bias the error in direction of failing
+ * the affine wakeup.
+ *
+ */
 static long effective_load(struct task_group *tg, int cpu,
 		long wl, long wg)
 {
@@ -1081,6 +1102,13 @@ static long effective_load(struct task_group *tg, int cpu,
 	long more_w;
 
 	if (!tg->parent)
+		return wl;
+
+	/*
+	 * By not taking the decrease of shares on the other cpu into
+	 * account our error leans towards reducing the affine wakeups.
+	 */
+	if (!wl && sched_feat(ASYM_EFF_LOAD))
 		return wl;
 
 	/*
