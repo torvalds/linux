@@ -2969,6 +2969,7 @@ action_store(mddev_t *mddev, const char *page, size_t len)
 		err = mddev->pers->start_reshape(mddev);
 		if (err)
 			return err;
+		sysfs_notify(&mddev->kobj, NULL, "degraded");
 	} else {
 		if (cmd_match(page, "check"))
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
@@ -3686,6 +3687,7 @@ static int do_md_run(mddev_t * mddev)
 	md_new_event(mddev);
 	sysfs_notify(&mddev->kobj, NULL, "array_state");
 	sysfs_notify(&mddev->kobj, NULL, "sync_action");
+	sysfs_notify(&mddev->kobj, NULL, "degraded");
 	kobject_uevent(&mddev->gendisk->dev.kobj, KOBJ_CHANGE);
 	return 0;
 }
@@ -6049,7 +6051,9 @@ void md_check_recovery(mddev_t *mddev)
 			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 				/* success...*/
 				/* activate any spares */
-				mddev->pers->spare_active(mddev);
+				if (mddev->pers->spare_active(mddev))
+					sysfs_notify(&mddev->kobj, NULL,
+						     "degraded");
 			}
 			md_update_sb(mddev, 1);
 

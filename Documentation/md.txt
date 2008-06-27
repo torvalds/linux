@@ -392,6 +392,13 @@ also have
       achieved. In that case, the transition to "recover" isn't
       notified, but the transition away is.
 
+   degraded
+      This contains a count of the number of devices by which the
+      arrays is degraded.  So an optimal array with show '0'.  A
+      single failed/missing drive will show '1', etc.
+      This file responds to select/poll, any increase or decrease
+      in the count of missing devices will trigger an event.
+
    mismatch_count
       When performing 'check' and 'repair', and possibly when
       performing 'resync', md will count the number of errors that are
