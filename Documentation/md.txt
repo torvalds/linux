@@ -297,6 +297,10 @@ Each directory contains:
 	      writemostly - device will only be subject to read
 		         requests if there are no other options.
 			 This applies only to raid1 arrays.
+	      blocked  - device has failed, metadata is "external",
+	                 and the failure hasn't been acknowledged yet.
+			 Writes that would write to this device if
+			 it were not faulty are blocked.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
 			 of being recovered to
@@ -306,6 +310,12 @@ Each directory contains:
 	Writing "remove" removes the device from the array.
 	Writing "writemostly" sets the writemostly flag.
 	Writing "-writemostly" clears the writemostly flag.
+	Writing "blocked" sets the "blocked" flag.
+	Writing "-blocked" clear the "blocked" flag and allows writes
+		to complete.
+
+	This file responds to select/poll. Any change to 'faulty'
+	or 'blocked' causes an event.
 
       errors
 	An approximate count of read errors that have been detected on

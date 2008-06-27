@@ -1886,6 +1886,8 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 
 		err = 0;
 	}
+	if (!err)
+		sysfs_notify(&rdev->kobj, NULL, "state");
 	return err ? err : len;
 }
 static struct rdev_sysfs_entry rdev_state =
@@ -1979,7 +1981,8 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		if (err) {
 			rdev->raid_disk = -1;
 			return err;
-		}
+		} else
+			sysfs_notify(&rdev->kobj, NULL, "state");
 		sprintf(nm, "rd%d", rdev->raid_disk);
 		if (sysfs_create_link(&rdev->mddev->kobj, &rdev->kobj, nm))
 			printk(KERN_WARNING
@@ -1996,6 +1999,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		clear_bit(Faulty, &rdev->flags);
 		clear_bit(WriteMostly, &rdev->flags);
 		set_bit(In_sync, &rdev->flags);
+		sysfs_notify(&rdev->kobj, NULL, "state");
 	}
 	return len;
 }
@@ -3525,6 +3529,7 @@ static int do_md_run(mddev_t * mddev)
 				return -EINVAL;
 			}
 		}
+		sysfs_notify(&rdev->kobj, NULL, "state");
 	}
 
 	md_probe(mddev->unit, NULL, NULL);
@@ -4256,6 +4261,8 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		}
 		if (err)
 			export_rdev(rdev);
+		else
+			sysfs_notify(&rdev->kobj, NULL, "state");
 
 		md_update_sb(mddev, 1);
 		if (mddev->degraded)
@@ -5115,6 +5122,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	mddev->pers->error_handler(mddev,rdev);
 	if (mddev->degraded)
 		set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
+	set_bit(StateChanged, &rdev->flags);
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
@@ -6036,6 +6044,10 @@ void md_check_recovery(mddev_t *mddev)
 
 		if (mddev->flags)
 			md_update_sb(mddev, 0);
+
+		rdev_for_each(rdev, rtmp, mddev)
+			if (test_and_clear_bit(StateChanged, &rdev->flags))
+				sysfs_notify(&rdev->kobj, NULL, "state");
 
 
 		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
