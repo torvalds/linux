@@ -801,8 +801,10 @@ void __init amd_iommu_detect(void)
 
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
 		iommu_detected = 1;
+#ifdef CONFIG_GART_IOMMU
 		gart_iommu_aperture_disabled = 1;
 		gart_iommu_aperture = 0;
+#endif
 	}
 }
 

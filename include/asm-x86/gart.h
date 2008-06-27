@@ -18,8 +18,9 @@ extern int gart_iommu_aperture_allowed;
 extern int gart_iommu_aperture_disabled;
 extern int fix_aperture;
 #else
-#define gart_iommu_aperture 0
-#define gart_iommu_aperture_allowed 0
+#define gart_iommu_aperture		0
+#define gart_iommu_aperture_allowed	0
+#define gart_iommu_aperture_disabled	1
 
 static inline void early_gart_iommu_check(void)
 {
