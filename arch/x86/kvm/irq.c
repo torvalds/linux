@@ -100,3 +100,14 @@ void __kvm_migrate_timers(struct kvm_vcpu *vcpu)
 	__kvm_migrate_apic_timer(vcpu);
 	__kvm_migrate_pit_timer(vcpu);
 }
+
+/* This should be called with the kvm->lock mutex held */
+void kvm_set_irq(struct kvm *kvm, int irq, int level)
+{
+	/* Not possible to detect if the guest uses the PIC or the
+	 * IOAPIC.  So set the bit in both. The guest will ignore
+	 * writes to the unused one.
+	 */
+	kvm_ioapic_set_irq(kvm->arch.vioapic, irq, level);
+	kvm_pic_set_irq(pic_irqchip(kvm), irq, level);
+}
