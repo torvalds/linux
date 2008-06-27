@@ -863,6 +863,32 @@ static void disable_r8a66597_pipe_all(struct r8a66597 *r8a66597,
 	dev->dma_map = 0;
 }
 
+static u16 get_interval(struct urb *urb, __u8 interval)
+{
+	u16 time = 1;
+	int i;
+
+	if (urb->dev->speed == USB_SPEED_HIGH) {
+		if (interval > IITV)
+			time = IITV;
+		else
+			time = interval ? interval - 1 : 0;
+	} else {
+		if (interval > 128) {
+			time = IITV;
+		} else {
+			/* calculate the nearest value for PIPEPERI */
+			for (i = 0; i < 7; i++) {
+				if ((1 << i) < interval &&
+				    (1 << (i + 1) > interval))
+					time = 1 << i;
+			}
+		}
+	}
+
+	return time;
+}
+
 static unsigned long get_timer_interval(struct urb *urb, __u8 interval)
 {
 	__u8 i;
@@ -901,10 +927,7 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 		info.interval = 0;
 		info.timer_interval = 0;
 	} else {
-		if (ep->bInterval > IITV)
-			info.interval = IITV;
-		else
-			info.interval = ep->bInterval ? ep->bInterval - 1 : 0;
+		info.interval = get_interval(urb, ep->bInterval);
 		info.timer_interval = get_timer_interval(urb, ep->bInterval);
 	}
 	if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
