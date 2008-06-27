@@ -179,6 +179,7 @@ config FUJITSU_LAPTOP
         tristate "Fujitsu Laptop Extras"
         depends on X86
         depends on ACPI
+	depends on INPUT
         depends on BACKLIGHT_CLASS_DEVICE
         ---help---
 	  This is a driver for laptops built by Fujitsu:
