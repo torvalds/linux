@@ -336,7 +336,6 @@ static void disable_runtime(struct rq *rq)
 
 static void __enable_runtime(struct rq *rq)
 {
-	struct root_domain *rd = rq->rd;
 	struct rt_rq *rt_rq;
 
 	if (unlikely(!scheduler_running))
@@ -689,7 +688,6 @@ static
 void requeue_rt_entity(struct rt_rq *rt_rq, struct sched_rt_entity *rt_se)
 {
 	struct rt_prio_array *array = &rt_rq->active;
-	struct list_head *queue = array->queue + rt_se_prio(rt_se);
 
 	if (on_rt_rq(rt_se)) {
 		list_del_init(&rt_se->run_list);
