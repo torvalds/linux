@@ -71,8 +71,8 @@ static int igb_setup_all_tx_resources(struct igb_adapter *);
 static int igb_setup_all_rx_resources(struct igb_adapter *);
 static void igb_free_all_tx_resources(struct igb_adapter *);
 static void igb_free_all_rx_resources(struct igb_adapter *);
-static void igb_free_tx_resources(struct igb_adapter *, struct igb_ring *);
-static void igb_free_rx_resources(struct igb_adapter *, struct igb_ring *);
+static void igb_free_tx_resources(struct igb_ring *);
+static void igb_free_rx_resources(struct igb_ring *);
 void igb_update_stats(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void __devexit igb_remove(struct pci_dev *pdev);
@@ -84,8 +84,8 @@ static void igb_configure_rx(struct igb_adapter *);
 static void igb_setup_rctl(struct igb_adapter *);
 static void igb_clean_all_tx_rings(struct igb_adapter *);
 static void igb_clean_all_rx_rings(struct igb_adapter *);
-static void igb_clean_tx_ring(struct igb_adapter *, struct igb_ring *);
-static void igb_clean_rx_ring(struct igb_adapter *, struct igb_ring *);
+static void igb_clean_tx_ring(struct igb_ring *);
+static void igb_clean_rx_ring(struct igb_ring *);
 static void igb_set_multi(struct net_device *);
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
@@ -102,12 +102,10 @@ static irqreturn_t igb_msix_other(int irq, void *);
 static irqreturn_t igb_msix_rx(int irq, void *);
 static irqreturn_t igb_msix_tx(int irq, void *);
 static int igb_clean_rx_ring_msix(struct napi_struct *, int);
-static bool igb_clean_tx_irq(struct igb_adapter *, struct igb_ring *);
+static bool igb_clean_tx_irq(struct igb_ring *);
 static int igb_clean(struct napi_struct *, int);
-static bool igb_clean_rx_irq_adv(struct igb_adapter *,
-				 struct igb_ring *, int *, int);
-static void igb_alloc_rx_buffers_adv(struct igb_adapter *,
-				     struct igb_ring *, int);
+static bool igb_clean_rx_irq_adv(struct igb_ring *, int *, int);
+static void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
@@ -637,7 +635,7 @@ static void igb_configure(struct igb_adapter *adapter)
 	 * next_to_use != next_to_clean */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *ring = &adapter->rx_ring[i];
-		igb_alloc_rx_buffers_adv(adapter, ring, IGB_DESC_UNUSED(ring));
+		igb_alloc_rx_buffers_adv(ring, IGB_DESC_UNUSED(ring));
 	}
 
 
@@ -1423,8 +1421,7 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 			dev_err(&adapter->pdev->dev,
 				"Allocation for Tx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
-				igb_free_tx_resources(adapter,
-							&adapter->tx_ring[i]);
+				igb_free_tx_resources(&adapter->tx_ring[i]);
 			break;
 		}
 	}
@@ -1567,8 +1564,7 @@ static int igb_setup_all_rx_resources(struct igb_adapter *adapter)
 			dev_err(&adapter->pdev->dev,
 				"Allocation for Rx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
-				igb_free_rx_resources(adapter,
-							&adapter->rx_ring[i]);
+				igb_free_rx_resources(&adapter->rx_ring[i]);
 			break;
 		}
 	}
@@ -1796,12 +1792,11 @@ static void igb_configure_rx(struct igb_adapter *adapter)
  *
  * Free all transmit software resources
  **/
-static void igb_free_tx_resources(struct igb_adapter *adapter,
-				  struct igb_ring *tx_ring)
+static void igb_free_tx_resources(struct igb_ring *tx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *pdev = tx_ring->adapter->pdev;
 
-	igb_clean_tx_ring(adapter, tx_ring);
+	igb_clean_tx_ring(tx_ring);
 
 	vfree(tx_ring->buffer_info);
 	tx_ring->buffer_info = NULL;
@@ -1822,7 +1817,7 @@ static void igb_free_all_tx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_free_tx_resources(adapter, &adapter->tx_ring[i]);
+		igb_free_tx_resources(&adapter->tx_ring[i]);
 }
 
 static void igb_unmap_and_free_tx_resource(struct igb_adapter *adapter,
@@ -1848,9 +1843,9 @@ static void igb_unmap_and_free_tx_resource(struct igb_adapter *adapter,
  * @adapter: board private structure
  * @tx_ring: ring to be cleaned
  **/
-static void igb_clean_tx_ring(struct igb_adapter *adapter,
-			      struct igb_ring *tx_ring)
+static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 {
+	struct igb_adapter *adapter = tx_ring->adapter;
 	struct igb_buffer *buffer_info;
 	unsigned long size;
 	unsigned int i;
@@ -1887,7 +1882,7 @@ static void igb_clean_all_tx_rings(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_clean_tx_ring(adapter, &adapter->tx_ring[i]);
+		igb_clean_tx_ring(&adapter->tx_ring[i]);
 }
 
 /**
@@ -1897,12 +1892,11 @@ static void igb_clean_all_tx_rings(struct igb_adapter *adapter)
  *
  * Free all receive software resources
  **/
-static void igb_free_rx_resources(struct igb_adapter *adapter,
-				  struct igb_ring *rx_ring)
+static void igb_free_rx_resources(struct igb_ring *rx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *pdev = rx_ring->adapter->pdev;
 
-	igb_clean_rx_ring(adapter, rx_ring);
+	igb_clean_rx_ring(rx_ring);
 
 	vfree(rx_ring->buffer_info);
 	rx_ring->buffer_info = NULL;
@@ -1923,7 +1917,7 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_free_rx_resources(adapter, &adapter->rx_ring[i]);
+		igb_free_rx_resources(&adapter->rx_ring[i]);
 }
 
 /**
@@ -1931,9 +1925,9 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
  * @adapter: board private structure
  * @rx_ring: ring to free buffers from
  **/
-static void igb_clean_rx_ring(struct igb_adapter *adapter,
-			      struct igb_ring *rx_ring)
+static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 {
+	struct igb_adapter *adapter = rx_ring->adapter;
 	struct igb_buffer *buffer_info;
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned long size;
@@ -1997,7 +1991,7 @@ static void igb_clean_all_rx_rings(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_clean_rx_ring(adapter, &adapter->rx_ring[i]);
+		igb_clean_rx_ring(&adapter->rx_ring[i]);
 }
 
 /**
@@ -3076,7 +3070,7 @@ static irqreturn_t igb_msix_tx(int irq, void *data)
 
 	tx_ring->total_bytes = 0;
 	tx_ring->total_packets = 0;
-	if (!igb_clean_tx_irq(adapter, tx_ring))
+	if (!igb_clean_tx_irq(tx_ring))
 		/* Ring was not completely cleaned, so fire another interrupt */
 		wr32(E1000_EICS, tx_ring->eims_value);
 
@@ -3227,14 +3221,13 @@ static int igb_clean(struct napi_struct *napi, int budget)
 	 * the lock means tx_ring[i] is currently being cleaned anyway. */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		if (spin_trylock(&adapter->tx_ring[i].tx_clean_lock)) {
-			tx_clean_complete &= igb_clean_tx_irq(adapter,
-							&adapter->tx_ring[i]);
+			tx_clean_complete &= igb_clean_tx_irq(&adapter->tx_ring[i]);
 			spin_unlock(&adapter->tx_ring[i].tx_clean_lock);
 		}
 	}
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_clean_rx_irq_adv(adapter, &adapter->rx_ring[i], &work_done,
+		igb_clean_rx_irq_adv(&adapter->rx_ring[i], &work_done,
 				     adapter->rx_ring[i].napi.weight);
 
 	/* If no Tx and not enough Rx work done, exit the polling mode */
@@ -3264,7 +3257,7 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 	if (!netif_carrier_ok(netdev))
 		goto quit_polling;
 
-	igb_clean_rx_irq_adv(adapter, rx_ring, &work_done, budget);
+	igb_clean_rx_irq_adv(rx_ring, &work_done, budget);
 
 
 	/* If not enough Rx work done, exit the polling mode */
@@ -3299,11 +3292,11 @@ static inline u32 get_head(struct igb_ring *tx_ring)
  * @adapter: board private structure
  * returns true if ring is completely cleaned
  **/
-static bool igb_clean_tx_irq(struct igb_adapter *adapter,
-				  struct igb_ring *tx_ring)
+static bool igb_clean_tx_irq(struct igb_ring *tx_ring)
 {
-	struct net_device *netdev = adapter->netdev;
+	struct igb_adapter *adapter = tx_ring->adapter;
 	struct e1000_hw *hw = &adapter->hw;
+	struct net_device *netdev = adapter->netdev;
 	struct e1000_tx_desc *tx_desc;
 	struct igb_buffer *buffer_info;
 	struct sk_buff *skb;
@@ -3458,10 +3451,10 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 	adapter->hw_csum_good++;
 }
 
-static bool igb_clean_rx_irq_adv(struct igb_adapter *adapter,
-				      struct igb_ring *rx_ring,
-				      int *work_done, int budget)
+static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
+				 int *work_done, int budget)
 {
+	struct igb_adapter *adapter = rx_ring->adapter;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	union e1000_adv_rx_desc *rx_desc , *next_rxd;
@@ -3584,8 +3577,7 @@ next_desc:
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IGB_RX_BUFFER_WRITE) {
-			igb_alloc_rx_buffers_adv(adapter, rx_ring,
-						 cleaned_count);
+			igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -3600,7 +3592,7 @@ out:
 	cleaned_count = IGB_DESC_UNUSED(rx_ring);
 
 	if (cleaned_count)
-		igb_alloc_rx_buffers_adv(adapter, rx_ring, cleaned_count);
+		igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
 
 	rx_ring->total_packets += total_packets;
 	rx_ring->total_bytes += total_bytes;
@@ -3616,10 +3608,10 @@ out:
  * igb_alloc_rx_buffers_adv - Replace used receive buffers; packet split
  * @adapter: address of board private structure
  **/
-static void igb_alloc_rx_buffers_adv(struct igb_adapter *adapter,
-				     struct igb_ring *rx_ring,
+static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 				     int cleaned_count)
 {
+	struct igb_adapter *adapter = rx_ring->adapter;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	union e1000_adv_rx_desc *rx_desc;
@@ -4062,10 +4054,10 @@ static void igb_netpoll(struct net_device *netdev)
 
 	igb_irq_disable(adapter);
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_clean_tx_irq(adapter, &adapter->tx_ring[i]);
+		igb_clean_tx_irq(&adapter->tx_ring[i]);
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_clean_rx_irq_adv(adapter, &adapter->rx_ring[i],
+		igb_clean_rx_irq_adv(&adapter->rx_ring[i],
 				     &work_done,
 				     adapter->rx_ring[i].napi.weight);
 
