@@ -1082,16 +1082,16 @@ static unsigned long effective_load(struct task_group *tg, long wl, int cpu)
 	for_each_sched_entity(se) {
 #define D(n) (likely(n) ? (n) : 1)
 
-		long S, Srw, rw, s, sn;
+		long S, rw, s, a, b;
 
 		S = se->my_q->tg->shares;
 		s = se->my_q->shares;
 		rw = se->my_q->load.weight;
 
-		Srw = S * rw / D(s);
-		sn = S * (rw + wl) / D(Srw + wg);
+		a = S*(rw + wl);
+		b = S*rw + s*wg;
 
-		wl = sn - s;
+		wl = s*(a-b)/D(b);
 		wg = 0;
 #undef D
 	}
