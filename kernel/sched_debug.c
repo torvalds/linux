@@ -162,8 +162,23 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_running", cfs_rq->nr_running);
 	SEQ_printf(m, "  .%-30s: %ld\n", "load", cfs_rq->load.weight);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "  .%-30s: %d\n", "bkl_count",
-			rq->bkl_count);
+#define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
+
+	P(yld_exp_empty);
+	P(yld_act_empty);
+	P(yld_both_empty);
+	P(yld_count);
+
+	P(sched_switch);
+	P(sched_count);
+	P(sched_goidle);
+
+	P(ttwu_count);
+	P(ttwu_local);
+
+	P(bkl_count);
+
+#undef P
 #endif
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_spread_over",
 			cfs_rq->nr_spread_over);
