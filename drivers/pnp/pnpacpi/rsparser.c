@@ -411,20 +411,16 @@ static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
 					    struct acpi_resource_dma *p)
 {
 	int i;
-	struct pnp_dma *dma;
+	unsigned char map = 0, flags;
 
 	if (p->channel_count == 0)
 		return;
-	dma = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
-	if (!dma)
-		return;
 
 	for (i = 0; i < p->channel_count; i++)
-		dma->map |= 1 << p->channels[i];
+		map |= 1 << p->channels[i];
 
-	dma->flags = dma_flags(p->type, p->bus_master, p->transfer);
-
-	pnp_register_dma_resource(dev, option, dma);
+	flags = dma_flags(p->type, p->bus_master, p->transfer);
+	pnp_register_dma_resource(dev, option, map, flags);
 }
 
 static __init void pnpacpi_parse_irq_option(struct pnp_dev *dev,
@@ -432,20 +428,19 @@ static __init void pnpacpi_parse_irq_option(struct pnp_dev *dev,
 					    struct acpi_resource_irq *p)
 {
 	int i;
-	struct pnp_irq *irq;
+	pnp_irq_mask_t map;
+	unsigned char flags;
 
 	if (p->interrupt_count == 0)
 		return;
-	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
-	if (!irq)
-		return;
 
+	bitmap_zero(map.bits, PNP_IRQ_NR);
 	for (i = 0; i < p->interrupt_count; i++)
 		if (p->interrupts[i])
-			__set_bit(p->interrupts[i], irq->map.bits);
-	irq->flags = irq_flags(p->triggering, p->polarity, p->sharable);
+			__set_bit(p->interrupts[i], map.bits);
 
-	pnp_register_irq_resource(dev, option, irq);
+	flags = irq_flags(p->triggering, p->polarity, p->sharable);
+	pnp_register_irq_resource(dev, option, &map, flags);
 }
 
 static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
@@ -453,123 +448,90 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 					struct acpi_resource_extended_irq *p)
 {
 	int i;
-	struct pnp_irq *irq;
+	pnp_irq_mask_t map;
+	unsigned char flags;
 
 	if (p->interrupt_count == 0)
 		return;
-	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
-	if (!irq)
-		return;
 
+	bitmap_zero(map.bits, PNP_IRQ_NR);
 	for (i = 0; i < p->interrupt_count; i++)
 		if (p->interrupts[i])
-			__set_bit(p->interrupts[i], irq->map.bits);
-	irq->flags = irq_flags(p->triggering, p->polarity, p->sharable);
+			__set_bit(p->interrupts[i], map.bits);
 
-	pnp_register_irq_resource(dev, option, irq);
+	flags = irq_flags(p->triggering, p->polarity, p->sharable);
+	pnp_register_irq_resource(dev, option, &map, flags);
 }
 
 static __init void pnpacpi_parse_port_option(struct pnp_dev *dev,
 					     struct pnp_option *option,
 					     struct acpi_resource_io *io)
 {
-	struct pnp_port *port;
+	unsigned char flags = 0;
 
 	if (io->address_length == 0)
 		return;
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = io->minimum;
-	port->max = io->maximum;
-	port->align = io->alignment;
-	port->size = io->address_length;
-	port->flags = ACPI_DECODE_16 == io->io_decode ?
-	    IORESOURCE_IO_16BIT_ADDR : 0;
-	pnp_register_port_resource(dev, option, port);
+
+	if (io->io_decode == ACPI_DECODE_16)
+		flags = IORESOURCE_IO_16BIT_ADDR;
+	pnp_register_port_resource(dev, option, io->minimum, io->maximum,
+				   io->alignment, io->address_length, flags);
 }
 
 static __init void pnpacpi_parse_fixed_port_option(struct pnp_dev *dev,
 						   struct pnp_option *option,
 					struct acpi_resource_fixed_io *io)
 {
-	struct pnp_port *port;
-
 	if (io->address_length == 0)
 		return;
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = port->max = io->address;
-	port->size = io->address_length;
-	port->align = 0;
-	port->flags = IORESOURCE_IO_FIXED;
-	pnp_register_port_resource(dev, option, port);
+
+	pnp_register_port_resource(dev, option, io->address, io->address, 0,
+				   io->address_length, IORESOURCE_IO_FIXED);
 }
 
 static __init void pnpacpi_parse_mem24_option(struct pnp_dev *dev,
 					      struct pnp_option *option,
 					      struct acpi_resource_memory24 *p)
 {
-	struct pnp_mem *mem;
+	unsigned char flags = 0;
 
 	if (p->address_length == 0)
 		return;
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = p->minimum;
-	mem->max = p->maximum;
-	mem->align = p->alignment;
-	mem->size = p->address_length;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
-	    IORESOURCE_MEM_WRITEABLE : 0;
-
-	pnp_register_mem_resource(dev, option, mem);
+	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
+		flags = IORESOURCE_MEM_WRITEABLE;
+	pnp_register_mem_resource(dev, option, p->minimum, p->maximum,
+				  p->alignment, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_mem32_option(struct pnp_dev *dev,
 					      struct pnp_option *option,
 					      struct acpi_resource_memory32 *p)
 {
-	struct pnp_mem *mem;
+	unsigned char flags = 0;
 
 	if (p->address_length == 0)
 		return;
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = p->minimum;
-	mem->max = p->maximum;
-	mem->align = p->alignment;
-	mem->size = p->address_length;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
-	    IORESOURCE_MEM_WRITEABLE : 0;
-
-	pnp_register_mem_resource(dev, option, mem);
+	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
+		flags = IORESOURCE_MEM_WRITEABLE;
+	pnp_register_mem_resource(dev, option, p->minimum, p->maximum,
+				  p->alignment, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_fixed_mem32_option(struct pnp_dev *dev,
 						    struct pnp_option *option,
 					struct acpi_resource_fixed_memory32 *p)
 {
-	struct pnp_mem *mem;
+	unsigned char flags = 0;
 
 	if (p->address_length == 0)
 		return;
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = mem->max = p->address;
-	mem->size = p->address_length;
-	mem->align = 0;
 
-	mem->flags = (ACPI_READ_WRITE_MEMORY == p->write_protect) ?
-	    IORESOURCE_MEM_WRITEABLE : 0;
-
-	pnp_register_mem_resource(dev, option, mem);
+	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
+		flags = IORESOURCE_MEM_WRITEABLE;
+	pnp_register_mem_resource(dev, option, p->address, p->address,
+				  0, p->address_length, flags);
 }
 
 static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
@@ -578,8 +540,7 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 {
 	struct acpi_resource_address64 addr, *p = &addr;
 	acpi_status status;
-	struct pnp_mem *mem;
-	struct pnp_port *port;
+	unsigned char flags = 0;
 
 	status = acpi_resource_to_address64(r, p);
 	if (!ACPI_SUCCESS(status)) {
@@ -592,26 +553,14 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 		return;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
-		mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-		if (!mem)
-			return;
-		mem->min = mem->max = p->minimum;
-		mem->size = p->address_length;
-		mem->align = 0;
-		mem->flags = (p->info.mem.write_protect ==
-			      ACPI_READ_WRITE_MEMORY) ? IORESOURCE_MEM_WRITEABLE
-		    : 0;
-		pnp_register_mem_resource(dev, option, mem);
-	} else if (p->resource_type == ACPI_IO_RANGE) {
-		port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-		if (!port)
-			return;
-		port->min = port->max = p->minimum;
-		port->size = p->address_length;
-		port->align = 0;
-		port->flags = IORESOURCE_IO_FIXED;
-		pnp_register_port_resource(dev, option, port);
-	}
+		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
+			flags = IORESOURCE_MEM_WRITEABLE;
+		pnp_register_mem_resource(dev, option, p->minimum, p->minimum,
+					  0, p->address_length, flags);
+	} else if (p->resource_type == ACPI_IO_RANGE)
+		pnp_register_port_resource(dev, option, p->minimum, p->minimum,
+					   0, p->address_length,
+					   IORESOURCE_IO_FIXED);
 }
 
 struct acpipnp_parse_option_s {

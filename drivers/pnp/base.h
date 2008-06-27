@@ -74,13 +74,17 @@ struct pnp_option *pnp_register_independent_option(struct pnp_dev *dev);
 struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
 						 int priority);
 int pnp_register_irq_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_irq *data);
+			      pnp_irq_mask_t *map, unsigned char flags);
 int pnp_register_dma_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_dma *data);
+			      unsigned char map, unsigned char flags);
 int pnp_register_port_resource(struct pnp_dev *dev, struct pnp_option *option,
-			       struct pnp_port *data);
+			       resource_size_t min, resource_size_t max,
+			       resource_size_t align, resource_size_t size,
+			       unsigned char flags);
 int pnp_register_mem_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_mem *data);
+			      resource_size_t min, resource_size_t max,
+			      resource_size_t align, resource_size_t size,
+			      unsigned char flags);
 void pnp_init_resources(struct pnp_dev *dev);
 
 void pnp_fixup_device(struct pnp_dev *dev);

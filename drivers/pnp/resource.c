@@ -78,12 +78,19 @@ struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
 }
 
 int pnp_register_irq_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_irq *data)
+			      pnp_irq_mask_t *map, unsigned char flags)
 {
-	struct pnp_irq *ptr;
+	struct pnp_irq *data, *ptr;
 #ifdef DEBUG
 	char buf[PNP_IRQ_NR];   /* hex-encoded, so this is overkill but safe */
 #endif
+
+	data = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->map = *map;
+	data->flags = flags;
 
 	ptr = option->irq;
 	while (ptr && ptr->next)
@@ -112,9 +119,16 @@ int pnp_register_irq_resource(struct pnp_dev *dev, struct pnp_option *option,
 }
 
 int pnp_register_dma_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_dma *data)
+			      unsigned char map, unsigned char flags)
 {
-	struct pnp_dma *ptr;
+	struct pnp_dma *data, *ptr;
+
+	data = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->map = map;
+	data->flags = flags;
 
 	ptr = option->dma;
 	while (ptr && ptr->next)
@@ -130,9 +144,21 @@ int pnp_register_dma_resource(struct pnp_dev *dev, struct pnp_option *option,
 }
 
 int pnp_register_port_resource(struct pnp_dev *dev, struct pnp_option *option,
-			       struct pnp_port *data)
+			       resource_size_t min, resource_size_t max,
+			       resource_size_t align, resource_size_t size,
+			       unsigned char flags)
 {
-	struct pnp_port *ptr;
+	struct pnp_port *data, *ptr;
+
+	data = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->min = min;
+	data->max = max;
+	data->align = align;
+	data->size = size;
+	data->flags = flags;
 
 	ptr = option->port;
 	while (ptr && ptr->next)
@@ -152,9 +178,21 @@ int pnp_register_port_resource(struct pnp_dev *dev, struct pnp_option *option,
 }
 
 int pnp_register_mem_resource(struct pnp_dev *dev, struct pnp_option *option,
-			      struct pnp_mem *data)
+			      resource_size_t min, resource_size_t max,
+			      resource_size_t align, resource_size_t size,
+			      unsigned char flags)
 {
-	struct pnp_mem *ptr;
+	struct pnp_mem *data, *ptr;
+
+	data = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->min = min;
+	data->max = max;
+	data->align = align;
+	data->size = size;
+	data->flags = flags;
 
 	ptr = option->mem;
 	while (ptr && ptr->next)

@@ -218,116 +218,96 @@ static __init void pnpbios_parse_mem_option(struct pnp_dev *dev,
 					    unsigned char *p, int size,
 					    struct pnp_option *option)
 {
-	struct pnp_mem *mem;
+	resource_size_t min, max, align, len;
+	unsigned char flags;
 
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = ((p[5] << 8) | p[4]) << 8;
-	mem->max = ((p[7] << 8) | p[6]) << 8;
-	mem->align = (p[9] << 8) | p[8];
-	mem->size = ((p[11] << 8) | p[10]) << 8;
-	mem->flags = p[3];
-	pnp_register_mem_resource(dev, option, mem);
+	min = ((p[5] << 8) | p[4]) << 8;
+	max = ((p[7] << 8) | p[6]) << 8;
+	align = (p[9] << 8) | p[8];
+	len = ((p[11] << 8) | p[10]) << 8;
+	flags = p[3];
+	pnp_register_mem_resource(dev, option, min, max, align, len, flags);
 }
 
 static __init void pnpbios_parse_mem32_option(struct pnp_dev *dev,
 					      unsigned char *p, int size,
 					      struct pnp_option *option)
 {
-	struct pnp_mem *mem;
+	resource_size_t min, max, align, len;
+	unsigned char flags;
 
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = (p[7] << 24) | (p[6] << 16) | (p[5] << 8) | p[4];
-	mem->max = (p[11] << 24) | (p[10] << 16) | (p[9] << 8) | p[8];
-	mem->align = (p[15] << 24) | (p[14] << 16) | (p[13] << 8) | p[12];
-	mem->size = (p[19] << 24) | (p[18] << 16) | (p[17] << 8) | p[16];
-	mem->flags = p[3];
-	pnp_register_mem_resource(dev, option, mem);
+	min = (p[7] << 24) | (p[6] << 16) | (p[5] << 8) | p[4];
+	max = (p[11] << 24) | (p[10] << 16) | (p[9] << 8) | p[8];
+	align = (p[15] << 24) | (p[14] << 16) | (p[13] << 8) | p[12];
+	len = (p[19] << 24) | (p[18] << 16) | (p[17] << 8) | p[16];
+	flags = p[3];
+	pnp_register_mem_resource(dev, option, min, max, align, len, flags);
 }
 
 static __init void pnpbios_parse_fixed_mem32_option(struct pnp_dev *dev,
 						    unsigned char *p, int size,
 						    struct pnp_option *option)
 {
-	struct pnp_mem *mem;
+	resource_size_t base, len;
+	unsigned char flags;
 
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = mem->max = (p[7] << 24) | (p[6] << 16) | (p[5] << 8) | p[4];
-	mem->size = (p[11] << 24) | (p[10] << 16) | (p[9] << 8) | p[8];
-	mem->align = 0;
-	mem->flags = p[3];
-	pnp_register_mem_resource(dev, option, mem);
+	base = (p[7] << 24) | (p[6] << 16) | (p[5] << 8) | p[4];
+	len = (p[11] << 24) | (p[10] << 16) | (p[9] << 8) | p[8];
+	flags = p[3];
+	pnp_register_mem_resource(dev, option, base, base, 0, len, flags);
 }
 
 static __init void pnpbios_parse_irq_option(struct pnp_dev *dev,
 					    unsigned char *p, int size,
 					    struct pnp_option *option)
 {
-	struct pnp_irq *irq;
 	unsigned long bits;
+	pnp_irq_mask_t map;
+	unsigned char flags = IORESOURCE_IRQ_HIGHEDGE;
 
-	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
-	if (!irq)
-		return;
 	bits = (p[2] << 8) | p[1];
-	bitmap_copy(irq->map.bits, &bits, 16);
+
+	bitmap_zero(map.bits, PNP_IRQ_NR);
+	bitmap_copy(map.bits, &bits, 16);
+
 	if (size > 2)
-		irq->flags = p[3];
-	else
-		irq->flags = IORESOURCE_IRQ_HIGHEDGE;
-	pnp_register_irq_resource(dev, option, irq);
+		flags = p[3];
+
+	pnp_register_irq_resource(dev, option, &map, flags);
 }
 
 static __init void pnpbios_parse_dma_option(struct pnp_dev *dev,
 					    unsigned char *p, int size,
 					    struct pnp_option *option)
 {
-	struct pnp_dma *dma;
-
-	dma = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
-	if (!dma)
-		return;
-	dma->map = p[1];
-	dma->flags = p[2];
-	pnp_register_dma_resource(dev, option, dma);
+	pnp_register_dma_resource(dev, option, p[1], p[2]);
 }
 
 static __init void pnpbios_parse_port_option(struct pnp_dev *dev,
 					     unsigned char *p, int size,
 					     struct pnp_option *option)
 {
-	struct pnp_port *port;
+	resource_size_t min, max, align, len;
+	unsigned char flags;
 
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = (p[3] << 8) | p[2];
-	port->max = (p[5] << 8) | p[4];
-	port->align = p[6];
-	port->size = p[7];
-	port->flags = p[1] ? IORESOURCE_IO_16BIT_ADDR : 0;
-	pnp_register_port_resource(dev, option, port);
+	min = (p[3] << 8) | p[2];
+	max = (p[5] << 8) | p[4];
+	align = p[6];
+	len = p[7];
+	flags = p[1] ? IORESOURCE_IO_16BIT_ADDR : 0;
+	pnp_register_port_resource(dev, option, min, max, align, len, flags);
 }
 
 static __init void pnpbios_parse_fixed_port_option(struct pnp_dev *dev,
 						   unsigned char *p, int size,
 						   struct pnp_option *option)
 {
-	struct pnp_port *port;
+	resource_size_t base, len;
 
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = port->max = (p[2] << 8) | p[1];
-	port->size = p[3];
-	port->align = 0;
-	port->flags = IORESOURCE_IO_FIXED;
-	pnp_register_port_resource(dev, option, port);
+	base = (p[2] << 8) | p[1];
+	len = p[3];
+	pnp_register_port_resource(dev, option, base, base, 0, len,
+				   IORESOURCE_IO_FIXED);
 }
 
 static __init unsigned char *

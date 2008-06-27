@@ -433,20 +433,20 @@ static void __init isapnp_parse_irq_resource(struct pnp_dev *dev,
 					     int size)
 {
 	unsigned char tmp[3];
-	struct pnp_irq *irq;
 	unsigned long bits;
+	pnp_irq_mask_t map;
+	unsigned char flags = IORESOURCE_IRQ_HIGHEDGE;
 
 	isapnp_peek(tmp, size);
-	irq = kzalloc(sizeof(struct pnp_irq), GFP_KERNEL);
-	if (!irq)
-		return;
 	bits = (tmp[1] << 8) | tmp[0];
-	bitmap_copy(irq->map.bits, &bits, 16);
+
+	bitmap_zero(map.bits, PNP_IRQ_NR);
+	bitmap_copy(map.bits, &bits, 16);
+
 	if (size > 2)
-		irq->flags = tmp[2];
-	else
-		irq->flags = IORESOURCE_IRQ_HIGHEDGE;
-	pnp_register_irq_resource(dev, option, irq);
+		flags = tmp[2];
+
+	pnp_register_irq_resource(dev, option, &map, flags);
 }
 
 /*
@@ -457,15 +457,9 @@ static void __init isapnp_parse_dma_resource(struct pnp_dev *dev,
 					     int size)
 {
 	unsigned char tmp[2];
-	struct pnp_dma *dma;
 
 	isapnp_peek(tmp, size);
-	dma = kzalloc(sizeof(struct pnp_dma), GFP_KERNEL);
-	if (!dma)
-		return;
-	dma->map = tmp[0];
-	dma->flags = tmp[1];
-	pnp_register_dma_resource(dev, option, dma);
+	pnp_register_dma_resource(dev, option, tmp[0], tmp[1]);
 }
 
 /*
@@ -476,18 +470,16 @@ static void __init isapnp_parse_port_resource(struct pnp_dev *dev,
 					      int size)
 {
 	unsigned char tmp[7];
-	struct pnp_port *port;
+	resource_size_t min, max, align, len;
+	unsigned char flags;
 
 	isapnp_peek(tmp, size);
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = (tmp[2] << 8) | tmp[1];
-	port->max = (tmp[4] << 8) | tmp[3];
-	port->align = tmp[5];
-	port->size = tmp[6];
-	port->flags = tmp[0] ? IORESOURCE_IO_16BIT_ADDR : 0;
-	pnp_register_port_resource(dev, option, port);
+	min = (tmp[2] << 8) | tmp[1];
+	max = (tmp[4] << 8) | tmp[3];
+	align = tmp[5];
+	len = tmp[6];
+	flags = tmp[0] ? IORESOURCE_IO_16BIT_ADDR : 0;
+	pnp_register_port_resource(dev, option, min, max, align, len, flags);
 }
 
 /*
@@ -498,17 +490,13 @@ static void __init isapnp_parse_fixed_port_resource(struct pnp_dev *dev,
 						    int size)
 {
 	unsigned char tmp[3];
-	struct pnp_port *port;
+	resource_size_t base, len;
 
 	isapnp_peek(tmp, size);
-	port = kzalloc(sizeof(struct pnp_port), GFP_KERNEL);
-	if (!port)
-		return;
-	port->min = port->max = (tmp[1] << 8) | tmp[0];
-	port->size = tmp[2];
-	port->align = 0;
-	port->flags = IORESOURCE_IO_FIXED;
-	pnp_register_port_resource(dev, option, port);
+	base = (tmp[1] << 8) | tmp[0];
+	len = tmp[2];
+	pnp_register_port_resource(dev, option, base, base, 0, len,
+				   IORESOURCE_IO_FIXED);
 }
 
 /*
@@ -519,18 +507,16 @@ static void __init isapnp_parse_mem_resource(struct pnp_dev *dev,
 					     int size)
 {
 	unsigned char tmp[9];
-	struct pnp_mem *mem;
+	resource_size_t min, max, align, len;
+	unsigned char flags;
 
 	isapnp_peek(tmp, size);
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = ((tmp[2] << 8) | tmp[1]) << 8;
-	mem->max = ((tmp[4] << 8) | tmp[3]) << 8;
-	mem->align = (tmp[6] << 8) | tmp[5];
-	mem->size = ((tmp[8] << 8) | tmp[7]) << 8;
-	mem->flags = tmp[0];
-	pnp_register_mem_resource(dev, option, mem);
+	min = ((tmp[2] << 8) | tmp[1]) << 8;
+	max = ((tmp[4] << 8) | tmp[3]) << 8;
+	align = (tmp[6] << 8) | tmp[5];
+	len = ((tmp[8] << 8) | tmp[7]) << 8;
+	flags = tmp[0];
+	pnp_register_mem_resource(dev, option, min, max, align, len, flags);
 }
 
 /*
@@ -541,20 +527,16 @@ static void __init isapnp_parse_mem32_resource(struct pnp_dev *dev,
 					       int size)
 {
 	unsigned char tmp[17];
-	struct pnp_mem *mem;
+	resource_size_t min, max, align, len;
+	unsigned char flags;
 
 	isapnp_peek(tmp, size);
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = (tmp[4] << 24) | (tmp[3] << 16) | (tmp[2] << 8) | tmp[1];
-	mem->max = (tmp[8] << 24) | (tmp[7] << 16) | (tmp[6] << 8) | tmp[5];
-	mem->align =
-	    (tmp[12] << 24) | (tmp[11] << 16) | (tmp[10] << 8) | tmp[9];
-	mem->size =
-	    (tmp[16] << 24) | (tmp[15] << 16) | (tmp[14] << 8) | tmp[13];
-	mem->flags = tmp[0];
-	pnp_register_mem_resource(dev, option, mem);
+	min = (tmp[4] << 24) | (tmp[3] << 16) | (tmp[2] << 8) | tmp[1];
+	max = (tmp[8] << 24) | (tmp[7] << 16) | (tmp[6] << 8) | tmp[5];
+	align = (tmp[12] << 24) | (tmp[11] << 16) | (tmp[10] << 8) | tmp[9];
+	len = (tmp[16] << 24) | (tmp[15] << 16) | (tmp[14] << 8) | tmp[13];
+	flags = tmp[0];
+	pnp_register_mem_resource(dev, option, min, max, align, len, flags);
 }
 
 /*
@@ -565,18 +547,14 @@ static void __init isapnp_parse_fixed_mem32_resource(struct pnp_dev *dev,
 						     int size)
 {
 	unsigned char tmp[9];
-	struct pnp_mem *mem;
+	resource_size_t base, len;
+	unsigned char flags;
 
 	isapnp_peek(tmp, size);
-	mem = kzalloc(sizeof(struct pnp_mem), GFP_KERNEL);
-	if (!mem)
-		return;
-	mem->min = mem->max =
-	    (tmp[4] << 24) | (tmp[3] << 16) | (tmp[2] << 8) | tmp[1];
-	mem->size = (tmp[8] << 24) | (tmp[7] << 16) | (tmp[6] << 8) | tmp[5];
-	mem->align = 0;
-	mem->flags = tmp[0];
-	pnp_register_mem_resource(dev, option, mem);
+	base = (tmp[4] << 24) | (tmp[3] << 16) | (tmp[2] << 8) | tmp[1];
+	len = (tmp[8] << 24) | (tmp[7] << 16) | (tmp[6] << 8) | tmp[5];
+	flags = tmp[0];
+	pnp_register_mem_resource(dev, option, base, base, 0, len, flags);
 }
 
 /*
