@@ -239,8 +239,8 @@ W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI FAN DRIVER
-P:	Len Brown
-M:	len.brown@intel.com
+P:	Zhang Rui
+M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
@@ -252,14 +252,14 @@ L:	pcihpd-discuss@lists.sourceforge.net
 S:	Supported
 
 ACPI THERMAL DRIVER
-P:	Len Brown
-M:	len.brown@intel.com
+P:	Zhang Rui
+M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 
 ACPI VIDEO DRIVER
-P:	Rui Zhang
+P:	Zhang Rui
 M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
