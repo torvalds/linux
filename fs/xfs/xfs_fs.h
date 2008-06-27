@@ -372,6 +372,9 @@ typedef struct xfs_fsop_attrlist_handlereq {
 
 typedef struct xfs_attr_multiop {
 	__u32		am_opcode;
+#define ATTR_OP_GET	1	/* return the indicated attr's value */
+#define ATTR_OP_SET	2	/* set/create the indicated attr/value pair */
+#define ATTR_OP_REMOVE	3	/* remove the indicated attr */
 	__s32		am_error;
 	void		__user *am_attrname;
 	void		__user *am_attrvalue;

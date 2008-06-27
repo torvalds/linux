@@ -593,7 +593,7 @@ xfs_attrmulti_by_handle(
 		goto out;
 
 	error = E2BIG;
-	size = am_hreq.opcount * sizeof(attr_multiop_t);
+	size = am_hreq.opcount * sizeof(xfs_attr_multiop_t);
 	if (!size || size > 16 * PAGE_SIZE)
 		goto out_vn_rele;
 

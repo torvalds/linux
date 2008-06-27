@@ -85,22 +85,6 @@ typedef struct attrlist_ent {	/* data from attr_list() */
 	 &((char *)buffer)[ ((attrlist_t *)(buffer))->al_offset[index] ])
 
 /*
- * Multi-attribute operation vector.
- */
-typedef struct attr_multiop {
-	int	am_opcode;	/* operation to perform (ATTR_OP_GET, etc.) */
-	int	am_error;	/* [out arg] result of this sub-op (an errno) */
-	char	*am_attrname;	/* attribute name to work with */
-	char	*am_attrvalue;	/* [in/out arg] attribute value (raw bytes) */
-	int	am_length;	/* [in/out arg] length of value */
-	int	am_flags;	/* bitwise OR of attr API flags defined above */
-} attr_multiop_t;
-
-#define ATTR_OP_GET	1	/* return the indicated attr's value */
-#define ATTR_OP_SET	2	/* set/create the indicated attr/value pair */
-#define ATTR_OP_REMOVE	3	/* remove the indicated attr */
-
-/*
  * Kernel-internal version of the attrlist cursor.
  */
 typedef struct attrlist_cursor_kern {
