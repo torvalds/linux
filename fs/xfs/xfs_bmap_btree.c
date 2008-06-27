@@ -1525,6 +1525,21 @@ xfs_bmbt_split(
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		return error;
 	}
+	if (args.fsbno == NULLFSBLOCK && args.minleft) {
+		/*
+		 * Could not find an AG with enough free space to satisfy
+		 * a full btree split.  Try again without minleft and if
+		 * successful activate the lowspace algorithm.
+		 */
+		args.fsbno = 0;
+		args.type = XFS_ALLOCTYPE_FIRST_AG;
+		args.minleft = 0;
+		if ((error = xfs_alloc_vextent(&args))) {
+			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
+			return error;
+		}
+		cur->bc_private.b.flist->xbf_low = 1;
+	}
 	if (args.fsbno == NULLFSBLOCK) {
 		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
 		*stat = 0;
