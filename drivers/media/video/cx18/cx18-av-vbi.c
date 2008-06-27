@@ -108,18 +108,18 @@ void cx18_av_vbi_setup(struct cx18 *cx)
 		src_decimation = 0x21f;
 
 		luma_lpf = 2;
-		if (std & V4L2_STD_SECAM) {
-			uv_lpf = 0;
-			comb = 0;
-			sc = 0x0a425f;
-		} else if (std == V4L2_STD_PAL_Nc) {
-			uv_lpf = 1;
-			comb = 0x20;
-			sc = 556453;
-		} else {
+		if (std & V4L2_STD_PAL) {
 			uv_lpf = 1;
 			comb = 0x20;
 			sc = 0x0a8263;
+		} else if (std == V4L2_STD_PAL_Nc) {
+			uv_lpf = 1;
+			comb = 0x20;
+			sc = 0x087da5;
+		} else { /* SECAM */
+			uv_lpf = 0;
+			comb = 0;
+			sc = 0x0a425f;
 		}
 	} else {
 		hactive = 720;
@@ -127,25 +127,20 @@ void cx18_av_vbi_setup(struct cx18 *cx)
 		vactive = 487;
 		luma_lpf = 1;
 		uv_lpf = 1;
+		vblank = 26;
+		vblank656 = 26;
 
 		src_decimation = 0x21f;
 		if (std == V4L2_STD_PAL_60) {
-			vblank = 26;
-			vblank656 = 26;
 			burst = 0x5b;
 			luma_lpf = 2;
 			comb = 0x20;
 			sc = 0x0a8263;
 		} else if (std == V4L2_STD_PAL_M) {
-			vblank = 20;
-			vblank656 = 24;
 			burst = 0x61;
 			comb = 0x20;
-
 			sc = 555452;
 		} else {
-			vblank = 26;
-			vblank656 = 26;
 			burst = 0x5b;
 			comb = 0x66;
 			sc = 556063;
