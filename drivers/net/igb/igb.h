@@ -150,6 +150,7 @@ struct igb_ring {
 	u16 itr_register;
 	u16 cpu;
 
+	int queue_index;
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
@@ -265,6 +266,7 @@ struct igb_adapter {
 	int msg_enable;
 	struct msix_entry *msix_entries;
 	u32 eims_enable_mask;
+	u32 eims_other;
 
 	/* to not mess up cache alignment, always add to the bottom */
 	unsigned long state;
