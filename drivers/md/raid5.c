@@ -523,38 +523,34 @@ static void ops_complete_biofill(void *stripe_head_ref)
 		(unsigned long long)sh->sector);
 
 	/* clear completed biofills */
+	spin_lock_irq(&conf->device_lock);
 	for (i = sh->disks; i--; ) {
 		struct r5dev *dev = &sh->dev[i];
 
 		/* acknowledge completion of a biofill operation */
 		/* and check if we need to reply to a read request,
 		 * new R5_Wantfill requests are held off until
-		 * !test_bit(STRIPE_OP_BIOFILL, &sh->ops.pending)
+		 * !STRIPE_BIOFILL_RUN
 		 */
 		if (test_and_clear_bit(R5_Wantfill, &dev->flags)) {
 			struct bio *rbi, *rbi2;
 
-			/* The access to dev->read is outside of the
-			 * spin_lock_irq(&conf->device_lock), but is protected
-			 * by the STRIPE_OP_BIOFILL pending bit
-			 */
 			BUG_ON(!dev->read);
 			rbi = dev->read;
 			dev->read = NULL;
 			while (rbi && rbi->bi_sector <
 				dev->sector + STRIPE_SECTORS) {
 				rbi2 = r5_next_bio(rbi, dev->sector);
-				spin_lock_irq(&conf->device_lock);
 				if (--rbi->bi_phys_segments == 0) {
 					rbi->bi_next = return_bi;
 					return_bi = rbi;
 				}
-				spin_unlock_irq(&conf->device_lock);
 				rbi = rbi2;
 			}
 		}
 	}
-	set_bit(STRIPE_OP_BIOFILL, &sh->ops.complete);
+	spin_unlock_irq(&conf->device_lock);
+	clear_bit(STRIPE_BIOFILL_RUN, &sh->state);
 
 	return_io(return_bi);
 
@@ -880,7 +876,7 @@ static void raid5_run_ops(struct stripe_head *sh, unsigned long pending,
 	int overlap_clear = 0, i, disks = sh->disks;
 	struct dma_async_tx_descriptor *tx = NULL;
 
-	if (test_bit(STRIPE_OP_BIOFILL, &pending)) {
+	if (test_bit(STRIPE_OP_BIOFILL, &ops_request)) {
 		ops_run_biofill(sh);
 		overlap_clear++;
 	}
@@ -2630,15 +2626,8 @@ static void handle_stripe5(struct stripe_head *sh)
 	s.syncing = test_bit(STRIPE_SYNCING, &sh->state);
 	s.expanding = test_bit(STRIPE_EXPAND_SOURCE, &sh->state);
 	s.expanded = test_bit(STRIPE_EXPAND_READY, &sh->state);
+
 	/* Now to look around and see what can be done */
-
-	/* clean-up completed biofill operations */
-	if (test_bit(STRIPE_OP_BIOFILL, &sh->ops.complete)) {
-		clear_bit(STRIPE_OP_BIOFILL, &sh->ops.pending);
-		clear_bit(STRIPE_OP_BIOFILL, &sh->ops.ack);
-		clear_bit(STRIPE_OP_BIOFILL, &sh->ops.complete);
-	}
-
 	rcu_read_lock();
 	for (i=disks; i--; ) {
 		mdk_rdev_t *rdev;
@@ -2652,10 +2641,10 @@ static void handle_stripe5(struct stripe_head *sh)
 		/* maybe we can request a biofill operation
 		 *
 		 * new wantfill requests are only permitted while
-		 * STRIPE_OP_BIOFILL is clear
+		 * ops_complete_biofill is guaranteed to be inactive
 		 */
 		if (test_bit(R5_UPTODATE, &dev->flags) && dev->toread &&
-			!test_bit(STRIPE_OP_BIOFILL, &sh->ops.pending))
+		    !test_bit(STRIPE_BIOFILL_RUN, &sh->state))
 			set_bit(R5_Wantfill, &dev->flags);
 
 		/* now count some things */
@@ -2699,8 +2688,10 @@ static void handle_stripe5(struct stripe_head *sh)
 		goto unlock;
 	}
 
-	if (s.to_fill && !test_and_set_bit(STRIPE_OP_BIOFILL, &sh->ops.pending))
-		sh->ops.count++;
+	if (s.to_fill && !test_bit(STRIPE_BIOFILL_RUN, &sh->state)) {
+		set_bit(STRIPE_OP_BIOFILL, &s.ops_request);
+		set_bit(STRIPE_BIOFILL_RUN, &sh->state);
+	}
 
 	pr_debug("locked=%d uptodate=%d to_read=%d"
 		" to_write=%d failed=%d failed_num=%d\n",
