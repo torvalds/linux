@@ -22,6 +22,9 @@
 #include <linux/fb.h>
 #include <linux/mmc/host.h>
 #include <linux/mfd/tc6393xb.h>
+#include <linux/mfd/tmio.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
@@ -666,6 +669,39 @@ static int tosa_tc6393xb_suspend(struct platform_device *dev)
 	return 0;
 }
 
+static struct mtd_partition tosa_nand_partition[] = {
+	{
+		.name	= "smf",
+		.offset	= 0,
+		.size	= 7 * 1024 * 1024,
+	},
+	{
+		.name	= "root",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 28 * 1024 * 1024,
+	},
+	{
+		.name	= "home",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
+
+static struct nand_bbt_descr tosa_tc6393xb_nand_bbt = {
+	.options	= 0,
+	.offs		= 4,
+	.len		= 2,
+	.pattern	= scan_ff_pattern
+};
+
+static struct tmio_nand_data tosa_tc6393xb_nand_config = {
+	.num_partitions	= ARRAY_SIZE(tosa_nand_partition),
+	.partition	= tosa_nand_partition,
+	.badblock_pattern = &tosa_tc6393xb_nand_bbt,
+};
+
 static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
 	.scr_pll2cr	= 0x0cc1,
 	.scr_gper	= 0x3300,
@@ -681,6 +717,8 @@ static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
 	.disable	= tosa_tc6393xb_disable,
 	.suspend	= tosa_tc6393xb_suspend,
 	.resume		= tosa_tc6393xb_resume,
+
+	.nand_data	= &tosa_tc6393xb_nand_config,
 };
 
 
