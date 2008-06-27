@@ -5536,6 +5536,8 @@ void md_allow_write(mddev_t *mddev)
 		return;
 	if (mddev->ro)
 		return;
+	if (!mddev->pers->sync_request)
+		return;
 
 	spin_lock_irq(&mddev->write_lock);
 	if (mddev->in_sync) {
