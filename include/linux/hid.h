@@ -274,7 +274,6 @@ struct hid_item {
 #define HID_QUIRK_BADPAD			0x00000020
 #define HID_QUIRK_MULTI_INPUT			0x00000040
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
-#define HID_QUIRK_RESET_LEDS			0x00100000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 
 /*
@@ -756,6 +755,7 @@ extern void hid_generic_exit(void);
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
 int usbhid_quirks_init(char **quirks_param);
 void usbhid_quirks_exit(void);
+void usbhid_set_leds(struct hid_device *hid);
 
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);

@@ -226,8 +226,6 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	hid_set_drvdata(hdev, (void *)quirks);
 
-	if (quirks & LG_RESET_LEDS)
-		hdev->quirks |= HID_QUIRK_RESET_LEDS;
 	if (quirks & LG_NOGET)
 		hdev->quirks |= HID_QUIRK_NOGET;
 
@@ -242,6 +240,9 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;
 	}
+
+	if (quirks & LG_RESET_LEDS)
+		usbhid_set_leds(hdev);
 
 	return 0;
 err_free:

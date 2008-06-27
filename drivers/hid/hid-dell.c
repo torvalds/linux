@@ -26,8 +26,6 @@ static int dell_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 
-	hdev->quirks |= HID_QUIRK_RESET_LEDS;
-
 	ret = hid_parse(hdev);
 	if (ret) {
 		dev_err(&hdev->dev, "parse failed\n");
@@ -39,6 +37,8 @@ static int dell_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;
 	}
+
+	usbhid_set_leds(hdev);
 
 	return 0;
 err_free:

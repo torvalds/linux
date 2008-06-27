@@ -591,7 +591,7 @@ static int hid_find_field_early(struct hid_device *hid, unsigned int page,
 	return -1;
 }
 
-static void usbhid_set_leds(struct hid_device *hid)
+void usbhid_set_leds(struct hid_device *hid)
 {
 	struct hid_field *field;
 	int offset;
@@ -601,6 +601,7 @@ static void usbhid_set_leds(struct hid_device *hid)
 		usbhid_submit_report(hid, field->report, USB_DIR_OUT);
 	}
 }
+EXPORT_SYMBOL_GPL(usbhid_set_leds);
 
 /*
  * Traverse the supplied list of reports and find the longest
@@ -859,9 +860,6 @@ static int usbhid_start(struct hid_device *hid)
 
 	usbhid_init_reports(hid);
 	hid_dump_device(hid);
-
-	if (hid->quirks & HID_QUIRK_RESET_LEDS)
-		usbhid_set_leds(hid);
 
 	return 0;
 
