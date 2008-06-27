@@ -2502,10 +2502,6 @@ sg_page_free(struct page *page, int size)
 	__free_pages(page, order);
 }
 
-#ifndef MAINTENANCE_IN_CMD
-#define MAINTENANCE_IN_CMD 0xa3
-#endif
-
 #ifdef CONFIG_SCSI_PROC_FS
 static int
 sg_idr_max_id(int id, void *p, void *data)

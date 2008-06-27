@@ -219,6 +219,10 @@ static struct kobj_type rcf_ktype = {
 	.default_attrs = default_attrs,
 };
 
+#ifndef MAINTENANCE_IN_CMD
+#define MAINTENANCE_IN_CMD 0xa3
+#endif
+
 static void rcf_set_defaults(struct blk_scsi_cmd_filter *filter)
 {
 	/* Basic read-only commands */
@@ -230,6 +234,7 @@ static void rcf_set_defaults(struct blk_scsi_cmd_filter *filter)
 	__set_bit(READ_16, filter->read_ok);
 	__set_bit(READ_BUFFER, filter->read_ok);
 	__set_bit(READ_DEFECT_DATA, filter->read_ok);
+	__set_bit(READ_CAPACITY, filter->read_ok);
 	__set_bit(READ_LONG, filter->read_ok);
 	__set_bit(INQUIRY, filter->read_ok);
 	__set_bit(MODE_SENSE, filter->read_ok);
@@ -238,6 +243,10 @@ static void rcf_set_defaults(struct blk_scsi_cmd_filter *filter)
 	__set_bit(START_STOP, filter->read_ok);
 	__set_bit(GPCMD_VERIFY_10, filter->read_ok);
 	__set_bit(VERIFY_16, filter->read_ok);
+	__set_bit(REPORT_LUNS, filter->read_ok);
+	__set_bit(SERVICE_ACTION_IN, filter->read_ok);
+	__set_bit(RECEIVE_DIAGNOSTIC, filter->read_ok);
+	__set_bit(MAINTENANCE_IN_CMD, filter->read_ok);
 	__set_bit(GPCMD_READ_BUFFER_CAPACITY, filter->read_ok);
 
 	/* Audio CD commands */
