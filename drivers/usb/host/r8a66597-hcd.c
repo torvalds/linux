@@ -2244,6 +2244,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	struct r8a66597 *r8a66597;
 	int ret = 0;
 	int i;
+	unsigned long irq_trigger;
 
 	if (pdev->dev.dma_mask) {
 		ret = -EINVAL;
@@ -2302,7 +2303,11 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&r8a66597->child_device);
 
 	hcd->rsrc_start = res->start;
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	if (irq_sense == INTL)
+		irq_trigger = IRQF_TRIGGER_LOW;
+	else
+		irq_trigger = IRQF_TRIGGER_FALLING;
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
 	if (ret != 0) {
 		err("Failed to add hcd");
 		goto clean_up;
