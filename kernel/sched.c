@@ -1480,12 +1480,12 @@ static int task_hot(struct task_struct *p, u64 now, struct sched_domain *sd);
  */
 
 static inline struct aggregate_struct *
-aggregate(struct task_group *tg, struct sched_domain *sd)
+aggregate(struct task_group *tg, int cpu)
 {
-	return &tg->cfs_rq[sd->first_cpu]->aggregate;
+	return &tg->cfs_rq[cpu]->aggregate;
 }
 
-typedef void (*aggregate_func)(struct task_group *, struct sched_domain *);
+typedef void (*aggregate_func)(struct task_group *, int, struct sched_domain *);
 
 /*
  * Iterate the full tree, calling @down when first entering a node and @up when
@@ -1493,14 +1493,14 @@ typedef void (*aggregate_func)(struct task_group *, struct sched_domain *);
  */
 static
 void aggregate_walk_tree(aggregate_func down, aggregate_func up,
-			 struct sched_domain *sd)
+			 int cpu, struct sched_domain *sd)
 {
 	struct task_group *parent, *child;
 
 	rcu_read_lock();
 	parent = &root_task_group;
 down:
-	(*down)(parent, sd);
+	(*down)(parent, cpu, sd);
 	list_for_each_entry_rcu(child, &parent->children, siblings) {
 		parent = child;
 		goto down;
@@ -1508,7 +1508,7 @@ down:
 up:
 		continue;
 	}
-	(*up)(parent, sd);
+	(*up)(parent, cpu, sd);
 
 	child = parent;
 	parent = parent->parent;
@@ -1520,8 +1520,8 @@ up:
 /*
  * Calculate the aggregate runqueue weight.
  */
-static
-void aggregate_group_weight(struct task_group *tg, struct sched_domain *sd)
+static void
+aggregate_group_weight(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
 	unsigned long rq_weight = 0;
 	unsigned long task_weight = 0;
@@ -1532,15 +1532,15 @@ void aggregate_group_weight(struct task_group *tg, struct sched_domain *sd)
 		task_weight += tg->cfs_rq[i]->task_weight;
 	}
 
-	aggregate(tg, sd)->rq_weight = rq_weight;
-	aggregate(tg, sd)->task_weight = task_weight;
+	aggregate(tg, cpu)->rq_weight = rq_weight;
+	aggregate(tg, cpu)->task_weight = task_weight;
 }
 
 /*
  * Compute the weight of this group on the given cpus.
  */
-static
-void aggregate_group_shares(struct task_group *tg, struct sched_domain *sd)
+static void
+aggregate_group_shares(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
 	unsigned long shares = 0;
 	int i;
@@ -1548,18 +1548,18 @@ void aggregate_group_shares(struct task_group *tg, struct sched_domain *sd)
 	for_each_cpu_mask(i, sd->span)
 		shares += tg->cfs_rq[i]->shares;
 
-	if ((!shares && aggregate(tg, sd)->rq_weight) || shares > tg->shares)
+	if ((!shares && aggregate(tg, cpu)->rq_weight) || shares > tg->shares)
 		shares = tg->shares;
 
-	aggregate(tg, sd)->shares = shares;
+	aggregate(tg, cpu)->shares = shares;
 }
 
 /*
  * Compute the load fraction assigned to this group, relies on the aggregate
  * weight and this group's parent's load, i.e. top-down.
  */
-static
-void aggregate_group_load(struct task_group *tg, struct sched_domain *sd)
+static void
+aggregate_group_load(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
 	unsigned long load;
 
@@ -1571,17 +1571,17 @@ void aggregate_group_load(struct task_group *tg, struct sched_domain *sd)
 			load += cpu_rq(i)->load.weight;
 
 	} else {
-		load = aggregate(tg->parent, sd)->load;
+		load = aggregate(tg->parent, cpu)->load;
 
 		/*
 		 * shares is our weight in the parent's rq so
 		 * shares/parent->rq_weight gives our fraction of the load
 		 */
-		load *= aggregate(tg, sd)->shares;
-		load /= aggregate(tg->parent, sd)->rq_weight + 1;
+		load *= aggregate(tg, cpu)->shares;
+		load /= aggregate(tg->parent, cpu)->rq_weight + 1;
 	}
 
-	aggregate(tg, sd)->load = load;
+	aggregate(tg, cpu)->load = load;
 }
 
 static void __set_se_shares(struct sched_entity *se, unsigned long shares);
@@ -1590,8 +1590,8 @@ static void __set_se_shares(struct sched_entity *se, unsigned long shares);
  * Calculate and set the cpu's group shares.
  */
 static void
-__update_group_shares_cpu(struct task_group *tg, struct sched_domain *sd,
-			  int tcpu)
+__update_group_shares_cpu(struct task_group *tg, int cpu,
+			  struct sched_domain *sd, int tcpu)
 {
 	int boost = 0;
 	unsigned long shares;
@@ -1618,8 +1618,8 @@ __update_group_shares_cpu(struct task_group *tg, struct sched_domain *sd,
 	 *               \Sum rq_weight
 	 *
 	 */
-	shares = aggregate(tg, sd)->shares * rq_weight;
-	shares /= aggregate(tg, sd)->rq_weight + 1;
+	shares = aggregate(tg, cpu)->shares * rq_weight;
+	shares /= aggregate(tg, cpu)->rq_weight + 1;
 
 	/*
 	 * record the actual number of shares, not the boosted amount.
@@ -1639,15 +1639,15 @@ __update_group_shares_cpu(struct task_group *tg, struct sched_domain *sd,
  * task went to.
  */
 static void
-__move_group_shares(struct task_group *tg, struct sched_domain *sd,
+__move_group_shares(struct task_group *tg, int cpu, struct sched_domain *sd,
 		    int scpu, int dcpu)
 {
 	unsigned long shares;
 
 	shares = tg->cfs_rq[scpu]->shares + tg->cfs_rq[dcpu]->shares;
 
-	__update_group_shares_cpu(tg, sd, scpu);
-	__update_group_shares_cpu(tg, sd, dcpu);
+	__update_group_shares_cpu(tg, cpu, sd, scpu);
+	__update_group_shares_cpu(tg, cpu, sd, dcpu);
 
 	/*
 	 * ensure we never loose shares due to rounding errors in the
@@ -1663,19 +1663,19 @@ __move_group_shares(struct task_group *tg, struct sched_domain *sd,
  * we need to walk up the tree and change all shares until we hit the root.
  */
 static void
-move_group_shares(struct task_group *tg, struct sched_domain *sd,
+move_group_shares(struct task_group *tg, int cpu, struct sched_domain *sd,
 		  int scpu, int dcpu)
 {
 	while (tg) {
-		__move_group_shares(tg, sd, scpu, dcpu);
+		__move_group_shares(tg, cpu, sd, scpu, dcpu);
 		tg = tg->parent;
 	}
 }
 
-static
-void aggregate_group_set_shares(struct task_group *tg, struct sched_domain *sd)
+static void
+aggregate_group_set_shares(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
-	unsigned long shares = aggregate(tg, sd)->shares;
+	unsigned long shares = aggregate(tg, cpu)->shares;
 	int i;
 
 	for_each_cpu_mask(i, sd->span) {
@@ -1683,20 +1683,20 @@ void aggregate_group_set_shares(struct task_group *tg, struct sched_domain *sd)
 		unsigned long flags;
 
 		spin_lock_irqsave(&rq->lock, flags);
-		__update_group_shares_cpu(tg, sd, i);
+		__update_group_shares_cpu(tg, cpu, sd, i);
 		spin_unlock_irqrestore(&rq->lock, flags);
 	}
 
-	aggregate_group_shares(tg, sd);
+	aggregate_group_shares(tg, cpu, sd);
 
 	/*
 	 * ensure we never loose shares due to rounding errors in the
 	 * above redistribution.
 	 */
-	shares -= aggregate(tg, sd)->shares;
+	shares -= aggregate(tg, cpu)->shares;
 	if (shares) {
-		tg->cfs_rq[sd->first_cpu]->shares += shares;
-		aggregate(tg, sd)->shares += shares;
+		tg->cfs_rq[cpu]->shares += shares;
+		aggregate(tg, cpu)->shares += shares;
 	}
 }
 
@@ -1704,21 +1704,21 @@ void aggregate_group_set_shares(struct task_group *tg, struct sched_domain *sd)
  * Calculate the accumulative weight and recursive load of each task group
  * while walking down the tree.
  */
-static
-void aggregate_get_down(struct task_group *tg, struct sched_domain *sd)
+static void
+aggregate_get_down(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
-	aggregate_group_weight(tg, sd);
-	aggregate_group_shares(tg, sd);
-	aggregate_group_load(tg, sd);
+	aggregate_group_weight(tg, cpu, sd);
+	aggregate_group_shares(tg, cpu, sd);
+	aggregate_group_load(tg, cpu, sd);
 }
 
 /*
  * Rebalance the cpu shares while walking back up the tree.
  */
-static
-void aggregate_get_up(struct task_group *tg, struct sched_domain *sd)
+static void
+aggregate_get_up(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
-	aggregate_group_set_shares(tg, sd);
+	aggregate_group_set_shares(tg, cpu, sd);
 }
 
 static DEFINE_PER_CPU(spinlock_t, aggregate_lock);
@@ -1731,18 +1731,18 @@ static void __init init_aggregate(void)
 		spin_lock_init(&per_cpu(aggregate_lock, i));
 }
 
-static int get_aggregate(struct sched_domain *sd)
+static int get_aggregate(int cpu, struct sched_domain *sd)
 {
-	if (!spin_trylock(&per_cpu(aggregate_lock, sd->first_cpu)))
+	if (!spin_trylock(&per_cpu(aggregate_lock, cpu)))
 		return 0;
 
-	aggregate_walk_tree(aggregate_get_down, aggregate_get_up, sd);
+	aggregate_walk_tree(aggregate_get_down, aggregate_get_up, cpu, sd);
 	return 1;
 }
 
-static void put_aggregate(struct sched_domain *sd)
+static void put_aggregate(int cpu, struct sched_domain *sd)
 {
-	spin_unlock(&per_cpu(aggregate_lock, sd->first_cpu));
+	spin_unlock(&per_cpu(aggregate_lock, cpu));
 }
 
 static void cfs_rq_set_shares(struct cfs_rq *cfs_rq, unsigned long shares)
@@ -1756,12 +1756,12 @@ static inline void init_aggregate(void)
 {
 }
 
-static inline int get_aggregate(struct sched_domain *sd)
+static inline int get_aggregate(int cpu, struct sched_domain *sd)
 {
 	return 0;
 }
 
-static inline void put_aggregate(struct sched_domain *sd)
+static inline void put_aggregate(int cpu, struct sched_domain *sd)
 {
 }
 #endif
@@ -3539,7 +3539,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 
 	cpus_setall(*cpus);
 
-	unlock_aggregate = get_aggregate(sd);
+	unlock_aggregate = get_aggregate(this_cpu, sd);
 
 	/*
 	 * When power savings policy is enabled for the parent domain, idle
@@ -3678,7 +3678,7 @@ out_one_pinned:
 		ld_moved = 0;
 out:
 	if (unlock_aggregate)
-		put_aggregate(sd);
+		put_aggregate(this_cpu, sd);
 	return ld_moved;
 }
 
@@ -7292,7 +7292,6 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 			SD_INIT(sd, ALLNODES);
 			set_domain_attribute(sd, attr);
 			sd->span = *cpu_map;
-			sd->first_cpu = first_cpu(sd->span);
 			cpu_to_allnodes_group(i, cpu_map, &sd->groups, tmpmask);
 			p = sd;
 			sd_allnodes = 1;
@@ -7303,7 +7302,6 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		SD_INIT(sd, NODE);
 		set_domain_attribute(sd, attr);
 		sched_domain_node_span(cpu_to_node(i), &sd->span);
-		sd->first_cpu = first_cpu(sd->span);
 		sd->parent = p;
 		if (p)
 			p->child = sd;
@@ -7315,7 +7313,6 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		SD_INIT(sd, CPU);
 		set_domain_attribute(sd, attr);
 		sd->span = *nodemask;
-		sd->first_cpu = first_cpu(sd->span);
 		sd->parent = p;
 		if (p)
 			p->child = sd;
@@ -7327,7 +7324,6 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		SD_INIT(sd, MC);
 		set_domain_attribute(sd, attr);
 		sd->span = cpu_coregroup_map(i);
-		sd->first_cpu = first_cpu(sd->span);
 		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
 		p->child = sd;
@@ -7340,7 +7336,6 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		SD_INIT(sd, SIBLING);
 		set_domain_attribute(sd, attr);
 		sd->span = per_cpu(cpu_sibling_map, i);
-		sd->first_cpu = first_cpu(sd->span);
 		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
 		p->child = sd;

@@ -1429,11 +1429,11 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		/*
 		 * empty group
 		 */
-		if (!aggregate(tg, sd)->task_weight)
+		if (!aggregate(tg, this_cpu)->task_weight)
 			continue;
 
-		rem_load = rem_load_move * aggregate(tg, sd)->rq_weight;
-		rem_load /= aggregate(tg, sd)->load + 1;
+		rem_load = rem_load_move * aggregate(tg, this_cpu)->rq_weight;
+		rem_load /= aggregate(tg, this_cpu)->load + 1;
 
 		this_weight = tg->cfs_rq[this_cpu]->task_weight;
 		busiest_weight = tg->cfs_rq[busiest_cpu]->task_weight;
@@ -1451,10 +1451,10 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		if (!moved_load)
 			continue;
 
-		move_group_shares(tg, sd, busiest_cpu, this_cpu);
+		move_group_shares(tg, this_cpu, sd, busiest_cpu, this_cpu);
 
-		moved_load *= aggregate(tg, sd)->load;
-		moved_load /= aggregate(tg, sd)->rq_weight + 1;
+		moved_load *= aggregate(tg, this_cpu)->load;
+		moved_load /= aggregate(tg, this_cpu)->rq_weight + 1;
 
 		rem_load_move -= moved_load;
 		if (rem_load_move < 0)
