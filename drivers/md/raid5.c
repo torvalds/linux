@@ -115,9 +115,7 @@ static void return_io(struct bio *return_bi)
 		return_bi = bi->bi_next;
 		bi->bi_next = NULL;
 		bi->bi_size = 0;
-		bi->bi_end_io(bi,
-			      test_bit(BIO_UPTODATE, &bi->bi_flags)
-			        ? 0 : -EIO);
+		bio_endio(bi, 0);
 		bi = return_bi;
 	}
 }
@@ -3700,9 +3698,7 @@ static int make_request(struct request_queue *q, struct bio * bi)
 		if ( rw == WRITE )
 			md_write_end(mddev);
 
-		bi->bi_end_io(bi,
-			      test_bit(BIO_UPTODATE, &bi->bi_flags)
-			        ? 0 : -EIO);
+		bio_endio(bi, 0);
 	}
 	return 0;
 }
@@ -4005,12 +4001,8 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 	spin_lock_irq(&conf->device_lock);
 	remaining = --raid_bio->bi_phys_segments;
 	spin_unlock_irq(&conf->device_lock);
-	if (remaining == 0) {
-
-		raid_bio->bi_end_io(raid_bio,
-			      test_bit(BIO_UPTODATE, &raid_bio->bi_flags)
-			        ? 0 : -EIO);
-	}
+	if (remaining == 0)
+		bio_endio(raid_bio, 0);
 	if (atomic_dec_and_test(&conf->active_aligned_reads))
 		wake_up(&conf->wait_for_stripe);
 	return handled;
