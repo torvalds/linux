@@ -1641,12 +1641,14 @@ static inline void update_shares_locked(struct rq *rq, struct sched_domain *sd)
 
 #endif
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
 static void cfs_rq_set_shares(struct cfs_rq *cfs_rq, unsigned long shares)
 {
-#if defined(CONFIG_SMP) && defined(CONFIG_FAIR_GROUP_SCHED)
+#ifdef CONFIG_SMP
 	cfs_rq->shares = shares;
 #endif
 }
+#endif
 
 #include "sched_stats.h"
 #include "sched_idletask.c"
