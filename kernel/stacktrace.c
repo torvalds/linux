@@ -6,6 +6,7 @@
  *  Copyright (C) 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  */
 #include <linux/sched.h>
+#include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/stacktrace.h>
 
@@ -21,4 +22,5 @@ void print_stack_trace(struct stack_trace *trace, int spaces)
 		print_ip_sym(trace->entries[i]);
 	}
 }
+EXPORT_SYMBOL_GPL(print_stack_trace);
 
