@@ -32,6 +32,7 @@
 #include <asm/current.h>
 #include <asm/apicdef.h>
 #include <asm/atomic.h>
+#include "kvm_cache_regs.h"
 #include "irq.h"
 
 #define PRId64 "d"
@@ -558,8 +559,7 @@ static void __report_tpr_access(struct kvm_lapic *apic, bool write)
 	struct kvm_run *run = vcpu->run;
 
 	set_bit(KVM_REQ_REPORT_TPR_ACCESS, &vcpu->requests);
-	kvm_x86_ops->cache_regs(vcpu);
-	run->tpr_access.rip = vcpu->arch.rip;
+	run->tpr_access.rip = kvm_rip_read(vcpu);
 	run->tpr_access.is_write = write;
 }
 

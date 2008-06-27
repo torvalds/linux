@@ -26,6 +26,7 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
+#include "kvm_cache_regs.h"
 
 #include <asm/io.h>
 #include <asm/desc.h>
@@ -715,9 +716,9 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	unsigned long rip;
 	u32 interruptibility;
 
-	rip = vmcs_readl(GUEST_RIP);
+	rip = kvm_rip_read(vcpu);
 	rip += vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
-	vmcs_writel(GUEST_RIP, rip);
+	kvm_rip_write(vcpu, rip);
 
 	/*
 	 * We emulated an instruction, so temporary interrupt blocking
@@ -947,24 +948,19 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 	return ret;
 }
 
-/*
- * Sync the rsp and rip registers into the vcpu structure.  This allows
- * registers to be accessed by indexing vcpu->arch.regs.
- */
-static void vcpu_load_rsp_rip(struct kvm_vcpu *vcpu)
+static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 {
-	vcpu->arch.regs[VCPU_REGS_RSP] = vmcs_readl(GUEST_RSP);
-	vcpu->arch.rip = vmcs_readl(GUEST_RIP);
-}
-
-/*
- * Syncs rsp and rip back into the vmcs.  Should be called after possible
- * modification.
- */
-static void vcpu_put_rsp_rip(struct kvm_vcpu *vcpu)
-{
-	vmcs_writel(GUEST_RSP, vcpu->arch.regs[VCPU_REGS_RSP]);
-	vmcs_writel(GUEST_RIP, vcpu->arch.rip);
+	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
+	switch (reg) {
+	case VCPU_REGS_RSP:
+		vcpu->arch.regs[VCPU_REGS_RSP] = vmcs_readl(GUEST_RSP);
+		break;
+	case VCPU_REGS_RIP:
+		vcpu->arch.regs[VCPU_REGS_RIP] = vmcs_readl(GUEST_RIP);
+		break;
+	default:
+		break;
+	}
 }
 
 static int set_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
@@ -2019,6 +2015,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	u64 msr;
 	int ret;
 
+	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP));
 	down_read(&vcpu->kvm->slots_lock);
 	if (!init_rmode(vmx->vcpu.kvm)) {
 		ret = -ENOMEM;
@@ -2072,10 +2069,10 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	vmcs_writel(GUEST_RFLAGS, 0x02);
 	if (vmx->vcpu.vcpu_id == 0)
-		vmcs_writel(GUEST_RIP, 0xfff0);
+		kvm_rip_write(vcpu, 0xfff0);
 	else
-		vmcs_writel(GUEST_RIP, 0);
-	vmcs_writel(GUEST_RSP, 0);
+		kvm_rip_write(vcpu, 0);
+	kvm_register_write(vcpu, VCPU_REGS_RSP, 0);
 
 	/* todo: dr0 = dr1 = dr2 = dr3 = 0; dr6 = 0xffff0ff0 */
 	vmcs_writel(GUEST_DR7, 0x400);
@@ -2139,11 +2136,11 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 	if (vcpu->arch.rmode.active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = irq;
-		vmx->rmode.irq.rip = vmcs_readl(GUEST_RIP);
+		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			     irq | INTR_TYPE_SOFT_INTR | INTR_INFO_VALID_MASK);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		vmcs_writel(GUEST_RIP, vmx->rmode.irq.rip - 1);
+		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
 		return;
 	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
@@ -2288,7 +2285,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	error_code = 0;
-	rip = vmcs_readl(GUEST_RIP);
+	rip = kvm_rip_read(vcpu);
 	if (intr_info & INTR_INFO_DELIVER_CODE_MASK)
 		error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 	if (is_page_fault(intr_info)) {
@@ -2386,27 +2383,25 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	reg = (exit_qualification >> 8) & 15;
 	switch ((exit_qualification >> 4) & 3) {
 	case 0: /* mov to cr */
-		KVMTRACE_3D(CR_WRITE, vcpu, (u32)cr, (u32)vcpu->arch.regs[reg],
-			    (u32)((u64)vcpu->arch.regs[reg] >> 32), handler);
+		KVMTRACE_3D(CR_WRITE, vcpu, (u32)cr,
+			    (u32)kvm_register_read(vcpu, reg),
+			    (u32)((u64)kvm_register_read(vcpu, reg) >> 32),
+			    handler);
 		switch (cr) {
 		case 0:
-			vcpu_load_rsp_rip(vcpu);
-			kvm_set_cr0(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr0(vcpu, kvm_register_read(vcpu, reg));
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 3:
-			vcpu_load_rsp_rip(vcpu);
-			kvm_set_cr3(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr3(vcpu, kvm_register_read(vcpu, reg));
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 4:
-			vcpu_load_rsp_rip(vcpu);
-			kvm_set_cr4(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr4(vcpu, kvm_register_read(vcpu, reg));
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 8:
-			vcpu_load_rsp_rip(vcpu);
-			kvm_set_cr8(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr8(vcpu, kvm_register_read(vcpu, reg));
 			skip_emulated_instruction(vcpu);
 			if (irqchip_in_kernel(vcpu->kvm))
 				return 1;
@@ -2415,7 +2410,6 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		};
 		break;
 	case 2: /* clts */
-		vcpu_load_rsp_rip(vcpu);
 		vmx_fpu_deactivate(vcpu);
 		vcpu->arch.cr0 &= ~X86_CR0_TS;
 		vmcs_writel(CR0_READ_SHADOW, vcpu->arch.cr0);
@@ -2426,21 +2420,17 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	case 1: /*mov from cr*/
 		switch (cr) {
 		case 3:
-			vcpu_load_rsp_rip(vcpu);
-			vcpu->arch.regs[reg] = vcpu->arch.cr3;
-			vcpu_put_rsp_rip(vcpu);
+			kvm_register_write(vcpu, reg, vcpu->arch.cr3);
 			KVMTRACE_3D(CR_READ, vcpu, (u32)cr,
-				    (u32)vcpu->arch.regs[reg],
-				    (u32)((u64)vcpu->arch.regs[reg] >> 32),
+				    (u32)kvm_register_read(vcpu, reg),
+				    (u32)((u64)kvm_register_read(vcpu, reg) >> 32),
 				    handler);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 8:
-			vcpu_load_rsp_rip(vcpu);
-			vcpu->arch.regs[reg] = kvm_get_cr8(vcpu);
-			vcpu_put_rsp_rip(vcpu);
+			kvm_register_write(vcpu, reg, kvm_get_cr8(vcpu));
 			KVMTRACE_2D(CR_READ, vcpu, (u32)cr,
-				    (u32)vcpu->arch.regs[reg], handler);
+				    (u32)kvm_register_read(vcpu, reg), handler);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		}
@@ -2472,7 +2462,6 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	dr = exit_qualification & 7;
 	reg = (exit_qualification >> 8) & 15;
-	vcpu_load_rsp_rip(vcpu);
 	if (exit_qualification & 16) {
 		/* mov from dr */
 		switch (dr) {
@@ -2485,12 +2474,11 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		default:
 			val = 0;
 		}
-		vcpu->arch.regs[reg] = val;
+		kvm_register_write(vcpu, reg, val);
 		KVMTRACE_2D(DR_READ, vcpu, (u32)dr, (u32)val, handler);
 	} else {
 		/* mov to dr */
 	}
-	vcpu_put_rsp_rip(vcpu);
 	skip_emulated_instruction(vcpu);
 	return 1;
 }
@@ -2735,8 +2723,8 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 vectoring_info = vmx->idt_vectoring_info;
 
-	KVMTRACE_3D(VMEXIT, vcpu, exit_reason, (u32)vmcs_readl(GUEST_RIP),
-		    (u32)((u64)vmcs_readl(GUEST_RIP) >> 32), entryexit);
+	KVMTRACE_3D(VMEXIT, vcpu, exit_reason, (u32)kvm_rip_read(vcpu),
+		    (u32)((u64)kvm_rip_read(vcpu) >> 32), entryexit);
 
 	/* Access CR3 don't cause VMExit in paging mode, so we need
 	 * to sync with guest real CR3. */
@@ -2922,9 +2910,9 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 static void fixup_rmode_irq(struct vcpu_vmx *vmx)
 {
 	vmx->rmode.irq.pending = 0;
-	if (vmcs_readl(GUEST_RIP) + 1 != vmx->rmode.irq.rip)
+	if (kvm_rip_read(&vmx->vcpu) + 1 != vmx->rmode.irq.rip)
 		return;
-	vmcs_writel(GUEST_RIP, vmx->rmode.irq.rip);
+	kvm_rip_write(&vmx->vcpu, vmx->rmode.irq.rip);
 	if (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK) {
 		vmx->idt_vectoring_info &= ~VECTORING_INFO_TYPE_MASK;
 		vmx->idt_vectoring_info |= INTR_TYPE_EXT_INTR;
@@ -2940,6 +2928,11 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 intr_info;
+
+	if (test_bit(VCPU_REGS_RSP, (unsigned long *)&vcpu->arch.regs_dirty))
+		vmcs_writel(GUEST_RSP, vcpu->arch.regs[VCPU_REGS_RSP]);
+	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
+		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
 
 	/*
 	 * Loading guest fpu may have cleared host cr0.ts
@@ -3060,6 +3053,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		, "ebx", "edi", "rsi"
 #endif
 	      );
+
+	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP));
+	vcpu->arch.regs_dirty = 0;
 
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 	if (vmx->rmode.irq.pending)
@@ -3224,8 +3220,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_idt = vmx_set_idt,
 	.get_gdt = vmx_get_gdt,
 	.set_gdt = vmx_set_gdt,
-	.cache_regs = vcpu_load_rsp_rip,
-	.decache_regs = vcpu_put_rsp_rip,
+	.cache_reg = vmx_cache_reg,
 	.get_rflags = vmx_get_rflags,
 	.set_rflags = vmx_set_rflags,
 

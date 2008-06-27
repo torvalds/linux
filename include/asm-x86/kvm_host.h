@@ -89,7 +89,7 @@ extern struct list_head vm_list;
 struct kvm_vcpu;
 struct kvm;
 
-enum {
+enum kvm_reg {
 	VCPU_REGS_RAX = 0,
 	VCPU_REGS_RCX = 1,
 	VCPU_REGS_RDX = 2,
@@ -108,6 +108,7 @@ enum {
 	VCPU_REGS_R14 = 14,
 	VCPU_REGS_R15 = 15,
 #endif
+	VCPU_REGS_RIP,
 	NR_VCPU_REGS
 };
 
@@ -219,8 +220,13 @@ struct kvm_vcpu_arch {
 	int interrupt_window_open;
 	unsigned long irq_summary; /* bit vector: 1 per word in irq_pending */
 	DECLARE_BITMAP(irq_pending, KVM_NR_INTERRUPTS);
-	unsigned long regs[NR_VCPU_REGS]; /* for rsp: vcpu_load_rsp_rip() */
-	unsigned long rip;      /* needs vcpu_load_rsp_rip() */
+	/*
+	 * rip and regs accesses must go through
+	 * kvm_{register,rip}_{read,write} functions.
+	 */
+	unsigned long regs[NR_VCPU_REGS];
+	u32 regs_avail;
+	u32 regs_dirty;
 
 	unsigned long cr0;
 	unsigned long cr2;
@@ -414,8 +420,7 @@ struct kvm_x86_ops {
 	unsigned long (*get_dr)(struct kvm_vcpu *vcpu, int dr);
 	void (*set_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long value,
 		       int *exception);
-	void (*cache_regs)(struct kvm_vcpu *vcpu);
-	void (*decache_regs)(struct kvm_vcpu *vcpu);
+	void (*cache_reg)(struct kvm_vcpu *vcpu, enum kvm_reg reg);
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 
