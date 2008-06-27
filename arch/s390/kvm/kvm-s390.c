@@ -275,7 +275,8 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	if (!vcpu)
 		goto out_nomem;
 
-	vcpu->arch.sie_block = (struct sie_block *) get_zeroed_page(GFP_KERNEL);
+	vcpu->arch.sie_block = (struct kvm_s390_sie_block *)
+					get_zeroed_page(GFP_KERNEL);
 
 	if (!vcpu->arch.sie_block)
 		goto out_free_cpu;
