@@ -258,6 +258,19 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
+	/*
+	 * Until this is fixed only page-sized or smaller data blocks work.
+	 */
+	if (unlikely(sbp->sb_blocksize > PAGE_SIZE)) {
+		xfs_fs_mount_cmn_err(flags,
+			"file system with blocksize %d bytes",
+			sbp->sb_blocksize);
+		xfs_fs_mount_cmn_err(flags,
+			"only pagesize (%ld) or less will currently work.",
+			PAGE_SIZE);
+		return XFS_ERROR(ENOSYS);
+	}
+
 	if (xfs_sb_validate_fsb_count(sbp, sbp->sb_dblocks) ||
 	    xfs_sb_validate_fsb_count(sbp, sbp->sb_rblocks)) {
 		xfs_fs_mount_cmn_err(flags,
@@ -276,19 +289,6 @@ xfs_mount_validate_sb(
 	if (unlikely(!xfs_sb_version_hasdirv2(sbp))) {
 		xfs_fs_mount_cmn_err(flags,
 			"file system using version 1 directory format");
-		return XFS_ERROR(ENOSYS);
-	}
-
-	/*
-	 * Until this is fixed only page-sized or smaller data blocks work.
-	 */
-	if (unlikely(sbp->sb_blocksize > PAGE_SIZE)) {
-		xfs_fs_mount_cmn_err(flags,
-			"file system with blocksize %d bytes",
-			sbp->sb_blocksize);
-		xfs_fs_mount_cmn_err(flags,
-			"only pagesize (%ld) or less will currently work.",
-			PAGE_SIZE);
 		return XFS_ERROR(ENOSYS);
 	}
 
