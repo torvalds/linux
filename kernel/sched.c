@@ -778,6 +778,12 @@ late_initcall(sched_init_debug);
 const_debug unsigned int sysctl_sched_nr_migrate = 32;
 
 /*
+ * ratelimit for updating the group shares.
+ * default: 0.5ms
+ */
+const_debug unsigned int sysctl_sched_shares_ratelimit = 500000;
+
+/*
  * period over which we measure -rt task cpu usage in us.
  * default: 1s
  */
@@ -1590,7 +1596,13 @@ tg_nop(struct task_group *tg, int cpu, struct sched_domain *sd)
 
 static void update_shares(struct sched_domain *sd)
 {
-	walk_tg_tree(tg_nop, tg_shares_up, 0, sd);
+	u64 now = cpu_clock(raw_smp_processor_id());
+	s64 elapsed = now - sd->last_update;
+
+	if (elapsed >= (s64)(u64)sysctl_sched_shares_ratelimit) {
+		sd->last_update = now;
+		walk_tg_tree(tg_nop, tg_shares_up, 0, sd);
+	}
 }
 
 static void update_shares_locked(struct rq *rq, struct sched_domain *sd)
@@ -2198,6 +2210,22 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 
 	if (!sched_feat(SYNC_WAKEUPS))
 		sync = 0;
+
+#ifdef CONFIG_SMP
+	if (sched_feat(LB_WAKEUP_UPDATE)) {
+		struct sched_domain *sd;
+
+		this_cpu = raw_smp_processor_id();
+		cpu = task_cpu(p);
+
+		for_each_domain(this_cpu, sd) {
+			if (cpu_isset(cpu, sd->span)) {
+				update_shares(sd);
+				break;
+			}
+		}
+	}
+#endif
 
 	smp_wmb();
 	rq = task_rq_lock(p, &flags);
