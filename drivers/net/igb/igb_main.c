@@ -852,7 +852,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	struct e1000_hw *hw;
 	const struct e1000_info *ei = igb_info_tbl[ent->driver_data];
 	unsigned long mmio_start, mmio_len;
-	static int cards_found;
 	int i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = IGB_EEPROM_APME;
@@ -944,8 +943,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	netdev->mem_start = mmio_start;
 	netdev->mem_end = mmio_start + mmio_len;
-
-	adapter->bd_number = cards_found;
 
 	/* PCI config space info */
 	hw->vendor_id = pdev->vendor;
@@ -1131,7 +1128,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		adapter->msi_enabled ? "MSI" : "legacy",
 		adapter->num_rx_queues, adapter->num_tx_queues);
 
-	cards_found++;
 	return 0;
 
 err_register:
