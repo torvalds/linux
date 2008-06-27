@@ -386,6 +386,12 @@ also have
 	'check' and 'repair' will start the appropriate process
            providing the current state is 'idle'.
 
+      This file responds to select/poll.  Any important change in the value
+      triggers a poll event.  Sometimes the value will briefly be
+      "recover" if a recovery seems to be needed, but cannot be
+      achieved. In that case, the transition to "recover" isn't
+      notified, but the transition away is.
+
    mismatch_count
       When performing 'check' and 'repair', and possibly when
       performing 'resync', md will count the number of errors that are
