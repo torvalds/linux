@@ -88,7 +88,7 @@ static int b43_rfkill_soft_toggle(void *data, enum rfkill_state state)
 		goto out_unlock;
 	err = 0;
 	switch (state) {
-	case RFKILL_STATE_ON:
+	case RFKILL_STATE_UNBLOCKED:
 		if (!dev->radio_hw_enable) {
 			/* No luck. We can't toggle the hardware RF-kill
 			 * button from software. */
@@ -98,9 +98,12 @@ static int b43_rfkill_soft_toggle(void *data, enum rfkill_state state)
 		if (!dev->phy.radio_on)
 			b43_radio_turn_on(dev);
 		break;
-	case RFKILL_STATE_OFF:
+	case RFKILL_STATE_SOFT_BLOCKED:
 		if (dev->phy.radio_on)
 			b43_radio_turn_off(dev, 0);
+		break;
+	default:
+		b43warn(wl, "Received unexpected rfkill state %d.\n", state);
 		break;
 	}
 out_unlock:
