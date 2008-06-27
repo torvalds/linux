@@ -221,7 +221,6 @@ static void gdlm_withdraw(void *lockspace)
 
 	dlm_release_lockspace(ls->dlm_lockspace, 2);
 	gdlm_release_threads(ls);
-	gdlm_release_all_locks(ls);
 	gdlm_kobject_release(ls);
 }
 

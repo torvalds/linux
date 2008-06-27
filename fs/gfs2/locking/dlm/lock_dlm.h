@@ -148,7 +148,6 @@ void gdlm_release_threads(struct gdlm_ls *);
 /* lock.c */
 
 void gdlm_submit_delayed(struct gdlm_ls *);
-int gdlm_release_all_locks(struct gdlm_ls *);
 unsigned int gdlm_do_lock(struct gdlm_lock *);
 
 int gdlm_get_lock(void *, struct lm_lockname *, void **);
