@@ -574,8 +574,7 @@ static void ops_complete_compute5(void *stripe_head_ref)
 	release_stripe(sh);
 }
 
-static struct dma_async_tx_descriptor *
-ops_run_compute5(struct stripe_head *sh, unsigned long ops_request)
+static struct dma_async_tx_descriptor *ops_run_compute5(struct stripe_head *sh)
 {
 	/* kernel stack size limits the total number of disks */
 	int disks = sh->disks;
@@ -604,10 +603,6 @@ ops_run_compute5(struct stripe_head *sh, unsigned long ops_request)
 		tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
 			ASYNC_TX_XOR_ZERO_DST, NULL,
 			ops_complete_compute5, sh);
-
-	/* ack now if postxor is not set to be run */
-	if (tx && !test_bit(STRIPE_OP_POSTXOR, &ops_request))
-		async_tx_ack(tx);
 
 	return tx;
 }
@@ -813,8 +808,12 @@ static void raid5_run_ops(struct stripe_head *sh, unsigned long ops_request)
 		overlap_clear++;
 	}
 
-	if (test_bit(STRIPE_OP_COMPUTE_BLK, &ops_request))
-		tx = ops_run_compute5(sh, ops_request);
+	if (test_bit(STRIPE_OP_COMPUTE_BLK, &ops_request)) {
+		tx = ops_run_compute5(sh);
+		/* terminate the chain if postxor is not set to be run */
+		if (tx && !test_bit(STRIPE_OP_POSTXOR, &ops_request))
+			async_tx_ack(tx);
+	}
 
 	if (test_bit(STRIPE_OP_PREXOR, &ops_request))
 		tx = ops_run_prexor(sh, tx);
