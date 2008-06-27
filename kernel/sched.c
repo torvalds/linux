@@ -427,6 +427,11 @@ struct cfs_rq {
 	 * this cpu's part of tg->shares
 	 */
 	unsigned long shares;
+
+	/*
+	 * load.weight at the time we set shares
+	 */
+	unsigned long rq_weight;
 #endif
 #endif
 };
@@ -1527,6 +1532,7 @@ __update_group_shares_cpu(struct task_group *tg, int cpu,
 	 * record the actual number of shares, not the boosted amount.
 	 */
 	tg->cfs_rq[cpu]->shares = boost ? 0 : shares;
+	tg->cfs_rq[cpu]->rq_weight = rq_weight;
 
 	if (shares < MIN_SHARES)
 		shares = MIN_SHARES;

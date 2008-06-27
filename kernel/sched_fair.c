@@ -1074,10 +1074,22 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 static const struct sched_class fair_sched_class;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-static unsigned long effective_load(struct task_group *tg, int cpu,
-		unsigned long wl, unsigned long wg)
+static long effective_load(struct task_group *tg, int cpu,
+		long wl, long wg)
 {
 	struct sched_entity *se = tg->se[cpu];
+	long more_w;
+
+	if (!tg->parent)
+		return wl;
+
+	/*
+	 * Instead of using this increment, also add the difference
+	 * between when the shares were last updated and now.
+	 */
+	more_w = se->my_q->load.weight - se->my_q->rq_weight;
+	wl += more_w;
+	wg += more_w;
 
 	for_each_sched_entity(se) {
 #define D(n) (likely(n) ? (n) : 1)
@@ -1086,7 +1098,7 @@ static unsigned long effective_load(struct task_group *tg, int cpu,
 
 		S = se->my_q->tg->shares;
 		s = se->my_q->shares;
-		rw = se->my_q->load.weight;
+		rw = se->my_q->rq_weight;
 
 		a = S*(rw + wl);
 		b = S*rw + s*wg;
