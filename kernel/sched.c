@@ -1693,6 +1693,12 @@ static void set_load_weight(struct task_struct *p)
 	p->se.load.inv_weight = prio_to_wmult[p->static_prio - MAX_RT_PRIO];
 }
 
+static void update_avg(u64 *avg, u64 sample)
+{
+	s64 diff = sample - *avg;
+	*avg += diff >> 3;
+}
+
 static void enqueue_task(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	sched_info_queued(p);
@@ -1702,6 +1708,12 @@ static void enqueue_task(struct rq *rq, struct task_struct *p, int wakeup)
 
 static void dequeue_task(struct rq *rq, struct task_struct *p, int sleep)
 {
+	if (sleep && p->se.last_wakeup) {
+		update_avg(&p->se.avg_overlap,
+			   p->se.sum_exec_runtime - p->se.last_wakeup);
+		p->se.last_wakeup = 0;
+	}
+
 	p->sched_class->dequeue_task(rq, p, sleep);
 	p->se.on_rq = 0;
 }
@@ -2313,6 +2325,8 @@ out_running:
 		p->sched_class->task_wake_up(rq, p);
 #endif
 out:
+	current->se.last_wakeup = current->se.sum_exec_runtime;
+
 	task_rq_unlock(rq, &flags);
 
 	return success;

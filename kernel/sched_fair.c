@@ -726,21 +726,6 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 		__enqueue_entity(cfs_rq, se);
 }
 
-static void update_avg(u64 *avg, u64 sample)
-{
-	s64 diff = sample - *avg;
-	*avg += diff >> 3;
-}
-
-static void update_avg_stats(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	if (!se->last_wakeup)
-		return;
-
-	update_avg(&se->avg_overlap, se->sum_exec_runtime - se->last_wakeup);
-	se->last_wakeup = 0;
-}
-
 static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
@@ -751,7 +736,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
-		update_avg_stats(cfs_rq, se);
 #ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
@@ -1196,9 +1180,9 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	 * a reasonable amount of time then attract this newly
 	 * woken task:
 	 */
-	if (sync && balanced && curr->sched_class == &fair_sched_class) {
+	if (sync && balanced) {
 		if (curr->se.avg_overlap < sysctl_sched_migration_cost &&
-				p->se.avg_overlap < sysctl_sched_migration_cost)
+		    p->se.avg_overlap < sysctl_sched_migration_cost)
 			return 1;
 	}
 
@@ -1359,7 +1343,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		return;
 	}
 
-	se->last_wakeup = se->sum_exec_runtime;
 	if (unlikely(se == pse))
 		return;
 
