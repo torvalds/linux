@@ -554,6 +554,8 @@ struct rq {
 	int cpu;
 	int online;
 
+	unsigned long avg_load_per_task;
+
 	struct task_struct *migration_thread;
 	struct list_head migration_queue;
 #endif
@@ -1427,8 +1429,17 @@ static inline void dec_cpu_load(struct rq *rq, unsigned long load)
 #ifdef CONFIG_SMP
 static unsigned long source_load(int cpu, int type);
 static unsigned long target_load(int cpu, int type);
-static unsigned long cpu_avg_load_per_task(int cpu);
 static int task_hot(struct task_struct *p, u64 now, struct sched_domain *sd);
+
+static unsigned long cpu_avg_load_per_task(int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+
+	if (rq->nr_running)
+		rq->avg_load_per_task = rq->load.weight / rq->nr_running;
+
+	return rq->avg_load_per_task;
+}
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
@@ -2008,18 +2019,6 @@ static unsigned long target_load(int cpu, int type)
 		return total;
 
 	return max(rq->cpu_load[type-1], total);
-}
-
-/*
- * Return the average load per task on the cpu's run queue
- */
-static unsigned long cpu_avg_load_per_task(int cpu)
-{
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long total = weighted_cpuload(cpu);
-	unsigned long n = rq->nr_running;
-
-	return n ? total / n : SCHED_LOAD_SCALE;
 }
 
 /*
