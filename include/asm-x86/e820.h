@@ -59,7 +59,9 @@ struct e820map {
 	struct e820entry map[E820_X_MAX];
 };
 
+/* see comment in arch/x86/kernel/e820.c */
 extern struct e820map e820;
+extern struct e820map e820_saved;
 
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
 extern int e820_all_mapped(u64 start, u64 end, unsigned type);

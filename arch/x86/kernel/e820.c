@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <linux/suspend.h>
+#include <linux/firmware-map.h>
 
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -27,7 +28,22 @@
 #include <asm/setup.h>
 #include <asm/trampoline.h>
 
+/*
+ * The e820 map is the map that gets modified e.g. with command line parameters
+ * and that is also registered with modifications in the kernel resource tree
+ * with the iomem_resource as parent.
+ *
+ * The e820_saved is directly saved after the BIOS-provided memory map is
+ * copied. It doesn't get modified afterwards. It's registered for the
+ * /sys/firmware/memmap interface.
+ *
+ * That memory map is not modified and is used as base for kexec. The kexec'd
+ * kernel should get the same memory map as the firmware provides. Then the
+ * user can e.g. boot the original kernel with mem=1G while still booting the
+ * next kernel with full memory.
+ */
 struct e820map e820;
+struct e820map e820_saved;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0xaeedbabe;
@@ -1198,6 +1214,17 @@ void __init finish_e820_parsing(void)
 	}
 }
 
+static inline const char *e820_type_to_string(int e820_type)
+{
+	switch (e820_type) {
+	case E820_RESERVED_KERN:
+	case E820_RAM:	return "System RAM";
+	case E820_ACPI:	return "ACPI Tables";
+	case E820_NVS:	return "ACPI Non-volatile Storage";
+	default:	return "reserved";
+	}
+}
+
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
@@ -1209,13 +1236,6 @@ void __init e820_reserve_resources(void)
 
 	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
 	for (i = 0; i < e820.nr_map; i++) {
-		switch (e820.map[i].type) {
-		case E820_RESERVED_KERN:
-		case E820_RAM:	res->name = "System RAM"; break;
-		case E820_ACPI:	res->name = "ACPI Tables"; break;
-		case E820_NVS:	res->name = "ACPI Non-volatile Storage"; break;
-		default:	res->name = "reserved";
-		}
 		end = e820.map[i].addr + e820.map[i].size - 1;
 #ifndef CONFIG_RESOURCES_64BIT
 		if (end > 0x100000000ULL) {
@@ -1223,12 +1243,20 @@ void __init e820_reserve_resources(void)
 			continue;
 		}
 #endif
+		res->name = e820_type_to_string(e820.map[i].type);
 		res->start = e820.map[i].addr;
 		res->end = end;
 
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		insert_resource(&iomem_resource, res);
 		res++;
+	}
+
+	for (i = 0; i < e820_saved.nr_map; i++) {
+		struct e820entry *entry = &e820_saved.map[i];
+		firmware_map_add_early(entry->addr,
+			entry->addr + entry->size - 1,
+			e820_type_to_string(entry->type));
 	}
 }
 
@@ -1265,6 +1293,8 @@ char *__init default_machine_specific_memory_setup(void)
 		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
 		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
 	}
+
+	memcpy(&e820_saved, &e820, sizeof(struct e820map));
 
 	/* In case someone cares... */
 	return who;
