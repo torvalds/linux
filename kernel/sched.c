@@ -433,12 +433,6 @@ struct cfs_rq {
 		 * The sum of all runqueue weights within this span.
 		 */
 		unsigned long rq_weight;
-
-		/*
-		 * Weight contributed by tasks; this is the part we can
-		 * influence by moving tasks around.
-		 */
-		unsigned long task_weight;
 	} aggregate;
 #endif
 #endif
@@ -1473,10 +1467,6 @@ static int task_hot(struct task_struct *p, u64 now, struct sched_domain *sd);
  * rq_weight:
  *    Direct sum of all the cpu's their rq weight, e.g. A would get 3 while
  *    B would get 2.
- *
- * task_weight:
- *    Part of the rq_weight contributed by tasks; all groups except B would
- *    get 1, B gets 2.
  */
 
 static inline struct aggregate_struct *
@@ -1524,16 +1514,12 @@ static void
 aggregate_group_weight(struct task_group *tg, int cpu, struct sched_domain *sd)
 {
 	unsigned long rq_weight = 0;
-	unsigned long task_weight = 0;
 	int i;
 
-	for_each_cpu_mask(i, sd->span) {
+	for_each_cpu_mask(i, sd->span)
 		rq_weight += tg->cfs_rq[i]->load.weight;
-		task_weight += tg->cfs_rq[i]->task_weight;
-	}
 
 	aggregate(tg, cpu)->rq_weight = rq_weight;
-	aggregate(tg, cpu)->task_weight = task_weight;
 }
 
 /*

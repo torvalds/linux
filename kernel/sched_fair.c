@@ -1427,7 +1427,7 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		/*
 		 * empty group
 		 */
-		if (!aggregate(tg, this_cpu)->task_weight)
+		if (!tg->cfs_rq[busiest_cpu]->task_weight)
 			continue;
 
 		rem_load = rem_load_move * aggregate(tg, this_cpu)->rq_weight;
