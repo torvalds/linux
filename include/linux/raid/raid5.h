@@ -205,19 +205,12 @@ struct stripe_head {
 	int			bm_seq;	/* sequence number for bitmap flushes */
 	int			disks;			/* disks in stripe */
 	enum check_states	check_state;
+	enum reconstruct_states reconstruct_state;
 	/* stripe_operations
-	 * @pending - pending ops flags (set for request->issue->complete)
-	 * @ack - submitted ops flags (set for issue->complete)
-	 * @complete - completed ops flags (set for complete)
 	 * @target - STRIPE_OP_COMPUTE_BLK target
-	 * @count - raid5_runs_ops is set to run when this is non-zero
 	 */
 	struct stripe_operations {
-		unsigned long	   pending;
-		unsigned long	   ack;
-		unsigned long	   complete;
 		int		   target;
-		int		   count;
 		u32		   zero_sum_result;
 	} ops;
 	struct r5dev {
