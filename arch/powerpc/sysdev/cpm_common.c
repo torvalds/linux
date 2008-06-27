@@ -37,7 +37,7 @@ static void udbg_putc_cpm(char c)
 	u8 __iomem *txbuf = (u8 __iomem __force *)in_be32(&cpm_udbg_txdesc[1]);
 
 	if (c == '\n')
-		udbg_putc('\r');
+		udbg_putc_cpm('\r');
 
 	while (in_be32(&cpm_udbg_txdesc[0]) & 0x80000000)
 		;
@@ -53,7 +53,6 @@ void __init udbg_init_cpm(void)
 		setbat(1, 0xf0000000, 0xf0000000, 1024*1024, _PAGE_IO);
 #endif
 		udbg_putc = udbg_putc_cpm;
-		udbg_putc('X');
 	}
 }
 #endif
