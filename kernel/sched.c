@@ -1721,6 +1721,11 @@ aggregate_get_up(struct task_group *tg, int cpu, struct sched_domain *sd)
 	aggregate_group_set_shares(tg, cpu, sd);
 }
 
+static void
+aggregate_get_nop(struct task_group *tg, int cpu, struct sched_domain *sd)
+{
+}
+
 static DEFINE_PER_CPU(spinlock_t, aggregate_lock);
 
 static void __init init_aggregate(void)
@@ -1738,6 +1743,11 @@ static int get_aggregate(int cpu, struct sched_domain *sd)
 
 	aggregate_walk_tree(aggregate_get_down, aggregate_get_up, cpu, sd);
 	return 1;
+}
+
+static void update_aggregate(int cpu, struct sched_domain *sd)
+{
+	aggregate_walk_tree(aggregate_get_down, aggregate_get_nop, cpu, sd);
 }
 
 static void put_aggregate(int cpu, struct sched_domain *sd)
@@ -1759,6 +1769,10 @@ static inline void init_aggregate(void)
 static inline int get_aggregate(int cpu, struct sched_domain *sd)
 {
 	return 0;
+}
+
+static inline void update_aggregate(int cpu, struct sched_domain *sd)
+{
 }
 
 static inline void put_aggregate(int cpu, struct sched_domain *sd)
@@ -2191,6 +2205,12 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 	unsigned long min_load = ULONG_MAX, this_load = 0;
 	int load_idx = sd->forkexec_idx;
 	int imbalance = 100 + (sd->imbalance_pct-100)/2;
+
+	/*
+	 * now that we have both rqs locked the rq weight won't change
+	 * anymore - so update the stats.
+	 */
+	update_aggregate(this_cpu, sd);
 
 	do {
 		unsigned long load, avg_load;
