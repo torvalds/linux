@@ -300,7 +300,7 @@ int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
 		return 0;
 	else if (num_cpus == 1) {
 		cpu = first_cpu(mask);
-		return smp_call_function_single(cpu, func, info, 0, wait);
+		return smp_call_function_single(cpu, func, info, wait);
 	}
 
 	if (!wait) {
