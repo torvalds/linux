@@ -135,6 +135,7 @@ extern int apic_is_clustered_box(void);
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1
+static inline void init_apic_mappings(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 

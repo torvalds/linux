@@ -766,16 +766,14 @@ void __init setup_arch(char **cmdline_p)
 		get_smp_config();
 #endif
 
-#ifdef CONFIG_X86_64
 	init_apic_mappings();
 	ioapic_init_mappings();
-#else
-# if defined(CONFIG_SMP) && defined(CONFIG_X86_PC)
+
+#if defined(CONFIG_SMP) && defined(CONFIG_X86_PC) && defined(CONFIG_X86_32)
 	if (def_to_bigsmp)
 		printk(KERN_WARNING "More than 8 CPUs detected and "
 			"CONFIG_X86_PC cannot handle it.\nUse "
 			"CONFIG_X86_GENERICARCH or CONFIG_X86_BIGSMP.\n");
-# endif
 #endif
 	kvm_guest_init();
 

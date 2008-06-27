@@ -186,6 +186,7 @@ extern void ioapic_init_mappings(void);
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
+static inline void ioapic_init_mappings(void) { }
 #endif
 
 #endif

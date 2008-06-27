@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/bootmem.h>
 #include <linux/mc146818rtc.h>
 #include <linux/compiler.h>
 #include <linux/acpi.h>
@@ -2852,3 +2853,34 @@ static int __init parse_noapic(char *arg)
 	return 0;
 }
 early_param("noapic", parse_noapic);
+
+void __init ioapic_init_mappings(void)
+{
+	unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
+	int i;
+
+	for (i = 0; i < nr_ioapics; i++) {
+		if (smp_found_config) {
+			ioapic_phys = mp_ioapics[i].mp_apicaddr;
+			if (!ioapic_phys) {
+				printk(KERN_ERR
+				       "WARNING: bogus zero IO-APIC "
+				       "address found in MPTABLE, "
+				       "disabling IO/APIC support!\n");
+				smp_found_config = 0;
+				skip_ioapic_setup = 1;
+				goto fake_ioapic_page;
+			}
+		} else {
+fake_ioapic_page:
+			ioapic_phys = (unsigned long)
+				      alloc_bootmem_pages(PAGE_SIZE);
+			ioapic_phys = __pa(ioapic_phys);
+		}
+		set_fixmap_nocache(idx, ioapic_phys);
+		printk(KERN_DEBUG "mapped IOAPIC to %08lx (%08lx)\n",
+		       __fix_to_virt(idx), ioapic_phys);
+		idx++;
+	}
+}
+
