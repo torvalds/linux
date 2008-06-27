@@ -1932,7 +1932,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		slot = -1;
 	else if (e==buf || (*e && *e!= '\n'))
 		return -EINVAL;
-	if (rdev->mddev->pers) {
+	if (rdev->mddev->pers && slot == -1) {
 		/* Setting 'slot' on an active array requires also
 		 * updating the 'rd%d' link, and communicating
 		 * with the personality with ->hot_*_disk.
@@ -1940,8 +1940,6 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		 * failed/spare devices.  This normally happens automatically,
 		 * but not when the metadata is externally managed.
 		 */
-		if (slot != -1)
-			return -EBUSY;
 		if (rdev->raid_disk == -1)
 			return -EEXIST;
 		/* personality does all needed checks */
@@ -1955,6 +1953,44 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		sysfs_remove_link(&rdev->mddev->kobj, nm);
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
+	} else if (rdev->mddev->pers) {
+		mdk_rdev_t *rdev2;
+		struct list_head *tmp;
+		/* Activating a spare .. or possibly reactivating
+		 * if we every get bitmaps working here.
+		 */
+
+		if (rdev->raid_disk != -1)
+			return -EBUSY;
+
+		if (rdev->mddev->pers->hot_add_disk == NULL)
+			return -EINVAL;
+
+		rdev_for_each(rdev2, tmp, rdev->mddev)
+			if (rdev2->raid_disk == slot)
+				return -EEXIST;
+
+		rdev->raid_disk = slot;
+		if (test_bit(In_sync, &rdev->flags))
+			rdev->saved_raid_disk = slot;
+		else
+			rdev->saved_raid_disk = -1;
+		err = rdev->mddev->pers->
+			hot_add_disk(rdev->mddev, rdev);
+		if (err != 1) {
+			rdev->raid_disk = -1;
+			if (err == 0)
+				return -EEXIST;
+			return err;
+		}
+		sprintf(nm, "rd%d", rdev->raid_disk);
+		if (sysfs_create_link(&rdev->mddev->kobj, &rdev->kobj, nm))
+			printk(KERN_WARNING
+			       "md: cannot register "
+			       "%s for %s\n",
+			       nm, mdname(rdev->mddev));
+
+		/* don't wakeup anyone, leave that to userspace. */
 	} else {
 		if (slot >= rdev->mddev->raid_disks)
 			return -ENOSPC;

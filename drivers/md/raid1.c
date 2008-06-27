@@ -1103,8 +1103,13 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int found = 0;
 	int mirror = 0;
 	mirror_info_t *p;
+	int first = 0;
+	int last = mddev->raid_disks - 1;
 
-	for (mirror=0; mirror < mddev->raid_disks; mirror++)
+	if (rdev->raid_disk >= 0)
+		first = last = rdev->raid_disk;
+
+	for (mirror = first; mirror <= last; mirror++)
 		if ( !(p=conf->mirrors+mirror)->rdev) {
 
 			blk_queue_stack_limits(mddev->queue,

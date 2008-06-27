@@ -4607,21 +4607,27 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int found = 0;
 	int disk;
 	struct disk_info *p;
+	int first = 0;
+	int last = conf->raid_disks - 1;
 
 	if (mddev->degraded > conf->max_degraded)
 		/* no point adding a device */
 		return 0;
+
+	if (rdev->raid_disk >= 0)
+		first = last = rdev->raid_disk;
 
 	/*
 	 * find the disk ... but prefer rdev->saved_raid_disk
 	 * if possible.
 	 */
 	if (rdev->saved_raid_disk >= 0 &&
+	    rdev->saved_raid_disk >= first &&
 	    conf->disks[rdev->saved_raid_disk].rdev == NULL)
 		disk = rdev->saved_raid_disk;
 	else
-		disk = 0;
-	for ( ; disk < conf->raid_disks; disk++)
+		disk = first;
+	for ( ; disk <= last ; disk++)
 		if ((p=conf->disks + disk)->rdev == NULL) {
 			clear_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = disk;

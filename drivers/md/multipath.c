@@ -284,10 +284,15 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int found = 0;
 	int path;
 	struct multipath_info *p;
+	int first = 0;
+	int last = mddev->raid_disks - 1;
+
+	if (rdev->raid_disk >= 0)
+		first = last = rdev->raid_disk;
 
 	print_multipath_conf(conf);
 
-	for (path=0; path<mddev->raid_disks; path++) 
+	for (path = first; path <= last; path++)
 		if ((p=conf->multipaths+path)->rdev == NULL) {
 			q = rdev->bdev->bd_disk->queue;
 			blk_queue_stack_limits(mddev->queue, q);
