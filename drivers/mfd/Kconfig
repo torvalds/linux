@@ -45,6 +45,7 @@ config HTC_PASIC3
 config MFD_TC6393XB
 	bool "Support Toshiba TC6393XB"
 	depends on HAVE_GPIO_LIB
+	select MFD_CORE
 	help
 	  Support for Toshiba Mobile IO Controller TC6393XB
 

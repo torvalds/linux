@@ -31,6 +31,8 @@ struct tc6393xb_platform_data {
 
 	int	irq_base;	/* a base for cascaded irq */
 	int	gpio_base;
+
+	struct tmio_nand_data	*nand_data;
 };
 
 /*

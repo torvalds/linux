@@ -21,6 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 #include <linux/clk.h>
+#include <linux/mfd/core.h>
+#include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6393xb.h>
 #include <linux/gpio.h>
 
@@ -106,6 +108,59 @@ struct tc6393xb {
 	struct resource		*iomem;
 	int			irq;
 	int			irq_base;
+};
+
+enum {
+	TC6393XB_CELL_NAND,
+};
+
+/*--------------------------------------------------------------------------*/
+
+static int tc6393xb_nand_enable(struct platform_device *nand)
+{
+	struct platform_device *dev = to_platform_device(nand->dev.parent);
+	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tc6393xb->lock, flags);
+
+	/* SMD buffer on */
+	dev_dbg(&dev->dev, "SMD buffer on\n");
+	iowrite8(0xff, tc6393xb->scr + SCR_GPI_BCR(1));
+
+	spin_unlock_irqrestore(&tc6393xb->lock, flags);
+
+	return 0;
+}
+
+static struct resource __devinitdata tc6393xb_nand_resources[] = {
+	{
+		.name	= TMIO_NAND_CONFIG,
+		.start	= 0x0100,
+		.end	= 0x01ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= TMIO_NAND_CONTROL,
+		.start	= 0x1000,
+		.end	= 0x1007,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= TMIO_NAND_IRQ,
+		.start	= IRQ_TC6393_NAND,
+		.end	= IRQ_TC6393_NAND,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell __devinitdata tc6393xb_cells[] = {
+	[TC6393XB_CELL_NAND] = {
+		.name = "tmio-nand",
+		.enable = tc6393xb_nand_enable,
+		.num_resources = ARRAY_SIZE(tc6393xb_nand_resources),
+		.resources = tc6393xb_nand_resources,
+	},
 };
 
 /*--------------------------------------------------------------------------*/
@@ -410,6 +465,12 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	if (tc6393xb->irq)
 		tc6393xb_attach_irq(dev);
 
+	tc6393xb_cells[TC6393XB_CELL_NAND].driver_data = tcpd->nand_data;
+
+	retval = mfd_add_devices(dev,
+			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
+			iomem, tcpd->irq_base);
+
 	return 0;
 
 	if (tc6393xb->irq)
@@ -439,6 +500,8 @@ static int __devexit tc6393xb_remove(struct platform_device *dev)
 	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int ret;
+
+	mfd_remove_devices(dev);
 
 	if (tc6393xb->irq)
 		tc6393xb_detach_irq(dev);
