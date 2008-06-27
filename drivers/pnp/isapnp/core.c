@@ -486,7 +486,7 @@ static void __init isapnp_parse_port_resource(struct pnp_dev *dev,
 	port->max = (tmp[4] << 8) | tmp[3];
 	port->align = tmp[5];
 	port->size = tmp[6];
-	port->flags = tmp[0] ? PNP_PORT_FLAG_16BITADDR : 0;
+	port->flags = tmp[0] ? IORESOURCE_IO_16BIT_ADDR : 0;
 	pnp_register_port_resource(dev, option, port);
 }
 
@@ -507,7 +507,7 @@ static void __init isapnp_parse_fixed_port_resource(struct pnp_dev *dev,
 	port->min = port->max = (tmp[1] << 8) | tmp[0];
 	port->size = tmp[2];
 	port->align = 0;
-	port->flags = PNP_PORT_FLAG_FIXED;
+	port->flags = IORESOURCE_IO_FIXED;
 	pnp_register_port_resource(dev, option, port);
 }
 

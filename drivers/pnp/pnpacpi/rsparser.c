@@ -180,7 +180,7 @@ static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev, u64 start,
 	u64 end = start + len - 1;
 
 	if (io_decode == ACPI_DECODE_16)
-		flags |= PNP_PORT_FLAG_16BITADDR;
+		flags |= IORESOURCE_IO_16BIT_ADDR;
 	if (len == 0 || end >= 0x10003)
 		flags |= IORESOURCE_DISABLED;
 
@@ -485,7 +485,7 @@ static __init void pnpacpi_parse_port_option(struct pnp_dev *dev,
 	port->align = io->alignment;
 	port->size = io->address_length;
 	port->flags = ACPI_DECODE_16 == io->io_decode ?
-	    PNP_PORT_FLAG_16BITADDR : 0;
+	    IORESOURCE_IO_16BIT_ADDR : 0;
 	pnp_register_port_resource(dev, option, port);
 }
 
@@ -503,7 +503,7 @@ static __init void pnpacpi_parse_fixed_port_option(struct pnp_dev *dev,
 	port->min = port->max = io->address;
 	port->size = io->address_length;
 	port->align = 0;
-	port->flags = PNP_PORT_FLAG_FIXED;
+	port->flags = IORESOURCE_IO_FIXED;
 	pnp_register_port_resource(dev, option, port);
 }
 
@@ -609,7 +609,7 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 		port->min = port->max = p->minimum;
 		port->size = p->address_length;
 		port->align = 0;
-		port->flags = PNP_PORT_FLAG_FIXED;
+		port->flags = IORESOURCE_IO_FIXED;
 		pnp_register_port_resource(dev, option, port);
 	}
 }
@@ -946,7 +946,7 @@ static void pnpacpi_encode_io(struct pnp_dev *dev,
 
 	if (pnp_resource_enabled(p)) {
 		/* Note: pnp_assign_port copies pnp_port->flags into p->flags */
-		io->io_decode = (p->flags & PNP_PORT_FLAG_16BITADDR) ?
+		io->io_decode = (p->flags & IORESOURCE_IO_16BIT_ADDR) ?
 		    ACPI_DECODE_16 : ACPI_DECODE_10;
 		io->minimum = p->start;
 		io->maximum = p->end;

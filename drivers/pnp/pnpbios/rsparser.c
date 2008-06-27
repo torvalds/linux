@@ -310,7 +310,7 @@ static __init void pnpbios_parse_port_option(struct pnp_dev *dev,
 	port->max = (p[5] << 8) | p[4];
 	port->align = p[6];
 	port->size = p[7];
-	port->flags = p[1] ? PNP_PORT_FLAG_16BITADDR : 0;
+	port->flags = p[1] ? IORESOURCE_IO_16BIT_ADDR : 0;
 	pnp_register_port_resource(dev, option, port);
 }
 
@@ -326,7 +326,7 @@ static __init void pnpbios_parse_fixed_port_option(struct pnp_dev *dev,
 	port->min = port->max = (p[2] << 8) | p[1];
 	port->size = p[3];
 	port->align = 0;
-	port->flags = PNP_PORT_FLAG_FIXED;
+	port->flags = IORESOURCE_IO_FIXED;
 	pnp_register_port_resource(dev, option, port);
 }
 

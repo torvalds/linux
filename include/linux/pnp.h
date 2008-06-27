@@ -182,9 +182,6 @@ static inline int pnp_dma_valid(struct pnp_dev *dev, unsigned int bar)
 }
 
 
-#define PNP_PORT_FLAG_16BITADDR	(1<<0)
-#define PNP_PORT_FLAG_FIXED	(1<<1)
-
 struct pnp_port {
 	unsigned short min;	/* min base number */
 	unsigned short max;	/* max base number */

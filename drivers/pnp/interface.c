@@ -57,7 +57,7 @@ static void pnp_print_port(pnp_info_buffer_t * buffer, char *space,
 		   "%sport 0x%x-0x%x, align 0x%x, size 0x%x, %i-bit address decoding\n",
 		   space, port->min, port->max,
 		   port->align ? (port->align - 1) : 0, port->size,
-		   port->flags & PNP_PORT_FLAG_16BITADDR ? 16 : 10);
+		   port->flags & IORESOURCE_IO_16BIT_ADDR ? 16 : 10);
 }
 
 static void pnp_print_irq(pnp_info_buffer_t * buffer, char *space,
