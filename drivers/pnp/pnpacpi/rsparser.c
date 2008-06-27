@@ -98,8 +98,10 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 	int irq, flags;
 	int p, t;
 
-	if (!valid_IRQ(gsi))
+	if (!valid_IRQ(gsi)) {
+		pnp_add_irq_resource(dev, gsi, IORESOURCE_DISABLED);
 		return;
+	}
 
 	/*
 	 * in IO-APIC mode, use overrided attribute. Two reasons:
@@ -248,24 +250,39 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		 * _CRS, but some firmware violates this, so parse them all.
 		 */
 		irq = &res->data.irq;
-		for (i = 0; i < irq->interrupt_count; i++) {
-			pnpacpi_parse_allocated_irqresource(dev,
-				irq->interrupts[i],
-				irq->triggering,
-				irq->polarity,
-				irq->sharable);
+		if (irq->interrupt_count == 0)
+			pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);
+		else {
+			for (i = 0; i < irq->interrupt_count; i++) {
+				pnpacpi_parse_allocated_irqresource(dev,
+					irq->interrupts[i],
+					irq->triggering,
+					irq->polarity,
+				    irq->sharable);
+			}
+
+			/*
+			 * The IRQ encoder puts a single interrupt in each
+			 * descriptor, so if a _CRS descriptor has more than
+			 * one interrupt, we won't be able to re-encode it.
+			 */
+			if (pnp_can_write(dev) && irq->interrupt_count > 1) {
+				dev_warn(&dev->dev, "multiple interrupts in "
+					 "_CRS descriptor; configuration can't "
+					 "be changed\n");
+				dev->capabilities &= ~PNP_WRITE;
+			}
 		}
 		break;
 
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;
-		if (dma->channel_count > 0) {
+		if (dma->channel_count > 0 && dma->channels[0] != (u8) -1)
 			flags = dma_flags(dma->type, dma->bus_master,
 					  dma->transfer);
-			if (dma->channels[0] == (u8) -1)
-				flags |= IORESOURCE_DISABLED;
-			pnp_add_dma_resource(dev, dma->channels[0], flags);
-		}
+		else
+			flags = IORESOURCE_DISABLED;
+		pnp_add_dma_resource(dev, dma->channels[0], flags);
 		break;
 
 	case ACPI_RESOURCE_TYPE_IO:
@@ -331,12 +348,29 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		if (extended_irq->producer_consumer == ACPI_PRODUCER)
 			return AE_OK;
 
-		for (i = 0; i < extended_irq->interrupt_count; i++) {
-			pnpacpi_parse_allocated_irqresource(dev,
-				extended_irq->interrupts[i],
-				extended_irq->triggering,
-				extended_irq->polarity,
-				extended_irq->sharable);
+		if (extended_irq->interrupt_count == 0)
+			pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);
+		else {
+			for (i = 0; i < extended_irq->interrupt_count; i++) {
+				pnpacpi_parse_allocated_irqresource(dev,
+					extended_irq->interrupts[i],
+					extended_irq->triggering,
+					extended_irq->polarity,
+					extended_irq->sharable);
+			}
+
+			/*
+			 * The IRQ encoder puts a single interrupt in each
+			 * descriptor, so if a _CRS descriptor has more than
+			 * one interrupt, we won't be able to re-encode it.
+			 */
+			if (pnp_can_write(dev) &&
+			    extended_irq->interrupt_count > 1) {
+				dev_warn(&dev->dev, "multiple interrupts in "
+					 "_CRS descriptor; configuration can't "
+					 "be changed\n");
+				dev->capabilities &= ~PNP_WRITE;
+			}
 		}
 		break;
 
