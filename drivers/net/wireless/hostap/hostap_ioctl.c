@@ -897,6 +897,8 @@ static void hostap_monitor_set_type(local_info_t *local)
 	if (local->monitor_type == PRISM2_MONITOR_PRISM ||
 	    local->monitor_type == PRISM2_MONITOR_CAPHDR) {
 		dev->type = ARPHRD_IEEE80211_PRISM;
+	} else if (local->monitor_type == PRISM2_MONITOR_RADIOTAP) {
+		dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	} else {
 		dev->type = ARPHRD_IEEE80211;
 	}
@@ -2520,7 +2522,8 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 	case PRISM2_PARAM_MONITOR_TYPE:
 		if (value != PRISM2_MONITOR_80211 &&
 		    value != PRISM2_MONITOR_CAPHDR &&
-		    value != PRISM2_MONITOR_PRISM) {
+		    value != PRISM2_MONITOR_PRISM &&
+		    value != PRISM2_MONITOR_RADIOTAP) {
 			ret = -EINVAL;
 			break;
 		}
