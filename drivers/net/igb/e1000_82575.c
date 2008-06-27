@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -272,7 +272,7 @@ static s32 igb_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 	u32 i, i2ccmd = 0;
 
 	if (offset > E1000_MAX_SGMII_PHY_REG_ADDR) {
-		hw_dbg(hw, "PHY Address %u is out of range\n", offset);
+		hw_dbg("PHY Address %u is out of range\n", offset);
 		return -E1000_ERR_PARAM;
 	}
 
@@ -295,11 +295,11 @@ static s32 igb_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 			break;
 	}
 	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg(hw, "I2CCMD Read did not complete\n");
+		hw_dbg("I2CCMD Read did not complete\n");
 		return -E1000_ERR_PHY;
 	}
 	if (i2ccmd & E1000_I2CCMD_ERROR) {
-		hw_dbg(hw, "I2CCMD Error bit set\n");
+		hw_dbg("I2CCMD Error bit set\n");
 		return -E1000_ERR_PHY;
 	}
 
@@ -326,7 +326,7 @@ static s32 igb_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 	u16 phy_data_swapped;
 
 	if (offset > E1000_MAX_SGMII_PHY_REG_ADDR) {
-		hw_dbg(hw, "PHY Address %d is out of range\n", offset);
+		hw_dbg("PHY Address %d is out of range\n", offset);
 		return -E1000_ERR_PARAM;
 	}
 
@@ -353,11 +353,11 @@ static s32 igb_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 			break;
 	}
 	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg(hw, "I2CCMD Write did not complete\n");
+		hw_dbg("I2CCMD Write did not complete\n");
 		return -E1000_ERR_PHY;
 	}
 	if (i2ccmd & E1000_I2CCMD_ERROR) {
-		hw_dbg(hw, "I2CCMD Error bit set\n");
+		hw_dbg("I2CCMD Error bit set\n");
 		return -E1000_ERR_PHY;
 	}
 
@@ -368,7 +368,7 @@ static s32 igb_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
  *  igb_get_phy_id_82575 - Retrieve PHY addr and id
  *  @hw: pointer to the HW structure
  *
- *  Retreives the PHY address and ID for both PHY's which do and do not use
+ *  Retrieves the PHY address and ID for both PHY's which do and do not use
  *  sgmi interface.
  **/
 static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
@@ -397,9 +397,8 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 	for (phy->addr = 1; phy->addr < 8; phy->addr++) {
 		ret_val = igb_read_phy_reg_sgmii_82575(hw, PHY_ID1, &phy_id);
 		if (ret_val == 0) {
-			hw_dbg(hw, "Vendor ID 0x%08X read at address %u\n",
-				  phy_id,
-				  phy->addr);
+			hw_dbg("Vendor ID 0x%08X read at address %u\n",
+			       phy_id, phy->addr);
 			/*
 			 * At the time of this writing, The M88 part is
 			 * the only supported SGMII PHY product.
@@ -407,8 +406,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 			if (phy_id == M88_VENDOR)
 				break;
 		} else {
-			hw_dbg(hw, "PHY address %u was unreadable\n",
-				  phy->addr);
+			hw_dbg("PHY address %u was unreadable\n", phy->addr);
 		}
 	}
 
@@ -440,7 +438,7 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 	 * available to us at this time.
 	 */
 
-	hw_dbg(hw, "Soft resetting SGMII attached PHY...\n");
+	hw_dbg("Soft resetting SGMII attached PHY...\n");
 
 	/*
 	 * SFP documentation requires the following to configure the SPF module
@@ -475,34 +473,29 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 	s32 ret_val;
 	u16 data;
 
-	ret_val = hw->phy.ops.read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
-					   &data);
+	ret_val = phy->ops.read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &data);
 	if (ret_val)
 		goto out;
 
 	if (active) {
 		data |= IGP02E1000_PM_D0_LPLU;
-		ret_val = hw->phy.ops.write_phy_reg(hw,
-					      IGP02E1000_PHY_POWER_MGMT,
-					      data);
+		ret_val = phy->ops.write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+						 data);
 		if (ret_val)
 			goto out;
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
-		ret_val = hw->phy.ops.read_phy_reg(hw,
-					     IGP01E1000_PHY_PORT_CONFIG,
-					     &data);
+		ret_val = phy->ops.read_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+						&data);
 		data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-		ret_val = hw->phy.ops.write_phy_reg(hw,
-					      IGP01E1000_PHY_PORT_CONFIG,
-					      data);
+		ret_val = phy->ops.write_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+						 data);
 		if (ret_val)
 			goto out;
 	} else {
 		data &= ~IGP02E1000_PM_D0_LPLU;
-		ret_val = hw->phy.ops.write_phy_reg(hw,
-					      IGP02E1000_PHY_POWER_MGMT,
-					      data);
+		ret_val = phy->ops.write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+						 data);
 		/*
 		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
@@ -510,29 +503,25 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 		 * SmartSpeed, so performance is maintained.
 		 */
 		if (phy->smart_speed == e1000_smart_speed_on) {
-			ret_val = hw->phy.ops.read_phy_reg(hw,
-						     IGP01E1000_PHY_PORT_CONFIG,
-						     &data);
+			ret_val = phy->ops.read_phy_reg(hw,
+					IGP01E1000_PHY_PORT_CONFIG, &data);
 			if (ret_val)
 				goto out;
 
 			data |= IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = hw->phy.ops.write_phy_reg(hw,
-						     IGP01E1000_PHY_PORT_CONFIG,
-						     data);
+			ret_val = phy->ops.write_phy_reg(hw,
+					IGP01E1000_PHY_PORT_CONFIG, data);
 			if (ret_val)
 				goto out;
 		} else if (phy->smart_speed == e1000_smart_speed_off) {
-			ret_val = hw->phy.ops.read_phy_reg(hw,
-						     IGP01E1000_PHY_PORT_CONFIG,
-						     &data);
+			ret_val = phy->ops.read_phy_reg(hw,
+					IGP01E1000_PHY_PORT_CONFIG, &data);
 			if (ret_val)
 				goto out;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = hw->phy.ops.write_phy_reg(hw,
-						     IGP01E1000_PHY_PORT_CONFIG,
-						     data);
+			ret_val = phy->ops.write_phy_reg(hw,
+					IGP01E1000_PHY_PORT_CONFIG, data);
 			if (ret_val)
 				goto out;
 		}
@@ -546,7 +535,7 @@ out:
  *  igb_acquire_nvm_82575 - Request for access to EEPROM
  *  @hw: pointer to the HW structure
  *
- *  Acquire the necessary semaphores for exclussive access to the EEPROM.
+ *  Acquire the necessary semaphores for exclusive access to the EEPROM.
  *  Set the EEPROM access request bit and wait for EEPROM access grant bit.
  *  Return successful if access grant bit set, else clear the request for
  *  EEPROM access and return -E1000_ERR_NVM (-1).
@@ -617,7 +606,7 @@ static s32 igb_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 	}
 
 	if (i == timeout) {
-		hw_dbg(hw, "Can't access resource, SW_FW_SYNC timeout.\n");
+		hw_dbg("Driver can't access resource, SW_FW_SYNC timeout.\n");
 		ret_val = -E1000_ERR_SWFW_SYNC;
 		goto out;
 	}
@@ -679,7 +668,7 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout)
-		hw_dbg(hw, "MNG configuration cycle has not completed.\n");
+		hw_dbg("MNG configuration cycle has not completed.\n");
 
 	/* If EEPROM is not marked present, init the PHY manually */
 	if (((rd32(E1000_EECD) & E1000_EECD_PRES) == 0) &&
@@ -718,7 +707,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex
  *
- *  Using the physical coding sub-layer (PCS), retreive the current speed and
+ *  Using the physical coding sub-layer (PCS), retrieve the current speed and
  *  duplex, then store the values in the pointers provided.
  **/
 static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
@@ -802,9 +791,9 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	 */
 	ret_val = igb_disable_pcie_master(hw);
 	if (ret_val)
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
+		hw_dbg("PCI-E Master disable polling has failed.\n");
 
-	hw_dbg(hw, "Masking off all interrupts\n");
+	hw_dbg("Masking off all interrupts\n");
 	wr32(E1000_IMC, 0xffffffff);
 
 	wr32(E1000_RCTL, 0);
@@ -815,7 +804,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 
 	ctrl = rd32(E1000_CTRL);
 
-	hw_dbg(hw, "Issuing a global reset to MAC\n");
+	hw_dbg("Issuing a global reset to MAC\n");
 	wr32(E1000_CTRL, ctrl | E1000_CTRL_RST);
 
 	ret_val = igb_get_auto_rd_done(hw);
@@ -825,7 +814,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 		 * return with an error. This can happen in situations
 		 * where there is no eeprom and prevents getting link.
 		 */
-		hw_dbg(hw, "Auto Read Done did not complete\n");
+		hw_dbg("Auto Read Done did not complete\n");
 	}
 
 	/* If EEPROM is not present, run manual init scripts */
@@ -856,18 +845,18 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	/* Initialize identification LED */
 	ret_val = igb_id_led_init(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error initializing identification LED\n");
+		hw_dbg("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
 	}
 
 	/* Disabling VLAN filtering */
-	hw_dbg(hw, "Initializing the IEEE VLAN\n");
+	hw_dbg("Initializing the IEEE VLAN\n");
 	igb_clear_vfta(hw);
 
 	/* Setup the receive address */
 	igb_init_rx_addrs(hw, rar_count);
 	/* Zero out the Multicast HASH table */
-	hw_dbg(hw, "Zeroing the MTA\n");
+	hw_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
 		array_wr32(E1000_MTA, i, 0);
 
@@ -937,10 +926,10 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		 * PHY will be set to 10H, 10F, 100H or 100F
 		 * depending on user settings.
 		 */
-		hw_dbg(hw, "Forcing Speed and Duplex\n");
+		hw_dbg("Forcing Speed and Duplex\n");
 		ret_val = igb_phy_force_speed_duplex(hw);
 		if (ret_val) {
-			hw_dbg(hw, "Error Forcing Speed and Duplex\n");
+			hw_dbg("Error Forcing Speed and Duplex\n");
 			goto out;
 		}
 	}
@@ -953,20 +942,17 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	 * Check link status. Wait up to 100 microseconds for link to become
 	 * valid.
 	 */
-	ret_val = igb_phy_has_link(hw,
-					     COPPER_LINK_UP_LIMIT,
-					     10,
-					     &link);
+	ret_val = igb_phy_has_link(hw, COPPER_LINK_UP_LIMIT, 10, &link);
 	if (ret_val)
 		goto out;
 
 	if (link) {
-		hw_dbg(hw, "Valid link established!!!\n");
+		hw_dbg("Valid link established!!!\n");
 		/* Config the MAC and PHY after link is up */
 		igb_config_collision_dist(hw);
 		ret_val = igb_config_fc_after_link_up(hw);
 	} else {
-		hw_dbg(hw, "Unable to establish link!!!\n");
+		hw_dbg("Unable to establish link!!!\n");
 	}
 
 out:
@@ -1022,7 +1008,7 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
 		       E1000_PCS_LCTL_AN_ENABLE |     /* Enable Autoneg */
 		       E1000_PCS_LCTL_AN_RESTART;     /* Restart autoneg */
-		hw_dbg(hw, "Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
+		hw_dbg("Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
 	} else {
 		/* Set PCS register for forced speed */
 		reg |= E1000_PCS_LCTL_FLV_LINK_UP |   /* Force link up */
@@ -1030,7 +1016,7 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
 		       E1000_PCS_LCTL_FSD |           /* Force Speed */
 		       E1000_PCS_LCTL_FORCE_LINK;     /* Force Link */
-		hw_dbg(hw, "Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
+		hw_dbg("Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
 	}
 	wr32(E1000_PCS_LCTL, reg);
 
@@ -1071,7 +1057,7 @@ static s32 igb_configure_pcs_link_82575(struct e1000_hw *hw)
 		 */
 		reg |= E1000_PCS_LCTL_AN_RESTART | E1000_PCS_LCTL_AN_ENABLE;
 	} else {
-		/* Set PCS regiseter for forced speed */
+		/* Set PCS register for forced speed */
 
 		/* Turn off bits for full duplex, speed, and autoneg */
 		reg &= ~(E1000_PCS_LCTL_FSV_1000 |
@@ -1092,8 +1078,7 @@ static s32 igb_configure_pcs_link_82575(struct e1000_hw *hw)
 		       E1000_PCS_LCTL_FORCE_LINK |
 		       E1000_PCS_LCTL_FLV_LINK_UP;
 
-		hw_dbg(hw,
-		       "Wrote 0x%08X to PCS_LCTL to configure forced link\n",
+		hw_dbg("Wrote 0x%08X to PCS_LCTL to configure forced link\n",
 		       reg);
 	}
 	wr32(E1000_PCS_LCTL, reg);
@@ -1138,7 +1123,7 @@ out:
 static s32 igb_reset_init_script_82575(struct e1000_hw *hw)
 {
 	if (hw->mac.type == e1000_82575) {
-		hw_dbg(hw, "Running reset init script for 82575\n");
+		hw_dbg("Running reset init script for 82575\n");
 		/* SerDes configuration via SERDESCTRL */
 		igb_write_8bit_ctrl_reg(hw, E1000_SCTL, 0x00, 0x0C);
 		igb_write_8bit_ctrl_reg(hw, E1000_SCTL, 0x01, 0x78);

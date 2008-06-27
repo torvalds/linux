@@ -144,7 +144,7 @@ static s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 	s32 ret_val = 0;
 
 	if (offset > MAX_PHY_REG_ADDRESS) {
-		hw_dbg(hw, "PHY Address %d is out of range\n", offset);
+		hw_dbg("PHY Address %d is out of range\n", offset);
 		ret_val = -E1000_ERR_PARAM;
 		goto out;
 	}
@@ -172,12 +172,12 @@ static s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 			break;
 	}
 	if (!(mdic & E1000_MDIC_READY)) {
-		hw_dbg(hw, "MDI Read did not complete\n");
+		hw_dbg("MDI Read did not complete\n");
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
 	if (mdic & E1000_MDIC_ERROR) {
-		hw_dbg(hw, "MDI Error\n");
+		hw_dbg("MDI Error\n");
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
@@ -202,7 +202,7 @@ static s32 igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	s32 ret_val = 0;
 
 	if (offset > MAX_PHY_REG_ADDRESS) {
-		hw_dbg(hw, "PHY Address %d is out of range\n", offset);
+		hw_dbg("PHY Address %d is out of range\n", offset);
 		ret_val = -E1000_ERR_PARAM;
 		goto out;
 	}
@@ -231,12 +231,12 @@ static s32 igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 			break;
 	}
 	if (!(mdic & E1000_MDIC_READY)) {
-		hw_dbg(hw, "MDI Write did not complete\n");
+		hw_dbg("MDI Write did not complete\n");
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
 	if (mdic & E1000_MDIC_ERROR) {
-		hw_dbg(hw, "MDI Error\n");
+		hw_dbg("MDI Error\n");
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
@@ -423,7 +423,7 @@ s32 igb_copper_link_setup_m88(struct e1000_hw *hw)
 	/* Commit the changes. */
 	ret_val = igb_phy_sw_reset(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error committing the PHY changes\n");
+		hw_dbg("Error committing the PHY changes\n");
 		goto out;
 	}
 
@@ -451,7 +451,7 @@ s32 igb_copper_link_setup_igp(struct e1000_hw *hw)
 
 	ret_val = hw->phy.ops.reset_phy(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error resetting the PHY.\n");
+		hw_dbg("Error resetting the PHY.\n");
 		goto out;
 	}
 
@@ -467,7 +467,7 @@ s32 igb_copper_link_setup_igp(struct e1000_hw *hw)
 		if (hw->phy.ops.set_d3_lplu_state)
 			ret_val = hw->phy.ops.set_d3_lplu_state(hw, false);
 		if (ret_val) {
-			hw_dbg(hw, "Error Disabling LPLU D3\n");
+			hw_dbg("Error Disabling LPLU D3\n");
 			goto out;
 		}
 	}
@@ -475,7 +475,7 @@ s32 igb_copper_link_setup_igp(struct e1000_hw *hw)
 	/* disable lplu d0 during driver init */
 	ret_val = hw->phy.ops.set_d0_lplu_state(hw, false);
 	if (ret_val) {
-		hw_dbg(hw, "Error Disabling LPLU D0\n");
+		hw_dbg("Error Disabling LPLU D0\n");
 		goto out;
 	}
 	/* Configure mdi-mdix settings */
@@ -597,13 +597,13 @@ s32 igb_copper_link_autoneg(struct e1000_hw *hw)
 	if (phy->autoneg_advertised == 0)
 		phy->autoneg_advertised = phy->autoneg_mask;
 
-	hw_dbg(hw, "Reconfiguring auto-neg advertisement params\n");
+	hw_dbg("Reconfiguring auto-neg advertisement params\n");
 	ret_val = igb_phy_setup_autoneg(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error Setting up Auto-Negotiation\n");
+		hw_dbg("Error Setting up Auto-Negotiation\n");
 		goto out;
 	}
-	hw_dbg(hw, "Restarting Auto-Neg\n");
+	hw_dbg("Restarting Auto-Neg\n");
 
 	/*
 	 * Restart auto-negotiation by setting the Auto Neg Enable bit and
@@ -625,8 +625,8 @@ s32 igb_copper_link_autoneg(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		ret_val = igb_wait_autoneg(hw);
 		if (ret_val) {
-			hw_dbg(hw, "Error while waiting for "
-				 "autoneg to complete\n");
+			hw_dbg("Error while waiting for "
+			       "autoneg to complete\n");
 			goto out;
 		}
 	}
@@ -689,39 +689,39 @@ static s32 igb_phy_setup_autoneg(struct e1000_hw *hw)
 				 NWAY_AR_10T_HD_CAPS);
 	mii_1000t_ctrl_reg &= ~(CR_1000T_HD_CAPS | CR_1000T_FD_CAPS);
 
-	hw_dbg(hw, "autoneg_advertised %x\n", phy->autoneg_advertised);
+	hw_dbg("autoneg_advertised %x\n", phy->autoneg_advertised);
 
 	/* Do we want to advertise 10 Mb Half Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_10_HALF) {
-		hw_dbg(hw, "Advertise 10mb Half duplex\n");
+		hw_dbg("Advertise 10mb Half duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_10T_HD_CAPS;
 	}
 
 	/* Do we want to advertise 10 Mb Full Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_10_FULL) {
-		hw_dbg(hw, "Advertise 10mb Full duplex\n");
+		hw_dbg("Advertise 10mb Full duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_10T_FD_CAPS;
 	}
 
 	/* Do we want to advertise 100 Mb Half Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_100_HALF) {
-		hw_dbg(hw, "Advertise 100mb Half duplex\n");
+		hw_dbg("Advertise 100mb Half duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_100TX_HD_CAPS;
 	}
 
 	/* Do we want to advertise 100 Mb Full Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_100_FULL) {
-		hw_dbg(hw, "Advertise 100mb Full duplex\n");
+		hw_dbg("Advertise 100mb Full duplex\n");
 		mii_autoneg_adv_reg |= NWAY_AR_100TX_FD_CAPS;
 	}
 
 	/* We do not allow the Phy to advertise 1000 Mb Half Duplex */
 	if (phy->autoneg_advertised & ADVERTISE_1000_HALF)
-		hw_dbg(hw, "Advertise 1000mb Half duplex request denied!\n");
+		hw_dbg("Advertise 1000mb Half duplex request denied!\n");
 
 	/* Do we want to advertise 1000 Mb Full Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_1000_FULL) {
-		hw_dbg(hw, "Advertise 1000mb Full duplex\n");
+		hw_dbg("Advertise 1000mb Full duplex\n");
 		mii_1000t_ctrl_reg |= CR_1000T_FD_CAPS;
 	}
 
@@ -780,7 +780,7 @@ static s32 igb_phy_setup_autoneg(struct e1000_hw *hw)
 		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
 		break;
 	default:
-		hw_dbg(hw, "Flow control param set incorrectly\n");
+		hw_dbg("Flow control param set incorrectly\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -790,7 +790,7 @@ static s32 igb_phy_setup_autoneg(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	hw_dbg(hw, "Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
+	hw_dbg("Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
 
 	if (phy->autoneg_mask & ADVERTISE_1000_FULL) {
 		ret_val = hw->phy.ops.write_phy_reg(hw,
@@ -846,13 +846,12 @@ s32 igb_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	hw_dbg(hw, "IGP PSCR: %X\n", phy_data);
+	hw_dbg("IGP PSCR: %X\n", phy_data);
 
 	udelay(1);
 
 	if (phy->autoneg_wait_to_complete) {
-		hw_dbg(hw,
-		       "Waiting for forced speed/duplex link on IGP phy.\n");
+		hw_dbg("Waiting for forced speed/duplex link on IGP phy.\n");
 
 		ret_val = igb_phy_has_link(hw,
 						     PHY_FORCE_LIMIT,
@@ -862,7 +861,7 @@ s32 igb_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 			goto out;
 
 		if (!link)
-			hw_dbg(hw, "Link taking longer than expected.\n");
+			hw_dbg("Link taking longer than expected.\n");
 
 		/* Try once more */
 		ret_val = igb_phy_has_link(hw,
@@ -909,7 +908,7 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	hw_dbg(hw, "M88E1000 PSCR: %X\n", phy_data);
+	hw_dbg("M88E1000 PSCR: %X\n", phy_data);
 
 	ret_val = hw->phy.ops.read_phy_reg(hw, PHY_CONTROL, &phy_data);
 	if (ret_val)
@@ -927,8 +926,7 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	udelay(1);
 
 	if (phy->autoneg_wait_to_complete) {
-		hw_dbg(hw,
-		       "Waiting for forced speed/duplex link on M88 phy.\n");
+		hw_dbg("Waiting for forced speed/duplex link on M88 phy.\n");
 
 		ret_val = igb_phy_has_link(hw,
 						     PHY_FORCE_LIMIT,
@@ -1028,11 +1026,11 @@ static void igb_phy_force_speed_duplex_setup(struct e1000_hw *hw,
 	if (mac->forced_speed_duplex & E1000_ALL_HALF_DUPLEX) {
 		ctrl &= ~E1000_CTRL_FD;
 		*phy_ctrl &= ~MII_CR_FULL_DUPLEX;
-		hw_dbg(hw, "Half Duplex\n");
+		hw_dbg("Half Duplex\n");
 	} else {
 		ctrl |= E1000_CTRL_FD;
 		*phy_ctrl |= MII_CR_FULL_DUPLEX;
-		hw_dbg(hw, "Full Duplex\n");
+		hw_dbg("Full Duplex\n");
 	}
 
 	/* Forcing 10mb or 100mb? */
@@ -1040,12 +1038,12 @@ static void igb_phy_force_speed_duplex_setup(struct e1000_hw *hw,
 		ctrl |= E1000_CTRL_SPD_100;
 		*phy_ctrl |= MII_CR_SPEED_100;
 		*phy_ctrl &= ~(MII_CR_SPEED_1000 | MII_CR_SPEED_10);
-		hw_dbg(hw, "Forcing 100mb\n");
+		hw_dbg("Forcing 100mb\n");
 	} else {
 		ctrl &= ~(E1000_CTRL_SPD_1000 | E1000_CTRL_SPD_100);
 		*phy_ctrl |= MII_CR_SPEED_10;
 		*phy_ctrl &= ~(MII_CR_SPEED_1000 | MII_CR_SPEED_100);
-		hw_dbg(hw, "Forcing 10mb\n");
+		hw_dbg("Forcing 10mb\n");
 	}
 
 	igb_config_collision_dist(hw);
@@ -1459,7 +1457,7 @@ s32 igb_get_phy_info_m88(struct e1000_hw *hw)
 	bool link;
 
 	if (hw->phy.media_type != e1000_media_type_copper) {
-		hw_dbg(hw, "Phy info is only valid for copper media\n");
+		hw_dbg("Phy info is only valid for copper media\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -1469,7 +1467,7 @@ s32 igb_get_phy_info_m88(struct e1000_hw *hw)
 		goto out;
 
 	if (!link) {
-		hw_dbg(hw, "Phy info is only valid if link is up\n");
+		hw_dbg("Phy info is only valid if link is up\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -1543,7 +1541,7 @@ s32 igb_get_phy_info_igp(struct e1000_hw *hw)
 		goto out;
 
 	if (!link) {
-		hw_dbg(hw, "Phy info is only valid if link is up\n");
+		hw_dbg("Phy info is only valid if link is up\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -1728,7 +1726,7 @@ s32 igb_phy_force_speed_duplex(struct e1000_hw *hw)
  **/
 s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 {
-	hw_dbg(hw, "Running IGP 3 PHY init script\n");
+	hw_dbg("Running IGP 3 PHY init script\n");
 
 	/* PHY init IGP 3 */
 	/* Enable rise/fall, 10-mode work in class-A */

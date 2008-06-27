@@ -202,7 +202,7 @@ s32 igb_acquire_nvm(struct e1000_hw *hw)
 	if (!timeout) {
 		eecd &= ~E1000_EECD_REQ;
 		wr32(E1000_EECD, eecd);
-		hw_dbg(hw, "Could not acquire NVM grant\n");
+		hw_dbg("Could not acquire NVM grant\n");
 		ret_val = -E1000_ERR_NVM;
 	}
 
@@ -337,7 +337,7 @@ static s32 igb_ready_nvm_eeprom(struct e1000_hw *hw)
 		}
 
 		if (!timeout) {
-			hw_dbg(hw, "SPI NVM Status error\n");
+			hw_dbg("SPI NVM Status error\n");
 			ret_val = -E1000_ERR_NVM;
 			goto out;
 		}
@@ -368,7 +368,7 @@ s32 igb_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
-		hw_dbg(hw, "nvm parameter(s) out of bounds\n");
+		hw_dbg("nvm parameter(s) out of bounds\n");
 		ret_val = -E1000_ERR_NVM;
 		goto out;
 	}
@@ -414,7 +414,7 @@ s32 igb_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
-		hw_dbg(hw, "nvm parameter(s) out of bounds\n");
+		hw_dbg("nvm parameter(s) out of bounds\n");
 		ret_val = -E1000_ERR_NVM;
 		goto out;
 	}
@@ -489,14 +489,14 @@ s32 igb_read_part_num(struct e1000_hw *hw, u32 *part_num)
 
 	ret_val = hw->nvm.ops.read_nvm(hw, NVM_PBA_OFFSET_0, 1, &nvm_data);
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		hw_dbg("NVM Read Error\n");
 		goto out;
 	}
 	*part_num = (u32)(nvm_data << 16);
 
 	ret_val = hw->nvm.ops.read_nvm(hw, NVM_PBA_OFFSET_1, 1, &nvm_data);
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		hw_dbg("NVM Read Error\n");
 		goto out;
 	}
 	*part_num |= nvm_data;
@@ -522,7 +522,7 @@ s32 igb_read_mac_addr(struct e1000_hw *hw)
 		offset = i >> 1;
 		ret_val = hw->nvm.ops.read_nvm(hw, offset, 1, &nvm_data);
 		if (ret_val) {
-			hw_dbg(hw, "NVM Read Error\n");
+			hw_dbg("NVM Read Error\n");
 			goto out;
 		}
 		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
@@ -556,14 +556,14 @@ s32 igb_validate_nvm_checksum(struct e1000_hw *hw)
 	for (i = 0; i < (NVM_CHECKSUM_REG + 1); i++) {
 		ret_val = hw->nvm.ops.read_nvm(hw, i, 1, &nvm_data);
 		if (ret_val) {
-			hw_dbg(hw, "NVM Read Error\n");
+			hw_dbg("NVM Read Error\n");
 			goto out;
 		}
 		checksum += nvm_data;
 	}
 
 	if (checksum != (u16) NVM_SUM) {
-		hw_dbg(hw, "NVM Checksum Invalid\n");
+		hw_dbg("NVM Checksum Invalid\n");
 		ret_val = -E1000_ERR_NVM;
 		goto out;
 	}
@@ -589,7 +589,7 @@ s32 igb_update_nvm_checksum(struct e1000_hw *hw)
 	for (i = 0; i < NVM_CHECKSUM_REG; i++) {
 		ret_val = hw->nvm.ops.read_nvm(hw, i, 1, &nvm_data);
 		if (ret_val) {
-			hw_dbg(hw, "NVM Read Error while updating checksum.\n");
+			hw_dbg("NVM Read Error while updating checksum.\n");
 			goto out;
 		}
 		checksum += nvm_data;
@@ -597,7 +597,7 @@ s32 igb_update_nvm_checksum(struct e1000_hw *hw)
 	checksum = (u16) NVM_SUM - checksum;
 	ret_val = hw->nvm.ops.write_nvm(hw, NVM_CHECKSUM_REG, 1, &checksum);
 	if (ret_val)
-		hw_dbg(hw, "NVM Write Error while updating checksum.\n");
+		hw_dbg("NVM Write Error while updating checksum.\n");
 
 out:
 	return ret_val;
