@@ -359,6 +359,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	r = -ENOMEM;
 
 	/* Allocate if a slot is being created */
+#ifndef CONFIG_S390
 	if (npages && !new.rmap) {
 		new.rmap = vmalloc(npages * sizeof(struct page *));
 
@@ -399,6 +400,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			goto out_free;
 		memset(new.dirty_bitmap, 0, dirty_bytes);
 	}
+#endif /* not defined CONFIG_S390 */
 
 	if (mem->slot >= kvm->nmemslots)
 		kvm->nmemslots = mem->slot + 1;
