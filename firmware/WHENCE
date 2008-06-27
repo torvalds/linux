@@ -265,3 +265,13 @@ Licence: Distributable
  * modification.
 
 --------------------------------------------------------------------------
+
+Driver: USB_VICAM -- USB 3com HomeConnect (aka vicam)
+
+File: vicam/firmware.fw
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
