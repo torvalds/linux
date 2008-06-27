@@ -256,3 +256,4 @@ unsigned long long cpu_clock(int cpu)
 
 	return clock;
 }
+EXPORT_SYMBOL_GPL(cpu_clock);
