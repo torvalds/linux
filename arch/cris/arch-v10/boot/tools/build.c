@@ -30,7 +30,6 @@
 #include <sys/sysmacros.h>
 #include <unistd.h>	/* contains read/write */
 #include <fcntl.h>
-#include <linux/a.out.h>
 #include <errno.h>
 
 #define MINIX_HEADER 32
