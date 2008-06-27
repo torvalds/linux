@@ -4,13 +4,14 @@
 
 menuconfig DMADEVICES
 	bool "DMA Engine support"
-	depends on (PCI && X86) || ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX || PPC
-	depends on !HIGHMEM64G
+	depends on !HIGHMEM64G && HAS_DMA
 	help
 	  DMA engines can do asynchronous data transfers without
 	  involving the host CPU.  Currently, this framework can be
 	  used to offload memory copies in the network stack and
-	  RAID operations in the MD driver.
+	  RAID operations in the MD driver.  This menu only presents
+	  DMA Device drivers supported by the configured arch, it may
+	  be empty in some cases.
 
 if DMADEVICES
 
@@ -55,10 +56,12 @@ comment "DMA Clients"
 config NET_DMA
 	bool "Network: TCP receive copy offload"
 	depends on DMA_ENGINE && NET
+	default (INTEL_IOATDMA || FSL_DMA)
 	help
 	  This enables the use of DMA engines in the network stack to
 	  offload receive copy-to-user operations, freeing CPU cycles.
-	  Since this is the main user of the DMA engine, it should be enabled;
-	  say Y here.
+
+	  Say Y here if you enabled INTEL_IOATDMA or FSL_DMA, otherwise
+	  say N.
 
 endif
