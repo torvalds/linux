@@ -10,7 +10,7 @@ us to generate 'watchdog NMI interrupts'.  (NMI: Non Maskable Interrupt
 which get executed even if the system is otherwise locked up hard).
 This can be used to debug hard kernel lockups.  By executing periodic
 NMI interrupts, the kernel can monitor whether any CPU has locked up,
-and print out debugging messages if so.  
+and print out debugging messages if so.
 
 In order to use the NMI watchdog, you need to have APIC support in your
 kernel. For SMP kernels, APIC support gets compiled in automatically. For
@@ -22,8 +22,7 @@ CONFIG_X86_UP_IOAPIC is for uniprocessor with an IO-APIC. [Note: certain
 kernel debugging options, such as Kernel Stack Meter or Kernel Tracer,
 may implicitly disable the NMI watchdog.]
 
-For x86-64, the needed APIC is always compiled in, and the NMI watchdog is
-always enabled with I/O-APIC mode (nmi_watchdog=1).
+For x86-64, the needed APIC is always compiled in.
 
 Using local APIC (nmi_watchdog=2) needs the first performance register, so
 you can't use it for other purposes (such as high precision performance
@@ -63,16 +62,15 @@ when the system is idle), but if your system locks up on anything but the
 "hlt", then you are out of luck -- the event will not happen at all and the
 watchdog won't trigger. This is a shortcoming of the local APIC watchdog
 -- unfortunately there is no "clock ticks" event that would work all the
-time. The I/O APIC watchdog is driven externally and has no such shortcoming.  
+time. The I/O APIC watchdog is driven externally and has no such shortcoming.
 But its NMI frequency is much higher, resulting in a more significant hit
 to the overall system performance.
 
-NOTE: starting with 2.4.2-ac18 the NMI-oopser is disabled by default,
-you have to enable it with a boot time parameter.  Prior to 2.4.2-ac18
-the NMI-oopser is enabled unconditionally on x86 SMP boxes.
+On x86 nmi_watchdog is disabled by default so you have to enable it with
+a boot time parameter.
 
-On x86-64 the NMI oopser is on by default. On 64bit Intel CPUs
-it uses IO-APIC by default and on AMD it uses local APIC.
+NOTE: Prior to 2.4.2-ac18 the NMI-oopser is enabled unconditionally
+on x86 SMP boxes.
 
 [ feel free to send bug reports, suggestions and patches to
   Ingo Molnar <mingo@redhat.com> or the Linux SMP mailing
