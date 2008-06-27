@@ -236,6 +236,11 @@ All md devices contain:
      writing the word for the desired state, however some states
      cannot be explicitly set, and some transitions are not allowed.
 
+     Select/poll works on this file.  All changes except between
+     	active_idle and active (which can be frequent and are not
+	very interesting) are notified.  active->active_idle is
+	reported if the metadata is externally managed.
+
      clear
          No devices, no size, no level
          Writing is equivalent to STOP_ARRAY ioctl

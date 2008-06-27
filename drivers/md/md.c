@@ -2716,8 +2716,10 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 	}
 	if (err)
 		return err;
-	else
+	else {
+		sysfs_notify(&mddev->kobj, NULL, "array_state");
 		return len;
+	}
 }
 static struct md_sysfs_entry md_array_state =
 __ATTR(array_state, S_IRUGO|S_IWUSR, array_state_show, array_state_store);
@@ -3408,7 +3410,11 @@ static void md_safemode_timeout(unsigned long data)
 {
 	mddev_t *mddev = (mddev_t *) data;
 
-	mddev->safemode = 1;
+	if (!atomic_read(&mddev->writes_pending)) {
+		mddev->safemode = 1;
+		if (mddev->external)
+			sysfs_notify(&mddev->kobj, NULL, "array_state");
+	}
 	md_wakeup_thread(mddev->thread);
 }
 
@@ -3675,6 +3681,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->changed = 1;
 	md_new_event(mddev);
+	sysfs_notify(&mddev->kobj, NULL, "array_state");
 	kobject_uevent(&mddev->gendisk->dev.kobj, KOBJ_CHANGE);
 	return 0;
 }
@@ -3709,6 +3716,8 @@ static int restart_array(mddev_t *mddev)
 		md_wakeup_thread(mddev->thread);
 		md_wakeup_thread(mddev->sync_thread);
 		err = 0;
+		sysfs_notify(&mddev->kobj, NULL, "array_state");
+
 	} else
 		err = -EINVAL;
 
@@ -3879,6 +3888,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 			mdname(mddev));
 	err = 0;
 	md_new_event(mddev);
+	sysfs_notify(&mddev->kobj, NULL, "array_state");
 out:
 	return err;
 }
@@ -4876,8 +4886,9 @@ static int md_ioctl(struct inode *inode, struct file *file,
 	    mddev->ro && mddev->pers) {
 		if (mddev->ro == 2) {
 			mddev->ro = 0;
-		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-		md_wakeup_thread(mddev->thread);
+			sysfs_notify(&mddev->kobj, NULL, "array_state");
+			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+			md_wakeup_thread(mddev->thread);
 
 		} else {
 			err = -EROFS;
@@ -5516,6 +5527,7 @@ void md_done_sync(mddev_t *mddev, int blocks, int ok)
  */
 void md_write_start(mddev_t *mddev, struct bio *bi)
 {
+	int did_change = 0;
 	if (bio_data_dir(bi) != WRITE)
 		return;
 
@@ -5526,6 +5538,7 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 		md_wakeup_thread(mddev->sync_thread);
+		did_change = 1;
 	}
 	atomic_inc(&mddev->writes_pending);
 	if (mddev->safemode == 1)
@@ -5536,10 +5549,12 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 			mddev->in_sync = 0;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			md_wakeup_thread(mddev->thread);
+			did_change = 1;
 		}
 		spin_unlock_irq(&mddev->write_lock);
-		sysfs_notify(&mddev->kobj, NULL, "array_state");
 	}
+	if (did_change)
+		sysfs_notify(&mddev->kobj, NULL, "array_state");
 	wait_event(mddev->sb_wait,
 		   !test_bit(MD_CHANGE_CLEAN, &mddev->flags) &&
 		   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
@@ -5991,18 +6006,22 @@ void md_check_recovery(mddev_t *mddev)
 		int spares = 0;
 
 		if (!mddev->external) {
+			int did_change = 0;
 			spin_lock_irq(&mddev->write_lock);
 			if (mddev->safemode &&
 			    !atomic_read(&mddev->writes_pending) &&
 			    !mddev->in_sync &&
 			    mddev->recovery_cp == MaxSector) {
 				mddev->in_sync = 1;
+				did_change = 1;
 				if (mddev->persistent)
 					set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			}
 			if (mddev->safemode == 1)
 				mddev->safemode = 0;
 			spin_unlock_irq(&mddev->write_lock);
+			if (did_change)
+				sysfs_notify(&mddev->kobj, NULL, "array_state");
 		}
 
 		if (mddev->flags)
