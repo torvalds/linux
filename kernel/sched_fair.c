@@ -334,6 +334,34 @@ int sched_nr_latency_handler(struct ctl_table *table, int write,
 #endif
 
 /*
+ * delta *= w / rw
+ */
+static inline unsigned long
+calc_delta_weight(unsigned long delta, struct sched_entity *se)
+{
+	for_each_sched_entity(se) {
+		delta = calc_delta_mine(delta,
+				se->load.weight, &cfs_rq_of(se)->load);
+	}
+
+	return delta;
+}
+
+/*
+ * delta *= rw / w
+ */
+static inline unsigned long
+calc_delta_fair(unsigned long delta, struct sched_entity *se)
+{
+	for_each_sched_entity(se) {
+		delta = calc_delta_mine(delta,
+				cfs_rq_of(se)->load.weight, &se->load);
+	}
+
+	return delta;
+}
+
+/*
  * The idea is to set a period in which each task runs once.
  *
  * When there are too many tasks (sysctl_sched_nr_latency) we have to stretch
@@ -362,47 +390,54 @@ static u64 __sched_period(unsigned long nr_running)
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	u64 slice = __sched_period(cfs_rq->nr_running);
-
-	for_each_sched_entity(se) {
-		cfs_rq = cfs_rq_of(se);
-
-		slice *= se->load.weight;
-		do_div(slice, cfs_rq->load.weight);
-	}
-
-
-	return slice;
+	return calc_delta_weight(__sched_period(cfs_rq->nr_running), se);
 }
 
 /*
  * We calculate the vruntime slice of a to be inserted task
  *
- * vs = s/w = p/rw
+ * vs = s*rw/w = p
  */
 static u64 sched_vslice_add(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	unsigned long nr_running = cfs_rq->nr_running;
-	unsigned long weight;
-	u64 vslice;
 
 	if (!se->on_rq)
 		nr_running++;
 
-	vslice = __sched_period(nr_running);
+	return __sched_period(nr_running);
+}
+
+/*
+ * The goal of calc_delta_asym() is to be asymmetrically around NICE_0_LOAD, in
+ * that it favours >=0 over <0.
+ *
+ *   -20         |
+ *               |
+ *     0 --------+-------
+ *             .'
+ *    19     .'
+ *
+ */
+static unsigned long
+calc_delta_asym(unsigned long delta, struct sched_entity *se)
+{
+	struct load_weight lw = {
+		.weight = NICE_0_LOAD,
+		.inv_weight = 1UL << (WMULT_SHIFT-NICE_0_SHIFT)
+	};
 
 	for_each_sched_entity(se) {
-		cfs_rq = cfs_rq_of(se);
+		struct load_weight *se_lw = &se->load;
 
-		weight = cfs_rq->load.weight;
-		if (!se->on_rq)
-			weight += se->load.weight;
+		if (se->load.weight < NICE_0_LOAD)
+			se_lw = &lw;
 
-		vslice *= NICE_0_LOAD;
-		do_div(vslice, weight);
+		delta = calc_delta_mine(delta,
+				cfs_rq_of(se)->load.weight, se_lw);
 	}
 
-	return vslice;
+	return delta;
 }
 
 /*
@@ -419,11 +454,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq, exec_clock, delta_exec);
-	delta_exec_weighted = delta_exec;
-	if (unlikely(curr->load.weight != NICE_0_LOAD)) {
-		delta_exec_weighted = calc_delta_fair(delta_exec_weighted,
-							&curr->load);
-	}
+	delta_exec_weighted = calc_delta_fair(delta_exec, curr);
 	curr->vruntime += delta_exec_weighted;
 }
 
@@ -609,8 +640,17 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	if (!initial) {
 		/* sleeps upto a single latency don't count. */
-		if (sched_feat(NEW_FAIR_SLEEPERS))
-			vruntime -= sysctl_sched_latency;
+		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+			unsigned long thresh = sysctl_sched_latency;
+
+			/*
+			 * convert the sleeper threshold into virtual time
+			 */
+			if (sched_feat(NORMALIZED_SLEEPER))
+				thresh = calc_delta_fair(thresh, se);
+
+			vruntime -= thresh;
+		}
 
 		/* ensure we never gain time by being placed backwards. */
 		vruntime = max_vruntime(se->vruntime, vruntime);
@@ -1111,11 +1151,10 @@ static unsigned long wakeup_gran(struct sched_entity *se)
 	unsigned long gran = sysctl_sched_wakeup_granularity;
 
 	/*
-	 * More easily preempt - nice tasks, while not making
-	 * it harder for + nice tasks.
+	 * More easily preempt - nice tasks, while not making it harder for
+	 * + nice tasks.
 	 */
-	if (unlikely(se->load.weight > NICE_0_LOAD))
-		gran = calc_delta_fair(gran, &se->load);
+	gran = calc_delta_asym(sysctl_sched_wakeup_granularity, se);
 
 	return gran;
 }
