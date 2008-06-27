@@ -605,7 +605,11 @@ static void ops_complete_compute5(void *stripe_head_ref)
 	set_bit(R5_UPTODATE, &tgt->flags);
 	BUG_ON(!test_bit(R5_Wantcompute, &tgt->flags));
 	clear_bit(R5_Wantcompute, &tgt->flags);
-	set_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.complete);
+	clear_bit(STRIPE_COMPUTE_RUN, &sh->state);
+	if (sh->check_state == check_state_compute_run)
+		sh->check_state = check_state_compute_result;
+	else
+		set_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.complete);
 	set_bit(STRIPE_HANDLE, &sh->state);
 	release_stripe(sh);
 }
@@ -838,7 +842,7 @@ static void ops_complete_check(void *stripe_head_ref)
 	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
-	set_bit(STRIPE_OP_CHECK, &sh->ops.complete);
+	sh->check_state = check_state_check_result;
 	set_bit(STRIPE_HANDLE, &sh->state);
 	release_stripe(sh);
 }
@@ -870,7 +874,8 @@ static void ops_run_check(struct stripe_head *sh)
 		ops_complete_check, sh);
 }
 
-static void raid5_run_ops(struct stripe_head *sh, unsigned long pending)
+static void raid5_run_ops(struct stripe_head *sh, unsigned long pending,
+			  unsigned long ops_request)
 {
 	int overlap_clear = 0, i, disks = sh->disks;
 	struct dma_async_tx_descriptor *tx = NULL;
@@ -880,7 +885,8 @@ static void raid5_run_ops(struct stripe_head *sh, unsigned long pending)
 		overlap_clear++;
 	}
 
-	if (test_bit(STRIPE_OP_COMPUTE_BLK, &pending))
+	if (test_bit(STRIPE_OP_COMPUTE_BLK, &pending) ||
+	    test_bit(STRIPE_OP_COMPUTE_BLK, &ops_request))
 		tx = ops_run_compute5(sh, pending);
 
 	if (test_bit(STRIPE_OP_PREXOR, &pending))
@@ -894,7 +900,7 @@ static void raid5_run_ops(struct stripe_head *sh, unsigned long pending)
 	if (test_bit(STRIPE_OP_POSTXOR, &pending))
 		ops_run_postxor(sh, tx, pending);
 
-	if (test_bit(STRIPE_OP_CHECK, &pending))
+	if (test_bit(STRIPE_OP_CHECK, &ops_request))
 		ops_run_check(sh);
 
 	if (overlap_clear)
@@ -1961,8 +1967,7 @@ static int __handle_issuing_new_read_requests5(struct stripe_head *sh,
 	/* don't schedule compute operations or reads on the parity block while
 	 * a check is in flight
 	 */
-	if ((disk_idx == sh->pd_idx) &&
-	     test_bit(STRIPE_OP_CHECK, &sh->ops.pending))
+	if (disk_idx == sh->pd_idx && sh->check_state)
 		return ~0;
 
 	/* is the data in this block needed, and can we get it? */
@@ -1983,9 +1988,8 @@ static int __handle_issuing_new_read_requests5(struct stripe_head *sh,
 		 * 3/ We hold off parity block re-reads until check operations
 		 * have quiesced.
 		 */
-		if ((s->uptodate == disks - 1) &&
-		    (s->failed && disk_idx == s->failed_num) &&
-		    !test_bit(STRIPE_OP_CHECK, &sh->ops.pending)) {
+		if ((s->uptodate == disks - 1) && !sh->check_state &&
+		    (s->failed && disk_idx == s->failed_num)) {
 			set_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.pending);
 			set_bit(R5_Wantcompute, &dev->flags);
 			sh->ops.target = disk_idx;
@@ -2021,12 +2025,8 @@ static void handle_issuing_new_read_requests5(struct stripe_head *sh,
 {
 	int i;
 
-	/* Clear completed compute operations.  Parity recovery
-	 * (STRIPE_OP_MOD_REPAIR_PD) implies a write-back which is handled
-	 * later on in this routine
-	 */
-	if (test_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.complete) &&
-		!test_bit(STRIPE_OP_MOD_REPAIR_PD, &sh->ops.pending)) {
+	/* Clear completed compute operations */
+	if (test_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.complete)) {
 		clear_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.complete);
 		clear_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.ack);
 		clear_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.pending);
@@ -2350,90 +2350,85 @@ static void handle_issuing_new_write_requests6(raid5_conf_t *conf,
 static void handle_parity_checks5(raid5_conf_t *conf, struct stripe_head *sh,
 				struct stripe_head_state *s, int disks)
 {
-	int canceled_check = 0;
+	struct r5dev *dev = NULL;
 
 	set_bit(STRIPE_HANDLE, &sh->state);
 
-	/* complete a check operation */
-	if (test_and_clear_bit(STRIPE_OP_CHECK, &sh->ops.complete)) {
-		clear_bit(STRIPE_OP_CHECK, &sh->ops.ack);
-		clear_bit(STRIPE_OP_CHECK, &sh->ops.pending);
+	switch (sh->check_state) {
+	case check_state_idle:
+		/* start a new check operation if there are no failures */
 		if (s->failed == 0) {
-			if (sh->ops.zero_sum_result == 0)
-				/* parity is correct (on disc,
-				 * not in buffer any more)
-				 */
-				set_bit(STRIPE_INSYNC, &sh->state);
-			else {
-				conf->mddev->resync_mismatches +=
-					STRIPE_SECTORS;
-				if (test_bit(
-				     MD_RECOVERY_CHECK, &conf->mddev->recovery))
-					/* don't try to repair!! */
-					set_bit(STRIPE_INSYNC, &sh->state);
-				else {
-					set_bit(STRIPE_OP_COMPUTE_BLK,
-						&sh->ops.pending);
-					set_bit(STRIPE_OP_MOD_REPAIR_PD,
-						&sh->ops.pending);
-					set_bit(R5_Wantcompute,
-						&sh->dev[sh->pd_idx].flags);
-					sh->ops.target = sh->pd_idx;
-					sh->ops.count++;
-					s->uptodate++;
-				}
-			}
-		} else
-			canceled_check = 1; /* STRIPE_INSYNC is not set */
-	}
-
-	/* start a new check operation if there are no failures, the stripe is
-	 * not insync, and a repair is not in flight
-	 */
-	if (s->failed == 0 &&
-	    !test_bit(STRIPE_INSYNC, &sh->state) &&
-	    !test_bit(STRIPE_OP_MOD_REPAIR_PD, &sh->ops.pending)) {
-		if (!test_and_set_bit(STRIPE_OP_CHECK, &sh->ops.pending)) {
 			BUG_ON(s->uptodate != disks);
+			sh->check_state = check_state_run;
+			set_bit(STRIPE_OP_CHECK, &s->ops_request);
 			clear_bit(R5_UPTODATE, &sh->dev[sh->pd_idx].flags);
-			sh->ops.count++;
 			s->uptodate--;
+			break;
 		}
-	}
-
-	/* check if we can clear a parity disk reconstruct */
-	if (test_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.complete) &&
-	    test_bit(STRIPE_OP_MOD_REPAIR_PD, &sh->ops.pending)) {
-
-		clear_bit(STRIPE_OP_MOD_REPAIR_PD, &sh->ops.pending);
-		clear_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.complete);
-		clear_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.ack);
-		clear_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.pending);
-	}
-
-
-	/* Wait for check parity and compute block operations to complete
-	 * before write-back.  If a failure occurred while the check operation
-	 * was in flight we need to cycle this stripe through handle_stripe
-	 * since the parity block may not be uptodate
-	 */
-	if (!canceled_check && !test_bit(STRIPE_INSYNC, &sh->state) &&
-	    !test_bit(STRIPE_OP_CHECK, &sh->ops.pending) &&
-	    !test_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.pending)) {
-		struct r5dev *dev;
-		/* either failed parity check, or recovery is happening */
-		if (s->failed == 0)
-			s->failed_num = sh->pd_idx;
 		dev = &sh->dev[s->failed_num];
+		/* fall through */
+	case check_state_compute_result:
+		sh->check_state = check_state_idle;
+		if (!dev)
+			dev = &sh->dev[sh->pd_idx];
+
+		/* check that a write has not made the stripe insync */
+		if (test_bit(STRIPE_INSYNC, &sh->state))
+			break;
+
+		/* either failed parity check, or recovery is happening */
 		BUG_ON(!test_bit(R5_UPTODATE, &dev->flags));
 		BUG_ON(s->uptodate != disks);
 
 		set_bit(R5_LOCKED, &dev->flags);
+		s->locked++;
 		set_bit(R5_Wantwrite, &dev->flags);
 
 		clear_bit(STRIPE_DEGRADED, &sh->state);
-		s->locked++;
 		set_bit(STRIPE_INSYNC, &sh->state);
+		break;
+	case check_state_run:
+		break; /* we will be called again upon completion */
+	case check_state_check_result:
+		sh->check_state = check_state_idle;
+
+		/* if a failure occurred during the check operation, leave
+		 * STRIPE_INSYNC not set and let the stripe be handled again
+		 */
+		if (s->failed)
+			break;
+
+		/* handle a successful check operation, if parity is correct
+		 * we are done.  Otherwise update the mismatch count and repair
+		 * parity if !MD_RECOVERY_CHECK
+		 */
+		if (sh->ops.zero_sum_result == 0)
+			/* parity is correct (on disc,
+			 * not in buffer any more)
+			 */
+			set_bit(STRIPE_INSYNC, &sh->state);
+		else {
+			conf->mddev->resync_mismatches += STRIPE_SECTORS;
+			if (test_bit(MD_RECOVERY_CHECK, &conf->mddev->recovery))
+				/* don't try to repair!! */
+				set_bit(STRIPE_INSYNC, &sh->state);
+			else {
+				sh->check_state = check_state_compute_run;
+				set_bit(STRIPE_OP_COMPUTE_BLK, &s->ops_request);
+				set_bit(R5_Wantcompute,
+					&sh->dev[sh->pd_idx].flags);
+				sh->ops.target = sh->pd_idx;
+				s->uptodate++;
+			}
+		}
+		break;
+	case check_state_compute_run:
+		break;
+	default:
+		printk(KERN_ERR "%s: unknown check_state: %d sector: %llu\n",
+		       __func__, sh->check_state,
+		       (unsigned long long) sh->sector);
+		BUG();
 	}
 }
 
@@ -2807,7 +2802,7 @@ static void handle_stripe5(struct stripe_head *sh)
 	 *    block.
 	 */
 	if (s.to_write && !test_bit(STRIPE_OP_POSTXOR, &sh->ops.pending) &&
-			  !test_bit(STRIPE_OP_CHECK, &sh->ops.pending))
+	    !sh->check_state)
 		handle_issuing_new_write_requests5(conf, sh, &s, disks);
 
 	/* maybe we need to check and possibly fix the parity for this stripe
@@ -2815,11 +2810,10 @@ static void handle_stripe5(struct stripe_head *sh)
 	 * data is available.  The parity check is held off while parity
 	 * dependent operations are in flight.
 	 */
-	if ((s.syncing && s.locked == 0 &&
+	if (sh->check_state ||
+	    (s.syncing && s.locked == 0 &&
 	     !test_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.pending) &&
-	     !test_bit(STRIPE_INSYNC, &sh->state)) ||
-	      test_bit(STRIPE_OP_CHECK, &sh->ops.pending) ||
-	      test_bit(STRIPE_OP_MOD_REPAIR_PD, &sh->ops.pending))
+	     !test_bit(STRIPE_INSYNC, &sh->state)))
 		handle_parity_checks5(conf, sh, &s, disks);
 
 	if (s.syncing && s.locked == 0 && test_bit(STRIPE_INSYNC, &sh->state)) {
@@ -2897,8 +2891,8 @@ static void handle_stripe5(struct stripe_head *sh)
 	if (unlikely(blocked_rdev))
 		md_wait_for_blocked_rdev(blocked_rdev, conf->mddev);
 
-	if (pending)
-		raid5_run_ops(sh, pending);
+	if (pending || s.ops_request)
+		raid5_run_ops(sh, pending, s.ops_request);
 
 	ops_run_io(sh, &s);
 
