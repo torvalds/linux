@@ -1549,6 +1549,9 @@ tg_shares_up(struct task_group *tg, int cpu, struct sched_domain *sd)
 	if (!sd->parent || !(sd->parent->flags & SD_LOAD_BALANCE))
 		shares = tg->shares;
 
+	if (!rq_weight)
+		rq_weight = cpus_weight(sd->span) * NICE_0_LOAD;
+
 	for_each_cpu_mask(i, sd->span) {
 		struct rq *rq = cpu_rq(i);
 		unsigned long flags;
