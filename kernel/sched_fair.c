@@ -1074,10 +1074,10 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 static const struct sched_class fair_sched_class;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-static unsigned long effective_load(struct task_group *tg, long wl, int cpu)
+static unsigned long effective_load(struct task_group *tg, int cpu,
+		unsigned long wl, unsigned long wg)
 {
 	struct sched_entity *se = tg->se[cpu];
-	long wg = wl;
 
 	for_each_sched_entity(se) {
 #define D(n) (likely(n) ? (n) : 1)
@@ -1092,6 +1092,13 @@ static unsigned long effective_load(struct task_group *tg, long wl, int cpu)
 		b = S*rw + s*wg;
 
 		wl = s*(a-b)/D(b);
+		/*
+		 * Assume the group is already running and will
+		 * thus already be accounted for in the weight.
+		 *
+		 * That is, moving shares between CPUs, does not
+		 * alter the group weight.
+		 */
 		wg = 0;
 #undef D
 	}
@@ -1099,26 +1106,12 @@ static unsigned long effective_load(struct task_group *tg, long wl, int cpu)
 	return wl;
 }
 
-static unsigned long task_load_sub(struct task_struct *p)
-{
-	return effective_load(task_group(p), -(long)p->se.load.weight, task_cpu(p));
-}
-
-static unsigned long task_load_add(struct task_struct *p, int cpu)
-{
-	return effective_load(task_group(p), p->se.load.weight, cpu);
-}
-
 #else
 
-static unsigned long task_load_sub(struct task_struct *p)
+static inline unsigned long effective_load(struct task_group *tg, int cpu,
+		unsigned long wl, unsigned long wg)
 {
-	return -p->se.load.weight;
-}
-
-static unsigned long task_load_add(struct task_struct *p, int cpu)
-{
-	return p->se.load.weight;
+	return wl;
 }
 
 #endif
@@ -1130,8 +1123,10 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	    unsigned int imbalance)
 {
 	struct task_struct *curr = this_rq->curr;
+	struct task_group *tg;
 	unsigned long tl = this_load;
 	unsigned long tl_per_task;
+	unsigned long weight;
 	int balanced;
 
 	if (!(this_sd->flags & SD_WAKE_AFFINE) || !sched_feat(AFFINE_WAKEUPS))
@@ -1142,10 +1137,19 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
 	 * effect of the currently running task from the load
 	 * of the current CPU:
 	 */
-	if (sync)
-		tl += task_load_sub(current);
+	if (sync) {
+		tg = task_group(current);
+		weight = current->se.load.weight;
 
-	balanced = 100*(tl + task_load_add(p, this_cpu)) <= imbalance*load;
+		tl += effective_load(tg, this_cpu, -weight, -weight);
+		load += effective_load(tg, prev_cpu, 0, -weight);
+	}
+
+	tg = task_group(p);
+	weight = p->se.load.weight;
+
+	balanced = 100*(tl + effective_load(tg, this_cpu, weight, weight)) <=
+		imbalance*(load + effective_load(tg, prev_cpu, 0, weight));
 
 	/*
 	 * If the currently running task will sleep within

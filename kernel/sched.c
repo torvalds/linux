@@ -365,6 +365,10 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 #else
 
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu) { }
+static inline struct task_group *task_group(struct task_struct *p)
+{
+	return NULL;
+}
 
 #endif	/* CONFIG_GROUP_SCHED */
 
