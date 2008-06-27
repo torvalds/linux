@@ -4300,9 +4300,6 @@ static int hot_remove_disk(mddev_t * mddev, dev_t dev)
 	char b[BDEVNAME_SIZE];
 	mdk_rdev_t *rdev;
 
-	if (!mddev->pers)
-		return -ENODEV;
-
 	rdev = find_rdev(mddev, dev);
 	if (!rdev)
 		return -ENXIO;
