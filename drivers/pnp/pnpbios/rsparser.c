@@ -275,7 +275,7 @@ static __init void pnpbios_parse_irq_option(struct pnp_dev *dev,
 	if (!irq)
 		return;
 	bits = (p[2] << 8) | p[1];
-	bitmap_copy(irq->map, &bits, 16);
+	bitmap_copy(irq->map.bits, &bits, 16);
 	if (size > 2)
 		irq->flags = p[3];
 	else

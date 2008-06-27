@@ -66,15 +66,18 @@ static void quirk_cmi8330_resources(struct pnp_dev *dev)
 		struct pnp_irq *irq;
 		struct pnp_dma *dma;
 
-		for (irq = res->irq; irq; irq = irq->next) {	// Valid irqs are 5, 7, 10
+		for (irq = res->irq; irq; irq = irq->next) {
+			/* Valid irqs are 5, 7, 10 */
 			tmp = 0x04A0;
-			bitmap_copy(irq->map, &tmp, 16);	// 0000 0100 1010 0000
+			bitmap_copy(irq->map.bits, &tmp, 16);
 		}
 
-		for (dma = res->dma; dma; dma = dma->next)	// Valid 8bit dma channels are 1,3
+		for (dma = res->dma; dma; dma = dma->next) {
+			/* Valid 8bit dma channels are 1,3 */
 			if ((dma->flags & IORESOURCE_DMA_TYPE_MASK) ==
 			    IORESOURCE_DMA_8BIT)
 				dma->map = 0x000A;
+		}
 	}
 	dev_info(&dev->dev, "CMI8330 quirk - forced possible IRQs to 5, 7, 10 "
 		"and DMA channels to 1, 3\n");
@@ -187,7 +190,7 @@ static void quirk_ad1815_mpu_resources(struct pnp_dev *dev)
 		if (!copy)
 			break;
 
-		memcpy(copy->map, irq->map, sizeof copy->map);
+		bitmap_copy(copy->map.bits, irq->map.bits, PNP_IRQ_NR);
 		copy->flags = irq->flags;
 
 		copy->next = res->irq; /* Yes, this is NULL */
