@@ -122,6 +122,7 @@ obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
 obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
 obj-$(CONFIG_USB_QUICKCAM_MESSENGER)	+= usbvideo/
+obj-$(CONFIG_USB_S2255)		+= s2255drv.o
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
 obj-$(CONFIG_VIDEO_CX18) += cx18/
