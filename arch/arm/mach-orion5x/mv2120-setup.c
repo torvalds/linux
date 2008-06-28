@@ -133,7 +133,7 @@ static struct orion5x_mpp_mode mv2120_mpp_modes[] __initdata = {
 };
 
 static struct i2c_board_info __initdata mv2120_i2c_rtc = {
-	I2C_BOARD_INFO("rtc-pcf8563", 0x51),
+	I2C_BOARD_INFO("pcf8563", 0x51),
 	.irq	= 0,
 };
 
