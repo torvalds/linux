@@ -1025,6 +1025,10 @@ max_addresses - INTEGER
 	autoconfigured addresses.
 	Default: 16
 
+disable_ipv6 - BOOLEAN
+	Disable IPv6 operation.
+	Default: FALSE (enable IPv6 operation)
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
