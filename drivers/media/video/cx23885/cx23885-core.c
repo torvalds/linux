@@ -460,6 +460,7 @@ static void cx23885_reset(struct cx23885_dev *dev)
 	cx_write(AUDIO_INT_INT_STAT, 0xffffffff);
 	cx_write(AUDIO_EXT_INT_STAT, 0xffffffff);
 	cx_write(CLK_DELAY, cx_read(CLK_DELAY) & 0x80000000);
+	cx_write(PAD_CTRL, 0x00500300);
 
 	mdelay(100);
 
