@@ -722,6 +722,12 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	/* if no tuner was found, then pick the first tuner in the card list */
 	if (cx->options.tuner == -1 && cx->card->tuners[0].std) {
 		cx->std = cx->card->tuners[0].std;
+		if (cx->std & V4L2_STD_PAL)
+			cx->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
+		else if (cx->std & V4L2_STD_NTSC)
+			cx->std = V4L2_STD_NTSC_M;
+		else if (cx->std & V4L2_STD_SECAM)
+			cx->std = V4L2_STD_SECAM_L;
 		cx->options.tuner = cx->card->tuners[0].tuner;
 	}
 	if (cx->options.radio == -1)

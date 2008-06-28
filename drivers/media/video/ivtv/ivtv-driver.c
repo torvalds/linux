@@ -1128,6 +1128,12 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	/* if no tuner was found, then pick the first tuner in the card list */
 	if (itv->options.tuner == -1 && itv->card->tuners[0].std) {
 		itv->std = itv->card->tuners[0].std;
+		if (itv->std & V4L2_STD_PAL)
+			itv->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
+		else if (itv->std & V4L2_STD_NTSC)
+			itv->std = V4L2_STD_NTSC_M;
+		else if (itv->std & V4L2_STD_SECAM)
+			itv->std = V4L2_STD_SECAM_L;
 		itv->options.tuner = itv->card->tuners[0].tuner;
 	}
 	if (itv->options.radio == -1)
