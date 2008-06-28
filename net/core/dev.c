@@ -2973,7 +2973,7 @@ EXPORT_SYMBOL(dev_unicast_delete);
 /**
  *	dev_unicast_add		- add a secondary unicast address
  *	@dev: device
- *	@addr: address to delete
+ *	@addr: address to add
  *	@alen: length of @addr
  *
  *	Add a secondary unicast address to the device or increase
