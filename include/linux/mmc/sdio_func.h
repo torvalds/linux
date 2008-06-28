@@ -1,7 +1,7 @@
 /*
  *  include/linux/mmc/sdio_func.h
  *
- *  Copyright 2007 Pierre Ossman
+ *  Copyright 2007-2008 Pierre Ossman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -119,6 +119,8 @@ extern int sdio_set_block_size(struct sdio_func *func, unsigned blksz);
 
 extern int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler);
 extern int sdio_release_irq(struct sdio_func *func);
+
+extern unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz);
 
 extern unsigned char sdio_readb(struct sdio_func *func,
 	unsigned int addr, int *err_ret);
