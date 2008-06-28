@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/card/mmc_test.c
  *
- *  Copyright 2007 Pierre Ossman
+ *  Copyright 2007-2008 Pierre Ossman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -857,6 +857,9 @@ static DEVICE_ATTR(test, S_IWUSR | S_IRUGO, mmc_test_show, mmc_test_store);
 static int mmc_test_probe(struct mmc_card *card)
 {
 	int ret;
+
+	if ((card->type != MMC_TYPE_MMC) && (card->type != MMC_TYPE_SD))
+		return -ENODEV;
 
 	mutex_init(&mmc_test_lock);
 
