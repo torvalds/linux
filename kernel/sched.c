@@ -5887,6 +5887,7 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
 		next = pick_next_task(rq, rq->curr);
 		if (!next)
 			break;
+		next->sched_class->put_prev_task(rq, next);
 		migrate_dead(dead_cpu, next);
 
 	}
