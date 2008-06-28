@@ -22,6 +22,7 @@
 #include "cx18-driver.h"
 #include <linux/firmware.h>
 
+#define CX18_AUDIO_ENABLE 0xc72014
 #define FWFILE "v4l-cx23418-dig.fw"
 
 int cx18_av_loadfw(struct cx18 *cx)
@@ -118,7 +119,6 @@ int cx18_av_loadfw(struct cx18 *cx)
 	   have a name in the spec. */
 	cx18_av_write4(cx, 0x09CC, 1);
 
-#define CX18_AUDIO_ENABLE            	0xc72014
 	v = read_reg(CX18_AUDIO_ENABLE);
 	/* If bit 11 is 1 */
 	if (v & 0x800)

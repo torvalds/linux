@@ -241,7 +241,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	}
 
 	switch (aud_input) {
-	case CX18_AV_AUDIO_SERIAL:
+	case CX18_AV_AUDIO_SERIAL1:
+	case CX18_AV_AUDIO_SERIAL2:
 		/* do nothing, use serial audio input */
 		break;
 	case CX18_AV_AUDIO4: reg &= ~0x30; break;

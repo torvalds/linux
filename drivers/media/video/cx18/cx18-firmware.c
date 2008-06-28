@@ -41,9 +41,6 @@
 
 #define CX18_REG_BUS_TIMEOUT_EN      	0xc72024
 
-#define CX18_AUDIO_ENABLE            	0xc72014
-#define CX18_REG_BUS_TIMEOUT_EN      	0xc72024
-
 #define CX18_FAST_CLOCK_PLL_INT      	0xc78000
 #define CX18_FAST_CLOCK_PLL_FRAC     	0xc78004
 #define CX18_FAST_CLOCK_PLL_POST     	0xc78008

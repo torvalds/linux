@@ -62,7 +62,8 @@ enum cx18_av_video_input {
 
 enum cx18_av_audio_input {
 	/* Audio inputs: serial or In4-In8 */
-	CX18_AV_AUDIO_SERIAL,
+	CX18_AV_AUDIO_SERIAL1,
+	CX18_AV_AUDIO_SERIAL2,
 	CX18_AV_AUDIO4 = 4,
 	CX18_AV_AUDIO5,
 	CX18_AV_AUDIO6,
