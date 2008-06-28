@@ -24,11 +24,10 @@
 #include "smscoreapi.h"
 
 #define SMS_BOARD_UNKNOWN 0
-#define SMS1XXX_BOARD_SIANO_SMS1000 1
-#define SMS1XXX_BOARD_SIANO_STELLAR 2
-#define SMS1XXX_BOARD_SIANO_NOVA_A  3
-#define SMS1XXX_BOARD_SIANO_NOVA_B  4
-#define SMS1XXX_BOARD_SIANO_VEGA    5
+#define SMS1XXX_BOARD_SIANO_STELLAR 1
+#define SMS1XXX_BOARD_SIANO_NOVA_A  2
+#define SMS1XXX_BOARD_SIANO_NOVA_B  3
+#define SMS1XXX_BOARD_SIANO_VEGA    4
 
 struct sms_board {
 	enum sms_device_type_st type;

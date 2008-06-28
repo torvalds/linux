@@ -38,24 +38,20 @@ static struct sms_board sms_boards[] = {
 	[SMS_BOARD_UNKNOWN] = {
 		.name	= "Unknown board",
 	},
-	[SMS1XXX_BOARD_SIANO_SMS1000] = {
-		.name	= "Siano Digital Receiver",
-		.type	= SMS_STELLAR,
-	},
 	[SMS1XXX_BOARD_SIANO_STELLAR] = {
-		.name	= "Siano Stellar reference board",
+		.name	= "Siano Stellar Digital Receiver",
 		.type	= SMS_STELLAR,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_A] = {
-		.name	= "Siano Nova A reference board",
+		.name	= "Siano Nova A Digital Receiver",
 		.type	= SMS_NOVA_A0,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_B] = {
-		.name	= "Siano Nova B reference board",
+		.name	= "Siano Nova B Digital Receiver",
 		.type	= SMS_NOVA_B0,
 	},
 	[SMS1XXX_BOARD_SIANO_VEGA] = {
-		.name	= "Siano Vega reference board",
+		.name	= "Siano Vega Digital Receiver",
 		.type	= SMS_VEGA,
 	},
 };
