@@ -139,7 +139,7 @@ void b43legacy_rfkill_init(struct b43legacy_wldev *dev)
 	snprintf(rfk->name, sizeof(rfk->name),
 		 "b43legacy-%s", wiphy_name(wl->hw->wiphy));
 	rfk->rfkill->name = rfk->name;
-	rfk->rfkill->state = RFKILL_STATE_ON;
+	rfk->rfkill->state = RFKILL_STATE_UNBLOCKED;
 	rfk->rfkill->data = dev;
 	rfk->rfkill->toggle_radio = b43legacy_rfkill_soft_toggle;
 	rfk->rfkill->user_claim_unsupported = 1;
