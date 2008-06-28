@@ -1110,7 +1110,6 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
  */
 static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_local *local = tx->local;
 	struct sk_buff *skb = tx->skb;
 	ieee80211_tx_handler *handler;
 	ieee80211_tx_result res = TX_DROP;
@@ -1123,7 +1122,7 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	}
 
 	if (unlikely(res == TX_DROP)) {
-		I802_DEBUG_INC(local->tx_handlers_drop);
+		I802_DEBUG_INC(tx->local->tx_handlers_drop);
 		dev_kfree_skb(skb);
 		for (i = 0; i < tx->num_extra_frag; i++)
 			if (tx->extra_frag[i])
@@ -1131,7 +1130,7 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 		kfree(tx->extra_frag);
 		return -1;
 	} else if (unlikely(res == TX_QUEUED)) {
-		I802_DEBUG_INC(local->tx_handlers_queued);
+		I802_DEBUG_INC(tx->local->tx_handlers_queued);
 		return -1;
 	}
 
