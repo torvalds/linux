@@ -195,7 +195,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 	unsigned pages_2m = 0, pages_4k = 0;
 	unsigned limit_pfn = end >> PAGE_SHIFT;
 
-	pgd_idx = pgd_index(PAGE_OFFSET);
+	pgd_idx = pgd_index(start + PAGE_OFFSET);
 	pgd = pgd_base + pgd_idx;
 	pfn = start >> PAGE_SHIFT;
 
@@ -218,7 +218,8 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 			 * and overlapping MTRRs into large pages can cause
 			 * slowdowns.
 			 */
-			if (cpu_has_pse && !(pgd_idx == 0 && pmd_idx == 0)) {
+			if (cpu_has_pse && !(pgd_idx == 0 && pmd_idx == 0) &&
+				(pfn + PTRS_PER_PTE) <= limit_pfn) {
 				unsigned int addr2;
 				pgprot_t prot = PAGE_KERNEL_LARGE;
 
@@ -233,13 +234,12 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 				set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
-				max_pfn_mapped = pfn;
 				continue;
 			}
 			pte = one_page_table_init(pmd);
 
 			for (pte_ofs = 0;
-			     pte_ofs < PTRS_PER_PTE && pfn < max_low_pfn;
+			     pte_ofs < PTRS_PER_PTE && pfn < limit_pfn;
 			     pte++, pfn++, pte_ofs++, addr += PAGE_SIZE) {
 				pgprot_t prot = PAGE_KERNEL;
 
@@ -249,7 +249,6 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 				pages_4k++;
 				set_pte(pte, pfn_pte(pfn, prot));
 			}
-			max_pfn_mapped = pfn;
 		}
 	}
 	update_page_count(PG_LEVEL_2M, pages_2m);
@@ -729,7 +728,7 @@ void __init setup_bootmem_allocator(void)
 
 static void __init find_early_table_space(unsigned long end)
 {
-	unsigned long puds, pmds, tables, start;
+	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	tables = PAGE_ALIGN(puds * sizeof(pud_t));
@@ -737,10 +736,15 @@ static void __init find_early_table_space(unsigned long end)
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
 
-	if (!cpu_has_pse) {
-		int ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		tables += PAGE_ALIGN(ptes * sizeof(pte_t));
-	}
+	if (cpu_has_pse) {
+		unsigned long extra;
+		extra = end - ((end>>21) << 21);
+		extra += (2UL<<20);
+		ptes = (extra + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	} else
+		ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	tables += PAGE_ALIGN(ptes * sizeof(pte_t));
 
 	/*
 	 * RED-PEN putting page tables only on node 0 could
