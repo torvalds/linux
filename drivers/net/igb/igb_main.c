@@ -718,7 +718,8 @@ void igb_down(struct igb_adapter *adapter)
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 
-	igb_reset(adapter);
+	if (!pci_channel_offline(adapter->pdev))
+		igb_reset(adapter);
 	igb_clean_all_tx_rings(adapter);
 	igb_clean_all_rx_rings(adapter);
 }

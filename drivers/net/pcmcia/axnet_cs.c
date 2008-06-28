@@ -525,12 +525,14 @@ static int axnet_open(struct net_device *dev)
     int ret;
     axnet_dev_t *info = PRIV(dev);
     struct pcmcia_device *link = info->p_dev;
+    unsigned int nic_base = dev->base_addr;
     
     DEBUG(2, "axnet_open('%s')\n", dev->name);
 
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
+    outb_p(0xFF, nic_base + EN0_ISR); /* Clear bogus intr. */
     ret = request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, "axnet_cs", dev);
     if (ret)
 	    return ret;

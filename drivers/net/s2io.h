@@ -75,10 +75,6 @@ static int debug_level = ERR_DBG;
 /* DEBUG message print. */
 #define DBG_PRINT(dbg_level, args...)  if(!(debug_level<dbg_level)) printk(args)
 
-#ifndef DMA_ERROR_CODE
-#define DMA_ERROR_CODE          (~(dma_addr_t)0x0)
-#endif
-
 /* Protocol assist features of the NIC */
 #define L3_CKSUM_OK 0xFFFF
 #define L4_CKSUM_OK 0xFFFF
