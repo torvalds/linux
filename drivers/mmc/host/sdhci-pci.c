@@ -142,6 +142,7 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 	if (chip->pdev->revision == 0) {
 		chip->quirks |= SDHCI_QUIRK_32BIT_DMA_ADDR |
 			  SDHCI_QUIRK_32BIT_DMA_SIZE |
+			  SDHCI_QUIRK_32BIT_ADMA_SIZE |
 			  SDHCI_QUIRK_RESET_AFTER_REQUEST;
 	}
 
@@ -206,6 +207,22 @@ static void jmicron_enable_mmc(struct sdhci_host *host, int on)
 
 static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 {
+	if (slot->chip->pdev->revision == 0) {
+		u16 version;
+
+		version = readl(slot->host->ioaddr + SDHCI_HOST_VERSION);
+		version = (version & SDHCI_VENDOR_VER_MASK) >>
+			SDHCI_VENDOR_VER_SHIFT;
+
+		/*
+		 * Older versions of the chip have lots of nasty glitches
+		 * in the ADMA engine. It's best just to avoid it
+		 * completely.
+		 */
+		if (version < 0xAC)
+			slot->host->quirks |= SDHCI_QUIRK_BROKEN_ADMA;
+	}
+
 	/*
 	 * The secondary interface requires a bit set to get the
 	 * interrupts.

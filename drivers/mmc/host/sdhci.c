@@ -124,7 +124,8 @@ static void sdhci_init(struct sdhci_host *host)
 		SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT |
 		SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT |
 		SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
-		SDHCI_INT_DMA_END | SDHCI_INT_DATA_END | SDHCI_INT_RESPONSE;
+		SDHCI_INT_DMA_END | SDHCI_INT_DATA_END | SDHCI_INT_RESPONSE |
+		SDHCI_INT_ADMA_ERROR;
 
 	writel(intmask, host->ioaddr + SDHCI_INT_ENABLE);
 	writel(intmask, host->ioaddr + SDHCI_SIGNAL_ENABLE);
@@ -314,6 +315,196 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	DBG("PIO transfer complete.\n");
 }
 
+static char *sdhci_kmap_atomic(struct scatterlist *sg, unsigned long *flags)
+{
+	local_irq_save(*flags);
+	return kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
+}
+
+static void sdhci_kunmap_atomic(void *buffer, unsigned long *flags)
+{
+	kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
+	local_irq_restore(*flags);
+}
+
+static void sdhci_adma_table_pre(struct sdhci_host *host,
+	struct mmc_data *data)
+{
+	int direction;
+
+	u8 *desc;
+	u8 *align;
+	dma_addr_t addr;
+	dma_addr_t align_addr;
+	int len, offset;
+
+	struct scatterlist *sg;
+	int i;
+	char *buffer;
+	unsigned long flags;
+
+	/*
+	 * The spec does not specify endianness of descriptor table.
+	 * We currently guess that it is LE.
+	 */
+
+	if (data->flags & MMC_DATA_READ)
+		direction = DMA_FROM_DEVICE;
+	else
+		direction = DMA_TO_DEVICE;
+
+	/*
+	 * The ADMA descriptor table is mapped further down as we
+	 * need to fill it with data first.
+	 */
+
+	host->align_addr = dma_map_single(mmc_dev(host->mmc),
+		host->align_buffer, 128 * 4, direction);
+	BUG_ON(host->align_addr & 0x3);
+
+	host->sg_count = dma_map_sg(mmc_dev(host->mmc),
+		data->sg, data->sg_len, direction);
+
+	desc = host->adma_desc;
+	align = host->align_buffer;
+
+	align_addr = host->align_addr;
+
+	for_each_sg(data->sg, sg, host->sg_count, i) {
+		addr = sg_dma_address(sg);
+		len = sg_dma_len(sg);
+
+		/*
+		 * The SDHCI specification states that ADMA
+		 * addresses must be 32-bit aligned. If they
+		 * aren't, then we use a bounce buffer for
+		 * the (up to three) bytes that screw up the
+		 * alignment.
+		 */
+		offset = (4 - (addr & 0x3)) & 0x3;
+		if (offset) {
+			if (data->flags & MMC_DATA_WRITE) {
+				buffer = sdhci_kmap_atomic(sg, &flags);
+				memcpy(align, buffer, offset);
+				sdhci_kunmap_atomic(buffer, &flags);
+			}
+
+			desc[7] = (align_addr >> 24) & 0xff;
+			desc[6] = (align_addr >> 16) & 0xff;
+			desc[5] = (align_addr >> 8) & 0xff;
+			desc[4] = (align_addr >> 0) & 0xff;
+
+			BUG_ON(offset > 65536);
+
+			desc[3] = (offset >> 8) & 0xff;
+			desc[2] = (offset >> 0) & 0xff;
+
+			desc[1] = 0x00;
+			desc[0] = 0x21; /* tran, valid */
+
+			align += 4;
+			align_addr += 4;
+
+			desc += 8;
+
+			addr += offset;
+			len -= offset;
+		}
+
+		desc[7] = (addr >> 24) & 0xff;
+		desc[6] = (addr >> 16) & 0xff;
+		desc[5] = (addr >> 8) & 0xff;
+		desc[4] = (addr >> 0) & 0xff;
+
+		BUG_ON(len > 65536);
+
+		desc[3] = (len >> 8) & 0xff;
+		desc[2] = (len >> 0) & 0xff;
+
+		desc[1] = 0x00;
+		desc[0] = 0x21; /* tran, valid */
+
+		desc += 8;
+
+		/*
+		 * If this triggers then we have a calculation bug
+		 * somewhere. :/
+		 */
+		WARN_ON((desc - host->adma_desc) > (128 * 2 + 1) * 4);
+	}
+
+	/*
+	 * Add a terminating entry.
+	 */
+	desc[7] = 0;
+	desc[6] = 0;
+	desc[5] = 0;
+	desc[4] = 0;
+
+	desc[3] = 0;
+	desc[2] = 0;
+
+	desc[1] = 0x00;
+	desc[0] = 0x03; /* nop, end, valid */
+
+	/*
+	 * Resync align buffer as we might have changed it.
+	 */
+	if (data->flags & MMC_DATA_WRITE) {
+		dma_sync_single_for_device(mmc_dev(host->mmc),
+			host->align_addr, 128 * 4, direction);
+	}
+
+	host->adma_addr = dma_map_single(mmc_dev(host->mmc),
+		host->adma_desc, (128 * 2 + 1) * 4, DMA_TO_DEVICE);
+	BUG_ON(host->adma_addr & 0x3);
+}
+
+static void sdhci_adma_table_post(struct sdhci_host *host,
+	struct mmc_data *data)
+{
+	int direction;
+
+	struct scatterlist *sg;
+	int i, size;
+	u8 *align;
+	char *buffer;
+	unsigned long flags;
+
+	if (data->flags & MMC_DATA_READ)
+		direction = DMA_FROM_DEVICE;
+	else
+		direction = DMA_TO_DEVICE;
+
+	dma_unmap_single(mmc_dev(host->mmc), host->adma_addr,
+		(128 * 2 + 1) * 4, DMA_TO_DEVICE);
+
+	dma_unmap_single(mmc_dev(host->mmc), host->align_addr,
+		128 * 4, direction);
+
+	if (data->flags & MMC_DATA_READ) {
+		dma_sync_sg_for_cpu(mmc_dev(host->mmc), data->sg,
+			data->sg_len, direction);
+
+		align = host->align_buffer;
+
+		for_each_sg(data->sg, sg, host->sg_count, i) {
+			if (sg_dma_address(sg) & 0x3) {
+				size = 4 - (sg_dma_address(sg) & 0x3);
+
+				buffer = sdhci_kmap_atomic(sg, &flags);
+				memcpy(buffer, align, size);
+				sdhci_kunmap_atomic(buffer, &flags);
+
+				align += 4;
+			}
+		}
+	}
+
+	dma_unmap_sg(mmc_dev(host->mmc), data->sg,
+		data->sg_len, direction);
+}
+
 static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_data *data)
 {
 	u8 count;
@@ -363,6 +554,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_data *data)
 static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 {
 	u8 count;
+	u8 ctrl;
 
 	WARN_ON(host->data);
 
@@ -383,35 +575,104 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	if (host->flags & SDHCI_USE_DMA)
 		host->flags |= SDHCI_REQ_USE_DMA;
 
-	if (unlikely((host->flags & SDHCI_REQ_USE_DMA) &&
-		(host->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE) &&
-		((data->blksz * data->blocks) & 0x3))) {
-		DBG("Reverting to PIO because of transfer size (%d)\n",
-			data->blksz * data->blocks);
-		host->flags &= ~SDHCI_REQ_USE_DMA;
+	/*
+	 * FIXME: This doesn't account for merging when mapping the
+	 * scatterlist.
+	 */
+	if (host->flags & SDHCI_REQ_USE_DMA) {
+		int broken, i;
+		struct scatterlist *sg;
+
+		broken = 0;
+		if (host->flags & SDHCI_USE_ADMA) {
+			if (host->quirks & SDHCI_QUIRK_32BIT_ADMA_SIZE)
+				broken = 1;
+		} else {
+			if (host->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE)
+				broken = 1;
+		}
+
+		if (unlikely(broken)) {
+			for_each_sg(data->sg, sg, data->sg_len, i) {
+				if (sg->length & 0x3) {
+					DBG("Reverting to PIO because of "
+						"transfer size (%d)\n",
+						sg->length);
+					host->flags &= ~SDHCI_REQ_USE_DMA;
+					break;
+				}
+			}
+		}
 	}
 
 	/*
 	 * The assumption here being that alignment is the same after
 	 * translation to device address space.
 	 */
-	if (unlikely((host->flags & SDHCI_REQ_USE_DMA) &&
-		(host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) &&
-		(data->sg->offset & 0x3))) {
-		DBG("Reverting to PIO because of bad alignment\n");
-		host->flags &= ~SDHCI_REQ_USE_DMA;
+	if (host->flags & SDHCI_REQ_USE_DMA) {
+		int broken, i;
+		struct scatterlist *sg;
+
+		broken = 0;
+		if (host->flags & SDHCI_USE_ADMA) {
+			/*
+			 * As we use 3 byte chunks to work around
+			 * alignment problems, we need to check this
+			 * quirk.
+			 */
+			if (host->quirks & SDHCI_QUIRK_32BIT_ADMA_SIZE)
+				broken = 1;
+		} else {
+			if (host->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR)
+				broken = 1;
+		}
+
+		if (unlikely(broken)) {
+			for_each_sg(data->sg, sg, data->sg_len, i) {
+				if (sg->offset & 0x3) {
+					DBG("Reverting to PIO because of "
+						"bad alignment\n");
+					host->flags &= ~SDHCI_REQ_USE_DMA;
+					break;
+				}
+			}
+		}
+	}
+
+	/*
+	 * Always adjust the DMA selection as some controllers
+	 * (e.g. JMicron) can't do PIO properly when the selection
+	 * is ADMA.
+	 */
+	if (host->version >= SDHCI_SPEC_200) {
+		ctrl = readb(host->ioaddr + SDHCI_HOST_CONTROL);
+		ctrl &= ~SDHCI_CTRL_DMA_MASK;
+		if ((host->flags & SDHCI_REQ_USE_DMA) &&
+			(host->flags & SDHCI_USE_ADMA))
+			ctrl |= SDHCI_CTRL_ADMA32;
+		else
+			ctrl |= SDHCI_CTRL_SDMA;
+		writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 	}
 
 	if (host->flags & SDHCI_REQ_USE_DMA) {
-		int count;
+		if (host->flags & SDHCI_USE_ADMA) {
+			sdhci_adma_table_pre(host, data);
+			writel(host->adma_addr,
+				host->ioaddr + SDHCI_ADMA_ADDRESS);
+		} else {
+			int count;
 
-		count = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
-				(data->flags & MMC_DATA_READ) ?
-					DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		WARN_ON(count != 1);
+			count = dma_map_sg(mmc_dev(host->mmc),
+					data->sg, data->sg_len,
+					(data->flags & MMC_DATA_READ) ?
+						DMA_FROM_DEVICE :
+						DMA_TO_DEVICE);
+			WARN_ON(count != 1);
 
-		writel(sg_dma_address(data->sg),
-			host->ioaddr + SDHCI_DMA_ADDRESS);
+			writel(sg_dma_address(data->sg),
+				host->ioaddr + SDHCI_DMA_ADDRESS);
+		}
 	} else {
 		host->cur_sg = data->sg;
 		host->num_sg = data->sg_len;
@@ -457,9 +718,13 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	host->data = NULL;
 
 	if (host->flags & SDHCI_REQ_USE_DMA) {
-		dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
-			(data->flags & MMC_DATA_READ) ?
-				DMA_FROM_DEVICE : DMA_TO_DEVICE);
+		if (host->flags & SDHCI_USE_ADMA)
+			sdhci_adma_table_post(host, data);
+		else {
+			dma_unmap_sg(mmc_dev(host->mmc), data->sg,
+				data->sg_len, (data->flags & MMC_DATA_READ) ?
+					DMA_FROM_DEVICE : DMA_TO_DEVICE);
+		}
 	}
 
 	/*
@@ -1008,6 +1273,8 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		host->data->error = -ETIMEDOUT;
 	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT))
 		host->data->error = -EILSEQ;
+	else if (intmask & SDHCI_INT_ADMA_ERROR)
+		host->data->error = -EIO;
 
 	if (host->data->error)
 		sdhci_finish_data(host);
@@ -1199,7 +1466,6 @@ int sdhci_add_host(struct sdhci_host *host)
 {
 	struct mmc_host *mmc;
 	unsigned int caps;
-	unsigned int version;
 	int ret;
 
 	WARN_ON(host == NULL);
@@ -1213,12 +1479,13 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	sdhci_reset(host, SDHCI_RESET_ALL);
 
-	version = readw(host->ioaddr + SDHCI_HOST_VERSION);
-	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
-	if (version > 1) {
+	host->version = readw(host->ioaddr + SDHCI_HOST_VERSION);
+	host->version = (host->version & SDHCI_SPEC_VER_MASK)
+				>> SDHCI_SPEC_VER_SHIFT;
+	if (host->version > SDHCI_SPEC_200) {
 		printk(KERN_ERR "%s: Unknown controller version (%d). "
 			"You may experience problems.\n", mmc_hostname(mmc),
-			version);
+			host->version);
 	}
 
 	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
@@ -1237,13 +1504,43 @@ int sdhci_add_host(struct sdhci_host *host)
 	}
 
 	if (host->flags & SDHCI_USE_DMA) {
+		if ((host->version >= SDHCI_SPEC_200) &&
+				(caps & SDHCI_CAN_DO_ADMA2))
+			host->flags |= SDHCI_USE_ADMA;
+	}
+
+	if ((host->quirks & SDHCI_QUIRK_BROKEN_ADMA) &&
+		(host->flags & SDHCI_USE_ADMA)) {
+		DBG("Disabling ADMA as it is marked broken\n");
+		host->flags &= ~SDHCI_USE_ADMA;
+	}
+
+	if (host->flags & SDHCI_USE_DMA) {
 		if (host->ops->enable_dma) {
 			if (host->ops->enable_dma(host)) {
 				printk(KERN_WARNING "%s: No suitable DMA "
 					"available. Falling back to PIO.\n",
 					mmc_hostname(mmc));
-				host->flags &= ~SDHCI_USE_DMA;
+				host->flags &= ~(SDHCI_USE_DMA | SDHCI_USE_ADMA);
 			}
+		}
+	}
+
+	if (host->flags & SDHCI_USE_ADMA) {
+		/*
+		 * We need to allocate descriptors for all sg entries
+		 * (128) and potentially one alignment transfer for
+		 * each of those entries.
+		 */
+		host->adma_desc = kmalloc((128 * 2 + 1) * 4, GFP_KERNEL);
+		host->align_buffer = kmalloc(128 * 4, GFP_KERNEL);
+		if (!host->adma_desc || !host->align_buffer) {
+			kfree(host->adma_desc);
+			kfree(host->align_buffer);
+			printk(KERN_WARNING "%s: Unable to allocate ADMA "
+				"buffers. Falling back to standard DMA.\n",
+				mmc_hostname(mmc));
+			host->flags &= ~SDHCI_USE_ADMA;
 		}
 	}
 
@@ -1298,13 +1595,16 @@ int sdhci_add_host(struct sdhci_host *host)
 	spin_lock_init(&host->lock);
 
 	/*
-	 * Maximum number of segments. Hardware cannot do scatter lists.
+	 * Maximum number of segments. Depends on if the hardware
+	 * can do scatter/gather or not.
 	 */
-	if (host->flags & SDHCI_USE_DMA)
+	if (host->flags & SDHCI_USE_ADMA)
+		mmc->max_hw_segs = 128;
+	else if (host->flags & SDHCI_USE_DMA)
 		mmc->max_hw_segs = 1;
-	else
-		mmc->max_hw_segs = 16;
-	mmc->max_phys_segs = 16;
+	else /* PIO */
+		mmc->max_hw_segs = 128;
+	mmc->max_phys_segs = 128;
 
 	/*
 	 * Maximum number of sectors in one transfer. Limited by DMA boundary
@@ -1314,9 +1614,13 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
-	 * of bytes.
+	 * of bytes. When doing hardware scatter/gather, each entry cannot
+	 * be larger than 64 KiB though.
 	 */
-	mmc->max_seg_size = mmc->max_req_size;
+	if (host->flags & SDHCI_USE_ADMA)
+		mmc->max_seg_size = 65536;
+	else
+		mmc->max_seg_size = mmc->max_req_size;
 
 	/*
 	 * Maximum block size. This varies from controller to controller and
@@ -1371,8 +1675,9 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	mmc_add_host(mmc);
 
-	printk(KERN_INFO "%s: SDHCI controller on %s [%s] using %s\n",
+	printk(KERN_INFO "%s: SDHCI controller on %s [%s] using %s%s\n",
 		mmc_hostname(mmc), host->hw_name, mmc_dev(mmc)->bus_id,
+		(host->flags & SDHCI_USE_ADMA)?"A":"",
 		(host->flags & SDHCI_USE_DMA)?"DMA":"PIO");
 
 	return 0;
@@ -1426,6 +1731,12 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 
 	tasklet_kill(&host->card_tasklet);
 	tasklet_kill(&host->finish_tasklet);
+
+	kfree(host->adma_desc);
+	kfree(host->align_buffer);
+
+	host->adma_desc = NULL;
+	host->align_buffer = NULL;
 }
 
 EXPORT_SYMBOL_GPL(sdhci_remove_host);

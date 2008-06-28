@@ -60,6 +60,11 @@
 #define  SDHCI_CTRL_LED		0x01
 #define  SDHCI_CTRL_4BITBUS	0x02
 #define  SDHCI_CTRL_HISPD	0x04
+#define  SDHCI_CTRL_DMA_MASK	0x18
+#define   SDHCI_CTRL_SDMA	0x00
+#define   SDHCI_CTRL_ADMA1	0x08
+#define   SDHCI_CTRL_ADMA32	0x10
+#define   SDHCI_CTRL_ADMA64	0x18
 
 #define SDHCI_POWER_CONTROL	0x29
 #define  SDHCI_POWER_ON		0x01
@@ -105,6 +110,7 @@
 #define  SDHCI_INT_DATA_END_BIT	0x00400000
 #define  SDHCI_INT_BUS_POWER	0x00800000
 #define  SDHCI_INT_ACMD12ERR	0x01000000
+#define  SDHCI_INT_ADMA_ERROR	0x02000000
 
 #define  SDHCI_INT_NORMAL_MASK	0x00007FFF
 #define  SDHCI_INT_ERROR_MASK	0xFFFF8000
@@ -128,11 +134,14 @@
 #define  SDHCI_CLOCK_BASE_SHIFT	8
 #define  SDHCI_MAX_BLOCK_MASK	0x00030000
 #define  SDHCI_MAX_BLOCK_SHIFT  16
+#define  SDHCI_CAN_DO_ADMA2	0x00080000
+#define  SDHCI_CAN_DO_ADMA1	0x00100000
 #define  SDHCI_CAN_DO_HISPD	0x00200000
 #define  SDHCI_CAN_DO_DMA	0x00400000
 #define  SDHCI_CAN_VDD_330	0x01000000
 #define  SDHCI_CAN_VDD_300	0x02000000
 #define  SDHCI_CAN_VDD_180	0x04000000
+#define  SDHCI_CAN_64BIT	0x10000000
 
 /* 44-47 reserved for more caps */
 
@@ -140,7 +149,16 @@
 
 /* 4C-4F reserved for more max current */
 
-/* 50-FB reserved */
+#define SDHCI_SET_ACMD12_ERROR	0x50
+#define SDHCI_SET_INT_ERROR	0x52
+
+#define SDHCI_ADMA_ERROR	0x54
+
+/* 55-57 reserved */
+
+#define SDHCI_ADMA_ADDRESS	0x58
+
+/* 60-FB reserved */
 
 #define SDHCI_SLOT_INT_STATUS	0xFC
 
@@ -149,6 +167,8 @@
 #define  SDHCI_VENDOR_VER_SHIFT	8
 #define  SDHCI_SPEC_VER_MASK	0x00FF
 #define  SDHCI_SPEC_VER_SHIFT	0
+#define   SDHCI_SPEC_100	0
+#define   SDHCI_SPEC_200	1
 
 struct sdhci_ops;
 
@@ -170,16 +190,20 @@ struct sdhci_host {
 #define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
 /* Controller has an unusable DMA engine */
 #define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
+/* Controller has an unusable ADMA engine */
+#define SDHCI_QUIRK_BROKEN_ADMA				(1<<6)
 /* Controller can only DMA from 32-bit aligned addresses */
-#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<6)
+#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<7)
 /* Controller can only DMA chunk sizes that are a multiple of 32 bits */
-#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<7)
+#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<8)
+/* Controller can only ADMA chunks that are a multiple of 32 bits */
+#define SDHCI_QUIRK_32BIT_ADMA_SIZE			(1<<9)
 /* Controller needs to be reset after each request to stay stable */
-#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<8)
+#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<10)
 /* Controller needs voltage and power writes to happen separately */
-#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<9)
+#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<11)
 /* Controller provides an incorrect timeout value for transfers */
-#define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<10)
+#define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
@@ -197,8 +221,11 @@ struct sdhci_host {
 
 	int			flags;		/* Host attributes */
 #define SDHCI_USE_DMA		(1<<0)		/* Host is DMA capable */
-#define SDHCI_REQ_USE_DMA	(1<<1)		/* Use DMA for this req. */
-#define SDHCI_DEVICE_DEAD	(1<<2)		/* Device unresponsive */
+#define SDHCI_USE_ADMA		(1<<1)		/* Host is ADMA capable */
+#define SDHCI_REQ_USE_DMA	(1<<2)		/* Use DMA for this req. */
+#define SDHCI_DEVICE_DEAD	(1<<3)		/* Device unresponsive */
+
+	unsigned int		version;	/* SDHCI spec. version */
 
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 	unsigned int		timeout_clk;	/* Timeout freq (KHz) */
@@ -215,6 +242,14 @@ struct sdhci_host {
 	int			num_sg;		/* Entries left */
 	int			offset;		/* Offset into current sg */
 	int			remain;		/* Bytes left in current */
+
+	int			sg_count;	/* Mapped sg entries */
+
+	u8			*adma_desc;	/* ADMA descriptor table */
+	u8			*align_buffer;	/* Bounce buffer */
+
+	dma_addr_t		adma_addr;	/* Mapped ADMA descr. table */
+	dma_addr_t		align_addr;	/* Mapped bounce buffer */
 
 	struct tasklet_struct	card_tasklet;	/* Tasklet structures */
 	struct tasklet_struct	finish_tasklet;
