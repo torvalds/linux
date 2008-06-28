@@ -1084,7 +1084,21 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	cx_write(port->reg_gpcnt_ctl, 3);
 	q->count = 1;
 
-	if (cx23885_boards[dev->board].portb & CX23885_MPEG_ENCODER) {
+	/* Set VIDB pins to input */
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) {
+		reg = cx_read(PAD_CTRL);
+		reg &= ~0x3; /* Clear TS1_OE & TS1_SOP_OE */
+		cx_write(PAD_CTRL, reg);
+	}
+
+	/* Set VIDC pins to input */
+	if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
+		reg = cx_read(PAD_CTRL);
+		reg &= ~0x4; /* Clear TS2_SOP_OE */
+		cx_write(PAD_CTRL, reg);
+	}
+
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER) {
 
 		reg = cx_read(PAD_CTRL);
 		reg = reg & ~0x1;    /* Clear TS1_OE */
@@ -1134,7 +1148,7 @@ static int cx23885_stop_dma(struct cx23885_tsport *port)
 	cx_clear(port->reg_ts_int_msk, port->ts_int_msk_val);
 	cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
 
-	if (cx23885_boards[dev->board].portb & CX23885_MPEG_ENCODER) {
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER) {
 
 		reg = cx_read(PAD_CTRL);
 
