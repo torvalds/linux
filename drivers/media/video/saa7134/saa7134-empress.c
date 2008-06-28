@@ -294,10 +294,20 @@ static int empress_streamoff(struct file *file, void *priv,
 	return videobuf_streamoff(&dev->empress_tsq);
 }
 
+static int saa7134_i2c_call_saa6752(struct saa7134_dev *dev,
+					      unsigned int cmd, void *arg)
+{
+	if (dev->mpeg_i2c_client == NULL)
+		return -EINVAL;
+	return dev->mpeg_i2c_client->driver->command(dev->mpeg_i2c_client,
+								cmd, arg);
+}
+
 static int empress_s_ext_ctrls(struct file *file, void *priv,
 			       struct v4l2_ext_controls *ctrls)
 {
 	struct saa7134_dev *dev = file->private_data;
+	int err;
 
 	/* count == 0 is abused in saa6752hs.c, so that special
 		case is handled here explicitly. */
@@ -307,10 +317,10 @@ static int empress_s_ext_ctrls(struct file *file, void *priv,
 	if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 		return -EINVAL;
 
-	saa7134_i2c_call_clients(dev, VIDIOC_S_EXT_CTRLS, ctrls);
+	err = saa7134_i2c_call_saa6752(dev, VIDIOC_S_EXT_CTRLS, ctrls);
 	ts_init_encoder(dev);
 
-	return 0;
+	return err;
 }
 
 static int empress_g_ext_ctrls(struct file *file, void *priv,
@@ -320,9 +330,62 @@ static int empress_g_ext_ctrls(struct file *file, void *priv,
 
 	if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 		return -EINVAL;
-	saa7134_i2c_call_clients(dev, VIDIOC_G_EXT_CTRLS, ctrls);
+	return saa7134_i2c_call_saa6752(dev, VIDIOC_G_EXT_CTRLS, ctrls);
+}
 
-	return 0;
+static int empress_queryctrl(struct file *file, void *priv,
+					struct v4l2_queryctrl *c)
+{
+	static const u32 user_ctrls[] = {
+		V4L2_CID_USER_CLASS,
+		V4L2_CID_BRIGHTNESS,
+		V4L2_CID_CONTRAST,
+		V4L2_CID_SATURATION,
+		V4L2_CID_HUE,
+		V4L2_CID_AUDIO_VOLUME,
+		V4L2_CID_AUDIO_MUTE,
+		V4L2_CID_HFLIP,
+		0
+	};
+
+	static const u32 mpeg_ctrls[] = {
+		V4L2_CID_MPEG_CLASS,
+		V4L2_CID_MPEG_STREAM_TYPE,
+		V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
+		V4L2_CID_MPEG_AUDIO_ENCODING,
+		V4L2_CID_MPEG_AUDIO_L2_BITRATE,
+		V4L2_CID_MPEG_VIDEO_ENCODING,
+		V4L2_CID_MPEG_VIDEO_ASPECT,
+		V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
+		V4L2_CID_MPEG_VIDEO_BITRATE,
+		V4L2_CID_MPEG_VIDEO_BITRATE_PEAK,
+		0
+	};
+	static const u32 *ctrl_classes[] = {
+		user_ctrls,
+		mpeg_ctrls,
+		NULL
+	};
+	struct saa7134_dev *dev = file->private_data;
+
+	c->id = v4l2_ctrl_next(ctrl_classes, c->id);
+	if (c->id == 0)
+		return -EINVAL;
+	if (c->id == V4L2_CID_USER_CLASS || c->id == V4L2_CID_MPEG_CLASS)
+		return v4l2_ctrl_query_fill_std(c);
+	if (V4L2_CTRL_ID2CLASS(c->id) != V4L2_CTRL_CLASS_MPEG)
+		return saa7134_queryctrl(file, priv, c);
+	return saa7134_i2c_call_saa6752(dev, VIDIOC_QUERYCTRL, c);
+}
+
+static int empress_querymenu(struct file *file, void *priv,
+					struct v4l2_querymenu *c)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	if (V4L2_CTRL_ID2CLASS(c->id) != V4L2_CTRL_CLASS_MPEG)
+		return -EINVAL;
+	return saa7134_i2c_call_saa6752(dev, VIDIOC_QUERYMENU, c);
 }
 
 static const struct file_operations ts_fops =
@@ -363,7 +426,8 @@ static struct video_device saa7134_empress_template =
 	.vidioc_g_input			= empress_g_input,
 	.vidioc_s_input			= empress_s_input,
 
-	.vidioc_queryctrl		= saa7134_queryctrl,
+	.vidioc_queryctrl		= empress_queryctrl,
+	.vidioc_querymenu		= empress_querymenu,
 	.vidioc_g_ctrl			= saa7134_g_ctrl,
 	.vidioc_s_ctrl			= saa7134_s_ctrl,
 

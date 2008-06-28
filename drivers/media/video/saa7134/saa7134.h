@@ -553,6 +553,7 @@ struct saa7134_dev {
 	struct saa7134_ts          ts;
 	struct saa7134_dmaqueue    ts_q;
 	struct saa7134_mpeg_ops    *mops;
+	struct i2c_client 	   *mpeg_i2c_client;
 
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;
