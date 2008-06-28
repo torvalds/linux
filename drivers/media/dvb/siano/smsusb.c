@@ -1,5 +1,5 @@
 /*
- *  Driver for the Siano SMS10xx USB dongle
+ *  Driver for the Siano SMS1xxx USB dongle
  *
  *  author: Anatoly Greenblat
  *

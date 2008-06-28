@@ -1242,6 +1242,6 @@ void smscore_module_exit(void)
 module_init(smscore_module_init);
 module_exit(smscore_module_exit);
 
-MODULE_DESCRIPTION("smscore");
+MODULE_DESCRIPTION("Driver for the Siano SMS1XXX USB dongle");
 MODULE_AUTHOR("Siano Mobile Silicon,,, (doronc@siano-ms.com)");
 MODULE_LICENSE("GPL");
