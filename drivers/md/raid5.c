@@ -911,14 +911,16 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 	struct stripe_head *osh, *nsh;
 	LIST_HEAD(newstripes);
 	struct disk_info *ndisks;
-	int err = 0;
+	int err;
 	struct kmem_cache *sc;
 	int i;
 
 	if (newsize <= conf->pool_size)
 		return 0; /* never bother to shrink */
 
-	md_allow_write(conf->mddev);
+	err = md_allow_write(conf->mddev);
+	if (err)
+		return err;
 
 	/* Step 1 */
 	sc = kmem_cache_create(conf->cache_name[1-conf->active_name],
@@ -3843,6 +3845,8 @@ raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
 	unsigned long new;
+	int err;
+
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
 	if (!conf)
@@ -3858,7 +3862,9 @@ raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 		else
 			break;
 	}
-	md_allow_write(mddev);
+	err = md_allow_write(mddev);
+	if (err)
+		return err;
 	while (new > conf->max_nr_stripes) {
 		if (grow_one_stripe(conf))
 			conf->max_nr_stripes++;

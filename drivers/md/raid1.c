@@ -2136,7 +2136,7 @@ static int raid1_reshape(mddev_t *mddev)
 	conf_t *conf = mddev_to_conf(mddev);
 	int cnt, raid_disks;
 	unsigned long flags;
-	int d, d2;
+	int d, d2, err;
 
 	/* Cannot change chunk_size, layout, or level */
 	if (mddev->chunk_size != mddev->new_chunk ||
@@ -2148,7 +2148,9 @@ static int raid1_reshape(mddev_t *mddev)
 		return -EINVAL;
 	}
 
-	md_allow_write(mddev);
+	err = md_allow_write(mddev);
+	if (err)
+		return err;
 
 	raid_disks = mddev->raid_disks + mddev->delta_disks;
 
