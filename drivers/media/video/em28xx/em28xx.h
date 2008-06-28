@@ -57,6 +57,7 @@
 #define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
 #define EM2880_BOARD_PINNACLE_PCTV_HD_PRO	17
 #define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2	18
+#define EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA  19
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -249,6 +250,7 @@ struct em28xx_board {
 	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
+	unsigned int has_snapshot_button:1;
 
 	enum em28xx_decoder decoder;
 
@@ -328,6 +330,7 @@ struct em28xx {
 	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
+	unsigned int has_snapshot_button:1;
 
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
@@ -418,6 +421,11 @@ struct em28xx {
 	/* Caches GPO and GPIO registers */
 	unsigned char	reg_gpo, reg_gpio;
 
+	/* Snapshot button */
+	char snapshot_button_path[30];	/* path of the input dev */
+	struct input_dev *sbutton_input_dev;
+	struct delayed_work sbutton_query_work;
+
 	struct em28xx_dvb *dvb;
 };
 
@@ -483,6 +491,8 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 				     u32 *ir_raw);
+void em28xx_register_snapshot_button(struct em28xx *dev);
+void em28xx_deregister_snapshot_button(struct em28xx *dev);
 
 /* printk macros */
 

@@ -426,6 +426,19 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	[EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA] = {
+		.name         = "PointNix Intra-Oral Camera",
+		.has_snapshot_button = 1,
+		.vchannels    = 1,
+		.tda9887_conf = TDA9887_PRESENT,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_SAA7113,
+		.input          = { {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = 0,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -522,6 +535,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash [] = {
 static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0xb06a32c3, EM2800_BOARD_TERRATEC_CINERGY_200, TUNER_LG_PAL_NEW_TAPC},
 	{0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC},
+	{0x1ba50080, EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA, TUNER_ABSENT},
 };
 
 int em28xx_tuner_callback(void *ptr, int command, int arg)
@@ -554,6 +568,7 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
 	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
+	dev->has_snapshot_button = em28xx_boards[dev->model].has_snapshot_button;
 }
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -840,6 +855,9 @@ void em28xx_card_setup(struct em28xx *dev)
 		if (!em28xx_hint_board(dev))
 			em28xx_set_model(dev);
 	}
+
+	if (dev->has_snapshot_button)
+		em28xx_register_snapshot_button(dev);
 
 	/* Allow override tuner type by a module parameter */
 	if (tuner >= 0)

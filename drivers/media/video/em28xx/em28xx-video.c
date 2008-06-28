@@ -1590,6 +1590,8 @@ static void em28xx_release_resources(struct em28xx *dev)
 				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
 				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
 	list_del(&dev->devlist);
+	if (dev->sbutton_input_dev)
+		em28xx_deregister_snapshot_button(dev);
 	if (dev->radio_dev) {
 		if (-1 != dev->radio_dev->minor)
 			video_unregister_device(dev->radio_dev);
