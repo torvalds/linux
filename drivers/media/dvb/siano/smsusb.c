@@ -209,14 +209,14 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id)
 		rc = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 2),
 				  fw_buffer, fw->size, &dummy, 1000);
 
-		sms_info("sent %d(%d) bytes, rc %d", fw->size, dummy, rc);
+		sms_info("sent %zd(%d) bytes, rc %d", fw->size, dummy, rc);
 
 		kfree(fw_buffer);
 	} else {
 		sms_err("failed to allocate firmware buffer");
 		rc = -ENOMEM;
 	}
-	sms_info("read FW %s, size=%d", smsusb1_fw_lkup[id], fw->size);
+	sms_info("read FW %s, size=%zd", smsusb1_fw_lkup[id], fw->size);
 
 	release_firmware(fw);
 

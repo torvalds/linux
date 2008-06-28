@@ -601,7 +601,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 		sms_info("failed to open \"%s\"", filename);
 		return rc;
 	}
-	sms_info("read FW %s, size=%d", filename, fw->size);
+	sms_info("read FW %s, size=%zd", filename, fw->size);
 	fw_buffer = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
 			    GFP_KERNEL | GFP_DMA);
 	if (fw_buffer) {
