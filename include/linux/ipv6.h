@@ -164,6 +164,7 @@ struct ipv6_devconf {
 	__s32		mc_forwarding;
 #endif
 	__s32		disable_ipv6;
+	__s32		accept_dad;
 	void		*sysctl;
 };
 
@@ -196,6 +197,7 @@ enum {
 	DEVCONF_ACCEPT_SOURCE_ROUTE,
 	DEVCONF_MC_FORWARDING,
 	DEVCONF_DISABLE_IPV6,
+	DEVCONF_ACCEPT_DAD,
 	DEVCONF_MAX
 };
 

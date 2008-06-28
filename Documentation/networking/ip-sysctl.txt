@@ -1029,6 +1029,13 @@ disable_ipv6 - BOOLEAN
 	Disable IPv6 operation.
 	Default: FALSE (enable IPv6 operation)
 
+accept_dad - INTEGER
+	Whether to accept DAD (Duplicate Address Detection).
+	0: Disable DAD
+	1: Enable DAD (default)
+	2: Enable DAD, and disable IPv6 operation if MAC-based duplicate
+	   link-local address has been found.
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
