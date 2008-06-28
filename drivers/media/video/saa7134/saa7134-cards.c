@@ -5371,6 +5371,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5169,
+		.subdevice    = 0x1502,
+		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x5ace,
 		.subdevice    = 0x6290,
 		.driver_data  = SAA7134_BOARD_BEHOLD_H6,
