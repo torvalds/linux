@@ -139,6 +139,12 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 {
 	int ret;
 
+	if (chip->pdev->revision == 0) {
+		chip->quirks |= SDHCI_QUIRK_32BIT_DMA_ADDR |
+			  SDHCI_QUIRK_32BIT_DMA_SIZE |
+			  SDHCI_QUIRK_RESET_AFTER_REQUEST;
+	}
+
 	/*
 	 * JMicron chips can have two interfaces to the same hardware
 	 * in order to work around limitations in Microsoft's driver.
@@ -250,10 +256,6 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 }
 
 static const struct sdhci_pci_fixes sdhci_jmicron = {
-	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
-			  SDHCI_QUIRK_32BIT_DMA_SIZE |
-			  SDHCI_QUIRK_RESET_AFTER_REQUEST,
-
 	.probe		= jmicron_probe,
 
 	.probe_slot	= jmicron_probe_slot,
