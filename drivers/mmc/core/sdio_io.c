@@ -186,8 +186,19 @@ int sdio_set_block_size(struct sdio_func *func, unsigned blksz)
 	func->cur_blksize = blksz;
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(sdio_set_block_size);
+
+/*
+ * Calculate the maximum byte mode transfer size
+ */
+static inline unsigned int sdio_max_byte_size(struct sdio_func *func)
+{
+	return min(min(min(
+		func->card->host->max_seg_size,
+		func->card->host->max_blk_size),
+		func->max_blksize),
+		512u); /* maximum size for byte mode */
+}
 
 /**
  *	sdio_align_size - pads a transfer size to a more optimal value
@@ -222,7 +233,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 	 * If we can still do this with just a byte transfer, then
 	 * we're done.
 	 */
-	if ((sz <= func->cur_blksize) && (sz <= 512))
+	if (sz <= sdio_max_byte_size(func))
 		return sz;
 
 	if (func->card->cccr.multi_block) {
@@ -253,7 +264,7 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 */
 		byte_sz = mmc_align_data_size(func->card,
 				sz % func->cur_blksize);
-		if ((byte_sz <= func->cur_blksize) && (byte_sz <= 512)) {
+		if (byte_sz <= sdio_max_byte_size(func)) {
 			blk_sz = sz / func->cur_blksize;
 			return blk_sz * func->cur_blksize + byte_sz;
 		}
@@ -263,8 +274,8 @@ unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz)
 		 * controller can handle the chunk size;
 		 */
 		chunk_sz = mmc_align_data_size(func->card,
-				min(func->cur_blksize, 512u));
-		if (chunk_sz == min(func->cur_blksize, 512u)) {
+				sdio_max_byte_size(func));
+		if (chunk_sz == sdio_max_byte_size(func)) {
 			/*
 			 * Fix up the size of the remainder (if any)
 			 */
@@ -296,7 +307,7 @@ static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
 	int ret;
 
 	/* Do the bulk of the transfer using block mode (if supported). */
-	if (func->card->cccr.multi_block) {
+	if (func->card->cccr.multi_block && (size > sdio_max_byte_size(func))) {
 		/* Blocks per command is limited by host count, host transfer
 		 * size (we only use a single sg entry) and the maximum for
 		 * IO_RW_EXTENDED of 511 blocks. */
@@ -328,11 +339,7 @@ static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
 
 	/* Write the remainder using byte mode. */
 	while (remainder > 0) {
-		size = remainder;
-		if (size > func->cur_blksize)
-			size = func->cur_blksize;
-		if (size > 512)
-			size = 512; /* maximum size for byte mode */
+		size = min(remainder, sdio_max_byte_size(func));
 
 		ret = mmc_io_rw_extended(func->card, write, func->num, addr,
 			 incr_addr, buf, 1, size);
