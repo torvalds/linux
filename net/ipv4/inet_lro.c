@@ -383,8 +383,7 @@ static int __lro_proc_skb(struct net_lro_mgr *lro_mgr, struct sk_buff *skb,
 out2: /* send aggregated SKBs to stack */
 	lro_flush(lro_mgr, lro_desc);
 
-out:  /* Original SKB has to be posted to stack */
-	skb->ip_summed = lro_mgr->ip_summed;
+out:
 	return 1;
 }
 
