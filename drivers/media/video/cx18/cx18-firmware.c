@@ -87,7 +87,7 @@
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
 /* Encoder/decoder firmware sizes */
-#define CX18_FW_CPU_SIZE 		(174716)
+#define CX18_FW_CPU_SIZE 		(158332)
 #define CX18_FW_APU_SIZE 		(141200)
 
 #define APU_ROM_SYNC1 0x6D676553 /* "mgeS" */

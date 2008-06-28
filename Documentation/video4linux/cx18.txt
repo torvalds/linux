@@ -23,14 +23,8 @@ encoder chip:
 
 Firmware:
 
-The firmware needs to be extracted from the Windows Hauppauge HVR-1600
-driver, available here:
+You can obtain the firmware files here:
 
-http://hauppauge.lightpath.net/software/install_cd/hauppauge_cd_3.4d1.zip
+http://dl.ivtvdriver.org/ivtv/firmware/cx18-firmware.tar.gz
 
-Unzip, then copy the following files to the firmware directory
-and rename them as follows:
-
-Drivers/Driver18/hcw18apu.rom -> v4l-cx23418-apu.fw
-Drivers/Driver18/hcw18enc.rom -> v4l-cx23418-cpu.fw
-Drivers/Driver18/hcw18mlC.rom -> v4l-cx23418-dig.fw
+Untar and copy the .fw files to your firmware directory.
