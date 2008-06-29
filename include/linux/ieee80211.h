@@ -469,6 +469,40 @@ struct ieee80211s_hdr {
 	u8 eaddr3[6];
 } __attribute__ ((packed));
 
+/**
+ * struct ieee80211_quiet_ie
+ *
+ * This structure refers to "Quiet information element"
+ */
+struct ieee80211_quiet_ie {
+	u8 count;
+	u8 period;
+	__le16 duration;
+	__le16 offset;
+} __attribute__ ((packed));
+
+/**
+ * struct ieee80211_msrment_ie
+ *
+ * This structure refers to "Measurement Request/Report information element"
+ */
+struct ieee80211_msrment_ie {
+	u8 token;
+	u8 mode;
+	u8 type;
+	u8 request[0];
+} __attribute__ ((packed));
+
+/**
+ * struct ieee80211_channel_sw_ie
+ *
+ * This structure refers to "Channel Switch Announcement information element"
+ */
+struct ieee80211_channel_sw_ie {
+	u8 mode;
+	u8 new_ch_num;
+	u8 count;
+} __attribute__ ((packed));
 
 struct ieee80211_mgmt {
 	__le16 frame_control;
@@ -544,10 +578,15 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 element_id;
 					u8 length;
-					u8 switch_mode;
-					u8 new_chan;
-					u8 switch_count;
+					struct ieee80211_channel_sw_ie sw_elem;
 				} __attribute__((packed)) chan_switch;
+				struct{
+					u8 action_code;
+					u8 dialog_token;
+					u8 element_id;
+					u8 length;
+					struct ieee80211_msrment_ie msr_elem;
+				} __attribute__((packed)) measurement;
 				struct{
 					u8 action_code;
 					u8 dialog_token;
@@ -700,11 +739,21 @@ struct ieee80211_ht_addt_info {
 #define WLAN_CAPABILITY_SHORT_PREAMBLE	(1<<5)
 #define WLAN_CAPABILITY_PBCC		(1<<6)
 #define WLAN_CAPABILITY_CHANNEL_AGILITY	(1<<7)
+
 /* 802.11h */
 #define WLAN_CAPABILITY_SPECTRUM_MGMT	(1<<8)
 #define WLAN_CAPABILITY_QOS		(1<<9)
 #define WLAN_CAPABILITY_SHORT_SLOT_TIME	(1<<10)
 #define WLAN_CAPABILITY_DSSS_OFDM	(1<<13)
+/* measurement */
+#define IEEE80211_SPCT_MSR_RPRT_MODE_LATE	(1<<0)
+#define IEEE80211_SPCT_MSR_RPRT_MODE_INCAPABLE	(1<<1)
+#define IEEE80211_SPCT_MSR_RPRT_MODE_REFUSED	(1<<2)
+
+#define IEEE80211_SPCT_MSR_RPRT_TYPE_BASIC	0
+#define IEEE80211_SPCT_MSR_RPRT_TYPE_CCA	1
+#define IEEE80211_SPCT_MSR_RPRT_TYPE_RPI	2
+
 
 /* 802.11g ERP information element */
 #define WLAN_ERP_NON_ERP_PRESENT (1<<0)
@@ -873,6 +922,15 @@ enum ieee80211_category {
 	WLAN_CATEGORY_DLS = 2,
 	WLAN_CATEGORY_BACK = 3,
 	WLAN_CATEGORY_WMM = 17,
+};
+
+/* SPECTRUM_MGMT action code */
+enum ieee80211_spectrum_mgmt_actioncode {
+	WLAN_ACTION_SPCT_MSR_REQ = 0,
+	WLAN_ACTION_SPCT_MSR_RPRT = 1,
+	WLAN_ACTION_SPCT_TPC_REQ = 2,
+	WLAN_ACTION_SPCT_TPC_RPRT = 3,
+	WLAN_ACTION_SPCT_CHL_SWITCH = 4,
 };
 
 /* BACK action code */

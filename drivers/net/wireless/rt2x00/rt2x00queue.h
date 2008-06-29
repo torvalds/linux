@@ -42,15 +42,18 @@
 /**
  * DOC: Number of entries per queue
  *
- * After research it was concluded that 12 entries in a RX and TX
- * queue would be sufficient. Although this is almost one third of
- * the amount the legacy driver allocated, the queues aren't getting
- * filled to the maximum even when working with the maximum rate.
+ * Under normal load without fragmentation 12 entries are sufficient
+ * without the queue being filled up to the maximum. When using fragmentation
+ * and the queue threshold code we need to add some additional margins to
+ * make sure the queue will never (or only under extreme load) fill up
+ * completely.
+ * Since we don't use preallocated DMA having a large number of queue entries
+ * will have only minimal impact on the memory requirements for the queue.
  */
-#define RX_ENTRIES	12
-#define TX_ENTRIES	12
+#define RX_ENTRIES	24
+#define TX_ENTRIES	24
 #define BEACON_ENTRIES	1
-#define ATIM_ENTRIES	1
+#define ATIM_ENTRIES	8
 
 /**
  * enum data_queue_qid: Queue identification
@@ -82,10 +85,13 @@ enum data_queue_qid {
 /**
  * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
  *
+ * @SKBDESC_DMA_MAPPED_RX: &skb_dma field has been mapped for RX
+ * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
  */
-//enum skb_frame_desc_flags {
-//	TEMPORARILY EMPTY
-//};
+enum skb_frame_desc_flags {
+	SKBDESC_DMA_MAPPED_RX = (1 << 0),
+	SKBDESC_DMA_MAPPED_TX = (1 << 1),
+};
 
 /**
  * struct skb_frame_desc: Descriptor information for the skb buffer
@@ -94,19 +100,20 @@ enum data_queue_qid {
  * this structure should not exceed the size of that array (40 bytes).
  *
  * @flags: Frame flags, see &enum skb_frame_desc_flags.
- * @data: Pointer to data part of frame (Start of ieee80211 header).
+ * @desc_len: Length of the frame descriptor.
  * @desc: Pointer to descriptor part of the frame.
  *	Note that this pointer could point to something outside
  *	of the scope of the skb->data pointer.
- * @data_len: Length of the frame data.
- * @desc_len: Length of the frame descriptor.
+ * @skb_dma: (PCI-only) the DMA address associated with the sk buffer.
  * @entry: The entry to which this sk buffer belongs.
  */
 struct skb_frame_desc {
 	unsigned int flags;
 
-	void *desc;
 	unsigned int desc_len;
+	void *desc;
+
+	dma_addr_t skb_dma;
 
 	struct queue_entry *entry;
 };

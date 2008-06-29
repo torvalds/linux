@@ -54,16 +54,19 @@ static int iwl_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
 	mutex_lock(&priv->mutex);
 
 	switch (state) {
-	case RFKILL_STATE_ON:
+	case RFKILL_STATE_UNBLOCKED:
 		iwl_radio_kill_sw_enable_radio(priv);
 		/* if HW rf-kill is set dont allow ON state */
 		if (iwl_is_rfkill(priv))
 			err = -EBUSY;
 		break;
-	case RFKILL_STATE_OFF:
+	case RFKILL_STATE_SOFT_BLOCKED:
 		iwl_radio_kill_sw_disable_radio(priv);
 		if (!iwl_is_rfkill(priv))
 			err = -EBUSY;
+		break;
+	default:
+		IWL_WARNING("we recieved unexpected RFKILL state %d\n", state);
 		break;
 	}
 	mutex_unlock(&priv->mutex);
@@ -95,6 +98,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 	priv->rfkill_mngr.rfkill->dev.class->suspend = NULL;
 	priv->rfkill_mngr.rfkill->dev.class->resume = NULL;
 
+#if defined(CONFIG_RFKILL_INPUT) || defined(CONFIG_RFKILL_INPUT_MODULE)
 	priv->rfkill_mngr.input_dev = input_allocate_device();
 	if (!priv->rfkill_mngr.input_dev) {
 		IWL_ERROR("Unable to allocate rfkill input device.\n");
@@ -109,6 +113,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 	priv->rfkill_mngr.input_dev->dev.parent = device;
 	priv->rfkill_mngr.input_dev->evbit[0] = BIT(EV_KEY);
 	set_bit(KEY_WLAN, priv->rfkill_mngr.input_dev->keybit);
+#endif
 
 	ret = rfkill_register(priv->rfkill_mngr.rfkill);
 	if (ret) {
@@ -116,11 +121,13 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 		goto free_input_dev;
 	}
 
+#if defined(CONFIG_RFKILL_INPUT) || defined(CONFIG_RFKILL_INPUT_MODULE)
 	ret = input_register_device(priv->rfkill_mngr.input_dev);
 	if (ret) {
 		IWL_ERROR("Unable to register rfkill input device: %d\n", ret);
 		goto unregister_rfkill;
 	}
+#endif
 
 	IWL_DEBUG_RF_KILL("RFKILL initialization complete.\n");
 	return ret;
@@ -130,8 +137,10 @@ unregister_rfkill:
 	priv->rfkill_mngr.rfkill = NULL;
 
 free_input_dev:
+#if defined(CONFIG_RFKILL_INPUT) || defined(CONFIG_RFKILL_INPUT_MODULE)
 	input_free_device(priv->rfkill_mngr.input_dev);
 	priv->rfkill_mngr.input_dev = NULL;
+#endif
 
 freed_rfkill:
 	if (priv->rfkill_mngr.rfkill != NULL)
@@ -147,13 +156,16 @@ EXPORT_SYMBOL(iwl_rfkill_init);
 void iwl_rfkill_unregister(struct iwl_priv *priv)
 {
 
+#if defined(CONFIG_RFKILL_INPUT) || defined(CONFIG_RFKILL_INPUT_MODULE)
 	if (priv->rfkill_mngr.input_dev)
 		input_unregister_device(priv->rfkill_mngr.input_dev);
+	input_free_device(priv->rfkill_mngr.input_dev);
+	priv->rfkill_mngr.input_dev = NULL;
+#endif
 
 	if (priv->rfkill_mngr.rfkill)
 		rfkill_unregister(priv->rfkill_mngr.rfkill);
 
-	priv->rfkill_mngr.input_dev = NULL;
 	priv->rfkill_mngr.rfkill = NULL;
 }
 EXPORT_SYMBOL(iwl_rfkill_unregister);

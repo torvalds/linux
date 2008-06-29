@@ -40,7 +40,7 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 			     void *buffer, const u16 buffer_length,
 			     const int timeout)
 {
-	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
+	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	int status;
 	unsigned int i;
 	unsigned int pipe =
@@ -130,10 +130,9 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct txdone_entry_desc txdesc;
-	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !__test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -157,26 +156,12 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	txdesc.retry = 0;
 
 	rt2x00lib_txdone(entry, &txdesc);
-
-	/*
-	 * Make this entry available for reuse.
-	 */
-	entry->flags = 0;
-	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
-
-	/*
-	 * If the data queue was below the threshold before the txdone
-	 * handler we must make sure the packet queue in the mac80211 stack
-	 * is reenabled when the txdone handler has finished.
-	 */
-	if (!rt2x00queue_threshold(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, qid);
 }
 
 int rt2x00usb_write_tx_data(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
+	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
 	u32 length;
@@ -191,10 +176,8 @@ int rt2x00usb_write_tx_data(struct queue_entry *entry)
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(entry->skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->desc = entry->skb->data;
 	skbdesc->desc_len = entry->queue->desc_size;
-	skbdesc->entry = entry;
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -264,13 +247,11 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 {
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct sk_buff *skb;
-	struct skb_frame_desc *skbdesc;
-	struct rxdone_entry_desc rxdesc;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u8 rxd[32];
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    !test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
 	/*
@@ -278,50 +259,22 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * to be actually valid, or if the urb is signaling
 	 * a problem.
 	 */
-	if (urb->actual_length < entry->queue->desc_size || urb->status)
-		goto skip_entry;
+	if (urb->actual_length < entry->queue->desc_size || urb->status) {
+		__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+		usb_submit_urb(urb, GFP_ATOMIC);
+		return;
+	}
 
 	/*
-	 * Fill in skb descriptor
+	 * Fill in desc fields of the skb descriptor
 	 */
-	skbdesc = get_skb_frame_desc(entry->skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->entry = entry;
 	skbdesc->desc = rxd;
 	skbdesc->desc_len = entry->queue->desc_size;
-
-	memset(&rxdesc, 0, sizeof(rxdesc));
-	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
-
-	/*
-	 * Allocate a new sk buffer to replace the current one.
-	 * If allocation fails, we should drop the current frame
-	 * so we can recycle the existing sk buffer for the new frame.
-	 */
-	skb = rt2x00queue_alloc_rxskb(entry->queue);
-	if (!skb)
-		goto skip_entry;
 
 	/*
 	 * Send the frame to rt2x00lib for further processing.
 	 */
-	rt2x00lib_rxdone(entry, &rxdesc);
-
-	/*
-	 * Replace current entry's skb with the newly allocated one,
-	 * and reinitialize the urb.
-	 */
-	entry->skb = skb;
-	urb->transfer_buffer = entry->skb->data;
-	urb->transfer_buffer_length = entry->skb->len;
-
-skip_entry:
-	if (test_bit(DEVICE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags)) {
-		__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		usb_submit_urb(urb, GFP_ATOMIC);
-	}
-
-	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	rt2x00lib_rxdone(rt2x00dev, entry);
 }
 
 /*
@@ -331,6 +284,7 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	struct queue_entry_priv_usb *entry_priv;
 	struct queue_entry_priv_usb_bcn *bcn_priv;
+	struct data_queue *queue;
 	unsigned int i;
 
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0, 0,
@@ -339,9 +293,11 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Cancel all queues.
 	 */
-	for (i = 0; i < rt2x00dev->rx->limit; i++) {
-		entry_priv = rt2x00dev->rx->entries[i].priv_data;
-		usb_kill_urb(entry_priv->urb);
+	queue_for_each(rt2x00dev, queue) {
+		for (i = 0; i < queue->limit; i++) {
+			entry_priv = queue->entries[i].priv_data;
+			usb_kill_urb(entry_priv->urb);
+		}
 	}
 
 	/*
@@ -364,7 +320,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
 			    struct queue_entry *entry)
 {
-	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
+	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 
 	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
@@ -431,8 +387,6 @@ static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
 		entry_priv = queue->entries[i].priv_data;
 		usb_kill_urb(entry_priv->urb);
 		usb_free_urb(entry_priv->urb);
-		if (queue->entries[i].skb)
-			kfree_skb(queue->entries[i].skb);
 	}
 
 	/*
@@ -454,10 +408,7 @@ static void rt2x00usb_free_urb(struct rt2x00_dev *rt2x00dev,
 int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
-	struct sk_buff *skb;
-	unsigned int entry_size;
-	unsigned int i;
-	int uninitialized_var(status);
+	int status;
 
 	/*
 	 * Allocate DMA
@@ -466,18 +417,6 @@ int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 		status = rt2x00usb_alloc_urb(rt2x00dev, queue);
 		if (status)
 			goto exit;
-	}
-
-	/*
-	 * For the RX queue, skb's should be allocated.
-	 */
-	entry_size = rt2x00dev->rx->data_size + rt2x00dev->rx->desc_size;
-	for (i = 0; i < rt2x00dev->rx->limit; i++) {
-		skb = rt2x00queue_alloc_rxskb(rt2x00dev->rx);
-		if (!skb)
-			goto exit;
-
-		rt2x00dev->rx->entries[i].skb = skb;
 	}
 
 	return 0;
@@ -558,7 +497,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	usb_set_intfdata(usb_intf, hw);
 
 	rt2x00dev = hw->priv;
-	rt2x00dev->dev = usb_intf;
+	rt2x00dev->dev = &usb_intf->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
 	mutex_init(&rt2x00dev->usb_cache_mutex);

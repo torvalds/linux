@@ -441,6 +441,8 @@ enum {
 #define B43_FWPANIC_DIE			0 /* Firmware died. Don't auto-restart it. */
 #define B43_FWPANIC_RESTART		1 /* Firmware died. Schedule a controller reset. */
 
+/* The firmware register that contains the watchdog counter. */
+#define B43_WATCHDOG_REG		1
 
 /* Device specific rate values.
  * The actual values defined here are (rate_in_mbps * 2).

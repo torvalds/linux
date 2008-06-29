@@ -150,7 +150,7 @@ config MAC80211_LOWTX_FRAME_DUMP
 	  If unsure, say N and insert the debugging code
 	  you require into the driver you are debugging.
 
-config TKIP_DEBUG
+config MAC80211_TKIP_DEBUG
 	bool "TKIP debugging"
 	depends on MAC80211_DEBUG
 

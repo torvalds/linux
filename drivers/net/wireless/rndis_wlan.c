@@ -1648,7 +1648,9 @@ static int rndis_iw_set_scan(struct net_device *dev,
 
 
 static char *rndis_translate_scan(struct net_device *dev,
-    char *cev, char *end_buf, struct ndis_80211_bssid_ex *bssid)
+				  struct iw_request_info *info, char *cev,
+				  char *end_buf,
+				  struct ndis_80211_bssid_ex *bssid)
 {
 #ifdef DEBUG
 	struct usbnet *usbdev = dev->priv;
@@ -1667,14 +1669,14 @@ static char *rndis_translate_scan(struct net_device *dev,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, bssid->mac, ETH_ALEN);
-	cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_ADDR_LEN);
+	cev = iwe_stream_add_event(info, cev, end_buf, &iwe, IW_EV_ADDR_LEN);
 
 	devdbg(usbdev, "SSID(%d) %s", le32_to_cpu(bssid->ssid.length),
 						bssid->ssid.essid);
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.essid.length = le32_to_cpu(bssid->ssid.length);
 	iwe.u.essid.flags = 1;
-	cev = iwe_stream_add_point(cev, end_buf, &iwe, bssid->ssid.essid);
+	cev = iwe_stream_add_point(info, cev, end_buf, &iwe, bssid->ssid.essid);
 
 	devdbg(usbdev, "MODE %d", le32_to_cpu(bssid->net_infra));
 	iwe.cmd = SIOCGIWMODE;
@@ -1690,12 +1692,12 @@ static char *rndis_translate_scan(struct net_device *dev,
 		iwe.u.mode = IW_MODE_AUTO;
 		break;
 	}
-	cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_UINT_LEN);
+	cev = iwe_stream_add_event(info, cev, end_buf, &iwe, IW_EV_UINT_LEN);
 
 	devdbg(usbdev, "FREQ %d kHz", le32_to_cpu(bssid->config.ds_config));
 	iwe.cmd = SIOCGIWFREQ;
 	dsconfig_to_freq(le32_to_cpu(bssid->config.ds_config), &iwe.u.freq);
-	cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_FREQ_LEN);
+	cev = iwe_stream_add_event(info, cev, end_buf, &iwe, IW_EV_FREQ_LEN);
 
 	devdbg(usbdev, "QUAL %d", le32_to_cpu(bssid->rssi));
 	iwe.cmd = IWEVQUAL;
@@ -1704,7 +1706,7 @@ static char *rndis_translate_scan(struct net_device *dev,
 	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED
 			| IW_QUAL_LEVEL_UPDATED
 			| IW_QUAL_NOISE_INVALID;
-	cev = iwe_stream_add_event(cev, end_buf, &iwe, IW_EV_QUAL_LEN);
+	cev = iwe_stream_add_event(info, cev, end_buf, &iwe, IW_EV_QUAL_LEN);
 
 	devdbg(usbdev, "ENCODE %d", le32_to_cpu(bssid->privacy));
 	iwe.cmd = SIOCGIWENCODE;
@@ -1714,10 +1716,10 @@ static char *rndis_translate_scan(struct net_device *dev,
 	else
 		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 
-	cev = iwe_stream_add_point(cev, end_buf, &iwe, NULL);
+	cev = iwe_stream_add_point(info, cev, end_buf, &iwe, NULL);
 
 	devdbg(usbdev, "RATES:");
-	current_val = cev + IW_EV_LCP_LEN;
+	current_val = cev + iwe_stream_lcp_len(info);
 	iwe.cmd = SIOCGIWRATE;
 	for (i = 0; i < sizeof(bssid->rates); i++) {
 		if (bssid->rates[i] & 0x7f) {
@@ -1725,13 +1727,13 @@ static char *rndis_translate_scan(struct net_device *dev,
 				((bssid->rates[i] & 0x7f) *
 				500000);
 			devdbg(usbdev, " %d", iwe.u.bitrate.value);
-			current_val = iwe_stream_add_value(cev,
+			current_val = iwe_stream_add_value(info, cev,
 				current_val, end_buf, &iwe,
 				IW_EV_PARAM_LEN);
 		}
 	}
 
-	if ((current_val - cev) > IW_EV_LCP_LEN)
+	if ((current_val - cev) > iwe_stream_lcp_len(info))
 		cev = current_val;
 
 	beacon = le32_to_cpu(bssid->config.beacon_period);
@@ -1739,14 +1741,14 @@ static char *rndis_translate_scan(struct net_device *dev,
 	iwe.cmd = IWEVCUSTOM;
 	snprintf(sbuf, sizeof(sbuf), "bcn_int=%d", beacon);
 	iwe.u.data.length = strlen(sbuf);
-	cev = iwe_stream_add_point(cev, end_buf, &iwe, sbuf);
+	cev = iwe_stream_add_point(info, cev, end_buf, &iwe, sbuf);
 
 	atim = le32_to_cpu(bssid->config.atim_window);
 	devdbg(usbdev, "ATIM %d", atim);
 	iwe.cmd = IWEVCUSTOM;
 	snprintf(sbuf, sizeof(sbuf), "atim=%u", atim);
 	iwe.u.data.length = strlen(sbuf);
-	cev = iwe_stream_add_point(cev, end_buf, &iwe, sbuf);
+	cev = iwe_stream_add_point(info, cev, end_buf, &iwe, sbuf);
 
 	ie = (void *)(bssid->ies + sizeof(struct ndis_80211_fixed_ies));
 	ie_len = min(bssid_len - (int)sizeof(*bssid),
@@ -1760,7 +1762,7 @@ static char *rndis_translate_scan(struct net_device *dev,
 					(ie->id == MFIE_TYPE_RSN) ? 2 : 1);
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = min(ie->len + 2, MAX_WPA_IE_LEN);
-			cev = iwe_stream_add_point(cev, end_buf, &iwe,
+			cev = iwe_stream_add_point(info, cev, end_buf, &iwe,
 								(u8 *)ie);
 		}
 
@@ -1803,8 +1805,8 @@ static int rndis_iw_get_scan(struct net_device *dev,
 	devdbg(usbdev, "SIOCGIWSCAN: %d BSSIDs found", count);
 
 	while (count && ((void *)bssid + bssid_len) <= (buf + len)) {
-		cev = rndis_translate_scan(dev, cev, extra + IW_SCAN_MAX_DATA,
-									bssid);
+		cev = rndis_translate_scan(dev, info, cev,
+					   extra + IW_SCAN_MAX_DATA, bssid);
 		bssid = (void *)bssid + bssid_len;
 		bssid_len = le32_to_cpu(bssid->length);
 		count--;

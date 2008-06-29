@@ -98,10 +98,57 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config);
 
-/*
- * Queue handlers.
+/**
+ * DOC: Queue handlers
+ */
+
+/**
+ * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @queue: The queue for which the skb will be applicable.
+ */
+struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
+					struct queue_entry *entry);
+
+/**
+ * rt2x00queue_unmap_skb - Unmap a skb from DMA.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @skb: The skb to unmap.
+ */
+void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+
+/**
+ * rt2x00queue_free_skb - free a skb
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @skb: The skb to free.
+ */
+void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+
+/**
+ * rt2x00queue_free_skb - free a skb
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @skb: The skb to free.
+ */
+void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+
+/**
+ * rt2x00queue_write_tx_frame - Write TX frame to hardware
+ * @queue: Queue over which the frame should be send
+ * @skb: The skb to send
  */
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb);
+
+/**
+ * rt2x00queue_index_inc - Index incrementation function
+ * @queue: Queue (&struct data_queue) to perform the action on.
+ * @index: Index type (&enum queue_index) to perform the action on.
+ *
+ * This function will increase the requested index on the queue,
+ * it will grab the appropriate locks and handle queue overflow events by
+ * resetting the index to the start of the queue.
+ */
+void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
+
 void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev);
 void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev);
 int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev);

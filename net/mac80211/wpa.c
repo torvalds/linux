@@ -49,7 +49,7 @@ static int ieee80211_get_hdr_info(const struct sk_buff *skb, u8 **sa, u8 **da,
 ieee80211_tx_result
 ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 {
-	u8 *data, *sa, *da, *key, *mic, qos_tid;
+	u8 *data, *sa, *da, *key, *mic, qos_tid, key_offset;
 	size_t data_len;
 	u16 fc;
 	struct sk_buff *skb = tx->skb;
@@ -88,8 +88,12 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 #else
 	authenticator = 1;
 #endif
-	key = &tx->key->conf.key[authenticator ? ALG_TKIP_TEMP_AUTH_TX_MIC_KEY :
-				 ALG_TKIP_TEMP_AUTH_RX_MIC_KEY];
+	/* At this point we know we're using ALG_TKIP. To get the MIC key
+	 * we now will rely on the offset from the ieee80211_key_conf::key */
+	key_offset = authenticator ?
+		NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY :
+		NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY;
+	key = &tx->key->conf.key[key_offset];
 	mic = skb_put(skb, MICHAEL_MIC_LEN);
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 
@@ -100,7 +104,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 ieee80211_rx_result
 ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 {
-	u8 *data, *sa, *da, *key = NULL, qos_tid;
+	u8 *data, *sa, *da, *key = NULL, qos_tid, key_offset;
 	size_t data_len;
 	u16 fc;
 	u8 mic[MICHAEL_MIC_LEN];
@@ -131,8 +135,12 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 #else
 	authenticator = 1;
 #endif
-	key = &rx->key->conf.key[authenticator ? ALG_TKIP_TEMP_AUTH_RX_MIC_KEY :
-				 ALG_TKIP_TEMP_AUTH_TX_MIC_KEY];
+	/* At this point we know we're using ALG_TKIP. To get the MIC key
+	 * we now will rely on the offset from the ieee80211_key_conf::key */
+	key_offset = authenticator ?
+		NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY :
+		NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY;
+	key = &rx->key->conf.key[key_offset];
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0 || wpa_test) {
 		if (!(rx->flags & IEEE80211_RX_RA_MATCH))

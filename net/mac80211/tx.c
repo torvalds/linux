@@ -52,9 +52,8 @@ static inline void ieee80211_include_sequence(struct ieee80211_sub_if_data *sdat
 static void ieee80211_dump_frame(const char *ifname, const char *title,
 				 const struct sk_buff *skb)
 {
-	const struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u16 fc;
-	int hdrlen;
+	const struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	unsigned int hdrlen;
 	DECLARE_MAC_BUF(mac);
 
 	printk(KERN_DEBUG "%s: %s (len=%d)", ifname, title, skb->len);
@@ -63,13 +62,12 @@ static void ieee80211_dump_frame(const char *ifname, const char *title,
 		return;
 	}
 
-	fc = le16_to_cpu(hdr->frame_control);
-	hdrlen = ieee80211_get_hdrlen(fc);
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	if (hdrlen > skb->len)
 		hdrlen = skb->len;
 	if (hdrlen >= 4)
 		printk(" FC=0x%04x DUR=0x%04x",
-		       fc, le16_to_cpu(hdr->duration_id));
+		    le16_to_cpu(hdr->frame_control), le16_to_cpu(hdr->duration_id));
 	if (hdrlen >= 10)
 		printk(" A1=%s", print_mac(mac, hdr->addr1));
 	if (hdrlen >= 16)
@@ -87,8 +85,8 @@ static inline void ieee80211_dump_frame(const char *ifname, const char *title,
 }
 #endif /* CONFIG_MAC80211_LOWTX_FRAME_DUMP */
 
-static u16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
-			      int next_frag_len)
+static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
+				 int next_frag_len)
 {
 	int rate, mrate, erp, dur, i;
 	struct ieee80211_rate *txrate;
@@ -140,7 +138,7 @@ static u16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 
 	/* data/mgmt */
 	if (0 /* FIX: data/mgmt during CFP */)
-		return 32768;
+		return cpu_to_le16(32768);
 
 	if (group_addr) /* Group address as the destination - no ACK */
 		return 0;
@@ -210,7 +208,7 @@ static u16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 				tx->sdata->bss_conf.use_short_preamble);
 	}
 
-	return dur;
+	return cpu_to_le16(dur);
 }
 
 static int inline is_ieee80211_device(struct net_device *dev,
@@ -281,7 +279,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 
-	if (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control)) >= 24)
+	if (ieee80211_hdrlen(hdr->frame_control) >= 24)
 		ieee80211_include_sequence(tx->sdata, hdr);
 
 	return TX_CONTINUE;
@@ -542,9 +540,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result
 ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
-	u16 fc = le16_to_cpu(hdr->frame_control);
-	u16 dur;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_supported_band *sband;
 
@@ -595,20 +591,12 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 	/* Transmit data frames using short preambles if the driver supports
 	 * short preambles at the selected rate and short preambles are
 	 * available on the network at the current point in time. */
-	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
+	if (ieee80211_is_data(hdr->frame_control) &&
 	    (sband->bitrates[tx->rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE) &&
 	    tx->sdata->bss_conf.use_short_preamble &&
 	    (!tx->sta || test_sta_flags(tx->sta, WLAN_STA_SHORT_PREAMBLE))) {
 		info->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
 	}
-
-	/* Setup duration field for the first fragment of the frame. Duration
-	 * for remaining fragments will be updated when they are being sent
-	 * to low-level driver in ieee80211_tx(). */
-	dur = ieee80211_duration(tx, is_multicast_ether_addr(hdr->addr1),
-				 (tx->flags & IEEE80211_TX_FRAGMENTED) ?
-				 tx->extra_frag[0]->len : 0);
-	hdr->duration_id = cpu_to_le16(dur);
 
 	if ((info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) ||
 	    (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)) {
@@ -647,7 +635,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result
 ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	size_t hdrlen, per_fragm, num_fragm, payload_len, left;
 	struct sk_buff **frags, *first, *frag;
 	int i;
@@ -670,7 +658,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 
 	first = tx->skb;
 
-	hdrlen = ieee80211_get_hdrlen(tx->fc);
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	payload_len = first->len - hdrlen;
 	per_fragm = frag_threshold - hdrlen - FCS_LEN;
 	num_fragm = DIV_ROUND_UP(payload_len, per_fragm);
@@ -711,6 +699,8 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 		fhdr->seq_ctrl = cpu_to_le16(seq | ((i + 1) & IEEE80211_SCTL_FRAG));
 		copylen = left > per_fragm ? per_fragm : left;
 		memcpy(skb_put(frag, copylen), pos, copylen);
+		memcpy(frag->cb, first->cb, sizeof(frag->cb));
+		skb_copy_queue_mapping(frag, first);
 
 		pos += copylen;
 		left -= copylen;
@@ -755,6 +745,36 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result
+ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	int next_len, i;
+	int group_addr = is_multicast_ether_addr(hdr->addr1);
+
+	if (!(tx->flags & IEEE80211_TX_FRAGMENTED)) {
+		hdr->duration_id = ieee80211_duration(tx, group_addr, 0);
+		return TX_CONTINUE;
+	}
+
+	hdr->duration_id = ieee80211_duration(tx, group_addr,
+					      tx->extra_frag[0]->len);
+
+	for (i = 0; i < tx->num_extra_frag; i++) {
+		if (i + 1 < tx->num_extra_frag) {
+			next_len = tx->extra_frag[i + 1]->len;
+		} else {
+			next_len = 0;
+			tx->rate_idx = tx->last_frag_rate_idx;
+		}
+
+		hdr = (struct ieee80211_hdr *)tx->extra_frag[i]->data;
+		hdr->duration_id = ieee80211_duration(tx, 0, next_len);
+	}
+
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
 	int i;
@@ -788,6 +808,7 @@ static ieee80211_tx_handler ieee80211_tx_handlers[] =
 	ieee80211_tx_h_fragment,
 	/* handlers after fragment must be aware of tx info fragmentation! */
 	ieee80211_tx_h_encrypt,
+	ieee80211_tx_h_calculate_duration,
 	ieee80211_tx_h_stats,
 	NULL
 };
@@ -1083,13 +1104,46 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 	return IEEE80211_TX_OK;
 }
 
+/*
+ * Invoke TX handlers, return 0 on success and non-zero if the
+ * frame was dropped or queued.
+ */
+static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_local *local = tx->local;
+	struct sk_buff *skb = tx->skb;
+	ieee80211_tx_handler *handler;
+	ieee80211_tx_result res = TX_DROP;
+	int i;
+
+	for (handler = ieee80211_tx_handlers; *handler != NULL; handler++) {
+		res = (*handler)(tx);
+		if (res != TX_CONTINUE)
+			break;
+	}
+
+	if (unlikely(res == TX_DROP)) {
+		I802_DEBUG_INC(local->tx_handlers_drop);
+		dev_kfree_skb(skb);
+		for (i = 0; i < tx->num_extra_frag; i++)
+			if (tx->extra_frag[i])
+				dev_kfree_skb(tx->extra_frag[i]);
+		kfree(tx->extra_frag);
+		return -1;
+	} else if (unlikely(res == TX_QUEUED)) {
+		I802_DEBUG_INC(local->tx_handlers_queued);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
-	ieee80211_tx_handler *handler;
 	struct ieee80211_tx_data tx;
-	ieee80211_tx_result res = TX_DROP, res_prepare;
+	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int ret, i;
 	u16 queue;
@@ -1118,44 +1172,8 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb)
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
 
-	for (handler = ieee80211_tx_handlers; *handler != NULL;
-	     handler++) {
-		res = (*handler)(&tx);
-		if (res != TX_CONTINUE)
-			break;
-	}
-
-	if (WARN_ON(tx.skb != skb))
-		goto drop;
-
-	if (unlikely(res == TX_DROP)) {
-		I802_DEBUG_INC(local->tx_handlers_drop);
-		goto drop;
-	}
-
-	if (unlikely(res == TX_QUEUED)) {
-		I802_DEBUG_INC(local->tx_handlers_queued);
-		rcu_read_unlock();
-		return 0;
-	}
-
-	if (tx.extra_frag) {
-		for (i = 0; i < tx.num_extra_frag; i++) {
-			int next_len, dur;
-			struct ieee80211_hdr *hdr =
-				(struct ieee80211_hdr *)
-				tx.extra_frag[i]->data;
-
-			if (i + 1 < tx.num_extra_frag) {
-				next_len = tx.extra_frag[i + 1]->len;
-			} else {
-				next_len = 0;
-				tx.rate_idx = tx.last_frag_rate_idx;
-			}
-			dur = ieee80211_duration(&tx, 0, next_len);
-			hdr->duration_id = cpu_to_le16(dur);
-		}
-	}
+	if (invoke_tx_handlers(&tx))
+		goto out;
 
 retry:
 	ret = __ieee80211_tx(local, skb, &tx);
@@ -1198,6 +1216,7 @@ retry:
 		store->last_frag_rate_ctrl_probe =
 			!!(tx.flags & IEEE80211_TX_PROBE_LAST_FRAG);
 	}
+ out:
 	rcu_read_unlock();
 	return 0;
 
@@ -1379,7 +1398,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata;
 	int ret = 1, head_need;
-	u16 ethertype, hdrlen,  meshhdrlen = 0, fc;
+	u16 ethertype, hdrlen,  meshhdrlen = 0;
+	__le16 fc;
 	struct ieee80211_hdr hdr;
 	struct ieee80211s_hdr mesh_hdr;
 	const u8 *encaps_data;
@@ -1402,12 +1422,12 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	/* convert Ethernet header to proper 802.11 header (based on
 	 * operation mode) */
 	ethertype = (skb->data[12] << 8) | skb->data[13];
-	fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA;
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
 	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_AP:
 	case IEEE80211_IF_TYPE_VLAN:
-		fc |= IEEE80211_FCTL_FROMDS;
+		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA BSSID SA */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
 		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
@@ -1415,7 +1435,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		hdrlen = 24;
 		break;
 	case IEEE80211_IF_TYPE_WDS:
-		fc |= IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS;
+		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		/* RA TA DA SA */
 		memcpy(hdr.addr1, sdata->u.wds.remote_addr, ETH_ALEN);
 		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
@@ -1425,7 +1445,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case IEEE80211_IF_TYPE_MESH_POINT:
-		fc |= IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS;
+		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		/* RA TA DA SA */
 		if (is_multicast_ether_addr(skb->data))
 			memcpy(hdr.addr1, skb->data, ETH_ALEN);
@@ -1455,7 +1475,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #endif
 	case IEEE80211_IF_TYPE_STA:
-		fc |= IEEE80211_FCTL_TODS;
+		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
 		memcpy(hdr.addr1, sdata->u.sta.bssid, ETH_ALEN);
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
@@ -1490,7 +1510,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	/* receiver and we are QoS enabled, use a QoS type frame */
 	if (sta_flags & WLAN_STA_WME &&
 	    ieee80211_num_regular_queues(&local->hw) >= 4) {
-		fc |= IEEE80211_STYPE_QOS_DATA;
+		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 		hdrlen += 2;
 	}
 
@@ -1518,7 +1538,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
-	hdr.frame_control = cpu_to_le16(fc);
+	hdr.frame_control = fc;
 	hdr.duration_id = 0;
 	hdr.seq_ctrl = 0;
 
@@ -1587,7 +1607,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		h_pos += meshhdrlen;
 	}
 
-	if (fc & IEEE80211_STYPE_QOS_DATA) {
+	if (ieee80211_is_data_qos(fc)) {
 		__le16 *qos_control;
 
 		qos_control = (__le16*) skb_push(skb, 2);
@@ -1845,8 +1865,8 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		mgmt = (struct ieee80211_mgmt *)
 			skb_put(skb, 24 + sizeof(mgmt->u.beacon));
 		memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
-		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-						   IEEE80211_STYPE_BEACON);
+		mgmt->frame_control =
+		    cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
 		memset(mgmt->da, 0xff, ETH_ALEN);
 		memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 		/* BSSID is left zeroed, wildcard value */
@@ -1914,10 +1934,9 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_rts *rts)
 {
 	const struct ieee80211_hdr *hdr = frame;
-	u16 fctl;
 
-	fctl = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS;
-	rts->frame_control = cpu_to_le16(fctl);
+	rts->frame_control =
+	    cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
 	rts->duration = ieee80211_rts_duration(hw, vif, frame_len,
 					       frame_txctl);
 	memcpy(rts->ra, hdr->addr1, sizeof(rts->ra));
@@ -1931,10 +1950,9 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			     struct ieee80211_cts *cts)
 {
 	const struct ieee80211_hdr *hdr = frame;
-	u16 fctl;
 
-	fctl = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS;
-	cts->frame_control = cpu_to_le16(fctl);
+	cts->frame_control =
+	    cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
 	cts->duration = ieee80211_ctstoself_duration(hw, vif,
 						     frame_len, frame_txctl);
 	memcpy(cts->ra, hdr->addr1, sizeof(cts->ra));
@@ -1948,9 +1966,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct sk_buff *skb = NULL;
 	struct sta_info *sta;
-	ieee80211_tx_handler *handler;
 	struct ieee80211_tx_data tx;
-	ieee80211_tx_result res = TX_DROP;
 	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_ap *bss = NULL;
@@ -2001,25 +2017,9 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
 
-	for (handler = ieee80211_tx_handlers; *handler != NULL; handler++) {
-		res = (*handler)(&tx);
-		if (res == TX_DROP || res == TX_QUEUED)
-			break;
-	}
-
-	if (WARN_ON(tx.skb != skb))
-		res = TX_DROP;
-
-	if (res == TX_DROP) {
-		I802_DEBUG_INC(local->tx_handlers_drop);
-		dev_kfree_skb(skb);
+	if (invoke_tx_handlers(&tx))
 		skb = NULL;
-	} else if (res == TX_QUEUED) {
-		I802_DEBUG_INC(local->tx_handlers_queued);
-		skb = NULL;
-	}
-
-out:
+ out:
 	rcu_read_unlock();
 
 	return skb;

@@ -373,13 +373,10 @@ static inline void b43_shm_control_word(struct b43_wldev *dev,
 	b43_write32(dev, B43_MMIO_SHM_CONTROL, control);
 }
 
-u32 b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset)
+u32 __b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset)
 {
-	struct b43_wl *wl = dev->wl;
-	unsigned long flags;
 	u32 ret;
 
-	spin_lock_irqsave(&wl->shm_lock, flags);
 	if (routing == B43_SHM_SHARED) {
 		B43_WARN_ON(offset & 0x0001);
 		if (offset & 0x0003) {
@@ -397,18 +394,26 @@ u32 b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset)
 	b43_shm_control_word(dev, routing, offset);
 	ret = b43_read32(dev, B43_MMIO_SHM_DATA);
 out:
+	return ret;
+}
+
+u32 b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset)
+{
+	struct b43_wl *wl = dev->wl;
+	unsigned long flags;
+	u32 ret;
+
+	spin_lock_irqsave(&wl->shm_lock, flags);
+	ret = __b43_shm_read32(dev, routing, offset);
 	spin_unlock_irqrestore(&wl->shm_lock, flags);
 
 	return ret;
 }
 
-u16 b43_shm_read16(struct b43_wldev * dev, u16 routing, u16 offset)
+u16 __b43_shm_read16(struct b43_wldev *dev, u16 routing, u16 offset)
 {
-	struct b43_wl *wl = dev->wl;
-	unsigned long flags;
 	u16 ret;
 
-	spin_lock_irqsave(&wl->shm_lock, flags);
 	if (routing == B43_SHM_SHARED) {
 		B43_WARN_ON(offset & 0x0001);
 		if (offset & 0x0003) {
@@ -423,17 +428,24 @@ u16 b43_shm_read16(struct b43_wldev * dev, u16 routing, u16 offset)
 	b43_shm_control_word(dev, routing, offset);
 	ret = b43_read16(dev, B43_MMIO_SHM_DATA);
 out:
+	return ret;
+}
+
+u16 b43_shm_read16(struct b43_wldev *dev, u16 routing, u16 offset)
+{
+	struct b43_wl *wl = dev->wl;
+	unsigned long flags;
+	u16 ret;
+
+	spin_lock_irqsave(&wl->shm_lock, flags);
+	ret = __b43_shm_read16(dev, routing, offset);
 	spin_unlock_irqrestore(&wl->shm_lock, flags);
 
 	return ret;
 }
 
-void b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value)
+void __b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value)
 {
-	struct b43_wl *wl = dev->wl;
-	unsigned long flags;
-
-	spin_lock_irqsave(&wl->shm_lock, flags);
 	if (routing == B43_SHM_SHARED) {
 		B43_WARN_ON(offset & 0x0001);
 		if (offset & 0x0003) {
@@ -443,14 +455,38 @@ void b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value)
 				    (value >> 16) & 0xffff);
 			b43_shm_control_word(dev, routing, (offset >> 2) + 1);
 			b43_write16(dev, B43_MMIO_SHM_DATA, value & 0xffff);
-			goto out;
+			return;
 		}
 		offset >>= 2;
 	}
 	b43_shm_control_word(dev, routing, offset);
 	b43_write32(dev, B43_MMIO_SHM_DATA, value);
-out:
+}
+
+void b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value)
+{
+	struct b43_wl *wl = dev->wl;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->shm_lock, flags);
+	__b43_shm_write32(dev, routing, offset, value);
 	spin_unlock_irqrestore(&wl->shm_lock, flags);
+}
+
+void __b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value)
+{
+	if (routing == B43_SHM_SHARED) {
+		B43_WARN_ON(offset & 0x0001);
+		if (offset & 0x0003) {
+			/* Unaligned access */
+			b43_shm_control_word(dev, routing, offset >> 2);
+			b43_write16(dev, B43_MMIO_SHM_DATA_UNALIGNED, value);
+			return;
+		}
+		offset >>= 2;
+	}
+	b43_shm_control_word(dev, routing, offset);
+	b43_write16(dev, B43_MMIO_SHM_DATA, value);
 }
 
 void b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value)
@@ -459,19 +495,7 @@ void b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->shm_lock, flags);
-	if (routing == B43_SHM_SHARED) {
-		B43_WARN_ON(offset & 0x0001);
-		if (offset & 0x0003) {
-			/* Unaligned access */
-			b43_shm_control_word(dev, routing, offset >> 2);
-			b43_write16(dev, B43_MMIO_SHM_DATA_UNALIGNED, value);
-			goto out;
-		}
-		offset >>= 2;
-	}
-	b43_shm_control_word(dev, routing, offset);
-	b43_write16(dev, B43_MMIO_SHM_DATA, value);
-out:
+	__b43_shm_write16(dev, routing, offset, value);
 	spin_unlock_irqrestore(&wl->shm_lock, flags);
 }
 
@@ -2463,6 +2487,19 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 /* http://bcm-specs.sipsolutions.net/EnableMac */
 void b43_mac_enable(struct b43_wldev *dev)
 {
+	if (b43_debug(dev, B43_DBG_FIRMWARE)) {
+		u16 fwstate;
+
+		fwstate = b43_shm_read16(dev, B43_SHM_SHARED,
+					 B43_SHM_SH_UCODESTAT);
+		if ((fwstate != B43_SHM_SH_UCODESTAT_SUSP) &&
+		    (fwstate != B43_SHM_SH_UCODESTAT_SLEEP)) {
+			b43err(dev->wl, "b43_mac_enable(): The firmware "
+			       "should be suspended, but current state is %u\n",
+			       fwstate);
+		}
+	}
+
 	dev->mac_suspended--;
 	B43_WARN_ON(dev->mac_suspended < 0);
 	if (dev->mac_suspended == 0) {
@@ -2783,6 +2820,21 @@ static void b43_periodic_every30sec(struct b43_wldev *dev)
 static void b43_periodic_every15sec(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
+	u16 wdr;
+
+	if (dev->fw.opensource) {
+		/* Check if the firmware is still alive.
+		 * It will reset the watchdog counter to 0 in its idle loop. */
+		wdr = b43_shm_read16(dev, B43_SHM_SCRATCH, B43_WATCHDOG_REG);
+		if (unlikely(wdr)) {
+			b43err(dev->wl, "Firmware watchdog: The firmware died!\n");
+			b43_controller_restart(dev, "Firmware watchdog");
+			return;
+		} else {
+			b43_shm_write16(dev, B43_SHM_SCRATCH,
+					B43_WATCHDOG_REG, 1);
+		}
+	}
 
 	if (phy->type == B43_PHYTYPE_G) {
 		//TODO: update_aci_moving_average

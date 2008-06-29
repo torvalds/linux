@@ -25,34 +25,30 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue)
+struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
+					struct queue_entry *entry)
 {
-	struct sk_buff *skb;
 	unsigned int frame_size;
 	unsigned int reserved_size;
+	struct sk_buff *skb;
+	struct skb_frame_desc *skbdesc;
 
 	/*
 	 * The frame size includes descriptor size, because the
 	 * hardware directly receive the frame into the skbuffer.
 	 */
-	frame_size = queue->data_size + queue->desc_size;
+	frame_size = entry->queue->data_size + entry->queue->desc_size;
 
 	/*
-	 * For the allocation we should keep a few things in mind:
-	 * 1) 4byte alignment of 802.11 payload
-	 *
-	 * For (1) we need at most 4 bytes to guarentee the correct
-	 * alignment. We are going to optimize the fact that the chance
-	 * that the 802.11 header_size % 4 == 2 is much bigger then
-	 * anything else. However since we need to move the frame up
-	 * to 3 bytes to the front, which means we need to preallocate
-	 * 6 bytes.
+	 * Reserve a few bytes extra headroom to allow drivers some moving
+	 * space (e.g. for alignment), while keeping the skb aligned.
 	 */
-	reserved_size = 6;
+	reserved_size = 8;
 
 	/*
 	 * Allocate skbuffer.
@@ -64,9 +60,56 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue)
 	skb_reserve(skb, reserved_size);
 	skb_put(skb, frame_size);
 
+	/*
+	 * Populate skbdesc.
+	 */
+	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->entry = entry;
+
+	if (test_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags)) {
+		skbdesc->skb_dma = dma_map_single(rt2x00dev->dev,
+						  skb->data,
+						  skb->len,
+						  DMA_FROM_DEVICE);
+		skbdesc->flags |= SKBDESC_DMA_MAPPED_RX;
+	}
+
 	return skb;
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_alloc_rxskb);
+
+void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
+{
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+
+	skbdesc->skb_dma = dma_map_single(rt2x00dev->dev, skb->data, skb->len,
+					  DMA_TO_DEVICE);
+	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
+
+void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
+{
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+
+	if (skbdesc->flags & SKBDESC_DMA_MAPPED_RX) {
+		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
+				 DMA_FROM_DEVICE);
+		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_RX;
+	}
+
+	if (skbdesc->flags & SKBDESC_DMA_MAPPED_TX) {
+		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
+				 DMA_TO_DEVICE);
+		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_TX;
+	}
+}
+
+void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
+{
+	rt2x00queue_unmap_skb(rt2x00dev, skb);
+	dev_kfree_skb_any(skb);
+}
 
 void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 				      struct txentry_desc *txdesc)
@@ -80,7 +123,6 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	unsigned int data_length;
 	unsigned int duration;
 	unsigned int residual;
-	u16 frame_control;
 
 	memset(txdesc, 0, sizeof(*txdesc));
 
@@ -96,11 +138,6 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	data_length = entry->skb->len + 4;
 
 	/*
-	 * Read required fields from ieee80211 header.
-	 */
-	frame_control = le16_to_cpu(hdr->frame_control);
-
-	/*
 	 * Check whether this frame is to be acked.
 	 */
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK))
@@ -109,9 +146,10 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Check if this is a RTS/CTS frame
 	 */
-	if (is_rts_frame(frame_control) || is_cts_frame(frame_control)) {
+	if (ieee80211_is_rts(hdr->frame_control) ||
+	    ieee80211_is_cts(hdr->frame_control)) {
 		__set_bit(ENTRY_TXD_BURST, &txdesc->flags);
-		if (is_rts_frame(frame_control))
+		if (ieee80211_is_rts(hdr->frame_control))
 			__set_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags);
 		else
 			__set_bit(ENTRY_TXD_CTS_FRAME, &txdesc->flags);
@@ -139,7 +177,8 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * Beacons and probe responses require the tsf timestamp
 	 * to be inserted into the frame.
 	 */
-	if (txdesc->queue == QID_BEACON || is_probe_resp(frame_control))
+	if (ieee80211_is_beacon(hdr->frame_control) ||
+	    ieee80211_is_probe_resp(hdr->frame_control))
 		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags);
 
 	/*
@@ -236,6 +275,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 {
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct txentry_desc txdesc;
+	struct skb_frame_desc *skbdesc;
 
 	if (unlikely(rt2x00queue_full(queue)))
 		return -EINVAL;
@@ -256,10 +296,20 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	entry->skb = skb;
 	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
+	/*
+	 * skb->cb array is now ours and we are free to use it.
+	 */
+	skbdesc = get_skb_frame_desc(entry->skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->entry = entry;
+
 	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
 		__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 		return -EIO;
 	}
+
+	if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
+		rt2x00queue_map_txskb(queue->rt2x00dev, skb);
 
 	__set_bit(ENTRY_DATA_PENDING, &entry->flags);
 
@@ -336,7 +386,6 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_index_inc);
 
 static void rt2x00queue_reset(struct data_queue *queue)
 {
@@ -426,11 +475,40 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	return 0;
 }
 
+static void rt2x00queue_free_skbs(struct rt2x00_dev *rt2x00dev,
+				  struct data_queue *queue)
+{
+	unsigned int i;
+
+	if (!queue->entries)
+		return;
+
+	for (i = 0; i < queue->limit; i++) {
+		if (queue->entries[i].skb)
+			rt2x00queue_free_skb(rt2x00dev, queue->entries[i].skb);
+	}
+}
+
+static int rt2x00queue_alloc_rxskbs(struct rt2x00_dev *rt2x00dev,
+				    struct data_queue *queue)
+{
+	unsigned int i;
+	struct sk_buff *skb;
+
+	for (i = 0; i < queue->limit; i++) {
+		skb = rt2x00queue_alloc_rxskb(rt2x00dev, &queue->entries[i]);
+		if (!skb)
+			return -ENOMEM;
+		queue->entries[i].skb = skb;
+	}
+
+	return 0;
+}
+
 int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	int status;
-
 
 	status = rt2x00queue_alloc_entries(rt2x00dev->rx, rt2x00dev->ops->rx);
 	if (status)
@@ -446,11 +524,14 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	if (status)
 		goto exit;
 
-	if (!test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
-		return 0;
+	if (test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags)) {
+		status = rt2x00queue_alloc_entries(&rt2x00dev->bcn[1],
+						   rt2x00dev->ops->atim);
+		if (status)
+			goto exit;
+	}
 
-	status = rt2x00queue_alloc_entries(&rt2x00dev->bcn[1],
-					   rt2x00dev->ops->atim);
+	status = rt2x00queue_alloc_rxskbs(rt2x00dev, rt2x00dev->rx);
 	if (status)
 		goto exit;
 
@@ -467,6 +548,8 @@ exit:
 void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
+
+	rt2x00queue_free_skbs(rt2x00dev, rt2x00dev->rx);
 
 	queue_for_each(rt2x00dev, queue) {
 		kfree(queue->entries);

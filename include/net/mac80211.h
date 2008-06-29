@@ -595,7 +595,12 @@ enum ieee80211_key_flags {
  * @flags: key flags, see &enum ieee80211_key_flags.
  * @keyidx: the key index (0-3)
  * @keylen: key material length
- * @key: key material
+ * @key: key material. For ALG_TKIP the key is encoded as a 256-bit (32 byte)
+ * 	data block:
+ * 	- Temporal Encryption Key (128 bits)
+ * 	- Temporal Authenticator Tx MIC Key (64 bits)
+ * 	- Temporal Authenticator Rx MIC Key (64 bits)
+ *
  */
 struct ieee80211_key_conf {
 	enum ieee80211_key_alg alg;
@@ -733,8 +738,11 @@ enum ieee80211_hw_flags {
  * @conf: &struct ieee80211_conf, device configuration, don't use.
  *
  * @workqueue: single threaded workqueue available for driver use,
- *	allocated by mac80211 on registration and flushed on
- *	unregistration.
+ *	allocated by mac80211 on registration and flushed when an
+ *	interface is removed.
+ *	NOTICE: All work performed on this workqueue should NEVER
+ *	acquire the RTNL lock (i.e. Don't use the function
+ *	ieee80211_iterate_active_interfaces())
  *
  * @priv: pointer to private area that was allocated for driver use
  *	along with this structure.

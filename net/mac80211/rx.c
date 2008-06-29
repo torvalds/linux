@@ -61,7 +61,7 @@ static inline int should_drop_frame(struct ieee80211_rx_status *status,
 				    int present_fcs_len,
 				    int radiotap_len)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
 		return 1;
@@ -2123,7 +2123,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	struct tid_ampdu_rx *tid_agg_rx;
 	u16 sc;
 	u16 mpdu_seq_num;
-	u8 ret = 0, *qc;
+	u8 ret = 0;
 	int tid;
 
 	sta = sta_info_get(local, hdr->addr2);
@@ -2135,8 +2135,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	if (!ieee80211_is_data_qos(hdr->frame_control))
 		goto end_reorder;
 
-	qc = ieee80211_get_qos_ctl(hdr);
-	tid = qc[0] & QOS_CONTROL_TID_MASK;
+	tid = *ieee80211_get_qos_ctl(hdr) & QOS_CONTROL_TID_MASK;
 
 	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_OPERATIONAL)
 		goto end_reorder;

@@ -727,10 +727,11 @@ static void rt2500pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
 				   struct queue_entry *entry)
 {
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u32 word;
 
 	rt2x00_desc_read(entry_priv->desc, 1, &word);
-	rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, entry_priv->data_dma);
+	rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
 	rt2x00_desc_write(entry_priv->desc, 1, word);
 
 	rt2x00_desc_read(entry_priv->desc, 0, &word);
@@ -1171,7 +1172,7 @@ static void rt2500pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 * Start writing the descriptor words.
 	 */
 	rt2x00_desc_read(entry_priv->desc, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, entry_priv->data_dma);
+	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
 	rt2x00_desc_write(entry_priv->desc, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
@@ -1311,7 +1312,7 @@ static void rt2500pci_txdone(struct rt2x00_dev *rt2x00dev,
 		}
 		txdesc.retry = rt2x00_get_field32(word, TXD_W0_RETRY_COUNT);
 
-		rt2x00pci_txdone(rt2x00dev, entry, &txdesc);
+		rt2x00lib_txdone(entry, &txdesc);
 	}
 }
 
@@ -1688,7 +1689,7 @@ static void rt2500pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00dev->hw->extra_tx_headroom = 0;
 
-	SET_IEEE80211_DEV(rt2x00dev->hw, &rt2x00dev_pci(rt2x00dev)->dev);
+	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
 				rt2x00_eeprom_addr(rt2x00dev,
 						   EEPROM_MAC_ADDR_0));
@@ -1752,9 +1753,10 @@ static int rt2500pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	rt2500pci_probe_hw_mode(rt2x00dev);
 
 	/*
-	 * This device requires the atim queue
+	 * This device requires the atim queue and DMA-mapped skbs.
 	 */
 	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1842,7 +1844,7 @@ static int rt2500pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
-	memcpy(entry_priv->data, skb->data, skb->len);
+	rt2x00queue_map_txskb(rt2x00dev, intf->beacon->skb);
 	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
 

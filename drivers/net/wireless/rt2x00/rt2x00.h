@@ -44,7 +44,7 @@
 /*
  * Module information.
  */
-#define DRV_VERSION	"2.1.7"
+#define DRV_VERSION	"2.1.8"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
 /*
@@ -109,33 +109,6 @@
 #define DIFS			( PIFS + SLOT_TIME )
 #define SHORT_DIFS		( SHORT_PIFS + SHORT_SLOT_TIME )
 #define EIFS			( SIFS + (8 * (IEEE80211_HEADER + ACK_SIZE)) )
-
-/*
- * IEEE802.11 header defines
- */
-static inline int is_rts_frame(u16 fc)
-{
-	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
-		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_RTS));
-}
-
-static inline int is_cts_frame(u16 fc)
-{
-	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
-		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_CTS));
-}
-
-static inline int is_probe_resp(u16 fc)
-{
-	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
-		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP));
-}
-
-static inline int is_beacon(u16 fc)
-{
-	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
-		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON));
-}
 
 /*
  * Chipset identification
@@ -628,6 +601,7 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_BEACON_GUARD,
 	DRIVER_REQUIRE_ATIM_QUEUE,
 	DRIVER_REQUIRE_SCHEDULED,
+	DRIVER_REQUIRE_DMA,
 
 	/*
 	 * Driver configuration
@@ -652,11 +626,7 @@ struct rt2x00_dev {
 	 * When accessing this variable, the rt2x00dev_{pci,usb}
 	 * macro's should be used for correct typecasting.
 	 */
-	void *dev;
-#define rt2x00dev_pci(__dev)	( (struct pci_dev *)(__dev)->dev )
-#define rt2x00dev_usb(__dev)	( (struct usb_interface *)(__dev)->dev )
-#define rt2x00dev_usb_dev(__dev)\
-	( (struct usb_device *)interface_to_usbdev(rt2x00dev_usb(__dev)) )
+	struct device *dev;
 
 	/*
 	 * Callback functions.
@@ -931,10 +901,11 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
 }
 
 /**
- * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
- * @queue: The queue for which the skb will be applicable.
+ * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @skb: The skb to map.
  */
-struct sk_buff *rt2x00queue_alloc_rxskb(struct data_queue *queue);
+void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 
 /**
  * rt2x00queue_create_tx_descriptor - Create TX descriptor from mac80211 input
@@ -985,26 +956,14 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 					  enum queue_index index);
 
-/**
- * rt2x00queue_index_inc - Index incrementation function
- * @queue: Queue (&struct data_queue) to perform the action on.
- * @index: Index type (&enum queue_index) to perform the action on.
- *
- * This function will increase the requested index on the queue,
- * it will grab the appropriate locks and handle queue overflow events by
- * resetting the index to the start of the queue.
- */
-void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
-
-
 /*
  * Interrupt context handlers.
  */
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
-void rt2x00lib_rxdone(struct queue_entry *entry,
-		      struct rxdone_entry_desc *rxdesc);
+void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
+		      struct queue_entry *entry);
 
 /*
  * mac80211 handlers.
