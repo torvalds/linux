@@ -791,19 +791,23 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 			rc = smscore_load_firmware_from_file(coredev,
 							     fw_filename, NULL);
 			if (rc < 0) {
-				sms_err("error %d loading firmware: %s, "
-					"trying again with default firmware",
-					rc, fw_filename);
+				sms_warn("error %d loading firmware: %s, "
+					 "trying again with default firmware",
+					 rc, fw_filename);
 
 				/* try again with the default firmware */
+				fw_filename = smscore_fw_lkup[mode][type];
 				rc = smscore_load_firmware_from_file(coredev,
-					smscore_fw_lkup[mode][type], NULL);
+							     fw_filename, NULL);
 
 				if (rc < 0) {
-					sms_err("load firmware failed %d", rc);
+					sms_warn("error %d loading "
+						 "firmware: %s", rc,
+						 fw_filename);
 					return rc;
 				}
 			}
+			sms_log("firmware download success: %s", fw_filename);
 		} else
 			sms_info("mode %d supported by running "
 				 "firmware", mode);
