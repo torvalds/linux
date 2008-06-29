@@ -4200,17 +4200,13 @@ struct saa7134_board saa7134_boards[] = {
 			 .amux = TV,
 			 .tv   = 1,
 		 }, {
-			 .name = name_comp1,
-			 .vmux = 3,
-			 .amux = LINE2,
+			 .name = name_comp,
+			 .vmux = 0,
+			 .amux = LINE1,
 		 }, {
 			 .name = name_svideo,
 			 .vmux = 8,
 			 .amux = LINE1,
-		}, {
-			.name = name_comp,
-			.vmux = 0,
-			.amux = LINE1,
 		 } },
 		 .radio = {
 			 .name = name_radio,
