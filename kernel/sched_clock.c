@@ -250,9 +250,9 @@ unsigned long long cpu_clock(int cpu)
 	unsigned long long clock;
 	unsigned long flags;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	clock = sched_clock_cpu(cpu);
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	return clock;
 }
