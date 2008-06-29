@@ -104,7 +104,6 @@ static unsigned long alloc_iommu(struct device *dev, int size)
 					  size, base_index, boundary_size, 0);
 	}
 	if (offset != -1) {
-		set_bit_string(iommu_gart_bitmap, offset, size);
 		next_bit = offset+size;
 		if (next_bit >= iommu_pages) {
 			next_bit = 0;
