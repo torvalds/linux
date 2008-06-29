@@ -40,11 +40,7 @@ extern int local_apic_timer_c2_ok;
 
 extern int ioapic_force;
 
-#ifdef CONFIG_X86_64
 extern int disable_apic;
-#else
-extern int enable_local_apic;
-#endif
 /*
  * Basic functions accessing APICs.
  */

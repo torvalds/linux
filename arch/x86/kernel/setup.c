@@ -598,11 +598,7 @@ void __init setup_arch(char **cmdline_p)
 
 	if (acpi_mps_check()) {
 #ifdef CONFIG_X86_LOCAL_APIC
-#ifdef CONFIG_X86_32
-		enable_local_apic = -1;
-#else
 		disable_apic = 1;
-#endif
 #endif
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	}
