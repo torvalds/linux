@@ -112,10 +112,10 @@ struct smscore_registry_entry_t {
 
 struct list_head g_smscore_notifyees;
 struct list_head g_smscore_devices;
-kmutex_t g_smscore_deviceslock;
+struct mutex g_smscore_deviceslock;
 
 struct list_head g_smscore_registry;
-kmutex_t g_smscore_registrylock;
+struct mutex g_smscore_registrylock;
 
 static int default_mode = 4;
 

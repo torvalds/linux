@@ -28,7 +28,7 @@
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct list_head g_smsdvb_clients;
-kmutex_t g_smsdvb_clientslock;
+struct mutex g_smsdvb_clientslock;
 
 static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 {
