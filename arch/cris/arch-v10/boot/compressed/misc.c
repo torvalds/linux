@@ -30,8 +30,7 @@
 #define STATIC static
 
 void* memset(void* s, int c, size_t n);
-void* memcpy(void* __dest, __const void* __src,
-	     size_t __n);
+void* memcpy(void* __dest, __const void* __src, size_t __n);
 
 #define memzero(s, n)     memset ((s), 0, (n))
 
@@ -81,11 +80,8 @@ static unsigned outcnt = 0;  /* bytes in output buffer */
 #  define Tracecv(c,x)
 #endif
 
-static int  fill_inbuf(void);
 static void flush_window(void);
 static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
 
 extern char *input_data;  /* lives in head.S */
 
@@ -95,7 +91,6 @@ static unsigned long output_ptr = 0;
  
 static void *malloc(int size);
 static void free(void *where);
-static void error(char *m);
 static void gzip_mark(void **);
 static void gzip_release(void **);
  
@@ -103,8 +98,8 @@ static void puts(const char *);
 
 /* the "heap" is put directly after the BSS ends, at end */
   
-extern int end;
-static long free_mem_ptr = (long)&end;
+extern int _end;
+static long free_mem_ptr = (long)&_end;
  
 #include "../../../../../lib/inflate.c"
 
@@ -170,6 +165,8 @@ memset(void* s, int c, size_t n)
 	char *ss = (char*)s;
 
 	for (i=0;i<n;i++) ss[i] = c;
+
+   return s;
 }
 
 void*
@@ -180,6 +177,8 @@ memcpy(void* __dest, __const void* __src,
 	char *d = (char *)__dest, *s = (char *)__src;
 
 	for (i=0;i<__n;i++) d[i] = s[i];
+
+   return __dest;
 }
 
 /* ===========================================================================
@@ -216,14 +215,12 @@ error(char *x)
 	while(1);	/* Halt */
 }
 
-void
-setup_normal_output_buffer()
+void setup_normal_output_buffer(void)
 {
 	output_data = (char *)KERNEL_LOAD_ADR;
 }
 
-void
-decompress_kernel()
+void decompress_kernel(void)
 {
 	char revision;
 	
@@ -257,7 +254,7 @@ decompress_kernel()
 
 	makecrc();
 
-	__asm__ volatile ("move vr,%0" : "=rm" (revision));
+	__asm__ volatile ("move $vr,%0" : "=rm" (revision));
 	if (revision < 10)
 	{
 		puts("You need an ETRAX 100LX to run linux 2.6\n");
