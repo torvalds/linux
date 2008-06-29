@@ -763,15 +763,6 @@ static struct device_driver ic_drv = {
 	.owner	= THIS_MODULE,
 };
 
-/*
- * Image capture host - this is a host device, not a bus device, so,
- * no bus reference, no probing.
- */
-static struct class soc_camera_host_class = {
-	.owner		= THIS_MODULE,
-	.name		= "camera_host",
-};
-
 static void dummy_release(struct device *dev)
 {
 }
@@ -801,7 +792,6 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 
 	/* Number might be equal to the platform device ID */
 	sprintf(ici->dev.bus_id, "camera_host%d", ici->nr);
-	ici->dev.class = &soc_camera_host_class;
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
@@ -1003,14 +993,9 @@ static int __init soc_camera_init(void)
 	ret = driver_register(&ic_drv);
 	if (ret)
 		goto edrvr;
-	ret = class_register(&soc_camera_host_class);
-	if (ret)
-		goto eclr;
 
 	return 0;
 
-eclr:
-	driver_unregister(&ic_drv);
 edrvr:
 	bus_unregister(&soc_camera_bus_type);
 	return ret;
@@ -1018,7 +1003,6 @@ edrvr:
 
 static void __exit soc_camera_exit(void)
 {
-	class_unregister(&soc_camera_host_class);
 	driver_unregister(&ic_drv);
 	bus_unregister(&soc_camera_bus_type);
 }
