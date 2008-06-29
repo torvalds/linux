@@ -32,6 +32,18 @@ struct usb_device_id smsusb_id_table[] = {
 	{ USB_DEVICE(0x187f, 0x0300),
 		.driver_info = SMS1XXX_BOARD_SIANO_VEGA },
 #endif
+	{ USB_DEVICE(0x2040, 0x1700),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT },
+	{ USB_DEVICE(0x2040, 0x1800),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A },
+	{ USB_DEVICE(0x2040, 0x1801),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B },
+	{ USB_DEVICE(0x2040, 0x5500),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5580),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5590),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
 	{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, smsusb_id_table);
@@ -58,6 +70,26 @@ static struct sms_board sms_boards[] = {
 	[SMS1XXX_BOARD_SIANO_VEGA] = {
 		.name	= "Siano Vega Digital Receiver",
 		.type	= SMS_VEGA,
+	},
+	[SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT] = {
+		.name	= "Hauppauge Catamount",
+		.type	= SMS_STELLAR,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-stellar-dvbt-01.fw",
+	},
+	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A] = {
+		.name	= "Hauppauge Okemo-A",
+		.type	= SMS_NOVA_A0,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-a-dvbt-01.fw",
+	},
+	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B] = {
+		.name	= "Hauppauge Okemo-B",
+		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-b-dvbt-01.fw",
+	},
+	[SMS1XXX_BOARD_HAUPPAUGE_WINDHAM] = {
+		.name	= "Hauppauge WinTV-Nova-T-MiniStick",
+		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-01.fw",
 	},
 };
 
