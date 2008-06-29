@@ -415,7 +415,7 @@ static void smsusb_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver smsusb_driver = {
-	.name			= "smsusb",
+	.name			= "sms1xxx",
 	.probe			= smsusb_probe,
 	.disconnect		= smsusb_disconnect,
 	.id_table		= smsusb_id_table,
