@@ -124,8 +124,6 @@ MODULE_PARM_DESC (rx_copybreak, "de2104x Breakpoint at which Rx packets are copi
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT		(6*HZ)
 
-#define DE_UNALIGNED_16(a)	(u16)(get_unaligned((u16 *)(a)))
-
 /* This is a mysterious value that can be written to CSR11 in the 21040 (only)
    to support a pre-NWay full-duplex signaling mechanism using short frames.
    No one knows what it should be, but if left at its default value some
@@ -1811,7 +1809,7 @@ static void __devinit de21041_get_srom_info (struct de_private *de)
 		goto bad_srom;
 
 	/* get default media type */
-	switch (DE_UNALIGNED_16(&il->default_media)) {
+	switch (get_unaligned(&il->default_media)) {
 	case 0x0001:  de->media_type = DE_MEDIA_BNC; break;
 	case 0x0002:  de->media_type = DE_MEDIA_AUI; break;
 	case 0x0204:  de->media_type = DE_MEDIA_TP_FD; break;
@@ -1875,9 +1873,9 @@ static void __devinit de21041_get_srom_info (struct de_private *de)
 		bufp += sizeof (ib->opts);
 
 		if (ib->opts & MediaCustomCSRs) {
-			de->media[idx].csr13 = DE_UNALIGNED_16(&ib->csr13);
-			de->media[idx].csr14 = DE_UNALIGNED_16(&ib->csr14);
-			de->media[idx].csr15 = DE_UNALIGNED_16(&ib->csr15);
+			de->media[idx].csr13 = get_unaligned(&ib->csr13);
+			de->media[idx].csr14 = get_unaligned(&ib->csr14);
+			de->media[idx].csr15 = get_unaligned(&ib->csr15);
 			bufp += sizeof(ib->csr13) + sizeof(ib->csr14) +
 				sizeof(ib->csr15);
 
