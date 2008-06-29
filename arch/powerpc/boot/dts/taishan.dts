@@ -186,7 +186,34 @@
 				interrupts = <0x5 0x4>;
 				interrupt-parent = <&UIC1>;
 
-				/* TODO: Add other EBC devices */
+				nor_flash@0,0 {
+					compatible = "cfi-flash";
+					bank-width = <4>;
+					device-width = <2>;
+					reg = <0x0 0x0 0x4000000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "kernel";
+						reg = <0x0 0x180000>;
+					};
+					partition@180000 {
+						label = "root";
+						reg = <0x180000 0x200000>;
+					};
+					partition@380000 {
+						label = "user";
+						reg = <0x380000 0x3bc0000>;
+					};
+					partition@3f40000 {
+						label = "env";
+						reg = <0x3f40000 0x80000>;
+					};
+					partition@3fc0000 {
+						label = "u-boot";
+						reg = <0x3fc0000 0x40000>;
+					};
+				};
 			};
 
 
