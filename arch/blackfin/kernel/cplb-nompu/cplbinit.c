@@ -254,7 +254,8 @@ close_cplbtab(struct cplb_tab *table)
 }
 
 /* helper function */
-static void __fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
+static void __init
+__fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
 {
 	if (cplb_data[i].psize) {
 		fill_cplbtab(t,
@@ -291,7 +292,8 @@ static void __fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_en
 	}
 }
 
-static void __fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
+static void __init
+__fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
 {
 	if (cplb_data[i].psize) {
 		fill_cplbtab(t,
