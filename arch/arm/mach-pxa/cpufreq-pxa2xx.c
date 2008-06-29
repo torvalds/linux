@@ -64,7 +64,7 @@ typedef struct {
 
 /* Define the refresh period in mSec for the SDRAM and the number of rows */
 #define SDRAM_TREF	64	/* standard 64ms SDRAM */
-#define SDRAM_ROWS	4096	/* 64MB=8192 32MB=4096 */
+static unsigned int sdram_rows;
 
 #define CCLKCFG_TURBO		0x1
 #define CCLKCFG_FCS		0x2
@@ -72,6 +72,9 @@ typedef struct {
 #define CCLKCFG_FASTBUS		0x8
 #define MDREFR_DB2_MASK		(MDREFR_K2DB2 | MDREFR_K1DB2)
 #define MDREFR_DRI_MASK		0xFFF
+
+#define MDCNFG_DRAC2(mdcnfg) (((mdcnfg) >> 21) & 0x3)
+#define MDCNFG_DRAC0(mdcnfg) (((mdcnfg) >> 5) & 0x3)
 
 /*
  * PXA255 definitions
@@ -192,14 +195,28 @@ static void pxa27x_guess_max_freq(void)
 	}
 }
 
+static void init_sdram_rows(void)
+{
+	uint32_t mdcnfg = MDCNFG;
+	unsigned int drac2 = 0, drac0 = 0;
+
+	if (mdcnfg & (MDCNFG_DE2 | MDCNFG_DE3))
+		drac2 = MDCNFG_DRAC2(mdcnfg);
+
+	if (mdcnfg & (MDCNFG_DE0 | MDCNFG_DE1))
+		drac0 = MDCNFG_DRAC0(mdcnfg);
+
+	sdram_rows = 1 << (11 + max(drac0, drac2));
+}
+
 static u32 mdrefr_dri(unsigned int freq)
 {
 	u32 dri = 0;
 
 	if (cpu_is_pxa25x())
-		dri = ((freq * SDRAM_TREF) / (SDRAM_ROWS * 32));
+		dri = ((freq * SDRAM_TREF) / (sdram_rows * 32));
 	if (cpu_is_pxa27x())
-		dri = ((freq * SDRAM_TREF) / (SDRAM_ROWS - 31)) / 32;
+		dri = ((freq * SDRAM_TREF) / (sdram_rows - 31)) / 32;
 	return dri;
 }
 
@@ -333,6 +350,8 @@ static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	/* try to guess pxa27x cpu */
 	if (cpu_is_pxa27x())
 		pxa27x_guess_max_freq();
+
+	init_sdram_rows();
 
 	/* set default policy and cpuinfo */
 	policy->cpuinfo.transition_latency = 1000; /* FIXME: 1 ms, assumed */
