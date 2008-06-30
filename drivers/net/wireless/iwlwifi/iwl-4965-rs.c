@@ -2133,11 +2133,8 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 			lq_sta->ibss_sta_added = 1;
 			rs_initialize_lq(priv, conf, sta);
 		}
-		if (!lq_sta->ibss_sta_added)
-			goto done;
 	}
 
-done:
 	if ((i < 0) || (i > IWL_RATE_COUNT)) {
 		sel->rate_idx = rate_lowest_index(local, sband, sta);
 		goto out;
