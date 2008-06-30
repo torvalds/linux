@@ -284,6 +284,10 @@ void iwlcore_clear_stations_table(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
 	priv->num_stations = 0;
+	if (iwl_is_alive(priv) &&
+	    iwl_send_cmd_pdu_async(priv, REPLY_REMOVE_ALL_STA, 0, NULL, NULL))
+		IWL_ERROR("Couldn't clear the station table\n");
+
 	memset(priv->stations, 0, sizeof(priv->stations));
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);

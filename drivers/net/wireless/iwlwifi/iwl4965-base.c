@@ -315,7 +315,6 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 		return rc;
 	}
 
-	iwl_remove_station(priv, iwl_bcast_addr, 0);
 	iwlcore_clear_stations_table(priv);
 
 	if (!priv->error_recovering)

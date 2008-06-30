@@ -48,7 +48,7 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 int iwl_remove_dynamic_key(struct iwl_priv *priv,
 			   struct ieee80211_key_conf *key, u8 sta_id);
 int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
-u8 iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
+int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
 int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 void iwl_sta_modify_enable_tid_tx(struct iwl_priv *priv, int sta_id, int tid);
 int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
