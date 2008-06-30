@@ -320,7 +320,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 	}
 
-	iwlcore_clear_stations_table(priv);
+	iwl_clear_stations_table(priv);
 
 	if (!priv->error_recovering)
 		priv->start_calib = 0;
@@ -841,7 +841,7 @@ static int iwl4965_set_mode(struct iwl_priv *priv, int mode)
 	iwl4965_connection_init_rx_config(priv);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
-	iwlcore_clear_stations_table(priv);
+	iwl_clear_stations_table(priv);
 
 	/* dont commit rxon if rf-kill is on*/
 	if (!iwl_is_ready_rf(priv))
@@ -2150,7 +2150,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	iwlcore_clear_stations_table(priv);
+	iwl_clear_stations_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
 		IWL_WARNING("Could not complete ALIVE transition [ntf]: %d\n",
@@ -2228,7 +2228,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 
 	iwl_leds_unregister(priv);
 
-	iwlcore_clear_stations_table(priv);
+	iwl_clear_stations_table(priv);
 
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
@@ -2390,7 +2390,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 
-		iwlcore_clear_stations_table(priv);
+		iwl_clear_stations_table(priv);
 
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
@@ -4530,7 +4530,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 		iwl_rx_queue_free(priv, &priv->rxq);
 	iwl_hw_txq_ctx_free(priv);
 
-	iwlcore_clear_stations_table(priv);
+	iwl_clear_stations_table(priv);
 	iwl_eeprom_free(priv);
 
 
