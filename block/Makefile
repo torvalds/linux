@@ -14,3 +14,4 @@ obj-$(CONFIG_IOSCHED_CFQ)	+= cfq-iosched.o
 
 obj-$(CONFIG_BLK_DEV_IO_TRACE)	+= blktrace.o
 obj-$(CONFIG_BLOCK_COMPAT)	+= compat_ioctl.o
+obj-$(CONFIG_BLK_DEV_INTEGRITY)	+= blk-integrity.o

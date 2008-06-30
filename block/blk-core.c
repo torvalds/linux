@@ -143,6 +143,10 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 
 		bio->bi_size -= nbytes;
 		bio->bi_sector += (nbytes >> 9);
+
+		if (bio_integrity(bio))
+			bio_integrity_advance(bio, nbytes);
+
 		if (bio->bi_size == 0)
 			bio_endio(bio, error);
 	} else {
@@ -1380,6 +1384,9 @@ end_io:
 		 * of partition p to block n+start(p) of the disk.
 		 */
 		blk_partition_remap(bio);
+
+		if (bio_integrity_enabled(bio) && bio_integrity_prep(bio))
+			goto end_io;
 
 		if (old_sector != -1)
 			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector,

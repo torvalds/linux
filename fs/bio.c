@@ -50,6 +50,11 @@ static struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly = {
  */
 struct bio_set *fs_bio_set;
 
+unsigned int bvec_nr_vecs(unsigned short idx)
+{
+	return bvec_slabs[idx].nr_vecs;
+}
+
 struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct bio_set *bs)
 {
 	struct bio_vec *bvl;
@@ -90,6 +95,9 @@ void bio_free(struct bio *bio, struct bio_set *bio_set)
 
 		mempool_free(bio->bi_io_vec, bio_set->bvec_pools[pool_idx]);
 	}
+
+	if (bio_integrity(bio))
+		bio_integrity_free(bio, bio_set);
 
 	mempool_free(bio, bio_set->bio_pool);
 }
@@ -249,9 +257,19 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
 {
 	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, fs_bio_set);
 
-	if (b) {
-		b->bi_destructor = bio_fs_destructor;
-		__bio_clone(b, bio);
+	if (!b)
+		return NULL;
+
+	b->bi_destructor = bio_fs_destructor;
+	__bio_clone(b, bio);
+
+	if (bio_integrity(bio)) {
+		int ret;
+
+		ret = bio_integrity_clone(b, bio, fs_bio_set);
+
+		if (ret < 0)
+			return NULL;
 	}
 
 	return b;
@@ -1223,6 +1241,9 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
 	bp->bio1.bi_private = bi;
 	bp->bio2.bi_private = pool;
 
+	if (bio_integrity(bi))
+		bio_integrity_split(bi, bp, first_sectors);
+
 	return bp;
 }
 
@@ -1264,6 +1285,7 @@ void bioset_free(struct bio_set *bs)
 	if (bs->bio_pool)
 		mempool_destroy(bs->bio_pool);
 
+	bioset_integrity_free(bs);
 	biovec_free_pools(bs);
 
 	kfree(bs);
@@ -1278,6 +1300,9 @@ struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size)
 
 	bs->bio_pool = mempool_create_slab_pool(bio_pool_size, bio_slab);
 	if (!bs->bio_pool)
+		goto bad;
+
+	if (bioset_integrity_create(bs, bio_pool_size))
 		goto bad;
 
 	if (!biovec_create_pools(bs, bvec_pool_size))
@@ -1306,6 +1331,7 @@ static int __init init_bio(void)
 {
 	bio_slab = KMEM_CACHE(bio, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 
+	bio_integrity_init_slab();
 	biovec_init_slabs();
 
 	fs_bio_set = bioset_create(BIO_POOL_SIZE, 2);
