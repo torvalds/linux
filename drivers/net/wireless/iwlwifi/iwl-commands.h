@@ -336,6 +336,8 @@ struct iwl4965_tx_power_db {
  * struct iwl5000_tx_power_dbm_cmd
  */
 #define IWL50_TX_POWER_AUTO 0x7f
+#define IWL50_TX_POWER_NO_CLOSED (0x1 << 6)
+
 struct iwl5000_tx_power_dbm_cmd {
 	s8 global_lmt; /*in half-dBm (e.g. 30 = 15 dBm) */
 	u8 flags;

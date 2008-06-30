@@ -1426,7 +1426,7 @@ static int  iwl5000_send_tx_power(struct iwl_priv *priv)
 
 	/* half dBm need to multiply */
 	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
-	tx_power_cmd.flags = 0;
+	tx_power_cmd.flags = IWL50_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
 	return  iwl_send_cmd_pdu_async(priv, REPLY_TX_POWER_DBM_CMD,
 				       sizeof(tx_power_cmd), &tx_power_cmd,
