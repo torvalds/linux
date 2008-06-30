@@ -68,16 +68,16 @@ static const int unlock_codes[] = { 0x83, 0x87 };
 
 static const int valid_ids[] = {
 	0x7112,
-	};
+};
 
 #ifdef CONFIG_PNP
-static unsigned int nopnp = 0;
+static unsigned int param_nopnp = 0;
 #else
-static const unsigned int nopnp = 1;
+static const unsigned int param_nopnp = 1;
 #endif
-static unsigned int io = 0x248;
-static unsigned int irq = 6;
-static int dma = 2;
+static unsigned int param_io = 0x248;
+static unsigned int param_irq = 6;
+static int param_dma = 2;
 
 /*
  * Basic functions
@@ -1765,7 +1765,7 @@ static void __devexit wbsd_shutdown(struct device *dev, int pnp)
 static int __devinit wbsd_probe(struct platform_device *dev)
 {
 	/* Use the module parameters for resources */
-	return wbsd_init(&dev->dev, io, irq, dma, 0);
+	return wbsd_init(&dev->dev, param_io, param_irq, param_dma, 0);
 }
 
 static int __devexit wbsd_remove(struct platform_device *dev)
@@ -1979,14 +1979,14 @@ static int __init wbsd_drv_init(void)
 
 #ifdef CONFIG_PNP
 
-	if (!nopnp) {
+	if (!param_nopnp) {
 		result = pnp_register_driver(&wbsd_pnp_driver);
 		if (result < 0)
 			return result;
 	}
 #endif /* CONFIG_PNP */
 
-	if (nopnp) {
+	if (param_nopnp) {
 		result = platform_driver_register(&wbsd_driver);
 		if (result < 0)
 			return result;
@@ -2012,12 +2012,12 @@ static void __exit wbsd_drv_exit(void)
 {
 #ifdef CONFIG_PNP
 
-	if (!nopnp)
+	if (!param_nopnp)
 		pnp_unregister_driver(&wbsd_pnp_driver);
 
 #endif /* CONFIG_PNP */
 
-	if (nopnp) {
+	if (param_nopnp) {
 		platform_device_unregister(wbsd_device);
 
 		platform_driver_unregister(&wbsd_driver);
@@ -2029,11 +2029,11 @@ static void __exit wbsd_drv_exit(void)
 module_init(wbsd_drv_init);
 module_exit(wbsd_drv_exit);
 #ifdef CONFIG_PNP
-module_param(nopnp, uint, 0444);
+module_param_named(nopnp, param_nopnp, uint, 0444);
 #endif
-module_param(io, uint, 0444);
-module_param(irq, uint, 0444);
-module_param(dma, int, 0444);
+module_param_named(io, param_io, uint, 0444);
+module_param_named(irq, param_irq, uint, 0444);
+module_param_named(dma, param_dma, int, 0444);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
