@@ -1540,6 +1540,8 @@ module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num50, "number of hw queues in 50xx series");
 module_param_named(qos_enable50, iwl50_mod_params.enable_qos, int, 0444);
 MODULE_PARM_DESC(qos_enable50, "enable all 50XX QoS functionality");
+module_param_named(11n_disable50, iwl50_mod_params.disable_11n, int, 0444);
+MODULE_PARM_DESC(11n_disable50, "disable 50XX 11n functionality");
 module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K50, "enable 8K amsdu size in 50XX series");
 module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, 0444);

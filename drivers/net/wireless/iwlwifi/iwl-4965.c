@@ -2075,6 +2075,9 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	IWL_DEBUG_HT("A-MPDU action on addr %s tid %d\n",
 		     print_mac(mac, addr), tid);
 
+	if (!(priv->cfg->sku & IWL_SKU_N))
+		return -EACCES;
+
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		IWL_DEBUG_HT("start Rx\n");
@@ -2457,11 +2460,14 @@ MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
 module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-
 /* QoS */
 module_param_named(qos_enable, iwl4965_mod_params.enable_qos, int, 0444);
 MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
+/* 11n */
+module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, 0444);
+MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
 module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+
 module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, 0444);
 MODULE_PARM_DESC(fw_restart4965, "restart firmware in case of error");
