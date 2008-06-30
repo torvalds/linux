@@ -646,12 +646,13 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 	 */
 
 	kfree(port->bulk_in_buffer);
-	kfree(port->bulk_out_buffer);
 	port->bulk_in_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
 	if (port->bulk_in_buffer == NULL) {
 		port->bulk_out_buffer = NULL; /* prevent double free */
 		goto enomem;
 	}
+
+	kfree(port->bulk_out_buffer);
 	port->bulk_out_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
 	if (port->bulk_out_buffer == NULL) {
 		kfree(port->bulk_in_buffer);
