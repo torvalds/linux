@@ -613,20 +613,6 @@ static void iwl4965_activate_qos(struct iwl_priv *priv, u8 force)
 	}
 }
 
-static void iwl4965_sequence_reset(struct iwl_priv *priv)
-{
-	/* Reset ieee stats */
-
-	/* We don't reset the net_device_stats (ieee->stats) on
-	 * re-association */
-
-	priv->last_seq_num = -1;
-	priv->last_frag_num = -1;
-	priv->last_packet_time = 0;
-
-	iwl_scan_cancel(priv);
-}
-
 #define MAX_UCODE_BEACON_INTERVAL	4096
 #define INTEL_CONN_LISTEN_INTERVAL	__constant_cpu_to_le16(0xA)
 
@@ -2515,8 +2501,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 		break;
 	}
 
-	iwl4965_sequence_reset(priv);
-
 	/* Enable Rx differential gain and sensitivity calibrations */
 	iwl_chain_noise_reset(priv);
 	priv->start_calib = 1;
@@ -4337,8 +4321,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
-	struct list_head *p, *q;
-	int i;
 	unsigned long flags;
 
 	if (!priv)
@@ -4366,14 +4348,6 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_synchronize_irq(priv);
-
-	/* Free MAC hash list for ADHOC */
-	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++) {
-		list_for_each_safe(p, q, &priv->ibss_mac_hash[i]) {
-			list_del(p);
-			kfree(list_entry(p, struct iwl4965_ibss_seq, list));
-		}
-	}
 
 	iwl_rfkill_unregister(priv);
 	iwl4965_dealloc_ucode_pci(priv);

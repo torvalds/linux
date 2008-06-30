@@ -846,7 +846,6 @@ EXPORT_SYMBOL(iwl_setup_mac);
 int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
-	int i;
 
 	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
@@ -856,9 +855,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 	spin_lock_init(&priv->lq_mngr.lock);
-
-	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++)
-		INIT_LIST_HEAD(&priv->ibss_mac_hash[i]);
 
 	INIT_LIST_HEAD(&priv->free_frames);
 
