@@ -80,6 +80,12 @@ config MACH_WNR854T
 	  Say 'Y' here if you want your kernel to support the
 	  Netgear WNR854T platform.
 
+config MACH_RD88F5181L_GE
+	bool "Marvell Orion-VoIP GE Reference Design"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Orion-VoIP GE (88F5181L) RD.
+
 endmenu
 
 endif
