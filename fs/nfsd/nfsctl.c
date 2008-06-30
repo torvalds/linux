@@ -310,9 +310,12 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 
 static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
 {
-	__be32 server_ip;
-	char *fo_path, c;
+	struct sockaddr_in sin = {
+		.sin_family	= AF_INET,
+	};
 	int b1, b2, b3, b4;
+	char c;
+	char *fo_path;
 
 	/* sanity check */
 	if (size == 0)
@@ -326,11 +329,13 @@ static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
 		return -EINVAL;
 
 	/* get ipv4 address */
-	if (sscanf(fo_path, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) != 4)
+	if (sscanf(fo_path, NIPQUAD_FMT "%c", &b1, &b2, &b3, &b4, &c) != 4)
 		return -EINVAL;
-	server_ip = htonl((((((b1<<8)|b2)<<8)|b3)<<8)|b4);
+	if (b1 > 255 || b2 > 255 || b3 > 255 || b4 > 255)
+		return -EINVAL;
+	sin.sin_addr.s_addr = htonl((b1 << 24) | (b2 << 16) | (b3 << 8) | b4);
 
-	return nlmsvc_unlock_all_by_ip(server_ip);
+	return nlmsvc_unlock_all_by_ip((struct sockaddr *)&sin);
 }
 
 static ssize_t failover_unlock_fs(struct file *file, char *buf, size_t size)

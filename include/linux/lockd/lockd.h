@@ -226,7 +226,7 @@ void		  nlmsvc_invalidate_all(void);
  * Cluster failover support
  */
 int           nlmsvc_unlock_all_by_sb(struct super_block *sb);
-int           nlmsvc_unlock_all_by_ip(__be32 server_addr);
+int           nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr);
 
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {
