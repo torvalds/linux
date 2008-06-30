@@ -174,10 +174,17 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	 * need to use BH_New is when we're extending i_size on a file
 	 * system which doesn't support holes, in which case BH_New
 	 * allows block_prepare_write() to zero.
+	 *
+	 * If we see this on a sparse file system, then a truncate has
+	 * raced us and removed the cluster. In this case, we clear
+	 * the buffers dirty and uptodate bits and let the buffer code
+	 * ignore it as a hole.
 	 */
-	mlog_bug_on_msg(create && p_blkno == 0 && ocfs2_sparse_alloc(osb),
-			"ino %lu, iblock %llu\n", inode->i_ino,
-			(unsigned long long)iblock);
+	if (create && p_blkno == 0 && ocfs2_sparse_alloc(osb)) {
+		clear_buffer_dirty(bh_result);
+		clear_buffer_uptodate(bh_result);
+		goto bail;
+	}
 
 	/* Treat the unwritten extent as a hole for zeroing purposes. */
 	if (p_blkno && !(ext_flags & OCFS2_EXT_UNWRITTEN))
