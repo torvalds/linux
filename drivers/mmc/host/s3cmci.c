@@ -461,9 +461,19 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 
 	if (mci_csta & S3C2410_SDICMDSTAT_CRCFAIL) {
 		if (cmd->flags & MMC_RSP_CRC) {
-			cmd->error = -EILSEQ;
-			host->status = "error: bad command crc";
-			goto fail_transfer;
+			if (host->mrq->cmd->flags & MMC_RSP_136) {
+				dbg(host, dbg_irq,
+				    "fixup: ignore CRC fail with long rsp\n");
+			} else {
+				/* note, we used to fail the transfer
+				 * here, but it seems that this is just
+				 * the hardware getting it wrong.
+				 *
+				 * cmd->error = -EILSEQ;
+				 * host->status = "error: bad command crc";
+				 * goto fail_transfer;
+				*/
+			}
 		}
 
 		mci_cclear |= S3C2410_SDICMDSTAT_CRCFAIL;
