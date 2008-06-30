@@ -2456,17 +2456,34 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	/* Handle some required side effects when the video standard is
 	   changed.... */
 	if (hdw->std_dirty) {
-		/* Rewrite the vertical resolution to be appropriate to the
-		   video standard that has been selected. */
 		int nvres;
+		int gop_size;
 		if (hdw->std_mask_cur & V4L2_STD_525_60) {
 			nvres = 480;
+			gop_size = 15;
 		} else {
 			nvres = 576;
+			gop_size = 12;
 		}
+		/* Rewrite the vertical resolution to be appropriate to the
+		   video standard that has been selected. */
 		if (nvres != hdw->res_ver_val) {
 			hdw->res_ver_val = nvres;
 			hdw->res_ver_dirty = !0;
+		}
+		/* Rewrite the GOP size to be appropriate to the video
+		   standard that has been selected. */
+		if (gop_size != hdw->enc_ctl_state.video_gop_size) {
+			struct v4l2_ext_controls cs;
+			struct v4l2_ext_control c1;
+			memset(&cs, 0, sizeof(cs));
+			memset(&c1, 0, sizeof(c1));
+			cs.controls = &c1;
+			cs.count = 1;
+			c1.id = V4L2_CID_MPEG_VIDEO_GOP_SIZE;
+			c1.value = gop_size;
+			cx2341x_ext_ctrls(&hdw->enc_ctl_state, 0, &cs,
+					  VIDIOC_S_EXT_CTRLS);
 		}
 	}
 
