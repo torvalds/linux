@@ -47,6 +47,9 @@ struct clk *clk_get(struct device *dev, const char *id)
 		clk = p;
 	mutex_unlock(&clocks_mutex);
 
+	if (!IS_ERR(clk) && clk->ops == NULL)
+		clk = clk->other;
+
 	return clk;
 }
 EXPORT_SYMBOL(clk_get);
