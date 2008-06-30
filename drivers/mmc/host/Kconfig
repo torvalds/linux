@@ -143,3 +143,14 @@ config MMC_SPI
 
 	  If unsure, or if your system has no SPI master driver, say N.
 
+config MMC_S3C
+	tristate "Samsung S3C SD/MMC Card Interface support"
+	depends on ARCH_S3C2410 && MMC
+	help
+	  This selects a driver for the MCI interface found in
+          Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
+	  If you have a board based on one of those and a MMC/SD
+	  slot, say Y or M here.
+
+	  If unsure, say N.
+
