@@ -1083,11 +1083,18 @@ static void s3cmci_reset(struct s3cmci_host *host)
 static int s3cmci_get_ro(struct mmc_host *mmc)
 {
 	struct s3cmci_host *host = mmc_priv(mmc);
+	struct s3c24xx_mci_pdata *pdata = host->pdata;
+	int ret;
 
-	if (host->pdata->gpio_wprotect == 0)
+	if (pdata->gpio_wprotect == 0)
 		return 0;
 
-	return s3c2410_gpio_getpin(host->pdata->gpio_wprotect);
+	ret = s3c2410_gpio_getpin(pdata->gpio_wprotect);
+
+	if (pdata->wprotect_invert)
+		ret = !ret;
+
+	return ret;
 }
 
 static struct mmc_host_ops s3cmci_ops = {

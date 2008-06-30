@@ -2,6 +2,8 @@
 #define _ARCH_MCI_H
 
 struct s3c24xx_mci_pdata {
+	unsigned int	wprotect_invert : 1;
+
 	unsigned int	gpio_detect;
 	unsigned int	gpio_wprotect;
 	unsigned long	ocr_avail;
