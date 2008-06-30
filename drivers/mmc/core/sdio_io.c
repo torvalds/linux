@@ -167,10 +167,8 @@ int sdio_set_block_size(struct sdio_func *func, unsigned blksz)
 		return -EINVAL;
 
 	if (blksz == 0) {
-		blksz = min(min(
-			func->max_blksize,
-			func->card->host->max_blk_size),
-			512u);
+		blksz = min(func->max_blksize, func->card->host->max_blk_size);
+		blksz = min(blksz, 512u);
 	}
 
 	ret = mmc_io_rw_direct(func->card, 1, 0,
@@ -311,10 +309,9 @@ static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
 		/* Blocks per command is limited by host count, host transfer
 		 * size (we only use a single sg entry) and the maximum for
 		 * IO_RW_EXTENDED of 511 blocks. */
-		max_blocks = min(min(
-			func->card->host->max_blk_count,
-			func->card->host->max_seg_size / func->cur_blksize),
-			511u);
+		max_blocks = min(func->card->host->max_blk_count,
+			func->card->host->max_seg_size / func->cur_blksize);
+		max_blocks = min(max_blocks, 511u);
 
 		while (remainder > func->cur_blksize) {
 			unsigned blocks;
@@ -364,11 +361,10 @@ static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
  *	function. If there is a problem reading the address, 0xff
  *	is returned and @err_ret will contain the error code.
  */
-unsigned char sdio_readb(struct sdio_func *func, unsigned int addr,
-	int *err_ret)
+u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret)
 {
 	int ret;
-	unsigned char val;
+	u8 val;
 
 	BUG_ON(!func);
 
@@ -397,8 +393,7 @@ EXPORT_SYMBOL_GPL(sdio_readb);
  *	function. @err_ret will contain the status of the actual
  *	transfer.
  */
-void sdio_writeb(struct sdio_func *func, unsigned char b, unsigned int addr,
-	int *err_ret)
+void sdio_writeb(struct sdio_func *func, u8 b, unsigned int addr, int *err_ret)
 {
 	int ret;
 
@@ -459,7 +454,6 @@ int sdio_readsb(struct sdio_func *func, void *dst, unsigned int addr,
 {
 	return sdio_io_rw_ext_helper(func, 0, addr, 0, dst, count);
 }
-
 EXPORT_SYMBOL_GPL(sdio_readsb);
 
 /**
@@ -489,8 +483,7 @@ EXPORT_SYMBOL_GPL(sdio_writesb);
  *	function. If there is a problem reading the address, 0xffff
  *	is returned and @err_ret will contain the error code.
  */
-unsigned short sdio_readw(struct sdio_func *func, unsigned int addr,
-	int *err_ret)
+u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret)
 {
 	int ret;
 
@@ -504,7 +497,7 @@ unsigned short sdio_readw(struct sdio_func *func, unsigned int addr,
 		return 0xFFFF;
 	}
 
-	return le16_to_cpu(*(u16*)func->tmpbuf);
+	return le16_to_cpup((__le16 *)func->tmpbuf);
 }
 EXPORT_SYMBOL_GPL(sdio_readw);
 
@@ -519,12 +512,11 @@ EXPORT_SYMBOL_GPL(sdio_readw);
  *	function. @err_ret will contain the status of the actual
  *	transfer.
  */
-void sdio_writew(struct sdio_func *func, unsigned short b, unsigned int addr,
-	int *err_ret)
+void sdio_writew(struct sdio_func *func, u16 b, unsigned int addr, int *err_ret)
 {
 	int ret;
 
-	*(u16*)func->tmpbuf = cpu_to_le16(b);
+	*(__le16 *)func->tmpbuf = cpu_to_le16(b);
 
 	ret = sdio_memcpy_toio(func, addr, func->tmpbuf, 2);
 	if (err_ret)
@@ -543,8 +535,7 @@ EXPORT_SYMBOL_GPL(sdio_writew);
  *	0xffffffff is returned and @err_ret will contain the error
  *	code.
  */
-unsigned long sdio_readl(struct sdio_func *func, unsigned int addr,
-	int *err_ret)
+u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret)
 {
 	int ret;
 
@@ -558,7 +549,7 @@ unsigned long sdio_readl(struct sdio_func *func, unsigned int addr,
 		return 0xFFFFFFFF;
 	}
 
-	return le32_to_cpu(*(u32*)func->tmpbuf);
+	return le32_to_cpup((__le32 *)func->tmpbuf);
 }
 EXPORT_SYMBOL_GPL(sdio_readl);
 
@@ -573,12 +564,11 @@ EXPORT_SYMBOL_GPL(sdio_readl);
  *	function. @err_ret will contain the status of the actual
  *	transfer.
  */
-void sdio_writel(struct sdio_func *func, unsigned long b, unsigned int addr,
-	int *err_ret)
+void sdio_writel(struct sdio_func *func, u32 b, unsigned int addr, int *err_ret)
 {
 	int ret;
 
-	*(u32*)func->tmpbuf = cpu_to_le32(b);
+	*(__le32 *)func->tmpbuf = cpu_to_le32(b);
 
 	ret = sdio_memcpy_toio(func, addr, func->tmpbuf, 4);
 	if (err_ret)

@@ -122,23 +122,20 @@ extern int sdio_release_irq(struct sdio_func *func);
 
 extern unsigned int sdio_align_size(struct sdio_func *func, unsigned int sz);
 
-extern unsigned char sdio_readb(struct sdio_func *func,
-	unsigned int addr, int *err_ret);
-extern unsigned short sdio_readw(struct sdio_func *func,
-	unsigned int addr, int *err_ret);
-extern unsigned long sdio_readl(struct sdio_func *func,
-	unsigned int addr, int *err_ret);
+extern u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret);
+extern u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret);
+extern u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret);
 
 extern int sdio_memcpy_fromio(struct sdio_func *func, void *dst,
 	unsigned int addr, int count);
 extern int sdio_readsb(struct sdio_func *func, void *dst,
 	unsigned int addr, int count);
 
-extern void sdio_writeb(struct sdio_func *func, unsigned char b,
+extern void sdio_writeb(struct sdio_func *func, u8 b,
 	unsigned int addr, int *err_ret);
-extern void sdio_writew(struct sdio_func *func, unsigned short b,
+extern void sdio_writew(struct sdio_func *func, u16 b,
 	unsigned int addr, int *err_ret);
-extern void sdio_writel(struct sdio_func *func, unsigned long b,
+extern void sdio_writel(struct sdio_func *func, u32 b,
 	unsigned int addr, int *err_ret);
 
 extern int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
