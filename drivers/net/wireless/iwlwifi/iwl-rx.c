@@ -466,3 +466,78 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 	}
 }
 EXPORT_SYMBOL(iwl_rx_missed_beacon_notif);
+
+
+/* Calculate noise level, based on measurements during network silence just
+ *   before arriving beacon.  This measurement can be done only if we know
+ *   exactly when to expect beacons, therefore only when we're associated. */
+static void iwl_rx_calc_noise(struct iwl_priv *priv)
+{
+	struct statistics_rx_non_phy *rx_info
+				= &(priv->statistics.rx.general);
+	int num_active_rx = 0;
+	int total_silence = 0;
+	int bcn_silence_a =
+		le32_to_cpu(rx_info->beacon_silence_rssi_a) & IN_BAND_FILTER;
+	int bcn_silence_b =
+		le32_to_cpu(rx_info->beacon_silence_rssi_b) & IN_BAND_FILTER;
+	int bcn_silence_c =
+		le32_to_cpu(rx_info->beacon_silence_rssi_c) & IN_BAND_FILTER;
+
+	if (bcn_silence_a) {
+		total_silence += bcn_silence_a;
+		num_active_rx++;
+	}
+	if (bcn_silence_b) {
+		total_silence += bcn_silence_b;
+		num_active_rx++;
+	}
+	if (bcn_silence_c) {
+		total_silence += bcn_silence_c;
+		num_active_rx++;
+	}
+
+	/* Average among active antennas */
+	if (num_active_rx)
+		priv->last_rx_noise = (total_silence / num_active_rx) - 107;
+	else
+		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
+
+	IWL_DEBUG_CALIB("inband silence a %u, b %u, c %u, dBm %d\n",
+			bcn_silence_a, bcn_silence_b, bcn_silence_c,
+			priv->last_rx_noise);
+}
+
+#define REG_RECALIB_PERIOD (60)
+
+void iwl_rx_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+
+	IWL_DEBUG_RX("Statistics notification received (%d vs %d).\n",
+		     (int)sizeof(priv->statistics), pkt->len);
+
+	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
+
+	set_bit(STATUS_STATISTICS, &priv->status);
+
+	/* Reschedule the statistics timer to occur in
+	 * REG_RECALIB_PERIOD seconds to ensure we get a
+	 * thermal update even if the uCode doesn't give
+	 * us one */
+	mod_timer(&priv->statistics_periodic, jiffies +
+		  msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
+
+	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
+	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
+		iwl_rx_calc_noise(priv);
+		queue_work(priv->workqueue, &priv->run_time_calib_work);
+	}
+
+	iwl_leds_background(priv);
+
+	if (priv->cfg->ops->lib->temperature)
+		priv->cfg->ops->lib->temperature(priv, &pkt->u.stats);
+}
+EXPORT_SYMBOL(iwl_rx_statistics);

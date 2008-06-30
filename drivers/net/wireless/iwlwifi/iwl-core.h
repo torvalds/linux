@@ -140,6 +140,8 @@ struct iwl_lib_ops {
 	int (*set_power)(struct iwl_priv *priv, void *cmd);
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
+	void (*temperature) (struct iwl_priv *priv,
+		struct iwl_notif_statistics *stats);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 };
@@ -218,6 +220,8 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 /* Handlers */
 void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb);
 
 /* TX helpers */
 

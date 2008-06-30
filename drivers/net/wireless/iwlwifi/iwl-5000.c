@@ -1433,6 +1433,12 @@ static int  iwl5000_send_tx_power(struct iwl_priv *priv)
 				       NULL);
 }
 
+static void iwl5000_temperature(struct iwl_priv *priv,
+				struct iwl_notif_statistics *stats)
+{
+	/* store temperature from statistics (in Celsius) */
+	priv->temperature = le32_to_cpu(stats->general.temperature);
+}
 
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
@@ -1462,6 +1468,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
+	.temperature = iwl5000_temperature,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,

@@ -624,8 +624,6 @@ extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl_frame *frame, u8 rate);
-extern void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
-				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl4965_disable_events(struct iwl_priv *priv);
 extern void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb);
@@ -994,7 +992,7 @@ struct iwl_priv {
 
 	struct iwl_power_mgr power_data;
 
-	struct iwl4965_notif_statistics statistics;
+	struct iwl_notif_statistics statistics;
 	unsigned long last_statistics_time;
 
 	/* context information */

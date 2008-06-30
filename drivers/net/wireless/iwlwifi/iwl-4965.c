@@ -555,8 +555,6 @@ out:
 	return ret;
 }
 
-#define REG_RECALIB_PERIOD (60)
-
 /* Reset differential Rx gains in NIC to prepare for chain noise calibration.
  * Called after every association, but this runs only once!
  *  ... once chain noise is calibrated the first time, it's good forever.  */
@@ -1890,80 +1888,15 @@ static int iwl4965_is_temp_calib_needed(struct iwl_priv *priv)
 	return 1;
 }
 
-/* Calculate noise level, based on measurements during network silence just
- *   before arriving beacon.  This measurement can be done only if we know
- *   exactly when to expect beacons, therefore only when we're associated. */
-static void iwl4965_rx_calc_noise(struct iwl_priv *priv)
+static void iwl4965_temperature_calib(struct iwl_priv *priv,
+				      struct iwl_notif_statistics *stats)
 {
-	struct statistics_rx_non_phy *rx_info
-				= &(priv->statistics.rx.general);
-	int num_active_rx = 0;
-	int total_silence = 0;
-	int bcn_silence_a =
-		le32_to_cpu(rx_info->beacon_silence_rssi_a) & IN_BAND_FILTER;
-	int bcn_silence_b =
-		le32_to_cpu(rx_info->beacon_silence_rssi_b) & IN_BAND_FILTER;
-	int bcn_silence_c =
-		le32_to_cpu(rx_info->beacon_silence_rssi_c) & IN_BAND_FILTER;
-
-	if (bcn_silence_a) {
-		total_silence += bcn_silence_a;
-		num_active_rx++;
-	}
-	if (bcn_silence_b) {
-		total_silence += bcn_silence_b;
-		num_active_rx++;
-	}
-	if (bcn_silence_c) {
-		total_silence += bcn_silence_c;
-		num_active_rx++;
-	}
-
-	/* Average among active antennas */
-	if (num_active_rx)
-		priv->last_rx_noise = (total_silence / num_active_rx) - 107;
-	else
-		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
-
-	IWL_DEBUG_CALIB("inband silence a %u, b %u, c %u, dBm %d\n",
-			bcn_silence_a, bcn_silence_b, bcn_silence_c,
-			priv->last_rx_noise);
-}
-
-void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	int change;
 	s32 temp;
-
-	IWL_DEBUG_RX("Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(priv->statistics), pkt->len);
-
-	change = ((priv->statistics.general.temperature !=
-		   pkt->u.stats.general.temperature) ||
+	int change = ((priv->statistics.general.temperature !=
+		   stats->general.temperature) ||
 		  ((priv->statistics.flag &
 		    STATISTICS_REPLY_FLG_FAT_MODE_MSK) !=
-		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK)));
-
-	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
-
-	set_bit(STATUS_STATISTICS, &priv->status);
-
-	/* Reschedule the statistics timer to occur in
-	 * REG_RECALIB_PERIOD seconds to ensure we get a
-	 * thermal update even if the uCode doesn't give
-	 * us one */
-	mod_timer(&priv->statistics_periodic, jiffies +
-		  msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
-
-	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
-	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
-		iwl4965_rx_calc_noise(priv);
-		queue_work(priv->workqueue, &priv->run_time_calib_work);
-	}
-
-	iwl_leds_background(priv);
+		   (stats->flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK)));
 
 	/* If the hardware hasn't reported a change in
 	 * temperature then don't bother computing a
@@ -3391,6 +3324,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.set_power = iwl4965_set_power,
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl4965_update_chain_flags,
+	.temperature = iwl4965_temperature_calib,
 };
 
 static struct iwl_ops iwl4965_ops = {
