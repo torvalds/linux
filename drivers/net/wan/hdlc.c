@@ -57,7 +57,7 @@ static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
 
 static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
 {
-	return hdlc_stats(dev);
+	return &dev->stats;
 }
 
 

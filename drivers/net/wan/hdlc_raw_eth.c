@@ -33,7 +33,7 @@ static int eth_tx(struct sk_buff *skb, struct net_device *dev)
 		int len = skb->len;
 		if (skb_tailroom(skb) < pad)
 			if (pskb_expand_head(skb, 0, pad, GFP_ATOMIC)) {
-				hdlc_stats(dev)->tx_dropped++;
+				dev->stats.tx_dropped++;
 				dev_kfree_skb(skb);
 				return 0;
 			}
