@@ -807,6 +807,17 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 		return 0;
 	}
 
+	if ((data->blksz & 3) != 0) {
+		/* We cannot deal with unaligned blocks with more than
+		 * one block being transfered. */
+
+		if (data->blocks > 1)
+			return -EINVAL;
+
+		/* No support yet for non-word block transfers. */
+		return -EINVAL;
+	}
+
 	while (readl(host->base + S3C2410_SDIDSTA) &
 	       (S3C2410_SDIDSTA_TXDATAON | S3C2410_SDIDSTA_RXDATAON)) {
 
