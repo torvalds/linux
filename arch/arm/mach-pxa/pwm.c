@@ -221,11 +221,11 @@ static int __devinit pxa27x_pwm_probe(struct platform_device *pdev)
 {
 	struct pwm_device *pwm;
 
-	pwm = pwm_probe(pdev, pdev->id * 2, NULL);
+	pwm = pwm_probe(pdev, pdev->id, NULL);
 	if (IS_ERR(pwm))
 		return PTR_ERR(pwm);
 
-	pwm = pwm_probe(pdev, pdev->id * 2 + 1, pwm);
+	pwm = pwm_probe(pdev, pdev->id + 2, pwm);
 	if (IS_ERR(pwm))
 		return PTR_ERR(pwm);
 
