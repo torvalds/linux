@@ -1407,7 +1407,14 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
-	clear_bit(STATUS_RF_KILL_SW, &priv->status);
+	/* If the driver is up it will receive CARD_STATE_NOTIFICATION
+	 * notification where it will clear SW rfkill status.
+	 * Setting it here would break the handler. Only if the
+	 * interface is down we can set here since we don't
+	 * receive any further notification.
+	 */
+	if (!priv->is_open)
+		clear_bit(STATUS_RF_KILL_SW, &priv->status);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* wake up ucode */
@@ -1425,8 +1432,10 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 		return 0;
 	}
 
-	if (priv->is_open)
-		queue_work(priv->workqueue, &priv->restart);
+	/* If the driver is already loaded, it will receive
+	 * CARD_STATE_NOTIFICATION notifications and the handler will
+	 * call restart to reload the driver.
+	 */
 	return 1;
 }
 EXPORT_SYMBOL(iwl_radio_kill_sw_enable_radio);

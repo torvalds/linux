@@ -1606,14 +1606,12 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 		IWL_DEBUG(IWL_DL_RF_KILL, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio":"enable radio");
 
-		/* Queue restart only if RF_KILL switch was set to "kill"
-		 *   when we loaded driver, and is now set to "enable".
-		 * After we're Alive, RF_KILL gets handled by
-		 *   iwl4965_rx_card_state_notif() */
-		if (!hw_rf_kill && !test_bit(STATUS_ALIVE, &priv->status)) {
+		/* driver only loads ucode once setting the interface up.
+		 * the driver as well won't allow loading if RFKILL is set
+		 * therefore no need to restart the driver from this handler
+		 */
+		if (!hw_rf_kill && !test_bit(STATUS_ALIVE, &priv->status))
 			clear_bit(STATUS_RF_KILL_HW, &priv->status);
-			queue_work(priv->workqueue, &priv->restart);
-		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
 	}
