@@ -3413,17 +3413,6 @@ static int iwl4965_mac_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static u64 iwl4965_mac_get_tsf(struct ieee80211_hw *hw)
-{
-	struct iwl_priv *priv;
-
-	priv = hw->priv;
-	IWL_DEBUG_MAC80211("enter\n");
-	IWL_DEBUG_MAC80211("leave\n");
-
-	return 0;
-}
-
 static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -4114,7 +4103,6 @@ static struct ieee80211_ops iwl4965_hw_ops = {
 	.get_stats = iwl4965_mac_get_stats,
 	.get_tx_stats = iwl4965_mac_get_tx_stats,
 	.conf_tx = iwl4965_mac_conf_tx,
-	.get_tsf = iwl4965_mac_get_tsf,
 	.reset_tsf = iwl4965_mac_reset_tsf,
 	.beacon_update = iwl4965_mac_beacon_update,
 	.bss_info_changed = iwl4965_bss_info_changed,
