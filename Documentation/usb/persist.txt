@@ -81,8 +81,11 @@ re-enumeration shows that the device now attached to that port has the
 same descriptors as before, including the Vendor and Product IDs, then
 the kernel continues to use the same device structure.  In effect, the
 kernel treats the device as though it had merely been reset instead of
-unplugged.  The same thing happens if the host controller is in the
-expected state but a USB device was unplugged and then replugged.
+unplugged.
+
+The same thing happens if the host controller is in the expected state
+but a USB device was unplugged and then replugged, or if a USB device
+fails to carry out a normal resume.
 
 If no device is now attached to the port, or if the descriptors are
 different from what the kernel remembers, then the treatment is what

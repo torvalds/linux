@@ -1822,9 +1822,15 @@ static int check_port_resume_type(struct usb_device *udev,
 			status = -ENODEV;
 	}
 
-	/* Can't do a normal resume if the port isn't enabled */
-	else if (!(portstatus & USB_PORT_STAT_ENABLE) && !udev->reset_resume)
-		status = -ENODEV;
+	/* Can't do a normal resume if the port isn't enabled,
+	 * so try a reset-resume instead.
+	 */
+	else if (!(portstatus & USB_PORT_STAT_ENABLE) && !udev->reset_resume) {
+		if (udev->persist_enabled)
+			udev->reset_resume = 1;
+		else
+			status = -ENODEV;
+	}
 
 	if (status) {
 		dev_dbg(hub->intfdev,
@@ -1973,6 +1979,7 @@ static int finish_port_resume(struct usb_device *udev)
 	 * resumed.
 	 */
 	if (udev->reset_resume)
+ retry_reset_resume:
 		status = usb_reset_and_verify_device(udev);
 
  	/* 10.5.4.5 says be sure devices in the tree are still there.
@@ -1984,6 +1991,13 @@ static int finish_port_resume(struct usb_device *udev)
 		status = usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
 		if (status >= 0)
 			status = (status > 0 ? 0 : -ENODEV);
+
+		/* If a normal resume failed, try doing a reset-resume */
+		if (status && !udev->reset_resume && udev->persist_enabled) {
+			dev_dbg(&udev->dev, "retry with reset-resume\n");
+			udev->reset_resume = 1;
+			goto retry_reset_resume;
+		}
 	}
 
 	if (status) {
