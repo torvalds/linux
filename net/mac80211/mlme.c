@@ -2503,6 +2503,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
 		mgmt->u.beacon.beacon_int =
 			cpu_to_le16(local->hw.conf.beacon_int);
+		mgmt->u.beacon.timestamp = cpu_to_le64(bss->timestamp);
 		mgmt->u.beacon.capab_info = cpu_to_le16(bss->capability);
 
 		pos = skb_put(skb, 2 + ifsta->ssid_len);
