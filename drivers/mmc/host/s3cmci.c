@@ -1405,3 +1405,6 @@ module_exit(s3cmci_exit);
 MODULE_DESCRIPTION("Samsung S3C MMC/SD Card Interface driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Thomas Kleffel <tk@maintech.de>");
+MODULE_ALIAS("platform:s3c2410-sdi");
+MODULE_ALIAS("platform:s3c2412-sdi");
+MODULE_ALIAS("platform:s3c2440-sdi");
