@@ -2312,7 +2312,7 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
 #endif
 
 	ch_info = iwl3945_get_channel_info(priv, priv->band,
-				       le16_to_cpu(priv->staging_rxon.channel));
+				       le16_to_cpu(priv->active_rxon.channel));
 
 	if (!ch_info)
 		ch_info = &priv->channel_info[0];
@@ -7006,26 +7006,18 @@ static void iwl3945_configure_filter(struct ieee80211_hw *hw,
 				 unsigned int *total_flags,
 				 int mc_count, struct dev_addr_list *mc_list)
 {
-	/*
-	 * XXX: dummy
-	 * see also iwl3945_connection_init_rx_config
-	 */
 	struct iwl3945_priv *priv = hw->priv;
-	int new_flags = 0;
-	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS)) {
-		if (*total_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS)) {
-			IWL_DEBUG_MAC80211("Enter: type %d (0x%x, 0x%x)\n",
-					   IEEE80211_IF_TYPE_MNTR,
-					   changed_flags, *total_flags);
-			/* queue work 'cuz mac80211 is holding a lock which
-			 * prevents us from issuing (synchronous) f/w cmds */
-			queue_work(priv->workqueue, &priv->set_monitor);
-			new_flags &= FIF_PROMISC_IN_BSS |
-				     FIF_OTHER_BSS |
-				     FIF_ALLMULTI;
-		}
+
+	if (changed_flags & (*total_flags) & FIF_OTHER_BSS) {
+		IWL_DEBUG_MAC80211("Enter: type %d (0x%x, 0x%x)\n",
+				   IEEE80211_IF_TYPE_MNTR,
+				   changed_flags, *total_flags);
+		/* queue work 'cuz mac80211 is holding a lock which
+		 * prevents us from issuing (synchronous) f/w cmds */
+		queue_work(priv->workqueue, &priv->set_monitor);
 	}
-	*total_flags = new_flags;
+	*total_flags &= FIF_OTHER_BSS | FIF_ALLMULTI |
+			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 
 static void iwl3945_mac_remove_interface(struct ieee80211_hw *hw,
