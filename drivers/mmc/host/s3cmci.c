@@ -1254,6 +1254,7 @@ static int __devexit s3cmci_remove(struct platform_device *pdev)
 	clk_put(host->clk);
 
 	tasklet_disable(&host->pio_tasklet);
+	s3c2410_dma_free(S3CMCI_DMA, &s3cmci_dma_client);
 
 	free_irq(host->irq_cd, host);
 	free_irq(host->irq, host);
