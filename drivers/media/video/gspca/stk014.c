@@ -23,8 +23,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 2, 7)
-static const char version[] = "0.2.7";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
+static const char version[] = "2.1.0";
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
@@ -37,10 +37,10 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
+	unsigned char lightfreq;
 };
 
 /* global parameters */
-static int lightfreq = 50;
 static int sd_quant = 7;		/* <= 4 KO - 7: good (enough!) */
 
 /* V4L2 controls supported by the driver */
@@ -50,6 +50,8 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 #define SD_BRIGHTNESS 0
@@ -94,6 +96,20 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
+#define SD_FREQ 3
+	{
+	    {
+		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
+		.type    = V4L2_CTRL_TYPE_MENU,
+		.name    = "Light frequency filter",
+		.minimum = 1,
+		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
+		.step    = 1,
+		.default_value = 1,
+	    },
+	    .set = sd_setfreq,
+	    .get = sd_getfreq,
+	},
 };
 
 static struct cam_mode vga_mode[] = {
@@ -102,11 +118,11 @@ static struct cam_mode vga_mode[] = {
 };
 
 /* -- read a register -- */
-static int reg_read(struct gspca_dev *gspca_dev,
+static int reg_r(struct gspca_dev *gspca_dev,
 			__u16 index, __u8 *buf)
 {
-	int ret;
 	struct usb_device *dev = gspca_dev->dev;
+	int ret;
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			0x00,
@@ -116,12 +132,12 @@ static int reg_read(struct gspca_dev *gspca_dev,
 			buf, 1,
 			500);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg_read err %d", ret);
+		PDEBUG(D_ERR, "reg_r err %d", ret);
 	return ret;
 }
 
 /* -- write a register -- */
-static int reg_write(struct gspca_dev *gspca_dev,
+static int reg_w(struct gspca_dev *gspca_dev,
 			__u16 index, __u16 value)
 {
 	struct usb_device *dev = gspca_dev->dev;
@@ -136,7 +152,7 @@ static int reg_write(struct gspca_dev *gspca_dev,
 			0,
 			500);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg_write err %d", ret);
+		PDEBUG(D_ERR, "reg_w err %d", ret);
 	return ret;
 }
 
@@ -149,15 +165,15 @@ static int rcv_val(struct gspca_dev *gspca_dev,
 	int alen, ret;
 	unsigned char bulk_buf[4];
 
-	reg_write(gspca_dev, 0x634, (ads >> 16) & 0xff);
-	reg_write(gspca_dev, 0x635, (ads >> 8) & 0xff);
-	reg_write(gspca_dev, 0x636, ads & 0xff);
-	reg_write(gspca_dev, 0x637, 0);
-	reg_write(gspca_dev, 0x638, len & 0xff);
-	reg_write(gspca_dev, 0x639, len >> 8);
-	reg_write(gspca_dev, 0x63a, 0);
-	reg_write(gspca_dev, 0x63b, 0);
-	reg_write(gspca_dev, 0x630, 5);
+	reg_w(gspca_dev, 0x634, (ads >> 16) & 0xff);
+	reg_w(gspca_dev, 0x635, (ads >> 8) & 0xff);
+	reg_w(gspca_dev, 0x636, ads & 0xff);
+	reg_w(gspca_dev, 0x637, 0);
+	reg_w(gspca_dev, 0x638, len & 0xff);
+	reg_w(gspca_dev, 0x639, len >> 8);
+	reg_w(gspca_dev, 0x63a, 0);
+	reg_w(gspca_dev, 0x63b, 0);
+	reg_w(gspca_dev, 0x630, 5);
 	if (len > sizeof bulk_buf)
 		return -1;
 	ret = usb_bulk_msg(dev,
@@ -180,26 +196,26 @@ static int snd_val(struct gspca_dev *gspca_dev,
 	unsigned char bulk_buf[4];
 
 	if (ads == 0x003f08) {
-		ret = reg_read(gspca_dev, 0x0704, &value);
+		ret = reg_r(gspca_dev, 0x0704, &value);
 		if (ret < 0)
 			goto ko;
-		ret = reg_read(gspca_dev, 0x0705, &seq);
+		ret = reg_r(gspca_dev, 0x0705, &seq);
 		if (ret < 0)
 			goto ko;
-		ret = reg_read(gspca_dev, 0x0650, &value);
+		ret = reg_r(gspca_dev, 0x0650, &value);
 		if (ret < 0)
 			goto ko;
-		reg_write(gspca_dev, 0x654, seq);
+		reg_w(gspca_dev, 0x654, seq);
 	} else
-		reg_write(gspca_dev, 0x654, (ads >> 16) & 0xff);
-	reg_write(gspca_dev, 0x655, (ads >> 8) & 0xff);
-	reg_write(gspca_dev, 0x656, ads & 0xff);
-	reg_write(gspca_dev, 0x657, 0);
-	reg_write(gspca_dev, 0x658, 0x04);	/* size */
-	reg_write(gspca_dev, 0x659, 0);
-	reg_write(gspca_dev, 0x65a, 0);
-	reg_write(gspca_dev, 0x65b, 0);
-	reg_write(gspca_dev, 0x650, 5);
+		reg_w(gspca_dev, 0x654, (ads >> 16) & 0xff);
+	reg_w(gspca_dev, 0x655, (ads >> 8) & 0xff);
+	reg_w(gspca_dev, 0x656, ads & 0xff);
+	reg_w(gspca_dev, 0x657, 0);
+	reg_w(gspca_dev, 0x658, 0x04);	/* size */
+	reg_w(gspca_dev, 0x659, 0);
+	reg_w(gspca_dev, 0x65a, 0);
+	reg_w(gspca_dev, 0x65b, 0);
+	reg_w(gspca_dev, 0x650, 5);
 	bulk_buf[0] = (val >> 24) & 0xff;
 	bulk_buf[1] = (val >> 16) & 0xff;
 	bulk_buf[2] = (val >> 8) & 0xff;
@@ -215,7 +231,7 @@ static int snd_val(struct gspca_dev *gspca_dev,
 	if (ads == 0x003f08) {
 		seq += 4;
 		seq &= 0x3f;
-		reg_write(gspca_dev, 0x705, seq);
+		reg_w(gspca_dev, 0x705, seq);
 	}
 	return ret;
 ko:
@@ -235,7 +251,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int parval;
 
-	PDEBUG(D_CONF, "brightness: %d", sd->brightness);
 	parval = 0x06000000		/* whiteness */
 		+ (sd->brightness << 16);
 	set_par(gspca_dev, parval);
@@ -246,7 +261,6 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int parval;
 
-	PDEBUG(D_CONF, "contrast: %d", sd->contrast);
 	parval = 0x07000000		/* contrast */
 		+ (sd->contrast << 16);
 	set_par(gspca_dev, parval);
@@ -257,11 +271,18 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int parval;
 
-	PDEBUG(D_CONF, "saturation: %d",
-		sd->colors);
 	parval = 0x08000000		/* saturation */
 		+ (sd->colors << 16);
 	set_par(gspca_dev, parval);
+}
+
+static void setfreq(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	set_par(gspca_dev, sd->lightfreq == 1
+			? 0x33640000		/* 50 Hz */
+			: 0x33780000);		/* 60 Hz */
 }
 
 /* this function is called at probe time */
@@ -278,6 +299,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
+	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
 	return 0;
 }
 
@@ -289,7 +311,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 
 	/* check if the device responds */
 	usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
-	ret = reg_read(gspca_dev, 0x0740, &value);
+	ret = reg_r(gspca_dev, 0x0740, &value);
 	if (ret < 0)
 		return ret;
 	if (value != 0xff) {
@@ -320,21 +342,24 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	ret = usb_set_interface(gspca_dev->dev,
 					gspca_dev->iface,
 					gspca_dev->alt);
-	if (ret < 0)
+	if (ret < 0) {
+		PDEBUG(D_ERR|D_STREAM, "set intf %d %d failed",
+			gspca_dev->iface, gspca_dev->alt);
 		goto out;
-	ret = reg_read(gspca_dev, 0x0630, &dum);
+	}
+	ret = reg_r(gspca_dev, 0x0630, &dum);
 	if (ret < 0)
 		goto out;
 	rcv_val(gspca_dev, 0x000020, 4);	/* << (value ff ff ff ff) */
-	ret = reg_read(gspca_dev, 0x0650, &dum);
+	ret = reg_r(gspca_dev, 0x0650, &dum);
 	if (ret < 0)
 		goto out;
 	snd_val(gspca_dev, 0x000020, 0xffffffff);
-	reg_write(gspca_dev, 0x0620, 0);
-	reg_write(gspca_dev, 0x0630, 0);
-	reg_write(gspca_dev, 0x0640, 0);
-	reg_write(gspca_dev, 0x0650, 0);
-	reg_write(gspca_dev, 0x0660, 0);
+	reg_w(gspca_dev, 0x0620, 0);
+	reg_w(gspca_dev, 0x0630, 0);
+	reg_w(gspca_dev, 0x0640, 0);
+	reg_w(gspca_dev, 0x0650, 0);
+	reg_w(gspca_dev, 0x0660, 0);
 	setbrightness(gspca_dev);		/* whiteness */
 	setcontrast(gspca_dev);			/* contrast */
 	setcolors(gspca_dev);			/* saturation */
@@ -342,9 +367,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	set_par(gspca_dev, 0x0a800000);		/* Green ? */
 	set_par(gspca_dev, 0x0b800000);		/* Blue ? */
 	set_par(gspca_dev, 0x0d030000);		/* Gamma ? */
-	set_par(gspca_dev, lightfreq == 60
-			? 0x33780000		/* 60 Hz */
-			: 0x33640000);		/* 50 Hz */
+	setfreq(gspca_dev);			/* light frequency */
 
 	/* start the video flow */
 	set_par(gspca_dev, 0x01000000);
@@ -363,15 +386,15 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	set_par(gspca_dev, 0x02000000);
 	set_par(gspca_dev, 0x02000000);
 	usb_set_interface(dev, gspca_dev->iface, 1);
-	reg_read(gspca_dev, 0x0630, &value);
+	reg_r(gspca_dev, 0x0630, &value);
 	rcv_val(gspca_dev, 0x000020, 4);	/* << (value ff ff ff ff) */
-	reg_read(gspca_dev, 0x0650, &value);
+	reg_r(gspca_dev, 0x0650, &value);
 	snd_val(gspca_dev, 0x000020, 0xffffffff);
-	reg_write(gspca_dev, 0x0620, 0);
-	reg_write(gspca_dev, 0x0630, 0);
-	reg_write(gspca_dev, 0x0640, 0);
-	reg_write(gspca_dev, 0x0650, 0);
-	reg_write(gspca_dev, 0x0660, 0);
+	reg_w(gspca_dev, 0x0620, 0);
+	reg_w(gspca_dev, 0x0630, 0);
+	reg_w(gspca_dev, 0x0640, 0);
+	reg_w(gspca_dev, 0x0650, 0);
+	reg_w(gspca_dev, 0x0660, 0);
 	PDEBUG(D_STREAM, "camera stopped");
 }
 
@@ -470,6 +493,42 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->lightfreq = val;
+	if (gspca_dev->streaming)
+		setfreq(gspca_dev);
+	return 0;
+}
+
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->lightfreq;
+	return 0;
+}
+
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+			struct v4l2_querymenu *menu)
+{
+	switch (menu->id) {
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		switch (menu->index) {
+		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
+			strcpy(menu->name, "50 Hz");
+			return 0;
+		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
+			strcpy(menu->name, "60 Hz");
+			return 0;
+		}
+		break;
+	}
+	return -EINVAL;
+}
+
 /* sub-driver description */
 static struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -482,6 +541,7 @@ static struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.querymenu = sd_querymenu,
 };
 
 /* -- module initialisation -- */
@@ -524,7 +584,5 @@ static void __exit sd_mod_exit(void)
 module_init(sd_mod_init);
 module_exit(sd_mod_exit);
 
-module_param(lightfreq, int, 0644);
-MODULE_PARM_DESC(lightfreq, "Light frequency 50 or 60 Hz");
 module_param_named(quant, sd_quant, int, 0644);
 MODULE_PARM_DESC(quant, "Quantization index (0..8)");

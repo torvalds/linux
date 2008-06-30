@@ -2,7 +2,7 @@ config USB_GSPCA
 	tristate "USB GSPCA driver"
 	depends on VIDEO_V4L2
 	---help---
-	  Say Y here if you want support for various USB cameras.
+	  Say Y here if you want support for various USB webcams.
 
 	  See <file:Documentation/video4linux/gspca.txt> for more info.
 

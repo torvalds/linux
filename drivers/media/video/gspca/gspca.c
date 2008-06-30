@@ -35,24 +35,24 @@
 
 #include "gspca.h"
 
-/* option */
-#define GSPCA_HLP 0
+#undef CONFIG_VIDEO_V4L1_COMPAT
 
 /* global values */
 #define DEF_NURBS 2		/* default number of URBs (mmap) */
+#define USR_NURBS 5		/* default number of URBs (userptr) */
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 2, 15)
-static const char version[] = "0.2.15";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
+static const char version[] = "2.1.0";
 
 static int video_nr = -1;
 
 static int comp_fac = 30;	/* Buffer size ratio when compressed in % */
 
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
 EXPORT_SYMBOL(gspca_debug);
 
@@ -81,224 +81,7 @@ static void PDEBUG_MODE(char *txt, __u32 pixfmt, int w, int h)
 #define GSPCA_MEMORY_NO 0	/* V4L2_MEMORY_xxx starts from 1 */
 #define GSPCA_MEMORY_READ 7
 
-#ifndef GSPCA_HLP
 #define BUF_ALL_FLAGS (V4L2_BUF_FLAG_QUEUED | V4L2_BUF_FLAG_DONE)
-#else
-#define GSPCA_BUF_FLAG_DECODE	0x1000	/* internal buffer flag */
-#define BUF_ALL_FLAGS (V4L2_BUF_FLAG_QUEUED | V4L2_BUF_FLAG_DONE \
-			| GSPCA_BUF_FLAG_DECODE)
-
-static int autostart = 4;
-module_param(autostart, int, 0644);
-MODULE_PARM_DESC(autostart,
-		"Automatically start the helper process");
-
-/* try to start the helper process */
-static void start_hlp(void)
-{
-	int ret;
-	static char *argv[] = {"gspca_hlp", NULL};
-	static char *env[] = {NULL};
-
-	if (autostart <= 0) {
-		if (autostart < 0)
-			PDEBUG(D_ERR|D_PROBE, "Too many helper restart");
-		return;
-	}
-	autostart--;
-	if (autostart == 0)
-		autostart = -1;
-	ret = call_usermodehelper("/sbin/gspca_hlp", argv, env,
-				UMH_WAIT_EXEC);
-	if (ret != 0)
-		PDEBUG(D_ERR|D_PROBE,
-			"/sbin/gspca_hlp start failed %d", ret);
-}
-
-/* /dev/gspca_hlp stuff */
-#include <linux/miscdevice.h>
-#include "gspca_hlp.h"
-
-/* !! possible decodings defined in decoder.c */
-static __u32 bayer_to_tb[] = {
-	V4L2_PIX_FMT_SBGGR8,
-	V4L2_PIX_FMT_YUYV,
-	V4L2_PIX_FMT_YUV420,
-	V4L2_PIX_FMT_RGB24,
-	V4L2_PIX_FMT_BGR24,
-	V4L2_PIX_FMT_RGB565,
-};
-static __u32 jpeg_to_tb[] = {
-	V4L2_PIX_FMT_JPEG,
-	V4L2_PIX_FMT_YUYV,
-	V4L2_PIX_FMT_YUV420,
-	V4L2_PIX_FMT_RGB24,
-	V4L2_PIX_FMT_BGR24,
-	V4L2_PIX_FMT_RGB565,
-};
-
-/* /dev/gspca_hlp device */
-struct hlp_dev {
-	struct gspca_dev *gspca_dev;	/* associated device */
-	struct gspca_frame *frame;	/* frame being decoded */
-	__u32 pixfmt;			/* webcam pixel format */
-	atomic_t nevent;		/* nb of frames ready to decode */
-	wait_queue_head_t wq;		/* wait queue */
-	char fr_d;			/* next frame to decode */
-} *hlp;
-
-static int hlp_open(struct inode *inode, struct file *file)
-{
-	struct hlp_dev *hlp_dev;
-
-	PDEBUG(D_CONF, "hlp open");
-	if (hlp != 0)
-		return -EBUSY;
-	hlp_dev = kzalloc(sizeof *hlp_dev, GFP_KERNEL);
-	if (hlp_dev == NULL) {
-		err("couldn't kzalloc hlp struct");
-		return -EIO;
-	}
-	init_waitqueue_head(&hlp_dev->wq);
-	file->private_data = hlp_dev;
-	hlp = hlp_dev;
-	return 0;
-}
-
-static int hlp_close(struct inode *inode, struct file *file)
-{
-	struct gspca_dev *gspca_dev;
-	int mode;
-
-	PDEBUG(D_CONF, "hlp close");
-	file->private_data = NULL;
-
-	/* stop decoding */
-	gspca_dev = hlp->gspca_dev;
-	if (gspca_dev != 0) {
-		mode = gspca_dev->curr_mode;
-		gspca_dev->pixfmt = gspca_dev->cam.cam_mode[mode].pixfmt;
-	}
-
-	/* destroy the helper structure */
-	kfree(hlp);
-	hlp = 0;
-
-	/* try to restart the helper process */
-	start_hlp();
-	return 0;
-}
-
-static ssize_t hlp_read(struct file *file, char __user *buf,
-		    size_t cnt, loff_t *ppos)
-{
-	struct hlp_dev *hlp_dev = file->private_data;
-	struct gspca_dev *gspca_dev;
-	struct gspca_frame *frame;
-	struct gspca_hlp_read_hd head;
-	int i, j, len, ret;
-
-	PDEBUG(D_FRAM, "hlp read (%d)", cnt);
-
-	/* check / wait till a frame is ready */
-	for (;;) {
-		gspca_dev = hlp_dev->gspca_dev;
-		if (gspca_dev != 0 && gspca_dev->streaming) {
-			i = hlp_dev->fr_d;	/* frame to decode */
-			j = gspca_dev->fr_queue[i];
-			frame = &gspca_dev->frame[j];
-			if (frame->v4l2_buf.flags & GSPCA_BUF_FLAG_DECODE)
-				break;
-		}
-		ret = wait_event_interruptible(hlp_dev->wq,
-					atomic_read(&hlp_dev->nevent) > 0);
-		if (ret < 0) {			/* helper process is killed */
-			autostart = 0;		/* don't restart it */
-			return ret;
-		}
-	}
-	atomic_dec(&hlp_dev->nevent);
-	hlp_dev->fr_d = (i + 1) % gspca_dev->nframes;
-	PDEBUG(D_FRAM, "hlp read q:%d i:%d d:%d o:%d",
-		gspca_dev->fr_q,
-		gspca_dev->fr_i,
-		hlp_dev->fr_d,
-		gspca_dev->fr_o);
-
-	hlp_dev->frame = frame;		/* memorize the current frame */
-	len = frame->v4l2_buf.bytesused;
-	if (cnt < sizeof head - sizeof head.data + len)
-/*fixme: special errno?*/
-		return -EINVAL;
-	head.pixfmt_out = gspca_dev->pixfmt;
-	head.pixfmt_in = hlp_dev->pixfmt;
-	head.width = gspca_dev->width;
-	head.height = gspca_dev->height;
-	copy_to_user(buf, &head, sizeof head);
-	copy_to_user(buf + sizeof head - sizeof head.data,
-			frame->data, len);
-	return sizeof head - sizeof head.data + len;
-}
-
-static ssize_t hlp_write(struct file *file,
-			const char __user *buf,
-			size_t cnt, loff_t *ppos)
-{
-	struct hlp_dev *hlp_dev = file->private_data;
-	struct gspca_dev *gspca_dev;
-	struct gspca_frame *frame;
-
-	PDEBUG(D_FRAM, "hlp write (%d)", cnt);
-	gspca_dev = hlp_dev->gspca_dev;
-	if (gspca_dev == 0)
-		return cnt;
-	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
-		return -ERESTARTSYS;
-	if (!gspca_dev->streaming)
-		goto out;
-	frame = hlp_dev->frame;
-	hlp_dev->frame = 0;
-	if (frame == 0)
-		goto out;
-	if (cnt > frame->v4l2_buf.length) {
-		PDEBUG(D_ERR|D_FRAM, "bad frame size %d - %d",
-			cnt, frame->v4l2_buf.length);
-		cnt = -EINVAL;
-		goto out;
-	}
-	copy_from_user(frame->data, buf, cnt);
-	frame->v4l2_buf.bytesused = cnt;
-	frame->v4l2_buf.flags &= ~(V4L2_BUF_FLAG_QUEUED
-				  | GSPCA_BUF_FLAG_DECODE);
-	frame->v4l2_buf.flags |= V4L2_BUF_FLAG_DONE;
-	mutex_unlock(&gspca_dev->queue_lock);
-	atomic_inc(&gspca_dev->nevent);
-	wake_up_interruptible(&gspca_dev->wq);	/* event = new frame */
-	PDEBUG(D_FRAM, "hlp write q:%d i:%d d:%d o:%d",
-		gspca_dev->fr_q,
-		gspca_dev->fr_i,
-		hlp_dev->fr_d,
-		gspca_dev->fr_o);
-	return cnt;
-out:
-	mutex_unlock(&gspca_dev->queue_lock);
-	return cnt;
-}
-
-static struct file_operations hlp_fops = {
-	.owner = THIS_MODULE,
-	.open = hlp_open,
-	.release = hlp_close,
-	.read = hlp_read,
-	.write = hlp_write,
-	.llseek = no_llseek
-};
-static struct miscdevice hlp_device = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "gspca_hlp",
-	.fops = &hlp_fops,
-};
-#endif
 
 /*
  * VMA operations.
@@ -331,10 +114,14 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 			struct urb *urb)
 {
 	struct gspca_frame *frame;
-	unsigned char *data;	/* address of data in the iso message */
+	__u8 *data;		/* address of data in the iso message */
 	int i, j, len, st;
 	cam_pkt_op pkt_scan;
 
+	if (urb->status != 0) {
+		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		return;		/* disconnection ? */
+	}
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
 	for (i = 0; i < urb->number_of_packets; i++) {
 
@@ -350,20 +137,21 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 
 		/* check the packet status and length */
 		len = urb->iso_frame_desc[i].actual_length;
+		if (len == 0)
+			continue;
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
-			PDEBUG(D_ERR, "ISOC data error: [%d] len=%d, status=%d",
+			PDEBUG(D_ERR,
+				"ISOC data error: [%d] len=%d, status=%d",
 				i, len, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
-		if (len == 0)
-			continue;
 
 		/* let the packet be analyzed by the subdriver */
 		PDEBUG(D_PACK, "packet [%d] o:%d l:%d",
 			i, urb->iso_frame_desc[i].offset, len);
-		data = (unsigned char *) urb->transfer_buffer
+		data = (__u8 *) urb->transfer_buffer
 					+ urb->iso_frame_desc[i].offset;
 		pkt_scan(gspca_dev, frame, data, len);
 	}
@@ -390,7 +178,8 @@ static void fill_frame(struct gspca_dev *gspca_dev,
  *	  buffers are in user space (userptr). The frame detection
  *	  and copy is done by the application.
  */
-static void isoc_irq_mmap(struct urb *urb)
+static void isoc_irq_mmap(struct urb *urb
+)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 
@@ -400,7 +189,8 @@ static void isoc_irq_mmap(struct urb *urb)
 	fill_frame(gspca_dev, urb);
 }
 
-static void isoc_irq_user(struct urb *urb)
+static void isoc_irq_user(struct urb *urb
+)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 	int i;
@@ -459,7 +249,7 @@ static void isoc_transfer(struct gspca_dev *gspca_dev)
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    int packet_type,
 				    struct gspca_frame *frame,
-				    unsigned char *data,
+				    __u8 *data,
 				    int len)
 {
 	int i, j;
@@ -503,23 +293,10 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 	/* if last packet, wake the application and advance in the queue */
 	if (packet_type == LAST_PACKET) {
 		frame->v4l2_buf.bytesused = frame->data_end - frame->data;
-#ifndef GSPCA_HLP
 		frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 		frame->v4l2_buf.flags |= V4L2_BUF_FLAG_DONE;
 		atomic_inc(&gspca_dev->nevent);
 		wake_up_interruptible(&gspca_dev->wq);	/* event = new frame */
-#else /*GSPCA_HLP*/
-		if (hlp != 0 && hlp->gspca_dev == gspca_dev) {
-			frame->v4l2_buf.flags |= GSPCA_BUF_FLAG_DECODE;
-			atomic_inc(&hlp->nevent);
-			wake_up_interruptible(&hlp->wq);
-		} else {
-			frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_QUEUED;
-			frame->v4l2_buf.flags |= V4L2_BUF_FLAG_DONE;
-			atomic_inc(&gspca_dev->nevent);
-			wake_up_interruptible(&gspca_dev->wq);	/* new frame */
-		}
-#endif /*GSPCA_HLP*/
 		i = (gspca_dev->fr_i + 1) % gspca_dev->nframes;
 		gspca_dev->fr_i = i;
 		PDEBUG(D_FRAM, "frame complete len:%d q:%d i:%d o:%d",
@@ -581,13 +358,13 @@ static void rvfree(void *mem, unsigned long size)
 static __u32 get_v4l2_depth(__u32 pixfmt)
 {
 	switch (pixfmt) {
-	case V4L2_PIX_FMT_BGR32:
+/*	case V4L2_PIX_FMT_BGR32:
 	case V4L2_PIX_FMT_RGB32:
-		return 32;
+		return 32; */
 	case V4L2_PIX_FMT_RGB24:	/* 'RGB3' */
 	case V4L2_PIX_FMT_BGR24:
 		return 24;
-	case V4L2_PIX_FMT_RGB565:	/* 'RGBP' */
+/*	case V4L2_PIX_FMT_RGB565:	 * 'RGBP' */
 	case V4L2_PIX_FMT_YUYV:		/* 'YUYV' packed 4.2.2 */
 	case V4L2_PIX_FMT_YYUV:		/* 'YYUV' */
 		return 16;
@@ -596,6 +373,9 @@ static __u32 get_v4l2_depth(__u32 pixfmt)
 	case V4L2_PIX_FMT_MJPEG:
 	case V4L2_PIX_FMT_JPEG:
 	case V4L2_PIX_FMT_SBGGR8:	/* 'BA81' Bayer */
+	case V4L2_PIX_FMT_SN9C10X:	/* 'S910' SN9C10x compression */
+	case V4L2_PIX_FMT_SPCA501:	/* 'S501' YUYV per line */
+	case V4L2_PIX_FMT_SPCA561:	/* 'S561' compressed BGGR bayer */
 		return 8;
 	}
 	PDEBUG(D_ERR|D_CONF, "Unknown pixel format %c%c%c%c",
@@ -603,7 +383,7 @@ static __u32 get_v4l2_depth(__u32 pixfmt)
 		(pixfmt >> 8) & 0xff,
 		(pixfmt >> 16) & 0xff,
 		pixfmt >> 24);
-	return -EINVAL;
+	return 24;
 }
 
 static int gspca_get_buff_size(struct gspca_dev *gspca_dev)
@@ -632,7 +412,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		count = GSPCA_MAX_FRAMES;
 	/* if compressed (JPEG), reduce the buffer size */
 	if (gspca_is_compressed(gspca_dev->pixfmt))
-		frsz = (frsz * comp_fac) / 100 + 600;	/* plus JPEG header */
+		frsz = (frsz * comp_fac) / 100 + 600; /* (+ JPEG header sz) */
 	frsz = PAGE_ALIGN(frsz);
 	PDEBUG(D_STREAM, "new fr_sz: %d", frsz);
 	gspca_dev->frsz = frsz;
@@ -660,17 +440,6 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		}
 	}
 	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
-#ifdef GSPCA_HLP
-	{
-		struct hlp_dev *hlp_dev;
-
-		hlp_dev = hlp;
-		if (hlp != 0 && hlp_dev->gspca_dev == gspca_dev) {
-			hlp_dev->fr_d = 0;
-			atomic_set(&hlp_dev->nevent, 0);
-		}
-	}
-#endif /*GSPCA_HLP*/
 	gspca_dev->last_packet_type = DISCARD_PACKET;
 	gspca_dev->sequence = 0;
 	atomic_set(&gspca_dev->nevent, 0);
@@ -752,13 +521,14 @@ struct usb_host_endpoint *get_isoc_ep(struct gspca_dev *gspca_dev)
 	int i, ret;
 
 	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
+	ep = NULL;
 	i = gspca_dev->alt;			/* previous alt setting */
 	while (--i > 0) {			/* alt 0 is unusable */
 		ep = alt_isoc(&intf->altsetting[i], gspca_dev->cam.epaddr);
 		if (ep)
 			break;
 	}
-	if (i <= 0) {
+	if (ep == NULL) {
 		err("no ISOC endpoint found");
 		return NULL;
 	}
@@ -796,11 +566,14 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		"isoc %d pkts size %d (bsize:%d)", npkt, psize, bsize);
 /*fixme:change for userptr*/
 /*fixme:don't submit all URBs when userptr*/
-	gspca_dev->nurbs = nurbs = DEF_NURBS;
-	if (gspca_dev->memory == V4L2_MEMORY_MMAP)
+	if (gspca_dev->memory == V4L2_MEMORY_MMAP) {
 		usb_complete = isoc_irq_mmap;
-	else
+		nurbs = DEF_NURBS;
+	} else {
 		usb_complete = isoc_irq_user;
+		nurbs = USR_NURBS;
+	}
+	gspca_dev->nurbs = nurbs;
 	for (n = 0; n < nurbs; n++) {
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
 		if (!urb) {
@@ -904,16 +677,6 @@ static void gspca_stream_off(struct gspca_dev *gspca_dev)
 {
 	gspca_dev->streaming = 0;
 	atomic_set(&gspca_dev->nevent, 0);
-#ifdef GSPCA_HLP
-	{
-		struct hlp_dev *hlp_dev;
-
-		hlp_dev = hlp;
-		if (hlp_dev != 0
-		    && hlp_dev->gspca_dev == gspca_dev)
-			atomic_set(&hlp_dev->nevent, 0);
-	}
-#endif
 	if (gspca_dev->present) {
 		gspca_dev->sd_desc->stopN(gspca_dev);
 		destroy_urbs(gspca_dev);
@@ -979,15 +742,11 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *fmtdesc)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int i;
-#ifndef GSPCA_HLP
-	int j, index;
+	int i, j, index;
 	__u32 fmt_tb[8];
-#endif
 
 	PDEBUG(D_CONF, "enum fmt cap");
 
-#ifndef GSPCA_HLP
 	/* give an index to each format */
 	index = 0;
 	j = 0;
@@ -1013,36 +772,6 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 	fmtdesc->pixelformat = fmt_tb[index];
 	if (gspca_is_compressed(fmt_tb[index]))
 		fmtdesc->flags = V4L2_FMT_FLAG_COMPRESSED;
-#else /*GSPCA_HLP*/
-	/* !! code tied to the decoding functions in decoder.c */
-	i = gspca_dev->cam.nmodes - 1;
-	if (fmtdesc->index == 0) {	/* (assume one format per subdriver) */
-		fmtdesc->pixelformat = gspca_dev->cam.cam_mode[i].pixfmt;
-		if (gspca_is_compressed(fmtdesc->pixelformat))
-			fmtdesc->flags = V4L2_FMT_FLAG_COMPRESSED;
-	} else {
-		if (hlp == 0
-		    || (hlp->gspca_dev != 0
-			&& hlp->gspca_dev != gspca_dev))
-			return -EINVAL;
-		switch (gspca_dev->cam.cam_mode[i].pixfmt) {
-		case V4L2_PIX_FMT_JPEG:
-			if (fmtdesc->index >= sizeof jpeg_to_tb
-						 / sizeof jpeg_to_tb[0])
-				return -EINVAL;
-			fmtdesc->pixelformat = jpeg_to_tb[fmtdesc->index];
-			break;
-		case V4L2_PIX_FMT_SBGGR8:
-			if (fmtdesc->index >= sizeof bayer_to_tb
-						 / sizeof bayer_to_tb[0])
-				return -EINVAL;
-			fmtdesc->pixelformat = bayer_to_tb[fmtdesc->index];
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
-#endif /*GSPCA_HLP*/
 	fmtdesc->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	fmtdesc->description[0] = fmtdesc->pixelformat & 0xff;
 	fmtdesc->description[1] = (fmtdesc->pixelformat >> 8) & 0xff;
@@ -1057,25 +786,12 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 
-#ifdef GSPCA_HLP
-	int i;
-
-	/* if the pixel format is not the one of the device and
-	 * if the helper is inactive or busy, restore */
-	i = gspca_dev->curr_mode;
-	if (gspca_dev->pixfmt != gspca_dev->cam.cam_mode[i].pixfmt) {
-		struct hlp_dev *hlp_dev;
-
-		hlp_dev = hlp;
-		if (hlp_dev == 0 || hlp_dev->gspca_dev != gspca_dev)
-			gspca_dev->pixfmt = gspca_dev->cam.cam_mode[i].pixfmt;
-	}
-#endif /*GSPCA_HLP*/
-
+	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 	fmt->fmt.pix.width = gspca_dev->width;
 	fmt->fmt.pix.height = gspca_dev->height;
 	fmt->fmt.pix.pixelformat = gspca_dev->pixfmt;
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 	if (gspca_debug & D_CONF) {
 		PDEBUG_MODE("get fmt cap",
 			fmt->fmt.pix.pixelformat,
@@ -1099,13 +815,15 @@ static int try_fmt_cap(struct gspca_dev *gspca_dev,
 {
 	int w, h, mode, mode2, frsz;
 
+	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 	w = fmt->fmt.pix.width;
 	h = fmt->fmt.pix.height;
 
 	/* (luvcview problem) */
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
 		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_JPEG;
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 	if (gspca_debug & D_CONF)
 		PDEBUG_MODE("try fmt cap", fmt->fmt.pix.pixelformat, w, h);
 #endif
@@ -1121,44 +839,11 @@ static int try_fmt_cap(struct gspca_dev *gspca_dev,
 		if (mode2 >= 0) {
 			mode = mode2;
 		} else {
-			__u32 pixfmt;
-
-			pixfmt = gspca_dev->cam.cam_mode[mode].pixfmt;
-#ifndef GSPCA_HLP
 
 			/* no chance, return this mode */
-			fmt->fmt.pix.pixelformat = pixfmt;
-#else /*GSPCA_HLP*/
-			if (hlp != 0
-			    && (hlp->gspca_dev == 0
-				|| hlp->gspca_dev == gspca_dev)
-/* decoding works for JPEG and Bayer only */
-			    && (pixfmt == V4L2_PIX_FMT_JPEG
-				|| pixfmt == V4L2_PIX_FMT_SBGGR8)) {
-				switch (fmt->fmt.pix.pixelformat) {
-				case V4L2_PIX_FMT_YUYV:		/* 'YUYV' */
-				case V4L2_PIX_FMT_BGR24:	/* 'BGR3' */
-				case V4L2_PIX_FMT_RGB24:	/* 'RGB3' */
-				case V4L2_PIX_FMT_YUV420:	/* 'YU12' */
-				case V4L2_PIX_FMT_RGB565:	/* 'RGBP' */
-					break;
-				default: {
-					/* return any of the supported fmt's */
-					__u8 u;
-
-					u = get_jiffies_64();
-					u %= sizeof bayer_to_tb
-						/ sizeof bayer_to_tb[0] - 1;
-					fmt->fmt.pix.pixelformat =
-							bayer_to_tb[u + 1];
-					break;
-				    }
-				}
-			} else {
-				fmt->fmt.pix.pixelformat = pixfmt;
-			}
-#endif /*GSPCA_HLP*/
-#ifdef GSPCA_DEBUG
+			fmt->fmt.pix.pixelformat =
+					gspca_dev->cam.cam_mode[mode].pixfmt;
+#ifdef VIDEO_ADV_DEBUG
 			if (gspca_debug & D_CONF) {
 				PDEBUG_MODE("new format",
 					fmt->fmt.pix.pixelformat,
@@ -1198,7 +883,17 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = priv;
 	int ret;
 
-#ifdef GSPCA_DEBUG
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	/* if v4l1 got JPEG */
+	if (fmt->fmt.pix.pixelformat == 0
+	    && gspca_dev->streaming) {
+		fmt->fmt.pix.width = gspca_dev->width;
+		fmt->fmt.pix.height = gspca_dev->height;
+		fmt->fmt.pix.pixelformat = gspca_dev->pixfmt;
+		return 0;
+	}
+#endif
+#ifdef VIDEO_ADV_DEBUG
 	if (gspca_debug & D_CONF) {
 		PDEBUG_MODE("set fmt cap",
 			fmt->fmt.pix.pixelformat,
@@ -1218,14 +913,8 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 		goto out;
 	}
 
-#ifndef GSPCA_HLP
 	if (ret == gspca_dev->curr_mode)
 		goto out;			/* same mode */
-#else /*GSPCA_HLP*/
-	if (ret == gspca_dev->curr_mode
-	    && gspca_dev->pixfmt == fmt->fmt.pix.pixelformat)
-		goto out;			/* same mode */
-#endif /*GSPCA_HLP*/
 
 	if (gspca_dev->streaming) {
 		ret = -EBUSY;
@@ -1236,26 +925,6 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	gspca_dev->pixfmt = fmt->fmt.pix.pixelformat;
 	gspca_dev->curr_mode = ret;
 
-#ifdef GSPCA_HLP
-	/* if frame decoding is required */
-	if (gspca_dev->pixfmt != gspca_dev->cam.cam_mode[ret].pixfmt) {
-		struct hlp_dev *hlp_dev;
-
-		hlp_dev = hlp;
-		if (hlp_dev == 0
-		    || (hlp_dev->gspca_dev != 0
-			&& hlp_dev->gspca_dev != gspca_dev)) { /* helper busy */
-			fmt->fmt.pix.pixelformat =
-				gspca_dev->pixfmt =
-					gspca_dev->cam.cam_mode[ret].pixfmt;
-		} else {				/* helper active */
-			hlp_dev->gspca_dev = gspca_dev;
-			hlp_dev->pixfmt = gspca_dev->cam.cam_mode[ret].pixfmt;
-			hlp_dev->fr_d = gspca_dev->fr_i;
-		}
-	} else if (hlp != 0 && hlp->gspca_dev == gspca_dev)
-		hlp->gspca_dev = 0;
-#endif /*GSPCA_HLP*/
 	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1294,7 +963,7 @@ static int dev_open(struct inode *inode, struct file *file)
 	}
 	gspca_dev->users++;
 	file->private_data = gspca_dev;
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 	/* activate the v4l2 debug */
 	if (gspca_debug & D_V4L2)
 		gspca_dev->vdev.debug |= 3;
@@ -1329,22 +998,6 @@ static int dev_close(struct inode *inode, struct file *file)
 		frame_free(gspca_dev);
 		gspca_dev->capt_file = 0;
 		gspca_dev->memory = GSPCA_MEMORY_NO;
-#ifdef GSPCA_HLP
-		{
-			struct hlp_dev *hlp_dev;
-			int mode;
-
-			hlp_dev = hlp;
-			if (hlp_dev != 0
-			    && hlp_dev->gspca_dev == gspca_dev) {
-				hlp_dev->gspca_dev = 0;
-				hlp_dev->frame = 0;
-				mode = gspca_dev->curr_mode;
-				gspca_dev->pixfmt =
-					gspca_dev->cam.cam_mode[mode].pixfmt;
-			}
-		}
-#endif /*GSPCA_HLP*/
 	}
 	file->private_data = NULL;
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1370,23 +1023,38 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
+/* the use of V4L2_CTRL_FLAG_NEXT_CTRL asks for the controls to be sorted */
 static int vidioc_queryctrl(struct file *file, void *priv,
 			   struct v4l2_queryctrl *q_ctrl)
 {
 	struct gspca_dev *gspca_dev = priv;
 	int i;
+	u32 id;
 
-	PDEBUG(D_CONF, "queryctrl");
+	id = q_ctrl->id;
+	if (id & V4L2_CTRL_FLAG_NEXT_CTRL) {
+		id &= V4L2_CTRL_ID_MASK;
+		id++;
+		for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
+			if (id >= gspca_dev->sd_desc->ctrls[i].qctrl.id) {
+				memcpy(q_ctrl,
+					&gspca_dev->sd_desc->ctrls[i].qctrl,
+					sizeof *q_ctrl);
+				return 0;
+			}
+		}
+		return -EINVAL;
+	}
 	for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
-		if (q_ctrl->id == gspca_dev->sd_desc->ctrls[i].qctrl.id) {
+		if (id == gspca_dev->sd_desc->ctrls[i].qctrl.id) {
 			memcpy(q_ctrl,
 				&gspca_dev->sd_desc->ctrls[i].qctrl,
 				sizeof *q_ctrl);
 			return 0;
 		}
 	}
-	if (q_ctrl->id >= V4L2_CID_BASE
-	    && q_ctrl->id <= V4L2_CID_LASTP1) {
+	if (id >= V4L2_CID_BASE
+	    && id <= V4L2_CID_LASTP1) {
 		q_ctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
 		return 0;
 	}
@@ -1489,13 +1157,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		return -EINVAL;
 	switch (rb->memory) {
 	case V4L2_MEMORY_MMAP:
-		break;
 	case V4L2_MEMORY_USERPTR:
-#ifdef GSPCA_HLP
-		if (hlp == 0 || hlp->gspca_dev != gspca_dev)
-			break;
-#endif
-		return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1578,7 +1241,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 		if (ret < 0)
 			goto out;
 	}
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 	if (gspca_debug & D_STREAM) {
 		PDEBUG_MODE("stream on OK",
 			gspca_dev->pixfmt,
@@ -1657,7 +1320,7 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 
-	memset(parm, 0, sizeof parm);
+	memset(parm, 0, sizeof *parm);
 	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	parm->parm.capture.readbuffers = gspca_dev->nbufread;
 	return 0;
@@ -1677,6 +1340,12 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 	return 0;
 }
 
+static int vidioc_s_std(struct file *filp, void *priv,
+			v4l2_std_id *parm)
+{
+	return 0;
+}
+
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf(struct file *file, void *priv,
 			struct video_mbuf *mbuf)
@@ -1686,29 +1355,32 @@ static int vidiocgmbuf(struct file *file, void *priv,
 
 	PDEBUG(D_STREAM, "cgmbuf");
 	if (gspca_dev->nframes == 0) {
-		struct v4l2_requestbuffers rb;
 		int ret;
-		__u32 pixfmt;
-		short width, height;
 
-		/* as the final format is not yet defined, allocate
-		   buffers with the max size */
-		pixfmt = gspca_dev->pixfmt;
-		width = gspca_dev->width;
-		height = gspca_dev->height;
-		gspca_dev->pixfmt = V4L2_PIX_FMT_BGR32;
-		gspca_dev->width = 640;
-		gspca_dev->height = 480;
-		memset(&rb, 0, sizeof rb);
-		rb.count = 4;
-		rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		rb.memory = V4L2_MEMORY_MMAP;
-		ret = vidioc_reqbufs(file, priv, &rb);
-		gspca_dev->pixfmt = pixfmt;
-		gspca_dev->width = width;
-		gspca_dev->height = height;
-		if (ret != 0)
-			return ret;
+		{
+			struct v4l2_format fmt;
+
+			memset(&fmt, 0, sizeof fmt);
+			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			i = gspca_dev->cam.nmodes - 1;	/* highest mode */
+			fmt.fmt.pix.width = gspca_dev->cam.cam_mode[i].width;
+			fmt.fmt.pix.height = gspca_dev->cam.cam_mode[i].height;
+			fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_BGR24;
+			ret = vidioc_s_fmt_cap(file, priv, &fmt);
+			if (ret != 0)
+				return ret;
+		}
+		{
+			struct v4l2_requestbuffers rb;
+
+			memset(&rb, 0, sizeof rb);
+			rb.count = 4;
+			rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			rb.memory = V4L2_MEMORY_MMAP;
+			ret = vidioc_reqbufs(file, priv, &rb);
+			if (ret != 0)
+				return ret;
+		}
 	}
 	mbuf->frames = gspca_dev->nframes;
 	mbuf->size = gspca_dev->frsz * gspca_dev->nframes;
@@ -1951,7 +1623,7 @@ static int vidioc_qbuf(struct file *file, void *priv,
 
 	if (frame->v4l2_buf.memory == V4L2_MEMORY_USERPTR) {
 		frame->data = frame->data_end =
-				(unsigned char *) v4l2_buf->m.userptr;
+				(__u8 *) v4l2_buf->m.userptr;
 		frame->v4l2_buf.m.userptr = v4l2_buf->m.userptr;
 		frame->v4l2_buf.length = v4l2_buf->length;
 	}
@@ -2154,6 +1826,9 @@ static struct file_operations dev_fops = {
 	.read = dev_read,
 	.mmap = dev_mmap,
 	.ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.llseek = no_llseek,
 	.poll	= dev_poll,
 };
@@ -2186,6 +1861,7 @@ static struct video_device gspca_template = {
 	.vidioc_s_jpegcomp	= vidioc_s_jpegcomp,
 	.vidioc_g_parm		= vidioc_g_parm,
 	.vidioc_s_parm		= vidioc_s_parm,
+	.vidioc_s_std		= vidioc_s_std,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
@@ -2207,12 +1883,8 @@ int gspca_dev_probe(struct usb_interface *intf,
 	struct gspca_dev *gspca_dev;
 	struct usb_device *dev = interface_to_usbdev(intf);
 	int ret;
-	__u16 vendor;
-	__u16 product;
 
-	vendor = id->idVendor;
-	product = id->idProduct;
-	PDEBUG(D_PROBE, "probing %04x:%04x", vendor, product);
+	PDEBUG(D_PROBE, "probing %04x:%04x", id->idVendor, id->idProduct);
 
 	/* we don't handle multi-config cameras */
 	if (dev->descriptor.bNumConfigurations != 1)
@@ -2309,35 +1981,24 @@ EXPORT_SYMBOL(gspca_disconnect);
 /* -- module insert / remove -- */
 static int __init gspca_init(void)
 {
-#ifdef GSPCA_HLP
-	int ret;
-
-	/* create /dev/gspca_hlp */
-	ret = misc_register(&hlp_device);
-	if (ret < 0)
-		err("misc_register err %d", ret);
-	start_hlp();		/* try to start the helper process */
-#endif
 	info("main v%s registered", version);
 	return 0;
 }
 static void __exit gspca_exit(void)
 {
-#ifdef GSPCA_HLP
-	misc_deregister(&hlp_device);
-#endif
 	info("main deregistered");
 }
 
 module_init(gspca_init);
 module_exit(gspca_exit);
 
+#ifdef VIDEO_ADV_DEBUG
 module_param_named(debug, gspca_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		"Debug (bit) 0x01:error 0x02:probe 0x04:config"
 		" 0x08:stream 0x10:frame 0x20:packet 0x40:USBin 0x80:USBout"
 		" 0x0100: v4l2");
-
+#endif
 module_param(comp_fac, int, 0644);
 MODULE_PARM_DESC(comp_fac,
 		"Buffer size ratio when compressed in percent");

@@ -3,7 +3,7 @@
  *	Copyright (C) 2004 2005 2006 Michel Xhaard
  *		mxhaard@magic.fr
  *
- * V4L2 by Jean-François Moine <http://moinejf.free.fr>
+ * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,15 +24,14 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 2, 13)
-static const char version[] = "0.2.13";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
+static const char version[] = "2.1.0";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>, "
 		"Serge A. Suchkov <Serge.A.S@tochka.ru>");
 MODULE_DESCRIPTION("GSPCA ZC03xx/VC3xx USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-static int lightfreq = 50;
 static int force_sensor = -1;
 
 #include "jpeg.h"
@@ -41,10 +40,12 @@ static int force_sensor = -1;
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	unsigned char brightness;
-	unsigned char contrast;
-	unsigned char autogain;
-	unsigned char gamma;
+	__u8 brightness;
+	__u8 contrast;
+	__u8 gamma;
+	__u8 autogain;
+	__u8 lightfreq;
+	__u8 sharpness;
 
 	char qindex;
 	char sensor;			/* Type of image sensor chip */
@@ -61,14 +62,13 @@ struct sd {
 #define SENSOR_OV7620 9
 /*#define SENSOR_OV7648 9 - same values */
 #define SENSOR_OV7630C 10
-/*#define SENSOR_free 11 */
-#define SENSOR_PAS106 12
-#define SENSOR_PB0330 13
-#define SENSOR_PO2030 14
-#define SENSOR_TAS5130CK 15
-#define SENSOR_TAS5130CXX 16
-#define SENSOR_TAS5130C_VF0250 17
-#define SENSOR_MAX 18
+#define SENSOR_PAS106 11
+#define SENSOR_PB0330 12
+#define SENSOR_PO2030 13
+#define SENSOR_TAS5130CK 14
+#define SENSOR_TAS5130CXX 15
+#define SENSOR_TAS5130C_VF0250 16
+#define SENSOR_MAX 17
 	unsigned short chip_revision;
 };
 
@@ -79,7 +79,12 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setgamma(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 #define SD_BRIGHTNESS 0
@@ -110,7 +115,21 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
-#define SD_AUTOGAIN 2
+#define SD_GAMMA 2
+	{
+	    {
+		.id      = V4L2_CID_GAMMA,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Gamma",
+		.minimum = 1,
+		.maximum = 6,
+		.step    = 1,
+		.default_value = 4,
+	    },
+	    .set = sd_setgamma,
+	    .get = sd_getgamma,
+	},
+#define SD_AUTOGAIN 3
 	{
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -124,19 +143,33 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
-#define SD_GAMMA 3
+#define SD_FREQ 4
 	{
 	    {
-		.id      = V4L2_CID_GAMMA,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gamma",
-		.minimum = 1,
-		.maximum = 6,
+		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
+		.type    = V4L2_CTRL_TYPE_MENU,
+		.name    = "Light frequency filter",
+		.minimum = 0,
+		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
 		.step    = 1,
-		.default_value = 4,
+		.default_value = 1,
 	    },
-	    .set = sd_setcontrast,
-	    .get = sd_getgamma,
+	    .set = sd_setfreq,
+	    .get = sd_getfreq,
+	},
+#define SD_SHARPNESS 5
+	{
+	    {
+		.id	 = V4L2_CID_SHARPNESS,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Sharpness",
+		.minimum = 0,
+		.maximum = 3,
+		.step    = 1,
+		.default_value = 2,
+	    },
+	    .set = sd_setsharpness,
+	    .get = sd_getsharpness,
 	},
 };
 
@@ -211,11 +244,11 @@ static struct usb_action cs2102_Initial[] = {
 	{0xa1, 0x01, 0x0002},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* 00 */
-	{0xa0, 0x08, 0x01c6},	/* clock ? */
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x24, 0x0120},	/* gamma 5 */
 	{0xa0, 0x44, 0x0121},
 	{0xa0, 0x64, 0x0122},
@@ -284,7 +317,7 @@ static struct usb_action cs2102_Initial[] = {
 	{0xa0, 0x40, 0x0116},
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action cs2102_InitialScale[] = {
@@ -341,11 +374,11 @@ static struct usb_action cs2102_InitialScale[] = {
 	{0xa1, 0x01, 0x0002},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* 00 */
-	{0xa0, 0x08, 0x01c6},	/* clock ? */
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x24, 0x0120},	/* gamma 5 */
 	{0xa0, 0x44, 0x0121},
 	{0xa0, 0x64, 0x0122},
@@ -414,7 +447,7 @@ static struct usb_action cs2102_InitialScale[] = {
 	{0xa0, 0x40, 0x0116},
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
-	{0, 0, 0}
+	{}
 };
 static struct usb_action cs2102_50HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -439,7 +472,7 @@ static struct usb_action cs2102_50HZ[] = {
 	{0xa0, 0x8c, 0x001d}, /* 00,1d,8c,cc */
 	{0xa0, 0xb0, 0x001e}, /* 00,1e,b0,cc */
 	{0xa0, 0xd0, 0x001f}, /* 00,1f,d0,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action cs2102_50HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -464,7 +497,7 @@ static struct usb_action cs2102_50HZScale[] = {
 	{0xa0, 0x93, 0x001d}, /* 00,1d,93,cc */
 	{0xa0, 0xb0, 0x001e}, /* 00,1e,b0,cc */
 	{0xa0, 0xd0, 0x001f}, /* 00,1f,d0,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action cs2102_60HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -489,7 +522,7 @@ static struct usb_action cs2102_60HZ[] = {
 	{0xa0, 0x5d, 0x001d}, /* 00,1d,5d,cc */
 	{0xa0, 0x90, 0x001e}, /* 00,1e,90,cc */
 	{0xa0, 0xd0, 0x00c8}, /* 00,c8,d0,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action cs2102_60HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -514,7 +547,7 @@ static struct usb_action cs2102_60HZScale[] = {
 	{0xa0, 0xb7, 0x001d}, /* 00,1d,b7,cc */
 	{0xa0, 0xd0, 0x001e}, /* 00,1e,d0,cc */
 	{0xa0, 0xe8, 0x001f}, /* 00,1f,e8,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action cs2102_NoFliker[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -539,7 +572,7 @@ static struct usb_action cs2102_NoFliker[] = {
 	{0xa0, 0x59, 0x001d}, /* 00,1d,59,cc */
 	{0xa0, 0x90, 0x001e}, /* 00,1e,90,cc */
 	{0xa0, 0xc8, 0x001f}, /* 00,1f,c8,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action cs2102_NoFlikerScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -564,7 +597,7 @@ static struct usb_action cs2102_NoFlikerScale[] = {
 	{0xa0, 0x59, 0x001d}, /* 00,1d,59,cc */
 	{0xa0, 0x90, 0x001e}, /* 00,1e,90,cc */
 	{0xa0, 0xc8, 0x001f}, /* 00,1f,c8,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* CS2102_KOCOM */
@@ -676,8 +709,8 @@ static struct usb_action cs2102K_Initial[] = {
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x4c, 0x0118},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x13, 0x0120},	/* gamma 4 */
 	{0xa0, 0x38, 0x0121},
 	{0xa0, 0x59, 0x0122},
@@ -824,7 +857,7 @@ static struct usb_action cs2102K_Initial[] = {
 	{0xa0, 0x00, 0x01a7},
 	{0xa0, 0x04, 0x01a7},
 	{0xa0, 0x00, 0x01a7},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action cs2102K_InitialScale[] = {
@@ -936,8 +969,8 @@ static struct usb_action cs2102K_InitialScale[] = {
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x4c, 0x0118},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x13, 0x0120},	/* gamma 4 */
 	{0xa0, 0x38, 0x0121},
 	{0xa0, 0x59, 0x0122},
@@ -1137,8 +1170,8 @@ static struct usb_action cs2102K_InitialScale[] = {
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x4c, 0x0118},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x13, 0x0120},	/* gamma 4 */
 	{0xa0, 0x38, 0x0121},
 	{0xa0, 0x59, 0x0122},
@@ -1401,7 +1434,7 @@ static struct usb_action cs2102K_InitialScale[] = {
 	{0xa0, 0x04, 0x01a7},
 	{0xa0, 0x00, 0x01a7},
 	{0xa0, 0x04, 0x01a7},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action gc0305_Initial[] = {		/* 640x480 */
@@ -1466,7 +1499,7 @@ static struct usb_action gc0305_Initial[] = {		/* 640x480 */
 	{0xa0, 0x40, 0x0117},	/* 01,17,40,cc */
 	{0xa0, 0x52, 0x0118},	/* 01,18,52,cc */
 	{0xa0, 0x03, 0x0113},	/* 01,13,03,cc */
-	{0,0,0}
+	{}
 };
 static struct usb_action gc0305_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, 0x0000},	/* 00,00,01,cc */
@@ -1529,7 +1562,7 @@ static struct usb_action gc0305_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x40, 0x0117},	/* 01,17,40,cc */
 	{0xa0, 0x52, 0x0118},	/* 01,18,52,cc */
 	{0xa0, 0x03, 0x0113},	/* 01,13,03,cc */
-	{0,0,0}
+	{}
 };
 static struct usb_action gc0305_50HZ[] = {
 	{0xaa, 0x82, 0x0000},	/* 00,82,00,aa */
@@ -1552,7 +1585,7 @@ static struct usb_action gc0305_50HZ[] = {
 	{0xa0, 0x60, 0x011d},	/* 01,1d,60,cc */
 	{0xa0, 0x42, 0x0180},	/* 01,80,42,cc */
 /*	{0xa0, 0x85, 0x018d},	 * 01,8d,85,cc *	 * if 640x480 */
-	{0,0,0}
+	{}
 };
 static struct usb_action gc0305_60HZ[] = {
 	{0xaa, 0x82, 0x0000},	/* 00,82,00,aa */
@@ -1575,7 +1608,7 @@ static struct usb_action gc0305_60HZ[] = {
 	{0xa0, 0x60, 0x011d},	/* 01,1d,60,cc */
 	{0xa0, 0x42, 0x0180},	/* 01,80,42,cc */
 	{0xa0, 0x80, 0x018d},	/* 01,8d,80,cc */
-	{0,0,0}
+	{}
 };
 
 static struct usb_action gc0305_NoFliker[] = {
@@ -1598,7 +1631,7 @@ static struct usb_action gc0305_NoFliker[] = {
 	{0xa0, 0x60, 0x011d},	/* 01,1d,60,cc */
 	{0xa0, 0x03, 0x0180},	/* 01,80,03,cc */
 	{0xa0, 0x80, 0x018d},	/* 01,8d,80,cc */
-	{0,0,0}
+	{}
 };
 
 /* play poker with registers at your own risk !! */
@@ -1647,11 +1680,11 @@ static struct usb_action hdcs2020xx_Initial[] = {
 	{0xa1, 0x01, 0x0002},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x04, 0x01c6},
+	{0xa0, 0x04, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x07, 0x01cb},
+	{0xa0, 0x07, 0x01cb},	/* sharpness- */
 	{0xa0, 0x11, 0x0120},	/* gamma ~4 */
 	{0xa0, 0x37, 0x0121},
 	{0xa0, 0x58, 0x0122},
@@ -1744,7 +1777,7 @@ static struct usb_action hdcs2020xx_Initial[] = {
 	{0xa1, 0x01, 0x0118},
 /*	{0xa0, 0x02, 0x0008}, */
 	{0xa0, 0x00, 0x0007},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action hdcs2020xx_InitialScale[] = {
@@ -1792,11 +1825,11 @@ static struct usb_action hdcs2020xx_InitialScale[] = {
 	{0xa1, 0x01, 0x0002},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x04, 0x01c6},
+	{0xa0, 0x04, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x07, 0x01cb},
+	{0xa0, 0x07, 0x01cb},	/* sharpness- */
 	{0xa0, 0x11, 0x0120},	/* gamma ~4*/
 	{0xa0, 0x37, 0x0121},
 	{0xa0, 0x58, 0x0122},
@@ -1887,7 +1920,7 @@ static struct usb_action hdcs2020xx_InitialScale[] = {
 /*	{0xa0, 0x02, 0x0008}, */
 	{0xa0, 0x00, 0x0007},
 /*	{0xa0, 0x18, 0x00fe}, */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action hdcs2020xb_Initial[] = {
 	{0xa0, 0x01, 0x0000},
@@ -1942,11 +1975,11 @@ static struct usb_action hdcs2020xb_Initial[] = {
 	{0xa0, 0x40, 0x0118},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x13, 0x0120},	/* gamma 4 */
 	{0xa0, 0x38, 0x0121},
 	{0xa0, 0x59, 0x0122},
@@ -2019,7 +2052,7 @@ static struct usb_action hdcs2020xb_Initial[] = {
 	{0xa0, 0x40, 0x0116},
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
-	{0, 0, 0}
+	{}
 };
 static struct usb_action hdcs2020xb_InitialScale[] = {
 	{0xa0, 0x01, 0x0000},
@@ -2072,11 +2105,11 @@ static struct usb_action hdcs2020xb_InitialScale[] = {
 	{0xa0, 0x40, 0x0118},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x13, 0x0120},	/* gamma 4 */
 	{0xa0, 0x38, 0x0121},
 	{0xa0, 0x59, 0x0122},
@@ -2147,7 +2180,7 @@ static struct usb_action hdcs2020xb_InitialScale[] = {
 	{0xa0, 0x40, 0x0116},
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
-	{0, 0, 0}
+	{}
 };
 static struct usb_action hdcs2020b_50HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -2168,7 +2201,7 @@ static struct usb_action hdcs2020b_50HZ[] = {
 	{0xa0, 0x05, 0x001d}, /* 00,1d,05,cc */
 	{0xa0, 0x1a, 0x001e}, /* 00,1e,1a,cc */
 	{0xa0, 0x2f, 0x001f}, /* 00,1f,2f,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action hdcs2020b_60HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -2189,7 +2222,7 @@ static struct usb_action hdcs2020b_60HZ[] = {
 	{0xa0, 0x04, 0x001d}, /* 00,1d,04,cc */
 	{0xa0, 0x18, 0x001e}, /* 00,1e,18,cc */
 	{0xa0, 0x2c, 0x001f}, /* 00,1f,2c,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action hdcs2020b_NoFliker[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -2210,7 +2243,7 @@ static struct usb_action hdcs2020b_NoFliker[] = {
 	{0xa0, 0x04, 0x001d}, /* 00,1d,04,cc */
 	{0xa0, 0x17, 0x001e}, /* 00,1e,17,cc */
 	{0xa0, 0x2a, 0x001f}, /* 00,1f,2a,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action hv7131bxx_Initial[] = {
@@ -2266,11 +2299,11 @@ static struct usb_action hv7131bxx_Initial[] = {
 
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x50, 0x010a},	/* matrix */
 	{0xa0, 0xf8, 0x010b},
@@ -2318,7 +2351,7 @@ static struct usb_action hv7131bxx_Initial[] = {
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
 /*	{0xa0, 0x02, 0x0008}, */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action hv7131bxx_InitialScale[] = {
@@ -2373,11 +2406,11 @@ static struct usb_action hv7131bxx_InitialScale[] = {
 	{0xa1, 0x01, 0x0096},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x50, 0x010a},	/* matrix */
 	{0xa0, 0xf8, 0x010b},
@@ -2424,7 +2457,7 @@ static struct usb_action hv7131bxx_InitialScale[] = {
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
 /*	{0xa0, 0x02, 0x0008}, */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action hv7131cxx_Initial[] = {
@@ -2478,11 +2511,11 @@ static struct usb_action hv7131cxx_Initial[] = {
 
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x60, 0x010a},	/* matrix */
 	{0xa0, 0xf0, 0x010b},
@@ -2518,7 +2551,7 @@ static struct usb_action hv7131cxx_Initial[] = {
 	{0xa0, 0x40, 0x0180},
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action hv7131cxx_InitialScale[] = {
@@ -2577,11 +2610,11 @@ static struct usb_action hv7131cxx_InitialScale[] = {
 
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x60, 0x010a},	/* matrix */
 	{0xa0, 0xf0, 0x010b},
@@ -2619,7 +2652,7 @@ static struct usb_action hv7131cxx_InitialScale[] = {
 	{0xa0, 0x40, 0x0180},
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action icm105axx_Initial[] = {
@@ -2743,11 +2776,11 @@ static struct usb_action icm105axx_Initial[] = {
 	{0xa1, 0x01, 0x0008},
 
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x52, 0x010a},	/* matrix */
 	{0xa0, 0xf7, 0x010b},
 	{0xa0, 0xf7, 0x010c},
@@ -2796,7 +2829,7 @@ static struct usb_action icm105axx_Initial[] = {
 	{0xa0, 0x40, 0x0116},
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action icm105axx_InitialScale[] = {
@@ -2924,11 +2957,11 @@ static struct usb_action icm105axx_InitialScale[] = {
 	{0xa1, 0x01, 0x0008},
 
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x52, 0x010a},	/* matrix */
 	{0xa0, 0xf7, 0x010b},
@@ -2976,7 +3009,7 @@ static struct usb_action icm105axx_InitialScale[] = {
 	{0xa0, 0x40, 0x0116},
 	{0xa0, 0x40, 0x0117},
 	{0xa0, 0x40, 0x0118},
-	{0, 0, 0}
+	{}
 };
 static struct usb_action icm105a_50HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -3007,7 +3040,7 @@ static struct usb_action icm105a_50HZ[] = {
 	{0xa0, 0xd8, 0x001e}, /* 00,1e,d8,cc */
 	{0xa0, 0xea, 0x001f}, /* 00,1f,ea,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action icm105a_50HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -3040,7 +3073,7 @@ static struct usb_action icm105a_50HZScale[] = {
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x00, 0x01a7}, /* 01,a7,00,cc */
 	{0xa0, 0xc0, 0x01a8}, /* 01,a8,c0,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action icm105a_60HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -3071,7 +3104,7 @@ static struct usb_action icm105a_60HZ[] = {
 	{0xa0, 0xd4, 0x001e}, /* 00,1e,d4,cc */
 	{0xa0, 0xe8, 0x001f}, /* 00,1f,e8,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action icm105a_60HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -3104,7 +3137,7 @@ static struct usb_action icm105a_60HZScale[] = {
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x00, 0x01a7}, /* 01,a7,00,cc */
 	{0xa0, 0xc0, 0x01a8}, /* 01,a8,c0,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action icm105a_NoFliker[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -3135,7 +3168,7 @@ static struct usb_action icm105a_NoFliker[] = {
 	{0xa0, 0xd4, 0x001e}, /* 00,1e,d4,cc */
 	{0xa0, 0xe8, 0x001f}, /* 00,1f,e8,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action icm105a_NoFlikerScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -3168,7 +3201,7 @@ static struct usb_action icm105a_NoFlikerScale[] = {
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x00, 0x01a7}, /* 01,a7,00,cc */
 	{0xa0, 0xc0, 0x01a8}, /* 01,a8,c0,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_InitialScale[] = {
@@ -3288,7 +3321,7 @@ static struct usb_action MC501CB_InitialScale[] = {
 	{0xaa, 0x36, 0x001d}, /* 00,36,1D,aa */
 	{0xaa, 0x37, 0x004c}, /* 00,37,4C,aa */
 	{0xaa, 0x3b, 0x001d}, /* 00,3B,1D,aa */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_Initial[] = {	 /* 320x240 */
@@ -3407,7 +3440,7 @@ static struct usb_action MC501CB_Initial[] = {	 /* 320x240 */
 	{0xaa, 0x36, 0x001d}, /* 00,36,1D,aa */
 	{0xaa, 0x37, 0x004c}, /* 00,37,4C,aa */
 	{0xaa, 0x3b, 0x001d}, /* 00,3B,1D,aa */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_50HZ[] = {
@@ -3424,7 +3457,7 @@ static struct usb_action MC501CB_50HZ[] = {
 	{0xaa, 0x36, 0x003a}, /* 00,36,3A,aa */
 	{0xaa, 0x37, 0x0098}, /* 00,37,98,aa */
 	{0xaa, 0x3b, 0x003a}, /* 00,3B,3A,aa */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_50HZScale[] = {
@@ -3441,7 +3474,7 @@ static struct usb_action MC501CB_50HZScale[] = {
 	{0xaa, 0x36, 0x0018}, /* 00,36,18,aa */
 	{0xaa, 0x37, 0x006a}, /* 00,37,6A,aa */
 	{0xaa, 0x3d, 0x0018}, /* 00,3D,18,aa */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_60HZ[] = {
@@ -3458,7 +3491,7 @@ static struct usb_action MC501CB_60HZ[] = {
 	{0xaa, 0x36, 0x0030}, /* 00,36,30,aa */
 	{0xaa, 0x37, 0x00d4}, /* 00,37,D4,aa */
 	{0xaa, 0x3d, 0x0030}, /* 00,3D,30,aa */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_60HZScale[] = {
@@ -3475,7 +3508,7 @@ static struct usb_action MC501CB_60HZScale[] = {
 	{0xaa, 0x36, 0x0018}, /* 00,36,18,aa */
 	{0xaa, 0x37, 0x006a}, /* 00,37,6A,aa */
 	{0xaa, 0x3d, 0x0018}, /* 00,3D,18,aa */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_NoFliker[] = {
@@ -3492,7 +3525,7 @@ static struct usb_action MC501CB_NoFliker[] = {
 	{0xaa, 0x36, 0x0030}, /* 00,36,30,aa */
 	{0xaa, 0x37, 0x00d4}, /* 00,37,D4,aa */
 	{0xaa, 0x3d, 0x0030}, /* 00,3D,30,aa */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action MC501CB_NoFlikerScale[] = {
@@ -3504,7 +3537,7 @@ static struct usb_action MC501CB_NoFlikerScale[] = {
 	{0xaa, 0x3e, 0x00d4}, /* 00,3E,D4,aa */
 	{0xaa, 0x3b, 0x0030}, /* 00,3B,30,aa */
 	{0xaa, 0x3c, 0x00d4}, /* 00,3C,D4,aa */
-	{0, 0, 0}
+	{}
 };
 
 /* from zs211.inf - HKR,%OV7620%,Initial - 640x480 */
@@ -3575,7 +3608,7 @@ static struct usb_action OV7620_mode0[] = {
 	{0xa0, 0x40, 0x011d}, /* 01,1d,40,cc */
 	{0xa0, 0x02, 0x0180}, /* 01,80,02,cc */
 	{0xa0, 0x50, 0x01a8}, /* 01,a8,50,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* from zs211.inf - HKR,%OV7620%,InitialScale - 320x240 */
@@ -3646,7 +3679,7 @@ static struct usb_action OV7620_mode1[] = {
 	{0xa0, 0x50, 0x011d}, /* 01,1d,50,cc */
 	{0xa0, 0x02, 0x0180}, /* 01,80,02,cc */
 	{0xa0, 0x50, 0x01a8}, /* 01,a8,50,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* from zs211.inf - HKR,%OV7620%\AE,50HZ */
@@ -3665,7 +3698,7 @@ static struct usb_action OV7620_50HZ[] = {
 	{0xaa, 0x10, 0x0082},	/* 00,10,82,aa */
 	{0xaa, 0x76, 0x0003},	/* 00,76,03,aa */
 /*	{0xa0, 0x40, 0x0002},	 * 00,02,40,cc - if mode0 (640x480) */
-	{0, 0, 0}
+	{}
 };
 
 /* from zs211.inf - HKR,%OV7620%\AE,60HZ */
@@ -3687,7 +3720,7 @@ static struct usb_action OV7620_60HZ[] = {
 /* ?? in gspca v1, it was
 	{0xa0, 0x00, 0x0039},  * 00,00,00,dd *
 	{0xa1, 0x01, 0x0037},		*/
-	{0, 0, 0}
+	{}
 };
 
 /* from zs211.inf - HKR,%OV7620%\AE,NoFliker */
@@ -3707,7 +3740,7 @@ static struct usb_action OV7620_NoFliker[] = {
 /* ?? was
 	{0xa0, 0x00, 0x0039},  * 00,00,00,dd *
 	{0xa1, 0x01, 0x0037},		*/
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action ov7630c_Initial[] = {
@@ -3795,14 +3828,11 @@ static struct usb_action ov7630c_Initial[] = {
 /* 0x03, */
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
-/* 0x05, */
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
-/* 0x07, */
 	{0xa1, 0x01, 0x01c9},
-/* 0x0f, */
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x01, 0x0120},	/* gamma 2 ?*/
 	{0xa0, 0x0c, 0x0121},
 	{0xa0, 0x1f, 0x0122},
@@ -3867,7 +3897,7 @@ static struct usb_action ov7630c_Initial[] = {
 	{0xaa, 0x13, 0x0083},	/* 40 */
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action ov7630c_InitialScale[] = {
@@ -3954,14 +3984,11 @@ static struct usb_action ov7630c_InitialScale[] = {
 
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
-
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
-
 	{0xa1, 0x01, 0x01c9},
-
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x16, 0x0120},	/* gamma ~4 */
 	{0xa0, 0x3a, 0x0121},
 	{0xa0, 0x5b, 0x0122},
@@ -4027,7 +4054,7 @@ static struct usb_action ov7630c_InitialScale[] = {
 
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action pas106b_Initial_com[] = {
@@ -4041,7 +4068,7 @@ static struct usb_action pas106b_Initial_com[] = {
 	{0xa0, 0x03, 0x003a},
 	{0xa0, 0x0c, 0x003b},
 	{0xa0, 0x04, 0x0038},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action pas106b_Initial[] = {	/* 176x144 */
@@ -4099,10 +4126,8 @@ static struct usb_action pas106b_Initial[] = {	/* 176x144 */
 	{0xa0, 0x08, 0x0301},	/* EEPROMAccess */
 /* JPEG control */
 	{0xa0, 0x03, 0x0008},	/* ClockSetting */
-/* Unknown */
-	{0xa0, 0x08, 0x01c6},
-/* Sharpness */
-	{0xa0, 0x0f, 0x01cb},	/* Sharpness05 */
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 /* Other registers */
 	{0xa0, 0x0d, 0x0100},	/* OperationMode */
 /* Auto exposure and white balance */
@@ -4113,9 +4138,8 @@ static struct usb_action pas106b_Initial[] = {	/* 176x144 */
 	{0xa0, 0x08, 0x0301},	/* EEPROMAccess */
 /* JPEG control */
 	{0xa0, 0x03, 0x0008},	/* ClockSetting */
-/* Sharpness */
-	{0xa0, 0x08, 0x01c6},	/* Sharpness00 */
-	{0xa0, 0x0f, 0x01cb},	/* Sharpness05 */
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x58, 0x010a},	/* matrix */
 	{0xa0, 0xf4, 0x010b},
@@ -4162,7 +4186,7 @@ static struct usb_action pas106b_Initial[] = {	/* 176x144 */
 	{0xa0, 0x40, 0x0116},	/* RGain */
 	{0xa0, 0x40, 0x0117},	/* GGain */
 	{0xa0, 0x40, 0x0118},	/* BGain */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action pas106b_InitialScale[] = {	/* 352x288 */
@@ -4221,10 +4245,8 @@ static struct usb_action pas106b_InitialScale[] = {	/* 352x288 */
 	{0xa0, 0x08, 0x0301},	/* EEPROMAccess */
 /* JPEG control */
 	{0xa0, 0x03, 0x0008},	/* ClockSetting */
-/* Unknown */
-	{0xa0, 0x08, 0x01c6},
-/* Sharpness */
-	{0xa0, 0x0f, 0x01cb},	/* Sharpness05 */
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 /* Other registers */
 	{0xa0, 0x0d, 0x0100},	/* OperationMode */
 /* Auto exposure and white balance */
@@ -4235,9 +4257,8 @@ static struct usb_action pas106b_InitialScale[] = {	/* 352x288 */
 	{0xa0, 0x08, 0x0301},	/* EEPROMAccess */
 /* JPEG control */
 	{0xa0, 0x03, 0x0008},	/* ClockSetting */
-/* Sharpness */
-	{0xa0, 0x08, 0x01c6},	/* Sharpness00 */
-	{0xa0, 0x0f, 0x01cb},	/* Sharpness05 */
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x58, 0x010a},	/* matrix */
 	{0xa0, 0xf4, 0x010b},
@@ -4289,7 +4310,7 @@ static struct usb_action pas106b_InitialScale[] = {	/* 352x288 */
 
 	{0xa0, 0x00, 0x0007},	/* AutoCorrectEnable */
 	{0xa0, 0xff, 0x0018},	/* Frame adjust */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pas106b_50HZ[] = {
 	{0xa0, 0x00, 0x0190}, /* 01,90,00,cc */
@@ -4305,7 +4326,7 @@ static struct usb_action pas106b_50HZ[] = {
 	{0xaa, 0x05, 0x0002}, /* 00,05,02,aa */
 	{0xaa, 0x07, 0x001c}, /* 00,07,1c,aa */
 	{0xa0, 0x04, 0x01a9}, /* 01,a9,04,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pas106b_60HZ[] = {
 	{0xa0, 0x00, 0x0190}, /* 01,90,00,cc */
@@ -4321,7 +4342,7 @@ static struct usb_action pas106b_60HZ[] = {
 	{0xaa, 0x05, 0x0001}, /* 00,05,01,aa */
 	{0xaa, 0x07, 0x00c4}, /* 00,07,c4,aa */
 	{0xa0, 0x04, 0x01a9}, /* 01,a9,04,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pas106b_NoFliker[] = {
 	{0xa0, 0x00, 0x0190}, /* 01,90,00,cc */
@@ -4337,10 +4358,9 @@ static struct usb_action pas106b_NoFliker[] = {
 	{0xaa, 0x05, 0x0001}, /* 00,05,01,aa */
 	{0xaa, 0x07, 0x0030}, /* 00,07,30,aa */
 	{0xa0, 0x00, 0x01a9}, /* 01,a9,00,cc */
-	{0, 0, 0}
+	{}
 };
 
-/* Aurelien setting from snoop */
 static struct usb_action pb03303x_Initial[] = {
 	{0xa0, 0x01, 0x0000},
 	{0xa0, 0x03, 0x0008},
@@ -4411,11 +4431,11 @@ static struct usb_action pb03303x_Initial[] = {
 
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x13, 0x0120},	/* gamma 4 */
 	{0xa0, 0x38, 0x0121},
 	{0xa0, 0x59, 0x0122},
@@ -4484,7 +4504,7 @@ static struct usb_action pb03303x_Initial[] = {
 	{0xa0, 0x40, 0x0180},
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action pb03303x_InitialScale[] = {
@@ -4559,11 +4579,11 @@ static struct usb_action pb03303x_InitialScale[] = {
 
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x13, 0x0120},	/* gamma 4 */
 	{0xa0, 0x38, 0x0121},
@@ -4633,7 +4653,7 @@ static struct usb_action pb03303x_InitialScale[] = {
 	{0xa0, 0x40, 0x0180},
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pb0330xx_Initial[] = {
 	{0xa1, 0x01, 0x0008},
@@ -4701,11 +4721,11 @@ static struct usb_action pb0330xx_Initial[] = {
 	{0xa0, 0x50, 0x0112},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x50, 0x010a},	/* matrix */
 	{0xa0, 0xf8, 0x010b},
@@ -4747,7 +4767,7 @@ static struct usb_action pb0330xx_Initial[] = {
 	{0xa1, 0x01, 0x0007},
 /*	{0xa0, 0x30, 0x0007}, */
 /*	{0xa0, 0x00, 0x0007}, */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action pb0330xx_InitialScale[] = {
@@ -4816,11 +4836,11 @@ static struct usb_action pb0330xx_InitialScale[] = {
 	{0xa0, 0x50, 0x0112},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x50, 0x010a},	/* matrix */
 	{0xa0, 0xf8, 0x010b},
@@ -4861,7 +4881,7 @@ static struct usb_action pb0330xx_InitialScale[] = {
 	{0xa1, 0x01, 0x0007},
 /*	{0xa0, 0x30, 0x0007}, */
 /*	{0xa0, 0x00, 0x0007}, */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pb0330_50HZ[] = {
 	{0xa0, 0x00, 0x0190}, /* 01,90,00,cc */
@@ -4877,7 +4897,7 @@ static struct usb_action pb0330_50HZ[] = {
 	{0xa0, 0x68, 0x001d}, /* 00,1d,68,cc */
 	{0xa0, 0x90, 0x001e}, /* 00,1e,90,cc */
 	{0xa0, 0xc8, 0x001f}, /* 00,1f,c8,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pb0330_50HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -4894,7 +4914,7 @@ static struct usb_action pb0330_50HZScale[] = {
 	{0xa0, 0xe5, 0x001d}, /* 00,1d,e5,cc */
 	{0xa0, 0xf0, 0x001e}, /* 00,1e,f0,cc */
 	{0xa0, 0xf8, 0x001f}, /* 00,1f,f8,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pb0330_60HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -4911,7 +4931,7 @@ static struct usb_action pb0330_60HZ[] = {
 	{0xa0, 0x43, 0x001d}, /* 00,1d,43,cc */
 	{0xa0, 0x50, 0x001e}, /* 00,1e,50,cc */
 	{0xa0, 0x90, 0x001f}, /* 00,1f,90,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pb0330_60HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -4928,7 +4948,7 @@ static struct usb_action pb0330_60HZScale[] = {
 	{0xa0, 0x41, 0x001d}, /* 00,1d,41,cc */
 	{0xa0, 0x50, 0x001e}, /* 00,1e,50,cc */
 	{0xa0, 0x90, 0x001f}, /* 00,1f,90,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pb0330_NoFliker[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -4945,7 +4965,7 @@ static struct usb_action pb0330_NoFliker[] = {
 	{0xa0, 0x09, 0x001d}, /* 00,1d,09,cc */
 	{0xa0, 0x40, 0x001e}, /* 00,1e,40,cc */
 	{0xa0, 0x90, 0x001f}, /* 00,1f,90,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action pb0330_NoFlikerScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -4962,7 +4982,7 @@ static struct usb_action pb0330_NoFlikerScale[] = {
 	{0xa0, 0x09, 0x001d}, /* 00,1d,09,cc */
 	{0xa0, 0x40, 0x001e}, /* 00,1e,40,cc */
 	{0xa0, 0x90, 0x001f}, /* 00,1f,90,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* from oem9.inf - HKR,%PO2030%,Initial - 640x480 - (close to CS2102) */
@@ -5039,7 +5059,7 @@ static struct usb_action PO2030_mode0[] = {
 	{0xa0, 0x08, 0x0301}, /* 03,01,08,cc */
 	{0xa0, 0x7a, 0x0116}, /* 01,16,7a,cc */
 	{0xa0, 0x4a, 0x0118}, /* 01,18,4a,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* from oem9.inf - HKR,%PO2030%,InitialScale - 320x240 */
@@ -5116,7 +5136,7 @@ static struct usb_action PO2030_mode1[] = {
 	{0xa0, 0x08, 0x0301}, /* 03,01,08,cc */
 	{0xa0, 0x7a, 0x0116}, /* 01,16,7a,cc */
 	{0xa0, 0x4a, 0x0118}, /* 01,18,4a,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action PO2030_50HZ[] = {
@@ -5138,7 +5158,7 @@ static struct usb_action PO2030_50HZ[] = {
 	{0xa0, 0x88, 0x018d}, /* 01,8d,88,cc */
 	{0xa0, 0x58, 0x011d}, /* 01,1d,58,cc */
 	{0xa0, 0x42, 0x0180}, /* 01,80,42,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action PO2030_60HZ[] = {
@@ -5160,7 +5180,7 @@ static struct usb_action PO2030_60HZ[] = {
 	{0xa0, 0x88, 0x018d}, /* 01,8d,88,cc */	/* win: 01,8d,80 */
 	{0xa0, 0x58, 0x011d}, /* 01,1d,58,cc */
 	{0xa0, 0x42, 0x0180}, /* 01,80,42,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action PO2030_NoFliker[] = {
@@ -5171,7 +5191,7 @@ static struct usb_action PO2030_NoFliker[] = {
 	{0xaa, 0x1c, 0x0078}, /* 00,1c,78,aa */
 	{0xaa, 0x46, 0x0000}, /* 00,46,00,aa */
 	{0xaa, 0x15, 0x0000}, /* 00,15,00,aa */
-	{0, 0, 0}
+	{}
 };
 
 /* TEST */
@@ -5302,8 +5322,8 @@ static struct usb_action tas5130CK_Initial[] = {
 	{0xa0, 0x03, 0x0111},
 	{0xa0, 0x51, 0x0112},
 	{0xa0, 0x03, 0x0008},
-	{0xa0, 0x08, 0x01c6},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x38, 0x0120},	/* gamma > 5 */
 	{0xa0, 0x51, 0x0121},
 	{0xa0, 0x6e, 0x0122},
@@ -5375,7 +5395,7 @@ static struct usb_action tas5130CK_Initial[] = {
 	{0xa0, 0x15, 0x01ae},
 	{0xa0, 0x40, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action tas5130CK_InitialScale[] = {
@@ -5505,8 +5525,8 @@ static struct usb_action tas5130CK_InitialScale[] = {
 	{0xa0, 0x03, 0x0111},
 	{0xa0, 0x51, 0x0112},
 	{0xa0, 0x03, 0x0008},
-	{0xa0, 0x08, 0x01c6},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 	{0xa0, 0x38, 0x0120},	/* gamma > 5 */
 	{0xa0, 0x51, 0x0121},
 	{0xa0, 0x6e, 0x0122},
@@ -5583,7 +5603,7 @@ static struct usb_action tas5130CK_InitialScale[] = {
 	{0xa0, 0x02, 0x0008},
 	{0xa0, 0x00, 0x0007},
 	{0xa0, 0x03, 0x0008},
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action tas5130cxx_Initial[] = {
@@ -5625,11 +5645,11 @@ static struct usb_action tas5130cxx_Initial[] = {
 	{0xa1, 0x01, 0x0002},
 	{0xa1, 0x01, 0x0008},
 	{0xa0, 0x03, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x68, 0x010a},	/* matrix */
 	{0xa0, 0xec, 0x010b},
@@ -5673,7 +5693,7 @@ static struct usb_action tas5130cxx_Initial[] = {
 	{0xa0, 0x40, 0x0180},
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 static struct usb_action tas5130cxx_InitialScale[] = {
 	{0xa0, 0x01, 0x0000},
@@ -5718,11 +5738,11 @@ static struct usb_action tas5130cxx_InitialScale[] = {
 
 	{0xa0, 0x03, 0x0008},
 	{0xa1, 0x01, 0x0008},	/* clock ? */
-	{0xa0, 0x08, 0x01c6},
+	{0xa0, 0x08, 0x01c6},	/* sharpness+ */
 	{0xa1, 0x01, 0x01c8},
 	{0xa1, 0x01, 0x01c9},
 	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, 0x01cb},
+	{0xa0, 0x0f, 0x01cb},	/* sharpness- */
 
 	{0xa0, 0x68, 0x010a},	/* matrix */
 	{0xa0, 0xec, 0x010b},
@@ -5763,7 +5783,7 @@ static struct usb_action tas5130cxx_InitialScale[] = {
 	{0xa0, 0x40, 0x0180},
 	{0xa1, 0x01, 0x0180},
 	{0xa0, 0x42, 0x0180},
-	{0, 0, 0}
+	{}
 };
 static struct usb_action tas5130cxx_50HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -5786,7 +5806,7 @@ static struct usb_action tas5130cxx_50HZ[] = {
 	{0xa0, 0xea, 0x001f}, /* 00,1f,ea,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x03, 0x009f}, /* 00,9f,03,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action tas5130cxx_50HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -5809,7 +5829,7 @@ static struct usb_action tas5130cxx_50HZScale[] = {
 	{0xa0, 0xf8, 0x001f}, /* 00,1f,f8,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x03, 0x009f}, /* 00,9f,03,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action tas5130cxx_60HZ[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -5832,7 +5852,7 @@ static struct usb_action tas5130cxx_60HZ[] = {
 	{0xa0, 0xe0, 0x001f}, /* 00,1f,e0,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x03, 0x009f}, /* 00,9f,03,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action tas5130cxx_60HZScale[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -5855,7 +5875,7 @@ static struct usb_action tas5130cxx_60HZScale[] = {
 	{0xa0, 0xe0, 0x001f}, /* 00,1f,e0,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x03, 0x009f}, /* 00,9f,03,cc */
-	{0, 0, 0}
+	{}
 };
 static struct usb_action tas5130cxx_NoFliker[] = {
 	{0xa0, 0x00, 0x0019}, /* 00,19,00,cc */
@@ -5878,7 +5898,7 @@ static struct usb_action tas5130cxx_NoFliker[] = {
 	{0xa0, 0xe0, 0x001f}, /* 00,1f,e0,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x02, 0x009f}, /* 00,9f,02,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action tas5130cxx_NoFlikerScale[] = {
@@ -5902,7 +5922,7 @@ static struct usb_action tas5130cxx_NoFlikerScale[] = {
 	{0xa0, 0xe0, 0x001f}, /* 00,1f,e0,cc */
 	{0xa0, 0xff, 0x0020}, /* 00,20,ff,cc */
 	{0xa0, 0x02, 0x009f}, /* 00,9f,02,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action tas5130c_vf0250_Initial[] = {
@@ -5966,7 +5986,7 @@ static struct usb_action tas5130c_vf0250_Initial[] = {
 	{0xa0, 0x60, 0x01a8},		/* 01,a8,60,cc, */
 	{0xa0, 0x61, 0x0116},		/* 01,16,61,cc, */
 	{0xa0, 0x65, 0x0118},		/* 01,18,65,cc */
-	{0, 0, 0}
+	{}
 };
 
 static struct usb_action tas5130c_vf0250_InitialScale[] = {
@@ -6030,7 +6050,7 @@ static struct usb_action tas5130c_vf0250_InitialScale[] = {
 	{0xa0, 0x60, 0x01a8},		/* 01,a8,60,cc, */
 	{0xa0, 0x61, 0x0116},		/* 01,16,61,cc, */
 	{0xa0, 0x65, 0x0118},		/* 01,18,65,cc */
-	{0, 0, 0}
+	{}
 };
 /* "50HZ" light frequency banding filter */
 static struct usb_action tas5130c_vf0250_50HZ[] = {
@@ -6054,7 +6074,7 @@ static struct usb_action tas5130c_vf0250_50HZ[] = {
 	{0xa0, 0x58, 0x011d},		/* 01,1d,58,cc, */
 	{0xa0, 0x42, 0x0180},		/* 01,80,42,cc, */
 	{0xa0, 0x78, 0x018d},		/* 01,8d,78,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* "50HZScale" light frequency banding filter */
@@ -6079,7 +6099,7 @@ static struct usb_action tas5130c_vf0250_50HZScale[] = {
 	{0xa0, 0x58, 0x011d},		/* 01,1d,58,cc, */
 	{0xa0, 0x42, 0x0180},		/* 01,80,42,cc, */
 	{0xa0, 0x78, 0x018d},		/* 01,8d,78,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* "60HZ" light frequency banding filter */
@@ -6104,7 +6124,7 @@ static struct usb_action tas5130c_vf0250_60HZ[] = {
 	{0xa0, 0x58, 0x011d},		/* 01,1d,58,cc, */
 	{0xa0, 0x42, 0x0180},		/* 01,80,42,cc, */
 	{0xa0, 0x78, 0x018d},		/* 01,8d,78,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* "60HZScale" light frequency banding ilter */
@@ -6129,7 +6149,7 @@ static struct usb_action tas5130c_vf0250_60HZScale[] = {
 	{0xa0, 0x58, 0x011d},		/* 01,d,58,cc, */
 	{0xa0, 0x42, 0x0180},		/* 01,80,42,cc, */
 	{0xa0, 0x78, 0x018d},		/* 01,d,78,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* "NoFliker" light frequency banding flter */
@@ -6152,7 +6172,7 @@ static struct usb_action tas5130c_vf0250_NoFliker[] = {
 	{0xa0, 0xff, 0x0020},		/* 00,20,ff,cc, */
 	{0xa0, 0x58, 0x011d},		/* 01,1d,58,cc, */
 	{0xa0, 0x03, 0x0180},		/* 01,80,03,cc */
-	{0, 0, 0}
+	{}
 };
 
 /* "NoFlikerScale" light frequency banding filter */
@@ -6175,7 +6195,7 @@ static struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
 	{0xa0, 0xff, 0x0020},		/* 00,20,ff,cc, */
 	{0xa0, 0x58, 0x011d},		/* 01,1d,58,cc, */
 	{0xa0, 0x03, 0x0180},		/* 01,80,03,cc */
-	{0, 0, 0}
+	{}
 };
 
 static void reg_r_i(struct usb_device *dev,
@@ -6325,7 +6345,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	case SENSOR_PO2030:
 		return;
 	}
-/*fixme: is it really 011d 018d for all other sensors? */
+/*fixme: is it really write to 011d and 018d for all other sensors? */
 	brightness = sd->brightness;
 	reg_w(gspca_dev->dev, brightness, 0x011d);
 	if (brightness < 0x70)
@@ -6348,20 +6368,7 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 		{0x10, 0x1e}
 	};
 
-	switch (sd->sensor) {
-	case SENSOR_GC0305:
-		sharpness = 3;
-		break;
-	case SENSOR_OV7620:
-		sharpness = 2;
-		break;
-	case SENSOR_PO2030:
-		sharpness = 0;
-		break;
-	default:
-		return;
-	}
-/*fixme: sharpness set by V4L2_CID_SATURATION?*/
+	sharpness = sd->sharpness;
 	reg_w(dev, sharpness_tb[sharpness][0], 0x01c6);
 	reg_r(dev, 0x01c8, &retbyte);
 	reg_r(dev, 0x01c9, &retbyte);
@@ -6411,7 +6418,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	static __u8 Tgradient_5[16] =
 		{0x37, 0x26, 0x20, 0x1a, 0x14, 0x10, 0x0e, 0x0b,
 		 0x09, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x02};
-	static __u8 Tgamma_6[16] =		/* ?? was gama 5 */
+	static __u8 Tgamma_6[16] =		/* ?? was gamma 5 */
 		{0x24, 0x44, 0x64, 0x84, 0x9d, 0xb2, 0xc4, 0xd3,
 		 0xe0, 0xeb, 0xf4, 0xff, 0xff, 0xff, 0xff, 0xff};
 	static __u8 Tgradient_6[16] =
@@ -6425,7 +6432,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		0, Tgradient_1, Tgradient_2,
 		Tgradient_3, Tgradient_4, Tgradient_5, Tgradient_6
 	};
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 	__u8 v[16];
 #endif
 
@@ -6443,7 +6450,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		else if (g <= 0)
 			g = 1;
 		reg_w(dev, g, 0x0120 + i);	/* gamma */
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 		if (gspca_debug & D_CONF)
 			v[i] = g;
 #endif
@@ -6463,7 +6470,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 				g = 1;
 		}
 		reg_w(dev, g, 0x0130 + i);	/* gradient */
-#ifdef GSPCA_DEBUG
+#ifdef VIDEO_ADV_DEBUG
 		if (gspca_debug & D_CONF)
 			v[i] = g;
 #endif
@@ -6488,7 +6495,7 @@ static void setquality(struct gspca_dev *gspca_dev)
 		return;
 	}
 /*fixme: is it really 0008 0007 0018 for all other sensors? */
-	quality = sd->qindex & 0x0f;
+	quality = sd->qindex;
 	reg_w(dev, quality, 0x0008);
 	frxt = 0x30;
 	reg_w(dev, frxt, 0x0007);
@@ -6525,25 +6532,25 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 	struct usb_action *zc3_freq;
 	static struct usb_action *freq_tb[SENSOR_MAX][6] = {
 /* SENSOR_CS2102 0 */
-		{cs2102_50HZ, cs2102_50HZScale,
-		 cs2102_60HZ, cs2102_60HZScale,
-		 cs2102_NoFliker, cs2102_NoFlikerScale},
+		{cs2102_NoFliker, cs2102_NoFlikerScale,
+		 cs2102_50HZ, cs2102_50HZScale,
+		 cs2102_60HZ, cs2102_60HZScale},
 /* SENSOR_CS2102K 1 */
-		{cs2102_50HZ, cs2102_50HZScale,
-		 cs2102_60HZ, cs2102_60HZScale,
-		 cs2102_NoFliker, cs2102_NoFlikerScale},
+		{cs2102_NoFliker, cs2102_NoFlikerScale,
+		 cs2102_50HZ, cs2102_50HZScale,
+		 cs2102_60HZ, cs2102_60HZScale},
 /* SENSOR_GC0305 2 */
-		{gc0305_50HZ, gc0305_50HZ,
-		 gc0305_60HZ, gc0305_60HZ,
-		 gc0305_NoFliker, gc0305_NoFliker},
+		{gc0305_NoFliker, gc0305_NoFliker,
+		 gc0305_50HZ, gc0305_50HZ,
+		 gc0305_60HZ, gc0305_60HZ},
 /* SENSOR_HDCS2020 3 */
 		{0, 0,
 		 0, 0,
 		 0, 0},
 /* SENSOR_HDCS2020b 4 */
-		{hdcs2020b_50HZ, hdcs2020b_50HZ,
-		 hdcs2020b_60HZ, hdcs2020b_60HZ,
-		 hdcs2020b_NoFliker, hdcs2020b_NoFliker},
+		{hdcs2020b_NoFliker, hdcs2020b_NoFliker,
+		 hdcs2020b_50HZ, hdcs2020b_50HZ,
+		 hdcs2020b_60HZ, hdcs2020b_60HZ},
 /* SENSOR_HV7131B 5 */
 		{0, 0,
 		 0, 0,
@@ -6553,66 +6560,48 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 0, 0,
 		 0, 0},
 /* SENSOR_ICM105A 7 */
-		{icm105a_50HZ, icm105a_50HZScale,
-		 icm105a_60HZ, icm105a_60HZScale,
-		 icm105a_NoFliker, icm105a_NoFlikerScale},
+		{icm105a_NoFliker, icm105a_NoFlikerScale,
+		 icm105a_50HZ, icm105a_50HZScale,
+		 icm105a_60HZ, icm105a_60HZScale},
 /* SENSOR_MC501CB 8 */
-		{MC501CB_50HZ, MC501CB_50HZScale,
-		 MC501CB_60HZ, MC501CB_60HZScale,
-		 MC501CB_NoFliker, MC501CB_NoFlikerScale},
+		{MC501CB_NoFliker, MC501CB_NoFlikerScale,
+		 MC501CB_50HZ, MC501CB_50HZScale,
+		 MC501CB_60HZ, MC501CB_60HZScale},
 /* SENSOR_OV7620 9 */
-		{OV7620_50HZ, OV7620_50HZ,
-		 OV7620_60HZ, OV7620_60HZ,
-		 OV7620_NoFliker, OV7620_NoFliker},
+		{OV7620_NoFliker, OV7620_NoFliker,
+		 OV7620_50HZ, OV7620_50HZ,
+		 OV7620_60HZ, OV7620_60HZ},
 /* SENSOR_OV7630C 10 */
 		{0, 0,
 		 0, 0,
 		 0, 0},
-/* SENSOR_free 11 */
-		{0, 0,
-		 0, 0,
-		 0, 0},
-/* SENSOR_PAS106 12 */
-		{pas106b_50HZ, pas106b_50HZ,
-		 pas106b_60HZ, pas106b_60HZ,
-		 pas106b_NoFliker, pas106b_NoFliker},
-/* SENSOR_PB0330 13 */
-		{pb0330_50HZ, pb0330_50HZScale,
-		 pb0330_60HZ, pb0330_60HZScale,
-		 pb0330_NoFliker, pb0330_NoFlikerScale},
-/* SENSOR_PO2030 14 */
-		{PO2030_50HZ, PO2030_50HZ,
-		 PO2030_60HZ, PO2030_60HZ,
-		 PO2030_NoFliker, PO2030_NoFliker},
-/* SENSOR_TAS5130CK 15 */
-		{tas5130cxx_50HZ, tas5130cxx_50HZScale,
-		 tas5130cxx_60HZ, tas5130cxx_60HZScale,
-		 tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale},
-/* SENSOR_TAS5130CXX 16 */
-		{tas5130cxx_50HZ, tas5130cxx_50HZScale,
-		 tas5130cxx_60HZ, tas5130cxx_60HZScale,
-		 tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale},
-/* SENSOR_TAS5130C_VF0250 17 */
-		{tas5130c_vf0250_50HZ, tas5130c_vf0250_50HZScale,
-		 tas5130c_vf0250_60HZ, tas5130c_vf0250_60HZScale,
-		 tas5130c_vf0250_NoFliker, tas5130c_vf0250_NoFlikerScale},
+/* SENSOR_PAS106 11 */
+		{pas106b_NoFliker, pas106b_NoFliker,
+		 pas106b_50HZ, pas106b_50HZ,
+		 pas106b_60HZ, pas106b_60HZ},
+/* SENSOR_PB0330 12 */
+		{pb0330_NoFliker, pb0330_NoFlikerScale,
+		 pb0330_50HZ, pb0330_50HZScale,
+		 pb0330_60HZ, pb0330_60HZScale},
+/* SENSOR_PO2030 13 */
+		{PO2030_NoFliker, PO2030_NoFliker,
+		 PO2030_50HZ, PO2030_50HZ,
+		 PO2030_60HZ, PO2030_60HZ},
+/* SENSOR_TAS5130CK 14 */
+		{tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale,
+		 tas5130cxx_50HZ, tas5130cxx_50HZScale,
+		 tas5130cxx_60HZ, tas5130cxx_60HZScale},
+/* SENSOR_TAS5130CXX 15 */
+		{tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale,
+		 tas5130cxx_50HZ, tas5130cxx_50HZScale,
+		 tas5130cxx_60HZ, tas5130cxx_60HZScale},
+/* SENSOR_TAS5130C_VF0250 16 */
+		{tas5130c_vf0250_NoFliker, tas5130c_vf0250_NoFlikerScale,
+		 tas5130c_vf0250_50HZ, tas5130c_vf0250_50HZScale,
+		 tas5130c_vf0250_60HZ, tas5130c_vf0250_60HZScale},
 	};
 
-	switch (lightfreq) {
-	case 50:
-		i = 0;
-		break;
-	case 60:
-		i = 2;
-		break;
-	default:
-		PDEBUG(D_ERR, "Invalid light freq value %d", lightfreq);
-		lightfreq = 0;		/* set to default filter value */
-		/* fall thru */
-	case 0:
-		i = 4;
-		break;
-	}
+	i = sd->lightfreq * 2;
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
 	if (!mode)
 		i++;			/* 640x480 */
@@ -6622,13 +6611,13 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		switch (sd->sensor) {
 		case SENSOR_GC0305:
 			if (mode			/* if 320x240 */
-			    && lightfreq == 50)
+			    && sd->lightfreq == 1)	/* and 50Hz */
 				reg_w(gspca_dev->dev, 0x85, 0x018d);
 						/* win: 0x80, 0x018d */
 			break;
 		case SENSOR_OV7620:
 			if (!mode) {			/* if 640x480 */
-				if (lightfreq != 0)	/* 50 or 60 Hz */
+				if (sd->lightfreq != 0)	/* and 50 or 60 Hz */
 					reg_w(gspca_dev->dev, 0x40, 0x0002);
 				else
 					reg_w(gspca_dev->dev, 0x44, 0x0002);
@@ -6653,9 +6642,9 @@ static void setautogain(struct gspca_dev *gspca_dev)
 
 static void send_unknown(struct usb_device *dev, int sensor)
 {
+	reg_w(dev, 0x01, 0x0000);		/* led off */
 	switch (sensor) {
 	case SENSOR_PAS106:
-		reg_w(dev, 0x01, 0x0000);
 		reg_w(dev, 0x03, 0x003a);
 		reg_w(dev, 0x0c, 0x003b);
 		reg_w(dev, 0x08, 0x0038);
@@ -6664,7 +6653,6 @@ static void send_unknown(struct usb_device *dev, int sensor)
 	case SENSOR_OV7620:
 	case SENSOR_PB0330:
 	case SENSOR_PO2030:
-		reg_w(dev, 0x01, 0x0000);
 		reg_w(dev, 0x0d, 0x003a);
 		reg_w(dev, 0x02, 0x003b);
 		reg_w(dev, 0x00, 0x0038);
@@ -6817,7 +6805,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 
 /*fixme: lack of 8b=b3 (11,12)-> 10, 8b=e0 (14,15,16)-> 12 found in gspcav1*/
 	reg_w(dev, 0x02, 0x0010);
-	reg_r(dev, 0x0010, &retbyte);
+	reg_r(dev, 0x10, &retbyte);
 	reg_w(dev, 0x01, 0x0000);
 	reg_w(dev, 0x00, 0x0010);
 	reg_w(dev, 0x01, 0x0001);
@@ -6964,7 +6952,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	int sensor;
 	__u8 bsensor;
 	int vga = 1;		/* 1: vga, 0: sif */
-	static unsigned char gamma[SENSOR_MAX] = {
+	static __u8 gamma[SENSOR_MAX] = {
 		5,	/* SENSOR_CS2102 0 */
 		5,	/* SENSOR_CS2102K 1 */
 		4,	/* SENSOR_GC0305 2 */
@@ -6976,16 +6964,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		4,	/* SENSOR_MC501CB 8 */
 		3,	/* SENSOR_OV7620 9 */
 		4,	/* SENSOR_OV7630C 10 */
-		4,	/* SENSOR_free 11 */
-		4,	/* SENSOR_PAS106 12 */
-		4,	/* SENSOR_PB0330 13 */
-		4,	/* SENSOR_PO2030 14 */
-		4,	/* SENSOR_TAS5130CK 15 */
-		4,	/* SENSOR_TAS5130CXX 16 */
-		3,	/* SENSOR_TAS5130C_VF0250 17 */
+		4,	/* SENSOR_PAS106 11 */
+		4,	/* SENSOR_PB0330 12 */
+		4,	/* SENSOR_PO2030 13 */
+		4,	/* SENSOR_TAS5130CK 14 */
+		4,	/* SENSOR_TAS5130CXX 15 */
+		3,	/* SENSOR_TAS5130C_VF0250 16 */
 	};
 
 	/* define some sensors from the vendor/product */
+	sd->sharpness = 2;
 	switch (id->idVendor) {
 	case 0x041e:				/* Creative */
 		switch (id->idProduct) {
@@ -7055,8 +7043,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor = SENSOR_ICM105A;
 			break;
 		case 0x0e:
-			PDEBUG(D_PROBE, "Find Sensor PAS202BCB");
+			PDEBUG(D_PROBE, "Find Sensor HDCS2020");
 			sd->sensor = SENSOR_HDCS2020;
+			sd->sharpness = 1;
 			break;
 		case 0x0f:
 			PDEBUG(D_PROBE, "Find Sensor PAS106");
@@ -7097,6 +7086,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case 0x2030:
 			PDEBUG(D_PROBE, "Find Sensor PO2030");
 			sd->sensor = SENSOR_PO2030;
+			sd->sharpness = 0;		/* from win traces */
 			break;
 		case 0x7620:
 			PDEBUG(D_PROBE, "Find Sensor OV7620");
@@ -7134,13 +7124,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->qindex = 1;
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
-	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
 	sd->gamma = gamma[(int) sd->sensor];
+	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
+	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
+	sd->sharpness = sd_ctrls[SD_SHARPNESS].qctrl.default_value;
 
 	/* switch the led off */
-/*fixme: other sensors? */
-	if (sensor == 0x06 || sensor == 0x11)
-		reg_w(gspca_dev->dev, 0x01, 0x0000);
+	reg_w(gspca_dev->dev, 0x01, 0x0000);
 	return 0;
 }
 
@@ -7170,15 +7160,14 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		{MC501CB_InitialScale, MC501CB_Initial},	/* 9 */
 		{OV7620_mode0, OV7620_mode1},			/* 9 */
 		{ov7630c_InitialScale, ov7630c_Initial},	/* 10 */
-		{0, 0},						/* 11 */
-		{pas106b_InitialScale, pas106b_Initial},	/* 12 */
-		{pb0330xx_InitialScale, pb0330xx_Initial},	/* 13 */
+		{pas106b_InitialScale, pas106b_Initial},	/* 11 */
+		{pb0330xx_InitialScale, pb0330xx_Initial},	/* 12 */
 /* or		{pb03303x_InitialScale, pb03303x_Initial}, */
-		{PO2030_mode0, PO2030_mode1},			/* 14 */
-		{tas5130CK_InitialScale, tas5130CK_Initial},	/* 15 */
-		{tas5130cxx_InitialScale, tas5130cxx_Initial},	/* 16 */
+		{PO2030_mode0, PO2030_mode1},			/* 13 */
+		{tas5130CK_InitialScale, tas5130CK_Initial},	/* 14 */
+		{tas5130cxx_InitialScale, tas5130cxx_Initial},	/* 15 */
 		{tas5130c_vf0250_InitialScale, tas5130c_vf0250_Initial},
-								/* 17 */
+								/* 16 */
 	};
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
@@ -7324,7 +7313,7 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,
-			unsigned char *data,
+			__u8 *data,
 			int len)
 {
 
@@ -7401,12 +7390,79 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setgamma(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->gamma = val;
+	if (gspca_dev->streaming)
+		setcontrast(gspca_dev);
+	return 0;
+}
+
 static int sd_getgamma(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->gamma;
 	return 0;
+}
+
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->lightfreq = val;
+	if (gspca_dev->streaming)
+		setlightfreq(gspca_dev);
+	return 0;
+}
+
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->lightfreq;
+	return 0;
+}
+
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->sharpness = val;
+	if (gspca_dev->streaming)
+		setsharpness(gspca_dev);
+	return 0;
+}
+
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->sharpness;
+	return 0;
+}
+
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+			struct v4l2_querymenu *menu)
+{
+	switch (menu->id) {
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		switch (menu->index) {
+		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
+			strcpy(menu->name, "NoFliker");
+			return 0;
+		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
+			strcpy(menu->name, "50 Hz");
+			return 0;
+		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
+			strcpy(menu->name, "60 Hz");
+			return 0;
+		}
+		break;
+	}
+	return -EINVAL;
 }
 
 static struct sd_desc sd_desc = {
@@ -7420,6 +7476,7 @@ static struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.querymenu = sd_querymenu,
 };
 
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
@@ -7514,10 +7571,6 @@ static void __exit sd_mod_exit(void)
 module_init(sd_mod_init);
 module_exit(sd_mod_exit);
 
-module_param(lightfreq, int, 0644);
-MODULE_PARM_DESC(lightfreq,
-	"Light frequency banding filter: 50, 60 Hz or"
-	" 0 to NoFliker (default=50)");
 module_param(force_sensor, int, 0644);
 MODULE_PARM_DESC(force_sensor,
 	"Force sensor. Only for experts!!!");

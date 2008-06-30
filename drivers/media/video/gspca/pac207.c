@@ -27,8 +27,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 2, 15)
-static const char version[] = "0.2.15";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
+static const char version[] = "2.1.0";
 
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
@@ -297,7 +297,6 @@ static int sd_open(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = 1;
-
 	return 0;
 }
 
@@ -338,7 +337,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 	pac207_write_reg(gspca_dev, 0x13, 0x01); /* Bit 0, auto clear */
 	pac207_write_reg(gspca_dev, 0x1c, 0x01); /* not documented */
-	udelay(1000); /* taken from gspca */
+	msleep(10);
 	pac207_write_reg(gspca_dev, 0x40, 0x01); /* Start ISO pipe */
 
 	sd->sof_read = 0;
@@ -743,8 +742,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				PDEBUG(D_STREAM, "Incomplete frame");
 		}
 		pac207_decode_frame_init(gspca_dev);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL,
-				0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
 		len -= sof - data;
 		data = sof;
 	}

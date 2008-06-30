@@ -9,7 +9,26 @@
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
-#ifdef GSPCA_DEBUG
+/* values in 2.6.27 */
+#ifndef V4L2_PIX_FMT_SPCA501
+#define V4L2_PIX_FMT_SPCA501 v4l2_fourcc('S', '5', '0', '1')
+#endif
+#ifndef V4L2_PIX_FMT_SPCA561
+#define V4L2_PIX_FMT_SPCA561 v4l2_fourcc('S', '5', '6', '1')
+#endif
+
+/* values in 2.6.26 */
+#ifndef V4L2_CID_POWER_LINE_FREQUENCY
+#define V4L2_CID_POWER_LINE_FREQUENCY  (V4L2_CID_BASE+24)
+#endif
+#ifndef V4L2_CID_WHITE_BALANCE_TEMPERATURE
+#define V4L2_CID_WHITE_BALANCE_TEMPERATURE (V4L2_CID_BASE + 26)
+#endif
+#ifndef V4L2_CID_SHARPNESS
+#define V4L2_CID_SHARPNESS  (V4L2_CID_BASE+27)
+#endif
+
+#ifdef VIDEO_ADV_DEBUG
 /* GSPCA our debug messages */
 extern int gspca_debug;
 #define PDEBUG(level, fmt, args...) \
@@ -47,7 +66,7 @@ extern int gspca_debug;
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* ISOC transfers */
-#define MAX_NURBS 32		/* max number of URBs (read & userptr) */
+#define MAX_NURBS 16		/* max number of URBs */
 #define ISO_MAX_PKT 32		/* max number of packets in an ISOC transfer */
 #define ISO_MAX_SIZE 0x8000	/* max size of one URB buffer (32 Kb) */
 
@@ -79,7 +98,7 @@ typedef int (*cam_qmnu_op) (struct gspca_dev *,
 			struct v4l2_querymenu *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 				struct gspca_frame *frame,
-				unsigned char *data,
+				__u8 *data,
 				int len);
 
 struct ctrl {
@@ -116,8 +135,8 @@ struct sd_desc {
 #define LAST_PACKET	3
 
 struct gspca_frame {
-	unsigned char *data;		/* frame buffer */
-	unsigned char *data_end;	/* end of frame while filling */
+	__u8 *data;			/* frame buffer */
+	__u8 *data_end;			/* end of frame while filling */
 	int vma_use_count;
 	struct v4l2_buffer v4l2_buf;
 };
@@ -135,7 +154,7 @@ struct gspca_dev {
 
 	__u8 *frbuf;				/* buffer for nframes */
 	struct gspca_frame frame[GSPCA_MAX_FRAMES];
-	unsigned int frsz;			/* frame size */
+	__u32 frsz;				/* frame size */
 	char nframes;				/* number of frames */
 	char fr_i;				/* frame being filled */
 	char fr_q;				/* next frame to queue */
@@ -145,10 +164,10 @@ struct gspca_dev {
 
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
-	unsigned char curr_mode;	/* current camera mode */
+	__u8 curr_mode;			/* current camera mode */
 	__u32 pixfmt;			/* current mode parameters */
-	short width;
-	short height;
+	__u16 width;
+	__u16 height;
 
 	atomic_t nevent;		/* number of frames done */
 	wait_queue_head_t wq;		/* wait queue */
@@ -176,6 +195,6 @@ void gspca_disconnect(struct usb_interface *intf);
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    int packet_type,
 				    struct gspca_frame *frame,
-				    unsigned char *data,
+				    __u8 *data,
 				    int len);
 #endif /* GSPCAV2_H */
