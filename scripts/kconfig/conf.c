@@ -102,9 +102,6 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 		fflush(stdout);
 		fgets(line, 128, stdin);
 		return 1;
-	case set_default:
-		printf("%s\n", def);
-		return 1;
 	default:
 		break;
 	}
@@ -317,10 +314,6 @@ static int conf_choice(struct menu *menu)
 				cnt = atoi(line);
 			else
 				continue;
-			break;
-		case set_default:
-			cnt = def;
-			printf("%d\n", cnt);
 			break;
 		default:
 			break;
@@ -589,13 +582,15 @@ int main(int ac, char **av)
 	case set_random:
 		conf_set_all_new_symbols(def_random);
 		break;
+	case set_default:
+		conf_set_all_new_symbols(def_default);
+		break;
 	case ask_silent:
 	case ask_new:
 		if (conf_silent_update())
 			exit(1);
 		break;
 	case ask_all:
-	case set_default:
 		if (conf_update())
 			exit(1);
 		break;
