@@ -523,11 +523,12 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	pre_setup_arch_hook();
 	early_cpu_init();
-	early_ioremap_init();
 	reserve_setup_data();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
+
+	early_ioremap_init();
 
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
 	screen_info = boot_params.screen_info;
