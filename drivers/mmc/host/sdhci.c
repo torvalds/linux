@@ -327,7 +327,7 @@ static void sdhci_kunmap_atomic(void *buffer, unsigned long *flags)
 	local_irq_restore(*flags);
 }
 
-static void sdhci_adma_table_pre(struct sdhci_host *host,
+static int sdhci_adma_table_pre(struct sdhci_host *host,
 	struct mmc_data *data)
 {
 	int direction;
@@ -360,10 +360,14 @@ static void sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->align_addr = dma_map_single(mmc_dev(host->mmc),
 		host->align_buffer, 128 * 4, direction);
+	if (dma_mapping_error(host->align_addr))
+		goto fail;
 	BUG_ON(host->align_addr & 0x3);
 
 	host->sg_count = dma_map_sg(mmc_dev(host->mmc),
 		data->sg, data->sg_len, direction);
+	if (host->sg_count == 0)
+		goto unmap_align;
 
 	desc = host->adma_desc;
 	align = host->align_buffer;
@@ -457,7 +461,20 @@ static void sdhci_adma_table_pre(struct sdhci_host *host,
 
 	host->adma_addr = dma_map_single(mmc_dev(host->mmc),
 		host->adma_desc, (128 * 2 + 1) * 4, DMA_TO_DEVICE);
+	if (dma_mapping_error(host->align_addr))
+		goto unmap_entries;
 	BUG_ON(host->adma_addr & 0x3);
+
+	return 0;
+
+unmap_entries:
+	dma_unmap_sg(mmc_dev(host->mmc), data->sg,
+		data->sg_len, direction);
+unmap_align:
+	dma_unmap_single(mmc_dev(host->mmc), host->align_addr,
+		128 * 4, direction);
+fail:
+	return -EINVAL;
 }
 
 static void sdhci_adma_table_post(struct sdhci_host *host,
@@ -555,6 +572,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 {
 	u8 count;
 	u8 ctrl;
+	int ret;
 
 	WARN_ON(host->data);
 
@@ -639,6 +657,43 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		}
 	}
 
+	if (host->flags & SDHCI_REQ_USE_DMA) {
+		if (host->flags & SDHCI_USE_ADMA) {
+			ret = sdhci_adma_table_pre(host, data);
+			if (ret) {
+				/*
+				 * This only happens when someone fed
+				 * us an invalid request.
+				 */
+				WARN_ON(1);
+				host->flags &= ~SDHCI_USE_DMA;
+			} else {
+				writel(host->adma_addr,
+					host->ioaddr + SDHCI_ADMA_ADDRESS);
+			}
+		} else {
+			int count;
+
+			count = dma_map_sg(mmc_dev(host->mmc),
+					data->sg, data->sg_len,
+					(data->flags & MMC_DATA_READ) ?
+						DMA_FROM_DEVICE :
+						DMA_TO_DEVICE);
+			if (count == 0) {
+				/*
+				 * This only happens when someone fed
+				 * us an invalid request.
+				 */
+				WARN_ON(1);
+				host->flags &= ~SDHCI_USE_DMA;
+			} else {
+				WARN_ON(count != 1);
+				writel(sg_dma_address(data->sg),
+					host->ioaddr + SDHCI_DMA_ADDRESS);
+			}
+		}
+	}
+
 	/*
 	 * Always adjust the DMA selection as some controllers
 	 * (e.g. JMicron) can't do PIO properly when the selection
@@ -655,25 +710,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 	}
 
-	if (host->flags & SDHCI_REQ_USE_DMA) {
-		if (host->flags & SDHCI_USE_ADMA) {
-			sdhci_adma_table_pre(host, data);
-			writel(host->adma_addr,
-				host->ioaddr + SDHCI_ADMA_ADDRESS);
-		} else {
-			int count;
-
-			count = dma_map_sg(mmc_dev(host->mmc),
-					data->sg, data->sg_len,
-					(data->flags & MMC_DATA_READ) ?
-						DMA_FROM_DEVICE :
-						DMA_TO_DEVICE);
-			WARN_ON(count != 1);
-
-			writel(sg_dma_address(data->sg),
-				host->ioaddr + SDHCI_DMA_ADDRESS);
-		}
-	} else {
+	if (!(host->flags & SDHCI_REQ_USE_DMA)) {
 		host->cur_sg = data->sg;
 		host->num_sg = data->sg_len;
 
