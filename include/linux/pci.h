@@ -853,6 +853,11 @@ static inline int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 	return -EIO;
 }
 
+static inline int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
+{
+	return -EIO;
+}
+
 static inline int pci_set_dma_max_seg_size(struct pci_dev *dev,
 					unsigned int size)
 {
