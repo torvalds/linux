@@ -154,8 +154,6 @@ config HDLC_PPP
 	help
 	  Generic HDLC driver supporting PPP over WAN connections.
 
-	  It will be replaced by new PPP implementation in Linux 2.6.26.
-
 	  If unsure, say N.
 
 config HDLC_X25
