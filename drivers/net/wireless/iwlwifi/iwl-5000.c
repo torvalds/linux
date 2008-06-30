@@ -827,19 +827,11 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
 	priv->hw_params.first_ampdu_q = IWL50_FIRST_AMPDU_QUEUE;
-	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
-	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
-	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	if (priv->cfg->mod_params->amsdu_size_8K)
-		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_8K;
-	else
-		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_4K;
-	priv->hw_params.max_pkt_size = priv->hw_params.rx_buf_size - 256;
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
-	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
+	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.fat_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 	priv->hw_params.sens = &iwl5000_sensitivity;

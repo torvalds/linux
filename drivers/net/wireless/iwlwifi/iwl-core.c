@@ -842,6 +842,21 @@ int iwl_setup_mac(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_setup_mac);
 
+int iwl_set_hw_params(struct iwl_priv *priv)
+{
+	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
+	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
+	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
+	if (priv->cfg->mod_params->amsdu_size_8K)
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_8K;
+	else
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_4K;
+	priv->hw_params.max_pkt_size = priv->hw_params.rx_buf_size - 256;
+
+	/* Device-specific setup */
+	return priv->cfg->ops->lib->set_hw_params(priv);
+}
+EXPORT_SYMBOL(iwl_set_hw_params);
 
 int iwl_init_drv(struct iwl_priv *priv)
 {

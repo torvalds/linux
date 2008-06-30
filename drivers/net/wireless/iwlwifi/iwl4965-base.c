@@ -4243,8 +4243,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/************************
 	 * 5. Setup HW constants
 	 ************************/
-	/* Device-specific setup */
-	if (priv->cfg->ops->lib->set_hw_params(priv)) {
+	if (iwl_set_hw_params(priv)) {
 		IWL_ERROR("failed to set hw parameters\n");
 		goto out_free_eeprom;
 	}
