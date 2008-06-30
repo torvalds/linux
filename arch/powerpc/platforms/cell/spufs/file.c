@@ -2607,7 +2607,7 @@ static const struct file_operations spufs_ctx_fops = {
 	.release        = single_release,
 };
 
-struct tree_descr spufs_dir_contents[] = {
+struct spufs_tree_descr spufs_dir_contents[] = {
 	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "regs", &spufs_regs_fops,  0666, },
@@ -2647,7 +2647,7 @@ struct tree_descr spufs_dir_contents[] = {
 	{},
 };
 
-struct tree_descr spufs_dir_nosched_contents[] = {
+struct spufs_tree_descr spufs_dir_nosched_contents[] = {
 	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "mbox", &spufs_mbox_fops, 0444, },
