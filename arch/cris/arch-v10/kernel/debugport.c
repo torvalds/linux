@@ -432,10 +432,10 @@ static int dummy_write_room(struct tty_struct *tty)
 }
 
 static const struct tty_operations dummy_ops = {
-        .open = dummy_open,
-        .close = dummy_close,
-        .write = dummy_write,
-        .write_room = dummy_write_room,
+	.open = dummy_open,
+	.close = dummy_close,
+	.write = dummy_write,
+	.write_room = dummy_write_room,
 };
 
 void __init
