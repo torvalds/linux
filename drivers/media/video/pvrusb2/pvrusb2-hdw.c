@@ -2453,9 +2453,8 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	struct pvr2_ctrl *cptr;
 	int disruptive_change;
 
-	/* When video standard changes, reset the hres and vres values -
-	   but if the user has pending changes there, then let the changes
-	   take priority. */
+	/* Handle some required side effects when the video standard is
+	   changed.... */
 	if (hdw->std_dirty) {
 		/* Rewrite the vertical resolution to be appropriate to the
 		   video standard that has been selected. */
