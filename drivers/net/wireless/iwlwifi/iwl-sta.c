@@ -825,8 +825,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 
 	iwl_dump_lq_cmd(priv,lq);
 
-	if (iwl_is_associated(priv) && priv->assoc_station_added &&
-	    priv->lq_mngr.lq_ready)
+	if (iwl_is_associated(priv) && priv->assoc_station_added)
 		return  iwl_send_cmd(priv, &cmd);
 
 	return 0;

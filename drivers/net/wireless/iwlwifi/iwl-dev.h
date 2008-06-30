@@ -693,7 +693,6 @@ struct iwl4965_lq_mngr {
 	unsigned long stamp_last;
 	u32 flush_time;
 	u32 tx_packets;
-	u8 lq_ready;
 };
 
 /* Sensitivity and chain noise calibration */

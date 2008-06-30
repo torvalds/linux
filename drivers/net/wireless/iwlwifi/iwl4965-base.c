@@ -2483,7 +2483,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 	switch (priv->iw_mode) {
 	case IEEE80211_IF_TYPE_STA:
-		iwl4965_rate_scale_init(priv->hw, IWL_AP_ID);
 		break;
 
 	case IEEE80211_IF_TYPE_IBSS:
@@ -2492,7 +2491,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 		priv->assoc_id = 1;
 
 		iwl_rxon_add_station(priv, priv->bssid, 0);
-		iwl4965_rate_scale_init(priv->hw, IWL_STA_ID);
 		iwl4965_send_beacon_cmd(priv);
 
 		break;
@@ -3425,7 +3423,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter\n");
 
-	priv->lq_mngr.lq_ready = 0;
 	spin_lock_irqsave(&priv->lock, flags);
 	memset(&priv->current_ht_config, 0, sizeof(struct iwl_ht_info));
 	spin_unlock_irqrestore(&priv->lock, flags);

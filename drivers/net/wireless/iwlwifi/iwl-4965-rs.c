@@ -822,9 +822,6 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
 
-	if (!priv->lq_mngr.lq_ready)
-		goto out;
-
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
 	    !lq_sta->ibss_sta_added)
 		goto out;
@@ -1678,10 +1675,6 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (!sta || !sta->rate_ctrl_priv)
 		return;
 
-	if (!priv->lq_mngr.lq_ready) {
-		IWL_DEBUG_RATE("still rate scaling not ready\n");
-		return;
-	}
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
 
 	tid = rs_tl_add_packet(lq_sta, hdr);
@@ -2279,9 +2272,6 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	lq_sta->drv = priv;
 #endif
 
-	if (priv->assoc_station_added)
-		priv->lq_mngr.lq_ready = 1;
-
 	rs_initialize_lq(priv, conf, sta);
 }
 
@@ -2421,7 +2411,7 @@ static void rs_clear(void *priv_rate)
 
 	IWL_DEBUG_RATE("enter\n");
 
-	priv->lq_mngr.lq_ready = 0;
+	/* TODO - add rate scale state reset */
 
 	IWL_DEBUG_RATE("leave\n");
 }
@@ -2714,13 +2704,6 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 
 	rcu_read_unlock();
 	return cnt;
-}
-
-void iwl4965_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	priv->lq_mngr.lq_ready = 1;
 }
 
 int iwl4965_rate_control_register(void)

@@ -296,14 +296,6 @@ static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 extern int iwl4965_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
 
 /**
- * iwl4965_rate_scale_init - Initialize the rate scale table based on assoc info
- *
- * The specific throughput table used is based on the type of network
- * the associated with, including A, B, G, and G w/ TGG protection
- */
-extern void iwl4965_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
-
-/**
  * iwl4965_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
