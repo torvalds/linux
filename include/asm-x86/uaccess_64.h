@@ -44,7 +44,7 @@
 	asm("add %3,%1 ; sbb %0,%0 ; cmp %1,%4 ; sbb $0,%0"		\
 	    : "=&r" (flag), "=r" (roksum)				\
 	    : "1" (addr), "g" ((long)(size)),				\
-	      "g" (current_thread_info()->addr_limit.seg));		\
+	      "rm" (current_thread_info()->addr_limit.seg));		\
 	flag;								\
 })
 
