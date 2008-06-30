@@ -389,12 +389,32 @@ static void __init parse_setup_data(void)
 		default:
 			break;
 		}
-#ifndef CONFIG_DEBUG_BOOT_PARAMS
-		free_early(pa_data, pa_data+sizeof(*data)+data->len);
-#endif
 		pa_data = data->next;
 		early_iounmap(data, PAGE_SIZE);
 	}
+}
+
+static void __init reserve_setup_data(void)
+{
+	struct setup_data *data;
+	u64 pa_data;
+	char buf[32];
+
+	if (boot_params.hdr.version < 0x0209)
+		return;
+	pa_data = boot_params.hdr.setup_data;
+	while (pa_data) {
+		data = early_ioremap(pa_data, sizeof(*data));
+		sprintf(buf, "setup data %x", data->type);
+		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
+		e820_update_range(pa_data, sizeof(*data)+data->len,
+			 E820_RAM, E820_RESERVED_KERN);
+		pa_data = data->next;
+		early_iounmap(data, sizeof(*data));
+	}
+	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	printk(KERN_INFO "extended physical RAM map:\n");
+	e820_print_map("reserve setup_data");
 }
 
 /*
@@ -523,7 +543,6 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	pre_setup_arch_hook();
 	early_cpu_init();
-	reserve_setup_data();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
@@ -567,6 +586,8 @@ void __init setup_arch(char **cmdline_p)
 	ARCH_SETUP
 
 	setup_memory_map();
+	parse_setup_data();
+
 	copy_edd();
 
 	if (!boot_params.hdr.root_flags)
@@ -593,9 +614,10 @@ void __init setup_arch(char **cmdline_p)
 	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
-	parse_setup_data();
-
 	parse_early_param();
+
+	/* after early param, so could get panic from serial */
+	reserve_setup_data();
 
 	if (acpi_mps_check()) {
 #ifdef CONFIG_X86_LOCAL_APIC

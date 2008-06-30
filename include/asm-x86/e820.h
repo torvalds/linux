@@ -44,6 +44,9 @@
 #define E820_ACPI	3
 #define E820_NVS	4
 
+/* reserved RAM used by kernel itself */
+#define E820_RESERVED_KERN        128
+
 #ifndef __ASSEMBLY__
 struct e820entry {
 	__u64 addr;	/* start of memory segment */

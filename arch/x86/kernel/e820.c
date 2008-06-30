@@ -120,6 +120,7 @@ void __init e820_print_map(char *who)
 		       (e820.map[i].addr + e820.map[i].size));
 		switch (e820.map[i].type) {
 		case E820_RAM:
+		case E820_RESERVED_KERN:
 			printk(KERN_CONT "(usable)\n");
 			break;
 		case E820_RESERVED:
@@ -611,7 +612,7 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 			register_nosave_region(pfn, PFN_UP(ei->addr));
 
 		pfn = PFN_DOWN(ei->addr + ei->size);
-		if (ei->type != E820_RAM)
+		if (ei->type != E820_RAM && ei->type != E820_RESERVED_KERN)
 			register_nosave_region(PFN_UP(ei->addr), pfn);
 
 		if (pfn >= limit_pfn)
@@ -1207,6 +1208,7 @@ void __init e820_reserve_resources(void)
 	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
 	for (i = 0; i < e820.nr_map; i++) {
 		switch (e820.map[i].type) {
+		case E820_RESERVED_KERN:
 		case E820_RAM:	res->name = "System RAM"; break;
 		case E820_ACPI:	res->name = "ACPI Tables"; break;
 		case E820_NVS:	res->name = "ACPI Non-volatile Storage"; break;

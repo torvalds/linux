@@ -53,21 +53,3 @@ void __init reserve_ebda_region(void)
 	/* reserve all memory between lowmem and the 1MB mark */
 	reserve_early_overlap_ok(lowmem, 0x100000, "BIOS reserved");
 }
-
-void __init reserve_setup_data(void)
-{
-	struct setup_data *data;
-	u64 pa_data;
-	char buf[32];
-
-	if (boot_params.hdr.version < 0x0209)
-		return;
-	pa_data = boot_params.hdr.setup_data;
-	while (pa_data) {
-		data = early_ioremap(pa_data, sizeof(*data));
-		sprintf(buf, "setup data %x", data->type);
-		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
-		pa_data = data->next;
-		early_iounmap(data, sizeof(*data));
-	}
-}
