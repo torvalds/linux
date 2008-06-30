@@ -984,6 +984,18 @@ static void s3cmci_send_request(struct mmc_host *mmc)
 	enable_irq(host->irq);
 }
 
+static int s3cmci_card_present(struct s3cmci_host *host)
+{
+	struct s3c24xx_mci_pdata *pdata = host->pdata;
+	int ret;
+
+	if (pdata->gpio_detect == 0)
+		return -ENOSYS;
+
+	ret = s3c2410_gpio_getpin(pdata->gpio_detect) ? 0 : 1;
+	return ret ^ pdata->detect_invert;
+}
+
 static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct s3cmci_host *host = mmc_priv(mmc);
@@ -992,7 +1004,12 @@ static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->cmd_is_stop = 0;
 	host->mrq = mrq;
 
-	s3cmci_send_request(mmc);
+	if (s3cmci_card_present(host) == 0) {
+		dbg(host, dbg_err, "%s: no medium present\n", __func__);
+		host->mrq->cmd->error = -ENOMEDIUM;
+		mmc_request_done(mmc, mrq);
+	} else
+		s3cmci_send_request(mmc);
 }
 
 static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
