@@ -337,9 +337,13 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.write_idt_entry = native_write_idt_entry,
 	.load_sp0 = native_load_sp0,
 
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 	.irq_enable_sysexit = native_irq_enable_sysexit,
+#endif
 #ifdef CONFIG_X86_64
+#ifdef CONFIG_IA32_EMULATION
 	.usergs_sysret32 = native_usergs_sysret32,
+#endif
 	.usergs_sysret64 = native_usergs_sysret64,
 #endif
 	.iret = native_iret,
