@@ -3728,16 +3728,28 @@ static ssize_t show_version(struct device *d,
 {
 	struct iwl_priv *priv = d->driver_data;
 	struct iwl_alive_resp *palive = &priv->card_alive;
+	ssize_t pos = 0;
+	u16 eeprom_ver;
 
 	if (palive->is_valid)
-		return sprintf(buf, "fw version: 0x%01X.0x%01X.0x%01X.0x%01X\n"
-				    "fw type: 0x%01X 0x%01X\n",
+		pos += sprintf(buf + pos,
+				"fw version: 0x%01X.0x%01X.0x%01X.0x%01X\n"
+				"fw type: 0x%01X 0x%01X\n",
 				palive->ucode_major, palive->ucode_minor,
 				palive->sw_rev[0], palive->sw_rev[1],
 				palive->ver_type, palive->ver_subtype);
-
 	else
-		return sprintf(buf, "fw not loaded\n");
+		pos += sprintf(buf + pos, "fw not loaded\n");
+
+	if (priv->eeprom) {
+		eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+		pos += sprintf(buf + pos, "EEPROM version: 0x%x\n",
+				 eeprom_ver);
+	} else {
+		pos += sprintf(buf + pos, "EEPROM not initialzed\n");
+	}
+
+	return pos;
 }
 
 static DEVICE_ATTR(version, S_IWUSR | S_IRUGO, show_version, NULL);
