@@ -48,7 +48,7 @@
 	flag;								\
 })
 
-#define access_ok(type, addr, size) (__range_not_ok(addr, size) == 0)
+#define access_ok(type, addr, size) (likely(__range_not_ok(addr, size) == 0))
 
 /*
  * The exception table consists of pairs of addresses: the first is the
