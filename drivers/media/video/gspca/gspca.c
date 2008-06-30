@@ -316,6 +316,7 @@ static int gspca_is_compressed(__u32 format)
 	switch (format) {
 	case V4L2_PIX_FMT_MJPEG:
 	case V4L2_PIX_FMT_JPEG:
+	case V4L2_PIX_FMT_SPCA561:
 		return 1;
 	}
 	return 0;
@@ -369,12 +370,12 @@ static __u32 get_v4l2_depth(__u32 pixfmt)
 	case V4L2_PIX_FMT_YYUV:		/* 'YYUV' */
 		return 16;
 	case V4L2_PIX_FMT_YUV420:	/* 'YU12' planar 4.2.0 */
+	case V4L2_PIX_FMT_SPCA501:	/* 'S501' YUYV per line */
 		return 12;
 	case V4L2_PIX_FMT_MJPEG:
 	case V4L2_PIX_FMT_JPEG:
 	case V4L2_PIX_FMT_SBGGR8:	/* 'BA81' Bayer */
 	case V4L2_PIX_FMT_SN9C10X:	/* 'S910' SN9C10x compression */
-	case V4L2_PIX_FMT_SPCA501:	/* 'S501' YUYV per line */
 	case V4L2_PIX_FMT_SPCA561:	/* 'S561' compressed BGGR bayer */
 		return 8;
 	}
@@ -913,8 +914,10 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 		goto out;
 	}
 
-	if (ret == gspca_dev->curr_mode)
+	if (ret == gspca_dev->curr_mode) {
+		ret = 0;
 		goto out;			/* same mode */
+	}
 
 	if (gspca_dev->streaming) {
 		ret = -EBUSY;

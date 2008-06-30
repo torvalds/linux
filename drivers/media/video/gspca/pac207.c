@@ -492,7 +492,7 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 }
 
 static unsigned char *pac207_find_sof(struct gspca_dev *gspca_dev,
-	unsigned char *m, int len)
+					unsigned char *m, int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
@@ -518,7 +518,9 @@ static unsigned char *pac207_find_sof(struct gspca_dev *gspca_dev,
 }
 
 static int pac207_decompress_row(struct gspca_dev *gspca_dev,
-	struct gspca_frame *f, unsigned char *cdata, int len)
+				struct gspca_frame *f,
+				__u8 *cdata,
+				int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct pac207_decoder_state *decoder_state = &sd->decoder_state;
@@ -667,10 +669,10 @@ static int pac207_decode_frame_data(struct gspca_dev *gspca_dev,
 		case LINE_HEADER2:
 			decoder_state->line_marker |= data[0];
 			switch (decoder_state->line_marker) {
-			case 0x0FF0:
+			case 0x0ff0:
 				decoder_state->line_state = LINE_UNCOMPRESSED;
 				break;
-			case 0x1EE1:
+			case 0x1ee1:
 				decoder_state->line_state = LINE_COMPRESSED;
 				break;
 			default:
