@@ -1249,7 +1249,7 @@ static void iwl4965_rx_card_state_notif(struct iwl_priv *priv,
  * This function chains into the hardware specific files for them to setup
  * any hardware specific handlers as well.
  */
-static void iwl4965_setup_rx_handlers(struct iwl_priv *priv)
+static void iwl_setup_rx_handlers(struct iwl_priv *priv)
 {
 	priv->rx_handlers[REPLY_ALIVE] = iwl_rx_reply_alive;
 	priv->rx_handlers[REPLY_ERROR] = iwl4965_rx_reply_error;
@@ -1279,6 +1279,8 @@ static void iwl4965_setup_rx_handlers(struct iwl_priv *priv)
 	/* Rx handlers */
 	priv->rx_handlers[REPLY_RX_PHY_CMD] = iwl_rx_reply_rx_phy;
 	priv->rx_handlers[REPLY_RX_MPDU_CMD] = iwl_rx_reply_rx;
+	/* block ack */
+	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwl_rx_reply_compressed_ba;
 	/* Set up hardware specific Rx handlers */
 	priv->cfg->ops->lib->rx_handler_setup(priv);
 }
@@ -4272,7 +4274,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 
 	iwl_setup_deferred_work(priv);
-	iwl4965_setup_rx_handlers(priv);
+	iwl_setup_rx_handlers(priv);
 
 	/********************
 	 * 9. Conclude

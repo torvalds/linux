@@ -1536,7 +1536,7 @@ struct iwl5000_tx_resp {
  *
  * Reports Block-Acknowledge from recipient station
  */
-struct iwl4965_compressed_ba_resp {
+struct iwl_compressed_ba_resp {
 	__le32 sta_addr_lo32;
 	__le16 sta_addr_hi16;
 	__le16 reserved;
@@ -3001,7 +3001,7 @@ struct iwl_rx_packet {
 		struct iwl4965_sleep_notification sleep_notif;
 		struct iwl4965_spectrum_resp spectrum;
 		struct iwl_notif_statistics stats;
-		struct iwl4965_compressed_ba_resp compressed_ba;
+		struct iwl_compressed_ba_resp compressed_ba;
 		struct iwl4965_missed_beacon_notif missed_beacon;
 		struct iwl5000_calibration calib;
 		__le32 status;

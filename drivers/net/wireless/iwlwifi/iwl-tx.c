@@ -1350,6 +1350,149 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 }
 EXPORT_SYMBOL(iwl_txq_check_empty);
 
+/**
+ * iwl_tx_status_reply_compressed_ba - Update tx status from block-ack
+ *
+ * Go through block-ack's bitmap of ACK'd frames, update driver's record of
+ * ACK vs. not.  This gets sent to mac80211, then to rate scaling algo.
+ */
+static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
+				 struct iwl_ht_agg *agg,
+				 struct iwl_compressed_ba_resp *ba_resp)
+
+{
+	int i, sh, ack;
+	u16 seq_ctl = le16_to_cpu(ba_resp->seq_ctl);
+	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
+	u64 bitmap;
+	int successes = 0;
+	struct ieee80211_tx_info *info;
+
+	if (unlikely(!agg->wait_for_ba))  {
+		IWL_ERROR("Received BA when not expected\n");
+		return -EINVAL;
+	}
+
+	/* Mark that the expected block-ack response arrived */
+	agg->wait_for_ba = 0;
+	IWL_DEBUG_TX_REPLY("BA %d %d\n", agg->start_idx, ba_resp->seq_ctl);
+
+	/* Calculate shift to align block-ack bits with our Tx window bits */
+	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl>>4);
+	if (sh < 0) /* tbw something is wrong with indices */
+		sh += 0x100;
+
+	/* don't use 64-bit values for now */
+	bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
+
+	if (agg->frame_count > (64 - sh)) {
+		IWL_DEBUG_TX_REPLY("more frames than bitmap size");
+		return -1;
+	}
+
+	/* check for success or failure according to the
+	 * transmitted bitmap and block-ack bitmap */
+	bitmap &= agg->bitmap;
+
+	/* For each frame attempted in aggregation,
+	 * update driver's record of tx frame's status. */
+	for (i = 0; i < agg->frame_count ; i++) {
+		ack = bitmap & (1 << i);
+		successes += !!ack;
+		IWL_DEBUG_TX_REPLY("%s ON i=%d idx=%d raw=%d\n",
+			ack? "ACK":"NACK", i, (agg->start_idx + i) & 0xff,
+			agg->start_idx + i);
+	}
+
+	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb[0]);
+	memset(&info->status, 0, sizeof(info->status));
+	info->flags = IEEE80211_TX_STAT_ACK;
+	info->flags |= IEEE80211_TX_STAT_AMPDU;
+	info->status.ampdu_ack_map = successes;
+	info->status.ampdu_ack_len = agg->frame_count;
+	iwl_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
+
+	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", (unsigned long long)bitmap);
+
+	return 0;
+}
+
+/**
+ * iwl_rx_reply_compressed_ba - Handler for REPLY_COMPRESSED_BA
+ *
+ * Handles block-acknowledge notification from device, which reports success
+ * of frames sent via aggregation.
+ */
+void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
+					   struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	struct iwl_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
+	int index;
+	struct iwl_tx_queue *txq = NULL;
+	struct iwl_ht_agg *agg;
+	DECLARE_MAC_BUF(mac);
+
+	/* "flow" corresponds to Tx queue */
+	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
+
+	/* "ssn" is start of block-ack Tx window, corresponds to index
+	 * (in Tx queue's circular buffer) of first TFD/frame in window */
+	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
+
+	if (scd_flow >= priv->hw_params.max_txq_num) {
+		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues");
+		return;
+	}
+
+	txq = &priv->txq[scd_flow];
+	agg = &priv->stations[ba_resp->sta_id].tid[ba_resp->tid].agg;
+
+	/* Find index just before block-ack window */
+	index = iwl_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
+
+	/* TODO: Need to get this copy more safely - now good for debug */
+
+	IWL_DEBUG_TX_REPLY("REPLY_COMPRESSED_BA [%d]Received from %s, "
+			   "sta_id = %d\n",
+			   agg->wait_for_ba,
+			   print_mac(mac, (u8 *) &ba_resp->sta_addr_lo32),
+			   ba_resp->sta_id);
+	IWL_DEBUG_TX_REPLY("TID = %d, SeqCtl = %d, bitmap = 0x%llx, scd_flow = "
+			   "%d, scd_ssn = %d\n",
+			   ba_resp->tid,
+			   ba_resp->seq_ctl,
+			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
+			   ba_resp->scd_flow,
+			   ba_resp->scd_ssn);
+	IWL_DEBUG_TX_REPLY("DAT start_idx = %d, bitmap = 0x%llx \n",
+			   agg->start_idx,
+			   (unsigned long long)agg->bitmap);
+
+	/* Update driver's record of ACK vs. not for each frame in window */
+	iwl_tx_status_reply_compressed_ba(priv, agg, ba_resp);
+
+	/* Release all TFDs before the SSN, i.e. all TFDs in front of
+	 * block-ack window (we assume that they've been successfully
+	 * transmitted ... if not, it's too late anyway). */
+	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff)) {
+		/* calculate mac80211 ampdu sw queue to wake */
+		int ampdu_q =
+		   scd_flow - priv->hw_params.first_ampdu_q + priv->hw->queues;
+		int freed = iwl_tx_queue_reclaim(priv, scd_flow, index);
+		priv->stations[ba_resp->sta_id].
+			tid[ba_resp->tid].tfds_in_queue -= freed;
+		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
+			priv->mac80211_registered &&
+			agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+			ieee80211_wake_queue(priv->hw, ampdu_q);
+
+		iwl_txq_check_empty(priv, ba_resp->sta_id,
+				    ba_resp->tid, scd_flow);
+	}
+}
+EXPORT_SYMBOL(iwl_rx_reply_compressed_ba);
+
 #ifdef CONFIG_IWLWIF_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 
