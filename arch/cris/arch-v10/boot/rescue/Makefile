@@ -4,7 +4,7 @@
 
 ccflags-y += -O2 $(LINUXINCLUDE)
 asflags-y += $(LINUXINCLUDE)
-ldflags-y += -T $(obj)/rescue.ld
+ldflags-y += -T $(srctree)/$(obj)/rescue.ld
 OBJCOPYFLAGS = -O binary --remove-section=.bss
 obj-$(CONFIG_ETRAX_AXISFLASHMAP) = head.o
 OBJECT := $(obj)/head.o
