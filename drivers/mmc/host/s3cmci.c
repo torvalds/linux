@@ -1215,7 +1215,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 		s3c2410_gpio_cfgpin(host->pdata->gpio_wprotect,
 				    S3C2410_GPIO_INPUT);
 
-	if (s3c2410_dma_request(S3CMCI_DMA, &s3cmci_dma_client, NULL)) {
+	if (s3c2410_dma_request(S3CMCI_DMA, &s3cmci_dma_client, NULL) < 0) {
 		dev_err(&pdev->dev, "unable to get DMA channel.\n");
 		ret = -EBUSY;
 		goto probe_free_irq_cd;
