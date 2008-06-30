@@ -1616,6 +1616,7 @@ static const char *ad1981_models[AD1981_MODELS] = {
 
 static struct snd_pci_quirk ad1981_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1014, 0x0597, "Lenovo Z60", AD1981_THINKPAD),
+	SND_PCI_QUIRK(0x1014, 0x05b7, "Lenovo Z60m", AD1981_THINKPAD),
 	/* All HP models */
 	SND_PCI_QUIRK(0x103c, 0, "HP nx", AD1981_HP),
 	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba U205", AD1981_TOSHIBA),
