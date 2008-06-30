@@ -590,10 +590,10 @@ int main(int ac, char **av)
 		conf_set_all_new_symbols(def_random);
 		break;
 	case ask_silent:
+	case ask_new:
 		if (conf_silent_update())
 			exit(1);
 		break;
-	case ask_new:
 	case ask_all:
 	case set_default:
 		if (conf_update())
