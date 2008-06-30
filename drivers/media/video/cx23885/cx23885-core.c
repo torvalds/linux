@@ -1011,8 +1011,9 @@ static void cx23885_tsport_reg_dump(struct cx23885_tsport *port)
 		port->reg_gpcnt_ctl, cx_read(port->reg_gpcnt_ctl));
 	dprintk(1, "%s() dma_ctl(0x%08X)        0x%08x\n", __func__,
 		port->reg_dma_ctl, cx_read(port->reg_dma_ctl));
-	dprintk(1, "%s() src_sel(0x%08X)        0x%08x\n", __func__,
-		port->reg_src_sel, cx_read(port->reg_src_sel));
+	if (port->reg_src_sel)
+		dprintk(1, "%s() src_sel(0x%08X)        0x%08x\n", __func__,
+			port->reg_src_sel, cx_read(port->reg_src_sel));
 	dprintk(1, "%s() lngth(0x%08X)          0x%08x\n", __func__,
 		port->reg_lngth, cx_read(port->reg_lngth));
 	dprintk(1, "%s() hw_sop_ctrl(0x%08X)    0x%08x\n", __func__,
