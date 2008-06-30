@@ -189,7 +189,6 @@ config MACH_ARMCORE
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
-	depends on ARCH_PXA
 	select PXA27x
 	select IWMMXT
 
