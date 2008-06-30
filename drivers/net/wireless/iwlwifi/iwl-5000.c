@@ -807,11 +807,8 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 
 	iwl5000_send_Xtal_calib(priv);
 
-	if (priv->ucode_type == UCODE_RT) {
+	if (priv->ucode_type == UCODE_RT)
 		iwl5000_send_calib_results(priv);
-		set_bit(STATUS_READY, &priv->status);
-		priv->is_open = 1;
-	}
 
 	return 0;
 }

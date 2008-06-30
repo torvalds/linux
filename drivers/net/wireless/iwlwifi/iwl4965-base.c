@@ -2627,9 +2627,9 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 			ret = -ETIMEDOUT;
 			goto out_release_irq;
 		}
-
-		priv->is_open = 1;
 	}
+
+	priv->is_open = 1;
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
 
