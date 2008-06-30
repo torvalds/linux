@@ -677,7 +677,7 @@ static void finalize_request(struct s3cmci_host *host)
 
 	/* Cleanup controller */
 	writel(0, host->base + S3C2410_SDICMDARG);
-	writel(0, host->base + S3C2410_SDIDCON);
+	writel(S3C2410_SDIDCON_STOP, host->base + S3C2410_SDIDCON);
 	writel(0, host->base + S3C2410_SDICMDCON);
 	writel(0, host->base + host->sdiimsk);
 
@@ -803,7 +803,7 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 		dbg(host, dbg_err,
 		    "mci_setup_data() transfer stillin progress.\n");
 
-		writel(0, host->base + S3C2410_SDIDCON);
+		writel(S3C2410_SDIDCON_STOP, host->base + S3C2410_SDIDCON);
 		s3cmci_reset(host);
 
 		if ((stoptries--) == 0) {
