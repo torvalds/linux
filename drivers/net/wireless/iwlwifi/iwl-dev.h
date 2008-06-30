@@ -591,11 +591,6 @@ extern int iwl_send_add_sta(struct iwl_priv *priv,
 			    struct iwl_addsta_cmd *sta, u8 flags);
 u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 			 u8 flags, struct ieee80211_ht_info *ht_info);
-extern int iwl4965_is_network_packet(struct iwl_priv *priv,
-				 struct ieee80211_hdr *header);
-extern int iwl4965_is_duplicate_packet(struct iwl_priv *priv,
-				       struct ieee80211_hdr *header);
-extern int iwl4965_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,
 					const u8 *dest, int left);
@@ -625,8 +620,6 @@ extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl_frame *frame, u8 rate);
 extern void iwl4965_disable_events(struct iwl_priv *priv);
-extern void iwl4965_rx_reply_rx(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb);
 
 extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 extern int iwl_queue_space(const struct iwl_queue *q);
