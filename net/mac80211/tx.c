@@ -327,8 +327,10 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	rcu_read_unlock();
 
 	local->total_ps_buffered = total;
+#ifdef MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
 	       wiphy_name(local->hw.wiphy), purged);
+#endif
 }
 
 static ieee80211_tx_result
@@ -358,11 +360,13 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >=
 		    AP_MAX_BC_BUFFER) {
+#ifdef MAC80211_VERBOSE_PS_DEBUG
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: BC TX buffer full - "
 				       "dropping the oldest frame\n",
 				       tx->dev->name);
 			}
+#endif
 			dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
 		} else
 			tx->local->total_ps_buffered++;
@@ -403,11 +407,13 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&sta->ps_tx_buf) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf);
+#ifdef MAC80211_VERBOSE_PS_DEBUG
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: STA %s TX "
 				       "buffer full - dropping oldest frame\n",
 				       tx->dev->name, print_mac(mac, sta->addr));
 			}
+#endif
 			dev_kfree_skb(old);
 		} else
 			tx->local->total_ps_buffered++;
@@ -713,7 +719,6 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 
  fail:
-	printk(KERN_DEBUG "%s: failed to fragment frame\n", tx->dev->name);
 	if (frags) {
 		for (i = 0; i < num_fragm - 1; i++)
 			if (frags[i])
@@ -1404,8 +1409,6 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(skb->len < ETH_HLEN)) {
-		printk(KERN_DEBUG "%s: short skb (len=%d)\n",
-		       dev->name, skb->len);
 		ret = 0;
 		goto fail;
 	}

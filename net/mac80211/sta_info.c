@@ -554,8 +554,10 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 
 		sdata = sta->sdata;
 		local->total_ps_buffered--;
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "Buffered frame expired (STA "
 		       "%s)\n", print_mac(mac, sta->addr));
+#endif
 		dev_kfree_skb(skb);
 
 		if (skb_queue_empty(&sta->ps_tx_buf))

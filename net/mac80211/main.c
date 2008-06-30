@@ -151,9 +151,7 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 	/* FIX: what would be proper limits for MTU?
 	 * This interface uses 802.3 frames. */
 	if (new_mtu < 256 ||
-		new_mtu > IEEE80211_MAX_DATA_LEN - 24 - 6 - meshhdrlen) {
-		printk(KERN_WARNING "%s: invalid MTU %d\n",
-		       dev->name, new_mtu);
+	    new_mtu > IEEE80211_MAX_DATA_LEN - 24 - 6 - meshhdrlen) {
 		return -EINVAL;
 	}
 
@@ -589,7 +587,9 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 
 	sta = sta_info_get(local, ra);
 	if (!sta) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Could not find the station\n");
+#endif
 		ret = -ENOENT;
 		goto exit;
 	}
@@ -617,9 +617,11 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	sta->ampdu_mlme.tid_tx[tid] =
 			kmalloc(sizeof(struct tid_ampdu_tx), GFP_ATOMIC);
 	if (!sta->ampdu_mlme.tid_tx[tid]) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_ERR "allocate tx mlme to tid %d failed\n",
 					tid);
+#endif
 		ret = -ENOMEM;
 		goto err_unlock_sta;
 	}
@@ -689,7 +691,9 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer.expires =
 				jiffies + ADDBA_RESP_INTERVAL;
 	add_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
+#ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "activated addBA response timer on tid %d\n", tid);
+#endif
 	goto exit;
 
 err_unlock_queue:
@@ -771,8 +775,10 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	DECLARE_MAC_BUF(mac);
 
 	if (tid >= STA_TID_NUM) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Bad TID value: tid = %d (>= %d)\n",
 				tid, STA_TID_NUM);
+#endif
 		return;
 	}
 
@@ -780,8 +786,10 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	sta = sta_info_get(local, ra);
 	if (!sta) {
 		rcu_read_unlock();
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Could not find station: %s\n",
 				print_mac(mac, ra));
+#endif
 		return;
 	}
 
@@ -789,8 +797,10 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	spin_lock_bh(&sta->lock);
 
 	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "addBA was not requested yet, state is %d\n",
 				*state);
+#endif
 		spin_unlock_bh(&sta->lock);
 		rcu_read_unlock();
 		return;
@@ -801,7 +811,9 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	*state |= HT_ADDBA_DRV_READY_MSK;
 
 	if (*state == HT_AGG_STATE_OPERATIONAL) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
+#endif
 		ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 	}
 	spin_unlock_bh(&sta->lock);
@@ -818,8 +830,10 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	DECLARE_MAC_BUF(mac);
 
 	if (tid >= STA_TID_NUM) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Bad TID value: tid = %d (>= %d)\n",
 				tid, STA_TID_NUM);
+#endif
 		return;
 	}
 
@@ -831,8 +845,10 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	rcu_read_lock();
 	sta = sta_info_get(local, ra);
 	if (!sta) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Could not find station: %s\n",
 				print_mac(mac, ra));
+#endif
 		rcu_read_unlock();
 		return;
 	}
@@ -842,7 +858,9 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	 * ieee80211_stop_tx_ba_session will let only
 	 * one stop call to pass through per sta/tid */
 	if ((*state & HT_AGG_STATE_REQ_STOP_BA_MSK) == 0) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "unexpected callback to A-MPDU stop\n");
+#endif
 		rcu_read_unlock();
 		return;
 	}
@@ -884,9 +902,11 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
 	struct sk_buff *skb = dev_alloc_skb(0);
 
 	if (unlikely(!skb)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_WARNING "%s: Not enough memory, "
 			       "dropping start BA session", skb->dev->name);
+#endif
 		return;
 	}
 	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
@@ -907,9 +927,11 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
 	struct sk_buff *skb = dev_alloc_skb(0);
 
 	if (unlikely(!skb)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_WARNING "%s: Not enough memory, "
 			       "dropping stop BA session", skb->dev->name);
+#endif
 		return;
 	}
 	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
@@ -1236,9 +1258,8 @@ static void ieee80211_tasklet_handler(unsigned long data)
 						 ra_tid->ra, ra_tid->tid);
 			dev_kfree_skb(skb);
 			break ;
-		default: /* should never get here! */
-			printk(KERN_ERR "%s: Unknown message type (%d)\n",
-			       wiphy_name(local->hw.wiphy), skb->pkt_type);
+		default:
+			WARN_ON(1);
 			dev_kfree_skb(skb);
 			break;
 		}
@@ -1365,12 +1386,14 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		return;
 	}
 
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (net_ratelimit())
 		printk(KERN_DEBUG "%s: dropped TX filtered frame, "
 		       "queue_len=%d PS=%d @%lu\n",
 		       wiphy_name(local->hw.wiphy),
 		       skb_queue_len(&sta->tx_filtered),
 		       !!test_sta_flags(sta, WLAN_STA_PS), jiffies);
+#endif
 	dev_kfree_skb(skb);
 }
 

@@ -680,7 +680,6 @@ void ieee80211_requeue(struct ieee80211_local *local, int queue)
 	if (!qdisc || !qdisc->dequeue)
 		return;
 
-	printk(KERN_DEBUG "requeue: qlen = %d\n", qdisc->q.qlen);
 	for (len = qdisc->q.qlen; len > 0; len--) {
 		skb = qdisc->dequeue(qdisc);
 		root_qd->q.qlen--;

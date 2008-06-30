@@ -146,9 +146,6 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 		if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 			return RX_DROP_UNUSABLE;
 
-		printk(KERN_DEBUG "%s: invalid Michael MIC in data frame from "
-		       "%s\n", rx->dev->name, print_mac(mac, sa));
-
 		mac80211_ev_michael_mic_failure(rx->dev, rx->key->conf.keyidx,
 						(void *) skb->data);
 		return RX_DROP_UNUSABLE;
@@ -282,15 +279,8 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 					  hdr->addr1, hwaccel, rx->queue,
 					  &rx->tkip_iv32,
 					  &rx->tkip_iv16);
-	if (res != TKIP_DECRYPT_OK || wpa_test) {
-#ifdef CONFIG_MAC80211_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: TKIP decrypt failed for RX "
-			       "frame from %s (res=%d)\n", rx->dev->name,
-			       print_mac(mac, rx->sta->addr), res);
-#endif /* CONFIG_MAC80211_DEBUG */
+	if (res != TKIP_DECRYPT_OK || wpa_test)
 		return RX_DROP_UNUSABLE;
-	}
 
 	/* Trim ICV */
 	skb_trim(skb, skb->len - TKIP_ICV_LEN);
@@ -512,16 +502,6 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	(void) ccmp_hdr2pn(pn, skb->data + hdrlen);
 
 	if (memcmp(pn, key->u.ccmp.rx_pn[rx->queue], CCMP_PN_LEN) <= 0) {
-#ifdef CONFIG_MAC80211_DEBUG
-		u8 *ppn = key->u.ccmp.rx_pn[rx->queue];
-
-		printk(KERN_DEBUG "%s: CCMP replay detected for RX frame from "
-		       "%s (RX PN %02x%02x%02x%02x%02x%02x <= prev. PN "
-		       "%02x%02x%02x%02x%02x%02x)\n", rx->dev->name,
-		       print_mac(mac, rx->sta->addr),
-		       pn[0], pn[1], pn[2], pn[3], pn[4], pn[5],
-		       ppn[0], ppn[1], ppn[2], ppn[3], ppn[4], ppn[5]);
-#endif /* CONFIG_MAC80211_DEBUG */
 		key->u.ccmp.replays++;
 		return RX_DROP_UNUSABLE;
 	}
@@ -541,12 +521,6 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 			    skb->data + hdrlen + CCMP_HDR_LEN, data_len,
 			    skb->data + skb->len - CCMP_MIC_LEN,
 			    skb->data + hdrlen + CCMP_HDR_LEN)) {
-#ifdef CONFIG_MAC80211_DEBUG
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: CCMP decrypt failed "
-				       "for RX frame from %s\n", rx->dev->name,
-				       print_mac(mac, rx->sta->addr));
-#endif /* CONFIG_MAC80211_DEBUG */
 			return RX_DROP_UNUSABLE;
 		}
 	}

@@ -613,11 +613,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		rx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
 	} else {
-#ifdef CONFIG_MAC80211_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: RX protected frame,"
-			       " but have no key\n", rx->dev->name);
-#endif /* CONFIG_MAC80211_DEBUG */
 		return RX_DROP_MONITOR;
 	}
 
@@ -789,7 +784,7 @@ ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
 		sdata->fragment_next = 0;
 
 	if (!skb_queue_empty(&entry->skb_list)) {
-#ifdef CONFIG_MAC80211_DEBUG
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) entry->skb_list.next->data;
 		DECLARE_MAC_BUF(mac);
@@ -801,7 +796,7 @@ ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
 		       jiffies - entry->first_frag_time, entry->seq,
 		       entry->last_frag, print_mac(mac, hdr->addr1),
 		       print_mac(mac2, hdr->addr2));
-#endif /* CONFIG_MAC80211_DEBUG */
+#endif
 		__skb_queue_purge(&entry->skb_list);
 	}
 
@@ -922,18 +917,8 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 				break;
 		}
 		rpn = rx->key->u.ccmp.rx_pn[rx->queue];
-		if (memcmp(pn, rpn, CCMP_PN_LEN) != 0) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: defrag: CCMP PN not "
-				       "sequential A2=%s"
-				       " PN=%02x%02x%02x%02x%02x%02x "
-				       "(expected %02x%02x%02x%02x%02x%02x)\n",
-				       rx->dev->name, print_mac(mac, hdr->addr2),
-				       rpn[0], rpn[1], rpn[2], rpn[3], rpn[4],
-				       rpn[5], pn[0], pn[1], pn[2], pn[3],
-				       pn[4], pn[5]);
+		if (memcmp(pn, rpn, CCMP_PN_LEN))
 			return RX_DROP_UNUSABLE;
-		}
 		memcpy(entry->last_pn, pn, CCMP_PN_LEN);
 	}
 
@@ -1037,7 +1022,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 		 *	  have nothing buffered for it?
 		 */
 		printk(KERN_DEBUG "%s: STA %s sent PS Poll even "
-		       "though there is no buffered frames for it\n",
+		       "though there are no buffered frames for it\n",
 		       rx->dev->name, print_mac(mac, rx->sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 	}
@@ -1073,14 +1058,8 @@ static int
 ieee80211_802_1x_port_control(struct ieee80211_rx_data *rx)
 {
 	if (unlikely(!rx->sta ||
-	    !test_sta_flags(rx->sta, WLAN_STA_AUTHORIZED))) {
-#ifdef CONFIG_MAC80211_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: dropped frame "
-			       "(unauthorized port)\n", rx->dev->name);
-#endif /* CONFIG_MAC80211_DEBUG */
+	    !test_sta_flags(rx->sta, WLAN_STA_AUTHORIZED)))
 		return -EACCES;
-	}
 
 	return 0;
 }
@@ -1160,16 +1139,8 @@ ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 		memcpy(src, hdr->addr2, ETH_ALEN);
 
 		if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_AP &&
-			     sdata->vif.type != IEEE80211_IF_TYPE_VLAN)) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: dropped ToDS frame "
-				       "(BSSID=%s SA=%s DA=%s)\n",
-				       dev->name,
-				       print_mac(mac, hdr->addr1),
-				       print_mac(mac2, hdr->addr2),
-				       print_mac(mac3, hdr->addr3));
+			     sdata->vif.type != IEEE80211_IF_TYPE_VLAN))
 			return -1;
-		}
 		break;
 	case (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
 		/* RA TA DA SA */
@@ -1177,17 +1148,8 @@ ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 		memcpy(src, hdr->addr4, ETH_ALEN);
 
 		 if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_WDS &&
-			     sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT)) {
-			 if (net_ratelimit())
-				 printk(KERN_DEBUG "%s: dropped FromDS&ToDS "
-				       "frame (RA=%s TA=%s DA=%s SA=%s)\n",
-				       rx->dev->name,
-				       print_mac(mac, hdr->addr1),
-				       print_mac(mac2, hdr->addr2),
-				       print_mac(mac3, hdr->addr3),
-				       print_mac(mac4, hdr->addr4));
+			     sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT))
 			return -1;
-		}
 		break;
 	case IEEE80211_FCTL_FROMDS:
 		/* DA BSSID SA */
@@ -1204,27 +1166,13 @@ ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 		memcpy(dst, hdr->addr1, ETH_ALEN);
 		memcpy(src, hdr->addr2, ETH_ALEN);
 
-		if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS) {
-			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: dropped IBSS frame "
-				       "(DA=%s SA=%s BSSID=%s)\n",
-				       dev->name,
-				       print_mac(mac, hdr->addr1),
-				       print_mac(mac2, hdr->addr2),
-				       print_mac(mac3, hdr->addr3));
-			}
+		if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
 			return -1;
-		}
 		break;
 	}
 
-	if (unlikely(skb->len - hdrlen < 8)) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: RX too short data frame "
-			       "payload\n", dev->name);
-		}
+	if (unlikely(skb->len - hdrlen < 8))
 		return -1;
-	}
 
 	payload = skb->data + hdrlen;
 	ethertype = (payload[6] << 8) | payload[7];
@@ -1416,10 +1364,8 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 
 		padding = ((4 - subframe_len) & 0x3);
 		/* the last MSDU has no padding */
-		if (subframe_len > remaining) {
-			printk(KERN_DEBUG "%s: wrong buffer size\n", dev->name);
+		if (subframe_len > remaining)
 			return RX_DROP_UNUSABLE;
-		}
 
 		skb_pull(skb, sizeof(struct ethhdr));
 		/* if last subframe reuse skb */
@@ -1440,8 +1386,6 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 			eth = (struct ethhdr *) skb_pull(skb, ntohs(len) +
 							padding);
 			if (!eth) {
-				printk(KERN_DEBUG "%s: wrong buffer size\n",
-				       dev->name);
 				dev_kfree_skb(frame);
 				return RX_DROP_UNUSABLE;
 			}
@@ -1593,31 +1537,16 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	else
 		keyidx = -1;
 
-	if (net_ratelimit())
-		printk(KERN_DEBUG "%s: TKIP hwaccel reported Michael MIC "
-		       "failure from %s to %s keyidx=%d\n",
-		       dev->name, print_mac(mac, hdr->addr2),
-		       print_mac(mac2, hdr->addr1), keyidx);
-
 	if (!rx->sta) {
 		/*
 		 * Some hardware seem to generate incorrect Michael MIC
 		 * reports; ignore them to avoid triggering countermeasures.
 		 */
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-			       "error for unknown address %s\n",
-			       dev->name, print_mac(mac, hdr->addr2));
 		goto ignore;
 	}
 
-	if (!(rx->fc & IEEE80211_FCTL_PROTECTED)) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-			       "error for a frame with no PROTECTED flag (src "
-			       "%s)\n", dev->name, print_mac(mac, hdr->addr2));
+	if (!(rx->fc & IEEE80211_FCTL_PROTECTED))
 		goto ignore;
-	}
 
 	if (rx->sdata->vif.type == IEEE80211_IF_TYPE_AP && keyidx) {
 		/*
@@ -1626,24 +1555,13 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		 * group keys and only the AP is sending real multicast
 		 * frames in the BSS.
 		 */
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: ignored Michael MIC error for "
-			       "a frame with non-zero keyidx (%d)"
-			       " (src %s)\n", dev->name, keyidx,
-			       print_mac(mac, hdr->addr2));
 		goto ignore;
 	}
 
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
 	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
-	     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH)) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-			       "error for a frame that cannot be encrypted "
-			       "(fc=0x%04x) (src %s)\n",
-			       dev->name, rx->fc, print_mac(mac, hdr->addr2));
+	     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH))
 		goto ignore;
-	}
 
 	mac80211_ev_michael_mic_failure(rx->dev, keyidx, hdr);
  ignore:

@@ -253,11 +253,8 @@ int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
 
 	if (ieee80211_wep_decrypt_data(local->wep_rx_tfm, rc4key, klen,
 				       skb->data + hdrlen + WEP_IV_LEN,
-				       len)) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "WEP decrypt failed (ICV)\n");
+				       len))
 		ret = -1;
-	}
 
 	kfree(rc4key);
 
@@ -301,14 +298,8 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 		return RX_CONTINUE;
 
 	if (!(rx->status->flag & RX_FLAG_DECRYPTED)) {
-		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
-#ifdef CONFIG_MAC80211_DEBUG
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
-				       "failed\n", rx->dev->name);
-#endif /* CONFIG_MAC80211_DEBUG */
+		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key))
 			return RX_DROP_UNUSABLE;
-		}
 	} else if (!(rx->status->flag & RX_FLAG_IV_STRIPPED)) {
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
