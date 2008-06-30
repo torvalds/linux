@@ -397,6 +397,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 
 static struct platform_device backlight = {
 	.name = "pwm-backlight",
+	.id   = -1,
 	.dev  = {
 		.parent        = &pxa27x_device_pwm0.dev,
 		.platform_data = &backlight_data,
