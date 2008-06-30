@@ -22,6 +22,7 @@ enum s3cmci_waitfor {
 
 struct s3cmci_host {
 	struct platform_device	*pdev;
+	struct s3c24xx_mci_pdata *pdata;
 	struct mmc_host		*mmc;
 	struct resource		*mem;
 	struct clk		*clk;

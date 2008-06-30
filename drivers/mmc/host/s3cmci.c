@@ -21,6 +21,8 @@
 #include <asm/arch/regs-sdi.h>
 #include <asm/arch/regs-gpio.h>
 
+#include <asm/plat-s3c24xx/mci.h>
+
 #include "s3cmci.h"
 
 #define DRIVER_NAME "s3c-mci"
@@ -1011,6 +1013,9 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		s3c2410_gpio_cfgpin(S3C2410_GPE9, S3C2410_GPE9_SDDAT2);
 		s3c2410_gpio_cfgpin(S3C2410_GPE10, S3C2410_GPE10_SDDAT3);
 
+		if (host->pdata->set_power)
+			host->pdata->set_power(ios->power_mode, ios->vdd);
+
 		if (!host->is2440)
 			mci_con |= S3C2410_SDICON_FIFORESET;
 
@@ -1023,6 +1028,9 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		if (host->is2440)
 			mci_con |= S3C2440_SDICON_SDRESET;
+
+		if (host->pdata->set_power)
+			host->pdata->set_power(ios->power_mode, ios->vdd);
 
 		break;
 	}
@@ -1072,9 +1080,25 @@ static void s3cmci_reset(struct s3cmci_host *host)
 	writel(con, host->base + S3C2410_SDICON);
 }
 
+static int s3cmci_get_ro(struct mmc_host *mmc)
+{
+	struct s3cmci_host *host = mmc_priv(mmc);
+
+	if (host->pdata->gpio_wprotect == 0)
+		return 0;
+
+	return s3c2410_gpio_getpin(host->pdata->gpio_wprotect);
+}
+
 static struct mmc_host_ops s3cmci_ops = {
 	.request	= s3cmci_request,
 	.set_ios	= s3cmci_set_ios,
+	.get_ro		= s3cmci_get_ro,
+};
+
+static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
+	/* This is currently here to avoid a number of if (host->pdata)
+	 * checks. Any zero fields to ensure reaonable defaults are picked. */
 };
 
 static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
@@ -1094,6 +1118,12 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	host->pdev	= pdev;
 	host->is2440	= is2440;
 
+	host->pdata = pdev->dev.platform_data;
+	if (!host->pdata) {
+		pdev->dev.platform_data = &s3cmci_def_pdata;
+		host->pdata = &s3cmci_def_pdata;
+	}
+
 	spin_lock_init(&host->complete_lock);
 	tasklet_init(&host->pio_tasklet, pio_tasklet, (unsigned long) host);
 
@@ -1112,7 +1142,8 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	host->pio_active 	= XFER_NONE;
 
 	host->dma		= S3CMCI_DMA;
-	host->irq_cd		= IRQ_EINT2;
+	host->irq_cd = s3c2410_gpio_getirq(host->pdata->gpio_detect);
+	s3c2410_gpio_cfgpin(host->pdata->gpio_detect, S3C2410_GPIO_IRQ);
 
 	host->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!host->mem) {
@@ -1158,7 +1189,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 
 	disable_irq(host->irq);
 
-	s3c2410_gpio_cfgpin(S3C2410_GPF2, S3C2410_GPF2_EINT2);
+	s3c2410_gpio_cfgpin(host->pdata->gpio_detect, S3C2410_GPIO_IRQ);
 	set_irq_type(host->irq_cd, IRQT_BOTHEDGE);
 
 	if (request_irq(host->irq_cd, s3cmci_irq_cd, 0, DRIVER_NAME, host)) {
@@ -1167,6 +1198,10 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 		ret = -ENOENT;
 		goto probe_free_irq;
 	}
+
+	if (host->pdata->gpio_wprotect)
+		s3c2410_gpio_cfgpin(host->pdata->gpio_wprotect,
+				    S3C2410_GPIO_INPUT);
 
 	if (s3c2410_dma_request(S3CMCI_DMA, &s3cmci_dma_client, NULL)) {
 		dev_err(&pdev->dev, "unable to get DMA channel.\n");
@@ -1191,10 +1226,13 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	host->clk_rate = clk_get_rate(host->clk);
 
 	mmc->ops 	= &s3cmci_ops;
-	mmc->ocr_avail	= MMC_VDD_32_33;
+	mmc->ocr_avail	= MMC_VDD_32_33 | MMC_VDD_33_34;
 	mmc->caps	= MMC_CAP_4_BIT_DATA;
 	mmc->f_min 	= host->clk_rate / (host->clk_div * 256);
 	mmc->f_max 	= host->clk_rate / host->clk_div;
+
+	if (host->pdata->ocr_avail)
+		mmc->ocr_avail = host->pdata->ocr_avail;
 
 	mmc->max_blk_count	= 4095;
 	mmc->max_blk_size	= 4095;
