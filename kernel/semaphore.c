@@ -54,7 +54,6 @@ void down(struct semaphore *sem)
 {
 	unsigned long flags;
 
-	ftrace_special(sem->count, 0, __LINE__);
 	spin_lock_irqsave(&sem->lock, flags);
 	if (likely(sem->count > 0))
 		sem->count--;
