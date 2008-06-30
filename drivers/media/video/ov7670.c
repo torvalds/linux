@@ -682,17 +682,17 @@ static int ov7670_try_fmt(struct i2c_client *c, struct v4l2_format *fmt,
 	for (index = 0; index < N_OV7670_FMTS; index++)
 		if (ov7670_formats[index].pixelformat == pix->pixelformat)
 			break;
-	if (index >= N_OV7670_FMTS)
-		return -EINVAL;
+	if (index >= N_OV7670_FMTS) {
+		/* default to first format */
+		index = 0;
+		pix->pixelformat = ov7670_formats[0].pixelformat;
+	}
 	if (ret_fmt != NULL)
 		*ret_fmt = ov7670_formats + index;
 	/*
 	 * Fields: the OV devices claim to be progressive.
 	 */
-	if (pix->field == V4L2_FIELD_ANY)
-		pix->field = V4L2_FIELD_NONE;
-	else if (pix->field != V4L2_FIELD_NONE)
-		return -EINVAL;
+	pix->field = V4L2_FIELD_NONE;
 	/*
 	 * Round requested image size down to the nearest
 	 * we support, but not below the smallest.
