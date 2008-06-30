@@ -37,15 +37,6 @@
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
-/* these signals will be delivered to an nfsd thread 
- * when handling a request
- */
-#define ALLOWED_SIGS	(sigmask(SIGKILL))
-/* these signals will be delivered to an nfsd thread
- * when not handling a request. i.e. when waiting
- */
-#define SHUTDOWN_SIGS	(sigmask(SIGKILL) | sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT))
-
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
 struct timeval			nfssvc_boot;
@@ -414,9 +405,7 @@ nfsd(void *vrqstp)
 {
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
 	struct fs_struct *fsp;
-	sigset_t shutdown_mask, allowed_mask;
 	int err, preverr = 0;
-	unsigned int signo;
 
 	/* Lock module and set up kernel thread */
 	mutex_lock(&nfsd_mutex);
@@ -433,17 +422,14 @@ nfsd(void *vrqstp)
 	current->fs = fsp;
 	current->fs->umask = 0;
 
-	siginitsetinv(&shutdown_mask, SHUTDOWN_SIGS);
-	siginitsetinv(&allowed_mask, ALLOWED_SIGS);
-
 	/*
 	 * thread is spawned with all signals set to SIG_IGN, re-enable
-	 * the ones that matter
+	 * the ones that will bring down the thread
 	 */
-	for (signo = 1; signo <= _NSIG; signo++) {
-		if (!sigismember(&shutdown_mask, signo))
-			allow_signal(signo);
-	}
+	allow_signal(SIGKILL);
+	allow_signal(SIGHUP);
+	allow_signal(SIGINT);
+	allow_signal(SIGQUIT);
 
 	nfsdstats.th_cnt++;
 	mutex_unlock(&nfsd_mutex);
@@ -460,9 +446,6 @@ nfsd(void *vrqstp)
 	 * The main request loop
 	 */
 	for (;;) {
-		/* Block all but the shutdown signals */
-		sigprocmask(SIG_SETMASK, &shutdown_mask, NULL);
-
 		/*
 		 * Find a socket with data available and call its
 		 * recvfrom routine.
@@ -486,9 +469,6 @@ nfsd(void *vrqstp)
 
 		/* Lock the export hash tables for reading. */
 		exp_readlock();
-
-		/* Process request with signals blocked. */
-		sigprocmask(SIG_SETMASK, &allowed_mask, NULL);
 
 		svc_process(rqstp);
 
