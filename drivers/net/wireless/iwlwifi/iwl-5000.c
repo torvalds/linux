@@ -1422,11 +1422,10 @@ static int  iwl5000_send_tx_power(struct iwl_priv *priv)
 				       NULL);
 }
 
-static void iwl5000_temperature(struct iwl_priv *priv,
-				struct iwl_notif_statistics *stats)
+static void iwl5000_temperature(struct iwl_priv *priv)
 {
 	/* store temperature from statistics (in Celsius) */
-	priv->temperature = le32_to_cpu(stats->general.temperature);
+	priv->temperature = le32_to_cpu(priv->statistics.general.temperature);
 }
 
 static struct iwl_hcmd_ops iwl5000_hcmd = {

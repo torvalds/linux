@@ -140,8 +140,7 @@ struct iwl_lib_ops {
 	int (*set_power)(struct iwl_priv *priv, void *cmd);
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-	void (*temperature) (struct iwl_priv *priv,
-		struct iwl_notif_statistics *stats);
+	void (*temperature) (struct iwl_priv *priv);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 };

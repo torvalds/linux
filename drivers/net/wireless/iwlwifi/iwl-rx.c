@@ -557,10 +557,17 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
+	int change;
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 
 	IWL_DEBUG_RX("Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(priv->statistics), pkt->len);
+
+	change = ((priv->statistics.general.temperature !=
+		   pkt->u.stats.general.temperature) ||
+		  ((priv->statistics.flag &
+		    STATISTICS_REPLY_FLG_FAT_MODE_MSK) !=
+		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK)));
 
 	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
 
@@ -581,8 +588,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 
 	iwl_leds_background(priv);
 
-	if (priv->cfg->ops->lib->temperature)
-		priv->cfg->ops->lib->temperature(priv, &pkt->u.stats);
+	if (priv->cfg->ops->lib->temperature && change)
+		priv->cfg->ops->lib->temperature(priv);
 }
 EXPORT_SYMBOL(iwl_rx_statistics);
 

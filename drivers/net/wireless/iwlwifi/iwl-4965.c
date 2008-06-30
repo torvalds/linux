@@ -1879,21 +1879,9 @@ static int iwl4965_is_temp_calib_needed(struct iwl_priv *priv)
 	return 1;
 }
 
-static void iwl4965_temperature_calib(struct iwl_priv *priv,
-				      struct iwl_notif_statistics *stats)
+static void iwl4965_temperature_calib(struct iwl_priv *priv)
 {
 	s32 temp;
-	int change = ((priv->statistics.general.temperature !=
-		   stats->general.temperature) ||
-		  ((priv->statistics.flag &
-		    STATISTICS_REPLY_FLG_FAT_MODE_MSK) !=
-		   (stats->flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK)));
-
-	/* If the hardware hasn't reported a change in
-	 * temperature then don't bother computing a
-	 * calibrated temperature value */
-	if (!change)
-		return;
 
 	temp = iwl4965_hw_get_temperature(priv);
 	if (temp < 0)
