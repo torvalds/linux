@@ -344,16 +344,19 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 
 	/* If we have set the ASSOC_MSK and we are in BSS mode then
 	 * add the IWL_AP_ID to the station rate table */
-	if (new_assoc && (priv->iw_mode == IEEE80211_IF_TYPE_STA)) {
-		if (iwl_rxon_add_station(priv, priv->active_rxon.bssid_addr, 1)
-		    == IWL_INVALID_STATION) {
-			IWL_ERROR("Error adding AP address for transmit.\n");
-			return -EIO;
+	if (new_assoc) {
+		if (priv->iw_mode == IEEE80211_IF_TYPE_STA) {
+			ret = iwl_rxon_add_station(priv,
+					   priv->active_rxon.bssid_addr, 1);
+			if (ret == IWL_INVALID_STATION) {
+				IWL_ERROR("Error adding AP address for TX.\n");
+				return -EIO;
+			}
+			priv->assoc_station_added = 1;
+			if (priv->default_wep_key &&
+			    iwl_send_static_wepkey_cmd(priv, 0))
+				IWL_ERROR("Could not send WEP static key.\n");
 		}
-		priv->assoc_station_added = 1;
-		if (priv->default_wep_key &&
-		    iwl_send_static_wepkey_cmd(priv, 0))
-			IWL_ERROR("Could not send WEP static key.\n");
 
 		/* Apply the new configuration
 		 * RXON assoc doesn't clear the station table in uCode,
