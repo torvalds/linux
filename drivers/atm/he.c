@@ -1542,7 +1542,8 @@ he_start(struct atm_dev *dev)
 	/* initialize framer */
 
 #ifdef CONFIG_ATM_HE_USE_SUNI
-	suni_init(he_dev->atm_dev);
+	if (he_isMM(he_dev))
+		suni_init(he_dev->atm_dev);
 	if (he_dev->atm_dev->phy && he_dev->atm_dev->phy->start)
 		he_dev->atm_dev->phy->start(he_dev->atm_dev);
 #endif /* CONFIG_ATM_HE_USE_SUNI */
@@ -1554,6 +1555,7 @@ he_start(struct atm_dev *dev)
 		val = he_phy_get(he_dev->atm_dev, SUNI_TPOP_APM);
 		val = (val & ~SUNI_TPOP_APM_S) | (SUNI_TPOP_S_SDH << SUNI_TPOP_APM_S_SHIFT);
 		he_phy_put(he_dev->atm_dev, val, SUNI_TPOP_APM);
+		he_phy_put(he_dev->atm_dev, SUNI_TACP_IUCHP_CLP, SUNI_TACP_IUCHP);
 	}
 
 	/* 5.1.12 enable transmit and receive */
@@ -2844,10 +2846,15 @@ he_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user *arg)
 			if (copy_from_user(&reg, arg,
 					   sizeof(struct he_ioctl_reg)))
 				return -EFAULT;
-			
+
 			spin_lock_irqsave(&he_dev->global_lock, flags);
 			switch (reg.type) {
 				case HE_REGTYPE_PCI:
+					if (reg.addr < 0 || reg.addr >= HE_REGMAP_SIZE) {
+						err = -EINVAL;
+						break;
+					}
+
 					reg.val = he_readl(he_dev, reg.addr);
 					break;
 				case HE_REGTYPE_RCM:

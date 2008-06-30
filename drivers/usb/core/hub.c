@@ -644,6 +644,48 @@ static void hub_stop(struct usb_hub *hub)
 
 #ifdef CONFIG_PM
 
+/* Try to identify which devices need USB-PERSIST handling */
+static int persistent_device(struct usb_device *udev)
+{
+	int i;
+	int retval;
+	struct usb_host_config *actconfig;
+
+	/* Explicitly not marked persistent? */
+	if (!udev->persist_enabled)
+		return 0;
+
+	/* No active config? */
+	actconfig = udev->actconfig;
+	if (!actconfig)
+		return 0;
+
+	/* FIXME! We should check whether it's open here or not! */
+
+	/*
+	 * Check that all the interface drivers have a
+	 * 'reset_resume' entrypoint
+	 */
+	retval = 0;
+	for (i = 0; i < actconfig->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf;
+		struct usb_driver *driver;
+
+		intf = actconfig->interface[i];
+		if (!intf->dev.driver)
+			continue;
+		driver = to_usb_driver(intf->dev.driver);
+		if (!driver->reset_resume)
+			return 0;
+		/*
+		 * We have at least one driver, and that one
+		 * has a reset_resume method.
+		 */
+		retval = 1;
+	}
+	return retval;
+}
+
 static void hub_restart(struct usb_hub *hub, int type)
 {
 	struct usb_device *hdev = hub->hdev;
@@ -689,8 +731,8 @@ static void hub_restart(struct usb_hub *hub, int type)
 		 * turn off the various status changes to prevent
 		 * khubd from disconnecting it later.
 		 */
-		if (udev->persist_enabled && status == 0 &&
-				!(portstatus & USB_PORT_STAT_ENABLE)) {
+		if (status == 0 && !(portstatus & USB_PORT_STAT_ENABLE) &&
+				persistent_device(udev)) {
 			if (portchange & USB_PORT_STAT_C_ENABLE)
 				clear_port_feature(hub->hdev, port1,
 						USB_PORT_FEAT_C_ENABLE);

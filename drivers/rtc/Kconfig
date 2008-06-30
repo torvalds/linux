@@ -256,6 +256,17 @@ config RTC_DRV_S35390A
 	  This driver can also be built as a module. If so the module
 	  will be called rtc-s35390a.
 
+config RTC_DRV_FM3130
+	tristate "Ramtron FM3130"
+	help
+	  If you say Y here you will get support for the
+	  Ramtron FM3130 RTC chips.
+	  Ramtron FM3130 is a chip with two separate devices inside,
+	  RTC clock and FRAM. This driver provides only RTC functionality.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-fm3130.
+
 endif # I2C
 
 comment "SPI RTC drivers"

@@ -327,13 +327,14 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 	int hmax  = buf->vb.height;
 	int wmax  = buf->vb.width;
 	struct timeval ts;
-	char *tmpbuf = kmalloc(wmax * 2, GFP_ATOMIC);
+	char *tmpbuf;
 	void *vbuf = videobuf_to_vmalloc(&buf->vb);
 
-	if (!tmpbuf)
+	if (!vbuf)
 		return;
 
-	if (!vbuf)
+	tmpbuf = kmalloc(wmax * 2, GFP_ATOMIC);
+	if (!tmpbuf)
 		return;
 
 	for (h = 0; h < hmax; h++) {

@@ -246,15 +246,11 @@ static void find_metapath(const struct gfs2_sbd *sdp, u64 block,
 
 }
 
-static inline unsigned int zero_metapath_length(const struct metapath *mp,
-						unsigned height)
+static inline unsigned int metapath_branch_start(const struct metapath *mp)
 {
-	unsigned int i;
-	for (i = 0; i < height - 1; i++) {
-		if (mp->mp_list[i] != 0)
-			return i;
-	}
-	return height;
+	if (mp->mp_list[0] == 0)
+		return 2;
+	return 1;
 }
 
 /**
@@ -436,7 +432,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *dibh = mp->mp_bh[0];
 	u64 bn, dblock = 0;
-	unsigned n, i, blks, alloced = 0, iblks = 0, zmpl = 0;
+	unsigned n, i, blks, alloced = 0, iblks = 0, branch_start = 0;
 	unsigned dblks = 0;
 	unsigned ptrs_per_blk;
 	const unsigned end_of_metadata = height - 1;
@@ -471,9 +467,8 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 			/* Building up tree height */
 			state = ALLOC_GROW_HEIGHT;
 			iblks = height - ip->i_height;
-			zmpl = zero_metapath_length(mp, height);
-			iblks -= zmpl;
-			iblks += height;
+			branch_start = metapath_branch_start(mp);
+			iblks += (height - branch_start);
 		}
 	}
 
@@ -509,13 +504,13 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 					sizeof(struct gfs2_meta_header));
 				*ptr = zero_bn;
 				state = ALLOC_GROW_DEPTH;
-				for(i = zmpl; i < height; i++) {
+				for(i = branch_start; i < height; i++) {
 					if (mp->mp_bh[i] == NULL)
 						break;
 					brelse(mp->mp_bh[i]);
 					mp->mp_bh[i] = NULL;
 				}
-				i = zmpl;
+				i = branch_start;
 			}
 			if (n == 0)
 				break;

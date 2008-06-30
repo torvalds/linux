@@ -81,6 +81,8 @@ static void __init falconide_setup_ports(hw_regs_t *hw)
 
 	hw->irq = IRQ_MFP_IDE;
 	hw->ack_intr = NULL;
+
+	hw->chipset = ide_generic;
 }
 
     /*

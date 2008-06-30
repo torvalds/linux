@@ -368,7 +368,12 @@ interrupt_base:
 
 	rlwimi	r11,r13,0,26,31		/* Insert static perms */
 
-	rlwinm	r11,r11,0,20,15		/* Clear U0-U3 */
+	/*
+	 * Clear U0-U3 and WL1 IL1I IL1D IL2I IL2D bits which are added
+	 * on newer 440 cores like the 440x6 used on AMCC 460EX/460GT (see
+	 * include/asm-powerpc/pgtable-ppc32.h for details).
+	 */
+	rlwinm	r11,r11,0,20,10
 
 	/* find the TLB index that caused the fault.  It has to be here. */
 	tlbsx	r10, 0, r10

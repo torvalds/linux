@@ -104,21 +104,15 @@ EXPORT_SYMBOL(vmtruncate);
 unsigned int kobjsize(const void *objp)
 {
 	struct page *page;
-	int order = 0;
 
 	/*
 	 * If the object we have should not have ksize performed on it,
 	 * return size of 0
 	 */
-	if (!objp)
-		return 0;
-
-	if ((unsigned long)objp >= memory_end)
+	if (!objp || !virt_addr_valid(objp))
 		return 0;
 
 	page = virt_to_head_page(objp);
-	if (!page)
-		return 0;
 
 	/*
 	 * If the allocator sets PageSlab, we know the pointer came from
@@ -129,18 +123,9 @@ unsigned int kobjsize(const void *objp)
 
 	/*
 	 * The ksize() function is only guaranteed to work for pointers
-	 * returned by kmalloc(). So handle arbitrary pointers, that we expect
-	 * always to be compound pages, here.
+	 * returned by kmalloc(). So handle arbitrary pointers here.
 	 */
-	if (PageCompound(page))
-		order = compound_order(page);
-
-	/*
-	 * Finally, handle arbitrary pointers that don't set PageSlab.
-	 * Default to 0-order in the case when we're unable to ksize()
-	 * the object.
-	 */
-	return PAGE_SIZE << order;
+	return PAGE_SIZE << compound_order(page);
 }
 
 /*
