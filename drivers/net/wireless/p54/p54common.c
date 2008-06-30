@@ -357,6 +357,7 @@ static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	rx_status.signal = hdr->rssi;
 	/* XX correct? */
+	rx_status.qual = (100 * hdr->rssi) / 127;
 	rx_status.rate_idx = hdr->rate & 0xf;
 	rx_status.freq = freq;
 	rx_status.band = IEEE80211_BAND_2GHZ;
