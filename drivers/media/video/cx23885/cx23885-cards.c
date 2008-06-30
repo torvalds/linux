@@ -145,6 +145,7 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP] = {
 		.name		= "DViCO FusionHDTV7 Dual Express",
+		.portb		= CX23885_MPEG_DVB,
 		.portc		= CX23885_MPEG_DVB,
 	},
 };
