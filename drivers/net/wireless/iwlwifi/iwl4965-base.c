@@ -2187,13 +2187,15 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	if (iwl_read32(priv, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
-	else {
+	else
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
-		if (!test_bit(STATUS_IN_SUSPEND, &priv->status)) {
-			iwl_rfkill_set_hw_state(priv);
-			IWL_WARNING("Radio disabled by HW RF Kill switch\n");
-			return -ENODEV;
-		}
+
+	if (!test_bit(STATUS_IN_SUSPEND, &priv->status) &&
+	    iwl_is_rfkill(priv)) {
+		iwl_rfkill_set_hw_state(priv);
+		IWL_WARNING("Radio disabled by %s RF Kill switch\n",
+		    test_bit(STATUS_RF_KILL_HW, &priv->status) ? "HW" : "SW");
+		return -ENODEV;
 	}
 
 	iwl_rfkill_set_hw_state(priv);
