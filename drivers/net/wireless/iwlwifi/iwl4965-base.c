@@ -2566,7 +2566,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
  *
  *****************************************************************************/
 
-#define UCODE_READY_TIMEOUT	(2 * HZ)
+#define UCODE_READY_TIMEOUT	(4 * HZ)
 
 static int iwl4965_mac_start(struct ieee80211_hw *hw)
 {
@@ -2619,17 +2619,15 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 
 	/* Wait for START_ALIVE from Run Time ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
-	if (priv->ucode_type == UCODE_RT) {
-		ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-				test_bit(STATUS_READY, &priv->status),
-				UCODE_READY_TIMEOUT);
-		if (!ret) {
-			if (!test_bit(STATUS_READY, &priv->status)) {
-				IWL_ERROR("START_ALIVE timeout after %dms.\n",
-					jiffies_to_msecs(UCODE_READY_TIMEOUT));
-				ret = -ETIMEDOUT;
-				goto out_release_irq;
-			}
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+			test_bit(STATUS_READY, &priv->status),
+			UCODE_READY_TIMEOUT);
+	if (!ret) {
+		if (!test_bit(STATUS_READY, &priv->status)) {
+			IWL_ERROR("START_ALIVE timeout after %dms.\n",
+				jiffies_to_msecs(UCODE_READY_TIMEOUT));
+			ret = -ETIMEDOUT;
+			goto out_release_irq;
 		}
 
 		priv->is_open = 1;
