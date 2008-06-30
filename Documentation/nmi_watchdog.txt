@@ -69,7 +69,7 @@ to the overall system performance.
 On x86 nmi_watchdog is disabled by default so you have to enable it with
 a boot time parameter.
 
-NOTE: Prior to 2.4.2-ac18 the NMI-oopser is enabled unconditionally
+NOTE: In kernels prior to 2.4.2-ac18 the NMI-oopser is enabled unconditionally
 on x86 SMP boxes.
 
 [ feel free to send bug reports, suggestions and patches to
