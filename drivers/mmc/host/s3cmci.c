@@ -335,6 +335,8 @@ static void pio_tasklet(unsigned long data)
 	struct s3cmci_host *host = (struct s3cmci_host *) data;
 
 
+	disable_irq(host->irq);
+
 	if (host->pio_active == XFER_WRITE)
 		do_pio_write(host);
 
@@ -352,9 +354,9 @@ static void pio_tasklet(unsigned long data)
 			host->mrq->data->error = -EINVAL;
 		}
 
-		disable_irq(host->irq);
 		finalize_request(host);
-	}
+	} else
+		enable_irq(host->irq);
 }
 
 /*
@@ -629,7 +631,6 @@ out:
 	tasklet_schedule(&host->pio_tasklet);
 	spin_unlock_irqrestore(&host->complete_lock, iflags);
 	return;
-
 
 fail_request:
 	host->mrq->data->error = -EINVAL;
