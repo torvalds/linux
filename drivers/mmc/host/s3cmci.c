@@ -1150,8 +1150,6 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	host->pio_active 	= XFER_NONE;
 
 	host->dma		= S3CMCI_DMA;
-	host->irq_cd = s3c2410_gpio_getirq(host->pdata->gpio_detect);
-	s3c2410_gpio_cfgpin(host->pdata->gpio_detect, S3C2410_GPIO_IRQ);
 
 	host->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!host->mem) {
@@ -1197,14 +1195,20 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 
 	disable_irq(host->irq);
 
-	s3c2410_gpio_cfgpin(host->pdata->gpio_detect, S3C2410_GPIO_IRQ);
-	set_irq_type(host->irq_cd, IRQT_BOTHEDGE);
+	host->irq_cd = s3c2410_gpio_getirq(host->pdata->gpio_detect);
 
-	if (request_irq(host->irq_cd, s3cmci_irq_cd, 0, DRIVER_NAME, host)) {
-		dev_err(&pdev->dev,
-			"failed to request card detect interrupt.\n");
-		ret = -ENOENT;
-		goto probe_free_irq;
+	if (host->irq_cd >= 0) {
+		if (request_irq(host->irq_cd, s3cmci_irq_cd,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				DRIVER_NAME, host)) {
+			dev_err(&pdev->dev, "can't get card detect irq.\n");
+			ret = -ENOENT;
+			goto probe_free_irq;
+		}
+	} else {
+		dev_warn(&pdev->dev, "host detect has no irq available\n");
+		s3c2410_gpio_cfgpin(host->pdata->gpio_detect,
+				    S3C2410_GPIO_INPUT);
 	}
 
 	if (host->pdata->gpio_wprotect)
@@ -1273,7 +1277,8 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	clk_put(host->clk);
 
  probe_free_irq_cd:
-	free_irq(host->irq_cd, host);
+	if (host->irq_cd >= 0)
+		free_irq(host->irq_cd, host);
 
  probe_free_irq:
 	free_irq(host->irq, host);
@@ -1303,7 +1308,8 @@ static int __devexit s3cmci_remove(struct platform_device *pdev)
 	tasklet_disable(&host->pio_tasklet);
 	s3c2410_dma_free(S3CMCI_DMA, &s3cmci_dma_client);
 
-	free_irq(host->irq_cd, host);
+	if (host->irq_cd >= 0)
+		free_irq(host->irq_cd, host);
 	free_irq(host->irq, host);
 
 	iounmap(host->base);
