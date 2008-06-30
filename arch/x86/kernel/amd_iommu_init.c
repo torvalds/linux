@@ -21,6 +21,7 @@
 #include <linux/acpi.h>
 #include <linux/gfp.h>
 #include <linux/list.h>
+#include <linux/sysdev.h>
 #include <asm/pci-direct.h>
 #include <asm/amd_iommu_types.h>
 #include <asm/amd_iommu.h>
@@ -654,6 +655,32 @@ static void __init enable_iommus(void)
 	}
 }
 
+/*
+ * Suspend/Resume support
+ * disable suspend until real resume implemented
+ */
+
+static int amd_iommu_resume(struct sys_device *dev)
+{
+	return 0;
+}
+
+static int amd_iommu_suspend(struct sys_device *dev, pm_message_t state)
+{
+	return -EINVAL;
+}
+
+static struct sysdev_class amd_iommu_sysdev_class = {
+	.name = "amd_iommu",
+	.suspend = amd_iommu_suspend,
+	.resume = amd_iommu_resume,
+};
+
+static struct sys_device device_amd_iommu = {
+	.id = 0,
+	.cls = &amd_iommu_sysdev_class,
+};
+
 int __init amd_iommu_init(void)
 {
 	int i, ret = 0;
@@ -742,6 +769,14 @@ int __init amd_iommu_init(void)
 		goto free;
 
 	ret = amd_iommu_init_dma_ops();
+	if (ret)
+		goto free;
+
+	ret = sysdev_class_register(&amd_iommu_sysdev_class);
+	if (ret)
+		goto free;
+
+	ret = sysdev_register(&device_amd_iommu);
 	if (ret)
 		goto free;
 
