@@ -450,6 +450,7 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 	}
 
 	if (mci_csta & S3C2410_SDICMDSTAT_CMDTIMEOUT) {
+		dbg(host, dbg_err, "CMDSTAT: error CMDTIMEOUT\n");
 		cmd->error = -ETIMEDOUT;
 		host->status = "error: command timeout";
 		goto fail_transfer;
@@ -505,12 +506,14 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 	/* Check for FIFO failure */
 	if (host->is2440) {
 		if (mci_fsta & S3C2440_SDIFSTA_FIFOFAIL) {
+			dbg(host, dbg_err, "FIFO failure\n");
 			host->mrq->data->error = -EILSEQ;
 			host->status = "error: 2440 fifo failure";
 			goto fail_transfer;
 		}
 	} else {
 		if (mci_dsta & S3C2410_SDIDSTA_FIFOFAIL) {
+			dbg(host, dbg_err, "FIFO failure\n");
 			cmd->data->error = -EILSEQ;
 			host->status = "error:  fifo failure";
 			goto fail_transfer;
@@ -518,18 +521,21 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 	}
 
 	if (mci_dsta & S3C2410_SDIDSTA_RXCRCFAIL) {
+		dbg(host, dbg_err, "bad data crc (outgoing)\n");
 		cmd->data->error = -EILSEQ;
 		host->status = "error: bad data crc (outgoing)";
 		goto fail_transfer;
 	}
 
 	if (mci_dsta & S3C2410_SDIDSTA_CRCFAIL) {
+		dbg(host, dbg_err, "bad data crc (incoming)\n");
 		cmd->data->error = -EILSEQ;
 		host->status = "error: bad data crc (incoming)";
 		goto fail_transfer;
 	}
 
 	if (mci_dsta & S3C2410_SDIDSTA_DATATIMEOUT) {
+		dbg(host, dbg_err, "data timeout\n");
 		cmd->data->error = -ETIMEDOUT;
 		host->status = "error: data timeout";
 		goto fail_transfer;
@@ -956,8 +962,9 @@ static void s3cmci_send_request(struct mmc_host *mmc)
 		host->dcnt++;
 
 		if (res) {
-			cmd->error = -EINVAL;
-			cmd->data->error = -EINVAL;
+			dbg(host, dbg_err, "setup data error %d\n", res);
+			cmd->error = res;
+			cmd->data->error = res;
 
 			mmc_request_done(mmc, mrq);
 			return;
@@ -969,6 +976,7 @@ static void s3cmci_send_request(struct mmc_host *mmc)
 			res = s3cmci_prepare_pio(host, cmd->data);
 
 		if (res) {
+			dbg(host, dbg_err, "data prepare error %d\n", res);
 			cmd->error = res;
 			cmd->data->error = res;
 
