@@ -353,7 +353,8 @@ static void pio_tasklet(unsigned long data)
 			    (host->pio_active == XFER_READ) ? "read" : "write",
 			    host->pio_count, host->pio_words);
 
-			host->mrq->data->error = -EINVAL;
+			if (host->mrq->data)
+				host->mrq->data->error = -EINVAL;
 		}
 
 		finalize_request(host);
