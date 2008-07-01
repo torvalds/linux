@@ -948,3 +948,4 @@ MODULE_DESCRIPTION("S3C24XX I2C Bus driver");
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:s3c2410-i2c");
+MODULE_ALIAS("platform:s3c2440-i2c");
