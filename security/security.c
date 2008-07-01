@@ -442,6 +442,7 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 	return security_ops->inode_setattr(dentry, attr);
 }
+EXPORT_SYMBOL_GPL(security_inode_setattr);
 
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {
