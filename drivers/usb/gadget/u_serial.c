@@ -1090,6 +1090,9 @@ void gserial_cleanup(void)
 	unsigned	i;
 	struct gs_port	*port;
 
+	if (!gs_tty_driver)
+		return;
+
 	/* start sysfs and /dev/ttyGS* node removal */
 	for (i = 0; i < n_ports; i++)
 		tty_unregister_device(gs_tty_driver, i);

@@ -124,7 +124,7 @@ static int __init cdc_do_config(struct usb_configuration *c)
 		return status;
 
 	status = acm_bind_config(c, 0);
-	if (status == 0)
+	if (status < 0)
 		return status;
 
 	return 0;
