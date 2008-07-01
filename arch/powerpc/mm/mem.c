@@ -44,6 +44,7 @@
 #include <asm/btext.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>
+#include <asm/sparsemem.h>
 #include <asm/vdso.h>
 #include <asm/fixmap.h>
 
