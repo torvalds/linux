@@ -762,10 +762,14 @@ DEFINE_PER_CPU(struct sys_device, device_mce);
 
 /* Why are there no generic functions for this? */
 #define ACCESSOR(name, var, start) \
-	static ssize_t show_ ## name(struct sys_device *s, char *buf) {	\
+	static ssize_t show_ ## name(struct sys_device *s,		\
+				     struct sysdev_attribute *attr,	\
+				     char *buf) {			\
 		return sprintf(buf, "%lx\n", (unsigned long)var);	\
 	}								\
-	static ssize_t set_ ## name(struct sys_device *s,const char *buf,size_t siz) { \
+	static ssize_t set_ ## name(struct sys_device *s,		\
+				    struct sysdev_attribute *attr,	\
+				    const char *buf, size_t siz) {	\
 		char *end;						\
 		unsigned long new = simple_strtoul(buf, &end, 0);	\
 		if (end == buf) return -EINVAL;				\
@@ -786,14 +790,16 @@ ACCESSOR(bank3ctl,bank[3],mce_restart())
 ACCESSOR(bank4ctl,bank[4],mce_restart())
 ACCESSOR(bank5ctl,bank[5],mce_restart())
 
-static ssize_t show_trigger(struct sys_device *s, char *buf)
+static ssize_t show_trigger(struct sys_device *s, struct sysdev_attribute *attr,
+				char *buf)
 {
 	strcpy(buf, trigger);
 	strcat(buf, "\n");
 	return strlen(trigger) + 1;
 }
 
-static ssize_t set_trigger(struct sys_device *s,const char *buf,size_t siz)
+static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
+				const char *buf,size_t siz)
 {
 	char *p;
 	int len;

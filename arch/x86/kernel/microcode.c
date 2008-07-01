@@ -644,7 +644,9 @@ static void microcode_fini_cpu(int cpu)
 	mutex_unlock(&microcode_mutex);
 }
 
-static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
+static ssize_t reload_store(struct sys_device *dev,
+			    struct sysdev_attribute *attr,
+			    const char *buf, size_t sz)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 	char *end;
@@ -674,14 +676,16 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 	return sz;
 }
 
-static ssize_t version_show(struct sys_device *dev, char *buf)
+static ssize_t version_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 
 	return sprintf(buf, "0x%x\n", uci->rev);
 }
 
-static ssize_t pf_show(struct sys_device *dev, char *buf)
+static ssize_t pf_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 

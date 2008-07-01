@@ -28,7 +28,9 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 /* Time in microseconds we delay before sleeping in the idle loop */
 DEFINE_PER_CPU(unsigned long, smt_snooze_delay) = { 100 };
 
-static ssize_t store_smt_snooze_delay(struct sys_device *dev, const char *buf,
+static ssize_t store_smt_snooze_delay(struct sys_device *dev,
+				      struct sysdev_attribute *attr,
+				      const char *buf,
 				      size_t count)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
@@ -44,7 +46,9 @@ static ssize_t store_smt_snooze_delay(struct sys_device *dev, const char *buf,
 	return count;
 }
 
-static ssize_t show_smt_snooze_delay(struct sys_device *dev, char *buf)
+static ssize_t show_smt_snooze_delay(struct sys_device *dev,
+				     struct sysdev_attribute *attr,
+				     char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 
@@ -152,14 +156,17 @@ static unsigned long write_##NAME(unsigned long val) \
 	mtspr(ADDRESS, val); \
 	return 0; \
 } \
-static ssize_t show_##NAME(struct sys_device *dev, char *buf) \
+static ssize_t show_##NAME(struct sys_device *dev, \
+			struct sysdev_attribute *attr, \
+			char *buf) \
 { \
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev); \
 	unsigned long val = run_on_cpu(cpu->sysdev.id, read_##NAME, 0); \
 	return sprintf(buf, "%lx\n", val); \
 } \
 static ssize_t __used \
-	store_##NAME(struct sys_device *dev, const char *buf, size_t count) \
+	store_##NAME(struct sys_device *dev, struct sysdev_attribute *attr, \
+			const char *buf, size_t count) \
 { \
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev); \
 	unsigned long val; \

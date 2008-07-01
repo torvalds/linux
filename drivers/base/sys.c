@@ -36,7 +36,7 @@ sysdev_show(struct kobject * kobj, struct attribute * attr, char * buffer)
 	struct sysdev_attribute * sysdev_attr = to_sysdev_attr(attr);
 
 	if (sysdev_attr->show)
-		return sysdev_attr->show(sysdev, buffer);
+		return sysdev_attr->show(sysdev, sysdev_attr, buffer);
 	return -EIO;
 }
 
@@ -49,7 +49,7 @@ sysdev_store(struct kobject * kobj, struct attribute * attr,
 	struct sysdev_attribute * sysdev_attr = to_sysdev_attr(attr);
 
 	if (sysdev_attr->store)
-		return sysdev_attr->store(sysdev, buffer, count);
+		return sysdev_attr->store(sysdev, sysdev_attr, buffer, count);
 	return -EIO;
 }
 

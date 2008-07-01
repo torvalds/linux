@@ -99,8 +99,9 @@ extern void sysdev_unregister(struct sys_device *);
 
 struct sysdev_attribute { 
 	struct attribute	attr;
-	ssize_t (*show)(struct sys_device *, char *);
-	ssize_t (*store)(struct sys_device *, const char *, size_t);
+	ssize_t (*show)(struct sys_device *, struct sysdev_attribute *, char *);
+	ssize_t (*store)(struct sys_device *, struct sysdev_attribute *,
+			 const char *, size_t);
 };
 
 
