@@ -106,13 +106,13 @@ static int die_counter;
 void printk_address(unsigned long address, int reliable)
 {
 #ifdef CONFIG_KALLSYMS
-	char namebuf[KSYM_NAME_LEN];
 	unsigned long offset = 0;
 	unsigned long symsize;
 	const char *symname;
-	char reliab[4] = "";
-	char *delim = ":";
 	char *modname;
+	char *delim = ":";
+	char namebuf[KSYM_NAME_LEN];
+	char reliab[4] = "";
 
 	symname = kallsyms_lookup(address, &symsize, &offset,
 					&modname, namebuf);
@@ -135,8 +135,8 @@ void printk_address(unsigned long address, int reliable)
 static inline int valid_stack_ptr(struct thread_info *tinfo,
 			void *p, unsigned int size)
 {
-	return	p > (void *)tinfo &&
-		p <= (void *)tinfo + THREAD_SIZE - size;
+	void *t = tinfo;
+	return	p > t && p <= t + THREAD_SIZE - size;
 }
 
 /* The form of the top of the frame on the stack */
@@ -976,9 +976,8 @@ clear_TF_reenable:
 void math_error(void __user *ip)
 {
 	struct task_struct *task;
-	unsigned short cwd;
-	unsigned short swd;
 	siginfo_t info;
+	unsigned short cwd, swd;
 
 	/*
 	 * Save the info for the exception handler and clear the error.
@@ -1042,8 +1041,8 @@ void do_coprocessor_error(struct pt_regs *regs, long error_code)
 static void simd_math_error(void __user *ip)
 {
 	struct task_struct *task;
-	unsigned short mxcsr;
 	siginfo_t info;
+	unsigned short mxcsr;
 
 	/*
 	 * Save the info for the exception handler and clear the error.

@@ -268,7 +268,6 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 
 	if (!task)
 		task = current;
-	tinfo = task_thread_info(task);
 
 	if (!stack) {
 		unsigned long dummy;
@@ -294,6 +293,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	 * current stack address. If the stacks consist of nested
 	 * exceptions
 	 */
+	tinfo = task_thread_info(task);
 	for (;;) {
 		char *id;
 		unsigned long *estack_end;
@@ -435,8 +435,8 @@ void show_stack(struct task_struct *task, unsigned long *sp)
  */
 void dump_stack(void)
 {
-	unsigned long stack;
 	unsigned long bp = 0;
+	unsigned long stack;
 
 #ifdef CONFIG_FRAME_POINTER
 	if (!bp)
@@ -459,12 +459,8 @@ void show_registers(struct pt_regs *regs)
 	unsigned long sp;
 	const int cpu = smp_processor_id();
 	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
-	u8 *ip;
-	unsigned int code_prologue = code_bytes * 43 / 64;
-	unsigned int code_len = code_bytes;
 
 	sp = regs->sp;
-	ip = (u8 *) regs->ip - code_prologue;
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
@@ -475,12 +471,18 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (!user_mode(regs)) {
+		unsigned int code_prologue = code_bytes * 43 / 64;
+		unsigned int code_len = code_bytes;
 		unsigned char c;
+		u8 *ip;
+
 		printk("Stack: ");
 		_show_stack(NULL, regs, (unsigned long *)sp, regs->bp);
 		printk("\n");
 
 		printk(KERN_EMERG "Code: ");
+
+		ip = (u8 *)regs->ip - code_prologue;
 		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
 			/* try starting at RIP */
 			ip = (u8 *)regs->ip;
@@ -585,7 +587,7 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 	return 0;
 }
 
-void die(const char * str, struct pt_regs *regs, long err)
+void die(const char *str, struct pt_regs *regs, long err)
 {
 	unsigned long flags = oops_begin();
 
@@ -927,8 +929,8 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 				   unsigned long error_code)
 {
-	unsigned long condition;
 	struct task_struct *tsk = current;
+	unsigned long condition;
 	siginfo_t info;
 
 	trace_hardirqs_fixup();
@@ -1201,7 +1203,7 @@ void __init trap_init(void)
 	/*
 	 * initialize the per thread extended state:
 	 */
-        init_thread_xstate();
+	init_thread_xstate();
 	/*
 	 * Should be a barrier for any external CPU state:
 	 */
