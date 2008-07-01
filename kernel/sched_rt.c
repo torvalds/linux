@@ -599,11 +599,7 @@ static void __enqueue_rt_entity(struct sched_rt_entity *rt_se)
 	if (group_rq && (rt_rq_throttled(group_rq) || !group_rq->rt_nr_running))
 		return;
 
-	if (rt_se->nr_cpus_allowed == 1)
-		list_add(&rt_se->run_list, queue);
-	else
-		list_add_tail(&rt_se->run_list, queue);
-
+	list_add_tail(&rt_se->run_list, queue);
 	__set_bit(rt_se_prio(rt_se), array->bitmap);
 
 	inc_rt_tasks(rt_se, rt_rq);
@@ -688,32 +684,34 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
  * Put task to the end of the run list without the overhead of dequeue
  * followed by enqueue.
  */
-static
-void requeue_rt_entity(struct rt_rq *rt_rq, struct sched_rt_entity *rt_se)
+static void
+requeue_rt_entity(struct rt_rq *rt_rq, struct sched_rt_entity *rt_se, int head)
 {
-	struct rt_prio_array *array = &rt_rq->active;
-
 	if (on_rt_rq(rt_se)) {
-		list_del_init(&rt_se->run_list);
-		list_add_tail(&rt_se->run_list,
-			      array->queue + rt_se_prio(rt_se));
+		struct rt_prio_array *array = &rt_rq->active;
+		struct list_head *queue = array->queue + rt_se_prio(rt_se);
+
+		if (head)
+			list_move(&rt_se->run_list, queue);
+		else
+			list_move_tail(&rt_se->run_list, queue);
 	}
 }
 
-static void requeue_task_rt(struct rq *rq, struct task_struct *p)
+static void requeue_task_rt(struct rq *rq, struct task_struct *p, int head)
 {
 	struct sched_rt_entity *rt_se = &p->rt;
 	struct rt_rq *rt_rq;
 
 	for_each_sched_rt_entity(rt_se) {
 		rt_rq = rt_rq_of_se(rt_se);
-		requeue_rt_entity(rt_rq, rt_se);
+		requeue_rt_entity(rt_rq, rt_se, head);
 	}
 }
 
 static void yield_task_rt(struct rq *rq)
 {
-	requeue_task_rt(rq, rq->curr);
+	requeue_task_rt(rq, rq->curr, 0);
 }
 
 #ifdef CONFIG_SMP
@@ -753,6 +751,30 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 	 */
 	return task_cpu(p);
 }
+
+static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
+{
+	cpumask_t mask;
+
+	if (rq->curr->rt.nr_cpus_allowed == 1)
+		return;
+
+	if (p->rt.nr_cpus_allowed != 1
+	    && cpupri_find(&rq->rd->cpupri, p, &mask))
+		return;
+
+	if (!cpupri_find(&rq->rd->cpupri, rq->curr, &mask))
+		return;
+
+	/*
+	 * There appears to be other cpus that can accept
+	 * current and none to run 'p', so lets reschedule
+	 * to try and push current away:
+	 */
+	requeue_task_rt(rq, p, 1);
+	resched_task(rq->curr);
+}
+
 #endif /* CONFIG_SMP */
 
 /*
@@ -778,18 +800,8 @@ static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p)
 	 * to move current somewhere else, making room for our non-migratable
 	 * task.
 	 */
-	if((p->prio == rq->curr->prio)
-	   && p->rt.nr_cpus_allowed == 1
-	   && rq->curr->rt.nr_cpus_allowed != 1) {
-		cpumask_t mask;
-
-		if (cpupri_find(&rq->rd->cpupri, rq->curr, &mask))
-			/*
-			 * There appears to be other cpus that can accept
-			 * current, so lets reschedule to try and push it away
-			 */
-			resched_task(rq->curr);
-	}
+	if (p->prio == rq->curr->prio && !need_resched())
+		check_preempt_equal_prio(rq, p);
 #endif
 }
 
@@ -1415,7 +1427,7 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	 * on the queue:
 	 */
 	if (p->rt.run_list.prev != p->rt.run_list.next) {
-		requeue_task_rt(rq, p);
+		requeue_task_rt(rq, p, 0);
 		set_tsk_need_resched(p);
 	}
 }
