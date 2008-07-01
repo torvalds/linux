@@ -812,12 +812,12 @@ static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 }
 
 static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
-ACCESSOR(tolerant,tolerant,)
+static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
 ACCESSOR(check_interval,check_interval,mce_restart())
 static struct sysdev_attribute *mce_attributes[] = {
 	&attr_bank0ctl, &attr_bank1ctl, &attr_bank2ctl,
 	&attr_bank3ctl, &attr_bank4ctl, &attr_bank5ctl,
-	&attr_tolerant, &attr_check_interval, &attr_trigger,
+	&attr_tolerant.attr, &attr_check_interval, &attr_trigger,
 	NULL
 };
 
