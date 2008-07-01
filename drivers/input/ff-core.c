@@ -28,6 +28,7 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 
 /*
  * Check that the effect_id is a valid effect and whether the user
