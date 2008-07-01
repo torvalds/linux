@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
+ *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
  *
  *  Pentium III FXSR, SSE support
  *	Gareth Hughes <gareth@valinux.com>, May 2000
@@ -130,7 +131,8 @@ void printk_address(unsigned long address, int reliable)
 #endif
 }
 
-static inline int valid_stack_ptr(struct thread_info *tinfo, void *p, unsigned size)
+static inline int valid_stack_ptr(struct thread_info *tinfo,
+			void *p, unsigned int size)
 {
 	return	p > (void *)tinfo &&
 		p <= (void *)tinfo + THREAD_SIZE - size;
@@ -138,14 +140,14 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p, unsigned s
 
 /* The form of the top of the frame on the stack */
 struct stack_frame {
-	struct stack_frame	*next_frame;
-	unsigned long		return_address;
+	struct stack_frame *next_frame;
+	unsigned long return_address;
 };
 
 static inline unsigned long
 print_context_stack(struct thread_info *tinfo,
-		    unsigned long *stack, unsigned long bp,
-		    const struct stacktrace_ops *ops, void *data)
+		unsigned long *stack, unsigned long bp,
+		const struct stacktrace_ops *ops, void *data)
 {
 	struct stack_frame *frame = (struct stack_frame *)bp;
 
@@ -167,8 +169,6 @@ print_context_stack(struct thread_info *tinfo,
 	return bp;
 }
 
-#define MSG(msg)		ops->warning(data, msg)
-
 void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data)
@@ -178,7 +178,6 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 
 	if (!stack) {
 		unsigned long dummy;
-
 		stack = &dummy;
 		if (task != current)
 			stack = (unsigned long *)task->thread.sp;
@@ -196,7 +195,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	}
 #endif
 
-	while (1) {
+	for (;;) {
 		struct thread_info *context;
 
 		context = (struct thread_info *)
@@ -248,10 +247,10 @@ static void print_trace_address(void *data, unsigned long addr, int reliable)
 }
 
 static const struct stacktrace_ops print_trace_ops = {
-	.warning		= print_trace_warning,
-	.warning_symbol		= print_trace_warning_symbol,
-	.stack			= print_trace_stack,
-	.address		= print_trace_address,
+	.warning = print_trace_warning,
+	.warning_symbol = print_trace_warning_symbol,
+	.stack = print_trace_stack,
+	.address = print_trace_address,
 };
 
 static void
@@ -351,15 +350,14 @@ void show_registers(struct pt_regs *regs)
 		printk(KERN_EMERG "Code: ");
 
 		ip = (u8 *)regs->ip - code_prologue;
-		if (ip < (u8 *)PAGE_OFFSET ||
-			probe_kernel_address(ip, c)) {
+		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
 			/* try starting at EIP */
 			ip = (u8 *)regs->ip;
 			code_len = code_len - code_prologue + 1;
 		}
 		for (i = 0; i < code_len; i++, ip++) {
 			if (ip < (u8 *)PAGE_OFFSET ||
-				probe_kernel_address(ip, c)) {
+					probe_kernel_address(ip, c)) {
 				printk(" Bad EIP value.");
 				break;
 			}
@@ -546,7 +544,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 {									\
 	trace_hardirqs_fixup();						\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
-						== NOTIFY_STOP)		\
+							== NOTIFY_STOP)	\
 		return;							\
 	do_trap(trapnr, signr, str, 0, regs, error_code, NULL);		\
 }
@@ -562,7 +560,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	info.si_code = sicode;						\
 	info.si_addr = (void __user *)siaddr;				\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
-						== NOTIFY_STOP)		\
+							== NOTIFY_STOP)	\
 		return;							\
 	do_trap(trapnr, signr, str, 0, regs, error_code, &info);	\
 }
@@ -571,7 +569,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 void do_##name(struct pt_regs *regs, long error_code)			\
 {									\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
-						== NOTIFY_STOP)		\
+							== NOTIFY_STOP)	\
 		return;							\
 	do_trap(trapnr, signr, str, 1, regs, error_code, NULL);		\
 }
@@ -586,22 +584,22 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	info.si_addr = (void __user *)siaddr;				\
 	trace_hardirqs_fixup();						\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
-						== NOTIFY_STOP)		\
+							== NOTIFY_STOP)	\
 		return;							\
 	do_trap(trapnr, signr, str, 1, regs, error_code, &info);	\
 }
 
-DO_VM86_ERROR_INFO(0, SIGFPE,  "divide error", divide_error, FPE_INTDIV, regs->ip)
+DO_VM86_ERROR_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
 #ifndef CONFIG_KPROBES
 DO_VM86_ERROR(3, SIGTRAP, "int3", int3)
 #endif
 DO_VM86_ERROR(4, SIGSEGV, "overflow", overflow)
 DO_VM86_ERROR(5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO(6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
-DO_ERROR(9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
+DO_ERROR_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
+DO_ERROR(9, SIGFPE, "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
-DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
-DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
+DO_ERROR(11, SIGBUS, "segment not present", segment_not_present)
+DO_ERROR(12, SIGBUS, "stack segment", stack_segment)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
 DO_ERROR_INFO(32, SIGILL, "iret exception", iret_error, ILL_BADSTK, 0, 1)
 
@@ -799,7 +797,7 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 
 	if (!(reason & 0xc0)) {
 		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 2, SIGINT)
-							== NOTIFY_STOP)
+								== NOTIFY_STOP)
 			return;
 #ifdef CONFIG_X86_LOCAL_APIC
 		/*
@@ -818,6 +816,8 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	}
 	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
 		return;
+
+	/* AK: following checks seem to be broken on modern chipsets. FIXME */
 	if (reason & 0x80)
 		mem_parity_error(reason, regs);
 	if (reason & 0x40)
@@ -915,7 +915,7 @@ void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	tsk->thread.debugctlmsr = 0;
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
-					SIGTRAP) == NOTIFY_STOP)
+						SIGTRAP) == NOTIFY_STOP)
 		return;
 	/* It's safe to allow irq's after DR6 has been saved */
 	if (regs->flags & X86_EFLAGS_IF)
@@ -997,7 +997,7 @@ void math_error(void __user *ip)
 	 * C1 reg you need in case of a stack fault, 0x040 is the stack
 	 * fault bit.  We should only be taking one exception at a time,
 	 * so if this combination doesn't produce any single exception,
-	 * then we have a bad program that isn't syncronizing its FPU usage
+	 * then we have a bad program that isn't synchronizing its FPU usage
 	 * and it will suffer the consequences since we won't be able to
 	 * fully reproduce the context of the exception
 	 */
@@ -1006,7 +1006,7 @@ void math_error(void __user *ip)
 	switch (swd & ~cwd & 0x3f) {
 	case 0x000: /* No unmasked exception */
 		return;
-	default:    /* Multiple exceptions */
+	default: /* Multiple exceptions */
 		break;
 	case 0x001: /* Invalid Op */
 		/*
@@ -1198,16 +1198,16 @@ void __init trap_init(void)
 	early_iounmap(p, 4);
 #endif
 
-	set_trap_gate(0,  &divide_error);
-	set_intr_gate(1,  &debug);
-	set_intr_gate(2,  &nmi);
-	set_system_intr_gate(3, &int3); /* int3/4 can be called from all */
-	set_system_gate(4, &overflow);
-	set_trap_gate(5,  &bounds);
-	set_trap_gate(6,  &invalid_op);
-	set_trap_gate(7,  &device_not_available);
-	set_task_gate(8,  GDT_ENTRY_DOUBLEFAULT_TSS);
-	set_trap_gate(9,  &coprocessor_segment_overrun);
+	set_trap_gate(0, &divide_error);
+	set_intr_gate(1, &debug);
+	set_intr_gate(2, &nmi);
+	set_system_intr_gate(3, &int3); /* int3 can be called from all */
+	set_system_gate(4, &overflow); /* int4 can be called from all */
+	set_trap_gate(5, &bounds);
+	set_trap_gate(6, &invalid_op);
+	set_trap_gate(7, &device_not_available);
+	set_task_gate(8, GDT_ENTRY_DOUBLEFAULT_TSS);
+	set_trap_gate(9, &coprocessor_segment_overrun);
 	set_trap_gate(10, &invalid_TSS);
 	set_trap_gate(11, &segment_not_present);
 	set_trap_gate(12, &stack_segment);
