@@ -43,14 +43,17 @@ static struct sms_board sms_boards[] = {
 	[SMS1XXX_BOARD_SIANO_STELLAR] = {
 		.name	= "Siano Stellar Digital Receiver",
 		.type	= SMS_STELLAR,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-stellar-dvbt-01.fw",
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_A] = {
 		.name	= "Siano Nova A Digital Receiver",
 		.type	= SMS_NOVA_A0,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-a-dvbt-01.fw",
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_B] = {
 		.name	= "Siano Nova B Digital Receiver",
 		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-b-dvbt-01.fw",
 	},
 	[SMS1XXX_BOARD_SIANO_VEGA] = {
 		.name	= "Siano Vega Digital Receiver",
