@@ -33,6 +33,9 @@ SECTIONS
 	. = ALIGN(8);
 	__ftr_fixup	: { *(__ftr_fixup) }
 
+	. = ALIGN(8);
+	__lwsync_fixup	: { *(__lwsync_fixup) }
+
 #ifdef CONFIG_PPC64
 	. = ALIGN(8);
 	__fw_ftr_fixup	: { *(__fw_ftr_fixup) }

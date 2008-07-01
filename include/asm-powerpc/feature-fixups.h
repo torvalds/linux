@@ -113,4 +113,14 @@ label##5:					       	\
 
 #endif /* __ASSEMBLY__ */
 
+/* LWSYNC feature sections */
+#define START_LWSYNC_SECTION(label)	label##1:
+#define MAKE_LWSYNC_SECTION_ENTRY(label, sect)		\
+label##2:						\
+	.pushsection sect,"a";				\
+	.align 2;					\
+label##3:					       	\
+	.long label##1b-label##3b;			\
+	.popsection;
+
 #endif /* __ASM_POWERPC_FEATURE_FIXUPS_H */

@@ -86,6 +86,12 @@ int module_finalize(const Elf_Ehdr *hdr,
 				  (void *)sect->sh_addr + sect->sh_size);
 #endif
 
+	sect = find_section(hdr, sechdrs, "__lwsync_fixup");
+	if (sect != NULL)
+		do_lwsync_fixups(cur_cpu_spec->cpu_features,
+				 (void *)sect->sh_addr,
+				 (void *)sect->sh_addr + sect->sh_size);
+
 	return 0;
 }
 

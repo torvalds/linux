@@ -12,7 +12,8 @@
 
 #include <asm/types.h>
 
-#define PPC_NOP_INSTR	0x60000000
+#define PPC_NOP_INSTR		0x60000000
+#define PPC_LWSYNC_INSTR	0x7c2004ac
 
 /* Flags for create_branch:
  * "b"   == create_branch(addr, target, 0);

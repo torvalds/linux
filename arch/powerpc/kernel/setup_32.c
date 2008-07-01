@@ -101,6 +101,10 @@ unsigned long __init early_init(unsigned long dt_ptr)
 			  PTRRELOC(&__start___ftr_fixup),
 			  PTRRELOC(&__stop___ftr_fixup));
 
+	do_lwsync_fixups(spec->cpu_features,
+			 PTRRELOC(&__start___lwsync_fixup),
+			 PTRRELOC(&__stop___lwsync_fixup));
+
 	return KERNELBASE + offset;
 }
 

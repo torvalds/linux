@@ -110,6 +110,22 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	}
 }
 
+void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
+{
+	unsigned int *start, *end, *dest;
+
+	if (!(value & CPU_FTR_LWSYNC))
+		return ;
+
+	start = fixup_start;
+	end = fixup_end;
+
+	for (; start < end; start++) {
+		dest = (void *)start + *start;
+		patch_instruction(dest, PPC_LWSYNC_INSTR);
+	}
+}
+
 #ifdef CONFIG_FTR_FIXUP_SELFTEST
 
 #define check(x)	\
@@ -295,6 +311,25 @@ static void test_fw_macros(void)
 #endif
 }
 
+static void test_lwsync_macros(void)
+{
+	extern void lwsync_fixup_test;
+	extern void end_lwsync_fixup_test;
+	extern void lwsync_fixup_test_expected_LWSYNC;
+	extern void lwsync_fixup_test_expected_SYNC;
+	unsigned long size = &end_lwsync_fixup_test -
+			     &lwsync_fixup_test;
+
+	/* The fixups have already been done for us during boot */
+	if (cur_cpu_spec->cpu_features & CPU_FTR_LWSYNC) {
+		check(memcmp(&lwsync_fixup_test,
+			     &lwsync_fixup_test_expected_LWSYNC, size) == 0);
+	} else {
+		check(memcmp(&lwsync_fixup_test,
+			     &lwsync_fixup_test_expected_SYNC, size) == 0);
+	}
+}
+
 static int __init test_feature_fixups(void)
 {
 	printk(KERN_DEBUG "Running feature fixup self-tests ...\n");
@@ -307,6 +342,7 @@ static int __init test_feature_fixups(void)
 	test_alternative_case_with_external_branch();
 	test_cpu_macros();
 	test_fw_macros();
+	test_lwsync_macros();
 
 	return 0;
 }

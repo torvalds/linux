@@ -10,6 +10,7 @@
 
 #include <asm/feature-fixups.h>
 #include <asm/ppc_asm.h>
+#include <asm/synch.h>
 
 	.text
 
@@ -725,3 +726,17 @@ MAKE_MACRO_TEST_EXPECTED(FTR);
 MAKE_MACRO_TEST(FW_FTR);
 MAKE_MACRO_TEST_EXPECTED(FW_FTR);
 #endif
+
+globl(lwsync_fixup_test)
+1:	or	1,1,1
+	LWSYNC
+globl(end_lwsync_fixup_test)
+
+globl(lwsync_fixup_test_expected_LWSYNC)
+1:	or	1,1,1
+	lwsync
+
+globl(lwsync_fixup_test_expected_SYNC)
+1:	or	1,1,1
+	sync
+
