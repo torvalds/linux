@@ -410,7 +410,7 @@ refault:
 static int spufs_cntl_mmap_fault(struct vm_area_struct *vma,
 					   struct vm_fault *vmf)
 {
-	return spufs_ps_fault(vma, vmf, 0x4000, 0x1000);
+	return spufs_ps_fault(vma, vmf, 0x4000, SPUFS_CNTL_MAP_SIZE);
 }
 
 static struct vm_operations_struct spufs_cntl_mmap_vmops = {
@@ -1102,13 +1102,13 @@ static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
 static int
 spufs_signal1_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-#if PAGE_SIZE == 0x1000
-	return spufs_ps_fault(vma, vmf, 0x14000, 0x1000);
-#elif PAGE_SIZE == 0x10000
+#if SPUFS_SIGNAL_MAP_SIZE == 0x1000
+	return spufs_ps_fault(vma, vmf, 0x14000, SPUFS_SIGNAL_MAP_SIZE);
+#elif SPUFS_SIGNAL_MAP_SIZE == 0x10000
 	/* For 64k pages, both signal1 and signal2 can be used to mmap the whole
 	 * signal 1 and 2 area
 	 */
-	return spufs_ps_fault(vma, vmf, 0x10000, 0x10000);
+	return spufs_ps_fault(vma, vmf, 0x10000, SPUFS_SIGNAL_MAP_SIZE);
 #else
 #error unsupported page size
 #endif
@@ -1239,13 +1239,13 @@ static ssize_t spufs_signal2_write(struct file *file, const char __user *buf,
 static int
 spufs_signal2_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-#if PAGE_SIZE == 0x1000
-	return spufs_ps_fault(vma, vmf, 0x1c000, 0x1000);
-#elif PAGE_SIZE == 0x10000
+#if SPUFS_SIGNAL_MAP_SIZE == 0x1000
+	return spufs_ps_fault(vma, vmf, 0x1c000, SPUFS_SIGNAL_MAP_SIZE);
+#elif SPUFS_SIGNAL_MAP_SIZE == 0x10000
 	/* For 64k pages, both signal1 and signal2 can be used to mmap the whole
 	 * signal 1 and 2 area
 	 */
-	return spufs_ps_fault(vma, vmf, 0x10000, 0x10000);
+	return spufs_ps_fault(vma, vmf, 0x10000, SPUFS_SIGNAL_MAP_SIZE);
 #else
 #error unsupported page size
 #endif
@@ -1367,7 +1367,7 @@ DEFINE_SPUFS_ATTRIBUTE(spufs_signal2_type, spufs_signal2_type_get,
 static int
 spufs_mss_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return spufs_ps_fault(vma, vmf, 0x0000, 0x1000);
+	return spufs_ps_fault(vma, vmf, 0x0000, SPUFS_MSS_MAP_SIZE);
 }
 
 static struct vm_operations_struct spufs_mss_mmap_vmops = {
@@ -1429,7 +1429,7 @@ static const struct file_operations spufs_mss_fops = {
 static int
 spufs_psmap_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return spufs_ps_fault(vma, vmf, 0x0000, 0x20000);
+	return spufs_ps_fault(vma, vmf, 0x0000, SPUFS_PS_MAP_SIZE);
 }
 
 static struct vm_operations_struct spufs_psmap_mmap_vmops = {
@@ -1489,7 +1489,7 @@ static const struct file_operations spufs_psmap_fops = {
 static int
 spufs_mfc_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return spufs_ps_fault(vma, vmf, 0x3000, 0x1000);
+	return spufs_ps_fault(vma, vmf, 0x3000, SPUFS_MFC_MAP_SIZE);
 }
 
 static struct vm_operations_struct spufs_mfc_mmap_vmops = {

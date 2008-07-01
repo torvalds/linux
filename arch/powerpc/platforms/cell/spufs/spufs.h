@@ -32,6 +32,13 @@
 #include <asm/spu_csa.h>
 #include <asm/spu_info.h>
 
+#define SPUFS_PS_MAP_SIZE	0x20000
+#define SPUFS_MFC_MAP_SIZE	0x1000
+#define SPUFS_CNTL_MAP_SIZE	0x1000
+#define SPUFS_CNTL_MAP_SIZE	0x1000
+#define SPUFS_SIGNAL_MAP_SIZE	PAGE_SIZE
+#define SPUFS_MSS_MAP_SIZE	0x1000
+
 /* The magic number for our file system */
 enum {
 	SPUFS_MAGIC = 0x23c9b64e,
