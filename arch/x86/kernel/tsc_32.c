@@ -15,52 +15,8 @@
 
 #include "mach_timer.h"
 
-/* native_sched_clock() is called before tsc_init(), so
-   we must start with the TSC soft disabled to prevent
-   erroneous rdtsc usage on !cpu_has_tsc processors */
-static int tsc_disabled = -1;
-
-/*
- * On some systems the TSC frequency does not
- * change with the cpu frequency. So we need
- * an extra value to store the TSC freq
- */
-unsigned int tsc_khz;
-EXPORT_SYMBOL_GPL(tsc_khz);
-
-#ifdef CONFIG_X86_TSC
-static int __init tsc_setup(char *str)
-{
-	printk(KERN_WARNING "notsc: Kernel compiled with CONFIG_X86_TSC, "
-	       "cannot disable TSC completely.\n");
-	tsc_disabled = 1;
-	return 1;
-}
-#else
-/*
- * disable flag for tsc. Takes effect by clearing the TSC cpu flag
- * in cpu/common.c
- */
-static int __init tsc_setup(char *str)
-{
-	setup_clear_cpu_cap(X86_FEATURE_TSC);
-	return 1;
-}
-#endif
-
-__setup("notsc", tsc_setup);
-
-/*
- * code to mark and check if the TSC is unstable
- * due to cpufreq or due to unsynced TSCs
- */
-static int tsc_unstable;
-
-int check_tsc_unstable(void)
-{
-	return tsc_unstable;
-}
-EXPORT_SYMBOL_GPL(check_tsc_unstable);
+extern int tsc_unstable;
+extern int tsc_disabled;
 
 /* Accelerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
@@ -108,44 +64,6 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	sched_clock_idle_wakeup_event(0);
 	local_irq_restore(flags);
 }
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long native_sched_clock(void)
-{
-	unsigned long long this_offset;
-
-	/*
-	 * Fall back to jiffies if there's no TSC available:
-	 * ( But note that we still use it if the TSC is marked
-	 *   unstable. We do this because unlike Time Of Day,
-	 *   the scheduler clock tolerates small errors and it's
-	 *   very important for it to be as fast as the platform
-	 *   can achive it. )
-	 */
-	if (unlikely(tsc_disabled))
-		/* No locking but a rare wrong value is not a big deal: */
-		return (jiffies_64 - INITIAL_JIFFIES) * (1000000000 / HZ);
-
-	/* read the Time Stamp Counter: */
-	rdtscll(this_offset);
-
-	/* return the value in ns */
-	return cycles_2_ns(this_offset);
-}
-
-/* We need to define a real function for sched_clock, to override the
-   weak default version */
-#ifdef CONFIG_PARAVIRT
-unsigned long long sched_clock(void)
-{
-	return paravirt_sched_clock();
-}
-#else
-unsigned long long sched_clock(void)
-	__attribute__((alias("native_sched_clock")));
-#endif
 
 unsigned long native_calculate_cpu_khz(void)
 {

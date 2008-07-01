@@ -13,12 +13,8 @@
 #include <asm/timer.h>
 #include <asm/vgtod.h>
 
-static int notsc __initdata = 0;
-
-unsigned int cpu_khz;		/* TSC clocks / usec, not used here */
-EXPORT_SYMBOL(cpu_khz);
-unsigned int tsc_khz;
-EXPORT_SYMBOL(tsc_khz);
+extern int tsc_unstable;
+extern int tsc_disabled;
 
 /* Accelerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
@@ -41,6 +37,7 @@ EXPORT_SYMBOL(tsc_khz);
  *
  *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
+
 DEFINE_PER_CPU(unsigned long, cyc2ns);
 
 static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
@@ -62,41 +59,6 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	sched_clock_idle_wakeup_event(0);
 	local_irq_restore(flags);
 }
-
-unsigned long long native_sched_clock(void)
-{
-	unsigned long a = 0;
-
-	/* Could do CPU core sync here. Opteron can execute rdtsc speculatively,
-	 * which means it is not completely exact and may not be monotonous
-	 * between CPUs. But the errors should be too small to matter for
-	 * scheduling purposes.
-	 */
-
-	rdtscll(a);
-	return cycles_2_ns(a);
-}
-
-/* We need to define a real function for sched_clock, to override the
-   weak default version */
-#ifdef CONFIG_PARAVIRT
-unsigned long long sched_clock(void)
-{
-	return paravirt_sched_clock();
-}
-#else
-unsigned long long
-sched_clock(void) __attribute__((alias("native_sched_clock")));
-#endif
-
-
-static int tsc_unstable;
-
-int check_tsc_unstable(void)
-{
-	return tsc_unstable;
-}
-EXPORT_SYMBOL_GPL(check_tsc_unstable);
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -281,14 +243,6 @@ __cpuinit int unsynchronized_tsc(void)
 	return num_present_cpus() > 1;
 }
 
-int __init notsc_setup(char *s)
-{
-	notsc = 1;
-	return 1;
-}
-
-__setup("notsc", notsc_setup);
-
 static struct clocksource clocksource_tsc;
 
 /*
@@ -346,12 +300,13 @@ EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
 void __init init_tsc_clocksource(void)
 {
-	if (!notsc) {
-		clocksource_tsc.mult = clocksource_khz2mult(tsc_khz,
-							clocksource_tsc.shift);
-		if (check_tsc_unstable())
-			clocksource_tsc.rating = 0;
+	if (tsc_disabled > 0)
+		return;
 
-		clocksource_register(&clocksource_tsc);
-	}
+	clocksource_tsc.mult = clocksource_khz2mult(tsc_khz,
+			clocksource_tsc.shift);
+	if (check_tsc_unstable())
+		clocksource_tsc.rating = 0;
+
+	clocksource_register(&clocksource_tsc);
 }

@@ -39,9 +39,6 @@
 
 #include "do_timer.h"
 
-unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
-EXPORT_SYMBOL(cpu_khz);
-
 int timer_ack;
 
 unsigned long profile_pc(struct pt_regs *regs)
