@@ -733,31 +733,34 @@ asmlinkage void do_double_fault(struct pt_regs * regs, long error_code)
 		die(str, regs, error_code);
 }
 
-asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
-						long error_code)
+asmlinkage void __kprobes
+do_general_protection(struct pt_regs *regs, long error_code)
 {
-	struct task_struct *tsk = current;
+	struct task_struct *tsk;
 
 	conditional_sti(regs);
 
-	if (user_mode(regs)) {
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = 13;
+	tsk = current;
+	if (!user_mode(regs))
+		goto gp_in_kernel;
 
-		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
-		    printk_ratelimit()) {
-			printk(KERN_INFO
-		       "%s[%d] general protection ip:%lx sp:%lx error:%lx",
-			       tsk->comm, tsk->pid,
-			       regs->ip, regs->sp, error_code);
-			print_vma_addr(" in ", regs->ip);
-			printk("\n");
-		}
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 13;
 
-		force_sig(SIGSEGV, tsk);
-		return;
-	} 
+	if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
+			printk_ratelimit()) {
+		printk(KERN_INFO
+			"%s[%d] general protection ip:%lx sp:%lx error:%lx",
+			tsk->comm, tsk->pid,
+			regs->ip, regs->sp, error_code);
+		print_vma_addr(" in ", regs->ip);
+		printk("\n");
+	}
 
+	force_sig(SIGSEGV, tsk);
+	return;
+
+gp_in_kernel:
 	if (fixup_exception(regs))
 		return;
 

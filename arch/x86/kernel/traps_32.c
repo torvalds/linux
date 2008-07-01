@@ -598,8 +598,10 @@ DO_ERROR(12, SIGBUS, "stack segment", stack_segment)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
 DO_ERROR_INFO(32, SIGILL, "iret exception", iret_error, ILL_BADSTK, 0, 1)
 
-void __kprobes do_general_protection(struct pt_regs *regs, long error_code)
+void __kprobes
+do_general_protection(struct pt_regs *regs, long error_code)
 {
+	struct task_struct *tsk;
 	struct thread_struct *thread;
 	struct tss_struct *tss;
 	int cpu;
@@ -640,23 +642,24 @@ void __kprobes do_general_protection(struct pt_regs *regs, long error_code)
 	if (regs->flags & X86_VM_MASK)
 		goto gp_in_vm86;
 
+	tsk = current;
 	if (!user_mode(regs))
 		goto gp_in_kernel;
 
-	current->thread.error_code = error_code;
-	current->thread.trap_no = 13;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 13;
 
-	if (show_unhandled_signals && unhandled_signal(current, SIGSEGV) &&
-	    printk_ratelimit()) {
+	if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
+			printk_ratelimit()) {
 		printk(KERN_INFO
-		    "%s[%d] general protection ip:%lx sp:%lx error:%lx",
-		    current->comm, task_pid_nr(current),
-		    regs->ip, regs->sp, error_code);
+			"%s[%d] general protection ip:%lx sp:%lx error:%lx",
+			tsk->comm, task_pid_nr(tsk),
+			regs->ip, regs->sp, error_code);
 		print_vma_addr(" in ", regs->ip);
 		printk("\n");
 	}
 
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV, tsk);
 	return;
 
 gp_in_vm86:
@@ -665,14 +668,15 @@ gp_in_vm86:
 	return;
 
 gp_in_kernel:
-	if (!fixup_exception(regs)) {
-		current->thread.error_code = error_code;
-		current->thread.trap_no = 13;
-		if (notify_die(DIE_GPF, "general protection fault", regs,
+	if (fixup_exception(regs))
+		return;
+
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 13;
+	if (notify_die(DIE_GPF, "general protection fault", regs,
 				error_code, 13, SIGSEGV) == NOTIFY_STOP)
-			return;
-		die("general protection fault", regs, error_code);
-	}
+		return;
+	die("general protection fault", regs, error_code);
 }
 
 static notrace __kprobes void
