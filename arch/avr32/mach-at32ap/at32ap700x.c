@@ -1883,9 +1883,11 @@ static struct clk atmel_ac97c0_pclk = {
 	.index		= 10,
 };
 
-struct platform_device *__init at32_add_device_ac97c(unsigned int id)
+struct platform_device *__init
+at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data)
 {
 	struct platform_device *pdev;
+	struct ac97c_platform_data _data;
 
 	if (id != 0)
 		return NULL;
@@ -1896,19 +1898,37 @@ struct platform_device *__init at32_add_device_ac97c(unsigned int id)
 
 	if (platform_device_add_resources(pdev, atmel_ac97c0_resource,
 				ARRAY_SIZE(atmel_ac97c0_resource)))
-		goto err_add_resources;
+		goto fail;
 
-	select_peripheral(PB(20), PERIPH_B, 0);	/* SYNC	*/
-	select_peripheral(PB(21), PERIPH_B, 0);	/* SDO	*/
-	select_peripheral(PB(22), PERIPH_B, 0);	/* SDI	*/
-	select_peripheral(PB(23), PERIPH_B, 0);	/* SCLK	*/
+	if (!data) {
+		data = &_data;
+		memset(data, 0, sizeof(struct ac97c_platform_data));
+		data->reset_pin = GPIO_PIN_NONE;
+	}
+
+	data->dma_rx_periph_id = 3;
+	data->dma_tx_periph_id = 4;
+	data->dma_controller_id = 0;
+
+	if (platform_device_add_data(pdev, data,
+				sizeof(struct ac97c_platform_data)))
+		goto fail;
+
+	select_peripheral(PB(20), PERIPH_B, 0);	/* SDO	*/
+	select_peripheral(PB(21), PERIPH_B, 0);	/* SYNC	*/
+	select_peripheral(PB(22), PERIPH_B, 0);	/* SCLK	*/
+	select_peripheral(PB(23), PERIPH_B, 0);	/* SDI	*/
+
+	/* TODO: gpio_is_valid(data->reset_pin) with kernel 2.6.26. */
+	if (data->reset_pin != GPIO_PIN_NONE)
+		at32_select_gpio(data->reset_pin, 0);
 
 	atmel_ac97c0_pclk.dev = &pdev->dev;
 
 	platform_device_add(pdev);
 	return pdev;
 
-err_add_resources:
+fail:
 	platform_device_put(pdev);
 	return NULL;
 }
