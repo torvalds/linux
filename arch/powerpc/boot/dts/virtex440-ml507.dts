@@ -1,0 +1,238 @@
+/*
+ * This file supports the Xilinx ML507 board with the 440 processor.
+ * A reference design for the FPGA is provided at http://git.xilinx.com.
+ *
+ * (C) Copyright 2008 Xilinx, Inc.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "xlnx,virtex440";
+	dcr-parent = <&ppc440_virtex5_0>;
+	model = "testing";
+	chosen {
+		bootargs = "console=ttyS0 ip=on root=/dev/ram";
+		linux,stdout-path = "/plb@0/serial@d0000000";
+	} ;
+	cpus {
+		#address-cells = <1>;
+		#cpus = <1>;
+		#size-cells = <0>;
+		ppc440_virtex5_0: cpu@0 {
+			clock-frequency = <17d78400>;
+			compatible = "PowerPC,440", "ibm,ppc440";
+			d-cache-line-size = <20>;
+			d-cache-size = <8000>;
+			dcr-access-method = "native";
+			dcr-controller ;
+			device_type = "cpu";
+			i-cache-line-size = <20>;
+			i-cache-size = <8000>;
+			model = "PowerPC,440";
+			reg = <0>;
+			timebase-frequency = <17d78400>;
+			xlnx,apu-control = <1>;
+			xlnx,apu-udi-0 = <c07701>;
+			xlnx,apu-udi-1 = <c47701>;
+			xlnx,apu-udi-10 = <0>;
+			xlnx,apu-udi-11 = <0>;
+			xlnx,apu-udi-12 = <0>;
+			xlnx,apu-udi-13 = <0>;
+			xlnx,apu-udi-14 = <0>;
+			xlnx,apu-udi-15 = <0>;
+			xlnx,apu-udi-2 = <0>;
+			xlnx,apu-udi-3 = <0>;
+			xlnx,apu-udi-4 = <0>;
+			xlnx,apu-udi-5 = <0>;
+			xlnx,apu-udi-6 = <0>;
+			xlnx,apu-udi-7 = <0>;
+			xlnx,apu-udi-8 = <0>;
+			xlnx,apu-udi-9 = <0>;
+			xlnx,dcr-autolock-enable = <1>;
+			xlnx,dcu-rd-ld-cache-plb-prio = <0>;
+			xlnx,dcu-rd-noncache-plb-prio = <0>;
+			xlnx,dcu-rd-touch-plb-prio = <0>;
+			xlnx,dcu-rd-urgent-plb-prio = <0>;
+			xlnx,dcu-wr-flush-plb-prio = <0>;
+			xlnx,dcu-wr-store-plb-prio = <0>;
+			xlnx,dcu-wr-urgent-plb-prio = <0>;
+			xlnx,dma0-control = <0>;
+			xlnx,dma0-plb-prio = <0>;
+			xlnx,dma0-rxchannelctrl = <1010000>;
+			xlnx,dma0-rxirqtimer = <3ff>;
+			xlnx,dma0-txchannelctrl = <1010000>;
+			xlnx,dma0-txirqtimer = <3ff>;
+			xlnx,dma1-control = <0>;
+			xlnx,dma1-plb-prio = <0>;
+			xlnx,dma1-rxchannelctrl = <1010000>;
+			xlnx,dma1-rxirqtimer = <3ff>;
+			xlnx,dma1-txchannelctrl = <1010000>;
+			xlnx,dma1-txirqtimer = <3ff>;
+			xlnx,dma2-control = <0>;
+			xlnx,dma2-plb-prio = <0>;
+			xlnx,dma2-rxchannelctrl = <1010000>;
+			xlnx,dma2-rxirqtimer = <3ff>;
+			xlnx,dma2-txchannelctrl = <1010000>;
+			xlnx,dma2-txirqtimer = <3ff>;
+			xlnx,dma3-control = <0>;
+			xlnx,dma3-plb-prio = <0>;
+			xlnx,dma3-rxchannelctrl = <1010000>;
+			xlnx,dma3-rxirqtimer = <3ff>;
+			xlnx,dma3-txchannelctrl = <1010000>;
+			xlnx,dma3-txirqtimer = <3ff>;
+			xlnx,endian-reset = <0>;
+			xlnx,generate-plb-timespecs = <1>;
+			xlnx,icu-rd-fetch-plb-prio = <0>;
+			xlnx,icu-rd-spec-plb-prio = <0>;
+			xlnx,icu-rd-touch-plb-prio = <0>;
+			xlnx,interconnect-imask = <ffffffff>;
+			xlnx,mplb-allow-lock-xfer = <1>;
+			xlnx,mplb-arb-mode = <0>;
+			xlnx,mplb-awidth = <20>;
+			xlnx,mplb-counter = <500>;
+			xlnx,mplb-dwidth = <80>;
+			xlnx,mplb-max-burst = <8>;
+			xlnx,mplb-native-dwidth = <80>;
+			xlnx,mplb-p2p = <0>;
+			xlnx,mplb-prio-dcur = <2>;
+			xlnx,mplb-prio-dcuw = <3>;
+			xlnx,mplb-prio-icu = <4>;
+			xlnx,mplb-prio-splb0 = <1>;
+			xlnx,mplb-prio-splb1 = <0>;
+			xlnx,mplb-read-pipe-enable = <1>;
+			xlnx,mplb-sync-tattribute = <0>;
+			xlnx,mplb-wdog-enable = <1>;
+			xlnx,mplb-write-pipe-enable = <1>;
+			xlnx,mplb-write-post-enable = <1>;
+			xlnx,num-dma = <1>;
+			xlnx,pir = <f>;
+			xlnx,ppc440mc-addr-base = <0>;
+			xlnx,ppc440mc-addr-high = <1fffffff>;
+			xlnx,ppc440mc-arb-mode = <0>;
+			xlnx,ppc440mc-bank-conflict-mask = <c00000>;
+			xlnx,ppc440mc-control = <f810008f>;
+			xlnx,ppc440mc-max-burst = <8>;
+			xlnx,ppc440mc-prio-dcur = <2>;
+			xlnx,ppc440mc-prio-dcuw = <3>;
+			xlnx,ppc440mc-prio-icu = <4>;
+			xlnx,ppc440mc-prio-splb0 = <1>;
+			xlnx,ppc440mc-prio-splb1 = <0>;
+			xlnx,ppc440mc-row-conflict-mask = <3ffe00>;
+			xlnx,ppcdm-asyncmode = <0>;
+			xlnx,ppcds-asyncmode = <0>;
+			xlnx,user-reset = <0>;
+			DMA0: sdma@80 {
+				compatible = "xlnx,ll-dma-1.00.a";
+				dcr-reg = < 80 11 >;
+				interrupt-parent = <&opb_intc_0>;
+				interrupts = < 5 2 6 2 >;
+			} ;
+		} ;
+	} ;
+	plb_v46_cfb_0: plb@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "xlnx,plb-v46-1.02.a";
+		ranges ;
+		iic_bus: i2c@d0020000 {
+			compatible = "xlnx,xps-iic-2.00.a";
+			interrupt-parent = <&opb_intc_0>;
+			interrupts = < 7 2 >;
+			reg = < d0020000 200 >;
+			xlnx,clk-freq = <5f5e100>;
+			xlnx,family = "virtex5";
+			xlnx,gpo-width = <1>;
+			xlnx,iic-freq = <186a0>;
+			xlnx,scl-inertial-delay = <0>;
+			xlnx,sda-inertial-delay = <0>;
+			xlnx,ten-bit-adr = <0>;
+		} ;
+		leds_8bit: gpio@d0010200 {
+			compatible = "xlnx,xps-gpio-1.00.a";
+			interrupt-parent = <&opb_intc_0>;
+			interrupts = < 1 2 >;
+			reg = < d0010200 200 >;
+			xlnx,all-inputs = <0>;
+			xlnx,all-inputs-2 = <0>;
+			xlnx,dout-default = <0>;
+			xlnx,dout-default-2 = <0>;
+			xlnx,family = "virtex5";
+			xlnx,gpio-width = <8>;
+			xlnx,interrupt-present = <1>;
+			xlnx,is-bidir = <1>;
+			xlnx,is-bidir-2 = <1>;
+			xlnx,is-dual = <0>;
+			xlnx,tri-default = <ffffffff>;
+			xlnx,tri-default-2 = <ffffffff>;
+		} ;
+		ll_temac_0: xps-ll-temac@91200000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "xlnx,compound";
+			ethernet@91200000 {
+				compatible = "xlnx,xps-ll-temac-1.01.a";
+				device_type = "network";
+				interrupt-parent = <&opb_intc_0>;
+				interrupts = < 4 2 >;
+				llink-connected = <&DMA0>;
+				local-mac-address = [ 02 00 00 00 00 00 ];
+				reg = < 91200000 40 >;
+				xlnx,bus2core-clk-ratio = <1>;
+				xlnx,phy-type = <1>;
+				xlnx,phyaddr = <1>;
+				xlnx,rxcsum = <0>;
+				xlnx,rxfifo = <4000>;
+				xlnx,temac-type = <0>;
+				xlnx,txcsum = <0>;
+				xlnx,txfifo = <4000>;
+			} ;
+		} ;
+		opb_intc_0: interrupt-controller@d0020200 {
+			#interrupt-cells = <2>;
+			compatible = "xlnx,xps-intc-1.00.a";
+			interrupt-controller ;
+			reg = < d0020200 20 >;
+			xlnx,num-intr-inputs = <8>;
+		} ;
+		plb_bram_if_cntlr_0: xps-bram-if-cntlr@ffff0000 {
+			compatible = "xlnx,xps-bram-if-cntlr-1.00.a";
+			reg = < ffff0000 10000 >;
+			xlnx,family = "virtex5";
+		} ;
+		plb_bram_if_cntlr_1: xps-bram-if-cntlr@eee00000 {
+			compatible = "xlnx,xps-bram-if-cntlr-1.00.a";
+			reg = < eee00000 2000 >;
+			xlnx,family = "virtex5";
+		} ;
+		rs232_uart_0: serial@d0000000 {
+			clock-frequency = <1312d00>;
+			compatible = "xlnx,xps-uart16550-2.00.a", "ns16550";
+			current-speed = <2580>;
+			device_type = "serial";
+			interrupt-parent = <&opb_intc_0>;
+			interrupts = < 0 2 >;
+			reg = < d0000000 2000 >;
+			reg-offset = <1003>;
+			reg-shift = <2>;
+			xlnx,family = "virtex5";
+			xlnx,has-external-rclk = <0>;
+			xlnx,has-external-xin = <1>;
+			xlnx,is-a-16550 = <1>;
+		} ;
+		sysace_compactflash: sysace@d0030100 {
+			compatible = "xlnx,xps-sysace-1.00.a";
+			reg = < d0030100 80 >;
+			xlnx,family = "virtex5";
+			xlnx,mem-width = <10>;
+		} ;
+	} ;
+	ppc440mc_ddr2_0: memory@0 {
+		device_type = "memory";
+		reg = < 0 20000000 >;
+	} ;
+}  ;
