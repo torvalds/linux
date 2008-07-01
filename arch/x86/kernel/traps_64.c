@@ -10,49 +10,49 @@
  * 'Traps.c' handles hardware traps and faults after we have saved some
  * state in 'entry.S'.
  */
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/errno.h>
-#include <linux/ptrace.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/spinlock.h>
+#include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/nmi.h>
+#include <linux/spinlock.h>
 #include <linux/kprobes.h>
-#include <linux/kexec.h>
-#include <linux/unwind.h>
 #include <linux/uaccess.h>
-#include <linux/bug.h>
-#include <linux/kdebug.h>
 #include <linux/utsname.h>
-
-#include <mach_traps.h>
+#include <linux/kdebug.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/ptrace.h>
+#include <linux/string.h>
+#include <linux/unwind.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/kexec.h>
+#include <linux/sched.h>
+#include <linux/timer.h>
+#include <linux/init.h>
+#include <linux/bug.h>
+#include <linux/nmi.h>
+#include <linux/mm.h>
 
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
 
-#include <asm/system.h>
-#include <asm/io.h>
-#include <asm/atomic.h>
+#include <asm/stacktrace.h>
+#include <asm/processor.h>
 #include <asm/debugreg.h>
+#include <asm/atomic.h>
+#include <asm/system.h>
+#include <asm/unwind.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
-#include <asm/processor.h>
-#include <asm/unwind.h>
-#include <asm/smp.h>
-#include <asm/pgalloc.h>
-#include <asm/pda.h>
-#include <asm/proto.h>
 #include <asm/nmi.h>
-#include <asm/stacktrace.h>
+#include <asm/smp.h>
+#include <asm/io.h>
+#include <asm/pgalloc.h>
+#include <asm/proto.h>
+#include <asm/pda.h>
+
+#include <mach_traps.h>
 
 asmlinkage void divide_error(void);
 asmlinkage void debug(void);
@@ -72,12 +72,14 @@ asmlinkage void page_fault(void);
 asmlinkage void coprocessor_error(void);
 asmlinkage void simd_coprocessor_error(void);
 asmlinkage void alignment_check(void);
-asmlinkage void machine_check(void);
 asmlinkage void spurious_interrupt_bug(void);
+asmlinkage void machine_check(void);
 
 int panic_on_unrecovered_nmi;
+int kstack_depth_to_print = 12;
 static unsigned int code_bytes = 64;
-static unsigned ignore_nmis;
+static int ignore_nmis;
+static int die_counter;
 
 static inline void conditional_sti(struct pt_regs *regs)
 {
@@ -100,8 +102,6 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	   on an exception stack. */
 	dec_preempt_count();
 }
-
-int kstack_depth_to_print = 12;
 
 void printk_address(unsigned long address, int reliable)
 {
@@ -559,7 +559,6 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 
 int __kprobes __die(const char * str, struct pt_regs * regs, long err)
 {
-	static int die_counter;
 	printk(KERN_EMERG "%s: %04lx [%u] ", str, err & 0xffff,++die_counter);
 #ifdef CONFIG_PREEMPT
 	printk("PREEMPT ");

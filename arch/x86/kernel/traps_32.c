@@ -61,8 +61,6 @@
 
 #include "mach_traps.h"
 
-int panic_on_unrecovered_nmi;
-
 DECLARE_BITMAP(used_vectors, NR_VECTORS);
 EXPORT_SYMBOL_GPL(used_vectors);
 
@@ -99,8 +97,11 @@ asmlinkage void alignment_check(void);
 asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
+int panic_on_unrecovered_nmi;
 int kstack_depth_to_print = 24;
 static unsigned int code_bytes = 64;
+static int ignore_nmis;
+static int die_counter;
 
 void printk_address(unsigned long address, int reliable)
 {
@@ -381,8 +382,6 @@ int is_valid_bugaddr(unsigned long ip)
 
 	return ud2 == 0x0b0f;
 }
-
-static int die_counter;
 
 int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 {
@@ -828,8 +827,6 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	 */
 	reassert_nmi();
 }
-
-static int ignore_nmis;
 
 notrace __kprobes void do_nmi(struct pt_regs *regs, long error_code)
 {
