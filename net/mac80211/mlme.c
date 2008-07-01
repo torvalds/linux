@@ -1536,6 +1536,35 @@ void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
 	ieee80211_sta_tx(dev, skb, 0);
 }
 
+void ieee80211_send_bar(struct net_device *dev, u8 *ra, u16 tid, u16 ssn)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct sk_buff *skb;
+	struct ieee80211_bar *bar;
+	u16 bar_control = 0;
+
+	skb = dev_alloc_skb(sizeof(*bar) + local->hw.extra_tx_headroom);
+	if (!skb) {
+		printk(KERN_ERR "%s: failed to allocate buffer for "
+			"bar frame\n", dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	bar = (struct ieee80211_bar *)skb_put(skb, sizeof(*bar));
+	memset(bar, 0, sizeof(*bar));
+	bar->frame_control = IEEE80211_FC(IEEE80211_FTYPE_CTL,
+					IEEE80211_STYPE_BACK_REQ);
+	memcpy(bar->ra, ra, ETH_ALEN);
+	memcpy(bar->ta, dev->dev_addr, ETH_ALEN);
+	bar_control |= (u16)IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL;
+	bar_control |= (u16)IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA;
+	bar_control |= (u16)(tid << 12);
+	bar->control = cpu_to_le16(bar_control);
+	bar->start_seq_num = cpu_to_le16(ssn);
+
+	ieee80211_sta_tx(dev, skb, 0);
+}
+
 void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *ra, u16 tid,
 					u16 initiator, u16 reason)
 {

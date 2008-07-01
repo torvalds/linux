@@ -658,6 +658,10 @@ struct ieee80211_bar {
 	__le16 start_seq_num;
 } __attribute__((packed));
 
+/* 802.11 BAR control masks */
+#define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
+#define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
+
 /**
  * struct ieee80211_ht_cap - HT capabilities
  *

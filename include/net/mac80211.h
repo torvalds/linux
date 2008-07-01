@@ -235,6 +235,8 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_STAT_ACK: Frame was acknowledged
  * @IEEE80211_TX_STAT_AMPDU: The frame was aggregated, so status
  * 	is for the whole aggregation.
+ * @IEEE80211_TX_STAT_AMPDU_NO_BACK: no block ack was returned,
+ * 	so consider using block ack request (BAR).
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -260,6 +262,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_STAT_TX_FILTERED		= BIT(20),
 	IEEE80211_TX_STAT_ACK			= BIT(21),
 	IEEE80211_TX_STAT_AMPDU			= BIT(22),
+	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(23),
 };
 
 

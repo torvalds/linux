@@ -1404,14 +1404,15 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u16 frag, type;
+	__le16 fc;
 	struct ieee80211_tx_status_rtap_hdr *rthdr;
 	struct ieee80211_sub_if_data *sdata;
 	struct net_device *prev_dev = NULL;
+	struct sta_info *sta;
 
 	rcu_read_lock();
 
 	if (info->status.excessive_retries) {
-		struct sta_info *sta;
 		sta = sta_info_get(local, hdr->addr1);
 		if (sta) {
 			if (test_sta_flags(sta, WLAN_STA_PS)) {
@@ -1426,8 +1427,24 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
+	fc = hdr->frame_control;
+
+	if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
+	    (ieee80211_is_data_qos(fc))) {
+		u16 tid, ssn;
+		u8 *qc;
+		sta = sta_info_get(local, hdr->addr1);
+		if (sta) {
+			qc = ieee80211_get_qos_ctl(hdr);
+			tid = qc[0] & 0xf;
+			ssn = ((le16_to_cpu(hdr->seq_ctrl) + 0x10)
+						& IEEE80211_SCTL_SEQ);
+			ieee80211_send_bar(sta->sdata->dev, hdr->addr1,
+					   tid, ssn);
+		}
+	}
+
 	if (info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
-		struct sta_info *sta;
 		sta = sta_info_get(local, hdr->addr1);
 		if (sta) {
 			ieee80211_handle_filtered_frame(local, sta, skb);

@@ -904,6 +904,7 @@ void ieee80211_send_addba_request(struct net_device *dev, const u8 *da,
 				  u16 agg_size, u16 timeout);
 void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
 				u16 initiator, u16 reason_code);
+void ieee80211_send_bar(struct net_device *dev, u8 *ra, u16 tid, u16 ssn);
 
 void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
