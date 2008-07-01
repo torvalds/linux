@@ -436,6 +436,19 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		mdelay(20);
 		cx_set(GP0_IO, 0x00050005);
 		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
+		/* GPIO-0 xc5000 tuner reset i2c bus 0 */
+		/* GPIO-1 s5h1409 demod reset i2c bus 0 */
+		/* GPIO-2 xc5000 tuner reset i2c bus 1 */
+		/* GPIO-3 s5h1409 demod reset i2c bus 0 */
+
+		/* Put the parts into reset and back */
+		cx_set(GP0_IO, 0x000f0000);
+		mdelay(20);
+		cx_clear(GP0_IO, 0x0000000f);
+		mdelay(20);
+		cx_set(GP0_IO, 0x000f000f);
+		break;
 	}
 }
 
