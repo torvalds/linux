@@ -1,7 +1,11 @@
+#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
+#include <linux/acpi_pmtmr.h>
+
+#include <asm/hpet.h>
 
 unsigned int cpu_khz;           /* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
@@ -84,3 +88,130 @@ int __init notsc_setup(char *str)
 #endif
 
 __setup("notsc", notsc_setup);
+
+#define MAX_RETRIES     5
+#define SMI_TRESHOLD    50000
+
+/*
+ * Read TSC and the reference counters. Take care of SMI disturbance
+ */
+static u64 __init tsc_read_refs(u64 *pm, u64 *hpet)
+{
+	u64 t1, t2;
+	int i;
+
+	for (i = 0; i < MAX_RETRIES; i++) {
+		t1 = get_cycles();
+		if (hpet)
+			*hpet = hpet_readl(HPET_COUNTER) & 0xFFFFFFFF;
+		else
+			*pm = acpi_pm_read_early();
+		t2 = get_cycles();
+		if ((t2 - t1) < SMI_TRESHOLD)
+			return t2;
+	}
+	return ULLONG_MAX;
+}
+
+/**
+ * tsc_calibrate - calibrate the tsc on boot
+ */
+static unsigned int __init tsc_calibrate(void)
+{
+	unsigned long flags;
+	u64 tsc1, tsc2, tr1, tr2, delta, pm1, pm2, hpet1, hpet2;
+	int hpet = is_hpet_enabled();
+	unsigned int tsc_khz_val = 0;
+
+	local_irq_save(flags);
+
+	tsc1 = tsc_read_refs(&pm1, hpet ? &hpet1 : NULL);
+
+	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
+
+	outb(0xb0, 0x43);
+	outb((CLOCK_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
+	outb((CLOCK_TICK_RATE / (1000 / 50)) >> 8, 0x42);
+	tr1 = get_cycles();
+	while ((inb(0x61) & 0x20) == 0);
+	tr2 = get_cycles();
+
+	tsc2 = tsc_read_refs(&pm2, hpet ? &hpet2 : NULL);
+
+	local_irq_restore(flags);
+
+	/*
+	 * Preset the result with the raw and inaccurate PIT
+	 * calibration value
+	 */
+	delta = (tr2 - tr1);
+	do_div(delta, 50);
+	tsc_khz_val = delta;
+
+	/* hpet or pmtimer available ? */
+	if (!hpet && !pm1 && !pm2) {
+		printk(KERN_INFO "TSC calibrated against PIT\n");
+		goto out;
+	}
+
+	/* Check, whether the sampling was disturbed by an SMI */
+	if (tsc1 == ULLONG_MAX || tsc2 == ULLONG_MAX) {
+		printk(KERN_WARNING "TSC calibration disturbed by SMI, "
+				"using PIT calibration result\n");
+		goto out;
+	}
+
+	tsc2 = (tsc2 - tsc1) * 1000000LL;
+
+	if (hpet) {
+		printk(KERN_INFO "TSC calibrated against HPET\n");
+		if (hpet2 < hpet1)
+			hpet2 += 0x100000000ULL;
+		hpet2 -= hpet1;
+		tsc1 = ((u64)hpet2 * hpet_readl(HPET_PERIOD));
+		do_div(tsc1, 1000000);
+	} else {
+		printk(KERN_INFO "TSC calibrated against PM_TIMER\n");
+		if (pm2 < pm1)
+			pm2 += (u64)ACPI_PM_OVRRUN;
+		pm2 -= pm1;
+		tsc1 = pm2 * 1000000000LL;
+		do_div(tsc1, PMTMR_TICKS_PER_SEC);
+	}
+
+	do_div(tsc2, tsc1);
+	tsc_khz_val = tsc2;
+
+out:
+	return tsc_khz_val;
+}
+
+unsigned long native_calculate_cpu_khz(void)
+{
+	return tsc_calibrate();
+}
+
+#ifdef CONFIG_X86_32
+/* Only called from the Powernow K7 cpu freq driver */
+int recalibrate_cpu_khz(void)
+{
+#ifndef CONFIG_SMP
+	unsigned long cpu_khz_old = cpu_khz;
+
+	if (cpu_has_tsc) {
+		cpu_khz = calculate_cpu_khz();
+		tsc_khz = cpu_khz;
+		cpu_data(0).loops_per_jiffy =
+			cpufreq_scale(cpu_data(0).loops_per_jiffy,
+					cpu_khz_old, cpu_khz);
+		return 0;
+	} else
+		return -ENODEV;
+#else
+	return -ENODEV;
+#endif
+}
+
+EXPORT_SYMBOL(recalibrate_cpu_khz);
+
+#endif /* CONFIG_X86_32 */

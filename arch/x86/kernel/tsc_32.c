@@ -42,7 +42,7 @@ extern int tsc_disabled;
 
 DEFINE_PER_CPU(unsigned long, cyc2ns);
 
-static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
+void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 {
 	unsigned long long tsc_now, ns_now;
 	unsigned long flags, *scale;
@@ -64,78 +64,6 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	sched_clock_idle_wakeup_event(0);
 	local_irq_restore(flags);
 }
-
-unsigned long native_calculate_cpu_khz(void)
-{
-	unsigned long long start, end;
-	unsigned long count;
-	u64 delta64 = (u64)ULLONG_MAX;
-	int i;
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	/* run 3 times to ensure the cache is warm and to get an accurate reading */
-	for (i = 0; i < 3; i++) {
-		mach_prepare_counter();
-		rdtscll(start);
-		mach_countup(&count);
-		rdtscll(end);
-
-		/*
-		 * Error: ECTCNEVERSET
-		 * The CTC wasn't reliable: we got a hit on the very first read,
-		 * or the CPU was so fast/slow that the quotient wouldn't fit in
-		 * 32 bits..
-		 */
-		if (count <= 1)
-			continue;
-
-		/* cpu freq too slow: */
-		if ((end - start) <= CALIBRATE_TIME_MSEC)
-			continue;
-
-		/*
-		 * We want the minimum time of all runs in case one of them
-		 * is inaccurate due to SMI or other delay
-		 */
-		delta64 = min(delta64, (end - start));
-	}
-
-	/* cpu freq too fast (or every run was bad): */
-	if (delta64 > (1ULL<<32))
-		goto err;
-
-	delta64 += CALIBRATE_TIME_MSEC/2; /* round for do_div */
-	do_div(delta64,CALIBRATE_TIME_MSEC);
-
-	local_irq_restore(flags);
-	return (unsigned long)delta64;
-err:
-	local_irq_restore(flags);
-	return 0;
-}
-
-int recalibrate_cpu_khz(void)
-{
-#ifndef CONFIG_SMP
-	unsigned long cpu_khz_old = cpu_khz;
-
-	if (cpu_has_tsc) {
-		cpu_khz = calculate_cpu_khz();
-		tsc_khz = cpu_khz;
-		cpu_data(0).loops_per_jiffy =
-			cpufreq_scale(cpu_data(0).loops_per_jiffy,
-					cpu_khz_old, cpu_khz);
-		return 0;
-	} else
-		return -ENODEV;
-#else
-	return -ENODEV;
-#endif
-}
-
-EXPORT_SYMBOL(recalibrate_cpu_khz);
 
 #ifdef CONFIG_CPU_FREQ
 

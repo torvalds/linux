@@ -40,7 +40,7 @@ extern int tsc_disabled;
 
 DEFINE_PER_CPU(unsigned long, cyc2ns);
 
-static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
+void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 {
 	unsigned long long tsc_now, ns_now;
 	unsigned long flags, *scale;
@@ -129,98 +129,6 @@ static int __init cpufreq_tsc(void)
 core_initcall(cpufreq_tsc);
 
 #endif
-
-#define MAX_RETRIES	5
-#define SMI_TRESHOLD	50000
-
-/*
- * Read TSC and the reference counters. Take care of SMI disturbance
- */
-static unsigned long __init tsc_read_refs(unsigned long *pm,
-					  unsigned long *hpet)
-{
-	unsigned long t1, t2;
-	int i;
-
-	for (i = 0; i < MAX_RETRIES; i++) {
-		t1 = get_cycles();
-		if (hpet)
-			*hpet = hpet_readl(HPET_COUNTER) & 0xFFFFFFFF;
-		else
-			*pm = acpi_pm_read_early();
-		t2 = get_cycles();
-		if ((t2 - t1) < SMI_TRESHOLD)
-			return t2;
-	}
-	return ULONG_MAX;
-}
-
-/**
- * tsc_calibrate - calibrate the tsc on boot
- */
-void __init tsc_calibrate(void)
-{
-	unsigned long flags, tsc1, tsc2, tr1, tr2, pm1, pm2, hpet1, hpet2;
-	int hpet = is_hpet_enabled(), cpu;
-
-	local_irq_save(flags);
-
-	tsc1 = tsc_read_refs(&pm1, hpet ? &hpet1 : NULL);
-
-	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
-
-	outb(0xb0, 0x43);
-	outb((CLOCK_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
-	outb((CLOCK_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-	tr1 = get_cycles();
-	while ((inb(0x61) & 0x20) == 0);
-	tr2 = get_cycles();
-
-	tsc2 = tsc_read_refs(&pm2, hpet ? &hpet2 : NULL);
-
-	local_irq_restore(flags);
-
-	/*
-	 * Preset the result with the raw and inaccurate PIT
-	 * calibration value
-	 */
-	tsc_khz = (tr2 - tr1) / 50;
-
-	/* hpet or pmtimer available ? */
-	if (!hpet && !pm1 && !pm2) {
-		printk(KERN_INFO "TSC calibrated against PIT\n");
-		goto out;
-	}
-
-	/* Check, whether the sampling was disturbed by an SMI */
-	if (tsc1 == ULONG_MAX || tsc2 == ULONG_MAX) {
-		printk(KERN_WARNING "TSC calibration disturbed by SMI, "
-		       "using PIT calibration result\n");
-		goto out;
-	}
-
-	tsc2 = (tsc2 - tsc1) * 1000000L;
-
-	if (hpet) {
-		printk(KERN_INFO "TSC calibrated against HPET\n");
-		if (hpet2 < hpet1)
-			hpet2 += 0x100000000UL;
-		hpet2 -= hpet1;
-		tsc1 = (hpet2 * hpet_readl(HPET_PERIOD)) / 1000000;
-	} else {
-		printk(KERN_INFO "TSC calibrated against PM_TIMER\n");
-		if (pm2 < pm1)
-			pm2 += ACPI_PM_OVRRUN;
-		pm2 -= pm1;
-		tsc1 = (pm2 * 1000000000) / PMTMR_TICKS_PER_SEC;
-	}
-
-	tsc_khz = tsc2 / tsc1;
-
-out:
-	for_each_possible_cpu(cpu)
-		set_cyc2ns_scale(tsc_khz, cpu);
-}
 
 /*
  * Make an educated guess if the TSC is trustworthy and synchronized

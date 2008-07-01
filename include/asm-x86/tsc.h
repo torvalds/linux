@@ -58,7 +58,6 @@ int check_tsc_unstable(void);
 extern void check_tsc_sync_source(int cpu);
 extern void check_tsc_sync_target(void);
 
-extern void tsc_calibrate(void);
 extern int notsc_setup(char *);
 
 #endif
