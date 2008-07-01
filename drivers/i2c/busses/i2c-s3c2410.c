@@ -323,7 +323,17 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		 * end of the message, and if so, work out what to do
 		 */
 
+		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK)) {
+			if (iicstat & S3C2410_IICSTAT_LASTBIT) {
+				dev_dbg(i2c->dev, "WRITE: No Ack\n");
+
+				s3c24xx_i2c_stop(i2c, -ECONNREFUSED);
+				goto out_ack;
+			}
+		}
+
 	retry_write:
+
 		if (!is_msgend(i2c)) {
 			byte = i2c->msg->buf[i2c->msg_ptr++];
 			writeb(byte, i2c->regs + S3C2410_IICDS);
@@ -376,17 +386,6 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		 * something with it, and then work out wether we are
 		 * going to do any more read/write
 		 */
-
-		if (!(i2c->msg->flags & I2C_M_IGNORE_NAK) &&
-		    !(is_msglast(i2c) && is_lastmsg(i2c))) {
-
-			if (iicstat & S3C2410_IICSTAT_LASTBIT) {
-				dev_dbg(i2c->dev, "READ: No Ack\n");
-
-				s3c24xx_i2c_stop(i2c, -ECONNREFUSED);
-				goto out_ack;
-			}
-		}
 
 		byte = readb(i2c->regs + S3C2410_IICDS);
 		i2c->msg->buf[i2c->msg_ptr++] = byte;
