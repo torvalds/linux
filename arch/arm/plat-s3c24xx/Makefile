@@ -29,5 +29,6 @@ obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-clock.o
 obj-$(CONFIG_PM_SIMTEC)		+= pm-simtec.o
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM)		+= sleep.o
+obj-$(CONFIG_HAVE_PWM)		+= pwm.o
 obj-$(CONFIG_S3C2410_DMA)	+= dma.o
 obj-$(CONFIG_MACH_SMDK)		+= common-smdk.o

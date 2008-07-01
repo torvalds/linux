@@ -21,6 +21,13 @@ config CPU_S3C244X
 	help
 	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
 
+config S3C24XX_PWM
+	bool "PWM device support"
+	select HAVE_PWM
+	help
+	  Support for exporting the PWM timer blocks via the pwm device
+	  system.
+
 config PM_SIMTEC
 	bool
 	help
