@@ -62,11 +62,11 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 	u32 ropcpp = (0xcc << 16) | ((cpp - 1) << 24);
 	RING_LOCALS;
 
-	if (sarea_priv->front_tiled) {
+	if (IS_I965G(dev) && sarea_priv->front_tiled) {
 		cmd |= XY_SRC_COPY_BLT_DST_TILED;
 		dst_pitch >>= 2;
 	}
-	if (sarea_priv->back_tiled) {
+	if (IS_I965G(dev) && sarea_priv->back_tiled) {
 		cmd |= XY_SRC_COPY_BLT_SRC_TILED;
 		src_pitch >>= 2;
 	}
