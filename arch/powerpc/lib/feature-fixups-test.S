@@ -139,14 +139,14 @@ globl(ftr_fixup_test6)
 1:	or	1,1,1
 BEGIN_FTR_SECTION
 	or	5,5,5
-2:	cmpdi	r3,0
+2:	PPC_LCMPI	r3,0
 	beq	4f
 	blt	2b
 	b	1b
 	b	4f
 FTR_SECTION_ELSE
 2:	or	2,2,2
-	cmpdi	r3,1
+	PPC_LCMPI	r3,1
 	beq	3f
 	blt	2b
 	b	3f
@@ -161,7 +161,7 @@ globl(end_ftr_fixup_test6)
 globl(ftr_fixup_test6_expected)
 1:	or	1,1,1
 2:	or	2,2,2
-	cmpdi	r3,1
+	PPC_LCMPI	r3,1
 	beq	3f
 	blt	2b
 	b	3f
