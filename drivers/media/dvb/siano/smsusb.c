@@ -184,22 +184,39 @@ static char *smsusb1_fw_lkup[] = {
 	"dvbt_bda_stellar_usb.inp",
 };
 
-static int smsusb1_load_firmware(struct usb_device *udev, int id)
+static inline char *sms_get_fw_name(int mode, int board_id)
+{
+	char **fw = sms_get_board(board_id)->fw;
+	return (fw && fw[mode]) ? fw[mode] : smsusb1_fw_lkup[mode];
+}
+
+static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 {
 	const struct firmware *fw;
 	u8 *fw_buffer;
 	int rc, dummy;
+	char *fw_filename;
 
 	if (id < DEVICE_MODE_DVBT || id > DEVICE_MODE_DVBT_BDA) {
 		sms_err("invalid firmware id specified %d", id);
 		return -EINVAL;
 	}
 
-	rc = request_firmware(&fw, smsusb1_fw_lkup[id], &udev->dev);
+	fw_filename = sms_get_fw_name(id, board_id);
+
+	rc = request_firmware(&fw, fw_filename, &udev->dev);
 	if (rc < 0) {
-		sms_err("failed to open \"%s\" mode %d",
-			smsusb1_fw_lkup[id], id);
-		return rc;
+		sms_warn("failed to open \"%s\" mode %d, "
+			 "trying again with default firmware", fw_filename, id);
+
+		fw_filename = smsusb1_fw_lkup[id];
+		rc = request_firmware(&fw, fw_filename, &udev->dev);
+		if (rc < 0) {
+			sms_warn("failed to open \"%s\" mode %d",
+				 fw_filename, id);
+
+			return rc;
+		}
 	}
 
 	fw_buffer = kmalloc(fw->size, GFP_KERNEL);
@@ -216,7 +233,7 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id)
 		sms_err("failed to allocate firmware buffer");
 		rc = -ENOMEM;
 	}
-	sms_info("read FW %s, size=%zd", smsusb1_fw_lkup[id], fw->size);
+	sms_info("read FW %s, size=%zd", fw_filename, fw->size);
 
 	release_firmware(fw);
 
@@ -401,7 +418,8 @@ static int smsusb_probe(struct usb_interface *intf,
 			 udev->bus->busnum, udev->devpath);
 		sms_info("stellar device was found.");
 		return smsusb1_load_firmware(
-				udev, smscore_registry_getmode(devpath));
+				udev, smscore_registry_getmode(devpath),
+				id->driver_info);
 	}
 
 	rc = smsusb_init_device(intf, id->driver_info);
