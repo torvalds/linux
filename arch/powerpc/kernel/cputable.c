@@ -1447,6 +1447,16 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_440A,
 		.platform		= "ppc440",
 	},
+	{ /* 440 in Xilinx Virtex-5 FXT */
+		.pvr_mask		= 0xfffffff0,
+		.pvr_value		= 0x7ff21910,
+		.cpu_name		= "440 in Virtex-5 FXT",
+		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= COMMON_USER_BOOKE,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.platform		= "ppc440",
+	},
 	{ /* 460EX */
 		.pvr_mask		= 0xffff0002,
 		.pvr_value		= 0x13020002,
