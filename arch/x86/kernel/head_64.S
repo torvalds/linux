@@ -374,7 +374,7 @@ NEXT_PAGE(level2_ident_pgt)
 	/* Since I easily can, map the first 1G.
 	 * Don't set NX because code runs from these pages.
 	 */
-	PMDS(0, __PAGE_KERNEL_LARGE_EXEC | _PAGE_GLOBAL, PTRS_PER_PMD)
+	PMDS(0, __PAGE_KERNEL_LARGE_EXEC, PTRS_PER_PMD)
 
 NEXT_PAGE(level2_kernel_pgt)
 	/*
@@ -387,7 +387,7 @@ NEXT_PAGE(level2_kernel_pgt)
 	 *  If you want to increase this then increase MODULES_VADDR
 	 *  too.)
 	 */
-	PMDS(0, __PAGE_KERNEL_LARGE_EXEC|_PAGE_GLOBAL,
+	PMDS(0, __PAGE_KERNEL_LARGE_EXEC,
 		KERNEL_IMAGE_SIZE/PMD_SIZE)
 
 NEXT_PAGE(level2_spare_pgt)
