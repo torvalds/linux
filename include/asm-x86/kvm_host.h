@@ -691,24 +691,6 @@ enum {
 	TASK_SWITCH_GATE = 3,
 };
 
-#define KVMTRACE_5D(evt, vcpu, d1, d2, d3, d4, d5, name) \
-	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
-						vcpu, 5, d1, d2, d3, d4, d5)
-#define KVMTRACE_4D(evt, vcpu, d1, d2, d3, d4, name) \
-	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
-						vcpu, 4, d1, d2, d3, d4, 0)
-#define KVMTRACE_3D(evt, vcpu, d1, d2, d3, name) \
-	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
-						vcpu, 3, d1, d2, d3, 0, 0)
-#define KVMTRACE_2D(evt, vcpu, d1, d2, name) \
-	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
-						vcpu, 2, d1, d2, 0, 0, 0)
-#define KVMTRACE_1D(evt, vcpu, d1, name) \
-	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
-						vcpu, 1, d1, 0, 0, 0, 0)
-#define KVMTRACE_0D(evt, vcpu, name) \
-	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
-						vcpu, 0, 0, 0, 0, 0, 0)
 
 #ifdef CONFIG_64BIT
 # define KVM_EX_ENTRY ".quad"
