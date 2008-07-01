@@ -67,17 +67,17 @@
 /* maximum time for DSP to start responding after last FW word loaded(ms) */
 #define S2255_DSP_BOOTTIME      400
 /* maximum time to wait for firmware to load (ms) */
-#define S2255_LOAD_TIMEOUT      (5000+S2255_DSP_BOOTTIME)
+#define S2255_LOAD_TIMEOUT      (5000 + S2255_DSP_BOOTTIME)
 #define S2255_DEF_BUFS          16
 #define MAX_CHANNELS		4
 #define FRAME_MARKER		0x2255DA4AL
-#define MAX_PIPE_USBBLOCK	(40*1024)
-#define DEFAULT_PIPE_USBBLOCK	(16*1024)
+#define MAX_PIPE_USBBLOCK	(40 * 1024)
+#define DEFAULT_PIPE_USBBLOCK	(16 * 1024)
 #define MAX_CHANNELS		4
 #define MAX_PIPE_BUFFERS	1
 #define SYS_FRAMES		4
 /* maximum size is PAL full size plus room for the marker header(s) */
-#define SYS_FRAMES_MAXSIZE	(720*288*2*2 + 4096)
+#define SYS_FRAMES_MAXSIZE	(720 * 288 * 2 * 2 + 4096)
 #define DEF_USB_BLOCK		(4096)
 #define LINE_SZ_4CIFS_NTSC	640
 #define LINE_SZ_2CIFS_NTSC	640
@@ -168,7 +168,7 @@ struct s2255_bufferi {
 
 #define DEF_MODEI_NTSC_CONT	{FORMAT_NTSC, DEF_SCALE, DEF_COLOR,	\
 			DEF_FDEC, DEF_BRIGHT, DEF_CONTRAST, DEF_SATURATION, \
-			DEF_HUE, 0, DEF_USB_BLOCK, 0 }
+			DEF_HUE, 0, DEF_USB_BLOCK, 0}
 
 struct s2255_dmaqueue {
 	struct list_head	active;
@@ -275,6 +275,10 @@ struct s2255_fh {
 	struct s2255_mode	mode;
 };
 
+/*
+ * TODO: fixme S2255_MAX_USERS. Do not limit open driver handles.
+ * Limit V4L to one stream at a time.
+ */
 #define S2255_MAX_USERS         1
 
 #define CUR_USB_FWVER	774	/* current cypress EEPROM firmware version */
@@ -293,7 +297,7 @@ struct s2255_fh {
 #define PREFIX_SIZE		512
 
 /* Channels on box are in reverse order */
-static unsigned long G_chnmap[MAX_CHANNELS] = { 3, 2, 1, 0 };
+static unsigned long G_chnmap[MAX_CHANNELS] = {3, 2, 1, 0};
 
 static LIST_HEAD(s2255_devlist);
 
@@ -329,11 +333,11 @@ static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
 /* start video number */
 static int video_nr = -1;	/* /dev/videoN, -1 for autodetect */
 
-module_param(debug, int, 0);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level(0-100) default 0");
-module_param(vid_limit, int, 0);
+module_param(vid_limit, int, 0644);
 MODULE_PARM_DESC(vid_limit, "video memory limit(Mb)");
-module_param(video_nr, int, 0);
+module_param(video_nr, int, 0644);
 MODULE_PARM_DESC(video_nr, "start video minor(-1 default autodetect)");
 
 /* USB device table */
@@ -437,7 +441,10 @@ static int norm_minh(struct video_device *vdev)
 }
 
 
-/* converts 2255 planar format to yuyv or uyvy */
+/*
+ * TODO: fixme: move YUV reordering to hardware
+ * converts 2255 planar format to yuyv or uyvy
+ */
 static void planar422p_to_yuv_packed(const unsigned char *in,
 				     unsigned char *out,
 				     int width, int height,
@@ -502,7 +509,7 @@ static void s2255_fwchunk_complete(struct urb *urb)
 	struct usb_device *udev = urb->dev;
 	int len;
 	dprintk(100, "udev %p urb %p", udev, urb);
-
+	/* TODO: fixme.  reflect change in status */
 	if (urb->status) {
 		dev_err(&udev->dev, "URB failed with status %d", urb->status);
 		return;
@@ -682,7 +689,7 @@ static int buffer_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (0 == *count)
 		*count = S2255_DEF_BUFS;
 
-	while (*size * *count > vid_limit * 1024 * 1024)
+	while (*size * (*count) > vid_limit * 1024 * 1024)
 		(*count)--;
 
 	return 0;
@@ -789,7 +796,7 @@ static int res_get(struct s2255_dev *dev, struct s2255_fh *fh)
 
 static int res_locked(struct s2255_dev *dev, struct s2255_fh *fh)
 {
-	return (dev->resources[fh->channel]);
+	return dev->resources[fh->channel];
 }
 
 static void res_free(struct s2255_dev *dev, struct s2255_fh *fh)
@@ -806,7 +813,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	struct s2255_dev *dev = fh->dev;
 	strlcpy(cap->driver, "s2255", sizeof(cap->driver));
 	strlcpy(cap->card, "s2255", sizeof(cap->card));
-	strlcpy(cap->bus_info, dev_name(&dev->udev->dev), sizeof(cap->bus_info));
+	strlcpy(cap->bus_info, dev_name(&dev->udev->dev),
+		sizeof(cap->bus_info));
 	cap->version = S2255_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	return 0;
@@ -839,8 +847,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.pixelformat = fh->fmt->fourcc;
 	f->fmt.pix.bytesperline = f->fmt.pix.width * (fh->fmt->depth >> 3);
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
-
-	return (0);
+	return 0;
 }
 
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
@@ -961,7 +968,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	ret = vidioc_try_fmt_vid_cap(file, fh, f);
 
 	if (ret < 0)
-		return (ret);
+		return ret;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
@@ -1336,7 +1343,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = S2255_NORMS;
 	strlcpy(inp->name, "Camera", sizeof(inp->name));
-	return (0);
+	return 0;
 }
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
@@ -1360,7 +1367,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	for (i = 0; i < ARRAY_SIZE(s2255_qctrl); i++)
 		if (qc->id && qc->id == s2255_qctrl[i].id) {
 			memcpy(qc, &(s2255_qctrl[i]), sizeof(*qc));
-			return (0);
+			return 0;
 		}
 
 	dprintk(4, "query_ctrl -EINVAL %d\n", qc->id);
@@ -1375,7 +1382,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	for (i = 0; i < ARRAY_SIZE(s2255_qctrl); i++)
 		if (ctrl->id == s2255_qctrl[i].id) {
 			ctrl->value = qctl_regs[i];
-			return (0);
+			return 0;
 		}
 	dprintk(4, "g_ctrl -EINVAL\n");
 
@@ -1395,7 +1402,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		if (ctrl->id == s2255_qctrl[i].id) {
 			if (ctrl->value < s2255_qctrl[i].minimum ||
 			    ctrl->value > s2255_qctrl[i].maximum)
-				return (-ERANGE);
+				return -ERANGE;
 
 			qctl_regs[i] = ctrl->value;
 			/* update the mode to the corresponding value */
@@ -1571,6 +1578,11 @@ static void s2255_destroy(struct kref *kref)
 		usb_free_urb(dev->fw_data->fw_urb);
 		dev->fw_data->fw_urb = NULL;
 	}
+	/*
+	 * TODO: fixme(above, below): potentially leaving timers alive.
+	 *                            do not ignore timeout below if
+	 *                            it occurs.
+	 */
 
 	/* make sure we aren't waiting for the DSP */
 	if (atomic_read(&dev->fw_data->fw_state) == S2255_FW_LOADED_DSPWAIT) {
@@ -1582,13 +1594,10 @@ static void s2255_destroy(struct kref *kref)
 	}
 
 	if (dev->fw_data) {
+		if (dev->fw_data->fw)
+			release_firmware(dev->fw_data->fw);
 		kfree(dev->fw_data->pfw_data);
 		kfree(dev->fw_data);
-	}
-
-	if (dev->fw_data->fw) {
-		release_firmware(dev->fw_data->fw);
-		dev->fw_data->fw = NULL;
 	}
 
 	usb_put_dev(dev->udev);
