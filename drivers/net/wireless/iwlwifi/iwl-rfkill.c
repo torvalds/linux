@@ -101,17 +101,13 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 	ret = rfkill_register(priv->rfkill_mngr.rfkill);
 	if (ret) {
 		IWL_ERROR("Unable to register rfkill: %d\n", ret);
-		goto unregister_rfkill;
+		goto free_rfkill;
 	}
 
 	IWL_DEBUG_RF_KILL("RFKILL initialization complete.\n");
 	return ret;
 
-unregister_rfkill:
-	rfkill_unregister(priv->rfkill_mngr.rfkill);
-	priv->rfkill_mngr.rfkill = NULL;
-
-freed_rfkill:
+free_rfkill:
 	if (priv->rfkill_mngr.rfkill != NULL)
 		rfkill_free(priv->rfkill_mngr.rfkill);
 	priv->rfkill_mngr.rfkill = NULL;
