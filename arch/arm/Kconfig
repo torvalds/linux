@@ -406,6 +406,7 @@ config ARCH_RPC
 	select FIQ
 	select TIMER_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
+	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
 	select NO_IOPORT
 	help
