@@ -1636,6 +1636,12 @@ static int emac_poll_rx(void *param, int budget)
 			goto next;
 		}
 
+		if (len < ETH_HLEN) {
+			++dev->estats.rx_dropped_stack;
+			emac_recycle_rx_skb(dev, slot, len);
+			goto next;
+		}
+
 		if (len && len < EMAC_RX_COPY_THRESH) {
 			struct sk_buff *copy_skb =
 			    alloc_skb(len + EMAC_RX_SKB_HEADROOM + 2, GFP_ATOMIC);
