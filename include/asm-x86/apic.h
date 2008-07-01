@@ -121,12 +121,17 @@ extern void enable_NMI_through_LVT0(void);
  */
 #ifdef CONFIG_X86_64
 extern void early_init_lapic_mapping(void);
+extern int apic_is_clustered_box(void);
+#else
+static inline int apic_is_clustered_box(void)
+{
+	return 0;
+}
 #endif
 
 extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
 extern u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask);
 
-extern int apic_is_clustered_box(void);
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }

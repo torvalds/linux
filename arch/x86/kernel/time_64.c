@@ -56,7 +56,7 @@ static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 /* calibrate_cpu is used on systems with fixed rate TSCs to determine
  * processor frequency */
 #define TICK_COUNT 100000000
-static unsigned long __init calibrate_cpu(void)
+unsigned long __init calibrate_cpu(void)
 {
 	int tsc_start, tsc_now;
 	int i, no_ctr_free;
@@ -114,41 +114,13 @@ void __init hpet_time_init(void)
 	setup_irq(0, &irq0);
 }
 
-extern void set_cyc2ns_scale(unsigned long cpu_khz, int cpu);
-
 void __init time_init(void)
 {
-	int cpu;
-
-	cpu_khz = calculate_cpu_khz();
-	tsc_khz = cpu_khz;
-
-	if (cpu_has(&boot_cpu_data, X86_FEATURE_CONSTANT_TSC) &&
-			(boot_cpu_data.x86_vendor == X86_VENDOR_AMD))
-		cpu_khz = calibrate_cpu();
-
-	lpj_fine = ((unsigned long)tsc_khz * 1000)/HZ;
-
-	if (unsynchronized_tsc())
-		mark_tsc_unstable("TSCs unsynchronized");
-
+	tsc_init();
 	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
 		vgetcpu_mode = VGETCPU_RDTSCP;
 	else
 		vgetcpu_mode = VGETCPU_LSL;
 
-	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
-			cpu_khz / 1000, cpu_khz % 1000);
-
-	/*
-	 * Secondary CPUs do not run through tsc_init(), so set up
-	 * all the scale factors for all CPUs, assuming the same
-	 * speed as the bootup CPU. (cpufreq notifiers will fix this
-	 * up if their speed diverges)
-	 */
-	for_each_possible_cpu(cpu)
-		set_cyc2ns_scale(cpu_khz, cpu);
-
-	init_tsc_clocksource();
 	late_time_init = choose_time_init();
 }
