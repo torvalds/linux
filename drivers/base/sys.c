@@ -479,3 +479,52 @@ int __init system_bus_init(void)
 
 EXPORT_SYMBOL_GPL(sysdev_register);
 EXPORT_SYMBOL_GPL(sysdev_unregister);
+
+#define to_ext_attr(x) container_of(x, struct sysdev_ext_attribute, attr)
+
+ssize_t sysdev_store_ulong(struct sys_device *sysdev,
+			   struct sysdev_attribute *attr,
+			   const char *buf, size_t size)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	char *end;
+	unsigned long new = simple_strtoul(buf, &end, 0);
+	if (end == buf)
+		return -EINVAL;
+	*(unsigned long *)(ea->var) = new;
+	return end - buf;
+}
+EXPORT_SYMBOL_GPL(sysdev_store_ulong);
+
+ssize_t sysdev_show_ulong(struct sys_device *sysdev,
+			  struct sysdev_attribute *attr,
+			  char *buf)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	return snprintf(buf, PAGE_SIZE, "%lx\n", *(unsigned long *)(ea->var));
+}
+EXPORT_SYMBOL_GPL(sysdev_show_ulong);
+
+ssize_t sysdev_store_int(struct sys_device *sysdev,
+			   struct sysdev_attribute *attr,
+			   const char *buf, size_t size)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	char *end;
+	long new = simple_strtol(buf, &end, 0);
+	if (end == buf || new > INT_MAX || new < INT_MIN)
+		return -EINVAL;
+	*(int *)(ea->var) = new;
+	return end - buf;
+}
+EXPORT_SYMBOL_GPL(sysdev_store_int);
+
+ssize_t sysdev_show_int(struct sys_device *sysdev,
+			  struct sysdev_attribute *attr,
+			  char *buf)
+{
+	struct sysdev_ext_attribute *ea = to_ext_attr(attr);
+	return snprintf(buf, PAGE_SIZE, "%d\n", *(int *)(ea->var));
+}
+EXPORT_SYMBOL_GPL(sysdev_show_int);
+
