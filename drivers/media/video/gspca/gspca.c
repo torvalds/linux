@@ -739,7 +739,7 @@ static int gspca_get_mode(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *fmtdesc)
 {
 	struct gspca_dev *gspca_dev = priv;
@@ -782,7 +782,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 			    struct v4l2_format *fmt)
 {
 	struct gspca_dev *gspca_dev = priv;
@@ -811,7 +811,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int try_fmt_cap(struct gspca_dev *gspca_dev,
+static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 			struct v4l2_format *fmt)
 {
 	int w, h, mode, mode2, frsz;
@@ -865,20 +865,20 @@ static int try_fmt_cap(struct gspca_dev *gspca_dev,
 	return mode;			/* used when s_fmt */
 }
 
-static int vidioc_try_fmt_cap(struct file *file,
+static int vidioc_try_fmt_vid_cap(struct file *file,
 			      void *priv,
 			      struct v4l2_format *fmt)
 {
 	struct gspca_dev *gspca_dev = priv;
 	int ret;
 
-	ret = try_fmt_cap(gspca_dev, fmt);
+	ret = try_fmt_vid_cap(gspca_dev, fmt);
 	if (ret < 0)
 		return ret;
 	return 0;
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			    struct v4l2_format *fmt)
 {
 	struct gspca_dev *gspca_dev = priv;
@@ -904,7 +904,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 
-	ret = try_fmt_cap(gspca_dev, fmt);
+	ret = try_fmt_vid_cap(gspca_dev, fmt);
 	if (ret < 0)
 		goto out;
 
@@ -1369,7 +1369,7 @@ static int vidiocgmbuf(struct file *file, void *priv,
 			fmt.fmt.pix.width = gspca_dev->cam.cam_mode[i].width;
 			fmt.fmt.pix.height = gspca_dev->cam.cam_mode[i].height;
 			fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_BGR24;
-			ret = vidioc_s_fmt_cap(file, priv, &fmt);
+			ret = vidioc_s_fmt_vid_cap(file, priv, &fmt);
 			if (ret != 0)
 				return ret;
 		}
@@ -1845,10 +1845,10 @@ static struct video_device gspca_template = {
 	.vidioc_querycap	= vidioc_querycap,
 	.vidioc_dqbuf		= vidioc_dqbuf,
 	.vidioc_qbuf		= vidioc_qbuf,
-	.vidioc_enum_fmt_cap	= vidioc_enum_fmt_cap,
-	.vidioc_try_fmt_cap	= vidioc_try_fmt_cap,
-	.vidioc_g_fmt_cap	= vidioc_g_fmt_cap,
-	.vidioc_s_fmt_cap	= vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	= vidioc_try_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	= vidioc_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	= vidioc_s_fmt_vid_cap,
 	.vidioc_streamon	= vidioc_streamon,
 	.vidioc_queryctrl	= vidioc_queryctrl,
 	.vidioc_g_ctrl		= vidioc_g_ctrl,
