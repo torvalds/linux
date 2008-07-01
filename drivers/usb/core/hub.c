@@ -713,11 +713,18 @@ static void hub_restart(struct usb_hub *hub, int type)
 		}
 
 		/* Was the power session lost while we were suspended? */
-		status = hub_port_status(hub, port1, &portstatus, &portchange);
+		switch (type) {
+		case HUB_RESET_RESUME:
+			portstatus = 0;
+			portchange = USB_PORT_STAT_C_CONNECTION;
+			break;
 
-		/* If the device is gone, khubd will handle it later */
-		if (status == 0 && !(portstatus & USB_PORT_STAT_CONNECTION))
-			continue;
+		case HUB_RESET:
+		case HUB_RESUME:
+			status = hub_port_status(hub, port1,
+					&portstatus, &portchange);
+			break;
+		}
 
 		/* For "USB_PERSIST"-enabled children we must
 		 * mark the child device for reset-resume and
