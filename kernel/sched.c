@@ -1714,6 +1714,7 @@ static void dequeue_task(struct rq *rq, struct task_struct *p, int sleep)
 		p->se.last_wakeup = 0;
 	}
 
+	sched_info_dequeued(p);
 	p->sched_class->dequeue_task(rq, p, sleep);
 	p->se.on_rq = 0;
 }
