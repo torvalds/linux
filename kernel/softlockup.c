@@ -116,11 +116,8 @@ void softlockup_tick(void)
 	print_timestamp = per_cpu(print_timestamp, this_cpu);
 
 	/* report at most once a second */
-	if ((print_timestamp >= touch_timestamp &&
-			print_timestamp < (touch_timestamp + 1)) ||
-			did_panic) {
+	if (print_timestamp == touch_timestamp || did_panic)
 		return;
-	}
 
 	/* do not print during early bootup: */
 	if (unlikely(system_state != SYSTEM_RUNNING)) {
