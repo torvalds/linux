@@ -363,7 +363,7 @@
 			0xe000 0 0 4 &mpic 1 1
 
 			/* IDSEL 0x1f */
-			0xf800 0 0 1 &mpic 3 0
+			0xf800 0 0 1 &mpic 3 2
 			0xf800 0 0 2 &mpic 0 1
 		>;
 
