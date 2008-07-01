@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 1)
+static const char version[] = "2.1.1";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA5xx USB Camera Driver");
@@ -459,7 +459,7 @@ static int reg_write(struct usb_device *dev,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
 	PDEBUG(D_PACK, "reg write: 0x%02x,0x%02x:0x%02x, 0x%x",
-		reg, index, value, ret);
+		req, index, value, ret);
 	if (ret < 0)
 		PDEBUG(D_ERR, "reg write: error %d", ret);
 	return ret;

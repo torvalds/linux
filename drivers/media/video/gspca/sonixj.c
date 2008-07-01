@@ -1076,7 +1076,7 @@ static unsigned int setexposure(struct gspca_dev *gspca_dev,
 				| ((expo & 0x0003) << 4);
 		i2c_w8(gspca_dev->dev, expoMo10);
 		i2c_w8(gspca_dev->dev, gainMo);
-		PDEBUG(D_CONF," set exposure %d",
+		PDEBUG(D_CONF, "set exposure %d",
 			((expoMo10[3] & 0x07) << 10)
 			| (expoMof[3] << 2)
 			| ((expoMo10[3] & 0x30) >> 4));

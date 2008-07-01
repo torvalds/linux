@@ -220,13 +220,15 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	if (0) {			/* fixed dark-gain */
 		data[1] = 0;		/* reg 94, Y Gain (1.75) */
 		data[2] = 0;		/* reg 95, UV Gain (1.75) */
-		data[3] = 0x3f;		/* reg 96, Y Gain/UV Gain/disable auto dark-gain */
+		data[3] = 0x3f;		/* reg 96, Y Gain/UV Gain/disable
+					 *	auto dark-gain */
 		data[4] = 0;		/* reg 97, set fixed dark level */
 		data[5] = 0;		/* reg 98, don't care */
 	} else {			/* auto dark-gain */
 		data[1] = 0;		/* reg 94, Y Gain (auto) */
 		data[2] = 0;		/* reg 95, UV Gain (1.75) */
-		data[3] = 0x78;		/* reg 96, Y Gain/UV Gain/disable auto dark-gain */
+		data[3] = 0x78;		/* reg 96, Y Gain/UV Gain/disable
+					 *	auto dark-gain */
 		switch (gspca_dev->width) {
 /*		case 1280: */
 /*			data[4] = 154;

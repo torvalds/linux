@@ -452,30 +452,30 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 
 	for (i = 0; i < steps; i++) {
 		if (avg_lum > desired_avg_lum) {
-			if (sd->gain > PAC207_GAIN_KNEE) {
+			if (sd->gain > PAC207_GAIN_KNEE)
 				sd->gain--;
-			} else if (sd->exposure > PAC207_EXPOSURE_KNEE) {
+			else if (sd->exposure > PAC207_EXPOSURE_KNEE)
 				sd->exposure--;
-			} else if (sd->gain > PAC207_GAIN_DEFAULT) {
+			else if (sd->gain > PAC207_GAIN_DEFAULT)
 				sd->gain--;
-			} else if (sd->exposure > PAC207_EXPOSURE_MIN) {
+			else if (sd->exposure > PAC207_EXPOSURE_MIN)
 				sd->exposure--;
-			} else if (sd->gain > PAC207_GAIN_MIN) {
+			else if (sd->gain > PAC207_GAIN_MIN)
 				sd->gain--;
-			} else
+			else
 				break;
 		} else {
-			if (sd->gain < PAC207_GAIN_DEFAULT) {
+			if (sd->gain < PAC207_GAIN_DEFAULT)
 				sd->gain++;
-			} else if (sd->exposure < PAC207_EXPOSURE_KNEE) {
+			else if (sd->exposure < PAC207_EXPOSURE_KNEE)
 				sd->exposure++;
-			} else if (sd->gain < PAC207_GAIN_KNEE) {
+			else if (sd->gain < PAC207_GAIN_KNEE)
 				sd->gain++;
-			} else if (sd->exposure < PAC207_EXPOSURE_MAX) {
+			else if (sd->exposure < PAC207_EXPOSURE_MAX)
 				sd->exposure++;
-			} else if (sd->gain < PAC207_GAIN_MAX) {
+			else if (sd->gain < PAC207_GAIN_MAX)
 				sd->gain++;
-			} else
+			else
 				break;
 		}
 	}

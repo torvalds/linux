@@ -831,7 +831,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6007), DVNM("Sonix sn9c101 + Tas5110D")},
 	{USB_DEVICE(0x0c45, 0x6009), DVNM("spcaCam@120")},
 	{USB_DEVICE(0x0c45, 0x600d), DVNM("spcaCam@120")},
-	{USB_DEVICE(0x0c45, 0x6011), DVNM("MAX Webcam Microdia-OV6650-SN9C101G")},
+	{USB_DEVICE(0x0c45, 0x6011), DVNM("MAX Webcam Microdia")},
 	{USB_DEVICE(0x0c45, 0x6019), DVNM("Generic Sonix OV7630")},
 	{USB_DEVICE(0x0c45, 0x6024), DVNM("Generic Sonix Tas5130c")},
 	{USB_DEVICE(0x0c45, 0x6025), DVNM("Xcam Shanga")},

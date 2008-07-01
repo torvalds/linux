@@ -336,7 +336,7 @@ static unsigned char qtable_kodak_ez200[2][64] = {
 };
 
 static unsigned char qtable_pocketdv[2][64] = {
-	{			/* Q-table Y-components start registers 0x8800 */
+	{		/* Q-table Y-components start registers 0x8800 */
 	 0x06, 0x04, 0x04, 0x06, 0x0a, 0x10, 0x14, 0x18,
 	 0x05, 0x05, 0x06, 0x08, 0x0a, 0x17, 0x18, 0x16,
 	 0x06, 0x05, 0x06, 0x0a, 0x10, 0x17, 0x1c, 0x16,
@@ -346,7 +346,7 @@ static unsigned char qtable_pocketdv[2][64] = {
 	 0x14, 0x1a, 0x1f, 0x23, 0x29, 0x30, 0x30, 0x28,
 	 0x1d, 0x25, 0x26, 0x27, 0x2d, 0x28, 0x29, 0x28,
 	 },
-	{			/* Q-table C-components start registers 0x8840 */
+	{		/* Q-table C-components start registers 0x8840 */
 	 0x07, 0x07, 0x0a, 0x13, 0x28, 0x28, 0x28, 0x28,
 	 0x07, 0x08, 0x0a, 0x1a, 0x28, 0x28, 0x28, 0x28,
 	 0x0a, 0x0a, 0x16, 0x28, 0x28, 0x28, 0x28, 0x28,
@@ -833,7 +833,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 					 *	- NWG (Sat 29th March 2003) */
 
 		/* do a full reset */
-		if ((err = spca500_full_reset(gspca_dev)) < 0)
+		err = spca500_full_reset(gspca_dev);
+		if (err < 0)
 			PDEBUG(D_ERR, "spca500_full_reset failed");
 
 		/* enable drop packet */
@@ -918,7 +919,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		/* Init SDRAM - needed for SDRAM access */
 		reg_write(gspca_dev->dev, 0x00, 0x870a, 0x04);
 
-		spca500_setmode(gspca_dev,xmult,ymult);
+		spca500_setmode(gspca_dev, xmult, ymult);
 		/* switch to video camera mode */
 		reg_write(gspca_dev->dev, 0x00, 0x8000, 0x0004);
 

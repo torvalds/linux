@@ -233,7 +233,7 @@ static void Et_RegWrite(struct usb_device *dev,
 			0, index, buffer, len, 500);
 }
 
-static int Et_i2cwrite(struct usb_device *dev, __u8 reg, __u8 * buffer,
+static int Et_i2cwrite(struct usb_device *dev, __u8 reg, __u8 *buffer,
 		       __u16 length, __u8 mode)
 {
 /* buffer should be [D0..D7] */
@@ -256,7 +256,7 @@ static int Et_i2cwrite(struct usb_device *dev, __u8 reg, __u8 * buffer,
 	return 0;
 }
 
-static int Et_i2cread(struct usb_device *dev, __u8 reg, __u8 * buffer,
+static int Et_i2cread(struct usb_device *dev, __u8 reg, __u8 *buffer,
 		      __u16 length, __u8 mode)
 {
 /* buffer should be [D0..D7] */

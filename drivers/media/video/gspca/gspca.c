@@ -28,9 +28,9 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/jiffies.h>
 
 #include "gspca.h"
@@ -45,8 +45,8 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 1)
+static const char version[] = "2.1.1";
 
 static int video_nr = -1;
 
