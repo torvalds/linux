@@ -83,6 +83,8 @@ int acpi_lapic;
 int acpi_ioapic;
 int acpi_strict;
 
+static int disable_irq0_through_ioapic __initdata;
+
 u8 acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
 int acpi_skip_timer_override __initdata;
@@ -992,6 +994,10 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	int pin;
 	struct mp_config_intsrc mp_irq;
 
+	/* Skip the 8254 timer interrupt (IRQ 0) if requested.  */
+	if (bus_irq == 0 && disable_irq0_through_ioapic)
+		return;
+
 	/*
 	 * Convert 'gsi' to 'ioapic.pin'.
 	 */
@@ -1057,6 +1063,10 @@ void __init mp_config_acpi_legacy_irqs(void)
 	 */
 	for (i = 0; i < 16; i++) {
 		int idx;
+
+		/* Skip the 8254 timer interrupt (IRQ 0) if requested.  */
+		if (i == 0 && disable_irq0_through_ioapic)
+			continue;
 
 		for (idx = 0; idx < mp_irq_entries; idx++) {
 			struct mp_config_intsrc *irq = mp_irqs + idx;
