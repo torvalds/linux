@@ -51,7 +51,7 @@ int inode_change_ok(struct inode *inode, struct iattr *attr)
 	}
 
 	/* Check for setting the inode time. */
-	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET)) {
+	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)) {
 		if (!is_owner_or_cap(inode))
 			goto error;
 	}

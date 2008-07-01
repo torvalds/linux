@@ -101,7 +101,6 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
 		     times[1].tv_nsec == UTIME_NOW)
 		times = NULL;
 
-	/* In most cases, the checks are done in inode_change_ok() */
 	newattrs.ia_valid = ATTR_CTIME | ATTR_MTIME | ATTR_ATIME;
 	if (times) {
 		error = -EPERM;
@@ -123,21 +122,13 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
 			newattrs.ia_mtime.tv_nsec = times[1].tv_nsec;
 			newattrs.ia_valid |= ATTR_MTIME_SET;
 		}
-
 		/*
-		 * For the UTIME_OMIT/UTIME_NOW and UTIME_NOW/UTIME_OMIT
-		 * cases, we need to make an extra check that is not done by
-		 * inode_change_ok().
+		 * Tell inode_change_ok(), that this is an explicit time
+		 * update, even if neither ATTR_ATIME_SET nor ATTR_MTIME_SET
+		 * were used.
 		 */
-		if (((times[0].tv_nsec == UTIME_NOW &&
-			    times[1].tv_nsec == UTIME_OMIT)
-		     ||
-		     (times[0].tv_nsec == UTIME_OMIT &&
-			    times[1].tv_nsec == UTIME_NOW))
-		    && !is_owner_or_cap(inode))
-			goto mnt_drop_write_and_out;
+		newattrs.ia_valid |= ATTR_TIMES_SET;
 	} else {
-
 		/*
 		 * If times is NULL (or both times are UTIME_NOW),
 		 * then we need to check permissions, because
