@@ -119,17 +119,23 @@ struct pwm_device *pwm_request(int pwm_id, const char *label)
 	mutex_lock(&pwm_lock);
 
 	list_for_each_entry(pwm, &pwm_list, node) {
-		if (pwm->pwm_id == pwm_id && pwm->use_count == 0) {
-			pwm->use_count++;
-			pwm->label = label;
+		if (pwm->pwm_id == pwm_id) {
 			found = 1;
 			break;
 		}
 	}
 
-	mutex_unlock(&pwm_lock);
+	if (found) {
+		if (pwm->use_count == 0) {
+			pwm->use_count++;
+			pwm->label = label;
+		} else
+			pwm = ERR_PTR(-EBUSY);
+	} else
+		pwm = ERR_PTR(-ENOENT);
 
-	return (found) ? pwm : NULL;
+	mutex_unlock(&pwm_lock);
+	return pwm;
 }
 EXPORT_SYMBOL(pwm_request);
 

@@ -87,9 +87,9 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->notify = data->notify;
 
 	pb->pwm = pwm_request(data->pwm_id, "backlight");
-	if (pb->pwm == NULL) {
+	if (IS_ERR(pb->pwm)) {
 		dev_err(&pdev->dev, "unable to request PWM for backlight\n");
-		ret = -EBUSY;
+		ret = PTR_ERR(pb->pwm);
 		goto err_pwm;
 	}
 
