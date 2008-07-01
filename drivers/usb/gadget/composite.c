@@ -294,6 +294,7 @@ static void device_qual(struct usb_composite_dev *cdev)
 	/* ASSUME same EP0 fifo size at both speeds */
 	qual->bMaxPacketSize0 = cdev->desc.bMaxPacketSize0;
 	qual->bNumConfigurations = count_configs(cdev, USB_DT_DEVICE_QUALIFIER);
+	qual->bRESERVED = 0;
 }
 
 /*-------------------------------------------------------------------------*/
