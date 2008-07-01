@@ -82,6 +82,11 @@ int pic_mode;
 /* Have we found an MP table */
 int smp_found_config;
 
+static struct resource lapic_resource = {
+	.name = "Local APIC",
+	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
+};
+
 static unsigned int calibration_result;
 
 static int lapic_next_event(unsigned long delta,
@@ -1720,3 +1725,21 @@ static int __init apic_set_verbosity(char *str)
 }
 __setup("apic=", apic_set_verbosity);
 
+static int __init lapic_insert_resource(void)
+{
+	if (!apic_phys)
+		return -1;
+
+	/* Put local APIC into the resource map. */
+	lapic_resource.start = apic_phys;
+	lapic_resource.end = lapic_resource.start + PAGE_SIZE - 1;
+	insert_resource(&iomem_resource, &lapic_resource);
+
+	return 0;
+}
+
+/*
+ * need call insert after e820_reserve_resources()
+ * that is using request_resource
+ */
+late_initcall(lapic_insert_resource);
