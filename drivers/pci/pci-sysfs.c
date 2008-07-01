@@ -738,7 +738,7 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 			pdev->vpd->attr = attr;
 			attr->size = pdev->vpd->ops->get_size(pdev);
 			attr->attr.name = "vpd";
-			attr->attr.mode = S_IRUGO | S_IWUSR;
+			attr->attr.mode = S_IRUSR | S_IWUSR;
 			attr->read = pci_read_vpd;
 			attr->write = pci_write_vpd;
 			retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
