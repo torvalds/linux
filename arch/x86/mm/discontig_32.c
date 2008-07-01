@@ -156,17 +156,20 @@ static void __init propagate_e820_map_node(int nid)
  */
 static void __init allocate_pgdat(int nid)
 {
-	if (nid && node_has_online_mem(nid) && node_remap_start_vaddr[nid])
+	char buf[16];
+
+	if (node_has_online_mem(nid) && node_remap_start_vaddr[nid])
 		NODE_DATA(nid) = (pg_data_t *)node_remap_start_vaddr[nid];
 	else {
 		unsigned long pgdat_phys;
 		pgdat_phys = find_e820_area(min_low_pfn<<PAGE_SHIFT,
-				 (nid ? max_low_pfn:max_pfn_mapped)<<PAGE_SHIFT,
+				 max_pfn_mapped<<PAGE_SHIFT,
 				 sizeof(pg_data_t),
 				 PAGE_SIZE);
 		NODE_DATA(nid) = (pg_data_t *)(pfn_to_kaddr(pgdat_phys>>PAGE_SHIFT));
-		reserve_early(pgdat_phys, pgdat_phys + sizeof(pg_data_t),
-			      "NODE_DATA");
+		memset(buf, 0, sizeof(buf));
+		sprintf(buf, "NODE_DATA %d",  nid);
+		reserve_early(pgdat_phys, pgdat_phys + sizeof(pg_data_t), buf);
 	}
 	printk(KERN_DEBUG "allocate_pgdat: node %d NODE_DATA %08lx\n",
 		nid, (unsigned long)NODE_DATA(nid));
