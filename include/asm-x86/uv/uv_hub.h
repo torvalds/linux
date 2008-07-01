@@ -149,6 +149,8 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define UV_LOCAL_MMR_BASE		0xf4000000UL
 #define UV_GLOBAL_MMR32_BASE		0xf8000000UL
 #define UV_GLOBAL_MMR64_BASE		(uv_hub_info->global_mmr_base)
+#define UV_LOCAL_MMR_SIZE		(64UL * 1024 * 1024)
+#define UV_GLOBAL_MMR32_SIZE		(64UL * 1024 * 1024)
 
 #define UV_GLOBAL_MMR32_PNODE_SHIFT	15
 #define UV_GLOBAL_MMR64_PNODE_SHIFT	26
