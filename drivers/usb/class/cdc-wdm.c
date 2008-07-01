@@ -750,12 +750,16 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->minor);
 
 	mutex_lock(&desc->plock);
+#ifdef CONFIG_PM
 	if (interface_to_usbdev(desc->intf)->auto_pm && test_bit(WDM_IN_USE, &desc->flags)) {
 		rv = -EBUSY;
 	} else {
+#endif
 		cancel_work_sync(&desc->rxwork);
 		kill_urbs(desc);
+#ifdef CONFIG_PM
 	}
+#endif
 	mutex_unlock(&desc->plock);
 
 	return rv;

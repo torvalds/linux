@@ -1255,6 +1255,7 @@ static void acm_disconnect(struct usb_interface *intf)
 		tty_hangup(acm->tty);
 }
 
+#ifdef CONFIG_PM
 static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct acm *acm = usb_get_intfdata(intf);
@@ -1320,6 +1321,8 @@ err_out:
 	mutex_unlock(&acm->mutex);
 	return rv;
 }
+
+#endif /* CONFIG_PM */
 /*
  * USB driver structure.
  */
@@ -1375,10 +1378,14 @@ static struct usb_driver acm_driver = {
 	.name =		"cdc_acm",
 	.probe =	acm_probe,
 	.disconnect =	acm_disconnect,
+#ifdef CONFIG_PM
 	.suspend =	acm_suspend,
 	.resume =	acm_resume,
+#endif
 	.id_table =	acm_ids,
+#ifdef CONFIG_PM
 	.supports_autosuspend = 1,
+#endif
 };
 
 /*
