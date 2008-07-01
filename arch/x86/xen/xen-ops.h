@@ -32,7 +32,7 @@ void __init xen_build_dynamic_phys_to_machine(void);
 
 void xen_setup_timer(int cpu);
 void xen_setup_cpu_clockevents(void);
-unsigned long xen_cpu_khz(void);
+unsigned long xen_tsc_khz(void);
 void __init xen_time_init(void);
 unsigned long xen_get_wallclock(void);
 int xen_set_wallclock(unsigned long time);

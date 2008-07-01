@@ -285,7 +285,7 @@ struct pv_time_ops pv_time_ops = {
 	.get_wallclock = native_get_wallclock,
 	.set_wallclock = native_set_wallclock,
 	.sched_clock = native_sched_clock,
-	.get_cpu_khz = native_calculate_cpu_khz,
+	.get_tsc_khz = native_calibrate_tsc,
 };
 
 struct pv_irq_ops pv_irq_ops = {

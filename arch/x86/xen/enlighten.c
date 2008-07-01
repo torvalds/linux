@@ -1062,7 +1062,7 @@ static const struct pv_time_ops xen_time_ops __initdata = {
 
 	.set_wallclock = xen_set_wallclock,
 	.get_wallclock = xen_get_wallclock,
-	.get_cpu_khz = xen_cpu_khz,
+	.get_tsc_khz = xen_tsc_khz,
 	.sched_clock = xen_sched_clock,
 };
 

@@ -84,7 +84,7 @@ struct pv_time_ops {
 	int (*set_wallclock)(unsigned long);
 
 	unsigned long long (*sched_clock)(void);
-	unsigned long (*get_cpu_khz)(void);
+	unsigned long (*get_tsc_khz)(void);
 };
 
 struct pv_cpu_ops {
@@ -779,7 +779,7 @@ static inline unsigned long long paravirt_sched_clock(void)
 {
 	return PVOP_CALL0(unsigned long long, pv_time_ops.sched_clock);
 }
-#define calculate_cpu_khz() (pv_time_ops.get_cpu_khz())
+#define calibrate_tsc() (pv_time_ops.get_tsc_khz())
 
 static inline unsigned long long paravirt_read_pmc(int counter)
 {

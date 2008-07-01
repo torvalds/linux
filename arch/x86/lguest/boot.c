@@ -607,7 +607,7 @@ static unsigned long lguest_get_wallclock(void)
  * what speed it runs at, or 0 if it's unusable as a reliable clock source.
  * This matches what we want here: if we return 0 from this function, the x86
  * TSC clock will give up and not register itself. */
-static unsigned long lguest_cpu_khz(void)
+static unsigned long lguest_tsc_khz(void)
 {
 	return lguest_data.tsc_khz;
 }
@@ -998,7 +998,7 @@ __init void lguest_init(void)
 	/* time operations */
 	pv_time_ops.get_wallclock = lguest_get_wallclock;
 	pv_time_ops.time_init = lguest_time_init;
-	pv_time_ops.get_cpu_khz = lguest_cpu_khz;
+	pv_time_ops.get_tsc_khz = lguest_tsc_khz;
 
 	/* Now is a good time to look at the implementations of these functions
 	 * before returning to the rest of lguest_init(). */

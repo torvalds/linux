@@ -932,7 +932,7 @@ static inline int __init activate_vmi(void)
 		pv_apic_ops.setup_secondary_clock = vmi_time_ap_init;
 #endif
 		pv_time_ops.sched_clock = vmi_sched_clock;
- 		pv_time_ops.get_cpu_khz = vmi_cpu_khz;
+		pv_time_ops.get_tsc_khz = vmi_tsc_khz;
 
 		/* We have true wallclock functions; disable CMOS clock sync */
 		no_sync_cmos_clock = 1;

@@ -123,9 +123,9 @@ static u64 __init tsc_read_refs(u64 *pm, u64 *hpet)
 }
 
 /**
- * tsc_calibrate - calibrate the tsc on boot
+ * native_calibrate_tsc - calibrate the tsc on boot
  */
-static unsigned int __init tsc_calibrate(void)
+unsigned long native_calibrate_tsc(void)
 {
 	unsigned long flags;
 	u64 tsc1, tsc2, tr1, tr2, delta, pm1, pm2, hpet1, hpet2;
@@ -195,10 +195,6 @@ out:
 	return tsc_khz_val;
 }
 
-unsigned long native_calculate_cpu_khz(void)
-{
-	return tsc_calibrate();
-}
 
 #ifdef CONFIG_X86_32
 /* Only called from the Powernow K7 cpu freq driver */
@@ -208,8 +204,8 @@ int recalibrate_cpu_khz(void)
 	unsigned long cpu_khz_old = cpu_khz;
 
 	if (cpu_has_tsc) {
-		cpu_khz = calculate_cpu_khz();
-		tsc_khz = cpu_khz;
+		tsc_khz = calibrate_tsc();
+		cpu_khz = tsc_khz;
 		cpu_data(0).loops_per_jiffy =
 			cpufreq_scale(cpu_data(0).loops_per_jiffy,
 					cpu_khz_old, cpu_khz);
@@ -487,10 +483,10 @@ void __init tsc_init(void)
 	if (!cpu_has_tsc)
 		return;
 
-	cpu_khz = calculate_cpu_khz();
-	tsc_khz = cpu_khz;
+	tsc_khz = calibrate_tsc();
+	cpu_khz = tsc_khz;
 
-	if (!cpu_khz) {
+	if (!tsc_khz) {
 		mark_tsc_unstable("could not calculate TSC khz");
 		return;
 	}
