@@ -2481,6 +2481,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			control->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
 		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 		control->flags |= IEEE80211_TX_CTL_NO_ACK;
+		control->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
 		control->control.retry_limit = 1;
 
 		ifsta->probe_resp = skb_copy(skb, GFP_ATOMIC);
