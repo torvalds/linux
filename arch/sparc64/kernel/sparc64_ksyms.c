@@ -112,7 +112,7 @@ EXPORT_SYMBOL(__write_trylock);
 EXPORT_SYMBOL(smp_call_function);
 #endif /* CONFIG_SMP */
 
-#if defined(CONFIG_MCOUNT)
+#ifdef CONFIG_MCOUNT
 EXPORT_SYMBOL(_mcount);
 #endif
 
