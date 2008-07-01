@@ -366,8 +366,10 @@ static u32 ieee80211_handle_protect_preamb(struct ieee80211_sub_if_data *sdata,
 					   bool use_short_preamble)
 {
 	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	DECLARE_MAC_BUF(mac);
+#endif
 	u32 changed = 0;
 
 	if (use_protection != bss_conf->use_cts_prot) {
