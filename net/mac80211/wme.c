@@ -210,7 +210,6 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 			kfree_skb(skb);
 			err = NET_XMIT_DROP;
 	} else {
-		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
 		skb_set_queue_mapping(skb, queue);
 		qdisc = q->queues[queue];
 		err = qdisc->enqueue(skb, qdisc);
