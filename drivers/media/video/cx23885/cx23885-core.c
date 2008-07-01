@@ -80,8 +80,8 @@ static struct sram_channel cx23887_sram_channels[] = {
 	[SRAM_CH01] = {
 		.name		= "VID A",
 		.cmds_start	= 0x10000,
-		.ctrl_start	= 0x105b0,
-		.cdt		= 0x107b0,
+		.ctrl_start	= 0x10380,
+		.cdt		= 0x104c0,
 		.fifo_start	= 0x40,
 		.fifo_size	= 0x2800,
 		.ptr1_reg	= DMA1_PTR1,
@@ -104,8 +104,8 @@ static struct sram_channel cx23887_sram_channels[] = {
 	[SRAM_CH03] = {
 		.name		= "TS1 B",
 		.cmds_start	= 0x100A0,
-		.ctrl_start	= 0x10670,
-		.cdt		= 0x10810,
+		.ctrl_start	= 0x10400,
+		.cdt		= 0x10580,
 		.fifo_start	= 0x5000,
 		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA3_PTR1,
@@ -140,8 +140,8 @@ static struct sram_channel cx23887_sram_channels[] = {
 	[SRAM_CH06] = {
 		.name		= "TS2 C",
 		.cmds_start	= 0x10140,
-		.ctrl_start	= 0x10680,
-		.cdt		= 0x108d0,
+		.ctrl_start	= 0x10440,
+		.cdt		= 0x105e0,
 		.fifo_start	= 0x6000,
 		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA5_PTR1,
@@ -1043,6 +1043,9 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 
 	dprintk(1, "%s() w: %d, h: %d, f: %d\n", __func__,
 		buf->vb.width, buf->vb.height, buf->vb.field);
+
+	/* Stop the fifo and risc engine for this port */
+	cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
 
 	/* setup fifo + format */
 	cx23885_sram_channel_setup(dev,
