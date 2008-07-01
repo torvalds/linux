@@ -2719,6 +2719,8 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	/* Clean rings */
 	memset(dev->tx_desc, 0, NUM_TX_BUFF * sizeof(struct mal_descriptor));
 	memset(dev->rx_desc, 0, NUM_RX_BUFF * sizeof(struct mal_descriptor));
+	memset(dev->tx_skb, 0, NUM_TX_BUFF * sizeof(struct sk_buff *));
+	memset(dev->rx_skb, 0, NUM_RX_BUFF * sizeof(struct sk_buff *));
 
 	/* Attach to ZMII, if needed */
 	if (emac_has_feature(dev, EMAC_FTR_HAS_ZMII) &&
