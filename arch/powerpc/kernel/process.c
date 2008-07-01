@@ -162,7 +162,7 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 	}
 }
 
-int dump_task_altivec(struct task_struct *tsk, elf_vrreg_t *vrregs)
+int dump_task_altivec(struct task_struct *tsk, elf_vrregset_t *vrregs)
 {
 	/* ELF_NVRREG includes the VSCR and VRSAVE which we need to save
 	 * separately, see below */
@@ -248,23 +248,6 @@ int dump_task_vsx(struct task_struct *tsk, elf_vrreg_t *vrregs)
 	return 1;
 }
 #endif /* CONFIG_VSX */
-
-int dump_task_vector(struct task_struct *tsk, elf_vrregset_t *vrregs)
-{
-	int rc = 0;
-	elf_vrreg_t *regs = (elf_vrreg_t *)vrregs;
-#ifdef CONFIG_ALTIVEC
-	rc = dump_task_altivec(tsk, regs);
-	if (rc)
-		return rc;
-	regs += ELF_NVRREG;
-#endif
-
-#ifdef CONFIG_VSX
-	rc = dump_task_vsx(tsk, regs);
-#endif
-	return rc;
-}
 
 #ifdef CONFIG_SPE
 

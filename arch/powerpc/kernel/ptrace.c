@@ -368,13 +368,15 @@ static int vsr_get(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
-	int ret;
+	double buf[32];
+	int ret, i;
 
 	flush_vsx_to_thread(target);
 
+	for (i = 0; i < 32 ; i++)
+		buf[i] = current->thread.fpr[i][TS_VSRLOWOFFSET];
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  target->thread.fpr, 0,
-				  32 * sizeof(vector128));
+				  buf, 0, 32 * sizeof(double));
 
 	return ret;
 }
@@ -383,13 +385,16 @@ static int vsr_set(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   const void *kbuf, const void __user *ubuf)
 {
-	int ret;
+	double buf[32];
+	int ret,i;
 
 	flush_vsx_to_thread(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 target->thread.fpr, 0,
-				 32 * sizeof(vector128));
+				 buf, 0, 32 * sizeof(double));
+	for (i = 0; i < 32 ; i++)
+		current->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
+
 
 	return ret;
 }
@@ -499,8 +504,8 @@ static const struct user_regset native_regsets[] = {
 #endif
 #ifdef CONFIG_VSX
 	[REGSET_VSX] = {
-		.n = 32,
-		.size = sizeof(vector128), .align = sizeof(vector128),
+		.core_note_type = NT_PPC_VSX, .n = 32,
+		.size = sizeof(double), .align = sizeof(double),
 		.active = vsr_active, .get = vsr_get, .set = vsr_set
 	},
 #endif

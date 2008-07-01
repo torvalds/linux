@@ -221,8 +221,8 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 typedef elf_vrregset_t elf_fpxregset_t;
 
 #ifdef CONFIG_ALTIVEC
-extern int dump_task_vector(struct task_struct *, elf_vrregset_t *vrregs);
-#define ELF_CORE_COPY_XFPREGS(tsk, regs) dump_task_vector(tsk, regs)
+extern int dump_task_altivec(struct task_struct *, elf_vrregset_t *vrregs);
+#define ELF_CORE_COPY_XFPREGS(tsk, regs) dump_task_altivec(tsk, regs)
 #define ELF_CORE_XFPREG_TYPE NT_PPC_VMX
 #endif
 
