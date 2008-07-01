@@ -383,11 +383,6 @@ static void __init set_highmem_pages_init(void)
 # define set_highmem_pages_init()	do { } while (0)
 #endif /* CONFIG_HIGHMEM */
 
-pteval_t __PAGE_KERNEL = _PAGE_KERNEL;
-EXPORT_SYMBOL(__PAGE_KERNEL);
-
-pteval_t __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
-
 void __init native_pagetable_setup_start(pgd_t *base)
 {
 	unsigned long pfn, va;
@@ -509,7 +504,7 @@ void zap_low_mappings(void)
 
 int nx_enabled;
 
-pteval_t __supported_pte_mask __read_mostly = ~_PAGE_NX;
+pteval_t __supported_pte_mask __read_mostly = ~(_PAGE_NX | _PAGE_GLOBAL);
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 #ifdef CONFIG_X86_PAE
@@ -796,8 +791,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	/* Enable PGE if available */
 	if (cpu_has_pge) {
 		set_in_cr4(X86_CR4_PGE);
-		__PAGE_KERNEL |= _PAGE_GLOBAL;
-		__PAGE_KERNEL_EXEC |= _PAGE_GLOBAL;
+		__supported_pte_mask |= _PAGE_GLOBAL;
 	}
 
 	/*
