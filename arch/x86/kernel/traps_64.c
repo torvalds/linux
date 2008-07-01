@@ -557,9 +557,9 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	do_exit(signr);
 }
 
-int __kprobes __die(const char * str, struct pt_regs * regs, long err)
+int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 {
-	printk(KERN_EMERG "%s: %04lx [%u] ", str, err & 0xffff,++die_counter);
+	printk(KERN_EMERG "%s: %04lx [%u] ", str, err & 0xffff, ++die_counter);
 #ifdef CONFIG_PREEMPT
 	printk("PREEMPT ");
 #endif

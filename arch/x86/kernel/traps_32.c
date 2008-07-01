@@ -399,26 +399,22 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 	printk("DEBUG_PAGEALLOC");
 #endif
 	printk("\n");
-
 	if (notify_die(DIE_OOPS, str, regs, err,
-			current->thread.trap_no, SIGSEGV) != NOTIFY_STOP) {
+			current->thread.trap_no, SIGSEGV) == NOTIFY_STOP)
+		return 1;
 
-		show_registers(regs);
-		/* Executive summary in case the oops scrolled away */
-		sp = (unsigned long) (&regs->sp);
-		savesegment(ss, ss);
-		if (user_mode(regs)) {
-			sp = regs->sp;
-			ss = regs->ss & 0xffff;
-		}
-		printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
-		print_symbol("%s", regs->ip);
-		printk(" SS:ESP %04x:%08lx\n", ss, sp);
-
-		return 0;
+	show_registers(regs);
+	/* Executive summary in case the oops scrolled away */
+	sp = (unsigned long) (&regs->sp);
+	savesegment(ss, ss);
+	if (user_mode(regs)) {
+		sp = regs->sp;
+		ss = regs->ss & 0xffff;
 	}
-
-	return 1;
+	printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
+	print_symbol("%s", regs->ip);
+	printk(" SS:ESP %04x:%08lx\n", ss, sp);
+	return 0;
 }
 
 /*
