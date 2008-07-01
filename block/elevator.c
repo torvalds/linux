@@ -150,7 +150,7 @@ static struct elevator_type *elevator_get(const char *name)
 		else
 			sprintf(elv, "%s-iosched", name);
 
-		request_module(elv);
+		request_module("%s", elv);
 		spin_lock(&elv_list_lock);
 		e = elevator_find(name);
 	}
