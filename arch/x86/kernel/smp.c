@@ -198,7 +198,7 @@ void smp_call_function_interrupt(struct pt_regs *regs)
 	irq_exit();
 }
 
-void smp_call_function_single_interrupt(void)
+void smp_call_function_single_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
 	irq_enter();
