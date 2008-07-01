@@ -122,6 +122,7 @@ config BOARD_ATNGW100
 endchoice
 
 source "arch/avr32/boards/atstk1000/Kconfig"
+source "arch/avr32/boards/atngw100/Kconfig"
 
 choice
 	prompt "Boot loader type"
