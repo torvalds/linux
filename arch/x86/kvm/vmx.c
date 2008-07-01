@@ -2817,6 +2817,27 @@ static void enable_intr_window(struct kvm_vcpu *vcpu)
 		enable_irq_window(vcpu);
 }
 
+static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
+{
+	u32 exit_intr_info;
+	bool unblock_nmi;
+	u8 vector;
+
+	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	if (cpu_has_virtual_nmis()) {
+		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
+		vector = exit_intr_info & INTR_INFO_VECTOR_MASK;
+		/*
+		 * SDM 3: 25.7.1.2
+		 * Re-set bit "block by NMI" before VM entry if vmexit caused by
+		 * a guest IRET fault.
+		 */
+		if (unblock_nmi && vector != DF_VECTOR)
+			vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
+				      GUEST_INTR_STATE_NMI);
+	}
+}
+
 static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2873,23 +2894,12 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 		return;
 	}
 	if (cpu_has_virtual_nmis()) {
-		/*
-		 * SDM 3: 25.7.1.2
-		 * Re-set bit "block by NMI" before VM entry if vmexit caused by
-		 * a guest IRET fault.
-		 */
-		if ((exit_intr_info_field & INTR_INFO_UNBLOCK_NMI) &&
-		    (exit_intr_info_field & INTR_INFO_VECTOR_MASK) != 8)
-			vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
-				vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) |
-				GUEST_INTR_STATE_NMI);
-		else if (vcpu->arch.nmi_pending) {
+		if (vcpu->arch.nmi_pending) {
 			if (vmx_nmi_enabled(vcpu))
 				vmx_inject_nmi(vcpu);
 			enable_intr_window(vcpu);
 			return;
 		}
-
 	}
 	if (!kvm_cpu_has_interrupt(vcpu))
 		return;
@@ -3076,6 +3086,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		KVMTRACE_0D(NMI, vcpu, handler);
 		asm("int $2");
 	}
+
+	vmx_complete_interrupts(vmx);
 }
 
 static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
