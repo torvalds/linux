@@ -616,9 +616,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start, unsigned lon
 
 		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next));
 		unmap_low_page(pud);
-		if (!after_bootmem)
-			pgd_populate(&init_mm, pgd_offset_k(start),
-				     __va(pud_phys));
+		pgd_populate(&init_mm, pgd_offset_k(start),
+			     __va(pud_phys));
 	}
 
 	if (!after_bootmem)
