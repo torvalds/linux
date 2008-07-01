@@ -929,7 +929,7 @@ struct iwl_priv {
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
 #ifdef CONFIG_IWLWIFI_RFKILL
-	struct iwl_rfkill_mngr rfkill_mngr;
+	struct rfkill *rfkill;
 #endif
 
 #ifdef CONFIG_IWLWIFI_LEDS

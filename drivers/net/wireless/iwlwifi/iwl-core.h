@@ -356,10 +356,19 @@ static inline int iwl_is_init(struct iwl_priv *priv)
 	return test_bit(STATUS_INIT, &priv->status);
 }
 
+static inline int iwl_is_rfkill_sw(struct iwl_priv *priv)
+{
+	return test_bit(STATUS_RF_KILL_SW, &priv->status);
+}
+
+static inline int iwl_is_rfkill_hw(struct iwl_priv *priv)
+{
+	return test_bit(STATUS_RF_KILL_HW, &priv->status);
+}
+
 static inline int iwl_is_rfkill(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_RF_KILL_HW, &priv->status) ||
-	       test_bit(STATUS_RF_KILL_SW, &priv->status);
+	return iwl_is_rfkill_hw(priv) || iwl_is_rfkill_sw(priv);
 }
 
 static inline int iwl_is_ready_rf(struct iwl_priv *priv)

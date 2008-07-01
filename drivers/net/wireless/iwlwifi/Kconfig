@@ -104,6 +104,7 @@ config IWL3945
 	select IWLWIFI
 	select MAC80211_LEDS if IWL3945_LEDS
 	select LEDS_CLASS if IWL3945_LEDS
+	select RFKILL if IWL3945_RFKILL
 	---help---
 	  Select to build the driver supporting the:
 
@@ -125,6 +126,10 @@ config IWL3945
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl3945.ko.
+
+config IWL3945_RFKILL
+	bool "Enable RF kill support in iwl3945 drivers"
+	depends on IWL3945
 
 config IWL3945_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl3945 drivers"
