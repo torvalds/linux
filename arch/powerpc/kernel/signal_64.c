@@ -167,6 +167,7 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 #endif
 #ifdef CONFIG_VSX
 	double buf[FP_REGS_SIZE];
+	int i;
 #endif
 	unsigned long err = 0;
 	unsigned long save_r13 = 0;
