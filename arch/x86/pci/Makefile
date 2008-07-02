@@ -32,9 +32,6 @@ else
 #
 # Makefile for X86_64 specific PCI routines
 #
-# Reuse the i386 PCI subsystem
-#
-EXTRA_CFLAGS += -Iarch/x86/pci
 
 obj-y		:= i386.o
 obj-$(CONFIG_PCI_DIRECT)+= direct.o
