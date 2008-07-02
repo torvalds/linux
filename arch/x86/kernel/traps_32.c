@@ -789,9 +789,12 @@ void notrace __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
 static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
+	int cpu;
 
-	/* Only the BSP gets external NMIs from the system: */
-	if (!smp_processor_id())
+	cpu = smp_processor_id();
+
+	/* Only the BSP gets external NMIs from the system. */
+	if (!cpu)
 		reason = get_nmi_reason();
 
 	if (!(reason & 0xc0)) {
@@ -805,7 +808,7 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 		 */
 		if (nmi_watchdog_tick(regs, reason))
 			return;
-		if (!do_nmi_callback(regs, smp_processor_id()))
+		if (!do_nmi_callback(regs, cpu))
 			unknown_nmi_error(reason, regs);
 #else
 		unknown_nmi_error(reason, regs);
