@@ -105,4 +105,9 @@ static int __init pci_visws_init(void)
 	return 0;
 }
 
-subsys_initcall(pci_visws_init);
+static __init int pci_subsys_init(void)
+{
+	pci_visws_init();
+	pcibios_init();
+}
+subsys_initcall(pci_subsys_init);

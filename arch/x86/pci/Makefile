@@ -6,10 +6,6 @@ obj-$(CONFIG_PCI_DIRECT)	+= direct.o
 obj-$(CONFIG_PCI_OLPC)		+= olpc.o
 
 pci-y				:= fixup.o
-
-# Do not change the ordering here. There is a nasty init function
-# ordering dependency which breaks when you move acpi.o below
-# legacy/irq.o
 pci-$(CONFIG_ACPI)		+= acpi.o
 pci-y				+= legacy.o irq.o
 
