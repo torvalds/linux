@@ -35,8 +35,6 @@
 
 #include "gspca.h"
 
-#undef CONFIG_VIDEO_V4L1_COMPAT
-
 /* global values */
 #define DEF_NURBS 2		/* default number of URBs (mmap) */
 #define USR_NURBS 5		/* default number of URBs (userptr) */
@@ -45,8 +43,8 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 1)
-static const char version[] = "2.1.1";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 2)
+static const char version[] = "2.1.2";
 
 static int video_nr = -1;
 
@@ -281,10 +279,16 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				frame->v4l2_buf.length);
 			packet_type = DISCARD_PACKET;
 		} else {
-			if (frame->v4l2_buf.memory != V4L2_MEMORY_USERPTR)
+			if (frame->v4l2_buf.memory != V4L2_MEMORY_USERPTR) {
 				memcpy(frame->data_end, data, len);
-			else
-				copy_to_user(frame->data_end, data, len);
+			} else {
+				if (copy_to_user(frame->data_end,
+						 data, len) != 0) {
+					PDEBUG(D_ERR|D_PACK,
+							"copy to user failed");
+					packet_type = DISCARD_PACKET;
+				}
+			}
 			frame->data_end += len;
 		}
 	}
@@ -565,9 +569,8 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	bsize = psize * npkt;
 	PDEBUG(D_STREAM,
 		"isoc %d pkts size %d (bsize:%d)", npkt, psize, bsize);
-/*fixme:change for userptr*/
 /*fixme:don't submit all URBs when userptr*/
-	if (gspca_dev->memory == V4L2_MEMORY_MMAP) {
+	if (gspca_dev->memory != V4L2_MEMORY_USERPTR) {
 		usb_complete = isoc_irq_mmap;
 		nurbs = DEF_NURBS;
 	} else {
@@ -746,8 +749,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	int i, j, index;
 	__u32 fmt_tb[8];
 
-	PDEBUG(D_CONF, "enum fmt cap");
-
 	/* give an index to each format */
 	index = 0;
 	j = 0;
@@ -792,14 +793,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	fmt->fmt.pix.width = gspca_dev->width;
 	fmt->fmt.pix.height = gspca_dev->height;
 	fmt->fmt.pix.pixelformat = gspca_dev->pixfmt;
-#ifdef VIDEO_ADV_DEBUG
-	if (gspca_debug & D_CONF) {
-		PDEBUG_MODE("get fmt cap",
-			fmt->fmt.pix.pixelformat,
-			fmt->fmt.pix.width,
-			fmt->fmt.pix.height);
-	}
-#endif
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = get_v4l2_depth(fmt->fmt.pix.pixelformat)
 					* fmt->fmt.pix.width / 8;
@@ -892,13 +885,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		fmt->fmt.pix.height = gspca_dev->height;
 		fmt->fmt.pix.pixelformat = gspca_dev->pixfmt;
 		return 0;
-	}
-#endif
-#ifdef VIDEO_ADV_DEBUG
-	if (gspca_debug & D_CONF) {
-		PDEBUG_MODE("set fmt cap",
-			fmt->fmt.pix.pixelformat,
-			fmt->fmt.pix.width, fmt->fmt.pix.height);
 	}
 #endif
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
@@ -1013,7 +999,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 
-	PDEBUG(D_CONF, "querycap");
 	memset(cap, 0, sizeof *cap);
 	strncpy(cap->driver, gspca_dev->sd_desc->name, sizeof cap->driver);
 	strncpy(cap->card, gspca_dev->cam.dev_name, sizeof cap->card);
@@ -1071,7 +1056,6 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	struct ctrl *ctrls;
 	int i, ret;
 
-	PDEBUG(D_CONF, "set ctrl");
 	for (i = 0, ctrls = gspca_dev->sd_desc->ctrls;
 	     i < gspca_dev->sd_desc->nctrls;
 	     i++, ctrls++) {
@@ -1155,7 +1139,6 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = priv;
 	int i, ret = 0;
 
-	PDEBUG(D_STREAM, "reqbufs %d", rb->count);
 	if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	switch (rb->memory) {
@@ -1205,7 +1188,6 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = priv;
 	struct gspca_frame *frame;
 
-	PDEBUG(D_STREAM, "querybuf");
 	if (v4l2_buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE
 	    || v4l2_buf->index < 0
 	    || v4l2_buf->index >= gspca_dev->nframes)
@@ -1222,7 +1204,6 @@ static int vidioc_streamon(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = priv;
 	int ret;
 
-	PDEBUG(D_STREAM, "stream on");
 	if (buf_type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
@@ -1264,7 +1245,6 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = priv;
 	int ret;
 
-	PDEBUG(D_STREAM, "stream off");
 	if (buf_type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (!gspca_dev->streaming)
@@ -1499,8 +1479,10 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 	i = gspca_dev->fr_o;
 	j = gspca_dev->fr_queue[i];
 	frame = &gspca_dev->frame[j];
-	if (frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE)
+	if (frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE) {
+		atomic_dec(&gspca_dev->nevent);
 		goto ok;
+	}
 	if (nonblock_ing)			/* no frame yet */
 		return -EAGAIN;
 
@@ -1511,9 +1493,10 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 					msecs_to_jiffies(3000));
 		if (ret <= 0) {
 			if (ret < 0)
-				return ret;
-			return -EIO;
+				return ret;	/* interrupt */
+			return -EIO;		/* timeout */
 		}
+		atomic_dec(&gspca_dev->nevent);
 		if (!gspca_dev->streaming || !gspca_dev->present)
 			return -EIO;
 		if (gspca_dev->memory == V4L2_MEMORY_USERPTR)
@@ -1525,7 +1508,6 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 			break;
 	}
 ok:
-	atomic_dec(&gspca_dev->nevent);
 	gspca_dev->fr_o = (i + 1) % gspca_dev->nframes;
 	PDEBUG(D_FRAM, "frame wait q:%d i:%d o:%d",
 		gspca_dev->fr_q,
@@ -1725,7 +1707,7 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	/* if not mmap, treat the awaiting URBs */
+	/* if userptr, treat the awaiting URBs */
 	if (gspca_dev->memory == V4L2_MEMORY_USERPTR
 	    && gspca_dev->capt_file == file)
 		isoc_transfer(gspca_dev);
@@ -1748,7 +1730,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	struct gspca_frame *frame;
 	struct v4l2_buffer v4l2_buf;
 	struct timeval timestamp;
-	int i, ret, ret2;
+	int n, ret, ret2;
 
 	PDEBUG(D_FRAM, "read (%d)", count);
 	if (!gspca_dev->present)
@@ -1760,9 +1742,9 @@ static ssize_t dev_read(struct file *file, char __user *data,
 			return ret;
 		break;
 	case GSPCA_MEMORY_READ:
-		if (gspca_dev->capt_file != file)
-			return -EINVAL;
-		break;
+		if (gspca_dev->capt_file == file)
+			break;
+		/* fall thru */
 	default:
 		return -EINVAL;
 	}
@@ -1770,7 +1752,8 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	/* get a frame */
 	jiffies_to_timeval(get_jiffies_64(), &timestamp);
 	timestamp.tv_sec--;
-	for (i = 0; i < 2; i++) {
+	n = 2;
+	for (;;) {
 		memset(&v4l2_buf, 0, sizeof v4l2_buf);
 		v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		v4l2_buf.memory = V4L2_MEMORY_MMAP;
@@ -1781,8 +1764,10 @@ static ssize_t dev_read(struct file *file, char __user *data,
 		}
 
 		/* if the process slept for more than 1 second,
-		 * get a brand new frame */
+		 * get anewer frame */
 		frame = &gspca_dev->frame[v4l2_buf.index];
+		if (--n < 0)
+			break;			/* avoid infinite loop */
 		if (frame->v4l2_buf.timestamp.tv_sec >= timestamp.tv_sec)
 			break;
 		ret = vidioc_qbuf(file, gspca_dev, &v4l2_buf);
