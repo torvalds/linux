@@ -43,7 +43,6 @@ extern void _zfcp_scan_ports_later(struct work_struct *work);
 /******************************* S/390 IO ************************************/
 extern int  zfcp_ccw_register(void);
 
-extern void zfcp_qdio_zero_sbals(struct qdio_buffer **, int, int);
 extern int  zfcp_qdio_allocate(struct zfcp_adapter *);
 extern void zfcp_qdio_free(struct zfcp_adapter *);
 extern int  zfcp_qdio_send(struct zfcp_fsf_req *fsf_req);

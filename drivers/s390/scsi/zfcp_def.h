@@ -100,8 +100,6 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 
 #define ZFCP_TYPE2_RECOVERY_TIME        8	/* seconds */
 
-#define QBUFF_PER_PAGE			(PAGE_SIZE / sizeof(struct qdio_buffer))
-
 /********************* FSF SPECIFIC DEFINES *********************************/
 
 #define ZFCP_ULP_INFO_VERSION                   26
