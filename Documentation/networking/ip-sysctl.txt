@@ -548,8 +548,9 @@ icmp_echo_ignore_broadcasts - BOOLEAN
 icmp_ratelimit - INTEGER
 	Limit the maximal rates for sending ICMP packets whose type matches
 	icmp_ratemask (see below) to specific targets.
-	0 to disable any limiting, otherwise the maximal rate in jiffies(1)
-	Default: 100
+	0 to disable any limiting,
+	otherwise the minimal space between responses in milliseconds.
+	Default: 1000
 
 icmp_ratemask - INTEGER
 	Mask made of ICMP types for which rates are being limited.
@@ -1027,8 +1028,9 @@ max_addresses - INTEGER
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
-	0 to disable any limiting, otherwise the maximal rate in jiffies(1)
-	Default: 100
+	0 to disable any limiting,
+	otherwise the minimal space between responses in milliseconds.
+	Default: 1000
 
 
 IPv6 Update by:
