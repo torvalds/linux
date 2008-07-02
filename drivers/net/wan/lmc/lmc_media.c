@@ -93,8 +93,7 @@ static void lmc_dummy_set_1 (lmc_softc_t * const, int);
 static void lmc_dummy_set2_1 (lmc_softc_t * const, lmc_ctl_t *);
 
 static inline void write_av9110_bit (lmc_softc_t *, int);
-static void write_av9110 (lmc_softc_t *, u_int32_t, u_int32_t, u_int32_t,
-			  u_int32_t, u_int32_t);
+static void write_av9110(lmc_softc_t *, u32, u32, u32, u32, u32);
 
 lmc_media_t lmc_ds3_media = {
   lmc_ds3_init,			/* special media init stuff */
@@ -679,7 +678,7 @@ static int
 lmc_ssi_get_link_status (lmc_softc_t * const sc)
 {
   u16 link_status;
-  u_int32_t ticks;
+  u32 ticks;
   int ret = 1;
   int hw_hdsk = 1;
 
@@ -835,9 +834,7 @@ write_av9110_bit (lmc_softc_t * sc, int c)
   LMC_CSR_WRITE (sc, csr_gp, sc->lmc_gpio);
 }
 
-static void
-write_av9110 (lmc_softc_t * sc, u_int32_t n, u_int32_t m, u_int32_t v,
-	      u_int32_t x, u_int32_t r)
+static void write_av9110(lmc_softc_t *sc, u32 n, u32 m, u32 v, u32 x, u32 r)
 {
   int i;
 

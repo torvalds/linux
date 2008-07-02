@@ -310,7 +310,8 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
 		ret = -EFAULT;
 		break;
 	}
-        if (copy_to_user(ifr->ifr_data + sizeof (u32), lmcEventLogBuf, sizeof (lmcEventLogBuf)))
+	if (copy_to_user(ifr->ifr_data + sizeof(u32), lmcEventLogBuf,
+			 sizeof(lmcEventLogBuf)))
 		ret = -EFAULT;
 	else
 		ret = 0;
@@ -624,7 +625,7 @@ static void lmc_watchdog (unsigned long data) /*fold00*/
     struct net_device *dev = (struct net_device *)data;
     lmc_softc_t *sc = dev_to_sc(dev);
     int link_status;
-    u_int32_t ticks;
+    u32 ticks;
     unsigned long flags;
 
     lmc_trace(dev, "lmc_watchdog in");
@@ -1899,7 +1900,7 @@ static void lmc_softreset (lmc_softc_t * const sc) /*fold00*/
     lmc_trace(sc->lmc_device, "lmc_softreset out");
 }
 
-void lmc_gpio_mkinput(lmc_softc_t * const sc, u_int32_t bits) /*fold00*/
+void lmc_gpio_mkinput(lmc_softc_t * const sc, u32 bits) /*fold00*/
 {
     lmc_trace(sc->lmc_device, "lmc_gpio_mkinput in");
     sc->lmc_gpio_io &= ~bits;
@@ -1907,7 +1908,7 @@ void lmc_gpio_mkinput(lmc_softc_t * const sc, u_int32_t bits) /*fold00*/
     lmc_trace(sc->lmc_device, "lmc_gpio_mkinput out");
 }
 
-void lmc_gpio_mkoutput(lmc_softc_t * const sc, u_int32_t bits) /*fold00*/
+void lmc_gpio_mkoutput(lmc_softc_t * const sc, u32 bits) /*fold00*/
 {
     lmc_trace(sc->lmc_device, "lmc_gpio_mkoutput in");
     sc->lmc_gpio_io |= bits;
@@ -1915,7 +1916,7 @@ void lmc_gpio_mkoutput(lmc_softc_t * const sc, u_int32_t bits) /*fold00*/
     lmc_trace(sc->lmc_device, "lmc_gpio_mkoutput out");
 }
 
-void lmc_led_on(lmc_softc_t * const sc, u_int32_t led) /*fold00*/
+void lmc_led_on(lmc_softc_t * const sc, u32 led) /*fold00*/
 {
     lmc_trace(sc->lmc_device, "lmc_led_on in");
     if((~sc->lmc_miireg16) & led){ /* Already on! */
@@ -1928,7 +1929,7 @@ void lmc_led_on(lmc_softc_t * const sc, u_int32_t led) /*fold00*/
     lmc_trace(sc->lmc_device, "lmc_led_on out");
 }
 
-void lmc_led_off(lmc_softc_t * const sc, u_int32_t led) /*fold00*/
+void lmc_led_off(lmc_softc_t * const sc, u32 led) /*fold00*/
 {
     lmc_trace(sc->lmc_device, "lmc_led_off in");
     if(sc->lmc_miireg16 & led){ /* Already set don't do anything */
@@ -1984,7 +1985,7 @@ static void lmc_reset(lmc_softc_t * const sc) /*fold00*/
 
 static void lmc_dec_reset(lmc_softc_t * const sc) /*fold00*/
 {
-    u_int32_t val;
+    u32 val;
     lmc_trace(sc->lmc_device, "lmc_dec_reset in");
 
     /*
