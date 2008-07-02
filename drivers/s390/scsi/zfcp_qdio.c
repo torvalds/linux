@@ -10,7 +10,7 @@
 
 /* FIXME(tune): free space should be one max. SBAL chain plus what? */
 #define ZFCP_QDIO_PCI_INTERVAL	(QDIO_MAX_BUFFERS_PER_Q \
-				- (ZFCP_MAX_SBALS_PER_REQ + 4))
+				- (FSF_MAX_SBALS_PER_REQ + 4))
 #define QBUFF_PER_PAGE		(PAGE_SIZE / sizeof(struct qdio_buffer))
 
 static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
@@ -432,9 +432,9 @@ void zfcp_qdio_close(struct zfcp_adapter *adapter)
 
 	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
 	req_q = &adapter->req_q;
-	write_lock_irq(&req_q->lock);
+	spin_lock(&req_q->lock);
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
-	write_unlock_irq(&req_q->lock);
+	spin_unlock(&req_q->lock);
 
 	while (qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR)
 			== -EINPROGRESS)

@@ -961,7 +961,7 @@ void zfcp_san_dbf_event_incoming_els(struct zfcp_fsf_req *fsf_req)
 
 	zfcp_san_dbf_event_els("iels", 1, fsf_req, buf->d_id,
 			       fc_host_port_id(adapter->scsi_host),
-			       *(u8 *)buf->payload, (void *)buf->payload,
+			       buf->payload.data[0], (void *)buf->payload.data,
 			       length);
 }
 

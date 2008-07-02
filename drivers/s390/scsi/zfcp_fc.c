@@ -83,8 +83,8 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 	u16 no_entries;
 	u32 range_mask;
 
-	fcp_rscn_head = (struct fcp_rscn_head *) status_buffer->payload;
-	fcp_rscn_element = (struct fcp_rscn_element *) status_buffer->payload;
+	fcp_rscn_head = (struct fcp_rscn_head *) status_buffer->payload.data;
+	fcp_rscn_element = (struct fcp_rscn_element *) fcp_rscn_head;
 
 	/* see FC-FS */
 	no_entries = fcp_rscn_head->payload_len /
@@ -135,7 +135,7 @@ static void zfcp_fc_incoming_plogi(struct zfcp_fsf_req *req)
 	struct fsf_status_read_buffer *status_buffer =
 		(struct fsf_status_read_buffer *)req->data;
 	struct fsf_plogi *els_plogi =
-		(struct fsf_plogi *) status_buffer->payload;
+		(struct fsf_plogi *) status_buffer->payload.data;
 
 	zfcp_fc_incoming_wwpn(req, els_plogi->serv_param.wwpn);
 }
@@ -144,7 +144,8 @@ static void zfcp_fc_incoming_logo(struct zfcp_fsf_req *req)
 {
 	struct fsf_status_read_buffer *status_buffer =
 		(struct fsf_status_read_buffer *)req->data;
-	struct fcp_logo *els_logo = (struct fcp_logo *) status_buffer->payload;
+	struct fcp_logo *els_logo =
+		(struct fcp_logo *) status_buffer->payload.data;
 
 	zfcp_fc_incoming_wwpn(req, els_logo->nport_wwpn);
 }
@@ -157,7 +158,7 @@ void zfcp_fc_incoming_els(struct zfcp_fsf_req *fsf_req)
 {
 	struct fsf_status_read_buffer *status_buffer =
 		(struct fsf_status_read_buffer *) fsf_req->data;
-	unsigned int els_type = status_buffer->payload[0];
+	unsigned int els_type = status_buffer->payload.data[0];
 
 	zfcp_san_dbf_event_incoming_els(fsf_req);
 	if (els_type == LS_PLOGI)

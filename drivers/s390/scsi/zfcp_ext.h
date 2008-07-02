@@ -70,21 +70,19 @@ extern struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 extern void zfcp_fsf_start_timer(struct zfcp_fsf_req *, unsigned long);
 extern void zfcp_erp_start_timer(struct zfcp_fsf_req *);
 extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
-extern int  zfcp_fsf_status_read(struct zfcp_adapter *, int);
+extern int  zfcp_fsf_status_read(struct zfcp_adapter *);
 extern int zfcp_status_read_refill(struct zfcp_adapter *adapter);
-extern int zfcp_fsf_req_create(struct zfcp_adapter *, u32, int, mempool_t *,
-			       unsigned long *, struct zfcp_fsf_req **)
-	__acquires(adapter->req_q.lock);
 extern int zfcp_fsf_send_ct(struct zfcp_send_ct *, mempool_t *,
 			    struct zfcp_erp_action *);
 extern int zfcp_fsf_send_els(struct zfcp_send_els *);
 extern int  zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *,
 					   struct zfcp_unit *,
 					   struct scsi_cmnd *, int, int);
-extern int  zfcp_fsf_req_complete(struct zfcp_fsf_req *);
+extern void zfcp_fsf_req_complete(struct zfcp_fsf_req *);
 extern void zfcp_fsf_req_free(struct zfcp_fsf_req *);
-extern struct zfcp_fsf_req *zfcp_fsf_send_fcp_command_task_management(
-	struct zfcp_adapter *, struct zfcp_unit *, u8, int);
+extern struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_adapter *,
+						     struct zfcp_unit *, u8,
+						     int);
 extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(
 	unsigned long, struct zfcp_adapter *, struct zfcp_unit *, int);
 

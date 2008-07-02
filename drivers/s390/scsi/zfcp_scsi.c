@@ -182,7 +182,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL, 0);
 		return retval;
 	}
-	fsf_req->data = 0;
+	fsf_req->data = NULL;
 	fsf_req->status |= ZFCP_STATUS_FSFREQ_ABORTING;
 
 	/* don't access old fsf_req after releasing the abort_lock */
@@ -220,8 +220,7 @@ static int zfcp_task_mgmt_function(struct zfcp_unit *unit, u8 tm_flags,
 	int retval = SUCCESS;
 
 	/* issue task management function */
-	fsf_req = zfcp_fsf_send_fcp_command_task_management
-		(adapter, unit, tm_flags, 0);
+	fsf_req = zfcp_fsf_send_fcp_ctm(adapter, unit, tm_flags, 0);
 	if (!fsf_req) {
 		zfcp_scsi_dbf_event_devreset("nres", tm_flags, unit, scpnt);
 		return FAILED;

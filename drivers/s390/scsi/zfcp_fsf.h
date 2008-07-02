@@ -287,29 +287,6 @@ struct fsf_bit_error_payload {
 	u32 current_transmit_b2b_credit;
 } __attribute__ ((packed));
 
-struct fsf_status_read_buffer {
-	u32 status_type;
-	u32 status_subtype;
-	u32 length;
-	u32 res1;
-	struct fsf_queue_designator queue_designator;
-	u32 d_id;
-	u32 class;
-	u64 fcp_lun;
-	u8  res3[24];
-	u8  payload[FSF_STATUS_READ_PAYLOAD_SIZE];
-} __attribute__ ((packed));
-
-struct fsf_qual_version_error {
-	u32 fsf_version;
-	u32 res1[3];
-} __attribute__ ((packed));
-
-struct fsf_qual_sequence_error {
-	u32 exp_req_seq_no;
-	u32 res1[3];
-} __attribute__ ((packed));
-
 struct fsf_link_down_info {
 	u32 error_code;
 	u32 res1;
@@ -320,6 +297,34 @@ struct fsf_link_down_info {
 	u8 reason_code;
 	u8 explanation_code;
 	u8 vendor_specific_code;
+} __attribute__ ((packed));
+
+struct fsf_status_read_buffer {
+	u32 status_type;
+	u32 status_subtype;
+	u32 length;
+	u32 res1;
+	struct fsf_queue_designator queue_designator;
+	u32 d_id;
+	u32 class;
+	u64 fcp_lun;
+	u8  res3[24];
+	union {
+		u8  data[FSF_STATUS_READ_PAYLOAD_SIZE];
+		u32 word[FSF_STATUS_READ_PAYLOAD_SIZE/sizeof(u32)];
+		struct fsf_link_down_info link_down_info;
+		struct fsf_bit_error_payload bit_error;
+	} payload;
+} __attribute__ ((packed));
+
+struct fsf_qual_version_error {
+	u32 fsf_version;
+	u32 res1[3];
+} __attribute__ ((packed));
+
+struct fsf_qual_sequence_error {
+	u32 exp_req_seq_no;
+	u32 res1[3];
 } __attribute__ ((packed));
 
 struct fsf_qual_latency_info {

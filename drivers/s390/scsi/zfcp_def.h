@@ -76,11 +76,6 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 #define ZFCP_DEVICE_MODEL       0x03
 #define ZFCP_DEVICE_MODEL_PRIV	0x04
 
-/* allow as many chained SBALs as are supported by hardware */
-#define ZFCP_MAX_SBALS_PER_REQ		FSF_MAX_SBALS_PER_REQ
-#define ZFCP_MAX_SBALS_PER_CT_REQ	FSF_MAX_SBALS_PER_REQ
-#define ZFCP_MAX_SBALS_PER_ELS_REQ	FSF_MAX_SBALS_PER_ELS_REQ
-
 /* DMQ bug workaround: don't use last SBALE */
 #define ZFCP_MAX_SBALES_PER_SBAL	(QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
 
@@ -89,21 +84,17 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 
 /* max. number of (data buffer) SBALEs in largest SBAL chain */
 #define ZFCP_MAX_SBALES_PER_REQ		\
-	(ZFCP_MAX_SBALS_PER_REQ * ZFCP_MAX_SBALES_PER_SBAL - 2)
+	(FSF_MAX_SBALS_PER_REQ * ZFCP_MAX_SBALES_PER_SBAL - 2)
         /* request ID + QTCB in SBALE 0 + 1 of first SBAL in chain */
 
 #define ZFCP_MAX_SECTORS (ZFCP_MAX_SBALES_PER_REQ * 8)
         /* max. number of (data buffer) SBALEs in largest SBAL chain
            multiplied with number of sectors per 4k block */
 
-#define ZFCP_SBAL_TIMEOUT               (5*HZ)
-
 #define ZFCP_TYPE2_RECOVERY_TIME        8	/* seconds */
 
 /********************* FSF SPECIFIC DEFINES *********************************/
 
-#define ZFCP_ULP_INFO_VERSION                   26
-#define ZFCP_QTCB_VERSION	FSF_QTCB_CURRENT_VERSION
 /* ATTENTION: value must not be used by hardware */
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
 
@@ -120,8 +111,6 @@ typedef unsigned long long wwn_t;
 typedef unsigned long long fcp_lun_t;
 /* data length field may be at variable position in FCP-2 FCP_CMND IU */
 typedef unsigned int       fcp_dl_t;
-
-#define ZFCP_FC_SERVICE_CLASS_DEFAULT	FSF_CLASS_3
 
 /* timeout for name-server lookup (in seconds) */
 #define ZFCP_NS_GID_PN_TIMEOUT		10
@@ -228,7 +217,6 @@ struct fcp_logo {
  * FC-FS stuff
  */
 #define R_A_TOV				10 /* seconds */
-#define ZFCP_ELS_TIMEOUT		(2 * R_A_TOV)
 
 #define ZFCP_LS_RLS			0x0f
 #define ZFCP_LS_ADISC			0x52
@@ -521,7 +509,7 @@ struct zfcp_qdio_queue {
 						 in queue (free_count>0) */
 	atomic_t           count;	      /* number of free buffers
 						 in queue */
-	rwlock_t	   lock;	      /* lock for operations on queue */
+	spinlock_t	   lock;	      /* lock for operations on queue */
 	int                pci_batch;	      /* SBALs since PCI indication
 						 was last set */
 };
@@ -686,7 +674,7 @@ struct zfcp_fsf_req {
 	u32		       fsf_command;    /* FSF Command copy */
 	struct fsf_qtcb	       *qtcb;	       /* address of associated QTCB */
 	u32		       seq_no;         /* Sequence number of request */
-	unsigned long	       data;           /* private data of request */
+	void			*data;           /* private data of request */
 	struct timer_list     timer;	       /* used for erp or scsi er */
 	struct zfcp_erp_action *erp_action;    /* used if this request is
 						  issued on behalf of erp */
@@ -694,9 +682,8 @@ struct zfcp_fsf_req {
 						  from emergency pool */
 	unsigned long long     issued;         /* request sent time (STCK) */
 	struct zfcp_unit       *unit;
+	void			(*handler)(struct zfcp_fsf_req *);
 };
-
-typedef void zfcp_fsf_req_handler_t(struct zfcp_fsf_req*);
 
 /* driver data */
 struct zfcp_data {
@@ -730,7 +717,6 @@ struct zfcp_fsf_req_qtcb {
 /********************** ZFCP SPECIFIC DEFINES ********************************/
 
 #define ZFCP_REQ_AUTO_CLEANUP	0x00000002
-#define ZFCP_WAIT_FOR_SBAL	0x00000004
 #define ZFCP_REQ_NO_QTCB	0x00000008
 
 #define ZFCP_SET                0x00000100
@@ -751,15 +737,6 @@ struct zfcp_fsf_req_qtcb {
 static inline int zfcp_reqlist_hash(unsigned long req_id)
 {
 	return req_id % REQUEST_LIST_SIZE;
-}
-
-static inline void zfcp_reqlist_add(struct zfcp_adapter *adapter,
-				    struct zfcp_fsf_req *fsf_req)
-{
-	unsigned int idx;
-
-	idx = zfcp_reqlist_hash(fsf_req->req_id);
-	list_add_tail(&fsf_req->list, &adapter->req_list[idx]);
 }
 
 static inline void zfcp_reqlist_remove(struct zfcp_adapter *adapter,

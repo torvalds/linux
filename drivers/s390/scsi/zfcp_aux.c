@@ -433,7 +433,7 @@ static void zfcp_dummy_release(struct device *dev)
 int zfcp_status_read_refill(struct zfcp_adapter *adapter)
 {
 	while (atomic_read(&adapter->stat_miss) > 0)
-		if (zfcp_fsf_status_read(adapter, ZFCP_WAIT_FOR_SBAL)) {
+		if (zfcp_fsf_status_read(adapter)) {
 			if (atomic_read(&adapter->stat_miss) >= 16) {
 				zfcp_erp_adapter_reopen(adapter, 0, 103, NULL);
 				return 1;
@@ -518,10 +518,10 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	spin_lock_init(&adapter->san_dbf_lock);
 	spin_lock_init(&adapter->scsi_dbf_lock);
 	spin_lock_init(&adapter->rec_dbf_lock);
+	spin_lock_init(&adapter->req_q.lock);
 
 	rwlock_init(&adapter->erp_lock);
 	rwlock_init(&adapter->abort_lock);
-	rwlock_init(&adapter->req_q.lock);
 
 	sema_init(&adapter->erp_ready_sem, 0);
 
