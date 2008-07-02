@@ -74,7 +74,7 @@ zfcp_sysfs_unit_add_store(struct device *dev, struct device_attribute *attr, con
 		goto out;
 
 	unit = zfcp_unit_enqueue(port, fcp_lun);
-	if (!unit)
+	if (IS_ERR(unit))
 		goto out;
 
 	retval = 0;

@@ -20,12 +20,10 @@
  */
 static int zfcp_ccw_probe(struct ccw_device *ccw_device)
 {
-	struct zfcp_adapter *adapter;
 	int retval = 0;
 
 	down(&zfcp_data.config_sema);
-	adapter = zfcp_adapter_enqueue(ccw_device);
-	if (!adapter) {
+	if (zfcp_adapter_enqueue(ccw_device)) {
 		dev_err(&ccw_device->dev,
 			"Setup of data structures failed.\n");
 		retval = -EINVAL;

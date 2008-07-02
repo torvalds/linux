@@ -26,9 +26,7 @@ extern void zfcp_sysfs_unit_release(struct device *);
 /**************************** CONFIGURATION  *********************************/
 extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *, fcp_lun_t);
 extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *, wwn_t);
-extern struct zfcp_port *zfcp_get_port_by_did(struct zfcp_adapter *, u32);
-struct zfcp_adapter *zfcp_get_adapter_by_busid(char *);
-extern struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *);
+extern int    zfcp_adapter_enqueue(struct ccw_device *);
 extern int    zfcp_adapter_debug_register(struct zfcp_adapter *);
 extern void   zfcp_adapter_dequeue(struct zfcp_adapter *);
 extern void   zfcp_adapter_debug_unregister(struct zfcp_adapter *);

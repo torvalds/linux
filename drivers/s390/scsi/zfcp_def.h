@@ -730,13 +730,6 @@ struct zfcp_data {
 	struct kmem_cache		*gid_pn_cache;
 };
 
-/* number of elements for various memory pools */
-#define ZFCP_POOL_FSF_REQ_ERP_NR	1
-#define ZFCP_POOL_FSF_REQ_SCSI_NR	1
-#define ZFCP_POOL_FSF_REQ_ABORT_NR	1
-#define ZFCP_POOL_STATUS_READ_NR	FSF_STATUS_READS_RECOM
-#define ZFCP_POOL_DATA_GID_PN_NR	1
-
 /* struct used by memory pools for fsf_requests */
 struct zfcp_fsf_req_qtcb {
 	struct zfcp_fsf_req fsf_req;
@@ -756,12 +749,6 @@ struct zfcp_fsf_req_qtcb {
 #define atomic_test_mask(mask, target) \
            ((atomic_read(target) & mask) == mask)
 #endif
-
-extern void _zfcp_hex_dump(char *, int);
-#define ZFCP_HEX_DUMP(level, addr, count) \
-		if (ZFCP_LOG_CHECK(level)) { \
-			_zfcp_hex_dump(addr, count); \
-		}
 
 #define zfcp_get_busid_by_adapter(adapter) (adapter->ccw_device->dev.bus_id)
 #define zfcp_get_busid_by_port(port) (zfcp_get_busid_by_adapter(port->adapter))

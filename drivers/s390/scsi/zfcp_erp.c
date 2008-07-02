@@ -1675,7 +1675,7 @@ static void zfcp_erp_open_ptp_port(struct zfcp_adapter *adapter)
 	struct zfcp_port *port;
 	port = zfcp_port_enqueue(adapter, adapter->peer_wwpn, 0,
 				 adapter->peer_d_id);
-	if (!port) /* error or port already attached */
+	if (IS_ERR(port)) /* error or port already attached */
 		return;
 	zfcp_erp_port_reopen_internal(port, 0, 150, NULL);
 }

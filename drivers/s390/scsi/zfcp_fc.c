@@ -39,6 +39,18 @@ struct zfcp_gpn_ft {
 	struct scatterlist sg_resp[ZFCP_GPN_FT_BUFFERS];
 };
 
+static struct zfcp_port *zfcp_get_port_by_did(struct zfcp_adapter *adapter,
+					      u32 d_id)
+{
+	struct zfcp_port *port;
+
+	list_for_each_entry(port, &adapter->port_list_head, list)
+		if ((port->d_id == d_id) &&
+		    !atomic_test_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status))
+			return port;
+	return NULL;
+}
+
 static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 				   struct fcp_rscn_element *elem)
 {
@@ -496,10 +508,10 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 		port = zfcp_port_enqueue(adapter, acc->wwpn,
 					 ZFCP_STATUS_PORT_DID_DID |
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
-		if (port)
-			zfcp_erp_port_reopen(port, 0, 149, NULL);
+		if (IS_ERR(port))
+			ret = PTR_ERR(port);
 		else
-			ret = -ENOMEM;
+			zfcp_erp_port_reopen(port, 0, 149, NULL);
 		if (acc->control & 0x80) /* last entry */
 			break;
 	}
