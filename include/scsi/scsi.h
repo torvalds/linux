@@ -9,6 +9,7 @@
 #define _SCSI_SCSI_H
 
 #include <linux/types.h>
+#include <scsi/scsi_cmnd.h>
 
 /*
  * The maximum number of SG segments that we will put inside a
@@ -424,6 +425,22 @@ struct scsi_lun {
 #define host_byte(result)   (((result) >> 16) & 0xff)
 #define driver_byte(result) (((result) >> 24) & 0xff)
 #define suggestion(result)  (driver_byte(result) & SUGGEST_MASK)
+
+static inline void set_msg_byte(struct scsi_cmnd *cmd, char status)
+{
+	cmd->result |= status << 8;
+}
+
+static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
+{
+	cmd->result |= status << 16;
+}
+
+static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
+{
+	cmd->result |= status << 24;
+}
+
 
 #define sense_class(sense)  (((sense) >> 4) & 0x7)
 #define sense_error(sense)  ((sense) & 0xf)

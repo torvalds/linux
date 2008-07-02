@@ -3040,18 +3040,18 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 		 *        DID_SOFT_ERROR by retrying the request for devices
 		 *        that allow retries.
 		 */
-		set_host_byte(&scpnt->result, DID_SOFT_ERROR);
-		set_driver_byte(&scpnt->result, SUGGEST_RETRY);
+		set_host_byte(scpnt, DID_SOFT_ERROR);
+		set_driver_byte(scpnt, SUGGEST_RETRY);
 		goto skip_fsfstatus;
 	}
 
 	if (unlikely(fsf_req->status & ZFCP_STATUS_FSFREQ_ERROR)) {
-		set_host_byte(&scpnt->result, DID_ERROR);
+		set_host_byte(scpnt, DID_ERROR);
 		goto skip_fsfstatus;
 	}
 
 	/* set message byte of result in SCSI command */
-	scpnt->result |= COMMAND_COMPLETE << 8;
+	set_msg_byte(scpnt, COMMAND_COMPLETE);
 
 	/*
 	 * copy SCSI status code of FCP_STATUS of FCP_RSP IU to status byte
@@ -3067,23 +3067,23 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 		switch (fcp_rsp_info[3]) {
 		case RSP_CODE_GOOD:
 			/* ok, continue */
-			set_host_byte(&scpnt->result, DID_OK);
+			set_host_byte(scpnt, DID_OK);
 			break;
 		case RSP_CODE_LENGTH_MISMATCH:
 			/* hardware bug */
-			set_host_byte(&scpnt->result, DID_ERROR);
+			set_host_byte(scpnt, DID_ERROR);
 			goto skip_fsfstatus;
 		case RSP_CODE_FIELD_INVALID:
 			/* driver or hardware bug */
-			set_host_byte(&scpnt->result, DID_ERROR);
+			set_host_byte(scpnt, DID_ERROR);
 			goto skip_fsfstatus;
 		case RSP_CODE_RO_MISMATCH:
 			/* hardware bug */
-			set_host_byte(&scpnt->result, DID_ERROR);
+			set_host_byte(scpnt, DID_ERROR);
 			goto skip_fsfstatus;
 		default:
 			/* invalid FCP response code */
-			set_host_byte(&scpnt->result, DID_ERROR);
+			set_host_byte(scpnt, DID_ERROR);
 			goto skip_fsfstatus;
 		}
 	}
@@ -3104,7 +3104,7 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 		scsi_set_resid(scpnt, fcp_rsp_iu->fcp_resid);
 		if (scsi_bufflen(scpnt) - scsi_get_resid(scpnt) <
 		    scpnt->underflow)
-			set_host_byte(&scpnt->result, DID_ERROR);
+			set_host_byte(scpnt, DID_ERROR);
 	}
 
  skip_fsfstatus:

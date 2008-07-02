@@ -107,28 +107,6 @@ zfcp_set_fcp_dl(struct fcp_cmnd_iu *fcp_cmd, fcp_dl_t fcp_dl)
 	*zfcp_get_fcp_dl_ptr(fcp_cmd) = fcp_dl;
 }
 
-/*
- * note: it's a bit-or operation not an assignment
- * regarding the specified byte
- */
-static inline void
-set_byte(int *result, char status, char pos)
-{
-	*result |= status << (pos * 8);
-}
-
-void
-set_host_byte(int *result, char status)
-{
-	set_byte(result, status, 2);
-}
-
-void
-set_driver_byte(int *result, char status)
-{
-	set_byte(result, status, 3);
-}
-
 static int
 zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 {
@@ -196,7 +174,7 @@ zfcp_scsi_slave_configure(struct scsi_device *sdp)
 static void
 zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 {
-	set_host_byte(&scpnt->result, result);
+	set_host_byte(scpnt, result);
 	if ((scpnt->device != NULL) && (scpnt->device->host != NULL))
 		zfcp_scsi_dbf_event_result("fail", 4,
 			(struct zfcp_adapter*) scpnt->device->host->hostdata[0],
