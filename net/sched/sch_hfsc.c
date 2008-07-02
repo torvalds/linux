@@ -1541,6 +1541,10 @@ hfsc_destroy_qdisc(struct Qdisc *sch)
 	unsigned int i;
 
 	for (i = 0; i < HFSC_HSIZE; i++) {
+		list_for_each_entry(cl, &q->clhash[i], hlist)
+			tcf_destroy_chain(&cl->filter_list);
+	}
+	for (i = 0; i < HFSC_HSIZE; i++) {
 		list_for_each_entry_safe(cl, next, &q->clhash[i], hlist)
 			hfsc_destroy_class(sch, cl);
 	}

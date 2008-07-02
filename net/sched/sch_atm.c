@@ -586,9 +586,11 @@ static void atm_tc_destroy(struct Qdisc *sch)
 	struct atm_flow_data *flow;
 
 	pr_debug("atm_tc_destroy(sch %p,[qdisc %p])\n", sch, p);
+	for (flow = p->flows; flow; flow = flow->next)
+		tcf_destroy_chain(&flow->filter_list);
+
 	/* races ? */
 	while ((flow = p->flows)) {
-		tcf_destroy_chain(&flow->filter_list);
 		if (flow->ref > 1)
 			printk(KERN_ERR "atm_destroy: %p->ref = %d\n", flow,
 			       flow->ref);
