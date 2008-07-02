@@ -21,38 +21,13 @@
 #include "aes_ccm.h"
 #include "wpa.h"
 
-static int ieee80211_get_hdr_info(const struct sk_buff *skb, u8 **sa, u8 **da,
-				  u8 *qos_tid, u8 **data, size_t *data_len)
-{
-	struct ieee80211_hdr *hdr;
-	size_t hdrlen;
-	__le16 fc;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = hdr->frame_control;
-
-	hdrlen = ieee80211_hdrlen(fc);
-
-	*sa = ieee80211_get_SA(hdr);
-	*da = ieee80211_get_DA(hdr);
-
-	*data = skb->data + hdrlen;
-	*data_len = skb->len - hdrlen;
-
-	if (ieee80211_is_data_qos(fc))
-		*qos_tid = (*ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK) | 0x80;
-	else
-		*qos_tid = 0;
-
-	return skb->len < hdrlen ? -1 : 0;
-}
-
-
 ieee80211_tx_result
 ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 {
-	u8 *data, *sa, *da, *key, *mic, qos_tid, key_offset;
+	u8 *data, *key, *mic, key_offset;
 	size_t data_len;
+	unsigned int hdrlen;
+	struct ieee80211_hdr *hdr;
 	u16 fc;
 	struct sk_buff *skb = tx->skb;
 	int authenticator;
@@ -65,8 +40,13 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	    !WLAN_FC_DATA_PRESENT(fc))
 		return TX_CONTINUE;
 
-	if (ieee80211_get_hdr_info(skb, &sa, &da, &qos_tid, &data, &data_len))
+	hdr = (struct ieee80211_hdr *)skb->data;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	if (skb->len < hdrlen)
 		return TX_DROP;
+
+	data = skb->data + hdrlen;
+	data_len = skb->len - hdrlen;
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
 	    !(tx->flags & IEEE80211_TX_FRAGMENTED) &&
@@ -97,7 +77,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 		NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY;
 	key = &tx->key->conf.key[key_offset];
 	mic = skb_put(skb, MICHAEL_MIC_LEN);
-	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
+	michael_mic(key, hdr, data, data_len, mic);
 
 	return TX_CONTINUE;
 }
@@ -106,8 +86,10 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 ieee80211_rx_result
 ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 {
-	u8 *data, *sa, *da, *key = NULL, qos_tid, key_offset;
+	u8 *data, *key = NULL, key_offset;
 	size_t data_len;
+	unsigned int hdrlen;
+	struct ieee80211_hdr *hdr;
 	u16 fc;
 	u8 mic[MICHAEL_MIC_LEN];
 	struct sk_buff *skb = rx->skb;
@@ -126,11 +108,13 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) || !WLAN_FC_DATA_PRESENT(fc))
 		return RX_CONTINUE;
 
-	if (ieee80211_get_hdr_info(skb, &sa, &da, &qos_tid, &data, &data_len)
-	    || data_len < MICHAEL_MIC_LEN)
+	hdr = (struct ieee80211_hdr *)skb->data;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	if (skb->len < hdrlen + MICHAEL_MIC_LEN)
 		return RX_DROP_UNUSABLE;
 
-	data_len -= MICHAEL_MIC_LEN;
+	data = skb->data + hdrlen;
+	data_len = skb->len - hdrlen - MICHAEL_MIC_LEN;
 
 #if 0
 	authenticator = fc & IEEE80211_FCTL_TODS; /* FIX */
@@ -143,7 +127,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 		NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY :
 		NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY;
 	key = &rx->key->conf.key[key_offset];
-	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
+	michael_mic(key, hdr, data, data_len, mic);
 	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0 || wpa_test) {
 		if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 			return RX_DROP_UNUSABLE;
