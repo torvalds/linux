@@ -1019,6 +1019,9 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		}
 	}
 
+	if (argp->minorversion != 0)
+		argp->opcnt = 0;
+
 	for (i = 0; i < argp->opcnt; i++) {
 		op = &argp->ops[i];
 		op->replay = NULL;
@@ -1057,13 +1060,6 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		op->opnum = ntohl(*argp->p++);
 
 		switch (op->opnum) {
-		case 2: /* Reserved operation */
-			op->opnum = OP_ILLEGAL;
-			if (argp->minorversion == 0)
-				op->status = nfserr_op_illegal;
-			else
-				op->status = nfserr_minor_vers_mismatch;
-			break;
 		case OP_ACCESS:
 			op->status = nfsd4_decode_access(argp, &op->u.access);
 			break;
