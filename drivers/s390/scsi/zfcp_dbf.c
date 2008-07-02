@@ -1065,8 +1065,7 @@ static void zfcp_scsi_dbf_event(const char *tag, const char *tag2, int level,
 			if (fsf_req != NULL) {
 				fcp_rsp = (struct fcp_rsp_iu *)
 				    &(fsf_req->qtcb->bottom.io.fcp_rsp);
-				fcp_rsp_info =
-				    zfcp_get_fcp_rsp_info_ptr(fcp_rsp);
+				fcp_rsp_info = (unsigned char *) &fcp_rsp[1];
 				fcp_sns_info =
 				    zfcp_get_fcp_sns_info_ptr(fcp_rsp);
 

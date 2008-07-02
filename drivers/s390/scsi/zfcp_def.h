@@ -126,12 +126,6 @@ typedef unsigned int       fcp_dl_t;
 /* timeout for name-server lookup (in seconds) */
 #define ZFCP_NS_GID_PN_TIMEOUT		10
 
-/* largest SCSI command we can process */
-/* FCP-2 (FCP_CMND IU) allows up to (255-3+16) */
-#define ZFCP_MAX_SCSI_CMND_LENGTH	255
-/* maximum number of commands in LUN queue (tagged queueing) */
-#define ZFCP_CMND_PER_LUN               32
-
 /* task attribute values in FCP-2 FCP_CMND IU */
 #define SIMPLE_Q	0
 #define HEAD_OF_Q	1

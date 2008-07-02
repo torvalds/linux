@@ -102,13 +102,8 @@ extern void  zfcp_test_link(struct zfcp_port *);
 extern int  zfcp_adapter_scsi_register(struct zfcp_adapter *);
 extern void zfcp_adapter_scsi_unregister(struct zfcp_adapter *);
 extern void zfcp_set_fcp_dl(struct fcp_cmnd_iu *, fcp_dl_t);
-extern char *zfcp_get_fcp_rsp_info_ptr(struct fcp_rsp_iu *);
 extern char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *);
-extern fcp_dl_t zfcp_get_fcp_dl(struct fcp_cmnd_iu *);
 
-extern int zfcp_scsi_command_async(struct zfcp_adapter *,struct zfcp_unit *,
-				   struct scsi_cmnd *, int);
-extern int zfcp_scsi_command_sync(struct zfcp_unit *, struct scsi_cmnd *, int);
 extern struct fc_function_template zfcp_transport_functions;
 
 /******************************** ERP ****************************************/
