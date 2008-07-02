@@ -387,8 +387,11 @@ static void sq_cq_reap(struct svcxprt_rdma *xprt)
 
 		switch (ctxt->wr_op) {
 		case IB_WR_SEND:
-		case IB_WR_RDMA_WRITE:
 			svc_rdma_put_context(ctxt, 1);
+			break;
+
+		case IB_WR_RDMA_WRITE:
+			svc_rdma_put_context(ctxt, 0);
 			break;
 
 		case IB_WR_RDMA_READ:
