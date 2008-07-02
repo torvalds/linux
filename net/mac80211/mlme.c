@@ -573,7 +573,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 		ieee80211_sta_tear_down_BA_sessions(dev, ifsta->bssid);
 		ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
 		netif_carrier_off(dev);
-		ieee80211_reset_erp_info(dev);
+		changed |= ieee80211_reset_erp_info(dev);
 
 		sdata->bss_conf.assoc_ht = 0;
 		sdata->bss_conf.ht_conf = NULL;

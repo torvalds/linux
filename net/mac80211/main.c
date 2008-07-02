@@ -182,10 +182,11 @@ static int ieee80211_open(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata, *nsdata;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct sta_info *sta;
 	struct ieee80211_if_init_conf conf;
+	u32 changed = 0;
 	int res;
 	bool need_hw_reconfig = 0;
-	struct sta_info *sta;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -329,7 +330,8 @@ static int ieee80211_open(struct net_device *dev)
 			goto err_stop;
 
 		ieee80211_if_config(dev);
-		ieee80211_reset_erp_info(dev);
+		changed |= ieee80211_reset_erp_info(dev);
+		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
 
 		if (sdata->vif.type == IEEE80211_IF_TYPE_STA &&
@@ -1190,15 +1192,13 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 					     changed);
 }
 
-void ieee80211_reset_erp_info(struct net_device *dev)
+u32 ieee80211_reset_erp_info(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	sdata->bss_conf.use_cts_prot = 0;
 	sdata->bss_conf.use_short_preamble = 0;
-	ieee80211_bss_info_change_notify(sdata,
-					 BSS_CHANGED_ERP_CTS_PROT |
-					 BSS_CHANGED_ERP_PREAMBLE);
+	return BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_ERP_PREAMBLE;
 }
 
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
