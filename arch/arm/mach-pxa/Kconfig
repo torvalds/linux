@@ -20,13 +20,16 @@ endmenu
 
 endif
 
-menu "Select target boards"
-
 config ARCH_GUMSTIX
 	bool "Gumstix XScale boards"
 	help
 	  Say Y here if you intend to run this kernel on a
 	  Gumstix Full Function Minature Computer.
+
+config MACH_GUMSTIX_F
+	bool "Basix, Connex, ws-200ax, ws-400ax systems"
+	depends on ARCH_GUMSTIX
+	select PXA25x
 
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform"
@@ -157,6 +160,10 @@ config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
 	select PXA27x
 
+config MACH_TRIZEPS4_CONXS
+	bool "ConXS Eval Board"
+	depends on MACH_TRIZEPS4
+
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
 	select PXA27x
@@ -192,17 +199,10 @@ config MACH_PCM027
 	select IWMMXT
 	select PXA_SSP
 
-endmenu
-
-choice
-	prompt "Used baseboard"
-	depends on MACH_PCM027
-
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
 	select HAVE_PWM
-
-endchoice
+	depends on MACH_PCM027
 
 choice
 	prompt "display on pcm990"
@@ -219,34 +219,6 @@ config PCM990_DISPLAY_NONE
 
 endchoice
 
-if ARCH_GUMSTIX
-
-choice
-	prompt "Select target Gumstix board"
-
-config MACH_GUMSTIX_F
-	bool "Basix, Connex, ws-200ax, ws-400ax systems"
-	select PXA25x
-
-endchoice
-
-endif
-
-
-if MACH_TRIZEPS4
-
-choice
-	prompt "Select base board for Trizeps 4 module"
-
-config MACH_TRIZEPS4_CONXS
-	bool "ConXS Eval Board"
-
-config MACH_TRIZEPS4_ANY
-	bool "another Board"
-
-endchoice
-
-endif
 
 endmenu
 
