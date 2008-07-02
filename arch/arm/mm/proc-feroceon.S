@@ -493,14 +493,15 @@ __feroceon_setup:
 	.size	__feroceon_setup, . - __feroceon_setup
 
 	/*
-	 *  R
-	 * .RVI ZFRS BLDP WCAM
-	 * .011 0001 ..11 0101
+	 *      B
+	 *  R   P
+	 * .RVI UFRS BLDP WCAM
+	 * .011 .001 ..11 0101
 	 *
 	 */
 	.type	feroceon_crval, #object
 feroceon_crval:
-	crval	clear=0x00007f3f, mmuset=0x00003135, ucset=0x00001134
+	crval	clear=0x0000773f, mmuset=0x00003135, ucset=0x00001134
 
 	__INITDATA
 
