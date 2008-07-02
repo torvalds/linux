@@ -991,6 +991,12 @@ nfsd4_decode_noop(struct nfsd4_compoundargs *argp, void *p)
 	return nfs_ok;
 }
 
+static __be32
+nfsd4_decode_notsupp(struct nfsd4_compoundargs *argp, void *p)
+{
+	return nfserr_opnotsupp;
+}
+
 typedef __be32(*nfsd4_dec)(struct nfsd4_compoundargs *argp, void *);
 
 static nfsd4_dec nfsd4_dec_ops[] = {
@@ -998,6 +1004,7 @@ static nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_CLOSE]		(nfsd4_dec)nfsd4_decode_close,
 	[OP_COMMIT]		(nfsd4_dec)nfsd4_decode_commit,
 	[OP_CREATE]		(nfsd4_dec)nfsd4_decode_create,
+	[OP_DELEGPURGE]		(nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_DELEGRETURN]	(nfsd4_dec)nfsd4_decode_delegreturn,
 	[OP_GETATTR]		(nfsd4_dec)nfsd4_decode_getattr,
 	[OP_GETFH]		(nfsd4_dec)nfsd4_decode_noop,
@@ -1009,9 +1016,11 @@ static nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_LOOKUPP]		(nfsd4_dec)nfsd4_decode_noop,
 	[OP_NVERIFY]		(nfsd4_dec)nfsd4_decode_verify,
 	[OP_OPEN]		(nfsd4_dec)nfsd4_decode_open,
+	[OP_OPENATTR]		(nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_OPEN_CONFIRM]	(nfsd4_dec)nfsd4_decode_open_confirm,
 	[OP_OPEN_DOWNGRADE]	(nfsd4_dec)nfsd4_decode_open_downgrade,
 	[OP_PUTFH]		(nfsd4_dec)nfsd4_decode_putfh,
+	[OP_PUTPUBFH]		(nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_PUTROOTFH]		(nfsd4_dec)nfsd4_decode_noop,
 	[OP_READ]		(nfsd4_dec)nfsd4_decode_read,
 	[OP_READDIR]		(nfsd4_dec)nfsd4_decode_readdir,
