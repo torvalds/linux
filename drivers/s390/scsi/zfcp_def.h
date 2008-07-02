@@ -108,7 +108,6 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 #define ZFCP_QTCB_VERSION	FSF_QTCB_CURRENT_VERSION
 /* ATTENTION: value must not be used by hardware */
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
-#define ZFCP_STATUS_READS_RECOM		        FSF_STATUS_READS_RECOM
 
 /* Do 1st retry in 1 second, then double the timeout for each following retry */
 #define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	1
@@ -743,7 +742,7 @@ struct zfcp_data {
 #define ZFCP_POOL_FSF_REQ_ERP_NR	1
 #define ZFCP_POOL_FSF_REQ_SCSI_NR	1
 #define ZFCP_POOL_FSF_REQ_ABORT_NR	1
-#define ZFCP_POOL_STATUS_READ_NR	ZFCP_STATUS_READS_RECOM
+#define ZFCP_POOL_STATUS_READ_NR	FSF_STATUS_READS_RECOM
 #define ZFCP_POOL_DATA_GID_PN_NR	1
 
 /* struct used by memory pools for fsf_requests */

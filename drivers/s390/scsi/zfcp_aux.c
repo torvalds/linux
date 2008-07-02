@@ -550,15 +550,14 @@ static void zfcp_dummy_release(struct device *dev)
 int zfcp_status_read_refill(struct zfcp_adapter *adapter)
 {
 	while (atomic_read(&adapter->stat_miss) > 0)
-		if (zfcp_fsf_status_read(adapter, ZFCP_WAIT_FOR_SBAL))
+		if (zfcp_fsf_status_read(adapter, ZFCP_WAIT_FOR_SBAL)) {
+			if (atomic_read(&adapter->stat_miss) >= 16) {
+				zfcp_erp_adapter_reopen(adapter, 0, 103, NULL);
+				return 1;
+			}
 			break;
-	else
-		atomic_dec(&adapter->stat_miss);
-
-	if (ZFCP_STATUS_READS_RECOM <= atomic_read(&adapter->stat_miss)) {
-		zfcp_erp_adapter_reopen(adapter, 0, 103, NULL);
-		return 1;
-	}
+		} else
+			atomic_dec(&adapter->stat_miss);
 	return 0;
 }
 
