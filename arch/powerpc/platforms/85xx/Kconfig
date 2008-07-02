@@ -38,6 +38,12 @@ config MPC85xx_MDS
 	help
 	  This option enables support for the MPC85xx MDS board
 
+config MPC8536_DS
+	bool "Freescale MPC8536 DS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC8536 DS board
+
 config MPC85xx_DS
 	bool "Freescale MPC85xx DS"
 	select PPC_I8259
