@@ -91,16 +91,10 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
         /* max. number of (data buffer) SBALEs in largest SBAL chain
            multiplied with number of sectors per 4k block */
 
-#define ZFCP_TYPE2_RECOVERY_TIME        8	/* seconds */
-
 /********************* FSF SPECIFIC DEFINES *********************************/
 
 /* ATTENTION: value must not be used by hardware */
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
-
-/* Do 1st retry in 1 second, then double the timeout for each following retry */
-#define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	1
-#define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ)
@@ -348,45 +342,6 @@ struct zfcp_rc_entry {
 #define ZFCP_STATUS_FSFREQ_TMFUNCNOTSUPP        0x00000400
 #define ZFCP_STATUS_FSFREQ_RETRY                0x00000800
 #define ZFCP_STATUS_FSFREQ_DISMISSED            0x00001000
-
-/*********************** ERROR RECOVERY PROCEDURE DEFINES ********************/
-
-#define ZFCP_MAX_ERPS                   3
-
-#define ZFCP_ERP_FSFREQ_TIMEOUT		(30 * HZ)
-#define ZFCP_ERP_MEMWAIT_TIMEOUT	HZ
-
-#define ZFCP_STATUS_ERP_TIMEDOUT	0x10000000
-#define ZFCP_STATUS_ERP_CLOSE_ONLY	0x01000000
-#define ZFCP_STATUS_ERP_DISMISSING	0x00100000
-#define ZFCP_STATUS_ERP_DISMISSED	0x00200000
-#define ZFCP_STATUS_ERP_LOWMEM		0x00400000
-
-#define ZFCP_ERP_STEP_UNINITIALIZED	0x00000000
-#define ZFCP_ERP_STEP_FSF_XCONFIG	0x00000001
-#define ZFCP_ERP_STEP_PHYS_PORT_CLOSING	0x00000010
-#define ZFCP_ERP_STEP_PORT_CLOSING	0x00000100
-#define ZFCP_ERP_STEP_NAMESERVER_OPEN	0x00000200
-#define ZFCP_ERP_STEP_NAMESERVER_LOOKUP	0x00000400
-#define ZFCP_ERP_STEP_PORT_OPENING	0x00000800
-#define ZFCP_ERP_STEP_UNIT_CLOSING	0x00001000
-#define ZFCP_ERP_STEP_UNIT_OPENING	0x00002000
-
-/* Ordered by escalation level (necessary for proper erp-code operation) */
-#define ZFCP_ERP_ACTION_REOPEN_ADAPTER		0x4
-#define ZFCP_ERP_ACTION_REOPEN_PORT_FORCED	0x3
-#define ZFCP_ERP_ACTION_REOPEN_PORT		0x2
-#define ZFCP_ERP_ACTION_REOPEN_UNIT		0x1
-
-#define ZFCP_ERP_ACTION_RUNNING			0x1
-#define ZFCP_ERP_ACTION_READY			0x2
-
-#define ZFCP_ERP_SUCCEEDED	0x0
-#define ZFCP_ERP_FAILED		0x1
-#define ZFCP_ERP_CONTINUES	0x2
-#define ZFCP_ERP_EXIT		0x3
-#define ZFCP_ERP_DISMISSED	0x4
-#define ZFCP_ERP_NOMEM		0x5
 
 /************************* STRUCTURE DEFINITIONS *****************************/
 

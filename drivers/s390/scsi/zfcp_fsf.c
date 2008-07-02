@@ -8,6 +8,31 @@
 
 #include "zfcp_ext.h"
 
+static void zfcp_fsf_request_timeout_handler(unsigned long data)
+{
+	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED, 62,
+				NULL);
+}
+
+static void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req,
+				 unsigned long timeout)
+{
+	fsf_req->timer.function = zfcp_fsf_request_timeout_handler;
+	fsf_req->timer.data = (unsigned long) fsf_req->adapter;
+	fsf_req->timer.expires = jiffies + timeout;
+	add_timer(&fsf_req->timer);
+}
+
+static void zfcp_fsf_start_erp_timer(struct zfcp_fsf_req *fsf_req)
+{
+	BUG_ON(!fsf_req->erp_action);
+	fsf_req->timer.function = zfcp_erp_timeout_handler;
+	fsf_req->timer.data = (unsigned long) fsf_req->erp_action;
+	fsf_req->timer.expires = jiffies + 30 * HZ;
+	add_timer(&fsf_req->timer);
+}
+
 /* association between FSF command and FSF QTCB type */
 static u32 fsf_qtcb_type[] = {
 	[FSF_QTCB_FCP_CMND] =             FSF_IO_COMMAND,
@@ -485,7 +510,7 @@ void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 	req->handler(req);
 
 	if (req->erp_action)
-		zfcp_erp_async_handler(req->erp_action, 0);
+		zfcp_erp_notify(req->erp_action, 0);
 	req->status |= ZFCP_STATUS_FSFREQ_COMPLETED;
 
 	if (likely(req->status & ZFCP_STATUS_FSFREQ_CLEANUP))
@@ -1108,7 +1133,7 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
 	if (erp_action) {
 		erp_action->fsf_req = req;
 		req->erp_action = erp_action;
-		zfcp_erp_start_timer(req);
+		zfcp_fsf_start_erp_timer(req);
 	} else
 		zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 
@@ -1263,7 +1288,7 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 	req->handler = zfcp_fsf_exchange_config_data_handler;
 	erp_action->fsf_req = req;
 
-	zfcp_erp_start_timer(req);
+	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
@@ -1353,7 +1378,7 @@ int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 	req->erp_action = erp_action;
 	erp_action->fsf_req = req;
 
-	zfcp_erp_start_timer(req);
+	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
@@ -1530,7 +1555,7 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	erp_action->fsf_req = req;
 	atomic_set_mask(ZFCP_STATUS_COMMON_OPENING, &erp_action->port->status);
 
-	zfcp_erp_start_timer(req);
+	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
@@ -1601,7 +1626,7 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 	erp_action->fsf_req = req;
 	atomic_set_mask(ZFCP_STATUS_COMMON_CLOSING, &erp_action->port->status);
 
-	zfcp_erp_start_timer(req);
+	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
@@ -1699,7 +1724,7 @@ int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 	atomic_set_mask(ZFCP_STATUS_PORT_PHYS_CLOSING,
 			&erp_action->port->status);
 
-	zfcp_erp_start_timer(req);
+	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
@@ -1878,7 +1903,7 @@ int zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 
 	atomic_set_mask(ZFCP_STATUS_COMMON_OPENING, &erp_action->unit->status);
 
-	zfcp_erp_start_timer(req);
+	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
@@ -1963,7 +1988,7 @@ int zfcp_fsf_close_unit(struct zfcp_erp_action *erp_action)
 	erp_action->fsf_req = req;
 	atomic_set_mask(ZFCP_STATUS_COMMON_CLOSING, &erp_action->unit->status);
 
-	zfcp_erp_start_timer(req);
+	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
