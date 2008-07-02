@@ -986,6 +986,51 @@ nfsd4_decode_release_lockowner(struct nfsd4_compoundargs *argp, struct nfsd4_rel
 }
 
 static __be32
+nfsd4_decode_noop(struct nfsd4_compoundargs *argp, void *p)
+{
+	return nfs_ok;
+}
+
+typedef __be32(*nfsd4_dec)(struct nfsd4_compoundargs *argp, void *);
+
+static nfsd4_dec nfsd4_dec_ops[] = {
+	[OP_ACCESS]		(nfsd4_dec)nfsd4_decode_access,
+	[OP_CLOSE]		(nfsd4_dec)nfsd4_decode_close,
+	[OP_COMMIT]		(nfsd4_dec)nfsd4_decode_commit,
+	[OP_CREATE]		(nfsd4_dec)nfsd4_decode_create,
+	[OP_DELEGRETURN]	(nfsd4_dec)nfsd4_decode_delegreturn,
+	[OP_GETATTR]		(nfsd4_dec)nfsd4_decode_getattr,
+	[OP_GETFH]		(nfsd4_dec)nfsd4_decode_noop,
+	[OP_LINK]		(nfsd4_dec)nfsd4_decode_link,
+	[OP_LOCK]		(nfsd4_dec)nfsd4_decode_lock,
+	[OP_LOCKT]		(nfsd4_dec)nfsd4_decode_lockt,
+	[OP_LOCKU]		(nfsd4_dec)nfsd4_decode_locku,
+	[OP_LOOKUP]		(nfsd4_dec)nfsd4_decode_lookup,
+	[OP_LOOKUPP]		(nfsd4_dec)nfsd4_decode_noop,
+	[OP_NVERIFY]		(nfsd4_dec)nfsd4_decode_verify,
+	[OP_OPEN]		(nfsd4_dec)nfsd4_decode_open,
+	[OP_OPEN_CONFIRM]	(nfsd4_dec)nfsd4_decode_open_confirm,
+	[OP_OPEN_DOWNGRADE]	(nfsd4_dec)nfsd4_decode_open_downgrade,
+	[OP_PUTFH]		(nfsd4_dec)nfsd4_decode_putfh,
+	[OP_PUTROOTFH]		(nfsd4_dec)nfsd4_decode_noop,
+	[OP_READ]		(nfsd4_dec)nfsd4_decode_read,
+	[OP_READDIR]		(nfsd4_dec)nfsd4_decode_readdir,
+	[OP_READLINK]		(nfsd4_dec)nfsd4_decode_noop,
+	[OP_REMOVE]		(nfsd4_dec)nfsd4_decode_remove,
+	[OP_RENAME]		(nfsd4_dec)nfsd4_decode_rename,
+	[OP_RENEW]		(nfsd4_dec)nfsd4_decode_renew,
+	[OP_RESTOREFH]		(nfsd4_dec)nfsd4_decode_noop,
+	[OP_SAVEFH]		(nfsd4_dec)nfsd4_decode_noop,
+	[OP_SECINFO]		(nfsd4_dec)nfsd4_decode_secinfo,
+	[OP_SETATTR]		(nfsd4_dec)nfsd4_decode_setattr,
+	[OP_SETCLIENTID]	(nfsd4_dec)nfsd4_decode_setclientid,
+	[OP_SETCLIENTID_CONFIRM](nfsd4_dec)nfsd4_decode_setclientid_confirm,
+	[OP_VERIFY]		(nfsd4_dec)nfsd4_decode_verify,
+	[OP_WRITE]		(nfsd4_dec)nfsd4_decode_write,
+	[OP_RELEASE_LOCKOWNER]	(nfsd4_dec)nfsd4_decode_release_lockowner,
+};
+
+static __be32
 nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 {
 	DECODE_HEAD;
@@ -1059,113 +1104,11 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		}
 		op->opnum = ntohl(*argp->p++);
 
-		switch (op->opnum) {
-		case OP_ACCESS:
-			op->status = nfsd4_decode_access(argp, &op->u.access);
-			break;
-		case OP_CLOSE:
-			op->status = nfsd4_decode_close(argp, &op->u.close);
-			break;
-		case OP_COMMIT:
-			op->status = nfsd4_decode_commit(argp, &op->u.commit);
-			break;
-		case OP_CREATE:
-			op->status = nfsd4_decode_create(argp, &op->u.create);
-			break;
-		case OP_DELEGRETURN:
-			op->status = nfsd4_decode_delegreturn(argp, &op->u.delegreturn);
-			break;
-		case OP_GETATTR:
-			op->status = nfsd4_decode_getattr(argp, &op->u.getattr);
-			break;
-		case OP_GETFH:
-			op->status = nfs_ok;
-			break;
-		case OP_LINK:
-			op->status = nfsd4_decode_link(argp, &op->u.link);
-			break;
-		case OP_LOCK:
-			op->status = nfsd4_decode_lock(argp, &op->u.lock);
-			break;
-		case OP_LOCKT:
-			op->status = nfsd4_decode_lockt(argp, &op->u.lockt);
-			break;
-		case OP_LOCKU:
-			op->status = nfsd4_decode_locku(argp, &op->u.locku);
-			break;
-		case OP_LOOKUP:
-			op->status = nfsd4_decode_lookup(argp, &op->u.lookup);
-			break;
-		case OP_LOOKUPP:
-			op->status = nfs_ok;
-			break;
-		case OP_NVERIFY:
-			op->status = nfsd4_decode_verify(argp, &op->u.nverify);
-			break;
-		case OP_OPEN:
-			op->status = nfsd4_decode_open(argp, &op->u.open);
-			break;
-		case OP_OPEN_CONFIRM:
-			op->status = nfsd4_decode_open_confirm(argp, &op->u.open_confirm);
-			break;
-		case OP_OPEN_DOWNGRADE:
-			op->status = nfsd4_decode_open_downgrade(argp, &op->u.open_downgrade);
-			break;
-		case OP_PUTFH:
-			op->status = nfsd4_decode_putfh(argp, &op->u.putfh);
-			break;
-		case OP_PUTROOTFH:
-			op->status = nfs_ok;
-			break;
-		case OP_READ:
-			op->status = nfsd4_decode_read(argp, &op->u.read);
-			break;
-		case OP_READDIR:
-			op->status = nfsd4_decode_readdir(argp, &op->u.readdir);
-			break;
-		case OP_READLINK:
-			op->status = nfs_ok;
-			break;
-		case OP_REMOVE:
-			op->status = nfsd4_decode_remove(argp, &op->u.remove);
-			break;
-		case OP_RENAME:
-			op->status = nfsd4_decode_rename(argp, &op->u.rename);
-			break;
-		case OP_RESTOREFH:
-			op->status = nfs_ok;
-			break;
-		case OP_RENEW:
-			op->status = nfsd4_decode_renew(argp, &op->u.renew);
-			break;
-		case OP_SAVEFH:
-			op->status = nfs_ok;
-			break;
-		case OP_SECINFO:
-			op->status = nfsd4_decode_secinfo(argp, &op->u.secinfo);
-			break;
-		case OP_SETATTR:
-			op->status = nfsd4_decode_setattr(argp, &op->u.setattr);
-			break;
-		case OP_SETCLIENTID:
-			op->status = nfsd4_decode_setclientid(argp, &op->u.setclientid);
-			break;
-		case OP_SETCLIENTID_CONFIRM:
-			op->status = nfsd4_decode_setclientid_confirm(argp, &op->u.setclientid_confirm);
-			break;
-		case OP_VERIFY:
-			op->status = nfsd4_decode_verify(argp, &op->u.verify);
-			break;
-		case OP_WRITE:
-			op->status = nfsd4_decode_write(argp, &op->u.write);
-			break;
-		case OP_RELEASE_LOCKOWNER:
-			op->status = nfsd4_decode_release_lockowner(argp, &op->u.release_lockowner);
-			break;
-		default:
+		if (op->opnum >= OP_ACCESS && op->opnum < ARRAY_SIZE(nfsd4_dec_ops))
+			op->status = nfsd4_dec_ops[op->opnum](argp, &op->u);
+		else {
 			op->opnum = OP_ILLEGAL;
 			op->status = nfserr_op_illegal;
-			break;
 		}
 
 		if (op->status) {
