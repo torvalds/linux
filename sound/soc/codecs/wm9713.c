@@ -1001,9 +1001,18 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream)
 	return ac97_write(codec, AC97_PCM_SURR_DAC_RATE, runtime->rate);
 }
 
-#define WM9713_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
-		SNDRV_PCM_RATE_48000)
+#define WM9713_RATES (SNDRV_PCM_RATE_8000  |	\
+		      SNDRV_PCM_RATE_11025 |	\
+		      SNDRV_PCM_RATE_22050 |	\
+		      SNDRV_PCM_RATE_44100 |	\
+		      SNDRV_PCM_RATE_48000)
+
+#define WM9713_PCM_RATES (SNDRV_PCM_RATE_8000  |	\
+			  SNDRV_PCM_RATE_11025 |	\
+			  SNDRV_PCM_RATE_16000 |	\
+			  SNDRV_PCM_RATE_22050 |	\
+			  SNDRV_PCM_RATE_44100 |	\
+			  SNDRV_PCM_RATE_48000)
 
 #define WM9713_PCM_FORMATS \
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
@@ -1051,13 +1060,13 @@ struct snd_soc_codec_dai wm9713_dai[] = {
 		.stream_name = "Voice Playback",
 		.channels_min = 1,
 		.channels_max = 1,
-		.rates = WM9713_RATES,
+		.rates = WM9713_PCM_RATES,
 		.formats = WM9713_PCM_FORMATS,},
 	.capture = {
 		.stream_name = "Voice Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = WM9713_RATES,
+		.rates = WM9713_PCM_RATES,
 		.formats = WM9713_PCM_FORMATS,},
 	.ops = {
 		.hw_params = wm9713_pcm_hw_params,
