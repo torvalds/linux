@@ -520,6 +520,7 @@ int zfcp_scan_ports(struct zfcp_adapter *adapter)
 	int ret, i;
 	struct zfcp_gpn_ft *gpn_ft;
 
+	zfcp_erp_wait(adapter); /* wait until adapter is finished with ERP */
 	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT)
 		return 0;
 
