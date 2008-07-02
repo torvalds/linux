@@ -300,6 +300,7 @@ struct kvm_vcpu_arch {
 	struct page *time_page;
 
 	bool nmi_pending;
+	bool nmi_injected;
 
 	u64 mtrr[0x100];
 };

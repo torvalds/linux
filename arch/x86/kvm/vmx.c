@@ -2151,7 +2151,6 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK | NMI_VECTOR);
-	vcpu->arch.nmi_pending = 0;
 }
 
 static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
@@ -2820,8 +2819,11 @@ static void enable_intr_window(struct kvm_vcpu *vcpu)
 static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 {
 	u32 exit_intr_info;
+	u32 idt_vectoring_info;
 	bool unblock_nmi;
 	u8 vector;
+	int type;
+	bool idtv_info_valid;
 
 	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	if (cpu_has_virtual_nmis()) {
@@ -2836,18 +2838,34 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 			vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
 				      GUEST_INTR_STATE_NMI);
 	}
+
+	idt_vectoring_info = vmx->idt_vectoring_info;
+	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
+	vector = idt_vectoring_info & VECTORING_INFO_VECTOR_MASK;
+	type = idt_vectoring_info & VECTORING_INFO_TYPE_MASK;
+	if (vmx->vcpu.arch.nmi_injected) {
+		/*
+		 * SDM 3: 25.7.1.2
+		 * Clear bit "block by NMI" before VM entry if a NMI delivery
+		 * faulted.
+		 */
+		if (idtv_info_valid && type == INTR_TYPE_NMI_INTR)
+			vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
+					GUEST_INTR_STATE_NMI);
+		else
+			vmx->vcpu.arch.nmi_injected = false;
+	}
 }
 
 static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 idtv_info_field, intr_info_field, exit_intr_info_field;
+	u32 idtv_info_field, intr_info_field;
 	int vector;
 
 	update_tpr_threshold(vcpu);
 
 	intr_info_field = vmcs_read32(VM_ENTRY_INTR_INFO_FIELD);
-	exit_intr_info_field = vmcs_read32(VM_EXIT_INTR_INFO);
 	idtv_info_field = vmx->idt_vectoring_info;
 	if (intr_info_field & INTR_INFO_VALID_MASK) {
 		if (idtv_info_field & INTR_INFO_VALID_MASK) {
@@ -2871,17 +2889,6 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 
 		KVMTRACE_1D(REDELIVER_EVT, vcpu, idtv_info_field, handler);
 
-		/*
-		 * SDM 3: 25.7.1.2
-		 * Clear bit "block by NMI" before VM entry if a NMI delivery
-		 * faulted.
-		 */
-		if ((idtv_info_field & VECTORING_INFO_TYPE_MASK)
-		    == INTR_TYPE_NMI_INTR && cpu_has_virtual_nmis())
-			vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
-				vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
-				~GUEST_INTR_STATE_NMI);
-
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, idtv_info_field
 				& ~INTR_INFO_RESVD_BITS_MASK);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
@@ -2894,9 +2901,17 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 		return;
 	}
 	if (cpu_has_virtual_nmis()) {
-		if (vcpu->arch.nmi_pending) {
-			if (vmx_nmi_enabled(vcpu))
-				vmx_inject_nmi(vcpu);
+		if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
+			if (vmx_nmi_enabled(vcpu)) {
+				vcpu->arch.nmi_pending = false;
+				vcpu->arch.nmi_injected = true;
+			} else {
+				enable_intr_window(vcpu);
+				return;
+			}
+		}
+		if (vcpu->arch.nmi_injected) {
+			vmx_inject_nmi(vcpu);
 			enable_intr_window(vcpu);
 			return;
 		}
