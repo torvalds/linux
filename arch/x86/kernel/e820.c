@@ -841,7 +841,7 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 	printk(KERN_INFO "(%d early reservations) ==> bootmem\n", count);
 	for (i = 0; i < count; i++) {
 		struct early_res *r = &early_res[i];
-		printk(KERN_INFO "  #%d [ %010llx - %010llx ] %16s", i,
+		printk(KERN_INFO "  #%d [%010llx - %010llx] %16s", i,
 			r->start, r->end, r->name);
 		final_start = max(start, r->start);
 		final_end = min(end, r->end);
@@ -849,7 +849,7 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 			printk(KERN_CONT "\n");
 			continue;
 		}
-		printk(KERN_CONT " ===> [ %010llx - %010llx ]\n",
+		printk(KERN_CONT " ==> [%010llx - %010llx]\n",
 			final_start, final_end);
 		reserve_bootmem_generic(final_start, final_end - final_start,
 				BOOTMEM_DEFAULT);
