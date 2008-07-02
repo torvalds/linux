@@ -398,10 +398,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
-	flush_cache_sigtramp(regs->pr);
-
-	if ((-regs->pr & (L1_CACHE_BYTES-1)) < sizeof(frame->retcode))
-		flush_cache_sigtramp(regs->pr + L1_CACHE_BYTES);
+	flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 
 	return 0;
 
@@ -486,10 +483,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
-	flush_cache_sigtramp(regs->pr);
-
-	if ((-regs->pr & (L1_CACHE_BYTES-1)) < sizeof(frame->retcode))
-		flush_cache_sigtramp(regs->pr + L1_CACHE_BYTES);
+	flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 
 	return 0;
 
