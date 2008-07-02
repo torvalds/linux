@@ -31,14 +31,13 @@ else
 # Makefile for X86_64 specific PCI routines
 #
 
-obj-y				:= i386.o
-obj-$(CONFIG_PCI_DIRECT)	+= direct.o
-obj-y				+= fixup.o init.o
-obj-$(CONFIG_ACPI)		+= acpi.o
-obj-y				+= legacy.o irq.o common.o early.o
-# mmconfig has a 64bit special
+obj-y				:= i386.o init.o
 obj-$(CONFIG_PCI_MMCONFIG)	+= mmconfig_64.o direct.o mmconfig-shared.o
-
+obj-$(CONFIG_PCI_DIRECT)	+= direct.o
+obj-y				+= fixup.o
+obj-$(CONFIG_ACPI)		+= acpi.o
+obj-y				+= legacy.o irq.o
+obj-y				+= common.o early.o
 obj-y				+= amd_bus.o
 
 endif
