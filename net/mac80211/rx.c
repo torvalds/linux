@@ -321,20 +321,20 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
 {
-	u8 *data = rx->skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	int tid;
 
 	/* does the frame have a qos control field? */
-	if (WLAN_FC_IS_QOS_DATA(rx->fc)) {
-		u8 *qc = data + ieee80211_get_hdrlen(rx->fc) - QOS_CONTROL_LEN;
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		/* frame has qos control */
-		tid = qc[0] & QOS_CONTROL_TID_MASK;
-		if (qc[0] & IEEE80211_QOS_CONTROL_A_MSDU_PRESENT)
+		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
+		if (*qc & IEEE80211_QOS_CONTROL_A_MSDU_PRESENT)
 			rx->flags |= IEEE80211_RX_AMSDU;
 		else
 			rx->flags &= ~IEEE80211_RX_AMSDU;
 	} else {
-		if (unlikely((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT)) {
+		if (unlikely(ieee80211_is_mgmt(hdr->frame_control))) {
 			/* Separate TID for management frames */
 			tid = NUM_RX_DATA_QUEUES - 1;
 		} else {
@@ -1037,19 +1037,19 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_remove_qos_control(struct ieee80211_rx_data *rx)
 {
-	u16 fc = rx->fc;
 	u8 *data = rx->skb->data;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
 
-	if (!WLAN_FC_IS_QOS_DATA(fc))
+	if (!ieee80211_is_data_qos(hdr->frame_control))
 		return RX_CONTINUE;
 
 	/* remove the qos control field, update frame type and meta-data */
-	memmove(data + 2, data, ieee80211_get_hdrlen(fc) - 2);
-	hdr = (struct ieee80211_hdr *) skb_pull(rx->skb, 2);
+	memmove(data + IEEE80211_QOS_CTL_LEN, data,
+		ieee80211_hdrlen(hdr->frame_control) - IEEE80211_QOS_CTL_LEN);
+	hdr = (struct ieee80211_hdr *)skb_pull(rx->skb, IEEE80211_QOS_CTL_LEN);
 	/* change frame type to non QOS */
-	rx->fc = fc &= ~IEEE80211_STYPE_QOS_DATA;
-	hdr->frame_control = cpu_to_le16(fc);
+	rx->fc &= ~IEEE80211_STYPE_QOS_DATA;
+	hdr->frame_control &= ~cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 
 	return RX_CONTINUE;
 }
@@ -2044,7 +2044,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	if (!ieee80211_is_data_qos(hdr->frame_control))
 		goto end_reorder;
 
-	tid = *ieee80211_get_qos_ctl(hdr) & QOS_CONTROL_TID_MASK;
+	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 
 	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_OPERATIONAL)
 		goto end_reorder;

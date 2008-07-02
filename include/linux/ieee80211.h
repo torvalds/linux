@@ -99,6 +99,8 @@
 #define IEEE80211_MAX_SSID_LEN		32
 #define IEEE80211_MAX_MESH_ID_LEN	32
 #define IEEE80211_QOS_CTL_LEN		2
+#define IEEE80211_QOS_CTL_TID_MASK	0x000F
+#define IEEE80211_QOS_CTL_TAG1D_MASK	0x0007
 
 struct ieee80211_hdr {
 	__le16 frame_control;
