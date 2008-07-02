@@ -451,6 +451,7 @@ static void spitz_irda_transceiver_mode(struct device *dev, int mode)
 		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
 	else
 		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
+	pxa2xx_transceiver_mode(dev, mode);
 }
 
 #ifdef CONFIG_MACH_AKITA
@@ -460,6 +461,7 @@ static void akita_irda_transceiver_mode(struct device *dev, int mode)
 		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
 	else
 		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
+	pxa2xx_transceiver_mode(dev, mode);
 }
 #endif
 

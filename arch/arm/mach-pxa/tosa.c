@@ -149,18 +149,11 @@ static unsigned long tosa_pin_config[] = {
 	GPIO81_SSP2_CLK_OUT,
 	GPIO82_SSP2_FRM_OUT,
 	GPIO83_SSP2_TXD,
-};
 
-static unsigned long tosa_pin_irda_off[] = {
-	GPIO46_STUART_RXD,
-	GPIO47_GPIO | MFP_LPM_DRIVE_LOW,
+	/* IrDA is managed in other way */
+	GPIO46_GPIO,
+	GPIO47_GPIO,
 };
-
-static unsigned long tosa_pin_irda_on[] = {
-	GPIO46_STUART_RXD,
-	GPIO47_STUART_TXD,
-};
-
 
 /*
  * SCOOP Device
@@ -360,10 +353,10 @@ static void tosa_irda_transceiver_mode(struct device *dev, int mode)
 {
 	if (mode & IR_OFF) {
 		gpio_set_value(TOSA_GPIO_IR_POWERDWN, 0);
-		pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_irda_off));
+		pxa2xx_transceiver_mode(dev, mode);
 		gpio_direction_output(TOSA_GPIO_IRDA_TX, 0);
 	} else {
-		pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_irda_on));
+		pxa2xx_transceiver_mode(dev, mode);
 		gpio_set_value(TOSA_GPIO_IR_POWERDWN, 1);
 	}
 }
@@ -775,7 +768,6 @@ static void __init tosa_init(void)
 	int dummy;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_config));
-	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_irda_off));
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
 

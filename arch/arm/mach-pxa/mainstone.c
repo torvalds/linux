@@ -455,6 +455,7 @@ static void mainstone_irda_transceiver_mode(struct device *dev, int mode)
 	} else if (mode & IR_FIRMODE) {
 		MST_MSCWR1 |= MST_MSCWR1_IRDA_FIR;
 	}
+	pxa2xx_transceiver_mode(dev, mode);
 	if (mode & IR_OFF) {
 		MST_MSCWR1 = (MST_MSCWR1 & ~MST_MSCWR1_IRDA_MASK) | MST_MSCWR1_IRDA_OFF;
 	} else {

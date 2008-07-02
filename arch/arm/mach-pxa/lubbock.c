@@ -462,6 +462,7 @@ static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
 	} else if (mode & IR_FIRMODE) {
 		LUB_MISC_WR |= 1 << 4;
 	}
+	pxa2xx_transceiver_mode(dev, mode);
 	local_irq_restore(flags);
 }
 

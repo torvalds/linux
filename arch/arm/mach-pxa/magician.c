@@ -132,6 +132,7 @@ static unsigned long magician_pin_config[] __initdata = {
 static void magician_irda_transceiver_mode(struct device *dev, int mode)
 {
 	gpio_set_value(GPIO83_MAGICIAN_nIR_EN, mode & IR_OFF);
+	pxa2xx_transceiver_mode(dev, mode);
 }
 
 static struct pxaficp_platform_data magician_ficp_info = {
