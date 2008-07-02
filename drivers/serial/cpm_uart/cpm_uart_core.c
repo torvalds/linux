@@ -491,6 +491,11 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	}
 
 	/*
+	 * Update the timeout
+	 */
+	uart_update_timeout(port, termios->c_cflag, baud);
+
+	/*
 	 * Set up parity check flag
 	 */
 #define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
@@ -938,6 +943,7 @@ static int cpm_uart_init_port(struct device_node *np,
 	pinfo->port.type = PORT_CPM;
 	pinfo->port.ops = &cpm_uart_pops,
 	pinfo->port.iotype = UPIO_MEM;
+	pinfo->port.fifosize = pinfo->tx_nrfifos * pinfo->tx_fifosize;
 	spin_lock_init(&pinfo->port.lock);
 
 	pinfo->port.irq = of_irq_to_resource(np, 0, NULL);
