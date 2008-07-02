@@ -85,7 +85,7 @@ void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
-static int __init pcibios_init(void)
+static int __init pci_visws_init(void)
 {
 	/* The VISWS supports configuration access type 1 only */
 	pci_probe = (pci_probe | PCI_PROBE_CONF1) &
@@ -105,4 +105,4 @@ static int __init pcibios_init(void)
 	return 0;
 }
 
-subsys_initcall(pcibios_init);
+subsys_initcall(pci_visws_init);
