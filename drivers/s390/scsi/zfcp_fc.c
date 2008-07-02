@@ -263,7 +263,7 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 	struct zfcp_port *port = adisc->els.port;
 	struct zfcp_ls_adisc_acc *ls_adisc = &adisc->ls_adisc_acc;
 
-	if (!adisc->els.status) {
+	if (adisc->els.status) {
 		/* request rejected or timed out */
 		zfcp_erp_port_forced_reopen(port, 0, 63, NULL);
 		goto out;
