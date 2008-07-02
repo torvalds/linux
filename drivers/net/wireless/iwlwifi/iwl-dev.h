@@ -1103,7 +1103,7 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 	clear_bit(txq_id, &priv->txq_ctx_active_msk);
 }
 
-#ifdef CONFIG_IWLWIF_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);
 #else
 static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
