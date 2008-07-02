@@ -262,6 +262,11 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 	return NULL;
 }
 
+static void zfcp_sysfs_unit_release(struct device *dev)
+{
+	kfree(container_of(dev, struct zfcp_unit, sysfs_device));
+}
+
 /**
  * zfcp_unit_enqueue - enqueue unit to unit list of a port.
  * @port: pointer to port where unit is added
@@ -311,7 +316,8 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 	if (device_register(&unit->sysfs_device))
 		goto err_out_free;
 
-	if (zfcp_sysfs_unit_create_files(&unit->sysfs_device)) {
+	if (sysfs_create_group(&unit->sysfs_device.kobj,
+			       &zfcp_sysfs_unit_attrs)) {
 		device_unregister(&unit->sysfs_device);
 		return ERR_PTR(-EIO);
 	}
@@ -351,7 +357,7 @@ void zfcp_unit_dequeue(struct zfcp_unit *unit)
 	write_unlock_irq(&zfcp_data.config_lock);
 	unit->port->units--;
 	zfcp_port_put(unit->port);
-	zfcp_sysfs_unit_remove_files(&unit->sysfs_device);
+	sysfs_remove_group(&unit->sysfs_device.kobj, &zfcp_sysfs_unit_attrs);
 	device_unregister(&unit->sysfs_device);
 }
 
@@ -527,7 +533,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	dev_set_drvdata(&ccw_device->dev, adapter);
 
-	if (zfcp_sysfs_adapter_create_files(&ccw_device->dev))
+	if (sysfs_create_group(&ccw_device->dev.kobj,
+			       &zfcp_sysfs_adapter_attrs))
 		goto sysfs_failed;
 
 	adapter->generic_services.parent = &adapter->ccw_device->dev;
@@ -550,7 +557,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	return 0;
 
 generic_services_failed:
-	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
+	sysfs_remove_group(&ccw_device->dev.kobj,
+			   &zfcp_sysfs_adapter_attrs);
 sysfs_failed:
 	zfcp_adapter_debug_unregister(adapter);
 debug_register_failed:
@@ -578,7 +586,8 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	cancel_work_sync(&adapter->stat_work);
 	zfcp_adapter_scsi_unregister(adapter);
 	device_unregister(&adapter->generic_services);
-	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
+	sysfs_remove_group(&adapter->ccw_device->dev.kobj,
+			   &zfcp_sysfs_adapter_attrs);
 	dev_set_drvdata(&adapter->ccw_device->dev, NULL);
 	/* sanity check: no pending FSF requests */
 	spin_lock_irqsave(&adapter->req_list_lock, flags);
@@ -606,6 +615,11 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	kfree(adapter);
 }
 
+static void zfcp_sysfs_port_release(struct device *dev)
+{
+	kfree(container_of(dev, struct zfcp_port, sysfs_device));
+}
+
 /**
  * zfcp_port_enqueue - enqueue port to port list of adapter
  * @adapter: adapter where remote port is added
@@ -623,6 +637,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 				     u32 status, u32 d_id)
 {
 	struct zfcp_port *port;
+	int retval;
 	char *bus_id;
 
 	port = kzalloc(sizeof(struct zfcp_port), GFP_KERNEL);
@@ -685,7 +700,14 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn,
 	if (device_register(&port->sysfs_device))
 		goto err_out_free;
 
-	if (zfcp_sysfs_port_create_files(&port->sysfs_device, status)) {
+	if (status & ZFCP_STATUS_PORT_WKA)
+		retval = sysfs_create_group(&port->sysfs_device.kobj,
+					    &zfcp_sysfs_ns_port_attrs);
+	else
+		retval = sysfs_create_group(&port->sysfs_device.kobj,
+					    &zfcp_sysfs_port_attrs);
+
+	if (retval) {
 		device_unregister(&port->sysfs_device);
 		goto err_out;
 	}
@@ -727,8 +749,12 @@ void zfcp_port_dequeue(struct zfcp_port *port)
 		fc_remote_port_delete(port->rport);
 	port->rport = NULL;
 	zfcp_adapter_put(port->adapter);
-	zfcp_sysfs_port_remove_files(&port->sysfs_device,
-				     atomic_read(&port->status));
+	if (atomic_read(&port->status) & ZFCP_STATUS_PORT_WKA)
+		sysfs_remove_group(&port->sysfs_device.kobj,
+				   &zfcp_sysfs_ns_port_attrs);
+	else
+		sysfs_remove_group(&port->sysfs_device.kobj,
+				   &zfcp_sysfs_port_attrs);
 	device_unregister(&port->sysfs_device);
 }
 

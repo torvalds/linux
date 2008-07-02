@@ -627,11 +627,6 @@ struct zfcp_adapter {
 	struct work_struct	scan_work;
 };
 
-/*
- * the struct device sysfs_device must be at the beginning of this structure.
- * pointer to struct device is used to free port structure in release function
- * of the device. don't change!
- */
 struct zfcp_port {
 	struct device          sysfs_device;   /* sysfs device */
 	struct fc_rport        *rport;         /* rport of fc transport class */
@@ -655,10 +650,6 @@ struct zfcp_port {
 	u32                    supported_classes;
 };
 
-/* the struct device sysfs_device must be at the beginning of this structure.
- * pointer to struct device is used to free unit structure in release function
- * of the device. don't change!
- */
 struct zfcp_unit {
 	struct device          sysfs_device;   /* sysfs device */
 	struct list_head       list;	       /* list of logical units */

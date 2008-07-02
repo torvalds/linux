@@ -13,15 +13,13 @@
 
 extern struct zfcp_data zfcp_data;
 
-/******************************** SYSFS  *************************************/
-extern int  zfcp_sysfs_adapter_create_files(struct device *);
-extern void zfcp_sysfs_adapter_remove_files(struct device *);
-extern int  zfcp_sysfs_port_create_files(struct device *, u32);
-extern void zfcp_sysfs_port_remove_files(struct device *, u32);
-extern int  zfcp_sysfs_unit_create_files(struct device *);
-extern void zfcp_sysfs_unit_remove_files(struct device *);
-extern void zfcp_sysfs_port_release(struct device *);
-extern void zfcp_sysfs_unit_release(struct device *);
+/* zfcp_sysfs.c */
+extern struct attribute_group zfcp_sysfs_unit_attrs;
+extern struct attribute_group zfcp_sysfs_adapter_attrs;
+extern struct attribute_group zfcp_sysfs_ns_port_attrs;
+extern struct attribute_group zfcp_sysfs_port_attrs;
+extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
+extern struct device_attribute *zfcp_sysfs_shost_attrs[];
 
 /**************************** CONFIGURATION  *********************************/
 extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *, fcp_lun_t);
