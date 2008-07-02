@@ -358,14 +358,6 @@ i2cid_to_modulename (u16 i2c_id)
 	case I2C_DRIVERID_VPX3220:
 		name = "vpx3220";
 		break;
-/*	case I2C_DRIVERID_VPX3224:
-		name = "vpx3224";
-		break;
-	case I2C_DRIVERID_MSE3000:
-		name = "mse3000";
-		break;*/
-	default:
-		break;
 	}
 
 	return name;
@@ -385,8 +377,6 @@ codecid_to_modulename (u16 codecid)
 		break;
 	case CODEC_TYPE_ZR36016:
 		name = "zr36016";
-		break;
-	default:
 		break;
 	}
 
@@ -428,7 +418,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC10_old,
 		.name = "DC10(old)",
 		.i2c_decoder = I2C_DRIVERID_VPX3220,
-		/*.i2c_encoder = I2C_DRIVERID_MSE3000,*/
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
 
