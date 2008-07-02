@@ -328,6 +328,75 @@ struct rt_sigframe {
 	int			abigap[56];
 };
 
+#ifdef CONFIG_VSX
+unsigned long copy_fpr_to_user(void __user *to,
+			       struct task_struct *task)
+{
+	double buf[ELF_NFPREG];
+	int i;
+
+	/* save FPR copy to local buffer then write to the thread_struct */
+	for (i = 0; i < (ELF_NFPREG - 1) ; i++)
+		buf[i] = task->thread.TS_FPR(i);
+	memcpy(&buf[i], &task->thread.fpscr, sizeof(double));
+	return __copy_to_user(to, buf, ELF_NFPREG * sizeof(double));
+}
+
+unsigned long copy_fpr_from_user(struct task_struct *task,
+				 void __user *from)
+{
+	double buf[ELF_NFPREG];
+	int i;
+
+	if (__copy_from_user(buf, from, ELF_NFPREG * sizeof(double)))
+		return 1;
+	for (i = 0; i < (ELF_NFPREG - 1) ; i++)
+		task->thread.TS_FPR(i) = buf[i];
+	memcpy(&task->thread.fpscr, &buf[i], sizeof(double));
+
+	return 0;
+}
+
+unsigned long copy_vsx_to_user(void __user *to,
+			       struct task_struct *task)
+{
+	double buf[ELF_NVSRHALFREG];
+	int i;
+
+	/* save FPR copy to local buffer then write to the thread_struct */
+	for (i = 0; i < ELF_NVSRHALFREG; i++)
+		buf[i] = task->thread.fpr[i][TS_VSRLOWOFFSET];
+	return __copy_to_user(to, buf, ELF_NVSRHALFREG * sizeof(double));
+}
+
+unsigned long copy_vsx_from_user(struct task_struct *task,
+				 void __user *from)
+{
+	double buf[ELF_NVSRHALFREG];
+	int i;
+
+	if (__copy_from_user(buf, from, ELF_NVSRHALFREG * sizeof(double)))
+		return 1;
+	for (i = 0; i < ELF_NVSRHALFREG ; i++)
+		task->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
+	return 0;
+}
+#else
+inline unsigned long copy_fpr_to_user(void __user *to,
+				      struct task_struct *task)
+{
+	return __copy_to_user(to, task->thread.fpr,
+			      ELF_NFPREG * sizeof(double));
+}
+
+inline unsigned long copy_fpr_from_user(struct task_struct *task,
+					void __user *from)
+{
+	return __copy_from_user(task->thread.fpr, from,
+			      ELF_NFPREG * sizeof(double));
+}
+#endif
+
 /*
  * Save the current user registers on the user stack.
  * We only save the altivec/spe registers if the process has used
@@ -337,10 +406,6 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 		int sigret)
 {
 	unsigned long msr = regs->msr;
-#ifdef CONFIG_VSX
-	double buf[32];
-	int i;
-#endif
 
 	/* Make sure floating point registers are stored in regs */
 	flush_fp_to_thread(current);
@@ -370,14 +435,9 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	if (__put_user(current->thread.vrsave, (u32 __user *)&frame->mc_vregs[32]))
 		return 1;
 #endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_VSX
-	/* save FPR copy to local buffer then write to the thread_struct */
-	flush_fp_to_thread(current);
-	for (i = 0; i < 32 ; i++)
-		buf[i] = current->thread.TS_FPR(i);
-	memcpy(&buf[i], &current->thread.fpscr, sizeof(double));
-	if (__copy_to_user(&frame->mc_fregs, buf, ELF_NFPREG * sizeof(double)))
+	if (copy_fpr_to_user(&frame->mc_fregs, current))
 		return 1;
+#ifdef CONFIG_VSX
 	/*
 	 * Copy VSR 0-31 upper half from thread_struct to local
 	 * buffer, then write that to userspace.  Also set MSR_VSX in
@@ -386,18 +446,10 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 	 */
 	if (current->thread.used_vsr) {
 		flush_vsx_to_thread(current);
-		for (i = 0; i < 32 ; i++)
-			buf[i] = current->thread.fpr[i][TS_VSRLOWOFFSET];
-		if (__copy_to_user(&frame->mc_vsregs, buf,
-				   ELF_NVSRHALFREG  * sizeof(double)))
+		if (copy_vsx_to_user(&frame->mc_vsregs, current))
 			return 1;
 		msr |= MSR_VSX;
 	}
-#else
-	/* save floating-point registers */
-	if (__copy_to_user(&frame->mc_fregs, current->thread.fpr,
-		    ELF_NFPREG * sizeof(double)))
-		return 1;
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 	/* save spe registers */
@@ -442,7 +494,6 @@ static long restore_user_regs(struct pt_regs *regs,
 	unsigned int save_r2 = 0;
 	unsigned long msr;
 #ifdef CONFIG_VSX
-	double buf[32];
 	int i;
 #endif
 
@@ -490,13 +541,10 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (__get_user(current->thread.vrsave, (u32 __user *)&sr->mc_vregs[32]))
 		return 1;
 #endif /* CONFIG_ALTIVEC */
+	if (copy_fpr_from_user(current, &sr->mc_fregs))
+		return 1;
 
 #ifdef CONFIG_VSX
-	if (__copy_from_user(buf, &sr->mc_fregs,sizeof(sr->mc_fregs)))
-		return 1;
-	for (i = 0; i < 32 ; i++)
-		current->thread.TS_FPR(i) = buf[i];
-	memcpy(&current->thread.fpscr, &buf[i], sizeof(double));
 	/*
 	 * Force the process to reload the VSX registers from
 	 * current->thread when it next does VSX instruction.
@@ -507,18 +555,11 @@ static long restore_user_regs(struct pt_regs *regs,
 		 * Restore altivec registers from the stack to a local
 		 * buffer, then write this out to the thread_struct
 		 */
-		if (__copy_from_user(buf, &sr->mc_vsregs,
-				     sizeof(sr->mc_vsregs)))
+		if (copy_vsx_from_user(current, &sr->mc_vsregs))
 			return 1;
-		for (i = 0; i < 32 ; i++)
-			current->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
 	} else if (current->thread.used_vsr)
 		for (i = 0; i < 32 ; i++)
 			current->thread.fpr[i][TS_VSRLOWOFFSET] = 0;
-#else
-	if (__copy_from_user(current->thread.fpr, &sr->mc_fregs,
-			     sizeof(sr->mc_fregs)))
-		return 1;
 #endif /* CONFIG_VSX */
 	/*
 	 * force the process to reload the FP registers from

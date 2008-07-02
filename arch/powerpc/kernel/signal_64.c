@@ -89,10 +89,6 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 #endif
 	unsigned long msr = regs->msr;
 	long err = 0;
-#ifdef CONFIG_VSX
-	double buf[FP_REGS_SIZE];
-	int i;
-#endif
 
 	flush_fp_to_thread(current);
 
@@ -117,12 +113,9 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */
 	flush_fp_to_thread(current);
+	/* copy fpr regs and fpscr */
+	err |= copy_fpr_to_user(&sc->fp_regs, current);
 #ifdef CONFIG_VSX
-	/* Copy FP to local buffer then write that out */
-	for (i = 0; i < 32 ; i++)
-		buf[i] = current->thread.TS_FPR(i);
-	memcpy(&buf[i], &current->thread.fpscr, sizeof(double));
-	err |= __copy_to_user(&sc->fp_regs, buf, FP_REGS_SIZE);
 	/*
 	 * Copy VSX low doubleword to local buffer for formatting,
 	 * then out to userspace.  Update v_regs to point after the
@@ -131,17 +124,12 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	if (current->thread.used_vsr) {
 		flush_vsx_to_thread(current);
 		v_regs += ELF_NVRREG;
-		for (i = 0; i < 32 ; i++)
-			buf[i] = current->thread.fpr[i][TS_VSRLOWOFFSET];
-		err |= __copy_to_user(v_regs, buf, 32 * sizeof(double));
+		err |= copy_vsx_to_user(v_regs, current);
 		/* set MSR_VSX in the MSR value in the frame to
 		 * indicate that sc->vs_reg) contains valid data.
 		 */
 		msr |= MSR_VSX;
 	}
-#else /* CONFIG_VSX */
-	/* copy fpr regs and fpscr */
-	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
 #endif /* CONFIG_VSX */
 	err |= __put_user(&sc->gp_regs, &sc->regs);
 	WARN_ON(!FULL_REGS(regs));
@@ -165,13 +153,12 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 #ifdef CONFIG_ALTIVEC
 	elf_vrreg_t __user *v_regs;
 #endif
-#ifdef CONFIG_VSX
-	double buf[FP_REGS_SIZE];
-	int i;
-#endif
 	unsigned long err = 0;
 	unsigned long save_r13 = 0;
 	unsigned long msr;
+#ifdef CONFIG_VSX
+	int i;
+#endif
 
 	/* If this is not a signal return, we preserve the TLS in r13 */
 	if (!sig)
@@ -234,15 +221,9 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	else
 		current->thread.vrsave = 0;
 #endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_VSX
 	/* restore floating point */
-	err |= __copy_from_user(buf, &sc->fp_regs, FP_REGS_SIZE);
-	if (err)
-		return err;
-	for (i = 0; i < 32 ; i++)
-		current->thread.TS_FPR(i) = buf[i];
-	memcpy(&current->thread.fpscr, &buf[i], sizeof(double));
-
+	err |= copy_fpr_from_user(current, &sc->fp_regs);
+#ifdef CONFIG_VSX
 	/*
 	 * Get additional VSX data. Update v_regs to point after the
 	 * VMX data.  Copy VSX low doubleword from userspace to local
@@ -250,14 +231,12 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	 */
 	v_regs += ELF_NVRREG;
 	if ((msr & MSR_VSX) != 0)
-		err |= __copy_from_user(buf, v_regs, 32 * sizeof(double));
+		err |= copy_vsx_from_user(current, v_regs);
 	else
-		memset(buf, 0, 32 * sizeof(double));
+		for (i = 0; i < 32 ; i++)
+			current->thread.fpr[i][TS_VSRLOWOFFSET] = 0;
 
-	for (i = 0; i < 32 ; i++)
-		current->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
 #else
-	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
 #endif
 	return err;
 }
