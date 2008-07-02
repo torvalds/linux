@@ -28,6 +28,7 @@
 
 struct sh_cpuinfo {
 	unsigned int type;
+	int cut_major, cut_minor;
 	unsigned long loops_per_jiffy;
 	unsigned long asid_cache;
 

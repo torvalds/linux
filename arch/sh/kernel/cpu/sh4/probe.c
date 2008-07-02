@@ -64,6 +64,9 @@ int __init detect_cpu_and_cache_system(void)
 	if ((cvr & 0x20000000) == 1)
 		boot_cpu_data.flags |= CPU_HAS_FPU;
 
+	/* We don't know the chip cut */
+	boot_cpu_data.cut_major = boot_cpu_data.cut_minor = -1;
+
 	/* Mask off the upper chip ID */
 	pvr &= 0xffff;
 
