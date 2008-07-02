@@ -1039,11 +1039,21 @@ static nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_RELEASE_LOCKOWNER]	(nfsd4_dec)nfsd4_decode_release_lockowner,
 };
 
+struct nfsd4_minorversion_ops {
+	nfsd4_dec *decoders;
+	int nops;
+};
+
+static struct nfsd4_minorversion_ops nfsd4_minorversion[] = {
+	[0] { nfsd4_dec_ops, ARRAY_SIZE(nfsd4_dec_ops) },
+};
+
 static __be32
 nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 {
 	DECODE_HEAD;
 	struct nfsd4_op *op;
+	struct nfsd4_minorversion_ops *ops;
 	int i;
 
 	/*
@@ -1073,9 +1083,10 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		}
 	}
 
-	if (argp->minorversion != 0)
+	if (argp->minorversion >= ARRAY_SIZE(nfsd4_minorversion))
 		argp->opcnt = 0;
 
+	ops = &nfsd4_minorversion[argp->minorversion];
 	for (i = 0; i < argp->opcnt; i++) {
 		op = &argp->ops[i];
 		op->replay = NULL;
@@ -1113,8 +1124,8 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		}
 		op->opnum = ntohl(*argp->p++);
 
-		if (op->opnum >= OP_ACCESS && op->opnum < ARRAY_SIZE(nfsd4_dec_ops))
-			op->status = nfsd4_dec_ops[op->opnum](argp, &op->u);
+		if (op->opnum >= OP_ACCESS && op->opnum < ops->nops)
+			op->status = ops->decoders[op->opnum](argp, &op->u);
 		else {
 			op->opnum = OP_ILLEGAL;
 			op->status = nfserr_op_illegal;
