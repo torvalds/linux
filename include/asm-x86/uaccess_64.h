@@ -195,4 +195,7 @@ static inline int __copy_from_user_inatomic_nocache(void *dst,
 	return __copy_user_nocache(dst, src, size, 0);
 }
 
+unsigned long
+copy_user_handle_tail(char *to, char *from, unsigned len, unsigned zerorest);
+
 #endif /* __X86_64_UACCESS_H */
