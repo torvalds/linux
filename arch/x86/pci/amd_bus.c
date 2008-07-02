@@ -14,27 +14,6 @@
  * also get peer root bus resource for io,mmio
  */
 
-
-/*
- * sub bus (transparent) will use entres from 3 to store extra from root,
- * so need to make sure have enought slot there, increase PCI_BUS_NUM_RESOURCES?
- */
-#define RES_NUM 16
-struct pci_root_info {
-	char name[12];
-	unsigned int res_num;
-	struct resource res[RES_NUM];
-	int bus_min;
-	int bus_max;
-	int node;
-	int link;
-};
-
-/* 4 at this time, it may become to 32 */
-#define PCI_ROOT_NR 4
-static int pci_root_num;
-static struct pci_root_info pci_root_info[PCI_ROOT_NR];
-
 #ifdef CONFIG_NUMA
 
 #define BUS_NR 256
@@ -65,7 +44,28 @@ int get_mp_bus_to_node(int busnum)
 
 	return node;
 }
+
 #endif
+
+/*
+ * sub bus (transparent) will use entres from 3 to store extra from root,
+ * so need to make sure have enought slot there, increase PCI_BUS_NUM_RESOURCES?
+ */
+#define RES_NUM 16
+struct pci_root_info {
+	char name[12];
+	unsigned int res_num;
+	struct resource res[RES_NUM];
+	int bus_min;
+	int bus_max;
+	int node;
+	int link;
+};
+
+/* 4 at this time, it may become to 32 */
+#define PCI_ROOT_NR 4
+static int pci_root_num;
+static struct pci_root_info pci_root_info[PCI_ROOT_NR];
 
 void set_pci_bus_resources_arch_default(struct pci_bus *b)
 {
