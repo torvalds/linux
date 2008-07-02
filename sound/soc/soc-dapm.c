@@ -54,16 +54,6 @@
 #define dbg(format, arg...)
 #endif
 
-#define POP_DEBUG 0
-#if POP_DEBUG
-#define POP_TIME 500 /* 500 msecs - change if pop debug is too fast */
-#define pop_wait(time) schedule_timeout_uninterruptible(msecs_to_jiffies(time))
-#define pop_dbg(format, arg...) printk(format, ## arg); pop_wait(POP_TIME)
-#else
-#define pop_dbg(format, arg...)
-#define pop_wait(time)
-#endif
-
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_micbias, snd_soc_dapm_mic,
@@ -79,6 +69,28 @@ static int dapm_down_seq[] = {
 static int dapm_status = 1;
 module_param(dapm_status, int, 0);
 MODULE_PARM_DESC(dapm_status, "enable DPM sysfs entries");
+
+static unsigned int pop_time;
+
+static void pop_wait(void)
+{
+	if (pop_time)
+		schedule_timeout_uninterruptible(msecs_to_jiffies(pop_time));
+}
+
+static void pop_dbg(const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+
+	if (pop_time) {
+		vprintk(fmt, args);
+		pop_wait();
+	}
+
+	va_end(args);
+}
 
 /* create a new dapm widget */
 static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
@@ -217,9 +229,9 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 	change = old != new;
 	if (change) {
 		pop_dbg("pop test %s : %s in %d ms\n", widget->name,
-			widget->power ? "on" : "off", POP_TIME);
+			widget->power ? "on" : "off", pop_time);
 		snd_soc_write(codec, widget->reg, new);
-		pop_wait(POP_TIME);
+		pop_wait();
 	}
 	dbg("reg %x old %x new %x change %d\n", widget->reg, old, new, change);
 	return change;
@@ -803,20 +815,47 @@ static ssize_t dapm_widget_show(struct device *dev,
 
 static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
+/* pop/click delay times */
+static ssize_t dapm_pop_time_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", pop_time);
+}
+
+static ssize_t dapm_pop_time_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+
+{
+	if (strict_strtoul(buf, 10, &pop_time) < 0)
+		printk(KERN_ERR "Unable to parse pop_time setting\n");
+
+	return count;
+}
+
+static DEVICE_ATTR(dapm_pop_time, 0744, dapm_pop_time_show,
+		   dapm_pop_time_store);
+
 int snd_soc_dapm_sys_add(struct device *dev)
 {
 	int ret = 0;
 
-	if (dapm_status)
+	if (dapm_status) {
 		ret = device_create_file(dev, &dev_attr_dapm_widget);
+
+		if (ret == 0)
+			ret = device_create_file(dev, &dev_attr_dapm_pop_time);
+	}
 
 	return ret;
 }
 
 static void snd_soc_dapm_sys_remove(struct device *dev)
 {
-	if (dapm_status)
+	if (dapm_status) {
+		device_remove_file(dev, &dev_attr_dapm_pop_time);
 		device_remove_file(dev, &dev_attr_dapm_widget);
+	}
 }
 
 /* free all dapm widgets and resources */
