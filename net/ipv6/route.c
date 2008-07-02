@@ -237,15 +237,20 @@ static inline int rt6_need_strict(struct in6_addr *daddr)
 
 static inline struct rt6_info *rt6_device_match(struct net *net,
 						    struct rt6_info *rt,
+						    struct in6_addr *saddr,
 						    int oif,
 						    int flags)
 {
 	struct rt6_info *local = NULL;
 	struct rt6_info *sprt;
 
-	if (oif) {
-		for (sprt = rt; sprt; sprt = sprt->u.dst.rt6_next) {
-			struct net_device *dev = sprt->rt6i_dev;
+	if (!oif && ipv6_addr_any(saddr))
+		goto out;
+
+	for (sprt = rt; sprt; sprt = sprt->u.dst.rt6_next) {
+		struct net_device *dev = sprt->rt6i_dev;
+
+		if (oif) {
 			if (dev->ifindex == oif)
 				return sprt;
 			if (dev->flags & IFF_LOOPBACK) {
@@ -259,14 +264,21 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 				}
 				local = sprt;
 			}
+		} else {
+			if (ipv6_chk_addr(net, saddr, dev,
+					  flags & RT6_LOOKUP_F_IFACE))
+				return sprt;
 		}
+	}
 
+	if (oif) {
 		if (local)
 			return local;
 
 		if (flags & RT6_LOOKUP_F_IFACE)
 			return net->ipv6.ip6_null_entry;
 	}
+out:
 	return rt;
 }
 
@@ -539,7 +551,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 restart:
 	rt = fn->leaf;
-	rt = rt6_device_match(net, rt, fl->oif, flags);
+	rt = rt6_device_match(net, rt, &fl->fl6_src, fl->oif, flags);
 	BACKTRACK(net, &fl->fl6_src);
 out:
 	dst_use(&rt->u.dst, jiffies);
