@@ -230,8 +230,13 @@ static void mpc83xx_usb_setup(struct usb_hcd *hcd)
 
 	/* put controller in host mode. */
 	ehci_writel(ehci, 0x00000003, non_ehci + FSL_SOC_USB_USBMODE);
+#ifdef CONFIG_PPC_85xx
+	out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x00000008);
+	out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000080);
+#else
 	out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x0000000c);
 	out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000040);
+#endif
 	out_be32(non_ehci + FSL_SOC_USB_SICTRL, 0x00000001);
 }
 
