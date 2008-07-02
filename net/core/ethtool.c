@@ -209,6 +209,36 @@ static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 	return 0;
 }
 
+static int ethtool_set_rxhash(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_rxnfc cmd;
+
+	if (!dev->ethtool_ops->set_rxhash)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
+		return -EFAULT;
+
+	return dev->ethtool_ops->set_rxhash(dev, &cmd);
+}
+
+static int ethtool_get_rxhash(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_rxnfc info;
+
+	if (!dev->ethtool_ops->get_rxhash)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&info, useraddr, sizeof(info)))
+		return -EFAULT;
+
+	dev->ethtool_ops->get_rxhash(dev, &info);
+
+	if (copy_to_user(useraddr, &info, sizeof(info)))
+		return -EFAULT;
+	return 0;
+}
+
 static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_regs regs;
@@ -826,6 +856,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GGSO:
 	case ETHTOOL_GFLAGS:
 	case ETHTOOL_GPFLAGS:
+	case ETHTOOL_GRXFH:
 		break;
 	default:
 		if (!capable(CAP_NET_ADMIN))
@@ -976,6 +1007,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_SPFLAGS:
 		rc = ethtool_set_value(dev, useraddr,
 				       dev->ethtool_ops->set_priv_flags);
+		break;
+	case ETHTOOL_GRXFH:
+		rc = ethtool_get_rxhash(dev, useraddr);
+		break;
+	case ETHTOOL_SRXFH:
+		rc = ethtool_set_rxhash(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
