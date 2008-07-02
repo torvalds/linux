@@ -204,27 +204,7 @@ static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,
 }
 #define ELF_CORE_COPY_REGS(gregs, regs) ppc_elf_core_copy_regs(gregs, regs);
 
-static inline int dump_task_regs(struct task_struct *tsk,
-				 elf_gregset_t *elf_regs)
-{
-	struct pt_regs *regs = tsk->thread.regs;
-	if (regs)
-		ppc_elf_core_copy_regs(*elf_regs, regs);
-
-	return 1;
-}
-#define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
-
-extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *); 
-#define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
-
 typedef elf_vrregset_t elf_fpxregset_t;
-
-#ifdef CONFIG_ALTIVEC
-extern int dump_task_altivec(struct task_struct *, elf_vrregset_t *vrregs);
-#define ELF_CORE_COPY_XFPREGS(tsk, regs) dump_task_altivec(tsk, regs)
-#define ELF_CORE_XFPREG_TYPE NT_PPC_VMX
-#endif
 
 /* ELF_HWCAP yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,

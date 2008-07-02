@@ -105,29 +105,6 @@ void enable_kernel_fp(void)
 }
 EXPORT_SYMBOL(enable_kernel_fp);
 
-int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
-{
-#ifdef CONFIG_VSX
-	int i;
-	elf_fpreg_t *reg;
-#endif
-
-	if (!tsk->thread.regs)
-		return 0;
-	flush_fp_to_thread(current);
-
-#ifdef CONFIG_VSX
-	reg = (elf_fpreg_t *)fpregs;
-	for (i = 0; i < ELF_NFPREG - 1; i++, reg++)
-		*reg = tsk->thread.TS_FPR(i);
-	memcpy(reg, &tsk->thread.fpscr, sizeof(elf_fpreg_t));
-#else
-	memcpy(fpregs, &tsk->thread.TS_FPR(0), sizeof(*fpregs));
-#endif
-
-	return 1;
-}
-
 #ifdef CONFIG_ALTIVEC
 void enable_kernel_altivec(void)
 {
@@ -160,35 +137,6 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 		}
 		preempt_enable();
 	}
-}
-
-int dump_task_altivec(struct task_struct *tsk, elf_vrregset_t *vrregs)
-{
-	/* ELF_NVRREG includes the VSCR and VRSAVE which we need to save
-	 * separately, see below */
-	const int nregs = ELF_NVRREG - 2;
-	elf_vrreg_t *reg;
-	u32 *dest;
-
-	if (tsk == current)
-		flush_altivec_to_thread(tsk);
-
-	reg = (elf_vrreg_t *)vrregs;
-
-	/* copy the 32 vr registers */
-	memcpy(reg, &tsk->thread.vr[0], nregs * sizeof(*reg));
-	reg += nregs;
-
-	/* copy the vscr */
-	memcpy(reg, &tsk->thread.vscr, sizeof(*reg));
-	reg++;
-
-	/* vrsave is stored in the high 32bit slot of the final 128bits */
-	memset(reg, 0, sizeof(*reg));
-	dest = (u32 *)reg;
-	*dest = tsk->thread.vrsave;
-
-	return 1;
 }
 #endif /* CONFIG_ALTIVEC */
 
@@ -224,29 +172,6 @@ void flush_vsx_to_thread(struct task_struct *tsk)
 		preempt_enable();
 	}
 }
-
-/*
- * This dumps the lower half 64bits of the first 32 VSX registers.
- * This needs to be called with dump_task_fp and dump_task_altivec to
- * get all the VSX state.
- */
-int dump_task_vsx(struct task_struct *tsk, elf_vrreg_t *vrregs)
-{
-	elf_vrreg_t *reg;
-	double buf[32];
-	int i;
-
-	if (tsk == current)
-		flush_vsx_to_thread(tsk);
-
-	reg = (elf_vrreg_t *)vrregs;
-
-	for (i = 0; i < 32 ; i++)
-		buf[i] = current->thread.fpr[i][TS_VSRLOWOFFSET];
-	memcpy(reg, buf, sizeof(buf));
-
-	return 1;
-}
 #endif /* CONFIG_VSX */
 
 #ifdef CONFIG_SPE
@@ -278,14 +203,6 @@ void flush_spe_to_thread(struct task_struct *tsk)
 		}
 		preempt_enable();
 	}
-}
-
-int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
-{
-	flush_spe_to_thread(current);
-	/* We copy u32 evr[32] + u64 acc + u32 spefscr -> 35 */
-	memcpy(evrregs, &current->thread.evr[0], sizeof(u32) * 35);
-	return 1;
 }
 #endif /* CONFIG_SPE */
 
