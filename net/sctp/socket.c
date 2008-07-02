@@ -4223,6 +4223,8 @@ static int sctp_getsockopt_peer_addrs_num_old(struct sock *sk, int len,
 	if (copy_from_user(&id, optval, sizeof(sctp_assoc_t)))
 		return -EFAULT;
 
+	printk(KERN_WARNING "SCTP: Use of SCTP_GET_PEER_ADDRS_NUM_OLD "
+			    "socket option deprecated\n");
 	/* For UDP-style sockets, id specifies the association to query.  */
 	asoc = sctp_id2assoc(sk, id);
 	if (!asoc)
@@ -4261,6 +4263,9 @@ static int sctp_getsockopt_peer_addrs_old(struct sock *sk, int len,
 		return -EFAULT;
 
 	if (getaddrs.addr_num <= 0) return -EINVAL;
+
+	printk(KERN_WARNING "SCTP: Use of SCTP_GET_PEER_ADDRS_OLD "
+			    "socket option deprecated\n");
 
 	/* For UDP-style sockets, id specifies the association to query.  */
 	asoc = sctp_id2assoc(sk, getaddrs.assoc_id);
@@ -4354,6 +4359,9 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 
 	if (copy_from_user(&id, optval, sizeof(sctp_assoc_t)))
 		return -EFAULT;
+
+	printk(KERN_WARNING "SCTP: Use of SCTP_GET_LOCAL_ADDRS_NUM_OLD "
+			    "socket option deprecated\n");
 
 	/*
 	 *  For UDP-style sockets, id specifies the association to query.
@@ -4515,6 +4523,10 @@ static int sctp_getsockopt_local_addrs_old(struct sock *sk, int len,
 	if (getaddrs.addr_num <= 0 ||
 	    getaddrs.addr_num >= (INT_MAX / sizeof(union sctp_addr)))
 		return -EINVAL;
+
+	printk(KERN_WARNING "SCTP: Use of SCTP_GET_LOCAL_ADDRS_OLD "
+			    "socket option deprecated\n");
+
 	/*
 	 *  For UDP-style sockets, id specifies the association to query.
 	 *  If the id field is set to the value '0' then the locally bound
