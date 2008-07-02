@@ -58,14 +58,13 @@ void __init mpc85xx_ds_pic_init(void)
 {
 	struct mpic *mpic;
 	struct resource r;
-	struct device_node *np = NULL;
+	struct device_node *np;
 #ifdef CONFIG_PPC_I8259
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
 #endif
 
 	np = of_find_node_by_type(np, "open-pic");
-
 	if (np == NULL) {
 		printk(KERN_ERR "Could not find open-pic node\n");
 		return;
@@ -82,6 +81,7 @@ void __init mpc85xx_ds_pic_init(void)
 			  MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
+	of_node_put(np);
 
 	mpic_init(mpic);
 
@@ -185,7 +185,7 @@ static int __init mpc8544_ds_probe(void)
 	}
 }
 
-static struct of_device_id mpc85xxds_ids[] = {
+static struct of_device_id __initdata mpc85xxds_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{},
