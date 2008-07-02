@@ -14,7 +14,6 @@ pci-y				:= fixup.o
 # legacy/irq.o
 pci-$(CONFIG_ACPI)		+= acpi.o
 pci-y				+= legacy.o irq.o
-pci-$(CONFIG_NUMA)		+= mp_bus_to_node.o
 
 # Careful: VISWS overrule the pci-y above. The colons are
 # therefor correct. This needs a proper fix by distangling the code.
