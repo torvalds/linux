@@ -1,8 +1,6 @@
 #ifndef _LMC_VAR_H_
 #define _LMC_VAR_H_
 
-/* $Id: lmc_var.h,v 1.17 2000/04/06 12:16:47 asj Exp $ */
-
  /*
   * Copyright (c) 1997-2000 LAN Media Corporation (LMC)
   * All rights reserved.  www.lanmedia.com
@@ -19,23 +17,6 @@
 
 #include <linux/timer.h>
 
-#ifndef __KERNEL__
-typedef signed char s8;
-typedef unsigned char u8;
-
-typedef signed short s16;
-typedef unsigned short u16;
-
-typedef signed int s32;
-typedef unsigned int u32;
-
-typedef signed long long s64;
-typedef unsigned long long u64;
-
-#define BITS_PER_LONG 32 
-
-#endif
-
 /*
  * basic definitions used in lmc include files
  */
@@ -45,9 +26,6 @@ typedef struct lmc___media lmc_media_t;
 typedef struct lmc___ctl lmc_ctl_t;
 
 #define lmc_csrptr_t    unsigned long
-#define u_int16_t	u16
-#define u_int8_t	u8
-#define tulip_uint32_t	u32
 
 #define LMC_REG_RANGE 0x80
 
@@ -244,46 +222,8 @@ struct lmc___media {
 
 #define STATCHECK     0xBEEFCAFE
 
-/*  Included in this structure are first
- *   - standard net_device_stats
- *   - some other counters used for debug and driver performance
- *  evaluation -baz
- */
-struct lmc_statistics
+struct lmc_extra_statistics
 {
-        unsigned long     rx_packets;             /* total packets received       */
-        unsigned long     tx_packets;             /* total packets transmitted    */
-	unsigned long     rx_bytes;
-        unsigned long     tx_bytes;
-        
-        unsigned long     rx_errors;              /* bad packets received         */
-        unsigned long     tx_errors;              /* packet transmit problems     */
-        unsigned long     rx_dropped;             /* no space in linux buffers    */
-        unsigned long     tx_dropped;             /* no space available in linux  */
-        unsigned long     multicast;              /* multicast packets received   */
-        unsigned long     collisions;
-
-        /* detailed rx_errors: */
-        unsigned long     rx_length_errors;
-        unsigned long     rx_over_errors;         /* receiver ring buff overflow  */
-        unsigned long     rx_crc_errors;          /* recved pkt with crc error    */
-        unsigned long     rx_frame_errors;        /* recv'd frame alignment error */
-        unsigned long     rx_fifo_errors;         /* recv'r fifo overrun          */
-        unsigned long     rx_missed_errors;       /* receiver missed packet       */
-
-        /* detailed tx_errors */
-        unsigned long     tx_aborted_errors;
-        unsigned long     tx_carrier_errors;
-        unsigned long     tx_fifo_errors;
-        unsigned long     tx_heartbeat_errors;
-        unsigned long     tx_window_errors;
-
-        /* for cslip etc */
-        unsigned long rx_compressed;
-        unsigned long tx_compressed;
-
-        /* -------------------------------------
-         * Custom stats & counters follow -baz */
         u_int32_t       version_size;
         u_int32_t       lmc_cardtype;
 
@@ -325,27 +265,26 @@ struct lmc_statistics
         u_int32_t       check;
 };
 
-
 typedef struct lmc_xinfo {
-        u_int32_t       Magic0;                         /* BEEFCAFE */
+	u_int32_t       Magic0;                         /* BEEFCAFE */
 
-        u_int32_t       PciCardType;
-        u_int32_t       PciSlotNumber;          /* PCI slot number       */
+	u_int32_t       PciCardType;
+	u_int32_t       PciSlotNumber;          /* PCI slot number       */
 
-        u_int16_t       DriverMajorVersion;
-        u_int16_t       DriverMinorVersion;
-        u_int16_t       DriverSubVersion;
+	u16	       DriverMajorVersion;
+	u16	       DriverMinorVersion;
+	u16	       DriverSubVersion;
 
-        u_int16_t       XilinxRevisionNumber;
-        u_int16_t       MaxFrameSize;
+	u16	       XilinxRevisionNumber;
+	u16	       MaxFrameSize;
 
-        u_int16_t       t1_alarm1_status;
-        u_int16_t       t1_alarm2_status;
+	u16     	  t1_alarm1_status;
+	u16       	t1_alarm2_status;
 
-        int                     link_status;
-        u_int32_t       mii_reg16;
+	int             link_status;
+	u_int32_t       mii_reg16;
 
-        u_int32_t       Magic1;                         /* DEADBEEF */
+	u_int32_t       Magic1;                         /* DEADBEEF */
 } LMC_XINFO;
 
 
@@ -353,11 +292,10 @@ typedef struct lmc_xinfo {
  * forward decl
  */
 struct lmc___softc {
-        void *if_ptr;   /* General purpose pointer (used by SPPP) */
 	char                   *name;
 	u8			board_idx;
-	struct lmc_statistics   stats;
-	struct net_device          *lmc_device;
+	struct lmc_extra_statistics extra_stats;
+	struct net_device      *lmc_device;
 
 	int                     hang, rxdesc, bad_packet, some_counter;
 	u_int32_t               txgo;
@@ -381,7 +319,7 @@ struct lmc___softc {
 	unsigned int		lmc_taint_tx, lmc_taint_rx;
 	int			lmc_tx_start, lmc_txfull;
 	int			lmc_txbusy;
-	u_int16_t		lmc_miireg16;
+	u16			lmc_miireg16;
 	int			lmc_ok;
 	int			last_link_status;
 	int			lmc_cardtype;
@@ -408,8 +346,7 @@ struct lmc___softc {
         u32                     num_int;
 
 	spinlock_t              lmc_lock;
-        u_int16_t               if_type;       /* PPP or NET */
-        struct ppp_device       *pd;
+	u16			if_type;       /* HDLC/PPP or NET */
 
         /* Failure cases */
         u8                       failed_ring;
@@ -525,46 +462,9 @@ struct lmc___softc {
 #define LMC_ADAP_SSI            4
 #define LMC_ADAP_T1             5
 
-#define HDLC_HDR_LEN  4
-#define HDLC_ADDR_LEN 1
-#define HDLC_SLARP    0x8035
 #define LMC_MTU 1500
-#define SLARP_LINECHECK 2
 
 #define LMC_CRC_LEN_16 2  /* 16-bit CRC */
 #define LMC_CRC_LEN_32 4
-
-#ifdef LMC_HDLC
-/* definition of an hdlc header. */
-struct hdlc_hdr
-{
-	u8  address;
-	u8  control;
-	u16 type;
-};
-
-/* definition of a slarp header. */
-struct slarp
-{
-	long code;
-	union sl
-	{
-		struct
-		{
-			ulong address;
-			ulong mask;
-			ushort unused;
-		} add;
-		struct
-		{
-			ulong mysequence;
-			ulong yoursequence;
-			ushort reliability;
-			ulong time;
-		} chk;
-	} t;
-};
-#endif /* LMC_HDLC */
-
 
 #endif /* _LMC_VAR_H_ */

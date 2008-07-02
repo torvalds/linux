@@ -26,7 +26,6 @@ obj-$(CONFIG_SEALEVEL_4021)	+= z85230.o	sealevel.o
 obj-$(CONFIG_COSA)		+= cosa.o
 obj-$(CONFIG_FARSYNC)		+= farsync.o
 obj-$(CONFIG_DSCC4)             += dscc4.o
-obj-$(CONFIG_LANMEDIA)		+=		syncppp.o
 obj-$(CONFIG_X25_ASY)		+= x25_asy.o
 
 obj-$(CONFIG_LANMEDIA)		+= lmc/
