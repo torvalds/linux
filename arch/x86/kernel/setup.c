@@ -749,10 +749,8 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_boot_table_init();
 
-#ifdef CONFIG_X86_64
 	/* Remove active ranges so rediscovery with NUMA-awareness happens */
 	remove_all_active_ranges();
-#endif
 
 #ifdef CONFIG_ACPI_NUMA
 	/*

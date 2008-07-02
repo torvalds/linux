@@ -660,12 +660,14 @@ void __init initmem_init(unsigned long start_pfn,
 	if (max_pfn > max_low_pfn)
 		highstart_pfn = max_low_pfn;
 	memory_present(0, 0, highend_pfn);
+	e820_register_active_regions(0, 0, highend_pfn);
 	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
 		pages_to_mb(highend_pfn - highstart_pfn));
 	num_physpages = highend_pfn;
 	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
 #else
 	memory_present(0, 0, max_low_pfn);
+	e820_register_active_regions(0, 0, max_low_pfn);
 	num_physpages = max_low_pfn;
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
 #endif
@@ -677,25 +679,21 @@ void __init initmem_init(unsigned long start_pfn,
 
 	setup_bootmem_allocator();
 }
+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
-void __init zone_sizes_init(void)
+static void __init zone_sizes_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] =
 		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-	remove_all_active_ranges();
 #ifdef CONFIG_HIGHMEM
 	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
-	e820_register_active_regions(0, 0, highend_pfn);
-#else
-	e820_register_active_regions(0, 0, max_low_pfn);
 #endif
 
 	free_area_init_nodes(max_zone_pfns);
 }
-#endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
 void __init setup_bootmem_allocator(void)
 {

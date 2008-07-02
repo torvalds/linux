@@ -327,7 +327,6 @@ void __init initmem_init(unsigned long start_pfn,
 	 * and ZONE_HIGHMEM.
 	 */
 
-	remove_all_active_ranges();
 	get_memcfg_numa();
 
 	kva_pages = round_up(calculate_numa_remap_pages(), PTRS_PER_PTE);
@@ -388,21 +387,6 @@ void __init initmem_init(unsigned long start_pfn,
 
 	NODE_DATA(0)->bdata = &node0_bdata;
 	setup_bootmem_allocator();
-}
-
-void __init zone_sizes_init(void)
-{
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_DMA] =
-		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-#ifdef CONFIG_HIGHMEM
-	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
-#endif
-
-	free_area_init_nodes(max_zone_pfns);
-	return;
 }
 
 void __init set_highmem_pages_init(void)

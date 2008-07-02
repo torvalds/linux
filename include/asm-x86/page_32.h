@@ -96,7 +96,6 @@ extern void find_low_pfn_range(void);
 extern unsigned long init_memory_mapping(unsigned long start,
 					 unsigned long end);
 extern void initmem_init(unsigned long, unsigned long);
-extern void zone_sizes_init(void);
 extern void setup_bootmem_allocator(void);
 
 
