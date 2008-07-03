@@ -1144,7 +1144,7 @@ static struct talitos_alg_template driver_algs[] = {
 	/* single-pass ipsec_esp descriptor */
 	{
 		.name = "authenc(hmac(sha1),cbc(aes))",
-		.driver_name = "authenc(hmac(sha1-talitos),cbc(aes-talitos))",
+		.driver_name = "authenc-hmac-sha1-cbc-aes-talitos",
 		.blocksize = TALITOS_AES_MIN_BLOCK_SIZE,
 		.aead = {
 			.setkey = aead_authenc_setkey,
@@ -1166,7 +1166,7 @@ static struct talitos_alg_template driver_algs[] = {
 	},
 	{
 		.name = "authenc(hmac(sha1),cbc(des3_ede))",
-		.driver_name = "authenc(hmac(sha1-talitos),cbc(3des-talitos))",
+		.driver_name = "authenc-hmac-sha1-cbc-3des-talitos",
 		.blocksize = TALITOS_3DES_MIN_BLOCK_SIZE,
 		.aead = {
 			.setkey = aead_authenc_setkey,
