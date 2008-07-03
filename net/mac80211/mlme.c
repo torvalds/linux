@@ -547,15 +547,14 @@ static void ieee80211_set_associated(struct net_device *dev,
 			sdata->bss_conf.ht_bss_conf = &conf->ht_bss_conf;
 		}
 
-		netif_carrier_on(dev);
 		ifsta->flags |= IEEE80211_STA_PREV_BSSID_SET;
 		memcpy(ifsta->prev_bssid, sdata->u.sta.bssid, ETH_ALEN);
 		memcpy(wrqu.ap_addr.sa_data, sdata->u.sta.bssid, ETH_ALEN);
 		ieee80211_sta_send_associnfo(dev, ifsta);
 	} else {
+		netif_carrier_off(dev);
 		ieee80211_sta_tear_down_BA_sessions(dev, ifsta->bssid);
 		ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
-		netif_carrier_off(dev);
 		ieee80211_reset_erp_info(dev);
 
 		sdata->bss_conf.assoc_ht = 0;
@@ -569,6 +568,10 @@ static void ieee80211_set_associated(struct net_device *dev,
 
 	sdata->bss_conf.assoc = assoc;
 	ieee80211_bss_info_change_notify(sdata, changed);
+
+	if (assoc)
+		netif_carrier_on(dev);
+
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 }
