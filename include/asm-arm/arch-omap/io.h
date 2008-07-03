@@ -60,6 +60,7 @@
 #define IO_SIZE		0x40000
 #define IO_VIRT		(IO_PHYS - IO_OFFSET)
 #define IO_ADDRESS(pa)	((pa) - IO_OFFSET)
+#define OMAP1_IO_ADDRESS(pa)	((pa) - IO_OFFSET)
 #define io_p2v(pa)	((pa) - IO_OFFSET)
 #define io_v2p(va)	((va) + IO_OFFSET)
 
@@ -91,6 +92,7 @@
 
 #define IO_OFFSET	0x90000000
 #define IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
+#define OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
 #define io_p2v(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
 #define io_v2p(va)	((va) - IO_OFFSET)	/* Works for L3 and L4 */
 
@@ -148,6 +150,7 @@
 
 #define IO_OFFSET		0x90000000
 #define IO_ADDRESS(pa)		((pa) + IO_OFFSET)/* Works for L3 and L4 */
+#define OMAP2_IO_ADDRESS(pa)	((pa) + IO_OFFSET)/* Works for L3 and L4 */
 #define io_p2v(pa)		((pa) + IO_OFFSET)/* Works for L3 and L4 */
 #define io_v2p(va)		((va) - IO_OFFSET)/* Works for L3 and L4 */
 

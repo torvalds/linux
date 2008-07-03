@@ -96,15 +96,10 @@
 /* Clock management domain register get/set */
 
 #ifndef __ASSEMBLER__
-static inline void cm_write_mod_reg(u32 val, s16 module, s16 idx)
-{
-	__raw_writel(val, OMAP_CM_REGADDR(module, idx));
-}
 
-static inline u32 cm_read_mod_reg(s16 module, s16 idx)
-{
-	return __raw_readl(OMAP_CM_REGADDR(module, idx));
-}
+extern u32 cm_read_mod_reg(s16 module, u16 idx);
+extern void cm_write_mod_reg(u32 val, s16 module, u16 idx);
+
 #endif
 
 /* CM register bits shared between 24XX and 3430 */
