@@ -588,6 +588,7 @@ config USB_G_PRINTER
 
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"
+	depends on NET
 	help
 	  This driver provides two functions in one configuration:
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
