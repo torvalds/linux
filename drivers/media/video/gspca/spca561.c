@@ -98,8 +98,8 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_SPCA561, 160, 120, 3},
-	{V4L2_PIX_FMT_SPCA561, 176, 144, 2},
+	{V4L2_PIX_FMT_SGBRG8, 160, 120, 3},
+	{V4L2_PIX_FMT_SGBRG8, 176, 144, 2},
 	{V4L2_PIX_FMT_SPCA561, 320, 240, 1},
 	{V4L2_PIX_FMT_SPCA561, 352, 288, 0},
 };
@@ -808,7 +808,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
 					frame, data, len);
 		} else {
-			/*fixme: which format?*/
+			/* raw bayer (with a header, which we skip) */
 			data += 20;
 			len -= 20;
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
