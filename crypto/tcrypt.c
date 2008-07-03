@@ -23,7 +23,6 @@
 #include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <linux/crypto.h>
-#include <linux/highmem.h>
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
 #include <linux/timex.h>
@@ -31,7 +30,7 @@
 #include "tcrypt.h"
 
 /*
- * Need to kmalloc() memory for testing kmap().
+ * Need to kmalloc() memory for testing.
  */
 #define TVMEMSIZE	16384
 #define XBUFSIZE	32768
@@ -376,13 +375,12 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 				goto next_one;
 			}
 
-			q = kmap(sg_page(&sg[0])) + sg[0].offset;
+			q = input;
 			hexdump(q, template[i].rlen);
 
 			printk(KERN_INFO "enc/dec: %s\n",
 			       memcmp(q, template[i].result,
 				      template[i].rlen) ? "fail" : "pass");
-			kunmap(sg_page(&sg[0]));
 next_one:
 			if (!template[i].key)
 				kfree(key);
@@ -482,7 +480,7 @@ next_one:
 
 			for (k = 0, temp = 0; k < template[i].np; k++) {
 				printk(KERN_INFO "page %u\n", k);
-				q = kmap(sg_page(&sg[k])) + sg[k].offset;
+				q = &axbuf[IDX[k]];
 				hexdump(q, template[i].tap[k]);
 				printk(KERN_INFO "%s\n",
 				       memcmp(q, template[i].result + temp,
@@ -500,7 +498,6 @@ next_one:
 				}
 
 				temp += template[i].tap[k];
-				kunmap(sg_page(&sg[k]));
 			}
 		}
 	}
@@ -609,13 +606,12 @@ static void test_cipher(char *algo, int enc,
 				goto out;
 			}
 
-			q = kmap(sg_page(&sg[0])) + sg[0].offset;
+			q = data;
 			hexdump(q, template[i].rlen);
 
 			printk("%s\n",
 			       memcmp(q, template[i].result,
 				      template[i].rlen) ? "fail" : "pass");
-			kunmap(sg_page(&sg[0]));
 		}
 		kfree(data);
 	}
@@ -689,7 +685,7 @@ static void test_cipher(char *algo, int enc,
 			temp = 0;
 			for (k = 0; k < template[i].np; k++) {
 				printk("page %u\n", k);
-				q = kmap(sg_page(&sg[k])) + sg[k].offset;
+				q = &xbuf[IDX[k]];
 				hexdump(q, template[i].tap[k]);
 				printk("%s\n",
 					memcmp(q, template[i].result + temp,
@@ -704,7 +700,6 @@ static void test_cipher(char *algo, int enc,
 					hexdump(&q[template[i].tap[k]], n);
 				}
 				temp += template[i].tap[k];
-				kunmap(sg_page(&sg[k]));
 			}
 		}
 	}
