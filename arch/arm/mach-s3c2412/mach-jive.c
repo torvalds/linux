@@ -409,8 +409,28 @@ static struct platform_device jive_device_lcdspi = {
 	.dev.platform_data = &jive_lcd_spi,
 };
 
-/* JIVE SPI devices. */
+/* WM8750 audio code SPI definition */
 
+static void jive_wm8750_chipselect(struct s3c2410_spigpio_info *spi, int cs)
+{
+	s3c2410_gpio_setpin(S3C2410_GPH10, cs ? 0 : 1);
+}
+
+static struct s3c2410_spigpio_info jive_wm8750_spi = {
+	.bus_num	= 2,
+	.pin_clk	= S3C2410_GPB4,
+	.pin_mosi	= S3C2410_GPB9,
+	.chip_select	= jive_wm8750_chipselect,
+};
+
+static struct platform_device jive_device_wm8750 = {
+	.name		= "s3c24xx-spi-gpio",
+	.id		= 2,
+	.num_resources  = 0,
+	.dev.platform_data = &jive_wm8750_spi,
+};
+
+/* JIVE SPI devices. */
 
 static struct spi_board_info __initdata jive_spi_devs[] = {
 	[0] = {
@@ -420,9 +440,14 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 		.mode		= SPI_MODE_3,	/* CPOL=1, CPHA=1 */
 		.max_speed_hz	= 100000,
 		.platform_data	= &jive_lcm_config,
+	}, {
+		.modalias	= "WM8750",
+		.bus_num	= 2,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_0,	/* CPOL=0, CPHA=0 */
+		.max_speed_hz	= 100000,
 	},
 };
-
 
 static struct platform_device *jive_devices[] __initdata = {
 	&s3c_device_usb,
@@ -431,6 +456,7 @@ static struct platform_device *jive_devices[] __initdata = {
 	&s3c_device_i2c,
 	&s3c_device_lcd,
 	&jive_device_lcdspi,
+	&jive_device_wm8750,
 	&s3c_device_nand,
 	&s3c_device_usbgadget,
 };
@@ -594,6 +620,11 @@ static void __init jive_machine_init(void)
 
 	s3c2410_gpio_setpin(S3C2410_GPG8, 1);
 	s3c2410_gpio_cfgpin(S3C2410_GPG8, S3C2410_GPIO_OUTPUT);
+
+	/* initialise the WM8750 spi */
+
+	s3c2410_gpio_setpin(S3C2410_GPH10, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPH10, S3C2410_GPIO_OUTPUT);
 
 	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */
