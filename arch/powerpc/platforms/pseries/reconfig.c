@@ -365,7 +365,7 @@ static char *parse_node(char *buf, size_t bufsize, struct device_node **npp)
 	*buf = '\0';
 	buf++;
 
-	handle = simple_strtoul(handle_str, NULL, 10);
+	handle = simple_strtoul(handle_str, NULL, 0);
 
 	*npp = of_find_node_by_phandle(handle);
 	return buf;
