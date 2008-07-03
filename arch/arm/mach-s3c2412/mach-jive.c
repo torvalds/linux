@@ -20,6 +20,8 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
+#include <linux/spi/spi.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
@@ -34,6 +36,7 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
+#include <asm/arch/spi-gpio.h>
 #include <asm/arch/fb.h>
 
 #include <asm/mach-types.h>
@@ -346,12 +349,48 @@ struct s3c2410fb_mach_info jive_lcd_config = {
 			   S3C2410_GPDCON_MASK(14) | S3C2410_GPDCON_MASK(15)),
 };
 
+/* LCD SPI support */
+
+static void jive_lcd_spi_chipselect(struct s3c2410_spigpio_info *spi, int cs)
+{
+	s3c2410_gpio_setpin(S3C2410_GPB7, cs ? 0 : 1);
+}
+
+static struct s3c2410_spigpio_info jive_lcd_spi = {
+	.bus_num	= 1,
+	.pin_clk	= S3C2410_GPG8,
+	.pin_mosi	= S3C2410_GPB8,
+	.chip_select	= jive_lcd_spi_chipselect,
+};
+
+static struct platform_device jive_device_lcdspi = {
+	.name		= "s3c24xx-spi-gpio",
+	.id		= 1,
+	.num_resources  = 0,
+	.dev.platform_data = &jive_lcd_spi,
+};
+
+/* JIVE SPI devices. */
+
+
+static struct spi_board_info __initdata jive_spi_devs[] = {
+	[0] = {
+		.modalias	= "VGG2432A4",
+		.bus_num	= 1,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_3,	/* CPOL=1, CPHA=1 */
+		.max_speed_hz	= 100000,
+	},
+};
+
+
 static struct platform_device *jive_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
 	&s3c_device_lcd,
+	&jive_device_lcdspi,
 	&s3c_device_nand,
 	&s3c_device_usbgadget,
 };
@@ -502,6 +541,20 @@ static void __init jive_machine_init(void)
 
 	s3c_device_nand.dev.platform_data = &jive_nand_info;
 
+	/* initialise the spi */
+
+	s3c2410_gpio_setpin(S3C2410_GPG13, 0);
+	s3c2410_gpio_cfgpin(S3C2410_GPG13, S3C2410_GPIO_OUTPUT);
+
+	s3c2410_gpio_setpin(S3C2410_GPB7, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPB7, S3C2410_GPIO_OUTPUT);
+
+	s3c2410_gpio_setpin(S3C2410_GPB6, 0);
+	s3c2410_gpio_cfgpin(S3C2410_GPB6, S3C2410_GPIO_OUTPUT);
+
+	s3c2410_gpio_setpin(S3C2410_GPG8, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPG8, S3C2410_GPIO_OUTPUT);
+
 	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */
 
@@ -511,6 +564,8 @@ static void __init jive_machine_init(void)
 
 	s3c24xx_udc_set_platdata(&jive_udc_cfg);
 	s3c24xx_fb_set_platdata(&jive_lcd_config);
+
+	spi_register_board_info(jive_spi_devs, ARRAY_SIZE(jive_spi_devs));
 
 	platform_add_devices(jive_devices, ARRAY_SIZE(jive_devices));
 }
