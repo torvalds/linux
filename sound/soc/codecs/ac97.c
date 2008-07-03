@@ -144,9 +144,34 @@ static int ac97_soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ac97_soc_suspend(struct platform_device *pdev, pm_message_t msg)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+
+	snd_ac97_suspend(socdev->codec->ac97);
+
+	return 0;
+}
+
+static int ac97_soc_resume(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+
+	snd_ac97_resume(socdev->codec->ac97);
+
+	return 0;
+}
+#else
+#define ac97_soc_suspend NULL
+#define ac97_soc_resume NULL
+#endif
+
 struct snd_soc_codec_device soc_codec_dev_ac97 = {
 	.probe = 	ac97_soc_probe,
 	.remove = 	ac97_soc_remove,
+	.suspend =	ac97_soc_suspend,
+	.resume =	ac97_soc_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ac97);
 
