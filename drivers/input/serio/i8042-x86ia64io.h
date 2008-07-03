@@ -291,6 +291,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "3000 N100"),
 		},
 	},
+	{
+		.ident = "Acer Aspire 1360",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1360"),
+		},
+	},
 	{ }
 };
 
