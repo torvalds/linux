@@ -144,11 +144,10 @@
 #define	DESC_HDR_SEL0_CRCU		__constant_cpu_to_be32(0x80000000)
 
 /* primary execution unit mode (MODE0) and derivatives */
+#define	DESC_HDR_MODE0_ENCRYPT		__constant_cpu_to_be32(0x00100000)
 #define	DESC_HDR_MODE0_AESU_CBC		__constant_cpu_to_be32(0x00200000)
-#define	DESC_HDR_MODE0_AESU_ENC		__constant_cpu_to_be32(0x00100000)
 #define	DESC_HDR_MODE0_DEU_CBC		__constant_cpu_to_be32(0x00400000)
 #define	DESC_HDR_MODE0_DEU_3DES		__constant_cpu_to_be32(0x00200000)
-#define	DESC_HDR_MODE0_DEU_ENC		__constant_cpu_to_be32(0x00100000)
 #define	DESC_HDR_MODE0_MDEU_INIT	__constant_cpu_to_be32(0x01000000)
 #define	DESC_HDR_MODE0_MDEU_HMAC	__constant_cpu_to_be32(0x00800000)
 #define	DESC_HDR_MODE0_MDEU_PAD		__constant_cpu_to_be32(0x00400000)
