@@ -491,32 +491,6 @@ static int read_fifo(struct omap_ep *ep, struct omap_req *req)
 
 /*-------------------------------------------------------------------------*/
 
-static inline dma_addr_t dma_csac(unsigned lch)
-{
-	dma_addr_t	csac;
-
-	/* omap 3.2/3.3 erratum: sometimes 0 is returned if CSAC/CDAC is
-	 * read before the DMA controller finished disabling the channel.
-	 */
-	csac = OMAP_DMA_CSAC_REG(lch);
-	if (csac == 0)
-		csac = OMAP_DMA_CSAC_REG(lch);
-	return csac;
-}
-
-static inline dma_addr_t dma_cdac(unsigned lch)
-{
-	dma_addr_t	cdac;
-
-	/* omap 3.2/3.3 erratum: sometimes 0 is returned if CSAC/CDAC is
-	 * read before the DMA controller finished disabling the channel.
-	 */
-	cdac = OMAP_DMA_CDAC_REG(lch);
-	if (cdac == 0)
-		cdac = OMAP_DMA_CDAC_REG(lch);
-	return cdac;
-}
-
 static u16 dma_src_len(struct omap_ep *ep, dma_addr_t start)
 {
 	dma_addr_t	end;
@@ -527,7 +501,7 @@ static u16 dma_src_len(struct omap_ep *ep, dma_addr_t start)
 	if (cpu_is_omap15xx())
 		return 0;
 
-	end = dma_csac(ep->lch);
+	end = omap_get_dma_src_pos(ep->lch);
 	if (end == ep->dma_counter)
 		return 0;
 
@@ -537,15 +511,11 @@ static u16 dma_src_len(struct omap_ep *ep, dma_addr_t start)
 	return end - start;
 }
 
-#define DMA_DEST_LAST(x) (cpu_is_omap15xx() \
-		? OMAP_DMA_CSAC_REG(x) /* really: CPC */ \
-		: dma_cdac(x))
-
 static u16 dma_dest_len(struct omap_ep *ep, dma_addr_t start)
 {
 	dma_addr_t	end;
 
-	end = DMA_DEST_LAST(ep->lch);
+	end = omap_get_dma_dst_pos(ep->lch);
 	if (end == ep->dma_counter)
 		return 0;
 
@@ -596,7 +566,7 @@ static void next_in_dma(struct omap_ep *ep, struct omap_req *req)
 		0, 0);
 
 	omap_start_dma(ep->lch);
-	ep->dma_counter = dma_csac(ep->lch);
+	ep->dma_counter = omap_get_dma_src_pos(ep->lch);
 	UDC_DMA_IRQ_EN_REG |= UDC_TX_DONE_IE(ep->dma_channel);
 	UDC_TXDMA_REG(ep->dma_channel) = UDC_TXN_START | txdma_ctrl;
 	req->dma_bytes = length;
@@ -654,7 +624,7 @@ static void next_out_dma(struct omap_ep *ep, struct omap_req *req)
 	omap_set_dma_dest_params(ep->lch, OMAP_DMA_PORT_EMIFF,
 		OMAP_DMA_AMODE_POST_INC, req->req.dma + req->req.actual,
 		0, 0);
-	ep->dma_counter = DMA_DEST_LAST(ep->lch);
+	ep->dma_counter = omap_get_dma_dst_pos(ep->lch);
 
 	UDC_RXDMA_REG(ep->dma_channel) = UDC_RXN_STOP | (packets - 1);
 	UDC_DMA_IRQ_EN_REG |= UDC_RX_EOT_IE(ep->dma_channel);
@@ -834,7 +804,7 @@ static void dma_channel_claim(struct omap_ep *ep, unsigned channel)
 
 		/* channel type P: hw synch (fifo) */
 		if (cpu_class_is_omap1() && !cpu_is_omap15xx())
-			OMAP1_DMA_LCH_CTRL_REG(ep->lch) = 2;
+			omap_set_dma_channel_mode(ep->lch, OMAP_DMA_LCH_P);
 	}
 
 just_restart:
@@ -881,7 +851,7 @@ static void dma_channel_release(struct omap_ep *ep)
 	else
 		req = NULL;
 
-	active = ((1 << 7) & OMAP_DMA_CCR_REG(ep->lch)) != 0;
+	active = omap_get_dma_active_status(ep->lch);
 
 	DBG("%s release %s %cxdma%d %p\n", ep->ep.name,
 			active ? "active" : "idle",
