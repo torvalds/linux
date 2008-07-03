@@ -437,7 +437,8 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		rsvd_bytes = vol->reserved_pebs * (ubi->leb_size-vol->data_pad);
+		rsvd_bytes = (long long)vol->reserved_pebs *
+					ubi->leb_size-vol->data_pad;
 		if (bytes < 0 || bytes > rsvd_bytes) {
 			err = -EINVAL;
 			break;
