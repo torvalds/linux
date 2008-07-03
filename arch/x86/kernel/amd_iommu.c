@@ -301,7 +301,6 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 				0, boundary_size, 0);
 
 	if (likely(address != -1)) {
-		set_bit_string(dom->bitmap, address, pages);
 		dom->next_bit = address + pages;
 		address <<= PAGE_SHIFT;
 	} else
