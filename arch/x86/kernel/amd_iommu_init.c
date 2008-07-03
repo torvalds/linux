@@ -101,8 +101,6 @@ struct ivmd_header {
 	u64 range_length;
 } __attribute__((packed));
 
-static int __initdata amd_iommu_disable;
-
 u16 amd_iommu_last_bdf;
 struct list_head amd_iommu_unity_map;
 unsigned amd_iommu_aperture_order = 26;
@@ -686,7 +684,7 @@ int __init amd_iommu_init(void)
 	int i, ret = 0;
 
 
-	if (amd_iommu_disable) {
+	if (no_iommu) {
 		printk(KERN_INFO "AMD IOMMU disabled by kernel command line\n");
 		return 0;
 	}
@@ -831,9 +829,6 @@ void __init amd_iommu_detect(void)
 	if (swiotlb || no_iommu || iommu_detected)
 		return;
 
-	if (amd_iommu_disable)
-		return;
-
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
 		iommu_detected = 1;
 #ifdef CONFIG_GART_IOMMU
@@ -846,8 +841,6 @@ void __init amd_iommu_detect(void)
 static int __init parse_amd_iommu_options(char *str)
 {
 	for (; *str; ++str) {
-		if (strcmp(str, "off") == 0)
-			amd_iommu_disable = 1;
 		if (strcmp(str, "isolate") == 0)
 			amd_iommu_isolate = 1;
 	}
