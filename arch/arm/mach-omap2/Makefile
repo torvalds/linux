@@ -3,7 +3,7 @@
 #
 
 # Common support
-obj-y := irq.o id.o io.o sram-fn.o memory.o control.o prcm.o clock.o mux.o \
+obj-y := irq.o id.o io.o sram242x.o memory.o control.o prcm.o clock.o mux.o \
 		devices.o serial.o gpmc.o timer-gp.o
 
 # Power Management
