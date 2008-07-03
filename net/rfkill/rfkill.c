@@ -501,17 +501,15 @@ static struct class rfkill_class = {
 
 static int rfkill_add_switch(struct rfkill *rfkill)
 {
-	int error;
-
 	mutex_lock(&rfkill_mutex);
 
-	error = rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type], 0);
-	if (!error)
-		list_add_tail(&rfkill->node, &rfkill_list);
+	rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type], 0);
+
+	list_add_tail(&rfkill->node, &rfkill_list);
 
 	mutex_unlock(&rfkill_mutex);
 
-	return error;
+	return 0;
 }
 
 static void rfkill_remove_switch(struct rfkill *rfkill)
