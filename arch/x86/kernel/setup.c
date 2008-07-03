@@ -818,6 +818,7 @@ void __init setup_arch(char **cmdline_p)
 		get_smp_config();
 #endif
 
+	prefill_possible_map();
 #ifdef CONFIG_X86_64
 	init_cpu_to_node();
 #endif

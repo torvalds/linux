@@ -162,16 +162,6 @@ void __init setup_per_cpu_areas(void)
 	char *ptr;
 	int cpu;
 
-	/* no processor from mptable or madt */
-	if (!num_processors)
-		num_processors = 1;
-
-#ifdef CONFIG_HOTPLUG_CPU
-	prefill_possible_map();
-#else
-	nr_cpu_ids = num_processors;
-#endif
-
 	/* Setup cpu_pda map */
 	setup_cpu_pda_map();
 
