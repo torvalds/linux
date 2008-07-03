@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/i2c.h>
 
 #include <video/ili9320.h>
 
@@ -34,6 +35,7 @@
 
 #include <asm/plat-s3c/regs-serial.h>
 #include <asm/plat-s3c/nand.h>
+#include <asm/plat-s3c/iic.h>
 
 #include <asm/arch/regs-power.h>
 #include <asm/arch/regs-gpio.h>
@@ -396,7 +398,7 @@ static void jive_lcd_spi_chipselect(struct s3c2410_spigpio_info *spi, int cs)
 }
 
 static struct s3c2410_spigpio_info jive_lcd_spi = {
-	.bus_num	= 1,
+	.bus_num	= 0,
 	.pin_clk	= S3C2410_GPG8,
 	.pin_mosi	= S3C2410_GPB8,
 	.chip_select	= jive_lcd_spi_chipselect,
@@ -448,6 +450,24 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 		.max_speed_hz	= 100000,
 	},
 };
+
+/* I2C bus and device configuration. */
+
+static struct s3c2410_platform_i2c jive_i2c_cfg = {
+	.max_freq	= 80 * 1000,
+	.bus_freq	= 50 * 1000,
+	.flags		= S3C_IICFLG_FILTER,
+	.sda_delay	= 2,
+};
+
+static struct i2c_board_info jive_i2c_devs[] = {
+	[0] = {
+		I2C_BOARD_INFO("lis302dl", 0x1c),
+		.irq	= IRQ_EINT14,
+	},
+};
+
+/* The platform devices being used. */
 
 static struct platform_device *jive_devices[] __initdata = {
 	&s3c_device_usb,
@@ -637,6 +657,9 @@ static void __init jive_machine_init(void)
 	s3c24xx_fb_set_platdata(&jive_lcd_config);
 
 	spi_register_board_info(jive_spi_devs, ARRAY_SIZE(jive_spi_devs));
+
+	s3c_device_i2c.dev.platform_data = &jive_i2c_cfg;
+	i2c_register_board_info(0, jive_i2c_devs, ARRAY_SIZE(jive_i2c_devs));
 
 	platform_add_devices(jive_devices, ARRAY_SIZE(jive_devices));
 }
