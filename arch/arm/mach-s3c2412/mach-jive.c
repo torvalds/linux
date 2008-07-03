@@ -319,6 +319,94 @@ static void __init jive_machine_init(void)
 	sysdev_class_register(&jive_pm_sysclass);
 	sysdev_register(&jive_pm_sysdev);
 
+	/* write our sleep configurations for the IO. Pull down all unused
+	 * IO, ensure that we have turned off all peripherals we do not
+	 * need, and configure the ones we do need. */
+
+	/* Port B sleep */
+
+	__raw_writel(S3C2412_SLPCON_IN(0)   |
+		     S3C2412_SLPCON_PULL(1) |
+		     S3C2412_SLPCON_HIGH(2) |
+		     S3C2412_SLPCON_PULL(3) |
+		     S3C2412_SLPCON_PULL(4) |
+		     S3C2412_SLPCON_PULL(5) |
+		     S3C2412_SLPCON_PULL(6) |
+		     S3C2412_SLPCON_HIGH(7) |
+		     S3C2412_SLPCON_PULL(8) |
+		     S3C2412_SLPCON_PULL(9) |
+		     S3C2412_SLPCON_PULL(10), S3C2412_GPBSLPCON);
+
+	/* Port C sleep */
+
+	__raw_writel(S3C2412_SLPCON_PULL(0) |
+		     S3C2412_SLPCON_PULL(1) |
+		     S3C2412_SLPCON_PULL(2) |
+		     S3C2412_SLPCON_PULL(3) |
+		     S3C2412_SLPCON_PULL(4) |
+		     S3C2412_SLPCON_PULL(5) |
+		     S3C2412_SLPCON_LOW(6)  |
+		     S3C2412_SLPCON_PULL(6) |
+		     S3C2412_SLPCON_PULL(7) |
+		     S3C2412_SLPCON_PULL(8) |
+		     S3C2412_SLPCON_PULL(9) |
+		     S3C2412_SLPCON_PULL(10) |
+		     S3C2412_SLPCON_PULL(11) |
+		     S3C2412_SLPCON_PULL(12) |
+		     S3C2412_SLPCON_PULL(13) |
+		     S3C2412_SLPCON_PULL(14) |
+		     S3C2412_SLPCON_PULL(15), S3C2412_GPCSLPCON);
+
+	/* Port D sleep */
+
+	__raw_writel(S3C2412_SLPCON_ALL_PULL, S3C2412_GPDSLPCON);
+
+	/* Port F sleep */
+
+	__raw_writel(S3C2412_SLPCON_LOW(0)  |
+		     S3C2412_SLPCON_LOW(1)  |
+		     S3C2412_SLPCON_LOW(2)  |
+		     S3C2412_SLPCON_EINT(3) |
+		     S3C2412_SLPCON_EINT(4) |
+		     S3C2412_SLPCON_EINT(5) |
+		     S3C2412_SLPCON_EINT(6) |
+		     S3C2412_SLPCON_EINT(7), S3C2412_GPFSLPCON);
+
+	/* Port G sleep */
+
+	__raw_writel(S3C2412_SLPCON_IN(0)    |
+		     S3C2412_SLPCON_IN(1)    |
+		     S3C2412_SLPCON_IN(2)    |
+		     S3C2412_SLPCON_IN(3)    |
+		     S3C2412_SLPCON_IN(4)    |
+		     S3C2412_SLPCON_IN(5)    |
+		     S3C2412_SLPCON_IN(6)    |
+		     S3C2412_SLPCON_IN(7)    |
+		     S3C2412_SLPCON_PULL(8)  |
+		     S3C2412_SLPCON_PULL(9)  |
+		     S3C2412_SLPCON_IN(10)   |
+		     S3C2412_SLPCON_PULL(11) |
+		     S3C2412_SLPCON_PULL(12) |
+		     S3C2412_SLPCON_PULL(13) |
+		     S3C2412_SLPCON_IN(14)   |
+		     S3C2412_SLPCON_PULL(15), S3C2412_GPGSLPCON);
+
+	/* Port H sleep */
+
+	__raw_writel(S3C2412_SLPCON_PULL(0) |
+		     S3C2412_SLPCON_PULL(1) |
+		     S3C2412_SLPCON_PULL(2) |
+		     S3C2412_SLPCON_PULL(3) |
+		     S3C2412_SLPCON_PULL(4) |
+		     S3C2412_SLPCON_PULL(5) |
+		     S3C2412_SLPCON_PULL(6) |
+		     S3C2412_SLPCON_IN(7)   |
+		     S3C2412_SLPCON_IN(8)   |
+		     S3C2412_SLPCON_PULL(9) |
+		     S3C2412_SLPCON_IN(10), S3C2412_GPHSLPCON);
+
+	/* initialise the power management now we've setup everything. */
+
 	s3c2410_pm_init();
 
 	s3c_device_nand.dev.platform_data = &jive_nand_info;
