@@ -267,13 +267,17 @@ static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 
 static void __init osk_init_smc91x(void)
 {
+	u32 l;
+
 	if ((gpio_request(0, "smc_irq")) < 0) {
 		printk("Error requesting gpio 0 for smc91x irq\n");
 		return;
 	}
 
 	/* Check EMIFS wait states to fix errors with SMC_GET_PKT_HDR */
-	EMIFS_CCS(1) |= 0x3;
+	l = omap_readl(EMIFS_CCS(1));
+	l |= 0x3;
+	omap_writel(l, EMIFS_CCS(1));
 }
 
 static void __init osk_init_cf(void)
@@ -526,13 +530,16 @@ static void __init osk_mistral_init(void) { }
 
 static void __init osk_init(void)
 {
+	u32 l;
+
 	/* Workaround for wrong CS3 (NOR flash) timing
 	 * There are some U-Boot versions out there which configure
 	 * wrong CS3 memory timings. This mainly leads to CRC
 	 * or similar errors if you use NOR flash (e.g. with JFFS2)
 	 */
-	if (EMIFS_CCS(3) != EMIFS_CS3_VAL)
-		EMIFS_CCS(3) = EMIFS_CS3_VAL;
+	l = omap_readl(EMIFS_CCS(3));
+	if (l != EMIFS_CS3_VAL)
+		omap_writel(EMIFS_CS3_VAL, EMIFS_CCS(3));
 
 	osk_flash_resource.end = osk_flash_resource.start = omap_cs3_phys();
 	osk_flash_resource.end += SZ_32M - 1;
