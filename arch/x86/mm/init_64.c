@@ -506,7 +506,7 @@ early_param("memtest", parse_memtest);
 
 static void __init early_memtest(unsigned long start, unsigned long end)
 {
-	unsigned long t_start, t_size;
+	u64 t_start, t_size;
 	unsigned pattern;
 
 	if (!memtest_pattern)
@@ -525,8 +525,9 @@ static void __init early_memtest(unsigned long start, unsigned long end)
 			if (t_start + t_size > end)
 				t_size = end - t_start;
 
-			printk(KERN_CONT "\n  %016lx - %016lx pattern %d",
-				t_start, t_start + t_size, pattern);
+			printk(KERN_CONT "\n  %016llx - %016llx pattern %d",
+				(unsigned long long)t_start,
+				(unsigned long long)t_start + t_size, pattern);
 
 			memtest(t_start, t_size, pattern);
 
