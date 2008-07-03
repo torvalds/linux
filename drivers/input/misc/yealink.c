@@ -119,6 +119,8 @@ struct yealink_dev {
 	u8 lcdMap[ARRAY_SIZE(lcdMap)];	/* state of LCD, LED ... */
 	int key_code;			/* last reported key	 */
 
+	unsigned int shutdown:1;
+
 	int	stat_ix;
 	union {
 		struct yld_status s;
@@ -424,10 +426,10 @@ send_update:
 static void urb_irq_callback(struct urb *urb)
 {
 	struct yealink_dev *yld = urb->context;
-	int ret;
+	int ret, status = urb->status;
 
-	if (urb->status)
-		err("%s - urb status %d", __func__, urb->status);
+	if (status)
+		err("%s - urb status %d", __func__, status);
 
 	switch (yld->irq_data->cmd) {
 	case CMD_KEYPRESS:
@@ -447,32 +449,37 @@ static void urb_irq_callback(struct urb *urb)
 
 	yealink_do_idle_tasks(yld);
 
-	ret = usb_submit_urb(yld->urb_ctl, GFP_ATOMIC);
-	if (ret)
-		err("%s - usb_submit_urb failed %d", __func__, ret);
+	if (!yld->shutdown) {
+		ret = usb_submit_urb(yld->urb_ctl, GFP_ATOMIC);
+		if (ret && ret != -EPERM)
+			err("%s - usb_submit_urb failed %d", __func__, ret);
+	}
 }
 
 static void urb_ctl_callback(struct urb *urb)
 {
 	struct yealink_dev *yld = urb->context;
-	int ret;
+	int ret = 0, status = urb->status;
 
-	if (urb->status)
-		err("%s - urb status %d", __func__, urb->status);
+	if (status)
+		err("%s - urb status %d", __func__, status);
 
 	switch (yld->ctl_data->cmd) {
 	case CMD_KEYPRESS:
 	case CMD_SCANCODE:
 		/* ask for a response */
-		ret = usb_submit_urb(yld->urb_irq, GFP_ATOMIC);
+		if (!yld->shutdown)
+			ret = usb_submit_urb(yld->urb_irq, GFP_ATOMIC);
 		break;
 	default:
 		/* send new command */
 		yealink_do_idle_tasks(yld);
-		ret = usb_submit_urb(yld->urb_ctl, GFP_ATOMIC);
+		if (!yld->shutdown)
+			ret = usb_submit_urb(yld->urb_ctl, GFP_ATOMIC);
+		break;
 	}
 
-	if (ret)
+	if (ret && ret != -EPERM)
 		err("%s - usb_submit_urb failed %d", __func__, ret);
 }
 
@@ -531,8 +538,18 @@ static void input_close(struct input_dev *dev)
 {
 	struct yealink_dev *yld = input_get_drvdata(dev);
 
+	yld->shutdown = 1;
+	/*
+	 * Make sure the flag is seen by other CPUs before we start
+	 * killing URBs so new URBs won't be submitted
+	 */
+	smp_wmb();
+
 	usb_kill_urb(yld->urb_ctl);
 	usb_kill_urb(yld->urb_irq);
+
+	yld->shutdown = 0;
+	smp_wmb();
 }
 
 /*******************************************************************************
@@ -808,9 +825,6 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 {
 	if (yld == NULL)
 		return err;
-
-	usb_kill_urb(yld->urb_irq);	/* parameter validation in core/urb */
-	usb_kill_urb(yld->urb_ctl);	/* parameter validation in core/urb */
 
         if (yld->idev) {
 		if (err)
