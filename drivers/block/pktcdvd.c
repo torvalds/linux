@@ -2633,11 +2633,12 @@ end_io:
 
 
 
-static int pkt_merge_bvec(struct request_queue *q, struct bio *bio, struct bio_vec *bvec)
+static int pkt_merge_bvec(struct request_queue *q, struct bvec_merge_data *bmd,
+			  struct bio_vec *bvec)
 {
 	struct pktcdvd_device *pd = q->queuedata;
-	sector_t zone = ZONE(bio->bi_sector, pd);
-	int used = ((bio->bi_sector - zone) << 9) + bio->bi_size;
+	sector_t zone = ZONE(bmd->bi_sector, pd);
+	int used = ((bmd->bi_sector - zone) << 9) + bmd->bi_size;
 	int remaining = (pd->settings.size << 9) - used;
 	int remaining2;
 
@@ -2645,7 +2646,7 @@ static int pkt_merge_bvec(struct request_queue *q, struct bio *bio, struct bio_v
 	 * A bio <= PAGE_SIZE must be allowed. If it crosses a packet
 	 * boundary, pkt_make_request() will split the bio.
 	 */
-	remaining2 = PAGE_SIZE - bio->bi_size;
+	remaining2 = PAGE_SIZE - bmd->bi_size;
 	remaining = max(remaining, remaining2);
 
 	BUG_ON(remaining < 0);

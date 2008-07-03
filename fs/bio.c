@@ -325,10 +325,19 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 		if (page == prev->bv_page &&
 		    offset == prev->bv_offset + prev->bv_len) {
 			prev->bv_len += len;
-			if (q->merge_bvec_fn &&
-			    q->merge_bvec_fn(q, bio, prev) < len) {
-				prev->bv_len -= len;
-				return 0;
+
+			if (q->merge_bvec_fn) {
+				struct bvec_merge_data bvm = {
+					.bi_bdev = bio->bi_bdev,
+					.bi_sector = bio->bi_sector,
+					.bi_size = bio->bi_size,
+					.bi_rw = bio->bi_rw,
+				};
+
+				if (q->merge_bvec_fn(q, &bvm, prev) < len) {
+					prev->bv_len -= len;
+					return 0;
+				}
 			}
 
 			goto done;
@@ -369,11 +378,18 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 	 * queue to get further control
 	 */
 	if (q->merge_bvec_fn) {
+		struct bvec_merge_data bvm = {
+			.bi_bdev = bio->bi_bdev,
+			.bi_sector = bio->bi_sector,
+			.bi_size = bio->bi_size,
+			.bi_rw = bio->bi_rw,
+		};
+
 		/*
 		 * merge_bvec_fn() returns number of bytes it can accept
 		 * at this offset
 		 */
-		if (q->merge_bvec_fn(q, bio, bvec) < len) {
+		if (q->merge_bvec_fn(q, &bvm, bvec) < len) {
 			bvec->bv_page = NULL;
 			bvec->bv_len = 0;
 			bvec->bv_offset = 0;
