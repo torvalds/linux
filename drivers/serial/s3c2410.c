@@ -685,11 +685,6 @@ static unsigned int s3c24xx_serial_getclk(struct uart_port *port,
 		int calc_deviation;
 
 		for (sptr = res; sptr < resptr; sptr++) {
-			printk(KERN_DEBUG
-			       "found clk %p (%s) quot %d, calc %d\n",
-			       sptr->clksrc, sptr->clksrc->name,
-			       sptr->quot, sptr->calc);
-
 			calc_deviation = baud - sptr->calc;
 			if (calc_deviation < 0)
 				calc_deviation = -calc_deviation;
@@ -699,12 +694,7 @@ static unsigned int s3c24xx_serial_getclk(struct uart_port *port,
 				deviation = calc_deviation;
 			}
 		}
-
-		printk(KERN_DEBUG "best %p (deviation %d)\n", best, deviation);
 	}
-
-	printk(KERN_DEBUG "selected clock %p (%s) quot %d, calc %d\n",
-	       best->clksrc, best->clksrc->name, best->quot, best->calc);
 
 	/* store results to pass back */
 
@@ -1058,6 +1048,18 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	return 0;
 }
 
+static ssize_t s3c24xx_serial_show_clksrc(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct uart_port *port = s3c24xx_dev_to_port(dev);
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	return snprintf(buf, PAGE_SIZE, "* %s\n", ourport->clksrc->name);
+}
+
+static DEVICE_ATTR(clock_source, S_IRUGO, s3c24xx_serial_show_clksrc, NULL);
+
 /* Device driver serial port probe */
 
 static int probe_index = 0;
@@ -1083,6 +1085,11 @@ static int s3c24xx_serial_probe(struct platform_device *dev,
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
 	platform_set_drvdata(dev, &ourport->port);
 
+	ret = device_create_file(&dev->dev, &dev_attr_clock_source);
+	if (ret < 0) {
+		printk(KERN_ERR "%s: failed to add clksrc attr.\n", __func__);
+	}
+
 	return 0;
 
  probe_err:
@@ -1093,8 +1100,10 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
-	if (port)
+	if (port) {
+		device_remove_file(&dev->dev, &dev_attr_clock_source);
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
+	}
 
 	return 0;
 }
