@@ -68,9 +68,10 @@
 #define OMAP_DMA4_CAPS_3		(OMAP_DMA4_BASE + 0x70)
 #define OMAP_DMA4_CAPS_4		(OMAP_DMA4_BASE + 0x74)
 
-#ifdef CONFIG_ARCH_OMAP1
+#define OMAP1_LOGICAL_DMA_CH_COUNT	17
+#define OMAP_DMA4_LOGICAL_DMA_CH_COUNT	32	/* REVISIT: Is this 32 + 2? */
 
-#define OMAP_LOGICAL_DMA_CH_COUNT	17
+#ifdef CONFIG_ARCH_OMAP1
 
 /* Common channel specific registers for omap1 */
 #define OMAP_DMA_CSDP_REG(n)		__REG16(OMAP_DMA_BASE + 0x40 * (n) + 0x00)
@@ -88,8 +89,6 @@
 #define OMAP_DMA_CLNK_CTRL_REG(n)	__REG16(OMAP_DMA_BASE + 0x40 * (n) + 0x28)
 
 #else
-
-#define OMAP_LOGICAL_DMA_CH_COUNT	32	/* REVISIT: Is this 32 + 2? */
 
 /* Common channel specific registers for omap2 */
 #define OMAP_DMA_CCR_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x80)
