@@ -137,7 +137,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 		for (i = ASIC3_NUM_GPIOS; i < ASIC3_NR_IRQS; i++) {
 			/* They start at bit 4 and go up */
 			if (status & (1 << (i - ASIC3_NUM_GPIOS + 4))) {
-				desc = irq_desc +  + i;
+				desc = irq_desc + asic->irq_base + i;
 				desc->handle_irq(asic->irq_base + i,
 						 desc);
 			}
