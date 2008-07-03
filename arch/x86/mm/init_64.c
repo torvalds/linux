@@ -1104,9 +1104,6 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 						PAGE_KERNEL_LARGE);
 				set_pmd(pmd, __pmd(pte_val(entry)));
 
-				addr_end = addr + PMD_SIZE;
-				p_end = p + PMD_SIZE;
-
 				/* check to see if we have contiguous blocks */
 				if (p_end != p || node_start != node) {
 					if (p_start)
@@ -1116,6 +1113,9 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 					node_start = node;
 					p_start = p;
 				}
+
+				addr_end = addr + PMD_SIZE;
+				p_end = p + PMD_SIZE;
 			} else
 				vmemmap_verify((pte_t *)pmd, node, addr, next);
 		}
