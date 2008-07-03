@@ -1328,7 +1328,6 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				printk("scsi%d unblocking host at zero depth\n",
 					shost->host_no));
 		} else {
-			blk_plug_device(q);
 			return 0;
 		}
 	}
