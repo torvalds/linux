@@ -275,6 +275,11 @@ struct kvm_vcpu_arch {
 		u32 error_code;
 	} exception;
 
+	struct kvm_queued_interrupt {
+		bool pending;
+		u8 nr;
+	} interrupt;
+
 	struct {
 		int active;
 		u8 save_iopl;
