@@ -1768,9 +1768,10 @@ vortex_timer(unsigned long data)
 	case XCVR_MII: case XCVR_NWAY:
 		{
 			ok = 1;
-			spin_lock_bh(&vp->lock);
+			/* Interrupts are already disabled */
+			spin_lock(&vp->lock);
 			vortex_check_media(dev, 0);
-			spin_unlock_bh(&vp->lock);
+			spin_unlock(&vp->lock);
 		}
 		break;
 	  default:					/* Other media types handled by Tx timeouts. */

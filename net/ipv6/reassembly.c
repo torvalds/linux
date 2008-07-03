@@ -247,6 +247,8 @@ fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst,
 	arg.id = id;
 	arg.src = src;
 	arg.dst = dst;
+
+	read_lock(&ip6_frags.lock);
 	hash = ip6qhashfn(id, src, dst);
 
 	q = inet_frag_find(&net->ipv6.frags, &ip6_frags, &arg, hash);

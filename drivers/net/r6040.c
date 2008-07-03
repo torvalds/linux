@@ -273,7 +273,7 @@ static void r6040_init_ring_desc(struct r6040_descriptor *desc_ring,
 	dma_addr_t mapping = desc_dma;
 
 	while (size-- > 0) {
-		mapping += sizeof(sizeof(*desc));
+		mapping += sizeof(*desc);
 		desc->ndesc = cpu_to_le32(mapping);
 		desc->vndescp = desc + 1;
 		desc++;

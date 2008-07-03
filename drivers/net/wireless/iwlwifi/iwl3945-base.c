@@ -2227,7 +2227,10 @@ static int iwl3945_scan_initiate(struct iwl3945_priv *priv)
 	}
 
 	IWL_DEBUG_INFO("Starting scan...\n");
-	priv->scan_bands = 2;
+	if (priv->cfg->sku & IWL_SKU_G)
+		priv->scan_bands |= BIT(IEEE80211_BAND_2GHZ);
+	if (priv->cfg->sku & IWL_SKU_A)
+		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->scan_start = jiffies;
 	priv->scan_pass_start = priv->scan_start;
@@ -3352,13 +3355,18 @@ static void iwl3945_rx_scan_complete_notif(struct iwl3945_priv *priv,
 	cancel_delayed_work(&priv->scan_check);
 
 	IWL_DEBUG_INFO("Scan pass on %sGHz took %dms\n",
-		       (priv->scan_bands == 2) ? "2.4" : "5.2",
+		       (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) ?
+							"2.4" : "5.2",
 		       jiffies_to_msecs(elapsed_jiffies
 					(priv->scan_pass_start, jiffies)));
 
-	/* Remove this scanned band from the list
-	 * of pending bands to scan */
-	priv->scan_bands--;
+	/* Remove this scanned band from the list of pending
+	 * bands to scan, band G precedes A in order of scanning
+	 * as seen in iwl3945_bg_request_scan */
+	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ))
+		priv->scan_bands &= ~BIT(IEEE80211_BAND_2GHZ);
+	else if (priv->scan_bands &  BIT(IEEE80211_BAND_5GHZ))
+		priv->scan_bands &= ~BIT(IEEE80211_BAND_5GHZ);
 
 	/* If a request to abort was given, or the scan did not succeed
 	 * then we reset the scan state machine and terminate,
@@ -4972,7 +4980,7 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 
 		ch_info = iwl3945_get_channel_info(priv, band, scan_ch->channel);
 		if (!is_channel_valid(ch_info)) {
-			IWL_DEBUG_SCAN("Channel %d is INVALID for this SKU.\n",
+			IWL_DEBUG_SCAN("Channel %d is INVALID for this band.\n",
 				       scan_ch->channel);
 			continue;
 		}
@@ -6315,21 +6323,16 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 
 	/* flags + rate selection */
 
-	switch (priv->scan_bands) {
-	case 2:
+	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) {
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate = IWL_RATE_1M_PLCP;
 		scan->good_CRC_th = 0;
 		band = IEEE80211_BAND_2GHZ;
-		break;
-
-	case 1:
+	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
 		scan->tx_cmd.rate = IWL_RATE_6M_PLCP;
 		scan->good_CRC_th = IWL_GOOD_CRC_TH;
 		band = IEEE80211_BAND_5GHZ;
-		break;
-
-	default:
+	} else {
 		IWL_WARNING("Invalid scan band count\n");
 		goto done;
 	}
@@ -6770,7 +6773,7 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	ch_info = iwl3945_get_channel_info(priv, conf->channel->band,
 					   conf->channel->hw_value);
 	if (!is_channel_valid(ch_info)) {
-		IWL_DEBUG_SCAN("Channel %d [%d] is INVALID for this SKU.\n",
+		IWL_DEBUG_SCAN("Channel %d [%d] is INVALID for this band.\n",
 			       conf->channel->hw_value, conf->channel->band);
 		IWL_DEBUG_MAC80211("leave - invalid channel\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
