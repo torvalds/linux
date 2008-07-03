@@ -1,5 +1,4 @@
-/* $Id: rtc.h,v 1.1 1996/12/26 14:22:35 davem Exp $
- *
+/*
  * rtc.h: Definitions for access to the Mostek real time clock
  *
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@eden.rutgers.edu)

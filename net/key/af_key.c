@@ -1251,7 +1251,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 		x->sel.prefixlen_s = addr->sadb_address_prefixlen;
 	}
 
-	if (x->props.mode == XFRM_MODE_TRANSPORT)
+	if (!x->sel.family)
 		x->sel.family = x->props.family;
 
 	if (ext_hdrs[SADB_X_EXT_NAT_T_TYPE-1]) {
@@ -3030,6 +3030,9 @@ static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 
 static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 {
+	if (atomic_read(&pfkey_socks_nr) == 0)
+		return 0;
+
 	switch (c->event) {
 	case XFRM_MSG_EXPIRE:
 		return key_notify_sa_expire(x, c);

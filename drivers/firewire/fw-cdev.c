@@ -113,6 +113,11 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	if (device == NULL)
 		return -ENODEV;
 
+	if (fw_device_is_shutdown(device)) {
+		fw_device_put(device);
+		return -ENODEV;
+	}
+
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL) {
 		fw_device_put(device);
@@ -200,6 +205,7 @@ fw_device_op_read(struct file *file,
 	return dequeue_event(client, buffer, count);
 }
 
+/* caller must hold card->lock so that node pointers can be dereferenced here */
 static void
 fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 		     struct client *client)
@@ -209,7 +215,6 @@ fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
 	event->generation    = client->device->generation;
-	smp_rmb();           /* node_id must not be older than generation */
 	event->node_id       = client->device->node_id;
 	event->local_node_id = card->local_node->node_id;
 	event->bm_node_id    = 0; /* FIXME: We don't track the BM. */
@@ -269,6 +274,7 @@ static int ioctl_get_info(struct client *client, void *buffer)
 {
 	struct fw_cdev_get_info *get_info = buffer;
 	struct fw_cdev_event_bus_reset bus_reset;
+	struct fw_card *card = client->device->card;
 	unsigned long ret = 0;
 
 	client->version = get_info->version;
@@ -294,13 +300,17 @@ static int ioctl_get_info(struct client *client, void *buffer)
 	client->bus_reset_closure = get_info->bus_reset_closure;
 	if (get_info->bus_reset != 0) {
 		void __user *uptr = u64_to_uptr(get_info->bus_reset);
+		unsigned long flags;
 
+		spin_lock_irqsave(&card->lock, flags);
 		fill_bus_reset_event(&bus_reset, client);
+		spin_unlock_irqrestore(&card->lock, flags);
+
 		if (copy_to_user(uptr, &bus_reset, sizeof(bus_reset)))
 			return -EFAULT;
 	}
 
-	get_info->card = client->device->card->index;
+	get_info->card = card->index;
 
 	return 0;
 }
@@ -901,6 +911,9 @@ fw_device_op_ioctl(struct file *file,
 {
 	struct client *client = file->private_data;
 
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
+
 	return dispatch_ioctl(client, cmd, (void __user *) arg);
 }
 
@@ -910,6 +923,9 @@ fw_device_op_compat_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct client *client = file->private_data;
+
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
 
 	return dispatch_ioctl(client, cmd, compat_ptr(arg));
 }
@@ -921,6 +937,9 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	enum dma_data_direction direction;
 	unsigned long size;
 	int page_count, retval;
+
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
 
 	/* FIXME: We could support multiple buffers, but we don't. */
 	if (client->buffer.pages != NULL)

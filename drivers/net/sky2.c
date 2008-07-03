@@ -118,6 +118,7 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4352) }, /* 88E8038 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4353) }, /* 88E8039 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4354) }, /* 88E8040 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4355) }, /* 88E8040T */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4356) }, /* 88EC033 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4357) }, /* 88E8042 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x435A) }, /* 88E8048 */
@@ -1159,17 +1160,9 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 }
 
 #ifdef SKY2_VLAN_TAG_USED
-static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
+static void sky2_set_vlan_mode(struct sky2_hw *hw, u16 port, bool onoff)
 {
-	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sky2_hw *hw = sky2->hw;
-	u16 port = sky2->port;
-
-	netif_tx_lock_bh(dev);
-	napi_disable(&hw->napi);
-
-	sky2->vlgrp = grp;
-	if (grp) {
+	if (onoff) {
 		sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T),
 			     RX_VLAN_STRIP_ON);
 		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
@@ -1180,6 +1173,19 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
 			     TX_VLAN_TAG_OFF);
 	}
+}
+
+static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	u16 port = sky2->port;
+
+	netif_tx_lock_bh(dev);
+	napi_disable(&hw->napi);
+
+	sky2->vlgrp = grp;
+	sky2_set_vlan_mode(hw, port, grp != NULL);
 
 	sky2_read32(hw, B0_Y2_SP_LISR);
 	napi_enable(&hw->napi);
@@ -1417,6 +1423,10 @@ static int sky2_up(struct net_device *dev)
 
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
 			   TX_RING_SIZE - 1);
+
+#ifdef SKY2_VLAN_TAG_USED
+	sky2_set_vlan_mode(hw, port, sky2->vlgrp != NULL);
+#endif
 
 	err = sky2_rx_start(sky2);
 	if (err)
@@ -4395,7 +4405,9 @@ static int sky2_resume(struct pci_dev *pdev)
 			if (err) {
 				printk(KERN_ERR PFX "%s: could not up: %d\n",
 				       dev->name, err);
+				rtnl_lock();
 				dev_close(dev);
+				rtnl_unlock();
 				goto out;
 			}
 		}

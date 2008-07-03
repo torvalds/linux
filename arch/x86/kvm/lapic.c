@@ -940,6 +940,7 @@ static int __apic_timer_fn(struct kvm_lapic *apic)
 	wait_queue_head_t *q = &apic->vcpu->wq;
 
 	atomic_inc(&apic->timer.pending);
+	set_bit(KVM_REQ_PENDING_TIMER, &apic->vcpu->requests);
 	if (waitqueue_active(q)) {
 		apic->vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		wake_up_interruptible(q);
@@ -957,7 +958,7 @@ int apic_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *lapic = vcpu->arch.apic;
 
-	if (lapic)
+	if (lapic && apic_enabled(lapic) && apic_lvt_enabled(lapic, APIC_LVTT))
 		return atomic_read(&lapic->timer.pending);
 
 	return 0;

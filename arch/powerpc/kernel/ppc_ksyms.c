@@ -8,7 +8,6 @@
 #include <linux/screen_info.h>
 #include <linux/vt_kern.h>
 #include <linux/nvram.h>
-#include <linux/console.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -160,7 +159,6 @@ EXPORT_SYMBOL(screen_info);
 EXPORT_SYMBOL(timer_interrupt);
 EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(tb_ticks_per_jiffy);
-EXPORT_SYMBOL(console_drivers);
 EXPORT_SYMBOL(cacheable_memcpy);
 #endif
 

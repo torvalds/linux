@@ -1526,7 +1526,8 @@ static void udc_disable(struct pxa_udc *udc)
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+	if (udc->mach->udc_command)
+		udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 }
 
 /**

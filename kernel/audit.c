@@ -572,16 +572,17 @@ void audit_send_reply(int pid, int seq, int type, int done, int multi,
 
 	skb = audit_make_reply(pid, seq, type, done, multi, payload, size);
 	if (!skb)
-		return;
+		goto out;
 
 	reply->pid = pid;
 	reply->skb = skb;
 
 	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
-	if (IS_ERR(tsk)) {
-		kfree(reply);
-		kfree_skb(skb);
-	}
+	if (!IS_ERR(tsk))
+		return;
+	kfree_skb(skb);
+out:
+	kfree(reply);
 }
 
 /*
@@ -737,7 +738,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (!audit_enabled && msg_type != AUDIT_USER_AVC)
 			return 0;
 
-		err = audit_filter_user(&NETLINK_CB(skb), msg_type);
+		err = audit_filter_user(&NETLINK_CB(skb));
 		if (err == 1) {
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
@@ -778,7 +779,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		}
 		/* fallthrough */
 	case AUDIT_LIST:
-		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
+		err = audit_receive_filter(msg_type, NETLINK_CB(skb).pid,
 					   uid, seq, data, nlmsg_len(nlh),
 					   loginuid, sessionid, sid);
 		break;
@@ -797,7 +798,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		}
 		/* fallthrough */
 	case AUDIT_LIST_RULES:
-		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
+		err = audit_receive_filter(msg_type, NETLINK_CB(skb).pid,
 					   uid, seq, data, nlmsg_len(nlh),
 					   loginuid, sessionid, sid);
 		break;

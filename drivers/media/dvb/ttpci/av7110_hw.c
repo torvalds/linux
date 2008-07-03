@@ -427,6 +427,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 			if (err) {
 				printk(KERN_ERR "%s: timeout waiting on busy %s QUEUE\n",
 					__func__, type);
+				av7110->arm_errors++;
 				return -ETIMEDOUT;
 			}
 			msleep(1);
@@ -853,10 +854,8 @@ static osd_raw_window_t bpp2bit[8] = {
 
 static inline int WaitUntilBmpLoaded(struct av7110 *av7110)
 {
-	int ret = wait_event_interruptible_timeout(av7110->bmpq,
+	int ret = wait_event_timeout(av7110->bmpq,
 				av7110->bmp_state != BMP_LOADING, 10*HZ);
-	if (ret == -ERESTARTSYS)
-		return ret;
 	if (ret == 0) {
 		printk("dvb-ttpci: warning: timeout waiting in LoadBitmap: %d, %d\n",
 		       ret, av7110->bmp_state);

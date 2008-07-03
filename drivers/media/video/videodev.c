@@ -51,12 +51,51 @@
 #define VIDEO_NUM_DEVICES	256
 #define VIDEO_NAME              "video4linux"
 
+struct std_descr {
+	v4l2_std_id std;
+	const char *descr;
+};
+
+static const struct std_descr standards[] = {
+	{ V4L2_STD_NTSC, 	"NTSC"      },
+	{ V4L2_STD_NTSC_M, 	"NTSC-M"    },
+	{ V4L2_STD_NTSC_M_JP, 	"NTSC-M-JP" },
+	{ V4L2_STD_NTSC_M_KR,	"NTSC-M-KR" },
+	{ V4L2_STD_NTSC_443, 	"NTSC-443"  },
+	{ V4L2_STD_PAL, 	"PAL"       },
+	{ V4L2_STD_PAL_BG, 	"PAL-BG"    },
+	{ V4L2_STD_PAL_B, 	"PAL-B"     },
+	{ V4L2_STD_PAL_B1, 	"PAL-B1"    },
+	{ V4L2_STD_PAL_G, 	"PAL-G"     },
+	{ V4L2_STD_PAL_H, 	"PAL-H"     },
+	{ V4L2_STD_PAL_I, 	"PAL-I"     },
+	{ V4L2_STD_PAL_DK, 	"PAL-DK"    },
+	{ V4L2_STD_PAL_D, 	"PAL-D"     },
+	{ V4L2_STD_PAL_D1, 	"PAL-D1"    },
+	{ V4L2_STD_PAL_K, 	"PAL-K"     },
+	{ V4L2_STD_PAL_M, 	"PAL-M"     },
+	{ V4L2_STD_PAL_N, 	"PAL-N"     },
+	{ V4L2_STD_PAL_Nc, 	"PAL-Nc"    },
+	{ V4L2_STD_PAL_60, 	"PAL-60"    },
+	{ V4L2_STD_SECAM, 	"SECAM"     },
+	{ V4L2_STD_SECAM_B, 	"SECAM-B"   },
+	{ V4L2_STD_SECAM_G, 	"SECAM-G"   },
+	{ V4L2_STD_SECAM_H, 	"SECAM-H"   },
+	{ V4L2_STD_SECAM_DK, 	"SECAM-DK"  },
+	{ V4L2_STD_SECAM_D, 	"SECAM-D"   },
+	{ V4L2_STD_SECAM_K, 	"SECAM-K"   },
+	{ V4L2_STD_SECAM_K1, 	"SECAM-K1"  },
+	{ V4L2_STD_SECAM_L, 	"SECAM-L"   },
+	{ V4L2_STD_SECAM_LC, 	"SECAM-Lc"  },
+	{ 0, 			"Unknown"   }
+};
+
 /* video4linux standard ID conversion to standard name
  */
-char *v4l2_norm_to_name(v4l2_std_id id)
+const char *v4l2_norm_to_name(v4l2_std_id id)
 {
-	char *name;
 	u32 myid = id;
+	int i;
 
 	/* HACK: ppc32 architecture doesn't have __ucmpdi2 function to handle
 	   64 bit comparations. So, on that architecture, with some gcc
@@ -64,110 +103,17 @@ char *v4l2_norm_to_name(v4l2_std_id id)
 	 */
 	BUG_ON(myid != id);
 
-	switch (myid) {
-	case V4L2_STD_PAL:
-		name = "PAL";
-		break;
-	case V4L2_STD_PAL_BG:
-		name = "PAL-BG";
-		break;
-	case V4L2_STD_PAL_DK:
-		name = "PAL-DK";
-		break;
-	case V4L2_STD_PAL_B:
-		name = "PAL-B";
-		break;
-	case V4L2_STD_PAL_B1:
-		name = "PAL-B1";
-		break;
-	case V4L2_STD_PAL_G:
-		name = "PAL-G";
-		break;
-	case V4L2_STD_PAL_H:
-		name = "PAL-H";
-		break;
-	case V4L2_STD_PAL_I:
-		name = "PAL-I";
-		break;
-	case V4L2_STD_PAL_D:
-		name = "PAL-D";
-		break;
-	case V4L2_STD_PAL_D1:
-		name = "PAL-D1";
-		break;
-	case V4L2_STD_PAL_K:
-		name = "PAL-K";
-		break;
-	case V4L2_STD_PAL_M:
-		name = "PAL-M";
-		break;
-	case V4L2_STD_PAL_N:
-		name = "PAL-N";
-		break;
-	case V4L2_STD_PAL_Nc:
-		name = "PAL-Nc";
-		break;
-	case V4L2_STD_PAL_60:
-		name = "PAL-60";
-		break;
-	case V4L2_STD_NTSC:
-		name = "NTSC";
-		break;
-	case V4L2_STD_NTSC_M:
-		name = "NTSC-M";
-		break;
-	case V4L2_STD_NTSC_M_JP:
-		name = "NTSC-M-JP";
-		break;
-	case V4L2_STD_NTSC_443:
-		name = "NTSC-443";
-		break;
-	case V4L2_STD_NTSC_M_KR:
-		name = "NTSC-M-KR";
-		break;
-	case V4L2_STD_SECAM:
-		name = "SECAM";
-		break;
-	case V4L2_STD_SECAM_DK:
-		name = "SECAM-DK";
-		break;
-	case V4L2_STD_SECAM_B:
-		name = "SECAM-B";
-		break;
-	case V4L2_STD_SECAM_D:
-		name = "SECAM-D";
-		break;
-	case V4L2_STD_SECAM_G:
-		name = "SECAM-G";
-		break;
-	case V4L2_STD_SECAM_H:
-		name = "SECAM-H";
-		break;
-	case V4L2_STD_SECAM_K:
-		name = "SECAM-K";
-		break;
-	case V4L2_STD_SECAM_K1:
-		name = "SECAM-K1";
-		break;
-	case V4L2_STD_SECAM_L:
-		name = "SECAM-L";
-		break;
-	case V4L2_STD_SECAM_LC:
-		name = "SECAM-LC";
-		break;
-	default:
-		name = "Unknown";
-		break;
-	}
-
-	return name;
+	for (i = 0; standards[i].std; i++)
+		if (myid == standards[i].std)
+			break;
+	return standards[i].descr;
 }
 EXPORT_SYMBOL(v4l2_norm_to_name);
 
 /* Fill in the fields of a v4l2_standard structure according to the
    'id' and 'transmission' parameters.  Returns negative on error.  */
 int v4l2_video_std_construct(struct v4l2_standard *vs,
-			     int id, char *name)
+			     int id, const char *name)
 {
 	u32 index = vs->index;
 
@@ -1218,95 +1164,40 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_ENUMSTD:
 	{
 		struct v4l2_standard *p = arg;
-		v4l2_std_id id = vfd->tvnorms,curr_id=0;
-		unsigned int index = p->index,i;
+		v4l2_std_id id = vfd->tvnorms, curr_id = 0;
+		unsigned int index = p->index, i, j = 0;
+		const char *descr = "";
 
-		if (index<0) {
-			ret=-EINVAL;
-			break;
-		}
-
-		/* Return norm array on a canonical way */
-		for (i=0;i<= index && id; i++) {
-			if ( (id & V4L2_STD_PAL) == V4L2_STD_PAL) {
-				curr_id = V4L2_STD_PAL;
-			} else if ( (id & V4L2_STD_PAL_BG) == V4L2_STD_PAL_BG) {
-				curr_id = V4L2_STD_PAL_BG;
-			} else if ( (id & V4L2_STD_PAL_DK) == V4L2_STD_PAL_DK) {
-				curr_id = V4L2_STD_PAL_DK;
-			} else if ( (id & V4L2_STD_PAL_B) == V4L2_STD_PAL_B) {
-				curr_id = V4L2_STD_PAL_B;
-			} else if ( (id & V4L2_STD_PAL_B1) == V4L2_STD_PAL_B1) {
-				curr_id = V4L2_STD_PAL_B1;
-			} else if ( (id & V4L2_STD_PAL_G) == V4L2_STD_PAL_G) {
-				curr_id = V4L2_STD_PAL_G;
-			} else if ( (id & V4L2_STD_PAL_H) == V4L2_STD_PAL_H) {
-				curr_id = V4L2_STD_PAL_H;
-			} else if ( (id & V4L2_STD_PAL_I) == V4L2_STD_PAL_I) {
-				curr_id = V4L2_STD_PAL_I;
-			} else if ( (id & V4L2_STD_PAL_D) == V4L2_STD_PAL_D) {
-				curr_id = V4L2_STD_PAL_D;
-			} else if ( (id & V4L2_STD_PAL_D1) == V4L2_STD_PAL_D1) {
-				curr_id = V4L2_STD_PAL_D1;
-			} else if ( (id & V4L2_STD_PAL_K) == V4L2_STD_PAL_K) {
-				curr_id = V4L2_STD_PAL_K;
-			} else if ( (id & V4L2_STD_PAL_M) == V4L2_STD_PAL_M) {
-				curr_id = V4L2_STD_PAL_M;
-			} else if ( (id & V4L2_STD_PAL_N) == V4L2_STD_PAL_N) {
-				curr_id = V4L2_STD_PAL_N;
-			} else if ( (id & V4L2_STD_PAL_Nc) == V4L2_STD_PAL_Nc) {
-				curr_id = V4L2_STD_PAL_Nc;
-			} else if ( (id & V4L2_STD_PAL_60) == V4L2_STD_PAL_60) {
-				curr_id = V4L2_STD_PAL_60;
-			} else if ( (id & V4L2_STD_NTSC) == V4L2_STD_NTSC) {
-				curr_id = V4L2_STD_NTSC;
-			} else if ( (id & V4L2_STD_NTSC_M) == V4L2_STD_NTSC_M) {
-				curr_id = V4L2_STD_NTSC_M;
-			} else if ( (id & V4L2_STD_NTSC_M_JP) == V4L2_STD_NTSC_M_JP) {
-				curr_id = V4L2_STD_NTSC_M_JP;
-			} else if ( (id & V4L2_STD_NTSC_443) == V4L2_STD_NTSC_443) {
-				curr_id = V4L2_STD_NTSC_443;
-			} else if ( (id & V4L2_STD_NTSC_M_KR) == V4L2_STD_NTSC_M_KR) {
-				curr_id = V4L2_STD_NTSC_M_KR;
-			} else if ( (id & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
-				curr_id = V4L2_STD_SECAM;
-			} else if ( (id & V4L2_STD_SECAM_DK) == V4L2_STD_SECAM_DK) {
-				curr_id = V4L2_STD_SECAM_DK;
-			} else if ( (id & V4L2_STD_SECAM_B) == V4L2_STD_SECAM_B) {
-				curr_id = V4L2_STD_SECAM_B;
-			} else if ( (id & V4L2_STD_SECAM_D) == V4L2_STD_SECAM_D) {
-				curr_id = V4L2_STD_SECAM_D;
-			} else if ( (id & V4L2_STD_SECAM_G) == V4L2_STD_SECAM_G) {
-				curr_id = V4L2_STD_SECAM_G;
-			} else if ( (id & V4L2_STD_SECAM_H) == V4L2_STD_SECAM_H) {
-				curr_id = V4L2_STD_SECAM_H;
-			} else if ( (id & V4L2_STD_SECAM_K) == V4L2_STD_SECAM_K) {
-				curr_id = V4L2_STD_SECAM_K;
-			} else if ( (id & V4L2_STD_SECAM_K1) == V4L2_STD_SECAM_K1) {
-				curr_id = V4L2_STD_SECAM_K1;
-			} else if ( (id & V4L2_STD_SECAM_L) == V4L2_STD_SECAM_L) {
-				curr_id = V4L2_STD_SECAM_L;
-			} else if ( (id & V4L2_STD_SECAM_LC) == V4L2_STD_SECAM_LC) {
-				curr_id = V4L2_STD_SECAM_LC;
-			} else {
+		/* Return norm array in a canonical way */
+		for (i = 0; i <= index && id; i++) {
+			/* last std value in the standards array is 0, so this
+			   while always ends there since (id & 0) == 0. */
+			while ((id & standards[j].std) != standards[j].std)
+				j++;
+			curr_id = standards[j].std;
+			descr = standards[j].descr;
+			j++;
+			if (curr_id == 0)
 				break;
-			}
-			id &= ~curr_id;
+			if (curr_id != V4L2_STD_PAL &&
+			    curr_id != V4L2_STD_SECAM &&
+			    curr_id != V4L2_STD_NTSC)
+				id &= ~curr_id;
 		}
-		if (i<=index)
+		if (i <= index)
 			return -EINVAL;
 
-		v4l2_video_std_construct(p, curr_id,v4l2_norm_to_name(curr_id));
+		v4l2_video_std_construct(p, curr_id, descr);
 		p->index = index;
 
-		dbgarg (cmd, "index=%d, id=%Ld, name=%s, fps=%d/%d, "
+		dbgarg(cmd, "index=%d, id=%Ld, name=%s, fps=%d/%d, "
 				"framelines=%d\n", p->index,
 				(unsigned long long)p->id, p->name,
 				p->frameperiod.numerator,
 				p->frameperiod.denominator,
 				p->framelines);
 
-		ret=0;
+		ret = 0;
 		break;
 	}
 	case VIDIOC_G_STD:

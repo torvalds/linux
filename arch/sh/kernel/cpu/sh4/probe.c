@@ -132,6 +132,7 @@ int __init detect_cpu_and_cache_system(void)
 
 		switch (prr) {
 		case 0x50:
+		case 0x51:
 			boot_cpu_data.type = CPU_SH7723;
 			boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_L2_CACHE;
 			break;

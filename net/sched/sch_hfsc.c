@@ -1360,7 +1360,7 @@ hfsc_dump_class(struct Qdisc *sch, unsigned long arg, struct sk_buff *skb,
 
  nla_put_failure:
 	nla_nest_cancel(skb, nest);
-	return -1;
+	return -EMSGSIZE;
 }
 
 static int

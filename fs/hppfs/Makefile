@@ -3,7 +3,4 @@
 # Licensed under the GPL
 #
 
-hppfs-objs := hppfs.o
-
-obj-y =
-obj-$(CONFIG_HPPFS) += $(hppfs-objs)
+obj-$(CONFIG_HPPFS) += hppfs.o

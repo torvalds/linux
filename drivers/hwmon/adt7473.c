@@ -309,6 +309,9 @@ no_sensor_update:
 						ADT7473_REG_PWM_BHVR(i));
 	}
 
+	i = i2c_smbus_read_byte_data(client, ADT7473_REG_CFG4);
+	data->max_duty_at_overheat = !!(i & ADT7473_CFG4_MAX_DUTY_AT_OVT);
+
 	data->limits_last_updated = local_jiffies;
 	data->limits_valid = 1;
 
