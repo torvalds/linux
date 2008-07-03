@@ -554,7 +554,15 @@ config AMD_IOMMU
 	select SWIOTLB
 	depends on X86_64 && PCI && ACPI
 	help
-	  Select this to get support for AMD IOMMU hardware in your system.
+	  With this option you can enable support for AMD IOMMU hardware in
+	  your system. An IOMMU is a hardware component which provides
+	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
+	  can isolate the the DMA memory of different devices and protect the
+	  system from misbehaving device drivers or hardware.
+
+	  You can find out if your system has an AMD IOMMU if you look into
+	  your BIOS for an option to enable it or if you have an IVRS ACPI
+	  table.
 
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
