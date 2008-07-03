@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-bast.c
  *
- * Copyright (c) 2003-2005 Simtec Electronics
+ * Copyright (c) 2003-2005,2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/dm9000.h>
 #include <linux/ata_platform.h>
+#include <linux/i2c.h>
 
 #include <net/ax88796.h>
 
@@ -534,6 +535,17 @@ static struct s3c2410fb_mach_info __initdata bast_fb_info = {
 	.default_display = 1,
 };
 
+/* I2C devices fitted. */
+
+static struct i2c_board_info bast_i2c_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
+	}, {
+		I2C_BOARD_INFO("simtec-pmu", 0x6b),
+	}, {
+		I2C_BOARD_INFO("ch7013", 0x75),
+	},
+};
 
 /* Standard BAST devices */
 
@@ -592,6 +604,9 @@ static void __init bast_init(void)
 
 	s3c24xx_fb_set_platdata(&bast_fb_info);
 	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
+
+	i2c_register_board_info(0, bast_i2c_devs,
+				ARRAY_SIZE(bast_i2c_devs));
 
 	nor_simtec_init();
 }
