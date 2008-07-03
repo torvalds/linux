@@ -15,32 +15,11 @@
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
 
-static int pseries_remove_memory(struct device_node *np)
+static int pseries_remove_lmb(unsigned long base, unsigned int lmb_size)
 {
-	const char *type;
-	const unsigned int *regs;
-	unsigned long base;
-	unsigned int lmb_size;
-	u64 start_pfn, start;
+	unsigned long start, start_pfn;
 	struct zone *zone;
-	int ret = -EINVAL;
-
-	/*
-	 * Check to see if we are actually removing memory
-	 */
-	type = of_get_property(np, "device_type", NULL);
-	if (type == NULL || strcmp(type, "memory") != 0)
-		return 0;
-
-	/*
-	 * Find the bae address and size of the lmb
-	 */
-	regs = of_get_property(np, "reg", NULL);
-	if (!regs)
-		return ret;
-
-	base = *(unsigned long *)regs;
-	lmb_size = regs[3];
+	int ret;
 
 	start_pfn = base >> PFN_SECTION_SHIFT;
 	zone = page_zone(pfn_to_page(start_pfn));
@@ -71,13 +50,41 @@ static int pseries_remove_memory(struct device_node *np)
 	return ret;
 }
 
+static int pseries_remove_memory(struct device_node *np)
+{
+	const char *type;
+	const unsigned int *regs;
+	unsigned long base;
+	unsigned int lmb_size;
+	int ret = -EINVAL;
+
+	/*
+	 * Check to see if we are actually removing memory
+	 */
+	type = of_get_property(np, "device_type", NULL);
+	if (type == NULL || strcmp(type, "memory") != 0)
+		return 0;
+
+	/*
+	 * Find the bae address and size of the lmb
+	 */
+	regs = of_get_property(np, "reg", NULL);
+	if (!regs)
+		return ret;
+
+	base = *(unsigned long *)regs;
+	lmb_size = regs[3];
+
+	ret = pseries_remove_lmb(base, lmb_size);
+	return ret;
+}
+
 static int pseries_add_memory(struct device_node *np)
 {
 	const char *type;
 	const unsigned int *regs;
 	unsigned long base;
 	unsigned int lmb_size;
-	u64 start_pfn;
 	int ret = -EINVAL;
 
 	/*
@@ -100,8 +107,37 @@ static int pseries_add_memory(struct device_node *np)
 	/*
 	 * Update memory region to represent the memory add
 	 */
-	lmb_add(base, lmb_size);
-	return 0;
+	ret = lmb_add(base, lmb_size);
+	return (ret < 0) ? -EINVAL : 0;
+}
+
+static int pseries_drconf_memory(unsigned long *base, unsigned int action)
+{
+	struct device_node *np;
+	const unsigned long *lmb_size;
+	int rc;
+
+	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (!np)
+		return -EINVAL;
+
+	lmb_size = of_get_property(np, "ibm,lmb-size", NULL);
+	if (!lmb_size) {
+		of_node_put(np);
+		return -EINVAL;
+	}
+
+	if (action == PSERIES_DRCONF_MEM_ADD) {
+		rc = lmb_add(*base, *lmb_size);
+		rc = (rc < 0) ? -EINVAL : 0;
+	} else if (action == PSERIES_DRCONF_MEM_REMOVE) {
+		rc = pseries_remove_lmb(*base, *lmb_size);
+	} else {
+		rc = -EINVAL;
+	}
+
+	of_node_put(np);
+	return rc;
 }
 
 static int pseries_memory_notifier(struct notifier_block *nb,
@@ -116,6 +152,11 @@ static int pseries_memory_notifier(struct notifier_block *nb,
 		break;
 	case PSERIES_RECONFIG_REMOVE:
 		if (pseries_remove_memory(node))
+			err = NOTIFY_BAD;
+		break;
+	case PSERIES_DRCONF_MEM_ADD:
+	case PSERIES_DRCONF_MEM_REMOVE:
+		if (pseries_drconf_memory(node, action))
 			err = NOTIFY_BAD;
 		break;
 	default:
