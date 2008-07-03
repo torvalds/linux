@@ -66,4 +66,5 @@ void save_stack_trace(struct stack_trace *trace)
 
 	walk_stackframe(fp, base, base + THREAD_SIZE, save_trace, &data);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);
 #endif

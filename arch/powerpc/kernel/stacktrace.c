@@ -44,3 +44,4 @@ void save_stack_trace(struct stack_trace *trace)
 		sp = newsp;
 	}
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);
