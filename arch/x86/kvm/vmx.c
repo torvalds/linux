@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
 #include "kvm_cache_regs.h"
+#include "x86.h"
 
 #include <asm/io.h>
 #include <asm/desc.h>
@@ -744,9 +745,7 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 
 static bool vmx_exception_injected(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	return !(vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK);
+	return false;
 }
 
 /*
@@ -2824,6 +2823,7 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	u8 vector;
 	int type;
 	bool idtv_info_valid;
+	u32 error;
 
 	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	if (cpu_has_virtual_nmis()) {
@@ -2854,6 +2854,15 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 					GUEST_INTR_STATE_NMI);
 		else
 			vmx->vcpu.arch.nmi_injected = false;
+	}
+	kvm_clear_exception_queue(&vmx->vcpu);
+	if (idtv_info_valid && type == INTR_TYPE_EXCEPTION) {
+		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
+			error = vmcs_read32(IDT_VECTORING_ERROR_CODE);
+			kvm_queue_exception_e(&vmx->vcpu, vector, error);
+		} else
+			kvm_queue_exception(&vmx->vcpu, vector);
+		vmx->idt_vectoring_info = 0;
 	}
 }
 
