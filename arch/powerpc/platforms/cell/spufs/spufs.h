@@ -244,6 +244,7 @@ struct spufs_tree_descr {
 
 extern struct spufs_tree_descr spufs_dir_contents[];
 extern struct spufs_tree_descr spufs_dir_nosched_contents[];
+extern struct spufs_tree_descr spufs_dir_debug_contents[];
 
 /* system call implementation */
 extern struct spufs_calls spufs_calls;

@@ -42,9 +42,18 @@
 
 #include "spufs.h"
 
+struct spufs_sb_info {
+	int debug;
+};
+
 static struct kmem_cache *spufs_inode_cache;
 char *isolated_loader;
 static int isolated_loader_size;
+
+static struct spufs_sb_info *spufs_get_sb_info(struct super_block *sb)
+{
+	return sb->s_fs_info;
+}
 
 static struct inode *
 spufs_alloc_inode(struct super_block *sb)
@@ -276,6 +285,13 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 					 mode, ctx);
 	else
 		ret = spufs_fill_dir(dentry, spufs_dir_contents, mode, ctx);
+
+	if (ret)
+		goto out_free_ctx;
+
+	if (spufs_get_sb_info(dir->i_sb)->debug)
+		ret = spufs_fill_dir(dentry, spufs_dir_debug_contents,
+				mode, ctx);
 
 	if (ret)
 		goto out_free_ctx;
@@ -640,18 +656,19 @@ out:
 
 /* File system initialization */
 enum {
-	Opt_uid, Opt_gid, Opt_mode, Opt_err,
+	Opt_uid, Opt_gid, Opt_mode, Opt_debug, Opt_err,
 };
 
 static match_table_t spufs_tokens = {
-	{ Opt_uid,  "uid=%d" },
-	{ Opt_gid,  "gid=%d" },
-	{ Opt_mode, "mode=%o" },
-	{ Opt_err,   NULL  },
+	{ Opt_uid,   "uid=%d" },
+	{ Opt_gid,   "gid=%d" },
+	{ Opt_mode,  "mode=%o" },
+	{ Opt_debug, "debug" },
+	{ Opt_err,    NULL  },
 };
 
 static int
-spufs_parse_options(char *options, struct inode *root)
+spufs_parse_options(struct super_block *sb, char *options, struct inode *root)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -678,6 +695,9 @@ spufs_parse_options(char *options, struct inode *root)
 			if (match_octal(&args[0], &option))
 				return 0;
 			root->i_mode = option | S_IFDIR;
+			break;
+		case Opt_debug:
+			spufs_get_sb_info(sb)->debug = 1;
 			break;
 		default:
 			return 0;
@@ -737,7 +757,7 @@ spufs_create_root(struct super_block *sb, void *data)
 	SPUFS_I(inode)->i_ctx = NULL;
 
 	ret = -EINVAL;
-	if (!spufs_parse_options(data, inode))
+	if (!spufs_parse_options(sb, data, inode))
 		goto out_iput;
 
 	ret = -ENOMEM;
@@ -755,6 +775,7 @@ out:
 static int
 spufs_fill_super(struct super_block *sb, void *data, int silent)
 {
+	struct spufs_sb_info *info;
 	static struct super_operations s_ops = {
 		.alloc_inode = spufs_alloc_inode,
 		.destroy_inode = spufs_destroy_inode,
@@ -766,11 +787,16 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 
 	save_mount_options(sb, data);
 
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = SPUFS_MAGIC;
 	sb->s_op = &s_ops;
+	sb->s_fs_info = info;
 
 	return spufs_create_root(sb, data);
 }

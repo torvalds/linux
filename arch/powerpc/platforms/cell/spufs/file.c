@@ -2645,7 +2645,6 @@ struct spufs_tree_descr spufs_dir_contents[] = {
 	{ "tid", &spufs_tid_fops, 0444, },
 	{ "stat", &spufs_stat_fops, 0444, },
 	{ "switch_log", &spufs_switch_log_fops, 0444 },
-	{ ".ctx", &spufs_ctx_fops, 0444, },
 	{},
 };
 
@@ -2671,6 +2670,10 @@ struct spufs_tree_descr spufs_dir_nosched_contents[] = {
 	{ "object-id", &spufs_object_id_ops, 0666, },
 	{ "tid", &spufs_tid_fops, 0444, },
 	{ "stat", &spufs_stat_fops, 0444, },
+	{},
+};
+
+struct spufs_tree_descr spufs_dir_debug_contents[] = {
 	{ ".ctx", &spufs_ctx_fops, 0444, },
 	{},
 };
