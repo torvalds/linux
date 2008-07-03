@@ -810,16 +810,16 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_boot_init();
 
-#ifdef CONFIG_X86_64
-	init_cpu_to_node();
-#endif
-
 #if defined(CONFIG_X86_MPPARSE) || defined(CONFIG_X86_VISWS)
 	/*
 	 * get boot-time SMP configuration:
 	 */
 	if (smp_found_config)
 		get_smp_config();
+#endif
+
+#ifdef CONFIG_X86_64
+	init_cpu_to_node();
 #endif
 
 	init_apic_mappings();
