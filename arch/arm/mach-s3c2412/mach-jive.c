@@ -17,8 +17,11 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/delay.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+
+#include <video/ili9320.h>
 
 #include <linux/spi/spi.h>
 
@@ -349,6 +352,42 @@ struct s3c2410fb_mach_info jive_lcd_config = {
 			   S3C2410_GPDCON_MASK(14) | S3C2410_GPDCON_MASK(15)),
 };
 
+/* ILI9320 support. */
+
+static void jive_lcm_reset(unsigned int set)
+{
+	printk(KERN_DEBUG "%s(%d)\n", __func__, set);
+
+	s3c2410_gpio_setpin(S3C2410_GPG13, set);
+	s3c2410_gpio_cfgpin(S3C2410_GPG13, S3C2410_GPIO_OUTPUT);
+}
+
+#undef LCD_UPPER_MARGIN
+#define LCD_UPPER_MARGIN 2
+
+static struct ili9320_platdata jive_lcm_config = {
+	.hsize		= LCD_XRES,
+	.vsize		= LCD_YRES,
+
+	.reset		= jive_lcm_reset,
+	.suspend	= ILI9320_SUSPEND_DEEP,
+
+	.entry_mode	= ILI9320_ENTRYMODE_ID(3) | ILI9320_ENTRYMODE_BGR,
+	.display2	= (ILI9320_DISPLAY2_FP(LCD_UPPER_MARGIN) |
+			   ILI9320_DISPLAY2_BP(LCD_LOWER_MARGIN)),
+	.display3	= 0x0,
+	.display4	= 0x0,
+	.rgb_if1	= (ILI9320_RGBIF1_RIM_RGB18 |
+			   ILI9320_RGBIF1_RM | ILI9320_RGBIF1_CLK_RGBIF),
+	.rgb_if2	= ILI9320_RGBIF2_DPL,
+	.interface2	= 0x0,
+	.interface3	= 0x3,
+	.interface4	= (ILI9320_INTERFACE4_RTNE(16) |
+			   ILI9320_INTERFACE4_DIVE(1)),
+	.interface5	= 0x0,
+	.interface6	= 0x0,
+};
+
 /* LCD SPI support */
 
 static void jive_lcd_spi_chipselect(struct s3c2410_spigpio_info *spi, int cs)
@@ -380,6 +419,7 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 		.chip_select	= 0,
 		.mode		= SPI_MODE_3,	/* CPOL=1, CPHA=1 */
 		.max_speed_hz	= 100000,
+		.platform_data	= &jive_lcm_config,
 	},
 };
 
