@@ -528,6 +528,14 @@ static void __init jive_map_io(void)
 	s3c24xx_init_uarts(jive_uartcfgs, ARRAY_SIZE(jive_uartcfgs));
 }
 
+static void jive_power_off(void)
+{
+	printk(KERN_INFO "powering system down...\n");
+
+	s3c2410_gpio_setpin(S3C2410_GPC5, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPC5, S3C2410_GPIO_OUTPUT);
+}
+
 static void __init jive_machine_init(void)
 {
 	/* register system devices for managing low level suspend */
@@ -660,6 +668,8 @@ static void __init jive_machine_init(void)
 
 	s3c_device_i2c.dev.platform_data = &jive_i2c_cfg;
 	i2c_register_board_info(0, jive_i2c_devs, ARRAY_SIZE(jive_i2c_devs));
+
+	pm_power_off = jive_power_off;
 
 	platform_add_devices(jive_devices, ARRAY_SIZE(jive_devices));
 }
