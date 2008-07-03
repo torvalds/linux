@@ -452,7 +452,7 @@ struct ehea_bcmc_reg_entry {
 struct ehea_bcmc_reg_array {
 	struct ehea_bcmc_reg_entry *arr;
 	int num_entries;
-	struct mutex lock;
+	spinlock_t lock;
 };
 
 #define EHEA_PORT_UP 1
