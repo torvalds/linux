@@ -18,8 +18,9 @@
 static int pseries_remove_memory(struct device_node *np)
 {
 	const char *type;
-	const unsigned int *my_index;
 	const unsigned int *regs;
+	unsigned long base;
+	unsigned int lmb_size;
 	u64 start_pfn, start;
 	struct zone *zone;
 	int ret = -EINVAL;
@@ -32,17 +33,16 @@ static int pseries_remove_memory(struct device_node *np)
 		return 0;
 
 	/*
-	 * Find the memory index and size of the removing section
+	 * Find the bae address and size of the lmb
 	 */
-	my_index = of_get_property(np, "ibm,my-drc-index", NULL);
-	if (!my_index)
-		return ret;
-
 	regs = of_get_property(np, "reg", NULL);
 	if (!regs)
 		return ret;
 
-	start_pfn = section_nr_to_pfn(*my_index & 0xffff);
+	base = *(unsigned long *)regs;
+	lmb_size = regs[3];
+
+	start_pfn = base >> PFN_SECTION_SHIFT;
 	zone = page_zone(pfn_to_page(start_pfn));
 
 	/*
@@ -54,28 +54,29 @@ static int pseries_remove_memory(struct device_node *np)
 	 * to sysfs "state" file and we can't remove sysfs entries
 	 * while writing to it. So we have to defer it to here.
 	 */
-	ret = __remove_pages(zone, start_pfn, regs[3] >> PAGE_SHIFT);
+	ret = __remove_pages(zone, start_pfn, lmb_size >> PAGE_SHIFT);
 	if (ret)
 		return ret;
 
 	/*
 	 * Update memory regions for memory remove
 	 */
-	lmb_remove(start_pfn << PAGE_SHIFT, regs[3]);
+	lmb_remove(base, lmb_size);
 
 	/*
 	 * Remove htab bolted mappings for this section of memory
 	 */
-	start = (unsigned long)__va(start_pfn << PAGE_SHIFT);
-	ret = remove_section_mapping(start, start + regs[3]);
+	start = (unsigned long)__va(base);
+	ret = remove_section_mapping(start, start + lmb_size);
 	return ret;
 }
 
 static int pseries_add_memory(struct device_node *np)
 {
 	const char *type;
-	const unsigned int *my_index;
 	const unsigned int *regs;
+	unsigned long base;
+	unsigned int lmb_size;
 	u64 start_pfn;
 	int ret = -EINVAL;
 
@@ -87,22 +88,19 @@ static int pseries_add_memory(struct device_node *np)
 		return 0;
 
 	/*
-	 * Find the memory index and size of the added section
+	 * Find the base and size of the lmb
 	 */
-	my_index = of_get_property(np, "ibm,my-drc-index", NULL);
-	if (!my_index)
-		return ret;
-
 	regs = of_get_property(np, "reg", NULL);
 	if (!regs)
 		return ret;
 
-	start_pfn = section_nr_to_pfn(*my_index & 0xffff);
+	base = *(unsigned long *)regs;
+	lmb_size = regs[3];
 
 	/*
 	 * Update memory region to represent the memory add
 	 */
-	lmb_add(start_pfn << PAGE_SHIFT, regs[3]);
+	lmb_add(base, lmb_size);
 	return 0;
 }
 
