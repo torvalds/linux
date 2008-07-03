@@ -1294,8 +1294,6 @@ char *__init default_machine_specific_memory_setup(void)
 		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
 	}
 
-	memcpy(&e820_saved, &e820, sizeof(struct e820map));
-
 	/* In case someone cares... */
 	return who;
 }
@@ -1313,8 +1311,12 @@ char * __init __attribute__((weak)) memory_setup(void)
 
 void __init setup_memory_map(void)
 {
+	char *who;
+
+	who = memory_setup();
+	memcpy(&e820_saved, &e820, sizeof(struct e820map));
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
-	e820_print_map(memory_setup());
+	e820_print_map(who);
 }
 
 #ifdef CONFIG_X86_64
