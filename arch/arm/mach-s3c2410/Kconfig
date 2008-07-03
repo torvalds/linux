@@ -37,6 +37,12 @@ config S3C2410_CLOCK
 	help
 	  Clock code for the S3C2410, and similar processors
 
+config MACH_BAST_IDE
+	bool
+	select HAVE_PATA_PLATFORM
+	help
+	  Internal node for machines with an BAST style IDE
+	  interface
 
 menu "S3C2410 Machines"
 
@@ -70,6 +76,7 @@ config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410
 	select PM_SIMTEC if PM
+	select MACH_BAST_IDE
 	select ISA
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
@@ -107,6 +114,7 @@ config MACH_TCT_HAMMER
 config MACH_VR1000
 	bool "Thorcom VR1000"
 	select PM_SIMTEC if PM
+	select MACH_BAST_IDE
 	select CPU_S3C2410
 	help
 	  Say Y here if you are using the Thorcom VR1000 board.
@@ -118,4 +126,3 @@ config MACH_QT2410
 	   Say Y here if you are using the Armzone QT2410
 
 endmenu
-

@@ -30,3 +30,7 @@ obj-$(CONFIG_BAST_PC104_IRQ)	+= bast-irq.o
 obj-$(CONFIG_MACH_TCT_HAMMER)	+= mach-tct_hammer.o
 obj-$(CONFIG_MACH_VR1000)	+= mach-vr1000.o usb-simtec.o
 obj-$(CONFIG_MACH_QT2410)	+= mach-qt2410.o
+
+# machine additions
+
+obj-$(CONFIG_MACH_BAST_IDE)	+= bast-ide.o
