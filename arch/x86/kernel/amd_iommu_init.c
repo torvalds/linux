@@ -169,14 +169,11 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 
 void __init iommu_enable(struct amd_iommu *iommu)
 {
-	u32 ctrl;
-
 	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU at ");
 	print_devid(iommu->devid, 0);
 	printk(" cap 0x%hx\n", iommu->cap_ptr);
 
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
-	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
 }
 
 static u8 * __init iommu_map_mmio_space(u64 address)
