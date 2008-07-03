@@ -135,6 +135,7 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
 /**
  * __sta_info_free - internal STA free helper
  *
+ * @local: pointer to the global information
  * @sta: STA info to free
  *
  * This function must undo everything done by sta_info_alloc()
