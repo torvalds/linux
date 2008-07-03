@@ -6687,7 +6687,8 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
 		IWL_DEBUG_MAC80211("leave - monitor\n");
-		return -1;
+		dev_kfree_skb_any(skb);
+		return 0;
 	}
 
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
