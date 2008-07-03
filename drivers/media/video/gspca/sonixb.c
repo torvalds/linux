@@ -334,7 +334,7 @@ static void reg_r(struct usb_device *dev,
 static void reg_w(struct usb_device *dev,
 			  __u16 value,
 			  const __u8 *buffer,
-			  __u16 len)
+			  int len)
 {
 	__u8 tmpbuf[32];
 

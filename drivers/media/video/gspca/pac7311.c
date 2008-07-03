@@ -23,8 +23,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
+static const char version[] = "2.1.3";
 
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
@@ -195,16 +195,18 @@ const unsigned char pac7311_jpeg_header[] = {
 };
 
 static void reg_w(struct usb_device *dev,
-			    __u16 req,
-			    __u16 value,
 			    __u16 index,
-			    __u8 *buffer, __u16 length)
+			    char *buffer, __u16 len)
 {
+	__u8 tmpbuf[8];
+
+	memcpy(tmpbuf, buffer, len);
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
-			req,
+			1,		/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			value, index, buffer, length,
+			0,		/* value */
+			index, tmpbuf, len,
 			500);
 }
 
@@ -227,7 +229,12 @@ static void pac7311_reg_write(struct usb_device *dev,
 	__u8 buf;
 
 	buf = value;
-	reg_w(dev, 0x00, value, index, &buf, 1);
+	usb_control_msg(dev,
+			usb_sndctrlpipe(dev, 0),
+			0,			/* request */
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			value, index, &buf, 1,
+			500);
 }
 
 /* this function is called at probe time */
@@ -313,26 +320,26 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	pac7311_reg_write(dev, 0xff, 0x01);
-	reg_w(dev, 0x01, 0, 0x0002, "\x48\x0a\x40\x08\x00\x00\x08\x00", 8);
-	reg_w(dev, 0x01, 0, 0x000a, "\x06\xff\x11\xff\x5a\x30\x90\x4c", 8);
-	reg_w(dev, 0x01, 0, 0x0012, "\x00\x07\x00\x0a\x10\x00\xa0\x10", 8);
-	reg_w(dev, 0x01, 0, 0x001a, "\x02\x00\x00\x00\x00\x0b\x01\x00", 8);
-	reg_w(dev, 0x01, 0, 0x0022, "\x00\x00\x00\x00\x00\x00\x00\x00", 8);
-	reg_w(dev, 0x01, 0, 0x002a, "\x00\x00\x00", 3);
-	reg_w(dev, 0x01, 0, 0x003e, "\x00\x00\x78\x52\x4a\x52\x78\x6e", 8);
-	reg_w(dev, 0x01, 0, 0x0046, "\x48\x46\x48\x6e\x5f\x49\x42\x49", 8);
-	reg_w(dev, 0x01, 0, 0x004e, "\x5f\x5f\x49\x42\x49\x5f\x6e\x48", 8);
-	reg_w(dev, 0x01, 0, 0x0056, "\x46\x48\x6e\x78\x52\x4a\x52\x78", 8);
-	reg_w(dev, 0x01, 0, 0x005e, "\x00\x00\x09\x1b\x34\x49\x5c\x9b", 8);
-	reg_w(dev, 0x01, 0, 0x0066, "\xd0\xff", 2);
-	reg_w(dev, 0x01, 0, 0x0078, "\x44\x00\xf2\x01\x01\x80", 6);
-	reg_w(dev, 0x01, 0, 0x007f, "\x2a\x1c\x00\xc8\x02\x58\x03\x84", 8);
-	reg_w(dev, 0x01, 0, 0x0087, "\x12\x00\x1a\x04\x08\x0c\x10\x14", 8);
-	reg_w(dev, 0x01, 0, 0x008f, "\x18\x20", 2);
-	reg_w(dev, 0x01, 0, 0x0096, "\x01\x08\x04", 3);
-	reg_w(dev, 0x01, 0, 0x00a0, "\x44\x44\x44\x04", 4);
-	reg_w(dev, 0x01, 0, 0x00f0, "\x01\x00\x00\x00\x22\x00\x20\x00", 8);
-	reg_w(dev, 0x01, 0, 0x00f8, "\x3f\x00\x0a\x01\x00", 5);
+	reg_w(dev, 0x0002, "\x48\x0a\x40\x08\x00\x00\x08\x00", 8);
+	reg_w(dev, 0x000a, "\x06\xff\x11\xff\x5a\x30\x90\x4c", 8);
+	reg_w(dev, 0x0012, "\x00\x07\x00\x0a\x10\x00\xa0\x10", 8);
+	reg_w(dev, 0x001a, "\x02\x00\x00\x00\x00\x0b\x01\x00", 8);
+	reg_w(dev, 0x0022, "\x00\x00\x00\x00\x00\x00\x00\x00", 8);
+	reg_w(dev, 0x002a, "\x00\x00\x00", 3);
+	reg_w(dev, 0x003e, "\x00\x00\x78\x52\x4a\x52\x78\x6e", 8);
+	reg_w(dev, 0x0046, "\x48\x46\x48\x6e\x5f\x49\x42\x49", 8);
+	reg_w(dev, 0x004e, "\x5f\x5f\x49\x42\x49\x5f\x6e\x48", 8);
+	reg_w(dev, 0x0056, "\x46\x48\x6e\x78\x52\x4a\x52\x78", 8);
+	reg_w(dev, 0x005e, "\x00\x00\x09\x1b\x34\x49\x5c\x9b", 8);
+	reg_w(dev, 0x0066, "\xd0\xff", 2);
+	reg_w(dev, 0x0078, "\x44\x00\xf2\x01\x01\x80", 6);
+	reg_w(dev, 0x007f, "\x2a\x1c\x00\xc8\x02\x58\x03\x84", 8);
+	reg_w(dev, 0x0087, "\x12\x00\x1a\x04\x08\x0c\x10\x14", 8);
+	reg_w(dev, 0x008f, "\x18\x20", 2);
+	reg_w(dev, 0x0096, "\x01\x08\x04", 3);
+	reg_w(dev, 0x00a0, "\x44\x44\x44\x04", 4);
+	reg_w(dev, 0x00f0, "\x01\x00\x00\x00\x22\x00\x20\x00", 8);
+	reg_w(dev, 0x00f8, "\x3f\x00\x0a\x01\x00", 5);
 
 	pac7311_reg_write(dev, 0xff, 0x04);
 	pac7311_reg_write(dev, 0x02, 0x04);

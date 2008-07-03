@@ -192,8 +192,7 @@ static void tv_8532WriteEEprom(struct gspca_dev *gspca_dev)
 	datacmd = 0xb0;;
 	reg_w(dev, TV8532_GPIO, &datacmd, 1);
 	datacmd = TV8532_CMD_EEprom_Open;
-	reg_w(dev, TV8532_CTRL, &datacmd,
-			1);
+	reg_w(dev, TV8532_CTRL, &datacmd, 1);
 /*	msleep(1); */
 	while (tv_8532_eeprom_data[i]) {
 		reg = (tv_8532_eeprom_data[i] & 0xff000000) >> 24;
@@ -390,8 +389,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 	tv_8532_setReg(gspca_dev);
 	/*************************************************/
 	data = 0x0b;
-	reg_w(dev, TV8532_GPIO_OE, &data,
-			1);
+	reg_w(dev, TV8532_GPIO_OE, &data, 1);
 	/*************************************************/
 	tv_8532_setReg(gspca_dev);
 	/*************************************************/
@@ -417,8 +415,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 data = 0;
-	__u8 dataStart = 0;
+	__u8 data;
 	__u8 value[2];
 
 	data = 0x32;
@@ -459,8 +456,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(dev, TV8532_POINT_L, &data, 1);	/* 0x2d */
 	data = TESTPTH;		/* 0x04; */
 	reg_w(dev, TV8532_POINT_H, &data, 1);	/* 0x2e */
-	dataStart = TESTPTBL;	/* 0x04; */
-	reg_w(dev, TV8532_POINTB_L, &dataStart, 1);	/* 0x2f */
+	data = TESTPTBL;	/* 0x04; */
+	reg_w(dev, TV8532_POINTB_L, &data, 1);	/* 0x2f */
 	data = TESTPTBH;	/* 0x04; */
 	reg_w(dev, TV8532_POINTB_H, &data, 1);	/* 0x30 */
 	data = TV8532_CMD_UPDATE;

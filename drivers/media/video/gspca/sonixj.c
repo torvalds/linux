@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
+static const char version[] = "2.1.3";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SONIX JPEG USB Camera Driver");
@@ -515,15 +515,24 @@ static void reg_r(struct usb_device *dev,
 
 static void reg_w(struct usb_device *dev,
 			  __u16 value,
-			  __u8 *buffer,
+			  const __u8 *buffer,
 			  int len)
 {
+	__u8 tmpbuf[64];
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof tmpbuf) {
+		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
+		return;
+	}
+#endif
+	memcpy(tmpbuf, buffer, len);
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
 			0x08,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value, 0,
-			buffer, len,
+			tmpbuf, len,
 			500);
 }
 

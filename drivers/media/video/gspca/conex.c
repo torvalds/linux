@@ -25,8 +25,8 @@
 #define CONEX_CAM 1		/* special JPEG header */
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
+static const char version[] = "2.1.3";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA USB Conexant Camera Driver");
@@ -114,21 +114,29 @@ static void reg_r(struct usb_device *dev,
 			0,
 			index, buffer, length,
 			500);
-	PDEBUG(D_USBI, "reg read i:%02x -> %02x", index, *buffer);
+	PDEBUG(D_USBI, "reg read [%02x] -> %02x ..", index, *buffer);
 }
 
 static void reg_w(struct usb_device *dev,
 		  __u16 index,
-		  const __u8 *buffer, __u16 length)
+		  const __u8 *buffer, __u16 len)
 {
-	PDEBUG(D_USBO, "reg write i:%02x = %02x", index, *buffer);
+	__u8 tmpbuf[8];
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof tmpbuf) {
+		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
+		return;
+	}
+	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);
+#endif
+	memcpy(tmpbuf, buffer, len);
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
 			0,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,
-			index, (__u8 *) buffer, length,
-			500);
+			index, tmpbuf, len, 500);
 }
 
 static const __u8 cx_sensor_init[][4] = {
@@ -269,7 +277,7 @@ static void cx_sensor(struct gspca_dev*gspca_dev)
 		reg_w(gspca_dev->dev, 0x0071, reg71b, 4);
 		break;
 	default:
-/* case 2: */
+/*	case 2: */
 		reg_w(gspca_dev->dev, 0x0071, reg71c, 4);
 		break;
 	case 3:
@@ -662,8 +670,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008,
-					cxjpeg_640[i], length);
+			reg_w(gspca_dev->dev, 0x0008, cxjpeg_640[i], length);
 		}
 		Reg55 = 0x28;
 		break;
@@ -671,8 +678,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008,
-					cxjpeg_352[i], length);
+			reg_w(gspca_dev->dev, 0x0008, cxjpeg_352[i], length);
 		}
 		Reg55 = 0x16;
 		break;
@@ -681,8 +687,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008,
-					cxjpeg_320[i], length);
+			reg_w(gspca_dev->dev, 0x0008, cxjpeg_320[i], length);
 		}
 		Reg55 = 0x14;
 		break;
@@ -690,8 +695,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
 				length = 2;
-			reg_w(gspca_dev->dev, 0x0008,
-					cxjpeg_176[i], length);
+			reg_w(gspca_dev->dev, 0x0008, cxjpeg_176[i], length);
 		}
 		Reg55 = 0x0B;
 		break;
@@ -731,8 +735,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 	for (i = 0; i < 18; i++) {
 		if (i == 17)
 			length = 2;
-		reg_w(gspca_dev->dev, 0x0008,
-				cxjpeg_qtable[i], length);
+		reg_w(gspca_dev->dev, 0x0008, cxjpeg_qtable[i], length);
 
 	}
 	reg_r(gspca_dev->dev, 0x0002, &val, 1);	/* 0x00 */
@@ -866,7 +869,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev->dev, 0x0053, &val, 1);
 
 	while (retry--) {
-/*		reg_r (gspca_dev->dev,0x00,0x00,0x0002,&val,1);*/
+/*		reg_r(gspca_dev->dev, 0x0002, &val, 1);*/
 		reg_r(gspca_dev->dev, 0x0053, &val, 1);
 		if (val == 0)
 			break;

@@ -79,49 +79,35 @@ enum {
 };
 
 static int pcam_reg_write(struct usb_device *dev,
-			  __u16 index, unsigned char *value, int length)
+			  __u16 index, __u8 *value, int len)
 {
 	int rc;
 
 	rc = usb_control_msg(dev,
 			 usb_sndbulkpipe(dev, 4),
 			 0x12,
-/* ?? 0xc8 = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_??? !? */
+/*		?? 0xc8 = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_??? !? */
 			 0xc8,
 			 0,		/* value */
-			 index, value, length, 500);
-	PDEBUG(D_USBO, "reg write: 0x%02X , result = 0x%x", index, rc);
-
+			 index, value, len, 500);
 	if (rc < 0)
-		PDEBUG(D_ERR, "reg write: error %d", rc);
+		PDEBUG(D_ERR, "reg write [%02x] error %d", index, rc);
 	return rc;
 }
 
-static void MISensor_BulkWrite(struct usb_device *dev, unsigned short *pch,
-				   char Address)
+static void MISensor_BulkWrite(struct usb_device *dev,
+				unsigned short *pch,
+				char Address)
 {
-	int result;
-	unsigned char data[6];
+	__u8 data[6];
 
 	data[0] = 0x1f;
-	data[1] = 0;
+	data[1] = 0;			/* control byte */
 	data[2] = Address;
 	data[3] = *pch >> 8;		/* high byte */
 	data[4] = *pch;			/* low byte */
-	data[5] = 0;
 
-	result = usb_control_msg(dev,
-				 usb_sndbulkpipe(dev, 4),
-				 0x12,
-/* ?? 0xc8 = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_??? !? */
-				 0xc8,
-				 0,		/* value */
-				 Address,	/* index */
-				 data, 5, 500);
-	PDEBUG(D_USBO, "bulk write 0x%02x = 0x%04x", Address, *pch);
-
-	if (result < 0)
-		PDEBUG(D_ERR, "reg write: error %d", result);
+	pcam_reg_write(dev, Address, data, 5);
 }
 
 /* this function is called at probe time */
@@ -167,7 +153,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	data[0] = 0x01;		/* address */
 	data[1] = 0x01;
 
-	err_code = pcam_reg_write(dev, data[0], data, 0x02);
+	err_code = pcam_reg_write(dev, data[0], data, 2);
 	if (err_code < 0)
 		return;
 
@@ -193,14 +179,14 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	data[10] = 0x5d;	/* reg 9, I2C device address
 				 *	[for PAS5101 (0x40)] [for MI (0x5d)] */
 
-	err_code = pcam_reg_write(dev, data[0], data, 0x0b);
+	err_code = pcam_reg_write(dev, data[0], data, 11);
 	if (err_code < 0)
 		return;
 
 	data[0] = 0x23;		/* address */
 	data[1] = 0x09;		/* reg 35, append frame header */
 
-	err_code = pcam_reg_write(dev, data[0], data, 0x02);
+	err_code = pcam_reg_write(dev, data[0], data, 2);
 	if (err_code < 0) {
 		PDEBUG(D_ERR, "Register write failed");
 		return;
@@ -213,7 +199,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 /*	else */
 	data[1] = 50;		/* 50 reg 60, pc-cam frame size
 				 *	(unit: 4KB) 200KB */
-	err_code = pcam_reg_write(dev, data[0], data, 0x02);
+	err_code = pcam_reg_write(dev, data[0], data, 2);
 	if (err_code < 0)
 		return;
 
@@ -255,13 +241,13 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/* auto dark-gain */
 	data[0] = 0x5e;		/* address */
 
-	err_code = pcam_reg_write(dev, data[0], data, 0x06);
+	err_code = pcam_reg_write(dev, data[0], data, 6);
 	if (err_code < 0)
 		return;
 
 	data[0] = 0x67;
 	data[1] = 0x13;		/* reg 103, first pixel B, disable sharpness */
-	err_code = pcam_reg_write(dev, data[0], data, 0x02);
+	err_code = pcam_reg_write(dev, data[0], data, 2);
 	if (err_code < 0)
 		return;
 
@@ -340,7 +326,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 	data[0] = 0x00;
 	data[1] = 0x4d;		/* ISOC transfering enable... */
-	pcam_reg_write(dev, data[0], data, 0x02);
+	pcam_reg_write(dev, data[0], data, 2);
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

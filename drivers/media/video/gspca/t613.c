@@ -26,8 +26,8 @@
 
 #define MODULE_NAME "t613"
 #include "gspca.h"
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
+static const char version[] = "2.1.3";
 
 struct control_menu_info {
 	int value;
@@ -366,13 +366,22 @@ static void t16RegRead(struct usb_device *dev,
 
 static void t16RegWrite(struct usb_device *dev,
 			__u16 value,
-			__u16 index, __u8 *buffer, __u16 length)
+			__u16 index, __u8 *buffer, __u16 len)
 {
+	__u8 tmpbuf[70];
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof tmpbuf) {
+		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
+		return;
+	}
+#endif
+	memcpy(tmpbuf, buffer, len);
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
 			0,		/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			value, index, buffer, length, 500);
+			value, index, tmpbuf, len, 500);
 }
 
 /* this function is called at probe time */
@@ -491,24 +500,24 @@ static int init_default_parameters(struct gspca_dev *gspca_dev)
 	t16RegWrite(dev, 0x00, 0x3880, 0x00, 0x0);
 	t16RegWrite(dev, 0x00, 0x3880, 0x00, 0x0);
 	t16RegWrite(dev, 0x00, 0x338e, 0x00, 0x0);
-	t16RegWrite(dev, 0x01, 00, nset5, 0x04);
+	t16RegWrite(dev, 0x01, 0x0000, nset5, 0x04);
 	t16RegWrite(dev, 0x00, 0x00a9, 0x00, 0x0);
-	t16RegWrite(dev, 0x01, 00, nset6, 0x22);
+	t16RegWrite(dev, 0x01, 0x0000, nset6, 0x22);
 	t16RegWrite(dev, 0x00, 0x86bb, 0x00, 0x0);
 	t16RegWrite(dev, 0x00, 0x4aa6, 0x00, 0x0);
 
-	t16RegWrite(dev, 0x01, 00, missing, 0x08);
+	t16RegWrite(dev, 0x01, 0x0000, missing, 0x08);
 
 	t16RegWrite(dev, 0x00, 0x2087, 0x00, 0x0);
 	t16RegWrite(dev, 0x00, 0x2088, 0x00, 0x0);
 	t16RegWrite(dev, 0x00, 0x2089, 0x00, 0x0);
 
-	t16RegWrite(dev, 0x01, 00, nset7, 0x4);
-	t16RegWrite(dev, 0x01, 00, nset10, 0x06);
-	t16RegWrite(dev, 0x01, 00, nset8, 0x06);
-	t16RegWrite(dev, 0x01, 00, nset9, 0x04);
+	t16RegWrite(dev, 0x01, 0x0000, nset7, 0x04);
+	t16RegWrite(dev, 0x01, 0x0000, nset10, 0x06);
+	t16RegWrite(dev, 0x01, 0x0000, nset8, 0x06);
+	t16RegWrite(dev, 0x01, 0x0000, nset9, 0x04);
 
-	t16RegWrite(dev, 0x00, 0x2880, 0x00, 0x0);
+	t16RegWrite(dev, 0x00, 0x2880, 0x00, 0x00);
 	t16RegWrite(dev, 0x01, 0x0000, nset2, 0x14);
 	t16RegWrite(dev, 0x01, 0x0000, nset3, 0x12);
 	t16RegWrite(dev, 0x01, 0x0000, nset4, 0x12);
