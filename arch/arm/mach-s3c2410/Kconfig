@@ -37,6 +37,11 @@ config S3C2410_CLOCK
 	help
 	  Clock code for the S3C2410, and similar processors
 
+config SIMTEC_NOR
+	bool
+	help
+	  Internal node to specify machine has simtec NOR mapping
+
 config MACH_BAST_IDE
 	bool
 	select HAVE_PATA_PLATFORM
@@ -76,6 +81,7 @@ config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410
 	select PM_SIMTEC if PM
+	select SIMTEC_NOR
 	select MACH_BAST_IDE
 	select ISA
 	help
@@ -114,6 +120,7 @@ config MACH_TCT_HAMMER
 config MACH_VR1000
 	bool "Thorcom VR1000"
 	select PM_SIMTEC if PM
+	select SIMTEC_NOR
 	select MACH_BAST_IDE
 	select CPU_S3C2410
 	help

@@ -57,7 +57,9 @@
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
+
 #include "usb-simtec.h"
+#include "nor-simtec.h"
 
 #define COPYRIGHT ", (c) 2004-2005 Simtec Electronics"
 
@@ -201,23 +203,6 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 		.clocks	     = bast_serial_clocks,
 		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	}
-};
-
-/* NOR Flash on BAST board */
-
-static struct resource bast_nor_resource[] = {
-	[0] = {
-		.start = S3C2410_CS1 + 0x4000000,
-		.end   = S3C2410_CS1 + 0x4000000 + (32*1024*1024) - 1,
-		.flags = IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device bast_device_nor = {
-	.name		= "bast-nor",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(bast_nor_resource),
-	.resource	= bast_nor_resource,
 };
 
 /* NAND Flash on BAST board */
@@ -559,7 +544,6 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_i2c,
  	&s3c_device_rtc,
 	&s3c_device_nand,
-	&bast_device_nor,
 	&bast_device_dm9k,
 	&bast_device_asix,
 	&bast_device_axpp,
@@ -608,6 +592,8 @@ static void __init bast_init(void)
 
 	s3c24xx_fb_set_platdata(&bast_fb_info);
 	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
+
+	nor_simtec_init();
 }
 
 MACHINE_START(BAST, "Simtec-BAST")

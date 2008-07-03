@@ -46,7 +46,9 @@
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
+
 #include "usb-simtec.h"
+#include "nor-simtec.h"
 
 /* macros for virtual address mods for the io space entries */
 #define VA_C5(item) ((unsigned long)(item) + BAST_VAM_CS5)
@@ -202,23 +204,6 @@ static struct platform_device serial_device = {
 	},
 };
 
-/* MTD NOR Flash */
-
-static struct resource vr1000_nor_resource[] = {
-	[0] = {
-		.start	= S3C2410_CS1 + 0x4000000,
-		.end	= S3C2410_CS1 + 0x4000000 + SZ_16M - 1,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device vr1000_nor = {
-	.name		= "bast-nor",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(vr1000_nor_resource),
-	.resource	= vr1000_nor_resource,
-};
-
 /* DM9000 ethernet devices */
 
 static struct resource vr1000_dm9k0_resource[] = {
@@ -339,7 +324,6 @@ static struct platform_device *vr1000_devices[] __initdata = {
 	&s3c_device_i2c,
 	&s3c_device_adc,
 	&serial_device,
-	&vr1000_nor,
 	&vr1000_dm9k0,
 	&vr1000_dm9k1,
 	&vr1000_led1,
@@ -388,6 +372,8 @@ static void __init vr1000_map_io(void)
 static void __init vr1000_init(void)
 {
 	platform_add_devices(vr1000_devices, ARRAY_SIZE(vr1000_devices));
+
+	nor_simtec_init();
 }
 
 MACHINE_START(VR1000, "Thorcom-VR1000")
