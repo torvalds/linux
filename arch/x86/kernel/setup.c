@@ -394,11 +394,10 @@ static void __init parse_setup_data(void)
 	}
 }
 
-static void __init reserve_setup_data(void)
+static void __init e820_reserve_setup_data(void)
 {
 	struct setup_data *data;
 	u64 pa_data;
-	char buf[32];
 	int found = 0;
 
 	if (boot_params.hdr.version < 0x0209)
@@ -406,8 +405,6 @@ static void __init reserve_setup_data(void)
 	pa_data = boot_params.hdr.setup_data;
 	while (pa_data) {
 		data = early_ioremap(pa_data, sizeof(*data));
-		sprintf(buf, "setup data %x", data->type);
-		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
 		e820_update_range(pa_data, sizeof(*data)+data->len,
 			 E820_RAM, E820_RESERVED_KERN);
 		found = 1;
@@ -418,8 +415,27 @@ static void __init reserve_setup_data(void)
 		return;
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	memcpy(&e820_saved, &e820, sizeof(struct e820map));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
+}
+
+static void __init reserve_early_setup_data(void)
+{
+	struct setup_data *data;
+	u64 pa_data;
+	char buf[32];
+
+	if (boot_params.hdr.version < 0x0209)
+		return;
+	pa_data = boot_params.hdr.setup_data;
+	while (pa_data) {
+		data = early_ioremap(pa_data, sizeof(*data));
+		sprintf(buf, "setup data %x", data->type);
+		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
+		pa_data = data->next;
+		early_iounmap(data, sizeof(*data));
+	}
 }
 
 /*
@@ -626,6 +642,8 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_memory_map();
 	parse_setup_data();
+	/* update the e820_saved too */
+	e820_reserve_setup_data();
 
 	copy_edd();
 
@@ -656,7 +674,7 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	/* after early param, so could get panic from serial */
-	reserve_setup_data();
+	reserve_early_setup_data();
 
 	if (acpi_mps_check()) {
 #ifdef CONFIG_X86_LOCAL_APIC
