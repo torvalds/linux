@@ -73,17 +73,9 @@ config SECURITY_NETWORK_XFRM
 	  IPSec.
 	  If you are unsure how to answer this question, answer N.
 
-config SECURITY_CAPABILITIES
-	bool "Default Linux Capabilities"
-	depends on SECURITY
-	default y
-	help
-	  This enables the "default" Linux capabilities functionality.
-	  If you are unsure how to answer this question, answer Y.
-
 config SECURITY_FILE_CAPABILITIES
 	bool "File POSIX Capabilities (EXPERIMENTAL)"
-	depends on (SECURITY=n || SECURITY_CAPABILITIES!=n) && EXPERIMENTAL
+	depends on SECURITY && EXPERIMENTAL
 	default n
 	help
 	  This enables filesystem capabilities, allowing you to give

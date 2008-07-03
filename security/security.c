@@ -20,8 +20,8 @@
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1];
 
-/* things that live in dummy.c */
-extern struct security_operations dummy_security_ops;
+/* things that live in capability.c */
+extern struct security_operations default_security_ops;
 extern void security_fixup_ops(struct security_operations *ops);
 
 struct security_operations *security_ops;	/* Initialized to NULL */
@@ -57,13 +57,8 @@ int __init security_init(void)
 {
 	printk(KERN_INFO "Security Framework initialized\n");
 
-	if (verify(&dummy_security_ops)) {
-		printk(KERN_ERR "%s could not verify "
-		       "dummy_security_ops structure.\n", __func__);
-		return -EIO;
-	}
-
-	security_ops = &dummy_security_ops;
+	security_fixup_ops(&default_security_ops);
+	security_ops = &default_security_ops;
 	do_security_initcalls();
 
 	return 0;
@@ -122,7 +117,7 @@ int register_security(struct security_operations *ops)
 		return -EINVAL;
 	}
 
-	if (security_ops != &dummy_security_ops)
+	if (security_ops != &default_security_ops)
 		return -EAGAIN;
 
 	security_ops = ops;
