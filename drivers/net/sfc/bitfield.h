@@ -483,7 +483,7 @@ typedef union efx_oword {
 #endif
 
 #define EFX_SET_OWORD_FIELD_VER(efx, oword, field, value) do { \
-	if (FALCON_REV(efx) >= FALCON_REV_B0) {			   \
+	if (falcon_rev(efx) >= FALCON_REV_B0) {			   \
 		EFX_SET_OWORD_FIELD((oword), field##_B0, (value)); \
 	} else { \
 		EFX_SET_OWORD_FIELD((oword), field##_A1, (value)); \
@@ -491,7 +491,7 @@ typedef union efx_oword {
 } while (0)
 
 #define EFX_QWORD_FIELD_VER(efx, qword, field)	\
-	(FALCON_REV(efx) >= FALCON_REV_B0 ?	\
+	(falcon_rev(efx) >= FALCON_REV_B0 ?	\
 	 EFX_QWORD_FIELD((qword), field##_B0) :	\
 	 EFX_QWORD_FIELD((qword), field##_A1))
 
@@ -501,8 +501,5 @@ typedef union efx_oword {
 #define DMA_ADDR_T_WIDTH	(8 * sizeof(dma_addr_t))
 #define EFX_DMA_TYPE_WIDTH(width) \
 	(((width) < DMA_ADDR_T_WIDTH) ? (width) : DMA_ADDR_T_WIDTH)
-#define EFX_DMA_MAX_MASK ((DMA_ADDR_T_WIDTH == 64) ? \
-			  ~((u64) 0) : ~((u32) 0))
-#define EFX_DMA_MASK(mask) ((mask) & EFX_DMA_MAX_MASK)
 
 #endif /* EFX_BITFIELD_H */

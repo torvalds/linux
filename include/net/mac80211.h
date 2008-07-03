@@ -1594,19 +1594,40 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
 void ieee80211_scan_completed(struct ieee80211_hw *hw);
 
 /**
- * ieee80211_iterate_active_interfaces - iterate active interfaces
+ * ieee80211_iterate_active_interfaces- iterate active interfaces
  *
  * This function iterates over the interfaces associated with a given
  * hardware that are currently active and calls the callback for them.
+ * This function allows the iterator function to sleep, when the iterator
+ * function is atomic @ieee80211_iterate_active_interfaces_atomic can
+ * be used.
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
- * @iterator: the iterator function to call, cannot sleep
+ * @iterator: the iterator function to call
  * @data: first argument of the iterator function
  */
 void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
 					 void (*iterator)(void *data, u8 *mac,
 						struct ieee80211_vif *vif),
 					 void *data);
+
+/**
+ * ieee80211_iterate_active_interfaces_atomic - iterate active interfaces
+ *
+ * This function iterates over the interfaces associated with a given
+ * hardware that are currently active and calls the callback for them.
+ * This function requires the iterator callback function to be atomic,
+ * if that is not desired, use @ieee80211_iterate_active_interfaces instead.
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iterator: the iterator function to call, cannot sleep
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
+						void (*iterator)(void *data,
+						    u8 *mac,
+						    struct ieee80211_vif *vif),
+						void *data);
 
 /**
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.

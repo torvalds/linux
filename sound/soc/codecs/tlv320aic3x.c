@@ -539,8 +539,8 @@ static const char *intercon[][3] = {
 	{"HPRCOM", NULL, "Right HP Com"},
 
 	/* Mono Output */
-	{"MONOLOUT", NULL, "Mono Out"},
-	{"MONOLOUT", NULL, "Mono Out"},
+	{"MONO_LOUT", NULL, "Mono Out"},
+	{"MONO_LOUT", NULL, "Mono Out"},
 
 	/* Left Input */
 	{"Left Line1L Mux", "single-ended", "LINE1L"},

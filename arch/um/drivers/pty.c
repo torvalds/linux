@@ -29,7 +29,7 @@ static void *pty_chan_init(char *str, int device, const struct chan_opts *opts)
 {
 	struct pty_chan *data;
 
-	data = kmalloc(sizeof(*data), UM_GFP_KERNEL);
+	data = uml_kmalloc(sizeof(*data), UM_GFP_KERNEL);
 	if (data == NULL)
 		return NULL;
 

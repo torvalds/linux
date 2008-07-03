@@ -2611,7 +2611,7 @@ static int strip_open(struct tty_struct *tty)
 	 * We need a write method.
 	 */
 
-	if (tty->ops->write == NULL)
+	if (tty->ops->write == NULL || tty->ops->set_termios == NULL)
 		return -EOPNOTSUPP;
 
 	/*

@@ -162,6 +162,10 @@ static int init_slots(struct controller *ctrl)
 		retval = pci_hp_register(slot->hotplug_slot);
 		if (retval) {
 			err("pci_hp_register failed with error %d\n", retval);
+			if (retval == -EEXIST)
+				err("Failed to register slot because of name "
+                                    "collision. Try \'shpchp_slot_with_bus\' "
+				    "module option.\n");
 			goto error_info;
 		}
 

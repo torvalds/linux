@@ -15,6 +15,8 @@
 # define HZ		CONFIG_HZ	/* internal timer frequency */
 # define USER_HZ	100		/* for user interfaces in "ticks" */
 # define CLOCKS_PER_SEC (USER_HZ)	/* frequnzy at which times() counts */
+#else
+# define HZ		100
 #endif
 
 #define EXEC_PAGESIZE	4096

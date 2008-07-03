@@ -441,14 +441,15 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 
 	value = DIV_ROUND_UP(clk_value_khz, PICOS2KHZ(info->var.pixclock));
 
-	value = (value / 2) - 1;
-	dev_dbg(info->device, "  * programming CLKVAL = 0x%08lx\n", value);
-
-	if (value <= 0) {
+	if (value < 2) {
 		dev_notice(info->device, "Bypassing pixel clock divider\n");
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1, ATMEL_LCDC_BYPASS);
 	} else {
-		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1, value << ATMEL_LCDC_CLKVAL_OFFSET);
+		value = (value / 2) - 1;
+		dev_dbg(info->device, "  * programming CLKVAL = 0x%08lx\n",
+				value);
+		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1,
+				value << ATMEL_LCDC_CLKVAL_OFFSET);
 		info->var.pixclock = KHZ2PICOS(clk_value_khz / (2 * (value + 1)));
 		dev_dbg(info->device, "  updated pixclk:     %lu KHz\n",
 					PICOS2KHZ(info->var.pixclock));

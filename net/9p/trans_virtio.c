@@ -49,29 +49,75 @@
 #define VIRTQUEUE_NUM	128
 
 /* a single mutex to manage channel initialization and attachment */
-static DECLARE_MUTEX(virtio_9p_lock);
+static DEFINE_MUTEX(virtio_9p_lock);
 /* global which tracks highest initialized channel */
 static int chan_index;
 
 #define P9_INIT_MAXTAG	16
 
-#define REQ_STATUS_IDLE	0
-#define REQ_STATUS_SENT 1
-#define REQ_STATUS_RCVD 2
-#define REQ_STATUS_FLSH 3
+
+/**
+ * enum p9_req_status_t - virtio request status
+ * @REQ_STATUS_IDLE: request slot unused
+ * @REQ_STATUS_SENT: request sent to server
+ * @REQ_STATUS_RCVD: response received from server
+ * @REQ_STATUS_FLSH: request has been flushed
+ *
+ * The @REQ_STATUS_IDLE state is used to mark a request slot as unused
+ * but use is actually tracked by the idpool structure which handles tag
+ * id allocation.
+ *
+ */
+
+enum p9_req_status_t {
+	REQ_STATUS_IDLE,
+	REQ_STATUS_SENT,
+	REQ_STATUS_RCVD,
+	REQ_STATUS_FLSH,
+};
+
+/**
+ * struct p9_req_t - virtio request slots
+ * @status: status of this request slot
+ * @wq: wait_queue for the client to block on for this request
+ *
+ * The virtio transport uses an array to track outstanding requests
+ * instead of a list.  While this may incurr overhead during initial
+ * allocation or expansion, it makes request lookup much easier as the
+ * tag id is a index into an array.  (We use tag+1 so that we can accomodate
+ * the -1 tag for the T_VERSION request).
+ * This also has the nice effect of only having to allocate wait_queues
+ * once, instead of constantly allocating and freeing them.  Its possible
+ * other resources could benefit from this scheme as well.
+ *
+ */
 
 struct p9_req_t {
 	int status;
 	wait_queue_head_t *wq;
 };
 
-/* We keep all per-channel information in a structure.
+/**
+ * struct virtio_chan - per-instance transport information
+ * @initialized: whether the channel is initialized
+ * @inuse: whether the channel is in use
+ * @lock: protects multiple elements within this structure
+ * @vdev: virtio dev associated with this channel
+ * @vq: virtio queue associated with this channel
+ * @tagpool: accounting for tag ids (and request slots)
+ * @reqs: array of request slots
+ * @max_tag: current number of request_slots allocated
+ * @sg: scatter gather list which is used to pack a request (protected?)
+ *
+ * We keep all per-channel information in a structure.
  * This structure is allocated within the devices dev->mem space.
  * A pointer to the structure will get put in the transport private.
+ *
  */
+
 static struct virtio_chan {
-	bool initialized;		/* channel is initialized */
-	bool inuse;			/* channel is in use */
+	bool initialized;
+	bool inuse;
 
 	spinlock_t lock;
 
@@ -86,7 +132,19 @@ static struct virtio_chan {
 	struct scatterlist sg[VIRTQUEUE_NUM];
 } channels[MAX_9P_CHAN];
 
-/* Lookup requests by tag */
+/**
+ * p9_lookup_tag - Lookup requests by tag
+ * @c: virtio channel to lookup tag within
+ * @tag: numeric id for transaction
+ *
+ * this is a simple array lookup, but will grow the
+ * request_slots as necessary to accomodate transaction
+ * ids which did not previously have a slot.
+ *
+ * Bugs: there is currently no upper limit on request slots set
+ * here, but that should be constrained by the id accounting.
+ */
+
 static struct p9_req_t *p9_lookup_tag(struct virtio_chan *c, u16 tag)
 {
 	/* This looks up the original request by tag so we know which
@@ -130,11 +188,20 @@ static unsigned int rest_of_page(void *data)
 	return PAGE_SIZE - ((unsigned long)data % PAGE_SIZE);
 }
 
+/**
+ * p9_virtio_close - reclaim resources of a channel
+ * @trans: transport state
+ *
+ * This reclaims a channel by freeing its resources and
+ * reseting its inuse flag.
+ *
+ */
+
 static void p9_virtio_close(struct p9_trans *trans)
 {
 	struct virtio_chan *chan = trans->priv;
 	int count;
-	unsigned int flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	p9_idpool_destroy(chan->tagpool);
@@ -144,12 +211,25 @@ static void p9_virtio_close(struct p9_trans *trans)
 	chan->max_tag = 0;
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	down(&virtio_9p_lock);
+	mutex_lock(&virtio_9p_lock);
 	chan->inuse = false;
-	up(&virtio_9p_lock);
+	mutex_unlock(&virtio_9p_lock);
 
 	kfree(trans);
 }
+
+/**
+ * req_done - callback which signals activity from the server
+ * @vq: virtio queue activity was received on
+ *
+ * This notifies us that the server has triggered some activity
+ * on the virtio channel - most likely a response to request we
+ * sent.  Figure out which requests now have responses and wake up
+ * those threads.
+ *
+ * Bugs: could do with some additional sanity checking, but appears to work.
+ *
+ */
 
 static void req_done(struct virtqueue *vq)
 {
@@ -168,6 +248,20 @@ static void req_done(struct virtqueue *vq)
 	/* In case queue is stopped waiting for more buffers. */
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
+
+/**
+ * pack_sg_list - pack a scatter gather list from a linear buffer
+ * @sg: scatter/gather list to pack into
+ * @start: which segment of the sg_list to start at
+ * @limit: maximum segment to pack data to
+ * @data: data to pack into scatter/gather list
+ * @count: amount of data to pack into the scatter/gather list
+ *
+ * sg_lists have multiple segments of various sizes.  This will pack
+ * arbitrary data into an existing scatter gather list, segmenting the
+ * data as necessary within constraints.
+ *
+ */
 
 static int
 pack_sg_list(struct scatterlist *sg, int start, int limit, char *data,
@@ -188,6 +282,14 @@ pack_sg_list(struct scatterlist *sg, int start, int limit, char *data,
 
 	return index-start;
 }
+
+/**
+ * p9_virtio_rpc - issue a request and wait for a response
+ * @t: transport state
+ * @tc: &p9_fcall request to transmit
+ * @rc: &p9_fcall to put reponse into
+ *
+ */
 
 static int
 p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
@@ -263,16 +365,26 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
 	return 0;
 }
 
+/**
+ * p9_virtio_probe - probe for existence of 9P virtio channels
+ * @vdev: virtio device to probe
+ *
+ * This probes for existing virtio channels.  At present only
+ * a single channel is in use, so in the future more work may need
+ * to be done here.
+ *
+ */
+
 static int p9_virtio_probe(struct virtio_device *vdev)
 {
 	int err;
 	struct virtio_chan *chan;
 	int index;
 
-	down(&virtio_9p_lock);
+	mutex_lock(&virtio_9p_lock);
 	index = chan_index++;
 	chan = &channels[index];
-	up(&virtio_9p_lock);
+	mutex_unlock(&virtio_9p_lock);
 
 	if (chan_index > MAX_9P_CHAN) {
 		printk(KERN_ERR "9p: virtio: Maximum channels exceeded\n");
@@ -301,17 +413,34 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 out_free_vq:
 	vdev->config->del_vq(chan->vq);
 fail:
-	down(&virtio_9p_lock);
+	mutex_lock(&virtio_9p_lock);
 	chan_index--;
-	up(&virtio_9p_lock);
+	mutex_unlock(&virtio_9p_lock);
 	return err;
 }
 
-/* This sets up a transport channel for 9p communication.  Right now
+
+/**
+ * p9_virtio_create - allocate a new virtio channel
+ * @devname: string identifying the channel to connect to (unused)
+ * @args: args passed from sys_mount() for per-transport options (unused)
+ * @msize: requested maximum packet size
+ * @extended: 9p2000.u enabled flag
+ *
+ * This sets up a transport channel for 9p communication.  Right now
  * we only match the first available channel, but eventually we couldlook up
  * alternate channels by matching devname versus a virtio_config entry.
  * We use a simple reference count mechanism to ensure that only a single
- * mount has a channel open at a time. */
+ * mount has a channel open at a time.
+ *
+ * Bugs: doesn't allow identification of a specific channel
+ * to allocate, channels are allocated sequentially. This was
+ * a pragmatic decision to get things rolling, but ideally some
+ * way of identifying the channel to attach to would be nice
+ * if we are going to support multiple channels.
+ *
+ */
+
 static struct p9_trans *
 p9_virtio_create(const char *devname, char *args, int msize,
 							unsigned char extended)
@@ -320,7 +449,7 @@ p9_virtio_create(const char *devname, char *args, int msize,
 	struct virtio_chan *chan = channels;
 	int index = 0;
 
-	down(&virtio_9p_lock);
+	mutex_lock(&virtio_9p_lock);
 	while (index < MAX_9P_CHAN) {
 		if (chan->initialized && !chan->inuse) {
 			chan->inuse = true;
@@ -330,7 +459,7 @@ p9_virtio_create(const char *devname, char *args, int msize,
 			chan = &channels[index];
 		}
 	}
-	up(&virtio_9p_lock);
+	mutex_unlock(&virtio_9p_lock);
 
 	if (index >= MAX_9P_CHAN) {
 		printk(KERN_ERR "9p: no channels available\n");
@@ -359,6 +488,12 @@ p9_virtio_create(const char *devname, char *args, int msize,
 
 	return trans;
 }
+
+/**
+ * p9_virtio_remove - clean up resources associated with a virtio device
+ * @vdev: virtio device to remove
+ *
+ */
 
 static void p9_virtio_remove(struct virtio_device *vdev)
 {

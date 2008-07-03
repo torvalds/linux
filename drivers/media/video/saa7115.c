@@ -1456,13 +1456,12 @@ static int saa7115_probe(struct i2c_client *client,
 	struct saa711x_state *state;
 	int	i;
 	char	name[17];
-	u8 chip_id;
+	char chip_id;
+	int autodetect = !id || id->driver_data == 1;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
-
-	snprintf(client->name, sizeof(client->name) - 1, "saa7115");
 
 	for (i = 0; i < 0x0f; i++) {
 		saa711x_write(client, 0, i);
@@ -1472,8 +1471,7 @@ static int saa7115_probe(struct i2c_client *client,
 	}
 	name[i] = '\0';
 
-	saa711x_write(client, 0, 5);
-	chip_id = saa711x_read(client, 0) & 0x0f;
+	chip_id = name[5];
 
 	/* Check whether this chip is part of the saa711x series */
 	if (memcmp(name, "1f711", 5)) {
@@ -1482,8 +1480,14 @@ static int saa7115_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	snprintf(client->name, sizeof(client->name) - 1, "saa711%d",chip_id);
-	v4l_info(client, "saa711%d found (%s) @ 0x%x (%s)\n", chip_id, name, client->addr << 1, client->adapter->name);
+	/* Safety check */
+	if (!autodetect && id->name[6] != chip_id) {
+		v4l_warn(client, "found saa711%c while %s was expected\n",
+			 chip_id, id->name);
+	}
+	snprintf(client->name, sizeof(client->name), "saa711%c", chip_id);
+	v4l_info(client, "saa711%c found (%s) @ 0x%x (%s)\n", chip_id, name,
+		 client->addr << 1, client->adapter->name);
 
 	state = kzalloc(sizeof(struct saa711x_state), GFP_KERNEL);
 	i2c_set_clientdata(client, state);
@@ -1499,19 +1503,19 @@ static int saa7115_probe(struct i2c_client *client,
 	state->hue = 0;
 	state->sat = 64;
 	switch (chip_id) {
-	case 1:
+	case '1':
 		state->ident = V4L2_IDENT_SAA7111;
 		break;
-	case 3:
+	case '3':
 		state->ident = V4L2_IDENT_SAA7113;
 		break;
-	case 4:
+	case '4':
 		state->ident = V4L2_IDENT_SAA7114;
 		break;
-	case 5:
+	case '5':
 		state->ident = V4L2_IDENT_SAA7115;
 		break;
-	case 8:
+	case '8':
 		state->ident = V4L2_IDENT_SAA7118;
 		break;
 	default:
@@ -1553,6 +1557,17 @@ static int saa7115_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id saa7115_id[] = {
+	{ "saa711x", 1 }, /* autodetect */
+	{ "saa7111", 0 },
+	{ "saa7113", 0 },
+	{ "saa7114", 0 },
+	{ "saa7115", 0 },
+	{ "saa7118", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, saa7115_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7115",
 	.driverid = I2C_DRIVERID_SAA711X,
@@ -1560,5 +1575,6 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.probe = saa7115_probe,
 	.remove = saa7115_remove,
 	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
+	.id_table = saa7115_id,
 };
 

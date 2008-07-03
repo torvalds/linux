@@ -337,12 +337,10 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		dvb->frontend = dvb_attach(au8522_attach,
 				&hauppauge_hvr950q_config,
 				&dev->i2c_adap);
-		if (dvb->frontend != NULL) {
-			hauppauge_hvr950q_tunerconfig.priv = dev;
+		if (dvb->frontend != NULL)
 			dvb_attach(xc5000_attach, dvb->frontend,
 				&dev->i2c_adap,
-				&hauppauge_hvr950q_tunerconfig);
-		}
+				&hauppauge_hvr950q_tunerconfig, dev);
 		break;
 	default:
 		printk(KERN_WARNING "The frontend of your DVB/ATSC card "
@@ -354,12 +352,6 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		       __func__);
 		return -1;
 	}
-
-	/* Put the analog decoder in standby to keep it quiet */
-	au0828_call_i2c_clients(dev, TUNER_SET_STANDBY, NULL);
-
-	if (dvb->frontend->ops.analog_ops.standby)
-		dvb->frontend->ops.analog_ops.standby(dvb->frontend);
 
 	/* register everything */
 	ret = dvb_register(dev);

@@ -34,11 +34,13 @@ static volatile int lasat_int_mask_shift;
 
 void disable_lasat_irq(unsigned int irq_nr)
 {
+	irq_nr -= LASAT_IRQ_BASE;
 	*lasat_int_mask &= ~(1 << irq_nr) << lasat_int_mask_shift;
 }
 
 void enable_lasat_irq(unsigned int irq_nr)
 {
+	irq_nr -= LASAT_IRQ_BASE;
 	*lasat_int_mask |= (1 << irq_nr) << lasat_int_mask_shift;
 }
 

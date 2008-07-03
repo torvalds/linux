@@ -1,5 +1,5 @@
 #
-# Makefile for the Alchemy Semiconductor PB1200 board.
+# Makefile for the Alchemy Semiconductor Pb1200/DBAu1200 boards.
 #
 
 lib-y := init.o board_setup.o irqmap.o

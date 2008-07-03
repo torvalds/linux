@@ -270,7 +270,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	int err = 0;
 	int skb_len;
 
-	/* Cast skb->rcvbuf to unsigned... It's pointless, but reduces
+	/* Cast sk->rcvbuf to unsigned... It's pointless, but reduces
 	   number of warnings when compiling with -W --ANK
 	 */
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=

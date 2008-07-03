@@ -87,8 +87,8 @@ struct plat_smp_ops *mp_ops;
 
 __cpuinit void register_smp_ops(struct plat_smp_ops *ops)
 {
-	if (ops)
-		printk(KERN_WARNING "Overriding previous set SMP ops\n");
+	if (mp_ops)
+		printk(KERN_WARNING "Overriding previously set SMP ops\n");
 
 	mp_ops = ops;
 }
@@ -216,6 +216,7 @@ int smp_call_function(void (*func) (void *info), void *info, int retry,
 {
 	return smp_call_function_mask(cpu_online_map, func, info, retry, wait);
 }
+EXPORT_SYMBOL(smp_call_function);
 
 void smp_call_function_interrupt(void)
 {
@@ -271,6 +272,7 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 	put_cpu();
 	return 0;
 }
+EXPORT_SYMBOL(smp_call_function_single);
 
 static void stop_this_cpu(void *dummy)
 {

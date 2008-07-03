@@ -231,7 +231,8 @@ native_smp_call_function_mask(cpumask_t mask,
 	wmb();
 
 	/* Send a message to other CPUs */
-	if (cpus_equal(mask, allbutself))
+	if (cpus_equal(mask, allbutself) &&
+	    cpus_equal(cpu_online_map, cpu_callout_map))
 		send_IPI_allbutself(CALL_FUNCTION_VECTOR);
 	else
 		send_IPI_mask(mask, CALL_FUNCTION_VECTOR);

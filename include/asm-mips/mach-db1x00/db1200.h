@@ -1,6 +1,6 @@
 /*
- * AMD Alchemy DB1200 Referrence Board
- * Board Registers defines.
+ * AMD Alchemy DBAu1200 Reference Board
+ * Board register defines.
  *
  * ########################################################################
  *
@@ -27,26 +27,25 @@
 #include <linux/types.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 
-// This is defined in au1000.h with bogus value
-#undef AU1X00_EXTERNAL_INT
+#define DBDMA_AC97_TX_CHAN	DSCR_CMD0_PSC1_TX
+#define DBDMA_AC97_RX_CHAN	DSCR_CMD0_PSC1_RX
+#define DBDMA_I2S_TX_CHAN	DSCR_CMD0_PSC1_TX
+#define DBDMA_I2S_RX_CHAN	DSCR_CMD0_PSC1_RX
 
-#define DBDMA_AC97_TX_CHAN DSCR_CMD0_PSC1_TX
-#define DBDMA_AC97_RX_CHAN DSCR_CMD0_PSC1_RX
-#define DBDMA_I2S_TX_CHAN DSCR_CMD0_PSC1_TX
-#define DBDMA_I2S_RX_CHAN DSCR_CMD0_PSC1_RX
-
-/* SPI and SMB are muxed on the Pb1200 board.
-   Refer to board documentation.
+/*
+ * SPI and SMB are muxed on the DBAu1200 board.
+ * Refer to board documentation.
  */
-#define SPI_PSC_BASE        PSC0_BASE_ADDR
-#define SMBUS_PSC_BASE      PSC0_BASE_ADDR
-/* AC97 and I2S are muxed on the Pb1200 board.
-   Refer to board documentation.
+#define SPI_PSC_BASE		PSC0_BASE_ADDR
+#define SMBUS_PSC_BASE		PSC0_BASE_ADDR
+/*
+ * AC'97 and I2S are muxed on the DBAu1200 board.
+ * Refer to board documentation.
  */
-#define AC97_PSC_BASE       PSC1_BASE_ADDR
+#define AC97_PSC_BASE		PSC1_BASE_ADDR
 #define I2S_PSC_BASE		PSC1_BASE_ADDR
 
-#define BCSR_KSEG1_ADDR 0xB9800000
+#define BCSR_KSEG1_ADDR 	0xB9800000
 
 typedef volatile struct
 {
@@ -102,9 +101,9 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define BCSR_STATUS_SWAPBOOT	0x0040
 #define BCSR_STATUS_FLASHBUSY	0x0100
 #define BCSR_STATUS_IDECBLID	0x0200
-#define BCSR_STATUS_SD0WP		0x0400
-#define BCSR_STATUS_U0RXD		0x1000
-#define BCSR_STATUS_U1RXD		0x2000
+#define BCSR_STATUS_SD0WP	0x0400
+#define BCSR_STATUS_U0RXD	0x1000
+#define BCSR_STATUS_U1RXD	0x2000
 
 #define BCSR_SWITCHES_OCTAL	0x00FF
 #define BCSR_SWITCHES_DIP_1	0x0080
@@ -122,8 +121,8 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define BCSR_RESETS_DC		0x0004
 #define BCSR_RESETS_IDE		0x0008
 #define BCSR_RESETS_TV		0x0010
-/* not resets but in the same register */
-#define BCSR_RESETS_PWMR1mUX 0x0800
+/* Not resets but in the same register */
+#define BCSR_RESETS_PWMR1MUX	0x0800
 #define BCSR_RESETS_PCS0MUX	0x1000
 #define BCSR_RESETS_PCS1MUX	0x2000
 #define BCSR_RESETS_SPISEL	0x4000
@@ -160,7 +159,7 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define BCSR_INT_PC0STSCHG	0x0008
 #define BCSR_INT_PC1		0x0010
 #define BCSR_INT_PC1STSCHG	0x0020
-#define BCSR_INT_DC			0x0040
+#define BCSR_INT_DC		0x0040
 #define BCSR_INT_FLASHBUSY	0x0080
 #define BCSR_INT_PC0INSERT	0x0100
 #define BCSR_INT_PC0EJECT	0x0200
@@ -179,10 +178,10 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define IDE_DDMA_REQ		DSCR_CMD0_DMA_REQ1
 #define IDE_RQSIZE		128
 
-#define NAND_PHYS_ADDR   0x20000000
+#define NAND_PHYS_ADDR		0x20000000
 
 /*
- * External Interrupts for Pb1200 as of 8/6/2004.
+ * External Interrupts for DBAu1200 as of 8/6/2004.
  * Bit positions in the CPLD registers can be calculated by taking
  * the interrupt define and subtracting the DB1200_INT_BEGIN value.
  *
@@ -211,23 +210,21 @@ enum external_pb1200_ints {
 };
 
 
-/* For drivers/pcmcia/au1000_db1x00.c */
-
-/* PCMCIA Db1x00 specific defines */
-
-#define PCMCIA_MAX_SOCK 1
-#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK+1)
+/*
+ * DBAu1200 specific PCMCIA defines for drivers/pcmcia/au1000_db1x00.c
+ */
+#define PCMCIA_MAX_SOCK  1
+#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK + 1)
 
 /* VPP/VCC */
-#define SET_VCC_VPP(VCC, VPP, SLOT)\
-	((((VCC)<<2) | ((VPP)<<0)) << ((SLOT)*8))
+#define SET_VCC_VPP(VCC, VPP, SLOT) \
+	((((VCC) << 2) | ((VPP) << 0)) << ((SLOT) * 8))
 
-#define BOARD_PC0_INT DB1200_PC0_INT
-#define BOARD_PC1_INT DB1200_PC1_INT
-#define BOARD_CARD_INSERTED(SOCKET) bcsr->sig_status & (1<<(8+(2*SOCKET)))
+#define BOARD_PC0_INT	DB1200_PC0_INT
+#define BOARD_PC1_INT	DB1200_PC1_INT
+#define BOARD_CARD_INSERTED(SOCKET) bcsr->sig_status & (1 << (8 + (2 * SOCKET)))
 
-/* Nand chip select */
+/* NAND chip select */
 #define NAND_CS 1
 
 #endif /* __ASM_DB1200_H */
-

@@ -815,7 +815,8 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int msp_product, msp_prod_hi, msp_prod_lo;
 	int msp_rom;
 
-	snprintf(client->name, sizeof(client->name) - 1, "msp3400");
+	if (!id)
+		strlcpy(client->name, "msp3400", sizeof(client->name));
 
 	if (msp_reset(client) == -1) {
 		v4l_dbg(1, msp_debug, client, "msp3400 not found\n");
@@ -864,9 +865,6 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	msp_revision = (state->rev1 & 0x0f) + '@';
 	msp_hard = ((state->rev1 >> 8) & 0xff) + '@';
 	msp_rom = state->rev2 & 0x1f;
-	snprintf(client->name, sizeof(client->name), "MSP%d4%02d%c-%c%d",
-			msp_family, msp_product,
-			msp_revision, msp_hard, msp_rom);
 	/* Rev B=2, C=3, D=4, G=7 */
 	state->ident = msp_family * 10000 + 4000 + msp_product * 10 +
 			msp_revision - '@';
@@ -931,7 +929,9 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* hello world :-) */
-	v4l_info(client, "%s found @ 0x%x (%s)\n", client->name,
+	v4l_info(client, "MSP%d4%02d%c-%c%d found @ 0x%x (%s)\n",
+			msp_family, msp_product,
+			msp_revision, msp_hard, msp_rom,
 			client->addr << 1, client->adapter->name);
 	v4l_info(client, "%s ", client->name);
 	if (state->has_nicam && state->has_radio)
@@ -987,6 +987,12 @@ static int msp_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+static const struct i2c_device_id msp_id[] = {
+	{ "msp3400", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, msp_id);
+
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "msp3400",
 	.driverid = I2C_DRIVERID_MSP3400,
@@ -995,6 +1001,7 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = msp_remove,
 	.suspend = msp_suspend,
 	.resume = msp_resume,
+	.id_table = msp_id,
 };
 
 

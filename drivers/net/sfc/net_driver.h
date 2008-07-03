@@ -42,7 +42,7 @@
 #ifndef EFX_DRIVER_NAME
 #define EFX_DRIVER_NAME	"sfc"
 #endif
-#define EFX_DRIVER_VERSION	"2.2.0136"
+#define EFX_DRIVER_VERSION	"2.2"
 
 #ifdef EFX_ENABLE_DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
@@ -52,28 +52,19 @@
 #define EFX_WARN_ON_PARANOID(x) do {} while (0)
 #endif
 
-#define NET_DEV_REGISTERED(efx)					\
-	((efx)->net_dev->reg_state == NETREG_REGISTERED)
-
-/* Include net device name in log messages if it has been registered.
- * Use efx->name not efx->net_dev->name so that races with (un)registration
- * are harmless.
- */
-#define NET_DEV_NAME(efx) (NET_DEV_REGISTERED(efx) ? (efx)->name : "")
-
 /* Un-rate-limited logging */
 #define EFX_ERR(efx, fmt, args...) \
-dev_err(&((efx)->pci_dev->dev), "ERR: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_err(&((efx)->pci_dev->dev), "ERR: %s " fmt, efx_dev_name(efx), ##args)
 
 #define EFX_INFO(efx, fmt, args...) \
-dev_info(&((efx)->pci_dev->dev), "INFO: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_info(&((efx)->pci_dev->dev), "INFO: %s " fmt, efx_dev_name(efx), ##args)
 
 #ifdef EFX_ENABLE_DEBUG
 #define EFX_LOG(efx, fmt, args...) \
-dev_info(&((efx)->pci_dev->dev), "DBG: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_info(&((efx)->pci_dev->dev), "DBG: %s " fmt, efx_dev_name(efx), ##args)
 #else
 #define EFX_LOG(efx, fmt, args...) \
-dev_dbg(&((efx)->pci_dev->dev), "DBG: %s " fmt, NET_DEV_NAME(efx), ##args)
+dev_dbg(&((efx)->pci_dev->dev), "DBG: %s " fmt, efx_dev_name(efx), ##args)
 #endif
 
 #define EFX_TRACE(efx, fmt, args...) do {} while (0)
@@ -89,11 +80,6 @@ do {if (net_ratelimit()) EFX_INFO(efx, fmt, ##args); } while (0)
 
 #define EFX_LOG_RL(efx, fmt, args...) \
 do {if (net_ratelimit()) EFX_LOG(efx, fmt, ##args); } while (0)
-
-/* Kernel headers may redefine inline anyway */
-#ifndef inline
-#define inline inline __attribute__ ((always_inline))
-#endif
 
 /**************************************************************************
  *
@@ -134,6 +120,8 @@ struct efx_special_buffer {
  *	Set only on the final fragment of a packet; %NULL for all other
  *	fragments.  When this fragment completes, then we can free this
  *	skb.
+ * @tsoh: The associated TSO header structure, or %NULL if this
+ *	buffer is not a TSO header.
  * @dma_addr: DMA address of the fragment.
  * @len: Length of this fragment.
  *	This field is zero when the queue slot is empty.
@@ -144,6 +132,7 @@ struct efx_special_buffer {
  */
 struct efx_tx_buffer {
 	const struct sk_buff *skb;
+	struct efx_tso_header *tsoh;
 	dma_addr_t dma_addr;
 	unsigned short len;
 	unsigned char continuation;
@@ -187,6 +176,13 @@ struct efx_tx_buffer {
  *	variable indicates that the queue is full.  This is to
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
+ * @tso_headers_free: A list of TSO headers allocated for this TX queue
+ *	that are not in use, and so available for new TSO sends. The list
+ *	is protected by the TX queue lock.
+ * @tso_bursts: Number of times TSO xmit invoked by kernel
+ * @tso_long_headers: Number of packets with headers too long for standard
+ *	blocks
+ * @tso_packets: Number of packets via the TSO xmit path
  */
 struct efx_tx_queue {
 	/* Members which don't change on the fast path */
@@ -206,6 +202,10 @@ struct efx_tx_queue {
 	unsigned int insert_count ____cacheline_aligned_in_smp;
 	unsigned int write_count;
 	unsigned int old_read_count;
+	struct efx_tso_header *tso_headers_free;
+	unsigned int tso_bursts;
+	unsigned int tso_long_headers;
+	unsigned int tso_packets;
 };
 
 /**
@@ -434,6 +434,9 @@ struct efx_board {
 	struct efx_blinker blinker;
 };
 
+#define STRING_TABLE_LOOKUP(val, member)	\
+	member ## _names[val]
+
 enum efx_int_mode {
 	/* Be careful if altering to correct macro below */
 	EFX_INT_MODE_MSIX = 0,
@@ -506,6 +509,7 @@ enum efx_fc_type {
  * @check_hw: Check hardware
  * @reset_xaui: Reset XAUI side of PHY for (software sequenced reset)
  * @mmds: MMD presence mask
+ * @loopbacks: Supported loopback modes mask
  */
 struct efx_phy_operations {
 	int (*init) (struct efx_nic *efx);
@@ -515,6 +519,7 @@ struct efx_phy_operations {
 	int (*check_hw) (struct efx_nic *efx);
 	void (*reset_xaui) (struct efx_nic *efx);
 	int mmds;
+	unsigned loopbacks;
 };
 
 /*
@@ -653,7 +658,6 @@ union efx_multicast_hash {
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mii: PHY interface
- * @phy_powered: PHY power state
  * @tx_disabled: PHY transmitter turned off
  * @link_up: Link status
  * @link_options: Link options (MII/GMII format)
@@ -662,6 +666,9 @@ union efx_multicast_hash {
  * @multicast_hash: Multicast hash table
  * @flow_control: Flow control flags - separate RX/TX so can't use link_options
  * @reconfigure_work: work item for dealing with PHY events
+ * @loopback_mode: Loopback status
+ * @loopback_modes: Supported loopback mode bitmask
+ * @loopback_selftest: Offline self-test private state
  *
  * The @priv field of the corresponding &struct net_device points to
  * this.
@@ -674,7 +681,7 @@ struct efx_nic {
 	struct workqueue_struct *workqueue;
 	struct work_struct reset_work;
 	struct delayed_work monitor_work;
-	unsigned long membase_phys;
+	resource_size_t membase_phys;
 	void __iomem *membase;
 	spinlock_t biu_lock;
 	enum efx_int_mode interrupt_mode;
@@ -698,7 +705,7 @@ struct efx_nic {
 
 	unsigned n_rx_nodesc_drop_cnt;
 
-	void *nic_data;
+	struct falcon_nic_data *nic_data;
 
 	struct mutex mac_lock;
 	int port_enabled;
@@ -721,6 +728,7 @@ struct efx_nic {
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mii_if_info mii;
+	unsigned tx_disabled;
 
 	int link_up;
 	unsigned int link_options;
@@ -732,7 +740,25 @@ struct efx_nic {
 	struct work_struct reconfigure_work;
 
 	atomic_t rx_reset;
+	enum efx_loopback_mode loopback_mode;
+	unsigned int loopback_modes;
+
+	void *loopback_selftest;
 };
+
+static inline int efx_dev_registered(struct efx_nic *efx)
+{
+	return efx->net_dev->reg_state == NETREG_REGISTERED;
+}
+
+/* Net device name, for inclusion in log messages if it has been registered.
+ * Use efx->name not efx->net_dev->name so that races with (un)registration
+ * are harmless.
+ */
+static inline const char *efx_dev_name(struct efx_nic *efx)
+{
+	return efx_dev_registered(efx) ? efx->name : "";
+}
 
 /**
  * struct efx_nic_type - Efx device type definition
@@ -769,7 +795,7 @@ struct efx_nic_type {
 	unsigned int txd_ring_mask;
 	unsigned int rxd_ring_mask;
 	unsigned int evq_size;
-	dma_addr_t max_dma_mask;
+	u64 max_dma_mask;
 	unsigned int tx_dma_mask;
 	unsigned bug5391_mask;
 

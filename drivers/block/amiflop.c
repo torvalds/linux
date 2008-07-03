@@ -1714,10 +1714,10 @@ static int __init amiga_floppy_init(void)
 	int i, ret;
 
 	if (!MACH_IS_AMIGA)
-		return -ENXIO;
+		return -ENODEV;
 
 	if (!AMIGAHW_PRESENT(AMI_FLOPPY))
-		return -ENXIO;
+		return -ENODEV;
 
 	if (register_blkdev(FLOPPY_MAJOR,"fd"))
 		return -EBUSY;
@@ -1755,7 +1755,7 @@ static int __init amiga_floppy_init(void)
 	if (!floppy_queue)
 		goto out_queue;
 
-	ret = -ENXIO;
+	ret = -ENODEV;
 	if (fd_probe_drives() < 1) /* No usable drives */
 		goto out_probe;
 

@@ -555,7 +555,7 @@ static int compat_blk_trace_setup(struct block_device *bdev, char __user *arg)
 	if (copy_from_user(&cbuts, arg, sizeof(cbuts)))
 		return -EFAULT;
 
-	strcpy(b, bdevname(bdev, b));
+	bdevname(bdev, b);
 
 	buts = (struct blk_user_trace_setup) {
 		.act_mask = cbuts.act_mask,
