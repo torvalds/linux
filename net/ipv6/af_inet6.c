@@ -59,9 +59,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#ifdef CONFIG_IPV6_MROUTE
 #include <linux/mroute6.h>
-#endif
 
 MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
@@ -952,11 +950,9 @@ static int __init inet6_init(void)
 	err = icmpv6_init();
 	if (err)
 		goto icmp_fail;
-#ifdef CONFIG_IPV6_MROUTE
 	err = ip6_mr_init();
 	if (err)
 		goto ipmr_fail;
-#endif
 	err = ndisc_init();
 	if (err)
 		goto ndisc_fail;
@@ -1059,10 +1055,8 @@ netfilter_fail:
 igmp_fail:
 	ndisc_cleanup();
 ndisc_fail:
-#ifdef CONFIG_IPV6_MROUTE
 	ip6_mr_cleanup();
 ipmr_fail:
-#endif
 	icmpv6_cleanup();
 icmp_fail:
 	unregister_pernet_subsys(&inet6_net_ops);
@@ -1117,9 +1111,7 @@ static void __exit inet6_exit(void)
 	ipv6_netfilter_fini();
 	igmp6_cleanup();
 	ndisc_cleanup();
-#ifdef CONFIG_IPV6_MROUTE
 	ip6_mr_cleanup();
-#endif
 	icmpv6_cleanup();
 	rawv6_exit();
 
