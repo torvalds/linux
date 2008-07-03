@@ -901,6 +901,79 @@ early_param("numa", early_numa);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
+ * Validate the node associated with the memory section we are
+ * trying to add.
+ */
+int valid_hot_add_scn(int *nid, unsigned long start, u32 lmb_size,
+		      unsigned long scn_addr)
+{
+	nodemask_t nodes;
+
+	if (*nid < 0 || !node_online(*nid))
+		*nid = any_online_node(NODE_MASK_ALL);
+
+	if ((scn_addr >= start) && (scn_addr < (start + lmb_size))) {
+		nodes_setall(nodes);
+		while (NODE_DATA(*nid)->node_spanned_pages == 0) {
+			node_clear(*nid, nodes);
+			*nid = any_online_node(nodes);
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * Find the node associated with a hot added memory section represented
+ * by the ibm,dynamic-reconfiguration-memory node.
+ */
+static int hot_add_drconf_scn_to_nid(struct device_node *memory,
+				     unsigned long scn_addr)
+{
+	const u32 *dm;
+	unsigned int n, rc;
+	unsigned long lmb_size;
+	int default_nid = any_online_node(NODE_MASK_ALL);
+	int nid;
+	struct assoc_arrays aa;
+
+	n = of_get_drconf_memory(memory, &dm);
+	if (!n)
+		return default_nid;;
+
+	lmb_size = of_get_lmb_size(memory);
+	if (!lmb_size)
+		return default_nid;
+
+	rc = of_get_assoc_arrays(memory, &aa);
+	if (rc)
+		return default_nid;
+
+	for (; n != 0; --n) {
+		struct of_drconf_cell drmem;
+
+		read_drconf_cell(&drmem, &dm);
+
+		/* skip this block if it is reserved or not assigned to
+		 * this partition */
+		if ((drmem.flags & DRCONF_MEM_RESERVED)
+		    || !(drmem.flags & DRCONF_MEM_ASSIGNED))
+			continue;
+
+		nid = of_drconf_to_nid_single(&drmem, &aa);
+
+		if (valid_hot_add_scn(&nid, drmem.base_addr, lmb_size,
+				      scn_addr))
+			return nid;
+	}
+
+	BUG();	/* section address should be found above */
+	return 0;
+}
+
+/*
  * Find the node associated with a hot added memory section.  Section
  * corresponds to a SPARSEMEM section, not an LMB.  It is assumed that
  * sections are fully contained within a single LMB.
@@ -908,12 +981,17 @@ early_param("numa", early_numa);
 int hot_add_scn_to_nid(unsigned long scn_addr)
 {
 	struct device_node *memory = NULL;
-	nodemask_t nodes;
-	int default_nid = any_online_node(NODE_MASK_ALL);
 	int nid;
 
 	if (!numa_enabled || (min_common_depth < 0))
-		return default_nid;
+		return any_online_node(NODE_MASK_ALL);
+
+	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (memory) {
+		nid = hot_add_drconf_scn_to_nid(memory, scn_addr);
+		of_node_put(memory);
+		return nid;
+	}
 
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start, size;
@@ -932,13 +1010,9 @@ ha_new_range:
 		size = read_n_cells(n_mem_size_cells, &memcell_buf);
 		nid = of_node_to_nid_single(memory);
 
-		/* Domains not present at boot default to 0 */
-		if (nid < 0 || !node_online(nid))
-			nid = default_nid;
-
-		if ((scn_addr >= start) && (scn_addr < (start + size))) {
+		if (valid_hot_add_scn(&nid, start, size, scn_addr)) {
 			of_node_put(memory);
-			goto got_nid;
+			return nid;
 		}
 
 		if (--ranges)		/* process all ranges in cell */
@@ -946,14 +1020,5 @@ ha_new_range:
 	}
 	BUG();	/* section address should be found above */
 	return 0;
-
-	/* Temporary code to ensure that returned node is not empty */
-got_nid:
-	nodes_setall(nodes);
-	while (NODE_DATA(nid)->node_spanned_pages == 0) {
-		node_clear(nid, nodes);
-		nid = any_online_node(nodes);
-	}
-	return nid;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
