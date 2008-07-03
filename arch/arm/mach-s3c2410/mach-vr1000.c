@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-vr1000.c
  *
- * Copyright (c) 2003-2005 Simtec Electronics
+ * Copyright (c) 2003-2005,2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * Machine support for Thorcom VR1000 board. Designed for Thorcom by
@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/dm9000.h>
+#include <linux/i2c.h>
 
 #include <linux/serial.h>
 #include <linux/tty.h>
@@ -315,6 +316,16 @@ static struct platform_device vr1000_led3 = {
 	},
 };
 
+/* I2C devices. */
+
+static struct i2c_board_info vr1000_i2c_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
+	}, {
+		I2C_BOARD_INFO("m41st87", 0x68),
+	},
+};
+
 /* devices for this board */
 
 static struct platform_device *vr1000_devices[] __initdata = {
@@ -372,6 +383,9 @@ static void __init vr1000_map_io(void)
 static void __init vr1000_init(void)
 {
 	platform_add_devices(vr1000_devices, ARRAY_SIZE(vr1000_devices));
+
+	i2c_register_board_info(0, vr1000_i2c_devs,
+				ARRAY_SIZE(vr1000_i2c_devs));
 
 	nor_simtec_init();
 }
