@@ -948,23 +948,51 @@ static struct notifier_block ip6_mr_notifier = {
  *	Setup for IP multicast routing
  */
 
-void __init ip6_mr_init(void)
+int __init ip6_mr_init(void)
 {
+	int err;
+
 	mrt_cachep = kmem_cache_create("ip6_mrt_cache",
 				       sizeof(struct mfc6_cache),
 				       0, SLAB_HWCACHE_ALIGN,
 				       NULL);
 	if (!mrt_cachep)
-		panic("cannot allocate ip6_mrt_cache");
+		return -ENOMEM;
 
 	setup_timer(&ipmr_expire_timer, ipmr_expire_process, 0);
-	register_netdevice_notifier(&ip6_mr_notifier);
+	err = register_netdevice_notifier(&ip6_mr_notifier);
+	if (err)
+		goto reg_notif_fail;
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create(&init_net, "ip6_mr_vif", 0, &ip6mr_vif_fops);
-	proc_net_fops_create(&init_net, "ip6_mr_cache", 0, &ip6mr_mfc_fops);
+	err = -ENOMEM;
+	if (!proc_net_fops_create(&init_net, "ip6_mr_vif", 0, &ip6mr_vif_fops))
+		goto proc_vif_fail;
+	if (!proc_net_fops_create(&init_net, "ip6_mr_cache",
+				     0, &ip6mr_mfc_fops))
+		goto proc_cache_fail;
 #endif
+	return 0;
+reg_notif_fail:
+	kmem_cache_destroy(mrt_cachep);
+#ifdef CONFIG_PROC_FS
+proc_vif_fail:
+	unregister_netdevice_notifier(&ip6_mr_notifier);
+proc_cache_fail:
+	proc_net_remove(&init_net, "ip6_mr_vif");
+#endif
+	return err;
 }
 
+void ip6_mr_cleanup(void)
+{
+#ifdef CONFIG_PROC_FS
+	proc_net_remove(&init_net, "ip6_mr_cache");
+	proc_net_remove(&init_net, "ip6_mr_vif");
+#endif
+	unregister_netdevice_notifier(&ip6_mr_notifier);
+	del_timer(&ipmr_expire_timer);
+	kmem_cache_destroy(mrt_cachep);
+}
 
 static int ip6mr_mfc_add(struct mf6cctl *mfc, int mrtsock)
 {
