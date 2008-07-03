@@ -20,6 +20,7 @@
 #include "i8254.h"
 #include "tss.h"
 #include "kvm_cache_regs.h"
+#include "x86.h"
 
 #include <linux/clocksource.h>
 #include <linux/kvm.h>
@@ -2121,6 +2122,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	int r;
 	struct decode_cache *c;
 
+	kvm_clear_exception_queue(vcpu);
 	vcpu->arch.mmio_fault_cr2 = cr2;
 	/*
 	 * TODO: fix x86_emulate.c to use guest_read/write_register
