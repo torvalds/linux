@@ -1985,14 +1985,17 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 
 			if (sacked & TCPCB_LOST) {
 				if (!(sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))) {
+					int mib_idx;
+
 					if (tcp_retransmit_skb(sk, skb)) {
 						tp->retransmit_skb_hint = NULL;
 						return;
 					}
 					if (icsk->icsk_ca_state != TCP_CA_Loss)
-						NET_INC_STATS_BH(LINUX_MIB_TCPFASTRETRANS);
+						mib_idx = LINUX_MIB_TCPFASTRETRANS;
 					else
-						NET_INC_STATS_BH(LINUX_MIB_TCPSLOWSTARTRETRANS);
+						mib_idx = LINUX_MIB_TCPSLOWSTARTRETRANS;
+					NET_INC_STATS_BH(mib_idx);
 
 					if (skb == tcp_write_queue_head(sk))
 						inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
