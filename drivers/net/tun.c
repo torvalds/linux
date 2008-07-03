@@ -63,6 +63,7 @@
 #include <linux/if_tun.h>
 #include <linux/crc32.h>
 #include <linux/nsproxy.h>
+#include <linux/virtio_net.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -283,6 +284,7 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 	struct tun_pi pi = { 0, __constant_htons(ETH_P_IP) };
 	struct sk_buff *skb;
 	size_t len = count, align = 0;
+	struct virtio_net_hdr gso = { 0 };
 
 	if (!(tun->flags & TUN_NO_PI)) {
 		if ((len -= sizeof(pi)) > count)
@@ -290,6 +292,17 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 
 		if(memcpy_fromiovec((void *)&pi, iv, sizeof(pi)))
 			return -EFAULT;
+	}
+
+	if (tun->flags & TUN_VNET_HDR) {
+		if ((len -= sizeof(gso)) > count)
+			return -EINVAL;
+
+		if (memcpy_fromiovec((void *)&gso, iv, sizeof(gso)))
+			return -EFAULT;
+
+		if (gso.hdr_len > len)
+			return -EINVAL;
 	}
 
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
@@ -310,6 +323,16 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 		kfree_skb(skb);
 		return -EFAULT;
 	}
+
+	if (gso.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
+		if (!skb_partial_csum_set(skb, gso.csum_start,
+					  gso.csum_offset)) {
+			tun->dev->stats.rx_frame_errors++;
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+	} else if (tun->flags & TUN_NOCHECKSUM)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
@@ -337,8 +360,35 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 		break;
 	};
 
-	if (tun->flags & TUN_NOCHECKSUM)
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (gso.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+		pr_debug("GSO!\n");
+		switch (gso.gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+		case VIRTIO_NET_HDR_GSO_TCPV4:
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+			break;
+		case VIRTIO_NET_HDR_GSO_TCPV6:
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
+			break;
+		default:
+			tun->dev->stats.rx_frame_errors++;
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+
+		if (gso.gso_type & VIRTIO_NET_HDR_GSO_ECN)
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+
+		skb_shinfo(skb)->gso_size = gso.gso_size;
+		if (skb_shinfo(skb)->gso_size == 0) {
+			tun->dev->stats.rx_frame_errors++;
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+
+		/* Header must be checked, and gso_segs computed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
 
 	netif_rx_ni(skb);
 	tun->dev->last_rx = jiffies;
@@ -382,6 +432,39 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 		if (memcpy_toiovec(iv, (void *) &pi, sizeof(pi)))
 			return -EFAULT;
 		total += sizeof(pi);
+	}
+
+	if (tun->flags & TUN_VNET_HDR) {
+		struct virtio_net_hdr gso = { 0 }; /* no info leak */
+		if ((len -= sizeof(gso)) < 0)
+			return -EINVAL;
+
+		if (skb_is_gso(skb)) {
+			struct skb_shared_info *sinfo = skb_shinfo(skb);
+
+			/* This is a hint as to how much should be linear. */
+			gso.hdr_len = skb_headlen(skb);
+			gso.gso_size = sinfo->gso_size;
+			if (sinfo->gso_type & SKB_GSO_TCPV4)
+				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+			else if (sinfo->gso_type & SKB_GSO_TCPV6)
+				gso.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+			else
+				BUG();
+			if (sinfo->gso_type & SKB_GSO_TCP_ECN)
+				gso.gso_type |= VIRTIO_NET_HDR_GSO_ECN;
+		} else
+			gso.gso_type = VIRTIO_NET_HDR_GSO_NONE;
+
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			gso.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
+			gso.csum_start = skb->csum_start - skb_headroom(skb);
+			gso.csum_offset = skb->csum_offset;
+		} /* else everything is zero */
+
+		if (unlikely(memcpy_toiovec(iv, (void *)&gso, sizeof(gso))))
+			return -EFAULT;
+		total += sizeof(gso);
 	}
 
 	len = min_t(int, skb->len, len);
@@ -598,6 +681,11 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	else
 		tun->flags &= ~TUN_ONE_QUEUE;
 
+	if (ifr->ifr_flags & IFF_VNET_HDR)
+		tun->flags |= TUN_VNET_HDR;
+	else
+		tun->flags &= ~TUN_VNET_HDR;
+
 	file->private_data = tun;
 	tun->attached = 1;
 	get_net(dev_net(tun->dev));
@@ -684,7 +772,8 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		/* Currently this just means: "what IFF flags are valid?".
 		 * This is needed because we never checked for invalid flags on
 		 * TUNSETIFF. */
-		return put_user(IFF_TUN | IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE,
+		return put_user(IFF_TUN | IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE |
+				IFF_VNET_HDR,
 				(unsigned int __user*)argp);
 	}
 
