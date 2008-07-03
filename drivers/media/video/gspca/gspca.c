@@ -50,7 +50,7 @@ static int video_nr = -1;
 
 static int comp_fac = 30;	/* Buffer size ratio when compressed in % */
 
-#ifdef VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
 EXPORT_SYMBOL(gspca_debug);
 
@@ -817,7 +817,7 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	/* (luvcview problem) */
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
 		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_JPEG;
-#ifdef VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	if (gspca_debug & D_CONF)
 		PDEBUG_MODE("try fmt cap", fmt->fmt.pix.pixelformat, w, h);
 #endif
@@ -837,7 +837,7 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 			/* no chance, return this mode */
 			fmt->fmt.pix.pixelformat =
 					gspca_dev->cam.cam_mode[mode].pixfmt;
-#ifdef VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 			if (gspca_debug & D_CONF) {
 				PDEBUG_MODE("new format",
 					fmt->fmt.pix.pixelformat,
@@ -952,7 +952,7 @@ static int dev_open(struct inode *inode, struct file *file)
 	}
 	gspca_dev->users++;
 	file->private_data = gspca_dev;
-#ifdef VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* activate the v4l2 debug */
 	if (gspca_debug & D_V4L2)
 		gspca_dev->vdev.debug |= 3;
@@ -1225,7 +1225,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 		if (ret < 0)
 			goto out;
 	}
-#ifdef VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	if (gspca_debug & D_STREAM) {
 		PDEBUG_MODE("stream on OK",
 			gspca_dev->pixfmt,
@@ -1980,7 +1980,7 @@ static void __exit gspca_exit(void)
 module_init(gspca_init);
 module_exit(gspca_exit);
 
-#ifdef VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 module_param_named(debug, gspca_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		"Debug (bit) 0x01:error 0x02:probe 0x04:config"

@@ -28,7 +28,7 @@
 #define V4L2_CID_SHARPNESS  (V4L2_CID_BASE+27)
 #endif
 
-#ifdef VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 /* GSPCA our debug messages */
 extern int gspca_debug;
 #define PDEBUG(level, fmt, args...) \
