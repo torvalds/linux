@@ -140,15 +140,21 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 static int iommu_flush_pages(struct amd_iommu *iommu, u16 domid,
 		u64 address, size_t size)
 {
-	int i;
+	int s = 0;
 	unsigned pages = to_pages(address, size);
 
 	address &= PAGE_MASK;
 
-	for (i = 0; i < pages; ++i) {
-		iommu_queue_inv_iommu_pages(iommu, address, domid, 0, 0);
-		address += PAGE_SIZE;
+	if (pages > 1) {
+		/*
+		 * If we have to flush more than one page, flush all
+		 * TLB entries for this domain
+		 */
+		address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
+		s = 1;
 	}
+
+	iommu_queue_inv_iommu_pages(iommu, address, domid, 0, s);
 
 	return 0;
 }
