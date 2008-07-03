@@ -19,6 +19,7 @@ obj-y				+= gpio.o
 obj-y				+= gpiolib.o
 obj-y				+= time.o
 obj-y				+= clock.o
+obj-y				+= pwm-clock.o
 
 # Architecture dependant builds
 
