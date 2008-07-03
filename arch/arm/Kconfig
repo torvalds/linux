@@ -232,13 +232,6 @@ config ARCH_CLPS711X
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
 
-config ARCH_CO285
-	bool "Co-EBSA285"
-	select FOOTBRIDGE
-	select FOOTBRIDGE_ADDIN
-	help
-	  Support for Intel's EBSA285 companion chip.
-
 config ARCH_EBSA110
 	bool "EBSA-110"
 	select ISA
@@ -789,7 +782,7 @@ source "mm/Kconfig"
 
 config LEDS
 	bool "Timer and CPU usage LEDs"
-	depends on ARCH_CDB89712 || ARCH_CO285 || ARCH_EBSA110 || \
+	depends on ARCH_CDB89712 || ARCH_EBSA110 || \
 		   ARCH_EBSA285 || ARCH_IMX || ARCH_INTEGRATOR || \
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
