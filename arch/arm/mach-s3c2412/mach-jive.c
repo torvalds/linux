@@ -34,6 +34,7 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
+#include <asm/arch/fb.h>
 
 #include <asm/mach-types.h>
 
@@ -256,11 +257,101 @@ static int __init jive_mtdset(char *options)
 /* parse the mtdset= option given to the kernel command line */
 __setup("mtdset=", jive_mtdset);
 
+/* LCD timing and setup */
+
+#define LCD_XRES	 (240)
+#define LCD_YRES	 (320)
+#define LCD_LEFT_MARGIN  (12)
+#define LCD_RIGHT_MARGIN (12)
+#define LCD_LOWER_MARGIN (12)
+#define LCD_UPPER_MARGIN (12)
+#define LCD_VSYNC	 (2)
+#define LCD_HSYNC	 (2)
+
+#define LCD_REFRESH	 (60)
+
+#define LCD_HTOT (LCD_HSYNC + LCD_LEFT_MARGIN + LCD_XRES + LCD_RIGHT_MARGIN)
+#define LCD_VTOT (LCD_VSYNC + LCD_LOWER_MARGIN + LCD_YRES + LCD_UPPER_MARGIN)
+
+struct s3c2410fb_display jive_vgg2432a4_display[] = {
+	[0] = {
+		.width		= LCD_XRES,
+		.height		= LCD_YRES,
+		.xres		= LCD_XRES,
+		.yres		= LCD_YRES,
+		.left_margin	= LCD_LEFT_MARGIN,
+		.right_margin	= LCD_RIGHT_MARGIN,
+		.upper_margin	= LCD_UPPER_MARGIN,
+		.lower_margin	= LCD_LOWER_MARGIN,
+		.hsync_len	= LCD_HSYNC,
+		.vsync_len	= LCD_VSYNC,
+
+		.pixclock	= (1000000000000LL /
+				   (LCD_REFRESH * LCD_HTOT * LCD_VTOT)),
+
+		.bpp		= 16,
+		.type		= (S3C2410_LCDCON1_TFT16BPP |
+				   S3C2410_LCDCON1_TFT),
+
+		.lcdcon5	= (S3C2410_LCDCON5_FRM565 |
+				   S3C2410_LCDCON5_INVVLINE |
+				   S3C2410_LCDCON5_INVVFRAME |
+				   S3C2410_LCDCON5_INVVDEN |
+				   S3C2410_LCDCON5_PWREN),
+	},
+};
+
+/* todo - put into gpio header */
+
+#define S3C2410_GPCCON_MASK(x)	(3 << ((x) * 2))
+#define S3C2410_GPDCON_MASK(x)	(3 << ((x) * 2))
+
+struct s3c2410fb_mach_info jive_lcd_config = {
+	.displays	 = jive_vgg2432a4_display,
+	.num_displays	 = ARRAY_SIZE(jive_vgg2432a4_display),
+	.default_display = 0,
+
+	/* Enable VD[2..7], VD[10..15], VD[18..23] and VCLK, syncs, VDEN
+	 * and disable the pull down resistors on pins we are using for LCD
+	 * data. */
+
+	.gpcup		= (0xf << 1) | (0x3f << 10),
+
+	.gpccon		= (S3C2410_GPC1_VCLK   | S3C2410_GPC2_VLINE |
+			   S3C2410_GPC3_VFRAME | S3C2410_GPC4_VM |
+			   S3C2410_GPC10_VD2   | S3C2410_GPC11_VD3 |
+			   S3C2410_GPC12_VD4   | S3C2410_GPC13_VD5 |
+			   S3C2410_GPC14_VD6   | S3C2410_GPC15_VD7),
+
+	.gpccon_mask	= (S3C2410_GPCCON_MASK(1)  | S3C2410_GPCCON_MASK(2)  |
+			   S3C2410_GPCCON_MASK(3)  | S3C2410_GPCCON_MASK(4)  |
+			   S3C2410_GPCCON_MASK(10) | S3C2410_GPCCON_MASK(11) |
+			   S3C2410_GPCCON_MASK(12) | S3C2410_GPCCON_MASK(13) |
+			   S3C2410_GPCCON_MASK(14) | S3C2410_GPCCON_MASK(15)),
+
+	.gpdup		= (0x3f << 2) | (0x3f << 10),
+
+	.gpdcon		= (S3C2410_GPD2_VD10  | S3C2410_GPD3_VD11 |
+			   S3C2410_GPD4_VD12  | S3C2410_GPD5_VD13 |
+			   S3C2410_GPD6_VD14  | S3C2410_GPD7_VD15 |
+			   S3C2410_GPD10_VD18 | S3C2410_GPD11_VD19 |
+			   S3C2410_GPD12_VD20 | S3C2410_GPD13_VD21 |
+			   S3C2410_GPD14_VD22 | S3C2410_GPD15_VD23),
+
+	.gpdcon_mask	= (S3C2410_GPDCON_MASK(2)  | S3C2410_GPDCON_MASK(3) |
+			   S3C2410_GPDCON_MASK(4)  | S3C2410_GPDCON_MASK(5) |
+			   S3C2410_GPDCON_MASK(6)  | S3C2410_GPDCON_MASK(7) |
+			   S3C2410_GPDCON_MASK(10) | S3C2410_GPDCON_MASK(11)|
+			   S3C2410_GPDCON_MASK(12) | S3C2410_GPDCON_MASK(13)|
+			   S3C2410_GPDCON_MASK(14) | S3C2410_GPDCON_MASK(15)),
+};
+
 static struct platform_device *jive_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
+	&s3c_device_lcd,
 	&s3c_device_nand,
 	&s3c_device_usbgadget,
 };
@@ -419,6 +510,7 @@ static void __init jive_machine_init(void)
 			      S3C2410_MISCCR_USBSUSPND1, 0x0);
 
 	s3c24xx_udc_set_platdata(&jive_udc_cfg);
+	s3c24xx_fb_set_platdata(&jive_lcd_config);
 
 	platform_add_devices(jive_devices, ARRAY_SIZE(jive_devices));
 }
