@@ -291,10 +291,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Update module state after a successful pivot.
  *	@old_path contains the path for the old root.
  *	@new_path contains the path for the new root.
- * @sb_get_mnt_opts:
- *	Get the security relevant mount options used for a superblock
- *	@sb the superblock to get security mount options from
- *	@opts binary data structure containing all lsm mount data
  * @sb_set_mnt_opts:
  *	Set the security relevant mount options used for a superblock
  *	@sb the superblock to set security mount options for
@@ -1348,8 +1344,6 @@ struct security_operations {
 			     struct path *new_path);
 	void (*sb_post_pivotroot) (struct path *old_path,
 				   struct path *new_path);
-	int (*sb_get_mnt_opts) (const struct super_block *sb,
-				struct security_mnt_opts *opts);
 	int (*sb_set_mnt_opts) (struct super_block *sb,
 				struct security_mnt_opts *opts);
 	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
@@ -1624,8 +1618,6 @@ void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *d
 void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint);
 int security_sb_pivotroot(struct path *old_path, struct path *new_path);
 void security_sb_post_pivotroot(struct path *old_path, struct path *new_path);
-int security_sb_get_mnt_opts(const struct super_block *sb,
-				struct security_mnt_opts *opts);
 int security_sb_set_mnt_opts(struct super_block *sb, struct security_mnt_opts *opts);
 void security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb);
@@ -1942,12 +1934,6 @@ static inline int security_sb_pivotroot(struct path *old_path,
 static inline void security_sb_post_pivotroot(struct path *old_path,
 					      struct path *new_path)
 { }
-static inline int security_sb_get_mnt_opts(const struct super_block *sb,
-					   struct security_mnt_opts *opts)
-{
-	security_init_mnt_opts(opts);
-	return 0;
-}
 
 static inline int security_sb_set_mnt_opts(struct super_block *sb,
 					   struct security_mnt_opts *opts)
