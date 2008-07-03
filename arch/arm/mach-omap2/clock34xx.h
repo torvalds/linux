@@ -35,6 +35,10 @@ static u32 omap3_dpll_autoidle_read(struct clk *clk);
 static int omap3_noncore_dpll_enable(struct clk *clk);
 static void omap3_noncore_dpll_disable(struct clk *clk);
 
+/* Maximum DPLL multiplier, divider values for OMAP3 */
+#define OMAP3_MAX_DPLL_MULT		2048
+#define OMAP3_MAX_DPLL_DIV		128
+
 /*
  * DPLL1 supplies clock to the MPU.
  * DPLL2 supplies clock to the IVA2.
@@ -255,7 +259,7 @@ static const struct clksel_rate div16_dpll_rates[] = {
 /* DPLL1 */
 /* MPU clock source */
 /* Type: DPLL */
-static const struct dpll_data dpll1_dd = {
+static struct dpll_data dpll1_dd = {
 	.mult_div1_reg	= OMAP_CM_REGADDR(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL),
 	.mult_mask	= OMAP3430_MPU_DPLL_MULT_MASK,
 	.div1_mask	= OMAP3430_MPU_DPLL_DIV_MASK,
@@ -269,6 +273,9 @@ static const struct dpll_data dpll1_dd = {
 	.autoidle_mask	= OMAP3430_AUTO_MPU_DPLL_MASK,
 	.idlest_reg	= OMAP_CM_REGADDR(MPU_MOD, OMAP3430_CM_IDLEST_PLL),
 	.idlest_bit	= OMAP3430_ST_MPU_CLK_SHIFT,
+	.max_multiplier = OMAP3_MAX_DPLL_MULT,
+	.max_divider	= OMAP3_MAX_DPLL_DIV,
+	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll1_ck = {
@@ -276,6 +283,7 @@ static struct clk dpll1_ck = {
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll1_dd,
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
 
@@ -317,7 +325,7 @@ static struct clk dpll1_x2m2_ck = {
 /* IVA2 clock source */
 /* Type: DPLL */
 
-static const struct dpll_data dpll2_dd = {
+static struct dpll_data dpll2_dd = {
 	.mult_div1_reg	= OMAP_CM_REGADDR(OMAP3430_IVA2_MOD, OMAP3430_CM_CLKSEL1_PLL),
 	.mult_mask	= OMAP3430_IVA2_DPLL_MULT_MASK,
 	.div1_mask	= OMAP3430_IVA2_DPLL_DIV_MASK,
@@ -331,7 +339,10 @@ static const struct dpll_data dpll2_dd = {
 	.autoidle_reg	= OMAP_CM_REGADDR(OMAP3430_IVA2_MOD, OMAP3430_CM_AUTOIDLE_PLL),
 	.autoidle_mask	= OMAP3430_AUTO_IVA2_DPLL_MASK,
 	.idlest_reg	= OMAP_CM_REGADDR(OMAP3430_IVA2_MOD, OMAP3430_CM_IDLEST_PLL),
-	.idlest_bit	= OMAP3430_ST_IVA2_CLK_SHIFT
+	.idlest_bit	= OMAP3430_ST_IVA2_CLK_SHIFT,
+	.max_multiplier = OMAP3_MAX_DPLL_MULT,
+	.max_divider	= OMAP3_MAX_DPLL_DIV,
+	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll2_ck = {
@@ -341,6 +352,7 @@ static struct clk dpll2_ck = {
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.enable		= &omap3_noncore_dpll_enable,
 	.disable	= &omap3_noncore_dpll_disable,
+	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
 
@@ -371,7 +383,7 @@ static struct clk dpll2_m2_ck = {
  * Source clock for all interfaces and for some device fclks
  * REVISIT: Also supports fast relock bypass - not included below
  */
-static const struct dpll_data dpll3_dd = {
+static struct dpll_data dpll3_dd = {
 	.mult_div1_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
 	.mult_mask	= OMAP3430_CORE_DPLL_MULT_MASK,
 	.div1_mask	= OMAP3430_CORE_DPLL_DIV_MASK,
@@ -382,6 +394,9 @@ static const struct dpll_data dpll3_dd = {
 	.recal_st_bit	= OMAP3430_CORE_DPLL_ST_SHIFT,
 	.autoidle_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_AUTOIDLE),
 	.autoidle_mask	= OMAP3430_AUTO_CORE_DPLL_MASK,
+	.max_multiplier = OMAP3_MAX_DPLL_MULT,
+	.max_divider	= OMAP3_MAX_DPLL_DIV,
+	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll3_ck = {
@@ -389,6 +404,7 @@ static struct clk dpll3_ck = {
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll3_dd,
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
 
@@ -545,7 +561,7 @@ static struct clk emu_core_alwon_ck = {
 /* DPLL4 */
 /* Supplies 96MHz, 54Mhz TV DAC, DSS fclk, CAM sensor clock, emul trace clk */
 /* Type: DPLL */
-static const struct dpll_data dpll4_dd = {
+static struct dpll_data dpll4_dd = {
 	.mult_div1_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL2),
 	.mult_mask	= OMAP3430_PERIPH_DPLL_MULT_MASK,
 	.div1_mask	= OMAP3430_PERIPH_DPLL_DIV_MASK,
@@ -559,6 +575,9 @@ static const struct dpll_data dpll4_dd = {
 	.autoidle_mask	= OMAP3430_AUTO_PERIPH_DPLL_MASK,
 	.idlest_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST),
 	.idlest_bit	= OMAP3430_ST_PERIPH_CLK_SHIFT,
+	.max_multiplier = OMAP3_MAX_DPLL_MULT,
+	.max_divider	= OMAP3_MAX_DPLL_DIV,
+	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll4_ck = {
@@ -568,6 +587,7 @@ static struct clk dpll4_ck = {
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.enable		= &omap3_noncore_dpll_enable,
 	.disable	= &omap3_noncore_dpll_disable,
+	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
 
@@ -843,7 +863,7 @@ static struct clk emu_per_alwon_ck = {
 /* Supplies 120MHz clock, USIM source clock */
 /* Type: DPLL */
 /* 3430ES2 only */
-static const struct dpll_data dpll5_dd = {
+static struct dpll_data dpll5_dd = {
 	.mult_div1_reg	= OMAP_CM_REGADDR(PLL_MOD, OMAP3430ES2_CM_CLKSEL4),
 	.mult_mask	= OMAP3430ES2_PERIPH2_DPLL_MULT_MASK,
 	.div1_mask	= OMAP3430ES2_PERIPH2_DPLL_DIV_MASK,
@@ -857,6 +877,9 @@ static const struct dpll_data dpll5_dd = {
 	.autoidle_mask	= OMAP3430ES2_AUTO_PERIPH2_DPLL_MASK,
 	.idlest_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST2),
 	.idlest_bit	= OMAP3430ES2_ST_PERIPH2_CLK_SHIFT,
+	.max_multiplier = OMAP3_MAX_DPLL_MULT,
+	.max_divider	= OMAP3_MAX_DPLL_DIV,
+	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE
 };
 
 static struct clk dpll5_ck = {
@@ -866,6 +889,7 @@ static struct clk dpll5_ck = {
 	.flags		= CLOCK_IN_OMAP3430ES2 | RATE_PROPAGATES,
 	.enable		= &omap3_noncore_dpll_enable,
 	.disable	= &omap3_noncore_dpll_disable,
+	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
 

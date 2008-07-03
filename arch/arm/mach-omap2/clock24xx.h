@@ -30,12 +30,12 @@ static long omap2_round_to_table_rate(struct clk *clk, unsigned long rate);
 static void omap2_sys_clk_recalc(struct clk *clk);
 static void omap2_osc_clk_recalc(struct clk *clk);
 static void omap2_sys_clk_recalc(struct clk *clk);
-static void omap2_dpll_recalc(struct clk *clk);
+static void omap2_dpllcore_recalc(struct clk *clk);
 static int omap2_clk_fixed_enable(struct clk *clk);
 static void omap2_clk_fixed_disable(struct clk *clk);
 static int omap2_enable_osc_ck(struct clk *clk);
 static void omap2_disable_osc_ck(struct clk *clk);
-static int omap2_reprogram_dpll(struct clk *clk, unsigned long rate);
+static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate);
 
 /* Key dividers which make up a PRCM set. Ratio's for a PRCM are mandated.
  * xtal_speed, dpll_speed, mpu_speed, CM_CLKSEL_MPU,CM_CLKSEL_DSP
@@ -665,20 +665,27 @@ static struct clk alt_ck = {		/* Typical 54M or 48M, may not exist */
  * deal with this
  */
 
-static const struct dpll_data dpll_dd = {
+static struct dpll_data dpll_dd = {
 	.mult_div1_reg		= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
 	.mult_mask		= OMAP24XX_DPLL_MULT_MASK,
 	.div1_mask		= OMAP24XX_DPLL_DIV_MASK,
+	.max_multiplier		= 1024,
+	.max_divider		= 16,
+	.rate_tolerance		= DEFAULT_DPLL_RATE_TOLERANCE
 };
 
+/*
+ * XXX Cannot add round_rate here yet, as this is still a composite clock,
+ * not just a DPLL
+ */
 static struct clk dpll_ck = {
 	.name		= "dpll_ck",
 	.parent		= &sys_ck,		/* Can be func_32k also */
 	.dpll_data	= &dpll_dd,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				RATE_PROPAGATES | ALWAYS_ENABLED,
-	.recalc		= &omap2_dpll_recalc,
-	.set_rate	= &omap2_reprogram_dpll,
+	.recalc		= &omap2_dpllcore_recalc,
+	.set_rate	= &omap2_reprogram_dpllcore,
 };
 
 static struct clk apll96_ck = {
