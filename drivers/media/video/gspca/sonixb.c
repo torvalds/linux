@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
+static const char version[] = "2.1.3";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SN9C102 USB Camera Driver");
@@ -336,13 +336,22 @@ static void reg_w(struct usb_device *dev,
 			  const __u8 *buffer,
 			  __u16 len)
 {
+	__u8 tmpbuf[32];
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	if (len > sizeof tmpbuf) {
+		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
+		return;
+	}
+#endif
+	memcpy(tmpbuf, buffer, len);
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
 			0x08,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value,
 			0,			/* index */
-			(__u8 *) buffer, len,
+			tmpbuf, len,
 			500);
 }
 
@@ -747,22 +756,20 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			unsigned char *data,		/* isoc packet */
 			int len)			/* iso packet length */
 {
-	int p;
+	int i;
 
 	if (len > 6 && len < 24) {
-		for (p = 0; p < len - 6; p++) {
-			if (data[0 + p] == 0xff
-			    && data[1 + p] == 0xff
-			    && data[2 + p] == 0x00
-			    && data[3 + p] == 0xc4
-			    && data[4 + p] == 0xc4
-			    && data[5 + p] == 0x96) {	/* start of frame */
-				frame = gspca_frame_add(gspca_dev,
-							LAST_PACKET,
-							frame,
-							data, 0);
-				data += 12;
-				len -= 12;
+		for (i = 0; i < len - 6; i++) {
+			if (data[0 + i] == 0xff
+			    && data[1 + i] == 0xff
+			    && data[2 + i] == 0x00
+			    && data[3 + i] == 0xc4
+			    && data[4 + i] == 0xc4
+			    && data[5 + i] == 0x96) {	/* start of frame */
+				frame = gspca_frame_add(gspca_dev, LAST_PACKET,
+							frame, data, 0);
+				data += i + 12;
+				len -= i + 12;
 				gspca_frame_add(gspca_dev, FIRST_PACKET,
 						frame, data, len);
 				return;
