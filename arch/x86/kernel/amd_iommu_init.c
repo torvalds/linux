@@ -101,6 +101,8 @@ struct ivmd_header {
 	u64 range_length;
 } __attribute__((packed));
 
+static int __initdata amd_iommu_detected;
+
 u16 amd_iommu_last_bdf;
 struct list_head amd_iommu_unity_map;
 unsigned amd_iommu_aperture_order = 26;
@@ -689,6 +691,9 @@ int __init amd_iommu_init(void)
 		return 0;
 	}
 
+	if (!amd_iommu_detected)
+		return -ENODEV;
+
 	/*
 	 * First parse ACPI tables to find the largest Bus/Dev/Func
 	 * we need to handle. Upon this information the shared data
@@ -831,6 +836,7 @@ void __init amd_iommu_detect(void)
 
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
 		iommu_detected = 1;
+		amd_iommu_detected = 1;
 #ifdef CONFIG_GART_IOMMU
 		gart_iommu_aperture_disabled = 1;
 		gart_iommu_aperture = 0;
