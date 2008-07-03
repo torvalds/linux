@@ -18,7 +18,7 @@
 /*
  * Reprograms ULPD and CKCTL.
  */
-ENTRY(sram_reprogram_clock)
+ENTRY(omap1_sram_reprogram_clock)
 	stmfd	sp!, {r0 - r12, lr}		@ save registers on stack
 
 	mov	r2, #IO_ADDRESS(DPLL_CTL) & 0xff000000
@@ -53,5 +53,5 @@ lock:	ldrh	r4, [r2], #0			@ read back dpll value
 
 out:
 	ldmfd	sp!, {r0 - r12, pc}		@ restore regs and return
-ENTRY(sram_reprogram_clock_sz)
-	.word	. - sram_reprogram_clock
+ENTRY(omap1_sram_reprogram_clock_sz)
+	.word	. - omap1_sram_reprogram_clock
