@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_SMP) := msr-on-cpu.o
 
-lib-y := delay_$(BITS).o
+lib-y := delay.o
 lib-y += usercopy_$(BITS).o getuser_$(BITS).o putuser_$(BITS).o
 lib-y += memcpy_$(BITS).o
 
