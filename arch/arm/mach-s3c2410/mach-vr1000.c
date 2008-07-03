@@ -322,6 +322,8 @@ static struct i2c_board_info vr1000_i2c_devs[] __initdata = {
 	{
 		I2C_BOARD_INFO("tlv320aic23", 0x1a),
 	}, {
+		I2C_BOARD_INFO("tmp101", 0x48),
+	}, {
 		I2C_BOARD_INFO("m41st87", 0x68),
 	},
 };
