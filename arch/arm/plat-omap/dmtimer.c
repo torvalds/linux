@@ -546,6 +546,24 @@ void omap_dm_timer_set_load(struct omap_dm_timer *timer, int autoreload,
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_TRIGGER_REG, 0);
 }
 
+/* Optimized set_load which removes costly spin wait in timer_start */
+void omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
+                            unsigned int load)
+{
+	u32 l;
+
+	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+	if (autoreload)
+		l |= OMAP_TIMER_CTRL_AR;
+	else
+		l &= ~OMAP_TIMER_CTRL_AR;
+	l |= OMAP_TIMER_CTRL_ST;
+
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_COUNTER_REG, load);
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_LOAD_REG, load);
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG, l);
+}
+
 void omap_dm_timer_set_match(struct omap_dm_timer *timer, int enable,
 			     unsigned int match)
 {
@@ -559,7 +577,6 @@ void omap_dm_timer_set_match(struct omap_dm_timer *timer, int enable,
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG, l);
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_MATCH_REG, match);
 }
-
 
 void omap_dm_timer_set_pwm(struct omap_dm_timer *timer, int def_on,
 			   int toggle, int trigger)
