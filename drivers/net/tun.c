@@ -640,6 +640,14 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 
+	if (cmd == TUNGETFEATURES) {
+		/* Currently this just means: "what IFF flags are valid?".
+		 * This is needed because we never checked for invalid flags on
+		 * TUNSETIFF. */
+		return put_user(IFF_TUN | IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE,
+				(unsigned int __user*)argp);
+	}
+
 	if (!tun)
 		return -EBADFD;
 
