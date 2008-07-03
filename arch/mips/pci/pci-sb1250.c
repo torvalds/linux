@@ -210,7 +210,6 @@ static int __init sb1250_pcibios_init(void)
 	void __iomem *io_map_base;
 	uint32_t cmdreg;
 	uint64_t reg;
-	extern int pci_probe_only;
 
 	/* CFE will assign PCI resources */
 	pci_probe_only = 1;

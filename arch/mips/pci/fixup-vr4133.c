@@ -171,7 +171,6 @@ void i8259_init(void)
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	extern int pci_probe_only;
 	pci_probe_only = 1;
 
 #ifdef CONFIG_ROCKHOPPER
