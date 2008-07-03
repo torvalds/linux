@@ -9,7 +9,8 @@
  *	      James Morris <jmorris@redhat.com>
  *
  *  Copyright (C) 2001,2002 Networks Associates Technology, Inc.
- *  Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ *  Copyright (C) 2003-2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ *					   Eric Paris <eparis@redhat.com>
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  *			    <dgoeddel@trustedcs.com>
  *  Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
@@ -967,6 +968,57 @@ out:
 
 out_err:
 	security_free_mnt_opts(&opts);
+	return rc;
+}
+
+void selinux_write_opts(struct seq_file *m, struct security_mnt_opts *opts)
+{
+	int i;
+	char *prefix;
+
+	for (i = 0; i < opts->num_mnt_opts; i++) {
+		char *has_comma = strchr(opts->mnt_opts[i], ',');
+
+		switch (opts->mnt_opts_flags[i]) {
+		case CONTEXT_MNT:
+			prefix = CONTEXT_STR;
+			break;
+		case FSCONTEXT_MNT:
+			prefix = FSCONTEXT_STR;
+			break;
+		case ROOTCONTEXT_MNT:
+			prefix = ROOTCONTEXT_STR;
+			break;
+		case DEFCONTEXT_MNT:
+			prefix = DEFCONTEXT_STR;
+			break;
+		default:
+			BUG();
+		};
+		/* we need a comma before each option */
+		seq_putc(m, ',');
+		seq_puts(m, prefix);
+		if (has_comma)
+			seq_putc(m, '\"');
+		seq_puts(m, opts->mnt_opts[i]);
+		if (has_comma)
+			seq_putc(m, '\"');
+	}
+}
+
+static int selinux_sb_show_options(struct seq_file *m, struct super_block *sb)
+{
+	struct security_mnt_opts opts;
+	int rc;
+
+	rc = selinux_get_mnt_opts(sb, &opts);
+	if (rc)
+		return rc;
+
+	selinux_write_opts(m, &opts);
+
+	security_free_mnt_opts(&opts);
+
 	return rc;
 }
 
@@ -5365,6 +5417,7 @@ static struct security_operations selinux_ops = {
 	.sb_free_security =		selinux_sb_free_security,
 	.sb_copy_data =			selinux_sb_copy_data,
 	.sb_kern_mount =		selinux_sb_kern_mount,
+	.sb_show_options =		selinux_sb_show_options,
 	.sb_statfs =			selinux_sb_statfs,
 	.sb_mount =			selinux_mount,
 	.sb_umount =			selinux_umount,
