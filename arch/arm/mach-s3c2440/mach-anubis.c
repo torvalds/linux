@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-anubis.c
  *
- * Copyright (c) 2003-2005 Simtec Electronics
+ * Copyright (c) 2003-2005,2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -18,6 +18,7 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
+#include <linux/i2c.h>
 
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
@@ -421,6 +422,15 @@ static struct clk *anubis_clocks[] = {
 	&s3c24xx_uclk,
 };
 
+/* I2C devices. */
+
+static struct i2c_board_info anubis_i2c_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("tps65011", 0x48),
+		.irq	= IRQ_EINT20,
+	}
+};
+
 static void __init anubis_map_io(void)
 {
 	/* initialise the clocks */
@@ -460,6 +470,9 @@ static void __init anubis_map_io(void)
 static void __init anubis_init(void)
 {
 	platform_add_devices(anubis_devices, ARRAY_SIZE(anubis_devices));
+
+	i2c_register_board_info(0, anubis_i2c_devs,
+				ARRAY_SIZE(anubis_i2c_devs));
 }
 
 
