@@ -147,8 +147,7 @@ static inline int ip_mroute_opt(int opt)
 extern int ip_mroute_setsockopt(struct sock *, int, char __user *, int);
 extern int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
 extern int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
-extern void ip_mr_init(void);
-
+extern int ip_mr_init(void);
 
 struct vif_device
 {
