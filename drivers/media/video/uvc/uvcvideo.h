@@ -602,6 +602,8 @@ struct uvc_video_device {
 
 	struct urb *urb[UVC_URBS];
 	char *urb_buffer[UVC_URBS];
+	dma_addr_t urb_dma[UVC_URBS];
+	unsigned int urb_size;
 
 	__u8 last_fid;
 };
