@@ -10,7 +10,10 @@
  */
 #include <linux/module.h>
 #include <asm/uaccess.h>
+#include <asm/pgtable.h>
 
+
+EXPORT_SYMBOL(empty_zero_page);
 
 EXPORT_SYMBOL(change_bit);
 EXPORT_SYMBOL(test_and_change_bit);
