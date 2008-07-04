@@ -324,6 +324,8 @@ static void remove_dir(struct dentry * d)
  * The only thing special about this is that we remove any files in
  * the directory before we remove the directory, and we've inlined
  * what used to be configfs_rmdir() below, instead of calling separately.
+ *
+ * Caller holds the mutex of the item's inode
  */
 
 static void configfs_remove_dir(struct config_item * item)
@@ -612,35 +614,20 @@ static int create_default_group(struct config_group *parent_group,
 static int populate_groups(struct config_group *group)
 {
 	struct config_group *new_group;
-	struct dentry *dentry = group->cg_item.ci_dentry;
 	int ret = 0;
 	int i;
 
 	if (group->default_groups) {
-		/*
-		 * FYI, we're faking mkdir here
-		 * I'm not sure we need this semaphore, as we're called
-		 * from our parent's mkdir.  That holds our parent's
-		 * i_mutex, so afaik lookup cannot continue through our
-		 * parent to find us, let alone mess with our tree.
-		 * That said, taking our i_mutex is closer to mkdir
-		 * emulation, and shouldn't hurt.
-		 */
-		mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
-
 		for (i = 0; group->default_groups[i]; i++) {
 			new_group = group->default_groups[i];
 
 			ret = create_default_group(group, new_group);
-			if (ret)
+			if (ret) {
+				detach_groups(group);
 				break;
+			}
 		}
-
-		mutex_unlock(&dentry->d_inode->i_mutex);
 	}
-
-	if (ret)
-		detach_groups(group);
 
 	return ret;
 }
@@ -756,7 +743,15 @@ static int configfs_attach_item(struct config_item *parent_item,
 	if (!ret) {
 		ret = populate_attrs(item);
 		if (ret) {
+			/*
+			 * We are going to remove an inode and its dentry but
+			 * the VFS may already have hit and used them. Thus,
+			 * we must lock them as rmdir() would.
+			 */
+			mutex_lock(&dentry->d_inode->i_mutex);
 			configfs_remove_dir(item);
+			dentry->d_inode->i_flags |= S_DEAD;
+			mutex_unlock(&dentry->d_inode->i_mutex);
 			d_delete(dentry);
 		}
 	}
@@ -764,6 +759,7 @@ static int configfs_attach_item(struct config_item *parent_item,
 	return ret;
 }
 
+/* Caller holds the mutex of the item's inode */
 static void configfs_detach_item(struct config_item *item)
 {
 	detach_attrs(item);
@@ -782,16 +778,30 @@ static int configfs_attach_group(struct config_item *parent_item,
 		sd = dentry->d_fsdata;
 		sd->s_type |= CONFIGFS_USET_DIR;
 
+		/*
+		 * FYI, we're faking mkdir in populate_groups()
+		 * We must lock the group's inode to avoid races with the VFS
+		 * which can already hit the inode and try to add/remove entries
+		 * under it.
+		 *
+		 * We must also lock the inode to remove it safely in case of
+		 * error, as rmdir() would.
+		 */
+		mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
 		ret = populate_groups(to_config_group(item));
 		if (ret) {
 			configfs_detach_item(item);
-			d_delete(dentry);
+			dentry->d_inode->i_flags |= S_DEAD;
 		}
+		mutex_unlock(&dentry->d_inode->i_mutex);
+		if (ret)
+			d_delete(dentry);
 	}
 
 	return ret;
 }
 
+/* Caller holds the mutex of the group's inode */
 static void configfs_detach_group(struct config_item *item)
 {
 	detach_groups(to_config_group(item));
