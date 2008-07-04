@@ -829,14 +829,10 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 	if (!new_dentry)
 		goto out_unlock;
 
-	/* rename kobject and sysfs_dirent */
+	/* rename sysfs_dirent */
 	error = -ENOMEM;
 	new_name = dup_name = kstrdup(new_name, GFP_KERNEL);
 	if (!new_name)
-		goto out_unlock;
-
-	error = kobject_set_name(kobj, "%s", new_name);
-	if (error)
 		goto out_unlock;
 
 	dup_name = sd->s_name;
