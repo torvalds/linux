@@ -265,6 +265,10 @@ acpi_get_object_info(acpi_handle handle, struct acpi_buffer * buffer)
 	info->name = node->name.integer;
 	info->valid = 0;
 
+	if (node->type == ACPI_TYPE_METHOD) {
+		info->param_count = node->object->method.param_count;
+	}
+
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;

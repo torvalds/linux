@@ -859,6 +859,7 @@ struct acpi_obj_info_header {
 struct acpi_device_info {
 	ACPI_COMMON_OBJ_INFO;
 
+	u32 param_count;	/* If a method, required parameter count */
 	u32 valid;		/* Indicates which fields below are valid */
 	u32 current_status;	/* _STA value */
 	acpi_integer address;	/* _ADR value if any */
