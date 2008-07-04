@@ -1198,6 +1198,7 @@ void __init trap_init(void)
 	early_iounmap(p, 4);
 #endif
 
+	set_trap_gate(0,  &divide_error);
 	set_intr_gate(1,  &debug);
 	set_intr_gate(2,  &nmi);
 	set_system_intr_gate(3, &int3); /* int3/4 can be called from all */
