@@ -1490,8 +1490,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*			break; */
 /*		} */
 		break;
+	case 0x0130:		/* Clone webcam */
 	case 0x0af9:		/* Hama cameras */
 		switch (product) {
+		case 0x0130:
 		case 0x0010:
 			sd->subtype = HamaUSBSightcam;
 			break;
@@ -1737,6 +1739,8 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0af9, 0x0010), DVNM("Hama USB Sightcam 100")},
 	{USB_DEVICE(0x0af9, 0x0011), DVNM("Hama USB Sightcam 100")},
 	{USB_DEVICE(0x8086, 0x0110), DVNM("Intel Easy PC Camera")},
+	{USB_DEVICE(0x0130, 0x0130),
+		DVNM("Clone Digital Webcam 11043 (spca508a)")},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

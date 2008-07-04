@@ -144,6 +144,7 @@ spca500		06be:0800	Optimedia
 sunplus		06d6:0031	Trust 610 LCD PowerC@m Zoom
 spca506		06e1:a190	ADS Instant VCD
 spca508		0733:0110	ViewQuest VQ110
+spca508		0130:0130	Clone Digital Webcam 11043
 spca501		0733:0401	Intel Create and Share
 spca501		0733:0402	ViewQuest M318B
 spca505		0733:0430	Intel PC Camera Pro
