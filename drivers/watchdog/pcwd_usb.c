@@ -368,8 +368,8 @@ static ssize_t usb_pcwd_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static int usb_pcwd_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg)
+static long usb_pcwd_ioctl(struct file *file, unsigned int cmd,
+						unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
@@ -534,7 +534,7 @@ static const struct file_operations usb_pcwd_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	usb_pcwd_write,
-	.ioctl =	usb_pcwd_ioctl,
+	.unlocked_ioctl = usb_pcwd_ioctl,
 	.open =		usb_pcwd_open,
 	.release =	usb_pcwd_release,
 };

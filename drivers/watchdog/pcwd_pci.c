@@ -454,8 +454,8 @@ static ssize_t pcipcwd_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static int pcipcwd_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg)
+static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
+						unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
@@ -477,9 +477,7 @@ static int pcipcwd_ioctl(struct inode *inode, struct file *file,
 		case WDIOC_GETSTATUS:
 		{
 			int status;
-
 			pcipcwd_get_status(&status);
-
 			return put_user(status, p);
 		}
 
@@ -643,7 +641,7 @@ static const struct file_operations pcipcwd_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	pcipcwd_write,
-	.ioctl =	pcipcwd_ioctl,
+	.unlocked_ioctl = pcipcwd_ioctl,
 	.open =		pcipcwd_open,
 	.release =	pcipcwd_release,
 };
