@@ -3546,6 +3546,10 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	for (j = 0; j <= hba[i]->highest_lun; j++)
 		add_disk(hba[i]->gendisk[j]);
 
+	/* we must register the controller even if no disks exist */
+	if (hba[i]->highest_lun == -1)
+		add_disk(hba[i]->gendisk[0]);
+
 	return 1;
 
       clean4:
