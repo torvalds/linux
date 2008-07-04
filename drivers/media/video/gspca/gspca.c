@@ -43,8 +43,8 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 2)
-static const char version[] = "2.1.2";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 static int video_nr = -1;
 
@@ -391,14 +391,20 @@ static __u32 get_v4l2_depth(__u32 pixfmt)
 	return 24;
 }
 
-static int gspca_get_buff_size(struct gspca_dev *gspca_dev)
+static int gspca_get_buff_size(struct gspca_dev *gspca_dev, int mode)
 {
 	unsigned int size;
 
-	size = gspca_dev->width * gspca_dev->height
-				* get_v4l2_depth(gspca_dev->pixfmt) / 8;
+	size =  gspca_dev->cam.cam_mode[mode].width *
+		gspca_dev->cam.cam_mode[mode].height *
+		get_v4l2_depth(gspca_dev->cam.cam_mode[mode].pixfmt) / 8;
 	if (!size)
 		return -ENOMEM;
+
+	/* if compressed (JPEG), reduce the buffer size */
+	if (gspca_is_compressed(gspca_dev->cam.cam_mode[mode].pixfmt))
+		size = (size * comp_fac) / 100 + 600; /* (+ JPEG header sz) */
+
 	return size;
 }
 
@@ -409,15 +415,12 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 	unsigned int frsz;
 	int i;
 
-	frsz = gspca_get_buff_size(gspca_dev);
+	frsz = gspca_get_buff_size(gspca_dev, gspca_dev->curr_mode);
 	if (frsz < 0)
 		return frsz;
 	PDEBUG(D_STREAM, "frame alloc frsz: %d", frsz);
 	if (count > GSPCA_MAX_FRAMES)
 		count = GSPCA_MAX_FRAMES;
-	/* if compressed (JPEG), reduce the buffer size */
-	if (gspca_is_compressed(gspca_dev->pixfmt))
-		frsz = (frsz * comp_fac) / 100 + 600; /* (+ JPEG header sz) */
 	frsz = PAGE_ALIGN(frsz);
 	PDEBUG(D_STREAM, "new fr_sz: %d", frsz);
 	gspca_dev->frsz = frsz;
@@ -796,8 +799,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = get_v4l2_depth(fmt->fmt.pix.pixelformat)
 					* fmt->fmt.pix.width / 8;
-	fmt->fmt.pix.sizeimage = fmt->fmt.pix.bytesperline
-					* fmt->fmt.pix.height;
+	fmt->fmt.pix.sizeimage = gspca_get_buff_size(gspca_dev,
+							gspca_dev->curr_mode);
 /* (should be in the subdriver) */
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->fmt.pix.priv = 0;
@@ -807,7 +810,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 			struct v4l2_format *fmt)
 {
-	int w, h, mode, mode2, frsz;
+	int w, h, mode, mode2;
 
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -849,12 +852,10 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	}
 	fmt->fmt.pix.width = gspca_dev->cam.cam_mode[mode].width;
 	fmt->fmt.pix.height = gspca_dev->cam.cam_mode[mode].height;
+	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = get_v4l2_depth(fmt->fmt.pix.pixelformat)
 					* fmt->fmt.pix.width / 8;
-	frsz = fmt->fmt.pix.bytesperline * fmt->fmt.pix.height;
-	if (gspca_is_compressed(fmt->fmt.pix.pixelformat))
-		frsz = (frsz * comp_fac) / 100;
-	fmt->fmt.pix.sizeimage = frsz;
+	fmt->fmt.pix.sizeimage = gspca_get_buff_size(gspca_dev, mode);
 	return mode;			/* used when s_fmt */
 }
 
