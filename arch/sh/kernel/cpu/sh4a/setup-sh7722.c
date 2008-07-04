@@ -229,8 +229,14 @@ static struct intc_sense_reg sense_registers[] __initdata = {
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh7722", vectors, groups,
-			 mask_registers, prio_registers, sense_registers);
+static struct intc_mask_reg ack_registers[] __initdata = {
+	{ 0xa4140024, 0, 8, /* INTREQ00 */
+	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
+};
+
+static DECLARE_INTC_DESC_ACK(intc_desc, "sh7722", vectors, groups,
+			     mask_registers, prio_registers, sense_registers,
+			     ack_registers);
 
 void __init plat_irq_setup(void)
 {
