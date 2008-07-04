@@ -8,7 +8,6 @@
 
 #include <linux/errno.h>
 #include <linux/list.h>
-#include <linux/spinlock.h>
 #include <linux/cpumask.h>
 
 extern void cpu_idle(void);
