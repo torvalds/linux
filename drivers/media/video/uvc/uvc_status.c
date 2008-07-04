@@ -203,5 +203,5 @@ int uvc_status_resume(struct uvc_device *dev)
 	if (dev->int_urb == NULL)
 		return 0;
 
-	return usb_submit_urb(dev->int_urb, GFP_KERNEL);
+	return usb_submit_urb(dev->int_urb, GFP_NOIO);
 }
