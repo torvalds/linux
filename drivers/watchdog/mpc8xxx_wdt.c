@@ -1,5 +1,5 @@
 /*
- * mpc8xxx_wdt.c - MPC83xx/MPC86xx watchdog userspace interface
+ * mpc8xxx_wdt.c - MPC8xx/MPC83xx/MPC86xx watchdog userspace interface
  *
  * Authors: Dave Updegraff <dave@cray.org>
  * 	    Kumar Gala <galak@kernel.crashing.org>
@@ -207,13 +207,6 @@ static int __devinit mpc8xxx_wdt_probe(struct of_device *ofdev,
 		goto err_unmap;
 	}
 
-	ret = misc_register(&mpc8xxx_wdt_miscdev);
-	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, ret);
-		goto err_unmap;
-	}
-
 	/* Calculate the timeout in seconds */
 	if (prescale)
 		timeout_sec = (timeout * wdt_type->prescaler) / freq;
@@ -234,6 +227,7 @@ static int __devinit mpc8xxx_wdt_probe(struct of_device *ofdev,
 	return 0;
 err_unmap:
 	iounmap(wd_base);
+	wd_base = NULL;
 	return ret;
 }
 
@@ -261,6 +255,12 @@ static const struct of_device_id mpc8xxx_wdt_match[] = {
 			.hw_enabled = true,
 		},
 	},
+	{
+		.compatible = "fsl,mpc823-wdt",
+		.data = &(struct mpc8xxx_wdt_type) {
+			.prescaler = 0x800,
+		},
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mpc8xxx_wdt_match);
@@ -275,20 +275,42 @@ static struct of_platform_driver mpc8xxx_wdt_driver = {
 	},
 };
 
+/*
+ * We do wdt initialization in two steps: arch_initcall probes the wdt
+ * very early to start pinging the watchdog (misc devices are not yet
+ * available), and later module_init() just registers the misc device.
+ */
+static int __init mpc8xxx_wdt_init_late(void)
+{
+	int ret;
+
+	if (!wd_base)
+		return -ENODEV;
+
+	ret = misc_register(&mpc8xxx_wdt_miscdev);
+	if (ret) {
+		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+			WATCHDOG_MINOR, ret);
+		return ret;
+	}
+	return 0;
+}
+module_init(mpc8xxx_wdt_init_late);
+
 static int __init mpc8xxx_wdt_init(void)
 {
 	return of_register_platform_driver(&mpc8xxx_wdt_driver);
 }
+arch_initcall(mpc8xxx_wdt_init);
 
 static void __exit mpc8xxx_wdt_exit(void)
 {
 	of_unregister_platform_driver(&mpc8xxx_wdt_driver);
 }
-
-subsys_initcall(mpc8xxx_wdt_init);
 module_exit(mpc8xxx_wdt_exit);
 
 MODULE_AUTHOR("Dave Updegraff, Kumar Gala");
-MODULE_DESCRIPTION("Driver for watchdog timer in MPC83xx/MPC86xx uProcessors");
+MODULE_DESCRIPTION("Driver for watchdog timer in MPC8xx/MPC83xx/MPC86xx "
+		   "uProcessors");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

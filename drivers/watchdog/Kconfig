@@ -697,10 +697,11 @@ config 8xx_WDT
 
 config 8xxx_WDT
 	tristate "MPC8xxx Platform Watchdog Timer"
-	depends on PPC_83xx || PPC_86xx
+	depends on PPC_8xx || PPC_83xx || PPC_86xx
 	help
 	  This driver is for a SoC level watchdog that exists on some
 	  Freescale PowerPC processors. So far this driver supports:
+	  - MPC8xx watchdogs
 	  - MPC83xx watchdogs
 	  - MPC86xx watchdogs
 
