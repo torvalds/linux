@@ -57,6 +57,8 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<8)
 /* Controller needs voltage and power writes to happen separately */
 #define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<9)
+/* Controller has an off-by-one issue with timeout value */
+#define SDHCI_QUIRK_INCR_TIMEOUT_CONTROL		(1<<10)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -134,7 +136,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device         = PCI_DEVICE_ID_MARVELL_CAFE_SD,
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
-		.driver_data    = SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER,
+		.driver_data    = SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
+				  SDHCI_QUIRK_INCR_TIMEOUT_CONTROL,
 	},
 
 	{
@@ -478,6 +481,13 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		if (count >= 0xF)
 			break;
 	}
+
+	/*
+	 * Compensate for an off-by-one error in the CaFe hardware; otherwise,
+	 * a too-small count gives us interrupt timeouts.
+	 */
+	if ((host->chip->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL))
+		count++;
 
 	if (count >= 0xF) {
 		printk(KERN_WARNING "%s: Too large timeout requested!\n",
