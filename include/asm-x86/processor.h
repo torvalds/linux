@@ -263,15 +263,11 @@ struct tss_struct {
 	struct thread_struct	*io_bitmap_owner;
 
 	/*
-	 * Pad the TSS to be cacheline-aligned (size is 0x100):
-	 */
-	unsigned long		__cacheline_filler[35];
-	/*
 	 * .. and then another 0x100 bytes for the emergency kernel stack:
 	 */
 	unsigned long		stack[64];
 
-} __attribute__((packed));
+} ____cacheline_aligned;
 
 DECLARE_PER_CPU(struct tss_struct, init_tss);
 
