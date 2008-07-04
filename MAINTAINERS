@@ -2474,9 +2474,11 @@ M:	James.Bottomley@HansenPartnership.com
 W:	http://www.hansenpartnership.com/voyager
 S:	Maintained
 
-LINUX FOR POWERPC
+LINUX FOR POWERPC (32-BIT AND 64-BIT)
 P:	Paul Mackerras
 M:	paulus@samba.org
+P:	Benjamin Herrenschmidt
+M:	benh@kernel.crashing.org
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/paulus/powerpc.git
@@ -2516,13 +2518,6 @@ W:	http://wiki.secretlab.ca/index.php/Linux_on_Xilinx_Virtex
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
-LINUX FOR POWERPC BOOT CODE
-P:	Tom Rini
-M:	trini@kernel.crashing.org
-W:	http://www.penguinppc.org/
-L:	linuxppc-dev@ozlabs.org
-S:	Maintained
-
 LINUX FOR POWERPC EMBEDDED PPC8XX
 P:	Vitaly Bordug
 M:	vitb@kernel.crashing.org
@@ -2550,17 +2545,6 @@ LLC (802.2)
 P:	Arnaldo Carvalho de Melo
 M:	acme@ghostprotocols.net
 S:	Maintained
-
-LINUX FOR 64BIT POWERPC
-P:	Paul Mackerras
-M:	paulus@samba.org
-M:	paulus@au.ibm.com
-P:	Anton Blanchard
-M:	anton@samba.org
-M:	anton@au.ibm.com
-W:	http://www.penguinppc.org/ppc64/
-L:	linuxppc-dev@ozlabs.org
-S:	Supported
 
 LINUX SECURITY MODULE (LSM) FRAMEWORK
 P:	Chris Wright
