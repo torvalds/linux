@@ -119,7 +119,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
+				  SDHCI_QUIRK_BROKEN_DMA,
 	},
 
 	{
@@ -128,7 +129,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
+				  SDHCI_QUIRK_BROKEN_DMA,
 	},
 
 	{
