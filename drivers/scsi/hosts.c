@@ -290,7 +290,7 @@ static void scsi_host_dev_release(struct device *dev)
 	kfree(shost);
 }
 
-struct device_type scsi_host_type = {
+static struct device_type scsi_host_type = {
 	.name =		"scsi_host",
 	.release =	scsi_host_dev_release,
 };
