@@ -253,6 +253,7 @@ acpi_get_object_info(acpi_handle handle, struct acpi_buffer * buffer)
 	node = acpi_ns_map_handle_to_node(handle);
 	if (!node) {
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+		status = AE_BAD_PARAMETER;
 		goto cleanup;
 	}
 
