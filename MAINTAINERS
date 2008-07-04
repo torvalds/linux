@@ -3672,7 +3672,7 @@ S:	Maintained
 
 SLAB ALLOCATOR
 P:	Christoph Lameter
-M:	clameter@sgi.com
+M:	cl@linux-foundation.org
 P:	Pekka Enberg
 M:	penberg@cs.helsinki.fi
 P:	Matt Mackall

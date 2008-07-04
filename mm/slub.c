@@ -5,7 +5,7 @@
  * The allocator synchronizes using per slab locks and only
  * uses a centralized lock to manage a pool of partial slabs.
  *
- * (C) 2007 SGI, Christoph Lameter <clameter@sgi.com>
+ * (C) 2007 SGI, Christoph Lameter
  */
 
 #include <linux/mm.h>
