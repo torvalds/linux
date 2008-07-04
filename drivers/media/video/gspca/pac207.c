@@ -40,9 +40,17 @@ MODULE_LICENSE("GPL");
 #define PAC207_BRIGHTNESS_MAX		255
 #define PAC207_BRIGHTNESS_DEFAULT	4 /* power on default: 4 */
 
-#define PAC207_EXPOSURE_MIN		4
+/* An exposure value of 4 also works (3 does not) but then we need to lower
+   the compression balance setting when in 352x288 mode, otherwise the usb
+   bandwidth is not enough and packets get dropped resulting in corrupt
+   frames. The problem with this is that when the compression balance gets
+   lowered below 0x80, the pac207 starts using a different compression
+   algorithm for some lines, these lines get prefixed with a 0x2dd2 prefix
+   and currently we do not know how to decompress these lines, so for now
+   we use a minimum exposure value of 5 */
+#define PAC207_EXPOSURE_MIN		5
 #define PAC207_EXPOSURE_MAX		26
-#define PAC207_EXPOSURE_DEFAULT		4 /* power on default: 3 ?? */
+#define PAC207_EXPOSURE_DEFAULT		5 /* power on default: 3 ?? */
 #define PAC207_EXPOSURE_KNEE		11 /* 4 = 30 fps, 11 = 8, 15 = 6 */
 
 #define PAC207_GAIN_MIN			0
