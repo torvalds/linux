@@ -939,9 +939,9 @@ do_rest:
 				inquire_remote_apic(apicid);
 		}
 	}
-
+#ifdef CONFIG_X86_64
 restore_state:
-
+#endif
 	if (boot_error) {
 		/* Try to put things back the way they were before ... */
 		numa_remove_cpu(cpu); /* was set by numa_add_cpu */
