@@ -142,7 +142,7 @@ static int mpc8xxx_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static long mpc8xxx_wdt_ioctl(struct inode *inode, struct file *file,
+static long mpc8xxx_wdt_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
