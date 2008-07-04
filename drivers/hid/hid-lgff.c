@@ -30,7 +30,9 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
-#include "usbhid.h"
+
+#include "usbhid/usbhid.h"
+#include "hid-lg.h"
 
 struct dev_type {
 	u16 idVendor;
@@ -100,7 +102,7 @@ static int hid_lgff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 	return 0;
 }
 
-int hid_lgff_init(struct hid_device* hid)
+int lgff_init(struct hid_device* hid)
 {
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;

@@ -444,6 +444,7 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 
 	spin_unlock_irqrestore(&usbhid->ctrllock, flags);
 }
+EXPORT_SYMBOL_GPL(usbhid_submit_report);
 
 static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {

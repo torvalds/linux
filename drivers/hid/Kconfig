@@ -160,6 +160,30 @@ config HID_LOGITECH
 	Support for some Logitech devices which breaks less or more
 	HID specification.
 
+config LOGITECH_FF
+	bool "Logitech force feedback"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have one of these devices:
+	  - Logitech WingMan Cordless RumblePad
+	  - Logitech WingMan Cordless RumblePad 2
+	  - Logitech WingMan Force 3D
+	  - Logitech Formula Force EX
+	  - Logitech MOMO Force wheel
+
+	  and if you want to enable force feedback for them.
+	  Note: if you say N here, this device will still be supported, but without
+	  force feedback.
+
+config LOGIRUMBLEPAD2_FF
+	bool "Logitech Rumblepad 2 force feedback"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Rumblepad 2 devices.
+
 config HID_MICROSOFT
 	tristate "Microsoft"
 	default m

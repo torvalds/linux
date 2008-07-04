@@ -50,18 +50,6 @@ struct hid_ff_initializer {
  * be a PID device
  */
 static struct hid_ff_initializer inits[] = {
-#ifdef CONFIG_LOGITECH_FF
-	{ 0x46d, 0xc211, hid_lgff_init }, /* Logitech Cordless rumble pad */
-	{ 0x46d, 0xc219, hid_lgff_init }, /* Logitech Cordless rumble pad 2 */
-	{ 0x46d, 0xc283, hid_lgff_init }, /* Logitech Wingman Force 3d */
-	{ 0x46d, 0xc286, hid_lgff_init }, /* Logitech Force 3D Pro Joystick */
-	{ 0x46d, 0xc294, hid_lgff_init }, /* Logitech Formula Force EX */
-	{ 0x46d, 0xc295, hid_lgff_init }, /* Logitech MOMO force wheel */
-	{ 0x46d, 0xca03, hid_lgff_init }, /* Logitech MOMO force wheel */
-#endif
-#ifdef CONFIG_LOGIRUMBLEPAD2_FF
-	{ 0x46d, 0xc218, hid_lg2ff_init }, /* Logitech Rumblepad 2 */
-#endif
 #ifdef CONFIG_PANTHERLORD_FF
 	{ 0x810, 0x0001, hid_plff_init }, /* "Twin USB Joystick" */
 	{ 0xe8f, 0x0003, hid_plff_init }, /* "GreenAsia Inc.    USB Joystick     " */

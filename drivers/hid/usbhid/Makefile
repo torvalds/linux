@@ -13,12 +13,6 @@ endif
 ifeq ($(CONFIG_HID_PID),y)
 	usbhid-objs	+= hid-pidff.o
 endif
-ifeq ($(CONFIG_LOGITECH_FF),y)
-	usbhid-objs	+= hid-lgff.o
-endif
-ifeq ($(CONFIG_LOGIRUMBLEPAD2_FF),y)
-	usbhid-objs	+= hid-lg2ff.o
-endif
 ifeq ($(CONFIG_PANTHERLORD_FF),y)
 	usbhid-objs	+= hid-plff.o
 endif

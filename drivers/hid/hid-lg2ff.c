@@ -24,7 +24,9 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
-#include "usbhid.h"
+
+#include "usbhid/usbhid.h"
+#include "hid-lg.h"
 
 struct lg2ff_device {
 	struct hid_report *report;
@@ -57,7 +59,7 @@ static int play_effect(struct input_dev *dev, void *data,
 	return 0;
 }
 
-int hid_lg2ff_init(struct hid_device *hid)
+int lg2ff_init(struct hid_device *hid)
 {
 	struct lg2ff_device *lg2ff;
 	struct hid_report *report;

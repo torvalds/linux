@@ -44,30 +44,6 @@ config HID_PID
 	  feedback for it. Microsoft Sidewinder Force Feedback 2 is one of such
 	  devices.
 
-config LOGITECH_FF
-	bool "Logitech devices support"
-	depends on HID_FF
-	select INPUT_FF_MEMLESS if USB_HID
-	help
-	  Say Y here if you have one of these devices:
-	  - Logitech WingMan Cordless RumblePad
-	  - Logitech WingMan Cordless RumblePad 2
-	  - Logitech WingMan Force 3D
-	  - Logitech Formula Force EX
-	  - Logitech MOMO Force wheel
-
-	  and if you want to enable force feedback for them.
-	  Note: if you say N here, this device will still be supported, but without
-	  force feedback.
-
-config LOGIRUMBLEPAD2_FF
-	bool "Logitech Rumblepad 2 support"
-	depends on HID_FF
-	select INPUT_FF_MEMLESS if USB_HID
-	help
-	  Say Y here if you want to enable force feedback support for Logitech
-	  Rumblepad 2 devices.
-
 config PANTHERLORD_FF
 	bool "PantherLord/GreenAsia based device support"
 	depends on HID_FF

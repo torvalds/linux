@@ -12,6 +12,14 @@ ifdef CONFIG_HID_COMPAT
 obj-m				+= hid-dummy.o
 endif
 
+hid-logitech-objs		:= hid-lg.o
+ifdef CONFIG_LOGITECH_FF
+	hid-logitech-objs	+= hid-lgff.o
+endif
+ifdef CONFIG_LOGIRUMBLEPAD2_FF
+	hid-logitech-objs	+= hid-lg2ff.o
+endif
+
 obj-$(CONFIG_HID_A4TECH)	+= hid-a4tech.o
 obj-$(CONFIG_HID_APPLE)		+= hid-apple.o
 obj-$(CONFIG_HID_BELKIN)	+= hid-belkin.o

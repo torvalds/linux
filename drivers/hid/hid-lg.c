@@ -21,6 +21,7 @@
 #include <linux/module.h>
 
 #include "hid-ids.h"
+#include "hid-lg.h"
 
 #define LG_RDESC		0x001
 #define LG_BAD_RELATIVE_KEYS	0x002
@@ -31,6 +32,8 @@
 #define LG_WIRELESS		0x040
 #define LG_INVERT_HWHEEL	0x080
 #define LG_NOGET		0x100
+#define LG_FF			0x200
+#define LG_FF2			0x400
 
 /*
  * Certain Logitech keyboards send in report #3 keys which are far
@@ -222,6 +225,7 @@ static int lg_event(struct hid_device *hdev, struct hid_field *field,
 static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	unsigned long quirks = id->driver_data;
+	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 	int ret;
 
 	hid_set_drvdata(hdev, (void *)quirks);
@@ -235,7 +239,10 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_free;
 	}
 
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+	if (quirks & (LG_FF | LG_FF2))
+		connect_mask &= ~HID_CONNECT_FF;
+
+	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;
@@ -243,6 +250,11 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (quirks & LG_RESET_LEDS)
 		usbhid_set_leds(hdev);
+
+	if (quirks & LG_FF)
+		lgff_init(hdev);
+	if (quirks & LG_FF2)
+		lg2ff_init(hdev);
 
 	return 0;
 err_free:
@@ -283,7 +295,22 @@ static const struct hid_device_id lg_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_EXTREME_3D),
 		.driver_data = LG_NOGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL),
-		.driver_data = LG_NOGET },
+		.driver_data = LG_NOGET | LG_FF },
+
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD),
+		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2_2),
+		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_F3D),
+		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FORCE3D_PRO),
+		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_MOMO_WHEEL),
+		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2),
+		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
+		.driver_data = LG_FF2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, lg_devices);
