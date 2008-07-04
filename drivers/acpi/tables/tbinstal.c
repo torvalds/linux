@@ -110,7 +110,6 @@ acpi_status
 acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 {
 	u32 i;
-	u32 length;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(tb_add_table);
@@ -145,13 +144,18 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 			}
 		}
 
-		/* Check for a table match on the entire table length */
+		/*
+		 * Check for a table match on the entire table length,
+		 * not just the header.
+		 */
+		if (table_desc->length !=
+		    acpi_gbl_root_table_list.tables[i].length) {
+			continue;
+		}
 
-		length = ACPI_MIN(table_desc->length,
-				  acpi_gbl_root_table_list.tables[i].length);
 		if (ACPI_MEMCMP(table_desc->pointer,
 				acpi_gbl_root_table_list.tables[i].pointer,
-				length)) {
+				acpi_gbl_root_table_list.tables[i].length)) {
 			continue;
 		}
 
