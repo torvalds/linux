@@ -76,6 +76,9 @@ static int create_link(struct config_item *parent_item,
 	struct configfs_symlink *sl;
 	int ret;
 
+	ret = -ENOENT;
+	if (!configfs_dirent_is_ready(target_sd))
+		goto out;
 	ret = -ENOMEM;
 	sl = kmalloc(sizeof(struct configfs_symlink), GFP_KERNEL);
 	if (sl) {
@@ -100,6 +103,7 @@ static int create_link(struct config_item *parent_item,
 		}
 	}
 
+out:
 	return ret;
 }
 
@@ -129,6 +133,7 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 {
 	int ret;
 	struct nameidata nd;
+	struct configfs_dirent *sd;
 	struct config_item *parent_item;
 	struct config_item *target_item;
 	struct config_item_type *type;
@@ -137,9 +142,19 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	if (dentry->d_parent == configfs_sb->s_root)
 		goto out;
 
+	sd = dentry->d_parent->d_fsdata;
+	/*
+	 * Fake invisibility if dir belongs to a group/default groups hierarchy
+	 * being attached
+	 */
+	ret = -ENOENT;
+	if (!configfs_dirent_is_ready(sd))
+		goto out;
+
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	type = parent_item->ci_type;
 
+	ret = -EPERM;
 	if (!type || !type->ct_item_ops ||
 	    !type->ct_item_ops->allow_link)
 		goto out_put;
