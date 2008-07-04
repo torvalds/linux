@@ -9,25 +9,6 @@
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
-/* values in 2.6.27 */
-#ifndef V4L2_PIX_FMT_SPCA501
-#define V4L2_PIX_FMT_SPCA501 v4l2_fourcc('S', '5', '0', '1')
-#endif
-#ifndef V4L2_PIX_FMT_SPCA561
-#define V4L2_PIX_FMT_SPCA561 v4l2_fourcc('S', '5', '6', '1')
-#endif
-
-/* values in 2.6.26 */
-#ifndef V4L2_CID_POWER_LINE_FREQUENCY
-#define V4L2_CID_POWER_LINE_FREQUENCY  (V4L2_CID_BASE+24)
-#endif
-#ifndef V4L2_CID_WHITE_BALANCE_TEMPERATURE
-#define V4L2_CID_WHITE_BALANCE_TEMPERATURE (V4L2_CID_BASE + 26)
-#endif
-#ifndef V4L2_CID_SHARPNESS
-#define V4L2_CID_SHARPNESS  (V4L2_CID_BASE+27)
-#endif
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 /* GSPCA our debug messages */
 extern int gspca_debug;
@@ -76,7 +57,6 @@ struct cam_mode {
 	short width;
 	short height;
 	short mode;		/* subdriver value */
-	short reserved;		/* subdriver value */
 };
 struct cam {
 	char *dev_name;
@@ -110,9 +90,9 @@ struct ctrl {
 /* subdriver description */
 struct sd_desc {
 /* information */
-	char *name;		/* sub-driver name */
+	const char *name;	/* sub-driver name */
 /* controls */
-	struct ctrl *ctrls;
+	const struct ctrl *ctrls;
 	int nctrls;
 /* operations */
 	cam_cf_op config;	/* called on probe */
@@ -195,6 +175,6 @@ void gspca_disconnect(struct usb_interface *intf);
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    int packet_type,
 				    struct gspca_frame *frame,
-				    __u8 *data,
+				    const __u8 *data,
 				    int len);
 #endif /* GSPCAV2_H */

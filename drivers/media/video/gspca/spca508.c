@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA508 USB Camera Driver");
@@ -92,7 +92,7 @@ static struct cam_mode sif_mode[] = {
  * Initialization data: this is the first set-up data written to the
  * device (before the open data).
  */
-static __u16 spca508_init_data[][3] =
+static const __u16 spca508_init_data[][3] =
 #define IGN(x)			/* nothing */
 {
 	/*  line   URB      value, index */
@@ -584,7 +584,7 @@ static __u16 spca508_init_data[][3] =
 /*
  * Initialization data for Intel EasyPC Camera CS110
  */
-static __u16 spca508cs110_init_data[][3] = {
+static const __u16 spca508cs110_init_data[][3] = {
 	{0x0000, 0x870b}, /* Reset CTL3 */
 	{0x0003, 0x8111}, /* Soft Reset compression, memory, TG & CDSP */
 	{0x0000, 0x8111}, /* Normal operation on reset */
@@ -668,7 +668,7 @@ static __u16 spca508cs110_init_data[][3] = {
 	{}
 };
 
-static __u16 spca508_sightcam_init_data[][3] = {
+static const __u16 spca508_sightcam_init_data[][3] = {
 /* This line seems to setup the frame/canvas */
 	/*368  */ {0x000f, 0x8402},
 
@@ -752,7 +752,7 @@ static __u16 spca508_sightcam_init_data[][3] = {
 	{0, 0}
 };
 
-static __u16 spca508_sightcam2_init_data[][3] = {
+static const __u16 spca508_sightcam2_init_data[][3] = {
 /* 35 */ {0x0020, 0x8112},
 
 /* 36 */ {0x000f, 0x8402},
@@ -1099,7 +1099,7 @@ static __u16 spca508_sightcam2_init_data[][3] = {
 /*
  * Initialization data for Creative Webcam Vista
  */
-static __u16 spca508_vista_init_data[][3] = {
+static const __u16 spca508_vista_init_data[][3] = {
 	{0x0008, 0x8200},	/* Clear register */
 	{0x0000, 0x870b},	/* Reset CTL3 */
 	{0x0020, 0x8112},	/* Video Drop packet enable */
@@ -1441,7 +1441,7 @@ static int reg_read(struct usb_device *dev,
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
-				__u16 data[][3])
+			const __u16 data[][3])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
@@ -1639,7 +1639,7 @@ static void yuvy_decode(unsigned char *out,
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1717,7 +1717,7 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -1732,7 +1732,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4018), DVNM("Creative Webcam Vista (PD1100)")},
 	{USB_DEVICE(0x0461, 0x0815), DVNM("Micro Innovation IC200")},
 	{USB_DEVICE(0x0733, 0x0110), DVNM("ViewQuest VQ110")},

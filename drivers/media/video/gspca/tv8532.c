@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("TV8532 USB Camera Driver");
@@ -152,7 +152,7 @@ static struct cam_mode sif_mode[] = {
 #define TV8532_AD_ROWBEGIN_L 0x14
 #define TV8532_AD_ROWBEGIN_H 0x15
 
-static __u32 tv_8532_eeprom_data[] = {
+static const __u32 tv_8532_eeprom_data[] = {
 /*	add		dataL	   dataM	dataH */
 	0x00010001, 0x01018011, 0x02050014, 0x0305001c,
 	0x040d001e, 0x0505001f, 0x06050519, 0x0705011b,
@@ -243,7 +243,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 static void tv_8532ReadRegisters(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 data = 0;
+	__u8 data;
 /*	__u16 vid, pid; */
 
 	reg_r(dev, 0x0001, &data);
@@ -275,7 +275,7 @@ static void tv_8532ReadRegisters(struct gspca_dev *gspca_dev)
 static void tv_8532_setReg(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 data = 0;
+	__u8 data;
 	__u8 value[2] = { 0, 0 };
 
 	data = ADCBEGINL;
@@ -320,7 +320,7 @@ static void tv_8532_setReg(struct gspca_dev *gspca_dev)
 static void tv_8532_PollReg(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 data = 0;
+	__u8 data;
 	int i;
 
 	/* strange polling from tgc */
@@ -338,9 +338,9 @@ static void tv_8532_PollReg(struct gspca_dev *gspca_dev)
 static int sd_open(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 data = 0;
-	__u8 dataStart = 0;
-	__u8 value[2] = { 0, 0 };
+	__u8 data;
+	__u8 dataStart;
+	__u8 value[2];
 
 	data = 0x32;
 	reg_w(dev, TV8532_AD_SLOPE, &data, 1);
@@ -646,7 +646,7 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -661,7 +661,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x0920), DVNM("QC Express")},
 	{USB_DEVICE(0x046d, 0x0921), DVNM("Labtec Webcam")},
 	{USB_DEVICE(0x0545, 0x808b), DVNM("Veo Stingray")},

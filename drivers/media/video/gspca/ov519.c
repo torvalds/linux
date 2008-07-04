@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("OV519 USB Camera Driver");
@@ -266,15 +266,15 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 static int reg_w(struct sd *sd, __u16 index, __u8 value)
 {
 	int ret;
-	__u8 buf[4];
+	__u8 data;
 
-	buf[0] = value;
+	data = value;
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
 			1,			/* REQ_IO (ov518/519) */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
-			&buf[0], 1, 500);
+			&data, 1, 500);
 	if (ret < 0)
 		PDEBUG(D_ERR, "Write reg [%02x] %02x failed", index, value);
 	return ret;
@@ -285,16 +285,16 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 static int reg_r(struct sd *sd, __u16 index)
 {
 	int ret;
-	__u8 buf[4];
+	__u8 data;
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			1,			/* REQ_IO */
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0, index, &buf[0], 1, 500);
+			0, index, &data, 1, 500);
 
 	if (ret >= 0)
-		ret = buf[0];
+		ret = data;
 	else
 		PDEBUG(D_ERR, "Read reg [0x%02x] failed", index);
 	return ret;
@@ -302,7 +302,7 @@ static int reg_r(struct sd *sd, __u16 index)
 
 /* Read 8 values from a OV519 register */
 static int reg_r8(struct sd *sd,
-		__u16 index)
+		  __u16 index)
 {
 	int ret;
 	__u8 buf[8];
@@ -528,7 +528,7 @@ struct ov_i2c_regvals {
 };
 
 static int write_regvals(struct sd *sd,
-			 struct ov_regvals *regvals,
+			 const struct ov_regvals *regvals,
 			 int n)
 {
 	int rc;
@@ -543,7 +543,7 @@ static int write_regvals(struct sd *sd,
 }
 
 static int write_i2c_regvals(struct sd *sd,
-			     struct ov_i2c_regvals *regvals,
+			     const struct ov_i2c_regvals *regvals,
 			     int n)
 {
 	int rc;
@@ -569,7 +569,7 @@ static int write_i2c_regvals(struct sd *sd,
 static int ov8xx0_configure(struct sd *sd)
 {
 	int rc;
-	static struct ov_i2c_regvals norm_8610[] = {
+	static const struct ov_i2c_regvals norm_8610[] = {
 		{ 0x12, 0x80 },
 		{ 0x00, 0x00 },
 		{ 0x01, 0x80 },
@@ -707,7 +707,7 @@ static int ov7xx0_configure(struct sd *sd)
 	 * 0x05 (old driver setting): very overexposed, too much
 	 *	contrast
 	 */
-	static struct ov_i2c_regvals norm_7610[] = {
+	static const struct ov_i2c_regvals norm_7610[] = {
 		{ 0x10, 0xff },
 		{ 0x16, 0x06 },
 		{ 0x28, 0x24 },
@@ -737,7 +737,7 @@ static int ov7xx0_configure(struct sd *sd)
 		{ 0x0d, 0x24 },
 	};
 
-	static struct ov_i2c_regvals norm_7620[] = {
+	static const struct ov_i2c_regvals norm_7620[] = {
 		{ 0x00, 0x00 },		/* gain */
 		{ 0x01, 0x80 },		/* blue gain */
 		{ 0x02, 0x80 },		/* red gain */
@@ -804,14 +804,14 @@ static int ov7xx0_configure(struct sd *sd)
 	};
 
 	/* 7640 and 7648. The defaults should be OK for most registers. */
-	static struct ov_i2c_regvals norm_7640[] = {
+	static const struct ov_i2c_regvals norm_7640[] = {
 		{ 0x12, 0x80 },
 		{ 0x12, 0x14 },
 	};
 
 	/* 7670. Defaults taken from OmniVision provided data,
 	*  as provided by Jonathan Corbet of OLPC		*/
-	static struct ov_i2c_regvals norm_7670[] = {
+	static const struct ov_i2c_regvals norm_7670[] = {
 		{ OV7670_REG_COM7, OV7670_COM7_RESET },
 		{ OV7670_REG_TSLB, 0x04 },		/* OV */
 		{ OV7670_REG_COM7, OV7670_COM7_FMT_VGA }, /* VGA */
@@ -1075,7 +1075,7 @@ static int ov7xx0_configure(struct sd *sd)
 static int ov6xx0_configure(struct sd *sd)
 {
 	int rc;
-	static struct ov_i2c_regvals norm_6x20[] = {
+	static const struct ov_i2c_regvals norm_6x20[] = {
 		{ 0x12, 0x80 }, /* reset */
 		{ 0x11, 0x01 },
 		{ 0x03, 0x60 },
@@ -1118,7 +1118,7 @@ static int ov6xx0_configure(struct sd *sd)
 /* Toggle 0x12[2] off and on here? */
 	};
 
-	static struct ov_i2c_regvals norm_6x30[] = {
+	static const struct ov_i2c_regvals norm_6x30[] = {
 		{ 0x12, 0x80 }, /* Reset */
 		{ 0x00, 0x1f }, /* Gain */
 		{ 0x01, 0x99 }, /* Blue gain */
@@ -1284,7 +1284,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 /* (from ov519_configure) */
-	static struct ov_regvals init_519[] = {
+	static const struct ov_regvals init_519[] = {
 		{ 0x5a,  0x6d }, /* EnableSystem */
 /* jfm trace usbsnoop3-1.txt */
 /* jfm 53 = fb */
@@ -1302,8 +1302,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		/* windows reads 0x55 at this point*/
 	};
 
-	if (write_regvals(sd, init_519,
-			sizeof init_519 / sizeof init_519[0]))
+	if (write_regvals(sd, init_519, ARRAY_SIZE(init_519)))
 		goto error;
 /* jfm: not seen in windows trace */
 	if (ov519_init_compression(sd))
@@ -1389,7 +1388,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 static int ov519_mode_init_regs(struct sd *sd,
 				int width, int height)
 {
-	static struct ov_regvals mode_init_519_ov7670[] = {
+	static const struct ov_regvals mode_init_519_ov7670[] = {
 		{ 0x5d,	0x03 }, /* Turn off suspend mode */
 		{ 0x53,	0x9f }, /* was 9b in 1.65-1.08 */
 		{ 0x54,	0x0f }, /* bit2 (jpeg enable) */
@@ -1412,7 +1411,7 @@ static int ov519_mode_init_regs(struct sd *sd,
 		/* windows reads 0x55 at this point, why? */
 	};
 
-	static struct ov_regvals mode_init_519[] = {
+	static const struct ov_regvals mode_init_519[] = {
 		{ 0x5d,	0x03 }, /* Turn off suspend mode */
 		{ 0x53,	0x9f }, /* was 9b in 1.65-1.08 */
 		{ 0x54,	0x0f }, /* bit2 (jpeg enable) */
@@ -1448,12 +1447,11 @@ static int ov519_mode_init_regs(struct sd *sd,
 	/******** Set the mode ********/
 	if (sd->sensor != SEN_OV7670) {
 		if (write_regvals(sd, mode_init_519,
-			    sizeof mode_init_519 / sizeof mode_init_519[0]))
+				  ARRAY_SIZE(mode_init_519)))
 			return -EIO;
 	} else {
 		if (write_regvals(sd, mode_init_519_ov7670,
-				sizeof mode_init_519_ov7670
-					/ sizeof mode_init_519_ov7670[0]))
+				  ARRAY_SIZE(mode_init_519_ov7670)))
 			return -EIO;
 	}
 
@@ -1883,7 +1881,7 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	/* Header of ov519 is 16 bytes:
@@ -1982,7 +1980,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	case SEN_OV6630:
 		i2c_w_mask(sd, OV7610_REG_CNT, val >> 4, 0x0f);
 	case SEN_OV8610: {
-		static __u8 ctab[] = {
+		static const __u8 ctab[] = {
 			0x03, 0x09, 0x0b, 0x0f, 0x53, 0x6f, 0x35, 0x7f
 		};
 
@@ -1991,7 +1989,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		break;
 	    }
 	case SEN_OV7620: {
-		static __u8 ctab[] = {
+		static const __u8 ctab[] = {
 			0x01, 0x05, 0x09, 0x11, 0x15, 0x35, 0x37, 0x57,
 			0x5b, 0xa5, 0xa7, 0xc7, 0xc9, 0xcf, 0xef, 0xff
 		};
@@ -2104,7 +2102,7 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -2119,7 +2117,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4052), DVNM("Creative Live! VISTA IM")},
 	{USB_DEVICE(0x041e, 0x405f), DVNM("Creative Live! VISTA VF0330")},
 	{USB_DEVICE(0x041e, 0x4060), DVNM("Creative Live! VISTA VF0350")},

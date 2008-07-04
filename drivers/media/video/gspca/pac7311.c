@@ -23,8 +23,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
-static const char version[] = "2.1.3";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
@@ -37,7 +37,6 @@ struct sd {
 	int avg_lum;
 
 	unsigned char brightness;
-#define BRIGHTNESS_MAX 0x20
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
@@ -58,21 +57,21 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-#define SD_BRIGHTNESS 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Brightness",
 		.minimum = 0,
+#define BRIGHTNESS_MAX 0x20
 		.maximum = BRIGHTNESS_MAX,
 		.step    = 1,
-		.default_value = 0x10,
+#define BRIGHTNESS_DEF 0x10
+		.default_value = BRIGHTNESS_DEF,
 	    },
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
-#define SD_CONTRAST 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -81,12 +80,12 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-		.default_value = 127,
+#define CONTRAST_DEF 127
+		.default_value = CONTRAST_DEF,
 	    },
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
-#define SD_COLOR 2
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
@@ -95,12 +94,12 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-		.default_value = 127,
+#define COLOR_DEF 127
+		.default_value = COLOR_DEF,
 	    },
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
-#define SD_AUTOGAIN 3
 	{
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -109,7 +108,8 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-		.default_value = 1,
+#define AUTOGAIN_DEF 1
+		.default_value = AUTOGAIN_DEF,
 	    },
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
@@ -124,7 +124,7 @@ static struct cam_mode vga_mode[] = {
 
 #define PAC7311_JPEG_HEADER_SIZE (sizeof pac7311_jpeg_header)	/* (594) */
 
-const unsigned char pac7311_jpeg_header[] = {
+static const __u8 pac7311_jpeg_header[] = {
 	0xff, 0xd8,
 	0xff, 0xe0, 0x00, 0x03, 0x20,
 	0xff, 0xc0, 0x00, 0x11, 0x08,
@@ -195,8 +195,8 @@ const unsigned char pac7311_jpeg_header[] = {
 };
 
 static void reg_w(struct usb_device *dev,
-			    __u16 index,
-			    char *buffer, __u16 len)
+		  __u16 index,
+		  const char *buffer, __u16 len)
 {
 	__u8 tmpbuf[8];
 
@@ -263,10 +263,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
-	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
-	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
-	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
-	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->colors = COLOR_DEF;
+	sd->autogain = AUTOGAIN_DEF;
 	return 0;
 }
 
@@ -278,7 +278,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 /*jfm: inverted?*/
 	brightness = BRIGHTNESS_MAX - sd->brightness;
 	pac7311_reg_write(gspca_dev->dev, 0xff, 0x04);
-	/* pac7311_reg_write(gspca_dev->dev, 0x0e, 0x00); */
+/*	pac7311_reg_write(gspca_dev->dev, 0x0e, 0x00); */
 	pac7311_reg_write(gspca_dev->dev, 0x0f, brightness);
 	/* load registers to sensor (Bit 0, auto clear) */
 	pac7311_reg_write(gspca_dev->dev, 0x11, 0x01);
@@ -502,7 +502,7 @@ static void setautogain(struct gspca_dev *gspca_dev, int luma)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;

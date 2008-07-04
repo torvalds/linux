@@ -23,8 +23,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA501 USB Camera Driver");
@@ -151,7 +151,7 @@ static struct cam_mode vga_mode[] = {
 #define SPCA501_A33 0x10
 
 /* Data for video camera initialization before capturing */
-static __u16 spca501_open_data[][3] = {
+static const __u16 spca501_open_data[][3] = {
 	/* bmRequest,value,index */
 
 	{0x2, 0x50, 0x00},	/* C/S enable soft reset */
@@ -257,7 +257,7 @@ static __u16 spca501_open_data[][3] = {
  */
 
 /* Data for chip initialization (set default values) */
-static __u16 spca501_init_data[][3] = {
+static const __u16 spca501_init_data[][3] = {
 	/* Set all the values to powerup defaults */
 	/* bmRequest,value,index */
 	{0x0, 0xAA, 0x00},
@@ -544,7 +544,7 @@ static __u16 spca501_init_data[][3] = {
  * Capture and decoding by Colin Peart.
  * This is is for the 3com HomeConnect Lite which is spca501a based.
  */
-static __u16 spca501_3com_open_data[][3] = {
+static const __u16 spca501_3com_open_data[][3] = {
 	/* bmRequest,value,index */
 	{0x2, 0x0050, 0x0000},	/* C/S Enable TG soft reset, timing mode=010 */
 	{0x2, 0x0043, 0x0000},	/* C/S Disable TG soft reset, timing mode=010 */
@@ -639,7 +639,7 @@ static __u16 spca501_3com_open_data[][3] = {
  * 2) Understand why some values seem to appear more than once
  * 3) Write a small comment for each line of the following arrays.
  */
-static __u16 spca501c_arowana_open_data[][3] = {
+static const __u16 spca501c_arowana_open_data[][3] = {
 	/* bmRequest,value,index */
 	{0x02, 0x0007, 0x0005},
 	{0x02, 0xa048, 0x0000},
@@ -661,7 +661,7 @@ static __u16 spca501c_arowana_open_data[][3] = {
 	{}
 };
 
-static __u16 spca501c_arowana_init_data[][3] = {
+static const __u16 spca501c_arowana_init_data[][3] = {
 	/* bmRequest,value,index */
 	{0x02, 0x0007, 0x0005},
 	{0x02, 0xa048, 0x0000},
@@ -1595,7 +1595,7 @@ static __u16 spca501c_arowana_init_data[][3] = {
 
 /* Unknow camera from Ori Usbid 0x0000:0x0000 */
 /* Based on snoops from Ori Cohen */
-static __u16 spca501c_mysterious_open_data[][3] = {
+static const __u16 spca501c_mysterious_open_data[][3] = {
 	{0x02, 0x000f, 0x0005},
 	{0x02, 0xa048, 0x0000},
 	{0x05, 0x0022, 0x0004},
@@ -1646,7 +1646,7 @@ static __u16 spca501c_mysterious_open_data[][3] = {
 };
 
 /* Based on snoops from Ori Cohen */
-static __u16 spca501c_mysterious_init_data[][3] = {
+static const __u16 spca501c_mysterious_init_data[][3] = {
 /* Part 3 */
 /* TG registers */
 /*	{0x00, 0x0000, 0x0000}, */
@@ -1839,7 +1839,7 @@ static int reg_read(struct usb_device *dev,
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
-				__u16 data[][3])
+			const __u16 data[][3])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
@@ -2001,7 +2001,6 @@ static int sd_open(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_STREAM, "SPCA501 init");
 	switch (sd->subtype) {
 	case ThreeComHomeConnectLite:
 		/* Special handling for 3com data */
@@ -2050,7 +2049,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_write(dev, SPCA501_REG_CTLRL, 0x01, 0x02);
 
 	/* HDG atleast the Intel CreateAndShare needs to have one of its
-	 * brightness / contrast / color set otherwise it assumes wath seems
+	 * brightness / contrast / color set otherwise it assumes what seems
 	 * max contrast. Note that strange enough setting any of these is
 	 * enough to fix the max contrast problem, to be sure we set all 3 */
 	setbrightness(gspca_dev);
@@ -2159,7 +2158,7 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -2174,7 +2173,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x040a, 0x0002), DVNM("Kodak DVC-325")},
 	{USB_DEVICE(0x0497, 0xc001), DVNM("Smile International")},
 	{USB_DEVICE(0x0506, 0x00df), DVNM("3Com HomeConnect Lite")},

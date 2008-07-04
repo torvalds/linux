@@ -247,7 +247,7 @@ static void isoc_transfer(struct gspca_dev *gspca_dev)
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    int packet_type,
 				    struct gspca_frame *frame,
-				    __u8 *data,
+				    const __u8 *data,
 				    int len)
 {
 	int i, j;
@@ -1053,7 +1053,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
 	struct gspca_dev *gspca_dev = priv;
-	struct ctrl *ctrls;
+	const struct ctrl *ctrls;
 	int i, ret;
 
 	for (i = 0, ctrls = gspca_dev->sd_desc->ctrls;
@@ -1079,7 +1079,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 
-	struct ctrl *ctrls;
+	const struct ctrl *ctrls;
 	int i, ret;
 
 	for (i = 0, ctrls = gspca_dev->sd_desc->ctrls;

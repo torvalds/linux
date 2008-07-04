@@ -26,13 +26,8 @@
 
 #define MODULE_NAME "t613"
 #include "gspca.h"
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
-static const char version[] = "2.1.3";
-
-struct control_menu_info {
-	int value;
-	char name[32];
-};
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 #define MAX_GAMMA 0x10		/* 0 to 15 */
 
@@ -227,18 +222,15 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct control_menu_info effects_control[] = {
-	{0, "Normal"},
-	{1, "Emboss"},		/* disabled */
-	{2, "Monochrome"},
-	{3, "Sepia"},
-	{4, "Sketch"},
-	{5, "Sun Effect"},	/* disabled */
-	{6, "Negative"},
+static char *effects_control[] = {
+	"Normal",
+	"Emboss",		/* disabled */
+	"Monochrome",
+	"Sepia",
+	"Sketch",
+	"Sun Effect",		/* disabled */
+	"Negative",
 };
-
-#define NUM_EFFECTS_CONTROL \
-			(sizeof(effects_control)/sizeof(effects_control[0]))
 
 static struct cam_mode vga_mode_t16[] = {
 	{V4L2_PIX_FMT_JPEG, 160, 120, 4},
@@ -252,7 +244,7 @@ static struct cam_mode vga_mode_t16[] = {
 #define MAX_EFFECTS 7
 /* easily done by soft, this table could be removed,
  * i keep it here just in case */
-unsigned char effects_table[MAX_EFFECTS][6] = {
+static const __u8 effects_table[MAX_EFFECTS][6] = {
 	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x00},	/* Normal */
 	{0xa8, 0xc8, 0xc6, 0x52, 0xc0, 0x04},	/* Repujar */
 	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x20},	/* Monochrome */
@@ -262,7 +254,7 @@ unsigned char effects_table[MAX_EFFECTS][6] = {
 	{0xa8, 0xc8, 0xc6, 0xd2, 0xc0, 0x40},	/* Negative */
 };
 
-unsigned char gamma_table[MAX_GAMMA][34] = {
+static const __u8 gamma_table[MAX_GAMMA][34] = {
 	{0x90, 0x00, 0x91, 0x3e, 0x92, 0x69, 0x93, 0x85,
 	 0x94, 0x95, 0x95, 0xa1, 0x96, 0xae, 0x97, 0xb9,
 	 0x98, 0xc2, 0x99, 0xcb, 0x9a, 0xd4, 0x9b, 0xdb,
@@ -345,7 +337,7 @@ unsigned char gamma_table[MAX_GAMMA][34] = {
 	 0xA0, 0xFF}
 };
 
-static __u8 tas5130a_sensor_init[][8] = {
+static const __u8 tas5130a_sensor_init[][8] = {
 	{0x62, 0x08, 0x63, 0x70, 0x64, 0x1d, 0x60, 0x09},
 	{0x62, 0x20, 0x63, 0x01, 0x64, 0x02, 0x60, 0x09},
 	{0x62, 0x07, 0x63, 0x03, 0x64, 0x00, 0x60, 0x09},
@@ -366,22 +358,41 @@ static void t16RegRead(struct usb_device *dev,
 
 static void t16RegWrite(struct usb_device *dev,
 			__u16 value,
-			__u16 index, __u8 *buffer, __u16 len)
+			__u16 index,
+			const __u8 *buffer, __u16 len)
 {
-	__u8 tmpbuf[70];
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (len > sizeof tmpbuf) {
-		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
+	if (buffer == NULL) {
+		usb_control_msg(dev,
+				usb_sndctrlpipe(dev, 0),
+				0,
+			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+				value, index,
+				NULL, 0, 500);
 		return;
 	}
-#endif
-	memcpy(tmpbuf, buffer, len);
-	usb_control_msg(dev,
-			usb_sndctrlpipe(dev, 0),
-			0,		/* request */
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			value, index, tmpbuf, len, 500);
+	if (len < 16) {
+		__u8 tmpbuf[16];
+
+		memcpy(tmpbuf, buffer, len);
+		usb_control_msg(dev,
+				usb_sndctrlpipe(dev, 0),
+				0,
+			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+				value, index,
+				tmpbuf, len, 500);
+	} else {
+		__u8 *tmpbuf;
+
+		tmpbuf = kmalloc(len, GFP_KERNEL);
+		memcpy(tmpbuf, buffer, len);
+		usb_control_msg(dev,
+				usb_sndctrlpipe(dev, 0),
+				0,
+			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+				value, index,
+				tmpbuf, len, 500);
+		kfree(tmpbuf);
+	}
 }
 
 /* this function is called at probe time */
@@ -421,18 +432,18 @@ static int init_default_parameters(struct gspca_dev *gspca_dev)
 	int i = 0;
 	__u8 test_byte;
 
-	static unsigned char read_indexs[] =
+	static const __u8 read_indexs[] =
 		{ 0x06, 0x07, 0x0a, 0x0b, 0x66, 0x80, 0x81, 0x8e, 0x8f, 0xa5,
 		  0xa6, 0xa8, 0xbb, 0xbc, 0xc6, 0x00, 0x00 };
-	static unsigned char n1[6] =
+	static const __u8 n1[6] =
 			{0x08, 0x03, 0x09, 0x03, 0x12, 0x04};
-	static unsigned char n2[2] =
+	static const __u8 n2[2] =
 			{0x08, 0x00};
-	static unsigned char nset[6] =
+	static const __u8 nset[6] =
 		{ 0x61, 0x68, 0x62, 0xff, 0x60, 0x07 };
-	static unsigned char n3[6] =
+	static const __u8 n3[6] =
 			{0x61, 0x68, 0x65, 0x0a, 0x60, 0x04};
-	static unsigned char n4[0x46] =
+	static const __u8 n4[0x46] =
 		{0x09, 0x01, 0x12, 0x04, 0x66, 0x8a, 0x80, 0x3c,
 		 0x81, 0x22, 0x84, 0x50, 0x8a, 0x78, 0x8b, 0x68,
 		 0x8c, 0x88, 0x8e, 0x33, 0x8f, 0x24, 0xaa, 0xb1,
@@ -442,40 +453,40 @@ static int init_default_parameters(struct gspca_dev *gspca_dev)
 		 0x65, 0x0a, 0xbb, 0x86, 0xaf, 0x58, 0xb0, 0x68,
 		 0x87, 0x40, 0x89, 0x2b, 0x8d, 0xff, 0x83, 0x40,
 		 0xac, 0x84, 0xad, 0x86, 0xaf, 0x46};
-	static unsigned char nset4[18] = {
+	static const __u8 nset4[18] = {
 		0xe0, 0x60, 0xe1, 0xa8, 0xe2, 0xe0, 0xe3, 0x60, 0xe4, 0xa8,
 		0xe5, 0xe0, 0xe6, 0x60, 0xe7, 0xa8,
 		0xe8, 0xe0
 	};
 	/* ojo puede ser 0xe6 en vez de 0xe9 */
-	static unsigned char nset2[20] = {
+	static const __u8 nset2[20] = {
 		0xd0, 0xbb, 0xd1, 0x28, 0xd2, 0x10, 0xd3, 0x10, 0xd4, 0xbb,
 		0xd5, 0x28, 0xd6, 0x1e, 0xd7, 0x27,
 		0xd8, 0xc8, 0xd9, 0xfc
 	};
-	static unsigned char missing[8] =
+	static const __u8 missing[8] =
 		{ 0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38 };
-	static unsigned char nset3[18] = {
+	static const __u8 nset3[18] = {
 		0xc7, 0x60, 0xc8, 0xa8, 0xc9, 0xe0, 0xca, 0x60, 0xcb, 0xa8,
 		0xcc, 0xe0, 0xcd, 0x60, 0xce, 0xa8,
 		0xcf, 0xe0
 	};
-	static unsigned char nset5[4] =
+	static const __u8 nset5[4] =
 		{ 0x8f, 0x24, 0xc3, 0x00 };	/* bright */
-	static unsigned char nset6[34] = {
+	static const __u8 nset6[34] = {
 		0x90, 0x00, 0x91, 0x1c, 0x92, 0x30, 0x93, 0x43, 0x94, 0x54,
 		0x95, 0x65, 0x96, 0x75, 0x97, 0x84,
 		0x98, 0x93, 0x99, 0xa1, 0x9a, 0xb0, 0x9b, 0xbd, 0x9c, 0xca,
 		0x9d, 0xd8, 0x9e, 0xe5, 0x9f, 0xf2,
 		0xa0, 0xff
 	};			/* Gamma */
-	static unsigned char nset7[4] =
+	static const __u8 nset7[4] =
 			{ 0x66, 0xca, 0xa8, 0xf8 };	/* 50/60 Hz */
-	static unsigned char nset9[4] =
+	static const __u8 nset9[4] =
 			{ 0x0b, 0x04, 0x0a, 0x78 };
-	static unsigned char nset8[6] =
+	static const __u8 nset8[6] =
 			{ 0xa8, 0xf0, 0xc6, 0x88, 0xc0, 0x00 };
-	static unsigned char nset10[6] =
+	static const __u8 nset10[6] =
 			{ 0x0c, 0x03, 0xab, 0x10, 0x81, 0x20 };
 
 	t16RegWrite(dev, 0x01, 0x0000, n1, 0x06);
@@ -493,31 +504,31 @@ static int init_default_parameters(struct gspca_dev *gspca_dev)
 	t16RegWrite(dev, 0x01, 0x0000, n3, 0x06);
 	t16RegWrite(dev, 0x01, 0x0000, n4, 0x46);
 	t16RegRead(dev, 0x0080, &test_byte, 1);
-	t16RegWrite(dev, 0x00, 0x2c80, 0x00, 0x0);
+	t16RegWrite(dev, 0x00, 0x2c80, NULL, 0x0);
 	t16RegWrite(dev, 0x01, 0x0000, nset2, 0x14);
 	t16RegWrite(dev, 0x01, 0x0000, nset3, 0x12);
 	t16RegWrite(dev, 0x01, 0x0000, nset4, 0x12);
-	t16RegWrite(dev, 0x00, 0x3880, 0x00, 0x0);
-	t16RegWrite(dev, 0x00, 0x3880, 0x00, 0x0);
-	t16RegWrite(dev, 0x00, 0x338e, 0x00, 0x0);
+	t16RegWrite(dev, 0x00, 0x3880, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x3880, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x338e, NULL, 0x0);
 	t16RegWrite(dev, 0x01, 0x0000, nset5, 0x04);
-	t16RegWrite(dev, 0x00, 0x00a9, 0x00, 0x0);
+	t16RegWrite(dev, 0x00, 0x00a9, NULL, 0x0);
 	t16RegWrite(dev, 0x01, 0x0000, nset6, 0x22);
-	t16RegWrite(dev, 0x00, 0x86bb, 0x00, 0x0);
-	t16RegWrite(dev, 0x00, 0x4aa6, 0x00, 0x0);
+	t16RegWrite(dev, 0x00, 0x86bb, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x4aa6, NULL, 0x0);
 
 	t16RegWrite(dev, 0x01, 0x0000, missing, 0x08);
 
-	t16RegWrite(dev, 0x00, 0x2087, 0x00, 0x0);
-	t16RegWrite(dev, 0x00, 0x2088, 0x00, 0x0);
-	t16RegWrite(dev, 0x00, 0x2089, 0x00, 0x0);
+	t16RegWrite(dev, 0x00, 0x2087, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x2088, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x2089, NULL, 0x0);
 
 	t16RegWrite(dev, 0x01, 0x0000, nset7, 0x04);
 	t16RegWrite(dev, 0x01, 0x0000, nset10, 0x06);
 	t16RegWrite(dev, 0x01, 0x0000, nset8, 0x06);
 	t16RegWrite(dev, 0x01, 0x0000, nset9, 0x04);
 
-	t16RegWrite(dev, 0x00, 0x2880, 0x00, 0x00);
+	t16RegWrite(dev, 0x00, 0x2880, NULL, 0x00);
 	t16RegWrite(dev, 0x01, 0x0000, nset2, 0x14);
 	t16RegWrite(dev, 0x01, 0x0000, nset3, 0x12);
 	t16RegWrite(dev, 0x01, 0x0000, nset4, 0x12);
@@ -530,7 +541,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 	unsigned int brightness;
-	unsigned char set6[4] = { 0x8f, 0x26, 0xc3, 0x80 };
+	__u8 set6[4] = { 0x8f, 0x26, 0xc3, 0x80 };
 	brightness = sd->brightness;
 
 	if (brightness < 7) {
@@ -548,7 +559,7 @@ static void setflip(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 
-	unsigned char flipcmd[8] =
+	__u8 flipcmd[8] =
 	    { 0x62, 0x07, 0x63, 0x03, 0x64, 0x00, 0x60, 0x09 };
 
 	if (sd->mirror == 1)
@@ -570,9 +581,9 @@ static void seteffect(struct gspca_dev *gspca_dev)
 	}
 
 	if (sd->effect == 1 || sd->effect == 4)
-		t16RegWrite(dev, 0x00, 0x4aa6, 0x00, 0x00);
+		t16RegWrite(dev, 0x00, 0x4aa6, NULL, 0x00);
 	else
-		t16RegWrite(dev, 0x00, 0xfaa6, 0x00, 0x00);
+		t16RegWrite(dev, 0x00, 0xfaa6, NULL, 0x00);
 }
 
 static void setwhitebalance(struct gspca_dev *gspca_dev)
@@ -580,7 +591,7 @@ static void setwhitebalance(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 
-	unsigned char white_balance[8] =
+	__u8 white_balance[8] =
 	    { 0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38 };
 
 	if (sd->whitebalance == 1)
@@ -613,18 +624,17 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	else
 		reg_to_write = (0x00a9 + ((contrast - 7) * 0x200));
 
-	t16RegWrite(dev, 0x00, reg_to_write, 0x00, 0);
-
+	t16RegWrite(dev, 0x00, reg_to_write, NULL, 0);
 }
 
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	__u16 reg_to_write = 0x00;
+	__u16 reg_to_write;
 
 	reg_to_write = 0xc0bb + sd->colors * 0x100;
-	t16RegWrite(dev, 0x00, reg_to_write, 0x00, 0);
+	t16RegWrite(dev, 0x00, reg_to_write, NULL, 0);
 }
 
 static void setgamma(struct gspca_dev *gspca_dev)
@@ -635,11 +645,11 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	__u16 reg_to_write = 0x00;
+	__u16 reg_to_write;
 
 	reg_to_write = 0x0aa6 + 0x1000 * sd->sharpness;
 
-	t16RegWrite(dev, 0x00, reg_to_write, 0x00, 0x00);
+	t16RegWrite(dev, 0x00, reg_to_write, NULL, 0x00);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -655,6 +665,7 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
 	*val = sd->brightness;
 	return *val;
 }
@@ -676,7 +687,6 @@ static int sd_getwhitebalance(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = sd->whitebalance;
 	return *val;
 }
-
 
 static int sd_setflip(struct gspca_dev *gspca_dev, __s32 val)
 {
@@ -811,9 +821,9 @@ static int sd_setlowlight(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->autogain = val;
 	if (val != 0)
-		t16RegWrite(dev, 0x00, 0xf48e, 0x00, 0);
+		t16RegWrite(dev, 0x00, 0xf48e, NULL, 0);
 	else
-		t16RegWrite(dev, 0x00, 0xb48e, 0x00, 0);
+		t16RegWrite(dev, 0x00, 0xb48e, NULL, 0);
 	return 0;
 }
 
@@ -831,12 +841,12 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	int mode;
 	__u8 test_byte;
 
-	static __u8 t1[] = { 0x66, 0x00, 0xa8, 0xe8 };
+	static const __u8 t1[] = { 0x66, 0x00, 0xa8, 0xe8 };
 	__u8 t2[] = { 0x07, 0x00, 0x0d, 0x60, 0x0e, 0x80 };
-	static __u8 t3[] =
+	static const __u8 t3[] =
 		{ 0xb3, 0x07, 0xb4, 0x00, 0xb5, 0x88, 0xb6, 0x02, 0xb7, 0x06,
 		  0xb8, 0x00, 0xb9, 0xe7, 0xba, 0x01 };
-	static __u8 t4[] = { 0x0b, 0x04, 0x0a, 0x40 };
+	static const __u8 t4[] = { 0x0b, 0x04, 0x0a, 0x40 };
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode]. mode;
 	switch (mode) {
@@ -860,16 +870,16 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[1], 0x8);
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[2], 0x8);
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[3], 0x8);
-	t16RegWrite(dev, 0x00, 0x3c80, 0x00, 0x00);
+	t16RegWrite(dev, 0x00, 0x3c80, NULL, 0x00);
 		/* just in case and to keep sync with logs  (for mine) */
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[3], 0x8);
-	t16RegWrite(dev, 0x00, 0x3c80, 0x00, 0x00);
+	t16RegWrite(dev, 0x00, 0x3c80, NULL, 0x00);
 		/* just in case and to keep sync with logs  (for mine) */
 	t16RegWrite(dev, 0x01, 0x0000, t1, 4);
 	t16RegWrite(dev, 0x01, 0x0000, t2, 6);
 	t16RegRead(dev, 0x0012, &test_byte, 0x1);
 	t16RegWrite(dev, 0x01, 0x0000, t3, 0x10);
-	t16RegWrite(dev, 0x00, 0x0013, 0x00, 0x00);
+	t16RegWrite(dev, 0x00, 0x0013, NULL, 0x00);
 	t16RegWrite(dev, 0x01, 0x0000, t4, 0x4);
 	/* restart on each start, just in case, sometimes regs goes wrong
 	 * when using controls from app */
@@ -892,11 +902,11 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	int sof = 0;
-	static unsigned char ffd9[] = { 0xff, 0xd9 };
+	static __u8 ffd9[] = { 0xff, 0xd9 };
 
 	if (data[0] == 0x5a) {
 		/* Control Packet, after this came the header again,
@@ -935,27 +945,26 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 static int sd_querymenu(struct gspca_dev *gspca_dev,
 			struct v4l2_querymenu *menu)
 {
-	memset(menu->name, 0, sizeof menu->name);
-
 	switch (menu->id) {
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 		switch (menu->index) {
 		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy(menu->name, "50 Hz");
+			strcpy((char *) menu->name, "50 Hz");
 			return 0;
 		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy(menu->name, "60 Hz");
+			strcpy((char *) menu->name, "60 Hz");
 			return 0;
 		}
 		break;
 	case V4L2_CID_EFFECTS:
-		if (menu->index < 0 || menu->index >= NUM_EFFECTS_CONTROL)
-			return -EINVAL;
-		strncpy((char *) menu->name,
-			effects_control[menu->index].name, 32);
+		if ((unsigned) menu->index < ARRAY_SIZE(effects_control)) {
+			strncpy((char *) menu->name,
+				effects_control[menu->index], 32);
+			return 0;
+		}
 		break;
 	}
-	return 0;
+	return -EINVAL;
 }
 
 /* this function is called at open time */
@@ -966,7 +975,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -982,11 +991,10 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x17a1, 0x0128), DVNM("XPX Webcam")},
 	{}
 };
-
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */

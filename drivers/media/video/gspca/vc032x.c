@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/VC032X USB Camera Driver");
@@ -97,7 +97,7 @@ static struct cam_mode vc0323_mode[] = {
 	{V4L2_PIX_FMT_JPEG, 640, 480, 0},
 };
 
-static __u8 mi1310_socinitVGA_JPG[][4] = {
+static const __u8 mi1310_socinitVGA_JPG[][4] = {
 	{0xb0, 0x03, 0x19, 0xcc},
 	{0xb0, 0x04, 0x02, 0xcc},
 	{0xb3, 0x00, 0x64, 0xcc},
@@ -249,7 +249,7 @@ static __u8 mi1310_socinitVGA_JPG[][4] = {
 	{0x03, 0x03, 0xc0, 0xbb},
 	{},
 };
-static __u8 mi1310_socinitQVGA_JPG[][4] = {
+static const __u8 mi1310_socinitQVGA_JPG[][4] = {
 	{0xb0, 0x03, 0x19, 0xcc},	{0xb0, 0x04, 0x02, 0xcc},
 	{0xb3, 0x00, 0x64, 0xcc},	{0xb3, 0x00, 0x65, 0xcc},
 	{0xb3, 0x05, 0x00, 0xcc},	{0xb3, 0x06, 0x00, 0xcc},
@@ -323,14 +323,14 @@ static __u8 mi1310_socinitQVGA_JPG[][4] = {
 	{},
 };
 
-static __u8 mi1320_gamma[17] = {
+static const __u8 mi1320_gamma[17] = {
 	0x00, 0x13, 0x38, 0x59, 0x79, 0x92, 0xa7, 0xb9, 0xc8,
 	0xd4, 0xdf, 0xe7, 0xee, 0xf4, 0xf9, 0xfc, 0xff
 };
-static __u8 mi1320_matrix[9] = {
+static const __u8 mi1320_matrix[9] = {
 	0x54, 0xda, 0x06, 0xf1, 0x50, 0xf4, 0xf7, 0xea, 0x52
 };
-static __u8 mi1320_initVGA_data[][4] = {
+static const __u8 mi1320_initVGA_data[][4] = {
 	{0xb3, 0x01, 0x01, 0xcc},	{0x00, 0x00, 0x33, 0xdd},
 	{0xb0, 0x03, 0x19, 0xcc},	{0x00, 0x00, 0x33, 0xdd},
 	{0xb0, 0x04, 0x02, 0xcc},	{0x00, 0x00, 0x33, 0xdd},
@@ -409,7 +409,7 @@ static __u8 mi1320_initVGA_data[][4] = {
 	{0xb3, 0x5c, 0x01, 0xcc},	{0xb3, 0x01, 0x41, 0xcc},
 	{}
 };
-static __u8 mi1320_initQVGA_data[][4] = {
+static const __u8 mi1320_initQVGA_data[][4] = {
 	{0xb3, 0x01, 0x01, 0xcc},	{0x00, 0x00, 0x33, 0xdd},
 	{0xb0, 0x03, 0x19, 0xcc},	{0x00, 0x00, 0x33, 0xdd},
 	{0xb0, 0x04, 0x02, 0xcc},	{0x00, 0x00, 0x33, 0xdd},
@@ -478,15 +478,15 @@ static __u8 mi1320_initQVGA_data[][4] = {
 	{}
 };
 
-static __u8 po3130_gamma[17] = {
+static const __u8 po3130_gamma[17] = {
 	0x00, 0x13, 0x38, 0x59, 0x79, 0x92, 0xa7, 0xb9, 0xc8,
 	0xd4, 0xdf, 0xe7, 0xee, 0xf4, 0xf9, 0xfc, 0xff
 };
-static __u8 po3130_matrix[9] = {
+static const __u8 po3130_matrix[9] = {
 	0x5f, 0xec, 0xf5, 0xf1, 0x5a, 0xf5, 0xf1, 0xec, 0x63
 };
 
-static __u8 po3130_initVGA_data[][4] = {
+static const __u8 po3130_initVGA_data[][4] = {
 	{0xb0, 0x4d, 0x00, 0xcc},	{0xb3, 0x01, 0x01, 0xcc},
 	{0x00, 0x00, 0x50, 0xdd},	{0xb0, 0x03, 0x01, 0xcc},
 	{0xb3, 0x00, 0x04, 0xcc},	{0xb3, 0x00, 0x24, 0xcc},
@@ -569,7 +569,7 @@ static __u8 po3130_initVGA_data[][4] = {
 	{0xb3, 0x5c, 0x00, 0xcc},	{0xb3, 0x01, 0x41, 0xcc},
 	{}
 };
-static __u8 po3130_rundata[][4] = {
+static const __u8 po3130_rundata[][4] = {
 	{0x00, 0x47, 0x45, 0xaa},	{0x00, 0x48, 0x9b, 0xaa},
 	{0x00, 0x49, 0x3a, 0xaa},	{0x00, 0x4a, 0x01, 0xaa},
 	{0x00, 0x44, 0x40, 0xaa},
@@ -584,7 +584,7 @@ static __u8 po3130_rundata[][4] = {
 	{}
 };
 
-static __u8 po3130_initQVGA_data[][4] = {
+static const __u8 po3130_initQVGA_data[][4] = {
 	{0xb0, 0x4d, 0x00, 0xcc},	{0xb3, 0x01, 0x01, 0xcc},
 	{0x00, 0x00, 0x50, 0xdd},	{0xb0, 0x03, 0x09, 0xcc},
 	{0xb3, 0x00, 0x04, 0xcc},	{0xb3, 0x00, 0x24, 0xcc},
@@ -670,16 +670,16 @@ static __u8 po3130_initQVGA_data[][4] = {
 	{}
 };
 
-static __u8 hv7131r_gamma[17] = {
+static const __u8 hv7131r_gamma[17] = {
 /*	0x00, 0x13, 0x38, 0x59, 0x79, 0x92, 0xa7, 0xb9, 0xc8,
  *	0xd4, 0xdf, 0xe7, 0xee, 0xf4, 0xf9, 0xfc, 0xff */
 	0x04, 0x1a, 0x36, 0x55, 0x6f, 0x87, 0x9d, 0xb0, 0xc1,
 	0xcf, 0xda, 0xe4, 0xec, 0xf3, 0xf8, 0xfd, 0xff
 };
-static __u8 hv7131r_matrix[9] = {
+static const __u8 hv7131r_matrix[9] = {
 	0x5f, 0xec, 0xf5, 0xf1, 0x5a, 0xf5, 0xf1, 0xec, 0x63
 };
-static __u8 hv7131r_initVGA_data[][4] = {
+static const __u8 hv7131r_initVGA_data[][4] = {
 	{0xb0, 0x4d, 0x00, 0xcc},	{0xb3, 0x01, 0x01, 0xcc},
 	{0x00, 0x00, 0x50, 0xdd},	{0xb0, 0x03, 0x01, 0xcc},
 	{0xb3, 0x00, 0x24, 0xcc},
@@ -722,7 +722,7 @@ static __u8 hv7131r_initVGA_data[][4] = {
 	{}
 };
 
-static __u8 hv7131r_initQVGA_data[][4] = {
+static const __u8 hv7131r_initQVGA_data[][4] = {
 	{0xb0, 0x4d, 0x00, 0xcc},	{0xb3, 0x01, 0x01, 0xcc},
 	{0x00, 0x00, 0x50, 0xdd},	{0xb0, 0x03, 0x01, 0xcc},
 	{0xb3, 0x00, 0x24, 0xcc},
@@ -777,14 +777,14 @@ static __u8 hv7131r_initQVGA_data[][4] = {
 	{}
 };
 
-static __u8 ov7660_gamma[17] = {
+static const __u8 ov7660_gamma[17] = {
 	0x00, 0x13, 0x38, 0x59, 0x79, 0x92, 0xa7, 0xb9, 0xc8,
 	0xd4, 0xdf, 0xe7, 0xee, 0xf4, 0xf9, 0xfc, 0xff
 };
-static __u8 ov7660_matrix[9] = {
+static const __u8 ov7660_matrix[9] = {
 	0x5a, 0xf0, 0xf6, 0xf3, 0x57, 0xf6, 0xf3, 0xef, 0x62
 };
-static __u8 ov7660_initVGA_data[][4] = {
+static const __u8 ov7660_initVGA_data[][4] = {
 	{0xb0, 0x4d, 0x00, 0xcc},	{0xb3, 0x01, 0x01, 0xcc},
 	{0x00, 0x00, 0x50, 0xdd},
 	{0xb0, 0x03, 0x01, 0xcc},
@@ -842,7 +842,7 @@ static __u8 ov7660_initVGA_data[][4] = {
 	{0x00, 0x29, 0x3c, 0xaa},	{0xb3, 0x01, 0x45, 0xcc},
 	{}
 };
-static __u8 ov7660_initQVGA_data[][4] = {
+static const __u8 ov7660_initQVGA_data[][4] = {
 	{0xb0, 0x4d, 0x00, 0xcc},	{0xb3, 0x01, 0x01, 0xcc},
 	{0x00, 0x00, 0x50, 0xdd},	{0xb0, 0x03, 0x01, 0xcc},
 	{0xb3, 0x00, 0x21, 0xcc},	{0xb3, 0x00, 0x26, 0xcc},
@@ -911,26 +911,26 @@ static __u8 ov7660_initQVGA_data[][4] = {
 	{0x00, 0x00, 0x00, 0x00}
 };
 
-static __u8 ov7660_50HZ[][4] = {
+static const __u8 ov7660_50HZ[][4] = {
 	{0x00, 0x3b, 0x08, 0xaa},
 	{0x00, 0x9d, 0x40, 0xaa},
 	{0x00, 0x13, 0xa7, 0xaa},
 	{0x00, 0x00, 0x00, 0x00}
 };
 
-static __u8 ov7660_60HZ[][4] = {
+static const __u8 ov7660_60HZ[][4] = {
 	{0x00, 0x3b, 0x00, 0xaa},
 	{0x00, 0x9e, 0x40, 0xaa},
 	{0x00, 0x13, 0xa7, 0xaa},
 	{}
 };
 
-static __u8 ov7660_NoFliker[][4] = {
+static const __u8 ov7660_NoFliker[][4] = {
 	{0x00, 0x13, 0x87, 0xaa},
 	{}
 };
 
-static __u8 ov7670_initVGA_JPG[][4] = {
+static const __u8 ov7670_initVGA_JPG[][4] = {
 	{0xb3, 0x01, 0x05, 0xcc},
 	{0x00, 0x00, 0x30, 0xdd},	{0xb0, 0x03, 0x19, 0xcc},
 	{0x00, 0x00, 0x10, 0xdd},
@@ -1058,7 +1058,7 @@ static __u8 ov7670_initVGA_JPG[][4] = {
 	{},
 };
 
-static __u8 ov7670_initQVGA_JPG[][4] = {
+static const __u8 ov7670_initQVGA_JPG[][4] = {
 	{0xb3, 0x01, 0x05, 0xcc},	{0x00, 0x00, 0x30, 0xdd},
 	{0xb0, 0x03, 0x19, 0xcc},	{0x00, 0x00, 0x10, 0xdd},
 	{0xb0, 0x04, 0x02, 0xcc},	{0x00, 0x00, 0x10, 0xdd},
@@ -1200,7 +1200,7 @@ struct sensor_info {
 	__u8 op;
 	};
 
-static struct sensor_info sensor_info_data[] = {
+static const struct sensor_info sensor_info_data[] = {
 /*      sensorId,         I2cAdd,	IdAdd,  VpId,  m1,    m2,  op */
 	{SENSOR_HV7131R,    0x80 | 0x11, 0x00, 0x0209, 0x24, 0x25, 0x01},
 	{SENSOR_OV7660,     0x80 | 0x21, 0x0a, 0x7660, 0x26, 0x26, 0x05},
@@ -1282,7 +1282,7 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 	int i;
 	__u8 data;
 	__u16 value;
-	struct sensor_info *ptsensor_info;
+	const struct sensor_info *ptsensor_info;
 
 	reg_r(dev, 0xa1, 0xbfcf, &data, 1);
 	PDEBUG(D_PROBE, "check sensor header %d", data);
@@ -1309,7 +1309,7 @@ static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 }
 
 static __u8 i2c_write(struct usb_device *dev,
-				__u8 reg, __u8 *val, __u8 size)
+			__u8 reg, const __u8 *val, __u8 size)
 {
 	__u8 retbyte;
 
@@ -1341,7 +1341,7 @@ static __u8 i2c_write(struct usb_device *dev,
 }
 
 static void put_tab_to_reg(struct gspca_dev *gspca_dev,
-			__u8 *tab, __u8 tabsize, __u16 addr)
+			const __u8 *tab, __u8 tabsize, __u16 addr)
 {
 	int j;
 	__u16 ad = addr;
@@ -1351,7 +1351,7 @@ static void put_tab_to_reg(struct gspca_dev *gspca_dev,
 }
 
 static void usb_exchange(struct gspca_dev *gspca_dev,
-				__u8 data[][4])
+			const __u8 data[][4])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int i = 0;
@@ -1511,7 +1511,7 @@ static void setautogain(struct gspca_dev *gspca_dev)
 static void setlightfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	static __u8 (*ov7660_freq_tb[3])[4] =
+	static const __u8 (*ov7660_freq_tb[3])[4] =
 		{ov7660_NoFliker, ov7660_50HZ, ov7660_60HZ};
 
 	if (sd->sensor != SENSOR_OV7660)
@@ -1523,8 +1523,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 /*	__u8 tmp2; */
-	__u8 *GammaT = NULL;
-	__u8 *MatrixT = NULL;
+	const __u8 *GammaT = NULL;
+	const __u8 *MatrixT = NULL;
 	int mode;
 
 	/* Assume start use the good resolution from gspca_dev->mode */
@@ -1673,7 +1673,7 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso pkt length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1739,13 +1739,13 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 		switch (menu->index) {
 		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
-			strcpy(menu->name, "NoFliker");
+			strcpy((char *) menu->name, "NoFliker");
 			return 0;
 		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy(menu->name, "50 Hz");
+			strcpy((char *) menu->name, "50 Hz");
 			return 0;
 		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy(menu->name, "60 Hz");
+			strcpy((char *) menu->name, "60 Hz");
 			return 0;
 		}
 		break;
@@ -1754,7 +1754,7 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -1770,7 +1770,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x0892), DVNM("Logitech Orbicam")},
 	{USB_DEVICE(0x046d, 0x0896), DVNM("Logitech Orbicam")},
 	{USB_DEVICE(0x0ac8, 0x0321), DVNM("Vimicro generic vc0321")},

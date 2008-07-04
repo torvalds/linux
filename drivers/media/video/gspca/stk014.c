@@ -23,8 +23,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
@@ -54,7 +54,6 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-#define SD_BRIGHTNESS 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -63,12 +62,12 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-		.default_value = 127,
+#define BRIGHTNESS_DEF 127
+		.default_value = BRIGHTNESS_DEF,
 	    },
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
-#define SD_CONTRAST 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -77,26 +76,26 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-		.default_value = 127,
+#define CONTRAST_DEF 127
+		.default_value = CONTRAST_DEF,
 	    },
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
-#define SD_COLOR 2
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Saturation",
+		.name    = "Color",
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-		.default_value = 127,
+#define COLOR_DEF 127
+		.default_value = COLOR_DEF,
 	    },
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
-#define SD_FREQ 3
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -105,7 +104,8 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 1,
 		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
 		.step    = 1,
-		.default_value = 1,
+#define FREQ_DEF 1
+		.default_value = FREQ_DEF,
 	    },
 	    .set = sd_setfreq,
 	    .get = sd_getfreq,
@@ -296,10 +296,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->epaddr = 0x02;
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = sizeof vga_mode / sizeof vga_mode[0];
-	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
-	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
-	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
-	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->colors = COLOR_DEF;
+	sd->lightfreq = FREQ_DEF;
 	return 0;
 }
 
@@ -408,7 +408,7 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	static unsigned char ffd9[] = {0xff, 0xd9};
@@ -518,10 +518,10 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 		switch (menu->index) {
 		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy(menu->name, "50 Hz");
+			strcpy((char *) menu->name, "50 Hz");
 			return 0;
 		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy(menu->name, "60 Hz");
+			strcpy((char *) menu->name, "60 Hz");
 			return 0;
 		}
 		break;

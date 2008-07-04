@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/Mars USB Camera Driver");
@@ -140,7 +140,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	__u16 MI_buf[242];
 	int h_size, v_size;
 	int intpipe;
-	/* struct usb_device *dev = pcam->dev; */
+/*	struct usb_device *dev = pcam->dev; */
+
 	memset(data, 0, sizeof data);
 	memset(MI_buf, 0, sizeof MI_buf);
 
@@ -351,7 +352,7 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -389,7 +390,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -404,7 +405,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x093a, 0x050f), DVNM("Mars-Semi Pc-Camera")},
 	{}
 };

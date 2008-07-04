@@ -27,8 +27,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
@@ -716,7 +716,7 @@ static int pac207_decode_frame_data(struct gspca_dev *gspca_dev,
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,
-			unsigned char *data,
+			__u8 *data,
 			int len)
 {
 	unsigned char *sof;
@@ -754,8 +754,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 	n = pac207_decode_frame_data(gspca_dev, frame, data, len);
 	if (n)
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET,
-					frame, NULL, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET,
+				frame, NULL, 0);
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)
@@ -879,7 +879,7 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -895,7 +895,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4028), DVNM("Creative Webcam Vista Plus")},
 	{USB_DEVICE(0x093a, 0x2460), DVNM("Q-Tec Webcam 100")},
 	{USB_DEVICE(0x093a, 0x2463), DVNM("Philips spc200nc pac207")},

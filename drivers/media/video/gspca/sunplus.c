@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 1)
-static const char version[] = "2.1.1";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA5xx USB Camera Driver");
@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	unsigned char packet[ISO_MAX_SIZE + 128];
+	__u8 packet[ISO_MAX_SIZE + 128];
 				/* !! no more than 128 ff in an ISO packet */
 
 	unsigned char brightness;
@@ -156,7 +156,7 @@ static struct cam_mode vga_mode2[] = {
 #define SPCA536_OFFSET_FRAMSEQ	 1
 
 /* Initialisation data for the Creative PC-CAM 600 */
-static __u16 spca504_pccam600_init_data[][3] = {
+static const __u16 spca504_pccam600_init_data[][3] = {
 /*	{0xa0, 0x0000, 0x0503},  * capture mode */
 	{0x00, 0x0000, 0x2000},
 	{0x00, 0x0013, 0x2301},
@@ -186,7 +186,7 @@ static __u16 spca504_pccam600_init_data[][3] = {
 /* Creative PC-CAM 600 specific open data, sent before using the
  * generic initialisation data from spca504_open_data.
  */
-static __u16 spca504_pccam600_open_data[][3] = {
+static const __u16 spca504_pccam600_open_data[][3] = {
 	{0x00, 0x0001, 0x2501},
 	{0x20, 0x0500, 0x0001},	/* snapshot mode */
 	{0x00, 0x0003, 0x2880},
@@ -195,7 +195,7 @@ static __u16 spca504_pccam600_open_data[][3] = {
 };
 
 /* Initialisation data for the logitech clicksmart 420 */
-static __u16 spca504A_clicksmart420_init_data[][3] = {
+static const __u16 spca504A_clicksmart420_init_data[][3] = {
 /*	{0xa0, 0x0000, 0x0503},  * capture mode */
 	{0x00, 0x0000, 0x2000},
 	{0x00, 0x0013, 0x2301},
@@ -226,7 +226,7 @@ static __u16 spca504A_clicksmart420_init_data[][3] = {
 };
 
 /* clicksmart 420 open data ? */
-static __u16 spca504A_clicksmart420_open_data[][3] = {
+static const __u16 spca504A_clicksmart420_open_data[][3] = {
 	{0x00, 0x0001, 0x2501},
 	{0x20, 0x0502, 0x0000},
 	{0x06, 0x0000, 0x0000},
@@ -373,7 +373,7 @@ static __u16 spca504A_clicksmart420_open_data[][3] = {
 	{}
 };
 
-static unsigned char qtable_creative_pccam[2][64] = {
+static const __u8 qtable_creative_pccam[2][64] = {
 	{				/* Q-table Y-components */
 	 0x05, 0x03, 0x03, 0x05, 0x07, 0x0c, 0x0f, 0x12,
 	 0x04, 0x04, 0x04, 0x06, 0x08, 0x11, 0x12, 0x11,
@@ -398,7 +398,7 @@ static unsigned char qtable_creative_pccam[2][64] = {
  *		except for one byte. Possibly a typo?
  *		NWG: 18/05/2003.
  */
-static unsigned char qtable_spca504_default[2][64] = {
+static const __u8 qtable_spca504_default[2][64] = {
 	{				/* Q-table Y-components */
 	 0x05, 0x03, 0x03, 0x05, 0x07, 0x0c, 0x0f, 0x12,
 	 0x04, 0x04, 0x04, 0x06, 0x08, 0x11, 0x12, 0x11,
@@ -512,7 +512,7 @@ static int reg_read(struct usb_device *dev,
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
-				__u16 data[][3])
+			const __u16 data[][3])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
@@ -534,7 +534,7 @@ static int spca50x_setup_qtable(struct gspca_dev *gspca_dev,
 				unsigned int request,
 				unsigned int ybase,
 				unsigned int cbase,
-				unsigned char qtable[2][64])
+				const __u8 qtable[2][64])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int i, err;
@@ -1242,7 +1242,7 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1530,7 +1530,7 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -1545,7 +1545,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x400b), DVNM("Creative PC-CAM 600")},
 	{USB_DEVICE(0x041e, 0x4012), DVNM("PC-Cam350")},
 	{USB_DEVICE(0x041e, 0x4013), DVNM("Creative Pccam750")},

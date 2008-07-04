@@ -23,8 +23,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA505 USB Camera Driver");
@@ -91,7 +91,7 @@ static struct cam_mode vga_mode[] = {
 /*
  * Data to initialize a SPCA505. Common to the CCD and external modes
  */
-static __u16 spca505_init_data[][3] = {
+static const __u16 spca505_init_data[][3] = {
 	/* line	   bmRequest,value,index */
 	/* 1819 */
 	{SPCA50X_REG_GLOBAL, SPCA50X_GMISC3_SAA7113RST, SPCA50X_GLOBAL_MISC3},
@@ -130,7 +130,7 @@ static __u16 spca505_init_data[][3] = {
 /*
  * Data to initialize the camera using the internal CCD
  */
-static __u16 spca505_open_data_ccd[][3] = {
+static const __u16 spca505_open_data_ccd[][3] = {
 	/* line	   bmRequest,value,index */
 	/* Internal CCD data set */
 	/* 1891 */ {0x3, 0x04, 0x01},
@@ -319,7 +319,7 @@ static __u16 spca505_open_data_ccd[][3] = {
 /*
  * Data to initialize a SPCA505. Common to the CCD and external modes
  */
-static __u16 spca505b_init_data[][3] = {
+static const __u16 spca505b_init_data[][3] = {
 /* start */
 	{0x02, 0x00, 0x00},		/* init */
 	{0x02, 0x00, 0x01},
@@ -383,7 +383,7 @@ static __u16 spca505b_init_data[][3] = {
 /*
  * Data to initialize the camera using the internal CCD
  */
-static __u16 spca505b_open_data_ccd[][3] = {
+static const __u16 spca505b_open_data_ccd[][3] = {
 
 /* {0x02,0x00,0x00}, */
 	{0x03, 0x04, 0x01},		/* rst */
@@ -579,7 +579,7 @@ static int reg_read(struct usb_device *dev,
 			__u16 length)	/* wLength (1 or 2 only) */
 {
 	int ret;
-	unsigned char buf[4];
+	__u8 buf[4];
 
 	buf[1] = 0;
 	ret = usb_control_msg(dev,
@@ -599,7 +599,7 @@ static int reg_read(struct usb_device *dev,
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
-				__u16 data[][3])
+			const __u16 data[][3])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
@@ -801,7 +801,7 @@ static void yyuv_decode(unsigned char *out,
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -878,7 +878,7 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -893,7 +893,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x401d), DVNM("Creative Webcam NX ULTRA")},
 	{USB_DEVICE(0x0733, 0x0430), DVNM("Intel PC Camera Pro")},
 	{}

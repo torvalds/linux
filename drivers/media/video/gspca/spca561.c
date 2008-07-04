@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
+static const char version[] = "2.1.4";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA561 USB Camera Driver");
@@ -148,7 +148,8 @@ static void reg_w_val(struct usb_device *dev, __u16 index, __u16 value)
 		PDEBUG(D_ERR, "reg write: error %d", ret);
 }
 
-static void write_vector(struct gspca_dev *gspca_dev, __u16 data[][2])
+static void write_vector(struct gspca_dev *gspca_dev,
+			const __u16 data[][2])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int i;
@@ -171,13 +172,16 @@ static void reg_r(struct usb_device *dev,
 }
 
 static void reg_w_buf(struct usb_device *dev,
-		      __u16 index, __u8 *buffer, __u16 length)
+		      __u16 index, const __u8 *buffer, __u16 len)
 {
+	__u8 tmpbuf[8];
+
+	memcpy(tmpbuf, buffer, len);
 	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			0,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,			/* value */
-			index, buffer, length, 500);
+			index, tmpbuf, len, 500);
 }
 
 static void i2c_init(struct gspca_dev *gspca_dev, __u8 mode)
@@ -227,7 +231,7 @@ static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
 	return ((int) value << 8) | vallsb;
 }
 
-static __u16 spca561_init_data[][2] = {
+static const __u16 spca561_init_data[][2] = {
 	{0x0000, 0x8114},	/* Software GPIO output data */
 	{0x0001, 0x8114},	/* Software GPIO output data */
 	{0x0000, 0x8112},	/* Some kind of reset */
@@ -437,7 +441,7 @@ static void sensor_reset(struct gspca_dev *gspca_dev)
 }
 
 /******************** QC Express etch2 stuff ********************/
-static __u16 Pb100_1map8300[][2] = {
+static const __u16 Pb100_1map8300[][2] = {
 	/* reg, value */
 	{0x8320, 0x3304},
 
@@ -452,14 +456,14 @@ static __u16 Pb100_1map8300[][2] = {
 	{0x8302, 0x000e},
 	{}
 };
-static __u16 Pb100_2map8300[][2] = {
+static const __u16 Pb100_2map8300[][2] = {
 	/* reg, value */
 	{0x8339, 0x0000},
 	{0x8307, 0x00aa},
 	{}
 };
 
-static __u16 spca561_161rev12A_data1[][2] = {
+static const __u16 spca561_161rev12A_data1[][2] = {
 	{0x21, 0x8118},
 	{0x01, 0x8114},
 	{0x00, 0x8112},
@@ -467,7 +471,7 @@ static __u16 spca561_161rev12A_data1[][2] = {
 	{0x04, 0x8802},		/* windows uses 08 */
 	{}
 };
-static __u16 spca561_161rev12A_data2[][2] = {
+static const __u16 spca561_161rev12A_data2[][2] = {
 	{0x21, 0x8118},
 	{0x10, 0x8500},
 	{0x07, 0x8601},
@@ -513,7 +517,7 @@ static __u16 spca561_161rev12A_data2[][2] = {
 };
 
 static void sensor_mapwrite(struct gspca_dev *gspca_dev,
-			    __u16 sensormap[][2])
+			    const __u16 sensormap[][2])
 {
 	int i = 0;
 	__u8 usbval[2];
@@ -956,7 +960,7 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -971,7 +975,7 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
-static __devinitdata struct usb_device_id device_table[] = {
+static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x401a), DVNM("Creative Webcam Vista (PD1100)")},
 	{USB_DEVICE(0x041e, 0x403b),  DVNM("Creative Webcam Vista (VF0010)")},
 	{USB_DEVICE(0x0458, 0x7004), DVNM("Genius VideoCAM Express V2")},
