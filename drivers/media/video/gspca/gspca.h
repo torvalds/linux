@@ -80,6 +80,7 @@ typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 				struct gspca_frame *frame,
 				__u8 *data,
 				int len);
+typedef int (*cam_get_buff_size_op) (struct gspca_dev *gspca_dev, int mode);
 
 struct ctrl {
 	struct v4l2_queryctrl qctrl;
@@ -106,6 +107,7 @@ struct sd_desc {
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
 	cam_qmnu_op querymenu;
+	cam_get_buff_size_op get_buff_size; /* optional */
 };
 
 /* packet types when moving from iso buf to frame buf */

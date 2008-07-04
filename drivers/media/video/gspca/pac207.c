@@ -58,33 +58,9 @@ MODULE_LICENSE("GPL");
    before doing any other adjustments */
 #define PAC207_AUTOGAIN_IGNORE_FRAMES	3
 
-enum pac207_line_state {
-	LINE_HEADER1,
-	LINE_HEADER2,
-	LINE_UNCOMPRESSED,
-	LINE_COMPRESSED,
-};
-
-struct pac207_decoder_state {
-	/* generic state */
-	u16 line_read;
-	u16 line_marker;
-	u8 line_state;
-	u8 header_read;
-	/* compression state */
-	u16 processed_bytes;
-	u8 remaining_bits;
-	s8 no_remaining_bits;
-	u8 get_abs;
-	u8 discard_byte;
-	u8 line_decode_buf[352];
-};
-
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
-
-	struct pac207_decoder_state decoder_state;
 
 	u8 mode;
 
@@ -94,6 +70,7 @@ struct sd {
 	u8 gain;
 
 	u8 sof_read;
+	u8 header_read;
 	u8 autogain_ignore_frames;
 
 	atomic_t avg_lum;
@@ -173,8 +150,8 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_SBGGR8, 176, 144, 1},
-	{V4L2_PIX_FMT_SBGGR8, 352, 288, 0},
+	{V4L2_PIX_FMT_PAC207, 176, 144, 1},
+	{V4L2_PIX_FMT_PAC207, 352, 288, 0},
 };
 
 static const __u8 pac207_sensor_init[][8] = {
@@ -361,68 +338,17 @@ static void sd_close(struct gspca_dev *gspca_dev)
 {
 }
 
-/* -- convert pixart frames to Bayer -- */
-/* Sonix decompressor struct B.S.(2004) */
-static struct {
-	u8 is_abs;
-	u8 len;
-	s8 val;
-} table[256];
-
-void init_pixart_decoder(void)
+static int sd_get_buff_size_op(struct gspca_dev *gspca_dev, int mode)
 {
-	int i, is_abs, val, len;
-
-	for (i = 0; i < 256; i++) {
-		is_abs = 0;
-		val = 0;
-		len = 0;
-		if ((i & 0xC0) == 0) {
-			/* code 00 */
-			val = 0;
-			len = 2;
-		} else if ((i & 0xC0) == 0x40) {
-			/* code 01 */
-			val = -5;
-			len = 2;
-		} else if ((i & 0xC0) == 0x80) {
-			/* code 10 */
-			val = 5;
-			len = 2;
-		} else if ((i & 0xF0) == 0xC0) {
-			/* code 1100 */
-			val = -10;
-			len = 4;
-		} else if ((i & 0xF0) == 0xD0) {
-			/* code 1101 */
-			val = 10;
-			len = 4;
-		} else if ((i & 0xF8) == 0xE0) {
-			/* code 11100 */
-			val = -15;
-			len = 5;
-		} else if ((i & 0xF8) == 0xE8) {
-			/* code 11101 */
-			val = 15;
-			len = 5;
-		} else if ((i & 0xFC) == 0xF0) {
-			/* code 111100 */
-			val = -20;
-			len = 6;
-		} else if ((i & 0xFC) == 0xF4) {
-			/* code 111101 */
-			val = 20;
-			len = 6;
-		} else if ((i & 0xF8) == 0xF8) {
-			/* code 11111xxxxxx */
-			is_abs = 1;
-			val = 0;
-			len = 5;
-		}
-		table[i].is_abs = is_abs;
-		table[i].val = val;
-		table[i].len = len;
+	switch (gspca_dev->cam.cam_mode[mode].width) {
+	case 176: /* 176x144 */
+		/* uncompressed, add 2 bytes / line for line header */
+		return (176 + 2) * 144;
+	case 352: /* 352x288 */
+		/* compressed */
+		return 352 * 288 / 2;
 	}
+	return -EIO; /* should never happen */
 }
 
 /* auto gain and exposure algorithm based on the knee algorithm described here:
@@ -517,245 +443,52 @@ static unsigned char *pac207_find_sof(struct gspca_dev *gspca_dev,
 	return NULL;
 }
 
-static int pac207_decompress_row(struct gspca_dev *gspca_dev,
-				struct gspca_frame *f,
-				__u8 *cdata,
-				int len)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	struct pac207_decoder_state *decoder_state = &sd->decoder_state;
-	unsigned char *outp = decoder_state->line_decode_buf +
-				decoder_state->line_read;
-	int val, bitlen, bitpos = -decoder_state->no_remaining_bits;
-	u8 code;
-
-	/* first two pixels are stored as raw 8-bit */
-	while (decoder_state->line_read < 2) {
-		*outp++ = *cdata++;
-		decoder_state->line_read++;
-		len--;
-		if (len == 0)
-			return 0;
-	}
-
-	while (decoder_state->line_read < gspca_dev->width) {
-		if (bitpos < 0) {
-			code = decoder_state->remaining_bits << (8 + bitpos) |
-				cdata[0] >> -bitpos;
-		} else {
-			u8 *addr = cdata + bitpos / 8;
-			code = addr[0] << (bitpos & 7) |
-				addr[1] >> (8 - (bitpos & 7));
-		}
-
-		bitlen = decoder_state->get_abs ?
-				6 : table[code].len;
-
-		/* Stop decompressing if we're out of input data */
-		if ((bitpos + bitlen) > (len * 8))
-			break;
-
-		if (decoder_state->get_abs) {
-			*outp++ = code & 0xFC;
-			decoder_state->line_read++;
-			decoder_state->get_abs = 0;
-		} else {
-			if (table[code].is_abs) {
-				decoder_state->get_abs = 1;
-			} else {
-				/* relative to left pixel */
-				val = outp[-2] +
-					table[code].val;
-				if (val > 0xff)
-					val = 0xff;
-				else if (val < 0)
-					val = 0;
-				*outp++ = val;
-				decoder_state->line_read++;
-			}
-		}
-		bitpos += bitlen;
-	}
-
-	if (decoder_state->line_read == gspca_dev->width) {
-		int compressed_line_len;
-
-		gspca_frame_add(gspca_dev, INTER_PACKET, f,
-				decoder_state->line_decode_buf,
-				gspca_dev->width);
-
-		/* completely decompressed line, round pos to nearest word */
-		compressed_line_len = ((decoder_state->processed_bytes * 8 +
-			bitpos + 15) / 16) * 2;
-
-		len -= compressed_line_len - decoder_state->processed_bytes;
-		if (len < 0) {
-			decoder_state->discard_byte = 1;
-			len = 0;
-		}
-	} else {
-		decoder_state->processed_bytes += len;
-		decoder_state->remaining_bits = cdata[bitpos/8];
-		decoder_state->no_remaining_bits = (8 - bitpos) & 7;
-		len = 0;
-	}
-
-	return len;
-}
-
-static void pac207_decode_line_init(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	struct pac207_decoder_state *decoder_state = &sd->decoder_state;
-
-	decoder_state->line_read = 0;
-	decoder_state->line_state = LINE_HEADER1;
-	decoder_state->processed_bytes = 0;
-	decoder_state->no_remaining_bits = 0;
-	decoder_state->get_abs = 0;
-}
-
-static void pac207_decode_frame_init(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	struct pac207_decoder_state *decoder_state = &sd->decoder_state;
-
-	decoder_state->header_read = 0;
-	decoder_state->discard_byte = 0;
-
-	pac207_decode_line_init(gspca_dev);
-}
-
-static int pac207_decode_frame_data(struct gspca_dev *gspca_dev,
-	struct gspca_frame *f, unsigned char *data, int len)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	struct pac207_decoder_state *decoder_state = &sd->decoder_state;
-	int needed = 0;
-
-	/* first 11 bytes after sof marker: frame header */
-	if (decoder_state->header_read < 11) {
-		/* get average lumination from frame header (byte 5) */
-		if (decoder_state->header_read < 5) {
-			needed = 5 - decoder_state->header_read;
-			if (len >= needed)
-				atomic_set(&sd->avg_lum, data[needed-1]);
-		}
-		/* skip the rest of the header */
-		needed = 11 - decoder_state->header_read;
-		if (len <= needed) {
-			decoder_state->header_read += len;
-			return 0;
-		}
-		data += needed;
-		len -= needed;
-		decoder_state->header_read = 11;
-	}
-
-	while (len) {
-		if (decoder_state->discard_byte) {
-			data++;
-			len--;
-			decoder_state->discard_byte = 0;
-			continue;
-		}
-
-		switch (decoder_state->line_state) {
-		case LINE_HEADER1:
-			decoder_state->line_marker = data[0] << 8;
-			decoder_state->line_state = LINE_HEADER2;
-			needed = 1;
-			break;
-		case LINE_HEADER2:
-			decoder_state->line_marker |= data[0];
-			switch (decoder_state->line_marker) {
-			case 0x0ff0:
-				decoder_state->line_state = LINE_UNCOMPRESSED;
-				break;
-			case 0x1ee1:
-				decoder_state->line_state = LINE_COMPRESSED;
-				break;
-			default:
-				PDEBUG(D_STREAM,
-					"Error unknown line-header %04X",
-					(int) decoder_state->line_marker);
-				gspca_dev->last_packet_type = DISCARD_PACKET;
-				return 0;
-			}
-			needed = 1;
-			break;
-		case LINE_UNCOMPRESSED:
-			needed = gspca_dev->width - decoder_state->line_read;
-			if (needed > len)
-				needed = len;
-			gspca_frame_add(gspca_dev, INTER_PACKET, f, data,
-				needed);
-			decoder_state->line_read += needed;
-			break;
-		case LINE_COMPRESSED:
-			needed = len -
-				pac207_decompress_row(gspca_dev, f, data, len);
-			break;
-		}
-
-		data += needed;
-		len -= needed;
-
-		if (decoder_state->line_read == gspca_dev->width) {
-			if ((f->data_end - f->data) ==
-				(gspca_dev->width * gspca_dev->height)) {
-				/* eureka we've got a frame */
-				return 1;
-			}
-			pac207_decode_line_init(gspca_dev);
-		}
-	}
-
-	return 0;
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,
 			__u8 *data,
 			int len)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
-	int n;
 
 	sof = pac207_find_sof(gspca_dev, data, len);
-
 	if (sof) {
+		int n;
+
 		/* finish decoding current frame */
-		if (gspca_dev->last_packet_type == INTER_PACKET) {
-			n = sof - data;
-			if (n > sizeof(pac207_sof_marker))
-				n -= sizeof(pac207_sof_marker);
-			else
-				n = 0;
-			n = pac207_decode_frame_data(gspca_dev, frame,
-							data, n);
-			if (n)
-				frame = gspca_frame_add(gspca_dev,
-						LAST_PACKET,
-						frame,
-						NULL,
-						0);
-			else
-				PDEBUG(D_STREAM, "Incomplete frame");
-		}
-		pac207_decode_frame_init(gspca_dev);
+		n = sof - data;
+		if (n > sizeof pac207_sof_marker)
+			n -= sizeof pac207_sof_marker;
+		else
+			n = 0;
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+					data, n);
+		sd->header_read = 0;
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
 		len -= sof - data;
 		data = sof;
 	}
+	if (sd->header_read < 11) {
+		int needed;
 
-	if (gspca_dev->last_packet_type == DISCARD_PACKET)
-		return;
+		/* get average lumination from frame header (byte 5) */
+		if (sd->header_read < 5) {
+			needed = 5 - sd->header_read;
+			if (len >= needed)
+				atomic_set(&sd->avg_lum, data[needed - 1]);
+		}
+		/* skip the rest of the header */
+		needed = 11 - sd->header_read;
+		if (len <= needed) {
+			sd->header_read += len;
+			return;
+		}
+		data += needed;
+		len -= needed;
+		sd->header_read = 11;
+	}
 
-	n = pac207_decode_frame_data(gspca_dev, frame, data, len);
-	if (n)
-		gspca_frame_add(gspca_dev, LAST_PACKET,
-				frame, NULL, 0);
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)
@@ -891,6 +624,7 @@ static const struct sd_desc sd_desc = {
 	.close = sd_close,
 	.dq_callback = pac207_do_auto_gain,
 	.pkt_scan = sd_pkt_scan,
+	.get_buff_size = sd_get_buff_size_op,
 };
 
 /* -- module initialisation -- */
@@ -927,7 +661,6 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	init_pixart_decoder();
 	if (usb_register(&sd_driver) < 0)
 		return -1;
 	PDEBUG(D_PROBE, "v%s registered", version);

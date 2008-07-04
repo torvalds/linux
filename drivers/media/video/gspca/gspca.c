@@ -321,6 +321,7 @@ static int gspca_is_compressed(__u32 format)
 	case V4L2_PIX_FMT_MJPEG:
 	case V4L2_PIX_FMT_JPEG:
 	case V4L2_PIX_FMT_SPCA561:
+	case V4L2_PIX_FMT_PAC207:
 		return 1;
 	}
 	return 0;
@@ -380,7 +381,8 @@ static __u32 get_v4l2_depth(__u32 pixfmt)
 	case V4L2_PIX_FMT_JPEG:
 	case V4L2_PIX_FMT_SBGGR8:	/* 'BA81' Bayer */
 	case V4L2_PIX_FMT_SN9C10X:	/* 'S910' SN9C10x compression */
-	case V4L2_PIX_FMT_SPCA561:	/* 'S561' compressed BGGR bayer */
+	case V4L2_PIX_FMT_SPCA561:	/* 'S561' compressed GBRG bayer */
+	case V4L2_PIX_FMT_PAC207:	/* 'P207' compressed BGGR bayer */
 		return 8;
 	}
 	PDEBUG(D_ERR|D_CONF, "Unknown pixel format %c%c%c%c",
@@ -394,6 +396,9 @@ static __u32 get_v4l2_depth(__u32 pixfmt)
 static int gspca_get_buff_size(struct gspca_dev *gspca_dev, int mode)
 {
 	unsigned int size;
+
+	if (gspca_dev->sd_desc->get_buff_size)
+		return gspca_dev->sd_desc->get_buff_size(gspca_dev, mode);
 
 	size =  gspca_dev->cam.cam_mode[mode].width *
 		gspca_dev->cam.cam_mode[mode].height *
