@@ -546,6 +546,9 @@ otherwise initial value -1 that indicates the cpuset has no request.
  ( 4  : search nodes in a chunk of node [on NUMA system] )
  ( 5  : search system wide [on NUMA system] )
 
+The system default is architecture dependent.  The system default
+can be changed using the relax_domain_level= boot parameter.
+
 This file is per-cpuset and affect the sched domain where the cpuset
 belongs to.  Therefore if the flag 'sched_load_balance' of a cpuset
 is disabled, then 'sched_relax_domain_level' have no effect since
