@@ -36,9 +36,7 @@ config RT2X00_LIB_FIRMWARE
 config RT2X00_LIB_RFKILL
 	boolean
 	depends on RT2X00_LIB
-	depends on INPUT
 	select RFKILL
-	select INPUT_POLLDEV
 
 config RT2X00_LIB_LEDS
 	boolean
@@ -57,7 +55,7 @@ config RT2400PCI
 
 config RT2400PCI_RFKILL
 	bool "Ralink rt2400 rfkill support"
-	depends on RT2400PCI && INPUT
+	depends on RT2400PCI
 	select RT2X00_LIB_RFKILL
 	---help---
 	  This adds support for integrated rt2400 hardware that features a
@@ -85,7 +83,7 @@ config RT2500PCI
 
 config RT2500PCI_RFKILL
 	bool "Ralink rt2500 rfkill support"
-	depends on RT2500PCI && INPUT
+	depends on RT2500PCI
 	select RT2X00_LIB_RFKILL
 	---help---
 	  This adds support for integrated rt2500 hardware that features a
@@ -115,7 +113,7 @@ config RT61PCI
 
 config RT61PCI_RFKILL
 	bool "Ralink rt2501/rt61 rfkill support"
-	depends on RT61PCI && INPUT
+	depends on RT61PCI
 	select RT2X00_LIB_RFKILL
 	---help---
 	  This adds support for integrated rt61 hardware that features a

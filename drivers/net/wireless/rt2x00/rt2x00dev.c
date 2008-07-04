@@ -1179,7 +1179,6 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	 * Suspend/disable extra components.
 	 */
 	rt2x00leds_suspend(rt2x00dev);
-	rt2x00rfkill_suspend(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
 exit:
@@ -1235,7 +1234,6 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	 * Restore/enable extra components.
 	 */
 	rt2x00debug_register(rt2x00dev);
-	rt2x00rfkill_resume(rt2x00dev);
 	rt2x00leds_resume(rt2x00dev);
 
 	/*
