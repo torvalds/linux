@@ -26,7 +26,7 @@
 struct rmd160_ctx {
 	u64 byte_count;
 	u32 state[5];
-	u32 buffer[16];
+	__le32 buffer[16];
 };
 
 #define K1  RMD_K1
@@ -52,7 +52,7 @@ struct rmd160_ctx {
 	(c) = rol32((c), 10); \
 }
 
-static void rmd160_transform(u32 *state, u32 const *in)
+static void rmd160_transform(u32 *state, const __le32 *in)
 {
 	u32 aa, bb, cc, dd, ee, aaa, bbb, ccc, ddd, eee;
 
@@ -313,8 +313,8 @@ static void rmd160_final(struct crypto_tfm *tfm, u8 *out)
 {
 	struct rmd160_ctx *rctx = crypto_tfm_ctx(tfm);
 	u32 i, index, padlen;
-	u64 bits;
-	u32 *dst = (u32 *)out;
+	__le64 bits;
+	__le32 *dst = (__le32 *)out;
 	static const u8 padding[64] = { 0x80, };
 
 	bits = cpu_to_le64(rctx->byte_count << 3);
