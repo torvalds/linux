@@ -827,7 +827,11 @@ static ssize_t dapm_pop_time_store(struct device *dev,
 				   const char *buf, size_t count)
 
 {
-	if (strict_strtoul(buf, 10, &pop_time) < 0)
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val) >= 0)
+		pop_time = val;
+	else
 		printk(KERN_ERR "Unable to parse pop_time setting\n");
 
 	return count;
