@@ -214,6 +214,10 @@ simpleboot-virtex440-*)
     platformo="$object/simpleboot.o $object/virtex.o"
     binary=y
     ;;
+simpleboot-*)
+    platformo="$object/simpleboot.o"
+    binary=y
+    ;;
 asp834x-redboot)
     platformo="$object/fixed-head.o $object/redboot-83xx.o"
     binary=y
