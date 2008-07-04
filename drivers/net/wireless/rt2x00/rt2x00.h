@@ -787,8 +787,10 @@ struct rt2x00_dev {
 
 	/*
 	 * Scheduled work.
+	 * NOTE: intf_work will use ieee80211_iterate_active_interfaces()
+	 * which means it cannot be placed on the hw->workqueue
+	 * due to RTNL locking requirements.
 	 */
-	struct workqueue_struct *workqueue;
 	struct work_struct intf_work;
 	struct work_struct filter_work;
 
