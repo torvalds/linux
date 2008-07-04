@@ -859,6 +859,18 @@ static u64 supported_dma_mask(struct b43legacy_wldev *dev)
 	return DMA_30BIT_MASK;
 }
 
+static enum b43legacy_dmatype dma_mask_to_engine_type(u64 dmamask)
+{
+	if (dmamask == DMA_30BIT_MASK)
+		return B43legacy_DMA_30BIT;
+	if (dmamask == DMA_32BIT_MASK)
+		return B43legacy_DMA_32BIT;
+	if (dmamask == DMA_64BIT_MASK)
+		return B43legacy_DMA_64BIT;
+	B43legacy_WARN_ON(1);
+	return B43legacy_DMA_30BIT;
+}
+
 /* Main initialization function. */
 static
 struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
@@ -1018,6 +1030,43 @@ void b43legacy_dma_free(struct b43legacy_wldev *dev)
 	dma->tx_ring0 = NULL;
 }
 
+static int b43legacy_dma_set_mask(struct b43legacy_wldev *dev, u64 mask)
+{
+	u64 orig_mask = mask;
+	bool fallback = 0;
+	int err;
+
+	/* Try to set the DMA mask. If it fails, try falling back to a
+	 * lower mask, as we can always also support a lower one. */
+	while (1) {
+		err = ssb_dma_set_mask(dev->dev, mask);
+		if (!err)
+			break;
+		if (mask == DMA_64BIT_MASK) {
+			mask = DMA_32BIT_MASK;
+			fallback = 1;
+			continue;
+		}
+		if (mask == DMA_32BIT_MASK) {
+			mask = DMA_30BIT_MASK;
+			fallback = 1;
+			continue;
+		}
+		b43legacyerr(dev->wl, "The machine/kernel does not support "
+		       "the required %u-bit DMA mask\n",
+		       (unsigned int)dma_mask_to_engine_type(orig_mask));
+		return -EOPNOTSUPP;
+	}
+	if (fallback) {
+		b43legacyinfo(dev->wl, "DMA mask fallback from %u-bit to %u-"
+			"bit\n",
+			(unsigned int)dma_mask_to_engine_type(orig_mask),
+			(unsigned int)dma_mask_to_engine_type(mask));
+	}
+
+	return 0;
+}
+
 int b43legacy_dma_init(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_dma *dma = &dev->dma;
@@ -1027,21 +1076,8 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 	enum b43legacy_dmatype type;
 
 	dmamask = supported_dma_mask(dev);
-	switch (dmamask) {
-	default:
-		B43legacy_WARN_ON(1);
-	case DMA_30BIT_MASK:
-		type = B43legacy_DMA_30BIT;
-		break;
-	case DMA_32BIT_MASK:
-		type = B43legacy_DMA_32BIT;
-		break;
-	case DMA_64BIT_MASK:
-		type = B43legacy_DMA_64BIT;
-		break;
-	}
-
-	err = ssb_dma_set_mask(dev->dev, dmamask);
+	type = dma_mask_to_engine_type(dmamask);
+	err = b43legacy_dma_set_mask(dev, dmamask);
 	if (err) {
 #ifdef CONFIG_B43LEGACY_PIO
 		b43legacywarn(dev->wl, "DMA for this device not supported. "
