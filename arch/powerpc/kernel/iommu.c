@@ -269,7 +269,8 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 
 int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		 struct scatterlist *sglist, int nelems,
-		 unsigned long mask, enum dma_data_direction direction)
+		 unsigned long mask, enum dma_data_direction direction,
+		 struct dma_attrs *attrs)
 {
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned long flags;
@@ -411,7 +412,8 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 
 
 void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
-		int nelems, enum dma_data_direction direction)
+		int nelems, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
 	unsigned long flags;
@@ -553,7 +555,7 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
  */
 dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 			    void *vaddr, size_t size, unsigned long mask,
-			    enum dma_data_direction direction)
+		enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	dma_addr_t dma_handle = DMA_ERROR_CODE;
 	unsigned long uaddr;
@@ -586,7 +588,8 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 }
 
 void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
-		size_t size, enum dma_data_direction direction)
+		size_t size, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	unsigned int npages;
 
