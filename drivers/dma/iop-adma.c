@@ -82,17 +82,24 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 			struct device *dev =
 				&iop_chan->device->pdev->dev;
 			u32 len = unmap->unmap_len;
-			u32 src_cnt = unmap->unmap_src_cnt;
-			dma_addr_t addr = iop_desc_get_dest_addr(unmap,
-				iop_chan);
+			enum dma_ctrl_flags flags = desc->async_tx.flags;
+			u32 src_cnt;
+			dma_addr_t addr;
 
-			dma_unmap_page(dev, addr, len, DMA_FROM_DEVICE);
-			while (src_cnt--) {
-				addr = iop_desc_get_src_addr(unmap,
-							iop_chan,
-							src_cnt);
-				dma_unmap_page(dev, addr, len,
-					DMA_TO_DEVICE);
+			if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
+				addr = iop_desc_get_dest_addr(unmap, iop_chan);
+				dma_unmap_page(dev, addr, len, DMA_FROM_DEVICE);
+			}
+
+			if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
+				src_cnt = unmap->unmap_src_cnt;
+				while (src_cnt--) {
+					addr = iop_desc_get_src_addr(unmap,
+								     iop_chan,
+								     src_cnt);
+					dma_unmap_page(dev, addr, len,
+						       DMA_TO_DEVICE);
+				}
 			}
 			desc->group_head = NULL;
 		}

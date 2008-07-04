@@ -102,10 +102,14 @@ enum dma_transaction_type {
  * @DMA_CTRL_ACK - the descriptor cannot be reused until the client
  * 	acknowledges receipt, i.e. has has a chance to establish any
  * 	dependency chains
+ * @DMA_COMPL_SKIP_SRC_UNMAP - set to disable dma-unmapping the source buffer(s)
+ * @DMA_COMPL_SKIP_DEST_UNMAP - set to disable dma-unmapping the destination(s)
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
 	DMA_CTRL_ACK = (1 << 1),
+	DMA_COMPL_SKIP_SRC_UNMAP = (1 << 2),
+	DMA_COMPL_SKIP_DEST_UNMAP = (1 << 3),
 };
 
 /**
