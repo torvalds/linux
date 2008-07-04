@@ -830,7 +830,7 @@ config NTFS_FS
 	  from the project web site.
 
 	  For more information see <file:Documentation/filesystems/ntfs.txt>
-	  and <http://linux-ntfs.sourceforge.net/>.
+	  and <http://www.linux-ntfs.org/>.
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called ntfs.
