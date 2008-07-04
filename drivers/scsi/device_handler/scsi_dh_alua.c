@@ -97,14 +97,14 @@ static struct request *get_alua_req(struct scsi_device *sdev,
 
 	if (!rq) {
 		sdev_printk(KERN_INFO, sdev,
-			    "%s: blk_get_request failed\n", __FUNCTION__);
+			    "%s: blk_get_request failed\n", __func__);
 		return NULL;
 	}
 
 	if (buflen && blk_rq_map_kern(q, rq, buffer, buflen, GFP_NOIO)) {
 		blk_put_request(rq);
 		sdev_printk(KERN_INFO, sdev,
-			    "%s: blk_rq_map_kern failed\n", __FUNCTION__);
+			    "%s: blk_rq_map_kern failed\n", __func__);
 		return NULL;
 	}
 
@@ -553,7 +553,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 		/* Resubmit with the correct length */
 		if (realloc_buffer(h, len)) {
 			sdev_printk(KERN_WARNING, sdev,
-				    "%s: kmalloc buffer failed\n",__FUNCTION__);
+				    "%s: kmalloc buffer failed\n",__func__);
 			/* Temporary failure, bypass */
 			return SCSI_DH_DEV_TEMP_BUSY;
 		}
