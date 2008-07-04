@@ -1125,9 +1125,6 @@ static void stop_data_traffic(struct acm *acm)
 	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_kill_urb(acm->ru[i].urb);
 
-	INIT_LIST_HEAD(&acm->filled_read_bufs);
-	INIT_LIST_HEAD(&acm->spare_read_bufs);
-
 	tasklet_enable(&acm->urb_task);
 
 	cancel_work_sync(&acm->work);
