@@ -178,8 +178,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<8)
 /* Controller needs voltage and power writes to happen separately */
 #define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<9)
-/* Controller has an off-by-one issue with timeout value */
-#define SDHCI_QUIRK_INCR_TIMEOUT_CONTROL		(1<<10)
+/* Controller provides an incorrect timeout value for transfers */
+#define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<10)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */

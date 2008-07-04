@@ -314,23 +314,19 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	DBG("PIO transfer complete.\n");
 }
 
-static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
+static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_data *data)
 {
 	u8 count;
 	unsigned target_timeout, current_timeout;
 
-	WARN_ON(host->data);
-
-	if (data == NULL)
-		return;
-
-	/* Sanity checks */
-	BUG_ON(data->blksz * data->blocks > 524288);
-	BUG_ON(data->blksz > host->mmc->max_blk_size);
-	BUG_ON(data->blocks > 65535);
-
-	host->data = data;
-	host->data_early = 0;
+	/*
+	 * If the host controller provides us with an incorrect timeout
+	 * value, just skip the check and use 0xE.  The hardware may take
+	 * longer to time out, but that's much better than having a too-short
+	 * timeout value.
+	 */
+	if ((host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL))
+		return 0xE;
 
 	/* timeout in us */
 	target_timeout = data->timeout_ns / 1000 +
@@ -355,19 +351,33 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 			break;
 	}
 
-	/*
-	 * Compensate for an off-by-one error in the CaFe hardware; otherwise,
-	 * a too-small count gives us interrupt timeouts.
-	 */
-	if ((host->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL))
-		count++;
-
 	if (count >= 0xF) {
 		printk(KERN_WARNING "%s: Too large timeout requested!\n",
 			mmc_hostname(host->mmc));
 		count = 0xE;
 	}
 
+	return count;
+}
+
+static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
+{
+	u8 count;
+
+	WARN_ON(host->data);
+
+	if (data == NULL)
+		return;
+
+	/* Sanity checks */
+	BUG_ON(data->blksz * data->blocks > 524288);
+	BUG_ON(data->blksz > host->mmc->max_blk_size);
+	BUG_ON(data->blocks > 65535);
+
+	host->data = data;
+	host->data_early = 0;
+
+	count = sdhci_calc_timeout(host, data);
 	writeb(count, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 
 	if (host->flags & SDHCI_USE_DMA)
