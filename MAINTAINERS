@@ -763,9 +763,10 @@ S:	Maintained
 
 AUXILIARY DISPLAY DRIVERS
 P:	Miguel Ojeda Sandonis
-M:	maxextreme@gmail.com
+M:	miguel.ojeda.sandonis@gmail.com
 L:	linux-kernel@vger.kernel.org
-W:	http://auxdisplay.googlepages.com/
+W:	http://miguelojeda.es/auxdisplay.htm
+W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 
 AVR32 ARCHITECTURE
@@ -1055,16 +1056,18 @@ S:	Supported
 
 CFAG12864B LCD DRIVER
 P:	Miguel Ojeda Sandonis
-M:	maxextreme@gmail.com
+M:	miguel.ojeda.sandonis@gmail.com
 L:	linux-kernel@vger.kernel.org
-W:	http://auxdisplay.googlepages.com/
+W:	http://miguelojeda.es/auxdisplay.htm
+W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 
 CFAG12864BFB LCD FRAMEBUFFER DRIVER
 P:	Miguel Ojeda Sandonis
-M:	maxextreme@gmail.com
+M:	miguel.ojeda.sandonis@gmail.com
 L:	linux-kernel@vger.kernel.org
-W:	http://auxdisplay.googlepages.com/
+W:	http://miguelojeda.es/auxdisplay.htm
+W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 
 CFG80211 and NL80211
@@ -2428,9 +2431,10 @@ S:	Maintained
 
 KS0108 LCD CONTROLLER DRIVER
 P:	Miguel Ojeda Sandonis
-M:	maxextreme@gmail.com
+M:	miguel.ojeda.sandonis@gmail.com
 L:	linux-kernel@vger.kernel.org
-W:	http://auxdisplay.googlepages.com/
+W:	http://miguelojeda.es/auxdisplay.htm
+W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 
 LAPB module
