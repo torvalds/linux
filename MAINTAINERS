@@ -3997,7 +3997,8 @@ W:	http://www.buzzard.org.uk/toshiba/
 S:	Maintained
 
 TPM DEVICE DRIVER
-P:	Kylene Hall
+P:     Debora Velarde
+P:     Rajiv Andrade
 M:	tpmdd-devel@lists.sourceforge.net
 W:	http://tpmdd.sourceforge.net
 P:	Marcel Selhorst
