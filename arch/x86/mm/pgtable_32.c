@@ -141,7 +141,6 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 	__flush_tlb_one(vaddr);
 }
 
-static int fixmaps;
 unsigned long __FIXADDR_TOP = 0xfffff000;
 EXPORT_SYMBOL(__FIXADDR_TOP);
 
