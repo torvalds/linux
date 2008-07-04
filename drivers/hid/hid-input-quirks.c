@@ -438,6 +438,18 @@ int hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struc
 		input_event(input, usage->type, REL_WHEEL, -value);
 		return 1;
 	}
+
+	/* Gyration MCE remote "Sleep" key */
+	if (hid->vendor == VENDOR_ID_GYRATION &&
+	    hid->product == DEVICE_ID_GYRATION_REMOTE &&
+	    (usage->hid & HID_USAGE_PAGE) == HID_UP_GENDESK &&
+	    (usage->hid & 0xff) == 0x82) {
+		input_event(input, usage->type, usage->code, 1);
+		input_sync(input);
+		input_event(input, usage->type, usage->code, 0);
+		input_sync(input);
+		return 1;
+	}
 	return 0;
 }
 
