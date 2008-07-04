@@ -267,11 +267,10 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 }
 
-int iommu_map_sg(struct device *dev, struct scatterlist *sglist,
-		 int nelems, unsigned long mask,
-		 enum dma_data_direction direction)
+int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
+		 struct scatterlist *sglist, int nelems,
+		 unsigned long mask, enum dma_data_direction direction)
 {
-	struct iommu_table *tbl = dev->archdata.dma_data;
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
