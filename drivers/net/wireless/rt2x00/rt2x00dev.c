@@ -664,6 +664,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00dev->link.qual.rx_success++;
 
+	rx_status->mactime = rxdesc.timestamp;
 	rx_status->rate_idx = idx;
 	rx_status->qual =
 	    rt2x00lib_calculate_link_signal(rt2x00dev, rxdesc.rssi);

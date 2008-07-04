@@ -1087,14 +1087,20 @@ static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 				  struct rxdone_entry_desc *rxdesc)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	u32 word0;
 	u32 word2;
 	u32 word3;
+	u32 word4;
+	u64 tsf;
+	u32 rx_low;
+	u32 rx_high;
 
 	rt2x00_desc_read(entry_priv->desc, 0, &word0);
 	rt2x00_desc_read(entry_priv->desc, 2, &word2);
 	rt2x00_desc_read(entry_priv->desc, 3, &word3);
+	rt2x00_desc_read(entry_priv->desc, 4, &word4);
 
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -1102,10 +1108,27 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 		rxdesc->flags |= RX_FLAG_FAILED_PLCP_CRC;
 
 	/*
+	 * We only get the lower 32bits from the timestamp,
+	 * to get the full 64bits we must complement it with
+	 * the timestamp from get_tsf().
+	 * Note that when a wraparound of the lower 32bits
+	 * has occurred between the frame arrival and the get_tsf()
+	 * call, we must decrease the higher 32bits with 1 to get
+	 * to correct value.
+	 */
+	tsf = rt2x00dev->ops->hw->get_tsf(rt2x00dev->hw);
+	rx_low = rt2x00_get_field32(word4, RXD_W4_RX_END_TIME);
+	rx_high = upper_32_bits(tsf);
+
+	if ((u32)tsf <= rx_low)
+		rx_high--;
+
+	/*
 	 * Obtain the status about this packet.
 	 * The signal is the PLCP value, and needs to be stripped
 	 * of the preamble bit (0x08).
 	 */
+	rxdesc->timestamp = ((u64)rx_high << 32) | rx_low;
 	rxdesc->signal = rt2x00_get_field32(word2, RXD_W2_SIGNAL) & ~0x08;
 	rxdesc->rssi = rt2x00_get_field32(word2, RXD_W3_RSSI) -
 	    entry->queue->rt2x00dev->rssi_offset;
