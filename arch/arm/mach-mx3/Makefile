@@ -4,5 +4,5 @@
 
 # Object file lists.
 
-obj-y			:= mm.o time.o
+obj-y			:= mm.o time.o clock.o
 obj-$(CONFIG_MACH_MX31ADS)	+= mx31ads.o

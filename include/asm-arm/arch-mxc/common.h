@@ -16,5 +16,6 @@ struct sys_timer;
 extern void mxc_map_io(void);
 extern void mxc_init_irq(void);
 extern struct sys_timer mxc_timer;
+extern int mxc_clocks_init(unsigned long fref);
 
 #endif
