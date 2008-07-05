@@ -16,3 +16,10 @@ config MACH_MX27ADS
 	help
 	  Include support for MX27ADS platform. This includes specific
 	  configurations for the board and its peripherals.
+
+config MACH_PCM038
+	bool "Phytec phyCORE-i.MX27 CPU module (pcm038)"
+	depends on MACH_MX27
+	help
+	  Include support for phyCORE-i.MX27 (aka pcm038) platform. This
+	  includes specific configurations for the module and its peripherals.
