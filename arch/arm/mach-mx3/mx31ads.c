@@ -29,6 +29,7 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <asm/arch/common.h>
+#include <asm/arch/board-mx31ads.h>
 
 /*!
  * @file mx31ads.c
