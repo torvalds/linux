@@ -1078,29 +1078,39 @@ static int serial_imx_resume(struct platform_device *dev)
         return 0;
 }
 
-static int serial_imx_probe(struct platform_device *dev)
+static int serial_imx_probe(struct platform_device *pdev)
 {
 	struct imxuart_platform_data *pdata;
 
-	imx_ports[dev->id].port.dev = &dev->dev;
+	imx_ports[pdev->id].port.dev = &pdev->dev;
 
-	pdata = (struct imxuart_platform_data *)dev->dev.platform_data;
+	pdata = pdev->dev.platform_data;
 	if(pdata && (pdata->flags & IMXUART_HAVE_RTSCTS))
-		imx_ports[dev->id].have_rtscts = 1;
+		imx_ports[pdev->id].have_rtscts = 1;
 
-	uart_add_one_port(&imx_reg, &imx_ports[dev->id].port);
-	platform_set_drvdata(dev, &imx_ports[dev->id]);
+	if (pdata->init)
+		pdata->init(pdev);
+
+	uart_add_one_port(&imx_reg, &imx_ports[pdev->id].port);
+	platform_set_drvdata(pdev, &imx_ports[pdev->id]);
+
 	return 0;
 }
 
-static int serial_imx_remove(struct platform_device *dev)
+static int serial_imx_remove(struct platform_device *pdev)
 {
-	struct imx_port *sport = platform_get_drvdata(dev);
+	struct imxuart_platform_data *pdata;
+	struct imx_port *sport = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(dev, NULL);
+	pdata = pdev->dev.platform_data;
+
+	platform_set_drvdata(pdev, NULL);
 
 	if (sport)
 		uart_remove_one_port(&imx_reg, &sport->port);
+
+	if (pdata->exit)
+		pdata->exit(pdev);
 
 	return 0;
 }
