@@ -58,3 +58,5 @@ obj-$(CONFIG_LEDS)		+= $(led-y)
 ifeq ($(CONFIG_PCI),y)
 obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o
 endif
+
+obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o

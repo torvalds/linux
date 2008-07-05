@@ -31,6 +31,7 @@
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
+#include <linux/rfkill.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -40,6 +41,7 @@
 #include <asm/arch/i2c.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
+#include <asm/arch/tosa_bt.h>
 
 #include <asm/mach/arch.h>
 #include <asm/arch/tosa.h>
@@ -562,7 +564,7 @@ static struct gpio_led tosa_gpio_leds[] = {
 	},
 	{
 		.name			= "tosa:blue:bluetooth",
-		.default_trigger	= "none",
+		.default_trigger	= "tosa-bt",
 		.gpio			= TOSA_GPIO_BT_LED,
 	},
 };
@@ -732,6 +734,18 @@ static struct platform_device tc6393xb_device = {
 	.resource	= tc6393xb_resources,
 };
 
+static struct tosa_bt_data tosa_bt_data = {
+	.gpio_pwr	= TOSA_GPIO_BT_PWR_EN,
+	.gpio_reset	= TOSA_GPIO_BT_RESET,
+};
+
+static struct platform_device tosa_bt_device = {
+	.name	= "tosa-bt",
+	.id	= -1,
+	.dev.platform_data = &tosa_bt_data,
+};
+
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
@@ -740,6 +754,7 @@ static struct platform_device *devices[] __initdata = {
 	&tosakbd_device,
 	&tosa_gpio_keys_device,
 	&tosaled_device,
+	&tosa_bt_device,
 };
 
 static void tosa_poweroff(void)
