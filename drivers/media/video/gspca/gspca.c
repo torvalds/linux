@@ -334,7 +334,7 @@ static void *rvmalloc(unsigned long size)
 
 /*	size = PAGE_ALIGN(size);	(already done) */
 	mem = vmalloc_32(size);
-	if (mem != 0) {
+	if (mem != NULL) {
 		memset(mem, 0, size);
 		adr = (unsigned long) mem;
 		while ((long) size > 0) {
@@ -464,7 +464,7 @@ static void frame_free(struct gspca_dev *gspca_dev)
 	int i;
 
 	PDEBUG(D_STREAM, "frame free");
-	if (gspca_dev->frbuf != 0) {
+	if (gspca_dev->frbuf != NULL) {
 		rvfree(gspca_dev->frbuf,
 			gspca_dev->nframes * gspca_dev->frsz);
 		gspca_dev->frbuf = NULL;
@@ -487,7 +487,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 
 		gspca_dev->urb[i] = NULL;
 		usb_kill_urb(urb);
-		if (urb->transfer_buffer != 0)
+		if (urb->transfer_buffer != NULL)
 			usb_buffer_free(gspca_dev->dev,
 					urb->transfer_buffer_length,
 					urb->transfer_buffer,
@@ -991,7 +991,7 @@ static int dev_close(struct inode *inode, struct file *file)
 		gspca_dev->sd_desc->close(gspca_dev);
 		mutex_unlock(&gspca_dev->usb_lock);
 		frame_free(gspca_dev);
-		gspca_dev->capt_file = 0;
+		gspca_dev->capt_file = NULL;
 		gspca_dev->memory = GSPCA_MEMORY_NO;
 	}
 	file->private_data = NULL;
@@ -1165,7 +1165,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	}
 
 	/* only one file may do capture */
-	if ((gspca_dev->capt_file != 0 && gspca_dev->capt_file != file)
+	if ((gspca_dev->capt_file != NULL && gspca_dev->capt_file != file)
 	    || gspca_dev->streaming) {
 		ret = -EBUSY;
 		goto out;
@@ -1173,7 +1173,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 	if (rb->count == 0) { /* unrequest? */
 		frame_free(gspca_dev);
-		gspca_dev->capt_file = 0;
+		gspca_dev->capt_file = NULL;
 	} else {
 		gspca_dev->memory = rb->memory;
 		ret = frame_alloc(gspca_dev, rb->count);
@@ -1382,7 +1382,7 @@ static int vidiocgmbuf(struct file *file, void *priv,
 static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct gspca_dev *gspca_dev = file->private_data;
-	struct gspca_frame *frame = 0;
+	struct gspca_frame *frame;
 	struct page *page;
 	unsigned long addr, start, size;
 	int i, ret;
@@ -1405,6 +1405,7 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 		goto out;
 	}
 
+	frame = NULL;
 	for (i = 0; i < gspca_dev->nframes; ++i) {
 		if (gspca_dev->frame[i].v4l2_buf.memory != V4L2_MEMORY_MMAP) {
 			PDEBUG(D_STREAM, "mmap bad memory type");
@@ -1416,7 +1417,7 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 			break;
 		}
 	}
-	if (frame == 0) {
+	if (frame == NULL) {
 		PDEBUG(D_STREAM, "mmap no frame buffer found");
 		ret = -EINVAL;
 		goto out;

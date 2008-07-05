@@ -504,31 +504,31 @@ static int init_default_parameters(struct gspca_dev *gspca_dev)
 	t16RegWrite(dev, 0x01, 0x0000, n3, 0x06);
 	t16RegWrite(dev, 0x01, 0x0000, n4, 0x46);
 	t16RegRead(dev, 0x0080, &test_byte, 1);
-	t16RegWrite(dev, 0x00, 0x2c80, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x2c80, NULL, 0);
 	t16RegWrite(dev, 0x01, 0x0000, nset2, 0x14);
 	t16RegWrite(dev, 0x01, 0x0000, nset3, 0x12);
 	t16RegWrite(dev, 0x01, 0x0000, nset4, 0x12);
-	t16RegWrite(dev, 0x00, 0x3880, NULL, 0x0);
-	t16RegWrite(dev, 0x00, 0x3880, NULL, 0x0);
-	t16RegWrite(dev, 0x00, 0x338e, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x3880, NULL, 0);
+	t16RegWrite(dev, 0x00, 0x3880, NULL, 0);
+	t16RegWrite(dev, 0x00, 0x338e, NULL, 0);
 	t16RegWrite(dev, 0x01, 0x0000, nset5, 0x04);
-	t16RegWrite(dev, 0x00, 0x00a9, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x00a9, NULL, 0);
 	t16RegWrite(dev, 0x01, 0x0000, nset6, 0x22);
-	t16RegWrite(dev, 0x00, 0x86bb, NULL, 0x0);
-	t16RegWrite(dev, 0x00, 0x4aa6, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x86bb, NULL, 0);
+	t16RegWrite(dev, 0x00, 0x4aa6, NULL, 0);
 
 	t16RegWrite(dev, 0x01, 0x0000, missing, 0x08);
 
-	t16RegWrite(dev, 0x00, 0x2087, NULL, 0x0);
-	t16RegWrite(dev, 0x00, 0x2088, NULL, 0x0);
-	t16RegWrite(dev, 0x00, 0x2089, NULL, 0x0);
+	t16RegWrite(dev, 0x00, 0x2087, NULL, 0);
+	t16RegWrite(dev, 0x00, 0x2088, NULL, 0);
+	t16RegWrite(dev, 0x00, 0x2089, NULL, 0);
 
 	t16RegWrite(dev, 0x01, 0x0000, nset7, 0x04);
 	t16RegWrite(dev, 0x01, 0x0000, nset10, 0x06);
 	t16RegWrite(dev, 0x01, 0x0000, nset8, 0x06);
 	t16RegWrite(dev, 0x01, 0x0000, nset9, 0x04);
 
-	t16RegWrite(dev, 0x00, 0x2880, NULL, 0x00);
+	t16RegWrite(dev, 0x00, 0x2880, NULL, 0);
 	t16RegWrite(dev, 0x01, 0x0000, nset2, 0x14);
 	t16RegWrite(dev, 0x01, 0x0000, nset3, 0x12);
 	t16RegWrite(dev, 0x01, 0x0000, nset4, 0x12);
@@ -581,9 +581,9 @@ static void seteffect(struct gspca_dev *gspca_dev)
 	}
 
 	if (sd->effect == 1 || sd->effect == 4)
-		t16RegWrite(dev, 0x00, 0x4aa6, NULL, 0x00);
+		t16RegWrite(dev, 0x00, 0x4aa6, NULL, 0);
 	else
-		t16RegWrite(dev, 0x00, 0xfaa6, NULL, 0x00);
+		t16RegWrite(dev, 0x00, 0xfaa6, NULL, 0);
 }
 
 static void setwhitebalance(struct gspca_dev *gspca_dev)
@@ -649,7 +649,7 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 
 	reg_to_write = 0x0aa6 + 0x1000 * sd->sharpness;
 
-	t16RegWrite(dev, 0x00, reg_to_write, NULL, 0x00);
+	t16RegWrite(dev, 0x00, reg_to_write, NULL, 0);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -870,16 +870,16 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[1], 0x8);
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[2], 0x8);
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[3], 0x8);
-	t16RegWrite(dev, 0x00, 0x3c80, NULL, 0x00);
+	t16RegWrite(dev, 0x00, 0x3c80, NULL, 0);
 		/* just in case and to keep sync with logs  (for mine) */
 	t16RegWrite(dev, 0x01, 0x0000, tas5130a_sensor_init[3], 0x8);
-	t16RegWrite(dev, 0x00, 0x3c80, NULL, 0x00);
+	t16RegWrite(dev, 0x00, 0x3c80, NULL, 0);
 		/* just in case and to keep sync with logs  (for mine) */
 	t16RegWrite(dev, 0x01, 0x0000, t1, 4);
 	t16RegWrite(dev, 0x01, 0x0000, t2, 6);
-	t16RegRead(dev, 0x0012, &test_byte, 0x1);
+	t16RegRead(dev, 0x0012, &test_byte, 0x01);
 	t16RegWrite(dev, 0x01, 0x0000, t3, 0x10);
-	t16RegWrite(dev, 0x00, 0x0013, NULL, 0x00);
+	t16RegWrite(dev, 0x00, 0x0013, NULL, 0);
 	t16RegWrite(dev, 0x01, 0x0000, t4, 0x4);
 	/* restart on each start, just in case, sometimes regs goes wrong
 	 * when using controls from app */

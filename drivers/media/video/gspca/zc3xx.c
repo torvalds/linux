@@ -6425,11 +6425,11 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		{0x18, 0x20, 0x20, 0x1c, 0x16, 0x13, 0x10, 0x0e,
 		 0x0b, 0x09, 0x07, 0x00, 0x00, 0x00, 0x00, 0x01};
 	static const __u8 *gamma_tb[] = {
-		0, Tgamma_1, Tgamma_2,
+		NULL, Tgamma_1, Tgamma_2,
 		Tgamma_3, Tgamma_4, Tgamma_5, Tgamma_6
 	};
 	static const __u8 *gradient_tb[] = {
-		0, Tgradient_1, Tgradient_2,
+		NULL, Tgradient_1, Tgradient_2,
 		Tgradient_3, Tgradient_4, Tgradient_5, Tgradient_6
 	};
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -6544,21 +6544,21 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 gc0305_50HZ, gc0305_50HZ,
 		 gc0305_60HZ, gc0305_60HZ},
 /* SENSOR_HDCS2020 3 */
-		{0, 0,
-		 0, 0,
-		 0, 0},
+		{NULL, NULL,
+		 NULL, NULL,
+		 NULL, NULL},
 /* SENSOR_HDCS2020b 4 */
 		{hdcs2020b_NoFliker, hdcs2020b_NoFliker,
 		 hdcs2020b_50HZ, hdcs2020b_50HZ,
 		 hdcs2020b_60HZ, hdcs2020b_60HZ},
 /* SENSOR_HV7131B 5 */
-		{0, 0,
-		 0, 0,
-		 0, 0},
+		{NULL, NULL,
+		 NULL, NULL,
+		 NULL, NULL},
 /* SENSOR_HV7131C 6 */
-		{0, 0,
-		 0, 0,
-		 0, 0},
+		{NULL, NULL,
+		 NULL, NULL,
+		 NULL, NULL},
 /* SENSOR_ICM105A 7 */
 		{icm105a_NoFliker, icm105a_NoFlikerScale,
 		 icm105a_50HZ, icm105a_50HZScale,
@@ -6572,9 +6572,9 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 OV7620_50HZ, OV7620_50HZ,
 		 OV7620_60HZ, OV7620_60HZ},
 /* SENSOR_OV7630C 10 */
-		{0, 0,
-		 0, 0,
-		 0, 0},
+		{NULL, NULL,
+		 NULL, NULL,
+		 NULL, NULL},
 /* SENSOR_PAS106 11 */
 		{pas106b_NoFliker, pas106b_NoFliker,
 		 pas106b_50HZ, pas106b_50HZ,
@@ -6606,7 +6606,7 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 	if (!mode)
 		i++;			/* 640x480 */
 	zc3_freq = freq_tb[(int) sd->sensor][i];
-	if (zc3_freq != 0) {
+	if (zc3_freq != NULL) {
 		usb_exchange(gspca_dev->dev, zc3_freq);
 		switch (sd->sensor) {
 		case SENSOR_GC0305:
