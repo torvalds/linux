@@ -22,7 +22,9 @@
 #ifdef CONFIG_MACH_MX31LITE
 #include <asm/arch/board-mx31lite.h>
 #endif
-
+#ifdef CONFIG_MACH_MX27ADS
+#include <asm/arch/board-mx27ads.h>
+#endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?

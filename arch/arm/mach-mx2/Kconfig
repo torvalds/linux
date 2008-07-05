@@ -9,3 +9,10 @@ config MACH_MX27
 
 comment "MX2 Platforms"
 	depends on ARCH_MX2
+
+config MACH_MX27ADS
+	bool "MX27ADS platform"
+	depends on MACH_MX27
+	help
+	  Include support for MX27ADS platform. This includes specific
+	  configurations for the board and its peripherals.
