@@ -476,10 +476,10 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 		return -ESRCH;
 	mm = get_task_mm(task);
 	if (mm) {
-		static struct mm_walk clear_refs_walk;
-		memset(&clear_refs_walk, 0, sizeof(clear_refs_walk));
-		clear_refs_walk.pmd_entry = clear_refs_pte_range;
-		clear_refs_walk.mm = mm;
+		struct mm_walk clear_refs_walk = {
+			.pmd_entry = clear_refs_pte_range,
+			.mm = mm,
+		};
 		down_read(&mm->mmap_sem);
 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
 			clear_refs_walk.private = vma;
