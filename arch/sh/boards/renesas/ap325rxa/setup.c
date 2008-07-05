@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
+#include <linux/i2c.h>
 #include <asm/io.h>
 
 static struct resource smc9118_resources[] = {
@@ -83,14 +84,21 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&ap325rxa_nor_flash_device
 };
 
+static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
+};
+
 static int __init ap325rxa_devices_setup(void)
 {
+	i2c_register_board_info(0, ap325rxa_i2c_devices,
+				ARRAY_SIZE(ap325rxa_i2c_devices));
+ 
 	return platform_add_devices(ap325rxa_devices,
 				ARRAY_SIZE(ap325rxa_devices));
 }
 device_initcall(ap325rxa_devices_setup);
 
 #define MSTPCR0		(0xA4150030)
+#define MSTPCR1		(0xA4150034)
 #define MSTPCR2		(0xA4150038)
 
 static void __init ap325rxa_setup(char **cmdline_p)
@@ -100,6 +108,9 @@ static void __init ap325rxa_setup(char **cmdline_p)
 
 	/* enable MERAM */
 	ctrl_outl(ctrl_inl(MSTPCR0) & ~0x00000001, MSTPCR0);	/* bit 0 */
+
+	/* I2C */
+	ctrl_outl(ctrl_inl(MSTPCR1) & ~0x00000200, MSTPCR1);
 }
 
 static struct sh_machine_vector mv_ap325rxa __initmv = {
