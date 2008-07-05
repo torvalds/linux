@@ -309,3 +309,15 @@ Licence:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: ATARI_DSP56K - Atari DSP56k support
+
+File: dsp56k/bootstrap.bin
+Source: dsp56k/bootstrap.asm
+
+Licence: GPLv2 or later
+
+DSP56001 assembler, possibly buildable with a56 from 
+http://www.zdomain.com/a56.html
+
+--------------------------------------------------------------------------
