@@ -26,6 +26,7 @@
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/arch/common.h>
 #include <asm/page.h>
@@ -79,6 +80,16 @@ static void __init mxc_board_init(void)
 {
 }
 
+static void __init mx31lite_timer_init(void)
+{
+	mxc_clocks_init(26000000);
+	mxc_timer_init("ipg_clk.0");
+}
+
+struct sys_timer mx31lite_timer = {
+	.init	= mx31lite_timer_init,
+};
+
 /*
  * The following uses standard kernel macros defined in arch.h in order to
  * initialize __mach_desc_MX31LITE data structure.
@@ -92,5 +103,5 @@ MACHINE_START(MX31LITE, "LogicPD MX31 LITEKIT")
 	.map_io         = mx31lite_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
-	.timer          = &mxc_timer,
+	.timer          = &mx31lite_timer,
 MACHINE_END
