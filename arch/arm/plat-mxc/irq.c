@@ -71,5 +71,8 @@ void __init mxc_init_irq(void)
 	reg |= (0xF << 28);
 	__raw_writel(reg, AVIC_NIPRIORITY6);
 
+	/* init architectures chained interrupt handler */
+	mxc_register_gpios();
+
 	printk(KERN_INFO "MXC IRQ initialized\n");
 }

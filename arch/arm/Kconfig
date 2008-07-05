@@ -368,6 +368,8 @@ config ARCH_NS9XXX
 config ARCH_MXC
 	bool "Freescale MXC/iMX-based"
 	select ARCH_MTD_XIP
+	select GENERIC_GPIO
+	select HAVE_GPIO_LIB
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 

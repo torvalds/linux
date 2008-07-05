@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/serial.h>
+#include <linux/gpio.h>
 #include <asm/hardware.h>
 #include <asm/arch/imx-uart.h>
 
@@ -151,3 +152,29 @@ int __init imx_init_uart(int uart_no, struct imxuart_platform_data *pdata)
 	return 0;
 }
 
+/* GPIO port description */
+static struct mxc_gpio_port imx_gpio_ports[] = {
+	[0] = {
+		.chip.label = "gpio-0",
+		.base = IO_ADDRESS(GPIO1_BASE_ADDR),
+		.irq = MXC_INT_GPIO1,
+		.virtual_irq_start = MXC_GPIO_INT_BASE
+	},
+	[1] = {
+		.chip.label = "gpio-1",
+		.base = IO_ADDRESS(GPIO2_BASE_ADDR),
+		.irq = MXC_INT_GPIO2,
+		.virtual_irq_start = MXC_GPIO_INT_BASE + GPIO_NUM_PIN
+	},
+	[2] = {
+		.chip.label = "gpio-2",
+		.base = IO_ADDRESS(GPIO3_BASE_ADDR),
+		.irq = MXC_INT_GPIO3,
+		.virtual_irq_start = MXC_GPIO_INT_BASE + GPIO_NUM_PIN * 2
+	}
+};
+
+int __init mxc_register_gpios(void)
+{
+	return mxc_gpio_init(imx_gpio_ports, ARRAY_SIZE(imx_gpio_ports));
+}
