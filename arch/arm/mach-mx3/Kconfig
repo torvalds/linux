@@ -8,5 +8,11 @@ config MACH_MX31ADS
 	  Include support for MX31ADS platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_PCM037
+	bool "Support Phytec pcm037 platforms"
+	help
+	  Include support for Phytec pcm037 platform. This includes
+	  specific configurations for the board and its peripherals.
+
 endmenu
 
