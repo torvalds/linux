@@ -26,6 +26,9 @@
 # include <asm/arch/mx31.h>
 #endif
 
+#ifdef CONFIG_ARCH_MX2
+#endif
+
 #include <asm/arch/mxc.h>
 
 #endif /* __ASM_ARCH_MXC_HARDWARE_H__ */
