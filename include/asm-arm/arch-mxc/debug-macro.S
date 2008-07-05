@@ -19,6 +19,9 @@
 #ifdef CONFIG_MACH_PCM037
 #include <asm/arch/board-pcm037.h>
 #endif
+#ifdef CONFIG_MACH_MX31LITE
+#include <asm/arch/board-mx31lite.h>
+#endif
 
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
