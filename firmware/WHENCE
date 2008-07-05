@@ -321,3 +321,21 @@ DSP56001 assembler, possibly buildable with a56 from
 http://www.zdomain.com/a56.html
 
 --------------------------------------------------------------------------
+
+Driver: SND_SB16_CSP - Sound Blaster 16/AWE CSP support
+
+File: sb16/mulaw_main.csp
+File: sb16/alaw_main.csp
+File: sb16/ima_adpcm_init.csp
+File: sb16/ima_adpcm_playback.csp
+File: sb16/ima_adpcm_capture.csp
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+/*
+ *  Copyright (c) 1994 Creative Technology Ltd.
+ *  Microcode files for SB16 Advanced Signal Processor
+ */
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
