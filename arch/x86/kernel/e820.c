@@ -1198,6 +1198,9 @@ static int __init parse_memmap_opt(char *p)
 	char *oldp;
 	u64 start_at, mem_size;
 
+	if (!p)
+		return -EINVAL;
+
 	if (!strcmp(p, "exactmap")) {
 #ifdef CONFIG_CRASH_DUMP
 		/*
