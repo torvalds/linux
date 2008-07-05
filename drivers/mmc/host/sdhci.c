@@ -672,14 +672,14 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 					host->ioaddr + SDHCI_ADMA_ADDRESS);
 			}
 		} else {
-			int count;
+			int sg_cnt;
 
-			count = dma_map_sg(mmc_dev(host->mmc),
+			sg_cnt = dma_map_sg(mmc_dev(host->mmc),
 					data->sg, data->sg_len,
 					(data->flags & MMC_DATA_READ) ?
 						DMA_FROM_DEVICE :
 						DMA_TO_DEVICE);
-			if (count == 0) {
+			if (sg_cnt == 0) {
 				/*
 				 * This only happens when someone fed
 				 * us an invalid request.
@@ -1583,7 +1583,7 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	/* XXX: Hack to get MMC layer to avoid highmem */
 	if (!(host->flags & SDHCI_USE_DMA))
-		mmc_dev(host->mmc)->dma_mask = 0;
+		mmc_dev(host->mmc)->dma_mask = NULL;
 
 	host->max_clk =
 		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
