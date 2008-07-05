@@ -62,6 +62,11 @@
 #define UBIR  0xa4 /* BRM Incremental Register */
 #define UBMR  0xa8 /* BRM Modulator Register */
 #define UBRC  0xac /* Baud Rate Count Register */
+#ifdef CONFIG_ARCH_MX3
+#define ONEMS 0xb0 /* One Millisecond register */
+#define UTS   0xb4 /* UART Test Register */
+#endif
+#ifdef CONFIG_ARCH_IMX
 #define BIPR1 0xb0 /* Incremental Preset Register 1 */
 #define BIPR2 0xb4 /* Incremental Preset Register 2 */
 #define BIPR3 0xb8 /* Incremental Preset Register 3 */
@@ -71,6 +76,7 @@
 #define BMPR3 0xc8 /* BRM Modulator Register 3 */
 #define BMPR4 0xcc /* BRM Modulator Register 4 */
 #define UTS   0xd0 /* UART Test Register */
+#endif
 
 /* UART Control Register Bit Fields.*/
 #define  URXD_CHARRDY    (1<<15)
@@ -90,7 +96,12 @@
 #define  UCR1_RTSDEN     (1<<5)	 /* RTS delta interrupt enable */
 #define  UCR1_SNDBRK     (1<<4)	 /* Send break */
 #define  UCR1_TDMAEN     (1<<3)	 /* Transmitter ready DMA enable */
+#ifdef CONFIG_ARCH_IMX
 #define  UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled */
+#endif
+#ifdef CONFIG_ARCH_MX3
+#define  UCR1_UARTCLKEN  (0)	 /* not present on mx2/mx3 */
+#endif
 #define  UCR1_DOZE       (1<<1)	 /* Doze */
 #define  UCR1_UARTEN     (1<<0)	 /* UART enabled */
 #define  UCR2_ESCI     	 (1<<15) /* Escape seq interrupt enable */
@@ -164,8 +175,19 @@
 #define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
 /* We've been assigned a range on the "Low-density serial ports" major */
+#ifdef CONFIG_ARCH_IMX
 #define SERIAL_IMX_MAJOR	204
 #define MINOR_START		41
+#define DEV_NAME		"ttySMX"
+#define MAX_INTERNAL_IRQ	IMX_IRQS
+#endif
+
+#ifdef CONFIG_ARCH_MX3
+#define SERIAL_IMX_MAJOR        207
+#define MINOR_START	        16
+#define DEV_NAME		"ttymxc"
+#define MAX_INTERNAL_IRQ	MXC_MAX_INT_LINES
+#endif
 
 /*
  * This determines how often we check the modem status signals
@@ -409,6 +431,26 @@ out:
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t imx_int(int irq, void *dev_id)
+{
+	struct imx_port *sport = dev_id;
+	unsigned int sts;
+
+	sts = readl(sport->port.membase + USR1);
+
+	if (sts & USR1_RRDY)
+		imx_rxint(irq, dev_id);
+
+	if (sts & USR1_TRDY &&
+			readl(sport->port.membase + UCR1) & UCR1_TXMPTYEN)
+		imx_txint(irq, dev_id);
+
+	if (sts & USR1_RTSS)
+		imx_rtsint(irq, dev_id);
+
+	return IRQ_HANDLED;
+}
+
 /*
  * Return TIOCSER_TEMT when transmitter is not busy.
  */
@@ -514,21 +556,34 @@ static int imx_startup(struct uart_port *port)
 	writel(temp & ~UCR4_DREN, sport->port.membase + UCR4);
 
 	/*
-	 * Allocate the IRQ
+	 * Allocate the IRQ(s) i.MX1 has three interrupts whereas later
+	 * chips only have one interrupt.
 	 */
-	retval = request_irq(sport->rxirq, imx_rxint, 0,
-			     DRIVER_NAME, sport);
-	if (retval) goto error_out1;
+	if (sport->txirq > 0) {
+		retval = request_irq(sport->rxirq, imx_rxint, 0,
+				DRIVER_NAME, sport);
+		if (retval)
+			goto error_out1;
 
-	retval = request_irq(sport->txirq, imx_txint, 0,
-			     DRIVER_NAME, sport);
-	if (retval) goto error_out2;
+		retval = request_irq(sport->txirq, imx_txint, 0,
+				DRIVER_NAME, sport);
+		if (retval)
+			goto error_out2;
 
-	retval = request_irq(sport->rtsirq, imx_rtsint,
-			     (sport->rtsirq < IMX_IRQS) ? 0 :
+		retval = request_irq(sport->rtsirq, imx_rtsint,
+			     (sport->rtsirq < MAX_INTERNAL_IRQ) ? 0 :
 			       IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			     DRIVER_NAME, sport);
-	if (retval) goto error_out3;
+				DRIVER_NAME, sport);
+		if (retval)
+			goto error_out3;
+	} else {
+		retval = request_irq(sport->port.irq, imx_int, 0,
+				DRIVER_NAME, sport);
+		if (retval) {
+			free_irq(sport->port.irq, sport);
+			goto error_out1;
+		}
+	}
 
 	/*
 	 * Finally, clear and enable interrupts
@@ -553,9 +608,11 @@ static int imx_startup(struct uart_port *port)
 	return 0;
 
 error_out3:
-	free_irq(sport->txirq, sport);
+	if (sport->txirq)
+		free_irq(sport->txirq, sport);
 error_out2:
-	free_irq(sport->rxirq, sport);
+	if (sport->rxirq)
+		free_irq(sport->rxirq, sport);
 error_out1:
 	return retval;
 }
@@ -573,9 +630,12 @@ static void imx_shutdown(struct uart_port *port)
 	/*
 	 * Free the interrupts
 	 */
-	free_irq(sport->rtsirq, sport);
-	free_irq(sport->txirq, sport);
-	free_irq(sport->rxirq, sport);
+	if (sport->txirq > 0) {
+		free_irq(sport->rtsirq, sport);
+		free_irq(sport->txirq, sport);
+		free_irq(sport->rxirq, sport);
+	} else
+		free_irq(sport->port.irq, sport);
 
 	/*
 	 * Disable all interrupts, port and break condition.
@@ -973,7 +1033,7 @@ imx_console_setup(struct console *co, char *options)
 
 static struct uart_driver imx_reg;
 static struct console imx_console = {
-	.name		= "ttySMX",
+	.name		= DEV_NAME,
 	.write		= imx_console_write,
 	.device		= uart_console_device,
 	.setup		= imx_console_setup,
@@ -990,7 +1050,7 @@ static struct console imx_console = {
 static struct uart_driver imx_reg = {
 	.owner          = THIS_MODULE,
 	.driver_name    = DRIVER_NAME,
-	.dev_name       = "ttySMX",
+	.dev_name       = DEV_NAME,
 	.major          = SERIAL_IMX_MAJOR,
 	.minor          = MINOR_START,
 	.nr             = ARRAY_SIZE(imx_ports),
