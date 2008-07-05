@@ -103,6 +103,9 @@ void __init io_delay_init(void)
 
 static int __init io_delay_param(char *s)
 {
+	if (!s)
+		return -EINVAL;
+
 	if (!strcmp(s, "0x80"))
 		io_delay_type = CONFIG_IO_DELAY_TYPE_0X80;
 	else if (!strcmp(s, "0xed"))
