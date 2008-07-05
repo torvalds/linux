@@ -176,6 +176,8 @@
 
 #define DRIVER_NAME "IMX-uart"
 
+#define UART_NR 8
+
 struct imx_port {
 	struct uart_port	port;
 	struct timer_list	timer;
@@ -829,65 +831,7 @@ static struct uart_ops imx_pops = {
 	.verify_port	= imx_verify_port,
 };
 
-static struct imx_port imx_ports[] = {
-	{
-	.txirq  = UART1_MINT_TX,
-	.rxirq  = UART1_MINT_RX,
-	.rtsirq = UART1_MINT_RTS,
-	.port	= {
-		.type		= PORT_IMX,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)IMX_UART1_BASE,
-		.mapbase	= 0x00206000,
-		.irq		= UART1_MINT_RX,
-		.fifosize	= 32,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.ops		= &imx_pops,
-		.line		= 0,
-	},
-	}, {
-	.txirq  = UART2_MINT_TX,
-	.rxirq  = UART2_MINT_RX,
-	.rtsirq = UART2_MINT_RTS,
-	.port	= {
-		.type		= PORT_IMX,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)IMX_UART2_BASE,
-		.mapbase	= 0x00207000,
-		.irq		= UART2_MINT_RX,
-		.fifosize	= 32,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.ops		= &imx_pops,
-		.line		= 1,
-	},
-	}
-};
-
-/*
- * Setup the IMX serial ports.
- * Note also that we support "console=ttySMXx" where "x" is either 0 or 1.
- * Which serial port this ends up being depends on the machine you're
- * running this kernel on.  I'm not convinced that this is a good idea,
- * but that's the way it traditionally works.
- *
- */
-static void __init imx_init_ports(void)
-{
-	static int first = 1;
-	int i;
-
-	if (!first)
-		return;
-	first = 0;
-
-	for (i = 0; i < ARRAY_SIZE(imx_ports); i++) {
-		init_timer(&imx_ports[i].timer);
-		imx_ports[i].timer.function = imx_timeout;
-		imx_ports[i].timer.data     = (unsigned long)&imx_ports[i];
-
-		imx_ports[i].port.uartclk = imx_get_perclk1();
-	}
-}
+static struct imx_port *imx_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_IMX_CONSOLE
 static void imx_console_putchar(struct uart_port *port, int ch)
@@ -906,7 +850,7 @@ static void imx_console_putchar(struct uart_port *port, int ch)
 static void
 imx_console_write(struct console *co, const char *s, unsigned int count)
 {
-	struct imx_port *sport = &imx_ports[co->index];
+	struct imx_port *sport = imx_ports[co->index];
 	unsigned int old_ucr1, old_ucr2;
 
 	/*
@@ -1012,7 +956,7 @@ imx_console_setup(struct console *co, char *options)
 	 */
 	if (co->index == -1 || co->index >= ARRAY_SIZE(imx_ports))
 		co->index = 0;
-	sport = &imx_ports[co->index];
+	sport = imx_ports[co->index];
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1034,14 +978,6 @@ static struct console imx_console = {
 	.index		= -1,
 	.data		= &imx_reg,
 };
-
-static int __init imx_rs_console_init(void)
-{
-	imx_init_ports();
-	register_console(&imx_console);
-	return 0;
-}
-console_initcall(imx_rs_console_init);
 
 #define IMX_CONSOLE	&imx_console
 #else
@@ -1080,21 +1016,63 @@ static int serial_imx_resume(struct platform_device *dev)
 
 static int serial_imx_probe(struct platform_device *pdev)
 {
+	struct imx_port *sport;
 	struct imxuart_platform_data *pdata;
+	void __iomem *base;
+	int ret = 0;
+	struct resource *res;
 
-	imx_ports[pdev->id].port.dev = &pdev->dev;
+	sport = kzalloc(sizeof(*sport), GFP_KERNEL);
+	if (!sport)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -ENODEV;
+		goto free;
+	}
+
+	base = ioremap(res->start, PAGE_SIZE);
+	if (!base) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	sport->port.dev = &pdev->dev;
+	sport->port.mapbase = res->start;
+	sport->port.membase = base;
+	sport->port.type = PORT_IMX,
+	sport->port.iotype = UPIO_MEM;
+	sport->port.irq = platform_get_irq(pdev, 0);
+	sport->rxirq = platform_get_irq(pdev, 0);
+	sport->txirq = platform_get_irq(pdev, 1);
+	sport->rtsirq = platform_get_irq(pdev, 2);
+	sport->port.fifosize = 32;
+	sport->port.ops = &imx_pops;
+	sport->port.flags = UPF_BOOT_AUTOCONF;
+	sport->port.line = pdev->id;
+	init_timer(&sport->timer);
+	sport->timer.function = imx_timeout;
+	sport->timer.data     = (unsigned long)sport;
+	sport->port.uartclk = imx_get_perclk1();
+
+	imx_ports[pdev->id] = sport;
 
 	pdata = pdev->dev.platform_data;
 	if(pdata && (pdata->flags & IMXUART_HAVE_RTSCTS))
-		imx_ports[pdev->id].have_rtscts = 1;
+		sport->have_rtscts = 1;
 
 	if (pdata->init)
 		pdata->init(pdev);
 
-	uart_add_one_port(&imx_reg, &imx_ports[pdev->id].port);
-	platform_set_drvdata(pdev, &imx_ports[pdev->id]);
+	uart_add_one_port(&imx_reg, &sport->port);
+	platform_set_drvdata(pdev, &sport->port);
 
 	return 0;
+free:
+	kfree(sport);
+
+	return ret;
 }
 
 static int serial_imx_remove(struct platform_device *pdev)
@@ -1111,6 +1089,9 @@ static int serial_imx_remove(struct platform_device *pdev)
 
 	if (pdata->exit)
 		pdata->exit(pdev);
+
+	iounmap(sport->port.membase);
+	kfree(sport);
 
 	return 0;
 }
@@ -1132,8 +1113,6 @@ static int __init imx_serial_init(void)
 	int ret;
 
 	printk(KERN_INFO "Serial: IMX driver\n");
-
-	imx_init_ports();
 
 	ret = uart_register_driver(&imx_reg);
 	if (ret)
