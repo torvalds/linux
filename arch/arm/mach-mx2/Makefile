@@ -5,3 +5,5 @@
 # Object file lists.
 
 obj-y	:=  system.o generic.o devices.o serial.o
+
+obj-$(CONFIG_MACH_MX27) += cpu_imx27.o

@@ -27,6 +27,9 @@
 #endif
 
 #ifdef CONFIG_ARCH_MX2
+# ifdef CONFIG_MACH_MX27
+#  include <asm/arch/mx27.h>
+# endif
 #endif
 
 #include <asm/arch/mxc.h>

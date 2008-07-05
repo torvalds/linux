@@ -29,4 +29,8 @@
 # define cpu_is_mx31() (0)
 #endif
 
+#ifndef CONFIG_MACH_MX27
+# define cpu_is_mx27() (0)
+#endif
+
 #endif /*  __ASM_ARCH_MXC_H__ */
