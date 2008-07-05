@@ -1252,10 +1252,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
 
-	/* As long as we keep track of the number of successfully
-	 * transmitted blocks, we're good for multiwrite.
-	 */
-	mmc->caps = MMC_CAP_SPI | MMC_CAP_MULTIWRITE;
+	mmc->caps = MMC_CAP_SPI;
 
 	/* SPI doesn't need the lowspeed device identification thing for
 	 * MMC or SD cards, since it never comes up in open drain mode.

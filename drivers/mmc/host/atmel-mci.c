@@ -849,7 +849,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 	mmc->f_min = (host->bus_hz + 511) / 512;
 	mmc->f_max = host->bus_hz / 2;
 	mmc->ocr_avail	= MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE;
+	mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	mmc->max_hw_segs = 64;
 	mmc->max_phys_segs = 64;

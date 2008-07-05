@@ -111,12 +111,11 @@ struct mmc_host {
 	unsigned long		caps;		/* Host capabilities */
 
 #define MMC_CAP_4_BIT_DATA	(1 << 0)	/* Can the host do 4 bit transfers */
-#define MMC_CAP_MULTIWRITE	(1 << 1)	/* Can accurately report bytes sent to card on error */
-#define MMC_CAP_MMC_HIGHSPEED	(1 << 2)	/* Can do MMC high-speed timing */
-#define MMC_CAP_SD_HIGHSPEED	(1 << 3)	/* Can do SD high-speed timing */
-#define MMC_CAP_SDIO_IRQ	(1 << 4)	/* Can signal pending SDIO IRQs */
-#define MMC_CAP_SPI		(1 << 5)	/* Talks only SPI protocols */
-#define MMC_CAP_NEEDS_POLL	(1 << 6)	/* Needs polling for card-detection */
+#define MMC_CAP_MMC_HIGHSPEED	(1 << 1)	/* Can do MMC high-speed timing */
+#define MMC_CAP_SD_HIGHSPEED	(1 << 2)	/* Can do SD high-speed timing */
+#define MMC_CAP_SDIO_IRQ	(1 << 3)	/* Can signal pending SDIO IRQs */
+#define MMC_CAP_SPI		(1 << 4)	/* Talks only SPI protocols */
+#define MMC_CAP_NEEDS_POLL	(1 << 5)	/* Needs polling for card-detection */
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */
