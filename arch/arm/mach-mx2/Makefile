@@ -4,4 +4,4 @@
 
 # Object file lists.
 
-obj-y	:=  system.o generic.o
+obj-y	:=  system.o generic.o devices.o
