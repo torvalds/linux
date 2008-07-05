@@ -108,6 +108,9 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 
 void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
+	if (!skb)
+		return;
+
 	rt2x00queue_unmap_skb(rt2x00dev, skb);
 	dev_kfree_skb_any(skb);
 }
