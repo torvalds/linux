@@ -3,4 +3,4 @@
 #
 
 # Common support
-obj-y := irq.o clock.o gpio.o
+obj-y := irq.o clock.o gpio.o time.o
