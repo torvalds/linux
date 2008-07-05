@@ -40,6 +40,7 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -184,6 +185,7 @@ struct imx_port {
 	unsigned int		old_status;
 	int			txirq,rxirq,rtsirq;
 	int			have_rtscts:1;
+	struct clk		*clk;
 };
 
 /*
@@ -479,7 +481,8 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 	 * RFDIV is set such way to satisfy requested uartclk value
 	 */
 	val = TXTL << 10 | RXTL;
-	ufcr_rfdiv = (imx_get_perclk1() + sport->port.uartclk / 2) / sport->port.uartclk;
+	ufcr_rfdiv = (clk_get_rate(sport->clk) + sport->port.uartclk / 2)
+			/ sport->port.uartclk;
 
 	if(!ufcr_rfdiv)
 		ufcr_rfdiv = 1;
@@ -916,7 +919,7 @@ imx_console_get_options(struct imx_port *sport, int *baud,
 		else
 			ucfr_rfdiv = 6 - ucfr_rfdiv;
 
-		uartclk = imx_get_perclk1();
+		uartclk = clk_get_rate(sport->clk);
 		uartclk /= ucfr_rfdiv;
 
 		{	/*
@@ -1054,7 +1057,15 @@ static int serial_imx_probe(struct platform_device *pdev)
 	init_timer(&sport->timer);
 	sport->timer.function = imx_timeout;
 	sport->timer.data     = (unsigned long)sport;
-	sport->port.uartclk = imx_get_perclk1();
+
+	sport->clk = clk_get(&pdev->dev, "uart_clk");
+	if (IS_ERR(sport->clk)) {
+		ret = PTR_ERR(sport->clk);
+		goto unmap;
+	}
+	clk_enable(sport->clk);
+
+	sport->port.uartclk = clk_get_rate(sport->clk);
 
 	imx_ports[pdev->id] = sport;
 
@@ -1069,6 +1080,8 @@ static int serial_imx_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &sport->port);
 
 	return 0;
+unmap:
+	iounmap(sport->port.membase);
 free:
 	kfree(sport);
 
@@ -1084,8 +1097,12 @@ static int serial_imx_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	if (sport)
+	if (sport) {
 		uart_remove_one_port(&imx_reg, &sport->port);
+		clk_put(sport->clk);
+	}
+
+	clk_disable(sport->clk);
 
 	if (pdata->exit)
 		pdata->exit(pdev);
