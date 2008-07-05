@@ -62,7 +62,7 @@
 #define UBIR  0xa4 /* BRM Incremental Register */
 #define UBMR  0xa8 /* BRM Modulator Register */
 #define UBRC  0xac /* Baud Rate Count Register */
-#ifdef CONFIG_ARCH_MX3
+#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
 #define ONEMS 0xb0 /* One Millisecond register */
 #define UTS   0xb4 /* UART Test Register */
 #endif
@@ -99,7 +99,7 @@
 #ifdef CONFIG_ARCH_IMX
 #define  UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled */
 #endif
-#ifdef CONFIG_ARCH_MX3
+#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
 #define  UCR1_UARTCLKEN  (0)	 /* not present on mx2/mx3 */
 #endif
 #define  UCR1_DOZE       (1<<1)	 /* Doze */
@@ -182,7 +182,7 @@
 #define MAX_INTERNAL_IRQ	IMX_IRQS
 #endif
 
-#ifdef CONFIG_ARCH_MX3
+#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
 #define SERIAL_IMX_MAJOR        207
 #define MINOR_START	        16
 #define DEV_NAME		"ttymxc"
