@@ -589,6 +589,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long flags;
 	unsigned int ucr2, old_ucr1, old_txrxen, baud, quot;
 	unsigned int old_csize = old ? old->c_cflag & CSIZE : CS8;
+	unsigned int div, num, denom, ufcr;
 
 	/*
 	 * If we don't support modem control lines, don't allow
@@ -634,7 +635,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 */
-	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
+	baud = uart_get_baud_rate(port, termios, old, 50, port->uartclk / 16);
 	quot = uart_get_divisor(port, baud);
 
 	spin_lock_irqsave(&sport->port.lock, flags);
@@ -684,14 +685,41 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 			sport->port.membase + UCR2);
 	old_txrxen &= (UCR2_TXEN | UCR2_RXEN);
 
-	/* set the baud rate. We assume uartclk = 16 MHz
-	 *
-	 * baud * 16   UBIR - 1
-	 * --------- = --------
-	 *  uartclk    UBMR - 1
-	 */
-	writel((baud / 100) - 1, sport->port.membase + UBIR);
-	writel(10000 - 1, sport->port.membase + UBMR);
+	div = sport->port.uartclk / (baud * 16);
+	if (div > 7)
+		div = 7;
+	if (!div)
+		div = 1;
+
+	num = baud;
+	denom = port->uartclk / div / 16;
+
+	/* shift num and denom right until they fit into 16 bits */
+	while (num > 0x10000 || denom > 0x10000) {
+		num >>= 1;
+		denom >>= 1;
+	}
+	if (num > 0)
+		num -= 1;
+	if (denom > 0)
+		denom -= 1;
+
+	writel(num, sport->port.membase + UBIR);
+	writel(denom, sport->port.membase + UBMR);
+
+	if (div == 7)
+		div = 6; /* 6 in RFDIV means divide by 7 */
+	else
+		div = 6 - div;
+
+	ufcr = readl(sport->port.membase + UFCR);
+	ufcr = (ufcr & (~UFCR_RFDIV)) |
+	    (div << 7);
+	writel(ufcr, sport->port.membase + UFCR);
+
+#ifdef ONEMS
+	writel(sport->port.uartclk / div / 1000, sport->port.membase + ONEMS);
+#endif
 
 	writel(old_ucr1, sport->port.membase + UCR1);
 
@@ -812,7 +840,6 @@ static struct imx_port imx_ports[] = {
 		.membase	= (void *)IMX_UART1_BASE,
 		.mapbase	= 0x00206000,
 		.irq		= UART1_MINT_RX,
-		.uartclk	= 16000000,
 		.fifosize	= 32,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.ops		= &imx_pops,
@@ -828,7 +855,6 @@ static struct imx_port imx_ports[] = {
 		.membase	= (void *)IMX_UART2_BASE,
 		.mapbase	= 0x00207000,
 		.irq		= UART2_MINT_RX,
-		.uartclk	= 16000000,
 		.fifosize	= 32,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.ops		= &imx_pops,
@@ -858,6 +884,8 @@ static void __init imx_init_ports(void)
 		init_timer(&imx_ports[i].timer);
 		imx_ports[i].timer.function = imx_timeout;
 		imx_ports[i].timer.data     = (unsigned long)&imx_ports[i];
+
+		imx_ports[i].port.uartclk = imx_get_perclk1();
 	}
 }
 
