@@ -320,6 +320,8 @@
 #define MXC_MAX_GPIO_LINES      (GPIO_NUM_PIN * GPIO_PORT_NUM)
 #define MXC_MAX_VIRTUAL_INTS	16
 
+#define NR_IRQS (MXC_MAX_INT_LINES + MXC_MAX_GPIO_LINES + MXC_MAX_VIRTUAL_INTS)
+
 /*!
  * Number of GPIO port as defined in the IC Spec
  */
