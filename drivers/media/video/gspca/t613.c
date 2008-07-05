@@ -26,8 +26,8 @@
 
 #define MODULE_NAME "t613"
 #include "gspca.h"
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 #define MAX_GAMMA 0x10		/* 0 to 15 */
 
@@ -232,12 +232,32 @@ static char *effects_control[] = {
 	"Negative",
 };
 
-static struct cam_mode vga_mode_t16[] = {
-	{V4L2_PIX_FMT_JPEG, 160, 120, 4},
-	{V4L2_PIX_FMT_JPEG, 176, 144, 3},
-	{V4L2_PIX_FMT_JPEG, 320, 240, 2},
-	{V4L2_PIX_FMT_JPEG, 352, 288, 1},
-	{V4L2_PIX_FMT_JPEG, 640, 480, 0},
+static struct v4l2_pix_format vga_mode_t16[] = {
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 4},
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 3},
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
 };
 
 #define T16_OFFSET_DATA 631
@@ -848,7 +868,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		  0xb8, 0x00, 0xb9, 0xe7, 0xba, 0x01 };
 	static const __u8 t4[] = { 0x0b, 0x04, 0x0a, 0x40 };
 
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode]. mode;
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode]. priv;
 	switch (mode) {
 	case 1:		/* 352x288 */
 		t2[1] = 0x40;

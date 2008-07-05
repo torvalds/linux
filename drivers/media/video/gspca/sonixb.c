@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 3)
-static const char version[] = "2.1.3";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SN9C102 USB Camera Driver");
@@ -95,15 +95,34 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-/* fixme: should have V4L2_PIX_FMT_SN9C10X */
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_SN9C10X, 160, 120, 2},
-	{V4L2_PIX_FMT_SN9C10X, 320, 240, 1},
-	{V4L2_PIX_FMT_SN9C10X, 640, 480, 0},
+static struct v4l2_pix_format vga_mode[] = {
+	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2},
+	{320, 240, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
-static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_SN9C10X, 176, 144, 1},
-	{V4L2_PIX_FMT_SN9C10X, 352, 288, 0},
+static struct v4l2_pix_format sif_mode[] = {
+	{176, 144, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 static const __u8 probe_ov7630[] = {0x08, 0x44};
@@ -592,7 +611,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	__u8 reg01, reg17;
 	__u8 reg17_19[3];
 
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		sn9c10x = initHv7131;

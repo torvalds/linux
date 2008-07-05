@@ -52,15 +52,9 @@ extern int gspca_debug;
 #define ISO_MAX_SIZE 0x8000	/* max size of one URB buffer (32 Kb) */
 
 /* device information - set at probe time */
-struct cam_mode {
-	__u32 pixfmt;
-	short width;
-	short height;
-	short mode;		/* subdriver value */
-};
 struct cam {
 	char *dev_name;
-	struct cam_mode *cam_mode;	/* size nmodes */
+	struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
 	__u8 epaddr;
 };
@@ -80,7 +74,6 @@ typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 				struct gspca_frame *frame,
 				__u8 *data,
 				int len);
-typedef int (*cam_get_buff_size_op) (struct gspca_dev *gspca_dev, int mode);
 
 struct ctrl {
 	struct v4l2_queryctrl qctrl;
@@ -102,12 +95,12 @@ struct sd_desc {
 	cam_v_op stopN;		/* called on stream off - main alt */
 	cam_v_op stop0;		/* called on stream off - alt 0 */
 	cam_v_op close;		/* called on close */
-	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_pkt_op pkt_scan;
+/* optional operations */
+	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
 	cam_qmnu_op querymenu;
-	cam_get_buff_size_op get_buff_size; /* optional */
 };
 
 /* packet types when moving from iso buf to frame buf */

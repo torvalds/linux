@@ -25,8 +25,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 0)
-static const char version[] = "2.1.0";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA506 USB Camera Driver");
@@ -34,11 +34,11 @@ MODULE_LICENSE("GPL");
 
 /* specific webcam descriptor */
 struct sd {
-	struct gspca_dev gspca_dev;		/* !! must be the first item */
+	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
 	int buflen;
-	unsigned char tmpbuf[640 * 480 * 3];	/* YYUV per line */
-	unsigned char tmpbuf2[640 * 480 * 2];	/* YUYV */
+	__u8 tmpbuf[640 * 480 * 3];	/* YYUV per line */
+	__u8 tmpbuf2[640 * 480 * 2];	/* YUYV */
 
 	unsigned char brightness;
 	unsigned char contrast;
@@ -117,12 +117,32 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_YUYV, 160, 120, 5},
-	{V4L2_PIX_FMT_YUYV, 176, 144, 4},
-	{V4L2_PIX_FMT_YUYV, 320, 240, 2},
-	{V4L2_PIX_FMT_YUYV, 352, 288, 1},
-	{V4L2_PIX_FMT_YUYV, 640, 480, 0},
+static struct v4l2_pix_format vga_mode[] = {
+	{160, 120, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 160 * 2,
+		.sizeimage = 160 * 120 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 5},
+	{176, 144, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 176 * 2,
+		.sizeimage = 176 * 144 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 4},
+	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 320 * 2,
+		.sizeimage = 320 * 240 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2},
+	{352, 288, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 352 * 2,
+		.sizeimage = 352 * 288 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 640 * 2,
+		.sizeimage = 640 * 480 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 #define SPCA50X_OFFSET_DATA 10
@@ -169,7 +189,7 @@ static void spca506_WriteI2c(struct gspca_dev *gspca_dev, __u16 valeur,
 			     __u16 reg)
 {
 	int retry = 60;
-	unsigned char Data[2];
+	__u8 Data[2];
 
 	reg_w(gspca_dev->dev, 0x07, reg, 0x0001);
 	reg_w(gspca_dev->dev, 0x07, valeur, 0x0000);
@@ -183,8 +203,8 @@ static void spca506_WriteI2c(struct gspca_dev *gspca_dev, __u16 valeur,
 static int spca506_ReadI2c(struct gspca_dev *gspca_dev, __u16 reg)
 {
 	int retry = 60;
-	unsigned char Data[2];
-	unsigned char value;
+	__u8 Data[2];
+	__u8 value;
 
 	reg_w(gspca_dev->dev, 0x07, SAA7113_I2C_BASE_WRITE, 0x0004);
 	reg_w(gspca_dev->dev, 0x07, reg, 0x0001);
@@ -513,7 +533,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x05, 0x00, 0x0004);
 	reg_w(dev, 0x03, 0x10, 0x0001);
 	reg_w(dev, 0x03, 0x78, 0x0000);
-	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode) {
+	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 0:
 		spca506_Setsize(gspca_dev, 0, 0x10, 0x10);
 		break;
@@ -593,7 +613,7 @@ static void yyuv_decode(unsigned char *out,
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;

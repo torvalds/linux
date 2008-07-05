@@ -27,8 +27,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
@@ -157,9 +157,18 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_PAC207, 176, 144, 1},
-	{V4L2_PIX_FMT_PAC207, 352, 288, 0},
+static struct v4l2_pix_format sif_mode[] = {
+	{176, 144, V4L2_PIX_FMT_PAC207, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = (176 + 2) * 144,
+			/* uncompressed, add 2 bytes / line for line header */
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_PAC207, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 / 2,	/* compressed */
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 static const __u8 pac207_sensor_init[][8] = {
@@ -344,19 +353,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 /* this function is called at close time */
 static void sd_close(struct gspca_dev *gspca_dev)
 {
-}
-
-static int sd_get_buff_size_op(struct gspca_dev *gspca_dev, int mode)
-{
-	switch (gspca_dev->cam.cam_mode[mode].width) {
-	case 176: /* 176x144 */
-		/* uncompressed, add 2 bytes / line for line header */
-		return (176 + 2) * 144;
-	case 352: /* 352x288 */
-		/* compressed */
-		return 352 * 288 / 2;
-	}
-	return -EIO; /* should never happen */
 }
 
 /* auto gain and exposure algorithm based on the knee algorithm described here:
@@ -632,7 +628,6 @@ static const struct sd_desc sd_desc = {
 	.close = sd_close,
 	.dq_callback = pac207_do_auto_gain,
 	.pkt_scan = sd_pkt_scan,
-	.get_buff_size = sd_get_buff_size_op,
 };
 
 /* -- module initialisation -- */

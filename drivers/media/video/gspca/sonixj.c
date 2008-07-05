@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SONIX JPEG USB Camera Driver");
@@ -132,10 +132,22 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_JPEG, 160, 120, 2},
-	{V4L2_PIX_FMT_JPEG, 320, 240, 1},
-	{V4L2_PIX_FMT_JPEG, 640, 480, 0},
+static struct v4l2_pix_format vga_mode[] = {
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
 };
 
 /*Data from sn9c102p+hv71331r */
@@ -1232,7 +1244,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(dev, 0x99, &data, 1);
 	}
 
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	reg1 = 0x02;
 	reg17 = 0x61;
 	switch (sd->sensor) {

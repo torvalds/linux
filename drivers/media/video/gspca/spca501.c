@@ -23,8 +23,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA501 USB Camera Driver");
@@ -101,10 +101,22 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_SPCA501, 160, 120, 2},
-	{V4L2_PIX_FMT_SPCA501, 320, 240, 1},
-	{V4L2_PIX_FMT_SPCA501, 640, 480, 0},
+static struct v4l2_pix_format vga_mode[] = {
+	{160, 120, V4L2_PIX_FMT_SPCA501, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 3 / 8,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2},
+	{320, 240, V4L2_PIX_FMT_SPCA501, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_SPCA501, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 #define SPCA50X_REG_USB 0x2	/* spca505 501 */
@@ -2029,7 +2041,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	int mode;
 
 	/* memorize the wanted pixel format */
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 
 	/* Enable ISO packet machine CTRL reg=2,
 	 * index=1 bitmask=0x2 (bit ordinal 1) */

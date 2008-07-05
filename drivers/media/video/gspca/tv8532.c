@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("TV8532 USB Camera Driver");
@@ -81,9 +81,17 @@ static struct ctrl sd_ctrls[] = {
 	 },
 };
 
-static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_SBGGR8, 176, 144, 1},
-	{V4L2_PIX_FMT_SBGGR8, 352, 288, 0},
+static struct v4l2_pix_format sif_mode[] = {
+	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 /*
@@ -440,7 +448,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/************************************************/
 	data = TESTCOMP;	/* 0x72 compressed mode */
 	reg_w(dev, TV8532_QUANT_COMP, &data, 1);	/* 0x28 */
-	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode) {
+	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 		/* 176x144 */
 		data = QCIFLINE;	/* 0x84; // CIF | 4 packet */
 		reg_w(dev, TV8532_MODE_PACKET, &data, 1);	/* 0x29 */

@@ -43,12 +43,10 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 static int video_nr = -1;
-
-static int comp_fac = 30;	/* Buffer size ratio when compressed in % */
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -361,58 +359,6 @@ static void rvfree(void *mem, unsigned long size)
 	vfree(mem);
 }
 
-static __u32 get_v4l2_depth(__u32 pixfmt)
-{
-	switch (pixfmt) {
-/*	case V4L2_PIX_FMT_BGR32:
-	case V4L2_PIX_FMT_RGB32:
-		return 32; */
-	case V4L2_PIX_FMT_RGB24:	/* 'RGB3' */
-	case V4L2_PIX_FMT_BGR24:
-		return 24;
-/*	case V4L2_PIX_FMT_RGB565:	 * 'RGBP' */
-	case V4L2_PIX_FMT_YUYV:		/* 'YUYV' packed 4.2.2 */
-	case V4L2_PIX_FMT_YYUV:		/* 'YYUV' */
-		return 16;
-	case V4L2_PIX_FMT_YUV420:	/* 'YU12' planar 4.2.0 */
-	case V4L2_PIX_FMT_SPCA501:	/* 'S501' YUYV per line */
-		return 12;
-	case V4L2_PIX_FMT_MJPEG:
-	case V4L2_PIX_FMT_JPEG:
-	case V4L2_PIX_FMT_SBGGR8:	/* 'BA81' Bayer */
-	case V4L2_PIX_FMT_SN9C10X:	/* 'S910' SN9C10x compression */
-	case V4L2_PIX_FMT_SPCA561:	/* 'S561' compressed GBRG bayer */
-	case V4L2_PIX_FMT_PAC207:	/* 'P207' compressed BGGR bayer */
-		return 8;
-	}
-	PDEBUG(D_ERR|D_CONF, "Unknown pixel format %c%c%c%c",
-		pixfmt & 0xff,
-		(pixfmt >> 8) & 0xff,
-		(pixfmt >> 16) & 0xff,
-		pixfmt >> 24);
-	return 24;
-}
-
-static int gspca_get_buff_size(struct gspca_dev *gspca_dev, int mode)
-{
-	unsigned int size;
-
-	if (gspca_dev->sd_desc->get_buff_size)
-		return gspca_dev->sd_desc->get_buff_size(gspca_dev, mode);
-
-	size =  gspca_dev->cam.cam_mode[mode].width *
-		gspca_dev->cam.cam_mode[mode].height *
-		get_v4l2_depth(gspca_dev->cam.cam_mode[mode].pixfmt) / 8;
-	if (!size)
-		return -ENOMEM;
-
-	/* if compressed (JPEG), reduce the buffer size */
-	if (gspca_is_compressed(gspca_dev->cam.cam_mode[mode].pixfmt))
-		size = (size * comp_fac) / 100 + 600; /* (+ JPEG header sz) */
-
-	return size;
-}
-
 static int frame_alloc(struct gspca_dev *gspca_dev,
 			unsigned int count)
 {
@@ -420,15 +366,14 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 	unsigned int frsz;
 	int i;
 
-	frsz = gspca_get_buff_size(gspca_dev, gspca_dev->curr_mode);
-	if (frsz < 0)
-		return frsz;
+	i = gspca_dev->curr_mode;
+	frsz = gspca_dev->cam.cam_mode[i].sizeimage;
 	PDEBUG(D_STREAM, "frame alloc frsz: %d", frsz);
-	if (count > GSPCA_MAX_FRAMES)
-		count = GSPCA_MAX_FRAMES;
 	frsz = PAGE_ALIGN(frsz);
 	PDEBUG(D_STREAM, "new fr_sz: %d", frsz);
 	gspca_dev->frsz = frsz;
+	if (count > GSPCA_MAX_FRAMES)
+		count = GSPCA_MAX_FRAMES;
 	if (gspca_dev->memory == V4L2_MEMORY_MMAP) {
 		gspca_dev->frbuf = rvmalloc(frsz * count);
 		if (!gspca_dev->frbuf) {
@@ -711,7 +656,7 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 	gspca_dev->curr_mode = i;
 	gspca_dev->width = gspca_dev->cam.cam_mode[i].width;
 	gspca_dev->height = gspca_dev->cam.cam_mode[i].height;
-	gspca_dev->pixfmt = gspca_dev->cam.cam_mode[i].pixfmt;
+	gspca_dev->pixfmt = gspca_dev->cam.cam_mode[i].pixelformat;
 }
 
 static int wxh_to_mode(struct gspca_dev *gspca_dev,
@@ -739,11 +684,13 @@ static int gspca_get_mode(struct gspca_dev *gspca_dev,
 	modeU = modeD = mode;
 	while ((modeU < gspca_dev->cam.nmodes) || modeD >= 0) {
 		if (--modeD >= 0) {
-			if (gspca_dev->cam.cam_mode[modeD].pixfmt == pixfmt)
+			if (gspca_dev->cam.cam_mode[modeD].pixelformat
+								== pixfmt)
 				return modeD;
 		}
 		if (++modeU < gspca_dev->cam.nmodes) {
-			if (gspca_dev->cam.cam_mode[modeU].pixfmt == pixfmt)
+			if (gspca_dev->cam.cam_mode[modeU].pixelformat
+								== pixfmt)
 				return modeU;
 		}
 	}
@@ -761,7 +708,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	index = 0;
 	j = 0;
 	for (i = gspca_dev->cam.nmodes; --i >= 0; ) {
-		fmt_tb[index] = gspca_dev->cam.cam_mode[i].pixfmt;
+		fmt_tb[index] = gspca_dev->cam.cam_mode[i].pixelformat;
 		j = 0;
 		for (;;) {
 			if (fmt_tb[j] == fmt_tb[index])
@@ -795,20 +742,13 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 			    struct v4l2_format *fmt)
 {
 	struct gspca_dev *gspca_dev = priv;
+	int mode;
 
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	fmt->fmt.pix.width = gspca_dev->width;
-	fmt->fmt.pix.height = gspca_dev->height;
-	fmt->fmt.pix.pixelformat = gspca_dev->pixfmt;
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
-	fmt->fmt.pix.bytesperline = get_v4l2_depth(fmt->fmt.pix.pixelformat)
-					* fmt->fmt.pix.width / 8;
-	fmt->fmt.pix.sizeimage = gspca_get_buff_size(gspca_dev,
-							gspca_dev->curr_mode);
-/* (should be in the subdriver) */
-	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->fmt.pix.priv = 0;
+	mode = gspca_dev->curr_mode;
+	memcpy(&fmt->fmt.pix, &gspca_dev->cam.cam_mode[mode],
+		sizeof fmt->fmt.pix);
 	return 0;
 }
 
@@ -833,34 +773,19 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	mode = wxh_to_mode(gspca_dev, w, h);
 
 	/* OK if right palette */
-	if (gspca_dev->cam.cam_mode[mode].pixfmt != fmt->fmt.pix.pixelformat) {
+	if (gspca_dev->cam.cam_mode[mode].pixelformat
+						!= fmt->fmt.pix.pixelformat) {
 
 		/* else, search the closest mode with the same pixel format */
 		mode2 = gspca_get_mode(gspca_dev, mode,
 					fmt->fmt.pix.pixelformat);
-		if (mode2 >= 0) {
+		if (mode2 >= 0)
 			mode = mode2;
-		} else {
-
-			/* no chance, return this mode */
-			fmt->fmt.pix.pixelformat =
-					gspca_dev->cam.cam_mode[mode].pixfmt;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-			if (gspca_debug & D_CONF) {
-				PDEBUG_MODE("new format",
-					fmt->fmt.pix.pixelformat,
-					gspca_dev->cam.cam_mode[mode].width,
-					gspca_dev->cam.cam_mode[mode].height);
-			}
-#endif
-		}
+/*		else
+			;		 * no chance, return this mode */
 	}
-	fmt->fmt.pix.width = gspca_dev->cam.cam_mode[mode].width;
-	fmt->fmt.pix.height = gspca_dev->cam.cam_mode[mode].height;
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
-	fmt->fmt.pix.bytesperline = get_v4l2_depth(fmt->fmt.pix.pixelformat)
-					* fmt->fmt.pix.width / 8;
-	fmt->fmt.pix.sizeimage = gspca_get_buff_size(gspca_dev, mode);
+	memcpy(&fmt->fmt.pix, &gspca_dev->cam.cam_mode[mode],
+		sizeof fmt->fmt.pix);
 	return mode;			/* used when s_fmt */
 }
 
@@ -883,16 +808,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = priv;
 	int ret;
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	/* if v4l1 got JPEG */
-	if (fmt->fmt.pix.pixelformat == 0
-	    && gspca_dev->streaming) {
-		fmt->fmt.pix.width = gspca_dev->width;
-		fmt->fmt.pix.height = gspca_dev->height;
-		fmt->fmt.pix.pixelformat = gspca_dev->pixfmt;
-		return 0;
-	}
-#endif
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 
@@ -1994,6 +1909,3 @@ MODULE_PARM_DESC(debug,
 		" 0x08:stream 0x10:frame 0x20:packet 0x40:USBin 0x80:USBout"
 		" 0x0100: v4l2");
 #endif
-module_param(comp_fac, int, 0644);
-MODULE_PARM_DESC(comp_fac,
-		"Buffer size ratio when compressed in percent");

@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("Etoms USB Camera Driver");
@@ -114,14 +114,30 @@ static struct ctrl sd_ctrls[] = {
 	 },
 };
 
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_SBGGR8, 320, 240, 1},
-/*	{V4L2_PIX_FMT_SBGGR8, 640, 480, 0}, */
+static struct v4l2_pix_format vga_mode[] = {
+	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+/*	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0}, */
 };
 
-static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_SBGGR8, 176, 144, 1},
-	{V4L2_PIX_FMT_SBGGR8, 352, 288, 0},
+static struct v4l2_pix_format sif_mode[] = {
+	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 #define ETOMS_ALT_SIZE_1000   12
@@ -334,7 +350,7 @@ static void Et_init2(struct gspca_dev *gspca_dev)
 	reg_w_val(dev, ET_CTRL, 0x1b);
 
 	/*  compression et subsampling */
-	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode)
+	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv)
 		value = ET_COMP_VAL1;	/* 320 */
 	else
 		value = ET_COMP_VAL0;	/* 640 */
@@ -410,7 +426,7 @@ static void Et_init2(struct gspca_dev *gspca_dev)
 /*	reg_r(dev, ET_I2C_BASE, &received, 1);
 					 always 0x40 as the pas106 ??? */
 	/* set the sensor */
-	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode)
+	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv)
 		value = 0x04;		/* 320 */
 	else				/* 640 */
 		value = 0x1e;	/* 0x17	 * setting PixelClock
@@ -487,12 +503,12 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 	reg_w_val(dev, ET_ClCK, 0x10);
 	reg_w_val(dev, ET_CTRL, 0x19);
 	/*   compression et subsampling */
-	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode)
+	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv)
 		value = ET_COMP_VAL1;
 	else
 		value = ET_COMP_VAL0;
 	PDEBUG(D_STREAM, "Open mode %d Compression %d",
-	       gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode,
+	       gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv,
 	       value);
 	reg_w_val(dev, ET_COMP, value);
 	reg_w_val(dev, ET_MAXQt, 0x1d);
@@ -533,7 +549,7 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 	reg_w_val(dev, ET_I2C_CLK, 0x04);
 	reg_w_val(dev, ET_PXL_CLK, 0x01);
 	/* set the sensor */
-	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode) {
+	if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 		I2c0[0] = 0x06;
 		Et_i2cwrite(dev, PAS106_REG2, I2c0, sizeof I2c0, 1);
 		Et_i2cwrite(dev, PAS106_REG9, I2c2, sizeof I2c2, 1);

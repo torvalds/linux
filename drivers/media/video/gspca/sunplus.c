@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA5xx USB Camera Driver");
@@ -126,21 +126,53 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_JPEG, 320, 240, 2},
-	{V4L2_PIX_FMT_JPEG, 640, 480, 1},
+static struct v4l2_pix_format vga_mode[] = {
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
 };
 
-static struct cam_mode custom_mode[] = {
-	{V4L2_PIX_FMT_JPEG, 320, 240, 2},
-	{V4L2_PIX_FMT_JPEG, 464, 480, 1},
+static struct v4l2_pix_format custom_mode[] = {
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
+	{464, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 464,
+		.sizeimage = 464 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
 };
 
-static struct cam_mode vga_mode2[] = {
-	{V4L2_PIX_FMT_JPEG, 176, 144, 4},
-	{V4L2_PIX_FMT_JPEG, 320, 240, 3},
-	{V4L2_PIX_FMT_JPEG, 352, 288, 2},
-	{V4L2_PIX_FMT_JPEG, 640, 480, 1},
+static struct v4l2_pix_format vga_mode2[] = {
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 4},
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 3},
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
 };
 
 #define SPCA50X_OFFSET_DATA 10
@@ -655,7 +687,7 @@ static void spca504B_SetSizeType(struct gspca_dev *gspca_dev)
 	__u8 Type;
 	int rc;
 
-	Size = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
+	Size = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	Type = 0;
 	switch (sd->bridge) {
 	case BRIDGE_SPCA533:

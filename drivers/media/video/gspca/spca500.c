@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA500 USB Camera Driver");
@@ -114,14 +114,30 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_JPEG, 320, 240, 1},
-	{V4L2_PIX_FMT_JPEG, 640, 480, 0},
+static struct v4l2_pix_format vga_mode[] = {
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
 };
 
-static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_JPEG, 176, 144, 1},
-	{V4L2_PIX_FMT_JPEG, 352, 288, 0},
+static struct v4l2_pix_format sif_mode[] = {
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
 };
 
 /* Frame packet header offsets for the spca500 */
@@ -515,7 +531,7 @@ static void spca500_setmode(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev->dev, 0, 0x8002, ymult);
 
 	/* use compressed mode, VGA, with mode specific subsample */
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	reg_w(gspca_dev->dev, 0, 0x8003, mode << 4);
 }
 

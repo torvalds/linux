@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/VC032X USB Camera Driver");
@@ -88,13 +88,29 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode vc0321_mode[] = {
-	{V4L2_PIX_FMT_YUYV, 320, 240, 1},
-	{V4L2_PIX_FMT_YUYV, 640, 480, 0},
+static struct v4l2_pix_format vc0321_mode[] = {
+	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 320 * 2,
+		.sizeimage = 320 * 240 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 640 * 2,
+		.sizeimage = 640 * 480 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
-static struct cam_mode vc0323_mode[] = {
-	{V4L2_PIX_FMT_JPEG, 320, 240, 1},
-	{V4L2_PIX_FMT_JPEG, 640, 480, 0},
+static struct v4l2_pix_format vc0323_mode[] = {
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
 };
 
 static const __u8 mi1310_socinitVGA_JPG[][4] = {
@@ -1535,7 +1551,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev->dev, 0xa0, 0xff, 0xbfef);
 	}
 
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		GammaT = hv7131r_gamma;

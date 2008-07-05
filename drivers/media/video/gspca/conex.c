@@ -25,8 +25,8 @@
 #define CONEX_CAM 1		/* special JPEG header */
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA USB Conexant Camera Driver");
@@ -52,7 +52,6 @@ static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-#define SD_BRIGHTNESS 0
 	{
 	    {
 		.id	 = V4L2_CID_BRIGHTNESS,
@@ -61,12 +60,12 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step	 = 1,
-		.default_value = 0xd4,
+#define BRIGHTNESS_DEF 0xd4
+		.default_value = BRIGHTNESS_DEF,
 	    },
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
-#define SD_CONTRAST 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -75,12 +74,12 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0x0a,
 		.maximum = 0x1f,
 		.step    = 1,
-		.default_value = 0x0c,
+#define CONTRAST_DEF 0x0c
+		.default_value = CONTRAST_DEF,
 	    },
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
-#define SD_COLOR 2
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
@@ -89,18 +88,35 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 7,
 		.step    = 1,
-		.default_value = 3,
+#define COLOR_DEF 3
+		.default_value = COLOR_DEF,
 	    },
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
 };
 
-static struct cam_mode vga_mode[] = {
-	{V4L2_PIX_FMT_JPEG, 176, 144, 3},
-	{V4L2_PIX_FMT_JPEG, 320, 240, 2},
-	{V4L2_PIX_FMT_JPEG, 352, 288, 1},
-	{V4L2_PIX_FMT_JPEG, 640, 480, 0},
+static struct v4l2_pix_format vga_mode[] = {
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 3},
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
 };
 
 static void reg_r(struct usb_device *dev,
@@ -269,7 +285,7 @@ static void cx_sensor(struct gspca_dev*gspca_dev)
 	val = 0x03;
 	reg_w(gspca_dev->dev, 0x0092, &val, 1);
 
-	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode) {
+	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 0:
 		reg_w(gspca_dev->dev, 0x0071, reg71a, 4);
 		break;
@@ -350,7 +366,7 @@ static int cx11646_initsize(struct gspca_dev *gspca_dev)
 	static const __u8 reg17[] =
 			{ 0x0a, 0x00, 0xf2, 0x01, 0x0f, 0x00, 0x97, 0x02 };
 
-	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode) {
+	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 0:
 		cxinit = cx_inits_640;
 		break;
@@ -668,7 +684,7 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 	reg_w(gspca_dev->dev, 0x00c0, &val, 1);
 	reg_r(gspca_dev->dev, 0x0001, &val, 1);
 	length = 8;
-	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode) {
+	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 0:
 		for (i = 0; i < 27; i++) {
 			if (i == 26)
@@ -832,9 +848,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
 
 	sd->qindex = 0;			/* set the quantization */
-	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
-	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
-	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->colors = COLOR_DEF;
 	return 0;
 }
 

@@ -22,8 +22,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 4)
-static const char version[] = "2.1.4";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
+static const char version[] = "2.1.5";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA508 USB Camera Driver");
@@ -69,11 +69,27 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct cam_mode sif_mode[] = {
-	{V4L2_PIX_FMT_YUYV, 160, 120, 3},
-	{V4L2_PIX_FMT_YUYV, 176, 144, 2},
-	{V4L2_PIX_FMT_YUYV, 320, 240, 1},
-	{V4L2_PIX_FMT_YUYV, 352, 288, 0},
+static struct v4l2_pix_format sif_mode[] = {
+	{160, 120, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 160 * 2,
+		.sizeimage = 160 * 120 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 3},
+	{176, 144, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 176 * 2,
+		.sizeimage = 176 * 144 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2},
+	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 320 * 2,
+		.sizeimage = 320 * 240 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+		.bytesperline = 352 * 2,
+		.sizeimage = 352 * 288 * 2,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 /* Frame packet header offsets for the spca508 */
@@ -1574,7 +1590,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 {
 	int mode;
 
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].mode;
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	reg_write(gspca_dev->dev, 0x8500, mode);
 	switch (mode) {
 	case 0:
