@@ -315,13 +315,14 @@ void ide_unregister(ide_hwif_t *hwif)
 
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());
-	mutex_lock(&ide_cfg_mtx);
-	spin_lock_irq(&ide_lock);
-	if (!hwif->present)
-		goto abort;
-	__ide_port_unregister_devices(hwif);
-	hwif->present = 0;
 
+	mutex_lock(&ide_cfg_mtx);
+
+	spin_lock_irq(&ide_lock);
+	if (hwif->present) {
+		__ide_port_unregister_devices(hwif);
+		hwif->present = 0;
+	}
 	spin_unlock_irq(&ide_lock);
 
 	ide_proc_unregister_port(hwif);
@@ -359,7 +360,6 @@ void ide_unregister(ide_hwif_t *hwif)
 	/* restore hwif data to pristine status */
 	ide_init_port_data(hwif, hwif->index);
 
-abort:
 	spin_unlock_irq(&ide_lock);
 	mutex_unlock(&ide_cfg_mtx);
 }
