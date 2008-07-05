@@ -1,0 +1,5 @@
+comment "MX2 family CPU support"
+	depends on ARCH_MX2
+
+comment "MX2 Platforms"
+	depends on ARCH_MX2
