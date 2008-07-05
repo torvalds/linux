@@ -177,6 +177,10 @@ static void __init pcm038_init(void)
 		imx_init_uart(i, &uart_pdata[i]);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+
+#ifdef CONFIG_MACH_PCM970_BASEBOARD
+	pcm970_baseboard_init();
+#endif
 }
 
 static void __init pcm038_timer_init(void)

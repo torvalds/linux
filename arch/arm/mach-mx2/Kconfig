@@ -23,3 +23,17 @@ config MACH_PCM038
 	help
 	  Include support for phyCORE-i.MX27 (aka pcm038) platform. This
 	  includes specific configurations for the module and its peripherals.
+
+choice
+	prompt "Baseboard"
+	depends on MACH_PCM038
+	default MACH_PCM970_BASEBOARD
+
+config MACH_PCM970_BASEBOARD
+	prompt "PHYTEC PCM970 development board"
+	bool
+	help
+	  This adds board specific devices that can be found on Phytec's
+	  PCM970 evaluation board.
+
+endchoice

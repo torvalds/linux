@@ -16,26 +16,17 @@
  * MA 02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_BOARD_PCM038_H__
-#define __ASM_ARCH_MXC_BOARD_PCM038_H__
+#include <linux/platform_device.h>
+#include <asm/hardware.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
 
-/* mandatory for CONFIG_LL_DEBUG */
-
-#define MXC_LL_UART_PADDR	UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR	(AIPI_BASE_ADDR_VIRT + 0x0A000)
-
-#ifndef __ASSEMBLY__
 /*
- * This CPU module needs a baseboard to work. After basic initializing
- * its own devices, it calls baseboard's init function.
- * TODO: Add your own baseboard init function and call it from
- * inside pcm038_init().
+ * system init for baseboard usage. Will be called by pcm038 init.
  *
- * This example here is for the development board. Refer pcm970-baseboard.c
+ * Add platform devices present on this baseboard and init
+ * them from CPU side as far as required to use them later on
  */
-
-extern void pcm970_baseboard_init(void);
-
-#endif
-
-#endif /* __ASM_ARCH_MXC_BOARD_PCM038_H__ */
+void __init pcm970_baseboard_init(void)
+{
+}
