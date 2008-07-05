@@ -1420,7 +1420,7 @@ kfree:
 
 	dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
 		WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
-	host->dma_addr = (dma_addr_t)NULL;
+	host->dma_addr = 0;
 
 	kfree(host->dma_buffer);
 	host->dma_buffer = NULL;
@@ -1445,7 +1445,7 @@ static void wbsd_release_dma(struct wbsd_host *host)
 
 	host->dma = -1;
 	host->dma_buffer = NULL;
-	host->dma_addr = (dma_addr_t)NULL;
+	host->dma_addr = 0;
 }
 
 /*
