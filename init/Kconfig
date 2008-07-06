@@ -486,7 +486,7 @@ config PID_NS
 	default n
 	depends on NAMESPACES && EXPERIMENTAL
 	help
-	  Suport process id namespaces.  This allows having multiple
+	  Support process id namespaces.  This allows having multiple
 	  process with the same pid as long as they are in different
 	  pid namespaces.  This is a building block of containers.
 
