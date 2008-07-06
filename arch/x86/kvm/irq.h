@@ -30,6 +30,8 @@
 #include "ioapic.h"
 #include "lapic.h"
 
+#define PIC_NUM_PINS 16
+
 struct kvm;
 struct kvm_vcpu;
 
