@@ -225,6 +225,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 			dev_err(hcd->self.controller, "can't find transceiver\n");
 			return -ENODEV;
 		}
+		ohci->start_hnp = start_hnp;
 	}
 #endif
 

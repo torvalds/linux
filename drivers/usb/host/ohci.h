@@ -371,6 +371,7 @@ struct ohci_hcd {
 	 * other external transceivers should be software-transparent
 	 */
 	struct otg_transceiver	*transceiver;
+	void (*start_hnp)(struct ohci_hcd *ohci);
 
 	/*
 	 * memory management for queue data structures
