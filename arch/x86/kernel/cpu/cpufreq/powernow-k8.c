@@ -1127,12 +1127,23 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {
-			printk(KERN_ERR PFX "MP systems not supported by PSB BIOS structure\n");
+#ifndef CONFIG_ACPI_PROCESSOR
+			printk(KERN_ERR PFX "ACPI Processor support is required "
+			       "for SMP systems but is absent. Please load the "
+			       "ACPI Processor module before starting this "
+			       "driver.\n");
+#else
+			printk(KERN_ERR PFX "Your BIOS does not provide ACPI "
+			       "_PSS objects in a way that Linux understands. "
+			       "Please report this to the Linux ACPI maintainers"
+			       " and complain to your BIOS vendor.\n");
+#endif
 			kfree(data);
 			return -ENODEV;
 		}
 		if (pol->cpu != 0) {
-			printk(KERN_ERR PFX "No _PSS objects for CPU other than CPU0\n");
+			printk(KERN_ERR PFX "No ACPI _PSS objects for CPU other than "
+			       "CPU0. Complain to your BIOS vendor.\n");
 			kfree(data);
 			return -ENODEV;
 		}

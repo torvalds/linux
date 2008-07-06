@@ -489,11 +489,6 @@ static void tcp_keepalive_timer (unsigned long data)
 		goto death;
 	}
 
-	if (tp->defer_tcp_accept.request && sk->sk_state == TCP_ESTABLISHED) {
-		tcp_send_active_reset(sk, GFP_ATOMIC);
-		goto death;
-	}
-
 	if (!sock_flag(sk, SOCK_KEEPOPEN) || sk->sk_state == TCP_CLOSE)
 		goto out;
 

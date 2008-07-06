@@ -86,7 +86,7 @@ static void sa2400_rf_set_channel(struct ieee80211_hw *dev,
 
 	write_sa2400(dev, 7, txpw);
 
-	sa2400_write_phy_antenna(dev, chan);
+	sa2400_write_phy_antenna(dev, channel);
 
 	write_sa2400(dev, 0, chan);
 	write_sa2400(dev, 1, 0xbb50);

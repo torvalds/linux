@@ -1248,11 +1248,14 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 				     struct i2c_adapter* i2c)
 {
 	struct tda1004x_state *state;
+	int id;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
-	if (!state)
+	if (!state) {
+		printk(KERN_ERR "Can't alocate memory for tda10045 state\n");
 		return NULL;
+	}
 
 	/* setup the state */
 	state->config = config;
@@ -1260,7 +1263,15 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 	state->demod_type = TDA1004X_DEMOD_TDA10045;
 
 	/* check if the demod is there */
-	if (tda1004x_read_byte(state, TDA1004X_CHIPID) != 0x25) {
+	id = tda1004x_read_byte(state, TDA1004X_CHIPID);
+	if (id < 0) {
+		printk(KERN_ERR "tda10045: chip is not answering. Giving up.\n");
+		kfree(state);
+		return NULL;
+	}
+
+	if (id != 0x25) {
+		printk(KERN_ERR "Invalid tda1004x ID = 0x%02x. Can't proceed\n", id);
 		kfree(state);
 		return NULL;
 	}
@@ -1307,11 +1318,14 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 				     struct i2c_adapter* i2c)
 {
 	struct tda1004x_state *state;
+	int id;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
-	if (!state)
+	if (!state) {
+		printk(KERN_ERR "Can't alocate memory for tda10046 state\n");
 		return NULL;
+	}
 
 	/* setup the state */
 	state->config = config;
@@ -1319,7 +1333,14 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	state->demod_type = TDA1004X_DEMOD_TDA10046;
 
 	/* check if the demod is there */
-	if (tda1004x_read_byte(state, TDA1004X_CHIPID) != 0x46) {
+	id = tda1004x_read_byte(state, TDA1004X_CHIPID);
+	if (id < 0) {
+		printk(KERN_ERR "tda10046: chip is not answering. Giving up.\n");
+		kfree(state);
+		return NULL;
+	}
+	if (id != 0x46) {
+		printk(KERN_ERR "Invalid tda1004x ID = 0x%02x. Can't proceed\n", id);
 		kfree(state);
 		return NULL;
 	}

@@ -153,12 +153,12 @@ static int mt352_aver777_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int mt352_aver_a16d_init(struct dvb_frontend *fe)
+static int mt352_avermedia_xc3028_init(struct dvb_frontend *fe)
 {
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x2d };
-	static u8 reset []         = { RESET,      0x80 };
-	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
-	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0xa0 };
+	static u8 clock_config []  = { CLOCK_CTL, 0x38, 0x2d };
+	static u8 reset []         = { RESET, 0x80 };
+	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1, 0x40 };
+	static u8 agc_cfg []       = { AGC_TARGET, 0xe };
 	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x33 };
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
@@ -167,11 +167,8 @@ static int mt352_aver_a16d_init(struct dvb_frontend *fe)
 	mt352_write(fe, adc_ctl_1_cfg,  sizeof(adc_ctl_1_cfg));
 	mt352_write(fe, agc_cfg,        sizeof(agc_cfg));
 	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
-
 	return 0;
 }
-
-
 
 static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 					   struct dvb_frontend_parameters* params)
@@ -215,14 +212,10 @@ static struct mt352_config avermedia_777 = {
 	.demod_init    = mt352_aver777_init,
 };
 
-static struct mt352_config avermedia_16d = {
-	.demod_address = 0xf,
-	.demod_init    = mt352_aver_a16d_init,
-};
-
-static struct mt352_config avermedia_e506r_mt352_dev = {
+static struct mt352_config avermedia_xc3028_mt352_dev = {
 	.demod_address   = (0x1e >> 1),
 	.no_tuner        = 1,
+	.demod_init      = mt352_avermedia_xc3028_init,
 };
 
 /* ==================================================================
@@ -975,9 +968,10 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A16D:
-		dprintk("avertv A16D dvb setup\n");
-		dev->dvb.frontend = dvb_attach(mt352_attach, &avermedia_16d,
-					       &dev->i2c_adap);
+		dprintk("AverMedia A16D dvb setup\n");
+		dev->dvb.frontend = dvb_attach(mt352_attach,
+						&avermedia_xc3028_mt352_dev,
+						&dev->i2c_adap);
 		attach_xc3028 = 1;
 		break;
 	case SAA7134_BOARD_MD7134:
@@ -1091,7 +1085,8 @@ static int dvb_init(struct saa7134_dev *dev)
 					ads_tech_duo_config.tuner_address);
 				goto dettach_frontend;
 			}
-		}
+		} else
+			wprintk("failed to attach tda10046\n");
 		break;
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 		if (configure_tda827x_fe(dev, &tevion_dvbt220rf_config,
@@ -1260,11 +1255,14 @@ static int dvb_init(struct saa7134_dev *dev)
 			goto dettach_frontend;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+		dprintk("AverMedia E506R dvb setup\n");
+		saa7134_set_gpio(dev, 25, 0);
+		msleep(10);
+		saa7134_set_gpio(dev, 25, 1);
 		dev->dvb.frontend = dvb_attach(mt352_attach,
-					       &avermedia_e506r_mt352_dev,
-					       &dev->i2c_adap);
+						&avermedia_xc3028_mt352_dev,
+						&dev->i2c_adap);
 		attach_xc3028 = 1;
-		break;
 	case SAA7134_BOARD_MD7134_BRIDGE_2:
 		dev->dvb.frontend = dvb_attach(tda10086_attach,
 						&sd1878_4m, &dev->i2c_adap);
@@ -1338,7 +1336,8 @@ static int dvb_init(struct saa7134_dev *dev)
 	return ret;
 
 dettach_frontend:
-	dvb_frontend_detach(dev->dvb.frontend);
+	if (dev->dvb.frontend)
+		dvb_frontend_detach(dev->dvb.frontend);
 	dev->dvb.frontend = NULL;
 
 	return -1;

@@ -112,3 +112,12 @@ config HW_RANDOM_PASEMI
 
 	  If unsure, say Y.
 
+config HW_RANDOM_VIRTIO
+	tristate "VirtIO Random Number Generator support"
+	depends on HW_RANDOM && VIRTIO
+	---help---
+	  This driver provides kernel-side support for the virtual Random Number
+	  Generator hardware.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called virtio-rng.  If unsure, say N.

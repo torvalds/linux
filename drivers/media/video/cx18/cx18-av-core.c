@@ -69,6 +69,58 @@ int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 and_mask,
 			     or_value);
 }
 
+int cx18_av_write_no_acfg(struct cx18 *cx, u16 addr, u8 value, int no_acfg_mask)
+{
+	int retval;
+	u32 saved_reg[8] = {0};
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_AFE) {
+		saved_reg[0] = cx18_av_read4(cx, CXADEC_CHIP_CTRL);
+		saved_reg[1] = cx18_av_read4(cx, CXADEC_AFE_CTRL);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_PLL) {
+		saved_reg[2] = cx18_av_read4(cx, CXADEC_PLL_CTRL1);
+		saved_reg[3] = cx18_av_read4(cx, CXADEC_VID_PLL_FRAC);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_VID) {
+		saved_reg[4] = cx18_av_read4(cx, CXADEC_HORIZ_TIM_CTRL);
+		saved_reg[5] = cx18_av_read4(cx, CXADEC_VERT_TIM_CTRL);
+		saved_reg[6] = cx18_av_read4(cx, CXADEC_SRC_COMB_CFG);
+		saved_reg[7] = cx18_av_read4(cx, CXADEC_CHROMA_VBIOFF_CFG);
+	}
+
+	retval = cx18_av_write(cx, addr, value);
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_AFE) {
+		cx18_av_write4(cx, CXADEC_CHIP_CTRL, saved_reg[0]);
+		cx18_av_write4(cx, CXADEC_AFE_CTRL,  saved_reg[1]);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_PLL) {
+		cx18_av_write4(cx, CXADEC_PLL_CTRL1,    saved_reg[2]);
+		cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, saved_reg[3]);
+	}
+
+	if (no_acfg_mask & CXADEC_NO_ACFG_VID) {
+		cx18_av_write4(cx, CXADEC_HORIZ_TIM_CTRL,    saved_reg[4]);
+		cx18_av_write4(cx, CXADEC_VERT_TIM_CTRL,     saved_reg[5]);
+		cx18_av_write4(cx, CXADEC_SRC_COMB_CFG,      saved_reg[6]);
+		cx18_av_write4(cx, CXADEC_CHROMA_VBIOFF_CFG, saved_reg[7]);
+	}
+
+	return retval;
+}
+
+int cx18_av_and_or_no_acfg(struct cx18 *cx, u16 addr, unsigned and_mask,
+			   u8 or_value, int no_acfg_mask)
+{
+	return cx18_av_write_no_acfg(cx, addr,
+				     (cx18_av_read(cx, addr) & and_mask) |
+				     or_value, no_acfg_mask);
+}
+
 /* ----------------------------------------------------------------------- */
 
 static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
@@ -170,26 +222,30 @@ static void input_change(struct cx18 *cx)
 
 	/* Follow step 8c and 8d of section 3.16 in the cx18_av datasheet */
 	if (std & V4L2_STD_SECAM)
-		cx18_av_write(cx, 0x402, 0);
+		cx18_av_write_no_acfg(cx, 0x402, 0, CXADEC_NO_ACFG_ALL);
 	else {
-		cx18_av_write(cx, 0x402, 0x04);
+		cx18_av_write_no_acfg(cx, 0x402, 0x04, CXADEC_NO_ACFG_ALL);
 		cx18_av_write(cx, 0x49f, (std & V4L2_STD_NTSC) ? 0x14 : 0x11);
 	}
-	cx18_av_and_or(cx, 0x401, ~0x60, 0);
-	cx18_av_and_or(cx, 0x401, ~0x60, 0x60);
+	cx18_av_and_or_no_acfg(cx, 0x401, ~0x60, 0,
+				CXADEC_NO_ACFG_PLL | CXADEC_NO_ACFG_VID);
+	cx18_av_and_or_no_acfg(cx, 0x401, ~0x60, 0x60,
+				CXADEC_NO_ACFG_PLL | CXADEC_NO_ACFG_VID);
 
 	if (std & V4L2_STD_525_60) {
 		if (std == V4L2_STD_NTSC_M_JP) {
 			/* Japan uses EIAJ audio standard */
 			cx18_av_write(cx, 0x808, 0xf7);
+			cx18_av_write(cx, 0x80b, 0x02);
 		} else if (std == V4L2_STD_NTSC_M_KR) {
 			/* South Korea uses A2 audio standard */
 			cx18_av_write(cx, 0x808, 0xf8);
+			cx18_av_write(cx, 0x80b, 0x03);
 		} else {
 			/* Others use the BTSC audio standard */
 			cx18_av_write(cx, 0x808, 0xf6);
+			cx18_av_write(cx, 0x80b, 0x01);
 		}
-		cx18_av_write(cx, 0x80b, 0x00);
 	} else if (std & V4L2_STD_PAL) {
 		/* Follow tuner change procedure for PAL */
 		cx18_av_write(cx, 0x808, 0xff);
@@ -226,7 +282,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 		if ((vid_input & ~0xff0) ||
 		    luma < CX18_AV_SVIDEO_LUMA1 ||
-		    luma > CX18_AV_SVIDEO_LUMA4 ||
+		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
 			CX18_ERR("0x%04x is not a valid video input!\n",
@@ -260,7 +316,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 	cx18_av_write(cx, 0x103, reg);
 	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
-	cx18_av_and_or(cx, 0x401, ~0x6, is_composite ? 0 : 0x02);
+	cx18_av_and_or_no_acfg(cx, 0x401, ~0x6, is_composite ? 0 : 0x02,
+				CXADEC_NO_ACFG_PLL | CXADEC_NO_ACFG_VID);
 	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
 	cx18_av_and_or(cx, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
 	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
@@ -316,12 +373,12 @@ static int set_v4lstd(struct cx18 *cx)
 	   This happens for example with the Yuan MPC622. */
 	if (fmt >= 4 && fmt < 8) {
 		/* Set format to NTSC-M */
-		cx18_av_and_or(cx, 0x400, ~0xf, 1);
+		cx18_av_and_or_no_acfg(cx, 0x400, ~0xf, 1, CXADEC_NO_ACFG_AFE);
 		/* Turn off LCOMB */
 		cx18_av_and_or(cx, 0x47b, ~6, 0);
 	}
-	cx18_av_and_or(cx, 0x400, ~0xf, fmt);
-	cx18_av_and_or(cx, 0x403, ~0x3, pal_m);
+	cx18_av_and_or_no_acfg(cx, 0x400, ~0xf, fmt, CXADEC_NO_ACFG_AFE);
+	cx18_av_and_or_no_acfg(cx, 0x403, ~0x3, pal_m, CXADEC_NO_ACFG_ALL);
 	cx18_av_vbi_setup(cx);
 	input_change(cx);
 	return 0;
@@ -741,8 +798,8 @@ static void log_audio_status(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
 	u8 download_ctl = cx18_av_read(cx, 0x803);
-	u8 mod_det_stat0 = cx18_av_read(cx, 0x805);
-	u8 mod_det_stat1 = cx18_av_read(cx, 0x804);
+	u8 mod_det_stat0 = cx18_av_read(cx, 0x804);
+	u8 mod_det_stat1 = cx18_av_read(cx, 0x805);
 	u8 audio_config = cx18_av_read(cx, 0x808);
 	u8 pref_mode = cx18_av_read(cx, 0x809);
 	u8 afc0 = cx18_av_read(cx, 0x80b);
@@ -760,12 +817,12 @@ static void log_audio_status(struct cx18 *cx)
 	case 0x12: p = "dual with SAP"; break;
 	case 0x14: p = "tri with SAP"; break;
 	case 0xfe: p = "forced mode"; break;
-	default: p = "not defined";
+	default: p = "not defined"; break;
 	}
 	CX18_INFO("Detected audio mode:       %s\n", p);
 
 	switch (mod_det_stat1) {
-	case 0x00: p = "BTSC"; break;
+	case 0x00: p = "not defined"; break;
 	case 0x01: p = "EIAJ"; break;
 	case 0x02: p = "A2-M"; break;
 	case 0x03: p = "A2-BG"; break;
@@ -779,8 +836,13 @@ static void log_audio_status(struct cx18 *cx)
 	case 0x0b: p = "NICAM-I"; break;
 	case 0x0c: p = "NICAM-L"; break;
 	case 0x0d: p = "BTSC/EIAJ/A2-M Mono (4.5 MHz FMMono)"; break;
+	case 0x0e: p = "IF FM Radio"; break;
+	case 0x0f: p = "BTSC"; break;
+	case 0x10: p = "detected chrominance"; break;
+	case 0xfd: p = "unknown audio standard"; break;
+	case 0xfe: p = "forced audio standard"; break;
 	case 0xff: p = "no detected audio standard"; break;
-	default: p = "not defined";
+	default: p = "not defined"; break;
 	}
 	CX18_INFO("Detected audio standard:   %s\n", p);
 	CX18_INFO("Audio muted:               %s\n",
@@ -789,22 +851,23 @@ static void log_audio_status(struct cx18 *cx)
 		    (download_ctl & 0x10) ? "running" : "stopped");
 
 	switch (audio_config >> 4) {
-	case 0x00: p = "BTSC"; break;
-	case 0x01: p = "EIAJ"; break;
-	case 0x02: p = "A2-M"; break;
-	case 0x03: p = "A2-BG"; break;
-	case 0x04: p = "A2-DK1"; break;
-	case 0x05: p = "A2-DK2"; break;
-	case 0x06: p = "A2-DK3"; break;
-	case 0x07: p = "A1 (6.0 MHz FM Mono)"; break;
-	case 0x08: p = "AM-L"; break;
-	case 0x09: p = "NICAM-BG"; break;
-	case 0x0a: p = "NICAM-DK"; break;
-	case 0x0b: p = "NICAM-I"; break;
-	case 0x0c: p = "NICAM-L"; break;
-	case 0x0d: p = "FM radio"; break;
+	case 0x00: p = "undefined"; break;
+	case 0x01: p = "BTSC"; break;
+	case 0x02: p = "EIAJ"; break;
+	case 0x03: p = "A2-M"; break;
+	case 0x04: p = "A2-BG"; break;
+	case 0x05: p = "A2-DK1"; break;
+	case 0x06: p = "A2-DK2"; break;
+	case 0x07: p = "A2-DK3"; break;
+	case 0x08: p = "A1 (6.0 MHz FM Mono)"; break;
+	case 0x09: p = "AM-L"; break;
+	case 0x0a: p = "NICAM-BG"; break;
+	case 0x0b: p = "NICAM-DK"; break;
+	case 0x0c: p = "NICAM-I"; break;
+	case 0x0d: p = "NICAM-L"; break;
+	case 0x0e: p = "FM radio"; break;
 	case 0x0f: p = "automatic detection"; break;
-	default: p = "undefined";
+	default: p = "undefined"; break;
 	}
 	CX18_INFO("Configured audio standard: %s\n", p);
 
@@ -815,12 +878,9 @@ static void log_audio_status(struct cx18 *cx)
 		case 0x02: p = "MONO3 (STEREO forced MONO)"; break;
 		case 0x03: p = "MONO4 (NICAM ANALOG-Language C/Analog Fallback)"; break;
 		case 0x04: p = "STEREO"; break;
-		case 0x05: p = "DUAL1 (AB)"; break;
-		case 0x06: p = "DUAL2 (AC) (FM)"; break;
-		case 0x07: p = "DUAL3 (BC) (FM)"; break;
-		case 0x08: p = "DUAL4 (AC) (AM)"; break;
-		case 0x09: p = "DUAL5 (BC) (AM)"; break;
-		case 0x0a: p = "SAP"; break;
+		case 0x05: p = "DUAL1 (AC)"; break;
+		case 0x06: p = "DUAL2 (BC)"; break;
+		case 0x07: p = "DUAL3 (AB)"; break;
 		default: p = "undefined";
 		}
 		CX18_INFO("Configured audio mode:     %s\n", p);
@@ -835,9 +895,11 @@ static void log_audio_status(struct cx18 *cx)
 		case 0x06: p = "BTSC"; break;
 		case 0x07: p = "EIAJ"; break;
 		case 0x08: p = "A2-M"; break;
-		case 0x09: p = "FM Radio"; break;
+		case 0x09: p = "FM Radio (4.5 MHz)"; break;
+		case 0x0a: p = "FM Radio (5.5 MHz)"; break;
+		case 0x0b: p = "S-Video"; break;
 		case 0x0f: p = "automatic standard and mode detection"; break;
-		default: p = "undefined";
+		default: p = "undefined"; break;
 		}
 		CX18_INFO("Configured audio system:   %s\n", p);
 	}
@@ -857,22 +919,24 @@ static void log_audio_status(struct cx18 *cx)
 	case 5: p = "language AC"; break;
 	case 6: p = "language BC"; break;
 	case 7: p = "language AB"; break;
-	default: p = "undefined";
+	default: p = "undefined"; break;
 	}
 	CX18_INFO("Preferred audio mode:      %s\n", p);
 
 	if ((audio_config & 0xf) == 0xf) {
-		switch ((afc0 >> 2) & 0x1) {
+		switch ((afc0 >> 3) & 0x1) {
 		case 0: p = "system DK"; break;
 		case 1: p = "system L"; break;
 		}
 		CX18_INFO("Selected 65 MHz format:    %s\n", p);
 
-		switch (afc0 & 0x3) {
-		case 0: p = "BTSC"; break;
-		case 1: p = "EIAJ"; break;
-		case 2: p = "A2-M"; break;
-		default: p = "undefined";
+		switch (afc0 & 0x7) {
+		case 0: p = "Chroma"; break;
+		case 1: p = "BTSC"; break;
+		case 2: p = "EIAJ"; break;
+		case 3: p = "A2-M"; break;
+		case 4: p = "autodetect"; break;
+		default: p = "undefined"; break;
 		}
 		CX18_INFO("Selected 45 MHz format:    %s\n", p);
 	}

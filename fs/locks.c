@@ -561,9 +561,6 @@ static void locks_insert_lock(struct file_lock **pos, struct file_lock *fl)
 	/* insert into file's list */
 	fl->fl_next = *pos;
 	*pos = fl;
-
-	if (fl->fl_ops && fl->fl_ops->fl_insert)
-		fl->fl_ops->fl_insert(fl);
 }
 
 /*
@@ -585,9 +582,6 @@ static void locks_delete_lock(struct file_lock **thisfl_p)
 		printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
 		fl->fl_fasync = NULL;
 	}
-
-	if (fl->fl_ops && fl->fl_ops->fl_remove)
-		fl->fl_ops->fl_remove(fl);
 
 	if (fl->fl_nspid) {
 		put_pid(fl->fl_nspid);

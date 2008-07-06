@@ -394,6 +394,10 @@ int __next_cpu_nr(int n, const cpumask_t *srcp);
 
 #endif /* NR_CPUS > 64 */
 
+#define next_cpu_nr(n, src)		next_cpu(n, src)
+#define cpus_weight_nr(cpumask)		cpus_weight(cpumask)
+#define for_each_cpu_mask_nr(cpu, mask)	for_each_cpu_mask(cpu, mask)
+
 /*
  * The following particular system cpumasks and operations manage
  * possible, present and online cpus.  Each of them is a fixed size

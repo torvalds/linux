@@ -4297,7 +4297,7 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_check_atapi_dma - Check whether ATAPI DMA can be supported
+ *	atapi_check_dma - Check whether ATAPI DMA can be supported
  *	@qc: Metadata associated with taskfile to check
  *
  *	Allow low-level driver to filter ATA PACKET commands, returning
@@ -4310,7 +4310,7 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
  *	RETURNS: 0 when ATAPI DMA can be used
  *               nonzero otherwise
  */
-int ata_check_atapi_dma(struct ata_queued_cmd *qc)
+int atapi_check_dma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
@@ -5403,7 +5403,7 @@ static void ata_host_stop(struct device *gendev, void *res)
  */
 static void ata_finalize_port_ops(struct ata_port_operations *ops)
 {
-	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(lock);
 	const struct ata_port_operations *cur;
 	void **begin = (void **)ops;
 	void **end = (void **)&ops->inherits;

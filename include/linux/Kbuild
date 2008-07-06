@@ -166,6 +166,9 @@ unifdef-y += acct.h
 unifdef-y += adb.h
 unifdef-y += adfs_fs.h
 unifdef-y += agpgart.h
+ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
+unifdef-y += a.out.h
+endif
 unifdef-y += apm_bios.h
 unifdef-y += atalk.h
 unifdef-y += atmdev.h

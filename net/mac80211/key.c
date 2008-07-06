@@ -380,6 +380,15 @@ void ieee80211_key_free(struct ieee80211_key *key)
 	if (!key)
 		return;
 
+	if (!key->sdata) {
+		/* The key has not been linked yet, simply free it
+		 * and don't Oops */
+		if (key->conf.alg == ALG_CCMP)
+			ieee80211_aes_key_free(key->u.ccmp.tfm);
+		kfree(key);
+		return;
+	}
+
 	spin_lock_irqsave(&key->sdata->local->key_lock, flags);
 	__ieee80211_key_free(key);
 	spin_unlock_irqrestore(&key->sdata->local->key_lock, flags);

@@ -312,8 +312,8 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
 	if (tlv_type != TLV_TYPE_BCNMISS)
 		tlv->freq = freq;
 
-	/* The command header, the event mask, and the one TLV */
-	events->hdr.size = cpu_to_le16(sizeof(events->hdr) + 2 + sizeof(*tlv));
+	/* The command header, the action, the event mask, and one TLV */
+	events->hdr.size = cpu_to_le16(sizeof(events->hdr) + 4 + sizeof(*tlv));
 
 	ret = lbs_cmd_with_response(priv, CMD_802_11_SUBSCRIBE_EVENT, events);
 

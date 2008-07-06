@@ -27,8 +27,7 @@
  * 	This routine is called by the kernel to write a series of
  * 	characters to the tty device.  The characters may come from
  * 	user space or kernel space.  This routine will return the
- *	number of characters actually accepted for writing.  This
- *	routine is mandatory.
+ *	number of characters actually accepted for writing.
  *
  *	Optional: Required for writable devices.
  *
@@ -134,7 +133,7 @@
  * 	This routine notifies the tty driver that it should hangup the
  * 	tty device.
  *
- *	Required:
+ *	Optional:
  *
  * void (*break_ctl)(struct tty_stuct *tty, int state);
  *

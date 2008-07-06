@@ -1,7 +1,7 @@
 /*
  * linux/mm/allocpercpu.c
  *
- * Separated from slab.c August 11, 2006 Christoph Lameter <clameter@sgi.com>
+ * Separated from slab.c August 11, 2006 Christoph Lameter
  */
 #include <linux/mm.h>
 #include <linux/module.h>

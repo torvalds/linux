@@ -16,6 +16,7 @@
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
 #include <linux/capability.h>
+#include <linux/securebits.h>
 #include <linux/security.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
@@ -425,7 +426,7 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 {
 	struct nameidata nd;
 	int old_fsuid, old_fsgid;
-	kernel_cap_t old_cap;
+	kernel_cap_t uninitialized_var(old_cap);  /* !SECURE_NO_SETUID_FIXUP */
 	int res;
 
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
@@ -433,23 +434,27 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 
 	old_fsuid = current->fsuid;
 	old_fsgid = current->fsgid;
-	old_cap = current->cap_effective;
 
 	current->fsuid = current->uid;
 	current->fsgid = current->gid;
 
-	/*
-	 * Clear the capabilities if we switch to a non-root user
-	 *
-	 * FIXME: There is a race here against sys_capset.  The
-	 * capabilities can change yet we will restore the old
-	 * value below.  We should hold task_capabilities_lock,
-	 * but we cannot because user_path_walk can sleep.
-	 */
-	if (current->uid)
-		cap_clear(current->cap_effective);
-	else
-		current->cap_effective = current->cap_permitted;
+	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
+		/*
+		 * Clear the capabilities if we switch to a non-root user
+		 */
+#ifndef CONFIG_SECURITY_FILE_CAPABILITIES
+		/*
+		 * FIXME: There is a race here against sys_capset.  The
+		 * capabilities can change yet we will restore the old
+		 * value below.  We should hold task_capabilities_lock,
+		 * but we cannot because user_path_walk can sleep.
+		 */
+#endif /* ndef CONFIG_SECURITY_FILE_CAPABILITIES */
+		if (current->uid)
+			old_cap = cap_set_effective(__cap_empty_set);
+		else
+			old_cap = cap_set_effective(current->cap_permitted);
+	}
 
 	res = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW|LOOKUP_ACCESS, &nd);
 	if (res)
@@ -478,7 +483,9 @@ out_path_release:
 out:
 	current->fsuid = old_fsuid;
 	current->fsgid = old_fsgid;
-	current->cap_effective = old_cap;
+
+	if (!issecure(SECURE_NO_SETUID_FIXUP))
+		cap_set_effective(old_cap);
 
 	return res;
 }

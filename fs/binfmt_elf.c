@@ -16,7 +16,6 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/a.out.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/binfmts.h>
@@ -548,7 +547,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	struct {
 		struct elfhdr elf_ex;
 		struct elfhdr interp_elf_ex;
-  		struct exec interp_ex;
 	} *loc;
 
 	loc = kmalloc(sizeof(*loc), GFP_KERNEL);
@@ -680,7 +678,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			}
 
 			/* Get the exec headers */
-			loc->interp_ex = *((struct exec *)bprm->buf);
 			loc->interp_elf_ex = *((struct elfhdr *)bprm->buf);
 			break;
 		}

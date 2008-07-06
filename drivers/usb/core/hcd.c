@@ -1684,19 +1684,30 @@ EXPORT_SYMBOL_GPL(usb_bus_start_enum);
 irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 {
 	struct usb_hcd		*hcd = __hcd;
-	int			start = hcd->state;
+	unsigned long		flags;
+	irqreturn_t		rc;
 
-	if (unlikely(start == HC_STATE_HALT ||
-	    !test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)))
-		return IRQ_NONE;
-	if (hcd->driver->irq (hcd) == IRQ_NONE)
-		return IRQ_NONE;
+	/* IRQF_DISABLED doesn't work correctly with shared IRQs
+	 * when the first handler doesn't use it.  So let's just
+	 * assume it's never used.
+	 */
+	local_irq_save(flags);
 
-	set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
+	if (unlikely(hcd->state == HC_STATE_HALT ||
+		     !test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
+		rc = IRQ_NONE;
+	} else if (hcd->driver->irq(hcd) == IRQ_NONE) {
+		rc = IRQ_NONE;
+	} else {
+		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
-	if (unlikely(hcd->state == HC_STATE_HALT))
-		usb_hc_died (hcd);
-	return IRQ_HANDLED;
+		if (unlikely(hcd->state == HC_STATE_HALT))
+			usb_hc_died(hcd);
+		rc = IRQ_HANDLED;
+	}
+
+	local_irq_restore(flags);
+	return rc;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1860,6 +1871,13 @@ int usb_add_hcd(struct usb_hcd *hcd,
 
 	/* enable irqs just before we start the controller */
 	if (hcd->driver->irq) {
+
+		/* IRQF_DISABLED doesn't work as advertised when used together
+		 * with IRQF_SHARED. As usb_hcd_irq() will always disable
+		 * interrupts we can remove it here.
+		 */
+		irqflags &= ~IRQF_DISABLED;
+
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 				hcd->driver->description, hcd->self.busnum);
 		if ((retval = request_irq(irqnum, &usb_hcd_irq, irqflags,

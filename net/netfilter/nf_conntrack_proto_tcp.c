@@ -331,12 +331,13 @@ static unsigned int get_conntrack_index(const struct tcphdr *tcph)
 
    I.   Upper bound for valid data:	seq <= sender.td_maxend
    II.  Lower bound for valid data:	seq + len >= sender.td_end - receiver.td_maxwin
-   III.	Upper bound for valid ack:      sack <= receiver.td_end
-   IV.	Lower bound for valid ack:	ack >= receiver.td_end - MAXACKWINDOW
+   III.	Upper bound for valid (s)ack:   sack <= receiver.td_end
+   IV.	Lower bound for valid (s)ack:	sack >= receiver.td_end - MAXACKWINDOW
 
-   where sack is the highest right edge of sack block found in the packet.
+   where sack is the highest right edge of sack block found in the packet
+   or ack in the case of packet without SACK option.
 
-   The upper bound limit for a valid ack is not ignored -
+   The upper bound limit for a valid (s)ack is not ignored -
    we doesn't have to deal with fragments.
 */
 
@@ -606,12 +607,12 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 before(seq, sender->td_maxend + 1),
 		 after(end, sender->td_end - receiver->td_maxwin - 1),
 		 before(sack, receiver->td_end + 1),
-		 after(ack, receiver->td_end - MAXACKWINDOW(sender)));
+		 after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1));
 
 	if (before(seq, sender->td_maxend + 1) &&
 	    after(end, sender->td_end - receiver->td_maxwin - 1) &&
 	    before(sack, receiver->td_end + 1) &&
-	    after(ack, receiver->td_end - MAXACKWINDOW(sender))) {
+	    after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1)) {
 		/*
 		 * Take into account window scaling (RFC 1323).
 		 */
