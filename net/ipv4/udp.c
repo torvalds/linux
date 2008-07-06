@@ -526,7 +526,8 @@ out:
 	up->len = 0;
 	up->pending = 0;
 	if (!err)
-		UDP_INC_STATS_USER(UDP_MIB_OUTDATAGRAMS, is_udplite);
+		UDP_INC_STATS_USER(sock_net(sk),
+				UDP_MIB_OUTDATAGRAMS, is_udplite);
 	return err;
 }
 
@@ -725,7 +726,8 @@ out:
 	 * seems like overkill.
 	 */
 	if (err == -ENOBUFS || test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {
-		UDP_INC_STATS_USER(UDP_MIB_SNDBUFERRORS, is_udplite);
+		UDP_INC_STATS_USER(sock_net(sk),
+				UDP_MIB_SNDBUFERRORS, is_udplite);
 	}
 	return err;
 
@@ -888,7 +890,8 @@ try_again:
 		goto out_free;
 
 	if (!peeked)
-		UDP_INC_STATS_USER(UDP_MIB_INDATAGRAMS, is_udplite);
+		UDP_INC_STATS_USER(sock_net(sk),
+				UDP_MIB_INDATAGRAMS, is_udplite);
 
 	sock_recv_timestamp(msg, sk, skb);
 
@@ -917,7 +920,7 @@ out:
 csum_copy_err:
 	lock_sock(sk);
 	if (!skb_kill_datagram(sk, skb, flags))
-		UDP_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
+		UDP_INC_STATS_USER(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 	release_sock(sk);
 
 	if (noblock)
