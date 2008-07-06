@@ -460,10 +460,6 @@ config ACPI_SRAT
 	depends on X86_32 && ACPI && NUMA && X86_GENERICARCH
 	select ACPI_NUMA
 
-config HAVE_ARCH_PARSE_SRAT
-	def_bool y
-	depends on ACPI_SRAT
-
 config X86_SUMMIT_NUMA
 	def_bool y
 	depends on X86_32 && NUMA && X86_GENERICARCH

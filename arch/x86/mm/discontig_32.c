@@ -443,20 +443,3 @@ int memory_add_physaddr_to_nid(u64 addr)
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
-#if defined(CONFIG_ACPI_NUMA) && !defined(CONFIG_HAVE_ARCH_PARSE_SRAT)
-/*
- * Dummy on 32-bit, for now:
- */
-void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
-{
-}
-
-void __init
-acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
-{
-}
-
-void __init acpi_numa_arch_fixup(void)
-{
-}
-#endif
