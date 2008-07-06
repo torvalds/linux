@@ -166,7 +166,9 @@ static struct v4l2_pix_format sif_mode[] = {
 		.priv = 1},
 	{352, 288, V4L2_PIX_FMT_PAC207, V4L2_FIELD_NONE,
 		.bytesperline = 352,
-		.sizeimage = 352 * 288 / 2,	/* compressed */
+			/* compressed, but only when needed (not compressed
+			   when the framerate is low) */
+		.sizeimage = (352 + 2) * 288,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
