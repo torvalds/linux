@@ -81,9 +81,8 @@ struct htb_class {
 
 	/* topology */
 	int level;		/* our level (see above) */
+	unsigned int children;
 	struct htb_class *parent;	/* parent class */
-	struct list_head sibling;	/* sibling list item */
-	struct list_head children;	/* children list */
 
 	union {
 		struct htb_class_leaf {
@@ -138,7 +137,6 @@ static inline long L2T(struct htb_class *cl, struct qdisc_rate_table *rate,
 }
 
 struct htb_sched {
-	struct list_head root;	/* root classes list */
 	struct Qdisc_class_hash clhash;
 	struct list_head drops[TC_HTB_NUMPRIO];/* active leaves (for drops) */
 
@@ -1020,7 +1018,6 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 		return -EINVAL;
 	}
 
-	INIT_LIST_HEAD(&q->root);
 	err = qdisc_class_hash_init(&q->clhash);
 	if (err < 0)
 		return err;
@@ -1175,12 +1172,9 @@ static inline int htb_parent_last_child(struct htb_class *cl)
 	if (!cl->parent)
 		/* the root class */
 		return 0;
-
-	if (!(cl->parent->children.next == &cl->sibling &&
-		cl->parent->children.prev == &cl->sibling))
+	if (cl->parent->children > 1)
 		/* not the last child */
 		return 0;
-
 	return 1;
 }
 
@@ -1259,7 +1253,7 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 	// TODO: why don't allow to delete subtree ? references ? does
 	// tc subsys quarantee us that in htb_destroy it holds no class
 	// refs so that we can remove children safely there ?
-	if (!list_empty(&cl->children) || cl->filter_cnt)
+	if (cl->children || cl->filter_cnt)
 		return -EBUSY;
 
 	if (!cl->level && htb_parent_last_child(cl)) {
@@ -1278,7 +1272,7 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 
 	/* delete from hash and active; remainder in destroy_class */
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
-	list_del(&cl->sibling);
+	cl->parent->children--;
 
 	if (cl->prio_activity)
 		htb_deactivate(q, cl);
@@ -1373,8 +1367,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 				  &sch->dev->queue_lock,
 				  tca[TCA_RATE] ? : &est.nla);
 		cl->refcnt = 1;
-		INIT_LIST_HEAD(&cl->sibling);
-		INIT_LIST_HEAD(&cl->children);
+		cl->children = 0;
 		INIT_LIST_HEAD(&cl->un.leaf.drop_list);
 		RB_CLEAR_NODE(&cl->pq_node);
 
@@ -1420,8 +1413,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 
 		/* attach to the hash list and parent's family */
 		qdisc_class_hash_insert(&q->clhash, &cl->common);
-		list_add_tail(&cl->sibling,
-			      parent ? &parent->children : &q->root);
+		if (parent)
+			parent->children++;
 	} else {
 		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
