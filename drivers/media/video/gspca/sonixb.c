@@ -38,6 +38,7 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 
+	unsigned char fr_h_sz;		/* size of frame header */
 	char sensor;			/* Type of image sensor chip */
 #define SENSOR_HV7131R 0
 #define SENSOR_OV6650 1
@@ -510,6 +511,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	__u16 product;
 	int sif = 0;
 
+	sd->fr_h_sz = 12;		/* default size of the frame header */
 /*	vendor = id->idVendor; */
 	product = id->idProduct;
 /*	switch (vendor) { */
@@ -538,6 +540,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			break;
 		case 0x60b0:			/* SN9C103 */
 			sd->sensor = SENSOR_OV7630_3;
+			sd->fr_h_sz = 18;	/* size of frame header */
 			break;
 		case 0x6024:			/* SN9C102 */
 		case 0x6025:			/* SN9C102 */
@@ -551,6 +554,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			break;
 		case 0x60af:			/* SN9C103 */
 			sd->sensor = SENSOR_PAS202;
+			sd->fr_h_sz = 18;	/* size of frame header (?) */
 			break;
 		}
 /*		break; */
@@ -775,6 +779,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			unsigned char *data,		/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd;
 	int i;
 
 	if (len > 6 && len < 24) {
@@ -787,8 +792,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			    && data[5 + i] == 0x96) {	/* start of frame */
 				frame = gspca_frame_add(gspca_dev, LAST_PACKET,
 							frame, data, 0);
-				data += i + 12;
-				len -= i + 12;
+				sd = (struct sd *) gspca_dev;
+				data += i + sd->fr_h_sz;
+				len -= i + sd->fr_h_sz;
 				gspca_frame_add(gspca_dev, FIRST_PACKET,
 						frame, data, len);
 				return;
