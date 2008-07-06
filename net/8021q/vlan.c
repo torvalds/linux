@@ -165,6 +165,8 @@ void unregister_vlan_dev(struct net_device *dev)
 
 	synchronize_net();
 
+	unregister_netdevice(dev);
+
 	/* If the group is now empty, kill off the group. */
 	if (grp->nr_vlans == 0) {
 		if (real_dev->features & NETIF_F_HW_VLAN_RX)
@@ -178,8 +180,6 @@ void unregister_vlan_dev(struct net_device *dev)
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);
-
-	unregister_netdevice(dev);
 }
 
 static void vlan_transfer_operstate(const struct net_device *dev,
