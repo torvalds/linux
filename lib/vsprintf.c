@@ -22,6 +22,8 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#include <linux/kallsyms.h>
+#include <linux/uaccess.h>
 
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/div64.h>
@@ -511,15 +513,52 @@ static char *string(char *buf, char *end, char *s, int field_width, int precisio
 	return buf;
 }
 
+static inline void *dereference_function_descriptor(void *ptr)
+{
+#if defined(CONFIG_IA64) || defined(CONFIG_PPC64)
+	void *p;
+	if (!probe_kernel_address(ptr, p))
+		ptr = p;
+#endif
+	return ptr;
+}
+
+static char *symbol_string(char *buf, char *end, void *ptr, int field_width, int precision, int flags)
+{
+	unsigned long value = (unsigned long) ptr;
+#ifdef CONFIG_KALLSYMS
+	char sym[KSYM_SYMBOL_LEN];
+	sprint_symbol(sym, value);
+	return string(buf, end, sym, field_width, precision, flags);
+#else
+	field_width = 2*sizeof(void *);
+	flags |= SPECIAL | SMALL | ZEROPAD;
+	return number(buf, end, value, 16, field_width, precision, flags);
+#endif
+}
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
  * specifiers.
  *
- * Right now don't actually handle any such, but we will..
+ * Right now we just handle 'F' (for symbolic Function descriptor pointers)
+ * and 'S' (for Symbolic direct pointers), but this can easily be
+ * extended in the future (network address types etc).
+ *
+ * The difference between 'S' and 'F' is that on ia64 and ppc64 function
+ * pointers are really function descriptors, which contain a pointer the
+ * real address. 
  */
 static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field_width, int precision, int flags)
 {
+	switch (*fmt) {
+	case 'F':
+		ptr = dereference_function_descriptor(ptr);
+		/* Fallthrough */
+	case 'S':
+		return symbol_string(buf, end, ptr, field_width, precision, flags);
+	}
 	flags |= SMALL;
 	if (field_width == -1) {
 		field_width = 2*sizeof(void *);
