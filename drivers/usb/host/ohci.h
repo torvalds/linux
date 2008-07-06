@@ -399,6 +399,7 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_ZFMICRO	0x20			/* Compaq ZFMicro chipset*/
 #define	OHCI_QUIRK_NEC		0x40			/* lost interrupts */
 #define	OHCI_QUIRK_FRAME_NO	0x80			/* no big endian frame_no shift */
+#define	OHCI_QUIRK_HUB_POWER	0x100			/* distrust firmware power/oc setup */
 	// there are also chip quirks/bugs in init logic
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
