@@ -168,7 +168,7 @@ DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 #define UDP6_INC_STATS_BH(field, is_udplite) 			      do  {  \
 	if (is_udplite) SNMP_INC_STATS_BH(udplite_stats_in6, field);         \
 	else		SNMP_INC_STATS_BH(udp_stats_in6, field);    } while(0)
-#define UDP6_INC_STATS_USER(field, is_udplite)			       do {    \
+#define UDP6_INC_STATS_USER(net, field, is_udplite)	    do { (void)net;    \
 	if (is_udplite) SNMP_INC_STATS_USER(udplite_stats_in6, field);         \
 	else		SNMP_INC_STATS_USER(udp_stats_in6, field);    } while(0)
 
