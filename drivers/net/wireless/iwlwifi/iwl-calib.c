@@ -470,7 +470,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwl_init_sensitivity);
 
 void iwl_sensitivity_calibration(struct iwl_priv *priv,
-				    struct iwl4965_notif_statistics *resp)
+				    struct iwl_notif_statistics *resp)
 {
 	u32 rx_enable_time;
 	u32 fa_cck;
@@ -584,7 +584,7 @@ EXPORT_SYMBOL(iwl_sensitivity_calibration);
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
 void iwl_chain_noise_calibration(struct iwl_priv *priv,
-			      struct iwl4965_notif_statistics *stat_resp)
+				 struct iwl_notif_statistics *stat_resp)
 {
 	struct iwl_chain_noise_data *data = NULL;
 

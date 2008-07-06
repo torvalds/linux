@@ -140,6 +140,7 @@ struct iwl_lib_ops {
 	int (*set_power)(struct iwl_priv *priv, void *cmd);
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
+	void (*temperature) (struct iwl_priv *priv);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 };
@@ -157,6 +158,7 @@ struct iwl_mod_params {
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
 	int enable_qos;		/* def: 1 = use quality of service */
+	int disable_11n;	/* def: 0 = disable 11n capabilities */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
 	int antenna;  		/* def: 0 = both antennas (use diversity) */
 	int restart_fw;		/* def: 1 = restart firmware */
@@ -179,7 +181,7 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
 void iwl_hw_detect(struct iwl_priv *priv);
 
-void iwlcore_clear_stations_table(struct iwl_priv *priv);
+void iwl_clear_stations_table(struct iwl_priv *priv);
 void iwl_free_calib_results(struct iwl_priv *priv);
 void iwl_reset_qos(struct iwl_priv *priv);
 void iwl_set_rxon_chain(struct iwl_priv *priv);
@@ -191,6 +193,7 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_ht_info *sta_ht_inf);
 int iwl_hw_nic_init(struct iwl_priv *priv);
 int iwl_setup_mac(struct iwl_priv *priv);
+int iwl_set_hw_params(struct iwl_priv *priv);
 int iwl_init_drv(struct iwl_priv *priv);
 void iwl_uninit_drv(struct iwl_priv *priv);
 /* "keep warm" functions */
@@ -209,6 +212,8 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 void iwl_rx_replenish(struct iwl_priv *priv);
 int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
+int iwl_rx_agg_start(struct iwl_priv *priv, const u8 *addr, int tid, u16 ssn);
+int iwl_rx_agg_stop(struct iwl_priv *priv, const u8 *addr, int tid);
 /* FIXME: remove when TX is moved to iwl core */
 int iwl_rx_queue_restock(struct iwl_priv *priv);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
@@ -218,6 +223,8 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 /* Handlers */
 void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb);
 
 /* TX helpers */
 
@@ -368,7 +375,13 @@ extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,
-		    struct iwl_link_quality_cmd *lq, u8 flags);
+		struct iwl_link_quality_cmd *lq, u8 flags);
+extern void iwl_rx_reply_rx(struct iwl_priv *priv,
+		struct iwl_rx_mem_buffer *rxb);
+extern void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
+				    struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
+					   struct iwl_rx_mem_buffer *rxb);
 
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
 {

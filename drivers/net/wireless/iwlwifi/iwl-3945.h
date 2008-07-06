@@ -36,6 +36,10 @@
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
+/*used for rfkill*/
+#include <linux/rfkill.h>
+#include <linux/input.h>
+
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 extern struct pci_device_id iwl3945_hw_card_ids[];
 
@@ -686,6 +690,23 @@ enum {
 
 #endif
 
+#ifdef CONFIG_IWLWIFI_RFKILL
+struct iwl3945_priv;
+
+struct iwl3945_rfkill_mngr {
+	struct rfkill *rfkill;
+	struct input_dev *input_dev;
+};
+
+void iwl3945_rfkill_set_hw_state(struct iwl3945_priv *priv);
+void iwl3945_rfkill_unregister(struct iwl3945_priv *priv);
+int iwl3945_rfkill_init(struct iwl3945_priv *priv);
+#else
+static inline void iwl3945_rfkill_set_hw_state(struct iwl3945_priv *priv) {}
+static inline void iwl3945_rfkill_unregister(struct iwl3945_priv *priv) {}
+static inline int iwl3945_rfkill_init(struct iwl3945_priv *priv) { return 0; }
+#endif
+
 #define IWL_MAX_NUM_QUEUES IWL39_MAX_NUM_QUEUES
 
 struct iwl3945_priv {
@@ -778,6 +799,10 @@ struct iwl3945_priv {
 	 * 4965's initialize alive response contains some calibration data. */
 	struct iwl3945_init_alive_resp card_alive_init;
 	struct iwl3945_alive_resp card_alive;
+
+#ifdef CONFIG_IWLWIFI_RFKILL
+	struct iwl3945_rfkill_mngr rfkill_mngr;
+#endif
 
 #ifdef CONFIG_IWL3945_LEDS
 	struct iwl3945_led led[IWL_LED_TRG_MAX];

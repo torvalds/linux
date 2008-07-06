@@ -954,4 +954,10 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 void mac80211_ev_michael_mic_failure(struct net_device *dev, int keyidx,
 				     struct ieee80211_hdr *hdr);
 
+#ifdef CONFIG_MAC80211_NOINLINE
+#define debug_noinline noinline
+#else
+#define debug_noinline
+#endif
+
 #endif /* IEEE80211_I_H */

@@ -184,9 +184,9 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->u.mntr_flags = MONITOR_FLAG_CONTROL |
 				      MONITOR_FLAG_OTHER_BSS;
 		break;
-	default:
-		printk(KERN_WARNING "%s: %s: Unknown interface type 0x%x",
-		       dev->name, __func__, type);
+	case IEEE80211_IF_TYPE_INVALID:
+		BUG();
+		break;
 	}
 	ieee80211_debugfs_change_if_type(sdata, oldtype);
 }

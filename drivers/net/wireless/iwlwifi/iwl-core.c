@@ -273,22 +273,27 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwl_hw_nic_init);
 
 /**
- * iwlcore_clear_stations_table - Clear the driver's station table
+ * iwl_clear_stations_table - Clear the driver's station table
  *
  * NOTE:  This does not clear or otherwise alter the device's station table.
  */
-void iwlcore_clear_stations_table(struct iwl_priv *priv)
+void iwl_clear_stations_table(struct iwl_priv *priv)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	if (iwl_is_alive(priv) &&
+	   !test_bit(STATUS_EXIT_PENDING, &priv->status) &&
+	   iwl_send_cmd_pdu_async(priv, REPLY_REMOVE_ALL_STA, 0, NULL, NULL))
+		IWL_ERROR("Couldn't clear the station table\n");
 
 	priv->num_stations = 0;
 	memset(priv->stations, 0, sizeof(priv->stations));
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
-EXPORT_SYMBOL(iwlcore_clear_stations_table);
+EXPORT_SYMBOL(iwl_clear_stations_table);
 
 void iwl_reset_qos(struct iwl_priv *priv)
 {
@@ -490,7 +495,9 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
 	sband->n_bitrates = IWL_RATE_COUNT - IWL_FIRST_OFDM_RATE;
 
-	iwlcore_init_ht_hw_capab(priv, &sband->ht_info, IEEE80211_BAND_5GHZ);
+	if (priv->cfg->sku & IWL_SKU_N)
+		iwlcore_init_ht_hw_capab(priv, &sband->ht_info,
+					 IEEE80211_BAND_5GHZ);
 
 	sband = &priv->bands[IEEE80211_BAND_2GHZ];
 	sband->channels = channels;
@@ -498,7 +505,9 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 	sband->bitrates = rates;
 	sband->n_bitrates = IWL_RATE_COUNT;
 
-	iwlcore_init_ht_hw_capab(priv, &sband->ht_info, IEEE80211_BAND_2GHZ);
+	if (priv->cfg->sku & IWL_SKU_N)
+		iwlcore_init_ht_hw_capab(priv, &sband->ht_info,
+					 IEEE80211_BAND_2GHZ);
 
 	priv->ieee_channels = channels;
 	priv->ieee_rates = rates;
@@ -814,8 +823,9 @@ int iwl_setup_mac(struct iwl_priv *priv)
 		    IEEE80211_HW_NOISE_DBM;
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
-	/* Enhanced value; more queues, to support 11n aggregation */
-	hw->ampdu_queues = 12;
+	/* queues to support 11n aggregation */
+	if (priv->cfg->sku & IWL_SKU_N)
+		hw->ampdu_queues = 12;
 
 	hw->conf.beacon_int = 100;
 
@@ -837,11 +847,28 @@ int iwl_setup_mac(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_setup_mac);
 
+int iwl_set_hw_params(struct iwl_priv *priv)
+{
+	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
+	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
+	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
+	if (priv->cfg->mod_params->amsdu_size_8K)
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_8K;
+	else
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_4K;
+	priv->hw_params.max_pkt_size = priv->hw_params.rx_buf_size - 256;
+
+	if (priv->cfg->mod_params->disable_11n)
+		priv->cfg->sku &= ~IWL_SKU_N;
+
+	/* Device-specific setup */
+	return priv->cfg->ops->lib->set_hw_params(priv);
+}
+EXPORT_SYMBOL(iwl_set_hw_params);
 
 int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
-	int i;
 
 	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
@@ -852,15 +879,12 @@ int iwl_init_drv(struct iwl_priv *priv)
 	spin_lock_init(&priv->hcmd_lock);
 	spin_lock_init(&priv->lq_mngr.lock);
 
-	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++)
-		INIT_LIST_HEAD(&priv->ibss_mac_hash[i]);
-
 	INIT_LIST_HEAD(&priv->free_frames);
 
 	mutex_init(&priv->mutex);
 
 	/* Clear the driver's (not device's) station table */
-	iwlcore_clear_stations_table(priv);
+	iwl_clear_stations_table(priv);
 
 	priv->data_retry_limit = -1;
 	priv->ieee_channels = NULL;
@@ -1383,7 +1407,14 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
-	clear_bit(STATUS_RF_KILL_SW, &priv->status);
+	/* If the driver is up it will receive CARD_STATE_NOTIFICATION
+	 * notification where it will clear SW rfkill status.
+	 * Setting it here would break the handler. Only if the
+	 * interface is down we can set here since we don't
+	 * receive any further notification.
+	 */
+	if (!priv->is_open)
+		clear_bit(STATUS_RF_KILL_SW, &priv->status);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* wake up ucode */
@@ -1401,8 +1432,10 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 		return 0;
 	}
 
-	if (priv->is_open)
-		queue_work(priv->workqueue, &priv->restart);
+	/* If the driver is already loaded, it will receive
+	 * CARD_STATE_NOTIFICATION notifications and the handler will
+	 * call restart to reload the driver.
+	 */
 	return 1;
 }
 EXPORT_SYMBOL(iwl_radio_kill_sw_enable_radio);

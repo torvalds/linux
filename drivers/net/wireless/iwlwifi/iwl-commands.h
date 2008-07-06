@@ -336,6 +336,8 @@ struct iwl4965_tx_power_db {
  * struct iwl5000_tx_power_dbm_cmd
  */
 #define IWL50_TX_POWER_AUTO 0x7f
+#define IWL50_TX_POWER_NO_CLOSED (0x1 << 6)
+
 struct iwl5000_tx_power_dbm_cmd {
 	s8 global_lmt; /*in half-dBm (e.g. 30 = 15 dBm) */
 	u8 flags;
@@ -1534,7 +1536,7 @@ struct iwl5000_tx_resp {
  *
  * Reports Block-Acknowledge from recipient station
  */
-struct iwl4965_compressed_ba_resp {
+struct iwl_compressed_ba_resp {
 	__le32 sta_addr_lo32;
 	__le16 sta_addr_hi16;
 	__le16 reserved;
@@ -2504,7 +2506,7 @@ struct statistics_general {
  */
 #define IWL_STATS_CONF_CLEAR_STATS __constant_cpu_to_le32(0x1)	/* see above */
 #define IWL_STATS_CONF_DISABLE_NOTIF __constant_cpu_to_le32(0x2)/* see above */
-struct iwl4965_statistics_cmd {
+struct iwl_statistics_cmd {
 	__le32 configuration_flags;	/* IWL_STATS_CONF_* */
 } __attribute__ ((packed));
 
@@ -2525,7 +2527,7 @@ struct iwl4965_statistics_cmd {
  */
 #define STATISTICS_REPLY_FLG_BAND_24G_MSK         __constant_cpu_to_le32(0x2)
 #define STATISTICS_REPLY_FLG_FAT_MODE_MSK         __constant_cpu_to_le32(0x8)
-struct iwl4965_notif_statistics {
+struct iwl_notif_statistics {
 	__le32 flag;
 	struct statistics_rx rx;
 	struct statistics_tx tx;
@@ -2998,8 +3000,8 @@ struct iwl_rx_packet {
 		struct iwl_rem_sta_resp rem_sta;
 		struct iwl4965_sleep_notification sleep_notif;
 		struct iwl4965_spectrum_resp spectrum;
-		struct iwl4965_notif_statistics stats;
-		struct iwl4965_compressed_ba_resp compressed_ba;
+		struct iwl_notif_statistics stats;
+		struct iwl_compressed_ba_resp compressed_ba;
 		struct iwl4965_missed_beacon_notif missed_beacon;
 		struct iwl5000_calibration calib;
 		__le32 status;

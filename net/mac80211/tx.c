@@ -220,7 +220,7 @@ static int inline is_ieee80211_device(struct net_device *dev,
 
 /* tx handlers */
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -274,7 +274,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
@@ -327,8 +327,10 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	rcu_read_unlock();
 
 	local->total_ps_buffered = total;
+#ifdef MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
 	       wiphy_name(local->hw.wiphy), purged);
+#endif
 }
 
 static ieee80211_tx_result
@@ -358,11 +360,13 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >=
 		    AP_MAX_BC_BUFFER) {
+#ifdef MAC80211_VERBOSE_PS_DEBUG
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: BC TX buffer full - "
 				       "dropping the oldest frame\n",
 				       tx->dev->name);
 			}
+#endif
 			dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
 		} else
 			tx->local->total_ps_buffered++;
@@ -403,11 +407,13 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&sta->ps_tx_buf) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf);
+#ifdef MAC80211_VERBOSE_PS_DEBUG
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: STA %s TX "
 				       "buffer full - dropping oldest frame\n",
 				       tx->dev->name, print_mac(mac, sta->addr));
 			}
+#endif
 			dev_kfree_skb(old);
 		} else
 			tx->local->total_ps_buffered++;
@@ -432,7 +438,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 {
 	if (unlikely(tx->flags & IEEE80211_TX_PS_BUFFERED))
@@ -444,7 +450,7 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 		return ieee80211_tx_h_multicast_ps_buf(tx);
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_key *key;
@@ -493,7 +499,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 {
 	struct rate_selection rsel;
@@ -537,7 +543,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
@@ -632,7 +638,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
@@ -713,7 +719,6 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 
  fail:
-	printk(KERN_DEBUG "%s: failed to fragment frame\n", tx->dev->name);
 	if (frags) {
 		for (i = 0; i < num_fragm - 1; i++)
 			if (frags[i])
@@ -724,7 +729,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	return TX_DROP;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
 	if (!tx->key)
@@ -744,7 +749,7 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 	return TX_DROP;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
@@ -774,7 +779,7 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
 	int i;
@@ -794,24 +799,6 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-
-typedef ieee80211_tx_result (*ieee80211_tx_handler)(struct ieee80211_tx_data *);
-static ieee80211_tx_handler ieee80211_tx_handlers[] =
-{
-	ieee80211_tx_h_check_assoc,
-	ieee80211_tx_h_sequence,
-	ieee80211_tx_h_ps_buf,
-	ieee80211_tx_h_select_key,
-	ieee80211_tx_h_michael_mic_add,
-	ieee80211_tx_h_rate_ctrl,
-	ieee80211_tx_h_misc,
-	ieee80211_tx_h_fragment,
-	/* handlers after fragment must be aware of tx info fragmentation! */
-	ieee80211_tx_h_encrypt,
-	ieee80211_tx_h_calculate_duration,
-	ieee80211_tx_h_stats,
-	NULL
-};
 
 /* actual transmit path */
 
@@ -1110,20 +1097,32 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
  */
 static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_local *local = tx->local;
 	struct sk_buff *skb = tx->skb;
-	ieee80211_tx_handler *handler;
 	ieee80211_tx_result res = TX_DROP;
 	int i;
 
-	for (handler = ieee80211_tx_handlers; *handler != NULL; handler++) {
-		res = (*handler)(tx);
-		if (res != TX_CONTINUE)
-			break;
-	}
+#define CALL_TXH(txh)		\
+	res = txh(tx);		\
+	if (res != TX_CONTINUE)	\
+		goto txh_done;
 
+	CALL_TXH(ieee80211_tx_h_check_assoc)
+	CALL_TXH(ieee80211_tx_h_sequence)
+	CALL_TXH(ieee80211_tx_h_ps_buf)
+	CALL_TXH(ieee80211_tx_h_select_key)
+	CALL_TXH(ieee80211_tx_h_michael_mic_add)
+	CALL_TXH(ieee80211_tx_h_rate_ctrl)
+	CALL_TXH(ieee80211_tx_h_misc)
+	CALL_TXH(ieee80211_tx_h_fragment)
+	/* handlers after fragment must be aware of tx info fragmentation! */
+	CALL_TXH(ieee80211_tx_h_encrypt)
+	CALL_TXH(ieee80211_tx_h_calculate_duration)
+	CALL_TXH(ieee80211_tx_h_stats)
+#undef CALL_TXH
+
+ txh_done:
 	if (unlikely(res == TX_DROP)) {
-		I802_DEBUG_INC(local->tx_handlers_drop);
+		I802_DEBUG_INC(tx->local->tx_handlers_drop);
 		dev_kfree_skb(skb);
 		for (i = 0; i < tx->num_extra_frag; i++)
 			if (tx->extra_frag[i])
@@ -1131,7 +1130,7 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 		kfree(tx->extra_frag);
 		return -1;
 	} else if (unlikely(res == TX_QUEUED)) {
-		I802_DEBUG_INC(local->tx_handlers_queued);
+		I802_DEBUG_INC(tx->local->tx_handlers_queued);
 		return -1;
 	}
 
@@ -1410,8 +1409,6 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(skb->len < ETH_HLEN)) {
-		printk(KERN_DEBUG "%s: short skb (len=%d)\n",
-		       dev->name, skb->len);
 		ret = 0;
 		goto fail;
 	}

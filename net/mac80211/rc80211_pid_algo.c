@@ -540,11 +540,6 @@ static struct rate_control_ops mac80211_rcpid = {
 #endif
 };
 
-MODULE_DESCRIPTION("PID controller based rate control algorithm");
-MODULE_AUTHOR("Stefano Brivio");
-MODULE_AUTHOR("Mattias Nissler");
-MODULE_LICENSE("GPL");
-
 int __init rc80211_pid_init(void)
 {
 	return ieee80211_rate_control_register(&mac80211_rcpid);
@@ -554,8 +549,3 @@ void rc80211_pid_exit(void)
 {
 	ieee80211_rate_control_unregister(&mac80211_rcpid);
 }
-
-#ifdef CONFIG_MAC80211_RC_PID_MODULE
-module_init(rc80211_pid_init);
-module_exit(rc80211_pid_exit);
-#endif

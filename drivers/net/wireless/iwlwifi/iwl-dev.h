@@ -591,11 +591,6 @@ extern int iwl_send_add_sta(struct iwl_priv *priv,
 			    struct iwl_addsta_cmd *sta, u8 flags);
 u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 			 u8 flags, struct ieee80211_ht_info *ht_info);
-extern int iwl4965_is_network_packet(struct iwl_priv *priv,
-				 struct ieee80211_hdr *header);
-extern int iwl4965_is_duplicate_packet(struct iwl_priv *priv,
-				       struct ieee80211_hdr *header);
-extern int iwl4965_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,
 					const u8 *dest, int left);
@@ -624,11 +619,7 @@ extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl_frame *frame, u8 rate);
-extern void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
-				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl4965_disable_events(struct iwl_priv *priv);
-extern void iwl4965_rx_reply_rx(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb);
 
 extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 extern int iwl_queue_space(const struct iwl_queue *q);
@@ -702,7 +693,6 @@ struct iwl4965_lq_mngr {
 	unsigned long stamp_last;
 	u32 flush_time;
 	u32 tx_packets;
-	u8 lq_ready;
 };
 
 /* Sensitivity and chain noise calibration */
@@ -994,7 +984,7 @@ struct iwl_priv {
 
 	struct iwl_power_mgr power_data;
 
-	struct iwl4965_notif_statistics statistics;
+	struct iwl_notif_statistics statistics;
 	unsigned long last_statistics_time;
 
 	/* context information */
@@ -1025,14 +1015,6 @@ struct iwl_priv {
 	/* Rx'd packet timing information */
 	u32 last_beacon_time;
 	u64 last_tsf;
-
-	/* Duplicate packet detection */
-	u16 last_seq_num;
-	u16 last_frag_num;
-	unsigned long last_packet_time;
-
-	/* Hash table for finding stations in IBSS network */
-	struct list_head ibss_mac_hash[IWL_IBSS_MAC_HASH_SIZE];
 
 	/* eeprom */
 	u8 *eeprom;

@@ -675,7 +675,7 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	iwlcore_clear_stations_table(priv);
+	iwl_clear_stations_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
 		IWL_WARNING("Could not complete ALIVE transition: %d\n", ret);
@@ -807,11 +807,8 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 
 	iwl5000_send_Xtal_calib(priv);
 
-	if (priv->ucode_type == UCODE_RT) {
+	if (priv->ucode_type == UCODE_RT)
 		iwl5000_send_calib_results(priv);
-		set_bit(STATUS_READY, &priv->status);
-		priv->is_open = 1;
-	}
 
 	return 0;
 }
@@ -827,19 +824,11 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
 	priv->hw_params.first_ampdu_q = IWL50_FIRST_AMPDU_QUEUE;
-	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
-	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
-	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	if (priv->cfg->mod_params->amsdu_size_8K)
-		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_8K;
-	else
-		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_4K;
-	priv->hw_params.max_pkt_size = priv->hw_params.rx_buf_size - 256;
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
-	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
+	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.fat_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 	priv->hw_params.sens = &iwl5000_sensitivity;
@@ -1426,13 +1415,18 @@ static int  iwl5000_send_tx_power(struct iwl_priv *priv)
 
 	/* half dBm need to multiply */
 	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
-	tx_power_cmd.flags = 0;
+	tx_power_cmd.flags = IWL50_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
 	return  iwl_send_cmd_pdu_async(priv, REPLY_TX_POWER_DBM_CMD,
 				       sizeof(tx_power_cmd), &tx_power_cmd,
 				       NULL);
 }
 
+static void iwl5000_temperature(struct iwl_priv *priv)
+{
+	/* store temperature from statistics (in Celsius) */
+	priv->temperature = le32_to_cpu(priv->statistics.general.temperature);
+}
 
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
@@ -1462,6 +1456,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
+	.temperature = iwl5000_temperature,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
@@ -1541,6 +1536,8 @@ module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num50, "number of hw queues in 50xx series");
 module_param_named(qos_enable50, iwl50_mod_params.enable_qos, int, 0444);
 MODULE_PARM_DESC(qos_enable50, "enable all 50XX QoS functionality");
+module_param_named(11n_disable50, iwl50_mod_params.disable_11n, int, 0444);
+MODULE_PARM_DESC(11n_disable50, "disable 50XX 11n functionality");
 module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K50, "enable 8K amsdu size in 50XX series");
 module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, 0444);
