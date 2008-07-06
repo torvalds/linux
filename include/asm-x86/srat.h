@@ -27,7 +27,7 @@
 #ifndef _ASM_SRAT_H_
 #define _ASM_SRAT_H_
 
-#ifdef CONFIG_ACPI_SRAT
+#ifdef CONFIG_ACPI_NUMA
 extern int get_memcfg_from_srat(void);
 #else
 static inline int get_memcfg_from_srat(void)
