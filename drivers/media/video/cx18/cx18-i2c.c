@@ -409,6 +409,7 @@ int init_cx18_i2c(struct cx18 *cx)
 	write_reg_sync(0x00c000c0, 0xc7001c);
 	mdelay(10);
 	write_reg_sync(0x00c00000, 0xc7001c);
+	mdelay(10);
 
 	write_reg_sync(0x00c00000, 0xc730c8); /* Set to edge-triggered intrs. */
 	write_reg_sync(0x00c00000, 0xc730c4); /* Clear any stale intrs */
