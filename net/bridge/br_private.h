@@ -226,8 +226,9 @@ extern void br_stp_set_path_cost(struct net_bridge_port *p,
 extern ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id);
 
 /* br_stp_bpdu.c */
-extern int br_stp_rcv(struct sk_buff *skb, struct net_device *dev,
-		      struct packet_type *pt, struct net_device *orig_dev);
+struct stp_proto;
+extern void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
+		       struct net_device *dev);
 
 /* br_stp_timer.c */
 extern void br_stp_timer_init(struct net_bridge *br);
