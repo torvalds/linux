@@ -107,3 +107,45 @@ struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 EXPORT_SYMBOL(bfifo_qdisc_ops);
+
+/* Pass size change message down to embedded FIFO */
+int fifo_set_limit(struct Qdisc *q, unsigned int limit)
+{
+	struct nlattr *nla;
+	int ret = -ENOMEM;
+
+	/* Hack to avoid sending change message to non-FIFO */
+	if (strncmp(q->ops->id + 1, "fifo", 4) != 0)
+		return 0;
+
+	nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
+	if (nla) {
+		nla->nla_type = RTM_NEWQDISC;
+		nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
+		((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
+
+		ret = q->ops->change(q, nla);
+		kfree(nla);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(fifo_set_limit);
+
+struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
+			       unsigned int limit)
+{
+	struct Qdisc *q;
+	int err = -ENOMEM;
+
+	q = qdisc_create_dflt(sch->dev, ops, TC_H_MAKE(sch->handle, 1));
+	if (q) {
+		err = fifo_set_limit(q, limit);
+		if (err < 0) {
+			qdisc_destroy(q);
+			q = NULL;
+		}
+	}
+
+	return q ? : ERR_PTR(err);
+}
+EXPORT_SYMBOL(fifo_create_dflt);

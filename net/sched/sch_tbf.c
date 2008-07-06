@@ -242,34 +242,6 @@ static void tbf_reset(struct Qdisc* sch)
 	qdisc_watchdog_cancel(&q->watchdog);
 }
 
-static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
-{
-	struct Qdisc *q;
-	struct nlattr *nla;
-	int ret;
-
-	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
-			      TC_H_MAKE(sch->handle, 1));
-	if (q) {
-		nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)),
-			      GFP_KERNEL);
-		if (nla) {
-			nla->nla_type = RTM_NEWQDISC;
-			nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
-			((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
-
-			ret = q->ops->change(q, nla);
-			kfree(nla);
-
-			if (ret == 0)
-				return q;
-		}
-		qdisc_destroy(q);
-	}
-
-	return NULL;
-}
-
 static const struct nla_policy tbf_policy[TCA_TBF_MAX + 1] = {
 	[TCA_TBF_PARMS]	= { .len = sizeof(struct tc_tbf_qopt) },
 	[TCA_TBF_RTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
@@ -322,8 +294,11 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 		goto done;
 
 	if (qopt->limit > 0) {
-		if ((child = tbf_create_dflt_qdisc(sch, qopt->limit)) == NULL)
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit);
+		if (IS_ERR(child)) {
+			err = PTR_ERR(child);
 			goto done;
+		}
 	}
 
 	sch_tree_lock(sch);
