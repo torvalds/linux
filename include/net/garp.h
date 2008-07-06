@@ -84,6 +84,7 @@ struct garp_attr {
 };
 
 enum garp_applications {
+	GARP_APPLICATION_GVRP,
 	__GARP_APPLICATION_MAX
 };
 #define GARP_APPLICATION_MAX	(__GARP_APPLICATION_MAX - 1)

@@ -169,6 +169,8 @@ void unregister_vlan_dev(struct net_device *dev)
 
 	/* If the group is now empty, kill off the group. */
 	if (grp->nr_vlans == 0) {
+		vlan_gvrp_uninit_applicant(real_dev);
+
 		if (real_dev->features & NETIF_F_HW_VLAN_RX)
 			real_dev->vlan_rx_register(real_dev, NULL);
 
@@ -249,15 +251,18 @@ int register_vlan_dev(struct net_device *dev)
 		ngrp = grp = vlan_group_alloc(real_dev);
 		if (!grp)
 			return -ENOBUFS;
+		err = vlan_gvrp_init_applicant(real_dev);
+		if (err < 0)
+			goto out_free_group;
 	}
 
 	err = vlan_group_prealloc_vid(grp, vlan_id);
 	if (err < 0)
-		goto out_free_group;
+		goto out_uninit_applicant;
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		goto out_free_group;
+		goto out_uninit_applicant;
 
 	/* Account for reference in struct vlan_dev_info */
 	dev_hold(real_dev);
@@ -278,6 +283,9 @@ int register_vlan_dev(struct net_device *dev)
 
 	return 0;
 
+out_uninit_applicant:
+	if (ngrp)
+		vlan_gvrp_uninit_applicant(real_dev);
 out_free_group:
 	if (ngrp)
 		vlan_group_free(ngrp);
@@ -713,14 +721,20 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err2;
 
-	err = vlan_netlink_init();
+	err = vlan_gvrp_init();
 	if (err < 0)
 		goto err3;
+
+	err = vlan_netlink_init();
+	if (err < 0)
+		goto err4;
 
 	dev_add_pack(&vlan_packet_type);
 	vlan_ioctl_set(vlan_ioctl_handler);
 	return 0;
 
+err4:
+	vlan_gvrp_uninit();
 err3:
 	unregister_netdevice_notifier(&vlan_notifier_block);
 err2:
@@ -745,8 +759,9 @@ static void __exit vlan_cleanup_module(void)
 		BUG_ON(!hlist_empty(&vlan_group_hash[i]));
 
 	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
-
 	synchronize_net();
+
+	vlan_gvrp_uninit();
 }
 
 module_init(vlan_proto_init);

@@ -512,10 +512,17 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	u32 old_flags = vlan->flags;
 
-	if (mask & ~VLAN_FLAG_REORDER_HDR)
+	if (mask & ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP))
 		return -EINVAL;
 
 	vlan->flags = (old_flags & ~mask) | (flags & mask);
+
+	if (netif_running(dev) && (vlan->flags ^ old_flags) & VLAN_FLAG_GVRP) {
+		if (vlan->flags & VLAN_FLAG_GVRP)
+			vlan_gvrp_request_join(dev);
+		else
+			vlan_gvrp_request_leave(dev);
+	}
 	return 0;
 }
 
@@ -550,12 +557,19 @@ static int vlan_dev_open(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		dev_set_promiscuity(real_dev, 1);
 
+	if (vlan->flags & VLAN_FLAG_GVRP)
+		vlan_gvrp_request_join(dev);
+
 	return 0;
 }
 
 static int vlan_dev_stop(struct net_device *dev)
 {
-	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	struct net_device *real_dev = vlan->real_dev;
+
+	if (vlan->flags & VLAN_FLAG_GVRP)
+		vlan_gvrp_request_leave(dev);
 
 	dev_mc_unsync(real_dev, dev);
 	dev_unicast_unsync(real_dev, dev);
