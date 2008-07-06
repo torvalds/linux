@@ -260,7 +260,7 @@ static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
 
 static void fib4_rule_flush_cache(void)
 {
-	rt_cache_flush(-1);
+	rt_cache_flush(&init_net, -1);
 }
 
 static struct fib_rules_ops fib4_rules_ops_template = {

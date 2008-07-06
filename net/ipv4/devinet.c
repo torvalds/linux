@@ -1348,7 +1348,7 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 				dev_disable_lro(idev->dev);
 			}
 			rtnl_unlock();
-			rt_cache_flush(0);
+			rt_cache_flush(net, 0);
 		}
 	}
 
@@ -1362,9 +1362,10 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 	int *valp = ctl->data;
 	int val = *valp;
 	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+	struct net *net = ctl->extra2;
 
 	if (write && *valp != val)
-		rt_cache_flush(0);
+		rt_cache_flush(net, 0);
 
 	return ret;
 }
@@ -1375,9 +1376,10 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 {
 	int ret = devinet_conf_sysctl(table, name, nlen, oldval, oldlenp,
 				      newval, newlen);
+	struct net *net = table->extra2;
 
 	if (ret == 1)
-		rt_cache_flush(0);
+		rt_cache_flush(net, 0);
 
 	return ret;
 }

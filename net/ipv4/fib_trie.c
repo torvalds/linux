@@ -1271,7 +1271,7 @@ static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 
 			fib_release_info(fi_drop);
 			if (state & FA_S_ACCESSED)
-				rt_cache_flush(-1);
+				rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
 				tb->tb_id, &cfg->fc_nlinfo, NLM_F_REPLACE);
 
@@ -1316,7 +1316,7 @@ static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 	list_add_tail_rcu(&new_fa->fa_list,
 			  (fa ? &fa->fa_list : fa_head));
 
-	rt_cache_flush(-1);
+	rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 succeeded:
@@ -1664,7 +1664,7 @@ static int fn_trie_delete(struct fib_table *tb, struct fib_config *cfg)
 		trie_leaf_remove(t, l);
 
 	if (fa->fa_state & FA_S_ACCESSED)
-		rt_cache_flush(-1);
+		rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
 
 	fib_release_info(fa->fa_info);
 	alias_free_mem_rcu(fa);

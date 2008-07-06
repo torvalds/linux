@@ -791,7 +791,7 @@ static void rt_cache_invalidate(void)
  * delay < 0  : invalidate cache (fast : entries will be deleted later)
  * delay >= 0 : invalidate & flush cache (can be long)
  */
-void rt_cache_flush(int delay)
+void rt_cache_flush(struct net *net, int delay)
 {
 	rt_cache_invalidate();
 	if (delay >= 0)
@@ -2825,7 +2825,7 @@ done:
 
 void ip_rt_multicast_event(struct in_device *in_dev)
 {
-	rt_cache_flush(0);
+	rt_cache_flush(dev_net(in_dev->dev), 0);
 }
 
 #ifdef CONFIG_SYSCTL
@@ -2837,7 +2837,7 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *ctl, int write,
 {
 	if (write) {
 		proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
-		rt_cache_flush(flush_delay);
+		rt_cache_flush(&init_net, flush_delay);
 		return 0;
 	}
 
@@ -2857,7 +2857,7 @@ static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
 		return -EINVAL;
 	if (get_user(delay, (int __user *)newval))
 		return -EFAULT;
-	rt_cache_flush(delay);
+	rt_cache_flush(&init_net, delay);
 	return 0;
 }
 
