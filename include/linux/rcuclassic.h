@@ -45,7 +45,7 @@
 struct rcu_ctrlblk {
 	long	cur;		/* Current batch number.                      */
 	long	completed;	/* Number of the last completed batch         */
-	int	next_pending;	/* Is the next batch already waiting?         */
+	long	pending;	/* Number of the last pending batch           */
 
 	int	signaled;
 

@@ -60,12 +60,14 @@ EXPORT_SYMBOL_GPL(rcu_lock_map);
 static struct rcu_ctrlblk rcu_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
+	.pending = -300,
 	.lock = __SPIN_LOCK_UNLOCKED(&rcu_ctrlblk.lock),
 	.cpumask = CPU_MASK_NONE,
 };
 static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
+	.pending = -300,
 	.lock = __SPIN_LOCK_UNLOCKED(&rcu_bh_ctrlblk.lock),
 	.cpumask = CPU_MASK_NONE,
 };
@@ -276,14 +278,8 @@ static void rcu_do_batch(struct rcu_data *rdp)
  */
 static void rcu_start_batch(struct rcu_ctrlblk *rcp)
 {
-	if (rcp->next_pending &&
+	if (rcp->cur != rcp->pending &&
 			rcp->completed == rcp->cur) {
-		rcp->next_pending = 0;
-		/*
-		 * next_pending == 0 must be visible in
-		 * __rcu_process_callbacks() before it can see new value of cur.
-		 */
-		smp_wmb();
 		rcp->cur++;
 
 		/*
@@ -441,16 +437,14 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 
 		/* determine batch number */
 		rdp->batch = rcp->cur + 1;
-		/* see the comment and corresponding wmb() in
-		 * the rcu_start_batch()
-		 */
-		smp_rmb();
 
-		if (!rcp->next_pending) {
+		if (rcu_batch_after(rdp->batch, rcp->pending)) {
 			/* and start it/schedule start if it's a new batch */
 			spin_lock(&rcp->lock);
-			rcp->next_pending = 1;
-			rcu_start_batch(rcp);
+			if (rcu_batch_after(rdp->batch, rcp->pending)) {
+				rcp->pending = rdp->batch;
+				rcu_start_batch(rcp);
+			}
 			spin_unlock(&rcp->lock);
 		}
 	}
