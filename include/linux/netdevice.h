@@ -740,6 +740,8 @@ struct net_device
 	struct net_bridge_port	*br_port;
 	/* macvlan */
 	struct macvlan_port	*macvlan_port;
+	/* GARP */
+	struct garp_port	*garp_port;
 
 	/* class/net/name entry */
 	struct device		dev;
