@@ -316,6 +316,110 @@ void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 }
 EXPORT_SYMBOL(qdisc_watchdog_cancel);
 
+struct hlist_head *qdisc_class_hash_alloc(unsigned int n)
+{
+	unsigned int size = n * sizeof(struct hlist_head), i;
+	struct hlist_head *h;
+
+	if (size <= PAGE_SIZE)
+		h = kmalloc(size, GFP_KERNEL);
+	else
+		h = (struct hlist_head *)
+			__get_free_pages(GFP_KERNEL, get_order(size));
+
+	if (h != NULL) {
+		for (i = 0; i < n; i++)
+			INIT_HLIST_HEAD(&h[i]);
+	}
+	return h;
+}
+
+static void qdisc_class_hash_free(struct hlist_head *h, unsigned int n)
+{
+	unsigned int size = n * sizeof(struct hlist_head);
+
+	if (size <= PAGE_SIZE)
+		kfree(h);
+	else
+		free_pages((unsigned long)h, get_order(size));
+}
+
+void qdisc_class_hash_grow(struct Qdisc *sch, struct Qdisc_class_hash *clhash)
+{
+	struct Qdisc_class_common *cl;
+	struct hlist_node *n, *next;
+	struct hlist_head *nhash, *ohash;
+	unsigned int nsize, nmask, osize;
+	unsigned int i, h;
+
+	/* Rehash when load factor exceeds 0.75 */
+	if (clhash->hashelems * 4 <= clhash->hashsize * 3)
+		return;
+	nsize = clhash->hashsize * 2;
+	nmask = nsize - 1;
+	nhash = qdisc_class_hash_alloc(nsize);
+	if (nhash == NULL)
+		return;
+
+	ohash = clhash->hash;
+	osize = clhash->hashsize;
+
+	sch_tree_lock(sch);
+	for (i = 0; i < osize; i++) {
+		hlist_for_each_entry_safe(cl, n, next, &ohash[i], hnode) {
+			h = qdisc_class_hash(cl->classid, nmask);
+			hlist_add_head(&cl->hnode, &nhash[h]);
+		}
+	}
+	clhash->hash     = nhash;
+	clhash->hashsize = nsize;
+	clhash->hashmask = nmask;
+	sch_tree_unlock(sch);
+
+	qdisc_class_hash_free(ohash, osize);
+}
+EXPORT_SYMBOL(qdisc_class_hash_grow);
+
+int qdisc_class_hash_init(struct Qdisc_class_hash *clhash)
+{
+	unsigned int size = 4;
+
+	clhash->hash = qdisc_class_hash_alloc(size);
+	if (clhash->hash == NULL)
+		return -ENOMEM;
+	clhash->hashsize  = size;
+	clhash->hashmask  = size - 1;
+	clhash->hashelems = 0;
+	return 0;
+}
+EXPORT_SYMBOL(qdisc_class_hash_init);
+
+void qdisc_class_hash_destroy(struct Qdisc_class_hash *clhash)
+{
+	qdisc_class_hash_free(clhash->hash, clhash->hashsize);
+}
+EXPORT_SYMBOL(qdisc_class_hash_destroy);
+
+void qdisc_class_hash_insert(struct Qdisc_class_hash *clhash,
+			     struct Qdisc_class_common *cl)
+{
+	unsigned int h;
+
+	INIT_HLIST_NODE(&cl->hnode);
+	h = qdisc_class_hash(cl->classid, clhash->hashmask);
+	hlist_add_head(&cl->hnode, &clhash->hash[h]);
+	clhash->hashelems++;
+}
+EXPORT_SYMBOL(qdisc_class_hash_insert);
+
+void qdisc_class_hash_remove(struct Qdisc_class_hash *clhash,
+			     struct Qdisc_class_common *cl)
+{
+	hlist_del(&cl->hnode);
+	clhash->hashelems--;
+}
+EXPORT_SYMBOL(qdisc_class_hash_remove);
+
 /* Allocate an unique handle from space managed by kernel */
 
 static u32 qdisc_alloc_handle(struct net_device *dev)

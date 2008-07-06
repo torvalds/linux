@@ -167,6 +167,48 @@ extern void qdisc_unlock_tree(struct net_device *dev);
 extern struct Qdisc noop_qdisc;
 extern struct Qdisc_ops noop_qdisc_ops;
 
+struct Qdisc_class_common
+{
+	u32			classid;
+	struct hlist_node	hnode;
+};
+
+struct Qdisc_class_hash
+{
+	struct hlist_head	*hash;
+	unsigned int		hashsize;
+	unsigned int		hashmask;
+	unsigned int		hashelems;
+};
+
+static inline unsigned int qdisc_class_hash(u32 id, u32 mask)
+{
+	id ^= id >> 8;
+	id ^= id >> 4;
+	return id & mask;
+}
+
+static inline struct Qdisc_class_common *
+qdisc_class_find(struct Qdisc_class_hash *hash, u32 id)
+{
+	struct Qdisc_class_common *cl;
+	struct hlist_node *n;
+	unsigned int h;
+
+	h = qdisc_class_hash(id, hash->hashmask);
+	hlist_for_each_entry(cl, n, &hash->hash[h], hnode) {
+		if (cl->classid == id)
+			return cl;
+	}
+	return NULL;
+}
+
+extern int qdisc_class_hash_init(struct Qdisc_class_hash *);
+extern void qdisc_class_hash_insert(struct Qdisc_class_hash *, struct Qdisc_class_common *);
+extern void qdisc_class_hash_remove(struct Qdisc_class_hash *, struct Qdisc_class_common *);
+extern void qdisc_class_hash_grow(struct Qdisc *, struct Qdisc_class_hash *);
+extern void qdisc_class_hash_destroy(struct Qdisc_class_hash *);
+
 extern void dev_init_scheduler(struct net_device *dev);
 extern void dev_shutdown(struct net_device *dev);
 extern void dev_activate(struct net_device *dev);
