@@ -699,6 +699,7 @@ static void rt_do_flush(int process_context)
 {
 	unsigned int i;
 	struct rtable *rth, *next;
+	struct rtable * tail;
 
 	for (i = 0; i <= rt_hash_mask; i++) {
 		if (process_context && need_resched())
@@ -708,11 +709,39 @@ static void rt_do_flush(int process_context)
 			continue;
 
 		spin_lock_bh(rt_hash_lock_addr(i));
+#ifdef CONFIG_NET_NS
+		{
+		struct rtable ** prev, * p;
+
+		rth = rt_hash_table[i].chain;
+
+		/* defer releasing the head of the list after spin_unlock */
+		for (tail = rth; tail; tail = tail->u.dst.rt_next)
+			if (!rt_is_expired(tail))
+				break;
+		if (rth != tail)
+			rt_hash_table[i].chain = tail;
+
+		/* call rt_free on entries after the tail requiring flush */
+		prev = &rt_hash_table[i].chain;
+		for (p = *prev; p; p = next) {
+			next = p->u.dst.rt_next;
+			if (!rt_is_expired(p)) {
+				prev = &p->u.dst.rt_next;
+			} else {
+				*prev = next;
+				rt_free(p);
+			}
+		}
+		}
+#else
 		rth = rt_hash_table[i].chain;
 		rt_hash_table[i].chain = NULL;
+		tail = NULL;
+#endif
 		spin_unlock_bh(rt_hash_lock_addr(i));
 
-		for (; rth; rth = next) {
+		for (; rth != tail; rth = next) {
 			next = rth->u.dst.rt_next;
 			rt_free(rth);
 		}
