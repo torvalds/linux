@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -27,6 +27,8 @@
 
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
+
+extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 
 #define E1000_RAR_ENTRIES_82575   16
 
@@ -56,7 +58,7 @@
 #define E1000_EIMS_RX_QUEUE E1000_EICR_RX_QUEUE
 #define E1000_EIMS_TX_QUEUE E1000_EICR_TX_QUEUE
 
-/* Immediate Interrupt RX (A.K.A. Low Latency Interrupt) */
+/* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
@@ -145,6 +147,6 @@ struct e1000_adv_tx_context_desc {
 
 
 
-#define E1000_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* TX Desc writeback RO bit */
+#define E1000_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */
 
 #endif

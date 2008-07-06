@@ -586,14 +586,10 @@ struct e1000_hw {
 
 #ifdef DEBUG
 extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
-#define hw_dbg(hw, format, arg...) \
+#define hw_dbg(format, arg...) \
 	printk(KERN_DEBUG "%s: " format, igb_get_hw_dev_name(hw), ##arg)
 #else
-static inline int __attribute__ ((format (printf, 2, 3)))
-hw_dbg(struct e1000_hw *hw, const char *format, ...)
-{
-	return 0;
-}
+#define hw_dbg(format, arg...)
 #endif
 
 #endif
