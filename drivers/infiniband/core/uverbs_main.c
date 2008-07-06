@@ -423,7 +423,7 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	unsigned long flags;
 
 	spin_lock_irqsave(&file->async_file->lock, flags);
-	if (!file->async_file->is_closed) {
+	if (file->async_file->is_closed) {
 		spin_unlock_irqrestore(&file->async_file->lock, flags);
 		return;
 	}

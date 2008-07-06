@@ -308,8 +308,7 @@ static void wme_qdiscop_destroy(struct Qdisc* qd)
 	struct ieee80211_hw *hw = &local->hw;
 	int queue;
 
-	tcf_destroy_chain(q->filter_list);
-	q->filter_list = NULL;
+	tcf_destroy_chain(&q->filter_list);
 
 	for (queue = 0; queue < QD_NUM(hw); queue++) {
 		skb_queue_purge(&q->requeued[queue]);

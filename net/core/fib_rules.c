@@ -226,7 +226,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (ops == NULL) {
-		err = EAFNOSUPPORT;
+		err = -EAFNOSUPPORT;
 		goto errout;
 	}
 
@@ -365,7 +365,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	ops = lookup_rules_ops(net, frh->family);
 	if (ops == NULL) {
-		err = EAFNOSUPPORT;
+		err = -EAFNOSUPPORT;
 		goto errout;
 	}
 

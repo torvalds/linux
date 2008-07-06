@@ -996,7 +996,6 @@ do_rest:
 #endif
 		cpu_clear(cpu, cpu_callout_map); /* was set by do_boot_cpu() */
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
-		cpu_clear(cpu, cpu_possible_map);
 		cpu_clear(cpu, cpu_present_map);
 		per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
 	}

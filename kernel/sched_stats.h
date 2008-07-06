@@ -198,6 +198,9 @@ static inline void sched_info_queued(struct task_struct *t)
 /*
  * Called when a process ceases being the active-running process, either
  * voluntarily or involuntarily.  Now we can calculate how long we ran.
+ * Also, if the process is still in the TASK_RUNNING state, call
+ * sched_info_queued() to mark that it has now again started waiting on
+ * the runqueue.
  */
 static inline void sched_info_depart(struct task_struct *t)
 {
@@ -206,6 +209,9 @@ static inline void sched_info_depart(struct task_struct *t)
 
 	t->sched_info.cpu_time += delta;
 	rq_sched_info_depart(task_rq(t), delta);
+
+	if (t->state == TASK_RUNNING)
+		sched_info_queued(t);
 }
 
 /*

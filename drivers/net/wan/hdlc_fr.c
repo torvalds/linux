@@ -992,6 +992,7 @@ static int fr_rx(struct sk_buff *skb)
 		dev->stats.rx_bytes += skb->len;
 		if (pvc->state.becn)
 			dev->stats.rx_compressed++;
+		skb->dev = dev;
 		netif_rx(skb);
 		return NET_RX_SUCCESS;
 	} else {

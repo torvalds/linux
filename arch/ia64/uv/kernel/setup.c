@@ -17,6 +17,9 @@
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
 
+#ifdef CONFIG_IA64_SGI_UV
+int sn_prom_type;
+#endif
 
 struct redir_addr {
 	unsigned long redirect;
@@ -64,6 +67,15 @@ void __init uv_setup(char **cmdline_p)
 		m_n_config.s.m_skt = 37;
 		m_n_config.s.n_skt = 0;
 		mmr_base = 0;
+#if 0
+		/* Need BIOS calls - TDB */
+		if (!ia64_sn_is_fake_prom())
+			sn_prom_type = 1;
+		else
+#endif
+			sn_prom_type = 2;
+		printk(KERN_INFO "Running on medusa with %s PROM\n",
+					(sn_prom_type == 1) ? "real" : "fake");
 	} else {
 		get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
 		node_id.v = uv_read_local_mmr(UVH_NODE_ID);

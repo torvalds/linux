@@ -249,7 +249,6 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 						retval++;
 					}
 				}
-				cond_resched();
 			}
 			if (res_in)
 				*rinp = res_in;
@@ -257,6 +256,7 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 				*routp = res_out;
 			if (res_ex)
 				*rexp = res_ex;
+			cond_resched();
 		}
 		wait = NULL;
 		if (retval || !*timeout || signal_pending(current))

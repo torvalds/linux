@@ -594,7 +594,8 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 }
 
 
-int hostap_80211_header_parse(const struct sk_buff *skb, unsigned char *haddr)
+static int hostap_80211_header_parse(const struct sk_buff *skb,
+				     unsigned char *haddr)
 {
 	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
 	return ETH_ALEN;
@@ -839,7 +840,6 @@ const struct header_ops hostap_80211_ops = {
 	.rebuild	= eth_rebuild_header,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
-
 	.parse		= hostap_80211_header_parse,
 };
 EXPORT_SYMBOL(hostap_80211_ops);
@@ -1132,7 +1132,6 @@ EXPORT_SYMBOL(hostap_set_roaming);
 EXPORT_SYMBOL(hostap_set_auth_algs);
 EXPORT_SYMBOL(hostap_dump_rx_header);
 EXPORT_SYMBOL(hostap_dump_tx_header);
-EXPORT_SYMBOL(hostap_80211_header_parse);
 EXPORT_SYMBOL(hostap_80211_get_hdrlen);
 EXPORT_SYMBOL(hostap_get_stats);
 EXPORT_SYMBOL(hostap_setup_dev);

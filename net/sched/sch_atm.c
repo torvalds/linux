@@ -160,7 +160,7 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	*prev = flow->next;
 	pr_debug("atm_tc_put: qdisc %p\n", flow->q);
 	qdisc_destroy(flow->q);
-	tcf_destroy_chain(flow->filter_list);
+	tcf_destroy_chain(&flow->filter_list);
 	if (flow->sock) {
 		pr_debug("atm_tc_put: f_count %d\n",
 			file_count(flow->sock->file));
@@ -586,10 +586,11 @@ static void atm_tc_destroy(struct Qdisc *sch)
 	struct atm_flow_data *flow;
 
 	pr_debug("atm_tc_destroy(sch %p,[qdisc %p])\n", sch, p);
+	for (flow = p->flows; flow; flow = flow->next)
+		tcf_destroy_chain(&flow->filter_list);
+
 	/* races ? */
 	while ((flow = p->flows)) {
-		tcf_destroy_chain(flow->filter_list);
-		flow->filter_list = NULL;
 		if (flow->ref > 1)
 			printk(KERN_ERR "atm_destroy: %p->ref = %d\n", flow,
 			       flow->ref);

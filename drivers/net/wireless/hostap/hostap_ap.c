@@ -1930,7 +1930,7 @@ static void handle_pspoll(local_info_t *local,
 		PDEBUG(DEBUG_PS, "   PSPOLL and AID[15:14] not set\n");
 		return;
 	}
-	aid &= ~BIT(15) & ~BIT(14);
+	aid &= ~(BIT(15) | BIT(14));
 	if (aid == 0 || aid > MAX_AID_TABLE_SIZE) {
 		PDEBUG(DEBUG_PS, "   invalid aid=%d\n", aid);
 		return;

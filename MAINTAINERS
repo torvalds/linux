@@ -4302,6 +4302,14 @@ L:	netdev@vger.kernel.org
 W:	http://www.linux-usb.org/usbnet
 S:	Maintained
 
+USB VIDEO CLASS
+P:	Laurent Pinchart
+M:	laurent.pinchart@skynet.be
+L:	linx-uvc-devel@berlios.de
+L:	video4linux-list@redhat.com
+W:	http://linux-uvc.berlios.de
+S:	Maintained
+
 USB W996[87]CF DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
@@ -4419,10 +4427,10 @@ M:	johnpol@2ka.mipt.ru
 S:	Maintained
 
 W83791D HARDWARE MONITORING DRIVER
-P:	Charles Spirakis
-M:	bezaur@gmail.com
+P:	Marc Hulsman
+M:	m.hulsman@tudelft.nl
 L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
+S:	Maintained
 
 W83793 HARDWARE MONITORING DRIVER
 P:	Rudolf Marek

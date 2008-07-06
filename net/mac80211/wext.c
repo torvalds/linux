@@ -95,6 +95,13 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 			}
 		}
 
+		if (alg == ALG_WEP &&
+			key_len != LEN_WEP40 && key_len != LEN_WEP104) {
+			ieee80211_key_free(key);
+			err = -EINVAL;
+			goto out_unlock;
+		}
+
 		ieee80211_key_link(key, sdata, sta);
 
 		if (set_tx_key || (!sta && !sdata->default_key && key))
