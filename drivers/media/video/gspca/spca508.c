@@ -53,16 +53,16 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-#define SD_BRIGHTNESS 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Brightness",
 		.minimum = 0,
-		.maximum = 0xff,
+		.maximum = 255,
 		.step    = 1,
-		.default_value = 0x80,
+#define BRIGHTNESS_DEF 128
+		.default_value = BRIGHTNESS_DEF,
 	    },
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
@@ -593,7 +593,7 @@ static const __u16 spca508_init_data[][3] =
 	/* Video drop enable, ISO streaming disable */
 	/* 53252  2165 */
 	     /* UNKNOWN DIRECTION (URB_FUNCTION_SELECT_INTERFACE: (ALT=0) ) */
-	{0, 0}
+	{}
 };
 
 
@@ -764,8 +764,7 @@ static const __u16 spca508_sightcam_init_data[][3] = {
 	/*542  */ {0x0040, 0x8652},
 	/*543  */ {0x004c, 0x8653},
 	/*544  */ {0x0040, 0x8654},
-
-	{0, 0}
+	{}
 };
 
 static const __u16 spca508_sightcam2_init_data[][3] = {
@@ -1485,6 +1484,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	vendor = id->idVendor;
 	product = id->idProduct;
 	switch (vendor) {
+	case 0x0130:		/* Clone webcam */
+/*		switch (product) { */
+/*		case 0x0130: */
+			sd->subtype = HamaUSBSightcam;	/* same as Hama 0010 */
+/*			break; */
+/*		} */
+		break;
 	case 0x041e:		/* Creative cameras */
 /*		switch (product) { */
 /*		case 0x4018: */
@@ -1506,10 +1512,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*			break; */
 /*		} */
 		break;
-	case 0x0130:		/* Clone webcam */
 	case 0x0af9:		/* Hama cameras */
 		switch (product) {
-		case 0x0130:
 		case 0x0010:
 			sd->subtype = HamaUSBSightcam;
 			break;
@@ -1527,30 +1531,27 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	}
 
-	/* Read from global register the USB product and vendor IDs, just to */
-	/* prove that we can communicate with the device.  This works, which */
-	/* confirms at we are communicating properly and that the device */
-	/* is a 508. */
+	/* Read from global register the USB product and vendor IDs, just to
+	 * prove that we can communicate with the device.  This works, which
+	 * confirms at we are communicating properly and that the device
+	 * is a 508. */
 	data1 = reg_read(dev, 0x8104);
 	data2 = reg_read(dev, 0x8105);
-	PDEBUG(D_PROBE,
-		"Read from GLOBAL: USB Vendor ID 0x%02x%02x", data2, data1);
+	PDEBUG(D_PROBE, "Webcam Vendor ID: 0x%02x%02x", data2, data1);
 
 	data1 = reg_read(dev, 0x8106);
 	data2 = reg_read(dev, 0x8107);
-	PDEBUG(D_PROBE,
-		"Read from GLOBAL: USB Product ID 0x%02x%02x", data2, data1);
+	PDEBUG(D_PROBE, "Webcam Product ID: 0x%02x%02x", data2, data1);
 
 	data1 = reg_read(dev, 0x8621);
-	PDEBUG(D_PROBE,
-		"Read from GLOBAL: Window 1 average luminance %d", data1);
+	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
 
 	cam = &gspca_dev->cam;
 	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	cam->cam_mode = sif_mode;
-	cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
-	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
+	cam->nmodes = ARRAY_SIZE(sif_mode);
+	sd->brightness = BRIGHTNESS_DEF;
 
 	switch (sd->subtype) {
 	case ViewQuestVQ110:
@@ -1699,7 +1700,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 brightness = sd->brightness;
 
-/* MX seem contrast */
+	/* MX seem contrast */
 	reg_write(gspca_dev->dev, 0x8651, brightness);
 	reg_write(gspca_dev->dev, 0x8652, brightness);
 	reg_write(gspca_dev->dev, 0x8653, brightness);
@@ -1749,14 +1750,13 @@ static const struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
+	{USB_DEVICE(0x0130, 0x0130), DVNM("Clone Digital Webcam 11043")},
 	{USB_DEVICE(0x041e, 0x4018), DVNM("Creative Webcam Vista (PD1100)")},
 	{USB_DEVICE(0x0461, 0x0815), DVNM("Micro Innovation IC200")},
 	{USB_DEVICE(0x0733, 0x0110), DVNM("ViewQuest VQ110")},
 	{USB_DEVICE(0x0af9, 0x0010), DVNM("Hama USB Sightcam 100")},
 	{USB_DEVICE(0x0af9, 0x0011), DVNM("Hama USB Sightcam 100")},
 	{USB_DEVICE(0x8086, 0x0110), DVNM("Intel Easy PC Camera")},
-	{USB_DEVICE(0x0130, 0x0130),
-		DVNM("Clone Digital Webcam 11043 (spca508a)")},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
