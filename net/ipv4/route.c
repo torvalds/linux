@@ -778,7 +778,7 @@ static void rt_worker_func(struct work_struct *work)
  * many times (2^24) without giving recent rt_genid.
  * Jenkins hash is strong enough that litle changes of rt_genid are OK.
  */
-static void rt_cache_invalidate(void)
+static void rt_cache_invalidate(struct net *net)
 {
 	unsigned char shuffle;
 
@@ -792,7 +792,7 @@ static void rt_cache_invalidate(void)
  */
 void rt_cache_flush(struct net *net, int delay)
 {
-	rt_cache_invalidate();
+	rt_cache_invalidate(net);
 	if (delay >= 0)
 		rt_do_flush(!in_softirq());
 }
@@ -803,7 +803,7 @@ void rt_cache_flush(struct net *net, int delay)
 static void rt_secret_rebuild(unsigned long __net)
 {
 	struct net *net = (struct net *)__net;
-	rt_cache_invalidate();
+	rt_cache_invalidate(net);
 	mod_timer(&net->ipv4.rt_secret_timer, jiffies + ip_rt_secret_interval);
 }
 
