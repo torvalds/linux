@@ -21,6 +21,7 @@
 #include <net/af_rxrpc.h>
 #include <net/ip.h>
 #include <net/udp.h>
+#include <net/net_namespace.h>
 #include "ar-internal.h"
 
 unsigned long rxrpc_ack_timeout = 1;
@@ -708,12 +709,12 @@ void rxrpc_data_ready(struct sock *sk, int count)
 	if (skb_checksum_complete(skb)) {
 		rxrpc_free_skb(skb);
 		rxrpc_put_local(local);
-		UDP_INC_STATS_BH(UDP_MIB_INERRORS, 0);
+		UDP_INC_STATS_BH(&init_net, UDP_MIB_INERRORS, 0);
 		_leave(" [CSUM failed]");
 		return;
 	}
 
-	UDP_INC_STATS_BH(UDP_MIB_INDATAGRAMS, 0);
+	UDP_INC_STATS_BH(&init_net, UDP_MIB_INDATAGRAMS, 0);
 
 	/* the socket buffer we have is owned by UDP, with UDP's data all over
 	 * it, but we really want our own */

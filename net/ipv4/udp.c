@@ -991,7 +991,8 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 
 			ret = (*up->encap_rcv)(sk, skb);
 			if (ret <= 0) {
-				UDP_INC_STATS_BH(UDP_MIB_INDATAGRAMS,
+				UDP_INC_STATS_BH(sock_net(sk),
+						 UDP_MIB_INDATAGRAMS,
 						 is_udplite);
 				return -ret;
 			}
@@ -1044,7 +1045,8 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	if ((rc = sock_queue_rcv_skb(sk,skb)) < 0) {
 		/* Note that an ENOMEM error is charged twice */
 		if (rc == -ENOMEM) {
-			UDP_INC_STATS_BH(UDP_MIB_RCVBUFERRORS, is_udplite);
+			UDP_INC_STATS_BH(sock_net(sk),
+					UDP_MIB_RCVBUFERRORS, is_udplite);
 			atomic_inc(&sk->sk_drops);
 		}
 		goto drop;
@@ -1053,7 +1055,7 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	return 0;
 
 drop:
-	UDP_INC_STATS_BH(UDP_MIB_INERRORS, is_udplite);
+	UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 	kfree_skb(skb);
 	return -1;
 }
@@ -1161,7 +1163,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	struct rtable *rt = (struct rtable*)skb->dst;
 	__be32 saddr = ip_hdr(skb)->saddr;
 	__be32 daddr = ip_hdr(skb)->daddr;
-	struct net *net;
+	struct net *net = dev_net(skb->dev);
 
 	/*
 	 *  Validate the packet.
@@ -1183,7 +1185,6 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (udp4_csum_init(skb, uh, proto))
 		goto csum_error;
 
-	net = dev_net(skb->dev);
 	if (rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST))
 		return __udp4_lib_mcast_deliver(net, skb, uh,
 				saddr, daddr, udptable);
@@ -1217,7 +1218,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (udp_lib_checksum_complete(skb))
 		goto csum_error;
 
-	UDP_INC_STATS_BH(UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
+	UDP_INC_STATS_BH(net, UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
 	/*
@@ -1251,7 +1252,7 @@ csum_error:
 		       ntohs(uh->dest),
 		       ulen);
 drop:
-	UDP_INC_STATS_BH(UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
+	UDP_INC_STATS_BH(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
 	kfree_skb(skb);
 	return 0;
 }
@@ -1458,7 +1459,8 @@ unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		spin_lock_bh(&rcvq->lock);
 		while ((skb = skb_peek(rcvq)) != NULL &&
 		       udp_lib_checksum_complete(skb)) {
-			UDP_INC_STATS_BH(UDP_MIB_INERRORS, is_lite);
+			UDP_INC_STATS_BH(sock_net(sk),
+					UDP_MIB_INERRORS, is_lite);
 			__skb_unlink(skb, rcvq);
 			kfree_skb(skb);
 		}
