@@ -511,7 +511,14 @@ static char *string(char *buf, char *end, char *s, int field_width, int precisio
 	return buf;
 }
 
-static char *pointer(char *buf, char *end, void *ptr, int field_width, int precision, int flags)
+/*
+ * Show a '%p' thing.  A kernel extension is that the '%p' is followed
+ * by an extra set of alphanumeric characters that are extended format
+ * specifiers.
+ *
+ * Right now don't actually handle any such, but we will..
+ */
+static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field_width, int precision, int flags)
 {
 	flags |= SMALL;
 	if (field_width == -1) {
@@ -663,7 +670,12 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				continue;
 
 			case 'p':
-				str = pointer(str, end, va_arg(args, void *), field_width, precision, flags);
+				str = pointer(fmt+1, str, end,
+						va_arg(args, void *),
+						field_width, precision, flags);
+				/* Skip all alphanumeric pointer suffixes */
+				while (isalnum(fmt[1]))
+					fmt++;
 				continue;
 
 			case 'n':
