@@ -1731,7 +1731,7 @@ special_insn:
 		break;
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->arch.halt_request = 1;
-		goto done;
+		break;
 	case 0xf5:	/* cmc */
 		/* complement carry flag from eflags reg */
 		ctxt->eflags ^= EFLG_CF;
