@@ -299,7 +299,8 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	if ((rc = sock_queue_rcv_skb(sk,skb)) < 0) {
 		/* Note that an ENOMEM error is charged twice */
 		if (rc == -ENOMEM) {
-			UDP6_INC_STATS_BH(UDP_MIB_RCVBUFERRORS, is_udplite);
+			UDP6_INC_STATS_BH(sock_net(sk),
+					UDP_MIB_RCVBUFERRORS, is_udplite);
 			atomic_inc(&sk->sk_drops);
 		}
 		goto drop;
@@ -307,7 +308,7 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 
 	return 0;
 drop:
-	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, is_udplite);
+	UDP6_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 	kfree_skb(skb);
 	return -1;
 }
@@ -439,7 +440,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	struct net_device *dev = skb->dev;
 	struct in6_addr *saddr, *daddr;
 	u32 ulen = 0;
-	struct net *net;
+	struct net *net = dev_net(skb->dev);
 
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 		goto short_packet;
@@ -474,7 +475,6 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (udp6_csum_init(skb, uh, proto))
 		goto discard;
 
-	net = dev_net(skb->dev);
 	/*
 	 *	Multicast receive code
 	 */
@@ -497,7 +497,8 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 		if (udp_lib_checksum_complete(skb))
 			goto discard;
-		UDP6_INC_STATS_BH(UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
+		UDP6_INC_STATS_BH(net, UDP_MIB_NOPORTS,
+				proto == IPPROTO_UDPLITE);
 
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0, dev);
 
@@ -522,7 +523,7 @@ short_packet:
 		       ulen, skb->len);
 
 discard:
-	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
+	UDP6_INC_STATS_BH(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
 	kfree_skb(skb);
 	return 0;
 }

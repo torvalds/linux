@@ -165,7 +165,7 @@ DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 	if (is_udplite) SNMP_INC_STATS_BH(udplite_statistics, field);         \
 	else		SNMP_INC_STATS_BH(udp_statistics, field);    }  while(0)
 
-#define UDP6_INC_STATS_BH(field, is_udplite) 			      do  {  \
+#define UDP6_INC_STATS_BH(net, field, is_udplite) 	    do { (void)net;  \
 	if (is_udplite) SNMP_INC_STATS_BH(udplite_stats_in6, field);         \
 	else		SNMP_INC_STATS_BH(udp_stats_in6, field);    } while(0)
 #define UDP6_INC_STATS_USER(net, field, is_udplite)	    do { (void)net;    \
@@ -178,7 +178,7 @@ DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 		if ((sk)->sk_family == AF_INET) \
 			UDP_INC_STATS_BH(sock_net(sk), field, 0); \
 		else \
-			UDP6_INC_STATS_BH(field, 0); \
+			UDP6_INC_STATS_BH(sock_net(sk), field, 0); \
 	} while (0);
 #else
 #define UDPX_INC_STATS_BH(sk, field) UDP_INC_STATS_BH(sock_net(sk), field, 0)
