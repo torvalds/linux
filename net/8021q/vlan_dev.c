@@ -507,18 +507,16 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 }
 
 /* Flags are defined in the vlan_flags enum in include/linux/if_vlan.h file. */
-int vlan_dev_set_vlan_flag(const struct net_device *dev,
-			   u32 flag, short flag_val)
+int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 {
-	/* verify flag is supported */
-	if (flag == VLAN_FLAG_REORDER_HDR) {
-		if (flag_val)
-			vlan_dev_info(dev)->flags |= VLAN_FLAG_REORDER_HDR;
-		else
-			vlan_dev_info(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
-		return 0;
-	}
-	return -EINVAL;
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	u32 old_flags = vlan->flags;
+
+	if (mask & ~VLAN_FLAG_REORDER_HDR)
+		return -EINVAL;
+
+	vlan->flags = (old_flags & ~mask) | (flags & mask);
+	return 0;
 }
 
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)

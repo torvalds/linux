@@ -591,9 +591,9 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		err = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
 			break;
-		err = vlan_dev_set_vlan_flag(dev,
-					     args.u.flag,
-					     args.vlan_qos);
+		err = vlan_dev_change_flags(dev,
+					    args.vlan_qos ? args.u.flag : 0,
+					    args.u.flag);
 		break;
 
 	case SET_VLAN_NAME_TYPE_CMD:
