@@ -1,0 +1,3 @@
+config STP
+	tristate
+	select LLC
