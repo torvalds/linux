@@ -717,8 +717,10 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 			path->connect = 0; /* old connection must be powered down */
 	}
 
-	if (found)
+	if (found) {
 		dapm_power_widgets(widget->codec, SND_SOC_DAPM_STREAM_NOP);
+		dump_dapm(widget->codec, "mux power update");
+	}
 
 	return 0;
 }
@@ -754,8 +756,10 @@ static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 		break;
 	}
 
-	if (found)
+	if (found) {
 		dapm_power_widgets(widget->codec, SND_SOC_DAPM_STREAM_NOP);
+		dump_dapm(widget->codec, "mixer power update");
+	}
 
 	return 0;
 }
@@ -906,7 +910,9 @@ static int snd_soc_dapm_set_pin(struct snd_soc_codec *codec,
  */
 int snd_soc_dapm_sync(struct snd_soc_codec *codec)
 {
-	return dapm_power_widgets(codec, SND_SOC_DAPM_STREAM_NOP);
+	int ret = dapm_power_widgets(codec, SND_SOC_DAPM_STREAM_NOP);
+	dump_dapm(codec, "sync");
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_sync);
 
