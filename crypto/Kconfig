@@ -666,6 +666,15 @@ config CRYPTO_LZO
 	help
 	  This is the LZO algorithm.
 
+comment "Random Number Generation"
+
+config CRYPTO_PRNG
+	tristate "Pseudo Random Number Generation for Cryptographic modules"
+	help
+	  This option enables the generic pseudo random number generator
+	  for cryptographic modules.  Uses the Algorithm specified in
+	  ANSI X9.31 A.2.4
+
 source "drivers/crypto/Kconfig"
 
 endif	# if CRYPTO
