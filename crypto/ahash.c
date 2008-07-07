@@ -13,7 +13,8 @@
  *
  */
 
-#include <crypto/algapi.h>
+#include <crypto/internal/hash.h>
+#include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -22,6 +23,94 @@
 #include <linux/seq_file.h>
 
 #include "internal.h"
+
+static int hash_walk_next(struct crypto_hash_walk *walk)
+{
+	unsigned int alignmask = walk->alignmask;
+	unsigned int offset = walk->offset;
+	unsigned int nbytes = min(walk->entrylen,
+				  ((unsigned int)(PAGE_SIZE)) - offset);
+
+	walk->data = crypto_kmap(walk->pg, 0);
+	walk->data += offset;
+
+	if (offset & alignmask)
+		nbytes = alignmask + 1 - (offset & alignmask);
+
+	walk->entrylen -= nbytes;
+	return nbytes;
+}
+
+static int hash_walk_new_entry(struct crypto_hash_walk *walk)
+{
+	struct scatterlist *sg;
+
+	sg = walk->sg;
+	walk->pg = sg_page(sg);
+	walk->offset = sg->offset;
+	walk->entrylen = sg->length;
+
+	if (walk->entrylen > walk->total)
+		walk->entrylen = walk->total;
+	walk->total -= walk->entrylen;
+
+	return hash_walk_next(walk);
+}
+
+int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
+{
+	unsigned int alignmask = walk->alignmask;
+	unsigned int nbytes = walk->entrylen;
+
+	walk->data -= walk->offset;
+
+	if (nbytes && walk->offset & alignmask && !err) {
+		walk->offset += alignmask - 1;
+		walk->offset = ALIGN(walk->offset, alignmask + 1);
+		walk->data += walk->offset;
+
+		nbytes = min(nbytes,
+			     ((unsigned int)(PAGE_SIZE)) - walk->offset);
+		walk->entrylen -= nbytes;
+
+		return nbytes;
+	}
+
+	crypto_kunmap(walk->data, 0);
+	crypto_yield(walk->flags);
+
+	if (err)
+		return err;
+
+	walk->offset = 0;
+
+	if (nbytes)
+		return hash_walk_next(walk);
+
+	if (!walk->total)
+		return 0;
+
+	walk->sg = scatterwalk_sg_next(walk->sg);
+
+	return hash_walk_new_entry(walk);
+}
+EXPORT_SYMBOL_GPL(crypto_hash_walk_done);
+
+int crypto_hash_walk_first(struct ahash_request *req,
+			   struct crypto_hash_walk *walk)
+{
+	walk->total = req->nbytes;
+
+	if (!walk->total)
+		return 0;
+
+	walk->alignmask = crypto_ahash_alignmask(crypto_ahash_reqtfm(req));
+	walk->sg = req->src;
+	walk->flags = req->base.flags;
+
+	return hash_walk_new_entry(walk);
+}
+EXPORT_SYMBOL_GPL(crypto_hash_walk_first);
 
 static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 				unsigned int keylen)
