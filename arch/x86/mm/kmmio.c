@@ -6,6 +6,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/rculist.h>
 #include <linux/spinlock.h>
 #include <linux/hash.h>
 #include <linux/init.h>
