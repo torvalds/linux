@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
+#include <linux/dm9000.h>
 #include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
@@ -127,6 +128,40 @@ static struct s3c2410_platform_nand at2440evb_nand_info = {
 	.sets		= at2440evb_nand_sets,
 };
 
+/* DM9000AEP 10/100 ethernet controller */
+
+static struct resource at2440evb_dm9k_resource[] = {
+	[0] = {
+		.start = S3C2410_CS3,
+		.end   = S3C2410_CS3 + 3,
+		.flags = IORESOURCE_MEM
+	},
+	[1] = {
+		.start = S3C2410_CS3 + 4,
+		.end   = S3C2410_CS3 + 7,
+		.flags = IORESOURCE_MEM
+	},
+	[2] = {
+		.start = IRQ_EINT7,
+		.end   = IRQ_EINT7,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	}
+};
+
+static struct dm9000_plat_data at2440evb_dm9k_pdata = {
+	.flags		= (DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM),
+};
+
+static struct platform_device at2440evb_device_eth = {
+	.name		= "dm9000",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(at2440evb_dm9k_resource),
+	.resource	= at2440evb_dm9k_resource,
+	.dev		= {
+		.platform_data	= &at2440evb_dm9k_pdata,
+	},
+};
+
 static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
@@ -134,6 +169,7 @@ static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_i2c,
 	&s3c_device_rtc,
 	&s3c_device_nand,
+	&at2440evb_device_eth,
 };
 
 static void __init at2440evb_map_io(void)
