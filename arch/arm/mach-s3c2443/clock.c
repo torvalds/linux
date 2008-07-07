@@ -678,6 +678,29 @@ static struct clk clk_display = {
 	.round_rate	= s3c2443_roundrate_clksrc256,
 };
 
+/* prediv
+ *
+ * this divides the msysclk down to pass to h/p/etc.
+ */
+
+static unsigned long s3c2443_prediv_getrate(struct clk *clk)
+{
+	unsigned long rate = clk_get_rate(clk->parent);
+	unsigned long clkdiv0 = __raw_readl(S3C2443_CLKDIV0);
+
+	clkdiv0 &= S3C2443_CLKDIV0_PREDIV_MASK;
+	clkdiv0 >>= S3C2443_CLKDIV0_PREDIV_SHIFT;
+
+	return rate / (clkdiv0 + 1);
+}
+
+static struct clk clk_prediv = {
+	.name		= "prediv",
+	.id		= -1,
+	.parent		= &clk_msysclk,
+	.get_rate	= s3c2443_prediv_getrate,
+};
+
 /* standard clock definitions */
 
 static struct clk init_clocks_disable[] = {
@@ -957,10 +980,9 @@ static inline unsigned int s3c2443_fclk_div(unsigned long clkcon0)
 	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
 }
 
-static inline unsigned long s3c2443_get_prediv(unsigned long clkcon0)
+static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
 {
-	clkcon0 &= S3C2443_CLKDIV0_PREDIV_MASK;
-	clkcon0 >>= S3C2443_CLKDIV0_PREDIV_SHIFT;
+	clkcon0 &= S3C2443_CLKDIV0_HCLKDIV_MASK;
 
 	return clkcon0 + 1;
 }
@@ -986,6 +1008,7 @@ static struct clk *clks[] __initdata = {
 	&clk_hsmmc,
 	&clk_armdiv,
 	&clk_arm,
+	&clk_prediv,
 };
 
 void __init s3c2443_init_clocks(int xtal)
@@ -1001,14 +1024,18 @@ void __init s3c2443_init_clocks(int xtal)
 	int ret;
 	int ptr;
 
+	/* s3c2443 parents h and p clocks from prediv */
+	clk_h.parent = &clk_prediv;
+	clk_p.parent = &clk_prediv;
+
 	pll = s3c2443_get_mpll(mpllcon, xtal);
+	clk_msysclk.rate = pll;
 
 	fclk = pll / s3c2443_fclk_div(clkdiv0);
-	hclk = fclk / s3c2443_get_prediv(clkdiv0);
+	hclk = s3c2443_prediv_getrate(&clk_prediv);
+	hclk = hclk / s3c2443_get_hdiv(clkdiv0);
 	hclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_HCLK) ? 2 : 1);
  	pclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 2 : 1);
-
-	clk_armdiv.rate = fclk;
 
 	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
 
