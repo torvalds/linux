@@ -234,6 +234,8 @@ struct thread_struct {
 #define thread_saved_pc(tsk)    \
         ((tsk)->thread.regs? (tsk)->thread.regs->nip: 0)
 
+#define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.regs)
+
 unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)  ((tsk)->thread.regs? (tsk)->thread.regs->nip: 0)
