@@ -40,7 +40,7 @@ struct sched_clock_data {
 	 */
 	raw_spinlock_t		lock;
 
-	unsigned long		prev_jiffies;
+	unsigned long		tick_jiffies;
 	u64			prev_raw;
 	u64			tick_raw;
 	u64			tick_gtod;
@@ -71,7 +71,7 @@ void sched_clock_init(void)
 		struct sched_clock_data *scd = cpu_sdc(cpu);
 
 		scd->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
-		scd->prev_jiffies = now_jiffies;
+		scd->tick_jiffies = now_jiffies;
 		scd->prev_raw = 0;
 		scd->tick_raw = 0;
 		scd->tick_gtod = ktime_now;
@@ -90,7 +90,7 @@ void sched_clock_init(void)
 static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 {
 	unsigned long now_jiffies = jiffies;
-	long delta_jiffies = now_jiffies - scd->prev_jiffies;
+	long delta_jiffies = now_jiffies - scd->tick_jiffies;
 	u64 clock = scd->clock;
 	u64 min_clock, max_clock;
 	s64 delta = now - scd->prev_raw;
@@ -119,7 +119,6 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 		clock = min_clock;
 
 	scd->prev_raw = now;
-	scd->prev_jiffies = now_jiffies;
 	scd->clock = clock;
 }
 
@@ -179,6 +178,7 @@ u64 sched_clock_cpu(int cpu)
 void sched_clock_tick(void)
 {
 	struct sched_clock_data *scd = this_scd();
+	unsigned long now_jiffies = jiffies;
 	u64 now, now_gtod;
 
 	if (unlikely(!sched_clock_running))
@@ -196,6 +196,7 @@ void sched_clock_tick(void)
 	 * already observe 1 new jiffy; adding a new tick_gtod to that would
 	 * increase the clock 2 jiffies.
 	 */
+	scd->tick_jiffies = now_jiffies;
 	scd->tick_raw = now;
 	scd->tick_gtod = now_gtod;
 	__raw_spin_unlock(&scd->lock);
