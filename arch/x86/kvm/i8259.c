@@ -30,6 +30,11 @@
 
 #include <linux/kvm_host.h>
 
+static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
+{
+	s->isr &= ~(1 << irq);
+}
+
 /*
  * set irq level. If an edge is detected, then the IRR is set to 1
  */
@@ -141,11 +146,12 @@ void kvm_pic_set_irq(void *opaque, int irq, int level)
  */
 static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 {
+	s->isr |= 1 << irq;
 	if (s->auto_eoi) {
 		if (s->rotate_on_auto_eoi)
 			s->priority_add = (irq + 1) & 7;
-	} else
-		s->isr |= (1 << irq);
+		pic_clear_isr(s, irq);
+	}
 	/*
 	 * We don't clear a level sensitive interrupt here
 	 */
@@ -243,7 +249,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				priority = get_priority(s, s->isr);
 				if (priority != 8) {
 					irq = (priority + s->priority_add) & 7;
-					s->isr &= ~(1 << irq);
+					pic_clear_isr(s, irq);
 					if (cmd == 5)
 						s->priority_add = (irq + 1) & 7;
 					pic_update_irq(s->pics_state);
@@ -251,7 +257,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				break;
 			case 3:
 				irq = val & 7;
-				s->isr &= ~(1 << irq);
+				pic_clear_isr(s, irq);
 				pic_update_irq(s->pics_state);
 				break;
 			case 6:
@@ -260,8 +266,8 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				break;
 			case 7:
 				irq = val & 7;
-				s->isr &= ~(1 << irq);
 				s->priority_add = (irq + 1) & 7;
+				pic_clear_isr(s, irq);
 				pic_update_irq(s->pics_state);
 				break;
 			default:
@@ -303,7 +309,7 @@ static u32 pic_poll_read(struct kvm_kpic_state *s, u32 addr1)
 			s->pics_state->pics[0].irr &= ~(1 << 2);
 		}
 		s->irr &= ~(1 << ret);
-		s->isr &= ~(1 << ret);
+		pic_clear_isr(s, ret);
 		if (addr1 >> 7 || ret != 2)
 			pic_update_irq(s->pics_state);
 	} else {
