@@ -365,18 +365,16 @@ void rpcb_getport_async(struct rpc_task *task)
 	rpc_release_client(rpcb_clnt);
 	if (IS_ERR(child)) {
 		status = -EIO;
+		/* rpcb_map_release() has freed the arguments */
 		dprintk("RPC: %5u %s: rpc_run_task failed\n",
 			task->tk_pid, __func__);
-		goto bailout;
+		goto bailout_nofree;
 	}
 	rpc_put_task(child);
 
 	task->tk_xprt->stat.bind_count++;
 	return;
 
-bailout:
-	kfree(map);
-	xprt_put(xprt);
 bailout_nofree:
 	rpcb_wake_rpcbind_waiters(xprt, status);
 bailout_nowake:
