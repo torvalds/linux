@@ -137,6 +137,50 @@ static struct i2c_board_info __initdata mv2120_i2c_rtc = {
 	.irq	= 0,
 };
 
+static struct gpio_led mv2120_led_pins[] = {
+	{
+		.name			= "mv2120:blue:health",
+		.gpio			= 0,
+	},
+	{
+		.name			= "mv2120:red:health",
+		.gpio			= 1,
+	},
+	{
+		.name			= "mv2120:led:bright",
+		.gpio			= 4,
+		.default_trigger	= "default-on",
+	},
+	{
+		.name			= "mv2120:led:dimmed",
+		.gpio			= 5,
+	},
+	{
+		.name			= "mv2120:red:sata0",
+		.gpio			= 8,
+		.active_low		= 1,
+	},
+	{
+		.name			= "mv2120:red:sata1",
+		.gpio			= 9,
+		.active_low		= 1,
+	},
+
+};
+
+static struct gpio_led_platform_data mv2120_led_data = {
+	.leds		= mv2120_led_pins,
+	.num_leds	= ARRAY_SIZE(mv2120_led_pins),
+};
+
+static struct platform_device mv2120_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &mv2120_led_data,
+	}
+};
+
 static void mv2120_power_off(void)
 {
 	pr_info("%s: triggering power-off...\n", __func__);
@@ -172,6 +216,7 @@ static void __init mv2120_init(void)
 			gpio_free(MV2120_GPIO_RTC_IRQ);
 	}
 	i2c_register_board_info(0, &mv2120_i2c_rtc, 1);
+	platform_device_register(&mv2120_leds);
 
 	/* register mv2120 specific power-off method */
 	if (gpio_request(MV2120_GPIO_POWER_OFF, "POWEROFF") != 0 ||
