@@ -942,11 +942,9 @@ call_bind_status(struct rpc_task *task)
 	}
 
 	switch (task->tk_status) {
-	case -EAGAIN:
-		dprintk("RPC: %5u rpcbind waiting for another request "
-				"to finish\n", task->tk_pid);
-		/* avoid busy-waiting here -- could be a network outage. */
-		rpc_delay(task, 5*HZ);
+	case -ENOMEM:
+		dprintk("RPC: %5u rpcbind out of memory\n", task->tk_pid);
+		rpc_delay(task, HZ >> 2);
 		goto retry_timeout;
 	case -EACCES:
 		dprintk("RPC: %5u remote rpcbind: RPC program/version "
