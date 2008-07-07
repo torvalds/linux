@@ -45,13 +45,10 @@
 #include <sound/initval.h>
 
 /* debug */
-#define DAPM_DEBUG 0
-#if DAPM_DEBUG
+#ifdef DEBUG
 #define dump_dapm(codec, action) dbg_dump_dapm(codec, action)
-#define dbg(format, arg...) printk(format, ## arg)
 #else
 #define dump_dapm(codec, action)
-#define dbg(format, arg...)
 #endif
 
 /* dapm power sequences - make this per codec in the future */
@@ -233,7 +230,8 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 		snd_soc_write(codec, widget->reg, new);
 		pop_wait();
 	}
-	dbg("reg %x old %x new %x change %d\n", widget->reg, old, new, change);
+	pr_debug("reg %x old %x new %x change %d\n", widget->reg,
+		 old, new, change);
 	return change;
 }
 
@@ -591,8 +589,8 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 			/* call any power change event handlers */
 			if (power_change) {
 				if (w->event) {
-					dbg("power %s event for %s flags %x\n",
-						w->power ? "on" : "off", w->name, w->event_flags);
+					pr_debug("power %s event for %s flags %x\n",
+						 w->power ? "on" : "off", w->name, w->event_flags);
 					if (power) {
 						/* power up event */
 						if (w->event_flags & SND_SOC_DAPM_PRE_PMU) {
@@ -634,7 +632,7 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 	return ret;
 }
 
-#if DAPM_DEBUG
+#ifdef DEBUG
 static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 {
 	struct snd_soc_dapm_widget *w;
@@ -887,13 +885,13 @@ static int snd_soc_dapm_set_pin(struct snd_soc_codec *codec,
 
 	list_for_each_entry(w, &codec->dapm_widgets, list) {
 		if (!strcmp(w->name, pin)) {
-			dbg("dapm: %s: pin %s\n", codec->name, pin);
+			pr_debug("dapm: %s: pin %s\n", codec->name, pin);
 			w->connected = status;
 			return 0;
 		}
 	}
 
-	dbg("dapm: %s: configuring unknown pin %s\n", codec->name, pin);
+	pr_err("dapm: %s: configuring unknown pin %s\n", codec->name, pin);
 	return -EINVAL;
 }
 
@@ -1397,8 +1395,8 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 	{
 		if (!w->sname)
 			continue;
-		dbg("widget %s\n %s stream %s event %d\n", w->name, w->sname,
-			stream, event);
+		pr_debug("widget %s\n %s stream %s event %d\n",
+			 w->name, w->sname, stream, event);
 		if (strstr(w->sname, stream)) {
 			switch(event) {
 			case SND_SOC_DAPM_STREAM_START:
