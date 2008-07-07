@@ -587,6 +587,7 @@ static void run_queue(struct gfs2_glock *gl, const int nonblock)
 		if (nonblock)
 			goto out_sched;
 		set_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
+		GLOCK_BUG_ON(gl, gl->gl_demote_state == LM_ST_EXCLUSIVE);
 		gl->gl_target = gl->gl_demote_state;
 	} else {
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
@@ -617,7 +618,9 @@ static void glock_work_func(struct work_struct *work)
 	if (test_and_clear_bit(GLF_REPLY_PENDING, &gl->gl_flags))
 		finish_xmote(gl, gl->gl_reply);
 	spin_lock(&gl->gl_spin);
-	if (test_and_clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags)) {
+	if (test_and_clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
+	    gl->gl_state != LM_ST_UNLOCKED &&
+	    gl->gl_demote_state != LM_ST_EXCLUSIVE) {
 		unsigned long holdtime, now = jiffies;
 		holdtime = gl->gl_tchange + gl->gl_ops->go_min_hold_time;
 		if (time_before(now, holdtime))
