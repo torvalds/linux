@@ -6,9 +6,6 @@
 #include <linux/string.h>
 #include "power.h"
 
-int (*platform_enable_wakeup)(struct device *dev, int is_on);
-
-
 /*
  *	wakeup - Report/change current wakeup option for device
  *

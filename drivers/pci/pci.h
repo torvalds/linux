@@ -17,6 +17,11 @@ extern void pci_cleanup_rom(struct pci_dev *dev);
  *                 platform; to be used during system-wide transitions from a
  *                 sleeping state to the working state and vice versa
  *
+ * @can_wakeup - returns 'true' if given device is capable of waking up the
+ *               system from a sleeping state
+ *
+ * @sleep_wake - enables/disables the system wake up capability of given device
+ *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
  */
@@ -24,9 +29,12 @@ struct pci_platform_pm_ops {
 	bool (*is_manageable)(struct pci_dev *dev);
 	int (*set_state)(struct pci_dev *dev, pci_power_t state);
 	pci_power_t (*choose_state)(struct pci_dev *dev);
+	bool (*can_wakeup)(struct pci_dev *dev);
+	int (*sleep_wake)(struct pci_dev *dev, bool enable);
 };
 
 extern int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
+extern void pci_pm_init(struct pci_dev *dev);
 
 extern int pci_user_read_config_byte(struct pci_dev *dev, int where, u8 *val);
 extern int pci_user_read_config_word(struct pci_dev *dev, int where, u16 *val);

@@ -166,6 +166,8 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 				"firmware_node");
 		ret = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
 				"physical_node");
+		if (acpi_dev->wakeup.flags.valid)
+			device_set_wakeup_capable(dev, true);
 	}
 
 	return 0;

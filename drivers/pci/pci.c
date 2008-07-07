@@ -380,7 +380,8 @@ static struct pci_platform_pm_ops *pci_platform_pm;
 
 int pci_set_platform_pm(struct pci_platform_pm_ops *ops)
 {
-	if (!ops->is_manageable || !ops->set_state || !ops->choose_state)
+	if (!ops->is_manageable || !ops->set_state || !ops->choose_state
+	    || !ops->sleep_wake || !ops->can_wakeup)
 		return -EINVAL;
 	pci_platform_pm = ops;
 	return 0;
@@ -401,6 +402,17 @@ static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 {
 	return pci_platform_pm ?
 			pci_platform_pm->choose_state(dev) : PCI_POWER_ERROR;
+}
+
+static inline bool platform_pci_can_wakeup(struct pci_dev *dev)
+{
+	return pci_platform_pm ? pci_platform_pm->can_wakeup(dev) : false;
+}
+
+static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
+{
+	return pci_platform_pm ?
+			pci_platform_pm->sleep_wake(dev, enable) : -ENODEV;
 }
 
 /**
@@ -1036,6 +1048,56 @@ int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
 }
 
 /**
+ * pci_pme_capable - check the capability of PCI device to generate PME#
+ * @dev: PCI device to handle.
+ * @pm: PCI PM capability offset of the device.
+ * @state: PCI state from which device will issue PME#.
+ */
+static bool pci_pme_capable(struct pci_dev *dev, int pm, pci_power_t state)
+{
+	u16 pmc;
+
+	if (!pm)
+		return false;
+
+	/* Check device's ability to generate PME# from given state */
+	pci_read_config_word(dev, pm + PCI_PM_PMC, &pmc);
+
+	pmc &= PCI_PM_CAP_PME_MASK;
+	pmc >>= ffs(PCI_PM_CAP_PME_MASK) - 1;   /* First bit of mask */
+
+	return !!(pmc & (1 << state));
+}
+
+/**
+ * pci_pme_active - enable or disable PCI device's PME# function
+ * @dev: PCI device to handle.
+ * @pm: PCI PM capability offset of the device.
+ * @enable: 'true' to enable PME# generation; 'false' to disable it.
+ *
+ * The caller must verify that the device is capable of generating PME# before
+ * calling this function with @enable equal to 'true'.
+ */
+static void pci_pme_active(struct pci_dev *dev, int pm, bool enable)
+{
+	u16 pmcsr;
+
+	if (!pm)
+		return;
+
+	pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
+	/* Clear PME_Status by writing 1 to it and enable PME# */
+	pmcsr |= PCI_PM_CTRL_PME_STATUS | PCI_PM_CTRL_PME_ENABLE;
+	if (!enable)
+		pmcsr &= ~PCI_PM_CTRL_PME_ENABLE;
+
+	pci_write_config_word(dev, pm + PCI_PM_CTRL, pmcsr);
+
+	dev_printk(KERN_INFO, &dev->dev, "PME# %s\n",
+			enable ? "enabled" : "disabled");
+}
+
+/**
  * pci_enable_wake - enable PCI device as wakeup event source
  * @dev: PCI device affected
  * @state: PCI state from which device will issue wakeup events
@@ -1046,66 +1108,83 @@ int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
  * called automatically by this routine.
  *
  * Devices with legacy power management (no standard PCI PM capabilities)
- * always require such platform hooks.  Depending on the platform, devices
- * supporting the standard PCI PME# signal may require such platform hooks;
- * they always update bits in config space to allow PME# generation.
+ * always require such platform hooks.
  *
- * -EIO is returned if the device can't ever be a wakeup event source.
- * -EINVAL is returned if the device can't generate wakeup events from
- * the specified PCI state.  Returns zero if the operation is successful.
+ * RETURN VALUE:
+ * 0 is returned on success
+ * -EINVAL is returned if device is not supposed to wake up the system
+ * Error code depending on the platform is returned if both the platform and
+ * the native mechanism fail to enable the generation of wake-up events
  */
 int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 {
 	int pm;
-	int status;
-	u16 value;
+	int error = 0;
+	bool pme_done = false;
 
-	/* Note that drivers should verify device_may_wakeup(&dev->dev)
-	 * before calling this function.  Platform code should report
-	 * errors when drivers try to enable wakeup on devices that
-	 * can't issue wakeups, or on which wakeups were disabled by
-	 * userspace updating the /sys/devices.../power/wakeup file.
+	if (!device_may_wakeup(&dev->dev))
+		return -EINVAL;
+
+	/*
+	 * According to "PCI System Architecture" 4th ed. by Tom Shanley & Don
+	 * Anderson we should be doing PME# wake enable followed by ACPI wake
+	 * enable.  To disable wake-up we call the platform first, for symmetry.
 	 */
 
-	status = call_platform_enable_wakeup(&dev->dev, enable);
+	if (!enable && platform_pci_can_wakeup(dev))
+		error = platform_pci_sleep_wake(dev, false);
+
+	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
+	if (!enable || pci_pme_capable(dev, pm, state)) {
+		pci_pme_active(dev, pm, enable);
+		pme_done = true;
+	}
+
+	if (enable && platform_pci_can_wakeup(dev))
+		error = platform_pci_sleep_wake(dev, true);
+
+	return pme_done ? 0 : error;
+}
+
+/**
+ * pci_pm_init - Initialize PM functions of given PCI device
+ * @dev: PCI device to handle.
+ */
+void pci_pm_init(struct pci_dev *dev)
+{
+	int pm;
+	u16 pmc;
 
 	/* find PCI PM capability in list */
 	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-
-	/* If device doesn't support PM Capabilities, but caller wants to
-	 * disable wake events, it's a NOP.  Otherwise fail unless the
-	 * platform hooks handled this legacy device already.
-	 */
 	if (!pm)
-		return enable ? status : 0;
-
+		return;
 	/* Check device's ability to generate PME# */
-	pci_read_config_word(dev,pm+PCI_PM_PMC,&value);
+	pci_read_config_word(dev, pm + PCI_PM_PMC, &pmc);
 
-	value &= PCI_PM_CAP_PME_MASK;
-	value >>= ffs(PCI_PM_CAP_PME_MASK) - 1;   /* First bit of mask */
-
-	/* Check if it can generate PME# from requested state. */
-	if (!value || !(value & (1 << state))) {
-		/* if it can't, revert what the platform hook changed,
-		 * always reporting the base "EINVAL, can't PME#" error
-		 */
-		if (enable)
-			call_platform_enable_wakeup(&dev->dev, 0);
-		return enable ? -EINVAL : 0;
+	if ((pmc & PCI_PM_CAP_VER_MASK) > 3) {
+		dev_err(&dev->dev, "unsupported PM cap regs version (%u)\n",
+			pmc & PCI_PM_CAP_VER_MASK);
+		return;
 	}
 
-	pci_read_config_word(dev, pm + PCI_PM_CTRL, &value);
-
-	/* Clear PME_Status by writing 1 to it and enable PME# */
-	value |= PCI_PM_CTRL_PME_STATUS | PCI_PM_CTRL_PME_ENABLE;
-
-	if (!enable)
-		value &= ~PCI_PM_CTRL_PME_ENABLE;
-
-	pci_write_config_word(dev, pm + PCI_PM_CTRL, value);
-
-	return 0;
+	if (pmc & PCI_PM_CAP_PME_MASK) {
+		dev_printk(KERN_INFO, &dev->dev,
+			"PME# supported from%s%s%s%s%s\n",
+			(pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
+			(pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
+			(pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
+			(pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
+			(pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
+		/*
+		 * Make device's PM flags reflect the wake-up capability, but
+		 * let the user space enable it to wake up the system as needed.
+		 */
+		device_set_wakeup_capable(&dev->dev, true);
+		device_set_wakeup_enable(&dev->dev, false);
+		/* Disable the PME# generation functionality */
+		pci_pme_active(dev, pm, false);
+	}
 }
 
 int

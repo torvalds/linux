@@ -468,6 +468,31 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
 		*d_min_p = d_min;
 	return d_max;
 }
+
+/**
+ *	acpi_pm_device_sleep_wake - enable or disable the system wake-up
+ *                                  capability of given device
+ *	@dev: device to handle
+ *	@enable: 'true' - enable, 'false' - disable the wake-up capability
+ */
+int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
+{
+	acpi_handle handle;
+	struct acpi_device *adev;
+
+	if (!device_may_wakeup(dev))
+		return -EINVAL;
+
+	handle = DEVICE_ACPI_HANDLE(dev);
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+		printk(KERN_DEBUG "ACPI handle has no context!\n");
+		return -ENODEV;
+	}
+
+	return enable ?
+		acpi_enable_wakeup_device_power(adev, acpi_target_sleep_state) :
+		acpi_disable_wakeup_device_power(adev);
+}
 #endif
 
 static void acpi_power_off_prepare(void)

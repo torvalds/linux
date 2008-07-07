@@ -299,10 +299,30 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return error;
 }
 
+static bool acpi_pci_can_wakeup(struct pci_dev *dev)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+
+	return handle ? acpi_bus_can_wakeup(handle) : false;
+}
+
+static int acpi_pci_sleep_wake(struct pci_dev *dev, bool enable)
+{
+	int error = acpi_pm_device_sleep_wake(&dev->dev, enable);
+
+	if (!error)
+		dev_printk(KERN_INFO, &dev->dev,
+				"wake-up capability %s by ACPI\n",
+				enable ? "enabled" : "disabled");
+	return error;
+}
+
 static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.choose_state = acpi_pci_choose_state,
+	.can_wakeup = acpi_pci_can_wakeup,
+	.sleep_wake = acpi_pci_sleep_wake,
 };
 
 /* ACPI bus type */
