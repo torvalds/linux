@@ -17,7 +17,9 @@
 #include <linux/types.h>
 
 #include <linux/delay.h>
+#include <linux/gpio_keys.h>
 #include <linux/init.h>
+#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
@@ -98,6 +100,70 @@ static struct s3c2410_udc_mach_info n30_udc_cfg __initdata = {
 	.vbus_pin_inverted	= 0,
 };
 
+static struct gpio_keys_button n30_buttons[] = {
+	{
+		.gpio		= S3C2410_GPF0,
+		.code		= KEY_POWER,
+		.desc		= "Power",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG9,
+		.code		= KEY_UP,
+		.desc		= "Thumbwheel Up",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG8,
+		.code		= KEY_DOWN,
+		.desc		= "Thumbwheel Down",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG7,
+		.code		= KEY_ENTER,
+		.desc		= "Thumbwheel Press",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF7,
+		.code		= KEY_HOMEPAGE,
+		.desc		= "Home",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF6,
+		.code		= KEY_CALENDAR,
+		.desc		= "Calendar",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF5,
+		.code		= KEY_ADDRESSBOOK,
+		.desc		= "Contacts",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF4,
+		.code		= KEY_MAIL,
+		.desc		= "Mail",
+		.active_low	= 0,
+	},
+};
+
+static struct gpio_keys_platform_data n30_button_data = {
+	.buttons	= n30_buttons,
+	.nbuttons	= ARRAY_SIZE(n30_buttons),
+};
+
+static struct platform_device n30_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &n30_button_data,
+	}
+};
+
 static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -105,6 +171,7 @@ static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_iis,
 	&s3c_device_usb,
 	&s3c_device_usbgadget,
+	&n30_button_device,
 };
 
 static struct s3c2410_platform_i2c n30_i2ccfg = {
