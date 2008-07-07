@@ -880,8 +880,25 @@ static void dapm_free_widgets(struct snd_soc_codec *codec)
 	}
 }
 
+static int snd_soc_dapm_set_pin(struct snd_soc_codec *codec,
+	char *pin, int status)
+{
+	struct snd_soc_dapm_widget *w;
+
+	list_for_each_entry(w, &codec->dapm_widgets, list) {
+		if (!strcmp(w->name, pin)) {
+			dbg("dapm: %s: pin %s\n", codec->name, pin);
+			w->connected = status;
+			return 0;
+		}
+	}
+
+	dbg("dapm: %s: configuring unknown pin %s\n", codec->name, pin);
+	return -EINVAL;
+}
+
 /**
- * snd_soc_dapm_sync_endpoints - scan and power dapm paths
+ * snd_soc_dapm_sync - scan and power dapm paths
  * @codec: audio codec
  *
  * Walks all dapm audio paths and powers widgets according to their
@@ -889,11 +906,11 @@ static void dapm_free_widgets(struct snd_soc_codec *codec)
  *
  * Returns 0 for success.
  */
-int snd_soc_dapm_sync_endpoints(struct snd_soc_codec *codec)
+int snd_soc_dapm_sync(struct snd_soc_codec *codec)
 {
 	return dapm_power_widgets(codec, SND_SOC_DAPM_STREAM_NOP);
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_sync_endpoints);
+EXPORT_SYMBOL_GPL(snd_soc_dapm_sync);
 
 static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 	const char *sink, const char *control, const char *source)
@@ -1441,53 +1458,57 @@ int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 }
 
 /**
- * snd_soc_dapm_set_endpoint - set audio endpoint status
- * @codec: audio codec
- * @endpoint: audio signal endpoint (or start point)
- * @status: point status
+ * snd_soc_dapm_enable_pin - enable pin.
+ * @snd_soc_codec: SoC codec
+ * @pin: pin name
  *
- * Set audio endpoint status - connected or disconnected.
- *
- * Returns 0 for success else error.
+ * Enables input/output pin and it's parents or children widgets iff there is
+ * a valid audio route and active audio stream.
+ * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
+ * do any widget power switching.
  */
-int snd_soc_dapm_set_endpoint(struct snd_soc_codec *codec,
-	char *endpoint, int status)
+int snd_soc_dapm_enable_pin(struct snd_soc_codec *codec, char *pin)
 {
-	struct snd_soc_dapm_widget *w;
-
-	list_for_each_entry(w, &codec->dapm_widgets, list) {
-		if (!strcmp(w->name, endpoint)) {
-			w->connected = status;
-			return 0;
-		}
-	}
-
-	return -ENODEV;
+	return snd_soc_dapm_set_pin(codec, pin, 1);
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_set_endpoint);
+EXPORT_SYMBOL_GPL(snd_soc_dapm_enable_pin);
 
 /**
- * snd_soc_dapm_get_endpoint_status - get audio endpoint status
- * @codec: audio codec
- * @endpoint: audio signal endpoint (or start point)
+ * snd_soc_dapm_disable_pin - disable pin.
+ * @codec: SoC codec
+ * @pin: pin name
  *
- * Get audio endpoint status - connected or disconnected.
- *
- * Returns status
+ * Disables input/output pin and it's parents or children widgets.
+ * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
+ * do any widget power switching.
  */
-int snd_soc_dapm_get_endpoint_status(struct snd_soc_codec *codec,
-	char *endpoint)
+int snd_soc_dapm_disable_pin(struct snd_soc_codec *codec, char *pin)
+{
+	return snd_soc_dapm_set_pin(codec, pin, 0);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_disable_pin);
+
+/**
+ * snd_soc_dapm_get_pin_status - get audio pin status
+ * @codec: audio codec
+ * @pin: audio signal pin endpoint (or start point)
+ *
+ * Get audio pin status - connected or disconnected.
+ *
+ * Returns 1 for connected otherwise 0.
+ */
+int snd_soc_dapm_get_pin_status(struct snd_soc_codec *codec, char *pin)
 {
 	struct snd_soc_dapm_widget *w;
 
 	list_for_each_entry(w, &codec->dapm_widgets, list) {
-		if (!strcmp(w->name, endpoint))
+		if (!strcmp(w->name, pin))
 			return w->connected;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_get_endpoint_status);
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_status);
 
 /**
  * snd_soc_dapm_free - free dapm resources

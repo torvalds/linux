@@ -50,47 +50,51 @@ static int corgi_spk_func;
 
 static void corgi_ext_control(struct snd_soc_codec *codec)
 {
-	int spk = 0, mic = 0, line = 0, hp = 0, hs = 0;
-
 	/* set up jack connection */
 	switch (corgi_jack_func) {
 	case CORGI_HP:
-		hp = 1;
 		/* set = unmute headphone */
 		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_L);
 		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_R);
+		snd_soc_dapm_disable_pin(codec, "Mic Jack");
+		snd_soc_dapm_disable_pin(codec, "Line Jack");
+		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_disable_pin(codec, "Headset Jack");
 		break;
 	case CORGI_MIC:
-		mic = 1;
 		/* reset = mute headphone */
 		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_L);
 		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_R);
+		snd_soc_dapm_enable_pin(codec, "Mic Jack");
+		snd_soc_dapm_disable_pin(codec, "Line Jack");
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_disable_pin(codec, "Headset Jack");
 		break;
 	case CORGI_LINE:
-		line = 1;
 		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_L);
 		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_R);
+		snd_soc_dapm_disable_pin(codec, "Mic Jack");
+		snd_soc_dapm_enable_pin(codec, "Line Jack");
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_disable_pin(codec, "Headset Jack");
 		break;
 	case CORGI_HEADSET:
-		hs = 1;
-		mic = 1;
 		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_L);
 		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MUTE_R);
+		snd_soc_dapm_enable_pin(codec, "Mic Jack");
+		snd_soc_dapm_disable_pin(codec, "Line Jack");
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_enable_pin(codec, "Headset Jack");
 		break;
 	}
 
 	if (corgi_spk_func == CORGI_SPK_ON)
-		spk = 1;
-
-	/* set the enpoints to their new connetion states */
-	snd_soc_dapm_set_endpoint(codec, "Ext Spk", spk);
-	snd_soc_dapm_set_endpoint(codec, "Mic Jack", mic);
-	snd_soc_dapm_set_endpoint(codec, "Line Jack", line);
-	snd_soc_dapm_set_endpoint(codec, "Headphone Jack", hp);
-	snd_soc_dapm_set_endpoint(codec, "Headset Jack", hs);
+		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+	else
+		snd_soc_dapm_disable_pin(codec, "Ext Spk");
 
 	/* signal a DAPM event */
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 }
 
 static int corgi_startup(struct snd_pcm_substream *substream)
@@ -285,8 +289,8 @@ static int corgi_wm8731_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_set_endpoint(codec, "LLINEIN", 0);
-	snd_soc_dapm_set_endpoint(codec, "RLINEIN", 0);
+	snd_soc_dapm_disable_pin(codec, "LLINEIN");
+	snd_soc_dapm_disable_pin(codec, "RLINEIN");
 
 	/* Add corgi specific controls */
 	for (i = 0; i < ARRAY_SIZE(wm8731_corgi_controls); i++) {
@@ -303,7 +307,7 @@ static int corgi_wm8731_init(struct snd_soc_codec *codec)
 	/* Set up corgi specific audio path audio_map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 	return 0;
 }
 

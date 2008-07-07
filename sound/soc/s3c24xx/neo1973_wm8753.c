@@ -250,77 +250,77 @@ static int set_scenario_endpoints(struct snd_soc_codec *codec, int scenario)
 
 	switch (neo1973_scenario) {
 	case NEO_AUDIO_OFF:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_disable_pin(codec, "Audio Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 		break;
 	case NEO_GSM_CALL_AUDIO_HANDSET:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  1);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     1);
+		snd_soc_dapm_enable_pin(codec, "Audio Out");
+		snd_soc_dapm_enable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_enable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_enable_pin(codec, "Call Mic");
 		break;
 	case NEO_GSM_CALL_AUDIO_HEADSET:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  1);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  1);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_enable_pin(codec, "Audio Out");
+		snd_soc_dapm_enable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_enable_pin(codec, "GSM Line In");
+		snd_soc_dapm_enable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 		break;
 	case NEO_GSM_CALL_AUDIO_BLUETOOTH:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  1);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_disable_pin(codec, "Audio Out");
+		snd_soc_dapm_enable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_enable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 		break;
 	case NEO_STEREO_TO_SPEAKERS:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_enable_pin(codec, "Audio Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 		break;
 	case NEO_STEREO_TO_HEADPHONES:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_enable_pin(codec, "Audio Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 		break;
 	case NEO_CAPTURE_HANDSET:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     1);
+		snd_soc_dapm_disable_pin(codec, "Audio Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_enable_pin(codec, "Call Mic");
 		break;
 	case NEO_CAPTURE_HEADSET:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  1);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_disable_pin(codec, "Audio Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line In");
+		snd_soc_dapm_enable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 		break;
 	case NEO_CAPTURE_BLUETOOTH:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_disable_pin(codec, "Audio Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 		break;
 	default:
-		snd_soc_dapm_set_endpoint(codec, "Audio Out",    0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out", 0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",  0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",  0);
-		snd_soc_dapm_set_endpoint(codec, "Call Mic",     0);
+		snd_soc_dapm_disable_pin(codec, "Audio Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line Out");
+		snd_soc_dapm_disable_pin(codec, "GSM Line In");
+		snd_soc_dapm_disable_pin(codec, "Headset Mic");
+		snd_soc_dapm_disable_pin(codec, "Call Mic");
 	}
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 
 	return 0;
 }
@@ -511,12 +511,12 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 	DBG("Entered %s\n", __func__);
 
 	/* set up NC codec pins */
-	snd_soc_dapm_set_endpoint(codec, "LOUT2", 0);
-	snd_soc_dapm_set_endpoint(codec, "ROUT2", 0);
-	snd_soc_dapm_set_endpoint(codec, "OUT3",  0);
-	snd_soc_dapm_set_endpoint(codec, "OUT4",  0);
-	snd_soc_dapm_set_endpoint(codec, "LINE1", 0);
-	snd_soc_dapm_set_endpoint(codec, "LINE2", 0);
+	snd_soc_dapm_disable_pin(codec, "LOUT2");
+	snd_soc_dapm_disable_pin(codec, "ROUT2");
+	snd_soc_dapm_disable_pin(codec, "OUT3");
+	snd_soc_dapm_disable_pin(codec, "OUT4");
+	snd_soc_dapm_disable_pin(codec, "LINE1");
+	snd_soc_dapm_disable_pin(codec, "LINE2");
 
 
 	/* set endpoints to default mode */
@@ -539,7 +539,7 @@ static int neo1973_wm8753_init(struct snd_soc_codec *codec)
 	err = snd_soc_dapm_add_routes(codec, dapm_routes,
 				      ARRAY_SIZE(dapm_routes));
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 	return 0;
 }
 

@@ -48,8 +48,6 @@ static int poodle_spk_func;
 
 static void poodle_ext_control(struct snd_soc_codec *codec)
 {
-	int spk = 0;
-
 	/* set up jack connection */
 	if (poodle_jack_func == POODLE_HP) {
 		/* set = unmute headphone */
@@ -57,23 +55,23 @@ static void poodle_ext_control(struct snd_soc_codec *codec)
 			POODLE_LOCOMO_GPIO_MUTE_L, 1);
 		locomo_gpio_write(&poodle_locomo_device.dev,
 			POODLE_LOCOMO_GPIO_MUTE_R, 1);
-		snd_soc_dapm_set_endpoint(codec, "Headphone Jack", 1);
+		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
 	} else {
 		locomo_gpio_write(&poodle_locomo_device.dev,
 			POODLE_LOCOMO_GPIO_MUTE_L, 0);
 		locomo_gpio_write(&poodle_locomo_device.dev,
 			POODLE_LOCOMO_GPIO_MUTE_R, 0);
-		snd_soc_dapm_set_endpoint(codec, "Headphone Jack", 0);
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
 	}
 
-	if (poodle_spk_func == POODLE_SPK_ON)
-		spk = 1;
-
 	/* set the enpoints to their new connetion states */
-	snd_soc_dapm_set_endpoint(codec, "Ext Spk", spk);
+	if (poodle_spk_func == POODLE_SPK_ON)
+		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+	else
+		snd_soc_dapm_disable_pin(codec, "Ext Spk");
 
 	/* signal a DAPM event */
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 }
 
 static int poodle_startup(struct snd_pcm_substream *substream)
@@ -248,9 +246,9 @@ static int poodle_wm8731_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_set_endpoint(codec, "LLINEIN", 0);
-	snd_soc_dapm_set_endpoint(codec, "RLINEIN", 0);
-	snd_soc_dapm_set_endpoint(codec, "MICIN", 1);
+	snd_soc_dapm_disable_pin(codec, "LLINEIN");
+	snd_soc_dapm_disable_pin(codec, "RLINEIN");
+	snd_soc_dapm_enable_pin(codec, "MICIN");
 
 	/* Add poodle specific controls */
 	for (i = 0; i < ARRAY_SIZE(wm8731_poodle_controls); i++) {
@@ -267,7 +265,7 @@ static int poodle_wm8731_init(struct snd_soc_codec *codec)
 	/* Set up poodle specific audio path audio_map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 	return 0;
 }
 

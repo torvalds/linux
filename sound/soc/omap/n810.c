@@ -50,11 +50,22 @@ static int n810_dmic_func;
 
 static void n810_ext_control(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_set_endpoint(codec, "Ext Spk", n810_spk_func);
-	snd_soc_dapm_set_endpoint(codec, "Headphone Jack", n810_jack_func);
-	snd_soc_dapm_set_endpoint(codec, "DMic", n810_dmic_func);
+	if (n810_spk_func)
+		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+	else
+		snd_soc_dapm_disable_pin(codec, "Ext Spk");
 
-	snd_soc_dapm_sync_endpoints(codec);
+	if (n810_jack_func)
+		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
+	else
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+
+	if (n810_dmic_func)
+		snd_soc_dapm_enable_pin(codec, "DMic");
+	else
+		snd_soc_dapm_disable_pin(codec, "DMic);
+
+	snd_soc_dapm_sync(codec);
 }
 
 static int n810_startup(struct snd_pcm_substream *substream)
@@ -236,9 +247,9 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 	int i, err;
 
 	/* Not connected */
-	snd_soc_dapm_set_endpoint(codec, "MONO_LOUT", 0);
-	snd_soc_dapm_set_endpoint(codec, "HPLCOM", 0);
-	snd_soc_dapm_set_endpoint(codec, "HPRCOM", 0);
+	snd_soc_dapm_disable_pin(codec, "MONO_LOUT");
+	snd_soc_dapm_disable_pin(codec, "HPLCOM");
+	snd_soc_dapm_disable_pin(codec, "HPRCOM");
 
 	/* Add N810 specific controls */
 	for (i = 0; i < ARRAY_SIZE(aic33_n810_controls); i++) {
@@ -255,7 +266,7 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 	/* Set up N810 specific audio path audio_map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 
 	return 0;
 }

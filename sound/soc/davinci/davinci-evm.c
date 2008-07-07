@@ -103,17 +103,17 @@ static int evm_aic3x_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	/* not connected */
-	snd_soc_dapm_set_endpoint(codec, "MONO_LOUT", 0);
-	snd_soc_dapm_set_endpoint(codec, "HPLCOM", 0);
-	snd_soc_dapm_set_endpoint(codec, "HPRCOM", 0);
+	snd_soc_dapm_disable_pin(codec, "MONO_LOUT");
+	snd_soc_dapm_disable_pin(codec, "HPLCOM");
+	snd_soc_dapm_disable_pin(codec, "HPRCOM");
 
 	/* always connected */
-	snd_soc_dapm_set_endpoint(codec, "Headphone Jack", 1);
-	snd_soc_dapm_set_endpoint(codec, "Line Out", 1);
-	snd_soc_dapm_set_endpoint(codec, "Mic Jack", 1);
-	snd_soc_dapm_set_endpoint(codec, "Line In", 1);
+	snd_soc_dapm_enable_pin(codec, "Headphone Jack");
+	snd_soc_dapm_enable_pin(codec, "Line Out");
+	snd_soc_dapm_enable_pin(codec, "Mic Jack");
+	snd_soc_dapm_enable_pin(codec, "Line In");
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 
 	return 0;
 }

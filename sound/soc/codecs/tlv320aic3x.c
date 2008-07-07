@@ -29,7 +29,7 @@
  *  ---------------------------------------
  *
  *  Hence the machine layer should disable unsupported inputs/outputs by
- *  snd_soc_dapm_set_endpoint(codec, "MONO_LOUT", 0), etc.
+ *  snd_soc_dapm_disable_pin(codec, "MONO_LOUT"), etc.
  */
 
 #include <linux/module.h>
@@ -206,7 +206,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 		}
 
 		if (found)
-			snd_soc_dapm_sync_endpoints(widget->codec);
+			snd_soc_dapm_sync(widget->codec);
 	}
 
 	ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);

@@ -52,29 +52,31 @@ static int tosa_spk_func;
 
 static void tosa_ext_control(struct snd_soc_codec *codec)
 {
-	int spk = 0, mic_int = 0, hp = 0, hs = 0;
-
 	/* set up jack connection */
 	switch (tosa_jack_func) {
 	case TOSA_HP:
-		hp = 1;
+		snd_soc_dapm_disable_pin(codec, "Mic (Internal)");
+		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_disable_pin(codec, "Headset Jack");
 		break;
 	case TOSA_MIC_INT:
-		mic_int = 1;
+		snd_soc_dapm_enable_pin(codec, "Mic (Internal)");
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_disable_pin(codec, "Headset Jack");
 		break;
 	case TOSA_HEADSET:
-		hs = 1;
+		snd_soc_dapm_disable_pin(codec, "Mic (Internal)");
+		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_enable_pin(codec, "Headset Jack");
 		break;
 	}
 
 	if (tosa_spk_func == TOSA_SPK_ON)
-		spk = 1;
+		snd_soc_dapm_enable_pin(codec, "Speaker");
+	else
+		snd_soc_dapm_disable_pin(codec, "Speaker");
 
-	snd_soc_dapm_set_endpoint(codec, "Speaker", spk);
-	snd_soc_dapm_set_endpoint(codec, "Mic (Internal)", mic_int);
-	snd_soc_dapm_set_endpoint(codec, "Headphone Jack", hp);
-	snd_soc_dapm_set_endpoint(codec, "Headset Jack", hs);
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 }
 
 static int tosa_startup(struct snd_pcm_substream *substream)
@@ -191,8 +193,8 @@ static int tosa_ac97_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_set_endpoint(codec, "OUT3", 0);
-	snd_soc_dapm_set_endpoint(codec, "MONOOUT", 0);
+	snd_soc_dapm_disable_pin(codec, "OUT3");
+	snd_soc_dapm_disable_pin(codec, "MONOOUT");
 
 	/* add tosa specific controls */
 	for (i = 0; i < ARRAY_SIZE(tosa_controls); i++) {
@@ -209,7 +211,7 @@ static int tosa_ac97_init(struct snd_soc_codec *codec)
 	/* set up tosa specific audio path audio_map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 	return 0;
 }
 

@@ -25,7 +25,7 @@ extern struct snd_soc_platform sh7760_soc_platform;
 
 static int machine_init(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_sync_endpoints(codec);
+	snd_soc_dapm_sync(codec);
 	return 0;
 }
 
