@@ -31,8 +31,10 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
+#include <asm/arch/fb.h>
 #include <asm/arch/leds-gpio.h>
 #include <asm/arch/regs-gpio.h>
+#include <asm/arch/regs-lcd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -290,6 +292,31 @@ static struct platform_device n30_warning_led = {
 	},
 };
 
+static struct s3c2410fb_display n30_display __initdata = {
+	.type = S3C2410_LCDCON1_TFT,
+	.width = 240,
+	.height = 320,
+	.pixclock = 170000,
+	.xres =	240,
+	.yres =	320,
+	.bpp = 16,
+	.left_margin = 3,
+	.right_margin =	40,
+	.hsync_len = 40,
+	.upper_margin =	2,
+	.lower_margin = 3,
+	.vsync_len = 2,
+
+	.lcdcon5 = S3C2410_LCDCON5_INVVLINE | S3C2410_LCDCON5_INVVFRAME,
+};
+
+static struct s3c2410fb_mach_info n30_fb_info __initdata = {
+	.displays = &n30_display,
+	.num_displays = 1,
+	.default_display = 0,
+	.lpcsel=	0x06,
+};
+
 static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -334,6 +361,7 @@ static void __init n30_init_irq(void)
 
 static void __init n30_init(void)
 {
+	s3c24xx_fb_set_platdata(&n30_fb_info);
 	s3c_device_i2c.dev.platform_data = &n30_i2ccfg;
 	s3c24xx_udc_set_platdata(&n30_udc_cfg);
 
