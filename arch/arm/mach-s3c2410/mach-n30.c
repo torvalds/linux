@@ -1,4 +1,5 @@
-/* Machine specific code for the Acer n30 PDA.
+/* Machine specific code for the Acer n30, Acer N35, Navman PiN 570,
+ * Yakumo AlphaX and Airis NC05 PDAs.
  *
  * Copyright (c) 2003-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -11,7 +12,7 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -68,7 +69,8 @@ static struct s3c2410_uartcfg n30_uartcfgs[] = {
 		.ulcon	     = 0x43,
 		.ufcon	     = 0x51,
 	},
-	/* The BlueTooth controller is connected to port 2 */
+	/* On the N30 the bluetooth controller is connected here.
+	 * On the N35 and variants the GPS receiver is connected here. */
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
@@ -165,6 +167,95 @@ static struct platform_device n30_button_device = {
 	}
 };
 
+static struct gpio_keys_button n35_buttons[] = {
+	{
+		.gpio		= S3C2410_GPF0,
+		.code		= KEY_POWER,
+		.desc		= "Power",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG9,
+		.code		= KEY_UP,
+		.desc		= "Joystick Up",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG8,
+		.code		= KEY_DOWN,
+		.desc		= "Joystick Down",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG6,
+		.code		= KEY_DOWN,
+		.desc		= "Joystick Left",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG5,
+		.code		= KEY_DOWN,
+		.desc		= "Joystick Right",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG7,
+		.code		= KEY_ENTER,
+		.desc		= "Joystick Press",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF7,
+		.code		= KEY_HOMEPAGE,
+		.desc		= "Home",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF6,
+		.code		= KEY_CALENDAR,
+		.desc		= "Calendar",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF5,
+		.code		= KEY_ADDRESSBOOK,
+		.desc		= "Contacts",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF4,
+		.code		= KEY_MAIL,
+		.desc		= "Mail",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPF3,
+		.code		= SW_RADIO,
+		.desc		= "GPS Antenna",
+		.active_low	= 0,
+	},
+	{
+		.gpio		= S3C2410_GPG2,
+		.code		= SW_HEADPHONE_INSERT,
+		.desc		= "Headphone",
+		.active_low	= 0,
+	},
+};
+
+static struct gpio_keys_platform_data n35_button_data = {
+	.buttons	= n35_buttons,
+	.nbuttons	= ARRAY_SIZE(n35_buttons),
+};
+
+static struct platform_device n35_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &n35_button_data,
+	}
+};
+
 /* This is the bluetooth LED on the device. */
 static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 	.name		= "blue_led",
@@ -211,6 +302,15 @@ static struct platform_device *n30_devices[] __initdata = {
 	&n30_warning_led,
 };
 
+static struct platform_device *n35_devices[] __initdata = {
+	&s3c_device_lcd,
+	&s3c_device_wdt,
+	&s3c_device_i2c,
+	&s3c_device_iis,
+	&s3c_device_usbgadget,
+	&n35_button_device,
+};
+
 static struct s3c2410_platform_i2c n30_i2ccfg = {
 	.flags		= 0,
 	.slave_addr	= 0x10,
@@ -244,12 +344,49 @@ static void __init n30_init(void)
 			      S3C2410_MISCCR_USBSUSPND0 |
 			      S3C2410_MISCCR_USBSUSPND1, 0x0);
 
-	platform_add_devices(n30_devices, ARRAY_SIZE(n30_devices));
+	if (machine_is_n30()) {
+		/* Turn off suspend on both USB ports, and switch the
+		 * selectable USB port to USB device mode. */
+		s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
+				      S3C2410_MISCCR_USBSUSPND0 |
+				      S3C2410_MISCCR_USBSUSPND1, 0x0);
+
+		platform_add_devices(n30_devices, ARRAY_SIZE(n30_devices));
+	}
+
+	if (machine_is_n35()) {
+		/* Turn off suspend and switch the selectable USB port
+		 * to USB device mode.  Turn on suspend for the host
+		 * port since it is not connected on the N35.
+		 *
+		 * Actually, the host port is available at some pads
+		 * on the back of the device, so it would actually be
+		 * possible to add a USB device inside the N35 if you
+		 * are willing to do some hardware modifications. */
+		s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
+				      S3C2410_MISCCR_USBSUSPND0 |
+				      S3C2410_MISCCR_USBSUSPND1,
+				      S3C2410_MISCCR_USBSUSPND1);
+
+		platform_add_devices(n35_devices, ARRAY_SIZE(n35_devices));
+	}
 }
 
 MACHINE_START(N30, "Acer-N30")
 	/* Maintainer: Christer Weinigel <christer@weinigel.se>,
 				Ben Dooks <ben-linux@fluff.org>
+	*/
+	.phys_io	= S3C2410_PA_UART,
+	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.timer		= &s3c24xx_timer,
+	.init_machine	= n30_init,
+	.init_irq	= n30_init_irq,
+	.map_io		= n30_map_io,
+MACHINE_END
+
+MACHINE_START(N35, "Acer-N35")
+	/* Maintainer: Christer Weinigel <christer@weinigel.se>
 	*/
 	.phys_io	= S3C2410_PA_UART,
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,

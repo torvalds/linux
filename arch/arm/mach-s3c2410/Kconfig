@@ -72,10 +72,11 @@ config PM_H1940
 	  Internal node for H1940 and related PM
 
 config MACH_N30
-	bool "Acer N30"
+	bool "Acer N30 family"
 	select CPU_S3C2410
 	help
-	  Say Y here if you are using the Acer N30
+	  Say Y here if you want suppt for the Acer N30, Acer N35,
+	  Navman PiN570, Yakumo AlphaX or Airis NC05 PDAs.
 
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
