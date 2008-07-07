@@ -30,6 +30,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
+#include <asm/arch/leds-gpio.h>
 #include <asm/arch/regs-gpio.h>
 
 #include <asm/mach/arch.h>
@@ -164,6 +165,40 @@ static struct platform_device n30_button_device = {
 	}
 };
 
+/* This is the bluetooth LED on the device. */
+static struct s3c24xx_led_platdata n30_blue_led_pdata = {
+	.name		= "blue_led",
+	.gpio		= S3C2410_GPG6,
+	.def_trigger	= "",
+};
+
+/* This LED is driven by the battery microcontroller, and is blinking
+ * red, blinking green or solid green when the battery is low,
+ * charging or full respectively.  By driving GPD9 low, it's possible
+ * to force the LED to blink red, so call that warning LED.  */
+static struct s3c24xx_led_platdata n30_warning_led_pdata = {
+	.name		= "warning_led",
+	.flags          = S3C24XX_LEDF_ACTLOW,
+	.gpio		= S3C2410_GPD9,
+	.def_trigger	= "",
+};
+
+static struct platform_device n30_blue_led = {
+	.name		= "s3c24xx_led",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &n30_blue_led_pdata,
+	},
+};
+
+static struct platform_device n30_warning_led = {
+	.name		= "s3c24xx_led",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &n30_warning_led_pdata,
+	},
+};
+
 static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -172,6 +207,8 @@ static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_usbgadget,
 	&n30_button_device,
+	&n30_blue_led,
+	&n30_warning_led,
 };
 
 static struct s3c2410_platform_i2c n30_i2ccfg = {
