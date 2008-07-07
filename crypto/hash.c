@@ -152,7 +152,7 @@ static int crypto_init_hash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 {
 	struct hash_alg *alg = &tfm->__crt_alg->cra_hash;
 
-	if (alg->digestsize > crypto_tfm_alg_blocksize(tfm))
+	if (alg->digestsize > PAGE_SIZE / 8)
 		return -EINVAL;
 
 	if ((mask & CRYPTO_ALG_TYPE_HASH_MASK) != CRYPTO_ALG_TYPE_HASH_MASK)

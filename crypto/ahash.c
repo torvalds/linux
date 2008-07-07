@@ -68,7 +68,7 @@ static int crypto_init_ahash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	struct ahash_alg *alg = &tfm->__crt_alg->cra_ahash;
 	struct ahash_tfm *crt   = &tfm->crt_ahash;
 
-	if (alg->digestsize > crypto_tfm_alg_blocksize(tfm))
+	if (alg->digestsize > PAGE_SIZE / 8)
 		return -EINVAL;
 
 	crt->init = alg->init;

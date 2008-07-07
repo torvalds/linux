@@ -141,7 +141,7 @@ int crypto_init_digest_ops(struct crypto_tfm *tfm)
 	struct hash_tfm *ops = &tfm->crt_hash;
 	struct digest_alg *dalg = &tfm->__crt_alg->cra_digest;
 
-	if (dalg->dia_digestsize > crypto_tfm_alg_blocksize(tfm))
+	if (dalg->dia_digestsize > PAGE_SIZE / 8)
 		return -EINVAL;
 	
 	ops->init	= init;
