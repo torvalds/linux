@@ -81,7 +81,7 @@ static int s3c2443_clkcon_enable_p(struct clk *clk, int enable)
 	else
 		clkcon &= ~clocks;
 
-	__raw_writel(clkcon, S3C2443_HCLKCON);
+	__raw_writel(clkcon, S3C2443_PCLKCON);
 
 	return 0;
 }
