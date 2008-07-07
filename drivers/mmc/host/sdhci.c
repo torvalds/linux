@@ -978,7 +978,7 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	}
 
 	/*
-	 * At least the CaFe chip gets confused if we set the voltage
+	 * At least the Marvell CaFe chip gets confused if we set the voltage
 	 * and set turn on power at the same time, so set the voltage first.
 	 */
 	if ((host->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER))
