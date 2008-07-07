@@ -208,7 +208,7 @@
 				compatible = "ibm,emac-440spe", "ibm,emac4";
 				interrupt-parent = <&UIC1>;
 				interrupts = <0x1c 0x4 0x1d 0x4>;
-				reg = <0x10000800 0x00000070>;
+				reg = <0x10000800 0x00000074>;
 				local-mac-address = [000000000000];
 				mal-device = <&MAL0>;
 				mal-tx-channel = <0>;

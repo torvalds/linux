@@ -266,7 +266,7 @@
 
 			EMAC0: ethernet@ef600e00 {
 				device_type = "network";
-				compatible = "ibm,emac-460ex", "ibm,emac4";
+				compatible = "ibm,emac-460ex", "ibm,emac4sync";
 				interrupt-parent = <&EMAC0>;
 				interrupts = <0x0 0x1>;
 				#interrupt-cells = <1>;
@@ -274,7 +274,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC2 0x10 0x4
 						 /*Wake*/   0x1 &UIC2 0x14 0x4>;
-				reg = <0xef600e00 0x00000070>;
+				reg = <0xef600e00 0x000000c4>;
 				local-mac-address = [000000000000]; /* Filled in by U-Boot */
 				mal-device = <&MAL0>;
 				mal-tx-channel = <0>;
@@ -295,7 +295,7 @@
 
 			EMAC1: ethernet@ef600f00 {
 				device_type = "network";
-				compatible = "ibm,emac-460ex", "ibm,emac4";
+				compatible = "ibm,emac-460ex", "ibm,emac4sync";
 				interrupt-parent = <&EMAC1>;
 				interrupts = <0x0 0x1>;
 				#interrupt-cells = <1>;
@@ -303,7 +303,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC2 0x11 0x4
 						 /*Wake*/   0x1 &UIC2 0x15 0x4>;
-				reg = <0xef600f00 0x00000070>;
+				reg = <0xef600f00 0x000000c4>;
 				local-mac-address = [000000000000]; /* Filled in by U-Boot */
 				mal-device = <&MAL0>;
 				mal-tx-channel = <1>;

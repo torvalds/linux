@@ -265,7 +265,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC0 0x18 0x4
 						/*Wake*/  0x1 &UIC1 0x1d 0x4>;
-				reg = <0xef600e00 0x00000070>;
+				reg = <0xef600e00 0x00000074>;
 				local-mac-address = [000000000000];
 				mal-device = <&MAL0>;
 				mal-tx-channel = <0>;
@@ -294,7 +294,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC0 0x19 0x4
 						/*Wake*/  0x1 &UIC1 0x1f 0x4>;
-				reg = <0xef600f00 0x00000070>;
+				reg = <0xef600f00 0x00000074>;
 				local-mac-address = [000000000000];
 				mal-device = <&MAL0>;
 				mal-tx-channel = <1>;

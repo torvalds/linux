@@ -283,7 +283,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC2 0x10 0x4
 						 /*Wake*/   0x1 &UIC2 0x14 0x4>;
-				reg = <0xef600e00 0x00000070>;
+				reg = <0xef600e00 0x00000074>;
 				local-mac-address = [000000000000]; /* Filled in by U-Boot */
 				mal-device = <&MAL0>;
 				mal-tx-channel = <0>;
@@ -312,7 +312,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC2 0x11 0x4
 						 /*Wake*/   0x1 &UIC2 0x15 0x4>;
-				reg = <0xef600f00 0x00000070>;
+				reg = <0xef600f00 0x00000074>;
 				local-mac-address = [000000000000]; /* Filled in by U-Boot */
 				mal-device = <&MAL0>;
 				mal-tx-channel = <1>;
@@ -342,7 +342,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC2 0x12 0x4
 						 /*Wake*/   0x1 &UIC2 0x16 0x4>;
-				reg = <0xef601100 0x00000070>;
+				reg = <0xef601100 0x00000074>;
 				local-mac-address = [000000000000]; /* Filled in by U-Boot */
 				mal-device = <&MAL0>;
 				mal-tx-channel = <2>;
@@ -370,7 +370,7 @@
 				#size-cells = <0>;
 				interrupt-map = </*Status*/ 0x0 &UIC2 0x13 0x4
 						 /*Wake*/   0x1 &UIC2 0x17 0x4>;
-				reg = <0xef601200 0x00000070>;
+				reg = <0xef601200 0x00000074>;
 				local-mac-address = [000000000000]; /* Filled in by U-Boot */
 				mal-device = <&MAL0>;
 				mal-tx-channel = <3>;
