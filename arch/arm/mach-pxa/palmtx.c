@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
 
@@ -279,6 +280,66 @@ static struct pxa2xx_udc_mach_info palmtx_udc_info __initdata = {
 };
 
 /******************************************************************************
+ * Power supply
+ ******************************************************************************/
+static int power_supply_init(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(GPIO_NR_PALMTX_POWER_DETECT, "CABLE_STATE_AC");
+	if (ret)
+		goto err_cs_ac;
+
+	ret = gpio_request(GPIO_NR_PALMTX_USB_DETECT_N, "CABLE_STATE_USB");
+	if (ret)
+		goto err_cs_usb;
+
+	return 0;
+
+err_cs_usb:
+	gpio_free(GPIO_NR_PALMTX_POWER_DETECT);
+err_cs_ac:
+	return ret;
+}
+
+static int palmtx_is_ac_online(void)
+{
+	return gpio_get_value(GPIO_NR_PALMTX_POWER_DETECT);
+}
+
+static int palmtx_is_usb_online(void)
+{
+	return !gpio_get_value(GPIO_NR_PALMTX_USB_DETECT_N);
+}
+
+static void power_supply_exit(struct device *dev)
+{
+	gpio_free(GPIO_NR_PALMTX_USB_DETECT_N);
+	gpio_free(GPIO_NR_PALMTX_POWER_DETECT);
+}
+
+static char *palmtx_supplicants[] = {
+	"main-battery",
+};
+
+static struct pda_power_pdata power_supply_info = {
+	.init            = power_supply_init,
+	.is_ac_online    = palmtx_is_ac_online,
+	.is_usb_online   = palmtx_is_usb_online,
+	.exit            = power_supply_exit,
+	.supplied_to     = palmtx_supplicants,
+	.num_supplicants = ARRAY_SIZE(palmtx_supplicants),
+};
+
+static struct platform_device power_supply = {
+	.name = "pda-power",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &power_supply_info,
+	},
+};
+
+/******************************************************************************
  * Framebuffer
  ******************************************************************************/
 static struct pxafb_mode_info palmtx_lcd_modes[] = {
@@ -312,6 +373,7 @@ static struct platform_device *devices[] __initdata = {
 	&palmtx_pxa_keys,
 #endif
 	&palmtx_backlight,
+	&power_supply,
 };
 
 static struct map_desc palmtx_io_desc[] __initdata = {
