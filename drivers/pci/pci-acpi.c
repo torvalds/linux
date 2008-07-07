@@ -277,12 +277,11 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		[PCI_D3hot] = ACPI_STATE_D3,
 		[PCI_D3cold] = ACPI_STATE_D3
 	};
+	int error = -EINVAL;
 
-	if (!handle)
-		return -ENODEV;
 	/* If the ACPI device has _EJ0, ignore the device */
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
-		return 0;
+	if (!handle || ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
+		return -ENODEV;
 
 	switch (state) {
 	case PCI_D0:
@@ -290,9 +289,14 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	case PCI_D2:
 	case PCI_D3hot:
 	case PCI_D3cold:
-		return acpi_bus_set_power(handle, state_conv[state]);
+		error = acpi_bus_set_power(handle, state_conv[state]);
 	}
-	return -EINVAL;
+
+	if (!error)
+		dev_printk(KERN_INFO, &dev->dev,
+				"power state changed by ACPI to D%d\n", state);
+
+	return error;
 }
 
 static struct pci_platform_pm_ops acpi_pci_platform_pm = {

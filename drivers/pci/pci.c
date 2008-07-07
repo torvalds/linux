@@ -404,67 +404,56 @@ static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 }
 
 /**
- * pci_set_power_state - Set the power state of a PCI device
- * @dev: PCI device to be suspended
- * @state: PCI power state (D0, D1, D2, D3hot, D3cold) we're entering
+ * pci_raw_set_power_state - Use PCI PM registers to set the power state of
+ *                           given PCI device
+ * @dev: PCI device to handle.
+ * @pm: PCI PM capability offset of the device.
+ * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
  *
- * Transition a device to a new power state, using the Power Management 
- * Capabilities in the device's config space.
- *
- * RETURN VALUE: 
- * -EINVAL if trying to enter a lower state than we're already in.
- * 0 if we're already in the requested state.
- * -EIO if device does not support PCI PM.
- * 0 if we can successfully change the power state.
+ * RETURN VALUE:
+ * -EINVAL if the requested state is invalid.
+ * -EIO if device does not support PCI PM or its PM capabilities register has a
+ * wrong version, or device doesn't support the requested state.
+ * 0 if device already is in the requested state.
+ * 0 if device's power state has been successfully changed.
  */
-int
-pci_set_power_state(struct pci_dev *dev, pci_power_t state)
+static int
+pci_raw_set_power_state(struct pci_dev *dev, int pm, pci_power_t state)
 {
-	int pm, need_restore = 0;
 	u16 pmcsr, pmc;
+	bool need_restore = false;
 
-	/* bound the state we're entering */
-	if (state > PCI_D3hot)
-		state = PCI_D3hot;
-
-	/*
-	 * If the device or the parent bridge can't support PCI PM, ignore
-	 * the request if we're doing anything besides putting it into D0
-	 * (which would only happen on boot).
-	 */
-	if ((state == PCI_D1 || state == PCI_D2) && pci_no_d1d2(dev))
-		return 0;
-
-	/* find PCI PM capability in list */
-	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-
-	/* abort if the device doesn't support PM capabilities */
 	if (!pm)
 		return -EIO;
+
+	if (state < PCI_D0 || state > PCI_D3hot)
+		return -EINVAL;
 
 	/* Validate current state:
 	 * Can enter D0 from any state, but if we can only go deeper 
 	 * to sleep if we're already in a low power state
 	 */
-	if (state != PCI_D0 && dev->current_state > state) {
+	if (dev->current_state == state) {
+		/* we're already there */
+		return 0;
+	} else if (state != PCI_D0 && dev->current_state <= PCI_D3cold
+	    && dev->current_state > state) {
 		dev_err(&dev->dev, "invalid power transition "
 			"(from state %d to %d)\n", dev->current_state, state);
 		return -EINVAL;
-	} else if (dev->current_state == state)
-		return 0;        /* we're already there */
+	}
 
+	pci_read_config_word(dev, pm + PCI_PM_PMC, &pmc);
 
-	pci_read_config_word(dev,pm + PCI_PM_PMC,&pmc);
 	if ((pmc & PCI_PM_CAP_VER_MASK) > 3) {
-		dev_printk(KERN_DEBUG, &dev->dev, "unsupported PM cap regs "
-			   "version (%u)\n", pmc & PCI_PM_CAP_VER_MASK);
+		dev_err(&dev->dev, "unsupported PM cap regs version (%u)\n",
+			pmc & PCI_PM_CAP_VER_MASK);
 		return -EIO;
 	}
 
 	/* check if this device supports the desired state */
-	if (state == PCI_D1 && !(pmc & PCI_PM_CAP_D1))
-		return -EIO;
-	else if (state == PCI_D2 && !(pmc & PCI_PM_CAP_D2))
+	if ((state == PCI_D1 && !(pmc & PCI_PM_CAP_D1))
+	   || (state == PCI_D2 && !(pmc & PCI_PM_CAP_D2)))
 		return -EIO;
 
 	pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
@@ -483,7 +472,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	case PCI_UNKNOWN: /* Boot-up */
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
 		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
-			need_restore = 1;
+			need_restore = true;
 		/* Fall-through: force to D0 */
 	default:
 		pmcsr = 0;
@@ -499,12 +488,6 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		msleep(pci_pm_d3_delay);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
 		udelay(200);
-
-	/*
-	 * Give firmware a chance to be called, such as ACPI _PRx, _PSx
-	 * Firmware method after native method ?
-	 */
-	platform_pci_set_power_state(dev, state);
 
 	dev->current_state = state;
 
@@ -527,6 +510,81 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		pcie_aspm_pm_state_change(dev->bus->self);
 
 	return 0;
+}
+
+/**
+ * pci_update_current_state - Read PCI power state of given device from its
+ *                            PCI PM registers and cache it
+ * @dev: PCI device to handle.
+ * @pm: PCI PM capability offset of the device.
+ */
+static void pci_update_current_state(struct pci_dev *dev, int pm)
+{
+	if (pm) {
+		u16 pmcsr;
+
+		pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
+		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
+	}
+}
+
+/**
+ * pci_set_power_state - Set the power state of a PCI device
+ * @dev: PCI device to handle.
+ * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
+ *
+ * Transition a device to a new power state, using the platform formware and/or
+ * the device's PCI PM registers.
+ *
+ * RETURN VALUE:
+ * -EINVAL if the requested state is invalid.
+ * -EIO if device does not support PCI PM or its PM capabilities register has a
+ * wrong version, or device doesn't support the requested state.
+ * 0 if device already is in the requested state.
+ * 0 if device's power state has been successfully changed.
+ */
+int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
+{
+	int pm, error;
+
+	/* bound the state we're entering */
+	if (state > PCI_D3hot)
+		state = PCI_D3hot;
+	else if (state < PCI_D0)
+		state = PCI_D0;
+	else if ((state == PCI_D1 || state == PCI_D2) && pci_no_d1d2(dev))
+		/*
+		 * If the device or the parent bridge do not support PCI PM,
+		 * ignore the request if we're doing anything other than putting
+		 * it into D0 (which would only happen on boot).
+		 */
+		return 0;
+
+	/* Find PCI PM capability in the list */
+	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
+
+	if (state == PCI_D0 && platform_pci_power_manageable(dev)) {
+		/*
+		 * Allow the platform to change the state, for example via ACPI
+		 * _PR0, _PS0 and some such, but do not trust it.
+		 */
+		int ret = platform_pci_set_power_state(dev, PCI_D0);
+		if (!ret)
+			pci_update_current_state(dev, pm);
+	}
+
+	error = pci_raw_set_power_state(dev, pm, state);
+
+	if (state > PCI_D0 && platform_pci_power_manageable(dev)) {
+		/* Allow the platform to finalize the transition */
+		int ret = platform_pci_set_power_state(dev, state);
+		if (!ret) {
+			pci_update_current_state(dev, pm);
+			error = 0;
+		}
+	}
+
+	return error;
 }
 
 /**
