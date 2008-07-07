@@ -96,8 +96,8 @@ static int mpc8610_hpcd_machine_probe(struct platform_device *sound_device)
 static int mpc8610_hpcd_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct mpc8610_hpcd_data *machine_data =
 		rtd->socdev->dev->platform_data;
 	int ret = 0;
