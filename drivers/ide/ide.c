@@ -315,13 +315,14 @@ void ide_unregister(ide_hwif_t *hwif)
 
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());
-	mutex_lock(&ide_cfg_mtx);
-	spin_lock_irq(&ide_lock);
-	if (!hwif->present)
-		goto abort;
-	__ide_port_unregister_devices(hwif);
-	hwif->present = 0;
 
+	mutex_lock(&ide_cfg_mtx);
+
+	spin_lock_irq(&ide_lock);
+	if (hwif->present) {
+		__ide_port_unregister_devices(hwif);
+		hwif->present = 0;
+	}
 	spin_unlock_irq(&ide_lock);
 
 	ide_proc_unregister_port(hwif);
@@ -351,16 +352,15 @@ void ide_unregister(ide_hwif_t *hwif)
 	blk_unregister_region(MKDEV(hwif->major, 0), MAX_DRIVES<<PARTN_BITS);
 	kfree(hwif->sg_table);
 	unregister_blkdev(hwif->major, hwif->name);
-	spin_lock_irq(&ide_lock);
 
 	if (hwif->dma_base)
 		ide_release_dma_engine(hwif);
 
+	spin_lock_irq(&ide_lock);
 	/* restore hwif data to pristine status */
 	ide_init_port_data(hwif, hwif->index);
-
-abort:
 	spin_unlock_irq(&ide_lock);
+
 	mutex_unlock(&ide_cfg_mtx);
 }
 
@@ -1094,13 +1094,6 @@ struct bus_type ide_bus_type = {
 
 EXPORT_SYMBOL_GPL(ide_bus_type);
 
-static void ide_port_class_release(struct device *portdev)
-{
-	ide_hwif_t *hwif = dev_get_drvdata(portdev);
-
-	put_device(&hwif->gendev);
-}
-
 int ide_vlb_clk;
 EXPORT_SYMBOL_GPL(ide_vlb_clk);
 
@@ -1305,7 +1298,6 @@ static int __init ide_init(void)
 		ret = PTR_ERR(ide_port_class);
 		goto out_port_class;
 	}
-	ide_port_class->dev_release = ide_port_class_release;
 
 	init_ide_data();
 

@@ -21,4 +21,5 @@
  */
 
 void cx18_gpio_init(struct cx18 *cx);
+void cx18_reset_i2c_slaves_gpio(struct cx18 *cx);
 int cx18_reset_tuner_gpio(void *dev, int cmd, int value);

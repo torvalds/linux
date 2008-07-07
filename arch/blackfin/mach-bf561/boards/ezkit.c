@@ -280,7 +280,6 @@ static struct platform_device ezkit_flash_device = {
 };
 #endif
 
-#ifdef CONFIG_SPI_BFIN
 #if defined(CONFIG_SND_BLACKFIN_AD1836) \
 	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
@@ -295,8 +294,8 @@ static struct bfin5xx_spi_chip spidev_chip_info = {
 	.bits_per_word = 8,
 };
 #endif
-#endif
 
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI (0) */
 static struct resource bfin_spi0_resource[] = {
 	[0] = {
@@ -327,6 +326,7 @@ static struct platform_device bfin_spi0_device = {
 		.platform_data = &bfin_spi0_info, /* Passed to driver */
 	},
 };
+#endif
 
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SND_BLACKFIN_AD1836) \
@@ -537,10 +537,7 @@ static int __init ezkit_init(void)
 	SSYNC();
 #endif
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	spi_register_board_info(bfin_spi_board_info,
-				ARRAY_SIZE(bfin_spi_board_info));
-#endif
+	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	irq_desc[PATA_INT].status |= IRQ_NOAUTOEN;

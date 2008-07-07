@@ -224,6 +224,11 @@ enum {
 
 	PHY_MODE3		= 0x310,
 	PHY_MODE4		= 0x314,
+	PHY_MODE4_CFG_MASK	= 0x00000003,	/* phy internal config field */
+	PHY_MODE4_CFG_VALUE	= 0x00000001,	/* phy internal config field */
+	PHY_MODE4_RSVD_ZEROS	= 0x5de3fffa,	/* Gen2e always write zeros */
+	PHY_MODE4_RSVD_ONES	= 0x00000005,	/* Gen2e always write ones */
+
 	PHY_MODE2		= 0x330,
 	SATA_IFCTL_OFS		= 0x344,
 	SATA_TESTCTL_OFS	= 0x348,
@@ -1317,6 +1322,9 @@ static int mv_port_start(struct ata_port *ap)
 		goto out_port_free_dma_mem;
 	memset(pp->crpb, 0, MV_CRPB_Q_SZ);
 
+	/* 6041/6081 Rev. "C0" (and newer) are okay with async notify */
+	if (hpriv->hp_flags & MV_HP_ERRATA_60X1C0)
+		ap->flags |= ATA_FLAG_AN;
 	/*
 	 * For GEN_I, there's no NCQ, so we only allocate a single sg_tbl.
 	 * For later hardware, we need one unique sg_tbl per NCQ tag.
@@ -1587,6 +1595,24 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 
 	if ((qc->tf.protocol != ATA_PROT_DMA) &&
 	    (qc->tf.protocol != ATA_PROT_NCQ)) {
+		static int limit_warnings = 10;
+		/*
+		 * Errata SATA#16, SATA#24: warn if multiple DRQs expected.
+		 *
+		 * Someday, we might implement special polling workarounds
+		 * for these, but it all seems rather unnecessary since we
+		 * normally use only DMA for commands which transfer more
+		 * than a single block of data.
+		 *
+		 * Much of the time, this could just work regardless.
+		 * So for now, just log the incident, and allow the attempt.
+		 */
+		if (limit_warnings > 0 && (qc->nbytes / qc->sect_size) > 1) {
+			--limit_warnings;
+			ata_link_printk(qc->dev->link, KERN_WARNING, DRV_NAME
+					": attempting PIO w/multiple DRQ: "
+					"this may fail due to h/w errata\n");
+		}
 		/*
 		 * We're about to send a non-EDMA capable command to the
 		 * port.  Turn off EDMA so there won't be problems accessing
@@ -2563,17 +2589,16 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		m3 &= ~0x1c;
 
 	if (fix_phy_mode4) {
-		u32 m4;
-
-		m4 = readl(port_mmio + PHY_MODE4);
-
-		/* workaround for errata FEr SATA#10 (part 1) */
-		m4 = (m4 & ~(1 << 1)) | (1 << 0);
-
-		/* enforce bit restrictions on GenIIe devices */
+		u32 m4 = readl(port_mmio + PHY_MODE4);
+		/*
+		 * Enforce reserved-bit restrictions on GenIIe devices only.
+		 * For earlier chipsets, force only the internal config field
+		 *  (workaround for errata FEr SATA#10 part 1).
+		 */
 		if (IS_GEN_IIE(hpriv))
-			m4 = (m4 & ~0x5DE3FFFC) | (1 << 2);
-
+			m4 = (m4 & ~PHY_MODE4_RSVD_ZEROS) | PHY_MODE4_RSVD_ONES;
+		else
+			m4 = (m4 & ~PHY_MODE4_CFG_MASK) | PHY_MODE4_CFG_VALUE;
 		writel(m4, port_mmio + PHY_MODE4);
 	}
 	/*

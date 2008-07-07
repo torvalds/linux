@@ -177,6 +177,15 @@ timer_action_done (struct ehci_hcd *ehci, enum ehci_timer_action action)
 static inline void
 timer_action (struct ehci_hcd *ehci, enum ehci_timer_action action)
 {
+	/* Don't override timeouts which shrink or (later) disable
+	 * the async ring; just the I/O watchdog.  Note that if a
+	 * SHRINK were pending, OFF would never be requested.
+	 */
+	if (timer_pending(&ehci->watchdog)
+			&& ((BIT(TIMER_ASYNC_SHRINK) | BIT(TIMER_ASYNC_OFF))
+				& ehci->actions))
+		return;
+
 	if (!test_and_set_bit (action, &ehci->actions)) {
 		unsigned long t;
 
@@ -192,15 +201,7 @@ timer_action (struct ehci_hcd *ehci, enum ehci_timer_action action)
 			t = EHCI_SHRINK_JIFFIES;
 			break;
 		}
-		t += jiffies;
-		// all timings except IAA watchdog can be overridden.
-		// async queue SHRINK often precedes IAA.  while it's ready
-		// to go OFF neither can matter, and afterwards the IO
-		// watchdog stops unless there's still periodic traffic.
-		if (time_before_eq(t, ehci->watchdog.expires)
-				&& timer_pending (&ehci->watchdog))
-			return;
-		mod_timer (&ehci->watchdog, t);
+		mod_timer(&ehci->watchdog, t + jiffies);
 	}
 }
 

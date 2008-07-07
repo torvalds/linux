@@ -1003,8 +1003,7 @@ struct file *create_write_pipe(void)
 void free_write_pipe(struct file *f)
 {
 	free_pipe_info(f->f_dentry->d_inode);
-	dput(f->f_path.dentry);
-	mntput(f->f_path.mnt);
+	path_put(&f->f_path);
 	put_filp(f);
 }
 
@@ -1015,8 +1014,8 @@ struct file *create_read_pipe(struct file *wrf)
 		return ERR_PTR(-ENFILE);
 
 	/* Grab pipe from the writer */
-	f->f_path.mnt = mntget(wrf->f_path.mnt);
-	f->f_path.dentry = dget(wrf->f_path.dentry);
+	f->f_path = wrf->f_path;
+	path_get(&wrf->f_path);
 	f->f_mapping = wrf->f_path.dentry->d_inode->i_mapping;
 
 	f->f_pos = 0;
@@ -1068,8 +1067,7 @@ int do_pipe(int *fd)
  err_fdr:
 	put_unused_fd(fdr);
  err_read_pipe:
-	dput(fr->f_dentry);
-	mntput(fr->f_vfsmnt);
+	path_put(&fr->f_path);
 	put_filp(fr);
  err_write_pipe:
 	free_write_pipe(fw);

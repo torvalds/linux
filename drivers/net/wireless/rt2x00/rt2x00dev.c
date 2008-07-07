@@ -75,7 +75,7 @@ static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00lib_reset_link_tuner(rt2x00dev);
 
-	queue_delayed_work(rt2x00dev->hw->workqueue,
+	queue_delayed_work(rt2x00dev->workqueue,
 			   &rt2x00dev->link.work, LINK_TUNE_INTERVAL);
 }
 
@@ -135,14 +135,6 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	if (!__test_and_clear_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
-
-	/*
-	 * Stop all scheduled work.
-	 */
-	if (work_pending(&rt2x00dev->intf_work))
-		cancel_work_sync(&rt2x00dev->intf_work);
-	if (work_pending(&rt2x00dev->filter_work))
-		cancel_work_sync(&rt2x00dev->filter_work);
 
 	/*
 	 * Stop the TX queues.
@@ -398,8 +390,8 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	 * Increase tuner counter, and reschedule the next link tuner run.
 	 */
 	rt2x00dev->link.count++;
-	queue_delayed_work(rt2x00dev->hw->workqueue, &rt2x00dev->link.work,
-			   LINK_TUNE_INTERVAL);
+	queue_delayed_work(rt2x00dev->workqueue,
+			   &rt2x00dev->link.work, LINK_TUNE_INTERVAL);
 }
 
 static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
@@ -433,6 +425,15 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 
 	spin_unlock(&intf->lock);
 
+	/*
+	 * It is possible the radio was disabled while the work had been
+	 * scheduled. If that happens we should return here immediately,
+	 * note that in the spinlock protected area above the delayed_flags
+	 * have been cleared correctly.
+	 */
+	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
 	if (delayed_flags & DELAYED_UPDATE_BEACON) {
 		skb = ieee80211_beacon_get(rt2x00dev->hw, vif, &control);
 		if (skb && rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw,
@@ -441,7 +442,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	}
 
 	if (delayed_flags & DELAYED_CONFIG_ERP)
-		rt2x00lib_config_erp(rt2x00dev, intf, &intf->conf);
+		rt2x00lib_config_erp(rt2x00dev, intf, &conf);
 
 	if (delayed_flags & DELAYED_LED_ASSOC)
 		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
@@ -487,7 +488,7 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 						   rt2x00lib_beacondone_iter,
 						   rt2x00dev);
 
-	queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->intf_work);
+	queue_work(rt2x00dev->workqueue, &rt2x00dev->intf_work);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
@@ -1130,6 +1131,10 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize configuration work.
 	 */
+	rt2x00dev->workqueue = create_singlethread_workqueue("rt2x00lib");
+	if (!rt2x00dev->workqueue)
+		goto exit;
+
 	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 	INIT_WORK(&rt2x00dev->filter_work, rt2x00lib_packetfilter_scheduled);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00lib_link_tuner);
@@ -1188,6 +1193,13 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00debug_deregister(rt2x00dev);
 	rt2x00rfkill_free(rt2x00dev);
 	rt2x00leds_unregister(rt2x00dev);
+
+	/*
+	 * Stop all queued work. Note that most tasks will already be halted
+	 * during rt2x00lib_disable_radio() and rt2x00lib_uninitialize().
+	 */
+	flush_workqueue(rt2x00dev->workqueue);
+	destroy_workqueue(rt2x00dev->workqueue);
 
 	/*
 	 * Free ieee80211_hw memory.

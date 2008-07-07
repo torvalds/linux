@@ -1051,7 +1051,8 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 			break;
 
 		case SBP2_CSR_LOGICAL_UNIT_DIRECTORY:
-			if (sbp2_scan_logical_unit_dir(tgt, ci.p + value) < 0)
+			/* Adjust for the increment in the iterator */
+			if (sbp2_scan_logical_unit_dir(tgt, ci.p - 1 + value) < 0)
 				return -ENOMEM;
 			break;
 		}

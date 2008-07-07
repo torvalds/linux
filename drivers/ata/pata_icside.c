@@ -270,7 +270,7 @@ static void pata_icside_bmdma_stop(struct ata_queued_cmd *qc)
 	disable_dma(state->dma);
 
 	/* see ata_bmdma_stop */
-	ata_sff_altstatus(ap);
+	ata_sff_dma_pause(ap);
 }
 
 static u8 pata_icside_bmdma_status(struct ata_port *ap)

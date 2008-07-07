@@ -405,6 +405,8 @@ int init_cx18_i2c(struct cx18 *cx)
 	cx18_setscl(&cx->i2c_algo_cb_data[1], 1);
 	cx18_setsda(&cx->i2c_algo_cb_data[1], 1);
 
+	cx18_reset_i2c_slaves_gpio(cx);
+
 	return i2c_bit_add_bus(&cx->i2c_adap[0]) ||
 		i2c_bit_add_bus(&cx->i2c_adap[1]);
 }

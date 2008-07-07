@@ -79,16 +79,17 @@ void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
 {
 	int n;
 	va_list args;
+	unsigned long flags;
 	char *buf;
 
-	preempt_disable();
+	local_irq_save(flags);
 	buf = per_cpu_ptr(bt->msg_data, smp_processor_id());
 	va_start(args, fmt);
 	n = vscnprintf(buf, BLK_TN_MAX_MSG, fmt, args);
 	va_end(args);
 
 	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n);
-	preempt_enable();
+	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(__trace_note_message);
 
@@ -158,10 +159,7 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	/*
 	 * A word about the locking here - we disable interrupts to reserve
 	 * some space in the relay per-cpu buffer, to prevent an irq
-	 * from coming in and stepping on our toes. Once reserved, it's
-	 * enough to get preemption disabled to prevent read of this data
-	 * before we are through filling it. get_cpu()/put_cpu() does this
-	 * for us
+	 * from coming in and stepping on our toes.
 	 */
 	local_irq_save(flags);
 

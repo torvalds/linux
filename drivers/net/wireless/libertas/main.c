@@ -732,8 +732,8 @@ static int lbs_thread(void *data)
 		lbs_deb_thread("4: currenttxskb %p, dnld_sent %d\n",
 		       priv->currenttxskb, priv->dnld_sent);
 
-		spin_lock_irq(&priv->driver_lock);
 		/* Process any pending command response */
+		spin_lock_irq(&priv->driver_lock);
 		resp_idx = priv->resp_idx;
 		if (priv->resp_len[resp_idx]) {
 			spin_unlock_irq(&priv->driver_lock);

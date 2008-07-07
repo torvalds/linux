@@ -797,8 +797,10 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 		retval = cpulist_parse(buf, trialcs.cpus_allowed);
 		if (retval < 0)
 			return retval;
+
+		if (!cpus_subset(trialcs.cpus_allowed, cpu_online_map))
+			return -EINVAL;
 	}
-	cpus_and(trialcs.cpus_allowed, trialcs.cpus_allowed, cpu_online_map);
 	retval = validate_change(cs, &trialcs);
 	if (retval < 0)
 		return retval;
@@ -932,9 +934,11 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 		retval = nodelist_parse(buf, trialcs.mems_allowed);
 		if (retval < 0)
 			goto done;
+
+		if (!nodes_subset(trialcs.mems_allowed,
+				node_states[N_HIGH_MEMORY]))
+			return -EINVAL;
 	}
-	nodes_and(trialcs.mems_allowed, trialcs.mems_allowed,
-						node_states[N_HIGH_MEMORY]);
 	oldmem = cs->mems_allowed;
 	if (nodes_equal(oldmem, trialcs.mems_allowed)) {
 		retval = 0;		/* Too easy - nothing to do */
@@ -1033,8 +1037,8 @@ int current_cpuset_is_being_rebound(void)
 
 static int update_relax_domain_level(struct cpuset *cs, s64 val)
 {
-	if ((int)val < 0)
-		val = -1;
+	if (val < -1 || val >= SD_LV_MAX)
+		return -EINVAL;
 
 	if (val != cs->relax_domain_level) {
 		cs->relax_domain_level = val;
@@ -1885,6 +1889,12 @@ static void common_cpu_mem_hotplug_unplug(void)
 	top_cpuset.cpus_allowed = cpu_online_map;
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
 	scan_for_empty_cpusets(&top_cpuset);
+
+	/*
+	 * Scheduler destroys domains on hotplug events.
+	 * Rebuild them based on the current settings.
+	 */
+	rebuild_sched_domains();
 
 	cgroup_unlock();
 }

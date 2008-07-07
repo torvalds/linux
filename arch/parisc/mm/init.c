@@ -547,6 +547,7 @@ void __init mem_init(void)
 }
 
 unsigned long *empty_zero_page __read_mostly;
+EXPORT_SYMBOL(empty_zero_page);
 
 void show_mem(void)
 {
