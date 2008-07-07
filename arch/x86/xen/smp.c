@@ -430,4 +430,5 @@ void __init xen_smp_init(void)
 {
 	smp_ops = xen_smp_ops;
 	xen_fill_possible_map();
+	paravirt_use_bytelocks();
 }
