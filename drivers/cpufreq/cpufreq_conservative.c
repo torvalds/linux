@@ -460,6 +460,7 @@ static void do_dbs_timer(struct work_struct *work)
 
 static inline void dbs_timer_init(void)
 {
+	init_timer_deferrable(&dbs_work.timer);
 	schedule_delayed_work(&dbs_work,
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	return;
