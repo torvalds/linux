@@ -52,13 +52,10 @@ d. MSI/MSI-X. Can be enabled on platforms which support this feature
 (IA64, Xeon) resulting in noticeable performance improvement(upto 7%
 on certain platforms).
 
-e. NAPI. Compile-time option(CONFIG_S2IO_NAPI) for better Rx interrupt 
-moderation.
-
-f. Statistics. Comprehensive MAC-level and software statistics displayed
+e. Statistics. Comprehensive MAC-level and software statistics displayed
 using "ethtool -S" option.
 
-g. Multi-FIFO/Ring. Supports up to 8 transmit queues and receive rings, 
+f. Multi-FIFO/Ring. Supports up to 8 transmit queues and receive rings,
 with multiple steering options.
 
 4.  Command line parameters
