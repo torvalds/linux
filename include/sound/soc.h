@@ -221,8 +221,7 @@ struct snd_soc_pcm_stream;
 struct snd_soc_ops;
 struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
-struct snd_soc_codec_dai;
-struct snd_soc_cpu_dai;
+struct snd_soc_dai;
 struct snd_soc_codec;
 struct snd_soc_machine_config;
 struct soc_enum;
@@ -317,50 +316,24 @@ struct snd_soc_ops {
 /* ASoC DAI ops */
 struct snd_soc_dai_ops {
 	/* DAI clocking configuration */
-	int (*set_sysclk)(struct snd_soc_codec_dai *codec_dai,
+	int (*set_sysclk)(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir);
-	int (*set_pll)(struct snd_soc_codec_dai *codec_dai,
+	int (*set_pll)(struct snd_soc_dai *dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out);
-	int (*set_clkdiv)(struct snd_soc_codec_dai *codec_dai,
-		int div_id, int div);
+	int (*set_clkdiv)(struct snd_soc_dai *dai, int div_id, int div);
 
 	/* DAI format configuration */
-	int (*set_fmt)(struct snd_soc_codec_dai *codec_dai,
-		unsigned int fmt);
-	int (*set_tdm_slot)(struct snd_soc_codec_dai *codec_dai,
+	int (*set_fmt)(struct snd_soc_dai *dai, unsigned int fmt);
+	int (*set_tdm_slot)(struct snd_soc_dai *dai,
 		unsigned int mask, int slots);
-	int (*set_tristate)(struct snd_soc_codec_dai *, int tristate);
+	int (*set_tristate)(struct snd_soc_dai *dai, int tristate);
 
 	/* digital mute */
-	int (*digital_mute)(struct snd_soc_codec_dai *, int mute);
+	int (*digital_mute)(struct snd_soc_dai *dai, int mute);
 };
 
-/* SoC Codec DAI */
-struct snd_soc_codec_dai {
-	char *name;
-	int id;
-	unsigned char type;
-
-	/* DAI capabilities */
-	struct snd_soc_pcm_stream playback;
-	struct snd_soc_pcm_stream capture;
-
-	/* DAI runtime info */
-	struct snd_soc_codec *codec;
-	unsigned int active;
-	unsigned char pop_wait:1;
-
-	/* ops */
-	struct snd_soc_ops ops;
-	struct snd_soc_dai_ops dai_ops;
-
-	/* DAI private data */
-	void *private_data;
-};
-
-/* SoC CPU DAI */
-struct snd_soc_cpu_dai {
-
+/* SoC  DAI (Digital Audio Interface) */
+struct snd_soc_dai {
 	/* DAI description */
 	char *name;
 	unsigned int id;
@@ -368,13 +341,13 @@ struct snd_soc_cpu_dai {
 
 	/* DAI callbacks */
 	int (*probe)(struct platform_device *pdev,
-		     struct snd_soc_cpu_dai *dai);
+		     struct snd_soc_dai *dai);
 	void (*remove)(struct platform_device *pdev,
-		       struct snd_soc_cpu_dai *dai);
+		       struct snd_soc_dai *dai);
 	int (*suspend)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 	int (*resume)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 
 	/* ops */
 	struct snd_soc_ops ops;
@@ -386,7 +359,9 @@ struct snd_soc_cpu_dai {
 
 	/* DAI runtime info */
 	struct snd_pcm_runtime *runtime;
-	unsigned char active:1;
+	struct snd_soc_codec *codec;
+	unsigned int active;
+	unsigned char pop_wait:1;
 	void *dma_data;
 
 	/* DAI private data */
@@ -428,7 +403,7 @@ struct snd_soc_codec {
 	struct delayed_work delayed_work;
 
 	/* codec DAI's */
-	struct snd_soc_codec_dai *dai;
+	struct snd_soc_dai *dai;
 	unsigned int num_dai;
 };
 
@@ -447,12 +422,12 @@ struct snd_soc_platform {
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);
 	int (*suspend)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 	int (*resume)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 
 	/* pcm creation and destruction */
-	int (*pcm_new)(struct snd_card *, struct snd_soc_codec_dai *,
+	int (*pcm_new)(struct snd_card *, struct snd_soc_dai *,
 		struct snd_pcm *);
 	void (*pcm_free)(struct snd_pcm *);
 
@@ -466,8 +441,8 @@ struct snd_soc_dai_link  {
 	char *stream_name;		/* Stream name */
 
 	/* DAI */
-	struct snd_soc_codec_dai *codec_dai;
-	struct snd_soc_cpu_dai *cpu_dai;
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_dai *cpu_dai;
 
 	/* machine stream operations */
 	struct snd_soc_ops *ops;
