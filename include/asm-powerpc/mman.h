@@ -1,7 +1,9 @@
 #ifndef _ASM_POWERPC_MMAN_H
 #define _ASM_POWERPC_MMAN_H
 
+#include <asm/cputable.h>
 #include <asm-generic/mman.h>
+#include <linux/mm.h>
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -26,4 +28,32 @@
 #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
 #define MAP_NONBLOCK	0x10000		/* do not block on IO */
 
+#ifdef CONFIG_PPC64
+/*
+ * This file is included by linux/mman.h, so we can't use cacl_vm_prot_bits()
+ * here.  How important is the optimization?
+ */
+static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot)
+{
+	return (prot & PROT_SAO) ? VM_SAO : 0;
+}
+#define arch_calc_vm_prot_bits(prot) arch_calc_vm_prot_bits(prot)
+
+static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
+{
+	return (vm_flags & VM_SAO) ? __pgprot(_PAGE_SAO) : 0;
+}
+#define arch_vm_get_page_prot(vm_flags) arch_vm_get_page_prot(vm_flags)
+
+static inline int arch_validate_prot(unsigned long prot)
+{
+	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM | PROT_SAO))
+		return 0;
+	if ((prot & PROT_SAO) && !cpu_has_feature(CPU_FTR_SAO))
+		return 0;
+	return 1;
+}
+#define arch_validate_prot(prot) arch_validate_prot(prot)
+
+#endif /* CONFIG_PPC64 */
 #endif	/* _ASM_POWERPC_MMAN_H */
