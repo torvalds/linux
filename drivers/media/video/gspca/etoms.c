@@ -912,7 +912,9 @@ static struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
+#ifndef CONFIG_USB_ET61X251
 	{USB_DEVICE(0x102c, 0x6151), DVNM("Qcam Sangha CIF")},
+#endif
 	{USB_DEVICE(0x102c, 0x6251), DVNM("Qcam xxxxxx VGA")},
 	{}
 };

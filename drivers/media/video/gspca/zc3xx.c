@@ -7132,10 +7132,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->nbalt--;
 	if (vga) {
 		cam->cam_mode = vga_mode;
-		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		cam->nmodes = ARRAY_SIZE(vga_mode);
 	} else {
 		cam->cam_mode = sif_mode;
-		cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
+		cam->nmodes = ARRAY_SIZE(sif_mode);
 	}
 	sd->qindex = 1;
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
@@ -7498,21 +7498,26 @@ static const struct sd_desc sd_desc = {
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x041e), DVNM("Creative WebCam Live!")},
+#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x041e, 0x4017), DVNM("Creative Webcam Mobile PD1090")},
 	{USB_DEVICE(0x041e, 0x401c), DVNM("Creative NX")},
 	{USB_DEVICE(0x041e, 0x401e), DVNM("Creative Nx Pro")},
 	{USB_DEVICE(0x041e, 0x401f), DVNM("Creative Webcam Notebook PD1171")},
-/*0x041e, 0x4022*/
+#endif
 	{USB_DEVICE(0x041e, 0x4029), DVNM("Creative WebCam Vista Pro")},
+#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x041e, 0x4034), DVNM("Creative Instant P0620")},
 	{USB_DEVICE(0x041e, 0x4035), DVNM("Creative Instant P0620D")},
 	{USB_DEVICE(0x041e, 0x4036), DVNM("Creative Live !")},
 	{USB_DEVICE(0x041e, 0x403a), DVNM("Creative Nx Pro 2")},
+#endif
 	{USB_DEVICE(0x041e, 0x4051), DVNM("Creative Notebook Pro (VF0250)")},
 	{USB_DEVICE(0x041e, 0x4053), DVNM("Creative Live!Cam Video IM")},
+#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0458, 0x7007), DVNM("Genius VideoCam V2")},
 	{USB_DEVICE(0x0458, 0x700c), DVNM("Genius VideoCam V3")},
 	{USB_DEVICE(0x0458, 0x700f), DVNM("Genius VideoCam Web V2")},
+#endif
 	{USB_DEVICE(0x0461, 0x0a00), DVNM("MicroInnovation WebCam320")},
 	{USB_DEVICE(0x046d, 0x08a0), DVNM("Logitech QC IM")},
 	{USB_DEVICE(0x046d, 0x08a1), DVNM("Logitech QC IM 0x08A1 +sound")},
@@ -7521,10 +7526,12 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08a6), DVNM("Logitech QCim")},
 	{USB_DEVICE(0x046d, 0x08a7), DVNM("Logitech QuickCam Image")},
 	{USB_DEVICE(0x046d, 0x08a9), DVNM("Logitech Notebook Deluxe")},
-	{USB_DEVICE(0x046d, 0x08aa), DVNM("Labtec Webcam  Notebook")},
+	{USB_DEVICE(0x046d, 0x08aa), DVNM("Labtec Webcam Notebook")},
 	{USB_DEVICE(0x046d, 0x08ac), DVNM("Logitech QuickCam Cool")},
 	{USB_DEVICE(0x046d, 0x08ad), DVNM("Logitech QCCommunicate STX")},
+#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x046d, 0x08ae), DVNM("Logitech QuickCam for Notebooks")},
+#endif
 	{USB_DEVICE(0x046d, 0x08af), DVNM("Logitech QuickCam Cool")},
 	{USB_DEVICE(0x046d, 0x08b9), DVNM("Logitech QC IM ???")},
 	{USB_DEVICE(0x046d, 0x08d7), DVNM("Logitech QCam STX")},
@@ -7537,18 +7544,22 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0471, 0x032d), DVNM("Philips spc210nc")},
 	{USB_DEVICE(0x0471, 0x032e), DVNM("Philips spc315nc")},
 	{USB_DEVICE(0x055f, 0xc005), DVNM("Mustek Wcam300A")},
+#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x055f, 0xd003), DVNM("Mustek WCam300A")},
 	{USB_DEVICE(0x055f, 0xd004), DVNM("Mustek WCam300 AN")},
+#endif
 	{USB_DEVICE(0x0698, 0x2003), DVNM("CTX M730V built in")},
-/*0x0ac8, 0x0301*/
 	{USB_DEVICE(0x0ac8, 0x0302), DVNM("Z-star Vimicro zc0302")},
+#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x301b), DVNM("Z-Star zc301b")},
 	{USB_DEVICE(0x0ac8, 0x303b), DVNM("Vimicro 0x303b")},
+#endif
 	{USB_DEVICE(0x0ac8, 0x305b), DVNM("Z-star Vimicro zc0305b")},
+#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x307b), DVNM("Z-Star 307b")},
 	{USB_DEVICE(0x10fd, 0x0128), DVNM("Typhoon Webshot II 300k 0x0128")},
-/*0x10fd, 0x804e*/
 	{USB_DEVICE(0x10fd, 0x8050), DVNM("Typhoon Webshot II USB 300k")},
+#endif
 	{}			/* end of entry */
 };
 #undef DVNAME

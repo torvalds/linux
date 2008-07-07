@@ -1332,20 +1332,20 @@ static __u8 i2c_write(struct usb_device *dev,
 	if (size > 3 || size < 1)
 		return -EINVAL;
 	reg_r(dev, 0xa1, 0xb33f, &retbyte, 1);
-	reg_w(dev, 0xa0, size , 0xb334);
-	reg_w(dev, 0xa0, reg , 0xb33a);
+	reg_w(dev, 0xa0, size, 0xb334);
+	reg_w(dev, 0xa0, reg, 0xb33a);
 	switch (size) {
 	case 1:
-		reg_w(dev, 0xa0, val[0] , 0xb336);
+		reg_w(dev, 0xa0, val[0], 0xb336);
 		break;
 	case 2:
-		reg_w(dev, 0xa0, val[0] , 0xb336);
-		reg_w(dev, 0xa0, val[1] , 0xb337);
+		reg_w(dev, 0xa0, val[0], 0xb336);
+		reg_w(dev, 0xa0, val[1], 0xb337);
 		break;
 	case 3:
-		reg_w(dev, 0xa0, val[0] , 0xb336);
-		reg_w(dev, 0xa0, val[1] , 0xb337);
-		reg_w(dev, 0xa0, val[2] , 0xb338);
+		reg_w(dev, 0xa0, val[0], 0xb336);
+		reg_w(dev, 0xa0, val[1], 0xb337);
+		reg_w(dev, 0xa0, val[2], 0xb338);
 		break;
 	default:
 		reg_w(dev, 0xa0, 0x01, 0xb334);

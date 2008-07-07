@@ -858,6 +858,7 @@ static struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
+#ifndef CONFIG_USB_SN9C102
 	{USB_DEVICE(0x0c45, 0x6001), DVNM("Genius VideoCAM NB")},
 	{USB_DEVICE(0x0c45, 0x6005), DVNM("Sweex Tas5110")},
 	{USB_DEVICE(0x0c45, 0x6007), DVNM("Sonix sn9c101 + Tas5110D")},
@@ -874,6 +875,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x602e), DVNM("Genius VideoCam Messenger")},
 	{USB_DEVICE(0x0c45, 0x60af), DVNM("Trust WB3100P")},
 	{USB_DEVICE(0x0c45, 0x60b0), DVNM("Genius VideoCam Look")},
+#endif
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

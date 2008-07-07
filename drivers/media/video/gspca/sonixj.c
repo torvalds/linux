@@ -1606,11 +1606,13 @@ static const struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 #define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
+#ifndef CONFIG_USB_SN9C102
 	{USB_DEVICE(0x0458, 0x7025), DVNM("Genius Eye 311Q")},
 	{USB_DEVICE(0x045e, 0x00f5), DVNM("MicroSoft VX3000")},
 	{USB_DEVICE(0x045e, 0x00f7), DVNM("MicroSoft VX1000")},
 	{USB_DEVICE(0x0471, 0x0327), DVNM("Philips SPC 600 NC")},
 	{USB_DEVICE(0x0471, 0x0328), DVNM("Philips SPC 700 NC")},
+#endif
 	{USB_DEVICE(0x0471, 0x0330), DVNM("Philips SPC 710NC")},
 	{USB_DEVICE(0x0c45, 0x6040), DVNM("Speed NVC 350K")},
 	{USB_DEVICE(0x0c45, 0x607c), DVNM("Sonix sn9c102p Hv7131R")},
@@ -1620,10 +1622,12 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x60fc), DVNM("LG-LIC300")},
 	{USB_DEVICE(0x0c45, 0x612a), DVNM("Avant Camera")},
 	{USB_DEVICE(0x0c45, 0x612c), DVNM("Typhoon Rasy Cam 1.3MPix")},
+#ifndef CONFIG_USB_SN9C102
 	{USB_DEVICE(0x0c45, 0x6130), DVNM("Sonix Pccam")},
 	{USB_DEVICE(0x0c45, 0x6138), DVNM("Sn9c120 Mo4000")},
 	{USB_DEVICE(0x0c45, 0x613b), DVNM("Surfer SN-206")},
 	{USB_DEVICE(0x0c45, 0x613c), DVNM("Sonix Pccam168")},
+#endif
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
