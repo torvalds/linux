@@ -485,10 +485,8 @@ void show_regs(struct pt_regs * regs)
 	 * Lookup NIP late so we have the best change of getting the
 	 * above info out without failing
 	 */
-	printk("NIP ["REG"] ", regs->nip);
-	print_symbol("%s\n", regs->nip);
-	printk("LR ["REG"] ", regs->link);
-	print_symbol("%s\n", regs->link);
+	printk("NIP ["REG"] %pS\n", regs->nip, (void *)regs->nip);
+	printk("LR ["REG"] %pS\n", regs->link, (void *)regs->link);
 #endif
 	show_stack(current, (unsigned long *) regs->gpr[1]);
 	if (!user_mode(regs))
@@ -976,8 +974,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		newsp = stack[0];
 		ip = stack[STACK_FRAME_LR_SAVE];
 		if (!firstframe || ip != lr) {
-			printk("["REG"] ["REG"] ", sp, ip);
-			print_symbol("%s", ip);
+			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 			if (firstframe)
 				printk(" (unreliable)");
 			printk("\n");
@@ -992,10 +989,9 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		    && stack[STACK_FRAME_MARKER] == STACK_FRAME_REGS_MARKER) {
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_FRAME_OVERHEAD);
-			printk("--- Exception: %lx", regs->trap);
-			print_symbol(" at %s\n", regs->nip);
 			lr = regs->link;
-			print_symbol("    LR = %s\n", lr);
+			printk("--- Exception: %lx at %pS\n    LR = %pS\n",
+			       regs->trap, (void *)regs->nip, (void *)lr);
 			firstframe = 1;
 		}
 
