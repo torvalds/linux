@@ -331,13 +331,13 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		RCNR = 0;
 	}
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	rtc = rtc_device_register(pdev->name, &pdev->dev, &sa1100_rtc_ops,
 				THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
-
-	device_init_wakeup(&pdev->dev, 1);
 
 	platform_set_drvdata(pdev, rtc);
 

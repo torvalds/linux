@@ -177,6 +177,7 @@ static XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT1",   0x0208, 0x9002}
 };
 
+static int  xc5000_is_firmware_loaded(struct dvb_frontend *fe);
 static int  xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len);
 static int  xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len);
 static void xc5000_TunerReset(struct dvb_frontend *fe);
@@ -352,7 +353,7 @@ static int xc_SetTVStandard(struct xc5000_priv *priv,
 
 static int xc_shutdown(struct xc5000_priv *priv)
 {
-	return 0;
+	return XC_RESULT_SUCCESS;
 	/* Fixme: cannot bring tuner back alive once shutdown
 	 *        without reloading the driver modules.
 	 *    return xc_write_reg(priv, XREG_POWER_DOWN, 0);
@@ -685,6 +686,25 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int xc5000_is_firmware_loaded(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret;
+	u16 id;
+
+	ret = xc5000_readreg(priv, XREG_PRODUCT_ID, &id);
+	if (ret == XC_RESULT_SUCCESS) {
+		if (id == XC_PRODUCT_ID_FW_NOT_LOADED)
+			ret = XC_RESULT_RESET_FAILURE;
+		else
+			ret = XC_RESULT_SUCCESS;
+	}
+
+	dprintk(1, "%s() returns %s id = 0x%x\n", __func__,
+		ret == XC_RESULT_SUCCESS ? "True" : "False", id);
+	return ret;
+}
+
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 
 static int xc5000_set_analog_params(struct dvb_frontend *fe,
@@ -693,7 +713,7 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	if(priv->fwloaded == 0)
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
 		xc_load_fw_and_init_tuner(fe);
 
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
@@ -808,11 +828,10 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret = 0;
 
-	if (priv->fwloaded == 0) {
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
 		ret = xc5000_fwupload(fe);
 		if (ret != XC_RESULT_SUCCESS)
 			return ret;
-		priv->fwloaded = 1;
 	}
 
 	/* Start the tuner self-calibration process */
@@ -852,7 +871,6 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 		return -EREMOTEIO;
 	}
 	else {
-		/* priv->fwloaded = 0; */
 		return XC_RESULT_SUCCESS;
 	}
 }
@@ -933,7 +951,6 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 			cfg->i2c_address);
 		printk(KERN_INFO
 			"xc5000: Firmware has been loaded previously\n");
-		priv->fwloaded = 1;
 		break;
 	case XC_PRODUCT_ID_FW_NOT_LOADED:
 		printk(KERN_INFO
@@ -941,7 +958,6 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 			cfg->i2c_address);
 		printk(KERN_INFO
 			"xc5000: Firmware has not been loaded previously\n");
-		priv->fwloaded = 0;
 		break;
 	default:
 		printk(KERN_ERR

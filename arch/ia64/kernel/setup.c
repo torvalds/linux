@@ -547,7 +547,8 @@ setup_arch (char **cmdline_p)
 # ifdef CONFIG_ACPI_NUMA
 	acpi_numa_init();
 	per_cpu_scan_finalize((cpus_weight(early_cpu_possible_map) == 0 ?
-		32 : cpus_weight(early_cpu_possible_map)), additional_cpus);
+		32 : cpus_weight(early_cpu_possible_map)),
+		additional_cpus > 0 ? additional_cpus : 0);
 # endif
 #else
 # ifdef CONFIG_SMP

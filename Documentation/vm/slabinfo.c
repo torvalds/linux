@@ -1,7 +1,7 @@
 /*
  * Slabinfo: Tool to get reports about slabs
  *
- * (C) 2007 sgi, Christoph Lameter <clameter@sgi.com>
+ * (C) 2007 sgi, Christoph Lameter
  *
  * Compile by:
  *
@@ -99,7 +99,7 @@ void fatal(const char *x, ...)
 
 void usage(void)
 {
-	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
+	printf("slabinfo 5/7/2007. (c) 2007 sgi.\n\n"
 		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
 		"-a|--aliases           Show aliases\n"
 		"-A|--activity          Most active slabs first\n"
