@@ -184,7 +184,70 @@ static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
-#ifndef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT
+/*
+ * Define virtualization-friendly old-style lock byte lock, for use in
+ * pv_lock_ops if desired.
+ *
+ * This differs from the pre-2.6.24 spinlock by always using xchgb
+ * rather than decb to take the lock; this allows it to use a
+ * zero-initialized lock structure.  It also maintains a 1-byte
+ * contention counter, so that we can implement
+ * __byte_spin_is_contended.
+ */
+struct __byte_spinlock {
+	s8 lock;
+	s8 spinners;
+};
+
+static inline int __byte_spin_is_locked(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	return bl->lock != 0;
+}
+
+static inline int __byte_spin_is_contended(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	return bl->spinners != 0;
+}
+
+static inline void __byte_spin_lock(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	s8 val = 1;
+
+	asm("1: xchgb %1, %0\n"
+	    "   test %1,%1\n"
+	    "   jz 3f\n"
+	    "   " LOCK_PREFIX "incb %2\n"
+	    "2: rep;nop\n"
+	    "   cmpb $1, %0\n"
+	    "   je 2b\n"
+	    "   " LOCK_PREFIX "decb %2\n"
+	    "   jmp 1b\n"
+	    "3:"
+	    : "+m" (bl->lock), "+q" (val), "+m" (bl->spinners): : "memory");
+}
+
+static inline int __byte_spin_trylock(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	u8 old = 1;
+
+	asm("xchgb %1,%0"
+	    : "+m" (bl->lock), "+q" (old) : : "memory");
+
+	return old == 0;
+}
+
+static inline void __byte_spin_unlock(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	smp_wmb();
+	bl->lock = 0;
+}
+#else  /* !CONFIG_PARAVIRT */
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
 	return __ticket_spin_is_locked(lock);

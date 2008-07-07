@@ -1385,6 +1385,8 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 void _paravirt_nop(void);
 #define paravirt_nop	((void *)_paravirt_nop)
 
+void paravirt_use_bytelocks(void);
+
 static inline int __raw_spin_is_locked(struct raw_spinlock *lock)
 {
 	return PVOP_CALL1(int, pv_lock_ops.spin_is_locked, lock);
