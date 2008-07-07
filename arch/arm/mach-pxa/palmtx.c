@@ -69,6 +69,18 @@ static unsigned long palmtx_pin_config[] __initdata = {
 
 	/* USB */
 	GPIO13_GPIO,
+
+	/* PCMCIA */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO79_PSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
 };
 
 /******************************************************************************
