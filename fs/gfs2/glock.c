@@ -267,8 +267,12 @@ static inline int may_grant(const struct gfs2_glock *gl, const struct gfs2_holde
 		return 1;
 	if (gh->gh_flags & GL_EXACT)
 		return 0;
-	if (gh->gh_state == LM_ST_SHARED && gl->gl_state == LM_ST_EXCLUSIVE)
-		return 1;
+	if (gl->gl_state == LM_ST_EXCLUSIVE) {
+		if (gh->gh_state == LM_ST_SHARED && gh_head->gh_state == LM_ST_SHARED)
+			return 1;
+		if (gh->gh_state == LM_ST_DEFERRED && gh_head->gh_state == LM_ST_DEFERRED)
+			return 1;
+	}
 	if (gl->gl_state != LM_ST_UNLOCKED && (gh->gh_flags & LM_FLAG_ANY))
 		return 1;
 	return 0;
