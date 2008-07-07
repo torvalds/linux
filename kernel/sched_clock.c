@@ -203,8 +203,8 @@ u64 sched_clock_cpu(int cpu)
 		now -= my_scd->tick_raw;
 		now += scd->tick_raw;
 
-		now -= my_scd->tick_gtod;
-		now += scd->tick_gtod;
+		now += my_scd->tick_gtod;
+		now -= scd->tick_gtod;
 
 		__raw_spin_unlock(&my_scd->lock);
 	} else {
