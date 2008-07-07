@@ -351,4 +351,15 @@ config TOUCHSCREEN_USB_GOTOP
 	bool "GoTop Super_Q2/GogoPen/PenPower tablet device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
+config TOUCHSCREEN_TOUCHIT213
+	tristate "Sahara TouchIT-213 touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Sahara TouchIT-213 Tablet PC.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called touchit213.
+
 endif
