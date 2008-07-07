@@ -38,7 +38,7 @@ const struct file_operations jffs2_dir_operations =
 {
 	.read =		generic_read_dir,
 	.readdir =	jffs2_readdir,
-	.ioctl =	jffs2_ioctl,
+	.unlocked_ioctl=jffs2_ioctl,
 	.fsync =	jffs2_fsync
 };
 
