@@ -84,18 +84,17 @@ static struct s3c2410_uartcfg n30_uartcfgs[] = {
 
 static void n30_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 {
-	switch (cmd)
-	{
-		case S3C2410_UDC_P_ENABLE :
-			s3c2410_gpio_setpin(S3C2410_GPB3, 1);
-			break;
-		case S3C2410_UDC_P_DISABLE :
-			s3c2410_gpio_setpin(S3C2410_GPB3, 0);
-			break;
-		case S3C2410_UDC_P_RESET :
-			break;
-		default:
-			break;
+	switch (cmd) {
+	case S3C2410_UDC_P_ENABLE :
+		s3c2410_gpio_setpin(S3C2410_GPB3, 1);
+		break;
+	case S3C2410_UDC_P_DISABLE :
+		s3c2410_gpio_setpin(S3C2410_GPB3, 0);
+		break;
+	case S3C2410_UDC_P_RESET :
+		break;
+	default:
+		break;
 	}
 }
 
@@ -293,28 +292,29 @@ static struct platform_device n30_warning_led = {
 };
 
 static struct s3c2410fb_display n30_display __initdata = {
-	.type = S3C2410_LCDCON1_TFT,
-	.width = 240,
-	.height = 320,
-	.pixclock = 170000,
-	.xres =	240,
-	.yres =	320,
-	.bpp = 16,
-	.left_margin = 3,
-	.right_margin =	40,
-	.hsync_len = 40,
-	.upper_margin =	2,
-	.lower_margin = 3,
-	.vsync_len = 2,
+	.type		= S3C2410_LCDCON1_TFT,
+	.width		= 240,
+	.height		= 320,
+	.pixclock	= 170000,
+
+	.xres		= 240,
+	.yres		= 320,
+	.bpp		= 16,
+	.left_margin	= 3,
+	.right_margin	= 40,
+	.hsync_len	= 40,
+	.upper_margin	= 2,
+	.lower_margin	= 3,
+	.vsync_len	= 2,
 
 	.lcdcon5 = S3C2410_LCDCON5_INVVLINE | S3C2410_LCDCON5_INVVFRAME,
 };
 
 static struct s3c2410fb_mach_info n30_fb_info __initdata = {
-	.displays = &n30_display,
-	.num_displays = 1,
+	.displays	= &n30_display,
+	.num_displays	= 1,
 	.default_display = 0,
-	.lpcsel=	0x06,
+	.lpcsel		= 0x06,
 };
 
 static struct platform_device *n30_devices[] __initdata = {
