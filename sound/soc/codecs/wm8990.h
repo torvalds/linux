@@ -825,7 +825,7 @@ struct wm8990_setup_data {
 #define WM8990_ADCCLK_DIV 2
 #define WM8990_BCLK_DIV 3
 
-extern struct snd_soc_codec_dai wm8990_dai;
+extern struct snd_soc_dai wm8990_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8990;
 
 #endif	/* __WM8990REGISTERDEFS_H__ */

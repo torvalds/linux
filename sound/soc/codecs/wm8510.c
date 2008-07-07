@@ -332,7 +332,7 @@ static void pll_factors(unsigned int target, unsigned int source)
 	pll_div.k = K;
 }
 
-static int wm8510_set_dai_pll(struct snd_soc_codec_dai *codec_dai,
+static int wm8510_set_dai_pll(struct snd_soc_dai *codec_dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -368,7 +368,7 @@ static int wm8510_set_dai_pll(struct snd_soc_codec_dai *codec_dai,
 /*
  * Configure WM8510 clock dividers.
  */
-static int wm8510_set_dai_clkdiv(struct snd_soc_codec_dai *codec_dai,
+static int wm8510_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		int div_id, int div)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -402,7 +402,7 @@ static int wm8510_set_dai_clkdiv(struct snd_soc_codec_dai *codec_dai,
 	return 0;
 }
 
-static int wm8510_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int wm8510_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -510,7 +510,7 @@ static int wm8510_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8510_mute(struct snd_soc_codec_dai *dai, int mute)
+static int wm8510_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u16 mute_reg = wm8510_read_reg_cache(codec, WM8510_DAC) & 0xffbf;
@@ -554,7 +554,7 @@ static int wm8510_set_bias_level(struct snd_soc_codec *codec,
 #define WM8510_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-struct snd_soc_codec_dai wm8510_dai = {
+struct snd_soc_dai wm8510_dai = {
 	.name = "WM8510 HiFi",
 	.playback = {
 		.stream_name = "Playback",

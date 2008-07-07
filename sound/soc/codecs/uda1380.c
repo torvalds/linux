@@ -372,7 +372,7 @@ static int uda1380_add_widgets(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int uda1380_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int uda1380_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -499,7 +499,7 @@ static void uda1380_pcm_shutdown(struct snd_pcm_substream *substream)
 	uda1380_write(codec, UDA1380_CLK, clk);
 }
 
-static int uda1380_mute(struct snd_soc_codec_dai *codec_dai, int mute)
+static int uda1380_mute(struct snd_soc_dai *codec_dai, int mute)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 mute_reg = uda1380_read_reg_cache(codec, UDA1380_DEEMP) & ~R13_MTM;
@@ -542,7 +542,7 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		       SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		       SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
-struct snd_soc_codec_dai uda1380_dai[] = {
+struct snd_soc_dai uda1380_dai[] = {
 {
 	.name = "UDA1380",
 	.playback = {

@@ -228,7 +228,7 @@ struct aic3x_setup_data {
 	unsigned int gpio_func[2];
 };
 
-extern struct snd_soc_codec_dai aic3x_dai;
+extern struct snd_soc_dai aic3x_dai;
 extern struct snd_soc_codec_device soc_codec_dev_aic3x;
 
 #endif /* _AIC3X_H */

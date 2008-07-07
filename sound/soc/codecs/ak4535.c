@@ -329,7 +329,7 @@ static int ak4535_add_widgets(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int ak4535_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
+static int ak4535_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -369,7 +369,7 @@ static int ak4535_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int ak4535_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int ak4535_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -394,7 +394,7 @@ static int ak4535_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
 	return 0;
 }
 
-static int ak4535_mute(struct snd_soc_codec_dai *dai, int mute)
+static int ak4535_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u16 mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC) & 0xffdf;
@@ -436,7 +436,7 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
-struct snd_soc_codec_dai ak4535_dai = {
+struct snd_soc_dai ak4535_dai = {
 	.name = "AK4535",
 	.playback = {
 		.stream_name = "Playback",

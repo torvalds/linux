@@ -814,7 +814,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int aic3x_mute(struct snd_soc_codec_dai *dai, int mute)
+static int aic3x_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u8 ldac_reg = aic3x_read_reg_cache(codec, LDAC_VOL) & ~MUTE_ON;
@@ -831,7 +831,7 @@ static int aic3x_mute(struct snd_soc_codec_dai *dai, int mute)
 	return 0;
 }
 
-static int aic3x_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
+static int aic3x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -841,7 +841,7 @@ static int aic3x_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
 	return 0;
 }
 
-static int aic3x_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			     unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -990,7 +990,7 @@ EXPORT_SYMBOL_GPL(aic3x_headset_detected);
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-struct snd_soc_codec_dai aic3x_dai = {
+struct snd_soc_dai aic3x_dai = {
 	.name = "aic3x",
 	.playback = {
 		.stream_name = "Playback",

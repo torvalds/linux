@@ -532,7 +532,7 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream)
 		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
 		SNDRV_PCM_RATE_48000)
 
-struct snd_soc_codec_dai wm9712_dai[] = {
+struct snd_soc_dai wm9712_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.type = SND_SOC_DAI_AC97_BUS,

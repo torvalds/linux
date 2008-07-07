@@ -789,7 +789,7 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9713_set_dai_pll(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_pll(struct snd_soc_dai *codec_dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -800,7 +800,7 @@ static int wm9713_set_dai_pll(struct snd_soc_codec_dai *codec_dai,
  * Tristate the PCM DAI lines, tristate can be disabled by calling
  * wm9713_set_dai_fmt()
  */
-static int wm9713_set_dai_tristate(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_tristate(struct snd_soc_dai *codec_dai,
 	int tristate)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -816,7 +816,7 @@ static int wm9713_set_dai_tristate(struct snd_soc_codec_dai *codec_dai,
  * Configure WM9713 clock dividers.
  * Voice DAC needs 256 FS
  */
-static int wm9713_set_dai_clkdiv(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		int div_id, int div)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -858,7 +858,7 @@ static int wm9713_set_dai_clkdiv(struct snd_soc_codec_dai *codec_dai,
 	return 0;
 }
 
-static int wm9713_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -1018,7 +1018,7 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream)
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
 	 SNDRV_PCM_FORMAT_S24_LE)
 
-struct snd_soc_codec_dai wm9713_dai[] = {
+struct snd_soc_dai wm9713_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.type = SND_SOC_DAI_AC97_BUS,
