@@ -45,6 +45,9 @@ struct sched_clock_data {
 	u64			tick_raw;
 	u64			tick_gtod;
 	u64			clock;
+#ifdef CONFIG_NO_HZ
+	int			check_max;
+#endif
 };
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct sched_clock_data, sched_clock_data);
@@ -76,10 +79,44 @@ void sched_clock_init(void)
 		scd->tick_raw = 0;
 		scd->tick_gtod = ktime_now;
 		scd->clock = ktime_now;
+#ifdef CONFIG_NO_HZ
+		scd->check_max = 1;
+#endif
 	}
 
 	sched_clock_running = 1;
 }
+
+#ifdef CONFIG_NO_HZ
+/*
+ * The dynamic ticks makes the delta jiffies inaccurate. This
+ * prevents us from checking the maximum time update.
+ * Disable the maximum check during stopped ticks.
+ */
+void sched_clock_tick_stop(int cpu)
+{
+	struct sched_clock_data *scd = cpu_sdc(cpu);
+
+	scd->check_max = 0;
+}
+
+void sched_clock_tick_start(int cpu)
+{
+	struct sched_clock_data *scd = cpu_sdc(cpu);
+
+	scd->check_max = 1;
+}
+
+static int check_max(struct sched_clock_data *scd)
+{
+	return scd->check_max;
+}
+#else
+static int check_max(struct sched_clock_data *scd)
+{
+	return 1;
+}
+#endif /* CONFIG_NO_HZ */
 
 /*
  * update the percpu scd from the raw @now value
@@ -112,7 +149,7 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	 */
 	max_clock = scd->tick_gtod + (2 + delta_jiffies) * TICK_NSEC;
 
-	if (unlikely(clock + delta > max_clock)) {
+	if (unlikely(clock + delta > max_clock) && check_max(scd)) {
 		if (clock < max_clock)
 			clock = max_clock;
 		else
