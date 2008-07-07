@@ -5,10 +5,28 @@ extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_cleanup_rom(struct pci_dev *dev);
 
-/* Firmware callbacks */
-extern pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev);
-extern int (*platform_pci_set_power_state)(struct pci_dev *dev,
-						pci_power_t state);
+/**
+ * Firmware PM callbacks
+ *
+ * @is_manageable - returns 'true' if given device is power manageable by the
+ *                  platform firmware
+ *
+ * @set_state - invokes the platform firmware to set the device's power state
+ *
+ * @choose_state - returns PCI power state of given device preferred by the
+ *                 platform; to be used during system-wide transitions from a
+ *                 sleeping state to the working state and vice versa
+ *
+ * If given platform is generally capable of power managing PCI devices, all of
+ * these callbacks are mandatory.
+ */
+struct pci_platform_pm_ops {
+	bool (*is_manageable)(struct pci_dev *dev);
+	int (*set_state)(struct pci_dev *dev, pci_power_t state);
+	pci_power_t (*choose_state)(struct pci_dev *dev);
+};
+
+extern int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
 
 extern int pci_user_read_config_byte(struct pci_dev *dev, int where, u8 *val);
 extern int pci_user_read_config_word(struct pci_dev *dev, int where, u16 *val);

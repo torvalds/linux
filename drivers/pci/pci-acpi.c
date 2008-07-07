@@ -215,7 +215,6 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 }
 EXPORT_SYMBOL(pci_osc_control_set);
 
-#ifdef CONFIG_ACPI_SLEEP
 /*
  * _SxD returns the D-state with the highest power
  * (lowest D-state number) supported in the S-state "x".
@@ -259,7 +258,13 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 	}
 	return PCI_POWER_ERROR;
 }
-#endif
+
+static bool acpi_pci_power_manageable(struct pci_dev *dev)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+
+	return handle ? acpi_bus_power_manageable(handle) : false;
+}
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -290,6 +295,11 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return -EINVAL;
 }
 
+static struct pci_platform_pm_ops acpi_pci_platform_pm = {
+	.is_manageable = acpi_pci_power_manageable,
+	.set_state = acpi_pci_set_power_state,
+	.choose_state = acpi_pci_choose_state,
+};
 
 /* ACPI bus type */
 static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
@@ -341,10 +351,7 @@ static int __init acpi_pci_init(void)
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
-#ifdef	CONFIG_ACPI_SLEEP
-	platform_pci_choose_state = acpi_pci_choose_state;
-#endif
-	platform_pci_set_power_state = acpi_pci_set_power_state;
+	pci_set_platform_pm(&acpi_pci_platform_pm);
 	return 0;
 }
 arch_initcall(acpi_pci_init);

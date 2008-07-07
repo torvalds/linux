@@ -376,7 +376,32 @@ pci_restore_bars(struct pci_dev *dev)
 		pci_update_resource(dev, &dev->resource[i], i);
 }
 
-int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
+static struct pci_platform_pm_ops *pci_platform_pm;
+
+int pci_set_platform_pm(struct pci_platform_pm_ops *ops)
+{
+	if (!ops->is_manageable || !ops->set_state || !ops->choose_state)
+		return -EINVAL;
+	pci_platform_pm = ops;
+	return 0;
+}
+
+static inline bool platform_pci_power_manageable(struct pci_dev *dev)
+{
+	return pci_platform_pm ? pci_platform_pm->is_manageable(dev) : false;
+}
+
+static inline int platform_pci_set_power_state(struct pci_dev *dev,
+                                                pci_power_t t)
+{
+	return pci_platform_pm ? pci_platform_pm->set_state(dev, t) : -ENOSYS;
+}
+
+static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
+{
+	return pci_platform_pm ?
+			pci_platform_pm->choose_state(dev) : PCI_POWER_ERROR;
+}
 
 /**
  * pci_set_power_state - Set the power state of a PCI device
@@ -479,8 +504,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 * Give firmware a chance to be called, such as ACPI _PRx, _PSx
 	 * Firmware method after native method ?
 	 */
-	if (platform_pci_set_power_state)
-		platform_pci_set_power_state(dev, state);
+	platform_pci_set_power_state(dev, state);
 
 	dev->current_state = state;
 
@@ -505,8 +529,6 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return 0;
 }
 
-pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev);
- 
 /**
  * pci_choose_state - Choose the power state of a PCI device
  * @dev: PCI device to be suspended
@@ -524,11 +546,9 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 	if (!pci_find_capability(dev, PCI_CAP_ID_PM))
 		return PCI_D0;
 
-	if (platform_pci_choose_state) {
-		ret = platform_pci_choose_state(dev);
-		if (ret != PCI_POWER_ERROR)
-			return ret;
-	}
+	ret = platform_pci_choose_state(dev);
+	if (ret != PCI_POWER_ERROR)
+		return ret;
 
 	switch (state.event) {
 	case PM_EVENT_ON:
