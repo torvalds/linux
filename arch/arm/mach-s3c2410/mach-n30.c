@@ -41,6 +41,7 @@
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/s3c2410.h>
+#include <asm/plat-s3c24xx/udc.h>
 
 static struct map_desc n30_iodesc[] __initdata = {
 	/* nothing here yet */
@@ -72,6 +73,29 @@ static struct s3c2410_uartcfg n30_uartcfgs[] = {
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x51,
 	},
+};
+
+static void n30_udc_pullup(enum s3c2410_udc_cmd_e cmd)
+{
+	switch (cmd)
+	{
+		case S3C2410_UDC_P_ENABLE :
+			s3c2410_gpio_setpin(S3C2410_GPB3, 1);
+			break;
+		case S3C2410_UDC_P_DISABLE :
+			s3c2410_gpio_setpin(S3C2410_GPB3, 0);
+			break;
+		case S3C2410_UDC_P_RESET :
+			break;
+		default:
+			break;
+	}
+}
+
+static struct s3c2410_udc_mach_info n30_udc_cfg __initdata = {
+	.udc_command		= n30_udc_pullup,
+	.vbus_pin		= S3C2410_GPG1,
+	.vbus_pin_inverted	= 0,
 };
 
 static struct platform_device *n30_devices[] __initdata = {
@@ -107,6 +131,7 @@ static void __init n30_init_irq(void)
 static void __init n30_init(void)
 {
 	s3c_device_i2c.dev.platform_data = &n30_i2ccfg;
+	s3c24xx_udc_set_platdata(&n30_udc_cfg);
 
 	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */
