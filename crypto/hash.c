@@ -128,7 +128,6 @@ static int crypto_init_hash_ops_async(struct crypto_tfm *tfm)
 	crt->digest     = hash_async_digest;
 	crt->setkey     = hash_async_setkey;
 	crt->digestsize = alg->digestsize;
-	crt->base       = __crypto_ahash_cast(tfm);
 
 	return 0;
 }

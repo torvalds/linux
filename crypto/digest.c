@@ -234,7 +234,6 @@ int crypto_init_digest_ops_async(struct crypto_tfm *tfm)
 	crt->setkey     = dalg->dia_setkey ? digest_async_setkey :
 						digest_async_nosetkey;
 	crt->digestsize = dalg->dia_digestsize;
-	crt->base       = __crypto_ahash_cast(tfm);
 
 	return 0;
 }

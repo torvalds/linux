@@ -76,7 +76,6 @@ static int crypto_init_ahash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	crt->final  = alg->final;
 	crt->digest = alg->digest;
 	crt->setkey = ahash_setkey;
-	crt->base   = __crypto_ahash_cast(tfm);
 	crt->digestsize = alg->digestsize;
 
 	return 0;

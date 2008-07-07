@@ -137,8 +137,6 @@ struct ablkcipher_request {
 struct ahash_request {
 	struct crypto_async_request base;
 
-	void *info;
-
 	unsigned int nbytes;
 	struct scatterlist *src;
 	u8		   *result;
@@ -420,7 +418,6 @@ struct ahash_tfm {
 			unsigned int keylen);
 
 	unsigned int digestsize;
-	struct crypto_ahash *base;
 	unsigned int reqsize;
 };
 
@@ -1384,7 +1381,7 @@ static inline int crypto_ahash_setkey(struct crypto_ahash *tfm,
 {
 	struct ahash_tfm *crt = crypto_ahash_crt(tfm);
 
-	return crt->setkey(crt->base, key, keylen);
+	return crt->setkey(tfm, key, keylen);
 }
 
 static inline int crypto_ahash_digest(struct ahash_request *req)
@@ -1396,7 +1393,7 @@ static inline int crypto_ahash_digest(struct ahash_request *req)
 static inline void ahash_request_set_tfm(struct ahash_request *req,
 					 struct crypto_ahash *tfm)
 {
-	req->base.tfm = crypto_ahash_tfm(crypto_ahash_crt(tfm)->base);
+	req->base.tfm = crypto_ahash_tfm(tfm);
 }
 
 static inline struct ahash_request *ahash_request_alloc(
