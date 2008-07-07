@@ -366,7 +366,7 @@ static struct snd_pcm_ops at32_pcm_ops = {
 static u64 at32_pcm_dmamask = 0xffffffff;
 
 static int at32_pcm_new(struct snd_card *card,
-			struct snd_soc_codec_dai *dai,
+			struct snd_soc_dai *dai,
 			struct snd_pcm *pcm)
 {
 	int ret = 0;
@@ -422,7 +422,7 @@ static void at32_pcm_free_dma_buffers(struct snd_pcm *pcm)
 
 #ifdef CONFIG_PM
 static int at32_pcm_suspend(struct platform_device *pdev,
-			    struct snd_soc_cpu_dai *dai)
+			    struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
 	struct at32_runtime_data *prtd;
@@ -447,7 +447,7 @@ static int at32_pcm_suspend(struct platform_device *pdev,
 
 
 static int at32_pcm_resume(struct platform_device *pdev,
-			   struct snd_soc_cpu_dai *dai)
+			   struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
 	struct at32_runtime_data *prtd;

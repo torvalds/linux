@@ -52,7 +52,7 @@ struct at32_ssc_info {
 #define AT32_SSC_RCMR_PERIOD    2	/* BCLK divider for receive FS */
 
 
-extern struct snd_soc_cpu_dai at32_ssc_dai[];
+extern struct snd_soc_dai at32_ssc_dai[];
 
 
 

@@ -82,7 +82,7 @@ static struct clk *_pll0;
 #if defined CONFIG_SND_AT32_SOC_PLAYPAQ_SLAVE
 static struct ssc_clock_data playpaq_wm8510_calc_ssc_clock(
 	struct snd_pcm_hw_params *params,
-	struct snd_soc_cpu_dai *cpu_dai)
+	struct snd_soc_dai *cpu_dai)
 {
 	struct at32_ssc_info *ssc_p = cpu_dai->private_data;
 	struct ssc_device *ssc = ssc_p->ssc;
@@ -132,8 +132,8 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct at32_ssc_info *ssc_p = cpu_dai->private_data;
 	struct ssc_device *ssc = ssc_p->ssc;
 	unsigned int pll_out = 0, bclk = 0, mclk_div = 0;

@@ -336,7 +336,7 @@ static void at32_ssc_shutdown(struct snd_pcm_substream *substream)
 /*
  * Set the SSC system clock rate
  */
-static int at32_ssc_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int at32_ssc_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 				   int clk_id, unsigned int freq, int dir)
 {
 	/* TODO: What the heck do I do here? */
@@ -348,7 +348,7 @@ static int at32_ssc_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
 /*
  * Record DAI format for use by hw_params()
  */
-static int at32_ssc_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int at32_ssc_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				unsigned int fmt)
 {
 	struct at32_ssc_info *ssc_p = &ssc_info[cpu_dai->id];
@@ -362,7 +362,7 @@ static int at32_ssc_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
 /*
  * Record SSC clock dividers for use in hw_params()
  */
-static int at32_ssc_set_dai_clkdiv(struct snd_soc_cpu_dai *cpu_dai,
+static int at32_ssc_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 				   int div_id, int div)
 {
 	struct at32_ssc_info *ssc_p = &ssc_info[cpu_dai->id];
@@ -670,7 +670,7 @@ static int at32_ssc_prepare(struct snd_pcm_substream *substream)
 
 #ifdef CONFIG_PM
 static int at32_ssc_suspend(struct platform_device *pdev,
-			    struct snd_soc_cpu_dai *cpu_dai)
+			    struct snd_soc_dai *cpu_dai)
 {
 	struct at32_ssc_info *ssc_p;
 
@@ -699,7 +699,7 @@ static int at32_ssc_suspend(struct platform_device *pdev,
 
 
 static int at32_ssc_resume(struct platform_device *pdev,
-			   struct snd_soc_cpu_dai *cpu_dai)
+			   struct snd_soc_dai *cpu_dai)
 {
 	struct at32_ssc_info *ssc_p;
 	u32 cr;
@@ -746,7 +746,7 @@ static int at32_ssc_resume(struct platform_device *pdev,
      SNDRV_PCM_FMTBIT_S24 | SNDRV_PCM_FMTBIT_S32)
 
 
-struct snd_soc_cpu_dai at32_ssc_dai[NUM_SSC_DEVICES] = {
+struct snd_soc_dai at32_ssc_dai[NUM_SSC_DEVICES] = {
 	{
 	 .name = "at32-ssc0",
 	 .id = 0,
