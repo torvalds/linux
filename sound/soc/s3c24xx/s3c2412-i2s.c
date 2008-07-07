@@ -295,7 +295,7 @@ static inline int s3c2412_snd_is_clkmaster(void)
 /*
  * Set S3C2412 I2S DAI format
  */
-static int s3c2412_i2s_set_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 			       unsigned int fmt)
 {
 	u32 iismod;
@@ -500,7 +500,7 @@ EXPORT_SYMBOL_GPL(s3c2412_iis_calc_rate);
 /*
  * Set S3C2412 Clock source
  */
-static int s3c2412_i2s_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int s3c2412_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	u32 iismod = readl(s3c2412_i2s.regs + S3C2412_IISMOD);
@@ -528,7 +528,7 @@ static int s3c2412_i2s_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
 /*
  * Set S3C2412 Clock dividers
  */
-static int s3c2412_i2s_set_clkdiv(struct snd_soc_cpu_dai *cpu_dai,
+static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 				  int div_id, int div)
 {
 	struct s3c2412_i2s_info *i2s = &s3c2412_i2s;
@@ -602,7 +602,7 @@ EXPORT_SYMBOL_GPL(s3c2412_get_iisclk);
 
 
 static int s3c2412_i2s_probe(struct platform_device *pdev,
-			     struct snd_soc_cpu_dai *dai)
+			     struct snd_soc_dai *dai)
 {
 	DBG("Entered %s\n", __func__);
 
@@ -648,7 +648,7 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 
 #ifdef CONFIG_PM
 static int s3c2412_i2s_suspend(struct platform_device *dev,
-			      struct snd_soc_cpu_dai *dai)
+			      struct snd_soc_dai *dai)
 {
 	struct s3c2412_i2s_info *i2s = &s3c2412_i2s;
 	u32 iismod;
@@ -676,7 +676,7 @@ static int s3c2412_i2s_suspend(struct platform_device *dev,
 }
 
 static int s3c2412_i2s_resume(struct platform_device *pdev,
-			      struct snd_soc_cpu_dai *dai)
+			      struct snd_soc_dai *dai)
 {
 	struct s3c2412_i2s_info *i2s = &s3c2412_i2s;
 
@@ -708,7 +708,7 @@ static int s3c2412_i2s_resume(struct platform_device *pdev,
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
-struct snd_soc_cpu_dai s3c2412_i2s_dai = {
+struct snd_soc_dai s3c2412_i2s_dai = {
 	.name	= "s3c2412-i2s",
 	.id	= 0,
 	.type	= SND_SOC_DAI_I2S,

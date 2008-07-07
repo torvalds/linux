@@ -429,7 +429,7 @@ static void s3c24xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 static u64 s3c24xx_pcm_dmamask = DMA_32BIT_MASK;
 
 static int s3c24xx_pcm_new(struct snd_card *card,
-	struct snd_soc_codec_dai *dai, struct snd_pcm *pcm)
+	struct snd_soc_dai *dai, struct snd_pcm *pcm)
 {
 	int ret = 0;
 

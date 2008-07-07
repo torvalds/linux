@@ -210,7 +210,7 @@ static struct s3c24xx_pcm_dma_params s3c2443_ac97_mic_mono_in = {
 };
 
 static int s3c2443_ac97_probe(struct platform_device *pdev,
-			      struct snd_soc_cpu_dai *dai)
+			      struct snd_soc_dai *dai)
 {
 	int ret;
 	u32 ac_glbctrl;
@@ -262,7 +262,7 @@ static int s3c2443_ac97_probe(struct platform_device *pdev,
 }
 
 static void s3c2443_ac97_remove(struct platform_device *pdev,
-				struct snd_soc_cpu_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	free_irq(IRQ_S3C244x_AC97, NULL);
 	clk_disable(s3c24xx_ac97.ac97_clk);
@@ -274,7 +274,7 @@ static int s3c2443_ac97_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		cpu_dai->dma_data = &s3c2443_ac97_pcm_stereo_out;
@@ -316,7 +316,7 @@ static int s3c2443_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
@@ -352,7 +352,7 @@ static int s3c2443_ac97_mic_trigger(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | \
 		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
-struct snd_soc_cpu_dai s3c2443_ac97_dai[] = {
+struct snd_soc_dai s3c2443_ac97_dai[] = {
 {
 	.name = "s3c2443-ac97",
 	.id = 0,
