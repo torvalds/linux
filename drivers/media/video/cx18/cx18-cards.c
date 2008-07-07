@@ -196,7 +196,7 @@ static const struct cx18_card_pci_info cx18_pci_mpc718[] = {
 static const struct cx18_card cx18_card_mpc718 = {
 	.type = CX18_CARD_YUAN_MPC718,
 	.name = "Yuan MPC718",
-	.comment = "Some Composite and S-Video inputs are currently working.\n",
+	.comment = "Analog video capture works; some audio line in may not.\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_CX23418,
 	.hw_all = CX18_HW_TUNER,
@@ -229,7 +229,7 @@ static const struct cx18_card cx18_card_mpc718 = {
 		.tune_lane = 0,
 		.initial_emrs = 2,
 	},
-	.xceive_pin = 15,
+	.xceive_pin = 0,
 	.pci_list = cx18_pci_mpc718,
 	.i2c = &cx18_i2c_std,
 };
