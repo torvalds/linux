@@ -53,7 +53,7 @@ static struct device ibmebus_bus_device = { /* fake "parent" device */
 struct bus_type ibmebus_bus_type;
 
 /* These devices will automatically be added to the bus during init */
-static struct of_device_id __initdata builtin_matches[] = {
+static struct of_device_id __initdata ibmebus_matches[] = {
 	{ .compatible = "IBM,lhca" },
 	{ .compatible = "IBM,lhea" },
 	{},
@@ -354,7 +354,7 @@ static int __init ibmebus_bus_init(void)
 		return err;
 	}
 
-	err = ibmebus_create_devices(builtin_matches);
+	err = ibmebus_create_devices(ibmebus_matches);
 	if (err) {
 		device_unregister(&ibmebus_bus_device);
 		bus_unregister(&ibmebus_bus_type);
