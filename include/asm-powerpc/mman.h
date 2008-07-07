@@ -10,6 +10,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define PROT_SAO	0x10		/* Strong Access Ordering */
+
 #define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS terminology */
 #define MAP_NORESERVE   0x40            /* don't reserve swap pages */
 #define MAP_LOCKED	0x80
