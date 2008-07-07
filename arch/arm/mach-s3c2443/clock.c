@@ -221,7 +221,6 @@ static struct clk clk_mdivclk = {
 	.get_rate	= s3c2443_getrate_mdivclk,
 };
 
-
 static int s3c2443_setparent_msysclk(struct clk *clk, struct clk *parent)
 {
 	unsigned long clksrc = __raw_readl(S3C2443_CLKSRC);
@@ -249,6 +248,46 @@ static struct clk clk_msysclk = {
 	.set_parent	= s3c2443_setparent_msysclk,
 };
 
+/* armdiv
+ *
+ * this clock is sourced from msysclk and can have a number of
+ * divider values applied to it to then be fed into armclk.
+*/
+
+static struct clk clk_armdiv = {
+	.name		= "armdiv",
+	.id		= -1,
+	.parent		= &clk_msysclk,
+};
+
+/* armclk
+ *
+ * this is the clock fed into the ARM core itself, either from
+ * armdiv or from hclk.
+ */
+
+static int s3c2443_setparent_armclk(struct clk *clk, struct clk *parent)
+{
+	unsigned long clkdiv0;
+
+	clkdiv0 = __raw_readl(S3C2443_CLKDIV0);
+
+	if (parent == &clk_armdiv)
+		clkdiv0 &= ~S3C2443_CLKDIV0_DVS;
+	else if (parent == &clk_h)
+		clkdiv0 |= S3C2443_CLKDIV0_DVS;
+	else
+		return -EINVAL;
+
+	__raw_writel(clkdiv0, S3C2443_CLKDIV0);
+	return 0;
+}
+
+static struct clk clk_arm = {
+	.name		= "armclk",
+	.id		= -1,
+	.set_parent	= s3c2443_setparent_armclk,
+};
 
 /* esysclk
  *
@@ -887,6 +926,15 @@ static void __init s3c2443_clk_initparents(void)
 	}
 
 	clk_init_set_parent(&clk_msysclk, parent);
+
+	/* arm */
+
+	if (__raw_readl(S3C2443_CLKDIV0) & S3C2443_CLKDIV0_DVS)
+		parent = &clk_h;
+	else
+		parent = &clk_armdiv;
+
+	clk_init_set_parent(&clk_arm, parent);
 }
 
 /* armdiv divisor table */
@@ -936,6 +984,8 @@ static struct clk *clks[] __initdata = {
 	&clk_hsspi,
 	&clk_hsmmc_div,
 	&clk_hsmmc,
+	&clk_armdiv,
+	&clk_arm,
 };
 
 void __init s3c2443_init_clocks(int xtal)
@@ -957,6 +1007,8 @@ void __init s3c2443_init_clocks(int xtal)
 	hclk = fclk / s3c2443_get_prediv(clkdiv0);
 	hclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_HCLK) ? 2 : 1);
  	pclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 2 : 1);
+
+	clk_armdiv.rate = fclk;
 
 	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
 
