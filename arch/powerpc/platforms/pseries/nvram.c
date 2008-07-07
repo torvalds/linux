@@ -131,8 +131,10 @@ int __init pSeries_nvram_init(void)
 		return -ENODEV;
 
 	nbytes_p = of_get_property(nvram, "#bytes", &proplen);
-	if (nbytes_p == NULL || proplen != sizeof(unsigned int))
+	if (nbytes_p == NULL || proplen != sizeof(unsigned int)) {
+		of_node_put(nvram);
 		return -EIO;
+	}
 
 	nvram_size = *nbytes_p;
 

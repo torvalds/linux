@@ -20,7 +20,6 @@
 
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
-#include <asm/mpc85xx.h>
 #include "edac_module.h"
 #include "edac_core.h"
 #include "mpc85xx_edac.h"
@@ -42,8 +41,6 @@ static u32 orig_pci_err_en;
 
 static u32 orig_l2_err_disable;
 static u32 orig_hid1;
-
-static const char *mpc85xx_ctl_name = "MPC85xx";
 
 /************************ MC SYSFS parts ***********************************/
 

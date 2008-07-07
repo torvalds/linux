@@ -104,7 +104,7 @@ static void ingress_destroy(struct Qdisc *sch)
 {
 	struct ingress_qdisc_data *p = qdisc_priv(sch);
 
-	tcf_destroy_chain(p->filter_list);
+	tcf_destroy_chain(&p->filter_list);
 }
 
 static int ingress_dump(struct Qdisc *sch, struct sk_buff *skb)

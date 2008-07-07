@@ -55,6 +55,7 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = pnp_irq(dev, 0);
+	hw.chipset = ide_generic;
 
 	hwif = ide_find_port();
 	if (hwif) {

@@ -12,6 +12,7 @@
 #include <linux/kmod.h>
 #include <linux/major.h>
 #include <linux/smp_lock.h>
+#include <linux/device_cgroup.h>
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
@@ -928,9 +929,22 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 {
 	struct module *owner = NULL;
 	struct gendisk *disk;
-	int ret = -ENXIO;
+	int ret;
 	int part;
+	int perm = 0;
 
+	if (file->f_mode & FMODE_READ)
+		perm |= MAY_READ;
+	if (file->f_mode & FMODE_WRITE)
+		perm |= MAY_WRITE;
+	/*
+	 * hooks: /n/, see "layering violations".
+	 */
+	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
+	if (ret != 0)
+		return ret;
+
+	ret = -ENXIO;
 	file->f_mapping = bdev->bd_inode->i_mapping;
 	lock_kernel();
 	disk = get_gendisk(bdev->bd_dev, &part);

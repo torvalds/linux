@@ -1727,7 +1727,8 @@ twobyte_insn:
 			if (rc)
 				goto done;
 
-			kvm_emulate_hypercall(ctxt->vcpu);
+			/* Let the processor re-execute the fixed hypercall */
+			c->eip = ctxt->vcpu->arch.rip;
 			/* Disable writeback. */
 			c->dst.type = OP_NONE;
 			break;

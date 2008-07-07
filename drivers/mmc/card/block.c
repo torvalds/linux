@@ -46,7 +46,7 @@
 #define MMC_SHIFT	3
 #define MMC_NUM_MINORS	(256 >> MMC_SHIFT)
 
-static unsigned long dev_use[MMC_NUM_MINORS/(8*sizeof(unsigned long))];
+static DECLARE_BITMAP(dev_use, MMC_NUM_MINORS);
 
 /*
  * There is one mmc_blk_data per slot.

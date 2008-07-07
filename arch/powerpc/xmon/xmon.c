@@ -2844,7 +2844,6 @@ static void dump_spu_fields(struct spu *spu)
 	DUMP_FIELD(spu, "0x%lx", flags);
 	DUMP_FIELD(spu, "%d", class_0_pending);
 	DUMP_FIELD(spu, "0x%lx", class_0_dar);
-	DUMP_FIELD(spu, "0x%lx", class_0_dsisr);
 	DUMP_FIELD(spu, "0x%lx", class_1_dar);
 	DUMP_FIELD(spu, "0x%lx", class_1_dsisr);
 	DUMP_FIELD(spu, "0x%lx", irqs[0]);

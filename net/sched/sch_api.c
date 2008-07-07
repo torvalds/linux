@@ -1252,12 +1252,12 @@ void tcf_destroy(struct tcf_proto *tp)
 	kfree(tp);
 }
 
-void tcf_destroy_chain(struct tcf_proto *fl)
+void tcf_destroy_chain(struct tcf_proto **fl)
 {
 	struct tcf_proto *tp;
 
-	while ((tp = fl) != NULL) {
-		fl = tp->next;
+	while ((tp = *fl) != NULL) {
+		*fl = tp->next;
 		tcf_destroy(tp);
 	}
 }

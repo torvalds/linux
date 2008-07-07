@@ -17,7 +17,6 @@
 #include <asm/processor.h>
 
 #include <linux/linkage.h>
-#include <linux/init.h>
 
 	/* We fill the empty parts of the gateway page with
  	 * something that will kill the kernel or a
@@ -27,7 +26,7 @@
 
 	.level          LEVEL
 
-	__HEAD
+	.text
 
 	.import syscall_exit,code
 	.import syscall_exit_rfi,code
@@ -637,7 +636,7 @@ END(sys_call_table64)
 		All light-weight-syscall atomic operations 
 		will use this set of locks 
 	*/
-	.section .data, "aw"
+	.section .data
 	.align	PAGE_SIZE
 ENTRY(lws_lock_start)
 	/* lws locks */

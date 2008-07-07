@@ -114,6 +114,7 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	unsigned int nob = data->blocks;
 	unsigned long long clks;
 	unsigned int timeout;
+	bool dalgn = 0;
 	u32 dcmd;
 	int i;
 
@@ -152,6 +153,9 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 		host->sg_cpu[i].dcmd = dcmd | length;
 		if (length & 31 && !(data->flags & MMC_DATA_READ))
 			host->sg_cpu[i].dcmd |= DCMD_ENDIRQEN;
+		/* Not aligned to 8-byte boundary? */
+		if (sg_dma_address(&data->sg[i]) & 0x7)
+			dalgn = 1;
 		if (data->flags & MMC_DATA_READ) {
 			host->sg_cpu[i].dsadr = host->res->start + MMC_RXFIFO;
 			host->sg_cpu[i].dtadr = sg_dma_address(&data->sg[i]);
@@ -165,6 +169,15 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	host->sg_cpu[host->dma_len - 1].ddadr = DDADR_STOP;
 	wmb();
 
+	/*
+	 * The PXA27x DMA controller encounters overhead when working with
+	 * unaligned (to 8-byte boundaries) data, so switch on byte alignment
+	 * mode only if we have unaligned data.
+	 */
+	if (dalgn)
+		DALGN |= (1 << host->dma);
+	else
+		DALGN &= (1 << host->dma);
 	DDADR(host->dma) = host->sg_dma;
 	DCSR(host->dma) = DCSR_RUN;
 }

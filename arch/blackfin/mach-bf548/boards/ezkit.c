@@ -412,8 +412,6 @@ static struct platform_device ezkit_flash_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-/* all SPI peripherals info goes here */
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
 /* SPI flash chip (m25p16) */
@@ -481,7 +479,7 @@ static struct bfin5xx_spi_chip spidev_chip_info = {
 };
 #endif
 
-static struct spi_board_info bf54x_spi_board_info[] __initdata = {
+static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
 	{
@@ -527,6 +525,7 @@ static struct spi_board_info bf54x_spi_board_info[] __initdata = {
 #endif
 };
 
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI (0) */
 static struct resource bfin_spi0_resource[] = {
 	[0] = {
@@ -800,10 +799,7 @@ static int __init ezkit_init(void)
 
 	platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	spi_register_board_info(bf54x_spi_board_info,
-			ARRAY_SIZE(bf54x_spi_board_info));
-#endif
+	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 
 	return 0;
 }

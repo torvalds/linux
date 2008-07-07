@@ -346,27 +346,6 @@ have_requested_irq( char irq )
 }
 
 /******************************************************************************/
-/* Function:   init_module()                                                  */
-/* Parameters: None                                                           */
-/* Returns:    Success (0)                                                    */
-/*                                                                            */
-/* Description:                                                               */
-/* This is a required entry point for an installable module. It simply calls  */
-/* the driver initialisation function and returns what it returns.            */
-/******************************************************************************/
-#ifdef MODULE
-static int __init
-ip2_init_module(void)
-{
-#ifdef IP2DEBUG_INIT
-	printk (KERN_DEBUG "Loading module ...\n" );
-#endif
-    return 0;
-}
-module_init(ip2_init_module);
-#endif /* MODULE */
-
-/******************************************************************************/
 /* Function:   cleanup_module()                                               */
 /* Parameters: None                                                           */
 /* Returns:    Nothing                                                        */
@@ -778,8 +757,6 @@ out_chrdev:
 out:
 	return err;
 }
-
-EXPORT_SYMBOL(ip2_loadmain);
 
 /******************************************************************************/
 /* Function:   ip2_init_board()                                               */

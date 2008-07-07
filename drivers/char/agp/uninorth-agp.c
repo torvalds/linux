@@ -281,10 +281,10 @@ static void uninorth_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 
 	if (uninorth_rev >= 0x30) {
 		/* This is an AGP V3 */
-		agp_device_command(command, (status & AGPSTAT_MODE_3_0));
+		agp_device_command(command, (status & AGPSTAT_MODE_3_0) != 0);
 	} else {
 		/* AGP V2 */
-		agp_device_command(command, 0);
+		agp_device_command(command, false);
 	}
 
 	uninorth_tlbflush(NULL);
@@ -511,7 +511,7 @@ const struct agp_bridge_driver uninorth_agp_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
-	.cant_use_aperture	= 1,
+	.cant_use_aperture	= true,
 };
 
 const struct agp_bridge_driver u3_agp_driver = {
@@ -536,8 +536,8 @@ const struct agp_bridge_driver u3_agp_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
-	.cant_use_aperture	= 1,
-	.needs_scratch_page	= 1,
+	.cant_use_aperture	= true,
+	.needs_scratch_page	= true,
 };
 
 static struct agp_device_ids uninorth_agp_device_ids[] __devinitdata = {

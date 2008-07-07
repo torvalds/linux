@@ -1145,7 +1145,6 @@ static void b43_generate_noise_sample(struct b43_wldev *dev)
 	b43_jssi_write(dev, 0x7F7F7F7F);
 	b43_write32(dev, B43_MMIO_MACCMD,
 		    b43_read32(dev, B43_MMIO_MACCMD) | B43_MACCMD_BGNOISE);
-	B43_WARN_ON(dev->noisecalc.channel_at_start != dev->phy.channel);
 }
 
 static void b43_calculate_link_quality(struct b43_wldev *dev)
@@ -1154,7 +1153,6 @@ static void b43_calculate_link_quality(struct b43_wldev *dev)
 
 	if (dev->noisecalc.calculation_running)
 		return;
-	dev->noisecalc.channel_at_start = dev->phy.channel;
 	dev->noisecalc.calculation_running = 1;
 	dev->noisecalc.nr_samples = 0;
 
@@ -1171,9 +1169,16 @@ static void handle_irq_noise(struct b43_wldev *dev)
 
 	/* Bottom half of Link Quality calculation. */
 
+	/* Possible race condition: It might be possible that the user
+	 * changed to a different channel in the meantime since we
+	 * started the calculation. We ignore that fact, since it's
+	 * not really that much of a problem. The background noise is
+	 * an estimation only anyway. Slightly wrong results will get damped
+	 * by the averaging of the 8 sample rounds. Additionally the
+	 * value is shortlived. So it will be replaced by the next noise
+	 * calculation round soon. */
+
 	B43_WARN_ON(!dev->noisecalc.calculation_running);
-	if (dev->noisecalc.channel_at_start != phy->channel)
-		goto drop_calculation;
 	*((__le32 *)noise) = cpu_to_le32(b43_jssi_read(dev));
 	if (noise[0] == 0x7F || noise[1] == 0x7F ||
 	    noise[2] == 0x7F || noise[3] == 0x7F)
@@ -1214,11 +1219,10 @@ static void handle_irq_noise(struct b43_wldev *dev)
 			average -= 48;
 
 		dev->stats.link_noise = average;
-	      drop_calculation:
 		dev->noisecalc.calculation_running = 0;
 		return;
 	}
-      generate_new:
+generate_new:
 	b43_generate_noise_sample(dev);
 }
 
@@ -1544,6 +1548,30 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	kfree(probe_resp_data);
 }
 
+static void b43_upload_beacon0(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+
+	if (wl->beacon0_uploaded)
+		return;
+	b43_write_beacon_template(dev, 0x68, 0x18);
+	/* FIXME: Probe resp upload doesn't really belong here,
+	 *        but we don't use that feature anyway. */
+	b43_write_probe_resp_template(dev, 0x268, 0x4A,
+				      &__b43_ratetable[3]);
+	wl->beacon0_uploaded = 1;
+}
+
+static void b43_upload_beacon1(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+
+	if (wl->beacon1_uploaded)
+		return;
+	b43_write_beacon_template(dev, 0x468, 0x1A);
+	wl->beacon1_uploaded = 1;
+}
+
 static void handle_irq_beacon(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
@@ -1568,24 +1596,27 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 		return;
 	}
 
-	if (!beacon0_valid) {
-		if (!wl->beacon0_uploaded) {
-			b43_write_beacon_template(dev, 0x68, 0x18);
-			b43_write_probe_resp_template(dev, 0x268, 0x4A,
-						      &__b43_ratetable[3]);
-			wl->beacon0_uploaded = 1;
-		}
+	if (unlikely(wl->beacon_templates_virgin)) {
+		/* We never uploaded a beacon before.
+		 * Upload both templates now, but only mark one valid. */
+		wl->beacon_templates_virgin = 0;
+		b43_upload_beacon0(dev);
+		b43_upload_beacon1(dev);
 		cmd = b43_read32(dev, B43_MMIO_MACCMD);
 		cmd |= B43_MACCMD_BEACON0_VALID;
 		b43_write32(dev, B43_MMIO_MACCMD, cmd);
-	} else if (!beacon1_valid) {
-		if (!wl->beacon1_uploaded) {
-			b43_write_beacon_template(dev, 0x468, 0x1A);
-			wl->beacon1_uploaded = 1;
+	} else {
+		if (!beacon0_valid) {
+			b43_upload_beacon0(dev);
+			cmd = b43_read32(dev, B43_MMIO_MACCMD);
+			cmd |= B43_MACCMD_BEACON0_VALID;
+			b43_write32(dev, B43_MMIO_MACCMD, cmd);
+		} else if (!beacon1_valid) {
+			b43_upload_beacon1(dev);
+			cmd = b43_read32(dev, B43_MMIO_MACCMD);
+			cmd |= B43_MACCMD_BEACON1_VALID;
+			b43_write32(dev, B43_MMIO_MACCMD, cmd);
 		}
-		cmd = b43_read32(dev, B43_MMIO_MACCMD);
-		cmd |= B43_MACCMD_BEACON1_VALID;
-		b43_write32(dev, B43_MMIO_MACCMD, cmd);
 	}
 }
 
@@ -2852,12 +2883,11 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 
 	if (unlikely(skb->len < 2 + 2 + 6)) {
 		/* Too short, this can't be a valid frame. */
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+		goto drop_packet;
 	}
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
 	if (unlikely(!dev))
-		return NETDEV_TX_BUSY;
+		goto drop_packet;
 
 	/* Transmissions on seperate queues can run concurrently. */
 	read_lock_irqsave(&wl->tx_lock, flags);
@@ -2873,7 +2903,12 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	read_unlock_irqrestore(&wl->tx_lock, flags);
 
 	if (unlikely(err))
-		return NETDEV_TX_BUSY;
+		goto drop_packet;
+	return NETDEV_TX_OK;
+
+drop_packet:
+	/* We can not transmit this packet. Drop it. */
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -4073,6 +4108,9 @@ static int b43_op_start(struct ieee80211_hw *hw)
 	wl->filter_flags = 0;
 	wl->radiotap_enabled = 0;
 	b43_qos_clear(wl);
+	wl->beacon0_uploaded = 0;
+	wl->beacon1_uploaded = 0;
+	wl->beacon_templates_virgin = 1;
 
 	/* First register RFkill.
 	 * LEDs that are registered later depend on it. */
@@ -4241,7 +4279,9 @@ static void b43_chip_reset(struct work_struct *work)
 			goto out;
 		}
 	}
-      out:
+out:
+	if (err)
+		wl->current_dev = NULL; /* Failed to init the dev. */
 	mutex_unlock(&wl->mutex);
 	if (err)
 		b43err(wl, "Controller restart FAILED\n");
@@ -4382,9 +4422,11 @@ static void b43_one_core_detach(struct ssb_device *dev)
 	struct b43_wldev *wldev;
 	struct b43_wl *wl;
 
+	/* Do not cancel ieee80211-workqueue based work here.
+	 * See comment in b43_remove(). */
+
 	wldev = ssb_get_drvdata(dev);
 	wl = wldev->wl;
-	cancel_work_sync(&wldev->restart_work);
 	b43_debugfs_remove_device(wldev);
 	b43_wireless_core_detach(wldev);
 	list_del(&wldev->list);
@@ -4568,6 +4610,10 @@ static void b43_remove(struct ssb_device *dev)
 {
 	struct b43_wl *wl = ssb_get_devtypedata(dev);
 	struct b43_wldev *wldev = ssb_get_drvdata(dev);
+
+	/* We must cancel any work here before unregistering from ieee80211,
+	 * as the ieee80211 unreg will destroy the workqueue. */
+	cancel_work_sync(&wldev->restart_work);
 
 	B43_WARN_ON(!wl);
 	if (wl->current_dev == wldev)

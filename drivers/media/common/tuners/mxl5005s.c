@@ -101,7 +101,7 @@ enum {
 	MXL_QAM,
 	MXL_ANALOG_CABLE,
 	MXL_ANALOG_OTA
-} tuner_modu_type;
+};
 
 /* MXL5005 Tuner Register Struct */
 struct TunerReg {
@@ -194,7 +194,7 @@ enum {
 	RFSYN_DIVM,                /* 88 */
 	DN_BYPASS_AGC_I2C          /* 89 */
 #endif
-} MXL5005_ControlName;
+};
 
 /*
  * The following context is source code provided by MaxLinear.
