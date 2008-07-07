@@ -274,7 +274,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	amd_iommu=	[HW,X86-84]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
-			off     - disable the driver for AMD IOMMU
 			isolate - enable device isolation (each device, as far
 			          as possible, will get its own protection
 			          domain)
