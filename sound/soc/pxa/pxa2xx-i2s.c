@@ -77,7 +77,7 @@ static struct pxa2xx_gpio gpio_bus[] = {
 static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (!cpu_dai->active) {
 		SACR0 |= SACR0_RST;
@@ -98,7 +98,7 @@ static int pxa_i2s_wait(void)
 	return 0;
 }
 
-static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
 	/* interface format */
@@ -124,7 +124,7 @@ static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
 	return 0;
 }
 
-static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	if (clk_id != PXA2XX_I2S_SYSCLK)
@@ -140,7 +140,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].rx);
 	pxa_gpio_mode(gpio_bus[pxa_i2s.master].tx);
@@ -237,7 +237,7 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream)
 
 #ifdef CONFIG_PM
 static int pxa2xx_i2s_suspend(struct platform_device *dev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	if (!dai->active)
 		return 0;
@@ -255,7 +255,7 @@ static int pxa2xx_i2s_suspend(struct platform_device *dev,
 }
 
 static int pxa2xx_i2s_resume(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *dai)
+	struct snd_soc_dai *dai)
 {
 	if (!dai->active)
 		return 0;
@@ -280,7 +280,7 @@ static int pxa2xx_i2s_resume(struct platform_device *pdev,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
-struct snd_soc_cpu_dai pxa_i2s_dai = {
+struct snd_soc_dai pxa_i2s_dai = {
 	.name = "pxa2xx-i2s",
 	.id = 0,
 	.type = SND_SOC_DAI_I2S,
