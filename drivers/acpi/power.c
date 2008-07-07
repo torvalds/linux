@@ -363,10 +363,17 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
  */
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 {
-	int i;
+	int i, err;
 
 	if (!dev || !dev->wakeup.flags.valid)
 		return -EINVAL;
+
+	/*
+	 * Do not execute the code below twice in a row without calling
+	 * acpi_disable_wakeup_device_power() in between for the same device
+	 */
+	if (dev->wakeup.flags.prepared)
+		return 0;
 
 	/* Open power resource */
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
@@ -382,7 +389,11 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 	 * Passing 3 as the third argument below means the device may be placed
 	 * in arbitrary power state afterwards.
 	 */
-	return acpi_device_sleep_wake(dev, 1, sleep_state, 3);
+	err = acpi_device_sleep_wake(dev, 1, sleep_state, 3);
+	if (!err)
+		dev->wakeup.flags.prepared = 1;
+
+	return err;
 }
 
 /*
@@ -397,6 +408,15 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 
 	if (!dev || !dev->wakeup.flags.valid)
 		return -EINVAL;
+
+	/*
+	 * Do not execute the code below twice in a row without calling
+	 * acpi_enable_wakeup_device_power() in between for the same device
+	 */
+	if (!dev->wakeup.flags.prepared)
+		return 0;
+
+	dev->wakeup.flags.prepared = 0;
 
 	ret = acpi_device_sleep_wake(dev, 0, 0, 0);
 	if (ret)
