@@ -42,7 +42,7 @@ void acpi_enable_wakeup_device_prep(u8 sleep_state)
 			continue;
 
 		spin_unlock(&acpi_device_lock);
-		acpi_enable_wakeup_device_power(dev);
+		acpi_enable_wakeup_device_power(dev, sleep_state);
 		spin_lock(&acpi_device_lock);
 	}
 	spin_unlock(&acpi_device_lock);
