@@ -12,6 +12,7 @@
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7722) || \
     defined(CONFIG_CPU_SUBTYPE_SH7723) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7343) || \
     defined(CONFIG_CPU_SUBTYPE_SH7366)
 #define FRQCR		        0xa4150000
 #define VCLKCR			0xa4150004
