@@ -124,6 +124,7 @@ static void *get_call_destination(u8 type)
 		.pv_irq_ops = pv_irq_ops,
 		.pv_apic_ops = pv_apic_ops,
 		.pv_mmu_ops = pv_mmu_ops,
+		.pv_lock_ops = pv_lock_ops,
 	};
 	return *((void **)&tmpl + type);
 }
@@ -448,6 +449,15 @@ struct pv_mmu_ops pv_mmu_ops = {
 	},
 
 	.set_fixmap = native_set_fixmap,
+};
+
+struct pv_lock_ops pv_lock_ops = {
+	.spin_is_locked = __ticket_spin_is_locked,
+	.spin_is_contended = __ticket_spin_is_contended,
+
+	.spin_lock = __ticket_spin_lock,
+	.spin_trylock = __ticket_spin_trylock,
+	.spin_unlock = __ticket_spin_unlock,
 };
 
 EXPORT_SYMBOL_GPL(pv_time_ops);
