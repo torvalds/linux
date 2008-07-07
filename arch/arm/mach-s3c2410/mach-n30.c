@@ -1,9 +1,9 @@
-/* linux/arch/arm/mach-s3c2410/mach-n30.c
+/* Machine specific code for the Acer n30 PDA.
  *
  * Copyright (c) 2003-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Copyright (c) 2005 Christer Weinigel <christer@weinigel.se>
+ * Copyright (c) 2005-2008 Christer Weinigel <christer@weinigel.se>
  *
  * There is a wiki with more information about the n30 port at
  * http://handhelds.org/moin/moin.cgi/AcerN30Documentation .
@@ -15,32 +15,32 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/list.h>
-#include <linux/timer.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/serial_core.h>
-#include <linux/platform_device.h>
-#include <linux/kthread.h>
 
-#include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/irq.h>
+#include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/platform_device.h>
+#include <linux/serial_core.h>
+#include <linux/timer.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
-#include <asm/plat-s3c/iic.h>
 
-#include <asm/plat-s3c24xx/s3c2410.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/irq.h>
+#include <asm/mach/map.h>
+
+#include <asm/plat-s3c/iic.h>
+#include <asm/plat-s3c/regs-serial.h>
+
 #include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c24xx/cpu.h>
+#include <asm/plat-s3c24xx/devs.h>
+#include <asm/plat-s3c24xx/s3c2410.h>
 
 static struct map_desc n30_iodesc[] __initdata = {
 	/* nothing here yet */
@@ -75,11 +75,11 @@ static struct s3c2410_uartcfg n30_uartcfgs[] = {
 };
 
 static struct platform_device *n30_devices[] __initdata = {
-	&s3c_device_usb,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
 	&s3c_device_iis,
+	&s3c_device_usb,
 	&s3c_device_usbgadget,
 };
 
@@ -130,10 +130,3 @@ MACHINE_START(N30, "Acer-N30")
 	.init_irq	= n30_init_irq,
 	.map_io		= n30_map_io,
 MACHINE_END
-
-/*
-    Local variables:
-        compile-command: "make ARCH=arm CROSS_COMPILE=/usr/local/arm/3.3.2/bin/arm-linux- -k -C ../../.."
-        c-basic-offset: 8
-    End:
-*/
