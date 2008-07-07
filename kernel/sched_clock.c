@@ -96,14 +96,21 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	s64 delta = now - scd->prev_raw;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	min_clock = scd->tick_gtod + delta_jiffies * TICK_NSEC;
+
+	min_clock = scd->tick_gtod +
+		(delta_jiffies ? delta_jiffies - 1 : 0) * TICK_NSEC;
 
 	if (unlikely(delta < 0)) {
 		clock++;
 		goto out;
 	}
 
-	max_clock = min_clock + TICK_NSEC;
+	/*
+	 * The clock must stay within a jiffie of the gtod.
+	 * But since we may be at the start of a jiffy or the end of one
+	 * we add another jiffy buffer.
+	 */
+	max_clock = scd->tick_gtod + (2 + delta_jiffies) * TICK_NSEC;
 
 	if (unlikely(clock + delta > max_clock)) {
 		if (clock < max_clock)
