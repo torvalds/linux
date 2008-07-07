@@ -2045,16 +2045,14 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 #ifdef CONFIG_IXGB_NAPI
 		if(adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
-				le16_to_cpu(rx_desc->special) &
-					IXGB_RX_DESC_SPECIAL_VLAN_MASK);
+				le16_to_cpu(rx_desc->special));
 		} else {
 			netif_receive_skb(skb);
 		}
 #else /* CONFIG_IXGB_NAPI */
 		if(adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
 			vlan_hwaccel_rx(skb, adapter->vlgrp,
-				le16_to_cpu(rx_desc->special) &
-					IXGB_RX_DESC_SPECIAL_VLAN_MASK);
+				le16_to_cpu(rx_desc->special));
 		} else {
 			netif_rx(skb);
 		}

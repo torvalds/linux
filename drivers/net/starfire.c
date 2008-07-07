@@ -1510,7 +1510,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 			if (debug > 4)
 				printk(KERN_DEBUG "  netdev_rx() vlanid = %d\n", le16_to_cpu(desc->vlanid));
 			/* vlan_netdev_receive_skb() expects a packet with the VLAN tag stripped out */
-			vlan_netdev_receive_skb(skb, np->vlgrp, le16_to_cpu(desc->vlanid) & VLAN_VID_MASK);
+			vlan_netdev_receive_skb(skb, np->vlgrp, le16_to_cpu(desc->vlanid));
 		} else
 #endif /* VLAN_SUPPORT */
 			netdev_receive_skb(skb);
