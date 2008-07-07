@@ -571,6 +571,12 @@ P:	Dirk Opfer
 M:	dirk@opfer-online.de
 S:	Maintained
 
+ARM/PALMTX SUPPORT
+P:	Marek Vasut
+M:	marek.vasut@gmail.com
+W:	http://hackndev.com
+S:	Maintained
+
 ARM/PLEB SUPPORT
 P:	Peter Chubb
 M:	pleb@gelato.unsw.edu.au
