@@ -878,6 +878,18 @@ void xen_setup_shared_info(void)
 
 static __init void xen_pagetable_setup_done(pgd_t *base)
 {
+	xen_setup_shared_info();
+}
+
+static __init void xen_post_allocator_init(void)
+{
+	pv_mmu_ops.set_pte = xen_set_pte;
+	pv_mmu_ops.set_pmd = xen_set_pmd;
+	pv_mmu_ops.set_pud = xen_set_pud;
+#if PAGETABLE_LEVELS == 4
+	pv_mmu_ops.set_pgd = xen_set_pgd;
+#endif
+
 	/* This will work as long as patching hasn't happened yet
 	   (which it hasn't) */
 	pv_mmu_ops.alloc_pte = xen_alloc_pte;
@@ -887,19 +899,6 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 #if PAGETABLE_LEVELS == 4
 	pv_mmu_ops.alloc_pud = xen_alloc_pud;
 	pv_mmu_ops.release_pud = xen_release_pud;
-#endif
-
-	pv_mmu_ops.set_pte = xen_set_pte;
-
-	xen_setup_shared_info();
-}
-
-static __init void xen_post_allocator_init(void)
-{
-	pv_mmu_ops.set_pmd = xen_set_pmd;
-	pv_mmu_ops.set_pud = xen_set_pud;
-#if PAGETABLE_LEVELS == 4
-	pv_mmu_ops.set_pgd = xen_set_pgd;
 #endif
 
 	xen_mark_init_mm_pinned();
