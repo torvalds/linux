@@ -175,7 +175,7 @@ static inline void serio_unpin_driver(struct serio *serio)
 #define SERIO_8042_XL	0x06
 
 /*
- * Serio types
+ * Serio protocols
  */
 #define SERIO_UNKNOWN	0x00
 #define SERIO_MSC	0x01
