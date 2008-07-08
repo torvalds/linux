@@ -178,7 +178,7 @@ extern struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops);
 extern struct Qdisc *qdisc_create_dflt(struct net_device *dev,
 				       struct Qdisc_ops *ops, u32 parentid);
 extern void tcf_destroy(struct tcf_proto *tp);
-extern void tcf_destroy_chain(struct tcf_proto *fl);
+extern void tcf_destroy_chain(struct tcf_proto **fl);
 
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)

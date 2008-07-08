@@ -27,6 +27,8 @@
 #include <linux/moduleparam.h>
 #include <linux/connector.h>
 #include <linux/mutex.h>
+#include <linux/proc_fs.h>
+#include <linux/spinlock.h>
 
 #include <net/sock.h>
 
@@ -403,6 +405,40 @@ static void cn_callback(void *data)
 	mutex_unlock(&notify_lock);
 }
 
+static int cn_proc_show(struct seq_file *m, void *v)
+{
+	struct cn_queue_dev *dev = cdev.cbdev;
+	struct cn_callback_entry *cbq;
+
+	seq_printf(m, "Name            ID\n");
+
+	spin_lock_bh(&dev->queue_lock);
+
+	list_for_each_entry(cbq, &dev->queue_list, callback_entry) {
+		seq_printf(m, "%-15s %u:%u\n",
+			   cbq->id.name,
+			   cbq->id.id.idx,
+			   cbq->id.id.val);
+	}
+
+	spin_unlock_bh(&dev->queue_lock);
+
+	return 0;
+}
+
+static int cn_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cn_proc_show, NULL);
+}
+
+static const struct file_operations cn_file_ops = {
+	.owner   = THIS_MODULE,
+	.open    = cn_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release
+};
+
 static int __devinit cn_init(void)
 {
 	struct cn_dev *dev = &cdev;
@@ -434,6 +470,8 @@ static int __devinit cn_init(void)
 		return -EINVAL;
 	}
 
+	proc_net_fops_create(&init_net, "connector", S_IRUGO, &cn_file_ops);
+
 	return 0;
 }
 
@@ -442,6 +480,8 @@ static void __devexit cn_fini(void)
 	struct cn_dev *dev = &cdev;
 
 	cn_already_initialized = 0;
+
+	proc_net_remove(&init_net, "connector");
 
 	cn_del_callback(&dev->id);
 	cn_queue_free_dev(dev->cbdev);

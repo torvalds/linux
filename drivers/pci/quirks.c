@@ -1670,6 +1670,48 @@ static void __devinit quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_VIA, 0x324e, quirk_via_cx700_pci_parking_caching);
 
+/*
+ * For Broadcom 5706, 5708, 5709 rev. A nics, any read beyond the
+ * VPD end tag will hang the device.  This problem was initially
+ * observed when a vpd entry was created in sysfs
+ * ('/sys/bus/pci/devices/<id>/vpd').   A read to this sysfs entry
+ * will dump 32k of data.  Reading a full 32k will cause an access
+ * beyond the VPD end tag causing the device to hang.  Once the device
+ * is hung, the bnx2 driver will not be able to reset the device.
+ * We believe that it is legal to read beyond the end tag and
+ * therefore the solution is to limit the read/write length.
+ */
+static void __devinit quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
+{
+	/*  Only disable the VPD capability for 5706, 5708, and 5709 rev. A */
+	if ((dev->device == PCI_DEVICE_ID_NX2_5706) ||
+	    (dev->device == PCI_DEVICE_ID_NX2_5708) ||
+	    ((dev->device == PCI_DEVICE_ID_NX2_5709) &&
+	     (dev->revision & 0xf0) == 0x0)) {
+		if (dev->vpd)
+			dev->vpd->len = 0x80;
+	}
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
+			 PCI_DEVICE_ID_NX2_5706,
+			 quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
+			 PCI_DEVICE_ID_NX2_5706S,
+			 quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
+			 PCI_DEVICE_ID_NX2_5708,
+			 quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
+			 PCI_DEVICE_ID_NX2_5708S,
+			 quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
+			 PCI_DEVICE_ID_NX2_5709,
+			 quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
+			 PCI_DEVICE_ID_NX2_5709S,
+			 quirk_brcm_570x_limit_vpd);
+
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
  * PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually
@@ -1685,6 +1727,7 @@ static void __init quirk_disable_all_msi(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_GCNB_LE, quirk_disable_all_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_RS400_200, quirk_disable_all_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_RS480, quirk_disable_all_msi);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT3336, quirk_disable_all_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT3351, quirk_disable_all_msi);
 
 /* Disable MSI on chipsets that are known to not support it */

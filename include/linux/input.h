@@ -534,8 +534,8 @@ struct input_absinfo {
 
 #define KEY_FRAMEBACK		0x1b4	/* Consumer - transport controls */
 #define KEY_FRAMEFORWARD	0x1b5
-
 #define KEY_CONTEXT_MENU	0x1b6	/* GenDesc - system context menu */
+#define KEY_MEDIA_REPEAT	0x1b7	/* Consumer - transport control */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1

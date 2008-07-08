@@ -382,6 +382,8 @@ static ssize_t devcgroup_access_write(struct cgroup *cgroup, struct cftype *cft,
 	case 'a':
 		wh.type = DEV_ALL;
 		wh.access = ACC_MASK;
+		wh.major = ~0;
+		wh.minor = ~0;
 		goto handle;
 	case 'b':
 		wh.type = DEV_BLOCK;

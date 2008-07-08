@@ -33,7 +33,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9554", 8, },
 	{ "pca9555", 16, },
 	{ "pca9557", 8, },
-	/* REVISIT several pca955x parts should work here too */
+	{ "max7310", 8, },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca953x_id);

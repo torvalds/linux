@@ -106,35 +106,34 @@ MODULE_DEVICE_TABLE(pci, cciss_pci_device_id);
 /*  board_id = Subsystem Device ID & Vendor ID
  *  product = Marketing Name for the board
  *  access = Address of the struct of function pointers
- *  nr_cmds = Number of commands supported by controller
  */
 static struct board_type products[] = {
-	{0x40700E11, "Smart Array 5300", &SA5_access, 512},
-	{0x40800E11, "Smart Array 5i", &SA5B_access, 512},
-	{0x40820E11, "Smart Array 532", &SA5B_access, 512},
-	{0x40830E11, "Smart Array 5312", &SA5B_access, 512},
-	{0x409A0E11, "Smart Array 641", &SA5_access, 512},
-	{0x409B0E11, "Smart Array 642", &SA5_access, 512},
-	{0x409C0E11, "Smart Array 6400", &SA5_access, 512},
-	{0x409D0E11, "Smart Array 6400 EM", &SA5_access, 512},
-	{0x40910E11, "Smart Array 6i", &SA5_access, 512},
-	{0x3225103C, "Smart Array P600", &SA5_access, 512},
-	{0x3223103C, "Smart Array P800", &SA5_access, 512},
-	{0x3234103C, "Smart Array P400", &SA5_access, 512},
-	{0x3235103C, "Smart Array P400i", &SA5_access, 512},
-	{0x3211103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3212103C, "Smart Array E200", &SA5_access, 120},
-	{0x3213103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3214103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3215103C, "Smart Array E200i", &SA5_access, 120},
-	{0x3237103C, "Smart Array E500", &SA5_access, 512},
-	{0x323D103C, "Smart Array P700m", &SA5_access, 512},
-	{0x3241103C, "Smart Array P212", &SA5_access, 384},
-	{0x3243103C, "Smart Array P410", &SA5_access, 384},
-	{0x3245103C, "Smart Array P410i", &SA5_access, 384},
-	{0x3247103C, "Smart Array P411", &SA5_access, 384},
-	{0x3249103C, "Smart Array P812", &SA5_access, 384},
-	{0xFFFF103C, "Unknown Smart Array", &SA5_access, 120},
+	{0x40700E11, "Smart Array 5300", &SA5_access},
+	{0x40800E11, "Smart Array 5i", &SA5B_access},
+	{0x40820E11, "Smart Array 532", &SA5B_access},
+	{0x40830E11, "Smart Array 5312", &SA5B_access},
+	{0x409A0E11, "Smart Array 641", &SA5_access},
+	{0x409B0E11, "Smart Array 642", &SA5_access},
+	{0x409C0E11, "Smart Array 6400", &SA5_access},
+	{0x409D0E11, "Smart Array 6400 EM", &SA5_access},
+	{0x40910E11, "Smart Array 6i", &SA5_access},
+	{0x3225103C, "Smart Array P600", &SA5_access},
+	{0x3223103C, "Smart Array P800", &SA5_access},
+	{0x3234103C, "Smart Array P400", &SA5_access},
+	{0x3235103C, "Smart Array P400i", &SA5_access},
+	{0x3211103C, "Smart Array E200i", &SA5_access},
+	{0x3212103C, "Smart Array E200", &SA5_access},
+	{0x3213103C, "Smart Array E200i", &SA5_access},
+	{0x3214103C, "Smart Array E200i", &SA5_access},
+	{0x3215103C, "Smart Array E200i", &SA5_access},
+	{0x3237103C, "Smart Array E500", &SA5_access},
+	{0x323D103C, "Smart Array P700m", &SA5_access},
+	{0x3241103C, "Smart Array P212", &SA5_access},
+	{0x3243103C, "Smart Array P410", &SA5_access},
+	{0x3245103C, "Smart Array P410i", &SA5_access},
+	{0x3247103C, "Smart Array P411", &SA5_access},
+	{0x3249103C, "Smart Array P812", &SA5_access},
+	{0xFFFF103C, "Unknown Smart Array", &SA5_access},
 };
 
 /* How long to wait (in milliseconds) for board to go into simple mode */
@@ -3086,11 +3085,20 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	print_cfg_table(c->cfgtable);
 #endif				/* CCISS_DEBUG */
 
+	/* Some controllers support Zero Memory Raid (ZMR).
+	 * When configured in ZMR mode the number of supported
+	 * commands drops to 64. So instead of just setting an
+	 * arbitrary value we make the driver a little smarter.
+	 * We read the config table to tell us how many commands
+	 * are supported on the controller then subtract 4 to
+	 * leave a little room for ioctl calls.
+	 */
+	c->max_commands = readl(&(c->cfgtable->CmdsOutMax));
 	for (i = 0; i < ARRAY_SIZE(products); i++) {
 		if (board_id == products[i].board_id) {
 			c->product_name = products[i].product_name;
 			c->access = *(products[i].access);
-			c->nr_cmds = products[i].nr_cmds;
+			c->nr_cmds = c->max_commands - 4;
 			break;
 		}
 	}
@@ -3110,7 +3118,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		if (subsystem_vendor_id == PCI_VENDOR_ID_HP) {
 			c->product_name = products[i-1].product_name;
 			c->access = *(products[i-1].access);
-			c->nr_cmds = products[i-1].nr_cmds;
+			c->nr_cmds = c->max_commands - 4;
 			printk(KERN_WARNING "cciss: This is an unknown "
 				"Smart Array controller.\n"
 				"cciss: Please update to the latest driver "
@@ -3545,6 +3553,10 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	for (j = 0; j <= hba[i]->highest_lun; j++)
 		add_disk(hba[i]->gendisk[j]);
+
+	/* we must register the controller even if no disks exist */
+	if (hba[i]->highest_lun == -1)
+		add_disk(hba[i]->gendisk[0]);
 
 	return 1;
 

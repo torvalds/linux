@@ -12,3 +12,12 @@ menuconfig THERMAL
 	  cooling devices.
 	  All platforms with ACPI thermal support can use this driver.
 	  If you want this support, you should say Y or M here.
+
+config THERMAL_HWMON
+	bool "Hardware monitoring support"
+	depends on HWMON=y || HWMON=THERMAL
+	help
+	  The generic thermal sysfs driver's hardware monitoring support
+	  requires a 2.10.7/3.0.2 or later lm-sensors userspace.
+
+	  Say Y if your user-space is new enough.

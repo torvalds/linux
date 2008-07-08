@@ -333,6 +333,9 @@ static int __init acpi_rtc_init(void)
 {
 	struct device *dev = get_rtc_dev();
 
+	if (acpi_disabled)
+		return 0;
+
 	if (dev) {
 		rtc_wake_setup();
 		rtc_info.wake_on = rtc_wake_on;
