@@ -466,10 +466,15 @@ MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 			struct desc_struct desc)
 {
 	mcl->op = __HYPERVISOR_update_descriptor;
-	mcl->args[0] = maddr;
-	mcl->args[1] = maddr >> 32;
-	mcl->args[2] = desc.a;
-	mcl->args[3] = desc.b;
+	if (sizeof(maddr) == sizeof(long)) {
+		mcl->args[0] = maddr;
+		mcl->args[1] = *(unsigned long *)&desc;
+	} else {
+		mcl->args[0] = maddr;
+		mcl->args[1] = maddr >> 32;
+		mcl->args[2] = desc.a;
+		mcl->args[3] = desc.b;
+	}
 }
 
 static inline void
