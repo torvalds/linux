@@ -210,14 +210,14 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * set CPU and CODEC DAI configuration
 	 */
-	ret = codec_dai->dai_ops.set_fmt(codec_dai, fmt);
+	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
 	if (ret < 0) {
 		pr_warning("playpaq_wm8510: "
 			   "Failed to set CODEC DAI format (%d)\n",
 			   ret);
 		return ret;
 	}
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, fmt);
+	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	if (ret < 0) {
 		pr_warning("playpaq_wm8510: "
 			   "Failed to set CPU DAI format (%d)\n",
@@ -233,14 +233,13 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 	cd = playpaq_wm8510_calc_ssc_clock(params, cpu_dai);
 	pr_debug("playpaq_wm8510: cmr_div = %d, period = %d\n",
 		 cd.cmr_div, cd.period);
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai,
-					  AT32_SSC_CMR_DIV, cd.cmr_div);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, AT32_SSC_CMR_DIV, cd.cmr_div);
 	if (ret < 0) {
 		pr_warning("playpaq_wm8510: Failed to set CPU CMR_DIV (%d)\n",
 			   ret);
 		return ret;
 	}
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai, AT32_SSC_TCMR_PERIOD,
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, AT32_SSC_TCMR_PERIOD,
 					  cd.period);
 	if (ret < 0) {
 		pr_warning("playpaq_wm8510: "
@@ -260,7 +259,7 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 
 
 #if !defined CONFIG_SND_AT32_SOC_PLAYPAQ_SLAVE
-	ret = codec_dai->dai_ops.set_clkdiv(codec_dai, WM8510_BCLKDIV, bclk);
+	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8510_BCLKDIV, bclk);
 	if (ret < 0) {
 		pr_warning
 		    ("playpaq_wm8510: Failed to set CODEC DAI BCLKDIV (%d)\n",
@@ -270,7 +269,7 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 #endif /* CONFIG_SND_AT32_SOC_PLAYPAQ_SLAVE */
 
 
-	ret = codec_dai->dai_ops.set_pll(codec_dai, 0,
+	ret = snd_soc_dai_set_pll(codec_dai, 0,
 					 clk_get_rate(CODEC_CLK), pll_out);
 	if (ret < 0) {
 		pr_warning("playpaq_wm8510: Failed to set CODEC DAI PLL (%d)\n",
@@ -279,8 +278,7 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 	}
 
 
-	ret = codec_dai->dai_ops.set_clkdiv(codec_dai,
-					    WM8510_MCLKDIV, mclk_div);
+	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8510_MCLKDIV, mclk_div);
 	if (ret < 0) {
 		pr_warning("playpaq_wm8510: Failed to set CODEC MCLKDIV (%d)\n",
 			   ret);

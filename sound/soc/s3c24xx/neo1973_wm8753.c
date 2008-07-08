@@ -108,44 +108,44 @@ static int neo1973_hifi_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set codec DAI configuration */
-	ret = codec_dai->dai_ops.set_fmt(codec_dai,
+	ret = snd_soc_dai_set_fmt(codec_dai,
 		SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
 	/* set cpu DAI configuration */
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai,
+	ret = snd_soc_dai_set_fmt(cpu_dai,
 		SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
 	/* set the codec system clock for DAC and ADC */
-	ret = codec_dai->dai_ops.set_sysclk(codec_dai, WM8753_MCLK, pll_out,
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8753_MCLK, pll_out,
 		SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
 	/* set MCLK division for sample rate */
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai, S3C24XX_DIV_MCLK,
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C24XX_DIV_MCLK,
 		S3C2410_IISMOD_32FS);
 	if (ret < 0)
 		return ret;
 
 	/* set codec BCLK division for sample rate */
-	ret = codec_dai->dai_ops.set_clkdiv(codec_dai, WM8753_BCLKDIV, bclk);
+	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8753_BCLKDIV, bclk);
 	if (ret < 0)
 		return ret;
 
 	/* set prescaler division for sample rate */
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai, S3C24XX_DIV_PRESCALER,
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C24XX_DIV_PRESCALER,
 		S3C24XX_PRESCALE(4, 4));
 	if (ret < 0)
 		return ret;
 
 	/* codec PLL input is PCLK/4 */
-	ret = codec_dai->dai_ops.set_pll(codec_dai, WM8753_PLL1,
+	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL1,
 		iis_clkrate / 4, pll_out);
 	if (ret < 0)
 		return ret;
@@ -161,7 +161,7 @@ static int neo1973_hifi_hw_free(struct snd_pcm_substream *substream)
 	DBG("Entered %s\n", __func__);
 
 	/* disable the PLL */
-	return codec_dai->dai_ops.set_pll(codec_dai, WM8753_PLL1, 0, 0);
+	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0, 0);
 }
 
 /*
@@ -194,24 +194,24 @@ static int neo1973_voice_hw_params(struct snd_pcm_substream *substream,
 
 	/* todo: gg check mode (DSP_B) against CSR datasheet */
 	/* set codec DAI configuration */
-	ret = codec_dai->dai_ops.set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_B |
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_B |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
 
 	/* set the codec system clock for DAC and ADC */
-	ret = codec_dai->dai_ops.set_sysclk(codec_dai, WM8753_PCMCLK, 12288000,
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8753_PCMCLK, 12288000,
 		SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
 	/* set codec PCM division for sample rate */
-	ret = codec_dai->dai_ops.set_clkdiv(codec_dai, WM8753_PCMDIV, pcmdiv);
+	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8753_PCMDIV, pcmdiv);
 	if (ret < 0)
 		return ret;
 
 	/* configue and enable PLL for 12.288MHz output */
-	ret = codec_dai->dai_ops.set_pll(codec_dai, WM8753_PLL2,
+	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL2,
 		iis_clkrate / 4, 12288000);
 	if (ret < 0)
 		return ret;
@@ -227,7 +227,7 @@ static int neo1973_voice_hw_free(struct snd_pcm_substream *substream)
 	DBG("Entered %s\n", __func__);
 
 	/* disable the PLL */
-	return codec_dai->dai_ops.set_pll(codec_dai, WM8753_PLL2, 0, 0);
+	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0, 0);
 }
 
 static struct snd_soc_ops neo1973_voice_ops = {

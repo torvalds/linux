@@ -58,13 +58,13 @@ static int eti_b1_startup(struct snd_pcm_substream *substream)
 	int ret;
 
 	/* cpu clock is the AT91 master clock sent to the SSC */
-	ret = cpu_dai->dai_ops.set_sysclk(cpu_dai, AT91_SYSCLK_MCK,
+	ret = snd_soc_dai_set_sysclk(cpu_dai, AT91_SYSCLK_MCK,
 		60000000, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
 	/* codec system clock is supplied by PCK1, set to 12MHz */
-	ret = codec_dai->dai_ops.set_sysclk(codec_dai, WM8731_SYSCLK,
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
 		12000000, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
@@ -96,13 +96,13 @@ static int eti_b1_hw_params(struct snd_pcm_substream *substream,
 	int cmr_div, period;
 
 	/* set codec DAI configuration */
-	ret = codec_dai->dai_ops.set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
 
 	/* set cpu DAI configuration */
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
@@ -141,17 +141,17 @@ static int eti_b1_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set the MCK divider for BCLK */
-	ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai, AT91SSC_CMR_DIV, cmr_div);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, AT91SSC_CMR_DIV, cmr_div);
 	if (ret < 0)
 		return ret;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* set the BCLK divider for DACLRC */
-		ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai,
+		ret = snd_soc_dai_set_clkdiv(cpu_dai,
 						AT91SSC_TCMR_PERIOD, period);
 	} else {
 		/* set the BCLK divider for ADCLRC */
-		ret = cpu_dai->dai_ops.set_clkdiv(cpu_dai,
+		ret = snd_soc_dai_set_clkdiv(cpu_dai,
 						AT91SSC_RCMR_PERIOD, period);
 	}
 	if (ret < 0)
@@ -163,13 +163,13 @@ static int eti_b1_hw_params(struct snd_pcm_substream *substream,
 	 */
 
 	/* set codec DAI configuration */
-	ret = codec_dai->dai_ops.set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
 	/* set cpu DAI configuration */
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;

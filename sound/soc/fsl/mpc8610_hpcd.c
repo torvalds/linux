@@ -103,55 +103,45 @@ static int mpc8610_hpcd_startup(struct snd_pcm_substream *substream)
 	int ret = 0;
 
 	/* Tell the CPU driver what the serial protocol is. */
-	if (cpu_dai->dai_ops.set_fmt) {
-		ret = cpu_dai->dai_ops.set_fmt(cpu_dai,
-			machine_data->dai_format);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set CPU driver audio format\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_fmt(cpu_dai, machine_data->dai_format);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set CPU driver audio format\n");
+		return ret;
 	}
 
 	/* Tell the codec driver what the serial protocol is. */
-	if (codec_dai->dai_ops.set_fmt) {
-		ret = codec_dai->dai_ops.set_fmt(codec_dai,
-			machine_data->dai_format);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set codec driver audio format\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_fmt(codec_dai, machine_data->dai_format);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set codec driver audio format\n");
+		return ret;
 	}
 
 	/*
 	 * Tell the CPU driver what the clock frequency is, and whether it's a
 	 * slave or master.
 	 */
-	if (cpu_dai->dai_ops.set_sysclk) {
-		ret = cpu_dai->dai_ops.set_sysclk(cpu_dai, 0,
-			machine_data->clk_frequency,
-			machine_data->cpu_clk_direction);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set CPU driver clock parameters\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0,
+					machine_data->clk_frequency,
+					machine_data->cpu_clk_direction);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set CPU driver clock parameters\n");
+		return ret;
 	}
 
 	/*
 	 * Tell the codec driver what the MCLK frequency is, and whether it's
 	 * a slave or master.
 	 */
-	if (codec_dai->dai_ops.set_sysclk) {
-		ret = codec_dai->dai_ops.set_sysclk(codec_dai, 0,
-			machine_data->clk_frequency,
-			machine_data->codec_clk_direction);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not set codec driver clock params\n");
-			return ret;
-		}
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+					machine_data->clk_frequency,
+					machine_data->codec_clk_direction);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"could not set codec driver clock params\n");
+		return ret;
 	}
 
 	return 0;
