@@ -1174,7 +1174,7 @@ static int __assign_irq_vector(int irq)
 	offset = current_offset;
 next:
 	vector += 8;
-	if (vector >= FIRST_SYSTEM_VECTOR) {
+	if (vector >= first_system_vector) {
 		offset = (offset + 1) % 8;
 		vector = FIRST_DEVICE_VECTOR + offset;
 	}
@@ -2280,7 +2280,7 @@ void __init setup_IO_APIC(void)
 	int i;
 
 	/* Reserve all the system vectors. */
-	for (i = FIRST_SYSTEM_VECTOR; i < NR_VECTORS; i++)
+	for (i = first_system_vector; i < NR_VECTORS; i++)
 		set_bit(i, used_vectors);
 
 	enable_IO_APIC();

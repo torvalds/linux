@@ -514,8 +514,6 @@ int acpi_register_gsi(u32 gsi, int triggering, int polarity)
 	 * Make sure all (legacy) PCI IRQs are set as level-triggered.
 	 */
 	if (acpi_irq_model == ACPI_IRQ_MODEL_PIC) {
-		extern void eisa_set_level_irq(unsigned int irq);
-
 		if (triggering == ACPI_LEVEL_SENSITIVE)
 			eisa_set_level_irq(gsi);
 	}
