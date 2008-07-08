@@ -86,9 +86,11 @@ static void xen_idle(void)
  */
 static void __init fiddle_vdso(void)
 {
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 	extern const char vdso32_default_start;
 	u32 *mask = VDSO32_SYMBOL(&vdso32_default_start, NOTE_MASK);
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
+#endif
 }
 
 static __cpuinit int register_callback(unsigned type, const void *func)
@@ -106,13 +108,46 @@ void __cpuinit xen_enable_sysenter(void)
 {
 	int cpu = smp_processor_id();
 	extern void xen_sysenter_target(void);
+	int ret;
 
-	if (!boot_cpu_has(X86_FEATURE_SEP) ||
-	    register_callback(CALLBACKTYPE_sysenter,
-			      xen_sysenter_target) != 0) {
+#ifdef CONFIG_X86_32
+	if (!boot_cpu_has(X86_FEATURE_SEP)) {
+		return;
+	}
+#else
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR) {
+		return;
+	}
+#endif
+
+	ret = register_callback(CALLBACKTYPE_sysenter, xen_sysenter_target);
+	if(ret != 0) {
 		clear_cpu_cap(&cpu_data(cpu), X86_FEATURE_SEP);
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SEP);
 	}
+}
+
+void __cpuinit xen_enable_syscall(void)
+{
+#ifdef CONFIG_X86_64
+	int cpu = smp_processor_id();
+	int ret;
+	extern void xen_syscall_target(void);
+	extern void xen_syscall32_target(void);
+
+	ret = register_callback(CALLBACKTYPE_syscall, xen_syscall_target);
+	if (ret != 0) {
+		printk("failed to set syscall: %d\n", ret);
+		clear_cpu_cap(&cpu_data(cpu), X86_FEATURE_SYSCALL);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SYSCALL);
+	} else {
+		ret = register_callback(CALLBACKTYPE_syscall32,
+					xen_syscall32_target);
+		if (ret != 0)
+			printk("failed to set 32-bit syscall: %d\n", ret);
+	}
+#endif /* CONFIG_X86_64 */
 }
 
 void __init xen_arch_setup(void)
@@ -131,6 +166,7 @@ void __init xen_arch_setup(void)
 		BUG();
 
 	xen_enable_sysenter();
+	xen_enable_syscall();
 
 	set_iopl.iopl = 1;
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);

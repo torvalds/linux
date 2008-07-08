@@ -15,6 +15,8 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/processor-flags.h>
+#include <asm/errno.h>
+#include <asm/segment.h>
 
 #include <xen/interface/xen.h>
 
@@ -138,9 +140,132 @@ ENTRY(xen_adjust_exception_frame)
 	mov 8+8(%rsp),%r11
 	ret $16
 
+hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
+/*
+	Xen64 iret frame:
+
+	ss
+	rsp
+	rflags
+	cs
+	rip		<-- standard iret frame
+
+	flags
+
+	rcx		}
+	r11		}<-- pushed by hypercall page
+rsp ->	rax		}
+ */
 ENTRY(xen_iret)
 	pushq $0
-	jmp hypercall_page + __HYPERVISOR_iret * 32
+1:	jmp hypercall_iret
+ENDPATCH(xen_iret)
+RELOC(xen_iret, 1b+1)
 
+/*
+	sysexit is not used for 64-bit processes, so it's
+	only ever used to return to 32-bit compat userspace.
+ */
 ENTRY(xen_sysexit)
-	ud2a
+	pushq $__USER32_DS
+	pushq %rcx
+	pushq $X86_EFLAGS_IF
+	pushq $__USER32_CS
+	pushq %rdx
+
+	pushq $VGCF_in_syscall
+1:	jmp hypercall_iret
+ENDPATCH(xen_sysexit)
+RELOC(xen_sysexit, 1b+1)
+
+ENTRY(xen_sysret64)
+	/* We're already on the usermode stack at this point, but still
+	   with the kernel gs, so we can easily switch back */
+	movq %rsp, %gs:pda_oldrsp
+	movq %gs:pda_kernelstack,%rsp
+
+	pushq $__USER_DS
+	pushq %gs:pda_oldrsp
+	pushq %r11
+	pushq $__USER_CS
+	pushq %rcx
+
+	pushq $VGCF_in_syscall
+1:	jmp hypercall_iret
+ENDPATCH(xen_sysret64)
+RELOC(xen_sysret64, 1b+1)
+
+ENTRY(xen_sysret32)
+	/* We're already on the usermode stack at this point, but still
+	   with the kernel gs, so we can easily switch back */
+	movq %rsp, %gs:pda_oldrsp
+	movq %gs:pda_kernelstack, %rsp
+
+	pushq $__USER32_DS
+	pushq %gs:pda_oldrsp
+	pushq %r11
+	pushq $__USER32_CS
+	pushq %rcx
+
+	pushq $VGCF_in_syscall
+1:	jmp hypercall_iret
+ENDPATCH(xen_sysret32)
+RELOC(xen_sysret32, 1b+1)
+
+/*
+	Xen handles syscall callbacks much like ordinary exceptions,
+	which means we have:
+	 - kernel gs
+	 - kernel rsp
+	 - an iret-like stack frame on the stack (including rcx and r11):
+		ss
+		rsp
+		rflags
+		cs
+		rip
+		r11
+	rsp->	rcx
+
+	In all the entrypoints, we undo all that to make it look
+	like a CPU-generated syscall/sysenter and jump to the normal
+	entrypoint.
+ */
+
+.macro undo_xen_syscall
+	mov 0*8(%rsp),%rcx
+	mov 1*8(%rsp),%r11
+	mov 5*8(%rsp),%rsp
+.endm
+
+/* Normal 64-bit system call target */
+ENTRY(xen_syscall_target)
+	undo_xen_syscall
+	jmp system_call_after_swapgs
+ENDPROC(xen_syscall_target)
+
+#ifdef CONFIG_IA32_EMULATION
+
+/* 32-bit compat syscall target */
+ENTRY(xen_syscall32_target)
+	undo_xen_syscall
+	jmp ia32_cstar_target
+ENDPROC(xen_syscall32_target)
+
+/* 32-bit compat sysenter target */
+ENTRY(xen_sysenter_target)
+	undo_xen_syscall
+	jmp ia32_sysenter_target
+ENDPROC(xen_sysenter_target)
+
+#else /* !CONFIG_IA32_EMULATION */
+
+ENTRY(xen_syscall32_target)
+ENTRY(xen_sysenter_target)
+	lea 16(%rsp), %rsp	/* strip %rcx,%r11 */
+	mov $-ENOSYS, %rax
+	pushq $VGCF_in_syscall
+	jmp hypercall_iret
+ENDPROC(xen_syscall32_target)
+ENDPROC(xen_sysenter_target)
+
+#endif	/* CONFIG_IA32_EMULATION */

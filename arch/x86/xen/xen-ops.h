@@ -26,6 +26,7 @@ char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);
 void __init xen_init_IRQ(void);
 void xen_enable_sysenter(void);
+void xen_enable_syscall(void);
 void xen_vcpu_restore(void);
 
 void __init xen_build_dynamic_phys_to_machine(void);
@@ -70,6 +71,8 @@ DECL_ASM(void, xen_restore_fl_direct, unsigned long);
 /* These are not functions, and cannot be called normally */
 void xen_iret(void);
 void xen_sysexit(void);
+void xen_sysret32(void);
+void xen_sysret64(void);
 void xen_adjust_exception_frame(void);
 
 #endif /* XEN_OPS_H */

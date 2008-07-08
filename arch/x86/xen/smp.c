@@ -69,6 +69,7 @@ static __cpuinit void cpu_bringup_and_idle(void)
 	preempt_disable();
 
 	xen_enable_sysenter();
+	xen_enable_syscall();
 
 	cpu = smp_processor_id();
 	smp_store_cpu_info(cpu);
