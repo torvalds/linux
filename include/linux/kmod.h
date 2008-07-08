@@ -25,7 +25,7 @@
 
 #define KMOD_PATH_LEN 256
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 /* modprobe exit status on success, -ve on error.  Return value
  * usually useless though. */
 extern int request_module(const char * name, ...) __attribute__ ((format (printf, 1, 2)));
