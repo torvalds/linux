@@ -169,7 +169,12 @@ static void dma_client_chan_alloc(struct dma_client *client)
 	enum dma_state_client ack;
 
 	/* Find a channel */
-	list_for_each_entry(device, &dma_device_list, global_node)
+	list_for_each_entry(device, &dma_device_list, global_node) {
+		/* Does the client require a specific DMA controller? */
+		if (client->slave && client->slave->dma_dev
+				&& client->slave->dma_dev != device->dev)
+			continue;
+
 		list_for_each_entry(chan, &device->channels, device_node) {
 			if (!dma_chan_satisfies_mask(chan, client->cap_mask))
 				continue;
@@ -191,6 +196,7 @@ static void dma_client_chan_alloc(struct dma_client *client)
 					return;
 			}
 		}
+	}
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
@@ -289,6 +295,10 @@ static void dma_clients_notify_removed(struct dma_chan *chan)
  */
 void dma_async_client_register(struct dma_client *client)
 {
+	/* validate client data */
+	BUG_ON(dma_has_cap(DMA_SLAVE, client->cap_mask) &&
+		!client->slave);
+
 	mutex_lock(&dma_list_mutex);
 	list_add_tail(&client->global_node, &dma_client_list);
 	mutex_unlock(&dma_list_mutex);
@@ -365,6 +375,10 @@ int dma_async_device_register(struct dma_device *device)
 		!device->device_prep_dma_memset);
 	BUG_ON(dma_has_cap(DMA_INTERRUPT, device->cap_mask) &&
 		!device->device_prep_dma_interrupt);
+	BUG_ON(dma_has_cap(DMA_SLAVE, device->cap_mask) &&
+		!device->device_prep_slave_sg);
+	BUG_ON(dma_has_cap(DMA_SLAVE, device->cap_mask) &&
+		!device->device_terminate_all);
 
 	BUG_ON(!device->device_alloc_chan_resources);
 	BUG_ON(!device->device_free_chan_resources);
