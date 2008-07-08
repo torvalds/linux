@@ -106,23 +106,23 @@ enum sock_shutdown_cmd {
 /**
  *  struct socket - general BSD socket
  *  @state: socket state (%SS_CONNECTED, etc)
+ *  @type: socket type (%SOCK_STREAM, etc)
  *  @flags: socket flags (%SOCK_ASYNC_NOSPACE, etc)
  *  @ops: protocol specific socket operations
  *  @fasync_list: Asynchronous wake up list
  *  @file: File back pointer for gc
  *  @sk: internal networking protocol agnostic socket representation
  *  @wait: wait queue for several uses
- *  @type: socket type (%SOCK_STREAM, etc)
  */
 struct socket {
 	socket_state		state;
+	short			type;
 	unsigned long		flags;
 	const struct proto_ops	*ops;
 	struct fasync_struct	*fasync_list;
 	struct file		*file;
 	struct sock		*sk;
 	wait_queue_head_t	wait;
-	short			type;
 };
 
 struct vm_area_struct;
