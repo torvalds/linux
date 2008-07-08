@@ -36,6 +36,12 @@
 
 struct igb_adapter;
 
+#ifdef CONFIG_IGB_LRO
+#include <linux/inet_lro.h>
+#define MAX_LRO_AGGR                      32
+#define MAX_LRO_DESCRIPTORS                8
+#endif
+
 /* Interrupt defines */
 #define IGB_MAX_TX_CLEAN 72
 
@@ -167,6 +173,10 @@ struct igb_ring {
 			int no_itr_adjust;
 			struct igb_queue_stats rx_stats;
 			struct napi_struct napi;
+#ifdef CONFIG_IGB_LRO
+			struct net_lro_mgr lro_mgr;
+			bool lro_used;
+#endif
 		};
 	};
 
@@ -278,6 +288,12 @@ struct igb_adapter {
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	struct igb_ring *multi_tx_table[IGB_MAX_TX_QUEUES];
 #endif /* CONFIG_NETDEVICES_MULTIQUEUE */
+#ifdef CONFIG_IGB_LRO
+	unsigned int lro_max_aggr;
+	unsigned int lro_aggregated;
+	unsigned int lro_flushed;
+	unsigned int lro_no_desc;
+#endif
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)

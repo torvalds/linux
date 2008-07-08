@@ -99,6 +99,8 @@ union e1000_adv_rx_desc {
 /* RSS Hash results */
 
 /* RSS Packet Types as indicated in the receive descriptor */
+#define E1000_RXDADV_PKTTYPE_IPV4        0x00000010 /* IPV4 hdr present */
+#define E1000_RXDADV_PKTTYPE_TCP         0x00000100 /* TCP hdr present */
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
