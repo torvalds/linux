@@ -213,7 +213,7 @@ comment "Digest"
 
 config CRYPTO_CRC32C
 	tristate "CRC32c CRC algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	select LIBCRC32C
 	help
 	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
