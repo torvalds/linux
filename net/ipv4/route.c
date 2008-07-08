@@ -2873,22 +2873,20 @@ void ip_rt_multicast_event(struct in_device *in_dev)
 }
 
 #ifdef CONFIG_SYSCTL
-static int ipv4_sysctl_rtcache_flush(ctl_table *ctl, int write,
+static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 					struct file *filp, void __user *buffer,
 					size_t *lenp, loff_t *ppos)
 {
 	if (write) {
 		int flush_delay;
+		ctl_table ctl;
 		struct net *net;
-		static DEFINE_MUTEX(flush_mutex);
 
-		mutex_lock(&flush_mutex);
-		ctl->data = &flush_delay;
-		proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
-		ctl->data = NULL;
-		mutex_unlock(&flush_mutex);
+		memcpy(&ctl, __ctl, sizeof(ctl));
+		ctl.data = &flush_delay;
+		proc_dointvec(&ctl, write, filp, buffer, lenp, ppos);
 
-		net = (struct net *)ctl->extra1;
+		net = (struct net *)__ctl->extra1;
 		rt_cache_flush(net, flush_delay);
 		return 0;
 	}
