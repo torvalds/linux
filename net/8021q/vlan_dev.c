@@ -694,7 +694,7 @@ static int vlan_dev_init(struct net_device *dev)
 		dev->hard_start_xmit = vlan_dev_hard_start_xmit;
 	}
 
-	if (real_dev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(real_dev))
 		subclass = 1;
 
 	lockdep_set_class_and_subclass(&dev->_xmit_lock,

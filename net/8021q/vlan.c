@@ -570,8 +570,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 			goto out;
 
 		err = -EINVAL;
-		if (args.cmd != ADD_VLAN_CMD &&
-		    !(dev->priv_flags & IFF_802_1Q_VLAN))
+		if (args.cmd != ADD_VLAN_CMD && !is_vlan_dev(dev))
 			goto out;
 	}
 

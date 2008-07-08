@@ -290,7 +290,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	static const char fmt[] = "%30s %12lu\n";
 	int i;
 
-	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN))
+	if (!is_vlan_dev(vlandev))
 		return 0;
 
 	seq_printf(seq,
