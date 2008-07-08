@@ -1290,12 +1290,12 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 		buffer_info->length = size;
 		WARN_ON(buffer_info->dma != 0);
+		buffer_info->time_stamp = jiffies;
 		buffer_info->dma =
 			pci_map_single(adapter->pdev,
 				skb->data + offset,
 				size,
 				PCI_DMA_TODEVICE);
-		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = 0;
 
 		len -= size;
@@ -1322,13 +1322,13 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 				size -= 4;
 
 			buffer_info->length = size;
+			buffer_info->time_stamp = jiffies;
 			buffer_info->dma =
 				pci_map_page(adapter->pdev,
 					frag->page,
 					frag->page_offset + offset,
 					size,
 					PCI_DMA_TODEVICE);
-			buffer_info->time_stamp = jiffies;
 			buffer_info->next_to_watch = 0;
 
 			len -= size;
