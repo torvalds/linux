@@ -448,9 +448,6 @@ ixgb_probe(struct pci_dev *pdev,
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
 	netdev->features |= NETIF_F_TSO;
-#ifdef NETIF_F_LLTX
-	netdev->features |= NETIF_F_LLTX;
-#endif
 
 	if(pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -576,8 +573,6 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 
 	/* enable flow control to be programmed */
 	hw->fc.send_xon = 1;
-
-	spin_lock_init(&adapter->tx_lock);
 
 	set_bit(__IXGB_DOWN, &adapter->flags);
 	return 0;
@@ -1441,7 +1436,6 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	unsigned int first;
 	unsigned int tx_flags = 0;
-	unsigned long flags;
 	int vlan_id = 0;
 	int tso;
 
@@ -1455,26 +1449,9 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return 0;
 	}
 
-#ifdef NETIF_F_LLTX
-	if (!spin_trylock_irqsave(&adapter->tx_lock, flags)) {
-		/* Collision - tell upper layer to requeue */
-		local_irq_restore(flags);
-		return NETDEV_TX_LOCKED;
-	}
-#else
-	spin_lock_irqsave(&adapter->tx_lock, flags);
-#endif
-
 	if (unlikely(ixgb_maybe_stop_tx(netdev, &adapter->tx_ring,
-                     DESC_NEEDED))) {
-		netif_stop_queue(netdev);
-		spin_unlock_irqrestore(&adapter->tx_lock, flags);
+                     DESC_NEEDED)))
 		return NETDEV_TX_BUSY;
-	}
-
-#ifndef NETIF_F_LLTX
-	spin_unlock_irqrestore(&adapter->tx_lock, flags);
-#endif
 
 	if(adapter->vlgrp && vlan_tx_tag_present(skb)) {
 		tx_flags |= IXGB_TX_FLAGS_VLAN;
@@ -1486,9 +1463,6 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tso = ixgb_tso(adapter, skb);
 	if (tso < 0) {
 		dev_kfree_skb_any(skb);
-#ifdef NETIF_F_LLTX
-		spin_unlock_irqrestore(&adapter->tx_lock, flags);
-#endif
 		return NETDEV_TX_OK;
 	}
 
@@ -1502,13 +1476,9 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	netdev->trans_start = jiffies;
 
-#ifdef NETIF_F_LLTX
 	/* Make sure there is space in the ring for the next send. */
 	ixgb_maybe_stop_tx(netdev, &adapter->tx_ring, DESC_NEEDED);
 
-	spin_unlock_irqrestore(&adapter->tx_lock, flags);
-
-#endif
 	return NETDEV_TX_OK;
 }
 

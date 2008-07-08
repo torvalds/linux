@@ -157,7 +157,6 @@ struct ixgb_adapter {
 	u32 part_num;
 	u16 link_speed;
 	u16 link_duplex;
-	spinlock_t tx_lock;
 	struct work_struct tx_timeout_task;
 
 	struct timer_list blink_timer;
