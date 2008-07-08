@@ -158,6 +158,7 @@ struct igb_ring {
 	union {
 		/* TX */
 		struct {
+			struct igb_queue_stats tx_stats;
 			bool detect_tx_hung;
 		};
 		/* RX */
