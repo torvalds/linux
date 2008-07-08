@@ -363,8 +363,8 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
  * Only POWER6 has these instructions, and it does true little-endian,
  * so we don't need the address swizzling.
  */
-static int emulate_fp_pair(struct pt_regs *regs, unsigned char __user *addr,
-			   unsigned int reg, unsigned int flags)
+static int emulate_fp_pair(unsigned char __user *addr, unsigned int reg,
+			   unsigned int flags)
 {
 	char *ptr = (char *) &current->thread.TS_FPR(reg);
 	int i, ret;
@@ -759,7 +759,7 @@ int fix_alignment(struct pt_regs *regs)
 
 	/* Special case for 16-byte FP loads and stores */
 	if (nb == 16)
-		return emulate_fp_pair(regs, addr, reg, flags);
+		return emulate_fp_pair(addr, reg, flags);
 
 	/* If we are loading, get the data from user space, else
 	 * get it from register values
