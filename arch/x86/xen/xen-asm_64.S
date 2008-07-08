@@ -133,6 +133,11 @@ check_events:
 	ret
 #endif
 
+ENTRY(xen_adjust_exception_frame)
+	mov 8+0(%rsp),%rcx
+	mov 8+8(%rsp),%r11
+	ret $16
+
 ENTRY(xen_iret)
 	pushq $0
 	jmp hypercall_page + __HYPERVISOR_iret * 32

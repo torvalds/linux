@@ -67,7 +67,9 @@ DECL_ASM(void, xen_irq_disable_direct, void);
 DECL_ASM(unsigned long, xen_save_fl_direct, void);
 DECL_ASM(void, xen_restore_fl_direct, unsigned long);
 
+/* These are not functions, and cannot be called normally */
 void xen_iret(void);
 void xen_sysexit(void);
+void xen_adjust_exception_frame(void);
 
 #endif /* XEN_OPS_H */
