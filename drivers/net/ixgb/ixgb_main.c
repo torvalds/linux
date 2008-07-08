@@ -1274,7 +1274,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 	i = tx_ring->next_to_use;
 
-	while(len) {
+	while (len) {
 		buffer_info = &tx_ring->buffer_info[i];
 		size = min(len, IXGB_MAX_DATA_PER_TXD);
 		/* Workaround for premature desc write-backs
@@ -1305,7 +1305,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		len = frag->size;
 		offset = 0;
 
-		while(len) {
+		while (len) {
 			buffer_info = &tx_ring->buffer_info[i];
 			size = min(len, IXGB_MAX_DATA_PER_TXD);
 
@@ -1362,7 +1362,7 @@ ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 
 	i = tx_ring->next_to_use;
 
-	while(count--) {
+	while (count--) {
 		buffer_info = &tx_ring->buffer_info[i];
 		tx_desc = IXGB_TX_DESC(*tx_ring, i);
 		tx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
@@ -1781,7 +1781,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 	eop = tx_ring->buffer_info[i].next_to_watch;
 	eop_desc = IXGB_TX_DESC(*tx_ring, eop);
 
-	while(eop_desc->status & IXGB_TX_DESC_STATUS_DD) {
+	while (eop_desc->status & IXGB_TX_DESC_STATUS_DD) {
 
 		for (cleaned = false; !cleaned; ) {
 			tx_desc = IXGB_TX_DESC(*tx_ring, i);
@@ -1912,7 +1912,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 	rx_desc = IXGB_RX_DESC(*rx_ring, i);
 	buffer_info = &rx_ring->buffer_info[i];
 
-	while(rx_desc->status & IXGB_RX_DESC_STATUS_DD) {
+	while (rx_desc->status & IXGB_RX_DESC_STATUS_DD) {
 		struct sk_buff *skb, *next_skb;
 		u8 status;
 
@@ -2053,7 +2053,7 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 
 
 	/* leave three descriptors unused */
-	while(--cleancount > 2) {
+	while (--cleancount > 2) {
 		/* recycle! its good for you */
 		skb = buffer_info->skb;
 		if (skb) {

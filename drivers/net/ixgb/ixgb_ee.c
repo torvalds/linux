@@ -120,7 +120,7 @@ ixgb_shift_out_bits(struct ixgb_hw *hw,
 
 		mask = mask >> 1;
 
-	} while(mask);
+	} while (mask);
 
 	/* We leave the "DI" bit set to "0" when we leave this routine. */
 	eecd_reg &= ~IXGB_EECD_DI;
