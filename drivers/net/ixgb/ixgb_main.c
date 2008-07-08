@@ -1573,14 +1573,18 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
+	if (old_max_frame == max_frame)
+		return 0;
+
+	if (netif_running(netdev))
+		ixgb_down(adapter, true);
+
 	adapter->rx_buffer_len = max_frame + 8; /* + 8 for errata */
 
 	netdev->mtu = new_mtu;
 
-	if ((old_max_frame != max_frame) && netif_running(netdev)) {
-		ixgb_down(adapter, true);
+	if (netif_running(netdev))
 		ixgb_up(adapter);
-	}
 
 	return 0;
 }
