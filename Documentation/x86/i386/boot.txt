@@ -1,17 +1,14 @@
-		     THE LINUX/I386 BOOT PROTOCOL
-		     ----------------------------
+		     THE LINUX/x86 BOOT PROTOCOL
+		     ---------------------------
 
-		    H. Peter Anvin <hpa@zytor.com>
-			Last update 2007-05-23
-
-On the i386 platform, the Linux kernel uses a rather complicated boot
+On the x86 platform, the Linux kernel uses a rather complicated boot
 convention.  This has evolved partially due to historical aspects, as
 well as the desire in the early days to have the kernel itself be a
 bootable image, the complicated PC memory model and due to changed
 expectations in the PC industry caused by the effective demise of
 real-mode DOS as a mainstream operating system.
 
-Currently, the following versions of the Linux/i386 boot protocol exist.
+Currently, the following versions of the Linux/x86 boot protocol exist.
 
 Old kernels:	zImage/Image support only.  Some very early kernels
 		may not even support a command line.
@@ -372,10 +369,17 @@ Protocol:	2.00+
 	- If 0, the protected-mode code is loaded at 0x10000.
 	- If 1, the protected-mode code is loaded at 0x100000.
 
+  Bit 5 (write): QUIET_FLAG
+	- If 0, print early messages.
+	- If 1, suppress early messages.
+		This requests to the kernel (decompressor and early
+		kernel) to not write early messages that require
+		accessing the display hardware directly.
+
   Bit 6 (write): KEEP_SEGMENTS
 	Protocol: 2.07+
-	- if 0, reload the segment registers in the 32bit entry point.
-	- if 1, do not reload the segment registers in the 32bit entry point.
+	- If 0, reload the segment registers in the 32bit entry point.
+	- If 1, do not reload the segment registers in the 32bit entry point.
 		Assume that %cs %ds %ss %es are all set to flat segments with
 		a base of 0 (or the equivalent for their environment).
 
@@ -504,7 +508,7 @@ Protocol:	2.06+
   maximum size was 255.
 
 Field name:	hardware_subarch
-Type:		write
+Type:		write (optional, defaults to x86/PC)
 Offset/size:	0x23c/4
 Protocol:	2.07+
 
@@ -520,11 +524,13 @@ Protocol:	2.07+
   0x00000002	Xen
 
 Field name:	hardware_subarch_data
-Type:		write
+Type:		write (subarch-dependent)
 Offset/size:	0x240/8
 Protocol:	2.07+
 
   A pointer to data that is specific to hardware subarch
+  This field is currently unused for the default x86/PC environment,
+  do not modify.
 
 Field name:	payload_offset
 Type:		read
@@ -545,6 +551,34 @@ Protocol:	2.08+
 
   The length of the payload.
 
+Field name:	setup_data
+Type:		write (special)
+Offset/size:	0x250/8
+Protocol:	2.09+
+
+  The 64-bit physical pointer to NULL terminated single linked list of
+  struct setup_data. This is used to define a more extensible boot
+  parameters passing mechanism. The definition of struct setup_data is
+  as follow:
+
+  struct setup_data {
+	  u64 next;
+	  u32 type;
+	  u32 len;
+	  u8  data[0];
+  };
+
+  Where, the next is a 64-bit physical pointer to the next node of
+  linked list, the next field of the last node is 0; the type is used
+  to identify the contents of data; the len is the length of data
+  field; the data holds the real payload.
+
+  This list may be modified at a number of points during the bootup
+  process.  Therefore, when modifying this list one should always make
+  sure to consider the case where the linked list already contains
+  entries.
+
+
 **** THE IMAGE CHECKSUM
 
 From boot protocol version 2.08 onwards the CRC-32 is calculated over
@@ -552,6 +586,7 @@ the entire file using the characteristic polynomial 0x04C11DB7 and an
 initial remainder of 0xffffffff.  The checksum is appended to the
 file; therefore the CRC of the file up to the limit specified in the
 syssize field of the header is always 0.
+
 
 **** THE KERNEL COMMAND LINE
 
@@ -583,28 +618,6 @@ command line is entered using the following protocol:
 	The kernel command line *must* be within the memory region
 	covered by setup_move_size, so you may need to adjust this
 	field.
-
-Field name:	setup_data
-Type:		write (obligatory)
-Offset/size:	0x250/8
-Protocol:	2.09+
-
-  The 64-bit physical pointer to NULL terminated single linked list of
-  struct setup_data. This is used to define a more extensible boot
-  parameters passing mechanism. The definition of struct setup_data is
-  as follow:
-
-  struct setup_data {
-	  u64 next;
-	  u32 type;
-	  u32 len;
-	  u8  data[0];
-  };
-
-  Where, the next is a 64-bit physical pointer to the next node of
-  linked list, the next field of the last node is 0; the type is used
-  to identify the contents of data; the len is the length of data
-  field; the data holds the real payload.
 
 
 **** MEMORY LAYOUT OF THE REAL-MODE CODE
