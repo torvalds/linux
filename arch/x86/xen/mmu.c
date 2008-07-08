@@ -44,6 +44,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/fixmap.h>
 #include <asm/mmu_context.h>
 #include <asm/paravirt.h>
 #include <asm/linkage.h>
@@ -491,77 +492,103 @@ void xen_set_pgd(pgd_t *ptr, pgd_t val)
 #endif	/* PAGETABLE_LEVELS == 4 */
 
 /*
-  (Yet another) pagetable walker.  This one is intended for pinning a
-  pagetable.  This means that it walks a pagetable and calls the
-  callback function on each page it finds making up the page table,
-  at every level.  It walks the entire pagetable, but it only bothers
-  pinning pte pages which are below pte_limit.  In the normal case
-  this will be TASK_SIZE, but at boot we need to pin up to
-  FIXADDR_TOP.  But the important bit is that we don't pin beyond
-  there, because then we start getting into Xen's ptes.
-*/
-static int pgd_walk(pgd_t *pgd_base, int (*func)(struct page *, enum pt_level),
+ * (Yet another) pagetable walker.  This one is intended for pinning a
+ * pagetable.  This means that it walks a pagetable and calls the
+ * callback function on each page it finds making up the page table,
+ * at every level.  It walks the entire pagetable, but it only bothers
+ * pinning pte pages which are below limit.  In the normal case this
+ * will be STACK_TOP_MAX, but at boot we need to pin up to
+ * FIXADDR_TOP.
+ *
+ * For 32-bit the important bit is that we don't pin beyond there,
+ * because then we start getting into Xen's ptes.
+ *
+ * For 64-bit, we must skip the Xen hole in the middle of the address
+ * space, just after the big x86-64 virtual hole.
+ */
+static int pgd_walk(pgd_t *pgd, int (*func)(struct page *, enum pt_level),
 		    unsigned long limit)
 {
-	pgd_t *pgd = pgd_base;
 	int flush = 0;
-	unsigned long addr = 0;
-	unsigned long pgd_next;
+	unsigned hole_low, hole_high;
+	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
+	unsigned pgdidx, pudidx, pmdidx;
 
-	BUG_ON(limit > FIXADDR_TOP);
+	/* The limit is the last byte to be touched */
+	limit--;
+	BUG_ON(limit >= FIXADDR_TOP);
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return 0;
 
-	for (; addr != FIXADDR_TOP; pgd++, addr = pgd_next) {
+	/*
+	 * 64-bit has a great big hole in the middle of the address
+	 * space, which contains the Xen mappings.  On 32-bit these
+	 * will end up making a zero-sized hole and so is a no-op.
+	 */
+	hole_low = pgd_index(STACK_TOP_MAX + PGDIR_SIZE - 1);
+	hole_high = pgd_index(PAGE_OFFSET);
+
+	pgdidx_limit = pgd_index(limit);
+#if PTRS_PER_PUD > 1
+	pudidx_limit = pud_index(limit);
+#else
+	pudidx_limit = 0;
+#endif
+#if PTRS_PER_PMD > 1
+	pmdidx_limit = pmd_index(limit);
+#else
+	pmdidx_limit = 0;
+#endif
+
+	flush |= (*func)(virt_to_page(pgd), PT_PGD);
+
+	for (pgdidx = 0; pgdidx <= pgdidx_limit; pgdidx++) {
 		pud_t *pud;
-		unsigned long pud_limit, pud_next;
 
-		pgd_next = pud_limit = pgd_addr_end(addr, FIXADDR_TOP);
-
-		if (!pgd_val(*pgd))
+		if (pgdidx >= hole_low && pgdidx < hole_high)
 			continue;
 
-		pud = pud_offset(pgd, 0);
+		if (!pgd_val(pgd[pgdidx]))
+			continue;
+
+		pud = pud_offset(&pgd[pgdidx], 0);
 
 		if (PTRS_PER_PUD > 1) /* not folded */
 			flush |= (*func)(virt_to_page(pud), PT_PUD);
 
-		for (; addr != pud_limit; pud++, addr = pud_next) {
+		for (pudidx = 0; pudidx < PTRS_PER_PUD; pudidx++) {
 			pmd_t *pmd;
-			unsigned long pmd_limit;
 
-			pud_next = pud_addr_end(addr, pud_limit);
+			if (pgdidx == pgdidx_limit &&
+			    pudidx > pudidx_limit)
+				goto out;
 
-			if (pud_next < limit)
-				pmd_limit = pud_next;
-			else
-				pmd_limit = limit;
-
-			if (pud_none(*pud))
+			if (pud_none(pud[pudidx]))
 				continue;
 
-			pmd = pmd_offset(pud, 0);
+			pmd = pmd_offset(&pud[pudidx], 0);
 
 			if (PTRS_PER_PMD > 1) /* not folded */
 				flush |= (*func)(virt_to_page(pmd), PT_PMD);
 
-			for (; addr != pmd_limit; pmd++) {
-				addr += (PAGE_SIZE * PTRS_PER_PTE);
-				if ((pmd_limit-1) < (addr-1)) {
-					addr = pmd_limit;
-					break;
-				}
+			for (pmdidx = 0; pmdidx < PTRS_PER_PMD; pmdidx++) {
+				struct page *pte;
 
-				if (pmd_none(*pmd))
+				if (pgdidx == pgdidx_limit &&
+				    pudidx == pudidx_limit &&
+				    pmdidx > pmdidx_limit)
+					goto out;
+
+				if (pmd_none(pmd[pmdidx]))
 					continue;
 
-				flush |= (*func)(pmd_page(*pmd), PT_PTE);
+				pte = pmd_page(pmd[pmdidx]);
+				flush |= (*func)(pte, PT_PTE);
 			}
 		}
 	}
-
-	flush |= (*func)(virt_to_page(pgd_base), PT_PGD);
+out:
 
 	return flush;
 }
@@ -650,6 +677,11 @@ void xen_pgd_pin(pgd_t *pgd)
 		xen_mc_batch();
 	}
 
+#ifdef CONFIG_X86_PAE
+	/* Need to make sure unshared kernel PMD is pinnable */
+	pin_page(virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])), PT_PMD);
+#endif
+
 	xen_do_pin(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(pgd)));
 	xen_mc_issue(0);
 }
@@ -731,6 +763,10 @@ static void xen_pgd_unpin(pgd_t *pgd)
 
 	xen_do_pin(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
 
+#ifdef CONFIG_X86_PAE
+	/* Need to make sure unshared kernel PMD is unpinned */
+	pin_page(virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])), PT_PMD);
+#endif
 	pgd_walk(pgd, unpin_page, TASK_SIZE);
 
 	xen_mc_issue(0);
@@ -750,7 +786,6 @@ void xen_mm_unpin_all(void)
 	list_for_each_entry(page, &pgd_list, lru) {
 		if (PageSavePinned(page)) {
 			BUG_ON(!PagePinned(page));
-			printk("unpinning pinned %p\n", page_address(page));
 			xen_pgd_unpin((pgd_t *)page_address(page));
 			ClearPageSavePinned(page);
 		}
