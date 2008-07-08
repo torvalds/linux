@@ -31,12 +31,8 @@
 char ixgb_driver_name[] = "ixgb";
 static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 
-#ifndef CONFIG_IXGB_NAPI
-#define DRIVERNAPI
-#else
 #define DRIVERNAPI "-NAPI"
-#endif
-#define DRV_VERSION		"1.0.126-k4"DRIVERNAPI
+#define DRV_VERSION "1.0.126" DRIVERNAPI
 const char ixgb_driver_version[] = DRV_VERSION;
 static const char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -92,12 +88,8 @@ static int ixgb_set_mac(struct net_device *netdev, void *p);
 static irqreturn_t ixgb_intr(int irq, void *data);
 static bool ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
 
-#ifdef CONFIG_IXGB_NAPI
 static int ixgb_clean(struct napi_struct *, int);
 static bool ixgb_clean_rx_irq(struct ixgb_adapter *, int *, int);
-#else
-static bool ixgb_clean_rx_irq(struct ixgb_adapter *);
-#endif
 static void ixgb_alloc_rx_buffers(struct ixgb_adapter *, int);
 
 static void ixgb_tx_timeout(struct net_device *dev);
@@ -271,9 +263,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 
 	clear_bit(__IXGB_DOWN, &adapter->flags);
 
-#ifdef CONFIG_IXGB_NAPI
 	napi_enable(&adapter->napi);
-#endif
 	ixgb_irq_enable(adapter);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
@@ -289,9 +279,7 @@ ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog)
 	/* prevent the interrupt handler from restarting watchdog */
 	set_bit(__IXGB_DOWN, &adapter->flags);
 
-#ifdef CONFIG_IXGB_NAPI
 	napi_disable(&adapter->napi);
-#endif
 	/* waiting for NAPI to complete can re-enable interrupts */
 	ixgb_irq_disable(adapter);
 	free_irq(adapter->pdev->irq, netdev);
@@ -419,9 +407,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ixgb_set_ethtool_ops(netdev);
 	netdev->tx_timeout = &ixgb_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
-#ifdef CONFIG_IXGB_NAPI
 	netif_napi_add(netdev, &adapter->napi, ixgb_clean, 64);
-#endif
 	netdev->vlan_rx_register = ixgb_vlan_rx_register;
 	netdev->vlan_rx_add_vid = ixgb_vlan_rx_add_vid;
 	netdev->vlan_rx_kill_vid = ixgb_vlan_rx_kill_vid;
@@ -1709,9 +1695,6 @@ ixgb_intr(int irq, void *data)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	u32 icr = IXGB_READ_REG(hw, ICR);
-#ifndef CONFIG_IXGB_NAPI
-	unsigned int i;
-#endif
 
 	if (unlikely(!icr))
 		return IRQ_NONE;  /* Not our interrupt */
@@ -1720,7 +1703,6 @@ ixgb_intr(int irq, void *data)
 		if (!test_bit(__IXGB_DOWN, &adapter->flags))
 			mod_timer(&adapter->watchdog_timer, jiffies);
 
-#ifdef CONFIG_IXGB_NAPI
 	if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
 
 		/* Disable interrupts and register for poll. The flush
@@ -1730,20 +1712,9 @@ ixgb_intr(int irq, void *data)
 		IXGB_WRITE_REG(&adapter->hw, IMC, ~0);
 		__netif_rx_schedule(netdev, &adapter->napi);
 	}
-#else
-	/* yes, that is actually a & and it is meant to make sure that
-	 * every pass through this for loop checks both receive and
-	 * transmit queues for completed descriptors, intended to
-	 * avoid starvation issues and assist tx/rx fairness. */
-	for (i = 0; i < IXGB_MAX_INTR; i++)
-		if (!ixgb_clean_rx_irq(adapter) &
-		   !ixgb_clean_tx_irq(adapter))
-			break;
-#endif
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_IXGB_NAPI
 /**
  * ixgb_clean - NAPI Rx polling callback
  * @adapter: board private structure
@@ -1768,7 +1739,6 @@ ixgb_clean(struct napi_struct *napi, int budget)
 
 	return work_done;
 }
-#endif
 
 /**
  * ixgb_clean_tx_irq - Reclaim resources after transmit completes
@@ -1901,11 +1871,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
  **/
 
 static bool
-#ifdef CONFIG_IXGB_NAPI
 ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
-#else
-ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
-#endif
 {
 	struct ixgb_desc_ring *rx_ring = &adapter->rx_ring;
 	struct net_device *netdev = adapter->netdev;
@@ -1925,12 +1891,10 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 		struct sk_buff *skb;
 		u8 status;
 
-#ifdef CONFIG_IXGB_NAPI
 		if (*work_done >= work_to_do)
 			break;
 
 		(*work_done)++;
-#endif
 		status = rx_desc->status;
 		skb = buffer_info->skb;
 		buffer_info->skb = NULL;
@@ -2005,21 +1969,12 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 		ixgb_rx_checksum(adapter, rx_desc, skb);
 
 		skb->protocol = eth_type_trans(skb, netdev);
-#ifdef CONFIG_IXGB_NAPI
 		if (adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
 			                        le16_to_cpu(rx_desc->special));
 		} else {
 			netif_receive_skb(skb);
 		}
-#else /* CONFIG_IXGB_NAPI */
-		if (adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
-			vlan_hwaccel_rx(skb, adapter->vlgrp,
-			                le16_to_cpu(rx_desc->special));
-		} else {
-			netif_rx(skb);
-		}
-#endif /* CONFIG_IXGB_NAPI */
 		netdev->last_rx = jiffies;
 
 rxdesc_done:
