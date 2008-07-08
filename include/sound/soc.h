@@ -256,6 +256,27 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 	struct snd_ac97_bus_ops *ops, int num);
 void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
 
+/* Digital Audio Interface clocking API.*/
+int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
+	unsigned int freq, int dir);
+
+int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
+	int div_id, int div);
+
+int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
+	int pll_id, unsigned int freq_in, unsigned int freq_out);
+
+/* Digital Audio interface formatting */
+int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt);
+
+int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
+	unsigned int mask, int slots);
+
+int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate);
+
+/* Digital Audio Interface mute */
+int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute);
+
 /*
  *Controls
  */
