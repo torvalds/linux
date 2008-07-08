@@ -417,10 +417,11 @@ static ssize_t ivtvfb_write(struct fb_info *info, const char __user *buf,
 	if (!err) {
 		/* If transfer size > threshold and both src/dst
 		addresses are aligned, use DMA */
-		if (count >= 4096 && ((u32)buf & 3) == ((u32)dst & 3)) {
+		if (count >= 4096 &&
+		    ((unsigned long)buf & 3) == ((unsigned long)dst & 3)) {
 			/* Odd address = can't DMA. Align */
-			if ((u32)dst & 3) {
-				lead = 4 - ((u32)dst & 3);
+			if ((unsigned long)dst & 3) {
+				lead = 4 - ((unsigned long)dst & 3);
 				memcpy(dst, buf, lead);
 				buf += lead;
 				dst += lead;
