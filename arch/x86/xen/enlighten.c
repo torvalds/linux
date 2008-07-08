@@ -1587,6 +1587,7 @@ asmlinkage void __init xen_start_kernel(void)
 	boot_params.hdr.ramdisk_image = xen_start_info->mod_start
 		? __pa(xen_start_info->mod_start) : 0;
 	boot_params.hdr.ramdisk_size = xen_start_info->mod_len;
+	boot_params.hdr.cmd_line_ptr = __pa(xen_start_info->cmd_line);
 
 	if (!is_initial_xendomain()) {
 		add_preferred_console("xenboot", 0, NULL);
