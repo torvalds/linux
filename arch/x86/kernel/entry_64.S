@@ -1365,10 +1365,8 @@ END(do_hypervisor_callback)
 # with its current contents: any discrepancy means we in category 1.
 */
 ENTRY(xen_failsafe_callback)
-#if 1
-	ud2a
-#else
-	_frame (RIP-0x30)
+	framesz = (RIP-0x30)	/* workaround buggy gas */
+	_frame framesz
 	CFI_REL_OFFSET rcx, 0
 	CFI_REL_OFFSET r11, 8
 	movw %ds,%cx
@@ -1391,8 +1389,13 @@ ENTRY(xen_failsafe_callback)
 	CFI_RESTORE r11
 	addq $0x30,%rsp
 	CFI_ADJUST_CFA_OFFSET -0x30
-	movq $11,%rdi	/* SIGSEGV */
-	jmp do_exit
+	pushq $0
+	CFI_ADJUST_CFA_OFFSET 8
+	pushq %r11
+	CFI_ADJUST_CFA_OFFSET 8
+	pushq %rcx
+	CFI_ADJUST_CFA_OFFSET 8
+	jmp general_protection
 	CFI_RESTORE_STATE
 1:	/* Segment mismatch => Category 1 (Bad segment). Retry the IRET. */
 	movq (%rsp),%rcx
@@ -1406,7 +1409,6 @@ ENTRY(xen_failsafe_callback)
 	SAVE_ALL
 	jmp error_exit
 	CFI_ENDPROC
-#endif
 END(xen_failsafe_callback)
 
 #endif /* CONFIG_XEN */
