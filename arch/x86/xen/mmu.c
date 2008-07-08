@@ -46,6 +46,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/paravirt.h>
+#include <asm/linkage.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -60,22 +61,18 @@
 #define TOP_ENTRIES		(MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE)
 
 /* Placeholder for holes in the address space */
-static unsigned long p2m_missing[P2M_ENTRIES_PER_PAGE]
-	__attribute__((section(".data.page_aligned"))) =
+static unsigned long p2m_missing[P2M_ENTRIES_PER_PAGE] __page_aligned_data =
 		{ [ 0 ... P2M_ENTRIES_PER_PAGE-1 ] = ~0UL };
 
  /* Array of pointers to pages containing p2m entries */
-static unsigned long *p2m_top[TOP_ENTRIES]
-	__attribute__((section(".data.page_aligned"))) =
+static unsigned long *p2m_top[TOP_ENTRIES] __page_aligned_data =
 		{ [ 0 ... TOP_ENTRIES - 1] = &p2m_missing[0] };
 
 /* Arrays of p2m arrays expressed in mfns used for save/restore */
-static unsigned long p2m_top_mfn[TOP_ENTRIES]
-	__attribute__((section(".bss.page_aligned")));
+static unsigned long p2m_top_mfn[TOP_ENTRIES] __page_aligned_bss;
 
-static unsigned long p2m_top_mfn_list[
-			PAGE_ALIGN(TOP_ENTRIES / P2M_ENTRIES_PER_PAGE)]
-	__attribute__((section(".bss.page_aligned")));
+static unsigned long p2m_top_mfn_list[TOP_ENTRIES / P2M_ENTRIES_PER_PAGE]
+	__page_aligned_bss;
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
