@@ -307,8 +307,7 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		goto out;
 	}
 
-	mutex_lock(&root->fs_info->alloc_mutex);
-	mutex_lock(&root->fs_info->chunk_mutex);
+	mutex_lock(&root->fs_info->volume_mutex);
 	sizestr = vol_args->name;
 	devstr = strchr(sizestr, ':');
 	if (devstr) {
@@ -378,8 +377,7 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 	}
 
 out_unlock:
-	mutex_lock(&root->fs_info->alloc_mutex);
-	mutex_lock(&root->fs_info->chunk_mutex);
+	mutex_unlock(&root->fs_info->volume_mutex);
 out:
 	kfree(vol_args);
 	return ret;

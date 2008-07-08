@@ -245,6 +245,7 @@ static int noinline find_search_start(struct btrfs_root *root,
 	u64 search_start = *start_ret;
 	int wrapped = 0;
 
+	WARN_ON(!mutex_is_locked(&root->fs_info->alloc_mutex));
 	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	free_space_cache = &root->fs_info->free_space_cache;
 
@@ -1242,6 +1243,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	u64 start;
 	u64 end;
 
+	WARN_ON(!mutex_is_locked(&root->fs_info->alloc_mutex));
 	while(total) {
 		cache = btrfs_lookup_block_group(info, bytenr);
 		if (!cache) {
@@ -1297,6 +1299,7 @@ static int update_pinned_extents(struct btrfs_root *root,
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
+	WARN_ON(!mutex_is_locked(&root->fs_info->alloc_mutex));
 	if (pin) {
 		set_extent_dirty(&fs_info->pinned_extents,
 				bytenr, bytenr + num - 1, GFP_NOFS);
@@ -1391,6 +1394,7 @@ static int finish_current_insert(struct btrfs_trans_handle *trans,
 	int level;
 	int err = 0;
 
+	WARN_ON(!mutex_is_locked(&extent_root->fs_info->alloc_mutex));
 	btrfs_set_stack_extent_refs(&extent_item, 1);
 	btrfs_set_key_type(&ins, BTRFS_EXTENT_ITEM_KEY);
 	path = btrfs_alloc_path();
@@ -1437,6 +1441,7 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 {
 	int err = 0;
 
+	WARN_ON(!mutex_is_locked(&root->fs_info->alloc_mutex));
 	if (!pending) {
 		struct extent_buffer *buf;
 		buf = btrfs_find_tree_block(root, bytenr, num_bytes);
@@ -1490,6 +1495,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_extent_item *ei;
 	u32 refs;
 
+	WARN_ON(!mutex_is_locked(&root->fs_info->alloc_mutex));
 	key.objectid = bytenr;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	key.offset = num_bytes;
@@ -1619,6 +1625,7 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 	struct extent_io_tree *pending_del;
 	struct extent_io_tree *pinned_extents;
 
+	WARN_ON(!mutex_is_locked(&extent_root->fs_info->alloc_mutex));
 	pending_del = &extent_root->fs_info->pending_del;
 	pinned_extents = &extent_root->fs_info->pinned_extents;
 
@@ -2428,6 +2435,10 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_node_key(node, &found_key, path->slots[level]);
 		WARN_ON(memcmp(&found_key, &root_item->drop_progress,
 			       sizeof(found_key)));
+		/*
+		 * unlock our path, this is safe because only this
+		 * function is allowed to delete this snapshot
+		 */
 		for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
 			if (path->nodes[i] && path->locks[i]) {
 				path->locks[i] = 0;
@@ -2611,7 +2622,6 @@ static int find_root_for_ref(struct btrfs_root *root,
 	u64 root_search_start = BTRFS_FS_TREE_OBJECTID;
 	u64 found_bytenr;
 	int ret;
-	int i;
 
 	root_location.offset = (u64)-1;
 	root_location.type = BTRFS_ROOT_ITEM_KEY;
@@ -2635,12 +2645,6 @@ static int find_root_for_ref(struct btrfs_root *root,
 				found_bytenr = path->nodes[level]->start;
 		}
 
-		for (i = level; i < BTRFS_MAX_LEVEL; i++) {
-			if (!path->nodes[i])
-				break;
-			free_extent_buffer(path->nodes[i]);
-			path->nodes[i] = NULL;
-		}
 		btrfs_release_path(cur_root, path);
 
 		if (found_bytenr == bytenr) {
@@ -2689,6 +2693,8 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 	int ret;
 	int level;
 
+	WARN_ON(!mutex_is_locked(&extent_root->fs_info->alloc_mutex));
+
 	ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			     struct btrfs_extent_ref);
 	ref_root = btrfs_ref_root(path->nodes[0], ref);
@@ -2707,6 +2713,7 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 	found_root = btrfs_read_fs_root_no_name(extent_root->fs_info,
 						&root_location);
 	BUG_ON(!found_root);
+	mutex_unlock(&extent_root->fs_info->alloc_mutex);
 
 	if (ref_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
 		found_key.objectid = ref_objectid;
@@ -2748,9 +2755,9 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 		/* this can happen if the reference is not against
 		 * the latest version of the tree root
 		 */
-		if (is_bad_inode(inode)) {
+		if (is_bad_inode(inode))
 			goto out;
-		}
+
 		*last_file_objectid = inode->i_ino;
 		*last_file_root = found_root->root_key.objectid;
 		*last_file_offset = ref_offset;
@@ -2760,7 +2767,7 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 	} else {
 		struct btrfs_trans_handle *trans;
 		struct extent_buffer *eb;
-		int i;
+		int needs_lock = 0;
 
 		eb = read_tree_block(found_root, extent_key->objectid,
 				     extent_key->offset, 0);
@@ -2782,26 +2789,40 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 		if (ret)
 			goto out;
 
+		/*
+		 * right here almost anything could happen to our key,
+		 * but that's ok.  The cow below will either relocate it
+		 * or someone else will have relocated it.  Either way,
+		 * it is in a different spot than it was before and
+		 * we're happy.
+		 */
+
 		trans = btrfs_start_transaction(found_root, 1);
+
+		if (found_root == extent_root->fs_info->extent_root ||
+		    found_root == extent_root->fs_info->chunk_root ||
+		    found_root == extent_root->fs_info->dev_root) {
+			needs_lock = 1;
+			mutex_lock(&extent_root->fs_info->alloc_mutex);
+		}
 
 		path->lowest_level = level;
 		path->reada = 2;
 		ret = btrfs_search_slot(trans, found_root, &found_key, path,
 					0, 1);
 		path->lowest_level = 0;
-		for (i = level; i < BTRFS_MAX_LEVEL; i++) {
-			if (!path->nodes[i])
-				break;
-			free_extent_buffer(path->nodes[i]);
-			path->nodes[i] = NULL;
-		}
 		btrfs_release_path(found_root, path);
+
 		if (found_root == found_root->fs_info->extent_root)
 			btrfs_extent_post_op(trans, found_root);
-		btrfs_end_transaction(trans, found_root);
-	}
+		if (needs_lock)
+			mutex_unlock(&extent_root->fs_info->alloc_mutex);
 
+		btrfs_end_transaction(trans, found_root);
+
+	}
 out:
+	mutex_lock(&extent_root->fs_info->alloc_mutex);
 	return 0;
 }
 
@@ -2943,7 +2964,10 @@ int __alloc_chunk_for_shrink(struct btrfs_root *root,
 
 	if (btrfs_block_group_used(&shrink_block_group->item) > 0) {
 
+		mutex_unlock(&root->fs_info->alloc_mutex);
 		trans = btrfs_start_transaction(root, 1);
+		mutex_lock(&root->fs_info->alloc_mutex);
+
 		new_alloc_flags = update_block_group_flags(root,
 						   shrink_block_group->flags);
 		if (new_alloc_flags != shrink_block_group->flags) {
@@ -2954,7 +2978,10 @@ int __alloc_chunk_for_shrink(struct btrfs_root *root,
 		}
 		do_chunk_alloc(trans, root->fs_info->extent_root,
 			       calc + 2 * 1024 * 1024, new_alloc_flags, force);
+
+		mutex_unlock(&root->fs_info->alloc_mutex);
 		btrfs_end_transaction(trans, root);
+		mutex_lock(&root->fs_info->alloc_mutex);
 	}
 	return 0;
 }
@@ -3031,9 +3058,9 @@ again:
 		if (ret < 0)
 			goto out;
 
+next:
 		leaf = path->nodes[0];
 		nritems = btrfs_header_nritems(leaf);
-next:
 		if (path->slots[0] >= nritems) {
 			ret = btrfs_next_leaf(root, path);
 			if (ret < 0)
@@ -3083,6 +3110,7 @@ next:
 		printk("btrfs relocate found %llu last extent was %llu\n",
 		       (unsigned long long)total_found,
 		       (unsigned long long)found_key.objectid);
+		mutex_unlock(&root->fs_info->alloc_mutex);
 		trans = btrfs_start_transaction(tree_root, 1);
 		btrfs_commit_transaction(trans, tree_root);
 
@@ -3090,6 +3118,7 @@ next:
 
 		trans = btrfs_start_transaction(tree_root, 1);
 		btrfs_commit_transaction(trans, tree_root);
+		mutex_lock(&root->fs_info->alloc_mutex);
 		goto again;
 	}
 
@@ -3097,7 +3126,10 @@ next:
 	 * we've freed all the extents, now remove the block
 	 * group item from the tree
 	 */
+	mutex_unlock(&root->fs_info->alloc_mutex);
+
 	trans = btrfs_start_transaction(root, 1);
+	mutex_lock(&root->fs_info->alloc_mutex);
 	memcpy(&key, &shrink_block_group->key, sizeof(key));
 
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
@@ -3119,7 +3151,11 @@ next:
 	kfree(shrink_block_group);
 
 	btrfs_del_item(trans, root, path);
+	btrfs_release_path(root, path);
+	mutex_unlock(&root->fs_info->alloc_mutex);
 	btrfs_commit_transaction(trans, root);
+
+	mutex_lock(&root->fs_info->alloc_mutex);
 
 	/* the code to unpin extents might set a few bits in the free
 	 * space cache for this range again
@@ -3263,6 +3299,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_cache *cache;
 	struct extent_io_tree *block_group_cache;
 
+	WARN_ON(!mutex_is_locked(&root->fs_info->alloc_mutex));
 	extent_root = root->fs_info->extent_root;
 	block_group_cache = &root->fs_info->block_group_cache;
 

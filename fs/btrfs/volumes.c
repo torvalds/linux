@@ -56,6 +56,18 @@ void btrfs_unlock_volumes(void)
 	mutex_unlock(&uuid_mutex);
 }
 
+static void lock_chunks(struct btrfs_root *root)
+{
+	mutex_lock(&root->fs_info->alloc_mutex);
+	mutex_lock(&root->fs_info->chunk_mutex);
+}
+
+static void unlock_chunks(struct btrfs_root *root)
+{
+	mutex_unlock(&root->fs_info->alloc_mutex);
+	mutex_unlock(&root->fs_info->chunk_mutex);
+}
+
 int btrfs_cleanup_fs_uuids(void)
 {
 	struct btrfs_fs_devices *fs_devices;
@@ -822,6 +834,7 @@ static int btrfs_rm_dev_item(struct btrfs_root *root,
 	key.objectid = BTRFS_DEV_ITEMS_OBJECTID;
 	key.type = BTRFS_DEV_ITEM_KEY;
 	key.offset = device->devid;
+	lock_chunks(root);
 
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)
@@ -856,6 +869,7 @@ static int btrfs_rm_dev_item(struct btrfs_root *root,
 				    total_bytes - 1);
 out:
 	btrfs_free_path(path);
+	unlock_chunks(root);
 	btrfs_commit_transaction(trans, root);
 	return ret;
 }
@@ -870,9 +884,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	u64 devid;
 	int ret = 0;
 
-	mutex_lock(&root->fs_info->alloc_mutex);
-	mutex_lock(&root->fs_info->chunk_mutex);
 	mutex_lock(&uuid_mutex);
+	mutex_lock(&root->fs_info->volume_mutex);
 
 	all_avail = root->fs_info->avail_data_alloc_bits |
 		root->fs_info->avail_system_alloc_bits |
@@ -988,9 +1001,8 @@ error_close:
 	if (bdev)
 		close_bdev_excl(bdev);
 out:
+	mutex_unlock(&root->fs_info->volume_mutex);
 	mutex_unlock(&uuid_mutex);
-	mutex_unlock(&root->fs_info->chunk_mutex);
-	mutex_unlock(&root->fs_info->alloc_mutex);
 	return ret;
 }
 
@@ -1010,10 +1022,10 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		return -EIO;
 	}
 
-	mutex_lock(&root->fs_info->alloc_mutex);
-	mutex_lock(&root->fs_info->chunk_mutex);
+	mutex_lock(&root->fs_info->volume_mutex);
 
 	trans = btrfs_start_transaction(root, 1);
+	lock_chunks(root);
 	devices = &root->fs_info->fs_devices->devices;
 	list_for_each(cur, devices) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
@@ -1065,9 +1077,9 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	root->fs_info->fs_devices->num_devices++;
 	root->fs_info->fs_devices->open_devices++;
 out:
+	unlock_chunks(root);
 	btrfs_end_transaction(trans, root);
-	mutex_unlock(&root->fs_info->chunk_mutex);
-	mutex_unlock(&root->fs_info->alloc_mutex);
+	mutex_unlock(&root->fs_info->volume_mutex);
 
 	return ret;
 
@@ -1122,7 +1134,7 @@ out:
 	return ret;
 }
 
-int btrfs_grow_device(struct btrfs_trans_handle *trans,
+static int __btrfs_grow_device(struct btrfs_trans_handle *trans,
 		      struct btrfs_device *device, u64 new_size)
 {
 	struct btrfs_super_block *super_copy =
@@ -1132,6 +1144,16 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 
 	btrfs_set_super_total_bytes(super_copy, old_total + diff);
 	return btrfs_update_device(trans, device);
+}
+
+int btrfs_grow_device(struct btrfs_trans_handle *trans,
+		      struct btrfs_device *device, u64 new_size)
+{
+	int ret;
+	lock_chunks(device->dev_root);
+	ret = __btrfs_grow_device(trans, device, new_size);
+	unlock_chunks(device->dev_root);
+	return ret;
 }
 
 static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
@@ -1234,6 +1256,8 @@ int btrfs_relocate_chunk(struct btrfs_root *root,
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
 
+	lock_chunks(root);
+
 	/*
 	 * step two, delete the device extents and the
 	 * chunk tree entries
@@ -1278,6 +1302,7 @@ int btrfs_relocate_chunk(struct btrfs_root *root,
 	/* once for us */
 	free_extent_map(em);
 
+	unlock_chunks(root);
 	btrfs_end_transaction(trans, root);
 	return 0;
 }
@@ -1308,8 +1333,7 @@ int btrfs_balance(struct btrfs_root *dev_root)
 	struct btrfs_key found_key;
 
 
-	BUG(); /* FIXME, needs locking */
-
+	mutex_lock(&dev_root->fs_info->volume_mutex);
 	dev_root = dev_root->fs_info->dev_root;
 
 	/* step one make some room on all the devices */
@@ -1355,13 +1379,14 @@ int btrfs_balance(struct btrfs_root *dev_root)
 
 		ret = btrfs_previous_item(chunk_root, path, 0,
 					  BTRFS_CHUNK_ITEM_KEY);
-		if (ret) {
+		if (ret)
 			break;
-		}
+
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 				      path->slots[0]);
 		if (found_key.objectid != key.objectid)
 			break;
+
 		chunk = btrfs_item_ptr(path->nodes[0],
 				       path->slots[0],
 				       struct btrfs_chunk);
@@ -1370,16 +1395,17 @@ int btrfs_balance(struct btrfs_root *dev_root)
 		if (key.offset == 0)
 			break;
 
+		btrfs_release_path(chunk_root, path);
 		ret = btrfs_relocate_chunk(chunk_root,
 					   chunk_root->root_key.objectid,
 					   found_key.objectid,
 					   found_key.offset);
 		BUG_ON(ret);
-		btrfs_release_path(chunk_root, path);
 	}
 	ret = 0;
 error:
 	btrfs_free_path(path);
+	mutex_unlock(&dev_root->fs_info->volume_mutex);
 	return ret;
 }
 
@@ -1419,14 +1445,18 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 
 	path->reada = 2;
 
+	lock_chunks(root);
+
 	device->total_bytes = new_size;
 	ret = btrfs_update_device(trans, device);
 	if (ret) {
+		unlock_chunks(root);
 		btrfs_end_transaction(trans, root);
 		goto done;
 	}
 	WARN_ON(diff > old_total);
 	btrfs_set_super_total_bytes(super_copy, old_total - diff);
+	unlock_chunks(root);
 	btrfs_end_transaction(trans, root);
 
 	key.objectid = device->devid;

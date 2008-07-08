@@ -1251,10 +1251,6 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	WARN_ON(p->nodes[0] != NULL);
 	WARN_ON(cow && root == root->fs_info->extent_root &&
 		!mutex_is_locked(&root->fs_info->alloc_mutex));
-	WARN_ON(root == root->fs_info->chunk_root &&
-		!mutex_is_locked(&root->fs_info->chunk_mutex));
-	WARN_ON(root == root->fs_info->dev_root &&
-		!mutex_is_locked(&root->fs_info->chunk_mutex));
 	if (ins_len < 0)
 		lowest_unlock = 2;
 again:

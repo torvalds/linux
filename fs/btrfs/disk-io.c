@@ -1287,6 +1287,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->chunk_mutex);
 	mutex_init(&fs_info->transaction_kthread_mutex);
 	mutex_init(&fs_info->cleaner_mutex);
+	mutex_init(&fs_info->volume_mutex);
 
 #if 0
 	ret = add_hasher(fs_info, "crc32c");
