@@ -152,6 +152,7 @@ static chipio_t pnp_info;
 static const struct pnp_device_id nsc_ircc_pnp_table[] = {
 	{ .id = "NSC6001", .driver_data = 0 },
 	{ .id = "IBM0071", .driver_data = 0 },
+	{ .id = "HWPC224", .driver_data = 0 },
 	{ }
 };
 
