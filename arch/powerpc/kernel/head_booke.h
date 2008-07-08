@@ -340,6 +340,14 @@ label:
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, crit_transfer_to_handler, ret_from_crit_exc)
 
+#define DATA_STORAGE_EXCEPTION						      \
+	START_EXCEPTION(DataStorage)					      \
+	NORMAL_EXCEPTION_PROLOG;					      \
+	mfspr	r5,SPRN_ESR;		/* Grab the ESR and save it */	      \
+	stw	r5,_ESR(r11);						      \
+	mfspr	r4,SPRN_DEAR;		/* Grab the DEAR */		      \
+	EXC_XFER_EE_LITE(0x0300, handle_page_fault)
+
 #define INSTRUCTION_STORAGE_EXCEPTION					      \
 	START_EXCEPTION(InstructionStorage)				      \
 	NORMAL_EXCEPTION_PROLOG;					      \
