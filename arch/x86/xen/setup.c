@@ -91,19 +91,25 @@ static void __init fiddle_vdso(void)
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 }
 
-void xen_enable_sysenter(void)
+static __cpuinit int register_callback(unsigned type, const void *func)
 {
-	int cpu = smp_processor_id();
-	extern void xen_sysenter_target(void);
-	/* Mask events on entry, even though they get enabled immediately */
-	static struct callback_register sysenter = {
-		.type = CALLBACKTYPE_sysenter,
-		.address = XEN_CALLBACK(__KERNEL_CS, xen_sysenter_target),
+	struct callback_register callback = {
+		.type = type,
+		.address = XEN_CALLBACK(__KERNEL_CS, func),
 		.flags = CALLBACKF_mask_events,
 	};
 
+	return HYPERVISOR_callback_op(CALLBACKOP_register, &callback);
+}
+
+void __cpuinit xen_enable_sysenter(void)
+{
+	int cpu = smp_processor_id();
+	extern void xen_sysenter_target(void);
+
 	if (!boot_cpu_has(X86_FEATURE_SEP) ||
-	    HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter) != 0) {
+	    register_callback(CALLBACKTYPE_sysenter,
+			      xen_sysenter_target) != 0) {
 		clear_cpu_cap(&cpu_data(cpu), X86_FEATURE_SEP);
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SEP);
 	}
@@ -120,8 +126,9 @@ void __init xen_arch_setup(void)
 	if (!xen_feature(XENFEAT_auto_translated_physmap))
 		HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_pae_extended_cr3);
 
-	HYPERVISOR_set_callbacks(__KERNEL_CS, (unsigned long)xen_hypervisor_callback,
-				 __KERNEL_CS, (unsigned long)xen_failsafe_callback);
+	if (register_callback(CALLBACKTYPE_event, xen_hypervisor_callback) ||
+	    register_callback(CALLBACKTYPE_failsafe, xen_failsafe_callback))
+		BUG();
 
 	xen_enable_sysenter();
 

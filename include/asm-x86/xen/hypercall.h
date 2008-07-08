@@ -226,6 +226,7 @@ HYPERVISOR_stack_switch(unsigned long ss, unsigned long esp)
 	return _hypercall2(int, stack_switch, ss, esp);
 }
 
+#ifdef CONFIG_X86_32
 static inline int
 HYPERVISOR_set_callbacks(unsigned long event_selector,
 			 unsigned long event_address,
@@ -236,6 +237,17 @@ HYPERVISOR_set_callbacks(unsigned long event_selector,
 			   event_selector, event_address,
 			   failsafe_selector, failsafe_address);
 }
+#else  /* CONFIG_X86_64 */
+static inline int
+HYPERVISOR_set_callbacks(unsigned long event_address,
+			unsigned long failsafe_address,
+			unsigned long syscall_address)
+{
+	return _hypercall3(int, set_callbacks,
+			   event_address, failsafe_address,
+			   syscall_address);
+}
+#endif  /* CONFIG_X86_{32,64} */
 
 static inline int
 HYPERVISOR_callback_op(int cmd, void *arg)
