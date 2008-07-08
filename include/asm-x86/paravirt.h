@@ -1396,8 +1396,8 @@ extern struct paravirt_patch_site __parainstructions[],
  * caller saved registers but the argument parameter */
 #define PV_SAVE_REGS "pushq %%rdi;"
 #define PV_RESTORE_REGS "popq %%rdi;"
-#define PV_EXTRA_CLOBBERS EXTRA_CLOBBERS, "rcx" , "rdx"
-#define PV_VEXTRA_CLOBBERS EXTRA_CLOBBERS, "rdi", "rcx" , "rdx"
+#define PV_EXTRA_CLOBBERS EXTRA_CLOBBERS, "rcx" , "rdx", "rsi"
+#define PV_VEXTRA_CLOBBERS EXTRA_CLOBBERS, "rdi", "rcx" , "rdx", "rsi"
 #define PV_FLAGS_ARG "D"
 #endif
 
@@ -1489,8 +1489,26 @@ static inline unsigned long __raw_local_irq_save(void)
 
 
 #ifdef CONFIG_X86_64
-#define PV_SAVE_REGS   pushq %rax; pushq %rdi; pushq %rcx; pushq %rdx
-#define PV_RESTORE_REGS popq %rdx; popq %rcx; popq %rdi; popq %rax
+#define PV_SAVE_REGS				\
+	push %rax;				\
+	push %rcx;				\
+	push %rdx;				\
+	push %rsi;				\
+	push %rdi;				\
+	push %r8;				\
+	push %r9;				\
+	push %r10;				\
+	push %r11
+#define PV_RESTORE_REGS				\
+	pop %r11;				\
+	pop %r10;				\
+	pop %r9;				\
+	pop %r8;				\
+	pop %rdi;				\
+	pop %rsi;				\
+	pop %rdx;				\
+	pop %rcx;				\
+	pop %rax
 #define PARA_PATCH(struct, off)        ((PARAVIRT_PATCH_##struct + (off)) / 8)
 #define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .quad, 8)
 #define PARA_INDIRECT(addr)	*addr(%rip)
