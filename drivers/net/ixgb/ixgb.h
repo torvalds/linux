@@ -89,18 +89,16 @@ struct ixgb_adapter;
 
 
 /* TX/RX descriptor defines */
-#define DEFAULT_TXD	 256
-#define MAX_TXD   	4096
-#define MIN_TXD	  64
+#define DEFAULT_TXD      256
+#define MAX_TXD         4096
+#define MIN_TXD           64
 
 /* hardware cannot reliably support more than 512 descriptors owned by
  * hardware descriptor cache otherwise an unreliable ring under heavy
  * receive load may result */
-/* #define DEFAULT_RXD	   1024 */
-/* #define MAX_RXD	   4096 */
-#define DEFAULT_RXD	512
-#define MAX_RXD	512
-#define MIN_RXD	 64
+#define DEFAULT_RXD      512
+#define MAX_RXD          512
+#define MIN_RXD           64
 
 /* Supported Rx Buffer Sizes */
 #define IXGB_RXBUFFER_2048  2048
