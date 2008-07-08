@@ -178,8 +178,9 @@ void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	p2m_top[topidx][idx] = mfn;
 }
 
-xmaddr_t arbitrary_virt_to_machine(unsigned long address)
+xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 {
+	unsigned long address = (unsigned long)vaddr;
 	unsigned int level;
 	pte_t *pte = lookup_address(address, &level);
 	unsigned offset = address & ~PAGE_MASK;
@@ -253,7 +254,8 @@ void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 
 	xen_mc_batch();
 
-	u.ptr = virt_to_machine(ptr).maddr;
+	/* ptr may be ioremapped for 64-bit pagetable setup */
+	u.ptr = arbitrary_virt_to_machine(ptr).maddr;
 	u.val = pmd_val_ma(val);
 	extend_mmu_update(&u);
 
@@ -415,7 +417,8 @@ void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 
 	xen_mc_batch();
 
-	u.ptr = virt_to_machine(ptr).maddr;
+	/* ptr may be ioremapped for 64-bit pagetable setup */
+	u.ptr = arbitrary_virt_to_machine(ptr).maddr;
 	u.val = pud_val_ma(val);
 	extend_mmu_update(&u);
 

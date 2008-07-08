@@ -158,7 +158,7 @@ static inline pte_t __pte_ma(pteval_t x)
 #define pgd_val_ma(x)	((x).pgd)
 
 
-xmaddr_t arbitrary_virt_to_machine(unsigned long address);
+xmaddr_t arbitrary_virt_to_machine(void *address);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 
