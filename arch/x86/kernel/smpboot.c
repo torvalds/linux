@@ -768,7 +768,7 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
  *
  * Must be called after the _cpu_pda pointer table is initialized.
  */
-static int __cpuinit get_local_pda(int cpu)
+int __cpuinit get_local_pda(int cpu)
 {
 	struct x8664_pda *oldpda, *newpda;
 	unsigned long size = sizeof(struct x8664_pda);
