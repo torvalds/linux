@@ -462,18 +462,25 @@ phys_pud_update(pgd_t *pgd, unsigned long addr, unsigned long end,
 
 static void __init find_early_table_space(unsigned long end)
 {
-	unsigned long puds, tables, start;
+	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	tables = round_up(puds * sizeof(pud_t), PAGE_SIZE);
-	if (!direct_gbpages) {
-		unsigned long pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
-		tables += round_up(pmds * sizeof(pmd_t), PAGE_SIZE);
-	}
-	if (!cpu_has_pse) {
-		unsigned long ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		tables += round_up(ptes * sizeof(pte_t), PAGE_SIZE);
-	}
+	if (direct_gbpages) {
+		unsigned long extra;
+		extra = end - ((end>>PUD_SHIFT) << PUD_SHIFT);
+		pmds = (extra + PMD_SIZE - 1) >> PMD_SHIFT;
+	} else
+		pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
+	tables += round_up(pmds * sizeof(pmd_t), PAGE_SIZE);
+
+	if (cpu_has_pse) {
+		unsigned long extra;
+		extra = end - ((end>>PMD_SHIFT) << PMD_SHIFT);
+		ptes = (extra + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	} else
+		ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	tables += round_up(ptes * sizeof(pte_t), PAGE_SIZE);
 
 	/*
 	 * RED-PEN putting page tables only on node 0 could
@@ -660,8 +667,9 @@ static unsigned long __init kernel_physical_mapping_init(unsigned long start,
 unsigned long __init_refok init_memory_mapping(unsigned long start,
 					       unsigned long end)
 {
-	unsigned long last_map_addr;
+	unsigned long last_map_addr = end;
 	unsigned long page_size_mask = 0;
+	unsigned long start_pfn, end_pfn;
 
 	printk(KERN_INFO "init_memory_mapping\n");
 
@@ -682,8 +690,53 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	if (cpu_has_pse)
 		page_size_mask |= 1 << PG_LEVEL_2M;
 
-	last_map_addr = kernel_physical_mapping_init(start, end,
-							 page_size_mask);
+	/* head if not big page aligment ?*/
+	start_pfn = start >> PAGE_SHIFT;
+	end_pfn = ((start + (PMD_SIZE - 1)) >> PMD_SHIFT)
+			<< (PMD_SHIFT - PAGE_SHIFT);
+	if (start_pfn < end_pfn)
+		last_map_addr = kernel_physical_mapping_init(
+					start_pfn<<PAGE_SHIFT,
+					end_pfn<<PAGE_SHIFT, 0);
+
+	/* big page (2M) range*/
+	start_pfn = ((start + (PMD_SIZE - 1))>>PMD_SHIFT)
+			 << (PMD_SHIFT - PAGE_SHIFT);
+	end_pfn = ((start + (PUD_SIZE - 1))>>PUD_SHIFT)
+			 << (PUD_SHIFT - PAGE_SHIFT);
+	if (end_pfn > ((end>>PUD_SHIFT)<<(PUD_SHIFT - PAGE_SHIFT)))
+		end_pfn = ((end>>PUD_SHIFT)<<(PUD_SHIFT - PAGE_SHIFT));
+	if (start_pfn < end_pfn)
+		last_map_addr = kernel_physical_mapping_init(
+					     start_pfn<<PAGE_SHIFT,
+					     end_pfn<<PAGE_SHIFT,
+					     page_size_mask & (1<<PG_LEVEL_2M));
+
+	/* big page (1G) range */
+	start_pfn = end_pfn;
+	end_pfn = (end>>PUD_SHIFT) << (PUD_SHIFT - PAGE_SHIFT);
+	if (start_pfn < end_pfn)
+		last_map_addr = kernel_physical_mapping_init(
+					     start_pfn<<PAGE_SHIFT,
+					     end_pfn<<PAGE_SHIFT,
+					     page_size_mask & ((1<<PG_LEVEL_2M)
+							 | (1<<PG_LEVEL_1G)));
+
+	/* tail is not big page (1G) alignment */
+	start_pfn = end_pfn;
+	end_pfn = (end>>PMD_SHIFT) << (PMD_SHIFT - PAGE_SHIFT);
+	if (start_pfn < end_pfn)
+		last_map_addr = kernel_physical_mapping_init(
+					     start_pfn<<PAGE_SHIFT,
+					     end_pfn<<PAGE_SHIFT,
+					     page_size_mask & (1<<PG_LEVEL_2M));
+	/* tail is not big page (2M) alignment */
+	start_pfn = end_pfn;
+	end_pfn = end>>PAGE_SHIFT;
+	if (start_pfn < end_pfn)
+		last_map_addr = kernel_physical_mapping_init(
+					     start_pfn<<PAGE_SHIFT,
+					     end_pfn<<PAGE_SHIFT, 0);
 
 	if (!after_bootmem)
 		mmu_cr4_features = read_cr4();
