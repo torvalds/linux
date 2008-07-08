@@ -156,8 +156,6 @@ struct gspca_dev {
 	char nbufread;			/* number of buffers for read() */
 	char nurbs;			/* number of allocated URBs */
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */
-	__u8 urb_in;			/* URB pointers - used when !mmap */
-	__u8 urb_out;
 	__u8 nbalt;			/* number of USB alternate settings */
 };
 

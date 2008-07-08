@@ -36,15 +36,14 @@
 #include "gspca.h"
 
 /* global values */
-#define DEF_NURBS 2		/* default number of URBs (mmap) */
-#define USR_NURBS 5		/* default number of URBs (userptr) */
+#define DEF_NURBS 2		/* default number of URBs */
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 6)
+static const char version[] = "2.1.6";
 
 static int video_nr = -1;
 
@@ -153,7 +152,6 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	}
 
 	/* resubmit the URB */
-/*fixme: don't do that when userptr and too many URBs sent*/
 	urb->status = 0;
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
@@ -163,18 +161,9 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 /*
  * ISOC message interrupt from the USB device
  *
- * Analyse each packet and call the subdriver for copy
- * to the frame buffer.
- *
- * There are 2 functions:
- *	- the first one (isoc_irq_mmap) is used when the application
- *	  buffers are mapped. The frame detection and copy is done
- *	  at interrupt level.
- *	- the second one (isoc_irq_user) is used when the application
- *	  buffers are in user space (userptr). The frame detection
- *	  and copy is done by the application.
+ * Analyse each packet and call the subdriver for copy to the frame buffer.
  */
-static void isoc_irq_mmap(struct urb *urb
+static void isoc_irq(struct urb *urb
 )
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
@@ -185,56 +174,11 @@ static void isoc_irq_mmap(struct urb *urb
 	fill_frame(gspca_dev, urb);
 }
 
-static void isoc_irq_user(struct urb *urb
-)
-{
-	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
-	int i;
-
-	PDEBUG(D_PACK, "isoc irq user");
-	if (!gspca_dev->streaming)
-		return;
-
-	i = gspca_dev->urb_in % gspca_dev->nurbs;
-	if (urb != gspca_dev->urb[i]) {
-		PDEBUG(D_ERR|D_PACK, "urb out of sequence");
-		return;			/* should never occur */
-	}
-
-	gspca_dev->urb_in++;
-	atomic_inc(&gspca_dev->nevent);		/* new event */
-	wake_up_interruptible(&gspca_dev->wq);
-/*fixme: submit a new URBs until urb_in == urb_out (% nurbs)*/
-}
-
-/*
- * treat the isoc messages
- *
- * This routine is called by the application (case userptr).
- */
-static void isoc_transfer(struct gspca_dev *gspca_dev)
-{
-	struct urb *urb;
-	int i;
-
-	for (;;) {
-		i = gspca_dev->urb_out;
-		PDEBUG(D_PACK, "isoc transf i:%d o:%d", gspca_dev->urb_in, i);
-		if (i == gspca_dev->urb_in)	/* isoc message to read */
-			break;			/* no (more) message */
-		atomic_dec(&gspca_dev->nevent);
-/*PDEBUG(D_PACK, "isoc_trf nevent: %d", atomic_read(&gspca_dev->nevent));*/
-		gspca_dev->urb_out = i + 1;	/* message treated */
-		urb = gspca_dev->urb[i % gspca_dev->nurbs];
-		fill_frame(gspca_dev, urb);
-	}
-}
-
 /*
  * add data to the current frame
  *
- * This function is called by the subdrivers at interrupt level
- * or user level.
+ * This function is called by the subdrivers at interrupt level.
+ *
  * To build a frame, these ones must add
  *	- one FIRST_PACKET
  *	- 0 or many INTER_PACKETs
@@ -277,16 +221,7 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				frame->v4l2_buf.length);
 			packet_type = DISCARD_PACKET;
 		} else {
-			if (frame->v4l2_buf.memory != V4L2_MEMORY_USERPTR) {
-				memcpy(frame->data_end, data, len);
-			} else {
-				if (copy_to_user(frame->data_end,
-						 data, len) != 0) {
-					PDEBUG(D_ERR|D_PACK,
-							"copy to user failed");
-					packet_type = DISCARD_PACKET;
-				}
-			}
+			memcpy(frame->data_end, data, len);
 			frame->data_end += len;
 		}
 	}
@@ -333,7 +268,6 @@ static void *rvmalloc(unsigned long size)
 /*	size = PAGE_ALIGN(size);	(already done) */
 	mem = vmalloc_32(size);
 	if (mem != NULL) {
-		memset(mem, 0, size);
 		adr = (unsigned long) mem;
 		while ((long) size > 0) {
 			SetPageReserved(vmalloc_to_page((void *) adr));
@@ -344,14 +278,12 @@ static void *rvmalloc(unsigned long size)
 	return mem;
 }
 
-static void rvfree(void *mem, unsigned long size)
+static void rvfree(void *mem, long size)
 {
 	unsigned long adr;
 
-	if (!mem)
-		return;
 	adr = (unsigned long) mem;
-	while ((long) size > 0) {
+	while (size > 0) {
 		ClearPageReserved(vmalloc_to_page((void *) adr));
 		adr += PAGE_SIZE;
 		size -= PAGE_SIZE;
@@ -370,16 +302,13 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 	frsz = gspca_dev->cam.cam_mode[i].sizeimage;
 	PDEBUG(D_STREAM, "frame alloc frsz: %d", frsz);
 	frsz = PAGE_ALIGN(frsz);
-	PDEBUG(D_STREAM, "new fr_sz: %d", frsz);
 	gspca_dev->frsz = frsz;
 	if (count > GSPCA_MAX_FRAMES)
 		count = GSPCA_MAX_FRAMES;
-	if (gspca_dev->memory == V4L2_MEMORY_MMAP) {
-		gspca_dev->frbuf = rvmalloc(frsz * count);
-		if (!gspca_dev->frbuf) {
-			err("frame alloc failed");
-			return -ENOMEM;
-		}
+	gspca_dev->frbuf = rvmalloc(frsz * count);
+	if (!gspca_dev->frbuf) {
+		err("frame alloc failed");
+		return -ENOMEM;
 	}
 	gspca_dev->nframes = count;
 	for (i = 0; i < count; i++) {
@@ -391,11 +320,9 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		frame->v4l2_buf.length = frsz;
 		frame->v4l2_buf.memory = gspca_dev->memory;
 		frame->v4l2_buf.sequence = 0;
-		if (gspca_dev->memory == V4L2_MEMORY_MMAP) {
-			frame->data = frame->data_end =
+		frame->data = frame->data_end =
 					gspca_dev->frbuf + i * frsz;
-			frame->v4l2_buf.m.offset = i * frsz;
-		}
+		frame->v4l2_buf.m.offset = i * frsz;
 	}
 	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
 	gspca_dev->last_packet_type = DISCARD_PACKET;
@@ -509,7 +436,6 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 {
 	struct urb *urb;
 	int n, nurbs, i, psize, npkt, bsize;
-	usb_complete_t usb_complete;
 
 	/* calculate the packet size and the number of packets */
 	psize = le16_to_cpu(ep->desc.wMaxPacketSize);
@@ -522,14 +448,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	bsize = psize * npkt;
 	PDEBUG(D_STREAM,
 		"isoc %d pkts size %d (bsize:%d)", npkt, psize, bsize);
-/*fixme:don't submit all URBs when userptr*/
-	if (gspca_dev->memory != V4L2_MEMORY_USERPTR) {
-		usb_complete = isoc_irq_mmap;
-		nurbs = DEF_NURBS;
-	} else {
-		usb_complete = isoc_irq_user;
-		nurbs = USR_NURBS;
-	}
+	nurbs = DEF_NURBS;
 	gspca_dev->nurbs = nurbs;
 	for (n = 0; n < nurbs; n++) {
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
@@ -556,7 +475,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		urb->transfer_flags = URB_ISO_ASAP
 					| URB_NO_TRANSFER_DMA_MAP;
 		urb->interval = ep->desc.bInterval;
-		urb->complete = usb_complete;
+		urb->complete = isoc_irq;
 		urb->number_of_packets = npkt;
 		urb->transfer_buffer_length = bsize;
 		for (i = 0; i < npkt; i++) {
@@ -564,7 +483,6 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			urb->iso_frame_desc[i].offset = psize * i;
 		}
 	}
-	gspca_dev->urb_in = gspca_dev->urb_out = 0;
 	return 0;
 }
 
@@ -1063,6 +981,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	switch (rb->memory) {
+	case GSPCA_MEMORY_READ:
 	case V4L2_MEMORY_MMAP:
 	case V4L2_MEMORY_USERPTR:
 		break;
@@ -1072,13 +991,6 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 
-	for (i = 0; i < gspca_dev->nframes; i++) {
-		if (gspca_dev->frame[i].vma_use_count) {
-			ret = -EBUSY;
-			goto out;
-		}
-	}
-
 	/* only one file may do capture */
 	if ((gspca_dev->capt_file != NULL && gspca_dev->capt_file != file)
 	    || gspca_dev->streaming) {
@@ -1086,10 +998,20 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		goto out;
 	}
 
-	if (rb->count == 0) { /* unrequest? */
+	if (rb->count == 0) {			/* unrequest */
+		for (i = 0; i < gspca_dev->nframes; i++) {
+			if (gspca_dev->frame[i].vma_use_count) {
+				ret = -EBUSY;
+				goto out;
+			}
+		}
 		frame_free(gspca_dev);
 		gspca_dev->capt_file = NULL;
 	} else {
+		if (gspca_dev->nframes != 0) {
+			ret = -EBUSY;
+			goto out;
+		}
 		gspca_dev->memory = rb->memory;
 		ret = frame_alloc(gspca_dev, rb->count);
 		if (ret == 0) {
@@ -1301,9 +1223,6 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 	struct page *page;
 	unsigned long addr, start, size;
 	int i, ret;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	int compat = 0;
-#endif
 
 	start = vma->vm_start;
 	size = vma->vm_end - vma->vm_start;
@@ -1338,11 +1257,11 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 		goto out;
 	}
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-	if (i == 0 && size == frame->v4l2_buf.length * gspca_dev->nframes)
-		compat = 1;
-	else
+	/* v4l1 maps all the buffers */
+	if (i != 0
+	    || size != frame->v4l2_buf.length * gspca_dev->nframes)
 #endif
-	if (size != frame->v4l2_buf.length) {
+	    if (size != frame->v4l2_buf.length) {
 		PDEBUG(D_STREAM, "mmap bad size");
 		ret = -EINVAL;
 		goto out;
@@ -1368,14 +1287,6 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &gspca_vm_ops;
 	vma->vm_private_data = frame;
 	gspca_vm_open(vma);
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	if (compat) {
-/*fixme: ugly*/
-		for (i = 1; i < gspca_dev->nframes; ++i)
-			gspca_dev->frame[i].v4l2_buf.flags |=
-						V4L2_BUF_FLAG_MAPPED;
-	}
-#endif
 	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1392,10 +1303,6 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 {
 	struct gspca_frame *frame;
 	int i, j, ret;
-
-	/* if userptr, treat the awaiting URBs */
-	if (gspca_dev->memory == V4L2_MEMORY_USERPTR)
-		isoc_transfer(gspca_dev);
 
 	/* check if a frame is ready */
 	i = gspca_dev->fr_o;
@@ -1421,8 +1328,6 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 		atomic_dec(&gspca_dev->nevent);
 		if (!gspca_dev->streaming || !gspca_dev->present)
 			return -EIO;
-		if (gspca_dev->memory == V4L2_MEMORY_USERPTR)
-			isoc_transfer(gspca_dev);
 		i = gspca_dev->fr_o;
 		j = gspca_dev->fr_queue[i];
 		frame = &gspca_dev->frame[j];
@@ -1455,9 +1360,9 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 	int i, ret;
 
 	PDEBUG(D_FRAM, "dqbuf");
-	if (v4l2_buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE
-	    || (v4l2_buf->memory != V4L2_MEMORY_MMAP
-		&& v4l2_buf->memory != V4L2_MEMORY_USERPTR))
+	if (v4l2_buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	if (v4l2_buf->memory != gspca_dev->memory)
 		return -EINVAL;
 	if (!gspca_dev->streaming)
 		return -EINVAL;
@@ -1475,6 +1380,16 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 		goto out;
 	i = ret;				/* frame index */
 	frame = &gspca_dev->frame[i];
+	if (gspca_dev->memory == V4L2_MEMORY_USERPTR) {
+		if (copy_to_user((__u8 *) frame->v4l2_buf.m.userptr,
+				 frame->data,
+				 frame->v4l2_buf.bytesused)) {
+			PDEBUG(D_ERR|D_STREAM,
+				"dqbuf cp to user failed");
+			ret = -EFAULT;
+			goto out;
+		}
+	}
 	frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE;
 	memcpy(v4l2_buf, &frame->v4l2_buf, sizeof *v4l2_buf);
 	PDEBUG(D_FRAM, "dqbuf %d", i);
@@ -1529,8 +1444,6 @@ static int vidioc_qbuf(struct file *file, void *priv,
 /*	frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE; */
 
 	if (frame->v4l2_buf.memory == V4L2_MEMORY_USERPTR) {
-		frame->data = frame->data_end =
-				(__u8 *) v4l2_buf->m.userptr;
 		frame->v4l2_buf.m.userptr = v4l2_buf->m.userptr;
 		frame->v4l2_buf.length = v4l2_buf->length;
 	}
@@ -1568,7 +1481,7 @@ static int read_alloc(struct gspca_dev *gspca_dev,
 		memset(&rb, 0, sizeof rb);
 		rb.count = gspca_dev->nbufread;
 		rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		rb.memory = V4L2_MEMORY_MMAP;
+		rb.memory = GSPCA_MEMORY_READ;
 		ret = vidioc_reqbufs(file, gspca_dev, &rb);
 		if (ret != 0) {
 			PDEBUG(D_STREAM, "read reqbuf err %d", ret);
@@ -1576,7 +1489,7 @@ static int read_alloc(struct gspca_dev *gspca_dev,
 		}
 		memset(&v4l2_buf, 0, sizeof v4l2_buf);
 		v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		v4l2_buf.memory = V4L2_MEMORY_MMAP;
+		v4l2_buf.memory = GSPCA_MEMORY_READ;
 		for (i = 0; i < gspca_dev->nbufread; i++) {
 			v4l2_buf.index = i;
 /*fixme: ugly!*/
@@ -1629,11 +1542,6 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	/* if userptr, treat the awaiting URBs */
-	if (gspca_dev->memory == V4L2_MEMORY_USERPTR
-	    && gspca_dev->capt_file == file)
-		isoc_transfer(gspca_dev);
-
 	i = gspca_dev->fr_o;
 	i = gspca_dev->fr_queue[i];
 	if (gspca_dev->frame[i].v4l2_buf.flags & V4L2_BUF_FLAG_DONE)
@@ -1678,7 +1586,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	for (;;) {
 		memset(&v4l2_buf, 0, sizeof v4l2_buf);
 		v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		v4l2_buf.memory = V4L2_MEMORY_MMAP;
+		v4l2_buf.memory = GSPCA_MEMORY_READ;
 		ret = vidioc_dqbuf(file, gspca_dev, &v4l2_buf);
 		if (ret != 0) {
 			PDEBUG(D_STREAM, "read dqbuf err %d", ret);
@@ -1700,14 +1608,8 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	}
 
 	/* copy the frame */
-	if (count < frame->v4l2_buf.bytesused) {
-		PDEBUG(D_STREAM, "read bad count: %d < %d",
-			count, frame->v4l2_buf.bytesused);
-/*fixme: special errno?*/
-		ret = -EINVAL;
-		goto out;
-	}
-	count = frame->v4l2_buf.bytesused;
+	if (count > frame->v4l2_buf.bytesused)
+		count = frame->v4l2_buf.bytesused;
 	ret = copy_to_user(data, frame->data, count);
 	if (ret != 0) {
 		PDEBUG(D_ERR|D_STREAM,
