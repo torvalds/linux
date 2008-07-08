@@ -40,6 +40,12 @@ static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 const char ixgb_driver_version[] = DRV_VERSION;
 static const char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
+#define IXGB_CB_LENGTH 256
+static unsigned int copybreak __read_mostly = IXGB_CB_LENGTH;
+module_param(copybreak, uint, 0644);
+MODULE_PARM_DESC(copybreak,
+	"Maximum size of packet that is copied to a new buffer on receive");
+
 /* ixgb_pci_tbl - PCI Device ID Table
  *
  * Wildcard entries (PCI_ANY_ID) should come last
@@ -1976,8 +1982,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
 		 * of reassembly being done in the stack */
-#define IXGB_CB_LENGTH 256
-		if (length < IXGB_CB_LENGTH) {
+		if (length < copybreak) {
 			struct sk_buff *new_skb =
 			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
 			if (new_skb) {
