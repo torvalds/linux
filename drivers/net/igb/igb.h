@@ -47,7 +47,9 @@ struct igb_adapter;
 
 #define IGB_MIN_DYN_ITR 3000
 #define IGB_MAX_DYN_ITR 96000
-#define IGB_START_ITR 6000
+
+/* ((1000000000ns / (6000ints/s * 1024ns)) << 2 = 648 */
+#define IGB_START_ITR 648
 
 #define IGB_DYN_ITR_PACKET_THRESHOLD 2
 #define IGB_DYN_ITR_LENGTH_LOW 200
@@ -170,9 +172,10 @@ struct igb_ring {
 		};
 		/* RX */
 		struct {
-			int no_itr_adjust;
 			struct igb_queue_stats rx_stats;
 			struct napi_struct napi;
+			int set_itr;
+			struct igb_ring *buddy;
 #ifdef CONFIG_IGB_LRO
 			struct net_lro_mgr lro_mgr;
 			bool lro_used;
@@ -219,7 +222,6 @@ struct igb_adapter {
 	u32 itr_setting;
 	u16 tx_itr;
 	u16 rx_itr;
-	int set_itr;
 
 	struct work_struct reset_task;
 	struct work_struct watchdog_task;

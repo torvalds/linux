@@ -1861,6 +1861,8 @@ static int igb_set_coalesce(struct net_device *netdev,
 			    struct ethtool_coalesce *ec)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	int i;
 
 	if ((ec->rx_coalesce_usecs > IGB_MAX_ITR_USECS) ||
 	    ((ec->rx_coalesce_usecs > 3) &&
@@ -1869,13 +1871,16 @@ static int igb_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 
 	/* convert to rate of irq's per second */
-	if (ec->rx_coalesce_usecs <= 3)
+	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3) {
 		adapter->itr_setting = ec->rx_coalesce_usecs;
-	else
-		adapter->itr_setting = (1000000 / ec->rx_coalesce_usecs);
+		adapter->itr = IGB_START_ITR;
+	} else {
+		adapter->itr_setting = ec->rx_coalesce_usecs << 2;
+		adapter->itr = adapter->itr_setting;
+	}
 
-	if (netif_running(netdev))
-		igb_reinit_locked(adapter);
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		wr32(adapter->rx_ring[i].itr_register, adapter->itr);
 
 	return 0;
 }
@@ -1888,7 +1893,7 @@ static int igb_get_coalesce(struct net_device *netdev,
 	if (adapter->itr_setting <= 3)
 		ec->rx_coalesce_usecs = adapter->itr_setting;
 	else
-		ec->rx_coalesce_usecs = 1000000 / adapter->itr_setting;
+		ec->rx_coalesce_usecs = adapter->itr_setting >> 2;
 
 	return 0;
 }
