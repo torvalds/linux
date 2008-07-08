@@ -109,47 +109,6 @@ static inline void vlan_group_set_device(struct vlan_group *vg,
 	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
 }
 
-struct vlan_priority_tci_mapping {
-	u32 priority;
-	unsigned short vlan_qos; /* This should be shifted when first set, so we only do it
-				  * at provisioning time.
-				  * ((skb->priority << 13) & 0xE000)
-				  */
-	struct vlan_priority_tci_mapping *next;
-};
-
-/* Holds information that makes sense if this device is a VLAN device. */
-struct vlan_dev_info {
-	/** This will be the mapping that correlates skb->priority to
-	 * 3 bits of VLAN QOS tags...
-	 */
-	unsigned int nr_ingress_mappings;
-	u32 ingress_priority_map[8];
-
-	unsigned int nr_egress_mappings;
-	struct vlan_priority_tci_mapping *egress_priority_map[16]; /* hash table */
-
-	unsigned short vlan_id;        /*  The VLAN Identifier for this interface. */
-	unsigned short flags;          /* (1 << 0) re_order_header   This option will cause the
-                                        *   VLAN code to move around the ethernet header on
-                                        *   ingress to make the skb look **exactly** like it
-                                        *   came in from an ethernet port.  This destroys some of
-                                        *   the VLAN information in the skb, but it fixes programs
-                                        *   like DHCP that use packet-filtering and don't understand
-                                        *   802.1Q
-                                        */
-	struct net_device *real_dev;    /* the underlying device/interface */
-	unsigned char real_dev_addr[ETH_ALEN];
-	struct proc_dir_entry *dent;    /* Holds the proc data */
-	unsigned long cnt_inc_headroom_on_tx; /* How many times did we have to grow the skb on TX. */
-	unsigned long cnt_encap_on_xmit;      /* How many times did we have to encapsulate the skb on TX. */
-};
-
-static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
-{
-	return netdev_priv(dev);
-}
-
 /* VLAN tx hw acceleration helpers. */
 struct vlan_skb_tx_cookie {
 	u32	magic;
@@ -163,9 +122,24 @@ struct vlan_skb_tx_cookie {
 #define vlan_tx_tag_get(__skb)	(VLAN_TX_SKB_CB(__skb)->vlan_tag)
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
+extern u16 vlan_dev_vlan_id(const struct net_device *dev);
+
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 			     unsigned short vlan_tag, int polling);
 #else
+static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
+{
+	BUG();
+	return NULL;
+}
+
+static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
+{
+	BUG();
+	return 0;
+}
+
 static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 				    unsigned short vlan_tag, int polling)
 {

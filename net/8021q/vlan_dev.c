@@ -531,11 +531,6 @@ void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
 	strncpy(result, vlan_dev_info(dev)->real_dev->name, 23);
 }
 
-void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result)
-{
-	*result = vlan_dev_info(dev)->vlan_id;
-}
-
 static int vlan_dev_open(struct net_device *dev)
 {
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);

@@ -543,7 +543,6 @@ static struct notifier_block vlan_notifier_block __read_mostly = {
 static int vlan_ioctl_handler(struct net *net, void __user *arg)
 {
 	int err;
-	unsigned short vid = 0;
 	struct vlan_ioctl_args args;
 	struct net_device *dev = NULL;
 
@@ -644,8 +643,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	case GET_VLAN_VID_CMD:
 		err = 0;
-		vlan_dev_get_vid(dev, &vid);
-		args.u.VID = vid;
+		args.u.VID = vlan_dev_vlan_id(dev);
 		if (copy_to_user(arg, &args,
 				 sizeof(struct vlan_ioctl_args)))
 		      err = -EFAULT;

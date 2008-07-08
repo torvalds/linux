@@ -3,6 +3,55 @@
 
 #include <linux/if_vlan.h>
 
+
+/**
+ *	struct vlan_priority_tci_mapping - vlan egress priority mappings
+ *	@priority: skb priority
+ *	@vlan_qos: vlan priority: (skb->priority << 13) & 0xE000
+ *	@next: pointer to next struct
+ */
+struct vlan_priority_tci_mapping {
+	u32					priority;
+	unsigned short				vlan_qos;
+	struct vlan_priority_tci_mapping	*next;
+};
+
+/**
+ *	struct vlan_dev_info - VLAN private device data
+ *	@nr_ingress_mappings: number of ingress priority mappings
+ *	@ingress_priority_map: ingress priority mappings
+ *	@nr_egress_mappings: number of egress priority mappings
+ *	@egress_priority_map: hash of egress priority mappings
+ *	@vlan_id: VLAN identifier
+ *	@flags: device flags
+ *	@real_dev: underlying netdevice
+ *	@real_dev_addr: address of underlying netdevice
+ *	@dent: proc dir entry
+ *	@cnt_inc_headroom_on_tx: statistic - number of skb expansions on TX
+ *	@cnt_encap_on_xmit: statistic - number of skb encapsulations on TX
+ */
+struct vlan_dev_info {
+	unsigned int				nr_ingress_mappings;
+	u32					ingress_priority_map[8];
+	unsigned int				nr_egress_mappings;
+	struct vlan_priority_tci_mapping	*egress_priority_map[16];
+
+	unsigned short				vlan_id;
+	unsigned short				flags;
+
+	struct net_device			*real_dev;
+	unsigned char				real_dev_addr[ETH_ALEN];
+
+	struct proc_dir_entry			*dent;
+	unsigned long				cnt_inc_headroom_on_tx;
+	unsigned long				cnt_encap_on_xmit;
+};
+
+static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
 #define VLAN_GRP_HASH_SHIFT	5
 #define VLAN_GRP_HASH_SIZE	(1 << VLAN_GRP_HASH_SHIFT)
 #define VLAN_GRP_HASH_MASK	(VLAN_GRP_HASH_SIZE - 1)
@@ -30,7 +79,6 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 				 u32 skb_prio, short vlan_prio);
 int vlan_dev_change_flags(const struct net_device *dev, u32 flag, u32 mask);
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
-void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result);
 
 int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id);
 void vlan_setup(struct net_device *dev);
