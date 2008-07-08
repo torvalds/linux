@@ -667,7 +667,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	trans->transaction->in_commit = 1;
-printk("trans %Lu in commit\n", trans->transid);
 	cur_trans = trans->transaction;
 	if (cur_trans->list.prev != &root->fs_info->trans_list) {
 		prev_trans = list_entry(cur_trans->list.prev,
@@ -748,7 +747,6 @@ printk("trans %Lu in commit\n", trans->transid);
 	kfree(pinned_copy);
 
 	cur_trans->commit_done = 1;
-printk("trans %Lu done in commit\n", cur_trans->transid);
 	root->fs_info->last_trans_committed = cur_trans->transid;
 	wake_up(&cur_trans->commit_wait);
 	put_transaction(cur_trans);

@@ -1117,9 +1117,7 @@ static int cleaner_kthread(void *arg)
 
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->cleaner_mutex);
-printk("cleaner awake\n");
 		btrfs_clean_old_snapshots(root);
-printk("cleaner done\n");
 		mutex_unlock(&root->fs_info->cleaner_mutex);
 
 		if (freezing(current)) {
