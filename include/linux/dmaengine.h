@@ -139,6 +139,7 @@ struct dma_chan_percpu {
  * @rcu: the DMA channel's RCU head
  * @device_node: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
+ * @client-count: how many clients are using this channel
  */
 struct dma_chan {
 	struct dma_device *device;
@@ -154,6 +155,7 @@ struct dma_chan {
 
 	struct list_head device_node;
 	struct dma_chan_percpu *local;
+	int client_count;
 };
 
 #define to_dma_chan(p) container_of(p, struct dma_chan, dev)

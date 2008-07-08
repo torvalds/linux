@@ -183,9 +183,10 @@ static void dma_client_chan_alloc(struct dma_client *client)
 				/* we are done once this client rejects
 				 * an available resource
 				 */
-				if (ack == DMA_ACK)
+				if (ack == DMA_ACK) {
 					dma_chan_get(chan);
-				else if (ack == DMA_NAK)
+					chan->client_count++;
+				} else if (ack == DMA_NAK)
 					return;
 			}
 		}
@@ -272,8 +273,10 @@ static void dma_clients_notify_removed(struct dma_chan *chan)
 		/* client was holding resources for this channel so
 		 * free it
 		 */
-		if (ack == DMA_ACK)
+		if (ack == DMA_ACK) {
 			dma_chan_put(chan);
+			chan->client_count--;
+		}
 	}
 
 	mutex_unlock(&dma_list_mutex);
@@ -313,8 +316,10 @@ void dma_async_client_unregister(struct dma_client *client)
 			ack = client->event_callback(client, chan,
 				DMA_RESOURCE_REMOVED);
 
-			if (ack == DMA_ACK)
+			if (ack == DMA_ACK) {
 				dma_chan_put(chan);
+				chan->client_count--;
+			}
 		}
 
 	list_del(&client->global_node);
@@ -394,6 +399,7 @@ int dma_async_device_register(struct dma_device *device)
 		kref_get(&device->refcount);
 		kref_get(&device->refcount);
 		kref_init(&chan->refcount);
+		chan->client_count = 0;
 		chan->slow_ref = 0;
 		INIT_RCU_HEAD(&chan->rcu);
 	}
