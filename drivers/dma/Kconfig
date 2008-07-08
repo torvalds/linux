@@ -47,6 +47,14 @@ config FSL_DMA
 	  MPC8560/40, MPC8555, MPC8548 and MPC8641 processors.
 	  The MPC8349, MPC8360 is also supported.
 
+config MV_XOR
+	bool "Marvell XOR engine support"
+	depends on PLAT_ORION
+	select ASYNC_CORE
+	select DMA_ENGINE
+	---help---
+	  Enable support for the Marvell XOR engine.
+
 config DMA_ENGINE
 	bool
 
