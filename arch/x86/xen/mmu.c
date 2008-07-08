@@ -282,35 +282,7 @@ void xen_set_pmd(pmd_t *ptr, pmd_t val)
  */
 void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	pgd = swapper_pg_dir + pgd_index(vaddr);
-	if (pgd_none(*pgd)) {
-		BUG();
-		return;
-	}
-	pud = pud_offset(pgd, vaddr);
-	if (pud_none(*pud)) {
-		BUG();
-		return;
-	}
-	pmd = pmd_offset(pud, vaddr);
-	if (pmd_none(*pmd)) {
-		BUG();
-		return;
-	}
-	pte = pte_offset_kernel(pmd, vaddr);
-	/* <mfn,flags> stored as-is, to permit clearing entries */
-	xen_set_pte(pte, mfn_pte(mfn, flags));
-
-	/*
-	 * It's enough to flush this one mapping.
-	 * (PGE mappings get flushed as well)
-	 */
-	__flush_tlb_one(vaddr);
+	set_pte_vaddr(vaddr, mfn_pte(mfn, flags));
 }
 
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
