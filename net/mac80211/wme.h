@@ -19,17 +19,9 @@
 #define QOS_CONTROL_ACK_POLICY_NORMAL 0
 #define QOS_CONTROL_ACK_POLICY_NOACK 1
 
-#define QOS_CONTROL_TID_MASK 0x0f
 #define QOS_CONTROL_ACK_POLICY_SHIFT 5
 
-#define QOS_CONTROL_TAG1D_MASK 0x07
-
 extern const int ieee802_1d_to_ac[8];
-
-static inline int WLAN_FC_IS_QOS_DATA(u16 fc)
-{
-	return (fc & 0x8C) == 0x88;
-}
 
 #ifdef CONFIG_MAC80211_QOS
 void ieee80211_install_qdisc(struct net_device *dev);

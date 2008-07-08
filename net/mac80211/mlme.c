@@ -366,8 +366,10 @@ static u32 ieee80211_handle_protect_preamb(struct ieee80211_sub_if_data *sdata,
 					   bool use_short_preamble)
 {
 	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	DECLARE_MAC_BUF(mac);
+#endif
 	u32 changed = 0;
 
 	if (use_protection != bss_conf->use_cts_prot) {
@@ -571,7 +573,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 		ieee80211_sta_tear_down_BA_sessions(dev, ifsta->bssid);
 		ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
 		netif_carrier_off(dev);
-		ieee80211_reset_erp_info(dev);
+		changed |= ieee80211_reset_erp_info(dev);
 
 		sdata->bss_conf.assoc_ht = 0;
 		sdata->bss_conf.ht_conf = NULL;
@@ -1536,6 +1538,35 @@ void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
 	ieee80211_sta_tx(dev, skb, 0);
 }
 
+void ieee80211_send_bar(struct net_device *dev, u8 *ra, u16 tid, u16 ssn)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct sk_buff *skb;
+	struct ieee80211_bar *bar;
+	u16 bar_control = 0;
+
+	skb = dev_alloc_skb(sizeof(*bar) + local->hw.extra_tx_headroom);
+	if (!skb) {
+		printk(KERN_ERR "%s: failed to allocate buffer for "
+			"bar frame\n", dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	bar = (struct ieee80211_bar *)skb_put(skb, sizeof(*bar));
+	memset(bar, 0, sizeof(*bar));
+	bar->frame_control = IEEE80211_FC(IEEE80211_FTYPE_CTL,
+					IEEE80211_STYPE_BACK_REQ);
+	memcpy(bar->ra, ra, ETH_ALEN);
+	memcpy(bar->ta, dev->dev_addr, ETH_ALEN);
+	bar_control |= (u16)IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL;
+	bar_control |= (u16)IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA;
+	bar_control |= (u16)(tid << 12);
+	bar->control = cpu_to_le16(bar_control);
+	bar->start_seq_num = cpu_to_le16(ssn);
+
+	ieee80211_sta_tx(dev, skb, 0);
+}
+
 void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *ra, u16 tid,
 					u16 initiator, u16 reason)
 {
@@ -2481,6 +2512,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			control->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
 		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 		control->flags |= IEEE80211_TX_CTL_NO_ACK;
+		control->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
 		control->control.retry_limit = 1;
 
 		ifsta->probe_resp = skb_copy(skb, GFP_ATOMIC);

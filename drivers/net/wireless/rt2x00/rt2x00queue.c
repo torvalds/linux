@@ -45,10 +45,11 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 	frame_size = entry->queue->data_size + entry->queue->desc_size;
 
 	/*
-	 * Reserve a few bytes extra headroom to allow drivers some moving
-	 * space (e.g. for alignment), while keeping the skb aligned.
+	 * The payload should be aligned to a 4-byte boundary,
+	 * this means we need at least 3 bytes for moving the frame
+	 * into the correct offset.
 	 */
-	reserved_size = 8;
+	reserved_size = 4;
 
 	/*
 	 * Allocate skbuffer.

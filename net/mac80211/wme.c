@@ -154,7 +154,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 		queue = skb_get_queue_mapping(skb);
 		rcu_read_lock();
 		sta = sta_info_get(local, hdr->addr1);
-		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
+		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 		if (sta) {
 			int ampdu_queue = sta->tid_to_tx_q[tid];
 			if ((ampdu_queue < QD_NUM(hw)) &&
@@ -181,7 +181,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
 		u8 ack_policy = 0;
-		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
+		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 		if (local->wifi_wme_noack_test)
 			ack_policy |= QOS_CONTROL_ACK_POLICY_NOACK <<
 					QOS_CONTROL_ACK_POLICY_SHIFT;
@@ -210,7 +210,6 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 			kfree_skb(skb);
 			err = NET_XMIT_DROP;
 	} else {
-		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
 		skb_set_queue_mapping(skb, queue);
 		qdisc = q->queues[queue];
 		err = qdisc->enqueue(skb, qdisc);

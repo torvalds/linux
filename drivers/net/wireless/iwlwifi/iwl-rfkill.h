@@ -33,9 +33,6 @@ struct iwl_priv;
 #include <linux/rfkill.h>
 
 #ifdef CONFIG_IWLWIFI_RFKILL
-struct iwl_rfkill_mngr {
-	struct rfkill *rfkill;
-};
 
 void iwl_rfkill_set_hw_state(struct iwl_priv *priv);
 void iwl_rfkill_unregister(struct iwl_priv *priv);

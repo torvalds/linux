@@ -800,6 +800,8 @@ static int ieee80211_ioctl_siwfrag(struct net_device *dev,
 
 	if (frag->disabled)
 		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
+	else if (!frag->fixed)
+		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
 	else if (frag->value < 256 ||
 		 frag->value > IEEE80211_MAX_FRAG_THRESHOLD)
 		return -EINVAL;

@@ -207,7 +207,6 @@ config MAC80211_LOWTX_FRAME_DUMP
 
 config MAC80211_DEBUG_COUNTERS
 	bool "Extra statistics for TX/RX debugging"
-	depends on MAC80211_DEBUG
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_DEBUGFS
 	---help---
@@ -219,7 +218,7 @@ config MAC80211_DEBUG_COUNTERS
 
 config MAC80211_VERBOSE_SPECT_MGMT_DEBUG
 	bool "Verbose Spectrum Management (IEEE 802.11h)debugging"
-	depends on MAC80211_DEBUG
+	depends on MAC80211_DEBUG_MENU
 	---help---
 	  Say Y here to print out verbose Spectrum Management (IEEE 802.11h)
 	  debug messages.

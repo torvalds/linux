@@ -2187,13 +2187,11 @@ static int __iwl4965_up(struct iwl_priv *priv)
 
 	if (!test_bit(STATUS_IN_SUSPEND, &priv->status) &&
 	    iwl_is_rfkill(priv)) {
-		iwl_rfkill_set_hw_state(priv);
 		IWL_WARNING("Radio disabled by %s RF Kill switch\n",
 		    test_bit(STATUS_RF_KILL_HW, &priv->status) ? "HW" : "SW");
 		return -ENODEV;
 	}
 
-	iwl_rfkill_set_hw_state(priv);
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
 
 	ret = priv->cfg->ops->lib->alloc_shared_mem(priv);
@@ -2330,9 +2328,8 @@ static void iwl4965_bg_rf_kill(struct work_struct *work)
 				    "Kill switch must be turned off for "
 				    "wireless networking to work.\n");
 	}
-	iwl_rfkill_set_hw_state(priv);
-
 	mutex_unlock(&priv->mutex);
+	iwl_rfkill_set_hw_state(priv);
 }
 
 static void iwl4965_bg_set_monitor(struct work_struct *work)
@@ -2390,6 +2387,7 @@ static void iwl4965_bg_up(struct work_struct *data)
 	mutex_lock(&priv->mutex);
 	__iwl4965_up(priv);
 	mutex_unlock(&priv->mutex);
+	iwl_rfkill_set_hw_state(priv);
 }
 
 static void iwl4965_bg_restart(struct work_struct *data)
@@ -2603,6 +2601,8 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 	ret = __iwl4965_up(priv);
 
 	mutex_unlock(&priv->mutex);
+
+	iwl_rfkill_set_hw_state(priv);
 
 	if (ret)
 		goto out_release_irq;

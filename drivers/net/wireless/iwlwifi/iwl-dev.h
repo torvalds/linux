@@ -929,7 +929,7 @@ struct iwl_priv {
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
 #ifdef CONFIG_IWLWIFI_RFKILL
-	struct iwl_rfkill_mngr rfkill_mngr;
+	struct rfkill *rfkill;
 #endif
 
 #ifdef CONFIG_IWLWIFI_LEDS
@@ -1103,7 +1103,7 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 	clear_bit(txq_id, &priv->txq_ctx_active_msk);
 }
 
-#ifdef CONFIG_IWLWIF_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);
 #else
 static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }

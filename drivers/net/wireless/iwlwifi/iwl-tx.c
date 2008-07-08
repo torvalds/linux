@@ -1493,7 +1493,7 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_rx_reply_compressed_ba);
 
-#ifdef CONFIG_IWLWIF_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 
 const char *iwl_get_tx_fail_reason(u32 status)

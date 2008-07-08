@@ -160,11 +160,21 @@ struct sta_ampdu_mlme {
  * @list: global linked list entry
  * @hnext: hash table linked list pointer
  * @local: pointer to the global information
+ * @sdata: TBD
+ * @key: TBD
+ * @rate_ctrl: TBD
+ * @rate_ctrl_priv: TBD
+ * @lock: used for locking all fields that require locking, see comments
+ *	in the header file.
+ * @flaglock: spinlock for flags accesses
+ * @ht_info: HT capabilities of this STA
+ * @supp_rates: Bitmap of supported rates (per band)
  * @addr: MAC address of this STA
  * @aid: STA's unique AID (1..2007, 0 = not assigned yet),
  *	only used in AP (and IBSS?) mode
+ * @listen_interval: TBD
+ * @pin_status: TBD
  * @flags: STA flags, see &enum ieee80211_sta_info_flags
- * @flaglock: spinlock for flags accesses
  * @ps_tx_buf: buffer of frames to transmit to this station
  *	when it leaves power saving state
  * @tx_filtered: buffer of frames we already tried to transmit
@@ -172,10 +182,41 @@ struct sta_ampdu_mlme {
  *	power saving state
  * @rx_packets: Number of MSDUs received from this STA
  * @rx_bytes: Number of bytes received from this STA
- * @supp_rates: Bitmap of supported rates (per band)
- * @ht_info: HT capabilities of this STA
- * @lock: used for locking all fields that require locking, see comments
- *	in the header file.
+ * @wep_weak_iv_count: TBD
+ * @last_rx: TBD
+ * @num_duplicates: number of duplicate frames received from this STA
+ * @rx_fragments: number of received MPDUs
+ * @rx_dropped: number of dropped MPDUs from this STA
+ * @last_signal: signal of last received frame from this STA
+ * @last_qual: qual of last received frame from this STA
+ * @last_noise: noise of last received frame from this STA
+ * @last_seq_ctrl: last received seq/frag number from this STA (per RX queue)
+ * @wme_rx_queue: TBD
+ * @tx_filtered_count: TBD
+ * @tx_retry_failed: TBD
+ * @tx_retry_count: TBD
+ * @tx_num_consecutive_failures: TBD
+ * @tx_num_mpdu_ok: TBD
+ * @tx_num_mpdu_fail: TBD
+ * @fail_avg: moving percentage of failed MSDUs
+ * @tx_packets: number of RX/TX MSDUs
+ * @tx_bytes: TBD
+ * @tx_fragments: number of transmitted MPDUs
+ * @txrate_idx: TBD
+ * @last_txrate_idx: TBD
+ * @wme_tx_queue: TBD
+ * @ampdu_mlme: TBD
+ * @timer_to_tid: identity mapping to ID timers
+ * @tid_to_tx_q: map tid to tx queue
+ * @llid: Local link ID
+ * @plid: Peer link ID
+ * @reason: Cancel reason on PLINK_HOLDING state
+ * @plink_retries: Retries in establishment
+ * @ignore_plink_timer: TBD
+ * @plink_state plink_state: TBD
+ * @plink_timeout: TBD
+ * @plink_timer: TBD
+ * @debugfs: debug filesystem info
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -217,14 +258,12 @@ struct sta_info {
 	unsigned long rx_packets, rx_bytes;
 	unsigned long wep_weak_iv_count;
 	unsigned long last_rx;
-	unsigned long num_duplicates; /* number of duplicate frames received
-				       * from this STA */
-	unsigned long rx_fragments; /* number of received MPDUs */
-	unsigned long rx_dropped; /* number of dropped MPDUs from this STA */
-	int last_signal; /* signal of last received frame from this STA */
-	int last_qual;  /* qual of last received frame from this STA */
-	int last_noise; /* noise of last received frame from this STA */
-	/* last received seq/frag number from this STA (per RX queue) */
+	unsigned long num_duplicates;
+	unsigned long rx_fragments;
+	unsigned long rx_dropped;
+	int last_signal;
+	int last_qual;
+	int last_noise;
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	unsigned int wme_rx_queue[NUM_RX_DATA_QUEUES];
@@ -241,9 +280,9 @@ struct sta_info {
 	unsigned int fail_avg;
 
 	/* Updated from TX path only, no locking requirements */
-	unsigned long tx_packets; /* number of RX/TX MSDUs */
+	unsigned long tx_packets;
 	unsigned long tx_bytes;
-	unsigned long tx_fragments; /* number of transmitted MPDUs */
+	unsigned long tx_fragments;
 	int txrate_idx;
 	int last_txrate_idx;
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
@@ -254,18 +293,18 @@ struct sta_info {
 	 * Aggregation information, locked with lock.
 	 */
 	struct sta_ampdu_mlme ampdu_mlme;
-	u8 timer_to_tid[STA_TID_NUM];	/* identity mapping to ID timers */
-	u8 tid_to_tx_q[STA_TID_NUM];	/* map tid to tx queue */
+	u8 timer_to_tid[STA_TID_NUM];
+	u8 tid_to_tx_q[STA_TID_NUM];
 
 #ifdef CONFIG_MAC80211_MESH
 	/*
 	 * Mesh peer link attributes
 	 * TODO: move to a sub-structure that is referenced with pointer?
 	 */
-	__le16 llid;		/* Local link ID */
-	__le16 plid;		/* Peer link ID */
-	__le16 reason;		/* Cancel reason on PLINK_HOLDING state */
-	u8 plink_retries;	/* Retries in establishment */
+	__le16 llid;
+	__le16 plid;
+	__le16 reason;
+	u8 plink_retries;
 	bool ignore_plink_timer;
 	enum plink_state plink_state;
 	u32 plink_timeout;

@@ -33,7 +33,7 @@
  * Both the link tuner as the rfkill will be called once per second.
  */
 #define LINK_TUNE_INTERVAL	( round_jiffies_relative(HZ) )
-#define RFKILL_POLL_INTERVAL	( 1000 )
+#define RFKILL_POLL_INTERVAL	( round_jiffies_relative(HZ) )
 
 /*
  * rt2x00_rate: Per rate device information
@@ -204,8 +204,6 @@ void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev);
 void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev);
 void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev);
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev);
-void rt2x00rfkill_suspend(struct rt2x00_dev *rt2x00dev);
-void rt2x00rfkill_resume(struct rt2x00_dev *rt2x00dev);
 #else
 static inline void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
@@ -220,14 +218,6 @@ static inline void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 }
 
 static inline void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
-{
-}
-
-static inline void rt2x00rfkill_suspend(struct rt2x00_dev *rt2x00dev)
-{
-}
-
-static inline void rt2x00rfkill_resume(struct rt2x00_dev *rt2x00dev)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_RFKILL */

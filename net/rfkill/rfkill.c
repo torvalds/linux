@@ -130,17 +130,19 @@ static void update_rfkill_state(struct rfkill *rfkill)
 
 /**
  * rfkill_toggle_radio - wrapper for toggle_radio hook
- * calls toggle_radio taking into account a lot of "small"
- * details.
+ *
  * @rfkill: the rfkill struct to use
  * @force: calls toggle_radio even if cache says it is not needed,
  *	and also makes sure notifications of the state will be
  *	sent even if it didn't change
  * @state: the new state to call toggle_radio() with
  *
- * This wrappen protects and enforces the API for toggle_radio
- * calls.  Note that @force cannot override a (possibly cached)
- * state of RFKILL_STATE_HARD_BLOCKED.  Any device making use of
+ * Calls rfkill->toggle_radio, enforcing the API for toggle_radio
+ * calls and handling all the red tape such as issuing notifications
+ * if the call is successful.
+ *
+ * Note that @force cannot override a (possibly cached) state of
+ * RFKILL_STATE_HARD_BLOCKED.  Any device making use of
  * RFKILL_STATE_HARD_BLOCKED implements either get_state() or
  * rfkill_force_state(), so the cache either is bypassed or valid.
  *
@@ -499,17 +501,15 @@ static struct class rfkill_class = {
 
 static int rfkill_add_switch(struct rfkill *rfkill)
 {
-	int error;
-
 	mutex_lock(&rfkill_mutex);
 
-	error = rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type], 0);
-	if (!error)
-		list_add_tail(&rfkill->node, &rfkill_list);
+	rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type], 0);
+
+	list_add_tail(&rfkill->node, &rfkill_list);
 
 	mutex_unlock(&rfkill_mutex);
 
-	return error;
+	return 0;
 }
 
 static void rfkill_remove_switch(struct rfkill *rfkill)

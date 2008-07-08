@@ -2285,9 +2285,9 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 		iwl4965_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
 
-		if ((tx_resp->frame_count == 1) && !iwl_is_tx_success(status)) {
-			/* TODO: send BAR */
-		}
+		/* check if BAR is needed */
+		if ((tx_resp->frame_count == 1) && !iwl_is_tx_success(status))
+			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
 			int freed, ampdu_q;

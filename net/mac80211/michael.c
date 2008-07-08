@@ -8,6 +8,7 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/ieee80211.h>
 #include <asm/unaligned.h>
 
 #include "michael.h"
@@ -26,9 +27,18 @@ static void michael_block(struct michael_mic_ctx *mctx, u32 val)
 	mctx->l += mctx->r;
 }
 
-static void michael_mic_hdr(struct michael_mic_ctx *mctx,
-			const u8 *key, const u8 *da, const u8 *sa, u8 priority)
+static void michael_mic_hdr(struct michael_mic_ctx *mctx, const u8 *key,
+			    struct ieee80211_hdr *hdr)
 {
+	u8 *da, *sa, tid;
+
+	da = ieee80211_get_DA(hdr);
+	sa = ieee80211_get_SA(hdr);
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+	else
+		tid = 0;
+
 	mctx->l = get_unaligned_le32(key);
 	mctx->r = get_unaligned_le32(key + 4);
 
@@ -40,17 +50,17 @@ static void michael_mic_hdr(struct michael_mic_ctx *mctx,
 	michael_block(mctx, get_unaligned_le16(&da[4]) |
 			    (get_unaligned_le16(sa) << 16));
 	michael_block(mctx, get_unaligned_le32(&sa[2]));
-	michael_block(mctx, priority);
+	michael_block(mctx, tid);
 }
 
-void michael_mic(const u8 *key, const u8 *da, const u8 *sa, u8 priority,
+void michael_mic(const u8 *key, struct ieee80211_hdr *hdr,
 		 const u8 *data, size_t data_len, u8 *mic)
 {
 	u32 val;
 	size_t block, blocks, left;
 	struct michael_mic_ctx mctx;
 
-	michael_mic_hdr(&mctx, key, da, sa, priority);
+	michael_mic_hdr(&mctx, key, hdr);
 
 	/* Real data */
 	blocks = data_len / 4;
