@@ -233,7 +233,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	else
 		bootmap_start = round_up(start, PAGE_SIZE);
 	/*
-	 * SMP_CAHCE_BYTES could be enough, but init_bootmem_node like
+	 * SMP_CACHE_BYTES could be enough, but init_bootmem_node like
 	 * to use that to align to PAGE_SIZE
 	 */
 	bootmap = early_node_mem(nodeid, bootmap_start, end,

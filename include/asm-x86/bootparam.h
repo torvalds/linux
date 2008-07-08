@@ -11,6 +11,7 @@
 
 /* setup data types */
 #define SETUP_NONE			0
+#define SETUP_E820_EXT			1
 
 /* extensible setup data list node */
 struct setup_data {
@@ -106,5 +107,8 @@ struct boot_params {
 	struct edd_info eddbuf[EDDMAXNR];		/* 0xd00 */
 	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
+
+void reserve_setup_data(void);
+void parse_setup_data(void);
 
 #endif /* _ASM_BOOTPARAM_H */

@@ -554,23 +554,6 @@ cpumask_t cpu_coregroup_map(int cpu)
 		return c->llc_shared_map;
 }
 
-#ifdef CONFIG_X86_32
-/*
- * We are called very early to get the low memory for the
- * SMP bootup trampoline page.
- */
-void __init smp_alloc_memory(void)
-{
-	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
-	/*
-	 * Has to be in very low memory so we can execute
-	 * real-mode AP code.
-	 */
-	if (__pa(trampoline_base) >= 0x9F000)
-		BUG();
-}
-#endif
-
 static void impress_friends(void)
 {
 	int cpu;

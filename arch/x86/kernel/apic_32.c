@@ -79,6 +79,11 @@ char system_vectors[NR_VECTORS] = { [0 ... NR_VECTORS-1] = SYS_VECTOR_FREE};
  */
 int apic_verbosity;
 
+int pic_mode;
+
+/* Have we found an MP table */
+int smp_found_config;
+
 static unsigned int calibration_result;
 
 static int lapic_next_event(unsigned long delta,
@@ -1202,7 +1207,7 @@ void __init init_apic_mappings(void)
 
 		for (i = 0; i < nr_ioapics; i++) {
 			if (smp_found_config) {
-				ioapic_phys = mp_ioapics[i].mpc_apicaddr;
+				ioapic_phys = mp_ioapics[i].mp_apicaddr;
 				if (!ioapic_phys) {
 					printk(KERN_ERR
 					       "WARNING: bogus zero IO-APIC "
@@ -1517,6 +1522,9 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		 */
 		cpu = 0;
 
+	if (apicid > max_physical_apicid)
+		max_physical_apicid = apicid;
+
 	/*
 	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
 	 * but we need to work other dependencies like SMP_SUSPEND etc
@@ -1524,7 +1532,7 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	 * if (CPU_HOTPLUG_ENABLED || num_processors > 8)
 	 *       - Ashok Raj <ashok.raj@intel.com>
 	 */
-	if (num_processors > 8) {
+	if (max_physical_apicid >= 8) {
 		switch (boot_cpu_data.x86_vendor) {
 		case X86_VENDOR_INTEL:
 			if (!APIC_XAPIC(version)) {

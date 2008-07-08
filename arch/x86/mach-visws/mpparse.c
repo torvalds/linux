@@ -8,11 +8,6 @@
 #include "cobalt.h"
 #include "mach_apic.h"
 
-/* Have we found an MP table */
-int smp_found_config;
-
-int pic_mode;
-
 extern unsigned int __cpuinitdata maxcpus;
 
 /*
@@ -76,7 +71,9 @@ void __init find_smp_config(void)
 	if (ncpus > maxcpus)
 		ncpus = maxcpus;
 
+#ifdef CONFIG_X86_LOCAL_APIC
 	smp_found_config = 1;
+#endif
 	while (ncpus--)
 		MP_processor_info(mp++);
 

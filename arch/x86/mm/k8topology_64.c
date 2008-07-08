@@ -57,18 +57,22 @@ static __init void early_get_boot_cpu_id(void)
 	/*
 	 * Find possible boot-time SMP configuration:
 	 */
+#ifdef CONFIG_X86_MPPARSE
 	early_find_smp_config();
+#endif
 #ifdef CONFIG_ACPI
 	/*
 	 * Read APIC information from ACPI tables.
 	 */
 	early_acpi_boot_init();
 #endif
+#ifdef CONFIG_X86_MPPARSE
 	/*
 	 * get boot-time SMP configuration:
 	 */
 	if (smp_found_config)
 		early_get_smp_config();
+#endif
 	early_init_lapic_mapping();
 }
 

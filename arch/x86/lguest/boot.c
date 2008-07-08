@@ -835,7 +835,7 @@ static __init char *lguest_memory_setup(void)
 
 	/* The Linux bootloader header contains an "e820" memory map: the
 	 * Launcher populated the first entry with our memory limit. */
-	add_memory_region(boot_params.e820_map[0].addr,
+	e820_add_region(boot_params.e820_map[0].addr,
 			  boot_params.e820_map[0].size,
 			  boot_params.e820_map[0].type);
 
@@ -1012,6 +1012,7 @@ __init void lguest_init(void)
 	 * clobbered.  The Launcher places our initial pagetables somewhere at
 	 * the top of our physical memory, so we don't need extra space: set
 	 * init_pg_tables_end to the end of the kernel. */
+	init_pg_tables_start = __pa(pg0);
 	init_pg_tables_end = __pa(pg0);
 
 	/* Load the %fs segment register (the per-cpu segment register) with
@@ -1065,9 +1066,9 @@ __init void lguest_init(void)
 	pm_power_off = lguest_power_off;
 	machine_ops.restart = lguest_restart;
 
-	/* Now we're set up, call start_kernel() in init/main.c and we proceed
+	/* Now we're set up, call i386_start_kernel() in head32.c and we proceed
 	 * to boot as normal.  It never returns. */
-	start_kernel();
+	i386_start_kernel();
 }
 /*
  * This marks the end of stage II of our journey, The Guest.

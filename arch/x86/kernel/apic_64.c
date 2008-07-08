@@ -56,6 +56,9 @@ EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
  */
 int apic_verbosity;
 
+/* Have we found an MP table */
+int smp_found_config;
+
 static struct resource lapic_resource = {
 	.name = "Local APIC",
 	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
@@ -1068,6 +1071,9 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		 */
 		cpu = 0;
 	}
+	if (apicid > max_physical_apicid)
+		max_physical_apicid = apicid;
+
 	/* are we being called early in kernel startup? */
 	if (x86_cpu_to_apicid_early_ptr) {
 		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;

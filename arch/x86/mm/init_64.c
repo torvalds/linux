@@ -48,6 +48,18 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 
+/*
+ * PFN of last memory page.
+ */
+unsigned long end_pfn;
+
+/*
+ * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
+ * The direct mapping extends to max_pfn_mapped, so that we can directly access
+ * apertures, ACPI and other tables without having to play with fixmaps.
+ */
+unsigned long max_pfn_mapped;
+
 static unsigned long dma_reserve __initdata;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
@@ -808,12 +820,14 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
+int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
+				   int flags)
 {
 #ifdef CONFIG_NUMA
 	int nid, next_nid;
 #endif
 	unsigned long pfn = phys >> PAGE_SHIFT;
+	int ret;
 
 	if (pfn >= end_pfn) {
 		/*
@@ -821,11 +835,11 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 		 * firmware tables:
 		 */
 		if (pfn < max_pfn_mapped)
-			return;
+			return -EFAULT;
 
 		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %u\n",
 				phys, len);
-		return;
+		return -EFAULT;
 	}
 
 	/* Should check here against the e820 map to avoid double free */
@@ -833,9 +847,13 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 	nid = phys_to_nid(phys);
 	next_nid = phys_to_nid(phys + len - 1);
 	if (nid == next_nid)
-		reserve_bootmem_node(NODE_DATA(nid), phys, len, BOOTMEM_DEFAULT);
+		ret = reserve_bootmem_node(NODE_DATA(nid), phys, len, flags);
 	else
-		reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
+		ret = reserve_bootmem(phys, len, flags);
+
+	if (ret != 0)
+		return ret;
+
 #else
 	reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
 #endif
@@ -844,6 +862,8 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 		dma_reserve += len / PAGE_SIZE;
 		set_dma_reserve(dma_reserve);
 	}
+
+	return 0;
 }
 
 int kern_addr_valid(unsigned long addr)

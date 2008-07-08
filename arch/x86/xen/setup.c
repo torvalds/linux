@@ -40,8 +40,8 @@ char * __init xen_memory_setup(void)
 	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
 
 	e820.nr_map = 0;
-	add_memory_region(0, LOWMEMSIZE(), E820_RAM);
-	add_memory_region(HIGH_MEMORY, PFN_PHYS(max_pfn)-HIGH_MEMORY, E820_RAM);
+	e820_add_region(0, LOWMEMSIZE(), E820_RAM);
+	e820_add_region(HIGH_MEMORY, PFN_PHYS(max_pfn)-HIGH_MEMORY, E820_RAM);
 
 	return "Xen";
 }
