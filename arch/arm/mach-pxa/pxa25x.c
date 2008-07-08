@@ -109,6 +109,29 @@ static const struct clkops clk_pxa25x_lcd_ops = {
 	.getrate	= clk_pxa25x_lcd_getrate,
 };
 
+static unsigned long gpio12_config_32k[] = {
+	GPIO12_32KHz,
+};
+
+static unsigned long gpio12_config_gpio[] = {
+	GPIO12_GPIO,
+};
+
+static void clk_gpio12_enable(struct clk *clk)
+{
+	pxa2xx_mfp_config(gpio12_config_32k, 1);
+}
+
+static void clk_gpio12_disable(struct clk *clk)
+{
+	pxa2xx_mfp_config(gpio12_config_gpio, 1);
+}
+
+static const struct clkops clk_pxa25x_gpio12_ops = {
+	.enable         = clk_gpio12_enable,
+	.disable        = clk_gpio12_disable,
+};
+
 /*
  * 3.6864MHz -> OST, GPIO, SSP, PWM, PLLs (95.842MHz, 147.456MHz)
  * 95.842MHz -> MMC 19.169MHz, I2C 31.949MHz, FICP 47.923MHz, USB 47.923MHz
@@ -128,6 +151,7 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
 	INIT_CKEN("UARTCLK", STUART, 14745600, 1, NULL),
 	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa25x_device_udc.dev),
+	INIT_CLK("GPIO12_CLK", &clk_pxa25x_gpio12_ops, 32768, 0, NULL),
 	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
 
