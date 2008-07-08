@@ -1296,6 +1296,7 @@ static const struct machine_ops __initdata xen_machine_ops = {
 
 static void __init xen_reserve_top(void)
 {
+#ifdef CONFIG_X86_32
 	unsigned long top = HYPERVISOR_VIRT_START;
 	struct xen_platform_parameters pp;
 
@@ -1303,6 +1304,7 @@ static void __init xen_reserve_top(void)
 		top = pp.virt_start;
 
 	reserve_top_address(-top + 2 * PAGE_SIZE);
+#endif	/* CONFIG_X86_32 */
 }
 
 /* First C function to be called on Xen boot */
@@ -1333,6 +1335,11 @@ asmlinkage void __init xen_start_kernel(void)
 
 	machine_ops = xen_machine_ops;
 
+#ifdef CONFIG_X86_64
+	/* Disable until direct per-cpu data access. */
+	have_vcpu_info_placement = 0;
+#endif
+
 #ifdef CONFIG_SMP
 	smp_ops = xen_smp_ops;
 #endif
@@ -1343,9 +1350,11 @@ asmlinkage void __init xen_start_kernel(void)
 
 	pgd = (pgd_t *)xen_start_info->pt_base;
 
+#ifdef CONFIG_X86_32
 	init_pg_tables_start = __pa(pgd);
 	init_pg_tables_end = __pa(pgd) + xen_start_info->nr_pt_frames*PAGE_SIZE;
 	max_pfn_mapped = (init_pg_tables_end + 512*1024) >> PAGE_SHIFT;
+#endif
 
 	init_mm.pgd = pgd; /* use the Xen pagetables to start */
 
@@ -1372,7 +1381,9 @@ asmlinkage void __init xen_start_kernel(void)
 
 	/* set up basic CPUID stuff */
 	cpu_detect(&new_cpu_data);
+#ifdef CONFIG_X86_32
 	new_cpu_data.hard_math = 1;
+#endif
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
 
 	/* Poke various useful things into boot_params */
@@ -1388,5 +1399,9 @@ asmlinkage void __init xen_start_kernel(void)
 	}
 
 	/* Start the world */
+#ifdef CONFIG_X86_32
 	i386_start_kernel();
+#else
+	x86_64_start_kernel((char *)&boot_params);
+#endif
 }
