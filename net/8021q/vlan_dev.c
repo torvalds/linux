@@ -28,6 +28,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <net/datalink.h>
 #include <net/p8022.h>
 #include <net/arp.h>
@@ -716,6 +717,22 @@ static void vlan_dev_uninit(struct net_device *dev)
 	}
 }
 
+static u32 vlan_ethtool_get_rx_csum(struct net_device *dev)
+{
+	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	struct net_device *real_dev = vlan->real_dev;
+
+	if (real_dev->ethtool_ops == NULL ||
+	    real_dev->ethtool_ops->get_rx_csum == NULL)
+		return 0;
+	return real_dev->ethtool_ops->get_rx_csum(real_dev);
+}
+
+static const struct ethtool_ops vlan_ethtool_ops = {
+	.get_link		= ethtool_op_get_link,
+	.get_rx_csum		= vlan_ethtool_get_rx_csum,
+};
+
 void vlan_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -734,6 +751,7 @@ void vlan_setup(struct net_device *dev)
 	dev->change_rx_flags	= vlan_dev_change_rx_flags;
 	dev->do_ioctl		= vlan_dev_ioctl;
 	dev->destructor		= free_netdev;
+	dev->ethtool_ops	= &vlan_ethtool_ops;
 
 	memset(dev->broadcast, 0, ETH_ALEN);
 }
