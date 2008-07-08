@@ -153,7 +153,7 @@ SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
 /* tosa audio map */
-static const snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* headphone connected to HPOUTL, HPOUTR */
 	{"Headphone Jack", NULL, "HPOUTL"},
@@ -205,7 +205,7 @@ static int tosa_ac97_init(struct snd_soc_codec *codec)
 	}
 
 	/* add tosa specific widgets */
-	snd_soc_dapm_new_controls(codec, &tosa_dapm_widgets,
+	snd_soc_dapm_new_controls(codec, tosa_dapm_widgets,
 				  ARRAY_SIZE(tosa_dapm_widgets));
 
 	/* set up tosa specific audio path audio_map */
