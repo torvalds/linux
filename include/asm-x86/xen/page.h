@@ -148,7 +148,11 @@ static inline pte_t __pte_ma(pteval_t x)
 }
 
 #define pmd_val_ma(v) ((v).pmd)
+#ifdef __PAGETABLE_PUD_FOLDED
 #define pud_val_ma(v) ((v).pgd.pgd)
+#else
+#define pud_val_ma(v) ((v).pud)
+#endif
 #define __pmd_ma(x)	((pmd_t) { (x) } )
 
 #define pgd_val_ma(x)	((x).pgd)

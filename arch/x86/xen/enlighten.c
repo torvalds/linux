@@ -803,6 +803,18 @@ static void xen_release_pmd(u32 pfn)
 	xen_release_ptpage(pfn, PT_PMD);
 }
 
+#if PAGETABLE_LEVELS == 4
+static void xen_alloc_pud(struct mm_struct *mm, u32 pfn)
+{
+	xen_alloc_ptpage(mm, pfn, PT_PUD);
+}
+
+static void xen_release_pud(u32 pfn)
+{
+	xen_release_ptpage(pfn, PT_PUD);
+}
+#endif
+
 #ifdef CONFIG_HIGHPTE
 static void *xen_kmap_atomic_pte(struct page *page, enum km_type type)
 {
@@ -922,6 +934,11 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 	pv_mmu_ops.alloc_pmd = xen_alloc_pmd;
 	pv_mmu_ops.release_pte = xen_release_pte;
 	pv_mmu_ops.release_pmd = xen_release_pmd;
+#if PAGETABLE_LEVELS == 4
+	pv_mmu_ops.alloc_pud = xen_alloc_pud;
+	pv_mmu_ops.release_pud = xen_release_pud;
+#endif
+
 	pv_mmu_ops.set_pte = xen_set_pte;
 
 	xen_setup_shared_info();
@@ -937,6 +954,9 @@ static __init void xen_post_allocator_init(void)
 {
 	pv_mmu_ops.set_pmd = xen_set_pmd;
 	pv_mmu_ops.set_pud = xen_set_pud;
+#if PAGETABLE_LEVELS == 4
+	pv_mmu_ops.set_pgd = xen_set_pgd;
+#endif
 
 	xen_mark_init_mm_pinned();
 }
@@ -1185,14 +1205,25 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.make_pte = xen_make_pte,
 	.make_pgd = xen_make_pgd,
 
+#ifdef CONFIG_X86_PAE
 	.set_pte_atomic = xen_set_pte_atomic,
 	.set_pte_present = xen_set_pte_at,
-	.set_pud = xen_set_pud_hyper,
 	.pte_clear = xen_pte_clear,
 	.pmd_clear = xen_pmd_clear,
+#endif	/* CONFIG_X86_PAE */
+	.set_pud = xen_set_pud_hyper,
 
 	.make_pmd = xen_make_pmd,
 	.pmd_val = xen_pmd_val,
+
+#if PAGETABLE_LEVELS == 4
+	.pud_val = xen_pud_val,
+	.make_pud = xen_make_pud,
+	.set_pgd = xen_set_pgd_hyper,
+
+	.alloc_pud = xen_alloc_pte_init,
+	.release_pud = xen_release_pte_init,
+#endif	/* PAGETABLE_LEVELS == 4 */
 
 	.activate_mm = xen_activate_mm,
 	.dup_mmap = xen_dup_mmap,

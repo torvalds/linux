@@ -438,14 +438,19 @@ void xen_set_pud(pud_t *ptr, pud_t val)
 
 void xen_set_pte(pte_t *ptep, pte_t pte)
 {
+#ifdef CONFIG_X86_PAE
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
+#else
+	*ptep = pte;
+#endif
 }
 
+#ifdef CONFIG_X86_PAE
 void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
-	set_64bit((u64 *)ptep, pte_val_ma(pte));
+	set_64bit((u64 *)ptep, native_pte_val(pte));
 }
 
 void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
@@ -459,12 +464,56 @@ void xen_pmd_clear(pmd_t *pmdp)
 {
 	set_pmd(pmdp, __pmd(0));
 }
+#endif	/* CONFIG_X86_PAE */
 
 pmd_t xen_make_pmd(pmdval_t pmd)
 {
 	pmd = pte_pfn_to_mfn(pmd);
 	return native_make_pmd(pmd);
 }
+
+#if PAGETABLE_LEVELS == 4
+pudval_t xen_pud_val(pud_t pud)
+{
+	return pte_mfn_to_pfn(pud.pud);
+}
+
+pud_t xen_make_pud(pudval_t pud)
+{
+	pud = pte_pfn_to_mfn(pud);
+
+	return native_make_pud(pud);
+}
+
+void xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
+{
+	struct mmu_update u;
+
+	preempt_disable();
+
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptr).maddr;
+	u.val = pgd_val_ma(val);
+	extend_mmu_update(&u);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
+
+	preempt_enable();
+}
+
+void xen_set_pgd(pgd_t *ptr, pgd_t val)
+{
+	/* If page is not pinned, we can just update the entry
+	   directly */
+	if (!page_pinned(ptr)) {
+		*ptr = val;
+		return;
+	}
+
+	xen_set_pgd_hyper(ptr, val);
+}
+#endif	/* PAGETABLE_LEVELS == 4 */
 
 /*
   (Yet another) pagetable walker.  This one is intended for pinning a
