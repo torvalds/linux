@@ -420,6 +420,8 @@ struct pv_mmu_ops pv_mmu_ops = {
 		.enter = paravirt_nop,
 		.leave = paravirt_nop,
 	},
+
+	.set_fixmap = native_set_fixmap,
 };
 
 EXPORT_SYMBOL_GPL(pv_time_ops);

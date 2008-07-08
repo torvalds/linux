@@ -279,6 +279,13 @@ struct pv_mmu_ops {
 #endif
 
 	struct pv_lazy_ops lazy_mode;
+
+	/* dom0 ops */
+
+	/* Sometimes the physical address is a pfn, and sometimes its
+	   an mfn.  We can tell which is which from the index. */
+	void (*set_fixmap)(unsigned /* enum fixed_addresses */ idx,
+			   unsigned long phys, pgprot_t flags);
 };
 
 /* This contains all the paravirt structures: we get a convenient
@@ -1293,6 +1300,12 @@ static inline void arch_flush_lazy_mmu_mode(void)
 		arch_leave_lazy_mmu_mode();
 		arch_enter_lazy_mmu_mode();
 	}
+}
+
+static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
+				unsigned long phys, pgprot_t flags)
+{
+	pv_mmu_ops.set_fixmap(idx, phys, flags);
 }
 
 void _paravirt_nop(void);

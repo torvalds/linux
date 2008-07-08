@@ -1013,6 +1013,33 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
 	return ret;
 }
 
+static void xen_set_fixmap(unsigned idx, unsigned long phys, pgprot_t prot)
+{
+	pte_t pte;
+
+	phys >>= PAGE_SHIFT;
+
+	switch (idx) {
+	case FIX_BTMAP_END ... FIX_BTMAP_BEGIN:
+#ifdef CONFIG_X86_F00F_BUG
+	case FIX_F00F_IDT:
+#endif
+	case FIX_WP_TEST:
+	case FIX_VDSO:
+#ifdef CONFIG_X86_LOCAL_APIC
+	case FIX_APIC_BASE:	/* maps dummy local APIC */
+#endif
+		pte = pfn_pte(phys, prot);
+		break;
+
+	default:
+		pte = mfn_pte(phys, prot);
+		break;
+	}
+
+	__native_set_fixmap(idx, pte);
+}
+
 static const struct pv_info xen_info __initdata = {
 	.paravirt_enabled = 1,
 	.shared_kernel_pmd = 0,
@@ -1167,6 +1194,8 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 		.enter = paravirt_enter_lazy_mmu,
 		.leave = xen_leave_lazy,
 	},
+
+	.set_fixmap = xen_set_fixmap,
 };
 
 #ifdef CONFIG_SMP

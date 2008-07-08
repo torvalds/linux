@@ -148,15 +148,15 @@ static __init void *spp_getpage(void)
 	return ptr;
 }
 
-static __init void
-set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
+void
+set_pte_vaddr(unsigned long vaddr, pte_t new_pte)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte, new_pte;
+	pte_t *pte;
 
-	pr_debug("set_pte_phys %lx to %lx\n", vaddr, phys);
+	pr_debug("set_pte_vaddr %lx to %lx\n", vaddr, native_pte_val(new_pte));
 
 	pgd = pgd_offset_k(vaddr);
 	if (pgd_none(*pgd)) {
@@ -183,7 +183,6 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 			return;
 		}
 	}
-	new_pte = pfn_pte(phys >> PAGE_SHIFT, prot);
 
 	pte = pte_offset_kernel(pmd, vaddr);
 	if (!pte_none(*pte) && pte_val(new_pte) &&
@@ -224,18 +223,6 @@ void __init cleanup_highmap(void)
 		if (vaddr < (unsigned long) _text || vaddr > end)
 			set_pmd(pmd, __pmd(0));
 	}
-}
-
-/* NOTE: this is meant to be run only at boot */
-void __init __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
-{
-	unsigned long address = __fix_to_virt(idx);
-
-	if (idx >= __end_of_fixed_addresses) {
-		printk(KERN_ERR "Invalid __set_fixmap\n");
-		return;
-	}
-	set_pte_phys(address, phys, prot);
 }
 
 static unsigned long __initdata table_start;
