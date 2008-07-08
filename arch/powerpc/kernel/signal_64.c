@@ -268,6 +268,13 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 }
 
 /*
+ * Userspace code may pass a ucontext which doesn't include VSX added
+ * at the end.  We need to check for this case.
+ */
+#define UCONTEXTSIZEWITHOUTVSX \
+		(sizeof(struct ucontext) - 32*sizeof(long))
+
+/*
  * Handle {get,set,swap}_context operations
  */
 int sys_swapcontext(struct ucontext __user *old_ctx,
@@ -276,13 +283,34 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 {
 	unsigned char tmp;
 	sigset_t set;
+	unsigned long new_msr = 0;
 
-	/* Context size is for future use. Right now, we only make sure
-	 * we are passed something we understand
+	if (new_ctx &&
+	    __get_user(new_msr, &new_ctx->uc_mcontext.gp_regs[PT_MSR]))
+		return -EFAULT;
+	/*
+	 * Check that the context is not smaller than the original
+	 * size (with VMX but without VSX)
 	 */
-	if (ctx_size < sizeof(struct ucontext))
+	if (ctx_size < UCONTEXTSIZEWITHOUTVSX)
 		return -EINVAL;
-
+	/*
+	 * If the new context state sets the MSR VSX bits but
+	 * it doesn't provide VSX state.
+	 */
+	if ((ctx_size < sizeof(struct ucontext)) &&
+	    (new_msr & MSR_VSX))
+		return -EINVAL;
+#ifdef CONFIG_VSX
+	/*
+	 * If userspace doesn't provide enough room for VSX data,
+	 * but current thread has used VSX, we don't have anywhere
+	 * to store the full context back into.
+	 */
+	if ((ctx_size < sizeof(struct ucontext)) &&
+	    (current->thread.used_vsr && old_ctx))
+		return -EINVAL;
+#endif
 	if (old_ctx != NULL) {
 		if (!access_ok(VERIFY_WRITE, old_ctx, sizeof(*old_ctx))
 		    || setup_sigcontext(&old_ctx->uc_mcontext, regs, 0, NULL, 0)

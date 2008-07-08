@@ -68,6 +68,13 @@
 #define ucontext	ucontext32
 
 /*
+ * Userspace code may pass a ucontext which doesn't include VSX added
+ * at the end.  We need to check for this case.
+ */
+#define UCONTEXTSIZEWITHOUTVSX \
+		(sizeof(struct ucontext) - sizeof(elf_vsrreghalf_t32))
+
+/*
  * Returning 0 means we return to userspace via
  * ret_from_except and thus restore all user
  * registers from *regs.  This is what we need
@@ -930,12 +937,42 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 {
 	unsigned char tmp;
 
+#ifdef CONFIG_PPC64
+	unsigned long new_msr = 0;
+
+	if (new_ctx &&
+	    __get_user(new_msr, &new_ctx->uc_mcontext.mc_gregs[PT_MSR]))
+		return -EFAULT;
+	/*
+	 * Check that the context is not smaller than the original
+	 * size (with VMX but without VSX)
+	 */
+	if (ctx_size < UCONTEXTSIZEWITHOUTVSX)
+		return -EINVAL;
+	/*
+	 * If the new context state sets the MSR VSX bits but
+	 * it doesn't provide VSX state.
+	 */
+	if ((ctx_size < sizeof(struct ucontext)) &&
+	    (new_msr & MSR_VSX))
+		return -EINVAL;
+#ifdef CONFIG_VSX
+	/*
+	 * If userspace doesn't provide enough room for VSX data,
+	 * but current thread has used VSX, we don't have anywhere
+	 * to store the full context back into.
+	 */
+	if ((ctx_size < sizeof(struct ucontext)) &&
+	    (current->thread.used_vsr && old_ctx))
+		return -EINVAL;
+#endif
+#else
 	/* Context size is for future use. Right now, we only make sure
 	 * we are passed something we understand
 	 */
 	if (ctx_size < sizeof(struct ucontext))
 		return -EINVAL;
-
+#endif
 	if (old_ctx != NULL) {
 		struct mcontext __user *mctx;
 
