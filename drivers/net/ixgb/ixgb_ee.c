@@ -108,7 +108,7 @@ ixgb_shift_out_bits(struct ixgb_hw *hw,
 		 */
 		eecd_reg &= ~IXGB_EECD_DI;
 
-		if(data & mask)
+		if (data & mask)
 			eecd_reg |= IXGB_EECD_DI;
 
 		IXGB_WRITE_REG(hw, EECD, eecd_reg);
@@ -159,7 +159,7 @@ ixgb_shift_in_bits(struct ixgb_hw *hw)
 		eecd_reg = IXGB_READ_REG(hw, EECD);
 
 		eecd_reg &= ~(IXGB_EECD_DI);
-		if(eecd_reg & IXGB_EECD_DO)
+		if (eecd_reg & IXGB_EECD_DO)
 			data |= 1;
 
 		ixgb_lower_clock(hw, &eecd_reg);
@@ -300,7 +300,7 @@ ixgb_wait_eeprom_command(struct ixgb_hw *hw)
 	for(i = 0; i < 200; i++) {
 		eecd_reg = IXGB_READ_REG(hw, EECD);
 
-		if(eecd_reg & IXGB_EECD_DO)
+		if (eecd_reg & IXGB_EECD_DO)
 			return (true);
 
 		udelay(50);
@@ -331,7 +331,7 @@ ixgb_validate_eeprom_checksum(struct ixgb_hw *hw)
 	for(i = 0; i < (EEPROM_CHECKSUM_REG + 1); i++)
 		checksum += ixgb_read_eeprom(hw, i);
 
-	if(checksum == (u16) EEPROM_SUM)
+	if (checksum == (u16) EEPROM_SUM)
 		return (true);
 	else
 		return (false);

@@ -40,7 +40,7 @@
 #include <linux/sched.h>
 
 #undef ASSERT
-#define ASSERT(x)	if(!(x)) BUG()
+#define ASSERT(x)	if (!(x)) BUG()
 #define MSGOUT(S, A, B)	printk(KERN_DEBUG S "\n", A, B)
 
 #ifdef DBG

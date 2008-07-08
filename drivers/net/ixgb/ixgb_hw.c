@@ -125,7 +125,7 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	/* If we are stopped or resetting exit gracefully and wait to be
 	 * started again before accessing the hardware.
 	 */
-	if(hw->adapter_stopped) {
+	if (hw->adapter_stopped) {
 		DEBUGOUT("Exiting because the adapter is already stopped!!!\n");
 		return false;
 	}
@@ -482,7 +482,7 @@ ixgb_mc_addr_list_update(struct ixgb_hw *hw,
 		/* Place this multicast address in the RAR if there is room, *
 		 * else put it in the MTA
 		 */
-		if(rar_used_count < IXGB_RAR_ENTRIES) {
+		if (rar_used_count < IXGB_RAR_ENTRIES) {
 			ixgb_rar_set(hw,
 				     mc_addr_list +
 				     (i * (IXGB_ETH_LENGTH_OF_ADDRESS + pad)),
@@ -719,9 +719,8 @@ ixgb_setup_fc(struct ixgb_hw *hw)
 	/* Write the new settings */
 	IXGB_WRITE_REG(hw, CTRL0, ctrl_reg);
 
-	if (pap_reg != 0) {
+	if (pap_reg != 0)
 		IXGB_WRITE_REG(hw, PAP, pap_reg);
-	}
 
 	/* Set the flow control receive threshold registers.  Normally,
 	 * these registers will be set to a default threshold that may be
@@ -729,14 +728,14 @@ ixgb_setup_fc(struct ixgb_hw *hw)
 	 * ability to transmit pause frames in not enabled, then these
 	 * registers will be set to 0.
 	 */
-	if(!(hw->fc.type & ixgb_fc_tx_pause)) {
+	if (!(hw->fc.type & ixgb_fc_tx_pause)) {
 		IXGB_WRITE_REG(hw, FCRTL, 0);
 		IXGB_WRITE_REG(hw, FCRTH, 0);
 	} else {
 	   /* We need to set up the Receive Threshold high and low water
 	    * marks as well as (optionally) enabling the transmission of XON
 	    * frames. */
-		if(hw->fc.send_xon) {
+		if (hw->fc.send_xon) {
 			IXGB_WRITE_REG(hw, FCRTL,
 				(hw->fc.low_water | IXGB_FCRTL_XONE));
 		} else {
@@ -1007,7 +1006,7 @@ ixgb_clear_hw_cntrs(struct ixgb_hw *hw)
 	DEBUGFUNC("ixgb_clear_hw_cntrs");
 
 	/* if we are stopped or resetting exit gracefully */
-	if(hw->adapter_stopped) {
+	if (hw->adapter_stopped) {
 		DEBUGOUT("Exiting because the adapter is stopped!!!\n");
 		return;
 	}
