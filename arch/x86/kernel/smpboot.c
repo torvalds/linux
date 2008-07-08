@@ -1090,10 +1090,9 @@ static __init void disable_smp(void)
 	smpboot_clear_io_apic_irqs();
 #endif
 	if (smp_found_config)
-		phys_cpu_present_map =
-				physid_mask_of_physid(boot_cpu_physical_apicid);
+		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	else
-		phys_cpu_present_map = physid_mask_of_physid(0);
+		physid_set_mask_of_physid(0, &phys_cpu_present_map);
 	map_cpu_to_logical_apicid();
 	cpu_set(0, per_cpu(cpu_sibling_map, 0));
 	cpu_set(0, per_cpu(cpu_core_map, 0));

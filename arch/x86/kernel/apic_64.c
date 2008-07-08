@@ -918,7 +918,7 @@ int __init APIC_init_uniprocessor(void)
 
 	verify_local_APIC();
 
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
+	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
 
 	setup_local_APIC();

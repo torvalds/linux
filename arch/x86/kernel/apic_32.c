@@ -1267,7 +1267,7 @@ int __init APIC_init_uniprocessor(void)
 #ifdef CONFIG_CRASH_DUMP
 	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
 #endif
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
+	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 
 	setup_local_APIC();
 
