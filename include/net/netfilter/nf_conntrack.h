@@ -258,7 +258,8 @@ nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data), void *data);
 extern void nf_conntrack_free(struct nf_conn *ct);
 extern struct nf_conn *
 nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
-		   const struct nf_conntrack_tuple *repl);
+		   const struct nf_conntrack_tuple *repl,
+		   gfp_t gfp);
 
 /* It's confirmed if it is, or has been in the hash table. */
 static inline int nf_ct_is_confirmed(struct nf_conn *ct)
