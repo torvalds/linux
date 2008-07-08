@@ -73,7 +73,7 @@ static struct {
 	const struct firmware *file;
 	rwlock_t lock;
 	int refcnt;
-	u8 *data[ARRAY_SIZE(blob_name)];
+	const u8 *data[ARRAY_SIZE(blob_name)];
 } fw[] = {
 #define _FW_ENTRY(a, b)		{			\
 			.name	= a,			\
@@ -109,7 +109,7 @@ static void drx_release_fw(struct drx397xD_state *s)
 
 static int drx_load_fw(struct drx397xD_state *s, fw_ix_t ix)
 {
-	u8 *data;
+	const u8 *data;
 	size_t size, len;
 	int i = 0, j, rc = -EINVAL;
 
@@ -193,7 +193,7 @@ static int drx_load_fw(struct drx397xD_state *s, fw_ix_t ix)
 static int write_fw(struct drx397xD_state *s, blob_ix_t ix)
 {
 	struct i2c_msg msg = {.addr = s->config.demod_address,.flags = 0 };
-	u8 *data;
+	const u8 *data;
 	int len, rc = 0, i = 0;
 
 	if (ix < 0 || ix >= ARRAY_SIZE(blob_name)) {
@@ -214,7 +214,7 @@ static int write_fw(struct drx397xD_state *s, blob_ix_t ix)
 		case 0:	/* bytecode */
 			len = data[i++];
 			msg.len = len;
-			msg.buf = &data[i];
+			msg.buf = (__u8 *) &data[i];
 			if (i2c_transfer(s->i2c, &msg, 1) != 1) {
 				rc = -EIO;
 				goto exit_rc;
