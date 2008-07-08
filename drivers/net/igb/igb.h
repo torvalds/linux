@@ -125,6 +125,7 @@ struct igb_buffer {
 		struct {
 			struct page *page;
 			u64 page_dma;
+			unsigned int page_offset;
 		};
 	};
 };
@@ -163,9 +164,6 @@ struct igb_ring {
 		};
 		/* RX */
 		struct {
-			/* arrays of page information for packet split */
-			struct sk_buff *pending_skb;
-			int pending_skb_page;
 			int no_itr_adjust;
 			struct igb_queue_stats rx_stats;
 			struct napi_struct napi;
