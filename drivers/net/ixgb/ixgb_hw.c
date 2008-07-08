@@ -347,7 +347,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 
 	/* Zero out the Multicast HASH table */
 	DEBUGOUT("Zeroing the MTA\n");
-	for(i = 0; i < IXGB_MC_TBL_SIZE; i++)
+	for (i = 0; i < IXGB_MC_TBL_SIZE; i++)
 		IXGB_WRITE_REG_ARRAY(hw, MTA, i, 0);
 
 	/* Zero out the VLAN Filter Table Array */
@@ -413,7 +413,7 @@ ixgb_init_rx_addrs(struct ixgb_hw *hw)
 
 	/* Zero out the other 15 receive addresses. */
 	DEBUGOUT("Clearing RAR[1-15]\n");
-	for(i = 1; i < IXGB_RAR_ENTRIES; i++) {
+	for (i = 1; i < IXGB_RAR_ENTRIES; i++) {
 		/* Write high reg first to disable the AV bit first */
 		IXGB_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
 		IXGB_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
@@ -452,19 +452,18 @@ ixgb_mc_addr_list_update(struct ixgb_hw *hw,
 
 	/* Clear RAR[1-15] */
 	DEBUGOUT(" Clearing RAR[1-15]\n");
-	for(i = rar_used_count; i < IXGB_RAR_ENTRIES; i++) {
+	for (i = rar_used_count; i < IXGB_RAR_ENTRIES; i++) {
 		IXGB_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
 		IXGB_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
 	}
 
 	/* Clear the MTA */
 	DEBUGOUT(" Clearing MTA\n");
-	for(i = 0; i < IXGB_MC_TBL_SIZE; i++) {
+	for (i = 0; i < IXGB_MC_TBL_SIZE; i++)
 		IXGB_WRITE_REG_ARRAY(hw, MTA, i, 0);
-	}
 
 	/* Add the new addresses */
-	for(i = 0; i < mc_addr_count; i++) {
+	for (i = 0; i < mc_addr_count; i++) {
 		DEBUGOUT(" Adding the multicast addresses:\n");
 		DEBUGOUT7(" MC Addr #%d =%.2X %.2X %.2X %.2X %.2X %.2X\n", i,
 			  mc_addr_list[i * (IXGB_ETH_LENGTH_OF_ADDRESS + pad)],
@@ -649,7 +648,7 @@ ixgb_clear_vfta(struct ixgb_hw *hw)
 {
 	u32 offset;
 
-	for(offset = 0; offset < IXGB_VLAN_FILTER_TBL_SIZE; offset++)
+	for (offset = 0; offset < IXGB_VLAN_FILTER_TBL_SIZE; offset++)
 		IXGB_WRITE_REG_ARRAY(hw, VFTA, offset, 0);
 	return;
 }
@@ -790,7 +789,7 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
     ** from the CPU Write to the Ready bit assertion.
     **************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 
@@ -817,7 +816,7 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
     ** from the CPU Write to the Ready bit assertion.
     **************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 
@@ -886,7 +885,7 @@ ixgb_write_phy_reg(struct ixgb_hw *hw,
 	** from the CPU Write to the Ready bit assertion.
 	**************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 
@@ -913,7 +912,7 @@ ixgb_write_phy_reg(struct ixgb_hw *hw,
 	** from the CPU Write to the Ready bit assertion.
 	**************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 

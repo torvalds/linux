@@ -152,7 +152,7 @@ ixgb_shift_in_bits(struct ixgb_hw *hw)
 	eecd_reg &= ~(IXGB_EECD_DO | IXGB_EECD_DI);
 	data = 0;
 
-	for(i = 0; i < 16; i++) {
+	for (i = 0; i < 16; i++) {
 		data = data << 1;
 		ixgb_raise_clock(hw, &eecd_reg);
 
@@ -297,7 +297,7 @@ ixgb_wait_eeprom_command(struct ixgb_hw *hw)
 	 * signal that the command has been completed by raising the DO signal.
 	 * If DO does not go high in 10 milliseconds, then error out.
 	 */
-	for(i = 0; i < 200; i++) {
+	for (i = 0; i < 200; i++) {
 		eecd_reg = IXGB_READ_REG(hw, EECD);
 
 		if (eecd_reg & IXGB_EECD_DO)
@@ -328,7 +328,7 @@ ixgb_validate_eeprom_checksum(struct ixgb_hw *hw)
 	u16 checksum = 0;
 	u16 i;
 
-	for(i = 0; i < (EEPROM_CHECKSUM_REG + 1); i++)
+	for (i = 0; i < (EEPROM_CHECKSUM_REG + 1); i++)
 		checksum += ixgb_read_eeprom(hw, i);
 
 	if (checksum == (u16) EEPROM_SUM)
@@ -351,7 +351,7 @@ ixgb_update_eeprom_checksum(struct ixgb_hw *hw)
 	u16 checksum = 0;
 	u16 i;
 
-	for(i = 0; i < EEPROM_CHECKSUM_REG; i++)
+	for (i = 0; i < EEPROM_CHECKSUM_REG; i++)
 		checksum += ixgb_read_eeprom(hw, i);
 
 	checksum = (u16) EEPROM_SUM - checksum;
@@ -472,7 +472,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 	ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	DEBUGOUT("ixgb_ee: Reading eeprom data\n");
-	for(i = 0; i < IXGB_EEPROM_SIZE ; i++) {
+	for (i = 0; i < IXGB_EEPROM_SIZE ; i++) {
 		u16 ee_data;
 		ee_data = ixgb_read_eeprom(hw, i);
 		checksum += ee_data;

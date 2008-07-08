@@ -226,7 +226,7 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 		int i;
 		struct ixgb_opt_list *ent;
 
-		for(i = 0; i < opt->arg.l.nr; i++) {
+		for (i = 0; i < opt->arg.l.nr; i++) {
 			ent = &opt->arg.l.p[i];
 			if (*value == ent->i) {
 				if (ent->str[0] != '\0')

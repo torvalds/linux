@@ -398,7 +398,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_ioremap;
 	}
 
-	for(i = BAR_1; i <= BAR_5; i++) {
+	for (i = BAR_1; i <= BAR_5; i++) {
 		if (pci_resource_len(pdev, i) == 0)
 			continue;
 		if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {
@@ -923,7 +923,7 @@ ixgb_clean_tx_ring(struct ixgb_adapter *adapter)
 
 	/* Free all the Tx ring sk_buffs */
 
-	for(i = 0; i < tx_ring->count; i++) {
+	for (i = 0; i < tx_ring->count; i++) {
 		buffer_info = &tx_ring->buffer_info[i];
 		ixgb_unmap_and_free_tx_resource(adapter, buffer_info);
 	}
@@ -981,7 +981,7 @@ ixgb_clean_rx_ring(struct ixgb_adapter *adapter)
 
 	/* Free all the Rx ring sk_buffs */
 
-	for(i = 0; i < rx_ring->count; i++) {
+	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->skb) {
 
@@ -1298,7 +1298,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		if (++i == tx_ring->count) i = 0;
 	}
 
-	for(f = 0; f < nr_frags; f++) {
+	for (f = 0; f < nr_frags; f++) {
 		struct skb_frag_struct *frag;
 
 		frag = &skb_shinfo(skb)->frags[f];
@@ -1727,7 +1727,7 @@ ixgb_intr(int irq, void *data)
 	 * every pass through this for loop checks both receive and
 	 * transmit queues for completed descriptors, intended to
 	 * avoid starvation issues and assist tx/rx fairness. */
-	for(i = 0; i < IXGB_MAX_INTR; i++)
+	for (i = 0; i < IXGB_MAX_INTR; i++)
 		if (!ixgb_clean_rx_irq(adapter) &
 		   !ixgb_clean_tx_irq(adapter))
 			break;
@@ -2196,7 +2196,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 
 	if (adapter->vlgrp) {
 		u16 vid;
-		for(vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
 			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			ixgb_vlan_rx_add_vid(adapter->netdev, vid);

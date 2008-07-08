@@ -301,7 +301,7 @@ ixgb_get_regs(struct net_device *netdev,
 	*reg++ = IXGB_READ_REG(hw, RXCSUM);	/*  20 */
 
 	/* there are 16 RAR entries in hardware, we only use 3 */
-	for(i = 0; i < IXGB_ALL_RAR_ENTRIES; i++) {
+	for (i = 0; i < IXGB_ALL_RAR_ENTRIES; i++) {
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAL, (i << 1)); /*21,...,51 */
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAH, (i << 1)); /*22,...,52 */
 	}
@@ -441,12 +441,10 @@ ixgb_get_eeprom(struct net_device *netdev,
 		return -ENOMEM;
 
 	/* note the eeprom was good because the driver loaded */
-	for(i = 0; i <= (last_word - first_word); i++) {
+	for (i = 0; i <= (last_word - first_word); i++)
 		eeprom_buff[i] = ixgb_get_eeprom_word(hw, (first_word + i));
-	}
 
-	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 1),
-			eeprom->len);
+	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 1), eeprom->len);
 	kfree(eeprom_buff);
 
 geeprom_error:
@@ -500,7 +498,7 @@ ixgb_set_eeprom(struct net_device *netdev,
 	}
 
 	memcpy(ptr, bytes, eeprom->len);
-	for(i = 0; i <= (last_word - first_word); i++)
+	for (i = 0; i <= (last_word - first_word); i++)
 		ixgb_write_eeprom(hw, first_word + i, eeprom_buff[i]);
 
 	/* Update the checksum over the first part of the EEPROM if needed */
@@ -666,7 +664,7 @@ ixgb_get_ethtool_stats(struct net_device *netdev,
 	int i;
 
 	ixgb_update_stats(adapter);
-	for(i = 0; i < IXGB_STATS_LEN; i++) {
+	for (i = 0; i < IXGB_STATS_LEN; i++) {
 		char *p = (char *)adapter+ixgb_gstrings_stats[i].stat_offset;
 		data[i] = (ixgb_gstrings_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
@@ -680,7 +678,7 @@ ixgb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 	switch(stringset) {
 	case ETH_SS_STATS:
-		for(i=0; i < IXGB_STATS_LEN; i++) {
+		for (i = 0; i < IXGB_STATS_LEN; i++) {
 			memcpy(data + i * ETH_GSTRING_LEN,
 			ixgb_gstrings_stats[i].stat_string,
 			ETH_GSTRING_LEN);
