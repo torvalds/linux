@@ -29,6 +29,7 @@
 #include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
+#include <asm/pgtable.h>
 #include <asm/time.h>
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
@@ -373,6 +374,9 @@ struct pv_mmu_ops pv_mmu_ops = {
 #ifndef CONFIG_X86_64
 	.pagetable_setup_start = native_pagetable_setup_start,
 	.pagetable_setup_done = native_pagetable_setup_done,
+#else
+	.pagetable_setup_start = paravirt_nop,
+	.pagetable_setup_done = paravirt_nop,
 #endif
 
 	.read_cr2 = native_read_cr2,

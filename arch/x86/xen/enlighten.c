@@ -841,6 +841,7 @@ static __init void xen_set_pte_init(pte_t *ptep, pte_t pte)
 
 static __init void xen_pagetable_setup_start(pgd_t *base)
 {
+#ifdef CONFIG_X86_32
 	pgd_t *xen_pgd = (pgd_t *)xen_start_info->pt_base;
 	int i;
 
@@ -886,6 +887,7 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 	/* Unpin initial Xen pagetable */
 	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE,
 			  PFN_DOWN(__pa(xen_start_info->pt_base)));
+#endif	/* CONFIG_X86_32 */
 }
 
 void xen_setup_shared_info(void)
@@ -927,9 +929,11 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 
 	xen_setup_shared_info();
 
+#ifdef CONFIG_X86_32
 	/* Actually pin the pagetable down, but we can't set PG_pinned
 	   yet because the page structures don't exist yet. */
 	pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(base)));
+#endif
 }
 
 static __init void xen_post_allocator_init(void)

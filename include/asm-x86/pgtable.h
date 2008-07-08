@@ -302,6 +302,14 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 /* Install a pte for a particular vaddr in kernel space. */
 void set_pte_vaddr(unsigned long vaddr, pte_t pte);
 
+#ifdef CONFIG_X86_32
+extern void native_pagetable_setup_start(pgd_t *base);
+extern void native_pagetable_setup_done(pgd_t *base);
+#else
+static inline void native_pagetable_setup_start(pgd_t *base) {}
+static inline void native_pagetable_setup_done(pgd_t *base) {}
+#endif
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else  /* !CONFIG_PARAVIRT */
@@ -333,6 +341,16 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pte);
 
 #define pte_update(mm, addr, ptep)              do { } while (0)
 #define pte_update_defer(mm, addr, ptep)        do { } while (0)
+
+static inline void __init paravirt_pagetable_setup_start(pgd_t *base)
+{
+	native_pagetable_setup_start(base);
+}
+
+static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
+{
+	native_pagetable_setup_done(base);
+}
 #endif	/* CONFIG_PARAVIRT */
 
 #endif	/* __ASSEMBLY__ */

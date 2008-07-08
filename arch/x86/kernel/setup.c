@@ -819,7 +819,9 @@ void __init setup_arch(char **cmdline_p)
 	vmi_init();
 #endif
 
+	paravirt_pagetable_setup_start(swapper_pg_dir);
 	paging_init();
+	paravirt_pagetable_setup_done(swapper_pg_dir);
 
 #ifdef CONFIG_X86_64
 	map_vsyscall();
