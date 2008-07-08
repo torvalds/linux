@@ -356,7 +356,8 @@ static int pxa2xx_ac97_probe(struct platform_device *pdev,
 	return ret;
 }
 
-static void pxa2xx_ac97_remove(struct platform_device *pdev)
+static void pxa2xx_ac97_remove(struct platform_device *pdev,
+			       struct snd_soc_dai *dai)
 {
 	GCR |= GCR_ACLINK_OFF;
 	free_irq(IRQ_AC97, NULL);
