@@ -67,22 +67,6 @@
 #include <mach_wakecpu.h>
 #include <smpboot_hooks.h>
 
-/*
- * FIXME: For x86_64, those are defined in other files. But moving them here,
- * would make the setup areas dependent on smp, which is a loss. When we
- * integrate apic between arches, we can probably do a better job, but
- * right now, they'll stay here -- glommer
- */
-
-/* which logical CPU number maps to which CPU (physical APIC ID) */
-u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
-			{ [0 ... NR_CPUS-1] = BAD_APICID };
-void *x86_cpu_to_apicid_early_ptr;
-
-u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
-				= { [0 ... NR_CPUS-1] = BAD_APICID };
-void *x86_bios_cpu_apicid_early_ptr;
-
 #ifdef CONFIG_X86_32
 u8 apicid_2_node[MAX_APICID];
 static int low_mappings;
@@ -814,6 +798,45 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 	complete(&c_idle->done);
 }
 
+#ifdef CONFIG_X86_64
+/*
+ * Allocate node local memory for the AP pda.
+ *
+ * Must be called after the _cpu_pda pointer table is initialized.
+ */
+static int __cpuinit get_local_pda(int cpu)
+{
+	struct x8664_pda *oldpda, *newpda;
+	unsigned long size = sizeof(struct x8664_pda);
+	int node = cpu_to_node(cpu);
+
+	if (cpu_pda(cpu) && !cpu_pda(cpu)->in_bootmem)
+		return 0;
+
+	oldpda = cpu_pda(cpu);
+	newpda = kmalloc_node(size, GFP_ATOMIC, node);
+	if (!newpda) {
+		printk(KERN_ERR "Could not allocate node local PDA "
+			"for CPU %d on node %d\n", cpu, node);
+
+		if (oldpda)
+			return 0;	/* have a usable pda */
+		else
+			return -1;
+	}
+
+	if (oldpda) {
+		memcpy(newpda, oldpda, size);
+		if (!after_bootmem)
+			free_bootmem((unsigned long)oldpda, size);
+	}
+
+	newpda->in_bootmem = 0;
+	cpu_pda(cpu) = newpda;
+	return 0;
+}
+#endif /* CONFIG_X86_64 */
+
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
@@ -839,19 +862,11 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	}
 
 	/* Allocate node local memory for AP pdas */
-	if (cpu_pda(cpu) == &boot_cpu_pda[cpu]) {
-		struct x8664_pda *newpda, *pda;
-		int node = cpu_to_node(cpu);
-		pda = cpu_pda(cpu);
-		newpda = kmalloc_node(sizeof(struct x8664_pda), GFP_ATOMIC,
-				      node);
-		if (newpda) {
-			memcpy(newpda, pda, sizeof(struct x8664_pda));
-			cpu_pda(cpu) = newpda;
-		} else
-			printk(KERN_ERR
-		"Could not allocate node local PDA for CPU %d on node %d\n",
-				cpu, node);
+	if (cpu > 0) {
+		boot_error = get_local_pda(cpu);
+		if (boot_error)
+			goto restore_state;
+			/* if can't get pda memory, can't start cpu */
 	}
 #endif
 
@@ -970,11 +985,13 @@ do_rest:
 		}
 	}
 
+restore_state:
+
 	if (boot_error) {
 		/* Try to put things back the way they were before ... */
 		unmap_cpu_to_logical_apicid(cpu);
 #ifdef CONFIG_X86_64
-		clear_node_cpumask(cpu); /* was set by numa_add_cpu */
+		numa_remove_cpu(cpu); /* was set by numa_add_cpu */
 #endif
 		cpu_clear(cpu, cpu_callout_map); /* was set by do_boot_cpu() */
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
@@ -1347,6 +1364,8 @@ __init void prefill_possible_map(void)
 
 	for (i = 0; i < possible; i++)
 		cpu_set(i, cpu_possible_map);
+
+	nr_cpu_ids = possible;
 }
 
 static void __ref remove_cpu_from_maps(int cpu)
@@ -1357,7 +1376,7 @@ static void __ref remove_cpu_from_maps(int cpu)
 	cpu_clear(cpu, cpu_callin_map);
 	/* was set by cpu_init() */
 	clear_bit(cpu, (unsigned long *)&cpu_initialized);
-	clear_node_cpumask(cpu);
+	numa_remove_cpu(cpu);
 #endif
 }
 

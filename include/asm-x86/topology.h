@@ -35,79 +35,88 @@
 # endif
 #endif
 
+/* Node not present */
+#define NUMA_NO_NODE	(-1)
+
 #ifdef CONFIG_NUMA
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
 
-/* Mappings between logical cpu number and node number */
 #ifdef CONFIG_X86_32
-extern int cpu_to_node_map[];
-#else
-/* Returns the number of the current Node. */
-#define numa_node_id()		(early_cpu_to_node(raw_smp_processor_id()))
-#endif
 
-DECLARE_PER_CPU(int, x86_cpu_to_node_map);
-
-#ifdef CONFIG_SMP
-extern int x86_cpu_to_node_map_init[];
-extern void *x86_cpu_to_node_map_early_ptr;
-#else
-#define x86_cpu_to_node_map_early_ptr NULL
-#endif
-
+/* Mappings between node number and cpus on that node. */
 extern cpumask_t node_to_cpumask_map[];
 
-#define NUMA_NO_NODE	(-1)
+/* Mappings between logical cpu number and node number */
+extern int cpu_to_node_map[];
 
 /* Returns the number of the node containing CPU 'cpu' */
-#ifdef CONFIG_X86_32
-#define early_cpu_to_node(cpu)	cpu_to_node(cpu)
 static inline int cpu_to_node(int cpu)
 {
 	return cpu_to_node_map[cpu];
 }
+#define early_cpu_to_node(cpu)	cpu_to_node(cpu)
+
+/* Returns a bitmask of CPUs on Node 'node'. */
+static inline cpumask_t node_to_cpumask(int node)
+{
+	return node_to_cpumask_map[node];
+}
 
 #else /* CONFIG_X86_64 */
 
-#ifdef CONFIG_SMP
-static inline int early_cpu_to_node(int cpu)
-{
-	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
+/* Mappings between node number and cpus on that node. */
+extern cpumask_t *node_to_cpumask_map;
 
-	if (cpu_to_node_map)
-		return cpu_to_node_map[cpu];
-	else if (per_cpu_offset(cpu))
-		return per_cpu(x86_cpu_to_node_map, cpu);
-	else
-		return NUMA_NO_NODE;
-}
-#else
-#define	early_cpu_to_node(cpu)	cpu_to_node(cpu)
-#endif
+/* Mappings between logical cpu number and node number */
+DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
 
+/* Returns the number of the current Node. */
+#define numa_node_id()		read_pda(nodenumber)
+
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+extern int cpu_to_node(int cpu);
+extern int early_cpu_to_node(int cpu);
+extern cpumask_t *_node_to_cpumask_ptr(int node);
+extern cpumask_t node_to_cpumask(int node);
+
+#else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+
+/* Returns the number of the node containing CPU 'cpu' */
 static inline int cpu_to_node(int cpu)
 {
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-	if (x86_cpu_to_node_map_early_ptr) {
-		printk("KERN_NOTICE cpu_to_node(%d): usage too early!\n",
-		       (int)cpu);
-		dump_stack();
-		return ((int *)x86_cpu_to_node_map_early_ptr)[cpu];
-	}
-#endif
 	return per_cpu(x86_cpu_to_node_map, cpu);
 }
 
-#ifdef	CONFIG_NUMA
+/* Same function but used if called before per_cpu areas are setup */
+static inline int early_cpu_to_node(int cpu)
+{
+	if (early_per_cpu_ptr(x86_cpu_to_node_map))
+		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+
+	return per_cpu(x86_cpu_to_node_map, cpu);
+}
 
 /* Returns a pointer to the cpumask of CPUs on Node 'node'. */
+static inline cpumask_t *_node_to_cpumask_ptr(int node)
+{
+	return &node_to_cpumask_map[node];
+}
+
+/* Returns a bitmask of CPUs on Node 'node'. */
+static inline cpumask_t node_to_cpumask(int node)
+{
+	return node_to_cpumask_map[node];
+}
+
+#endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
+
+/* Replace default node_to_cpumask_ptr with optimized version */
 #define node_to_cpumask_ptr(v, node)		\
-		cpumask_t *v = &(node_to_cpumask_map[node])
+		cpumask_t *v = _node_to_cpumask_ptr(node)
 
 #define node_to_cpumask_ptr_next(v, node)	\
-			   v = &(node_to_cpumask_map[node])
-#endif
+			   v = _node_to_cpumask_ptr(node)
 
 #endif /* CONFIG_X86_64 */
 
@@ -116,20 +125,6 @@ static inline int cpu_to_node(int cpu)
  * architecture is flat, so it is a pretty simple function!
  */
 #define parent_node(node) (node)
-
-/* Returns a bitmask of CPUs on Node 'node'. */
-static inline cpumask_t node_to_cpumask(int node)
-{
-	return node_to_cpumask_map[node];
-}
-
-/* Returns the number of the first CPU on Node 'node'. */
-static inline int node_to_first_cpu(int node)
-{
-	cpumask_t mask = node_to_cpumask(node);
-
-	return first_cpu(mask);
-}
 
 #define pcibus_to_node(bus) __pcibus_to_node(bus)
 #define pcibus_to_cpumask(bus) __pcibus_to_cpumask(bus)
@@ -180,11 +175,43 @@ extern int __node_distance(int, int);
 #define node_distance(a, b) __node_distance(a, b)
 #endif
 
-#else /* CONFIG_NUMA */
+#else /* !CONFIG_NUMA */
 
+#define numa_node_id()		0
+#define	cpu_to_node(cpu)	0
+#define	early_cpu_to_node(cpu)	0
+
+static inline cpumask_t *_node_to_cpumask_ptr(int node)
+{
+	return &cpu_online_map;
+}
+static inline cpumask_t node_to_cpumask(int node)
+{
+	return cpu_online_map;
+}
+static inline int node_to_first_cpu(int node)
+{
+	return first_cpu(cpu_online_map);
+}
+
+/* Replace default node_to_cpumask_ptr with optimized version */
+#define node_to_cpumask_ptr(v, node)		\
+		cpumask_t *v = _node_to_cpumask_ptr(node)
+
+#define node_to_cpumask_ptr_next(v, node)	\
+			   v = _node_to_cpumask_ptr(node)
 #endif
 
 #include <asm-generic/topology.h>
+
+#ifdef CONFIG_NUMA
+/* Returns the number of the first CPU on Node 'node'. */
+static inline int node_to_first_cpu(int node)
+{
+	node_to_cpumask_ptr(mask, node);
+	return first_cpu(*mask);
+}
+#endif
 
 extern cpumask_t cpu_coregroup_map(int cpu);
 
@@ -193,6 +220,9 @@ extern cpumask_t cpu_coregroup_map(int cpu);
 #define topology_core_id(cpu)			(cpu_data(cpu).cpu_core_id)
 #define topology_core_siblings(cpu)		(per_cpu(cpu_core_map, cpu))
 #define topology_thread_siblings(cpu)		(per_cpu(cpu_sibling_map, cpu))
+
+/* indicates that pointers to the topology cpumask_t maps are valid */
+#define arch_provides_topology_pointers		yes
 #endif
 
 static inline void arch_fix_phys_package_id(int num, u32 slot)
@@ -220,4 +250,4 @@ static inline void set_mp_bus_to_node(int busnum, int node)
 }
 #endif
 
-#endif
+#endif /* _ASM_X86_TOPOLOGY_H */

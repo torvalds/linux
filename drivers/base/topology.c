@@ -40,6 +40,7 @@ static ssize_t show_##name(struct sys_device *dev, char *buf)	\
 	return sprintf(buf, "%d\n", topology_##name(cpu));	\
 }
 
+#if defined(topology_thread_siblings) || defined(topology_core_siblings)
 static ssize_t show_cpumap(int type, cpumask_t *mask, char *buf)
 {
 	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
@@ -54,20 +55,40 @@ static ssize_t show_cpumap(int type, cpumask_t *mask, char *buf)
 	}
 	return n;
 }
+#endif
 
+#ifdef arch_provides_topology_pointers
 #define define_siblings_show_map(name)					\
-static inline ssize_t show_##name(struct sys_device *dev, char *buf)	\
+static ssize_t show_##name(struct sys_device *dev, char *buf)	\
 {									\
 	unsigned int cpu = dev->id;					\
 	return show_cpumap(0, &(topology_##name(cpu)), buf);		\
 }
 
 #define define_siblings_show_list(name)					\
-static inline ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
+static ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
 {									\
 	unsigned int cpu = dev->id;					\
 	return show_cpumap(1, &(topology_##name(cpu)), buf);		\
 }
+
+#else
+#define define_siblings_show_map(name)					\
+static ssize_t show_##name(struct sys_device *dev, char *buf)	\
+{									\
+	unsigned int cpu = dev->id;					\
+	cpumask_t mask = topology_##name(cpu);				\
+	return show_cpumap(0, &mask, buf);				\
+}
+
+#define define_siblings_show_list(name)					\
+static ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
+{									\
+	unsigned int cpu = dev->id;					\
+	cpumask_t mask = topology_##name(cpu);				\
+	return show_cpumap(1, &mask, buf);				\
+}
+#endif
 
 #define define_siblings_show_func(name)		\
 	define_siblings_show_map(name); define_siblings_show_list(name)

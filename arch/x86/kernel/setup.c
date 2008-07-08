@@ -20,11 +20,32 @@ unsigned int boot_cpu_physical_apicid = -1U;
 unsigned int max_physical_apicid;
 EXPORT_SYMBOL(boot_cpu_physical_apicid);
 
-DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
-EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
-
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
+#endif
+
+/* map cpu index to physical APIC ID */
+DEFINE_EARLY_PER_CPU(u16, x86_cpu_to_apicid, BAD_APICID);
+DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+
+#if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
+#define	X86_64_NUMA	1
+
+/* map cpu index to node index */
+DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+
+/* which logical CPUs are on which nodes */
+cpumask_t *node_to_cpumask_map;
+EXPORT_SYMBOL(node_to_cpumask_map);
+
+/* setup node_to_cpumask_map */
+static void __init setup_node_to_cpumask_map(void);
+
+#else
+static inline void setup_node_to_cpumask_map(void) { }
 #endif
 
 #if defined(CONFIG_HAVE_SETUP_PER_CPU_AREA) && defined(CONFIG_X86_SMP)
@@ -38,20 +59,21 @@ static void __init setup_per_cpu_maps(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		per_cpu(x86_cpu_to_apicid, cpu) = x86_cpu_to_apicid_init[cpu];
+		per_cpu(x86_cpu_to_apicid, cpu) =
+				early_per_cpu_map(x86_cpu_to_apicid, cpu);
 		per_cpu(x86_bios_cpu_apicid, cpu) =
-						x86_bios_cpu_apicid_init[cpu];
-#ifdef CONFIG_NUMA
+				early_per_cpu_map(x86_bios_cpu_apicid, cpu);
+#ifdef X86_64_NUMA
 		per_cpu(x86_cpu_to_node_map, cpu) =
-						x86_cpu_to_node_map_init[cpu];
+				early_per_cpu_map(x86_cpu_to_node_map, cpu);
 #endif
 	}
 
 	/* indicate the early static arrays will soon be gone */
-	x86_cpu_to_apicid_early_ptr = NULL;
-	x86_bios_cpu_apicid_early_ptr = NULL;
-#ifdef CONFIG_NUMA
-	x86_cpu_to_node_map_early_ptr = NULL;
+	early_per_cpu_ptr(x86_cpu_to_apicid) = NULL;
+	early_per_cpu_ptr(x86_bios_cpu_apicid) = NULL;
+#ifdef X86_64_NUMA
+	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
 #endif
 }
 
@@ -80,6 +102,50 @@ static inline void setup_cpumask_of_cpu(void) { }
  */
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
+static inline void setup_cpu_pda_map(void) { }
+
+#elif !defined(CONFIG_SMP)
+static inline void setup_cpu_pda_map(void) { }
+
+#else /* CONFIG_SMP && CONFIG_X86_64 */
+
+/*
+ * Allocate cpu_pda pointer table and array via alloc_bootmem.
+ */
+static void __init setup_cpu_pda_map(void)
+{
+	char *pda;
+	struct x8664_pda **new_cpu_pda;
+	unsigned long size;
+	int cpu;
+
+	size = roundup(sizeof(struct x8664_pda), cache_line_size());
+
+	/* allocate cpu_pda array and pointer table */
+	{
+		unsigned long tsize = nr_cpu_ids * sizeof(void *);
+		unsigned long asize = size * (nr_cpu_ids - 1);
+
+		tsize = roundup(tsize, cache_line_size());
+		new_cpu_pda = alloc_bootmem(tsize + asize);
+		pda = (char *)new_cpu_pda + tsize;
+	}
+
+	/* initialize pointer table to static pda's */
+	for_each_possible_cpu(cpu) {
+		if (cpu == 0) {
+			/* leave boot cpu pda in place */
+			new_cpu_pda[0] = cpu_pda(0);
+			continue;
+		}
+		new_cpu_pda[cpu] = (struct x8664_pda *)pda;
+		new_cpu_pda[cpu]->in_bootmem = 1;
+		pda += size;
+	}
+
+	/* point to new pointer table */
+	_cpu_pda = new_cpu_pda;
+}
 #endif
 
 /*
@@ -89,49 +155,51 @@ EXPORT_SYMBOL(__per_cpu_offset);
  */
 void __init setup_per_cpu_areas(void)
 {
-	int i, highest_cpu = 0;
-	unsigned long size;
+	ssize_t size = PERCPU_ENOUGH_ROOM;
+	char *ptr;
+	int cpu;
 
 #ifdef CONFIG_HOTPLUG_CPU
 	prefill_possible_map();
+#else
+	nr_cpu_ids = num_processors;
 #endif
+
+	/* Setup cpu_pda map */
+	setup_cpu_pda_map();
 
 	/* Copy section for each CPU (we discard the original) */
 	size = PERCPU_ENOUGH_ROOM;
-	printk(KERN_INFO "PERCPU: Allocating %lu bytes of per cpu data\n",
+	printk(KERN_INFO "PERCPU: Allocating %zd bytes of per cpu data\n",
 			  size);
 
-	for_each_possible_cpu(i) {
-		char *ptr;
+	for_each_possible_cpu(cpu) {
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 		ptr = alloc_bootmem_pages(size);
 #else
-		int node = early_cpu_to_node(i);
+		int node = early_cpu_to_node(cpu);
 		if (!node_online(node) || !NODE_DATA(node)) {
 			ptr = alloc_bootmem_pages(size);
 			printk(KERN_INFO
-			       "cpu %d has no node or node-local memory\n", i);
+			       "cpu %d has no node %d or node-local memory\n",
+				cpu, node);
 		}
 		else
 			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
 #endif
-		if (!ptr)
-			panic("Cannot allocate cpu data for CPU %d\n", i);
-#ifdef CONFIG_X86_64
-		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
-#else
-		__per_cpu_offset[i] = ptr - __per_cpu_start;
-#endif
+		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 
-		highest_cpu = i;
 	}
 
-	nr_cpu_ids = highest_cpu + 1;
-	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d\n", NR_CPUS, nr_cpu_ids);
+	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d, nr_node_ids %d\n",
+		NR_CPUS, nr_cpu_ids, nr_node_ids);
 
 	/* Setup percpu data maps */
 	setup_per_cpu_maps();
+
+	/* Setup node to cpumask map */
+	setup_node_to_cpumask_map();
 
 	/* Setup cpumask_of_cpu map */
 	setup_cpumask_of_cpu();
@@ -163,3 +231,176 @@ void __init parse_setup_data(void)
 		early_iounmap(data, PAGE_SIZE);
 	}
 }
+
+#ifdef X86_64_NUMA
+
+/*
+ * Allocate node_to_cpumask_map based on number of available nodes
+ * Requires node_possible_map to be valid.
+ *
+ * Note: node_to_cpumask() is not valid until after this is done.
+ */
+static void __init setup_node_to_cpumask_map(void)
+{
+	unsigned int node, num = 0;
+	cpumask_t *map;
+
+	/* setup nr_node_ids if not done yet */
+	if (nr_node_ids == MAX_NUMNODES) {
+		for_each_node_mask(node, node_possible_map)
+			num = node;
+		nr_node_ids = num + 1;
+	}
+
+	/* allocate the map */
+	map = alloc_bootmem_low(nr_node_ids * sizeof(cpumask_t));
+
+	Dprintk(KERN_DEBUG "Node to cpumask map at %p for %d nodes\n",
+		map, nr_node_ids);
+
+	/* node_to_cpumask() will now work */
+	node_to_cpumask_map = map;
+}
+
+void __cpuinit numa_set_node(int cpu, int node)
+{
+	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
+
+	if (cpu_pda(cpu) && node != NUMA_NO_NODE)
+		cpu_pda(cpu)->nodenumber = node;
+
+	if (cpu_to_node_map)
+		cpu_to_node_map[cpu] = node;
+
+	else if (per_cpu_offset(cpu))
+		per_cpu(x86_cpu_to_node_map, cpu) = node;
+
+	else
+		Dprintk(KERN_INFO "Setting node for non-present cpu %d\n", cpu);
+}
+
+void __cpuinit numa_clear_node(int cpu)
+{
+	numa_set_node(cpu, NUMA_NO_NODE);
+}
+
+#ifndef CONFIG_DEBUG_PER_CPU_MAPS
+
+void __cpuinit numa_add_cpu(int cpu)
+{
+	cpu_set(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+}
+
+void __cpuinit numa_remove_cpu(int cpu)
+{
+	cpu_clear(cpu, node_to_cpumask_map[cpu_to_node(cpu)]);
+}
+
+#else /* CONFIG_DEBUG_PER_CPU_MAPS */
+
+/*
+ * --------- debug versions of the numa functions ---------
+ */
+static void __cpuinit numa_set_cpumask(int cpu, int enable)
+{
+	int node = cpu_to_node(cpu);
+	cpumask_t *mask;
+	char buf[64];
+
+	if (node_to_cpumask_map == NULL) {
+		printk(KERN_ERR "node_to_cpumask_map NULL\n");
+		dump_stack();
+		return;
+	}
+
+	mask = &node_to_cpumask_map[node];
+	if (enable)
+		cpu_set(cpu, *mask);
+	else
+		cpu_clear(cpu, *mask);
+
+	cpulist_scnprintf(buf, sizeof(buf), *mask);
+	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
+		enable? "numa_add_cpu":"numa_remove_cpu", cpu, node, buf);
+ }
+
+void __cpuinit numa_add_cpu(int cpu)
+{
+	numa_set_cpumask(cpu, 1);
+}
+
+void __cpuinit numa_remove_cpu(int cpu)
+{
+	numa_set_cpumask(cpu, 0);
+}
+
+int cpu_to_node(int cpu)
+{
+	if (early_per_cpu_ptr(x86_cpu_to_node_map)) {
+		printk(KERN_WARNING
+			"cpu_to_node(%d): usage too early!\n", cpu);
+		dump_stack();
+		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+	}
+	return per_cpu(x86_cpu_to_node_map, cpu);
+}
+EXPORT_SYMBOL(cpu_to_node);
+
+/*
+ * Same function as cpu_to_node() but used if called before the
+ * per_cpu areas are setup.
+ */
+int early_cpu_to_node(int cpu)
+{
+	if (early_per_cpu_ptr(x86_cpu_to_node_map))
+		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+
+	if (!per_cpu_offset(cpu)) {
+		printk(KERN_WARNING
+			"early_cpu_to_node(%d): no per_cpu area!\n", cpu);
+		dump_stack();
+		return NUMA_NO_NODE;
+	}
+	return per_cpu(x86_cpu_to_node_map, cpu);
+}
+
+/*
+ * Returns a pointer to the bitmask of CPUs on Node 'node'.
+ */
+cpumask_t *_node_to_cpumask_ptr(int node)
+{
+	if (node_to_cpumask_map == NULL) {
+		printk(KERN_WARNING
+			"_node_to_cpumask_ptr(%d): no node_to_cpumask_map!\n",
+			node);
+		dump_stack();
+		return &cpu_online_map;
+	}
+	BUG_ON(node >= nr_node_ids);
+	return &node_to_cpumask_map[node];
+}
+EXPORT_SYMBOL(_node_to_cpumask_ptr);
+
+/*
+ * Returns a bitmask of CPUs on Node 'node'.
+ */
+cpumask_t node_to_cpumask(int node)
+{
+	if (node_to_cpumask_map == NULL) {
+		printk(KERN_WARNING
+			"node_to_cpumask(%d): no node_to_cpumask_map!\n", node);
+		dump_stack();
+		return cpu_online_map;
+	}
+	BUG_ON(node >= nr_node_ids);
+	return node_to_cpumask_map[node];
+}
+EXPORT_SYMBOL(node_to_cpumask);
+
+/*
+ * --------- end of debug versions of the numa functions ---------
+ */
+
+#endif /* CONFIG_DEBUG_PER_CPU_MAPS */
+
+#endif /* X86_64_NUMA */

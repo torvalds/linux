@@ -659,18 +659,6 @@ static void set_mca_bus(int x)
 static void set_mca_bus(int x) { }
 #endif
 
-#ifdef CONFIG_NUMA
-/*
- * In the golden day, when everything among i386 and x86_64 will be
- * integrated, this will not live here
- */
-void *x86_cpu_to_node_map_early_ptr;
-int x86_cpu_to_node_map_init[NR_CPUS] = {
-	[0 ... NR_CPUS-1] = NUMA_NO_NODE
-};
-DEFINE_PER_CPU(int, x86_cpu_to_node_map) = NUMA_NO_NODE;
-#endif
-
 static void probe_roms(void);
 
 /*
@@ -865,18 +853,6 @@ void __init setup_arch(char **cmdline_p)
 	zone_sizes_init();
 
 	paravirt_post_allocator_init();
-
-#ifdef CONFIG_X86_SMP
-	/*
-	 * setup to use the early static init tables during kernel startup
-	 * X86_SMP will exclude sub-arches that don't deal well with it.
-	 */
-	x86_cpu_to_apicid_early_ptr = (void *)x86_cpu_to_apicid_init;
-	x86_bios_cpu_apicid_early_ptr = (void *)x86_bios_cpu_apicid_init;
-#ifdef CONFIG_NUMA
-	x86_cpu_to_node_map_early_ptr = (void *)x86_cpu_to_node_map_init;
-#endif
-#endif
 
 #ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
