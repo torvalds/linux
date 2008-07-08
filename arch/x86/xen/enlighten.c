@@ -46,7 +46,6 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/reboot.h>
-#include <asm/pgalloc.h>
 
 #include "xen-ops.h"
 #include "mmu.h"
@@ -711,29 +710,57 @@ static void set_current_cr3(void *v)
 	x86_write_percpu(xen_current_cr3, (unsigned long)v);
 }
 
-static void xen_write_cr3(unsigned long cr3)
+static void __xen_write_cr3(bool kernel, unsigned long cr3)
 {
 	struct mmuext_op *op;
 	struct multicall_space mcs;
-	unsigned long mfn = pfn_to_mfn(PFN_DOWN(cr3));
+	unsigned long mfn;
 
+	if (cr3)
+		mfn = pfn_to_mfn(PFN_DOWN(cr3));
+	else
+		mfn = 0;
+
+	WARN_ON(mfn == 0 && kernel);
+
+	mcs = __xen_mc_entry(sizeof(*op));
+
+	op = mcs.args;
+	op->cmd = kernel ? MMUEXT_NEW_BASEPTR : MMUEXT_NEW_USER_BASEPTR;
+	op->arg1.mfn = mfn;
+
+	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+
+	if (kernel) {
+		x86_write_percpu(xen_cr3, cr3);
+
+		/* Update xen_current_cr3 once the batch has actually
+		   been submitted. */
+		xen_mc_callback(set_current_cr3, (void *)cr3);
+	}
+}
+
+static void xen_write_cr3(unsigned long cr3)
+{
 	BUG_ON(preemptible());
 
-	mcs = xen_mc_entry(sizeof(*op));  /* disables interrupts */
+	xen_mc_batch();  /* disables interrupts */
 
 	/* Update while interrupts are disabled, so its atomic with
 	   respect to ipis */
 	x86_write_percpu(xen_cr3, cr3);
 
-	op = mcs.args;
-	op->cmd = MMUEXT_NEW_BASEPTR;
-	op->arg1.mfn = mfn;
+	__xen_write_cr3(true, cr3);
 
-	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
-
-	/* Update xen_update_cr3 once the batch has actually
-	   been submitted. */
-	xen_mc_callback(set_current_cr3, (void *)cr3);
+#ifdef CONFIG_X86_64
+	{
+		pgd_t *user_pgd = xen_get_user_pgd(__va(cr3));
+		if (user_pgd)
+			__xen_write_cr3(false, __pa(user_pgd));
+		else
+			__xen_write_cr3(false, 0);
+	}
+#endif
 
 	xen_mc_issue(PARAVIRT_LAZY_CPU);  /* interrupts restored */
 }
@@ -792,6 +819,40 @@ static void xen_alloc_pte(struct mm_struct *mm, u32 pfn)
 static void xen_alloc_pmd(struct mm_struct *mm, u32 pfn)
 {
 	xen_alloc_ptpage(mm, pfn, PT_PMD);
+}
+
+static int xen_pgd_alloc(struct mm_struct *mm)
+{
+	pgd_t *pgd = mm->pgd;
+	int ret = 0;
+
+	BUG_ON(PagePinned(virt_to_page(pgd)));
+
+#ifdef CONFIG_X86_64
+	{
+		struct page *page = virt_to_page(pgd);
+
+		BUG_ON(page->private != 0);
+
+		page->private = __get_free_page(GFP_KERNEL | __GFP_ZERO);
+		if (page->private == 0)
+			ret = -ENOMEM;
+
+		BUG_ON(PagePinned(virt_to_page(xen_get_user_pgd(pgd))));
+	}
+#endif
+
+	return ret;
+}
+
+static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+#ifdef CONFIG_X86_64
+	pgd_t *user_pgd = xen_get_user_pgd(pgd);
+
+	if (user_pgd)
+		free_page((unsigned long)user_pgd);
+#endif
 }
 
 /* This should never happen until we're OK to use struct page */
@@ -1168,8 +1229,8 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.pte_update = paravirt_nop,
 	.pte_update_defer = paravirt_nop,
 
-	.pgd_alloc = __paravirt_pgd_alloc,
-	.pgd_free = paravirt_nop,
+	.pgd_alloc = xen_pgd_alloc,
+	.pgd_free = xen_pgd_free,
 
 	.alloc_pte = xen_alloc_pte_init,
 	.release_pte = xen_release_pte_init,
@@ -1480,7 +1541,15 @@ static __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pf
 
 	/* Switch over */
 	pgd = init_level4_pgt;
-	xen_write_cr3(__pa(pgd));
+
+	/*
+	 * At this stage there can be no user pgd, and no page
+	 * structure to attach it to, so make sure we just set kernel
+	 * pgd.
+	 */
+	xen_mc_batch();
+	__xen_write_cr3(true, __pa(pgd));
+	xen_mc_issue(PARAVIRT_LAZY_CPU);
 
 	reserve_early(__pa(xen_start_info->pt_base),
 		      __pa(xen_start_info->pt_base +

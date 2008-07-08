@@ -51,6 +51,8 @@ void xen_set_pgd(pgd_t *pgdp, pgd_t pgd);
 void xen_set_pgd_hyper(pgd_t *pgdp, pgd_t pgd);
 #endif
 
+pgd_t *xen_get_user_pgd(pgd_t *pgd);
+
 pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
 void  xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, pte_t pte);

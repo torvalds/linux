@@ -58,6 +58,13 @@
 #include "multicalls.h"
 #include "mmu.h"
 
+/*
+ * Just beyond the highest usermode address.  STACK_TOP_MAX has a
+ * redzone above it, so round it up to a PGD boundary.
+ */
+#define USER_LIMIT	((STACK_TOP_MAX + PGDIR_SIZE - 1) & PGDIR_MASK)
+
+
 #define P2M_ENTRIES_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long))
 #define TOP_ENTRIES		(MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE)
 
@@ -461,17 +468,45 @@ pud_t xen_make_pud(pudval_t pud)
 	return native_make_pud(pud);
 }
 
-void xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
+pgd_t *xen_get_user_pgd(pgd_t *pgd)
+{
+	pgd_t *pgd_page = (pgd_t *)(((unsigned long)pgd) & PAGE_MASK);
+	unsigned offset = pgd - pgd_page;
+	pgd_t *user_ptr = NULL;
+
+	if (offset < pgd_index(USER_LIMIT)) {
+		struct page *page = virt_to_page(pgd_page);
+		user_ptr = (pgd_t *)page->private;
+		if (user_ptr)
+			user_ptr += offset;
+	}
+
+	return user_ptr;
+}
+
+static void __xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
 {
 	struct mmu_update u;
-
-	preempt_disable();
-
-	xen_mc_batch();
 
 	u.ptr = virt_to_machine(ptr).maddr;
 	u.val = pgd_val_ma(val);
 	extend_mmu_update(&u);
+}
+
+/*
+ * Raw hypercall-based set_pgd, intended for in early boot before
+ * there's a page structure.  This implies:
+ *  1. The only existing pagetable is the kernel's
+ *  2. It is always pinned
+ *  3. It has no user pagetable attached to it
+ */
+void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
+{
+	preempt_disable();
+
+	xen_mc_batch();
+
+	__xen_set_pgd_hyper(ptr, val);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
@@ -480,14 +515,28 @@ void xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
 
 void xen_set_pgd(pgd_t *ptr, pgd_t val)
 {
+	pgd_t *user_ptr = xen_get_user_pgd(ptr);
+
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!page_pinned(ptr)) {
 		*ptr = val;
+		if (user_ptr) {
+			WARN_ON(page_pinned(user_ptr));
+			*user_ptr = val;
+		}
 		return;
 	}
 
-	xen_set_pgd_hyper(ptr, val);
+	/* If it's pinned, then we can at least batch the kernel and
+	   user updates together. */
+	xen_mc_batch();
+
+	__xen_set_pgd_hyper(ptr, val);
+	if (user_ptr)
+		__xen_set_pgd_hyper(user_ptr, val);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 #endif	/* PAGETABLE_LEVELS == 4 */
 
@@ -526,7 +575,7 @@ static int pgd_walk(pgd_t *pgd, int (*func)(struct page *, enum pt_level),
 	 * space, which contains the Xen mappings.  On 32-bit these
 	 * will end up making a zero-sized hole and so is a no-op.
 	 */
-	hole_low = pgd_index(STACK_TOP_MAX + PGDIR_SIZE - 1);
+	hole_low = pgd_index(USER_LIMIT);
 	hole_high = pgd_index(PAGE_OFFSET);
 
 	pgdidx_limit = pgd_index(limit);
@@ -670,19 +719,31 @@ void xen_pgd_pin(pgd_t *pgd)
 {
 	xen_mc_batch();
 
-	if (pgd_walk(pgd, pin_page, TASK_SIZE)) {
+	if (pgd_walk(pgd, pin_page, USER_LIMIT)) {
 		/* re-enable interrupts for kmap_flush_unused */
 		xen_mc_issue(0);
 		kmap_flush_unused();
 		xen_mc_batch();
 	}
 
+#ifdef CONFIG_X86_64
+	{
+		pgd_t *user_pgd = xen_get_user_pgd(pgd);
+
+		xen_do_pin(MMUEXT_PIN_L4_TABLE, PFN_DOWN(__pa(pgd)));
+
+		if (user_pgd) {
+			pin_page(virt_to_page(user_pgd), PT_PGD);
+			xen_do_pin(MMUEXT_PIN_L4_TABLE, PFN_DOWN(__pa(user_pgd)));
+		}
+	}
+#else /* CONFIG_X86_32 */
 #ifdef CONFIG_X86_PAE
 	/* Need to make sure unshared kernel PMD is pinnable */
 	pin_page(virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])), PT_PMD);
 #endif
-
 	xen_do_pin(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(pgd)));
+#endif /* CONFIG_X86_64 */
 	xen_mc_issue(0);
 }
 
@@ -763,11 +824,23 @@ static void xen_pgd_unpin(pgd_t *pgd)
 
 	xen_do_pin(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
 
+#ifdef CONFIG_X86_64
+	{
+		pgd_t *user_pgd = xen_get_user_pgd(pgd);
+
+		if (user_pgd) {
+			xen_do_pin(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(user_pgd)));
+			unpin_page(virt_to_page(user_pgd), PT_PGD);
+		}
+	}
+#endif
+
 #ifdef CONFIG_X86_PAE
 	/* Need to make sure unshared kernel PMD is unpinned */
 	pin_page(virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])), PT_PMD);
 #endif
-	pgd_walk(pgd, unpin_page, TASK_SIZE);
+
+	pgd_walk(pgd, unpin_page, USER_LIMIT);
 
 	xen_mc_issue(0);
 }
