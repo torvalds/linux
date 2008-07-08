@@ -1566,9 +1566,9 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 	int max_frame = new_mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
 	int old_max_frame = netdev->mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
 
-
-	if((max_frame < IXGB_MIN_ENET_FRAME_SIZE_WITHOUT_FCS + ENET_FCS_LENGTH)
-	   || (max_frame > IXGB_MAX_JUMBO_FRAME_SIZE + ENET_FCS_LENGTH)) {
+	/* MTU < 68 is an error for IPv4 traffic, just don't allow it */
+	if ((new_mtu < 68) ||
+	    (max_frame > IXGB_MAX_JUMBO_FRAME_SIZE + ENET_FCS_LENGTH)) {
 		DPRINTK(PROBE, ERR, "Invalid MTU setting %d\n", new_mtu);
 		return -EINVAL;
 	}
