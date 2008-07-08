@@ -560,7 +560,7 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 	hw->subsystem_id = pdev->subsystem_device;
 
 	hw->max_frame_size = netdev->mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
-	adapter->rx_buffer_len = hw->max_frame_size;
+	adapter->rx_buffer_len = hw->max_frame_size + 8; /* + 8 for errata */
 
 	if((hw->device_id == IXGB_DEVICE_ID_82597EX)
 	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_CX4)
@@ -1573,7 +1573,7 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
-	adapter->rx_buffer_len = max_frame;
+	adapter->rx_buffer_len = max_frame + 8; /* + 8 for errata */
 
 	netdev->mtu = new_mtu;
 
