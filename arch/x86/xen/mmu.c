@@ -186,7 +186,7 @@ xmaddr_t arbitrary_virt_to_machine(unsigned long address)
 
 	BUG_ON(pte == NULL);
 
-	return XMADDR((pte_mfn(*pte) << PAGE_SHIFT) + offset);
+	return XMADDR(((phys_addr_t)pte_mfn(*pte) << PAGE_SHIFT) + offset);
 }
 
 void make_lowmem_page_readonly(void *vaddr)
