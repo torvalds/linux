@@ -26,21 +26,34 @@
 #include <asm/io.h>
 
 #ifdef CONFIG_X86_PAT
-int __read_mostly pat_wc_enabled = 1;
+int __read_mostly pat_enabled = 1;
 
 void __cpuinit pat_disable(char *reason)
 {
-	pat_wc_enabled = 0;
+	pat_enabled = 0;
 	printk(KERN_INFO "%s\n", reason);
 }
 
-static int nopat(char *str)
+static int __init nopat(char *str)
 {
 	pat_disable("PAT support disabled.");
 	return 0;
 }
 early_param("nopat", nopat);
 #endif
+
+
+static int debug_enable;
+static int __init pat_debug_setup(char *str)
+{
+	debug_enable = 1;
+	return 0;
+}
+__setup("debugpat", pat_debug_setup);
+
+#define dprintk(fmt, arg...) \
+	do { if (debug_enable) printk(KERN_INFO fmt, ##arg); } while (0)
+
 
 static u64 __read_mostly boot_pat_state;
 
@@ -53,24 +66,25 @@ enum {
 	PAT_UC_MINUS = 7,	/* UC, but can be overriden by MTRR */
 };
 
-#define PAT(x,y)	((u64)PAT_ ## y << ((x)*8))
+#define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
 
 void pat_init(void)
 {
 	u64 pat;
 
-	if (!pat_wc_enabled)
+	if (!pat_enabled)
 		return;
 
 	/* Paranoia check. */
-	if (!cpu_has_pat) {
-		printk(KERN_ERR "PAT enabled, but CPU feature cleared\n");
+	if (!cpu_has_pat && boot_pat_state) {
 		/*
-		 * Panic if this happens on the secondary CPU, and we
+		 * If this happens we are on a secondary CPU, but
 		 * switched to PAT on the boot CPU. We have no way to
 		 * undo PAT.
-		*/
-		BUG_ON(boot_pat_state);
+		 */
+		printk(KERN_ERR "PAT enabled, "
+		       "but not supported by secondary CPU\n");
+		BUG();
 	}
 
 	/* Set PWT to Write-Combining. All other bits stay the same */
@@ -86,8 +100,8 @@ void pat_init(void)
 	 *      011 UC		_PAGE_CACHE_UC
 	 * PAT bit unused
 	 */
-	pat = PAT(0,WB) | PAT(1,WC) | PAT(2,UC_MINUS) | PAT(3,UC) |
-	      PAT(4,WB) | PAT(5,WC) | PAT(6,UC_MINUS) | PAT(7,UC);
+	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
 
 	/* Boot CPU check */
 	if (!boot_pat_state)
@@ -103,11 +117,11 @@ void pat_init(void)
 static char *cattr_name(unsigned long flags)
 {
 	switch (flags & _PAGE_CACHE_MASK) {
-		case _PAGE_CACHE_UC:		return "uncached";
-		case _PAGE_CACHE_UC_MINUS:	return "uncached-minus";
-		case _PAGE_CACHE_WB:		return "write-back";
-		case _PAGE_CACHE_WC:		return "write-combining";
-		default:			return "broken";
+	case _PAGE_CACHE_UC:		return "uncached";
+	case _PAGE_CACHE_UC_MINUS:	return "uncached-minus";
+	case _PAGE_CACHE_WB:		return "write-back";
+	case _PAGE_CACHE_WC:		return "write-combining";
+	default:			return "broken";
 	}
 }
 
@@ -145,46 +159,50 @@ static DEFINE_SPINLOCK(memtype_lock); 	/* protects memtype list */
  * The intersection is based on "Effective Memory Type" tables in IA-32
  * SDM vol 3a
  */
-static int pat_x_mtrr_type(u64 start, u64 end, unsigned long prot,
-				unsigned long *ret_prot)
+static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 {
-	unsigned long pat_type;
-	u8 mtrr_type;
+	/*
+	 * Look for MTRR hint to get the effective type in case where PAT
+	 * request is for WB.
+	 */
+	if (req_type == _PAGE_CACHE_WB) {
+		u8 mtrr_type;
 
-	mtrr_type = mtrr_type_lookup(start, end);
-	if (mtrr_type == 0xFF) {		/* MTRR not enabled */
-		*ret_prot = prot;
-		return 0;
-	}
-	if (mtrr_type == 0xFE) {		/* MTRR match error */
-		*ret_prot = _PAGE_CACHE_UC;
-		return -1;
-	}
-	if (mtrr_type != MTRR_TYPE_UNCACHABLE &&
-	    mtrr_type != MTRR_TYPE_WRBACK &&
-	    mtrr_type != MTRR_TYPE_WRCOMB) {	/* MTRR type unhandled */
-		*ret_prot = _PAGE_CACHE_UC;
-		return -1;
+		mtrr_type = mtrr_type_lookup(start, end);
+		if (mtrr_type == MTRR_TYPE_UNCACHABLE)
+			return _PAGE_CACHE_UC;
+		if (mtrr_type == MTRR_TYPE_WRCOMB)
+			return _PAGE_CACHE_WC;
 	}
 
-	pat_type = prot & _PAGE_CACHE_MASK;
-	prot &= (~_PAGE_CACHE_MASK);
+	return req_type;
+}
 
-	/* Currently doing intersection by hand. Optimize it later. */
-	if (pat_type == _PAGE_CACHE_WC) {
-		*ret_prot = prot | _PAGE_CACHE_WC;
-	} else if (pat_type == _PAGE_CACHE_UC_MINUS) {
-		*ret_prot = prot | _PAGE_CACHE_UC_MINUS;
-	} else if (pat_type == _PAGE_CACHE_UC ||
-	           mtrr_type == MTRR_TYPE_UNCACHABLE) {
-		*ret_prot = prot | _PAGE_CACHE_UC;
-	} else if (mtrr_type == MTRR_TYPE_WRCOMB) {
-		*ret_prot = prot | _PAGE_CACHE_WC;
-	} else {
-		*ret_prot = prot | _PAGE_CACHE_WB;
+static int chk_conflict(struct memtype *new, struct memtype *entry,
+			unsigned long *type)
+{
+	if (new->type != entry->type) {
+		if (type) {
+			new->type = entry->type;
+			*type = entry->type;
+		} else
+			goto conflict;
 	}
 
+	 /* check overlaps with more than one entry in the list */
+	list_for_each_entry_continue(entry, &memtype_list, nd) {
+		if (new->end <= entry->start)
+			break;
+		else if (new->type != entry->type)
+			goto conflict;
+	}
 	return 0;
+
+ conflict:
+	printk(KERN_INFO "%s:%d conflicting memory types "
+	       "%Lx-%Lx %s<->%s\n", current->comm, current->pid, new->start,
+	       new->end, cattr_name(new->type), cattr_name(entry->type));
+	return -EBUSY;
 }
 
 /*
@@ -197,251 +215,134 @@ static int pat_x_mtrr_type(u64 start, u64 end, unsigned long prot,
  * req_type will have a special case value '-1', when requester want to inherit
  * the memory type from mtrr (if WB), existing PAT, defaulting to UC_MINUS.
  *
- * If ret_type is NULL, function will return an error if it cannot reserve the
- * region with req_type. If ret_type is non-null, function will return
- * available type in ret_type in case of no error. In case of any error
+ * If new_type is NULL, function will return an error if it cannot reserve the
+ * region with req_type. If new_type is non-NULL, function will return
+ * available type in new_type in case of no error. In case of any error
  * it will return a negative return value.
  */
 int reserve_memtype(u64 start, u64 end, unsigned long req_type,
-			unsigned long *ret_type)
+			unsigned long *new_type)
 {
-	struct memtype *new_entry = NULL;
-	struct memtype *parse;
+	struct memtype *new, *entry;
 	unsigned long actual_type;
+	struct list_head *where;
 	int err = 0;
 
-	/* Only track when pat_wc_enabled */
-	if (!pat_wc_enabled) {
+ 	BUG_ON(start >= end); /* end is exclusive */
+
+	if (!pat_enabled) {
 		/* This is identical to page table setting without PAT */
-		if (ret_type) {
-			if (req_type == -1) {
-				*ret_type = _PAGE_CACHE_WB;
-			} else {
-				*ret_type = req_type;
-			}
+		if (new_type) {
+			if (req_type == -1)
+				*new_type = _PAGE_CACHE_WB;
+			else
+				*new_type = req_type & _PAGE_CACHE_MASK;
 		}
 		return 0;
 	}
 
 	/* Low ISA region is always mapped WB in page table. No need to track */
-	if (start >= ISA_START_ADDRESS && (end - 1) <= ISA_END_ADDRESS) {
-		if (ret_type)
-			*ret_type = _PAGE_CACHE_WB;
-
+	if (is_ISA_range(start, end - 1)) {
+		if (new_type)
+			*new_type = _PAGE_CACHE_WB;
 		return 0;
 	}
 
 	if (req_type == -1) {
 		/*
-		 * Special case where caller wants to inherit from mtrr or
-		 * existing pat mapping, defaulting to UC_MINUS in case of
-		 * no match.
+		 * Call mtrr_lookup to get the type hint. This is an
+		 * optimization for /dev/mem mmap'ers into WB memory (BIOS
+		 * tools and ACPI tools). Use WB request for WB memory and use
+		 * UC_MINUS otherwise.
 		 */
 		u8 mtrr_type = mtrr_type_lookup(start, end);
-		if (mtrr_type == 0xFE) { /* MTRR match error */
-			err = -1;
-		}
 
-		if (mtrr_type == MTRR_TYPE_WRBACK) {
-			req_type = _PAGE_CACHE_WB;
+		if (mtrr_type == MTRR_TYPE_WRBACK)
 			actual_type = _PAGE_CACHE_WB;
-		} else {
-			req_type = _PAGE_CACHE_UC_MINUS;
+		else
 			actual_type = _PAGE_CACHE_UC_MINUS;
-		}
-	} else {
-		req_type &= _PAGE_CACHE_MASK;
-		err = pat_x_mtrr_type(start, end, req_type, &actual_type);
-	}
+	} else
+		actual_type = pat_x_mtrr_type(start, end,
+					      req_type & _PAGE_CACHE_MASK);
 
-	if (err) {
-		if (ret_type)
-			*ret_type = actual_type;
-
-		return -EINVAL;
-	}
-
-	new_entry  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
-	if (!new_entry)
+	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
+	if (!new)
 		return -ENOMEM;
 
-	new_entry->start = start;
-	new_entry->end = end;
-	new_entry->type = actual_type;
+	new->start = start;
+	new->end = end;
+	new->type = actual_type;
 
-	if (ret_type)
-		*ret_type = actual_type;
+	if (new_type)
+		*new_type = actual_type;
 
 	spin_lock(&memtype_lock);
 
 	/* Search for existing mapping that overlaps the current range */
-	list_for_each_entry(parse, &memtype_list, nd) {
-		struct memtype *saved_ptr;
-
-		if (parse->start >= end) {
-			pr_debug("New Entry\n");
-			list_add(&new_entry->nd, parse->nd.prev);
-			new_entry = NULL;
+	where = NULL;
+	list_for_each_entry(entry, &memtype_list, nd) {
+		if (end <= entry->start) {
+			where = entry->nd.prev;
 			break;
-		}
-
-		if (start <= parse->start && end >= parse->start) {
-			if (actual_type != parse->type && ret_type) {
-				actual_type = parse->type;
-				*ret_type = actual_type;
-				new_entry->type = actual_type;
+		} else if (start <= entry->start) { /* end > entry->start */
+			err = chk_conflict(new, entry, new_type);
+			if (!err) {
+				dprintk("Overlap at 0x%Lx-0x%Lx\n",
+					entry->start, entry->end);
+				where = entry->nd.prev;
 			}
-
-			if (actual_type != parse->type) {
-				printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-					current->comm, current->pid,
-					start, end,
-					cattr_name(actual_type),
-					cattr_name(parse->type));
-				err = -EBUSY;
-				break;
-			}
-
-			saved_ptr = parse;
-			/*
-			 * Check to see whether the request overlaps more
-			 * than one entry in the list
-			 */
-			list_for_each_entry_continue(parse, &memtype_list, nd) {
-				if (end <= parse->start) {
-					break;
-				}
-
-				if (actual_type != parse->type) {
-					printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-						current->comm, current->pid,
-						start, end,
-						cattr_name(actual_type),
-						cattr_name(parse->type));
-					err = -EBUSY;
-					break;
-				}
-			}
-
-			if (err) {
-				break;
-			}
-
-			pr_debug("Overlap at 0x%Lx-0x%Lx\n",
-			       saved_ptr->start, saved_ptr->end);
-			/* No conflict. Go ahead and add this new entry */
-			list_add(&new_entry->nd, saved_ptr->nd.prev);
-			new_entry = NULL;
 			break;
-		}
-
-		if (start < parse->end) {
-			if (actual_type != parse->type && ret_type) {
-				actual_type = parse->type;
-				*ret_type = actual_type;
-				new_entry->type = actual_type;
+		} else if (start < entry->end) { /* start > entry->start */
+			err = chk_conflict(new, entry, new_type);
+			if (!err) {
+				dprintk("Overlap at 0x%Lx-0x%Lx\n",
+					entry->start, entry->end);
+				where = &entry->nd;
 			}
-
-			if (actual_type != parse->type) {
-				printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-					current->comm, current->pid,
-					start, end,
-					cattr_name(actual_type),
-					cattr_name(parse->type));
-				err = -EBUSY;
-				break;
-			}
-
-			saved_ptr = parse;
-			/*
-			 * Check to see whether the request overlaps more
-			 * than one entry in the list
-			 */
-			list_for_each_entry_continue(parse, &memtype_list, nd) {
-				if (end <= parse->start) {
-					break;
-				}
-
-				if (actual_type != parse->type) {
-					printk(
-		KERN_INFO "%s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
-						current->comm, current->pid,
-						start, end,
-						cattr_name(actual_type),
-						cattr_name(parse->type));
-					err = -EBUSY;
-					break;
-				}
-			}
-
-			if (err) {
-				break;
-			}
-
-			pr_debug(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
-				 saved_ptr->start, saved_ptr->end);
-			/* No conflict. Go ahead and add this new entry */
-			list_add(&new_entry->nd, &saved_ptr->nd);
-			new_entry = NULL;
 			break;
 		}
 	}
 
 	if (err) {
-		printk(KERN_INFO
-	"reserve_memtype failed 0x%Lx-0x%Lx, track %s, req %s\n",
-			start, end, cattr_name(new_entry->type),
-			cattr_name(req_type));
-		kfree(new_entry);
+		printk(KERN_INFO "reserve_memtype failed 0x%Lx-0x%Lx, "
+		       "track %s, req %s\n",
+		       start, end, cattr_name(new->type), cattr_name(req_type));
+		kfree(new);
 		spin_unlock(&memtype_lock);
 		return err;
 	}
 
-	if (new_entry) {
-		/* No conflict. Not yet added to the list. Add to the tail */
-		list_add_tail(&new_entry->nd, &memtype_list);
-		pr_debug("New Entry\n");
-	}
-
-	if (ret_type) {
-		pr_debug(
-	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
-			start, end, cattr_name(actual_type),
-			cattr_name(req_type), cattr_name(*ret_type));
-	} else {
-		pr_debug(
-	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s\n",
-			start, end, cattr_name(actual_type),
-			cattr_name(req_type));
-	}
+	if (where)
+		list_add(&new->nd, where);
+	else
+		list_add_tail(&new->nd, &memtype_list);
 
 	spin_unlock(&memtype_lock);
+
+	dprintk("reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
+		start, end, cattr_name(new->type), cattr_name(req_type),
+		new_type ? cattr_name(*new_type) : "-");
+
 	return err;
 }
 
 int free_memtype(u64 start, u64 end)
 {
-	struct memtype *ml;
+	struct memtype *entry;
 	int err = -EINVAL;
 
-	/* Only track when pat_wc_enabled */
-	if (!pat_wc_enabled) {
+	if (!pat_enabled)
 		return 0;
-	}
 
 	/* Low ISA region is always mapped WB. No need to track */
-	if (start >= ISA_START_ADDRESS && end <= ISA_END_ADDRESS) {
+	if (is_ISA_range(start, end - 1))
 		return 0;
-	}
 
 	spin_lock(&memtype_lock);
-	list_for_each_entry(ml, &memtype_list, nd) {
-		if (ml->start == start && ml->end == end) {
-			list_del(&ml->nd);
-			kfree(ml);
+	list_for_each_entry(entry, &memtype_list, nd) {
+		if (entry->start == start && entry->end == end) {
+			list_del(&entry->nd);
+			kfree(entry);
 			err = 0;
 			break;
 		}
@@ -453,7 +354,7 @@ int free_memtype(u64 start, u64 end)
 			current->comm, current->pid, start, end);
 	}
 
-	pr_debug("free_memtype request 0x%Lx-0x%Lx\n", start, end);
+	dprintk("free_memtype request 0x%Lx-0x%Lx\n", start, end);
 	return err;
 }
 
@@ -522,12 +423,12 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	 * caching for the high addresses through the KEN pin, but
 	 * we maintain the tradition of paranoia in this code.
 	 */
-	if (!pat_wc_enabled &&
-	    ! ( test_bit(X86_FEATURE_MTRR, boot_cpu_data.x86_capability) ||
-		test_bit(X86_FEATURE_K6_MTRR, boot_cpu_data.x86_capability) ||
-		test_bit(X86_FEATURE_CYRIX_ARR, boot_cpu_data.x86_capability) ||
-		test_bit(X86_FEATURE_CENTAUR_MCR, boot_cpu_data.x86_capability)) &&
-	   (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
+	if (!pat_enabled &&
+	    !(boot_cpu_has(X86_FEATURE_MTRR) ||
+	      boot_cpu_has(X86_FEATURE_K6_MTRR) ||
+	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
+	      boot_cpu_has(X86_FEATURE_CENTAUR_MCR)) &&
+	    (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
 		flags = _PAGE_CACHE_UC;
 	}
 #endif
@@ -549,7 +450,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 		return 0;
 
 	if (pfn <= max_pfn_mapped &&
-            ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
+	    ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
 		free_memtype(offset, offset + size);
 		printk(KERN_INFO
 		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
@@ -587,4 +488,3 @@ void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 
 	free_memtype(addr, addr + size);
 }
-

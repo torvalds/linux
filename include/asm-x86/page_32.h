@@ -13,8 +13,17 @@
  */
 #define __PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
 
+#ifdef CONFIG_4KSTACKS
+#define THREAD_ORDER	0
+#else
+#define THREAD_ORDER	1
+#endif
+#define THREAD_SIZE 	(PAGE_SIZE << THREAD_ORDER)
+
+
 #ifdef CONFIG_X86_PAE
-#define __PHYSICAL_MASK_SHIFT	36
+/* 44=32+12, the limit we can fit into an unsigned long pfn */
+#define __PHYSICAL_MASK_SHIFT	44
 #define __VIRTUAL_MASK_SHIFT	32
 #define PAGETABLE_LEVELS	3
 

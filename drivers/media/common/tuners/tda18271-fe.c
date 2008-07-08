@@ -45,6 +45,21 @@ static inline int charge_pump_source(struct dvb_frontend *fe, int force)
 					   TDA18271_MAIN_PLL, force);
 }
 
+static inline void tda18271_set_if_notch(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	switch (priv->mode) {
+	case TDA18271_ANALOG:
+		regs[R_MPD]  &= ~0x80; /* IF notch = 0 */
+		break;
+	case TDA18271_DIGITAL:
+		regs[R_MPD]  |= 0x80; /* IF notch = 1 */
+		break;
+	}
+}
+
 static int tda18271_channel_configuration(struct dvb_frontend *fe,
 					  struct tda18271_std_map_item *map,
 					  u32 freq, u32 bw)
@@ -60,24 +75,17 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	regs[R_EP3]  &= ~0x1f; /* clear std bits */
 	regs[R_EP3]  |= (map->agc_mode << 3) | map->std;
 
-	/* set rfagc to high speed mode */
-	regs[R_EP3] &= ~0x04;
+	if (priv->id == TDA18271HDC2) {
+		/* set rfagc to high speed mode */
+		regs[R_EP3] &= ~0x04;
+	}
 
 	/* set cal mode to normal */
 	regs[R_EP4]  &= ~0x03;
 
-	/* update IF output level & IF notch frequency */
+	/* update IF output level */
 	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
 	regs[R_EP4]  |= (map->if_lvl << 2);
-
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_MPD]  &= ~0x80; /* IF notch = 0 */
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_MPD]  |= 0x80; /* IF notch = 1 */
-		break;
-	}
 
 	/* update FM_RFn */
 	regs[R_EP4]  &= ~0x80;
@@ -94,6 +102,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	/* disable Power Level Indicator */
 	regs[R_EP1]  |= 0x40;
+
+	/* make sure thermometer is off */
+	regs[R_TM]   &= ~0x10;
 
 	/* frequency dependent parameters */
 
@@ -135,6 +146,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	switch (priv->role) {
 	case TDA18271_MASTER:
 		tda18271_calc_main_pll(fe, N);
+		tda18271_set_if_notch(fe);
 		tda18271_write_regs(fe, R_MPD, 4);
 		break;
 	case TDA18271_SLAVE:
@@ -142,6 +154,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		tda18271_write_regs(fe, R_CPD, 4);
 
 		regs[R_MPD] = regs[R_CPD] & 0x7f;
+		tda18271_set_if_notch(fe);
 		tda18271_write_regs(fe, R_MPD, 1);
 		break;
 	}
@@ -160,12 +173,14 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	msleep(20);
 
-	/* set rfagc to normal speed mode */
-	if (map->fm_rfn)
-		regs[R_EP3] &= ~0x04;
-	else
-		regs[R_EP3] |= 0x04;
-	ret = tda18271_write_regs(fe, R_EP3, 1);
+	if (priv->id == TDA18271HDC2) {
+		/* set rfagc to normal speed mode */
+		if (map->fm_rfn)
+			regs[R_EP3] &= ~0x04;
+		else
+			regs[R_EP3] |= 0x04;
+		ret = tda18271_write_regs(fe, R_EP3, 1);
+	}
 fail:
 	return ret;
 }
@@ -507,7 +522,7 @@ static int tda18271_powerscan_init(struct dvb_frontend *fe)
 	/* set cal mode to normal */
 	regs[R_EP4]  &= ~0x03;
 
-	/* update IF output level & IF notch frequency */
+	/* update IF output level */
 	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
 
 	ret = tda18271_write_regs(fe, R_EP3, 2);

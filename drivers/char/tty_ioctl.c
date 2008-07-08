@@ -981,15 +981,8 @@ EXPORT_SYMBOL_GPL(tty_perform_flush);
 int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	struct tty_struct *real_tty;
 	unsigned long flags;
 	int retval;
-
-	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
-	    tty->driver->subtype == PTY_TYPE_MASTER)
-		real_tty = tty->link;
-	else
-		real_tty = tty;
 
 	switch (cmd) {
 	case TCXONC:

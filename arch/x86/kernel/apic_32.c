@@ -64,9 +64,8 @@ static int enable_local_apic __initdata;
 
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;
-/* Disable local APIC timer from the kernel commandline or via dmi quirk
-   or using CPU MSR check */
-int local_apic_timer_disabled;
+/* Disable local APIC timer from the kernel commandline or via dmi quirk */
+static int local_apic_timer_disabled;
 /* Local APIC timer works in C2 */
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
@@ -1154,9 +1153,6 @@ static int __init detect_init_APIC(void)
 	if (l & MSR_IA32_APICBASE_ENABLE)
 		mp_lapic_addr = l & MSR_IA32_APICBASE_BASE;
 
-	if (nmi_watchdog != NMI_NONE && nmi_watchdog != NMI_DISABLED)
-		nmi_watchdog = NMI_LOCAL_APIC;
-
 	printk(KERN_INFO "Found and enabled local APIC!\n");
 
 	apic_pm_activate();
@@ -1269,6 +1265,10 @@ int __init APIC_init_uniprocessor(void)
 
 	setup_local_APIC();
 
+#ifdef CONFIG_X86_IO_APIC
+	if (!smp_found_config || skip_ioapic_setup || !nr_ioapics)
+#endif
+		localise_nmi_watchdog();
 	end_local_APIC_setup();
 #ifdef CONFIG_X86_IO_APIC
 	if (smp_found_config)

@@ -10,8 +10,16 @@
 
 #ifdef __KERNEL__
 
-#define PHYSICAL_PAGE_MASK	(PAGE_MASK & __PHYSICAL_MASK)
-#define PTE_MASK		(_AT(long, PHYSICAL_PAGE_MASK))
+#define __PHYSICAL_MASK		((phys_addr_t)(1ULL << __PHYSICAL_MASK_SHIFT) - 1)
+#define __VIRTUAL_MASK		((1UL << __VIRTUAL_MASK_SHIFT) - 1)
+
+/* Cast PAGE_MASK to a signed type so that it is sign-extended if
+   virtual addresses are 32-bits but physical addresses are larger
+   (ie, 32-bit PAE). */
+#define PHYSICAL_PAGE_MASK	(((signed long)PAGE_MASK) & __PHYSICAL_MASK)
+
+/* PTE_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
+#define PTE_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
 
 #define PMD_PAGE_SIZE		(_AC(1, UL) << PMD_SHIFT)
 #define PMD_PAGE_MASK		(~(PMD_PAGE_SIZE-1))
@@ -23,9 +31,6 @@
 
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
-
-#define __PHYSICAL_MASK		_AT(phys_addr_t, (_AC(1,ULL) << __PHYSICAL_MASK_SHIFT) - 1)
-#define __VIRTUAL_MASK		((_AC(1,UL) << __VIRTUAL_MASK_SHIFT) - 1)
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
@@ -46,8 +51,15 @@
 
 #ifndef __ASSEMBLY__
 
+typedef struct { pgdval_t pgd; } pgd_t;
+typedef struct { pgprotval_t pgprot; } pgprot_t;
+
 extern int page_is_ram(unsigned long pagenr);
 extern int devmem_is_allowed(unsigned long pagenr);
+extern void map_devmem(unsigned long pfn, unsigned long size,
+		       pgprot_t vma_prot);
+extern void unmap_devmem(unsigned long pfn, unsigned long size,
+			 pgprot_t vma_prot);
 
 extern unsigned long max_pfn_mapped;
 
@@ -68,9 +80,6 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 #define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
 	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
 #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
-
-typedef struct { pgdval_t pgd; } pgd_t;
-typedef struct { pgprotval_t pgprot; } pgprot_t;
 
 static inline pgd_t native_make_pgd(pgdval_t val)
 {
@@ -155,6 +164,7 @@ static inline pteval_t native_pte_val(pte_t pte)
 #endif
 
 #define pte_val(x)	native_pte_val(x)
+#define pte_flags(x)	native_pte_val(x)
 #define __pte(x)	native_make_pte(x)
 
 #endif	/* CONFIG_PARAVIRT */

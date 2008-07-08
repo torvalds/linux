@@ -27,6 +27,7 @@
 #define PCI_CAN_SKIP_ISA_ALIGN	0x8000
 #define PCI_USE__CRS		0x10000
 #define PCI_CHECK_ENABLE_AMD_MMCONF	0x20000
+#define PCI_HAS_IO_ECS		0x40000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
@@ -101,7 +102,7 @@ extern struct pci_raw_ops pci_direct_conf1;
 extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
-extern void pci_olpc_init(void);
+extern int pci_olpc_init(void);
 
 /* pci-mmconfig.c */
 

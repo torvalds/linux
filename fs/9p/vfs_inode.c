@@ -132,10 +132,10 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 /**
  * v9fs_uflags2omode- convert posix open flags to plan 9 mode bits
  * @uflags: flags to convert
- *
+ * @extended: if .u extensions are active
  */
 
-int v9fs_uflags2omode(int uflags)
+int v9fs_uflags2omode(int uflags, int extended)
 {
 	int ret;
 
@@ -155,14 +155,16 @@ int v9fs_uflags2omode(int uflags)
 		break;
 	}
 
-	if (uflags & O_EXCL)
-		ret |= P9_OEXCL;
-
 	if (uflags & O_TRUNC)
 		ret |= P9_OTRUNC;
 
-	if (uflags & O_APPEND)
-		ret |= P9_OAPPEND;
+	if (extended) {
+		if (uflags & O_EXCL)
+			ret |= P9_OEXCL;
+
+		if (uflags & O_APPEND)
+			ret |= P9_OAPPEND;
+	}
 
 	return ret;
 }
@@ -506,7 +508,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		flags = O_RDWR;
 
 	fid = v9fs_create(v9ses, dir, dentry, NULL, perm,
-						v9fs_uflags2omode(flags));
+				v9fs_uflags2omode(flags, v9fs_extended(v9ses)));
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
 		fid = NULL;

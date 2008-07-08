@@ -231,14 +231,14 @@ static void dma_post(struct ivtv_stream *s)
 	struct ivtv_buffer *buf = NULL;
 	struct list_head *p;
 	u32 offset;
-	u32 *u32buf;
+	__le32 *u32buf;
 	int x = 0;
 
 	IVTV_DEBUG_HI_DMA("%s %s completed (%x)\n", ivtv_use_pio(s) ? "PIO" : "DMA",
 			s->name, s->dma_offset);
 	list_for_each(p, &s->q_dma.list) {
 		buf = list_entry(p, struct ivtv_buffer, list);
-		u32buf = (u32 *)buf->buf;
+		u32buf = (__le32 *)buf->buf;
 
 		/* Sync Buffer */
 		ivtv_buf_sync_for_cpu(s, buf);
@@ -444,7 +444,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 	}
 
 	s->dma_xfer_cnt++;
-	memcpy(s->sg_processing, s->sg_pending, sizeof(struct ivtv_sg_element) * s->sg_pending_size);
+	memcpy(s->sg_processing, s->sg_pending, sizeof(struct ivtv_sg_host_element) * s->sg_pending_size);
 	s->sg_processing_size = s->sg_pending_size;
 	s->sg_pending_size = 0;
 	s->sg_processed = 0;
@@ -473,7 +473,7 @@ static void ivtv_dma_dec_start(struct ivtv_stream *s)
 	if (s->q_predma.bytesused)
 		ivtv_queue_move(s, &s->q_predma, NULL, &s->q_dma, s->q_predma.bytesused);
 	s->dma_xfer_cnt++;
-	memcpy(s->sg_processing, s->sg_pending, sizeof(struct ivtv_sg_element) * s->sg_pending_size);
+	memcpy(s->sg_processing, s->sg_pending, sizeof(struct ivtv_sg_host_element) * s->sg_pending_size);
 	s->sg_processing_size = s->sg_pending_size;
 	s->sg_pending_size = 0;
 	s->sg_processed = 0;

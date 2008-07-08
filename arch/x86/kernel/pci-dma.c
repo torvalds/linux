@@ -77,10 +77,14 @@ void __init dma32_reserve_bootmem(void)
 	if (end_pfn <= MAX_DMA32_PFN)
 		return;
 
+	/*
+	 * check aperture_64.c allocate_aperture() for reason about
+	 * using 512M as goal
+	 */
 	align = 64ULL<<20;
 	size = round_up(dma32_bootmem_size, align);
 	dma32_bootmem_ptr = __alloc_bootmem_nopanic(size, align,
-				 __pa(MAX_DMA_ADDRESS));
+				 512ULL<<20);
 	if (dma32_bootmem_ptr)
 		dma32_bootmem_size = size;
 	else
@@ -88,7 +92,6 @@ void __init dma32_reserve_bootmem(void)
 }
 static void __init dma32_free_bootmem(void)
 {
-	int node;
 
 	if (end_pfn <= MAX_DMA32_PFN)
 		return;
@@ -96,9 +99,7 @@ static void __init dma32_free_bootmem(void)
 	if (!dma32_bootmem_ptr)
 		return;
 
-	for_each_online_node(node)
-		free_bootmem_node(NODE_DATA(node), __pa(dma32_bootmem_ptr),
-				  dma32_bootmem_size);
+	free_bootmem(__pa(dma32_bootmem_ptr), dma32_bootmem_size);
 
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
@@ -357,7 +358,7 @@ int dma_supported(struct device *dev, u64 mask)
 EXPORT_SYMBOL(dma_supported);
 
 /* Allocate DMA memory on node near device */
-noinline struct page *
+static noinline struct page *
 dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 {
 	int node;
@@ -378,6 +379,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	struct page *page;
 	unsigned long dma_mask = 0;
 	dma_addr_t bus;
+	int noretry = 0;
 
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
@@ -397,20 +399,25 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (dev->dma_mask == NULL)
 		return NULL;
 
-	/* Don't invoke OOM killer */
-	gfp |= __GFP_NORETRY;
+	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
+	if (gfp & __GFP_DMA)
+		noretry = 1;
 
 #ifdef CONFIG_X86_64
 	/* Why <=? Even when the mask is smaller than 4GB it is often
 	   larger than 16MB and in this case we have a chance of
 	   finding fitting memory in the next higher zone first. If
 	   not retry with true GFP_DMA. -AK */
-	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA))
+	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA)) {
 		gfp |= GFP_DMA32;
+		if (dma_mask < DMA_32BIT_MASK)
+			noretry = 1;
+	}
 #endif
 
  again:
-	page = dma_alloc_pages(dev, gfp, get_order(size));
+	page = dma_alloc_pages(dev,
+		noretry ? gfp | __GFP_NORETRY : gfp, get_order(size));
 	if (page == NULL)
 		return NULL;
 

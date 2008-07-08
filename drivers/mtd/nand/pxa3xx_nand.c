@@ -1216,7 +1216,7 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 
 	clk_enable(info->clk);
 
-	return pxa3xx_nand_config_flash(info);
+	return pxa3xx_nand_config_flash(info, info->flash_info);
 }
 #else
 #define pxa3xx_nand_suspend	NULL

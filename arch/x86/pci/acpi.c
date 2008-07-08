@@ -218,7 +218,6 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	return bus;
 }
 
-extern int pci_routeirq;
 static int __init pci_acpi_init(void)
 {
 	struct pci_dev *dev = NULL;

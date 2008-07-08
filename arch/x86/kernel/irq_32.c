@@ -313,22 +313,60 @@ skip:
 				per_cpu(irq_stat,j).irq_tlb_count);
 		seq_printf(p, "  TLB shootdowns\n");
 #endif
+#ifdef CONFIG_X86_MCE
 		seq_printf(p, "TRM: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ",
 				per_cpu(irq_stat,j).irq_thermal_count);
 		seq_printf(p, "  Thermal event interrupts\n");
+#endif
+#ifdef CONFIG_X86_LOCAL_APIC
 		seq_printf(p, "SPU: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ",
 				per_cpu(irq_stat,j).irq_spurious_count);
 		seq_printf(p, "  Spurious interrupts\n");
+#endif
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
 		seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
 #endif
 	}
 	return 0;
+}
+
+/*
+ * /proc/stat helpers
+ */
+u64 arch_irq_stat_cpu(unsigned int cpu)
+{
+	u64 sum = nmi_count(cpu);
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	sum += per_cpu(irq_stat, cpu).apic_timer_irqs;
+#endif
+#ifdef CONFIG_SMP
+	sum += per_cpu(irq_stat, cpu).irq_resched_count;
+	sum += per_cpu(irq_stat, cpu).irq_call_count;
+	sum += per_cpu(irq_stat, cpu).irq_tlb_count;
+#endif
+#ifdef CONFIG_X86_MCE
+	sum += per_cpu(irq_stat, cpu).irq_thermal_count;
+#endif
+#ifdef CONFIG_X86_LOCAL_APIC
+	sum += per_cpu(irq_stat, cpu).irq_spurious_count;
+#endif
+	return sum;
+}
+
+u64 arch_irq_stat(void)
+{
+	u64 sum = atomic_read(&irq_err_count);
+
+#ifdef CONFIG_X86_IO_APIC
+	sum += atomic_read(&irq_mis_count);
+#endif
+	return sum;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

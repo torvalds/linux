@@ -18,6 +18,7 @@
 #include <linux/swap.h>
 #include <linux/smp.h>
 #include <linux/init.h>
+#include <linux/initrd.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
@@ -135,7 +136,7 @@ static __init void *spp_getpage(void)
 	return ptr;
 }
 
-static void
+static __init void
 set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
@@ -206,7 +207,7 @@ void __init cleanup_highmap(void)
 	pmd_t *last_pmd = pmd + PTRS_PER_PMD;
 
 	for (; pmd < last_pmd; pmd++, vaddr += PMD_SIZE) {
-		if (!pmd_present(*pmd))
+		if (pmd_none(*pmd))
 			continue;
 		if (vaddr < (unsigned long) _text || vaddr > end)
 			set_pmd(pmd, __pmd(0));
@@ -214,7 +215,7 @@ void __init cleanup_highmap(void)
 }
 
 /* NOTE: this is meant to be run only at boot */
-void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+void __init __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
 
@@ -312,6 +313,8 @@ __meminit void early_iounmap(void *addr, unsigned long size)
 static unsigned long __meminit
 phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 {
+	unsigned long pages = 0;
+
 	int i = pmd_index(address);
 
 	for (; i < PTRS_PER_PMD; i++, address += PMD_SIZE) {
@@ -328,9 +331,11 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 		if (pmd_val(*pmd))
 			continue;
 
+		pages++;
 		set_pte((pte_t *)pmd,
 			pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
 	}
+	update_page_count(PG_LEVEL_2M, pages);
 	return address;
 }
 
@@ -350,6 +355,7 @@ phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end)
 static unsigned long __meminit
 phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 {
+	unsigned long pages = 0;
 	unsigned long last_map_addr = end;
 	int i = pud_index(addr);
 
@@ -374,6 +380,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 		}
 
 		if (direct_gbpages) {
+			pages++;
 			set_pte((pte_t *)pud,
 				pfn_pte(addr >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
 			last_map_addr = (addr & PUD_MASK) + PUD_SIZE;
@@ -390,6 +397,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 		unmap_low_page(pmd);
 	}
 	__flush_tlb_all();
+	update_page_count(PG_LEVEL_1G, pages);
 
 	return last_map_addr >> PAGE_SHIFT;
 }
@@ -431,7 +439,7 @@ static void __init init_gbpages(void)
 		direct_gbpages = 0;
 }
 
-#ifdef CONFIG_MEMTEST_BOOTPARAM
+#ifdef CONFIG_MEMTEST
 
 static void __init memtest(unsigned long start_phys, unsigned long size,
 				 unsigned pattern)
@@ -493,7 +501,8 @@ static void __init memtest(unsigned long start_phys, unsigned long size,
 
 }
 
-static int memtest_pattern __initdata = CONFIG_MEMTEST_BOOTPARAM_VALUE;
+/* default is disabled */
+static int memtest_pattern __initdata;
 
 static int __init parse_memtest(char *arg)
 {
@@ -506,7 +515,7 @@ early_param("memtest", parse_memtest);
 
 static void __init early_memtest(unsigned long start, unsigned long end)
 {
-	unsigned long t_start, t_size;
+	u64 t_start, t_size;
 	unsigned pattern;
 
 	if (!memtest_pattern)
@@ -525,8 +534,9 @@ static void __init early_memtest(unsigned long start, unsigned long end)
 			if (t_start + t_size > end)
 				t_size = end - t_start;
 
-			printk(KERN_CONT "\n  %016lx - %016lx pattern %d",
-				t_start, t_start + t_size, pattern);
+			printk(KERN_CONT "\n  %016llx - %016llx pattern %d",
+				(unsigned long long)t_start,
+				(unsigned long long)t_start + t_size, pattern);
 
 			memtest(t_start, t_size, pattern);
 

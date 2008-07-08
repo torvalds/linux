@@ -289,7 +289,7 @@ static inline void native_wbinvd(void)
 
 #endif/* CONFIG_PARAVIRT */
 
-#define stts() write_cr0(8 | read_cr0())
+#define stts() write_cr0(read_cr0() | X86_CR0_TS)
 
 #endif /* __KERNEL__ */
 

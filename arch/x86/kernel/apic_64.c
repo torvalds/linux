@@ -43,7 +43,7 @@
 #include <mach_ipi.h>
 #include <mach_apic.h>
 
-int disable_apic_timer __cpuinitdata;
+static int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
 int disable_apic;
 
@@ -422,32 +422,8 @@ void __init setup_boot_APIC_clock(void)
 	setup_APIC_timer();
 }
 
-/*
- * AMD C1E enabled CPUs have a real nasty problem: Some BIOSes set the
- * C1E flag only in the secondary CPU, so when we detect the wreckage
- * we already have enabled the boot CPU local apic timer. Check, if
- * disable_apic_timer is set and the DUMMY flag is cleared. If yes,
- * set the DUMMY flag again and force the broadcast mode in the
- * clockevents layer.
- */
-static void __cpuinit check_boot_apic_timer_broadcast(void)
-{
-	if (!disable_apic_timer ||
-	    (lapic_clockevent.features & CLOCK_EVT_FEAT_DUMMY))
-		return;
-
-	printk(KERN_INFO "AMD C1E detected late. Force timer broadcast.\n");
-	lapic_clockevent.features |= CLOCK_EVT_FEAT_DUMMY;
-
-	local_irq_enable();
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
-			   &boot_cpu_physical_apicid);
-	local_irq_disable();
-}
-
 void __cpuinit setup_secondary_APIC_clock(void)
 {
-	check_boot_apic_timer_broadcast();
 	setup_APIC_timer();
 }
 
@@ -534,7 +510,7 @@ int setup_profiling_timer(unsigned int multiplier)
  */
 void clear_local_APIC(void)
 {
-	int maxlvt = lapic_get_maxlvt();
+	int maxlvt;
 	u32 v;
 
 	/* APIC hasn't been mapped yet */
@@ -875,7 +851,7 @@ static int __init detect_init_APIC(void)
 
 void __init early_init_lapic_mapping(void)
 {
-	unsigned long apic_phys;
+	unsigned long phys_addr;
 
 	/*
 	 * If no local APIC can be found then go out
@@ -884,11 +860,11 @@ void __init early_init_lapic_mapping(void)
 	if (!smp_found_config)
 		return;
 
-	apic_phys = mp_lapic_addr;
+	phys_addr = mp_lapic_addr;
 
-	set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
+	set_fixmap_nocache(FIX_APIC_BASE, phys_addr);
 	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
-				 APIC_BASE, apic_phys);
+		    APIC_BASE, phys_addr);
 
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
@@ -954,6 +930,8 @@ int __init APIC_init_uniprocessor(void)
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
 
+	if (!smp_found_config || skip_ioapic_setup || !nr_ioapics)
+		localise_nmi_watchdog();
 	end_local_APIC_setup();
 
 	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)

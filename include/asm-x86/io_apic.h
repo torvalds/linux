@@ -11,6 +11,15 @@
  * Copyright (C) 1997, 1998, 1999, 2000 Ingo Molnar
  */
 
+/* I/O Unit Redirection Table */
+#define IO_APIC_REDIR_VECTOR_MASK	0x000FF
+#define IO_APIC_REDIR_DEST_LOGICAL	0x00800
+#define IO_APIC_REDIR_DEST_PHYSICAL	0x00000
+#define IO_APIC_REDIR_SEND_PENDING	(1 << 12)
+#define IO_APIC_REDIR_REMOTE_IRR	(1 << 14)
+#define IO_APIC_REDIR_LEVEL_TRIGGER	(1 << 15)
+#define IO_APIC_REDIR_MASKED		(1 << 16)
+
 /*
  * The structure of the IO-APIC:
  */
@@ -137,6 +146,9 @@ extern int sis_apic_bug;
 /* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
 
+/* 1 if the timer IRQ uses the '8259A Virtual Wire' mode */
+extern int timer_through_8259;
+
 static inline void disable_ioapic_setup(void)
 {
 	skip_ioapic_setup = 1;
@@ -162,6 +174,7 @@ extern void ioapic_init_mappings(void);
 
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
+static const int timer_through_8259 = 0;
 #endif
 
 #endif

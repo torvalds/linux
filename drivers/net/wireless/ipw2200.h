@@ -1037,6 +1037,7 @@ struct ipw_cmd {	 /* XXX */
 #define STATUS_DISASSOC_PENDING (1<<12)
 #define STATUS_STATE_PENDING    (1<<13)
 
+#define STATUS_DIRECT_SCAN_PENDING (1<<19)
 #define STATUS_SCAN_PENDING     (1<<20)
 #define STATUS_SCANNING         (1<<21)
 #define STATUS_SCAN_ABORTING    (1<<22)
@@ -1292,6 +1293,8 @@ struct ipw_priv {
 	struct iw_public_data wireless_data;
 
 	int user_requested_scan;
+	u8 direct_scan_ssid[IW_ESSID_MAX_SIZE];
+	u8 direct_scan_ssid_len;
 
 	struct workqueue_struct *workqueue;
 
@@ -1301,8 +1304,9 @@ struct ipw_priv {
 	struct work_struct system_config;
 	struct work_struct rx_replenish;
 	struct delayed_work request_scan;
+	struct delayed_work request_direct_scan;
+	struct delayed_work request_passive_scan;
 	struct delayed_work scan_event;
-  	struct work_struct request_passive_scan;
 	struct work_struct adapter_restart;
 	struct delayed_work rf_kill;
 	struct work_struct up;

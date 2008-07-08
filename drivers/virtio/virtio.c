@@ -2,6 +2,9 @@
 #include <linux/spinlock.h>
 #include <linux/virtio_config.h>
 
+/* Unique numbering for virtio devices. */
+static unsigned int dev_index;
+
 static ssize_t device_show(struct device *_d,
 			   struct device_attribute *attr, char *buf)
 {
@@ -121,9 +124,9 @@ static int virtio_dev_probe(struct device *_d)
 	if (err)
 		add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	else {
-		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
 		/* They should never have set feature bits beyond 32 */
 		dev->config->set_features(dev, dev->features[0]);
+		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
 	}
 	return err;
 }
@@ -166,7 +169,10 @@ int register_virtio_device(struct virtio_device *dev)
 	int err;
 
 	dev->dev.bus = &virtio_bus;
-	sprintf(dev->dev.bus_id, "%u", dev->index);
+
+	/* Assign a unique device index and hence name. */
+	dev->index = dev_index++;
+	sprintf(dev->dev.bus_id, "virtio%u", dev->index);
 
 	/* We always start by resetting the device, in case a previous
 	 * driver messed it up.  This also tests that code path a little. */

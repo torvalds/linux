@@ -1437,8 +1437,16 @@ int bond_create_sysfs(void)
 	 * configure multiple bonding devices.
 	 */
 	if (ret == -EEXIST) {
-		netdev_class = NULL;
-		return 0;
+		/* Is someone being kinky and naming a device bonding_master? */
+		if (__dev_get_by_name(&init_net,
+				      class_attr_bonding_masters.attr.name))
+			printk(KERN_ERR
+			       "network device named %s already exists in sysfs",
+			       class_attr_bonding_masters.attr.name);
+		else {
+			netdev_class = NULL;
+			return 0;
+		}
 	}
 
 	return ret;

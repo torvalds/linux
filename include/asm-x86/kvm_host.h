@@ -18,6 +18,7 @@
 #include <linux/kvm_para.h>
 #include <linux/kvm_types.h>
 
+#include <asm/pvclock-abi.h>
 #include <asm/desc.h>
 
 #define KVM_MAX_VCPUS 16
@@ -282,7 +283,8 @@ struct kvm_vcpu_arch {
 	struct x86_emulate_ctxt emulate_ctxt;
 
 	gpa_t time;
-	struct kvm_vcpu_time_info hv_clock;
+	struct pvclock_vcpu_time_info hv_clock;
+	unsigned int hv_clock_tsc_khz;
 	unsigned int time_offset;
 	struct page *time_page;
 };

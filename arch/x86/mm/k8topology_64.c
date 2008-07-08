@@ -22,6 +22,7 @@
 #include <asm/numa.h>
 #include <asm/mpspec.h>
 #include <asm/apic.h>
+#include <asm/k8.h>
 
 static __init int find_northbridge(void)
 {
@@ -73,17 +74,12 @@ static __init void early_get_boot_cpu_id(void)
 
 int __init k8_scan_nodes(unsigned long start, unsigned long end)
 {
+	unsigned numnodes, cores, bits, apicid_base;
 	unsigned long prevbase;
 	struct bootnode nodes[8];
-	int nodeid, i, nb;
 	unsigned char nodeids[8];
-	int found = 0;
-	u32 reg;
-	unsigned numnodes;
-	unsigned cores;
-	unsigned bits;
-	int j;
-	unsigned apicid_base;
+	int i, j, nb, found = 0;
+	u32 nodeid, reg;
 
 	if (!early_pci_allowed())
 		return -1;
@@ -105,7 +101,6 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	prevbase = 0;
 	for (i = 0; i < 8; i++) {
 		unsigned long base, limit;
-		u32 nodeid;
 
 		base = read_pci_config(0, nb, 1, 0x40 + i*8);
 		limit = read_pci_config(0, nb, 1, 0x44 + i*8);
