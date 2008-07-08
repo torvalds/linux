@@ -47,17 +47,14 @@ void xen_mark_init_mm_pinned(void);
 void __init xen_fill_possible_map(void);
 
 void __init xen_setup_vcpu_info_placement(void);
-void xen_smp_prepare_boot_cpu(void);
-void xen_smp_prepare_cpus(unsigned int max_cpus);
-int xen_cpu_up(unsigned int cpu);
-void xen_smp_cpus_done(unsigned int max_cpus);
 
-void xen_smp_send_stop(void);
-void xen_smp_send_reschedule(int cpu);
-void xen_smp_send_call_function_ipi(cpumask_t mask);
-void xen_smp_send_call_function_single_ipi(int cpu);
+#ifdef CONFIG_SMP
+void xen_smp_init(void);
 
 extern cpumask_t xen_cpu_initialized_map;
+#else
+static inline void xen_smp_init(void) {}
+#endif
 
 
 /* Declare an asm function, along with symbols needed to make it

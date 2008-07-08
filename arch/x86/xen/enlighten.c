@@ -1237,21 +1237,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.set_fixmap = xen_set_fixmap,
 };
 
-#ifdef CONFIG_SMP
-static const struct smp_ops xen_smp_ops __initdata = {
-	.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu,
-	.smp_prepare_cpus = xen_smp_prepare_cpus,
-	.cpu_up = xen_cpu_up,
-	.smp_cpus_done = xen_smp_cpus_done,
-
-	.smp_send_stop = xen_smp_send_stop,
-	.smp_send_reschedule = xen_smp_send_reschedule,
-
-	.send_call_func_ipi = xen_smp_send_call_function_ipi,
-	.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi,
-};
-#endif	/* CONFIG_SMP */
-
 static void xen_reboot(int reason)
 {
 	struct sched_shutdown r = { .reason = reason };
@@ -1340,9 +1325,7 @@ asmlinkage void __init xen_start_kernel(void)
 	have_vcpu_info_placement = 0;
 #endif
 
-#ifdef CONFIG_SMP
-	smp_ops = xen_smp_ops;
-#endif
+	xen_smp_init();
 
 	/* Get mfn list */
 	if (!xen_feature(XENFEAT_auto_translated_physmap))

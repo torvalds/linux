@@ -152,7 +152,7 @@ void __init xen_fill_possible_map(void)
 	}
 }
 
-void __init xen_smp_prepare_boot_cpu(void)
+static void __init xen_smp_prepare_boot_cpu(void)
 {
 	int cpu;
 
@@ -176,7 +176,7 @@ void __init xen_smp_prepare_boot_cpu(void)
 	xen_setup_vcpu_info_placement();
 }
 
-void __init xen_smp_prepare_cpus(unsigned int max_cpus)
+static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned cpu;
 
@@ -276,7 +276,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-int __cpuinit xen_cpu_up(unsigned int cpu)
+static int __cpuinit xen_cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle = idle_task(cpu);
 	int rc;
@@ -319,7 +319,7 @@ int __cpuinit xen_cpu_up(unsigned int cpu)
 	return 0;
 }
 
-void xen_smp_cpus_done(unsigned int max_cpus)
+static void xen_smp_cpus_done(unsigned int max_cpus)
 {
 }
 
@@ -335,12 +335,12 @@ static void stop_self(void *v)
 	BUG();
 }
 
-void xen_smp_send_stop(void)
+static void xen_smp_send_stop(void)
 {
 	smp_call_function(stop_self, NULL, 0);
 }
 
-void xen_smp_send_reschedule(int cpu)
+static void xen_smp_send_reschedule(int cpu)
 {
 	xen_send_IPI_one(cpu, XEN_RESCHEDULE_VECTOR);
 }
@@ -355,7 +355,7 @@ static void xen_send_IPI_mask(cpumask_t mask, enum ipi_vector vector)
 		xen_send_IPI_one(cpu, vector);
 }
 
-void xen_smp_send_call_function_ipi(cpumask_t mask)
+static void xen_smp_send_call_function_ipi(cpumask_t mask)
 {
 	int cpu;
 
@@ -370,7 +370,7 @@ void xen_smp_send_call_function_ipi(cpumask_t mask)
 	}
 }
 
-void xen_smp_send_call_function_single_ipi(int cpu)
+static void xen_smp_send_call_function_single_ipi(int cpu)
 {
 	xen_send_IPI_mask(cpumask_of_cpu(cpu), XEN_CALL_FUNCTION_SINGLE_VECTOR);
 }
@@ -393,4 +393,22 @@ static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 	irq_exit();
 
 	return IRQ_HANDLED;
+}
+
+static const struct smp_ops xen_smp_ops __initdata = {
+	.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu,
+	.smp_prepare_cpus = xen_smp_prepare_cpus,
+	.cpu_up = xen_cpu_up,
+	.smp_cpus_done = xen_smp_cpus_done,
+
+	.smp_send_stop = xen_smp_send_stop,
+	.smp_send_reschedule = xen_smp_send_reschedule,
+
+	.send_call_func_ipi = xen_smp_send_call_function_ipi,
+	.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi,
+};
+
+void __init xen_smp_init(void)
+{
+	smp_ops = xen_smp_ops;
 }
