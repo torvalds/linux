@@ -12,7 +12,7 @@
  */
 struct vlan_priority_tci_mapping {
 	u32					priority;
-	unsigned short				vlan_qos;
+	u16					vlan_qos;
 	struct vlan_priority_tci_mapping	*next;
 };
 
@@ -36,8 +36,8 @@ struct vlan_dev_info {
 	unsigned int				nr_egress_mappings;
 	struct vlan_priority_tci_mapping	*egress_priority_map[16];
 
-	unsigned short				vlan_id;
-	unsigned short				flags;
+	u16					vlan_id;
+	u16					flags;
 
 	struct net_device			*real_dev;
 	unsigned char				real_dev_addr[ETH_ALEN];
@@ -67,30 +67,29 @@ static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
  *  Must be invoked with rcu_read_lock (ie preempt disabled)
  *  or with RTNL.
  */
-struct net_device *__find_vlan_dev(struct net_device *real_dev,
-				   unsigned short VID); /* vlan.c */
+struct net_device *__find_vlan_dev(struct net_device *real_dev, u16 vlan_id);
 
 /* found in vlan_dev.c */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev);
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
-				   u32 skb_prio, short vlan_prio);
+				   u32 skb_prio, u16 vlan_prio);
 int vlan_dev_set_egress_priority(const struct net_device *dev,
-				 u32 skb_prio, short vlan_prio);
+				 u32 skb_prio, u16 vlan_prio);
 int vlan_dev_change_flags(const struct net_device *dev, u32 flag, u32 mask);
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 
-int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id);
+int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id);
 void vlan_setup(struct net_device *dev);
 int register_vlan_dev(struct net_device *dev);
 void unregister_vlan_dev(struct net_device *dev);
 
 static inline u32 vlan_get_ingress_priority(struct net_device *dev,
-					    unsigned short vlan_tag)
+					    u16 vlan_tci)
 {
 	struct vlan_dev_info *vip = vlan_dev_info(dev);
 
-	return vip->ingress_priority_map[(vlan_tag >> 13) & 0x7];
+	return vip->ingress_priority_map[(vlan_tci >> 13) & 0x7];
 }
 
 #ifdef CONFIG_VLAN_8021Q_GVRP

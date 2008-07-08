@@ -150,9 +150,9 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev)
 {
 	struct vlan_hdr *vhdr;
-	unsigned short vid;
 	struct net_device_stats *stats;
-	unsigned short vlan_TCI;
+	u16 vlan_id;
+	u16 vlan_tci;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (skb == NULL)
@@ -162,14 +162,14 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_free;
 
 	vhdr = (struct vlan_hdr *)skb->data;
-	vlan_TCI = ntohs(vhdr->h_vlan_TCI);
-	vid = (vlan_TCI & VLAN_VID_MASK);
+	vlan_tci = ntohs(vhdr->h_vlan_TCI);
+	vlan_id = vlan_tci & VLAN_VID_MASK;
 
 	rcu_read_lock();
-	skb->dev = __find_vlan_dev(dev, vid);
+	skb->dev = __find_vlan_dev(dev, vlan_id);
 	if (!skb->dev) {
 		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
-			 __func__, (unsigned int)vid, dev->name);
+			 __func__, vlan_id, dev->name);
 		goto err_unlock;
 	}
 
@@ -181,11 +181,10 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	skb_pull_rcsum(skb, VLAN_HLEN);
 
-	skb->priority = vlan_get_ingress_priority(skb->dev,
-						  ntohs(vhdr->h_vlan_TCI));
+	skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tci);
 
 	pr_debug("%s: priority: %u for TCI: %hu\n",
-		 __func__, skb->priority, ntohs(vhdr->h_vlan_TCI));
+		 __func__, skb->priority, vlan_tci);
 
 	switch (skb->pkt_type) {
 	case PACKET_BROADCAST: /* Yeah, stats collect these together.. */
@@ -228,7 +227,7 @@ err_free:
 	return NET_RX_DROP;
 }
 
-static inline unsigned short
+static inline u16
 vlan_dev_get_egress_qos_mask(struct net_device *dev, struct sk_buff *skb)
 {
 	struct vlan_priority_tci_mapping *mp;
@@ -260,7 +259,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 				unsigned int len)
 {
 	struct vlan_hdr *vhdr;
-	unsigned short veth_TCI = 0;
+	u16 vlan_tci = 0;
 	int rc = 0;
 	int build_vlan_header = 0;
 	struct net_device *vdev = dev;
@@ -292,10 +291,10 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		 * VLAN ID	 12 bits (low bits)
 		 *
 		 */
-		veth_TCI = vlan_dev_info(dev)->vlan_id;
-		veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
+		vlan_tci = vlan_dev_info(dev)->vlan_id;
+		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb);
 
-		vhdr->h_vlan_TCI = htons(veth_TCI);
+		vhdr->h_vlan_TCI = htons(vlan_tci);
 
 		/*
 		 *  Set the protocol type. For a packet of type ETH_P_802_3 we
@@ -373,7 +372,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (veth->h_vlan_proto != htons(ETH_P_8021Q) ||
 		vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR) {
 		int orig_headroom = skb_headroom(skb);
-		unsigned short veth_TCI;
+		u16 vlan_tci;
 
 		/* This is not a VLAN frame...but we can fix that! */
 		vlan_dev_info(dev)->cnt_encap_on_xmit++;
@@ -386,10 +385,10 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * CFI		 1 bit
 		 * VLAN ID	 12 bits (low bits)
 		 */
-		veth_TCI = vlan_dev_info(dev)->vlan_id;
-		veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
+		vlan_tci = vlan_dev_info(dev)->vlan_id;
+		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb);
 
-		skb = __vlan_put_tag(skb, veth_TCI);
+		skb = __vlan_put_tag(skb, vlan_tci);
 		if (!skb) {
 			stats->tx_dropped++;
 			return 0;
@@ -422,7 +421,7 @@ static int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
 	struct net_device_stats *stats = &dev->stats;
-	unsigned short veth_TCI;
+	u16 vlan_tci;
 
 	/* Construct the second two bytes. This field looks something
 	 * like:
@@ -430,9 +429,9 @@ static int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 	 * CFI		 1 bit
 	 * VLAN ID	 12 bits (low bits)
 	 */
-	veth_TCI = vlan_dev_info(dev)->vlan_id;
-	veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
-	skb = __vlan_hwaccel_put_tag(skb, veth_TCI);
+	vlan_tci = vlan_dev_info(dev)->vlan_id;
+	vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb);
+	skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
 
 	stats->tx_packets++;
 	stats->tx_bytes += skb->len;
@@ -457,7 +456,7 @@ static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
-				   u32 skb_prio, short vlan_prio)
+				   u32 skb_prio, u16 vlan_prio)
 {
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 
@@ -470,7 +469,7 @@ void vlan_dev_set_ingress_priority(const struct net_device *dev,
 }
 
 int vlan_dev_set_egress_priority(const struct net_device *dev,
-				 u32 skb_prio, short vlan_prio)
+				 u32 skb_prio, u16 vlan_prio)
 {
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct vlan_priority_tci_mapping *mp = NULL;

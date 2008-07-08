@@ -5,7 +5,7 @@
 
 /* VLAN rx hw acceleration helper.  This acts like netif_{rx,receive_skb}(). */
 int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-		      unsigned short vlan_tag, int polling)
+		      u16 vlan_tci, int polling)
 {
 	struct net_device_stats *stats;
 
@@ -14,7 +14,7 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		return NET_RX_DROP;
 	}
 
-	skb->dev = vlan_group_get_device(grp, vlan_tag & VLAN_VID_MASK);
+	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
 	if (skb->dev == NULL) {
 		dev_kfree_skb_any(skb);
 		/* Not NET_RX_DROP, this is not being dropped
@@ -27,7 +27,7 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 
-	skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tag);
+	skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tci);
 	switch (skb->pkt_type) {
 	case PACKET_BROADCAST:
 		break;

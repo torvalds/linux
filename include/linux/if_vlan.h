@@ -87,7 +87,7 @@ struct vlan_group {
 };
 
 static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
-						       unsigned int vlan_id)
+						       u16 vlan_id)
 {
 	struct net_device **array;
 	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
@@ -95,7 +95,7 @@ static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
 }
 
 static inline void vlan_group_set_device(struct vlan_group *vg,
-					 unsigned int vlan_id,
+					 u16 vlan_id,
 					 struct net_device *dev)
 {
 	struct net_device **array;
@@ -122,7 +122,7 @@ extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-			     unsigned short vlan_tag, int polling);
+			     u16 vlan_tci, int polling);
 #else
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {
@@ -137,39 +137,51 @@ static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
 }
 
 static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-				    unsigned short vlan_tag, int polling)
+				    u16 vlan_tci, int polling)
 {
 	BUG();
 	return NET_XMIT_SUCCESS;
 }
 #endif
 
+/**
+ * vlan_hwaccel_rx - netif_rx wrapper for VLAN RX acceleration
+ * @skb: buffer
+ * @grp: vlan group
+ * @vlan_tci: VLAN TCI as received from the card
+ */
 static inline int vlan_hwaccel_rx(struct sk_buff *skb,
 				  struct vlan_group *grp,
-				  unsigned short vlan_tag)
+				  u16 vlan_tci)
 {
-	return __vlan_hwaccel_rx(skb, grp, vlan_tag, 0);
+	return __vlan_hwaccel_rx(skb, grp, vlan_tci, 0);
 }
 
+/**
+ * vlan_hwaccel_receive_skb - netif_receive_skb wrapper for VLAN RX acceleration
+ * @skb: buffer
+ * @grp: vlan group
+ * @vlan_tci: VLAN TCI as received from the card
+ */
 static inline int vlan_hwaccel_receive_skb(struct sk_buff *skb,
 					   struct vlan_group *grp,
-					   unsigned short vlan_tag)
+					   u16 vlan_tci)
 {
-	return __vlan_hwaccel_rx(skb, grp, vlan_tag, 1);
+	return __vlan_hwaccel_rx(skb, grp, vlan_tci, 1);
 }
 
 /**
  * __vlan_put_tag - regular VLAN tag inserting
  * @skb: skbuff to tag
- * @tag: VLAN tag to insert
+ * @vlan_tci: VLAN TCI to insert
  *
  * Inserts the VLAN tag into @skb as part of the payload
  * Returns a VLAN tagged skb. If a new skb is created, @skb is freed.
- * 
+ *
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
  */
-static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, unsigned short tag)
+static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
 {
 	struct vlan_ethhdr *veth;
 
@@ -197,8 +209,8 @@ static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, unsigned short
 	/* first, the ethernet type */
 	veth->h_vlan_proto = htons(ETH_P_8021Q);
 
-	/* now, the tag */
-	veth->h_vlan_TCI = htons(tag);
+	/* now, the TCI */
+	veth->h_vlan_TCI = htons(vlan_tci);
 
 	skb->protocol = htons(ETH_P_8021Q);
 
@@ -208,17 +220,18 @@ static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, unsigned short
 /**
  * __vlan_hwaccel_put_tag - hardware accelerated VLAN inserting
  * @skb: skbuff to tag
- * @tag: VLAN tag to insert
+ * @vlan_tci: VLAN TCI to insert
  *
- * Puts the VLAN tag in @skb->cb[] and lets the device do the rest
+ * Puts the VLAN TCI in @skb->cb[] and lets the device do the rest
  */
-static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb, unsigned short tag)
+static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
+						     u16 vlan_tci)
 {
 	struct vlan_skb_tx_cookie *cookie;
 
 	cookie = VLAN_TX_SKB_CB(skb);
 	cookie->magic = VLAN_TX_COOKIE_MAGIC;
-	cookie->vlan_tag = tag;
+	cookie->vlan_tag = vlan_tci;
 
 	return skb;
 }
@@ -228,28 +241,28 @@ static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb, unsign
 /**
  * vlan_put_tag - inserts VLAN tag according to device features
  * @skb: skbuff to tag
- * @tag: VLAN tag to insert
+ * @vlan_tci: VLAN TCI to insert
  *
  * Assumes skb->dev is the target that will xmit this frame.
  * Returns a VLAN tagged skb.
  */
-static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb, unsigned short tag)
+static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
 {
 	if (skb->dev->features & NETIF_F_HW_VLAN_TX) {
-		return __vlan_hwaccel_put_tag(skb, tag);
+		return __vlan_hwaccel_put_tag(skb, vlan_tci);
 	} else {
-		return __vlan_put_tag(skb, tag);
+		return __vlan_put_tag(skb, vlan_tci);
 	}
 }
 
 /**
  * __vlan_get_tag - get the VLAN ID that is part of the payload
  * @skb: skbuff to query
- * @tag: buffer to store vlaue
- * 
+ * @vlan_tci: buffer to store vlaue
+ *
  * Returns error if the skb is not of VLAN type
  */
-static inline int __vlan_get_tag(const struct sk_buff *skb, unsigned short *tag)
+static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb->data;
 
@@ -257,29 +270,28 @@ static inline int __vlan_get_tag(const struct sk_buff *skb, unsigned short *tag)
 		return -EINVAL;
 	}
 
-	*tag = ntohs(veth->h_vlan_TCI);
-
+	*vlan_tci = ntohs(veth->h_vlan_TCI);
 	return 0;
 }
 
 /**
  * __vlan_hwaccel_get_tag - get the VLAN ID that is in @skb->cb[]
  * @skb: skbuff to query
- * @tag: buffer to store vlaue
- * 
+ * @vlan_tci: buffer to store vlaue
+ *
  * Returns error if @skb->cb[] is not set correctly
  */
 static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
-					 unsigned short *tag)
+					 u16 *vlan_tci)
 {
 	struct vlan_skb_tx_cookie *cookie;
 
 	cookie = VLAN_TX_SKB_CB(skb);
 	if (cookie->magic == VLAN_TX_COOKIE_MAGIC) {
-		*tag = cookie->vlan_tag;
+		*vlan_tci = cookie->vlan_tag;
 		return 0;
 	} else {
-		*tag = 0;
+		*vlan_tci = 0;
 		return -EINVAL;
 	}
 }
@@ -289,16 +301,16 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 /**
  * vlan_get_tag - get the VLAN ID from the skb
  * @skb: skbuff to query
- * @tag: buffer to store vlaue
- * 
+ * @vlan_tci: buffer to store vlaue
+ *
  * Returns error if the skb is not VLAN tagged
  */
-static inline int vlan_get_tag(const struct sk_buff *skb, unsigned short *tag)
+static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
 	if (skb->dev->features & NETIF_F_HW_VLAN_TX) {
-		return __vlan_hwaccel_get_tag(skb, tag);
+		return __vlan_hwaccel_get_tag(skb, vlan_tci);
 	} else {
-		return __vlan_get_tag(skb, tag);
+		return __vlan_get_tag(skb, vlan_tci);
 	}
 }
 
