@@ -902,18 +902,11 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 void xen_setup_shared_info(void)
 {
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		unsigned long addr = fix_to_virt(FIX_PARAVIRT_BOOTMAP);
+		set_fixmap(FIX_PARAVIRT_BOOTMAP,
+			   xen_start_info->shared_info);
 
-		/*
-		 * Create a mapping for the shared info page.
-		 * Should be set_fixmap(), but shared_info is a machine
-		 * address with no corresponding pseudo-phys address.
-		 */
-		set_pte_mfn(addr,
-			    PFN_DOWN(xen_start_info->shared_info),
-			    PAGE_KERNEL);
-
-		HYPERVISOR_shared_info = (struct shared_info *)addr;
+		HYPERVISOR_shared_info =
+			(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
 	} else
 		HYPERVISOR_shared_info =
 			(struct shared_info *)__va(xen_start_info->shared_info);
@@ -1050,8 +1043,13 @@ static void xen_set_fixmap(unsigned idx, unsigned long phys, pgprot_t prot)
 #ifdef CONFIG_X86_F00F_BUG
 	case FIX_F00F_IDT:
 #endif
+#ifdef CONFIG_X86_32
 	case FIX_WP_TEST:
 	case FIX_VDSO:
+	case FIX_KMAP_BEGIN ... FIX_KMAP_END:
+#else
+	case VSYSCALL_LAST_PAGE ... VSYSCALL_FIRST_PAGE:
+#endif
 #ifdef CONFIG_X86_LOCAL_APIC
 	case FIX_APIC_BASE:	/* maps dummy local APIC */
 #endif
