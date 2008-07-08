@@ -401,23 +401,18 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 	preempt_enable();
 }
 
-static int cvt_gate_to_trap(int vector, u32 low, u32 high,
+static int cvt_gate_to_trap(int vector, const gate_desc *val,
 			    struct trap_info *info)
 {
-	u8 type, dpl;
-
-	type = (high >> 8) & 0x1f;
-	dpl = (high >> 13) & 3;
-
-	if (type != 0xf && type != 0xe)
+	if (val->type != 0xf && val->type != 0xe)
 		return 0;
 
 	info->vector = vector;
-	info->address = (high & 0xffff0000) | (low & 0x0000ffff);
-	info->cs = low >> 16;
-	info->flags = dpl;
+	info->address = gate_offset(*val);
+	info->cs = gate_segment(*val);
+	info->flags = val->dpl;
 	/* interrupt gates clear IF */
-	if (type == 0xe)
+	if (val->type == 0xe)
 		info->flags |= 4;
 
 	return 1;
@@ -444,11 +439,10 @@ static void xen_write_idt_entry(gate_desc *dt, int entrynum, const gate_desc *g)
 
 	if (p >= start && (p + 8) <= end) {
 		struct trap_info info[2];
-		u32 *desc = (u32 *)g;
 
 		info[1].address = 0;
 
-		if (cvt_gate_to_trap(entrynum, desc[0], desc[1], &info[0]))
+		if (cvt_gate_to_trap(entrynum, g, &info[0]))
 			if (HYPERVISOR_set_trap_table(info))
 				BUG();
 	}
@@ -461,13 +455,13 @@ static void xen_convert_trap_info(const struct desc_ptr *desc,
 {
 	unsigned in, out, count;
 
-	count = (desc->size+1) / 8;
+	count = (desc->size+1) / sizeof(gate_desc);
 	BUG_ON(count > 256);
 
 	for (in = out = 0; in < count; in++) {
-		const u32 *entry = (u32 *)(desc->address + in * 8);
+		gate_desc *entry = (gate_desc*)(desc->address) + in;
 
-		if (cvt_gate_to_trap(in, entry[0], entry[1], &traps[out]))
+		if (cvt_gate_to_trap(in, entry, &traps[out]))
 			out++;
 	}
 	traps[out].address = 0;
