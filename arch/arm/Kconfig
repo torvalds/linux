@@ -299,6 +299,8 @@ config ARCH_IOP32X
 	depends on MMU
 	select PLAT_IOP
 	select PCI
+	select GENERIC_GPIO
+	select HAVE_GPIO_LIB
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
 	  processors.
@@ -308,6 +310,8 @@ config ARCH_IOP33X
 	depends on MMU
 	select PLAT_IOP
 	select PCI
+	select GENERIC_GPIO
+	select HAVE_GPIO_LIB
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
