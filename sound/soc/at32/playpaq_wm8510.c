@@ -341,15 +341,15 @@ static int playpaq_wm8510_init(struct snd_soc_codec *codec)
 	}
 
 
-	/* always connected endpoints */
-	snd_soc_dapm_set_endpoint(codec, "Int Mic", 1);
-	snd_soc_dapm_set_endpoint(codec, "Ext Spk", 1);
-	snd_soc_dapm_sync_endpoints(codec);
+	/* always connected pins */
+	snd_soc_dapm_enable_pin(codec, "Int Mic");
+	snd_soc_dapm_enable_pin(codec, "Ext Spk");
+	snd_soc_dapm_sync(codec);
 
 
 
 	/* Make CSB show PLL rate */
-	codec->dai->dai_ops.set_clkdiv(codec->dai, WM8510_OPCLKDIV,
+	snd_soc_dai_set_clkdiv(codec->dai, WM8510_OPCLKDIV,
 				       WM8510_OPCLKDIV_1 | 4);
 
 	return 0;
