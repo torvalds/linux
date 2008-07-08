@@ -1365,12 +1365,12 @@ asmlinkage void __init xen_start_kernel(void)
 	/* set the limit of our address space */
 	xen_reserve_top();
 
+#ifdef CONFIG_X86_32
 	/* set up basic CPUID stuff */
 	cpu_detect(&new_cpu_data);
-#ifdef CONFIG_X86_32
 	new_cpu_data.hard_math = 1;
-#endif
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
+#endif
 
 	/* Poke various useful things into boot_params */
 	boot_params.hdr.type_of_loader = (9 << 4) | 0;
