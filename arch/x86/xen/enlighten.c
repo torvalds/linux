@@ -1085,8 +1085,25 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	},
 };
 
+static void __init __xen_init_IRQ(void)
+{
+#ifdef CONFIG_X86_64
+	int i;
+
+	/* Create identity vector->irq map */
+	for(i = 0; i < NR_VECTORS; i++) {
+		int cpu;
+
+		for_each_possible_cpu(cpu)
+			per_cpu(vector_irq, cpu)[i] = i;
+	}
+#endif	/* CONFIG_X86_64 */
+
+	xen_init_IRQ();
+}
+
 static const struct pv_irq_ops xen_irq_ops __initdata = {
-	.init_IRQ = xen_init_IRQ,
+	.init_IRQ = __xen_init_IRQ,
 	.save_fl = xen_save_fl,
 	.restore_fl = xen_restore_fl,
 	.irq_disable = xen_irq_disable,
