@@ -57,6 +57,18 @@ DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 
 /*
+ * Identity map, in addition to plain kernel map.  This needs to be
+ * large enough to allocate page table pages to allocate the rest.
+ * Each page can map 2MB.
+ */
+static pte_t level1_ident_pgt[PTRS_PER_PTE * 4] __page_aligned_bss;
+
+#ifdef CONFIG_X86_64
+/* l3 pud for userspace vsyscall mapping */
+static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
+#endif /* CONFIG_X86_64 */
+
+/*
  * Note about cr3 (pagetable base) values:
  *
  * xen_cr3 contains the current logical cr3 value; it contains the
@@ -831,12 +843,20 @@ static int xen_pgd_alloc(struct mm_struct *mm)
 #ifdef CONFIG_X86_64
 	{
 		struct page *page = virt_to_page(pgd);
+		pgd_t *user_pgd;
 
 		BUG_ON(page->private != 0);
 
-		page->private = __get_free_page(GFP_KERNEL | __GFP_ZERO);
-		if (page->private == 0)
-			ret = -ENOMEM;
+		ret = -ENOMEM;
+
+		user_pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+		page->private = (unsigned long)user_pgd;
+
+		if (user_pgd != NULL) {
+			user_pgd[pgd_index(VSYSCALL_START)] =
+				__pgd(__pa(level3_user_vsyscall) | _PAGE_TABLE);
+			ret = 0;
+		}
 
 		BUG_ON(PagePinned(virt_to_page(xen_get_user_pgd(pgd))));
 	}
@@ -977,6 +997,9 @@ static __init void xen_post_allocator_init(void)
 	pv_mmu_ops.release_pud = xen_release_pud;
 #endif
 
+#ifdef CONFIG_X86_64
+	SetPagePinned(virt_to_page(level3_user_vsyscall));
+#endif
 	xen_mark_init_mm_pinned();
 }
 
@@ -1088,6 +1111,15 @@ static void xen_set_fixmap(unsigned idx, unsigned long phys, pgprot_t prot)
 	}
 
 	__native_set_fixmap(idx, pte);
+
+#ifdef CONFIG_X86_64
+	/* Replicate changes to map the vsyscall page into the user
+	   pagetable vsyscall mapping. */
+	if (idx >= VSYSCALL_LAST_PAGE && idx <= VSYSCALL_FIRST_PAGE) {
+		unsigned long vaddr = __fix_to_virt(idx);
+		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
+	}
+#endif
 }
 
 static const struct pv_info xen_info __initdata = {
@@ -1427,13 +1459,6 @@ static void set_page_prot(void *addr, pgprot_t prot)
 		BUG();
 }
 
-/*
- * Identity map, in addition to plain kernel map.  This needs to be
- * large enough to allocate page table pages to allocate the rest.
- * Each page can map 2MB.
- */
-static pte_t level1_ident_pgt[PTRS_PER_PTE * 4] __page_aligned_bss;
-
 static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 {
 	unsigned pmdidx, pteidx;
@@ -1533,6 +1558,7 @@ static __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pf
 	set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
+	set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
 	set_page_prot(level2_kernel_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level2_fixmap_pgt, PAGE_KERNEL_RO);
 
