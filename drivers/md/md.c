@@ -4172,9 +4172,11 @@ static int get_bitmap_file(mddev_t * mddev, void __user * arg)
 	char *ptr, *buf = NULL;
 	int err = -ENOMEM;
 
-	md_allow_write(mddev);
+	if (md_allow_write(mddev))
+		file = kmalloc(sizeof(*file), GFP_NOIO);
+	else
+		file = kmalloc(sizeof(*file), GFP_KERNEL);
 
-	file = kmalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		goto out;
 
@@ -5667,15 +5669,18 @@ void md_write_end(mddev_t *mddev)
  * may proceed without blocking.  It is important to call this before
  * attempting a GFP_KERNEL allocation while holding the mddev lock.
  * Must be called with mddev_lock held.
+ *
+ * In the ->external case MD_CHANGE_CLEAN can not be cleared until mddev->lock
+ * is dropped, so return -EAGAIN after notifying userspace.
  */
-void md_allow_write(mddev_t *mddev)
+int md_allow_write(mddev_t *mddev)
 {
 	if (!mddev->pers)
-		return;
+		return 0;
 	if (mddev->ro)
-		return;
+		return 0;
 	if (!mddev->pers->sync_request)
-		return;
+		return 0;
 
 	spin_lock_irq(&mddev->write_lock);
 	if (mddev->in_sync) {
@@ -5686,14 +5691,14 @@ void md_allow_write(mddev_t *mddev)
 			mddev->safemode = 1;
 		spin_unlock_irq(&mddev->write_lock);
 		md_update_sb(mddev, 0);
-
 		sysfs_notify(&mddev->kobj, NULL, "array_state");
-		/* wait for the dirty state to be recorded in the metadata */
-		wait_event(mddev->sb_wait,
-			   !test_bit(MD_CHANGE_CLEAN, &mddev->flags) &&
-			   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
 	} else
 		spin_unlock_irq(&mddev->write_lock);
+
+	if (test_bit(MD_CHANGE_CLEAN, &mddev->flags))
+		return -EAGAIN;
+	else
+		return 0;
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
 
