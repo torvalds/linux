@@ -135,7 +135,7 @@ static __init void *spp_getpage(void)
 	return ptr;
 }
 
-static void
+static __init void
 set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
@@ -214,7 +214,7 @@ void __init cleanup_highmap(void)
 }
 
 /* NOTE: this is meant to be run only at boot */
-void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+void __init __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
 
@@ -526,7 +526,8 @@ static void __init early_memtest(unsigned long start, unsigned long end)
 				t_size = end - t_start;
 
 			printk(KERN_CONT "\n  %016llx - %016llx pattern %d",
-				t_start, t_start + t_size, pattern);
+				(unsigned long long)t_start,
+				(unsigned long long)t_start + t_size, pattern);
 
 			memtest(t_start, t_size, pattern);
 

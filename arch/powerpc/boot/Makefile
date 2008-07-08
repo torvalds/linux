@@ -273,7 +273,8 @@ endif
 initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-n) $(image-))
 initrd-y := $(patsubst zImage%, zImage.initrd%, \
 		$(patsubst dtbImage%, dtbImage.initrd%, \
-		$(patsubst treeImage%, treeImage.initrd%, $(image-y))))
+		$(patsubst simpleImage%, simpleImage.initrd%, \
+		$(patsubst treeImage%, treeImage.initrd%, $(image-y)))))
 initrd-y := $(filter-out $(image-y), $(initrd-y))
 targets	+= $(image-y) $(initrd-y)
 

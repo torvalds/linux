@@ -286,7 +286,7 @@ static struct diu_pool pool;
  *	rheap and make the furture large allocation fail.
  */
 
-void *fsl_diu_alloc(unsigned long size, phys_addr_t *phys)
+static void *fsl_diu_alloc(unsigned long size, phys_addr_t *phys)
 {
 	void *virt;
 
@@ -311,12 +311,12 @@ void *fsl_diu_alloc(unsigned long size, phys_addr_t *phys)
 		memset(virt, 0, size);
 	}
 
-	pr_debug("rh virt=%p phys=%lx\n", virt, *phys);
+	pr_debug("rh virt=%p phys=%llx\n", virt, (unsigned long long)*phys);
 
 	return virt;
 }
 
-void fsl_diu_free(void *p, unsigned long size)
+static void fsl_diu_free(void *p, unsigned long size)
 {
 	pr_debug("p=%p size=%lu\n", p, size);
 
@@ -770,7 +770,7 @@ static int map_video_memory(struct fb_info *info)
 	info->fix.smem_len = info->fix.line_length * info->var.yres_virtual;
 	pr_debug("MAP_VIDEO_MEMORY: smem_len = %d\n", info->fix.smem_len);
 	info->screen_base = fsl_diu_alloc(info->fix.smem_len, &phys);
-	if (info->screen_base == 0) {
+	if (info->screen_base == NULL) {
 		printk(KERN_ERR "Unable to allocate fb memory\n");
 		return -ENOMEM;
 	}
@@ -788,7 +788,7 @@ static int map_video_memory(struct fb_info *info)
 static void unmap_video_memory(struct fb_info *info)
 {
 	fsl_diu_free(info->screen_base, info->fix.smem_len);
-	info->screen_base = 0;
+	info->screen_base = NULL;
 	info->fix.smem_start = 0;
 	info->fix.smem_len = 0;
 }
@@ -1158,7 +1158,7 @@ static int init_fbinfo(struct fb_info *info)
 	return 0;
 }
 
-static int install_fb(struct fb_info *info)
+static int __devinit install_fb(struct fb_info *info)
 {
 	int rc;
 	struct mfb_info *mfbi = info->par;
@@ -1233,7 +1233,7 @@ static int install_fb(struct fb_info *info)
 	return 0;
 }
 
-static void __exit uninstall_fb(struct fb_info *info)
+static void uninstall_fb(struct fb_info *info)
 {
 	struct mfb_info *mfbi = info->par;
 
@@ -1287,7 +1287,7 @@ static int request_irq_local(int irq)
 	/* Read to clear the status */
 	status = in_be32(&hw->int_status);
 
-	ret = request_irq(irq, fsl_diu_isr, 0, "diu", 0);
+	ret = request_irq(irq, fsl_diu_isr, 0, "diu", NULL);
 	if (ret)
 		pr_info("Request diu IRQ failed.\n");
 	else {
@@ -1312,7 +1312,7 @@ static void free_irq_local(int irq)
 	/* Disable all LCDC interrupt */
 	out_be32(&hw->int_mask, 0x1f);
 
-	free_irq(irq, 0);
+	free_irq(irq, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -1324,7 +1324,7 @@ static int fsl_diu_suspend(struct of_device *ofdev, pm_message_t state)
 {
 	struct fsl_diu_data *machine_data;
 
-	machine_data = dev_get_drvdata(&ofdev->dev);
+	machine_data = dev_get_drvdata(&dev->dev);
 	disable_lcdc(machine_data->fsl_diu_info[0]);
 
 	return 0;
@@ -1334,7 +1334,7 @@ static int fsl_diu_resume(struct of_device *ofdev)
 {
 	struct fsl_diu_data *machine_data;
 
-	machine_data = dev_get_drvdata(&ofdev->dev);
+	machine_data = dev_get_drvdata(&dev->dev);
 	enable_lcdc(machine_data->fsl_diu_info[0]);
 
 	return 0;
@@ -1353,7 +1353,8 @@ static int allocate_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
 	dma_addr_t paddr = 0;
 
 	ssize = size + bytes_align;
-	buf->vaddr = dma_alloc_coherent(0, ssize, &paddr, GFP_DMA | __GFP_ZERO);
+	buf->vaddr = dma_alloc_coherent(NULL, ssize, &paddr, GFP_DMA |
+							     __GFP_ZERO);
 	if (!buf->vaddr)
 		return -ENOMEM;
 
@@ -1371,7 +1372,7 @@ static int allocate_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
 
 static void free_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
 {
-	dma_free_coherent(0, size + bytes_align,
+	dma_free_coherent(NULL, size + bytes_align,
 				buf->vaddr, (buf->paddr - buf->offset));
 	return;
 }
@@ -1411,7 +1412,7 @@ static ssize_t show_monitor(struct device *device,
 	return diu_ops.show_monitor_port(machine_data->monitor_port, buf);
 }
 
-static int fsl_diu_probe(struct of_device *ofdev,
+static int __devinit fsl_diu_probe(struct of_device *ofdev,
 	const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->node;

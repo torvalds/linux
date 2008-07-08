@@ -729,7 +729,11 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	} else {
 		*policy = pol == &default_policy ? MPOL_DEFAULT :
 						pol->mode;
-		*policy |= pol->flags;
+		/*
+		 * Internal mempolicy flags must be masked off before exposing
+		 * the policy to userspace.
+		 */
+		*policy |= (pol->flags & MPOL_MODE_FLAGS);
 	}
 
 	if (vma) {
