@@ -157,6 +157,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
 		.mts_firmware = 1,
+		.has_dvb        = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -524,6 +525,9 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
 	if (rc > 0) {
 		switch (rc) {
+		case CHIP_ID_EM2860:
+			em28xx_info("chip ID is em2860\n");
+			break;
 		case CHIP_ID_EM2883:
 			em28xx_info("chip ID is em2882/em2883\n");
 			dev->wait_after_write = 0;

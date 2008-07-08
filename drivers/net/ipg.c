@@ -577,12 +577,12 @@ static void ipg_nic_set_multicast_list(struct net_device *dev)
 		/* NIC to be configured in promiscuous mode. */
 		receivemode = IPG_RM_RECEIVEALLFRAMES;
 	} else if ((dev->flags & IFF_ALLMULTI) ||
-		   (dev->flags & IFF_MULTICAST &
+		   ((dev->flags & IFF_MULTICAST) &&
 		    (dev->mc_count > IPG_MULTICAST_HASHTABLE_SIZE))) {
 		/* NIC to be configured to receive all multicast
 		 * frames. */
 		receivemode |= IPG_RM_RECEIVEMULTICAST;
-	} else if (dev->flags & IFF_MULTICAST & (dev->mc_count > 0)) {
+	} else if ((dev->flags & IFF_MULTICAST) && (dev->mc_count > 0)) {
 		/* NIC to be configured to receive selected
 		 * multicast addresses. */
 		receivemode |= IPG_RM_RECEIVEMULTICASTHASH;
@@ -1271,7 +1271,7 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 
 			framelen = le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFRAMELEN;
 
-			endframeLen = framelen - jumbo->current_size;
+			endframelen = framelen - jumbo->current_size;
 			/*
 			if (framelen > IPG_RXFRAG_SIZE)
 				framelen=IPG_RXFRAG_SIZE;
@@ -1279,8 +1279,8 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 			if (framelen > IPG_RXSUPPORT_SIZE)
 				dev_kfree_skb_irq(jumbo->skb);
 			else {
-				memcpy(skb_put(jumbo->skb, endframeLen),
-				       skb->data, endframeLen);
+				memcpy(skb_put(jumbo->skb, endframelen),
+				       skb->data, endframelen);
 
 				jumbo->skb->protocol =
 				    eth_type_trans(jumbo->skb, dev);
@@ -1352,16 +1352,16 @@ static int ipg_nic_rx(struct net_device *dev)
 
 		switch (ipg_nic_rx_check_frame_type(dev)) {
 		case FRAME_WITH_START_WITH_END:
-			ipg_nic_rx_with_start_and_end(dev, tp, rxfd, entry);
+			ipg_nic_rx_with_start_and_end(dev, sp, rxfd, entry);
 			break;
 		case FRAME_WITH_START:
-			ipg_nic_rx_with_start(dev, tp, rxfd, entry);
+			ipg_nic_rx_with_start(dev, sp, rxfd, entry);
 			break;
 		case FRAME_WITH_END:
-			ipg_nic_rx_with_end(dev, tp, rxfd, entry);
+			ipg_nic_rx_with_end(dev, sp, rxfd, entry);
 			break;
 		case FRAME_NO_START_NO_END:
-			ipg_nic_rx_no_start_no_end(dev, tp, rxfd, entry);
+			ipg_nic_rx_no_start_no_end(dev, sp, rxfd, entry);
 			break;
 		}
 	}
@@ -1808,7 +1808,7 @@ static int ipg_nic_open(struct net_device *dev)
 	/* initialize JUMBO Frame control variable */
 	sp->jumbo.found_start = 0;
 	sp->jumbo.current_size = 0;
-	sp->jumbo.skb = 0;
+	sp->jumbo.skb = NULL;
 	dev->mtu = IPG_TXFRAG_SIZE;
 #endif
 

@@ -700,9 +700,10 @@ cleanup_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
 				cleanup_p2p_bridge, NULL, NULL);
 
-	if (!(bridge = acpiphp_handle_to_bridge(handle)))
-		return AE_OK;
-	cleanup_bridge(bridge);
+	bridge = acpiphp_handle_to_bridge(handle);
+	if (bridge)
+		cleanup_bridge(bridge);
+
 	return AE_OK;
 }
 
@@ -715,9 +716,19 @@ static void remove_bridge(acpi_handle handle)
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
 				(u32)1, cleanup_p2p_bridge, NULL, NULL);
 
+	/*
+	 * On root bridges with hotplug slots directly underneath (ie,
+	 * no p2p bridge inbetween), we call cleanup_bridge(). 
+	 *
+	 * The else clause cleans up root bridges that either had no
+	 * hotplug slots at all, or had a p2p bridge underneath.
+	 */
 	bridge = acpiphp_handle_to_bridge(handle);
 	if (bridge)
 		cleanup_bridge(bridge);
+	else
+		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					   handle_hotplug_event_bridge);
 }
 
 static struct pci_dev * get_apic_pci_info(acpi_handle handle)

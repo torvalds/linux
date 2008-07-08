@@ -570,7 +570,12 @@ static struct usb_serial_driver ipaq_device = {
 	.description =		"PocketPC PDA",
 	.usb_driver = 		&ipaq_driver,
 	.id_table =		ipaq_id_table,
-	.num_ports =		2,
+	/*
+	 * some devices have an extra endpoint, which
+	 * must be ignored as it would make the core
+	 * create a second port which oopses when used
+	 */
+	.num_ports =		1,
 	.open =			ipaq_open,
 	.close =		ipaq_close,
 	.attach =		ipaq_startup,

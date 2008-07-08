@@ -194,7 +194,7 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf)
 			dev_dbg(&info->control->dev,
 				"rndis response error, code %d\n", retval);
 		}
-		msleep(2);
+		msleep(20);
 	}
 	dev_dbg(&info->control->dev, "rndis response timeout\n");
 	return -ETIMEDOUT;

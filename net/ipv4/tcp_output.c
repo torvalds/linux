@@ -2131,6 +2131,8 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	if (tcp_transmit_skb(sk, skb, 0, priority))
 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
+
+	TCP_INC_STATS(TCP_MIB_OUTRSTS);
 }
 
 /* WARNING: This routine must only be called when we have already sent

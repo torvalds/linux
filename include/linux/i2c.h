@@ -171,7 +171,7 @@ struct i2c_client {
 	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
 	struct i2c_driver *driver;	/* and our access routines	*/
 	struct device dev;		/* the device structure		*/
-	int irq;			/* irq issued by device (or -1) */
+	int irq;			/* irq issued by device		*/
 	struct list_head list;		/* DEPRECATED */
 	struct completion released;
 };

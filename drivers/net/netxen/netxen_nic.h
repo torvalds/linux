@@ -776,7 +776,6 @@ struct netxen_hardware_context {
 
 	u8 revision_id;
 	u16 board_type;
-	u16 max_ports;
 	struct netxen_board_info boardcfg;
 	u32 xg_linkup;
 	u32 qg_linksup;
@@ -863,6 +862,7 @@ struct netxen_adapter {
 	unsigned char mac_addr[ETH_ALEN];
 	int mtu;
 	int portnum;
+	u8 physical_port;
 
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
@@ -1034,7 +1034,6 @@ int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
 void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
-void netxen_initialize_adapter_hw(struct netxen_adapter *adapter);
 void *netxen_alloc(struct pci_dev *pdev, size_t sz, dma_addr_t * ptr,
 		   struct pci_dev **used_dev);
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
@@ -1076,20 +1075,6 @@ static const struct netxen_brdinfo netxen_boards[] = {
 };
 
 #define NUM_SUPPORTED_BOARDS ARRAY_SIZE(netxen_boards)
-
-static inline void get_brd_port_by_type(u32 type, int *ports)
-{
-	int i, found = 0;
-	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
-		if (netxen_boards[i].brdtype == type) {
-			*ports = netxen_boards[i].ports;
-			found = 1;
-			break;
-		}
-	}
-	if (!found)
-		*ports = 0;
-}
 
 static inline void get_brd_name_by_type(u32 type, char *name)
 {
@@ -1169,5 +1154,4 @@ extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 
 extern struct ethtool_ops netxen_nic_ethtool_ops;
 
-extern int physical_port[];	/* physical port # from virtual port.*/
 #endif				/* __NETXEN_NIC_H_ */

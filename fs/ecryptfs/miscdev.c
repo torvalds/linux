@@ -575,13 +575,11 @@ int ecryptfs_init_ecryptfs_miscdev(void)
 	int rc;
 
 	atomic_set(&ecryptfs_num_miscdev_opens, 0);
-	mutex_lock(&ecryptfs_daemon_hash_mux);
 	rc = misc_register(&ecryptfs_miscdev);
 	if (rc)
 		printk(KERN_ERR "%s: Failed to register miscellaneous device "
 		       "for communications with userspace daemons; rc = [%d]\n",
 		       __func__, rc);
-	mutex_unlock(&ecryptfs_daemon_hash_mux);
 	return rc;
 }
 

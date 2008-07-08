@@ -760,16 +760,17 @@ unsigned long unmap_vmas(struct mmu_gather **tlb,
  * (see walk_page_range for more details)
  */
 struct mm_walk {
-	int (*pgd_entry)(pgd_t *, unsigned long, unsigned long, void *);
-	int (*pud_entry)(pud_t *, unsigned long, unsigned long, void *);
-	int (*pmd_entry)(pmd_t *, unsigned long, unsigned long, void *);
-	int (*pte_entry)(pte_t *, unsigned long, unsigned long, void *);
-	int (*pte_hole)(unsigned long, unsigned long, void *);
+	int (*pgd_entry)(pgd_t *, unsigned long, unsigned long, struct mm_walk *);
+	int (*pud_entry)(pud_t *, unsigned long, unsigned long, struct mm_walk *);
+	int (*pmd_entry)(pmd_t *, unsigned long, unsigned long, struct mm_walk *);
+	int (*pte_entry)(pte_t *, unsigned long, unsigned long, struct mm_walk *);
+	int (*pte_hole)(unsigned long, unsigned long, struct mm_walk *);
+	struct mm_struct *mm;
+	void *private;
 };
 
-int walk_page_range(const struct mm_struct *, unsigned long addr,
-		    unsigned long end, const struct mm_walk *walk,
-		    void *private);
+int walk_page_range(unsigned long addr, unsigned long end,
+		struct mm_walk *walk);
 void free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
 		unsigned long end, unsigned long floor, unsigned long ceiling);
 void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *start_vma,

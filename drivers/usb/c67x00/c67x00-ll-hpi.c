@@ -120,7 +120,7 @@ static void hpi_write_word(struct c67x00_device *dev, u16 reg, u16 value)
  * Only data is little endian, addr has cpu endianess
  */
 static void hpi_write_words_le16(struct c67x00_device *dev, u16 addr,
-				 u16 *data, u16 count)
+				 __le16 *data, u16 count)
 {
 	unsigned long flags;
 	int i;
@@ -129,7 +129,7 @@ static void hpi_write_words_le16(struct c67x00_device *dev, u16 addr,
 
 	hpi_write_reg(dev, HPI_ADDR, addr);
 	for (i = 0; i < count; i++)
-		hpi_write_reg(dev, HPI_DATA, cpu_to_le16(*data++));
+		hpi_write_reg(dev, HPI_DATA, le16_to_cpu(*data++));
 
 	spin_unlock_irqrestore(&dev->hpi.lock, flags);
 }
@@ -138,7 +138,7 @@ static void hpi_write_words_le16(struct c67x00_device *dev, u16 addr,
  * Only data is little endian, addr has cpu endianess
  */
 static void hpi_read_words_le16(struct c67x00_device *dev, u16 addr,
-				u16 *data, u16 count)
+				__le16 *data, u16 count)
 {
 	unsigned long flags;
 	int i;
@@ -146,7 +146,7 @@ static void hpi_read_words_le16(struct c67x00_device *dev, u16 addr,
 	spin_lock_irqsave(&dev->hpi.lock, flags);
 	hpi_write_reg(dev, HPI_ADDR, addr);
 	for (i = 0; i < count; i++)
-		*data++ = le16_to_cpu(hpi_read_reg(dev, HPI_DATA));
+		*data++ = cpu_to_le16(hpi_read_reg(dev, HPI_DATA));
 
 	spin_unlock_irqrestore(&dev->hpi.lock, flags);
 }
@@ -425,7 +425,7 @@ void c67x00_ll_write_mem_le16(struct c67x00_device *dev, u16 addr,
 		len--;
 	}
 
-	hpi_write_words_le16(dev, addr, (u16 *)buf, len / 2);
+	hpi_write_words_le16(dev, addr, (__le16 *)buf, len / 2);
 	buf += len & ~0x01;
 	addr += len & ~0x01;
 	len &= 0x01;
@@ -456,7 +456,7 @@ void c67x00_ll_read_mem_le16(struct c67x00_device *dev, u16 addr,
 		len--;
 	}
 
-	hpi_read_words_le16(dev, addr, (u16 *)buf, len / 2);
+	hpi_read_words_le16(dev, addr, (__le16 *)buf, len / 2);
 	buf += len & ~0x01;
 	addr += len & ~0x01;
 	len &= 0x01;
