@@ -98,7 +98,7 @@ void xen_enable_sysenter(void)
 	/* Mask events on entry, even though they get enabled immediately */
 	static struct callback_register sysenter = {
 		.type = CALLBACKTYPE_sysenter,
-		.address = { __KERNEL_CS, (unsigned long)xen_sysenter_target },
+		.address = XEN_CALLBACK(__KERNEL_CS, xen_sysenter_target),
 		.flags = CALLBACKF_mask_events,
 	};
 
@@ -142,11 +142,6 @@ void __init xen_arch_setup(void)
 	       COMMAND_LINE_SIZE : MAX_GUEST_CMDLINE);
 
 	pm_idle = xen_idle;
-
-#ifdef CONFIG_SMP
-	/* fill cpus_possible with all available cpus */
-	xen_fill_possible_map();
-#endif
 
 	paravirt_disable_iospace();
 

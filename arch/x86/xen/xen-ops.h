@@ -44,8 +44,6 @@ bool xen_vcpu_stolen(int vcpu);
 
 void xen_mark_init_mm_pinned(void);
 
-void __init xen_fill_possible_map(void);
-
 void __init xen_setup_vcpu_info_placement(void);
 
 #ifdef CONFIG_SMP
