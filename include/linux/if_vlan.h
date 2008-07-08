@@ -14,10 +14,6 @@
 #define _LINUX_IF_VLAN_H_
 
 #ifdef __KERNEL__
-
-/* externally defined structs */
-struct hlist_node;
-
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
