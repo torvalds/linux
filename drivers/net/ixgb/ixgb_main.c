@@ -363,8 +363,6 @@ ixgb_probe(struct pci_dev *pdev,
 	struct net_device *netdev = NULL;
 	struct ixgb_adapter *adapter;
 	static int cards_found = 0;
-	unsigned long mmio_start;
-	int mmio_len;
 	int pci_using_dac;
 	int i;
 	int err;
@@ -405,11 +403,9 @@ ixgb_probe(struct pci_dev *pdev,
 	adapter->hw.back = adapter;
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_DEBUG_LEVEL_SHIFT);
 
-	mmio_start = pci_resource_start(pdev, BAR_0);
-	mmio_len = pci_resource_len(pdev, BAR_0);
-
-	adapter->hw.hw_addr = ioremap(mmio_start, mmio_len);
-	if(!adapter->hw.hw_addr) {
+	adapter->hw.hw_addr = ioremap(pci_resource_start(pdev, BAR_0),
+	                              pci_resource_len(pdev, BAR_0));
+	if (!adapter->hw.hw_addr) {
 		err = -EIO;
 		goto err_ioremap;
 	}
@@ -444,9 +440,6 @@ ixgb_probe(struct pci_dev *pdev,
 #endif
 
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
-	netdev->mem_start = mmio_start;
-	netdev->mem_end = mmio_start + mmio_len;
-	netdev->base_addr = adapter->hw.io_base;
 
 	adapter->bd_number = cards_found;
 	adapter->link_speed = 0;
