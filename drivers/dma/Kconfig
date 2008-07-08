@@ -72,4 +72,11 @@ config NET_DMA
 	  Say Y here if you enabled INTEL_IOATDMA or FSL_DMA, otherwise
 	  say N.
 
+config DMATEST
+	tristate "DMA Test client"
+	depends on DMA_ENGINE
+	help
+	  Simple DMA test client. Say N unless you're debugging a
+	  DMA Device driver.
+
 endif
