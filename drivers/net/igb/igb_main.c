@@ -53,7 +53,6 @@ static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
 static const char igb_copyright[] = "Copyright (c) 2008 Intel Corporation.";
 
-
 static const struct e1000_info *igb_info_tbl[] = {
 	[board_82575] = &e1000_82575_info,
 };
@@ -170,6 +169,8 @@ static struct pci_driver igb_driver = {
 	.err_handler = &igb_err_handler
 };
 
+static int global_quad_port_a; /* global quad port a indication */
+
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
 MODULE_LICENSE("GPL");
@@ -200,6 +201,8 @@ static int __init igb_init_module(void)
 	       igb_driver_string, igb_driver_version);
 
 	printk(KERN_INFO "%s\n", igb_copyright);
+
+	global_quad_port_a = 0;
 
 	ret = pci_register_driver(&igb_driver);
 #ifdef CONFIG_DCA
@@ -471,7 +474,7 @@ static void igb_reset_interrupt_capability(struct igb_adapter *adapter)
 		pci_disable_msix(adapter->pdev);
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
-	} else if (adapter->msi_enabled)
+	} else if (adapter->flags & IGB_FLAG_HAS_MSI)
 		pci_disable_msi(adapter->pdev);
 	return;
 }
@@ -510,7 +513,7 @@ msi_only:
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
 	if (!pci_enable_msi(adapter->pdev))
-		adapter->msi_enabled = 1;
+		adapter->flags |= IGB_FLAG_HAS_MSI;
 
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
@@ -538,7 +541,7 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		/* fall back to MSI */
 		igb_reset_interrupt_capability(adapter);
 		if (!pci_enable_msi(adapter->pdev))
-			adapter->msi_enabled = 1;
+			adapter->flags |= IGB_FLAG_HAS_MSI;
 		igb_free_all_tx_resources(adapter);
 		igb_free_all_rx_resources(adapter);
 		adapter->num_rx_queues = 1;
@@ -557,14 +560,14 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		}
 	}
 
-	if (adapter->msi_enabled) {
+	if (adapter->flags & IGB_FLAG_HAS_MSI) {
 		err = request_irq(adapter->pdev->irq, &igb_intr_msi, 0,
 				  netdev->name, netdev);
 		if (!err)
 			goto request_done;
 		/* fall back to legacy interrupts */
 		igb_reset_interrupt_capability(adapter);
-		adapter->msi_enabled = 0;
+		adapter->flags &= ~IGB_FLAG_HAS_MSI;
 	}
 
 	err = request_irq(adapter->pdev->irq, &igb_intr, IRQF_SHARED,
@@ -1097,6 +1100,17 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	igb_get_bus_info_pcie(hw);
 
+	/* set flags */
+	switch (hw->mac.type) {
+	case e1000_82576:
+	case e1000_82575:
+		adapter->flags |= IGB_FLAG_HAS_DCA;
+		adapter->flags |= IGB_FLAG_NEED_CTX_IDX;
+		break;
+	default:
+		break;
+	}
+
 	hw->phy.autoneg_wait_to_complete = false;
 	hw->mac.adaptive_ifs = true;
 
@@ -1209,7 +1223,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	 * lan on a particular port */
 	switch (pdev->device) {
 	case E1000_DEV_ID_82575GB_QUAD_COPPER:
-	case E1000_DEV_ID_82576_QUAD_COPPER:
 		adapter->eeprom_wol = 0;
 		break;
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
@@ -1219,6 +1232,16 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		 * regardless of eeprom setting */
 		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1)
 			adapter->eeprom_wol = 0;
+		break;
+	case E1000_DEV_ID_82576_QUAD_COPPER:
+		/* if quad port adapter, disable WoL on all but port A */
+		if (global_quad_port_a != 0)
+			adapter->eeprom_wol = 0;
+		else
+			adapter->flags |= IGB_FLAG_QUAD_PORT_A;
+		/* Reset for multiple quad port adapters */
+		if (++global_quad_port_a == 4)
+			global_quad_port_a = 0;
 		break;
 	}
 
@@ -1246,8 +1269,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		goto err_register;
 
 #ifdef CONFIG_DCA
-	if (dca_add_requester(&pdev->dev) == 0) {
-		adapter->dca_enabled = true;
+	if ((adapter->flags & IGB_FLAG_HAS_DCA) &&
+	    (dca_add_requester(&pdev->dev) == 0)) {
+		adapter->flags |= IGB_FLAG_DCA_ENABLED;
 		dev_info(&pdev->dev, "DCA enabled\n");
 		/* Always use CB2 mode, difference is masked
 		 * in the CB driver. */
@@ -1276,7 +1300,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev,
 		"Using %s interrupts. %d rx queue(s), %d tx queue(s)\n",
 		adapter->msix_entries ? "MSI-X" :
-		adapter->msi_enabled ? "MSI" : "legacy",
+		(adapter->flags & IGB_FLAG_HAS_MSI) ? "MSI" : "legacy",
 		adapter->num_rx_queues, adapter->num_tx_queues);
 
 	return 0;
@@ -1330,10 +1354,10 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	flush_scheduled_work();
 
 #ifdef CONFIG_DCA
-	if (adapter->dca_enabled) {
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
 		dev_info(&pdev->dev, "DCA disabled\n");
 		dca_remove_requester(&pdev->dev);
-		adapter->dca_enabled = false;
+		adapter->flags &= ~IGB_FLAG_DCA_ENABLED;
 		wr32(E1000_DCA_CTRL, 1);
 	}
 #endif
@@ -2650,9 +2674,9 @@ static inline int igb_tso_adv(struct igb_adapter *adapter,
 	mss_l4len_idx = (skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT);
 	mss_l4len_idx |= (l4len << E1000_ADVTXD_L4LEN_SHIFT);
 
-	/* Context index must be unique per ring.  Luckily, so is the interrupt
-	 * mask value. */
-	mss_l4len_idx |= tx_ring->eims_value >> 4;
+	/* Context index must be unique per ring. */
+	if (adapter->flags & IGB_FLAG_NEED_CTX_IDX)
+		mss_l4len_idx |= tx_ring->queue_index << 4;
 
 	context_desc->mss_l4len_idx = cpu_to_le32(mss_l4len_idx);
 	context_desc->seqnum_seed = 0;
@@ -2716,8 +2740,9 @@ static inline bool igb_tx_csum_adv(struct igb_adapter *adapter,
 
 		context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
 		context_desc->seqnum_seed = 0;
-		context_desc->mss_l4len_idx =
-					  cpu_to_le32(tx_ring->queue_index << 4);
+		if (adapter->flags & IGB_FLAG_NEED_CTX_IDX)
+			context_desc->mss_l4len_idx =
+				cpu_to_le32(tx_ring->queue_index << 4);
 
 		buffer_info->time_stamp = jiffies;
 		buffer_info->dma = 0;
@@ -2818,8 +2843,9 @@ static inline void igb_tx_queue_adv(struct igb_adapter *adapter,
 		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
 	}
 
-	if (tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_TSO |
-			IGB_TX_FLAGS_VLAN))
+	if ((adapter->flags & IGB_FLAG_NEED_CTX_IDX) &&
+	    (tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_TSO |
+			 IGB_TX_FLAGS_VLAN)))
 		olinfo_status |= tx_ring->queue_index << 4;
 
 	olinfo_status |= ((paylen - hdr_len) << E1000_ADVTXD_PAYLEN_SHIFT);
@@ -3255,7 +3281,7 @@ static irqreturn_t igb_msix_tx(int irq, void *data)
 	if (!tx_ring->itr_val)
 		wr32(E1000_EIMC, tx_ring->eims_value);
 #ifdef CONFIG_DCA
-	if (adapter->dca_enabled)
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_tx_dca(tx_ring);
 #endif
 	tx_ring->total_bytes = 0;
@@ -3292,7 +3318,7 @@ static irqreturn_t igb_msix_rx(int irq, void *data)
 		__netif_rx_schedule(adapter->netdev, &rx_ring->napi);
 
 #ifdef CONFIG_DCA
-	if (adapter->dca_enabled)
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(rx_ring);
 #endif
 		return IRQ_HANDLED;
@@ -3355,7 +3381,7 @@ static void igb_setup_dca(struct igb_adapter *adapter)
 {
 	int i;
 
-	if (!(adapter->dca_enabled))
+	if (!(adapter->flags & IGB_FLAG_DCA_ENABLED))
 		return;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
@@ -3375,12 +3401,15 @@ static int __igb_notify_dca(struct device *dev, void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	unsigned long event = *(unsigned long *)data;
 
+	if (!(adapter->flags & IGB_FLAG_HAS_DCA))
+		goto out;
+
 	switch (event) {
 	case DCA_PROVIDER_ADD:
 		/* if already enabled, don't do it again */
-		if (adapter->dca_enabled)
+		if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 			break;
-		adapter->dca_enabled = true;
+		adapter->flags |= IGB_FLAG_DCA_ENABLED;
 		/* Always use CB2 mode, difference is masked
 		 * in the CB driver. */
 		wr32(E1000_DCA_CTRL, 2);
@@ -3391,17 +3420,17 @@ static int __igb_notify_dca(struct device *dev, void *data)
 		}
 		/* Fall Through since DCA is disabled. */
 	case DCA_PROVIDER_REMOVE:
-		if (adapter->dca_enabled) {
+		if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
 			/* without this a class_device is left
  			 * hanging around in the sysfs model */
 			dca_remove_requester(dev);
 			dev_info(&adapter->pdev->dev, "DCA disabled\n");
-			adapter->dca_enabled = false;
+			adapter->flags &= ~IGB_FLAG_DCA_ENABLED;
 			wr32(E1000_DCA_CTRL, 1);
 		}
 		break;
 	}
-
+out:
 	return 0;
 }
 
@@ -3507,13 +3536,13 @@ static int igb_poll(struct napi_struct *napi, int budget)
 
 	/* this poll routine only supports one tx and one rx queue */
 #ifdef CONFIG_DCA
-	if (adapter->dca_enabled)
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_tx_dca(&adapter->tx_ring[0]);
 #endif
 	tx_clean_complete = igb_clean_tx_irq(&adapter->tx_ring[0]);
 
 #ifdef CONFIG_DCA
-	if (adapter->dca_enabled)
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(&adapter->rx_ring[0]);
 #endif
 	igb_clean_rx_irq_adv(&adapter->rx_ring[0], &work_done, budget);
@@ -3545,7 +3574,7 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 		goto quit_polling;
 
 #ifdef CONFIG_DCA
-	if (adapter->dca_enabled)
+	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(rx_ring);
 #endif
 	igb_clean_rx_irq_adv(rx_ring, &work_done, budget);
@@ -4350,6 +4379,8 @@ static void igb_netpoll(struct net_device *netdev)
 	int work_done = 0;
 
 	igb_irq_disable(adapter);
+	adapter->flags |= IGB_FLAG_IN_NETPOLL;
+
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		igb_clean_tx_irq(&adapter->tx_ring[i]);
 
@@ -4358,6 +4389,7 @@ static void igb_netpoll(struct net_device *netdev)
 				     &work_done,
 				     adapter->rx_ring[i].napi.weight);
 
+	adapter->flags &= ~IGB_FLAG_IN_NETPOLL;
 	igb_irq_enable(adapter);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */

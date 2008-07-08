@@ -270,10 +270,7 @@ struct igb_adapter {
 
 	/* to not mess up cache alignment, always add to the bottom */
 	unsigned long state;
-	unsigned int msi_enabled;
-#ifdef CONFIG_DCA
-	unsigned int dca_enabled;
-#endif
+	unsigned int flags;
 	u32 eeprom_wol;
 
 	/* for ioport free */
@@ -284,6 +281,14 @@ struct igb_adapter {
 	struct igb_ring *multi_tx_table[IGB_MAX_TX_QUEUES];
 #endif /* CONFIG_NETDEVICES_MULTIQUEUE */
 };
+
+#define IGB_FLAG_HAS_MSI           (1 << 0)
+#define IGB_FLAG_MSI_ENABLE        (1 << 1)
+#define IGB_FLAG_HAS_DCA           (1 << 2)
+#define IGB_FLAG_DCA_ENABLED       (1 << 3)
+#define IGB_FLAG_IN_NETPOLL        (1 << 5)
+#define IGB_FLAG_QUAD_PORT_A       (1 << 6)
+#define IGB_FLAG_NEED_CTX_IDX      (1 << 7)
 
 enum e1000_state_t {
 	__IGB_TESTING,
