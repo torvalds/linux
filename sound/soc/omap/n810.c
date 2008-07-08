@@ -63,7 +63,7 @@ static void n810_ext_control(struct snd_soc_codec *codec)
 	if (n810_dmic_func)
 		snd_soc_dapm_enable_pin(codec, "DMic");
 	else
-		snd_soc_dapm_disable_pin(codec, "DMic);
+		snd_soc_dapm_disable_pin(codec, "DMic");
 
 	snd_soc_dapm_sync(codec);
 }
