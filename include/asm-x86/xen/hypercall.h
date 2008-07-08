@@ -388,6 +388,14 @@ HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args)
 	return _hypercall3(int, vcpu_op, cmd, vcpuid, extra_args);
 }
 
+#ifdef CONFIG_X86_64
+static inline int
+HYPERVISOR_set_segment_base(int reg, unsigned long value)
+{
+	return _hypercall2(int, set_segment_base, reg, value);
+}
+#endif
+
 static inline int
 HYPERVISOR_suspend(unsigned long srec)
 {
