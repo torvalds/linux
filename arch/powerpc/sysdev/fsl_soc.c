@@ -296,6 +296,9 @@ static int __init gfar_of_init(void)
 		const phandle *ph;
 		int n_res = 2;
 
+		if (!of_device_is_available(np))
+			continue;
+
 		memset(r, 0, sizeof(r));
 		memset(&gfar_data, 0, sizeof(gfar_data));
 
