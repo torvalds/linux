@@ -363,7 +363,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.high_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk (KERN_INFO
+			printk(KERN_INFO
 				"Ignoring RxFCHighThresh when no RxFC\n");
 	}
 	{ /* Receive Flow Control Low Threshold */
@@ -383,7 +383,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.low_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk (KERN_INFO
+			printk(KERN_INFO
 				"Ignoring RxFCLowThresh when no RxFC\n");
 	}
 	{ /* Flow Control Pause Time Request*/
@@ -404,7 +404,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.pause_time = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk (KERN_INFO
+			printk(KERN_INFO
 				"Ignoring FCReqTimeout when no RxFC\n");
 	}
 	/* high low and spacing check for rx flow control thresholds */
@@ -412,7 +412,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		/* high must be greater than low */
 		if (adapter->hw.fc.high_water < (adapter->hw.fc.low_water + 8)) {
 			/* set defaults */
-			printk (KERN_INFO
+			printk(KERN_INFO
 				"RxFCHighThresh must be >= (RxFCLowThresh + 8), "
 				"Using Defaults\n");
 			adapter->hw.fc.high_water = DEFAULT_FCRTH;
