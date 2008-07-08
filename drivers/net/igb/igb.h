@@ -62,6 +62,7 @@ struct igb_adapter;
 
 /* Transmit and receive queues */
 #define IGB_MAX_RX_QUEUES                  4
+#define IGB_MAX_TX_QUEUES                  4
 
 /* RX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
@@ -157,8 +158,6 @@ struct igb_ring {
 	union {
 		/* TX */
 		struct {
-			spinlock_t tx_clean_lock;
-			spinlock_t tx_lock;
 			bool detect_tx_hung;
 		};
 		/* RX */
@@ -277,6 +276,10 @@ struct igb_adapter {
 	/* for ioport free */
 	int bars;
 	int need_ioport;
+
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	struct igb_ring *multi_tx_table[IGB_MAX_TX_QUEUES];
+#endif /* CONFIG_NETDEVICES_MULTIQUEUE */
 };
 
 enum e1000_state_t {
