@@ -99,7 +99,7 @@ static int tclass_notify(struct sk_buff *oskb, struct nlmsghdr *n,
    ---requeue
 
    requeues once dequeued packet. It is used for non-standard or
-   just buggy devices, which can defer output even if dev->tbusy=0.
+   just buggy devices, which can defer output even if netif_queue_stopped()=0.
 
    ---reset
 
