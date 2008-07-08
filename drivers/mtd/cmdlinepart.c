@@ -306,7 +306,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 	unsigned long offset;
 	int i;
 	struct cmdline_mtd_partition *part;
-	char *mtd_id = master->name;
+	const char *mtd_id = master->name;
 
 	/* parse command line */
 	if (!cmdline_parsed)
