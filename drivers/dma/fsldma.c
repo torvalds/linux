@@ -366,7 +366,8 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
  *
  * Return - The number of descriptors allocated.
  */
-static int fsl_dma_alloc_chan_resources(struct dma_chan *chan)
+static int fsl_dma_alloc_chan_resources(struct dma_chan *chan,
+					struct dma_client *client)
 {
 	struct fsl_dma_chan *fsl_chan = to_fsl_chan(chan);
 	LIST_HEAD(tmp_list);
@@ -819,7 +820,7 @@ static int fsl_dma_self_test(struct fsl_dma_chan *fsl_chan)
 
 	chan = &fsl_chan->common;
 
-	if (fsl_dma_alloc_chan_resources(chan) < 1) {
+	if (fsl_dma_alloc_chan_resources(chan, NULL) < 1) {
 		dev_err(fsl_chan->dev,
 				"selftest: Cannot alloc resources for DMA\n");
 		err = -ENODEV;
@@ -847,7 +848,7 @@ static int fsl_dma_self_test(struct fsl_dma_chan *fsl_chan)
 	/* Test free and re-alloc channel resources */
 	fsl_dma_free_chan_resources(chan);
 
-	if (fsl_dma_alloc_chan_resources(chan) < 1) {
+	if (fsl_dma_alloc_chan_resources(chan, NULL) < 1) {
 		dev_err(fsl_chan->dev,
 				"selftest: Cannot alloc resources for DMA\n");
 		err = -ENODEV;

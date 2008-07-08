@@ -444,7 +444,8 @@ static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan);
 static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan);
 
 /* returns the number of allocated descriptors */
-static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
+static int iop_adma_alloc_chan_resources(struct dma_chan *chan,
+					 struct dma_client *client)
 {
 	char *hw_desc;
 	int idx;
@@ -838,7 +839,7 @@ static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -936,7 +937,7 @@ iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
