@@ -137,15 +137,21 @@ int mpc831x_usb_cfg(void)
 
 	/* Configure pin mux for ULPI.  There is no pin mux for UTMI */
 	if (prop && !strcmp(prop, "ulpi")) {
-		temp = in_be32(immap + MPC83XX_SICRL_OFFS);
-		temp &= ~MPC831X_SICRL_USB_MASK;
-		temp |= MPC831X_SICRL_USB_ULPI;
-		out_be32(immap + MPC83XX_SICRL_OFFS, temp);
-
-		temp = in_be32(immap + MPC83XX_SICRH_OFFS);
-		temp &= ~MPC831X_SICRH_USB_MASK;
-		temp |= MPC831X_SICRH_USB_ULPI;
-		out_be32(immap + MPC83XX_SICRH_OFFS, temp);
+		if (of_device_is_compatible(immr_node, "fsl,mpc8315-immr")) {
+			clrsetbits_be32(immap + MPC83XX_SICRL_OFFS,
+					MPC8315_SICRL_USB_MASK,
+					MPC8315_SICRL_USB_ULPI);
+			clrsetbits_be32(immap + MPC83XX_SICRH_OFFS,
+					MPC8315_SICRH_USB_MASK,
+					MPC8315_SICRH_USB_ULPI);
+		} else {
+			clrsetbits_be32(immap + MPC83XX_SICRL_OFFS,
+					MPC831X_SICRL_USB_MASK,
+					MPC831X_SICRL_USB_ULPI);
+			clrsetbits_be32(immap + MPC83XX_SICRH_OFFS,
+					MPC831X_SICRH_USB_MASK,
+					MPC831X_SICRH_USB_ULPI);
+		}
 	}
 
 	iounmap(immap);
