@@ -74,11 +74,8 @@ static int vlan_dev_rebuild_header(struct sk_buff *skb)
 static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 {
 	if (vlan_dev_info(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
-		if (skb_shared(skb) || skb_cloned(skb)) {
-			struct sk_buff *nskb = skb_copy(skb, GFP_ATOMIC);
-			kfree_skb(skb);
-			skb = nskb;
-		}
+		if (skb_cow(skb, skb_headroom(skb)) < 0)
+			skb = NULL;
 		if (skb) {
 			/* Lifted from Gleb's VLAN code... */
 			memmove(skb->data - ETH_HLEN,
@@ -262,11 +259,13 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	u16 vlan_tci = 0;
 	int rc = 0;
 	int build_vlan_header = 0;
-	struct net_device *vdev = dev;
 
 	pr_debug("%s: skb: %p type: %hx len: %u vlan_id: %hx, daddr: %p\n",
 		 __func__, skb, type, len, vlan_dev_info(dev)->vlan_id,
 		 daddr);
+
+	if (WARN_ON(skb_headroom(skb) < dev->hard_header_len))
+		return -ENOSPC;
 
 	/* build vlan header only if re_order_header flag is NOT set.  This
 	 * fixes some programs that get confused when they see a VLAN device
@@ -315,29 +314,6 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		saddr = dev->dev_addr;
 
 	dev = vlan_dev_info(dev)->real_dev;
-
-	/* MPLS can send us skbuffs w/out enough space.	This check will grow
-	 * the skb if it doesn't have enough headroom. Not a beautiful solution,
-	 * so I'll tick a counter so that users can know it's happening...
-	 * If they care...
-	 */
-
-	/* NOTE: This may still break if the underlying device is not the final
-	 * device (and thus there are more headers to add...) It should work for
-	 * good-ole-ethernet though.
-	 */
-	if (skb_headroom(skb) < dev->hard_header_len) {
-		struct sk_buff *sk_tmp = skb;
-		skb = skb_realloc_headroom(sk_tmp, dev->hard_header_len);
-		kfree_skb(sk_tmp);
-		if (skb == NULL) {
-			struct net_device_stats *stats = &vdev->stats;
-			stats->tx_dropped++;
-			return -ENOMEM;
-		}
-		vlan_dev_info(vdev)->cnt_inc_headroom_on_tx++;
-		pr_debug("%s: %s: had to grow skb\n", __func__, vdev->name);
-	}
 
 	if (build_vlan_header) {
 		/* Now make the underlying real hard header */
