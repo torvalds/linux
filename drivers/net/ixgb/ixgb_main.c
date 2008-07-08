@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/10GbE Linux driver
-  Copyright(c) 1999 - 2006 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -32,9 +32,9 @@ char ixgb_driver_name[] = "ixgb";
 static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 
 #define DRIVERNAPI "-NAPI"
-#define DRV_VERSION "1.0.126" DRIVERNAPI
+#define DRV_VERSION "1.0.135-k2" DRIVERNAPI
 const char ixgb_driver_version[] = DRV_VERSION;
-static const char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
+static const char ixgb_copyright[] = "Copyright (c) 1999-2008 Intel Corporation.";
 
 #define IXGB_CB_LENGTH 256
 static unsigned int copybreak __read_mostly = IXGB_CB_LENGTH;
