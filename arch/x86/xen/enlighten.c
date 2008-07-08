@@ -385,6 +385,14 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 		loadsegment(gs, 0);
 }
 
+#ifdef CONFIG_X86_64
+static void xen_load_gs_index(unsigned int idx)
+{
+	if (HYPERVISOR_set_segment_base(SEGBASE_GS_USER_SEL, idx))
+		BUG();
+}
+#endif
+
 static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 				const void *ptr)
 {
@@ -1063,6 +1071,9 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.load_gdt = xen_load_gdt,
 	.load_idt = xen_load_idt,
 	.load_tls = xen_load_tls,
+#ifdef CONFIG_X86_64
+	.load_gs_index = xen_load_gs_index,
+#endif
 
 	.store_gdt = native_store_gdt,
 	.store_idt = native_store_idt,
