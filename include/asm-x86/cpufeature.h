@@ -106,6 +106,7 @@
 /* More extended AMD flags: CPUID level 0x80000001, ecx, word 6 */
 #define X86_FEATURE_LAHF_LM	(6*32+ 0) /* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY	(6*32+ 1) /* If yes HyperThreading not valid */
+#define X86_FEATURE_IBS		(6*32+ 10) /* Instruction Based Sampling */
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various

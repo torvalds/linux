@@ -3,6 +3,7 @@
  *
  *	Copyright (C) 1993 Linus Torvalds
  *	Copyright (C) 1997 Martin Mares <mj@atrey.karlin.mff.cuni.cz>
+ *	Copyright (C) 2008 Jiri Hladky <hladky _dot_ jiri _at_ gmail _dot_ com>
  *
  *	The __delay function must _NOT_ be inlined as its execution time
  *	depends wildly on alignment on many x86 processors. The additional
@@ -28,16 +29,22 @@
 /* simple loop based delay: */
 static void delay_loop(unsigned long loops)
 {
-	int d0;
-
 	__asm__ __volatile__(
-		"\tjmp 1f\n"
-		".align 16\n"
-		"1:\tjmp 2f\n"
-		".align 16\n"
-		"2:\tdecl %0\n\tjns 2b"
-		:"=&a" (d0)
-		:"0" (loops));
+		"	test %0,%0	\n"
+		"	jz 3f		\n"
+		"	jmp 1f		\n"
+
+		".align 16		\n"
+		"1:	jmp 2f		\n"
+
+		".align 16		\n"
+		"2:	decl %0		\n"
+		"	jnz 2b		\n"
+		"3:	decl %0		\n"
+
+		: /* we don't need output */
+		:"a" (loops)
+	);
 }
 
 /* TSC based delay: */

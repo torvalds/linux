@@ -1,6 +1,7 @@
 #include <linux/sched.h>
 #include <linux/clocksource.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 #include <linux/cpufreq.h>
 #include <linux/jiffies.h>
 #include <linux/init.h>
@@ -403,6 +404,7 @@ static inline void check_geode_tsc_reliable(void) { }
 void __init tsc_init(void)
 {
 	int cpu;
+	u64 lpj;
 
 	if (!cpu_has_tsc || tsc_disabled > 0)
 		return;
@@ -414,6 +416,10 @@ void __init tsc_init(void)
 		mark_tsc_unstable("could not calculate TSC khz");
 		return;
 	}
+
+	lpj = ((u64)tsc_khz * 1000);
+	do_div(lpj, HZ);
+	lpj_fine = lpj;
 
 	/* now allow native_sched_clock() to use rdtsc */
 	tsc_disabled = 0;

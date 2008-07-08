@@ -149,55 +149,6 @@ extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
 
-/*
- * readX/writeX() are used to access memory mapped devices. On some
- * architectures the memory mapped IO stuff needs to be accessed
- * differently. On the x86 architecture, we just read/write the
- * memory location directly.
- */
-
-static inline unsigned char readb(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned char __force *)addr;
-}
-
-static inline unsigned short readw(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned short __force *)addr;
-}
-
-static inline unsigned int readl(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned int __force *) addr;
-}
-
-#define readb_relaxed(addr) readb(addr)
-#define readw_relaxed(addr) readw(addr)
-#define readl_relaxed(addr) readl(addr)
-#define __raw_readb readb
-#define __raw_readw readw
-#define __raw_readl readl
-
-static inline void writeb(unsigned char b, volatile void __iomem *addr)
-{
-	*(volatile unsigned char __force *)addr = b;
-}
-
-static inline void writew(unsigned short b, volatile void __iomem *addr)
-{
-	*(volatile unsigned short __force *)addr = b;
-}
-
-static inline void writel(unsigned int b, volatile void __iomem *addr)
-{
-	*(volatile unsigned int __force *)addr = b;
-}
-#define __raw_writeb writeb
-#define __raw_writew writew
-#define __raw_writel writel
-
-#define mmiowb()
-
 static inline void
 memset_io(volatile void __iomem *addr, unsigned char val, int count)
 {

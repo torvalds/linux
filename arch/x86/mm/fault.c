@@ -392,11 +392,7 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 		printk(KERN_CONT "NULL pointer dereference");
 	else
 		printk(KERN_CONT "paging request");
-#ifdef CONFIG_X86_32
-	printk(KERN_CONT " at %08lx\n", address);
-#else
-	printk(KERN_CONT " at %016lx\n", address);
-#endif
+	printk(KERN_CONT " at %p\n", (void *) address);
 	printk(KERN_ALERT "IP:");
 	printk_address(regs->ip, 1);
 	dump_pagetable(address);
@@ -796,14 +792,10 @@ bad_area_nosemaphore:
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
 			printk(
-#ifdef CONFIG_X86_32
-			"%s%s[%d]: segfault at %lx ip %08lx sp %08lx error %lx",
-#else
-			"%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx",
-#endif
+			"%s%s[%d]: segfault at %lx ip %p sp %p error %lx",
 			task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
-			tsk->comm, task_pid_nr(tsk), address, regs->ip,
-			regs->sp, error_code);
+			tsk->comm, task_pid_nr(tsk), address,
+			(void *) regs->ip, (void *) regs->sp, error_code);
 			print_vma_addr(" in ", regs->ip);
 			printk("\n");
 		}
