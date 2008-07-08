@@ -552,8 +552,8 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
  */
 
 static struct Qdisc *
-qdisc_create(struct net_device *dev, u32 parent, u32 handle,
-	   struct nlattr **tca, int *errp)
+qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
+	     u32 parent, u32 handle, struct nlattr **tca, int *errp)
 {
 	int err;
 	struct nlattr *kind = tca[TCA_KIND];
@@ -593,7 +593,7 @@ qdisc_create(struct net_device *dev, u32 parent, u32 handle,
 	if (ops == NULL)
 		goto err_out;
 
-	sch = qdisc_alloc(dev, ops);
+	sch = qdisc_alloc(dev, dev_queue, ops);
 	if (IS_ERR(sch)) {
 		err = PTR_ERR(sch);
 		goto err_out2;
@@ -892,10 +892,12 @@ create_n_graft:
 	if (!(n->nlmsg_flags&NLM_F_CREATE))
 		return -ENOENT;
 	if (clid == TC_H_INGRESS)
-		q = qdisc_create(dev, tcm->tcm_parent, tcm->tcm_parent,
+		q = qdisc_create(dev, &dev->rx_queue,
+				 tcm->tcm_parent, tcm->tcm_parent,
 				 tca, &err);
 	else
-		q = qdisc_create(dev, tcm->tcm_parent, tcm->tcm_handle,
+		q = qdisc_create(dev, &dev->tx_queue,
+				 tcm->tcm_parent, tcm->tcm_handle,
 				 tca, &err);
 	if (q == NULL) {
 		if (err == -EAGAIN)

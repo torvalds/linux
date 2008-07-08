@@ -440,7 +440,9 @@ static struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 
-struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
+struct Qdisc *qdisc_alloc(struct net_device *dev,
+			  struct netdev_queue *dev_queue,
+			  struct Qdisc_ops *ops)
 {
 	void *p;
 	struct Qdisc *sch;
@@ -462,6 +464,7 @@ struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops)
 	sch->ops = ops;
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
+	sch->dev_queue = dev_queue;
 	sch->dev = dev;
 	dev_hold(dev);
 	atomic_set(&sch->refcnt, 1);
@@ -471,12 +474,14 @@ errout:
 	return ERR_PTR(err);
 }
 
-struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,
+struct Qdisc * qdisc_create_dflt(struct net_device *dev,
+				 struct netdev_queue *dev_queue,
+				 struct Qdisc_ops *ops,
 				 unsigned int parentid)
 {
 	struct Qdisc *sch;
 
-	sch = qdisc_alloc(dev, ops);
+	sch = qdisc_alloc(dev, dev_queue, ops);
 	if (IS_ERR(sch))
 		goto errout;
 	sch->stats_lock = &dev->queue_lock;
@@ -545,7 +550,8 @@ void dev_activate(struct net_device *dev)
 	if (dev->qdisc_sleeping == &noop_qdisc) {
 		struct Qdisc *qdisc;
 		if (dev->tx_queue_len) {
-			qdisc = qdisc_create_dflt(dev, &pfifo_fast_ops,
+			qdisc = qdisc_create_dflt(dev, &dev->tx_queue,
+						  &pfifo_fast_ops,
 						  TC_H_ROOT);
 			if (qdisc == NULL) {
 				printk(KERN_INFO "%s: activation failed\n", dev->name);

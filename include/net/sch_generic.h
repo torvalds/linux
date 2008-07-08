@@ -37,6 +37,7 @@ struct Qdisc
 	u32			parent;
 	atomic_t		refcnt;
 	struct sk_buff_head	q;
+	struct netdev_queue	*dev_queue;
 	struct net_device	*dev;
 	struct list_head	list;
 
@@ -216,8 +217,11 @@ extern void dev_deactivate(struct net_device *dev);
 extern void qdisc_reset(struct Qdisc *qdisc);
 extern void qdisc_destroy(struct Qdisc *qdisc);
 extern void qdisc_tree_decrease_qlen(struct Qdisc *qdisc, unsigned int n);
-extern struct Qdisc *qdisc_alloc(struct net_device *dev, struct Qdisc_ops *ops);
+extern struct Qdisc *qdisc_alloc(struct net_device *dev,
+				 struct netdev_queue *dev_queue,
+				 struct Qdisc_ops *ops);
 extern struct Qdisc *qdisc_create_dflt(struct net_device *dev,
+				       struct netdev_queue *dev_queue,
 				       struct Qdisc_ops *ops, u32 parentid);
 extern void tcf_destroy(struct tcf_proto *tp);
 extern void tcf_destroy_chain(struct tcf_proto **fl);

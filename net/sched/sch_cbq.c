@@ -1401,7 +1401,8 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.sibling = &q->link;
 	q->link.common.classid = sch->handle;
 	q->link.qdisc = sch;
-	if (!(q->link.q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+	if (!(q->link.q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+					    &pfifo_qdisc_ops,
 					    sch->handle)))
 		q->link.q = &noop_qdisc;
 
@@ -1645,7 +1646,8 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	if (cl) {
 		if (new == NULL) {
-			new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+			new = qdisc_create_dflt(sch->dev, sch->dev_queue,
+						&pfifo_qdisc_ops,
 						cl->common.classid);
 			if (new == NULL)
 				return -ENOBUFS;
@@ -1877,7 +1879,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	cl->R_tab = rtab;
 	rtab = NULL;
 	cl->refcnt = 1;
-	if (!(cl->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid)))
+	if (!(cl->q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+					&pfifo_qdisc_ops, classid)))
 		cl->q = &noop_qdisc;
 	cl->common.classid = classid;
 	cl->tparent = parent;

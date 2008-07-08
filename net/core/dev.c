@@ -4072,6 +4072,12 @@ static struct net_device_stats *internal_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
+static void netdev_init_queues(struct net_device *dev)
+{
+	dev->rx_queue.dev = dev;
+	dev->tx_queue.dev = dev;
+}
+
 /**
  *	alloc_netdev_mq - allocate network device
  *	@sizeof_priv:	size of private data to allocate space for
@@ -4123,6 +4129,8 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	dev->egress_subqueue_count = queue_count;
 	dev->gso_max_size = GSO_MAX_SIZE;
+
+	netdev_init_queues(dev);
 
 	dev->get_stats = internal_stats;
 	netpoll_netdev_init(dev);

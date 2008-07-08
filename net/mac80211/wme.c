@@ -359,7 +359,8 @@ static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 	/* create child queues */
 	for (i = 0; i < QD_NUM(hw); i++) {
 		skb_queue_head_init(&q->requeued[i]);
-		q->queues[i] = qdisc_create_dflt(qd->dev, &pfifo_qdisc_ops,
+		q->queues[i] = qdisc_create_dflt(qd->dev, qd->dev_queue,
+						 &pfifo_qdisc_ops,
 						 qd->handle);
 		if (!q->queues[i]) {
 			q->queues[i] = &noop_qdisc;
@@ -575,7 +576,8 @@ void ieee80211_install_qdisc(struct net_device *dev)
 {
 	struct Qdisc *qdisc;
 
-	qdisc = qdisc_create_dflt(dev, &wme_qdisc_ops, TC_H_ROOT);
+	qdisc = qdisc_create_dflt(dev, &dev->tx_queue,
+				  &wme_qdisc_ops, TC_H_ROOT);
 	if (!qdisc) {
 		printk(KERN_ERR "%s: qdisc installation failed\n", dev->name);
 		return;

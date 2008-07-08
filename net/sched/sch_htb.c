@@ -1129,7 +1129,8 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	if (cl && !cl->level) {
 		if (new == NULL &&
-		    (new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
+		    (new = qdisc_create_dflt(sch->dev, sch->dev_queue,
+					     &pfifo_qdisc_ops,
 					     cl->common.classid))
 		    == NULL)
 			return -ENOBUFS;
@@ -1256,8 +1257,9 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 		return -EBUSY;
 
 	if (!cl->level && htb_parent_last_child(cl)) {
-		new_q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops,
-						cl->parent->common.classid);
+		new_q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+					  &pfifo_qdisc_ops,
+					  cl->parent->common.classid);
 		last_child = 1;
 	}
 
@@ -1376,7 +1378,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		/* create leaf qdisc early because it uses kmalloc(GFP_KERNEL)
 		   so that can't be used inside of sch_tree_lock
 		   -- thanks to Karlis Peisenieks */
-		new_q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid);
+		new_q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+					  &pfifo_qdisc_ops, classid);
 		sch_tree_lock(sch);
 		if (parent && !parent->level) {
 			unsigned int qlen = parent->un.leaf.q->q.qlen;

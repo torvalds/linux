@@ -448,6 +448,10 @@ static inline void napi_synchronize(const struct napi_struct *n)
 # define napi_synchronize(n)	barrier()
 #endif
 
+struct netdev_queue {
+	struct net_device	*dev;
+};
+
 /*
  *	The DEVICE structure.
  *	Actually, this whole structure is a big mistake.  It mixes I/O
@@ -623,6 +627,9 @@ struct net_device
 							because most packets are unicast) */
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
+
+	struct netdev_queue	rx_queue;
+	struct netdev_queue	tx_queue;
 
 	/* ingress path synchronizer */
 	spinlock_t		ingress_lock;
