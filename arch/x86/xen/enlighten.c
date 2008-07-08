@@ -1076,6 +1076,9 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.set_iopl_mask = xen_set_iopl_mask,
 	.io_delay = xen_io_delay,
 
+	/* Xen takes care of %gs when switching to usermode for us */
+	.swapgs = paravirt_nop,
+
 	.lazy_mode = {
 		.enter = paravirt_enter_lazy_cpu,
 		.leave = xen_leave_lazy,
