@@ -528,6 +528,8 @@ ixgb_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
+	flush_scheduled_work();
+
 	unregister_netdev(netdev);
 
 	iounmap(adapter->hw.hw_addr);
