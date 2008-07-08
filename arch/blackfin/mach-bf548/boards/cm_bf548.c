@@ -684,7 +684,7 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 
 static int __init cm_bf548_init(void)
 {
-	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	platform_add_devices(cm_bf548_devices, ARRAY_SIZE(cm_bf548_devices));
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)

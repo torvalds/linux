@@ -236,7 +236,7 @@ static int insert_memory_segment(struct memory_segment *seg)
 {
 	struct memory_segment *tmp;
 
-	if (seg->start + seg->size >= VMEM_MAX_PHYS ||
+	if (seg->start + seg->size > VMEM_MAX_PHYS ||
 	    seg->start + seg->size < seg->start)
 		return -ERANGE;
 

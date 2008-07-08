@@ -467,6 +467,25 @@ static void parse_elf_finish(struct elf_info *info)
 	release_file(info->hdr, info->size);
 }
 
+static int ignore_undef_symbol(struct elf_info *info, const char *symname)
+{
+	/* ignore __this_module, it will be resolved shortly */
+	if (strcmp(symname, MODULE_SYMBOL_PREFIX "__this_module") == 0)
+		return 1;
+	/* ignore global offset table */
+	if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
+		return 1;
+	if (info->hdr->e_machine == EM_PPC)
+		/* Special register function linked on all modules during final link of .ko */
+		if (strncmp(symname, "_restgpr_", sizeof("_restgpr_") - 1) == 0 ||
+		    strncmp(symname, "_savegpr_", sizeof("_savegpr_") - 1) == 0 ||
+		    strncmp(symname, "_rest32gpr_", sizeof("_rest32gpr_") - 1) == 0 ||
+		    strncmp(symname, "_save32gpr_", sizeof("_save32gpr_") - 1) == 0)
+			return 1;
+	/* Do not ignore this symbol */
+	return 0;
+}
+
 #define CRC_PFX     MODULE_SYMBOL_PREFIX "__crc_"
 #define KSYMTAB_PFX MODULE_SYMBOL_PREFIX "__ksymtab_"
 
@@ -493,11 +512,7 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		if (ELF_ST_BIND(sym->st_info) != STB_GLOBAL &&
 		    ELF_ST_BIND(sym->st_info) != STB_WEAK)
 			break;
-		/* ignore global offset table */
-		if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
-			break;
-		/* ignore __this_module, it will be resolved shortly */
-		if (strcmp(symname, MODULE_SYMBOL_PREFIX "__this_module") == 0)
+		if (ignore_undef_symbol(info, symname))
 			break;
 /* cope with newer glibc (2.3.4 or higher) STT_ definition in elf.h */
 #if defined(STT_REGISTER) || defined(STT_SPARC_REGISTER)

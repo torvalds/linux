@@ -1165,6 +1165,15 @@ out:
 	return ret;
 }
 
+static void uart_set_ldisc(struct tty_struct *tty)
+{
+	struct uart_state *state = tty->driver_data;
+	struct uart_port *port = state->port;
+
+	if (port->ops->set_ldisc)
+		port->ops->set_ldisc(port);
+}
+
 static void uart_set_termios(struct tty_struct *tty,
 						struct ktermios *old_termios)
 {
@@ -1982,7 +1991,9 @@ struct uart_match {
 static int serial_match_port(struct device *dev, void *data)
 {
 	struct uart_match *match = data;
-	dev_t devt = MKDEV(match->driver->major, match->driver->minor) + match->port->line;
+	struct tty_driver *tty_drv = match->driver->tty_driver;
+	dev_t devt = MKDEV(tty_drv->major, tty_drv->minor_start) +
+		match->port->line;
 
 	return dev->devt == devt; /* Actually, only one tty per port */
 }
@@ -2288,6 +2299,7 @@ static const struct tty_operations uart_ops = {
 	.unthrottle	= uart_unthrottle,
 	.send_xchar	= uart_send_xchar,
 	.set_termios	= uart_set_termios,
+	.set_ldisc	= uart_set_ldisc,
 	.stop		= uart_stop,
 	.start		= uart_start,
 	.hangup		= uart_hangup,

@@ -637,6 +637,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_OOCDLINK_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(RATOC_VENDOR_ID, RATOC_PRODUCT_ID_USB60F) },
+	{ USB_DEVICE(FTDI_VID, FTDI_REU_TINY_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };

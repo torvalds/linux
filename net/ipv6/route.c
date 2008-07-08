@@ -240,7 +240,7 @@ static inline int rt6_need_strict(struct in6_addr *daddr)
 static inline struct rt6_info *rt6_device_match(struct net *net,
 						    struct rt6_info *rt,
 						    int oif,
-						    int strict)
+						    int flags)
 {
 	struct rt6_info *local = NULL;
 	struct rt6_info *sprt;
@@ -253,7 +253,7 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 			if (dev->flags & IFF_LOOPBACK) {
 				if (sprt->rt6i_idev == NULL ||
 				    sprt->rt6i_idev->dev->ifindex != oif) {
-					if (strict && oif)
+					if (flags & RT6_LOOKUP_F_IFACE && oif)
 						continue;
 					if (local && (!oif ||
 						      local->rt6i_idev->dev->ifindex == oif))
@@ -266,7 +266,7 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 		if (local)
 			return local;
 
-		if (strict)
+		if (flags & RT6_LOOKUP_F_IFACE)
 			return net->ipv6.ip6_null_entry;
 	}
 	return rt;
@@ -446,7 +446,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	struct route_info *rinfo = (struct route_info *) opt;
 	struct in6_addr prefix_buf, *prefix;
 	unsigned int pref;
-	u32 lifetime;
+	unsigned long lifetime;
 	struct rt6_info *rt;
 
 	if (len < sizeof(struct route_info)) {
@@ -472,13 +472,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	if (pref == ICMPV6_ROUTER_PREF_INVALID)
 		pref = ICMPV6_ROUTER_PREF_MEDIUM;
 
-	lifetime = ntohl(rinfo->lifetime);
-	if (lifetime == 0xffffffff) {
-		/* infinity */
-	} else if (lifetime > 0x7fffffff/HZ - 1) {
-		/* Avoid arithmetic overflow */
-		lifetime = 0x7fffffff/HZ - 1;
-	}
+	lifetime = addrconf_timeout_fixup(ntohl(rinfo->lifetime), HZ);
 
 	if (rinfo->length == 3)
 		prefix = (struct in6_addr *)rinfo->prefix;
@@ -506,7 +500,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 				 (rt->rt6i_flags & ~RTF_PREF_MASK) | RTF_PREF(pref);
 
 	if (rt) {
-		if (lifetime == 0xffffffff) {
+		if (!addrconf_finite_timeout(lifetime)) {
 			rt->rt6i_flags &= ~RTF_EXPIRES;
 		} else {
 			rt->rt6i_expires = jiffies + HZ * lifetime;
@@ -2202,8 +2196,12 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 
 	NLA_PUT_U32(skb, RTA_PRIORITY, rt->rt6i_metric);
 
-	expires = (rt->rt6i_flags & RTF_EXPIRES) ?
-			rt->rt6i_expires - jiffies : 0;
+	if (!(rt->rt6i_flags & RTF_EXPIRES))
+		expires = 0;
+	else if (rt->rt6i_expires - jiffies < INT_MAX)
+		expires = rt->rt6i_expires - jiffies;
+	else
+		expires = INT_MAX;
 
 	if (rtnl_put_cacheinfo(skb, &rt->u.dst, 0, 0, 0,
 			       expires, rt->u.dst.error) < 0)

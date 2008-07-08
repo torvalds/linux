@@ -84,7 +84,7 @@ struct media_bay_info {
 	int				cd_irq;
 	int				cd_retry;
 #endif
-#if defined(CONFIG_BLK_DEV_IDE_PMAC) || defined(CONFIG_MAC_FLOPPY)
+#if defined(CONFIG_BLK_DEV_IDE_PMAC)
 	int 				cd_index;
 #endif
 };
@@ -417,6 +417,7 @@ static void poll_media_bay(struct media_bay_info* bay)
 	}
 }
 
+#ifdef CONFIG_BLK_DEV_IDE_PMAC
 int check_media_bay(struct device_node *which_bay, int what)
 {
 	int	i;
@@ -432,7 +433,6 @@ int check_media_bay(struct device_node *which_bay, int what)
 }
 EXPORT_SYMBOL(check_media_bay);
 
-#ifdef CONFIG_BLK_DEV_IDE_PMAC
 int check_media_bay_by_base(unsigned long base, int what)
 {
 	int	i;
@@ -556,7 +556,8 @@ static void media_bay_step(int i)
 				printk("mediabay %d, registering IDE...\n", i);
 				pmu_suspend();
 				ide_port_scan(bay->cd_port);
-				bay->cd_index = bay->cd_port->index;
+				if (bay->cd_port->present)
+					bay->cd_index = bay->cd_port->index;
 				pmu_resume();
 			}
 			if (bay->cd_index == -1) {

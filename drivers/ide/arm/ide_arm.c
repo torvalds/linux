@@ -49,6 +49,7 @@ static int __init ide_arm_init(void)
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = IDE_ARM_IRQ;
+	hw.chipset = ide_generic;
 
 	hwif = ide_find_port();
 	if (hwif) {
