@@ -235,6 +235,8 @@
 #define E1000_FACTPS    0x05B30 /* Function Active and Power State to MNG */
 #define E1000_SWSM      0x05B50 /* SW Semaphore */
 #define E1000_FWSM      0x05B54 /* FW Semaphore */
+#define E1000_DCA_ID    0x05B70 /* DCA Requester ID Information - RO */
+#define E1000_DCA_CTRL  0x05B74 /* DCA Control - RW */
 #define E1000_HICR      0x08F00 /* Host Inteface Control */
 
 /* RSS registers */

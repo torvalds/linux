@@ -271,7 +271,9 @@ struct igb_adapter {
 	/* to not mess up cache alignment, always add to the bottom */
 	unsigned long state;
 	unsigned int msi_enabled;
-
+#ifdef CONFIG_DCA
+	unsigned int dca_enabled;
+#endif
 	u32 eeprom_wol;
 
 	/* for ioport free */
