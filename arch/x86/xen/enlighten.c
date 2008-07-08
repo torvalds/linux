@@ -845,9 +845,6 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 	pgd_t *xen_pgd = (pgd_t *)xen_start_info->pt_base;
 	int i;
 
-	/* special set_pte for pagetable initialization */
-	pv_mmu_ops.set_pte = xen_set_pte_init;
-
 	init_mm.pgd = base;
 	/*
 	 * copy top-level of Xen-supplied pagetable into place.  This
@@ -1174,7 +1171,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.kmap_atomic_pte = xen_kmap_atomic_pte,
 #endif
 
-	.set_pte = NULL,	/* see xen_pagetable_setup_* */
+	.set_pte = xen_set_pte_init,
 	.set_pte_at = xen_set_pte_at,
 	.set_pmd = xen_set_pmd_hyper,
 
