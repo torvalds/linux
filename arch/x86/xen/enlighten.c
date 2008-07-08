@@ -1194,7 +1194,11 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.kmap_atomic_pte = xen_kmap_atomic_pte,
 #endif
 
+#ifdef CONFIG_X86_64
+	.set_pte = xen_set_pte,
+#else
 	.set_pte = xen_set_pte_init,
+#endif
 	.set_pte_at = xen_set_pte_at,
 	.set_pmd = xen_set_pmd_hyper,
 
