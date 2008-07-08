@@ -1855,12 +1855,17 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 
 	tx_ring->next_to_clean = i;
 
-	if (unlikely(netif_queue_stopped(netdev))) {
-		spin_lock(&adapter->tx_lock);
-		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev) &&
-		    (IXGB_DESC_UNUSED(tx_ring) >= DESC_NEEDED))
+	if (unlikely(cleaned && netif_carrier_ok(netdev) &&
+		     IXGB_DESC_UNUSED(tx_ring) >= DESC_NEEDED)) {
+		/* Make sure that anybody stopping the queue after this
+		 * sees the new next_to_clean. */
+		smp_mb();
+
+		if (netif_queue_stopped(netdev) &&
+		    !(test_bit(__IXGB_DOWN, &adapter->flags))) {
 			netif_wake_queue(netdev);
-		spin_unlock(&adapter->tx_lock);
+			++adapter->restart_queue;
+		}
 	}
 
 	if(adapter->detect_tx_hung) {
