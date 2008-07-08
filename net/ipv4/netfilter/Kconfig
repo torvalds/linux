@@ -213,8 +213,7 @@ config IP_NF_TARGET_NETMAP
 	help
 	  NETMAP is an implementation of static 1:1 NAT mapping of network
 	  addresses. It maps the network address part, while keeping the host
-	  address part intact. It is similar to Fast NAT, except that
-	  Netfilter's connection tracking doesn't work well with Fast NAT.
+	  address part intact.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

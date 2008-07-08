@@ -33,9 +33,8 @@ config NF_CONNTRACK
 	  into connections.
 
 	  This is required to do Masquerading or other kinds of Network
-	  Address Translation (except for Fast NAT).  It can also be used to
-	  enhance packet filtering (see `Connection state match support'
-	  below).
+	  Address Translation.  It can also be used to enhance packet
+	  filtering (see `Connection state match support' below).
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
