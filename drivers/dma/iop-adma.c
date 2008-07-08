@@ -1387,6 +1387,8 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 	spin_unlock_bh(&iop_chan->lock);
 }
 
+MODULE_ALIAS("platform:iop-adma");
+
 static struct platform_driver iop_adma_driver = {
 	.probe		= iop_adma_probe,
 	.remove		= iop_adma_remove,
