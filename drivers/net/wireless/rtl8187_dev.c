@@ -1180,7 +1180,7 @@ static struct usb_driver rtl8187_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8187_table,
 	.probe		= rtl8187_probe,
-	.disconnect	= rtl8187_disconnect,
+	.disconnect	= __devexit_p(rtl8187_disconnect),
 };
 
 static int __init rtl8187_init(void)
