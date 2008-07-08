@@ -64,7 +64,7 @@ void __init mpc85xx_ds_pic_init(void)
 	int cascade_irq;
 #endif
 
-	np = of_find_node_by_type(np, "open-pic");
+	np = of_find_node_by_type(NULL, "open-pic");
 	if (np == NULL) {
 		printk(KERN_ERR "Could not find open-pic node\n");
 		return;
