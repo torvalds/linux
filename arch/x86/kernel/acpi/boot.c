@@ -1373,8 +1373,6 @@ static void __init acpi_process_madt(void)
 	return;
 }
 
-#ifdef __i386__
-
 static int __init disable_acpi_irq(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
@@ -1432,6 +1430,17 @@ dmi_disable_irq0_through_ioapic(const struct dmi_system_id *d)
 {
 	pr_notice("%s detected: disabling IRQ 0 through I/O APIC\n", d->ident);
 	disable_irq0_through_ioapic = 1;
+	return 0;
+}
+
+/*
+ * Force ignoring BIOS IRQ0 pin2 override
+ */
+static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
+{
+	pr_notice("%s detected: Ignoring BIOS IRQ0 pin2 override\n", d->ident);
+	acpi_skip_timer_override = 1;
+	force_mask_ioapic_irq_2();
 	return 0;
 }
 
@@ -1628,10 +1637,34 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
 		     },
 	 },
+	/*
+	 * HP laptops which use a DSDT reporting as HP/SB400/10000,
+	 * which includes some code which overrides all temperature
+	 * trip points to 16C if the INTIN2 input of the I/O APIC
+	 * is enabled.  This input is incorrectly designated the
+	 * ISA IRQ 0 via an interrupt source override even though
+	 * it is wired to the output of the master 8259A and INTIN0
+	 * is not connected at all.  Force ignoring BIOS IRQ0 pin2
+	 * override in that cases.
+	 */
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP NX6125 laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6125"),
+		     },
+	 },
+	{
+	 .callback = dmi_ignore_irq0_timer_override,
+	 .ident = "HP NX6325 laptop",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nx6325"),
+		     },
+	 },
 	{}
 };
-
-#endif				/* __i386__ */
 
 /*
  * acpi_boot_table_init() and acpi_boot_init()
@@ -1660,9 +1693,7 @@ int __init acpi_boot_table_init(void)
 {
 	int error;
 
-#ifdef __i386__
 	dmi_check_system(acpi_dmi_table);
-#endif
 
 	/*
 	 * If acpi_disabled, bail out
