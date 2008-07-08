@@ -28,9 +28,13 @@
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
+u32 igb_translate_register_82576(u32 reg);
+void igb_update_mc_addr_list_82575(struct e1000_hw*, u8*, u32, u32, u32);
+extern void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw);
 extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 
 #define E1000_RAR_ENTRIES_82575   16
+#define E1000_RAR_ENTRIES_82576   24
 
 /* SRRCTL bit definitions */
 #define E1000_SRRCTL_BSIZEPKT_SHIFT                     10 /* Shift _right_ */
@@ -159,5 +163,10 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
 #define E1000_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */
 
+/* Additional DCA related definitions, note change in position of CPUID */
+#define E1000_DCA_TXCTRL_CPUID_MASK_82576 0xFF000000 /* Tx CPUID Mask */
+#define E1000_DCA_RXCTRL_CPUID_MASK_82576 0xFF000000 /* Rx CPUID Mask */
+#define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID now in the last byte */
+#define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID now in the last byte */
 
 #endif

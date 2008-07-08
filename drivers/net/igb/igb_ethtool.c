@@ -827,8 +827,9 @@ err_setup:
 /* ethtool register test data */
 struct igb_reg_test {
 	u16 reg;
-	u8  array_len;
-	u8  test_type;
+	u16 reg_offset;
+	u16 array_len;
+	u16 test_type;
 	u32 mask;
 	u32 write;
 };
@@ -850,34 +851,72 @@ struct igb_reg_test {
 #define TABLE64_TEST_LO	5
 #define TABLE64_TEST_HI	6
 
-/* default register test */
-static struct igb_reg_test reg_test_82575[] = {
-	{ E1000_FCAL, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_FCAH, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
-	{ E1000_FCT, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
-	{ E1000_VET, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_RDBAL(0), 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
-	{ E1000_RDBAH(0), 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_RDLEN(0), 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+/* 82576 reg test */
+static struct igb_reg_test reg_test_82576[] = {
+	{ E1000_FCAL,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_FCAH,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_FCT,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_VET,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDBAL(0),  0x100, 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(0),  0x100, 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(0),  0x100, 4, PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
+	{ E1000_RDBAL(4),  0x40,  8, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(4),  0x40,  8, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(4),  0x40,  8, PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
 	/* Enable all four RX queues before testing. */
-	{ E1000_RXDCTL(0), 4, WRITE_NO_TEST, 0, E1000_RXDCTL_QUEUE_ENABLE },
+	{ E1000_RXDCTL(0), 0x100, 1,  WRITE_NO_TEST, 0, E1000_RXDCTL_QUEUE_ENABLE },
+	/* RDH is read-only for 82576, only test RDT. */
+	{ E1000_RDT(0),	   0x100, 4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_RXDCTL(0), 0x100, 4,  WRITE_NO_TEST, 0, 0 },
+	{ E1000_FCRTH,	   0x100, 1,  PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
+	{ E1000_FCTTV,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_TIPG,	   0x100, 1,  PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
+	{ E1000_TDBAL(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(0),  0x100, 4,  PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
+	{ E1000_TDBAL(4),  0x40, 8,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(4),  0x40, 8,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(4),  0x40, 8,  PATTERN_TEST, 0x000FFFF0, 0x000FFFFF },
+	{ E1000_RCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RCTL, 	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0x003FFFFB },
+	{ E1000_RCTL, 	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0xFFFFFFFF },
+	{ E1000_TCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_HI, 0x83FFFFFF, 0xFFFFFFFF },
+	{ E1000_RA2,	   0, 8, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA2,	   0, 8, TABLE64_TEST_HI, 0x83FFFFFF, 0xFFFFFFFF },
+	{ E1000_MTA,	   0, 128,TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ 0, 0, 0, 0 }
+};
+
+/* 82575 register test */
+static struct igb_reg_test reg_test_82575[] = {
+	{ E1000_FCAL,      0x100, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_FCAH,      0x100, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_FCT,       0x100, 1, PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_VET,       0x100, 1, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDBAL(0),  0x100, 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(0),  0x100, 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(0),  0x100, 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	/* Enable all four RX queues before testing. */
+	{ E1000_RXDCTL(0), 0x100, 4, WRITE_NO_TEST, 0, E1000_RXDCTL_QUEUE_ENABLE },
 	/* RDH is read-only for 82575, only test RDT. */
-	{ E1000_RDT(0), 4, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ E1000_RXDCTL(0), 4, WRITE_NO_TEST, 0, 0 },
-	{ E1000_FCRTH, 1, PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
-	{ E1000_FCTTV, 1, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
-	{ E1000_TIPG, 1, PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
-	{ E1000_TDBAL(0), 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
-	{ E1000_TDBAH(0), 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_TDLEN(0), 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
-	{ E1000_RCTL, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
-	{ E1000_RCTL, 1, SET_READ_TEST, 0x04CFB3FE, 0x003FFFFB },
-	{ E1000_RCTL, 1, SET_READ_TEST, 0x04CFB3FE, 0xFFFFFFFF },
-	{ E1000_TCTL, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
-	{ E1000_TXCW, 1, PATTERN_TEST, 0xC000FFFF, 0x0000FFFF },
-	{ E1000_RA, 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
-	{ E1000_RA, 16, TABLE64_TEST_HI, 0x800FFFFF, 0xFFFFFFFF },
-	{ E1000_MTA, 128, TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDT(0),    0x100, 4, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_RXDCTL(0), 0x100, 4, WRITE_NO_TEST, 0, 0 },
+	{ E1000_FCRTH,     0x100, 1, PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
+	{ E1000_FCTTV,     0x100, 1, PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_TIPG,      0x100, 1, PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
+	{ E1000_TDBAL(0),  0x100, 4, PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(0),  0x100, 4, PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(0),  0x100, 4, PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	{ E1000_RCTL,      0x100, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RCTL,      0x100, 1, SET_READ_TEST, 0x04CFB3FE, 0x003FFFFB },
+	{ E1000_RCTL,      0x100, 1, SET_READ_TEST, 0x04CFB3FE, 0xFFFFFFFF },
+	{ E1000_TCTL,      0x100, 1, SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_TXCW,      0x100, 1, PATTERN_TEST, 0xC000FFFF, 0x0000FFFF },
+	{ E1000_RA,        0, 16, TABLE64_TEST_LO, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA,        0, 16, TABLE64_TEST_HI, 0x800FFFFF, 0xFFFFFFFF },
+	{ E1000_MTA,       0, 128, TABLE32_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
 	{ 0, 0, 0, 0 }
 };
 
@@ -937,7 +976,15 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 	u32 i, toggle;
 
 	toggle = 0x7FFFF3FF;
-	test = reg_test_82575;
+
+	switch (adapter->hw.mac.type) {
+	case e1000_82576:
+		test = reg_test_82576;
+		break;
+	default:
+		test = reg_test_82575;
+		break;
+	}
 
 	/* Because the status register is such a special case,
 	 * we handle it separately from the rest of the register
@@ -964,19 +1011,19 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 		for (i = 0; i < test->array_len; i++) {
 			switch (test->test_type) {
 			case PATTERN_TEST:
-				REG_PATTERN_TEST(test->reg + (i * 0x100),
+				REG_PATTERN_TEST(test->reg + (i * test->reg_offset),
 						test->mask,
 						test->write);
 				break;
 			case SET_READ_TEST:
-				REG_SET_AND_CHECK(test->reg + (i * 0x100),
+				REG_SET_AND_CHECK(test->reg + (i * test->reg_offset),
 						test->mask,
 						test->write);
 				break;
 			case WRITE_NO_TEST:
 				writel(test->write,
 				    (adapter->hw.hw_addr + test->reg)
-					+ (i * 0x100));
+					+ (i * test->reg_offset));
 				break;
 			case TABLE32_TEST:
 				REG_PATTERN_TEST(test->reg + (i * 4),
@@ -1392,13 +1439,39 @@ static int igb_set_phy_loopback(struct igb_adapter *adapter)
 static int igb_setup_loopback_test(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 rctl;
+	u32 reg;
 
 	if (hw->phy.media_type == e1000_media_type_fiber ||
 	    hw->phy.media_type == e1000_media_type_internal_serdes) {
-		rctl = rd32(E1000_RCTL);
-		rctl |= E1000_RCTL_LBM_TCVR;
-		wr32(E1000_RCTL, rctl);
+		reg = rd32(E1000_RCTL);
+		reg |= E1000_RCTL_LBM_TCVR;
+		wr32(E1000_RCTL, reg);
+
+		wr32(E1000_SCTL, E1000_ENABLE_SERDES_LOOPBACK);
+
+		reg = rd32(E1000_CTRL);
+		reg &= ~(E1000_CTRL_RFCE |
+			 E1000_CTRL_TFCE |
+			 E1000_CTRL_LRST);
+		reg |= E1000_CTRL_SLU |
+		       E1000_CTRL_FD; 
+		wr32(E1000_CTRL, reg);
+
+		/* Unset switch control to serdes energy detect */
+		reg = rd32(E1000_CONNSW);
+		reg &= ~E1000_CONNSW_ENRGSRC;
+		wr32(E1000_CONNSW, reg);
+
+		/* Set PCS register for forced speed */
+		reg = rd32(E1000_PCS_LCTL);
+		reg &= ~E1000_PCS_LCTL_AN_ENABLE;     /* Disable Autoneg*/
+		reg |= E1000_PCS_LCTL_FLV_LINK_UP |   /* Force link up */
+		       E1000_PCS_LCTL_FSV_1000 |      /* Force 1000    */
+		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
+		       E1000_PCS_LCTL_FSD |           /* Force Speed */
+		       E1000_PCS_LCTL_FORCE_LINK;     /* Force Link */
+		wr32(E1000_PCS_LCTL, reg);
+
 		return 0;
 	} else if (hw->phy.media_type == e1000_media_type_copper) {
 		return igb_set_phy_loopback(adapter);
@@ -1654,10 +1727,13 @@ static int igb_wol_exclusion(struct igb_adapter *adapter,
 
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82575GB_QUAD_COPPER:
+	case E1000_DEV_ID_82576_QUAD_COPPER:
 		/* WoL not supported */
 		wol->supported = 0;
 		break;
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
+	case E1000_DEV_ID_82576_FIBER:
+	case E1000_DEV_ID_82576_SERDES:
 		/* Wake events not supported on port B */
 		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1) {
 			wol->supported = 0;

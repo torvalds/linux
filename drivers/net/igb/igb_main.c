@@ -51,7 +51,7 @@ char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
-static const char igb_copyright[] = "Copyright (c) 2007 Intel Corporation.";
+static const char igb_copyright[] = "Copyright (c) 2008 Intel Corporation.";
 
 
 static const struct e1000_info *igb_info_tbl[] = {
@@ -59,6 +59,10 @@ static const struct e1000_info *igb_info_tbl[] = {
 };
 
 static struct pci_device_id igb_pci_tbl[] = {
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_FIBER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_SERDES), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_QUAD_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_FIBER_SERDES), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575GB_QUAD_COPPER), board_82575 },
@@ -268,6 +272,10 @@ static void igb_assign_vector(struct igb_adapter *adapter, int rx_queue,
 {
 	u32 msixbm = 0;
 	struct e1000_hw *hw = &adapter->hw;
+	u32 ivar, index;
+
+	switch (hw->mac.type) {
+	case e1000_82575:
 		/* The 82575 assigns vectors using a bitmask, which matches the
 		   bitmask for the EICR/EIMS/EIMC registers.  To assign one
 		   or more queues to a vector, we write the appropriate bits
@@ -282,6 +290,47 @@ static void igb_assign_vector(struct igb_adapter *adapter, int rx_queue,
 				  E1000_EICR_TX_QUEUE0 << tx_queue;
 		}
 		array_wr32(E1000_MSIXBM(0), msix_vector, msixbm);
+		break;
+	case e1000_82576:
+		/* Kawela uses a table-based method for assigning vectors.
+		   Each queue has a single entry in the table to which we write
+		   a vector number along with a "valid" bit.  Sadly, the layout
+		   of the table is somewhat counterintuitive. */
+		if (rx_queue > IGB_N0_QUEUE) {
+			index = (rx_queue & 0x7);
+			ivar = array_rd32(E1000_IVAR0, index);
+			if (rx_queue < 8) {
+				/* vector goes into low byte of register */
+				ivar = ivar & 0xFFFFFF00;
+				ivar |= msix_vector | E1000_IVAR_VALID;
+			} else {
+				/* vector goes into third byte of register */
+				ivar = ivar & 0xFF00FFFF;
+				ivar |= (msix_vector | E1000_IVAR_VALID) << 16;
+			}
+			adapter->rx_ring[rx_queue].eims_value= 1 << msix_vector;
+			array_wr32(E1000_IVAR0, index, ivar);
+		}
+		if (tx_queue > IGB_N0_QUEUE) {
+			index = (tx_queue & 0x7);
+			ivar = array_rd32(E1000_IVAR0, index);
+			if (tx_queue < 8) {
+				/* vector goes into second byte of register */
+				ivar = ivar & 0xFFFF00FF;
+				ivar |= (msix_vector | E1000_IVAR_VALID) << 8;
+			} else {
+				/* vector goes into high byte of register */
+				ivar = ivar & 0x00FFFFFF;
+				ivar |= (msix_vector | E1000_IVAR_VALID) << 24;
+			}
+			adapter->tx_ring[tx_queue].eims_value= 1 << msix_vector;
+			array_wr32(E1000_IVAR0, index, ivar);
+		}
+		break;
+	default:
+		BUG();
+		break;
+	}
 }
 
 /**
@@ -297,6 +346,12 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	adapter->eims_enable_mask = 0;
+	if (hw->mac.type == e1000_82576)
+		/* Turn on MSI-X capability first, or our settings
+		 * won't stick.  And it will take days to debug. */
+		wr32(E1000_GPIE, E1000_GPIE_MSIX_MODE |
+				   E1000_GPIE_PBA | E1000_GPIE_EIAME | 
+ 				   E1000_GPIE_NSICR);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *tx_ring = &adapter->tx_ring[i];
@@ -322,6 +377,8 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 
 
 	/* set vector for other causes, i.e. link changes */
+	switch (hw->mac.type) {
+	case e1000_82575:
 		array_wr32(E1000_MSIXBM(0), vector++,
 				      E1000_EIMS_OTHER);
 
@@ -337,6 +394,19 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 		adapter->eims_enable_mask |= E1000_EIMS_OTHER;
 		adapter->eims_other = E1000_EIMS_OTHER;
 
+		break;
+
+	case e1000_82576:
+		tmp = (vector++ | E1000_IVAR_VALID) << 8;
+		wr32(E1000_IVAR_MISC, tmp);
+
+		adapter->eims_enable_mask = (1 << (vector)) - 1;
+		adapter->eims_other = 1 << (vector - 1);
+		break;
+	default:
+		/* do nothing, since nothing else supports MSI-X */
+		break;
+	} /* switch (hw->mac.type) */
 	wrfl();
 }
 
@@ -474,8 +544,17 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		adapter->num_rx_queues = 1;
 		igb_alloc_queues(adapter);
 	} else {
-		wr32(E1000_MSIXBM(0), (E1000_EICR_RX_QUEUE0 |
-		                       E1000_EIMS_OTHER));
+		switch (hw->mac.type) {
+		case e1000_82575:
+			wr32(E1000_MSIXBM(0),
+			     (E1000_EICR_RX_QUEUE0 | E1000_EIMS_OTHER));
+			break;
+		case e1000_82576:
+			wr32(E1000_IVAR0, E1000_IVAR_VALID);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (adapter->msi_enabled) {
@@ -770,16 +849,23 @@ void igb_reinit_locked(struct igb_adapter *adapter)
 void igb_reset(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct e1000_fc_info *fc = &adapter->hw.fc;
+	struct e1000_mac_info *mac = &hw->mac;
+	struct e1000_fc_info *fc = &hw->fc;
 	u32 pba = 0, tx_space, min_tx_space, min_rx_space;
 	u16 hwm;
 
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
 	 */
+	if (mac->type != e1000_82576) {
 	pba = E1000_PBA_34K;
+	}
+	else {
+		pba = E1000_PBA_64K;
+	}
 
-	if (adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) {
+	if ((adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) &&
+	    (mac->type < e1000_82576)) {
 		/* adjust PBA for jumbo frames */
 		wr32(E1000_PBA, pba);
 
@@ -818,8 +904,8 @@ void igb_reset(struct igb_adapter *adapter)
 			if (pba < min_rx_space)
 				pba = min_rx_space;
 		}
+		wr32(E1000_PBA, pba);
 	}
-	wr32(E1000_PBA, pba);
 
 	/* flow control settings */
 	/* The high water mark must be low enough to fit one full frame
@@ -828,10 +914,15 @@ void igb_reset(struct igb_adapter *adapter)
 	 * - 90% of the Rx FIFO size, or
 	 * - the full Rx FIFO size minus one full frame */
 	hwm = min(((pba << 10) * 9 / 10),
-		  ((pba << 10) - adapter->max_frame_size));
+			((pba << 10) - 2 * adapter->max_frame_size));
 
-	fc->high_water = hwm & 0xFFF8;	/* 8-byte granularity */
-	fc->low_water = fc->high_water - 8;
+	if (mac->type < e1000_82576) {
+		fc->high_water = hwm & 0xFFF8;	/* 8-byte granularity */
+		fc->low_water = fc->high_water - 8;
+	} else {
+		fc->high_water = hwm & 0xFFF0;	/* 16-byte granularity */
+		fc->low_water = fc->high_water - 16;
+	}
 	fc->pause_time = 0xFFFF;
 	fc->send_xon = 1;
 	fc->type = fc->original_type;
@@ -1118,9 +1209,12 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	 * lan on a particular port */
 	switch (pdev->device) {
 	case E1000_DEV_ID_82575GB_QUAD_COPPER:
+	case E1000_DEV_ID_82576_QUAD_COPPER:
 		adapter->eeprom_wol = 0;
 		break;
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
+	case E1000_DEV_ID_82576_FIBER:
+	case E1000_DEV_ID_82576_SERDES:
 		/* Wake events only supported on port A for dual fiber
 		 * regardless of eeprom setting */
 		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1)
@@ -1801,7 +1895,10 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 
 		get_random_bytes(&random[0], 40);
 
-		shift = 6;
+		if (hw->mac.type >= e1000_82576)
+			shift = 0;
+		else
+			shift = 6;
 		for (j = 0; j < (32 * 4); j++) {
 			reta.bytes[j & 3] =
 				(j % adapter->num_rx_queues) << shift;
@@ -2127,7 +2224,7 @@ static void igb_set_multi(struct net_device *netdev)
 
 	if (!netdev->mc_count) {
 		/* nothing to program, so clear mc list */
-		igb_update_mc_addr_list(hw, NULL, 0, 1,
+		igb_update_mc_addr_list_82575(hw, NULL, 0, 1,
 					  mac->rar_entry_count);
 		return;
 	}
@@ -2145,7 +2242,8 @@ static void igb_set_multi(struct net_device *netdev)
 		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
 		mc_ptr = mc_ptr->next;
 	}
-	igb_update_mc_addr_list(hw, mta_list, i, 1, mac->rar_entry_count);
+	igb_update_mc_addr_list_82575(hw, mta_list, i, 1,
+	                              mac->rar_entry_count);
 	kfree(mta_list);
 }
 
@@ -3211,8 +3309,14 @@ static void igb_update_rx_dca(struct igb_ring *rx_ring)
 
 	if (rx_ring->cpu != cpu) {
 		dca_rxctrl = rd32(E1000_DCA_RXCTRL(q));
-		dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK;
-		dca_rxctrl |= dca_get_tag(cpu);
+		if (hw->mac.type == e1000_82576) {
+			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK_82576;
+			dca_rxctrl |= dca_get_tag(cpu) <<
+			              E1000_DCA_RXCTRL_CPUID_SHIFT;
+		} else {
+			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK;
+			dca_rxctrl |= dca_get_tag(cpu);
+		}
 		dca_rxctrl |= E1000_DCA_RXCTRL_DESC_DCA_EN;
 		dca_rxctrl |= E1000_DCA_RXCTRL_HEAD_DCA_EN;
 		dca_rxctrl |= E1000_DCA_RXCTRL_DATA_DCA_EN;
@@ -3232,8 +3336,14 @@ static void igb_update_tx_dca(struct igb_ring *tx_ring)
 
 	if (tx_ring->cpu != cpu) {
 		dca_txctrl = rd32(E1000_DCA_TXCTRL(q));
-		dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK;
-		dca_txctrl |= dca_get_tag(cpu);
+		if (hw->mac.type == e1000_82576) {
+			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK_82576;
+			dca_txctrl |= dca_get_tag(cpu) <<
+			              E1000_DCA_TXCTRL_CPUID_SHIFT;
+		} else {
+			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK;
+			dca_txctrl |= dca_get_tag(cpu);
+		}
 		dca_txctrl |= E1000_DCA_TXCTRL_DESC_DCA_EN;
 		wr32(E1000_DCA_TXCTRL(q), dca_txctrl);
 		tx_ring->cpu = cpu;
@@ -3572,7 +3682,7 @@ done_cleaning:
 			/* detected Tx unit hang */
 			dev_err(&adapter->pdev->dev,
 				"Detected Tx Unit Hang\n"
-				"  Tx Queue             <%lu>\n"
+				"  Tx Queue             <%d>\n"
 				"  TDH                  <%x>\n"
 				"  TDT                  <%x>\n"
 				"  next_to_use          <%x>\n"
@@ -3582,8 +3692,7 @@ done_cleaning:
 				"  time_stamp           <%lx>\n"
 				"  jiffies              <%lx>\n"
 				"  desc.status          <%x>\n",
-				(unsigned long)((tx_ring - adapter->tx_ring) /
-					sizeof(struct igb_ring)),
+				tx_ring->queue_index,
 				readl(adapter->hw.hw_addr + tx_ring->head),
 				readl(adapter->hw.hw_addr + tx_ring->tail),
 				tx_ring->next_to_use,
@@ -4098,7 +4207,7 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 ctrl, ctrl_ext, rctl, status;
+	u32 ctrl, rctl, status;
 	u32 wufc = adapter->wol;
 #ifdef CONFIG_PM
 	int retval = 0;
@@ -4141,33 +4250,24 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 		ctrl |= E1000_CTRL_ADVD3WUC;
 		wr32(E1000_CTRL, ctrl);
 
-		if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
-		   adapter->hw.phy.media_type ==
-					e1000_media_type_internal_serdes) {
-			/* keep the laser running in D3 */
-			ctrl_ext = rd32(E1000_CTRL_EXT);
-			ctrl_ext |= E1000_CTRL_EXT_SDP7_DATA;
-			wr32(E1000_CTRL_EXT, ctrl_ext);
-		}
-
 		/* Allow time for pending master requests to run */
 		igb_disable_pcie_master(&adapter->hw);
 
 		wr32(E1000_WUC, E1000_WUC_PME_EN);
 		wr32(E1000_WUFC, wufc);
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
 	} else {
 		wr32(E1000_WUC, 0);
 		wr32(E1000_WUFC, 0);
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
-	/* make sure adapter isn't asleep if manageability is enabled */
-	if (adapter->en_mng_pt) {
+	/* make sure adapter isn't asleep if manageability/wol is enabled */
+	if (wufc || adapter->en_mng_pt) {
 		pci_enable_wake(pdev, PCI_D3hot, 1);
 		pci_enable_wake(pdev, PCI_D3cold, 1);
+	} else {
+		igb_shutdown_fiber_serdes_link_82575(hw);
+		pci_enable_wake(pdev, PCI_D3hot, 0);
+		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
