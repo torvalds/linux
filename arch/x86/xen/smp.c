@@ -155,8 +155,10 @@ static void __init xen_fill_possible_map(void)
 
 	for (i = 0; i < NR_CPUS; i++) {
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
-		if (rc >= 0)
+		if (rc >= 0) {
+			num_processors++;
 			cpu_set(i, cpu_possible_map);
+		}
 	}
 }
 
