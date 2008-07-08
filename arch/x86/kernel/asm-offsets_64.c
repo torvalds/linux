@@ -131,5 +131,8 @@ int main(void)
 	OFFSET(BP_loadflags, boot_params, hdr.loadflags);
 	OFFSET(BP_hardware_subarch, boot_params, hdr.hardware_subarch);
 	OFFSET(BP_version, boot_params, hdr.version);
+
+	BLANK();
+	DEFINE(PAGE_SIZE_asm, PAGE_SIZE);
 	return 0;
 }
