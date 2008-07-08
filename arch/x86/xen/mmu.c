@@ -805,8 +805,15 @@ void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 static void drop_other_mm_ref(void *info)
 {
 	struct mm_struct *mm = info;
+	struct mm_struct *active_mm;
 
-	if (__get_cpu_var(cpu_tlbstate).active_mm == mm)
+#ifdef CONFIG_X86_64
+	active_mm = read_pda(active_mm);
+#else
+	active_mm = __get_cpu_var(cpu_tlbstate).active_mm;
+#endif
+
+	if (active_mm == mm)
 		leave_mm(smp_processor_id());
 
 	/* If this cpu still has a stale cr3 reference, then make sure
