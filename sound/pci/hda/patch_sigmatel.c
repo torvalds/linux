@@ -3669,7 +3669,6 @@ again:
 	/* GPIO0 High = EAPD */
 	spec->gpio_mask = 0x01;
 	spec->gpio_dir = 0x01;
-	spec->gpio_mask = 0x01;
 	spec->gpio_data = 0x01;
 
 	spec->mux_nids = stac92hd71bxx_mux_nids;
