@@ -37,6 +37,14 @@ void vlan_setup(struct net_device *dev);
 int register_vlan_dev(struct net_device *dev);
 void unregister_vlan_dev(struct net_device *dev);
 
+static inline u32 vlan_get_ingress_priority(struct net_device *dev,
+					    unsigned short vlan_tag)
+{
+	struct vlan_dev_info *vip = vlan_dev_info(dev);
+
+	return vip->ingress_priority_map[(vlan_tag >> 13) & 0x7];
+}
+
 #ifdef CONFIG_VLAN_8021Q_GVRP
 extern int vlan_gvrp_request_join(const struct net_device *dev);
 extern void vlan_gvrp_request_leave(const struct net_device *dev);

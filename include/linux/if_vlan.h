@@ -150,15 +150,6 @@ static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
-/* inline functions */
-static inline __u32 vlan_get_ingress_priority(struct net_device *dev,
-					      unsigned short vlan_tag)
-{
-	struct vlan_dev_info *vip = vlan_dev_info(dev);
-
-	return vip->ingress_priority_map[(vlan_tag >> 13) & 0x7];
-}
-
 /* VLAN tx hw acceleration helpers. */
 struct vlan_skb_tx_cookie {
 	u32	magic;
@@ -171,56 +162,17 @@ struct vlan_skb_tx_cookie {
 	(VLAN_TX_SKB_CB(__skb)->magic == VLAN_TX_COOKIE_MAGIC)
 #define vlan_tx_tag_get(__skb)	(VLAN_TX_SKB_CB(__skb)->vlan_tag)
 
-/* VLAN rx hw acceleration helper.  This acts like netif_{rx,receive_skb}(). */
-static inline int __vlan_hwaccel_rx(struct sk_buff *skb,
-				    struct vlan_group *grp,
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
+			     unsigned short vlan_tag, int polling);
+#else
+static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 				    unsigned short vlan_tag, int polling)
 {
-	struct net_device_stats *stats;
-
-	if (skb_bond_should_drop(skb)) {
-		dev_kfree_skb_any(skb);
-		return NET_RX_DROP;
-	}
-
-	skb->dev = vlan_group_get_device(grp, vlan_tag & VLAN_VID_MASK);
-	if (skb->dev == NULL) {
-		dev_kfree_skb_any(skb);
-
-		/* Not NET_RX_DROP, this is not being dropped
-		 * due to congestion.
-		 */
-		return 0;
-	}
-
-	skb->dev->last_rx = jiffies;
-
-	stats = &skb->dev->stats;
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
-
-	skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tag);
-	switch (skb->pkt_type) {
-	case PACKET_BROADCAST:
-		break;
-
-	case PACKET_MULTICAST:
-		stats->multicast++;
-		break;
-
-	case PACKET_OTHERHOST:
-		/* Our lower layer thinks this is not local, let's make sure.
-		 * This allows the VLAN to have a different MAC than the underlying
-		 * device, and still route correctly.
-		 */
-		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
-				       	skb->dev->dev_addr))
-			skb->pkt_type = PACKET_HOST;
-		break;
-	};
-
-	return (polling ? netif_receive_skb(skb) : netif_rx(skb));
+	BUG();
+	return NET_XMIT_SUCCESS;
 }
+#endif
 
 static inline int vlan_hwaccel_rx(struct sk_buff *skb,
 				  struct vlan_group *grp,
