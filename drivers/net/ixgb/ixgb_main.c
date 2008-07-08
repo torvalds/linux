@@ -903,8 +903,10 @@ ixgb_unmap_and_free_tx_resource(struct ixgb_adapter *adapter,
 		pci_unmap_page(pdev, buffer_info->dma, buffer_info->length,
 		               PCI_DMA_TODEVICE);
 
+	/* okay to call kfree_skb here instead of kfree_skb_any because
+	 * this is never called in interrupt context */
 	if (buffer_info->skb)
-		dev_kfree_skb_any(buffer_info->skb);
+		dev_kfree_skb(buffer_info->skb);
 
 	buffer_info->skb = NULL;
 	buffer_info->dma = 0;
@@ -1447,7 +1449,7 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (skb->len <= 0) {
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 		return 0;
 	}
 
@@ -1464,7 +1466,7 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tso = ixgb_tso(adapter, skb);
 	if (tso < 0) {
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 
