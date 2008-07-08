@@ -981,8 +981,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	}
 
 	priv = dev->priv;
-	priv->is_rtl8187b = (id->driver_info == DEVICE_RTL8187B) ||
-			    !memcmp(udev->product, "RTL8187B", 8);
+	priv->is_rtl8187b = (id->driver_info == DEVICE_RTL8187B);
 
 	SET_IEEE80211_DEV(dev, &intf->dev);
 	usb_set_intfdata(intf, dev);
@@ -1011,13 +1010,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_UNSPEC;
-	dev->extra_tx_headroom = (!priv->is_rtl8187b) ?
-				  sizeof(struct rtl8187_tx_hdr) :
-				  sizeof(struct rtl8187b_tx_hdr);
-	if (!priv->is_rtl8187b)
-		dev->queues = 1;
-	else
-		dev->queues = 4;
 	dev->max_signal = 65;
 
 	eeprom.data = dev;
@@ -1052,26 +1044,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		(*channel++).hw_value = txpwr & 0xFF;
 		(*channel++).hw_value = txpwr >> 8;
 	}
-	if (!priv->is_rtl8187b) {
-		for (i = 0; i < 2; i++) {
-			eeprom_93cx6_read(&eeprom,
-					  RTL8187_EEPROM_TXPWR_CHAN_6 + i,
-					  &txpwr);
-			(*channel++).hw_value = txpwr & 0xFF;
-			(*channel++).hw_value = txpwr >> 8;
-		}
-	} else {
-		eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_TXPWR_CHAN_6,
-				  &txpwr);
-		(*channel++).hw_value = txpwr & 0xFF;
-
-		eeprom_93cx6_read(&eeprom, 0x0A, &txpwr);
-		(*channel++).hw_value = txpwr & 0xFF;
-
-		eeprom_93cx6_read(&eeprom, 0x1C, &txpwr);
-		(*channel++).hw_value = txpwr & 0xFF;
-		(*channel++).hw_value = txpwr >> 8;
-	}
 
 	eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_TXPWR_BASE,
 			  &priv->txpwr_base);
@@ -1090,17 +1062,20 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		reg32 = rtl818x_ioread32(priv, &priv->map->TX_CONF);
 		reg32 &= RTL818X_TX_CONF_HWVER_MASK;
 		switch (reg32) {
-		case RTL818X_TX_CONF_R8187vD_1:
-		case RTL818X_TX_CONF_R8187vD_2:
+		case RTL818X_TX_CONF_R8187vD_B:
+			/* Some RTL8187B devices have a USB ID of 0x8187
+			 * detect them here */
+			chip_name = "RTL8187BvB(early)";
+			priv->is_rtl8187b = 1;
+			priv->hw_rev = RTL8187BvB;
+			break;
+		case RTL818X_TX_CONF_R8187vD:
 			chip_name = "RTL8187vD";
 			break;
 		default:
 			chip_name = "RTL8187vB (default)";
 		}
        } else {
-		printk(KERN_WARNING "rtl8187: 8187B chip detected. Support "
-			"is EXPERIMENTAL, and could damage your\n"
-			"         hardware, use at your own risk\n");
 		/*
 		 * Force USB request to write radio registers for 8187B, Realtek
 		 * only uses it in their sources
@@ -1129,7 +1104,43 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		}
 	}
 
+	if (!priv->is_rtl8187b) {
+		for (i = 0; i < 2; i++) {
+			eeprom_93cx6_read(&eeprom,
+					  RTL8187_EEPROM_TXPWR_CHAN_6 + i,
+					  &txpwr);
+			(*channel++).hw_value = txpwr & 0xFF;
+			(*channel++).hw_value = txpwr >> 8;
+		}
+	} else {
+		eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_TXPWR_CHAN_6,
+				  &txpwr);
+		(*channel++).hw_value = txpwr & 0xFF;
+
+		eeprom_93cx6_read(&eeprom, 0x0A, &txpwr);
+		(*channel++).hw_value = txpwr & 0xFF;
+
+		eeprom_93cx6_read(&eeprom, 0x1C, &txpwr);
+		(*channel++).hw_value = txpwr & 0xFF;
+		(*channel++).hw_value = txpwr >> 8;
+	}
+
+	if (priv->is_rtl8187b)
+		printk(KERN_WARNING "rtl8187: 8187B chip detected. Support "
+			"is EXPERIMENTAL, and could damage your\n"
+			"         hardware, use at your own risk\n");
+	if ((id->driver_info == DEVICE_RTL8187) && priv->is_rtl8187b)
+		printk(KERN_INFO "rtl8187: inconsistency between id with OEM"
+		       " info!\n");
+
 	priv->rf = rtl8187_detect_rf(dev);
+	dev->extra_tx_headroom = (!priv->is_rtl8187b) ?
+				  sizeof(struct rtl8187_tx_hdr) :
+				  sizeof(struct rtl8187b_tx_hdr);
+	if (!priv->is_rtl8187b)
+		dev->queues = 1;
+	else
+		dev->queues = 4;
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
