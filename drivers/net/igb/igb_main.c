@@ -1664,10 +1664,12 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
-	/* disable the stripping of CRC because it breaks
-	 * BMC firmware connected over SMBUS
-	rctl |= E1000_RCTL_SECRC;
+	/*
+	 * enable stripping of CRC. It's unlikely this will break BMC
+	 * redirection as it did with e1000. Newer features require
+	 * that the HW strips the CRC.
 	*/
+	rctl |= E1000_RCTL_SECRC;
 
 	rctl &= ~E1000_RCTL_SBP;
 
@@ -3743,7 +3745,6 @@ static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 			}
 		}
 send_up:
-		pskb_trim(skb, skb->len - 4);
 		i++;
 		if (i == rx_ring->count)
 			i = 0;
