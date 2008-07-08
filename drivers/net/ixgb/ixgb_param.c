@@ -136,7 +136,7 @@ IXGB_PARAM(RxFCLowThresh, "Receive Flow Control Low Threshold");
 /* Flow control request timeout (how long to pause the link partner's tx)
  * (PAP 15:0)
  *
- * Valid Range: 1 - 65535 
+ * Valid Range: 1 - 65535
  *
  * Default Value:  65535 (0xffff) (we'll send an xon if we recover)
  */
@@ -412,7 +412,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		/* high must be greater than low */
 		if (adapter->hw.fc.high_water < (adapter->hw.fc.low_water + 8)) {
 			/* set defaults */
-			printk (KERN_INFO 
+			printk (KERN_INFO
 				"RxFCHighThresh must be >= (RxFCLowThresh + 8), "
 				"Using Defaults\n");
 			adapter->hw.fc.high_water = DEFAULT_FCRTH;

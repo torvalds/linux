@@ -125,7 +125,7 @@ ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	if (ecmd->autoneg == AUTONEG_ENABLE ||
 	   ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL)
 		return -EINVAL;
-	
+
 	if (netif_running(adapter->netdev)) {
 		ixgb_down(adapter, true);
 		ixgb_reset(adapter);
@@ -143,9 +143,9 @@ ixgb_get_pauseparam(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	
+
 	pause->autoneg = AUTONEG_DISABLE;
-		
+
 	if (hw->fc.type == ixgb_fc_rx_pause)
 		pause->rx_pause = 1;
 	else if (hw->fc.type == ixgb_fc_tx_pause)
@@ -162,7 +162,7 @@ ixgb_set_pauseparam(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	
+
 	if (pause->autoneg == AUTONEG_ENABLE)
 		return -EINVAL;
 
@@ -181,7 +181,7 @@ ixgb_set_pauseparam(struct net_device *netdev,
 		ixgb_set_speed_duplex(netdev);
 	} else
 		ixgb_reset(adapter);
-		
+
 	return 0;
 }
 
@@ -208,7 +208,7 @@ ixgb_set_rx_csum(struct net_device *netdev, u32 data)
 		ixgb_reset(adapter);
 	return 0;
 }
-	
+
 static u32
 ixgb_get_tx_csum(struct net_device *netdev)
 {
@@ -234,7 +234,7 @@ ixgb_set_tso(struct net_device *netdev, u32 data)
 	else
 		netdev->features &= ~NETIF_F_TSO;
 	return 0;
-} 
+}
 
 static u32
 ixgb_get_msglevel(struct net_device *netdev)
@@ -251,7 +251,7 @@ ixgb_set_msglevel(struct net_device *netdev, u32 data)
 }
 #define IXGB_GET_STAT(_A_, _R_) _A_->stats._R_
 
-static int 
+static int
 ixgb_get_regs_len(struct net_device *netdev)
 {
 #define IXGB_REG_DUMP_LEN  136*sizeof(u32)
@@ -495,7 +495,7 @@ ixgb_set_eeprom(struct net_device *netdev,
 	if ((eeprom->offset + eeprom->len) & 1) {
 		/* need read/modify/write of last changed EEPROM word */
 		/* only the first byte of the word is being modified */
-		eeprom_buff[last_word - first_word] 
+		eeprom_buff[last_word - first_word]
 			= ixgb_read_eeprom(hw, last_word);
 	}
 
@@ -534,7 +534,7 @@ ixgb_get_ringparam(struct net_device *netdev,
 	struct ixgb_desc_ring *txdr = &adapter->tx_ring;
 	struct ixgb_desc_ring *rxdr = &adapter->rx_ring;
 
-	ring->rx_max_pending = MAX_RXD; 
+	ring->rx_max_pending = MAX_RXD;
 	ring->tx_max_pending = MAX_TXD;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
@@ -544,7 +544,7 @@ ixgb_get_ringparam(struct net_device *netdev,
 	ring->rx_jumbo_pending = 0;
 }
 
-static int 
+static int
 ixgb_set_ringparam(struct net_device *netdev,
 		struct ethtool_ringparam *ring)
 {
@@ -647,7 +647,7 @@ ixgb_phys_id(struct net_device *netdev, u32 data)
 	return 0;
 }
 
-static int 
+static int
 ixgb_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
@@ -658,8 +658,8 @@ ixgb_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-static void 
-ixgb_get_ethtool_stats(struct net_device *netdev, 
+static void
+ixgb_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, u64 *data)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -667,13 +667,13 @@ ixgb_get_ethtool_stats(struct net_device *netdev,
 
 	ixgb_update_stats(adapter);
 	for(i = 0; i < IXGB_STATS_LEN; i++) {
-		char *p = (char *)adapter+ixgb_gstrings_stats[i].stat_offset;	
-		data[i] = (ixgb_gstrings_stats[i].sizeof_stat == 
+		char *p = (char *)adapter+ixgb_gstrings_stats[i].stat_offset;
+		data[i] = (ixgb_gstrings_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 }
 
-static void 
+static void
 ixgb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	int i;
@@ -681,7 +681,7 @@ ixgb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	switch(stringset) {
 	case ETH_SS_STATS:
 		for(i=0; i < IXGB_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN, 
+			memcpy(data + i * ETH_GSTRING_LEN,
 			ixgb_gstrings_stats[i].stat_string,
 			ETH_GSTRING_LEN);
 		}

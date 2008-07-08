@@ -94,7 +94,7 @@ struct ixgb_adapter;
 #define MIN_TXD	  64
 
 /* hardware cannot reliably support more than 512 descriptors owned by
- * hardware descrioptor cache otherwise an unreliable ring under heavy 
+ * hardware descrioptor cache otherwise an unreliable ring under heavy
  * recieve load may result */
 /* #define DEFAULT_RXD	   1024 */
 /* #define MAX_RXD	   4096 */
