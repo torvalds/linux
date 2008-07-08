@@ -1782,7 +1782,8 @@ ixgb_clean(struct napi_struct *napi, int budget)
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
 		netif_rx_complete(netdev, napi);
-		ixgb_irq_enable(adapter);
+		if (!test_bit(__IXGB_DOWN, &adapter->flags))
+			ixgb_irq_enable(adapter);
 	}
 
 	return work_done;
