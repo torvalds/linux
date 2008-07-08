@@ -223,12 +223,12 @@ static inline int
 HYPERVISOR_update_va_mapping(unsigned long va, pte_t new_val,
 			     unsigned long flags)
 {
-	unsigned long pte_hi = 0;
-#ifdef CONFIG_X86_PAE
-	pte_hi = new_val.pte_high;
-#endif
-	return _hypercall4(int, update_va_mapping, va,
-			   new_val.pte_low, pte_hi, flags);
+	if (sizeof(new_val) == sizeof(long))
+		return _hypercall3(int, update_va_mapping, va,
+				   new_val.pte, flags);
+	else
+		return _hypercall4(int, update_va_mapping, va,
+				   new_val.pte, new_val.pte >> 32, flags);
 }
 
 static inline int
@@ -281,12 +281,13 @@ static inline int
 HYPERVISOR_update_va_mapping_otherdomain(unsigned long va, pte_t new_val,
 					 unsigned long flags, domid_t domid)
 {
-	unsigned long pte_hi = 0;
-#ifdef CONFIG_X86_PAE
-	pte_hi = new_val.pte_high;
-#endif
-	return _hypercall5(int, update_va_mapping_otherdomain, va,
-			   new_val.pte_low, pte_hi, flags, domid);
+	if (sizeof(new_val) == sizeof(long))
+		return _hypercall4(int, update_va_mapping_otherdomain, va,
+				   new_val.pte, flags, domid);
+	else
+		return _hypercall5(int, update_va_mapping_otherdomain, va,
+				   new_val.pte, new_val.pte >> 32,
+				   flags, domid);
 }
 
 static inline int
@@ -327,14 +328,14 @@ MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
 {
 	mcl->op = __HYPERVISOR_update_va_mapping;
 	mcl->args[0] = va;
-#ifdef CONFIG_X86_PAE
-	mcl->args[1] = new_val.pte_low;
-	mcl->args[2] = new_val.pte_high;
-#else
-	mcl->args[1] = new_val.pte_low;
-	mcl->args[2] = 0;
-#endif
-	mcl->args[3] = flags;
+	if (sizeof(new_val) == sizeof(long)) {
+		mcl->args[1] = new_val.pte;
+		mcl->args[2] = flags;
+	} else {
+		mcl->args[1] = new_val.pte;
+		mcl->args[2] = new_val.pte >> 32;
+		mcl->args[3] = flags;
+	}
 }
 
 static inline void
@@ -354,15 +355,16 @@ MULTI_update_va_mapping_otherdomain(struct multicall_entry *mcl, unsigned long v
 {
 	mcl->op = __HYPERVISOR_update_va_mapping_otherdomain;
 	mcl->args[0] = va;
-#ifdef CONFIG_X86_PAE
-	mcl->args[1] = new_val.pte_low;
-	mcl->args[2] = new_val.pte_high;
-#else
-	mcl->args[1] = new_val.pte_low;
-	mcl->args[2] = 0;
-#endif
-	mcl->args[3] = flags;
-	mcl->args[4] = domid;
+	if (sizeof(new_val) == sizeof(long)) {
+		mcl->args[1] = new_val.pte;
+		mcl->args[2] = flags;
+		mcl->args[3] = domid;
+	} else {
+		mcl->args[1] = new_val.pte;
+		mcl->args[2] = new_val.pte >> 32;
+		mcl->args[3] = flags;
+		mcl->args[4] = domid;
+	}
 }
 
 static inline void
