@@ -656,9 +656,11 @@ void xen_mm_pin_all(void)
 	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
-/* The init_mm pagetable is really pinned as soon as its created, but
-   that's before we have page structures to store the bits.  So do all
-   the book-keeping now. */
+/*
+ * The init_mm pagetable is really pinned as soon as its created, but
+ * that's before we have page structures to store the bits.  So do all
+ * the book-keeping now.
+ */
 static __init int mark_pinned(struct page *page, enum pt_level level)
 {
 	SetPagePinned(page);

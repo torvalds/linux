@@ -868,8 +868,6 @@ void __init paging_init(void)
 	 */
 	sparse_init();
 	zone_sizes_init();
-
-	paravirt_post_allocator_init();
 }
 
 /*
