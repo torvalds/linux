@@ -41,6 +41,7 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/fixmap.h>
 #include <asm/processor.h>
+#include <asm/msr-index.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
@@ -777,6 +778,34 @@ static void xen_write_cr3(unsigned long cr3)
 	xen_mc_issue(PARAVIRT_LAZY_CPU);  /* interrupts restored */
 }
 
+static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
+{
+	int ret;
+
+	ret = 0;
+
+	switch(msr) {
+#ifdef CONFIG_X86_64
+		unsigned which;
+		u64 base;
+
+	case MSR_FS_BASE:		which = SEGBASE_FS; goto set;
+	case MSR_KERNEL_GS_BASE:	which = SEGBASE_GS_USER; goto set;
+	case MSR_GS_BASE:		which = SEGBASE_GS_KERNEL; goto set;
+
+	set:
+		base = ((u64)high << 32) | low;
+		if (HYPERVISOR_set_segment_base(which, base) != 0)
+			ret = -EFAULT;
+		break;
+#endif
+	default:
+		ret = native_write_msr_safe(msr, low, high);
+	}
+
+	return ret;
+}
+
 /* Early in boot, while setting up the initial pagetable, assume
    everything is pinned. */
 static __init void xen_alloc_pte_init(struct mm_struct *mm, u32 pfn)
@@ -1165,7 +1194,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.wbinvd = native_wbinvd,
 
 	.read_msr = native_read_msr_safe,
-	.write_msr = native_write_msr_safe,
+	.write_msr = xen_write_msr_safe,
 	.read_tsc = native_read_tsc,
 	.read_pmc = native_read_pmc,
 
