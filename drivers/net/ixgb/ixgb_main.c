@@ -2248,7 +2248,7 @@ static pci_ers_result_t ixgb_io_error_detected(struct pci_dev *pdev,
  * ixgb_io_slot_reset - called after the pci bus has been reset.
  * @pdev    pointer to pci device with error
  *
- * This callback is called after the PCI buss has been reset.
+ * This callback is called after the PCI bus has been reset.
  * Basically, this tries to restart the card from scratch.
  * This is a shortened version of the device probe/discovery code,
  * it resembles the first-half of the ixgb_probe() routine.

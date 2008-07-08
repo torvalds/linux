@@ -205,7 +205,7 @@ ixgb_standby_eeprom(struct ixgb_hw *hw)
 
 	eecd_reg = IXGB_READ_REG(hw, EECD);
 
-	/*  Deselct EEPROM  */
+	/*  Deselect EEPROM  */
 	eecd_reg &= ~(IXGB_EECD_CS | IXGB_EECD_SK);
 	IXGB_WRITE_REG(hw, EECD, eecd_reg);
 	udelay(50);
@@ -293,7 +293,7 @@ ixgb_wait_eeprom_command(struct ixgb_hw *hw)
 	 */
 	ixgb_standby_eeprom(hw);
 
-	/* Now read DO repeatedly until is high (equal to '1').  The EEEPROM will
+	/* Now read DO repeatedly until is high (equal to '1').  The EEPROM will
 	 * signal that the command has been completed by raising the DO signal.
 	 * If DO does not go high in 10 milliseconds, then error out.
 	 */
@@ -365,7 +365,7 @@ ixgb_update_eeprom_checksum(struct ixgb_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  * reg - offset within the EEPROM to be written to
- * data - 16 bit word to be writen to the EEPROM
+ * data - 16 bit word to be written to the EEPROM
  *
  * If ixgb_update_eeprom_checksum is not called after this function, the
  * EEPROM will most likely contain an invalid checksum.

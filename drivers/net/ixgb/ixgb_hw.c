@@ -371,7 +371,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
  * hw - Struct containing variables accessed by shared code
  *
  * Places the MAC address in receive address register 0 and clears the rest
- * of the receive addresss registers. Clears the multicast table. Assumes
+ * of the receive address registers. Clears the multicast table. Assumes
  * the receiver is in reset when the routine is called.
  *****************************************************************************/
 static void
@@ -964,7 +964,7 @@ ixgb_check_for_link(struct ixgb_hw *hw)
 }
 
 /******************************************************************************
- * Check for a bad link condition that may have occured.
+ * Check for a bad link condition that may have occurred.
  * The indication is that the RFC / LFC registers may be incrementing
  * continually.  A full adapter reset is required to recover.
  *
