@@ -28,9 +28,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/console.h>
-#ifdef CONFIG_KMOD
 #include <linux/kmod.h>
-#endif
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/efi.h>
@@ -837,13 +835,6 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	return (cnt) ? cnt : err;
 }
 
-#ifdef CONFIG_KMOD
-static void try_to_load(int fb)
-{
-	request_module("fb%d", fb);
-}
-#endif /* CONFIG_KMOD */
-
 int
 fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 {
@@ -1086,10 +1077,8 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		    return -EINVAL;
 		if (con2fb.framebuffer < 0 || con2fb.framebuffer >= FB_MAX)
 		    return -EINVAL;
-#ifdef CONFIG_KMOD
 		if (!registered_fb[con2fb.framebuffer])
-		    try_to_load(con2fb.framebuffer);
-#endif /* CONFIG_KMOD */
+		    request_module("fb%d", con2fb.framebuffer);
 		if (!registered_fb[con2fb.framebuffer])
 		    return -EINVAL;
 		event.info = info;
@@ -1327,10 +1316,8 @@ fb_open(struct inode *inode, struct file *file)
 	if (fbidx >= FB_MAX)
 		return -ENODEV;
 	lock_kernel();
-#ifdef CONFIG_KMOD
 	if (!(info = registered_fb[fbidx]))
-		try_to_load(fbidx);
-#endif /* CONFIG_KMOD */
+		request_module("fb%d", fbidx);
 	if (!(info = registered_fb[fbidx])) {
 		res = -ENODEV;
 		goto out;

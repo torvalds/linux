@@ -44,14 +44,9 @@
 #include <linux/mutex.h>
 #include <linux/ctype.h>
 #include <linux/freezer.h>
-
 #include <linux/init.h>
-
 #include <linux/file.h>
-
-#ifdef CONFIG_KMOD
 #include <linux/kmod.h>
-#endif
 
 #include <asm/unaligned.h>
 
@@ -3555,12 +3550,10 @@ static int do_md_run(mddev_t * mddev)
 		}
 	}
 
-#ifdef CONFIG_KMOD
 	if (mddev->level != LEVEL_NONE)
 		request_module("md-level-%d", mddev->level);
 	else if (mddev->clevel[0])
 		request_module("md-%s", mddev->clevel);
-#endif
 
 	/*
 	 * Drop all container device buffers, from now on
