@@ -604,7 +604,6 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 
 	sch->parent = parent;
 
-	sch->stats_lock = &dev_queue->lock;
 	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
 		handle = TC_H_MAKE(TC_H_INGRESS, 0);
@@ -622,7 +621,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS])) == 0) {
 		if (tca[TCA_RATE]) {
 			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
-						sch->stats_lock,
+						&sch->dev_queue->lock,
 						tca[TCA_RATE]);
 			if (err) {
 				/*
@@ -664,7 +663,7 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 	}
 	if (tca[TCA_RATE])
 		gen_replace_estimator(&sch->bstats, &sch->rate_est,
-			sch->stats_lock, tca[TCA_RATE]);
+				      &sch->dev_queue->lock, tca[TCA_RATE]);
 	return 0;
 }
 
@@ -954,7 +953,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	q->qstats.qlen = q->q.qlen;
 
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS,
-			TCA_XSTATS, q->stats_lock, &d) < 0)
+					 TCA_XSTATS, &q->dev_queue->lock, &d) < 0)
 		goto nla_put_failure;
 
 	if (q->ops->dump_stats && q->ops->dump_stats(q, &d) < 0)
@@ -1203,7 +1202,7 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 		goto nla_put_failure;
 
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS,
-			TCA_XSTATS, q->stats_lock, &d) < 0)
+					 TCA_XSTATS, &q->dev_queue->lock, &d) < 0)
 		goto nla_put_failure;
 
 	if (cl_ops->dump_stats && cl_ops->dump_stats(q, cl, &d) < 0)

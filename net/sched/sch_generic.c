@@ -484,7 +484,6 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev,
 	sch = qdisc_alloc(dev_queue, ops);
 	if (IS_ERR(sch))
 		goto errout;
-	sch->stats_lock = &dev_queue->lock;
 	sch->parent = parentid;
 
 	if (!ops->init || ops->init(sch, NULL) == 0)
