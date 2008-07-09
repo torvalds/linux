@@ -824,6 +824,17 @@ static int rt2500pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, CSR11_CW_SELECT, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR11, reg);
 
+	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
+	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 0);
+	rt2x00_set_field32(&reg, CSR14_TSF_SYNC, 0);
+	rt2x00_set_field32(&reg, CSR14_TBCN, 0);
+	rt2x00_set_field32(&reg, CSR14_TCFP, 0);
+	rt2x00_set_field32(&reg, CSR14_TATIMW, 0);
+	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
+	rt2x00_set_field32(&reg, CSR14_CFP_COUNT_PRELOAD, 0);
+	rt2x00_set_field32(&reg, CSR14_TBCM_PRELOAD, 0);
+	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
+
 	rt2x00pci_register_write(rt2x00dev, CNT3, 0);
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR8, &reg);
