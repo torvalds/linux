@@ -33,4 +33,6 @@ source "drivers/staging/me4000/Kconfig"
 
 source "drivers/staging/go7007/Kconfig"
 
+source "drivers/staging/usbip/Kconfig"
+
 endif # STAGING
