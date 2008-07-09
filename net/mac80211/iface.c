@@ -138,9 +138,23 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	ieee80211_debugfs_add_netdev(sdata);
 }
 
-void ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
-			      enum ieee80211_if_types type)
+int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
+			     enum ieee80211_if_types type)
 {
+	ASSERT_RTNL();
+
+	if (type == sdata->vif.type)
+		return 0;
+
+	/*
+	 * We could, here, on changes between IBSS/STA/MESH modes,
+	 * invoke an MLME function instead that disassociates etc.
+	 * and goes into the requested mode.
+	 */
+
+	if (netif_running(sdata->dev))
+		return -EBUSY;
+
 	/* Purge and reset type-dependent state. */
 	ieee80211_teardown_sdata(sdata->dev);
 	ieee80211_setup_sdata(sdata, type);
@@ -149,6 +163,8 @@ void ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	sdata->basic_rates = 0;
 	sdata->drop_unencrypted = 0;
 	sdata->sequence = 0;
+
+	return 0;
 }
 
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,

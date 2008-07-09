@@ -296,14 +296,7 @@ static int ieee80211_ioctl_siwmode(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (type == sdata->vif.type)
-		return 0;
-	if (netif_running(dev))
-		return -EBUSY;
-
-	ieee80211_if_change_type(sdata, type);
-
-	return 0;
+	return ieee80211_if_change_type(sdata, type);
 }
 
 

@@ -84,14 +84,12 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 	struct net_device *dev;
 	enum ieee80211_if_types itype;
 	struct ieee80211_sub_if_data *sdata;
+	int ret;
 
 	/* we're under RTNL */
 	dev = __dev_get_by_index(&init_net, ifindex);
 	if (!dev)
 		return -ENODEV;
-
-	if (netif_running(dev))
-		return -EBUSY;
 
 	itype = nl80211_type_to_mac80211_type(type);
 	if (itype == IEEE80211_IF_TYPE_INVALID)
@@ -99,7 +97,9 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	ieee80211_if_change_type(sdata, itype);
+	ret = ieee80211_if_change_type(sdata, itype);
+	if (ret)
+		return ret;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) && params->mesh_id_len)
 		ieee80211_if_sta_set_mesh_id(&sdata->u.sta,

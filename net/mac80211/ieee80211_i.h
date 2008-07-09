@@ -930,8 +930,8 @@ void ieee80211_if_setup(struct net_device *dev);
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct net_device **new_dev, enum ieee80211_if_types type,
 		     struct vif_params *params);
-void ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
-			      enum ieee80211_if_types type);
+int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
+			     enum ieee80211_if_types type);
 void ieee80211_if_remove(struct net_device *dev);
 void ieee80211_remove_interfaces(struct ieee80211_local *local);
 
