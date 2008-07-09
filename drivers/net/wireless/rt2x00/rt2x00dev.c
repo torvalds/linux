@@ -434,13 +434,8 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	if (delayed_flags & DELAYED_UPDATE_BEACON) {
-		struct ieee80211_if_conf conf;
-		conf.bssid = conf.ssid = NULL;
-		conf.ssid_len = 0;
-		conf.changed = IEEE80211_IFCC_BEACON;
-		rt2x00dev->ops->hw->config_interface(rt2x00dev->hw, vif, &conf);
-	}
+	if (delayed_flags & DELAYED_UPDATE_BEACON)
+		rt2x00queue_update_beacon(rt2x00dev, vif);
 
 	if (delayed_flags & DELAYED_CONFIG_ERP)
 		rt2x00lib_config_erp(rt2x00dev, intf, &conf);

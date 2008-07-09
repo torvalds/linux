@@ -1100,6 +1100,65 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 0, word);
 }
 
+/*
+ * TX data initialization
+ */
+static void rt2500usb_beacondone(struct urb *urb);
+
+static void rt2500usb_write_beacon(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
+	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	int pipe = usb_sndbulkpipe(usb_dev, 1);
+	int length;
+	u16 reg;
+
+	/*
+	 * Add the descriptor in front of the skb.
+	 */
+	skb_push(entry->skb, entry->queue->desc_size);
+	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
+	skbdesc->desc = entry->skb->data;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
+
+	/*
+	 * USB devices cannot blindly pass the skb->len as the
+	 * length of the data to usb_fill_bulk_urb. Pass the skb
+	 * to the driver to determine what the length should be.
+	 */
+	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev, entry->skb);
+
+	usb_fill_bulk_urb(bcn_priv->urb, usb_dev, pipe,
+			  entry->skb->data, length, rt2500usb_beacondone,
+			  entry);
+
+	/*
+	 * Second we need to create the guardian byte.
+	 * We only need a single byte, so lets recycle
+	 * the 'flags' field we are not using for beacons.
+	 */
+	bcn_priv->guardian_data = 0;
+	usb_fill_bulk_urb(bcn_priv->guardian_urb, usb_dev, pipe,
+			  &bcn_priv->guardian_data, 1, rt2500usb_beacondone,
+			  entry);
+
+	/*
+	 * Send out the guardian byte.
+	 */
+	usb_submit_urb(bcn_priv->guardian_urb, GFP_ATOMIC);
+}
+
 static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 				     struct sk_buff *skb)
 {
@@ -1115,9 +1174,6 @@ static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 	return length;
 }
 
-/*
- * TX data initialization
- */
 static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				    const enum data_queue_qid queue)
 {
@@ -1672,96 +1728,6 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
-/*
- * IEEE80211 stack callback functions.
- */
-static int rt2500usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
-	struct queue_entry_priv_usb_bcn *bcn_priv;
-	struct skb_frame_desc *skbdesc;
-	struct txentry_desc txdesc;
-	int pipe = usb_sndbulkpipe(usb_dev, 1);
-	int length;
-	u16 reg;
-
-	if (unlikely(!intf->beacon))
-		return -ENOBUFS;
-
-	bcn_priv = intf->beacon->priv_data;
-
-	/*
-	 * Copy all TX descriptor information into txdesc,
-	 * after that we are free to use the skb->cb array
-	 * for our information.
-	 */
-	intf->beacon->skb = skb;
-	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc);
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(skb, intf->beacon->queue->desc_size);
-	memset(skb->data, 0, intf->beacon->queue->desc_size);
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->desc = skb->data;
-	skbdesc->desc_len = intf->beacon->queue->desc_size;
-	skbdesc->entry = intf->beacon;
-
-	/*
-	 * Disable beaconing while we are reloading the beacon data,
-	 * otherwise we might be sending out invalid data.
-	 */
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
-	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-
-	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
-
-	/*
-	 * USB devices cannot blindly pass the skb->len as the
-	 * length of the data to usb_fill_bulk_urb. Pass the skb
-	 * to the driver to determine what the length should be.
-	 */
-	length = rt2500usb_get_tx_data_len(rt2x00dev, skb);
-
-	usb_fill_bulk_urb(bcn_priv->urb, usb_dev, pipe,
-			  skb->data, length, rt2500usb_beacondone,
-			  intf->beacon);
-
-	/*
-	 * Second we need to create the guardian byte.
-	 * We only need a single byte, so lets recycle
-	 * the 'flags' field we are not using for beacons.
-	 */
-	bcn_priv->guardian_data = 0;
-	usb_fill_bulk_urb(bcn_priv->guardian_urb, usb_dev, pipe,
-			  &bcn_priv->guardian_data, 1, rt2500usb_beacondone,
-			  intf->beacon);
-
-	/*
-	 * Send out the guardian byte.
-	 */
-	usb_submit_urb(bcn_priv->guardian_urb, GFP_ATOMIC);
-
-	/*
-	 * Enable beacon generation.
-	 */
-	rt2500usb_kick_tx_queue(rt2x00dev, QID_BEACON);
-
-	return 0;
-}
-
 static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
 	.start			= rt2x00mac_start,
@@ -1789,10 +1755,10 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.link_tuner		= rt2500usb_link_tuner,
 	.write_tx_desc		= rt2500usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
+	.write_beacon		= rt2500usb_write_beacon,
 	.get_tx_data_len	= rt2500usb_get_tx_data_len,
 	.kick_tx_queue		= rt2500usb_kick_tx_queue,
 	.fill_rxdone		= rt2500usb_fill_rxdone,
-	.beacon_update		= rt2500usb_beacon_update,
 	.config_filter		= rt2500usb_config_filter,
 	.config_intf		= rt2500usb_config_intf,
 	.config_erp		= rt2500usb_config_erp,

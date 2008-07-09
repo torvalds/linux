@@ -1058,6 +1058,40 @@ static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 /*
  * TX data initialization
  */
+static void rt2400pci_write_beacon(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	u32 word;
+	u32 reg;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
+	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 0);
+	rt2x00_set_field32(&reg, CSR14_TBCN, 0);
+	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
+	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
+
+	/*
+	 * Replace rt2x00lib allocated descriptor with the
+	 * pointer to the _real_ hardware descriptor.
+	 * After that, map the beacon to DMA and update the
+	 * descriptor.
+	 */
+	memcpy(entry_priv->desc, skbdesc->desc, skbdesc->desc_len);
+	skbdesc->desc = entry_priv->desc;
+
+	rt2x00queue_map_txskb(rt2x00dev, entry->skb);
+
+	rt2x00_desc_read(entry_priv->desc, 1, &word);
+	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
+	rt2x00_desc_write(entry_priv->desc, 1, word);
+}
+
 static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				    const enum data_queue_qid queue)
 {
@@ -1504,59 +1538,6 @@ static u64 rt2400pci_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
-static int rt2400pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
-	struct queue_entry_priv_pci *entry_priv;
-	struct skb_frame_desc *skbdesc;
-	struct txentry_desc txdesc;
-	u32 reg;
-
-	if (unlikely(!intf->beacon))
-		return -ENOBUFS;
-	entry_priv = intf->beacon->priv_data;
-
-	/*
-	 * Copy all TX descriptor information into txdesc,
-	 * after that we are free to use the skb->cb array
-	 * for our information.
-	 */
-	intf->beacon->skb = skb;
-	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc);
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->desc = entry_priv->desc;
-	skbdesc->desc_len = intf->beacon->queue->desc_size;
-	skbdesc->entry = intf->beacon;
-
-	/*
-	 * Disable beaconing while we are reloading the beacon data,
-	 * otherwise we might be sending out invalid data.
-	 */
-	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 0);
-	rt2x00_set_field32(&reg, CSR14_TBCN, 0);
-	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
-	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
-
-	/*
-	 * Enable beacon generation.
-	 * Write entire beacon with descriptor to register,
-	 * and kick the beacon generator.
-	 */
-	rt2x00queue_map_txskb(rt2x00dev, intf->beacon->skb);
-	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
-	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
-
-	return 0;
-}
-
 static int rt2400pci_tx_last_beacon(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -1598,9 +1579,9 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.link_tuner		= rt2400pci_link_tuner,
 	.write_tx_desc		= rt2400pci_write_tx_desc,
 	.write_tx_data		= rt2x00pci_write_tx_data,
+	.write_beacon		= rt2400pci_write_beacon,
 	.kick_tx_queue		= rt2400pci_kick_tx_queue,
 	.fill_rxdone		= rt2400pci_fill_rxdone,
-	.beacon_update		= rt2400pci_beacon_update,
 	.config_filter		= rt2400pci_config_filter,
 	.config_intf		= rt2400pci_config_intf,
 	.config_erp		= rt2400pci_config_erp,

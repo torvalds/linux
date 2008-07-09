@@ -115,8 +115,8 @@ void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
-void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
-				      struct txentry_desc *txdesc)
+static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
+					     struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
@@ -240,10 +240,9 @@ void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 			txdesc->signal |= 0x08;
 	}
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_create_tx_descriptor);
 
-void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
-				     struct txentry_desc *txdesc)
+static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
+					    struct txentry_desc *txdesc)
 {
 	struct data_queue *queue = entry->queue;
 	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
@@ -273,7 +272,6 @@ void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	    !test_bit(ENTRY_TXD_BURST, &txdesc->flags))
 		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, queue->qid);
 }
-EXPORT_SYMBOL_GPL(rt2x00queue_write_tx_descriptor);
 
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 {
@@ -319,6 +317,60 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 
 	rt2x00queue_index_inc(queue, Q_INDEX);
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
+
+	return 0;
+}
+
+int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
+			      struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
+	__le32 desc[16];
+
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
+
+	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
+	if (!intf->beacon->skb)
+		return -ENOMEM;
+
+	/*
+	 * Copy all TX descriptor information into txdesc,
+	 * after that we are free to use the skb->cb array
+	 * for our information.
+	 */
+	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc);
+
+	/*
+	 * For the descriptor we use a local array from where the
+	 * driver can move it to the correct location required for
+	 * the hardware.
+	 */
+	memset(desc, 0, sizeof(desc));
+
+	/*
+	 * Fill in skb descriptor
+	 */
+	skbdesc = get_skb_frame_desc(intf->beacon->skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->desc = desc;
+	skbdesc->desc_len = intf->beacon->queue->desc_size;
+	skbdesc->entry = intf->beacon;
+
+	/*
+	 * Write TX descriptor into reserved room in front of the beacon.
+	 */
+	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
+
+	/*
+	 * Send beacon to hardware.
+	 * Also enable beacon generation, which might have been disabled
+	 * by the driver during the config_beacon() callback function.
+	 */
+	rt2x00dev->ops->lib->write_beacon(intf->beacon);
+	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	return 0;
 }

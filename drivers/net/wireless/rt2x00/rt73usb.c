@@ -1334,6 +1334,49 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 0, word);
 }
 
+/*
+ * TX data initialization
+ */
+static void rt73usb_write_beacon(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	unsigned int beacon_base;
+	u32 reg;
+
+	/*
+	 * Add the descriptor in front of the skb.
+	 */
+	skb_push(entry->skb, entry->queue->desc_size);
+	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
+	skbdesc->desc = entry->skb->data;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+	/*
+	 * Write entire beacon with descriptor to register.
+	 */
+	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
+	rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
+				 USB_VENDOR_REQUEST_OUT, beacon_base, 0,
+				 entry->skb->data, entry->skb->len,
+				 REGISTER_TIMEOUT32(entry->skb->len));
+
+	/*
+	 * Clean up the beacon skb.
+	 */
+	dev_kfree_skb(entry->skb);
+	entry->skb = NULL;
+}
+
 static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 				   struct sk_buff *skb)
 {
@@ -1349,9 +1392,6 @@ static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 	return length;
 }
 
-/*
- * TX data initialization
- */
 static void rt73usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				  const enum data_queue_qid queue)
 {
@@ -1949,73 +1989,6 @@ static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 #define rt73usb_get_tsf	NULL
 #endif
 
-static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
-	struct skb_frame_desc *skbdesc;
-	struct txentry_desc txdesc;
-	unsigned int beacon_base;
-	u32 reg;
-
-	if (unlikely(!intf->beacon))
-		return -ENOBUFS;
-
-	/*
-	 * Copy all TX descriptor information into txdesc,
-	 * after that we are free to use the skb->cb array
-	 * for our information.
-	 */
-	intf->beacon->skb = skb;
-	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc);
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(skb, intf->beacon->queue->desc_size);
-	memset(skb->data, 0, intf->beacon->queue->desc_size);
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->desc = skb->data;
-	skbdesc->desc_len = intf->beacon->queue->desc_size;
-	skbdesc->entry = intf->beacon;
-
-	/*
-	 * Disable beaconing while we are reloading the beacon data,
-	 * otherwise we might be sending out invalid data.
-	 */
-	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
-	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
-
-	/*
-	 * Write entire beacon with descriptor to register,
-	 * and kick the beacon generator.
-	 */
-	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
-	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
-	rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
-				 USB_VENDOR_REQUEST_OUT, beacon_base, 0,
-				 skb->data, skb->len,
-				 REGISTER_TIMEOUT32(skb->len));
-	rt73usb_kick_tx_queue(rt2x00dev, QID_BEACON);
-
-	/*
-	 * Clean up the beacon skb.
-	 */
-	dev_kfree_skb(skb);
-	intf->beacon->skb = NULL;
-
-	return 0;
-}
-
 static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
 	.start			= rt2x00mac_start,
@@ -2048,10 +2021,10 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.link_tuner		= rt73usb_link_tuner,
 	.write_tx_desc		= rt73usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
+	.write_beacon		= rt73usb_write_beacon,
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
 	.kick_tx_queue		= rt73usb_kick_tx_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
-	.beacon_update		= rt73usb_beacon_update,
 	.config_filter		= rt73usb_config_filter,
 	.config_intf		= rt73usb_config_intf,
 	.config_erp		= rt73usb_config_erp,

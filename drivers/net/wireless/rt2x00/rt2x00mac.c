@@ -348,8 +348,8 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct sk_buff *beacon;
-	int status;
+	int update_bssid = 0;
+	int status = 0;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -361,15 +361,13 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	spin_lock(&intf->lock);
 
 	/*
-	 * If the interface does not work in master mode,
-	 * then the bssid value in the interface structure
-	 * should now be set.
-	 *
 	 * conf->bssid can be NULL if coming from the internal
 	 * beacon update routine.
 	 */
-	if (conf->bssid && vif->type != IEEE80211_IF_TYPE_AP)
+	if (conf->changed & IEEE80211_IFCC_BSSID && conf->bssid) {
+		update_bssid = 1;
 		memcpy(&intf->bssid, conf->bssid, ETH_ALEN);
+	}
 
 	spin_unlock(&intf->lock);
 
@@ -379,23 +377,14 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	 * values as arguments we make keep access to rt2x00_intf thread safe
 	 * even without the lock.
 	 */
-	rt2x00lib_config_intf(rt2x00dev, intf, vif->type, NULL, conf->bssid);
+	rt2x00lib_config_intf(rt2x00dev, intf, vif->type, NULL,
+			      update_bssid ? conf->bssid : NULL);
 
 	/*
-	 * We only need to initialize the beacon when in master/ibss mode.
+	 * Update the beacon.
 	 */
-	if ((vif->type != IEEE80211_IF_TYPE_AP &&
-	     vif->type != IEEE80211_IF_TYPE_IBSS) ||
-	    !(conf->changed & IEEE80211_IFCC_BEACON))
-		return 0;
-
-	beacon = ieee80211_beacon_get(rt2x00dev->hw, vif);
-	if (!beacon)
-		return -ENOMEM;
-
-	status = rt2x00dev->ops->lib->beacon_update(rt2x00dev->hw, beacon);
-	if (status)
-		dev_kfree_skb(beacon);
+	if (conf->changed & IEEE80211_IFCC_BEACON)
+		status = rt2x00queue_update_beacon(rt2x00dev, vif);
 
 	return status;
 }
