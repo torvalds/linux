@@ -26,12 +26,6 @@
  *
  */
 
-#ifdef CONFIG_MMC_DEBUG
-#define DEBUG
-#else
-#undef  DEBUG
-#endif
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
