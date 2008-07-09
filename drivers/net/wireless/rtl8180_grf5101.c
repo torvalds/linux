@@ -88,7 +88,7 @@ static void grf5101_rf_set_channel(struct ieee80211_hw *dev,
 	write_grf5101(dev, 0x0B, chan);
 	write_grf5101(dev, 0x07, 0x1000);
 
-	grf5101_write_phy_antenna(dev, chan);
+	grf5101_write_phy_antenna(dev, channel);
 }
 
 static void grf5101_rf_stop(struct ieee80211_hw *dev)

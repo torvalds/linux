@@ -220,7 +220,7 @@ replay:
 		tp = kzalloc(sizeof(*tp), GFP_KERNEL);
 		if (tp == NULL)
 			goto errout;
-		err = -EINVAL;
+		err = -ENOENT;
 		tp_ops = tcf_proto_lookup_ops(tca[TCA_KIND]);
 		if (tp_ops == NULL) {
 #ifdef CONFIG_KMOD

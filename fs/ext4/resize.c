@@ -563,7 +563,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	}
 
 	blk = EXT4_SB(sb)->s_sbh->b_blocknr + 1 + EXT4_SB(sb)->s_gdb_count;
-	data = (__le32 *)dind->b_data + EXT4_SB(sb)->s_gdb_count;
+	data = (__le32 *)dind->b_data + (EXT4_SB(sb)->s_gdb_count %
+					 EXT4_ADDR_PER_BLOCK(sb));
 	end = (__le32 *)dind->b_data + EXT4_ADDR_PER_BLOCK(sb);
 
 	/* Get each reserved primary GDT block and verify it holds backups */
@@ -854,7 +855,8 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 */
 
 	/* Update group descriptor block for new group */
-	gdp = (struct ext4_group_desc *)primary->b_data + gdb_off;
+	gdp = (struct ext4_group_desc *)((char *)primary->b_data +
+					 gdb_off * EXT4_DESC_SIZE(sb));
 
 	ext4_block_bitmap_set(sb, gdp, input->block_bitmap); /* LV FIXME */
 	ext4_inode_bitmap_set(sb, gdp, input->inode_bitmap); /* LV FIXME */

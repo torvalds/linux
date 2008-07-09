@@ -28,7 +28,7 @@
 
 int amon_cpu_avail(int cpu)
 {
-	struct cpulaunch *launch = (struct cpulaunch *)KSEG0ADDR(CPULAUNCH);
+	struct cpulaunch *launch = (struct cpulaunch *)CKSEG0ADDR(CPULAUNCH);
 
 	if (cpu < 0 || cpu >= NCPULAUNCH) {
 		pr_debug("avail: cpu%d is out of range\n", cpu);
@@ -53,7 +53,7 @@ void amon_cpu_start(int cpu,
 		    unsigned long gp, unsigned long a0)
 {
 	volatile struct cpulaunch *launch =
-		(struct cpulaunch  *)KSEG0ADDR(CPULAUNCH);
+		(struct cpulaunch  *)CKSEG0ADDR(CPULAUNCH);
 
 	if (!amon_cpu_avail(cpu))
 		return;

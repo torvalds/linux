@@ -197,4 +197,14 @@ static inline int inet_iif(const struct sk_buff *skb)
 	return skb->rtable->rt_iif;
 }
 
+static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops)
+{
+	struct request_sock *req = reqsk_alloc(ops);
+
+	if (req != NULL)
+		inet_rsk(req)->opt = NULL;
+
+	return req;
+}
+
 #endif	/* _INET_SOCK_H */

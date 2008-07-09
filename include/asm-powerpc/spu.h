@@ -131,7 +131,6 @@ struct spu {
 	u64 flags;
 	u64 class_0_pending;
 	u64 class_0_dar;
-	u64 class_0_dsisr;
 	u64 class_1_dar;
 	u64 class_1_dsisr;
 	size_t ls_size;

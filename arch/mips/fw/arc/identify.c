@@ -67,6 +67,11 @@ static struct smatch mach_table[] = {
 		.liname		= "SNI RM200_PCI",
 		.type		= MACH_SNI_RM200_PCI,
 		.flags		= PROM_FLAG_DONT_FREE_TEMP,
+	}, {
+		.arcname	= "RM200PCI-R5K",
+		.liname		= "SNI RM200_PCI-R5K",
+		.type		= MACH_SNI_RM200_PCI,
+		.flags		= PROM_FLAG_DONT_FREE_TEMP,
 	}
 };
 
