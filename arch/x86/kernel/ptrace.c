@@ -1416,6 +1416,16 @@ asmregparm long syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret = 0;
 
+	/*
+	 * If we stepped into a sysenter/syscall insn, it trapped in
+	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
+	 * If user-mode had set TF itself, then it's still clear from
+	 * do_debug() and we need to set it again to restore the user
+	 * state.  If we entered on the slow path, TF was already set.
+	 */
+	if (test_thread_flag(TIF_SINGLESTEP))
+		regs->flags |= X86_EFLAGS_TF;
+
 	/* do the secure computing check first */
 	secure_computing(regs->orig_ax);
 

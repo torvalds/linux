@@ -108,6 +108,19 @@ static int enable_single_step(struct task_struct *child)
 	unsigned long oflags;
 
 	/*
+	 * If we stepped into a sysenter/syscall insn, it trapped in
+	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
+	 * If user-mode had set TF itself, then it's still clear from
+	 * do_debug() and we need to set it again to restore the user
+	 * state so we don't wrongly set TIF_FORCED_TF below.
+	 * If enable_single_step() was used last and that is what
+	 * set TIF_SINGLESTEP, then both TF and TIF_FORCED_TF are
+	 * already set and our bookkeeping is fine.
+	 */
+	if (unlikely(test_tsk_thread_flag(child, TIF_SINGLESTEP)))
+		regs->flags |= X86_EFLAGS_TF;
+
+	/*
 	 * Always set TIF_SINGLESTEP - this guarantees that
 	 * we single-step system calls etc..  This will also
 	 * cause us to set TF when returning to user mode.
