@@ -90,7 +90,7 @@ static inline u16 desc_abs_number(port_t *port, u16 desc, int transmit)
 
 static inline u16 desc_offset(port_t *port, u16 desc, int transmit)
 {
-	/* Descriptor offset always fits in 16 bytes */
+	/* Descriptor offset always fits in 16 bits */
 	return desc_abs_number(port, desc, transmit) * sizeof(pkt_desc);
 }
 
