@@ -269,16 +269,15 @@
 		};
 
 		crypto@30000 {
-			model = "SEC3";
-			compatible = "talitos";
+			compatible = "fsl,sec3.0", "fsl,sec2.4", "fsl,sec2.2",
+				     "fsl,sec2.1", "fsl,sec2.0";
 			reg = <0x30000 0x10000>;
 			interrupts = <11 0x8>;
 			interrupt-parent = <&ipic>;
-			/* Rev. 3.0 geometry */
-			num-channels = <4>;
-			channel-fifo-len = <24>;
-			exec-units-mask = <0x000001fe>;
-			descriptor-types-mask = <0x03ab0ebf>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x9fe>;
+			fsl,descriptor-types-mask = <0x3ab0ebf>;
 		};
 
 		sdhc@2e000 {

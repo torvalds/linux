@@ -231,6 +231,18 @@
 			interrupt-parent = <&mpic>;
 		};
 
+		crypto@30000 {
+			compatible = "fsl,sec3.0", "fsl,sec2.4", "fsl,sec2.2",
+				     "fsl,sec2.1", "fsl,sec2.0";
+			reg = <0x30000 0x10000>;
+			interrupts = <45 2 58 2>;
+			interrupt-parent = <&mpic>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x9fe>;
+			fsl,descriptor-types-mask = <0x3ab0ebf>;
+		};
+
 		sata@18000 {
 			compatible = "fsl,mpc8536-sata", "fsl,pq-sata";
 			reg = <0x18000 0x1000>;

@@ -186,16 +186,14 @@
 		};
 
 		crypto@30000 {
-			device_type = "crypto";
-			model = "SEC2";
-			compatible = "talitos";
+			compatible = "fsl,sec2.0";
 			reg = <0x30000 0x10000>;
 			interrupts = <11 0x8>;
 			interrupt-parent = <&ipic>;
-			num-channels = <4>;
-			channel-fifo-len = <24>;
-			exec-units-mask = <0x0000007e>;
-			descriptor-types-mask = <0x01010ebf>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x7e>;
+			fsl,descriptor-types-mask = <0x01010ebf>;
 		};
 
 		ipic: pic@700 {
