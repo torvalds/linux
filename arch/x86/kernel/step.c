@@ -105,6 +105,7 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 static int enable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
+	unsigned long oflags;
 
 	/*
 	 * Always set TIF_SINGLESTEP - this guarantees that
@@ -113,11 +114,7 @@ static int enable_single_step(struct task_struct *child)
 	 */
 	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 
-	/*
-	 * If TF was already set, don't do anything else
-	 */
-	if (regs->flags & X86_EFLAGS_TF)
-		return 0;
+	oflags = regs->flags;
 
 	/* Set TF on the kernel stack.. */
 	regs->flags |= X86_EFLAGS_TF;
@@ -126,9 +123,22 @@ static int enable_single_step(struct task_struct *child)
 	 * ..but if TF is changed by the instruction we will trace,
 	 * don't mark it as being "us" that set it, so that we
 	 * won't clear it by hand later.
+	 *
+	 * Note that if we don't actually execute the popf because
+	 * of a signal arriving right now or suchlike, we will lose
+	 * track of the fact that it really was "us" that set it.
 	 */
-	if (is_setting_trap_flag(child, regs))
+	if (is_setting_trap_flag(child, regs)) {
+		clear_tsk_thread_flag(child, TIF_FORCED_TF);
 		return 0;
+	}
+
+	/*
+	 * If TF was already set, check whether it was us who set it.
+	 * If not, we should never attempt a block step.
+	 */
+	if (oflags & X86_EFLAGS_TF)
+		return test_tsk_thread_flag(child, TIF_FORCED_TF);
 
 	set_tsk_thread_flag(child, TIF_FORCED_TF);
 
