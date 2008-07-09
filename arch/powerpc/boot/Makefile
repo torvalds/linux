@@ -68,7 +68,7 @@ src-plat := of.c cuboot-52xx.c cuboot-824x.c cuboot-83xx.c cuboot-85xx.c holly.c
 		fixed-head.S ep88xc.c ep405.c cuboot-c2k.c \
 		cuboot-katmai.c cuboot-rainier.c redboot-8xx.c ep8248e.c \
 		cuboot-warp.c cuboot-85xx-cpm2.c cuboot-yosemite.c simpleboot.c \
-		virtex405-head.S redboot-83xx.c cuboot-sam440ep.c
+		virtex405-head.S virtex.c redboot-83xx.c cuboot-sam440ep.c
 src-boot := $(src-wlib) $(src-plat) empty.c
 
 src-boot := $(addprefix $(obj)/, $(src-boot))
@@ -275,6 +275,9 @@ image-$(CONFIG_PPC_C2K)			+= cuImage.c2k
 ifeq ($(CONFIG_PPC32),y)
 image-$(CONFIG_PPC_PMAC)	+= zImage.coff zImage.miboot
 endif
+
+# Allow extra targets to be added to the defconfig
+image-y	+= $(subst ",,$(CONFIG_EXTRA_TARGETS))
 
 initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-n) $(image-))
 initrd-y := $(patsubst zImage%, zImage.initrd%, \
