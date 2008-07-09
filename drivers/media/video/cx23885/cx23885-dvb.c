@@ -31,6 +31,7 @@
 #include <media/v4l2-common.h>
 
 #include "s5h1409.h"
+#include "s5h1411.h"
 #include "mt2131.h"
 #include "tda8290.h"
 #include "tda18271.h"
@@ -172,6 +173,16 @@ static struct s5h1409_config dvico_s5h1409_config = {
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct s5h1411_config dvico_s5h1411_config = {
+	.output_mode   = S5H1411_SERIAL_OUTPUT,
+	.gpio          = S5H1411_GPIO_ON,
+	.qam_if        = S5H1411_IF_44000,
+	.vsb_if        = S5H1411_IF_44000,
+	.inversion     = S5H1411_INVERSION_OFF,
+	.status_mode   = S5H1411_DEMODLOCKING,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
@@ -475,6 +486,10 @@ static int dvb_register(struct cx23885_tsport *port)
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&dvico_s5h1409_config,
 						&i2c_bus->i2c_adap);
+		if (port->dvb.frontend == NULL)
+			port->dvb.frontend = dvb_attach(s5h1411_attach,
+							&dvico_s5h1411_config,
+							&i2c_bus->i2c_adap);
 		if (port->dvb.frontend != NULL)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
