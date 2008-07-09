@@ -220,6 +220,42 @@ config PCM990_DISPLAY_NONE
 endchoice
 
 
+config PXA_EZX
+	bool "Motorola EZX Platform"
+	select PXA27x
+	select IWMMXT
+	select HAVE_PWM
+
+config MACH_EZX_A780
+	bool "Motorola EZX A780"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_E680
+	bool "Motorola EZX E680"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_A1200
+	bool "Motorola EZX A1200"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_A910
+	bool "Motorola EZX A910"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_E6
+	bool "Motorola EZX E6"
+	default y
+	depends on PXA_EZX
+
+config MACH_EZX_E2
+	bool "Motorola EZX E2"
+	default y
+	depends on PXA_EZX
+
 endmenu
 
 config PXA25x
