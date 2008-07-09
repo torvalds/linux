@@ -2,6 +2,7 @@ config PPC_MPC512x
 	bool
 	select FSL_SOC
 	select IPIC
+	select PPC_CLOCK
 	default n
 
 config PPC_MPC5121
