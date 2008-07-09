@@ -901,26 +901,6 @@ static const struct mmc_host_ops imxmci_ops = {
 	.get_ro		= imxmci_get_ro,
 };
 
-static struct resource *platform_device_resource(struct platform_device *dev, unsigned int mask, int nr)
-{
-	int i;
-
-	for (i = 0; i < dev->num_resources; i++)
-		if (dev->resource[i].flags == mask && nr-- == 0)
-			return &dev->resource[i];
-	return NULL;
-}
-
-static int platform_device_irq(struct platform_device *dev, int nr)
-{
-	int i;
-
-	for (i = 0; i < dev->num_resources; i++)
-		if (dev->resource[i].flags == IORESOURCE_IRQ && nr-- == 0)
-			return dev->resource[i].start;
-	return NO_IRQ;
-}
-
 static void imxmci_check_status(unsigned long data)
 {
 	struct imxmci_host *host = (struct imxmci_host *)data;
@@ -956,13 +936,12 @@ static int imxmci_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "i.MX mmc driver\n");
 
-	r = platform_device_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_device_irq(pdev, 0);
-	if (!r || irq == NO_IRQ)
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	irq = platform_get_irq(pdev, 0);
+	if (!r || irq < 0)
 		return -ENXIO;
 
-	r = request_mem_region(r->start, 0x100, "IMXMCI");
-	if (!r)
+	if (!request_mem_region(r->start, 0x100, pdev->name))
 		return -EBUSY;
 
 	mmc = mmc_alloc_host(sizeof(struct imxmci_host), &pdev->dev);
@@ -1067,7 +1046,7 @@ out:
 	}
 	if (mmc)
 		mmc_free_host(mmc);
-	release_resource(r);
+	release_mem_region(r->start, 0x100);
 	return ret;
 }
 
@@ -1096,7 +1075,7 @@ static int imxmci_remove(struct platform_device *pdev)
 		clk_disable(host->clk);
 		clk_put(host->clk);
 
-		release_resource(host->res);
+		release_mem_region(host->res->start, 0x100);
 
 		mmc_free_host(mmc);
 	}
