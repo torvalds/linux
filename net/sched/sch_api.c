@@ -450,14 +450,15 @@ dev_graft_qdisc(struct net_device *dev, struct Qdisc *qdisc)
 
 	qdisc_lock_tree(dev);
 	if (qdisc && qdisc->flags&TCQ_F_INGRESS) {
-		oqdisc = dev->qdisc_ingress;
+		dev_queue = &dev->rx_queue;
+		oqdisc = dev_queue->qdisc;
 		/* Prune old scheduler */
 		if (oqdisc && atomic_read(&oqdisc->refcnt) <= 1) {
 			/* delete */
 			qdisc_reset(oqdisc);
-			dev->qdisc_ingress = NULL;
+			dev_queue->qdisc = NULL;
 		} else {  /* new */
-			dev->qdisc_ingress = qdisc;
+			dev_queue->qdisc = qdisc;
 		}
 
 	} else {
@@ -739,7 +740,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /* ingress */
-				q = dev->qdisc_ingress;
+				q = dev->rx_queue.qdisc;
 			}
 		} else {
 			struct netdev_queue *dev_queue = &dev->tx_queue;
@@ -814,7 +815,7 @@ replay:
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /*ingress */
-				q = dev->qdisc_ingress;
+				q = dev->rx_queue.qdisc;
 			}
 		} else {
 			struct netdev_queue *dev_queue = &dev->tx_queue;

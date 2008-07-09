@@ -634,9 +634,6 @@ struct net_device
 
 	struct netdev_queue	rx_queue;
 	struct netdev_queue	tx_queue ____cacheline_aligned_in_smp;
-
-	struct Qdisc		*qdisc_ingress;
-
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 
 	/* Partially transmitted GSO packet. */

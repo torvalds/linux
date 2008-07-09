@@ -2033,7 +2033,7 @@ static int ing_filter(struct sk_buff *skb)
 	rxq = &dev->rx_queue;
 
 	spin_lock(&rxq->lock);
-	if ((q = dev->qdisc_ingress) != NULL)
+	if ((q = rxq->qdisc) != NULL)
 		result = q->enqueue(skb, q);
 	spin_unlock(&rxq->lock);
 
@@ -2044,7 +2044,7 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 					 struct packet_type **pt_prev,
 					 int *ret, struct net_device *orig_dev)
 {
-	if (!skb->dev->qdisc_ingress)
+	if (!skb->dev->rx_queue.qdisc)
 		goto out;
 
 	if (*pt_prev) {
