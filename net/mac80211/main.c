@@ -885,10 +885,10 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	spin_unlock_bh(&txq->lock);
 
 	/* we just requeued the all the frames that were in the removed
-	 * queue, and since we might miss a softirq we do netif_schedule.
+	 * queue, and since we might miss a softirq we do netif_schedule_queue.
 	 * ieee80211_wake_queue is not used here as this queue is not
 	 * necessarily stopped */
-	netif_schedule(local->mdev);
+	netif_schedule_queue(txq);
 	spin_lock_bh(&sta->lock);
 	*state = HT_AGG_STATE_IDLE;
 	sta->ampdu_mlme.addba_req_num[tid] = 0;

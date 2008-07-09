@@ -1320,12 +1320,13 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 }
 
 
-void __netif_schedule(struct net_device *dev)
+void __netif_schedule(struct netdev_queue *txq)
 {
+	struct net_device *dev = txq->dev;
+
 	if (!test_and_set_bit(__LINK_STATE_SCHED, &dev->state)) {
-		struct netdev_queue *txq = &dev->tx_queue;
-		unsigned long flags;
 		struct softnet_data *sd;
+		unsigned long flags;
 
 		local_irq_save(flags);
 		sd = &__get_cpu_var(softnet_data);
@@ -1932,7 +1933,7 @@ static void net_tx_action(struct softirq_action *h)
 				qdisc_run(dev);
 				spin_unlock(&txq->lock);
 			} else {
-				netif_schedule(dev);
+				netif_schedule_queue(txq);
 			}
 		}
 	}

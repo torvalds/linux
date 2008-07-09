@@ -952,12 +952,19 @@ DECLARE_PER_CPU(struct softnet_data,softnet_data);
 
 #define HAVE_NETIF_QUEUE
 
-extern void __netif_schedule(struct net_device *dev);
+extern void __netif_schedule(struct netdev_queue *txq);
+
+static inline void netif_schedule_queue(struct netdev_queue *txq)
+{
+	struct net_device *dev = txq->dev;
+
+	if (!test_bit(__LINK_STATE_XOFF, &dev->state))
+		__netif_schedule(txq);
+}
 
 static inline void netif_schedule(struct net_device *dev)
 {
-	if (!test_bit(__LINK_STATE_XOFF, &dev->state))
-		__netif_schedule(dev);
+	netif_schedule_queue(&dev->tx_queue);
 }
 
 /**
@@ -987,7 +994,7 @@ static inline void netif_wake_queue(struct net_device *dev)
 	}
 #endif
 	if (test_and_clear_bit(__LINK_STATE_XOFF, &dev->state))
-		__netif_schedule(dev);
+		__netif_schedule(&dev->tx_queue);
 }
 
 /**
@@ -1103,7 +1110,7 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 #endif
 	if (test_and_clear_bit(__LINK_STATE_XOFF,
 			       &dev->egress_subqueue[queue_index].state))
-		__netif_schedule(dev);
+		__netif_schedule(&dev->tx_queue);
 #endif
 }
 
