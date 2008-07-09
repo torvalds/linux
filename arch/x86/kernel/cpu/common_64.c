@@ -7,12 +7,9 @@
 #include <linux/module.h>
 #include <linux/kgdb.h>
 #include <linux/topology.h>
-#include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
-#include <linux/module.h>
 #include <linux/percpu.h>
-#include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/msr.h>
 #include <asm/io.h>
