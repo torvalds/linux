@@ -1,7 +1,7 @@
 /*
  * Cyclades PC300 synchronous serial card driver for Linux
  *
- * Copyright (C) 2000-2007 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 2000-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -11,7 +11,7 @@
  *
  * Sources of information:
  *    Hitachi HD64572 SCA-II User's Manual
- *    Cyclades PC300 Linux driver
+ *    Original Cyclades PC300 Linux driver
  *
  * This driver currently supports only PC300/RSV (V.24/V.35) and
  * PC300/X21 cards.
@@ -76,7 +76,7 @@ typedef struct {
 
 typedef struct port_s {
 	struct napi_struct napi;
-	struct net_device *dev;
+	struct net_device *netdev;
 	struct card_s *card;
 	spinlock_t lock;	/* TX lock */
 	sync_serial_settings settings;
@@ -88,7 +88,7 @@ typedef struct port_s {
 	u16 txin;		/* tx ring buffer 'in' and 'last' pointers */
 	u16 txlast;
 	u8 rxs, txs, tmc;	/* SCA registers */
-	u8 phy_node;		/* physical port # - 0 or 1 */
+	u8 chan;		/* physical port # - 0 or 1 */
 }port_t;
 
 
@@ -109,17 +109,6 @@ typedef struct card_s {
 }card_t;
 
 
-#define sca_in(reg, card)	     readb(card->scabase + (reg))
-#define sca_out(value, reg, card)    writeb(value, card->scabase + (reg))
-#define sca_inw(reg, card)	     readw(card->scabase + (reg))
-#define sca_outw(value, reg, card)   writew(value, card->scabase + (reg))
-#define sca_inl(reg, card)	     readl(card->scabase + (reg))
-#define sca_outl(value, reg, card)   writel(value, card->scabase + (reg))
-
-#define port_to_card(port)	     (port->card)
-#define log_node(port)		     (port->phy_node)
-#define phy_node(port)		     (port->phy_node)
-#define winbase(card)		     (card->rambase)
 #define get_port(card, port)	     ((port) < (card)->n_ports ? \
 					 (&(card)->ports[port]) : (NULL))
 
@@ -134,8 +123,8 @@ static void pc300_set_iface(port_t *port)
 	u8 rxs = port->rxs & CLK_BRG_MASK;
 	u8 txs = port->txs & CLK_BRG_MASK;
 
-	sca_out(EXS_TES1, (phy_node(port) ? MSCI1_OFFSET : MSCI0_OFFSET) + EXS,
-		port_to_card(port));
+	sca_out(EXS_TES1, (port->chan ? MSCI1_OFFSET : MSCI0_OFFSET) + EXS,
+		port->card);
 	switch(port->settings.clock_type) {
 	case CLOCK_INT:
 		rxs |= CLK_BRG; /* BRG output */
@@ -167,10 +156,10 @@ static void pc300_set_iface(port_t *port)
 	if (port->card->type == PC300_RSV) {
 		if (port->iface == IF_IFACE_V35)
 			writel(card->init_ctrl_value |
-			       PC300_CHMEDIA_MASK(port->phy_node), init_ctrl);
+			       PC300_CHMEDIA_MASK(port->chan), init_ctrl);
 		else
 			writel(card->init_ctrl_value &
-			       ~PC300_CHMEDIA_MASK(port->phy_node), init_ctrl);
+			       ~PC300_CHMEDIA_MASK(port->chan), init_ctrl);
 	}
 }
 
@@ -275,10 +264,8 @@ static void pc300_pci_remove_one(struct pci_dev *pdev)
 	card_t *card = pci_get_drvdata(pdev);
 
 	for (i = 0; i < 2; i++)
-		if (card->ports[i].card) {
-			struct net_device *dev = port_to_dev(&card->ports[i]);
-			unregister_hdlc_device(dev);
-		}
+		if (card->ports[i].card)
+			unregister_hdlc_device(card->ports[i].netdev);
 
 	if (card->irq)
 		free_irq(card->irq, card);
@@ -293,10 +280,10 @@ static void pc300_pci_remove_one(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
-	if (card->ports[0].dev)
-		free_netdev(card->ports[0].dev);
-	if (card->ports[1].dev)
-		free_netdev(card->ports[1].dev);
+	if (card->ports[0].netdev)
+		free_netdev(card->ports[0].netdev);
+	if (card->ports[1].netdev)
+		free_netdev(card->ports[1].netdev);
 	kfree(card);
 }
 
@@ -347,7 +334,7 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 		card->n_ports = 2;
 
 	for (i = 0; i < card->n_ports; i++)
-		if (!(card->ports[i].dev = alloc_hdlcdev(&card->ports[i]))) {
+		if (!(card->ports[i].netdev = alloc_hdlcdev(&card->ports[i]))) {
 			printk(KERN_ERR "pc300: unable to allocate memory\n");
 			pc300_pci_remove_one(pdev);
 			return -ENOMEM;
@@ -452,9 +439,9 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 
 	for (i = 0; i < card->n_ports; i++) {
 		port_t *port = &card->ports[i];
-		struct net_device *dev = port_to_dev(port);
+		struct net_device *dev = port->netdev;
 		hdlc_device *hdlc = dev_to_hdlc(dev);
-		port->phy_node = i;
+		port->chan = i;
 
 		spin_lock_init(&port->lock);
 		dev->irq = card->irq;
@@ -482,8 +469,8 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 			return -ENOBUFS;
 		}
 
-		printk(KERN_INFO "%s: PC300 node %d\n",
-		       dev->name, port->phy_node);
+		printk(KERN_INFO "%s: PC300 channel %d\n",
+		       dev->name, port->chan);
 	}
 	return 0;
 }
