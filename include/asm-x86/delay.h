@@ -26,10 +26,6 @@ extern void __delay(unsigned long loops);
 	((n) > 20000 ? __bad_ndelay() : __const_udelay((n) * 5ul)) : \
 	__ndelay(n))
 
-#ifdef CONFIG_X86_32
 void use_tsc_delay(void);
-#else
-#define use_tsc_delay() {}
-#endif
 
 #endif /* _ASM_X86_DELAY_H */

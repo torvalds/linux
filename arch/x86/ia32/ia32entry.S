@@ -116,7 +116,7 @@ ENTRY(ia32_sysenter_target)
 	pushfq
 	CFI_ADJUST_CFA_OFFSET 8
 	/*CFI_REL_OFFSET rflags,0*/
-	movl	8*3-THREAD_SIZE+threadinfo_sysenter_return(%rsp), %r10d
+	movl	8*3-THREAD_SIZE+TI_sysenter_return(%rsp), %r10d
 	CFI_REGISTER rip,r10
 	pushq	$__USER32_CS
 	CFI_ADJUST_CFA_OFFSET 8
@@ -136,8 +136,9 @@ ENTRY(ia32_sysenter_target)
  	.quad 1b,ia32_badarg
  	.previous	
 	GET_THREAD_INFO(%r10)
-	orl    $TS_COMPAT,threadinfo_status(%r10)
-	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	orl    $TS_COMPAT,TI_status(%r10)
+	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
+		 TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
 sysenter_do_call:	
@@ -149,9 +150,9 @@ sysenter_do_call:
 	GET_THREAD_INFO(%r10)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testl	$_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
+	testl	$_TIF_ALLWORK_MASK,TI_flags(%r10)
 	jnz	int_ret_from_sys_call
-	andl    $~TS_COMPAT,threadinfo_status(%r10)
+	andl    $~TS_COMPAT,TI_status(%r10)
 	/* clear IF, that popfq doesn't enable interrupts early */
 	andl  $~0x200,EFLAGS-R11(%rsp) 
 	movl	RIP-R11(%rsp),%edx		/* User %eip */
@@ -240,8 +241,9 @@ ENTRY(ia32_cstar_target)
 	.quad 1b,ia32_badarg
 	.previous	
 	GET_THREAD_INFO(%r10)
-	orl   $TS_COMPAT,threadinfo_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	orl   $TS_COMPAT,TI_status(%r10)
+	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
+		TI_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 cstar_do_call:	
@@ -253,9 +255,9 @@ cstar_do_call:
 	GET_THREAD_INFO(%r10)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testl $_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
+	testl $_TIF_ALLWORK_MASK,TI_flags(%r10)
 	jnz  int_ret_from_sys_call
-	andl $~TS_COMPAT,threadinfo_status(%r10)
+	andl $~TS_COMPAT,TI_status(%r10)
 	RESTORE_ARGS 1,-ARG_SKIP,1,1,1
 	movl RIP-ARGOFFSET(%rsp),%ecx
 	CFI_REGISTER rip,rcx
@@ -333,8 +335,9 @@ ENTRY(ia32_syscall)
 	   this could be a problem. */
 	SAVE_ARGS 0,0,1
 	GET_THREAD_INFO(%r10)
-	orl   $TS_COMPAT,threadinfo_status(%r10)
-	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	orl   $TS_COMPAT,TI_status(%r10)
+	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP), \
+		TI_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
 	cmpl $(IA32_NR_syscalls-1),%eax

@@ -40,7 +40,7 @@ ENTRY(copy_to_user)
 	movq %rdi,%rcx
 	addq %rdx,%rcx
 	jc  bad_to_user
-	cmpq threadinfo_addr_limit(%rax),%rcx
+	cmpq TI_addr_limit(%rax),%rcx
 	jae bad_to_user
 	xorl %eax,%eax	/* clear zero flag */
 	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
@@ -65,7 +65,7 @@ ENTRY(copy_from_user)
 	movq %rsi,%rcx
 	addq %rdx,%rcx
 	jc  bad_from_user
-	cmpq threadinfo_addr_limit(%rax),%rcx
+	cmpq TI_addr_limit(%rax),%rcx
 	jae  bad_from_user
 	movl $1,%ecx	/* set zero flag */
 	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string

@@ -2,6 +2,8 @@
  * __put_user functions.
  *
  * (C) Copyright 2005 Linus Torvalds
+ * (C) Copyright 2005 Andi Kleen
+ * (C) Copyright 2008 Glauber Costa
  *
  * These functions have a non-standard call interface
  * to make them more efficient, especially as they
@@ -11,6 +13,8 @@
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 #include <asm/thread_info.h>
+#include <asm/errno.h>
+#include <asm/asm.h>
 
 
 /*
@@ -26,73 +30,68 @@
  */
 
 #define ENTER	CFI_STARTPROC ; \
-		pushl %ebx ; \
-		CFI_ADJUST_CFA_OFFSET 4 ; \
-		CFI_REL_OFFSET ebx, 0 ; \
-		GET_THREAD_INFO(%ebx)
-#define EXIT	popl %ebx ; \
-		CFI_ADJUST_CFA_OFFSET -4 ; \
-		CFI_RESTORE ebx ; \
-		ret ; \
+		GET_THREAD_INFO(%_ASM_BX)
+#define EXIT	ret ; \
 		CFI_ENDPROC
 
 .text
 ENTRY(__put_user_1)
 	ENTER
-	cmpl TI_addr_limit(%ebx),%ecx
+	cmp TI_addr_limit(%_ASM_BX),%_ASM_CX
 	jae bad_put_user
-1:	movb %al,(%ecx)
-	xorl %eax,%eax
+1:	movb %al,(%_ASM_CX)
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_1)
 
 ENTRY(__put_user_2)
 	ENTER
-	movl TI_addr_limit(%ebx),%ebx
-	subl $1,%ebx
-	cmpl %ebx,%ecx
+	mov TI_addr_limit(%_ASM_BX),%_ASM_BX
+	sub $1,%_ASM_BX
+	cmp %_ASM_BX,%_ASM_CX
 	jae bad_put_user
-2:	movw %ax,(%ecx)
-	xorl %eax,%eax
+2:	movw %ax,(%_ASM_CX)
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_2)
 
 ENTRY(__put_user_4)
 	ENTER
-	movl TI_addr_limit(%ebx),%ebx
-	subl $3,%ebx
-	cmpl %ebx,%ecx
+	mov TI_addr_limit(%_ASM_BX),%_ASM_BX
+	sub $3,%_ASM_BX
+	cmp %_ASM_BX,%_ASM_CX
 	jae bad_put_user
-3:	movl %eax,(%ecx)
-	xorl %eax,%eax
+3:	movl %eax,(%_ASM_CX)
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_4)
 
 ENTRY(__put_user_8)
 	ENTER
-	movl TI_addr_limit(%ebx),%ebx
-	subl $7,%ebx
-	cmpl %ebx,%ecx
+	mov TI_addr_limit(%_ASM_BX),%_ASM_BX
+	sub $7,%_ASM_BX
+	cmp %_ASM_BX,%_ASM_CX
 	jae bad_put_user
-4:	movl %eax,(%ecx)
-5:	movl %edx,4(%ecx)
-	xorl %eax,%eax
+4:	mov %_ASM_AX,(%_ASM_CX)
+#ifdef CONFIG_X86_32
+5:	movl %edx,4(%_ASM_CX)
+#endif
+	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_8)
 
 bad_put_user:
-	CFI_STARTPROC simple
-	CFI_DEF_CFA esp, 2*4
-	CFI_OFFSET eip, -1*4
-	CFI_OFFSET ebx, -2*4
-	movl $-14,%eax
+	CFI_STARTPROC
+	movl $-EFAULT,%eax
 	EXIT
 END(bad_put_user)
 
 .section __ex_table,"a"
-	.long 1b,bad_put_user
-	.long 2b,bad_put_user
-	.long 3b,bad_put_user
-	.long 4b,bad_put_user
-	.long 5b,bad_put_user
+	_ASM_PTR 1b,bad_put_user
+	_ASM_PTR 2b,bad_put_user
+	_ASM_PTR 3b,bad_put_user
+	_ASM_PTR 4b,bad_put_user
+#ifdef CONFIG_X86_32
+	_ASM_PTR 5b,bad_put_user
+#endif
 .previous
