@@ -33,16 +33,16 @@
 
 #define dprintk(x, y, z, format, arg...) do {						\
 	if (z) {									\
-		if	((x > FE_ERROR) && (x > y))					\
+		if	((*x > FE_ERROR) && (*x > y))					\
 			printk(KERN_ERR "%s: " format "\n", __func__ , ##arg);		\
-		else if	((x > FE_NOTICE) && (x > y))					\
+		else if	((*x > FE_NOTICE) && (*x > y))					\
 			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
-		else if ((x > FE_INFO) && (x > y))					\
+		else if ((*x > FE_INFO) && (*x > y))					\
 			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);		\
-		else if ((x > FE_DEBUG) && (x > y))					\
+		else if ((*x > FE_DEBUG) && (*x > y))					\
 			printk(KERN_DEBUG "%s: " format "\n", __func__ , ##arg);	\
 	} else {									\
-		if (x > y)								\
+		if (*x > y)								\
 			printk(format, ##arg);						\
 	}										\
 } while(0)
@@ -215,7 +215,7 @@ struct stb0899_state {
 	struct stb0899_config		*config;
 	struct dvb_frontend		frontend;
 
-	u32				verbose;	/* Cached module verbosity level	*/
+	u32				*verbose;	/* Cached module verbosity level	*/
 
 	struct stb0899_internal		internal;	/* Device internal parameters		*/
 
