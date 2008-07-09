@@ -1387,6 +1387,8 @@ void _paravirt_nop(void);
 
 void paravirt_use_bytelocks(void);
 
+#ifdef CONFIG_SMP
+
 static inline int __raw_spin_is_locked(struct raw_spinlock *lock)
 {
 	return PVOP_CALL1(int, pv_lock_ops.spin_is_locked, lock);
@@ -1411,6 +1413,8 @@ static __always_inline void __raw_spin_unlock(struct raw_spinlock *lock)
 {
 	return PVOP_VCALL1(pv_lock_ops.spin_unlock, lock);
 }
+
+#endif
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch_site {
