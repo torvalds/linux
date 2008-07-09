@@ -233,6 +233,15 @@ static inline void qdisc_reset_all_tx(struct net_device *dev)
 	qdisc_reset(dev->tx_queue.qdisc);
 }
 
+/* Are all TX queues of the device empty?  */
+static inline bool qdisc_all_tx_empty(const struct net_device *dev)
+{
+	const struct netdev_queue *txq = &dev->tx_queue;
+	const struct Qdisc *q = txq->qdisc;
+
+	return (q->q.qlen == 0);
+}
+
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)
 {
