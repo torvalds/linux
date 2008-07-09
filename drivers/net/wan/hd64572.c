@@ -67,19 +67,12 @@ static inline int sca_intr_status(card_t *card)
 	u8 result = 0;
 	u32 isr0 = sca_inl(ISR0, card);
 
-	if (isr0 & 0x0000000F) result |= SCA_INTR_DMAC_RX(0);
-	if (isr0 & 0x000000F0) result |= SCA_INTR_DMAC_TX(0);
-	if (isr0 & 0x00000F00) result |= SCA_INTR_DMAC_RX(1);
-	if (isr0 & 0x0000F000) result |= SCA_INTR_DMAC_TX(1);
-	if (isr0 & 0x003E0000) result |= SCA_INTR_MSCI(0);
-	if (isr0 & 0x3E000000) result |= SCA_INTR_MSCI(1);
-
-	if (!(result & SCA_INTR_DMAC_TX(0)))
-		if (sca_in(DSR_TX(0), card) & DSR_EOM)
-			result |= SCA_INTR_DMAC_TX(0);
-	if (!(result & SCA_INTR_DMAC_TX(1)))
-		if (sca_in(DSR_TX(1), card) & DSR_EOM)
-			result |= SCA_INTR_DMAC_TX(1);
+	if (isr0 & 0x00000002) result |= SCA_INTR_DMAC_RX(0);
+	if (isr0 & 0x00000020) result |= SCA_INTR_DMAC_TX(0);
+	if (isr0 & 0x00000200) result |= SCA_INTR_DMAC_RX(1);
+	if (isr0 & 0x00002000) result |= SCA_INTR_DMAC_TX(1);
+	if (isr0 & 0x00080000) result |= SCA_INTR_MSCI(0);
+	if (isr0 & 0x08000000) result |= SCA_INTR_MSCI(1);
 
 	return result;
 }
@@ -91,10 +84,9 @@ static inline port_t* dev_to_port(struct net_device *dev)
 
 static inline void enable_intr(port_t *port)
 {
-	/* DMA & MSCI IRQ enable */
-	/* IR0_TXINT | IR0_RXINTA | IR0_DMIB* | IR0_DMIA* */
+	/* enable DMIB and MSCI RXINTA interrupts */
 	sca_outl(sca_inl(IER0, port->card) |
-		 (phy_node(port) ? 0x0A006600 : 0x000A0066), IER0, port->card);
+		 (phy_node(port) ? 0x08002200 : 0x00080022), IER0, port->card);
 }
 
 static inline void disable_intr(port_t *port)
@@ -211,15 +203,14 @@ static void sca_init_port(port_t *port)
 			sca_outw(HDLC_MAX_MRU, dmac + BFLL, card);
 			/* Chain mode, Multi-frame */
 			sca_out(0x14, DMR_RX(phy_node(port)), card);
-			sca_out(DIR_EOME | DIR_BOFE, DIR_RX(phy_node(port)),
-				card);
+			sca_out(DIR_EOME, DIR_RX(phy_node(port)), card);
 			/* DMA enable */
 			sca_out(DSR_DE, DSR_RX(phy_node(port)), card);
 		} else {	/* Transmit */
 			/* Chain mode, Multi-frame */
 			sca_out(0x14, DMR_TX(phy_node(port)), card);
 			/* enable underflow interrupts */
-			sca_out(DIR_BOFE, DIR_TX(phy_node(port)), card);
+			sca_out(DIR_EOME, DIR_TX(phy_node(port)), card);
 		}
 	}
 	sca_set_carrier(port);
@@ -502,11 +493,10 @@ static void sca_open(struct net_device *dev)
 	sca_out(0x3F, msci + TNR1, card); /* +1=TX DMA deactivation condition*/
 
 /* We're using the following interrupts:
-   - TXINT (DMAC completed all transmissions and DCD changes)
-   - all DMA interrupts
+   - RXINTA (DCD changes only)
+   - DMIB (EOM - single frame transfer complete)
 */
-	/* MSCI TXINT and RXINTA interrupt enable */
-	sca_outl(IE0_TXINT | IE0_RXINTA | IE0_CDCD, msci + IE0, card);
+	sca_outl(IE0_RXINTA | IE0_CDCD, msci + IE0, card);
 
 	sca_out(port->tmc, msci + TMCR, card);
 	sca_out(port->tmc, msci + TMCT, card);
