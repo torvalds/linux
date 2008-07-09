@@ -569,11 +569,7 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = max(skb->len, ETH_ZLEN);
 	queue = skb_get_queue_mapping(skb);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netif_stop_subqueue(dev, queue);
-#else
-	netif_stop_queue(dev);
-#endif
 
 	desc = &priv->desc_ring[queue];
 	if (unlikely(desc->dataflags & CPMAC_OWN)) {
@@ -626,24 +622,14 @@ static void cpmac_end_xmit(struct net_device *dev, int queue)
 
 		dev_kfree_skb_irq(desc->skb);
 		desc->skb = NULL;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 		if (netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
-#else
-		if (netif_queue_stopped(dev))
-			netif_wake_queue(dev);
-#endif
 	} else {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			printk(KERN_WARNING
 			       "%s: end_xmit: spurious interrupt\n", dev->name);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 		if (netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
-#else
-		if (netif_queue_stopped(dev))
-			netif_wake_queue(dev);
-#endif
 	}
 }
 

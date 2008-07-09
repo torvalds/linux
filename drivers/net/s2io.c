@@ -546,13 +546,10 @@ static struct pci_driver s2io_driver = {
 static inline void s2io_stop_all_tx_queue(struct s2io_nic *sp)
 {
 	int i;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (sp->config.multiq) {
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			netif_stop_subqueue(sp->dev, i);
-	} else
-#endif
-	{
+	} else {
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_STOP;
 		netif_stop_queue(sp->dev);
@@ -561,12 +558,9 @@ static inline void s2io_stop_all_tx_queue(struct s2io_nic *sp)
 
 static inline void s2io_stop_tx_queue(struct s2io_nic *sp, int fifo_no)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (sp->config.multiq)
 		netif_stop_subqueue(sp->dev, fifo_no);
-	else
-#endif
-	{
+	else {
 		sp->mac_control.fifos[fifo_no].queue_state =
 			FIFO_QUEUE_STOP;
 		netif_stop_queue(sp->dev);
@@ -576,13 +570,10 @@ static inline void s2io_stop_tx_queue(struct s2io_nic *sp, int fifo_no)
 static inline void s2io_start_all_tx_queue(struct s2io_nic *sp)
 {
 	int i;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (sp->config.multiq) {
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			netif_start_subqueue(sp->dev, i);
-	} else
-#endif
-	{
+	} else {
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
 		netif_start_queue(sp->dev);
@@ -591,12 +582,9 @@ static inline void s2io_start_all_tx_queue(struct s2io_nic *sp)
 
 static inline void s2io_start_tx_queue(struct s2io_nic *sp, int fifo_no)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (sp->config.multiq)
 		netif_start_subqueue(sp->dev, fifo_no);
-	else
-#endif
-	{
+	else {
 		sp->mac_control.fifos[fifo_no].queue_state =
 			FIFO_QUEUE_START;
 		netif_start_queue(sp->dev);
@@ -606,13 +594,10 @@ static inline void s2io_start_tx_queue(struct s2io_nic *sp, int fifo_no)
 static inline void s2io_wake_all_tx_queue(struct s2io_nic *sp)
 {
 	int i;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (sp->config.multiq) {
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			netif_wake_subqueue(sp->dev, i);
-	} else
-#endif
-	{
+	} else {
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
 		netif_wake_queue(sp->dev);
@@ -623,13 +608,10 @@ static inline void s2io_wake_tx_queue(
 	struct fifo_info *fifo, int cnt, u8 multiq)
 {
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (multiq) {
 		if (cnt && __netif_subqueue_stopped(fifo->dev, fifo->fifo_no))
 			netif_wake_subqueue(fifo->dev, fifo->fifo_no);
-	} else
-#endif
-	if (cnt && (fifo->queue_state == FIFO_QUEUE_STOP)) {
+	} else if (cnt && (fifo->queue_state == FIFO_QUEUE_STOP)) {
 		if (netif_queue_stopped(fifo->dev)) {
 			fifo->queue_state = FIFO_QUEUE_START;
 			netif_wake_queue(fifo->dev);
@@ -4189,15 +4171,12 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_LOCKED;
 	}
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (sp->config.multiq) {
 		if (__netif_subqueue_stopped(dev, fifo->fifo_no)) {
 			spin_unlock_irqrestore(&fifo->tx_lock, flags);
 			return NETDEV_TX_BUSY;
 		}
-	} else
-#endif
-	if (unlikely(fifo->queue_state == FIFO_QUEUE_STOP)) {
+	} else if (unlikely(fifo->queue_state == FIFO_QUEUE_STOP)) {
 		if (netif_queue_stopped(dev)) {
 			spin_unlock_irqrestore(&fifo->tx_lock, flags);
 			return NETDEV_TX_BUSY;
@@ -7633,12 +7612,6 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 		DBG_PRINT(ERR_DBG, "tx fifos\n");
 	}
 
-#ifndef CONFIG_NETDEVICES_MULTIQUEUE
-	if (multiq) {
-		DBG_PRINT(ERR_DBG, "s2io: Multiqueue support not enabled\n");
-		multiq = 0;
-	}
-#endif
 	if (multiq)
 		*dev_multiq = multiq;
 
@@ -7783,12 +7756,10 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		pci_disable_device(pdev);
 		return -ENODEV;
 	}
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (dev_multiq)
 		dev = alloc_etherdev_mq(sizeof(struct s2io_nic), tx_fifo_num);
 	else
-#endif
-	dev = alloc_etherdev(sizeof(struct s2io_nic));
+		dev = alloc_etherdev(sizeof(struct s2io_nic));
 	if (dev == NULL) {
 		DBG_PRINT(ERR_DBG, "Device allocation failed\n");
 		pci_disable_device(pdev);
@@ -7979,10 +7950,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		dev->features |= NETIF_F_UFO;
 		dev->features |= NETIF_F_HW_CSUM;
 	}
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (config->multiq)
 		dev->features |= NETIF_F_MULTI_QUEUE;
-#endif
 	dev->tx_timeout = &s2io_tx_watchdog;
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;
 	INIT_WORK(&sp->rst_timer_task, s2io_restart_nic);

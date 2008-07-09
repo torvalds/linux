@@ -1043,9 +1043,7 @@ static inline int netif_running(const struct net_device *dev)
  */
 static inline void netif_start_subqueue(struct net_device *dev, u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	clear_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
-#endif
 }
 
 /**
@@ -1057,13 +1055,11 @@ static inline void netif_start_subqueue(struct net_device *dev, u16 queue_index)
  */
 static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 #ifdef CONFIG_NETPOLL_TRAP
 	if (netpoll_trap())
 		return;
 #endif
 	set_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
-#endif
 }
 
 /**
@@ -1076,12 +1072,8 @@ static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 static inline int __netif_subqueue_stopped(const struct net_device *dev,
 					 u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	return test_bit(__LINK_STATE_XOFF,
 			&dev->egress_subqueue[queue_index].state);
-#else
-	return 0;
-#endif
 }
 
 static inline int netif_subqueue_stopped(const struct net_device *dev,
@@ -1099,7 +1091,6 @@ static inline int netif_subqueue_stopped(const struct net_device *dev,
  */
 static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 #ifdef CONFIG_NETPOLL_TRAP
 	if (netpoll_trap())
 		return;
@@ -1107,7 +1098,6 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 	if (test_and_clear_bit(__LINK_STATE_XOFF,
 			       &dev->egress_subqueue[queue_index].state))
 		__netif_schedule(&dev->tx_queue);
-#endif
 }
 
 /**
@@ -1119,11 +1109,7 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
  */
 static inline int netif_is_multiqueue(const struct net_device *dev)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	return (!!(NETIF_F_MULTI_QUEUE & dev->features));
-#else
-	return 0;
-#endif
 }
 
 /* Use this variant when it is known for sure that it

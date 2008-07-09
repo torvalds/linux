@@ -26,14 +26,6 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
-config NETDEVICES_MULTIQUEUE
-	bool "Netdevice multiple hardware queue support"
-	---help---
-	  Say Y here if you want to allow the network stack to use multiple
-	  hardware TX queues on an ethernet device.
-
-	  Most people will say N here.
-
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT

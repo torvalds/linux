@@ -266,28 +266,16 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
 		    !test_bit(__IXGBE_DOWN, &adapter->state)) {
 			netif_wake_subqueue(netdev, tx_ring->queue_index);
 			adapter->restart_queue++;
 		}
-#else
-		if (netif_queue_stopped(netdev) &&
-		    !test_bit(__IXGBE_DOWN, &adapter->state)) {
-			netif_wake_queue(netdev);
-			adapter->restart_queue++;
-		}
-#endif
 	}
 
 	if (adapter->detect_tx_hung)
 		if (ixgbe_check_tx_hang(adapter, tx_ring, eop, eop_desc))
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 			netif_stop_subqueue(netdev, tx_ring->queue_index);
-#else
-			netif_stop_queue(netdev);
-#endif
 
 	if (total_tx_packets >= tx_ring->work_limit)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, tx_ring->eims_value);
@@ -2192,11 +2180,7 @@ static void __devinit ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 		case (IXGBE_FLAG_RSS_ENABLED):
 			rss_m = 0xF;
 			nrq = rss_i;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 			ntq = rss_i;
-#else
-			ntq = 1;
-#endif
 			break;
 		case 0:
 		default:
@@ -2370,10 +2354,8 @@ try_msi:
 	}
 
 out:
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
 	adapter->netdev->egress_subqueue_count = adapter->num_tx_queues;
-#endif
 
 	return err;
 }
@@ -2910,9 +2892,7 @@ static void ixgbe_watchdog(unsigned long data)
 	struct net_device *netdev = adapter->netdev;
 	bool link_up;
 	u32 link_speed = 0;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	int i;
-#endif
 
 	adapter->hw.mac.ops.check_link(&adapter->hw, &(link_speed), &link_up);
 
@@ -2934,10 +2914,8 @@ static void ixgbe_watchdog(unsigned long data)
 
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 			for (i = 0; i < adapter->num_tx_queues; i++)
 				netif_wake_subqueue(netdev, i);
-#endif
 		} else {
 			/* Force detection of hung controller */
 			adapter->detect_tx_hung = true;
@@ -3264,11 +3242,7 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netif_stop_subqueue(netdev, tx_ring->queue_index);
-#else
-	netif_stop_queue(netdev);
-#endif
 	/* Herbert's original patch had:
 	 *  smp_mb__after_netif_stop_queue();
 	 * but since that doesn't exist yet, just open code it. */
@@ -3280,11 +3254,7 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 		return -EBUSY;
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netif_wake_subqueue(netdev, tx_ring->queue_index);
-#else
-	netif_wake_queue(netdev);
-#endif
 	++adapter->restart_queue;
 	return 0;
 }
@@ -3312,9 +3282,7 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int f;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	len -= skb->data_len;
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	r_idx = (adapter->num_tx_queues - 1) & skb->queue_mapping;
-#endif
 	tx_ring = &adapter->tx_ring[r_idx];
 
 
@@ -3502,11 +3470,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), MAX_TX_QUEUES);
-#else
-	netdev = alloc_etherdev(sizeof(struct ixgbe_adapter));
-#endif
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_alloc_etherdev;
@@ -3598,9 +3562,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netdev->features |= NETIF_F_MULTI_QUEUE;
-#endif
 
 	/* make sure the EEPROM is good */
 	if (ixgbe_validate_eeprom_checksum(hw, NULL) < 0) {
@@ -3668,10 +3630,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		netif_stop_subqueue(netdev, i);
-#endif
 
 	ixgbe_napi_add_all(adapter);
 
