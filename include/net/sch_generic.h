@@ -227,6 +227,12 @@ extern struct Qdisc *qdisc_create_dflt(struct net_device *dev,
 extern void tcf_destroy(struct tcf_proto *tp);
 extern void tcf_destroy_chain(struct tcf_proto **fl);
 
+/* Reset all TX qdiscs of a device.  */
+static inline void qdisc_reset_all_tx(struct net_device *dev)
+{
+	qdisc_reset(dev->tx_queue.qdisc);
+}
+
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)
 {
