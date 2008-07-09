@@ -454,6 +454,7 @@ struct netdev_queue {
 	struct Qdisc		*qdisc;
 	struct Qdisc		*qdisc_sleeping;
 	struct list_head	qdisc_list;
+	struct netdev_queue	*next_sched;
 };
 
 /*
@@ -544,8 +545,6 @@ struct net_device
 #define NETIF_F_V4_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IP_CSUM)
 #define NETIF_F_V6_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IPV6_CSUM)
 #define NETIF_F_ALL_CSUM	(NETIF_F_V4_CSUM | NETIF_F_V6_CSUM)
-
-	struct net_device	*next_sched;
 
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;
@@ -940,7 +939,7 @@ static inline int unregister_gifconf(unsigned int family)
  */
 struct softnet_data
 {
-	struct net_device	*output_queue;
+	struct netdev_queue	*output_queue;
 	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
 	struct sk_buff		*completion_queue;

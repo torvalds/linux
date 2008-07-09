@@ -1323,13 +1323,14 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 void __netif_schedule(struct net_device *dev)
 {
 	if (!test_and_set_bit(__LINK_STATE_SCHED, &dev->state)) {
+		struct netdev_queue *txq = &dev->tx_queue;
 		unsigned long flags;
 		struct softnet_data *sd;
 
 		local_irq_save(flags);
 		sd = &__get_cpu_var(softnet_data);
-		dev->next_sched = sd->output_queue;
-		sd->output_queue = dev;
+		txq->next_sched = sd->output_queue;
+		sd->output_queue = txq;
 		raise_softirq_irqoff(NET_TX_SOFTIRQ);
 		local_irq_restore(flags);
 	}
@@ -1912,7 +1913,7 @@ static void net_tx_action(struct softirq_action *h)
 	}
 
 	if (sd->output_queue) {
-		struct net_device *head;
+		struct netdev_queue *head;
 
 		local_irq_disable();
 		head = sd->output_queue;
@@ -1920,11 +1921,9 @@ static void net_tx_action(struct softirq_action *h)
 		local_irq_enable();
 
 		while (head) {
-			struct net_device *dev = head;
-			struct netdev_queue *txq;
+			struct netdev_queue *txq = head;
+			struct net_device *dev = txq->dev;
 			head = head->next_sched;
-
-			txq = &dev->tx_queue;
 
 			smp_mb__before_clear_bit();
 			clear_bit(__LINK_STATE_SCHED, &dev->state);
@@ -4346,7 +4345,7 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 			    void *ocpu)
 {
 	struct sk_buff **list_skb;
-	struct net_device **list_net;
+	struct netdev_queue **list_net;
 	struct sk_buff *skb;
 	unsigned int cpu, oldcpu = (unsigned long)ocpu;
 	struct softnet_data *sd, *oldsd;
