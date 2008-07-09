@@ -75,9 +75,8 @@ static inline int dev_requeue_skb(struct sk_buff *skb,
 	return 0;
 }
 
-static inline struct sk_buff *dev_dequeue_skb(struct net_device *dev,
-					      struct netdev_queue *dev_queue,
-					      struct Qdisc *q)
+static inline struct sk_buff *dequeue_skb(struct netdev_queue *dev_queue,
+					  struct Qdisc *q)
 {
 	struct sk_buff *skb;
 
@@ -90,10 +89,10 @@ static inline struct sk_buff *dev_dequeue_skb(struct net_device *dev,
 }
 
 static inline int handle_dev_cpu_collision(struct sk_buff *skb,
-					   struct net_device *dev,
 					   struct netdev_queue *dev_queue,
 					   struct Qdisc *q)
 {
+	struct net_device *dev = dev_queue->dev;
 	int ret;
 
 	if (unlikely(dev->xmit_lock_owner == smp_processor_id())) {
@@ -139,20 +138,22 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
  *				>0 - queue is not empty.
  *
  */
-static inline int qdisc_restart(struct net_device *dev)
+static inline int qdisc_restart(struct netdev_queue *txq)
 {
-	struct netdev_queue *txq = &dev->tx_queue;
 	struct Qdisc *q = txq->qdisc;
-	struct sk_buff *skb;
 	int ret = NETDEV_TX_BUSY;
+	struct net_device *dev;
+	struct sk_buff *skb;
 
 	/* Dequeue packet */
-	if (unlikely((skb = dev_dequeue_skb(dev, txq, q)) == NULL))
+	if (unlikely((skb = dequeue_skb(txq, q)) == NULL))
 		return 0;
 
 
 	/* And release queue */
 	spin_unlock(&txq->lock);
+
+	dev = txq->dev;
 
 	HARD_TX_LOCK(dev, smp_processor_id());
 	if (!netif_subqueue_stopped(dev, skb))
@@ -170,7 +171,7 @@ static inline int qdisc_restart(struct net_device *dev)
 
 	case NETDEV_TX_LOCKED:
 		/* Driver try lock failed */
-		ret = handle_dev_cpu_collision(skb, dev, txq, q);
+		ret = handle_dev_cpu_collision(skb, txq, q);
 		break;
 
 	default:
@@ -186,11 +187,12 @@ static inline int qdisc_restart(struct net_device *dev)
 	return ret;
 }
 
-void __qdisc_run(struct net_device *dev)
+void __qdisc_run(struct netdev_queue *txq)
 {
+	struct net_device *dev = txq->dev;
 	unsigned long start_time = jiffies;
 
-	while (qdisc_restart(dev)) {
+	while (qdisc_restart(txq)) {
 		if (netif_queue_stopped(dev))
 			break;
 
@@ -200,7 +202,7 @@ void __qdisc_run(struct net_device *dev)
 		 * 2. we've been doing it for too long.
 		 */
 		if (need_resched() || jiffies != start_time) {
-			netif_schedule_queue(&dev->tx_queue);
+			netif_schedule_queue(txq);
 			break;
 		}
 	}

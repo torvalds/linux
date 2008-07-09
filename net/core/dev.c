@@ -1734,7 +1734,7 @@ gso:
 			/* reset queue_mapping to zero */
 			skb_set_queue_mapping(skb, 0);
 			rc = q->enqueue(skb, q);
-			qdisc_run(dev);
+			qdisc_run(txq);
 			spin_unlock(&txq->lock);
 
 			rc = rc == NET_XMIT_BYPASS ? NET_XMIT_SUCCESS : rc;
@@ -1930,7 +1930,7 @@ static void net_tx_action(struct softirq_action *h)
 			clear_bit(__LINK_STATE_SCHED, &dev->state);
 
 			if (spin_trylock(&txq->lock)) {
-				qdisc_run(dev);
+				qdisc_run(txq);
 				spin_unlock(&txq->lock);
 			} else {
 				netif_schedule_queue(txq);
