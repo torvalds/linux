@@ -75,9 +75,7 @@ struct thread_info {
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SINGLESTEP		4	/* reenable singlestep on user return*/
 #define TIF_IRET		5	/* force IRET */
-#ifdef CONFIG_X86_32
 #define TIF_SYSCALL_EMU		6	/* syscall emulation active */
-#endif
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 #define TIF_SECCOMP		8	/* secure computing */
 #define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
@@ -100,11 +98,7 @@ struct thread_info {
 #define _TIF_SINGLESTEP		(1 << TIF_SINGLESTEP)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_IRET		(1 << TIF_IRET)
-#ifdef CONFIG_X86_32
 #define _TIF_SYSCALL_EMU	(1 << TIF_SYSCALL_EMU)
-#else
-#define _TIF_SYSCALL_EMU	0
-#endif
 #define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
 #define _TIF_MCE_NOTIFY		(1 << TIF_MCE_NOTIFY)
@@ -121,11 +115,20 @@ struct thread_info {
 #define _TIF_DS_AREA_MSR	(1 << TIF_DS_AREA_MSR)
 #define _TIF_BTS_TRACE_TS	(1 << TIF_BTS_TRACE_TS)
 
+/* work to do in syscall_trace_enter() */
+#define _TIF_WORK_SYSCALL_ENTRY	\
+	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_EMU | \
+	 _TIF_SYSCALL_AUDIT | _TIF_SECCOMP)
+
+/* work to do in syscall_trace_leave() */
+#define _TIF_WORK_SYSCALL_EXIT	\
+	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SINGLESTEP)
+
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK							\
 	(0x0000FFFF &							\
 	 ~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|			\
-	 _TIF_SECCOMP|_TIF_SYSCALL_EMU))
+	   _TIF_SINGLESTEP|_TIF_SECCOMP|_TIF_SYSCALL_EMU))
 
 /* work to do on any return to user space */
 #define _TIF_ALLWORK_MASK (0x0000FFFF & ~_TIF_SECCOMP)
