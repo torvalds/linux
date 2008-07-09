@@ -487,12 +487,6 @@ static void do_signal(struct pt_regs *regs)
 void do_notify_resume(struct pt_regs *regs, void *unused,
 		      __u32 thread_info_flags)
 {
-	/* Pending single-step? */
-	if (thread_info_flags & _TIF_SINGLESTEP) {
-		regs->flags |= X86_EFLAGS_TF;
-		clear_thread_flag(TIF_SINGLESTEP);
-	}
-
 #ifdef CONFIG_X86_MCE
 	/* notify userspace of pending MCEs */
 	if (thread_info_flags & _TIF_MCE_NOTIFY)
