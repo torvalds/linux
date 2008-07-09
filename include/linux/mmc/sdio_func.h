@@ -46,6 +46,8 @@ struct sdio_func {
 	unsigned		max_blksize;	/* maximum block size */
 	unsigned		cur_blksize;	/* current block size */
 
+	unsigned		enable_timeout;	/* max enable timeout in msec */
+
 	unsigned int		state;		/* function state */
 #define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
 

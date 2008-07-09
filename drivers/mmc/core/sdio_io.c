@@ -76,11 +76,7 @@ int sdio_enable_func(struct sdio_func *func)
 	if (ret)
 		goto err;
 
-	/*
-	 * FIXME: This should timeout based on information in the CIS,
-	 * but we don't have card to parse that yet.
-	 */
-	timeout = jiffies + HZ;
+	timeout = jiffies + msecs_to_jiffies(func->enable_timeout);
 
 	while (1) {
 		ret = mmc_io_rw_direct(func->card, 0, 0, SDIO_CCCR_IORx, 0, &reg);
