@@ -124,7 +124,7 @@ static int check_max(struct sched_clock_data *scd)
  *  - filter out backward motion
  *  - use jiffies to generate a min,max window to clip the raw values
  */
-static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
+static void __update_sched_clock(struct sched_clock_data *scd, u64 now, u64 *time)
 {
 	unsigned long now_jiffies = jiffies;
 	long delta_jiffies = now_jiffies - scd->tick_jiffies;
@@ -162,8 +162,12 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	if (unlikely(clock < min_clock))
 		clock = min_clock;
 
-	scd->prev_raw = now;
-	scd->clock = clock;
+	if (time)
+		*time = clock;
+	else {
+		scd->prev_raw = now;
+		scd->clock = clock;
+	}
 }
 
 static void lock_double_clock(struct sched_clock_data *data1,
@@ -207,14 +211,17 @@ u64 sched_clock_cpu(int cpu)
 		now -= scd->tick_gtod;
 
 		__raw_spin_unlock(&my_scd->lock);
+
+		__update_sched_clock(scd, now, &clock);
+
+		__raw_spin_unlock(&scd->lock);
+
 	} else {
 		__raw_spin_lock(&scd->lock);
+		__update_sched_clock(scd, now, NULL);
+		clock = scd->clock;
+		__raw_spin_unlock(&scd->lock);
 	}
-
-	__update_sched_clock(scd, now);
-	clock = scd->clock;
-
-	__raw_spin_unlock(&scd->lock);
 
 	return clock;
 }
@@ -234,7 +241,7 @@ void sched_clock_tick(void)
 	now_gtod = ktime_to_ns(ktime_get());
 
 	__raw_spin_lock(&scd->lock);
-	__update_sched_clock(scd, now);
+	__update_sched_clock(scd, now, NULL);
 	/*
 	 * update tick_gtod after __update_sched_clock() because that will
 	 * already observe 1 new jiffy; adding a new tick_gtod to that would
