@@ -12,3 +12,14 @@ config USB_IP_COMMON
 	  module will be called usbip_common_mod.
 
 	  If unsure, say N.
+
+config USB_IP_VHCI_HCD
+	tristate "USB IP client driver"
+	depends on USB_IP_COMMON
+	default N
+	---help---
+	 This enables the USB IP host controller driver which will
+	 run on the client machine.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called vhci_hcd.
