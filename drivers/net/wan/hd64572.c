@@ -232,19 +232,12 @@ static inline void sca_msci_intr(port_t *port)
 {
 	u16 msci = get_msci(port);
 	card_t* card = port_to_card(port);
-	u8 stat = sca_in(msci + ST1, card); /* read MSCI ST1 status */
 
-	/* Reset MSCI TX underrun and CDCD status bit */
-	sca_out(stat & (ST1_UDRN | ST1_CDCD), msci + ST1, card);
-
-	if (stat & ST1_UDRN) {
-		/* TX Underrun error detected */
-		port_to_dev(port)->stats.tx_errors++;
-		port_to_dev(port)->stats.tx_fifo_errors++;
-	}
-
-	if (stat & ST1_CDCD)
+	if (sca_in(msci + ST1, card) & ST1_CDCD) {
+		/* Reset MSCI CDCD status bit */
+		sca_out(ST1_CDCD, msci + ST1, card);
 		sca_set_carrier(port);
+	}
 }
 
 
@@ -351,11 +344,17 @@ static inline void sca_tx_done(port_t *port)
 
 	while (1) {
 		pkt_desc __iomem *desc = desc_address(port, port->txlast, 1);
+		u8 stat = readb(&desc->stat);
 
-		if (!(readb(&desc->stat) & ST_TX_OWNRSHP))
+		if (!(stat & ST_TX_OWNRSHP))
 			break; /* not yet transmitted */
-		dev->stats.tx_packets++;
-		dev->stats.tx_bytes += readw(&desc->len);
+		if (stat & ST_TX_UNDRRUN) {
+			dev->stats.tx_errors++;
+			dev->stats.tx_fifo_errors++;
+		} else {
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += readw(&desc->len);
+		}
 		writeb(0, &desc->stat);	/* Free descriptor */
 		port->txlast = next_desc(port, port->txlast, 1);
 	}
@@ -503,12 +502,11 @@ static void sca_open(struct net_device *dev)
 	sca_out(0x3F, msci + TNR1, card); /* +1=TX DMA deactivation condition*/
 
 /* We're using the following interrupts:
-   - TXINT (DMAC completed all transmissions, underrun or DCD change)
+   - TXINT (DMAC completed all transmissions and DCD changes)
    - all DMA interrupts
 */
 	/* MSCI TXINT and RXINTA interrupt enable */
-	sca_outl(IE0_TXINT | IE0_RXINTA | IE0_UDRN | IE0_CDCD, msci + IE0,
-		 card);
+	sca_outl(IE0_TXINT | IE0_RXINTA | IE0_CDCD, msci + IE0, card);
 
 	sca_out(port->tmc, msci + TMCR, card);
 	sca_out(port->tmc, msci + TMCT, card);
