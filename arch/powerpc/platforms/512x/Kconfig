@@ -13,6 +13,7 @@ config MPC5121_ADS
 	depends on PPC_MULTIPLATFORM && PPC32
 	select DEFAULT_UIMAGE
 	select PPC_MPC5121
+	select MPC5121_ADS_CPLD
 	help
 	  This option enables support for the MPC5121E ADS board.
 

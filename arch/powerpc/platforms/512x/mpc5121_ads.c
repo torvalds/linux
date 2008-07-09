@@ -23,10 +23,21 @@
 #include <asm/time.h>
 
 #include "mpc512x.h"
+#include "mpc5121_ads.h"
+
+static void __init mpc5121_ads_setup_arch(void)
+{
+	printk(KERN_INFO "MPC5121 ADS board from Freescale Semiconductor\n");
+	/*
+	 * cpld regs are needed early
+	 */
+	mpc5121_ads_cpld_map();
+}
 
 static void __init mpc5121_ads_init_IRQ(void)
 {
 	mpc512x_init_IRQ();
+	mpc5121_ads_cpld_pic_init();
 }
 
 /*
