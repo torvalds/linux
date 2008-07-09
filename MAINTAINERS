@@ -486,6 +486,17 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
+P: Daniel Ribeiro
+M: drwyrm@gmail.com
+P: Stefan Schmidt
+M: stefan@openezx.org
+P: Harald Welte
+M: laforge@openezx.org
+L: openezx-devel@lists.openezx.org (subscribers-only)
+W: http://www.openezx.org/
+S: Maintained
+
 ARM/GUMSTIX MACHINE SUPPORT
 P:	Steve Sakoman
 M:	sakoman@gmail.com
