@@ -338,7 +338,6 @@ static inline int sca_rx_done(port_t *port, int budget)
 static inline void sca_tx_done(port_t *port)
 {
 	struct net_device *dev = port_to_dev(port);
-	u16 dmac = get_dmac_tx(port);
 	card_t* card = port_to_card(port);
 	u8 stat;
 
@@ -351,14 +350,10 @@ static inline void sca_tx_done(port_t *port)
 		DSR_TX(phy_node(port)), card);
 
 	while (1) {
-		pkt_desc __iomem *desc;
+		pkt_desc __iomem *desc = desc_address(port, port->txlast, 1);
 
-		u32 desc_off = desc_offset(port, port->txlast, 1);
-		u32 cda = sca_inl(dmac + CDAL, card);
-		if ((cda >= desc_off) && (cda < desc_off + sizeof(pkt_desc)))
-			break;	/* Transmitter is/will_be sending this frame */
-
-		desc = desc_address(port, port->txlast, 1);
+		if (!(readb(&desc->stat) & ST_TX_OWNRSHP))
+			break; /* not yet transmitted */
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += readw(&desc->len);
 		writeb(0, &desc->stat);	/* Free descriptor */
