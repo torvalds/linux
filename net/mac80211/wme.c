@@ -648,7 +648,7 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 }
 
 /**
- * the caller needs to hold local->mdev->queue_lock
+ * the caller needs to hold local->mdev->tx_queue.lock
  */
 void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 				   struct sta_info *sta, u16 tid,

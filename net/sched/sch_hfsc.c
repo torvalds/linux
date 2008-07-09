@@ -1045,7 +1045,7 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      &qdisc_dev(sch)->queue_lock,
+					      &sch->dev_queue->lock,
 					      tca[TCA_RATE]);
 		return 0;
 	}
@@ -1104,7 +1104,7 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 	if (tca[TCA_RATE])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  &qdisc_dev(sch)->queue_lock, tca[TCA_RATE]);
+				  &sch->dev_queue->lock, tca[TCA_RATE]);
 	*arg = (unsigned long)cl;
 	return 0;
 }

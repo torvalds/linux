@@ -606,7 +606,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 		sch->stats_lock = &dev->ingress_lock;
 		handle = TC_H_MAKE(TC_H_INGRESS, 0);
 	} else {
-		sch->stats_lock = &dev->queue_lock;
+		sch->stats_lock = &dev_queue->lock;
 		if (handle == 0) {
 			handle = qdisc_alloc_handle(dev);
 			err = -ENOMEM;

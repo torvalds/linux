@@ -154,9 +154,9 @@ teql_destroy(struct Qdisc* sch)
 					master->slaves = NEXT_SLAVE(q);
 					if (q == master->slaves) {
 						master->slaves = NULL;
-						spin_lock_bh(&master->dev->queue_lock);
+						spin_lock_bh(&master->dev->tx_queue.lock);
 						qdisc_reset(master->dev->qdisc);
-						spin_unlock_bh(&master->dev->queue_lock);
+						spin_unlock_bh(&master->dev->tx_queue.lock);
 					}
 				}
 				skb_queue_purge(&dat->q);

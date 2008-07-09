@@ -1667,6 +1667,7 @@ out_kfree_skb:
 int dev_queue_xmit(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
+	struct netdev_queue *txq;
 	struct Qdisc *q;
 	int rc = -ENOMEM;
 
@@ -1699,14 +1700,15 @@ int dev_queue_xmit(struct sk_buff *skb)
 	}
 
 gso:
-	spin_lock_prefetch(&dev->queue_lock);
+	txq = &dev->tx_queue;
+	spin_lock_prefetch(&txq->lock);
 
 	/* Disable soft irqs for various locks below. Also
 	 * stops preemption for RCU.
 	 */
 	rcu_read_lock_bh();
 
-	/* Updates of qdisc are serialized by queue_lock.
+	/* Updates of qdisc are serialized by queue->lock.
 	 * The struct Qdisc which is pointed to by qdisc is now a
 	 * rcu structure - it may be accessed without acquiring
 	 * a lock (but the structure may be stale.) The freeing of the
@@ -1714,7 +1716,7 @@ gso:
 	 * more references to it.
 	 *
 	 * If the qdisc has an enqueue function, we still need to
-	 * hold the queue_lock before calling it, since queue_lock
+	 * hold the queue->lock before calling it, since queue->lock
 	 * also serializes access to the device queue.
 	 */
 
@@ -1724,19 +1726,19 @@ gso:
 #endif
 	if (q->enqueue) {
 		/* Grab device queue */
-		spin_lock(&dev->queue_lock);
+		spin_lock(&txq->lock);
 		q = dev->qdisc;
 		if (q->enqueue) {
 			/* reset queue_mapping to zero */
 			skb_set_queue_mapping(skb, 0);
 			rc = q->enqueue(skb, q);
 			qdisc_run(dev);
-			spin_unlock(&dev->queue_lock);
+			spin_unlock(&txq->lock);
 
 			rc = rc == NET_XMIT_BYPASS ? NET_XMIT_SUCCESS : rc;
 			goto out;
 		}
-		spin_unlock(&dev->queue_lock);
+		spin_unlock(&txq->lock);
 	}
 
 	/* The device has no queue. Common case for software devices:
@@ -1919,14 +1921,17 @@ static void net_tx_action(struct softirq_action *h)
 
 		while (head) {
 			struct net_device *dev = head;
+			struct netdev_queue *txq;
 			head = head->next_sched;
+
+			txq = &dev->tx_queue;
 
 			smp_mb__before_clear_bit();
 			clear_bit(__LINK_STATE_SCHED, &dev->state);
 
-			if (spin_trylock(&dev->queue_lock)) {
+			if (spin_trylock(&txq->lock)) {
 				qdisc_run(dev);
-				spin_unlock(&dev->queue_lock);
+				spin_unlock(&txq->lock);
 			} else {
 				netif_schedule(dev);
 			}
@@ -3787,7 +3792,6 @@ int register_netdevice(struct net_device *dev)
 	BUG_ON(!dev_net(dev));
 	net = dev_net(dev);
 
-	spin_lock_init(&dev->queue_lock);
 	spin_lock_init(&dev->_xmit_lock);
 	netdev_set_lockdep_class(&dev->_xmit_lock, dev->type);
 	dev->xmit_lock_owner = -1;
@@ -4072,10 +4076,17 @@ static struct net_device_stats *internal_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
+static void netdev_init_one_queue(struct net_device *dev,
+				  struct netdev_queue *queue)
+{
+	spin_lock_init(&queue->lock);
+	queue->dev = dev;
+}
+
 static void netdev_init_queues(struct net_device *dev)
 {
-	dev->rx_queue.dev = dev;
-	dev->tx_queue.dev = dev;
+	netdev_init_one_queue(dev, &dev->rx_queue);
+	netdev_init_one_queue(dev, &dev->tx_queue);
 }
 
 /**

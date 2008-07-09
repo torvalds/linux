@@ -333,9 +333,9 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	for (i = 0; i < n; i++)
 		d->table[i] = data[i];
 
-	spin_lock_bh(&qdisc_dev(sch)->queue_lock);
+	spin_lock_bh(&sch->dev_queue->lock);
 	d = xchg(&q->delay_dist, d);
-	spin_unlock_bh(&qdisc_dev(sch)->queue_lock);
+	spin_unlock_bh(&sch->dev_queue->lock);
 
 	kfree(d);
 	return 0;

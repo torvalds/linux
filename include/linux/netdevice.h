@@ -449,6 +449,7 @@ static inline void napi_synchronize(const struct napi_struct *n)
 #endif
 
 struct netdev_queue {
+	spinlock_t		lock;
 	struct net_device	*dev;
 };
 
@@ -629,7 +630,7 @@ struct net_device
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
 	struct netdev_queue	rx_queue;
-	struct netdev_queue	tx_queue;
+	struct netdev_queue	tx_queue ____cacheline_aligned_in_smp;
 
 	/* ingress path synchronizer */
 	spinlock_t		ingress_lock;
@@ -639,7 +640,6 @@ struct net_device
  * Cache line mostly used on queue transmit path (qdisc)
  */
 	/* device queue lock */
-	spinlock_t		queue_lock ____cacheline_aligned_in_smp;
 	struct Qdisc		*qdisc;
 	struct Qdisc		*qdisc_sleeping;
 	struct list_head	qdisc_list;

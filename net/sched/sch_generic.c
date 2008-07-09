@@ -29,31 +29,31 @@
 /* Main transmission queue. */
 
 /* Modifications to data participating in scheduling must be protected with
- * dev->queue_lock spinlock.
+ * queue->lock spinlock.
  *
  * The idea is the following:
  * - enqueue, dequeue are serialized via top level device
- *   spinlock dev->queue_lock.
+ *   spinlock queue->lock.
  * - ingress filtering is serialized via top level device
  *   spinlock dev->ingress_lock.
  * - updates to tree and tree walking are only done under the rtnl mutex.
  */
 
 void qdisc_lock_tree(struct net_device *dev)
-	__acquires(dev->queue_lock)
+	__acquires(dev->tx_queue.lock)
 	__acquires(dev->ingress_lock)
 {
-	spin_lock_bh(&dev->queue_lock);
+	spin_lock_bh(&dev->tx_queue.lock);
 	spin_lock(&dev->ingress_lock);
 }
 EXPORT_SYMBOL(qdisc_lock_tree);
 
 void qdisc_unlock_tree(struct net_device *dev)
 	__releases(dev->ingress_lock)
-	__releases(dev->queue_lock)
+	__releases(dev->tx_queue.lock)
 {
 	spin_unlock(&dev->ingress_lock);
-	spin_unlock_bh(&dev->queue_lock);
+	spin_unlock_bh(&dev->tx_queue.lock);
 }
 EXPORT_SYMBOL(qdisc_unlock_tree);
 
@@ -118,15 +118,15 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 }
 
 /*
- * NOTE: Called under dev->queue_lock with locally disabled BH.
+ * NOTE: Called under queue->lock with locally disabled BH.
  *
  * __LINK_STATE_QDISC_RUNNING guarantees only one CPU can process this
- * device at a time. dev->queue_lock serializes queue accesses for
+ * device at a time. queue->lock serializes queue accesses for
  * this device AND dev->qdisc pointer itself.
  *
  *  netif_tx_lock serializes accesses to device driver.
  *
- *  dev->queue_lock and netif_tx_lock are mutually exclusive,
+ *  queue->lock and netif_tx_lock are mutually exclusive,
  *  if one is grabbed, another must be free.
  *
  * Note, that this procedure can be called by a watchdog timer
@@ -148,14 +148,14 @@ static inline int qdisc_restart(struct net_device *dev)
 
 
 	/* And release queue */
-	spin_unlock(&dev->queue_lock);
+	spin_unlock(&q->dev_queue->lock);
 
 	HARD_TX_LOCK(dev, smp_processor_id());
 	if (!netif_subqueue_stopped(dev, skb))
 		ret = dev_hard_start_xmit(skb, dev);
 	HARD_TX_UNLOCK(dev);
 
-	spin_lock(&dev->queue_lock);
+	spin_lock(&q->dev_queue->lock);
 	q = dev->qdisc;
 
 	switch (ret) {
@@ -482,7 +482,7 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev,
 	sch = qdisc_alloc(dev_queue, ops);
 	if (IS_ERR(sch))
 		goto errout;
-	sch->stats_lock = &dev->queue_lock;
+	sch->stats_lock = &dev_queue->lock;
 	sch->parent = parentid;
 
 	if (!ops->init || ops->init(sch, NULL) == 0)
@@ -494,7 +494,7 @@ errout:
 }
 EXPORT_SYMBOL(qdisc_create_dflt);
 
-/* Under dev->queue_lock and BH! */
+/* Under queue->lock and BH! */
 
 void qdisc_reset(struct Qdisc *qdisc)
 {
@@ -514,7 +514,7 @@ static void __qdisc_destroy(struct rcu_head *head)
 	kfree((char *) qdisc - qdisc->padded);
 }
 
-/* Under dev->queue_lock and BH! */
+/* Under queue->lock and BH! */
 
 void qdisc_destroy(struct Qdisc *qdisc)
 {
@@ -566,13 +566,13 @@ void dev_activate(struct net_device *dev)
 		/* Delay activation until next carrier-on event */
 		return;
 
-	spin_lock_bh(&dev->queue_lock);
+	spin_lock_bh(&dev->tx_queue.lock);
 	rcu_assign_pointer(dev->qdisc, dev->qdisc_sleeping);
 	if (dev->qdisc != &noqueue_qdisc) {
 		dev->trans_start = jiffies;
 		dev_watchdog_up(dev);
 	}
-	spin_unlock_bh(&dev->queue_lock);
+	spin_unlock_bh(&dev->tx_queue.lock);
 }
 
 void dev_deactivate(struct net_device *dev)
@@ -581,7 +581,7 @@ void dev_deactivate(struct net_device *dev)
 	struct sk_buff *skb;
 	int running;
 
-	spin_lock_bh(&dev->queue_lock);
+	spin_lock_bh(&dev->tx_queue.lock);
 	qdisc = dev->qdisc;
 	dev->qdisc = &noop_qdisc;
 
@@ -589,7 +589,7 @@ void dev_deactivate(struct net_device *dev)
 
 	skb = dev->gso_skb;
 	dev->gso_skb = NULL;
-	spin_unlock_bh(&dev->queue_lock);
+	spin_unlock_bh(&dev->tx_queue.lock);
 
 	kfree_skb(skb);
 
@@ -607,9 +607,9 @@ void dev_deactivate(struct net_device *dev)
 		 * Double-check inside queue lock to ensure that all effects
 		 * of the queue run are visible when we return.
 		 */
-		spin_lock_bh(&dev->queue_lock);
+		spin_lock_bh(&dev->tx_queue.lock);
 		running = test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
-		spin_unlock_bh(&dev->queue_lock);
+		spin_unlock_bh(&dev->tx_queue.lock);
 
 		/*
 		 * The running flag should never be set at this point because
