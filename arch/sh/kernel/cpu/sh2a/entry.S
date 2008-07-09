@@ -1,10 +1,10 @@
 /*
- * arch/sh/kernel/cpu/sh2/entry.S
+ * arch/sh/kernel/cpu/sh2a/entry.S
  *
- * The SH-2 exception entry
+ * The SH-2A exception entry
  *
- * Copyright (C) 2005-2008 Yoshinori Sato
- * Copyright (C) 2005  AXE,Inc.
+ * Copyright (C) 2008 Yoshinori Sato
+ * Based on arch/sh/kernel/cpu/sh2/entry.S
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -44,103 +44,68 @@ ENTRY(exception_handler)
 	! r0 = temporary
 	! r1 = vector (pseudo EXPEVT / INTEVT / TRA)
 	mov.l	r2,@-sp
-	mov.l	r3,@-sp
 	cli
 	mov.l	$cpu_mode,r2
-	mov.l	@r2,r0
-	mov.l	@(5*4,r15),r3	! previous SR
-	or	r0,r3		! set MD
-	tst	r0,r0
-	bf/s	1f		! previous mode check
-	 mov.l	r3,@(5*4,r15)	! update SR
+	bld.b	#6,@(0,r2)	!previus SR.MD
+	bst.b	#6,@(4*4,r15)	!set cpu mode to SR.MD
+	bt	1f
 	! switch to kernel mode
-	mov.l	__md_bit,r0
-	mov.l	r0,@r2		! enter kernel mode
+	bset.b	#6,@(0,r2)	!set SR.MD
 	mov.l	$current_thread_info,r2
 	mov.l	@r2,r2
 	mov	#(THREAD_SIZE >> 8),r0
 	shll8	r0
-	add	r2,r0
+	add	r2,r0		! r0 = kernel stack tail
 	mov	r15,r2		! r2 = user stack top
 	mov	r0,r15		! switch kernel stack
 	mov.l	r1,@-r15	! TRA
 	sts.l	macl, @-r15
 	sts.l	mach, @-r15
 	stc.l	gbr, @-r15
-	mov.l	@(5*4,r2),r0
+	mov.l	@(4*4,r2),r0
 	mov.l	r0,@-r15	! original SR
 	sts.l	pr,@-r15
-	mov.l	@(4*4,r2),r0
+	mov.l	@(3*4,r2),r0
 	mov.l	r0,@-r15	! original PC
-	mov	r2,r3
-	add	#(4+2)*4,r3	! rewind r0 - r3 + exception frame
-	mov.l	r3,@-r15	! original SP
-	mov.l	r14,@-r15
-	mov.l	r13,@-r15
-	mov.l	r12,@-r15
-	mov.l	r11,@-r15
-	mov.l	r10,@-r15
-	mov.l	r9,@-r15
-	mov.l	r8,@-r15
-	mov.l	r7,@-r15
-	mov.l	r6,@-r15
-	mov.l	r5,@-r15
-	mov.l	r4,@-r15
-	mov	r1,r9		! save TRA
-	mov	r2,r8		! copy user -> kernel stack
-	mov.l	@(0,r8),r3
-	mov.l	r3,@-r15
-	mov.l	@(4,r8),r2
-	mov.l	r2,@-r15
-	mov.l	@(12,r8),r1
-	mov.l	r1,@-r15
-	mov.l	@(8,r8),r0
+	mov	r2,r0
+	add	#(3+2)*4,r0	! rewind r0 - r3 + exception frame
+	lds	r0,pr		! pr = original SP
+	movmu.l	r3,@-r15	! save regs
+	mov	r2,r8		! r8 =  previus stack top
+	mov	r1,r9		! r9 = interrupt vector
+	! restore previous stack
+	mov.l	@r8+,r2
+	mov.l	@r8+,r0
+	mov.l	@r8+,r1
 	bra	2f
-	 mov.l	r0,@-r15
+	 movml.l r2,@-r15
 1:
 	! in kernel exception
-	mov	#(22-4-4-1)*4+4,r0
 	mov	r15,r2
-	sub	r0,r15
-	mov.l	@r2+,r0		! old R3
-	mov.l	r0,@-r15	
-	mov.l	@r2+,r0		! old R2
-	mov.l	r0,@-r15	
-	mov.l	@(4,r2),r0	! old R1
-	mov.l	r0,@-r15	
-	mov.l	@r2,r0		! old R0
-	mov.l	r0,@-r15
-	add	#8,r2
-	mov.l	@r2+,r3		! old PC
-	mov.l	@r2+,r0		! old SR
-	add	#-4,r2		! exception frame stub (sr)
-	mov.l	r1,@-r2		! TRA
-	sts.l	macl, @-r2
-	sts.l	mach, @-r2
-	stc.l	gbr, @-r2
-	mov.l	r0,@-r2		! save old SR
-	sts.l	pr,@-r2
-	mov.l	r3,@-r2		! save old PC
-	mov	r2,r0
-	add	#8*4,r0
-	mov.l	r0,@-r2		! save old SP
-	mov.l	r14,@-r2
-	mov.l	r13,@-r2
-	mov.l	r12,@-r2
-	mov.l	r11,@-r2
-	mov.l	r10,@-r2
-	mov.l	r9,@-r2
-	mov.l	r8,@-r2
-	mov.l	r7,@-r2
-	mov.l	r6,@-r2
-	mov.l	r5,@-r2
-	mov.l	r4,@-r2
-	mov	r1,r9
-	mov.l	@(OFF_R0,r15),r0
-	mov.l	@(OFF_R1,r15),r1
-	mov.l	@(OFF_R2,r15),r2
-	mov.l	@(OFF_R3,r15),r3
+	add	#-((OFF_TRA + 4) - OFF_PC) + 5*4,r15
+	movmu.l	r3,@-r15
+	mov	r2,r8		! r8 = previous stack top
+	mov	r1,r9		! r9 = interrupt vector
+	! restore exception frame & regs
+	mov.l	@r8+,r2		! old R2
+	mov.l	@r8+,r0		! old R0
+	mov.l	@r8+,r1		! old R1
+	mov.l	@r8+,r10	! old PC
+	mov.l	@r8+,r11	! old SR
+	movml.l	r2,@-r15
+	mov.l	r10,@(OFF_PC,r15)
+	mov.l	r11,@(OFF_SR,r15)
+	mov.l	r8,@(OFF_SP,r15)	! save old sp
+	mov	r15,r8
+	add	#OFF_TRA + 4,r8
+	mov.l	r9,@-r8
+	sts.l	macl,@-r8
+	sts.l	mach,@-r8
+	stc.l	gbr,@-r8
+	add	#-4,r8
+	sts.l	pr,@-r8
 2:
+	! dispatch exception / interrupt
 	mov	#64,r8
 	cmp/hs	r8,r9
 	bt	interrupt_entry	! vec >= 64 is interrupt
@@ -164,8 +129,8 @@ ENTRY(exception_handler)
 interrupt_entry:
 	mov	r9,r4
 	mov	r15,r5
-	mov.l	6f,r9
 	mov.l	7f,r8
+	mov.l	6f,r9
 	jmp	@r8
 	 lds	r9,pr
 
@@ -196,11 +161,9 @@ ENTRY(sh_bios_handler)
 	lds.l	@r0+,macl
 	mov	r15,r0
 	mov.l	@(OFF_SP,r0),r1
-	mov	#OFF_SR,r2
-	mov.l	@(r0,r2),r3
+	mov.l	@(OFF_SR,r2),r3
 	mov.l	r3,@-r1
-	mov	#OFF_SP,r2
-	mov.l	@(r0,r2),r3
+	mov.l	@(OFF_SP,r2),r3
 	mov.l	r3,@-r1
 	mov	r15,r0
 	add	#(22-4)*4-8,r0
@@ -209,22 +172,8 @@ ENTRY(sh_bios_handler)
 	stc	sr,r3
 	mov.l	r2,@r0
 	mov.l	r3,@(4,r0)
-	mov.l	r1,@(8,r0)	
-	mov.l	@r15+, r0
-	mov.l	@r15+, r1
-	mov.l	@r15+, r2
-	mov.l	@r15+, r3
-	mov.l	@r15+, r4
-	mov.l	@r15+, r5
-	mov.l	@r15+, r6
-	mov.l	@r15+, r7
-	mov.l	@r15+, r8
-	mov.l	@r15+, r9
-	mov.l	@r15+, r10
-	mov.l	@r15+, r11
-	mov.l	@r15+, r12
-	mov.l	@r15+, r13
-	mov.l	@r15+, r14
+	mov.l	r1,@(8,r0)
+	movml.l	@r15+,r14
 	add	#8,r15
 	lds.l	@r15+, pr
 	rte
@@ -235,8 +184,7 @@ ENTRY(sh_bios_handler)
 
 ENTRY(address_error_trap_handler)
 	mov	r15,r4				! regs
-	mov	#OFF_PC,r0
-	mov.l	@(r0,r15),r6			! pc
+	mov.l	@(OFF_PC,r15),r6		! pc
 	mov.l	1f,r0
 	jmp	@r0
 	 mov	#0,r5				! writeaccess is unknown
@@ -259,45 +207,26 @@ restore_all:
 	lds.l	@r0+,macl
 	mov	r15,r0
 	mov.l	$cpu_mode,r2
-	mov	#OFF_SR,r3
-	mov.l	@(r0,r3),r1
-	mov.l	__md_bit,r3
-	and	r1,r3				! copy MD bit
-	mov.l	r3,@r2
-	shll2	r1				! clear MD bit
-	shlr2	r1
+	bld.b	#6,@(OFF_SR,r15)
+	bst.b	#6,@(0,r2)			! save CPU mode
+	mov.l	@(OFF_SR,r0),r1
+	shll2	r1
+	shlr2	r1				! clear MD bit
 	mov.l	@(OFF_SP,r0),r2
 	add	#-8,r2
 	mov.l	r2,@(OFF_SP,r0)			! point exception frame top
 	mov.l	r1,@(4,r2)			! set sr
-	mov	#OFF_PC,r3
-	mov.l	@(r0,r3),r1
+	mov.l	@(OFF_PC,r0),r1
 	mov.l	r1,@r2				! set pc
 	get_current_thread_info r0, r1
 	mov.l	$current_thread_info,r1
 	mov.l	r0,@r1
-	mov.l	@r15+,r0
-	mov.l	@r15+,r1
-	mov.l	@r15+,r2
-	mov.l	@r15+,r3
-	mov.l	@r15+,r4
-	mov.l	@r15+,r5
-	mov.l	@r15+,r6
-	mov.l	@r15+,r7
-	mov.l	@r15+,r8
-	mov.l	@r15+,r9
-	mov.l	@r15+,r10
-	mov.l	@r15+,r11
-	mov.l	@r15+,r12
-	mov.l	@r15+,r13
-	mov.l	@r15+,r14
+	movml.l	@r15+,r14
 	mov.l	@r15,r15
 	rte
 	 nop
 
 	.align 2
-__md_bit:
-	.long	0x40000000
 $current_thread_info:
 	.long	__current_thread_info
 $cpu_mode:	
