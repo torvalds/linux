@@ -10,6 +10,7 @@ obj-$(CONFIG_CPU_FREQ)		+= cpu-pxa.o
 
 # Generic drivers that other drivers may depend upon
 obj-$(CONFIG_PXA_SSP)		+= ssp.o
+obj-$(CONFIG_PXA_PWM)		+= pwm.o
 
 # SoC-specific code
 obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o pxa25x.o

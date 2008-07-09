@@ -46,18 +46,24 @@
 #include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/io.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
 #include <asm/gpio.h>
-#include <asm/io.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>
-#include <asm/hardware.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+
+/*
+ * This driver is PXA25x only.  Grab the right register definitions.
+ */
+#ifdef CONFIG_ARCH_PXA
+#include <asm/arch/pxa25x-udc.h>
+#endif
 
 #include <asm/mach/udc_pxa2xx.h>
 

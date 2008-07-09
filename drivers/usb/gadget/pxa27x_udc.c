@@ -38,7 +38,7 @@
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-
+#include <asm/arch/pxa2xx-regs.h> /* FIXME: for PSSR */
 #include <asm/arch/udc.h>
 
 #include "pxa27x_udc.h"
@@ -2359,7 +2359,8 @@ static int pxa_udc_resume(struct platform_device *_dev)
 	 * Software must configure the USB OTG pad, UDC, and UHC
 	 * to the state they were in before entering sleep mode.
 	 */
-	PSSR |= PSSR_OTGPH;
+	if (cpu_is_pxa27x())
+		PSSR |= PSSR_OTGPH;
 
 	return 0;
 }

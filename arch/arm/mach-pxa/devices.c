@@ -10,11 +10,13 @@
 #include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
+#include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pxa27x_keypad.h>
 #include <asm/arch/camera.h>
 
 #include "devices.h"
+#include "generic.h"
 
 void __init pxa_register_device(struct platform_device *dev, void *data)
 {
@@ -233,8 +235,15 @@ struct platform_device pxa_device_i2c = {
 	.num_resources	= ARRAY_SIZE(pxai2c_resources),
 };
 
+static unsigned long pxa27x_i2c_mfp_cfg[] = {
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+};
+
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
+	if (cpu_is_pxa27x())
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(pxa27x_i2c_mfp_cfg));
 	pxa_register_device(&pxa_device_i2c, info);
 }
 
@@ -279,6 +288,36 @@ struct platform_device pxa_device_rtc = {
 };
 
 #ifdef CONFIG_PXA25x
+
+static struct resource pxa25x_resource_pwm0[] = {
+	[0] = {
+		.start	= 0x40b00000,
+		.end	= 0x40b0000f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa25x_device_pwm0 = {
+	.name		= "pxa25x-pwm",
+	.id		= 0,
+	.resource	= pxa25x_resource_pwm0,
+	.num_resources	= ARRAY_SIZE(pxa25x_resource_pwm0),
+};
+
+static struct resource pxa25x_resource_pwm1[] = {
+	[0] = {
+		.start	= 0x40c00000,
+		.end	= 0x40c0000f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa25x_device_pwm1 = {
+	.name		= "pxa25x-pwm",
+	.id		= 1,
+	.resource	= pxa25x_resource_pwm1,
+	.num_resources	= ARRAY_SIZE(pxa25x_resource_pwm1),
+};
 
 static u64 pxa25x_ssp_dma_mask = DMA_BIT_MASK(32);
 
@@ -566,6 +605,36 @@ struct platform_device pxa27x_device_ssp3 = {
 	},
 	.resource	= pxa27x_resource_ssp3,
 	.num_resources	= ARRAY_SIZE(pxa27x_resource_ssp3),
+};
+
+static struct resource pxa27x_resource_pwm0[] = {
+	[0] = {
+		.start	= 0x40b00000,
+		.end	= 0x40b0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa27x_device_pwm0 = {
+	.name		= "pxa27x-pwm",
+	.id		= 0,
+	.resource	= pxa27x_resource_pwm0,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm0),
+};
+
+static struct resource pxa27x_resource_pwm1[] = {
+	[0] = {
+		.start	= 0x40c00000,
+		.end	= 0x40c0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa27x_device_pwm1 = {
+	.name		= "pxa27x-pwm",
+	.id		= 1,
+	.resource	= pxa27x_resource_pwm1,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm1),
 };
 
 static struct resource pxa27x_resource_camera[] = {

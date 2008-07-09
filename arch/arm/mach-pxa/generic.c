@@ -26,6 +26,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h> /* for __pxa_set_cken */
 
 #include "generic.h"
 
