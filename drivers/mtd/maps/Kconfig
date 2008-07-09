@@ -556,24 +556,6 @@ config MTD_DMV182
         help
           Map driver for Dy-4 SVME/DMV-182 board.
 
-config MTD_BAST
-	tristate "Map driver for Simtec BAST (EB2410ITX) or Thorcom VR1000"
-	depends on ARCH_BAST || MACH_VR1000
-	select MTD_PARTITIONS
-	select MTD_MAP_BANK_WIDTH_16
-	select MTD_JEDECPROBE
-	help
-	  Map driver for NOR flash on the Simtec BAST (EB2410ITX), or the
-	  Thorcom VR1000
-
-	  Note, this driver *cannot* over-ride the WP link on the
-	  board, or currently detect the state of the link.
-
-config MTD_BAST_MAXSIZE
-	int "Maximum size for BAST flash area (MiB)"
-	depends on MTD_BAST
-	default "4"
-
 config MTD_SHARP_SL
 	tristate "ROM mapped on Sharp SL Series"
 	depends on ARCH_PXA
