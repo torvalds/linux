@@ -1694,15 +1694,6 @@ config VIA_RHINE_MMIO
 
 	  If unsure, say Y.
 
-config LAN_SAA9730
-	bool "Philips SAA9730 Ethernet support"
-	depends on NET_PCI && PCI && MIPS_ATLAS
-	help
-	  The SAA9730 is a combined multimedia and peripheral controller used
-	  in thin clients, Internet access terminals, and diskless
-	  workstations.
-	  See <http://www.semiconductors.philips.com/pip/SAA9730_flyer_1>.
-
 config SC92031
 	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver (EXPERIMENTAL)"
 	depends on NET_PCI && PCI && EXPERIMENTAL
