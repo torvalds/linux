@@ -1056,12 +1056,20 @@ unsigned long __initdata end_user_pfn = MAX_ARCH_PFN;
 /*
  * Find the highest page frame number we have available
  */
-unsigned long __init e820_end_of_ram(void)
+unsigned long __init e820_end(void)
 {
-	unsigned long last_pfn;
+	int i;
+	unsigned long last_pfn = 0;
 	unsigned long max_arch_pfn = MAX_ARCH_PFN;
 
-	last_pfn = find_max_pfn_with_active_regions();
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long end_pfn;
+
+		end_pfn = (ei->addr + ei->size) >> PAGE_SHIFT;
+		if (end_pfn > last_pfn)
+			last_pfn = end_pfn;
+	}
 
 	if (last_pfn > max_arch_pfn)
 		last_pfn = max_arch_pfn;
@@ -1192,9 +1200,7 @@ static int __init parse_memmap_opt(char *p)
 		 * the real mem size before original memory map is
 		 * reset.
 		 */
-		e820_register_active_regions(0, 0, -1UL);
-		saved_max_pfn = e820_end_of_ram();
-		remove_all_active_ranges();
+		saved_max_pfn = e820_end();
 #endif
 		e820.nr_map = 0;
 		userdef = 1;

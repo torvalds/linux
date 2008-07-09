@@ -709,22 +709,18 @@ void __init setup_arch(char **cmdline_p)
 	early_gart_iommu_check();
 #endif
 
-	e820_register_active_regions(0, 0, -1UL);
 	/*
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
-	max_pfn = e820_end_of_ram();
+	max_pfn = e820_end();
 
 	/* preallocate 4k for mptable mpc */
 	early_reserve_e820_mpc_new();
 	/* update e820 for memory not covered by WB MTRRs */
 	mtrr_bp_init();
-	if (mtrr_trim_uncached_memory(max_pfn)) {
-		remove_all_active_ranges();
-		e820_register_active_regions(0, 0, -1UL);
-		max_pfn = e820_end_of_ram();
-	}
+	if (mtrr_trim_uncached_memory(max_pfn))
+		max_pfn = e820_end();
 
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
@@ -766,9 +762,6 @@ void __init setup_arch(char **cmdline_p)
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
 	acpi_boot_table_init();
-
-	/* Remove active ranges so rediscovery with NUMA-awareness happens */
-	remove_all_active_ranges();
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
