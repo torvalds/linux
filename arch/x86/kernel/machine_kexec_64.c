@@ -110,7 +110,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 {
 	pgd_t *level4p;
 	level4p = (pgd_t *)__va(start_pgtable);
- 	return init_level4_page(image, level4p, 0, end_pfn << PAGE_SHIFT);
+	return init_level4_page(image, level4p, 0, max_pfn << PAGE_SHIFT);
 }
 
 static void set_idt(void *newidt, u16 limit)
