@@ -529,33 +529,38 @@ struct ieee80211_if_init_conf {
 };
 
 /**
+ * enum ieee80211_if_conf_change - interface config change flags
+ *
+ * @IEEE80211_IFCC_BSSID: The BSSID changed.
+ * @IEEE80211_IFCC_SSID: The SSID changed.
+ * @IEEE80211_IFCC_BEACON: The beacon for this interface changed
+ *	(currently AP and MESH only), use ieee80211_beacon_get().
+ */
+enum ieee80211_if_conf_change {
+	IEEE80211_IFCC_BSSID	= BIT(0),
+	IEEE80211_IFCC_SSID	= BIT(1),
+	IEEE80211_IFCC_BEACON	= BIT(2),
+};
+
+/**
  * struct ieee80211_if_conf - configuration of an interface
  *
- * @type: type of the interface. This is always the same as was specified in
- *	&struct ieee80211_if_init_conf. The type of an interface never changes
- *	during the life of the interface; this field is present only for
- *	convenience.
+ * @changed: parameters that have changed, see &enum ieee80211_if_conf_change.
  * @bssid: BSSID of the network we are associated to/creating.
  * @ssid: used (together with @ssid_len) by drivers for hardware that
  *	generate beacons independently. The pointer is valid only during the
  *	config_interface() call, so copy the value somewhere if you need
  *	it.
  * @ssid_len: length of the @ssid field.
- * @beacon: beacon template. Valid only if @host_gen_beacon_template in
- *	&struct ieee80211_hw is set. The driver is responsible of freeing
- *	the sk_buff.
- * @beacon_control: tx_control for the beacon template, this field is only
- *	valid when the @beacon field was set.
  *
  * This structure is passed to the config_interface() callback of
  * &struct ieee80211_hw.
  */
 struct ieee80211_if_conf {
-	int type;
+	u32 changed;
 	u8 *bssid;
 	u8 *ssid;
 	size_t ssid_len;
-	struct sk_buff *beacon;
 };
 
 /**
@@ -682,15 +687,6 @@ enum ieee80211_tkip_key_type {
  * done in a way that the simplest hardware doesn't need setting
  * any particular flags. There are some exceptions to this rule,
  * however, so you are advised to review these flags carefully.
- *
- * @IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE:
- *	The device only needs to be supplied with a beacon template.
- *	If you need the host to generate each beacon then don't use
- *	this flag and call ieee80211_beacon_get() when you need the
- *	next beacon frame. Note that if you set this flag, you must
- *	implement the set_tim() callback for powersave mode to work
- *	properly.
- *	This flag is only relevant for access-point mode.
  *
  * @IEEE80211_HW_RX_INCLUDES_FCS:
  *	Indicates that received frames passed to the stack include
@@ -1151,17 +1147,6 @@ enum ieee80211_ampdu_mlme_action {
  *	function is optional if the firmware/hardware takes full care of
  *	TSF synchronization.
  *
- * @beacon_update: Setup beacon data for IBSS beacons. Unlike access point,
- *	IBSS uses a fixed beacon frame which is configured using this
- *	function.
- *	If the driver returns success (0) from this callback, it owns
- *	the skb. That means the driver is responsible to kfree_skb() it.
- *	The control structure is not dynamically allocated. That means the
- *	driver does not own the pointer and if it needs it somewhere
- *	outside of the context of this function, it must copy it
- *	somewhere else.
- *	This handler is required only for IBSS mode.
- *
  * @tx_last_beacon: Determine whether the last IBSS beacon was sent by us.
  *	This is needed only for IBSS mode and the result of this function is
  *	used to determine whether to reply to Probe Requests.
@@ -1219,8 +1204,6 @@ struct ieee80211_ops {
 			    struct ieee80211_tx_queue_stats *stats);
 	u64 (*get_tsf)(struct ieee80211_hw *hw);
 	void (*reset_tsf)(struct ieee80211_hw *hw);
-	int (*beacon_update)(struct ieee80211_hw *hw,
-			     struct sk_buff *skb);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    enum ieee80211_ampdu_mlme_action action,

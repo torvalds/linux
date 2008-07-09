@@ -444,7 +444,7 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 		memset(sdata->u.ap.ssid + len, 0,
 		       IEEE80211_MAX_SSID_LEN - len);
 		sdata->u.ap.ssid_len = len;
-		return ieee80211_if_config(dev);
+		return ieee80211_if_config(sdata, IEEE80211_IFCC_SSID);
 	}
 	return -EOPNOTSUPP;
 }

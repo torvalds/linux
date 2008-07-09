@@ -2406,8 +2406,6 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	int res, rates, i, j;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_tx_info *control;
-	struct rate_selection ratesel;
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_supported_band *sband;
@@ -2425,7 +2423,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 		local->ops->reset_tsf(local_to_hw(local));
 	}
 	memcpy(ifsta->bssid, bss->bssid, ETH_ALEN);
-	res = ieee80211_if_config(dev);
+	res = ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
 	if (res)
 		return res;
 
@@ -2439,19 +2437,16 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	if (res)
 		return res;
 
-	/* Set beacon template */
+	/* Build IBSS probe response */
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
-	do {
-		if (!skb)
-			break;
-
+	if (skb) {
 		skb_reserve(skb, local->hw.extra_tx_headroom);
 
 		mgmt = (struct ieee80211_mgmt *)
 			skb_put(skb, 24 + sizeof(mgmt->u.beacon));
 		memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
 		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-						   IEEE80211_STYPE_BEACON);
+						   IEEE80211_STYPE_PROBE_RESP);
 		memset(mgmt->da, 0xff, ETH_ALEN);
 		memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
@@ -2495,61 +2490,22 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			memcpy(pos, &bss->supp_rates[8], rates);
 		}
 
-		control = IEEE80211_SKB_CB(skb);
+		ifsta->probe_resp = skb;
 
-		rate_control_get_rate(dev, sband, skb, &ratesel);
-		if (ratesel.rate_idx < 0) {
-			printk(KERN_DEBUG "%s: Failed to determine TX rate "
-			       "for IBSS beacon\n", dev->name);
-			break;
-		}
-		control->control.vif = &sdata->vif;
-		control->tx_rate_idx = ratesel.rate_idx;
-		if (sdata->bss_conf.use_short_preamble &&
-		    sband->bitrates[ratesel.rate_idx].flags & IEEE80211_RATE_SHORT_PREAMBLE)
-			control->flags |= IEEE80211_TX_CTL_SHORT_PREAMBLE;
-		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
-		control->flags |= IEEE80211_TX_CTL_NO_ACK;
-		control->flags |= IEEE80211_TX_CTL_DO_NOT_ENCRYPT;
-		control->control.retry_limit = 1;
-
-		ifsta->probe_resp = skb_copy(skb, GFP_ATOMIC);
-		if (ifsta->probe_resp) {
-			mgmt = (struct ieee80211_mgmt *)
-				ifsta->probe_resp->data;
-			mgmt->frame_control =
-				IEEE80211_FC(IEEE80211_FTYPE_MGMT,
-					     IEEE80211_STYPE_PROBE_RESP);
-		} else {
-			printk(KERN_DEBUG "%s: Could not allocate ProbeResp "
-			       "template for IBSS\n", dev->name);
-		}
-
-		if (local->ops->beacon_update &&
-		    local->ops->beacon_update(local_to_hw(local), skb) == 0) {
-			printk(KERN_DEBUG "%s: Configured IBSS beacon "
-			       "template\n", dev->name);
-			skb = NULL;
-		}
-
-		rates = 0;
-		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-		for (i = 0; i < bss->supp_rates_len; i++) {
-			int bitrate = (bss->supp_rates[i] & 0x7f) * 5;
-			for (j = 0; j < sband->n_bitrates; j++)
-				if (sband->bitrates[j].bitrate == bitrate)
-					rates |= BIT(j);
-		}
-		ifsta->supp_rates_bits[local->hw.conf.channel->band] = rates;
-
-		ieee80211_sta_def_wmm_params(dev, bss, 1);
-	} while (0);
-
-	if (skb) {
-		printk(KERN_DEBUG "%s: Failed to configure IBSS beacon "
-		       "template\n", dev->name);
-		dev_kfree_skb(skb);
+		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
 	}
+
+	rates = 0;
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	for (i = 0; i < bss->supp_rates_len; i++) {
+		int bitrate = (bss->supp_rates[i] & 0x7f) * 5;
+		for (j = 0; j < sband->n_bitrates; j++)
+			if (sband->bitrates[j].bitrate == bitrate)
+				rates |= BIT(j);
+	}
+	ifsta->supp_rates_bits[local->hw.conf.channel->band] = rates;
+
+	ieee80211_sta_def_wmm_params(dev, bss, 1);
 
 	ifsta->state = IEEE80211_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
@@ -3333,7 +3289,7 @@ static void ieee80211_mesh_housekeeping(struct net_device *dev,
 
 	free_plinks = mesh_plink_availables(sdata);
 	if (free_plinks != sdata->u.sta.accepting_plinks)
-		ieee80211_if_config_beacon(dev);
+		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
 
 	mod_timer(&ifsta->timer, jiffies +
 			IEEE80211_MESH_HOUSEKEEPING_INTERVAL);
@@ -3757,28 +3713,45 @@ int ieee80211_sta_set_ssid(struct net_device *dev, char *ssid, size_t len)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_if_sta *ifsta;
+	int res;
 
 	if (len > IEEE80211_MAX_SSID_LEN)
 		return -EINVAL;
 
 	ifsta = &sdata->u.sta;
 
-	if (ifsta->ssid_len != len || memcmp(ifsta->ssid, ssid, len) != 0)
+	if (ifsta->ssid_len != len || memcmp(ifsta->ssid, ssid, len) != 0) {
+		memset(ifsta->ssid, 0, sizeof(ifsta->ssid));
+		memcpy(ifsta->ssid, ssid, len);
+		ifsta->ssid_len = len;
 		ifsta->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-	memcpy(ifsta->ssid, ssid, len);
-	memset(ifsta->ssid + len, 0, IEEE80211_MAX_SSID_LEN - len);
-	ifsta->ssid_len = len;
+
+		res = 0;
+		/*
+		 * Hack! MLME code needs to be cleaned up to have different
+		 * entry points for configuration and internal selection change
+		 */
+		if (netif_running(sdata->dev))
+			res = ieee80211_if_config(sdata, IEEE80211_IFCC_SSID);
+		if (res) {
+			printk(KERN_DEBUG "%s: Failed to config new SSID to "
+			       "the low-level driver\n", dev->name);
+			return res;
+		}
+	}
 
 	if (len)
 		ifsta->flags |= IEEE80211_STA_SSID_SET;
 	else
 		ifsta->flags &= ~IEEE80211_STA_SSID_SET;
+
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
 	    !(ifsta->flags & IEEE80211_STA_BSSID_SET)) {
 		ifsta->ibss_join_req = jiffies;
 		ifsta->state = IEEE80211_IBSS_SEARCH;
 		return ieee80211_sta_find_ibss(dev, ifsta);
 	}
+
 	return 0;
 }
 
@@ -3804,7 +3777,12 @@ int ieee80211_sta_set_bssid(struct net_device *dev, u8 *bssid)
 
 	if (memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0) {
 		memcpy(ifsta->bssid, bssid, ETH_ALEN);
-		res = ieee80211_if_config(dev);
+		res = 0;
+		/*
+		 * Hack! See also ieee80211_sta_set_ssid.
+		 */
+		if (netif_running(sdata->dev))
+			res = ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
 		if (res) {
 			printk(KERN_DEBUG "%s: Failed to config new BSSID to "
 			       "the low-level driver\n", dev->name);

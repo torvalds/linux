@@ -2031,7 +2031,6 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt73usb_get_tsf,
-	.beacon_update		= rt73usb_beacon_update,
 };
 
 static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
@@ -2052,6 +2051,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
 	.kick_tx_queue		= rt73usb_kick_tx_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
+	.beacon_update		= rt73usb_beacon_update,
 	.config_filter		= rt73usb_config_filter,
 	.config_intf		= rt73usb_config_intf,
 	.config_erp		= rt73usb_config_erp,

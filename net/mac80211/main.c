@@ -307,7 +307,8 @@ static int ieee80211_open(struct net_device *dev)
 		if (res)
 			goto err_stop;
 
-		ieee80211_if_config(dev);
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			ieee80211_start_mesh(sdata->dev);
 		changed |= ieee80211_reset_erp_info(dev);
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
@@ -985,57 +986,47 @@ void ieee80211_if_setup(struct net_device *dev)
 
 /* everything else */
 
-static int __ieee80211_if_config(struct net_device *dev,
-				 struct sk_buff *beacon)
+int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_conf conf;
 
-	if (!local->ops->config_interface || !netif_running(dev))
+	if (WARN_ON(!netif_running(sdata->dev)))
+		return 0;
+
+	if (!local->ops->config_interface)
 		return 0;
 
 	memset(&conf, 0, sizeof(conf));
-	conf.type = sdata->vif.type;
+	conf.changed = changed;
+
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
-	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		conf.beacon = beacon;
-		ieee80211_start_mesh(dev);
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
+		conf.bssid = sdata->dev->dev_addr;
 		conf.ssid = sdata->u.ap.ssid;
 		conf.ssid_len = sdata->u.ap.ssid_len;
-		conf.beacon = beacon;
+	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		u8 zero[ETH_ALEN] = { 0 };
+		conf.bssid = zero;
+		conf.ssid = zero;
+		conf.ssid_len = 0;
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
 	}
+
+	if (WARN_ON(!conf.bssid && (changed & IEEE80211_IFCC_BSSID)))
+		return -EINVAL;
+
+	if (WARN_ON(!conf.ssid && (changed & IEEE80211_IFCC_SSID)))
+		return -EINVAL;
+
 	return local->ops->config_interface(local_to_hw(local),
 					    &sdata->vif, &conf);
-}
-
-int ieee80211_if_config(struct net_device *dev)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT &&
-	    (local->hw.flags & IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE))
-		return ieee80211_if_config_beacon(dev);
-	return __ieee80211_if_config(dev, NULL);
-}
-
-int ieee80211_if_config_beacon(struct net_device *dev)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct sk_buff *skb;
-
-	if (!(local->hw.flags & IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE))
-		return 0;
-	skb = ieee80211_beacon_get(local_to_hw(local), &sdata->vif);
-	if (!skb)
-		return -ENOMEM;
-	return __ieee80211_if_config(dev, skb);
 }
 
 int ieee80211_hw_config(struct ieee80211_local *local)

@@ -534,6 +534,8 @@ struct rt2x00lib_ops {
 	/*
 	 * Configuration handlers.
 	 */
+	int (*beacon_update) (struct ieee80211_hw *hw, struct sk_buff *bcn);
+
 	void (*config_filter) (struct rt2x00_dev *rt2x00dev,
 			       const unsigned int filter_flags);
 	void (*config_intf) (struct rt2x00_dev *rt2x00dev,

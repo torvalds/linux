@@ -409,7 +409,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 {
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct sk_buff *skb;
 	struct ieee80211_bss_conf conf;
 	int delayed_flags;
 
@@ -436,10 +435,11 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 		return;
 
 	if (delayed_flags & DELAYED_UPDATE_BEACON) {
-		skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
-		if (skb &&
-		    rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, skb))
-			dev_kfree_skb(skb);
+		struct ieee80211_if_conf conf;
+		conf.bssid = conf.ssid = NULL;
+		conf.ssid_len = 0;
+		conf.changed = IEEE80211_IFCC_BEACON;
+		rt2x00dev->ops->hw->config_interface(rt2x00dev->hw, vif, &conf);
 	}
 
 	if (delayed_flags & DELAYED_CONFIG_ERP)

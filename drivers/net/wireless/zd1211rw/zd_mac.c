@@ -727,15 +727,19 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 	if (mac->type == IEEE80211_IF_TYPE_MESH_POINT ||
 	    mac->type == IEEE80211_IF_TYPE_IBSS) {
 		associated = true;
-		if (conf->beacon) {
-			r = zd_mac_config_beacon(hw, conf->beacon);
+		if (conf->changed & IEEE80211_IFCC_BEACON) {
+			struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+
+			if (!beacon)
+				return -ENOMEM;
+			r = zd_mac_config_beacon(hw, beacon);
 			if (r < 0)
 				return r;
 			r = zd_set_beacon_interval(&mac->chip, BCN_MODE_IBSS |
 					hw->conf.beacon_int);
 			if (r < 0)
 				return r;
-			kfree_skb(conf->beacon);
+			kfree_skb(beacon);
 		}
 	} else
 		associated = is_valid_ether_addr(conf->bssid);
@@ -889,17 +893,6 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 }
 
-static int zd_op_beacon_update(struct ieee80211_hw *hw,
-			       struct sk_buff *skb)
-{
-	struct zd_mac *mac = zd_hw_mac(hw);
-	zd_mac_config_beacon(hw, skb);
-	kfree_skb(skb);
-	zd_set_beacon_interval(&mac->chip, BCN_MODE_IBSS |
-					hw->conf.beacon_int);
-	return 0;
-}
-
 static const struct ieee80211_ops zd_ops = {
 	.tx			= zd_op_tx,
 	.start			= zd_op_start,
@@ -910,7 +903,6 @@ static const struct ieee80211_ops zd_ops = {
 	.config_interface	= zd_op_config_interface,
 	.configure_filter	= zd_op_configure_filter,
 	.bss_info_changed	= zd_op_bss_info_changed,
-	.beacon_update		= zd_op_beacon_update,
 };
 
 struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)

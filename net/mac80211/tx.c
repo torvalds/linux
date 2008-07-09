@@ -1788,17 +1788,17 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_info *info;
 	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_if_ap *ap = NULL;
+	struct ieee80211_if_sta *ifsta = NULL;
 	struct rate_selection rsel;
 	struct beacon_data *beacon;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_mgmt *mgmt;
 	int *num_beacons;
-	bool err = true;
 	enum ieee80211_band band = local->hw.conf.channel->band;
 	u8 *pos;
 
@@ -1852,9 +1852,24 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				       beacon->tail, beacon->tail_len);
 
 			num_beacons = &ap->num_beacons;
+		} else
+			goto out;
+	} else if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
+		struct ieee80211_hdr *hdr;
+		ifsta = &sdata->u.sta;
 
-			err = false;
-		}
+		if (!ifsta->probe_resp)
+			goto out;
+
+		skb = skb_copy(ifsta->probe_resp, GFP_ATOMIC);
+		if (!skb)
+			goto out;
+
+		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
+						  IEEE80211_STYPE_BEACON);
+
+		num_beacons = &ifsta->num_beacons;
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		/* headroom, head length, tail length and maximum TIM length */
 		skb = dev_alloc_skb(local->tx_headroom + 400);
@@ -1881,17 +1896,8 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		mesh_mgmt_ies_add(skb, sdata->dev);
 
 		num_beacons = &sdata->u.sta.num_beacons;
-
-		err = false;
-	}
-
-	if (err) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		if (net_ratelimit())
-			printk(KERN_DEBUG "no beacon data avail for %s\n",
-			       bdev->name);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-		skb = NULL;
+	} else {
+		WARN_ON(1);
 		goto out;
 	}
 

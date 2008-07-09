@@ -1875,7 +1875,6 @@ static const struct ieee80211_ops rt2500pci_mac80211_ops = {
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt2500pci_get_tsf,
-	.beacon_update		= rt2500pci_beacon_update,
 	.tx_last_beacon		= rt2500pci_tx_last_beacon,
 };
 
@@ -1895,6 +1894,7 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.kick_tx_queue		= rt2500pci_kick_tx_queue,
 	.fill_rxdone		= rt2500pci_fill_rxdone,
+	.beacon_update		= rt2500pci_beacon_update,
 	.config_filter		= rt2500pci_config_filter,
 	.config_intf		= rt2500pci_config_intf,
 	.config_erp		= rt2500pci_config_erp,
