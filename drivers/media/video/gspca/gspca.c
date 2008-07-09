@@ -216,7 +216,7 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 	if (len > 0) {
 		if (frame->data_end - frame->data + len
 						 > frame->v4l2_buf.length) {
-			PDEBUG(D_ERR|D_PACK, "frame overflow %d > %d",
+			PDEBUG(D_ERR|D_PACK, "frame overflow %zd > %d",
 				frame->data_end - frame->data + len,
 				frame->v4l2_buf.length);
 			packet_type = DISCARD_PACKET;
@@ -1562,7 +1562,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	struct timeval timestamp;
 	int n, ret, ret2;
 
-	PDEBUG(D_FRAM, "read (%d)", count);
+	PDEBUG(D_FRAM, "read (%zd)", count);
 	if (!gspca_dev->present)
 		return -ENODEV;
 	switch (gspca_dev->memory) {
@@ -1613,7 +1613,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	ret = copy_to_user(data, frame->data, count);
 	if (ret != 0) {
 		PDEBUG(D_ERR|D_STREAM,
-			"read cp to user lack %d / %d", ret, count);
+			"read cp to user lack %d / %zd", ret, count);
 		ret = -EFAULT;
 		goto out;
 	}
