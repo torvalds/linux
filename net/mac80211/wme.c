@@ -574,9 +574,10 @@ static struct Qdisc_ops wme_qdisc_ops __read_mostly =
 
 void ieee80211_install_qdisc(struct net_device *dev)
 {
+	struct netdev_queue *txq = &dev->tx_queue;
 	struct Qdisc *qdisc;
 
-	qdisc = qdisc_create_dflt(dev, &dev->tx_queue,
+	qdisc = qdisc_create_dflt(dev, txq,
 				  &wme_qdisc_ops, TC_H_ROOT);
 	if (!qdisc) {
 		printk(KERN_ERR "%s: qdisc installation failed\n", dev->name);
@@ -587,15 +588,17 @@ void ieee80211_install_qdisc(struct net_device *dev)
 	qdisc->handle = 0x80010000;
 
 	qdisc_lock_tree(dev);
-	list_add_tail(&qdisc->list, &dev->qdisc_list);
-	dev->qdisc_sleeping = qdisc;
+	list_add_tail(&qdisc->list, &txq->qdisc_list);
+	txq->qdisc_sleeping = qdisc;
 	qdisc_unlock_tree(dev);
 }
 
 
 int ieee80211_qdisc_installed(struct net_device *dev)
 {
-	return dev->qdisc_sleeping->ops == &wme_qdisc_ops;
+	struct netdev_queue *txq = &dev->tx_queue;
+
+	return txq->qdisc_sleeping->ops == &wme_qdisc_ops;
 }
 
 
@@ -614,8 +617,9 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 			struct sta_info *sta, u16 tid)
 {
 	int i;
+	struct netdev_queue *txq = &local->mdev->tx_queue;
 	struct ieee80211_sched_data *q =
-			qdisc_priv(local->mdev->qdisc_sleeping);
+			qdisc_priv(txq->qdisc_sleeping);
 	DECLARE_MAC_BUF(mac);
 
 	/* prepare the filter and save it for the SW queue
@@ -655,8 +659,9 @@ void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 				   u8 requeue)
 {
 	struct ieee80211_hw *hw = &local->hw;
+	struct netdev_queue *txq = &local->mdev->tx_queue;
 	struct ieee80211_sched_data *q =
-		qdisc_priv(local->mdev->qdisc_sleeping);
+		qdisc_priv(txq->qdisc_sleeping);
 	int agg_queue = sta->tid_to_tx_q[tid];
 
 	/* return the qdisc to the pool */
@@ -671,7 +676,8 @@ void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 
 void ieee80211_requeue(struct ieee80211_local *local, int queue)
 {
-	struct Qdisc *root_qd = local->mdev->qdisc_sleeping;
+	struct netdev_queue *txq = &local->mdev->tx_queue;
+	struct Qdisc *root_qd = txq->qdisc_sleeping;
 	struct ieee80211_sched_data *q = qdisc_priv(root_qd);
 	struct Qdisc *qdisc = q->queues[queue];
 	struct sk_buff *skb = NULL;

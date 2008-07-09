@@ -79,8 +79,10 @@ static void rfc2863_policy(struct net_device *dev)
 
 static int linkwatch_urgent_event(struct net_device *dev)
 {
+	struct netdev_queue *txq = &dev->tx_queue;
+
 	return netif_running(dev) && netif_carrier_ok(dev) &&
-	       dev->qdisc != dev->qdisc_sleeping;
+	       txq->qdisc != txq->qdisc_sleeping;
 }
 
 
@@ -181,7 +183,9 @@ static void __linkwatch_run_queue(int urgent_only)
 		rfc2863_policy(dev);
 		if (dev->flags & IFF_UP) {
 			if (netif_carrier_ok(dev)) {
-				WARN_ON(dev->qdisc_sleeping == &noop_qdisc);
+				struct netdev_queue *txq = &dev->tx_queue;
+
+				WARN_ON(txq->qdisc_sleeping == &noop_qdisc);
 				dev_activate(dev);
 			} else
 				dev_deactivate(dev);

@@ -231,7 +231,8 @@ const struct in6_addr in6addr_linklocal_allrouters = IN6ADDR_LINKLOCAL_ALLROUTER
 /* Check if a valid qdisc is available */
 static inline int addrconf_qdisc_ok(struct net_device *dev)
 {
-	return (dev->qdisc != &noop_qdisc);
+	struct netdev_queue *txq = &dev->tx_queue;
+	return (txq->qdisc != &noop_qdisc);
 }
 
 /* Check if a route is valid prefix route */

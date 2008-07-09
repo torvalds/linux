@@ -185,9 +185,10 @@ EXPORT_SYMBOL(unregister_qdisc);
 
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
+	struct netdev_queue *dev_queue = &dev->tx_queue;
 	struct Qdisc *q;
 
-	list_for_each_entry(q, &dev->qdisc_list, list) {
+	list_for_each_entry(q, &dev_queue->qdisc_list, list) {
 		if (q->handle == handle)
 			return q;
 	}
@@ -441,6 +442,7 @@ static u32 qdisc_alloc_handle(struct net_device *dev)
 static struct Qdisc *
 dev_graft_qdisc(struct net_device *dev, struct Qdisc *qdisc)
 {
+	struct netdev_queue *dev_queue;
 	struct Qdisc *oqdisc;
 
 	if (dev->flags & IFF_UP)
@@ -459,8 +461,8 @@ dev_graft_qdisc(struct net_device *dev, struct Qdisc *qdisc)
 		}
 
 	} else {
-
-		oqdisc = dev->qdisc_sleeping;
+		dev_queue = &dev->tx_queue;
+		oqdisc = dev_queue->qdisc_sleeping;
 
 		/* Prune old scheduler */
 		if (oqdisc && atomic_read(&oqdisc->refcnt) <= 1)
@@ -469,8 +471,8 @@ dev_graft_qdisc(struct net_device *dev, struct Qdisc *qdisc)
 		/* ... and graft new one */
 		if (qdisc == NULL)
 			qdisc = &noop_qdisc;
-		dev->qdisc_sleeping = qdisc;
-		dev->qdisc = &noop_qdisc;
+		dev_queue->qdisc_sleeping = qdisc;
+		dev_queue->qdisc = &noop_qdisc;
 	}
 
 	qdisc_unlock_tree(dev);
@@ -633,7 +635,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			}
 		}
 		qdisc_lock_tree(dev);
-		list_add_tail(&sch->list, &dev->qdisc_list);
+		list_add_tail(&sch->list, &dev_queue->qdisc_list);
 		qdisc_unlock_tree(dev);
 
 		return sch;
@@ -740,7 +742,8 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 				q = dev->qdisc_ingress;
 			}
 		} else {
-			q = dev->qdisc_sleeping;
+			struct netdev_queue *dev_queue = &dev->tx_queue;
+			q = dev_queue->qdisc_sleeping;
 		}
 		if (!q)
 			return -ENOENT;
@@ -814,7 +817,8 @@ replay:
 				q = dev->qdisc_ingress;
 			}
 		} else {
-			q = dev->qdisc_sleeping;
+			struct netdev_queue *dev_queue = &dev->tx_queue;
+			q = dev_queue->qdisc_sleeping;
 		}
 
 		/* It may be default qdisc, ignore it */
@@ -1015,12 +1019,14 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	read_lock(&dev_base_lock);
 	idx = 0;
 	for_each_netdev(&init_net, dev) {
+		struct netdev_queue *dev_queue;
 		if (idx < s_idx)
 			goto cont;
 		if (idx > s_idx)
 			s_q_idx = 0;
 		q_idx = 0;
-		list_for_each_entry(q, &dev->qdisc_list, list) {
+		dev_queue = &dev->tx_queue;
+		list_for_each_entry(q, &dev_queue->qdisc_list, list) {
 			if (q_idx < s_q_idx) {
 				q_idx++;
 				continue;
@@ -1054,6 +1060,7 @@ done:
 static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
+	struct netdev_queue *dev_queue;
 	struct tcmsg *tcm = NLMSG_DATA(n);
 	struct nlattr *tca[TCA_MAX + 1];
 	struct net_device *dev;
@@ -1091,6 +1098,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 
 	/* Step 1. Determine qdisc handle X:0 */
 
+	dev_queue = &dev->tx_queue;
 	if (pid != TC_H_ROOT) {
 		u32 qid1 = TC_H_MAJ(pid);
 
@@ -1101,7 +1109,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 		} else if (qid1) {
 			qid = qid1;
 		} else if (qid == 0)
-			qid = dev->qdisc_sleeping->handle;
+			qid = dev_queue->qdisc_sleeping->handle;
 
 		/* Now qid is genuine qdisc handle consistent
 		   both with parent and child.
@@ -1112,7 +1120,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 			pid = TC_H_MAKE(qid, pid);
 	} else {
 		if (qid == 0)
-			qid = dev->qdisc_sleeping->handle;
+			qid = dev_queue->qdisc_sleeping->handle;
 	}
 
 	/* OK. Locate qdisc */
@@ -1248,6 +1256,7 @@ static int qdisc_class_dump(struct Qdisc *q, unsigned long cl, struct qdisc_walk
 static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
+	struct netdev_queue *dev_queue;
 	int t;
 	int s_t;
 	struct net_device *dev;
@@ -1266,7 +1275,8 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	s_t = cb->args[0];
 	t = 0;
 
-	list_for_each_entry(q, &dev->qdisc_list, list) {
+	dev_queue = &dev->tx_queue;
+	list_for_each_entry(q, &dev_queue->qdisc_list, list) {
 		if (t < s_t || !q->ops->cl_ops ||
 		    (tcm->tcm_parent &&
 		     TC_H_MAJ(tcm->tcm_parent) != q->handle)) {

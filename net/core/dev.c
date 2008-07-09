@@ -1720,14 +1720,14 @@ gso:
 	 * also serializes access to the device queue.
 	 */
 
-	q = rcu_dereference(dev->qdisc);
+	q = rcu_dereference(txq->qdisc);
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = SET_TC_AT(skb->tc_verd,AT_EGRESS);
 #endif
 	if (q->enqueue) {
 		/* Grab device queue */
 		spin_lock(&txq->lock);
-		q = dev->qdisc;
+		q = txq->qdisc;
 		if (q->enqueue) {
 			/* reset queue_mapping to zero */
 			skb_set_queue_mapping(skb, 0);

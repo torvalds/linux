@@ -451,6 +451,9 @@ static inline void napi_synchronize(const struct napi_struct *n)
 struct netdev_queue {
 	spinlock_t		lock;
 	struct net_device	*dev;
+	struct Qdisc		*qdisc;
+	struct Qdisc		*qdisc_sleeping;
+	struct list_head	qdisc_list;
 };
 
 /*
@@ -634,13 +637,6 @@ struct net_device
 
 	struct Qdisc		*qdisc_ingress;
 
-/*
- * Cache line mostly used on queue transmit path (qdisc)
- */
-	/* device queue lock */
-	struct Qdisc		*qdisc;
-	struct Qdisc		*qdisc_sleeping;
-	struct list_head	qdisc_list;
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 
 	/* Partially transmitted GSO packet. */
