@@ -237,8 +237,8 @@ void sched_clock_tick(void)
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	now = sched_clock();
 	now_gtod = ktime_to_ns(ktime_get());
+	now = sched_clock();
 
 	__raw_spin_lock(&scd->lock);
 	__update_sched_clock(scd, now, NULL);
