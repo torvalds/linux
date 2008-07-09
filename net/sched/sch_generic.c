@@ -92,10 +92,9 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 					   struct netdev_queue *dev_queue,
 					   struct Qdisc *q)
 {
-	struct net_device *dev = dev_queue->dev;
 	int ret;
 
-	if (unlikely(dev->xmit_lock_owner == smp_processor_id())) {
+	if (unlikely(dev_queue->xmit_lock_owner == smp_processor_id())) {
 		/*
 		 * Same CPU holding the lock. It may be a transient
 		 * configuration error, when hard_start_xmit() recurses. We
@@ -105,7 +104,7 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 		kfree_skb(skb);
 		if (net_ratelimit())
 			printk(KERN_WARNING "Dead loop on netdevice %s, "
-			       "fix it urgently!\n", dev->name);
+			       "fix it urgently!\n", dev_queue->dev->name);
 		ret = qdisc_qlen(q);
 	} else {
 		/*
@@ -155,10 +154,10 @@ static inline int qdisc_restart(struct netdev_queue *txq)
 
 	dev = txq->dev;
 
-	HARD_TX_LOCK(dev, smp_processor_id());
+	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_subqueue_stopped(dev, skb))
 		ret = dev_hard_start_xmit(skb, dev);
-	HARD_TX_UNLOCK(dev);
+	HARD_TX_UNLOCK(dev, txq);
 
 	spin_lock(&txq->lock);
 	q = txq->qdisc;

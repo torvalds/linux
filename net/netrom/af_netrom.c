@@ -74,6 +74,16 @@ static const struct proto_ops nr_proto_ops;
  */
 static struct lock_class_key nr_netdev_xmit_lock_key;
 
+static void nr_set_lockdep_one(struct netdev_queue *txq)
+{
+	lockdep_set_class(&txq->_xmit_lock, &nr_netdev_xmit_lock_key);
+}
+
+static void nr_set_lockdep_key(struct net_device *dev)
+{
+	nr_set_lockdep_one(&dev->tx_queue);
+}
+
 /*
  *	Socket removal during an interrupt is now safe.
  */
@@ -1430,7 +1440,7 @@ static int __init nr_proto_init(void)
 			free_netdev(dev);
 			goto fail;
 		}
-		lockdep_set_class(&dev->_xmit_lock, &nr_netdev_xmit_lock_key);
+		nr_set_lockdep_key(dev);
 		dev_nr[i] = dev;
 	}
 

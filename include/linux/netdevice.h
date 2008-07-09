@@ -453,6 +453,8 @@ struct netdev_queue {
 	struct net_device	*dev;
 	struct Qdisc		*qdisc;
 	struct sk_buff		*gso_skb;
+	spinlock_t		_xmit_lock;
+	int			xmit_lock_owner;
 	struct Qdisc		*qdisc_sleeping;
 	struct list_head	qdisc_list;
 	struct netdev_queue	*next_sched;
@@ -639,12 +641,6 @@ struct net_device
 /*
  * One part is mostly used on xmit path (device)
  */
-	/* hard_start_xmit synchronizer */
-	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
-	/* cpu id of processor entered to hard_start_xmit or -1,
-	   if nobody entered there.
-	 */
-	int			xmit_lock_owner;
 	void			*priv;	/* pointer to private data	*/
 	int			(*hard_start_xmit) (struct sk_buff *skb,
 						    struct net_device *dev);
@@ -1402,52 +1398,72 @@ static inline void netif_rx_complete(struct net_device *dev,
  *
  * Get network device transmit lock
  */
-static inline void __netif_tx_lock(struct net_device *dev, int cpu)
+static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)
 {
-	spin_lock(&dev->_xmit_lock);
-	dev->xmit_lock_owner = cpu;
+	spin_lock(&txq->_xmit_lock);
+	txq->xmit_lock_owner = cpu;
 }
 
 static inline void netif_tx_lock(struct net_device *dev)
 {
-	__netif_tx_lock(dev, smp_processor_id());
+	__netif_tx_lock(&dev->tx_queue, smp_processor_id());
+}
+
+static inline void __netif_tx_lock_bh(struct netdev_queue *txq)
+{
+	spin_lock_bh(&txq->_xmit_lock);
+	txq->xmit_lock_owner = smp_processor_id();
 }
 
 static inline void netif_tx_lock_bh(struct net_device *dev)
 {
-	spin_lock_bh(&dev->_xmit_lock);
-	dev->xmit_lock_owner = smp_processor_id();
+	__netif_tx_lock_bh(&dev->tx_queue);
+}
+
+static inline int __netif_tx_trylock(struct netdev_queue *txq)
+{
+	int ok = spin_trylock(&txq->_xmit_lock);
+	if (likely(ok))
+		txq->xmit_lock_owner = smp_processor_id();
+	return ok;
 }
 
 static inline int netif_tx_trylock(struct net_device *dev)
 {
-	int ok = spin_trylock(&dev->_xmit_lock);
-	if (likely(ok))
-		dev->xmit_lock_owner = smp_processor_id();
-	return ok;
+	return __netif_tx_trylock(&dev->tx_queue);
+}
+
+static inline void __netif_tx_unlock(struct netdev_queue *txq)
+{
+	txq->xmit_lock_owner = -1;
+	spin_unlock(&txq->_xmit_lock);
 }
 
 static inline void netif_tx_unlock(struct net_device *dev)
 {
-	dev->xmit_lock_owner = -1;
-	spin_unlock(&dev->_xmit_lock);
+	__netif_tx_unlock(&dev->tx_queue);
+}
+
+static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
+{
+	txq->xmit_lock_owner = -1;
+	spin_unlock_bh(&txq->_xmit_lock);
 }
 
 static inline void netif_tx_unlock_bh(struct net_device *dev)
 {
-	dev->xmit_lock_owner = -1;
-	spin_unlock_bh(&dev->_xmit_lock);
+	__netif_tx_unlock_bh(&dev->tx_queue);
 }
 
-#define HARD_TX_LOCK(dev, cpu) {			\
+#define HARD_TX_LOCK(dev, txq, cpu) {			\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		__netif_tx_lock(dev, cpu);			\
+		__netif_tx_lock(txq, cpu);		\
 	}						\
 }
 
-#define HARD_TX_UNLOCK(dev) {				\
+#define HARD_TX_UNLOCK(dev, txq) {			\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		netif_tx_unlock(dev);			\
+		__netif_tx_unlock(txq);			\
 	}						\
 }
 

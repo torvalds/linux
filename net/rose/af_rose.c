@@ -75,6 +75,16 @@ ax25_address rose_callsign;
  */
 static struct lock_class_key rose_netdev_xmit_lock_key;
 
+static void rose_set_lockdep_one(struct netdev_queue *txq)
+{
+	lockdep_set_class(&txq->_xmit_lock, &rose_netdev_xmit_lock_key);
+}
+
+static void rose_set_lockdep_key(struct net_device *dev)
+{
+	rose_set_lockdep_one(&dev->tx_queue);
+}
+
 /*
  *	Convert a ROSE address into text.
  */
@@ -1576,7 +1586,7 @@ static int __init rose_proto_init(void)
 			free_netdev(dev);
 			goto fail;
 		}
-		lockdep_set_class(&dev->_xmit_lock, &rose_netdev_xmit_lock_key);
+		rose_set_lockdep_key(dev);
 		dev_rose[i] = dev;
 	}
 

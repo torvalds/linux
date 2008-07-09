@@ -5019,6 +5019,17 @@ static int bond_check_params(struct bond_params *params)
 
 static struct lock_class_key bonding_netdev_xmit_lock_key;
 
+static void bond_set_lockdep_class_one(struct netdev_queue *txq)
+{
+	lockdep_set_class(&txq->_xmit_lock,
+			  &bonding_netdev_xmit_lock_key);
+}
+
+static void bond_set_lockdep_class(struct net_device *dev)
+{
+	bond_set_lockdep_class_one(&dev->tx_queue);
+}
+
 /* Create a new bond based on the specified name and bonding parameters.
  * If name is NULL, obtain a suitable "bond%d" name for us.
  * Caller must NOT hold rtnl_lock; we need to release it here before we
@@ -5076,7 +5087,7 @@ int bond_create(char *name, struct bond_params *params)
 		goto out_bond;
 	}
 
-	lockdep_set_class(&bond_dev->_xmit_lock, &bonding_netdev_xmit_lock_key);
+	bond_set_lockdep_class(bond_dev);
 
 	netif_carrier_off(bond_dev);
 
