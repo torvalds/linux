@@ -3,12 +3,10 @@ config PPC_MPC512x
 	select FSL_SOC
 	select IPIC
 	select PPC_CLOCK
-	default n
 
 config PPC_MPC5121
 	bool
 	select PPC_MPC512x
-	default n
 
 config MPC5121_ADS
 	bool "Freescale MPC5121E ADS"
@@ -17,4 +15,15 @@ config MPC5121_ADS
 	select PPC_MPC5121
 	help
 	  This option enables support for the MPC5121E ADS board.
-	default n
+
+config MPC5121_GENERIC
+	bool "Generic support for simple MPC5121 based boards"
+	depends on PPC_MULTIPLATFORM && PPC32
+	select DEFAULT_UIMAGE
+	select PPC_MPC5121
+	help
+	  This option enables support for simple MPC5121 based boards
+	  which do not need custom platform specific setup.
+
+	  Compatible boards include:  Protonic LVT base boards (ZANMCU
+	  and VICVT2).

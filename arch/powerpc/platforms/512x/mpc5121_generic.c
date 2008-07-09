@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2007, 2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2007,2008 Freescale Semiconductor, Inc. All rights reserved.
  *
- * Author: John Rigby, <jrigby@freescale.com>, Thur Mar 29 2007
+ * Author: John Rigby, <jrigby@freescale.com>
  *
  * Description:
- * MPC5121 ADS board setup
+ * MPC5121 SoC setup
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/io.h>
 #include <linux/of_platform.h>
 
 #include <asm/machdep.h>
@@ -24,27 +23,36 @@
 
 #include "mpc512x.h"
 
-static void __init mpc5121_ads_init_IRQ(void)
-{
-	mpc512x_init_IRQ();
-}
+/*
+ * list of supported boards
+ */
+static char *board[] __initdata = {
+	"prt,prtlvt",
+	NULL
+};
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init mpc5121_ads_probe(void)
+static int __init mpc5121_generic_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
+	unsigned long node = of_get_flat_dt_root();
+	int i = 0;
 
-	return of_flat_dt_is_compatible(root, "fsl,mpc5121ads");
+	while (board[i]) {
+		if (of_flat_dt_is_compatible(node, board[i]))
+			break;
+		i++;
+	}
+
+	return board[i] != NULL;
 }
 
-define_machine(mpc5121_ads) {
-	.name			= "MPC5121 ADS",
-	.probe			= mpc5121_ads_probe,
-	.setup_arch		= mpc5121_ads_setup_arch,
+define_machine(mpc5121_generic) {
+	.name			= "MPC5121 generic",
+	.probe			= mpc5121_generic_probe,
 	.init			= mpc512x_declare_of_platform_devices,
-	.init_IRQ		= mpc5121_ads_init_IRQ,
+	.init_IRQ		= mpc512x_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,
 };
