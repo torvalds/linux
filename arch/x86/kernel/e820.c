@@ -1066,6 +1066,11 @@ unsigned long __init e820_end(void)
 		struct e820entry *ei = &e820.map[i];
 		unsigned long end_pfn;
 
+#ifdef CONFIG_X86_32
+		if (ei->type != E820_RAM)
+			continue;
+#endif
+
 		end_pfn = (ei->addr + ei->size) >> PAGE_SHIFT;
 		if (end_pfn > last_pfn)
 			last_pfn = end_pfn;
