@@ -259,8 +259,8 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 
 	/* Don't update the state if we're not controlling the rate. */
 	sdata = sta->sdata;
-	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
-		sta->txrate_idx = sdata->bss->max_ratectrl_rateidx;
+	if (sdata->force_unicast_rateidx > -1) {
+		sta->txrate_idx = sdata->max_ratectrl_rateidx;
 		goto unlock;
 	}
 
@@ -337,8 +337,8 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 
 	/* If a forced rate is in effect, select it. */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1)
-		sta->txrate_idx = sdata->bss->force_unicast_rateidx;
+	if (sdata->force_unicast_rateidx > -1)
+		sta->txrate_idx = sdata->force_unicast_rateidx;
 
 	rateidx = sta->txrate_idx;
 

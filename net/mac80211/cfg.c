@@ -57,7 +57,7 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	if (itype == IEEE80211_IF_TYPE_INVALID)
 		return -EINVAL;
 
-	err = ieee80211_if_add(local->mdev, name, &dev, itype, params);
+	err = ieee80211_if_add(local, name, &dev, itype, params);
 	if (err || itype != IEEE80211_IF_TYPE_MNTR || !flags)
 		return err;
 

@@ -78,7 +78,7 @@ static void ieee80211_send_probe_req(struct net_device *dev, u8 *dst,
 static struct ieee80211_sta_bss *
 ieee80211_rx_bss_get(struct net_device *dev, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);
-static void ieee80211_rx_bss_put(struct net_device *dev,
+static void ieee80211_rx_bss_put(struct ieee80211_local *local,
 				 struct ieee80211_sta_bss *bss);
 static int ieee80211_sta_find_ibss(struct net_device *dev,
 				   struct ieee80211_if_sta *ifsta);
@@ -554,7 +554,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 
 			changed |= ieee80211_handle_bss_capability(sdata, bss);
 
-			ieee80211_rx_bss_put(dev, bss);
+			ieee80211_rx_bss_put(local, bss);
 		}
 
 		if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
@@ -760,7 +760,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		    (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT))
 			capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
 
-		ieee80211_rx_bss_put(dev, bss);
+		ieee80211_rx_bss_put(local, bss);
 	} else {
 		rates = ~0;
 		rates_len = sband->n_bitrates;
@@ -992,7 +992,7 @@ static int ieee80211_privacy_mismatch(struct net_device *dev,
 	wep_privacy = !!ieee80211_sta_wep_configured(dev);
 	privacy_invoked = !!(ifsta->flags & IEEE80211_STA_PRIVACY_INVOKED);
 
-	ieee80211_rx_bss_put(dev, bss);
+	ieee80211_rx_bss_put(local, bss);
 
 	if ((bss_privacy == wep_privacy) || (bss_privacy == privacy_invoked))
 		return 0;
@@ -2094,7 +2094,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			sta->last_signal = bss->signal;
 			sta->last_qual = bss->qual;
 			sta->last_noise = bss->noise;
-			ieee80211_rx_bss_put(dev, bss);
+			ieee80211_rx_bss_put(local, bss);
 		}
 
 		err = sta_info_insert(sta);
@@ -2212,10 +2212,9 @@ static void __ieee80211_rx_bss_hash_add(struct net_device *dev,
 
 
 /* Caller must hold local->sta_bss_lock */
-static void __ieee80211_rx_bss_hash_del(struct net_device *dev,
+static void __ieee80211_rx_bss_hash_del(struct ieee80211_local *local,
 					struct ieee80211_sta_bss *bss)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sta_bss *b, *prev = NULL;
 	b = local->sta_bss_hash[STA_HASH(bss->bssid)];
 	while (b) {
@@ -2367,39 +2366,35 @@ static void ieee80211_rx_bss_free(struct ieee80211_sta_bss *bss)
 }
 
 
-static void ieee80211_rx_bss_put(struct net_device *dev,
+static void ieee80211_rx_bss_put(struct ieee80211_local *local,
 				 struct ieee80211_sta_bss *bss)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
 	local_bh_disable();
 	if (!atomic_dec_and_lock(&bss->users, &local->sta_bss_lock)) {
 		local_bh_enable();
 		return;
 	}
 
-	__ieee80211_rx_bss_hash_del(dev, bss);
+	__ieee80211_rx_bss_hash_del(local, bss);
 	list_del(&bss->list);
 	spin_unlock_bh(&local->sta_bss_lock);
 	ieee80211_rx_bss_free(bss);
 }
 
 
-void ieee80211_rx_bss_list_init(struct net_device *dev)
+void ieee80211_rx_bss_list_init(struct ieee80211_local *local)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	spin_lock_init(&local->sta_bss_lock);
 	INIT_LIST_HEAD(&local->sta_bss_list);
 }
 
 
-void ieee80211_rx_bss_list_deinit(struct net_device *dev)
+void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sta_bss *bss, *tmp;
 
 	list_for_each_entry_safe(bss, tmp, &local->sta_bss_list, list)
-		ieee80211_rx_bss_put(dev, bss);
+		ieee80211_rx_bss_put(local, bss);
 }
 
 
@@ -2775,7 +2770,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 	 */
 	if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
 	    bss->probe_resp && beacon) {
-		ieee80211_rx_bss_put(dev, bss);
+		ieee80211_rx_bss_put(local, bss);
 		return;
 	}
 
@@ -2918,7 +2913,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		}
 	}
 
-	ieee80211_rx_bss_put(dev, bss);
+	ieee80211_rx_bss_put(local, bss);
 }
 
 
@@ -3578,7 +3573,7 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 					       selected->ssid_len);
 		ieee80211_sta_set_bssid(dev, selected->bssid);
 		ieee80211_sta_def_wmm_params(dev, selected, 0);
-		ieee80211_rx_bss_put(dev, selected);
+		ieee80211_rx_bss_put(local, selected);
 		ifsta->state = IEEE80211_AUTHENTICATE;
 		ieee80211_sta_reset_auth(dev, ifsta);
 		return 0;
@@ -3655,7 +3650,7 @@ static int ieee80211_sta_create_ibss(struct net_device *dev,
 	}
 
 	ret = ieee80211_sta_join_ibss(dev, ifsta, bss);
-	ieee80211_rx_bss_put(dev, bss);
+	ieee80211_rx_bss_put(local, bss);
 	return ret;
 }
 
@@ -3711,7 +3706,7 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 		       " based on configured SSID\n",
 		       dev->name, print_mac(mac, bssid));
 		ret = ieee80211_sta_join_ibss(dev, ifsta, bss);
-		ieee80211_rx_bss_put(dev, bss);
+		ieee80211_rx_bss_put(local, bss);
 		return ret;
 	}
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
@@ -3907,11 +3902,6 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-
-		/* No need to wake the master device. */
-		if (sdata->dev == local->mdev)
-			continue;
-
 		/* Tell AP we're back */
 		if (sdata->vif.type == IEEE80211_IF_TYPE_STA &&
 		    sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED)
@@ -4077,12 +4067,6 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-
-		/* Don't stop the master interface, otherwise we can't transmit
-		 * probes! */
-		if (sdata->dev == local->mdev)
-			continue;
-
 		netif_stop_queue(sdata->dev);
 		if (sdata->vif.type == IEEE80211_IF_TYPE_STA &&
 		    (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED))
@@ -4473,12 +4457,10 @@ void ieee80211_notify_mac(struct ieee80211_hw *hw,
 	case IEEE80211_NOTIFY_RE_ASSOC:
 		rcu_read_lock();
 		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+			if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
+				continue;
 
-			if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
-				ieee80211_sta_req_auth(sdata->dev,
-						       &sdata->u.sta);
-			}
-
+			ieee80211_sta_req_auth(sdata->dev, &sdata->u.sta);
 		}
 		rcu_read_unlock();
 		break;

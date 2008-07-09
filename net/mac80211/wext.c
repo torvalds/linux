@@ -627,16 +627,14 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 	struct ieee80211_supported_band *sband;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (!sdata->bss)
-		return -ENODEV;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	/* target_rate = -1, rate->fixed = 0 means auto only, so use all rates
 	 * target_rate = X, rate->fixed = 1 means only rate X
 	 * target_rate = X, rate->fixed = 0 means all rates <= X */
-	sdata->bss->max_ratectrl_rateidx = -1;
-	sdata->bss->force_unicast_rateidx = -1;
+	sdata->max_ratectrl_rateidx = -1;
+	sdata->force_unicast_rateidx = -1;
 	if (rate->value < 0)
 		return 0;
 
@@ -645,9 +643,9 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 		int this_rate = brate->bitrate;
 
 		if (target_rate == this_rate) {
-			sdata->bss->max_ratectrl_rateidx = i;
+			sdata->max_ratectrl_rateidx = i;
 			if (rate->fixed)
-				sdata->bss->force_unicast_rateidx = i;
+				sdata->force_unicast_rateidx = i;
 			err = 0;
 			break;
 		}

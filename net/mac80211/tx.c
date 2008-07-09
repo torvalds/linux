@@ -303,8 +303,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		struct ieee80211_if_ap *ap;
-		if (sdata->dev == local->mdev ||
-		    sdata->vif.type != IEEE80211_IF_TYPE_AP)
+		if (sdata->vif.type != IEEE80211_IF_TYPE_AP)
 			continue;
 		ap = &sdata->u.ap;
 		skb = skb_dequeue(&ap->ps_bc_buf);
@@ -346,8 +345,12 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	 * This is done either by the hardware or us.
 	 */
 
-	/* not AP/IBSS or ordered frame */
-	if (!tx->sdata->bss || (tx->fc & IEEE80211_FCTL_ORDER))
+	/* powersaving STAs only in AP/VLAN mode */
+	if (!tx->sdata->bss)
+		return TX_CONTINUE;
+
+	/* no buffering for ordered frames */
+	if (tx->fc & IEEE80211_FCTL_ORDER)
 		return TX_CONTINUE;
 
 	/* no stations in PS mode */

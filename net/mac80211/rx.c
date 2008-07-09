@@ -647,8 +647,7 @@ static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 
 	sdata = sta->sdata;
 
-	if (sdata->bss)
-		atomic_inc(&sdata->bss->num_sta_ps);
+	atomic_inc(&sdata->bss->num_sta_ps);
 	set_and_clear_sta_flags(sta, WLAN_STA_PS, WLAN_STA_PSPOLL);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d enters power save mode\n",
@@ -667,8 +666,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 
 	sdata = sta->sdata;
 
-	if (sdata->bss)
-		atomic_dec(&sdata->bss->num_sta_ps);
+	atomic_dec(&sdata->bss->num_sta_ps);
 
 	clear_sta_flags(sta, WLAN_STA_PS | WLAN_STA_PSPOLL);
 
@@ -742,7 +740,9 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	sta->last_qual = rx->status->qual;
 	sta->last_noise = rx->status->noise;
 
-	if (!ieee80211_has_morefrags(hdr->frame_control)) {
+	if (!ieee80211_has_morefrags(hdr->frame_control) &&
+	    (rx->sdata->vif.type == IEEE80211_IF_TYPE_AP ||
+	     rx->sdata->vif.type == IEEE80211_IF_TYPE_VLAN)) {
 		/* Change STA power saving mode only in the end of a frame
 		 * exchange sequence */
 		if (test_sta_flags(sta, WLAN_STA_PS) &&
@@ -1772,11 +1772,6 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		}
-		if (sdata->dev == sdata->local->mdev &&
-		    !(rx->flags & IEEE80211_RX_IN_SCAN))
-			/* do not receive anything via
-			 * master device when not scanning */
-			return 0;
 		break;
 	case IEEE80211_IF_TYPE_WDS:
 		if (bssid || !ieee80211_is_data(hdr->frame_control))

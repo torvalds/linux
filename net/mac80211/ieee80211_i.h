@@ -237,8 +237,6 @@ struct ieee80211_if_ap {
 	struct sk_buff_head ps_bc_buf;
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	int dtim_count;
-	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
-	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
 	int num_beacons; /* number of TXed beacon frames for this BSS */
 };
 
@@ -248,7 +246,6 @@ struct ieee80211_if_wds {
 };
 
 struct ieee80211_if_vlan {
-	struct ieee80211_sub_if_data *ap;
 	struct list_head list;
 };
 
@@ -432,16 +429,18 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS];
 	struct ieee80211_key *default_key;
 
-	/*
-	 * BSS configuration for this interface.
-	 *
-	 * FIXME: I feel bad putting this here when we already have a
-	 *	  bss pointer, but the bss pointer is just wrong when
-	 *	  you have multiple virtual STA mode interfaces...
-	 *	  This needs to be fixed.
-	 */
+	/* BSS configuration for this interface. */
 	struct ieee80211_bss_conf bss_conf;
-	struct ieee80211_if_ap *bss; /* BSS that this device belongs to */
+
+	/*
+	 * AP this belongs to: self in AP mode and
+	 * corresponding AP in VLAN mode, NULL for
+	 * all others (might be needed later in IBSS)
+	 */
+	struct ieee80211_if_ap *bss;
+
+	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
+	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
 
 	union {
 		struct ieee80211_if_ap ap;
@@ -532,8 +531,6 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 {
 	return container_of(p, struct ieee80211_sub_if_data, vif);
 }
-
-#define IEEE80211_DEV_TO_SUB_IF(dev) netdev_priv(dev)
 
 enum {
 	IEEE80211_RX_MSG	= 1,
@@ -760,6 +757,16 @@ static inline int ieee80211_is_multiqueue(struct ieee80211_local *local)
 #endif
 }
 
+static inline struct ieee80211_sub_if_data *
+IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+
+	BUG_ON(!local || local->mdev == dev);
+
+	return netdev_priv(dev);
+}
+
 /* this struct represents 802.11n's RA/TID combination */
 struct ieee80211_ra_tid {
 	u8 ra[ETH_ALEN];
@@ -883,8 +890,8 @@ int ieee80211_sta_scan_results(struct net_device *dev,
 ieee80211_rx_result ieee80211_sta_rx_scan(
 	struct net_device *dev, struct sk_buff *skb,
 	struct ieee80211_rx_status *rx_status);
-void ieee80211_rx_bss_list_init(struct net_device *dev);
-void ieee80211_rx_bss_list_deinit(struct net_device *dev);
+void ieee80211_rx_bss_list_init(struct ieee80211_local *local);
+void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local);
 int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len);
 struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
 					struct sk_buff *skb, u8 *bssid,
@@ -925,8 +932,8 @@ static inline void ieee80211_start_mesh(struct net_device *dev)
 {}
 #endif
 
-/* ieee80211_iface.c */
-int ieee80211_if_add(struct net_device *dev, const char *name,
+/* interface handling */
+int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct net_device **new_dev, int type,
 		     struct vif_params *params);
 void ieee80211_if_set_type(struct net_device *dev, int type);

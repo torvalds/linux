@@ -156,6 +156,8 @@ static const struct file_operations name##_ops = {			\
 
 /* common attributes */
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
+IEEE80211_IF_FILE(force_unicast_rateidx, force_unicast_rateidx, DEC);
+IEEE80211_IF_FILE(max_ratectrl_rateidx, max_ratectrl_rateidx, DEC);
 
 /* STA/IBSS attributes */
 IEEE80211_IF_FILE(state, u.sta.state, DEC);
@@ -191,8 +193,6 @@ __IEEE80211_IF_FILE(flags);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
 IEEE80211_IF_FILE(num_beacons, u.ap.num_beacons, DEC);
-IEEE80211_IF_FILE(force_unicast_rateidx, u.ap.force_unicast_rateidx, DEC);
-IEEE80211_IF_FILE(max_ratectrl_rateidx, u.ap.max_ratectrl_rateidx, DEC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -248,6 +248,9 @@ IEEE80211_IF_WFILE(min_discovery_timeout,
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted, sta);
+	DEBUGFS_ADD(force_unicast_rateidx, ap);
+	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+
 	DEBUGFS_ADD(state, sta);
 	DEBUGFS_ADD(bssid, sta);
 	DEBUGFS_ADD(prev_bssid, sta);
@@ -268,23 +271,29 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted, ap);
+	DEBUGFS_ADD(force_unicast_rateidx, ap);
+	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+
 	DEBUGFS_ADD(num_sta_ps, ap);
 	DEBUGFS_ADD(dtim_count, ap);
 	DEBUGFS_ADD(num_beacons, ap);
-	DEBUGFS_ADD(force_unicast_rateidx, ap);
-	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
 	DEBUGFS_ADD(num_buffered_multicast, ap);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted, wds);
+	DEBUGFS_ADD(force_unicast_rateidx, ap);
+	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+
 	DEBUGFS_ADD(peer, wds);
 }
 
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted, vlan);
+	DEBUGFS_ADD(force_unicast_rateidx, ap);
+	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -372,6 +381,9 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(drop_unencrypted, sta);
+	DEBUGFS_DEL(force_unicast_rateidx, ap);
+	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
+
 	DEBUGFS_DEL(state, sta);
 	DEBUGFS_DEL(bssid, sta);
 	DEBUGFS_DEL(prev_bssid, sta);
@@ -392,23 +404,29 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(drop_unencrypted, ap);
+	DEBUGFS_DEL(force_unicast_rateidx, ap);
+	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
+
 	DEBUGFS_DEL(num_sta_ps, ap);
 	DEBUGFS_DEL(dtim_count, ap);
 	DEBUGFS_DEL(num_beacons, ap);
-	DEBUGFS_DEL(force_unicast_rateidx, ap);
-	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
 	DEBUGFS_DEL(num_buffered_multicast, ap);
 }
 
 static void del_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(drop_unencrypted, wds);
+	DEBUGFS_DEL(force_unicast_rateidx, ap);
+	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
+
 	DEBUGFS_DEL(peer, wds);
 }
 
 static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(drop_unencrypted, vlan);
+	DEBUGFS_DEL(force_unicast_rateidx, ap);
+	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
 }
 
 static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -525,7 +543,7 @@ static int netdev_notify(struct notifier_block *nb,
 {
 	struct net_device *dev = ndev;
 	struct dentry *dir;
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata;
 	char buf[10+IFNAMSIZ];
 
 	if (state != NETDEV_CHANGENAME)
@@ -536,6 +554,8 @@ static int netdev_notify(struct notifier_block *nb,
 
 	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
 		return 0;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	sprintf(buf, "netdev:%s", dev->name);
 	dir = sdata->debugfsdir;
