@@ -51,30 +51,11 @@
 #define get_dmac_rx(port) (phy_node(port) ? DMAC1RX_OFFSET : DMAC0RX_OFFSET)
 #define get_dmac_tx(port) (phy_node(port) ? DMAC1TX_OFFSET : DMAC0TX_OFFSET)
 
-#define SCA_INTR_MSCI(node)    (node ? 0x10 : 0x01)
-#define SCA_INTR_DMAC_RX(node) (node ? 0x20 : 0x02)
-#define SCA_INTR_DMAC_TX(node) (node ? 0x40 : 0x04)
-
 static int sca_poll(struct napi_struct *napi, int budget);
 
 static inline struct net_device *port_to_dev(port_t *port)
 {
 	return port->dev;
-}
-
-static inline int sca_intr_status(card_t *card)
-{
-	u8 result = 0;
-	u32 isr0 = sca_inl(ISR0, card);
-
-	if (isr0 & 0x00000002) result |= SCA_INTR_DMAC_RX(0);
-	if (isr0 & 0x00000020) result |= SCA_INTR_DMAC_TX(0);
-	if (isr0 & 0x00000200) result |= SCA_INTR_DMAC_RX(1);
-	if (isr0 & 0x00002000) result |= SCA_INTR_DMAC_TX(1);
-	if (isr0 & 0x00080000) result |= SCA_INTR_MSCI(0);
-	if (isr0 & 0x08000000) result |= SCA_INTR_MSCI(1);
-
-	return result;
 }
 
 static inline port_t* dev_to_port(struct net_device *dev)
@@ -358,16 +339,16 @@ static inline void sca_tx_done(port_t *port)
 static int sca_poll(struct napi_struct *napi, int budget)
 {
 	port_t *port = container_of(napi, port_t, napi);
-	u8 stat = sca_intr_status(port->card);
+	u32 isr0 = sca_inl(ISR0, port->card);
 	int received = 0;
 
-	if (stat & SCA_INTR_MSCI(port->phy_node))
+	if (isr0 & (port->phy_node ? 0x08000000 : 0x00080000))
 		sca_msci_intr(port);
 
-	if (stat & SCA_INTR_DMAC_TX(port->phy_node))
+	if (isr0 & (port->phy_node ? 0x00002000 : 0x00000020))
 		sca_tx_done(port);
 
-	if (stat & SCA_INTR_DMAC_RX(port->phy_node))
+	if (isr0 & (port->phy_node ? 0x00000200 : 0x00000002))
 		received = sca_rx_done(port, budget);
 
 	if (received < budget) {
@@ -378,17 +359,15 @@ static int sca_poll(struct napi_struct *napi, int budget)
 	return received;
 }
 
-static irqreturn_t sca_intr(int irq, void* dev_id)
+static irqreturn_t sca_intr(int irq, void *dev_id)
 {
 	card_t *card = dev_id;
-	int i;
-	u8 stat = sca_intr_status(card);
-	int handled = 0;
+	u32 isr0 = sca_inl(ISR0, card);
+	int i, handled = 0;
 
 	for (i = 0; i < 2; i++) {
 		port_t *port = get_port(card, i);
-		if (port && (stat & (SCA_INTR_MSCI(i) | SCA_INTR_DMAC_RX(i) |
-				     SCA_INTR_DMAC_TX(i)))) {
+		if (port && (isr0 & (i ? 0x08002200 : 0x00080022))) {
 			handled = 1;
 			disable_intr(port);
 			netif_rx_schedule(port->dev, &port->napi);
