@@ -3,6 +3,9 @@
  *
  *  Copyright (C) 2008 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  *
+ *  Updates and enhancements:
+ *    Copyright (C) 2008 Red Hat, Inc. Steven Rostedt <srostedt@redhat.com>
+ *
  * Based on code by:
  *   Ingo Molnar <mingo@redhat.com>
  *   Guillaume Chazarain <guichaz@gmail.com>
@@ -32,6 +35,11 @@
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
 
+#define MULTI_SHIFT 15
+/* Max is double, Min is 1/2 */
+#define MAX_MULTI (2LL << MULTI_SHIFT)
+#define MIN_MULTI (1LL << (MULTI_SHIFT-1))
+
 struct sched_clock_data {
 	/*
 	 * Raw spinlock - this is a special case: this might be called
@@ -45,6 +53,7 @@ struct sched_clock_data {
 	u64			tick_raw;
 	u64			tick_gtod;
 	u64			clock;
+	s64			multi;
 #ifdef CONFIG_NO_HZ
 	int			check_max;
 #endif
@@ -79,6 +88,7 @@ void sched_clock_init(void)
 		scd->tick_raw = 0;
 		scd->tick_gtod = ktime_now;
 		scd->clock = ktime_now;
+		scd->multi = 1 << MULTI_SHIFT;
 #ifdef CONFIG_NO_HZ
 		scd->check_max = 1;
 #endif
@@ -134,8 +144,13 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now, u64 *tim
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	min_clock = scd->tick_gtod +
-		(delta_jiffies ? delta_jiffies - 1 : 0) * TICK_NSEC;
+	/*
+	 * At schedule tick the clock can be just under the gtod. We don't
+	 * want to push it too prematurely.
+	 */
+	min_clock = scd->tick_gtod + (delta_jiffies * TICK_NSEC);
+	if (min_clock > TICK_NSEC)
+		min_clock -= TICK_NSEC / 2;
 
 	if (unlikely(delta < 0)) {
 		clock++;
@@ -148,6 +163,9 @@ static void __update_sched_clock(struct sched_clock_data *scd, u64 now, u64 *tim
 	 * we add another jiffy buffer.
 	 */
 	max_clock = scd->tick_gtod + (2 + delta_jiffies) * TICK_NSEC;
+
+	delta *= scd->multi;
+	delta >>= MULTI_SHIFT;
 
 	if (unlikely(clock + delta > max_clock) && check_max(scd)) {
 		if (clock < max_clock)
@@ -230,6 +248,7 @@ void sched_clock_tick(void)
 {
 	struct sched_clock_data *scd = this_scd();
 	unsigned long now_jiffies = jiffies;
+	s64 mult, delta_gtod, delta_raw;
 	u64 now, now_gtod;
 
 	if (unlikely(!sched_clock_running))
@@ -247,9 +266,23 @@ void sched_clock_tick(void)
 	 * already observe 1 new jiffy; adding a new tick_gtod to that would
 	 * increase the clock 2 jiffies.
 	 */
-	scd->tick_jiffies = now_jiffies;
+	delta_gtod = now_gtod - scd->tick_gtod;
+	delta_raw = now - scd->tick_raw;
+
+	if ((long)delta_raw > 0) {
+		mult = delta_gtod << MULTI_SHIFT;
+		do_div(mult, delta_raw);
+		scd->multi = mult;
+		if (scd->multi > MAX_MULTI)
+			scd->multi = MAX_MULTI;
+		else if (scd->multi < MIN_MULTI)
+			scd->multi = MIN_MULTI;
+	} else
+		scd->multi = 1 << MULTI_SHIFT;
+
 	scd->tick_raw = now;
 	scd->tick_gtod = now_gtod;
+	scd->tick_jiffies = now_jiffies;
 	__raw_spin_unlock(&scd->lock);
 }
 
@@ -279,6 +312,7 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 	__raw_spin_lock(&scd->lock);
 	scd->prev_raw = now;
 	scd->clock += delta_ns;
+	scd->multi = 1 << MULTI_SHIFT;
 	__raw_spin_unlock(&scd->lock);
 
 	touch_softlockup_watchdog();
