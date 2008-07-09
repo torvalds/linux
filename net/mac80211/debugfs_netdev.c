@@ -476,12 +476,12 @@ static void del_mesh_config(struct ieee80211_sub_if_data *sdata)
 }
 #endif
 
-static void del_files(struct ieee80211_sub_if_data *sdata, int type)
+static void del_files(struct ieee80211_sub_if_data *sdata)
 {
 	if (!sdata->debugfsdir)
 		return;
 
-	switch (type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
 		del_mesh_stats(sdata);
@@ -521,20 +521,14 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 	sprintf(buf, "netdev:%s", sdata->dev->name);
 	sdata->debugfsdir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
+	add_files(sdata);
 }
 
 void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	del_files(sdata, sdata->vif.type);
+	del_files(sdata);
 	debugfs_remove(sdata->debugfsdir);
 	sdata->debugfsdir = NULL;
-}
-
-void ieee80211_debugfs_change_if_type(struct ieee80211_sub_if_data *sdata,
-				      int oldtype)
-{
-	del_files(sdata, oldtype);
-	add_files(sdata);
 }
 
 static int netdev_notify(struct notifier_block *nb,
