@@ -905,7 +905,8 @@ static void imxmci_check_status(unsigned long data)
 {
 	struct imxmci_host *host = (struct imxmci_host *)data;
 
-	if( host->pdata->card_present(mmc_dev(host->mmc)) != host->present ) {
+	if (host->pdata && host->pdata->card_present &&
+	    host->pdata->card_present(mmc_dev(host->mmc)) != host->present) {
 		host->present ^= 1;
 		dev_info(mmc_dev(host->mmc), "card %s\n",
 		      host->present ? "inserted" : "removed");
@@ -968,6 +969,8 @@ static int imxmci_probe(struct platform_device *pdev)
 	host->mmc = mmc;
 	host->dma_allocated = 0;
 	host->pdata = pdev->dev.platform_data;
+	if (!host->pdata)
+		dev_warn(&pdev->dev, "No platform data provided!\n");
 
 	spin_lock_init(&host->lock);
 	host->res = r;
@@ -1020,7 +1023,11 @@ static int imxmci_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	host->present = host->pdata->card_present(mmc_dev(mmc));
+	if (host->pdata && host->pdata->card_present)
+		host->present = host->pdata->card_present(mmc_dev(mmc));
+	else	/* if there is no way to detect assume that card is present */
+		host->present = 1;
+
 	init_timer(&host->timer);
 	host->timer.data = (unsigned long)host;
 	host->timer.function = imxmci_check_status;
