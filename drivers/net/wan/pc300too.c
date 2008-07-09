@@ -37,9 +37,6 @@
 
 #include "hd64572.h"
 
-static const char* version = "Cyclades PC300 driver version: 1.17";
-static const char* devname = "PC300";
-
 #undef DEBUG_PKT
 #define DEBUG_RINGS
 
@@ -316,12 +313,6 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 	u32 scaphys;		/* SCA memory base */
 	u32 plxphys;		/* PLX registers memory base */
 
-#ifndef MODULE
-	static int printed_version;
-	if (!printed_version++)
-		printk(KERN_INFO "%s\n", version);
-#endif
-
 	i = pci_enable_device(pdev);
 	if (i)
 		return i;
@@ -444,7 +435,7 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 	writew(0x0041, &card->plxbase->intr_ctrl_stat);
 
 	/* Allocate IRQ */
-	if (request_irq(pdev->irq, sca_intr, IRQF_SHARED, devname, card)) {
+	if (request_irq(pdev->irq, sca_intr, IRQF_SHARED, "pc300", card)) {
 		printk(KERN_WARNING "pc300: could not allocate IRQ%d.\n",
 		       pdev->irq);
 		pc300_pci_remove_one(pdev);
@@ -522,9 +513,6 @@ static struct pci_driver pc300_pci_driver = {
 
 static int __init pc300_init_module(void)
 {
-#ifdef MODULE
-	printk(KERN_INFO "%s\n", version);
-#endif
 	if (pci_clock_freq < 1000000 || pci_clock_freq > 80000000) {
 		printk(KERN_ERR "pc300: Invalid PCI clock frequency\n");
 		return -EINVAL;

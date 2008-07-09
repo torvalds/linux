@@ -33,9 +33,6 @@
 
 #include "hd64572.h"
 
-static const char* version = "Goramo PCI200SYN driver version: 1.16";
-static const char* devname = "PCI200SYN";
-
 #undef DEBUG_PKT
 #define DEBUG_RINGS
 
@@ -294,12 +291,6 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 	u32 scaphys;		/* SCA memory base */
 	u32 plxphys;		/* PLX registers memory base */
 
-#ifndef MODULE
-	static int printed_version;
-	if (!printed_version++)
-		printk(KERN_INFO "%s\n", version);
-#endif
-
 	i = pci_enable_device(pdev);
 	if (i)
 		return i;
@@ -396,7 +387,7 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 	writew(readw(p) | 0x0040, p);
 
 	/* Allocate IRQ */
-	if (request_irq(pdev->irq, sca_intr, IRQF_SHARED, devname, card)) {
+	if (request_irq(pdev->irq, sca_intr, IRQF_SHARED, "pci200syn", card)) {
 		printk(KERN_WARNING "pci200syn: could not allocate IRQ%d.\n",
 		       pdev->irq);
 		pci200_pci_remove_one(pdev);
@@ -462,9 +453,6 @@ static struct pci_driver pci200_pci_driver = {
 
 static int __init pci200_init_module(void)
 {
-#ifdef MODULE
-	printk(KERN_INFO "%s\n", version);
-#endif
 	if (pci_clock_freq < 1000000 || pci_clock_freq > 80000000) {
 		printk(KERN_ERR "pci200syn: Invalid PCI clock frequency\n");
 		return -EINVAL;
