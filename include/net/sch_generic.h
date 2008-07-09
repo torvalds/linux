@@ -242,6 +242,14 @@ static inline bool qdisc_all_tx_empty(const struct net_device *dev)
 	return (q->q.qlen == 0);
 }
 
+/* Are any of the TX qdiscs changing?  */
+static inline bool qdisc_tx_changing(struct net_device *dev)
+{
+	struct netdev_queue *txq = &dev->tx_queue;
+
+	return (txq->qdisc != txq->qdisc_sleeping);
+}
+
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)
 {

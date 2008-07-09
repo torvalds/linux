@@ -77,12 +77,10 @@ static void rfc2863_policy(struct net_device *dev)
 }
 
 
-static int linkwatch_urgent_event(struct net_device *dev)
+static bool linkwatch_urgent_event(struct net_device *dev)
 {
-	struct netdev_queue *txq = &dev->tx_queue;
-
 	return netif_running(dev) && netif_carrier_ok(dev) &&
-	       txq->qdisc != txq->qdisc_sleeping;
+		qdisc_tx_changing(dev);
 }
 
 
@@ -182,12 +180,9 @@ static void __linkwatch_run_queue(int urgent_only)
 
 		rfc2863_policy(dev);
 		if (dev->flags & IFF_UP) {
-			if (netif_carrier_ok(dev)) {
-				struct netdev_queue *txq = &dev->tx_queue;
-
-				WARN_ON(txq->qdisc_sleeping == &noop_qdisc);
+			if (netif_carrier_ok(dev))
 				dev_activate(dev);
-			} else
+			else
 				dev_deactivate(dev);
 
 			netdev_state_change(dev);
@@ -218,7 +213,7 @@ static void linkwatch_event(struct work_struct *dummy)
 
 void linkwatch_fire_event(struct net_device *dev)
 {
-	int urgent = linkwatch_urgent_event(dev);
+	bool urgent = linkwatch_urgent_event(dev);
 
 	if (!test_and_set_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state)) {
 		dev_hold(dev);
