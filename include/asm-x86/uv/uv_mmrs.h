@@ -974,26 +974,6 @@ union uvh_rh_gam_cfg_overlay_config_mmr_u {
 };
 
 /* ========================================================================= */
-/*                    UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR                      */
-/* ========================================================================= */
-#define UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR 0x1600020UL
-
-#define UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR_BASE_SHFT 26
-#define UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR_BASE_MASK 0x00003ffffc000000UL
-#define UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR_ENABLE_SHFT 63
-#define UVH_RH_GAM_CFG_OVERLAY_CONFIG_MMR_ENABLE_MASK 0x8000000000000000UL
-
-union uvh_rh_gam_cfg_overlay_config_mmr_u {
-    unsigned long	v;
-    struct uvh_rh_gam_cfg_overlay_config_mmr_s {
-	unsigned long	rsvd_0_25: 26;  /*    */
-	unsigned long	base   : 20;  /* RW */
-	unsigned long	rsvd_46_62: 17;  /*    */
-	unsigned long	enable :  1;  /* RW */
-    } s;
-};
-
-/* ========================================================================= */
 /*                    UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR                      */
 /* ========================================================================= */
 #define UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR 0x1600010UL
