@@ -5621,8 +5621,10 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 
 	double_rq_lock(rq_src, rq_dest);
 	/* Already moved. */
-	if (task_cpu(p) != src_cpu)
+	if (task_cpu(p) != src_cpu) {
+		ret = 1;
 		goto out;
+	}
 	/* Affinity changed (again). */
 	if (!cpu_isset(dest_cpu, p->cpus_allowed))
 		goto out;
