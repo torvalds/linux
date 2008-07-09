@@ -2041,8 +2041,8 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 
 	tid_agg_rx = sta->ampdu_mlme.tid_rx[tid];
 
-	/* null data frames are excluded */
-	if (unlikely(ieee80211_is_nullfunc(hdr->frame_control)))
+	/* qos null data frames are excluded */
+	if (unlikely(hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_NULLFUNC)))
 		goto end_reorder;
 
 	/* new un-ordered ampdu frame - process it */
