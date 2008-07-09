@@ -2014,10 +2014,11 @@ static inline struct sk_buff *handle_macvlan(struct sk_buff *skb,
  */
 static int ing_filter(struct sk_buff *skb)
 {
-	struct Qdisc *q;
 	struct net_device *dev = skb->dev;
-	int result = TC_ACT_OK;
 	u32 ttl = G_TC_RTTL(skb->tc_verd);
+	struct netdev_queue *rxq;
+	int result = TC_ACT_OK;
+	struct Qdisc *q;
 
 	if (MAX_RED_LOOP < ttl++) {
 		printk(KERN_WARNING
@@ -2029,10 +2030,12 @@ static int ing_filter(struct sk_buff *skb)
 	skb->tc_verd = SET_TC_RTTL(skb->tc_verd, ttl);
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
 
-	spin_lock(&dev->ingress_lock);
+	rxq = &dev->rx_queue;
+
+	spin_lock(&rxq->lock);
 	if ((q = dev->qdisc_ingress) != NULL)
 		result = q->enqueue(skb, q);
-	spin_unlock(&dev->ingress_lock);
+	spin_unlock(&rxq->lock);
 
 	return result;
 }
@@ -3795,7 +3798,6 @@ int register_netdevice(struct net_device *dev)
 	spin_lock_init(&dev->_xmit_lock);
 	netdev_set_lockdep_class(&dev->_xmit_lock, dev->type);
 	dev->xmit_lock_owner = -1;
-	spin_lock_init(&dev->ingress_lock);
 
 	dev->iflink = -1;
 

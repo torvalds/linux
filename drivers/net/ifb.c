@@ -229,13 +229,13 @@ module_param(numifbs, int, 0);
 MODULE_PARM_DESC(numifbs, "Number of ifb devices");
 
 /*
- * dev_ifb->tx_queue.lock is usually taken after dev->ingress_lock,
+ * dev_ifb->tx_queue.lock is usually taken after dev->rx_queue.lock,
  * reversely to e.g. qdisc_lock_tree(). It should be safe until
- * ifb doesn't take dev->tx_queue.lock with dev_ifb->ingress_lock.
+ * ifb doesn't take dev->tx_queue.lock with dev_ifb->rx_queue.lock.
  * But lockdep should know that ifb has different locks from dev.
  */
 static struct lock_class_key ifb_tx_queue_lock_key;
-static struct lock_class_key ifb_ingress_lock_key;
+static struct lock_class_key ifb_rx_queue_lock_key;
 
 
 static int __init ifb_init_one(int index)
@@ -259,7 +259,7 @@ static int __init ifb_init_one(int index)
 		goto err;
 
 	lockdep_set_class(&dev_ifb->tx_queue.lock, &ifb_tx_queue_lock_key);
-	lockdep_set_class(&dev_ifb->ingress_lock, &ifb_ingress_lock_key);
+	lockdep_set_class(&dev_ifb->rx_queue.lock, &ifb_rx_queue_lock_key);
 
 	return 0;
 

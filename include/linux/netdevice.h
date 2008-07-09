@@ -632,8 +632,6 @@ struct net_device
 	struct netdev_queue	rx_queue;
 	struct netdev_queue	tx_queue ____cacheline_aligned_in_smp;
 
-	/* ingress path synchronizer */
-	spinlock_t		ingress_lock;
 	struct Qdisc		*qdisc_ingress;
 
 /*

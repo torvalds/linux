@@ -35,24 +35,24 @@
  * - enqueue, dequeue are serialized via top level device
  *   spinlock queue->lock.
  * - ingress filtering is serialized via top level device
- *   spinlock dev->ingress_lock.
+ *   spinlock dev->rx_queue.lock.
  * - updates to tree and tree walking are only done under the rtnl mutex.
  */
 
 void qdisc_lock_tree(struct net_device *dev)
 	__acquires(dev->tx_queue.lock)
-	__acquires(dev->ingress_lock)
+	__acquires(dev->rx_queue.lock)
 {
 	spin_lock_bh(&dev->tx_queue.lock);
-	spin_lock(&dev->ingress_lock);
+	spin_lock(&dev->rx_queue.lock);
 }
 EXPORT_SYMBOL(qdisc_lock_tree);
 
 void qdisc_unlock_tree(struct net_device *dev)
-	__releases(dev->ingress_lock)
+	__releases(dev->rx_queue.lock)
 	__releases(dev->tx_queue.lock)
 {
-	spin_unlock(&dev->ingress_lock);
+	spin_unlock(&dev->rx_queue.lock);
 	spin_unlock_bh(&dev->tx_queue.lock);
 }
 EXPORT_SYMBOL(qdisc_unlock_tree);
