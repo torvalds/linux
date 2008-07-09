@@ -24,6 +24,7 @@ config SND_SOC_AC97_BUS
 # All the supported Soc's
 source "sound/soc/at32/Kconfig"
 source "sound/soc/at91/Kconfig"
+source "sound/soc/au1x/Kconfig"
 source "sound/soc/pxa/Kconfig"
 source "sound/soc/s3c24xx/Kconfig"
 source "sound/soc/sh/Kconfig"
