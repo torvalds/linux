@@ -338,11 +338,11 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 
 	/* Baseband gain.	*/
 	if (srate >= 15000000)
-		g = 8;
-	else if (state->srate >= 5000000)
-		g = 12;
+		g = 9;  //  +4 dB
+	else if (srate >= 5000000)
+		g = 11; //  +8 dB
 	else
-		g = 14;
+		g = 14; // +14 dB
 
 	regs[STB6100_G] = (regs[STB6100_G] & ~STB6100_G_G) | g;
 	regs[STB6100_G] &= ~STB6100_G_GCT; /* mask GCT */
@@ -403,7 +403,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if ((rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO])) < 0)
 		return rc;
 
-	msleep(5);					/* wait for LO to lock		*/
+	msleep(10);					/* wait for LO to lock		*/
 	regs[STB6100_VCO] &= ~STB6100_VCO_OSCH;		/* vco search disabled		*/
 	regs[STB6100_VCO] |= STB6100_VCO_OCK;		/* search clock off		*/
 	if ((rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO])) < 0)

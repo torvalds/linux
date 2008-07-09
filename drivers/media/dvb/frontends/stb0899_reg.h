@@ -362,7 +362,7 @@
 
 #define STB0899_OFF0_CRL_FREQ			0xf304
 #define STB0899_BASE_CRL_FREQ			0x00000000
-#define STB0899_CARR_FREQ			(0x1fffffff << 0)
+#define STB0899_CARR_FREQ			(0x3fffffff << 0)
 #define STB0899_OFFST_CARR_FREQ			0
 #define STB0899_WIDTH_CARR_FREQ			30
 
