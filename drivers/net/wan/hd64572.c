@@ -78,13 +78,6 @@ static inline void disable_intr(port_t *port)
 		 (port->chan ? 0x00FF00FF : 0xFF00FF00), IER0, port->card);
 }
 
-static inline u16 next_desc(port_t *port, u16 desc, int transmit)
-{
-	return (desc + 1) % (transmit ? port->card->tx_ring_buffers
-			     : port->card->rx_ring_buffers);
-}
-
-
 static inline u16 desc_abs_number(port_t *port, u16 desc, int transmit)
 {
 	u16 rx_buffs = port->card->rx_ring_buffers;
@@ -291,7 +284,7 @@ static inline int sca_rx_done(port_t *port, int budget)
 
 		/* Set new error descriptor address */
 		sca_outl(desc_off, dmac + EDAL, card);
-		port->rxin = next_desc(port, port->rxin, 0);
+		port->rxin = (port->rxin + 1) % card->rx_ring_buffers;
 	}
 
 	/* make sure RX DMA is enabled */
@@ -329,7 +322,7 @@ static inline void sca_tx_done(port_t *port)
 			dev->stats.tx_bytes += readw(&desc->len);
 		}
 		writeb(0, &desc->stat);	/* Free descriptor */
-		port->txlast = next_desc(port, port->txlast, 1);
+		port->txlast = (port->txlast + 1) % card->tx_ring_buffers;
 	}
 
 	netif_wake_queue(dev);
@@ -599,7 +592,7 @@ static int sca_xmit(struct sk_buff *skb, struct net_device *dev)
 	writeb(ST_TX_EOM, &desc->stat);
 	dev->trans_start = jiffies;
 
-	port->txin = next_desc(port, port->txin, 1);
+	port->txin = (port->txin + 1) % card->tx_ring_buffers;
 	sca_outl(desc_offset(port, port->txin, 1),
 		 get_dmac_tx(port) + EDAL, card);
 
