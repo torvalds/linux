@@ -50,14 +50,11 @@
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
 #include <linux/tracehook.h>
+#include <linux/kmod.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
-
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
 
 #ifdef __alpha__
 /* for /sbin/loader handling in search_binary_handler() */
@@ -1247,8 +1244,8 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 		read_unlock(&binfmt_lock);
 		if (retval != -ENOEXEC || bprm->mm == NULL) {
 			break;
-#ifdef CONFIG_KMOD
-		}else{
+#ifdef CONFIG_MODULES
+		} else {
 #define printable(c) (((c)=='\t') || ((c)=='\n') || (0x20<=(c) && (c)<=0x7e))
 			if (printable(bprm->buf[0]) &&
 			    printable(bprm->buf[1]) &&
