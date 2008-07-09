@@ -452,6 +452,7 @@ struct netdev_queue {
 	spinlock_t		lock;
 	struct net_device	*dev;
 	struct Qdisc		*qdisc;
+	struct sk_buff		*gso_skb;
 	struct Qdisc		*qdisc_sleeping;
 	struct list_head	qdisc_list;
 	struct netdev_queue	*next_sched;
@@ -634,9 +635,6 @@ struct net_device
 	struct netdev_queue	rx_queue;
 	struct netdev_queue	tx_queue ____cacheline_aligned_in_smp;
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
-
-	/* Partially transmitted GSO packet. */
-	struct sk_buff		*gso_skb;
 
 /*
  * One part is mostly used on xmit path (device)
