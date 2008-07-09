@@ -23,3 +23,14 @@ config USB_IP_VHCI_HCD
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called vhci_hcd.
+
+config USB_IP_HOST
+	tristate "USB IP host driver"
+	depends on USB_IP_COMMON
+	default N
+	---help---
+	 This enables the USB IP device driver which will run on the
+	 host machine.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called usbip.
