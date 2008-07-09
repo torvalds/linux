@@ -57,8 +57,8 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-unsigned long total_memory;
-unsigned long total_lowmem;
+phys_addr_t total_memory;
+phys_addr_t total_lowmem;
 
 phys_addr_t memstart_addr = (phys_addr_t)~0ull;
 EXPORT_SYMBOL(memstart_addr);
