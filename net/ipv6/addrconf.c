@@ -229,10 +229,9 @@ const struct in6_addr in6addr_linklocal_allnodes = IN6ADDR_LINKLOCAL_ALLNODES_IN
 const struct in6_addr in6addr_linklocal_allrouters = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
 
 /* Check if a valid qdisc is available */
-static inline int addrconf_qdisc_ok(struct net_device *dev)
+static inline bool addrconf_qdisc_ok(const struct net_device *dev)
 {
-	struct netdev_queue *txq = &dev->tx_queue;
-	return (txq->qdisc != &noop_qdisc);
+	return !qdisc_tx_is_noop(dev);
 }
 
 /* Check if a route is valid prefix route */

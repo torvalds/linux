@@ -250,6 +250,14 @@ static inline bool qdisc_tx_changing(struct net_device *dev)
 	return (txq->qdisc != txq->qdisc_sleeping);
 }
 
+/* Is the device using the noop qdisc?  */
+static inline bool qdisc_tx_is_noop(const struct net_device *dev)
+{
+	const struct netdev_queue *txq = &dev->tx_queue;
+
+	return (txq->qdisc == &noop_qdisc);
+}
+
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)
 {
