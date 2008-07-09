@@ -1028,32 +1028,6 @@ union uvh_rh_gam_mmioh_overlay_config_mmr_u {
 };
 
 /* ========================================================================= */
-/*                   UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR                     */
-/* ========================================================================= */
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR 0x1600030UL
-
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_BASE_SHFT 30
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_BASE_MASK 0x00003fffc0000000UL
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_M_IO_SHFT 46
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_M_IO_MASK 0x000fc00000000000UL
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_N_IO_SHFT 52
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_N_IO_MASK 0x00f0000000000000UL
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_ENABLE_SHFT 63
-#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_ENABLE_MASK 0x8000000000000000UL
-
-union uvh_rh_gam_mmioh_overlay_config_mmr_u {
-    unsigned long	v;
-    struct uvh_rh_gam_mmioh_overlay_config_mmr_s {
-	unsigned long	rsvd_0_29: 30;  /*    */
-	unsigned long	base   : 16;  /* RW */
-	unsigned long	m_io   :  6;  /* RW */
-	unsigned long	n_io   :  4;  /* RW */
-	unsigned long	rsvd_56_62:  7;  /*    */
-	unsigned long	enable :  1;  /* RW */
-    } s;
-};
-
-/* ========================================================================= */
 /*                    UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR                      */
 /* ========================================================================= */
 #define UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR 0x1600028UL
