@@ -281,14 +281,12 @@ struct header_ops {
 
 enum netdev_state_t
 {
-	__LINK_STATE_XOFF=0,
 	__LINK_STATE_START,
 	__LINK_STATE_PRESENT,
 	__LINK_STATE_SCHED,
 	__LINK_STATE_NOCARRIER,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
-	__LINK_STATE_QDISC_RUNNING,
 };
 
 
@@ -448,10 +446,17 @@ static inline void napi_synchronize(const struct napi_struct *n)
 # define napi_synchronize(n)	barrier()
 #endif
 
+enum netdev_queue_state_t
+{
+	__QUEUE_STATE_XOFF,
+	__QUEUE_STATE_QDISC_RUNNING,
+};
+
 struct netdev_queue {
 	spinlock_t		lock;
 	struct net_device	*dev;
 	struct Qdisc		*qdisc;
+	unsigned long		state;
 	struct sk_buff		*gso_skb;
 	spinlock_t		_xmit_lock;
 	int			xmit_lock_owner;
@@ -952,9 +957,7 @@ extern void __netif_schedule(struct netdev_queue *txq);
 
 static inline void netif_schedule_queue(struct netdev_queue *txq)
 {
-	struct net_device *dev = txq->dev;
-
-	if (!test_bit(__LINK_STATE_XOFF, &dev->state))
+	if (!test_bit(__QUEUE_STATE_XOFF, &txq->state))
 		__netif_schedule(txq);
 }
 
@@ -969,9 +972,14 @@ static inline void netif_schedule(struct net_device *dev)
  *
  *	Allow upper layers to call the device hard_start_xmit routine.
  */
+static inline void netif_tx_start_queue(struct netdev_queue *dev_queue)
+{
+	clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+}
+
 static inline void netif_start_queue(struct net_device *dev)
 {
-	clear_bit(__LINK_STATE_XOFF, &dev->state);
+	netif_tx_start_queue(&dev->tx_queue);
 }
 
 /**
@@ -981,16 +989,21 @@ static inline void netif_start_queue(struct net_device *dev)
  *	Allow upper layers to call the device hard_start_xmit routine.
  *	Used for flow control when transmit resources are available.
  */
-static inline void netif_wake_queue(struct net_device *dev)
+static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 {
 #ifdef CONFIG_NETPOLL_TRAP
 	if (netpoll_trap()) {
-		clear_bit(__LINK_STATE_XOFF, &dev->state);
+		clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
 		return;
 	}
 #endif
-	if (test_and_clear_bit(__LINK_STATE_XOFF, &dev->state))
-		__netif_schedule(&dev->tx_queue);
+	if (test_and_clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state))
+		__netif_schedule(dev_queue);
+}
+
+static inline void netif_wake_queue(struct net_device *dev)
+{
+	netif_tx_wake_queue(&dev->tx_queue);
 }
 
 /**
@@ -1000,9 +1013,14 @@ static inline void netif_wake_queue(struct net_device *dev)
  *	Stop upper layers calling the device hard_start_xmit routine.
  *	Used for flow control when transmit resources are unavailable.
  */
+static inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
+{
+	set_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+}
+
 static inline void netif_stop_queue(struct net_device *dev)
 {
-	set_bit(__LINK_STATE_XOFF, &dev->state);
+	netif_tx_stop_queue(&dev->tx_queue);
 }
 
 /**
@@ -1011,9 +1029,14 @@ static inline void netif_stop_queue(struct net_device *dev)
  *
  *	Test if transmit queue on device is currently unable to send.
  */
+static inline int netif_tx_queue_stopped(const struct netdev_queue *dev_queue)
+{
+	return test_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+}
+
 static inline int netif_queue_stopped(const struct net_device *dev)
 {
-	return test_bit(__LINK_STATE_XOFF, &dev->state);
+	return netif_tx_queue_stopped(&dev->tx_queue);
 }
 
 /**
@@ -1043,7 +1066,7 @@ static inline int netif_running(const struct net_device *dev)
  */
 static inline void netif_start_subqueue(struct net_device *dev, u16 queue_index)
 {
-	clear_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
+	clear_bit(__QUEUE_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
 }
 
 /**
@@ -1059,7 +1082,7 @@ static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 	if (netpoll_trap())
 		return;
 #endif
-	set_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
+	set_bit(__QUEUE_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
 }
 
 /**
@@ -1072,7 +1095,7 @@ static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 static inline int __netif_subqueue_stopped(const struct net_device *dev,
 					 u16 queue_index)
 {
-	return test_bit(__LINK_STATE_XOFF,
+	return test_bit(__QUEUE_STATE_XOFF,
 			&dev->egress_subqueue[queue_index].state);
 }
 
@@ -1095,7 +1118,7 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 	if (netpoll_trap())
 		return;
 #endif
-	if (test_and_clear_bit(__LINK_STATE_XOFF,
+	if (test_and_clear_bit(__QUEUE_STATE_XOFF,
 			       &dev->egress_subqueue[queue_index].state))
 		__netif_schedule(&dev->tx_queue);
 }

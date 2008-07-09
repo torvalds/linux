@@ -121,9 +121,9 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 /*
  * NOTE: Called under queue->lock with locally disabled BH.
  *
- * __LINK_STATE_QDISC_RUNNING guarantees only one CPU can process this
- * device at a time. queue->lock serializes queue accesses for
- * this device AND txq->qdisc pointer itself.
+ * __QUEUE_STATE_QDISC_RUNNING guarantees only one CPU can process
+ * this queue at a time. queue->lock serializes queue accesses for
+ * this queue AND txq->qdisc pointer itself.
  *
  *  netif_tx_lock serializes accesses to device driver.
  *
@@ -206,7 +206,7 @@ void __qdisc_run(struct netdev_queue *txq)
 		}
 	}
 
-	clear_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
+	clear_bit(__QUEUE_STATE_QDISC_RUNNING, &txq->state);
 }
 
 static void dev_watchdog(unsigned long arg)
@@ -605,9 +605,10 @@ static void dev_deactivate_queue(struct netdev_queue *dev_queue,
 
 void dev_deactivate(struct net_device *dev)
 {
+	struct netdev_queue *dev_queue = &dev->tx_queue;
 	int running;
 
-	dev_deactivate_queue(&dev->tx_queue, &noop_qdisc);
+	dev_deactivate_queue(dev_queue, &noop_qdisc);
 
 	dev_watchdog_down(dev);
 
@@ -616,16 +617,17 @@ void dev_deactivate(struct net_device *dev)
 
 	/* Wait for outstanding qdisc_run calls. */
 	do {
-		while (test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
+		while (test_bit(__QUEUE_STATE_QDISC_RUNNING, &dev_queue->state))
 			yield();
 
 		/*
 		 * Double-check inside queue lock to ensure that all effects
 		 * of the queue run are visible when we return.
 		 */
-		spin_lock_bh(&dev->tx_queue.lock);
-		running = test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
-		spin_unlock_bh(&dev->tx_queue.lock);
+		spin_lock_bh(&dev_queue->lock);
+		running = test_bit(__QUEUE_STATE_QDISC_RUNNING,
+				   &dev_queue->state);
+		spin_unlock_bh(&dev_queue->lock);
 
 		/*
 		 * The running flag should never be set at this point because
