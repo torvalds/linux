@@ -1,7 +1,7 @@
 /*
  * Hitachi (now Renesas) SCA-II HD64572 driver for Linux
  *
- * Copyright (C) 1998-2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1998-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -45,6 +45,8 @@
 #include <asm/uaccess.h>
 #include "hd64572.h"
 
+#define NAPI_WEIGHT		16
+
 #define get_msci(port)	  (phy_node(port) ?   MSCI1_OFFSET :   MSCI0_OFFSET)
 #define get_dmac_rx(port) (phy_node(port) ? DMAC1RX_OFFSET : DMAC0RX_OFFSET)
 #define get_dmac_tx(port) (phy_node(port) ? DMAC1TX_OFFSET : DMAC0TX_OFFSET)
@@ -53,6 +55,7 @@
 #define SCA_INTR_DMAC_RX(node) (node ? 0x20 : 0x02)
 #define SCA_INTR_DMAC_TX(node) (node ? 0x40 : 0x04)
 
+static int sca_poll(struct napi_struct *napi, int budget);
 
 static inline struct net_device *port_to_dev(port_t *port)
 {
@@ -84,6 +87,20 @@ static inline int sca_intr_status(card_t *card)
 static inline port_t* dev_to_port(struct net_device *dev)
 {
 	return dev_to_hdlc(dev)->priv;
+}
+
+static inline void enable_intr(port_t *port)
+{
+	/* DMA & MSCI IRQ enable */
+	/* IR0_TXINT | IR0_RXINTA | IR0_DMIB* | IR0_DMIA* */
+	sca_outl(sca_inl(IER0, port->card) |
+		 (phy_node(port) ? 0x0A006600 : 0x000A0066), IER0, port->card);
+}
+
+static inline void disable_intr(port_t *port)
+{
+	sca_outl(sca_inl(IER0, port->card) &
+		 (phy_node(port) ? 0x00FF00FF : 0xFF00FF00), IER0, port->card);
 }
 
 static inline u16 next_desc(port_t *port, u16 desc, int transmit)
@@ -206,6 +223,7 @@ static void sca_init_port(port_t *port)
 		}
 	}
 	sca_set_carrier(port);
+	netif_napi_add(port_to_dev(port), &port->napi, sca_poll, NAPI_WEIGHT);
 }
 
 
@@ -256,17 +274,18 @@ static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc,
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
 	skb->protocol = hdlc_type_trans(skb, dev);
-	netif_rx(skb);
+	netif_receive_skb(skb);
 }
 
 
-/* Receive DMA interrupt service */
-static inline void sca_rx_intr(port_t *port)
+/* Receive DMA service */
+static inline int sca_rx_done(port_t *port, int budget)
 {
 	struct net_device *dev = port_to_dev(port);
 	u16 dmac = get_dmac_rx(port);
 	card_t *card = port_to_card(port);
 	u8 stat = sca_in(DSR_RX(phy_node(port)), card); /* read DMA Status */
+	int received = 0;
 
 	/* Reset DSR status bits */
 	sca_out((stat & (DSR_EOT | DSR_EOM | DSR_BOF | DSR_COF)) | DSR_DWE,
@@ -276,7 +295,7 @@ static inline void sca_rx_intr(port_t *port)
 		/* Dropped one or more frames */
 		dev->stats.rx_over_errors++;
 
-	while (1) {
+	while (received < budget) {
 		u32 desc_off = desc_offset(port, port->rxin, 0);
 		pkt_desc __iomem *desc;
 		u32 cda = sca_inl(dmac + CDAL, card);
@@ -299,8 +318,10 @@ static inline void sca_rx_intr(port_t *port)
 				dev->stats.rx_crc_errors++;
 			if (stat & ST_RX_EOM)
 				port->rxpart = 0; /* received last fragment */
-		} else
+		} else {
 			sca_rx(card, port, desc, port->rxin);
+			received++;
+		}
 
 		/* Set new error descriptor address */
 		sca_outl(desc_off, dmac + EDAL, card);
@@ -309,11 +330,12 @@ static inline void sca_rx_intr(port_t *port)
 
 	/* make sure RX DMA is enabled */
 	sca_out(DSR_DE, DSR_RX(phy_node(port)), card);
+	return received;
 }
 
 
-/* Transmit DMA interrupt service */
-static inline void sca_tx_intr(port_t *port)
+/* Transmit DMA service */
+static inline void sca_tx_done(port_t *port)
 {
 	struct net_device *dev = port_to_dev(port);
 	u16 dmac = get_dmac_tx(port);
@@ -348,27 +370,43 @@ static inline void sca_tx_intr(port_t *port)
 }
 
 
+static int sca_poll(struct napi_struct *napi, int budget)
+{
+	port_t *port = container_of(napi, port_t, napi);
+	u8 stat = sca_intr_status(port->card);
+	int received = 0;
+
+	if (stat & SCA_INTR_MSCI(port->phy_node))
+		sca_msci_intr(port);
+
+	if (stat & SCA_INTR_DMAC_TX(port->phy_node))
+		sca_tx_done(port);
+
+	if (stat & SCA_INTR_DMAC_RX(port->phy_node))
+		received = sca_rx_done(port, budget);
+
+	if (received < budget) {
+		netif_rx_complete(port->dev, napi);
+		enable_intr(port);
+	}
+
+	return received;
+}
+
 static irqreturn_t sca_intr(int irq, void* dev_id)
 {
 	card_t *card = dev_id;
 	int i;
-	u8 stat;
+	u8 stat = sca_intr_status(card);
 	int handled = 0;
 
-	while((stat = sca_intr_status(card)) != 0) {
-		handled = 1;
-		for (i = 0; i < 2; i++) {
-			port_t *port = get_port(card, i);
-			if (port) {
-				if (stat & SCA_INTR_MSCI(i))
-					sca_msci_intr(port);
-
-				if (stat & SCA_INTR_DMAC_RX(i))
-					sca_rx_intr(port);
-
-				if (stat & SCA_INTR_DMAC_TX(i))
-					sca_tx_intr(port);
-			}
+	for (i = 0; i < 2; i++) {
+		port_t *port = get_port(card, i);
+		if (port && (stat & (SCA_INTR_MSCI(i) | SCA_INTR_DMAC_RX(i) |
+				     SCA_INTR_DMAC_TX(i)))) {
+			handled = 1;
+			disable_intr(port);
+			netif_rx_schedule(port->dev, &port->napi);
 		}
 	}
 
@@ -470,18 +508,12 @@ static void sca_open(struct net_device *dev)
 	sca_out(0x3F, msci + TNR1, card); /* +1=TX DMA deactivation condition*/
 
 /* We're using the following interrupts:
-   - TXINT (DMAC completed all transmisions, underrun or DCD change)
+   - TXINT (DMAC completed all transmissions, underrun or DCD change)
    - all DMA interrupts
 */
-
-	sca_set_carrier(port);
-
 	/* MSCI TXINT and RXINTA interrupt enable */
 	sca_outl(IE0_TXINT | IE0_RXINTA | IE0_UDRN | IE0_CDCD, msci + IE0,
 		 card);
-	/* DMA & MSCI IRQ enable */
-	sca_outl(sca_inl(IER0, card) |
-		 (phy_node(port) ? 0x0A006600 : 0x000A0066), IER0, card);
 
 	sca_out(port->tmc, msci + TMCR, card);
 	sca_out(port->tmc, msci + TMCT, card);
@@ -490,6 +522,9 @@ static void sca_open(struct net_device *dev)
 	sca_out(CMD_TX_ENABLE, msci + CMD, card);
 	sca_out(CMD_RX_ENABLE, msci + CMD, card);
 
+	sca_set_carrier(port);
+	enable_intr(port);
+	napi_enable(&port->napi);
 	netif_start_queue(dev);
 }
 
@@ -497,14 +532,11 @@ static void sca_open(struct net_device *dev)
 static void sca_close(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
-	card_t* card = port_to_card(port);
 
 	/* reset channel */
 	sca_out(CMD_RESET, get_msci(port) + CMD, port_to_card(port));
-	/* disable DMA & MSCI IRQ */
-	sca_outl(sca_inl(IER0, card) &
-		 (phy_node(port) ? 0x00FF00FF : 0xFF00FF00), IER0, card);
-
+	disable_intr(port);
+	napi_disable(&port->napi);
 	netif_stop_queue(dev);
 }
 

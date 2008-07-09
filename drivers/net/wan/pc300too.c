@@ -78,6 +78,7 @@ typedef struct {
 
 
 typedef struct port_s {
+	struct napi_struct napi;
 	struct net_device *dev;
 	struct card_s *card;
 	spinlock_t lock;	/* TX lock */
@@ -481,6 +482,7 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 		else
 			port->iface = IF_IFACE_V35;
 
+		sca_init_port(port);
 		if (register_hdlc_device(dev)) {
 			printk(KERN_ERR "pc300: unable to register hdlc "
 			       "device\n");
@@ -488,7 +490,6 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 			pc300_pci_remove_one(pdev);
 			return -ENOBUFS;
 		}
-		sca_init_port(port); /* Set up SCA memory */
 
 		printk(KERN_INFO "%s: PC300 node %d\n",
 		       dev->name, port->phy_node);
