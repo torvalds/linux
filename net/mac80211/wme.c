@@ -103,7 +103,7 @@ static inline int wme_downgrade_ac(struct sk_buff *skb)
  * negative return value indicates to drop the frame */
 static int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 {
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (!ieee80211_is_data(hdr->frame_control)) {
@@ -140,7 +140,7 @@ static int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 
 static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 {
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -249,7 +249,7 @@ static int wme_qdiscop_requeue(struct sk_buff *skb, struct Qdisc* qd)
 static struct sk_buff *wme_qdiscop_dequeue(struct Qdisc* qd)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct net_device *dev = qd->dev;
+	struct net_device *dev = qdisc_dev(qd);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	struct sk_buff *skb;
@@ -286,7 +286,7 @@ static struct sk_buff *wme_qdiscop_dequeue(struct Qdisc* qd)
 static void wme_qdiscop_reset(struct Qdisc* qd)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	int queue;
 
@@ -303,7 +303,7 @@ static void wme_qdiscop_reset(struct Qdisc* qd)
 static void wme_qdiscop_destroy(struct Qdisc* qd)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	int queue;
 
@@ -328,7 +328,7 @@ static int wme_qdiscop_tune(struct Qdisc *qd, struct nlattr *opt)
 static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct net_device *dev = qd->dev;
+	struct net_device *dev = qdisc_dev(qd);
 	struct ieee80211_local *local;
 	struct ieee80211_hw *hw;
 	int err = 0, i;
@@ -359,7 +359,7 @@ static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 	/* create child queues */
 	for (i = 0; i < QD_NUM(hw); i++) {
 		skb_queue_head_init(&q->requeued[i]);
-		q->queues[i] = qdisc_create_dflt(qd->dev, qd->dev_queue,
+		q->queues[i] = qdisc_create_dflt(qdisc_dev(qd), qd->dev_queue,
 						 &pfifo_qdisc_ops,
 						 qd->handle);
 		if (!q->queues[i]) {
@@ -386,7 +386,7 @@ static int wme_classop_graft(struct Qdisc *qd, unsigned long arg,
 			     struct Qdisc *new, struct Qdisc **old)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	unsigned long queue = arg - 1;
 
@@ -410,7 +410,7 @@ static struct Qdisc *
 wme_classop_leaf(struct Qdisc *qd, unsigned long arg)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	unsigned long queue = arg - 1;
 
@@ -423,7 +423,7 @@ wme_classop_leaf(struct Qdisc *qd, unsigned long arg)
 
 static unsigned long wme_classop_get(struct Qdisc *qd, u32 classid)
 {
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	unsigned long queue = TC_H_MIN(classid);
 
@@ -450,7 +450,7 @@ static int wme_classop_change(struct Qdisc *qd, u32 handle, u32 parent,
 			      struct nlattr **tca, unsigned long *arg)
 {
 	unsigned long cl = *arg;
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 
 	if (cl - 1 > QD_NUM(hw))
@@ -467,7 +467,7 @@ static int wme_classop_change(struct Qdisc *qd, u32 handle, u32 parent,
  * when we add WMM-SA support - TSPECs may be deleted here */
 static int wme_classop_delete(struct Qdisc *qd, unsigned long cl)
 {
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 
 	if (cl - 1 > QD_NUM(hw))
@@ -480,7 +480,7 @@ static int wme_classop_dump_class(struct Qdisc *qd, unsigned long cl,
 				  struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 
 	if (cl - 1 > QD_NUM(hw))
@@ -494,7 +494,7 @@ static int wme_classop_dump_class(struct Qdisc *qd, unsigned long cl,
 
 static void wme_classop_walk(struct Qdisc *qd, struct qdisc_walker *arg)
 {
-	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
+	struct ieee80211_local *local = wdev_priv(qdisc_dev(qd)->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
 	int queue;
 

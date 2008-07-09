@@ -48,10 +48,10 @@ static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
 	if (opt == NULL) {
-		u32 limit = sch->dev->tx_queue_len ? : 1;
+		u32 limit = qdisc_dev(sch)->tx_queue_len ? : 1;
 
 		if (sch->ops == &bfifo_qdisc_ops)
-			limit *= sch->dev->mtu;
+			limit *= qdisc_dev(sch)->mtu;
 
 		q->limit = limit;
 	} else {
@@ -137,7 +137,7 @@ struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
 	struct Qdisc *q;
 	int err = -ENOMEM;
 
-	q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+	q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 			      ops, TC_H_MAKE(sch->handle, 1));
 	if (q) {
 		err = fifo_set_limit(q, limit);

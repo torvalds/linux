@@ -650,7 +650,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	}
 
 	sch->flags &= ~TCQ_F_THROTTLED;
-	netif_schedule(sch->dev);
+	netif_schedule(qdisc_dev(sch));
 	return HRTIMER_NORESTART;
 }
 
@@ -1077,9 +1077,9 @@ static void cbq_normalize_quanta(struct cbq_sched_data *q, int prio)
 				cl->quantum = (cl->weight*cl->allot*q->nclasses[prio])/
 					q->quanta[prio];
 			}
-			if (cl->quantum <= 0 || cl->quantum>32*cl->qdisc->dev->mtu) {
+			if (cl->quantum <= 0 || cl->quantum>32*qdisc_dev(cl->qdisc)->mtu) {
 				printk(KERN_WARNING "CBQ: class %08x has bad quantum==%ld, repaired.\n", cl->common.classid, cl->quantum);
-				cl->quantum = cl->qdisc->dev->mtu/2 + 1;
+				cl->quantum = qdisc_dev(cl->qdisc)->mtu/2 + 1;
 			}
 		}
 	}
@@ -1401,7 +1401,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.sibling = &q->link;
 	q->link.common.classid = sch->handle;
 	q->link.qdisc = sch;
-	if (!(q->link.q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+	if (!(q->link.q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 					    &pfifo_qdisc_ops,
 					    sch->handle)))
 		q->link.q = &noop_qdisc;
@@ -1411,7 +1411,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.cpriority = TC_CBQ_MAXPRIO-1;
 	q->link.ovl_strategy = TC_CBQ_OVL_CLASSIC;
 	q->link.overlimit = cbq_ovl_classic;
-	q->link.allot = psched_mtu(sch->dev);
+	q->link.allot = psched_mtu(qdisc_dev(sch));
 	q->link.quantum = q->link.allot;
 	q->link.weight = q->link.R_tab->rate.rate;
 
@@ -1646,7 +1646,7 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	if (cl) {
 		if (new == NULL) {
-			new = qdisc_create_dflt(sch->dev, sch->dev_queue,
+			new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 						&pfifo_qdisc_ops,
 						cl->common.classid);
 			if (new == NULL)
@@ -1746,10 +1746,10 @@ static void cbq_put(struct Qdisc *sch, unsigned long arg)
 #ifdef CONFIG_NET_CLS_ACT
 		struct cbq_sched_data *q = qdisc_priv(sch);
 
-		spin_lock_bh(&sch->dev->queue_lock);
+		spin_lock_bh(&qdisc_dev(sch)->queue_lock);
 		if (q->rx_class == cl)
 			q->rx_class = NULL;
-		spin_unlock_bh(&sch->dev->queue_lock);
+		spin_unlock_bh(&qdisc_dev(sch)->queue_lock);
 #endif
 
 		cbq_destroy_class(sch, cl);
@@ -1828,7 +1828,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      &sch->dev->queue_lock,
+					      &qdisc_dev(sch)->queue_lock,
 					      tca[TCA_RATE]);
 		return 0;
 	}
@@ -1879,7 +1879,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	cl->R_tab = rtab;
 	rtab = NULL;
 	cl->refcnt = 1;
-	if (!(cl->q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+	if (!(cl->q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 					&pfifo_qdisc_ops, classid)))
 		cl->q = &noop_qdisc;
 	cl->common.classid = classid;
@@ -1919,7 +1919,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 	if (tca[TCA_RATE])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  &sch->dev->queue_lock, tca[TCA_RATE]);
+				  &qdisc_dev(sch)->queue_lock, tca[TCA_RATE]);
 
 	*arg = (unsigned long)cl;
 	return 0;

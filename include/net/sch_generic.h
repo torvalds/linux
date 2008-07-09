@@ -38,7 +38,6 @@ struct Qdisc
 	atomic_t		refcnt;
 	struct sk_buff_head	q;
 	struct netdev_queue	*dev_queue;
-	struct net_device	*dev;
 	struct list_head	list;
 
 	struct gnet_stats_basic	bstats;
@@ -156,14 +155,18 @@ struct tcf_proto
 	struct tcf_proto_ops	*ops;
 };
 
+static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
+{
+	return qdisc->dev_queue->dev;
+}
 
 extern void qdisc_lock_tree(struct net_device *dev);
 extern void qdisc_unlock_tree(struct net_device *dev);
 
-#define sch_tree_lock(q)	qdisc_lock_tree((q)->dev)
-#define sch_tree_unlock(q)	qdisc_unlock_tree((q)->dev)
-#define tcf_tree_lock(tp)	qdisc_lock_tree((tp)->q->dev)
-#define tcf_tree_unlock(tp)	qdisc_unlock_tree((tp)->q->dev)
+#define sch_tree_lock(q)	qdisc_lock_tree(qdisc_dev(q))
+#define sch_tree_unlock(q)	qdisc_unlock_tree(qdisc_dev(q))
+#define tcf_tree_lock(tp)	qdisc_lock_tree(qdisc_dev((tp)->q))
+#define tcf_tree_unlock(tp)	qdisc_unlock_tree(qdisc_dev((tp)->q))
 
 extern struct Qdisc noop_qdisc;
 extern struct Qdisc_ops noop_qdisc_ops;
@@ -217,8 +220,7 @@ extern void dev_deactivate(struct net_device *dev);
 extern void qdisc_reset(struct Qdisc *qdisc);
 extern void qdisc_destroy(struct Qdisc *qdisc);
 extern void qdisc_tree_decrease_qlen(struct Qdisc *qdisc, unsigned int n);
-extern struct Qdisc *qdisc_alloc(struct net_device *dev,
-				 struct netdev_queue *dev_queue,
+extern struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 				 struct Qdisc_ops *ops);
 extern struct Qdisc *qdisc_create_dflt(struct net_device *dev,
 				       struct netdev_queue *dev_queue,

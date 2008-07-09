@@ -281,7 +281,7 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 {
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
 						 timer);
-	struct net_device *dev = wd->qdisc->dev;
+	struct net_device *dev = qdisc_dev(wd->qdisc);
 
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 	smp_wmb();
@@ -493,7 +493,7 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 		if (TC_H_MAJ(parentid) == TC_H_MAJ(TC_H_INGRESS))
 			return;
 
-		sch = qdisc_lookup(sch->dev, TC_H_MAJ(parentid));
+		sch = qdisc_lookup(qdisc_dev(sch), TC_H_MAJ(parentid));
 		if (sch == NULL) {
 			WARN_ON(parentid != TC_H_ROOT);
 			return;
@@ -593,7 +593,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	if (ops == NULL)
 		goto err_out;
 
-	sch = qdisc_alloc(dev, dev_queue, ops);
+	sch = qdisc_alloc(dev_queue, ops);
 	if (IS_ERR(sch)) {
 		err = PTR_ERR(sch);
 		goto err_out2;
@@ -940,7 +940,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	tcm->tcm_family = AF_UNSPEC;
 	tcm->tcm__pad1 = 0;
 	tcm->tcm__pad2 = 0;
-	tcm->tcm_ifindex = q->dev->ifindex;
+	tcm->tcm_ifindex = qdisc_dev(q)->ifindex;
 	tcm->tcm_parent = clid;
 	tcm->tcm_handle = q->handle;
 	tcm->tcm_info = atomic_read(&q->refcnt);
@@ -1186,7 +1186,7 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*tcm), flags);
 	tcm = NLMSG_DATA(nlh);
 	tcm->tcm_family = AF_UNSPEC;
-	tcm->tcm_ifindex = q->dev->ifindex;
+	tcm->tcm_ifindex = qdisc_dev(q)->ifindex;
 	tcm->tcm_parent = q->handle;
 	tcm->tcm_handle = q->handle;
 	tcm->tcm_info = 0;

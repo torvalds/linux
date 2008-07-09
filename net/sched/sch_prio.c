@@ -136,7 +136,8 @@ prio_dequeue(struct Qdisc* sch)
 		 * pulling an skb.  This way we avoid excessive requeues
 		 * for slower queues.
 		 */
-		if (!__netif_subqueue_stopped(sch->dev, (q->mq ? prio : 0))) {
+		if (!__netif_subqueue_stopped(qdisc_dev(sch),
+					      (q->mq ? prio : 0))) {
 			qdisc = q->queues[prio];
 			skb = qdisc->dequeue(qdisc);
 			if (skb) {
@@ -165,8 +166,8 @@ static struct sk_buff *rr_dequeue(struct Qdisc* sch)
 		 * for slower queues.  If the queue is stopped, try the
 		 * next queue.
 		 */
-		if (!__netif_subqueue_stopped(sch->dev,
-					    (q->mq ? q->curband : 0))) {
+		if (!__netif_subqueue_stopped(qdisc_dev(sch),
+					      (q->mq ? q->curband : 0))) {
 			qdisc = q->queues[q->curband];
 			skb = qdisc->dequeue(qdisc);
 			if (skb) {
@@ -249,10 +250,10 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 	if (q->mq) {
 		if (sch->parent != TC_H_ROOT)
 			return -EINVAL;
-		if (netif_is_multiqueue(sch->dev)) {
+		if (netif_is_multiqueue(qdisc_dev(sch))) {
 			if (q->bands == 0)
-				q->bands = sch->dev->egress_subqueue_count;
-			else if (q->bands != sch->dev->egress_subqueue_count)
+				q->bands = qdisc_dev(sch)->egress_subqueue_count;
+			else if (q->bands != qdisc_dev(sch)->egress_subqueue_count)
 				return -EINVAL;
 		} else
 			return -EOPNOTSUPP;
@@ -281,7 +282,7 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 	for (i=0; i<q->bands; i++) {
 		if (q->queues[i] == &noop_qdisc) {
 			struct Qdisc *child;
-			child = qdisc_create_dflt(sch->dev, sch->dev_queue,
+			child = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 						  &pfifo_qdisc_ops,
 						  TC_H_MAKE(sch->handle, i + 1));
 			if (child) {

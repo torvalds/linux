@@ -461,7 +461,7 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 		return -EINVAL;
 
 	sch_tree_lock(sch);
-	q->quantum = ctl->quantum ? : psched_mtu(sch->dev);
+	q->quantum = ctl->quantum ? : psched_mtu(qdisc_dev(sch));
 	q->perturb_period = ctl->perturb_period * HZ;
 	if (ctl->limit)
 		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH - 1);
@@ -502,7 +502,7 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->max_depth = 0;
 	q->tail = SFQ_DEPTH;
 	if (opt == NULL) {
-		q->quantum = psched_mtu(sch->dev);
+		q->quantum = psched_mtu(qdisc_dev(sch));
 		q->perturb_period = 0;
 		q->perturbation = net_random();
 	} else {

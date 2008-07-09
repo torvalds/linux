@@ -180,7 +180,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	 * skb will be queued.
 	 */
 	if (count > 1 && (skb2 = skb_clone(skb, GFP_ATOMIC)) != NULL) {
-		struct Qdisc *rootq = sch->dev->qdisc;
+		struct Qdisc *rootq = qdisc_dev(sch)->qdisc;
 		u32 dupsave = q->duplicate; /* prevent duplicating a dup... */
 		q->duplicate = 0;
 
@@ -333,9 +333,9 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	for (i = 0; i < n; i++)
 		d->table[i] = data[i];
 
-	spin_lock_bh(&sch->dev->queue_lock);
+	spin_lock_bh(&qdisc_dev(sch)->queue_lock);
 	d = xchg(&q->delay_dist, d);
-	spin_unlock_bh(&sch->dev->queue_lock);
+	spin_unlock_bh(&qdisc_dev(sch)->queue_lock);
 
 	kfree(d);
 	return 0;
@@ -495,7 +495,7 @@ static int tfifo_init(struct Qdisc *sch, struct nlattr *opt)
 
 		q->limit = ctl->limit;
 	} else
-		q->limit = max_t(u32, sch->dev->tx_queue_len, 1);
+		q->limit = max_t(u32, qdisc_dev(sch)->tx_queue_len, 1);
 
 	q->oldest = PSCHED_PASTPERFECT;
 	return 0;
@@ -536,7 +536,7 @@ static int netem_init(struct Qdisc *sch, struct nlattr *opt)
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 
-	q->qdisc = qdisc_create_dflt(sch->dev, sch->dev_queue,
+	q->qdisc = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 				     &tfifo_qdisc_ops,
 				     TC_H_MAKE(sch->handle, 1));
 	if (!q->qdisc) {

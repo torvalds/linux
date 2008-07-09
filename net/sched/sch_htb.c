@@ -1026,7 +1026,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	qdisc_watchdog_init(&q->watchdog, sch);
 	skb_queue_head_init(&q->direct_queue);
 
-	q->direct_qlen = sch->dev->tx_queue_len;
+	q->direct_qlen = qdisc_dev(sch)->tx_queue_len;
 	if (q->direct_qlen < 2)	/* some devices have zero tx_queue_len */
 		q->direct_qlen = 2;
 
@@ -1043,7 +1043,7 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct nlattr *nest;
 	struct tc_htb_glob gopt;
 
-	spin_lock_bh(&sch->dev->queue_lock);
+	spin_lock_bh(&qdisc_dev(sch)->queue_lock);
 
 	gopt.direct_pkts = q->direct_pkts;
 	gopt.version = HTB_VER;
@@ -1057,11 +1057,11 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	NLA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
 	nla_nest_end(skb, nest);
 
-	spin_unlock_bh(&sch->dev->queue_lock);
+	spin_unlock_bh(&qdisc_dev(sch)->queue_lock);
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock_bh(&sch->dev->queue_lock);
+	spin_unlock_bh(&qdisc_dev(sch)->queue_lock);
 	nla_nest_cancel(skb, nest);
 	return -1;
 }
@@ -1073,7 +1073,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	struct nlattr *nest;
 	struct tc_htb_opt opt;
 
-	spin_lock_bh(&sch->dev->queue_lock);
+	spin_lock_bh(&qdisc_dev(sch)->queue_lock);
 	tcm->tcm_parent = cl->parent ? cl->parent->common.classid : TC_H_ROOT;
 	tcm->tcm_handle = cl->common.classid;
 	if (!cl->level && cl->un.leaf.q)
@@ -1095,11 +1095,11 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	NLA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
 
 	nla_nest_end(skb, nest);
-	spin_unlock_bh(&sch->dev->queue_lock);
+	spin_unlock_bh(&qdisc_dev(sch)->queue_lock);
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock_bh(&sch->dev->queue_lock);
+	spin_unlock_bh(&qdisc_dev(sch)->queue_lock);
 	nla_nest_cancel(skb, nest);
 	return -1;
 }
@@ -1129,7 +1129,7 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 
 	if (cl && !cl->level) {
 		if (new == NULL &&
-		    (new = qdisc_create_dflt(sch->dev, sch->dev_queue,
+		    (new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 					     &pfifo_qdisc_ops,
 					     cl->common.classid))
 		    == NULL)
@@ -1257,7 +1257,7 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 		return -EBUSY;
 
 	if (!cl->level && htb_parent_last_child(cl)) {
-		new_q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+		new_q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 					  &pfifo_qdisc_ops,
 					  cl->parent->common.classid);
 		last_child = 1;
@@ -1365,7 +1365,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			goto failure;
 
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  &sch->dev->queue_lock,
+				  &qdisc_dev(sch)->queue_lock,
 				  tca[TCA_RATE] ? : &est.nla);
 		cl->refcnt = 1;
 		cl->children = 0;
@@ -1378,7 +1378,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		/* create leaf qdisc early because it uses kmalloc(GFP_KERNEL)
 		   so that can't be used inside of sch_tree_lock
 		   -- thanks to Karlis Peisenieks */
-		new_q = qdisc_create_dflt(sch->dev, sch->dev_queue,
+		new_q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
 					  &pfifo_qdisc_ops, classid);
 		sch_tree_lock(sch);
 		if (parent && !parent->level) {
@@ -1420,7 +1420,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	} else {
 		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      &sch->dev->queue_lock,
+					      &qdisc_dev(sch)->queue_lock,
 					      tca[TCA_RATE]);
 		sch_tree_lock(sch);
 	}

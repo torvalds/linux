@@ -302,7 +302,7 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 			*fp = f->next;
 			tcf_tree_unlock(tp);
 
-			route4_reset_fastmap(tp->q->dev, head, f->id);
+			route4_reset_fastmap(qdisc_dev(tp->q), head, f->id);
 			route4_delete_filter(tp, f);
 
 			/* Strip tree */
@@ -500,7 +500,7 @@ reinsert:
 	}
 	tcf_tree_unlock(tp);
 
-	route4_reset_fastmap(tp->q->dev, head, f->id);
+	route4_reset_fastmap(qdisc_dev(tp->q), head, f->id);
 	*arg = (unsigned long)f;
 	return 0;
 

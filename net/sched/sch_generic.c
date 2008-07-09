@@ -364,7 +364,7 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
 {
 	struct sk_buff_head *list = prio2list(skb, qdisc);
 
-	if (skb_queue_len(list) < qdisc->dev->tx_queue_len) {
+	if (skb_queue_len(list) < qdisc_dev(qdisc)->tx_queue_len) {
 		qdisc->q.qlen++;
 		return __qdisc_enqueue_tail(skb, qdisc, list);
 	}
@@ -440,8 +440,7 @@ static struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 
-struct Qdisc *qdisc_alloc(struct net_device *dev,
-			  struct netdev_queue *dev_queue,
+struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  struct Qdisc_ops *ops)
 {
 	void *p;
@@ -465,8 +464,7 @@ struct Qdisc *qdisc_alloc(struct net_device *dev,
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
 	sch->dev_queue = dev_queue;
-	sch->dev = dev;
-	dev_hold(dev);
+	dev_hold(qdisc_dev(sch));
 	atomic_set(&sch->refcnt, 1);
 
 	return sch;
@@ -481,7 +479,7 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev,
 {
 	struct Qdisc *sch;
 
-	sch = qdisc_alloc(dev, dev_queue, ops);
+	sch = qdisc_alloc(dev_queue, ops);
 	if (IS_ERR(sch))
 		goto errout;
 	sch->stats_lock = &dev->queue_lock;
@@ -534,7 +532,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 		ops->destroy(qdisc);
 
 	module_put(ops->owner);
-	dev_put(qdisc->dev);
+	dev_put(qdisc_dev(qdisc));
 	call_rcu(&qdisc->q_rcu, __qdisc_destroy);
 }
 EXPORT_SYMBOL(qdisc_destroy);

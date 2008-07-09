@@ -164,7 +164,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			 * if no default DP has been configured. This
 			 * allows for DP flows to be left untouched.
 			 */
-			if (skb_queue_len(&sch->q) < sch->dev->tx_queue_len)
+			if (skb_queue_len(&sch->q) < qdisc_dev(sch)->tx_queue_len)
 				return qdisc_enqueue_tail(skb, sch);
 			else
 				goto drop;
