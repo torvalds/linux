@@ -24,8 +24,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 5)
-static const char version[] = "2.1.5";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
+static const char version[] = "2.1.7";
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/VC032X USB Camera Driver");
@@ -58,7 +58,6 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-#define SD_AUTOGAIN 0
 	{
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -67,20 +66,22 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-		.default_value = 1,
+#define AUTOGAIN_DEF 1
+		.default_value = AUTOGAIN_DEF,
 	    },
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
-#define SD_FREQ 1
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
 		.type    = V4L2_CTRL_TYPE_MENU,
 		.name    = "Light frequency filter",
 		.minimum = 0,
-		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
+		.maximum = 2,	/* 0: No, 1: 50Hz, 2:60Hz */
 		.step    = 1,
+#define FREQ_DEF 1
+		.default_value = FREQ_DEF,
 		.default_value = 1,
 	    },
 	    .set = sd_setfreq,
@@ -89,12 +90,12 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format vc0321_mode[] = {
-	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
 		.bytesperline = 320 * 2,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
 		.bytesperline = 640 * 2,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -1418,28 +1419,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 	__u8 tmp2[4];
 	int sensor;
-	__u16 vendor;
 	__u16 product;
 
-	vendor = id->idVendor;
 	product = id->idProduct;
-	switch (vendor) {
-	case 0x046d:		/* Logitech Labtec */
-/*		switch (product) { */
-/*		case 0x0892: */
-/*		case 0x0896: */
-			sd->bridge = BRIDGE_VC0321;
-/*			break; */
-/*		} */
-		break;
+	sd->bridge = BRIDGE_VC0321;
+	switch (id->idVendor) {
 	case 0x0ac8:		/* Vimicro z-star */
 		switch (product) {
-		case 0x0321:
-		case 0x0328:
-		case 0xc001:
-		case 0xc002:
-			sd->bridge = BRIDGE_VC0321;
-			break;
 		case 0x0323:
 			sd->bridge = BRIDGE_VC0323;
 			break;
@@ -1459,10 +1445,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->epaddr = 0x02;
 	if (sd->bridge == BRIDGE_VC0321) {
 		cam->cam_mode = vc0321_mode;
-		cam->nmodes = sizeof vc0321_mode / sizeof vc0321_mode[0];
+		cam->nmodes = ARRAY_SIZE(vc0321_mode);
 	} else {
 		cam->cam_mode = vc0323_mode;
-		cam->nmodes = sizeof vc0323_mode / sizeof vc0323_mode[0];
+		cam->nmodes = ARRAY_SIZE(vc0323_mode);
 	}
 
 	vc0321_reset(gspca_dev);
@@ -1498,7 +1484,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	sd->qindex = 7;
-	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
+	sd->autogain = AUTOGAIN_DEF;
+	sd->lightfreq = FREQ_DEF;
 
 	if (sd->bridge == BRIDGE_VC0321) {
 		reg_r(dev, 0x8a, 0, tmp2, 3);
