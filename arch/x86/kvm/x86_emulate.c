@@ -219,7 +219,7 @@ static u16 twobyte_table[256] = {
 	/* 0xA0 - 0xA7 */
 	0, 0, 0, DstMem | SrcReg | ModRM | BitOp, 0, 0, 0, 0,
 	/* 0xA8 - 0xAF */
-	0, 0, 0, DstMem | SrcReg | ModRM | BitOp, 0, 0, 0, 0,
+	0, 0, 0, DstMem | SrcReg | ModRM | BitOp, 0, 0, ModRM, 0,
 	/* 0xB0 - 0xB7 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM, 0,
 	    DstMem | SrcReg | ModRM | BitOp,
@@ -1946,6 +1946,8 @@ twobyte_insn:
 		/* only subword offset */
 		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("bts", c->src, c->dst, ctxt->eflags);
+		break;
+	case 0xae:              /* clflush */
 		break;
 	case 0xb0 ... 0xb1:	/* cmpxchg */
 		/*
