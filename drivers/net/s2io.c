@@ -2501,6 +2501,9 @@ static void stop_nic(struct s2io_nic *nic)
 /**
  *  fill_rx_buffers - Allocates the Rx side skbs
  *  @ring_info: per ring structure
+ *  @from_card_up: If this is true, we will map the buffer to get
+ *     the dma address for buf0 and buf1 to give it to the card.
+ *     Else we will sync the already mapped buffer to give it to the card.
  *  Description:
  *  The function allocates Rx side skbs and puts the physical
  *  address of these buffers into the RxD buffer pointers, so that the NIC
@@ -2518,7 +2521,7 @@ static void stop_nic(struct s2io_nic *nic)
  *  SUCCESS on success or an appropriate -ve value on failure.
  */
 
-static int fill_rx_buffers(struct ring_info *ring)
+static int fill_rx_buffers(struct ring_info *ring, int from_card_up)
 {
 	struct sk_buff *skb;
 	struct RxD_t *rxdp;
@@ -2637,17 +2640,16 @@ static int fill_rx_buffers(struct ring_info *ring)
 			skb->data = (void *) (unsigned long)tmp;
 			skb_reset_tail_pointer(skb);
 
-			/* AK: check is wrong. 0 can be valid dma address */
-			if (!(rxdp3->Buffer0_ptr))
+			if (from_card_up) {
 				rxdp3->Buffer0_ptr =
 				   pci_map_single(ring->pdev, ba->ba_0,
 					BUF0_LEN, PCI_DMA_FROMDEVICE);
-			else
+				if (pci_dma_mapping_error(rxdp3->Buffer0_ptr))
+					goto pci_map_failed;
+			} else
 				pci_dma_sync_single_for_device(ring->pdev,
 				(dma_addr_t) rxdp3->Buffer0_ptr,
 				    BUF0_LEN, PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(rxdp3->Buffer0_ptr))
-				goto pci_map_failed;
 
 			rxdp->Control_2 = SET_BUFFER0_SIZE_3(BUF0_LEN);
 			if (ring->rxd_mode == RXD_MODE_3B) {
@@ -2664,21 +2666,22 @@ static int fill_rx_buffers(struct ring_info *ring)
 				if (pci_dma_mapping_error(rxdp3->Buffer2_ptr))
 					goto pci_map_failed;
 
-				/* AK: check is wrong */
-				if (!rxdp3->Buffer1_ptr)
+				if (from_card_up) {
 					rxdp3->Buffer1_ptr =
 						pci_map_single(ring->pdev,
 						ba->ba_1, BUF1_LEN,
 						PCI_DMA_FROMDEVICE);
 
-				if (pci_dma_mapping_error(rxdp3->Buffer1_ptr)) {
-					pci_unmap_single
-						(ring->pdev,
-						(dma_addr_t)(unsigned long)
-						skb->data,
-						ring->mtu + 4,
-						PCI_DMA_FROMDEVICE);
-					goto pci_map_failed;
+					if (pci_dma_mapping_error
+						(rxdp3->Buffer1_ptr)) {
+						pci_unmap_single
+							(ring->pdev,
+						    (dma_addr_t)(unsigned long)
+							skb->data,
+							ring->mtu + 4,
+							PCI_DMA_FROMDEVICE);
+						goto pci_map_failed;
+					}
 				}
 				rxdp->Control_2 |= SET_BUFFER1_SIZE_3(1);
 				rxdp->Control_2 |= SET_BUFFER2_SIZE_3
@@ -2813,7 +2816,7 @@ static void free_rx_buffers(struct s2io_nic *sp)
 
 static int s2io_chk_rx_buffers(struct ring_info *ring)
 {
-	if (fill_rx_buffers(ring) == -ENOMEM) {
+	if (fill_rx_buffers(ring, 0) == -ENOMEM) {
 		DBG_PRINT(INFO_DBG, "%s:Out of memory", ring->dev->name);
 		DBG_PRINT(INFO_DBG, " in Rx Intr!!\n");
 	}
@@ -2944,7 +2947,7 @@ static void s2io_netpoll(struct net_device *dev)
 		rx_intr_handler(&mac_control->rings[i], 0);
 
 	for (i = 0; i < config->rx_ring_num; i++) {
-		if (fill_rx_buffers(&mac_control->rings[i]) == -ENOMEM) {
+		if (fill_rx_buffers(&mac_control->rings[i], 0) == -ENOMEM) {
 			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
 			DBG_PRINT(INFO_DBG, " in Rx Netpoll!!\n");
 			break;
@@ -7183,7 +7186,7 @@ static int s2io_card_up(struct s2io_nic * sp)
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		mac_control->rings[i].mtu = dev->mtu;
-		ret = fill_rx_buffers(&mac_control->rings[i]);
+		ret = fill_rx_buffers(&mac_control->rings[i], 1);
 		if (ret) {
 			DBG_PRINT(ERR_DBG, "%s: Out of memory in Open\n",
 				  dev->name);
