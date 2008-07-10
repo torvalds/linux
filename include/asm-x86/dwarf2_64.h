@@ -35,21 +35,23 @@
 
 #else
 
-/* use assembler line comment character # to ignore the arguments. */
-#define CFI_STARTPROC	#
-#define CFI_ENDPROC	#
-#define CFI_DEF_CFA	#
-#define CFI_DEF_CFA_REGISTER	#
-#define CFI_DEF_CFA_OFFSET	#
-#define CFI_ADJUST_CFA_OFFSET	#
-#define CFI_OFFSET	#
-#define CFI_REL_OFFSET	#
-#define CFI_REGISTER	#
-#define CFI_RESTORE	#
-#define CFI_REMEMBER_STATE	#
-#define CFI_RESTORE_STATE	#
-#define CFI_UNDEFINED	#
-#define CFI_SIGNAL_FRAME	#
+.macro ignore a=0, b=0, c=0, d=0
+.endm
+
+#define CFI_STARTPROC	ignore
+#define CFI_ENDPROC	ignore
+#define CFI_DEF_CFA	ignore
+#define CFI_DEF_CFA_REGISTER	ignore
+#define CFI_DEF_CFA_OFFSET	ignore
+#define CFI_ADJUST_CFA_OFFSET	ignore
+#define CFI_OFFSET	ignore
+#define CFI_REL_OFFSET	ignore
+#define CFI_REGISTER	ignore
+#define CFI_RESTORE	ignore
+#define CFI_REMEMBER_STATE	ignore
+#define CFI_RESTORE_STATE	ignore
+#define CFI_UNDEFINED	ignore
+#define CFI_SIGNAL_FRAME	ignore
 
 #endif
 
