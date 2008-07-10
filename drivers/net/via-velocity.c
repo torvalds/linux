@@ -1102,47 +1102,41 @@ static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pc
 
 static int velocity_init_rings(struct velocity_info *vptr)
 {
-	int i;
-	unsigned int psize;
+	struct velocity_opt *opt = &vptr->options;
+	const unsigned int rx_ring_size = opt->numrx * sizeof(struct rx_desc);
+	const unsigned int tx_ring_size = opt->numtx * sizeof(struct tx_desc);
+	struct pci_dev *pdev = vptr->pdev;
 	dma_addr_t pool_dma;
-	u8 *pool;
+	void *pool;
+	unsigned int i;
 
 	/*
-	 *	Allocate all RD/TD rings a single pool
-	 */
-
-	psize = vptr->options.numrx * sizeof(struct rx_desc) +
-		vptr->options.numtx * sizeof(struct tx_desc) * vptr->num_txq;
-
-	/*
+	 * Allocate all RD/TD rings a single pool.
+	 *
 	 * pci_alloc_consistent() fulfills the requirement for 64 bytes
 	 * alignment
 	 */
-	pool = pci_alloc_consistent(vptr->pdev, psize, &pool_dma);
-
-	if (pool == NULL) {
-		printk(KERN_ERR "%s : DMA memory allocation failed.\n",
-					vptr->dev->name);
+	pool = pci_alloc_consistent(pdev, tx_ring_size * vptr->num_txq +
+				    rx_ring_size, &pool_dma);
+	if (!pool) {
+		dev_err(&pdev->dev, "%s : DMA memory allocation failed.\n",
+			vptr->dev->name);
 		return -ENOMEM;
 	}
 
-	memset(pool, 0, psize);
-
-	vptr->rd_ring = (struct rx_desc *) pool;
-
+	vptr->rd_ring = pool;
 	vptr->rd_pool_dma = pool_dma;
 
-	i = vptr->options.numrx * sizeof(struct rx_desc);
-	pool += i;
-	pool_dma += i;
-	for (i = 0; i < vptr->num_txq; i++) {
-		int offset = vptr->options.numtx * sizeof(struct tx_desc);
+	pool += rx_ring_size;
+	pool_dma += rx_ring_size;
 
+	for (i = 0; i < vptr->num_txq; i++) {
+		vptr->td_rings[i] = pool;
 		vptr->td_pool_dma[i] = pool_dma;
-		vptr->td_rings[i] = (struct tx_desc *) pool;
-		pool += offset;
-		pool_dma += offset;
+		pool += tx_ring_size;
+		pool_dma += tx_ring_size;
 	}
+
 	return 0;
 }
 
