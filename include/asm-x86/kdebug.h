@@ -35,13 +35,4 @@ extern void show_regs(struct pt_regs *regs);
 extern unsigned long oops_begin(void);
 extern void oops_end(unsigned long, struct pt_regs *, int signr);
 
-struct pf_handler {
-	struct hlist_node hlist;
-	int (*handler)(struct pt_regs *regs, unsigned long error_code,
-						unsigned long address);
-};
-
-extern void register_page_fault_handler(struct pf_handler *new_pfh);
-extern void unregister_page_fault_handler(struct pf_handler *old_pfh);
-
 #endif
