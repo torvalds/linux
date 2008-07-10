@@ -930,14 +930,17 @@ static void kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	}
 	kvm_mmu_page_unlink_children(kvm, sp);
 	if (!sp->root_count) {
-		if (!sp->role.metaphysical)
+		if (!sp->role.metaphysical && !sp->role.invalid)
 			unaccount_shadowed(kvm, sp->gfn);
 		hlist_del(&sp->hash_link);
 		kvm_mmu_free_page(kvm, sp);
 	} else {
+		int invalid = sp->role.invalid;
 		list_move(&sp->link, &kvm->arch.active_mmu_pages);
 		sp->role.invalid = 1;
 		kvm_reload_remote_mmus(kvm);
+		if (!sp->role.metaphysical && !invalid)
+			unaccount_shadowed(kvm, sp->gfn);
 	}
 	kvm_mmu_reset_last_pte_updated(kvm);
 }
