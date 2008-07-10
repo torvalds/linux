@@ -39,7 +39,7 @@ static void set_idt(void *newidt, __u16 limit)
 	curidt.address = (unsigned long)newidt;
 
 	load_idt(&curidt);
-};
+}
 
 
 static void set_gdt(void *newgdt, __u16 limit)
@@ -51,7 +51,7 @@ static void set_gdt(void *newgdt, __u16 limit)
 	curgdt.address = (unsigned long)newgdt;
 
 	load_gdt(&curgdt);
-};
+}
 
 static void load_segments(void)
 {

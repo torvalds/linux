@@ -20,8 +20,14 @@ static inline cpumask_t target_cpus(void)
 #define INT_DELIVERY_MODE dest_LowestPrio
 #define INT_DEST_MODE 0     /* physical delivery on LOCAL quad */
  
-#define check_apicid_used(bitmap, apicid) physid_isset(apicid, bitmap)
-#define check_apicid_present(bit) physid_isset(bit, phys_cpu_present_map)
+static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
+{
+	return physid_isset(apicid, bitmap);
+}
+static inline unsigned long check_apicid_present(int bit)
+{
+	return physid_isset(bit, phys_cpu_present_map);
+}
 #define apicid_cluster(apicid) (apicid & 0xF0)
 
 static inline int apic_id_registered(void)
@@ -77,11 +83,6 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
-static inline int generate_logical_apicid(int quad, int phys_apicid)
-{
-	return (quad << 4) + (phys_apicid ? phys_apicid << 1 : 1);
-}
-
 static inline int apicid_to_node(int logical_apicid) 
 {
 	return logical_apicid >> 4;
@@ -93,30 +94,6 @@ static inline physid_mask_t apicid_to_cpu_present(int logical_apicid)
 	int cpu = __ffs(logical_apicid & 0xf);
 
 	return physid_mask_of_physid(cpu + 4*node);
-}
-
-struct mpc_config_translation {
-	unsigned char mpc_type;
-	unsigned char trans_len;
-	unsigned char trans_type;
-	unsigned char trans_quad;
-	unsigned char trans_global;
-	unsigned char trans_local;
-	unsigned short trans_reserved;
-};
-
-static inline int mpc_apic_id(struct mpc_config_processor *m, 
-			struct mpc_config_translation *translation_record)
-{
-	int quad = translation_record->trans_quad;
-	int logical_apicid = generate_logical_apicid(quad, m->mpc_apicid);
-
-	printk("Processor #%d %u:%u APIC version %d (quad %d, apic %d)\n",
-	       m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->mpc_apicver, quad, logical_apicid);
-	return logical_apicid;
 }
 
 extern void *xquad_portio;

@@ -384,7 +384,7 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 
 extern u8 pci_cache_line_size;
 
-static int __init pcibios_init(void)
+int __init pcibios_init(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
@@ -410,8 +410,6 @@ static int __init pcibios_init(void)
 		pci_sort_breadthfirst();
 	return 0;
 }
-
-subsys_initcall(pcibios_init);
 
 char * __devinit  pcibios_setup(char *str)
 {

@@ -175,9 +175,9 @@ char * __init machine_specific_memory_setup(void)
 	sgivwfb_mem_size &= ~((1 << 20) - 1);
 	sgivwfb_mem_phys = mem_size - gfx_mem_size;
 
-	add_memory_region(0, LOWMEMSIZE(), E820_RAM);
-	add_memory_region(HIGH_MEMORY, mem_size - sgivwfb_mem_size - HIGH_MEMORY, E820_RAM);
-	add_memory_region(sgivwfb_mem_phys, sgivwfb_mem_size, E820_RESERVED);
+	e820_add_region(0, LOWMEMSIZE(), E820_RAM);
+	e820_add_region(HIGH_MEMORY, mem_size - sgivwfb_mem_size - HIGH_MEMORY, E820_RAM);
+	e820_add_region(sgivwfb_mem_phys, sgivwfb_mem_size, E820_RESERVED);
 
 	return "PROM";
 }

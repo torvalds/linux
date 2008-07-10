@@ -106,6 +106,7 @@
 /* More extended AMD flags: CPUID level 0x80000001, ecx, word 6 */
 #define X86_FEATURE_LAHF_LM	(6*32+ 0) /* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY	(6*32+ 1) /* If yes HyperThreading not valid */
+#define X86_FEATURE_IBS		(6*32+ 10) /* Instruction Based Sampling */
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various
@@ -142,11 +143,11 @@ extern const char * const x86_power_flags[32];
 #define clear_cpu_cap(c, bit)	clear_bit(bit, (unsigned long *)((c)->x86_capability))
 #define setup_clear_cpu_cap(bit) do { \
 	clear_cpu_cap(&boot_cpu_data, bit);	\
-	set_bit(bit, cleared_cpu_caps); 	\
+	set_bit(bit, (unsigned long *)cleared_cpu_caps); \
 } while (0)
 #define setup_force_cpu_cap(bit) do { \
 	set_cpu_cap(&boot_cpu_data, bit);	\
-	clear_bit(bit, cleared_cpu_caps); 	\
+	clear_bit(bit, (unsigned long *)cleared_cpu_caps); 	\
 } while (0)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
