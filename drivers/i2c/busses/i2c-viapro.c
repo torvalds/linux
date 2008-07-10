@@ -483,7 +483,6 @@ static struct pci_driver vt596_driver = {
 	.name		= "vt596_smbus",
 	.id_table	= vt596_ids,
 	.probe		= vt596_probe,
-	.dynids.use_driver_data = 1,
 };
 
 static int __init i2c_vt596_init(void)

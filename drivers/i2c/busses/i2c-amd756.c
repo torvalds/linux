@@ -412,7 +412,6 @@ static struct pci_driver amd756_driver = {
 	.id_table	= amd756_ids,
 	.probe		= amd756_probe,
 	.remove		= __devexit_p(amd756_remove),
-	.dynids.use_driver_data = 1,
 };
 
 static int __init amd756_init(void)
