@@ -185,7 +185,7 @@ ENTRY(copy_user_generic_unrolled)
 30:	shll $6,%ecx
 	addl %ecx,%edx
 	jmp 60f
-40:	leal (%edx,%ecx,8),%edx
+40:	lea (%rdx,%rcx,8),%rdx
 	jmp 60f
 50:	movl %ecx,%edx
 60:	jmp copy_user_handle_tail /* ecx is zerorest also */
@@ -254,7 +254,7 @@ ENTRY(copy_user_generic_string)
 	ret
 
 	.section .fixup,"ax"
-11:	leal (%edx,%ecx,8),%ecx
+11:	lea (%rdx,%rcx,8),%rcx
 12:	movl %ecx,%edx		/* ecx is zerorest also */
 	jmp copy_user_handle_tail
 	.previous

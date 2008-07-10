@@ -104,7 +104,7 @@ ENTRY(__copy_user_nocache)
 30:	shll $6,%ecx
 	addl %ecx,%edx
 	jmp 60f
-40:	leal (%edx,%ecx,8),%edx
+40:	lea (%rdx,%rcx,8),%rdx
 	jmp 60f
 50:	movl %ecx,%edx
 60:	sfence
