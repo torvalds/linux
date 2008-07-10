@@ -2262,10 +2262,6 @@ config GIANFAR
 	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
 	  and MPC86xx family of chips, and the FEC on the 8540.
 
-config GFAR_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on GIANFAR
-
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE
