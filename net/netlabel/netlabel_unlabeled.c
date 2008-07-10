@@ -1107,11 +1107,7 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 		goto list_failure;
 
 	genlmsg_end(ans_skb, data);
-
-	ret_val = genlmsg_reply(ans_skb, info);
-	if (ret_val != 0)
-		goto list_failure;
-	return 0;
+	return genlmsg_reply(ans_skb, info);
 
 list_failure:
 	kfree_skb(ans_skb);
