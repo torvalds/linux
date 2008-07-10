@@ -183,6 +183,12 @@ extern int io_apic_set_pci_routing(int ioapic, int pin, int irq,
 extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 extern void ioapic_init_mappings(void);
 
+#ifdef CONFIG_X86_64
+extern int save_mask_IO_APIC_setup(void);
+extern void restore_IO_APIC_setup(void);
+extern void reinit_intr_remapped_IO_APIC(int);
+#endif
+
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
