@@ -355,17 +355,24 @@ static const struct stacktrace_ops print_trace_ops = {
 	.address = print_trace_address,
 };
 
-void show_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp)
+static void
+show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
+		unsigned long *stack, unsigned long bp, char *log_lvl)
 {
 	printk("\nCall Trace:\n");
-	dump_trace(task, regs, stack, bp, &print_trace_ops, NULL);
+	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
 	printk("\n");
 }
 
+void show_trace(struct task_struct *task, struct pt_regs *regs,
+		unsigned long *stack, unsigned long bp)
+{
+	show_trace_log_lvl(task, regs, stack, bp, "");
+}
+
 static void
-_show_stack(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *sp, unsigned long bp)
+show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+		unsigned long *sp, unsigned long bp, char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -399,12 +406,12 @@ _show_stack(struct task_struct *task, struct pt_regs *regs,
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
-	show_trace(task, regs, sp, bp);
+	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	_show_stack(task, NULL, sp, 0);
+	show_stack_log_lvl(task, NULL, sp, 0, "");
 }
 
 /*
@@ -454,7 +461,8 @@ void show_registers(struct pt_regs *regs)
 		u8 *ip;
 
 		printk("Stack: ");
-		_show_stack(NULL, regs, (unsigned long *)sp, regs->bp);
+		show_stack_log_lvl(NULL, regs, (unsigned long *)sp,
+				regs->bp, "");
 		printk("\n");
 
 		printk(KERN_EMERG "Code: ");
