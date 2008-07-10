@@ -56,6 +56,7 @@
 #define DMAR_IQT_REG	0x88	/* Invalidation queue tail register */
 #define DMAR_IQA_REG	0x90	/* Invalidation queue addr register */
 #define DMAR_ICS_REG	0x98	/* Invalidation complete status register */
+#define DMAR_IRTA_REG	0xb8    /* Interrupt remapping table addr register */
 
 #define OFFSET_STRIDE		(9)
 /*
@@ -157,16 +158,20 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GCMD_SRTP (((u32)1) << 30)
 #define DMA_GCMD_SFL (((u32)1) << 29)
 #define DMA_GCMD_EAFL (((u32)1) << 28)
-#define DMA_GCMD_QIE (((u32)1) << 26)
 #define DMA_GCMD_WBF (((u32)1) << 27)
+#define DMA_GCMD_QIE (((u32)1) << 26)
+#define DMA_GCMD_SIRTP (((u32)1) << 24)
+#define DMA_GCMD_IRE (((u32) 1) << 25)
 
 /* GSTS_REG */
 #define DMA_GSTS_TES (((u32)1) << 31)
 #define DMA_GSTS_RTPS (((u32)1) << 30)
 #define DMA_GSTS_FLS (((u32)1) << 29)
 #define DMA_GSTS_AFLS (((u32)1) << 28)
-#define DMA_GSTS_QIES (((u32)1) << 26)
 #define DMA_GSTS_WBFS (((u32)1) << 27)
+#define DMA_GSTS_QIES (((u32)1) << 26)
+#define DMA_GSTS_IRTPS (((u32)1) << 24)
+#define DMA_GSTS_IRES (((u32)1) << 25)
 
 /* CCMD_REG */
 #define DMA_CCMD_ICC (((u64)1) << 63)
@@ -245,6 +250,16 @@ struct q_inval {
 	int             free_cnt;
 };
 
+#ifdef CONFIG_INTR_REMAP
+/* 1MB - maximum possible interrupt remapping table size */
+#define INTR_REMAP_PAGE_ORDER	8
+#define INTR_REMAP_TABLE_REG_SIZE	0xf
+
+struct ir_table {
+	struct irte *base;
+};
+#endif
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
@@ -266,6 +281,9 @@ struct intel_iommu {
 	struct sys_device sysdev;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
+#ifdef CONFIG_INTR_REMAP
+	struct ir_table *ir_table;	/* Interrupt remapping info */
+#endif
 };
 
 static inline void __iommu_flush_cache(
@@ -279,5 +297,7 @@ extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
 
 extern int alloc_iommu(struct dmar_drhd_unit *drhd);
 extern void free_iommu(struct intel_iommu *iommu);
+extern int dmar_enable_qi(struct intel_iommu *iommu);
+extern void qi_global_iec(struct intel_iommu *iommu);
 
 #endif

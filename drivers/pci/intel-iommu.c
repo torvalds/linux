@@ -76,7 +76,7 @@ static long list_size;
 
 static void domain_remove_dev_info(struct dmar_domain *domain);
 
-static int dmar_disabled;
+int dmar_disabled;
 static int __initdata dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
@@ -2238,15 +2238,6 @@ static void __init iommu_exit_mempool(void)
 
 }
 
-void __init detect_intel_iommu(void)
-{
-	if (swiotlb || no_iommu || iommu_detected || dmar_disabled)
-		return;
-	if (early_dmar_detect()) {
-		iommu_detected = 1;
-	}
-}
-
 static void __init init_no_remapping_devices(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -2293,14 +2284,18 @@ int __init intel_iommu_init(void)
 {
 	int ret = 0;
 
-	if (no_iommu || swiotlb || dmar_disabled)
-		return -ENODEV;
-
 	if (dmar_table_init())
 		return 	-ENODEV;
 
 	if (dmar_dev_scope_init())
 		return 	-ENODEV;
+
+	/*
+	 * Check the need for DMA-remapping initialization now.
+	 * Above initialization will also be used by Interrupt-remapping.
+	 */
+	if (no_iommu || swiotlb || dmar_disabled)
+		return -ENODEV;
 
 	iommu_init_mempool();
 	dmar_init_reserved_ranges();

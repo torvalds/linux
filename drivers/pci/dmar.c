@@ -449,6 +449,22 @@ int __init early_dmar_detect(void)
 	return (ACPI_SUCCESS(status) ? 1 : 0);
 }
 
+void __init detect_intel_iommu(void)
+{
+	int ret;
+
+	ret = early_dmar_detect();
+
+#ifdef CONFIG_DMAR
+	{
+		if (ret && !no_iommu && !iommu_detected && !swiotlb &&
+		    !dmar_disabled)
+			iommu_detected = 1;
+	}
+#endif
+}
+
+
 int alloc_iommu(struct dmar_drhd_unit *drhd)
 {
 	struct intel_iommu *iommu;

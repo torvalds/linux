@@ -145,6 +145,8 @@ struct device_domain_info {
 extern int init_dmars(void);
 extern void free_dmar_iommu(struct intel_iommu *iommu);
 
+extern int dmar_disabled;
+
 #ifndef CONFIG_DMAR_GFX_WA
 static inline void iommu_prepare_gfx_mapping(void)
 {
