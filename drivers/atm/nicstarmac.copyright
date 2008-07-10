@@ -13,7 +13,7 @@
  *
  *   Modified to work with the IDT7721 nicstar -- AAL5 (tested) only.
  *
- * R. D. Rechenmacher <ron@fnal.gov>, Aug. 6, 1997 $Revision: 1.1 $ $Date: 1999/08/20 11:00:11 $
+ * R. D. Rechenmacher <ron@fnal.gov>, Aug. 6, 1997
  *
  * Linux driver for the IDT77201 NICStAR PCI ATM controller.
  * PHY component is expected to be 155 Mbps S/UNI-Lite or IDT 77155;

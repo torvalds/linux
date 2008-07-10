@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -52,7 +52,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 	struct gfs2_inode *ip = GFS2_I(inode);
 
 	/* Check this is a "normal" inode */
-	if (inode->i_private) {
+	if (test_bit(GIF_USER, &ip->i_flags)) {
 		if (current->flags & PF_MEMALLOC)
 			return 0;
 		if (sync)
@@ -297,8 +297,9 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  */
 static void gfs2_drop_inode(struct inode *inode)
 {
-	if (inode->i_private && inode->i_nlink) {
-		struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_inode *ip = GFS2_I(inode);
+
+	if (test_bit(GIF_USER, &ip->i_flags) && inode->i_nlink) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 		if (gl && test_bit(GLF_DEMOTE, &gl->gl_flags))
 			clear_nlink(inode);
@@ -314,12 +315,13 @@ static void gfs2_drop_inode(struct inode *inode)
 
 static void gfs2_clear_inode(struct inode *inode)
 {
+	struct gfs2_inode *ip = GFS2_I(inode);
+
 	/* This tells us its a "real" inode and not one which only
 	 * serves to contain an address space (see rgrp.c, meta_io.c)
 	 * which therefore doesn't have its own glocks.
 	 */
-	if (inode->i_private) {
-		struct gfs2_inode *ip = GFS2_I(inode);
+	if (test_bit(GIF_USER, &ip->i_flags)) {
 		ip->i_gl->gl_object = NULL;
 		gfs2_glock_schedule_for_reclaim(ip->i_gl);
 		gfs2_glock_put(ip->i_gl);
@@ -419,7 +421,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	struct gfs2_holder gh;
 	int error;
 
-	if (!inode->i_private)
+	if (!test_bit(GIF_USER, &ip->i_flags))
 		goto out;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);

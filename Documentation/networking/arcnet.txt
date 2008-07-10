@@ -46,7 +46,7 @@ These are the ARCnet drivers for Linux.
 
 
 This new release (2.91) has been put together by David Woodhouse 
-<dwmw2@cam.ac.uk>, in an attempt to tidy up the driver after adding support 
+<dwmw2@infradead.org>, in an attempt to tidy up the driver after adding support
 for yet another chipset. Now the generic support has been separated from the
 individual chipset drivers, and the source files aren't quite so packed with
 #ifdefs! I've changed this file a bit, but kept it in the first person from

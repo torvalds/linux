@@ -189,7 +189,6 @@ config MACH_ARMCORE
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
-	depends on ARCH_PXA
 	select PXA27x
 	select IWMMXT
 
@@ -198,6 +197,20 @@ config MACH_PCM027
 	select PXA27x
 	select IWMMXT
 	select PXA_SSP
+
+config ARCH_PXA_PALM
+	bool "PXA based Palm PDAs"
+	select HAVE_PWM
+
+config MACH_PALMTX
+	bool "Palm T|X"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on a Palm T|X
+	  handheld computer.
 
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"

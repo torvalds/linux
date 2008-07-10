@@ -117,10 +117,12 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 
 extern void outsb(unsigned long port, const void *addr, unsigned long count);
 extern void outsw(unsigned long port, const void *addr, unsigned long count);
+extern void outsw_8(unsigned long port, const void *addr, unsigned long count);
 extern void outsl(unsigned long port, const void *addr, unsigned long count);
 
 extern void insb(unsigned long port, void *addr, unsigned long count);
 extern void insw(unsigned long port, void *addr, unsigned long count);
+extern void insw_8(unsigned long port, void *addr, unsigned long count);
 extern void insl(unsigned long port, void *addr, unsigned long count);
 extern void insl_16(unsigned long port, void *addr, unsigned long count);
 

@@ -261,7 +261,7 @@ struct el_MCPCIA_uncorrected_frame_mcheck {
 	}
 #endif
 
-static inline int __mcpcia_is_mmio(unsigned long addr)
+extern inline int __mcpcia_is_mmio(unsigned long addr)
 {
 	return (addr & 0x80000000UL) == 0;
 }

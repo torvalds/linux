@@ -63,15 +63,15 @@ do_proc_get_root(struct rpc_clnt *client, struct nfs_fh *fhandle,
 	};
 	int	status;
 
-	dprintk("%s: call  fsinfo\n", __FUNCTION__);
+	dprintk("%s: call  fsinfo\n", __func__);
 	nfs_fattr_init(info->fattr);
 	status = rpc_call_sync(client, &msg, 0);
-	dprintk("%s: reply fsinfo: %d\n", __FUNCTION__, status);
+	dprintk("%s: reply fsinfo: %d\n", __func__, status);
 	if (!(info->fattr->valid & NFS_ATTR_FATTR)) {
 		msg.rpc_proc = &nfs3_procedures[NFS3PROC_GETATTR];
 		msg.rpc_resp = info->fattr;
 		status = rpc_call_sync(client, &msg, 0);
-		dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
+		dprintk("%s: reply getattr: %d\n", __func__, status);
 	}
 	return status;
 }
