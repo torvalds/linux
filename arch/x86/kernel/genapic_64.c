@@ -38,6 +38,8 @@ void __init setup_apic_routing(void)
 {
 	if (uv_system_type == UV_NON_UNIQUE_APIC)
 		genapic = &apic_x2apic_uv_x;
+	else if (cpu_has_x2apic && intr_remapping_enabled)
+		genapic = &apic_x2apic_cluster;
 	else
 #ifdef CONFIG_ACPI
 	/*
