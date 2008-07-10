@@ -16,10 +16,10 @@
 static int pci_visws_enable_irq(struct pci_dev *dev) { return 0; }
 static void pci_visws_disable_irq(struct pci_dev *dev) { }
 
-int (*pcibios_enable_irq)(struct pci_dev *dev) = &pci_visws_enable_irq;
-void (*pcibios_disable_irq)(struct pci_dev *dev) = &pci_visws_disable_irq;
+/* int (*pcibios_enable_irq)(struct pci_dev *dev) = &pci_visws_enable_irq; */
+/* void (*pcibios_disable_irq)(struct pci_dev *dev) = &pci_visws_disable_irq; */
 
-void __init pcibios_penalize_isa_irq(int irq, int active) {}
+/* void __init pcibios_penalize_isa_irq(int irq, int active) {} */
 
 
 unsigned int pci_bus0, pci_bus1;

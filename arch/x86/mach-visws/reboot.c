@@ -33,7 +33,7 @@ void machine_restart(char * __unused)
 void machine_power_off(void)
 {
 	unsigned short pm_status;
-	extern unsigned int pci_bus0;
+/*	extern unsigned int pci_bus0; */
 
 	while ((pm_status = inw(PMSTS_PORT)) & 0x100)
 		outw(pm_status, PMSTS_PORT);
@@ -45,7 +45,7 @@ void machine_power_off(void)
 #define PCI_CONF1_ADDRESS(bus, devfn, reg) \
 	(0x80000000 | (bus << 16) | (devfn << 8) | (reg & ~3))
 
-	outl(PCI_CONF1_ADDRESS(pci_bus0, SPECIAL_DEV, SPECIAL_REG), 0xCF8);
+/*	outl(PCI_CONF1_ADDRESS(pci_bus0, SPECIAL_DEV, SPECIAL_REG), 0xCF8); */
 	outl(PIIX_SPECIAL_STOP, 0xCFC);
 }
 

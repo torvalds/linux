@@ -25,13 +25,13 @@ static __init void lithium_init(void)
 	if ((li_pcia_read16(PCI_VENDOR_ID) != PCI_VENDOR_ID_SGI) ||
 	    (li_pcia_read16(PCI_DEVICE_ID) != PCI_DEVICE_ID_SGI_LITHIUM)) {
 		printk(KERN_EMERG "Lithium hostbridge %c not found\n", 'A');
-		panic("This machine is not SGI Visual Workstation 320/540");
+/*		panic("This machine is not SGI Visual Workstation 320/540"); */
 	}
 
 	if ((li_pcib_read16(PCI_VENDOR_ID) != PCI_VENDOR_ID_SGI) ||
 	    (li_pcib_read16(PCI_DEVICE_ID) != PCI_DEVICE_ID_SGI_LITHIUM)) {
 		printk(KERN_EMERG "Lithium hostbridge %c not found\n", 'B');
-		panic("This machine is not SGI Visual Workstation 320/540");
+/*		panic("This machine is not SGI Visual Workstation 320/540"); */
 	}
 
 	li_pcia_write16(LI_PCI_INTEN, ALLDEVS);
@@ -62,7 +62,7 @@ static __init void cobalt_init(void)
 		co_apic_read(CO_APIC_ID));
 }
 
-void __init trap_init_hook(void)
+void __init trap_init_hook_dontuse(void)
 {
 	lithium_init();
 	cobalt_init();
