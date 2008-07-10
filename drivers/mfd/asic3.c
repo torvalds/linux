@@ -313,6 +313,7 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 	struct asic3 *asic = platform_get_drvdata(pdev);
 	unsigned long clksel = 0;
 	unsigned int irq, irq_base;
+	int map_size;
 
 	asic->irq_nr = platform_get_irq(pdev, 0);
 	if (asic->irq_nr < 0)
@@ -551,8 +552,8 @@ static int __init asic3_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-
-	asic->mapping = ioremap(mem->start, PAGE_SIZE);
+	map_size = mem->end - mem->start + 1;
+	asic->mapping = ioremap(mem->start, map_size);
 	if (!asic->mapping) {
 		ret = -ENOMEM;
 		dev_err(asic->dev, "Couldn't ioremap\n");
@@ -561,10 +562,8 @@ static int __init asic3_probe(struct platform_device *pdev)
 
 	asic->irq_base = pdata->irq_base;
 
-	if (pdata && pdata->bus_shift)
-		asic->bus_shift = 2 - pdata->bus_shift;
-	else
-		asic->bus_shift = 0;
+	/* calculate bus shift from mem resource */
+	asic->bus_shift = 2 - (map_size >> 12);
 
 	clksel = 0;
 	asic3_write_register(asic, ASIC3_OFFSET(CLOCK, SEL), clksel);

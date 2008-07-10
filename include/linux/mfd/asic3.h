@@ -20,8 +20,6 @@ struct asic3_platform_data {
 	u16 *gpio_config;
 	unsigned int gpio_config_num;
 
-	unsigned int bus_shift;
-
 	unsigned int irq_base;
 
 	unsigned int gpio_base;
@@ -498,6 +496,7 @@ struct asic3_platform_data {
 #define ASIC3_SDIO_CTRL_LEDCtrl              0x7C
 #define ASIC3_SDIO_CTRL_SoftwareReset        0x1C0
 
-#define ASIC3_MAP_SIZE	     		     0x2000
+#define ASIC3_MAP_SIZE_32BIT	0x2000
+#define ASIC3_MAP_SIZE_16BIT	0x1000
 
 #endif /* __ASIC3_H__ */
