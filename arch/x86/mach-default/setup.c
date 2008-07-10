@@ -10,6 +10,14 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 
+/*
+ * Any quirks to be performed to initialize timers/irqs/etc?
+ */
+int (*arch_time_init_quirk)(void);
+int (*arch_pre_intr_init_quirk)(void);
+int (*arch_intr_init_quirk)(void);
+int (*arch_trap_init_quirk)(void);
+
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
 #else
@@ -29,6 +37,10 @@ int no_broadcast=DEFAULT_SEND_IPI;
  **/
 void __init pre_intr_init_hook(void)
 {
+	if (arch_pre_intr_init_quirk) {
+		if (arch_pre_intr_init_quirk())
+			return;
+	}
 	init_ISA_irqs();
 }
 
@@ -52,6 +64,10 @@ static struct irqaction irq2 = {
  **/
 void __init intr_init_hook(void)
 {
+	if (arch_intr_init_quirk) {
+		if (arch_intr_init_quirk())
+			return;
+	}
 #ifdef CONFIG_X86_LOCAL_APIC
 	apic_intr_init();
 #endif
@@ -81,6 +97,10 @@ void __init pre_setup_arch_hook(void)
  **/
 void __init trap_init_hook(void)
 {
+	if (arch_trap_init_quirk) {
+		if (arch_trap_init_quirk())
+			return;
+	}
 }
 
 static struct irqaction irq0  = {
@@ -99,6 +119,16 @@ static struct irqaction irq0  = {
  **/
 void __init time_init_hook(void)
 {
+	if (arch_time_init_quirk) {
+		/*
+		 * A nonzero return code does not mean failure, it means
+		 * that the architecture quirk does not want any
+		 * generic (timer) setup to be performed after this:
+		 */
+		if (arch_time_init_quirk())
+			return;
+	}
+
 	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
