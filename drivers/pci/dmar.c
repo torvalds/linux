@@ -19,9 +19,11 @@
  * Author: Shaohua Li <shaohua.li@intel.com>
  * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  *
- * This file implements early detection/parsing of DMA Remapping Devices
+ * This file implements early detection/parsing of Remapping Devices
  * reported to OS through BIOS via DMA remapping reporting (DMAR) ACPI
  * tables.
+ *
+ * These routines are used by both DMA-remapping and Interrupt-remapping
  */
 
 #include <linux/pci.h>
@@ -300,6 +302,37 @@ parse_dmar_table(void)
 	return ret;
 }
 
+int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
+			  struct pci_dev *dev)
+{
+	int index;
+
+	while (dev) {
+		for (index = 0; index < cnt; index++)
+			if (dev == devices[index])
+				return 1;
+
+		/* Check our parent */
+		dev = dev->bus->self;
+	}
+
+	return 0;
+}
+
+struct dmar_drhd_unit *
+dmar_find_matched_drhd_unit(struct pci_dev *dev)
+{
+	struct dmar_drhd_unit *drhd = NULL;
+
+	list_for_each_entry(drhd, &dmar_drhd_units, list) {
+		if (drhd->include_all || dmar_pci_device_match(drhd->devices,
+						drhd->devices_cnt, dev))
+			return drhd;
+	}
+
+	return NULL;
+}
+
 
 int __init dmar_table_init(void)
 {
@@ -342,4 +375,59 @@ int __init early_dmar_detect(void)
 	}
 
 	return (ACPI_SUCCESS(status) ? 1 : 0);
+}
+
+struct intel_iommu *alloc_iommu(struct intel_iommu *iommu,
+				struct dmar_drhd_unit *drhd)
+{
+	int map_size;
+	u32 ver;
+
+	iommu->reg = ioremap(drhd->reg_base_addr, PAGE_SIZE_4K);
+	if (!iommu->reg) {
+		printk(KERN_ERR "IOMMU: can't map the region\n");
+		goto error;
+	}
+	iommu->cap = dmar_readq(iommu->reg + DMAR_CAP_REG);
+	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
+
+	/* the registers might be more than one page */
+	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),
+		cap_max_fault_reg_offset(iommu->cap));
+	map_size = PAGE_ALIGN_4K(map_size);
+	if (map_size > PAGE_SIZE_4K) {
+		iounmap(iommu->reg);
+		iommu->reg = ioremap(drhd->reg_base_addr, map_size);
+		if (!iommu->reg) {
+			printk(KERN_ERR "IOMMU: can't map the region\n");
+			goto error;
+		}
+	}
+
+	ver = readl(iommu->reg + DMAR_VER_REG);
+	pr_debug("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
+		drhd->reg_base_addr, DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
+		iommu->cap, iommu->ecap);
+
+	spin_lock_init(&iommu->register_lock);
+
+	drhd->iommu = iommu;
+	return iommu;
+error:
+	kfree(iommu);
+	return NULL;
+}
+
+void free_iommu(struct intel_iommu *iommu)
+{
+	if (!iommu)
+		return;
+
+#ifdef CONFIG_DMAR
+	free_dmar_iommu(iommu);
+#endif
+
+	if (iommu->reg)
+		iounmap(iommu->reg);
+	kfree(iommu);
 }

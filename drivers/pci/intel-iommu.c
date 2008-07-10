@@ -990,6 +990,8 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 		return -ENOMEM;
 	}
 
+	spin_lock_init(&iommu->lock);
+
 	/*
 	 * if Caching mode is set, then invalid translations are tagged
 	 * with domainid 0. Hence we need to pre-allocate it.
@@ -998,61 +1000,14 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 		set_bit(0, iommu->domain_ids);
 	return 0;
 }
-static struct intel_iommu *alloc_iommu(struct intel_iommu *iommu,
-					struct dmar_drhd_unit *drhd)
-{
-	int ret;
-	int map_size;
-	u32 ver;
 
-	iommu->reg = ioremap(drhd->reg_base_addr, PAGE_SIZE_4K);
-	if (!iommu->reg) {
-		printk(KERN_ERR "IOMMU: can't map the region\n");
-		goto error;
-	}
-	iommu->cap = dmar_readq(iommu->reg + DMAR_CAP_REG);
-	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
-
-	/* the registers might be more than one page */
-	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),
-		cap_max_fault_reg_offset(iommu->cap));
-	map_size = PAGE_ALIGN_4K(map_size);
-	if (map_size > PAGE_SIZE_4K) {
-		iounmap(iommu->reg);
-		iommu->reg = ioremap(drhd->reg_base_addr, map_size);
-		if (!iommu->reg) {
-			printk(KERN_ERR "IOMMU: can't map the region\n");
-			goto error;
-		}
-	}
-
-	ver = readl(iommu->reg + DMAR_VER_REG);
-	pr_debug("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
-		drhd->reg_base_addr, DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
-		iommu->cap, iommu->ecap);
-	ret = iommu_init_domains(iommu);
-	if (ret)
-		goto error_unmap;
-	spin_lock_init(&iommu->lock);
-	spin_lock_init(&iommu->register_lock);
-
-	drhd->iommu = iommu;
-	return iommu;
-error_unmap:
-	iounmap(iommu->reg);
-error:
-	kfree(iommu);
-	return NULL;
-}
 
 static void domain_exit(struct dmar_domain *domain);
-static void free_iommu(struct intel_iommu *iommu)
+
+void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	struct dmar_domain *domain;
 	int i;
-
-	if (!iommu)
-		return;
 
 	i = find_first_bit(iommu->domain_ids, cap_ndoms(iommu->cap));
 	for (; i < cap_ndoms(iommu->cap); ) {
@@ -1078,10 +1033,6 @@ static void free_iommu(struct intel_iommu *iommu)
 
 	/* free context mapping */
 	free_context_table(iommu);
-
-	if (iommu->reg)
-		iounmap(iommu->reg);
-	kfree(iommu);
 }
 
 static struct dmar_domain * iommu_alloc_domain(struct intel_iommu *iommu)
@@ -1426,37 +1377,6 @@ find_domain(struct pci_dev *pdev)
 	return NULL;
 }
 
-static int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
-     struct pci_dev *dev)
-{
-	int index;
-
-	while (dev) {
-		for (index = 0; index < cnt; index++)
-			if (dev == devices[index])
-				return 1;
-
-		/* Check our parent */
-		dev = dev->bus->self;
-	}
-
-	return 0;
-}
-
-static struct dmar_drhd_unit *
-dmar_find_matched_drhd_unit(struct pci_dev *dev)
-{
-	struct dmar_drhd_unit *drhd = NULL;
-
-	list_for_each_entry(drhd, &dmar_drhd_units, list) {
-		if (drhd->include_all || dmar_pci_device_match(drhd->devices,
-						drhd->devices_cnt, dev))
-			return drhd;
-	}
-
-	return NULL;
-}
-
 /* domain is initialized */
 static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 {
@@ -1763,6 +1683,10 @@ int __init init_dmars(void)
 			ret = -ENOMEM;
 			goto error;
 		}
+
+		ret = iommu_init_domains(iommu);
+		if (ret)
+			goto error;
 
 		/*
 		 * TBD:
