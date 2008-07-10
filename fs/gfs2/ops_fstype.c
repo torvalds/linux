@@ -64,7 +64,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	mutex_init(&sdp->sd_rindex_mutex);
 	INIT_LIST_HEAD(&sdp->sd_rindex_list);
 	INIT_LIST_HEAD(&sdp->sd_rindex_mru_list);
-	INIT_LIST_HEAD(&sdp->sd_rindex_recent_list);
 
 	INIT_LIST_HEAD(&sdp->sd_jindex_list);
 	spin_lock_init(&sdp->sd_jindex_spin);

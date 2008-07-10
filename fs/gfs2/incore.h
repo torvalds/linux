@@ -77,7 +77,6 @@ struct gfs2_rgrp_host {
 struct gfs2_rgrpd {
 	struct list_head rd_list;	/* Link with superblock */
 	struct list_head rd_list_mru;
-	struct list_head rd_recent;	/* Recently used rgrps */
 	struct gfs2_glock *rd_gl;	/* Glock for this rgrp */
 	u64 rd_addr;			/* grp block disk address */
 	u64 rd_data0;			/* first data location */
@@ -529,7 +528,6 @@ struct gfs2_sbd {
 	struct mutex sd_rindex_mutex;
 	struct list_head sd_rindex_list;
 	struct list_head sd_rindex_mru_list;
-	struct list_head sd_rindex_recent_list;
 	struct gfs2_rgrpd *sd_rindex_forward;
 	unsigned int sd_rgrps;
 
