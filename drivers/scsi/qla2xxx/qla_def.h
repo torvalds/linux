@@ -2154,6 +2154,10 @@ struct qla_chip_state_84xx {
 	uint32_t gold_fw_version;
 };
 
+struct qla_statistics {
+	uint32_t total_isp_aborts;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -2595,6 +2599,7 @@ typedef struct scsi_qla_host {
 	int		cur_vport_count;
 
 	struct qla_chip_state_84xx *cs84xx;
+	struct qla_statistics qla_stats;
 } scsi_qla_host_t;
 
 
