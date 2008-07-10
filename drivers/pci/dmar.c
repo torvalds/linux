@@ -39,7 +39,6 @@
  * these units are not supported by the architecture.
  */
 LIST_HEAD(dmar_drhd_units);
-LIST_HEAD(dmar_rmrr_units);
 
 static struct acpi_table_header * __initdata dmar_tbl;
 
@@ -53,11 +52,6 @@ static void __init dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 		list_add_tail(&drhd->list, &dmar_drhd_units);
 	else
 		list_add(&drhd->list, &dmar_drhd_units);
-}
-
-static void __init dmar_register_rmrr_unit(struct dmar_rmrr_unit *rmrr)
-{
-	list_add(&rmrr->list, &dmar_rmrr_units);
 }
 
 static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
@@ -224,6 +218,15 @@ dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 	return ret;
 }
 
+#ifdef CONFIG_DMAR
+LIST_HEAD(dmar_rmrr_units);
+
+static void __init dmar_register_rmrr_unit(struct dmar_rmrr_unit *rmrr)
+{
+	list_add(&rmrr->list, &dmar_rmrr_units);
+}
+
+
 static int __init
 dmar_parse_one_rmrr(struct acpi_dmar_header *header)
 {
@@ -260,6 +263,7 @@ rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
 	}
 	return ret;
 }
+#endif
 
 static void __init
 dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
@@ -283,6 +287,7 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 		break;
 	}
 }
+
 
 /**
  * parse_dmar_table - parses the DMA reporting table
@@ -316,7 +321,9 @@ parse_dmar_table(void)
 			ret = dmar_parse_one_drhd(entry_header);
 			break;
 		case ACPI_DMAR_TYPE_RESERVED_MEMORY:
+#ifdef CONFIG_DMAR
 			ret = dmar_parse_one_rmrr(entry_header);
+#endif
 			break;
 		default:
 			printk(KERN_WARNING PREFIX
@@ -366,7 +373,6 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 int __init dmar_dev_scope_init(void)
 {
 	struct dmar_drhd_unit *drhd;
-	struct dmar_rmrr_unit *rmrr;
 	int ret = -ENODEV;
 
 	for_each_drhd_unit(drhd) {
@@ -375,11 +381,16 @@ int __init dmar_dev_scope_init(void)
 			return ret;
 	}
 
-	for_each_rmrr_units(rmrr) {
-		ret = rmrr_parse_dev(rmrr);
-		if (ret)
-			return ret;
+#ifdef CONFIG_DMAR
+	{
+		struct dmar_rmrr_unit *rmrr;
+		for_each_rmrr_units(rmrr) {
+			ret = rmrr_parse_dev(rmrr);
+			if (ret)
+				return ret;
+		}
 	}
+#endif
 
 	return ret;
 }
@@ -407,10 +418,12 @@ int __init dmar_table_init(void)
 		return -ENODEV;
 	}
 
+#ifdef CONFIG_DMAR
 	if (list_empty(&dmar_rmrr_units)) {
 		printk(KERN_INFO PREFIX "No RMRR found\n");
 		return -ENODEV;
 	}
+#endif
 
 	return 0;
 }
