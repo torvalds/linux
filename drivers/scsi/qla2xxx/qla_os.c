@@ -27,7 +27,6 @@ char qla2x00_version_str[40];
  */
 static struct kmem_cache *srb_cachep;
 
-int num_hosts;
 int ql2xlogintimeout = 20;
 module_param(ql2xlogintimeout, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xlogintimeout,
@@ -1663,9 +1662,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	host->can_queue = ha->request_q_length + 128;
 
-	/* load the F/W, read paramaters, and init the H/W */
-	ha->instance = num_hosts;
-
 	mutex_init(&ha->vport_lock);
 	init_completion(&ha->mbx_cmd_comp);
 	complete(&ha->mbx_cmd_comp);
@@ -1713,7 +1709,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
-	host->unique_id = ha->instance;
+	host->unique_id = host->host_no;
 	host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = MAX_LUNS;
@@ -1733,8 +1729,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ha->flags.init_done = 1;
 	ha->flags.online = 1;
-
-	num_hosts++;
 
 	ret = scsi_add_host(host, &pdev->dev);
 	if (ret)

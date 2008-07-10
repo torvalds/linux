@@ -1200,16 +1200,10 @@ vport_create_failed_2:
 static int
 qla24xx_vport_delete(struct fc_vport *fc_vport)
 {
-	scsi_qla_host_t *ha = shost_priv(fc_vport->shost);
 	scsi_qla_host_t *vha = fc_vport->dd_data;
 
 	qla24xx_disable_vp(vha);
 	qla24xx_deallocate_vp_id(vha);
-
-	mutex_lock(&ha->vport_lock);
-	ha->cur_vport_count--;
-	clear_bit(vha->vp_idx, ha->vp_idx_map);
-	mutex_unlock(&ha->vport_lock);
 
 	kfree(vha->node_name);
 	kfree(vha->port_name);

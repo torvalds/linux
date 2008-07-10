@@ -2170,7 +2170,6 @@ typedef struct scsi_qla_host {
 	struct pci_dev	*pdev;
 
 	unsigned long	host_no;
-	unsigned long	instance;
 
 	volatile struct {
 		uint32_t	init_done		:1;
