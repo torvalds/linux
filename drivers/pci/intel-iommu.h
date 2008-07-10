@@ -123,6 +123,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define ecap_qis(e)		((e) & 0x2)
 #define ecap_eim_support(e)	((e >> 4) & 0x1)
 #define ecap_ir_support(e)	((e >> 3) & 0x1)
+#define ecap_max_handle_mask(e) ((e >> 20) & 0xf)
 
 
 /* IOTLB_REG */
@@ -255,6 +256,8 @@ struct q_inval {
 #define INTR_REMAP_PAGE_ORDER	8
 #define INTR_REMAP_TABLE_REG_SIZE	0xf
 
+#define INTR_REMAP_TABLE_ENTRIES	65536
+
 struct ir_table {
 	struct irte *base;
 };
@@ -300,4 +303,5 @@ extern void free_iommu(struct intel_iommu *iommu);
 extern int dmar_enable_qi(struct intel_iommu *iommu);
 extern void qi_global_iec(struct intel_iommu *iommu);
 
+extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 #endif

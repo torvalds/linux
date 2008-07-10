@@ -98,7 +98,19 @@ struct irte {
 		__u64 high;
 	};
 };
+extern int get_irte(int irq, struct irte *entry);
+extern int modify_irte(int irq, struct irte *irte_modified);
+extern int alloc_irte(struct intel_iommu *iommu, int irq, u16 count);
+extern int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index,
+   			u16 sub_handle);
+extern int map_irq_to_irte_handle(int irq, u16 *sub_handle);
+extern int clear_irte_irq(int irq, struct intel_iommu *iommu, u16 index);
+extern int flush_irte(int irq);
+extern int free_irte(int irq);
+
+extern int irq_remapped(int irq);
 #else
+#define irq_remapped(irq)		(0)
 #define enable_intr_remapping(mode)	(-1)
 #define intr_remapping_enabled		(0)
 #endif
