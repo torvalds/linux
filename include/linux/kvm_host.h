@@ -33,6 +33,7 @@
 #define KVM_REQ_REPORT_TPR_ACCESS  2
 #define KVM_REQ_MMU_RELOAD         3
 #define KVM_REQ_TRIPLE_FAULT       4
+#define KVM_REQ_PENDING_TIMER      5
 
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
@@ -297,7 +298,7 @@ static inline gpa_t gfn_to_gpa(gfn_t gfn)
 	return (gpa_t)gfn << PAGE_SHIFT;
 }
 
-static inline void kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
+static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)
 {
 	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
 }

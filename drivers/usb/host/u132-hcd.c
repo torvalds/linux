@@ -2934,6 +2934,16 @@ static int u132_start_port_reset(struct usb_hcd *hcd, unsigned port_num)
 		return 0;
 }
 
+static void u132_hub_irq_enable(struct usb_hcd *hcd)
+{
+	struct u132 *u132 = hcd_to_u132(hcd);
+	if (u132->going > 1) {
+		dev_err(&u132->platform_dev->dev, "device has been removed %d\n"
+			, u132->going);
+	} else if (u132->going > 0)
+		dev_err(&u132->platform_dev->dev, "device is being removed\n");
+}
+
 
 #ifdef CONFIG_PM
 static int u132_bus_suspend(struct usb_hcd *hcd)
@@ -2985,6 +2995,7 @@ static struct hc_driver u132_hc_driver = {
 	.bus_suspend = u132_bus_suspend,
 	.bus_resume = u132_bus_resume,
 	.start_port_reset = u132_start_port_reset,
+	.hub_irq_enable = u132_hub_irq_enable,
 };
 
 /*

@@ -229,6 +229,8 @@ static inline struct ipq *ip_find(struct net *net, struct iphdr *iph, u32 user)
 
 	arg.iph = iph;
 	arg.user = user;
+
+	read_lock(&ip4_frags.lock);
 	hash = ipqhashfn(iph->id, iph->saddr, iph->daddr, iph->protocol);
 
 	q = inet_frag_find(&net->ipv4.frags, &ip4_frags, &arg, hash);

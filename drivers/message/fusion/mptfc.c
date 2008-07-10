@@ -1238,8 +1238,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sh->max_id = ioc->pfacts->MaxDevices;
 	sh->max_lun = max_lun;
 
-	sh->this_id = ioc->pfacts[0].PortSCSIID;
-
 	/* Required entry.
 	 */
 	sh->unique_id = ioc->id;

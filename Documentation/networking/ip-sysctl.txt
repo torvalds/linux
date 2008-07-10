@@ -81,23 +81,23 @@ inet_peer_minttl - INTEGER
 	Minimum time-to-live of entries.  Should be enough to cover fragment
 	time-to-live on the reassembling side.  This minimum time-to-live  is
 	guaranteed if the pool size is less than inet_peer_threshold.
-	Measured in jiffies(1).
+	Measured in seconds.
 
 inet_peer_maxttl - INTEGER
 	Maximum time-to-live of entries.  Unused entries will expire after
 	this period of time if there is no memory pressure on the pool (i.e.
 	when the number of entries in the pool is very small).
-	Measured in jiffies(1).
+	Measured in seconds.
 
 inet_peer_gc_mintime - INTEGER
 	Minimum interval between garbage collection passes.  This interval is
 	in effect under high memory pressure on the pool.
-	Measured in jiffies(1).
+	Measured in seconds.
 
 inet_peer_gc_maxtime - INTEGER
 	Minimum interval between garbage collection passes.  This interval is
 	in effect under low (or absent) memory pressure on the pool.
-	Measured in jiffies(1).
+	Measured in seconds.
 
 TCP variables: 
 
@@ -793,10 +793,6 @@ disable_xfrm - BOOLEAN
 tag - INTEGER
 	Allows you to write a number, which can be used as required.
 	Default value is 0.
-
-(1) Jiffie: internal timeunit for the kernel. On the i386 1/100s, on the
-Alpha 1/1024s. See the HZ define in /usr/include/asm/param.h for the exact
-value on your system. 
 
 Alexey Kuznetsov.
 kuznet@ms2.inr.ac.ru

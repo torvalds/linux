@@ -135,13 +135,17 @@ static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
     ide_hwif_t *hwif = info->hwif;
+    unsigned long data_addr, ctl_addr;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
 
+    data_addr = hwif->io_ports.data_addr;
+    ctl_addr  = hwif->io_ports.ctl_addr;
+
     ide_release(link);
 
-    release_region(hwif->io_ports.ctl_addr, 1);
-    release_region(hwif->io_ports.data_addr, 8);
+    release_region(ctl_addr, 1);
+    release_region(data_addr, 8);
 
     kfree(info);
 } /* ide_detach */
@@ -194,6 +198,16 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
     if (hwif->present)
 	return hwif;
 
+    /* retry registration in case device is still spinning up */
+    for (i = 0; i < 10; i++) {
+	msleep(100);
+	ide_port_scan(hwif);
+	if (hwif->present)
+	    return hwif;
+    }
+
+    return hwif;
+
 out_release:
     release_region(ctl, 1);
     release_region(io, 8);
@@ -222,7 +236,7 @@ static int ide_config(struct pcmcia_device *link)
 	cistpl_cftable_entry_t dflt;
     } *stk = NULL;
     cistpl_cftable_entry_t *cfg;
-    int i, pass, last_ret = 0, last_fn = 0, is_kme = 0;
+    int pass, last_ret = 0, last_fn = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
     ide_hwif_t *hwif;
 
@@ -319,30 +333,15 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-    /* retry registration in case device is still spinning up */
-    for (i = 0; i < 10; i++) {
-	hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
-	if (hwif)
-	    break;
-	if (link->io.NumPorts1 == 0x20) {
+     hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+     if (hwif == NULL && link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    hwif = idecs_register(io_base + 0x10, ctl_base + 0x10,
 				  link->irq.AssignedIRQ, link);
-	    if (hwif) {
-		io_base += 0x10;
-		ctl_base += 0x10;
-		break;
-	    }
-	}
-	msleep(100);
     }
 
-    if (hwif == NULL) {
-	printk(KERN_NOTICE "ide-cs: ide_register() at 0x%3lx & 0x%3lx"
-	       ", irq %u failed\n", io_base, ctl_base,
-	       link->irq.AssignedIRQ);
+    if (hwif == NULL)
 	goto failed;
-    }
 
     info->ndev = 1;
     sprintf(info->node.dev_name, "hd%c", 'a' + hwif->index * 2);
@@ -411,6 +410,7 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x001c, 0x0001),	/* Mitsubishi CFA */
 	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x0704),
 	PCMCIA_DEVICE_MANF_CARD(0x0045, 0x0401),	/* SanDisk CFA */
+	PCMCIA_DEVICE_MANF_CARD(0x004f, 0x0000),	/* Kingston */
 	PCMCIA_DEVICE_MANF_CARD(0x0098, 0x0000),	/* Toshiba */
 	PCMCIA_DEVICE_MANF_CARD(0x00a4, 0x002d),
 	PCMCIA_DEVICE_MANF_CARD(0x00ce, 0x0000),	/* Samsung */
@@ -440,6 +440,7 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDE", 0x547e66dc, 0x5c5ab149),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDEII", 0x547e66dc, 0xb3662674),
 	PCMCIA_DEVICE_PROD_ID12("LOOKMEET", "CBIDE2      ", 0xe37be2b5, 0x8671043b),
+	PCMCIA_DEVICE_PROD_ID12("M-Systems", "CF300", 0x7ed2ad87, 0x7e9e78ee),
 	PCMCIA_DEVICE_PROD_ID12("M-Systems", "CF500", 0x7ed2ad87, 0x7a13045c),
 	PCMCIA_DEVICE_PROD_ID2("NinjaATA-", 0xebe0bd79),
 	PCMCIA_DEVICE_PROD_ID12("PCMCIA", "CD-ROM", 0x281f1c5d, 0x66536591),
@@ -450,6 +451,7 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("SMI VENDOR", "SMI PRODUCT", 0x30896c92, 0x703cc5f6),
 	PCMCIA_DEVICE_PROD_ID12("TOSHIBA", "MK2001MPL", 0xb4585a1a, 0x3489e003),
 	PCMCIA_DEVICE_PROD_ID1("TRANSCEND    512M   ", 0xd0909443),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF45", 0x709b1bf1, 0xf68b6f32),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF80", 0x709b1bf1, 0x2a54d4b1),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS2GCF120", 0x709b1bf1, 0x969aa4f2),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF120", 0x709b1bf1, 0xf54a91c8),

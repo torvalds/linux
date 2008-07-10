@@ -463,10 +463,13 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *p)
 {
 	struct au8522_state *state = fe->demodulator_priv;
+	int ret = -EINVAL;
 
 	dprintk("%s(frequency=%d)\n", __func__, p->frequency);
 
-	state->current_frequency = p->frequency;
+	if ((state->current_frequency == p->frequency) &&
+	    (state->current_modulation == p->u.vsb.modulation))
+		return 0;
 
 	au8522_enable_modulation(fe, p->u.vsb.modulation);
 
@@ -476,10 +479,15 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
-		fe->ops.tuner_ops.set_params(fe, p);
+		ret = fe->ops.tuner_ops.set_params(fe, p);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
+
+	if (ret < 0)
+		return ret;
+
+	state->current_frequency = p->frequency;
 
 	return 0;
 }
@@ -498,6 +506,16 @@ static int au8522_init(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int au8522_sleep(struct dvb_frontend *fe)
+{
+	struct au8522_state *state = fe->demodulator_priv;
+	dprintk("%s()\n", __func__);
+
+	state->current_frequency = 0;
+
+	return 0;
+}
+
 static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct au8522_state *state = fe->demodulator_priv;
@@ -509,10 +527,8 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (state->current_modulation == VSB_8) {
 		dprintk("%s() Checking VSB_8\n", __func__);
 		reg = au8522_readreg(state, 0x4088);
-		if (reg & 0x01)
-			*status |= FE_HAS_VITERBI;
-		if (reg & 0x02)
-			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
+		if ((reg & 0x03) == 0x03)
+			*status |= FE_HAS_LOCK | FE_HAS_SYNC | FE_HAS_VITERBI;
 	} else {
 		dprintk("%s() Checking QAM\n", __func__);
 		reg = au8522_readreg(state, 0x4541);
@@ -672,6 +688,7 @@ static struct dvb_frontend_ops au8522_ops = {
 	},
 
 	.init                 = au8522_init,
+	.sleep                = au8522_sleep,
 	.i2c_gate_ctrl        = au8522_i2c_gate_ctrl,
 	.set_frontend         = au8522_set_frontend,
 	.get_frontend         = au8522_get_frontend,

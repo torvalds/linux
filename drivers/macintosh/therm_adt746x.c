@@ -562,18 +562,24 @@ thermostat_init(void)
 		therm_type = ADT7460;
 	else if (of_device_is_compatible(np, "adt7467"))
 		therm_type = ADT7467;
-	else
+	else {
+		of_node_put(np);
 		return -ENODEV;
+	}
 
 	prop = of_get_property(np, "hwsensor-params-version", NULL);
 	printk(KERN_INFO "adt746x: version %d (%ssupported)\n", *prop,
 			 (*prop == 1)?"":"un");
-	if (*prop != 1)
+	if (*prop != 1) {
+		of_node_put(np);
 		return -ENODEV;
+	}
 
 	prop = of_get_property(np, "reg", NULL);
-	if (!prop)
+	if (!prop) {
+		of_node_put(np);
 		return -ENODEV;
+	}
 
 	/* look for bus either by path or using "reg" */
 	if (strstr(np->full_name, "/i2c-bus@") != NULL) {
@@ -610,6 +616,7 @@ thermostat_init(void)
 	
 	if (of_dev == NULL) {
 		printk(KERN_ERR "Can't register temperatures device !\n");
+		of_node_put(np);
 		return -ENODEV;
 	}
 	

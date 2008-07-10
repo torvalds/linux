@@ -35,7 +35,7 @@ extern const u32 yuv_offset[IVTV_YUV_BUFFERS];
 
 int ivtv_yuv_filter_check(struct ivtv *itv);
 void ivtv_yuv_setup_stream_frame(struct ivtv *itv);
-int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void *src);
+int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void __user *src);
 void ivtv_yuv_frame_complete(struct ivtv *itv);
 int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args);
 void ivtv_yuv_close(struct ivtv *itv);

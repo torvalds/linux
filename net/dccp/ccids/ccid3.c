@@ -159,8 +159,8 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 	} else if (ktime_us_delta(now, hctx->ccid3hctx_t_ld)
 				- (s64)hctx->ccid3hctx_rtt >= 0) {
 
-		hctx->ccid3hctx_x =
-			max(min(2 * hctx->ccid3hctx_x, min_rate),
+		hctx->ccid3hctx_x = min(2 * hctx->ccid3hctx_x, min_rate);
+		hctx->ccid3hctx_x = max(hctx->ccid3hctx_x,
 			    scaled_div(((__u64)hctx->ccid3hctx_s) << 6,
 				       hctx->ccid3hctx_rtt));
 		hctx->ccid3hctx_t_ld = now;
@@ -193,22 +193,17 @@ static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
 
 /*
  *	Update Window Counter using the algorithm from [RFC 4342, 8.1].
- *	The algorithm is not applicable if RTT < 4 microseconds.
+ *	As elsewhere, RTT > 0 is assumed by using dccp_sample_rtt().
  */
 static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hctx,
 						ktime_t now)
 {
-	u32 quarter_rtts;
-
-	if (unlikely(hctx->ccid3hctx_rtt < 4))	/* avoid divide-by-zero */
-		return;
-
-	quarter_rtts = ktime_us_delta(now, hctx->ccid3hctx_t_last_win_count);
-	quarter_rtts /= hctx->ccid3hctx_rtt / 4;
+	u32 delta = ktime_us_delta(now, hctx->ccid3hctx_t_last_win_count),
+	    quarter_rtts = (4 * delta) / hctx->ccid3hctx_rtt;
 
 	if (quarter_rtts > 0) {
 		hctx->ccid3hctx_t_last_win_count = now;
-		hctx->ccid3hctx_last_win_count	+= min_t(u32, quarter_rtts, 5);
+		hctx->ccid3hctx_last_win_count  += min(quarter_rtts, 5U);
 		hctx->ccid3hctx_last_win_count	&= 0xF;		/* mod 16 */
 	}
 }
@@ -334,8 +329,14 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
 			hctx->ccid3hctx_t_ld = now;
 		} else {
-			/* Sender does not have RTT sample: X_pps = 1 pkt/sec */
-			hctx->ccid3hctx_x = hctx->ccid3hctx_s;
+			/*
+			 * Sender does not have RTT sample:
+			 * - set fallback RTT (RFC 4340, 3.4) since a RTT value
+			 *   is needed in several parts (e.g.  window counter);
+			 * - set sending rate X_pps = 1pps as per RFC 3448, 4.2.
+			 */
+			hctx->ccid3hctx_rtt = DCCP_FALLBACK_RTT;
+			hctx->ccid3hctx_x   = hctx->ccid3hctx_s;
 			hctx->ccid3hctx_x <<= 6;
 		}
 		ccid3_update_send_interval(hctx);

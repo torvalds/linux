@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/cpufreq.h>
 
 #include <asm/io.h>
 

@@ -97,8 +97,8 @@ static int pure_hex(char **cp, unsigned int *val, int min_digit,
 	return 0;
 }
 
-static int parse_busid(char *str, int *cssid, int *ssid, int *devno,
-		       int msgtrigger)
+static int parse_busid(char *str, unsigned int *cssid, unsigned int *ssid,
+		       unsigned int *devno, int msgtrigger)
 {
 	char *str_work;
 	int val, rc, ret;
@@ -148,7 +148,7 @@ out:
 static int blacklist_parse_parameters(char *str, range_action action,
 				      int msgtrigger)
 {
-	int from_cssid, to_cssid, from_ssid, to_ssid, from, to;
+	unsigned int from_cssid, to_cssid, from_ssid, to_ssid, from, to;
 	int rc, totalrc;
 	char *parm;
 	range_action ra;

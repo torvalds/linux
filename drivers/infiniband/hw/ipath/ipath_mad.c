@@ -1492,6 +1492,10 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 			goto bail;
 		}
 
+	case IB_MGMT_METHOD_TRAP:
+	case IB_MGMT_METHOD_REPORT:
+	case IB_MGMT_METHOD_REPORT_RESP:
+	case IB_MGMT_METHOD_TRAP_REPRESS:
 	case IB_MGMT_METHOD_GET_RESP:
 		/*
 		 * The ib_mad module will call us to process responses
