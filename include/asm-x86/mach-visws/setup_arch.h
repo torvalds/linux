@@ -1,3 +1,1 @@
-/* Hook to call BIOS initialisation function */
-
-/* no action for visws */
+#include "../mach-default/setup_arch.h"
