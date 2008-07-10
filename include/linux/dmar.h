@@ -47,6 +47,7 @@ extern int intel_iommu_init(void);
 extern int dmar_table_init(void);
 extern int early_dmar_detect(void);
 extern int dmar_dev_scope_init(void);
+extern int parse_ioapics_under_ir(void);
 
 extern struct list_head dmar_drhd_units;
 extern struct list_head dmar_rmrr_units;
