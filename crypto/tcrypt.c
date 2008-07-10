@@ -15,6 +15,7 @@
  *
  */
 
+#include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>

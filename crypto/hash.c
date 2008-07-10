@@ -9,6 +9,7 @@
  * any later version.
  */
 
+#include <crypto/internal/hash.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

@@ -12,6 +12,7 @@
  *
  */
 
+#include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
 #include <linux/mm.h>
 #include <linux/errno.h>

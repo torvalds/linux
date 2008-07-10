@@ -11,6 +11,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/internal/hash.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
