@@ -283,7 +283,7 @@ config X86_VOYAGER
 
 config X86_VISWS
 	bool "SGI 320/540 (Visual Workstation)"
-	depends on X86_32 && !PCI
+	depends on X86_32 && PCI
 	help
 	  The SGI Visual Workstation series is an IA32-based workstation
 	  based on SGI systems chips with some legacy PC hardware attached.
@@ -355,7 +355,7 @@ config X86_RDC321X
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
 	select PARAVIRT
-	depends on X86_64 && !PCI
+	depends on X86_64 && PCI
 	help
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
