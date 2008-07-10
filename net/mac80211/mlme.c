@@ -4360,7 +4360,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
 		return NULL;
 	}
 
-	if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid))
+	if (compare_ether_addr(bssid, sdata->u.sta.bssid))
 		return NULL;
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
