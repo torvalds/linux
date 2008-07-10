@@ -1455,6 +1455,9 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	return 0;
 }
 
+void kvm_arch_flush_shadow(struct kvm *kvm)
+{
+}
 
 long kvm_arch_dev_ioctl(struct file *filp,
 		unsigned int ioctl, unsigned long arg)
