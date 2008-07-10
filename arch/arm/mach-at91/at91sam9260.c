@@ -47,6 +47,20 @@ static struct map_desc at91sam9260_sram_desc[] __initdata = {
 	}
 };
 
+static struct map_desc at91sam9g20_sram_desc[] __initdata = {
+	{
+		.virtual	= AT91_IO_VIRT_BASE - AT91SAM9G20_SRAM0_SIZE,
+		.pfn		= __phys_to_pfn(AT91SAM9G20_SRAM0_BASE),
+		.length		= AT91SAM9G20_SRAM0_SIZE,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= AT91_IO_VIRT_BASE - AT91SAM9G20_SRAM0_SIZE - AT91SAM9G20_SRAM1_SIZE,
+		.pfn		= __phys_to_pfn(AT91SAM9G20_SRAM1_BASE),
+		.length		= AT91SAM9G20_SRAM1_SIZE,
+		.type		= MT_DEVICE,
+	}
+};
+
 static struct map_desc at91sam9xe_sram_desc[] __initdata = {
 	{
 		.pfn		= __phys_to_pfn(AT91SAM9XE_SRAM_BASE),
@@ -307,6 +321,8 @@ void __init at91sam9260_initialize(unsigned long main_clock)
 
 	if (cpu_is_at91sam9xe())
 		at91sam9xe_initialize();
+	else if (cpu_is_at91sam9g20())
+		iotable_init(at91sam9g20_sram_desc, ARRAY_SIZE(at91sam9g20_sram_desc));
 	else
 		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
 

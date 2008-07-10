@@ -515,14 +515,19 @@ static unsigned __init at91_pll_calc(unsigned main_freq, unsigned out_freq)
 		/*
 		 * PLL input between 1MHz and 32MHz per spec, but lower
 		 * frequences seem necessary in some cases so allow 100K.
+		 * Warning: some newer products need 2MHz min.
 		 */
 		input = main_freq / i;
+		if (cpu_is_at91sam9g20() && input < 2000000)
+			continue;
 		if (input < 100000)
 			continue;
 		if (input > 32000000)
 			continue;
 
 		mul1 = out_freq / input;
+		if (cpu_is_at91sam9g20() && mul > 63)
+			continue;
 		if (mul1 > 2048)
 			continue;
 		if (mul1 < 2)
@@ -582,7 +587,8 @@ int __init at91_clock_init(unsigned long main_clock)
 
 	/* report if PLLA is more than mildly overclocked */
 	plla.rate_hz = at91_pll_rate(&plla, main_clock, at91_sys_read(AT91_CKGR_PLLAR));
-	if (plla.rate_hz > 209000000)
+	if ((!cpu_is_at91sam9g20() && plla.rate_hz > 209000000)
+	   || (cpu_is_at91sam9g20() && plla.rate_hz > 800000000))
 		pr_info("Clocks: PLLA overclocked, %ld MHz\n", plla.rate_hz / 1000000);
 
 	/*
@@ -597,7 +603,7 @@ int __init at91_clock_init(unsigned long main_clock)
 		uhpck.pmc_mask = AT91RM9200_PMC_UHP;
 		udpck.pmc_mask = AT91RM9200_PMC_UDP;
 		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
-	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()) {
+	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263() || cpu_is_at91sam9g20()) {
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
 	} else if (cpu_is_at91cap9()) {
@@ -629,8 +635,13 @@ int __init at91_clock_init(unsigned long main_clock)
 	freq /= (1 << ((mckr & AT91_PMC_PRES) >> 2));				/* prescale */
 	if (cpu_is_at91rm9200())
 		mck.rate_hz = freq / (1 + ((mckr & AT91_PMC_MDIV) >> 8));	/* mdiv */
-	else
-		mck.rate_hz = freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));	/* mdiv */
+	else if (cpu_is_at91sam9g20()) {
+		mck.rate_hz = (mckr & AT91_PMC_MDIV) ?
+			freq / ((mckr & AT91_PMC_MDIV) >> 7) : freq;	/* mdiv ; (x >> 7) = ((x >> 8) * 2) */
+		if (mckr & AT91_PMC_PDIV)
+			freq /= 2;		/* processor clock division */
+	} else
+		mck.rate_hz = freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));      /* mdiv */
 
 	/* Register the PMC's standard clocks */
 	for (i = 0; i < ARRAY_SIZE(standard_pmc_clocks); i++)
