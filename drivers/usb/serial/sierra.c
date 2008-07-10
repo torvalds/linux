@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.2.9c"
+#define DRIVER_VERSION "v.1.2.13a"
 #define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -31,6 +31,7 @@
 #define SWIMS_USB_REQUEST_SetPower	0x00
 #define SWIMS_USB_REQUEST_SetNmea	0x07
 #define SWIMS_USB_REQUEST_SetMode	0x0B
+#define SWIMS_USB_REQUEST_GetSwocInfo	0x0A
 #define SWIMS_SET_MODE_Modem		0x0001
 
 /* per port private data */
@@ -40,13 +41,6 @@
 
 static int debug;
 static int nmea;
-static int truinstall = 1;
-
-enum devicetype {
-	DEVICE_3_PORT =		0,
-	DEVICE_1_PORT =		1,
-	DEVICE_INSTALLER =	2,
-};
 
 static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 {
@@ -60,21 +54,6 @@ static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 			NULL,				/* void *data        */
 			0,				/* __u16 size 	     */
 			USB_CTRL_SET_TIMEOUT);		/* int timeout 	     */
-	return result;
-}
-
-static int sierra_set_ms_mode(struct usb_device *udev, __u16 eSWocMode)
-{
-	int result;
-	dev_dbg(&udev->dev,  "%s", __func__);
-	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-			SWIMS_USB_REQUEST_SetMode,	/* __u8 request      */
-			USB_TYPE_VENDOR,		/* __u8 request type */
-			eSWocMode,			/* __u16 value       */
-			0x0000,				/* __u16 index       */
-			NULL,				/* void *data        */
-			0,				/* __u16 size 	     */
-			USB_CTRL_SET_TIMEOUT);		/* int timeout       */
 	return result;
 }
 
@@ -163,15 +142,8 @@ static int sierra_probe(struct usb_serial *serial,
 		usb_set_interface(udev, ifnum, 1);
 	}
 
-	/* Check if in installer mode */
-	if (truinstall && id->driver_info == DEVICE_INSTALLER) {
-		dev_dbg(&udev->dev, "%s", "FOUND TRU-INSTALL DEVICE(SW)\n");
-		result = sierra_set_ms_mode(udev, SWIMS_SET_MODE_Modem);
-		/* Don't bind to the device when in installer mode */
-		kfree(num_ports);
-		return -EIO;
 	/* Dummy interface present on some SKUs should be ignored */
-	} else if (ifnum == 0x99)
+	if (ifnum == 0x99)
 		*num_ports = 0;
 	else if (numendpoints <= 3)
 		*num_ports = 1;
@@ -237,7 +209,6 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless AirCard 580 */
 	{ USB_DEVICE(0x0F3D, 0x0112) }, /* Airprime/Sierra PC 5220 */
 
-	{ USB_DEVICE(0x1199, 0x0FFF), .driver_info = DEVICE_INSTALLER},
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, id_table);
