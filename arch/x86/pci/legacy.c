@@ -66,5 +66,7 @@ int __init pci_subsys_init(void)
 	pci_numa_init();
 #endif
 	pcibios_init();
+
+	return 0;
 }
 subsys_initcall(pci_subsys_init);
