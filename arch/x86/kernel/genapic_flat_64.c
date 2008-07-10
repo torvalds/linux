@@ -15,9 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/hardirq.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <mach_apicdef.h>
 
 static cpumask_t flat_target_cpus(void)
 {
@@ -95,9 +97,17 @@ static void flat_send_IPI_all(int vector)
 		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
 }
 
+static unsigned int read_xapic_id(void)
+{
+	unsigned int id;
+
+	id = GET_XAPIC_ID(apic_read(APIC_ID));
+	return id;
+}
+
 static int flat_apic_id_registered(void)
 {
-	return physid_isset(GET_APIC_ID(read_apic_id()), phys_cpu_present_map);
+	return physid_isset(read_xapic_id(), phys_cpu_present_map);
 }
 
 static unsigned int flat_cpu_mask_to_apicid(cpumask_t cpumask)
@@ -123,6 +133,7 @@ struct genapic apic_flat =  {
 	.send_IPI_mask = flat_send_IPI_mask,
 	.cpu_mask_to_apicid = flat_cpu_mask_to_apicid,
 	.phys_pkg_id = phys_pkg_id,
+	.read_apic_id = read_xapic_id,
 };
 
 /*
@@ -187,4 +198,5 @@ struct genapic apic_physflat =  {
 	.send_IPI_mask = physflat_send_IPI_mask,
 	.cpu_mask_to_apicid = physflat_cpu_mask_to_apicid,
 	.phys_pkg_id = phys_pkg_id,
+	.read_apic_id = read_xapic_id,
 };

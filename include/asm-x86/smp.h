@@ -169,12 +169,10 @@ static inline unsigned int read_apic_id(void)
 {
 	return *(u32 *)(APIC_BASE + APIC_ID);
 }
-#else
-extern unsigned int read_apic_id(void);
 #endif
 
 
-# ifdef APIC_DEFINITION
+# if defined(APIC_DEFINITION) || defined(CONFIG_X86_64)
 extern int hard_smp_processor_id(void);
 # else
 #  include <mach_apicdef.h>

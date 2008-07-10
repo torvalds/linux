@@ -1096,6 +1096,11 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	cpu_set(cpu, cpu_present_map);
 }
 
+int hard_smp_processor_id(void)
+{
+	return read_apic_id();
+}
+
 /*
  * Power management
  */

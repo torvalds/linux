@@ -5,8 +5,9 @@
 
 #ifdef CONFIG_X86_64
 #define	APIC_ID_MASK		(0xFFu<<24)
-#define GET_APIC_ID(x)          (((x)>>24)&0xFFu)
+#define GET_APIC_ID(x)          (x)
 #define	SET_APIC_ID(x)		(((x)<<24))
+#define GET_XAPIC_ID(x)		(((x) >> 24) & 0xFFu)
 #else
 #define		APIC_ID_MASK		(0xF<<24)
 static inline unsigned get_apic_id(unsigned long x) 

@@ -27,6 +27,7 @@ struct genapic {
 	/* */
 	unsigned int (*cpu_mask_to_apicid)(cpumask_t cpumask);
 	unsigned int (*phys_pkg_id)(int index_msb);
+	unsigned int (*read_apic_id)(void);
 };
 
 extern struct genapic *genapic;
