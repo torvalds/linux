@@ -768,6 +768,38 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
 		    sizeof(uint32_t);
 
+		/* Allocate memory for Fibre Channel Event Buffer. */
+		if (!IS_QLA25XX(ha))
+			goto try_eft;
+
+		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
+		    GFP_KERNEL);
+		if (!tc) {
+			qla_printk(KERN_WARNING, ha, "Unable to allocate "
+			    "(%d KB) for FCE.\n", FCE_SIZE / 1024);
+			goto try_eft;
+		}
+
+		memset(tc, 0, FCE_SIZE);
+		rval = qla2x00_enable_fce_trace(ha, tc_dma, FCE_NUM_BUFFERS,
+		    ha->fce_mb, &ha->fce_bufs);
+		if (rval) {
+			qla_printk(KERN_WARNING, ha, "Unable to initialize "
+			    "FCE (%d).\n", rval);
+			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc,
+			    tc_dma);
+			ha->flags.fce_enabled = 0;
+			goto try_eft;
+		}
+
+		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
+		    FCE_SIZE / 1024);
+
+		fce_size = sizeof(struct qla2xxx_fce_chain) + EFT_SIZE;
+		ha->flags.fce_enabled = 1;
+		ha->fce_dma = tc_dma;
+		ha->fce = tc;
+try_eft:
 		/* Allocate memory for Extended Trace Buffer. */
 		tc = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
 		    GFP_KERNEL);
@@ -793,38 +825,6 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		eft_size = EFT_SIZE;
 		ha->eft_dma = tc_dma;
 		ha->eft = tc;
-
-		/* Allocate memory for Fibre Channel Event Buffer. */
-		if (!IS_QLA25XX(ha))
-			goto cont_alloc;
-
-		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
-		    GFP_KERNEL);
-		if (!tc) {
-			qla_printk(KERN_WARNING, ha, "Unable to allocate "
-			    "(%d KB) for FCE.\n", FCE_SIZE / 1024);
-			goto cont_alloc;
-		}
-
-		memset(tc, 0, FCE_SIZE);
-		rval = qla2x00_enable_fce_trace(ha, tc_dma, FCE_NUM_BUFFERS,
-		    ha->fce_mb, &ha->fce_bufs);
-		if (rval) {
-			qla_printk(KERN_WARNING, ha, "Unable to initialize "
-			    "FCE (%d).\n", rval);
-			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc,
-			    tc_dma);
-			ha->flags.fce_enabled = 0;
-			goto cont_alloc;
-		}
-
-		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
-		    FCE_SIZE / 1024);
-
-		fce_size = sizeof(struct qla2xxx_fce_chain) + EFT_SIZE;
-		ha->flags.fce_enabled = 1;
-		ha->fce_dma = tc_dma;
-		ha->fce = tc;
 	}
 cont_alloc:
 	req_q_size = ha->request_q_length * sizeof(request_t);
@@ -3286,17 +3286,6 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 			ha->isp_abort_cnt = 0;
 			clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 
-			if (ha->eft) {
-				memset(ha->eft, 0, EFT_SIZE);
-				rval = qla2x00_enable_eft_trace(ha,
-				    ha->eft_dma, EFT_NUM_BUFFERS);
-				if (rval) {
-					qla_printk(KERN_WARNING, ha,
-					    "Unable to reinitialize EFT "
-					    "(%d).\n", rval);
-				}
-			}
-
 			if (ha->fce) {
 				ha->flags.fce_enabled = 1;
 				memset(ha->fce, 0,
@@ -3309,6 +3298,17 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 					    "Unable to reinitialize FCE "
 					    "(%d).\n", rval);
 					ha->flags.fce_enabled = 0;
+				}
+			}
+
+			if (ha->eft) {
+				memset(ha->eft, 0, EFT_SIZE);
+				rval = qla2x00_enable_eft_trace(ha,
+				    ha->eft_dma, EFT_NUM_BUFFERS);
+				if (rval) {
+					qla_printk(KERN_WARNING, ha,
+					    "Unable to reinitialize EFT "
+					    "(%d).\n", rval);
 				}
 			}
 		} else {	/* failed the ISP abort */
