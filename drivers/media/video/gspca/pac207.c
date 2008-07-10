@@ -357,70 +357,20 @@ static void sd_close(struct gspca_dev *gspca_dev)
 {
 }
 
-/* auto gain and exposure algorithm based on the knee algorithm described here:
- * <http://ytse.tricolour.net/docs/LowLightOptimization.html> */
 static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i, steps, desired_avg_lum;
-	int orig_gain = sd->gain;
-	int orig_exposure = sd->exposure;
 	int avg_lum = atomic_read(&sd->avg_lum);
 
-	if (!sd->autogain || avg_lum == -1)
+	if (avg_lum == -1)
 		return;
 
-	if (sd->autogain_ignore_frames > 0) {
+	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
-		return;
-	}
-
-	/* correct desired lumination for the configured brightness */
-	desired_avg_lum = 100 + sd->brightness / 2;
-
-	/* If we are of a multiple of deadzone, do multiple step to reach the
-	   desired lumination fast (with the risc of a slight overshoot) */
-	steps = abs(desired_avg_lum - avg_lum) / PAC207_AUTOGAIN_DEADZONE;
-
-	for (i = 0; i < steps; i++) {
-		if (avg_lum > desired_avg_lum) {
-			if (sd->gain > PAC207_GAIN_KNEE)
-				sd->gain--;
-			else if (sd->exposure > PAC207_EXPOSURE_KNEE)
-				sd->exposure--;
-			else if (sd->gain > PAC207_GAIN_DEFAULT)
-				sd->gain--;
-			else if (sd->exposure > PAC207_EXPOSURE_MIN)
-				sd->exposure--;
-			else if (sd->gain > PAC207_GAIN_MIN)
-				sd->gain--;
-			else
-				break;
-		} else {
-			if (sd->gain < PAC207_GAIN_DEFAULT)
-				sd->gain++;
-			else if (sd->exposure < PAC207_EXPOSURE_KNEE)
-				sd->exposure++;
-			else if (sd->gain < PAC207_GAIN_KNEE)
-				sd->gain++;
-			else if (sd->exposure < PAC207_EXPOSURE_MAX)
-				sd->exposure++;
-			else if (sd->gain < PAC207_GAIN_MAX)
-				sd->gain++;
-			else
-				break;
-		}
-	}
-
-	if (sd->exposure != orig_exposure || sd->gain != orig_gain) {
-		if (sd->exposure != orig_exposure)
-			pac207_write_reg(gspca_dev, 0x0002, sd->exposure);
-		if (sd->gain != orig_gain)
-			pac207_write_reg(gspca_dev, 0x000e, sd->gain);
-		pac207_write_reg(gspca_dev, 0x13, 0x01); /* load reg to sen */
-		pac207_write_reg(gspca_dev, 0x1c, 0x01); /* not documented */
+	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
+			100 + sd->brightness / 2, PAC207_AUTOGAIN_DEADZONE,
+			PAC207_GAIN_KNEE, PAC207_EXPOSURE_KNEE))
 		sd->autogain_ignore_frames = PAC207_AUTOGAIN_IGNORE_FRAMES;
-	}
 }
 
 static unsigned char *pac207_find_sof(struct gspca_dev *gspca_dev,
@@ -546,10 +496,6 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* don't allow mucking with exposure when using autogain */
-	if (sd->autogain)
-		return -EINVAL;
-
 	sd->exposure = val;
 	if (gspca_dev->streaming)
 		setexposure(gspca_dev);
@@ -567,10 +513,6 @@ static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-
-	/* don't allow mucking with gain when using autogain */
-	if (sd->autogain)
-		return -EINVAL;
 
 	sd->gain = val;
 	if (gspca_dev->streaming)

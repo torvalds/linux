@@ -170,4 +170,6 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    struct gspca_frame *frame,
 				    const __u8 *data,
 				    int len);
+int gspca_auto_gain_n_exposure(struct gspca_dev *gspca_dev, int avg_lum,
+	int desired_avg_lum, int deadzone, int gain_knee, int exposure_knee);
 #endif /* GSPCAV2_H */
