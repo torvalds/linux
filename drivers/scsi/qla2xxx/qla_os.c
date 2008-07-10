@@ -1849,6 +1849,7 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *ha, fc_port_t *fcport,
     int defer)
 {
 	struct fc_rport *rport;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	if (!fcport->rport)
 		return;
@@ -1858,8 +1859,8 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *ha, fc_port_t *fcport,
 		spin_lock_irq(ha->host->host_lock);
 		fcport->drport = rport;
 		spin_unlock_irq(ha->host->host_lock);
-		set_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags);
-		qla2xxx_wake_dpc(ha);
+		set_bit(FCPORT_UPDATE_NEEDED, &pha->dpc_flags);
+		qla2xxx_wake_dpc(pha);
 	} else
 		fc_remote_port_delete(rport);
 }

@@ -2012,8 +2012,10 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 	if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags)) {
 		if (test_bit(LOCAL_LOOP_UPDATE, &save_flags))
 			set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
-		if (test_bit(RSCN_UPDATE, &save_flags))
+		if (test_bit(RSCN_UPDATE, &save_flags)) {
+			ha->flags.rscn_queue_overflow = 1;
 			set_bit(RSCN_UPDATE, &ha->dpc_flags);
+		}
 	}
 
 	return (rval);
