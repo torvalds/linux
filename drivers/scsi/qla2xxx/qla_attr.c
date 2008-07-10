@@ -1071,6 +1071,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	pfc_host_stat->invalid_tx_word_count = stats->inval_xmit_word_cnt;
 	pfc_host_stat->invalid_crc_count = stats->inval_crc_cnt;
 	if (IS_FWI2_CAPABLE(ha)) {
+		pfc_host_stat->lip_count = stats->lip_cnt;
 		pfc_host_stat->tx_frames = stats->tx_frames;
 		pfc_host_stat->rx_frames = stats->rx_frames;
 		pfc_host_stat->dumped_frames = stats->dumped_frames;

@@ -864,7 +864,8 @@ struct link_statistics {
 	uint32_t prim_seq_err_cnt;
 	uint32_t inval_xmit_word_cnt;
 	uint32_t inval_crc_cnt;
-	uint32_t unused1[0x1b];
+	uint32_t lip_cnt;
+	uint32_t unused1[0x1a];
 	uint32_t tx_frames;
 	uint32_t rx_frames;
 	uint32_t dumped_frames;
