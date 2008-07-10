@@ -177,6 +177,21 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define dma_frcd_source_id(c) (c & 0xffff)
 #define dma_frcd_page_addr(d) (d & (((u64)-1) << 12)) /* low 64 bit */
 
+#define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000) /* 10sec */
+
+#define IOMMU_WAIT_OP(iommu, offset, op, cond, sts) \
+{\
+	cycles_t start_time = get_cycles();\
+	while (1) {\
+		sts = op (iommu->reg + offset);\
+		if (cond)\
+			break;\
+		if (DMAR_OPERATION_TIMEOUT < (get_cycles() - start_time))\
+			panic("DMAR hardware is malfunctioning\n");\
+		cpu_relax();\
+	}\
+}
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
