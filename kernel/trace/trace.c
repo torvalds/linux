@@ -2913,6 +2913,9 @@ static __init void tracer_init_debugfs(void)
 		pr_warning("Could not create debugfs "
 			   "'dyn_ftrace_total_info' entry\n");
 #endif
+#ifdef CONFIG_SYSPROF_TRACER
+	init_tracer_sysprof_debugfs(d_tracer);
+#endif
 }
 
 static int trace_alloc_page(void)

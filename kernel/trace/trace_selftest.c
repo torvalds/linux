@@ -538,3 +538,26 @@ trace_selftest_startup_sched_switch(struct tracer *trace, struct trace_array *tr
 	return ret;
 }
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
+
+#ifdef CONFIG_SYSPROF_TRACER
+int
+trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
+{
+	unsigned long count;
+	int ret;
+
+	/* start the tracing */
+	tr->ctrl = 1;
+	trace->init(tr);
+	/* Sleep for a 1/10 of a second */
+	msleep(100);
+	/* stop the tracing. */
+	tr->ctrl = 0;
+	trace->ctrl_update(tr);
+	/* check the trace buffer */
+	ret = trace_test_buffer(tr, &count);
+	trace->reset(tr);
+
+	return ret;
+}
+#endif /* CONFIG_SYSPROF_TRACER */

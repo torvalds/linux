@@ -193,6 +193,8 @@ struct trace_iterator {
 void tracing_reset(struct trace_array_cpu *data);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 struct dentry *tracing_init_dentry(void);
+void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
+
 void ftrace(struct trace_array *tr,
 			    struct trace_array_cpu *data,
 			    unsigned long ip,
@@ -292,6 +294,10 @@ extern int trace_selftest_startup_wakeup(struct tracer *trace,
 #endif
 #ifdef CONFIG_CONTEXT_SWITCH_TRACER
 extern int trace_selftest_startup_sched_switch(struct tracer *trace,
+					       struct trace_array *tr);
+#endif
+#ifdef CONFIG_SYSPROF_TRACER
+extern int trace_selftest_startup_sysprof(struct tracer *trace,
 					       struct trace_array *tr);
 #endif
 #endif /* CONFIG_FTRACE_STARTUP_TEST */

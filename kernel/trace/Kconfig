@@ -75,6 +75,14 @@ config PREEMPT_TRACER
 	  enabled. This option and the irqs-off timing option can be
 	  used together or separately.)
 
+config SYSPROF_TRACER
+	bool "Sysprof Tracer"
+	depends on X86
+	select TRACING
+	help
+	  This tracer provides the trace needed by the 'Sysprof' userspace
+	  tool.
+
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
 	depends on HAVE_FTRACE
