@@ -729,7 +729,7 @@ qla24xx_chip_diag(scsi_qla_host_t *ha)
 	/* Perform RISC reset. */
 	qla24xx_reset_risc(ha);
 
-	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * 1024;
+	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * ha->request_q_length;
 
 	rval = qla2x00_mbx_reg_test(ha);
 	if (rval) {
