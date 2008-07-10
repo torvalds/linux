@@ -360,9 +360,11 @@ struct pv_cpu_ops pv_cpu_ops = {
 
 struct pv_apic_ops pv_apic_ops = {
 #ifdef CONFIG_X86_LOCAL_APIC
-	.apic_write = native_apic_write,
-	.apic_write_atomic = native_apic_write_atomic,
-	.apic_read = native_apic_read,
+#ifnded CONFIG_X86_64
+	.apic_write = native_apic_mem_write,
+	.apic_write_atomic = native_apic_mem_write_atomic,
+	.apic_read = native_apic_mem_read,
+#endif
 	.setup_boot_clock = setup_boot_APIC_clock,
 	.setup_secondary_clock = setup_secondary_APIC_clock,
 	.startup_ipi_hook = paravirt_nop,

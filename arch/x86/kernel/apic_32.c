@@ -145,6 +145,12 @@ static int modern_apic(void)
 	return lapic_get_version() >= 0x14;
 }
 
+void apic_icr_write(u32 low, u32 id)
+{
+	apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(id));
+	apic_write_around(APIC_ICR, low);
+}
+
 void apic_wait_icr_idle(void)
 {
 	while (apic_read(APIC_ICR) & APIC_ICR_BUSY)
