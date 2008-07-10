@@ -12,6 +12,9 @@
 #ifndef __ASM_TXX9_TX4938_H
 #define __ASM_TXX9_TX4938_H
 
+/* some controllers are compatible with 4927 */
+#include <asm/txx9/tx4927.h>
+
 #define tx4938_read_nfmc(addr) (*(volatile unsigned int *)(addr))
 #define tx4938_write_nfmc(b, addr) (*(volatile unsigned int *)(addr)) = (b)
 
@@ -51,9 +54,6 @@
 #define TX4938_ACLC_REG		(TX4938_REG_BASE + 0xf700)
 #define TX4938_SPI_REG		(TX4938_REG_BASE + 0xf800)
 
-#ifdef __ASSEMBLY__
-#define _CONST64(c)	c
-#else
 #define _CONST64(c)	c##ull
 
 #include <asm/byteorder.h>
@@ -111,68 +111,6 @@ struct tx4938_dma_reg {
 	volatile unsigned long long tdhr;
 	volatile unsigned long long midr;
 	endian_def_l2(unused0, mcr);
-};
-
-struct tx4938_pcic_reg {
-	volatile unsigned long pciid;
-	volatile unsigned long pcistatus;
-	volatile unsigned long pciccrev;
-	volatile unsigned long pcicfg1;
-	volatile unsigned long p2gm0plbase;		/* +10 */
-	volatile unsigned long p2gm0pubase;
-	volatile unsigned long p2gm1plbase;
-	volatile unsigned long p2gm1pubase;
-	volatile unsigned long p2gm2pbase;		/* +20 */
-	volatile unsigned long p2giopbase;
-	volatile unsigned long unused0;
-	volatile unsigned long pcisid;
-	volatile unsigned long unused1;		/* +30 */
-	volatile unsigned long pcicapptr;
-	volatile unsigned long unused2;
-	volatile unsigned long pcicfg2;
-	volatile unsigned long g2ptocnt;		/* +40 */
-	volatile unsigned long unused3[15];
-	volatile unsigned long g2pstatus;		/* +80 */
-	volatile unsigned long g2pmask;
-	volatile unsigned long pcisstatus;
-	volatile unsigned long pcimask;
-	volatile unsigned long p2gcfg;		/* +90 */
-	volatile unsigned long p2gstatus;
-	volatile unsigned long p2gmask;
-	volatile unsigned long p2gccmd;
-	volatile unsigned long unused4[24];		/* +a0 */
-	volatile unsigned long pbareqport;		/* +100 */
-	volatile unsigned long pbacfg;
-	volatile unsigned long pbastatus;
-	volatile unsigned long pbamask;
-	volatile unsigned long pbabm;		/* +110 */
-	volatile unsigned long pbacreq;
-	volatile unsigned long pbacgnt;
-	volatile unsigned long pbacstate;
-	volatile unsigned long long g2pmgbase[3];		/* +120 */
-	volatile unsigned long long g2piogbase;
-	volatile unsigned long g2pmmask[3];		/* +140 */
-	volatile unsigned long g2piomask;
-	volatile unsigned long long g2pmpbase[3];		/* +150 */
-	volatile unsigned long long g2piopbase;
-	volatile unsigned long pciccfg;		/* +170 */
-	volatile unsigned long pcicstatus;
-	volatile unsigned long pcicmask;
-	volatile unsigned long unused5;
-	volatile unsigned long long p2gmgbase[3];		/* +180 */
-	volatile unsigned long long p2giogbase;
-	volatile unsigned long g2pcfgadrs;		/* +1a0 */
-	volatile unsigned long g2pcfgdata;
-	volatile unsigned long unused6[8];
-	volatile unsigned long g2pintack;
-	volatile unsigned long g2pspc;
-	volatile unsigned long unused7[12];		/* +1d0 */
-	volatile unsigned long long pdmca;		/* +200 */
-	volatile unsigned long long pdmga;
-	volatile unsigned long long pdmpa;
-	volatile unsigned long long pdmctr;
-	volatile unsigned long long pdmcfg;		/* +220 */
-	volatile unsigned long long pdmsts;
 };
 
 struct tx4938_aclc_reg {
@@ -262,18 +200,18 @@ struct tx4938_sramc_reg {
 };
 
 struct tx4938_ccfg_reg {
-	volatile unsigned long long ccfg;
-	volatile unsigned long long crir;
-	volatile unsigned long long pcfg;
-	volatile unsigned long long tear;
-	volatile unsigned long long clkctr;
-	volatile unsigned long long unused0;
-	volatile unsigned long long garbc;
-	volatile unsigned long long unused1;
-	volatile unsigned long long unused2;
-	volatile unsigned long long ramp;
-	volatile unsigned long long unused3;
-	volatile unsigned long long jmpadr;
+	u64 ccfg;
+	u64 crir;
+	u64 pcfg;
+	u64 toea;
+	u64 clkctr;
+	u64 unused0;
+	u64 garbc;
+	u64 unused1;
+	u64 unused2;
+	u64 ramp;
+	u64 unused3;
+	u64 jmpadr;
 };
 
 #undef endian_def_l2
@@ -281,8 +219,6 @@ struct tx4938_ccfg_reg {
 #undef endian_def_sb2
 #undef endian_def_b2s
 #undef endian_def_b4
-
-#endif /* __ASSEMBLY__ */
 
 /*
  * NDFMC
@@ -360,7 +296,7 @@ struct tx4938_ccfg_reg {
 #define TX4938_CCFG_BEOW	0x00010000
 #define TX4938_CCFG_WR	0x00008000
 #define TX4938_CCFG_TOE	0x00004000
-#define TX4938_CCFG_PCIXARB	0x00002000
+#define TX4938_CCFG_PCIARB	0x00002000
 #define TX4938_CCFG_PCIDIVMODE_MASK	0x00001c00
 #define TX4938_CCFG_PCIDIVMODE_4	(0x1 << 10)
 #define TX4938_CCFG_PCIDIVMODE_4_5	(0x3 << 10)
@@ -436,110 +372,6 @@ struct tx4938_ccfg_reg {
 #define TX4938_CLKCTR_SIO0RST	0x00000002
 #define TX4938_CLKCTR_SIO1RST	0x00000001
 
-/* bits for G2PSTATUS/G2PMASK */
-#define TX4938_PCIC_G2PSTATUS_ALL	0x00000003
-#define TX4938_PCIC_G2PSTATUS_TTOE	0x00000002
-#define TX4938_PCIC_G2PSTATUS_RTOE	0x00000001
-
-/* bits for PCIMASK (see also PCI_STATUS_XXX in linux/pci.h */
-#define TX4938_PCIC_PCISTATUS_ALL	0x0000f900
-
-/* bits for PBACFG */
-#define TX4938_PCIC_PBACFG_FIXPA	0x00000008
-#define TX4938_PCIC_PBACFG_RPBA	0x00000004
-#define TX4938_PCIC_PBACFG_PBAEN	0x00000002
-#define TX4938_PCIC_PBACFG_BMCEN	0x00000001
-
-/* bits for G2PMnGBASE */
-#define TX4938_PCIC_G2PMnGBASE_BSDIS	_CONST64(0x0000002000000000)
-#define TX4938_PCIC_G2PMnGBASE_ECHG	_CONST64(0x0000001000000000)
-
-/* bits for G2PIOGBASE */
-#define TX4938_PCIC_G2PIOGBASE_BSDIS	_CONST64(0x0000002000000000)
-#define TX4938_PCIC_G2PIOGBASE_ECHG	_CONST64(0x0000001000000000)
-
-/* bits for PCICSTATUS/PCICMASK */
-#define TX4938_PCIC_PCICSTATUS_ALL	0x000007b8
-#define TX4938_PCIC_PCICSTATUS_PME	0x00000400
-#define TX4938_PCIC_PCICSTATUS_TLB	0x00000200
-#define TX4938_PCIC_PCICSTATUS_NIB	0x00000100
-#define TX4938_PCIC_PCICSTATUS_ZIB	0x00000080
-#define TX4938_PCIC_PCICSTATUS_PERR	0x00000020
-#define TX4938_PCIC_PCICSTATUS_SERR	0x00000010
-#define TX4938_PCIC_PCICSTATUS_GBE	0x00000008
-#define TX4938_PCIC_PCICSTATUS_IWB	0x00000002
-#define TX4938_PCIC_PCICSTATUS_E2PDONE	0x00000001
-
-/* bits for PCICCFG */
-#define TX4938_PCIC_PCICCFG_GBWC_MASK	0x0fff0000
-#define TX4938_PCIC_PCICCFG_HRST	0x00000800
-#define TX4938_PCIC_PCICCFG_SRST	0x00000400
-#define TX4938_PCIC_PCICCFG_IRBER	0x00000200
-#define TX4938_PCIC_PCICCFG_G2PMEN(ch)	(0x00000100>>(ch))
-#define TX4938_PCIC_PCICCFG_G2PM0EN	0x00000100
-#define TX4938_PCIC_PCICCFG_G2PM1EN	0x00000080
-#define TX4938_PCIC_PCICCFG_G2PM2EN	0x00000040
-#define TX4938_PCIC_PCICCFG_G2PIOEN	0x00000020
-#define TX4938_PCIC_PCICCFG_TCAR	0x00000010
-#define TX4938_PCIC_PCICCFG_ICAEN	0x00000008
-
-/* bits for P2GMnGBASE */
-#define TX4938_PCIC_P2GMnGBASE_TMEMEN	_CONST64(0x0000004000000000)
-#define TX4938_PCIC_P2GMnGBASE_TBSDIS	_CONST64(0x0000002000000000)
-#define TX4938_PCIC_P2GMnGBASE_TECHG	_CONST64(0x0000001000000000)
-
-/* bits for P2GIOGBASE */
-#define TX4938_PCIC_P2GIOGBASE_TIOEN	_CONST64(0x0000004000000000)
-#define TX4938_PCIC_P2GIOGBASE_TBSDIS	_CONST64(0x0000002000000000)
-#define TX4938_PCIC_P2GIOGBASE_TECHG	_CONST64(0x0000001000000000)
-
-#define TX4938_PCIC_IDSEL_AD_TO_SLOT(ad)	((ad) - 11)
-#define TX4938_PCIC_MAX_DEVNU	TX4938_PCIC_IDSEL_AD_TO_SLOT(32)
-
-/* bits for PDMCFG */
-#define TX4938_PCIC_PDMCFG_RSTFIFO	0x00200000
-#define TX4938_PCIC_PDMCFG_EXFER	0x00100000
-#define TX4938_PCIC_PDMCFG_REQDLY_MASK	0x00003800
-#define TX4938_PCIC_PDMCFG_REQDLY_NONE	(0 << 11)
-#define TX4938_PCIC_PDMCFG_REQDLY_16	(1 << 11)
-#define TX4938_PCIC_PDMCFG_REQDLY_32	(2 << 11)
-#define TX4938_PCIC_PDMCFG_REQDLY_64	(3 << 11)
-#define TX4938_PCIC_PDMCFG_REQDLY_128	(4 << 11)
-#define TX4938_PCIC_PDMCFG_REQDLY_256	(5 << 11)
-#define TX4938_PCIC_PDMCFG_REQDLY_512	(6 << 11)
-#define TX4938_PCIC_PDMCFG_REQDLY_1024	(7 << 11)
-#define TX4938_PCIC_PDMCFG_ERRIE	0x00000400
-#define TX4938_PCIC_PDMCFG_NCCMPIE	0x00000200
-#define TX4938_PCIC_PDMCFG_NTCMPIE	0x00000100
-#define TX4938_PCIC_PDMCFG_CHNEN	0x00000080
-#define TX4938_PCIC_PDMCFG_XFRACT	0x00000040
-#define TX4938_PCIC_PDMCFG_BSWAP	0x00000020
-#define TX4938_PCIC_PDMCFG_XFRSIZE_MASK	0x0000000c
-#define TX4938_PCIC_PDMCFG_XFRSIZE_1DW	0x00000000
-#define TX4938_PCIC_PDMCFG_XFRSIZE_1QW	0x00000004
-#define TX4938_PCIC_PDMCFG_XFRSIZE_4QW	0x00000008
-#define TX4938_PCIC_PDMCFG_XFRDIRC	0x00000002
-#define TX4938_PCIC_PDMCFG_CHRST	0x00000001
-
-/* bits for PDMSTS */
-#define TX4938_PCIC_PDMSTS_REQCNT_MASK	0x3f000000
-#define TX4938_PCIC_PDMSTS_FIFOCNT_MASK	0x00f00000
-#define TX4938_PCIC_PDMSTS_FIFOWP_MASK	0x000c0000
-#define TX4938_PCIC_PDMSTS_FIFORP_MASK	0x00030000
-#define TX4938_PCIC_PDMSTS_ERRINT	0x00000800
-#define TX4938_PCIC_PDMSTS_DONEINT	0x00000400
-#define TX4938_PCIC_PDMSTS_CHNEN	0x00000200
-#define TX4938_PCIC_PDMSTS_XFRACT	0x00000100
-#define TX4938_PCIC_PDMSTS_ACCMP	0x00000080
-#define TX4938_PCIC_PDMSTS_NCCMP	0x00000040
-#define TX4938_PCIC_PDMSTS_NTCMP	0x00000020
-#define TX4938_PCIC_PDMSTS_CFGERR	0x00000008
-#define TX4938_PCIC_PDMSTS_PCIERR	0x00000004
-#define TX4938_PCIC_PDMSTS_CHNERR	0x00000002
-#define TX4938_PCIC_PDMSTS_DATAERR	0x00000001
-#define TX4938_PCIC_PDMSTS_ALL_CMP	0x000000e0
-#define TX4938_PCIC_PDMSTS_ALL_ERR	0x0000000f
-
 /*
  * DMA
  */
@@ -595,15 +427,15 @@ struct tx4938_ccfg_reg {
 #define TX4938_DMA_CSR_DESERR	0x00000002
 #define TX4938_DMA_CSR_SORERR	0x00000001
 
-#ifndef __ASSEMBLY__
-
 #define tx4938_sdramcptr	((struct tx4938_sdramc_reg *)TX4938_SDRAMC_REG)
 #define tx4938_ebuscptr         ((struct tx4938_ebusc_reg *)TX4938_EBUSC_REG)
 #define tx4938_dmaptr(ch)	((struct tx4938_dma_reg *)TX4938_DMA_REG(ch))
 #define tx4938_ndfmcptr		((struct tx4938_ndfmc_reg *)TX4938_NDFMC_REG)
-#define tx4938_pcicptr		((struct tx4938_pcic_reg *)TX4938_PCIC_REG)
-#define tx4938_pcic1ptr		((struct tx4938_pcic_reg *)TX4938_PCIC1_REG)
-#define tx4938_ccfgptr		((struct tx4938_ccfg_reg *)TX4938_CCFG_REG)
+#define tx4938_pcicptr		tx4927_pcicptr
+#define tx4938_pcic1ptr \
+		((struct tx4927_pcic_reg __iomem *)TX4938_PCIC1_REG)
+#define tx4938_ccfgptr \
+		((struct tx4938_ccfg_reg __iomem *)TX4938_CCFG_REG)
 #define tx4938_sioptr(ch)	((struct tx4938_sio_reg *)TX4938_SIO_REG(ch))
 #define tx4938_pioptr		((struct txx9_pio_reg __iomem *)TX4938_PIO_REG)
 #define tx4938_aclcptr		((struct tx4938_aclc_reg *)TX4938_ACLC_REG)
@@ -611,17 +443,25 @@ struct tx4938_ccfg_reg {
 #define tx4938_sramcptr		((struct tx4938_sramc_reg *)TX4938_SRAMC_REG)
 
 
-#define TX4938_REV_MAJ_MIN()	((unsigned long)tx4938_ccfgptr->crir & 0x00ff)
-#define TX4938_REV_PCODE()	((unsigned long)tx4938_ccfgptr->crir >> 16)
+#define TX4938_REV_PCODE()	\
+	((__u32)__raw_readq(&tx4938_ccfgptr->crir) >> 16)
+
+#define tx4938_ccfg_clear(bits)	tx4927_ccfg_clear(bits)
+#define tx4938_ccfg_set(bits)	tx4927_ccfg_set(bits)
+#define tx4938_ccfg_change(change, new)	tx4927_ccfg_change(change, new)
 
 #define TX4938_SDRAMC_BA(ch)	((tx4938_sdramcptr->cr[ch] >> 49) << 21)
 #define TX4938_SDRAMC_SIZE(ch)	(((tx4938_sdramcptr->cr[ch] >> 33) + 1) << 21)
 
+#define TX4938_EBUSC_CR(ch)	__raw_readq(&tx4938_ebuscptr->cr[(ch)])
 #define TX4938_EBUSC_BA(ch)	((tx4938_ebuscptr->cr[ch] >> 48) << 20)
 #define TX4938_EBUSC_SIZE(ch)	\
 	(0x00100000 << ((unsigned long)(tx4938_ebuscptr->cr[ch] >> 8) & 0xf))
 
-
-#endif /* !__ASSEMBLY__ */
+int tx4938_report_pciclk(void);
+void tx4938_report_pci1clk(void);
+int tx4938_pciclk66_setup(void);
+struct pci_dev;
+int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot);
 
 #endif

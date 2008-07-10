@@ -15,6 +15,8 @@ obj-$(CONFIG_MIPS_TX3927)	+= ops-tx3927.o
 obj-$(CONFIG_PCI_VR41XX)	+= ops-vr41xx.o pci-vr41xx.o
 obj-$(CONFIG_NEC_CMBVR4133)	+= fixup-vr4133.o
 obj-$(CONFIG_MARKEINS)		+= ops-emma2rh.o pci-emma2rh.o fixup-emma2rh.o
+obj-$(CONFIG_PCI_TX3927)	+= ops-tx3927.o
+obj-$(CONFIG_PCI_TX4927)	+= ops-tx4927.o
 
 #
 # These are still pretty much in the old state, watch, go blind.
@@ -41,9 +43,9 @@ obj-$(CONFIG_SNI_RM)		+= fixup-sni.o ops-sni.o
 obj-$(CONFIG_TANBAC_TB0219)	+= fixup-tb0219.o
 obj-$(CONFIG_TANBAC_TB0226)	+= fixup-tb0226.o
 obj-$(CONFIG_TANBAC_TB0287)	+= fixup-tb0287.o
-obj-$(CONFIG_TOSHIBA_JMR3927)	+= fixup-jmr3927.o pci-jmr3927.o
-obj-$(CONFIG_TOSHIBA_RBTX4927)	+= fixup-rbtx4927.o ops-tx4927.o
-obj-$(CONFIG_TOSHIBA_RBTX4938)	+= fixup-rbtx4938.o ops-tx4938.o
+obj-$(CONFIG_TOSHIBA_JMR3927)	+= fixup-jmr3927.o
+obj-$(CONFIG_TOSHIBA_RBTX4927)	+= fixup-rbtx4927.o pci-tx4927.o pci-tx4938.o
+obj-$(CONFIG_TOSHIBA_RBTX4938)	+= fixup-rbtx4938.o pci-tx4938.o
 obj-$(CONFIG_VICTOR_MPC30X)	+= fixup-mpc30x.o
 obj-$(CONFIG_ZAO_CAPCELLA)	+= fixup-capcella.o
 obj-$(CONFIG_WR_PPMC)		+= fixup-wrppmc.o

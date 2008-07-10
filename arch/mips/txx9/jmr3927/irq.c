@@ -109,6 +109,7 @@ static struct irqaction ioc_action = {
 	.name = "IOC",
 };
 
+#ifdef CONFIG_PCI
 static irqreturn_t jmr3927_pcierr_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_WARNING "PCI error interrupt (irq 0x%x).\n", irq);
@@ -122,6 +123,7 @@ static struct irqaction pcierr_action = {
 	.mask = CPU_MASK_NONE,
 	.name = "PCI error",
 };
+#endif
 
 static void __init jmr3927_irq_init(void);
 

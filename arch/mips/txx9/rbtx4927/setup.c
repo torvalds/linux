@@ -47,10 +47,10 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 
 #include <asm/bootinfo.h>
 #include <asm/io.h>
@@ -58,10 +58,10 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
-#ifdef CONFIG_TOSHIBA_FPCIB0
-#include <asm/txx9/smsc_fdc37m81x.h>
-#endif
+#include <asm/txx9/generic.h>
+#include <asm/txx9/pci.h>
 #include <asm/txx9/rbtx4927.h>
+#include <asm/txx9/tx4938.h>	/* for TX4937 */
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/serial_core.h>
 #endif
@@ -70,356 +70,116 @@
 extern void toshiba_rbtx4927_restart(char *command);
 extern void toshiba_rbtx4927_halt(void);
 extern void toshiba_rbtx4927_power_off(void);
-
-int tx4927_using_backplane = 0;
-
 extern void toshiba_rbtx4927_irq_setup(void);
 
 char *prom_getcmdline(void);
 
-#ifdef CONFIG_PCI
-#undef TX4927_SUPPORT_COMMAND_IO
-#undef  TX4927_SUPPORT_PCI_66
-int tx4927_cpu_clock = 100000000;	/* 100MHz */
-unsigned long mips_pci_io_base;
-unsigned long mips_pci_io_size;
-unsigned long mips_pci_mem_base;
-unsigned long mips_pci_mem_size;
-/* for legacy I/O, PCI I/O PCI Bus address must be 0 */
-unsigned long mips_pci_io_pciaddr = 0;
-unsigned long mips_memory_upper;
 static int tx4927_ccfg_toeon = 1;
-static int tx4927_pcic_trdyto = 0;	/* default: disabled */
-unsigned long tx4927_ce_base[8];
-int tx4927_pci66 = 0;		/* 0:auto */
-#endif
 
 char *toshiba_name = "";
 
 #ifdef CONFIG_PCI
-extern struct pci_controller tx4927_controller;
-
-static struct pci_dev *fake_pci_dev(struct pci_controller *hose,
-				    int top_bus, int busnr, int devfn)
+static void __init tx4927_pci_setup(void)
 {
-	static struct pci_dev dev;
-	static struct pci_bus bus;
+	int extarb = !(__raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_PCIARB);
+	struct pci_controller *c = &txx9_primary_pcic;
 
-	dev.sysdata = (void *)hose;
-	dev.devfn = devfn;
-	bus.number = busnr;
-	bus.ops = hose->pci_ops;
-	bus.parent = NULL;
-	dev.bus = &bus;
+	register_pci_controller(c);
 
-	return &dev;
-}
+	if (__raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_PCI66)
+		txx9_pci_option =
+			(txx9_pci_option & ~TXX9_PCI_OPT_CLK_MASK) |
+			TXX9_PCI_OPT_CLK_66; /* already configured */
 
-#define EARLY_PCI_OP(rw, size, type)                                    \
-static int early_##rw##_config_##size(struct pci_controller *hose,      \
-        int top_bus, int bus, int devfn, int offset, type value)        \
-{                                                                       \
-        return pci_##rw##_config_##size(                                \
-                fake_pci_dev(hose, top_bus, bus, devfn),                \
-                offset, value);                                         \
-}
+	/* Reset PCI Bus */
+	writeb(1, rbtx4927_pcireset_addr);
+	/* Reset PCIC */
+	txx9_set64(&tx4927_ccfgptr->clkctr, TX4927_CLKCTR_PCIRST);
+	if ((txx9_pci_option & TXX9_PCI_OPT_CLK_MASK) ==
+	    TXX9_PCI_OPT_CLK_66)
+		tx4927_pciclk66_setup();
+	mdelay(10);
+	/* clear PCIC reset */
+	txx9_clear64(&tx4927_ccfgptr->clkctr, TX4927_CLKCTR_PCIRST);
+	writeb(0, rbtx4927_pcireset_addr);
+	iob();
 
-EARLY_PCI_OP(read, byte, u8 *)
-EARLY_PCI_OP(read, dword, u32 *)
-EARLY_PCI_OP(write, byte, u8)
-EARLY_PCI_OP(write, dword, u32)
-
-static int __init tx4927_pcibios_init(void)
-{
-	unsigned int id;
-	u32 pci_devfn;
-	int devfn_start = 0;
-	int devfn_stop = 0xff;
-	int busno = 0; /* One bus on the Toshiba */
-	struct pci_controller *hose = &tx4927_controller;
-
-	for (pci_devfn = devfn_start; pci_devfn < devfn_stop; pci_devfn++) {
-		early_read_config_dword(hose, busno, busno, pci_devfn,
-					PCI_VENDOR_ID, &id);
-
-		if (id == 0xffffffff) {
-			continue;
-		}
-
-		if (id == 0x94601055) {
-			u8 v08_64;
-			u32 v32_b0;
-			u8 v08_e1;
-
-			early_read_config_byte(hose, busno, busno,
-					       pci_devfn, 0x64, &v08_64);
-			early_read_config_dword(hose, busno, busno,
-						pci_devfn, 0xb0, &v32_b0);
-			early_read_config_byte(hose, busno, busno,
-					       pci_devfn, 0xe1, &v08_e1);
-
-			/* serial irq control */
-			v08_64 = 0xd0;
-
-			/* serial irq pin */
-			v32_b0 |= 0x00010000;
-
-			/* ide irq on isa14 */
-			v08_e1 &= 0xf0;
-			v08_e1 |= 0x0d;
-
-			early_write_config_byte(hose, busno, busno,
-						pci_devfn, 0x64, v08_64);
-			early_write_config_dword(hose, busno, busno,
-						 pci_devfn, 0xb0, v32_b0);
-			early_write_config_byte(hose, busno, busno,
-						pci_devfn, 0xe1, v08_e1);
-		}
-
-		if (id == 0x91301055) {
-			u8 v08_04;
-			u8 v08_09;
-			u8 v08_41;
-			u8 v08_43;
-			u8 v08_5c;
-
-			early_read_config_byte(hose, busno, busno,
-					       pci_devfn, 0x04, &v08_04);
-			early_read_config_byte(hose, busno, busno,
-					       pci_devfn, 0x09, &v08_09);
-			early_read_config_byte(hose, busno, busno,
-					       pci_devfn, 0x41, &v08_41);
-			early_read_config_byte(hose, busno, busno,
-					       pci_devfn, 0x43, &v08_43);
-			early_read_config_byte(hose, busno, busno,
-					       pci_devfn, 0x5c, &v08_5c);
-
-			/* enable ide master/io */
-			v08_04 |= (PCI_COMMAND_MASTER | PCI_COMMAND_IO);
-
-			/* enable ide native mode */
-			v08_09 |= 0x05;
-
-			/* enable primary ide */
-			v08_41 |= 0x80;
-
-			/* enable secondary ide */
-			v08_43 |= 0x80;
-
-			/*
-			 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
-			 *
-			 * This line of code is intended to provide the user with a work
-			 * around solution to the anomalies cited in SMSC's anomaly sheet
-			 * entitled, "SLC90E66 Functional Rev.J_0.1 Anomalies"".
-			 *
-			 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
-			 */
-			v08_5c |= 0x01;
-
-			early_write_config_byte(hose, busno, busno,
-						pci_devfn, 0x5c, v08_5c);
-			early_write_config_byte(hose, busno, busno,
-						pci_devfn, 0x04, v08_04);
-			early_write_config_byte(hose, busno, busno,
-						pci_devfn, 0x09, v08_09);
-			early_write_config_byte(hose, busno, busno,
-						pci_devfn, 0x41, v08_41);
-			early_write_config_byte(hose, busno, busno,
-						pci_devfn, 0x43, v08_43);
-		}
-
+	tx4927_report_pciclk();
+	tx4927_pcic_setup(tx4927_pcicptr, c, extarb);
+	if ((txx9_pci_option & TXX9_PCI_OPT_CLK_MASK) ==
+	    TXX9_PCI_OPT_CLK_AUTO &&
+	    txx9_pci66_check(c, 0, 0)) {
+		/* Reset PCI Bus */
+		writeb(1, rbtx4927_pcireset_addr);
+		/* Reset PCIC */
+		txx9_set64(&tx4927_ccfgptr->clkctr, TX4927_CLKCTR_PCIRST);
+		tx4927_pciclk66_setup();
+		mdelay(10);
+		/* clear PCIC reset */
+		txx9_clear64(&tx4927_ccfgptr->clkctr, TX4927_CLKCTR_PCIRST);
+		writeb(0, rbtx4927_pcireset_addr);
+		iob();
+		/* Reinitialize PCIC */
+		tx4927_report_pciclk();
+		tx4927_pcic_setup(tx4927_pcicptr, c, extarb);
 	}
+}
 
-	register_pci_controller(&tx4927_controller);
+static void __init tx4937_pci_setup(void)
+{
+	int extarb = !(__raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_PCIARB);
+	struct pci_controller *c = &txx9_primary_pcic;
+
+	register_pci_controller(c);
+
+	if (__raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_PCI66)
+		txx9_pci_option =
+			(txx9_pci_option & ~TXX9_PCI_OPT_CLK_MASK) |
+			TXX9_PCI_OPT_CLK_66; /* already configured */
+
+	/* Reset PCI Bus */
+	writeb(1, rbtx4927_pcireset_addr);
+	/* Reset PCIC */
+	txx9_set64(&tx4938_ccfgptr->clkctr, TX4938_CLKCTR_PCIRST);
+	if ((txx9_pci_option & TXX9_PCI_OPT_CLK_MASK) ==
+	    TXX9_PCI_OPT_CLK_66)
+		tx4938_pciclk66_setup();
+	mdelay(10);
+	/* clear PCIC reset */
+	txx9_clear64(&tx4938_ccfgptr->clkctr, TX4938_CLKCTR_PCIRST);
+	writeb(0, rbtx4927_pcireset_addr);
+	iob();
+
+	tx4938_report_pciclk();
+	tx4927_pcic_setup(tx4938_pcicptr, c, extarb);
+	if ((txx9_pci_option & TXX9_PCI_OPT_CLK_MASK) ==
+	    TXX9_PCI_OPT_CLK_AUTO &&
+	    txx9_pci66_check(c, 0, 0)) {
+		/* Reset PCI Bus */
+		writeb(1, rbtx4927_pcireset_addr);
+		/* Reset PCIC */
+		txx9_set64(&tx4938_ccfgptr->clkctr, TX4938_CLKCTR_PCIRST);
+		tx4938_pciclk66_setup();
+		mdelay(10);
+		/* clear PCIC reset */
+		txx9_clear64(&tx4938_ccfgptr->clkctr, TX4938_CLKCTR_PCIRST);
+		writeb(0, rbtx4927_pcireset_addr);
+		iob();
+		/* Reinitialize PCIC */
+		tx4938_report_pciclk();
+		tx4927_pcic_setup(tx4938_pcicptr, c, extarb);
+	}
+}
+
+static int __init rbtx4927_arch_init(void)
+{
+	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
+		tx4937_pci_setup();
+	else
+		tx4927_pci_setup();
 	return 0;
 }
-
-arch_initcall(tx4927_pcibios_init);
-
-extern struct resource pci_io_resource;
-extern struct resource pci_mem_resource;
-
-void __init tx4927_pci_setup(void)
-{
-	static int called = 0;
-	extern unsigned int tx4927_get_mem_size(void);
-
-	mips_memory_upper = tx4927_get_mem_size() << 20;
-	mips_memory_upper += KSEG0;
-	mips_pci_io_base = TX4927_PCIIO;
-	mips_pci_io_size = TX4927_PCIIO_SIZE;
-	mips_pci_mem_base = TX4927_PCIMEM;
-	mips_pci_mem_size = TX4927_PCIMEM_SIZE;
-
-	if (!called) {
-		printk
-		    ("%s PCIC -- DID:%04x VID:%04x RID:%02x Arbiter:%s\n",
-		     toshiba_name,
-		     (unsigned short) (tx4927_pcicptr->pciid >> 16),
-		     (unsigned short) (tx4927_pcicptr->pciid & 0xffff),
-		     (unsigned short) (tx4927_pcicptr->pciccrev & 0xff),
-		     (!(tx4927_ccfgptr->
-			ccfg & TX4927_CCFG_PCIXARB)) ? "External" :
-		     "Internal");
-		called = 1;
-	}
-	printk("%s PCIC --%s PCICLK:", toshiba_name,
-	       (tx4927_ccfgptr->ccfg & TX4927_CCFG_PCI66) ? " PCI66" : "");
-	if (tx4927_ccfgptr->pcfg & TX4927_PCFG_PCICLKEN_ALL) {
-		int pciclk = 0;
-		if (mips_machtype == MACH_TOSHIBA_RBTX4937)
-			switch ((unsigned long) tx4927_ccfgptr->
-				ccfg & TX4937_CCFG_PCIDIVMODE_MASK) {
-			case TX4937_CCFG_PCIDIVMODE_4:
-				pciclk = tx4927_cpu_clock / 4;
-				break;
-			case TX4937_CCFG_PCIDIVMODE_4_5:
-				pciclk = tx4927_cpu_clock * 2 / 9;
-				break;
-			case TX4937_CCFG_PCIDIVMODE_5:
-				pciclk = tx4927_cpu_clock / 5;
-				break;
-			case TX4937_CCFG_PCIDIVMODE_5_5:
-				pciclk = tx4927_cpu_clock * 2 / 11;
-				break;
-			case TX4937_CCFG_PCIDIVMODE_8:
-				pciclk = tx4927_cpu_clock / 8;
-				break;
-			case TX4937_CCFG_PCIDIVMODE_9:
-				pciclk = tx4927_cpu_clock / 9;
-				break;
-			case TX4937_CCFG_PCIDIVMODE_10:
-				pciclk = tx4927_cpu_clock / 10;
-				break;
-			case TX4937_CCFG_PCIDIVMODE_11:
-				pciclk = tx4927_cpu_clock / 11;
-				break;
-			}
-
-		else
-			switch ((unsigned long) tx4927_ccfgptr->
-				ccfg & TX4927_CCFG_PCIDIVMODE_MASK) {
-			case TX4927_CCFG_PCIDIVMODE_2_5:
-				pciclk = tx4927_cpu_clock * 2 / 5;
-				break;
-			case TX4927_CCFG_PCIDIVMODE_3:
-				pciclk = tx4927_cpu_clock / 3;
-				break;
-			case TX4927_CCFG_PCIDIVMODE_5:
-				pciclk = tx4927_cpu_clock / 5;
-				break;
-			case TX4927_CCFG_PCIDIVMODE_6:
-				pciclk = tx4927_cpu_clock / 6;
-				break;
-			}
-
-		printk("Internal(%dMHz)", pciclk / 1000000);
-	} else
-		printk("External");
-	printk("\n");
-
-	/* GB->PCI mappings */
-	tx4927_pcicptr->g2piomask = (mips_pci_io_size - 1) >> 4;
-	tx4927_pcicptr->g2piogbase = mips_pci_io_base |
-#ifdef __BIG_ENDIAN
-	    TX4927_PCIC_G2PIOGBASE_ECHG
-#else
-	    TX4927_PCIC_G2PIOGBASE_BSDIS
-#endif
-	    ;
-
-	tx4927_pcicptr->g2piopbase = 0;
-
-	tx4927_pcicptr->g2pmmask[0] = (mips_pci_mem_size - 1) >> 4;
-	tx4927_pcicptr->g2pmgbase[0] = mips_pci_mem_base |
-#ifdef __BIG_ENDIAN
-	    TX4927_PCIC_G2PMnGBASE_ECHG
-#else
-	    TX4927_PCIC_G2PMnGBASE_BSDIS
-#endif
-	    ;
-	tx4927_pcicptr->g2pmpbase[0] = mips_pci_mem_base;
-
-	tx4927_pcicptr->g2pmmask[1] = 0;
-	tx4927_pcicptr->g2pmgbase[1] = 0;
-	tx4927_pcicptr->g2pmpbase[1] = 0;
-	tx4927_pcicptr->g2pmmask[2] = 0;
-	tx4927_pcicptr->g2pmgbase[2] = 0;
-	tx4927_pcicptr->g2pmpbase[2] = 0;
-
-
-	/* PCI->GB mappings (I/O 256B) */
-	tx4927_pcicptr->p2giopbase = 0;	/* 256B */
-
-	/* PCI->GB mappings (MEM 512MB) M0 gets all of memory */
-	tx4927_pcicptr->p2gm0plbase = 0;
-	tx4927_pcicptr->p2gm0pubase = 0;
-	tx4927_pcicptr->p2gmgbase[0] = 0 | TX4927_PCIC_P2GMnGBASE_TMEMEN |
-#ifdef __BIG_ENDIAN
-	    TX4927_PCIC_P2GMnGBASE_TECHG
-#else
-	    TX4927_PCIC_P2GMnGBASE_TBSDIS
-#endif
-	    ;
-
-	/* PCI->GB mappings (MEM 16MB) -not used */
-	tx4927_pcicptr->p2gm1plbase = 0xffffffff;
-	tx4927_pcicptr->p2gm1pubase = 0xffffffff;
-	tx4927_pcicptr->p2gmgbase[1] = 0;
-
-	/* PCI->GB mappings (MEM 1MB) -not used */
-	tx4927_pcicptr->p2gm2pbase = 0xffffffff;
-	tx4927_pcicptr->p2gmgbase[2] = 0;
-
-
-	/* Enable Initiator Memory 0 Space, I/O Space, Config */
-	tx4927_pcicptr->pciccfg &= TX4927_PCIC_PCICCFG_LBWC_MASK;
-	tx4927_pcicptr->pciccfg |=
-	    TX4927_PCIC_PCICCFG_IMSE0 | TX4927_PCIC_PCICCFG_IISE |
-	    TX4927_PCIC_PCICCFG_ICAE | TX4927_PCIC_PCICCFG_ATR;
-
-
-	/* Do not use MEMMUL, MEMINF: YMFPCI card causes M_ABORT. */
-	tx4927_pcicptr->pcicfg1 = 0;
-
-	if (tx4927_pcic_trdyto >= 0) {
-		tx4927_pcicptr->g2ptocnt &= ~0xff;
-		tx4927_pcicptr->g2ptocnt |= (tx4927_pcic_trdyto & 0xff);
-	}
-
-	/* Clear All Local Bus Status */
-	tx4927_pcicptr->pcicstatus = TX4927_PCIC_PCICSTATUS_ALL;
-	/* Enable All Local Bus Interrupts */
-	tx4927_pcicptr->pcicmask = TX4927_PCIC_PCICSTATUS_ALL;
-	/* Clear All Initiator Status */
-	tx4927_pcicptr->g2pstatus = TX4927_PCIC_G2PSTATUS_ALL;
-	/* Enable All Initiator Interrupts */
-	tx4927_pcicptr->g2pmask = TX4927_PCIC_G2PSTATUS_ALL;
-	/* Clear All PCI Status Error */
-	tx4927_pcicptr->pcistatus =
-	    (tx4927_pcicptr->pcistatus & 0x0000ffff) |
-	    (TX4927_PCIC_PCISTATUS_ALL << 16);
-	/* Enable All PCI Status Error Interrupts */
-	tx4927_pcicptr->pcimask = TX4927_PCIC_PCISTATUS_ALL;
-
-	/* PCIC Int => IRC IRQ16 */
-	tx4927_pcicptr->pcicfg2 =
-	    (tx4927_pcicptr->pcicfg2 & 0xffffff00) | TX4927_IR_PCIC;
-
-	if (!(tx4927_ccfgptr->ccfg & TX4927_CCFG_PCIXARB)) {
-		/* XXX */
-	} else {
-		/* Reset Bus Arbiter */
-		tx4927_pcicptr->pbacfg = TX4927_PCIC_PBACFG_RPBA;
-		/* Enable Bus Arbiter */
-		tx4927_pcicptr->pbacfg = TX4927_PCIC_PBACFG_PBAEN;
-	}
-
-	tx4927_pcicptr->pcistatus = PCI_COMMAND_MASTER |
-	    PCI_COMMAND_MEMORY |
-	    PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
-}
+arch_initcall(rbtx4927_arch_init);
 #endif /* CONFIG_PCI */
 
 static void __noreturn wait_forever(void)
@@ -479,8 +239,6 @@ void __init plat_mem_setup(void)
 	cp0_config = cp0_config & ~(TX49_CONF_IC | TX49_CONF_DC);
 	write_c0_config(cp0_config);
 
-	set_io_port_base(KSEG1 + TBTX4927_ISA_IO_OFFSET);
-
 	ioport_resource.end = 0xffffffff;
 	iomem_resource.end = 0xffffffff;
 
@@ -492,8 +250,13 @@ void __init plat_mem_setup(void)
 		txx9_tmr_init(TX4927_TMR_REG(0) & 0xfffffffffULL);
 
 #ifdef CONFIG_PCI
+	txx9_alloc_pci_controller(&txx9_primary_pcic,
+				  RBTX4927_PCIMEM, RBTX4927_PCIMEM_SIZE,
+				  RBTX4927_PCIIO, RBTX4927_PCIIO_SIZE);
+#else
+	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
+#endif
 
-	/* PCIC */
 	/*
 	   * ASSUMPTION: PCIDIVMODE is configured for PCI 33MHz or 66MHz.
 	   *
@@ -517,58 +280,38 @@ void __init plat_mem_setup(void)
 	   *
 	 */
 	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
-		switch ((unsigned long)tx4927_ccfgptr->
-			ccfg & TX4937_CCFG_PCIDIVMODE_MASK) {
-		case TX4937_CCFG_PCIDIVMODE_8:
-		case TX4937_CCFG_PCIDIVMODE_4:
-			tx4927_cpu_clock = 266666666;	/* 266MHz */
+		switch ((unsigned long)__raw_readq(&tx4938_ccfgptr->ccfg) &
+			TX4938_CCFG_PCIDIVMODE_MASK) {
+		case TX4938_CCFG_PCIDIVMODE_8:
+		case TX4938_CCFG_PCIDIVMODE_4:
+			txx9_cpu_clock = 266666666;	/* 266MHz */
 			break;
-		case TX4937_CCFG_PCIDIVMODE_9:
-		case TX4937_CCFG_PCIDIVMODE_4_5:
-			tx4927_cpu_clock = 300000000;	/* 300MHz */
+		case TX4938_CCFG_PCIDIVMODE_9:
+		case TX4938_CCFG_PCIDIVMODE_4_5:
+			txx9_cpu_clock = 300000000;	/* 300MHz */
 			break;
 		default:
-			tx4927_cpu_clock = 333333333;	/* 333MHz */
+			txx9_cpu_clock = 333333333;	/* 333MHz */
 		}
 	else
-		switch ((unsigned long)tx4927_ccfgptr->
-			ccfg & TX4927_CCFG_PCIDIVMODE_MASK) {
+		switch ((unsigned long)__raw_readq(&tx4927_ccfgptr->ccfg) &
+			TX4927_CCFG_PCIDIVMODE_MASK) {
 		case TX4927_CCFG_PCIDIVMODE_2_5:
 		case TX4927_CCFG_PCIDIVMODE_5:
-			tx4927_cpu_clock = 166666666;	/* 166MHz */
+			txx9_cpu_clock = 166666666;	/* 166MHz */
 			break;
 		default:
-			tx4927_cpu_clock = 200000000;	/* 200MHz */
+			txx9_cpu_clock = 200000000;	/* 200MHz */
 		}
+	/* change default value to udelay/mdelay take reasonable time */
+	loops_per_jiffy = txx9_cpu_clock / HZ / 2;
 
 	/* CCFG */
 	/* do reset on watchdog */
-	tx4927_ccfgptr->ccfg |= TX4927_CCFG_WR;
+	tx4927_ccfg_set(TX4927_CCFG_WR);
 	/* enable Timeout BusError */
 	if (tx4927_ccfg_toeon)
-		tx4927_ccfgptr->ccfg |= TX4927_CCFG_TOE;
-
-	tx4927_pci_setup();
-	if (tx4927_using_backplane == 1)
-		printk("backplane board IS installed\n");
-	else
-		printk("No Backplane \n");
-
-	/* this is on ISA bus behind PCI bus, so need PCI up first */
-#ifdef CONFIG_TOSHIBA_FPCIB0
-	if (tx4927_using_backplane) {
-		smsc_fdc37m81x_init(0x3f0);
-		smsc_fdc37m81x_config_beg();
-		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_DNUM,
-					  SMSC_FDC37M81X_KBD);
-		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_INT, 1);
-		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_INT2, 12);
-		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_ACTIVE,
-					  1);
-		smsc_fdc37m81x_config_end();
-	}
-#endif
-#endif /* CONFIG_PCI */
+		tx4927_ccfg_set(TX4927_CCFG_TOE);
 
 #ifdef CONFIG_SERIAL_TXX9
 	{
@@ -611,8 +354,8 @@ void __init plat_mem_setup(void)
 
 void __init plat_time_init(void)
 {
-	mips_hpt_frequency = tx4927_cpu_clock / 2;
-	if (tx4927_ccfgptr->ccfg & TX4927_CCFG_TINTDIS)
+	mips_hpt_frequency = txx9_cpu_clock / 2;
+	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_TINTDIS)
 		txx9_clockevent_init(TX4927_TMR_REG(0) & 0xfffffffffULL,
 				     TXX9_IRQ_BASE + 17,
 				     50000000);

@@ -10,45 +10,28 @@
  * Support for TX4938 in 2.6 - Manish Lachwani (mlachwani@mvista.com)
  */
 #include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-
+#include <asm/txx9/pci.h>
 #include <asm/txx9/rbtx4938.h>
 
-extern struct pci_controller tx4938_pci_controller[];
-
-static int pci_get_irq(const struct pci_dev *dev, int pin)
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	int irq = pin;
-	u8 slot = PCI_SLOT(dev->devfn);
-	struct pci_controller *controller = (struct pci_controller *)dev->sysdata;
+	int irq = tx4938_pcic1_map_irq(dev, slot);
 
-	if (controller == &tx4938_pci_controller[1]) {
-		/* TX4938 PCIC1 */
-		switch (slot) {
-		case TX4938_PCIC_IDSEL_AD_TO_SLOT(31):
-			if (tx4938_ccfgptr->pcfg & TX4938_PCFG_ETH0_SEL)
-				return RBTX4938_IRQ_IRC + TX4938_IR_ETH0;
-			break;
-		case TX4938_PCIC_IDSEL_AD_TO_SLOT(30):
-			if (tx4938_ccfgptr->pcfg & TX4938_PCFG_ETH1_SEL)
-				return RBTX4938_IRQ_IRC + TX4938_IR_ETH1;
-			break;
-		}
-		return 0;
-	}
-
+	if (irq >= 0)
+		return irq;
+	irq = pin;
 	/* IRQ rotation */
 	irq--;	/* 0-3 */
-	if (dev->bus->parent == NULL &&
-	    (slot == TX4938_PCIC_IDSEL_AD_TO_SLOT(23))) {
+	if (slot == TX4927_PCIC_IDSEL_AD_TO_SLOT(23)) {
 		/* PCI CardSlot (IDSEL=A23) */
 		/* PCIA => PCIA (IDSEL=A23) */
 		irq = (irq + 0 + slot) % 4;
 	} else {
 		/* PCI Backplane */
-		irq = (irq + 33 - slot) % 4;
+		if (txx9_pci_option & TXX9_PCI_OPT_PICMG)
+			irq = (irq + 33 - slot) % 4;
+		else
+			irq = (irq + 3 + slot) % 4;
 	}
 	irq++;	/* 1-4 */
 
@@ -66,19 +49,6 @@ static int pci_get_irq(const struct pci_dev *dev, int pin)
 		irq = RBTX4938_IRQ_IOC_PCID;
 		break;
 	}
-	return irq;
-}
-
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	unsigned char irq = 0;
-
-	irq = pci_get_irq(dev, pin);
-
-	printk(KERN_INFO "PCI: 0x%02x:0x%02x(0x%02x,0x%02x) IRQ=%d\n",
-	       dev->bus->number, dev->devfn, PCI_SLOT(dev->devfn),
-	       PCI_FUNC(dev->devfn), irq);
-
 	return irq;
 }
 

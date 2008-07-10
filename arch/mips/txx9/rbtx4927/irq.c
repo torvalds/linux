@@ -111,9 +111,6 @@ JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthB
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
-#ifdef CONFIG_TOSHIBA_FPCIB0
-#include <asm/i8259.h>
-#endif
 #include <asm/txx9/rbtx4927.h>
 
 #define TOSHIBA_RBTX4927_IRQ_IOC_RAW_BEG   0
@@ -124,8 +121,6 @@ JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthB
 
 #define TOSHIBA_RBTX4927_IRQ_NEST_IOC_ON_PIC TX4927_IRQ_NEST_EXT_ON_PIC
 #define TOSHIBA_RBTX4927_IRQ_NEST_ISA_ON_IOC (TOSHIBA_RBTX4927_IRQ_IOC_BEG+2)
-
-extern int tx4927_using_backplane;
 
 static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq);
 static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq);
@@ -146,17 +141,8 @@ int toshiba_rbtx4927_irq_nested(int sw_irq)
 	u8 level3;
 
 	level3 = readb(TOSHIBA_RBTX4927_IOC_INTR_STAT) & 0x1f;
-	if (level3) {
+	if (level3)
 		sw_irq = TOSHIBA_RBTX4927_IRQ_IOC_BEG + fls(level3) - 1;
-#ifdef CONFIG_TOSHIBA_FPCIB0
-		if (sw_irq == TOSHIBA_RBTX4927_IRQ_NEST_ISA_ON_IOC &&
-		    tx4927_using_backplane) {
-			int irq = i8259_irq();
-			if (irq >= 0)
-				sw_irq = irq;
-		}
-#endif
-	}
 	return (sw_irq);
 }
 
@@ -205,10 +191,6 @@ void __init arch_init_irq(void)
 
 	tx4927_irq_init();
 	toshiba_rbtx4927_irq_ioc_init();
-#ifdef CONFIG_TOSHIBA_FPCIB0
-	if (tx4927_using_backplane)
-		init_i8259_irqs();
-#endif
 	/* Onboard 10M Ether: High Active */
 	set_irq_type(RBTX4927_RTL_8019_IRQ, IRQF_TRIGGER_HIGH);
 }

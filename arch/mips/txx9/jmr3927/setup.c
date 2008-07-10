@@ -30,7 +30,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
@@ -44,6 +43,7 @@
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
 #include <asm/reboot.h>
+#include <asm/txx9/pci.h>
 #include <asm/txx9/jmr3927.h>
 #include <asm/mipsregs.h>
 
@@ -96,8 +96,6 @@ void __init plat_time_init(void)
 
 extern char * __init prom_getcmdline(void);
 static void jmr3927_board_init(void);
-extern struct resource pci_io_resource;
-extern struct resource pci_mem_resource;
 
 void __init plat_mem_setup(void)
 {
@@ -112,8 +110,8 @@ void __init plat_mem_setup(void)
 	/*
 	 * IO/MEM resources.
 	 */
-	ioport_resource.start = pci_io_resource.start;
-	ioport_resource.end = pci_io_resource.end;
+	ioport_resource.start = 0;
+	ioport_resource.end = 0xffffffff;
 	iomem_resource.start = 0;
 	iomem_resource.end = 0xffffffff;
 
@@ -191,9 +189,33 @@ void __init plat_mem_setup(void)
 
 static void tx3927_setup(void);
 
+static void __init jmr3927_pci_setup(void)
+{
+#ifdef CONFIG_PCI
+	int extarb = !(tx3927_ccfgptr->ccfg & TX3927_CCFG_PCIXARB);
+	struct pci_controller *c;
+
+	c = txx9_alloc_pci_controller(&txx9_primary_pcic,
+				      JMR3927_PCIMEM, JMR3927_PCIMEM_SIZE,
+				      JMR3927_PCIIO, JMR3927_PCIIO_SIZE);
+	register_pci_controller(c);
+	if (!extarb) {
+		/* Reset PCI Bus */
+		jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
+		udelay(100);
+		jmr3927_ioc_reg_out(JMR3927_IOC_RESET_PCI,
+				    JMR3927_IOC_RESET_ADDR);
+		udelay(100);
+		jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
+	}
+	tx3927_pcic_setup(c, JMR3927_SDRAM_SIZE, extarb);
+#endif /* CONFIG_PCI */
+}
+
 static void __init jmr3927_board_init(void)
 {
 	tx3927_setup();
+	jmr3927_pci_setup();
 
 	/* SIO0 DTR on */
 	jmr3927_ioc_reg_out(0, JMR3927_IOC_DTR_ADDR);
@@ -210,14 +232,6 @@ static void __init jmr3927_board_init(void)
 static void __init tx3927_setup(void)
 {
 	int i;
-#ifdef CONFIG_PCI
-	unsigned long mips_pci_io_base = JMR3927_PCIIO;
-	unsigned long mips_pci_io_size = JMR3927_PCIIO_SIZE;
-	unsigned long mips_pci_mem_base = JMR3927_PCIMEM;
-	unsigned long mips_pci_mem_size = JMR3927_PCIMEM_SIZE;
-	/* for legacy I/O, PCI I/O PCI Bus address must be 0 */
-	unsigned long mips_pci_io_pciaddr = 0;
-#endif
 
 	/* SDRAMC are configured by PROM */
 
@@ -271,74 +285,6 @@ static void __init tx3927_setup(void)
 #else
 	tx3927_dmaptr->mcr = TX3927_DMA_MCR_MSTEN | TX3927_DMA_MCR_LE;
 #endif
-
-#ifdef CONFIG_PCI
-	/* PCIC */
-	printk("TX3927 PCIC -- DID:%04x VID:%04x RID:%02x Arbiter:",
-	       tx3927_pcicptr->did, tx3927_pcicptr->vid,
-	       tx3927_pcicptr->rid);
-	if (!(tx3927_ccfgptr->ccfg & TX3927_CCFG_PCIXARB)) {
-		printk("External\n");
-		/* XXX */
-	} else {
-		printk("Internal\n");
-
-		/* Reset PCI Bus */
-		jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
-		udelay(100);
-		jmr3927_ioc_reg_out(JMR3927_IOC_RESET_PCI,
-				    JMR3927_IOC_RESET_ADDR);
-		udelay(100);
-		jmr3927_ioc_reg_out(0, JMR3927_IOC_RESET_ADDR);
-
-
-		/* Disable External PCI Config. Access */
-		tx3927_pcicptr->lbc = TX3927_PCIC_LBC_EPCAD;
-#ifdef __BIG_ENDIAN
-		tx3927_pcicptr->lbc |= TX3927_PCIC_LBC_IBSE |
-			TX3927_PCIC_LBC_TIBSE |
-			TX3927_PCIC_LBC_TMFBSE | TX3927_PCIC_LBC_MSDSE;
-#endif
-		/* LB->PCI mappings */
-		tx3927_pcicptr->iomas = ~(mips_pci_io_size - 1);
-		tx3927_pcicptr->ilbioma = mips_pci_io_base;
-		tx3927_pcicptr->ipbioma = mips_pci_io_pciaddr;
-		tx3927_pcicptr->mmas = ~(mips_pci_mem_size - 1);
-		tx3927_pcicptr->ilbmma = mips_pci_mem_base;
-		tx3927_pcicptr->ipbmma = mips_pci_mem_base;
-		/* PCI->LB mappings */
-		tx3927_pcicptr->iobas = 0xffffffff;
-		tx3927_pcicptr->ioba = 0;
-		tx3927_pcicptr->tlbioma = 0;
-		tx3927_pcicptr->mbas = ~(mips_pci_mem_size - 1);
-		tx3927_pcicptr->mba = 0;
-		tx3927_pcicptr->tlbmma = 0;
-		/* Enable Direct mapping Address Space Decoder */
-		tx3927_pcicptr->lbc |= TX3927_PCIC_LBC_ILMDE | TX3927_PCIC_LBC_ILIDE;
-
-		/* Clear All Local Bus Status */
-		tx3927_pcicptr->lbstat = TX3927_PCIC_LBIM_ALL;
-		/* Enable All Local Bus Interrupts */
-		tx3927_pcicptr->lbim = TX3927_PCIC_LBIM_ALL;
-		/* Clear All PCI Status Error */
-		tx3927_pcicptr->pcistat = TX3927_PCIC_PCISTATIM_ALL;
-		/* Enable All PCI Status Error Interrupts */
-		tx3927_pcicptr->pcistatim = TX3927_PCIC_PCISTATIM_ALL;
-
-		/* PCIC Int => IRC IRQ10 */
-		tx3927_pcicptr->il = TX3927_IR_PCI;
-		/* Target Control (per errata) */
-		tx3927_pcicptr->tc = TX3927_PCIC_TC_OF8E | TX3927_PCIC_TC_IF8E;
-
-		/* Enable Bus Arbiter */
-		tx3927_pcicptr->pbapmc = TX3927_PCIC_PBAPMC_PBAEN;
-
-		tx3927_pcicptr->pcicmd = PCI_COMMAND_MASTER |
-			PCI_COMMAND_MEMORY |
-			PCI_COMMAND_IO |
-			PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
-	}
-#endif /* CONFIG_PCI */
 
 	/* PIO */
 	/* PIO[15:12] connected to LEDs */

@@ -575,7 +575,7 @@ config TOSHIBA_RBTX4927
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select IRQ_TXX9
-	select I8259 if TOSHIBA_FPCIB0
+	select PCI_TX4927
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -598,6 +598,7 @@ config TOSHIBA_RBTX4938
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select IRQ_TXX9
+	select PCI_TX4927
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_32BIT_KERNEL

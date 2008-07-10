@@ -1,6 +1,12 @@
 config TOSHIBA_FPCIB0
 	bool "FPCIB0 Backplane Support"
-	depends on TOSHIBA_RBTX4927
+	depends on PCI && (SYS_HAS_CPU_TX49XX || SYS_HAS_CPU_TX39XX)
+	select I8259
+
+config PICMG_PCI_BACKPLANE_DEFAULT
+	bool "Support for PICMG PCI Backplane"
+	depends on PCI && (SYS_HAS_CPU_TX49XX || SYS_HAS_CPU_TX39XX)
+	default y if !TOSHIBA_FPCIB0
 
 if TOSHIBA_RBTX4938
 
@@ -26,3 +32,6 @@ config TX4938_NAND_BOOT
 	  Select this option if you need to use NAND boot.
 
 endif
+
+config PCI_TX4927
+	bool

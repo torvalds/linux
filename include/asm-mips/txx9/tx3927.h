@@ -316,4 +316,8 @@ struct tx3927_ccfg_reg {
 #define tx3927_sioptr(ch)	((struct txx927_sio_reg *)TX3927_SIO_REG(ch))
 #define tx3927_pioptr		((struct txx9_pio_reg __iomem *)TX3927_PIO_REG)
 
+struct pci_controller;
+void __init tx3927_pcic_setup(struct pci_controller *channel,
+			      unsigned long sdram_size, int extarb);
+
 #endif /* __ASM_TXX9_TX3927_H */
