@@ -57,6 +57,8 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 
+extern int no_broadcast;
+
 #include <asm/io.h>
 #include <asm/apic.h>
 #include <asm/arch_hooks.h>
