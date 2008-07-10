@@ -1544,7 +1544,6 @@ typedef struct fc_port {
 	int login_retry;
 	atomic_t port_down_timer;
 
-	spinlock_t rport_lock;
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 

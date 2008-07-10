@@ -71,6 +71,8 @@ extern int qla2x00_post_aen_work(struct scsi_qla_host *, enum
 extern int qla2x00_post_hwe_work(struct scsi_qla_host *, uint16_t , uint16_t,
     uint16_t, uint16_t);
 
+extern void qla2x00_abort_fcport_cmds(fc_port_t *);
+
 /*
  * Global Functions in qla_mid.c source file.
  */

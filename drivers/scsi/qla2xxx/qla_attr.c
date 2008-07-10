@@ -994,6 +994,33 @@ qla2x00_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 	rport->dev_loss_tmo = ha->port_down_retry_count + 5;
 }
 
+static void
+qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
+{
+	struct Scsi_Host *host = rport_to_shost(rport);
+	fc_port_t *fcport = *(fc_port_t **)rport->dd_data;
+
+	qla2x00_abort_fcport_cmds(fcport);
+
+	/*
+	 * Transport has effectively 'deleted' the rport, clear
+	 * all local references.
+	 */
+	spin_lock_irq(host->host_lock);
+	fcport->rport = NULL;
+	*((fc_port_t **)rport->dd_data) = NULL;
+	spin_unlock_irq(host->host_lock);
+}
+
+static void
+qla2x00_terminate_rport_io(struct fc_rport *rport)
+{
+	fc_port_t *fcport = *(fc_port_t **)rport->dd_data;
+
+	qla2x00_abort_fcport_cmds(fcport);
+	scsi_target_unblock(&rport->dev);
+}
+
 static int
 qla2x00_issue_lip(struct Scsi_Host *shost)
 {
@@ -1253,6 +1280,8 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_rport_dev_loss_tmo = 1,
 
 	.issue_fc_host_lip = qla2x00_issue_lip,
+	.dev_loss_tmo_callbk = qla2x00_dev_loss_tmo_callbk,
+	.terminate_rport_io = qla2x00_terminate_rport_io,
 	.get_fc_host_stats = qla2x00_get_fc_host_stats,
 
 	.vport_create = qla24xx_vport_create,
@@ -1296,6 +1325,8 @@ struct fc_function_template qla2xxx_transport_vport_functions = {
 	.show_rport_dev_loss_tmo = 1,
 
 	.issue_fc_host_lip = qla2x00_issue_lip,
+	.dev_loss_tmo_callbk = qla2x00_dev_loss_tmo_callbk,
+	.terminate_rport_io = qla2x00_terminate_rport_io,
 	.get_fc_host_stats = qla2x00_get_fc_host_stats,
 };
 
