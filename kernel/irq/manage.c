@@ -377,7 +377,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 
 		/* Setup the type (level, edge polarity) if configured: */
 		if (new->flags & IRQF_TRIGGER_MASK) {
-			if (desc->chip && desc->chip->set_type)
+			if (desc->chip->set_type)
 				desc->chip->set_type(irq,
 						new->flags & IRQF_TRIGGER_MASK);
 			else
@@ -387,8 +387,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 				 */
 				printk(KERN_WARNING "No IRQF_TRIGGER set_type "
 				       "function for IRQ %d (%s)\n", irq,
-				       desc->chip ? desc->chip->name :
-				       "unknown");
+				       desc->chip->name);
 		} else
 			compat_irq_chip_set_default_handler(desc);
 
