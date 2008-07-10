@@ -136,6 +136,7 @@ endif
  machine-$(CONFIG_ARCH_KIRKWOOD)   := kirkwood
  machine-$(CONFIG_ARCH_KS8695)     := ks8695
   incdir-$(CONFIG_ARCH_MXC)	   := mxc
+ machine-$(CONFIG_ARCH_MX2)	   := mx2
  machine-$(CONFIG_ARCH_MX3)	   := mx3
  machine-$(CONFIG_ARCH_ORION5X)	   := orion5x
  machine-$(CONFIG_ARCH_MSM7X00A)   := msm

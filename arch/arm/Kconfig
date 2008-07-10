@@ -401,7 +401,11 @@ config ARCH_MV78XX0
 
 config ARCH_MXC
 	bool "Freescale MXC/iMX-based"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	select ARCH_MTD_XIP
+	select GENERIC_GPIO
+	select HAVE_GPIO_LIB
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 

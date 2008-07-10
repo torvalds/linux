@@ -1003,10 +1003,18 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 	 */
 	raise = timer->state == HRTIMER_STATE_PENDING;
 
+	/*
+	 * We use preempt_disable to prevent this task from migrating after
+	 * setting up the softirq and raising it. Otherwise, if me migrate
+	 * we will raise the softirq on the wrong CPU.
+	 */
+	preempt_disable();
+
 	unlock_hrtimer_base(timer, &flags);
 
 	if (raise)
 		hrtimer_raise_softirq();
+	preempt_enable();
 
 	return ret;
 }

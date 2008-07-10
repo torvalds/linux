@@ -73,14 +73,6 @@
  */
 extern void imx_gpio_mode( int gpio_mode );
 
-/* get frequencies in Hz */
-extern unsigned int imx_get_system_clk(void);
-extern unsigned int imx_get_mcu_clk(void);
-extern unsigned int imx_get_perclk1(void); /* UART[12], Timer[12], PWM */
-extern unsigned int imx_get_perclk2(void); /* LCD, SD, SPI[12]         */
-extern unsigned int imx_get_perclk3(void); /* SSI                      */
-extern unsigned int imx_get_hclk(void);    /* SDRAM, CSI, Memory Stick,*/
-                                           /* I2C, DMA                 */
 #endif
 
 #define MAXIRQNUM                       62
