@@ -8,6 +8,23 @@
 /* Interrupt control for vSMPowered x86_64 systems */
 void vsmp_init(void);
 
+#ifdef CONFIG_X86_VISWS
+extern void visws_early_detect(void);
+#else
+static inline void visws_early_detect(void) { }
+#endif
+
+/*
+ * Any setup quirks to be performed?
+ */
+extern int (*arch_time_init_quirk)(void);
+extern int (*arch_pre_intr_init_quirk)(void);
+extern int (*arch_intr_init_quirk)(void);
+extern int (*arch_trap_init_quirk)(void);
+extern char * (*arch_memory_setup_quirk)(void);
+extern int (*mach_get_smp_config_quirk)(unsigned int early);
+extern int (*mach_find_smp_config_quirk)(unsigned int reserve);
+
 #ifndef CONFIG_PARAVIRT
 #define paravirt_post_allocator_init()	do {} while (0)
 #endif

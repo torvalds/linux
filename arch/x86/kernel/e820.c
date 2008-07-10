@@ -1297,6 +1297,11 @@ void __init e820_reserve_resources(void)
 	}
 }
 
+/*
+ * Non-standard memory setup can be specified via this quirk:
+ */
+char * (*arch_memory_setup_quirk)(void);
+
 char *__init default_machine_specific_memory_setup(void)
 {
 	char *who = "BIOS-e820";
@@ -1337,6 +1342,12 @@ char *__init default_machine_specific_memory_setup(void)
 
 char *__init __attribute__((weak)) machine_specific_memory_setup(void)
 {
+	if (arch_memory_setup_quirk) {
+		char *who = arch_memory_setup_quirk();
+
+		if (who)
+			return who;
+	}
 	return default_machine_specific_memory_setup();
 }
 
