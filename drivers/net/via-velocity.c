@@ -1104,7 +1104,6 @@ static int velocity_init_rings(struct velocity_info *vptr)
 {
 	int i;
 	unsigned int psize;
-	unsigned int tsize;
 	dma_addr_t pool_dma;
 	u8 *pool;
 
@@ -1133,19 +1132,6 @@ static int velocity_init_rings(struct velocity_info *vptr)
 
 	vptr->rd_pool_dma = pool_dma;
 
-	tsize = vptr->options.numtx * PKT_BUF_SZ * vptr->num_txq;
-	vptr->tx_bufs = pci_alloc_consistent(vptr->pdev, tsize,
-						&vptr->tx_bufs_dma);
-
-	if (vptr->tx_bufs == NULL) {
-		printk(KERN_ERR "%s: DMA memory allocation failed.\n",
-					vptr->dev->name);
-		pci_free_consistent(vptr->pdev, psize, pool, pool_dma);
-		return -ENOMEM;
-	}
-
-	memset(vptr->tx_bufs, 0, vptr->options.numtx * PKT_BUF_SZ * vptr->num_txq);
-
 	i = vptr->options.numrx * sizeof(struct rx_desc);
 	pool += i;
 	pool_dma += i;
@@ -1169,16 +1155,10 @@ static int velocity_init_rings(struct velocity_info *vptr)
 
 static void velocity_free_rings(struct velocity_info *vptr)
 {
-	int size;
-
-	size = vptr->options.numrx * sizeof(struct rx_desc) +
-	       vptr->options.numtx * sizeof(struct tx_desc) * vptr->num_txq;
+	const int size = vptr->options.numrx * sizeof(struct rx_desc) +
+		vptr->options.numtx * sizeof(struct tx_desc) * vptr->num_txq;
 
 	pci_free_consistent(vptr->pdev, size, vptr->rd_ring, vptr->rd_pool_dma);
-
-	size = vptr->options.numtx * PKT_BUF_SZ * vptr->num_txq;
-
-	pci_free_consistent(vptr->pdev, size, vptr->tx_bufs, vptr->tx_bufs_dma);
 }
 
 static inline void velocity_give_many_rx_descs(struct velocity_info *vptr)
@@ -1313,10 +1293,8 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 
 static int velocity_init_td_ring(struct velocity_info *vptr)
 {
-	int i, j;
 	dma_addr_t curr;
-	struct tx_desc *td;
-	struct velocity_td_info *td_info;
+	unsigned int j;
 
 	/* Init the TD ring entries */
 	for (j = 0; j < vptr->num_txq; j++) {
@@ -1331,14 +1309,6 @@ static int velocity_init_td_ring(struct velocity_info *vptr)
 			return -ENOMEM;
 		}
 
-		for (i = 0; i < vptr->options.numtx; i++, curr += sizeof(struct tx_desc)) {
-			td = &(vptr->td_rings[j][i]);
-			td_info = &(vptr->td_infos[j][i]);
-			td_info->buf = vptr->tx_bufs +
-				(j * vptr->options.numtx + i) * PKT_BUF_SZ;
-			td_info->buf_dma = vptr->tx_bufs_dma +
-				(j * vptr->options.numtx + i) * PKT_BUF_SZ;
-		}
 		vptr->td_tail[j] = vptr->td_curr[j] = vptr->td_used[j] = 0;
 	}
 	return 0;
@@ -1867,7 +1837,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_
 	/*
 	 *	Don't unmap the pre-allocated tx_bufs
 	 */
-	if (tdinfo->skb_dma && (tdinfo->skb_dma[0] != tdinfo->buf_dma)) {
+	if (tdinfo->skb_dma) {
 
 		for (i = 0; i < tdinfo->nskb_dma; i++) {
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
@@ -2063,9 +2033,19 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tx_desc *td_ptr;
 	struct velocity_td_info *tdinfo;
 	unsigned long flags;
-	int index;
 	int pktlen = skb->len;
-	__le16 len = cpu_to_le16(pktlen);
+	__le16 len;
+	int index;
+
+
+
+	if (skb->len < ETH_ZLEN) {
+		if (skb_padto(skb, ETH_ZLEN))
+			goto out;
+		pktlen = ETH_ZLEN;
+	}
+
+	len = cpu_to_le16(pktlen);
 
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
@@ -2083,23 +2063,6 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	td_ptr->tdesc1.TCR = TCR0_TIC;
 	td_ptr->td_buf[0].size &= ~TD_QUEUE;
 
-	/*
-	 *	Pad short frames.
-	 */
-	if (pktlen < ETH_ZLEN) {
-		/* Cannot occur until ZC support */
-		pktlen = ETH_ZLEN;
-		len = cpu_to_le16(ETH_ZLEN);
-		skb_copy_from_linear_data(skb, tdinfo->buf, skb->len);
-		memset(tdinfo->buf + skb->len, 0, ETH_ZLEN - skb->len);
-		tdinfo->skb = skb;
-		tdinfo->skb_dma[0] = tdinfo->buf_dma;
-		td_ptr->tdesc0.len = len;
-		td_ptr->td_buf[0].pa_low = cpu_to_le32(tdinfo->skb_dma[0]);
-		td_ptr->td_buf[0].pa_high = 0;
-		td_ptr->td_buf[0].size = len;	/* queue is 0 anyway */
-		tdinfo->nskb_dma = 1;
-	} else
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 	if (skb_shinfo(skb)->nr_frags > 0) {
 		int nfrags = skb_shinfo(skb)->nr_frags;
@@ -2191,7 +2154,8 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&vptr->lock, flags);
-	return 0;
+out:
+	return NETDEV_TX_OK;
 }
 
 /**
