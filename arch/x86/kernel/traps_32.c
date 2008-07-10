@@ -383,6 +383,54 @@ int is_valid_bugaddr(unsigned long ip)
 	return ud2 == 0x0b0f;
 }
 
+static raw_spinlock_t die_lock = __RAW_SPIN_LOCK_UNLOCKED;
+static int die_owner = -1;
+static unsigned int die_nest_count;
+
+unsigned __kprobes long oops_begin(void)
+{
+	unsigned long flags;
+
+	oops_enter();
+
+	if (die_owner != raw_smp_processor_id()) {
+		console_verbose();
+		raw_local_irq_save(flags);
+		__raw_spin_lock(&die_lock);
+		die_owner = smp_processor_id();
+		die_nest_count = 0;
+		bust_spinlocks(1);
+	} else {
+		raw_local_irq_save(flags);
+	}
+	die_nest_count++;
+	return flags;
+}
+
+void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
+{
+	bust_spinlocks(0);
+	die_owner = -1;
+	add_taint(TAINT_DIE);
+	__raw_spin_unlock(&die_lock);
+	raw_local_irq_restore(flags);
+
+	if (!regs)
+		return;
+
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
+
+	if (in_interrupt())
+		panic("Fatal exception in interrupt");
+
+	if (panic_on_oops)
+		panic("Fatal exception");
+
+	oops_exit();
+	do_exit(signr);
+}
+
 int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 {
 	unsigned short ss;
@@ -423,31 +471,9 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
  */
 void die(const char *str, struct pt_regs *regs, long err)
 {
-	static struct {
-		raw_spinlock_t lock;
-		u32 lock_owner;
-		int lock_owner_depth;
-	} die = {
-		.lock =			__RAW_SPIN_LOCK_UNLOCKED,
-		.lock_owner =		-1,
-		.lock_owner_depth =	0
-	};
-	unsigned long flags;
+	unsigned long flags = oops_begin();
 
-	oops_enter();
-
-	if (die.lock_owner != raw_smp_processor_id()) {
-		console_verbose();
-		raw_local_irq_save(flags);
-		__raw_spin_lock(&die.lock);
-		die.lock_owner = smp_processor_id();
-		die.lock_owner_depth = 0;
-		bust_spinlocks(1);
-	} else {
-		raw_local_irq_save(flags);
-	}
-
-	if (++die.lock_owner_depth < 3) {
+	if (die_nest_count < 3) {
 		report_bug(regs->ip, regs);
 
 		if (__die(str, regs, err))
@@ -456,26 +482,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 		printk(KERN_EMERG "Recursive die() failure, output suppressed\n");
 	}
 
-	bust_spinlocks(0);
-	die.lock_owner = -1;
-	add_taint(TAINT_DIE);
-	__raw_spin_unlock(&die.lock);
-	raw_local_irq_restore(flags);
-
-	if (!regs)
-		return;
-
-	if (kexec_should_crash(current))
-		crash_kexec(regs);
-
-	if (in_interrupt())
-		panic("Fatal exception in interrupt");
-
-	if (panic_on_oops)
-		panic("Fatal exception");
-
-	oops_exit();
-	do_exit(SIGSEGV);
+	oops_end(flags, regs, SIGSEGV);
 }
 
 static inline void

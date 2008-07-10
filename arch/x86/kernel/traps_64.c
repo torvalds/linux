@@ -518,7 +518,7 @@ unsigned __kprobes long oops_begin(void)
 }
 
 void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
-{ 
+{
 	die_owner = -1;
 	bust_spinlocks(0);
 	die_nest_count--;
