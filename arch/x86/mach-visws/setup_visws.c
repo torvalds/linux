@@ -8,6 +8,8 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 
+#include <asm/visws/cobalt.h>
+#include <asm/visws/piix4.h>
 #include <asm/arch_hooks.h>
 #include <asm/fixmap.h>
 #include <asm/reboot.h>
@@ -18,8 +20,6 @@
 
 #include <mach_ipi.h>
 
-#include "cobalt.h"
-#include "piix4.h"
 #include "mach_apic.h"
 
 #include <linux/init.h>

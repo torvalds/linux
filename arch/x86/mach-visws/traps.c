@@ -7,10 +7,10 @@
 #include <linux/pci_ids.h>
 
 #include <asm/io.h>
-#include <asm/arch_hooks.h>
 #include <asm/apic.h>
-#include "cobalt.h"
-#include "lithium.h"
+#include <asm/arch_hooks.h>
+#include <asm/visws/cobalt.h>
+#include <asm/visws/lithium.h>
 
 
 #define A01234 (LI_INTA_0 | LI_INTA_1 | LI_INTA_2 | LI_INTA_3 | LI_INTA_4)

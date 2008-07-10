@@ -9,8 +9,8 @@
 #include <linux/init.h>
 
 #include <asm/setup.h>
-#include "cobalt.h"
-#include "lithium.h"
+#include <asm/visws/cobalt.h>
+#include <asm/visws/lithium.h>
 
 #include "pci.h"
 
