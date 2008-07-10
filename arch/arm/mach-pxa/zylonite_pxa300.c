@@ -73,6 +73,12 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO27_AC97_SDATA_OUT,
 	GPIO28_AC97_SYNC,
 
+	/* SSP3 */
+	GPIO91_SSP3_SCLK,
+	GPIO92_SSP3_FRM,
+	GPIO93_SSP3_TXD,
+	GPIO94_SSP3_RXD,
+
 	/* WM9713 IRQ */
 	GPIO26_GPIO,
 

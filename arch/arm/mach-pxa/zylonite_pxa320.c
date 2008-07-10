@@ -69,6 +69,12 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO39_AC97_BITCLK,
 	GPIO40_AC97_nACRESET,
 
+	/* SSP3 */
+	GPIO89_SSP3_SCLK,
+	GPIO90_SSP3_FRM,
+	GPIO91_SSP3_TXD,
+	GPIO92_SSP3_RXD,
+
 	/* WM9713 IRQ */
 	GPIO15_GPIO,
 

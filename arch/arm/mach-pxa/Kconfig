@@ -189,6 +189,7 @@ config MACH_COLIBRI
 config MACH_ZYLONITE
 	bool "PXA3xx Development Platform (aka Zylonite)"
 	select PXA3xx
+	select PXA_SSP
 	select HAVE_PWM
 
 config MACH_LITTLETON
