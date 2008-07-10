@@ -1931,7 +1931,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha, int defer)
 	scsi_qla_host_t *pha = to_qla_parent(ha);
 
 	list_for_each_entry(fcport, &pha->fcports, list) {
-		if (ha->vp_idx != 0 && ha->vp_idx != fcport->vp_idx)
+		if (ha->vp_idx != fcport->vp_idx)
 			continue;
 		/*
 		 * No point in marking the device as lost, if the device is
@@ -1939,17 +1939,10 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha, int defer)
 		 */
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
-		if (atomic_read(&fcport->state) == FCS_ONLINE) {
-			if (defer)
-				qla2x00_schedule_rport_del(ha, fcport, defer);
-			else if (ha->vp_idx == fcport->vp_idx)
-				qla2x00_schedule_rport_del(ha, fcport, defer);
-		}
+		if (atomic_read(&fcport->state) == FCS_ONLINE)
+			qla2x00_schedule_rport_del(ha, fcport, defer);
 		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
-
-	if (defer)
-		qla2xxx_wake_dpc(ha);
 }
 
 /*
