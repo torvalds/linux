@@ -63,6 +63,8 @@ static inline void device_init_wakeup(struct device *dev, int val)
 	dev->power.can_wakeup = !!val;
 }
 
+static inline void device_set_wakeup_capable(struct device *dev, int val) { }
+
 static inline int device_can_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup;
