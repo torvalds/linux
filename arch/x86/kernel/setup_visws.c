@@ -260,6 +260,13 @@ void __init visws_early_detect(void)
 	mach_get_smp_config_quirk	= visws_get_smp_config_quirk;
 	mach_find_smp_config_quirk	= visws_find_smp_config_quirk;
 
+#ifdef CONFIG_X86_IO_APIC
+	/*
+	 * Turn off IO-APIC detection and initialization:
+	 */
+	skip_ioapic_setup		= 1;
+#endif
+
 	/*
 	 * Get Board rev.
 	 * First, we have to initialize the 307 part to allow us access
