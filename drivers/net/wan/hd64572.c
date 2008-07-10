@@ -131,6 +131,7 @@ static inline void sca_set_carrier(port_t *port)
 static void sca_init_port(port_t *port)
 {
 	card_t *card = port->card;
+	u16 dmac_rx = get_dmac_rx(port), dmac_tx = get_dmac_tx(port);
 	int transmit, i;
 
 	port->rxin = 0;
@@ -138,7 +139,6 @@ static void sca_init_port(port_t *port)
 	port->txlast = 0;
 
 	for (transmit = 0; transmit < 2; transmit++) {
-		u16 dmac = transmit ? get_dmac_tx(port) : get_dmac_rx(port);
 		u16 buffs = transmit ? card->tx_ring_buffers
 			: card->rx_ring_buffers;
 
@@ -152,42 +152,37 @@ static void sca_init_port(port_t *port)
 			writew(0, &desc->len);
 			writeb(0, &desc->stat);
 		}
-
-		/* DMA disable - to halt state */
-		sca_out(0, transmit ? DSR_TX(port->chan) :
-			DSR_RX(port->chan), card);
-		/* software ABORT - to initial state */
-		sca_out(DCR_ABORT, transmit ? DCR_TX(port->chan) :
-			DCR_RX(port->chan), card);
-
-		/* current desc addr */
-		sca_outl(desc_offset(port, 0, transmit), dmac + CDAL, card);
-		if (!transmit)
-			sca_outl(desc_offset(port, buffs - 1, transmit),
-				 dmac + EDAL, card);
-		else
-			sca_outl(desc_offset(port, 0, transmit), dmac + EDAL,
-				 card);
-
-		/* clear frame end interrupt counter */
-		sca_out(DCR_CLEAR_EOF, transmit ? DCR_TX(port->chan) :
-			DCR_RX(port->chan), card);
-
-		if (!transmit) { /* Receive */
-			/* set buffer length */
-			sca_outw(HDLC_MAX_MRU, dmac + BFLL, card);
-			/* Chain mode, Multi-frame */
-			sca_out(0x14, DMR_RX(port->chan), card);
-			sca_out(DIR_EOME, DIR_RX(port->chan), card);
-			/* DMA enable */
-			sca_out(DSR_DE, DSR_RX(port->chan), card);
-		} else {	/* Transmit */
-			/* Chain mode, Multi-frame */
-			sca_out(0x14, DMR_TX(port->chan), card);
-			/* enable underflow interrupts */
-			sca_out(DIR_EOME, DIR_TX(port->chan), card);
-		}
 	}
+
+	/* DMA disable - to halt state */
+	sca_out(0, DSR_RX(port->chan), card);
+	sca_out(0, DSR_TX(port->chan), card);
+
+	/* software ABORT - to initial state */
+	sca_out(DCR_ABORT, DCR_RX(port->chan), card);
+	sca_out(DCR_ABORT, DCR_TX(port->chan), card);
+
+	/* current desc addr */
+	sca_outl(desc_offset(port, 0, 0), dmac_rx + CDAL, card);
+	sca_outl(desc_offset(port, card->tx_ring_buffers - 1, 0),
+		 dmac_rx + EDAL, card);
+	sca_outl(desc_offset(port, 0, 1), dmac_tx + CDAL, card);
+	sca_outl(desc_offset(port, 0, 1), dmac_tx + EDAL, card);
+
+	/* clear frame end interrupt counter */
+	sca_out(DCR_CLEAR_EOF, DCR_RX(port->chan), card);
+	sca_out(DCR_CLEAR_EOF, DCR_TX(port->chan), card);
+
+	/* Receive */
+	sca_outw(HDLC_MAX_MRU, dmac_rx + BFLL, card); /* set buffer length */
+	sca_out(0x14, DMR_RX(port->chan), card); /* Chain mode, Multi-frame */
+	sca_out(DIR_EOME, DIR_RX(port->chan), card); /* enable interrupts */
+	sca_out(DSR_DE, DSR_RX(port->chan), card); /* DMA enable */
+
+	/* Transmit */
+	sca_out(0x14, DMR_TX(port->chan), card); /* Chain mode, Multi-frame */
+	sca_out(DIR_EOME, DIR_TX(port->chan), card); /* enable interrupts */
+
 	sca_set_carrier(port);
 	netif_napi_add(port->netdev, &port->napi, sca_poll, NAPI_WEIGHT);
 }
