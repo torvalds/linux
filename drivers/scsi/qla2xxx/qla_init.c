@@ -4052,7 +4052,7 @@ qla24xx_configure_vhba(scsi_qla_host_t *ha)
 	rval = qla2x00_fw_ready(ha->parent);
 	if (rval == QLA_SUCCESS) {
 		clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
-		qla2x00_marker(ha->parent, 0, 0, MK_SYNC_ALL);
+		qla2x00_marker(ha, 0, 0, MK_SYNC_ALL);
 	}
 
 	ha->flags.management_server_logged_in = 0;

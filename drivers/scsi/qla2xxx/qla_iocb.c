@@ -269,7 +269,7 @@ qla2x00_start_scsi(srb_t *sp)
 {
 	int		ret, nseg;
 	unsigned long   flags;
-	scsi_qla_host_t	*ha;
+	scsi_qla_host_t	*ha, *pha;
 	struct scsi_cmnd *cmd;
 	uint32_t	*clr_ptr;
 	uint32_t        index;
@@ -283,6 +283,7 @@ qla2x00_start_scsi(srb_t *sp)
 	/* Setup device pointers. */
 	ret = 0;
 	ha = sp->ha;
+	pha = to_qla_parent(ha);
 	reg = &ha->iobase->isp;
 	cmd = sp->cmd;
 	/* So we know we haven't pci_map'ed anything yet */
@@ -297,7 +298,7 @@ qla2x00_start_scsi(srb_t *sp)
 	}
 
 	/* Acquire ring specific lock */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&pha->hardware_lock, flags);
 
 	/* Check for room in outstanding command list. */
 	handle = ha->current_outstanding_cmd;
@@ -386,14 +387,14 @@ qla2x00_start_scsi(srb_t *sp)
 	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED)
 		qla2x00_process_response_queue(ha);
 
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&pha->hardware_lock, flags);
 	return (QLA_SUCCESS);
 
 queuing_error:
 	if (tot_dsds)
 		scsi_dma_unmap(cmd);
 
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&pha->hardware_lock, flags);
 
 	return (QLA_FUNCTION_FAILED);
 }
@@ -454,10 +455,11 @@ qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 {
 	int ret;
 	unsigned long flags = 0;
+	scsi_qla_host_t *pha = to_qla_parent(ha);
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&pha->hardware_lock, flags);
 	ret = __qla2x00_marker(ha, loop_id, lun, type);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&pha->hardware_lock, flags);
 
 	return (ret);
 }
@@ -672,7 +674,7 @@ qla24xx_start_scsi(srb_t *sp)
 {
 	int		ret, nseg;
 	unsigned long   flags;
-	scsi_qla_host_t	*ha;
+	scsi_qla_host_t	*ha, *pha;
 	struct scsi_cmnd *cmd;
 	uint32_t	*clr_ptr;
 	uint32_t        index;
@@ -686,6 +688,7 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Setup device pointers. */
 	ret = 0;
 	ha = sp->ha;
+	pha = to_qla_parent(ha);
 	reg = &ha->iobase->isp24;
 	cmd = sp->cmd;
 	/* So we know we haven't pci_map'ed anything yet */
@@ -700,7 +703,7 @@ qla24xx_start_scsi(srb_t *sp)
 	}
 
 	/* Acquire ring specific lock */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&pha->hardware_lock, flags);
 
 	/* Check for room in outstanding command list. */
 	handle = ha->current_outstanding_cmd;
@@ -795,14 +798,14 @@ qla24xx_start_scsi(srb_t *sp)
 	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED)
 		qla24xx_process_response_queue(ha);
 
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&pha->hardware_lock, flags);
 	return QLA_SUCCESS;
 
 queuing_error:
 	if (tot_dsds)
 		scsi_dma_unmap(cmd);
 
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&pha->hardware_lock, flags);
 
 	return QLA_FUNCTION_FAILED;
 }
