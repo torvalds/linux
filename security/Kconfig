@@ -75,7 +75,7 @@ config SECURITY_NETWORK_XFRM
 
 config SECURITY_FILE_CAPABILITIES
 	bool "File POSIX Capabilities (EXPERIMENTAL)"
-	depends on SECURITY && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	default n
 	help
 	  This enables filesystem capabilities, allowing you to give
