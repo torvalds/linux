@@ -36,6 +36,7 @@ extern struct genapic *genapic;
 extern struct genapic apic_flat;
 extern struct genapic apic_physflat;
 extern struct genapic apic_x2apic_cluster;
+extern struct genapic apic_x2apic_phys;
 extern int acpi_madt_oem_check(char *, char *);
 
 extern void apic_send_IPI_self(int vector);

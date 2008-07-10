@@ -30,6 +30,15 @@ DEFINE_PER_CPU(int, x2apic_extra_bits);
 
 struct genapic __read_mostly *genapic = &apic_flat;
 
+static int x2apic_phys = 0;
+
+static int set_x2apic_phys_mode(char *arg)
+{
+	x2apic_phys = 1;
+	return 0;
+}
+early_param("x2apic_phys", set_x2apic_phys_mode);
+
 static enum uv_system_type uv_system_type;
 
 /*
@@ -39,9 +48,12 @@ void __init setup_apic_routing(void)
 {
 	if (uv_system_type == UV_NON_UNIQUE_APIC)
 		genapic = &apic_x2apic_uv_x;
-	else if (cpu_has_x2apic && intr_remapping_enabled)
-		genapic = &apic_x2apic_cluster;
-	else
+	else if (cpu_has_x2apic && intr_remapping_enabled) {
+		if (x2apic_phys)
+			genapic = &apic_x2apic_phys;
+		else
+			genapic = &apic_x2apic_cluster;
+	} else
 #ifdef CONFIG_ACPI
 	/*
 	 * Quirk: some x86_64 machines can only use physical APIC mode
