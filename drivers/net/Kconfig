@@ -2270,10 +2270,6 @@ config UCC_GETH
 	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
 	  which is available on some Freescale SOCs.
 
-config UGETH_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on UCC_GETH
-
 config UGETH_MAGIC_PACKET
 	bool "Magic Packet detection support"
 	depends on UCC_GETH
