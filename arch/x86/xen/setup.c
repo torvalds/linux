@@ -106,46 +106,46 @@ static __cpuinit int register_callback(unsigned type, const void *func)
 
 void __cpuinit xen_enable_sysenter(void)
 {
-	int cpu = smp_processor_id();
 	extern void xen_sysenter_target(void);
 	int ret;
+	unsigned sysenter_feature;
 
 #ifdef CONFIG_X86_32
-	if (!boot_cpu_has(X86_FEATURE_SEP)) {
-		return;
-	}
+	sysenter_feature = X86_FEATURE_SEP;
 #else
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
-	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR) {
-		return;
-	}
+	sysenter_feature = X86_FEATURE_SYSENTER32;
 #endif
 
+	if (!boot_cpu_has(sysenter_feature))
+		return;
+
 	ret = register_callback(CALLBACKTYPE_sysenter, xen_sysenter_target);
-	if(ret != 0) {
-		clear_cpu_cap(&cpu_data(cpu), X86_FEATURE_SEP);
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SEP);
-	}
+	if(ret != 0)
+		setup_clear_cpu_cap(sysenter_feature);
 }
 
 void __cpuinit xen_enable_syscall(void)
 {
 #ifdef CONFIG_X86_64
-	int cpu = smp_processor_id();
 	int ret;
 	extern void xen_syscall_target(void);
 	extern void xen_syscall32_target(void);
 
 	ret = register_callback(CALLBACKTYPE_syscall, xen_syscall_target);
 	if (ret != 0) {
-		printk("failed to set syscall: %d\n", ret);
-		clear_cpu_cap(&cpu_data(cpu), X86_FEATURE_SYSCALL);
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SYSCALL);
-	} else {
+		printk(KERN_ERR "Failed to set syscall: %d\n", ret);
+		/* Pretty fatal; 64-bit userspace has no other
+		   mechanism for syscalls. */
+	}
+
+	if (boot_cpu_has(X86_FEATURE_SYSCALL32)) {
 		ret = register_callback(CALLBACKTYPE_syscall32,
 					xen_syscall32_target);
-		if (ret != 0)
-			printk("failed to set 32-bit syscall: %d\n", ret);
+		if (ret != 0) {
+			printk(KERN_INFO "Xen: 32-bit syscall not supported: disabling vdso\n");
+			setup_clear_cpu_cap(X86_FEATURE_SYSCALL32);
+			sysctl_vsyscall32 = 0;
+		}
 	}
 #endif /* CONFIG_X86_64 */
 }
