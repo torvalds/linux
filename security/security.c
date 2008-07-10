@@ -125,35 +125,6 @@ int register_security(struct security_operations *ops)
 	return 0;
 }
 
-/**
- * mod_reg_security - allows security modules to be "stacked"
- * @name: a pointer to a string with the name of the security_options to be registered
- * @ops: a pointer to the struct security_options that is to be registered
- *
- * This function allows security modules to be stacked if the currently loaded
- * security module allows this to happen.  It passes the @name and @ops to the
- * register_security function of the currently loaded security module.
- *
- * The return value depends on the currently loaded security module, with 0 as
- * success.
- */
-int mod_reg_security(const char *name, struct security_operations *ops)
-{
-	if (verify(ops)) {
-		printk(KERN_INFO "%s could not verify "
-		       "security operations.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (ops == security_ops) {
-		printk(KERN_INFO "%s security operations "
-		       "already registered.\n", __func__);
-		return -EINVAL;
-	}
-
-	return security_ops->register_security(name, ops);
-}
-
 /* Security operations */
 
 int security_ptrace(struct task_struct *parent, struct task_struct *child,

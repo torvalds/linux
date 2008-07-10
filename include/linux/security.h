@@ -1239,11 +1239,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@pages contains the number of pages.
  *	Return 0 if permission is granted.
  *
- * @register_security:
- *	allow module stacking.
- *	@name contains the name of the security module being stacked.
- *	@ops contains a pointer to the struct security_operations of the module to stack.
- *
  * @secid_to_secctx:
  *	Convert secid to security context.
  *	@secid contains the security ID.
@@ -1471,10 +1466,6 @@ struct security_operations {
 	int (*netlink_send) (struct sock *sk, struct sk_buff *skb);
 	int (*netlink_recv) (struct sk_buff *skb, int cap);
 
-	/* allow module stacking */
-	int (*register_security) (const char *name,
-				  struct security_operations *ops);
-
 	void (*d_instantiate) (struct dentry *dentry, struct inode *inode);
 
 	int (*getprocattr) (struct task_struct *p, char *name, char **value);
@@ -1564,7 +1555,6 @@ struct security_operations {
 extern int security_init(void);
 extern int security_module_enable(struct security_operations *ops);
 extern int register_security(struct security_operations *ops);
-extern int mod_reg_security(const char *name, struct security_operations *ops);
 extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
 					     struct dentry *parent, void *data,
 					     const struct file_operations *fops);

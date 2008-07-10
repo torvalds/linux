@@ -721,12 +721,6 @@ static int cap_xfrm_decode_session(struct sk_buff *skb, u32 *fl, int ckall)
 }
 
 #endif /* CONFIG_SECURITY_NETWORK_XFRM */
-static int cap_register_security(const char *name,
-				 struct security_operations *ops)
-{
-	return -EINVAL;
-}
-
 static void cap_d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 }
@@ -940,7 +934,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, sem_semop);
 	set_to_cap_if_null(ops, netlink_send);
 	set_to_cap_if_null(ops, netlink_recv);
-	set_to_cap_if_null(ops, register_security);
 	set_to_cap_if_null(ops, d_instantiate);
 	set_to_cap_if_null(ops, getprocattr);
 	set_to_cap_if_null(ops, setprocattr);

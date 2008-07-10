@@ -126,13 +126,11 @@ __setup("selinux=", selinux_enabled_setup);
 int selinux_enabled = 1;
 #endif
 
-/* Original (dummy) security module. */
-static struct security_operations *original_ops;
 
-/* Minimal support for a secondary security module,
-   just to allow the use of the dummy or capability modules.
-   The owlsm module can alternatively be used as a secondary
-   module as long as CONFIG_OWLSM_FD is not enabled. */
+/*
+ * Minimal support for a secondary security module,
+ * just to allow the use of the capability module.
+ */
 static struct security_operations *secondary_ops;
 
 /* Lists of inode and superblock security structures initialized
@@ -5115,24 +5113,6 @@ static void selinux_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 	*secid = isec->sid;
 }
 
-/* module stacking operations */
-static int selinux_register_security(const char *name, struct security_operations *ops)
-{
-	if (secondary_ops != original_ops) {
-		printk(KERN_ERR "%s:  There is already a secondary security "
-		       "module registered.\n", __func__);
-		return -EINVAL;
-	}
-
-	secondary_ops = ops;
-
-	printk(KERN_INFO "%s:  Registering secondary module %s\n",
-	       __func__,
-	       name);
-
-	return 0;
-}
-
 static void selinux_d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	if (inode)
@@ -5517,8 +5497,6 @@ static struct security_operations selinux_ops = {
 	.sem_semctl =			selinux_sem_semctl,
 	.sem_semop =			selinux_sem_semop,
 
-	.register_security =		selinux_register_security,
-
 	.d_instantiate =		selinux_d_instantiate,
 
 	.getprocattr =			selinux_getprocattr,
@@ -5612,7 +5590,7 @@ static __init int selinux_init(void)
 					    0, SLAB_PANIC, NULL);
 	avc_init();
 
-	original_ops = secondary_ops = security_ops;
+	secondary_ops = security_ops;
 	if (!secondary_ops)
 		panic("SELinux: No initial security operations\n");
 	if (register_security(&selinux_ops))
