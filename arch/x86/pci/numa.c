@@ -151,7 +151,7 @@ static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82451NX, pci_fixup_i450nx);
 
-static int __init pci_numa_init(void)
+int __init pci_numa_init(void)
 {
 	int quad;
 
@@ -176,11 +176,3 @@ static int __init pci_numa_init(void)
 		}
 	return 0;
 }
-
-static __init int pci_subsys_init(void)
-{
-	pci_numa_init();
-	pcibios_irq_init();
-	pcibios_init();
-}
-subsys_initcall(pci_subsys_init);
