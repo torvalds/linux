@@ -107,6 +107,20 @@ struct IO_APIC_route_entry {
 
 } __attribute__ ((packed));
 
+struct IR_IO_APIC_route_entry {
+	__u64	vector		: 8,
+		zero		: 3,
+		index2		: 1,
+		delivery_status : 1,
+		polarity	: 1,
+		irr		: 1,
+		trigger		: 1,
+		mask		: 1,
+		reserved	: 31,
+		format		: 1,
+		index		: 15;
+} __attribute__ ((packed));
+
 #ifdef CONFIG_X86_IO_APIC
 
 /*

@@ -220,6 +220,16 @@ int flush_irte(int irq)
 	return 0;
 }
 
+struct intel_iommu *map_ioapic_to_ir(int apic)
+{
+	int i;
+
+	for (i = 0; i < MAX_IO_APICS; i++)
+		if (ir_ioapic[i].id == apic)
+			return ir_ioapic[i].iommu;
+	return NULL;
+}
+
 int free_irte(int irq)
 {
 	int index, i;

@@ -46,6 +46,7 @@
 static int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
 int disable_apic;
+int x2apic;
 
 /* Local APIC timer works in C2 */
 int local_apic_timer_c2_ok;

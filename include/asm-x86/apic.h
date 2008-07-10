@@ -134,6 +134,15 @@ extern int get_physical_broadcast(void);
 # define apic_write_around(x, y) apic_write_atomic((x), (y))
 #endif
 
+#ifdef CONFIG_X86_64
+static inline void ack_x2APIC_irq(void)
+{
+	/* Docs say use 0 for future compatibility */
+	native_apic_msr_write(APIC_EOI, 0);
+}
+#endif
+
+
 static inline void ack_APIC_irq(void)
 {
 	/*

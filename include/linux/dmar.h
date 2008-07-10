@@ -109,6 +109,7 @@ extern int flush_irte(int irq);
 extern int free_irte(int irq);
 
 extern int irq_remapped(int irq);
+extern struct intel_iommu *map_ioapic_to_ir(int apic);
 #else
 #define irq_remapped(irq)		(0)
 #define enable_intr_remapping(mode)	(-1)
