@@ -187,11 +187,10 @@ EXPORT_SYMBOL_GPL(sdio_set_block_size);
  */
 static inline unsigned int sdio_max_byte_size(struct sdio_func *func)
 {
-	return min(min(min(
-		func->card->host->max_seg_size,
-		func->card->host->max_blk_size),
-		func->max_blksize),
-		512u); /* maximum size for byte mode */
+	unsigned mval =	min(func->card->host->max_seg_size,
+			    func->card->host->max_blk_size);
+	mval = min(mval, func->max_blksize);
+	return min(mval, 512u); /* maximum size for byte mode */
 }
 
 /**
