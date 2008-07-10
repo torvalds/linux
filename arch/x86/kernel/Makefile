@@ -6,6 +6,13 @@ extra-y                := head_$(BITS).o head$(BITS).o init_task.o vmlinux.lds
 
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 
+ifdef CONFIG_FTRACE
+# Do not profile debug utilities
+CFLAGS_REMOVE_tsc_64.o = -pg
+CFLAGS_REMOVE_tsc_32.o = -pg
+CFLAGS_REMOVE_rtc.o = -pg
+endif
+
 #
 # vsyscalls (which work on the user stack) should have
 # no stack-protector checks:
@@ -56,6 +63,7 @@ obj-$(CONFIG_X86_MPPARSE)	+= mpparse.o
 obj-$(CONFIG_X86_LOCAL_APIC)	+= apic_$(BITS).o nmi_$(BITS).o
 obj-$(CONFIG_X86_IO_APIC)	+= io_apic_$(BITS).o
 obj-$(CONFIG_X86_REBOOTFIXUPS)	+= reboot_fixups_32.o
+obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec_$(BITS).o
 obj-$(CONFIG_KEXEC)		+= relocate_kernel_$(BITS).o crash.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump_$(BITS).o

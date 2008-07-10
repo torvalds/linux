@@ -11,6 +11,18 @@ obj-y     = sched.o fork.o exec_domain.o panic.o printk.o profile.o \
 	    hrtimer.o rwsem.o nsproxy.o srcu.o semaphore.o \
 	    notifier.o ksysfs.o pm_qos_params.o sched_clock.o
 
+CFLAGS_REMOVE_sched.o = -pg -mno-spe
+
+ifdef CONFIG_FTRACE
+# Do not trace debug files and internal ftrace files
+CFLAGS_REMOVE_lockdep.o = -pg
+CFLAGS_REMOVE_lockdep_proc.o = -pg
+CFLAGS_REMOVE_mutex-debug.o = -pg
+CFLAGS_REMOVE_rtmutex-debug.o = -pg
+CFLAGS_REMOVE_cgroup-debug.o = -pg
+CFLAGS_REMOVE_sched_clock.o = -pg
+endif
+
 obj-$(CONFIG_SYSCTL_SYSCALL_CHECK) += sysctl_check.o
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
 obj-y += time/
@@ -69,6 +81,8 @@ obj-$(CONFIG_TASK_DELAY_ACCT) += delayacct.o
 obj-$(CONFIG_TASKSTATS) += taskstats.o tsacct.o
 obj-$(CONFIG_MARKERS) += marker.o
 obj-$(CONFIG_LATENCYTOP) += latencytop.o
+obj-$(CONFIG_FTRACE) += trace/
+obj-$(CONFIG_TRACING) += trace/
 
 ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
 # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is

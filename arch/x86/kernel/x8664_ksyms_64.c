@@ -2,13 +2,20 @@
    All C exports should go in the respective C files. */
 
 #include <linux/module.h>
-#include <net/checksum.h>
 #include <linux/smp.h>
 
+#include <net/checksum.h>
+
 #include <asm/processor.h>
-#include <asm/uaccess.h>
 #include <asm/pgtable.h>
+#include <asm/uaccess.h>
 #include <asm/desc.h>
+#include <asm/ftrace.h>
+
+#ifdef CONFIG_FTRACE
+/* mcount is defined in assembly */
+EXPORT_SYMBOL(mcount);
+#endif
 
 EXPORT_SYMBOL(kernel_thread);
 

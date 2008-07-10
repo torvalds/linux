@@ -172,6 +172,14 @@ config IOMMU_LEAK
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
 
+config PAGE_FAULT_HANDLERS
+	bool "Custom page fault handlers"
+	depends on DEBUG_KERNEL
+	help
+	  Allow the use of custom page fault handlers. A kernel module may
+	  register a function that is called on every page fault. Custom
+	  handlers are used by some debugging and reverse engineering tools.
+
 #
 # IO delay types:
 #

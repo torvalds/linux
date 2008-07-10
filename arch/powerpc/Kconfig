@@ -105,11 +105,13 @@ config ARCH_NO_VIRT_TO_BUS
 config PPC
 	bool
 	default y
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE
 	select HAVE_IDE
-	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_LMB
+	select HAVE_OPROFILE
 
 config EARLY_PRINTK
 	bool

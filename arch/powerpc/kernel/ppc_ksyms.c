@@ -42,6 +42,7 @@
 #include <asm/div64.h>
 #include <asm/signal.h>
 #include <asm/dcr.h>
+#include <asm/ftrace.h>
 
 #ifdef CONFIG_PPC32
 extern void transfer_to_handler(void);
@@ -65,6 +66,10 @@ EXPORT_SYMBOL(alignment_exception);
 EXPORT_SYMBOL(program_check_exception);
 EXPORT_SYMBOL(single_step_exception);
 EXPORT_SYMBOL(sys_sigreturn);
+#endif
+
+#ifdef CONFIG_FTRACE
+EXPORT_SYMBOL(_mcount);
 #endif
 
 EXPORT_SYMBOL(strcpy);

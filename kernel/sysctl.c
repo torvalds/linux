@@ -46,6 +46,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/acpi.h>
 #include <linux/reboot.h>
+#include <linux/ftrace.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -455,6 +456,16 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#ifdef CONFIG_FTRACE
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "ftrace_enabled",
+		.data		= &ftrace_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &ftrace_enable_sysctl,
+	},
+#endif
 #ifdef CONFIG_KMOD
 	{
 		.ctl_name	= KERN_MODPROBE,
