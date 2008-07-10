@@ -230,6 +230,17 @@ struct intel_iommu *map_ioapic_to_ir(int apic)
 	return NULL;
 }
 
+struct intel_iommu *map_dev_to_ir(struct pci_dev *dev)
+{
+	struct dmar_drhd_unit *drhd;
+
+	drhd = dmar_find_matched_drhd_unit(dev);
+	if (!drhd)
+		return NULL;
+
+	return drhd->iommu;
+}
+
 int free_irte(int irq)
 {
 	int index, i;
