@@ -1418,8 +1418,10 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 
 	rtl_hw_phy_config(dev);
 
-	dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
-	RTL_W8(0x82, 0x01);
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06) {
+		dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
+		RTL_W8(0x82, 0x01);
+	}
 
 	pci_write_config_byte(tp->pci_dev, PCI_LATENCY_TIMER, 0x40);
 
