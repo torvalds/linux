@@ -419,10 +419,8 @@ int __init dmar_table_init(void)
 	}
 
 #ifdef CONFIG_DMAR
-	if (list_empty(&dmar_rmrr_units)) {
+	if (list_empty(&dmar_rmrr_units))
 		printk(KERN_INFO PREFIX "No RMRR found\n");
-		return -ENODEV;
-	}
 #endif
 
 	return 0;
