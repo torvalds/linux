@@ -1024,6 +1024,7 @@ ENTRY(xen_sysenter_target)
 	RING0_INT_FRAME
 	addl $5*4, %esp		/* remove xen-provided frame */
 	jmp sysenter_past_esp
+	CFI_ENDPROC
 
 ENTRY(xen_hypervisor_callback)
 	CFI_STARTPROC
